@@ -3,6 +3,8 @@
 enum State { MENU, BOARD, COMBAT, SAFEHOUSE, HANGAR, EJECT, PILOT }
 
 var current_state: State = State.MENU
+var game_world_scene: PackedScene = preload("res://scenes/game_world.tscn")
+var board_scene: PackedScene = preload("res://scenes/board/game_board.tscn")
 
 
 func transition_to(new_state: State) -> void:
@@ -17,6 +19,10 @@ func enter_combat() -> void:
 
 
 func enter_board() -> void:
+	# Load game world if not already loaded
+	var world = get_tree().current_scene
+	if world == null or world.name != "GameWorld":
+		get_tree().change_scene_to_file("res://scenes/game_world.tscn")
 	transition_to(State.BOARD)
 
 
@@ -34,4 +40,5 @@ func enter_eject() -> void:
 
 func end_run(victory: bool) -> void:
 	EventBus.run_ended.emit(victory)
+	get_tree().change_scene_to_file("res://scenes/main_menu/main_menu.tscn")
 	transition_to(State.MENU)

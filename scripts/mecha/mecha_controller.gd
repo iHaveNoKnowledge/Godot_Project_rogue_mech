@@ -12,6 +12,7 @@ const GRAVITY := 20.0
 
 
 func _ready() -> void:
+	add_to_group("mecha")
 	_recalculate_weight()
 	EventBus.weight_changed.connect(_on_weight_changed)
 

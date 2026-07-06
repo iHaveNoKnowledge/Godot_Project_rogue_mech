@@ -1,4 +1,4 @@
-﻿[gd_scene format=3 uid="uid://vfx_armor_break"]
+﻿[gd_scene load_steps=2 format=3]
 
 [sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_break"]
 direction = Vector3(0, 1, 0)
@@ -15,6 +15,3 @@ lifetime = 0.8
 one_shot = true
 explosiveness = 1.0
 process_material = SubResource("ParticleProcessMaterial_break")
-
-[node name="CPUParticles3D" type="CPUParticles3D" parent="."]
-emitting = false

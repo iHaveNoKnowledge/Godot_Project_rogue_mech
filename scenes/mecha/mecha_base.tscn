@@ -1,4 +1,4 @@
-﻿[gd_scene load_steps=4 format=3 uid="uid://mecha_base"]
+﻿[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/mecha/mecha_controller.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/mecha/mecha_combat.gd" id="2"]

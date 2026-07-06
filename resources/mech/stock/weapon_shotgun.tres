@@ -1,0 +1,18 @@
+﻿[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/mech/weapon_part.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+weapon_name = "Shotgun"
+weapon_type = 3
+damage = 45.0
+fire_rate = 0.8
+max_ammo = 30
+ammo_per_shot = 2
+projectile_speed = 35.0
+spread = 0.15
+weight = 7.0
+range_distance = 15.0
+description = "ลูกซอง, แรงในระยะประชิด, ยิงทีละ 2 นัด"
+rarity = 1

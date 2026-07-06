@@ -1,0 +1,27 @@
+; Engine configuration file.
+
+[application]
+config/name="Mecha Roguelike Action 3rd-Person"
+run/main_scene="res://scenes/main_menu/main_menu.tscn"
+config/features=PackedStringArray("4.3")
+
+[autoload]
+EventBus="*res://autoload/event_bus.gd"
+GlobalData="*res://autoload/global_data.gd"
+GameManager="*res://autoload/game_manager.gd"
+
+[display]
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+window/stretch/mode="viewport"
+
+[layer_names]
+3d_physics/layer_1="Mecha"
+3d_physics/layer_2="Environment"
+3d_physics/layer_3="Enemy"
+3d_physics/layer_4="Projectile"
+3d_physics/layer_5="Pilot"
+
+[rendering]
+anti_aliasing/quality/msaa_3d=2
+

@@ -1,0 +1,13 @@
+﻿[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/mech/armor_part.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+part_name = "Head"
+slot_id = "head"
+max_hp = 80.0
+max_frame_hp = 30.0
+weight = 8.0
+armor_class = 1.2
+break_threshold = 0.3

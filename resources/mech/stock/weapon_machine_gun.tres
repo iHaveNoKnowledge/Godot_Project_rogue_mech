@@ -1,0 +1,18 @@
+﻿[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/mech/weapon_part.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+weapon_name = "Machine Gun"
+weapon_type = 1
+damage = 10.0
+fire_rate = 0.08
+max_ammo = 200
+ammo_per_shot = 1
+projectile_speed = 40.0
+spread = 0.05
+weight = 6.0
+range_distance = 35.0
+description = "ปืนกลเบา, ยิงเร็วมาก, แรงน้อย, สิ้นเปลืองกระสุน"
+rarity = 0

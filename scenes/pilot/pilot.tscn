@@ -1,0 +1,31 @@
+﻿[gd_scene load_steps=4 format=3 uid="uid://pilot_scene"]
+
+[ext_resource type="Script" path="res://scripts/pilot/pilot_controller.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/pilot/pilot_interaction.gd" id="2"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_pilot"]
+height = 1.8
+radius = 0.3
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_interact"]
+radius = 2.0
+
+[node name="Pilot" type="CharacterBody3D"]
+script = ExtResource("1")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("CapsuleShape3D_pilot")
+
+[node name="BodyMesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+
+[node name="InteractArea" type="Area3D" parent="."]
+collision_layer = 16
+collision_mask = 8
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="InteractArea"]
+shape = SubResource("SphereShape3D_interact")
+
+[node name="PilotInteraction" type="Node" parent="."]
+script = ExtResource("2")

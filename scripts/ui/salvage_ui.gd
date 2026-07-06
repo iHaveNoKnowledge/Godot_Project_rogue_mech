@@ -1,0 +1,84 @@
+﻿extends Control
+
+var weapon_list: ItemList
+var tag_button: Button
+var salvage_count_label: Label
+var current_weapons: Array[WeaponPart] = []
+
+
+func _ready() -> void:
+	_create_ui()
+	visible = false
+
+
+func _create_ui() -> void:
+	var center = CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(center)
+
+	var vbox = VBoxContainer.new()
+	vbox.custom_minimum_size = Vector2(500, 400)
+	center.add_child(vbox)
+
+	var title = Label.new()
+	title.text = "Salvage — Tag weapons to keep"
+	vbox.add_child(title)
+
+	weapon_list = ItemList.new()
+	weapon_list.custom_minimum_size = Vector2(480, 300)
+	weapon_list.item_selected.connect(_on_item_selected)
+	vbox.add_child(weapon_list)
+
+	var hbox = HBoxContainer.new()
+	vbox.add_child(hbox)
+
+	tag_button = Button.new()
+	tag_button.text = "Tag / Untag"
+	tag_button.pressed.connect(_on_tag_pressed)
+	hbox.add_child(tag_button)
+
+	salvage_count_label = Label.new()
+	salvage_count_label.text = "Tagged: 0"
+	hbox.add_child(salvage_count_label)
+
+	var confirm_button = Button.new()
+	confirm_button.text = "Confirm Salvage"
+	confirm_button.pressed.connect(_on_confirm)
+	hbox.add_child(confirm_button)
+
+
+func show_weapons(weapons: Array[WeaponPart]) -> void:
+	current_weapons = weapons
+	visible = true
+	_refresh_list()
+
+
+func _refresh_list() -> void:
+	weapon_list.clear()
+	for weapon in current_weapons:
+		var tagged = " [TAGGED]" if SalvageSystem.is_tagged(weapon) else ""
+		weapon_list.add_item("%s - %s%s" % [weapon.weapon_name, weapon.description, tagged])
+	salvage_count_label.text = "Tagged: %d" % SalvageSystem.get_salvaged_count()
+
+
+func _on_item_selected(index: int) -> void:
+	if index < current_weapons.size():
+		var weapon = current_weapons[index]
+		tag_button.text = "Untag" if SalvageSystem.is_tagged(weapon) else "Tag"
+
+
+func _on_tag_pressed() -> void:
+	var index = weapon_list.get_current_item()
+	if index < 0 or index >= current_weapons.size():
+		return
+	var weapon = current_weapons[index]
+	if SalvageSystem.is_tagged(weapon):
+		SalvageSystem.untag_salvage(weapon)
+	else:
+		SalvageSystem.tag_for_salvage(weapon)
+	_refresh_list()
+
+
+func _on_confirm() -> void:
+	SalvageSystem.salvage_all()
+	visible = false

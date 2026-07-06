@@ -1,0 +1,18 @@
+﻿[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/mech/weapon_part.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+weapon_name = "Heat Blade"
+weapon_type = 4
+damage = 60.0
+fire_rate = 0.5
+max_ammo = 999
+ammo_per_shot = 0
+projectile_speed = 0.0
+spread = 0.0
+weight = 4.0
+range_distance = 3.0
+description = "ดาบความร้อนสูง, ไม่ใช้กระสุน, ต้องเข้าใกล้มาก"
+rarity = 2

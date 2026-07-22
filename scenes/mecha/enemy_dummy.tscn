@@ -1,8 +1,9 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/mecha/enemy_dummy.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/mecha/enemy_health.gd" id="2"]
 [ext_resource type="Script" path="res://scripts/ui/enemy_status_ui.gd" id="3"]
+[ext_resource type="Script" path="res://scripts/mecha/mecha_hitbox.gd" id="4"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 height = 3.5
@@ -16,6 +17,9 @@ radius = 0.8
 albedo_color = Color(0.8, 0.2, 0.2, 1)
 metallic = 0.2
 roughness = 0.7
+
+[sub_resource type="SphereShape3D" id="HitboxShape"]
+radius = 2.0
 
 [node name="EnemyDummy" type="CharacterBody3D"]
 script = ExtResource("1")
@@ -33,6 +37,15 @@ material_override = SubResource("EnemyMat")
 
 [node name="HealthSystem" type="Node3D" parent="."]
 script = ExtResource("2")
+
+[node name="Hitbox" type="Area3D" parent="."]
+collision_layer = 0
+collision_mask = 4
+script = ExtResource("4")
+health_system_path = NodePath("../HealthSystem")
+
+[node name="HitboxShape" type="CollisionShape3D" parent="Hitbox"]
+shape = SubResource("HitboxShape")
 
 [node name="EnemyStatus" type="Node3D" parent="."]
 script = ExtResource("3")

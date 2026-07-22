@@ -268,7 +268,7 @@ func _melee_attack(hand: String, weapon: WeaponPart) -> void:
 
 	var space_state = get_viewport().get_world_3d().direct_space_state
 	var query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 500.0)
-	query.collision_mask = 13
+	query.collision_mask = 10
 	var result = space_state.intersect_ray(query)
 
 	var target_point: Vector3
@@ -385,7 +385,7 @@ func _get_fire_direction() -> Vector3:
 
 	var space_state = get_viewport().get_world_3d().direct_space_state
 	var query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 500.0)
-	query.collision_mask = 13
+	query.collision_mask = 10
 	var result = space_state.intersect_ray(query)
 
 	var target_point: Vector3

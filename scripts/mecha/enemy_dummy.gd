@@ -73,3 +73,29 @@ func _try_attack(delta: float) -> void:
 func take_damage(amount: float, damage_type: String = "kinetic") -> void:
 	if health_system:
 		health_system.take_damage(amount, damage_type)
+
+
+func take_damage_at_point(amount: float, world_pos: Vector3, damage_type: String = "kinetic") -> void:
+	if health_system == null:
+		return
+
+	var local_pos = to_local(world_pos)
+	var target_part = _determine_hit_part(local_pos)
+	health_system.take_damage_to_part(target_part, amount, damage_type)
+
+
+func _determine_hit_part(local_pos: Vector3) -> String:
+	if local_pos.y > 2.0:
+		return "head"
+	elif local_pos.y > 0.5:
+		if local_pos.x < -0.3:
+			return "arm_left"
+		elif local_pos.x > 0.3:
+			return "arm_right"
+		else:
+			return "body"
+	else:
+		if local_pos.x < 0.0:
+			return "leg_left"
+		else:
+			return "leg_right"

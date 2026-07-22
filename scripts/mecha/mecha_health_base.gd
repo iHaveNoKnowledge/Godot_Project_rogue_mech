@@ -66,6 +66,21 @@ func take_damage(amount: float, damage_type: String = "kinetic") -> void:
 		_apply_frame_damage(target_slot, amount, damage_type)
 
 
+func take_damage_to_part(slot_name: String, amount: float, damage_type: String = "kinetic") -> void:
+	if is_destroyed:
+		return
+	if not parts.has(slot_name):
+		slot_name = _select_target()
+	if slot_name == "":
+		return
+
+	var part = parts[slot_name]
+	if not part["armor_broken"]:
+		_apply_armor_damage(slot_name, amount, damage_type)
+	else:
+		_apply_frame_damage(slot_name, amount, damage_type)
+
+
 func _select_target() -> String:
 	var candidates = []
 	for slot in parts:

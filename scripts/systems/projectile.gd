@@ -39,26 +39,44 @@ func _physics_process(delta: float) -> void:
 
 func _check_enemy_hit() -> void:
 	var space_state = get_viewport().get_world_3d().direct_space_state
-	var query = PhysicsRayQueryParameters3D.create(last_pos, global_position)
-	query.collision_mask = 8
+	var from = last_pos
+	var to = global_position
+	var query = PhysicsRayQueryParameters3D.create(from, to)
+	query.collision_mask = 9
 	var result = space_state.intersect_ray(query)
 
 	if result:
 		var collider = result["collider"]
+		var hit_pos = result["position"]
+		var hit_part = result.get("collider_shape_name", "")
+
 		if collider.is_in_group("enemy"):
-			_hit_enemy(collider)
+			_hit_enemy(collider, hit_pos, hit_part)
 		else:
-			EffectManager.spawn_impact(result["position"], result["normal"])
+			EffectManager.spawn_impact(hit_pos, result["normal"])
 			queue_free()
+	else:
+		var enemies = get_tree().get_nodes_in_group("enemy")
+		for enemy in enemies:
+			if not is_instance_valid(enemy):
+				continue
+			var enemy_center = enemy.global_position + Vector3(0, 1.5, 0)
+			var closest = Geometry3D.get_closest_point_to_segment(enemy_center, from, to)
+			var dist = closest.distance_to(enemy_center)
+			if dist < 1.2:
+				_hit_enemy(enemy, closest, "")
+				return
 
 
-func _hit_enemy(enemy: Node3D) -> void:
-	EffectManager.spawn_impact(global_position, Vector3.UP)
+func _hit_enemy(enemy: Node3D, hit_pos: Vector3, _hit_part: String) -> void:
+	EffectManager.spawn_impact(hit_pos, Vector3.UP)
 
-	if enemy.has_method("take_damage"):
+	if enemy.has_method("take_damage_at_point"):
+		enemy.take_damage_at_point(damage, hit_pos, damage_type)
+	elif enemy.has_method("take_damage"):
 		enemy.take_damage(damage, damage_type)
-		EffectManager.spawn_damage_number(global_position + Vector3(0, 1, 0), damage, Color.WHITE)
 
+	EffectManager.spawn_damage_number(hit_pos + Vector3(0, 1, 0), damage, Color.WHITE)
 	queue_free()
 
 

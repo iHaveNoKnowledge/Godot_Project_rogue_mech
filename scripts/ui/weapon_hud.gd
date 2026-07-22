@@ -1,132 +1,177 @@
 extends CanvasLayer
 
-var left_label: Label
-var right_label: Label
-var carry_label: Label
-var ammo_left_label: Label
-var ammo_right_label: Label
-var drop_hint_label: Label
+var weapon_manager: Node = null
+var panel: PanelContainer = null
+var current_label: Label = null
+var carry_container: VBoxContainer = null
+var carry_labels: Array = []
+
+var left_holding: bool = false
+var right_holding: bool = false
+var selected_hand: String = ""
+
+var _bg_color: Color = Color(0.1, 0.1, 0.1, 0.85)
+var _accent_color: Color = Color(0.3, 0.6, 1.0, 1)
 
 
 func _ready() -> void:
 	_create_ui()
-	EventBus.game_state_changed.connect(_on_game_state_changed)
 	await get_tree().process_frame
 	var mecha = get_tree().current_scene.get_node_or_null("Mecha")
-	var wm = mecha.get_node_or_null("WeaponManager") if mecha else null
-	if wm:
-		wm.weapon_switched.connect(_on_weapon_switched)
-		wm.ammo_changed.connect(_on_ammo_changed)
-		wm.carry_updated.connect(_on_carry_updated)
-		wm.weapon_dropped.connect(_on_weapon_dropped)
-		wm._emit_initial_state()
+	weapon_manager = mecha.get_node_or_null("WeaponManager") if mecha else null
+	if weapon_manager:
+		weapon_manager.weapon_switched.connect(_on_weapon_switched)
+		weapon_manager.ammo_changed.connect(_on_ammo_changed)
+		weapon_manager.carry_updated.connect(_on_carry_updated)
+		weapon_manager._emit_initial_state()
+
+
+func _input(event: InputEvent) -> void:
+	if event.is_action_pressed("weapon_left"):
+		left_holding = true
+		selected_hand = "left"
+		_show_carry_list()
+	elif event.is_action_released("weapon_left"):
+		left_holding = false
+		if not right_holding:
+			selected_hand = ""
+			_hide_carry_list()
+
+	if event.is_action_pressed("weapon_right"):
+		right_holding = true
+		selected_hand = "right"
+		_show_carry_list()
+	elif event.is_action_released("weapon_right"):
+		right_holding = false
+		if not left_holding:
+			selected_hand = ""
+			_hide_carry_list()
 
 
 func _create_ui() -> void:
-	var panel = PanelContainer.new()
+	panel = PanelContainer.new()
 	panel.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	panel.offset_left = 20
 	panel.offset_right = -20
 	panel.offset_bottom = -10
-	panel.offset_top = -130
+	panel.offset_top = -200
+
+	var style = StyleBoxFlat.new()
+	style.bg_color = _bg_color
+	style.corner_radius_top_left = 8
+	style.corner_radius_top_right = 8
+	style.corner_radius_bottom_left = 8
+	style.corner_radius_bottom_right = 8
+	style.content_margin_left = 12
+	style.content_margin_right = 12
+	style.content_margin_top = 8
+	style.content_margin_bottom = 8
+	panel.add_theme_stylebox_override("panel", style)
 	add_child(panel)
 
 	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 4)
 	panel.add_child(vbox)
 
-	# Hands row
-	var hands_row = HBoxContainer.new()
-	vbox.add_child(hands_row)
+	current_label = Label.new()
+	current_label.text = "[L] Empty  |  [R] Empty"
+	current_label.add_theme_font_size_override("font_size", 16)
+	vbox.add_child(current_label)
 
-	# Left hand
-	var left_vbox = VBoxContainer.new()
-	left_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hands_row.add_child(left_vbox)
-	var left_title = Label.new()
-	left_title.text = "[L] - Press 1"
-	left_vbox.add_child(left_title)
-	left_label = Label.new()
-	left_label.text = "Empty"
-	left_vbox.add_child(left_label)
-	ammo_left_label = Label.new()
-	ammo_left_label.text = ""
-	left_vbox.add_child(ammo_left_label)
+	var sep = HSeparator.new()
+	vbox.add_child(sep)
 
-	# Right hand
-	var right_vbox = VBoxContainer.new()
-	right_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hands_row.add_child(right_vbox)
-	var right_title = Label.new()
-	right_title.text = "[R] - Press 3"
-	right_vbox.add_child(right_title)
-	right_label = Label.new()
-	right_label.text = "Empty"
-	right_vbox.add_child(right_label)
-	ammo_right_label = Label.new()
-	ammo_right_label.text = ""
-	right_vbox.add_child(ammo_right_label)
+	carry_container = VBoxContainer.new()
+	carry_container.add_theme_constant_override("separation", 2)
+	carry_container.visible = false
+	vbox.add_child(carry_container)
 
-	# Carry row
-	var carry_row = HBoxContainer.new()
-	vbox.add_child(carry_row)
-	var carry_title = Label.new()
-	carry_title.text = "[Carry] "
-	carry_row.add_child(carry_title)
-	carry_label = Label.new()
-	carry_label.text = "Empty"
-	carry_row.add_child(carry_label)
+	panel.visible = false
 
-	# Drop hint
-	drop_hint_label = Label.new()
-	drop_hint_label.text = "Hold 1/3 + 2 = Drop"
-	vbox.add_child(drop_hint_label)
+
+func _show_carry_list() -> void:
+	if weapon_manager == null:
+		return
+
+	panel.visible = true
+	carry_container.visible = true
+	_update_carry_display()
+
+
+func _hide_carry_list() -> void:
+	carry_container.visible = false
+	panel.visible = false
+
+
+func _update_carry_display() -> void:
+	if weapon_manager == null:
+		return
+
+	for child in carry_container.get_children():
+		child.queue_free()
+	carry_labels.clear()
+
+	var hand_name = selected_hand
+	var current_weapon = null
+	if hand_name == "left":
+		current_weapon = weapon_manager.left_hand
+	else:
+		current_weapon = weapon_manager.right_hand
+
+	if current_weapon:
+		var header = Label.new()
+		header.text = "Current: %s" % current_weapon.weapon_name
+		header.add_theme_font_size_override("font_size", 14)
+		header.add_theme_color_override("font_color", _accent_color)
+		carry_container.add_child(header)
+
+	var sep = HSeparator.new()
+	carry_container.add_child(sep)
+
+	var carry = weapon_manager.get_carry()
+	if carry.is_empty():
+		var empty = Label.new()
+		empty.text = "Carry: Empty"
+		empty.add_theme_font_size_override("font_size", 12)
+		carry_container.add_child(empty)
+	else:
+		for i in range(carry.size()):
+			var weapon = carry[i]
+			var ammo_text = "inf" if weapon.max_ammo >= 999 else str(weapon_manager.ammo_pool.get(weapon.weapon_name, 0))
+			var max_text = "inf" if weapon.max_ammo >= 999 else str(weapon.max_ammo)
+
+			var row = Label.new()
+			row.text = "%s    %s/%s" % [weapon.weapon_name, ammo_text, max_text]
+			row.add_theme_font_size_override("font_size", 12)
+			carry_container.add_child(row)
+			carry_labels.append(row)
 
 
 func _on_weapon_switched(hand: String, weapon_name: String) -> void:
-	match hand:
-		"left":
-			if left_label:
-				left_label.text = weapon_name
-		"right":
-			if right_label:
-				right_label.text = weapon_name
+	_update_current_display()
 
 
 func _on_ammo_changed(hand: String, current: int, max_ammo: int) -> void:
-	match hand:
-		"left":
-			if ammo_left_label:
-				ammo_left_label.text = "%d / %d" % [current, max_ammo]
-		"right":
-			if ammo_right_label:
-				ammo_right_label.text = "%d / %d" % [current, max_ammo]
+	_update_current_display()
+
+
+func _update_current_display() -> void:
+	if weapon_manager == null:
+		return
+
+	var left_name = weapon_manager.left_hand.weapon_name if weapon_manager.left_hand else "Empty"
+	var right_name = weapon_manager.right_hand.weapon_name if weapon_manager.right_hand else "Empty"
+	var left_ammo = weapon_manager._get_ammo(weapon_manager.left_hand) if weapon_manager.left_hand else 0
+	var right_ammo = weapon_manager._get_ammo(weapon_manager.right_hand) if weapon_manager.right_hand else 0
+	var left_max = weapon_manager.left_hand.max_ammo if weapon_manager.left_hand else 0
+	var right_max = weapon_manager.right_hand.max_ammo if weapon_manager.right_hand else 0
+
+	var left_text = "%s (%d/%d)" % [left_name, left_ammo, left_max] if weapon_manager.left_hand else "Empty"
+	var right_text = "%s (%d/%d)" % [right_name, right_ammo, right_max] if weapon_manager.right_hand else "Empty"
+
+	current_label.text = "[L] %s  |  [R] %s" % [left_text, right_text]
 
 
 func _on_carry_updated(carry_list: Array) -> void:
-	if carry_label == null:
-		return
-	if carry_list.is_empty():
-		carry_label.text = "Empty"
-		return
-	var names: PackedStringArray = []
-	for w in carry_list:
-		names.append(w.weapon_name)
-	carry_label.text = ", ".join(names)
-
-
-func _on_weapon_dropped(hand: String, _weapon: WeaponPart) -> void:
-	match hand:
-		"left":
-			if left_label:
-				left_label.text = "Empty"
-			if ammo_left_label:
-				ammo_left_label.text = ""
-		"right":
-			if right_label:
-				right_label.text = "Empty"
-			if ammo_right_label:
-				ammo_right_label.text = ""
-
-
-func _on_game_state_changed(_old: String, new_state: String) -> void:
-	visible = true
+	if selected_hand != "":
+		_update_carry_display()

@@ -7,11 +7,13 @@ var lifetime: float = 3.0
 var timer: float = 0.0
 var trail_timer: float = 0.0
 var direction: Vector3 = Vector3.FORWARD
+var last_pos: Vector3 = Vector3.ZERO
 
 
 func _ready() -> void:
 	add_to_group("projectile")
 	velocity = Vector3.ZERO
+	last_pos = global_position
 
 
 func _physics_process(delta: float) -> void:
@@ -20,7 +22,10 @@ func _physics_process(delta: float) -> void:
 		queue_free()
 		return
 
+	last_pos = global_position
 	move_and_slide()
+
+	_check_enemy_hit()
 
 	trail_timer += delta
 	if trail_timer >= 0.02:
@@ -30,6 +35,28 @@ func _physics_process(delta: float) -> void:
 	if is_on_floor() or is_on_wall() or is_on_ceiling():
 		EffectManager.spawn_impact(global_position, Vector3.UP)
 		queue_free()
+
+
+func _check_enemy_hit() -> void:
+	var enemies = get_tree().get_nodes_in_group("enemy")
+	for enemy in enemies:
+		if not is_instance_valid(enemy):
+			continue
+		var enemy_pos = enemy.global_position + Vector3(0, 1.5, 0)
+		var dist = global_position.distance_to(enemy_pos)
+		if dist < 1.5:
+			_hit_enemy(enemy)
+			return
+
+
+func _hit_enemy(enemy: Node3D) -> void:
+	EffectManager.spawn_impact(global_position, Vector3.UP)
+
+	if enemy.has_method("take_damage"):
+		enemy.take_damage(damage, damage_type)
+		EffectManager.spawn_damage_number(global_position + Vector3(0, 1, 0), damage, Color.WHITE)
+
+	queue_free()
 
 
 func setup(dir: Vector3, spd: float, dmg: float = 25.0, dmg_type: String = "kinetic") -> void:

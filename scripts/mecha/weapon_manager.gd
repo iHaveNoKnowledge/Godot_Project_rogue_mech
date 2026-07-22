@@ -212,14 +212,14 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 
 
 func _fire_projectile(hand: String, weapon: WeaponPart) -> void:
-	var direction = _get_fire_direction()
+	var offset = Vector3(-0.5, 1.0, 0) if hand == "left" else Vector3(0.5, 1.0, 0)
+	var spawn_pos = get_parent().global_position + offset
+	var direction = _get_fire_direction_from(spawn_pos)
+
 	if weapon.spread > 0.0:
 		direction.x += randf_range(-weapon.spread, weapon.spread)
 		direction.z += randf_range(-weapon.spread, weapon.spread)
 		direction = direction.normalized()
-
-	var offset = Vector3(-0.5, 1.0, 0) if hand == "left" else Vector3(0.5, 1.0, 0)
-	var spawn_pos = get_parent().global_position + offset
 
 	var proj_script = load("res://scripts/systems/projectile.gd")
 	var projectile = CharacterBody3D.new()
@@ -371,6 +371,30 @@ func _check_melee_hit(mecha: Node3D, direction: Vector3, damage: float) -> void:
 			elif enemy.has_method("take_damage"):
 				enemy.take_damage(damage, "melee")
 			EffectManager.spawn_damage_number(enemy.global_position + Vector3(0, 2.5, 0), damage, Color(1, 0.5, 0))
+
+
+func _get_fire_direction_from(from_pos: Vector3) -> Vector3:
+	var cam = get_viewport().get_camera_3d()
+	if cam == null:
+		return -Vector3.FORWARD
+
+	var viewport_size = get_viewport().get_visible_rect().size
+	var center = viewport_size / 2.0
+	var ray_origin = cam.project_ray_origin(center)
+	var ray_dir = cam.project_ray_normal(center)
+
+	var space_state = get_viewport().get_world_3d().direct_space_state
+	var query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 500.0)
+	query.collision_mask = 10
+	var result = space_state.intersect_ray(query)
+
+	var target_point: Vector3
+	if result:
+		target_point = result["position"]
+	else:
+		target_point = ray_origin + ray_dir * 500.0
+
+	return (target_point - from_pos).normalized()
 
 
 func _get_fire_direction() -> Vector3:

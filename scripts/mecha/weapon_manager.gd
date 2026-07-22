@@ -232,8 +232,11 @@ func _fire_projectile(hand: String, weapon: WeaponPart) -> void:
 
 	get_tree().current_scene.add_child(projectile)
 	var offset = Vector3(-0.5, 1.0, 0) if hand == "left" else Vector3(0.5, 1.0, 0)
-	projectile.global_position = get_parent().global_position + offset
+	var spawn_pos = get_parent().global_position + offset
+	projectile.global_position = spawn_pos
 	projectile.setup(direction, weapon.projectile_speed, weapon.damage)
+
+	EffectManager.spawn_muzzle_flash(spawn_pos, direction)
 
 
 func _get_fire_direction() -> Vector3:

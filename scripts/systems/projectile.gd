@@ -17,7 +17,12 @@ func _physics_process(delta: float) -> void:
 	if timer >= lifetime:
 		queue_free()
 		return
+
 	move_and_slide()
+
+	if is_on_floor() or is_on_wall() or is_on_ceiling():
+		_spawn_impact()
+		queue_free()
 
 
 func setup(dir: Vector3, spd: float, dmg: float = 25.0, dmg_type: String = "kinetic") -> void:
@@ -29,3 +34,12 @@ func setup(dir: Vector3, spd: float, dmg: float = 25.0, dmg_type: String = "kine
 
 func get_damage() -> float:
 	return damage
+
+
+func _spawn_impact() -> void:
+	var normal = Vector3.UP
+	if is_on_floor():
+		normal = Vector3.UP
+	elif is_on_wall():
+		normal = get_wall_normal()
+	EffectManager.spawn_impact(global_position, normal)

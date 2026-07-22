@@ -135,6 +135,9 @@ func _on_frame_destroyed(slot_name: String) -> void:
 func _on_mecha_destroyed() -> void:
 	is_destroyed = true
 	mecha_destroyed.emit()
+
+	EffectManager.spawn_explosion(global_position + Vector3(0, 1.5, 0))
+
 	for slot in parts:
 		_hide_part(slot)
 

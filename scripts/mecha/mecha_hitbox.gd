@@ -21,8 +21,13 @@ func _on_area_entered(area: Area3D) -> void:
 
 	var projectile = area.get_parent()
 	if projectile.has_method("get_damage"):
-		var damage = projectile.get_damage()
-		var damage_type = projectile.get("damage_type") or "kinetic"
+		var dmg = projectile.get_damage()
+		var dmg_type = projectile.get("damage_type") or "kinetic"
+
+		EffectManager.spawn_impact(projectile.global_position, Vector3.UP)
+
 		if health_system:
-			health_system.take_damage(damage, damage_type)
+			health_system.take_damage(dmg, dmg_type)
+			EffectManager.spawn_damage_number(projectile.global_position + Vector3(0, 2, 0), dmg, Color.WHITE)
+
 		projectile.queue_free()

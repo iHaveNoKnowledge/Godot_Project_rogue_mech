@@ -14,6 +14,13 @@ var attack_timer: float = 0.0
 
 func _ready() -> void:
 	add_to_group("enemy")
+	_setup_enemy_status()
+
+
+func _setup_enemy_status() -> void:
+	var status = get_node_or_null("EnemyStatus")
+	if status:
+		status.setup_target(self)
 
 
 func _physics_process(delta: float) -> void:

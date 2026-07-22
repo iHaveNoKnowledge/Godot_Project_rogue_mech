@@ -5,7 +5,8 @@ extends Node3D
 var target: Node3D = null
 var health_system: Node = null
 var label_3d: Label3D = null
-var status_meshes: Dictionary = {}
+var status_dots: HBoxContainer = null
+var dot_meshes: Dictionary = {}
 
 var _color_green: Color = Color(0.2, 0.8, 0.2, 1)
 var _color_yellow: Color = Color(0.9, 0.9, 0.2, 1)
@@ -15,25 +16,33 @@ var _color_black: Color = Color(0.1, 0.1, 0.1, 1)
 
 func _ready() -> void:
 	label_3d = Label3D.new()
-	label_3d.font_size = 20
+	label_3d.font_size = 24
 	label_3d.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label_3d.no_depth_test = true
+	label_3d.position.y = 1.0
 	add_child(label_3d)
 
+
+func setup_target(enemy: Node3D) -> void:
+	target = enemy
+	health_system = enemy.get_node_or_null("HealthSystem")
 	_create_status_dots()
 
 
 func _create_status_dots() -> void:
-	var parts = ["body"]
-	var spacing = 0.4
+	if health_system == null:
+		return
+
+	var parts = health_system.parts.keys()
+	var spacing = 0.5
 	var start_x = -(parts.size() - 1) * spacing / 2.0
 
 	for i in range(parts.size()):
 		var part_name = parts[i]
 		var dot = MeshInstance3D.new()
 		var sphere = SphereMesh.new()
-		sphere.radius = 0.15
-		sphere.height = 0.3
+		sphere.radius = 0.2
+		sphere.height = 0.4
 		dot.mesh = sphere
 
 		var mat = StandardMaterial3D.new()
@@ -43,14 +52,8 @@ func _create_status_dots() -> void:
 		dot.material_override = mat
 
 		dot.position.x = start_x + i * spacing
-		dot.position.y = 0.5
 		add_child(dot)
-		status_meshes[part_name] = dot
-
-
-func setup_target(enemy: Node3D) -> void:
-	target = enemy
-	health_system = enemy.get_node_or_null("HealthSystem")
+		dot_meshes[part_name] = dot
 
 
 func _process(_delta: float) -> void:
@@ -71,9 +74,9 @@ func _update_status() -> void:
 		var part_data = health_system.parts[part]
 		var hp_percent = part_data["armor_hp"] / part_data["max_armor"]
 
-		if part in status_meshes:
+		if part in dot_meshes:
 			var color = _get_hp_color(hp_percent)
-			status_meshes[part].material_override.albedo_color = color
+			dot_meshes[part].material_override.albedo_color = color
 
 		total_text += "%s:%d  " % [part.to_upper(), int(part_data["armor_hp"])]
 

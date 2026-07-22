@@ -1,4 +1,4 @@
-extends Control
+extends CanvasLayer
 
 var left_label: Label
 var right_label: Label
@@ -19,23 +19,28 @@ func _ready() -> void:
 		wm.ammo_changed.connect(_on_ammo_changed)
 		wm.carry_updated.connect(_on_carry_updated)
 		wm.weapon_dropped.connect(_on_weapon_dropped)
+		wm._emit_initial_state()
 
 
 func _create_ui() -> void:
-	var bottom = VBoxContainer.new()
-	bottom.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	bottom.offset_left = 20
-	bottom.offset_right = -20
-	bottom.offset_bottom = -10
-	bottom.offset_top = -120
-	add_child(bottom)
+	var panel = PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	panel.offset_left = 20
+	panel.offset_right = -20
+	panel.offset_bottom = -10
+	panel.offset_top = -130
+	add_child(panel)
+
+	var vbox = VBoxContainer.new()
+	panel.add_child(vbox)
 
 	# Hands row
 	var hands_row = HBoxContainer.new()
-	bottom.add_child(hands_row)
+	vbox.add_child(hands_row)
 
 	# Left hand
 	var left_vbox = VBoxContainer.new()
+	left_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hands_row.add_child(left_vbox)
 	var left_title = Label.new()
 	left_title.text = "[L] - Press 1"
@@ -49,6 +54,7 @@ func _create_ui() -> void:
 
 	# Right hand
 	var right_vbox = VBoxContainer.new()
+	right_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hands_row.add_child(right_vbox)
 	var right_title = Label.new()
 	right_title.text = "[R] - Press 3"
@@ -62,7 +68,7 @@ func _create_ui() -> void:
 
 	# Carry row
 	var carry_row = HBoxContainer.new()
-	bottom.add_child(carry_row)
+	vbox.add_child(carry_row)
 	var carry_title = Label.new()
 	carry_title.text = "[Carry] "
 	carry_row.add_child(carry_title)
@@ -72,8 +78,8 @@ func _create_ui() -> void:
 
 	# Drop hint
 	drop_hint_label = Label.new()
-	drop_hint_label.text = "Hold 1/3 + 2 = Drop from hand | Hold 1/3 + Scroll + 2 = Drop from carry"
-	bottom.add_child(drop_hint_label)
+	drop_hint_label.text = "Hold 1/3 + 2 = Drop"
+	vbox.add_child(drop_hint_label)
 
 
 func _on_weapon_switched(hand: String, weapon_name: String) -> void:

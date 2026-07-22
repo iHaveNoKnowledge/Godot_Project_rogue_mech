@@ -45,7 +45,7 @@ func get_aim_direction() -> Vector3:
 	var ray_origin = cam.project_ray_origin(center)
 	var ray_dir = cam.project_ray_normal(center)
 
-	var space_state = get_world_3d().direct_space_state
+	var space_state = get_viewport().get_world_3d().direct_space_state
 	var query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 200.0)
 	query.collision_mask = 5
 	var result = space_state.intersect_ray(query)

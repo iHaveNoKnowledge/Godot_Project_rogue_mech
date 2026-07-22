@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://scripts/mecha/mecha_controller.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/mecha/mecha_combat.gd" id="2"]
@@ -28,13 +28,19 @@ height = 1.5
 top_radius = 0.3
 bottom_radius = 0.35
 
+[sub_resource type="BoxShape3D" id="ArmShape"]
+size = Vector3(0.3, 1.2, 0.3)
+
+[sub_resource type="BoxMesh" id="ArmMesh"]
+size = Vector3(0.3, 1.2, 0.3)
+
 [sub_resource type="StandardMaterial3D" id="MechaMat"]
 albedo_color = Color(0.6, 0.65, 0.7, 1)
 metallic = 0.3
 roughness = 0.6
 
 [sub_resource type="SphereShape3D" id="HitboxShape"]
-radius = 2.0
+radius = 2.5
 
 [node name="MechaBase" type="CharacterBody3D"]
 script = ExtResource("1")
@@ -62,6 +68,26 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
 mesh = SubResource("BodyMeshShape")
 material_override = SubResource("MechaMat")
 
+[node name="ArmLeft" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.9, 2.0, 0)
+
+[node name="ArmLeftCollision" type="CollisionShape3D" parent="ArmLeft"]
+shape = SubResource("ArmShape")
+
+[node name="ArmLeftMesh" type="MeshInstance3D" parent="ArmLeft"]
+mesh = SubResource("ArmMesh")
+material_override = SubResource("MechaMat")
+
+[node name="ArmRight" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.9, 2.0, 0)
+
+[node name="ArmRightCollision" type="CollisionShape3D" parent="ArmRight"]
+shape = SubResource("ArmShape")
+
+[node name="ArmRightMesh" type="MeshInstance3D" parent="ArmRight"]
+mesh = SubResource("ArmMesh")
+material_override = SubResource("MechaMat")
+
 [node name="LegLeft" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.4, 0.75, 0)
 
@@ -84,7 +110,6 @@ material_override = SubResource("MechaMat")
 
 [node name="HealthSystem" type="Node3D" parent="."]
 script = ExtResource("4")
-body_mesh = NodePath("../Body/BodyMesh")
 
 [node name="Hitbox" type="Area3D" parent="."]
 collision_layer = 0

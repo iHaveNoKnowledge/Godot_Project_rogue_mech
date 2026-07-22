@@ -7,7 +7,10 @@ signal mecha_destroyed()
 var parts: Dictionary = {
 	"head": {"hp": 50.0, "max_hp": 50.0, "armor_class": 1.2, "broken": false, "mesh": null},
 	"body": {"hp": 100.0, "max_hp": 100.0, "armor_class": 1.0, "broken": false, "mesh": null},
-	"legs": {"hp": 80.0, "max_hp": 80.0, "armor_class": 0.8, "broken": false, "mesh": null},
+	"arm_left": {"hp": 40.0, "max_hp": 40.0, "armor_class": 0.9, "broken": false, "mesh": null},
+	"arm_right": {"hp": 40.0, "max_hp": 40.0, "armor_class": 0.9, "broken": false, "mesh": null},
+	"leg_left": {"hp": 50.0, "max_hp": 50.0, "armor_class": 0.8, "broken": false, "mesh": null},
+	"leg_right": {"hp": 50.0, "max_hp": 50.0, "armor_class": 0.8, "broken": false, "mesh": null},
 }
 
 var total_hp: float = 0.0
@@ -27,20 +30,19 @@ func _ready() -> void:
 
 
 func _find_meshes() -> void:
-	var head_node = get_node_or_null("../Head/HeadMesh")
-	var body_node = get_node_or_null("../Body/BodyMesh")
-	var legs_left = get_node_or_null("../LegLeft/LegLeftMesh")
-	var legs_right = get_node_or_null("../LegRight/LegRightMesh")
-
-	if head_node:
-		parts["head"]["mesh"] = head_node
-		_original_colors["head"] = head_node.material_override.albedo_color if head_node.material_override else Color(0.6, 0.65, 0.7, 1)
-	if body_node:
-		parts["body"]["mesh"] = body_node
-		_original_colors["body"] = body_node.material_override.albedo_color if body_node.material_override else Color(0.6, 0.65, 0.7, 1)
-	if legs_left:
-		parts["legs"]["mesh"] = legs_left
-		_original_colors["legs"] = legs_left.material_override.albedo_color if legs_left.material_override else Color(0.6, 0.65, 0.7, 1)
+	var mappings = {
+		"head": "../Head/HeadMesh",
+		"body": "../Body/BodyMesh",
+		"arm_left": "../ArmLeft/ArmLeftMesh",
+		"arm_right": "../ArmRight/ArmRightMesh",
+		"leg_left": "../LegLeft/LegLeftMesh",
+		"leg_right": "../LegRight/LegRightMesh",
+	}
+	for slot in mappings:
+		var node = get_node_or_null(mappings[slot])
+		if node:
+			parts[slot]["mesh"] = node
+			_original_colors[slot] = node.material_override.albedo_color if node.material_override else Color(0.6, 0.65, 0.7, 1)
 
 
 func _calculate_totals() -> void:

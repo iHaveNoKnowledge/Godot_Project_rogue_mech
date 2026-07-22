@@ -1,11 +1,13 @@
 extends CanvasLayer
 
-@onready var head_bar: ProgressBar = %HeadBar
-@onready var body_bar: ProgressBar = %BodyBar
-@onready var legs_bar: ProgressBar = %LegsBar
-@onready var head_label: Label = %HeadLabel
-@onready var body_label: Label = %BodyLabel
-@onready var legs_label: Label = %LegsLabel
+@onready var bars: Dictionary = {
+	"head": {"bar": %HeadBar, "label": %HeadLabel},
+	"body": {"bar": %BodyBar, "label": %BodyLabel},
+	"arm_left": {"bar": %ArmLeftBar, "label": %ArmLeftLabel},
+	"arm_right": {"bar": %ArmRightBar, "label": %ArmRightLabel},
+	"leg_left": {"bar": %LegLeftBar, "label": %LegLeftLabel},
+	"leg_right": {"bar": %LegRightBar, "label": %LegRightLabel},
+}
 @onready var total_label: Label = %TotalLabel
 
 var health_system: Node = null
@@ -22,17 +24,12 @@ func _ready() -> void:
 
 
 func _on_health_changed(slot_name: String, current_hp: float, max_hp: float) -> void:
+	if not bars.has(slot_name):
+		return
+	var entry = bars[slot_name]
 	var percent = current_hp / max_hp * 100.0
-	match slot_name:
-		"head":
-			head_bar.value = percent
-			head_label.text = "HEAD: %d/%d" % [int(current_hp), int(max_hp)]
-		"body":
-			body_bar.value = percent
-			body_label.text = "BODY: %d/%d" % [int(current_hp), int(max_hp)]
-		"legs":
-			legs_bar.value = percent
-			legs_label.text = "LEGS: %d/%d" % [int(current_hp), int(max_hp)]
+	entry["bar"].value = percent
+	entry["label"].text = "%s: %d/%d" % [slot_name.to_upper(), int(current_hp), int(max_hp)]
 	_update_total()
 
 
@@ -41,7 +38,6 @@ func _update_all_bars() -> void:
 		return
 	for slot in health_system.parts:
 		var part = health_system.parts[slot]
-		var percent = part["hp"] / part["max_hp"] * 100.0
 		_on_health_changed(slot, part["hp"], part["max_hp"])
 
 

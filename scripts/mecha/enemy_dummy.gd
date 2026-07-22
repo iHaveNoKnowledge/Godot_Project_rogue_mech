@@ -15,6 +15,15 @@ func _ready() -> void:
 	health_system = $HealthSystem
 	_setup_hitbox()
 	_setup_enemy_status()
+	health_system.mecha_destroyed.connect(_on_destroyed)
+
+
+func _on_destroyed() -> void:
+	set_physics_process(false)
+	velocity = Vector3.ZERO
+	var tween = create_tween()
+	tween.tween_interval(1.0)
+	tween.tween_callback(queue_free)
 
 
 func _setup_hitbox() -> void:
@@ -30,7 +39,8 @@ func _setup_enemy_status() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if health_system.is_destroyed:
+	if health_system == null or health_system.is_destroyed:
+		velocity = Vector3.ZERO
 		return
 
 	_find_target()

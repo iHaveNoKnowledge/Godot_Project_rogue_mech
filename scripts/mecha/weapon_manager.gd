@@ -216,29 +216,18 @@ func _fire_projectile(hand: String, weapon: WeaponPart) -> void:
 	if mecha == null:
 		return
 
-	var offset = Vector3(-0.6, 1.5, 0.5) if hand == "left" else Vector3(0.6, 1.5, 0.5)
-	var spawn_pos = mecha.global_position + mecha.global_transform.basis * offset
-
 	var cam = get_viewport().get_camera_3d()
 	if cam == null:
 		return
 
+	var offset = Vector3(-0.6, 1.5, 0.5) if hand == "left" else Vector3(0.6, 1.5, 0.5)
+	var spawn_pos = mecha.global_position + mecha.global_transform.basis * offset
+
 	var viewport_size = get_viewport().get_visible_rect().size
 	var center = viewport_size / 2.0
-	var ray_origin = cam.project_ray_origin(center)
 	var ray_dir = cam.project_ray_normal(center)
 
-	var space_state = get_viewport().get_world_3d().direct_space_state
-	var query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 500.0)
-	query.collision_mask = 10
-	var result = space_state.intersect_ray(query)
-
-	var target_point: Vector3
-	if result:
-		target_point = result["position"]
-	else:
-		target_point = ray_origin + ray_dir * 500.0
-
+	var target_point = spawn_pos + ray_dir * 100.0
 	var direction = (target_point - spawn_pos).normalized()
 
 	var proj_script = load("res://scripts/systems/projectile.gd")

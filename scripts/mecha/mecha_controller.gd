@@ -11,6 +11,14 @@ var input_dir: Vector2 = Vector2.ZERO
 const GRAVITY := 20.0
 const JUMP_FORCE := 12.0
 
+var dash_speed: float = 25.0
+var dash_duration: float = 0.2
+var dash_cooldown: float = 1.0
+var dash_timer: float = 0.0
+var dash_cooldown_timer: float = 0.0
+var is_dashing: bool = false
+var dash_direction: Vector3 = Vector3.ZERO
+
 
 func _ready() -> void:
 	add_to_group("mecha")
@@ -21,13 +29,27 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	_handle_movement_input()
-	_apply_movement(delta)
+	dash_cooldown_timer -= delta
+
+	if is_dashing:
+		dash_timer -= delta
+		velocity.x = dash_direction.x * dash_speed
+		velocity.z = dash_direction.z * dash_speed
+		if dash_timer <= 0.0:
+			is_dashing = false
+	else:
+		_handle_movement_input()
+		_apply_movement(delta)
+
+	move_and_slide()
 
 
 func _handle_movement_input() -> void:
 	input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	strafe_mode = Input.is_action_pressed("strafe")
+
+	if Input.is_action_just_pressed("dash") and dash_cooldown_timer <= 0.0:
+		_start_dash()
 
 
 func _apply_movement(delta: float) -> void:
@@ -59,7 +81,56 @@ func _apply_movement(delta: float) -> void:
 		velocity.y = JUMP_FORCE
 
 	velocity.y -= GRAVITY * delta
-	move_and_slide()
+
+
+func _start_dash() -> void:
+	var cam = get_viewport().get_camera_3d()
+	if cam == null:
+		return
+
+	var cam_basis = cam.global_transform.basis
+	var forward = -cam_basis.z
+	var right = cam_basis.x
+	forward.y = 0.0
+	forward = forward.normalized()
+	right.y = 0.0
+	right = right.normalized()
+
+	dash_direction = (forward * -input_dir.y + right * input_dir.x).normalized()
+	if dash_direction.length() < 0.1:
+		dash_direction = -transform.basis.z
+
+	is_dashing = true
+	dash_timer = dash_duration
+	dash_cooldown_timer = dash_cooldown
+
+	_spawn_dash_effect()
+
+
+func _spawn_dash_effect() -> void:
+	for i in range(3):
+		var trail = MeshInstance3D.new()
+		var box = BoxMesh.new()
+		box.size = Vector3(0.8, 2.0, 1.5 - i * 0.3)
+		trail.mesh = box
+
+		var mat = StandardMaterial3D.new()
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.albedo_color = Color(0.5, 0.7, 1.0, 0.6 - i * 0.15)
+		mat.emission_enabled = true
+		mat.emission = Color(0.3, 0.5, 1.0)
+		mat.emission_energy_multiplier = 3.0 - i
+		mat.no_depth_test = true
+		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		trail.material_override = mat
+
+		get_tree().current_scene.add_child(trail)
+		trail.global_position = global_position + Vector3(0, 1.5, 0) - dash_direction * (0.5 + i * 0.4)
+		trail.global_rotation = global_rotation
+
+		var tween = get_tree().create_tween()
+		tween.tween_property(mat, "albedo_color:a", 0.0, 0.2)
+		tween.tween_callback(trail.queue_free)
 
 
 func _recalculate_weight() -> void:

@@ -1,4 +1,4 @@
-﻿extends BoneAttachment3D
+extends BoneAttachment3D
 
 @export var slot_name: String = ""
 

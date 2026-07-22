@@ -1,4 +1,4 @@
-﻿extends Resource
+extends Resource
 class_name ArmorPart
 
 @export var part_name: String = ""

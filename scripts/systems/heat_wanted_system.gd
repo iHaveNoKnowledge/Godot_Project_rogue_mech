@@ -1,4 +1,4 @@
-﻿extends Node
+extends Node
 
 @export var heat_decay_rate: int = 1
 @export var wanted_thresholds: Array[int] = [3, 6, 10]

@@ -1,4 +1,4 @@
-﻿extends CharacterBody3D
+extends CharacterBody3D
 
 @export var chassis: ChassisData
 
@@ -13,6 +13,8 @@ const GRAVITY := 20.0
 
 func _ready() -> void:
 	add_to_group("mecha")
+	floor_snap_length = 0.3
+	floor_max_angle = deg_to_rad(60)
 	_recalculate_weight()
 	EventBus.weight_changed.connect(_on_weight_changed)
 

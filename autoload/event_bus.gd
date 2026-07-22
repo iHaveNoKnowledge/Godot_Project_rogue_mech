@@ -1,4 +1,4 @@
-﻿extends Node
+extends Node
 
 # --- Damage Pipeline ---
 signal damage_received(slot_name: String, raw_damage: float, damage_type: String)

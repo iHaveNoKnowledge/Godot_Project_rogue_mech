@@ -1,4 +1,4 @@
-﻿extends Node3D
+extends Node3D
 
 var loot_items: Array = []
 var pickup_radius: float = 2.0

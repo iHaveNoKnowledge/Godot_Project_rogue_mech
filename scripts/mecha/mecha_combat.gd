@@ -1,4 +1,4 @@
-﻿extends Node
+extends Node
 
 @onready var mecha: CharacterBody3D = get_parent()
 @onready var aim_ray: RayCast3D = $"../AimRay"

@@ -1,4 +1,4 @@
-﻿extends Control
+extends Control
 
 var part_list: ItemList
 var stats_label: Label

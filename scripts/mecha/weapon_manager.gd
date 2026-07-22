@@ -1,4 +1,4 @@
-﻿extends Node3D
+extends Node3D
 
 signal weapon_switched(hand: String, weapon_name: String)
 signal ammo_changed(hand: String, current: int, max_ammo: int)

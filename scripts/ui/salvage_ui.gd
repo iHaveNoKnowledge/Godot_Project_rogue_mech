@@ -1,4 +1,4 @@
-﻿extends Control
+extends Control
 
 var weapon_list: ItemList
 var tag_button: Button

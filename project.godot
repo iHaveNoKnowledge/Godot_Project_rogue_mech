@@ -8,6 +8,10 @@
 
 config_version=5
 
+[animation]
+
+compatibility/default_parent_skeleton_in_mesh_instance_3d=true
+
 [application]
 
 config/name="Mecha Roguelike Action 3rd-Person"
@@ -19,10 +23,6 @@ config/features=PackedStringArray("4.6")
 EventBus="*res://autoload/event_bus.gd"
 GlobalData="*res://autoload/global_data.gd"
 GameManager="*res://autoload/game_manager.gd"
-
-[config]
-
-features=PackedStringArray("4.3")
 
 [display]
 
@@ -107,6 +107,11 @@ weapon_drop={
 "events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":50,"key_label":0,"unicode":50,"location":0,"echo":false,"script":null)
 ]
 }
+aim={
+"deadzone": 0.5,
+"events": [Object(InputEventMouseButton,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"button_mask":0,"position":Vector2(0, 0),"global_position":Vector2(0, 0),"factor":1.0,"button_index":3,"canceled":false,"pressed":false,"double_click":false,"script":null)
+]
+}
 
 [layer_names]
 
@@ -119,7 +124,3 @@ weapon_drop={
 [rendering]
 
 anti_aliasing/quality/msaa_3d=2
-
-[run]
-
-main_scene="res://scenes/main_menu/main_menu.tscn"

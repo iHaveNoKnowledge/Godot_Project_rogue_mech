@@ -1,4 +1,4 @@
-﻿extends CharacterBody3D
+extends CharacterBody3D
 
 var speed: float = 50.0
 var lifetime: float = 3.0

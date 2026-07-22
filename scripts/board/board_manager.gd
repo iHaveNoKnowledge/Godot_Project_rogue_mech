@@ -1,4 +1,4 @@
-﻿extends Node3D
+extends Node3D
 
 @onready var tile_container: Node3D = $TileContainer
 @onready var player_token: MeshInstance3D = $PlayerToken

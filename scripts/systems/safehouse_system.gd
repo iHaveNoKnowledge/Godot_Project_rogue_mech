@@ -1,4 +1,4 @@
-﻿extends Node3D
+extends Node3D
 
 @export var save_on_escape: bool = true
 

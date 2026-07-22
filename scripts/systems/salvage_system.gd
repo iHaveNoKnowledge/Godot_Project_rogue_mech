@@ -1,4 +1,4 @@
-﻿extends Node
+extends Node
 
 var salvaged_weapons: Array[WeaponPart] = []
 var salvaged_ammo: Dictionary = {}

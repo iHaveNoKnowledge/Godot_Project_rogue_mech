@@ -1,4 +1,4 @@
-﻿extends Node
+extends Node
 
 @export var grid_size: Vector2i = Vector2i(8, 8)
 @export var combat_ratio: float = 0.4

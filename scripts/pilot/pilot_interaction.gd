@@ -1,4 +1,4 @@
-﻿extends Node
+extends Node
 
 @onready var pilot: CharacterBody3D = get_parent()
 @onready var interact_area: Area3D = pilot.get_node("InteractArea")

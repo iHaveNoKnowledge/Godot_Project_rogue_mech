@@ -1,4 +1,4 @@
-﻿extends StaticBody3D
+extends StaticBody3D
 
 var grid_pos: Vector2i = Vector2i.ZERO
 var tile_type: String = "empty"

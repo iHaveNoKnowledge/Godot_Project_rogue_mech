@@ -1,4 +1,4 @@
-﻿extends Resource
+extends Resource
 class_name ChassisData
 
 @export var chassis_name: String = "Standard Frame"

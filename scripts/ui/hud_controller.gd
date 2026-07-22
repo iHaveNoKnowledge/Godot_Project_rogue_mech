@@ -1,4 +1,4 @@
-﻿extends Control
+extends Control
 
 var armor_bars: Dictionary = {}
 var frame_bars: Dictionary = {}

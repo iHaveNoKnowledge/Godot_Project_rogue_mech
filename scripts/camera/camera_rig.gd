@@ -1,7 +1,8 @@
-﻿extends Node3D
+extends Node3D
 
 @export var mouse_sensitivity: float = 0.003
 @export var pitch_limit: Vector2 = Vector2(-80, 30)
+@export var follow_speed: float = 10.0
 
 @onready var pivot: Node3D = $CameraPivot
 @onready var spring_arm: SpringArm3D = $CameraPivot/SpringArm3D
@@ -11,11 +12,15 @@
 var yaw: float = 0.0
 var pitch: float = 0.0
 var is_mouse_captured: bool = true
+var target: Node3D = null
 
 
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	EventBus.camera_mode_changed.connect(_on_camera_mode_changed)
+	# Find mecha to follow
+	await get_tree().process_frame
+	target = get_tree().current_scene.get_node_or_null("Mecha")
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -28,9 +33,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		_toggle_mouse_capture()
 
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	pivot.rotation.y = yaw
 	pivot.rotation.x = pitch
+	# Follow target
+	if target and is_instance_valid(target):
+		global_position = global_position.lerp(target.global_position, follow_speed * delta)
 	_check_lock_on()
 
 

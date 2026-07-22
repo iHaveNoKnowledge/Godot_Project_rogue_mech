@@ -1,4 +1,4 @@
-﻿extends CharacterBody3D
+extends CharacterBody3D
 
 @export var move_speed: float = 5.0
 @export var jump_force: float = 4.5

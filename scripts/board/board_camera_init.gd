@@ -1,4 +1,4 @@
-﻿extends Node3D
+extends Node3D
 
 func _ready() -> void:
 	_init_camera()

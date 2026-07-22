@@ -1,4 +1,4 @@
-﻿extends Node
+extends Node
 
 var chassis_id: String = "standard"
 var equipped_parts: Dictionary = {}

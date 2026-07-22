@@ -1,4 +1,4 @@
-﻿extends Node
+extends Node
 
 @export var team_mode: String = "solo"
 

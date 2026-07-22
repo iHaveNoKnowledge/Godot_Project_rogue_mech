@@ -1,4 +1,4 @@
-﻿extends Node3D
+extends Node3D
 
 var slot_meshes: Dictionary = {}
 

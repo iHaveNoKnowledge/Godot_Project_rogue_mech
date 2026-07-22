@@ -1,4 +1,4 @@
-﻿extends Control
+extends Control
 
 var new_game_button: Button
 var continue_button: Button

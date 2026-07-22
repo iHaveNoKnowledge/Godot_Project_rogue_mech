@@ -1,4 +1,4 @@
-﻿extends Node
+extends Node
 
 enum State { MENU, BOARD, COMBAT, SAFEHOUSE, HANGAR, EJECT, PILOT }
 

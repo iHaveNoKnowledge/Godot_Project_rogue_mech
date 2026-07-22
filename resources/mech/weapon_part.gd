@@ -1,4 +1,4 @@
-﻿extends Resource
+extends Resource
 class_name WeaponPart
 
 enum WeaponType { BEAM_RIFLE, MACHINE_GUN, MISSILE, SHOTGUN, MELEE }

@@ -281,62 +281,58 @@ var _melee_combo: int = 0
 
 func _spawn_melee_trail(mecha: Node3D, direction: Vector3) -> void:
 	var right = direction.cross(Vector3.UP).normalized()
-	var trail_count = 8
 	var is_first_swing = (_melee_combo % 2 == 0)
 	_melee_combo += 1
 
-	for i in range(trail_count):
-		var t = float(i) / float(trail_count - 1)
-		var swing_offset: Vector3
+	var trail = MeshInstance3D.new()
+	var box = BoxMesh.new()
+	box.size = Vector3(4.0, 0.15, 0.3)
+	trail.mesh = box
 
-		if is_first_swing:
-			swing_offset = right.lerp(-right, t) * 1.5
-			swing_offset.y = lerp(0.3, -0.3, t)
-		else:
-			swing_offset = -right.lerp(right, t) * 1.5
-			swing_offset.y = lerp(-0.2, 0.4, t)
+	var mat = StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(0.9, 0.95, 1.0, 0.9)
+	mat.emission_enabled = true
+	mat.emission = Color(0.3, 0.5, 1.0)
+	mat.emission_energy_multiplier = 4.0
+	mat.no_depth_test = true
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	trail.material_override = mat
 
-		var trail = MeshInstance3D.new()
-		var box = BoxMesh.new()
-		box.size = Vector3(3.0, 0.08, 0.15 + t * 0.2)
-		trail.mesh = box
+	get_tree().current_scene.add_child(trail)
 
-		var mat = StandardMaterial3D.new()
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		mat.albedo_color = Color(0.8, 0.9, 1.0, 0.95 - t * 0.5)
-		mat.emission_enabled = true
-		mat.emission = Color(0.4, 0.6, 1.0)
-		mat.emission_energy_multiplier = 5.0 - t * 3.0
-		mat.no_depth_test = true
-		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-		trail.material_override = mat
+	var swing_dir: Vector3
+	if is_first_swing:
+		swing_dir = right
+	else:
+		swing_dir = -right
 
-		get_tree().current_scene.add_child(trail)
-		var forward_offset = direction * (1.5 + t * 0.5)
-		trail.global_position = mecha.global_position + Vector3(0, 1.5, 0) + forward_offset + swing_offset
-		trail.look_at(trail.global_position + direction, Vector3.UP)
+	trail.global_position = mecha.global_position + Vector3(0, 1.5, 0) + direction * 2.0
+	trail.look_at(trail.global_position + direction, Vector3.UP)
+	trail.rotate_object_local(Vector3.UP, deg_to_rad(90 if is_first_swing else -90))
 
-		var delay = t * 0.06
-		var tween = get_tree().create_tween()
-		tween.tween_interval(delay)
-		tween.tween_property(mat, "albedo_color:a", 0.0, 0.2)
-		tween.tween_callback(trail.queue_free)
+	var tween = get_tree().create_tween()
+	tween.tween_property(mat, "albedo_color:a", 0.0, 0.35)
+	tween.tween_callback(trail.queue_free)
 
 
 func _check_melee_hit(mecha: Node3D, direction: Vector3, damage: float) -> void:
 	var space_state = get_viewport().get_world_3d().direct_space_state
 	var mecha_pos = mecha.global_position + Vector3(0, 1.5, 0)
-	var end_pos = mecha_pos + direction * 4.0
 
-	var query = PhysicsRayQueryParameters3D.create(mecha_pos, end_pos)
-	query.collision_mask = 8
-	var result = space_state.intersect_ray(query)
-
-	if result:
-		var collider = result["collider"]
-		if collider.has_method("take_damage"):
-			collider.take_damage(damage, "melee")
-			EffectManager.spawn_damage_number(result["position"] + Vector3(0, 1, 0), damage, Color(1, 0.5, 0))
+	var enemies = get_tree().get_nodes_in_group("enemy")
+	for enemy in enemies:
+		if not is_instance_valid(enemy):
+			continue
+		var to_enemy = enemy.global_position + Vector3(0, 1.5, 0) - mecha_pos
+		var dist = to_enemy.length()
+		if dist > 5.0:
+			continue
+		var dot = direction.dot(to_enemy.normalized())
+		if dot > 0.5:
+			if enemy.has_method("take_damage"):
+				enemy.take_damage(damage, "melee")
+				EffectManager.spawn_damage_number(enemy.global_position + Vector3(0, 2.5, 0), damage, Color(1, 0.5, 0))
 
 
 func _get_fire_direction() -> Vector3:

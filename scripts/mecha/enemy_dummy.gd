@@ -7,14 +7,20 @@ extends CharacterBody3D
 
 var target: Node3D = null
 var attack_timer: float = 0.0
-
-@onready var health_system: Node = $HealthSystem
+var health_system: Node = null
 
 
 func _ready() -> void:
 	add_to_group("enemy")
-	await get_tree().process_frame
+	health_system = $HealthSystem
+	_setup_hitbox()
 	_setup_enemy_status()
+
+
+func _setup_hitbox() -> void:
+	var hitbox = $Hitbox
+	if hitbox and hitbox.has_method("set_health_system"):
+		hitbox.set_health_system(health_system)
 
 
 func _setup_enemy_status() -> void:

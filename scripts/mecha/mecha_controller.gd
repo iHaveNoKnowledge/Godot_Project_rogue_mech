@@ -9,6 +9,7 @@ var strafe_mode: bool = false
 var input_dir: Vector2 = Vector2.ZERO
 
 const GRAVITY := 20.0
+const JUMP_FORCE := 12.0
 
 
 func _ready() -> void:
@@ -53,6 +54,10 @@ func _apply_movement(delta: float) -> void:
 
 	velocity.x = desired_velocity.x
 	velocity.z = desired_velocity.z
+
+	if is_on_floor() and Input.is_action_just_pressed("jump"):
+		velocity.y = JUMP_FORCE
+
 	velocity.y -= GRAVITY * delta
 	move_and_slide()
 

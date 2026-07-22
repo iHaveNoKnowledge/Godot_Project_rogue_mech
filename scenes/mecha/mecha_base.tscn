@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://scripts/mecha/mecha_controller.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/mecha/mecha_combat.gd" id="2"]
@@ -6,33 +6,24 @@
 [ext_resource type="Script" path="res://scripts/mecha/mecha_health.gd" id="4"]
 [ext_resource type="Script" path="res://scripts/mecha/mecha_hitbox.gd" id="5"]
 
-[sub_resource type="SphereShape3D" id="HeadShape"]
-radius = 0.5
+[sub_resource type="CapsuleShape3D" id="FullBodyShape"]
+height = 4.0
+radius = 0.8
 
 [sub_resource type="SphereMesh" id="HeadMesh"]
 radius = 0.5
 height = 1.0
 
-[sub_resource type="BoxShape3D" id="BodyShape"]
-size = Vector3(1.2, 1.5, 0.8)
-
 [sub_resource type="BoxMesh" id="BodyMeshShape"]
 size = Vector3(1.2, 1.5, 0.8)
 
-[sub_resource type="CylinderShape3D" id="LegShape"]
-height = 1.5
-radius = 0.3
+[sub_resource type="BoxMesh" id="ArmMesh"]
+size = Vector3(0.3, 1.2, 0.3)
 
 [sub_resource type="CylinderMesh" id="LegMesh"]
 height = 1.5
 top_radius = 0.3
 bottom_radius = 0.35
-
-[sub_resource type="BoxShape3D" id="ArmShape"]
-size = Vector3(0.3, 1.2, 0.3)
-
-[sub_resource type="BoxMesh" id="ArmMesh"]
-size = Vector3(0.3, 1.2, 0.3)
 
 [sub_resource type="StandardMaterial3D" id="MechaMat"]
 albedo_color = Color(0.6, 0.65, 0.7, 1)
@@ -48,41 +39,31 @@ collision_layer = 1
 collision_mask = 3
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
-shape = SubResource("BodyShape")
+shape = SubResource("FullBodyShape")
 
 [node name="Head" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.25, 0)
-
-[node name="HeadCollision" type="CollisionShape3D" parent="Head"]
-shape = SubResource("HeadShape")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
 
 [node name="HeadMesh" type="MeshInstance3D" parent="Head"]
 mesh = SubResource("HeadMesh")
 material_override = SubResource("MechaMat")
 
 [node name="Body" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
 
 [node name="BodyMesh" type="MeshInstance3D" parent="Body"]
 mesh = SubResource("BodyMeshShape")
 material_override = SubResource("MechaMat")
 
 [node name="ArmLeft" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.9, 2.0, 0)
-
-[node name="ArmLeftCollision" type="CollisionShape3D" parent="ArmLeft"]
-shape = SubResource("ArmShape")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.9, 1.5, 0)
 
 [node name="ArmLeftMesh" type="MeshInstance3D" parent="ArmLeft"]
 mesh = SubResource("ArmMesh")
 material_override = SubResource("MechaMat")
 
 [node name="ArmRight" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.9, 2.0, 0)
-
-[node name="ArmRightCollision" type="CollisionShape3D" parent="ArmRight"]
-shape = SubResource("ArmShape")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.9, 1.5, 0)
 
 [node name="ArmRightMesh" type="MeshInstance3D" parent="ArmRight"]
 mesh = SubResource("ArmMesh")
@@ -91,18 +72,12 @@ material_override = SubResource("MechaMat")
 [node name="LegLeft" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.4, 0.75, 0)
 
-[node name="LegLeftCollision" type="CollisionShape3D" parent="LegLeft"]
-shape = SubResource("LegShape")
-
 [node name="LegLeftMesh" type="MeshInstance3D" parent="LegLeft"]
 mesh = SubResource("LegMesh")
 material_override = SubResource("MechaMat")
 
 [node name="LegRight" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.4, 0.75, 0)
-
-[node name="LegRightCollision" type="CollisionShape3D" parent="LegRight"]
-shape = SubResource("LegShape")
 
 [node name="LegRightMesh" type="MeshInstance3D" parent="LegRight"]
 mesh = SubResource("LegMesh")

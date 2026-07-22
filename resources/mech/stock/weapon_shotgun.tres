@@ -5,14 +5,14 @@
 [resource]
 script = ExtResource("1")
 weapon_name = "Shotgun"
-weapon_type = 3
-damage = 45.0
+weapon_type = 2
+damage = 15.0
 fire_rate = 0.8
-max_ammo = 30
-ammo_per_shot = 2
-projectile_speed = 35.0
+max_ammo = 50
+ammo_per_shot = 1
+projectile_speed = 60.0
 spread = 0.15
-weight = 7.0
-range_distance = 15.0
-description = "ลูกซอง, แรงในระยะประชิด, ยิงทีละ 2 นัด"
+weight = 10.0
+range_distance = 25.0
+description = "ลูกซอง ยิงกระจาย 7 เม็ด แรง近距离"
 rarity = 1

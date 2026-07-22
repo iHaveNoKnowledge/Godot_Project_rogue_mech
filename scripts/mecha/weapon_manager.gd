@@ -207,6 +207,8 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 
 	if weapon.weapon_type == 4:
 		_melee_attack(hand, weapon)
+	elif weapon.weapon_type == 2:
+		_fire_shotgun(hand, weapon)
 	else:
 		_fire_projectile(hand, weapon)
 
@@ -262,6 +264,62 @@ func _fire_projectile(hand: String, weapon: WeaponPart) -> void:
 	projectile.direction = direction
 
 	EffectManager.spawn_muzzle_flash(spawn_pos, direction)
+
+
+func _fire_shotgun(hand: String, weapon: WeaponPart) -> void:
+	var mecha = get_parent()
+	if mecha == null:
+		return
+
+	var cam = get_viewport().get_camera_3d()
+	if cam == null:
+		return
+
+	var offset = Vector3(-0.6, 1.5, 0.5) if hand == "left" else Vector3(0.6, 1.5, 0.5)
+	var spawn_pos = mecha.global_position + mecha.global_transform.basis * offset
+
+	var viewport_size = get_viewport().get_visible_rect().size
+	var center = viewport_size / 2.0
+	var ray_dir = cam.project_ray_normal(center)
+
+	var pellet_count = 7
+	for i in range(pellet_count):
+		var spread_x = randf_range(-weapon.spread, weapon.spread)
+		var spread_y = randf_range(-weapon.spread, weapon.spread)
+		var pellet_dir = (ray_dir + Vector3(spread_x, spread_y, 0)).normalized()
+
+		var proj_script = load("res://scripts/systems/projectile.gd")
+		var projectile = CharacterBody3D.new()
+		projectile.set_script(proj_script)
+		projectile.collision_layer = 4
+		projectile.collision_mask = 1
+
+		var collision = CollisionShape3D.new()
+		var shape = SphereShape3D.new()
+		shape.radius = 0.15
+		collision.shape = shape
+		projectile.add_child(collision)
+
+		var mesh = MeshInstance3D.new()
+		var sphere = SphereMesh.new()
+		sphere.radius = 0.15
+		mesh.mesh = sphere
+		var mat = StandardMaterial3D.new()
+		mat.albedo_color = Color(1, 0.8, 0.2, 1)
+		mat.emission_enabled = true
+		mat.emission = Color(1, 0.6, 0.1)
+		mat.emission_energy_multiplier = 2.0
+		mesh.material_override = mat
+		projectile.add_child(mesh)
+
+		get_tree().current_scene.add_child(projectile)
+		projectile.global_position = spawn_pos
+		projectile.velocity = pellet_dir * weapon.projectile_speed
+		projectile.damage = weapon.damage
+		projectile.damage_type = "kinetic"
+		projectile.direction = pellet_dir
+
+	EffectManager.spawn_muzzle_flash(spawn_pos, ray_dir)
 
 
 func _melee_attack(hand: String, weapon: WeaponPart) -> void:

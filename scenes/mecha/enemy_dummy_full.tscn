@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://scripts/mecha/enemy_dummy.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/mecha/enemy_health_full.gd" id="2"]
-[ext_resource type="Script" path="res://scripts/ui/enemy_status_ui.gd" id="3"]
+[ext_resource type="Script" path="res://scripts/ui/enemy_status_billboard.gd" id="3"]
 [ext_resource type="Script" path="res://scripts/mecha/mecha_hitbox.gd" id="4"]
 
 [sub_resource type="SphereShape3D" id="FullBodyShape"]

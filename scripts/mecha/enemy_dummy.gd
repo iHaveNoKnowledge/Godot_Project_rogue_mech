@@ -19,7 +19,7 @@ func _ready() -> void:
 
 func _setup_enemy_status() -> void:
 	var status = get_node_or_null("EnemyStatus")
-	if status:
+	if status and status.has_method("setup_target"):
 		status.setup_target(self)
 
 

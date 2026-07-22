@@ -100,7 +100,20 @@ func take_damage_at_point(amount: float, world_pos: Vector3, damage_type: String
 
 	var local_pos = to_local(world_pos)
 	var target_part = _determine_hit_part(local_pos)
+
+	if health_system.parts[target_part]["destroyed"]:
+		target_part = _find_alive_part()
+		if target_part == "":
+			return
+
 	health_system.take_damage_to_part(target_part, amount, damage_type)
+
+
+func _find_alive_part() -> String:
+	for slot in health_system.parts:
+		if not health_system.parts[slot]["destroyed"]:
+			return slot
+	return ""
 
 
 func _determine_hit_part(local_pos: Vector3) -> String:

@@ -212,14 +212,16 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 
 
 func _fire_projectile(hand: String, weapon: WeaponPart) -> void:
-	var offset = Vector3(-0.5, 1.0, 0) if hand == "left" else Vector3(0.5, 1.0, 0)
-	var spawn_pos = get_parent().global_position + offset
-	var direction = _get_fire_direction_from(spawn_pos)
+	var cam = get_viewport().get_camera_3d()
+	if cam == null:
+		return
 
-	if weapon.spread > 0.0:
-		direction.x += randf_range(-weapon.spread, weapon.spread)
-		direction.z += randf_range(-weapon.spread, weapon.spread)
-		direction = direction.normalized()
+	var viewport_size = get_viewport().get_visible_rect().size
+	var center = viewport_size / 2.0
+	var spawn_pos = cam.project_ray_origin(center) + cam.project_ray_normal(center) * 2.0
+	spawn_pos.y = get_parent().global_position.y + 1.5
+
+	var direction = cam.project_ray_normal(center)
 
 	var proj_script = load("res://scripts/systems/projectile.gd")
 	var projectile = CharacterBody3D.new()

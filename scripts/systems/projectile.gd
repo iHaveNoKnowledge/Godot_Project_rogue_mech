@@ -19,17 +19,26 @@ func _physics_process(delta: float) -> void:
 		queue_free()
 		return
 
-	var collision = move_and_collide(velocity * delta)
-	if collision:
-		var collider = collision.get_collider()
-		if collider.is_in_group("enemy"):
-			_hit_enemy(collider, collision.get_position())
-		else:
-			EffectManager.spawn_impact(collision.get_position(), collision.get_normal())
-			queue_free()
+	position += velocity * delta
+
+	var hit = false
+	var enemies = get_tree().get_nodes_in_group("enemy")
+	for enemy in enemies:
+		if not is_instance_valid(enemy):
+			continue
+		var dist = position.distance_to(enemy.global_position + Vector3(0, 1.5, 0))
+		if dist < 1.5:
+			_hit_enemy(enemy)
+			hit = true
+			break
+
+	if hit:
 		return
 
-	_check_enemy_proximity()
+	if position.y <= 0.0:
+		EffectManager.spawn_impact(position, Vector3.UP)
+		queue_free()
+		return
 
 	trail_timer += delta
 	if trail_timer >= 0.03:
@@ -37,33 +46,22 @@ func _physics_process(delta: float) -> void:
 		_spawn_trail()
 
 
-func _check_enemy_proximity() -> void:
-	var enemies = get_tree().get_nodes_in_group("enemy")
-	for enemy in enemies:
-		if not is_instance_valid(enemy):
-			continue
-		var dist = global_position.distance_to(enemy.global_position + Vector3(0, 1.5, 0))
-		if dist < 1.5:
-			_hit_enemy(enemy, global_position)
-			return
-
-
-func _hit_enemy(enemy: Node3D, hit_pos: Vector3) -> void:
-	EffectManager.spawn_impact(hit_pos, Vector3.UP)
+func _hit_enemy(enemy: Node3D) -> void:
+	EffectManager.spawn_impact(position, Vector3.UP)
 
 	if enemy.has_method("take_damage_at_point"):
-		enemy.take_damage_at_point(damage, hit_pos, damage_type)
+		enemy.take_damage_at_point(damage, position, damage_type)
 	elif enemy.has_method("take_damage"):
 		enemy.take_damage(damage, damage_type)
 
-	EffectManager.spawn_damage_number(hit_pos + Vector3(0, 1.5, 0), damage, Color.WHITE)
+	EffectManager.spawn_damage_number(position + Vector3(0, 1.5, 0), damage, Color.WHITE)
 	queue_free()
 
 
 func _spawn_trail() -> void:
 	var trail = MeshInstance3D.new()
 	var box = BoxMesh.new()
-	box.size = Vector3(0.06, 0.06, 0.3)
+	box.size = Vector3(0.05, 0.05, 0.3)
 	trail.mesh = box
 
 	var mat = StandardMaterial3D.new()

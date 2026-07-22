@@ -221,7 +221,9 @@ func _fire_projectile(hand: String, weapon: WeaponPart) -> void:
 	var offset = Vector3(-0.5, 1.0, 0) if hand == "left" else Vector3(0.5, 1.0, 0)
 	var spawn_pos = get_parent().global_position + offset
 
+	var proj_script = load("res://scripts/systems/projectile.gd")
 	var projectile = CharacterBody3D.new()
+	projectile.set_script(proj_script)
 	projectile.collision_layer = 4
 	projectile.collision_mask = 1
 
@@ -243,14 +245,13 @@ func _fire_projectile(hand: String, weapon: WeaponPart) -> void:
 	mesh.material_override = mat
 	projectile.add_child(mesh)
 
-	projectile.set_script(load("res://scripts/systems/projectile.gd"))
-
-	get_tree().current_scene.add_child(projectile)
 	projectile.global_position = spawn_pos
 	projectile.velocity = direction * weapon.projectile_speed
 	projectile.damage = weapon.damage
 	projectile.damage_type = "kinetic"
 	projectile.direction = direction
+
+	get_tree().current_scene.add_child(projectile)
 
 	EffectManager.spawn_muzzle_flash(spawn_pos, direction)
 

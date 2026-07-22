@@ -5,6 +5,8 @@ var damage: float = 25.0
 var damage_type: String = "kinetic"
 var lifetime: float = 3.0
 var timer: float = 0.0
+var trail_timer: float = 0.0
+var direction: Vector3 = Vector3.FORWARD
 
 
 func _ready() -> void:
@@ -20,8 +22,13 @@ func _physics_process(delta: float) -> void:
 
 	move_and_slide()
 
+	trail_timer += delta
+	if trail_timer >= 0.02:
+		trail_timer = 0.0
+		_spawn_trail_segment()
+
 	if is_on_floor() or is_on_wall() or is_on_ceiling():
-		_spawn_impact()
+		EffectManager.spawn_impact(global_position, Vector3.UP)
 		queue_free()
 
 
@@ -29,17 +36,34 @@ func setup(dir: Vector3, spd: float, dmg: float = 25.0, dmg_type: String = "kine
 	speed = spd
 	damage = dmg
 	damage_type = dmg_type
-	velocity = dir * speed
+	direction = dir.normalized()
+	velocity = direction * speed
 
 
 func get_damage() -> float:
 	return damage
 
 
-func _spawn_impact() -> void:
-	var normal = Vector3.UP
-	if is_on_floor():
-		normal = Vector3.UP
-	elif is_on_wall():
-		normal = get_wall_normal()
-	EffectManager.spawn_impact(global_position, normal)
+func _spawn_trail_segment() -> void:
+	var trail = MeshInstance3D.new()
+	var box = BoxMesh.new()
+	box.size = Vector3(0.08, 0.08, 0.4)
+	trail.mesh = box
+
+	var mat = StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(1, 0.9, 0.5, 0.8)
+	mat.emission_enabled = true
+	mat.emission = Color(1, 0.8, 0.3)
+	mat.emission_energy_multiplier = 2.0
+	mat.no_depth_test = true
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	trail.material_override = mat
+
+	get_tree().current_scene.add_child(trail)
+	trail.global_position = global_position
+	trail.look_at(global_position + direction, Vector3.UP)
+
+	var tween = get_tree().create_tween()
+	tween.tween_property(mat, "albedo_color:a", 0.0, 0.15)
+	tween.tween_callback(trail.queue_free)

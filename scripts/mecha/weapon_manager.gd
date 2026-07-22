@@ -276,29 +276,31 @@ func _melee_attack(hand: String, weapon: WeaponPart) -> void:
 
 
 func _spawn_melee_trail(mecha: Node3D, direction: Vector3) -> void:
-	var trail = MeshInstance3D.new()
-	var box = BoxMesh.new()
-	box.size = Vector3(0.3, 2.5, 0.05)
-	trail.mesh = box
+	for i in range(3):
+		var trail = MeshInstance3D.new()
+		var box = BoxMesh.new()
+		box.size = Vector3(0.15, 2.0, 0.8 - i * 0.2)
+		trail.mesh = box
 
-	var mat = StandardMaterial3D.new()
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(0.8, 0.9, 1.0, 0.9)
-	mat.emission_enabled = true
-	mat.emission = Color(0.5, 0.7, 1.0)
-	mat.emission_energy_multiplier = 3.0
-	mat.no_depth_test = true
-	trail.material_override = mat
+		var mat = StandardMaterial3D.new()
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.albedo_color = Color(0.8, 0.9, 1.0, 0.7 - i * 0.2)
+		mat.emission_enabled = true
+		mat.emission = Color(0.5, 0.7, 1.0)
+		mat.emission_energy_multiplier = 3.0 - i
+		mat.no_depth_test = true
+		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		trail.material_override = mat
 
-	get_tree().current_scene.add_child(trail)
-	var offset = direction * 1.5 + Vector3(0, 1.5, 0)
-	trail.global_position = mecha.global_position + offset
-	trail.look_at(trail.global_position + direction, Vector3.UP)
-	trail.rotate_object_local(Vector3.FORWARD, deg_to_rad(90))
+		get_tree().current_scene.add_child(trail)
+		var offset = direction * (1.2 + i * 0.3) + Vector3(0, 1.5, 0)
+		trail.global_position = mecha.global_position + offset
+		trail.look_at(trail.global_position + direction, Vector3.UP)
+		trail.rotate_object_local(Vector3.FORWARD, deg_to_rad(90))
 
-	var tween = get_tree().create_tween()
-	tween.tween_property(mat, "albedo_color:a", 0.0, 0.25)
-	tween.tween_callback(trail.queue_free)
+		var tween = get_tree().create_tween()
+		tween.tween_property(mat, "albedo_color:a", 0.0, 0.3 - i * 0.05)
+		tween.tween_callback(trail.queue_free)
 
 
 func _check_melee_hit(mecha: Node3D, direction: Vector3, damage: float) -> void:

@@ -16,14 +16,23 @@ func _ready() -> void:
 	_setup_hitbox()
 	_setup_enemy_status()
 	health_system.mecha_destroyed.connect(_on_destroyed)
+	health_system.armor_broken.connect(_on_armor_broken)
 
 
 func _on_destroyed() -> void:
 	set_physics_process(false)
 	velocity = Vector3.ZERO
+	visible = false
 	var tween = create_tween()
-	tween.tween_interval(1.0)
+	tween.tween_interval(0.5)
 	tween.tween_callback(queue_free)
+
+
+func _on_armor_broken(slot_name: String) -> void:
+	if slot_name == "body":
+		health_system.is_destroyed = true
+		health_system.mecha_destroyed.emit()
+		EffectManager.spawn_explosion(global_position + Vector3(0, 1.5, 0))
 
 
 func _setup_hitbox() -> void:

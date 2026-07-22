@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/camera/mecha_camera.tscn" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/mecha/mecha_base.tscn" id="2"]
@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/health_hud.tscn" id="4"]
 [ext_resource type="PackedScene" path="res://scenes/mecha/enemy_dummy.tscn" id="5"]
 [ext_resource type="PackedScene" path="res://scenes/ui/crosshair.tscn" id="6"]
+[ext_resource type="PackedScene" path="res://scenes/ui/weapon_hud.tscn" id="7"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMat"]
 sky_top_color = Color(0.2, 0.3, 0.5, 1)
@@ -70,5 +71,7 @@ material_override = SubResource("GroundMat")
 [node name="HealthHUD" parent="." instance=ExtResource("4")]
 
 [node name="Crosshair" parent="." instance=ExtResource("6")]
+
+[node name="WeaponHUD" parent="." instance=ExtResource("7")]
 
 [node name="BackupSpawner" type="Node" parent="."]

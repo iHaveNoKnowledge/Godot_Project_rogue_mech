@@ -11,7 +11,9 @@ var drop_hint_label: Label
 func _ready() -> void:
 	_create_ui()
 	EventBus.game_state_changed.connect(_on_game_state_changed)
-	var wm = get_node_or_null("/root/GameWorld/Mecha/WeaponManager")
+	await get_tree().process_frame
+	var mecha = get_tree().current_scene.get_node_or_null("Mecha")
+	var wm = mecha.get_node_or_null("WeaponManager") if mecha else null
 	if wm:
 		wm.weapon_switched.connect(_on_weapon_switched)
 		wm.ammo_changed.connect(_on_ammo_changed)
@@ -121,4 +123,4 @@ func _on_weapon_dropped(hand: String, _weapon: WeaponPart) -> void:
 
 
 func _on_game_state_changed(_old: String, new_state: String) -> void:
-	visible = new_state == "COMBAT"
+	visible = true

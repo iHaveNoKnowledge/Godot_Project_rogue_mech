@@ -245,13 +245,12 @@ func _fire_projectile(hand: String, weapon: WeaponPart) -> void:
 	mesh.material_override = mat
 	projectile.add_child(mesh)
 
+	get_tree().current_scene.add_child(projectile)
 	projectile.global_position = spawn_pos
 	projectile.velocity = direction * weapon.projectile_speed
 	projectile.damage = weapon.damage
 	projectile.damage_type = "kinetic"
 	projectile.direction = direction
-
-	get_tree().current_scene.add_child(projectile)
 
 	EffectManager.spawn_muzzle_flash(spawn_pos, direction)
 

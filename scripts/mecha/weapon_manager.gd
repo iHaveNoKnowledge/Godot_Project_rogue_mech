@@ -204,7 +204,11 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 
 	ammo_pool[weapon.weapon_name] = current_ammo - weapon.ammo_per_shot
 	ammo_changed.emit(hand, _get_ammo(weapon), weapon.max_ammo)
-	_fire_projectile(hand, weapon)
+
+	if weapon.weapon_type == 4:
+		_melee_attack(hand, weapon)
+	else:
+		_fire_projectile(hand, weapon)
 
 
 func _fire_projectile(hand: String, weapon: WeaponPart) -> void:
@@ -239,6 +243,80 @@ func _fire_projectile(hand: String, weapon: WeaponPart) -> void:
 	EffectManager.spawn_muzzle_flash(spawn_pos, direction)
 
 
+func _melee_attack(hand: String, weapon: WeaponPart) -> void:
+	var mecha = get_parent()
+	var cam = get_viewport().get_camera_3d()
+	if cam == null or mecha == null:
+		return
+
+	var viewport_size = get_viewport().get_visible_rect().size
+	var center = viewport_size / 2.0
+	var ray_origin = cam.project_ray_origin(center)
+	var ray_dir = cam.project_ray_normal(center)
+
+	var space_state = get_viewport().get_world_3d().direct_space_state
+	var query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 500.0)
+	query.collision_mask = 13
+	var result = space_state.intersect_ray(query)
+
+	var target_point: Vector3
+	if result:
+		target_point = result["position"]
+	else:
+		target_point = ray_origin + ray_dir * 500.0
+
+	var dir = (target_point - mecha.global_position).normalized()
+	dir.y = 0.0
+	if dir.length() > 0.1:
+		var target_angle = atan2(dir.x, dir.z)
+		mecha.rotation.y = lerp_angle(mecha.rotation.y, target_angle, 0.3)
+
+	_spawn_melee_trail(mecha, dir)
+	_check_melee_hit(mecha, dir, weapon.damage)
+
+
+func _spawn_melee_trail(mecha: Node3D, direction: Vector3) -> void:
+	var trail = MeshInstance3D.new()
+	var box = BoxMesh.new()
+	box.size = Vector3(0.3, 2.5, 0.05)
+	trail.mesh = box
+
+	var mat = StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(0.8, 0.9, 1.0, 0.9)
+	mat.emission_enabled = true
+	mat.emission = Color(0.5, 0.7, 1.0)
+	mat.emission_energy_multiplier = 3.0
+	mat.no_depth_test = true
+	trail.material_override = mat
+
+	get_tree().current_scene.add_child(trail)
+	var offset = direction * 1.5 + Vector3(0, 1.5, 0)
+	trail.global_position = mecha.global_position + offset
+	trail.look_at(trail.global_position + direction, Vector3.UP)
+	trail.rotate_object_local(Vector3.FORWARD, deg_to_rad(90))
+
+	var tween = get_tree().create_tween()
+	tween.tween_property(mat, "albedo_color:a", 0.0, 0.25)
+	tween.tween_callback(trail.queue_free)
+
+
+func _check_melee_hit(mecha: Node3D, direction: Vector3, damage: float) -> void:
+	var space_state = get_viewport().get_world_3d().direct_space_state
+	var mecha_pos = mecha.global_position + Vector3(0, 1.5, 0)
+	var end_pos = mecha_pos + direction * 3.0
+
+	var query = PhysicsRayQueryParameters3D.create(mecha_pos, end_pos)
+	query.collision_mask = 8
+	var result = space_state.intersect_ray(query)
+
+	if result:
+		var collider = result["collider"]
+		if collider.has_method("take_damage"):
+			collider.take_damage(damage, "melee")
+			EffectManager.spawn_damage_number(result["position"] + Vector3(0, 1, 0), damage, Color(1, 0.5, 0))
+
+
 func _get_fire_direction() -> Vector3:
 	var cam = get_viewport().get_camera_3d()
 	if cam == null:
@@ -249,19 +327,24 @@ func _get_fire_direction() -> Vector3:
 	var ray_origin = cam.project_ray_origin(center)
 	var ray_dir = cam.project_ray_normal(center)
 
-	var space_state = get_world_3d().direct_space_state
-	var query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 200.0)
-	query.collision_mask = 5
+	var space_state = get_viewport().get_world_3d().direct_space_state
+	var query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 500.0)
+	query.collision_mask = 13
 	var result = space_state.intersect_ray(query)
 
 	var target_point: Vector3
 	if result:
 		target_point = result["position"]
 	else:
-		target_point = ray_origin + ray_dir * 200.0
+		target_point = ray_origin + ray_dir * 500.0
 
-	var fire_origin = get_parent().global_position + Vector3(0, 1.5, 0)
-	return (target_point - fire_origin).normalized()
+	var mecha = get_parent()
+	if mecha:
+		var mecha_pos = mecha.global_position + Vector3(0, 1.5, 0)
+		var dir = (target_point - mecha_pos).normalized()
+		return dir
+
+	return ray_dir
 
 
 # ========================

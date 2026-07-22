@@ -4,31 +4,43 @@ signal health_changed(slot_name: String, current_hp: float, max_hp: float)
 signal part_destroyed_visual(slot_name: String)
 signal mecha_destroyed()
 
-@export var body_mesh: MeshInstance3D
-
 var parts: Dictionary = {
-	"head": {"hp": 50.0, "max_hp": 50.0, "armor_class": 1.2, "broken": false},
-	"body": {"hp": 100.0, "max_hp": 100.0, "armor_class": 1.0, "broken": false},
-	"legs": {"hp": 80.0, "max_hp": 80.0, "armor_class": 0.8, "broken": false},
+	"head": {"hp": 50.0, "max_hp": 50.0, "armor_class": 1.2, "broken": false, "mesh": null},
+	"body": {"hp": 100.0, "max_hp": 100.0, "armor_class": 1.0, "broken": false, "mesh": null},
+	"legs": {"hp": 80.0, "max_hp": 80.0, "armor_class": 0.8, "broken": false, "mesh": null},
 }
 
 var total_hp: float = 0.0
 var max_total_hp: float = 0.0
 var is_destroyed: bool = false
 
-var _original_color: Color
+var _original_colors: Dictionary = {}
 var _damage_color: Color = Color(0.8, 0.2, 0.2, 1)
 var _broken_color: Color = Color(0.3, 0.3, 0.3, 1)
 
 
 func _ready() -> void:
 	add_to_group("mecha")
+	_find_meshes()
 	_calculate_totals()
-	if body_mesh and body_mesh.material_override:
-		_original_color = body_mesh.material_override.albedo_color
-	else:
-		_original_color = Color(0.6, 0.65, 0.7, 1)
 	EventBus.damage_received.connect(_on_damage_received)
+
+
+func _find_meshes() -> void:
+	var head_node = get_node_or_null("../Head/HeadMesh")
+	var body_node = get_node_or_null("../Body/BodyMesh")
+	var legs_left = get_node_or_null("../LegLeft/LegLeftMesh")
+	var legs_right = get_node_or_null("../LegRight/LegRightMesh")
+
+	if head_node:
+		parts["head"]["mesh"] = head_node
+		_original_colors["head"] = head_node.material_override.albedo_color if head_node.material_override else Color(0.6, 0.65, 0.7, 1)
+	if body_node:
+		parts["body"]["mesh"] = body_node
+		_original_colors["body"] = body_node.material_override.albedo_color if body_node.material_override else Color(0.6, 0.65, 0.7, 1)
+	if legs_left:
+		parts["legs"]["mesh"] = legs_left
+		_original_colors["legs"] = legs_left.material_override.albedo_color if legs_left.material_override else Color(0.6, 0.65, 0.7, 1)
 
 
 func _calculate_totals() -> void:
@@ -43,7 +55,6 @@ func take_damage(amount: float, damage_type: String = "kinetic") -> void:
 	if is_destroyed:
 		return
 
-	# Find weakest non-broken part
 	var weakest_slot = ""
 	var weakest_hp = INF
 	for slot in parts:
@@ -61,7 +72,7 @@ func take_damage(amount: float, damage_type: String = "kinetic") -> void:
 	health_changed.emit(weakest_slot, part["hp"], part["max_hp"])
 	EventBus.damage_received.emit(weakest_slot, reduced, damage_type)
 
-	_update_visual_damage()
+	_update_part_visual(weakest_slot)
 
 	if part["hp"] <= 0.0:
 		_on_part_destroyed(weakest_slot)
@@ -70,6 +81,7 @@ func take_damage(amount: float, damage_type: String = "kinetic") -> void:
 func _on_part_destroyed(slot_name: String) -> void:
 	parts[slot_name]["broken"] = true
 	parts[slot_name]["hp"] = 0.0
+	_hide_part(slot_name)
 	EventBus.part_destroyed.emit(slot_name)
 	part_destroyed_visual.emit(slot_name)
 	_calculate_totals()
@@ -81,16 +93,24 @@ func _on_part_destroyed(slot_name: String) -> void:
 func _on_mecha_destroyed() -> void:
 	is_destroyed = true
 	EventBus.mecha_destroyed.emit()
-	if body_mesh and body_mesh.material_override:
-		body_mesh.material_override.albedo_color = _broken_color
+	for slot in parts:
+		_hide_part(slot_name)
 
 
-func _update_visual_damage() -> void:
-	if not body_mesh or not body_mesh.material_override:
+func _update_part_visual(slot_name: String) -> void:
+	var mesh = parts[slot_name]["mesh"]
+	if mesh == null or mesh.material_override == null:
 		return
 
-	var damage_ratio = 1.0 - (total_hp / max_total_hp)
-	body_mesh.material_override.albedo_color = _original_color.lerp(_damage_color, damage_ratio)
+	var hp_ratio = parts[slot_name]["hp"] / parts[slot_name]["max_hp"]
+	var original = _original_colors.get(slot_name, Color(0.6, 0.65, 0.7, 1))
+	mesh.material_override.albedo_color = original.lerp(_damage_color, 1.0 - hp_ratio)
+
+
+func _hide_part(slot_name: String) -> void:
+	var mesh = parts[slot_name]["mesh"]
+	if mesh:
+		mesh.visible = false
 
 
 func _on_damage_received(_slot: String, _amount: float, _type: String) -> void:

@@ -1,8 +1,10 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/camera/mecha_camera.tscn" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/mecha/mecha_base.tscn" id="2"]
 [ext_resource type="Script" path="res://scripts/mecha/weapon_manager.gd" id="3"]
+[ext_resource type="PackedScene" path="res://scenes/ui/health_hud.tscn" id="4"]
+[ext_resource type="PackedScene" path="res://scenes/mecha/enemy_dummy.tscn" id="5"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMat"]
 sky_top_color = Color(0.2, 0.3, 0.5, 1)
@@ -45,6 +47,12 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 5)
 [node name="WeaponManager" type="Node3D" parent="Mecha"]
 script = ExtResource("3")
 
+[node name="EnemyDummy" parent="." instance=ExtResource("5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 5, 0)
+
+[node name="EnemyDummy2" parent="." instance=ExtResource("5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 5, -5)
+
 [node name="Ground" type="StaticBody3D" parent="."]
 collision_layer = 2
 collision_mask = 1
@@ -57,5 +65,7 @@ shape = SubResource("BoxShape3D_ground")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
 mesh = SubResource("BoxMesh_ground")
 material_override = SubResource("GroundMat")
+
+[node name="HealthHUD" parent="." instance=ExtResource("4")]
 
 [node name="BackupSpawner" type="Node" parent="."]

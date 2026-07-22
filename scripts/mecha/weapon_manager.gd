@@ -224,10 +224,7 @@ func _fire_projectile(hand: String, weapon: WeaponPart) -> void:
 	mesh.mesh = sphere
 	projectile.add_child(mesh)
 
-	var cam = get_viewport().get_camera_3d()
-	if cam == null:
-		return
-	var direction = -cam.global_transform.basis.z
+	var direction = _get_fire_direction()
 	if weapon.spread > 0.0:
 		direction.x += randf_range(-weapon.spread, weapon.spread)
 		direction.z += randf_range(-weapon.spread, weapon.spread)
@@ -237,6 +234,31 @@ func _fire_projectile(hand: String, weapon: WeaponPart) -> void:
 	var offset = Vector3(-0.5, 1.0, 0) if hand == "left" else Vector3(0.5, 1.0, 0)
 	projectile.global_position = get_parent().global_position + offset
 	projectile.setup(direction, weapon.projectile_speed, weapon.damage)
+
+
+func _get_fire_direction() -> Vector3:
+	var cam = get_viewport().get_camera_3d()
+	if cam == null:
+		return -Vector3.FORWARD
+
+	var viewport_size = get_viewport().get_visible_rect().size
+	var center = viewport_size / 2.0
+	var ray_origin = cam.project_ray_origin(center)
+	var ray_dir = cam.project_ray_normal(center)
+
+	var space_state = get_world_3d().direct_space_state
+	var query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 200.0)
+	query.collision_mask = 5
+	var result = space_state.intersect_ray(query)
+
+	var target_point: Vector3
+	if result:
+		target_point = result["position"]
+	else:
+		target_point = ray_origin + ray_dir * 200.0
+
+	var fire_origin = get_parent().global_position + Vector3(0, 1.5, 0)
+	return (target_point - fire_origin).normalized()
 
 
 # ========================

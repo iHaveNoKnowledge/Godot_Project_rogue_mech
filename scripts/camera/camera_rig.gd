@@ -5,8 +5,9 @@ extends Node3D
 @export var follow_speed: float = 10.0
 
 @onready var pivot: Node3D = $CameraPivot
-@onready var spring_arm: SpringArm3D = $CameraPivot/SpringArm3D
-@onready var camera: Camera3D = $CameraPivot/SpringArm3D/Camera3D
+@onready var camera_offset: Node3D = $CameraPivot/CameraOffset
+@onready var spring_arm: SpringArm3D = $CameraPivot/CameraOffset/SpringArm3D
+@onready var camera: Camera3D = $CameraPivot/CameraOffset/SpringArm3D/Camera3D
 @onready var lock_on_ray: RayCast3D = $LockOnRay
 
 var yaw: float = 0.0

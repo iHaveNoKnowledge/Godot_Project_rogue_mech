@@ -236,7 +236,7 @@ func _fire_projectile(hand: String, weapon: WeaponPart) -> void:
 	get_tree().current_scene.add_child(projectile)
 	var offset = Vector3(-0.5, 1.0, 0) if hand == "left" else Vector3(0.5, 1.0, 0)
 	projectile.global_position = get_parent().global_position + offset
-	projectile.setup(direction, weapon.projectile_speed)
+	projectile.setup(direction, weapon.projectile_speed, weapon.damage)
 
 
 # ========================

@@ -11,6 +11,8 @@ height = 0.3
 
 [node name="Projectile" type="CharacterBody3D"]
 script = ExtResource("1")
+collision_layer = 4
+collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 shape = SubResource("SphereShape3D_proj")

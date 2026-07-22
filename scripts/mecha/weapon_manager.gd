@@ -215,6 +215,8 @@ func _fire_projectile(hand: String, weapon: WeaponPart) -> void:
 	var projectile = CharacterBody3D.new()
 	var script = load("res://scripts/systems/projectile.gd")
 	projectile.set_script(script)
+	projectile.collision_layer = 4
+	projectile.collision_mask = 1
 
 	var collision = CollisionShape3D.new()
 	var shape = SphereShape3D.new()

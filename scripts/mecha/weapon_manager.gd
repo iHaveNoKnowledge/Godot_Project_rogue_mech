@@ -212,35 +212,45 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 
 
 func _fire_projectile(hand: String, weapon: WeaponPart) -> void:
-	var projectile = CharacterBody3D.new()
-	var script = load("res://scripts/systems/projectile.gd")
-	projectile.set_script(script)
-	projectile.collision_layer = 4
-	projectile.collision_mask = 1
-
-	var collision = CollisionShape3D.new()
-	var shape = SphereShape3D.new()
-	shape.radius = 0.15
-	collision.shape = shape
-	projectile.add_child(collision)
-
-	var mesh = MeshInstance3D.new()
-	var sphere = SphereMesh.new()
-	sphere.radius = 0.15
-	mesh.mesh = sphere
-	projectile.add_child(mesh)
-
 	var direction = _get_fire_direction()
 	if weapon.spread > 0.0:
 		direction.x += randf_range(-weapon.spread, weapon.spread)
 		direction.z += randf_range(-weapon.spread, weapon.spread)
 		direction = direction.normalized()
 
-	get_tree().current_scene.add_child(projectile)
 	var offset = Vector3(-0.5, 1.0, 0) if hand == "left" else Vector3(0.5, 1.0, 0)
 	var spawn_pos = get_parent().global_position + offset
+
+	var projectile = CharacterBody3D.new()
+	projectile.collision_layer = 4
+	projectile.collision_mask = 1
+
+	var collision = CollisionShape3D.new()
+	var shape = SphereShape3D.new()
+	shape.radius = 0.2
+	collision.shape = shape
+	projectile.add_child(collision)
+
+	var mesh = MeshInstance3D.new()
+	var sphere = SphereMesh.new()
+	sphere.radius = 0.2
+	mesh.mesh = sphere
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(1, 0.8, 0.2, 1)
+	mat.emission_enabled = true
+	mat.emission = Color(1, 0.6, 0.1)
+	mat.emission_energy_multiplier = 2.0
+	mesh.material_override = mat
+	projectile.add_child(mesh)
+
+	projectile.set_script(load("res://scripts/systems/projectile.gd"))
+
+	get_tree().current_scene.add_child(projectile)
 	projectile.global_position = spawn_pos
-	projectile.setup(direction, weapon.projectile_speed, weapon.damage)
+	projectile.velocity = direction * weapon.projectile_speed
+	projectile.damage = weapon.damage
+	projectile.damage_type = "kinetic"
+	projectile.direction = direction
 
 	EffectManager.spawn_muzzle_flash(spawn_pos, direction)
 
@@ -326,22 +336,41 @@ func _spawn_melee_trail(mecha: Node3D, direction: Vector3) -> void:
 
 
 func _check_melee_hit(mecha: Node3D, direction: Vector3, damage: float) -> void:
+	var cam = get_viewport().get_camera_3d()
+	if cam == null:
+		return
+
+	var viewport_size = get_viewport().get_visible_rect().size
+	var center = viewport_size / 2.0
+	var ray_origin = cam.project_ray_origin(center)
+	var ray_dir = cam.project_ray_normal(center)
+
 	var space_state = get_viewport().get_world_3d().direct_space_state
-	var mecha_pos = mecha.global_position + Vector3(0, 1.5, 0)
+	var query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 10.0)
+	query.collision_mask = 8
+	var result = space_state.intersect_ray(query)
+
+	var aim_point: Vector3
+	if result:
+		aim_point = result["position"]
+	else:
+		aim_point = ray_origin + ray_dir * 10.0
 
 	var enemies = get_tree().get_nodes_in_group("enemy")
 	for enemy in enemies:
 		if not is_instance_valid(enemy):
 			continue
-		var to_enemy = enemy.global_position + Vector3(0, 1.5, 0) - mecha_pos
+		var to_enemy = enemy.global_position + Vector3(0, 1.5, 0) - mecha.global_position
 		var dist = to_enemy.length()
 		if dist > 5.0:
 			continue
 		var dot = direction.dot(to_enemy.normalized())
-		if dot > 0.5:
-			if enemy.has_method("take_damage"):
+		if dot > 0.3:
+			if enemy.has_method("take_damage_at_point"):
+				enemy.take_damage_at_point(damage, aim_point, "melee")
+			elif enemy.has_method("take_damage"):
 				enemy.take_damage(damage, "melee")
-				EffectManager.spawn_damage_number(enemy.global_position + Vector3(0, 2.5, 0), damage, Color(1, 0.5, 0))
+			EffectManager.spawn_damage_number(enemy.global_position + Vector3(0, 2.5, 0), damage, Color(1, 0.5, 0))
 
 
 func _get_fire_direction() -> Vector3:

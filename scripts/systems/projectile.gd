@@ -3,17 +3,14 @@ extends CharacterBody3D
 var speed: float = 50.0
 var damage: float = 25.0
 var damage_type: String = "kinetic"
-var lifetime: float = 3.0
+var lifetime: float = 5.0
 var timer: float = 0.0
 var trail_timer: float = 0.0
 var direction: Vector3 = Vector3.FORWARD
-var last_pos: Vector3 = Vector3.ZERO
 
 
 func _ready() -> void:
 	add_to_group("projectile")
-	velocity = Vector3.ZERO
-	last_pos = global_position
 
 
 func _physics_process(delta: float) -> void:
@@ -22,37 +19,32 @@ func _physics_process(delta: float) -> void:
 		queue_free()
 		return
 
-	last_pos = global_position
-	move_and_slide()
+	var collision = move_and_collide(velocity * delta)
+	if collision:
+		var collider = collision.get_collider()
+		if collider.is_in_group("enemy"):
+			_hit_enemy(collider, collision.get_position())
+		else:
+			EffectManager.spawn_impact(collision.get_position(), collision.get_normal())
+			queue_free()
+		return
 
-	_check_enemy_hit()
+	_check_enemy_proximity()
 
 	trail_timer += delta
-	if trail_timer >= 0.02:
+	if trail_timer >= 0.03:
 		trail_timer = 0.0
-		_spawn_trail_segment()
-
-	if is_on_floor() or is_on_wall() or is_on_ceiling():
-		EffectManager.spawn_impact(global_position, Vector3.UP)
-		queue_free()
+		_spawn_trail()
 
 
-func _check_enemy_hit() -> void:
+func _check_enemy_proximity() -> void:
 	var enemies = get_tree().get_nodes_in_group("enemy")
 	for enemy in enemies:
 		if not is_instance_valid(enemy):
 			continue
-
-		var enemy_pos = enemy.global_position + Vector3(0, 1.5, 0)
-		var to_enemy = enemy_pos - last_pos
-		var to_current = global_position - last_pos
-		var proj = to_enemy.dot(to_current.normalized())
-		proj = clampf(proj, 0.0, to_current.length())
-		var closest_point = last_pos + to_current.normalized() * proj
-		var dist = closest_point.distance_to(enemy_pos)
-
+		var dist = global_position.distance_to(enemy.global_position + Vector3(0, 1.5, 0))
 		if dist < 1.5:
-			_hit_enemy(enemy, closest_point)
+			_hit_enemy(enemy, global_position)
 			return
 
 
@@ -64,34 +56,22 @@ func _hit_enemy(enemy: Node3D, hit_pos: Vector3) -> void:
 	elif enemy.has_method("take_damage"):
 		enemy.take_damage(damage, damage_type)
 
-	EffectManager.spawn_damage_number(hit_pos + Vector3(0, 1, 0), damage, Color.WHITE)
+	EffectManager.spawn_damage_number(hit_pos + Vector3(0, 1.5, 0), damage, Color.WHITE)
 	queue_free()
 
 
-func setup(dir: Vector3, spd: float, dmg: float = 25.0, dmg_type: String = "kinetic") -> void:
-	speed = spd
-	damage = dmg
-	damage_type = dmg_type
-	direction = dir.normalized()
-	velocity = direction * speed
-
-
-func get_damage() -> float:
-	return damage
-
-
-func _spawn_trail_segment() -> void:
+func _spawn_trail() -> void:
 	var trail = MeshInstance3D.new()
 	var box = BoxMesh.new()
-	box.size = Vector3(0.08, 0.08, 0.4)
+	box.size = Vector3(0.06, 0.06, 0.3)
 	trail.mesh = box
 
 	var mat = StandardMaterial3D.new()
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(1, 0.9, 0.5, 0.8)
+	mat.albedo_color = Color(1, 0.8, 0.3, 0.9)
 	mat.emission_enabled = true
-	mat.emission = Color(1, 0.8, 0.3)
-	mat.emission_energy_multiplier = 2.0
+	mat.emission = Color(1, 0.7, 0.2)
+	mat.emission_energy_multiplier = 3.0
 	mat.no_depth_test = true
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	trail.material_override = mat
@@ -101,5 +81,5 @@ func _spawn_trail_segment() -> void:
 	trail.look_at(global_position + direction, Vector3.UP)
 
 	var tween = get_tree().create_tween()
-	tween.tween_property(mat, "albedo_color:a", 0.0, 0.15)
+	tween.tween_property(mat, "albedo_color:a", 0.0, 0.2)
 	tween.tween_callback(trail.queue_free)

@@ -1,4 +1,4 @@
-extends Node3D
+extends Node
 
 @export var bob_amount: float = 0.15
 @export var bob_speed: float = 8.0

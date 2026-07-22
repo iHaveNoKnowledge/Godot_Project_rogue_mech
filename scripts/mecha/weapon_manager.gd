@@ -281,32 +281,29 @@ var _melee_combo: int = 0
 
 func _spawn_melee_trail(mecha: Node3D, direction: Vector3) -> void:
 	var right = direction.cross(Vector3.UP).normalized()
-	var trail_count = 7
-	var swing_arc = deg_to_rad(150)
+	var trail_count = 8
 	var is_first_swing = (_melee_combo % 2 == 0)
 	_melee_combo += 1
 
 	for i in range(trail_count):
 		var t = float(i) / float(trail_count - 1)
-		var swing_dir: Vector3
+		var swing_offset: Vector3
 
 		if is_first_swing:
-			swing_dir = direction.rotated(Vector3.UP, lerp(deg_to_rad(-60), deg_to_rad(60), t))
-			swing_dir.y = lerp(0.6, -0.6, t)
+			swing_offset = right.lerp(-right, t) * 1.5
+			swing_offset.y = lerp(0.3, -0.3, t)
 		else:
-			swing_dir = direction.rotated(Vector3.UP, lerp(deg_to_rad(60), deg_to_rad(-60), t))
-			swing_dir.y = lerp(-0.4, 0.8, t)
-
-		swing_dir = swing_dir.normalized()
+			swing_offset = -right.lerp(right, t) * 1.5
+			swing_offset.y = lerp(-0.2, 0.4, t)
 
 		var trail = MeshInstance3D.new()
 		var box = BoxMesh.new()
-		box.size = Vector3(0.12, 2.5, 0.6 - t * 0.3)
+		box.size = Vector3(3.0, 0.08, 0.15 + t * 0.2)
 		trail.mesh = box
 
 		var mat = StandardMaterial3D.new()
 		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		mat.albedo_color = Color(0.8, 0.9, 1.0, 0.95 - t * 0.6)
+		mat.albedo_color = Color(0.8, 0.9, 1.0, 0.95 - t * 0.5)
 		mat.emission_enabled = true
 		mat.emission = Color(0.4, 0.6, 1.0)
 		mat.emission_energy_multiplier = 5.0 - t * 3.0
@@ -315,14 +312,14 @@ func _spawn_melee_trail(mecha: Node3D, direction: Vector3) -> void:
 		trail.material_override = mat
 
 		get_tree().current_scene.add_child(trail)
-		var offset = direction * 2.0 + Vector3(0, 1.5, 0) + swing_dir * (0.4 + t * 0.8)
-		trail.global_position = mecha.global_position + offset
-		trail.look_at(trail.global_position + swing_dir, Vector3.UP)
+		var forward_offset = direction * (1.5 + t * 0.5)
+		trail.global_position = mecha.global_position + Vector3(0, 1.5, 0) + forward_offset + swing_offset
+		trail.look_at(trail.global_position + direction, Vector3.UP)
 
-		var delay = t * 0.08
+		var delay = t * 0.06
 		var tween = get_tree().create_tween()
 		tween.tween_interval(delay)
-		tween.tween_property(mat, "albedo_color:a", 0.0, 0.25)
+		tween.tween_property(mat, "albedo_color:a", 0.0, 0.2)
 		tween.tween_callback(trail.queue_free)
 
 

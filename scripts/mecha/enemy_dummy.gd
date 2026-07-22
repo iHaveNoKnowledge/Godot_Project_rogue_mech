@@ -9,11 +9,11 @@ var target: Node3D = null
 var attack_timer: float = 0.0
 
 @onready var health_system: Node = $HealthSystem
-@onready var body_mesh: MeshInstance3D = $BodyMesh
 
 
 func _ready() -> void:
 	add_to_group("enemy")
+	await get_tree().process_frame
 	_setup_enemy_status()
 
 

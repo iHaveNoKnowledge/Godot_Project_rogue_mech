@@ -38,15 +38,18 @@ func _physics_process(delta: float) -> void:
 
 
 func _check_enemy_hit() -> void:
-	var enemies = get_tree().get_nodes_in_group("enemy")
-	for enemy in enemies:
-		if not is_instance_valid(enemy):
-			continue
-		var enemy_pos = enemy.global_position + Vector3(0, 1.5, 0)
-		var dist = global_position.distance_to(enemy_pos)
-		if dist < 1.5:
-			_hit_enemy(enemy)
-			return
+	var space_state = get_viewport().get_world_3d().direct_space_state
+	var query = PhysicsRayQueryParameters3D.create(last_pos, global_position)
+	query.collision_mask = 8
+	var result = space_state.intersect_ray(query)
+
+	if result:
+		var collider = result["collider"]
+		if collider.is_in_group("enemy"):
+			_hit_enemy(collider)
+		else:
+			EffectManager.spawn_impact(result["position"], result["normal"])
+			queue_free()
 
 
 func _hit_enemy(enemy: Node3D) -> void:

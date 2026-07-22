@@ -310,7 +310,7 @@ func _spawn_melee_trail(mecha: Node3D, direction: Vector3) -> void:
 
 		var delay = t * 0.1
 		var tween = get_tree().create_tween()
-		tween.set_delay(delay)
+		tween.tween_interval(delay)
 		tween.tween_property(mat, "albedo_color:a", 0.0, 0.2)
 		tween.tween_callback(trail.queue_free)
 

@@ -94,7 +94,7 @@ func _on_mecha_destroyed() -> void:
 	is_destroyed = true
 	EventBus.mecha_destroyed.emit()
 	for slot in parts:
-		_hide_part(slot_name)
+		_hide_part(slot)
 
 
 func _update_part_visual(slot_name: String) -> void:

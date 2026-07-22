@@ -1,27 +1,23 @@
 extends CharacterBody3D
 
-@export var max_hp: float = 200.0
 @export var move_speed: float = 3.0
 @export var attack_range: float = 15.0
 @export var attack_damage: float = 10.0
 @export var attack_cooldown: float = 2.0
 
-var current_hp: float
 var target: Node3D = null
 var attack_timer: float = 0.0
-var is_destroyed: bool = false
 
-@onready var mesh: MeshInstance3D = $BodyMesh
-var original_color: Color = Color(0.8, 0.2, 0.2, 1)
+@onready var health_system: Node = $HealthSystem
+@onready var body_mesh: MeshInstance3D = $BodyMesh
 
 
 func _ready() -> void:
 	add_to_group("enemy")
-	current_hp = max_hp
 
 
 func _physics_process(delta: float) -> void:
-	if is_destroyed:
+	if health_system.is_destroyed:
 		return
 
 	_find_target()
@@ -62,27 +58,5 @@ func _try_attack(delta: float) -> void:
 
 
 func take_damage(amount: float, damage_type: String = "kinetic") -> void:
-	if is_destroyed:
-		return
-
-	current_hp -= amount
-	_update_visual()
-
-	if current_hp <= 0.0:
-		_on_destroyed()
-
-
-func _update_visual() -> void:
-	if mesh and mesh.material_override:
-		var damage_ratio = 1.0 - (current_hp / max_hp)
-		mesh.material_override.albedo_color = original_color.lerp(Color(0.3, 0.3, 0.3, 1), damage_ratio)
-
-
-func _on_destroyed() -> void:
-	is_destroyed = true
-	velocity = Vector3.ZERO
-	if mesh and mesh.material_override:
-		mesh.material_override.albedo_color = Color(0.2, 0.2, 0.2, 1)
-	set_physics_process(false)
-	await get_tree().create_timer(2.0).timeout
-	queue_free()
+	if health_system:
+		health_system.take_damage(amount, damage_type)

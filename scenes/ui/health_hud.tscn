@@ -9,10 +9,10 @@ script = ExtResource("1")
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -250.0
+offset_left = -280.0
 offset_top = 10.0
 offset_right = -10.0
-offset_bottom = 280.0
+offset_bottom = 350.0
 grow_horizontal = 0
 
 [node name="VBox" type="VBoxContainer" parent="Panel"]
@@ -23,89 +23,167 @@ layout_mode = 2
 text = "MECHA STATUS"
 horizontal_alignment = 1
 
-[node name="HeadBar" type="ProgressBar" parent="Panel/VBox"]
+[node name="HeadSection" type="VBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+
+[node name="HeadLabel" type="Label" parent="Panel/VBox/HeadSection"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(200, 16)
+text = "HEAD"
+theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
+
+[node name="HeadArmorBar" type="ProgressBar" parent="Panel/VBox/HeadSection"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(250, 12)
 max_value = 100.0
 value = 100.0
 show_percentage = false
 
-[node name="HeadLabel" type="Label" parent="Panel/VBox"]
+[node name="HeadFrameBar" type="ProgressBar" parent="Panel/VBox/HeadSection"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "HEAD: 50/50"
-
-[node name="BodyBar" type="ProgressBar" parent="Panel/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-custom_minimum_size = Vector2(200, 16)
+custom_minimum_size = Vector2(250, 8)
 max_value = 100.0
 value = 100.0
 show_percentage = false
 
-[node name="BodyLabel" type="Label" parent="Panel/VBox"]
-unique_name_in_owner = true
+[node name="BodySection" type="VBoxContainer" parent="Panel/VBox"]
 layout_mode = 2
-text = "BODY: 100/100"
 
-[node name="ArmLeftBar" type="ProgressBar" parent="Panel/VBox"]
+[node name="BodyLabel" type="Label" parent="Panel/VBox/BodySection"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(200, 16)
+text = "BODY"
+theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
+
+[node name="BodyArmorBar" type="ProgressBar" parent="Panel/VBox/BodySection"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(250, 12)
 max_value = 100.0
 value = 100.0
 show_percentage = false
 
-[node name="ArmLeftLabel" type="Label" parent="Panel/VBox"]
+[node name="BodyFrameBar" type="ProgressBar" parent="Panel/VBox/BodySection"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "ARM_L: 40/40"
-
-[node name="ArmRightBar" type="ProgressBar" parent="Panel/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-custom_minimum_size = Vector2(200, 16)
+custom_minimum_size = Vector2(250, 8)
 max_value = 100.0
 value = 100.0
 show_percentage = false
 
-[node name="ArmRightLabel" type="Label" parent="Panel/VBox"]
-unique_name_in_owner = true
+[node name="ArmLeftSection" type="VBoxContainer" parent="Panel/VBox"]
 layout_mode = 2
-text = "ARM_R: 40/40"
 
-[node name="LegLeftBar" type="ProgressBar" parent="Panel/VBox"]
+[node name="ArmLeftLabel" type="Label" parent="Panel/VBox/ArmLeftSection"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(200, 16)
+text = "ARM_L"
+theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
+
+[node name="ArmLeftArmorBar" type="ProgressBar" parent="Panel/VBox/ArmLeftSection"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(250, 12)
 max_value = 100.0
 value = 100.0
 show_percentage = false
 
-[node name="LegLeftLabel" type="Label" parent="Panel/VBox"]
+[node name="ArmLeftFrameBar" type="ProgressBar" parent="Panel/VBox/ArmLeftSection"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "LEG_L: 50/50"
-
-[node name="LegRightBar" type="ProgressBar" parent="Panel/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-custom_minimum_size = Vector2(200, 16)
+custom_minimum_size = Vector2(250, 8)
 max_value = 100.0
 value = 100.0
 show_percentage = false
 
-[node name="LegRightLabel" type="Label" parent="Panel/VBox"]
+[node name="ArmRightSection" type="VBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+
+[node name="ArmRightLabel" type="Label" parent="Panel/VBox/ArmRightSection"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "LEG_R: 50/50"
+text = "ARM_R"
+theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
+
+[node name="ArmRightArmorBar" type="ProgressBar" parent="Panel/VBox/ArmRightSection"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(250, 12)
+max_value = 100.0
+value = 100.0
+show_percentage = false
+
+[node name="ArmRightFrameBar" type="ProgressBar" parent="Panel/VBox/ArmRightSection"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(250, 8)
+max_value = 100.0
+value = 100.0
+show_percentage = false
+
+[node name="LegLeftSection" type="VBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+
+[node name="LegLeftLabel" type="Label" parent="Panel/VBox/LegLeftSection"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "LEG_L"
+theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
+
+[node name="LegLeftArmorBar" type="ProgressBar" parent="Panel/VBox/LegLeftSection"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(250, 12)
+max_value = 100.0
+value = 100.0
+show_percentage = false
+
+[node name="LegLeftFrameBar" type="ProgressBar" parent="Panel/VBox/LegLeftSection"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(250, 8)
+max_value = 100.0
+value = 100.0
+show_percentage = false
+
+[node name="LegRightSection" type="VBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+
+[node name="LegRightLabel" type="Label" parent="Panel/VBox/LegRightSection"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "LEG_R"
+theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
+
+[node name="LegRightArmorBar" type="ProgressBar" parent="Panel/VBox/LegRightSection"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(250, 12)
+max_value = 100.0
+value = 100.0
+show_percentage = false
+
+[node name="LegRightFrameBar" type="ProgressBar" parent="Panel/VBox/LegRightSection"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(250, 8)
+max_value = 100.0
+value = 100.0
+show_percentage = false
 
 [node name="HSep" type="HSeparator" parent="Panel/VBox"]
 layout_mode = 2
 
-[node name="TotalLabel" type="Label" parent="Panel/VBox"]
+[node name="ArmorTotal" type="Label" parent="Panel/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "TOTAL: 100%"
+text = "ARMOR: 100%"
+horizontal_alignment = 1
+
+[node name="FrameTotal" type="Label" parent="Panel/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "FRAME: 100%"
 horizontal_alignment = 1

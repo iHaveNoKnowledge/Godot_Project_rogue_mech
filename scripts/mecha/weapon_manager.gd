@@ -50,7 +50,7 @@ func _physics_process(delta: float) -> void:
 		right_cooldown -= delta
 
 
-func _unhandled_input(event: InputEvent) -> void:
+func _input(event: InputEvent) -> void:
 	# --- LEFT HAND SWAP (key 1) ---
 	if event.is_action_pressed("weapon_left"):
 		holding_left = true

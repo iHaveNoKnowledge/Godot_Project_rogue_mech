@@ -24,7 +24,7 @@ func _ready() -> void:
 	target = get_tree().current_scene.get_node_or_null("Mecha")
 
 
-func _unhandled_input(event: InputEvent) -> void:
+func _input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and is_mouse_captured:
 		yaw -= event.relative.x * mouse_sensitivity
 		pitch -= event.relative.y * mouse_sensitivity

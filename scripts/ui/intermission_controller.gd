@@ -10,6 +10,7 @@ var current_view: String = "menu"
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_create_ui()
 	_show_menu()
 	visible = true

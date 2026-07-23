@@ -90,7 +90,7 @@ func _create_ui() -> void:
 	vbox.add_child(status_label)
 
 
-func _on_tile_entered(pos: Vector2i, _data) -> void:
+func _on_tile_entered(pos: Vector2i, _data: Node) -> void:
 	var tile_type = _get_tile_type(pos)
 	if tile_type == "safehouse":
 		visible = true

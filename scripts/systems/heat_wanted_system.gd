@@ -10,7 +10,7 @@ func _ready() -> void:
 	EventBus.combat_ended.connect(_on_combat_ended)
 
 
-func _on_tile_entered(_pos: Vector2i, _data: Resource) -> void:
+func _on_tile_entered(_pos: Vector2i, _data: Node) -> void:
 	modify_heat(-heat_decay_rate)
 
 

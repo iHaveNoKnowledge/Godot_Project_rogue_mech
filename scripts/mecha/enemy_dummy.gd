@@ -1,5 +1,7 @@
 extends CharacterBody3D
 
+var _loot_script = preload("res://scripts/systems/loot_system.gd")
+
 @export var move_speed: float = 3.0
 @export var attack_range: float = 15.0
 @export var attack_damage: float = 10.0
@@ -30,7 +32,8 @@ func _on_destroyed() -> void:
 	# Spawn loot
 	var loot = get_node_or_null("/root/GameWorld/LootSystem")
 	if loot == null:
-		loot = LootSystem.new()
+		loot = Node3D.new()
+		loot.set_script(_loot_script)
 		loot.name = "LootSystem"
 		get_tree().current_scene.add_child(loot)
 	loot.spawn_enemy_loot(global_position)

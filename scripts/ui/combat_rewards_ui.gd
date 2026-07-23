@@ -10,6 +10,7 @@ var rewards: Dictionary = {}
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_create_ui()
 	visible = false
 	EventBus.combat_ended.connect(_on_combat_ended)

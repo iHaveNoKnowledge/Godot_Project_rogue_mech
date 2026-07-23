@@ -25,7 +25,7 @@ signal pilot_boarded_backup(backup_mech: Node3D)
 signal backup_mech_destroyed()
 
 # --- Board ---
-signal tile_entered(tile_pos: Vector2i, tile_data: Resource)
+signal tile_entered(tile_pos: Vector2i, tile_data: Node)
 signal event_triggered(event_data: Resource)
 signal heat_changed(new_heat: int)
 signal wanted_changed(new_wanted: int)

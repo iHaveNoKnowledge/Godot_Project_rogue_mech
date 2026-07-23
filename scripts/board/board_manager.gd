@@ -33,6 +33,12 @@ func move_to_tile(target: Vector2i) -> bool:
 	var tile_type = tile_data.get_meta("tile_type", "empty")
 	EventBus.tile_entered.emit(target, tile_data)
 	_process_tile_effect(tile_type)
+	# Show intermission UI after moving (unless entering combat)
+	if tile_type != "combat":
+		var intermission = get_node_or_null("IntermissionUI")
+		if intermission:
+			intermission.visible = true
+			intermission.status_label.text = intermission._get_status_text()
 	return true
 
 

@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://scripts/mecha/mecha_controller.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/mecha/mecha_combat.gd" id="2"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/mecha/mecha_health.gd" id="4"]
 [ext_resource type="Script" path="res://scripts/mecha/mecha_hitbox.gd" id="5"]
 [ext_resource type="Script" path="res://scripts/mecha/mecha_animation.gd" id="6"]
+[ext_resource type="Script" path="res://scripts/mecha/mecha_eject.gd" id="7"]
 
 [sub_resource type="CapsuleShape3D" id="FullBodyShape"]
 height = 4.0
@@ -108,6 +109,9 @@ script = ExtResource("2")
 
 [node name="EjectPoint" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -1)
+
+[node name="MechaEject" type="Node" parent="."]
+script = ExtResource("7")
 
 [node name="AnimationSystem" type="Node" parent="."]
 script = ExtResource("6")

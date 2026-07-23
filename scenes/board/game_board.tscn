@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/board/board_generator.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/board/board_manager.gd" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/ui/intermission_ui.tscn" id="3"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_token"]
 size = Vector3(0.5, 0.5, 0.5)
@@ -20,3 +21,5 @@ mesh = SubResource("BoxMesh_token")
 
 [node name="BoardCamera" type="Camera3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 0.866, 0.5, 0, -0.5, 0.866, 10, 18, 10)
+
+[node name="IntermissionUI" parent="." instance=ExtResource("3")]

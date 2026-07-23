@@ -4,11 +4,14 @@ extends Node
 
 
 func spawn_backup_mech() -> void:
+	var mecha = get_tree().current_scene.get_node_or_null("Mecha")
+	var base_pos = mecha.global_position if mecha else Vector3.ZERO
 	var spawn_pos: Vector3
 	if team_mode == "team":
-		spawn_pos = Vector3(randf_range(-10, 10), 5, randf_range(-10, 10))
+		spawn_pos = base_pos + Vector3(randf_range(-5, 5), 0, randf_range(-5, 5))
 	else:
-		spawn_pos = Vector3(randf_range(40, 60), 20, randf_range(40, 60))
+		spawn_pos = base_pos + Vector3(randf_range(8, 15), 0, randf_range(8, 15))
+	spawn_pos.y = 0.0
 
 	var backup = CharacterBody3D.new()
 	backup.name = "BackupMech"

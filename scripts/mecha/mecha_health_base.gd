@@ -23,7 +23,6 @@ var _broken_color: Color = Color(0.2, 0.2, 0.2, 1)
 
 
 func _ready() -> void:
-	add_to_group("mecha")
 	_init_parts()
 	_find_meshes()
 	_calculate_totals()
@@ -155,6 +154,12 @@ func _on_mecha_destroyed() -> void:
 
 	for slot in parts:
 		_hide_part(slot)
+
+	# Handle player death
+	if is_player:
+		await get_tree().create_timer(2.0).timeout
+		EventBus.combat_ended.emit(false)
+		GameManager.game_over()
 
 
 func _update_part_visual(slot_name: String) -> void:

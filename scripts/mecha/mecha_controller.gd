@@ -28,6 +28,13 @@ func _ready() -> void:
 	EventBus.weight_changed.connect(_on_weight_changed)
 
 
+func _input(event: InputEvent) -> void:
+	if event.is_action_pressed("eject"):
+		var eject = get_node_or_null("MechaEject")
+		if eject:
+			eject.initiate_eject()
+
+
 func _physics_process(delta: float) -> void:
 	dash_cooldown_timer -= delta
 

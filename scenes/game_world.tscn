@@ -9,6 +9,8 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/weapon_hud.tscn" id="7"]
 [ext_resource type="Script" path="res://scripts/effects/effect_manager.gd" id="8"]
 [ext_resource type="Script" path="res://scripts/mecha/weapon_pickup.gd" id="9"]
+[ext_resource type="Script" path="res://scripts/systems/backup_mech_spawner.gd" id="13"]
+[ext_resource type="Script" path="res://scripts/systems/loot_system.gd" id="14"]
 [ext_resource type="Resource" path="res://resources/mech/stock/weapon_machine_gun.tres" id="10"]
 [ext_resource type="Resource" path="res://resources/mech/stock/weapon_shotgun.tres" id="11"]
 [ext_resource type="Resource" path="res://resources/mech/stock/weapon_pile_bunker.tres" id="12"]
@@ -128,3 +130,7 @@ shape = SubResource("BoxShape3D_pickup")
 mesh = SubResource("BoxMesh_pickup")
 
 [node name="BackupSpawner" type="Node" parent="."]
+script = ExtResource("13")
+
+[node name="LootSystem" type="Node3D" parent="."]
+script = ExtResource("14")

@@ -23,9 +23,31 @@ func _on_destroyed() -> void:
 	set_physics_process(false)
 	velocity = Vector3.ZERO
 	visible = false
+
+	# Spawn loot
+	var loot = get_node_or_null("/root/GameWorld/LootSystem")
+	if loot == null:
+		loot = LootSystem.new()
+		loot.name = "LootSystem"
+		get_tree().current_scene.add_child(loot)
+	loot.spawn_enemy_loot(global_position)
+
+	# Check if all enemies destroyed
+	var enemies = get_tree().get_nodes_in_group("enemy")
+	var alive = 0
+	for e in enemies:
+		if is_instance_valid(e) and e != self and e.health_system and not e.health_system.is_destroyed:
+			alive += 1
+
 	var tween = create_tween()
 	tween.tween_interval(0.5)
 	tween.tween_callback(queue_free)
+
+	if alive == 0:
+		tween.tween_callback(func():
+			EventBus.combat_ended.emit(true)
+			GameManager.return_to_board()
+		)
 
 
 func _on_armor_broken(slot_name: String) -> void:

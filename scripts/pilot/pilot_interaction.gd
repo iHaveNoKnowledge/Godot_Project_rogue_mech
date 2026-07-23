@@ -23,6 +23,8 @@ func _on_body_exited(body: Node3D) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("interact") and nearby_backup:
-		var eject = pilot.get_node_or_null("../MechaEject")
-		if eject:
-			eject.board_backup_mech(nearby_backup)
+		var mecha = get_tree().current_scene.get_node_or_null("Mecha")
+		if mecha:
+			var eject = mecha.get_node_or_null("MechaEject")
+			if eject:
+				eject.board_backup_mech(nearby_backup)

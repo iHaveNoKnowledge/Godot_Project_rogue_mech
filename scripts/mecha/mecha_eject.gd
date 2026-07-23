@@ -23,7 +23,7 @@ func initiate_eject() -> void:
 
 
 func board_backup_mech(backup_mech: CharacterBody3D) -> void:
-	var pilot = mecha.get_parent().get_node_or_null("Pilot")
+	var pilot = get_tree().current_scene.get_node_or_null("Pilot")
 	if pilot:
 		pilot.queue_free()
 	mecha.global_position = backup_mech.global_position

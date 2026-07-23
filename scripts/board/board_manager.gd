@@ -47,11 +47,43 @@ func _process_tile_effect(tile_type: String) -> void:
 		"combat":
 			GameManager.enter_combat()
 		"event":
-			pass
+			_trigger_random_event()
 		"safehouse":
-			GameManager.enter_safehouse()
+			var safehouse = get_node_or_null("../SafehouseUI")
+			if safehouse:
+				safehouse.visible = true
+				get_tree().paused = true
 		_:
 			pass
+
+
+func _trigger_random_event() -> void:
+	var events = [
+		{"name": "Abandoned Cache", "effect": "credits", "amount": 50, "desc": "Found an abandoned cache! +50 credits"},
+		{"name": "Salvage Parts", "effect": "spare_parts", "amount": 5, "desc": "Found salvage parts! +5 spare parts"},
+		{"name": "Ambush", "effect": "damage", "amount": 20, "desc": "Ambushed! Take 20 damage"},
+		{"name": "Friendly Trader", "effect": "credits", "amount": 30, "desc": "Met a friendly trader. +30 credits"},
+		{"name": "Data Terminal", "effect": "data_cores", "amount": 1, "desc": "Found a data terminal! +1 data core"},
+	]
+	var event = events[randi() % events.size()]
+	EventBus.event_triggered.emit(event)
+	# Apply effect
+	match event["effect"]:
+		"credits":
+			GlobalData.credits += event["amount"]
+		"spare_parts":
+			GlobalData.spare_parts += event["amount"]
+		"data_cores":
+			GlobalData.data_cores += event["amount"]
+		"damage":
+			# Apply damage to player
+			pass
+
+
+func get_tile_type(pos: Vector2i) -> String:
+	if _is_in_bounds(pos):
+		return board[pos.y][pos.x].get_meta("tile_type", "empty")
+	return "empty"
 
 
 func _update_token_position() -> void:

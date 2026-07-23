@@ -70,6 +70,7 @@ func _create_ui() -> void:
 	_add_menu_button("Mech Status", _on_status_pressed)
 	_add_menu_button("Inventory", _on_inventory_pressed)
 	_add_menu_button("Board Info", _on_board_info_pressed)
+	_add_menu_button("Hangar", _on_hangar_pressed)
 	_add_menu_button("Save Game", _on_save_pressed)
 	_add_menu_button("Load Game", _on_load_pressed)
 	_add_menu_button("Exit to Menu", _on_exit_pressed)
@@ -178,6 +179,12 @@ func _on_board_info_pressed() -> void:
 	current_view = "board_info"
 	info_panel.visible = true
 	info_label.text = _build_board_info_text()
+
+
+func _on_hangar_pressed() -> void:
+	var hangar = get_tree().current_scene.get_node_or_null("HangarUI")
+	if hangar:
+		hangar.show_hangar()
 
 
 func _on_save_pressed() -> void:

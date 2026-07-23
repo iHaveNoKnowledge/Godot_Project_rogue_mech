@@ -34,3 +34,10 @@ signal combat_ended(victory: bool)
 # --- Game State ---
 signal game_state_changed(old_state: String, new_state: String)
 signal run_ended(victory: bool)
+
+# --- Safehouse ---
+signal heal_requested(amount: float)
+signal repair_requested()
+
+# --- Combat Rewards ---
+signal combat_rewards_shown(rewards: Dictionary)

@@ -17,6 +17,7 @@ func _ready() -> void:
 	_setup_enemy_status()
 	health_system.mecha_destroyed.connect(_on_destroyed)
 	health_system.armor_broken.connect(_on_armor_broken)
+	_scale_by_wanted_level()
 
 
 func _on_destroyed() -> void:
@@ -153,3 +154,30 @@ func _determine_hit_part(local_pos: Vector3) -> String:
 			return "leg_left"
 		else:
 			return "leg_right"
+
+
+func _scale_by_wanted_level() -> void:
+	var wanted = GlobalData.wanted_level
+	if wanted <= 0:
+		return
+
+	# Scale stats based on wanted level
+	var scale_factor = 1.0 + (wanted * 0.2)  # +20% per wanted level
+	move_speed *= scale_factor
+	attack_damage *= scale_factor
+	attack_cooldown /= scale_factor
+
+	# Scale health
+	if health_system:
+		for slot in health_system.parts:
+			health_system.parts[slot]["armor_hp"] *= scale_factor
+			health_system.parts[slot]["max_armor"] *= scale_factor
+			health_system.parts[slot]["frame_hp"] *= scale_factor
+			health_system.parts[slot]["max_frame"] *= scale_factor
+		health_system._calculate_totals()
+
+	# Visual feedback - higher wanted = redder color
+	if wanted >= 3:
+		var mesh = get_node_or_null("Body/BodyMesh")
+		if mesh and mesh.material_override:
+			mesh.material_override.albedo_color = Color(0.9, 0.1, 0.1, 1)

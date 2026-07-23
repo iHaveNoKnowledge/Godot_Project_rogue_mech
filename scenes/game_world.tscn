@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/camera/mecha_camera.tscn" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/mecha/mecha_base.tscn" id="2"]
@@ -11,6 +11,7 @@
 [ext_resource type="Script" path="res://scripts/mecha/weapon_pickup.gd" id="9"]
 [ext_resource type="Script" path="res://scripts/systems/backup_mech_spawner.gd" id="13"]
 [ext_resource type="Script" path="res://scripts/systems/loot_system.gd" id="14"]
+[ext_resource type="PackedScene" path="res://scenes/ui/combat_rewards_ui.tscn" id="15"]
 [ext_resource type="Resource" path="res://resources/mech/stock/weapon_machine_gun.tres" id="10"]
 [ext_resource type="Resource" path="res://resources/mech/stock/weapon_shotgun.tres" id="11"]
 [ext_resource type="Resource" path="res://resources/mech/stock/weapon_pile_bunker.tres" id="12"]
@@ -134,3 +135,5 @@ script = ExtResource("13")
 
 [node name="LootSystem" type="Node3D" parent="."]
 script = ExtResource("14")
+
+[node name="CombatRewardsUI" parent="." instance=ExtResource("15")]

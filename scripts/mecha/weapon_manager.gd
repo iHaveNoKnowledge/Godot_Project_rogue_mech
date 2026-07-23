@@ -20,6 +20,8 @@ var right_cooldown: float = 0.0
 # --- Input State ---
 var holding_left: bool = false
 var holding_right: bool = false
+var fire_left_holding: bool = false
+var fire_right_holding: bool = false
 var scroll_index: int = 0
 
 # --- Default Weapons ---
@@ -48,6 +50,11 @@ func _physics_process(delta: float) -> void:
 		left_cooldown -= delta
 	if right_cooldown > 0.0:
 		right_cooldown -= delta
+
+	if fire_left_holding and left_hand and left_cooldown <= 0.0:
+		_try_fire("left", left_hand)
+	if fire_right_holding and right_hand and right_cooldown <= 0.0:
+		_try_fire("right", right_hand)
 
 
 func _input(event: InputEvent) -> void:
@@ -85,13 +92,19 @@ func _input(event: InputEvent) -> void:
 
 	# --- FIRE LEFT (left mouse button) ---
 	if event.is_action_pressed("fire_left"):
+		fire_left_holding = true
 		if left_hand:
 			_try_fire("left", left_hand)
+	if event.is_action_released("fire_left"):
+		fire_left_holding = false
 
 	# --- FIRE RIGHT (right mouse button) ---
 	if event.is_action_pressed("fire_right"):
+		fire_right_holding = true
 		if right_hand:
 			_try_fire("right", right_hand)
+	if event.is_action_released("fire_right"):
+		fire_right_holding = false
 
 
 func _cycle_left() -> void:
@@ -258,7 +271,7 @@ func _fire_projectile(hand: String, weapon: WeaponPart) -> void:
 
 	get_tree().current_scene.add_child(projectile)
 	projectile.global_position = spawn_pos
-	projectile.velocity = direction * weapon.projectile_speed
+	projectile.speed = weapon.projectile_speed
 	projectile.damage = weapon.damage
 	projectile.damage_type = "kinetic"
 	projectile.direction = direction
@@ -314,7 +327,7 @@ func _fire_shotgun(hand: String, weapon: WeaponPart) -> void:
 
 		get_tree().current_scene.add_child(projectile)
 		projectile.global_position = spawn_pos
-		projectile.velocity = pellet_dir * weapon.projectile_speed
+		projectile.speed = weapon.projectile_speed
 		projectile.damage = weapon.damage
 		projectile.damage_type = "kinetic"
 		projectile.direction = pellet_dir

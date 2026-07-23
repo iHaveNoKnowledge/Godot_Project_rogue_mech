@@ -13,30 +13,30 @@ func _ready() -> void:
 	add_to_group("projectile")
 
 
+func get_damage() -> float:
+	return damage
+
+
 func _physics_process(delta: float) -> void:
 	timer += delta
 	if timer >= lifetime:
 		queue_free()
 		return
 
-	position += velocity * delta
+	velocity = direction * speed
+	move_and_slide()
 
-	var hit = false
 	var enemies = get_tree().get_nodes_in_group("enemy")
 	for enemy in enemies:
 		if not is_instance_valid(enemy):
 			continue
-		var dist = position.distance_to(enemy.global_position + Vector3(0, 1.5, 0))
+		var dist = global_position.distance_to(enemy.global_position + Vector3(0, 1.5, 0))
 		if dist < 1.5:
 			_hit_enemy(enemy)
-			hit = true
-			break
+			return
 
-	if hit:
-		return
-
-	if position.y <= 0.0:
-		EffectManager.spawn_impact(position, Vector3.UP)
+	if global_position.y <= 0.0:
+		EffectManager.spawn_impact(global_position, Vector3.UP)
 		queue_free()
 		return
 

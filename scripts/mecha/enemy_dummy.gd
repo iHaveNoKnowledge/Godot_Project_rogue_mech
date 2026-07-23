@@ -12,6 +12,8 @@ var health_system: Node = null
 
 func _ready() -> void:
 	add_to_group("enemy")
+	floor_snap_length = 0.3
+	floor_max_angle = deg_to_rad(60)
 	health_system = $HealthSystem
 	_setup_hitbox()
 	_setup_enemy_status()

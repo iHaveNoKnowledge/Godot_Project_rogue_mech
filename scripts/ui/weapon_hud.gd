@@ -142,8 +142,11 @@ func _update_carry_display(hand: String) -> void:
 	var current_weapon = weapon_manager.left_hand if hand == "left" else weapon_manager.right_hand
 
 	if current_weapon:
+		var current_ammo = weapon_manager._get_ammo(current_weapon)
+		var current_max = current_weapon.max_ammo
+		var ammo_text = "inf" if current_max >= 999 else "%d/%d" % [current_ammo, current_max]
 		var current_row = Label.new()
-		current_row.text = "► %s" % current_weapon.weapon_name
+		current_row.text = "► %s  %s" % [current_weapon.weapon_name, ammo_text]
 		current_row.add_theme_font_size_override("font_size", 13)
 		current_row.add_theme_color_override("font_color", _highlight_color)
 		carry_container.add_child(current_row)

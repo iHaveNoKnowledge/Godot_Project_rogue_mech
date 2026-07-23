@@ -26,11 +26,7 @@ func setup_target(enemy: Node3D) -> void:
 
 func _create_ui() -> void:
 	panel = PanelContainer.new()
-	panel.anchors_preset = Control.PRESET_CENTER
-	panel.offset_left = -90
-	panel.offset_right = 90
-	panel.offset_top = -55
-	panel.offset_bottom = 55
+	panel.size = Vector2(180, 110)
 
 	var style = StyleBoxFlat.new()
 	style.bg_color = _bg_color
@@ -139,7 +135,7 @@ func _update_position() -> void:
 	screen_pos.x = clampf(screen_pos.x, 100, viewport_size.x - 100)
 	screen_pos.y = clampf(screen_pos.y, 70, viewport_size.y - 70)
 
-	panel.position = screen_pos - panel.size / 2.0
+	panel.global_position = screen_pos - panel.size / 2.0
 
 
 func _update_status() -> void:

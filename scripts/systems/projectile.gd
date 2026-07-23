@@ -23,8 +23,7 @@ func _physics_process(delta: float) -> void:
 		queue_free()
 		return
 
-	velocity = direction * speed
-	move_and_slide()
+	position += direction * speed * delta
 
 	var enemies = get_tree().get_nodes_in_group("enemy")
 	for enemy in enemies:

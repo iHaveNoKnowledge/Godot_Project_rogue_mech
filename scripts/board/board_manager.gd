@@ -8,6 +8,7 @@ var board: Array = []
 
 
 func _ready() -> void:
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	var generator = get_node_or_null("BoardGenerator")
 	if generator:
 		board = generator.generate_board()

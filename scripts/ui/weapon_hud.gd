@@ -20,7 +20,6 @@ func _ready() -> void:
 	_create_root()
 	_create_ammo_ui()
 	_create_carry_ui()
-	await get_tree().process_frame
 	var mecha = get_tree().current_scene.get_node_or_null("Mecha")
 	weapon_manager = mecha.get_node_or_null("WeaponManager") if mecha else null
 	if weapon_manager:
@@ -28,6 +27,7 @@ func _ready() -> void:
 		weapon_manager.ammo_changed.connect(_on_ammo_changed)
 		weapon_manager.carry_updated.connect(_on_carry_updated)
 		weapon_manager._emit_initial_state()
+	_update_current_display()
 
 
 func _input(event: InputEvent) -> void:

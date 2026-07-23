@@ -11,6 +11,8 @@ func _ready() -> void:
 	var mecha = get_tree().current_scene.get_node_or_null("Mecha")
 	if mecha:
 		aim_ray = mecha.get_node_or_null("AimRay")
+		if aim_ray:
+			aim_ray.collision_mask = 10
 	_update_crosshair_position()
 
 
@@ -47,7 +49,7 @@ func get_aim_direction() -> Vector3:
 
 	var space_state = get_viewport().get_world_3d().direct_space_state
 	var query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 200.0)
-	query.collision_mask = 5
+	query.collision_mask = 10
 	var result = space_state.intersect_ray(query)
 
 	if result:

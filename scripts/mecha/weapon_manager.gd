@@ -249,7 +249,7 @@ func _fire_projectile(hand: String, weapon: WeaponPart) -> void:
 	var projectile = CharacterBody3D.new()
 	projectile.set_script(proj_script)
 	projectile.collision_layer = 4
-	projectile.collision_mask = 1
+	projectile.collision_mask = 0
 
 	var collision = CollisionShape3D.new()
 	var shape = SphereShape3D.new()
@@ -305,7 +305,7 @@ func _fire_shotgun(hand: String, weapon: WeaponPart) -> void:
 		var projectile = CharacterBody3D.new()
 		projectile.set_script(proj_script)
 		projectile.collision_layer = 4
-		projectile.collision_mask = 1
+		projectile.collision_mask = 0
 
 		var collision = CollisionShape3D.new()
 		var shape = SphereShape3D.new()

@@ -44,7 +44,8 @@ static func spawn_muzzle_flash(position: Vector3, direction: Vector3) -> void:
 	flash.look_at(position + direction)
 
 	await instance.get_tree().create_timer(0.3).timeout
-	flash.queue_free()
+	if is_instance_valid(flash):
+		flash.queue_free()
 
 
 static func spawn_impact(position: Vector3, normal: Vector3) -> void:
@@ -82,7 +83,8 @@ static func spawn_impact(position: Vector3, normal: Vector3) -> void:
 	impact.global_position = position
 
 	await instance.get_tree().create_timer(0.5).timeout
-	impact.queue_free()
+	if is_instance_valid(impact):
+		impact.queue_free()
 
 
 static func spawn_damage_number(position: Vector3, damage: float, color: Color = Color.WHITE) -> void:
@@ -141,4 +143,5 @@ static func spawn_explosion(position: Vector3) -> void:
 	explosion.global_position = position
 
 	await instance.get_tree().create_timer(1.0).timeout
-	explosion.queue_free()
+	if is_instance_valid(explosion):
+		explosion.queue_free()

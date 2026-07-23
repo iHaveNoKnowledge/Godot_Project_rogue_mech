@@ -3,7 +3,7 @@ extends CanvasLayer
 @onready var crosshair_dot: TextureRect = $CrosshairDot
 @onready var aim_ray: RayCast3D = null
 
-var is_visible: bool = true
+var _crosshair_visible: bool = true
 
 
 func _ready() -> void:

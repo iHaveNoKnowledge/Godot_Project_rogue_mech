@@ -8,6 +8,7 @@ var continue_button: Button
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_create_ui()
 	visible = false
 	EventBus.event_triggered.connect(_on_event_triggered)

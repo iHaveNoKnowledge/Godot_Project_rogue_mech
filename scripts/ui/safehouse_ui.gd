@@ -15,6 +15,7 @@ var heal_amount: float = 0.3  # 30% of max HP
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_create_ui()
 	visible = false
 	EventBus.tile_entered.connect(_on_tile_entered)

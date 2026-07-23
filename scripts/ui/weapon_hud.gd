@@ -1,11 +1,12 @@
 extends CanvasLayer
 
 var weapon_manager: Node = null
-var ammo_panel: PanelContainer = null
-var current_label: Label = null
-var carry_panel: PanelContainer = null
-var carry_container: VBoxContainer = null
-var hand_label: Label = null
+var root_control: Control
+var ammo_panel: PanelContainer
+var current_label: Label
+var carry_panel: PanelContainer
+var carry_container: VBoxContainer
+var hand_label: Label
 
 var left_holding: bool = false
 var right_holding: bool = false
@@ -16,6 +17,7 @@ var _highlight_color: Color = Color(1.0, 0.9, 0.3, 1)
 
 
 func _ready() -> void:
+	_create_root()
 	_create_ammo_ui()
 	_create_carry_ui()
 	await get_tree().process_frame
@@ -44,6 +46,12 @@ func _input(event: InputEvent) -> void:
 		_hide_carry()
 
 
+func _create_root() -> void:
+	root_control = Control.new()
+	root_control.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(root_control)
+
+
 func _create_ammo_ui() -> void:
 	ammo_panel = PanelContainer.new()
 	ammo_panel.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
@@ -63,7 +71,7 @@ func _create_ammo_ui() -> void:
 	style.content_margin_top = 6
 	style.content_margin_bottom = 6
 	ammo_panel.add_theme_stylebox_override("panel", style)
-	add_child(ammo_panel)
+	root_control.add_child(ammo_panel)
 
 	current_label = Label.new()
 	current_label.text = "[L] Empty  |  [R] Empty"
@@ -89,7 +97,7 @@ func _create_carry_ui() -> void:
 	style.content_margin_top = 8
 	style.content_margin_bottom = 8
 	carry_panel.add_theme_stylebox_override("panel", style)
-	add_child(carry_panel)
+	root_control.add_child(carry_panel)
 	carry_panel.visible = false
 
 	var vbox = VBoxContainer.new()
@@ -116,13 +124,18 @@ func _show_carry(hand: String) -> void:
 
 	carry_panel.visible = true
 
+	var viewport_width = get_viewport().get_visible_rect().size.x
 	if hand == "left":
 		carry_panel.offset_left = 20
 		carry_panel.offset_right = 220
+		carry_panel.offset_top = 100
+		carry_panel.offset_bottom = 300
 		hand_label.text = "LEFT HAND"
 	else:
-		carry_panel.offset_left = get_viewport().get_visible_rect().size.x - 220
-		carry_panel.offset_right = get_viewport().get_visible_rect().size.x - 20
+		carry_panel.offset_left = viewport_width - 220
+		carry_panel.offset_right = viewport_width - 20
+		carry_panel.offset_top = 100
+		carry_panel.offset_bottom = 300
 		hand_label.text = "RIGHT HAND"
 
 	_update_carry_display(hand)

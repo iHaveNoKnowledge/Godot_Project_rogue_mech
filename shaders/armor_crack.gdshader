@@ -1,4 +1,4 @@
-﻿shader_type spatial;
+shader_type spatial;
 
 uniform float damage_amount : hint_range(0.0, 1.0) = 0.0;
 uniform vec4 damage_color : source_color = vec4(0.8, 0.1, 0.1, 1.0);

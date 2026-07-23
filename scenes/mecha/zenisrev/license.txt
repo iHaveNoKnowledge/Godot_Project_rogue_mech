@@ -1,0 +1,11 @@
+Model Information:
+* title:	Wanzer
+* source:	https://sketchfab.com/3d-models/wanzer-228b3717ec0b4001ac00a6019ee335af
+* author:	AndreySurnachev (https://sketchfab.com/andreysurnachev)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Wanzer" (https://sketchfab.com/3d-models/wanzer-228b3717ec0b4001ac00a6019ee335af) by AndreySurnachev (https://sketchfab.com/andreysurnachev) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

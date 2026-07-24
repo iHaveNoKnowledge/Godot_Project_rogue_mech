@@ -61,17 +61,17 @@ func _setup_music_players() -> void:
 
 func _generate_sounds() -> void:
 	# Beam Rifle: sine sweep 200->800Hz
-	_sound_cache["beam_rifle"] = _gen_sine_sweep(200.0, 800.0, 0.15, 0.3)
+	_sound_cache["beam_rifle"] = preload("res://resources/audio/sfx/beamrifle01.wav")
 	# Machine Gun: short noise burst
 	_sound_cache["machine_gun"] = preload("res://resources/audio/sfx/machine_gun01.wav")
 	# Missile: deep sine + noise
-	_sound_cache["missile"] = _gen_sine_sweep(100.0, 60.0, 0.3, 0.5)
+	_sound_cache["missile"] = preload("res://resources/audio/sfx/missile01.wav")
 	# Shotgun: noise burst
 	_sound_cache["shotgun"] = preload("res://resources/audio/sfx/Dense_heavy_combat_s_#1-1782744878871.wav")
 	# Melee: sine chop
 	_sound_cache["melee"] = _gen_sine_chop(400.0, 0.08, 0.3)
 	# Impact: short noise
-	_sound_cache["impact"] = _gen_noise_burst(0.03, 0.15)
+	_sound_cache["impact"] = preload("res://resources/audio/sfx/impact01.wav")
 	# Armor break: crack
 	_sound_cache["armor_break"] = _gen_crack(0.12, 0.4)
 	# Explosion: long noise swell

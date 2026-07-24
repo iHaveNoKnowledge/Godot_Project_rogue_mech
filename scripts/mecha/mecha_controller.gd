@@ -18,6 +18,7 @@ var dash_timer: float = 0.0
 var dash_cooldown_timer: float = 0.0
 var is_dashing: bool = false
 var dash_direction: Vector3 = Vector3.ZERO
+var _recalculating: bool = false
 
 
 func _ready() -> void:
@@ -143,6 +144,10 @@ func _spawn_dash_effect() -> void:
 
 
 func _recalculate_weight() -> void:
+	if _recalculating:
+		return
+	_recalculating = true
+
 	total_weight = 0.0
 	for slot in GlobalData.equipped_parts:
 		var part: ArmorPart = GlobalData.equipped_parts[slot]
@@ -156,7 +161,7 @@ func _recalculate_weight() -> void:
 		turn_rate = 2.0
 		current_speed = 8.0
 
-	EventBus.weight_changed.emit(total_weight)
+	_recalculating = false
 
 
 func _on_weight_changed(_w: float) -> void:

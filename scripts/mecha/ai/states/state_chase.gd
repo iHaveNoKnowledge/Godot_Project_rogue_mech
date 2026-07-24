@@ -23,9 +23,10 @@ func physics_process(delta: float) -> void:
 
 	var distance = enemy.global_position.distance_to(enemy.target.global_position)
 
-	# Transition to attack if in range
+	# Transition to attack if in range (but not while reloading)
 	if distance <= enemy.attack_range:
-		state_machine.transition_to("StateAttack")
+		if not enemy.is_reloading:
+			state_machine.transition_to("StateAttack")
 		return
 
 	# Check if low HP -> flee

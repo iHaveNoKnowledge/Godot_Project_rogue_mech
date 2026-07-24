@@ -63,7 +63,7 @@ func _generate_sounds() -> void:
 	# Beam Rifle: sine sweep 200->800Hz
 	_sound_cache["beam_rifle"] = _gen_sine_sweep(200.0, 800.0, 0.15, 0.3)
 	# Machine Gun: short noise burst
-	_sound_cache["machine_gun"] = _gen_noise_burst(0.05, 0.2)
+	_sound_cache["machine_gun"] = preload("res://resources/audio/sfx/machine_gun01.wav")
 	# Missile: deep sine + noise
 	_sound_cache["missile"] = _gen_sine_sweep(100.0, 60.0, 0.3, 0.5)
 	# Shotgun: noise burst

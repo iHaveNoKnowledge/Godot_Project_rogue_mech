@@ -27,17 +27,20 @@ func _create_ui() -> void:
 	new_game_button = Button.new()
 	new_game_button.text = "New Game"
 	new_game_button.pressed.connect(_on_new_game)
+	new_game_button.add_to_group("ui_button")
 	vbox.add_child(new_game_button)
 
 	continue_button = Button.new()
 	continue_button.text = "Continue"
 	continue_button.pressed.connect(_on_continue)
 	continue_button.disabled = not FileAccess.file_exists(GlobalData.SAVE_PATH)
+	continue_button.add_to_group("ui_button")
 	vbox.add_child(continue_button)
 
 	quit_button = Button.new()
 	quit_button.text = "Quit"
 	quit_button.pressed.connect(_on_quit)
+	quit_button.add_to_group("ui_button")
 	vbox.add_child(quit_button)
 
 

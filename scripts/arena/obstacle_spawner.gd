@@ -1,53 +1,52 @@
 extends Node3D
 
-## Spawns cover objects in the arena in predefined patterns.
+## Spawns cover objects in the arena using seed-based variation.
 
 @export var arena_size: float = 120.0
-@export var min_spacing: float = 4.0
+
+var seed_system: Node = null
 
 
 func _ready() -> void:
-	# Wait for arena to generate
 	await get_tree().process_frame
+	# Try to use seed system for procedural variation
+	seed_system = get_node_or_null("../ArenaSeedSystem")
 	spawn_covers()
 
 
 func spawn_covers() -> void:
-	var covers = _generate_cover_positions()
+	var covers = _generate_positions()
 
 	for def in covers:
 		var cover = _create_cover(def)
 		add_child(cover)
 
 
-func _generate_cover_positions() -> Array:
+func _generate_positions() -> Array:
+	if seed_system:
+		# Use seed-based positions
+		return seed_system.get_obstacle_positions(arena_size)
+	else:
+		# Fallback: random positions
+		return _random_positions()
+
+
+func _random_positions() -> Array:
 	var results = []
 	var rng = RandomNumberGenerator.new()
 	rng.randomize()
-	var half = arena_size / 2.0 - 5.0  # Stay inside walls
+	var half = arena_size / 2.0 - 5.0
 
-	# Inner ring (radius ~20)
-	for i in range(6):
-		var angle = (i / 6.0) * TAU + rng.randf_range(-0.3, 0.3)
-		var radius = 20.0 + rng.randf_range(-3, 3)
-		var pos = Vector3(cos(angle) * radius, 0, sin(angle) * radius)
-		if pos.x > -half and pos.x < half and pos.z > -half and pos.z < half:
-			results.append({"pos": pos, "type": rng.randi_range(0, 2)})
-
-	# Outer ring (radius ~40)
-	for i in range(8):
-		var angle = (i / 8.0) * TAU + rng.randf_range(-0.3, 0.3)
-		var radius = 40.0 + rng.randf_range(-5, 5)
-		var pos = Vector3(cos(angle) * radius, 0, sin(angle) * radius)
-		if pos.x > -half and pos.x < half and pos.z > -half and pos.z < half:
-			results.append({"pos": pos, "type": rng.randi_range(0, 3)})
-
+	for i in range(10):
+		results.append({
+			"pos": Vector3(rng.randf_range(-half, half), 0, rng.randf_range(-half, half)),
+			"type": rng.randi_range(0, 3)
+		})
 	return results
 
 
 func _create_cover(def: Dictionary) -> StaticBody3D:
 	var cover_script = preload("res://scripts/arena/cover_object.gd")
-
 	var type = def["type"]
 	var pos = def["pos"]
 
@@ -66,7 +65,6 @@ func _create_cover(def: Dictionary) -> StaticBody3D:
 			shape.size = Vector3(3, 1.5, 0.5)
 			collision.shape = shape
 			collision.position.y = 0.75
-
 			var box = BoxMesh.new()
 			box.size = Vector3(3, 1.5, 0.5)
 			mesh_inst.mesh = box
@@ -79,7 +77,6 @@ func _create_cover(def: Dictionary) -> StaticBody3D:
 			shape.size = Vector3(2, 3, 2)
 			collision.shape = shape
 			collision.position.y = 1.5
-
 			var box = BoxMesh.new()
 			box.size = Vector3(2, 3, 2)
 			mesh_inst.mesh = box
@@ -93,7 +90,6 @@ func _create_cover(def: Dictionary) -> StaticBody3D:
 			shape.height = 6.0
 			collision.shape = shape
 			collision.position.y = 3.0
-
 			var cyl = CylinderMesh.new()
 			cyl.top_radius = 0.8
 			cyl.bottom_radius = 0.8
@@ -108,7 +104,6 @@ func _create_cover(def: Dictionary) -> StaticBody3D:
 			shape.size = Vector3(1.5, 1.5, 1.5)
 			collision.shape = shape
 			collision.position.y = 0.75
-
 			var box = BoxMesh.new()
 			box.size = Vector3(1.5, 1.5, 1.5)
 			mesh_inst.mesh = box
@@ -120,7 +115,6 @@ func _create_cover(def: Dictionary) -> StaticBody3D:
 	cover.add_child(mesh_inst)
 	mesh_inst.material_override = mat
 
-	# Add damage particles for small crates
 	if type == 3:
 		var particles = GPUParticles3D.new()
 		particles.name = "DamageParticles"

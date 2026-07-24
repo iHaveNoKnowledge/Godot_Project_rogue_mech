@@ -20,10 +20,12 @@ func enter_board() -> void:
 func enter_combat() -> void:
 	get_tree().change_scene_to_file("res://scenes/game_world.tscn")
 	transition_to(State.COMBAT)
+	EventBus.combat_intensity_changed.emit(1.0)
 
 
 func return_to_board() -> void:
 	GlobalData.save_run()
+	EventBus.combat_intensity_changed.emit(0.0)
 	get_tree().change_scene_to_file("res://scenes/board/game_board.tscn")
 	transition_to(State.BOARD)
 

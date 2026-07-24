@@ -45,3 +45,4 @@ signal combat_rewards_shown(rewards: Dictionary)
 # --- Arena ---
 signal arena_generated(arena_data: Dictionary)
 signal cover_destroyed(pos: Vector3, type: String)
+signal combat_intensity_changed(intensity: float)

@@ -40,8 +40,10 @@ func _setup_navigation() -> void:
 	# Set the nav mesh
 	nav_region.navigation_mesh = nav_mesh
 
-	# Bake navigation
-	NavigationServer3D.region_set_map(nav_region.get_rid(), NavigationServer3D.get_default_map())
+	# Bake navigation — get the default world map
+	var maps = NavigationServer3D.get_maps()
+	if maps.size() > 0:
+		NavigationServer3D.region_set_map(nav_region.get_rid(), maps[0])
 
 	# Mark obstacle positions as blocked
 	_mark_obstacles()

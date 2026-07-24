@@ -47,7 +47,13 @@ health_system_path = NodePath("../HealthSystem")
 [node name="HitboxShape" type="CollisionShape3D" parent="Hitbox"]
 shape = SubResource("HitboxShape")
 
-[node name="EnemyStatus" type="Node3D" parent="."]
+[node name="EnemyStatus" type="Control" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
 script = ExtResource("3")
 
 [node name="NameLabel3D" type="Label3D" parent="."]

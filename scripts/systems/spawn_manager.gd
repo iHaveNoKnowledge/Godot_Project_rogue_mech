@@ -55,7 +55,7 @@ func _generate_spawn_points() -> void:
 		var angle = (i / 8.0) * TAU
 		var pos = Vector3(cos(angle) * half, 1.0, sin(angle) * half)
 		var marker = Marker3D.new()
-		marker.global_position = pos
+		marker.position = pos
 		add_child(marker)
 		spawn_points.append(marker)
 

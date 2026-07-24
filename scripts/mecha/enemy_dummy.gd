@@ -70,6 +70,7 @@ func _setup_state_machine() -> void:
 		state_machine.add_child(charge)
 
 	# Start in idle
+	state_machine.initialize_states()
 	state_machine.transition_to("StateIdle")
 
 
@@ -155,6 +156,12 @@ func take_damage_at_point(amount: float, world_pos: Vector3, damage_type: String
 
 	var local_pos = to_local(world_pos)
 	var target_part = _determine_hit_part(local_pos)
+
+	# Fallback if part doesn't exist in this enemy's health system
+	if not health_system.parts.has(target_part):
+		target_part = _find_alive_part()
+		if target_part == "":
+			return
 
 	if health_system.parts[target_part]["destroyed"]:
 		target_part = _find_alive_part()

@@ -61,11 +61,10 @@ func physics_process(delta: float) -> void:
 
 
 func _update_flee_path() -> void:
-	var map_rid = NavigationServer3D.get_default_map()
-	if map_rid == RID():
+	var maps = NavigationServer3D.get_maps()
+	if maps.is_empty():
 		return
 
-	# Find a point away from the target
 	var away_dir = (enemy.global_position - enemy.target.global_position).normalized()
 	away_dir.y = 0.0
 	away_dir = away_dir.rotated(Vector3.UP, randf_range(-0.5, 0.5)).normalized()
@@ -73,7 +72,7 @@ func _update_flee_path() -> void:
 	var flee_target = enemy.global_position + away_dir * 30.0
 	flee_target.y = 0.0
 
-	path = NavigationServer3D.map_get_path(map_rid, enemy.global_position, flee_target, true)
+	path = NavigationServer3D.map_get_path(maps[0], enemy.global_position, flee_target, true)
 	path_index = 0
 
 

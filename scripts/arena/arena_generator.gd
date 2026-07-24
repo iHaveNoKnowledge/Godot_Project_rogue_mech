@@ -18,13 +18,9 @@ func _ready() -> void:
 
 
 func generate_arena() -> void:
-	# Remove any existing ground (old 200x200 box)
-	var old_ground = get_node_or_null("../Ground")
-	if old_ground:
-		old_ground.queue_free()
-
+	# Keep original ground — just add visual tiles, walls, pillars
 	_create_containers()
-	_create_ground()
+	_add_ground_tiles()
 	_create_walls()
 	_create_pillars()
 	EventBus.arena_generated.emit({"size": arena_size})
@@ -40,52 +36,31 @@ func _create_containers() -> void:
 	add_child(tile_container)
 
 
-func _create_ground() -> void:
+func _add_ground_tiles() -> void:
+	# Visual-only tiles on top of the existing ground collision
 	var tile_size = arena_size / tile_count
-	var half_arena = arena_size / 2.0
 
 	for x in range(tile_count):
 		for z in range(tile_count):
 			var tile = MeshInstance3D.new()
 			var box = BoxMesh.new()
-			box.size = Vector3(tile_size, 0.2, tile_size)
+			box.size = Vector3(tile_size, 0.1, tile_size)
 			tile.mesh = box
 
-			# Vary color slightly per tile for visual texture
 			var mat = StandardMaterial3D.new()
-			var base_r = 0.35
-			var base_g = 0.45
-			var base_b = 0.32
 			var variation = 0.05
 			mat.albedo_color = Color(
-				base_r + randf_range(-variation, variation),
-				base_g + randf_range(-variation, variation),
-				base_b + randf_range(-variation, variation),
+				0.35 + randf_range(-variation, variation),
+				0.45 + randf_range(-variation, variation),
+				0.32 + randf_range(-variation, variation),
 				1.0
 			)
 			tile.material_override = mat
 
 			var pos_x = (x - tile_count / 2.0) * tile_size + tile_size / 2.0
 			var pos_z = (z - tile_count / 2.0) * tile_size + tile_size / 2.0
-			tile.position = Vector3(pos_x, -0.1, pos_z)
+			tile.position = Vector3(pos_x, -0.39, pos_z)
 			tile_container.add_child(tile)
-
-	# Ground collision body
-	var ground_body = StaticBody3D.new()
-	ground_body.name = "Ground"
-	ground_body.collision_layer = 2  # Environment
-	ground_body.collision_mask = 1   # Mecha
-	var ground_collision = CollisionShape3D.new()
-	var ground_shape = BoxShape3D.new()
-	ground_shape.size = Vector3(arena_size, 0.2, arena_size)
-	ground_collision.shape = ground_shape
-	ground_collision.position.y = -0.5
-	ground_body.add_child(ground_collision)
-	# Ground must be sibling or child accessible by game_world
-	# We add it to parent (game_world) to replace the old Ground
-	get_parent().add_child(ground_body)
-	# Move it to same position as old ground
-	ground_body.position = Vector3.ZERO
 
 
 func _create_walls() -> void:

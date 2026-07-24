@@ -44,15 +44,14 @@ func physics_process(delta: float) -> void:
 
 
 func _update_path() -> void:
-	var map_rid = NavigationServer3D.get_default_map()
-	if map_rid == RID():
-		# No navigation map, fall back to direct movement
+	var maps = NavigationServer3D.get_maps()
+	if maps.is_empty():
 		return
 
 	var start_pos = enemy.global_position
 	var target_pos = enemy.target.global_position
 
-	path = NavigationServer3D.map_get_path(map_rid, start_pos, target_pos, true)
+	path = NavigationServer3D.map_get_path(maps[0], start_pos, target_pos, true)
 	path_index = 0
 
 

@@ -28,7 +28,6 @@ var scroll_index: int = 0
 var default_left: WeaponPart = preload("res://resources/mech/stock/weapon_beam_rifle.tres")
 var default_right: WeaponPart = preload("res://resources/mech/stock/weapon_heat_blade.tres")
 
-
 func _ready() -> void:
 	left_hand = default_left
 	right_hand = default_right

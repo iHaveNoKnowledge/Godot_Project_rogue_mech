@@ -71,7 +71,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 5)
 [node name="WeaponManager" type="Node3D" parent="Mecha"]
 script = ExtResource("3")
 
-[node name="ArenaGenerator" type="Node" parent="."]
+[node name="ArenaGenerator" type="Node3D" parent="."]
 script = ExtResource("16")
 
 [node name="ObstacleSpawner" type="Node3D" parent="."]

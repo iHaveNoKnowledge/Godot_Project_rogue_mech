@@ -7,11 +7,14 @@ const SCAN_INTERVAL: float = 0.5
 
 
 func enter() -> void:
-	enemy.velocity = Vector3.ZERO
 	scan_timer = 0.0
 
 
 func physics_process(delta: float) -> void:
+	# Apply gravity
+	enemy.velocity.y -= 10.0 * delta
+	enemy.move_and_slide()
+
 	scan_timer -= delta
 	if scan_timer <= 0.0:
 		scan_timer = SCAN_INTERVAL

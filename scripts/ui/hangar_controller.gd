@@ -12,6 +12,7 @@ var repair_cost: int = 10
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_create_ui()
 	visible = false
 

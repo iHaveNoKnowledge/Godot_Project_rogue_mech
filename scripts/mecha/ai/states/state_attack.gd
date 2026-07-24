@@ -56,7 +56,7 @@ func physics_process(delta: float) -> void:
 
 
 func _perform_attack() -> void:
-	var archetype = enemy.get("archetype", 0)
+	var archetype = enemy.archetype if enemy.get("archetype") != null else 0
 
 	match archetype:
 		0:  # RUSHER - melee

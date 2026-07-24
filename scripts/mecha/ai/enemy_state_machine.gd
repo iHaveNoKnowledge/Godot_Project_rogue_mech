@@ -7,9 +7,8 @@ var current_state: EnemyState
 var enemy: CharacterBody3D
 
 
-func _ready() -> void:
+func initialize_states() -> void:
 	enemy = get_parent() as CharacterBody3D
-	# Initialize all child states
 	for child in get_children():
 		if child is EnemyState:
 			child.enemy = enemy

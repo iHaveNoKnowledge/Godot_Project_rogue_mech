@@ -67,7 +67,7 @@ func _generate_sounds() -> void:
 	# Missile: deep sine + noise
 	_sound_cache["missile"] = _gen_sine_sweep(100.0, 60.0, 0.3, 0.5)
 	# Shotgun: noise burst
-	_sound_cache["shotgun"] = _gen_noise_burst(0.1, 0.4)
+	_sound_cache["shotgun"] = preload("res://resources/audio/sfx/Dense_heavy_combat_s_#1-1782744878871.wav")
 	# Melee: sine chop
 	_sound_cache["melee"] = _gen_sine_chop(400.0, 0.08, 0.3)
 	# Impact: short noise

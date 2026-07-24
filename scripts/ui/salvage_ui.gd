@@ -1,9 +1,19 @@
 extends Control
 
+var _salvage_script = preload("res://scripts/systems/salvage_system.gd")
+var _salvage_system: Node = null
+
 var weapon_list: ItemList
 var tag_button: Button
 var salvage_count_label: Label
 var current_weapons: Array[WeaponPart] = []
+
+
+func _get_salvage() -> Node:
+	if _salvage_system == null:
+		_salvage_system = Node.new()
+		_salvage_system.set_script(_salvage_script)
+	return _salvage_system
 
 
 func _ready() -> void:
@@ -56,15 +66,15 @@ func show_weapons(weapons: Array[WeaponPart]) -> void:
 func _refresh_list() -> void:
 	weapon_list.clear()
 	for weapon in current_weapons:
-		var tagged = " [TAGGED]" if SalvageSystem.is_tagged(weapon) else ""
+		var tagged = " [TAGGED]" if _get_salvage().is_tagged(weapon) else ""
 		weapon_list.add_item("%s - %s%s" % [weapon.weapon_name, weapon.description, tagged])
-	salvage_count_label.text = "Tagged: %d" % SalvageSystem.get_salvaged_count()
+	salvage_count_label.text = "Tagged: %d" % _get_salvage().get_salvaged_count()
 
 
 func _on_item_selected(index: int) -> void:
 	if index < current_weapons.size():
 		var weapon = current_weapons[index]
-		tag_button.text = "Untag" if SalvageSystem.is_tagged(weapon) else "Tag"
+		tag_button.text = "Untag" if _get_salvage().is_tagged(weapon) else "Tag"
 
 
 func _on_tag_pressed() -> void:
@@ -72,13 +82,13 @@ func _on_tag_pressed() -> void:
 	if index < 0 or index >= current_weapons.size():
 		return
 	var weapon = current_weapons[index]
-	if SalvageSystem.is_tagged(weapon):
-		SalvageSystem.untag_salvage(weapon)
+	if _get_salvage().is_tagged(weapon):
+		_get_salvage().untag_salvage(weapon)
 	else:
-		SalvageSystem.tag_for_salvage(weapon)
+		_get_salvage().tag_for_salvage(weapon)
 	_refresh_list()
 
 
 func _on_confirm() -> void:
-	SalvageSystem.salvage_all()
+	_get_salvage().salvage_all()
 	visible = false

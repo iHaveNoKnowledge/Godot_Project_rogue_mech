@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=19 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/camera/mecha_camera.tscn" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/mecha/mecha_base.tscn" id="2"]
@@ -13,6 +13,9 @@
 [ext_resource type="Script" path="res://scripts/systems/loot_system.gd" id="14"]
 [ext_resource type="PackedScene" path="res://scenes/ui/combat_rewards_ui.tscn" id="15"]
 [ext_resource type="Script" path="res://scripts/arena/arena_generator.gd" id="16"]
+[ext_resource type="Script" path="res://scripts/arena/obstacle_spawner.gd" id="17"]
+[ext_resource type="Script" path="res://scripts/arena/atmosphere_manager.gd" id="18"]
+[ext_resource type="Script" path="res://scripts/systems/spawn_manager.gd" id="19"]
 [ext_resource type="Resource" path="res://resources/mech/stock/weapon_machine_gun.tres" id="10"]
 [ext_resource type="Resource" path="res://resources/mech/stock/weapon_shotgun.tres" id="11"]
 [ext_resource type="Resource" path="res://resources/mech/stock/weapon_pile_bunker.tres" id="12"]
@@ -64,14 +67,17 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 5)
 [node name="WeaponManager" type="Node3D" parent="Mecha"]
 script = ExtResource("3")
 
-[node name="EnemyDummy" parent="." instance=ExtResource("5")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 5, 0)
-
-[node name="EnemyDummy2" parent="." instance=ExtResource("5")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 5, -5)
-
 [node name="ArenaGenerator" type="Node" parent="."]
 script = ExtResource("16")
+
+[node name="ObstacleSpawner" type="Node3D" parent="."]
+script = ExtResource("17")
+
+[node name="AtmosphereManager" type="Node" parent="."]
+script = ExtResource("18")
+
+[node name="SpawnManager" type="Node3D" parent="."]
+script = ExtResource("19")
 
 [node name="Ground" type="StaticBody3D" parent="."]
 collision_layer = 2

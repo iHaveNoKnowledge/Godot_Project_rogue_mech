@@ -1,6 +1,27 @@
 extends MechaHealthBase
 
 
+func take_heal(amount: float) -> void:
+	if is_destroyed:
+		return
+	# Heal the most damaged alive part
+	var worst_slot = ""
+	var worst_ratio = 1.0
+	for slot in parts:
+		if parts[slot]["destroyed"]:
+			continue
+		var ratio = parts[slot]["frame_hp"] / parts[slot]["max_frame"]
+		if ratio < worst_ratio:
+			worst_ratio = ratio
+			worst_slot = slot
+	if worst_slot != "":
+		parts[worst_slot]["frame_hp"] = minf(
+			parts[worst_slot]["frame_hp"] + amount,
+			parts[worst_slot]["max_frame"]
+		)
+		health_changed.emit(worst_slot, "frame", parts[worst_slot]["frame_hp"], parts[worst_slot]["max_frame"])
+
+
 func _init_parts() -> void:
 	parts = {
 		"head": {

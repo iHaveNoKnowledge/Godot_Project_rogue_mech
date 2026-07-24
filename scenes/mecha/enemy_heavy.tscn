@@ -1,0 +1,131 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/mecha/enemy_dummy.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/mecha/enemy_health_full.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/ui/enemy_status_billboard.gd" id="3"]
+[ext_resource type="Script" path="res://scripts/mecha/mecha_hitbox.gd" id="4"]
+
+[sub_resource type="SphereShape3D" id="BodyShape"]
+radius = 2.0
+
+[sub_resource type="SphereMesh" id="HeadMesh"]
+radius = 0.5
+height = 1.0
+
+[sub_resource type="BoxMesh" id="BodyMeshShape"]
+size = Vector3(1.5, 1.8, 1.0)
+
+[sub_resource type="BoxMesh" id="ArmMesh"]
+size = Vector3(0.4, 1.2, 0.4)
+
+[sub_resource type="CylinderMesh" id="LegMesh"]
+height = 1.5
+top_radius = 0.35
+bottom_radius = 0.4
+
+[sub_resource type="StandardMaterial3D" id="HeavyMat"]
+albedo_color = Color(0.55, 0.0, 0.0, 1)
+metallic = 0.4
+roughness = 0.5
+
+[sub_resource type="StandardMaterial3D" id="HeavyMatDark"]
+albedo_color = Color(0.35, 0.0, 0.0, 1)
+metallic = 0.5
+roughness = 0.4
+
+[sub_resource type="BoxMesh" id="ShoulderPlate"]
+size = Vector3(0.6, 0.3, 0.6)
+
+[sub_resource type="SphereShape3D" id="HitboxShape"]
+radius = 2.5
+
+[node name="EnemyHeavy" type="CharacterBody3D"]
+script = ExtResource("1")
+archetype = 2
+move_speed = 1.5
+attack_range = 10.0
+attack_damage = 50.0
+attack_cooldown = 4.0
+collision_layer = 8
+collision_mask = 3
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("BodyShape")
+
+[node name="Head" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.8, 0)
+
+[node name="HeadMesh" type="MeshInstance3D" parent="Head"]
+mesh = SubResource("HeadMesh")
+material_override = SubResource("HeavyMat")
+
+[node name="Body" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.8, 0)
+
+[node name="BodyMesh" type="MeshInstance3D" parent="Body"]
+mesh = SubResource("BodyMeshShape")
+material_override = SubResource("HeavyMat")
+
+[node name="ArmLeft" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.1, 1.8, 0)
+
+[node name="ArmLeftMesh" type="MeshInstance3D" parent="ArmLeft"]
+mesh = SubResource("ArmMesh")
+material_override = SubResource("HeavyMatDark")
+
+[node name="ShoulderLeft" type="MeshInstance3D" parent="ArmLeft"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7, 0)
+mesh = SubResource("ShoulderPlate")
+material_override = SubResource("HeavyMat")
+
+[node name="ArmRight" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1, 1.8, 0)
+
+[node name="ArmRightMesh" type="MeshInstance3D" parent="ArmRight"]
+mesh = SubResource("ArmMesh")
+material_override = SubResource("HeavyMatDark")
+
+[node name="ShoulderRight" type="MeshInstance3D" parent="ArmRight"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7, 0)
+mesh = SubResource("ShoulderPlate")
+material_override = SubResource("HeavyMat")
+
+[node name="LegLeft" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 0.75, 0)
+
+[node name="LegLeftMesh" type="MeshInstance3D" parent="LegLeft"]
+mesh = SubResource("LegMesh")
+material_override = SubResource("HeavyMatDark")
+
+[node name="LegRight" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0.75, 0)
+
+[node name="LegRightMesh" type="MeshInstance3D" parent="LegRight"]
+mesh = SubResource("LegMesh")
+material_override = SubResource("HeavyMatDark")
+
+[node name="HealthSystem" type="Node3D" parent="."]
+script = ExtResource("2")
+
+[node name="Hitbox" type="Area3D" parent="."]
+collision_layer = 0
+collision_mask = 4
+script = ExtResource("4")
+health_system_path = NodePath("../HealthSystem")
+
+[node name="HitboxShape" type="CollisionShape3D" parent="Hitbox"]
+shape = SubResource("HitboxShape")
+
+[node name="EnemyStatus" type="Control" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("3")
+
+[node name="NameLabel3D" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.0, 0)
+text = "HEAVY"
+font_size = 20

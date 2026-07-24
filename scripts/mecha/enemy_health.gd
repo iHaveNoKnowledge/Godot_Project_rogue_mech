@@ -1,6 +1,16 @@
 extends MechaHealthBase
 
 
+func take_heal(amount: float) -> void:
+	if is_destroyed:
+		return
+	var part = parts["body"]
+	if part["destroyed"]:
+		return
+	part["frame_hp"] = minf(part["frame_hp"] + amount, part["max_frame"])
+	health_changed.emit("body", "frame", part["frame_hp"], part["max_frame"])
+
+
 func _init_parts() -> void:
 	parts = {
 		"body": {

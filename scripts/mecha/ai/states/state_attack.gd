@@ -56,12 +56,39 @@ func physics_process(delta: float) -> void:
 
 
 func _perform_attack() -> void:
-	if enemy.target and enemy.target.has_method("take_damage"):
-		# Check if enemy has ranged archetype
-		if enemy.get("archetype") == 1:  # RANGED
+	var archetype = enemy.get("archetype", 0)
+
+	match archetype:
+		0:  # RUSHER - melee
+			if enemy.target and enemy.target.has_method("take_damage"):
+				enemy.target.take_damage(enemy.attack_damage, "melee")
+		1:  # RANGED - projectile
 			_fire_ranged()
-		else:
-			enemy.target.take_damage(enemy.attack_damage, "melee")
+		2:  # HEAVY - charge (handled by state_charge)
+			pass
+		3:  # SUPPORT - heal nearest ally
+			_heal_nearest_ally()
+
+
+func _heal_nearest_ally() -> void:
+	var enemies = enemy.get_tree().get_nodes_in_group("enemy")
+	var nearest: Node3D = null
+	var nearest_dist: float = 999.0
+
+	for e in enemies:
+		if not is_instance_valid(e) or e == enemy:
+			continue
+		if not e.health_system or e.health_system.is_destroyed:
+			continue
+		var dist = enemy.global_position.distance_to(e.global_position)
+		if dist < 40.0 and dist < nearest_dist:
+			nearest = e
+			nearest_dist = dist
+
+	if nearest and nearest.health_system and nearest.health_system.has_method("take_heal"):
+		nearest.health_system.take_heal(5.0)
+		# Visual feedback
+		EffectManager.spawn_damage_number(nearest.global_position + Vector3(0, 3, 0), 5.0, Color(0.2, 1.0, 0.2))
 
 
 func _fire_ranged() -> void:

@@ -133,6 +133,8 @@ func _on_armor_broken(slot_name: String) -> void:
 	_show_frame(slot_name)
 	armor_broken.emit(slot_name)
 	_calculate_totals()
+	if has_node("/root/AudioManager"):
+		AudioManager.play_armor_break(global_position + Vector3(0, 1.5, 0))
 
 
 func _on_frame_destroyed(slot_name: String) -> void:
@@ -151,6 +153,8 @@ func _on_mecha_destroyed() -> void:
 	mecha_destroyed.emit()
 
 	EffectManager.spawn_explosion(global_position + Vector3(0, 1.5, 0))
+	if has_node("/root/AudioManager"):
+		AudioManager.play_explosion(global_position + Vector3(0, 1.5, 0))
 
 	for slot in parts:
 		_hide_part(slot)

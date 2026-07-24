@@ -6,13 +6,13 @@
 script = ExtResource("1")
 weapon_name = "Machine Gun"
 weapon_type = 0
-damage = 8.0
-fire_rate = 0.1
-max_ammo = 200
+damage = 6.0
+fire_rate = 0.08
+max_ammo = 250
 ammo_per_shot = 1
 projectile_speed = 80.0
 spread = 0.03
-weight = 6.0
+weight = 5.0
 range_distance = 80.0
 description = "ปืนกล ยิงเร็ว auto กระสุนเยอะ"
 rarity = 1

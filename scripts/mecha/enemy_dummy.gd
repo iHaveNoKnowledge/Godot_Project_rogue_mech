@@ -7,9 +7,13 @@ var _loot_script = preload("res://scripts/systems/loot_system.gd")
 @export var attack_damage: float = 10.0
 @export var attack_cooldown: float = 2.0
 
+## Archetype: 0=Rusher, 1=Ranged, 2=Heavy, 3=Support
+@export var archetype: int = 0
+
 var target: Node3D = null
 var attack_timer: float = 0.0
 var health_system: Node = null
+var state_machine: EnemyStateMachine
 
 
 func _ready() -> void:
@@ -22,6 +26,61 @@ func _ready() -> void:
 	health_system.mecha_destroyed.connect(_on_destroyed)
 	health_system.armor_broken.connect(_on_armor_broken)
 	_scale_by_wanted_level()
+	_apply_archetype_stats()
+	_setup_state_machine()
+
+
+func _setup_state_machine() -> void:
+	state_machine = EnemyStateMachine.new()
+	state_machine.name = "StateMachine"
+	add_child(state_machine)
+
+	# Create all states
+	var idle = EnemyState.new()
+	idle.name = "StateIdle"
+	idle.set_script(preload("res://scripts/mecha/ai/states/state_idle.gd"))
+	state_machine.add_child(idle)
+
+	var chase = EnemyState.new()
+	chase.name = "StateChase"
+	chase.set_script(preload("res://scripts/mecha/ai/states/state_chase.gd"))
+	state_machine.add_child(chase)
+
+	var attack = EnemyState.new()
+	attack.name = "StateAttack"
+	attack.set_script(preload("res://scripts/mecha/ai/states/state_attack.gd"))
+	state_machine.add_child(attack)
+
+	var flee = EnemyState.new()
+	flee.name = "StateFlee"
+	flee.set_script(preload("res://scripts/mecha/ai/states/state_flee.gd"))
+	state_machine.add_child(flee)
+
+	# Ranged-only states
+	if archetype == 1:  # RANGED
+		var strafe = EnemyState.new()
+		strafe.name = "StateStrafe"
+		strafe.set_script(preload("res://scripts/mecha/ai/states/state_strafe.gd"))
+		state_machine.add_child(strafe)
+
+	if archetype == 2:  # HEAVY
+		var charge = EnemyState.new()
+		charge.name = "StateCharge"
+		charge.set_script(preload("res://scripts/mecha/ai/states/state_charge.gd"))
+		state_machine.add_child(charge)
+
+	# Start in idle
+	state_machine.transition_to("StateIdle")
+
+
+func _apply_archetype_stats() -> void:
+	var stats = EnemyAttackTemplates.get_stats(archetype)
+	if stats.is_empty():
+		return
+	move_speed = stats["move_speed"]
+	attack_range = stats["attack_range"]
+	attack_damage = stats["attack_damage"]
+	attack_cooldown = stats["attack_cooldown"]
 
 
 func _on_destroyed() -> void:
@@ -80,41 +139,9 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector3.ZERO
 		return
 
-	_find_target()
-	if target:
-		_move_toward_target(delta)
-		_try_attack(delta)
-
-
-func _find_target() -> void:
-	if target and is_instance_valid(target):
-		return
-	var mechas = get_tree().get_nodes_in_group("mecha")
-	if mechas.size() > 0:
-		target = mechas[0]
-
-
-func _move_toward_target(delta: float) -> void:
-	var direction = (target.global_position - global_position).normalized()
-	direction.y = 0.0
-	velocity = direction * move_speed
-	velocity.y = -10.0
-	move_and_slide()
-
-	if direction.length() > 0.1:
-		rotation.y = lerp_angle(rotation.y, atan2(direction.x, direction.z), 5.0 * delta)
-
-
-func _try_attack(delta: float) -> void:
-	attack_timer -= delta
-	if attack_timer > 0.0:
-		return
-
-	var distance = global_position.distance_to(target.global_position)
-	if distance <= attack_range:
-		attack_timer = attack_cooldown
-		if target.has_method("take_damage"):
-			target.take_damage(attack_damage, "melee")
+	# Delegate to state machine
+	if state_machine:
+		state_machine._physics_process(delta)
 
 
 func take_damage(amount: float, damage_type: String = "kinetic") -> void:
@@ -166,13 +193,11 @@ func _scale_by_wanted_level() -> void:
 	if wanted <= 0:
 		return
 
-	# Scale stats based on wanted level
-	var scale_factor = 1.0 + (wanted * 0.2)  # +20% per wanted level
+	var scale_factor = 1.0 + (wanted * 0.15)  # Revised: +15% per wanted level
 	move_speed *= scale_factor
 	attack_damage *= scale_factor
 	attack_cooldown /= scale_factor
 
-	# Scale health
 	if health_system:
 		for slot in health_system.parts:
 			health_system.parts[slot]["armor_hp"] *= scale_factor
@@ -181,8 +206,24 @@ func _scale_by_wanted_level() -> void:
 			health_system.parts[slot]["max_frame"] *= scale_factor
 		health_system._calculate_totals()
 
-	# Visual feedback - higher wanted = redder color
+	# Visual feedback
 	if wanted >= 3:
-		var mesh = get_node_or_null("Body/BodyMesh")
-		if mesh and mesh.material_override:
-			mesh.material_override.albedo_color = Color(0.9, 0.1, 0.1, 1)
+		_apply_archetype_color()
+
+
+func _apply_archetype_color() -> void:
+	var color: Color
+	match archetype:
+		0: color = Color(0.55, 0.27, 0.07, 1)   # Rusher: dark orange
+		1: color = Color(0.27, 0.51, 0.71, 1)    # Ranged: steel blue
+		2: color = Color(0.55, 0.0, 0.0, 1)      # Heavy: dark red
+		3: color = Color(0.33, 0.42, 0.18, 1)    # Support: olive green
+		_: color = Color(0.8, 0.2, 0.2, 1)
+
+	# Apply to all MeshInstance3D children
+	for child in get_children():
+		if child is MeshInstance3D and child.material_override:
+			child.material_override.albedo_color = color
+		for sub in child.get_children():
+			if sub is MeshInstance3D and sub.material_override:
+				sub.material_override.albedo_color = color

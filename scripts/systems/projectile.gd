@@ -7,6 +7,7 @@ var lifetime: float = 5.0
 var timer: float = 0.0
 var trail_timer: float = 0.0
 var direction: Vector3 = Vector3.FORWARD
+var fired_by_enemy: bool = false
 
 
 func _ready() -> void:
@@ -25,14 +26,26 @@ func _physics_process(delta: float) -> void:
 
 	position += direction * speed * delta
 
-	var enemies = get_tree().get_nodes_in_group("enemy")
-	for enemy in enemies:
-		if not is_instance_valid(enemy):
-			continue
-		var dist = global_position.distance_to(enemy.global_position + Vector3(0, 1.5, 0))
-		if dist < 1.5:
-			_hit_enemy(enemy)
-			return
+	if fired_by_enemy:
+		# Enemy projectile -> check for player mecha
+		var mechas = get_tree().get_nodes_in_group("mecha")
+		for mecha in mechas:
+			if not is_instance_valid(mecha):
+				continue
+			var dist = global_position.distance_to(mecha.global_position + Vector3(0, 1.5, 0))
+			if dist < 1.5:
+				_hit_target(mecha)
+				return
+	else:
+		# Player projectile -> check for enemies
+		var enemies = get_tree().get_nodes_in_group("enemy")
+		for enemy in enemies:
+			if not is_instance_valid(enemy):
+				continue
+			var dist = global_position.distance_to(enemy.global_position + Vector3(0, 1.5, 0))
+			if dist < 1.5:
+				_hit_target(enemy)
+				return
 
 	if global_position.y <= 0.0:
 		EffectManager.spawn_impact(global_position, Vector3.UP)
@@ -45,13 +58,15 @@ func _physics_process(delta: float) -> void:
 		_spawn_trail()
 
 
-func _hit_enemy(enemy: Node3D) -> void:
+func _hit_target(target: Node3D) -> void:
 	EffectManager.spawn_impact(position, Vector3.UP)
+	if has_node("/root/AudioManager"):
+		AudioManager.play_impact(position)
 
-	if enemy.has_method("take_damage_at_point"):
-		enemy.take_damage_at_point(damage, position, damage_type)
-	elif enemy.has_method("take_damage"):
-		enemy.take_damage(damage, damage_type)
+	if target.has_method("take_damage_at_point"):
+		target.take_damage_at_point(damage, position, damage_type)
+	elif target.has_method("take_damage"):
+		target.take_damage(damage, damage_type)
 
 	EffectManager.spawn_damage_number(position + Vector3(0, 1.5, 0), damage, Color.WHITE)
 	queue_free()

@@ -6,13 +6,13 @@
 script = ExtResource("1")
 weapon_name = "Missile Launcher"
 weapon_type = 2
-damage = 80.0
-fire_rate = 1.5
-max_ammo = 12
+damage = 100.0
+fire_rate = 2.0
+max_ammo = 8
 ammo_per_shot = 1
 projectile_speed = 25.0
 spread = 0.0
-weight = 12.0
+weight = 14.0
 range_distance = 80.0
 description = "จรวดนำวิถี, แรงมาก, ยิงช้า, กระสุนน้อย"
 rarity = 1

@@ -6,8 +6,8 @@
 script = ExtResource("1")
 weapon_name = "Heat Blade"
 weapon_type = 4
-damage = 60.0
-fire_rate = 0.5
+damage = 50.0
+fire_rate = 0.4
 max_ammo = 999
 ammo_per_shot = 0
 projectile_speed = 0.0

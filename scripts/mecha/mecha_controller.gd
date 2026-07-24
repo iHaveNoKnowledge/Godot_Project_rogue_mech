@@ -112,6 +112,8 @@ func _start_dash() -> void:
 	dash_cooldown_timer = dash_cooldown
 
 	_spawn_dash_effect()
+	if has_node("/root/AudioManager"):
+		AudioManager.play_dash(global_position)
 
 
 func _spawn_dash_effect() -> void:

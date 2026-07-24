@@ -6,8 +6,8 @@
 script = ExtResource("1")
 weapon_name = "Pile Bunker"
 weapon_type = 4
-damage = 80.0
-fire_rate = 1.5
+damage = 120.0
+fire_rate = 2.0
 max_ammo = 999
 ammo_per_shot = 0
 projectile_speed = 0.0

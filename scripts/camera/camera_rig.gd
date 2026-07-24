@@ -1,7 +1,7 @@
 extends Node3D
 
 @export var mouse_sensitivity: float = 0.003
-@export var pitch_limit: Vector2 = Vector2(-80, 30)
+@export var pitch_limit: Vector2 = Vector2(-80, 50)
 @export var follow_speed: float = 10.0
 
 @onready var pivot: Node3D = $CameraPivot

@@ -51,7 +51,12 @@ func physics_process(delta: float) -> void:
 	fire_timer -= delta
 	if fire_timer <= 0.0:
 		fire_timer = enemy.attack_cooldown
-		_fire_at_target()
+		if enemy.has_ammo():
+			_fire_at_target()
+			enemy.use_ammo()
+		else:
+			# Out of ammo — chase to reposition while reloading
+			state_machine.transition_to("StateChase")
 
 
 func _fire_at_target() -> void:

@@ -15,6 +15,13 @@ var attack_timer: float = 0.0
 var health_system: Node = null
 var state_machine: EnemyStateMachine
 
+# Ammo system for ranged enemies
+var ammo: int = 0
+var max_ammo: int = 0
+var reload_time: float = 3.0
+var reload_timer: float = 0.0
+var is_reloading: bool = false
+
 
 func _ready() -> void:
 	add_to_group("enemy")
@@ -82,6 +89,37 @@ func _apply_archetype_stats() -> void:
 	attack_range = stats["attack_range"]
 	attack_damage = stats["attack_damage"]
 	attack_cooldown = stats["attack_cooldown"]
+
+	# Set ammo for ranged types
+	if archetype == 1:  # RANGED
+		max_ammo = 25
+		ammo = max_ammo
+		reload_time = 3.0
+	elif archetype == 2:  # HEAVY (charge uses stamina-like ammo)
+		max_ammo = 5
+		ammo = max_ammo
+		reload_time = 4.0
+
+
+func has_ammo() -> bool:
+	return ammo > 0
+
+
+func use_ammo() -> void:
+	if max_ammo == 0:
+		return  # Melee/support = unlimited
+	ammo -= 1
+	if ammo <= 0:
+		is_reloading = true
+		reload_timer = reload_time
+
+
+func _process(delta: float) -> void:
+	if is_reloading:
+		reload_timer -= delta
+		if reload_timer <= 0.0:
+			is_reloading = false
+			ammo = max_ammo
 
 
 func _on_destroyed() -> void:

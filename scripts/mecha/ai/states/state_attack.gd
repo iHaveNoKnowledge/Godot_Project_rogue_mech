@@ -63,7 +63,11 @@ func _perform_attack() -> void:
 			if enemy.target and enemy.target.has_method("take_damage"):
 				enemy.target.take_damage(enemy.attack_damage, "melee")
 		1:  # RANGED - projectile
-			_fire_ranged()
+			if enemy.has_ammo():
+				_fire_ranged()
+				enemy.use_ammo()
+			else:
+				state_machine.transition_to("StateChase")
 		2:  # HEAVY - charge (handled by state_charge)
 			pass
 		3:  # SUPPORT - heal nearest ally

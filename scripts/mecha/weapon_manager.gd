@@ -152,12 +152,13 @@ func _input(event: InputEvent) -> void:
 func _start_selection(hand: String) -> void:
 	var is_left = (hand == "left")
 	if is_left:
+		holding_left = true
 		_selecting_left = true
 		_select_orig_left = left_hand
 		_select_idx_left = 0
-		# Build list: current hand weapon + carry (excluding other hand)
 		_select_list_left = _build_select_list(hand)
 	else:
+		holding_right = true
 		_selecting_right = true
 		_select_orig_right = right_hand
 		_select_idx_right = 0
@@ -197,8 +198,10 @@ func _commit_selection(hand: String) -> void:
 	var did_scroll = (current != orig)
 
 	if is_left:
+		holding_left = false
 		_selecting_left = false
 	else:
+		holding_right = false
 		_selecting_right = false
 
 	if not did_scroll:

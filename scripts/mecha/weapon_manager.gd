@@ -40,6 +40,8 @@ var _select_idx_left: int = 0
 var _select_idx_right: int = 0
 var _select_orig_left: WeaponPart = null   # weapon that was in hand at key press
 var _select_orig_right: WeaponPart = null
+var _select_scrolled_left: bool = false
+var _select_scrolled_right: bool = false
 
 # --- Default Weapons ---
 var default_left: WeaponPart = preload("res://resources/mech/stock/weapon_beam_rifle.tres")
@@ -113,9 +115,9 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var dir = 0
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			dir = 1
+			dir = -1   # up = lower index
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			dir = -1
+			dir = 1    # down = higher index
 		if dir != 0:
 			if holding_left:
 				_scroll("left", dir)
@@ -157,12 +159,14 @@ func _start_selection(hand: String) -> void:
 		_select_orig_left = left_hand
 		_select_idx_left = 0
 		_select_list_left = _build_select_list(hand)
+		_select_scrolled_left = false
 	else:
 		holding_right = true
 		_selecting_right = true
 		_select_orig_right = right_hand
 		_select_idx_right = 0
 		_select_list_right = _build_select_list(hand)
+		_select_scrolled_right = false
 
 
 func _scroll(hand: String, direction: int) -> void:
@@ -173,13 +177,14 @@ func _scroll(hand: String, direction: int) -> void:
 
 	if is_left:
 		_select_idx_left = clampi(_select_idx_left + direction, 0, list.size() - 1)
-		# Temporarily swap hand to show preview
+		_select_scrolled_left = true
 		left_hand = list[_select_idx_left]
 		weapon_switched.emit("left", left_hand.weapon_name if left_hand else "Empty")
 		if left_hand:
 			ammo_changed.emit("left", _get_ammo(left_hand), left_hand.max_ammo)
 	else:
 		_select_idx_right = clampi(_select_idx_right + direction, 0, list.size() - 1)
+		_select_scrolled_right = true
 		right_hand = list[_select_idx_right]
 		weapon_switched.emit("right", right_hand.weapon_name if right_hand else "Empty")
 		if right_hand:
@@ -195,7 +200,7 @@ func _commit_selection(hand: String) -> void:
 
 	var orig = _select_orig_left if is_left else _select_orig_right
 	var current = left_hand if is_left else right_hand
-	var did_scroll = (current != orig)
+	var did_scroll = _select_scrolled_left if is_left else _select_scrolled_right
 
 	if is_left:
 		holding_left = false

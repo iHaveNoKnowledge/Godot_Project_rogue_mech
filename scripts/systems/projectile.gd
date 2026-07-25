@@ -117,7 +117,7 @@ func _hit_target(target: Node3D) -> void:
 func _spawn_trail() -> void:
 	var trail = MeshInstance3D.new()
 	var box = BoxMesh.new()
-	box.size = Vector3(0.05, 0.05, 0.3)
+	box.size = Vector3(0.02, 0.02, 0.15)
 	trail.mesh = box
 
 	var mat = StandardMaterial3D.new()

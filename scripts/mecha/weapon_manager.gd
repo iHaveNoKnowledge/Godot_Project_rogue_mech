@@ -402,9 +402,13 @@ func _fire_projectile(hand: String, weapon: WeaponPart) -> void:
 	projectile.add_child(collision)
 
 	var mesh = MeshInstance3D.new()
-	var sphere = SphereMesh.new()
-	sphere.radius = 0.1
-	mesh.mesh = sphere
+	var capsule = CapsuleMesh.new()
+	capsule.radius = 0.03
+	capsule.height = 0.25
+	mesh.mesh = capsule
+	# Orient capsule along travel direction (capsule default is Y-up)
+	mesh.look_at(mesh.global_position + direction, Vector3.UP)
+	mesh.rotate_object_local(Vector3.RIGHT, deg_to_rad(90))
 	var mat = StandardMaterial3D.new()
 	mat.albedo_color = Color(1, 0.8, 0.2, 1)
 	mat.emission_enabled = true
@@ -473,9 +477,12 @@ func _fire_shotgun(hand: String, weapon: WeaponPart) -> void:
 		projectile.add_child(collision)
 
 		var mesh = MeshInstance3D.new()
-		var sphere = SphereMesh.new()
-		sphere.radius = 0.08
-		mesh.mesh = sphere
+		var capsule = CapsuleMesh.new()
+		capsule.radius = 0.02
+		capsule.height = 0.15
+		mesh.mesh = capsule
+		mesh.look_at(mesh.global_position + pellet_dir, Vector3.UP)
+		mesh.rotate_object_local(Vector3.RIGHT, deg_to_rad(90))
 		var mat = StandardMaterial3D.new()
 		mat.albedo_color = Color(1, 0.8, 0.2, 1)
 		mat.emission_enabled = true

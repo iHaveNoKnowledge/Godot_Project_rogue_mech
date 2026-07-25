@@ -1,15 +1,17 @@
 extends Control
 
+## Compact enemy status: small color-coded rectangles per body part.
+
 var target: Node3D = null
 var health_system: Node = null
 var panel: PanelContainer = null
 
-var bars: Dictionary = {}
+var part_blocks: Dictionary = {}
+
 var _color_green: Color = Color(0.2, 0.8, 0.2, 1)
 var _color_yellow: Color = Color(0.9, 0.9, 0.2, 1)
 var _color_red: Color = Color(0.9, 0.2, 0.2, 1)
-var _color_black: Color = Color(0.1, 0.1, 0.1, 1)
-var _bg_color: Color = Color(0.15, 0.15, 0.15, 0.8)
+var _color_black: Color = Color(0.15, 0.15, 0.15, 1)
 
 
 func _ready() -> void:
@@ -27,77 +29,61 @@ func setup_target(enemy: Node3D) -> void:
 func _create_ui() -> void:
 	panel = PanelContainer.new()
 	var style = StyleBoxFlat.new()
-	style.bg_color = _bg_color
+	style.bg_color = Color(0.1, 0.1, 0.1, 0.85)
 	style.corner_radius_top_left = 4
 	style.corner_radius_top_right = 4
 	style.corner_radius_bottom_left = 4
 	style.corner_radius_bottom_right = 4
-	style.content_margin_left = 8
-	style.content_margin_right = 8
-	style.content_margin_top = 6
-	style.content_margin_bottom = 6
+	style.content_margin_left = 6
+	style.content_margin_right = 6
+	style.content_margin_top = 5
+	style.content_margin_bottom = 5
 	panel.add_theme_stylebox_override("panel", style)
 	add_child(panel)
 
-	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 2)
-	panel.add_child(vbox)
+	var root_vbox = VBoxContainer.new()
+	root_vbox.add_theme_constant_override("separation", 3)
+	root_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	panel.add_child(root_vbox)
 
-	_add_row(vbox, "HEAD")
-	_add_row(vbox, "BODY")
+	# Row 1: HEAD
+	var row1 = HBoxContainer.new()
+	row1.alignment = BoxContainer.ALIGNMENT_CENTER
+	row1.add_theme_constant_override("separation", 2)
+	root_vbox.add_child(row1)
+	_add_block(row1, "head")
 
-	var arms_row = HBoxContainer.new()
-	arms_row.add_theme_constant_override("separation", 8)
-	vbox.add_child(arms_row)
-	_add_bar(arms_row, "arm_left", "L.ARM")
-	_add_bar(arms_row, "arm_right", "R.ARM")
+	# Row 2: L.ARM | BODY | R.ARM
+	var row2 = HBoxContainer.new()
+	row2.alignment = BoxContainer.ALIGNMENT_CENTER
+	row2.add_theme_constant_override("separation", 2)
+	root_vbox.add_child(row2)
+	_add_block(row2, "arm_left")
+	_add_block(row2, "body")
+	_add_block(row2, "arm_right")
 
-	_add_row(vbox, "LEGS")
-
-
-func _add_row(parent: Control, label_text: String) -> void:
-	var hbox = HBoxContainer.new()
-	hbox.add_theme_constant_override("separation", 6)
-	parent.add_child(hbox)
-
-	var label = Label.new()
-	label.text = label_text
-	label.add_theme_font_size_override("font_size", 12)
-	hbox.add_child(label)
-
-	_add_bar(hbox, label_text.to_lower(), "")
+	# Row 3: L.LEG | R.LEG
+	var row3 = HBoxContainer.new()
+	row3.alignment = BoxContainer.ALIGNMENT_CENTER
+	row3.add_theme_constant_override("separation", 2)
+	root_vbox.add_child(row3)
+	_add_block(row3, "leg_left")
+	_add_block(row3, "leg_right")
 
 
-func _add_bar(parent: Control, part_name: String, label_text: String) -> void:
-	if label_text != "":
-		var label = Label.new()
-		label.text = label_text
-		label.add_theme_font_size_override("font_size", 10)
-		parent.add_child(label)
-
-	var bar = ProgressBar.new()
-	bar.custom_minimum_size = Vector2(60, 12)
-	bar.max_value = 100.0
-	bar.value = 100.0
-	bar.show_percentage = false
-
-	var bg_style = StyleBoxFlat.new()
-	bg_style.bg_color = Color(0.2, 0.2, 0.2, 1)
-	bar.add_theme_stylebox_override("background", bg_style)
-
-	var fill_style = StyleBoxFlat.new()
-	fill_style.bg_color = _color_green
-	bar.add_theme_stylebox_override("fill", fill_style)
-
-	parent.add_child(bar)
-	bars[part_name] = {"bar": bar, "style": fill_style}
+func _add_block(parent: Control, part_name: String) -> void:
+	var block = ColorRect.new()
+	block.custom_minimum_size = Vector2(18, 14)
+	block.size = Vector2(18, 14)
+	block.color = _color_green
+	parent.add_child(block)
+	part_blocks[part_name] = block
 
 
 func _process(_delta: float) -> void:
 	if target == null or not is_instance_valid(target):
 		queue_free()
 		return
-
 	_update_status()
 
 
@@ -105,16 +91,22 @@ func _update_status() -> void:
 	if health_system == null:
 		return
 
-	for part in health_system.parts:
-		if not bars.has(part):
+	for part_name in part_blocks:
+		if not health_system.parts.has(part_name):
 			continue
 
-		var part_data = health_system.parts[part]
-		var hp_percent = part_data["armor_hp"] / part_data["max_armor"] * 100.0
-		var entry = bars[part]
+		var part_data = health_system.parts[part_name]
+		var block: ColorRect = part_blocks[part_name]
 
-		entry["bar"].value = hp_percent
-		entry["style"].bg_color = _get_hp_color(hp_percent / 100.0)
+		if part_data["destroyed"]:
+			block.color = _color_black
+		else:
+			var hp_percent: float
+			if not part_data["armor_broken"]:
+				hp_percent = part_data["armor_hp"] / maxf(part_data["max_armor"], 1.0)
+			else:
+				hp_percent = part_data["frame_hp"] / maxf(part_data["max_frame"], 1.0)
+			block.color = _get_hp_color(hp_percent)
 
 
 func _get_hp_color(percent: float) -> Color:

@@ -22,11 +22,29 @@ var holding_left: bool = false
 var holding_right: bool = false
 var fire_left_holding: bool = false
 var fire_right_holding: bool = false
-var scroll_index: int = 0
+
+# --- Shield State ---
+var shield_active: bool = false
+var shield_current_hp: float = 0.0
+var shield_max_hp: float = 0.0
+var shield_recharge_timer: float = 0.0
+const SHIELD_RECHARGE_DELAY: float = 3.0
+var _shield_visual: MeshInstance3D = null
+
+# --- Weapon Scroll State (per hand) ---
+var _selecting_left: bool = false
+var _selecting_right: bool = false
+var _select_list_left: Array = []   # snapshot of carry at key press
+var _select_list_right: Array = []
+var _select_idx_left: int = 0
+var _select_idx_right: int = 0
+var _select_orig_left: WeaponPart = null   # weapon that was in hand at key press
+var _select_orig_right: WeaponPart = null
 
 # --- Default Weapons ---
 var default_left: WeaponPart = preload("res://resources/mech/stock/weapon_beam_rifle.tres")
 var default_right: WeaponPart = preload("res://resources/mech/stock/weapon_heat_blade.tres")
+
 
 func _ready() -> void:
 	left_hand = default_left
@@ -51,60 +69,214 @@ func _physics_process(delta: float) -> void:
 		right_cooldown -= delta
 
 	if fire_left_holding and left_hand and left_cooldown <= 0.0:
-		_try_fire("left", left_hand)
+		if left_hand.weapon_type != WeaponPart.WeaponType.SHIELD:
+			_try_fire("left", left_hand)
 	if fire_right_holding and right_hand and right_cooldown <= 0.0:
-		_try_fire("right", right_hand)
+		if right_hand.weapon_type != WeaponPart.WeaponType.SHIELD:
+			_try_fire("right", right_hand)
 
+	# Shield recharge
+	if shield_active and shield_current_hp < shield_max_hp:
+		shield_recharge_timer = SHIELD_RECHARGE_DELAY
+	elif not shield_active and shield_current_hp < shield_max_hp:
+		shield_recharge_timer -= delta
+		if shield_recharge_timer <= 0.0:
+			shield_current_hp = minf(shield_current_hp + shield_max_hp * 0.15 * delta, shield_max_hp)
+	_update_shield_visual()
+
+
+# ====================================================================
+# INPUT
+# ====================================================================
 
 func _input(event: InputEvent) -> void:
 	# --- LEFT HAND SWAP (key 1) ---
 	if event.is_action_pressed("weapon_left"):
-		holding_left = true
-		scroll_index = 0
-		_cycle_left()
+		_start_selection("left")
 	if event.is_action_released("weapon_left"):
-		holding_left = false
+		_commit_selection("left")
 
 	# --- RIGHT HAND SWAP (key 3) ---
 	if event.is_action_pressed("weapon_right"):
-		holding_right = true
-		scroll_index = 0
-		_cycle_right()
+		_start_selection("right")
 	if event.is_action_released("weapon_right"):
-		holding_right = false
+		_commit_selection("right")
 
-	# --- DROP (key 2) ---
+	# --- DROP (key X) ---
 	if event.is_action_pressed("weapon_drop"):
 		if holding_left:
 			_drop_weapon("left")
 		elif holding_right:
 			_drop_weapon("right")
 
-	# --- SCROLL while holding 1 or 3 ---
+	# --- SCROLL while selecting ---
 	if event is InputEventMouseButton:
+		var dir = 0
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			if holding_left or holding_right:
-				_scroll_select(1)
+			dir = 1
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			if holding_left or holding_right:
-				_scroll_select(-1)
+			dir = -1
+		if dir != 0:
+			if holding_left:
+				_scroll("left", dir)
+			elif holding_right:
+				_scroll("right", dir)
 
-	# --- FIRE LEFT (left mouse button) ---
+	# --- FIRE LEFT ---
 	if event.is_action_pressed("fire_left"):
 		fire_left_holding = true
 		if left_hand:
-			_try_fire("left", left_hand)
+			if left_hand.weapon_type == WeaponPart.WeaponType.SHIELD:
+				_toggle_shield("left")
+			else:
+				_try_fire("left", left_hand)
 	if event.is_action_released("fire_left"):
 		fire_left_holding = false
 
-	# --- FIRE RIGHT (right mouse button) ---
+	# --- FIRE RIGHT ---
 	if event.is_action_pressed("fire_right"):
 		fire_right_holding = true
 		if right_hand:
-			_try_fire("right", right_hand)
+			if right_hand.weapon_type == WeaponPart.WeaponType.SHIELD:
+				_toggle_shield("right")
+			else:
+				_try_fire("right", right_hand)
 	if event.is_action_released("fire_right"):
 		fire_right_holding = false
 
+
+# ====================================================================
+# WEAPON SELECTION (1/3 + scroll)
+# ====================================================================
+
+func _start_selection(hand: String) -> void:
+	var is_left = (hand == "left")
+	if is_left:
+		_selecting_left = true
+		_select_orig_left = left_hand
+		_select_idx_left = 0
+		# Build list: current hand weapon + carry (excluding other hand)
+		_select_list_left = _build_select_list(hand)
+	else:
+		_selecting_right = true
+		_select_orig_right = right_hand
+		_select_idx_right = 0
+		_select_list_right = _build_select_list(hand)
+
+
+func _scroll(hand: String, direction: int) -> void:
+	var is_left = (hand == "left")
+	var list = _select_list_left if is_left else _select_list_right
+	if list.is_empty():
+		return
+
+	if is_left:
+		_select_idx_left = clampi(_select_idx_left + direction, 0, list.size() - 1)
+		# Temporarily swap hand to show preview
+		left_hand = list[_select_idx_left]
+		weapon_switched.emit("left", left_hand.weapon_name if left_hand else "Empty")
+		if left_hand:
+			ammo_changed.emit("left", _get_ammo(left_hand), left_hand.max_ammo)
+	else:
+		_select_idx_right = clampi(_select_idx_right + direction, 0, list.size() - 1)
+		right_hand = list[_select_idx_right]
+		weapon_switched.emit("right", right_hand.weapon_name if right_hand else "Empty")
+		if right_hand:
+			ammo_changed.emit("right", _get_ammo(right_hand), right_hand.max_ammo)
+	carry_updated.emit(carry)
+
+
+func _commit_selection(hand: String) -> void:
+	var is_left = (hand == "left")
+	var selecting = _selecting_left if is_left else _selecting_right
+	if not selecting:
+		return
+
+	var orig = _select_orig_left if is_left else _select_orig_right
+	var current = left_hand if is_left else right_hand
+	var did_scroll = (current != orig)
+
+	if is_left:
+		_selecting_left = false
+	else:
+		_selecting_right = false
+
+	if not did_scroll:
+		# Quick tap — swap with first carry weapon
+		if carry.is_empty():
+			# Restore original weapon (nothing to swap with)
+			if is_left:
+				left_hand = orig
+			else:
+				right_hand = orig
+			weapon_switched.emit(hand, orig.weapon_name if orig else "Empty")
+			if orig:
+				ammo_changed.emit(hand, _get_ammo(orig), orig.max_ammo)
+			return
+		# Swap: hand ↔ carry[0]
+		var carry_first = carry[0]
+		if is_left:
+			left_hand = carry_first
+		else:
+			right_hand = carry_first
+		carry[0] = orig
+		weapon_switched.emit(hand, (left_hand if is_left else right_hand).weapon_name)
+		var w = left_hand if is_left else right_hand
+		if w:
+			ammo_changed.emit(hand, _get_ammo(w), w.max_ammo)
+		carry_updated.emit(carry)
+	else:
+		# Scrolled — finalise: remove selected from carry, put orig back
+		var new_carry: Array = []
+		# Rebuild carry: original snapshot was carry at key press.
+		# We need to: remove `current` from carry, add `orig` if not already there.
+		# Simple approach: rebuild from current carry state
+		var found_current = false
+		for w in carry:
+			if w == current and not found_current:
+				found_current = true
+				# Skip the selected weapon (it's now in hand)
+				continue
+			new_carry.append(w)
+
+		# Add original hand weapon back if not already in carry
+		if orig:
+			var has_orig = false
+			for w in new_carry:
+				if w == orig:
+					has_orig = true
+					break
+			if not has_orig:
+				new_carry.append(orig)
+
+		carry = new_carry
+		carry_updated.emit(carry)
+
+
+func _build_select_list(hand: String) -> Array:
+	"""Build selection list: hand weapon + carry, excluding other hand's weapon."""
+	var is_left = (hand == "left")
+	var my_hand = left_hand if is_left else right_hand
+	var other_hand = right_hand if is_left else left_hand
+
+	var list: Array = []
+
+	# Start with current hand weapon
+	if my_hand:
+		list.append(my_hand)
+
+	# Add carry weapons (skip duplicates of other hand)
+	for w in carry:
+		if other_hand and w == other_hand:
+			continue
+		list.append(w)
+
+	return list
+
+
+# ====================================================================
+# CYCLE (legacy — kept for compatibility)
+# ====================================================================
 
 func _cycle_left() -> void:
 	if carry.is_empty():
@@ -132,30 +304,9 @@ func _cycle_right() -> void:
 	carry_updated.emit(carry)
 
 
-func _scroll_select(direction: int) -> void:
-	if carry.is_empty():
-		return
-	scroll_index = clampi(scroll_index + direction, 0, carry.size() - 1)
-	if holding_left:
-		var temp = left_hand
-		left_hand = carry[scroll_index]
-		carry[scroll_index] = temp if temp else carry[scroll_index]
-		if temp == null:
-			carry.remove_at(scroll_index)
-		weapon_switched.emit("left", left_hand.weapon_name if left_hand else "Empty")
-		if left_hand:
-			ammo_changed.emit("left", _get_ammo(left_hand), left_hand.max_ammo)
-	elif holding_right:
-		var temp = right_hand
-		right_hand = carry[scroll_index]
-		carry[scroll_index] = temp if temp else carry[scroll_index]
-		if temp == null:
-			carry.remove_at(scroll_index)
-		weapon_switched.emit("right", right_hand.weapon_name if right_hand else "Empty")
-		if right_hand:
-			ammo_changed.emit("right", _get_ammo(right_hand), right_hand.max_ammo)
-	carry_updated.emit(carry)
-
+# ====================================================================
+# DROP
+# ====================================================================
 
 func _drop_weapon(hand: String) -> void:
 	var weapon: WeaponPart = null
@@ -170,11 +321,31 @@ func _drop_weapon(hand: String) -> void:
 		weapon_switched.emit(hand, "Empty")
 
 
-# ========================
+# ====================================================================
 # WEAPON MANAGEMENT
-# ========================
+# ====================================================================
 
 func add_weapon(weapon: WeaponPart) -> void:
+	# Check for duplicate by resource path
+	for w in carry:
+		if w.resource_path == weapon.resource_path:
+			# Duplicate ranged: just add ammo
+			if weapon.weapon_type != WeaponPart.WeaponType.MELEE:
+				add_ammo(weapon.max_ammo / 2)
+				return
+			# Melee duplicates allowed for dual wield
+			break
+
+	# Check if already in hand
+	if left_hand and left_hand.resource_path == weapon.resource_path:
+		if weapon.weapon_type != WeaponPart.WeaponType.MELEE:
+			add_ammo(weapon.max_ammo / 2)
+			return
+	if right_hand and right_hand.resource_path == weapon.resource_path:
+		if weapon.weapon_type != WeaponPart.WeaponType.MELEE:
+			add_ammo(weapon.max_ammo / 2)
+			return
+
 	carry.append(weapon)
 	ammo_pool[weapon.weapon_name] = weapon.max_ammo
 	carry_updated.emit(carry)
@@ -190,17 +361,25 @@ func add_ammo(amount: int, hand: String = "") -> void:
 		ammo_pool[right_hand.weapon_name] = mini(current + amount, right_hand.max_ammo)
 		ammo_changed.emit("right", _get_ammo(right_hand), right_hand.max_ammo)
 	else:
+		# No hand specified — add to whichever hand has a weapon, prefer left
 		if left_hand:
 			var c = _get_ammo(left_hand)
 			ammo_pool[left_hand.weapon_name] = mini(c + amount, left_hand.max_ammo)
 			ammo_changed.emit("left", _get_ammo(left_hand), left_hand.max_ammo)
+		elif right_hand:
+			var c = _get_ammo(right_hand)
+			ammo_pool[right_hand.weapon_name] = mini(c + amount, right_hand.max_ammo)
+			ammo_changed.emit("right", _get_ammo(right_hand), right_hand.max_ammo)
 
 
-# ========================
+# ====================================================================
 # FIRING
-# ========================
+# ====================================================================
 
 func _try_fire(hand: String, weapon: WeaponPart) -> void:
+	if weapon.weapon_type == WeaponPart.WeaponType.SHIELD:
+		return
+
 	var current_ammo = _get_ammo(weapon)
 	if not weapon.can_fire(current_ammo):
 		return
@@ -229,7 +408,6 @@ func _fire_projectile(hand: String, weapon: WeaponPart) -> void:
 	var mecha = get_parent()
 	if mecha == null:
 		return
-
 	var cam = get_viewport().get_camera_3d()
 	if cam == null:
 		return
@@ -288,13 +466,13 @@ func _fire_projectile(hand: String, weapon: WeaponPart) -> void:
 
 	EffectManager.spawn_muzzle_flash(spawn_pos, direction)
 	AudioManager.play_weapon_sfx(weapon.weapon_type, spawn_pos)
+	_spawn_shell_casing(spawn_pos, hand)
 
 
 func _fire_shotgun(hand: String, weapon: WeaponPart) -> void:
 	var mecha = get_parent()
 	if mecha == null:
 		return
-
 	var cam = get_viewport().get_camera_3d()
 	if cam == null:
 		return
@@ -359,6 +537,7 @@ func _fire_shotgun(hand: String, weapon: WeaponPart) -> void:
 
 	EffectManager.spawn_muzzle_flash(spawn_pos, ray_dir)
 	AudioManager.play_weapon_sfx(weapon.weapon_type, spawn_pos)
+	_spawn_shell_casing(spawn_pos, hand)
 
 
 func _melee_attack(hand: String, weapon: WeaponPart) -> void:
@@ -397,7 +576,6 @@ func _melee_attack(hand: String, weapon: WeaponPart) -> void:
 var _melee_combo: int = 0
 
 func _spawn_melee_trail(mecha: Node3D, direction: Vector3) -> void:
-	var right = direction.cross(Vector3.UP).normalized()
 	var is_first_swing = (_melee_combo % 2 == 0)
 	_melee_combo += 1
 
@@ -480,63 +658,9 @@ func _check_melee_hit(mecha: Node3D, direction: Vector3, damage: float) -> void:
 			EffectManager.spawn_damage_number(enemy.global_position + Vector3(0, 2.5, 0), damage, Color(1, 0.5, 0))
 
 
-func _get_fire_direction_from(from_pos: Vector3) -> Vector3:
-	var cam = get_viewport().get_camera_3d()
-	if cam == null:
-		return -Vector3.FORWARD
-
-	var viewport_size = get_viewport().get_visible_rect().size
-	var center = viewport_size / 2.0
-	var ray_origin = cam.project_ray_origin(center)
-	var ray_dir = cam.project_ray_normal(center)
-
-	var space_state = get_viewport().get_world_3d().direct_space_state
-	var query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 500.0)
-	query.collision_mask = 10
-	var result = space_state.intersect_ray(query)
-
-	var target_point: Vector3
-	if result:
-		target_point = result["position"]
-	else:
-		target_point = ray_origin + ray_dir * 500.0
-
-	return (target_point - from_pos).normalized()
-
-
-func _get_fire_direction() -> Vector3:
-	var cam = get_viewport().get_camera_3d()
-	if cam == null:
-		return -Vector3.FORWARD
-
-	var viewport_size = get_viewport().get_visible_rect().size
-	var center = viewport_size / 2.0
-	var ray_origin = cam.project_ray_origin(center)
-	var ray_dir = cam.project_ray_normal(center)
-
-	var space_state = get_viewport().get_world_3d().direct_space_state
-	var query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 500.0)
-	query.collision_mask = 10
-	var result = space_state.intersect_ray(query)
-
-	var target_point: Vector3
-	if result:
-		target_point = result["position"]
-	else:
-		target_point = ray_origin + ray_dir * 500.0
-
-	var mecha = get_parent()
-	if mecha:
-		var mecha_pos = mecha.global_position + Vector3(0, 1.5, 0)
-		var dir = (target_point - mecha_pos).normalized()
-		return dir
-
-	return ray_dir
-
-
-# ========================
+# ====================================================================
 # HELPERS
-# ========================
+# ====================================================================
 
 func _get_ammo(weapon: WeaponPart) -> int:
 	return ammo_pool.get(weapon.weapon_name, 0)
@@ -562,3 +686,126 @@ func get_all_weapons() -> Array:
 		all.append(right_hand)
 	all.append_array(carry)
 	return all
+
+
+# ====================================================================
+# SHIELD
+# ====================================================================
+
+func _toggle_shield(hand: String) -> void:
+	var weapon = left_hand if hand == "left" else right_hand
+	if weapon == null or weapon.weapon_type != WeaponPart.WeaponType.SHIELD:
+		return
+
+	if shield_active:
+		shield_active = false
+		shield_recharge_timer = SHIELD_RECHARGE_DELAY
+		weapon_switched.emit(hand, weapon.weapon_name + " [DOWN]")
+		_hide_shield_visual()
+	else:
+		shield_active = true
+		shield_max_hp = weapon.shield_hp
+		if shield_current_hp <= 0.0:
+			shield_current_hp = shield_max_hp
+		weapon_switched.emit(hand, weapon.weapon_name + " [UP]")
+		_show_shield_visual()
+
+
+func absorb_damage_with_shield(amount: float) -> float:
+	if not shield_active or shield_current_hp <= 0.0:
+		return amount
+	var absorbed = minf(amount, shield_current_hp)
+	shield_current_hp -= absorbed
+	var remaining = amount - absorbed
+	if shield_current_hp <= 0.0:
+		shield_active = false
+		shield_current_hp = 0.0
+		var hand = "left" if left_hand and left_hand.weapon_type == WeaponPart.WeaponType.SHIELD else "right"
+		weapon_switched.emit(hand, "Shield BROKEN")
+	return remaining
+
+
+func get_shield_hp() -> float:
+	return shield_current_hp
+
+
+func get_shield_max_hp() -> float:
+	return shield_max_hp
+
+
+func is_shield_active() -> bool:
+	return shield_active
+
+
+func _show_shield_visual() -> void:
+	if _shield_visual == null:
+		_shield_visual = MeshInstance3D.new()
+		var sphere = SphereMesh.new()
+		sphere.radius = 2.2
+		sphere.height = 4.0
+		_shield_visual.mesh = sphere
+		var mat = StandardMaterial3D.new()
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.albedo_color = Color(0.3, 0.6, 1.0, 0.25)
+		mat.emission_enabled = true
+		mat.emission = Color(0.2, 0.5, 1.0)
+		mat.emission_energy_multiplier = 2.0
+		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_shield_visual.material_override = mat
+		add_child(_shield_visual)
+	_shield_visual.visible = true
+	_shield_visual.position = Vector3(0, 1.5, 0)
+
+
+func _hide_shield_visual() -> void:
+	if _shield_visual:
+		_shield_visual.visible = false
+
+
+func _update_shield_visual() -> void:
+	if _shield_visual == null or not shield_active:
+		return
+	var hp_ratio = shield_current_hp / maxf(shield_max_hp, 1.0)
+	var mat = _shield_visual.material_override as StandardMaterial3D
+	if mat:
+		mat.albedo_color.a = lerp(0.05, 0.3, hp_ratio)
+		mat.emission_energy_multiplier = lerp(0.5, 2.0, hp_ratio)
+
+
+# ====================================================================
+# SHELL EJECTION
+# ====================================================================
+
+func _spawn_shell_casing(spawn_pos: Vector3, hand: String) -> void:
+	var mecha = get_parent()
+	if mecha == null:
+		return
+
+	var side = -1.0 if hand == "left" else 1.0
+	var right = mecha.global_transform.basis.x * side
+	var shell_dir = (right + Vector3(0, 0.5, 0)).normalized()
+
+	var shell = MeshInstance3D.new()
+	var box = BoxMesh.new()
+	box.size = Vector3(0.06, 0.04, 0.12)
+	shell.mesh = box
+
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(0.8, 0.7, 0.2, 1)
+	mat.metallic = 0.8
+	mat.roughness = 0.3
+	shell.material_override = mat
+
+	get_tree().current_scene.add_child(shell)
+	shell.global_position = spawn_pos + right * 0.3 + Vector3(0, 0.2, 0)
+
+	var tween = get_tree().create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(shell, "position",
+		shell.position + shell_dir * randf_range(1.5, 3.0) + Vector3(0, randf_range(0.5, 1.5), 0),
+		0.3).set_ease(Tween.EASE_OUT)
+	tween.tween_property(shell, "rotation",
+		Vector3(randf_range(-5, 5), randf_range(-5, 5), randf_range(-5, 5)),
+		0.4)
+	tween.chain().tween_property(shell, "position:y", -0.5, 0.4).set_ease(Tween.EASE_IN)
+	tween.tween_callback(shell.queue_free).set_delay(0.6)

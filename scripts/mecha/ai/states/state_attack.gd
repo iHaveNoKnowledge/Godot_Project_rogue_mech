@@ -96,18 +96,36 @@ func _heal_nearest_ally() -> void:
 
 
 func _fire_ranged() -> void:
+	# Line-of-sight check: don't fire through obstacles
+	var from_pos = enemy.global_position + Vector3(0, 2, 0)
+	var to_pos = enemy.target.global_position + Vector3(0, 1.5, 0)
+	var space_state = enemy.get_viewport().get_world_3d().direct_space_state
+	var query = PhysicsRayQueryParameters3D.create(from_pos, to_pos)
+	# Layer 2 = Environment (cover, walls)
+	query.collision_mask = 2
+	var result = space_state.intersect_ray(query)
+
+	if result:
+		# Obstacle in the way — don't fire, try to reposition
+		var obstacle_dist = from_pos.distance_to(result["position"])
+		var target_dist = from_pos.distance_to(to_pos)
+		if obstacle_dist < target_dist * 0.8:
+			# Blocked — transition to chase to find better angle
+			state_machine.transition_to("StateChase")
+			return
+
 	var projectile_scene = preload("res://scenes/mecha/effects/projectile.tscn")
 	var projectile = projectile_scene.instantiate()
 	enemy.get_tree().current_scene.add_child(projectile)
-	projectile.global_position = enemy.global_position + Vector3(0, 2, 0)
+	projectile.global_position = from_pos
 
-	var dir = (enemy.target.global_position - enemy.global_position).normalized()
+	var dir = (to_pos - from_pos).normalized()
 	projectile.speed = 30.0
 	projectile.damage = enemy.attack_damage
 	projectile.damage_type = "kinetic"
 	projectile.fired_by_enemy = true
 	projectile.direction = dir
-	projectile.look_at(enemy.target.global_position, Vector3.UP)
+	projectile.look_at(to_pos, Vector3.UP)
 
 
 func _is_low_hp() -> bool:

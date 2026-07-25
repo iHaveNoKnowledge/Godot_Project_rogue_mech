@@ -59,4 +59,5 @@ func _on_continue() -> void:
 
 
 func _on_quit() -> void:
-	get_tree().quit(0)
+	get_tree().root.propagate_notification(Node.NOTIFICATION_WM_CLOSE_REQUEST)
+	get_tree().quit()

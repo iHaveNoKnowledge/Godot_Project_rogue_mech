@@ -1,7 +1,7 @@
 extends Resource
 class_name WeaponPart
 
-enum WeaponType { BEAM_RIFLE, MACHINE_GUN, MISSILE, SHOTGUN, MELEE }
+enum WeaponType { BEAM_RIFLE, MACHINE_GUN, MISSILE, SHOTGUN, MELEE, SHIELD }
 
 @export var weapon_name: String = ""
 @export var weapon_type: WeaponType = WeaponType.BEAM_RIFLE
@@ -17,6 +17,10 @@ enum WeaponType { BEAM_RIFLE, MACHINE_GUN, MISSILE, SHOTGUN, MELEE }
 @export var icon: Texture2D
 @export var description: String = ""
 @export var rarity: int = 0
+
+# Shield-specific
+@export var shield_hp: float = 300.0
+@export var shield_recharge_rate: float = 20.0
 
 
 func get_fire_interval() -> float:

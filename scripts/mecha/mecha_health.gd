@@ -51,3 +51,34 @@ func _find_meshes() -> void:
 		if node:
 			parts[slot]["mesh"] = node
 			_original_colors[slot] = node.material_override.albedo_color if node.material_override else _armor_color
+
+
+func take_damage(amount: float, damage_type: String = "kinetic") -> void:
+	if is_destroyed:
+		return
+	# Shield absorption
+	var wm = _get_weapon_manager()
+	if wm and wm.is_shield_active():
+		amount = wm.absorb_damage_with_shield(amount)
+		if amount <= 0.0:
+			return
+	super.take_damage(amount, damage_type)
+
+
+func take_damage_to_part(slot_name: String, amount: float, damage_type: String = "kinetic") -> void:
+	if is_destroyed:
+		return
+	# Shield absorption
+	var wm = _get_weapon_manager()
+	if wm and wm.is_shield_active():
+		amount = wm.absorb_damage_with_shield(amount)
+		if amount <= 0.0:
+			return
+	super.take_damage_to_part(slot_name, amount, damage_type)
+
+
+func _get_weapon_manager():
+	var mecha = get_parent()
+	if mecha:
+		return mecha.get_node_or_null("WeaponManager")
+	return null

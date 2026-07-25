@@ -5,10 +5,12 @@ var part_list: ItemList
 var stats_label: Label
 var weight_label: Label
 var repair_button: Button
+var repair_part_button: Button
 var close_button: Label
 var status_label: Label
 
-var repair_cost: int = 10
+const COST_PER_HP: float = 0.5
+var selected_slot: String = ""
 
 
 func _ready() -> void:
@@ -82,8 +84,14 @@ func _create_ui() -> void:
 	weight_label.text = "Total Weight: 0"
 	right_panel.add_child(weight_label)
 
+	repair_part_button = Button.new()
+	repair_part_button.text = "Repair Selected Part"
+	repair_part_button.custom_minimum_size = Vector2(280, 36)
+	repair_part_button.pressed.connect(_on_repair_part_pressed)
+	right_panel.add_child(repair_part_button)
+
 	repair_button = Button.new()
-	repair_button.text = "Full Repair (%d credits)" % repair_cost
+	repair_button.text = "Full Repair"
 	repair_button.custom_minimum_size = Vector2(280, 40)
 	repair_button.pressed.connect(_on_repair_pressed)
 	right_panel.add_child(repair_button)
@@ -111,27 +119,72 @@ func show_hangar() -> void:
 func _on_part_selected(index: int) -> void:
 	if index < 0:
 		return
-	var slot = GlobalData.equipped_parts.keys()[index]
-	var part: ArmorPart = GlobalData.equipped_parts[slot]
+	selected_slot = GlobalData.equipped_parts.keys()[index]
+	var part: ArmorPart = GlobalData.equipped_parts[selected_slot]
 	if part:
-		var dmg = GlobalData.part_damage.get(slot, 0.0)
+		var dmg = GlobalData.part_damage.get(selected_slot, 0.0)
 		var status = "OK" if dmg < part.break_threshold else "BROKEN"
-		stats_label.text = "Name: %s\nSlot: %s\nStatus: %s\n\nHP: %.0f / %.0f\nWeight: %.1f\nArmor Class: %.1f\nBreak Threshold: %.0f%%" % [
-			part.part_name, slot, status,
-			part.max_hp - (dmg * part.max_hp), part.max_hp,
-			part.weight, part.armor_class, part.break_threshold * 100
+		var current_hp = part.max_hp - (dmg * part.max_hp)
+		var repair_hp = dmg * part.max_hp
+		var cost = int(repair_hp * COST_PER_HP)
+		stats_label.text = "Name: %s\nSlot: %s\nStatus: %s\n\nHP: %.0f / %.0f\nWeight: %.1f\nArmor Class: %.1f\nBreak Threshold: %.0f%%\n\nRepair Cost: %d credits (%.0f HP)" % [
+			part.part_name, selected_slot, status,
+			current_hp, part.max_hp,
+			part.weight, part.armor_class, part.break_threshold * 100,
+			cost, repair_hp
 		]
+		repair_part_button.text = "Repair %s - %d credits" % [part.part_name, cost]
+		repair_part_button.disabled = GlobalData.credits < cost or dmg <= 0.0
+
+
+func _on_repair_part_pressed() -> void:
+	if selected_slot == "" or not GlobalData.equipped_parts.has(selected_slot):
+		status_label.text = "Select a part first!"
+		return
+
+	var part: ArmorPart = GlobalData.equipped_parts[selected_slot]
+	var dmg = GlobalData.part_damage.get(selected_slot, 0.0)
+	if dmg <= 0.0:
+		status_label.text = "Part is already OK!"
+		return
+
+	var cost = int(dmg * part.max_hp * COST_PER_HP)
+	if GlobalData.credits < cost:
+		status_label.text = "Not enough credits! Need %d" % cost
+		return
+
+	GlobalData.credits -= cost
+	GlobalData.part_damage.erase(selected_slot)
+	EventBus.weight_changed.emit(0.0)
+	status_label.text = "Repaired %s! Credits: %d" % [part.part_name, GlobalData.credits]
+	_refresh_parts()
 
 
 func _on_repair_pressed() -> void:
-	if GlobalData.credits >= repair_cost:
-		GlobalData.credits -= repair_cost
-		GlobalData.part_damage.clear()
-		EventBus.weight_changed.emit(0.0)
-		status_label.text = "Repaired! Credits: %d" % GlobalData.credits
-		_refresh_parts()
-	else:
-		status_label.text = "Not enough credits!"
+	var total_cost = 0.0
+	var slots_to_repair: Array = []
+	for slot in GlobalData.equipped_parts:
+		var part: ArmorPart = GlobalData.equipped_parts[slot]
+		var dmg = GlobalData.part_damage.get(slot, 0.0)
+		if dmg > 0.0:
+			var cost = dmg * part.max_hp * COST_PER_HP
+			total_cost += cost
+			slots_to_repair.append(slot)
+
+	if slots_to_repair.is_empty():
+		status_label.text = "All parts are OK!"
+		return
+
+	if GlobalData.credits < int(total_cost):
+		status_label.text = "Not enough credits! Need %d" % int(total_cost)
+		return
+
+	GlobalData.credits -= int(total_cost)
+	for slot in slots_to_repair:
+		GlobalData.part_damage.erase(slot)
+	EventBus.weight_changed.emit(0.0)
+	status_label.text = "All repaired! Credits: %d" % GlobalData.credits
+	_refresh_parts()
 
 
 func _refresh_parts() -> void:
@@ -139,15 +192,23 @@ func _refresh_parts() -> void:
 		return
 	part_list.clear()
 	var total_weight = 0.0
+	var total_repair_cost = 0.0
 	for slot in GlobalData.equipped_parts:
 		var part: ArmorPart = GlobalData.equipped_parts[slot]
 		var dmg = GlobalData.part_damage.get(slot, 0.0)
 		var status = "OK" if dmg < part.break_threshold else "BROKEN"
-		part_list.add_item("%s [%s] - %s" % [part.part_name, slot, status])
+		var cost = int(dmg * part.max_hp * COST_PER_HP) if dmg > 0.0 else 0
+		var label = "%s [%s] - %s" % [part.part_name, slot, status]
+		if cost > 0:
+			label += " (%d cr)" % cost
+			total_repair_cost += cost
+		part_list.add_item(label)
 		if dmg < part.break_threshold:
 			total_weight += part.weight
 	if weight_label:
 		weight_label.text = "Total Weight: %.1f" % total_weight
+	repair_button.text = "Full Repair - %d credits" % int(total_repair_cost)
+	repair_button.disabled = GlobalData.credits < int(total_repair_cost) or total_repair_cost <= 0
 
 
 func _input(event: InputEvent) -> void:

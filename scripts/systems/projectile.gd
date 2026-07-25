@@ -8,10 +8,13 @@ var timer: float = 0.0
 var trail_timer: float = 0.0
 var direction: Vector3 = Vector3.FORWARD
 var fired_by_enemy: bool = false
+var ricochet_chance: float = 0.15
+var prev_position: Vector3
 
 
 func _ready() -> void:
 	add_to_group("projectile")
+	prev_position = global_position
 
 
 func get_damage() -> float:
@@ -24,7 +27,11 @@ func _physics_process(delta: float) -> void:
 		queue_free()
 		return
 
+	prev_position = global_position
 	position += direction * speed * delta
+
+	# Check for obstacle (cover) collision using raycast between frames
+	_check_obstacle_collision()
 
 	if fired_by_enemy:
 		# Enemy projectile -> check for player mecha
@@ -56,6 +63,41 @@ func _physics_process(delta: float) -> void:
 	if trail_timer >= 0.03:
 		trail_timer = 0.0
 		_spawn_trail()
+
+
+func _check_obstacle_collision() -> void:
+	var space_state = get_viewport().get_world_3d().direct_space_state
+	var query = PhysicsRayQueryParameters3D.create(prev_position, global_position)
+	# Layer 2 = Environment (cover objects, walls)
+	query.collision_mask = 2
+	var result = space_state.intersect_ray(query)
+
+	if result:
+		var collider = result["collider"]
+		var hit_pos = result["position"]
+		var hit_normal = result["normal"]
+
+		# Deal damage to cover
+		if collider.has_method("take_damage"):
+			collider.take_damage(damage, damage_type)
+
+		EffectManager.spawn_impact(hit_pos, hit_normal)
+
+		# Ricochet check: some bullets bounce off
+		if randf() < ricochet_chance:
+			_ricochet(hit_pos, hit_normal)
+		else:
+			queue_free()
+
+
+func _ricochet(hit_pos: Vector3, normal: Vector3) -> void:
+	# Reflect direction off the surface normal
+	direction = direction.bounce(normal).normalized()
+	prev_position = hit_pos
+	global_position = hit_pos + normal * 0.1
+	# Reduce damage on ricochet
+	damage *= 0.5
+	ricochet_chance *= 0.5  # Less likely to ricochet again
 
 
 func _hit_target(target: Node3D) -> void:

@@ -14,6 +14,14 @@ var right_holding: bool = false
 var _bg_color: Color = Color(0.1, 0.1, 0.1, 0.85)
 var _accent_color: Color = Color(0.3, 0.6, 1.0, 1)
 var _highlight_color: Color = Color(1.0, 0.9, 0.3, 1)
+var _dim_color: Color = Color(0.5, 0.5, 0.5, 1)
+var _disabled_color: Color = Color(0.35, 0.35, 0.35, 1)
+
+# Weapon type symbols
+const WEAPON_ICONS: Dictionary = {
+	0: "[RIFLE]", 1: "[MG]", 2: "[MISSILE]",
+	3: "[SPREAD]", 4: "[BLADE]", 5: "[SHIELD]",
+}
 
 
 func _ready() -> void:
@@ -44,6 +52,12 @@ func _input(event: InputEvent) -> void:
 	elif event.is_action_released("weapon_right"):
 		right_holding = false
 		_hide_carry()
+
+	# Sync highlight on scroll
+	if event is InputEventMouseButton and weapon_manager:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			if left_holding or right_holding:
+				_update_carry_display("left" if left_holding else "right")
 
 
 func _create_root() -> void:
@@ -82,7 +96,7 @@ func _create_ammo_ui() -> void:
 func _create_carry_ui() -> void:
 	carry_panel = PanelContainer.new()
 	carry_panel.offset_left = 0
-	carry_panel.offset_right = 200
+	carry_panel.offset_right = 240
 	carry_panel.offset_top = 200
 	carry_panel.offset_bottom = 500
 
@@ -101,7 +115,7 @@ func _create_carry_ui() -> void:
 	carry_panel.visible = false
 
 	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 4)
+	vbox.add_theme_constant_override("separation", 2)
 	carry_panel.add_child(vbox)
 
 	hand_label = Label.new()
@@ -114,7 +128,7 @@ func _create_carry_ui() -> void:
 	vbox.add_child(sep)
 
 	carry_container = VBoxContainer.new()
-	carry_container.add_theme_constant_override("separation", 2)
+	carry_container.add_theme_constant_override("separation", 1)
 	vbox.add_child(carry_container)
 
 
@@ -127,15 +141,15 @@ func _show_carry(hand: String) -> void:
 	var viewport_width = get_viewport().get_visible_rect().size.x
 	if hand == "left":
 		carry_panel.offset_left = 20
-		carry_panel.offset_right = 220
+		carry_panel.offset_right = 260
 		carry_panel.offset_top = 100
-		carry_panel.offset_bottom = 300
+		carry_panel.offset_bottom = 400
 		hand_label.text = "LEFT HAND"
 	else:
-		carry_panel.offset_left = viewport_width - 220
+		carry_panel.offset_left = viewport_width - 260
 		carry_panel.offset_right = viewport_width - 20
 		carry_panel.offset_top = 100
-		carry_panel.offset_bottom = 300
+		carry_panel.offset_bottom = 400
 		hand_label.text = "RIGHT HAND"
 
 	_update_carry_display(hand)
@@ -152,42 +166,85 @@ func _update_carry_display(hand: String) -> void:
 	for child in carry_container.get_children():
 		child.queue_free()
 
+	# Use the weapon manager's select list
+	var list: Array = weapon_manager._build_select_list(hand)
+
+	# Current weapon in hand (may have been changed by scroll)
 	var current_weapon = weapon_manager.left_hand if hand == "left" else weapon_manager.right_hand
 
-	if current_weapon:
-		var current_ammo = weapon_manager._get_ammo(current_weapon)
-		var current_max = current_weapon.max_ammo
-		var ammo_text = "inf" if current_max >= 999 else "%d/%d" % [current_ammo, current_max]
-		var current_row = Label.new()
-		current_row.text = "► %s  %s" % [current_weapon.weapon_name, ammo_text]
-		current_row.add_theme_font_size_override("font_size", 13)
-		current_row.add_theme_color_override("font_color", _highlight_color)
-		carry_container.add_child(current_row)
+	# Other hand's weapon (disabled)
+	var other_weapon = weapon_manager.right_hand if hand == "left" else weapon_manager.left_hand
 
-	var carry = weapon_manager.get_carry()
-	if carry.is_empty():
+	for i in range(list.size()):
+		var weapon: WeaponPart = list[i]
+		var is_current = (weapon == current_weapon)
+		var is_disabled = (weapon == other_weapon and other_weapon != null)
+
+		var row = HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		carry_container.add_child(row)
+
+		# Selection indicator — show >> only on the current weapon
+		var indicator = Label.new()
+		indicator.text = ">>" if is_current else "  "
+		indicator.add_theme_font_size_override("font_size", 12)
+		row.add_child(indicator)
+
+		# Weapon type icon
+		var icon_label = Label.new()
+		icon_label.text = WEAPON_ICONS.get(weapon.weapon_type, "[?]")
+		icon_label.add_theme_font_size_override("font_size", 10)
+		icon_label.custom_minimum_size = Vector2(55, 0)
+		row.add_child(icon_label)
+
+		# Weapon name
+		var name_label = Label.new()
+		name_label.text = weapon.weapon_name
+		name_label.add_theme_font_size_override("font_size", 12)
+		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(name_label)
+
+		# Ammo
+		var ammo_label = Label.new()
+		var current_ammo = weapon_manager._get_ammo(weapon)
+		if weapon.max_ammo >= 999:
+			ammo_label.text = "inf"
+		else:
+			ammo_label.text = "%d/%d" % [current_ammo, weapon.max_ammo]
+		ammo_label.add_theme_font_size_override("font_size", 10)
+		ammo_label.custom_minimum_size = Vector2(45, 0)
+		ammo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		row.add_child(ammo_label)
+
+		# Colors
+		var color: Color
+		if is_disabled:
+			color = _disabled_color
+		elif is_current:
+			color = _highlight_color
+		else:
+			color = _dim_color
+
+		icon_label.add_theme_color_override("font_color", color)
+		name_label.add_theme_color_override("font_color", color)
+		ammo_label.add_theme_color_override("font_color", color)
+		indicator.add_theme_color_override("font_color", color)
+
+	if list.is_empty():
 		var empty = Label.new()
-		empty.text = "  (empty)"
+		empty.text = "  (no weapons)"
 		empty.add_theme_font_size_override("font_size", 12)
+		empty.add_theme_color_override("font_color", _dim_color)
 		carry_container.add_child(empty)
-	else:
-		for weapon in carry:
-			var ammo_text = "inf" if weapon.max_ammo >= 999 else str(weapon_manager.ammo_pool.get(weapon.weapon_name, 0))
-			var max_text = "inf" if weapon.max_ammo >= 999 else str(weapon.max_ammo)
-
-			var row = Label.new()
-			row.text = "  %s  %s/%s" % [weapon.weapon_name, ammo_text, max_text]
-			row.add_theme_font_size_override("font_size", 12)
-			carry_container.add_child(row)
 
 
-func _on_weapon_switched(hand: String, weapon_name: String) -> void:
+func _on_weapon_switched(_hand: String, _weapon_name: String) -> void:
 	_update_current_display()
 	if carry_panel.visible:
 		_update_carry_display("left" if left_holding else "right")
 
 
-func _on_ammo_changed(hand: String, current: int, max_ammo: int) -> void:
+func _on_ammo_changed(_hand: String, _current: int, _max_ammo: int) -> void:
 	_update_current_display()
 	if carry_panel.visible:
 		_update_carry_display("left" if left_holding else "right")
@@ -210,6 +267,6 @@ func _update_current_display() -> void:
 	current_label.text = "[L] %s  |  [R] %s" % [left_text, right_text]
 
 
-func _on_carry_updated(carry_list: Array) -> void:
+func _on_carry_updated(_carry_list: Array) -> void:
 	if carry_panel.visible:
 		_update_carry_display("left" if left_holding else "right")

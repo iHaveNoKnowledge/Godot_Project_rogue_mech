@@ -60,19 +60,46 @@ func _create_cover(def: Dictionary) -> StaticBody3D:
 	mat.roughness = 0.8
 
 	match type:
-		0:  # Concrete Barrier
+		0:  # Concrete Barrier — tall wall
 			var shape = BoxShape3D.new()
-			shape.size = Vector3(3, 1.5, 0.5)
+			shape.size = Vector3(4, 4, 0.8)
 			collision.shape = shape
-			collision.position.y = 0.75
+			collision.position.y = 2.0
 			var box = BoxMesh.new()
-			box.size = Vector3(3, 1.5, 0.5)
+			box.size = Vector3(4, 4, 0.8)
 			mesh_inst.mesh = box
 			mat.albedo_color = Color(0.45, 0.45, 0.5, 1)
-			cover.max_hp = 200.0
+			cover.max_hp = 250.0
 			cover.cover_type = "barrier"
 
-		1:  # Crate Stack
+		1:  # Crate Stack — tall tower
+			var shape = BoxShape3D.new()
+			shape.size = Vector3(2.5, 5, 2.5)
+			collision.shape = shape
+			collision.position.y = 2.5
+			var box = BoxMesh.new()
+			box.size = Vector3(2.5, 5, 2.5)
+			mesh_inst.mesh = box
+			mat.albedo_color = Color(0.5, 0.4, 0.3, 1)
+			cover.max_hp = 200.0
+			cover.cover_type = "crate"
+
+		2:  # Pillar — tall column
+			var shape = CylinderShape3D.new()
+			shape.radius = 1.0
+			shape.height = 8.0
+			collision.shape = shape
+			collision.position.y = 4.0
+			var cyl = CylinderMesh.new()
+			cyl.top_radius = 1.0
+			cyl.bottom_radius = 1.0
+			cyl.height = 8.0
+			mesh_inst.mesh = cyl
+			mat.albedo_color = Color(0.4, 0.4, 0.45, 1)
+			cover.max_hp = 350.0
+			cover.cover_type = "pillar"
+
+		3:  # Destroyable Crate — medium box
 			var shape = BoxShape3D.new()
 			shape.size = Vector3(2, 3, 2)
 			collision.shape = shape
@@ -80,35 +107,8 @@ func _create_cover(def: Dictionary) -> StaticBody3D:
 			var box = BoxMesh.new()
 			box.size = Vector3(2, 3, 2)
 			mesh_inst.mesh = box
-			mat.albedo_color = Color(0.5, 0.4, 0.3, 1)
-			cover.max_hp = 150.0
-			cover.cover_type = "crate"
-
-		2:  # Pillar
-			var shape = CylinderShape3D.new()
-			shape.radius = 0.8
-			shape.height = 6.0
-			collision.shape = shape
-			collision.position.y = 3.0
-			var cyl = CylinderMesh.new()
-			cyl.top_radius = 0.8
-			cyl.bottom_radius = 0.8
-			cyl.height = 6.0
-			mesh_inst.mesh = cyl
-			mat.albedo_color = Color(0.4, 0.4, 0.45, 1)
-			cover.max_hp = 300.0
-			cover.cover_type = "pillar"
-
-		3:  # Destroyable Crate
-			var shape = BoxShape3D.new()
-			shape.size = Vector3(1.5, 1.5, 1.5)
-			collision.shape = shape
-			collision.position.y = 0.75
-			var box = BoxMesh.new()
-			box.size = Vector3(1.5, 1.5, 1.5)
-			mesh_inst.mesh = box
 			mat.albedo_color = Color(0.55, 0.45, 0.35, 1)
-			cover.max_hp = 80.0
+			cover.max_hp = 120.0
 			cover.cover_type = "small_crate"
 
 	cover.add_child(collision)

@@ -34,12 +34,8 @@ var _shield_visual: MeshInstance3D = null
 # --- Weapon Scroll State (per hand) ---
 var _selecting_left: bool = false
 var _selecting_right: bool = false
-var _select_list_left: Array = []   # snapshot of carry at key press
-var _select_list_right: Array = []
 var _select_idx_left: int = 0
 var _select_idx_right: int = 0
-var _select_orig_left: WeaponPart = null   # weapon that was in hand at key press
-var _select_orig_right: WeaponPart = null
 var _select_scrolled_left: bool = false
 var _select_scrolled_right: bool = false
 
@@ -153,42 +149,56 @@ func _input(event: InputEvent) -> void:
 
 func _start_selection(hand: String) -> void:
 	var is_left = (hand == "left")
+	# Temporarily put hand weapon at carry[0] for unified list
+	var hw = left_hand if is_left else right_hand
+	if hw:
+		carry.insert(0, hw)
+
 	if is_left:
 		holding_left = true
 		_selecting_left = true
-		_select_orig_left = left_hand
-		_select_idx_left = 0
-		_select_list_left = _build_select_list(hand)
+		_select_idx_left = 0  # index in carry = hand weapon
 		_select_scrolled_left = false
+		left_hand = null
 	else:
 		holding_right = true
 		_selecting_right = true
-		_select_orig_right = right_hand
 		_select_idx_right = 0
-		_select_list_right = _build_select_list(hand)
 		_select_scrolled_right = false
+		right_hand = null
+
+	carry_updated.emit(carry)
 
 
 func _scroll(hand: String, direction: int) -> void:
-	var is_left = (hand == "left")
-	var list = _select_list_left if is_left else _select_list_right
-	if list.is_empty():
+	if carry.is_empty():
 		return
 
+	var is_left = (hand == "left")
+	var idx = _select_idx_left if is_left else _select_idx_right
+	var new_idx = clampi(idx + direction, 0, carry.size() - 1)
+
+	if new_idx == idx:
+		return  # already at boundary, no change
+
+	# Swap carry[idx] ↔ carry[new_idx]
+	var temp = carry[idx]
+	carry[idx] = carry[new_idx]
+	carry[new_idx] = temp
+
 	if is_left:
-		_select_idx_left = clampi(_select_idx_left + direction, 0, list.size() - 1)
+		_select_idx_left = new_idx
 		_select_scrolled_left = true
-		left_hand = list[_select_idx_left]
-		weapon_switched.emit("left", left_hand.weapon_name if left_hand else "Empty")
-		if left_hand:
-			ammo_changed.emit("left", _get_ammo(left_hand), left_hand.max_ammo)
+		left_hand = carry[new_idx]
 	else:
-		_select_idx_right = clampi(_select_idx_right + direction, 0, list.size() - 1)
+		_select_idx_right = new_idx
 		_select_scrolled_right = true
-		right_hand = list[_select_idx_right]
-		weapon_switched.emit("right", right_hand.weapon_name if right_hand else "Empty")
-		if right_hand:
-			ammo_changed.emit("right", _get_ammo(right_hand), right_hand.max_ammo)
+		right_hand = carry[new_idx]
+
+	weapon_switched.emit(hand, (left_hand if is_left else right_hand).weapon_name)
+	var w = left_hand if is_left else right_hand
+	if w:
+		ammo_changed.emit(hand, _get_ammo(w), w.max_ammo)
 	carry_updated.emit(carry)
 
 
@@ -198,9 +208,8 @@ func _commit_selection(hand: String) -> void:
 	if not selecting:
 		return
 
-	var orig = _select_orig_left if is_left else _select_orig_right
-	var current = left_hand if is_left else right_hand
 	var did_scroll = _select_scrolled_left if is_left else _select_scrolled_right
+	var idx = _select_idx_left if is_left else _select_idx_right
 
 	if is_left:
 		holding_left = false
@@ -210,76 +219,33 @@ func _commit_selection(hand: String) -> void:
 		_selecting_right = false
 
 	if not did_scroll:
-		# Quick tap — swap with first carry weapon
+		# Quick tap — swap hand (carry[idx]) with carry[0]
 		if carry.is_empty():
-			# Restore original weapon (nothing to swap with)
-			if is_left:
-				left_hand = orig
-			else:
-				right_hand = orig
-			weapon_switched.emit(hand, orig.weapon_name if orig else "Empty")
-			if orig:
-				ammo_changed.emit(hand, _get_ammo(orig), orig.max_ammo)
 			return
-		# Swap: hand ↔ carry[0]
-		var carry_first = carry[0]
+		if idx != 0:
+			var temp = carry[0]
+			carry[0] = carry[idx]
+			carry[idx] = temp
+		# Take carry[0] into hand, remove from carry
 		if is_left:
-			left_hand = carry_first
+			left_hand = carry[0]
 		else:
-			right_hand = carry_first
-		carry[0] = orig
-		weapon_switched.emit(hand, (left_hand if is_left else right_hand).weapon_name)
-		var w = left_hand if is_left else right_hand
-		if w:
-			ammo_changed.emit(hand, _get_ammo(w), w.max_ammo)
-		carry_updated.emit(carry)
+			right_hand = carry[0]
+		carry.remove_at(0)
 	else:
-		# Scrolled — finalise: remove selected from carry, put orig back
-		var new_carry: Array = []
-		# Rebuild carry: original snapshot was carry at key press.
-		# We need to: remove `current` from carry, add `orig` if not already there.
-		# Simple approach: rebuild from current carry state
-		var found_current = false
-		for w in carry:
-			if w == current and not found_current:
-				found_current = true
-				# Skip the selected weapon (it's now in hand)
-				continue
-			new_carry.append(w)
+		# Scrolled — take selected weapon from carry into hand
+		if idx < carry.size():
+			if is_left:
+				left_hand = carry[idx]
+			else:
+				right_hand = carry[idx]
+			carry.remove_at(idx)
 
-		# Add original hand weapon back if not already in carry
-		if orig:
-			var has_orig = false
-			for w in new_carry:
-				if w == orig:
-					has_orig = true
-					break
-			if not has_orig:
-				new_carry.append(orig)
-
-		carry = new_carry
-		carry_updated.emit(carry)
-
-
-func _build_select_list(hand: String) -> Array:
-	"""Build selection list: hand weapon + carry, excluding other hand's weapon."""
-	var is_left = (hand == "left")
-	var my_hand = left_hand if is_left else right_hand
-	var other_hand = right_hand if is_left else left_hand
-
-	var list: Array = []
-
-	# Start with current hand weapon
-	if my_hand:
-		list.append(my_hand)
-
-	# Add carry weapons (skip duplicates of other hand)
-	for w in carry:
-		if other_hand and w == other_hand:
-			continue
-		list.append(w)
-
-	return list
+	weapon_switched.emit(hand, (left_hand if is_left else right_hand).weapon_name)
+	var w = left_hand if is_left else right_hand
+	if w:
+		ammo_changed.emit(hand, _get_ammo(w), w.max_ammo)
+	carry_updated.emit(carry)
 
 
 # ====================================================================

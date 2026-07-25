@@ -166,27 +166,25 @@ func _update_carry_display(hand: String) -> void:
 	for child in carry_container.get_children():
 		child.queue_free()
 
-	# Use the weapon manager's select list
-	var list: Array = weapon_manager._build_select_list(hand)
+	# During selection, carry includes hand weapon at the scroll index
+	# Just display carry as the list
+	var list: Array = weapon_manager.carry
 
-	# Current weapon in hand (may have been changed by scroll)
-	var current_weapon = weapon_manager.left_hand if hand == "left" else weapon_manager.right_hand
-
-	# Other hand's weapon (disabled)
-	var other_weapon = weapon_manager.right_hand if hand == "left" else weapon_manager.left_hand
+	# Highlight index from weapon manager
+	var highlight_idx = weapon_manager._select_idx_left if hand == "left" else weapon_manager._select_idx_right
+	var is_selecting = weapon_manager._selecting_left if hand == "left" else weapon_manager._selecting_right
 
 	for i in range(list.size()):
 		var weapon: WeaponPart = list[i]
-		var is_current = (weapon == current_weapon)
-		var is_disabled = (weapon == other_weapon and other_weapon != null)
+		var is_highlighted = is_selecting and (i == highlight_idx)
 
 		var row = HBoxContainer.new()
 		row.add_theme_constant_override("separation", 6)
 		carry_container.add_child(row)
 
-		# Selection indicator — show >> only on the current weapon
+		# Selection indicator
 		var indicator = Label.new()
-		indicator.text = ">>" if is_current else "  "
+		indicator.text = ">>" if is_highlighted else "  "
 		indicator.add_theme_font_size_override("font_size", 12)
 		row.add_child(indicator)
 
@@ -218,9 +216,7 @@ func _update_carry_display(hand: String) -> void:
 
 		# Colors
 		var color: Color
-		if is_disabled:
-			color = _disabled_color
-		elif is_current:
+		if is_highlighted:
 			color = _highlight_color
 		else:
 			color = _dim_color

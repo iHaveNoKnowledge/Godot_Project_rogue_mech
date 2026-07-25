@@ -149,7 +149,6 @@ func _input(event: InputEvent) -> void:
 
 func _start_selection(hand: String) -> void:
 	var is_left = (hand == "left")
-	# Temporarily put hand weapon at carry[0] for unified list
 	var hw = left_hand if is_left else right_hand
 	if hw:
 		carry.insert(0, hw)
@@ -157,7 +156,7 @@ func _start_selection(hand: String) -> void:
 	if is_left:
 		holding_left = true
 		_selecting_left = true
-		_select_idx_left = 0  # index in carry = hand weapon
+		_select_idx_left = 0
 		_select_scrolled_left = false
 		left_hand = null
 	else:
@@ -179,26 +178,24 @@ func _scroll(hand: String, direction: int) -> void:
 	var new_idx = clampi(idx + direction, 0, carry.size() - 1)
 
 	if new_idx == idx:
-		return  # already at boundary, no change
-
-	# Swap carry[idx] ↔ carry[new_idx]
-	var temp = carry[idx]
-	carry[idx] = carry[new_idx]
-	carry[new_idx] = temp
+		return
 
 	if is_left:
 		_select_idx_left = new_idx
 		_select_scrolled_left = true
-		left_hand = carry[new_idx]
 	else:
 		_select_idx_right = new_idx
 		_select_scrolled_right = true
-		right_hand = carry[new_idx]
 
-	weapon_switched.emit(hand, (left_hand if is_left else right_hand).weapon_name)
-	var w = left_hand if is_left else right_hand
-	if w:
-		ammo_changed.emit(hand, _get_ammo(w), w.max_ammo)
+	# Preview: show highlighted weapon in hand (don't touch carry)
+	var preview = carry[new_idx]
+	if is_left:
+		left_hand = preview
+	else:
+		right_hand = preview
+
+	weapon_switched.emit(hand, preview.weapon_name)
+	ammo_changed.emit(hand, _get_ammo(preview), preview.max_ammo)
 	carry_updated.emit(carry)
 
 
@@ -218,28 +215,13 @@ func _commit_selection(hand: String) -> void:
 		holding_right = false
 		_selecting_right = false
 
-	if not did_scroll:
-		# Quick tap — swap hand (carry[idx]) with carry[0]
-		if carry.is_empty():
-			return
-		if idx != 0:
-			var temp = carry[0]
-			carry[0] = carry[idx]
-			carry[idx] = temp
-		# Take carry[0] into hand, remove from carry
+	# Take the highlighted weapon out of carry into hand
+	if idx < carry.size():
 		if is_left:
-			left_hand = carry[0]
+			left_hand = carry[idx]
 		else:
-			right_hand = carry[0]
-		carry.remove_at(0)
-	else:
-		# Scrolled — take selected weapon from carry into hand
-		if idx < carry.size():
-			if is_left:
-				left_hand = carry[idx]
-			else:
-				right_hand = carry[idx]
-			carry.remove_at(idx)
+			right_hand = carry[idx]
+		carry.remove_at(idx)
 
 	weapon_switched.emit(hand, (left_hand if is_left else right_hand).weapon_name)
 	var w = left_hand if is_left else right_hand

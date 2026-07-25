@@ -397,13 +397,13 @@ func _fire_projectile(hand: String, weapon: WeaponPart) -> void:
 
 	var collision = CollisionShape3D.new()
 	var shape = SphereShape3D.new()
-	shape.radius = 0.2
+	shape.radius = 0.1
 	collision.shape = shape
 	projectile.add_child(collision)
 
 	var mesh = MeshInstance3D.new()
 	var sphere = SphereMesh.new()
-	sphere.radius = 0.2
+	sphere.radius = 0.1
 	mesh.mesh = sphere
 	var mat = StandardMaterial3D.new()
 	mat.albedo_color = Color(1, 0.8, 0.2, 1)
@@ -468,13 +468,13 @@ func _fire_shotgun(hand: String, weapon: WeaponPart) -> void:
 
 		var collision = CollisionShape3D.new()
 		var shape = SphereShape3D.new()
-		shape.radius = 0.15
+		shape.radius = 0.08
 		collision.shape = shape
 		projectile.add_child(collision)
 
 		var mesh = MeshInstance3D.new()
 		var sphere = SphereMesh.new()
-		sphere.radius = 0.15
+		sphere.radius = 0.08
 		mesh.mesh = sphere
 		var mat = StandardMaterial3D.new()
 		mat.albedo_color = Color(1, 0.8, 0.2, 1)

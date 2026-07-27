@@ -1,0 +1,18 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/mech/weapon_part.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+weapon_name = "Combat Shotgun"
+weapon_type = 3
+damage = 15.0
+fire_rate = 0.9
+max_ammo = 35
+ammo_per_shot = 1
+projectile_speed = 65.0
+spread = 0.12
+weight = 10.0
+range_distance = 25.0
+description = "ลูกซองสมดุล damage ดี ระยะปานกลาง"
+rarity = 1

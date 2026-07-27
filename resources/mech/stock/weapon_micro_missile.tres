@@ -1,0 +1,18 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/mech/weapon_part.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+weapon_name = "Micro Missile Pod"
+weapon_type = 2
+damage = 40.0
+fire_rate = 0.8
+max_ammo = 24
+ammo_per_shot = 1
+projectile_speed = 35.0
+spread = 0.02
+weight = 8.0
+range_distance = 60.0
+description = "จรวดขนาดเล็ก ยิงเร็ว damage ปานกลาง กระสุนเยอะ"
+rarity = 0

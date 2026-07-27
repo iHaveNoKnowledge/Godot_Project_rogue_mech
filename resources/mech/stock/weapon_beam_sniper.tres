@@ -1,0 +1,18 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/mech/weapon_part.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+weapon_name = "Beam Sniper"
+weapon_type = 0
+damage = 80.0
+fire_rate = 1.2
+max_ammo = 20
+ammo_per_shot = 2
+projectile_speed = 120.0
+spread = 0.0
+weight = 12.0
+range_distance = 100.0
+description = "ปืน beam ระยะไกล damage สูง ยิงช้า แม่นยำมาก"
+rarity = 2

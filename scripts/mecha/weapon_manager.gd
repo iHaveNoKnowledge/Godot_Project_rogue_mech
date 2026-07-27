@@ -22,6 +22,8 @@ var holding_left: bool = false
 var holding_right: bool = false
 var fire_left_holding: bool = false
 var fire_right_holding: bool = false
+var _hold_time_left: float = 0.0
+var _hold_time_right: float = 0.0
 
 # --- Shield State ---
 var shield_active: bool = false
@@ -38,6 +40,9 @@ var _select_idx_left: int = 0
 var _select_idx_right: int = 0
 var _select_scrolled_left: bool = false
 var _select_scrolled_right: bool = false
+var _tap_time_left: float = 0.0
+var _tap_time_right: float = 0.0
+const TAP_THRESHOLD: float = 0.25
 
 # --- Default Weapons ---
 var default_left: WeaponPart = preload("res://resources/mech/stock/weapon_beam_rifle.tres")
@@ -65,6 +70,11 @@ func _physics_process(delta: float) -> void:
 		left_cooldown -= delta
 	if right_cooldown > 0.0:
 		right_cooldown -= delta
+
+	if holding_left:
+		_hold_time_left += delta
+	if holding_right:
+		_hold_time_right += delta
 
 	if fire_left_holding and left_hand and left_cooldown <= 0.0:
 		if left_hand.weapon_type != WeaponPart.WeaponType.SHIELD:
@@ -149,6 +159,14 @@ func _input(event: InputEvent) -> void:
 
 func _start_selection(hand: String) -> void:
 	var is_left = (hand == "left")
+
+	if is_left:
+		_hold_time_left = 0.0
+		_tap_time_left = 0.0
+	else:
+		_hold_time_right = 0.0
+		_tap_time_right = 0.0
+
 	var hw = left_hand if is_left else right_hand
 	if hw:
 		carry.insert(0, hw)
@@ -207,6 +225,7 @@ func _commit_selection(hand: String) -> void:
 
 	var did_scroll = _select_scrolled_left if is_left else _select_scrolled_right
 	var idx = _select_idx_left if is_left else _select_idx_right
+	var hold_time = _hold_time_left if is_left else _hold_time_right
 
 	if is_left:
 		holding_left = false
@@ -214,6 +233,22 @@ func _commit_selection(hand: String) -> void:
 	else:
 		holding_right = false
 		_selecting_right = false
+
+	# Quick tap without scroll → cycle to next weapon
+	if not did_scroll and hold_time < TAP_THRESHOLD and carry.size() > 1:
+		var old_weapon = carry[idx]
+		carry.remove_at(idx)
+		carry.append(old_weapon)
+		var new_weapon = carry[0]
+		if is_left:
+			left_hand = new_weapon
+		else:
+			right_hand = new_weapon
+		carry.remove_at(0)
+		weapon_switched.emit(hand, new_weapon.weapon_name)
+		ammo_changed.emit(hand, _get_ammo(new_weapon), new_weapon.max_ammo)
+		carry_updated.emit(carry)
+		return
 
 	# Take the highlighted weapon out of carry into hand
 	if idx < carry.size():
@@ -406,9 +441,6 @@ func _fire_projectile(hand: String, weapon: WeaponPart) -> void:
 	capsule.radius = 0.03
 	capsule.height = 0.25
 	mesh.mesh = capsule
-	# Orient capsule along travel direction (capsule default is Y-up)
-	mesh.look_at(mesh.global_position + direction, Vector3.UP)
-	mesh.rotate_object_local(Vector3.RIGHT, deg_to_rad(90))
 	var mat = StandardMaterial3D.new()
 	mat.albedo_color = Color(1, 0.8, 0.2, 1)
 	mat.emission_enabled = true
@@ -419,6 +451,10 @@ func _fire_projectile(hand: String, weapon: WeaponPart) -> void:
 
 	get_tree().current_scene.add_child(projectile)
 	projectile.global_position = spawn_pos
+	# Orient capsule along travel direction (must be in tree for look_at)
+	mesh.global_position = spawn_pos
+	mesh.look_at(spawn_pos + direction, Vector3.UP)
+	mesh.rotate_object_local(Vector3.RIGHT, deg_to_rad(90))
 	projectile.speed = weapon.projectile_speed
 	projectile.damage = weapon.damage
 	projectile.damage_type = "kinetic"
@@ -481,8 +517,6 @@ func _fire_shotgun(hand: String, weapon: WeaponPart) -> void:
 		capsule.radius = 0.02
 		capsule.height = 0.15
 		mesh.mesh = capsule
-		mesh.look_at(mesh.global_position + pellet_dir, Vector3.UP)
-		mesh.rotate_object_local(Vector3.RIGHT, deg_to_rad(90))
 		var mat = StandardMaterial3D.new()
 		mat.albedo_color = Color(1, 0.8, 0.2, 1)
 		mat.emission_enabled = true
@@ -493,6 +527,9 @@ func _fire_shotgun(hand: String, weapon: WeaponPart) -> void:
 
 		get_tree().current_scene.add_child(projectile)
 		projectile.global_position = spawn_pos
+		mesh.global_position = spawn_pos
+		mesh.look_at(spawn_pos + pellet_dir, Vector3.UP)
+		mesh.rotate_object_local(Vector3.RIGHT, deg_to_rad(90))
 		projectile.speed = weapon.projectile_speed
 		projectile.damage = weapon.damage
 		projectile.damage_type = "kinetic"

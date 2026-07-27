@@ -59,4 +59,4 @@ func _on_continue() -> void:
 
 
 func _on_quit() -> void:
-	get_tree().quit()
+	get_tree().quit(0)

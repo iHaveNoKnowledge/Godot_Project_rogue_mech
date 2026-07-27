@@ -1,0 +1,18 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/mech/weapon_part.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+weapon_name = "Beam Carbine"
+weapon_type = 0
+damage = 15.0
+fire_rate = 0.25
+max_ammo = 60
+ammo_per_shot = 1
+projectile_speed = 55.0
+spread = 0.03
+weight = 5.0
+range_distance = 40.0
+description = "ปืน beam ขนาดเล็ก ยิงเร็ว เบา แต่ damage น้อย"
+rarity = 0

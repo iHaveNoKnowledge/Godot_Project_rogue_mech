@@ -1,0 +1,18 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/mech/weapon_part.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+weapon_name = "Sawed-Off Shotgun"
+weapon_type = 3
+damage = 8.0
+fire_rate = 0.6
+max_ammo = 20
+ammo_per_shot = 1
+projectile_speed = 50.0
+spread = 0.25
+weight = 7.0
+range_distance = 12.0
+description = "ลูกซองสั้น ยิงเร็ว spread กว้าง ระยะสั้นมาก"
+rarity = 0

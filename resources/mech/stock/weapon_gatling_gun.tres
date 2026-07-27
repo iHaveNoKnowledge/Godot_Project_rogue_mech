@@ -1,0 +1,18 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/mech/weapon_part.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+weapon_name = "Gatling Gun"
+weapon_type = 0
+damage = 3.0
+fire_rate = 0.04
+max_ammo = 500
+ammo_per_shot = 1
+projectile_speed = 90.0
+spread = 0.05
+weight = 15.0
+range_distance = 70.0
+description = "ปืนกล multiple barrels ยิงเร็วสุด กระสุนเยอะสุด แต่หนักมาก"
+rarity = 2

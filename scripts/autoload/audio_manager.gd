@@ -244,9 +244,25 @@ func play_weapon_sfx(weapon_type: int, pos: Vector3) -> void:
 	match weapon_type:
 		0: play_sfx("beam_rifle", pos)
 		1: play_sfx("machine_gun", pos)
-		2: play_sfx("shotgun", pos)
-		3: play_sfx("missile", pos)
+		2: play_sfx("missile", pos)
+		3: play_sfx("shotgun", pos)
 		4: play_sfx("melee", pos)
+
+
+func play_weapon_sfx_with_override(weapon: WeaponPart, pos: Vector3) -> void:
+	if weapon.fire_sfx != null:
+		# Custom sound override — play directly from stream
+		var player = _get_free_3d_player()
+		if player == null:
+			return
+		player.stream = weapon.fire_sfx
+		player.global_position = pos
+		player.volume_db = 0.0
+		player.bus = "SFX"
+		player.play()
+	else:
+		# Fallback to type default
+		play_weapon_sfx(weapon.weapon_type, pos)
 
 
 func play_impact(pos: Vector3) -> void:

@@ -461,7 +461,7 @@ func _fire_projectile(hand: String, weapon: WeaponPart) -> void:
 	projectile.direction = direction
 
 	EffectManager.spawn_muzzle_flash(spawn_pos, direction)
-	AudioManager.play_weapon_sfx(weapon.weapon_type, spawn_pos)
+	AudioManager.play_weapon_sfx_with_override(weapon, spawn_pos)
 	_spawn_shell_casing(spawn_pos, hand)
 
 
@@ -536,7 +536,7 @@ func _fire_shotgun(hand: String, weapon: WeaponPart) -> void:
 		projectile.direction = pellet_dir
 
 	EffectManager.spawn_muzzle_flash(spawn_pos, ray_dir)
-	AudioManager.play_weapon_sfx(weapon.weapon_type, spawn_pos)
+	AudioManager.play_weapon_sfx_with_override(weapon, spawn_pos)
 	_spawn_shell_casing(spawn_pos, hand)
 
 
@@ -570,7 +570,7 @@ func _melee_attack(hand: String, weapon: WeaponPart) -> void:
 
 	_spawn_melee_trail(mecha, dir)
 	_check_melee_hit(mecha, dir, weapon.damage)
-	AudioManager.play_weapon_sfx(weapon.weapon_type, mecha.global_position)
+	AudioManager.play_weapon_sfx_with_override(weapon, mecha.global_position)
 
 
 var _melee_combo: int = 0

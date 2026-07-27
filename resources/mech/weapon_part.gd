@@ -18,6 +18,9 @@ enum WeaponType { BEAM_RIFLE, MACHINE_GUN, MISSILE, SHOTGUN, MELEE, SHIELD }
 @export var description: String = ""
 @export var rarity: int = 0
 
+# Sound override (null = use type default)
+@export var fire_sfx: AudioStream
+
 # Shield-specific
 @export var shield_hp: float = 300.0
 @export var shield_recharge_rate: float = 20.0

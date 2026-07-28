@@ -20,10 +20,9 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	_check_head_status()
 	_update_crosshair_position()
-	queue_redraw() # สั่งให้ Draw เส้นกราฟิกเป้าเล็งใหม่ทุกเฟรม
+	queue_redraw()
 
 
-# ตรวจจับสภาพส่วนหัวแบบเรียลไทม์เพื่อรีเซ็ตหน้าจอ UI
 func _check_head_status() -> void:
 	var mecha = get_tree().current_scene.get_node_or_null("Mecha")
 	if mecha:
@@ -38,7 +37,8 @@ func _check_head_status() -> void:
 func _update_crosshair_position() -> void:
 	var viewport_size = get_viewport().get_visible_rect().size
 	var center = viewport_size / 2.0
-	crosshair_dot.position = center - crosshair_dot.size / 2.0
+	if crosshair_dot:
+		crosshair_dot.position = center - crosshair_dot.size / 2.0
 
 
 func get_aim_point() -> Vector3:
@@ -73,21 +73,18 @@ func get_aim_direction() -> Vector3:
 		return ray_dir
 
 
-# วาดเส้นกราฟิกช่วยเล็งลงบนหน้าจอ (2D Canvas Drawing)
 func _draw() -> void:
 	var viewport_size = get_viewport().get_visible_rect().size
 	var center = viewport_size / 2.0
+	var font = ThemeDB.fallback_font
 	
 	if is_head_destroyed:
-		# หน้าจอเสียหาย: วาดตัวอักษรเตือนภัยสีแดง
-		draw_string(ThemeDB.fallback_font, center + Vector2(-100, -30), "⚠️ SENSORS OFFLINE (MANUAL AIM ONLY)", HORIZONTAL_ALIGNMENT_CENTER, -1, 14, Color(1, 0.2, 0.2, 1))
-		# เปลี่ยนเป้าเล็งหลักให้เป็นกากบาทขนาดเล็กสีแดง บ่งบอกการเล็งกระบอกปืนเปล่าๆ
+		if font:
+			draw_string(font, center + Vector2(-160, -30), "WARNING: SENSORS OFFLINE (MANUAL AIM ONLY)", HORIZONTAL_ALIGNMENT_CENTER, -1, 14, Color(1.0, 0.2, 0.2, 1.0))
 		draw_line(center + Vector2(-10, 0), center + Vector2(10, 0), Color.RED, 2.0)
 		draw_line(center + Vector2(0, -10), center + Vector2(0, 10), Color.RED, 2.0)
 	else:
-		# หัวปกติ: วาดวงสแกน Area ล็อกเป้าอัจฉริยะ สีเขียวเซนเซอร์บางตา (รัศมี 200px)
 		draw_arc(center, 200.0, 0.0, TAU, 64, Color(0.1, 0.8, 0.1, 0.2), 2.0)
-		# วาดเส้นสี่ทิศชี้เข้าจุดศูนย์กลางเพื่อความเท่ไซไฟ
 		draw_line(center + Vector2(-210, 0), center + Vector2(-180, 0), Color(0.1, 0.8, 0.1, 0.4), 1.5)
 		draw_line(center + Vector2(180, 0), center + Vector2(210, 0), Color(0.1, 0.8, 0.1, 0.4), 1.5)
 		draw_line(center + Vector2(0, -210), center + Vector2(0, -180), Color(0.1, 0.8, 0.1, 0.4), 1.5)

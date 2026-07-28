@@ -174,7 +174,7 @@ func _trigger_stalker_surprise_ambush() -> void:
 
 	var safehouse_ui = get_node_or_null("../SafehouseUI")
 	if safehouse_ui:
-		safehouse_ui.status_label.text = "⚠️ Siren Warning! Stalking Ace: " + active_stalker + " Ambushed!"
+		safehouse_ui.status_label.text = "SIREN WARNING! Stalking Ace: " + active_stalker + " Ambushed!"
 
 	GameManager.enter_combat()
 

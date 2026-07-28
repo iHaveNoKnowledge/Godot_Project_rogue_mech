@@ -5,6 +5,7 @@ extends CanvasLayer
 
 var _crosshair_visible: bool = true
 var is_head_destroyed: bool = false
+var warning_label: Label = null
 
 
 func _ready() -> void:
@@ -14,7 +15,20 @@ func _ready() -> void:
 		aim_ray = mecha.get_node_or_null("AimRay")
 		if aim_ray:
 			aim_ray.collision_mask = 10
+	_setup_warning_label()
 	_update_crosshair_position()
+
+
+func _setup_warning_label() -> void:
+	warning_label = Label.new()
+	warning_label.text = "WARNING: SENSORS OFFLINE (MANUAL AIM ONLY)"
+	warning_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	warning_label.add_theme_color_override("font_color", Color(1.0, 0.2, 0.2, 1.0))
+	warning_label.add_theme_font_size_override("font_size", 14)
+	warning_label.set_anchors_preset(Control.PRESET_CENTER)
+	warning_label.position = Vector2(-180, -40)
+	warning_label.visible = false
+	add_child(warning_label)
 
 
 func _process(_delta: float) -> void:
@@ -33,12 +47,17 @@ func _check_head_status() -> void:
 			elif health.get("parts") != null and health.parts.has("head"):
 				is_head_destroyed = health.parts["head"].get("destroyed", false)
 
+	if warning_label:
+		warning_label.visible = is_head_destroyed
+
 
 func _update_crosshair_position() -> void:
 	var viewport_size = get_viewport().get_visible_rect().size
 	var center = viewport_size / 2.0
 	if crosshair_dot:
 		crosshair_dot.position = center - crosshair_dot.size / 2.0
+	if warning_label:
+		warning_label.position = center + Vector2(-180, -40)
 
 
 func get_aim_point() -> Vector3:
@@ -76,11 +95,8 @@ func get_aim_direction() -> Vector3:
 func _draw() -> void:
 	var viewport_size = get_viewport().get_visible_rect().size
 	var center = viewport_size / 2.0
-	var font = ThemeDB.fallback_font
-	
+
 	if is_head_destroyed:
-		if font:
-			draw_string(font, center + Vector2(-160, -30), "WARNING: SENSORS OFFLINE (MANUAL AIM ONLY)", HORIZONTAL_ALIGNMENT_CENTER, -1, 14, Color(1.0, 0.2, 0.2, 1.0))
 		draw_line(center + Vector2(-10, 0), center + Vector2(10, 0), Color.RED, 2.0)
 		draw_line(center + Vector2(0, -10), center + Vector2(0, 10), Color.RED, 2.0)
 	else:

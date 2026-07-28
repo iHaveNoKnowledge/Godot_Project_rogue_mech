@@ -296,4 +296,3 @@ func get_attack_aim_direction(player_pos: Vector3) -> Vector3:
 	else:
 		# สภาพปกติ: ยิงปืนนิ่งตามความสามารถเกรดหุ่น (มีจังหวะยิงเป็นเซ็ต Burst หลบง่าย)
 		return base_dir
-

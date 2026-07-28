@@ -83,16 +83,22 @@ func _restore_from_dict(data: Dictionary) -> void:
 	for slot in parts_dict:
 		equipped_parts[slot] = load(parts_dict[slot])
 		
-	# โหลดข้อมูลระบบใหม่กลับคืนมา
+	# Restore expansion state
 	enemy_forces = data.get("enemy_forces", {
 		"boss_current": 1, "boss_max": 1,
 		"ace_current": 1, "ace_max": 2,
 		"grunt_current": 10, "grunt_max": 20
-	})
+	}).duplicate()
 	last_combat_squad_size = data.get("last_combat_squad_size", 1)
 	max_notoriety_multiplier = data.get("max_notoriety_multiplier", 1.0)
-	stalking_aces = data.get("stalking_aces", [])
+	
+	stalking_aces.clear()
+	var loaded_aces = data.get("stalking_aces", [])
+	if loaded_aces is Array:
+		stalking_aces.assign(loaded_aces)
+		
 	stalking_chance = data.get("stalking_chance", 0.0)
+
 
 
 func _serialize_parts() -> Dictionary:

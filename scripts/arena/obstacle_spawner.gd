@@ -1,6 +1,6 @@
 extends Node3D
 
-## Spawns procedural cover objects and hazards in the expanded arena.
+## Spawns procedural cover objects, street barricades, containers, and hazards tailored to the map theme.
 
 @export var arena_size: float = 240.0
 
@@ -23,8 +23,11 @@ func spawn_covers() -> void:
 
 
 func _generate_positions() -> Array:
+	var arena_gen = get_node_or_null("../ArenaGenerator")
+	var theme = arena_gen.current_theme if arena_gen else 0
+
 	if seed_system:
-		return seed_system.get_obstacle_positions(arena_size)
+		return seed_system.get_obstacle_positions(theme, arena_size)
 	else:
 		return _random_positions()
 

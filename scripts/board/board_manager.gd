@@ -35,15 +35,14 @@ func move_to_tile(target: Vector2i) -> bool:
 	var tile_data = board[target.y][target.x]
 	var tile_type = tile_data.get_meta("tile_type", "empty")
 	
-	# --- ระบบคำนวณเสริมความคืบหน้าของศัตรูในแต่ละก้าวเดิน ---
-	process_turn_mobilization() # ศัตรูเรียกกองกำลังหนุนเสริมพล
-	accumulate_stalker_chance() # เพิ่มโอกาสซุ่มโจมตีของ Stalking Ace
-	# --------------------------------------------------
+	# Turn Mobilization & Stalking Ace Interception
+	process_turn_mobilization()
+	accumulate_stalker_chance()
 	
 	EventBus.tile_entered.emit(target, tile_data)
 	_process_tile_effect(tile_type)
 	
-	if tile_type != "combat":
+	if tile_type not in ["combat", "exit"]:
 		var intermission = get_node_or_null("IntermissionUI")
 		if intermission:
 			intermission.visible = true
@@ -51,35 +50,33 @@ func move_to_tile(target: Vector2i) -> bool:
 	return true
 
 
-# การเรียกระดมพลเสริมเข้ามาในกองทัพศัตรู (เติมกำลังพลเข้าหาความจุสูงสุด)
+# Turn mobilization refilling (Low Heat Grace Period: suppressed when Heat < 3)
 func process_turn_mobilization() -> void:
-	if GlobalData.heat >= 3:
-		# สุ่มเติมลูกน้อง Grunt เข้ามา 10% ถึง 20% ของกรอบ Max Capacity
-		var grunt_recruit = int(GlobalData.enemy_forces["grunt_max"] * randf_range(0.10, 0.20))
-		GlobalData.enemy_forces["grunt_current"] = clampi(
-			GlobalData.enemy_forces["grunt_current"] + grunt_recruit, 
-			0, GlobalData.enemy_forces["grunt_max"]
+	if GlobalData.heat < 3:
+		# Low Heat Grace Period: Mobilization suppressed to keep early-game accessible
+		return
+
+	var grunt_recruit = int(GlobalData.enemy_forces["grunt_max"] * randf_range(0.10, 0.20))
+	GlobalData.enemy_forces["grunt_current"] = clampi(
+		GlobalData.enemy_forces["grunt_current"] + grunt_recruit, 
+		0, GlobalData.enemy_forces["grunt_max"]
+	)
+	
+	if randf() < 0.30:
+		GlobalData.enemy_forces["ace_current"] = clampi(
+			GlobalData.enemy_forces["ace_current"] + 1, 
+			0, GlobalData.enemy_forces["ace_max"]
 		)
-		
-		# โอกาส 30% ที่กองทัพศัตรูจะจัดกำลังพลระดับ Ace มาประจำการเพิ่ม 1 ลำต่อ Turn
-		if randf() < 0.30:
-			GlobalData.enemy_forces["ace_current"] = clampi(
-				GlobalData.enemy_forces["ace_current"] + 1, 
-				0, GlobalData.enemy_forces["ace_max"]
-			)
 
 
-# เพิ่มพูนโอกาสที่ Ace ที่เราเคยหนีมาจะจับพิกัดกบดานเราพบ
 func accumulate_stalker_chance() -> void:
 	if not GlobalData.stalking_aces.is_empty():
-		# ยิ่งเดินบ่อยโดยไม่เคลียร์ ยิ่งแกะรอยง่ายขึ้นรอบละ 20%
 		GlobalData.stalking_chance = minf(GlobalData.stalking_chance + 0.20, 1.0)
 
 
 func _process_tile_effect(tile_type: String) -> void:
 	match tile_type:
 		"combat":
-			# เช็คเหตุการณ์สุ่มโดนเซอร์ไพรส์จาก Stalking Ace
 			if not GlobalData.stalking_aces.is_empty() and randf() < GlobalData.stalking_chance:
 				_trigger_stalker_surprise_ambush()
 			else:
@@ -92,32 +89,62 @@ func _process_tile_effect(tile_type: String) -> void:
 			if safehouse:
 				safehouse.visible = true
 				get_tree().paused = true
+		"data_node":
+			_trigger_data_node_event()
+		"dead_end":
+			_trigger_dead_end_event()
+		"start":
+			print("Entering Hangar Practice Ground.")
+		"exit":
+			_trigger_exit_event()
 		_:
 			pass
 
 
-# ทำการท้าชนเซอร์ไพรส์ด่านพิเศษ โดยบีบให้ปะทะ Ace ทันที
+func _trigger_data_node_event() -> void:
+	GlobalData.data_cores += 2
+	var event = {
+		"name": "Data Terminal Extraction",
+		"effect": "data_cores",
+		"amount": 2,
+		"desc": "Extracted blueprint data core! +2 Data Cores."
+	}
+	EventBus.event_triggered.emit(event)
+
+
+func _trigger_dead_end_event() -> void:
+	var event = {
+		"name": "Hidden Dead End",
+		"effect": "dead_end",
+		"amount": 0,
+		"desc": "Approached a hidden wall/obstacle! Reroute path required."
+	}
+	EventBus.event_triggered.emit(event)
+
+
+func _trigger_exit_event() -> void:
+	print("Entering Extraction Zone / Final Boss Battle!")
+	GameManager.enter_combat()
+
+
 func _trigger_stalker_surprise_ambush() -> void:
-	# ดึง Ace ตัวแรกสุดที่จับพิกัดเราได้ออกมาต่อสู้
 	var active_stalker = GlobalData.stalking_aces[0]
-	GlobalData.stalking_chance = 0.0 # รีเซ็ตความคืบหน้าแกะรอย
+	GlobalData.stalking_chance = 0.0
 	
-	# แสดงข้อความแจ้งเตือนสีแดงเซอร์ไพรส์
 	var safehouse_ui = get_node_or_null("../SafehouseUI")
 	if safehouse_ui:
-		safehouse_ui.status_label.text = "⚠️ สัญญาณเตือนภัยพิบัติ! Ace: " + active_stalker + " ดักโจมตีระหว่างทาง!"
+		safehouse_ui.status_label.text = "⚠️ Siren Warning! Stalking Ace: " + active_stalker + " Ambushed!"
 	
-	# พาผู้เล่นเข้าสู่ฉากการสู้รบทันที
 	GameManager.enter_combat()
 
 
 func _trigger_random_event() -> void:
 	var events = [
-		{"name": "Abandoned Cache", "effect": "credits", "amount": 50, "desc": "พบตู้เสบียงถูกทิ้งร้าง! +50 credits"},
-		{"name": "Salvage Parts", "effect": "spare_parts", "amount": 5, "desc": "กู้ซากพาร์ทเก่าสำเร็จ! +5 spare parts"},
-		{"name": "Ambush", "effect": "damage", "amount": 20, "desc": "โดนกองโจรซุ่มยิงระหว่างเดินทัพ! หุ่นเสียหาย 20 หน่วย"},
-		{"name": "Friendly Trader", "effect": "credits", "amount": 30, "desc": "พบเจอกองคาราวานค้าขายพาร์ทที่เป็นมิตร +30 credits"},
-		{"name": "Data Terminal", "effect": "data_cores", "amount": 1, "desc": "แฮกขุดข้อมูลเก่าได้พิมพ์เขียวการวิจัย! +1 data core"},
+		{"name": "Abandoned Cache", "effect": "credits", "amount": 50, "desc": "Found abandoned cache! +50 credits"},
+		{"name": "Salvage Parts", "effect": "spare_parts", "amount": 5, "desc": "Salvaged parts! +5 spare parts"},
+		{"name": "Ambush", "effect": "damage", "amount": 20, "desc": "Ambushed by partisans! Took 20 damage"},
+		{"name": "Friendly Trader", "effect": "credits", "amount": 30, "desc": "Friendly trader caravan! +30 credits"},
+		{"name": "Data Terminal", "effect": "data_cores", "amount": 1, "desc": "Hacked old terminal! +1 data core"},
 	]
 	var event = events[randi() % events.size()]
 	EventBus.event_triggered.emit(event)
@@ -130,12 +157,11 @@ func _trigger_random_event() -> void:
 		"data_cores":
 			GlobalData.data_cores += event["amount"]
 		"damage":
-			# ส่งผลดาเมจตรงไปยังชิ้นส่วนแบบสุ่มของผู้เล่น
 			if not GlobalData.equipped_parts.is_empty():
 				var keys = GlobalData.equipped_parts.keys()
 				var rand_part = keys[randi() % keys.size()]
 				var cur_dmg = GlobalData.part_damage.get(rand_part, 0.0)
-				GlobalData.part_damage[rand_part] = minf(cur_dmg + 0.25, 1.0) # สร้างความเสียหายสัดส่วน 25%
+				GlobalData.part_damage[rand_part] = minf(cur_dmg + 0.25, 1.0)
 
 
 func get_tile_type(pos: Vector2i) -> String:

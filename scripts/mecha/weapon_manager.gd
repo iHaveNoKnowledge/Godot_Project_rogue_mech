@@ -387,12 +387,16 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 	ammo_pool[weapon.weapon_name] = current_ammo - weapon.ammo_per_shot
 	ammo_changed.emit(hand, _get_ammo(weapon), weapon.max_ammo)
 
-	if weapon.weapon_type == 4:
-		_melee_attack(hand, weapon)
-	elif weapon.weapon_type == 2:
-		_fire_shotgun(hand, weapon)
-	else:
-		_fire_projectile(hand, weapon)
+	match weapon.weapon_type:
+		WeaponPart.WeaponType.MELEE:
+			_melee_attack(hand, weapon)
+		WeaponPart.WeaponType.SHOTGUN:
+			_fire_shotgun(hand, weapon)
+		WeaponPart.WeaponType.MISSILE:
+			_fire_missile(hand, weapon)
+		_:
+			_fire_projectile(hand, weapon)
+
 
 
 func _fire_projectile(hand: String, weapon: WeaponPart) -> void:
@@ -465,7 +469,66 @@ func _fire_projectile(hand: String, weapon: WeaponPart) -> void:
 	_spawn_shell_casing(spawn_pos, hand)
 
 
+func _fire_missile(hand: String, weapon: WeaponPart) -> void:
+	var mecha = get_parent()
+	if mecha == null:
+		return
+	var cam = get_viewport().get_camera_3d()
+	if cam == null:
+		return
+
+	var offset = Vector3(-0.6, 1.5, 0.5) if hand == "left" else Vector3(0.6, 1.5, 0.5)
+	var spawn_pos = mecha.global_position + mecha.global_transform.basis * offset
+
+	var viewport_size = get_viewport().get_visible_rect().size
+	var center = viewport_size / 2.0
+	var ray_origin = cam.project_ray_origin(center)
+	var ray_dir = cam.project_ray_normal(center)
+
+	var space_state = get_viewport().get_world_3d().direct_space_state
+	var query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 500.0)
+	query.collision_mask = 10
+	var result = space_state.intersect_ray(query)
+
+	var target_point: Vector3
+	if result:
+		target_point = result["position"]
+	else:
+		target_point = ray_origin + ray_dir * 500.0
+
+	var direction = (target_point - spawn_pos).normalized()
+
+	var proj_script = load("res://scripts/systems/projectile.gd")
+	var projectile = CharacterBody3D.new()
+	projectile.set_script(proj_script)
+	projectile.speed = weapon.projectile_speed
+	projectile.damage = weapon.damage
+	projectile.damage_type = "explosive"
+	projectile.direction = direction
+
+	var mesh = MeshInstance3D.new()
+	var box = BoxMesh.new()
+	box.size = Vector3(0.1, 0.1, 0.4)
+	mesh.mesh = box
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(1.0, 0.4, 0.1, 1.0)
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.3, 0.0)
+	mat.emission_energy_multiplier = 3.0
+	mesh.material_override = mat
+	projectile.add_child(mesh)
+
+	get_tree().current_scene.add_child(projectile)
+	projectile.global_position = spawn_pos
+	mesh.global_position = spawn_pos
+	mesh.look_at(spawn_pos + direction, Vector3.UP)
+
+	EffectManager.spawn_muzzle_flash(spawn_pos, direction)
+	AudioManager.play_weapon_sfx_with_override(weapon, spawn_pos)
+
+
 func _fire_shotgun(hand: String, weapon: WeaponPart) -> void:
+
 	var mecha = get_parent()
 	if mecha == null:
 		return

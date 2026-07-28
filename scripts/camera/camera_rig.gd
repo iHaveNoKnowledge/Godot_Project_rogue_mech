@@ -79,21 +79,24 @@ func _check_lock_on() -> void:
 	var min_distance: float = lock_radius
 	
 	for enemy in enemies:
-		if is_instance_valid(enemy) and enemy.health_system and not enemy.health_system.is_destroyed:
-			# ใช้จุดกึ่งกลางลำตัวศัตรูเล็งยิง (บวกความสูงขึ้น 1 เมตรจากพื้นเท้า)
-			var enemy_aim_pos = enemy.global_position + Vector3(0, 1.0, 0)
-			
-			# ข้ามหากเป้าหมายอยู่นอกระยะวิสัยทัศน์ด้านหลังกล้อง
-			if camera.is_position_behind(enemy_aim_pos):
-				continue
+		if is_instance_valid(enemy) and enemy.get("health_system") != null:
+			var hs = enemy.health_system
+			if not hs.get("is_destroyed"):
+				# ใช้จุดกึ่งกลางลำตัวศัตรูเล็งยิง (บวกความสูงขึ้น 1 เมตรจากพื้นเท้า)
+				var enemy_aim_pos = enemy.global_position + Vector3(0, 1.0, 0)
 				
-			var screen_pos = camera.unproject_position(enemy_aim_pos)
-			var dist = screen_pos.distance_to(center)
-			
-			# หาศัตรูในวงที่อยู่ใกล้จุดศูนกลางจอมากที่สุด (Auto-Focus)
-			if dist < min_distance:
-				min_distance = dist
-				best_target = enemy
+				# ข้ามหากเป้าหมายอยู่นอกระยะวิสัยทัศน์ด้านหลังกล้อง
+				if camera.is_position_behind(enemy_aim_pos):
+					continue
+					
+				var screen_pos = camera.unproject_position(enemy_aim_pos)
+				var dist = screen_pos.distance_to(center)
+				
+				# หาศัตรูในวงที่อยู่ใกล้จุดศูนกลางจอมากที่สุด (Auto-Focus)
+				if dist < min_distance:
+					min_distance = dist
+					best_target = enemy
+
 				
 	if best_target:
 		EventBus.lock_on_target_acquired.emit(best_target)

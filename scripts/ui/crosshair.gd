@@ -6,6 +6,7 @@ extends CanvasLayer
 var _crosshair_visible: bool = true
 var is_head_destroyed: bool = false
 var warning_label: Label = null
+var overlay_control: Control = null
 
 
 func _ready() -> void:
@@ -16,6 +17,7 @@ func _ready() -> void:
 		if aim_ray:
 			aim_ray.collision_mask = 10
 	_setup_warning_label()
+	_setup_overlay_control()
 	_update_crosshair_position()
 
 
@@ -31,10 +33,19 @@ func _setup_warning_label() -> void:
 	add_child(warning_label)
 
 
+func _setup_overlay_control() -> void:
+	overlay_control = Control.new()
+	overlay_control.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay_control.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay_control.draw.connect(_on_overlay_draw)
+	add_child(overlay_control)
+
+
 func _process(_delta: float) -> void:
 	_check_head_status()
 	_update_crosshair_position()
-	queue_redraw()
+	if overlay_control:
+		overlay_control.queue_redraw()
 
 
 func _check_head_status() -> void:
@@ -92,16 +103,18 @@ func get_aim_direction() -> Vector3:
 		return ray_dir
 
 
-func _draw() -> void:
+func _on_overlay_draw() -> void:
+	if overlay_control == null:
+		return
 	var viewport_size = get_viewport().get_visible_rect().size
 	var center = viewport_size / 2.0
 
 	if is_head_destroyed:
-		draw_line(center + Vector2(-10, 0), center + Vector2(10, 0), Color.RED, 2.0)
-		draw_line(center + Vector2(0, -10), center + Vector2(0, 10), Color.RED, 2.0)
+		overlay_control.draw_line(center + Vector2(-10, 0), center + Vector2(10, 0), Color.RED, 2.0)
+		overlay_control.draw_line(center + Vector2(0, -10), center + Vector2(0, 10), Color.RED, 2.0)
 	else:
-		draw_arc(center, 200.0, 0.0, TAU, 64, Color(0.1, 0.8, 0.1, 0.2), 2.0)
-		draw_line(center + Vector2(-210, 0), center + Vector2(-180, 0), Color(0.1, 0.8, 0.1, 0.4), 1.5)
-		draw_line(center + Vector2(180, 0), center + Vector2(210, 0), Color(0.1, 0.8, 0.1, 0.4), 1.5)
-		draw_line(center + Vector2(0, -210), center + Vector2(0, -180), Color(0.1, 0.8, 0.1, 0.4), 1.5)
-		draw_line(center + Vector2(0, 180), center + Vector2(0, 210), Color(0.1, 0.8, 0.1, 0.4), 1.5)
+		overlay_control.draw_arc(center, 200.0, 0.0, TAU, 64, Color(0.1, 0.8, 0.1, 0.2), 2.0)
+		overlay_control.draw_line(center + Vector2(-210, 0), center + Vector2(-180, 0), Color(0.1, 0.8, 0.1, 0.4), 1.5)
+		overlay_control.draw_line(center + Vector2(180, 0), center + Vector2(210, 0), Color(0.1, 0.8, 0.1, 0.4), 1.5)
+		overlay_control.draw_line(center + Vector2(0, -210), center + Vector2(0, -180), Color(0.1, 0.8, 0.1, 0.4), 1.5)
+		overlay_control.draw_line(center + Vector2(0, 180), center + Vector2(0, 210), Color(0.1, 0.8, 0.1, 0.4), 1.5)

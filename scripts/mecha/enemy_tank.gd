@@ -31,67 +31,36 @@ func _ready() -> void:
 
 
 func _setup_health_system() -> void:
-	health_system = Node.new()
+	var tank_health_script = preload("res://scripts/mecha/enemy_tank_health.gd")
+	health_system = tank_health_script.new()
 	health_system.name = "HealthSystem"
 	add_child(health_system)
-
-	var parts = {
-		"turret": {
-			"armor_hp": 50.0, "max_armor": 50.0,
-			"frame_hp": 40.0, "max_frame": 40.0,
-			"armor_broken": false, "destroyed": false
-		},
-		"treads": {
-			"armor_hp": 60.0, "max_armor": 60.0,
-			"frame_hp": 50.0, "max_frame": 50.0,
-			"armor_broken": false, "destroyed": false
-		},
-		"hull": {
-			"armor_hp": 100.0, "max_armor": 100.0,
-			"frame_hp": 80.0, "max_frame": 80.0,
-			"armor_broken": false, "destroyed": false
-		}
-	}
-	health_system.set("parts", parts)
-	health_system.set("is_destroyed", false)
-	health_system.set("is_player", false)
+	health_system.mecha_destroyed.connect(_explode_and_destroy)
 
 
 func take_damage_at_point(amount: float, world_pos: Vector3, damage_type: String = "kinetic") -> void:
-	var local_pos = to_local(world_pos)
-	var target_part = "hull"
-	if local_pos.y > 1.2:
-		target_part = "turret"
-	elif local_pos.y < 0.5:
-		target_part = "treads"
+	if health_system and health_system.has_method("take_damage_to_part"):
+		var local_pos = to_local(world_pos)
+		var target_part = "hull"
+		if local_pos.y > 1.2:
+			target_part = "turret"
+		elif local_pos.y < 0.5:
+			target_part = "treads"
 
-	take_damage_to_part(target_part, amount, damage_type)
+		health_system.take_damage_to_part(target_part, amount, damage_type)
+	else:
+		take_damage(amount, damage_type)
+
+
+func take_damage(amount: float, damage_type: String = "kinetic") -> void:
+	if health_system and health_system.has_method("take_damage"):
+		health_system.take_damage(amount, damage_type)
 
 
 func take_damage_to_part(slot_name: String, amount: float, damage_type: String = "kinetic") -> void:
-	if health_system.get("is_destroyed"):
-		return
+	if health_system and health_system.has_method("take_damage_to_part"):
+		health_system.take_damage_to_part(slot_name, amount, damage_type)
 
-	var parts = health_system.get("parts")
-	if not parts.has(slot_name):
-		slot_name = "hull"
-
-	var part = parts[slot_name]
-	if part["destroyed"]:
-		slot_name = "hull"
-		part = parts[slot_name]
-
-	if not part["armor_broken"]:
-		part["armor_hp"] -= amount
-		if part["armor_hp"] <= 0.0:
-			part["armor_broken"] = true
-			part["armor_hp"] = 0.0
-	else:
-		part["frame_hp"] -= amount
-		if part["frame_hp"] <= 0.0:
-			part["destroyed"] = true
-			part["frame_hp"] = 0.0
-			_on_part_destroyed(slot_name)
 
 
 func _on_part_destroyed(slot_name: String) -> void:

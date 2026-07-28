@@ -152,9 +152,12 @@ func _get_alive_count() -> int:
 	var count = 0
 	var enemies = get_tree().get_nodes_in_group("enemy")
 	for e in enemies:
-		if is_instance_valid(e) and e.health_system and not e.health_system.is_destroyed:
-			count += 1
+		if is_instance_valid(e) and e.get("health_system") != null:
+			var hs = e.health_system
+			if not hs.get("is_destroyed"):
+				count += 1
 	return count
+
 
 
 func get_current_wave() -> int:

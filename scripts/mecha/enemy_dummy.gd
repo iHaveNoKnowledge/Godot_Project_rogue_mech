@@ -140,8 +140,10 @@ func _on_destroyed() -> void:
 	var enemies = get_tree().get_nodes_in_group("enemy")
 	var alive = 0
 	for e in enemies:
-		if is_instance_valid(e) and e != self and e.health_system and not e.health_system.is_destroyed:
-			alive += 1
+		if is_instance_valid(e) and e != self and e.get("health_system") != null:
+			var hs = e.health_system
+			if not hs.get("is_destroyed"):
+				alive += 1
 
 	var tween = create_tween()
 	tween.tween_interval(0.5)
@@ -156,8 +158,10 @@ func _on_destroyed() -> void:
 
 func _on_armor_broken(slot_name: String) -> void:
 	if slot_name == "body":
-		health_system.is_destroyed = true
-		health_system.mecha_destroyed.emit()
+		if health_system:
+			health_system.set("is_destroyed", true)
+			if health_system.has_signal("mecha_destroyed"):
+				health_system.mecha_destroyed.emit()
 		EffectManager.spawn_explosion(global_position + Vector3(0, 1.5, 0))
 
 
@@ -174,13 +178,14 @@ func _setup_enemy_status() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if health_system == null or health_system.is_destroyed:
+	if health_system == null or health_system.get("is_destroyed"):
 		velocity = Vector3.ZERO
 		return
 
 	# Delegate to state machine
 	if state_machine:
 		state_machine._physics_process(delta)
+
 
 
 func take_damage(amount: float, damage_type: String = "kinetic") -> void:

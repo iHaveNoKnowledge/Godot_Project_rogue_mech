@@ -35,15 +35,21 @@ func _aim_from_camera() -> Vector3:
 		return -mecha.global_transform.basis.z
 	var ray_origin = cam.global_position
 	var ray_dir = -cam.global_transform.basis.z
-	if lock_on_target:
-		ray_dir = (lock_on_target.global_position - ray_origin).normalized()
+	if lock_on_target and is_instance_valid(lock_on_target):
+		ray_dir = (lock_on_target.global_position + Vector3(0, 1.0, 0) - ray_origin).normalized()
 	return ray_dir
 
 
 func fire_weapon() -> void:
 	var target_pos: Vector3
-	if lock_on_target:
-		target_pos = lock_on_target.global_position
+	if lock_on_target and is_instance_valid(lock_on_target):
+		# เล็งกระสุนเข้าเป้าที่ระบบเซนเซอร์ส่วนหัวล็อคไว้ให้โดยตรง (ลั่นยังไงก็โดน)
+		target_pos = lock_on_target.global_position + Vector3(0, 1.0, 0)
 	else:
-		target_pos = _aim_from_camera() * 50.0
+		# เล็ง Manual ยิงตามเป้าศูนย์กลางจอตรงๆ ไปด้านหน้า 50 เมตร
+		var cam = get_viewport().get_camera_3d()
+		if cam:
+			target_pos = cam.global_position + (-cam.global_transform.basis.z * 50.0)
+		else:
+			target_pos = mecha.global_position + (-mecha.global_transform.basis.z * 50.0)
 	EventBus.weapon_fired.emit(target_pos)

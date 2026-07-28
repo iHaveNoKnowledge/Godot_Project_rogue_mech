@@ -184,9 +184,23 @@ func _explode_and_destroy() -> void:
 	queue_free()
 
 
+func disable_movement() -> void:
+	treads_destroyed = true
+	move_speed = 0.0
+	print("Tank Treads Destroyed! Mobility Kill.")
+
+
+func disable_weapons() -> void:
+	turret_destroyed = true
+	print("Tank Turret Destroyed! Weapons Offline.")
+	if turret_node:
+		turret_node.visible = false
+
+
 func _scale_by_wanted_level() -> void:
 	var wanted = GlobalData.wanted_level
 	if wanted <= 0:
 		return
 	var scale_factor = 1.0 + (wanted * 0.15)
 	attack_damage *= scale_factor
+

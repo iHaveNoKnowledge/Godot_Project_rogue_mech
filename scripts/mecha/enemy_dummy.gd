@@ -272,3 +272,28 @@ func _apply_archetype_color() -> void:
 		for sub in child.get_children():
 			if sub is MeshInstance3D and sub.material_override:
 				sub.material_override.albedo_color = color
+
+
+func get_attack_aim_direction(player_pos: Vector3) -> Vector3:
+	var base_dir = (player_pos - global_position).normalized()
+	
+	# ตรวจหาว่าหัวศัตรูโดนทำลายไปแล้วหรือยัง
+	var is_head_broken = false
+	if health_system and health_system.has_method("is_part_destroyed"):
+		is_head_broken = health_system.is_part_destroyed("head")
+	elif health_system and health_system.get("parts") != null and health_system.parts.has("head"):
+		is_head_broken = health_system.parts["head"].get("destroyed", false)
+		
+	if is_head_broken:
+		# หัวหัก/หัวหลุด: สาดกระสุนกระเจิง ส่ายเบี้ยวออกทิศทางเดิมอย่างรุนแรง (Precision Penalty)
+		var spread_angle = randf_range(-0.35, 0.35) # ส่ายเกือบ 20 องศา
+		var offset = Vector3(
+			sin(spread_angle),
+			randf_range(-0.1, 0.1),
+			cos(spread_angle) - 1.0
+		)
+		return (base_dir + offset).normalized()
+	else:
+		# สภาพปกติ: ยิงปืนนิ่งตามความสามารถเกรดหุ่น (มีจังหวะยิงเป็นเซ็ต Burst หลบง่าย)
+		return base_dir
+

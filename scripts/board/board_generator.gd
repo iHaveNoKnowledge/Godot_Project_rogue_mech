@@ -1,61 +1,99 @@
 extends Node
 
-@export var grid_size: Vector2i = Vector2i(8, 8)
-@export var combat_ratio: float = 0.35
-@export var event_ratio: float = 0.25
-@export var safehouse_ratio: float = 0.15
-@export var data_node_ratio: float = 0.15
-@export var dead_end_ratio: float = 0.10
+@export var num_layers: int = 7
+@export var min_nodes_per_layer: int = 2
+@export var max_nodes_per_layer: int = 4
 
 var tile_scene: PackedScene = preload("res://scenes/board/board_tile.tscn")
 
 
-func generate_board() -> Array:
-	var total_inner_tiles = (grid_size.x * grid_size.y) - 2 # Exclude start (0,0) and exit (7,7)
-	
-	var combat_count = int(total_inner_tiles * combat_ratio)
-	var event_count = int(total_inner_tiles * event_ratio)
-	var safehouse_count = int(total_inner_tiles * safehouse_ratio)
-	var data_node_count = int(total_inner_tiles * data_node_ratio)
-	var dead_end_count = int(total_inner_tiles * dead_end_ratio)
-	var empty_count = total_inner_tiles - (combat_count + event_count + safehouse_count + data_node_count + dead_end_count)
+func generate_board() -> Dictionary:
+	var nodes_dict: Dictionary = {} # Key: Vector2i(layer, index), Value: Node3D (BoardTile)
+	var layer_nodes: Array = [] # Array of Arrays of Vector2i keys
 
-	var type_pool: Array = []
-	for i in combat_count:
-		type_pool.append("combat")
-	for i in event_count:
-		type_pool.append("event")
-	for i in safehouse_count:
-		type_pool.append("safehouse")
-	for i in data_node_count:
-		type_pool.append("data_node")
-	for i in dead_end_count:
-		type_pool.append("dead_end")
-	for i in max(0, empty_count):
-		type_pool.append("empty")
-	type_pool.shuffle()
+	# Step 1: Determine structure for each layer
+	for l in range(num_layers):
+		var count: int = 1
+		if l == 0 or l == num_layers - 1:
+			count = 1 # Start (Layer 0) and Exit (Last Layer) have exactly 1 node
+		else:
+			count = randi_range(min_nodes_per_layer, max_nodes_per_layer)
 
-	var grid: Array = []
-	for y in grid_size.y:
-		var row: Array = []
-		for x in grid_size.x:
-			var tile_type: String = "empty"
+		var current_layer_keys: Array = []
+		for i in range(count):
+			var key = Vector2i(l, i)
+			current_layer_keys.append(key)
+		layer_nodes.append(current_layer_keys)
+
+	# Step 2: Determine connections between layer L and L+1
+	var connections_dict: Dictionary = {} # Key: Vector2i(layer, index), Value: Array[Vector2i]
+
+	for l in range(num_layers - 1):
+		var curr_keys = layer_nodes[l]
+		var next_keys = layer_nodes[l + 1]
+
+		# Ensure every node in current layer connects to at least 1 node in next layer
+		for key in curr_keys:
+			if not connections_dict.has(key):
+				connections_dict[key] = []
 			
-			# Enforce fixed Start (0,0) and Exit (max_x, max_y)
-			if x == 0 and y == 0:
+			var target_index = randi() % next_keys.size()
+			var target_key = next_keys[target_index]
+			if not connections_dict[key].has(target_key):
+				connections_dict[key].append(target_key)
+
+		# Ensure every node in next layer has at least 1 incoming connection from current layer
+		for n_key in next_keys:
+			var has_incoming = false
+			for c_key in curr_keys:
+				if connections_dict.has(c_key) and connections_dict[c_key].has(n_key):
+					has_incoming = true
+					break
+
+			if not has_incoming:
+				# Pick a random node from current layer and add connection
+				var source_key = curr_keys[randi() % curr_keys.size()]
+				if not connections_dict.has(source_key):
+					connections_dict[source_key] = []
+				connections_dict[source_key].append(n_key)
+
+	# Step 3: Instantiate tiles with tile types
+	var type_pool = ["combat", "combat", "event", "safehouse", "data_node", "dead_end"]
+
+	for l in range(num_layers):
+		var keys = layer_nodes[l]
+		var count = keys.size()
+
+		for i in range(count):
+			var key = keys[i]
+			var tile_type: String = "empty"
+
+			if l == 0:
 				tile_type = "start"
-			elif x == grid_size.x - 1 and y == grid_size.y - 1:
+			elif l == num_layers - 1:
 				tile_type = "exit"
+			elif l == int(num_layers / 2) and i == 0:
+				tile_type = "safehouse" # Mid-run guaranteed safehouse
 			else:
-				if not type_pool.is_empty():
-					tile_type = type_pool.pop_back()
+				tile_type = type_pool[randi() % type_pool.size()]
 
 			var tile_instance = tile_scene.instantiate()
 			tile_instance.set_meta("tile_type", tile_type)
-			tile_instance.set_meta("grid_pos", Vector2i(x, y))
-			tile_instance.position = Vector3(x * 2.5, 0, y * 2.5)
-			row.append(tile_instance)
-		grid.append(row)
+			tile_instance.set_meta("grid_pos", key)
+			
+			# Position in 3D space (X along layer, Z spaced vertically)
+			var x_pos = l * 4.0
+			var z_offset = (float(i) - float(count - 1) / 2.0) * 3.5
+			tile_instance.position = Vector3(x_pos, 0, z_offset)
+			
+			var connects: Array = connections_dict.get(key, [])
+			tile_instance.set_meta("connections", connects)
 
-	GlobalData.board_grid = grid
-	return grid
+			nodes_dict[key] = tile_instance
+
+	GlobalData.board_grid = [nodes_dict]
+	return {
+		"nodes": nodes_dict,
+		"layer_nodes": layer_nodes,
+		"connections": connections_dict
+	}

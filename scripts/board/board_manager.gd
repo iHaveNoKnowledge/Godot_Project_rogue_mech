@@ -4,50 +4,91 @@ extends Node3D
 @onready var player_token: MeshInstance3D = $PlayerToken
 
 var current_pos: Vector2i = Vector2i.ZERO
-var board: Array = []
+var nodes_dict: Dictionary = {}
 
 
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	var generator = get_node_or_null("BoardGenerator")
 	if generator:
-		board = generator.generate_board()
-		for row in board:
-			for tile in row:
-				tile_container.add_child(tile)
+		var data = generator.generate_board()
+		nodes_dict = data["nodes"]
+		
+		# Add tiles to container
+		for key in nodes_dict:
+			tile_container.add_child(nodes_dict[key])
+
+		# Generate 3D visual path bridges between connected nodes
+		for key in nodes_dict:
+			var tile = nodes_dict[key]
+			if tile.has_method("create_path_visuals"):
+				tile.create_path_visuals(nodes_dict)
+
 	current_pos = GlobalData.current_tile
+	if not nodes_dict.has(current_pos):
+		current_pos = Vector2i(0, 0)
+		GlobalData.current_tile = current_pos
+
 	_update_token_position()
 	_highlight_adjacent()
 
 
 func move_to_tile(target: Vector2i) -> bool:
-	if not _is_adjacent(current_pos, target):
+	if not _is_connected_path(current_pos, target):
+		print("Invalid path! Must follow connected branching node paths.")
 		return false
-	if not _is_in_bounds(target):
-		return false
-		
+
 	current_pos = target
 	GlobalData.current_tile = target
 	_update_token_position()
 	_clear_highlights()
 	_highlight_adjacent()
-	
-	var tile_data = board[target.y][target.x]
+
+	var tile_data = nodes_dict[target]
 	var tile_type = tile_data.get_meta("tile_type", "empty")
-	
+
 	# Turn Mobilization & Stalking Ace Interception
 	process_turn_mobilization()
 	accumulate_stalker_chance()
-	
+
 	EventBus.tile_entered.emit(target, tile_data)
 	_process_tile_effect(tile_type)
-	
+
 	if tile_type not in ["combat", "exit"]:
 		var intermission = get_node_or_null("IntermissionUI")
 		if intermission:
 			intermission.visible = true
 			intermission.status_label.text = intermission._get_status_text()
 	return true
+
+
+func _is_connected_path(from_key: Vector2i, to_key: Vector2i) -> bool:
+	if not nodes_dict.has(from_key):
+		return false
+	var from_tile = nodes_dict[from_key]
+	var connects = from_tile.get_meta("connections", [])
+	return to_key in connects
+
+
+func _highlight_adjacent() -> void:
+	if not nodes_dict.has(current_pos):
+		return
+	var current_tile = nodes_dict[current_pos]
+	var connects = current_tile.get_meta("connections", [])
+	for target_key in connects:
+		if nodes_dict.has(target_key):
+			nodes_dict[target_key].highlight(true)
+
+
+func _clear_highlights() -> void:
+	for key in nodes_dict:
+		nodes_dict[key].highlight(false)
+
+
+func _update_token_position() -> void:
+	if nodes_dict.has(current_pos):
+		var tile = nodes_dict[current_pos]
+		player_token.global_position = tile.global_position + Vector3(0, 0.5, 0)
 
 
 # Turn mobilization refilling (Low Heat Grace Period: suppressed when Heat < 3)
@@ -61,7 +102,7 @@ func process_turn_mobilization() -> void:
 		GlobalData.enemy_forces["grunt_current"] + grunt_recruit, 
 		0, GlobalData.enemy_forces["grunt_max"]
 	)
-	
+
 	if randf() < 0.30:
 		GlobalData.enemy_forces["ace_current"] = clampi(
 			GlobalData.enemy_forces["ace_current"] + 1, 
@@ -130,11 +171,11 @@ func _trigger_exit_event() -> void:
 func _trigger_stalker_surprise_ambush() -> void:
 	var active_stalker = GlobalData.stalking_aces[0]
 	GlobalData.stalking_chance = 0.0
-	
+
 	var safehouse_ui = get_node_or_null("../SafehouseUI")
 	if safehouse_ui:
 		safehouse_ui.status_label.text = "⚠️ Siren Warning! Stalking Ace: " + active_stalker + " Ambushed!"
-	
+
 	GameManager.enter_combat()
 
 
@@ -148,7 +189,7 @@ func _trigger_random_event() -> void:
 	]
 	var event = events[randi() % events.size()]
 	EventBus.event_triggered.emit(event)
-	
+
 	match event["effect"]:
 		"credits":
 			GlobalData.credits += event["amount"]
@@ -165,33 +206,6 @@ func _trigger_random_event() -> void:
 
 
 func get_tile_type(pos: Vector2i) -> String:
-	if _is_in_bounds(pos):
-		return board[pos.y][pos.x].get_meta("tile_type", "empty")
+	if nodes_dict.has(pos):
+		return nodes_dict[pos].get_meta("tile_type", "empty")
 	return "empty"
-
-
-func _update_token_position() -> void:
-	player_token.position = Vector3(current_pos.x * 2.5, 0.5, current_pos.y * 2.5)
-
-
-func _highlight_adjacent() -> void:
-	var directions = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
-	for dir in directions:
-		var pos = current_pos + dir
-		if _is_in_bounds(pos):
-			var tile = board[pos.y][pos.x]
-			tile.highlight(true)
-
-
-func _clear_highlights() -> void:
-	for row in board:
-		for tile in row:
-			tile.highlight(false)
-
-
-func _is_adjacent(a: Vector2i, b: Vector2i) -> bool:
-	return abs(a.x - b.x) + abs(a.y - b.y) == 1
-
-
-func _is_in_bounds(pos: Vector2i) -> bool:
-	return pos.x >= 0 and pos.x < board.size() and pos.y >= 0 and pos.y < board[0].size()

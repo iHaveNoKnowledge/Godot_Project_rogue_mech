@@ -120,12 +120,23 @@ func _fire_ranged() -> void:
 	projectile.global_position = from_pos
 
 	var dir = (to_pos - from_pos).normalized()
+
+	# Head Loss Penalty Check: 60% accuracy loss & trajectory wobble
+	var is_head_broken = false
+	if enemy.health_system and enemy.health_system.parts.has("head"):
+		if enemy.health_system.parts["head"].get("destroyed", false):
+			is_head_broken = true
+
+	if is_head_broken:
+		var wobble = Vector3(randf_range(-0.6, 0.6), randf_range(-0.3, 0.3), randf_range(-0.6, 0.6))
+		dir = (dir + wobble).normalized()
+
 	projectile.speed = 30.0
 	projectile.damage = enemy.attack_damage
 	projectile.damage_type = "kinetic"
 	projectile.fired_by_enemy = true
 	projectile.direction = dir
-	projectile.look_at(to_pos, Vector3.UP)
+	projectile.look_at(from_pos + dir, Vector3.UP)
 
 
 func _is_low_hp() -> bool:

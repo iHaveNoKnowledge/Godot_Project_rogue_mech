@@ -1,0 +1,48 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/mecha/enemy_tank.gd" id="1"]
+
+[sub_resource type="BoxShape3D" id="TankShape"]
+size = Vector3(2.0, 1.2, 2.8)
+
+[sub_resource type="BoxMesh" id="HullMeshShape"]
+size = Vector3(1.8, 0.7, 2.5)
+
+[sub_resource type="BoxMesh" id="TurretMeshShape"]
+size = Vector3(1.1, 0.5, 1.2)
+
+[sub_resource type="BoxMesh" id="TreadsMeshShape"]
+size = Vector3(2.0, 0.4, 2.6)
+
+[sub_resource type="StandardMaterial3D" id="TankMat"]
+albedo_color = Color(0.25, 0.35, 0.25, 1)
+metallic = 0.6
+roughness = 0.4
+
+[sub_resource type="StandardMaterial3D" id="TreadsMat"]
+albedo_color = Color(0.15, 0.15, 0.15, 1)
+metallic = 0.8
+roughness = 0.8
+
+[node name="EnemyTank" type="CharacterBody3D"]
+script = ExtResource("1")
+collision_layer = 8
+collision_mask = 3
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("TankShape")
+
+[node name="HullMesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+mesh = SubResource("HullMeshShape")
+material_override = SubResource("TankMat")
+
+[node name="TurretMesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0.2)
+mesh = SubResource("TurretMeshShape")
+material_override = SubResource("TankMat")
+
+[node name="TreadsMesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)
+mesh = SubResource("TreadsMeshShape")
+material_override = SubResource("TreadsMat")

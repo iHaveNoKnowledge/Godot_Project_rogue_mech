@@ -10,6 +10,16 @@ var heat: int = 0
 var wanted_level: int = 0
 var safehouse_upgrades: Array = []
 
+var enemy_forces: Dictionary = {
+	"boss_current": 1, "boss_max": 1,
+	"ace_current": 1, "ace_max": 2,
+	"grunt_current": 15, "grunt_max": 30
+}
+var stalking_aces: Array = []
+var ambush_probability: float = 0.0
+var last_squad_size: int = 1
+var max_notoriety_multiplier: float = 1.0
+
 var credits: int = 0
 var spare_parts: int = 0
 var data_cores: int = 0
@@ -25,6 +35,11 @@ func save_run() -> void:
 		"position": {"x": current_tile.x, "y": current_tile.y},
 		"heat": heat,
 		"wanted": wanted_level,
+		"enemy_forces": enemy_forces.duplicate(),
+		"stalking_aces": stalking_aces.duplicate(),
+		"ambush_probability": ambush_probability,
+		"last_squad_size": last_squad_size,
+		"max_notoriety_multiplier": max_notoriety_multiplier,
 		"credits": credits,
 		"spare_parts": spare_parts,
 		"data_cores": data_cores,
@@ -59,6 +74,13 @@ func _restore_from_dict(data: Dictionary) -> void:
 	part_damage = data.get("damage", {})
 	heat = data.get("heat", 0)
 	wanted_level = data.get("wanted", 0)
+	if data.has("enemy_forces"):
+		enemy_forces = data.get("enemy_forces", {}).duplicate()
+	if data.has("stalking_aces"):
+		stalking_aces = data.get("stalking_aces", []).duplicate()
+	ambush_probability = data.get("ambush_probability", 0.0)
+	last_squad_size = data.get("last_squad_size", 1)
+	max_notoriety_multiplier = data.get("max_notoriety_multiplier", 1.0)
 	credits = data.get("credits", 0)
 	spare_parts = data.get("spare_parts", 0)
 	data_cores = data.get("data_cores", 0)
@@ -68,3 +90,4 @@ func _restore_from_dict(data: Dictionary) -> void:
 	equipped_parts.clear()
 	for slot in parts_dict:
 		equipped_parts[slot] = load(parts_dict[slot])
+

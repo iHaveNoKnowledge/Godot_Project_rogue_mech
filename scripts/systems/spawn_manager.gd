@@ -10,6 +10,7 @@ var enemy_scenes: Dictionary = {
 	"heavy_full": preload("res://scenes/mecha/enemy_heavy.tscn"),
 	"support_simple": preload("res://scenes/mecha/enemy_dummy.tscn"),
 	"support_full": preload("res://scenes/mecha/enemy_support.tscn"),
+	"tank_full": preload("res://scenes/mecha/enemy_tank.tscn"),
 }
 
 var waves: Array = []
@@ -30,15 +31,17 @@ var wave_defs = [
 	[{"type": "rusher_full", "archetype": 0, "count": 1},
 	 {"type": "ranged_simple", "archetype": 1, "count": 2},
 	 {"type": "support_simple", "archetype": 3, "count": 1}],
-	# Wave 4: Heavy appears
-	[{"type": "rusher_full", "archetype": 0, "count": 2},
-	 {"type": "heavy_full", "archetype": 2, "count": 1},
-	 {"type": "ranged_full", "archetype": 1, "count": 1}],
-	# Wave 5: Boss wave
+	# Wave 4: Heavy + Tank appears
+	[{"type": "rusher_full", "archetype": 0, "count": 1},
+	 {"type": "tank_full", "archetype": 1, "count": 1},
+	 {"type": "heavy_full", "archetype": 2, "count": 1}],
+	# Wave 5: Boss wave + Tank support
 	[{"type": "heavy_full", "archetype": 2, "count": 1},
-	 {"type": "support_full", "archetype": 3, "count": 2},
-	 {"type": "ranged_full", "archetype": 1, "count": 2}],
+	 {"type": "tank_full", "archetype": 1, "count": 1},
+	 {"type": "support_full", "archetype": 3, "count": 1},
+	 {"type": "ranged_full", "archetype": 1, "count": 1}],
 ]
+
 
 
 func _ready() -> void:
@@ -70,9 +73,11 @@ func _spawn_next_wave() -> void:
 	if current_wave >= wave_defs.size():
 		# All waves complete
 		is_active = false
-		# Check if any enemies still alive
 		await get_tree().create_timer(2.0).timeout
 		if _get_alive_count() == 0:
+			if not GlobalData.stalking_aces.is_empty():
+				_trigger_stalking_ace_ambush()
+				return
 			EventBus.combat_ended.emit(true)
 			GameManager.return_to_board()
 		return
@@ -98,6 +103,15 @@ func _spawn_next_wave() -> void:
 	# Wait between waves
 	await get_tree().create_timer(4.0).timeout
 	_spawn_next_wave()
+
+
+func _trigger_stalking_ace_ambush() -> void:
+	var ace_data = GlobalData.stalking_aces.pop_front()
+	GlobalData.ambush_probability = 0.0
+	print("SIREN WARNING! STALKING ACE WARPING IN!")
+	var spawn_pos = _get_spawn_position()
+	_spawn_enemy("heavy_full", 2, spawn_pos, 1.8)
+
 
 
 func _spawn_enemy(type: String, archetype: int, pos: Vector3, hp_scale: float) -> void:

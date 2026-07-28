@@ -32,6 +32,14 @@ func move_to_tile(target: Vector2i) -> bool:
 	_highlight_adjacent()
 	var tile_data = board[target.y][target.x]
 	var tile_type = tile_data.get_meta("tile_type", "empty")
+
+	# Stalking Ace Ambush Check
+	if not GlobalData.stalking_aces.is_empty():
+		GlobalData.ambush_probability += 0.20
+		if randf() < GlobalData.ambush_probability:
+			tile_type = "combat"
+			GlobalData.ambush_probability = 0.0
+
 	EventBus.tile_entered.emit(target, tile_data)
 	_process_tile_effect(tile_type)
 	# Show intermission UI after moving (unless entering combat)
@@ -50,6 +58,7 @@ func _process_tile_effect(tile_type: String) -> void:
 		"event":
 			_trigger_random_event()
 		"safehouse":
+			HeatWantedSystem.modify_heat(-4)
 			var safehouse = get_node_or_null("../SafehouseUI")
 			if safehouse:
 				safehouse.visible = true
@@ -65,6 +74,7 @@ func _trigger_random_event() -> void:
 		{"name": "Ambush", "effect": "damage", "amount": 20, "desc": "Ambushed! Take 20 damage"},
 		{"name": "Friendly Trader", "effect": "credits", "amount": 30, "desc": "Met a friendly trader. +30 credits"},
 		{"name": "Data Terminal", "effect": "data_cores", "amount": 1, "desc": "Found a data terminal! +1 data core"},
+		{"name": "Resistance Hideout", "effect": "hideout", "amount": randi_range(1, 2), "desc": "Found a resistance hideout! Heat reduced."},
 	]
 	var event = events[randi() % events.size()]
 	EventBus.event_triggered.emit(event)
@@ -76,9 +86,12 @@ func _trigger_random_event() -> void:
 			GlobalData.spare_parts += event["amount"]
 		"data_cores":
 			GlobalData.data_cores += event["amount"]
+		"hideout":
+			HeatWantedSystem.modify_heat(-event["amount"])
 		"damage":
 			# Apply damage to player
 			pass
+
 
 
 func get_tile_type(pos: Vector2i) -> String:

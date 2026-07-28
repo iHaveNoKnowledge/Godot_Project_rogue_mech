@@ -1,9 +1,8 @@
 extends Node
 
-## Generates deterministic arena layouts from a seed.
-## Each combat encounter gets a slightly different arena.
+## Generates deterministic arena layouts and randomized obstacle placement.
 
-enum ArenaVariant { OPEN_FIELD, CORRIDOR, CENTRAL_FORTRESS, SCATTER }
+enum ArenaVariant { OPEN_FIELD, CORRIDOR, CENTRAL_FORTRESS, SCATTER, CHOKEPOINT_CANYON, BUNKER_PERIMETER }
 
 var current_seed: int = 0
 var rng: RandomNumberGenerator = RandomNumberGenerator.new()
@@ -16,81 +15,124 @@ func set_seed(level: int, tile_pos: Vector2i) -> void:
 
 func get_variant() -> int:
 	rng.seed = current_seed
-	return rng.randi_range(0, 3)
+	return rng.randi_range(0, ArenaVariant.size() - 1)
 
 
 func get_variant_name() -> String:
 	match get_variant():
 		ArenaVariant.OPEN_FIELD: return "Open Field"
-		ArenaVariant.CORRIDOR: return "Corridor"
+		ArenaVariant.CORRIDOR: return "Double Corridor"
 		ArenaVariant.CENTRAL_FORTRESS: return "Central Fortress"
-		ArenaVariant.SCATTER: return "Scatter"
+		ArenaVariant.SCATTER: return "Scattered Ruins"
+		ArenaVariant.CHOKEPOINT_CANYON: return "Chokepoint Canyon"
+		ArenaVariant.BUNKER_PERIMETER: return "Bunker Perimeter"
 	return "Unknown"
 
 
-func get_obstacle_positions(arena_size: float = 120.0) -> Array:
+func get_obstacle_positions(arena_size: float = 240.0) -> Array:
 	rng.seed = current_seed
 	var variant = get_variant()
-	var half = arena_size / 2.0 - 8.0
+	var half = arena_size / 2.0 - 15.0
 	var positions = []
 
 	match variant:
 		ArenaVariant.OPEN_FIELD:
-			# Sparse cover, long sight lines
-			for i in range(rng.randi_range(6, 8)):
+			# Sparse cover, wide sight lines
+			for i in range(rng.randi_range(16, 22)):
 				var angle = rng.randf() * TAU
-				var radius = rng.randf_range(15, 45)
+				var radius = rng.randf_range(25, 95)
 				positions.append({
 					"pos": Vector3(cos(angle) * radius, 0, sin(angle) * radius),
-					"type": rng.randi_range(0, 2)
+					"type": rng.randi_range(0, 5),
+					"rot": rng.randf_range(0, TAU)
 				})
 
 		ArenaVariant.CORRIDOR:
-			# Central wall divides arena
-			var wall_count = rng.randi_range(4, 6)
-			for i in range(wall_count):
-				var z = (i - wall_count / 2.0) * 4.0
+			# Two parallel barrier corridors
+			for side in [-30.0, 30.0]:
+				for i in range(rng.randi_range(8, 12)):
+					var z = (i - 5) * 16.0
+					positions.append({
+						"pos": Vector3(side + rng.randf_range(-3, 3), 0, z),
+						"type": rng.randi_range(0, 1),
+						"rot": 0.0
+					})
+			# Flanking cover
+			for i in range(rng.randi_range(10, 15)):
+				var s = [-1, 1][rng.randi() % 2]
 				positions.append({
-					"pos": Vector3(0, 0, z),
-					"type": 0  # Barriers
-				})
-			# Flanking routes
-			for i in range(rng.randi_range(4, 6)):
-				var side = [-1, 1][rng.randi() % 2]
-				positions.append({
-					"pos": Vector3(side * rng.randf_range(20, 40), 0, rng.randf_range(-30, 30)),
-					"type": rng.randi_range(1, 3)
+					"pos": Vector3(s * rng.randf_range(50, 95), 0, rng.randf_range(-80, 80)),
+					"type": rng.randi_range(1, 5),
+					"rot": rng.randf_range(0, TAU)
 				})
 
 		ArenaVariant.CENTRAL_FORTRESS:
-			# Dense center with open perimeter
-			for i in range(rng.randi_range(8, 10)):
-				var angle = rng.randf() * TAU
-				var radius = rng.randf_range(5, 12)
+			# Massive central fortress ring
+			for i in range(rng.randi_range(12, 16)):
+				var angle = (float(i) / 14.0) * TAU
+				var radius = rng.randf_range(15, 30)
 				positions.append({
 					"pos": Vector3(cos(angle) * radius, 0, sin(angle) * radius),
-					"type": rng.randi_range(0, 3)
+					"type": rng.randi_range(0, 4),
+					"rot": angle
 				})
 			# Outer ring
-			for i in range(rng.randi_range(4, 6)):
+			for i in range(rng.randi_range(15, 20)):
 				var angle = rng.randf() * TAU
-				var radius = rng.randf_range(35, 50)
+				var radius = rng.randf_range(65, 100)
 				positions.append({
 					"pos": Vector3(cos(angle) * radius, 0, sin(angle) * radius),
-					"type": rng.randi_range(0, 1)
+					"type": rng.randi_range(0, 5),
+					"rot": rng.randf_range(0, TAU)
 				})
 
-		ArenaVariant.SCATTER:
-			# Random uniform distribution
-			for i in range(rng.randi_range(10, 14)):
+		ArenaVariant.CHOKEPOINT_CANYON:
+			# Diagonal wall barriers forcing chokepoints
+			for i in range(12):
+				var offset = (i - 6) * 15.0
+				positions.append({
+					"pos": Vector3(offset, 0, offset * 0.5),
+					"type": 4 if i % 3 == 0 else 0,
+					"rot": deg_to_rad(45)
+				})
+			for i in range(rng.randi_range(12, 18)):
 				positions.append({
 					"pos": Vector3(rng.randf_range(-half, half), 0, rng.randf_range(-half, half)),
-					"type": rng.randi_range(0, 3)
+					"type": rng.randi_range(1, 5),
+					"rot": rng.randf_range(0, TAU)
 				})
 
-	# Filter out positions too close to center (player spawn)
+		ArenaVariant.BUNKER_PERIMETER:
+			# 4 Bunker corners with open interior
+			var corners = [
+				Vector3(-60, 0, -60), Vector3(60, 0, -60),
+				Vector3(-60, 0, 60), Vector3(60, 0, 60)
+			]
+			for corner in corners:
+				for j in range(4):
+					positions.append({
+						"pos": corner + Vector3(rng.randf_range(-10, 10), 0, rng.randf_range(-10, 10)),
+						"type": rng.randi_range(0, 4),
+						"rot": rng.randf_range(0, TAU)
+					})
+			for i in range(rng.randi_range(10, 15)):
+				positions.append({
+					"pos": Vector3(rng.randf_range(-half, half), 0, rng.randf_range(-half, half)),
+					"type": rng.randi_range(0, 5),
+					"rot": rng.randf_range(0, TAU)
+				})
+
+		_: # SCATTER
+			for i in range(rng.randi_range(25, 35)):
+				positions.append({
+					"pos": Vector3(rng.randf_range(-half, half), 0, rng.randf_range(-half, half)),
+					"type": rng.randi_range(0, 5),
+					"rot": rng.randf_range(0, TAU)
+				})
+
+	# Ensure clearance around player spawn (0, 0)
 	positions = positions.filter(func(p):
-		return p["pos"].length() > 8.0
+		return p["pos"].length() > 12.0
 	)
 
 	return positions

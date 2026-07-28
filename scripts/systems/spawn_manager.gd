@@ -50,14 +50,15 @@ func _ready() -> void:
 
 
 func _generate_spawn_points() -> void:
-	var half = 55.0  # Inside walls
-	for i in range(8):
-		var angle = (i / 8.0) * TAU
+	var half = 110.0  # Inside 240m walls
+	for i in range(12):
+		var angle = (i / 12.0) * TAU
 		var pos = Vector3(cos(angle) * half, 1.0, sin(angle) * half)
 		var marker = Marker3D.new()
 		marker.position = pos
 		add_child(marker)
 		spawn_points.append(marker)
+
 
 
 func start_waves() -> void:

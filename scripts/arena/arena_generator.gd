@@ -101,6 +101,9 @@ func _get_theme_tile_color(x: int, z: int, pos_x: float, pos_z: float) -> Color:
 				return Color(0.35 + v, 0.32 + v, 0.28 + v) # Riverbank dirt
 			return Color(0.22 + v, 0.24 + v, 0.26 + v) # Access road
 
+	return Color(0.5, 0.5, 0.5)
+
+
 
 func _create_walls() -> void:
 	var half = arena_size / 2.0
@@ -144,6 +147,8 @@ func _get_wall_color() -> Color:
 		BiomeTheme.CITY_HIGHRISE: return Color(0.20, 0.22, 0.28)
 		BiomeTheme.CROSSROADS: return Color(0.25, 0.27, 0.32)
 		BiomeTheme.RIVER_BRIDGE: return Color(0.30, 0.32, 0.35)
+		_: return Color(0.30, 0.30, 0.30)
+
 
 
 func _create_pillars() -> void:

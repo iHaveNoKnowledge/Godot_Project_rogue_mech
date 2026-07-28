@@ -136,7 +136,8 @@ func _fire_tank_cannon() -> void:
 
 
 func _explode_and_destroy() -> void:
-	health_system.set("is_destroyed", true)
+	if health_system:
+		health_system.set("is_destroyed", true)
 	EffectManager.spawn_explosion(global_position + Vector3(0, 1.0, 0))
 
 	# Spawn loot
@@ -150,7 +151,28 @@ func _explode_and_destroy() -> void:
 
 	set_physics_process(false)
 	visible = false
+
+	var spawn_mgr = get_node_or_null("/root/GameWorld/SpawnManager")
+	if spawn_mgr and spawn_mgr.has_method("notify_enemy_killed"):
+		spawn_mgr.notify_enemy_killed()
+	else:
+		_check_fallback_victory()
+
 	queue_free()
+
+
+func _check_fallback_victory() -> void:
+	var enemies = get_tree().get_nodes_in_group("enemy")
+	var alive = 0
+	for e in enemies:
+		if is_instance_valid(e) and e != self and e.get("health_system") != null:
+			var hs = e.health_system
+			if not hs.get("is_destroyed"):
+				alive += 1
+	if alive == 0:
+		EventBus.combat_ended.emit(true)
+		GameManager.return_to_board()
+
 
 
 func disable_movement() -> void:

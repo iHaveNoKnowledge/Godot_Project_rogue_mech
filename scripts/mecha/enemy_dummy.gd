@@ -136,7 +136,11 @@ func _on_destroyed() -> void:
 		get_tree().current_scene.add_child(loot)
 	loot.spawn_enemy_loot(global_position)
 
-	# Check if all enemies destroyed
+	var spawn_mgr = get_node_or_null("/root/GameWorld/SpawnManager")
+	if spawn_mgr and spawn_mgr.has_method("notify_enemy_killed"):
+		spawn_mgr.notify_enemy_killed()
+
+	# Check if all enemies destroyed (fallback)
 	var enemies = get_tree().get_nodes_in_group("enemy")
 	var alive = 0
 	for e in enemies:
@@ -154,6 +158,7 @@ func _on_destroyed() -> void:
 			EventBus.combat_ended.emit(true)
 			GameManager.return_to_board()
 		)
+
 
 
 func _on_armor_broken(slot_name: String) -> void:

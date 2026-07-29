@@ -103,7 +103,7 @@ func _ricochet(hit_pos: Vector3, normal: Vector3) -> void:
 func _hit_target(target: Node3D) -> void:
 	EffectManager.spawn_impact(position, Vector3.UP)
 	if has_node("/root/AudioManager"):
-		AudioManager.play_impact(position)
+		AudioManager.play_impact_by_type(damage_type, position)
 
 	if target.has_method("take_damage_at_point"):
 		target.take_damage_at_point(damage, position, damage_type)

@@ -77,6 +77,7 @@ func _on_combat_ended(victory: bool) -> void:
 func _show_victory_rewards() -> void:
 	visible = true
 	get_tree().paused = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 	var is_boss = GameManager.is_boss_combat
 	var is_final_sector = (GlobalData.current_sector >= GlobalData.max_sectors)
@@ -127,6 +128,7 @@ func _show_defeat_screen() -> void:
 	rewards_label.text = "Your mech has been destroyed.\n\nReturning to main menu..."
 	continue_button.text = "Continue"
 	get_tree().paused = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
 func _on_continue_pressed() -> void:

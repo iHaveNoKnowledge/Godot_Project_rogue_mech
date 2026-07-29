@@ -12,7 +12,7 @@ func set_seed(level: int, tile_pos: Vector2i) -> void:
 
 
 func get_obstacle_positions(theme: int = 0, arena_size: float = 240.0) -> Array:
-	rng.seed = current_seed
+	rng.randomize()
 	var half = arena_size / 2.0 - 15.0
 	var positions = []
 

@@ -64,27 +64,32 @@ func _create_cover(def: Dictionary) -> StaticBody3D:
 	var mat = StandardMaterial3D.new()
 	mat.roughness = 0.8
 
+	cover.collision_layer = 2
+	cover.collision_mask = 1
+
 	match type:
 		0: # Concrete Barrier
 			var shape = BoxShape3D.new()
-			shape.size = Vector3(6, 4, 1.2)
+			shape.size = Vector3(6, 2.2, 1.2)
 			collision.shape = shape
-			collision.position.y = 2.0
+			collision.position.y = 1.1
 			var box = BoxMesh.new()
-			box.size = Vector3(6, 4, 1.2)
+			box.size = Vector3(6, 2.2, 1.2)
 			mesh_inst.mesh = box
+			mesh_inst.position.y = 1.1
 			mat.albedo_color = Color(0.40, 0.42, 0.45, 1)
 			cover.max_hp = 400.0
 			cover.cover_type = "barrier"
 
 		1: # Cargo Container
 			var shape = BoxShape3D.new()
-			shape.size = Vector3(4, 5, 10)
+			shape.size = Vector3(4, 3.2, 8)
 			collision.shape = shape
-			collision.position.y = 2.5
+			collision.position.y = 1.6
 			var box = BoxMesh.new()
-			box.size = Vector3(4, 5, 10)
+			box.size = Vector3(4, 3.2, 8)
 			mesh_inst.mesh = box
+			mesh_inst.position.y = 1.6
 			mat.albedo_color = Color(0.25, 0.35, 0.50, 1)
 			cover.max_hp = 600.0
 			cover.cover_type = "container"
@@ -92,38 +97,41 @@ func _create_cover(def: Dictionary) -> StaticBody3D:
 		2: # Reinforced Pillar
 			var shape = CylinderShape3D.new()
 			shape.radius = 1.8
-			shape.height = 10.0
+			shape.height = 8.0
 			collision.shape = shape
-			collision.position.y = 5.0
+			collision.position.y = 4.0
 			var cyl = CylinderMesh.new()
 			cyl.top_radius = 1.8
 			cyl.bottom_radius = 1.8
-			cyl.height = 10.0
+			cyl.height = 8.0
 			mesh_inst.mesh = cyl
+			mesh_inst.position.y = 4.0
 			mat.albedo_color = Color(0.35, 0.35, 0.40, 1)
 			cover.max_hp = 800.0
 			cover.cover_type = "pillar"
 
 		3: # Destroyable Crate Stack
 			var shape = BoxShape3D.new()
-			shape.size = Vector3(3, 4, 3)
+			shape.size = Vector3(3, 2.5, 3)
 			collision.shape = shape
-			collision.position.y = 2.0
+			collision.position.y = 1.25
 			var box = BoxMesh.new()
-			box.size = Vector3(3, 4, 3)
+			box.size = Vector3(3, 2.5, 3)
 			mesh_inst.mesh = box
+			mesh_inst.position.y = 1.25
 			mat.albedo_color = Color(0.60, 0.45, 0.28, 1)
 			cover.max_hp = 180.0
 			cover.cover_type = "small_crate"
 
 		4: # High Defense Wall
 			var shape = BoxShape3D.new()
-			shape.size = Vector3(10, 6, 1.5)
+			shape.size = Vector3(10, 3.5, 1.5)
 			collision.shape = shape
-			collision.position.y = 3.0
+			collision.position.y = 1.75
 			var box = BoxMesh.new()
-			box.size = Vector3(10, 6, 1.5)
+			box.size = Vector3(10, 3.5, 1.5)
 			mesh_inst.mesh = box
+			mesh_inst.position.y = 1.75
 			mat.albedo_color = Color(0.30, 0.30, 0.35, 1)
 			cover.max_hp = 700.0
 			cover.cover_type = "fortress_wall"
@@ -131,14 +139,15 @@ func _create_cover(def: Dictionary) -> StaticBody3D:
 		5: # Explosive Barrel Hazard
 			var shape = CylinderShape3D.new()
 			shape.radius = 1.0
-			shape.height = 3.0
+			shape.height = 2.2
 			collision.shape = shape
-			collision.position.y = 1.5
+			collision.position.y = 1.1
 			var cyl = CylinderMesh.new()
 			cyl.top_radius = 1.0
 			cyl.bottom_radius = 1.0
-			cyl.height = 3.0
+			cyl.height = 2.2
 			mesh_inst.mesh = cyl
+			mesh_inst.position.y = 1.1
 			mat.albedo_color = Color(0.9, 0.2, 0.1, 1)
 			mat.emission_enabled = true
 			mat.emission = Color(0.8, 0.1, 0.0)

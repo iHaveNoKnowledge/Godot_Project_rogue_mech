@@ -19,6 +19,9 @@ var dash_cooldown_timer: float = 0.0
 var is_dashing: bool = false
 var dash_direction: Vector3 = Vector3.ZERO
 var _recalculating: bool = false
+var was_in_air: bool = false
+var footstep_timer: float = 0.0
+var roller_skate_timer: float = 0.0
 
 
 func _ready() -> void:
@@ -48,6 +51,12 @@ func _physics_process(delta: float) -> void:
 	else:
 		_handle_movement_input()
 		_apply_movement(delta)
+
+	var currently_on_floor = is_on_floor()
+	if currently_on_floor and was_in_air:
+		if has_node("/root/AudioManager"):
+			AudioManager.play_land(global_position)
+	was_in_air = not currently_on_floor
 
 	move_and_slide()
 
@@ -97,14 +106,28 @@ func _apply_movement(delta: float) -> void:
 	velocity.x = desired_velocity.x
 	velocity.z = desired_velocity.z
 
-	if is_roller_dashing and desired_velocity.length() > 0.5 and is_on_floor():
-		roller_spark_timer -= delta
-		if roller_spark_timer <= 0.0:
-			roller_spark_timer = 0.08
-			_spawn_roller_spark_effect()
+	if is_on_floor() and desired_velocity.length() > 0.5:
+		if is_roller_dashing:
+			roller_spark_timer -= delta
+			if roller_spark_timer <= 0.0:
+				roller_spark_timer = 0.08
+				_spawn_roller_spark_effect()
+			roller_skate_timer -= delta
+			if roller_skate_timer <= 0.0:
+				roller_skate_timer = 0.12
+				if has_node("/root/AudioManager"):
+					AudioManager.play_roller_skate(global_position)
+		else:
+			footstep_timer -= delta
+			if footstep_timer <= 0.0:
+				footstep_timer = 0.35
+				if has_node("/root/AudioManager"):
+					AudioManager.play_footstep(global_position)
 
 	if is_on_floor() and Input.is_action_just_pressed("jump"):
-		velocity.y = JUMP_FORCE
+		velocity.y = 15.0
+		if has_node("/root/AudioManager"):
+			AudioManager.play_jump(global_position)
 
 	velocity.y -= GRAVITY * delta
 

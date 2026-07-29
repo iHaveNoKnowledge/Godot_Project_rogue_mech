@@ -72,30 +72,25 @@ func _setup_music_players() -> void:
 
 
 func _generate_sounds() -> void:
-	# Beam Rifle: sine sweep 200->800Hz
 	_sound_cache["beam_rifle"] = preload("res://resources/audio/sfx/beamrifle01.wav")
-	# Machine Gun: short noise burst
 	_sound_cache["machine_gun"] = preload("res://resources/audio/sfx/machine_gun01.wav")
-	# Missile: deep sine + noise
 	_sound_cache["missile"] = preload("res://resources/audio/sfx/missile01.wav")
-	# Shotgun: noise burst
 	_sound_cache["shotgun"] = preload("res://resources/audio/sfx/Dense_heavy_combat_s_#1-1782744878871.wav")
-	# Melee: sine chop
 	_sound_cache["melee"] = _gen_sine_chop(400.0, 0.08, 0.3)
-	# Impact: short noise
 	_sound_cache["impact"] = preload("res://resources/audio/sfx/impact01.wav")
-	# Armor break: crack
 	_sound_cache["armor_break"] = _gen_crack(0.12, 0.4)
-	# Explosion: long noise swell
 	_sound_cache["explosion"] = _gen_explosion(0.4, 0.6)
-	# UI click
 	_sound_cache["ui_click"] = _gen_sine_tone(800.0, 0.05, 0.15)
-	# UI confirm
 	_sound_cache["ui_confirm"] = _gen_sine_tone(1200.0, 0.08, 0.2)
-	# Footstep
 	_sound_cache["footstep"] = _gen_noise_burst(0.04, 0.08)
-	# Dash
 	_sound_cache["dash"] = _gen_sine_sweep(300.0, 600.0, 0.1, 0.2)
+	# New movement & impact SFX
+	_sound_cache["jump"] = _gen_sine_sweep(150.0, 450.0, 0.15, 0.25)
+	_sound_cache["land"] = _gen_sine_tone(70.0, 0.18, 0.4)
+	_sound_cache["roller_skate"] = _gen_sine_sweep(400.0, 250.0, 0.08, 0.15)
+	_sound_cache["beam_hit"] = _gen_sine_sweep(1200.0, 300.0, 0.1, 0.3)
+	_sound_cache["kinetic_hit"] = _gen_crack(0.06, 0.35)
+	_sound_cache["explosive_hit"] = _gen_explosion(0.25, 0.5)
 
 
 # --- Sound Generation Helpers ---
@@ -295,6 +290,30 @@ func play_footstep(pos: Vector3) -> void:
 
 func play_dash(pos: Vector3) -> void:
 	play_sfx("dash", pos, -3.0, "Movement")
+
+
+func play_jump(pos: Vector3) -> void:
+	play_sfx("jump", pos, -4.0, "Movement")
+
+
+func play_land(pos: Vector3) -> void:
+	play_sfx("land", pos, -2.0, "Movement")
+
+
+func play_roller_skate(pos: Vector3) -> void:
+	play_sfx("roller_skate", pos, -6.0, "Movement")
+
+
+func play_impact_by_type(damage_type: String, pos: Vector3) -> void:
+	match damage_type.to_lower():
+		"beam", "energy":
+			play_sfx("beam_hit", pos, -2.0)
+		"explosive":
+			play_sfx("explosive_hit", pos, 1.0)
+		"melee":
+			play_sfx("melee", pos, 0.0)
+		_:
+			play_sfx("kinetic_hit", pos, -3.0)
 
 
 func play_ui_click() -> void:

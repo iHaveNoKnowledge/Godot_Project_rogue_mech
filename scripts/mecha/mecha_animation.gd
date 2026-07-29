@@ -47,6 +47,24 @@ func _physics_process(delta: float) -> void:
 	_update_bob(delta)
 	_update_recoil(delta)
 	_update_legs(delta)
+	_update_roller_dash_posture(delta)
+
+
+func _update_roller_dash_posture(delta: float) -> void:
+	if mecha and mecha.get("is_roller_dashing") != null:
+		var speed = 6.0 * delta
+		var is_skating = mecha.is_roller_dashing
+		var target_tilt = deg_to_rad(18.0) if is_skating else 0.0
+		var target_drop = -0.35 if is_skating else 0.0
+
+		if body_mesh:
+			body_mesh.rotation.x = lerp_angle(body_mesh.rotation.x, target_tilt, speed)
+			body_mesh.position.y = lerp(body_mesh.position.y, _original_body_pos.y + target_drop, speed)
+		if head_mesh:
+			head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, target_tilt * 0.8, speed)
+		var model = mecha.get_node_or_null("Zenisrev")
+		if model:
+			model.rotation.x = lerp_angle(model.rotation.x, target_tilt, speed)
 
 
 func _update_bob(delta: float) -> void:

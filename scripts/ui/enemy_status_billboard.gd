@@ -105,13 +105,17 @@ func _update_position() -> void:
 		return
 
 	var world_pos = target.global_position + Vector3(0, 4.5, 0)
+	if cam.is_position_behind(world_pos):
+		visible = false
+		return
+
+	var dist = cam.global_position.distance_to(world_pos)
+	if dist > 85.0:
+		visible = false
+		return
+
+	visible = true
 	var screen_pos = cam.unproject_position(world_pos)
-
-	var viewport_size = get_viewport().get_visible_rect().size
-	screen_pos.x = clampf(screen_pos.x, 60, viewport_size.x - 60)
-	screen_pos.y = clampf(screen_pos.y, 50, viewport_size.y - 50)
-
-	# Center the panel on the screen position
 	var panel_size = panel.size if panel else Vector2(80, 50)
 	panel.global_position = screen_pos - panel_size / 2.0
 

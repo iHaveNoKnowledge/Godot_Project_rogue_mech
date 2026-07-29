@@ -688,9 +688,8 @@ func _on_equip_pressed() -> void:
 	elif selected_part_path != "" and ResourceLoader.exists(selected_part_path):
 		var res = load(selected_part_path)
 		if res:
-			GlobalData.equipped_parts[selected_slot] = res
-			GlobalData.part_damage.erase(selected_slot)
-			status_message_label.text = "Equipped Armor: %s!" % res.get("part_name", "Part")
+			var pname = res.get("part_name") if res.get("part_name") != null else "Part"
+			status_message_label.text = "Equipped Armor: %s!" % pname
 			_update_total_stats()
 
 

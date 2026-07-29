@@ -121,8 +121,8 @@ func _update_bob(delta: float) -> void:
 		bob_timer += delta * clamp(run_speed, 12.0, 24.0)
 		var bob = sin(bob_timer) * bob_amount
 
-		# Forward Torso Heavy Sprint Lean (-22 degrees forward lean when sprinting like in GIF)
-		var sprint_lean = -deg_to_rad(22.0)
+		# Forward Torso Athletic Sprint Lean (-24 degrees forward lean matching sprite art)
+		var sprint_lean = -deg_to_rad(24.0)
 		if body_mesh:
 			body_mesh.position.y = _original_body_pos.y + abs(bob) * 0.35
 			body_mesh.rotation.x = lerp_angle(body_mesh.rotation.x, sprint_lean, 10.0 * delta)
@@ -146,7 +146,7 @@ func _update_legs(delta: float) -> void:
 		var phase_left = fmod(bob_timer * 0.5, TAU)
 		var phase_right = fmod(bob_timer * 0.5 + PI, TAU)
 
-		# Iconic High-Speed Mecha Sprint Kinematics (Matching Pinterest Reference GIF)
+		# 8-Frame Sprite Sheet Run Cycle Math (Matching Running Man Sprite Reference)
 		var left_leg_data = _calc_mecha_sprint_leg(phase_left)
 		var right_leg_data = _calc_mecha_sprint_leg(phase_right)
 
@@ -161,7 +161,7 @@ func _update_legs(delta: float) -> void:
 		if shin_left: shin_left.rotation.x = shin_l
 		if shin_right: shin_right.rotation.x = shin_r
 
-		# Athletic Arm Pumping linked to stride phase
+		# Athletic Arm Pumping (Bent elbows swinging opposite to legs)
 		if arm_left:
 			arm_left.rotation.x = -thigh_l * 0.7 * dir_sign
 			if forearm_left:
@@ -191,28 +191,28 @@ func _calc_mecha_sprint_leg(phase: float) -> Dictionary:
 		# Swing Phase (0.0 to 1.0)
 		var step_p = norm_phase / PI
 
-		# Thigh drives forward aggressively (-58 degrees)
-		thigh = -deg_to_rad(58.0) * sin(step_p * PI)
+		# Thigh drives forward (-55 degrees)
+		thigh = -deg_to_rad(55.0) * sin(step_p * PI)
 
-		if step_p < 0.4:
-			# Phase 1: High Heel-Kick Backwards (+85 degrees fold behind thigh)
-			var fold_p = step_p / 0.4
-			shin = deg_to_rad(85.0) * sin(fold_p * PI * 0.5)
-		elif step_p < 0.7:
-			# Phase 2: Whip-Snap Extension (Lower leg snaps forward ahead of knee!)
-			var snap_p = (step_p - 0.4) / 0.3
-			shin = lerp(deg_to_rad(85.0), -deg_to_rad(15.0), sin(snap_p * PI * 0.5))
+		if step_p < 0.35:
+			# Frame 1-3: Passing / Knee Lift -> Shin FOLDS BACKWARD (+80 deg)
+			var fold_p = step_p / 0.35
+			shin = deg_to_rad(80.0) * sin(fold_p * PI * 0.5)
+		elif step_p < 0.8:
+			# Frame 4-5: Extension -> Shin EXTENDS FORWARD (+80 deg down to +15 deg)
+			var ext_p = (step_p - 0.35) / 0.45
+			shin = lerp(deg_to_rad(80.0), deg_to_rad(15.0), sin(ext_p * PI * 0.5))
 		else:
-			# Phase 3: Foot Plant & Ground Touch
-			var plant_p = (step_p - 0.7) / 0.3
-			shin = lerp(-deg_to_rad(15.0), deg_to_rad(10.0), plant_p)
+			# Frame 6: Heel Strike / Ground Contact -> Shin lands (+15 deg down to +5 deg)
+			var plant_p = (step_p - 0.8) / 0.2
+			shin = lerp(deg_to_rad(15.0), deg_to_rad(5.0), plant_p)
 	else:
-		# Push-off / Stance Phase (PI to TAU)
+		# Frame 7-8: Power Push-Off Phase (PI to TAU)
 		var push_p = (norm_phase - PI) / PI
-		# Thigh pushes backward (+42 degrees)
-		thigh = deg_to_rad(42.0) * sin(push_p * PI)
-		# Shin flexes under ground impact load
-		shin = deg_to_rad(20.0) * sin(push_p * PI)
+		# Thigh drives backward (+55 degrees)
+		thigh = deg_to_rad(55.0) * sin(push_p * PI)
+		# Shin flexes under ground impact load (+25 degrees)
+		shin = deg_to_rad(25.0) * sin(push_p * PI)
 
 	return {"thigh": thigh, "shin": shin}
 

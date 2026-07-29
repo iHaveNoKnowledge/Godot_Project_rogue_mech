@@ -171,7 +171,6 @@ func _check_fallback_victory() -> void:
 				alive += 1
 	if alive == 0:
 		EventBus.combat_ended.emit(true)
-		GameManager.return_to_board()
 
 
 

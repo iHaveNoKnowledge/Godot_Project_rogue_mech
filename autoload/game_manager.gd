@@ -9,6 +9,7 @@ var is_boss_combat: bool = false
 
 
 func transition_to(new_state: State) -> void:
+	get_tree().paused = false
 	var old_name = State.keys()[current_state]
 	current_state = new_state
 	var new_name = State.keys()[new_state]

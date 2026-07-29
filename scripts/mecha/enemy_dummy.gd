@@ -139,8 +139,15 @@ func _on_destroyed() -> void:
 	var spawn_mgr = get_node_or_null("/root/GameWorld/SpawnManager")
 	if spawn_mgr and spawn_mgr.has_method("notify_enemy_killed"):
 		spawn_mgr.notify_enemy_killed()
+	else:
+		_check_fallback_victory()
 
-	# Check if all enemies destroyed (fallback)
+	var tween = create_tween()
+	tween.tween_interval(0.5)
+	tween.tween_callback(queue_free)
+
+
+func _check_fallback_victory() -> void:
 	var enemies = get_tree().get_nodes_in_group("enemy")
 	var alive = 0
 	for e in enemies:
@@ -148,16 +155,8 @@ func _on_destroyed() -> void:
 			var hs = e.health_system
 			if not hs.get("is_destroyed"):
 				alive += 1
-
-	var tween = create_tween()
-	tween.tween_interval(0.5)
-	tween.tween_callback(queue_free)
-
 	if alive == 0:
-		tween.tween_callback(func():
-			EventBus.combat_ended.emit(true)
-			GameManager.return_to_board()
-		)
+		EventBus.combat_ended.emit(true)
 
 
 

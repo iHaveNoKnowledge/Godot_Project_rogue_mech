@@ -109,7 +109,6 @@ func _check_combat_ended() -> void:
 			_trigger_stalking_ace_ambush()
 		else:
 			EventBus.combat_ended.emit(true)
-			GameManager.return_to_board()
 
 
 func _trigger_stalking_ace_ambush() -> void:

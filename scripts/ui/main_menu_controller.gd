@@ -112,11 +112,7 @@ func _make_button(text: String, accent: Color) -> Button:
 
 
 func _on_new_game() -> void:
-	GlobalData.equipped_parts.clear()
-	GlobalData.part_damage.clear()
-	GlobalData.heat = 0
-	GlobalData.wanted_level = 0
-	GlobalData.credits = 100
+	GlobalData.reset_run_data()
 	GameManager.enter_board()
 
 

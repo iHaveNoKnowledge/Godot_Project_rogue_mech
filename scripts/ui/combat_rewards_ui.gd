@@ -76,13 +76,31 @@ func _on_combat_ended(victory: bool) -> void:
 
 func _show_victory_rewards() -> void:
 	visible = true
-	title_label.text = "COMBAT VICTORY"
 	get_tree().paused = true
 
-	# Calculate rewards
+	var is_boss = GameManager.is_boss_combat
+	var is_final_sector = (GlobalData.current_sector >= GlobalData.max_sectors)
+
 	var credits_gained = randi_range(30, 80)
 	var spare_parts_gained = randi_range(1, 5)
 	var heat_gained = 2
+	var data_cores_gained = 0
+
+	if is_boss:
+		title_label.text = "SECTOR %d CLEARED!" % GlobalData.current_sector
+		credits_gained += 100
+		spare_parts_gained += 5
+		data_cores_gained = 1
+		GlobalData.data_cores += data_cores_gained
+
+		if is_final_sector:
+			title_label.text = "CAMPAIGN VICTORY!"
+			continue_button.text = "Finish Run"
+		else:
+			continue_button.text = "Proceed to Sector %d" % (GlobalData.current_sector + 1)
+	else:
+		title_label.text = "COMBAT VICTORY"
+		continue_button.text = "Continue"
 
 	GlobalData.credits += credits_gained
 	GlobalData.spare_parts += spare_parts_gained
@@ -91,11 +109,14 @@ func _show_victory_rewards() -> void:
 		"credits": credits_gained,
 		"spare_parts": spare_parts_gained,
 		"heat": heat_gained,
+		"data_cores": data_cores_gained
 	}
 
 	rewards_label.text = "Rewards:\n"
 	rewards_label.text += "+%d Credits\n" % credits_gained
 	rewards_label.text += "+%d Spare Parts\n" % spare_parts_gained
+	if data_cores_gained > 0:
+		rewards_label.text += "+%d Data Cores (Boss Bonus)\n" % data_cores_gained
 	rewards_label.text += "+%d Heat\n" % heat_gained
 	rewards_label.text += "\nTotal Credits: %d" % GlobalData.credits
 
@@ -104,6 +125,7 @@ func _show_defeat_screen() -> void:
 	visible = true
 	title_label.text = "DEFEATED"
 	rewards_label.text = "Your mech has been destroyed.\n\nReturning to main menu..."
+	continue_button.text = "Continue"
 	get_tree().paused = true
 
 
@@ -112,5 +134,10 @@ func _on_continue_pressed() -> void:
 	get_tree().paused = false
 	if title_label.text == "DEFEATED":
 		GameManager.game_over()
+	elif GameManager.is_boss_combat:
+		if GlobalData.current_sector >= GlobalData.max_sectors:
+			GameManager.end_run(true)
+		else:
+			GameManager.advance_to_next_sector()
 	else:
 		GameManager.return_to_board()

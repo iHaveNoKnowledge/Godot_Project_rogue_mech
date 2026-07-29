@@ -229,7 +229,7 @@ func _recalculate_weight() -> void:
 		current_speed = chassis.base_speed * (1.0 - clampf(total_weight / chassis.weight_capacity, 0.0, 0.6))
 	else:
 		turn_rate = 2.0
-		current_speed = 8.0
+		current_speed = 10.5
 
 	_recalculating = false
 

@@ -174,25 +174,24 @@ func _update_roller_dash_posture(delta: float) -> void:
 		var is_skating = mecha.is_roller_dashing
 
 		if is_skating:
-			# Gundam AGE Symmetrical Roller Skating Dash Stance:
-			# 1. Both legs completely equal & parallel on the ground/catapult track
-			# 2. Both upper thighs crouched backward (+38 deg)
-			# 3. Both lower shins perpendicular to floor (-38 deg cancels thigh tilt)
-			# 4. Torso pitched forward down (-28 deg) & Center of gravity dropped (-0.35)
-			# 5. Head locked looking straight ahead (-10 deg net)
-			# 6. Arms holding weapon and shield in balanced combat posture
-			var target_body_tilt = -deg_to_rad(28.0)
-			var target_head_tilt = -deg_to_rad(10.0)
-			var target_drop = -0.35
+			# Gundam AGE Symmetrical Forward-Pitched Roller Skating Dash Stance:
+			# 1. Torso pitched forward aggressively (-40 deg) shifting weight center forward over toes
+			# 2. Both upper thighs crouched (+24 deg) & lower shins perpendicular to floor (-24 deg)
+			# 3. Center of gravity dropped (-0.40)
+			# 4. Head locked looking straight ahead (-18 deg net)
+			# 5. Arms holding weapon and shield in aggressive forward posture
+			var target_body_tilt = -deg_to_rad(40.0)
+			var target_head_tilt = -deg_to_rad(18.0)
+			var target_drop = -0.40
 
-			var target_thigh_crouch = deg_to_rad(38.0)
-			var target_shin_vertical = -deg_to_rad(38.0)
+			var target_thigh_crouch = deg_to_rad(24.0)
+			var target_shin_vertical = -deg_to_rad(24.0)
 
-			var target_arm_right = deg_to_rad(15.0)
-			var target_forearm_right = deg_to_rad(70.0)
+			var target_arm_right = deg_to_rad(20.0)
+			var target_forearm_right = deg_to_rad(75.0)
 
-			var target_arm_left = -deg_to_rad(15.0)
-			var target_forearm_left = deg_to_rad(75.0)
+			var target_arm_left = -deg_to_rad(20.0)
+			var target_forearm_left = deg_to_rad(80.0)
 
 			if body_mesh:
 				body_mesh.rotation.x = lerp_angle(body_mesh.rotation.x, target_body_tilt, speed)
@@ -221,8 +220,8 @@ func _update_roller_dash_posture(delta: float) -> void:
 func _update_bob(delta: float) -> void:
 	var is_skating = mecha.get("is_roller_dashing") == true
 	if is_moving and not is_skating:
-		var run_speed = mecha.velocity.length() * 2.5
-		bob_timer += delta * clamp(run_speed, 12.0, 24.0)
+		var run_speed = mecha.velocity.length() * 1.4
+		bob_timer += delta * clamp(run_speed, 7.0, 14.0)
 		var bob = sin(bob_timer) * bob_amount
 
 		# Forward Torso Athletic Sprint Lean (-18 degrees forward lean)
@@ -250,7 +249,7 @@ func _update_legs(delta: float) -> void:
 		var phase_left = fmod(bob_timer * 0.5, TAU)
 		var phase_right = fmod(bob_timer * 0.5 + PI, TAU)
 
-		# Clean 3D Mecha Running Stride Calculations
+		# Clean 3D Mecha Long-Stride Sprint Calculations
 		var left_leg_data = _calc_mecha_sprint_leg(phase_left)
 		var right_leg_data = _calc_mecha_sprint_leg(phase_right)
 
@@ -298,43 +297,43 @@ func _calc_mecha_sprint_leg(phase: float) -> Dictionary:
 		# Swing Phase (Leg airborne, swinging from BACK to FRONT)
 		var t = norm_phase / PI
 
-		# 1. Thigh Motion:
-		# - t in [0.0, 0.8]: Swings forward rapidly from back extension (-48°) to peak forward swing (+54°)
-		# - t in [0.8, 1.0]: Pulls back slightly (+54° to +38°) to match ground speed at contact
+		# 1. Thigh Motion (Wide Powerful Stride: -58 deg to +64 deg):
+		# - t in [0.0, 0.8]: Swings forward rapidly from back extension (-58°) to peak forward swing (+64°)
+		# - t in [0.8, 1.0]: Pulls back slightly (+64° to +46°) to match ground speed at contact
 		if t <= 0.8:
 			var s = 0.5 - 0.5 * cos((t / 0.8) * PI)
-			thigh = lerp(-deg_to_rad(48.0), deg_to_rad(54.0), s)
+			thigh = lerp(-deg_to_rad(58.0), deg_to_rad(64.0), s)
 		else:
 			var s = 0.5 - 0.5 * cos(((t - 0.8) / 0.2) * PI)
-			thigh = lerp(deg_to_rad(54.0), deg_to_rad(38.0), s)
+			thigh = lerp(deg_to_rad(64.0), deg_to_rad(46.0), s)
 
-		# 2. Shin/Knee Motion (Negative rotation bends knee backward):
-		# - t in [0.0, 0.4]: Recovery fold! Knee flexes sharply (-10° to -78°) to lift heel high & clear ground
-		# - t in [0.4, 1.0]: Knee unfolds (-78° to -22°) extending forward to prepare for ground contact
+		# 2. Shin/Knee Motion:
+		# - t in [0.0, 0.4]: High recovery fold! Knee flexes sharply (-10° to -85°) to lift foot over wide stride
+		# - t in [0.4, 1.0]: Knee unfolds (-85° to -26°) extending forward to prepare for ground contact
 		if t <= 0.4:
 			var s = 0.5 - 0.5 * cos((t / 0.4) * PI)
-			shin = lerp(-deg_to_rad(10.0), -deg_to_rad(78.0), s)
+			shin = lerp(-deg_to_rad(10.0), -deg_to_rad(85.0), s)
 		else:
 			var s = 0.5 - 0.5 * cos(((t - 0.4) / 0.6) * PI)
-			shin = lerp(-deg_to_rad(78.0), -deg_to_rad(22.0), s)
+			shin = lerp(-deg_to_rad(85.0), -deg_to_rad(26.0), s)
 
 	else:
 		# Stance / Power Push-Off Phase (Foot on ground, driving body forward by moving leg FRONT to BACK)
 		var t = (norm_phase - PI) / PI
 
-		# 1. Thigh Motion: Drives smoothly backward from contact (+38°) to push-off (-48°)
+		# 1. Thigh Motion: Drives smoothly backward from contact (+46°) to push-off (-58°)
 		var s_thigh = 0.5 - 0.5 * cos(t * PI)
-		thigh = lerp(deg_to_rad(38.0), -deg_to_rad(48.0), s_thigh)
+		thigh = lerp(deg_to_rad(46.0), -deg_to_rad(58.0), s_thigh)
 
 		# 2. Shin/Knee Motion:
-		# - t in [0.0, 0.4]: Load absorption. Knee flexes slightly under body weight (-22° to -32° at mid-stance)
-		# - t in [0.4, 1.0]: Propulsive extension. Knee straightens out (-32° to -8°) to push off into flight
+		# - t in [0.0, 0.4]: Load absorption. Knee flexes slightly under body weight (-26° to -36° at mid-stance)
+		# - t in [0.4, 1.0]: Propulsive extension. Knee straightens out (-36° to -6°) to push off into flight
 		if t <= 0.4:
 			var s = 0.5 - 0.5 * cos((t / 0.4) * PI)
-			shin = lerp(-deg_to_rad(22.0), -deg_to_rad(32.0), s)
+			shin = lerp(-deg_to_rad(26.0), -deg_to_rad(36.0), s)
 		else:
 			var s = 0.5 - 0.5 * cos(((t - 0.4) / 0.6) * PI)
-			shin = lerp(-deg_to_rad(32.0), -deg_to_rad(8.0), s)
+			shin = lerp(-deg_to_rad(36.0), -deg_to_rad(6.0), s)
 
 	return {"thigh": thigh, "shin": shin}
 

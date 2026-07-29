@@ -531,9 +531,12 @@ func _on_part_item_selected(index: int) -> void:
 		selected_frame_info = items[index]
 		selected_part_path = ""
 		selected_salvage_info.clear()
+		var fname = selected_frame_info.get("name", "Frame")
+		var ftype = selected_frame_info.get("type", "Standard")
+		var fhp = selected_frame_info.get("hp", 20.0)
+		var fweight = selected_frame_info.get("weight", 3.0)
 		stats_label.text = "INNER FRAME: %s\nTYPE: %s\n\nSTRUCTURAL FRAME HP: %.0f\nFRAME WEIGHT: %.1f kg" % [
-			selected_frame_info["name"], selected_frame_info["type"],
-			selected_frame_info["hp"], selected_frame_info["weight"]
+			fname, ftype, fhp, fweight
 		]
 		_apply_3d_frame_preview(selected_slot, selected_frame_info)
 	elif armor_catalog.has(selected_slot):
@@ -582,47 +585,93 @@ func _apply_3d_chassis_preview(info: Dictionary) -> void:
 	mat.metallic = 0.85
 	mat.roughness = 0.35
 
-	# Distinct 3D Model GLTF and Mesh Proportions
-	var zenisrev_node = mecha_3d_root.get_node_or_null("MechaBase/Zenisrev")
+	var mat_dark = StandardMaterial3D.new()
+	mat_dark.albedo_color = Color(0.18, 0.20, 0.25)
+	mat_dark.metallic = 0.9
+	mat_dark.roughness = 0.2
+
+	var mat_visor = StandardMaterial3D.new()
+	mat_visor.emission_enabled = true
+	mat_visor.emission_energy_multiplier = 3.5
+
+	var head_node = mecha_3d_root.get_node_or_null("MechaBase/Head")
 	var body_node = mecha_3d_root.get_node_or_null("MechaBase/Body")
 	var arm_left = mecha_3d_root.get_node_or_null("MechaBase/ArmLeft")
 	var arm_right = mecha_3d_root.get_node_or_null("MechaBase/ArmRight")
+	var leg_left = mecha_3d_root.get_node_or_null("MechaBase/LegLeft")
+	var leg_right = mecha_3d_root.get_node_or_null("MechaBase/LegRight")
 
 	match selected_chassis_key:
 		"standard":
 			mat.albedo_color = Color(0.7, 0.72, 0.78)
-			if zenisrev_node: zenisrev_node.scale = Vector3(0.007, 0.007, 0.007)
+			mat_visor.emission = Color(0.0, 0.9, 1.0) # Cyan Visor
 			if body_node: body_node.scale = Vector3(1.0, 1.0, 1.0)
+			if arm_left: arm_left.scale = Vector3(1.0, 1.0, 1.0)
+			if arm_right: arm_right.scale = Vector3(1.0, 1.0, 1.0)
+			if leg_left: leg_left.scale = Vector3(1.0, 1.0, 1.0)
+			if leg_right: leg_right.scale = Vector3(1.0, 1.0, 1.0)
 		"titan":
-			mat.albedo_color = Color(0.3, 0.15, 0.35)
+			mat.albedo_color = Color(0.3, 0.15, 0.35) # Dark Purple
 			mat.metallic = 0.95
-			if zenisrev_node: zenisrev_node.scale = Vector3(0.011, 0.009, 0.011)
-			if body_node: body_node.scale = Vector3(1.4, 1.2, 1.3)
-			if arm_left: arm_left.scale = Vector3(1.3, 1.2, 1.3)
-			if arm_right: arm_right.scale = Vector3(1.3, 1.2, 1.3)
+			mat_visor.emission = Color(1.0, 0.1, 0.2) # Red Visor
+			if body_node: body_node.scale = Vector3(1.4, 1.25, 1.35)
+			if arm_left: arm_left.scale = Vector3(1.35, 1.2, 1.35)
+			if arm_right: arm_right.scale = Vector3(1.35, 1.2, 1.35)
+			if leg_left: leg_left.scale = Vector3(1.25, 1.1, 1.25)
+			if leg_right: leg_right.scale = Vector3(1.25, 1.1, 1.25)
 		"vanguard":
-			mat.albedo_color = Color(0.85, 0.88, 0.95)
-			mat.metallic = 0.7
-			if zenisrev_node: zenisrev_node.scale = Vector3(0.006, 0.008, 0.006)
-			if body_node: body_node.scale = Vector3(0.85, 1.1, 0.85)
+			mat.albedo_color = Color(0.85, 0.88, 0.95) # Sleek White/Cyan
+			mat.metallic = 0.75
+			mat_visor.emission = Color(0.1, 1.0, 0.5) # Emerald Visor
+			if body_node: body_node.scale = Vector3(0.88, 1.15, 0.85)
+			if arm_left: arm_left.scale = Vector3(0.9, 1.05, 0.9)
+			if arm_right: arm_right.scale = Vector3(0.9, 1.05, 0.9)
+			if leg_left: leg_left.scale = Vector3(0.9, 1.1, 0.9)
+			if leg_right: leg_right.scale = Vector3(0.9, 1.1, 0.9)
 		"aegis":
-			mat.albedo_color = Color(0.2, 0.4, 0.55)
+			mat.albedo_color = Color(0.2, 0.4, 0.55) # Navy Blue Chobham
 			mat.metallic = 0.9
-			if zenisrev_node: zenisrev_node.scale = Vector3(0.009, 0.008, 0.010)
-			if body_node: body_node.scale = Vector3(1.3, 1.0, 1.4)
+			mat_visor.emission = Color(1.0, 0.8, 0.0) # Amber Gold Visor
+			if body_node: body_node.scale = Vector3(1.35, 1.0, 1.45)
+			if arm_left: arm_left.scale = Vector3(1.25, 1.0, 1.25)
+			if arm_right: arm_right.scale = Vector3(1.25, 1.0, 1.25)
+			if leg_left: leg_left.scale = Vector3(1.3, 1.0, 1.3)
+			if leg_right: leg_right.scale = Vector3(1.3, 1.0, 1.3)
 		"brawler":
 			mat.albedo_color = Color(0.35, 0.40, 0.28) # Military Olive Green
 			mat.metallic = 0.9
 			mat.roughness = 0.25
-			if zenisrev_node: zenisrev_node.scale = Vector3(0.008, 0.0075, 0.008)
+			mat_visor.emission = Color(1.0, 0.5, 0.0) # Industrial Orange Visor
 			if body_node: body_node.scale = Vector3(1.25, 0.95, 1.2)
-			if arm_left: arm_left.scale = Vector3(1.4, 1.1, 1.4)
-			if arm_right: arm_right.scale = Vector3(1.4, 1.1, 1.4)
+			if arm_left: arm_left.scale = Vector3(1.4, 1.15, 1.4)
+			if arm_right: arm_right.scale = Vector3(1.4, 1.15, 1.4)
+			if leg_left: leg_left.scale = Vector3(1.3, 0.95, 1.3)
+			if leg_right: leg_right.scale = Vector3(1.3, 0.95, 1.3)
 
-	for mesh_path in ["MechaBase/Head/HeadMesh", "MechaBase/Body/BodyMesh", "MechaBase/ArmLeft/ArmLeftMesh", "MechaBase/ArmRight/ArmRightMesh", "MechaBase/LegLeft/LegLeftMesh", "MechaBase/LegRight/LegRightMesh"]:
+	var armor_paths = [
+		"MechaBase/Head/HeadMesh", "MechaBase/Body/ChestPlate",
+		"MechaBase/ArmLeft/ShoulderLeft", "MechaBase/ArmRight/ShoulderRight",
+		"MechaBase/LegLeft/KneeLeft", "MechaBase/LegLeft/FootLeft",
+		"MechaBase/LegRight/KneeRight", "MechaBase/LegRight/FootRight"
+	]
+	for mesh_path in armor_paths:
 		var node = mecha_3d_root.get_node_or_null(mesh_path)
 		if node:
 			node.material_override = mat
+
+	var dark_paths = [
+		"MechaBase/Body/BodyMesh", "MechaBase/Body/Backpack",
+		"MechaBase/ArmLeft/ArmLeftMesh", "MechaBase/ArmRight/ArmRightMesh",
+		"MechaBase/LegLeft/LegLeftMesh", "MechaBase/LegRight/LegRightMesh"
+	]
+	for mesh_path in dark_paths:
+		var node = mecha_3d_root.get_node_or_null(mesh_path)
+		if node:
+			node.material_override = mat_dark
+
+	var visor_node = mecha_3d_root.get_node_or_null("MechaBase/Head/Visor")
+	if visor_node:
+		visor_node.material_override = mat_visor
 
 
 func _apply_3d_frame_preview(slot: String, info: Dictionary) -> void:

@@ -64,8 +64,8 @@ func _face_crosshair(mecha: Node3D) -> void:
 	var dir = (target_point - mecha.global_position).normalized()
 	dir.y = 0.0
 	if dir.length() > 0.1:
-		var target_angle = atan2(dir.x, dir.z)
-		mecha.rotation.y = lerp_angle(mecha.rotation.y, target_angle, 0.3)
+		var target_angle = atan2(-dir.x, -dir.z)
+		mecha.rotation.y = target_angle
 		swing_direction = dir
 
 

@@ -1,7 +1,7 @@
 extends Node
 
 @export var bob_amount: float = 0.15
-@export var bob_speed: float = 10.0
+@export var bob_speed: float = 12.0
 @export var recoil_amount: float = 0.3
 @export var recoil_recovery: float = 10.0
 
@@ -74,19 +74,19 @@ func _update_roller_dash_posture(delta: float) -> void:
 		var speed = 8.0 * delta
 		var is_skating = mecha.is_roller_dashing
 
-		# Target angles for Roller Dash Pose:
-		# Body leans forward down 24 deg
-		var target_body_tilt = deg_to_rad(24.0) if is_skating else 0.0
+		# Correct Roller Dash Pose:
+		# Body leans FORWARD down -24 deg (Negative X in Godot tilts forward towards -Z)
+		var target_body_tilt = -deg_to_rad(24.0) if is_skating else 0.0
 		var target_drop = -0.4 if is_skating else 0.0
 
-		# Upper Arm: Pushed backward -45 deg along body tilt (elbow pointing high up/back)
-		var target_upper_arm_rot = -deg_to_rad(45.0) if is_skating else 0.0
-		# Forearm: Bent forward down +75 deg pointing to ground forming a sharp '>' chevron!
-		var target_forearm_rot = deg_to_rad(75.0) if is_skating else 0.0
+		# Upper Arm: Pushed BACKWARD along forward body tilt (+45 deg in Godot rotates arms back towards +Z)
+		var target_upper_arm_rot = deg_to_rad(45.0) if is_skating else 0.0
+		# Forearm: Bent forward DOWNWARD towards ground (-70 deg) forming the sharp '>' chevron posture!
+		var target_forearm_rot = -deg_to_rad(70.0) if is_skating else 0.0
 
-		# Legs crouch down into racing stance
-		var target_hip_crouch = deg_to_rad(25.0) if is_skating else 0.0
-		var target_knee_crouch = deg_to_rad(45.0) if is_skating else 0.0
+		# Legs crouch forward into racing stance
+		var target_hip_crouch = -deg_to_rad(25.0) if is_skating else 0.0
+		var target_knee_crouch = deg_to_rad(50.0) if is_skating else 0.0
 
 		if is_skating:
 			if body_mesh:
@@ -118,22 +118,31 @@ func _update_roller_dash_posture(delta: float) -> void:
 func _update_bob(delta: float) -> void:
 	var is_skating = mecha.get("is_roller_dashing") == true
 	if is_moving and not is_skating:
-		var run_speed = mecha.velocity.length() * 1.5
-		bob_timer += delta * clamp(run_speed, 8.0, 16.0)
+		var run_speed = mecha.velocity.length() * 2.2
+		bob_timer += delta * clamp(run_speed, 10.0, 22.0)
 		var bob = sin(bob_timer) * bob_amount
 
+		# Forward Torso Sprint Lean (~14 degrees forward lean when sprinting!)
+		var sprint_lean = -deg_to_rad(14.0)
 		if body_mesh:
-			body_mesh.position.y = _original_body_pos.y + abs(bob) * 0.6
+			body_mesh.position.y = _original_body_pos.y + abs(bob) * 0.4
+			body_mesh.rotation.x = lerp_angle(body_mesh.rotation.x, sprint_lean, 10.0 * delta)
 		if head_mesh:
-			head_mesh.position.y = _original_head_pos.y + abs(bob) * 0.8
+			head_mesh.position.y = _original_head_pos.y + abs(bob) * 0.6
+			head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, sprint_lean * 0.7, 10.0 * delta)
 
-		var arm_swing = sin(bob_timer * 0.5) * 0.45
+		# Athletic Bent-Elbow Arm Pumping
+		var arm_swing = sin(bob_timer * 0.5) * deg_to_rad(42.0)
 		if arm_left:
-			arm_left.position.y = _original_arm_left_pos.y + bob * 0.2
+			arm_left.position.y = _original_arm_left_pos.y + bob * 0.15
 			arm_left.rotation.x = arm_swing
 		if arm_right:
-			arm_right.position.y = _original_arm_right_pos.y + bob * 0.2
+			arm_right.position.y = _original_arm_right_pos.y + bob * 0.15
 			arm_right.rotation.x = -arm_swing
+
+		# Bent elbows during sprint (-45 deg flexion)
+		if forearm_left: forearm_left.rotation.x = -deg_to_rad(45.0)
+		if forearm_right: forearm_right.rotation.x = -deg_to_rad(45.0)
 	elif not is_skating:
 		bob_timer = 0.0
 		_lerp_to_original(delta)
@@ -145,38 +154,35 @@ func _update_legs(delta: float) -> void:
 		return
 
 	if is_moving and leg_left and leg_right:
-		# Check forward velocity relative to mecha facing direction (-Z)
 		var fwd_vel = -mecha.global_transform.basis.z.dot(mecha.velocity)
 		var dir_sign = 1.0 if fwd_vel >= -0.2 else -1.0
 
-		# High-Knee Running Kinematics
-		# Phase Left (0 to TAU), Phase Right (offset by PI)
 		var phase_left = fmod(bob_timer * 0.5, TAU)
 		var phase_right = fmod(bob_timer * 0.5 + PI, TAU)
 
-		# Left Leg Calculations
+		# Dynamic Sprinting Stride for Left Leg
 		var thigh_l = 0.0
 		var shin_l = 0.0
 		if phase_left < PI:
-			var step_p = phase_left / PI # Step forward phase (0 to 1)
-			thigh_l = -deg_to_rad(50.0) * sin(step_p * PI) # High thigh lift forward
-			shin_l = deg_to_rad(45.0) * sin(step_p * PI)   # Knee points sharp forward, foot clears ground!
+			var step_p = phase_left / PI
+			thigh_l = -deg_to_rad(52.0) * sin(step_p * PI) # Drive thigh forward (-Z)
+			shin_l = deg_to_rad(45.0) * sin(step_p * PI)   # Knee flexes forward, foot plants
 		else:
-			var push_p = (phase_left - PI) / PI # Push backward drive phase
-			thigh_l = deg_to_rad(35.0) * sin(push_p * PI)
-			shin_l = deg_to_rad(20.0) * sin(push_p * PI)
+			var push_p = (phase_left - PI) / PI
+			thigh_l = deg_to_rad(38.0) * sin(push_p * PI) # Drive thigh backward (+Z)
+			shin_l = deg_to_rad(25.0) * sin(push_p * PI)
 
-		# Right Leg Calculations
+		# Dynamic Sprinting Stride for Right Leg
 		var thigh_r = 0.0
 		var shin_r = 0.0
 		if phase_right < PI:
 			var step_p = phase_right / PI
-			thigh_r = -deg_to_rad(50.0) * sin(step_p * PI)
+			thigh_r = -deg_to_rad(52.0) * sin(step_p * PI)
 			shin_r = deg_to_rad(45.0) * sin(step_p * PI)
 		else:
 			var push_p = (phase_right - PI) / PI
-			thigh_r = deg_to_rad(35.0) * sin(push_p * PI)
-			shin_r = deg_to_rad(20.0) * sin(push_p * PI)
+			thigh_r = deg_to_rad(38.0) * sin(push_p * PI)
+			shin_r = deg_to_rad(25.0) * sin(push_p * PI)
 
 		leg_left.rotation.x = thigh_l * dir_sign
 		leg_right.rotation.x = thigh_r * dir_sign

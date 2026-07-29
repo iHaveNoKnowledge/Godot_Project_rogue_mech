@@ -124,6 +124,13 @@ func _apply_movement(delta: float) -> void:
 				if has_node("/root/AudioManager"):
 					AudioManager.play_footstep(global_position)
 
+	if not is_on_floor():
+		was_in_air = true
+	elif was_in_air and is_on_floor():
+		was_in_air = false
+		if has_node("/root/AudioManager"):
+			AudioManager.play_land(global_position)
+
 	if is_on_floor() and Input.is_action_just_pressed("jump"):
 		velocity.y = 15.0
 		if has_node("/root/AudioManager"):

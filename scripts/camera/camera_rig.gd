@@ -19,8 +19,14 @@ var target: Node3D = null
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	EventBus.camera_mode_changed.connect(_on_camera_mode_changed)
+	EventBus.combat_ended.connect(_on_combat_ended)
 	await get_tree().process_frame
 	target = get_tree().current_scene.get_node_or_null("Mecha")
+
+
+func _on_combat_ended(_victory: bool) -> void:
+	is_mouse_captured = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
 func _physics_process(delta: float) -> void:

@@ -18,11 +18,13 @@ func _ready() -> void:
 
 func _create_ui() -> void:
 	root_control = Control.new()
+	root_control.process_mode = Node.PROCESS_MODE_ALWAYS
 	root_control.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(root_control)
 
 	# Center panel
 	panel = PanelContainer.new()
+	panel.process_mode = Node.PROCESS_MODE_ALWAYS
 	panel.set_anchors_preset(Control.PRESET_CENTER)
 	panel.offset_left = -250
 	panel.offset_right = 250

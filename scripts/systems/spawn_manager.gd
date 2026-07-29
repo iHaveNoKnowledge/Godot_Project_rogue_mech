@@ -40,40 +40,40 @@ var enemies_alive: int = 0
 var spawn_points: Array = []
 var is_active: bool = false
 
-# Standard wave definitions
-var wave_defs = [
-	# Wave 1: Tutorial - 3 rushers
+# Node-Specific Wave Definitions
+var grunt_wave_defs = [
 	[{"type": "rusher_simple", "archetype": 0, "count": 3}],
-	# Wave 2: Introduce ranged
 	[{"type": "rusher_simple", "archetype": 0, "count": 2},
-	 {"type": "ranged_simple", "archetype": 1, "count": 1}],
-	# Wave 3: Full rusher + support
-	[{"type": "rusher_full", "archetype": 0, "count": 1},
-	 {"type": "ranged_simple", "archetype": 1, "count": 2},
-	 {"type": "support_simple", "archetype": 3, "count": 1}],
-	# Wave 4: Heavy + Tank appears
-	[{"type": "rusher_full", "archetype": 0, "count": 1},
-	 {"type": "tank_full", "archetype": 1, "count": 1},
-	 {"type": "heavy_full", "archetype": 2, "count": 1}],
-	# Wave 5: Heavy wave + Tank support
-	[{"type": "heavy_full", "archetype": 2, "count": 1},
-	 {"type": "tank_full", "archetype": 1, "count": 1},
-	 {"type": "support_full", "archetype": 3, "count": 1},
-	 {"type": "ranged_full", "archetype": 1, "count": 1}],
+	 {"type": "ranged_simple", "archetype": 1, "count": 2}],
 ]
 
-# Dedicated Boss Encounter wave definitions
+var ace_wave_defs = [
+	[{"type": "rusher_simple", "archetype": 0, "count": 3},
+	 {"type": "ranged_simple", "archetype": 1, "count": 1}],
+	[{"type": "rusher_full", "archetype": 0, "count": 2},
+	 {"type": "support_simple", "archetype": 3, "count": 1}],
+	[{"type": "heavy_full", "archetype": 2, "count": 1},
+	 {"type": "ranged_full", "archetype": 1, "count": 2}],
+]
+
 var boss_wave_defs = [
-	# Wave 1: Boss Escort Guards
 	[{"type": "tank_full", "archetype": 1, "count": 2},
 	 {"type": "support_full", "archetype": 3, "count": 1}],
-	# Wave 2: Heavy Armored Vanguard
 	[{"type": "heavy_full", "archetype": 2, "count": 2},
 	 {"type": "ranged_full", "archetype": 1, "count": 2}],
-	# Wave 3: OVERLORD TITAN BOSS ENCOUNTER
 	[{"type": "boss_overlord", "archetype": 2, "count": 1},
 	 {"type": "support_full", "archetype": 3, "count": 2}],
 ]
+
+
+func _get_active_defs() -> Array:
+	match GameManager.combat_node_type:
+		"boss":
+			return boss_wave_defs
+		"ace":
+			return ace_wave_defs
+		_:
+			return grunt_wave_defs
 
 
 func _ready() -> void:
@@ -86,7 +86,7 @@ func _generate_spawn_points() -> void:
 	var half = 110.0  # Inside 240m walls
 	for i in range(12):
 		var angle = (i / 12.0) * TAU
-		var pos = Vector3(cos(angle) * half, 1.0, sin(angle) * half)
+		var pos = Vector3(cos(angle) * half, 0.05, sin(angle) * half)
 		var marker = Marker3D.new()
 		marker.position = pos
 		add_child(marker)
@@ -100,7 +100,7 @@ func start_waves() -> void:
 
 
 func _spawn_next_wave() -> void:
-	var active_defs = boss_wave_defs if GameManager.is_boss_combat else wave_defs
+	var active_defs = _get_active_defs()
 	if current_wave >= active_defs.size():
 		is_active = false
 		_check_combat_ended()
@@ -110,7 +110,7 @@ func _spawn_next_wave() -> void:
 	current_wave += 1
 
 	if current_wave == active_defs.size():
-		AudioManager.play_combat_music("boss")
+		AudioManager.play_combat_music(GameManager.combat_node_type)
 
 	var wanted = GlobalData.wanted_level
 	var hp_scale = 1.0 + min(wanted, 5) * 0.15
@@ -129,7 +129,7 @@ func _spawn_next_wave() -> void:
 
 func notify_enemy_killed() -> void:
 	await get_tree().create_timer(0.4).timeout
-	var active_defs = boss_wave_defs if GameManager.is_boss_combat else wave_defs
+	var active_defs = _get_active_defs()
 	if _get_alive_count() == 0:
 		if current_wave < active_defs.size():
 			_spawn_next_wave()
@@ -203,4 +203,4 @@ func get_current_wave() -> int:
 
 
 func get_total_waves() -> int:
-	return boss_wave_defs.size() if GameManager.is_boss_combat else wave_defs.size()
+	return _get_active_defs().size()

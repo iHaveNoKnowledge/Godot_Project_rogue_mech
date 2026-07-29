@@ -21,7 +21,11 @@ func enter_board() -> void:
 	transition_to(State.BOARD)
 
 
+var combat_node_type: String = "grunt"
+
+
 func enter_combat(combat_type: String = "grunt") -> void:
+	combat_node_type = combat_type
 	is_boss_combat = (combat_type == "boss")
 	get_tree().change_scene_to_file("res://scenes/game_world.tscn")
 	transition_to(State.COMBAT)

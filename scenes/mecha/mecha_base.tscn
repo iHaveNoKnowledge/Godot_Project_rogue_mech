@@ -1,4 +1,4 @@
-[gd_scene load_steps=21 format=3 uid="uid://c68hdpgorbxsh"]
+[gd_scene load_steps=22 format=3 uid="uid://c68hdpgorbxsh"]
 
 [ext_resource type="Script" path="res://scripts/mecha/mecha_controller.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/mecha/mecha_combat.gd" id="2"]
@@ -60,13 +60,21 @@ height = 0.35
 [sub_resource type="BoxMesh" id="ShoulderPlate"]
 size = Vector3(0.65, 0.45, 0.65)
 
-[sub_resource type="BoxMesh" id="ForearmMesh"]
-size = Vector3(0.38, 0.6, 0.38)
+[sub_resource type="BoxMesh" id="UpperArmMeshShape"]
+size = Vector3(0.28, 0.45, 0.28)
 
-[sub_resource type="CylinderMesh" id="LegMesh"]
+[sub_resource type="BoxMesh" id="ForearmMesh"]
+size = Vector3(0.38, 0.55, 0.38)
+
+[sub_resource type="CylinderMesh" id="ThighMeshShape"]
+top_radius = 0.22
+bottom_radius = 0.24
+height = 0.55
+
+[sub_resource type="CylinderMesh" id="ShinMeshShape"]
 top_radius = 0.24
 bottom_radius = 0.28
-height = 1.2
+height = 0.65
 
 [sub_resource type="BoxMesh" id="KneeCapMesh"]
 size = Vector3(0.32, 0.25, 0.25)
@@ -125,62 +133,94 @@ material_override = SubResource("FlameMat")
 mesh = SubResource("ThrusterNozzle")
 
 [node name="ArmLeft" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.75, 1.9, 0)
-
-[node name="ArmLeftMesh" type="MeshInstance3D" parent="ArmLeft"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
-material_override = SubResource("MechaMatDark")
-mesh = SubResource("ForearmMesh")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.75, 2.2, 0)
 
 [node name="ShoulderLeft" type="MeshInstance3D" parent="ArmLeft"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)
 material_override = SubResource("MechaMat")
 mesh = SubResource("ShoulderPlate")
 
-[node name="ArmRight" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.75, 1.9, 0)
+[node name="UpperArmLeft" type="MeshInstance3D" parent="ArmLeft"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.22, 0)
+material_override = SubResource("MechaMatDark")
+mesh = SubResource("UpperArmMeshShape")
 
-[node name="ArmRightMesh" type="MeshInstance3D" parent="ArmRight"]
+[node name="ForearmLeft" type="Node3D" parent="ArmLeft"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.42, 0)
+
+[node name="ArmLeftMesh" type="MeshInstance3D" parent="ArmLeft/ForearmLeft"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
 material_override = SubResource("MechaMatDark")
 mesh = SubResource("ForearmMesh")
 
+[node name="ArmRight" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.75, 2.2, 0)
+
 [node name="ShoulderRight" type="MeshInstance3D" parent="ArmRight"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)
 material_override = SubResource("MechaMat")
 mesh = SubResource("ShoulderPlate")
 
-[node name="LegLeft" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.38, 0.7, 0)
-
-[node name="LegLeftMesh" type="MeshInstance3D" parent="LegLeft"]
+[node name="UpperArmRight" type="MeshInstance3D" parent="ArmRight"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.22, 0)
 material_override = SubResource("MechaMatDark")
-mesh = SubResource("LegMesh")
+mesh = SubResource("UpperArmMeshShape")
 
-[node name="KneeLeft" type="MeshInstance3D" parent="LegLeft"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, -0.2)
+[node name="ForearmRight" type="Node3D" parent="ArmRight"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.42, 0)
+
+[node name="ArmRightMesh" type="MeshInstance3D" parent="ArmRight/ForearmRight"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
+material_override = SubResource("MechaMatDark")
+mesh = SubResource("ForearmMesh")
+
+[node name="LegLeft" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.38, 1.3, 0)
+
+[node name="ThighLeft" type="MeshInstance3D" parent="LegLeft"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
+material_override = SubResource("MechaMatDark")
+mesh = SubResource("ThighMeshShape")
+
+[node name="ShinLeft" type="Node3D" parent="LegLeft"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.55, 0)
+
+[node name="LegLeftMesh" type="MeshInstance3D" parent="LegLeft/ShinLeft"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.3, 0)
+material_override = SubResource("MechaMatDark")
+mesh = SubResource("ShinMeshShape")
+
+[node name="KneeLeft" type="MeshInstance3D" parent="LegLeft/ShinLeft"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.05, -0.2)
 material_override = SubResource("MechaMat")
 mesh = SubResource("KneeCapMesh")
 
-[node name="FootLeft" type="MeshInstance3D" parent="LegLeft"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.55, -0.15)
+[node name="FootLeft" type="MeshInstance3D" parent="LegLeft/ShinLeft"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.65, -0.15)
 material_override = SubResource("MechaMat")
 mesh = SubResource("FootMesh")
 
 [node name="LegRight" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.38, 0.7, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.38, 1.3, 0)
 
-[node name="LegRightMesh" type="MeshInstance3D" parent="LegRight"]
+[node name="ThighRight" type="MeshInstance3D" parent="LegRight"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
 material_override = SubResource("MechaMatDark")
-mesh = SubResource("LegMesh")
+mesh = SubResource("ThighMeshShape")
 
-[node name="KneeRight" type="MeshInstance3D" parent="LegRight"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, -0.2)
+[node name="ShinRight" type="Node3D" parent="LegRight"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.55, 0)
+
+[node name="LegRightMesh" type="MeshInstance3D" parent="LegRight/ShinRight"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.3, 0)
+material_override = SubResource("MechaMatDark")
+mesh = SubResource("ShinMeshShape")
+
+[node name="KneeRight" type="MeshInstance3D" parent="LegRight/ShinRight"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.05, -0.2)
 material_override = SubResource("MechaMat")
 mesh = SubResource("KneeCapMesh")
 
-[node name="FootRight" type="MeshInstance3D" parent="LegRight"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.55, -0.15)
+[node name="FootRight" type="MeshInstance3D" parent="LegRight/ShinRight"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.65, -0.15)
 material_override = SubResource("MechaMat")
 mesh = SubResource("FootMesh")
 

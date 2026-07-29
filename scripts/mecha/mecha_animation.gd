@@ -10,6 +10,12 @@ var head_mesh: Node3D = null
 var body_mesh: Node3D = null
 var arm_left: Node3D = null
 var arm_right: Node3D = null
+var forearm_left: Node3D = null
+var forearm_right: Node3D = null
+var leg_left: Node3D = null
+var leg_right: Node3D = null
+var shin_left: Node3D = null
+var shin_right: Node3D = null
 
 var bob_timer: float = 0.0
 var is_moving: bool = false
@@ -27,6 +33,12 @@ func _ready() -> void:
 	body_mesh = get_node_or_null("../Body")
 	arm_left = get_node_or_null("../ArmLeft")
 	arm_right = get_node_or_null("../ArmRight")
+	forearm_left = get_node_or_null("../ArmLeft/ForearmLeft")
+	forearm_right = get_node_or_null("../ArmRight/ForearmRight")
+	leg_left = get_node_or_null("../LegLeft")
+	leg_right = get_node_or_null("../LegRight")
+	shin_left = get_node_or_null("../LegLeft/ShinLeft")
+	shin_right = get_node_or_null("../LegRight/ShinRight")
 
 	if head_mesh:
 		_original_head_pos = head_mesh.position
@@ -52,23 +64,53 @@ func _physics_process(delta: float) -> void:
 
 func _update_roller_dash_posture(delta: float) -> void:
 	if mecha and mecha.get("is_roller_dashing") != null:
-		var speed = 6.0 * delta
+		var speed = 8.0 * delta
 		var is_skating = mecha.is_roller_dashing
-		var target_tilt = deg_to_rad(18.0) if is_skating else 0.0
-		var target_drop = -0.35 if is_skating else 0.0
 
-		if body_mesh:
-			body_mesh.rotation.x = lerp_angle(body_mesh.rotation.x, target_tilt, speed)
-			body_mesh.position.y = lerp(body_mesh.position.y, _original_body_pos.y + target_drop, speed)
-		if head_mesh:
-			head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, target_tilt * 0.8, speed)
-		var model = mecha.get_node_or_null("Zenisrev")
-		if model:
-			model.rotation.x = lerp_angle(model.rotation.x, target_tilt, speed)
+		# Target angles for Roller Dash Pose:
+		# Body leans forward down 24 deg
+		var target_body_tilt = deg_to_rad(24.0) if is_skating else 0.0
+		var target_drop = -0.4 if is_skating else 0.0
+
+		# Upper Arm: Pushed backward -45 deg along body tilt (elbow pointing high up/back)
+		var target_upper_arm_rot = -deg_to_rad(45.0) if is_skating else 0.0
+		# Forearm: Bent forward down +75 deg pointing to ground forming a sharp '>' chevron!
+		var target_forearm_rot = deg_to_rad(75.0) if is_skating else 0.0
+
+		# Legs crouch down into racing stance
+		var target_hip_crouch = deg_to_rad(25.0) if is_skating else 0.0
+		var target_knee_crouch = deg_to_rad(45.0) if is_skating else 0.0
+
+		if is_skating:
+			if body_mesh:
+				body_mesh.rotation.x = lerp_angle(body_mesh.rotation.x, target_body_tilt, speed)
+				body_mesh.position.y = lerp(body_mesh.position.y, _original_body_pos.y + target_drop, speed)
+			if head_mesh:
+				head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, target_body_tilt * 0.7, speed)
+
+			if arm_left: arm_left.rotation.x = lerp_angle(arm_left.rotation.x, target_upper_arm_rot, speed)
+			if arm_right: arm_right.rotation.x = lerp_angle(arm_right.rotation.x, target_upper_arm_rot, speed)
+
+			if forearm_left: forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, target_forearm_rot, speed)
+			if forearm_right: forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, target_forearm_rot, speed)
+
+			if leg_left: leg_left.rotation.x = lerp_angle(leg_left.rotation.x, target_hip_crouch, speed)
+			if leg_right: leg_right.rotation.x = lerp_angle(leg_right.rotation.x, target_hip_crouch, speed)
+
+			if shin_left: shin_left.rotation.x = lerp_angle(shin_left.rotation.x, target_knee_crouch, speed)
+			if shin_right: shin_right.rotation.x = lerp_angle(shin_right.rotation.x, target_knee_crouch, speed)
+
+			var model = mecha.get_node_or_null("Zenisrev")
+			if model:
+				model.rotation.x = lerp_angle(model.rotation.x, target_body_tilt, speed)
+		else:
+			if forearm_left: forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, 0.0, speed)
+			if forearm_right: forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, 0.0, speed)
 
 
 func _update_bob(delta: float) -> void:
-	if is_moving:
+	var is_skating = mecha.get("is_roller_dashing") == true
+	if is_moving and not is_skating:
 		bob_timer += delta * bob_speed
 		var bob = sin(bob_timer) * bob_amount
 
@@ -78,48 +120,54 @@ func _update_bob(delta: float) -> void:
 			head_mesh.position.y = _original_head_pos.y + bob
 		if arm_left:
 			arm_left.position.y = _original_arm_left_pos.y + bob * 0.3
-			arm_left.position.x = _original_arm_left_pos.x + sin(bob_timer * 0.5) * 0.1
+			arm_left.rotation.x = sin(bob_timer * 0.5) * 0.25
 		if arm_right:
 			arm_right.position.y = _original_arm_right_pos.y + bob * 0.3
-			arm_right.position.x = _original_arm_right_pos.x - sin(bob_timer * 0.5) * 0.1
-	else:
+			arm_right.rotation.x = -sin(bob_timer * 0.5) * 0.25
+	elif not is_skating:
 		bob_timer = 0.0
 		_lerp_to_original(delta)
 
 
-func _update_recoil(delta: float) -> void:
-	if current_recoil > 0.0:
-		current_recoil = move_toward(current_recoil, 0.0, recoil_recovery * delta)
-		if head_mesh:
-			head_mesh.rotation.x = -current_recoil * 0.5
-
-
 func _update_legs(delta: float) -> void:
-	var leg_left = get_node_or_null("../LegLeft")
-	var leg_right = get_node_or_null("../LegRight")
+	var is_skating = mecha.get("is_roller_dashing") == true
+	if is_skating:
+		return
 
 	if is_moving and leg_left and leg_right:
-		var leg_swing = sin(bob_timer * 2.0) * 0.3
+		var leg_swing = sin(bob_timer * 2.0) * 0.4
 		leg_left.rotation.x = leg_swing
 		leg_right.rotation.x = -leg_swing
+
+		# Articulated Knee Flexion: Bend knee backward when leg swings back
+		if shin_left:
+			var left_knee_flex = max(0.0, leg_swing * 1.6)
+			shin_left.rotation.x = left_knee_flex
+		if shin_right:
+			var right_knee_flex = max(0.0, -leg_swing * 1.6)
+			shin_right.rotation.x = right_knee_flex
 	else:
-		if leg_left:
-			leg_left.rotation.x = lerp(leg_left.rotation.x, 0.0, 5.0 * delta)
-		if leg_right:
-			leg_right.rotation.x = lerp(leg_right.rotation.x, 0.0, 5.0 * delta)
+		var speed = 6.0 * delta
+		if leg_left: leg_left.rotation.x = lerp_angle(leg_left.rotation.x, 0.0, speed)
+		if leg_right: leg_right.rotation.x = lerp_angle(leg_right.rotation.x, 0.0, speed)
+		if shin_left: shin_left.rotation.x = lerp_angle(shin_left.rotation.x, 0.0, speed)
+		if shin_right: shin_right.rotation.x = lerp_angle(shin_right.rotation.x, 0.0, speed)
 
 
 func _lerp_to_original(delta: float) -> void:
 	var speed = 5.0 * delta
 	if body_mesh:
 		body_mesh.position.y = lerp(body_mesh.position.y, _original_body_pos.y, speed)
+		body_mesh.rotation.x = lerp_angle(body_mesh.rotation.x, 0.0, speed)
 	if head_mesh:
 		head_mesh.position.y = lerp(head_mesh.position.y, _original_head_pos.y, speed)
-		head_mesh.rotation.x = lerp(head_mesh.rotation.x, 0.0, speed)
+		head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, 0.0, speed)
 	if arm_left:
 		arm_left.position = arm_left.position.lerp(_original_arm_left_pos, speed)
+		arm_left.rotation.x = lerp_angle(arm_left.rotation.x, 0.0, speed)
 	if arm_right:
 		arm_right.position = arm_right.position.lerp(_original_arm_right_pos, speed)
+		arm_right.rotation.x = lerp_angle(arm_right.rotation.x, 0.0, speed)
 
 
 func play_recoil() -> void:

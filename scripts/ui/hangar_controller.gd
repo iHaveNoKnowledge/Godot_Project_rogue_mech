@@ -1,4 +1,4 @@
-extends CanvasLayer
+extends Node3D
 
 ## 3D Hangar Garage Controller (Gundam Barbatos / Vidar Style)
 ## - Core Power comes from the Inner Frame (Alaya-Vijnana Skeleton) which can be upgraded with Reactor Levels.
@@ -110,9 +110,11 @@ var armor_catalog: Dictionary = {
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	visible = false
 	_build_3d_garage()
 	_build_ui_layout()
+	show_hangar()
+	if has_node("/root/AudioManager"):
+		AudioManager.play_hangar_music()
 
 
 # --- 3D GARAGE ENVIRONMENT ---

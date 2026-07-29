@@ -74,20 +74,21 @@ func _update_roller_dash_posture(delta: float) -> void:
 		var speed = 10.0 * delta
 		var is_skating = mecha.is_roller_dashing
 
-		# Posture Specs:
-		# 1. Body leans FORWARD down (-28 deg)
+		# Roller Dash Posture Specs:
+		# 1. Torso/Body leans FORWARD down (-28 deg)
 		# 2. Head locked to body rotation (no floating!)
 		# 3. Upper leg (thigh) crouched BACKWARD (+40 deg)
 		# 4. Lower leg (shin) PERPENDICULAR TO GROUND (-40 deg cancels thigh tilt, standing vertical to floor!)
-		# 5. Upper arm thrusts elbows BACKWARD (+55 deg), forearm flexed (+70 deg) driving elbows sharply BACKWARD!
+		# 5. Shoulder joint twisted BACKWARD (-60 deg), flexing elbow (-75 deg) so ELBOW TIP POINTS HIGH UPWARDS!
 		var target_body_tilt = -deg_to_rad(28.0) if is_skating else 0.0
 		var target_drop = -0.35 if is_skating else 0.0
 
 		var target_thigh_crouch = deg_to_rad(40.0) if is_skating else 0.0
 		var target_shin_vertical = -deg_to_rad(40.0) if is_skating else 0.0
 
-		var target_upper_arm = deg_to_rad(55.0) if is_skating else 0.0
-		var target_forearm = deg_to_rad(70.0) if is_skating else 0.0
+		# Shoulder Joint twisted BACKWARD & Forearm flexed so ELBOW POINTS HIGH UPWARD!
+		var target_upper_arm = -deg_to_rad(60.0) if is_skating else 0.0
+		var target_forearm = -deg_to_rad(75.0) if is_skating else 0.0
 
 		if is_skating:
 			if body_mesh:

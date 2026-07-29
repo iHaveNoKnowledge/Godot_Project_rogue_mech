@@ -86,9 +86,9 @@ func _update_roller_dash_posture(delta: float) -> void:
 		var target_thigh_crouch = deg_to_rad(40.0) if is_skating else 0.0
 		var target_shin_vertical = -deg_to_rad(40.0) if is_skating else 0.0
 
-		# Shoulder Joint twisted BACKWARD & Forearm flexed so ELBOW POINTS HIGH UPWARD!
-		var target_upper_arm = -deg_to_rad(60.0) if is_skating else 0.0
-		var target_forearm = -deg_to_rad(75.0) if is_skating else 0.0
+		# Shoulder Joint pushed BACKWARD behind torso (+60 deg) & Forearm flexed (+85 deg) so ELBOW TIP POINTS HIGH UPWARDS BEHIND BACK!
+		var target_upper_arm = deg_to_rad(60.0) if is_skating else 0.0
+		var target_forearm = deg_to_rad(85.0) if is_skating else 0.0
 
 		if is_skating:
 			if body_mesh:

@@ -174,28 +174,25 @@ func _update_roller_dash_posture(delta: float) -> void:
 		var is_skating = mecha.is_roller_dashing
 
 		if is_skating:
-			# Gundam Catapult Launch Dash Pose (Asymmetric Catapult Sprint Silhouette):
-			# 1. Torso pitched forward aggressively (-38 deg) & Center of Gravity dropped low (-0.45)
-			# 2. Head tilted UP counter to chest tilt (-15 deg net) looking straight ahead at target
-			# 3. Front Lead Leg (Left): Thigh flexed HIGH FORWARD (+55 deg), Knee bent DEEPLY (-85 deg) near chest
-			# 4. Rear Trail Leg (Right): Thigh extended far BACKWARDS (-52 deg), Knee extended straight (-18 deg)
-			# 5. Right Arm (Rifle): Positioned forward ready to fire (+15 deg upper arm, +75 deg forearm)
-			# 6. Left Arm (Shield): Pulled tight to torso (-25 deg upper arm, +85 deg forearm)
-			var target_body_tilt = -deg_to_rad(38.0)
-			var target_head_tilt = -deg_to_rad(15.0)
-			var target_drop = -0.45
+			# Gundam AGE Symmetrical Roller Skating Dash Stance:
+			# 1. Both legs completely equal & parallel on the ground/catapult track
+			# 2. Both upper thighs crouched backward (+38 deg)
+			# 3. Both lower shins perpendicular to floor (-38 deg cancels thigh tilt)
+			# 4. Torso pitched forward down (-28 deg) & Center of gravity dropped (-0.35)
+			# 5. Head locked looking straight ahead (-10 deg net)
+			# 6. Arms holding weapon and shield in balanced combat posture
+			var target_body_tilt = -deg_to_rad(28.0)
+			var target_head_tilt = -deg_to_rad(10.0)
+			var target_drop = -0.35
 
-			var target_thigh_left = deg_to_rad(55.0)
-			var target_shin_left = -deg_to_rad(85.0)
-
-			var target_thigh_right = -deg_to_rad(52.0)
-			var target_shin_right = -deg_to_rad(18.0)
+			var target_thigh_crouch = deg_to_rad(38.0)
+			var target_shin_vertical = -deg_to_rad(38.0)
 
 			var target_arm_right = deg_to_rad(15.0)
-			var target_forearm_right = deg_to_rad(75.0)
+			var target_forearm_right = deg_to_rad(70.0)
 
-			var target_arm_left = -deg_to_rad(25.0)
-			var target_forearm_left = deg_to_rad(85.0)
+			var target_arm_left = -deg_to_rad(15.0)
+			var target_forearm_left = deg_to_rad(75.0)
 
 			if body_mesh:
 				body_mesh.rotation.x = lerp_angle(body_mesh.rotation.x, target_body_tilt, speed)
@@ -210,11 +207,11 @@ func _update_roller_dash_posture(delta: float) -> void:
 			if forearm_left: forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, target_forearm_left, speed)
 			if forearm_right: forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, target_forearm_right, speed)
 
-			if leg_left: leg_left.rotation.x = lerp_angle(leg_left.rotation.x, target_thigh_left, speed)
-			if leg_right: leg_right.rotation.x = lerp_angle(leg_right.rotation.x, target_thigh_right, speed)
+			if leg_left: leg_left.rotation.x = lerp_angle(leg_left.rotation.x, target_thigh_crouch, speed)
+			if leg_right: leg_right.rotation.x = lerp_angle(leg_right.rotation.x, target_thigh_crouch, speed)
 
-			if shin_left: shin_left.rotation.x = lerp_angle(shin_left.rotation.x, target_shin_left, speed)
-			if shin_right: shin_right.rotation.x = lerp_angle(shin_right.rotation.x, target_shin_right, speed)
+			if shin_left: shin_left.rotation.x = lerp_angle(shin_left.rotation.x, target_shin_vertical, speed)
+			if shin_right: shin_right.rotation.x = lerp_angle(shin_right.rotation.x, target_shin_vertical, speed)
 
 			var model = mecha.get_node_or_null("Zenisrev")
 			if model:

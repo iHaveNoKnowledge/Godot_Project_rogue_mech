@@ -191,46 +191,46 @@ func _calc_mecha_sprint_leg(phase: float) -> Dictionary:
 		norm_phase += TAU
 
 	if norm_phase < PI:
-		# Swing Phase (Leg airborne, moving from back to front)
+		# Swing Phase (Leg airborne, swinging from BACK to FRONT)
 		var t = norm_phase / PI
 
 		# 1. Thigh Motion:
-		# - t in [0.0, 0.8]: Swings forward rapidly from max back extension (+48°) to peak forward swing (-54°)
-		# - t in [0.8, 1.0]: Pulls back slightly (-54° to -38°) to match ground velocity at contact
+		# - t in [0.0, 0.8]: Swings forward rapidly from back extension (-48°) to peak forward swing (+54°)
+		# - t in [0.8, 1.0]: Pulls back slightly (+54° to +38°) to match ground speed at contact
 		if t <= 0.8:
 			var s = 0.5 - 0.5 * cos((t / 0.8) * PI)
-			thigh = lerp(deg_to_rad(48.0), -deg_to_rad(54.0), s)
+			thigh = lerp(-deg_to_rad(48.0), deg_to_rad(54.0), s)
 		else:
 			var s = 0.5 - 0.5 * cos(((t - 0.8) / 0.2) * PI)
-			thigh = lerp(-deg_to_rad(54.0), -deg_to_rad(38.0), s)
+			thigh = lerp(deg_to_rad(54.0), deg_to_rad(38.0), s)
 
-		# 2. Shin/Knee Motion:
-		# - t in [0.0, 0.4]: Recovery fold! Knee flexes sharply (+10° to +78°) to lift foot high & clear ground
-		# - t in [0.4, 1.0]: Knee unfolds (+78° down to +22°) extending forward to prepare for ground contact
+		# 2. Shin/Knee Motion (Negative rotation bends knee backward):
+		# - t in [0.0, 0.4]: Recovery fold! Knee flexes sharply (-10° to -78°) to lift heel high & clear ground
+		# - t in [0.4, 1.0]: Knee unfolds (-78° to -22°) extending forward to prepare for ground contact
 		if t <= 0.4:
 			var s = 0.5 - 0.5 * cos((t / 0.4) * PI)
-			shin = lerp(deg_to_rad(10.0), deg_to_rad(78.0), s)
+			shin = lerp(-deg_to_rad(10.0), -deg_to_rad(78.0), s)
 		else:
 			var s = 0.5 - 0.5 * cos(((t - 0.4) / 0.6) * PI)
-			shin = lerp(deg_to_rad(78.0), deg_to_rad(22.0), s)
+			shin = lerp(-deg_to_rad(78.0), -deg_to_rad(22.0), s)
 
 	else:
-		# Stance / Power Push-Off Phase (Foot on ground, propelling body forward)
+		# Stance / Power Push-Off Phase (Foot on ground, driving body forward by moving leg FRONT to BACK)
 		var t = (norm_phase - PI) / PI
 
-		# 1. Thigh Motion: Drives smoothly backward from contact (-38°) to push-off (+48°)
+		# 1. Thigh Motion: Drives smoothly backward from contact (+38°) to push-off (-48°)
 		var s_thigh = 0.5 - 0.5 * cos(t * PI)
-		thigh = lerp(-deg_to_rad(38.0), deg_to_rad(48.0), s_thigh)
+		thigh = lerp(deg_to_rad(38.0), -deg_to_rad(48.0), s_thigh)
 
 		# 2. Shin/Knee Motion:
-		# - t in [0.0, 0.4]: Load absorption. Knee flexes slightly under body weight (+22° to +32° at mid-stance)
-		# - t in [0.4, 1.0]: Propulsive extension. Knee straightens out (+32° down to +8°) to push off into flight
+		# - t in [0.0, 0.4]: Load absorption. Knee flexes slightly under body weight (-22° to -32° at mid-stance)
+		# - t in [0.4, 1.0]: Propulsive extension. Knee straightens out (-32° to -8°) to push off into flight
 		if t <= 0.4:
 			var s = 0.5 - 0.5 * cos((t / 0.4) * PI)
-			shin = lerp(deg_to_rad(22.0), deg_to_rad(32.0), s)
+			shin = lerp(-deg_to_rad(22.0), -deg_to_rad(32.0), s)
 		else:
 			var s = 0.5 - 0.5 * cos(((t - 0.4) / 0.6) * PI)
-			shin = lerp(deg_to_rad(32.0), deg_to_rad(8.0), s)
+			shin = lerp(-deg_to_rad(32.0), -deg_to_rad(8.0), s)
 
 	return {"thigh": thigh, "shin": shin}
 

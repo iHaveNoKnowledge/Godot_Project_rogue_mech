@@ -71,43 +71,51 @@ func _update_recoil(delta: float) -> void:
 
 func _update_roller_dash_posture(delta: float) -> void:
 	if mecha and mecha.get("is_roller_dashing") != null:
-		var speed = 10.0 * delta
+		var speed = 12.0 * delta
 		var is_skating = mecha.is_roller_dashing
 
-		# Roller Dash Posture Specs:
-		# 1. Torso/Body leans FORWARD down (-28 deg)
-		# 2. Head locked to body rotation (no floating!)
-		# 3. Upper leg (thigh) crouched BACKWARD (+40 deg)
-		# 4. Lower leg (shin) PERPENDICULAR TO GROUND (-40 deg cancels thigh tilt, standing vertical to floor!)
-		# 5. Shoulder joint pushed BACKWARD (+60 deg) & Forearm flexed (+85 deg) so ELBOW TIP POINTS HIGH UPWARDS BEHIND BACK!
-		var target_body_tilt = -deg_to_rad(28.0) if is_skating else 0.0
-		var target_drop = -0.35 if is_skating else 0.0
-
-		var target_thigh_crouch = deg_to_rad(40.0) if is_skating else 0.0
-		var target_shin_vertical = -deg_to_rad(40.0) if is_skating else 0.0
-
-		var target_upper_arm = deg_to_rad(60.0) if is_skating else 0.0
-		var target_forearm = deg_to_rad(85.0) if is_skating else 0.0
-
 		if is_skating:
+			# Gundam Catapult Launch Dash Pose (Asymmetric Catapult Sprint Silhouette):
+			# 1. Torso pitched forward aggressively (-38 deg) & Center of Gravity dropped low (-0.45)
+			# 2. Head tilted UP counter to chest tilt (-15 deg net) looking straight ahead at target
+			# 3. Front Lead Leg (Left): Thigh flexed HIGH FORWARD (+55 deg), Knee bent DEEPLY (-85 deg) near chest
+			# 4. Rear Trail Leg (Right): Thigh extended far BACKWARDS (-52 deg), Knee extended straight (-18 deg)
+			# 5. Right Arm (Rifle): Positioned forward ready to fire (+15 deg upper arm, +75 deg forearm)
+			# 6. Left Arm (Shield): Pulled tight to torso (-25 deg upper arm, +85 deg forearm)
+			var target_body_tilt = -deg_to_rad(38.0)
+			var target_head_tilt = -deg_to_rad(15.0)
+			var target_drop = -0.45
+
+			var target_thigh_left = deg_to_rad(55.0)
+			var target_shin_left = -deg_to_rad(85.0)
+
+			var target_thigh_right = -deg_to_rad(52.0)
+			var target_shin_right = -deg_to_rad(18.0)
+
+			var target_arm_right = deg_to_rad(15.0)
+			var target_forearm_right = deg_to_rad(75.0)
+
+			var target_arm_left = -deg_to_rad(25.0)
+			var target_forearm_left = deg_to_rad(85.0)
+
 			if body_mesh:
 				body_mesh.rotation.x = lerp_angle(body_mesh.rotation.x, target_body_tilt, speed)
 				body_mesh.position.y = lerp(body_mesh.position.y, _original_body_pos.y + target_drop, speed)
 			if head_mesh:
 				head_mesh.position = _original_head_pos + Vector3(0, target_drop, 0)
-				head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, target_body_tilt, speed)
+				head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, target_head_tilt, speed)
 
-			if arm_left: arm_left.rotation.x = lerp_angle(arm_left.rotation.x, target_upper_arm, speed)
-			if arm_right: arm_right.rotation.x = lerp_angle(arm_right.rotation.x, target_upper_arm, speed)
+			if arm_left: arm_left.rotation.x = lerp_angle(arm_left.rotation.x, target_arm_left, speed)
+			if arm_right: arm_right.rotation.x = lerp_angle(arm_right.rotation.x, target_arm_right, speed)
 
-			if forearm_left: forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, target_forearm, speed)
-			if forearm_right: forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, target_forearm, speed)
+			if forearm_left: forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, target_forearm_left, speed)
+			if forearm_right: forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, target_forearm_right, speed)
 
-			if leg_left: leg_left.rotation.x = lerp_angle(leg_left.rotation.x, target_thigh_crouch, speed)
-			if leg_right: leg_right.rotation.x = lerp_angle(leg_right.rotation.x, target_thigh_crouch, speed)
+			if leg_left: leg_left.rotation.x = lerp_angle(leg_left.rotation.x, target_thigh_left, speed)
+			if leg_right: leg_right.rotation.x = lerp_angle(leg_right.rotation.x, target_thigh_right, speed)
 
-			if shin_left: shin_left.rotation.x = lerp_angle(shin_left.rotation.x, target_shin_vertical, speed)
-			if shin_right: shin_right.rotation.x = lerp_angle(shin_right.rotation.x, target_shin_vertical, speed)
+			if shin_left: shin_left.rotation.x = lerp_angle(shin_left.rotation.x, target_shin_left, speed)
+			if shin_right: shin_right.rotation.x = lerp_angle(shin_right.rotation.x, target_shin_right, speed)
 
 			var model = mecha.get_node_or_null("Zenisrev")
 			if model:

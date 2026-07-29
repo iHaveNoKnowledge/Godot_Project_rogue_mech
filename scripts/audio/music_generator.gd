@@ -17,6 +17,11 @@ var bar_count: int = 0
 
 
 func _ready() -> void:
+	# Defer combat music management to AudioManager if present
+	if AudioManager and AudioManager.has_method("play_combat_music"):
+		is_playing = false
+		return
+
 	audio_stream = AudioStreamGenerator.new()
 	audio_stream.mix_rate = SAMPLE_RATE
 	audio_stream.buffer_length = 0.5

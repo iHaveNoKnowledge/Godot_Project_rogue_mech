@@ -17,15 +17,17 @@ func enter_board() -> void:
 	transition_to(State.BOARD)
 
 
-func enter_combat() -> void:
+func enter_combat(combat_type: String = "grunt") -> void:
 	get_tree().change_scene_to_file("res://scenes/game_world.tscn")
 	transition_to(State.COMBAT)
 	EventBus.combat_intensity_changed.emit(1.0)
+	AudioManager.play_combat_music(combat_type)
 
 
 func return_to_board() -> void:
 	GlobalData.save_run()
 	EventBus.combat_intensity_changed.emit(0.0)
+	AudioManager.stop_music()
 	get_tree().change_scene_to_file("res://scenes/board/game_board.tscn")
 	transition_to(State.BOARD)
 

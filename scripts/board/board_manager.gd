@@ -121,7 +121,7 @@ func _process_tile_effect(tile_type: String) -> void:
 			if not GlobalData.stalking_aces.is_empty() and randf() < GlobalData.stalking_chance:
 				_trigger_stalker_surprise_ambush()
 			else:
-				GameManager.enter_combat()
+				GameManager.enter_combat("grunt")
 		"event":
 			_trigger_random_event()
 		"safehouse":
@@ -165,7 +165,7 @@ func _trigger_dead_end_event() -> void:
 
 func _trigger_exit_event() -> void:
 	print("Entering Extraction Zone / Final Boss Battle!")
-	GameManager.enter_combat()
+	GameManager.enter_combat("boss")
 
 
 func _trigger_stalker_surprise_ambush() -> void:
@@ -176,7 +176,7 @@ func _trigger_stalker_surprise_ambush() -> void:
 	if safehouse_ui:
 		safehouse_ui.status_label.text = "SIREN WARNING! Stalking Ace: " + active_stalker + " Ambushed!"
 
-	GameManager.enter_combat()
+	GameManager.enter_combat("ace")
 
 
 func _trigger_random_event() -> void:

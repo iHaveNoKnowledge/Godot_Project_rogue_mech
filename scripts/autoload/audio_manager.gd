@@ -13,10 +13,19 @@ const SFX_POOL_SIZE = 16
 var sfx_pool: Array[AudioStreamPlayer3D] = []
 var sfx_2d_pool: Array[AudioStreamPlayer] = []
 
-# Music crossfade
+# Music crossfade & playlists
+@export var grunt_tracks: Array[AudioStream] = []
+@export var ace_tracks: Array[AudioStream] = []
+@export var boss_tracks: Array[AudioStream] = []
+
 var music_player_a: AudioStreamPlayer
 var music_player_b: AudioStreamPlayer
 var current_music: AudioStreamPlayer
+var current_music_category: String = ""
+var current_track: AudioStream = null
+
+var _music_tween: Tween = null
+var _procedural_music_cache: Dictionary = {}
 
 # Procedural sound buffers
 var _sound_cache: Dictionary = {}
@@ -26,6 +35,7 @@ func _ready() -> void:
 	_setup_pools()
 	_setup_music_players()
 	_generate_sounds()
+	_auto_scan_music_folders()
 	process_mode = Node.PROCESS_MODE_ALWAYS
 
 
@@ -49,11 +59,13 @@ func _setup_music_players() -> void:
 	music_player_a = AudioStreamPlayer.new()
 	music_player_a.name = "MusicA"
 	music_player_a.bus = "Music"
+	music_player_a.volume_db = linear_to_db(music_volume)
 	add_child(music_player_a)
 
 	music_player_b = AudioStreamPlayer.new()
 	music_player_b.name = "MusicB"
 	music_player_b.bus = "Music"
+	music_player_b.volume_db = -80.0
 	add_child(music_player_b)
 
 	current_music = music_player_a
@@ -299,11 +311,179 @@ func set_bus_volume(bus_name: String, linear: float) -> void:
 		AudioServer.set_bus_volume_db(idx, linear_to_db(clamp(linear, 0.001, 1.0)))
 
 
+# --- Combat Music & Playlists ---
+
+func _auto_scan_music_folders() -> void:
+	if grunt_tracks.is_empty():
+		grunt_tracks = _scan_music_directory("res://resources/audio/music/grunt")
+	if ace_tracks.is_empty():
+		ace_tracks = _scan_music_directory("res://resources/audio/music/ace")
+	if boss_tracks.is_empty():
+		boss_tracks = _scan_music_directory("res://resources/audio/music/boss")
+
+
+func _scan_music_directory(dir_path: String) -> Array[AudioStream]:
+	var streams: Array[AudioStream] = []
+	if not DirAccess.dir_exists_absolute(dir_path):
+		return streams
+	var dir = DirAccess.open(dir_path)
+	if dir:
+		dir.list_dir_begin()
+		var file_name = dir.get_next()
+		while file_name != "":
+			if not dir.current_is_dir() and not file_name.ends_with(".import"):
+				var ext = file_name.get_extension().to_lower()
+				if ext in ["ogg", "mp3", "wav"]:
+					var full_path = dir_path.path_join(file_name)
+					var stream = load(full_path) as AudioStream
+					if stream:
+						streams.append(stream)
+			file_name = dir.get_next()
+	return streams
+
+
+func play_combat_music(category: String, fade_time: float = 1.5, force_restart: bool = false) -> void:
+	category = category.to_lower()
+	if not force_restart and current_music_category == category and current_music.playing:
+		return
+
+	_auto_scan_music_folders()
+
+	var pool: Array[AudioStream] = []
+	match category:
+		"ace":
+			pool = ace_tracks
+		"boss":
+			pool = boss_tracks
+		_:
+			category = "grunt"
+			pool = grunt_tracks
+
+	var stream_to_play: AudioStream = null
+	if not pool.is_empty():
+		var available = pool.duplicate()
+		if available.size() > 1 and current_track != null:
+			available.erase(current_track)
+		available.shuffle()
+		stream_to_play = available[0]
+	else:
+		if not _procedural_music_cache.has(category):
+			_procedural_music_cache[category] = _gen_procedural_combat_track(category)
+		stream_to_play = _procedural_music_cache[category]
+
+	if stream_to_play == null:
+		return
+
+	current_music_category = category
+	current_track = stream_to_play
+	_crossfade_to_stream(stream_to_play, fade_time)
+
+
+func stop_music(fade_time: float = 1.0) -> void:
+	current_music_category = ""
+	current_track = null
+	if _music_tween and _music_tween.is_valid():
+		_music_tween.kill()
+
+	_music_tween = create_tween()
+	_music_tween.tween_property(current_music, "volume_db", -80.0, fade_time)
+	_music_tween.tween_callback(func(): current_music.stop())
+
+
+func _crossfade_to_stream(new_stream: AudioStream, fade_time: float) -> void:
+	var next_player: AudioStreamPlayer = music_player_b if current_music == music_player_a else music_player_a
+	var target_volume_db = linear_to_db(music_volume)
+
+	next_player.stream = new_stream
+	next_player.volume_db = -80.0
+	next_player.play()
+
+	if _music_tween and _music_tween.is_valid():
+		_music_tween.kill()
+
+	_music_tween = create_tween().set_parallel(true)
+	_music_tween.tween_property(current_music, "volume_db", -80.0, fade_time)
+	_music_tween.tween_property(next_player, "volume_db", target_volume_db, fade_time)
+
+	var old_player = current_music
+	current_music = next_player
+
+	var cleanup_tween = create_tween()
+	cleanup_tween.tween_interval(fade_time)
+	cleanup_tween.tween_callback(func(): old_player.stop())
+
+
+func _gen_procedural_combat_track(category: String) -> AudioStreamWAV:
+	var sample_rate = 22050
+	var bpm = 120.0
+	var duration = 4.0
+	if category == "ace":
+		bpm = 150.0
+		duration = 3.2
+	elif category == "boss":
+		bpm = 100.0
+		duration = 4.8
+
+	var num_samples = int(duration * sample_rate)
+	var data = PackedByteArray()
+	data.resize(num_samples * 2)
+
+	var beat_duration = 60.0 / bpm
+
+	for i in range(num_samples):
+		var t = float(i) / sample_rate
+		var beat = fmod(t, beat_duration) / beat_duration
+		var sample = 0.0
+
+		match category:
+			"grunt":
+				if beat < 0.15:
+					sample += sin(TAU * (120.0 - beat * 400.0) * t) * 0.4
+				var bass_freq = 65.0
+				if fmod(t, beat_duration * 2.0) > beat_duration:
+					bass_freq = 82.4
+				sample += sin(TAU * bass_freq * t) * 0.25
+				if fmod(t, beat_duration * 0.5) / (beat_duration * 0.5) < 0.08:
+					sample += (randf() * 2.0 - 1.0) * 0.1
+
+			"ace":
+				var notes = [130.81, 155.56, 196.0, 233.08]
+				var note_idx = int(t / (beat_duration * 0.25)) % notes.size()
+				var sub_beat = fmod(t, beat_duration * 0.25) / (beat_duration * 0.25)
+				if sub_beat < 0.6:
+					sample += sin(TAU * notes[note_idx] * t) * 0.25
+				sample += sin(TAU * 55.0 * t) * 0.3
+				var bar_beat = fmod(t, beat_duration * 4.0) / beat_duration
+				if (bar_beat >= 1.0 and bar_beat < 1.15) or (bar_beat >= 3.0 and bar_beat < 3.15):
+					sample += (randf() * 2.0 - 1.0) * 0.25
+
+			"boss":
+				var boss_freq = 41.2
+				if fmod(t, beat_duration * 4.0) > beat_duration * 2.0:
+					boss_freq = 38.89
+				sample += sin(TAU * boss_freq * t) * 0.45
+				sample += sin(TAU * (boss_freq * 2.0) * t) * 0.2
+				if beat < 0.2:
+					sample += (randf() * 2.0 - 1.0) * exp(-beat * 15.0) * 0.3
+
+		var val = int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+
+	var stream = AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	stream.loop_begin = 0
+	stream.loop_end = num_samples
+	return stream
+
+
 func _get_free_3d_player() -> AudioStreamPlayer3D:
 	for player in sfx_pool:
 		if not player.playing:
 			return player
-	# Steal oldest
 	var oldest = sfx_pool[0]
 	for player in sfx_pool:
 		if player.get_playback_position() > oldest.get_playback_position():

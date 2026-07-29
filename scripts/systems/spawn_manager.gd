@@ -76,6 +76,10 @@ func _spawn_next_wave() -> void:
 	var wave_def = wave_defs[current_wave]
 	current_wave += 1
 
+	# Check if this is the final (boss) wave
+	if current_wave == wave_defs.size():
+		AudioManager.play_combat_music("boss")
+
 	var wanted = GlobalData.wanted_level
 	var hp_scale = 1.0 + min(wanted, 5) * 0.15
 	var extra_count = mini(wanted, 3)
@@ -112,6 +116,7 @@ func _trigger_stalking_ace_ambush() -> void:
 	var ace_data = GlobalData.stalking_aces.pop_front()
 	GlobalData.ambush_probability = 0.0
 	print("SIREN WARNING! STALKING ACE WARPING IN!")
+	AudioManager.play_combat_music("ace")
 	var spawn_pos = _get_spawn_position()
 	_spawn_enemy("heavy_full", 2, spawn_pos, 1.8)
 

@@ -13,7 +13,8 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_create_ui()
 	_show_menu()
-	visible = true
+	# Hide overlay by default on scene ready so 3D map is directly interactive
+	visible = false
 	EventBus.game_state_changed.connect(_on_state_changed)
 
 
@@ -145,11 +146,12 @@ func _get_status_text() -> String:
 	]
 
 
-func _on_state_changed(_old: String, new: String) -> void:
-	if new == "BOARD":
-		visible = true
+func _on_state_changed(old_state: String, new_state: String) -> void:
+	if new_state == "BOARD":
+		if old_state == "COMBAT":
+			visible = false
 		status_label.text = _get_status_text()
-	elif new == "COMBAT":
+	elif new_state == "COMBAT":
 		visible = false
 
 

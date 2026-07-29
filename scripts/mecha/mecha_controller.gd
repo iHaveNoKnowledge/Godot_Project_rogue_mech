@@ -52,9 +52,18 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 
 
+var is_roller_dashing: bool = false
+var roller_spark_timer: float = 0.0
+
+
 func _handle_movement_input() -> void:
 	input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	strafe_mode = Input.is_action_pressed("strafe")
+
+	if Input.is_action_just_pressed("roller_dash"):
+		is_roller_dashing = not is_roller_dashing
+		if has_node("/root/AudioManager"):
+			AudioManager.play_ui_click()
 
 	if Input.is_action_just_pressed("dash") and dash_cooldown_timer <= 0.0:
 		_start_dash()
@@ -73,22 +82,53 @@ func _apply_movement(delta: float) -> void:
 	right.y = 0.0
 	right = right.normalized()
 
+	var move_speed = current_speed
+	if is_roller_dashing:
+		move_speed *= 2.0
+
 	var desired_velocity := Vector3.ZERO
-	if strafe_mode:
-		desired_velocity = (forward * -input_dir.y + right * input_dir.x) * current_speed
-	else:
-		desired_velocity = (forward * -input_dir.y + right * input_dir.x) * current_speed
-		if desired_velocity.length() > 0.1:
-			var target_angle = atan2(desired_velocity.x, desired_velocity.z)
-			rotation.y = lerp_angle(rotation.y, target_angle, turn_rate * delta)
+	desired_velocity = (forward * -input_dir.y + right * input_dir.x) * move_speed
+
+	if not strafe_mode and desired_velocity.length() > 0.1:
+		var target_angle = atan2(desired_velocity.x, desired_velocity.z)
+		var effective_turn = turn_rate * (1.5 if is_roller_dashing else 1.0)
+		rotation.y = lerp_angle(rotation.y, target_angle, effective_turn * delta)
 
 	velocity.x = desired_velocity.x
 	velocity.z = desired_velocity.z
+
+	if is_roller_dashing and desired_velocity.length() > 0.5 and is_on_floor():
+		roller_spark_timer -= delta
+		if roller_spark_timer <= 0.0:
+			roller_spark_timer = 0.08
+			_spawn_roller_spark_effect()
 
 	if is_on_floor() and Input.is_action_just_pressed("jump"):
 		velocity.y = JUMP_FORCE
 
 	velocity.y -= GRAVITY * delta
+
+
+func _spawn_roller_spark_effect() -> void:
+	var spark = MeshInstance3D.new()
+	var box = BoxMesh.new()
+	box.size = Vector3(0.15, 0.05, 0.4)
+	spark.mesh = box
+
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(1.0, 0.7, 0.2, 0.9)
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.8, 0.3)
+	mat.emission_energy_multiplier = 4.0
+	spark.material_override = mat
+
+	get_tree().current_scene.add_child(spark)
+	spark.global_position = global_position + Vector3(randf_range(-0.3, 0.3), 0.1, randf_range(-0.3, 0.3))
+	spark.global_rotation = global_rotation
+
+	var tween = get_tree().create_tween()
+	tween.tween_property(mat, "albedo_color:a", 0.0, 0.15)
+	tween.tween_callback(spark.queue_free)
 
 
 func _start_dash() -> void:

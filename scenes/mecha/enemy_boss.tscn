@@ -1,0 +1,140 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/mecha/enemy_dummy.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/mecha/enemy_health_full.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/ui/enemy_status_billboard.gd" id="3"]
+[ext_resource type="Script" path="res://scripts/mecha/mecha_hitbox.gd" id="4"]
+
+[sub_resource type="SphereShape3D" id="BodyShape"]
+radius = 3.5
+
+[sub_resource type="SphereMesh" id="HeadMesh"]
+radius = 0.8
+height = 1.6
+
+[sub_resource type="BoxMesh" id="BodyMeshShape"]
+size = Vector3(2.8, 3.2, 2.0)
+
+[sub_resource type="BoxMesh" id="ArmMesh"]
+size = Vector3(0.8, 2.2, 0.8)
+
+[sub_resource type="CylinderMesh" id="LegMesh"]
+height = 2.5
+top_radius = 0.6
+bottom_radius = 0.7
+
+[sub_resource type="StandardMaterial3D" id="BossMatMain"]
+albedo_color = Color(0.2, 0.05, 0.25, 1)
+metallic = 0.8
+roughness = 0.3
+emission_enabled = true
+emission = Color(0.6, 0.1, 0.8)
+emission_energy_multiplier = 1.5
+
+[sub_resource type="StandardMaterial3D" id="BossMatAccent"]
+albedo_color = Color(0.85, 0.1, 0.1, 1)
+metallic = 0.9
+roughness = 0.2
+emission_enabled = true
+emission = Color(0.9, 0.2, 0.1)
+emission_energy_multiplier = 3.0
+
+[sub_resource type="BoxMesh" id="ShoulderPlate"]
+size = Vector3(1.2, 0.6, 1.2)
+
+[sub_resource type="SphereShape3D" id="HitboxShape"]
+radius = 4.0
+
+[node name="EnemyBoss" type="CharacterBody3D"]
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 0, 0, 0)
+script = ExtResource("1")
+archetype = 2
+move_speed = 3.5
+attack_range = 22.0
+attack_damage = 75.0
+attack_cooldown = 2.0
+collision_layer = 8
+collision_mask = 3
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("BodyShape")
+
+[node name="Head" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.0, 0)
+
+[node name="HeadMesh" type="MeshInstance3D" parent="Head"]
+mesh = SubResource("HeadMesh")
+material_override = SubResource("BossMatAccent")
+
+[node name="Body" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
+
+[node name="BodyMesh" type="MeshInstance3D" parent="Body"]
+mesh = SubResource("BodyMeshShape")
+material_override = SubResource("BossMatMain")
+
+[node name="ArmLeft" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.0, 2.5, 0)
+
+[node name="ArmLeftMesh" type="MeshInstance3D" parent="ArmLeft"]
+mesh = SubResource("ArmMesh")
+material_override = SubResource("BossMatMain")
+
+[node name="ShoulderLeft" type="MeshInstance3D" parent="ArmLeft"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
+mesh = SubResource("ShoulderPlate")
+material_override = SubResource("BossMatAccent")
+
+[node name="ArmRight" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.0, 2.5, 0)
+
+[node name="ArmRightMesh" type="MeshInstance3D" parent="ArmRight"]
+mesh = SubResource("ArmMesh")
+material_override = SubResource("BossMatMain")
+
+[node name="ShoulderRight" type="MeshInstance3D" parent="ArmRight"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
+mesh = SubResource("ShoulderPlate")
+material_override = SubResource("BossMatAccent")
+
+[node name="LegLeft" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.0, 1.2, 0)
+
+[node name="LegLeftMesh" type="MeshInstance3D" parent="LegLeft"]
+mesh = SubResource("LegMesh")
+material_override = SubResource("BossMatMain")
+
+[node name="LegRight" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.0, 1.2, 0)
+
+[node name="LegRightMesh" type="MeshInstance3D" parent="LegRight"]
+mesh = SubResource("LegMesh")
+material_override = SubResource("BossMatMain")
+
+[node name="HealthSystem" type="Node3D" parent="."]
+script = ExtResource("2")
+
+[node name="Hitbox" type="Area3D" parent="."]
+collision_layer = 0
+collision_mask = 4
+script = ExtResource("4")
+health_system_path = NodePath("../HealthSystem")
+
+[node name="HitboxShape" type="CollisionShape3D" parent="Hitbox"]
+shape = SubResource("HitboxShape")
+
+[node name="EnemyStatus" type="Control" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("3")
+
+[node name="NameLabel3D" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.8, 0)
+text = "TITAN OVERLORD BOSS"
+font_size = 28
+outline_size = 8
+modulate = Color(1, 0.8, 0.2, 1)

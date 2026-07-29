@@ -11,6 +11,7 @@ var enemy_scenes: Dictionary = {
 	"support_simple": preload("res://scenes/mecha/enemy_dummy.tscn"),
 	"support_full": preload("res://scenes/mecha/enemy_support.tscn"),
 	"tank_full": preload("res://scenes/mecha/enemy_tank.tscn"),
+	"boss_overlord": preload("res://scenes/mecha/enemy_boss.tscn"),
 }
 
 var waves: Array = []
@@ -20,7 +21,7 @@ var enemies_alive: int = 0
 var spawn_points: Array = []
 var is_active: bool = false
 
-# Wave definitions
+# Standard wave definitions
 var wave_defs = [
 	# Wave 1: Tutorial - 3 rushers
 	[{"type": "rusher_simple", "archetype": 0, "count": 3}],
@@ -35,11 +36,24 @@ var wave_defs = [
 	[{"type": "rusher_full", "archetype": 0, "count": 1},
 	 {"type": "tank_full", "archetype": 1, "count": 1},
 	 {"type": "heavy_full", "archetype": 2, "count": 1}],
-	# Wave 5: Boss wave + Tank support
+	# Wave 5: Heavy wave + Tank support
 	[{"type": "heavy_full", "archetype": 2, "count": 1},
 	 {"type": "tank_full", "archetype": 1, "count": 1},
 	 {"type": "support_full", "archetype": 3, "count": 1},
 	 {"type": "ranged_full", "archetype": 1, "count": 1}],
+]
+
+# Dedicated Boss Encounter wave definitions
+var boss_wave_defs = [
+	# Wave 1: Boss Escort Guards
+	[{"type": "tank_full", "archetype": 1, "count": 2},
+	 {"type": "support_full", "archetype": 3, "count": 1}],
+	# Wave 2: Heavy Armored Vanguard
+	[{"type": "heavy_full", "archetype": 2, "count": 2},
+	 {"type": "ranged_full", "archetype": 1, "count": 2}],
+	# Wave 3: OVERLORD TITAN BOSS ENCOUNTER
+	[{"type": "boss_overlord", "archetype": 2, "count": 1},
+	 {"type": "support_full", "archetype": 3, "count": 2}],
 ]
 
 
@@ -60,7 +74,6 @@ func _generate_spawn_points() -> void:
 		spawn_points.append(marker)
 
 
-
 func start_waves() -> void:
 	is_active = true
 	current_wave = 0
@@ -68,36 +81,38 @@ func start_waves() -> void:
 
 
 func _spawn_next_wave() -> void:
-	if current_wave >= wave_defs.size():
+	var active_defs = boss_wave_defs if GameManager.is_boss_combat else wave_defs
+	if current_wave >= active_defs.size():
 		is_active = false
 		_check_combat_ended()
 		return
 
-	var wave_def = wave_defs[current_wave]
+	var wave_def = active_defs[current_wave]
 	current_wave += 1
 
-	# Check if this is the final (boss) wave
-	if current_wave == wave_defs.size():
+	if current_wave == active_defs.size():
 		AudioManager.play_combat_music("boss")
 
 	var wanted = GlobalData.wanted_level
 	var hp_scale = 1.0 + min(wanted, 5) * 0.15
-	var extra_count = mini(wanted, 3)
+	var extra_count = mini(wanted, 2)
 
 	for entry in wave_def:
 		var count = entry["count"]
-		if entry["archetype"] != 2:
+		if entry["archetype"] != 2 and entry["type"] != "boss_overlord":
 			count += extra_count
 
 		for j in range(count):
 			var spawn_pos = _get_spawn_position()
-			_spawn_enemy(entry["type"], entry["archetype"], spawn_pos, hp_scale)
+			var final_hp_scale = hp_scale * (3.5 if entry["type"] == "boss_overlord" else 1.0)
+			_spawn_enemy(entry["type"], entry["archetype"], spawn_pos, final_hp_scale)
 
 
 func notify_enemy_killed() -> void:
 	await get_tree().create_timer(0.4).timeout
+	var active_defs = boss_wave_defs if GameManager.is_boss_combat else wave_defs
 	if _get_alive_count() == 0:
-		if current_wave < wave_defs.size():
+		if current_wave < active_defs.size():
 			_spawn_next_wave()
 		else:
 			_check_combat_ended()
@@ -169,4 +184,4 @@ func get_current_wave() -> int:
 
 
 func get_total_waves() -> int:
-	return wave_defs.size()
+	return boss_wave_defs.size() if GameManager.is_boss_combat else wave_defs.size()

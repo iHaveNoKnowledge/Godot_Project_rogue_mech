@@ -4,6 +4,8 @@ extends Control
 func _ready() -> void:
 	_create_ui()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if has_node("/root/AudioManager"):
+		AudioManager.play_menu_music()
 
 
 func _create_ui() -> void:

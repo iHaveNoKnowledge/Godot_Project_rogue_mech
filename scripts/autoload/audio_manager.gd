@@ -14,6 +14,7 @@ var sfx_pool: Array[AudioStreamPlayer3D] = []
 var sfx_2d_pool: Array[AudioStreamPlayer] = []
 
 # Music crossfade & playlists
+@export var menu_tracks: Array[AudioStream] = []
 @export var grunt_tracks: Array[AudioStream] = []
 @export var ace_tracks: Array[AudioStream] = []
 @export var boss_tracks: Array[AudioStream] = []
@@ -333,12 +334,40 @@ func set_bus_volume(bus_name: String, linear: float) -> void:
 # --- Combat Music & Playlists ---
 
 func _auto_scan_music_folders() -> void:
+	if menu_tracks.is_empty():
+		menu_tracks = _scan_music_directory("res://resources/audio/music/menu")
 	if grunt_tracks.is_empty():
 		grunt_tracks = _scan_music_directory("res://resources/audio/music/grunt")
 	if ace_tracks.is_empty():
 		ace_tracks = _scan_music_directory("res://resources/audio/music/ace")
 	if boss_tracks.is_empty():
 		boss_tracks = _scan_music_directory("res://resources/audio/music/boss")
+
+
+func play_menu_music(fade_time: float = 1.5, force_restart: bool = false) -> void:
+	if not force_restart and current_music_category == "menu" and current_music.playing:
+		return
+
+	_auto_scan_music_folders()
+
+	var stream_to_play: AudioStream = null
+	if not menu_tracks.is_empty():
+		var available = menu_tracks.duplicate()
+		if available.size() > 1 and current_track != null:
+			available.erase(current_track)
+		available.shuffle()
+		stream_to_play = available[0]
+	else:
+		if not _procedural_music_cache.has("menu"):
+			_procedural_music_cache["menu"] = _gen_procedural_menu_track()
+		stream_to_play = _procedural_music_cache["menu"]
+
+	if stream_to_play == null:
+		return
+
+	current_music_category = "menu"
+	current_track = stream_to_play
+	_crossfade_to_stream(stream_to_play, fade_time)
 
 
 func _scan_music_directory(dir_path: String) -> Array[AudioStream]:
@@ -430,6 +459,45 @@ func _crossfade_to_stream(new_stream: AudioStream, fade_time: float) -> void:
 	var cleanup_tween = create_tween()
 	cleanup_tween.tween_interval(fade_time)
 	cleanup_tween.tween_callback(func(): old_player.stop())
+
+
+func _gen_procedural_menu_track() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var bpm = 80.0
+	var duration = 6.0
+	var num_samples = int(duration * sample_rate)
+	var data = PackedByteArray()
+	data.resize(num_samples * 2)
+
+	var beat_duration = 60.0 / bpm
+
+	for i in range(num_samples):
+		var t = float(i) / sample_rate
+		var sample = 0.0
+
+		# Deep ambient synth pad
+		sample += sin(TAU * 55.0 * t) * 0.3
+		sample += sin(TAU * 110.0 * t + sin(t * 0.5)) * 0.15
+
+		# Ambient Sci-Fi arpeggio notes
+		var notes = [220.0, 261.63, 329.63, 392.0, 440.0]
+		var note_idx = int(t / (beat_duration * 0.5)) % notes.size()
+		var sub_beat = fmod(t, beat_duration * 0.5) / (beat_duration * 0.5)
+		var env = exp(-sub_beat * 3.0)
+		sample += sin(TAU * notes[note_idx] * t) * 0.12 * env
+
+		var val = int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+
+	var stream = AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	stream.loop_begin = 0
+	stream.loop_end = num_samples
+	return stream
 
 
 func _gen_procedural_combat_track(category: String) -> AudioStreamWAV:

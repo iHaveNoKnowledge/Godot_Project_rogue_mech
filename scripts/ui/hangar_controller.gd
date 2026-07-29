@@ -1,14 +1,16 @@
 extends CanvasLayer
 
-## 3D Hangar Garage Controller (Front Mission Style)
-## Supports Multiple Mecha Chassis Models, Dual-Layer Customization (Inner Frame vs Outer Armor),
-## Live 3D Viewport Turntable, Orbit Inspection Camera, and Detailed Stat Comparisons.
+## 3D Hangar Garage Controller (Gundam Barbatos / Vidar Style)
+## - Core Power comes from the Inner Frame (Alaya-Vijnana Skeleton) which can be upgraded with Reactor Levels.
+## - Outer Armor Plating allows visual freedom & scavenged enemy armor patching (Zaku Green, Tank Grey, Crimson Ace).
+## - Live 3D Viewport Turntable renders mix-and-matched scavenger armor colors over the dark Gundam Inner Frame!
 
 const COST_PER_HP: float = 0.5
 
-var current_mode: String = "armor" # "armor", "frame", "chassis"
+var current_mode: String = "armor" # "armor", "frame", "chassis", "upgrade"
 var selected_slot: String = "head"
 var selected_part_path: String = ""
+var selected_salvage_info: Dictionary = {}
 var selected_frame_info: Dictionary = {}
 var selected_chassis_key: String = "standard"
 
@@ -32,6 +34,7 @@ var stats_label: Label
 var total_stats_label: Label
 var weight_bar: ProgressBar
 var equip_button: Button
+var frame_upgrade_button: Button
 var repair_part_button: Button
 var full_repair_button: Button
 var close_button: Button
@@ -40,79 +43,67 @@ var status_message_label: Label
 # Inner Frame Catalog
 var frame_catalog: Dictionary = {
 	"head": [
-		{"name": "Standard Light Alloy Head Frame", "hp": 20.0, "weight": 2.0, "type": "Light Frame"},
-		{"name": "Reinforced Sensor Joint Frame", "hp": 30.0, "weight": 3.5, "type": "Medium Frame"},
-		{"name": "Titan Heavy Structure Head Frame", "hp": 45.0, "weight": 5.5, "type": "Heavy Frame"}
+		{"name": "Alaya-Vijnana Head Skeleton", "hp": 25.0, "weight": 2.0, "type": "Gundam Frame"},
+		{"name": "Reinforced Sensor Joint Frame", "hp": 35.0, "weight": 3.5, "type": "Medium Frame"},
+		{"name": "Titan Heavy Structure Head Frame", "hp": 50.0, "weight": 5.5, "type": "Heavy Frame"}
 	],
 	"body": [
-		{"name": "Standard Core Skeleton Frame", "hp": 40.0, "weight": 6.0, "type": "Light Frame"},
-		{"name": "Reinforced Composite Torso Frame", "hp": 65.0, "weight": 10.0, "type": "Medium Frame"},
-		{"name": "Fortress Heavy Structural Spine", "hp": 95.0, "weight": 16.0, "type": "Heavy Frame"}
+		{"name": "Alaya-Vijnana Core Spine", "hp": 50.0, "weight": 6.0, "type": "Gundam Frame"},
+		{"name": "Reinforced Composite Torso Frame", "hp": 75.0, "weight": 10.0, "type": "Medium Frame"},
+		{"name": "Fortress Heavy Structural Spine", "hp": 110.0, "weight": 16.0, "type": "Heavy Frame"}
 	],
 	"arm_left": [
-		{"name": "Standard Articulated Left Arm Frame", "hp": 15.0, "weight": 3.0, "type": "Light Frame"},
-		{"name": "High-Torque Hydraulic Arm Frame (L)", "hp": 28.0, "weight": 5.0, "type": "Medium Frame"},
-		{"name": "Heavy Reinforced Siege Arm Frame (L)", "hp": 42.0, "weight": 8.0, "type": "Heavy Frame"}
+		{"name": "Alaya-Vijnana Arm Joint (L)", "hp": 20.0, "weight": 3.0, "type": "Gundam Frame"},
+		{"name": "High-Torque Hydraulic Arm Frame (L)", "hp": 32.0, "weight": 5.0, "type": "Medium Frame"},
+		{"name": "Heavy Reinforced Siege Arm Frame (L)", "hp": 48.0, "weight": 8.0, "type": "Heavy Frame"}
 	],
 	"arm_right": [
-		{"name": "Standard Articulated Right Arm Frame", "hp": 15.0, "weight": 3.0, "type": "Light Frame"},
-		{"name": "High-Torque Hydraulic Arm Frame (R)", "hp": 28.0, "weight": 5.0, "type": "Medium Frame"},
-		{"name": "Heavy Reinforced Siege Arm Frame (R)", "hp": 42.0, "weight": 8.0, "type": "Heavy Frame"}
+		{"name": "Alaya-Vijnana Arm Joint (R)", "hp": 20.0, "weight": 3.0, "type": "Gundam Frame"},
+		{"name": "High-Torque Hydraulic Arm Frame (R)", "hp": 32.0, "weight": 5.0, "type": "Medium Frame"},
+		{"name": "Heavy Reinforced Siege Arm Frame (R)", "hp": 48.0, "weight": 8.0, "type": "Heavy Frame"}
 	],
 	"leg_left": [
-		{"name": "Standard Actuator Left Leg Frame", "hp": 20.0, "weight": 4.0, "type": "Light Frame"},
-		{"name": "Roller Suspension Leg Frame (L)", "hp": 35.0, "weight": 6.5, "type": "High-Mobility"},
-		{"name": "Heavy Hydraulic Titan Leg Frame (L)", "hp": 55.0, "weight": 10.0, "type": "Heavy Frame"}
+		{"name": "Alaya-Vijnana Leg Actuator (L)", "hp": 25.0, "weight": 4.0, "type": "Gundam Frame"},
+		{"name": "Roller Suspension Leg Frame (L)", "hp": 40.0, "weight": 6.5, "type": "High-Mobility"},
+		{"name": "Heavy Hydraulic Titan Leg Frame (L)", "hp": 60.0, "weight": 10.0, "type": "Heavy Frame"}
 	],
 	"leg_right": [
-		{"name": "Standard Actuator Right Leg Frame", "hp": 20.0, "weight": 4.0, "type": "Light Frame"},
-		{"name": "Roller Suspension Leg Frame (R)", "hp": 35.0, "weight": 6.5, "type": "High-Mobility"},
-		{"name": "Heavy Hydraulic Titan Leg Frame (R)", "hp": 55.0, "weight": 10.0, "type": "Heavy Frame"}
+		{"name": "Alaya-Vijnana Leg Actuator (R)", "hp": 25.0, "weight": 4.0, "type": "Gundam Frame"},
+		{"name": "Roller Suspension Leg Frame (R)", "hp": 40.0, "weight": 6.5, "type": "High-Mobility"},
+		{"name": "Heavy Hydraulic Titan Leg Frame (R)", "hp": 60.0, "weight": 10.0, "type": "Heavy Frame"}
 	]
 }
 
 # Outer Armor Catalog
 var armor_catalog: Dictionary = {
 	"head": [
-		{"name": "Standard Composite Visor Plating", "path": "res://resources/mech/stock/head_standard.tres", "hp": 30.0, "armor": 20.0, "weight": 4.0, "type": "Balanced"},
-		{"name": "Vanguard Light Recon Plating", "path": "res://resources/mech/stock/head_standard.tres", "hp": 20.0, "armor": 12.0, "weight": 2.0, "type": "Light Plating"},
-		{"name": "Titan Heavy Chobham Helmet", "path": "res://resources/mech/stock/head_standard.tres", "hp": 55.0, "armor": 35.0, "weight": 7.5, "type": "Heavy Armor"}
+		{"name": "Barbatos White Visor Plating", "path": "res://resources/mech/stock/head_standard.tres", "hp": 30.0, "armor": 20.0, "weight": 4.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"},
+		{"name": "Vanguard Light Recon Helmet", "path": "res://resources/mech/stock/head_standard.tres", "hp": 20.0, "armor": 12.0, "weight": 2.0, "color": Color(0.8, 0.85, 0.9), "type": "Light Plating"}
 	],
 	"body": [
-		{"name": "Standard Core Armor Plating", "path": "res://resources/mech/stock/torso_standard.tres", "hp": 60.0, "armor": 40.0, "weight": 14.0, "type": "Balanced"},
-		{"name": "Fortress Heavy Reactive Chestplate", "path": "res://resources/mech/stock/torso_standard.tres", "hp": 110.0, "armor": 75.0, "weight": 24.0, "type": "Heavy Armor"},
-		{"name": "High-Mobility Carbon Shield Plating", "path": "res://resources/mech/stock/torso_standard.tres", "hp": 40.0, "armor": 25.0, "weight": 8.0, "type": "Light Plating"}
+		{"name": "Barbatos Chest Armor Plate", "path": "res://resources/mech/stock/torso_standard.tres", "hp": 60.0, "armor": 40.0, "weight": 14.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"},
+		{"name": "Fortress Heavy Reactive Chestplate", "path": "res://resources/mech/stock/torso_standard.tres", "hp": 110.0, "armor": 75.0, "weight": 24.0, "color": Color(0.25, 0.2, 0.35), "type": "Heavy Armor"}
 	],
 	"arm_left": [
-		{"name": "Standard Left Arm Guard", "path": "res://resources/mech/stock/arm_left_standard.tres", "hp": 25.0, "armor": 15.0, "weight": 6.0, "type": "Balanced"},
-		{"name": "Reinforced Shield Plating (L)", "path": "res://resources/mech/stock/arm_left_standard.tres", "hp": 50.0, "armor": 35.0, "weight": 11.0, "type": "Heavy Armor"},
-		{"name": "Light Striker Sleeve (L)", "path": "res://resources/mech/stock/arm_left_standard.tres", "hp": 18.0, "armor": 10.0, "weight": 3.5, "type": "Light Plating"}
+		{"name": "Barbatos Left Shoulder Guard", "path": "res://resources/mech/stock/arm_left_standard.tres", "hp": 25.0, "armor": 15.0, "weight": 6.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"}
 	],
 	"arm_right": [
-		{"name": "Standard Right Arm Guard", "path": "res://resources/mech/stock/arm_right_standard.tres", "hp": 25.0, "armor": 15.0, "weight": 6.0, "type": "Balanced"},
-		{"name": "Heavy Gunner Shoulder Guard (R)", "path": "res://resources/mech/stock/arm_right_standard.tres", "hp": 50.0, "armor": 35.0, "weight": 11.0, "type": "Heavy Armor"},
-		{"name": "Light Precision Sleeve (R)", "path": "res://resources/mech/stock/arm_right_standard.tres", "hp": 18.0, "armor": 10.0, "weight": 3.5, "type": "Light Plating"}
+		{"name": "Barbatos Right Shoulder Guard", "path": "res://resources/mech/stock/arm_right_standard.tres", "hp": 25.0, "armor": 15.0, "weight": 6.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"}
 	],
 	"leg_left": [
-		{"name": "Standard Left Leg Shin Guard", "path": "res://resources/mech/stock/leg_left_standard.tres", "hp": 30.0, "armor": 20.0, "weight": 8.0, "type": "Balanced"},
-		{"name": "Roller Dash High-Speed Leg Armor (L)", "path": "res://resources/mech/stock/leg_left_standard.tres", "hp": 38.0, "armor": 25.0, "weight": 9.0, "type": "High-Speed"},
-		{"name": "Titan Heavy Leg Shield (L)", "path": "res://resources/mech/stock/leg_left_standard.tres", "hp": 60.0, "armor": 45.0, "weight": 15.0, "type": "Heavy Armor"}
+		{"name": "Barbatos Left Leg Armor", "path": "res://resources/mech/stock/leg_left_standard.tres", "hp": 30.0, "armor": 20.0, "weight": 8.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"}
 	],
 	"leg_right": [
-		{"name": "Standard Right Leg Shin Guard", "path": "res://resources/mech/stock/leg_right_standard.tres", "hp": 30.0, "armor": 20.0, "weight": 8.0, "type": "Balanced"},
-		{"name": "Roller Dash High-Speed Leg Armor (R)", "path": "res://resources/mech/stock/leg_right_standard.tres", "hp": 38.0, "armor": 25.0, "weight": 9.0, "type": "High-Speed"},
-		{"name": "Titan Heavy Leg Shield (R)", "path": "res://resources/mech/stock/leg_right_standard.tres", "hp": 60.0, "armor": 45.0, "weight": 15.0, "type": "Heavy Armor"}
+		{"name": "Barbatos Right Leg Armor", "path": "res://resources/mech/stock/leg_right_standard.tres", "hp": 30.0, "armor": 20.0, "weight": 8.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"}
 	],
 	"weapon_right": [
 		{"name": "Beam Carbine", "path": "res://resources/mech/stock/weapon_beam_carbine.tres", "hp": 0.0, "armor": 0.0, "weight": 7.0, "type": "Beam Weapon"},
 		{"name": "Heavy Machine Gun", "path": "res://resources/mech/stock/weapon_heavy_machine_gun.tres", "hp": 0.0, "armor": 0.0, "weight": 9.0, "type": "Kinetic Weapon"},
-		{"name": "Combat Shotgun", "path": "res://resources/mech/stock/weapon_combat_shotgun.tres", "hp": 0.0, "armor": 0.0, "weight": 8.0, "type": "Shotgun"},
-		{"name": "Heavy Missile Launcher", "path": "res://resources/mech/stock/weapon_heavy_missile.tres", "hp": 0.0, "armor": 0.0, "weight": 12.0, "type": "Explosive Weapon"}
+		{"name": "Combat Shotgun", "path": "res://resources/mech/stock/weapon_combat_shotgun.tres", "hp": 0.0, "armor": 0.0, "weight": 8.0, "type": "Shotgun"}
 	],
 	"weapon_left": [
 		{"name": "Heat Blade", "path": "res://resources/mech/stock/weapon_heat_blade.tres", "hp": 0.0, "armor": 0.0, "weight": 5.0, "type": "Melee Weapon"},
-		{"name": "Pile Bunker", "path": "res://resources/mech/stock/weapon_pile_bunker.tres", "hp": 0.0, "armor": 0.0, "weight": 11.0, "type": "Melee Weapon"},
-		{"name": "Light Buckler Shield", "path": "res://resources/mech/stock/weapon_light_buckler.tres", "hp": 0.0, "armor": 0.0, "weight": 6.0, "type": "Defense Shield"}
+		{"name": "Pile Bunker", "path": "res://resources/mech/stock/weapon_pile_bunker.tres", "hp": 0.0, "armor": 0.0, "weight": 11.0, "type": "Melee Weapon"}
 	]
 }
 
@@ -251,26 +242,32 @@ func _build_ui_layout() -> void:
 		btn.pressed.connect(func(): _select_slot_tab(slot_info["id"]))
 		tab_container.add_child(btn)
 
-	# Sub-Toggle Bar for Armor Plating vs Inner Skeleton Frame
+	# Sub-Toggle Bar for Armor Plating vs Inner Skeleton Frame vs Power Upgrade
 	sub_toggle_container = HBoxContainer.new()
 	sub_toggle_container.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	sub_toggle_container.offset_top = 58
-	sub_toggle_container.add_theme_constant_override("separation", 10)
+	sub_toggle_container.add_theme_constant_override("separation", 8)
 	root.add_child(sub_toggle_container)
 
 	var btn_armor = Button.new()
-	btn_armor.text = "🛡️ OUTER ARMOR PLATING"
-	btn_armor.custom_minimum_size = Vector2(180, 32)
+	btn_armor.text = "🛡️ OUTER ARMOR (SCAVENGER)"
+	btn_armor.custom_minimum_size = Vector2(170, 32)
 	btn_armor.pressed.connect(func(): _switch_custom_mode("armor"))
 	sub_toggle_container.add_child(btn_armor)
 
 	var btn_frame = Button.new()
 	btn_frame.text = "⚙️ INNER SKELETON FRAME"
-	btn_frame.custom_minimum_size = Vector2(180, 32)
+	btn_frame.custom_minimum_size = Vector2(170, 32)
 	btn_frame.pressed.connect(func(): _switch_custom_mode("frame"))
 	sub_toggle_container.add_child(btn_frame)
 
-	# Left Sidebar (Part Catalog List)
+	frame_upgrade_button = Button.new()
+	frame_upgrade_button.text = "⚡ REACTOR POWER UPGRADE"
+	frame_upgrade_button.custom_minimum_size = Vector2(180, 32)
+	frame_upgrade_button.pressed.connect(func(): _switch_custom_mode("upgrade"))
+	sub_toggle_container.add_child(frame_upgrade_button)
+
+	# Left Sidebar (Part Catalog List & Salvaged Drops)
 	var left_panel = PanelContainer.new()
 	left_panel.set_anchors_preset(Control.PRESET_LEFT_WIDE)
 	left_panel.offset_top = 96
@@ -294,7 +291,7 @@ func _build_ui_layout() -> void:
 	left_panel.add_child(left_box)
 
 	var list_title = Label.new()
-	list_title.text = "PARTS CATALOG"
+	list_title.text = "SCAVENGER INVENTORY & CATALOG"
 	list_title.add_theme_font_size_override("font_size", 14)
 	list_title.add_theme_color_override("font_color", Color(0.4, 0.85, 1.0))
 	left_box.add_child(list_title)
@@ -310,7 +307,7 @@ func _build_ui_layout() -> void:
 	equip_button.pressed.connect(_on_equip_pressed)
 	left_box.add_child(equip_button)
 
-	# Right Sidebar (Stats & Dual Armor/Frame Capacity Panel)
+	# Right Sidebar (Stats & Gundam Frame Core Power Panel)
 	var right_panel = PanelContainer.new()
 	right_panel.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
 	right_panel.offset_top = 96
@@ -334,7 +331,7 @@ func _build_ui_layout() -> void:
 	right_panel.add_child(right_box)
 
 	var stats_title = Label.new()
-	stats_title.text = "SPECIFICATIONS & COMPARISON"
+	stats_title.text = "GUNDAM FRAME CORE SPECIFICATIONS"
 	stats_title.add_theme_font_size_override("font_size", 14)
 	stats_title.add_theme_color_override("font_color", Color(1.0, 0.8, 0.2))
 	right_box.add_child(stats_title)
@@ -453,6 +450,17 @@ func _update_camera_focus_for_slot(slot: String) -> void:
 func _populate_part_list_for_slot(slot: String) -> void:
 	part_item_list.clear()
 
+	if current_mode == "upgrade":
+		var cost_cr = GlobalData.frame_upgrade_level * 150
+		var cost_cores = GlobalData.frame_upgrade_level
+		part_item_list.add_item("⚡ Upgrade Inner Frame to Level %d (%d cr, %d cores)" % [
+			GlobalData.frame_upgrade_level + 1, cost_cr, cost_cores
+		])
+		if part_item_list.item_count > 0:
+			part_item_list.select(0)
+			_on_part_item_selected(0)
+		return
+
 	if slot == "chassis":
 		for key in GlobalData.chassis_catalog:
 			var info = GlobalData.chassis_catalog[key]
@@ -472,22 +480,38 @@ func _populate_part_list_for_slot(slot: String) -> void:
 			part_item_list.select(0)
 			_on_part_item_selected(0)
 	elif armor_catalog.has(slot):
+		# Show stock armor
 		var items = armor_catalog[slot]
 		for info in items:
 			var label_str = "🛡️ %s [%s]" % [info["name"], info["type"]]
 			if info.get("weight", 0.0) > 0:
 				label_str += " - %.1fkg" % info["weight"]
 			part_item_list.add_item(label_str)
-		if items.size() > 0:
+
+		# Show salvaged enemy drops
+		for salvaged in GlobalData.salvaged_armor_inventory:
+			if salvaged.get("slot", "") == slot:
+				var drop_label = "☣️ SALVAGED: %s [%s]" % [salvaged["name"], salvaged.get("type", "Enemy")]
+				part_item_list.add_item(drop_label)
+
+		if part_item_list.item_count > 0:
 			part_item_list.select(0)
 			_on_part_item_selected(0)
 
 
 func _on_part_item_selected(index: int) -> void:
+	if current_mode == "upgrade":
+		var cost_cr = GlobalData.frame_upgrade_level * 150
+		var cost_cores = GlobalData.frame_upgrade_level
+		stats_label.text = "INNER FRAME REACTOR LEVEL: %d -> %d\n\nEFFECTS:\n+25 FRAME HP per slot\n+15.0 kg MAX WEIGHT CAPACITY\n+1.5 m/s DASH THRUST SPEED\n\nUPGRADE COST: %d Credits, %d Data Cores" % [
+			GlobalData.frame_upgrade_level, GlobalData.frame_upgrade_level + 1, cost_cr, cost_cores
+		]
+		selected_salvage_info.clear()
+		return
+
 	if selected_slot == "chassis":
 		var keys = GlobalData.chassis_catalog.keys()
-		if index < 0 or index >= keys.size():
-			return
+		if index < 0 or index >= keys.size(): return
 		selected_chassis_key = keys[index]
 		var info = GlobalData.chassis_catalog[selected_chassis_key]
 		stats_label.text = "MODEL: %s\n\nSPEED BOOST: %.1f m/s\nMAX LOAD CAPACITY: %.1f kg\nSTRUCTURE RATING: Military Grade" % [
@@ -501,27 +525,47 @@ func _on_part_item_selected(index: int) -> void:
 		if index < 0 or index >= items.size(): return
 		selected_frame_info = items[index]
 		selected_part_path = ""
+		selected_salvage_info.clear()
 		stats_label.text = "INNER FRAME: %s\nTYPE: %s\n\nSTRUCTURAL FRAME HP: %.0f\nFRAME WEIGHT: %.1f kg" % [
 			selected_frame_info["name"], selected_frame_info["type"],
 			selected_frame_info["hp"], selected_frame_info["weight"]
 		]
 		_apply_3d_frame_preview(selected_slot, selected_frame_info)
 	elif armor_catalog.has(selected_slot):
-		var items = armor_catalog[selected_slot]
-		if index < 0 or index >= items.size(): return
-		var info = items[index]
-		selected_part_path = info["path"]
-		selected_frame_info.clear()
+		var stock_items = armor_catalog[selected_slot]
+		if index < stock_items.size():
+			var info = stock_items[index]
+			selected_part_path = info["path"]
+			selected_frame_info.clear()
+			selected_salvage_info.clear()
 
-		if selected_slot.begins_with("weapon"):
-			stats_label.text = "WEAPON: %s\nTYPE: %s\n\nWEIGHT: %.1f kg\nPOWER OUTPUT: Heavy" % [
-				info["name"], info["type"], info["weight"]
-			]
+			if selected_slot.begins_with("weapon"):
+				stats_label.text = "WEAPON: %s\nTYPE: %s\n\nWEIGHT: %.1f kg\nPOWER OUTPUT: Heavy" % [
+					info["name"], info["type"], info["weight"]
+				]
+			else:
+				stats_label.text = "OUTER ARMOR: %s\nTYPE: %s\n\nARMOR HP: %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg" % [
+					info["name"], info["type"], info["hp"], info["armor"], info["weight"]
+				]
+			_apply_3d_armor_preview(selected_slot, info)
 		else:
-			stats_label.text = "OUTER ARMOR: %s\nTYPE: %s\n\nARMOR HP: %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg" % [
-				info["name"], info["type"], info["hp"], info["armor"], info["weight"]
-			]
-		_apply_3d_armor_preview(selected_slot, info)
+			# Salvaged enemy plate
+			var salvaged_idx = index - stock_items.size()
+			var matching_salvage = []
+			for s in GlobalData.salvaged_armor_inventory:
+				if s.get("slot") == selected_slot:
+					matching_salvage.append(s)
+
+			if salvaged_idx >= 0 and salvaged_idx < matching_salvage.size():
+				selected_salvage_info = matching_salvage[salvaged_idx]
+				selected_part_path = ""
+				selected_frame_info.clear()
+
+				stats_label.text = "☣️ SALVAGED ENEMY ARMOR: %s\nTYPE: %s\n\nARMOR HP: %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg" % [
+					selected_salvage_info["name"], selected_salvage_info.get("type", "Enemy"),
+					selected_salvage_info["hp"], selected_salvage_info["armor"], selected_salvage_info["weight"]
+				]
+				_apply_3d_salvage_preview(selected_slot, selected_salvage_info)
 
 
 # --- REAL-TIME 3D PREVIEWS IN GARAGE ---
@@ -547,9 +591,9 @@ func _apply_3d_chassis_preview(info: Dictionary) -> void:
 func _apply_3d_frame_preview(slot: String, info: Dictionary) -> void:
 	if mecha_3d_root == null: return
 	var mat = StandardMaterial3D.new()
-	mat.albedo_color = Color(0.2, 0.22, 0.25)
-	mat.metallic = 0.9
-	mat.roughness = 0.2
+	mat.albedo_color = Color(0.15, 0.15, 0.18)
+	mat.metallic = 0.95
+	mat.roughness = 0.15
 	_set_slot_material(slot, mat)
 
 
@@ -570,8 +614,17 @@ func _apply_3d_armor_preview(slot: String, info: Dictionary) -> void:
 		"High-Speed":
 			mat.albedo_color = Color(0.9, 0.6, 0.1)
 		_:
-			mat.albedo_color = Color(0.4, 0.5, 0.6)
+			mat.albedo_color = info.get("color", Color(0.4, 0.5, 0.6))
 
+	_set_slot_material(slot, mat)
+
+
+func _apply_3d_salvage_preview(slot: String, info: Dictionary) -> void:
+	if mecha_3d_root == null: return
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = info.get("color", Color(0.2, 0.45, 0.25))
+	mat.metallic = 0.75
+	mat.roughness = 0.4
 	_set_slot_material(slot, mat)
 
 
@@ -597,9 +650,34 @@ func _set_slot_material(slot: String, mat: Material) -> void:
 
 
 func _on_equip_pressed() -> void:
+	if current_mode == "upgrade":
+		var cost_cr = GlobalData.frame_upgrade_level * 150
+		var cost_cores = GlobalData.frame_upgrade_level
+		if GlobalData.credits >= cost_cr and GlobalData.data_cores >= cost_cores:
+			GlobalData.credits -= cost_cr
+			GlobalData.data_cores -= cost_cores
+			GlobalData.frame_upgrade_level += 1
+			status_message_label.text = "⚡ Frame Reactor upgraded to Level %d!" % GlobalData.frame_upgrade_level
+			_update_total_stats()
+		else:
+			status_message_label.text = "Insufficient Credits/Cores!"
+		return
+
 	if selected_slot == "chassis":
 		GlobalData.chassis_id = selected_chassis_key
 		status_message_label.text = "Chassis set to %s!" % GlobalData.chassis_catalog[selected_chassis_key]["name"]
+		_update_total_stats()
+		return
+
+	if not selected_salvage_info.is_empty():
+		var res = ArmorPart.new()
+		res.part_name = selected_salvage_info["name"]
+		res.max_hp = selected_salvage_info["hp"]
+		res.armor_class = selected_salvage_info["armor"]
+		res.weight = selected_salvage_info["weight"]
+		GlobalData.equipped_parts[selected_slot] = res
+		GlobalData.part_damage.erase(selected_slot)
+		status_message_label.text = "Equipped Salvaged Armor: %s!" % res.part_name
 		_update_total_stats()
 		return
 
@@ -653,7 +731,7 @@ func _on_full_repair_pressed() -> void:
 
 func _update_total_stats() -> void:
 	var chassis_info = GlobalData.chassis_catalog.get(GlobalData.chassis_id, GlobalData.chassis_catalog["standard"])
-	var max_weight = chassis_info["max_weight"]
+	var max_weight = chassis_info["max_weight"] + ((GlobalData.frame_upgrade_level - 1) * 15.0)
 
 	var total_frame_weight = 0.0
 	var total_armor_weight = 0.0
@@ -663,7 +741,7 @@ func _update_total_stats() -> void:
 	for slot in GlobalData.equipped_frames:
 		var f = GlobalData.equipped_frames[slot]
 		total_frame_weight += f.get("weight", 0.0)
-		total_frame_hp += f.get("hp", 0.0)
+		total_frame_hp += f.get("hp", 0.0) + ((GlobalData.frame_upgrade_level - 1) * 25.0)
 
 	for slot in GlobalData.equipped_parts:
 		var p = GlobalData.equipped_parts[slot]
@@ -679,11 +757,11 @@ func _update_total_stats() -> void:
 		weight_bar.value = total_weight
 
 	if total_stats_label:
-		total_stats_label.text = "FRAME HP: %.0f | ARMOR HP: %.0f\nFRAME W: %.1fkg | ARMOR W: %.1fkg\nTOTAL WEIGHT: %.1f / %.1f kg\nCREDITS: %d cr" % [
-			total_frame_hp, total_armor_hp,
+		total_stats_label.text = "FRAME LVL: %d | FRAME HP: %.0f | ARMOR HP: %.0f\nFRAME W: %.1fkg | ARMOR W: %.1fkg\nTOTAL WEIGHT: %.1f / %.1f kg\nCREDITS: %d cr | CORES: %d" % [
+			GlobalData.frame_upgrade_level, total_frame_hp, total_armor_hp,
 			total_frame_weight, total_armor_weight,
 			total_weight, max_weight,
-			GlobalData.credits
+			GlobalData.credits, GlobalData.data_cores
 		]
 
 

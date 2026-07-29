@@ -62,6 +62,13 @@ func _physics_process(delta: float) -> void:
 	_update_roller_dash_posture(delta)
 
 
+func _update_recoil(delta: float) -> void:
+	if current_recoil > 0.0:
+		current_recoil = move_toward(current_recoil, 0.0, recoil_recovery * delta)
+		if head_mesh:
+			head_mesh.rotation.x = -current_recoil * 0.5
+
+
 func _update_roller_dash_posture(delta: float) -> void:
 	if mecha and mecha.get("is_roller_dashing") != null:
 		var speed = 8.0 * delta

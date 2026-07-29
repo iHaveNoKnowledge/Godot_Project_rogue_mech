@@ -533,6 +533,11 @@ func _apply_3d_chassis_preview(info: Dictionary) -> void:
 	mat.metallic = 0.85
 	mat.roughness = 0.35
 
+	if selected_chassis_key == "brawler":
+		mat.albedo_color = Color(0.35, 0.40, 0.28)
+		mat.metallic = 0.9
+		mat.roughness = 0.25
+
 	for mesh_path in ["MechaBase/Head/HeadMesh", "MechaBase/Body/BodyMesh", "MechaBase/ArmLeft/ArmLeftMesh", "MechaBase/ArmRight/ArmRightMesh", "MechaBase/LegLeft/LegLeftMesh", "MechaBase/LegRight/LegRightMesh"]:
 		var node = mecha_3d_root.get_node_or_null(mesh_path)
 		if node:

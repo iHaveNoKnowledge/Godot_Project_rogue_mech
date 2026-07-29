@@ -101,16 +101,20 @@ func _ricochet(hit_pos: Vector3, normal: Vector3) -> void:
 
 
 func _hit_target(target: Node3D) -> void:
+	var final_damage = damage
+	if damage_type.to_lower() == "melee" and GlobalData.chassis_id == "brawler":
+		final_damage *= 1.4
+
 	EffectManager.spawn_impact(position, Vector3.UP)
 	if has_node("/root/AudioManager"):
 		AudioManager.play_impact_by_type(damage_type, position)
 
 	if target.has_method("take_damage_at_point"):
-		target.take_damage_at_point(damage, position, damage_type)
+		target.take_damage_at_point(final_damage, position, damage_type)
 	elif target.has_method("take_damage"):
-		target.take_damage(damage, damage_type)
+		target.take_damage(final_damage, damage_type)
 
-	EffectManager.spawn_damage_number(position + Vector3(0, 1.5, 0), damage, Color.WHITE)
+	EffectManager.spawn_damage_number(position + Vector3(0, 1.5, 0), final_damage, Color.WHITE)
 	queue_free()
 
 

@@ -36,6 +36,12 @@ var chassis_catalog: Dictionary = {
 		"speed": 5.5,
 		"max_weight": 95.0,
 		"color": Color(0.2, 0.4, 0.5)
+	},
+	"brawler": {
+		"name": "BERSERKER BRAWLER-X (Close Combat Specialist)",
+		"speed": 8.0,
+		"max_weight": 88.0,
+		"color": Color(0.35, 0.40, 0.28)
 	}
 }
 

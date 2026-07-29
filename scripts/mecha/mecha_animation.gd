@@ -146,29 +146,43 @@ func _update_legs(delta: float) -> void:
 		var phase_left = fmod(bob_timer * 0.5, TAU)
 		var phase_right = fmod(bob_timer * 0.5 + PI, TAU)
 
-		# Natural Biomechanical Running Cycle for Left Leg
+		# Sequential Leg Stride Calculations for Left Leg
 		var thigh_l = 0.0
 		var shin_l = 0.0
 		if phase_left < PI:
-			var step_p = phase_left / PI
-			thigh_l = -deg_to_rad(52.0) * sin(step_p * PI) # Drive thigh forward (-Z)
-			shin_l = deg_to_rad(50.0) * sin(step_p * PI)   # Knee flexes up/forward, foot clears ground
+			var step_p = phase_left / PI # Step forward phase (0.0 to 1.0)
+			thigh_l = -deg_to_rad(52.0) * sin(step_p * PI) # Thigh drives forward (-Z)
+			
+			if step_p < 0.5:
+				# Stage 1: Thigh lifting -> Lower leg FOLDS BACKWARD (+65 deg)!
+				var lift_p = step_p / 0.5
+				shin_l = deg_to_rad(65.0) * sin(lift_p * PI * 0.5)
+			else:
+				# Stage 2: Thigh lowering -> Lower leg UN-FOLDS and EXTENDS FORWARD to plant foot!
+				var ext_p = (step_p - 0.5) / 0.5
+				shin_l = deg_to_rad(65.0) * cos(ext_p * PI * 0.5) - deg_to_rad(15.0) * sin(ext_p * PI)
 		else:
-			var push_p = (phase_left - PI) / PI
-			thigh_l = deg_to_rad(38.0) * sin(push_p * PI)  # Drive thigh backward (+Z)
-			shin_l = deg_to_rad(20.0) * sin(push_p * PI)
+			var push_p = (phase_left - PI) / PI # Push backward drive phase
+			thigh_l = deg_to_rad(38.0) * sin(push_p * PI)
+			shin_l = deg_to_rad(15.0) * sin(push_p * PI)
 
-		# Natural Biomechanical Running Cycle for Right Leg
+		# Sequential Leg Stride Calculations for Right Leg
 		var thigh_r = 0.0
 		var shin_r = 0.0
 		if phase_right < PI:
 			var step_p = phase_right / PI
 			thigh_r = -deg_to_rad(52.0) * sin(step_p * PI)
-			shin_r = deg_to_rad(50.0) * sin(step_p * PI)
+			
+			if step_p < 0.5:
+				var lift_p = step_p / 0.5
+				shin_r = deg_to_rad(65.0) * sin(lift_p * PI * 0.5)
+			else:
+				var ext_p = (step_p - 0.5) / 0.5
+				shin_r = deg_to_rad(65.0) * cos(ext_p * PI * 0.5) - deg_to_rad(15.0) * sin(ext_p * PI)
 		else:
 			var push_p = (phase_right - PI) / PI
 			thigh_r = deg_to_rad(38.0) * sin(push_p * PI)
-			shin_r = deg_to_rad(20.0) * sin(push_p * PI)
+			shin_r = deg_to_rad(15.0) * sin(push_p * PI)
 
 		leg_left.rotation.x = thigh_l * dir_sign
 		leg_right.rotation.x = thigh_r * dir_sign

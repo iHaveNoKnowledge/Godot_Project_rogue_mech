@@ -123,12 +123,12 @@ material_override = SubResource("MechaMatDark")
 mesh = SubResource("BackpackMesh")
 
 [node name="ThrusterL" type="MeshInstance3D" parent="Body/Backpack"]
-transform = Transform3D(1, 0, 0, 0, 0.866, -0.5, 0, 0.5, 0.866, -0.25, -0.2, 0.15)
+transform = Transform3D(1, 0, 0, 0, 0.866, 0.5, 0, -0.5, 0.866, -0.25, -0.2, 0.25)
 material_override = SubResource("FlameMat")
 mesh = SubResource("ThrusterNozzle")
 
 [node name="ThrusterR" type="MeshInstance3D" parent="Body/Backpack"]
-transform = Transform3D(1, 0, 0, 0, 0.866, -0.5, 0, 0.5, 0.866, 0.25, -0.2, 0.15)
+transform = Transform3D(1, 0, 0, 0, 0.866, 0.5, 0, -0.5, 0.866, 0.25, -0.2, 0.25)
 material_override = SubResource("FlameMat")
 mesh = SubResource("ThrusterNozzle")
 

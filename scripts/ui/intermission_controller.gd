@@ -185,9 +185,7 @@ func _on_board_info_pressed() -> void:
 
 
 func _on_hangar_pressed() -> void:
-	var hangar = get_tree().current_scene.get_node_or_null("HangarUI")
-	if hangar:
-		hangar.show_hangar()
+	GameManager.enter_hangar()
 
 
 func _on_save_pressed() -> void:

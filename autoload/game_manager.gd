@@ -56,6 +56,7 @@ func enter_safehouse() -> void:
 
 
 func enter_hangar() -> void:
+	get_tree().change_scene_to_file("res://scenes/ui/hangar_scene.tscn")
 	transition_to(State.HANGAR)
 
 

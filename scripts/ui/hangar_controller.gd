@@ -162,19 +162,19 @@ func _build_3d_garage() -> void:
 	# Spotlights
 	var spot = SpotLight3D.new()
 	spot.position = Vector3(3, 8, 5)
+	hangar_env_node.add_child(spot)
 	spot.look_at(Vector3(0, 1.8, 0), Vector3.UP)
 	spot.light_energy = 4.0
 	spot.spot_range = 20.0
 	spot.spot_angle = 45.0
 	spot.light_color = Color(0.9, 0.95, 1.0)
-	hangar_env_node.add_child(spot)
 
 	var rim = SpotLight3D.new()
 	rim.position = Vector3(-4, 5, -4)
+	hangar_env_node.add_child(rim)
 	rim.look_at(Vector3(0, 1.5, 0), Vector3.UP)
 	rim.light_energy = 2.5
 	rim.light_color = Color(0.3, 0.7, 1.0)
-	hangar_env_node.add_child(rim)
 
 	# 3D Mecha Model in Garage
 	mecha_3d_root = Node3D.new()
@@ -187,9 +187,9 @@ func _build_3d_garage() -> void:
 	# Camera
 	garage_cam = Camera3D.new()
 	garage_cam.position = current_cam_pos
+	hangar_env_node.add_child(garage_cam)
 	garage_cam.look_at(current_look_pos, Vector3.UP)
 	garage_cam.fov = 55.0
-	hangar_env_node.add_child(garage_cam)
 
 
 # --- 2D OVERLAY UI ---
@@ -765,9 +765,9 @@ func _update_total_stats() -> void:
 
 
 func _on_close_pressed() -> void:
-	visible = false
 	get_tree().paused = false
 	GlobalData.save_run()
+	GameManager.return_to_board()
 
 
 func _input(event: InputEvent) -> void:

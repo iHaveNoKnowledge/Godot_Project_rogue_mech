@@ -99,7 +99,7 @@ func _apply_movement(delta: float) -> void:
 	desired_velocity = (forward * -input_dir.y + right * input_dir.x) * move_speed
 
 	if not strafe_mode and desired_velocity.length() > 0.1:
-		var target_angle = atan2(desired_velocity.x, desired_velocity.z)
+		var target_angle = atan2(-desired_velocity.x, -desired_velocity.z)
 		var effective_turn = turn_rate * (1.5 if is_roller_dashing else 1.0)
 		rotation.y = lerp_angle(rotation.y, target_angle, effective_turn * delta)
 

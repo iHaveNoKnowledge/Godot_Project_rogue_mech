@@ -159,24 +159,24 @@ func _update_legs(delta: float) -> void:
 		var shin_l = 0.0
 		if phase_left < PI:
 			var step_p = phase_left / PI # Step forward phase (0 to 1)
-			thigh_l = -deg_to_rad(55.0) * sin(step_p * PI) # High thigh lift forward
-			shin_l = deg_to_rad(85.0) * sin(step_p * PI)   # Shin folds back -> Knee points sharp forward!
+			thigh_l = -deg_to_rad(50.0) * sin(step_p * PI) # High thigh lift forward
+			shin_l = deg_to_rad(45.0) * sin(step_p * PI)   # Knee points sharp forward, foot clears ground!
 		else:
 			var push_p = (phase_left - PI) / PI # Push backward drive phase
 			thigh_l = deg_to_rad(35.0) * sin(push_p * PI)
-			shin_l = deg_to_rad(15.0) * sin(push_p * PI)
+			shin_l = deg_to_rad(20.0) * sin(push_p * PI)
 
 		# Right Leg Calculations
 		var thigh_r = 0.0
 		var shin_r = 0.0
 		if phase_right < PI:
 			var step_p = phase_right / PI
-			thigh_r = -deg_to_rad(55.0) * sin(step_p * PI)
-			shin_r = deg_to_rad(85.0) * sin(step_p * PI)
+			thigh_r = -deg_to_rad(50.0) * sin(step_p * PI)
+			shin_r = deg_to_rad(45.0) * sin(step_p * PI)
 		else:
 			var push_p = (phase_right - PI) / PI
 			thigh_r = deg_to_rad(35.0) * sin(push_p * PI)
-			shin_r = deg_to_rad(15.0) * sin(push_p * PI)
+			shin_r = deg_to_rad(20.0) * sin(push_p * PI)
 
 		leg_left.rotation.x = thigh_l * dir_sign
 		leg_right.rotation.x = thigh_r * dir_sign

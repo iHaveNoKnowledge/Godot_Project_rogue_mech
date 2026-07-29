@@ -476,7 +476,10 @@ func _populate_part_list_for_slot(slot: String) -> void:
 	if current_mode == "frame" and frame_catalog.has(slot):
 		var items = frame_catalog[slot]
 		for info in items:
-			var label_str = "⚙️ %s (HP: %.0f, %.1fkg)" % [info["name"], info["hp"], info["weight"]]
+			var fname = info.get("name", "Frame Part")
+			var fhp = info.get("hp", 20.0)
+			var fwt = info.get("weight", 3.0)
+			var label_str = "⚙️ %s (HP: %.0f, %.1fkg)" % [fname, fhp, fwt]
 			part_item_list.add_item(label_str)
 		if items.size() > 0:
 			part_item_list.select(0)
@@ -579,10 +582,42 @@ func _apply_3d_chassis_preview(info: Dictionary) -> void:
 	mat.metallic = 0.85
 	mat.roughness = 0.35
 
-	if selected_chassis_key == "brawler":
-		mat.albedo_color = Color(0.35, 0.40, 0.28)
-		mat.metallic = 0.9
-		mat.roughness = 0.25
+	# Distinct 3D Model GLTF and Mesh Proportions
+	var zenisrev_node = mecha_3d_root.get_node_or_null("MechaBase/Zenisrev")
+	var body_node = mecha_3d_root.get_node_or_null("MechaBase/Body")
+	var arm_left = mecha_3d_root.get_node_or_null("MechaBase/ArmLeft")
+	var arm_right = mecha_3d_root.get_node_or_null("MechaBase/ArmRight")
+
+	match selected_chassis_key:
+		"standard":
+			mat.albedo_color = Color(0.7, 0.72, 0.78)
+			if zenisrev_node: zenisrev_node.scale = Vector3(0.007, 0.007, 0.007)
+			if body_node: body_node.scale = Vector3(1.0, 1.0, 1.0)
+		"titan":
+			mat.albedo_color = Color(0.3, 0.15, 0.35)
+			mat.metallic = 0.95
+			if zenisrev_node: zenisrev_node.scale = Vector3(0.011, 0.009, 0.011)
+			if body_node: body_node.scale = Vector3(1.4, 1.2, 1.3)
+			if arm_left: arm_left.scale = Vector3(1.3, 1.2, 1.3)
+			if arm_right: arm_right.scale = Vector3(1.3, 1.2, 1.3)
+		"vanguard":
+			mat.albedo_color = Color(0.85, 0.88, 0.95)
+			mat.metallic = 0.7
+			if zenisrev_node: zenisrev_node.scale = Vector3(0.006, 0.008, 0.006)
+			if body_node: body_node.scale = Vector3(0.85, 1.1, 0.85)
+		"aegis":
+			mat.albedo_color = Color(0.2, 0.4, 0.55)
+			mat.metallic = 0.9
+			if zenisrev_node: zenisrev_node.scale = Vector3(0.009, 0.008, 0.010)
+			if body_node: body_node.scale = Vector3(1.3, 1.0, 1.4)
+		"brawler":
+			mat.albedo_color = Color(0.35, 0.40, 0.28) # Military Olive Green
+			mat.metallic = 0.9
+			mat.roughness = 0.25
+			if zenisrev_node: zenisrev_node.scale = Vector3(0.008, 0.0075, 0.008)
+			if body_node: body_node.scale = Vector3(1.25, 0.95, 1.2)
+			if arm_left: arm_left.scale = Vector3(1.4, 1.1, 1.4)
+			if arm_right: arm_right.scale = Vector3(1.4, 1.1, 1.4)
 
 	for mesh_path in ["MechaBase/Head/HeadMesh", "MechaBase/Body/BodyMesh", "MechaBase/ArmLeft/ArmLeftMesh", "MechaBase/ArmRight/ArmRightMesh", "MechaBase/LegLeft/LegLeftMesh", "MechaBase/LegRight/LegRightMesh"]:
 		var node = mecha_3d_root.get_node_or_null(mesh_path)
@@ -659,39 +694,48 @@ func _on_equip_pressed() -> void:
 			GlobalData.credits -= cost_cr
 			GlobalData.data_cores -= cost_cores
 			GlobalData.frame_upgrade_level += 1
-			status_message_label.text = "⚡ Frame Reactor upgraded to Level %d!" % GlobalData.frame_upgrade_level
+			status_message_label.text = "✅ Frame Reactor Upgraded to Level %d!" % GlobalData.frame_upgrade_level
+			GlobalData.save_run()
 			_update_total_stats()
 		else:
-			status_message_label.text = "Insufficient Credits/Cores!"
+			status_message_label.text = "❌ Insufficient Credits or Data Cores!"
 		return
 
 	if selected_slot == "chassis":
 		GlobalData.chassis_id = selected_chassis_key
-		status_message_label.text = "Chassis set to %s!" % GlobalData.chassis_catalog[selected_chassis_key]["name"]
+		var name_str = GlobalData.chassis_catalog[selected_chassis_key].get("name", "Chassis")
+		status_message_label.text = "✅ Chassis Model Set & Applied: %s!" % name_str
+		GlobalData.save_run()
 		_update_total_stats()
 		return
 
 	if not selected_salvage_info.is_empty():
 		var res = ArmorPart.new()
-		res.part_name = selected_salvage_info["name"]
-		res.max_hp = selected_salvage_info["hp"]
-		res.armor_class = selected_salvage_info["armor"]
-		res.weight = selected_salvage_info["weight"]
+		res.part_name = selected_salvage_info.get("name", "Salvaged Plate")
+		res.max_hp = selected_salvage_info.get("hp", 40.0)
+		res.armor_class = selected_salvage_info.get("armor", 25.0)
+		res.weight = selected_salvage_info.get("weight", 6.0)
 		GlobalData.equipped_parts[selected_slot] = res
 		GlobalData.part_damage.erase(selected_slot)
-		status_message_label.text = "Equipped Salvaged Armor: %s!" % res.part_name
+		status_message_label.text = "✅ Equipped & Saved: %s!" % res.part_name
+		GlobalData.save_run()
 		_update_total_stats()
 		return
 
 	if current_mode == "frame" and not selected_frame_info.is_empty():
 		GlobalData.equipped_frames[selected_slot] = selected_frame_info.duplicate()
-		status_message_label.text = "Equipped Frame: %s!" % selected_frame_info["name"]
+		var fname = selected_frame_info.get("name", "Frame")
+		status_message_label.text = "✅ Equipped Inner Frame: %s!" % fname
+		GlobalData.save_run()
 		_update_total_stats()
 	elif selected_part_path != "" and ResourceLoader.exists(selected_part_path):
 		var res = load(selected_part_path)
 		if res:
+			GlobalData.equipped_parts[selected_slot] = res
+			GlobalData.part_damage.erase(selected_slot)
 			var pname = res.get("part_name") if res.get("part_name") != null else "Part"
-			status_message_label.text = "Equipped Armor: %s!" % pname
+			status_message_label.text = "✅ Equipped & Saved Armor: %s!" % pname
+			GlobalData.save_run()
 			_update_total_stats()
 
 

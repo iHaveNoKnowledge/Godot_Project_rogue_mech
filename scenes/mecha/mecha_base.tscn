@@ -61,10 +61,10 @@ height = 0.35
 size = Vector3(0.65, 0.45, 0.65)
 
 [sub_resource type="BoxMesh" id="UpperArmMeshShape"]
-size = Vector3(0.28, 0.45, 0.28)
+size = Vector3(0.3, 0.65, 0.3)
 
 [sub_resource type="BoxMesh" id="ForearmMesh"]
-size = Vector3(0.38, 0.55, 0.38)
+size = Vector3(0.38, 0.75, 0.38)
 
 [sub_resource type="CylinderMesh" id="ThighMeshShape"]
 top_radius = 0.22
@@ -140,15 +140,15 @@ material_override = SubResource("MechaMat")
 mesh = SubResource("ShoulderPlate")
 
 [node name="UpperArmLeft" type="MeshInstance3D" parent="ArmLeft"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.22, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.32, 0)
 material_override = SubResource("MechaMatDark")
 mesh = SubResource("UpperArmMeshShape")
 
 [node name="ForearmLeft" type="Node3D" parent="ArmLeft"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.42, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.65, 0)
 
 [node name="ArmLeftMesh" type="MeshInstance3D" parent="ArmLeft/ForearmLeft"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.35, 0)
 material_override = SubResource("MechaMatDark")
 mesh = SubResource("ForearmMesh")
 
@@ -160,15 +160,15 @@ material_override = SubResource("MechaMat")
 mesh = SubResource("ShoulderPlate")
 
 [node name="UpperArmRight" type="MeshInstance3D" parent="ArmRight"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.22, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.32, 0)
 material_override = SubResource("MechaMatDark")
 mesh = SubResource("UpperArmMeshShape")
 
 [node name="ForearmRight" type="Node3D" parent="ArmRight"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.42, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.65, 0)
 
 [node name="ArmRightMesh" type="MeshInstance3D" parent="ArmRight/ForearmRight"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.35, 0)
 material_override = SubResource("MechaMatDark")
 mesh = SubResource("ForearmMesh")
 

@@ -74,20 +74,20 @@ func _update_roller_dash_posture(delta: float) -> void:
 		var speed = 10.0 * delta
 		var is_skating = mecha.is_roller_dashing
 
-		# Posture specs requested:
-		# 1. Torso/Body leans FORWARD (-30 deg)
-		# 2. Head follows body rotation, locked at neck position (no floating!)
+		# Posture Specs:
+		# 1. Body leans FORWARD down (-28 deg)
+		# 2. Head locked to body rotation (no floating!)
 		# 3. Upper leg (thigh) crouched BACKWARD (+40 deg)
 		# 4. Lower leg (shin) PERPENDICULAR TO GROUND (-40 deg cancels thigh tilt, standing vertical to floor!)
-		# 5. Upper arm thrusts elbows BACKWARD (+55 deg), forearm points forward/down (-85 deg)
-		var target_body_tilt = -deg_to_rad(30.0) if is_skating else 0.0
+		# 5. Upper arm thrusts elbows BACKWARD (+55 deg), forearm flexed (+70 deg) driving elbows sharply BACKWARD!
+		var target_body_tilt = -deg_to_rad(28.0) if is_skating else 0.0
 		var target_drop = -0.35 if is_skating else 0.0
 
 		var target_thigh_crouch = deg_to_rad(40.0) if is_skating else 0.0
 		var target_shin_vertical = -deg_to_rad(40.0) if is_skating else 0.0
 
 		var target_upper_arm = deg_to_rad(55.0) if is_skating else 0.0
-		var target_forearm = -deg_to_rad(85.0) if is_skating else 0.0
+		var target_forearm = deg_to_rad(70.0) if is_skating else 0.0
 
 		if is_skating:
 			if body_mesh:
@@ -146,28 +146,28 @@ func _update_legs(delta: float) -> void:
 		var phase_left = fmod(bob_timer * 0.5, TAU)
 		var phase_right = fmod(bob_timer * 0.5 + PI, TAU)
 
-		# Dynamic Sprinting Stride for Left Leg
+		# Natural Biomechanical Running Cycle for Left Leg
 		var thigh_l = 0.0
 		var shin_l = 0.0
 		if phase_left < PI:
 			var step_p = phase_left / PI
-			thigh_l = -deg_to_rad(55.0) * sin(step_p * PI) # Drive thigh forward (-Z)
-			shin_l = deg_to_rad(45.0) * sin(step_p * PI)   # Knee flexes forward, foot plants
+			thigh_l = -deg_to_rad(52.0) * sin(step_p * PI) # Drive thigh forward (-Z)
+			shin_l = deg_to_rad(50.0) * sin(step_p * PI)   # Knee flexes up/forward, foot clears ground
 		else:
 			var push_p = (phase_left - PI) / PI
-			thigh_l = deg_to_rad(40.0) * sin(push_p * PI) # Drive thigh backward (+Z)
+			thigh_l = deg_to_rad(38.0) * sin(push_p * PI)  # Drive thigh backward (+Z)
 			shin_l = deg_to_rad(20.0) * sin(push_p * PI)
 
-		# Dynamic Sprinting Stride for Right Leg
+		# Natural Biomechanical Running Cycle for Right Leg
 		var thigh_r = 0.0
 		var shin_r = 0.0
 		if phase_right < PI:
 			var step_p = phase_right / PI
-			thigh_r = -deg_to_rad(55.0) * sin(step_p * PI)
-			shin_r = deg_to_rad(45.0) * sin(step_p * PI)
+			thigh_r = -deg_to_rad(52.0) * sin(step_p * PI)
+			shin_r = deg_to_rad(50.0) * sin(step_p * PI)
 		else:
 			var push_p = (phase_right - PI) / PI
-			thigh_r = deg_to_rad(40.0) * sin(push_p * PI)
+			thigh_r = deg_to_rad(38.0) * sin(push_p * PI)
 			shin_r = deg_to_rad(20.0) * sin(push_p * PI)
 
 		leg_left.rotation.x = thigh_l * dir_sign
@@ -176,13 +176,15 @@ func _update_legs(delta: float) -> void:
 		if shin_left: shin_left.rotation.x = shin_l
 		if shin_right: shin_right.rotation.x = shin_r
 
-		# Athletic Opposite Arm Pumping (Arm Left swings BACKWARD when Leg Left steps FORWARD!)
+		# Athletic Arm Pumping with Elbows Driven BACKWARD
 		if arm_left:
 			arm_left.rotation.x = -thigh_l * 0.7 * dir_sign
-			if forearm_left: forearm_left.rotation.x = -deg_to_rad(50.0)
+			if forearm_left:
+				forearm_left.rotation.x = deg_to_rad(55.0) + abs(sin(phase_left)) * deg_to_rad(15.0)
 		if arm_right:
 			arm_right.rotation.x = -thigh_r * 0.7 * dir_sign
-			if forearm_right: forearm_right.rotation.x = -deg_to_rad(50.0)
+			if forearm_right:
+				forearm_right.rotation.x = deg_to_rad(55.0) + abs(sin(phase_right)) * deg_to_rad(15.0)
 	else:
 		var speed = 6.0 * delta
 		if leg_left: leg_left.rotation.x = lerp_angle(leg_left.rotation.x, 0.0, speed)

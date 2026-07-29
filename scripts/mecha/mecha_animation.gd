@@ -1,7 +1,7 @@
 extends Node
 
 @export var bob_amount: float = 0.15
-@export var bob_speed: float = 12.0
+@export var bob_speed: float = 14.0
 @export var recoil_amount: float = 0.3
 @export var recoil_recovery: float = 10.0
 
@@ -79,14 +79,13 @@ func _update_roller_dash_posture(delta: float) -> void:
 		# 2. Head locked to body rotation (no floating!)
 		# 3. Upper leg (thigh) crouched BACKWARD (+40 deg)
 		# 4. Lower leg (shin) PERPENDICULAR TO GROUND (-40 deg cancels thigh tilt, standing vertical to floor!)
-		# 5. Shoulder joint twisted BACKWARD (-60 deg), flexing elbow (-75 deg) so ELBOW TIP POINTS HIGH UPWARDS!
+		# 5. Shoulder joint pushed BACKWARD (+60 deg) & Forearm flexed (+85 deg) so ELBOW TIP POINTS HIGH UPWARDS BEHIND BACK!
 		var target_body_tilt = -deg_to_rad(28.0) if is_skating else 0.0
 		var target_drop = -0.35 if is_skating else 0.0
 
 		var target_thigh_crouch = deg_to_rad(40.0) if is_skating else 0.0
 		var target_shin_vertical = -deg_to_rad(40.0) if is_skating else 0.0
 
-		# Shoulder Joint pushed BACKWARD behind torso (+60 deg) & Forearm flexed (+85 deg) so ELBOW TIP POINTS HIGH UPWARDS BEHIND BACK!
 		var target_upper_arm = deg_to_rad(60.0) if is_skating else 0.0
 		var target_forearm = deg_to_rad(85.0) if is_skating else 0.0
 
@@ -122,8 +121,8 @@ func _update_bob(delta: float) -> void:
 		bob_timer += delta * clamp(run_speed, 12.0, 24.0)
 		var bob = sin(bob_timer) * bob_amount
 
-		# Forward Torso Sprint Lean (-16 degrees forward lean when sprinting)
-		var sprint_lean = -deg_to_rad(16.0)
+		# Forward Torso Heavy Sprint Lean (-22 degrees forward lean when sprinting like in GIF)
+		var sprint_lean = -deg_to_rad(22.0)
 		if body_mesh:
 			body_mesh.position.y = _original_body_pos.y + abs(bob) * 0.35
 			body_mesh.rotation.x = lerp_angle(body_mesh.rotation.x, sprint_lean, 10.0 * delta)
@@ -147,43 +146,14 @@ func _update_legs(delta: float) -> void:
 		var phase_left = fmod(bob_timer * 0.5, TAU)
 		var phase_right = fmod(bob_timer * 0.5 + PI, TAU)
 
-		# Sequential Leg Stride Calculations for Left Leg
-		var thigh_l = 0.0
-		var shin_l = 0.0
-		if phase_left < PI:
-			var step_p = phase_left / PI # Step forward phase (0.0 to 1.0)
-			thigh_l = -deg_to_rad(52.0) * sin(step_p * PI) # Thigh drives forward (-Z)
-			
-			if step_p < 0.5:
-				# Stage 1: Thigh lifting -> Lower leg FOLDS BACKWARD (+65 deg)!
-				var lift_p = step_p / 0.5
-				shin_l = deg_to_rad(65.0) * sin(lift_p * PI * 0.5)
-			else:
-				# Stage 2: Thigh lowering -> Lower leg UN-FOLDS and EXTENDS FORWARD to plant foot!
-				var ext_p = (step_p - 0.5) / 0.5
-				shin_l = deg_to_rad(65.0) * cos(ext_p * PI * 0.5) - deg_to_rad(15.0) * sin(ext_p * PI)
-		else:
-			var push_p = (phase_left - PI) / PI # Push backward drive phase
-			thigh_l = deg_to_rad(38.0) * sin(push_p * PI)
-			shin_l = deg_to_rad(15.0) * sin(push_p * PI)
+		# Iconic High-Speed Mecha Sprint Kinematics (Matching Pinterest Reference GIF)
+		var left_leg_data = _calc_mecha_sprint_leg(phase_left)
+		var right_leg_data = _calc_mecha_sprint_leg(phase_right)
 
-		# Sequential Leg Stride Calculations for Right Leg
-		var thigh_r = 0.0
-		var shin_r = 0.0
-		if phase_right < PI:
-			var step_p = phase_right / PI
-			thigh_r = -deg_to_rad(52.0) * sin(step_p * PI)
-			
-			if step_p < 0.5:
-				var lift_p = step_p / 0.5
-				shin_r = deg_to_rad(65.0) * sin(lift_p * PI * 0.5)
-			else:
-				var ext_p = (step_p - 0.5) / 0.5
-				shin_r = deg_to_rad(65.0) * cos(ext_p * PI * 0.5) - deg_to_rad(15.0) * sin(ext_p * PI)
-		else:
-			var push_p = (phase_right - PI) / PI
-			thigh_r = deg_to_rad(38.0) * sin(push_p * PI)
-			shin_r = deg_to_rad(15.0) * sin(push_p * PI)
+		var thigh_l = left_leg_data["thigh"]
+		var shin_l = left_leg_data["shin"]
+		var thigh_r = right_leg_data["thigh"]
+		var shin_r = right_leg_data["shin"]
 
 		leg_left.rotation.x = thigh_l * dir_sign
 		leg_right.rotation.x = thigh_r * dir_sign
@@ -191,7 +161,7 @@ func _update_legs(delta: float) -> void:
 		if shin_left: shin_left.rotation.x = shin_l
 		if shin_right: shin_right.rotation.x = shin_r
 
-		# Athletic Arm Pumping with Elbows Driven BACKWARD
+		# Athletic Arm Pumping linked to stride phase
 		if arm_left:
 			arm_left.rotation.x = -thigh_l * 0.7 * dir_sign
 			if forearm_left:
@@ -210,6 +180,41 @@ func _update_legs(delta: float) -> void:
 		if arm_right: arm_right.rotation.x = lerp_angle(arm_right.rotation.x, 0.0, speed)
 		if forearm_left: forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, 0.0, speed)
 		if forearm_right: forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, 0.0, speed)
+
+
+func _calc_mecha_sprint_leg(phase: float) -> Dictionary:
+	var thigh = 0.0
+	var shin = 0.0
+
+	var norm_phase = fmod(phase, TAU)
+	if norm_phase < PI:
+		# Swing Phase (0.0 to 1.0)
+		var step_p = norm_phase / PI
+
+		# Thigh drives forward aggressively (-58 degrees)
+		thigh = -deg_to_rad(58.0) * sin(step_p * PI)
+
+		if step_p < 0.4:
+			# Phase 1: High Heel-Kick Backwards (+85 degrees fold behind thigh)
+			var fold_p = step_p / 0.4
+			shin = deg_to_rad(85.0) * sin(fold_p * PI * 0.5)
+		elif step_p < 0.7:
+			# Phase 2: Whip-Snap Extension (Lower leg snaps forward ahead of knee!)
+			var snap_p = (step_p - 0.4) / 0.3
+			shin = lerp(deg_to_rad(85.0), -deg_to_rad(15.0), sin(snap_p * PI * 0.5))
+		else:
+			# Phase 3: Foot Plant & Ground Touch
+			var plant_p = (step_p - 0.7) / 0.3
+			shin = lerp(-deg_to_rad(15.0), deg_to_rad(10.0), plant_p)
+	else:
+		# Push-off / Stance Phase (PI to TAU)
+		var push_p = (norm_phase - PI) / PI
+		# Thigh pushes backward (+42 degrees)
+		thigh = deg_to_rad(42.0) * sin(push_p * PI)
+		# Shin flexes under ground impact load
+		shin = deg_to_rad(20.0) * sin(push_p * PI)
+
+	return {"thigh": thigh, "shin": shin}
 
 
 func _lerp_to_original(delta: float) -> void:

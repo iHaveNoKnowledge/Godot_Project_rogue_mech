@@ -2,7 +2,42 @@ extends Node
 
 var chassis_id: String = "standard"
 var equipped_parts: Dictionary = {}
+var equipped_frames: Dictionary = {
+	"head": {"name": "Standard Light Alloy Frame", "hp": 20.0, "weight": 2.0},
+	"body": {"name": "Standard Core Structure", "hp": 40.0, "weight": 6.0},
+	"arm_left": {"name": "Standard Articulated Arm Frame", "hp": 15.0, "weight": 3.0},
+	"arm_right": {"name": "Standard Articulated Arm Frame", "hp": 15.0, "weight": 3.0},
+	"leg_left": {"name": "Standard Actuator Leg Frame", "hp": 20.0, "weight": 4.0},
+	"leg_right": {"name": "Standard Actuator Leg Frame", "hp": 20.0, "weight": 4.0}
+}
 var part_damage: Dictionary = {}
+
+var chassis_catalog: Dictionary = {
+	"standard": {
+		"name": "ZENISREV-01 (Standard Scout)",
+		"speed": 7.0,
+		"max_weight": 75.0,
+		"color": Color(0.6, 0.65, 0.7)
+	},
+	"titan": {
+		"name": "TITAN OVERLORD-X (Heavy Siege)",
+		"speed": 4.5,
+		"max_weight": 110.0,
+		"color": Color(0.3, 0.15, 0.35)
+	},
+	"vanguard": {
+		"name": "VANGUARD STRIKER-09 (High-Mobility Recon)",
+		"speed": 10.5,
+		"max_weight": 55.0,
+		"color": Color(0.85, 0.85, 0.9)
+	},
+	"aegis": {
+		"name": "AEGIS FORTRESS-04 (Heavy Defense Barrier)",
+		"speed": 5.5,
+		"max_weight": 95.0,
+		"color": Color(0.2, 0.4, 0.5)
+	}
+}
 
 var board_grid: Array = []
 var current_tile: Vector2i = Vector2i.ZERO

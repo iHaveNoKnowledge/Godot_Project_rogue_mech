@@ -34,6 +34,22 @@ func _init_parts() -> void:
 			"armor_broken": false, "destroyed": false, "mesh": null
 		},
 	}
+
+	for slot in parts:
+		if GlobalData.equipped_frames.has(slot):
+			var f = GlobalData.equipped_frames[slot]
+			var f_hp = f.get("hp", parts[slot]["max_frame"])
+			parts[slot]["frame_hp"] = f_hp
+			parts[slot]["max_frame"] = f_hp
+
+		if GlobalData.equipped_parts.has(slot):
+			var p = GlobalData.equipped_parts[slot]
+			if p and p.get("max_hp") != null:
+				parts[slot]["armor_hp"] = p.max_hp
+				parts[slot]["max_armor"] = p.max_hp
+			if p and p.get("armor_class") != null:
+				parts[slot]["armor_class"] = p.armor_class
+
 	is_player = true
 
 

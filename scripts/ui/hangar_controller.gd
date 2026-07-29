@@ -253,7 +253,7 @@ func _build_ui_layout() -> void:
 
 	# Sub-Toggle Bar for Armor Plating vs Inner Skeleton Frame
 	sub_toggle_container = HBoxContainer.new()
-	sub_toggle_container.set_anchors_preset(Control.PRESET_TOP_CENTER)
+	sub_toggle_container.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	sub_toggle_container.offset_top = 58
 	sub_toggle_container.add_theme_constant_override("separation", 10)
 	root.add_child(sub_toggle_container)

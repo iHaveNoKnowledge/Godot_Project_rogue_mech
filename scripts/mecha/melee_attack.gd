@@ -45,28 +45,13 @@ func _face_crosshair(mecha: Node3D) -> void:
 	if cam == null:
 		return
 
-	var viewport_size = get_viewport().get_visible_rect().size
-	var center = viewport_size / 2.0
-	var ray_origin = cam.project_ray_origin(center)
-	var ray_dir = cam.project_ray_normal(center)
-
-	var space_state = get_viewport().get_world_3d().direct_space_state
-	var query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 500.0)
-	query.collision_mask = 13
-	var result = space_state.intersect_ray(query)
-
-	var target_point: Vector3
-	if result:
-		target_point = result["position"]
-	else:
-		target_point = ray_origin + ray_dir * 500.0
-
-	var dir = (target_point - mecha.global_position).normalized()
-	dir.y = 0.0
-	if dir.length() > 0.1:
-		var target_angle = atan2(-dir.x, -dir.z)
+	var fwd = -cam.global_transform.basis.z
+	fwd.y = 0.0
+	fwd = fwd.normalized()
+	if fwd.length() > 0.1:
+		var target_angle = atan2(-fwd.x, -fwd.z)
 		mecha.rotation.y = target_angle
-		swing_direction = dir
+		swing_direction = fwd
 
 
 func _spawn_trail() -> void:

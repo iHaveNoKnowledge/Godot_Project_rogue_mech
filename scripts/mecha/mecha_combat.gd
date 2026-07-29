@@ -25,7 +25,7 @@ func _physics_process(delta: float) -> void:
 	if is_aiming:
 		mecha.strafe_mode = true
 		var aim_dir = _aim_from_camera()
-		var target_angle = atan2(aim_dir.x, aim_dir.z)
+		var target_angle = atan2(-aim_dir.x, -aim_dir.z)
 		mecha.rotation.y = lerp_angle(mecha.rotation.y, target_angle, 8.0 * delta)
 
 

@@ -71,78 +71,64 @@ func _update_recoil(delta: float) -> void:
 
 func _update_roller_dash_posture(delta: float) -> void:
 	if mecha and mecha.get("is_roller_dashing") != null:
-		var speed = 8.0 * delta
+		var speed = 10.0 * delta
 		var is_skating = mecha.is_roller_dashing
 
-		# Correct Roller Dash Pose:
-		# Body leans FORWARD down -24 deg (Negative X in Godot tilts forward towards -Z)
-		var target_body_tilt = -deg_to_rad(24.0) if is_skating else 0.0
-		var target_drop = -0.4 if is_skating else 0.0
+		# Posture specs requested:
+		# 1. Torso/Body leans FORWARD (-30 deg)
+		# 2. Head follows body rotation, locked at neck position (no floating!)
+		# 3. Upper leg (thigh) crouched BACKWARD (+40 deg)
+		# 4. Lower leg (shin) PERPENDICULAR TO GROUND (-40 deg cancels thigh tilt, standing vertical to floor!)
+		# 5. Upper arm thrusts elbows BACKWARD (+55 deg), forearm points forward/down (-85 deg)
+		var target_body_tilt = -deg_to_rad(30.0) if is_skating else 0.0
+		var target_drop = -0.35 if is_skating else 0.0
 
-		# Upper Arm: Pushed BACKWARD along forward body tilt (+45 deg in Godot rotates arms back towards +Z)
-		var target_upper_arm_rot = deg_to_rad(45.0) if is_skating else 0.0
-		# Forearm: Bent forward DOWNWARD towards ground (-70 deg) forming the sharp '>' chevron posture!
-		var target_forearm_rot = -deg_to_rad(70.0) if is_skating else 0.0
+		var target_thigh_crouch = deg_to_rad(40.0) if is_skating else 0.0
+		var target_shin_vertical = -deg_to_rad(40.0) if is_skating else 0.0
 
-		# Legs crouch forward into racing stance
-		var target_hip_crouch = -deg_to_rad(25.0) if is_skating else 0.0
-		var target_knee_crouch = deg_to_rad(50.0) if is_skating else 0.0
+		var target_upper_arm = deg_to_rad(55.0) if is_skating else 0.0
+		var target_forearm = -deg_to_rad(85.0) if is_skating else 0.0
 
 		if is_skating:
 			if body_mesh:
 				body_mesh.rotation.x = lerp_angle(body_mesh.rotation.x, target_body_tilt, speed)
 				body_mesh.position.y = lerp(body_mesh.position.y, _original_body_pos.y + target_drop, speed)
 			if head_mesh:
-				head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, target_body_tilt * 0.7, speed)
+				head_mesh.position = _original_head_pos + Vector3(0, target_drop, 0)
+				head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, target_body_tilt, speed)
 
-			if arm_left: arm_left.rotation.x = lerp_angle(arm_left.rotation.x, target_upper_arm_rot, speed)
-			if arm_right: arm_right.rotation.x = lerp_angle(arm_right.rotation.x, target_upper_arm_rot, speed)
+			if arm_left: arm_left.rotation.x = lerp_angle(arm_left.rotation.x, target_upper_arm, speed)
+			if arm_right: arm_right.rotation.x = lerp_angle(arm_right.rotation.x, target_upper_arm, speed)
 
-			if forearm_left: forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, target_forearm_rot, speed)
-			if forearm_right: forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, target_forearm_rot, speed)
+			if forearm_left: forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, target_forearm, speed)
+			if forearm_right: forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, target_forearm, speed)
 
-			if leg_left: leg_left.rotation.x = lerp_angle(leg_left.rotation.x, target_hip_crouch, speed)
-			if leg_right: leg_right.rotation.x = lerp_angle(leg_right.rotation.x, target_hip_crouch, speed)
+			if leg_left: leg_left.rotation.x = lerp_angle(leg_left.rotation.x, target_thigh_crouch, speed)
+			if leg_right: leg_right.rotation.x = lerp_angle(leg_right.rotation.x, target_thigh_crouch, speed)
 
-			if shin_left: shin_left.rotation.x = lerp_angle(shin_left.rotation.x, target_knee_crouch, speed)
-			if shin_right: shin_right.rotation.x = lerp_angle(shin_right.rotation.x, target_knee_crouch, speed)
+			if shin_left: shin_left.rotation.x = lerp_angle(shin_left.rotation.x, target_shin_vertical, speed)
+			if shin_right: shin_right.rotation.x = lerp_angle(shin_right.rotation.x, target_shin_vertical, speed)
 
 			var model = mecha.get_node_or_null("Zenisrev")
 			if model:
 				model.rotation.x = lerp_angle(model.rotation.x, target_body_tilt, speed)
-		else:
-			if forearm_left: forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, 0.0, speed)
-			if forearm_right: forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, 0.0, speed)
 
 
 func _update_bob(delta: float) -> void:
 	var is_skating = mecha.get("is_roller_dashing") == true
 	if is_moving and not is_skating:
-		var run_speed = mecha.velocity.length() * 2.2
-		bob_timer += delta * clamp(run_speed, 10.0, 22.0)
+		var run_speed = mecha.velocity.length() * 2.5
+		bob_timer += delta * clamp(run_speed, 12.0, 24.0)
 		var bob = sin(bob_timer) * bob_amount
 
-		# Forward Torso Sprint Lean (~14 degrees forward lean when sprinting!)
-		var sprint_lean = -deg_to_rad(14.0)
+		# Forward Torso Sprint Lean (-16 degrees forward lean when sprinting)
+		var sprint_lean = -deg_to_rad(16.0)
 		if body_mesh:
-			body_mesh.position.y = _original_body_pos.y + abs(bob) * 0.4
+			body_mesh.position.y = _original_body_pos.y + abs(bob) * 0.35
 			body_mesh.rotation.x = lerp_angle(body_mesh.rotation.x, sprint_lean, 10.0 * delta)
 		if head_mesh:
-			head_mesh.position.y = _original_head_pos.y + abs(bob) * 0.6
-			head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, sprint_lean * 0.7, 10.0 * delta)
-
-		# Athletic Bent-Elbow Arm Pumping
-		var arm_swing = sin(bob_timer * 0.5) * deg_to_rad(42.0)
-		if arm_left:
-			arm_left.position.y = _original_arm_left_pos.y + bob * 0.15
-			arm_left.rotation.x = arm_swing
-		if arm_right:
-			arm_right.position.y = _original_arm_right_pos.y + bob * 0.15
-			arm_right.rotation.x = -arm_swing
-
-		# Bent elbows during sprint (-45 deg flexion)
-		if forearm_left: forearm_left.rotation.x = -deg_to_rad(45.0)
-		if forearm_right: forearm_right.rotation.x = -deg_to_rad(45.0)
+			head_mesh.position = _original_head_pos + Vector3(0, abs(bob) * 0.35, 0)
+			head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, sprint_lean, 10.0 * delta)
 	elif not is_skating:
 		bob_timer = 0.0
 		_lerp_to_original(delta)
@@ -165,36 +151,48 @@ func _update_legs(delta: float) -> void:
 		var shin_l = 0.0
 		if phase_left < PI:
 			var step_p = phase_left / PI
-			thigh_l = -deg_to_rad(52.0) * sin(step_p * PI) # Drive thigh forward (-Z)
+			thigh_l = -deg_to_rad(55.0) * sin(step_p * PI) # Drive thigh forward (-Z)
 			shin_l = deg_to_rad(45.0) * sin(step_p * PI)   # Knee flexes forward, foot plants
 		else:
 			var push_p = (phase_left - PI) / PI
-			thigh_l = deg_to_rad(38.0) * sin(push_p * PI) # Drive thigh backward (+Z)
-			shin_l = deg_to_rad(25.0) * sin(push_p * PI)
+			thigh_l = deg_to_rad(40.0) * sin(push_p * PI) # Drive thigh backward (+Z)
+			shin_l = deg_to_rad(20.0) * sin(push_p * PI)
 
 		# Dynamic Sprinting Stride for Right Leg
 		var thigh_r = 0.0
 		var shin_r = 0.0
 		if phase_right < PI:
 			var step_p = phase_right / PI
-			thigh_r = -deg_to_rad(52.0) * sin(step_p * PI)
+			thigh_r = -deg_to_rad(55.0) * sin(step_p * PI)
 			shin_r = deg_to_rad(45.0) * sin(step_p * PI)
 		else:
 			var push_p = (phase_right - PI) / PI
-			thigh_r = deg_to_rad(38.0) * sin(push_p * PI)
-			shin_r = deg_to_rad(25.0) * sin(push_p * PI)
+			thigh_r = deg_to_rad(40.0) * sin(push_p * PI)
+			shin_r = deg_to_rad(20.0) * sin(push_p * PI)
 
 		leg_left.rotation.x = thigh_l * dir_sign
 		leg_right.rotation.x = thigh_r * dir_sign
 
 		if shin_left: shin_left.rotation.x = shin_l
 		if shin_right: shin_right.rotation.x = shin_r
+
+		# Athletic Opposite Arm Pumping (Arm Left swings BACKWARD when Leg Left steps FORWARD!)
+		if arm_left:
+			arm_left.rotation.x = -thigh_l * 0.7 * dir_sign
+			if forearm_left: forearm_left.rotation.x = -deg_to_rad(50.0)
+		if arm_right:
+			arm_right.rotation.x = -thigh_r * 0.7 * dir_sign
+			if forearm_right: forearm_right.rotation.x = -deg_to_rad(50.0)
 	else:
 		var speed = 6.0 * delta
 		if leg_left: leg_left.rotation.x = lerp_angle(leg_left.rotation.x, 0.0, speed)
 		if leg_right: leg_right.rotation.x = lerp_angle(leg_right.rotation.x, 0.0, speed)
 		if shin_left: shin_left.rotation.x = lerp_angle(shin_left.rotation.x, 0.0, speed)
 		if shin_right: shin_right.rotation.x = lerp_angle(shin_right.rotation.x, 0.0, speed)
+		if arm_left: arm_left.rotation.x = lerp_angle(arm_left.rotation.x, 0.0, speed)
+		if arm_right: arm_right.rotation.x = lerp_angle(arm_right.rotation.x, 0.0, speed)
+		if forearm_left: forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, 0.0, speed)
+		if forearm_right: forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, 0.0, speed)
 
 
 func _lerp_to_original(delta: float) -> void:
@@ -203,7 +201,7 @@ func _lerp_to_original(delta: float) -> void:
 		body_mesh.position.y = lerp(body_mesh.position.y, _original_body_pos.y, speed)
 		body_mesh.rotation.x = lerp_angle(body_mesh.rotation.x, 0.0, speed)
 	if head_mesh:
-		head_mesh.position.y = lerp(head_mesh.position.y, _original_head_pos.y, speed)
+		head_mesh.position = head_mesh.position.lerp(_original_head_pos, speed)
 		head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, 0.0, speed)
 	if arm_left:
 		arm_left.position = arm_left.position.lerp(_original_arm_left_pos, speed)

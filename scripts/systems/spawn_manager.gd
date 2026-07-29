@@ -2,17 +2,36 @@ extends Node3D
 
 ## Manages enemy spawning in waves during combat.
 
-var enemy_scenes: Dictionary = {
-	"rusher_simple": preload("res://scenes/mecha/enemy_dummy.tscn"),
-	"rusher_full": preload("res://scenes/mecha/enemy_dummy_full.tscn"),
-	"ranged_simple": preload("res://scenes/mecha/enemy_dummy.tscn"),
-	"ranged_full": preload("res://scenes/mecha/enemy_ranged.tscn"),
-	"heavy_full": preload("res://scenes/mecha/enemy_heavy.tscn"),
-	"support_simple": preload("res://scenes/mecha/enemy_dummy.tscn"),
-	"support_full": preload("res://scenes/mecha/enemy_support.tscn"),
-	"tank_full": preload("res://scenes/mecha/enemy_tank.tscn"),
-	"boss_overlord": preload("res://scenes/mecha/enemy_boss.tscn"),
+var enemy_scene_paths: Dictionary = {
+	"rusher_simple": "res://scenes/mecha/enemy_dummy.tscn",
+	"rusher_full": "res://scenes/mecha/enemy_dummy_full.tscn",
+	"ranged_simple": "res://scenes/mecha/enemy_dummy.tscn",
+	"ranged_full": "res://scenes/mecha/enemy_ranged.tscn",
+	"heavy_full": "res://scenes/mecha/enemy_heavy.tscn",
+	"support_simple": "res://scenes/mecha/enemy_dummy.tscn",
+	"support_full": "res://scenes/mecha/enemy_support.tscn",
+	"tank_full": "res://scenes/mecha/enemy_tank.tscn",
+	"boss_overlord": "res://scenes/mecha/enemy_boss.tscn",
 }
+
+var _loaded_enemy_scenes: Dictionary = {}
+
+
+func _get_enemy_scene(type: String) -> PackedScene:
+	if _loaded_enemy_scenes.has(type):
+		return _loaded_enemy_scenes[type]
+
+	if enemy_scene_paths.has(type):
+		var path = enemy_scene_paths[type]
+		if ResourceLoader.exists(path):
+			var scene = load(path) as PackedScene
+			if scene:
+				_loaded_enemy_scenes[type] = scene
+				return scene
+
+	if type == "boss_overlord":
+		return load("res://scenes/mecha/enemy_heavy.tscn") as PackedScene
+	return null
 
 var waves: Array = []
 var current_wave: int = 0
@@ -136,10 +155,10 @@ func _trigger_stalking_ace_ambush() -> void:
 
 
 func _spawn_enemy(type: String, archetype: int, pos: Vector3, hp_scale: float) -> void:
-	if not enemy_scenes.has(type):
+	var scene = _get_enemy_scene(type)
+	if scene == null:
 		return
 
-	var scene = enemy_scenes[type]
 	var enemy = scene.instantiate()
 	enemy.archetype = archetype
 	enemy.position = pos

@@ -46,9 +46,11 @@ func _toggle_visibility() -> void:
 func _create_ui() -> void:
 	root_control = Control.new()
 	root_control.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root_control.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root_control)
 
 	panel = PanelContainer.new()
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.offset_left = 15
 	panel.offset_top = 15
 	panel.offset_right = 230

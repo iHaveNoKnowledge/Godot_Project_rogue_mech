@@ -10,21 +10,34 @@ var rewards: Dictionary = {}
 
 
 func _ready() -> void:
+	layer = 100
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_create_ui()
 	visible = false
 	EventBus.combat_ended.connect(_on_combat_ended)
 
 
+func _unhandled_input(event: InputEvent) -> void:
+	if not visible:
+		return
+	if event.is_pressed() and not event.is_echo():
+		if event is InputEventKey:
+			if event.keycode in [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER, KEY_E]:
+				get_viewport().set_input_as_handled()
+				_on_continue_pressed()
+
+
 func _create_ui() -> void:
 	root_control = Control.new()
 	root_control.process_mode = Node.PROCESS_MODE_ALWAYS
+	root_control.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root_control.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(root_control)
 
 	# Center panel
 	panel = PanelContainer.new()
 	panel.process_mode = Node.PROCESS_MODE_ALWAYS
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	panel.set_anchors_preset(Control.PRESET_CENTER)
 	panel.offset_left = -250
 	panel.offset_right = 250
@@ -63,8 +76,10 @@ func _create_ui() -> void:
 	vbox.add_child(rewards_label)
 
 	continue_button = Button.new()
-	continue_button.text = "Continue"
-	continue_button.custom_minimum_size = Vector2(200, 40)
+	continue_button.process_mode = Node.PROCESS_MODE_ALWAYS
+	continue_button.mouse_filter = Control.MOUSE_FILTER_STOP
+	continue_button.text = "Continue [Enter / Space / Click]"
+	continue_button.custom_minimum_size = Vector2(200, 44)
 	continue_button.pressed.connect(_on_continue_pressed)
 	vbox.add_child(continue_button)
 
@@ -98,12 +113,12 @@ func _show_victory_rewards() -> void:
 
 		if is_final_sector:
 			title_label.text = "CAMPAIGN VICTORY!"
-			continue_button.text = "Finish Run"
+			continue_button.text = "Finish Run [Enter / Space]"
 		else:
-			continue_button.text = "Proceed to Sector %d" % (GlobalData.current_sector + 1)
+			continue_button.text = "Proceed to Sector %d [Enter / Space]" % (GlobalData.current_sector + 1)
 	else:
 		title_label.text = "COMBAT VICTORY"
-		continue_button.text = "Continue"
+		continue_button.text = "Continue [Enter / Space / Click]"
 
 	GlobalData.credits += credits_gained
 	GlobalData.spare_parts += spare_parts_gained
@@ -123,14 +138,22 @@ func _show_victory_rewards() -> void:
 	rewards_label.text += "+%d Heat\n" % heat_gained
 	rewards_label.text += "\nTotal Credits: %d" % GlobalData.credits
 
+	await get_tree().process_frame
+	if continue_button:
+		continue_button.grab_focus()
+
 
 func _show_defeat_screen() -> void:
 	visible = true
 	title_label.text = "DEFEATED"
 	rewards_label.text = "Your mech has been destroyed.\n\nReturning to main menu..."
-	continue_button.text = "Continue"
+	continue_button.text = "Continue [Enter / Space / Click]"
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+	await get_tree().process_frame
+	if continue_button:
+		continue_button.grab_focus()
 
 
 func _on_continue_pressed() -> void:

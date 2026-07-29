@@ -1,7 +1,7 @@
 extends Node
 
 @export var bob_amount: float = 0.15
-@export var bob_speed: float = 8.0
+@export var bob_speed: float = 10.0
 @export var recoil_amount: float = 0.3
 @export var recoil_recovery: float = 10.0
 
@@ -54,7 +54,7 @@ func _physics_process(delta: float) -> void:
 	if mecha == null:
 		return
 
-	is_moving = mecha.velocity.length() > 1.0
+	is_moving = mecha.velocity.length() > 0.8
 
 	_update_bob(delta)
 	_update_recoil(delta)
@@ -118,19 +118,22 @@ func _update_roller_dash_posture(delta: float) -> void:
 func _update_bob(delta: float) -> void:
 	var is_skating = mecha.get("is_roller_dashing") == true
 	if is_moving and not is_skating:
-		bob_timer += delta * bob_speed
+		var run_speed = mecha.velocity.length() * 1.5
+		bob_timer += delta * clamp(run_speed, 8.0, 16.0)
 		var bob = sin(bob_timer) * bob_amount
 
 		if body_mesh:
-			body_mesh.position.y = _original_body_pos.y + bob * 0.5
+			body_mesh.position.y = _original_body_pos.y + abs(bob) * 0.6
 		if head_mesh:
-			head_mesh.position.y = _original_head_pos.y + bob
+			head_mesh.position.y = _original_head_pos.y + abs(bob) * 0.8
+
+		var arm_swing = sin(bob_timer * 0.5) * 0.45
 		if arm_left:
-			arm_left.position.y = _original_arm_left_pos.y + bob * 0.3
-			arm_left.rotation.x = sin(bob_timer * 0.5) * 0.25
+			arm_left.position.y = _original_arm_left_pos.y + bob * 0.2
+			arm_left.rotation.x = arm_swing
 		if arm_right:
-			arm_right.position.y = _original_arm_right_pos.y + bob * 0.3
-			arm_right.rotation.x = -sin(bob_timer * 0.5) * 0.25
+			arm_right.position.y = _original_arm_right_pos.y + bob * 0.2
+			arm_right.rotation.x = -arm_swing
 	elif not is_skating:
 		bob_timer = 0.0
 		_lerp_to_original(delta)
@@ -142,17 +145,44 @@ func _update_legs(delta: float) -> void:
 		return
 
 	if is_moving and leg_left and leg_right:
-		var leg_swing = sin(bob_timer * 2.0) * 0.4
-		leg_left.rotation.x = leg_swing
-		leg_right.rotation.x = -leg_swing
+		# Check forward velocity relative to mecha facing direction (-Z)
+		var fwd_vel = -mecha.global_transform.basis.z.dot(mecha.velocity)
+		var dir_sign = 1.0 if fwd_vel >= -0.2 else -1.0
 
-		# Articulated Knee Flexion: Bend knee backward when leg swings back
-		if shin_left:
-			var left_knee_flex = max(0.0, leg_swing * 1.6)
-			shin_left.rotation.x = left_knee_flex
-		if shin_right:
-			var right_knee_flex = max(0.0, -leg_swing * 1.6)
-			shin_right.rotation.x = right_knee_flex
+		# High-Knee Running Kinematics
+		# Phase Left (0 to TAU), Phase Right (offset by PI)
+		var phase_left = fmod(bob_timer * 0.5, TAU)
+		var phase_right = fmod(bob_timer * 0.5 + PI, TAU)
+
+		# Left Leg Calculations
+		var thigh_l = 0.0
+		var shin_l = 0.0
+		if phase_left < PI:
+			var step_p = phase_left / PI # Step forward phase (0 to 1)
+			thigh_l = -deg_to_rad(55.0) * sin(step_p * PI) # High thigh lift forward
+			shin_l = deg_to_rad(85.0) * sin(step_p * PI)   # Shin folds back -> Knee points sharp forward!
+		else:
+			var push_p = (phase_left - PI) / PI # Push backward drive phase
+			thigh_l = deg_to_rad(35.0) * sin(push_p * PI)
+			shin_l = deg_to_rad(15.0) * sin(push_p * PI)
+
+		# Right Leg Calculations
+		var thigh_r = 0.0
+		var shin_r = 0.0
+		if phase_right < PI:
+			var step_p = phase_right / PI
+			thigh_r = -deg_to_rad(55.0) * sin(step_p * PI)
+			shin_r = deg_to_rad(85.0) * sin(step_p * PI)
+		else:
+			var push_p = (phase_right - PI) / PI
+			thigh_r = deg_to_rad(35.0) * sin(push_p * PI)
+			shin_r = deg_to_rad(15.0) * sin(push_p * PI)
+
+		leg_left.rotation.x = thigh_l * dir_sign
+		leg_right.rotation.x = thigh_r * dir_sign
+
+		if shin_left: shin_left.rotation.x = shin_l
+		if shin_right: shin_right.rotation.x = shin_r
 	else:
 		var speed = 6.0 * delta
 		if leg_left: leg_left.rotation.x = lerp_angle(leg_left.rotation.x, 0.0, speed)

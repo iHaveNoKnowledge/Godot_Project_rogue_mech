@@ -696,7 +696,7 @@ func _on_equip_pressed() -> void:
 func _on_repair_part_pressed() -> void:
 	var dmg = GlobalData.part_damage.get(selected_slot, 0.0)
 	if dmg <= 0.0:
-		status_message_label.text = "%s is fully functional!" % selected_slot.upper()
+		status_message_label.text = "%s is fully functional!" % selected_slot.to_upper()
 		return
 	var cost = int(dmg * 50.0 * COST_PER_HP)
 	if GlobalData.credits < cost:
@@ -704,7 +704,7 @@ func _on_repair_part_pressed() -> void:
 		return
 	GlobalData.credits -= cost
 	GlobalData.part_damage.erase(selected_slot)
-	status_message_label.text = "Repaired %s!" % selected_slot.upper()
+	status_message_label.text = "Repaired %s!" % selected_slot.to_upper()
 	_update_total_stats()
 
 

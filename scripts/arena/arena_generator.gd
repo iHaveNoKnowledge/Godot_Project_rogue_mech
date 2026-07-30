@@ -196,13 +196,17 @@ func _create_pillars() -> void:
 func _create_theme_structures() -> void:
 	match current_theme:
 		BiomeTheme.DESERT:
-			_build_desert_structures()
+			_generate_randomized_desert_dunes()
 		BiomeTheme.CITY_HIGHRISE:
 			_build_city_highrise_structures()
 		BiomeTheme.CROSSROADS:
 			_build_crossroads_structures()
 		BiomeTheme.RIVER_BRIDGE:
 			_build_river_bridge_structures()
+
+
+func _build_desert_structures() -> void:
+	_generate_randomized_desert_dunes()
 
 
 func _generate_randomized_desert_dunes() -> void:

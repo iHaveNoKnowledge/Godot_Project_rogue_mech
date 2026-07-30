@@ -10,4 +10,5 @@ class_name ArmorPart
 @export var weight: float = 10.0
 @export var armor_class: float = 1.0
 @export var break_threshold: float = 0.3
+@export var part_color: Color = Color(0.4, 0.45, 0.52)
 @export var icon: Texture2D

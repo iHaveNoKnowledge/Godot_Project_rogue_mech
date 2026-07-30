@@ -56,6 +56,8 @@ func _try_connect_weapon_manager() -> void:
 	weapon_manager = wm
 	weapon_manager.weapon_switched.connect(_on_weapon_switched)
 	weapon_manager.ammo_changed.connect(_on_ammo_changed)
+	if weapon_manager.has_signal("reload_progress"):
+		weapon_manager.reload_progress.connect(_on_reload_progress)
 	weapon_manager.carry_updated.connect(_on_carry_updated)
 	weapon_manager._emit_initial_state()
 	_update_display()
@@ -317,6 +319,15 @@ func _update_carry_display(hand: String) -> void:
 		ammo_label.add_theme_color_override("font_color", color)
 
 
+func _on_reload_progress(hand: String, partial_text: String, reserve_ammo: int, _percent: float) -> void:
+	if hand == "left":
+		left_ammo_label.modulate = Color(1.0, 0.3, 0.3)
+		left_ammo_label.text = "%s/%d" % [partial_text, reserve_ammo]
+	elif hand == "right":
+		right_ammo_label.modulate = Color(1.0, 0.3, 0.3)
+		right_ammo_label.text = "%s/%d" % [partial_text, reserve_ammo]
+
+
 func _on_weapon_switched(_hand: String, _weapon_name: String) -> void:
 	_update_display()
 	if carry_panel.visible:
@@ -338,30 +349,36 @@ func _update_display() -> void:
 		left_name_label.text = w.weapon_name
 		left_type_label.text = WEAPON_ICONS.get(w.weapon_type, "[?]")
 		var ammo = weapon_manager._get_ammo(w)
-		if w.max_ammo >= 999:
-			left_ammo_label.text = "inf"
-		else:
-			var res = GlobalData.get_reserve_ammo(w.get_ammo_type())
-			left_ammo_label.text = "%d / %d [Res: %d]" % [ammo, w.max_ammo, res]
+		if not weapon_manager.get("reloading_left"):
+			left_ammo_label.modulate = Color.WHITE
+			if w.max_ammo >= 999:
+				left_ammo_label.text = "inf"
+			else:
+				var res = GlobalData.get_reserve_ammo(w.get_ammo_type())
+				left_ammo_label.text = "%d / %d [Res: %d]" % [ammo, w.max_ammo, res]
 	else:
 		left_name_label.text = "--- EMPTY ---"
 		left_type_label.text = ""
 		left_ammo_label.text = ""
+		left_ammo_label.modulate = Color.WHITE
 
 	if weapon_manager.right_hand:
 		var w = weapon_manager.right_hand
 		right_name_label.text = w.weapon_name
 		right_type_label.text = WEAPON_ICONS.get(w.weapon_type, "[?]")
 		var ammo = weapon_manager._get_ammo(w)
-		if w.max_ammo >= 999:
-			right_ammo_label.text = "inf"
-		else:
-			var res = GlobalData.get_reserve_ammo(w.get_ammo_type())
-			right_ammo_label.text = "%d / %d [Res: %d]" % [ammo, w.max_ammo, res]
+		if not weapon_manager.get("reloading_right"):
+			right_ammo_label.modulate = Color.WHITE
+			if w.max_ammo >= 999:
+				right_ammo_label.text = "inf"
+			else:
+				var res = GlobalData.get_reserve_ammo(w.get_ammo_type())
+				right_ammo_label.text = "%d / %d [Res: %d]" % [ammo, w.max_ammo, res]
 	else:
 		right_name_label.text = "--- EMPTY ---"
 		right_type_label.text = ""
 		right_ammo_label.text = ""
+		right_ammo_label.modulate = Color.WHITE
 
 
 func _on_carry_updated(_carry_list: Array) -> void:

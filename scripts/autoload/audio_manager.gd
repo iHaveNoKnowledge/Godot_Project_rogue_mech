@@ -93,6 +93,7 @@ func _generate_sounds() -> void:
 	_sound_cache["beam_hit"] = _gen_sine_sweep(1200.0, 300.0, 0.1, 0.3)
 	_sound_cache["kinetic_hit"] = _gen_crack(0.06, 0.35)
 	_sound_cache["explosive_hit"] = _gen_explosion(0.25, 0.5)
+	_sound_cache["reload_complete"] = _gen_sine_sweep(1400.0, 1800.0, 0.1, 0.3)
 
 
 # --- Sound Generation Helpers ---
@@ -324,6 +325,10 @@ func play_ui_click() -> void:
 
 func play_ui_confirm() -> void:
 	play_sfx_2d("ui_confirm", 0.0, "UI")
+
+
+func play_reload_complete() -> void:
+	play_sfx_2d("reload_complete", 2.0, "UI")
 
 
 func set_bus_volume(bus_name: String, linear: float) -> void:

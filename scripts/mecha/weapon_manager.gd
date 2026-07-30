@@ -2,6 +2,7 @@ extends Node3D
 
 signal weapon_switched(hand: String, weapon_name: String)
 signal ammo_changed(hand: String, current: int, max_ammo: int)
+signal reload_progress(hand: String, partial_text: String, reserve_ammo: int, percent: float)
 signal carry_updated(carry_list: Array)
 signal weapon_dropped(hand: String, weapon: WeaponPart)
 
@@ -23,6 +24,8 @@ var holding_right: bool = false
 var fire_left_holding: bool = false
 var fire_right_holding: bool = false
 var holding_reload: bool = false
+var reloading_left: bool = false
+var reloading_right: bool = false
 var _hold_time_left: float = 0.0
 var _hold_time_right: float = 0.0
 
@@ -167,7 +170,13 @@ func _input(event: InputEvent) -> void:
 
 
 func reload_weapon(hand: String) -> void:
-	var weapon: WeaponPart = left_hand if hand == "left" else right_hand
+	var is_left = (hand == "left")
+	if is_left and reloading_left:
+		return
+	if not is_left and reloading_right:
+		return
+
+	var weapon: WeaponPart = left_hand if is_left else right_hand
 	if weapon == null:
 		return
 
@@ -185,8 +194,37 @@ func reload_weapon(hand: String) -> void:
 		EffectManager.spawn_damage_number(global_position + Vector3(0, 2.5, 0), 0, Color(1.0, 0.2, 0.2))
 		return
 
+	if is_left:
+		reloading_left = true
+	else:
+		reloading_right = true
+
+	var target_word: String = "reload!"
+	var char_count = target_word.length()
+	var total_reload_time: float = 1.0
+	var time_per_char = total_reload_time / float(char_count + 1)
+
+	for i in range(1, char_count + 1):
+		var partial_text = target_word.substr(0, i)
+		reload_progress.emit(hand, partial_text, reserve, float(i) / float(char_count))
+		await get_tree().create_timer(time_per_char).timeout
+		var check_weapon = left_hand if is_left else right_hand
+		if check_weapon != weapon:
+			if is_left: reloading_left = false
+			else: reloading_right = false
+			return
+
 	var refilled = GlobalData.consume_reserve_ammo(ammo_type, needed)
 	ammo_pool[weapon.weapon_name] = current_mag + refilled
+
+	if is_left:
+		reloading_left = false
+	else:
+		reloading_right = false
+
+	if has_node("/root/AudioManager"):
+		AudioManager.play_reload_complete()
+
 	ammo_changed.emit(hand, _get_ammo(weapon), weapon.max_ammo)
 	EffectManager.spawn_damage_number(global_position + Vector3(0, 2.5, 0), refilled, Color(0.2, 1.0, 0.4))
 
@@ -407,6 +445,8 @@ func add_ammo(amount: int, hand: String = "", ammo_type: String = "") -> void:
 # ====================================================================
 
 func _try_fire(hand: String, weapon: WeaponPart) -> void:
+	if (hand == "left" and reloading_left) or (hand == "right" and reloading_right):
+		return
 	if weapon.weapon_type == WeaponPart.WeaponType.SHIELD:
 		return
 

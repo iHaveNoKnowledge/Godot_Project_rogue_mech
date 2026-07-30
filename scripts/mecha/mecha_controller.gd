@@ -237,10 +237,6 @@ func _recalculate_weight() -> void:
 	_recalculating = false
 
 
-func _ready() -> void:
-	_recalculate_weight()
-	call_deferred("_initialize_mesh_from_global_data")
-
 func _initialize_mesh_from_global_data() -> void:
 	var pmm = get_node_or_null("PartMeshManager")
 	if not pmm:

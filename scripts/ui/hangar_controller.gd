@@ -7,6 +7,7 @@ extends Node3D
 
 const COST_PER_HP: float = 0.5
 
+var root_control: Control
 var current_mode: String = "armor" # "armor", "frame", "chassis", "upgrade"
 var selected_slot: String = "head"
 var selected_part_path: String = ""
@@ -197,6 +198,8 @@ func _build_3d_garage() -> void:
 # --- 2D OVERLAY UI ---
 func _build_ui_layout() -> void:
 	var root = Control.new()
+	root.name = "RootControl"
+	root_control = root
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)

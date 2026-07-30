@@ -604,41 +604,42 @@ func _on_part_item_selected(index: int) -> void:
 		selected_salvage_info.clear()
 		return
 
-	if selected_slot == "chassis":
+	if current_mode == "chassis":
 		var keys = GlobalData.chassis_catalog.keys()
 		if index < 0 or index >= keys.size(): return
 		selected_chassis_key = keys[index]
 		var info = GlobalData.chassis_catalog[selected_chassis_key]
 		stats_label.text = "MODEL: %s\n\nSPEED BOOST: %.1f m/s\nMAX LOAD CAPACITY: %.1f kg\nSTRUCTURE RATING: Military Grade" % [
 			info["name"], info["speed"], info["max_weight"]
+		]
+		_apply_3d_chassis_preview(info)
+		return
+
+	if armor_catalog.has(selected_slot):
+		var stock_items = armor_catalog[selected_slot]
+		var selected_info: Dictionary = {}
 		if index < stock_items.size():
-			var info = stock_items[index]
-			selected_part_path = info["path"]
+			selected_info = stock_items[index]
+			selected_part_path = selected_info.get("path", "")
 			selected_frame_info.clear()
 			selected_salvage_info.clear()
 
 			if selected_slot.begins_with("weapon"):
 				stats_label.text = "WEAPON: %s\nTYPE: %s\n\nWEIGHT: %.1f kg\nPOWER OUTPUT: Heavy" % [
-					info["name"], info["type"], info["weight"]
+					selected_info["name"], selected_info.get("type", "Standard"), selected_info["weight"]
 				]
 			else:
 				stats_label.text = "OUTER ARMOR: %s\nTYPE: %s\n\nARMOR HP: %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg" % [
-					info["name"], info["type"], info["hp"], info["armor"], info["weight"]
+					selected_info["name"], selected_info.get("type", "Standard"),
+					selected_info["hp"], selected_info["armor"], selected_info["weight"]
 				]
-			_apply_3d_armor_preview(selected_slot, info)
-		else:
-			# Salvaged enemy plate
+			_apply_3d_armor_preview(selected_slot, selected_info)
+			_show_part_action_modal(selected_info)
+		elif index - stock_items.size() < GlobalData.salvaged_armor_inventory.size():
 			var salvaged_idx = index - stock_items.size()
-			var matching_salvage = []
-			for s in GlobalData.salvaged_armor_inventory:
-				if s.get("slot") == selected_slot:
-					matching_salvage.append(s)
-
-			if salvaged_idx >= 0 and salvaged_idx < matching_salvage.size():
-				selected_salvage_info = matching_salvage[salvaged_idx]
-				selected_part_path = ""
-				selected_frame_info.clear()
-
+			selected_salvage_info = GlobalData.salvaged_armor_inventory[salvaged_idx]
+			selected_part_path = ""
+			selected_frame_info.clear()
 
 			stats_label.text = "☣️ SALVAGED ENEMY ARMOR: %s\nTYPE: %s\n\nARMOR HP: %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg" % [
 				selected_salvage_info["name"], selected_salvage_info.get("type", "Enemy"),

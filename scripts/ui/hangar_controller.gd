@@ -408,6 +408,10 @@ func show_hangar() -> void:
 	visible = true
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	_update_total_stats()
+	_populate_part_list_for_slot(selected_slot)
+	AudioManager.play_hangar_music()
+	call_deferred("_update_all_3d_slots_preview")
 	_select_slot_tab("chassis")
 	_update_total_stats()
 
@@ -691,18 +695,32 @@ func _apply_3d_armor_preview(slot: String, info: Dictionary) -> void:
 	mat.roughness = 0.3
 
 	match ptype:
-		"Heavy Armor":
-			mat.albedo_color = Color(0.25, 0.2, 0.35)
-			mat.emission_enabled = true
-			mat.emission = Color(0.6, 0.1, 0.8)
-		"Light Plating":
-			mat.albedo_color = Color(0.85, 0.85, 0.9)
-		"High-Speed":
-			mat.albedo_color = Color(0.9, 0.6, 0.1)
-		_:
-			mat.albedo_color = info.get("color", Color(0.4, 0.5, 0.6))
+	var mecha = mecha_3d_root.get_node_or_null("MechaBase") if mecha_3d_root.has_node("MechaBase") else mecha_3d_root
+	var pmm = mecha.get_node_or_null("PartMeshManager") if mecha else null
+	if pmm:
+		var part = ArmorPart.new()
+		part.part_name = info.get("name", "Spiky Armor")
+		part.durability = info.get("durability", 100.0)
+		if info.has("color"):
+			part.part_color = info.get("color")
+		pmm.initialize_slot(slot, part)
 
-	_set_slot_material(slot, mat)
+
+func _update_all_3d_slots_preview() -> void:
+	if mecha_3d_root == null: return
+	var mecha = mecha_3d_root.get_node_or_null("MechaBase") if mecha_3d_root.has_node("MechaBase") else mecha_3d_root
+	var pmm = mecha.get_node_or_null("PartMeshManager") if mecha else null
+	if not pmm: return
+
+	var slots = ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]
+	for slot in slots:
+		var armor_data = GlobalData.equipped_parts.get(slot, {})
+		var part = ArmorPart.new()
+		part.part_name = armor_data.get("name", "Spiky Tactical Armor")
+		part.durability = armor_data.get("durability", 100.0)
+		if armor_data.has("color"):
+			part.part_color = armor_data.get("color")
+		pmm.initialize_slot(slot, part)
 
 
 func _apply_3d_salvage_preview(slot: String, info: Dictionary) -> void:

@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/mecha/mecha_animation.gd" id="6"]
 [ext_resource type="Script" path="res://scripts/mecha/mecha_eject.gd" id="7"]
 [ext_resource type="PackedScene" path="res://scenes/mecha/zenisrev/scene.gltf" id="8_8vx60"]
+[ext_resource type="Script" path="res://scripts/mecha/part_mesh_manager.gd" id="9_partmesh"]
 
 [sub_resource type="CapsuleShape3D" id="FullBodyShape"]
 radius = 0.8
@@ -256,5 +257,8 @@ script = ExtResource("7")
 script = ExtResource("6")
 
 [node name="Zenisrev" parent="." instance=ExtResource("8_8vx60")]
+
+[node name="PartMeshManager" type="Node3D" parent="."]
+script = ExtResource("9_partmesh")
 transform = Transform3D(0.007, 0, 0, 0, 0.007, 0, 0, 0, 0.007, 0, 0, 0)
 visible = false

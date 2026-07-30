@@ -190,36 +190,132 @@ func _build_procedural_inner_frame(slot_name: String, container: Node3D) -> void
 	container.add_child(mesh_inst)
 
 func _build_procedural_outer_armor(slot_name: String, container: Node3D, part: ArmorPart) -> void:
-	var mesh_inst = MeshInstance3D.new()
-	var mat = StandardMaterial3D.new()
-	var col = Color(0.4, 0.45, 0.52)
+	var part_name = part.part_name.to_lower() if (part and "part_name" in part) else ""
+	var col = Color(0.4, 0.45, 0.52) # Default Armor Color
 	if part and "part_color" in part:
 		col = part.part_color
+		
+	var mat = StandardMaterial3D.new()
 	mat.albedo_color = col
-	mat.metallic = 0.7
-	mat.roughness = 0.35
-	mesh_inst.material_override = mat
-
+	mat.metallic = 0.75
+	mat.roughness = 0.3
+	
+	var spike_mat = StandardMaterial3D.new()
+	spike_mat.albedo_color = Color(0.18, 0.20, 0.22) # Dark Steel Spikes
+	spike_mat.metallic = 0.95
+	spike_mat.roughness = 0.2
+	
+	var is_spiky = part_name.contains("spike") or part_name.contains("raider") or part_name.contains("zaku") or part_name.contains("barbatos") or randf() < 0.65
+	
 	match slot_name.to_lower():
 		"head":
+			# Armored Visor + Crest Horn
+			var base_mesh = MeshInstance3D.new()
 			var box = BoxMesh.new()
-			box.size = Vector3(0.52, 0.45, 0.52)
-			mesh_inst.mesh = box
+			box.size = Vector3(0.5, 0.4, 0.5)
+			base_mesh.mesh = box
+			base_mesh.material_override = mat
+			container.add_child(base_mesh)
+			
+			# Spiky Head Horn / Crest
+			var horn = MeshInstance3D.new()
+			var prism = PrismMesh.new()
+			prism.size = Vector3(0.15, 0.35, 0.4)
+			horn.mesh = prism
+			horn.rotation_degrees.x = -20
+			horn.position = Vector3(0, 0.3, -0.05)
+			horn.material_override = spike_mat
+			container.add_child(horn)
+			
 		"body":
-			var box = BoxMesh.new()
-			box.size = Vector3(1.1, 0.95, 0.85)
-			mesh_inst.mesh = box
+			# Angled Chest Armor + Spiked Collar Ribs
+			var chest = MeshInstance3D.new()
+			var prism = PrismMesh.new()
+			prism.size = Vector3(1.1, 0.9, 0.8)
+			chest.mesh = prism
+			chest.rotation_degrees.x = 90
+			chest.material_override = mat
+			container.add_child(chest)
+			
+			if is_spiky:
+				for dir_x in [-0.55, 0.55]:
+					var spike = MeshInstance3D.new()
+					var cone = CylinderMesh.new()
+					cone.top_radius = 0.0
+					cone.bottom_radius = 0.12
+					cone.height = 0.45
+					spike.mesh = cone
+					spike.position = Vector3(dir_x, 0.35, 0)
+					spike.rotation_degrees.z = -55 if dir_x > 0 else 55
+					spike.material_override = spike_mat
+					container.add_child(spike)
+					
 		"arm_left", "arm_right":
-			var box = BoxMesh.new()
-			box.size = Vector3(0.45, 0.85, 0.45)
-			mesh_inst.mesh = box
+			var is_left = slot_name.to_lower() == "arm_left"
+			var dir_sign = -1.0 if is_left else 1.0
+			
+			# Shoulder Armor Shield / Pauldron
+			var pauldron = MeshInstance3D.new()
+			var p_mesh = CylinderMesh.new()
+			p_mesh.top_radius = 0.28
+			p_mesh.bottom_radius = 0.38
+			p_mesh.height = 0.6
+			pauldron.mesh = p_mesh
+			pauldron.material_override = mat
+			pauldron.position = Vector3(0, 0.3, 0)
+			container.add_child(pauldron)
+			
+			# Spiky Shoulder Spikes (3 spikes radiating outwards)
+			if is_spiky:
+				for spike_angle in [-30.0, 0.0, 30.0]:
+					var s = MeshInstance3D.new()
+					var cone = CylinderMesh.new()
+					cone.top_radius = 0.0
+					cone.bottom_radius = 0.1
+					cone.height = 0.5
+					s.mesh = cone
+					s.material_override = spike_mat
+					s.position = Vector3(dir_sign * 0.35, 0.35, 0)
+					s.rotation_degrees.z = -70 * dir_sign
+					s.rotation_degrees.x = spike_angle
+					container.add_child(s)
+					
+			# Forearm Armor Plate
+			var forearm = MeshInstance3D.new()
+			var f_box = BoxMesh.new()
+			f_box.size = Vector3(0.42, 0.6, 0.42)
+			forearm.mesh = f_box
+			forearm.position = Vector3(0, -0.3, 0)
+			forearm.material_override = mat
+			container.add_child(forearm)
+
 		"leg_left", "leg_right":
-			var box = BoxMesh.new()
-			box.size = Vector3(0.55, 1.1, 0.55)
-			mesh_inst.mesh = box
+			# Thigh & Shin Armor Guard
+			var shin = MeshInstance3D.new()
+			var prism = PrismMesh.new()
+			prism.size = Vector3(0.55, 1.1, 0.55)
+			shin.mesh = prism
+			shin.rotation_degrees.x = 90
+			shin.material_override = mat
+			container.add_child(shin)
+			
+			# Knee Spike Guard
+			if is_spiky:
+				var k_spike = MeshInstance3D.new()
+				var cone = CylinderMesh.new()
+				cone.top_radius = 0.0
+				cone.bottom_radius = 0.11
+				cone.height = 0.45
+				k_spike.mesh = cone
+				k_spike.material_override = spike_mat
+				k_spike.position = Vector3(0, 0.25, 0.32)
+				k_spike.rotation_degrees.x = 65
+				container.add_child(k_spike)
+
 		_:
 			var box = BoxMesh.new()
 			box.size = Vector3(0.6, 0.6, 0.6)
-			mesh_inst.mesh = box
-
-	container.add_child(mesh_inst)
+			var base_mesh = MeshInstance3D.new()
+			base_mesh.mesh = box
+			base_mesh.material_override = mat
+			container.add_child(base_mesh)

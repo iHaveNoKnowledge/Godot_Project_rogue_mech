@@ -694,7 +694,7 @@ func _apply_3d_armor_preview(slot: String, info: Dictionary) -> void:
 	if pmm:
 		var part = ArmorPart.new()
 		part.part_name = info.get("name", "Spiky Armor")
-		part.durability = info.get("durability", 100.0)
+		part.max_hp = info.get("durability", info.get("max_hp", 100.0))
 		if info.has("color"):
 			part.part_color = info.get("color")
 		pmm.initialize_slot(slot, part)
@@ -711,7 +711,7 @@ func _update_all_3d_slots_preview() -> void:
 		var armor_data = GlobalData.equipped_parts.get(slot, {})
 		var part = ArmorPart.new()
 		part.part_name = armor_data.get("name", "Spiky Tactical Armor")
-		part.durability = armor_data.get("durability", 100.0)
+		part.max_hp = armor_data.get("durability", armor_data.get("max_hp", 100.0))
 		if armor_data.has("color"):
 			part.part_color = armor_data.get("color")
 		pmm.initialize_slot(slot, part)

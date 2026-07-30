@@ -44,7 +44,7 @@ func initialize_slot(slot_name: String, part: ArmorPart) -> void:
 		_build_procedural_outer_armor(slot_name, armor_mesh, part)
 
 	var armor_dmg = GlobalData.part_damage.get(slot_name + "_armor", 0.0)
-	var max_hp = part.durability if part else 100.0
+	var max_hp = part.max_hp if part else 100.0
 	if armor_dmg >= max_hp:
 		_show_inner_frame(slot_name)
 	else:

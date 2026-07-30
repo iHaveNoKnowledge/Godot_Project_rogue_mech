@@ -245,19 +245,4 @@ func _serialize_parts() -> Dictionary:
 	var result := {}
 	for slot in equipped_parts:
 		result[slot] = equipped_parts[slot].resource_path
-	return resultoriety_multiplier", 1.0)
-	
-	stalking_aces.clear()
-	var loaded_aces = data.get("stalking_aces", [])
-	if loaded_aces is Array:
-		stalking_aces.assign(loaded_aces)
-		
-	stalking_chance = data.get("stalking_chance", 0.0)
-
-
-
-func _serialize_parts() -> Dictionary:
-	var result := {}
-	for slot in equipped_parts:
-		result[slot] = equipped_parts[slot].resource_path
 	return result

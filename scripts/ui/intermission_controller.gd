@@ -13,9 +13,15 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_create_ui()
 	_show_menu()
-	# Hide overlay by default on scene ready so 3D map is directly interactive
-	visible = false
 	EventBus.game_state_changed.connect(_on_state_changed)
+	visibility_changed.connect(_on_visibility_changed)
+	if visible:
+		AudioManager.play_menu_music()
+
+
+func _on_visibility_changed() -> void:
+	if visible:
+		AudioManager.play_menu_music()
 
 
 func _input(event: InputEvent) -> void:

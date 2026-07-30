@@ -404,6 +404,92 @@ func _process(delta: float) -> void:
 		garage_cam.look_at(current_look_pos, Vector3.UP)
 
 
+func _on_close_pressed() -> void:
+	_check_combat_readiness_warning(func():
+		visible = false
+		get_tree().paused = false
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		EventBus.game_state_changed.emit("HANGAR", "INTERMISSION")
+	)
+
+
+func _check_combat_readiness_warning(on_confirm: Callable) -> void:
+	var has_legs = GlobalData.equipped_parts.has("leg_left") or GlobalData.equipped_parts.has("leg_right")
+	var has_body = GlobalData.equipped_parts.has("body")
+	
+	if has_legs and has_body:
+		on_confirm.call()
+		return
+		
+	var old = get_node_or_null("CombatWarningModal")
+	if old: old.queue_free()
+	
+	var modal = PanelContainer.new()
+	modal.name = "CombatWarningModal"
+	modal.anchor_left = 0.5
+	modal.anchor_right = 0.5
+	modal.anchor_top = 0.5
+	modal.anchor_bottom = 0.5
+	modal.offset_left = -240
+	modal.offset_right = 240
+	modal.offset_top = -140
+	modal.offset_bottom = 140
+
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.12, 0.08, 0.08, 0.95)
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.border_color = Color(1.0, 0.4, 0.2)
+	style.corner_radius_top_left = 6
+	style.corner_radius_top_right = 6
+	style.corner_radius_bottom_left = 6
+	style.corner_radius_bottom_right = 6
+	modal.add_theme_stylebox_override("panel", style)
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 10)
+	modal.add_child(vbox)
+
+	var title = Label.new()
+	title.text = "⚠️ WARNING: INCOMPLETE MECH ASSEMBLY"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_color_override("font_color", Color(1.0, 0.4, 0.2))
+	vbox.add_child(title)
+
+	var msg = Label.new()
+	msg.text = "คำเตือน: หุ่นของคุณประกอบไม่ครบชุด (ไม่มีขา/เกราะไม่ครบ)!\nอาจทำให้เคลื่อนที่และต่อสู้ในด่านได้ยากลำบาก\n\n(คุณยังคงเข้าเล่นด่านได้ แล้วแต่ศรัทธา - รองรับ Hover ในอนาคต)"
+	msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	msg.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
+	vbox.add_child(msg)
+
+	var sep = HSeparator.new()
+	vbox.add_child(sep)
+
+	var hbox = HBoxContainer.new()
+	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	hbox.add_theme_constant_override("separation", 15)
+	vbox.add_child(hbox)
+
+	var launch_btn = Button.new()
+	launch_btn.text = "LAUNCH ANYWAY (ลุยเลย)"
+	launch_btn.custom_minimum_size = Vector2(140, 36)
+	launch_btn.pressed.connect(func():
+		modal.queue_free()
+		on_confirm.call()
+	)
+	hbox.add_child(launch_btn)
+
+	var back_btn = Button.new()
+	back_btn.text = "BACK TO HANGAR (แต่งหุ่นต่อ)"
+	back_btn.custom_minimum_size = Vector2(150, 36)
+	back_btn.pressed.connect(func(): modal.queue_free())
+	hbox.add_child(back_btn)
+
+	root_control.add_child(modal)
+
+
 func show_hangar() -> void:
 	visible = true
 	get_tree().paused = true
@@ -525,26 +611,6 @@ func _on_part_item_selected(index: int) -> void:
 		var info = GlobalData.chassis_catalog[selected_chassis_key]
 		stats_label.text = "MODEL: %s\n\nSPEED BOOST: %.1f m/s\nMAX LOAD CAPACITY: %.1f kg\nSTRUCTURE RATING: Military Grade" % [
 			info["name"], info["speed"], info["max_weight"]
-		]
-		_apply_3d_chassis_preview(info)
-		return
-
-	if current_mode == "frame" and frame_catalog.has(selected_slot):
-		var items = frame_catalog[selected_slot]
-		if index < 0 or index >= items.size(): return
-		selected_frame_info = items[index]
-		selected_part_path = ""
-		selected_salvage_info.clear()
-		var fname = selected_frame_info.get("name", "Frame")
-		var ftype = selected_frame_info.get("type", "Standard")
-		var fhp = selected_frame_info.get("hp", 20.0)
-		var fweight = selected_frame_info.get("weight", 3.0)
-		stats_label.text = "INNER FRAME: %s\nTYPE: %s\n\nSTRUCTURAL FRAME HP: %.0f\nFRAME WEIGHT: %.1f kg" % [
-			fname, ftype, fhp, fweight
-		]
-		_apply_3d_frame_preview(selected_slot, selected_frame_info)
-	elif armor_catalog.has(selected_slot):
-		var stock_items = armor_catalog[selected_slot]
 		if index < stock_items.size():
 			var info = stock_items[index]
 			selected_part_path = info["path"]
@@ -573,12 +639,116 @@ func _on_part_item_selected(index: int) -> void:
 				selected_part_path = ""
 				selected_frame_info.clear()
 
-				stats_label.text = "☣️ SALVAGED ENEMY ARMOR: %s\nTYPE: %s\n\nARMOR HP: %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg" % [
-					selected_salvage_info["name"], selected_salvage_info.get("type", "Enemy"),
-					selected_salvage_info["hp"], selected_salvage_info["armor"], selected_salvage_info["weight"]
-				]
-				_apply_3d_salvage_preview(selected_slot, selected_salvage_info)
 
+			stats_label.text = "☣️ SALVAGED ENEMY ARMOR: %s\nTYPE: %s\n\nARMOR HP: %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg" % [
+				selected_salvage_info["name"], selected_salvage_info.get("type", "Enemy"),
+				selected_salvage_info["hp"], selected_salvage_info["armor"], selected_salvage_info["weight"]
+			]
+			_apply_3d_salvage_preview(selected_slot, selected_salvage_info)
+			_show_part_action_modal(selected_salvage_info)
+	_update_total_stats()
+
+
+func _show_part_action_modal(info: Dictionary) -> void:
+	if info.is_empty():
+		return
+	var old_modal = get_node_or_null("PartActionModal")
+	if old_modal:
+		old_modal.queue_free()
+
+	var modal_panel = PanelContainer.new()
+	modal_panel.name = "PartActionModal"
+	modal_panel.anchor_left = 0.5
+	modal_panel.anchor_right = 0.5
+	modal_panel.anchor_top = 0.5
+	modal_panel.anchor_bottom = 0.5
+	modal_panel.offset_left = -220
+	modal_panel.offset_right = 220
+	modal_panel.offset_top = -140
+	modal_panel.offset_bottom = 140
+
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.08, 0.1, 0.14, 0.95)
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.border_color = _accent_color
+	style.corner_radius_top_left = 6
+	style.corner_radius_top_right = 6
+	style.corner_radius_bottom_left = 6
+	style.corner_radius_bottom_right = 6
+	modal_panel.add_theme_stylebox_override("panel", style)
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 10)
+	modal_panel.add_child(vbox)
+
+	var title = Label.new()
+	title.text = info.get("name", "PART OPTIONS")
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_color_override("font_color", _highlight_color)
+	vbox.add_child(title)
+
+	var details = Label.new()
+	var hp_val = info.get("durability", info.get("max_hp", 100.0))
+	var wt_val = info.get("weight", 10.0)
+	details.text = "ARMOR HP: %d HP  |  WEIGHT: %.1f kg" % [hp_val, wt_val]
+	details.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	details.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
+	vbox.add_child(details)
+
+	var sep = HSeparator.new()
+	vbox.add_child(sep)
+
+	var hbox = HBoxContainer.new()
+	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	hbox.add_theme_constant_override("separation", 12)
+	vbox.add_child(hbox)
+
+	var equip_btn = Button.new()
+	equip_btn.text = "EQUIP (สวมใส่)"
+	equip_btn.custom_minimum_size = Vector2(110, 36)
+	equip_btn.pressed.connect(func():
+		_equip_part_to_slot(selected_slot, info)
+		modal_panel.queue_free()
+	)
+	hbox.add_child(equip_btn)
+
+	var unequip_btn = Button.new()
+	unequip_btn.text = "UNEQUIP (ถอดออก)"
+	unequip_btn.custom_minimum_size = Vector2(120, 36)
+	unequip_btn.pressed.connect(func():
+		_unequip_part_from_slot(selected_slot)
+		modal_panel.queue_free()
+	)
+	hbox.add_child(unequip_btn)
+
+	var cancel_btn = Button.new()
+	cancel_btn.text = "CANCEL (ยกเลิก)"
+	cancel_btn.custom_minimum_size = Vector2(100, 36)
+	cancel_btn.pressed.connect(func(): modal_panel.queue_free())
+	hbox.add_child(cancel_btn)
+
+	root_control.add_child(modal_panel)
+
+
+func _equip_part_to_slot(slot: String, info: Dictionary) -> void:
+	GlobalData.equipped_parts[slot] = info
+	_apply_3d_armor_preview(slot, info)
+	_update_total_stats()
+	AudioManager.play_ui_confirm()
+
+
+func _unequip_part_from_slot(slot: String) -> void:
+	GlobalData.equipped_parts.erase(slot)
+	if mecha_3d_root:
+		var mecha = mecha_3d_root.get_node_or_null("MechaBase") if mecha_3d_root.has_node("MechaBase") else mecha_3d_root
+		var pmm = mecha.get_node_or_null("PartMeshManager") if mecha else null
+		if pmm:
+			pmm._show_inner_frame(slot)
+	_update_total_stats()
+	AudioManager.play_ui_click()
 
 # --- REAL-TIME 3D PREVIEWS IN GARAGE ---
 func _apply_3d_chassis_preview(info: Dictionary) -> void:

@@ -237,5 +237,27 @@ func _recalculate_weight() -> void:
 	_recalculating = false
 
 
+func _ready() -> void:
+	_recalculate_weight()
+	call_deferred("_initialize_mesh_from_global_data")
+
+func _initialize_mesh_from_global_data() -> void:
+	var pmm = get_node_or_null("PartMeshManager")
+	if not pmm:
+		return
+	var slots = ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]
+	for slot in slots:
+		var armor_data = GlobalData.equipped_parts.get(slot, {})
+		if armor_data.is_empty():
+			pmm._show_inner_frame(slot)
+		else:
+			var part = ArmorPart.new()
+			part.part_name = armor_data.get("name", "Custom Armor")
+			part.max_hp = armor_data.get("max_hp", armor_data.get("durability", 100.0))
+			if armor_data.has("color"):
+				part.part_color = armor_data.get("color")
+			pmm.initialize_slot(slot, part)
+
+
 func _on_weight_changed(_w: float) -> void:
 	_recalculate_weight()

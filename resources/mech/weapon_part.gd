@@ -18,6 +18,8 @@ enum WeaponType { BEAM_RIFLE, MACHINE_GUN, MISSILE, SHOTGUN, MELEE, SHIELD }
 @export var description: String = ""
 @export var rarity: int = 0
 
+@export var ammo_type: String = "" # "kinetic", "energy", "explosive", "missile", "none" (if empty, auto-inferred)
+
 # Sound override (null = use type default)
 @export var fire_sfx: AudioStream
 
@@ -32,3 +34,19 @@ func get_fire_interval() -> float:
 
 func can_fire(current_ammo: int) -> bool:
 	return current_ammo >= ammo_per_shot
+
+
+func get_ammo_type() -> String:
+	if not ammo_type.is_empty():
+		return ammo_type.to_lower()
+	match weapon_type:
+		WeaponType.BEAM_RIFLE:
+			return "energy"
+		WeaponType.MACHINE_GUN, WeaponType.SHOTGUN:
+			return "kinetic"
+		WeaponType.MISSILE:
+			return "missile"
+		WeaponType.MELEE, WeaponType.SHIELD:
+			return "none"
+		_:
+			return "kinetic"

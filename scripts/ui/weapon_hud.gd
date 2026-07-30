@@ -341,7 +341,8 @@ func _update_display() -> void:
 		if w.max_ammo >= 999:
 			left_ammo_label.text = "inf"
 		else:
-			left_ammo_label.text = "%d / %d" % [ammo, w.max_ammo]
+			var res = GlobalData.get_reserve_ammo(w.get_ammo_type())
+			left_ammo_label.text = "%d / %d [Res: %d]" % [ammo, w.max_ammo, res]
 	else:
 		left_name_label.text = "--- EMPTY ---"
 		left_type_label.text = ""
@@ -355,7 +356,8 @@ func _update_display() -> void:
 		if w.max_ammo >= 999:
 			right_ammo_label.text = "inf"
 		else:
-			right_ammo_label.text = "%d / %d" % [ammo, w.max_ammo]
+			var res = GlobalData.get_reserve_ammo(w.get_ammo_type())
+			right_ammo_label.text = "%d / %d [Res: %d]" % [ammo, w.max_ammo, res]
 	else:
 		right_name_label.text = "--- EMPTY ---"
 		right_type_label.text = ""

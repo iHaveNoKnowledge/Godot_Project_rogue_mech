@@ -224,19 +224,40 @@ func _build_mech_status_text() -> String:
 
 
 func _build_inventory_text() -> String:
-	var text = "=== INVENTORY ===\n\n"
+	var text = "=== INVENTORY & RESERVES ===\n\n"
 	text += "Credits: %d\n" % GlobalData.credits
 	text += "Spare Parts: %d\n" % GlobalData.spare_parts
 	text += "Data Cores: %d\n\n" % GlobalData.data_cores
 
-	text += "--- Equipped Weapons ---\n"
-	# This would need weapon manager reference - for now show parts
-	text += "(Weapons tracked in WeaponManager)\n\n"
+	text += "--- Reserve Ammo Stock ---\n"
+	text += "Kinetic Ammo: %d\n" % GlobalData.get_reserve_ammo("kinetic")
+	text += "Energy Cells: %d\n" % GlobalData.get_reserve_ammo("energy")
+	text += "Explosive Shells: %d\n" % GlobalData.get_reserve_ammo("explosive")
+	text += "Missile Pods: %d\n\n" % GlobalData.get_reserve_ammo("missile")
 
-	text += "--- Salvaged Weapons ---\n"
-	if has_node("/root/SalvageSystem"):
-		var salvage = get_node("/root/SalvageSystem")
-		text += "Tagged: %d\n" % salvage.get_salvaged_count()
+	text += "--- Weapon Inventory ---\n"
+	if GlobalData.weapon_inventory.is_empty():
+		text += "(No weapons in stash)\n"
+	else:
+		for item in GlobalData.weapon_inventory:
+			var w_name = item.get("name", "Unknown Weapon")
+			var count = item.get("count", 1)
+			var slot = item.get("slot", "stored")
+			text += "- %s x%d [%s]\n" % [w_name, count, slot.capitalize()]
+	text += "\n"
+
+	text += "--- Salvaged Armor Parts ---\n"
+	if GlobalData.salvaged_armor_inventory.is_empty():
+		text += "(No salvaged armor in inventory)\n"
+	else:
+		for item in GlobalData.salvaged_armor_inventory:
+			text += "- %s [%s] (HP: %.0f, Armor: %.0f, Weight: %.1f)\n" % [
+				item.get("name", "Armor"),
+				item.get("slot", "body"),
+				item.get("hp", 0.0),
+				item.get("armor", 0.0),
+				item.get("weight", 0.0)
+			]
 	return text
 
 

@@ -79,7 +79,51 @@ var stalking_aces: Array[String] = [] # เก็บรายชื่อ ID ข
 var stalking_chance: float = 0.0 # โอกาสสุ่มเจอ Stalking Ace ระหว่างสู้ด่านปกติ
 # --------------------------------------------------
 
+# --- Persistent Ammo Pool & Weapon Inventory ---
+var ammo_inventory: Dictionary = {
+	"kinetic": 300,
+	"energy": 150,
+	"explosive": 30,
+	"missile": 12
+}
+
+var weapon_inventory: Array = [
+	{"path": "res://resources/mech/stock/weapon_beam_rifle.tres", "name": "Beam Rifle", "slot": "left_hand", "count": 1},
+	{"path": "res://resources/mech/stock/weapon_heat_blade.tres", "name": "Heat Blade", "slot": "right_hand", "count": 1},
+	{"path": "res://resources/mech/stock/weapon_combat_shotgun.tres", "name": "Combat Shotgun", "slot": "carry", "count": 1}
+]
+
 const SAVE_PATH := "user://savegame.json"
+
+
+func get_reserve_ammo(ammo_type: String) -> int:
+	return ammo_inventory.get(ammo_type.to_lower(), 0)
+
+
+func add_reserve_ammo(ammo_type: String, amount: int) -> void:
+	var type = ammo_type.to_lower()
+	ammo_inventory[type] = ammo_inventory.get(type, 0) + amount
+
+
+func consume_reserve_ammo(ammo_type: String, amount: int) -> int:
+	var type = ammo_type.to_lower()
+	var current = get_reserve_ammo(type)
+	var taken = mini(current, amount)
+	ammo_inventory[type] = current - taken
+	return taken
+
+
+func register_weapon(path: String, weapon_name: String, slot: String = "stored") -> void:
+	for entry in weapon_inventory:
+		if entry.get("path", "") == path:
+			entry["count"] = entry.get("count", 1) + 1
+			return
+	weapon_inventory.append({
+		"path": path,
+		"name": weapon_name,
+		"slot": slot,
+		"count": 1
+	})
 
 
 func reset_run_data() -> void:
@@ -104,6 +148,18 @@ func reset_run_data() -> void:
 	stalking_aces.clear()
 	stalking_chance = 0.0
 
+	ammo_inventory = {
+		"kinetic": 300,
+		"energy": 150,
+		"explosive": 30,
+		"missile": 12
+	}
+	weapon_inventory = [
+		{"path": "res://resources/mech/stock/weapon_beam_rifle.tres", "name": "Beam Rifle", "slot": "left_hand", "count": 1},
+		{"path": "res://resources/mech/stock/weapon_heat_blade.tres", "name": "Heat Blade", "slot": "right_hand", "count": 1},
+		{"path": "res://resources/mech/stock/weapon_combat_shotgun.tres", "name": "Combat Shotgun", "slot": "carry", "count": 1}
+	]
+
 
 func save_run() -> void:
 	var data := {
@@ -121,7 +177,9 @@ func save_run() -> void:
 		"last_combat_squad_size": last_combat_squad_size,
 		"max_notoriety_multiplier": max_notoriety_multiplier,
 		"stalking_aces": stalking_aces,
-		"stalking_chance": stalking_chance
+		"stalking_chance": stalking_chance,
+		"ammo_inventory": ammo_inventory.duplicate(),
+		"weapon_inventory": weapon_inventory.duplicate()
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file:
@@ -166,6 +224,28 @@ func _restore_from_dict(data: Dictionary) -> void:
 	}).duplicate()
 	last_combat_squad_size = data.get("last_combat_squad_size", 1)
 	max_notoriety_multiplier = data.get("max_notoriety_multiplier", 1.0)
+	
+	stalking_aces.clear()
+	var loaded_aces = data.get("stalking_aces", [])
+	if loaded_aces is Array:
+		stalking_aces.assign(loaded_aces)
+		
+	stalking_chance = data.get("stalking_chance", 0.0)
+
+	var loaded_ammo = data.get("ammo_inventory", {})
+	if loaded_ammo is Dictionary and not loaded_ammo.is_empty():
+		ammo_inventory = loaded_ammo.duplicate()
+
+	var loaded_weapons = data.get("weapon_inventory", [])
+	if loaded_weapons is Array and not loaded_weapons.is_empty():
+		weapon_inventory = loaded_weapons.duplicate()
+
+
+func _serialize_parts() -> Dictionary:
+	var result := {}
+	for slot in equipped_parts:
+		result[slot] = equipped_parts[slot].resource_path
+	return resultoriety_multiplier", 1.0)
 	
 	stalking_aces.clear()
 	var loaded_aces = data.get("stalking_aces", [])

@@ -22,6 +22,7 @@ var holding_left: bool = false
 var holding_right: bool = false
 var fire_left_holding: bool = false
 var fire_right_holding: bool = false
+var holding_reload: bool = false
 var _hold_time_left: float = 0.0
 var _hold_time_right: float = 0.0
 
@@ -130,27 +131,64 @@ func _input(event: InputEvent) -> void:
 			elif holding_right:
 				_scroll("right", dir)
 
-	# --- FIRE LEFT ---
+	# --- RELOAD (key R) ---
+	if event.is_action_pressed("reload"):
+		holding_reload = true
+	if event.is_action_released("reload"):
+		holding_reload = false
+
+	# --- FIRE / RELOAD LEFT ---
 	if event.is_action_pressed("fire_left"):
-		fire_left_holding = true
-		if left_hand:
-			if left_hand.weapon_type == WeaponPart.WeaponType.SHIELD:
-				_toggle_shield("left")
-			else:
-				_try_fire("left", left_hand)
+		if holding_reload or Input.is_action_pressed("reload"):
+			reload_weapon("left")
+		else:
+			fire_left_holding = true
+			if left_hand:
+				if left_hand.weapon_type == WeaponPart.WeaponType.SHIELD:
+					_toggle_shield("left")
+				else:
+					_try_fire("left", left_hand)
 	if event.is_action_released("fire_left"):
 		fire_left_holding = false
 
-	# --- FIRE RIGHT ---
+	# --- FIRE / RELOAD RIGHT ---
 	if event.is_action_pressed("fire_right"):
-		fire_right_holding = true
-		if right_hand:
-			if right_hand.weapon_type == WeaponPart.WeaponType.SHIELD:
-				_toggle_shield("right")
-			else:
-				_try_fire("right", right_hand)
+		if holding_reload or Input.is_action_pressed("reload"):
+			reload_weapon("right")
+		else:
+			fire_right_holding = true
+			if right_hand:
+				if right_hand.weapon_type == WeaponPart.WeaponType.SHIELD:
+					_toggle_shield("right")
+				else:
+					_try_fire("right", right_hand)
 	if event.is_action_released("fire_right"):
 		fire_right_holding = false
+
+
+func reload_weapon(hand: String) -> void:
+	var weapon: WeaponPart = left_hand if hand == "left" else right_hand
+	if weapon == null:
+		return
+
+	var ammo_type = weapon.get_ammo_type()
+	if ammo_type == "none":
+		return
+
+	var current_mag = _get_ammo(weapon)
+	var needed = weapon.max_ammo - current_mag
+	if needed <= 0:
+		return
+
+	var reserve = GlobalData.get_reserve_ammo(ammo_type)
+	if reserve <= 0:
+		EffectManager.spawn_damage_number(global_position + Vector3(0, 2.5, 0), 0, Color(1.0, 0.2, 0.2))
+		return
+
+	var refilled = GlobalData.consume_reserve_ammo(ammo_type, needed)
+	ammo_pool[weapon.weapon_name] = current_mag + refilled
+	ammo_changed.emit(hand, _get_ammo(weapon), weapon.max_ammo)
+	EffectManager.spawn_damage_number(global_position + Vector3(0, 2.5, 0), refilled, Color(0.2, 1.0, 0.4))
 
 
 # ====================================================================
@@ -317,24 +355,24 @@ func _drop_weapon(hand: String) -> void:
 # ====================================================================
 
 func add_weapon(weapon: WeaponPart) -> void:
+	GlobalData.register_weapon(weapon.resource_path, weapon.weapon_name, "carry")
+	GlobalData.add_reserve_ammo(weapon.get_ammo_type(), weapon.max_ammo)
+
 	# Check for duplicate by resource path
 	for w in carry:
 		if w.resource_path == weapon.resource_path:
-			# Duplicate ranged: just add ammo
 			if weapon.weapon_type != WeaponPart.WeaponType.MELEE:
-				add_ammo(weapon.max_ammo / 2)
+				add_ammo(weapon.max_ammo / 2, "", weapon.get_ammo_type())
 				return
-			# Melee duplicates allowed for dual wield
 			break
 
-	# Check if already in hand
 	if left_hand and left_hand.resource_path == weapon.resource_path:
 		if weapon.weapon_type != WeaponPart.WeaponType.MELEE:
-			add_ammo(weapon.max_ammo / 2)
+			add_ammo(weapon.max_ammo / 2, "", weapon.get_ammo_type())
 			return
 	if right_hand and right_hand.resource_path == weapon.resource_path:
 		if weapon.weapon_type != WeaponPart.WeaponType.MELEE:
-			add_ammo(weapon.max_ammo / 2)
+			add_ammo(weapon.max_ammo / 2, "", weapon.get_ammo_type())
 			return
 
 	carry.append(weapon)
@@ -342,25 +380,26 @@ func add_weapon(weapon: WeaponPart) -> void:
 	carry_updated.emit(carry)
 
 
-func add_ammo(amount: int, hand: String = "") -> void:
-	if hand == "left" and left_hand:
-		var current = _get_ammo(left_hand)
-		ammo_pool[left_hand.weapon_name] = mini(current + amount, left_hand.max_ammo)
-		ammo_changed.emit("left", _get_ammo(left_hand), left_hand.max_ammo)
-	elif hand == "right" and right_hand:
-		var current = _get_ammo(right_hand)
-		ammo_pool[right_hand.weapon_name] = mini(current + amount, right_hand.max_ammo)
-		ammo_changed.emit("right", _get_ammo(right_hand), right_hand.max_ammo)
+func add_ammo(amount: int, hand: String = "", ammo_type: String = "") -> void:
+	var target_type = ammo_type
+	var target_weapon: WeaponPart = null
+	if hand == "left":
+		target_weapon = left_hand
+	elif hand == "right":
+		target_weapon = right_hand
 	else:
-		# No hand specified — add to whichever hand has a weapon, prefer left
-		if left_hand:
-			var c = _get_ammo(left_hand)
-			ammo_pool[left_hand.weapon_name] = mini(c + amount, left_hand.max_ammo)
-			ammo_changed.emit("left", _get_ammo(left_hand), left_hand.max_ammo)
-		elif right_hand:
-			var c = _get_ammo(right_hand)
-			ammo_pool[right_hand.weapon_name] = mini(c + amount, right_hand.max_ammo)
-			ammo_changed.emit("right", _get_ammo(right_hand), right_hand.max_ammo)
+		target_weapon = left_hand if left_hand else right_hand
+
+	if target_type.is_empty() and target_weapon:
+		target_type = target_weapon.get_ammo_type()
+	if target_type.is_empty():
+		target_type = "kinetic"
+
+	GlobalData.add_reserve_ammo(target_type, amount)
+
+	if target_weapon:
+		var current = _get_ammo(target_weapon)
+		ammo_changed.emit(hand if not hand.is_empty() else "left", current, target_weapon.max_ammo)
 
 
 # ====================================================================

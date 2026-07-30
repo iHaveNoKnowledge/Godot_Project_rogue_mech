@@ -205,34 +205,78 @@ func _create_theme_structures() -> void:
 			_build_river_bridge_structures()
 
 
-func _build_desert_structures() -> void:
-	# Outpost watchtowers & sand dunes
-	var dune_positions = [
-		Vector3(-50, 0, -60), Vector3(60, 0, -40),
-		Vector3(-70, 0, 50), Vector3(50, 0, 70)
-	]
-	for pos in dune_positions:
+func _generate_randomized_desert_dunes() -> void:
+	var half = arena_size / 2.0 - 25.0
+	var dune_count = randi_range(12, 20)
+	
+	var sand_mat = StandardMaterial3D.new()
+	sand_mat.albedo_color = Color(0.82, 0.65, 0.38)
+	sand_mat.roughness = 0.85
+	
+	var rock_mat = StandardMaterial3D.new()
+	rock_mat.albedo_color = Color(0.45, 0.38, 0.30)
+	rock_mat.roughness = 0.9
+	
+	for i in range(dune_count):
+		# Random position away from center (keep central area 60% flat & open)
+		var angle = randf_range(0, TAU)
+		var dist = randf_range(35.0, half)
+		var pos_x = cos(angle) * dist
+		var pos_z = sin(angle) * dist
+		
 		var dune = StaticBody3D.new()
 		dune.collision_layer = 2
 		dune.collision_mask = 1
+		
+		var width = randf_range(20.0, 45.0)
+		var length = randf_range(14.0, 32.0)
+		var height = randf_range(2.5, 5.5)
+		
 		var collision = CollisionShape3D.new()
 		var shape = BoxShape3D.new()
-		shape.size = Vector3(25, 4, 25)
+		shape.size = Vector3(width, height, length)
 		collision.shape = shape
-		collision.position.y = 2.0
 		dune.add_child(collision)
-
-		var mesh = MeshInstance3D.new()
+		
+		var mesh_inst = MeshInstance3D.new()
 		var box = BoxMesh.new()
-		box.size = Vector3(25, 4, 25)
-		mesh.mesh = box
-		var mat = StandardMaterial3D.new()
-		mat.albedo_color = Color(0.65, 0.52, 0.35)
-		mat.roughness = 0.9
-		mesh.material_override = mat
-		dune.add_child(mesh)
-		dune.position = pos
+		box.size = Vector3(width, height, length)
+		mesh_inst.mesh = box
+		mesh_inst.material_override = sand_mat
+		dune.add_child(mesh_inst)
+		
+		dune.rotation.y = randf_range(0, TAU)
+		dune.rotation.x = deg_to_rad(randf_range(-5.0, 5.0))
+		dune.position = Vector3(pos_x, height / 2.0 - 0.2, pos_z)
+		
 		structures_container.add_child(dune)
+		
+		# 35% chance to spawn a rock outcrop / ancient desert structure on the dune
+		if randf() < 0.35:
+			_spawn_desert_outcrop(dune.position + Vector3(randf_range(-4, 4), height / 2.0, randf_range(-4, 4)), rock_mat)
+
+func _spawn_desert_outcrop(pos: Vector3, rock_mat: StandardMaterial3D) -> void:
+	var rock = StaticBody3D.new()
+	rock.collision_layer = 2
+	rock.collision_mask = 1
+	
+	var r_size = Vector3(randf_range(4.0, 9.0), randf_range(3.0, 8.0), randf_range(4.0, 9.0))
+	var collision = CollisionShape3D.new()
+	var shape = BoxShape3D.new()
+	shape.size = r_size
+	rock.add_child(collision)
+	
+	var mesh_inst = MeshInstance3D.new()
+	var box = BoxMesh.new()
+	box.size = r_size
+	mesh_inst.mesh = box
+	mesh_inst.material_override = rock_mat
+	rock.add_child(mesh_inst)
+	
+	rock.rotation.y = randf_range(0, TAU)
+	rock.rotation.z = deg_to_rad(randf_range(-12, 12))
+	rock.position = pos
+	structures_container.add_child(rock)
 
 
 func _build_city_highrise_structures() -> void:

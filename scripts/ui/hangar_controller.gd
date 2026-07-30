@@ -8,6 +8,10 @@ extends Node3D
 const COST_PER_HP: float = 0.5
 
 var root_control: Control
+var _bg_color: Color = Color(0.08, 0.08, 0.12, 0.85)
+var _accent_color: Color = Color(0.3, 0.6, 1.0, 1.0)
+var _highlight_color: Color = Color(1.0, 0.9, 0.3, 1.0)
+var _dim_color: Color = Color(0.5, 0.5, 0.5, 1.0)
 var current_mode: String = "armor" # "armor", "frame", "chassis", "upgrade"
 var selected_slot: String = "head"
 var selected_part_path: String = ""

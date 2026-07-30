@@ -5,8 +5,8 @@
 [ext_resource type="Script" path="res://scripts/ui/enemy_status_billboard.gd" id="3"]
 [ext_resource type="Script" path="res://scripts/mecha/mecha_hitbox.gd" id="4"]
 
-[sub_resource type="SphereShape3D" id="BodyShape"]
-radius = 3.5
+[sub_resource type="BoxShape3D" id="BodyShape"]
+size = Vector3(3.2, 5.2, 2.6)
 
 [sub_resource type="SphereMesh" id="HeadMesh"]
 radius = 0.8
@@ -42,8 +42,8 @@ emission_energy_multiplier = 3.0
 [sub_resource type="BoxMesh" id="ShoulderPlate"]
 size = Vector3(1.2, 0.6, 1.2)
 
-[sub_resource type="SphereShape3D" id="HitboxShape"]
-radius = 4.0
+[sub_resource type="BoxShape3D" id="HitboxShape"]
+size = Vector3(3.4, 5.4, 2.8)
 
 [node name="EnemyBoss" type="CharacterBody3D"]
 transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 0, 0, 0)
@@ -57,7 +57,7 @@ collision_layer = 8
 collision_mask = 3
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.5, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.6, 0)
 shape = SubResource("BodyShape")
 
 [node name="Head" type="Node3D" parent="."]

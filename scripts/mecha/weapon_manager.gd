@@ -62,10 +62,15 @@ func _ready() -> void:
 
 
 func _emit_initial_state() -> void:
-	weapon_switched.emit("left", left_hand.weapon_name)
-	ammo_changed.emit("left", _get_ammo(left_hand), left_hand.max_ammo)
-	weapon_switched.emit("right", right_hand.weapon_name)
-	ammo_changed.emit("right", _get_ammo(right_hand), right_hand.max_ammo)
+	if left_hand == null and right_hand == null:
+		return
+	if left_hand:
+		weapon_switched.emit("left", left_hand.weapon_name)
+		ammo_changed.emit("left", _get_ammo(left_hand), left_hand.max_ammo)
+	if right_hand:
+		weapon_switched.emit("right", right_hand.weapon_name)
+		ammo_changed.emit("right", _get_ammo(right_hand), right_hand.max_ammo)
+	call_deferred("_update_weapon_visuals")
 	carry_updated.emit(carry)
 
 
@@ -710,9 +715,39 @@ func _melee_attack(hand: String, weapon: WeaponPart) -> void:
 		var target_angle = atan2(dir.x, dir.z)
 		mecha.rotation.y = lerp_angle(mecha.rotation.y, target_angle, 0.3)
 
+	# Eject spent shell casing for Pile Bunker / kinetic melee
+	if weapon and (weapon.ammo_per_shot > 0 or weapon.weapon_name.to_lower().contains("pile") or weapon.get_ammo_type() != "none"):
+		var spawn_pos = mecha.global_position + (Vector3(-0.6, 1.5, 0.5) if hand == "left" else Vector3(0.6, 1.5, 0.5))
+		_spawn_shell_casing(spawn_pos, hand)
+		
+	# Execute lunging punch animation (Anticipation -> Thrust -> Camera Shake -> Recovery)
+	_perform_pile_bunker_lunge_anim(mecha, dir, weapon)
+
 	_spawn_melee_trail(mecha, dir)
 	_check_melee_hit(mecha, dir, weapon.damage)
 	AudioManager.play_weapon_sfx_with_override(weapon, mecha.global_position)
+
+func _perform_pile_bunker_lunge_anim(mecha: Node3D, dir: Vector3, weapon: WeaponPart) -> void:
+	if not mecha:
+		return
+	var orig_pos = mecha.global_position
+	var is_pile = weapon and weapon.weapon_name.to_lower().contains("pile")
+	var lunge_dist = 2.4 if is_pile else 1.2
+	
+	var tween = mecha.create_tween().set_parallel(false)
+	# 1. Anticipation: Pull back slightly & crouch
+	tween.tween_property(mecha, "global_position", orig_pos - dir * 0.4, 0.05).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	# 2. Explosive Forward Thrust
+	tween.tween_property(mecha, "global_position", orig_pos + dir * lunge_dist, 0.07).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
+	
+	# Screen Shake on Impact
+	if is_pile:
+		var camera_rig = get_tree().get_nodes_in_group("camera_rig")
+		if not camera_rig.is_empty() and camera_rig[0].has_method("add_shake"):
+			camera_rig[0].add_shake(0.35)
+			
+	# 3. Recovery
+	tween.tween_property(mecha, "global_position", orig_pos, 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
 
 
 var _melee_combo: int = 0
@@ -951,3 +986,100 @@ func _spawn_shell_casing(spawn_pos: Vector3, hand: String) -> void:
 		0.4)
 	tween.chain().tween_property(shell, "position:y", -0.5, 0.4).set_ease(Tween.EASE_IN)
 	tween.tween_callback(shell.queue_free).set_delay(0.6)
+
+func _update_weapon_visuals() -> void:
+	var mecha = get_parent() as Node3D
+	if not mecha:
+		return
+	_update_hand_weapon_visual(mecha, "left", left_hand)
+	_update_hand_weapon_visual(mecha, "right", right_hand)
+
+func _update_hand_weapon_visual(mecha: Node3D, hand: String, weapon: WeaponPart) -> void:
+	var node_name = "WeaponMesh_" + hand
+	var existing = mecha.get_node_or_null(node_name)
+	if existing:
+		existing.queue_free()
+	
+	if weapon == null:
+		return
+		
+	var mount = Node3D.new()
+	mount.name = node_name
+	
+	var is_left = (hand == "left")
+	mount.position = Vector3(-0.85, 1.4, 0.4) if is_left else Vector3(0.85, 1.4, 0.4)
+	
+	if weapon.mesh_scene:
+		var scene = weapon.mesh_scene.instantiate()
+		mount.add_child(scene)
+	else:
+		var mesh_instance = MeshInstance3D.new()
+		var mat = StandardMaterial3D.new()
+		mat.metallic = 0.8
+		mat.roughness = 0.2
+		
+		var w_type = weapon.weapon_type
+		var name_lower = weapon.weapon_name.to_lower()
+		
+		if name_lower.contains("pile") or (w_type == WeaponPart.WeaponType.MELEE and name_lower.contains("bunker")):
+			var box = BoxMesh.new()
+			box.size = Vector3(0.45, 0.45, 1.5)
+			mesh_instance.mesh = box
+			mat.albedo_color = Color(0.2, 0.25, 0.22)
+			
+			var spike = MeshInstance3D.new()
+			var cyl = CylinderMesh.new()
+			cyl.top_radius = 0.04
+			cyl.bottom_radius = 0.12
+			cyl.height = 1.3
+			spike.mesh = cyl
+			spike.rotation_degrees.x = -90
+			spike.position = Vector3(0, 0, 0.9)
+			var spike_mat = StandardMaterial3D.new()
+			spike_mat.metallic = 0.95
+			spike_mat.albedo_color = Color(0.8, 0.85, 0.9)
+			spike.material_override = spike_mat
+			mount.add_child(spike)
+			
+		elif w_type == WeaponPart.WeaponType.BEAM_RIFLE:
+			var box = BoxMesh.new()
+			box.size = Vector3(0.25, 0.35, 1.8)
+			mesh_instance.mesh = box
+			mat.albedo_color = Color(0.15, 0.4, 0.7)
+			mat.emission_enabled = true
+			mat.emission = Color(0.2, 0.6, 1.0)
+			
+		elif w_type == WeaponPart.WeaponType.MACHINE_GUN:
+			var box = BoxMesh.new()
+			box.size = Vector3(0.3, 0.3, 1.2)
+			mesh_instance.mesh = box
+			mat.albedo_color = Color(0.3, 0.3, 0.32)
+			
+		elif w_type == WeaponPart.WeaponType.SHOTGUN:
+			var box = BoxMesh.new()
+			box.size = Vector3(0.35, 0.35, 1.1)
+			mesh_instance.mesh = box
+			mat.albedo_color = Color(0.45, 0.3, 0.15)
+			
+		elif w_type == WeaponPart.WeaponType.MISSILE:
+			var box = BoxMesh.new()
+			box.size = Vector3(0.5, 0.5, 1.0)
+			mesh_instance.mesh = box
+			mat.albedo_color = Color(0.6, 0.2, 0.1)
+			
+		elif w_type == WeaponPart.WeaponType.SHIELD:
+			var box = BoxMesh.new()
+			box.size = Vector3(0.2, 1.6, 1.0)
+			mesh_instance.mesh = box
+			mat.albedo_color = Color(0.2, 0.35, 0.5)
+			
+		else:
+			var box = BoxMesh.new()
+			box.size = Vector3(0.15, 0.15, 1.4)
+			mesh_instance.mesh = box
+			mat.albedo_color = Color(0.7, 0.7, 0.7)
+			
+		mesh_instance.material_override = mat
+		mount.add_child(mesh_instance)
+		
+	mecha.add_child(mount)

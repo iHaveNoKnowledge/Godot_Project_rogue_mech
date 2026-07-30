@@ -120,8 +120,8 @@ func _create_left_panel() -> void:
 	left_panel.anchor_bottom = 1.0
 	left_panel.offset_left = 20
 	left_panel.offset_right = 220
-	left_panel.offset_top = -110
-	left_panel.offset_bottom = -20
+	left_panel.offset_top = -155
+	left_panel.offset_bottom = -65
 	left_panel.add_theme_stylebox_override("panel", _make_panel_style())
 	left_panel.visible = true
 	root_control.add_child(left_panel)
@@ -163,8 +163,8 @@ func _create_right_panel() -> void:
 	right_panel.anchor_bottom = 1.0
 	right_panel.offset_left = -220
 	right_panel.offset_right = -20
-	right_panel.offset_top = -110
-	right_panel.offset_bottom = -20
+	right_panel.offset_top = -155
+	right_panel.offset_bottom = -65
 	right_panel.add_theme_stylebox_override("panel", _make_panel_style())
 	right_panel.visible = true
 	root_control.add_child(right_panel)

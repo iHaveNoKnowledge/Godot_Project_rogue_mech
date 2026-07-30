@@ -689,12 +689,6 @@ func _apply_3d_frame_preview(slot: String, info: Dictionary) -> void:
 
 func _apply_3d_armor_preview(slot: String, info: Dictionary) -> void:
 	if mecha_3d_root == null: return
-	var ptype = info.get("type", "Balanced")
-	var mat = StandardMaterial3D.new()
-	mat.metallic = 0.8
-	mat.roughness = 0.3
-
-	match ptype:
 	var mecha = mecha_3d_root.get_node_or_null("MechaBase") if mecha_3d_root.has_node("MechaBase") else mecha_3d_root
 	var pmm = mecha.get_node_or_null("PartMeshManager") if mecha else null
 	if pmm:

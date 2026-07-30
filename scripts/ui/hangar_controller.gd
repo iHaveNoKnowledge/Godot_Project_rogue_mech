@@ -409,7 +409,11 @@ func _on_close_pressed() -> void:
 		visible = false
 		get_tree().paused = false
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		EventBus.game_state_changed.emit("HANGAR", "INTERMISSION")
+		GlobalData.save_run()
+		if GameManager and GameManager.has_method("return_to_board"):
+			GameManager.return_to_board()
+		else:
+			EventBus.game_state_changed.emit("HANGAR", "INTERMISSION")
 	)
 
 
@@ -1040,12 +1044,6 @@ func _update_total_stats() -> void:
 			total_weight, max_weight,
 			GlobalData.credits, GlobalData.data_cores
 		]
-
-
-func _on_close_pressed() -> void:
-	get_tree().paused = false
-	GlobalData.save_run()
-	GameManager.return_to_board()
 
 
 func _input(event: InputEvent) -> void:

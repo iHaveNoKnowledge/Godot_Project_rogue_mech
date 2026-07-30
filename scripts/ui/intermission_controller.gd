@@ -213,8 +213,8 @@ func _build_mech_status_text() -> String:
 
 	text += "--- Armor Parts ---\n"
 	for slot in GlobalData.equipped_parts:
-		var part: ArmorPart = GlobalData.equipped_parts[slot]
-		if part:
+		var part = GlobalData.equipped_parts[slot]
+		if part and part is ArmorPart:
 			var dmg = GlobalData.part_damage.get(slot, 0.0)
 			var status = "OK" if dmg < part.break_threshold else "BROKEN"
 			text += "%s: %s (HP: %.0f, W: %.1f) [%s]\n" % [

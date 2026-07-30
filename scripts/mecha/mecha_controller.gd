@@ -220,9 +220,12 @@ func _recalculate_weight() -> void:
 
 	total_weight = 0.0
 	for slot in GlobalData.equipped_parts:
-		var part: ArmorPart = GlobalData.equipped_parts[slot]
-		if part and not GlobalData.part_damage.get(slot, 0.0) >= part.break_threshold:
-			total_weight += part.weight
+		var part = GlobalData.equipped_parts[slot]
+		if part:
+			var break_thresh = part.break_threshold if "break_threshold" in part else 999.0
+			if not GlobalData.part_damage.get(slot, 0.0) >= break_thresh:
+				if "weight" in part:
+					total_weight += part.weight
 
 	if chassis:
 		turn_rate = chassis.base_turn_rate * (chassis.weight_capacity / maxf(total_weight, 1.0))

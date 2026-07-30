@@ -120,8 +120,8 @@ func _refresh_parts_list() -> void:
 	var has_damaged = false
 
 	for slot in GlobalData.equipped_parts:
-		var part: ArmorPart = GlobalData.equipped_parts[slot]
-		if part == null:
+		var part = GlobalData.equipped_parts[slot]
+		if part == null or not (part is ArmorPart):
 			continue
 
 		var damage = GlobalData.part_damage.get(slot, 0.0)
@@ -172,8 +172,8 @@ func _on_repair_all_pressed() -> void:
 	var slots_to_repair: Array = []
 
 	for slot in GlobalData.equipped_parts:
-		var part: ArmorPart = GlobalData.equipped_parts[slot]
-		if part == null:
+		var part = GlobalData.equipped_parts[slot]
+		if part == null or not (part is ArmorPart):
 			continue
 		var damage = GlobalData.part_damage.get(slot, 0.0)
 		if damage > 0.0:

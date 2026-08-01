@@ -19,6 +19,9 @@ var selected_salvage_info: Dictionary = {}
 var selected_frame_info: Dictionary = {}
 var selected_chassis_key: String = "standard"
 var _last_selected_item_index: int = -1
+# When true, _on_part_item_selected should only update stats text and NOT change
+# the 3D model preview. Set during _populate_part_list_for_slot() auto-selects.
+var _is_populating: bool = false
 var _is_dragging_3d: bool = false
 
 # 3D Garage Nodes
@@ -646,6 +649,7 @@ func _populate_part_list_for_slot(slot: String) -> void:
 	_close_part_action_modal()
 	part_item_list.clear()
 	_last_selected_item_index = -1
+	_is_populating = true  # Block 3D preview during auto-populate
 
 	if current_mode == "upgrade":
 		var cost = _get_upgrade_cost()
@@ -658,6 +662,7 @@ func _populate_part_list_for_slot(slot: String) -> void:
 			part_item_list.select(0)
 			_last_selected_item_index = 0
 			_on_part_item_selected(0)
+		_is_populating = false
 		return
 
 	if slot == "chassis":
@@ -669,6 +674,7 @@ func _populate_part_list_for_slot(slot: String) -> void:
 			part_item_list.select(0)
 			_last_selected_item_index = 0
 			_on_part_item_selected(0)
+		_is_populating = false
 		return
 
 	if current_mode == "frame" and frame_catalog.has(slot):
@@ -709,6 +715,9 @@ func _populate_part_list_for_slot(slot: String) -> void:
 			_last_selected_item_index = 0
 			_on_part_item_selected(0)
 
+	_is_populating = false  # Restore flag
+
+
 
 func _on_part_item_selected(index: int) -> void:
 	if current_mode == "upgrade":
@@ -729,7 +738,9 @@ func _on_part_item_selected(index: int) -> void:
 		stats_label.text = "MODEL: %s\n\nSPEED BOOST: %.1f m/s\nMAX LOAD CAPACITY: %.1f kg\nSTRUCTURE RATING: Military Grade" % [
 			info.get("name", "Chassis"), info.get("speed", 10.0), info.get("max_weight", 100.0)
 		]
-		_apply_3d_chassis_preview(info)
+		# Chassis preview: only show color change when user clicks, not during populate
+		if not _is_populating:
+			_apply_3d_chassis_preview(info)
 		return
 
 	if current_mode == "frame" and frame_catalog.has(selected_slot):
@@ -745,7 +756,9 @@ func _on_part_item_selected(index: int) -> void:
 			stats_label.text = "INNER FRAME PART: %s\n\nFRAME HP: %.0f\nFRAME WEIGHT: %.1f kg" % [
 				fname, fhp, fwt
 			]
-			_apply_3d_frame_preview(selected_slot, selected_frame_info)
+			# Only change 3D model when user explicitly picks a part, not on section switch
+			if not _is_populating:
+				_apply_3d_frame_preview(selected_slot, selected_frame_info)
 		_update_total_stats()
 		return
 
@@ -772,7 +785,9 @@ func _on_part_item_selected(index: int) -> void:
 				stats_label.text = "OUTER ARMOR: %s\nTYPE: %s\n\nARMOR HP: %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg" % [
 					item_name, item_type, item_hp, item_armor, item_weight
 				]
-			_apply_3d_armor_preview(selected_slot, selected_info)
+			# Only change 3D model when user explicitly picks a part, not on section switch
+			if not _is_populating:
+				_apply_3d_armor_preview(selected_slot, selected_info)
 		elif index - stock_items.size() >= 0 and index - stock_items.size() < GlobalData.salvaged_armor_inventory.size():
 			var salvaged_idx = index - stock_items.size()
 			selected_salvage_info = GlobalData.salvaged_armor_inventory[salvaged_idx]
@@ -788,7 +803,9 @@ func _on_part_item_selected(index: int) -> void:
 			stats_label.text = "SALVAGED ENEMY ARMOR: %s\nTYPE: %s\n\nARMOR HP: %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg" % [
 				item_name, item_type, item_hp, item_armor, item_weight
 			]
-			_apply_3d_salvage_preview(selected_slot, selected_salvage_info)
+			# Only change 3D model when user explicitly picks a part, not on section switch
+			if not _is_populating:
+				_apply_3d_salvage_preview(selected_slot, selected_salvage_info)
 	_update_total_stats()
 
 
@@ -988,7 +1005,9 @@ func _show_part_action_modal(info: Dictionary) -> void:
 
 
 func _equip_part_to_slot(slot: String, info: Dictionary) -> void:
-	GlobalData.equipped_parts[slot] = info.duplicate()
+	var data = info.duplicate()
+	data["equipped"] = true  # Mark as explicitly equipped for 3D preview distinction
+	GlobalData.equipped_parts[slot] = data
 	GlobalData.save_run()
 	_apply_3d_armor_preview(slot, info)
 	_update_total_stats()
@@ -1137,13 +1156,21 @@ func _update_all_3d_slots_preview() -> void:
 	var slots = ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]
 	for slot in slots:
 		var armor_data = GlobalData.equipped_parts.get(slot)
-		if armor_data == null or (armor_data is Dictionary and armor_data.is_empty()):
+		# Show armor only if it was explicitly equipped (marked with "equipped" = true).
+		# Parts that came from ensure_default_equipped_parts() or save/load but haven't
+		# been confirmed by the player yet should show as bare inner frame.
+		var is_explicitly_equipped = (
+			armor_data != null and
+			not (armor_data is Dictionary and armor_data.is_empty()) and
+			not (armor_data is Dictionary and not armor_data.get("equipped", false))
+		)
+		if not is_explicitly_equipped:
 			pmm._show_inner_frame(slot)
 		else:
 			var part = ArmorPart.new()
 			if armor_data is Dictionary:
 				part.part_name = armor_data.get("name", armor_data.get("part_name", "Armor"))
-				part.max_hp = armor_data.get("durability", armor_data.get("max_hp", 100.0))
+				part.max_hp = armor_data.get("hp", armor_data.get("durability", armor_data.get("max_hp", 100.0)))
 				if armor_data.has("color"):
 					part.part_color = armor_data.get("color")
 			elif armor_data is ArmorPart:
@@ -1190,49 +1217,54 @@ func _on_equip_pressed() -> void:
 			GlobalData.credits -= cost_cr
 			GlobalData.data_cores -= cost_cores
 			GlobalData.frame_upgrade_level += 1
-			status_message_label.text = "✅ Frame Reactor Upgraded to Level %d!" % GlobalData.frame_upgrade_level
+			status_message_label.text = "Frame Reactor Upgraded to Level %d!" % GlobalData.frame_upgrade_level
 			GlobalData.save_run()
 			_update_total_stats()
 		else:
-			status_message_label.text = "❌ Insufficient Credits or Data Cores!"
+			status_message_label.text = "Insufficient Credits or Data Cores!"
 		return
 
 	if selected_slot == "chassis":
 		GlobalData.chassis_id = selected_chassis_key
 		var name_str = GlobalData.chassis_catalog[selected_chassis_key].get("name", "Chassis")
-		status_message_label.text = "✅ Chassis Model Set & Applied: %s!" % name_str
+		status_message_label.text = "Chassis Model Set & Applied: %s!" % name_str
 		GlobalData.save_run()
 		_update_total_stats()
 		return
 
 	if not selected_salvage_info.is_empty():
-		var res = ArmorPart.new()
-		res.part_name = selected_salvage_info.get("name", "Salvaged Plate")
-		res.max_hp = selected_salvage_info.get("hp", 40.0)
-		res.armor_class = selected_salvage_info.get("armor", 25.0)
-		res.weight = selected_salvage_info.get("weight", 6.0)
-		GlobalData.equipped_parts[selected_slot] = res
+		# Mark as explicitly equipped for _update_all_3d_slots_preview
+		var salvage_data = selected_salvage_info.duplicate()
+		salvage_data["equipped"] = true
+		GlobalData.equipped_parts[selected_slot] = salvage_data
 		GlobalData.part_damage.erase(selected_slot)
-		status_message_label.text = "✅ Equipped & Saved: %s!" % res.part_name
+		status_message_label.text = "Equipped & Saved: %s!" % salvage_data.get("name", "Salvaged Plate")
 		GlobalData.save_run()
 		_update_total_stats()
+		_update_all_3d_slots_preview()
 		return
 
 	if current_mode == "frame" and not selected_frame_info.is_empty():
 		GlobalData.equipped_frames[selected_slot] = selected_frame_info.duplicate()
 		var fname = selected_frame_info.get("name", "Frame")
-		status_message_label.text = "✅ Equipped Inner Frame: %s!" % fname
+		status_message_label.text = "Equipped Inner Frame: %s!" % fname
 		GlobalData.save_run()
 		_update_total_stats()
 	elif selected_part_path != "" and ResourceLoader.exists(selected_part_path):
 		var res = load(selected_part_path)
 		if res:
-			GlobalData.equipped_parts[selected_slot] = res
+			var part_data = {
+				"name": res.get("part_name", "Part"),
+				"hp": res.get("max_hp", 100.0),
+				"weight": res.get("weight", 0.0),
+				"equipped": true
+			}
+			GlobalData.equipped_parts[selected_slot] = part_data
 			GlobalData.part_damage.erase(selected_slot)
-			var pname = res.get("part_name") if res.get("part_name") != null else "Part"
-			status_message_label.text = "✅ Equipped & Saved Armor: %s!" % pname
+			status_message_label.text = "Equipped & Saved Armor: %s!" % part_data["name"]
 			GlobalData.save_run()
 			_update_total_stats()
+			_update_all_3d_slots_preview()
 
 
 func _on_repair_part_pressed() -> void:

@@ -326,9 +326,12 @@ func _serialize_parts() -> Dictionary:
 	for slot in equipped_parts:
 		var item = equipped_parts[slot]
 		if item is Resource and "resource_path" in item and item.resource_path != "":
+			# Resource file: save path string for reload
 			result[slot] = item.resource_path
 		elif item is Dictionary:
-			result[slot] = item.get("path", item.get("name", "Custom Armor"))
+			# Dictionary (from armor_catalog or equip action): save full dict to
+			# preserve all fields including the "equipped" flag
+			result[slot] = item.duplicate()
 		else:
 			result[slot] = str(item)
 	return result

@@ -660,6 +660,21 @@ func _on_part_item_selected(index: int) -> void:
 	_update_total_stats()
 
 
+func _on_part_item_clicked(index: int, _at_position: Vector2, _mouse_button_index: int) -> void:
+	_on_part_item_selected(index)
+	var info_to_show: Dictionary = {}
+	if not selected_salvage_info.is_empty():
+		info_to_show = selected_salvage_info
+	elif not selected_frame_info.is_empty():
+		info_to_show = selected_frame_info
+	elif armor_catalog.has(selected_slot):
+		var stock_items = armor_catalog[selected_slot]
+		if index >= 0 and index < stock_items.size():
+			info_to_show = stock_items[index]
+	if not info_to_show.is_empty():
+		_show_part_action_modal(info_to_show)
+
+
 func _show_part_action_modal(info: Dictionary) -> void:
 	if info.is_empty():
 		return

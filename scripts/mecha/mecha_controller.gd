@@ -274,23 +274,24 @@ func _initialize_mesh_from_global_data() -> void:
 		return
 	var slots = ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]
 	for slot in slots:
-		var part_obj: ArmorPart = null
-		if GlobalData.equipped_parts.has(slot):
-			var equipped = GlobalData.equipped_parts[slot]
+		var equipped = GlobalData.equipped_parts.get(slot)
+		var is_equipped = (
+			equipped != null and
+			not (equipped is Dictionary and equipped.is_empty()) and
+			not (equipped is Dictionary and not equipped.get("equipped", false))
+		)
+		if not is_equipped:
+			pmm._show_inner_frame(slot)
+		else:
+			var part_obj = ArmorPart.new()
 			if equipped is ArmorPart:
 				part_obj = equipped
-			elif equipped is Dictionary and not equipped.is_empty():
-				part_obj = ArmorPart.new()
+			elif equipped is Dictionary:
 				part_obj.part_name = equipped.get("name", "Custom Armor")
-				part_obj.max_hp = equipped.get("max_hp", equipped.get("durability", 100.0))
+				part_obj.max_hp = equipped.get("hp", equipped.get("durability", 100.0))
 				if equipped.has("color"):
 					part_obj.part_color = equipped.get("color")
-		if part_obj == null:
-			part_obj = ArmorPart.new()
-			part_obj.part_name = "Tactical Armor"
-			part_obj.max_hp = 100.0
-			part_obj.part_color = Color(0.25, 0.40, 0.60)
-		pmm.initialize_slot(slot, part_obj)
+			pmm.initialize_slot(slot, part_obj)
 
 
 func _on_weight_changed(_w: float) -> void:

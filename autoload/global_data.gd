@@ -53,7 +53,9 @@ func ensure_default_equipped_parts() -> void:
 		return
 	for slot in ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]:
 		if armor_catalog.has(slot) and armor_catalog[slot].size() > 0:
-			equipped_parts[slot] = armor_catalog[slot][0].duplicate()
+			var starter_part = armor_catalog[slot][0].duplicate()
+			starter_part["equipped"] = true
+			equipped_parts[slot] = starter_part
 
 
 func get_equipped_part_id(slot: String) -> String:

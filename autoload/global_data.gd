@@ -79,7 +79,7 @@ func get_equipped_part_id(slot: String) -> String:
 # Keys: "speed" (float), "max_weight" (float), "color" (Color), "name" (String)
 func get_chassis_stats() -> Dictionary:
 	return chassis_catalog.get(chassis_id, chassis_catalog.get("standard", {
-		"name": "Standard", "speed": 7.0, "max_weight": 75.0, "color": Color(0.6, 0.65, 0.7)
+		"name": "Standard", "speed": 14.0, "max_weight": 75.0, "color": Color(0.6, 0.65, 0.7)
 	}))
 
 
@@ -103,31 +103,31 @@ var part_damage: Dictionary = {}
 var chassis_catalog: Dictionary = {
 	"standard": {
 		"name": "ZENISREV-01 (Standard Scout)",
-		"speed": 7.0,
+		"speed": 14.0,
 		"max_weight": 75.0,
 		"color": Color(0.6, 0.65, 0.7)
 	},
 	"titan": {
 		"name": "TITAN OVERLORD-X (Heavy Siege)",
-		"speed": 4.5,
+		"speed": 10.5,
 		"max_weight": 110.0,
 		"color": Color(0.3, 0.15, 0.35)
 	},
 	"vanguard": {
 		"name": "VANGUARD STRIKER-09 (High-Mobility Recon)",
-		"speed": 10.5,
+		"speed": 18.0,
 		"max_weight": 55.0,
 		"color": Color(0.85, 0.85, 0.9)
 	},
 	"aegis": {
 		"name": "AEGIS FORTRESS-04 (Heavy Defense Barrier)",
-		"speed": 5.5,
+		"speed": 11.5,
 		"max_weight": 95.0,
 		"color": Color(0.2, 0.4, 0.5)
 	},
 	"brawler": {
 		"name": "BERSERKER BRAWLER-X (Close Combat Specialist)",
-		"speed": 8.0,
+		"speed": 15.0,
 		"max_weight": 88.0,
 		"color": Color(0.35, 0.40, 0.28)
 	}

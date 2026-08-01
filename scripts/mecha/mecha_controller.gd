@@ -25,7 +25,7 @@ var roller_skate_timer: float = 0.0
 
 # Override values used when no ChassisData resource is assigned in the scene.
 # Populated by _apply_chassis_from_global_data() from GlobalData.chassis_id.
-var _chassis_speed_override: float = 7.0
+var _chassis_speed_override: float = 14.0
 var _chassis_weight_capacity_override: float = 75.0
 
 
@@ -263,7 +263,7 @@ func _recalculate_weight() -> void:
 	# Clamp turn rate to [3.0, 15.0] rad/s so low weight doesn't cause infinite rotation speed
 	var calculated_turn = base_turn * (weight_cap / maxf(total_weight, 20.0))
 	turn_rate = clampf(calculated_turn, 3.0, 15.0)
-	current_speed = base_speed * (1.0 - clampf(total_weight / weight_cap, 0.0, 0.6))
+	current_speed = base_speed * (1.0 - clampf(total_weight / weight_cap, 0.0, 0.25))
 
 	_recalculating = false
 

@@ -21,6 +21,7 @@ var bob_timer: float = 0.0
 var air_timer: float = 0.0
 var is_moving: bool = false
 var current_recoil: float = 0.0
+var landing_impact: float = 0.0
 
 var _original_head_pos: Vector3
 var _original_body_pos: Vector3
@@ -161,11 +162,23 @@ func _update_airborne_fall_posture(delta: float) -> void:
 	if shin_right: shin_right.rotation.x = lerp_angle(shin_right.rotation.x, target_shin_right, speed)
 
 
+func play_landing_impact() -> void:
+	landing_impact = 1.0
+
+
 func _update_recoil(delta: float) -> void:
 	if current_recoil > 0.0:
 		current_recoil = move_toward(current_recoil, 0.0, recoil_recovery * delta)
 		if head_mesh:
 			head_mesh.rotation.x = -current_recoil * 0.5
+
+	if landing_impact > 0.0:
+		landing_impact = move_toward(landing_impact, 0.0, 4.5 * delta)
+		if body_mesh:
+			body_mesh.position.y = lerp(body_mesh.position.y, _original_body_pos.y - landing_impact * 0.25, 12.0 * delta)
+		if leg_left and leg_right:
+			leg_left.rotation.x = lerp_angle(leg_left.rotation.x, deg_to_rad(22.0) * landing_impact, 12.0 * delta)
+			leg_right.rotation.x = lerp_angle(leg_right.rotation.x, deg_to_rad(22.0) * landing_impact, 12.0 * delta)
 
 
 func _update_roller_dash_posture(delta: float) -> void:

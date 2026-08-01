@@ -71,8 +71,7 @@ func _physics_process(delta: float) -> void:
 
 	var currently_on_floor = is_on_floor()
 	if currently_on_floor and was_in_air:
-		if has_node("/root/AudioManager"):
-			AudioManager.play_land(global_position)
+		_trigger_landing_impact()
 	was_in_air = not currently_on_floor
 
 	move_and_slide()
@@ -146,8 +145,7 @@ func _apply_movement(delta: float) -> void:
 		was_in_air = true
 	elif was_in_air and is_on_floor():
 		was_in_air = false
-		if has_node("/root/AudioManager"):
-			AudioManager.play_land(global_position)
+		_trigger_landing_impact()
 
 	if is_on_floor() and Input.is_action_just_pressed("jump"):
 		velocity.y = 15.0
@@ -155,6 +153,73 @@ func _apply_movement(delta: float) -> void:
 			AudioManager.play_jump(global_position)
 
 	velocity.y -= GRAVITY * delta
+
+
+func _trigger_landing_impact() -> void:
+	if has_node("/root/AudioManager"):
+		AudioManager.play_land(global_position)
+
+	# 1. Screen Shake
+	var rigs = get_tree().get_nodes_in_group("camera_rig")
+	if not rigs.is_empty() and rigs[0].has_method("add_shake"):
+		rigs[0].add_shake(0.50)
+
+	# 2. Animation impact recoil / compression
+	var anim = get_node_or_null("AnimationSystem")
+	if anim and anim.has_method("play_landing_impact"):
+		anim.play_landing_impact()
+
+	# 3. Ground Shockwave Ring & Dust VFX
+	_spawn_landing_impact_effect()
+
+
+func _spawn_landing_impact_effect() -> void:
+	# Expanding Shockwave Ring
+	var shockwave = MeshInstance3D.new()
+	var cylinder = CylinderMesh.new()
+	cylinder.top_radius = 0.4
+	cylinder.bottom_radius = 0.5
+	cylinder.height = 0.04
+	shockwave.mesh = cylinder
+
+	var mat = StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(0.9, 0.85, 0.75, 0.85)
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.8, 0.4)
+	mat.emission_energy_multiplier = 2.5
+	shockwave.material_override = mat
+
+	get_tree().current_scene.add_child(shockwave)
+	shockwave.global_position = global_position + Vector3(0, 0.05, 0)
+
+	var tween = get_tree().create_tween().set_parallel(true)
+	tween.tween_property(shockwave, "scale", Vector3(5.5, 1.0, 5.5), 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(mat, "albedo_color:a", 0.0, 0.35)
+	tween.chain().tween_callback(shockwave.queue_free)
+
+	# Dust Puffs Expanding Outward
+	for i in range(8):
+		var dust = MeshInstance3D.new()
+		var sphere = SphereMesh.new()
+		sphere.radius = randf_range(0.2, 0.4)
+		sphere.height = sphere.radius * 2.0
+		dust.mesh = sphere
+
+		var d_mat = StandardMaterial3D.new()
+		d_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		d_mat.albedo_color = Color(0.75, 0.70, 0.65, 0.7)
+		dust.material_override = d_mat
+
+		get_tree().current_scene.add_child(dust)
+		var angle = (i / 8.0) * TAU
+		var dir = Vector3(cos(angle), 0.1, sin(angle))
+		dust.global_position = global_position + dir * 0.3
+
+		var dtween = get_tree().create_tween().set_parallel(true)
+		dtween.tween_property(dust, "global_position", global_position + dir * randf_range(2.0, 3.5) + Vector3(0, randf_range(0.3, 0.7), 0), 0.4).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		dtween.tween_property(d_mat, "albedo_color:a", 0.0, 0.4)
+		dtween.chain().tween_callback(dust.queue_free)
 
 
 func _spawn_roller_spark_effect() -> void:

@@ -15,13 +15,22 @@ var pitch: float = 0.0
 var is_mouse_captured: bool = true
 var target: Node3D = null
 
+# Screen Shake System
+var shake_amount: float = 0.0
+var shake_decay: float = 4.5
+
 
 func _ready() -> void:
+	add_to_group("camera_rig")
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	EventBus.camera_mode_changed.connect(_on_camera_mode_changed)
 	EventBus.combat_ended.connect(_on_combat_ended)
 	await get_tree().process_frame
 	target = get_tree().current_scene.get_node_or_null("Mecha")
+
+
+func add_shake(amount: float) -> void:
+	shake_amount = clampf(shake_amount + amount, 0.0, 1.0)
 
 
 func _on_combat_ended(_victory: bool) -> void:
@@ -34,7 +43,21 @@ func _physics_process(delta: float) -> void:
 	pivot.rotation.x = pitch
 	if target and is_instance_valid(target):
 		global_position = global_position.lerp(target.global_position, follow_speed * delta)
+	_process_screen_shake(delta)
 	_check_lock_on()
+
+
+func _process_screen_shake(delta: float) -> void:
+	if shake_amount > 0.0:
+		shake_amount = maxf(shake_amount - shake_decay * delta, 0.0)
+		var shake_offset = Vector3(
+			randf_range(-1.0, 1.0) * shake_amount * 0.45,
+			randf_range(-1.0, 1.0) * shake_amount * 0.55,
+			randf_range(-1.0, 1.0) * shake_amount * 0.45
+		)
+		camera.position = shake_offset
+	else:
+		camera.position = Vector3.ZERO
 
 
 func _input(event: InputEvent) -> void:

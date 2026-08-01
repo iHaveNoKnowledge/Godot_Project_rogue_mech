@@ -622,51 +622,82 @@ func _on_part_item_selected(index: int) -> void:
 		selected_chassis_key = keys[index]
 		var info = GlobalData.chassis_catalog[selected_chassis_key]
 		stats_label.text = "MODEL: %s\n\nSPEED BOOST: %.1f m/s\nMAX LOAD CAPACITY: %.1f kg\nSTRUCTURE RATING: Military Grade" % [
-			info["name"], info["speed"], info["max_weight"]
+			info.get("name", "Chassis"), info.get("speed", 10.0), info.get("max_weight", 100.0)
 		]
 		_apply_3d_chassis_preview(info)
+		return
+
+	if current_mode == "frame" and frame_catalog.has(selected_slot):
+		var frame_items = frame_catalog[selected_slot]
+		if index >= 0 and index < frame_items.size():
+			selected_frame_info = frame_items[index]
+			selected_part_path = ""
+			selected_salvage_info.clear()
+
+			var fname = selected_frame_info.get("name", selected_frame_info.get("part_name", "Inner Frame"))
+			var fhp = selected_frame_info.get("hp", selected_frame_info.get("max_hp", 25.0))
+			var fwt = selected_frame_info.get("weight", 3.0)
+			stats_label.text = "INNER FRAME PART: %s\n\nFRAME HP: %.0f\nFRAME WEIGHT: %.1f kg" % [
+				fname, fhp, fwt
+			]
+			_apply_3d_frame_preview(selected_slot, selected_frame_info)
+		_update_total_stats()
 		return
 
 	if armor_catalog.has(selected_slot):
 		var stock_items = armor_catalog[selected_slot]
 		var selected_info: Dictionary = {}
-		if index < stock_items.size():
+		if index >= 0 and index < stock_items.size():
 			selected_info = stock_items[index]
 			selected_part_path = selected_info.get("path", "")
 			selected_frame_info.clear()
 			selected_salvage_info.clear()
 
+			var item_name = selected_info.get("name", selected_info.get("part_name", "Armor Part"))
+			var item_type = selected_info.get("type", "Standard")
+			var item_hp = selected_info.get("hp", selected_info.get("durability", selected_info.get("max_hp", 30.0)))
+			var item_armor = selected_info.get("armor", selected_info.get("armor_class", 15.0))
+			var item_weight = selected_info.get("weight", 4.0)
+
 			if selected_slot.begins_with("weapon"):
 				stats_label.text = "WEAPON: %s\nTYPE: %s\n\nWEIGHT: %.1f kg\nPOWER OUTPUT: Heavy" % [
-					selected_info["name"], selected_info.get("type", "Standard"), selected_info["weight"]
+					item_name, item_type, item_weight
 				]
 			else:
 				stats_label.text = "OUTER ARMOR: %s\nTYPE: %s\n\nARMOR HP: %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg" % [
-					selected_info["name"], selected_info.get("type", "Standard"),
-					selected_info["hp"], selected_info["armor"], selected_info["weight"]
+					item_name, item_type, item_hp, item_armor, item_weight
 				]
 			_apply_3d_armor_preview(selected_slot, selected_info)
-		elif index - stock_items.size() < GlobalData.salvaged_armor_inventory.size():
+		elif index - stock_items.size() >= 0 and index - stock_items.size() < GlobalData.salvaged_armor_inventory.size():
 			var salvaged_idx = index - stock_items.size()
 			selected_salvage_info = GlobalData.salvaged_armor_inventory[salvaged_idx]
 			selected_part_path = ""
 			selected_frame_info.clear()
 
-			stats_label.text = "☣️ SALVAGED ENEMY ARMOR: %s\nTYPE: %s\n\nARMOR HP: %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg" % [
-				selected_salvage_info["name"], selected_salvage_info.get("type", "Enemy"),
-				selected_salvage_info["hp"], selected_salvage_info["armor"], selected_salvage_info["weight"]
+			var item_name = selected_salvage_info.get("name", selected_salvage_info.get("part_name", "Salvaged Armor"))
+			var item_type = selected_salvage_info.get("type", "Enemy")
+			var item_hp = selected_salvage_info.get("hp", selected_salvage_info.get("max_hp", 30.0))
+			var item_armor = selected_salvage_info.get("armor", 15.0)
+			var item_weight = selected_salvage_info.get("weight", 4.0)
+
+			stats_label.text = "SALVAGED ENEMY ARMOR: %s\nTYPE: %s\n\nARMOR HP: %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg" % [
+				item_name, item_type, item_hp, item_armor, item_weight
 			]
 			_apply_3d_salvage_preview(selected_slot, selected_salvage_info)
 	_update_total_stats()
 
 
-func _on_part_item_clicked(index: int, _at_position: Vector2, _mouse_button_index: int) -> void:
+func _on_part_item_clicked(index: int, _at_position: Vector2 = Vector2.ZERO, _mouse_button_index: int = 1) -> void:
 	_on_part_item_selected(index)
 	var info_to_show: Dictionary = {}
 	if not selected_salvage_info.is_empty():
 		info_to_show = selected_salvage_info
 	elif not selected_frame_info.is_empty():
 		info_to_show = selected_frame_info
+	elif current_mode == "frame" and frame_catalog.has(selected_slot):
+		var items = frame_catalog[selected_slot]
+		if index >= 0 and index < items.size():
+			info_to_show = items[index]
 	elif armor_catalog.has(selected_slot):
 		var stock_items = armor_catalog[selected_slot]
 		if index >= 0 and index < stock_items.size():

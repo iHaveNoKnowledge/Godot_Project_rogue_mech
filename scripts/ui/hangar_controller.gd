@@ -308,6 +308,7 @@ func _build_ui_layout() -> void:
 	part_item_list = ItemList.new()
 	part_item_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	part_item_list.item_selected.connect(_on_part_item_selected)
+	part_item_list.item_clicked.connect(_on_part_item_clicked)
 	left_box.add_child(part_item_list)
 
 	equip_button = Button.new()
@@ -645,7 +646,6 @@ func _on_part_item_selected(index: int) -> void:
 					selected_info["hp"], selected_info["armor"], selected_info["weight"]
 				]
 			_apply_3d_armor_preview(selected_slot, selected_info)
-			_show_part_action_modal(selected_info)
 		elif index - stock_items.size() < GlobalData.salvaged_armor_inventory.size():
 			var salvaged_idx = index - stock_items.size()
 			selected_salvage_info = GlobalData.salvaged_armor_inventory[salvaged_idx]
@@ -657,7 +657,6 @@ func _on_part_item_selected(index: int) -> void:
 				selected_salvage_info["hp"], selected_salvage_info["armor"], selected_salvage_info["weight"]
 			]
 			_apply_3d_salvage_preview(selected_slot, selected_salvage_info)
-			_show_part_action_modal(selected_salvage_info)
 	_update_total_stats()
 
 

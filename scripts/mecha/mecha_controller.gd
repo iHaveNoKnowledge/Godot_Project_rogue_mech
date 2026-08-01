@@ -29,6 +29,7 @@ func _ready() -> void:
 	floor_snap_length = 0.3
 	floor_max_angle = deg_to_rad(60)
 	_recalculate_weight()
+	_initialize_mesh_from_global_data()
 	EventBus.weight_changed.connect(_on_weight_changed)
 
 
@@ -243,16 +244,23 @@ func _initialize_mesh_from_global_data() -> void:
 		return
 	var slots = ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]
 	for slot in slots:
-		var armor_data = GlobalData.equipped_parts.get(slot, {})
-		if armor_data.is_empty():
-			pmm._show_inner_frame(slot)
-		else:
-			var part = ArmorPart.new()
-			part.part_name = armor_data.get("name", "Custom Armor")
-			part.max_hp = armor_data.get("max_hp", armor_data.get("durability", 100.0))
-			if armor_data.has("color"):
-				part.part_color = armor_data.get("color")
-			pmm.initialize_slot(slot, part)
+		var part_obj: ArmorPart = null
+		if GlobalData.equipped_parts.has(slot):
+			var equipped = GlobalData.equipped_parts[slot]
+			if equipped is ArmorPart:
+				part_obj = equipped
+			elif equipped is Dictionary and not equipped.is_empty():
+				part_obj = ArmorPart.new()
+				part_obj.part_name = equipped.get("name", "Custom Armor")
+				part_obj.max_hp = equipped.get("max_hp", equipped.get("durability", 100.0))
+				if equipped.has("color"):
+					part_obj.part_color = equipped.get("color")
+		if part_obj == null:
+			part_obj = ArmorPart.new()
+			part_obj.part_name = "Tactical Armor"
+			part_obj.max_hp = 100.0
+			part_obj.part_color = Color(0.25, 0.40, 0.60)
+		pmm.initialize_slot(slot, part_obj)
 
 
 func _on_weight_changed(_w: float) -> void:

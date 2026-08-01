@@ -615,30 +615,40 @@ func _is_item_equipped(slot: String, info: Dictionary) -> bool:
 	if info.is_empty():
 		return false
 
+	GlobalData.ensure_default_equipped_parts()
+
 	if current_mode == "frame":
 		var cur_frame = GlobalData.equipped_frames.get(slot, {})
 		if cur_frame is Dictionary and not cur_frame.is_empty():
-			var name_a = cur_frame.get("name", cur_frame.get("part_name", ""))
-			var name_b = info.get("name", info.get("part_name", ""))
+			var name_a = cur_frame.get("name", cur_frame.get("part_name", "")).to_lower()
+			var name_b = info.get("name", info.get("part_name", "")).to_lower()
 			if name_a != "" and name_b != "":
-				return name_a == name_b
+				return name_a == name_b or name_a.contains(name_b) or name_b.contains(name_a)
 		return false
 	else:
 		var cur_armor = GlobalData.equipped_parts.get(slot)
 		if cur_armor == null:
 			return false
+
+		var info_name = info.get("name", info.get("part_name", "")).to_lower()
+		var info_path = info.get("path", "")
+
 		if cur_armor is Resource:
-			var info_path = info.get("path", "")
-			if info_path != "" and "resource_path" in cur_armor:
-				return cur_armor.resource_path == info_path
-			var info_name = info.get("name", info.get("part_name", ""))
-			if info_name != "" and "part_name" in cur_armor:
-				return cur_armor.part_name == info_name
+			if info_path != "" and "resource_path" in cur_armor and cur_armor.resource_path == info_path:
+				return true
+			if "part_name" in cur_armor:
+				var p_name = cur_armor.part_name.to_lower()
+				if p_name != "" and info_name != "":
+					if p_name == info_name or info_name.contains(p_name) or p_name.contains(info_name):
+						return true
 		elif cur_armor is Dictionary:
-			var name_a = cur_armor.get("name", cur_armor.get("part_name", ""))
-			var name_b = info.get("name", info.get("part_name", ""))
-			if name_a != "" and name_b != "":
-				return name_a == name_b
+			var cur_name = cur_armor.get("name", cur_armor.get("part_name", "")).to_lower()
+			var cur_path = cur_armor.get("path", "")
+			if info_path != "" and cur_path != "" and cur_path == info_path:
+				return true
+			if cur_name != "" and info_name != "":
+				if cur_name == info_name or info_name.contains(cur_name) or cur_name.contains(info_name):
+					return true
 			return cur_armor == info
 		return false
 
@@ -987,7 +997,8 @@ func _show_part_action_modal(info: Dictionary) -> void:
 
 
 func _equip_part_to_slot(slot: String, info: Dictionary) -> void:
-	GlobalData.equipped_parts[slot] = info
+	GlobalData.equipped_parts[slot] = info.duplicate()
+	GlobalData.save_run()
 	_apply_3d_armor_preview(slot, info)
 	_update_total_stats()
 	AudioManager.play_ui_confirm()
@@ -995,6 +1006,7 @@ func _equip_part_to_slot(slot: String, info: Dictionary) -> void:
 
 func _unequip_part_from_slot(slot: String) -> void:
 	GlobalData.equipped_parts.erase(slot)
+	GlobalData.save_run()
 	if mecha_3d_root:
 		var mecha = mecha_3d_root.get_node_or_null("MechaBase") if mecha_3d_root.has_node("MechaBase") else mecha_3d_root
 		var pmm = mecha.get_node_or_null("PartMeshManager") if mecha else null

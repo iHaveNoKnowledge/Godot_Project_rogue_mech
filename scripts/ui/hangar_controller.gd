@@ -442,34 +442,34 @@ func _apply_tactical_idle_pose(mecha_node: Node3D) -> void:
 	var shin_left = mecha_node.get_node_or_null("LegLeft/ShinLeft")
 	var shin_right = mecha_node.get_node_or_null("LegRight/ShinRight")
 
-	# 30MM / Armored Core Low-Slung Tactical Combat Squat Stance
+	# High-Detail Blocky Mecha A-Stance (Clean Upright Parallel Footing)
 	if body:
-		body.rotation_degrees = Vector3(-6.0, 0.0, 0.0)
-		body.position.y = 1.55
+		body.rotation_degrees = Vector3(0.0, 0.0, 0.0)
+		body.position.y = 1.70
 
 	if head:
-		head.rotation_degrees = Vector3(4.0, 0.0, 0.0)
-		head.position.y = 2.32
+		head.rotation_degrees = Vector3(0.0, 0.0, 0.0)
+		head.position.y = 2.45
 
 	if leg_left:
-		leg_left.rotation_degrees = Vector3(22.0, -18.0, 14.0)
+		leg_left.rotation_degrees = Vector3(10.0, -10.0, 14.0)
 	if leg_right:
-		leg_right.rotation_degrees = Vector3(22.0, 18.0, -14.0)
+		leg_right.rotation_degrees = Vector3(10.0, 10.0, -14.0)
 
 	if shin_left:
-		shin_left.rotation_degrees = Vector3(-38.0, 0.0, 0.0)
+		shin_left.rotation_degrees = Vector3(-18.0, 0.0, 0.0)
 	if shin_right:
-		shin_right.rotation_degrees = Vector3(-38.0, 0.0, 0.0)
+		shin_right.rotation_degrees = Vector3(-18.0, 0.0, 0.0)
 
 	if arm_left:
-		arm_left.rotation_degrees = Vector3(-8.0, 6.0, 18.0)
+		arm_left.rotation_degrees = Vector3(-6.0, 4.0, 12.0)
 	if forearm_left:
-		forearm_left.rotation_degrees = Vector3(-24.0, 0.0, 0.0)
+		forearm_left.rotation_degrees = Vector3(-15.0, 0.0, 0.0)
 
 	if arm_right:
-		arm_right.rotation_degrees = Vector3(-8.0, -6.0, -18.0)
+		arm_right.rotation_degrees = Vector3(-6.0, -4.0, -12.0)
 	if forearm_right:
-		forearm_right.rotation_degrees = Vector3(-24.0, 0.0, 0.0)
+		forearm_right.rotation_degrees = Vector3(-15.0, 0.0, 0.0)
 
 
 func _on_close_pressed() -> void:

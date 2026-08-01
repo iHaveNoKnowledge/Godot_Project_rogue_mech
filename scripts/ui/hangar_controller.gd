@@ -18,6 +18,7 @@ var selected_part_path: String = ""
 var selected_salvage_info: Dictionary = {}
 var selected_frame_info: Dictionary = {}
 var selected_chassis_key: String = "standard"
+var _last_selected_item_index: int = -1
 
 # 3D Garage Nodes
 var viewport_container: SubViewportContainer
@@ -552,16 +553,19 @@ func _update_camera_focus_for_slot(slot: String) -> void:
 
 
 func _populate_part_list_for_slot(slot: String) -> void:
+	_close_part_action_modal()
 	part_item_list.clear()
+	_last_selected_item_index = -1
 
 	if current_mode == "upgrade":
 		var cost_cr = GlobalData.frame_upgrade_level * 150
 		var cost_cores = GlobalData.frame_upgrade_level
-		part_item_list.add_item("⚡ Upgrade Inner Frame to Level %d (%d cr, %d cores)" % [
+		part_item_list.add_item("Upgrade Inner Frame to Level %d (%d cr, %d cores)" % [
 			GlobalData.frame_upgrade_level + 1, cost_cr, cost_cores
 		])
 		if part_item_list.item_count > 0:
 			part_item_list.select(0)
+			_last_selected_item_index = 0
 			_on_part_item_selected(0)
 		return
 
@@ -572,6 +576,7 @@ func _populate_part_list_for_slot(slot: String) -> void:
 			part_item_list.add_item(label_str)
 		if GlobalData.chassis_catalog.size() > 0:
 			part_item_list.select(0)
+			_last_selected_item_index = 0
 			_on_part_item_selected(0)
 		return
 
@@ -581,16 +586,17 @@ func _populate_part_list_for_slot(slot: String) -> void:
 			var fname = info.get("name", "Frame Part")
 			var fhp = info.get("hp", 20.0)
 			var fwt = info.get("weight", 3.0)
-			var label_str = "⚙️ %s (HP: %.0f, %.1fkg)" % [fname, fhp, fwt]
+			var label_str = "%s (HP: %.0f, %.1fkg)" % [fname, fhp, fwt]
 			part_item_list.add_item(label_str)
 		if items.size() > 0:
 			part_item_list.select(0)
+			_last_selected_item_index = 0
 			_on_part_item_selected(0)
 	elif armor_catalog.has(slot):
 		# Show stock armor
 		var items = armor_catalog[slot]
 		for info in items:
-			var label_str = "🛡️ %s [%s]" % [info["name"], info["type"]]
+			var label_str = "%s [%s]" % [info["name"], info["type"]]
 			if info.get("weight", 0.0) > 0:
 				label_str += " - %.1fkg" % info["weight"]
 			part_item_list.add_item(label_str)
@@ -603,6 +609,7 @@ func _populate_part_list_for_slot(slot: String) -> void:
 
 		if part_item_list.item_count > 0:
 			part_item_list.select(0)
+			_last_selected_item_index = 0
 			_on_part_item_selected(0)
 
 
@@ -688,30 +695,42 @@ func _on_part_item_selected(index: int) -> void:
 
 
 func _on_part_item_clicked(index: int, _at_position: Vector2 = Vector2.ZERO, _mouse_button_index: int = 1) -> void:
-	_on_part_item_selected(index)
-	var info_to_show: Dictionary = {}
-	if not selected_salvage_info.is_empty():
-		info_to_show = selected_salvage_info
-	elif not selected_frame_info.is_empty():
-		info_to_show = selected_frame_info
-	elif current_mode == "frame" and frame_catalog.has(selected_slot):
-		var items = frame_catalog[selected_slot]
-		if index >= 0 and index < items.size():
-			info_to_show = items[index]
-	elif armor_catalog.has(selected_slot):
-		var stock_items = armor_catalog[selected_slot]
-		if index >= 0 and index < stock_items.size():
-			info_to_show = stock_items[index]
-	if not info_to_show.is_empty():
-		_show_part_action_modal(info_to_show)
+	if index != _last_selected_item_index:
+		# FIRST CLICK ON ITEM: Highlight item, update 3D preview & stats text real-time!
+		_last_selected_item_index = index
+		_on_part_item_selected(index)
+		_close_part_action_modal()
+	else:
+		# SECOND CLICK (CLICK AGAIN ON HIGHLIGHTED ITEM): Open Action Popup Modal!
+		var info_to_show: Dictionary = {}
+		if not selected_salvage_info.is_empty():
+			info_to_show = selected_salvage_info
+		elif not selected_frame_info.is_empty():
+			info_to_show = selected_frame_info
+		elif current_mode == "frame" and frame_catalog.has(selected_slot):
+			var items = frame_catalog[selected_slot]
+			if index >= 0 and index < items.size():
+				info_to_show = items[index]
+		elif armor_catalog.has(selected_slot):
+			var stock_items = armor_catalog[selected_slot]
+			if index >= 0 and index < stock_items.size():
+				info_to_show = stock_items[index]
+		if not info_to_show.is_empty():
+			_show_part_action_modal(info_to_show)
+
+
+func _close_part_action_modal() -> void:
+	if root_control:
+		var old = root_control.get_node_or_null("PartActionModal")
+		if old: old.queue_free()
+	var local_old = get_node_or_null("PartActionModal")
+	if local_old: local_old.queue_free()
 
 
 func _show_part_action_modal(info: Dictionary) -> void:
 	if info.is_empty():
 		return
-	var old_modal = get_node_or_null("PartActionModal")
-	if old_modal:
-		old_modal.queue_free()
+	_close_part_action_modal()
 
 	var modal_panel = PanelContainer.new()
 	modal_panel.name = "PartActionModal"
@@ -719,35 +738,144 @@ func _show_part_action_modal(info: Dictionary) -> void:
 	modal_panel.anchor_right = 0.5
 	modal_panel.anchor_top = 0.5
 	modal_panel.anchor_bottom = 0.5
-	modal_panel.offset_left = -220
-	modal_panel.offset_right = 220
+	modal_panel.offset_left = -210
+	modal_panel.offset_right = 210
 	modal_panel.offset_top = -140
 	modal_panel.offset_bottom = 140
 
 	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.08, 0.1, 0.14, 0.95)
+	style.bg_color = Color(0.08, 0.10, 0.15, 0.95)
 	style.border_width_left = 2
 	style.border_width_top = 2
 	style.border_width_right = 2
 	style.border_width_bottom = 2
 	style.border_color = _accent_color
-	style.corner_radius_top_left = 6
-	style.corner_radius_top_right = 6
-	style.corner_radius_bottom_left = 6
-	style.corner_radius_bottom_right = 6
+	style.corner_radius_top_left = 8
+	style.corner_radius_top_right = 8
+	style.corner_radius_bottom_left = 8
+	style.corner_radius_bottom_right = 8
 	modal_panel.add_theme_stylebox_override("panel", style)
 
 	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 10)
+	vbox.add_theme_constant_override("separation", 8)
 	modal_panel.add_child(vbox)
 
+	var item_name = info.get("name", info.get("part_name", "PART OPTIONS"))
 	var title = Label.new()
-	title.text = info.get("name", "PART OPTIONS")
+	title.text = "ACTION MENU: %s" % item_name.to_upper()
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_color_override("font_color", _highlight_color)
+	title.add_theme_font_size_override("font_size", 14)
 	vbox.add_child(title)
 
+	var hp_val = info.get("durability", info.get("hp", info.get("max_hp", 100.0)))
+	var max_hp_val = info.get("max_hp", 100.0)
+	var wt_val = info.get("weight", 10.0)
 	var details = Label.new()
+	details.text = "DURABILITY: %.0f / %.0f HP  |  WEIGHT: %.1f kg" % [hp_val, max_hp_val, wt_val]
+	details.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	details.add_theme_color_override("font_color", Color(0.8, 0.85, 0.9))
+	vbox.add_child(details)
+
+	var sep = HSeparator.new()
+	vbox.add_child(sep)
+
+	var grid = GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 10)
+	grid.add_theme_constant_override("v_separation", 8)
+	vbox.add_child(grid)
+
+	# 1. EQUIP
+	var equip_btn = Button.new()
+	equip_btn.text = "EQUIP"
+	equip_btn.custom_minimum_size = Vector2(180, 36)
+	equip_btn.pressed.connect(func():
+		_equip_part_to_slot(selected_slot, info)
+		_close_part_action_modal()
+	)
+	grid.add_child(equip_btn)
+
+	# 2. REPAIR
+	var repair_btn = Button.new()
+	repair_btn.text = "REPAIR (10 cr)"
+	repair_btn.custom_minimum_size = Vector2(180, 36)
+	repair_btn.pressed.connect(func():
+		if GlobalData.credits >= 10:
+			GlobalData.credits -= 10
+			info["hp"] = info.get("max_hp", 100.0)
+			info["durability"] = info.get("max_hp", 100.0)
+			GlobalData.part_damage.erase(selected_slot)
+			status_message_label.text = "Part Repaired to 100% HP!"
+			GlobalData.save_run()
+			_update_total_stats()
+			_apply_3d_armor_preview(selected_slot, info)
+		else:
+			status_message_label.text = "Insufficient Credits for repair!"
+		_close_part_action_modal()
+	)
+	grid.add_child(repair_btn)
+
+	# 3. UPGRADE
+	var upgrade_btn = Button.new()
+	upgrade_btn.text = "UPGRADE (+15 HP)"
+	upgrade_btn.custom_minimum_size = Vector2(180, 36)
+	upgrade_btn.pressed.connect(func():
+		if GlobalData.credits >= 50:
+			GlobalData.credits -= 50
+			var old_hp = info.get("max_hp", info.get("hp", 30.0))
+			info["max_hp"] = old_hp + 15.0
+			info["hp"] = info.get("max_hp", 45.0)
+			status_message_label.text = "Part Upgraded! Max HP increased to %.0f" % info["max_hp"]
+			GlobalData.save_run()
+			_update_total_stats()
+		else:
+			status_message_label.text = "Insufficient Credits for upgrade (50 cr needed)!"
+		_close_part_action_modal()
+	)
+	grid.add_child(upgrade_btn)
+
+	# 4. PAINT
+	var paint_btn = Button.new()
+	paint_btn.text = "PAINT COLOR"
+	paint_btn.custom_minimum_size = Vector2(180, 36)
+	paint_btn.pressed.connect(func():
+		var palette = [
+			Color(0.25, 0.40, 0.60), # Mecha Navy Blue
+			Color(0.80, 0.20, 0.20), # Crimson Ace Red
+			Color(0.90, 0.90, 0.95), # Gundam White
+			Color(0.20, 0.65, 0.35), # Zaku Green
+			Color(0.85, 0.70, 0.20), # Gold Trim
+			Color(0.20, 0.22, 0.26)  # Dark Steel Frame
+		]
+		var cur_col = info.get("color", Color(0.25, 0.40, 0.60))
+		var next_idx = 0
+		for i in range(palette.size()):
+			if palette[i].is_equal_approx(cur_col):
+				next_idx = (i + 1) % palette.size()
+				break
+		var new_color = palette[next_idx]
+		info["color"] = new_color
+		info["part_color"] = new_color
+		status_message_label.text = "Armor paint updated!"
+		_apply_3d_armor_preview(selected_slot, info)
+		if GlobalData.equipped_parts.get(selected_slot) == info or GlobalData.equipped_parts.has(selected_slot):
+			GlobalData.equipped_parts[selected_slot]["color"] = new_color
+		GlobalData.save_run()
+	)
+	grid.add_child(paint_btn)
+
+	# 5. CANCEL
+	var cancel_btn = Button.new()
+	cancel_btn.text = "CANCEL"
+	cancel_btn.custom_minimum_size = Vector2(370, 32)
+	cancel_btn.pressed.connect(func(): _close_part_action_modal())
+	vbox.add_child(cancel_btn)
+
+	if root_control:
+		root_control.add_child(modal_panel)
+	else:
+		add_child(modal_panel)
 	var hp_val = info.get("durability", info.get("max_hp", 100.0))
 	var wt_val = info.get("weight", 10.0)
 	details.text = "ARMOR HP: %d HP  |  WEIGHT: %.1f kg" % [hp_val, wt_val]

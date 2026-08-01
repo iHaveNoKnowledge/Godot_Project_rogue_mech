@@ -442,34 +442,34 @@ func _apply_tactical_idle_pose(mecha_node: Node3D) -> void:
 	var shin_left = mecha_node.get_node_or_null("LegLeft/ShinLeft")
 	var shin_right = mecha_node.get_node_or_null("LegRight/ShinRight")
 
-	# High-Detail Blocky Mecha A-Stance (Clean Upright Parallel Footing)
+	# Clean Upright Neutral Standing Stance (Zero Joint Rotations)
 	if body:
-		body.rotation_degrees = Vector3(0.0, 0.0, 0.0)
-		body.position.y = 1.70
+		body.rotation = Vector3.ZERO
+		body.position.y = 1.75
 
 	if head:
-		head.rotation_degrees = Vector3(0.0, 0.0, 0.0)
+		head.rotation = Vector3.ZERO
 		head.position.y = 2.45
 
 	if leg_left:
-		leg_left.rotation_degrees = Vector3(10.0, -10.0, 14.0)
+		leg_left.rotation = Vector3.ZERO
 	if leg_right:
-		leg_right.rotation_degrees = Vector3(10.0, 10.0, -14.0)
+		leg_right.rotation = Vector3.ZERO
 
 	if shin_left:
-		shin_left.rotation_degrees = Vector3(-18.0, 0.0, 0.0)
+		shin_left.rotation = Vector3.ZERO
 	if shin_right:
-		shin_right.rotation_degrees = Vector3(-18.0, 0.0, 0.0)
+		shin_right.rotation = Vector3.ZERO
 
 	if arm_left:
-		arm_left.rotation_degrees = Vector3(-6.0, 4.0, 12.0)
+		arm_left.rotation = Vector3.ZERO
 	if forearm_left:
-		forearm_left.rotation_degrees = Vector3(-15.0, 0.0, 0.0)
+		forearm_left.rotation = Vector3.ZERO
 
 	if arm_right:
-		arm_right.rotation_degrees = Vector3(-6.0, -4.0, -12.0)
+		arm_right.rotation = Vector3.ZERO
 	if forearm_right:
-		forearm_right.rotation_degrees = Vector3(-15.0, 0.0, 0.0)
+		forearm_right.rotation = Vector3.ZERO
 
 
 func _on_close_pressed() -> void:

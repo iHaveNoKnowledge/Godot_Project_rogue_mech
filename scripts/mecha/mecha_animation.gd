@@ -275,29 +275,17 @@ func _update_legs(delta: float) -> void:
 				forearm_right.rotation.x = deg_to_rad(55.0) + abs(sin(phase_right)) * deg_to_rad(20.0)
 	else:
 		var speed = 6.0 * delta
-		if leg_left:
-			leg_left.rotation.x = lerp_angle(leg_left.rotation.x, deg_to_rad(10.0), speed)
-			leg_left.rotation.y = lerp_angle(leg_left.rotation.y, -deg_to_rad(10.0), speed)
-			leg_left.rotation.z = lerp_angle(leg_left.rotation.z, deg_to_rad(14.0), speed)
-		if leg_right:
-			leg_right.rotation.x = lerp_angle(leg_right.rotation.x, deg_to_rad(10.0), speed)
-			leg_right.rotation.y = lerp_angle(leg_right.rotation.y, deg_to_rad(10.0), speed)
-			leg_right.rotation.z = lerp_angle(leg_right.rotation.z, -deg_to_rad(14.0), speed)
+		if leg_left: leg_left.rotation = leg_left.rotation.lerp(Vector3.ZERO, speed)
+		if leg_right: leg_right.rotation = leg_right.rotation.lerp(Vector3.ZERO, speed)
 
-		if shin_left: shin_left.rotation.x = lerp_angle(shin_left.rotation.x, -deg_to_rad(18.0), speed)
-		if shin_right: shin_right.rotation.x = lerp_angle(shin_right.rotation.x, -deg_to_rad(18.0), speed)
+		if shin_left: shin_left.rotation = shin_left.rotation.lerp(Vector3.ZERO, speed)
+		if shin_right: shin_right.rotation = shin_right.rotation.lerp(Vector3.ZERO, speed)
 
-		if arm_left:
-			arm_left.rotation.x = lerp_angle(arm_left.rotation.x, -deg_to_rad(6.0), speed)
-			arm_left.rotation.y = lerp_angle(arm_left.rotation.y, deg_to_rad(4.0), speed)
-			arm_left.rotation.z = lerp_angle(arm_left.rotation.z, deg_to_rad(12.0), speed)
-		if arm_right:
-			arm_right.rotation.x = lerp_angle(arm_right.rotation.x, -deg_to_rad(6.0), speed)
-			arm_right.rotation.y = lerp_angle(arm_right.rotation.y, -deg_to_rad(4.0), speed)
-			arm_right.rotation.z = lerp_angle(arm_right.rotation.z, -deg_to_rad(12.0), speed)
+		if arm_left: arm_left.rotation = arm_left.rotation.lerp(Vector3.ZERO, speed)
+		if arm_right: arm_right.rotation = arm_right.rotation.lerp(Vector3.ZERO, speed)
 
-		if forearm_left: forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, -deg_to_rad(15.0), speed)
-		if forearm_right: forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, -deg_to_rad(15.0), speed)
+		if forearm_left: forearm_left.rotation = forearm_left.rotation.lerp(Vector3.ZERO, speed)
+		if forearm_right: forearm_right.rotation = forearm_right.rotation.lerp(Vector3.ZERO, speed)
 
 
 func _calc_mecha_sprint_leg(phase: float) -> Dictionary:
@@ -357,24 +345,28 @@ func _lerp_to_original(delta: float) -> void:
 	var speed = 5.0 * delta
 	if body_mesh:
 		body_mesh.position.y = lerp(body_mesh.position.y, _original_body_pos.y, speed)
-		body_mesh.rotation.x = lerp_angle(body_mesh.rotation.x, 0.0, speed)
+		body_mesh.rotation = body_mesh.rotation.lerp(Vector3.ZERO, speed)
 	if head_mesh:
 		head_mesh.position = head_mesh.position.lerp(_original_head_pos, speed)
-		head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, 0.0, speed)
+		head_mesh.rotation = head_mesh.rotation.lerp(Vector3.ZERO, speed)
 	if arm_left:
 		arm_left.position = arm_left.position.lerp(_original_arm_left_pos, speed)
-		arm_left.rotation.x = lerp_angle(arm_left.rotation.x, -deg_to_rad(6.0), speed)
-		arm_left.rotation.y = lerp_angle(arm_left.rotation.y, deg_to_rad(4.0), speed)
-		arm_left.rotation.z = lerp_angle(arm_left.rotation.z, deg_to_rad(12.0), speed)
+		arm_left.rotation = arm_left.rotation.lerp(Vector3.ZERO, speed)
 	if arm_right:
 		arm_right.position = arm_right.position.lerp(_original_arm_right_pos, speed)
-		arm_right.rotation.x = lerp_angle(arm_right.rotation.x, -deg_to_rad(6.0), speed)
-		arm_right.rotation.y = lerp_angle(arm_right.rotation.y, -deg_to_rad(4.0), speed)
-		arm_right.rotation.z = lerp_angle(arm_right.rotation.z, -deg_to_rad(12.0), speed)
+		arm_right.rotation = arm_right.rotation.lerp(Vector3.ZERO, speed)
 	if forearm_left:
-		forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, -deg_to_rad(15.0), speed)
+		forearm_left.rotation = forearm_left.rotation.lerp(Vector3.ZERO, speed)
 	if forearm_right:
-		forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, -deg_to_rad(15.0), speed)
+		forearm_right.rotation = forearm_right.rotation.lerp(Vector3.ZERO, speed)
+	if leg_left:
+		leg_left.rotation = leg_left.rotation.lerp(Vector3.ZERO, speed)
+	if leg_right:
+		leg_right.rotation = leg_right.rotation.lerp(Vector3.ZERO, speed)
+	if shin_left:
+		shin_left.rotation = shin_left.rotation.lerp(Vector3.ZERO, speed)
+	if shin_right:
+		shin_right.rotation = shin_right.rotation.lerp(Vector3.ZERO, speed)
 
 
 func play_recoil() -> void:

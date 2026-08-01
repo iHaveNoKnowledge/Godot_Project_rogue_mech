@@ -118,7 +118,8 @@ func _apply_movement(delta: float) -> void:
 	if not strafe_mode and desired_velocity.length() > 0.1:
 		var target_angle = atan2(-desired_velocity.x, -desired_velocity.z)
 		var effective_turn = turn_rate * (1.5 if is_roller_dashing else 1.0)
-		rotation.y = lerp_angle(rotation.y, target_angle, effective_turn * delta)
+		var lerp_weight = clampf(effective_turn * delta, 0.0, 1.0)
+		rotation.y = lerp_angle(rotation.y, target_angle, lerp_weight)
 
 	velocity.x = desired_velocity.x
 	velocity.z = desired_velocity.z
@@ -235,22 +236,33 @@ func _recalculate_weight() -> void:
 		return
 	_recalculating = true
 
-	total_weight = 0.0
+	# Start with base frame weight (inner frame skeleton ~22.0 kg)
+	var base_frame_weight: float = 22.0
+	for slot in GlobalData.equipped_frames:
+		var f = GlobalData.equipped_frames[slot]
+		if f is Dictionary:
+			base_frame_weight += f.get("weight", 3.0)
+
+	total_weight = base_frame_weight
 	for slot in GlobalData.equipped_parts:
 		var part = GlobalData.equipped_parts[slot]
 		if part:
 			var break_thresh = part.break_threshold if "break_threshold" in part else 999.0
 			if not GlobalData.part_damage.get(slot, 0.0) >= break_thresh:
-				if "weight" in part:
+				if part is ArmorPart:
 					total_weight += part.weight
+				elif part is Dictionary:
+					total_weight += part.get("weight", 0.0)
 
-	# Override vars are always set from GlobalData.chassis_id by _apply_chassis_from_global_data().
-	# ChassisData resource is used only for base_turn_rate (not stored in chassis_catalog).
+	# Override vars are set from GlobalData.chassis_id by _apply_chassis_from_global_data().
+	# ChassisData resource is used for base_turn_rate if assigned.
 	var base_speed: float = _chassis_speed_override
 	var weight_cap: float = _chassis_weight_capacity_override
-	var base_turn: float = chassis.base_turn_rate if chassis else 2.0
+	var base_turn: float = chassis.base_turn_rate if chassis else 4.0
 
-	turn_rate = base_turn * (weight_cap / maxf(total_weight, 1.0))
+	# Clamp turn rate to [3.0, 15.0] rad/s so low weight doesn't cause infinite rotation speed
+	var calculated_turn = base_turn * (weight_cap / maxf(total_weight, 20.0))
+	turn_rate = clampf(calculated_turn, 3.0, 15.0)
 	current_speed = base_speed * (1.0 - clampf(total_weight / weight_cap, 0.0, 0.6))
 
 	_recalculating = false

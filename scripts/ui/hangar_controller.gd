@@ -462,14 +462,14 @@ func _apply_tactical_idle_pose(mecha_node: Node3D) -> void:
 		shin_right.rotation_degrees = Vector3(-38.0, 0.0, 0.0)
 
 	if arm_left:
-		arm_left.rotation_degrees = Vector3(16.0, 14.0, -10.0)
+		arm_left.rotation_degrees = Vector3(-8.0, 6.0, 18.0)
 	if forearm_left:
-		forearm_left.rotation_degrees = Vector3(52.0, 0.0, 0.0)
+		forearm_left.rotation_degrees = Vector3(-24.0, 0.0, 0.0)
 
 	if arm_right:
-		arm_right.rotation_degrees = Vector3(18.0, -14.0, 10.0)
+		arm_right.rotation_degrees = Vector3(-8.0, -6.0, -18.0)
 	if forearm_right:
-		forearm_right.rotation_degrees = Vector3(56.0, 0.0, 0.0)
+		forearm_right.rotation_degrees = Vector3(-24.0, 0.0, 0.0)
 
 
 func _on_close_pressed() -> void:

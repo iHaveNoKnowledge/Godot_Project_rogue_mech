@@ -146,7 +146,7 @@ material_override = SubResource("MechaMatDark")
 mesh = SubResource("UpperArmMeshShape")
 
 [node name="ForearmLeft" type="Node3D" parent="ArmLeft" unique_id=1606698012]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.65, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.38, 0)
 
 [node name="ArmLeftMesh" type="MeshInstance3D" parent="ArmLeft/ForearmLeft" unique_id=88996912]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.35, 0)
@@ -166,7 +166,7 @@ material_override = SubResource("MechaMatDark")
 mesh = SubResource("UpperArmMeshShape")
 
 [node name="ForearmRight" type="Node3D" parent="ArmRight" unique_id=350185092]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.65, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.38, 0)
 
 [node name="ArmRightMesh" type="MeshInstance3D" parent="ArmRight/ForearmRight" unique_id=1277724062]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.35, 0)

@@ -353,9 +353,9 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 
 			var upper_arm = MeshInstance3D.new()
 			var u_box = BoxMesh.new()
-			u_box.size = Vector3(0.14, 0.55, 0.14)
+			u_box.size = Vector3(0.16, 0.38, 0.16)
 			upper_arm.mesh = u_box
-			upper_arm.position = Vector3(0, -0.325, 0)
+			upper_arm.position = Vector3(0, -0.19, 0)
 			upper_arm.material_override = frame_mat
 			upper_container.add_child(upper_arm)
 
@@ -374,17 +374,17 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 
 				var forearm_frame = MeshInstance3D.new()
 				var f_box = BoxMesh.new()
-				f_box.size = Vector3(0.16, 0.34, 0.16)
+				f_box.size = Vector3(0.18, 0.45, 0.18)
 				forearm_frame.mesh = f_box
-				forearm_frame.position = Vector3(0, -0.175, 0)
+				forearm_frame.position = Vector3(0, -0.225, 0)
 				forearm_frame.material_override = frame_mat
 				lower_container.add_child(forearm_frame)
 
 				var hand_block = MeshInstance3D.new()
 				var h_box = BoxMesh.new()
-				h_box.size = Vector3(0.12, 0.12, 0.14)
+				h_box.size = Vector3(0.14, 0.14, 0.16)
 				hand_block.mesh = h_box
-				hand_block.position = Vector3(0, -0.35, 0)
+				hand_block.position = Vector3(0, -0.46, 0)
 				hand_block.material_override = chrome_mat
 				lower_container.add_child(hand_block)
 
@@ -591,17 +591,17 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 			if lower_container:
 				var forearm_guard = MeshInstance3D.new()
 				var fg_box = BoxMesh.new()
-				fg_box.size = Vector3(0.28, 0.36, 0.28)
+				fg_box.size = Vector3(0.30, 0.44, 0.30)
 				forearm_guard.mesh = fg_box
-				forearm_guard.position = Vector3(0, -0.175, 0)
+				forearm_guard.position = Vector3(0, -0.225, 0)
 				forearm_guard.material_override = armor_mat
 				lower_container.add_child(forearm_guard)
 
 				var knuckle = MeshInstance3D.new()
 				var k_box = BoxMesh.new()
-				k_box.size = Vector3(0.15, 0.04, 0.15)
+				k_box.size = Vector3(0.16, 0.05, 0.16)
 				knuckle.mesh = k_box
-				knuckle.position = Vector3(0, -0.35, -0.02)
+				knuckle.position = Vector3(0, -0.45, -0.02)
 				knuckle.material_override = armor_mat
 				lower_container.add_child(knuckle)
 

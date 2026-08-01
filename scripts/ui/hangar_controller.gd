@@ -876,46 +876,6 @@ func _show_part_action_modal(info: Dictionary) -> void:
 		root_control.add_child(modal_panel)
 	else:
 		add_child(modal_panel)
-	var hp_val = info.get("durability", info.get("max_hp", 100.0))
-	var wt_val = info.get("weight", 10.0)
-	details.text = "ARMOR HP: %d HP  |  WEIGHT: %.1f kg" % [hp_val, wt_val]
-	details.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	details.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
-	vbox.add_child(details)
-
-	var sep = HSeparator.new()
-	vbox.add_child(sep)
-
-	var hbox = HBoxContainer.new()
-	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	hbox.add_theme_constant_override("separation", 12)
-	vbox.add_child(hbox)
-
-	var equip_btn = Button.new()
-	equip_btn.text = "EQUIP (สวมใส่)"
-	equip_btn.custom_minimum_size = Vector2(110, 36)
-	equip_btn.pressed.connect(func():
-		_equip_part_to_slot(selected_slot, info)
-		modal_panel.queue_free()
-	)
-	hbox.add_child(equip_btn)
-
-	var unequip_btn = Button.new()
-	unequip_btn.text = "UNEQUIP (ถอดออก)"
-	unequip_btn.custom_minimum_size = Vector2(120, 36)
-	unequip_btn.pressed.connect(func():
-		_unequip_part_from_slot(selected_slot)
-		modal_panel.queue_free()
-	)
-	hbox.add_child(unequip_btn)
-
-	var cancel_btn = Button.new()
-	cancel_btn.text = "CANCEL (ยกเลิก)"
-	cancel_btn.custom_minimum_size = Vector2(100, 36)
-	cancel_btn.pressed.connect(func(): modal_panel.queue_free())
-	hbox.add_child(cancel_btn)
-
-	root_control.add_child(modal_panel)
 
 
 func _equip_part_to_slot(slot: String, info: Dictionary) -> void:

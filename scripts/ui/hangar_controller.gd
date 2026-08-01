@@ -611,6 +611,38 @@ func _update_camera_focus_for_slot(slot: String) -> void:
 			cam_look_target = Vector3(0, 1.8, 0)
 
 
+func _is_item_equipped(slot: String, info: Dictionary) -> bool:
+	if info.is_empty():
+		return false
+
+	if current_mode == "frame":
+		var cur_frame = GlobalData.equipped_frames.get(slot, {})
+		if cur_frame is Dictionary and not cur_frame.is_empty():
+			var name_a = cur_frame.get("name", cur_frame.get("part_name", ""))
+			var name_b = info.get("name", info.get("part_name", ""))
+			if name_a != "" and name_b != "":
+				return name_a == name_b
+		return false
+	else:
+		var cur_armor = GlobalData.equipped_parts.get(slot)
+		if cur_armor == null:
+			return false
+		if cur_armor is Resource:
+			var info_path = info.get("path", "")
+			if info_path != "" and "resource_path" in cur_armor:
+				return cur_armor.resource_path == info_path
+			var info_name = info.get("name", info.get("part_name", ""))
+			if info_name != "" and "part_name" in cur_armor:
+				return cur_armor.part_name == info_name
+		elif cur_armor is Dictionary:
+			var name_a = cur_armor.get("name", cur_armor.get("part_name", ""))
+			var name_b = info.get("name", info.get("part_name", ""))
+			if name_a != "" and name_b != "":
+				return name_a == name_b
+			return cur_armor == info
+		return false
+
+
 func _populate_part_list_for_slot(slot: String) -> void:
 	_close_part_action_modal()
 	part_item_list.clear()
@@ -868,7 +900,7 @@ func _show_part_action_modal(info: Dictionary) -> void:
 		else:
 			_equip_part_to_slot(selected_slot, info)
 		_close_part_action_modal()
-		_on_slot_tab_selected(selected_slot)
+		_populate_part_list_for_slot(selected_slot)
 	)
 	grid.add_child(toggle_btn)
 

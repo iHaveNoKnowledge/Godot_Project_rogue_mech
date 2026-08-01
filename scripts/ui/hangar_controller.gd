@@ -642,10 +642,12 @@ func _populate_part_list_for_slot(slot: String) -> void:
 	if current_mode == "frame" and frame_catalog.has(slot):
 		var items = frame_catalog[slot]
 		for info in items:
+			var is_eq = _is_item_equipped(slot, info)
+			var prefix = "[E] " if is_eq else "     "
 			var fname = info.get("name", "Frame Part")
 			var fhp = info.get("hp", 20.0)
 			var fwt = info.get("weight", 3.0)
-			var label_str = "%s (HP: %.0f, %.1fkg)" % [fname, fhp, fwt]
+			var label_str = "%s%s (HP: %.0f, %.1fkg)" % [prefix, fname, fhp, fwt]
 			part_item_list.add_item(label_str)
 		if items.size() > 0:
 			part_item_list.select(0)
@@ -655,7 +657,9 @@ func _populate_part_list_for_slot(slot: String) -> void:
 		# Show stock armor
 		var items = armor_catalog[slot]
 		for info in items:
-			var label_str = "%s [%s]" % [info["name"], info["type"]]
+			var is_eq = _is_item_equipped(slot, info)
+			var prefix = "[E] " if is_eq else "     "
+			var label_str = "%s%s [%s]" % [prefix, info["name"], info["type"]]
 			if info.get("weight", 0.0) > 0:
 				label_str += " - %.1fkg" % info["weight"]
 			part_item_list.add_item(label_str)
@@ -663,7 +667,9 @@ func _populate_part_list_for_slot(slot: String) -> void:
 		# Show salvaged enemy drops
 		for salvaged in GlobalData.salvaged_armor_inventory:
 			if salvaged.get("slot", "") == slot:
-				var drop_label = "☣️ SALVAGED: %s [%s]" % [salvaged["name"], salvaged.get("type", "Enemy")]
+				var is_eq = _is_item_equipped(slot, salvaged)
+				var prefix = "[E] " if is_eq else "     "
+				var drop_label = "%sSALVAGED: %s [%s]" % [prefix, salvaged["name"], salvaged.get("type", "Enemy")]
 				part_item_list.add_item(drop_label)
 
 		if part_item_list.item_count > 0:
@@ -845,15 +851,26 @@ func _show_part_action_modal(info: Dictionary) -> void:
 	grid.add_theme_constant_override("v_separation", 8)
 	vbox.add_child(grid)
 
-	# 1. EQUIP
-	var equip_btn = Button.new()
-	equip_btn.text = "EQUIP"
-	equip_btn.custom_minimum_size = Vector2(180, 36)
-	equip_btn.pressed.connect(func():
-		_equip_part_to_slot(selected_slot, info)
+	# 1. EQUIP / REMOVE TOGGLE BUTTON
+	var is_eq = _is_item_equipped(selected_slot, info)
+	var toggle_btn = Button.new()
+	if is_eq:
+		toggle_btn.text = "[ REMOVE / UNEQUIP ]"
+		toggle_btn.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
+	else:
+		toggle_btn.text = "[ EQUIP PART ]"
+		toggle_btn.add_theme_color_override("font_color", Color(0.4, 1.0, 0.5))
+
+	toggle_btn.custom_minimum_size = Vector2(180, 36)
+	toggle_btn.pressed.connect(func():
+		if is_eq:
+			_unequip_part_from_slot(selected_slot)
+		else:
+			_equip_part_to_slot(selected_slot, info)
 		_close_part_action_modal()
+		_on_slot_tab_selected(selected_slot)
 	)
-	grid.add_child(equip_btn)
+	grid.add_child(toggle_btn)
 
 	# 2. REPAIR
 	var repair_btn = Button.new()

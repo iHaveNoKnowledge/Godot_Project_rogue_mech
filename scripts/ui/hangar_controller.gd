@@ -1253,10 +1253,14 @@ func _on_equip_pressed() -> void:
 	elif selected_part_path != "" and ResourceLoader.exists(selected_part_path):
 		var res = load(selected_part_path)
 		if res:
+			var pname = res.get("part_name") if ("part_name" in res and res.get("part_name") != null) else "Part"
+			var php = res.get("max_hp") if ("max_hp" in res and res.get("max_hp") != null) else 100.0
+			var pwt = res.get("weight") if ("weight" in res and res.get("weight") != null) else 0.0
 			var part_data = {
-				"name": res.get("part_name", "Part"),
-				"hp": res.get("max_hp", 100.0),
-				"weight": res.get("weight", 0.0),
+				"name": str(pname),
+				"hp": float(php),
+				"weight": float(pwt),
+				"path": selected_part_path,
 				"equipped": true
 			}
 			GlobalData.equipped_parts[selected_slot] = part_data

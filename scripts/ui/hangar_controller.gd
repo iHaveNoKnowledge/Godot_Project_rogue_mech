@@ -84,33 +84,33 @@ var frame_catalog: Dictionary = {
 # Outer Armor Catalog
 var armor_catalog: Dictionary = {
 	"head": [
-		{"name": "Barbatos White Visor Plating", "path": "res://resources/mech/stock/head_standard.tres", "hp": 30.0, "armor": 20.0, "weight": 4.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"},
-		{"name": "Vanguard Light Recon Helmet", "path": "res://resources/mech/stock/head_standard.tres", "hp": 20.0, "armor": 12.0, "weight": 2.0, "color": Color(0.8, 0.85, 0.9), "type": "Light Plating"}
+		{"id": "head_001", "name": "Barbatos White Visor Plating", "path": "res://resources/mech/stock/head_standard.tres", "hp": 30.0, "armor": 20.0, "weight": 4.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"},
+		{"id": "head_002", "name": "Vanguard Light Recon Helmet", "path": "res://resources/mech/stock/head_standard.tres", "hp": 20.0, "armor": 12.0, "weight": 2.0, "color": Color(0.8, 0.85, 0.9), "type": "Light Plating"}
 	],
 	"body": [
-		{"name": "Barbatos Chest Armor Plate", "path": "res://resources/mech/stock/torso_standard.tres", "hp": 60.0, "armor": 40.0, "weight": 14.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"},
-		{"name": "Fortress Heavy Reactive Chestplate", "path": "res://resources/mech/stock/torso_standard.tres", "hp": 110.0, "armor": 75.0, "weight": 24.0, "color": Color(0.25, 0.2, 0.35), "type": "Heavy Armor"}
+		{"id": "body_001", "name": "Barbatos Chest Armor Plate", "path": "res://resources/mech/stock/torso_standard.tres", "hp": 60.0, "armor": 40.0, "weight": 14.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"},
+		{"id": "body_002", "name": "Fortress Heavy Reactive Chestplate", "path": "res://resources/mech/stock/torso_standard.tres", "hp": 110.0, "armor": 75.0, "weight": 24.0, "color": Color(0.25, 0.2, 0.35), "type": "Heavy Armor"}
 	],
 	"arm_left": [
-		{"name": "Barbatos Left Shoulder Guard", "path": "res://resources/mech/stock/arm_left_standard.tres", "hp": 25.0, "armor": 15.0, "weight": 6.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"}
+		{"id": "arm_left_001", "name": "Barbatos Left Shoulder Guard", "path": "res://resources/mech/stock/arm_left_standard.tres", "hp": 25.0, "armor": 15.0, "weight": 6.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"}
 	],
 	"arm_right": [
-		{"name": "Barbatos Right Shoulder Guard", "path": "res://resources/mech/stock/arm_right_standard.tres", "hp": 25.0, "armor": 15.0, "weight": 6.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"}
+		{"id": "arm_right_001", "name": "Barbatos Right Shoulder Guard", "path": "res://resources/mech/stock/arm_right_standard.tres", "hp": 25.0, "armor": 15.0, "weight": 6.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"}
 	],
 	"leg_left": [
-		{"name": "Barbatos Left Leg Armor", "path": "res://resources/mech/stock/leg_left_standard.tres", "hp": 30.0, "armor": 20.0, "weight": 8.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"}
+		{"id": "leg_left_001", "name": "Barbatos Left Leg Armor", "path": "res://resources/mech/stock/leg_left_standard.tres", "hp": 30.0, "armor": 20.0, "weight": 8.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"}
 	],
 	"leg_right": [
-		{"name": "Barbatos Right Leg Armor", "path": "res://resources/mech/stock/leg_right_standard.tres", "hp": 30.0, "armor": 20.0, "weight": 8.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"}
+		{"id": "leg_right_001", "name": "Barbatos Right Leg Armor", "path": "res://resources/mech/stock/leg_right_standard.tres", "hp": 30.0, "armor": 20.0, "weight": 8.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"}
 	],
 	"weapon_right": [
-		{"name": "Beam Carbine", "path": "res://resources/mech/stock/weapon_beam_carbine.tres", "hp": 0.0, "armor": 0.0, "weight": 7.0, "type": "Beam Weapon"},
-		{"name": "Heavy Machine Gun", "path": "res://resources/mech/stock/weapon_heavy_machine_gun.tres", "hp": 0.0, "armor": 0.0, "weight": 9.0, "type": "Kinetic Weapon"},
-		{"name": "Combat Shotgun", "path": "res://resources/mech/stock/weapon_combat_shotgun.tres", "hp": 0.0, "armor": 0.0, "weight": 8.0, "type": "Shotgun"}
+		{"id": "wep_r_001", "name": "Beam Carbine", "path": "res://resources/mech/stock/weapon_beam_carbine.tres", "hp": 0.0, "armor": 0.0, "weight": 7.0, "type": "Beam Weapon"},
+		{"id": "wep_r_002", "name": "Heavy Machine Gun", "path": "res://resources/mech/stock/weapon_heavy_machine_gun.tres", "hp": 0.0, "armor": 0.0, "weight": 9.0, "type": "Kinetic Weapon"},
+		{"id": "wep_r_003", "name": "Combat Shotgun", "path": "res://resources/mech/stock/weapon_combat_shotgun.tres", "hp": 0.0, "armor": 0.0, "weight": 8.0, "type": "Shotgun"}
 	],
 	"weapon_left": [
-		{"name": "Heat Blade", "path": "res://resources/mech/stock/weapon_heat_blade.tres", "hp": 0.0, "armor": 0.0, "weight": 5.0, "type": "Melee Weapon"},
-		{"name": "Pile Bunker", "path": "res://resources/mech/stock/weapon_pile_bunker.tres", "hp": 0.0, "armor": 0.0, "weight": 11.0, "type": "Melee Weapon"}
+		{"id": "wep_l_001", "name": "Heat Blade", "path": "res://resources/mech/stock/weapon_heat_blade.tres", "hp": 0.0, "armor": 0.0, "weight": 5.0, "type": "Melee Weapon"},
+		{"id": "wep_l_002", "name": "Pile Bunker", "path": "res://resources/mech/stock/weapon_pile_bunker.tres", "hp": 0.0, "armor": 0.0, "weight": 11.0, "type": "Melee Weapon"}
 	]
 }
 
@@ -615,6 +615,9 @@ func _is_item_equipped(slot: String, info: Dictionary) -> bool:
 	if info.is_empty():
 		return false
 
+	var currently_equipped_id = GlobalData.get_equipped_part_id(slot)
+	var info_id = info.get("id", info.get("name", ""))
+
 	if current_mode == "frame":
 		var cur_frame = GlobalData.equipped_frames.get(slot, {})
 		if cur_frame is Dictionary and not cur_frame.is_empty():
@@ -624,30 +627,8 @@ func _is_item_equipped(slot: String, info: Dictionary) -> bool:
 				return name_a == name_b or name_a.contains(name_b) or name_b.contains(name_a)
 		return false
 	else:
-		var cur_armor = GlobalData.equipped_parts.get(slot)
-		if cur_armor == null:
-			return false
-
-		var info_name = info.get("name", info.get("part_name", "")).to_lower()
-		var info_path = info.get("path", "")
-
-		if cur_armor is Resource:
-			if info_path != "" and "resource_path" in cur_armor and cur_armor.resource_path == info_path:
-				return true
-			if "part_name" in cur_armor:
-				var p_name = cur_armor.part_name.to_lower()
-				if p_name != "" and info_name != "":
-					if p_name == info_name or info_name.contains(p_name) or p_name.contains(info_name):
-						return true
-		elif cur_armor is Dictionary:
-			var cur_name = cur_armor.get("name", cur_armor.get("part_name", "")).to_lower()
-			var cur_path = cur_armor.get("path", "")
-			if info_path != "" and cur_path != "" and cur_path == info_path:
-				return true
-			if cur_name != "" and info_name != "":
-				if cur_name == info_name or info_name.contains(cur_name) or cur_name.contains(info_name):
-					return true
-			return cur_armor == info
+		if currently_equipped_id != "" and info_id != "":
+			return currently_equipped_id == info_id
 		return false
 
 
@@ -891,14 +872,17 @@ func _show_part_action_modal(info: Dictionary) -> void:
 	grid.add_theme_constant_override("v_separation", 8)
 	vbox.add_child(grid)
 
-	# 1. EQUIP / REMOVE TOGGLE BUTTON
-	var is_eq = _is_item_equipped(selected_slot, info)
+	# 1. EQUIP / UNEQUIP CONTEXT BUTTON BASED ON MECHBASE EQUIPPED PART ID MATCH
+	var currently_equipped_id = GlobalData.get_equipped_part_id(selected_slot)
+	var clicked_id = info.get("id", info.get("name", ""))
+	var is_eq = (clicked_id != "" and clicked_id == currently_equipped_id)
+
 	var toggle_btn = Button.new()
 	if is_eq:
-		toggle_btn.text = "[ REMOVE / UNEQUIP ]"
+		toggle_btn.text = "[ UNEQUIP ]"
 		toggle_btn.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
 	else:
-		toggle_btn.text = "[ EQUIP PART ]"
+		toggle_btn.text = "[ EQUIP ]"
 		toggle_btn.add_theme_color_override("font_color", Color(0.4, 1.0, 0.5))
 
 	toggle_btn.custom_minimum_size = Vector2(180, 36)
@@ -908,7 +892,6 @@ func _show_part_action_modal(info: Dictionary) -> void:
 		else:
 			_equip_part_to_slot(selected_slot, info)
 		_close_part_action_modal()
-		_populate_part_list_for_slot(selected_slot)
 	)
 	grid.add_child(toggle_btn)
 

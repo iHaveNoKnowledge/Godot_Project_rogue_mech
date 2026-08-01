@@ -23,14 +23,30 @@ var was_in_air: bool = false
 var footstep_timer: float = 0.0
 var roller_skate_timer: float = 0.0
 
+# Override values used when no ChassisData resource is assigned in the scene.
+# Populated by _apply_chassis_from_global_data() from GlobalData.chassis_id.
+var _chassis_speed_override: float = 7.0
+var _chassis_weight_capacity_override: float = 75.0
+
 
 func _ready() -> void:
 	add_to_group("mecha")
 	floor_snap_length = 0.3
 	floor_max_angle = deg_to_rad(60)
+	_apply_chassis_from_global_data()
 	_recalculate_weight()
 	_initialize_mesh_from_global_data()
 	EventBus.weight_changed.connect(_on_weight_changed)
+
+
+# Apply chassis speed/weight from GlobalData.chassis_id.
+# Always writes to override vars — never mutates the shared @export ChassisData Resource.
+# _recalculate_weight() reads the override vars first, falling back to ChassisData only
+# for base_turn_rate (which is not stored in chassis_catalog).
+func _apply_chassis_from_global_data() -> void:
+	var info = GlobalData.get_chassis_stats()
+	_chassis_speed_override = info.get("speed", 7.0)
+	_chassis_weight_capacity_override = info.get("max_weight", 75.0)
 
 
 func _input(event: InputEvent) -> void:
@@ -228,12 +244,14 @@ func _recalculate_weight() -> void:
 				if "weight" in part:
 					total_weight += part.weight
 
-	if chassis:
-		turn_rate = chassis.base_turn_rate * (chassis.weight_capacity / maxf(total_weight, 1.0))
-		current_speed = chassis.base_speed * (1.0 - clampf(total_weight / chassis.weight_capacity, 0.0, 0.6))
-	else:
-		turn_rate = 2.0
-		current_speed = 10.5
+	# Override vars are always set from GlobalData.chassis_id by _apply_chassis_from_global_data().
+	# ChassisData resource is used only for base_turn_rate (not stored in chassis_catalog).
+	var base_speed: float = _chassis_speed_override
+	var weight_cap: float = _chassis_weight_capacity_override
+	var base_turn: float = chassis.base_turn_rate if chassis else 2.0
+
+	turn_rate = base_turn * (weight_cap / maxf(total_weight, 1.0))
+	current_speed = base_speed * (1.0 - clampf(total_weight / weight_cap, 0.0, 0.6))
 
 	_recalculating = false
 

@@ -82,37 +82,11 @@ var frame_catalog: Dictionary = {
 }
 
 # Outer Armor Catalog
-var armor_catalog: Dictionary = {
-	"head": [
-		{"id": "head_001", "name": "Barbatos White Visor Plating", "path": "res://resources/mech/stock/head_standard.tres", "hp": 30.0, "armor": 20.0, "weight": 4.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"},
-		{"id": "head_002", "name": "Vanguard Light Recon Helmet", "path": "res://resources/mech/stock/head_standard.tres", "hp": 20.0, "armor": 12.0, "weight": 2.0, "color": Color(0.8, 0.85, 0.9), "type": "Light Plating"}
-	],
-	"body": [
-		{"id": "body_001", "name": "Barbatos Chest Armor Plate", "path": "res://resources/mech/stock/torso_standard.tres", "hp": 60.0, "armor": 40.0, "weight": 14.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"},
-		{"id": "body_002", "name": "Fortress Heavy Reactive Chestplate", "path": "res://resources/mech/stock/torso_standard.tres", "hp": 110.0, "armor": 75.0, "weight": 24.0, "color": Color(0.25, 0.2, 0.35), "type": "Heavy Armor"}
-	],
-	"arm_left": [
-		{"id": "arm_left_001", "name": "Barbatos Left Shoulder Guard", "path": "res://resources/mech/stock/arm_left_standard.tres", "hp": 25.0, "armor": 15.0, "weight": 6.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"}
-	],
-	"arm_right": [
-		{"id": "arm_right_001", "name": "Barbatos Right Shoulder Guard", "path": "res://resources/mech/stock/arm_right_standard.tres", "hp": 25.0, "armor": 15.0, "weight": 6.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"}
-	],
-	"leg_left": [
-		{"id": "leg_left_001", "name": "Barbatos Left Leg Armor", "path": "res://resources/mech/stock/leg_left_standard.tres", "hp": 30.0, "armor": 20.0, "weight": 8.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"}
-	],
-	"leg_right": [
-		{"id": "leg_right_001", "name": "Barbatos Right Leg Armor", "path": "res://resources/mech/stock/leg_right_standard.tres", "hp": 30.0, "armor": 20.0, "weight": 8.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"}
-	],
-	"weapon_right": [
-		{"id": "wep_r_001", "name": "Beam Carbine", "path": "res://resources/mech/stock/weapon_beam_carbine.tres", "hp": 0.0, "armor": 0.0, "weight": 7.0, "type": "Beam Weapon"},
-		{"id": "wep_r_002", "name": "Heavy Machine Gun", "path": "res://resources/mech/stock/weapon_heavy_machine_gun.tres", "hp": 0.0, "armor": 0.0, "weight": 9.0, "type": "Kinetic Weapon"},
-		{"id": "wep_r_003", "name": "Combat Shotgun", "path": "res://resources/mech/stock/weapon_combat_shotgun.tres", "hp": 0.0, "armor": 0.0, "weight": 8.0, "type": "Shotgun"}
-	],
-	"weapon_left": [
-		{"id": "wep_l_001", "name": "Heat Blade", "path": "res://resources/mech/stock/weapon_heat_blade.tres", "hp": 0.0, "armor": 0.0, "weight": 5.0, "type": "Melee Weapon"},
-		{"id": "wep_l_002", "name": "Pile Bunker", "path": "res://resources/mech/stock/weapon_pile_bunker.tres", "hp": 0.0, "armor": 0.0, "weight": 11.0, "type": "Melee Weapon"}
-	]
-}
+## Armor catalog is now stored in GlobalData.armor_catalog (single source of truth).
+## This computed property provides a local alias for convenience.
+var armor_catalog: Dictionary:
+	get:
+		return GlobalData.armor_catalog
 
 
 func _ready() -> void:
@@ -122,6 +96,12 @@ func _ready() -> void:
 	show_hangar()
 	if has_node("/root/AudioManager"):
 		AudioManager.play_hangar_music()
+
+
+# Returns [credits_cost, cores_cost] for next frame upgrade level.
+# Single source of truth — use this instead of inline calculations.
+func _get_upgrade_cost() -> Array:
+	return [GlobalData.frame_upgrade_level * 150, GlobalData.frame_upgrade_level]
 
 
 # --- 3D GARAGE ENVIRONMENT ---
@@ -668,8 +648,9 @@ func _populate_part_list_for_slot(slot: String) -> void:
 	_last_selected_item_index = -1
 
 	if current_mode == "upgrade":
-		var cost_cr = GlobalData.frame_upgrade_level * 150
-		var cost_cores = GlobalData.frame_upgrade_level
+		var cost = _get_upgrade_cost()
+		var cost_cr = cost[0]
+		var cost_cores = cost[1]
 		part_item_list.add_item("Upgrade Inner Frame to Level %d (%d cr, %d cores)" % [
 			GlobalData.frame_upgrade_level + 1, cost_cr, cost_cores
 		])
@@ -731,8 +712,9 @@ func _populate_part_list_for_slot(slot: String) -> void:
 
 func _on_part_item_selected(index: int) -> void:
 	if current_mode == "upgrade":
-		var cost_cr = GlobalData.frame_upgrade_level * 150
-		var cost_cores = GlobalData.frame_upgrade_level
+		var cost = _get_upgrade_cost()
+		var cost_cr = cost[0]
+		var cost_cores = cost[1]
 		stats_label.text = "INNER FRAME REACTOR LEVEL: %d -> %d\n\nEFFECTS:\n+25 FRAME HP per slot\n+15.0 kg MAX WEIGHT CAPACITY\n+1.5 m/s DASH THRUST SPEED\n\nUPGRADE COST: %d Credits, %d Data Cores" % [
 			GlobalData.frame_upgrade_level, GlobalData.frame_upgrade_level + 1, cost_cr, cost_cores
 		]
@@ -1201,8 +1183,9 @@ func _set_slot_material(slot: String, mat: Material) -> void:
 
 func _on_equip_pressed() -> void:
 	if current_mode == "upgrade":
-		var cost_cr = GlobalData.frame_upgrade_level * 150
-		var cost_cores = GlobalData.frame_upgrade_level
+		var cost = _get_upgrade_cost()
+		var cost_cr = cost[0]
+		var cost_cores = cost[1]
 		if GlobalData.credits >= cost_cr and GlobalData.data_cores >= cost_cores:
 			GlobalData.credits -= cost_cr
 			GlobalData.data_cores -= cost_cores

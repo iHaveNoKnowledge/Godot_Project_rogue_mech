@@ -36,19 +36,48 @@ func _init_parts() -> void:
 	}
 
 	for slot in parts:
+		# Apply HP from equipped inner frame
 		if GlobalData.equipped_frames.has(slot):
 			var f = GlobalData.equipped_frames[slot]
 			var f_hp = f.get("hp", parts[slot]["max_frame"])
 			parts[slot]["frame_hp"] = f_hp
 			parts[slot]["max_frame"] = f_hp
 
+		# Apply HP & armor_class from equipped outer armor
 		if GlobalData.equipped_parts.has(slot):
 			var p = GlobalData.equipped_parts[slot]
 			if p and p.get("max_hp") != null:
 				parts[slot]["armor_hp"] = p.max_hp
 				parts[slot]["max_armor"] = p.max_hp
+			elif p and p.get("hp") != null:
+				parts[slot]["armor_hp"] = p.get("hp")
+				parts[slot]["max_armor"] = p.get("hp")
 			if p and p.get("armor_class") != null:
 				parts[slot]["armor_class"] = p.armor_class
+			elif p and p.get("armor") != null:
+				# Dictionary format from hangar stores "armor" not "armor_class"
+				parts[slot]["armor_class"] = maxf(p.get("armor", 10.0) / 10.0, 0.1)
+
+		# -----------------------------------------------------------------------
+		# Restore persistent damage from previous combat / Hangar session.
+		# Armor damage key: "slot_name"       (ratio 0.0 = full, 1.0 = destroyed)
+		# Frame damage key: "slot_name_frame" (ratio 0.0 = full, 1.0 = destroyed)
+		# -----------------------------------------------------------------------
+		var armor_dmg_ratio = GlobalData.part_damage.get(slot, 0.0)
+		if armor_dmg_ratio > 0.0:
+			var lost = parts[slot]["max_armor"] * clampf(armor_dmg_ratio, 0.0, 1.0)
+			parts[slot]["armor_hp"] = maxf(parts[slot]["max_armor"] - lost, 0.0)
+			if parts[slot]["armor_hp"] <= 0.0:
+				parts[slot]["armor_broken"] = true
+				parts[slot]["armor_hp"] = 0.0
+
+		var frame_dmg_ratio = GlobalData.part_damage.get(slot + "_frame", 0.0)
+		if frame_dmg_ratio > 0.0:
+			var lost_f = parts[slot]["max_frame"] * clampf(frame_dmg_ratio, 0.0, 1.0)
+			parts[slot]["frame_hp"] = maxf(parts[slot]["max_frame"] - lost_f, 0.0)
+			if parts[slot]["frame_hp"] <= 0.0:
+				parts[slot]["destroyed"] = true
+				parts[slot]["frame_hp"] = 0.0
 
 	is_player = true
 

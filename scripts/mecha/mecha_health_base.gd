@@ -106,6 +106,11 @@ func _apply_armor_damage(slot_name: String, amount: float, damage_type: String) 
 	_update_part_visual(slot_name)
 	health_changed.emit(slot_name, "armor", part["armor_hp"], part["max_armor"])
 
+	# Persist damage to GlobalData so Hangar shows correct state after combat.
+	# Key format: "slot_name" for armor damage ratio (0.0 = full, 1.0 = destroyed)
+	if is_player and part["max_armor"] > 0.0:
+		GlobalData.part_damage[slot_name] = 1.0 - (part["armor_hp"] / part["max_armor"])
+
 	if is_player:
 		EventBus.damage_received.emit(slot_name, reduced, damage_type)
 
@@ -119,6 +124,11 @@ func _apply_frame_damage(slot_name: String, amount: float, damage_type: String) 
 
 	_update_part_visual(slot_name)
 	health_changed.emit(slot_name, "frame", part["frame_hp"], part["max_frame"])
+
+	# Persist frame damage to GlobalData with "_frame" suffix to distinguish from armor.
+	# Key format: "slot_name_frame" for frame damage ratio (0.0 = full, 1.0 = destroyed)
+	if is_player and part["max_frame"] > 0.0:
+		GlobalData.part_damage[slot_name + "_frame"] = 1.0 - (part["frame_hp"] / part["max_frame"])
 
 	if is_player:
 		EventBus.damage_received.emit(slot_name, amount, damage_type)

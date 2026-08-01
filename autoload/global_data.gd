@@ -3,23 +3,57 @@ extends Node
 var chassis_id: String = "standard"
 var equipped_parts: Dictionary = {}
 
+# ==============================================================================
+# ARMOR CATALOG — Single source of truth for all stock armor parts.
+# hangar_controller.gd reads this instead of duplicating the data.
+# key: slot_name -> Array of armor info Dictionaries
+# Each entry: {id, name, path, hp, armor, weight, color, type}
+# ==============================================================================
+var armor_catalog: Dictionary = {
+	"head": [
+		{"id": "head_001", "name": "Barbatos White Visor Plating", "path": "res://resources/mech/stock/head_standard.tres", "hp": 30.0, "armor": 20.0, "weight": 4.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"},
+		{"id": "head_002", "name": "Vanguard Light Recon Helmet",  "path": "res://resources/mech/stock/head_standard.tres",    "hp": 20.0, "armor": 12.0, "weight": 2.0, "color": Color(0.8, 0.85, 0.9), "type": "Light Plating"}
+	],
+	"body": [
+		{"id": "body_001", "name": "Barbatos Chest Armor Plate",        "path": "res://resources/mech/stock/torso_standard.tres", "hp": 60.0,  "armor": 40.0, "weight": 14.0, "color": Color(0.9, 0.9, 0.95),    "type": "Standard Armor"},
+		{"id": "body_002", "name": "Fortress Heavy Reactive Chestplate", "path": "res://resources/mech/stock/torso_standard.tres", "hp": 110.0, "armor": 75.0, "weight": 24.0, "color": Color(0.25, 0.2, 0.35), "type": "Heavy Armor"}
+	],
+	"arm_left": [
+		{"id": "arm_left_001", "name": "Barbatos Left Shoulder Guard", "path": "res://resources/mech/stock/arm_left_standard.tres", "hp": 25.0, "armor": 15.0, "weight": 6.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"}
+	],
+	"arm_right": [
+		{"id": "arm_right_001", "name": "Barbatos Right Shoulder Guard", "path": "res://resources/mech/stock/arm_right_standard.tres", "hp": 25.0, "armor": 15.0, "weight": 6.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"}
+	],
+	"leg_left": [
+		{"id": "leg_left_001", "name": "Barbatos Left Leg Armor Guard", "path": "res://resources/mech/stock/leg_left_standard.tres", "hp": 30.0, "armor": 20.0, "weight": 8.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"}
+	],
+	"leg_right": [
+		{"id": "leg_right_001", "name": "Barbatos Right Leg Armor Guard", "path": "res://resources/mech/stock/leg_right_standard.tres", "hp": 30.0, "armor": 20.0, "weight": 8.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"}
+	],
+	"weapon_right": [
+		{"id": "wep_r_001", "name": "Beam Carbine",     "path": "res://resources/mech/stock/weapon_beam_carbine.tres",      "hp": 0.0, "armor": 0.0, "weight": 7.0, "type": "Beam Weapon"},
+		{"id": "wep_r_002", "name": "Heavy Machine Gun","path": "res://resources/mech/stock/weapon_heavy_machine_gun.tres", "hp": 0.0, "armor": 0.0, "weight": 9.0, "type": "Kinetic Weapon"},
+		{"id": "wep_r_003", "name": "Combat Shotgun",   "path": "res://resources/mech/stock/weapon_combat_shotgun.tres",   "hp": 0.0, "armor": 0.0, "weight": 8.0, "type": "Shotgun"}
+	],
+	"weapon_left": [
+		{"id": "wep_l_001", "name": "Heat Blade",  "path": "res://resources/mech/stock/weapon_heat_blade.tres",  "hp": 0.0, "armor": 0.0, "weight": 5.0,  "type": "Melee Weapon"},
+		{"id": "wep_l_002", "name": "Pile Bunker",  "path": "res://resources/mech/stock/weapon_pile_bunker.tres", "hp": 0.0, "armor": 0.0, "weight": 11.0, "type": "Melee Weapon"}
+	]
+}
+
+
 func _ready() -> void:
 	ensure_default_equipped_parts()
 
 
+# Initialise equipped_parts from armor_catalog[slot][0] (first/default entry per slot).
+# Uses armor_catalog as single source of truth — no duplicated data.
 func ensure_default_equipped_parts() -> void:
 	if not equipped_parts.is_empty():
 		return
-	var stock_defaults = {
-		"head": {"id": "head_001", "name": "Barbatos White Visor Plating", "path": "res://resources/mech/stock/head_standard.tres", "hp": 30.0, "armor": 20.0, "weight": 4.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"},
-		"body": {"id": "body_001", "name": "Barbatos Chest Armor Plate", "path": "res://resources/mech/stock/torso_standard.tres", "hp": 60.0, "armor": 40.0, "weight": 14.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"},
-		"arm_left": {"id": "arm_left_001", "name": "Barbatos Left Shoulder Guard", "path": "res://resources/mech/stock/arm_left_standard.tres", "hp": 25.0, "armor": 15.0, "weight": 6.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"},
-		"arm_right": {"id": "arm_right_001", "name": "Barbatos Right Shoulder Guard", "path": "res://resources/mech/stock/arm_right_standard.tres", "hp": 25.0, "armor": 15.0, "weight": 6.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"},
-		"leg_left": {"id": "leg_left_001", "name": "Barbatos Left Leg Armor Guard", "path": "res://resources/mech/stock/leg_left_standard.tres", "hp": 35.0, "armor": 20.0, "weight": 8.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"},
-		"leg_right": {"id": "leg_right_001", "name": "Barbatos Right Leg Armor Guard", "path": "res://resources/mech/stock/leg_right_standard.tres", "hp": 35.0, "armor": 20.0, "weight": 8.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"}
-	}
-	for slot in stock_defaults:
-		equipped_parts[slot] = stock_defaults[slot]
+	for slot in ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]:
+		if armor_catalog.has(slot) and armor_catalog[slot].size() > 0:
+			equipped_parts[slot] = armor_catalog[slot][0].duplicate()
 
 
 func get_equipped_part_id(slot: String) -> String:
@@ -38,6 +72,17 @@ func get_equipped_part_id(slot: String) -> String:
 			return part.part_name
 		return part.resource_path
 	return ""
+
+
+# Returns the chassis stats dict for the currently selected chassis_id.
+# Used by mecha_controller at combat start so it doesn't rely on @export chassis resource.
+# Keys: "speed" (float), "max_weight" (float), "color" (Color), "name" (String)
+func get_chassis_stats() -> Dictionary:
+	return chassis_catalog.get(chassis_id, chassis_catalog.get("standard", {
+		"name": "Standard", "speed": 7.0, "max_weight": 75.0, "color": Color(0.6, 0.65, 0.7)
+	}))
+
+
 var equipped_frames: Dictionary = {
 	"head": {"name": "Standard Light Alloy Frame", "hp": 20.0, "weight": 2.0},
 	"body": {"name": "Standard Core Structure", "hp": 40.0, "weight": 6.0},

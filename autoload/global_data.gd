@@ -27,11 +27,14 @@ func get_equipped_part_id(slot: String) -> String:
 	if part == null:
 		return ""
 	if part is Dictionary:
-		return part.get("id", part.get("name", ""))
+		var pid = part.get("id", "")
+		if pid != "":
+			return pid
+		return part.get("name", part.get("path", ""))
 	if part is Resource:
 		if "id" in part and part.id != "":
 			return part.id
-		if "part_name" in part:
+		if "part_name" in part and part.part_name != "":
 			return part.part_name
 		return part.resource_path
 	return ""

@@ -615,9 +615,6 @@ func _is_item_equipped(slot: String, info: Dictionary) -> bool:
 	if info.is_empty():
 		return false
 
-	var currently_equipped_id = GlobalData.get_equipped_part_id(slot)
-	var info_id = info.get("id", info.get("name", ""))
-
 	if current_mode == "frame":
 		var cur_frame = GlobalData.equipped_frames.get(slot, {})
 		if cur_frame is Dictionary and not cur_frame.is_empty():
@@ -627,8 +624,41 @@ func _is_item_equipped(slot: String, info: Dictionary) -> bool:
 				return name_a == name_b or name_a.contains(name_b) or name_b.contains(name_a)
 		return false
 	else:
-		if currently_equipped_id != "" and info_id != "":
-			return currently_equipped_id == info_id
+		var cur = GlobalData.equipped_parts.get(slot)
+		if cur == null:
+			return false
+
+		# 1. Match by unique ID if available
+		var cur_id = ""
+		if cur is Dictionary:
+			cur_id = cur.get("id", "")
+		elif cur is Resource and "id" in cur:
+			cur_id = cur.id
+		var info_id = info.get("id", "")
+		if cur_id != "" and info_id != "" and cur_id == info_id:
+			return true
+
+		# 2. Match by Resource file path
+		var cur_path = ""
+		if cur is Dictionary:
+			cur_path = cur.get("path", "")
+		elif cur is Resource:
+			cur_path = cur.resource_path
+		var info_path = info.get("path", "")
+		if cur_path != "" and info_path != "" and cur_path == info_path:
+			return true
+
+		# 3. Match by Part Name
+		var cur_name = ""
+		if cur is Dictionary:
+			cur_name = cur.get("name", cur.get("part_name", "")).to_lower()
+		elif cur is Resource and "part_name" in cur:
+			cur_name = cur.part_name.to_lower()
+		var info_name = info.get("name", info.get("part_name", "")).to_lower()
+		if cur_name != "" and info_name != "":
+			if cur_name == info_name or info_name.contains(cur_name) or cur_name.contains(info_name):
+				return true
+
 		return false
 
 
@@ -872,10 +902,8 @@ func _show_part_action_modal(info: Dictionary) -> void:
 	grid.add_theme_constant_override("v_separation", 8)
 	vbox.add_child(grid)
 
-	# 1. EQUIP / UNEQUIP CONTEXT BUTTON BASED ON MECHBASE EQUIPPED PART ID MATCH
-	var currently_equipped_id = GlobalData.get_equipped_part_id(selected_slot)
-	var clicked_id = info.get("id", info.get("name", ""))
-	var is_eq = (clicked_id != "" and clicked_id == currently_equipped_id)
+	# 1. EQUIP / UNEQUIP CONTEXT BUTTON BASED ON BULLETPROOF EQUIPPED MATCH
+	var is_eq = _is_item_equipped(selected_slot, info)
 
 	var toggle_btn = Button.new()
 	if is_eq:
@@ -1126,13 +1154,19 @@ func _update_all_3d_slots_preview() -> void:
 
 	var slots = ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]
 	for slot in slots:
-		var armor_data = GlobalData.equipped_parts.get(slot, {})
-		var part = ArmorPart.new()
-		part.part_name = armor_data.get("name", "Spiky Tactical Armor")
-		part.max_hp = armor_data.get("durability", armor_data.get("max_hp", 100.0))
-		if armor_data.has("color"):
-			part.part_color = armor_data.get("color")
-		pmm.initialize_slot(slot, part)
+		var armor_data = GlobalData.equipped_parts.get(slot)
+		if armor_data == null or (armor_data is Dictionary and armor_data.is_empty()):
+			pmm._show_inner_frame(slot)
+		else:
+			var part = ArmorPart.new()
+			if armor_data is Dictionary:
+				part.part_name = armor_data.get("name", armor_data.get("part_name", "Armor"))
+				part.max_hp = armor_data.get("durability", armor_data.get("max_hp", 100.0))
+				if armor_data.has("color"):
+					part.part_color = armor_data.get("color")
+			elif armor_data is ArmorPart:
+				part = armor_data
+			pmm.initialize_slot(slot, part)
 
 
 func _apply_3d_salvage_preview(slot: String, info: Dictionary) -> void:

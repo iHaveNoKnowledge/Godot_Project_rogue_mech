@@ -1,14 +1,14 @@
-[gd_scene load_steps=22 format=3 uid="uid://c68hdpgorbxsh"]
+[gd_scene format=3 uid="uid://c68hdpgorbxsh"]
 
-[ext_resource type="Script" path="res://scripts/mecha/mecha_controller.gd" id="1"]
-[ext_resource type="Script" path="res://scripts/mecha/mecha_combat.gd" id="2"]
-[ext_resource type="Script" path="res://scripts/mecha/weapon_mount.gd" id="3"]
-[ext_resource type="Script" path="res://scripts/mecha/mecha_health.gd" id="4"]
-[ext_resource type="Script" path="res://scripts/mecha/mecha_hitbox.gd" id="5"]
-[ext_resource type="Script" path="res://scripts/mecha/mecha_animation.gd" id="6"]
-[ext_resource type="Script" path="res://scripts/mecha/mecha_eject.gd" id="7"]
-[ext_resource type="PackedScene" path="res://scenes/mecha/zenisrev/scene.gltf" id="8_8vx60"]
-[ext_resource type="Script" path="res://scripts/mecha/part_mesh_manager.gd" id="9_partmesh"]
+[ext_resource type="Script" uid="uid://dyk4s0w6dg51m" path="res://scripts/mecha/mecha_controller.gd" id="1"]
+[ext_resource type="Script" uid="uid://dh1fbuw3ctyjd" path="res://scripts/mecha/mecha_combat.gd" id="2"]
+[ext_resource type="Script" uid="uid://cpvulf5ejbflu" path="res://scripts/mecha/weapon_mount.gd" id="3"]
+[ext_resource type="Script" uid="uid://ctx6miwwjgl5" path="res://scripts/mecha/mecha_health.gd" id="4"]
+[ext_resource type="Script" uid="uid://cbbis6yoxwp6w" path="res://scripts/mecha/mecha_hitbox.gd" id="5"]
+[ext_resource type="Script" uid="uid://bt57cfaok6o4i" path="res://scripts/mecha/mecha_animation.gd" id="6"]
+[ext_resource type="Script" uid="uid://cj824bhe7i4we" path="res://scripts/mecha/mecha_eject.gd" id="7"]
+[ext_resource type="PackedScene" uid="uid://dms3f2k3mor6t" path="res://scenes/mecha/zenisrev/scene.gltf" id="8_8vx60"]
+[ext_resource type="Script" uid="uid://duoijt26josu5" path="res://scripts/mecha/part_mesh_manager.gd" id="9_partmesh"]
 
 [sub_resource type="CapsuleShape3D" id="FullBodyShape"]
 radius = 0.8
@@ -19,30 +19,24 @@ albedo_color = Color(0.65, 0.68, 0.75, 1)
 metallic = 0.85
 roughness = 0.3
 
+[sub_resource type="BoxMesh" id="HeadBox"]
+size = Vector3(0.5, 0.45, 0.55)
+
+[sub_resource type="StandardMaterial3D" id="VisorMat"]
+albedo_color = Color(0, 0.9, 1, 1)
+metallic = 0.2
+roughness = 0.1
+emission_enabled = true
+emission = Color(0, 0.9, 1, 1)
+emission_energy_multiplier = 3.0
+
+[sub_resource type="BoxMesh" id="VisorMeshShape"]
+size = Vector3(0.42, 0.12, 0.15)
+
 [sub_resource type="StandardMaterial3D" id="MechaMatDark"]
 albedo_color = Color(0.2, 0.22, 0.28, 1)
 metallic = 0.9
 roughness = 0.25
-
-[sub_resource type="StandardMaterial3D" id="VisorMat"]
-albedo_color = Color(0.0, 0.9, 1.0, 1)
-metallic = 0.2
-roughness = 0.1
-emission_enabled = true
-emission = Color(0.0, 0.9, 1.0, 1)
-emission_energy_multiplier = 3.0
-
-[sub_resource type="StandardMaterial3D" id="FlameMat"]
-albedo_color = Color(1.0, 0.5, 0.1, 1)
-emission_enabled = true
-emission = Color(1.0, 0.6, 0.1, 1)
-emission_energy_multiplier = 4.0
-
-[sub_resource type="BoxMesh" id="HeadBox"]
-size = Vector3(0.5, 0.45, 0.55)
-
-[sub_resource type="BoxMesh" id="VisorMeshShape"]
-size = Vector3(0.42, 0.12, 0.15)
 
 [sub_resource type="BoxMesh" id="BodyMeshShape"]
 size = Vector3(0.9, 1.1, 0.7)
@@ -52,6 +46,12 @@ size = Vector3(1.1, 0.6, 0.35)
 
 [sub_resource type="BoxMesh" id="BackpackMesh"]
 size = Vector3(0.8, 0.7, 0.4)
+
+[sub_resource type="StandardMaterial3D" id="FlameMat"]
+albedo_color = Color(1, 0.5, 0.1, 1)
+emission_enabled = true
+emission = Color(1, 0.6, 0.1, 1)
+emission_energy_multiplier = 4.0
 
 [sub_resource type="CylinderMesh" id="ThrusterNozzle"]
 top_radius = 0.12
@@ -86,179 +86,180 @@ size = Vector3(0.45, 0.15, 0.7)
 [sub_resource type="SphereShape3D" id="HitboxShape"]
 radius = 2.5
 
-[node name="MechaBase" type="CharacterBody3D"]
+[node name="MechaBase" type="CharacterBody3D" unique_id=1003373891]
 collision_mask = 3
 script = ExtResource("1")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.0, 0)
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=883517169]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
 shape = SubResource("FullBodyShape")
 
-[node name="Head" type="Node3D" parent="."]
+[node name="Head" type="Node3D" parent="." unique_id=916399513]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.55, 0)
 
-[node name="HeadMesh" type="MeshInstance3D" parent="Head"]
+[node name="HeadMesh" type="MeshInstance3D" parent="Head" unique_id=797098894]
 material_override = SubResource("MechaMat")
 mesh = SubResource("HeadBox")
 
-[node name="Visor" type="MeshInstance3D" parent="Head"]
+[node name="Visor" type="MeshInstance3D" parent="Head" unique_id=853227412]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, -0.22)
 material_override = SubResource("VisorMat")
 mesh = SubResource("VisorMeshShape")
 
-[node name="Body" type="Node3D" parent="."]
+[node name="Body" type="Node3D" parent="." unique_id=2068096301]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.8, 0)
 
-[node name="BodyMesh" type="MeshInstance3D" parent="Body"]
+[node name="BodyMesh" type="MeshInstance3D" parent="Body" unique_id=1474441195]
 material_override = SubResource("MechaMatDark")
 mesh = SubResource("BodyMeshShape")
 
-[node name="ChestPlate" type="MeshInstance3D" parent="Body"]
+[node name="ChestPlate" type="MeshInstance3D" parent="Body" unique_id=1426955764]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, -0.22)
 material_override = SubResource("MechaMat")
 mesh = SubResource("ChestPlateMesh")
 
-[node name="Backpack" type="MeshInstance3D" parent="Body"]
+[node name="Backpack" type="MeshInstance3D" parent="Body" unique_id=1953738518]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, 0.35)
 material_override = SubResource("MechaMatDark")
 mesh = SubResource("BackpackMesh")
 
-[node name="ThrusterL" type="MeshInstance3D" parent="Body/Backpack"]
+[node name="ThrusterL" type="MeshInstance3D" parent="Body/Backpack" unique_id=1865716046]
 transform = Transform3D(1, 0, 0, 0, 0.866, 0.5, 0, -0.5, 0.866, -0.25, -0.2, 0.25)
 material_override = SubResource("FlameMat")
 mesh = SubResource("ThrusterNozzle")
 
-[node name="ThrusterR" type="MeshInstance3D" parent="Body/Backpack"]
+[node name="ThrusterR" type="MeshInstance3D" parent="Body/Backpack" unique_id=2137049225]
 transform = Transform3D(1, 0, 0, 0, 0.866, 0.5, 0, -0.5, 0.866, 0.25, -0.2, 0.25)
 material_override = SubResource("FlameMat")
 mesh = SubResource("ThrusterNozzle")
 
-[node name="ArmLeft" type="Node3D" parent="."]
+[node name="ArmLeft" type="Node3D" parent="." unique_id=163684479]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.75, 2.2, 0)
 
-[node name="ShoulderLeft" type="MeshInstance3D" parent="ArmLeft"]
+[node name="ShoulderLeft" type="MeshInstance3D" parent="ArmLeft" unique_id=1024777680]
 material_override = SubResource("MechaMat")
 mesh = SubResource("ShoulderPlate")
 
-[node name="UpperArmLeft" type="MeshInstance3D" parent="ArmLeft"]
+[node name="UpperArmLeft" type="MeshInstance3D" parent="ArmLeft" unique_id=384298415]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.32, 0)
 material_override = SubResource("MechaMatDark")
 mesh = SubResource("UpperArmMeshShape")
 
-[node name="ForearmLeft" type="Node3D" parent="ArmLeft"]
+[node name="ForearmLeft" type="Node3D" parent="ArmLeft" unique_id=1606698012]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.65, 0)
 
-[node name="ArmLeftMesh" type="MeshInstance3D" parent="ArmLeft/ForearmLeft"]
+[node name="ArmLeftMesh" type="MeshInstance3D" parent="ArmLeft/ForearmLeft" unique_id=88996912]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.35, 0)
 material_override = SubResource("MechaMatDark")
 mesh = SubResource("ForearmMesh")
 
-[node name="ArmRight" type="Node3D" parent="."]
+[node name="ArmRight" type="Node3D" parent="." unique_id=2079032481]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.75, 2.2, 0)
 
-[node name="ShoulderRight" type="MeshInstance3D" parent="ArmRight"]
+[node name="ShoulderRight" type="MeshInstance3D" parent="ArmRight" unique_id=139224922]
 material_override = SubResource("MechaMat")
 mesh = SubResource("ShoulderPlate")
 
-[node name="UpperArmRight" type="MeshInstance3D" parent="ArmRight"]
+[node name="UpperArmRight" type="MeshInstance3D" parent="ArmRight" unique_id=1929859786]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.32, 0)
 material_override = SubResource("MechaMatDark")
 mesh = SubResource("UpperArmMeshShape")
 
-[node name="ForearmRight" type="Node3D" parent="ArmRight"]
+[node name="ForearmRight" type="Node3D" parent="ArmRight" unique_id=350185092]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.65, 0)
 
-[node name="ArmRightMesh" type="MeshInstance3D" parent="ArmRight/ForearmRight"]
+[node name="ArmRightMesh" type="MeshInstance3D" parent="ArmRight/ForearmRight" unique_id=1277724062]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.35, 0)
 material_override = SubResource("MechaMatDark")
 mesh = SubResource("ForearmMesh")
 
-[node name="LegLeft" type="Node3D" parent="."]
+[node name="LegLeft" type="Node3D" parent="." unique_id=2119342772]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.38, 1.3, 0)
 
-[node name="ThighLeft" type="MeshInstance3D" parent="LegLeft"]
+[node name="ThighLeft" type="MeshInstance3D" parent="LegLeft" unique_id=873972332]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
 material_override = SubResource("MechaMatDark")
 mesh = SubResource("ThighMeshShape")
 
-[node name="ShinLeft" type="Node3D" parent="LegLeft"]
+[node name="ShinLeft" type="Node3D" parent="LegLeft" unique_id=350567621]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.55, 0)
 
-[node name="LegLeftMesh" type="MeshInstance3D" parent="LegLeft/ShinLeft"]
+[node name="LegLeftMesh" type="MeshInstance3D" parent="LegLeft/ShinLeft" unique_id=1633202535]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.3, 0)
 material_override = SubResource("MechaMatDark")
 mesh = SubResource("ShinMeshShape")
 
-[node name="KneeLeft" type="MeshInstance3D" parent="LegLeft/ShinLeft"]
+[node name="KneeLeft" type="MeshInstance3D" parent="LegLeft/ShinLeft" unique_id=300196073]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.05, -0.2)
 material_override = SubResource("MechaMat")
 mesh = SubResource("KneeCapMesh")
 
-[node name="FootLeft" type="MeshInstance3D" parent="LegLeft/ShinLeft"]
+[node name="FootLeft" type="MeshInstance3D" parent="LegLeft/ShinLeft" unique_id=1483411577]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.65, -0.15)
 material_override = SubResource("MechaMat")
 mesh = SubResource("FootMesh")
 
-[node name="LegRight" type="Node3D" parent="."]
+[node name="LegRight" type="Node3D" parent="." unique_id=1846650816]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.38, 1.3, 0)
 
-[node name="ThighRight" type="MeshInstance3D" parent="LegRight"]
+[node name="ThighRight" type="MeshInstance3D" parent="LegRight" unique_id=1606723219]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
 material_override = SubResource("MechaMatDark")
 mesh = SubResource("ThighMeshShape")
 
-[node name="ShinRight" type="Node3D" parent="LegRight"]
+[node name="ShinRight" type="Node3D" parent="LegRight" unique_id=625551916]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.55, 0)
 
-[node name="LegRightMesh" type="MeshInstance3D" parent="LegRight/ShinRight"]
+[node name="LegRightMesh" type="MeshInstance3D" parent="LegRight/ShinRight" unique_id=1293460037]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.3, 0)
 material_override = SubResource("MechaMatDark")
 mesh = SubResource("ShinMeshShape")
 
-[node name="KneeRight" type="MeshInstance3D" parent="LegRight/ShinRight"]
+[node name="KneeRight" type="MeshInstance3D" parent="LegRight/ShinRight" unique_id=1701427125]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.05, -0.2)
 material_override = SubResource("MechaMat")
 mesh = SubResource("KneeCapMesh")
 
-[node name="FootRight" type="MeshInstance3D" parent="LegRight/ShinRight"]
+[node name="FootRight" type="MeshInstance3D" parent="LegRight/ShinRight" unique_id=1903147936]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.65, -0.15)
 material_override = SubResource("MechaMat")
 mesh = SubResource("FootMesh")
 
-[node name="HealthSystem" type="Node3D" parent="."]
+[node name="HealthSystem" type="Node3D" parent="." unique_id=2146244237]
 script = ExtResource("4")
 
-[node name="Hitbox" type="Area3D" parent="."]
+[node name="Hitbox" type="Area3D" parent="." unique_id=1706347723]
 collision_layer = 0
 collision_mask = 4
 script = ExtResource("5")
 health_system_path = NodePath("../HealthSystem")
 
-[node name="HitboxShape" type="CollisionShape3D" parent="Hitbox"]
+[node name="HitboxShape" type="CollisionShape3D" parent="Hitbox" unique_id=502516663]
 shape = SubResource("HitboxShape")
 
-[node name="AimRay" type="RayCast3D" parent="."]
+[node name="AimRay" type="RayCast3D" parent="." unique_id=1302935173]
 target_position = Vector3(0, 0, -50)
 collision_mask = 4
 
-[node name="WeaponMount" type="Node3D" parent="."]
+[node name="WeaponMount" type="Node3D" parent="." unique_id=220554906]
 script = ExtResource("3")
 
-[node name="MechaCombat" type="Node" parent="."]
+[node name="MechaCombat" type="Node" parent="." unique_id=1047011687]
 script = ExtResource("2")
 
-[node name="EjectPoint" type="Node3D" parent="."]
+[node name="EjectPoint" type="Node3D" parent="." unique_id=1488271186]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -1)
 
-[node name="MechaEject" type="Node" parent="."]
+[node name="MechaEject" type="Node" parent="." unique_id=999703923]
 script = ExtResource("7")
 
-[node name="AnimationSystem" type="Node" parent="."]
+[node name="AnimationSystem" type="Node" parent="." unique_id=21780602]
 script = ExtResource("6")
 
-[node name="Zenisrev" parent="." instance=ExtResource("8_8vx60")]
+[node name="Zenisrev" parent="." unique_id=47998840 instance=ExtResource("8_8vx60")]
+visible = false
 
-[node name="PartMeshManager" type="Node3D" parent="."]
-script = ExtResource("9_partmesh")
+[node name="PartMeshManager" type="Node3D" parent="." unique_id=1344919887]
 transform = Transform3D(0.007, 0, 0, 0, 0.007, 0, 0, 0, 0.007, 0, 0, 0)
 visible = false
+script = ExtResource("9_partmesh")

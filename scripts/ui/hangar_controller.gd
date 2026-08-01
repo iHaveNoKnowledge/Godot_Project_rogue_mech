@@ -194,6 +194,7 @@ func _build_3d_garage() -> void:
 	for child in scene_base.get_children():
 		child.set_process(false)
 		child.set_physics_process(false)
+	_apply_tactical_idle_pose(scene_base)
 	mecha_3d_root.add_child(scene_base)
 
 	# Camera
@@ -423,6 +424,52 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventMouseMotion and _is_dragging_3d:
 		if turntable_node:
 			turntable_node.rotate_y(event.relative.x * 0.008)
+
+
+# --- ARMORED CORE / 30MM TACTICAL COMBAT IDLE POSE ---
+func _apply_tactical_idle_pose(mecha_node: Node3D) -> void:
+	if not mecha_node:
+		return
+
+	var head = mecha_node.get_node_or_null("Head")
+	var body = mecha_node.get_node_or_null("Body")
+	var arm_left = mecha_node.get_node_or_null("ArmLeft")
+	var arm_right = mecha_node.get_node_or_null("ArmRight")
+	var forearm_left = mecha_node.get_node_or_null("ArmLeft/ForearmLeft")
+	var forearm_right = mecha_node.get_node_or_null("ArmRight/ForearmRight")
+	var leg_left = mecha_node.get_node_or_null("LegLeft")
+	var leg_right = mecha_node.get_node_or_null("LegRight")
+	var shin_left = mecha_node.get_node_or_null("LegLeft/ShinLeft")
+	var shin_right = mecha_node.get_node_or_null("LegRight/ShinRight")
+
+	# Armored Core / 30MM Low-Slung Tactical Combat Idle Stance
+	if body:
+		body.rotation_degrees = Vector3(-10.0, 0.0, 0.0)
+		body.position.y = 1.65
+
+	if head:
+		head.rotation_degrees = Vector3(5.0, 0.0, 0.0)
+		head.position.y = 2.40
+
+	if leg_left:
+		leg_left.rotation_degrees = Vector3(18.0, -15.0, 10.0)
+	if leg_right:
+		leg_right.rotation_degrees = Vector3(18.0, 15.0, -10.0)
+
+	if shin_left:
+		shin_left.rotation_degrees = Vector3(-32.0, 0.0, 0.0)
+	if shin_right:
+		shin_right.rotation_degrees = Vector3(-32.0, 0.0, 0.0)
+
+	if arm_left:
+		arm_left.rotation_degrees = Vector3(12.0, 10.0, -8.0)
+	if forearm_left:
+		forearm_left.rotation_degrees = Vector3(48.0, 0.0, 0.0)
+
+	if arm_right:
+		arm_right.rotation_degrees = Vector3(14.0, -10.0, 8.0)
+	if forearm_right:
+		forearm_right.rotation_degrees = Vector3(52.0, 0.0, 0.0)
 
 
 func _on_close_pressed() -> void:

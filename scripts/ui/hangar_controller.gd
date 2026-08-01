@@ -19,6 +19,7 @@ var selected_salvage_info: Dictionary = {}
 var selected_frame_info: Dictionary = {}
 var selected_chassis_key: String = "standard"
 var _last_selected_item_index: int = -1
+var _is_dragging_3d: bool = false
 
 # 3D Garage Nodes
 var viewport_container: SubViewportContainer
@@ -190,6 +191,9 @@ func _build_3d_garage() -> void:
 
 	var scene_base = preload("res://scenes/mecha/mecha_base.tscn").instantiate()
 	scene_base.set_script(null)
+	for child in scene_base.get_children():
+		child.set_process(false)
+		child.set_physics_process(false)
 	mecha_3d_root.add_child(scene_base)
 
 	# Camera
@@ -398,19 +402,27 @@ func _build_ui_layout() -> void:
 	right_box.add_child(close_button)
 
 
-# --- 3D CAMERA PROCESS ---
+# --- 3D CAMERA & MOUSE DRAG PROCESS ---
 func _process(delta: float) -> void:
 	if not visible:
 		return
-
-	if turntable_node:
-		turntable_node.rotation.y += 0.2 * delta
 
 	current_cam_pos = current_cam_pos.lerp(cam_target_pos, 5.0 * delta)
 	current_look_pos = current_look_pos.lerp(cam_look_target, 5.0 * delta)
 	if garage_cam:
 		garage_cam.position = current_cam_pos
 		garage_cam.look_at(current_look_pos, Vector3.UP)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not visible:
+		return
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			_is_dragging_3d = event.pressed
+	elif event is InputEventMouseMotion and _is_dragging_3d:
+		if turntable_node:
+			turntable_node.rotate_y(event.relative.x * 0.008)
 
 
 func _on_close_pressed() -> void:
@@ -734,12 +746,12 @@ func _show_part_action_modal(info: Dictionary) -> void:
 
 	var modal_panel = PanelContainer.new()
 	modal_panel.name = "PartActionModal"
-	modal_panel.anchor_left = 0.5
-	modal_panel.anchor_right = 0.5
+	modal_panel.anchor_left = 0.0
+	modal_panel.anchor_right = 0.0
 	modal_panel.anchor_top = 0.5
 	modal_panel.anchor_bottom = 0.5
-	modal_panel.offset_left = -210
-	modal_panel.offset_right = 210
+	modal_panel.offset_left = 340
+	modal_panel.offset_right = 730
 	modal_panel.offset_top = -140
 	modal_panel.offset_bottom = 140
 

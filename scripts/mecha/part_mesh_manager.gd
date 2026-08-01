@@ -1,3 +1,8 @@
+extends Node3D
+
+var slot_meshes: Dictionary = {}
+
+
 func _ready() -> void:
 	EventBus.part_destroyed.connect(_on_part_destroyed)
 	_hide_all_legacy_models()

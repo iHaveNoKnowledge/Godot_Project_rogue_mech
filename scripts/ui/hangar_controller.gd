@@ -615,8 +615,6 @@ func _is_item_equipped(slot: String, info: Dictionary) -> bool:
 	if info.is_empty():
 		return false
 
-	GlobalData.ensure_default_equipped_parts()
-
 	if current_mode == "frame":
 		var cur_frame = GlobalData.equipped_frames.get(slot, {})
 		if cur_frame is Dictionary and not cur_frame.is_empty():
@@ -1001,11 +999,12 @@ func _equip_part_to_slot(slot: String, info: Dictionary) -> void:
 	GlobalData.save_run()
 	_apply_3d_armor_preview(slot, info)
 	_update_total_stats()
+	_populate_part_list_for_slot(slot)
 	AudioManager.play_ui_confirm()
 
 
 func _unequip_part_from_slot(slot: String) -> void:
-	GlobalData.equipped_parts.erase(slot)
+	GlobalData.equipped_parts[slot] = null
 	GlobalData.save_run()
 	if mecha_3d_root:
 		var mecha = mecha_3d_root.get_node_or_null("MechaBase") if mecha_3d_root.has_node("MechaBase") else mecha_3d_root
@@ -1013,6 +1012,7 @@ func _unequip_part_from_slot(slot: String) -> void:
 		if pmm:
 			pmm._show_inner_frame(slot)
 	_update_total_stats()
+	_populate_part_list_for_slot(slot)
 	AudioManager.play_ui_click()
 
 # --- REAL-TIME 3D PREVIEWS IN GARAGE ---

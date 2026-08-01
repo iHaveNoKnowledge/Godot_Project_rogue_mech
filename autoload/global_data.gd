@@ -8,6 +8,8 @@ func _ready() -> void:
 
 
 func ensure_default_equipped_parts() -> void:
+	if not equipped_parts.is_empty():
+		return
 	var stock_defaults = {
 		"head": {"name": "Barbatos White Visor Plating", "path": "res://resources/mech/stock/head_standard.tres", "hp": 30.0, "armor": 20.0, "weight": 4.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"},
 		"body": {"name": "Barbatos Chest Armor Plate", "path": "res://resources/mech/stock/torso_standard.tres", "hp": 60.0, "armor": 40.0, "weight": 14.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"},
@@ -17,8 +19,7 @@ func ensure_default_equipped_parts() -> void:
 		"leg_right": {"name": "Barbatos Right Leg Armor Guard", "path": "res://resources/mech/stock/leg_right_standard.tres", "hp": 35.0, "armor": 20.0, "weight": 8.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"}
 	}
 	for slot in stock_defaults:
-		if not equipped_parts.has(slot) or equipped_parts[slot] == null:
-			equipped_parts[slot] = stock_defaults[slot]
+		equipped_parts[slot] = stock_defaults[slot]
 var equipped_frames: Dictionary = {
 	"head": {"name": "Standard Light Alloy Frame", "hp": 20.0, "weight": 2.0},
 	"body": {"name": "Standard Core Structure", "hp": 40.0, "weight": 6.0},

@@ -180,6 +180,10 @@ func _build_3d_garage() -> void:
 	_apply_tactical_idle_pose(scene_base)
 	mecha_3d_root.add_child(scene_base)
 
+	var pmm = scene_base.get_node_or_null("PartMeshManager")
+	if pmm and pmm.has_method("_hide_all_legacy_models"):
+		pmm._hide_all_legacy_models()
+
 	# Camera
 	garage_cam = Camera3D.new()
 	garage_cam.position = current_cam_pos
@@ -1153,20 +1157,30 @@ func _update_all_3d_slots_preview() -> void:
 	var pmm = mecha.get_node_or_null("PartMeshManager") if mecha else null
 	if not pmm: return
 
+	# Hide legacy Zenisrev model and default primitive meshes
+	pmm._hide_all_legacy_models()
+
 	var slots = ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]
 	for slot in slots:
+		var frame_data = GlobalData.equipped_frames.get(slot)
+		var has_frame = frame_data != null and not (frame_data is Dictionary and frame_data.is_empty())
+
 		var armor_data = GlobalData.equipped_parts.get(slot)
-		# Show armor only if it was explicitly equipped (marked with "equipped" = true).
-		# Parts that came from ensure_default_equipped_parts() or save/load but haven't
-		# been confirmed by the player yet should show as bare inner frame.
-		var is_explicitly_equipped = (
+		var is_armor_equipped = (
 			armor_data != null and
 			not (armor_data is Dictionary and armor_data.is_empty()) and
 			not (armor_data is Dictionary and not armor_data.get("equipped", false))
 		)
-		if not is_explicitly_equipped:
+
+		if not has_frame:
+			# NO INNER FRAME EQUIPPED: Hide slot completely
+			pmm.hide_slot_completely(slot)
+		elif not is_armor_equipped:
+			# INNER FRAME EQUIPPED, NO ARMOR: Render bare skeletal inner frame only
+			pmm.initialize_slot(slot, null)
 			pmm._show_inner_frame(slot)
 		else:
+			# INNER FRAME + OUTER ARMOR EQUIPPED: Render armor over inner frame
 			var part = ArmorPart.new()
 			if armor_data is Dictionary:
 				part.part_name = armor_data.get("name", armor_data.get("part_name", "Armor"))

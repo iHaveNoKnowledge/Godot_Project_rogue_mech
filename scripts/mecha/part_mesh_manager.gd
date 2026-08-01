@@ -1,9 +1,35 @@
-extends Node3D
-
-var slot_meshes: Dictionary = {}
-
 func _ready() -> void:
 	EventBus.part_destroyed.connect(_on_part_destroyed)
+	_hide_all_legacy_models()
+
+
+# Hides legacy glTF model (Zenisrev) and default primitive meshes in mecha_base.tscn
+func _hide_all_legacy_models() -> void:
+	var mecha = get_parent()
+	if not mecha:
+		return
+	var zenisrev = mecha.get_node_or_null("Zenisrev")
+	if zenisrev:
+		zenisrev.visible = false
+
+	for slot in ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]:
+		var p_node = _get_slot_parent_node(slot)
+		if p_node:
+			_hide_legacy_slot_meshes(p_node)
+		var l_node = _get_slot_lower_parent_node(slot)
+		if l_node:
+			_hide_legacy_slot_meshes(l_node)
+
+
+# Hides BOTH frame and armor for a slot when NO inner frame is equipped on that slot.
+func hide_slot_completely(slot_name: String) -> void:
+	var entry = slot_meshes.get(slot_name)
+	if entry == null:
+		return
+	if entry["armor"]: entry["armor"].visible = false
+	if entry.get("armor_lower") and entry["armor_lower"]: entry["armor_lower"].visible = false
+	if entry["frame"]: entry["frame"].visible = false
+	if entry.get("frame_lower") and entry["frame_lower"]: entry["frame_lower"].visible = false
 
 
 func initialize_slot(slot_name: String, part: ArmorPart) -> void:
@@ -70,19 +96,23 @@ func initialize_slot(slot_name: String, part: ArmorPart) -> void:
 	_clear_children(armor_mesh)
 	if armor_mesh_lower: _clear_children(armor_mesh_lower)
 
-	if part and part.mesh_scene:
-		var instance = part.mesh_scene.instantiate()
-		armor_mesh.add_child(instance)
-	else:
-		_build_procedural_outer_armor(slot_name, armor_mesh, armor_mesh_lower, part)
+	if part != null:
+		if part.mesh_scene:
+			var instance = part.mesh_scene.instantiate()
+			armor_mesh.add_child(instance)
+		else:
+			_build_procedural_outer_armor(slot_name, armor_mesh, armor_mesh_lower, part)
 
-	var armor_dmg = GlobalData.part_damage.get(slot_name + "_armor", 0.0)
-	var max_hp = part.max_hp if part else 100.0
-	if armor_dmg >= max_hp:
-		_show_inner_frame(slot_name)
+		var armor_dmg = GlobalData.part_damage.get(slot_name, 0.0)
+		var max_hp = part.max_hp if part else 100.0
+		if armor_dmg >= max_hp:
+			_show_inner_frame(slot_name)
+		else:
+			armor_mesh.visible = true
+			if armor_mesh_lower: armor_mesh_lower.visible = true
 	else:
-		armor_mesh.visible = true
-		if armor_mesh_lower: armor_mesh_lower.visible = true
+		armor_mesh.visible = false
+		if armor_mesh_lower: armor_mesh_lower.visible = false
 
 
 func _hide_legacy_slot_meshes(parent_node: Node3D) -> void:

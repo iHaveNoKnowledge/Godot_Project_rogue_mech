@@ -272,15 +272,24 @@ func _initialize_mesh_from_global_data() -> void:
 	var pmm = get_node_or_null("PartMeshManager")
 	if not pmm:
 		return
+	pmm._hide_all_legacy_models()
+
 	var slots = ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]
 	for slot in slots:
+		var frame_data = GlobalData.equipped_frames.get(slot)
+		var has_frame = frame_data != null and not (frame_data is Dictionary and frame_data.is_empty())
+
 		var equipped = GlobalData.equipped_parts.get(slot)
-		var is_equipped = (
+		var is_armor_equipped = (
 			equipped != null and
 			not (equipped is Dictionary and equipped.is_empty()) and
 			not (equipped is Dictionary and not equipped.get("equipped", false))
 		)
-		if not is_equipped:
+
+		if not has_frame:
+			pmm.hide_slot_completely(slot)
+		elif not is_armor_equipped:
+			pmm.initialize_slot(slot, null)
 			pmm._show_inner_frame(slot)
 		else:
 			var part_obj = ArmorPart.new()

@@ -18,10 +18,12 @@ func is_tagged(weapon: WeaponPart) -> bool:
 
 
 func salvage_all() -> void:
+	# Salvaged weapons are added to the central weapon_inventory stash so they
+	# can be equipped from the Hangar (via the weapon tabs). Old save files may
+	# still reference equipped_parts["salvaged_weapons"]; that slot is obsolete.
 	for weapon in salvaged_weapons:
-		if GlobalData.equipped_parts.has("weapon_" + weapon.weapon_name):
-			continue
-	GlobalData.equipped_parts["salvaged_weapons"] = salvaged_weapons.duplicate()
+		GlobalData.register_weapon(weapon.resource_path, weapon.weapon_name)
+	GlobalData.save_run()
 	salvaged_weapons.clear()
 
 

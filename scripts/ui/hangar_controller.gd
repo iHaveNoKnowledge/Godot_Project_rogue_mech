@@ -22,6 +22,7 @@ var selected_frame_info: Dictionary = {}
 var selected_attachment_info: Dictionary = {}
 var selected_chassis_key: String = "standard"
 var _last_selected_item_index: int = -1
+var visible_weapon_indices: Array[int] = []
 # When true, _on_part_item_selected should only update stats text and NOT change
 # the 3D model preview. Set during _populate_part_list_for_slot() auto-selects.
 var _is_populating: bool = false
@@ -259,8 +260,9 @@ func _build_ui_layout() -> void:
 		{"id": "arm_right", "label": "R.ARM"},
 		{"id": "leg_left", "label": "L.LEGS"},
 		{"id": "leg_right", "label": "R.LEGS"},
-		{"id": "weapon_right", "label": "R.WEAPON"},
-		{"id": "weapon_left", "label": "L.WEAPON"}
+		{"id": "weapon_left", "label": "L.HAND"},
+		{"id": "weapon_right", "label": "R.HAND"},
+		{"id": "weapon_carry", "label": "BACK CARRY"}
 	]
 
 	for slot_info in slots:
@@ -680,7 +682,7 @@ func _update_camera_focus_for_slot(slot: String) -> void:
 		"body":
 			cam_target_pos = Vector3(2.2, 2.0, 2.8)
 			cam_look_target = Vector3(0, 2.0, 0)
-		"arm_left", "arm_right", "weapon_left", "weapon_right":
+		"arm_left", "arm_right", "weapon_left", "weapon_right", "weapon_carry":
 			cam_target_pos = Vector3(2.5, 1.8, 2.2)
 			cam_look_target = Vector3(0, 1.8, 0)
 		"leg_left", "leg_right":
@@ -694,6 +696,9 @@ func _update_camera_focus_for_slot(slot: String) -> void:
 func _is_item_equipped(slot: String, info: Dictionary) -> bool:
 	if info.is_empty():
 		return false
+
+	if slot.begins_with("weapon"):
+		return _is_weapon_in_loadout(slot, info.get("path", ""))
 
 	if current_mode == "frame":
 		var cur_frame = GlobalData.equipped_frames.get(slot, {})
@@ -743,6 +748,27 @@ func _is_item_equipped(slot: String, info: Dictionary) -> bool:
 			return cur_name == info_name
 
 		return false
+
+
+# Whether a weapon path is part of the current loadout for this weapon slot.
+func _is_weapon_in_loadout(slot: String, path: String) -> bool:
+	if path == "":
+		return false
+	if slot == "weapon_carry":
+		return GlobalData.is_weapon_in_carry(path)
+	var hand = "left" if slot == "weapon_left" else "right"
+	return str(GlobalData.weapon_loadout.get(hand, "")) == path
+
+
+func _weapon_type_label(wtype) -> String:
+	match int(wtype):
+		0: return "Beam Weapon"
+		1: return "Kinetic Weapon"
+		2: return "Missile Launcher"
+		3: return "Shotgun"
+		4: return "Melee Weapon"
+		5: return "Shield"
+	return "Unknown"
 
 
 func _populate_part_list_for_slot(slot: String) -> void:
@@ -808,6 +834,24 @@ func _populate_part_list_for_slot(slot: String) -> void:
 			var label_str = "%s%s (HP: %.0f, %.1fkg)%s" % [prefix, fname, fhp, fwt, state_tag]
 			part_item_list.add_item(label_str)
 		if items.size() > 0:
+			part_item_list.select(0)
+			_last_selected_item_index = 0
+			_on_part_item_selected(0)
+	elif slot.begins_with("weapon"):
+		# Weapons come from the central inventory stash (GlobalData.weapon_inventory),
+		# NOT from armor_catalog — the stash is the single source of owned weapons.
+		visible_weapon_indices.clear()
+		for index in range(GlobalData.weapon_inventory.size()):
+			var inv = GlobalData.weapon_inventory[index]
+			var wpath = inv.get("path", "")
+			var wname = inv.get("name", "Weapon")
+			var wcount = inv.get("count", 1)
+			var is_eq = _is_weapon_in_loadout(slot, wpath)
+			var prefix = "[E] " if is_eq else "    "
+			var label_str = "%s%s x%d%s" % [prefix, wname, wcount, state_tag]
+			part_item_list.add_item(label_str)
+			visible_weapon_indices.append(index)
+		if part_item_list.item_count > 0:
 			part_item_list.select(0)
 			_last_selected_item_index = 0
 			_on_part_item_selected(0)
@@ -896,6 +940,45 @@ func _on_part_item_selected(index: int) -> void:
 		_update_total_stats()
 		return
 
+	if selected_slot.begins_with("weapon"):
+		if index >= 0 and index < visible_weapon_indices.size():
+			var inv_idx = visible_weapon_indices[index]
+			var inv = GlobalData.weapon_inventory[inv_idx]
+			var wpath = inv.get("path", "")
+			selected_part_path = wpath
+			selected_part_id = wpath
+			selected_frame_info.clear()
+			selected_salvage_info.clear()
+
+			var wname = inv.get("name", "Weapon")
+			var wcount = inv.get("count", 1)
+			var wwt := 0.0
+			var wtype := "Unknown"
+			if wpath != "" and ResourceLoader.exists(wpath):
+				var res = load(wpath)
+				if res:
+					wwt = float(res.get("weight", 0.0))
+					wtype = _weapon_type_label(res.get("weapon_type", -1)) if "weapon_type" in res else "Unknown"
+
+			if selected_slot == "weapon_carry":
+				var eq = GlobalData.is_weapon_in_carry(wpath)
+				var prefix = "[E] " if eq else ""
+				stats_label.text = "BACK CARRY: %s%s\nTYPE: %s\n\nWEIGHT: %.1f kg\nCOUNT: x%d\n\nAssigns to the mech's back pack.\nPick weapons from the stash below." % [
+					prefix, wname, wtype, wwt, wcount
+				]
+			else:
+				var hand = "left" if selected_slot == "weapon_left" else "right"
+				var eq = str(GlobalData.weapon_loadout.get(hand, "")) == wpath
+				var prefix = "[E] " if eq else ""
+				stats_label.text = "%s HAND WEAPON: %s%s\nTYPE: %s\n\nWEIGHT: %.1f kg\nCOUNT: x%d\n\nEquip this weapon to the %s hand." % [
+					hand.to_upper(), prefix, wname, wtype, wwt, wcount, hand
+				]
+			# Only change 3D model when user explicitly picks a part, not on section switch
+			if not _is_populating:
+				_preview_weapon_on_hand(selected_slot, inv)
+		_update_total_stats()
+		return
+
 	if armor_catalog.has(selected_slot):
 		var stock_items = armor_catalog[selected_slot]
 		var selected_info: Dictionary = {}
@@ -963,6 +1046,10 @@ func _on_part_item_clicked(index: int, _at_position: Vector2 = Vector2.ZERO, _mo
 			var items = frame_catalog[selected_slot]
 			if index >= 0 and index < items.size():
 				info_to_show = items[index]
+		elif selected_slot.begins_with("weapon"):
+			if index >= 0 and index < visible_weapon_indices.size():
+				var inv_idx = visible_weapon_indices[index]
+				info_to_show = GlobalData.weapon_inventory[inv_idx]
 		elif armor_catalog.has(selected_slot):
 			var stock_items = armor_catalog[selected_slot]
 			if index >= 0 and index < stock_items.size():
@@ -1020,11 +1107,20 @@ func _show_part_action_modal(info: Dictionary) -> void:
 	title.add_theme_font_size_override("font_size", 14)
 	vbox.add_child(title)
 
+	var is_weapon_slot = selected_slot.begins_with("weapon")
 	var hp_val = info.get("durability", info.get("hp", info.get("max_hp", 100.0)))
 	var max_hp_val = info.get("max_hp", 100.0)
 	var wt_val = info.get("weight", 10.0)
 	var details = Label.new()
-	details.text = "DURABILITY: %.0f / %.0f HP  |  WEIGHT: %.1f kg" % [hp_val, max_hp_val, wt_val]
+	if is_weapon_slot:
+		var wp = info.get("path", "")
+		if wp != "" and ResourceLoader.exists(wp):
+			var res = load(wp)
+			if res:
+				wt_val = float(res.get("weight", 0.0))
+		details.text = "WEIGHT: %.1f kg   COUNT: x%d" % [wt_val, info.get("count", 1)]
+	else:
+		details.text = "DURABILITY: %.0f / %.0f HP  |  WEIGHT: %.1f kg" % [hp_val, max_hp_val, wt_val]
 	details.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	details.add_theme_color_override("font_color", Color(0.8, 0.85, 0.9))
 	vbox.add_child(details)
@@ -1059,78 +1155,81 @@ func _show_part_action_modal(info: Dictionary) -> void:
 	)
 	grid.add_child(toggle_btn)
 
-	# 2. REPAIR
-	var repair_btn = Button.new()
-	repair_btn.text = "REPAIR (10 cr)"
-	repair_btn.custom_minimum_size = Vector2(180, 36)
-	repair_btn.pressed.connect(func():
-		if GlobalData.credits >= 10:
-			GlobalData.credits -= 10
-			info["hp"] = info.get("max_hp", 100.0)
-			info["durability"] = info.get("max_hp", 100.0)
-			GlobalData.part_damage.erase(selected_slot)
-			GlobalData.part_damage.erase(selected_slot + "_frame")
-			status_message_label.text = "Part Repaired to 100% HP!"
-			GlobalData.save_run()
-			_update_total_stats()
-			if current_mode == "frame":
-				_update_all_3d_slots_preview()
+	var is_weapon_slot = selected_slot.begins_with("weapon")
+
+	# 2. REPAIR (not applicable to weapons)
+	if not is_weapon_slot:
+		var repair_btn = Button.new()
+		repair_btn.text = "REPAIR (10 cr)"
+		repair_btn.custom_minimum_size = Vector2(180, 36)
+		repair_btn.pressed.connect(func():
+			if GlobalData.credits >= 10:
+				GlobalData.credits -= 10
+				info["hp"] = info.get("max_hp", 100.0)
+				info["durability"] = info.get("max_hp", 100.0)
+				GlobalData.part_damage.erase(selected_slot)
+				GlobalData.part_damage.erase(selected_slot + "_frame")
+				status_message_label.text = "Part Repaired to 100% HP!"
+				GlobalData.save_run()
+				_update_total_stats()
+				if current_mode == "frame":
+					_update_all_3d_slots_preview()
+				else:
+					_apply_3d_armor_preview(selected_slot, info)
 			else:
-				_apply_3d_armor_preview(selected_slot, info)
-		else:
-			status_message_label.text = "Insufficient Credits for repair!"
-		_close_part_action_modal()
-	)
-	grid.add_child(repair_btn)
+				status_message_label.text = "Insufficient Credits for repair!"
+			_close_part_action_modal()
+		)
+		grid.add_child(repair_btn)
 
-	# 3. UPGRADE
-	var upgrade_btn = Button.new()
-	upgrade_btn.text = "UPGRADE (+15 HP)"
-	upgrade_btn.custom_minimum_size = Vector2(180, 36)
-	upgrade_btn.pressed.connect(func():
-		if GlobalData.credits >= 50:
-			GlobalData.credits -= 50
-			var old_hp = info.get("max_hp", info.get("hp", 30.0))
-			info["max_hp"] = old_hp + 15.0
-			info["hp"] = info.get("max_hp", 45.0)
-			status_message_label.text = "Part Upgraded! Max HP increased to %.0f" % info["max_hp"]
+		# 3. UPGRADE
+		var upgrade_btn = Button.new()
+		upgrade_btn.text = "UPGRADE (+15 HP)"
+		upgrade_btn.custom_minimum_size = Vector2(180, 36)
+		upgrade_btn.pressed.connect(func():
+			if GlobalData.credits >= 50:
+				GlobalData.credits -= 50
+				var old_hp = info.get("max_hp", info.get("hp", 30.0))
+				info["max_hp"] = old_hp + 15.0
+				info["hp"] = info.get("max_hp", 45.0)
+				status_message_label.text = "Part Upgraded! Max HP increased to %.0f" % info["max_hp"]
+				GlobalData.save_run()
+				_update_total_stats()
+			else:
+				status_message_label.text = "Insufficient Credits for upgrade (50 cr needed)!"
+			_close_part_action_modal()
+		)
+		grid.add_child(upgrade_btn)
+
+		# 4. PAINT
+		var paint_btn = Button.new()
+		paint_btn.text = "PAINT COLOR"
+		paint_btn.custom_minimum_size = Vector2(180, 36)
+		paint_btn.pressed.connect(func():
+			var palette = [
+				Color(0.25, 0.40, 0.60), # Mecha Navy Blue
+				Color(0.80, 0.20, 0.20), # Crimson Ace Red
+				Color(0.90, 0.90, 0.95), # Gundam White
+				Color(0.20, 0.65, 0.35), # Zaku Green
+				Color(0.85, 0.70, 0.20), # Gold Trim
+				Color(0.20, 0.22, 0.26)  # Dark Steel Frame
+			]
+			var cur_col = info.get("color", Color(0.25, 0.40, 0.60))
+			var next_idx = 0
+			for i in range(palette.size()):
+				if palette[i].is_equal_approx(cur_col):
+					next_idx = (i + 1) % palette.size()
+					break
+			var new_color = palette[next_idx]
+			info["color"] = new_color
+			info["part_color"] = new_color
+			status_message_label.text = "Armor paint updated!"
+			_apply_3d_armor_preview(selected_slot, info)
+			if GlobalData.equipped_parts.get(selected_slot) == info or GlobalData.equipped_parts.has(selected_slot):
+				GlobalData.equipped_parts[selected_slot]["color"] = new_color
 			GlobalData.save_run()
-			_update_total_stats()
-		else:
-			status_message_label.text = "Insufficient Credits for upgrade (50 cr needed)!"
-		_close_part_action_modal()
-	)
-	grid.add_child(upgrade_btn)
-
-	# 4. PAINT
-	var paint_btn = Button.new()
-	paint_btn.text = "PAINT COLOR"
-	paint_btn.custom_minimum_size = Vector2(180, 36)
-	paint_btn.pressed.connect(func():
-		var palette = [
-			Color(0.25, 0.40, 0.60), # Mecha Navy Blue
-			Color(0.80, 0.20, 0.20), # Crimson Ace Red
-			Color(0.90, 0.90, 0.95), # Gundam White
-			Color(0.20, 0.65, 0.35), # Zaku Green
-			Color(0.85, 0.70, 0.20), # Gold Trim
-			Color(0.20, 0.22, 0.26)  # Dark Steel Frame
-		]
-		var cur_col = info.get("color", Color(0.25, 0.40, 0.60))
-		var next_idx = 0
-		for i in range(palette.size()):
-			if palette[i].is_equal_approx(cur_col):
-				next_idx = (i + 1) % palette.size()
-				break
-		var new_color = palette[next_idx]
-		info["color"] = new_color
-		info["part_color"] = new_color
-		status_message_label.text = "Armor paint updated!"
-		_apply_3d_armor_preview(selected_slot, info)
-		if GlobalData.equipped_parts.get(selected_slot) == info or GlobalData.equipped_parts.has(selected_slot):
-			GlobalData.equipped_parts[selected_slot]["color"] = new_color
-		GlobalData.save_run()
-	)
-	grid.add_child(paint_btn)
+		)
+		grid.add_child(paint_btn)
 
 	# 5. CANCEL
 	var cancel_btn = Button.new()
@@ -1149,6 +1248,33 @@ func _equip_part_to_slot(slot: String, info: Dictionary) -> void:
 	if current_mode == "frame":
 		GlobalData.equipped_frames[slot] = info.duplicate()
 		GlobalData.save_run()
+		_update_total_stats()
+		_populate_part_list_for_slot(slot)
+		_update_all_3d_slots_preview()
+		AudioManager.play_ui_confirm()
+		return
+
+	if slot.begins_with("weapon"):
+		var wpath = info.get("path", "")
+		if wpath == "" or not ResourceLoader.exists(wpath):
+			status_message_label.text = "Weapon not found in stash."
+			return
+		if slot == "weapon_carry":
+			if GlobalData.is_weapon_in_carry(wpath):
+				return
+			if _would_exceed_weight(wpath):
+				status_message_label.text = "Loadout rejected: exceeds max weight capacity!"
+				return
+			GlobalData.add_carry_weapon(wpath)
+		else:
+			var hand = "left" if slot == "weapon_left" else "right"
+			var replaced_path = str(GlobalData.weapon_loadout.get(hand, ""))
+			if _would_exceed_weight(wpath, replaced_path):
+				status_message_label.text = "Loadout rejected: exceeds max weight capacity!"
+				return
+			GlobalData.set_hand_weapon(hand, wpath)
+		GlobalData.save_run()
+		_apply_3d_armor_preview(slot, info)
 		_update_total_stats()
 		_populate_part_list_for_slot(slot)
 		_update_all_3d_slots_preview()
@@ -1177,20 +1303,29 @@ func _unequip_part_from_slot(slot: String) -> void:
 		AudioManager.play_ui_click()
 		return
 
-	GlobalData.equipped_parts[slot] = null
-	GlobalData.save_run()
 	if slot.begins_with("weapon"):
+		if slot == "weapon_carry":
+			var wpath = selected_part_path
+			if wpath != "" and GlobalData.is_weapon_in_carry(wpath):
+				GlobalData.remove_carry_weapon(wpath)
+		else:
+			var hand = "left" if slot == "weapon_left" else "right"
+			GlobalData.set_hand_weapon(hand, "")
+		GlobalData.save_run()
 		var mecha = mecha_3d_root.get_node_or_null("MechaBase") if mecha_3d_root and mecha_3d_root.has_node("MechaBase") else mecha_3d_root
 		if mecha:
-			var hand = "left" if slot == "weapon_left" else "right"
-			var node_name = "WeaponVisual_" + hand
-			var existing = mecha.get_node_or_null(node_name)
-			if existing:
-				existing.queue_free()
+			for node_name in ["WeaponVisual_left", "WeaponVisual_right", "WeaponVisual_carry"]:
+				var existing = mecha.get_node_or_null(node_name)
+				if existing:
+					existing.queue_free()
 		_update_total_stats()
 		_populate_part_list_for_slot(slot)
+		_update_all_3d_slots_preview()
 		AudioManager.play_ui_click()
 		return
+
+	GlobalData.equipped_parts[slot] = null
+	GlobalData.save_run()
 	if mecha_3d_root:
 		var mecha = mecha_3d_root.get_node_or_null("MechaBase") if mecha_3d_root.has_node("MechaBase") else mecha_3d_root
 		var pmm = mecha.get_node_or_null("PartMeshManager") if mecha else null
@@ -1323,7 +1458,8 @@ func _apply_3d_armor_preview(slot: String, info: Dictionary) -> void:
 		pmm.initialize_slot(slot, part)
 
 
-# Shows a selected weapon on the matching hand as a live preview (not yet equipped).
+# Shows a selected weapon on the matching hand (or on the back for carry) as a
+# live preview (not yet equipped).
 func _preview_weapon_on_hand(slot: String, info: Dictionary) -> void:
 	var mecha = mecha_3d_root.get_node_or_null("MechaBase") if mecha_3d_root.has_node("MechaBase") else mecha_3d_root
 	if mecha == null:
@@ -1334,14 +1470,24 @@ func _preview_weapon_on_hand(slot: String, info: Dictionary) -> void:
 	var weapon = load(weapon_path)
 	if weapon == null:
 		return
-	var hand = "left" if slot == "weapon_left" else "right"
-	var node_name = "WeaponVisual_" + hand
-	var existing = mecha.get_node_or_null(node_name)
-	if existing:
-		existing.queue_free()
+	var node_name: String
 	var mount := Node3D.new()
-	mount.name = node_name
-	mount.position = Vector3(-0.85, 1.4, 0.4) if hand == "left" else Vector3(0.85, 1.4, 0.4)
+	if slot == "weapon_carry":
+		node_name = "WeaponVisual_carry"
+		var existing_c = mecha.get_node_or_null(node_name)
+		if existing_c:
+			existing_c.queue_free()
+		mount.name = node_name
+		mount.position = Vector3(0, 1.65, -0.55)
+		mount.rotation_degrees = Vector3(-15, 0, 0)
+	else:
+		var hand = "left" if slot == "weapon_left" else "right"
+		node_name = "WeaponVisual_" + hand
+		var existing = mecha.get_node_or_null(node_name)
+		if existing:
+			existing.queue_free()
+		mount.name = node_name
+		mount.position = Vector3(-0.85, 1.4, 0.4) if hand == "left" else Vector3(0.85, 1.4, 0.4)
 	mount.add_child(WeaponVisualFactory.build(weapon))
 	mecha.add_child(mount)
 
@@ -1393,9 +1539,9 @@ func _update_all_3d_slots_preview() -> void:
 	_update_weapon_preview(mecha)
 
 
-# Shows the equipped weapons on the mech's hands in the 3D garage.
+# Shows the equipped weapons on the mech's hands and back in the 3D garage.
 # Uses the SAME shared factory (WeaponVisualFactory) as battle so the model
-# shown in the hangar is exactly what appears on the hands in combat.
+# shown in the hangar is exactly what appears in combat.
 func _update_weapon_preview(mecha: Node3D) -> void:
 	if mecha == null:
 		return
@@ -1417,6 +1563,27 @@ func _update_weapon_preview(mecha: Node3D) -> void:
 		mount.position = Vector3(-0.85, 1.4, 0.4) if hand == "left" else Vector3(0.85, 1.4, 0.4)
 		mount.add_child(WeaponVisualFactory.build(weapon))
 		mecha.add_child(mount)
+
+	# Back carry weapons (spread horizontally across the back pack).
+	var existing_carry = mecha.get_node_or_null("WeaponVisual_carry")
+	if existing_carry:
+		existing_carry.queue_free()
+	var carry_weapons = GlobalData.get_carry_weapons()
+	if carry_weapons.is_empty():
+		return
+	var back_mount := Node3D.new()
+	back_mount.name = "WeaponVisual_carry"
+	var offset := -((carry_weapons.size() - 1) * 0.22)
+	for weapon in carry_weapons:
+		if weapon == null:
+			continue
+		var wmount := Node3D.new()
+		wmount.position = Vector3(offset, 1.65, -0.55)
+		wmount.rotation_degrees = Vector3(-15, 0, 0)
+		wmount.add_child(WeaponVisualFactory.build(weapon))
+		back_mount.add_child(wmount)
+		offset += 0.44
+	mecha.add_child(back_mount)
 
 
 func _get_attachment_capacity(slot: String) -> float:
@@ -1444,7 +1611,40 @@ func _get_total_load(excluding_attachment_id: String = "", excluding_slot: Strin
 	for attachment in GlobalData.attachments:
 		if attachment.get("id", "") != excluding_attachment_id or attachment.get("slot", "") != excluding_slot:
 			total += float(attachment.get("weight", 0.0))
+	total += GlobalData.get_loadout_weapon_weight()
 	return total
+
+
+# Returns true if adding `new_weight_path` to the loadout (optionally replacing
+# `replaced_path`) would push the total frame load over the chassis max weight.
+func _would_exceed_weight(new_weight_path: String, replaced_path: String = "") -> bool:
+	var current_weapons := 0.0
+	var left = GlobalData.get_equipped_weapon("left")
+	if left:
+		current_weapons += float(left.weight)
+	var right = GlobalData.get_equipped_weapon("right")
+	if right:
+		current_weapons += float(right.weight)
+	for w in GlobalData.get_carry_weapons():
+		current_weapons += float(w.weight)
+	if replaced_path != "" and ResourceLoader.exists(replaced_path):
+		var old = load(replaced_path)
+		if old:
+			current_weapons -= float(old.weight)
+	var new_w = load(new_weight_path)
+	var new_wt = float(new_w.weight) if new_w else 0.0
+
+	var max_weight := float(GlobalData.get_chassis_stats().get("max_weight", 75.0)) + ((GlobalData.frame_upgrade_level - 1) * 15.0)
+	var non_weapon := 0.0
+	for frame in GlobalData.equipped_frames.values():
+		non_weapon += float(frame.get("weight", 0.0))
+	for slot in GlobalData.equipped_parts:
+		var part = GlobalData.equipped_parts[slot]
+		if part is Dictionary:
+			non_weapon += float(part.get("weight", 0.0))
+	for attachment in GlobalData.attachments:
+		non_weapon += float(attachment.get("weight", 0.0))
+	return non_weapon + current_weapons + new_wt > max_weight
 
 
 func _has_attachment(attachment_id: String, slot: String) -> bool:
@@ -1589,31 +1789,44 @@ func _on_equip_pressed() -> void:
 	elif selected_part_path != "" and ResourceLoader.exists(selected_part_path):
 		var res = load(selected_part_path)
 		if res:
-			var part_data: Dictionary
 			if selected_slot.begins_with("weapon"):
-				# Weapon slots store a WeaponPart resource entry (kept in equipped_parts
-				# like armor, so GlobalData.get_equipped_weapon() can find it).
-				var wname = res.get("weapon_name") if ("weapon_name" in res and res.get("weapon_name") != null) else "Weapon"
-				var wwt = res.get("weight") if ("weight" in res and res.get("weight") != null) else 5.0
-				part_data = {
-					"id": selected_part_id,
-					"name": str(wname),
-					"path": selected_part_path,
-					"weight": float(wwt),
-					"equipped": true
-				}
-			else:
-				var pname = res.get("part_name") if ("part_name" in res and res.get("part_name") != null) else "Part"
-				var php = res.get("max_hp") if ("max_hp" in res and res.get("max_hp") != null) else 100.0
-				var pwt = res.get("weight") if ("weight" in res and res.get("weight") != null) else 0.0
-				part_data = {
-					"id": selected_part_id,
-					"name": str(pname),
-					"hp": float(php),
-					"weight": float(pwt),
-					"path": selected_part_path,
-					"equipped": true
-				}
+				# Weapons go into the central weapon_loadout (hands / back).
+				var wpath = selected_part_path
+				if selected_slot == "weapon_carry":
+					if GlobalData.is_weapon_in_carry(wpath):
+						status_message_label.text = "Already in back carry!"
+						return
+					if _would_exceed_weight(wpath):
+						status_message_label.text = "Loadout rejected: exceeds max weight capacity!"
+						return
+					GlobalData.add_carry_weapon(wpath)
+					status_message_label.text = "Added to Back Carry: %s!" % res.get("weapon_name", "Weapon")
+				else:
+					var hand = "left" if selected_slot == "weapon_left" else "right"
+					var replaced_path = str(GlobalData.weapon_loadout.get(hand, ""))
+					if _would_exceed_weight(wpath, replaced_path):
+						status_message_label.text = "Loadout rejected: exceeds max weight capacity!"
+						return
+					GlobalData.set_hand_weapon(hand, wpath)
+					status_message_label.text = "Equipped %s on %s hand!" % [res.get("weapon_name", "Weapon"), hand]
+				GlobalData.save_run()
+				_update_total_stats()
+				_update_all_3d_slots_preview()
+				_populate_part_list_for_slot(selected_slot)
+				return
+
+			var part_data: Dictionary
+			var pname = res.get("part_name") if ("part_name" in res and res.get("part_name") != null) else "Part"
+			var php = res.get("max_hp") if ("max_hp" in res and res.get("max_hp") != null) else 100.0
+			var pwt = res.get("weight") if ("weight" in res and res.get("weight") != null) else 0.0
+			part_data = {
+				"id": selected_part_id,
+				"name": str(pname),
+				"hp": float(php),
+				"weight": float(pwt),
+				"path": selected_part_path,
+				"equipped": true
+			}
 			GlobalData.equipped_parts[selected_slot] = part_data
 			GlobalData.part_damage.erase(selected_slot)
 			status_message_label.text = "Equipped & Saved Armor: %s!" % part_data["name"]
@@ -1689,16 +1902,17 @@ func _update_total_stats() -> void:
 	for attachment in GlobalData.attachments:
 		total_attachment_weight += float(attachment.get("weight", 0.0))
 
-	var total_weight = total_frame_weight + total_armor_weight + total_attachment_weight
+	var total_weapon_weight = GlobalData.get_loadout_weapon_weight()
+	var total_weight = total_frame_weight + total_armor_weight + total_attachment_weight + total_weapon_weight
 
 	if weight_bar:
 		weight_bar.max_value = max_weight
 		weight_bar.value = total_weight
 
 	if total_stats_label:
-		total_stats_label.text = "FRAME LVL: %d | FRAME HP: %.0f | ARMOR HP: %.0f\nFRAME W: %.1fkg | ARMOR W: %.1fkg | ATTACH W: %.1fkg\nTOTAL WEIGHT: %.1f / %.1f kg\nCREDITS: %d cr | CORES: %d" % [
+		total_stats_label.text = "FRAME LVL: %d | FRAME HP: %.0f | ARMOR HP: %.0f\nFRAME W: %.1fkg | ARMOR W: %.1fkg | ATTACH W: %.1fkg | WEAPON W: %.1fkg\nTOTAL WEIGHT: %.1f / %.1f kg\nCREDITS: %d cr | CORES: %d" % [
 			GlobalData.frame_upgrade_level, total_frame_hp, total_armor_hp,
-			total_frame_weight, total_armor_weight, total_attachment_weight,
+			total_frame_weight, total_armor_weight, total_attachment_weight, total_weapon_weight,
 			total_weight, max_weight,
 			GlobalData.credits, GlobalData.data_cores
 		]

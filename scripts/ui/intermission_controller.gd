@@ -248,8 +248,7 @@ func _build_inventory_text() -> String:
 		for item in GlobalData.weapon_inventory:
 			var w_name = item.get("name", "Unknown Weapon")
 			var count = item.get("count", 1)
-			var slot = item.get("slot", "stored")
-			text += "- %s x%d [%s]\n" % [w_name, count, slot.capitalize()]
+			text += "- %s x%d\n" % [w_name, count]
 	text += "\n"
 
 	text += "--- Salvaged Armor Parts ---\n"

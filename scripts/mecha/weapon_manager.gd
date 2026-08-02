@@ -54,16 +54,20 @@ var default_right: WeaponPart = preload("res://resources/mech/stock/weapon_heat_
 
 
 func _ready() -> void:
-	# Load equipped weapons from the Hangar (GlobalData.equipped_parts weapon slots)
-	# so the battle mech shows the SAME weapons that were equipped in the garage.
+	# Load the equipped loadout from the Hangar (GlobalData.weapon_loadout) so the
+	# battle mech carries the SAME weapons (hands + back) that were configured in the garage.
+	# An empty hand slot in the loadout means "unarmed" — kept as null.
 	left_hand = GlobalData.get_equipped_weapon("left")
-	if left_hand == null:
-		left_hand = default_left
 	right_hand = GlobalData.get_equipped_weapon("right")
-	if right_hand == null:
-		right_hand = default_right
-	ammo_pool[left_hand.weapon_name] = left_hand.max_ammo
-	ammo_pool[right_hand.weapon_name] = right_hand.max_ammo
+	carry = GlobalData.get_carry_weapons()
+	if left_hand:
+		ammo_pool[left_hand.weapon_name] = left_hand.max_ammo
+	if right_hand:
+		ammo_pool[right_hand.weapon_name] = right_hand.max_ammo
+	# Seed ammo for carried weapons so they are usable when swapped into a hand.
+	for weapon in carry:
+		if weapon and not ammo_pool.has(weapon.weapon_name):
+			ammo_pool[weapon.weapon_name] = weapon.max_ammo
 	call_deferred("_emit_initial_state")
 
 
@@ -422,7 +426,7 @@ func drop_weapon_from_destroyed_arm(hand: String) -> WeaponPart:
 # ====================================================================
 
 func add_weapon(weapon: WeaponPart) -> void:
-	GlobalData.register_weapon(weapon.resource_path, weapon.weapon_name, "carry")
+	GlobalData.register_weapon(weapon.resource_path, weapon.weapon_name)
 	GlobalData.add_reserve_ammo(weapon.get_ammo_type(), weapon.max_ammo)
 
 	# Check for duplicate by resource path
@@ -1017,6 +1021,7 @@ func _update_weapon_visuals() -> void:
 		return
 	_update_hand_weapon_visual(mecha, "left", left_hand)
 	_update_hand_weapon_visual(mecha, "right", right_hand)
+	_update_carry_visuals(mecha)
 
 func _update_hand_weapon_visual(mecha: Node3D, hand: String, weapon: WeaponPart) -> void:
 	var node_name = "WeaponMesh_" + hand
@@ -1036,3 +1041,26 @@ func _update_hand_weapon_visual(mecha: Node3D, hand: String, weapon: WeaponPart)
 	mount.add_child(WeaponVisualFactory.build(weapon))
 	
 	mecha.add_child(mount)
+
+# Renders the weapons carried on the mech's back (from the loadout).
+func _update_carry_visuals(mecha: Node3D) -> void:
+	var existing = mecha.get_node_or_null("CarryWeapons")
+	if existing:
+		existing.queue_free()
+	if carry.is_empty():
+		return
+
+	var back_mount = Node3D.new()
+	back_mount.name = "CarryWeapons"
+	# Spread carried weapons horizontally across the back pack.
+	var offset := -((carry.size() - 1) * 0.22)
+	for weapon in carry:
+		if weapon == null:
+			continue
+		var mount = Node3D.new()
+		mount.position = Vector3(offset, 1.65, -0.55)
+		mount.rotation_degrees = Vector3(-15, 0, 0)
+		mount.add_child(WeaponVisualFactory.build(weapon))
+		back_mount.add_child(mount)
+		offset += 0.44
+	mecha.add_child(back_mount)

@@ -59,27 +59,92 @@ func ensure_default_equipped_parts() -> void:
 			equipped_parts[slot] = starter_part
 
 
-# Default stock weapons that the player starts with on each hand.
+# Default stock weapons that the player starts with on each hand / on the back.
 const DEFAULT_LEFT_WEAPON_PATH := "res://resources/mech/stock/weapon_beam_rifle.tres"
 const DEFAULT_RIGHT_WEAPON_PATH := "res://resources/mech/stock/weapon_heat_blade.tres"
+const DEFAULT_CARRY_WEAPON_PATH := "res://resources/mech/stock/weapon_combat_shotgun.tres"
+
+# -----------------------------------------------------------------------------
+# WEAPON LOADOUT — central state for what the mech carries into battle.
+# "left"/"right" are the hand weapons (resource path, "" = unarmed hand).
+# "carry" is the array of weapon paths the mech carries on its back.
+# Configured in the Hangar, read by WeaponManager at battle start.
+# -----------------------------------------------------------------------------
+var weapon_loadout: Dictionary = {
+	"left": DEFAULT_LEFT_WEAPON_PATH,
+	"right": DEFAULT_RIGHT_WEAPON_PATH,
+	"carry": [DEFAULT_CARRY_WEAPON_PATH]
+}
 
 
 # Returns the equipped WeaponPart for the given hand ("left"/"right").
-# Equipped weapons are stored in equipped_parts["weapon_left"]/["weapon_right"]
-# (same persistent structure as armor) so the Hangar and battle share one source.
+# Reads the central weapon_loadout so the Hangar and battle share one source.
+# An explicitly-unarmed hand ("") returns null; only a missing/blank slot falls
+# back to the default stock weapon for that hand.
 func get_equipped_weapon(side: String) -> WeaponPart:
-	var slot_name := "weapon_left" if side == "left" else "weapon_right"
-	var entry = equipped_parts.get(slot_name)
-	var path := ""
-	if entry is Dictionary:
-		path = str(entry.get("path", ""))
-	elif entry is Resource and "resource_path" in entry and entry.resource_path != "":
-		path = entry.resource_path
-	if path == "" or not ResourceLoader.exists(path):
+	var path := str(weapon_loadout.get("left", "") if side == "left" else weapon_loadout.get("right", ""))
+	if path == "":
+		return null
+	if not ResourceLoader.exists(path):
 		path = DEFAULT_LEFT_WEAPON_PATH if side == "left" else DEFAULT_RIGHT_WEAPON_PATH
 	if ResourceLoader.exists(path):
 		return load(path)
 	return null
+
+
+# Returns the WeaponParts the mech carries on its back into battle (from loadout).
+func get_carry_weapons() -> Array[WeaponPart]:
+	var result: Array[WeaponPart] = []
+	var carry_paths = weapon_loadout.get("carry", [])
+	if not (carry_paths is Array):
+		return result
+	for path in carry_paths:
+		if path is String and path != "" and ResourceLoader.exists(path):
+			result.append(load(path))
+	return result
+
+
+# Total weight of all loadout weapons (both hands + back).
+func get_loadout_weapon_weight() -> float:
+	var total := 0.0
+	var left = get_equipped_weapon("left")
+	if left:
+		total += float(left.weight)
+	var right = get_equipped_weapon("right")
+	if right:
+		total += float(right.weight)
+	for w in get_carry_weapons():
+		total += float(w.weight)
+	return total
+
+
+# Assigns a weapon resource path to a hand. Empty path = unarmed hand.
+func set_hand_weapon(side: String, path: String) -> void:
+	if side == "left":
+		weapon_loadout["left"] = path
+	else:
+		weapon_loadout["right"] = path
+
+
+func is_weapon_in_carry(path: String) -> bool:
+	var carry_paths = weapon_loadout.get("carry", [])
+	return carry_paths is Array and path in carry_paths
+
+
+func add_carry_weapon(path: String) -> void:
+	var carry_paths = weapon_loadout.get("carry", [])
+	if not (carry_paths is Array):
+		carry_paths = []
+	if path not in carry_paths:
+		carry_paths.append(path)
+	weapon_loadout["carry"] = carry_paths
+
+
+func remove_carry_weapon(path: String) -> void:
+	var carry_paths = weapon_loadout.get("carry", [])
+	if carry_paths is Array:
+		carry_paths.erase(path)
+	weapon_loadout["carry"] = carry_paths
 
 
 func get_equipped_part_id(slot: String) -> String:
@@ -197,9 +262,9 @@ var ammo_inventory: Dictionary = {
 }
 
 var weapon_inventory: Array = [
-	{"path": "res://resources/mech/stock/weapon_beam_rifle.tres", "name": "Beam Rifle", "slot": "left_hand", "count": 1},
-	{"path": "res://resources/mech/stock/weapon_heat_blade.tres", "name": "Heat Blade", "slot": "right_hand", "count": 1},
-	{"path": "res://resources/mech/stock/weapon_combat_shotgun.tres", "name": "Combat Shotgun", "slot": "carry", "count": 1}
+	{"path": "res://resources/mech/stock/weapon_beam_rifle.tres", "name": "Beam Rifle", "count": 1},
+	{"path": "res://resources/mech/stock/weapon_heat_blade.tres", "name": "Heat Blade", "count": 1},
+	{"path": "res://resources/mech/stock/weapon_combat_shotgun.tres", "name": "Combat Shotgun", "count": 1}
 ]
 
 const SAVE_PATH := "user://savegame.json"
@@ -222,7 +287,7 @@ func consume_reserve_ammo(ammo_type: String, amount: int) -> int:
 	return taken
 
 
-func register_weapon(path: String, weapon_name: String, slot: String = "stored") -> void:
+func register_weapon(path: String, weapon_name: String) -> void:
 	for entry in weapon_inventory:
 		if entry.get("path", "") == path:
 			entry["count"] = entry.get("count", 1) + 1
@@ -230,7 +295,6 @@ func register_weapon(path: String, weapon_name: String, slot: String = "stored")
 	weapon_inventory.append({
 		"path": path,
 		"name": weapon_name,
-		"slot": slot,
 		"count": 1
 	})
 
@@ -265,10 +329,15 @@ func reset_run_data() -> void:
 		"missile": 12
 	}
 	weapon_inventory = [
-		{"path": "res://resources/mech/stock/weapon_beam_rifle.tres", "name": "Beam Rifle", "slot": "left_hand", "count": 1},
-		{"path": "res://resources/mech/stock/weapon_heat_blade.tres", "name": "Heat Blade", "slot": "right_hand", "count": 1},
-		{"path": "res://resources/mech/stock/weapon_combat_shotgun.tres", "name": "Combat Shotgun", "slot": "carry", "count": 1}
+		{"path": "res://resources/mech/stock/weapon_beam_rifle.tres", "name": "Beam Rifle", "count": 1},
+		{"path": "res://resources/mech/stock/weapon_heat_blade.tres", "name": "Heat Blade", "count": 1},
+		{"path": "res://resources/mech/stock/weapon_combat_shotgun.tres", "name": "Combat Shotgun", "count": 1}
 	]
+	weapon_loadout = {
+		"left": DEFAULT_LEFT_WEAPON_PATH,
+		"right": DEFAULT_RIGHT_WEAPON_PATH,
+		"carry": [DEFAULT_CARRY_WEAPON_PATH]
+	}
 
 
 func save_run() -> void:
@@ -291,7 +360,8 @@ func save_run() -> void:
 		"stalking_aces": stalking_aces,
 		"stalking_chance": stalking_chance,
 		"ammo_inventory": ammo_inventory.duplicate(),
-		"weapon_inventory": weapon_inventory.duplicate()
+		"weapon_inventory": weapon_inventory.duplicate(),
+		"weapon_loadout": weapon_loadout.duplicate(true)
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file:
@@ -359,6 +429,10 @@ func _restore_from_dict(data: Dictionary) -> void:
 	var loaded_weapons = data.get("weapon_inventory", [])
 	if loaded_weapons is Array and not loaded_weapons.is_empty():
 		weapon_inventory = loaded_weapons.duplicate()
+
+	var loaded_loadout = data.get("weapon_loadout", null)
+	if loaded_loadout is Dictionary and not loaded_loadout.is_empty():
+		weapon_loadout = loaded_loadout.duplicate(true)
 
 
 func _serialize_parts() -> Dictionary:

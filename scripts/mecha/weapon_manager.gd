@@ -13,6 +13,10 @@ var carry: Array[WeaponPart] = []
 
 # --- Ammo ---
 var ammo_pool: Dictionary = {}
+# Ammo brought into this battle from the Hangar loadout. Reload consumes from
+# this local pool (NOT the persistent stash) so "how much ammo you carry" is the
+# ammo loadout choice. Leftover ammo returns to the stash when combat ends.
+var battle_reserve: Dictionary = {}
 
 # --- Cooldowns ---
 var left_cooldown: float = 0.0
@@ -68,7 +72,44 @@ func _ready() -> void:
 	for weapon in carry:
 		if weapon and not ammo_pool.has(weapon.weapon_name):
 			ammo_pool[weapon.weapon_name] = weapon.max_ammo
+	# Battle reserve = the ammo the player chose to carry in the loadout.
+	# Deduct that from the persistent stash now (what you fire is spent); any
+	# leftover returns to the stash when combat ends.
+	battle_reserve = GlobalData.get_loadout_ammo_dict()
+	for ammo_type in battle_reserve:
+		var amount: int = battle_reserve[ammo_type]
+		if amount > 0:
+			GlobalData.consume_reserve_ammo(ammo_type, amount)
+	EventBus.combat_ended.connect(_on_combat_ended)
 	call_deferred("_emit_initial_state")
+
+
+func _on_combat_ended(_victory: bool) -> void:
+	# Return any unused carried ammo to the persistent stash so nothing is lost.
+	for ammo_type in battle_reserve:
+		var amount: int = battle_reserve[ammo_type]
+		if amount > 0:
+			GlobalData.add_reserve_ammo(ammo_type, amount)
+	battle_reserve.clear()
+
+
+func get_battle_reserve(ammo_type: String) -> int:
+	return battle_reserve.get(ammo_type.to_lower(), 0)
+
+
+func add_battle_reserve(ammo_type: String, amount: int) -> void:
+	var type = ammo_type.to_lower()
+	if type == "" or type == "none":
+		return
+	battle_reserve[type] = battle_reserve.get(type, 0) + amount
+
+
+func consume_battle_reserve(ammo_type: String, amount: int) -> int:
+	var type = ammo_type.to_lower()
+	var current = battle_reserve.get(type, 0)
+	var taken = mini(current, amount)
+	battle_reserve[type] = current - taken
+	return taken
 
 
 func _emit_initial_state() -> void:
@@ -204,7 +245,7 @@ func reload_weapon(hand: String) -> void:
 	if needed <= 0:
 		return
 
-	var reserve = GlobalData.get_reserve_ammo(ammo_type)
+	var reserve = get_battle_reserve(ammo_type)
 	if reserve <= 0:
 		EffectManager.spawn_damage_number(global_position + Vector3(0, 2.5, 0), 0, Color(1.0, 0.2, 0.2))
 		return
@@ -229,7 +270,7 @@ func reload_weapon(hand: String) -> void:
 			else: reloading_right = false
 			return
 
-	var refilled = GlobalData.consume_reserve_ammo(ammo_type, needed)
+	var refilled = consume_battle_reserve(ammo_type, needed)
 	ammo_pool[weapon.weapon_name] = current_mag + refilled
 
 	if is_left:
@@ -426,26 +467,14 @@ func drop_weapon_from_destroyed_arm(hand: String) -> WeaponPart:
 # ====================================================================
 
 func add_weapon(weapon: WeaponPart) -> void:
+	# Registers the weapon in the central stash (same-ID pickups increment the
+	# count, so owning the same weapon twice enables equipping both hands with it).
 	GlobalData.register_weapon(weapon.resource_path, weapon.weapon_name)
-	GlobalData.add_reserve_ammo(weapon.get_ammo_type(), weapon.max_ammo)
+	# The ammo the weapon carries is usable immediately in this battle.
+	add_battle_reserve(weapon.get_ammo_type(), weapon.max_ammo)
 
-	# Check for duplicate by resource path
-	for w in carry:
-		if w.resource_path == weapon.resource_path:
-			if weapon.weapon_type != WeaponPart.WeaponType.MELEE:
-				add_ammo(weapon.max_ammo / 2, "", weapon.get_ammo_type())
-				return
-			break
-
-	if left_hand and left_hand.resource_path == weapon.resource_path:
-		if weapon.weapon_type != WeaponPart.WeaponType.MELEE:
-			add_ammo(weapon.max_ammo / 2, "", weapon.get_ammo_type())
-			return
-	if right_hand and right_hand.resource_path == weapon.resource_path:
-		if weapon.weapon_type != WeaponPart.WeaponType.MELEE:
-			add_ammo(weapon.max_ammo / 2, "", weapon.get_ammo_type())
-			return
-
+	# Always add a physical copy so picking up the same weapon gives you a second
+	# one (dual-wield the same model) instead of silently converting to ammo.
 	carry.append(weapon)
 	ammo_pool[weapon.weapon_name] = weapon.max_ammo
 	carry_updated.emit(carry)
@@ -466,7 +495,9 @@ func add_ammo(amount: int, hand: String = "", ammo_type: String = "") -> void:
 	if target_type.is_empty():
 		target_type = "kinetic"
 
-	GlobalData.add_reserve_ammo(target_type, amount)
+	# Ammo found mid-battle is added to the local battle reserve so it is usable
+	# right away; unused leftovers return to the stash when combat ends.
+	add_battle_reserve(target_type, amount)
 
 	if target_weapon:
 		var current = _get_ammo(target_weapon)

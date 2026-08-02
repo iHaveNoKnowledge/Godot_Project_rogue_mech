@@ -68,12 +68,19 @@ const DEFAULT_CARRY_WEAPON_PATH := "res://resources/mech/stock/weapon_combat_sho
 # WEAPON LOADOUT — central state for what the mech carries into battle.
 # "left"/"right" are the hand weapons (resource path, "" = unarmed hand).
 # "carry" is the array of weapon paths the mech carries on its back.
+# "ammo" is how much ammo of each type the player allocates to bring into battle.
 # Configured in the Hangar, read by WeaponManager at battle start.
 # -----------------------------------------------------------------------------
 var weapon_loadout: Dictionary = {
 	"left": DEFAULT_LEFT_WEAPON_PATH,
 	"right": DEFAULT_RIGHT_WEAPON_PATH,
-	"carry": [DEFAULT_CARRY_WEAPON_PATH]
+	"carry": [DEFAULT_CARRY_WEAPON_PATH],
+	"ammo": {
+		"kinetic": 300,
+		"energy": 150,
+		"explosive": 30,
+		"missile": 12
+	}
 }
 
 
@@ -145,6 +152,30 @@ func remove_carry_weapon(path: String) -> void:
 	if carry_paths is Array:
 		carry_paths.erase(path)
 	weapon_loadout["carry"] = carry_paths
+
+
+# Returns how much ammo of the given type the player carries into the next battle.
+func get_loadout_ammo(ammo_type: String) -> int:
+	var ammo = weapon_loadout.get("ammo", {})
+	if not (ammo is Dictionary):
+		return 0
+	return ammo.get(ammo_type.to_lower(), 0)
+
+
+# Sets how much ammo of the given type the player carries into the next battle.
+func set_loadout_ammo(ammo_type: String, amount: int) -> void:
+	var ammo = weapon_loadout.get("ammo", {})
+	if not (ammo is Dictionary):
+		ammo = {}
+	ammo[ammo_type.to_lower()] = max(0, amount)
+	weapon_loadout["ammo"] = ammo
+
+
+func get_loadout_ammo_dict() -> Dictionary:
+	var ammo = weapon_loadout.get("ammo", {})
+	if not (ammo is Dictionary):
+		return {}
+	return ammo.duplicate()
 
 
 func get_equipped_part_id(slot: String) -> String:
@@ -336,7 +367,13 @@ func reset_run_data() -> void:
 	weapon_loadout = {
 		"left": DEFAULT_LEFT_WEAPON_PATH,
 		"right": DEFAULT_RIGHT_WEAPON_PATH,
-		"carry": [DEFAULT_CARRY_WEAPON_PATH]
+		"carry": [DEFAULT_CARRY_WEAPON_PATH],
+		"ammo": {
+			"kinetic": 300,
+			"energy": 150,
+			"explosive": 30,
+			"missile": 12
+		}
 	}
 
 
@@ -433,6 +470,14 @@ func _restore_from_dict(data: Dictionary) -> void:
 	var loaded_loadout = data.get("weapon_loadout", null)
 	if loaded_loadout is Dictionary and not loaded_loadout.is_empty():
 		weapon_loadout = loaded_loadout.duplicate(true)
+		# Older saves predate the "ammo" loadout key — default to the stash.
+		if not weapon_loadout.has("ammo"):
+			weapon_loadout["ammo"] = {
+				"kinetic": get_reserve_ammo("kinetic"),
+				"energy": get_reserve_ammo("energy"),
+				"explosive": get_reserve_ammo("explosive"),
+				"missile": get_reserve_ammo("missile")
+			}
 
 
 func _serialize_parts() -> Dictionary:

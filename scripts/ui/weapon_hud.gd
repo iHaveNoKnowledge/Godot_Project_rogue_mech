@@ -20,6 +20,14 @@ var hand_label: Label
 var left_holding: bool = false
 var right_holding: bool = false
 
+# --- Pickup prompt / choice UI ---
+var pickup_prompt: PanelContainer
+var pickup_prompt_label: Label
+var pickup_choice_panel: PanelContainer
+var pickup_choice_label: Label
+var nearby_pickup = null
+var pickup_menu_open: bool = false
+
 var _bg_color: Color = Color(0.08, 0.08, 0.12, 0.85)
 var _accent_color: Color = Color(0.3, 0.6, 1.0, 1)
 var _highlight_color: Color = Color(1.0, 0.9, 0.3, 1)
@@ -36,12 +44,14 @@ func _ready() -> void:
 	_create_left_panel()
 	_create_right_panel()
 	_create_carry_ui()
+	_create_pickup_ui()
 	_try_connect_weapon_manager()
 
 
 func _process(_delta: float) -> void:
 	if weapon_manager == null:
 		_try_connect_weapon_manager()
+	_update_nearby_pickup()
 
 
 func _try_connect_weapon_manager() -> void:
@@ -65,6 +75,14 @@ func _try_connect_weapon_manager() -> void:
 
 func _input(event: InputEvent) -> void:
 	if weapon_manager == null:
+		return
+
+	if event.is_action_pressed("interact"):
+		_toggle_pickup_menu()
+		return
+
+	if pickup_menu_open:
+		# While the pickup choice menu is open, don't act on weapon inputs.
 		return
 
 	if event.is_action_pressed("weapon_left"):
@@ -230,6 +248,147 @@ func _create_carry_ui() -> void:
 	vbox.add_child(carry_container)
 
 
+func _create_pickup_ui() -> void:
+	# Bottom-center prompt: "[F] Pickup: WeaponName" (F = interact action).
+	pickup_prompt = PanelContainer.new()
+	pickup_prompt.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	pickup_prompt.offset_left = -170
+	pickup_prompt.offset_right = 170
+	pickup_prompt.offset_top = -60
+	pickup_prompt.offset_bottom = -20
+	pickup_prompt.add_theme_stylebox_override("panel", _make_panel_style(Color(0.05, 0.1, 0.08, 0.92)))
+	root_control.add_child(pickup_prompt)
+	pickup_prompt.visible = false
+
+	var vbox = VBoxContainer.new()
+	pickup_prompt.add_child(vbox)
+
+	pickup_prompt_label = Label.new()
+	pickup_prompt_label.text = "[F] Pickup: ???"
+	pickup_prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	pickup_prompt_label.add_theme_font_size_override("font_size", 16)
+	pickup_prompt_label.add_theme_color_override("font_color", _highlight_color)
+	vbox.add_child(pickup_prompt_label)
+
+	var hint = Label.new()
+	hint.text = "Press F to decide: take the weapon or just its ammo"
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.add_theme_font_size_override("font_size", 11)
+	hint.add_theme_color_override("font_color", Color(0.7, 0.8, 0.7))
+	vbox.add_child(hint)
+
+	# Center choice modal: TAKE WEAPON / TAKE AMMO ONLY / CANCEL.
+	pickup_choice_panel = PanelContainer.new()
+	pickup_choice_panel.set_anchors_preset(Control.PRESET_CENTER)
+	pickup_choice_panel.offset_left = -170
+	pickup_choice_panel.offset_right = 170
+	pickup_choice_panel.offset_top = -120
+	pickup_choice_panel.offset_bottom = 120
+	pickup_choice_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.06, 0.06, 0.12, 0.96)))
+	root_control.add_child(pickup_choice_panel)
+	pickup_choice_panel.visible = false
+
+	var cbox = VBoxContainer.new()
+	cbox.add_theme_constant_override("separation", 10)
+	pickup_choice_panel.add_child(cbox)
+
+	pickup_choice_label = Label.new()
+	pickup_choice_label.text = "PICKUP: ???"
+	pickup_choice_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	pickup_choice_label.add_theme_font_size_override("font_size", 16)
+	pickup_choice_label.add_theme_color_override("font_color", _accent_color)
+	cbox.add_child(pickup_choice_label)
+
+	var take_weapon_btn = Button.new()
+	take_weapon_btn.text = "TAKE WEAPON (เก็บอาวุธ)"
+	take_weapon_btn.custom_minimum_size = Vector2(0, 38)
+	take_weapon_btn.pressed.connect(_on_take_weapon_pressed)
+	cbox.add_child(take_weapon_btn)
+
+	var take_ammo_btn = Button.new()
+	take_ammo_btn.text = "TAKE AMMO ONLY (เอาแค่กระสุน)"
+	take_ammo_btn.custom_minimum_size = Vector2(0, 38)
+	take_ammo_btn.pressed.connect(_on_take_ammo_only_pressed)
+	cbox.add_child(take_ammo_btn)
+
+	var cancel_btn = Button.new()
+	cancel_btn.text = "CANCEL"
+	cancel_btn.custom_minimum_size = Vector2(0, 32)
+	cancel_btn.pressed.connect(_close_pickup_menu)
+	cbox.add_child(cancel_btn)
+
+
+func _update_nearby_pickup() -> void:
+	if pickup_menu_open:
+		# Keep the menu open even if the mech nudges out of the radius.
+		return
+	var mecha = get_tree().current_scene.get_node_or_null("Mecha")
+	if mecha == null:
+		_set_prompt_visible(false)
+		nearby_pickup = null
+		return
+
+	var best = null
+	var best_dist := INF
+	for pickup in get_tree().get_nodes_in_group("weapon_pickup"):
+		if pickup == null or not is_instance_valid(pickup):
+			continue
+		if not pickup.is_near_mecha():
+			continue
+		var d = pickup.global_position.distance_to(mecha.global_position)
+		if d < best_dist:
+			best_dist = d
+			best = pickup
+
+	if best != nearby_pickup:
+		nearby_pickup = best
+		if best:
+			var wname = best.weapon_resource.weapon_name if best.weapon_resource else "Weapon"
+			pickup_prompt_label.text = "[F] Pickup: %s" % wname
+			pickup_choice_label.text = "PICKUP: %s" % wname
+	_set_prompt_visible(best != null)
+
+
+func _set_prompt_visible(show: bool) -> void:
+	if pickup_prompt:
+		pickup_prompt.visible = show
+
+
+func _toggle_pickup_menu() -> void:
+	if pickup_menu_open:
+		_close_pickup_menu()
+		return
+	if nearby_pickup == null or not is_instance_valid(nearby_pickup):
+		return
+	if not nearby_pickup.is_near_mecha():
+		return
+	pickup_menu_open = true
+	pickup_choice_panel.visible = true
+	_set_prompt_visible(false)
+
+
+func _close_pickup_menu() -> void:
+	pickup_menu_open = false
+	if pickup_choice_panel:
+		pickup_choice_panel.visible = false
+
+
+func _on_take_weapon_pressed() -> void:
+	var pickup = nearby_pickup
+	_close_pickup_menu()
+	if pickup and is_instance_valid(pickup):
+		pickup.take_weapon()
+	nearby_pickup = null
+
+
+func _on_take_ammo_only_pressed() -> void:
+	var pickup = nearby_pickup
+	_close_pickup_menu()
+	if pickup and is_instance_valid(pickup):
+		pickup.take_ammo_only()
+	nearby_pickup = null
+
+
 func _show_carry(hand: String) -> void:
 	if weapon_manager == null:
 		return
@@ -354,7 +513,7 @@ func _update_display() -> void:
 			if w.max_ammo >= 999:
 				left_ammo_label.text = "inf"
 			else:
-				var res = GlobalData.get_reserve_ammo(w.get_ammo_type())
+				var res = weapon_manager.get_battle_reserve(w.get_ammo_type())
 				left_ammo_label.text = "%d / %d [Res: %d]" % [ammo, w.max_ammo, res]
 	else:
 		left_name_label.text = "--- EMPTY ---"
@@ -372,7 +531,7 @@ func _update_display() -> void:
 			if w.max_ammo >= 999:
 				right_ammo_label.text = "inf"
 			else:
-				var res = GlobalData.get_reserve_ammo(w.get_ammo_type())
+				var res = weapon_manager.get_battle_reserve(w.get_ammo_type())
 				right_ammo_label.text = "%d / %d [Res: %d]" % [ammo, w.max_ammo, res]
 	else:
 		right_name_label.text = "--- EMPTY ---"

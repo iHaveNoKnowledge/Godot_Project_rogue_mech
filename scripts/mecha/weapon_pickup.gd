@@ -1,5 +1,10 @@
 extends Area3D
 
+## Recoverable weapon pickup.
+## Instead of auto-collecting on contact, this pickup tracks the mecha that walks
+## into it and lets the HUD show a "[F] Pickup" prompt. When the player presses F
+## (the "interact" action) the HUD opens a choice: TAKE WEAPON / TAKE AMMO ONLY.
+
 @export var weapon_resource: WeaponPart
 @export var bob_speed: float = 2.0
 @export var bob_amount: float = 0.3
@@ -9,10 +14,47 @@ var mesh: MeshInstance3D = null
 var original_y: float = 0.0
 var timer: float = 0.0
 
+# The mecha currently standing inside this pickup (null when nobody is near).
+var nearby_mecha: Node3D = null
+
 
 func _ready() -> void:
+	add_to_group("weapon_pickup")
 	body_entered.connect(_on_body_entered)
+	body_exited.connect(_on_body_exited)
 	_create_visual()
+
+
+func _exit_tree() -> void:
+	if nearby_mecha:
+		nearby_mecha = null
+
+
+func is_near_mecha() -> bool:
+	return nearby_mecha != null
+
+
+func get_weapon_manager() -> Node:
+	if nearby_mecha == null:
+		return null
+	return nearby_mecha.get_node_or_null("WeaponManager")
+
+
+# Player chose to take the whole weapon (also registers it in the stash so the
+# same-ID count increases, enabling dual-wielding identical weapons).
+func take_weapon() -> void:
+	var wm = get_weapon_manager()
+	if wm and weapon_resource:
+		wm.add_weapon(weapon_resource)
+	queue_free()
+
+
+# Player chose to scrap the weapon and keep only its ammo.
+func take_ammo_only() -> void:
+	var wm = get_weapon_manager()
+	if wm and weapon_resource:
+		wm.add_ammo(weapon_resource.max_ammo, "", weapon_resource.get_ammo_type())
+	queue_free()
 
 
 func _create_visual() -> void:
@@ -54,7 +96,9 @@ func _process(delta: float) -> void:
 
 func _on_body_entered(body: Node3D) -> void:
 	if body.is_in_group("mecha"):
-		var weapon_manager = body.get_node_or_null("WeaponManager")
-		if weapon_manager and weapon_resource:
-			weapon_manager.add_weapon(weapon_resource)
-			queue_free()
+		nearby_mecha = body
+
+
+func _on_body_exited(body: Node3D) -> void:
+	if body == nearby_mecha:
+		nearby_mecha = null

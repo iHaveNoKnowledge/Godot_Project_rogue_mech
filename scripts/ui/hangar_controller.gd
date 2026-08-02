@@ -27,6 +27,7 @@ var visible_weapon_indices: Array[int] = []
 # the 3D model preview. Set during _populate_part_list_for_slot() auto-selects.
 var _is_populating: bool = false
 var _is_dragging_3d: bool = false
+var _part_action_modal: Control = null
 
 var attachment_catalog: Array = [
 	{"id": "sensor_mk1", "name": "Sensor Module MK-I", "weight": 2.0, "power_cost": 5.0, "size": Vector3(0.3, 0.2, 0.25), "color": Color(0.1, 0.75, 1.0)},
@@ -336,7 +337,10 @@ func _build_ui_layout() -> void:
 	part_item_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	part_item_list.item_selected.connect(_on_part_item_selected)
 	part_item_list.item_clicked.connect(_on_part_item_clicked)
+	part_item_list.item_activated.connect(_on_part_item_activated)
 	left_box.add_child(part_item_list)
+
+	_build_ammo_loadout_ui(left_box)
 
 	equip_button = Button.new()
 	equip_button.text = "EQUIP SELECTION"
@@ -422,6 +426,90 @@ func _build_ui_layout() -> void:
 	close_button.custom_minimum_size = Vector2(0, 44)
 	close_button.pressed.connect(_on_close_pressed)
 	right_box.add_child(close_button)
+
+
+# --- AMMO LOADOUT UI (how much ammo to carry into the next battle) ---
+var ammo_loadout_box: VBoxContainer
+var ammo_value_labels: Dictionary = {}
+
+
+func _build_ammo_loadout_ui(parent_box: VBoxContainer) -> void:
+	ammo_loadout_box = VBoxContainer.new()
+	ammo_loadout_box.add_theme_constant_override("separation", 3)
+	parent_box.add_child(ammo_loadout_box)
+	ammo_loadout_box.visible = false
+
+	var title = Label.new()
+	title.text = "AMMO TO CARRY (กระสุนที่แบกไป)"
+	title.add_theme_font_size_override("font_size", 12)
+	title.add_theme_color_override("font_color", Color(1.0, 0.8, 0.2))
+	ammo_loadout_box.add_child(title)
+
+	var ammo_types := ["kinetic", "energy", "explosive", "missile"]
+	var ammo_names := {"kinetic": "Kinetic", "energy": "Energy", "explosive": "Explosive", "missile": "Missile"}
+	for ammo_type in ammo_types:
+		var row = HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		ammo_loadout_box.add_child(row)
+
+		var name_lbl = Label.new()
+		name_lbl.text = ammo_names[ammo_type]
+		name_lbl.custom_minimum_size = Vector2(80, 0)
+		name_lbl.add_theme_font_size_override("font_size", 11)
+		row.add_child(name_lbl)
+
+		var minus = Button.new()
+		minus.text = "-"
+		minus.custom_minimum_size = Vector2(26, 26)
+		minus.pressed.connect(func(): _adjust_loadout_ammo(ammo_type, -10))
+		row.add_child(minus)
+
+		var value_lbl = Label.new()
+		value_lbl.text = "0"
+		value_lbl.custom_minimum_size = Vector2(50, 0)
+		value_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		value_lbl.add_theme_font_size_override("font_size", 11)
+		row.add_child(value_lbl)
+		ammo_value_labels[ammo_type] = value_lbl
+
+		var plus = Button.new()
+		plus.text = "+"
+		plus.custom_minimum_size = Vector2(26, 26)
+		plus.pressed.connect(func(): _adjust_loadout_ammo(ammo_type, 10))
+		row.add_child(plus)
+
+		var stash_lbl = Label.new()
+		stash_lbl.text = "owned: %d" % GlobalData.get_reserve_ammo(ammo_type)
+		stash_lbl.custom_minimum_size = Vector2(0, 0)
+		stash_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		stash_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		stash_lbl.add_theme_color_override("font_color", Color(0.5, 0.6, 0.7))
+		stash_lbl.add_theme_font_size_override("font_size", 10)
+		row.add_child(stash_lbl)
+
+
+func _adjust_loadout_ammo(ammo_type: String, delta: int) -> void:
+	var owned = GlobalData.get_reserve_ammo(ammo_type)
+	var current = GlobalData.get_loadout_ammo(ammo_type)
+	var new_value = clampi(current + delta, 0, owned)
+	GlobalData.set_loadout_ammo(ammo_type, new_value)
+	_refresh_ammo_loadout_ui()
+	status_message_label.text = "%s ammo to carry: %d" % [ammo_type.capitalize(), new_value]
+	GlobalData.save_run()
+
+
+func _refresh_ammo_loadout_ui() -> void:
+	if ammo_loadout_box == null:
+		return
+	for ammo_type in ammo_value_labels:
+		var owned = GlobalData.get_reserve_ammo(ammo_type)
+		var carried = GlobalData.get_loadout_ammo(ammo_type)
+		var value_lbl: Label = ammo_value_labels[ammo_type]
+		value_lbl.text = "%d / %d" % [carried, owned]
+		var row: HBoxContainer = value_lbl.get_parent()
+		var stash_lbl: Label = row.get_child(row.get_child_count() - 1)
+		if stash_lbl is Label:
+			stash_lbl.text = "owned: %d" % owned
 
 
 # --- 3D CAMERA & MOUSE DRAG PROCESS ---
@@ -594,6 +682,7 @@ func show_hangar() -> void:
 	AudioManager.play_hangar_music()
 	call_deferred("_update_all_3d_slots_preview")
 	_select_slot_tab("chassis")
+	_refresh_ammo_loadout_ui()
 	_update_total_stats()
 
 
@@ -608,6 +697,10 @@ func _switch_custom_mode(mode: String) -> void:
 func _select_slot_tab(slot: String) -> void:
 	selected_slot = slot
 	sub_toggle_container.visible = (slot != "chassis" and not slot.begins_with("weapon"))
+	if ammo_loadout_box:
+		ammo_loadout_box.visible = slot.begins_with("weapon")
+		if ammo_loadout_box.visible:
+			_refresh_ammo_loadout_ui()
 	_update_camera_focus_for_slot(slot)
 	_populate_part_list_for_slot(slot)
 	_update_total_stats()
@@ -1030,40 +1123,54 @@ func _on_part_item_selected(index: int) -> void:
 
 
 func _on_part_item_clicked(index: int, _at_position: Vector2 = Vector2.ZERO, _mouse_button_index: int = 1) -> void:
+	# Single click: select & close any open modal. The Action Popup opens on
+	# double-click (item_activated) so a click never accidentally triggers it.
 	if index != _last_selected_item_index:
-		# FIRST CLICK ON ITEM: Highlight item, update 3D preview & stats text real-time!
 		_last_selected_item_index = index
 		_on_part_item_selected(index)
-		_close_part_action_modal()
-	else:
-		# SECOND CLICK (CLICK AGAIN ON HIGHLIGHTED ITEM): Open Action Popup Modal!
-		var info_to_show: Dictionary = {}
-		if not selected_salvage_info.is_empty():
-			info_to_show = selected_salvage_info
-		elif not selected_frame_info.is_empty():
-			info_to_show = selected_frame_info
-		elif current_mode == "frame" and frame_catalog.has(selected_slot):
-			var items = frame_catalog[selected_slot]
-			if index >= 0 and index < items.size():
-				info_to_show = items[index]
-		elif selected_slot.begins_with("weapon"):
-			if index >= 0 and index < visible_weapon_indices.size():
-				var inv_idx = visible_weapon_indices[index]
-				info_to_show = GlobalData.weapon_inventory[inv_idx]
-		elif armor_catalog.has(selected_slot):
-			var stock_items = armor_catalog[selected_slot]
-			if index >= 0 and index < stock_items.size():
-				info_to_show = stock_items[index]
-		if not info_to_show.is_empty():
-			_show_part_action_modal(info_to_show)
+	_close_part_action_modal()
+
+
+func _on_part_item_activated(index: int) -> void:
+	# Double-click (or Enter): Open the Action Popup Modal!
+	var info_to_show: Dictionary = _resolve_part_info_for_index(index)
+	if not info_to_show.is_empty():
+		_show_part_action_modal(info_to_show)
+
+
+func _resolve_part_info_for_index(index: int) -> Dictionary:
+	var info_to_show: Dictionary = {}
+	if not selected_salvage_info.is_empty():
+		info_to_show = selected_salvage_info
+	elif not selected_frame_info.is_empty():
+		info_to_show = selected_frame_info
+	elif current_mode == "frame" and frame_catalog.has(selected_slot):
+		var items = frame_catalog[selected_slot]
+		if index >= 0 and index < items.size():
+			info_to_show = items[index]
+	elif selected_slot.begins_with("weapon"):
+		if index >= 0 and index < visible_weapon_indices.size():
+			var inv_idx = visible_weapon_indices[index]
+			info_to_show = GlobalData.weapon_inventory[inv_idx]
+	elif armor_catalog.has(selected_slot):
+		var stock_items = armor_catalog[selected_slot]
+		if index >= 0 and index < stock_items.size():
+			info_to_show = stock_items[index]
+	return info_to_show
 
 
 func _close_part_action_modal() -> void:
+	# Free EVERY node named PartActionModal. A rapid double-click can briefly
+	# create two stacked modals (old one queued for deletion), and
+	# get_node_or_null would only find the stale one, leaving the popup stuck.
 	if root_control:
-		var old = root_control.get_node_or_null("PartActionModal")
-		if old: old.queue_free()
+		for child in root_control.get_children():
+			if child.name == "PartActionModal":
+				child.queue_free()
 	var local_old = get_node_or_null("PartActionModal")
-	if local_old: local_old.queue_free()
+	if local_old:
+		local_old.queue_free()
+	_part_action_modal = null
 
 
 func _show_part_action_modal(info: Dictionary) -> void:
@@ -1240,6 +1347,7 @@ func _show_part_action_modal(info: Dictionary) -> void:
 		root_control.add_child(modal_panel)
 	else:
 		add_child(modal_panel)
+	_part_action_modal = modal_panel
 
 
 func _equip_part_to_slot(slot: String, info: Dictionary) -> void:

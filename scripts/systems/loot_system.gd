@@ -11,6 +11,12 @@ func spawn_loot(position: Vector3, loot_table: Array) -> void:
 
 
 func _create_loot_pickup(pos: Vector3, loot_data: Dictionary) -> void:
+	# Weapon drops use the same interactable pickup as stock pickups so the player
+	# can decide (press F) whether to take the weapon or just its ammo.
+	if loot_data.get("type", "ammo") == "weapon" and loot_data.get("weapon") is WeaponPart:
+		_create_weapon_pickup(pos, loot_data["weapon"])
+		return
+
 	var pickup = Area3D.new()
 	pickup.collision_layer = 1
 	pickup.collision_mask = 1
@@ -42,6 +48,22 @@ func _create_loot_pickup(pos: Vector3, loot_data: Dictionary) -> void:
 	pickup.body_entered.connect(_on_pickup_body_entered.bind(pickup))
 	get_parent().add_child(pickup)
 	pickup.global_position = pos
+
+
+func _create_weapon_pickup(pos: Vector3, weapon: WeaponPart) -> void:
+	var pickup := Area3D.new()
+	pickup.collision_layer = 0
+	pickup.collision_mask = 1
+	pickup.set_script(load("res://scripts/mecha/weapon_pickup.gd"))
+	pickup.weapon_resource = weapon
+	get_parent().add_child(pickup)
+	pickup.global_position = pos
+
+	var collision := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(0.6, 0.5, 1.3)
+	collision.shape = shape
+	pickup.add_child(collision)
 
 
 func _on_pickup_body_entered(body: Node3D, pickup: Area3D) -> void:

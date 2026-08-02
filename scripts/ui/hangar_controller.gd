@@ -786,15 +786,18 @@ func _populate_part_list_for_slot(slot: String) -> void:
 		_is_populating = false
 		return
 
+	var is_destroyed = GlobalData.part_damage.get(slot + "_frame", 0.0) >= 1.0
+	var state_tag = " [DESTROYED]" if is_destroyed else ""
+
 	if current_mode == "frame" and frame_catalog.has(slot):
 		var items = frame_catalog[slot]
 		for info in items:
 			var is_eq = _is_item_equipped(slot, info)
-			var prefix = "[E] " if is_eq else "     "
+			var prefix = "[X] " if is_eq and is_destroyed else ("[E] " if is_eq else "     ")
 			var fname = info.get("name", "Frame Part")
 			var fhp = info.get("hp", 20.0)
 			var fwt = info.get("weight", 3.0)
-			var label_str = "%s%s (HP: %.0f, %.1fkg)" % [prefix, fname, fhp, fwt]
+			var label_str = "%s%s (HP: %.0f, %.1fkg)%s" % [prefix, fname, fhp, fwt, state_tag]
 			part_item_list.add_item(label_str)
 		if items.size() > 0:
 			part_item_list.select(0)
@@ -805,8 +808,8 @@ func _populate_part_list_for_slot(slot: String) -> void:
 		var items = armor_catalog[slot]
 		for info in items:
 			var is_eq = _is_item_equipped(slot, info)
-			var prefix = "[E] " if is_eq else "     "
-			var label_str = "%s%s [%s]" % [prefix, info["name"], info["type"]]
+			var prefix = "[X] " if is_eq and is_destroyed else ("[E] " if is_eq else "     ")
+			var label_str = "%s%s [%s]%s" % [prefix, info["name"], info["type"], state_tag]
 			if info.get("weight", 0.0) > 0:
 				label_str += " - %.1fkg" % info["weight"]
 			part_item_list.add_item(label_str)
@@ -817,8 +820,8 @@ func _populate_part_list_for_slot(slot: String) -> void:
 			if salvaged.get("slot", "") == slot:
 				visible_salvage_indices.append(salvage_index)
 				var is_eq = _is_item_equipped(slot, salvaged)
-				var prefix = "[E] " if is_eq else "     "
-				var drop_label = "%sSALVAGED: %s [%s]" % [prefix, salvaged["name"], salvaged.get("type", "Enemy")]
+				var prefix = "[X] " if is_eq and is_destroyed else ("[E] " if is_eq else "     ")
+				var drop_label = "%sSALVAGED: %s [%s]%s" % [prefix, salvaged["name"], salvaged.get("type", "Enemy"), state_tag]
 				part_item_list.add_item(drop_label)
 
 		if part_item_list.item_count > 0:
@@ -1505,24 +1508,28 @@ func _on_equip_pressed() -> void:
 
 func _on_repair_part_pressed() -> void:
 	var dmg = GlobalData.part_damage.get(selected_slot, 0.0)
-	if dmg <= 0.0:
+	var frame_dmg = GlobalData.part_damage.get(selected_slot + "_frame", 0.0)
+	if dmg <= 0.0 and frame_dmg <= 0.0:
 		status_message_label.text = "%s is fully functional!" % selected_slot.to_upper()
 		return
-	var cost = int(dmg * 50.0 * COST_PER_HP)
+	var cost = int((dmg + frame_dmg) * 50.0 * COST_PER_HP)
 	if GlobalData.credits < cost:
 		status_message_label.text = "Need %d credits!" % cost
 		return
 	GlobalData.credits -= cost
 	GlobalData.part_damage.erase(selected_slot)
+	GlobalData.part_damage.erase(selected_slot + "_frame")
 	status_message_label.text = "Repaired %s!" % selected_slot.to_upper()
 	_update_total_stats()
+	_update_all_3d_slots_preview()
 
 
 func _on_full_repair_pressed() -> void:
 	var total_cost = 0.0
 	for slot in GlobalData.equipped_parts:
 		var dmg = GlobalData.part_damage.get(slot, 0.0)
-		total_cost += dmg * 50.0 * COST_PER_HP
+		var frame_dmg = GlobalData.part_damage.get(slot + "_frame", 0.0)
+		total_cost += (dmg + frame_dmg) * 50.0 * COST_PER_HP
 
 	if total_cost <= 0:
 		status_message_label.text = "All parts OK!"
@@ -1536,6 +1543,7 @@ func _on_full_repair_pressed() -> void:
 	GlobalData.part_damage.clear()
 	status_message_label.text = "Full Repair Complete!"
 	_update_total_stats()
+	_update_all_3d_slots_preview()
 
 
 func _update_total_stats() -> void:
@@ -1550,15 +1558,17 @@ func _update_total_stats() -> void:
 
 	for slot in GlobalData.equipped_frames:
 		var f = GlobalData.equipped_frames[slot]
+		var max_fhp = f.get("hp", 0.0) + ((GlobalData.frame_upgrade_level - 1) * 25.0)
 		total_frame_weight += f.get("weight", 0.0)
-		total_frame_hp += f.get("hp", 0.0) + ((GlobalData.frame_upgrade_level - 1) * 25.0)
+		total_frame_hp += max_fhp * (1.0 - clampf(GlobalData.part_damage.get(slot + "_frame", 0.0), 0.0, 1.0))
 
 	for slot in GlobalData.equipped_parts:
 		var p = GlobalData.equipped_parts[slot]
 		if p and p.get("weight") != null:
 			total_armor_weight += p.weight
-		if p and p.get("max_hp") != null:
-			total_armor_hp += p.max_hp
+		if p and (p.get("hp") != null or p.get("max_hp") != null):
+			var max_ahp = float(p.get("hp", p.get("max_hp", 0.0)))
+			total_armor_hp += max_ahp * (1.0 - clampf(GlobalData.part_damage.get(slot, 0.0), 0.0, 1.0))
 
 	for attachment in GlobalData.attachments:
 		total_attachment_weight += float(attachment.get("weight", 0.0))

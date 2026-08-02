@@ -151,6 +151,8 @@ func _on_frame_destroyed(slot_name: String) -> void:
 	parts[slot_name]["destroyed"] = true
 	parts[slot_name]["frame_hp"] = 0.0
 	_hide_part(slot_name)
+	if is_player:
+		_spawn_scrap_wreckage(slot_name)
 	part_destroyed.emit(slot_name)
 	_calculate_totals()
 
@@ -176,30 +178,135 @@ func _on_mecha_destroyed() -> void:
 		GameManager.game_over()
 
 
+func _get_section_node(slot_name: String) -> Node3D:
+	var mecha = get_parent()
+	if mecha == null:
+		return null
+	match slot_name:
+		"head":
+			return mecha.get_node_or_null("Head")
+		"body":
+			return mecha.get_node_or_null("Body")
+		"arm_left":
+			return mecha.get_node_or_null("ArmLeft")
+		"arm_right":
+			return mecha.get_node_or_null("ArmRight")
+		"leg_left":
+			return mecha.get_node_or_null("LegLeft")
+		"leg_right":
+			return mecha.get_node_or_null("LegRight")
+	return null
+
+
+func _get_visual_container(slot_name: String, container_name: String) -> Node3D:
+	var section = _get_section_node(slot_name)
+	if section == null:
+		return null
+	return section.get_node_or_null(container_name)
+
+
+func _apply_color_to_container(container: Node3D, color: Color) -> void:
+	if container == null:
+		return
+	for child in container.get_children():
+		if child is MeshInstance3D:
+			var mat := StandardMaterial3D.new()
+			mat.albedo_color = color
+			mat.metallic = 0.6
+			mat.roughness = 0.4
+			child.material_override = mat
+
+
 func _update_part_visual(slot_name: String) -> void:
 	var mesh = parts[slot_name]["mesh"]
-	if mesh == null or mesh.material_override == null:
-		return
-
 	var part = parts[slot_name]
+
 	if part["armor_broken"]:
-		var frame_ratio = part["frame_hp"] / part["max_frame"]
-		mesh.material_override.albedo_color = _frame_color.lerp(_damage_color, 1.0 - frame_ratio)
+		var frame_ratio = part["frame_hp"] / maxf(part["max_frame"], 0.001)
+		var color = _frame_color.lerp(_damage_color, 1.0 - frame_ratio)
+		_apply_color_to_container(_get_visual_container(slot_name, "FrameMesh"), color)
+		if mesh and mesh.material_override:
+			mesh.material_override.albedo_color = color
 	else:
-		var armor_ratio = part["armor_hp"] / part["max_armor"]
-		mesh.material_override.albedo_color = _armor_color.lerp(_damage_color, 1.0 - armor_ratio)
+		var armor_ratio = part["armor_hp"] / maxf(part["max_armor"], 0.001)
+		var color = _armor_color.lerp(_damage_color, 1.0 - armor_ratio)
+		_apply_color_to_container(_get_visual_container(slot_name, "ArmorMesh"), color)
+		if mesh and mesh.material_override:
+			mesh.material_override.albedo_color = color
 
 
 func _show_frame(slot_name: String) -> void:
+	var armor_container = _get_visual_container(slot_name, "ArmorMesh")
+	if armor_container:
+		armor_container.visible = false
+	var frame_container = _get_visual_container(slot_name, "FrameMesh")
+	if frame_container:
+		frame_container.visible = true
 	var mesh = parts[slot_name]["mesh"]
 	if mesh and mesh.material_override:
 		mesh.material_override.albedo_color = _frame_color
 
 
 func _hide_part(slot_name: String) -> void:
+	var armor_container = _get_visual_container(slot_name, "ArmorMesh")
+	if armor_container:
+		armor_container.visible = false
+	var frame_container = _get_visual_container(slot_name, "FrameMesh")
+	if frame_container:
+		frame_container.visible = false
 	var mesh = parts[slot_name]["mesh"]
 	if mesh:
 		mesh.visible = false
+
+
+func _spawn_scrap_wreckage(slot_name: String) -> void:
+	var section = _get_section_node(slot_name)
+	if section == null:
+		return
+	var world = get_tree().current_scene
+	if world == null:
+		return
+
+	var scrap := RigidBody3D.new()
+	scrap.name = "Scrap_%s" % slot_name
+	scrap.position = section.global_position + Vector3(0, 0.5, 0)
+	scrap.add_to_group("scrap")
+	scrap.collision_layer = 8
+	scrap.collision_mask = 1
+
+	var mesh_inst := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = _get_scrap_size(slot_name)
+	mesh_inst.mesh = box
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.35, 0.33, 0.3)
+	mat.metallic = 0.7
+	mat.roughness = 0.6
+	mesh_inst.material_override = mat
+	scrap.add_child(mesh_inst)
+
+	var col := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = box.size
+	col.shape = shape
+	scrap.add_child(col)
+
+	world.add_child(scrap)
+	scrap.apply_central_impulse(Vector3(randf_range(-3, 3), randf_range(4, 8), randf_range(-3, 3)))
+	scrap.angular_velocity = Vector3(randf_range(-4, 4), randf_range(-4, 4), randf_range(-4, 4))
+
+
+func _get_scrap_size(slot_name: String) -> Vector3:
+	match slot_name:
+		"head":
+			return Vector3(0.5, 0.45, 0.55)
+		"body":
+			return Vector3(0.9, 1.1, 0.7)
+		"arm_left", "arm_right":
+			return Vector3(0.4, 0.8, 0.4)
+		"leg_left", "leg_right":
+			return Vector3(0.5, 0.9, 0.5)
+	return Vector3(0.5, 0.5, 0.5)
 
 
 func _on_damage_received(_slot: String, _amount: float, _type: String) -> void:

@@ -4,7 +4,11 @@ var slot_meshes: Dictionary = {}
 
 
 func _ready() -> void:
-	EventBus.part_destroyed.connect(_on_part_destroyed)
+	var mecha = get_parent()
+	if mecha:
+		var health = mecha.get_node_or_null("HealthSystem")
+		if health and health.has_signal("part_destroyed"):
+			health.part_destroyed.connect(_on_part_destroyed)
 	_hide_all_legacy_models()
 
 
@@ -109,8 +113,10 @@ func initialize_slot(slot_name: String, part: ArmorPart) -> void:
 			_build_procedural_outer_armor(slot_name, armor_mesh, armor_mesh_lower, part)
 
 		var armor_dmg = GlobalData.part_damage.get(slot_name, 0.0)
-		var max_hp = part.max_hp if part else 100.0
-		if armor_dmg >= max_hp:
+		var frame_dmg = GlobalData.part_damage.get(slot_name + "_frame", 0.0)
+		if frame_dmg >= 1.0:
+			hide_slot_completely(slot_name)
+		elif armor_dmg >= 1.0:
 			_show_inner_frame(slot_name)
 		else:
 			armor_mesh.visible = true
@@ -163,7 +169,7 @@ func _clear_children(node: Node) -> void:
 
 
 func _on_part_destroyed(slot_name: String) -> void:
-	_show_inner_frame(slot_name)
+	hide_slot_completely(slot_name)
 	_spawn_break_vfx(slot_name)
 
 

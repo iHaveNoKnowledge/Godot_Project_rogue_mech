@@ -182,13 +182,13 @@ func _trigger_landing_impact() -> void:
 
 func _is_in_water() -> bool:
 	# Only true while inside an actual water volume placed by the arena (Area3D
-	# tagged "water_volume"). Bridges are separate geometry, so crossing a bridge
-	# never counts as being in water.
-	for area in get_tree().get_nodes_in_group("water_volume"):
-		if area is Area3D:
-			for sample in [global_position, global_position + Vector3(0, 1.0, 0), global_position + Vector3(0, 2.0, 0)]:
-				if area.overlaps_point(sample):
-					return true
+	# tagged "water_volume", collision layer 4). Bridges are separate geometry,
+	# so crossing a bridge never counts as being in water.
+	var space = get_world_3d().direct_space_state
+	for sample in [global_position, global_position + Vector3(0, 1.0, 0), global_position + Vector3(0, 2.0, 0)]:
+		var hit = space.intersect_point(sample, 4, 4, true, false)
+		if not hit.is_empty():
+			return true
 	return false
 
 

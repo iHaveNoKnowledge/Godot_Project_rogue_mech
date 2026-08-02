@@ -15,7 +15,9 @@ var _dim_color: Color = Color(0.5, 0.5, 0.5, 1.0)
 var current_mode: String = "armor" # "armor", "frame", "attachment", "chassis", "upgrade"
 var selected_slot: String = "head"
 var selected_part_path: String = ""
+var selected_part_id: String = ""
 var selected_salvage_info: Dictionary = {}
+var visible_salvage_indices: Array[int] = []
 var selected_frame_info: Dictionary = {}
 var selected_attachment_info: Dictionary = {}
 var selected_chassis_key: String = "standard"
@@ -691,7 +693,7 @@ func _is_item_equipped(slot: String, info: Dictionary) -> bool:
 			var name_a = cur_frame.get("name", cur_frame.get("part_name", "")).to_lower()
 			var name_b = info.get("name", info.get("part_name", "")).to_lower()
 			if name_a != "" and name_b != "":
-				return name_a == name_b or name_a.contains(name_b) or name_b.contains(name_a)
+				return name_a == name_b
 		return false
 	else:
 		var cur = GlobalData.equipped_parts.get(slot)
@@ -705,8 +707,12 @@ func _is_item_equipped(slot: String, info: Dictionary) -> bool:
 		elif cur is Resource and "id" in cur:
 			cur_id = cur.id
 		var info_id = info.get("id", "")
-		if cur_id != "" and info_id != "" and cur_id == info_id:
-			return true
+		# Catalog IDs are authoritative. Do not fall back to path/name when both
+		# entries share the same Resource path.
+		if info_id != "":
+			return cur_id != "" and cur_id == info_id
+		if cur_id != "":
+			return false
 
 		# 2. Match by Resource file path
 		var cur_path = ""
@@ -726,8 +732,7 @@ func _is_item_equipped(slot: String, info: Dictionary) -> bool:
 			cur_name = cur.part_name.to_lower()
 		var info_name = info.get("name", info.get("part_name", "")).to_lower()
 		if cur_name != "" and info_name != "":
-			if cur_name == info_name or info_name.contains(cur_name) or cur_name.contains(info_name):
-				return true
+			return cur_name == info_name
 
 		return false
 
@@ -736,6 +741,7 @@ func _populate_part_list_for_slot(slot: String) -> void:
 	_close_part_action_modal()
 	part_item_list.clear()
 	_last_selected_item_index = -1
+	visible_salvage_indices.clear()
 	_is_populating = true  # Block 3D preview during auto-populate
 
 	if current_mode == "upgrade":
@@ -806,8 +812,10 @@ func _populate_part_list_for_slot(slot: String) -> void:
 			part_item_list.add_item(label_str)
 
 		# Show salvaged enemy drops
-		for salvaged in GlobalData.salvaged_armor_inventory:
+		for salvage_index in range(GlobalData.salvaged_armor_inventory.size()):
+			var salvaged = GlobalData.salvaged_armor_inventory[salvage_index]
 			if salvaged.get("slot", "") == slot:
+				visible_salvage_indices.append(salvage_index)
 				var is_eq = _is_item_equipped(slot, salvaged)
 				var prefix = "[E] " if is_eq else "     "
 				var drop_label = "%sSALVAGED: %s [%s]" % [prefix, salvaged["name"], salvaged.get("type", "Enemy")]
@@ -862,6 +870,7 @@ func _on_part_item_selected(index: int) -> void:
 		if index >= 0 and index < frame_items.size():
 			selected_frame_info = frame_items[index]
 			selected_part_path = ""
+			selected_part_id = ""
 			selected_salvage_info.clear()
 
 			var fname = selected_frame_info.get("name", selected_frame_info.get("part_name", "Inner Frame"))
@@ -882,6 +891,7 @@ func _on_part_item_selected(index: int) -> void:
 		if index >= 0 and index < stock_items.size():
 			selected_info = stock_items[index]
 			selected_part_path = selected_info.get("path", "")
+			selected_part_id = selected_info.get("id", "")
 			selected_frame_info.clear()
 			selected_salvage_info.clear()
 
@@ -902,10 +912,12 @@ func _on_part_item_selected(index: int) -> void:
 			# Only change 3D model when user explicitly picks a part, not on section switch
 			if not _is_populating:
 				_apply_3d_armor_preview(selected_slot, selected_info)
-		elif index - stock_items.size() >= 0 and index - stock_items.size() < GlobalData.salvaged_armor_inventory.size():
-			var salvaged_idx = index - stock_items.size()
+		elif index - stock_items.size() >= 0 and index - stock_items.size() < visible_salvage_indices.size():
+			var visible_salvage_idx = index - stock_items.size()
+			var salvaged_idx = visible_salvage_indices[visible_salvage_idx]
 			selected_salvage_info = GlobalData.salvaged_armor_inventory[salvaged_idx]
 			selected_part_path = ""
+			selected_part_id = ""
 			selected_frame_info.clear()
 
 			var item_name = selected_salvage_info.get("name", selected_salvage_info.get("part_name", "Salvaged Armor"))
@@ -1476,6 +1488,7 @@ func _on_equip_pressed() -> void:
 			var php = res.get("max_hp") if ("max_hp" in res and res.get("max_hp") != null) else 100.0
 			var pwt = res.get("weight") if ("weight" in res and res.get("weight") != null) else 0.0
 			var part_data = {
+				"id": selected_part_id,
 				"name": str(pname),
 				"hp": float(php),
 				"weight": float(pwt),

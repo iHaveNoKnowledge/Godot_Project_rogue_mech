@@ -78,8 +78,6 @@ func _generate_sounds() -> void:
 	_sound_cache["machine_gun"] = preload("res://resources/audio/sfx/machine_gun01.wav")
 	_sound_cache["missile"] = preload("res://resources/audio/sfx/missile01.wav")
 	_sound_cache["shotgun"] = preload("res://resources/audio/sfx/Dense_heavy_combat_s_#1-1782744878871.wav")
-	_sound_cache["melee"] = _gen_sine_chop(400.0, 0.08, 0.3)
-	_sound_cache["impact"] = preload("res://resources/audio/sfx/impact01.wav")
 	_sound_cache["armor_break"] = _gen_crack(0.12, 0.4)
 	_sound_cache["explosion"] = _gen_explosion(0.4, 0.6)
 	_sound_cache["ui_click"] = _gen_sine_tone(800.0, 0.05, 0.15)
@@ -90,10 +88,34 @@ func _generate_sounds() -> void:
 	_sound_cache["jump"] = _gen_sine_sweep(150.0, 450.0, 0.15, 0.25)
 	_sound_cache["land"] = _gen_sine_tone(70.0, 0.18, 0.4)
 	_sound_cache["roller_skate"] = _gen_sine_sweep(400.0, 250.0, 0.08, 0.15)
-	_sound_cache["beam_hit"] = _gen_sine_sweep(1200.0, 300.0, 0.1, 0.3)
-	_sound_cache["kinetic_hit"] = _gen_crack(0.06, 0.35)
-	_sound_cache["explosive_hit"] = _gen_explosion(0.25, 0.5)
 	_sound_cache["reload_complete"] = _gen_sine_sweep(1400.0, 1800.0, 0.1, 0.3)
+
+	# Multiple variants per hit: random one is picked each play.
+	_sound_cache["impact"] = [
+		preload("res://resources/audio/sfx/impact01.wav"),
+		_gen_pitch_variant(preload("res://resources/audio/sfx/impact01.wav"), 0.88),
+		_gen_pitch_variant(preload("res://resources/audio/sfx/impact01.wav"), 1.14),
+	]
+	_sound_cache["beam_hit"] = [
+		_gen_sine_sweep(1200.0, 300.0, 0.1, 0.3),
+		_gen_sine_sweep(1050.0, 260.0, 0.11, 0.3),
+		_gen_sine_sweep(1350.0, 340.0, 0.09, 0.28),
+	]
+	_sound_cache["kinetic_hit"] = [
+		_gen_crack(0.06, 0.35),
+		_gen_crack(0.05, 0.3),
+		_gen_crack(0.07, 0.38),
+	]
+	_sound_cache["explosive_hit"] = [
+		_gen_explosion(0.25, 0.5),
+		_gen_explosion(0.3, 0.5),
+		_gen_explosion(0.22, 0.46),
+	]
+	_sound_cache["melee"] = [
+		_gen_sine_chop(400.0, 0.08, 0.3),
+		_gen_sine_chop(430.0, 0.07, 0.3),
+		_gen_sine_chop(370.0, 0.09, 0.28),
+	]
 
 
 # --- Sound Generation Helpers ---
@@ -169,6 +191,43 @@ func _gen_sine_chop(freq: float, duration: float, volume: float) -> AudioStreamW
 	return _gen_sine_tone(freq, duration, volume)
 
 
+func _gen_pitch_variant(source: AudioStreamWAV, pitch_ratio: float) -> AudioStreamWAV:
+	if source == null:
+		return null
+	var src_data = source.data
+	if src_data.size() == 0:
+		return source
+	var src_count = src_data.size() / 2
+	var out_count = int(float(src_count) / pitch_ratio)
+	if out_count <= 0:
+		return source
+
+	var data = PackedByteArray()
+	data.resize(out_count * 2)
+	for i in range(out_count):
+		var src_index = float(i) * pitch_ratio
+		var i0 = int(src_index)
+		var frac = src_index - i0
+		var i1 = mini(i0 + 1, src_count - 1)
+		var s0 = int(src_data[i0 * 2]) | (int(src_data[i0 * 2 + 1]) << 8)
+		if s0 >= 0x8000:
+			s0 -= 0x10000
+		var s1 = int(src_data[i1 * 2]) | (int(src_data[i1 * 2 + 1]) << 8)
+		if s1 >= 0x8000:
+			s1 -= 0x10000
+		var sample = lerpf(s0, s1, frac)
+		var val = int(clamp(sample, -32767, 32767))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+
+	var stream = AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = source.mix_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream
+
+
 func _gen_crack(duration: float, volume: float) -> AudioStreamWAV:
 	var sample_rate = 22050
 	var num_samples = int(duration * sample_rate)
@@ -219,11 +278,20 @@ func _gen_explosion(duration: float, volume: float) -> AudioStreamWAV:
 
 # --- Public API ---
 
-func play_sfx(sound_name: String, pos: Vector3 = Vector3.ZERO, volume_db: float = 0.0, bus: String = "SFX") -> void:
+func _pick_stream(sound_name: String) -> AudioStream:
 	if not _sound_cache.has(sound_name):
+		return null
+	var entry = _sound_cache[sound_name]
+	if entry is Array and not entry.is_empty():
+		return entry[randi() % entry.size()]
+	return entry
+
+
+func play_sfx(sound_name: String, pos: Vector3 = Vector3.ZERO, volume_db: float = 0.0, bus: String = "SFX") -> void:
+	var stream = _pick_stream(sound_name)
+	if stream == null:
 		return
 
-	var stream = _sound_cache[sound_name]
 	var player = _get_free_3d_player()
 	if player == null:
 		return
@@ -236,10 +304,10 @@ func play_sfx(sound_name: String, pos: Vector3 = Vector3.ZERO, volume_db: float 
 
 
 func play_sfx_2d(sound_name: String, volume_db: float = 0.0, bus: String = "SFX") -> void:
-	if not _sound_cache.has(sound_name):
+	var stream = _pick_stream(sound_name)
+	if stream == null:
 		return
 
-	var stream = _sound_cache[sound_name]
 	var player = _get_free_2d_player()
 	if player == null:
 		return

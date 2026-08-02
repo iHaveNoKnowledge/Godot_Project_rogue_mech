@@ -615,14 +615,14 @@ func _update_selection_highlight(slot: String) -> void:
 	if mecha_3d_root == null or slot == "chassis" or slot.begins_with("weapon"):
 		return
 
-	var parent_path := "MechaBase/" + {
+	var parent_path: String = "MechaBase/" + str({
 		"head": "Head",
 		"body": "Body",
 		"arm_left": "ArmLeft",
 		"arm_right": "ArmRight",
 		"leg_left": "LegLeft",
 		"leg_right": "LegRight"
-	}.get(slot, "")
+	}.get(slot, ""))
 	var parent = mecha_3d_root.get_node_or_null(parent_path)
 	if parent == null:
 		return

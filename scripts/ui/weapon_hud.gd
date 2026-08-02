@@ -25,6 +25,10 @@ var pickup_prompt: PanelContainer
 var pickup_prompt_label: Label
 var pickup_choice_panel: PanelContainer
 var pickup_choice_label: Label
+var pack_info_label: Label
+var take_weapon_btn: Button
+var take_ammo_btn: Button
+var depot_btn: Button
 var nearby_pickup = null
 var pickup_menu_open: bool = false
 
@@ -271,19 +275,19 @@ func _create_pickup_ui() -> void:
 	vbox.add_child(pickup_prompt_label)
 
 	var hint = Label.new()
-	hint.text = "Press F to decide: take the weapon or just its ammo"
+	hint.text = "Press F to decide: carry it, stash it, or take just its ammo"
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.add_theme_font_size_override("font_size", 11)
 	hint.add_theme_color_override("font_color", Color(0.7, 0.8, 0.7))
 	vbox.add_child(hint)
 
-	# Center choice modal: TAKE WEAPON / TAKE AMMO ONLY / CANCEL.
+	# Center choice modal: FIELD PACK / DEPOT / AMMO ONLY / CANCEL.
 	pickup_choice_panel = PanelContainer.new()
 	pickup_choice_panel.set_anchors_preset(Control.PRESET_CENTER)
-	pickup_choice_panel.offset_left = -170
-	pickup_choice_panel.offset_right = 170
-	pickup_choice_panel.offset_top = -120
-	pickup_choice_panel.offset_bottom = 120
+	pickup_choice_panel.offset_left = -190
+	pickup_choice_panel.offset_right = 190
+	pickup_choice_panel.offset_top = -150
+	pickup_choice_panel.offset_bottom = 150
 	pickup_choice_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.06, 0.06, 0.12, 0.96)))
 	root_control.add_child(pickup_choice_panel)
 	pickup_choice_panel.visible = false
@@ -299,13 +303,26 @@ func _create_pickup_ui() -> void:
 	pickup_choice_label.add_theme_color_override("font_color", _accent_color)
 	cbox.add_child(pickup_choice_label)
 
-	var take_weapon_btn = Button.new()
-	take_weapon_btn.text = "TAKE WEAPON (เก็บอาวุธ)"
+	pack_info_label = Label.new()
+	pack_info_label.text = "FIELD PACK: %.1f / %.1f kg" % [GlobalData.get_field_pack_weight(), GlobalData.get_field_pack_capacity()]
+	pack_info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	pack_info_label.add_theme_font_size_override("font_size", 11)
+	pack_info_label.add_theme_color_override("font_color", Color(0.6, 0.8, 0.6))
+	cbox.add_child(pack_info_label)
+
+	take_weapon_btn = Button.new()
+	take_weapon_btn.text = "ADD TO FIELD PACK (ใส่สนาม)"
 	take_weapon_btn.custom_minimum_size = Vector2(0, 38)
 	take_weapon_btn.pressed.connect(_on_take_weapon_pressed)
 	cbox.add_child(take_weapon_btn)
 
-	var take_ammo_btn = Button.new()
+	depot_btn = Button.new()
+	depot_btn.text = "SEND TO DEPOT (ส่งคลัง)"
+	depot_btn.custom_minimum_size = Vector2(0, 38)
+	depot_btn.pressed.connect(_on_send_to_depot_pressed)
+	cbox.add_child(depot_btn)
+
+	take_ammo_btn = Button.new()
 	take_ammo_btn.text = "TAKE AMMO ONLY (เอาแค่กระสุน)"
 	take_ammo_btn.custom_minimum_size = Vector2(0, 38)
 	take_ammo_btn.pressed.connect(_on_take_ammo_only_pressed)
@@ -365,6 +382,14 @@ func _toggle_pickup_menu() -> void:
 	pickup_menu_open = true
 	pickup_choice_panel.visible = true
 	_set_prompt_visible(false)
+	var can_carry: bool = nearby_pickup.can_take_to_field_pack()
+	if take_weapon_btn:
+		take_weapon_btn.disabled = not can_carry
+		take_weapon_btn.text = "ADD TO FIELD PACK (ใส่สนาม)"
+	if pack_info_label:
+		pack_info_label.text = "FIELD PACK: %.1f / %.1f kg" % [GlobalData.get_field_pack_weight(), GlobalData.get_field_pack_capacity()]
+		if not can_carry:
+			pack_info_label.text += "\nFIELD PACK FULL!"
 
 
 func _close_pickup_menu() -> void:
@@ -377,7 +402,16 @@ func _on_take_weapon_pressed() -> void:
 	var pickup = nearby_pickup
 	_close_pickup_menu()
 	if pickup and is_instance_valid(pickup):
-		pickup.take_weapon()
+		if not pickup.take_weapon():
+			return
+	nearby_pickup = null
+
+
+func _on_send_to_depot_pressed() -> void:
+	var pickup = nearby_pickup
+	_close_pickup_menu()
+	if pickup and is_instance_valid(pickup):
+		pickup.send_to_depot()
 	nearby_pickup = null
 
 

@@ -65,6 +65,81 @@ const DEFAULT_RIGHT_WEAPON_PATH := "res://resources/mech/stock/weapon_heat_blade
 const DEFAULT_CARRY_WEAPON_PATH := "res://resources/mech/stock/weapon_combat_shotgun.tres"
 
 # -----------------------------------------------------------------------------
+# FIELD PACK vs DEPOT
+# - DEPOT: permanent storage (weapon_inventory, ammo_inventory, salvaged armor).
+# - FIELD PACK: what the mech physically carries into battle (hand weapons,
+#   back-carry weapons, and the ammo loadout). Weight capacity comes from the
+#   equipped Inner Frames (each frame adds a "carry_bonus").
+# -----------------------------------------------------------------------------
+const FIELD_PACK_BASE_CAPACITY := 40.0
+# Weight of one round of ammo (kg), used to weigh the ammo loadout.
+const AMMO_WEIGHT_PER_UNIT := {
+	"kinetic": 0.01,
+	"energy": 0.02,
+	"explosive": 0.20,
+	"missile": 0.50,
+}
+
+# Total Field Pack weight capacity in kg = base + sum of equipped frames.
+func get_field_pack_capacity() -> float:
+	var capacity := FIELD_PACK_BASE_CAPACITY
+	for slot in equipped_frames:
+		var f = equipped_frames[slot]
+		if f is Dictionary:
+			capacity += float(f.get("carry_bonus", 0.0))
+	return capacity
+
+
+# Current Field Pack load weight in kg (hand weapons + carry weapons + ammo).
+func get_field_pack_weight() -> float:
+	var total := 0.0
+	var left = get_equipped_weapon("left")
+	var right = get_equipped_weapon("right")
+	if left:
+		total += float(left.weight)
+	if right:
+		total += float(right.weight)
+	for w in get_carry_weapons():
+		total += float(w.weight)
+	return total + get_field_pack_ammo_weight()
+
+
+# Weight of the ammo the player chose to carry (the "ammo" loadout).
+func get_field_pack_ammo_weight() -> float:
+	var total := 0.0
+	for ammo_type in weapon_loadout.get("ammo", {}):
+		total += AMMO_WEIGHT_PER_UNIT.get(ammo_type, 0.01) * float(get_loadout_ammo(ammo_type))
+	return total
+
+
+# Can this weapon be added to the Field Pack without exceeding capacity?
+func can_add_weapon_to_field_pack(weapon: WeaponPart) -> bool:
+	if weapon == null:
+		return false
+	return get_field_pack_weight() + float(weapon.weight) <= get_field_pack_capacity()
+
+
+# Older saves predate carry_bonus on frames. Fill it from the frame name so the
+# Field Pack capacity is consistent across old save files.
+func _backfill_frame_carry_bonus() -> void:
+	var name_to_bonus: Dictionary = {
+		"Standard Light Alloy Frame": 2.0,
+		"Standard Core Structure": 8.0,
+		"Standard Articulated Arm Frame": 3.0,
+		"Standard Actuator Leg Frame": 4.0,
+		"Alaya-Vijnana Head Skeleton": 4.0,
+		"Alaya-Vijnana Core Spine": 12.0,
+		"Alaya-Vijnana Arm Joint (L)": 5.0,
+		"Alaya-Vijnana Arm Joint (R)": 5.0,
+		"Alaya-Vijnana Leg Actuator (L)": 6.0,
+		"Alaya-Vijnana Leg Actuator (R)": 6.0,
+	}
+	for slot in equipped_frames:
+		var f = equipped_frames[slot]
+		if f is Dictionary and not f.has("carry_bonus"):
+			f["carry_bonus"] = name_to_bonus.get(f.get("name", ""), 2.0)
+
+# -----------------------------------------------------------------------------
 # WEAPON LOADOUT — central state for what the mech carries into battle.
 # "left"/"right" are the hand weapons (resource path, "" = unarmed hand).
 # "carry" is the array of weapon paths the mech carries on its back.
@@ -212,12 +287,12 @@ func get_chassis_stats() -> Dictionary:
 
 
 var equipped_frames: Dictionary = {
-	"head": {"name": "Standard Light Alloy Frame", "hp": 20.0, "weight": 2.0},
-	"body": {"name": "Standard Core Structure", "hp": 40.0, "weight": 6.0},
-	"arm_left": {"name": "Standard Articulated Arm Frame", "hp": 15.0, "weight": 3.0},
-	"arm_right": {"name": "Standard Articulated Arm Frame", "hp": 15.0, "weight": 3.0},
-	"leg_left": {"name": "Standard Actuator Leg Frame", "hp": 20.0, "weight": 4.0},
-	"leg_right": {"name": "Standard Actuator Leg Frame", "hp": 20.0, "weight": 4.0}
+	"head": {"name": "Standard Light Alloy Frame", "hp": 20.0, "weight": 2.0, "carry_bonus": 2.0},
+	"body": {"name": "Standard Core Structure", "hp": 40.0, "weight": 6.0, "carry_bonus": 8.0},
+	"arm_left": {"name": "Standard Articulated Arm Frame", "hp": 15.0, "weight": 3.0, "carry_bonus": 3.0},
+	"arm_right": {"name": "Standard Articulated Arm Frame", "hp": 15.0, "weight": 3.0, "carry_bonus": 3.0},
+	"leg_left": {"name": "Standard Actuator Leg Frame", "hp": 20.0, "weight": 4.0, "carry_bonus": 4.0},
+	"leg_right": {"name": "Standard Actuator Leg Frame", "hp": 20.0, "weight": 4.0, "carry_bonus": 4.0}
 }
 var frame_upgrade_level: int = 1
 var salvaged_armor_inventory: Array = [
@@ -424,6 +499,7 @@ func _restore_from_dict(data: Dictionary) -> void:
 	if frames_data is Dictionary and not frames_data.is_empty():
 		for slot in frames_data:
 			equipped_frames[slot] = frames_data[slot]
+	_backfill_frame_carry_bonus()
 	part_damage = data.get("damage", {})
 	attachments = data.get("attachments", []).duplicate(true)
 	heat = data.get("heat", 0)

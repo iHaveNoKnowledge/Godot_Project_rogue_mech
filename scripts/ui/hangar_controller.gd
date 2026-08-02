@@ -66,42 +66,43 @@ var status_message_label: Label
 # Inner Frame Catalog
 # NOTE: First entry per slot must match GlobalData.equipped_frames default names so
 # the starter frames show up as "[E]" equipped in the list.
+# "carry_bonus" = kg of Field Pack capacity this frame adds (frame = class system).
 var frame_catalog: Dictionary = {
 	"head": [
-		{"name": "Standard Light Alloy Frame", "hp": 20.0, "weight": 2.0, "type": "Standard Frame"},
-		{"name": "Alaya-Vijnana Head Skeleton", "hp": 25.0, "weight": 2.0, "type": "Gundam Frame"},
-		{"name": "Reinforced Sensor Joint Frame", "hp": 35.0, "weight": 3.5, "type": "Medium Frame"},
-		{"name": "Titan Heavy Structure Head Frame", "hp": 50.0, "weight": 5.5, "type": "Heavy Frame"}
+		{"name": "Standard Light Alloy Frame", "hp": 20.0, "weight": 2.0, "type": "Standard Frame", "carry_bonus": 2.0},
+		{"name": "Alaya-Vijnana Head Skeleton", "hp": 25.0, "weight": 2.0, "type": "Gundam Frame", "carry_bonus": 4.0},
+		{"name": "Reinforced Sensor Joint Frame", "hp": 35.0, "weight": 3.5, "type": "Medium Frame", "carry_bonus": 6.0},
+		{"name": "Titan Heavy Structure Head Frame", "hp": 50.0, "weight": 5.5, "type": "Heavy Frame", "carry_bonus": 8.0}
 	],
 	"body": [
-		{"name": "Standard Core Structure", "hp": 40.0, "weight": 6.0, "type": "Standard Frame"},
-		{"name": "Alaya-Vijnana Core Spine", "hp": 50.0, "weight": 6.0, "type": "Gundam Frame"},
-		{"name": "Reinforced Composite Torso Frame", "hp": 75.0, "weight": 10.0, "type": "Medium Frame"},
-		{"name": "Fortress Heavy Structural Spine", "hp": 110.0, "weight": 16.0, "type": "Heavy Frame"}
+		{"name": "Standard Core Structure", "hp": 40.0, "weight": 6.0, "type": "Standard Frame", "carry_bonus": 8.0},
+		{"name": "Alaya-Vijnana Core Spine", "hp": 50.0, "weight": 6.0, "type": "Gundam Frame", "carry_bonus": 12.0},
+		{"name": "Reinforced Composite Torso Frame", "hp": 75.0, "weight": 10.0, "type": "Medium Frame", "carry_bonus": 16.0},
+		{"name": "Fortress Heavy Structural Spine", "hp": 110.0, "weight": 16.0, "type": "Heavy Frame", "carry_bonus": 20.0}
 	],
 	"arm_left": [
-		{"name": "Standard Articulated Arm Frame", "hp": 15.0, "weight": 3.0, "type": "Standard Frame"},
-		{"name": "Alaya-Vijnana Arm Joint (L)", "hp": 20.0, "weight": 3.0, "type": "Gundam Frame"},
-		{"name": "High-Torque Hydraulic Arm Frame (L)", "hp": 32.0, "weight": 5.0, "type": "Medium Frame"},
-		{"name": "Heavy Reinforced Siege Arm Frame (L)", "hp": 48.0, "weight": 8.0, "type": "Heavy Frame"}
+		{"name": "Standard Articulated Arm Frame", "hp": 15.0, "weight": 3.0, "type": "Standard Frame", "carry_bonus": 3.0},
+		{"name": "Alaya-Vijnana Arm Joint (L)", "hp": 20.0, "weight": 3.0, "type": "Gundam Frame", "carry_bonus": 5.0},
+		{"name": "High-Torque Hydraulic Arm Frame (L)", "hp": 32.0, "weight": 5.0, "type": "Medium Frame", "carry_bonus": 7.0},
+		{"name": "Heavy Reinforced Siege Arm Frame (L)", "hp": 48.0, "weight": 8.0, "type": "Heavy Frame", "carry_bonus": 9.0}
 	],
 	"arm_right": [
-		{"name": "Standard Articulated Arm Frame", "hp": 15.0, "weight": 3.0, "type": "Standard Frame"},
-		{"name": "Alaya-Vijnana Arm Joint (R)", "hp": 20.0, "weight": 3.0, "type": "Gundam Frame"},
-		{"name": "High-Torque Hydraulic Arm Frame (R)", "hp": 32.0, "weight": 5.0, "type": "Medium Frame"},
-		{"name": "Heavy Reinforced Siege Arm Frame (R)", "hp": 48.0, "weight": 8.0, "type": "Heavy Frame"}
+		{"name": "Standard Articulated Arm Frame", "hp": 15.0, "weight": 3.0, "type": "Standard Frame", "carry_bonus": 3.0},
+		{"name": "Alaya-Vijnana Arm Joint (R)", "hp": 20.0, "weight": 3.0, "type": "Gundam Frame", "carry_bonus": 5.0},
+		{"name": "High-Torque Hydraulic Arm Frame (R)", "hp": 32.0, "weight": 5.0, "type": "Medium Frame", "carry_bonus": 7.0},
+		{"name": "Heavy Reinforced Siege Arm Frame (R)", "hp": 48.0, "weight": 8.0, "type": "Heavy Frame", "carry_bonus": 9.0}
 	],
 	"leg_left": [
-		{"name": "Standard Actuator Leg Frame", "hp": 20.0, "weight": 4.0, "type": "Standard Frame"},
-		{"name": "Alaya-Vijnana Leg Actuator (L)", "hp": 25.0, "weight": 4.0, "type": "Gundam Frame"},
-		{"name": "Roller Suspension Leg Frame (L)", "hp": 40.0, "weight": 6.5, "type": "High-Mobility"},
-		{"name": "Heavy Hydraulic Titan Leg Frame (L)", "hp": 60.0, "weight": 10.0, "type": "Heavy Frame"}
+		{"name": "Standard Actuator Leg Frame", "hp": 20.0, "weight": 4.0, "type": "Standard Frame", "carry_bonus": 4.0},
+		{"name": "Alaya-Vijnana Leg Actuator (L)", "hp": 25.0, "weight": 4.0, "type": "Gundam Frame", "carry_bonus": 6.0},
+		{"name": "Roller Suspension Leg Frame (L)", "hp": 40.0, "weight": 6.5, "type": "High-Mobility", "carry_bonus": 8.0},
+		{"name": "Heavy Hydraulic Titan Leg Frame (L)", "hp": 60.0, "weight": 10.0, "type": "Heavy Frame", "carry_bonus": 10.0}
 	],
 	"leg_right": [
-		{"name": "Standard Actuator Leg Frame", "hp": 20.0, "weight": 4.0, "type": "Standard Frame"},
-		{"name": "Alaya-Vijnana Leg Actuator (R)", "hp": 25.0, "weight": 4.0, "type": "Gundam Frame"},
-		{"name": "Roller Suspension Leg Frame (R)", "hp": 40.0, "weight": 6.5, "type": "High-Mobility"},
-		{"name": "Heavy Hydraulic Titan Leg Frame (R)", "hp": 60.0, "weight": 10.0, "type": "Heavy Frame"}
+		{"name": "Standard Actuator Leg Frame", "hp": 20.0, "weight": 4.0, "type": "Standard Frame", "carry_bonus": 4.0},
+		{"name": "Alaya-Vijnana Leg Actuator (R)", "hp": 25.0, "weight": 4.0, "type": "Gundam Frame", "carry_bonus": 6.0},
+		{"name": "Roller Suspension Leg Frame (R)", "hp": 40.0, "weight": 6.5, "type": "High-Mobility", "carry_bonus": 8.0},
+		{"name": "Heavy Hydraulic Titan Leg Frame (R)", "hp": 60.0, "weight": 10.0, "type": "Heavy Frame", "carry_bonus": 10.0}
 	]
 }
 
@@ -491,10 +492,22 @@ func _build_ammo_loadout_ui(parent_box: VBoxContainer) -> void:
 func _adjust_loadout_ammo(ammo_type: String, delta: int) -> void:
 	var owned = GlobalData.get_reserve_ammo(ammo_type)
 	var current = GlobalData.get_loadout_ammo(ammo_type)
-	var new_value = clampi(current + delta, 0, owned)
-	GlobalData.set_loadout_ammo(ammo_type, new_value)
+	var target = clampi(current + delta, 0, owned)
+	var ammo_weight_per_unit = GlobalData.AMMO_WEIGHT_PER_UNIT.get(ammo_type, 0.01)
+	var capacity = GlobalData.get_field_pack_capacity()
+
+	var i = current
+	if target < current:
+		i = target
+	else:
+		var base_weight = GlobalData.get_field_pack_ammo_weight() - current * ammo_weight_per_unit
+		while i < target:
+			if base_weight + (i + 1) * ammo_weight_per_unit > capacity:
+				break
+			i += 1
+	GlobalData.set_loadout_ammo(ammo_type, i)
 	_refresh_ammo_loadout_ui()
-	status_message_label.text = "%s ammo to carry: %d" % [ammo_type.capitalize(), new_value]
+	status_message_label.text = "%s ammo to carry: %d" % [ammo_type.capitalize(), i]
 	GlobalData.save_run()
 
 
@@ -1056,15 +1069,17 @@ func _on_part_item_selected(index: int) -> void:
 			if selected_slot == "weapon_carry":
 				var eq = GlobalData.is_weapon_in_carry(wpath)
 				var prefix = "[E] " if eq else ""
-				stats_label.text = "BACK CARRY: %s%s\nTYPE: %s\n\nWEIGHT: %.1f kg\nCOUNT: x%d\n\nAssigns to the mech's back pack.\nPick weapons from the stash below." % [
-					prefix, wname, wtype, wwt, wcount
+				stats_label.text = "BACK CARRY: %s%s\nTYPE: %s\n\nWEIGHT: %.1f kg\nCOUNT: x%d\n\nAssigns to the mech's back pack (FIELD PACK).\nFIELD PACK: %.1f / %.1f kg\nPick weapons from the stash below." % [
+					prefix, wname, wtype, wwt, wcount,
+					GlobalData.get_field_pack_weight(), GlobalData.get_field_pack_capacity()
 				]
 			else:
 				var hand = "left" if selected_slot == "weapon_left" else "right"
 				var eq = str(GlobalData.weapon_loadout.get(hand, "")) == wpath
 				var prefix = "[E] " if eq else ""
-				stats_label.text = "%s HAND WEAPON: %s%s\nTYPE: %s\n\nWEIGHT: %.1f kg\nCOUNT: x%d\n\nEquip this weapon to the %s hand." % [
-					hand.to_upper(), prefix, wname, wtype, wwt, wcount, hand
+				stats_label.text = "%s HAND WEAPON: %s%s\nTYPE: %s\n\nWEIGHT: %.1f kg\nCOUNT: x%d\n\nEquip this weapon to the %s hand.\nFIELD PACK: %.1f / %.1f kg" % [
+					hand.to_upper(), prefix, wname, wtype, wwt, wcount, hand,
+					GlobalData.get_field_pack_weight(), GlobalData.get_field_pack_capacity()
 				]
 			# Only change 3D model when user explicitly picks a part, not on section switch
 			if not _is_populating:
@@ -1368,15 +1383,15 @@ func _equip_part_to_slot(slot: String, info: Dictionary) -> void:
 		if slot == "weapon_carry":
 			if GlobalData.is_weapon_in_carry(wpath):
 				return
-			if _would_exceed_weight(wpath):
-				status_message_label.text = "Loadout rejected: exceeds max weight capacity!"
+			if _would_exceed_field_pack(wpath):
+				status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
 				return
 			GlobalData.add_carry_weapon(wpath)
 		else:
 			var hand = "left" if slot == "weapon_left" else "right"
 			var replaced_path = str(GlobalData.weapon_loadout.get(hand, ""))
-			if _would_exceed_weight(wpath, replaced_path):
-				status_message_label.text = "Loadout rejected: exceeds max weight capacity!"
+			if _would_exceed_field_pack(wpath, replaced_path):
+				status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
 				return
 			GlobalData.set_hand_weapon(hand, wpath)
 		GlobalData.save_run()
@@ -1723,7 +1738,8 @@ func _get_total_load(excluding_attachment_id: String = "", excluding_slot: Strin
 
 # Returns true if adding `new_weight_path` to the loadout (optionally replacing
 # `replaced_path`) would push the total frame load over the chassis max weight.
-func _would_exceed_weight(new_weight_path: String, replaced_path: String = "") -> bool:
+# Field Pack capacity check (hand weapons + carry weapons + ammo <= frame-based cap).
+func _would_exceed_field_pack(new_weight_path: String, replaced_path: String = "") -> bool:
 	var current_weapons := 0.0
 	var left = GlobalData.get_equipped_weapon("left")
 	if left:
@@ -1739,18 +1755,7 @@ func _would_exceed_weight(new_weight_path: String, replaced_path: String = "") -
 			current_weapons -= float(old.weight)
 	var new_w = load(new_weight_path)
 	var new_wt = float(new_w.weight) if new_w else 0.0
-
-	var max_weight := float(GlobalData.get_chassis_stats().get("max_weight", 75.0)) + ((GlobalData.frame_upgrade_level - 1) * 15.0)
-	var non_weapon := 0.0
-	for frame in GlobalData.equipped_frames.values():
-		non_weapon += float(frame.get("weight", 0.0))
-	for slot in GlobalData.equipped_parts:
-		var part = GlobalData.equipped_parts[slot]
-		if part is Dictionary:
-			non_weapon += float(part.get("weight", 0.0))
-	for attachment in GlobalData.attachments:
-		non_weapon += float(attachment.get("weight", 0.0))
-	return non_weapon + current_weapons + new_wt > max_weight
+	return current_weapons + new_wt + GlobalData.get_field_pack_ammo_weight() > GlobalData.get_field_pack_capacity()
 
 
 func _has_attachment(attachment_id: String, slot: String) -> bool:
@@ -1902,16 +1907,16 @@ func _on_equip_pressed() -> void:
 					if GlobalData.is_weapon_in_carry(wpath):
 						status_message_label.text = "Already in back carry!"
 						return
-					if _would_exceed_weight(wpath):
-						status_message_label.text = "Loadout rejected: exceeds max weight capacity!"
+					if _would_exceed_field_pack(wpath):
+						status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
 						return
 					GlobalData.add_carry_weapon(wpath)
 					status_message_label.text = "Added to Back Carry: %s!" % (res.weapon_name if "weapon_name" in res else "Weapon")
 				else:
 					var hand = "left" if selected_slot == "weapon_left" else "right"
 					var replaced_path = str(GlobalData.weapon_loadout.get(hand, ""))
-					if _would_exceed_weight(wpath, replaced_path):
-						status_message_label.text = "Loadout rejected: exceeds max weight capacity!"
+					if _would_exceed_field_pack(wpath, replaced_path):
+						status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
 						return
 					GlobalData.set_hand_weapon(hand, wpath)
 					status_message_label.text = "Equipped %s on %s hand!" % [(res.weapon_name if "weapon_name" in res else "Weapon"), hand]
@@ -2011,15 +2016,19 @@ func _update_total_stats() -> void:
 	var total_weapon_weight = GlobalData.get_loadout_weapon_weight()
 	var total_weight = total_frame_weight + total_armor_weight + total_attachment_weight + total_weapon_weight
 
+	var field_pack_weight = GlobalData.get_field_pack_weight()
+	var field_pack_capacity = GlobalData.get_field_pack_capacity()
+
 	if weight_bar:
 		weight_bar.max_value = max_weight
 		weight_bar.value = total_weight
 
 	if total_stats_label:
-		total_stats_label.text = "FRAME LVL: %d | FRAME HP: %.0f | ARMOR HP: %.0f\nFRAME W: %.1fkg | ARMOR W: %.1fkg | ATTACH W: %.1fkg | WEAPON W: %.1fkg\nTOTAL WEIGHT: %.1f / %.1f kg\nCREDITS: %d cr | CORES: %d" % [
+		total_stats_label.text = "FRAME LVL: %d | FRAME HP: %.0f | ARMOR HP: %.0f\nFRAME W: %.1fkg | ARMOR W: %.1fkg | ATTACH W: %.1fkg | WEAPON W: %.1fkg\nTOTAL WEIGHT: %.1f / %.1f kg\nFIELD PACK: %.1f / %.1f kg\nCREDITS: %d cr | CORES: %d" % [
 			GlobalData.frame_upgrade_level, total_frame_hp, total_armor_hp,
 			total_frame_weight, total_armor_weight, total_attachment_weight, total_weapon_weight,
 			total_weight, max_weight,
+			field_pack_weight, field_pack_capacity,
 			GlobalData.credits, GlobalData.data_cores
 		]
 

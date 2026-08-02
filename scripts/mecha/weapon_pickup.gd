@@ -40,21 +40,47 @@ func get_weapon_manager() -> Node:
 	return nearby_mecha.get_node_or_null("WeaponManager")
 
 
-# Player chose to take the whole weapon (also registers it in the stash so the
-# same-ID count increases, enabling dual-wielding identical weapons).
-func take_weapon() -> void:
+# Player chose to take the whole weapon into the FIELD PACK (also registers it in
+# the stash so the same-ID count increases, enabling dual-wielding identical
+# weapons). Checks Field Pack capacity; returns false if it would overload.
+func take_weapon() -> bool:
+	if weapon_resource == null:
+		return false
+	if not can_take_to_field_pack():
+		return false
 	var wm = get_weapon_manager()
-	if wm and weapon_resource:
+	if wm:
 		wm.add_weapon(weapon_resource)
 	queue_free()
+	return true
 
 
-# Player chose to scrap the weapon and keep only its ammo.
+# Player chose to scrap the weapon and keep only its ammo (in the battle reserve).
 func take_ammo_only() -> void:
 	var wm = get_weapon_manager()
 	if wm and weapon_resource:
 		wm.add_ammo(weapon_resource.max_ammo, "", weapon_resource.get_ammo_type())
 	queue_free()
+
+
+# Player chose to send the weapon straight to the DEPOT (permanent stash): it is
+# NOT carried into this battle, but is available for loadout later in the hangar.
+# The weapon's ammo is sent to the depot ammo stash instead of the battle reserve.
+func send_to_depot() -> void:
+	if weapon_resource:
+		GlobalData.register_weapon(weapon_resource.resource_path, weapon_resource.weapon_name)
+		GlobalData.add_reserve_ammo(weapon_resource.get_ammo_type(), weapon_resource.max_ammo)
+	queue_free()
+
+
+func can_take_to_field_pack() -> bool:
+	if weapon_resource == null:
+		return false
+	var current_weight := GlobalData.get_field_pack_weight()
+	var wm = get_weapon_manager()
+	if wm and wm.has_method("get_battle_field_pack_weight"):
+		current_weight = wm.get_battle_field_pack_weight()
+	return current_weight + float(weapon_resource.weight) <= GlobalData.get_field_pack_capacity()
 
 
 func _create_visual() -> void:

@@ -472,6 +472,19 @@ func drop_weapon_from_destroyed_arm(hand: String) -> WeaponPart:
 # WEAPON MANAGEMENT
 # ====================================================================
 
+# Weight of weapons physically carried in this battle (back + hands).
+func get_battle_field_pack_weight() -> float:
+	var total := 0.0
+	for w in carry:
+		if w:
+			total += float(w.weight)
+	if left_hand:
+		total += float(left_hand.weight)
+	if right_hand:
+		total += float(right_hand.weight)
+	return total
+
+
 func add_weapon(weapon: WeaponPart) -> void:
 	# Registers the weapon in the central stash (same-ID pickups increment the
 	# count, so owning the same weapon twice enables equipping both hands with it).

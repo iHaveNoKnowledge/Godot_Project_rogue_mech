@@ -338,6 +338,7 @@ var chassis_catalog: Dictionary = {
 
 var board_grid: Array = []
 var current_tile: Vector2i = Vector2i.ZERO
+var board_seed: int = 0
 var heat: int = 0
 var wanted_level: int = 0
 var safehouse_upgrades: Array = []
@@ -411,6 +412,7 @@ func reset_run_data() -> void:
 	attachments.clear()
 	board_grid.clear()
 	current_tile = Vector2i.ZERO
+	board_seed = randi()
 	heat = 0
 	wanted_level = 0
 	safehouse_upgrades.clear()
@@ -466,6 +468,7 @@ func save_run() -> void:
 		"spare_parts": spare_parts,
 		"data_cores": data_cores,
 		"sector": current_sector,
+		"board_seed": board_seed,
 		"enemy_forces": enemy_forces.duplicate(),
 		"last_combat_squad_size": last_combat_squad_size,
 		"max_notoriety_multiplier": max_notoriety_multiplier,
@@ -508,6 +511,7 @@ func _restore_from_dict(data: Dictionary) -> void:
 	spare_parts = data.get("spare_parts", 0)
 	data_cores = data.get("data_cores", 0)
 	current_sector = data.get("sector", 1)
+	board_seed = data.get("board_seed", randi())
 	
 	var pos = data.get("position", {"x": 0, "y": 0})
 	current_tile = Vector2i(pos.x, pos.y)

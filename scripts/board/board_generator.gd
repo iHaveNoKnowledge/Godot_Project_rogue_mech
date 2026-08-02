@@ -11,13 +11,16 @@ func generate_board() -> Dictionary:
 	var nodes_dict: Dictionary = {} # Key: Vector2i(layer, index), Value: Node3D (BoardTile)
 	var layer_nodes: Array = [] # Array of Arrays of Vector2i keys
 
+	var rng := RandomNumberGenerator.new()
+	rng.seed = GlobalData.board_seed
+
 	# Step 1: Determine structure for each layer
 	for l in range(num_layers):
 		var count: int = 1
 		if l == 0 or l == num_layers - 1:
 			count = 1 # Start (Layer 0) and Exit (Last Layer) have exactly 1 node
 		else:
-			count = randi_range(min_nodes_per_layer, max_nodes_per_layer)
+			count = rng.randi_range(min_nodes_per_layer, max_nodes_per_layer)
 
 		var current_layer_keys: Array = []
 		for i in range(count):
@@ -37,7 +40,7 @@ func generate_board() -> Dictionary:
 			if not connections_dict.has(key):
 				connections_dict[key] = []
 			
-			var target_index = randi() % next_keys.size()
+			var target_index = rng.randi() % next_keys.size()
 			var target_key = next_keys[target_index]
 			if not connections_dict[key].has(target_key):
 				connections_dict[key].append(target_key)
@@ -52,7 +55,7 @@ func generate_board() -> Dictionary:
 
 			if not has_incoming:
 				# Pick a random node from current layer and add connection
-				var source_key = curr_keys[randi() % curr_keys.size()]
+				var source_key = curr_keys[rng.randi() % curr_keys.size()]
 				if not connections_dict.has(source_key):
 					connections_dict[source_key] = []
 				connections_dict[source_key].append(n_key)
@@ -75,7 +78,7 @@ func generate_board() -> Dictionary:
 			elif l == int(num_layers / 2) and i == 0:
 				tile_type = "safehouse" # Mid-run guaranteed safehouse
 			else:
-				tile_type = type_pool[randi() % type_pool.size()]
+				tile_type = type_pool[rng.randi() % type_pool.size()]
 
 			var tile_instance = tile_scene.instantiate()
 			tile_instance.set_meta("tile_type", tile_type)

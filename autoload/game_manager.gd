@@ -37,6 +37,7 @@ func advance_to_next_sector() -> void:
 	is_boss_combat = false
 	GlobalData.current_sector += 1
 	GlobalData.current_tile = Vector2i.ZERO
+	GlobalData.board_seed = randi()
 	GlobalData.heat = max(0, GlobalData.heat - 2)
 	GlobalData.wanted_level = min(GlobalData.wanted_level + 1, 5)
 	GlobalData.save_run()

@@ -252,6 +252,7 @@ func save_run() -> void:
 	var data := {
 		"chassis": chassis_id,
 		"parts": _serialize_parts(),
+		"frames": equipped_frames.duplicate(true),
 		"damage": part_damage.duplicate(),
 		"attachments": _serialize_attachments(),
 		"position": {"x": current_tile.x, "y": current_tile.y},
@@ -289,6 +290,10 @@ func load_run() -> bool:
 
 func _restore_from_dict(data: Dictionary) -> void:
 	chassis_id = data.get("chassis", "standard")
+	var frames_data = data.get("frames", {})
+	if frames_data is Dictionary and not frames_data.is_empty():
+		for slot in frames_data:
+			equipped_frames[slot] = frames_data[slot]
 	part_damage = data.get("damage", {})
 	attachments = data.get("attachments", []).duplicate(true)
 	heat = data.get("heat", 0)

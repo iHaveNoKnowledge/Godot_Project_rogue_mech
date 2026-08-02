@@ -1061,10 +1061,14 @@ func _show_part_action_modal(info: Dictionary) -> void:
 			info["hp"] = info.get("max_hp", 100.0)
 			info["durability"] = info.get("max_hp", 100.0)
 			GlobalData.part_damage.erase(selected_slot)
+			GlobalData.part_damage.erase(selected_slot + "_frame")
 			status_message_label.text = "Part Repaired to 100% HP!"
 			GlobalData.save_run()
 			_update_total_stats()
-			_apply_3d_armor_preview(selected_slot, info)
+			if current_mode == "frame":
+				_update_all_3d_slots_preview()
+			else:
+				_apply_3d_armor_preview(selected_slot, info)
 		else:
 			status_message_label.text = "Insufficient Credits for repair!"
 		_close_part_action_modal()
@@ -1134,6 +1138,15 @@ func _show_part_action_modal(info: Dictionary) -> void:
 
 
 func _equip_part_to_slot(slot: String, info: Dictionary) -> void:
+	if current_mode == "frame":
+		GlobalData.equipped_frames[slot] = info.duplicate()
+		GlobalData.save_run()
+		_update_total_stats()
+		_populate_part_list_for_slot(slot)
+		_update_all_3d_slots_preview()
+		AudioManager.play_ui_confirm()
+		return
+
 	var data = info.duplicate()
 	data["equipped"] = true  # Mark as explicitly equipped for 3D preview distinction
 	GlobalData.equipped_parts[slot] = data
@@ -1145,6 +1158,17 @@ func _equip_part_to_slot(slot: String, info: Dictionary) -> void:
 
 
 func _unequip_part_from_slot(slot: String) -> void:
+	if current_mode == "frame":
+		GlobalData.equipped_frames.erase(slot)
+		GlobalData.part_damage.erase(slot)
+		GlobalData.part_damage.erase(slot + "_frame")
+		GlobalData.save_run()
+		_update_total_stats()
+		_populate_part_list_for_slot(slot)
+		_update_all_3d_slots_preview()
+		AudioManager.play_ui_click()
+		return
+
 	GlobalData.equipped_parts[slot] = null
 	GlobalData.save_run()
 	if mecha_3d_root:
@@ -1480,10 +1504,14 @@ func _on_equip_pressed() -> void:
 
 	if current_mode == "frame" and not selected_frame_info.is_empty():
 		GlobalData.equipped_frames[selected_slot] = selected_frame_info.duplicate()
+		GlobalData.part_damage.erase(selected_slot)
+		GlobalData.part_damage.erase(selected_slot + "_frame")
 		var fname = selected_frame_info.get("name", "Frame")
 		status_message_label.text = "Equipped Inner Frame: %s!" % fname
 		GlobalData.save_run()
 		_update_total_stats()
+		_populate_part_list_for_slot(selected_slot)
+		_update_all_3d_slots_preview()
 	elif selected_part_path != "" and ResourceLoader.exists(selected_part_path):
 		var res = load(selected_part_path)
 		if res:

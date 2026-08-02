@@ -186,9 +186,11 @@ func _is_in_water() -> bool:
 	# so crossing a bridge never counts as being in water.
 	var space = get_world_3d().direct_space_state
 	for sample in [global_position, global_position + Vector3(0, 1.0, 0), global_position + Vector3(0, 2.0, 0)]:
-		var hit = space.intersect_point(sample, 4, 4, true, false)
-		if not hit.is_empty():
-			return true
+		var results = space.intersect_point(sample, 4)
+		for hit in results:
+			var collider = hit.get("collider")
+			if collider is Area3D and collider.collision_layer & 4 != 0:
+				return true
 	return false
 
 

@@ -957,8 +957,8 @@ func _on_part_item_selected(index: int) -> void:
 			if wpath != "" and ResourceLoader.exists(wpath):
 				var res = load(wpath)
 				if res:
-					wwt = float(res.get("weight", 0.0))
-					wtype = _weapon_type_label(res.get("weapon_type", -1)) if "weapon_type" in res else "Unknown"
+					wwt = float(res.weight) if "weight" in res and res.weight != null else 0.0
+					wtype = _weapon_type_label(res.weapon_type) if "weapon_type" in res else "Unknown"
 
 			if selected_slot == "weapon_carry":
 				var eq = GlobalData.is_weapon_in_carry(wpath)
@@ -1117,7 +1117,7 @@ func _show_part_action_modal(info: Dictionary) -> void:
 		if wp != "" and ResourceLoader.exists(wp):
 			var res = load(wp)
 			if res:
-				wt_val = float(res.get("weight", 0.0))
+				wt_val = float(res.weight) if "weight" in res and res.weight != null else 0.0
 		details.text = "WEIGHT: %.1f kg   COUNT: x%d" % [wt_val, info.get("count", 1)]
 	else:
 		details.text = "DURABILITY: %.0f / %.0f HP  |  WEIGHT: %.1f kg" % [hp_val, max_hp_val, wt_val]
@@ -1798,7 +1798,7 @@ func _on_equip_pressed() -> void:
 						status_message_label.text = "Loadout rejected: exceeds max weight capacity!"
 						return
 					GlobalData.add_carry_weapon(wpath)
-					status_message_label.text = "Added to Back Carry: %s!" % res.get("weapon_name", "Weapon")
+					status_message_label.text = "Added to Back Carry: %s!" % (res.weapon_name if "weapon_name" in res else "Weapon")
 				else:
 					var hand = "left" if selected_slot == "weapon_left" else "right"
 					var replaced_path = str(GlobalData.weapon_loadout.get(hand, ""))
@@ -1806,7 +1806,7 @@ func _on_equip_pressed() -> void:
 						status_message_label.text = "Loadout rejected: exceeds max weight capacity!"
 						return
 					GlobalData.set_hand_weapon(hand, wpath)
-					status_message_label.text = "Equipped %s on %s hand!" % [res.get("weapon_name", "Weapon"), hand]
+					status_message_label.text = "Equipped %s on %s hand!" % [(res.weapon_name if "weapon_name" in res else "Weapon"), hand]
 				GlobalData.save_run()
 				_update_total_stats()
 				_update_all_3d_slots_preview()

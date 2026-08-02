@@ -178,7 +178,7 @@ func _input(event: InputEvent) -> void:
 			_drop_weapon("right")
 
 	# --- SCROLL while selecting ---
-	if event is InputEventMouseButton:
+	if event is InputEventMouseButton and event.pressed:
 		var dir = 0
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			dir = -1   # up = lower index

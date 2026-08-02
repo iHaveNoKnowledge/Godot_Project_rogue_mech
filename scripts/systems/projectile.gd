@@ -10,6 +10,7 @@ var direction: Vector3 = Vector3.FORWARD
 var fired_by_enemy: bool = false
 var ricochet_chance: float = 0.15
 var prev_position: Vector3
+var explosion_radius: float = 3.0
 
 
 func _ready() -> void:
@@ -55,7 +56,10 @@ func _physics_process(delta: float) -> void:
 				return
 
 	if global_position.y <= 0.0:
-		EffectManager.spawn_impact(global_position, Vector3.UP)
+		if damage_type.to_lower() == "explosive":
+			_explode(global_position)
+		else:
+			EffectManager.spawn_impact(global_position, Vector3.UP)
 		queue_free()
 		return
 
@@ -81,6 +85,11 @@ func _check_obstacle_collision() -> void:
 		if collider.has_method("take_damage"):
 			collider.take_damage(damage, damage_type)
 
+		if damage_type.to_lower() == "explosive":
+			_explode(hit_pos)
+			queue_free()
+			return
+
 		EffectManager.spawn_impact(hit_pos, hit_normal)
 
 		# Ricochet check: some bullets bounce off
@@ -105,6 +114,10 @@ func _hit_target(target: Node3D) -> void:
 	if damage_type.to_lower() == "melee" and GlobalData.chassis_id == "brawler":
 		final_damage *= 1.4
 
+	if damage_type.to_lower() == "explosive":
+		_explode(position)
+		return
+
 	EffectManager.spawn_impact(position, Vector3.UP)
 	if has_node("/root/AudioManager"):
 		AudioManager.play_impact_by_type(damage_type, position)
@@ -115,6 +128,34 @@ func _hit_target(target: Node3D) -> void:
 		target.take_damage(final_damage, damage_type)
 
 	EffectManager.spawn_damage_number(position + Vector3(0, 1.5, 0), final_damage, Color.WHITE)
+	queue_free()
+
+
+func _explode(blast_pos: Vector3) -> void:
+	EffectManager.spawn_explosion(blast_pos)
+	if has_node("/root/AudioManager"):
+		AudioManager.play_explosion(blast_pos)
+
+	var candidates: Array
+	if fired_by_enemy:
+		candidates = get_tree().get_nodes_in_group("mecha")
+	else:
+		candidates = get_tree().get_nodes_in_group("enemy")
+
+	for target in candidates:
+		if not is_instance_valid(target):
+			continue
+		var dist = blast_pos.distance_to(target.global_position + Vector3(0, 1.5, 0))
+		if dist > explosion_radius:
+			continue
+		# Falloff: full damage at center, 30% at edge
+		var falloff = 1.0 - 0.7 * (dist / explosion_radius)
+		var splash_damage = damage * falloff
+		if target.has_method("take_damage_at_point"):
+			target.take_damage_at_point(splash_damage, blast_pos, damage_type)
+		elif target.has_method("take_damage"):
+			target.take_damage(splash_damage, damage_type)
+		EffectManager.spawn_damage_number(target.global_position + Vector3(0, 1.5, 0), splash_damage, Color(1.0, 0.6, 0.1))
 	queue_free()
 
 

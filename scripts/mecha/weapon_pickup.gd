@@ -17,6 +17,19 @@ func _ready() -> void:
 
 func _create_visual() -> void:
 	mesh = MeshInstance3D.new()
+
+	# Show the actual weapon model when a weapon resource is set (matches hangar).
+	if weapon_resource:
+		# Hide any placeholder box mesh defined in the scene (stock pickups).
+		for child in get_children():
+			if child is MeshInstance3D:
+				child.visible = false
+		var visual := Node3D.new()
+		visual.add_child(WeaponVisualFactory.build(weapon_resource))
+		add_child(visual)
+		original_y = position.y
+		return
+
 	var box = BoxMesh.new()
 	box.size = Vector3(0.5, 0.3, 1.2)
 	mesh.mesh = box
@@ -34,9 +47,9 @@ func _create_visual() -> void:
 
 func _process(delta: float) -> void:
 	timer += delta
-	if mesh:
+	rotate_y(rotate_speed * delta)
+	if mesh and mesh.is_inside_tree():
 		mesh.position.y = sin(timer * bob_speed) * bob_amount
-		rotate_y(rotate_speed * delta)
 
 
 func _on_body_entered(body: Node3D) -> void:

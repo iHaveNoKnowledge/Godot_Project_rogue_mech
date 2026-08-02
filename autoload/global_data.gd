@@ -59,6 +59,29 @@ func ensure_default_equipped_parts() -> void:
 			equipped_parts[slot] = starter_part
 
 
+# Default stock weapons that the player starts with on each hand.
+const DEFAULT_LEFT_WEAPON_PATH := "res://resources/mech/stock/weapon_beam_rifle.tres"
+const DEFAULT_RIGHT_WEAPON_PATH := "res://resources/mech/stock/weapon_heat_blade.tres"
+
+
+# Returns the equipped WeaponPart for the given hand ("left"/"right").
+# Equipped weapons are stored in equipped_parts["weapon_left"]/["weapon_right"]
+# (same persistent structure as armor) so the Hangar and battle share one source.
+func get_equipped_weapon(side: String) -> WeaponPart:
+	var slot_name := "weapon_left" if side == "left" else "weapon_right"
+	var entry = equipped_parts.get(slot_name)
+	var path := ""
+	if entry is Dictionary:
+		path = str(entry.get("path", ""))
+	elif entry is Resource and "resource_path" in entry and entry.resource_path != "":
+		path = entry.resource_path
+	if path == "" or not ResourceLoader.exists(path):
+		path = DEFAULT_LEFT_WEAPON_PATH if side == "left" else DEFAULT_RIGHT_WEAPON_PATH
+	if ResourceLoader.exists(path):
+		return load(path)
+	return null
+
+
 func get_equipped_part_id(slot: String) -> String:
 	var part = equipped_parts.get(slot)
 	if part == null:

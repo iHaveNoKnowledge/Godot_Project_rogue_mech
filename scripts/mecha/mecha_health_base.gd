@@ -153,6 +153,12 @@ func _on_frame_destroyed(slot_name: String) -> void:
 	_hide_part(slot_name)
 	if is_player:
 		_spawn_scrap_wreckage(slot_name)
+		# The arm frame holding the weapon broke → the weapon on that hand is
+		# dropped as a recoverable pickup (the weapon itself is NOT destroyed).
+		if slot_name == "arm_left":
+			_drop_hand_weapon_pickup("left", slot_name)
+		elif slot_name == "arm_right":
+			_drop_hand_weapon_pickup("right", slot_name)
 	part_destroyed.emit(slot_name)
 	_calculate_totals()
 
@@ -307,6 +313,45 @@ func _get_scrap_size(slot_name: String) -> Vector3:
 		"leg_left", "leg_right":
 			return Vector3(0.5, 0.9, 0.5)
 	return Vector3(0.5, 0.5, 0.5)
+
+
+# The arm frame holding the weapon broke → drop the weapon on that hand as a
+# recoverable pickup. The weapon itself is NOT destroyed, only the frame was.
+func _drop_hand_weapon_pickup(hand: String, arm_slot: String) -> void:
+	var mecha = get_parent()
+	if mecha == null:
+		return
+	var wm = mecha.get_node_or_null("WeaponManager")
+	if wm == null or not wm.has_method("drop_weapon_from_destroyed_arm"):
+		return
+	var weapon: WeaponPart = wm.drop_weapon_from_destroyed_arm(hand)
+	if weapon == null:
+		return
+
+	var world = get_tree().current_scene
+	if world == null:
+		return
+
+	var section = _get_section_node(arm_slot)
+	var drop_pos: Vector3 = global_position + Vector3(0, 1.0, 0)
+	if section:
+		drop_pos = section.global_position + Vector3(0, 0.5, 0)
+
+	var pickup := Area3D.new()
+	pickup.collision_layer = 0
+	pickup.collision_mask = 1
+	pickup.set_script(load("res://scripts/mecha/weapon_pickup.gd"))
+	pickup.weapon_resource = weapon
+	world.add_child(pickup)
+	pickup.global_position = drop_pos
+
+	# Keep the same pickup shape as the stock pickups in game_world.tscn.
+	# The weapon model visual is created automatically by weapon_pickup._create_visual().
+	var collision := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(0.6, 0.5, 1.3)
+	collision.shape = shape
+	pickup.add_child(collision)
 
 
 func _on_damage_received(_slot: String, _amount: float, _type: String) -> void:

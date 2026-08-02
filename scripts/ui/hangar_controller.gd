@@ -1179,6 +1179,18 @@ func _unequip_part_from_slot(slot: String) -> void:
 
 	GlobalData.equipped_parts[slot] = null
 	GlobalData.save_run()
+	if slot.begins_with("weapon"):
+		var mecha = mecha_3d_root.get_node_or_null("MechaBase") if mecha_3d_root and mecha_3d_root.has_node("MechaBase") else mecha_3d_root
+		if mecha:
+			var hand = "left" if slot == "weapon_left" else "right"
+			var node_name = "WeaponVisual_" + hand
+			var existing = mecha.get_node_or_null(node_name)
+			if existing:
+				existing.queue_free()
+		_update_total_stats()
+		_populate_part_list_for_slot(slot)
+		AudioManager.play_ui_click()
+		return
 	if mecha_3d_root:
 		var mecha = mecha_3d_root.get_node_or_null("MechaBase") if mecha_3d_root.has_node("MechaBase") else mecha_3d_root
 		var pmm = mecha.get_node_or_null("PartMeshManager") if mecha else null
@@ -1297,6 +1309,9 @@ func _apply_3d_frame_preview(slot: String, info: Dictionary) -> void:
 
 func _apply_3d_armor_preview(slot: String, info: Dictionary) -> void:
 	if mecha_3d_root == null: return
+	if slot.begins_with("weapon"):
+		_preview_weapon_on_hand(slot, info)
+		return
 	var mecha = mecha_3d_root.get_node_or_null("MechaBase") if mecha_3d_root.has_node("MechaBase") else mecha_3d_root
 	var pmm = mecha.get_node_or_null("PartMeshManager") if mecha else null
 	if pmm:
@@ -1306,6 +1321,29 @@ func _apply_3d_armor_preview(slot: String, info: Dictionary) -> void:
 		if info.has("color"):
 			part.part_color = info.get("color")
 		pmm.initialize_slot(slot, part)
+
+
+# Shows a selected weapon on the matching hand as a live preview (not yet equipped).
+func _preview_weapon_on_hand(slot: String, info: Dictionary) -> void:
+	var mecha = mecha_3d_root.get_node_or_null("MechaBase") if mecha_3d_root.has_node("MechaBase") else mecha_3d_root
+	if mecha == null:
+		return
+	var weapon_path = info.get("path", "")
+	if weapon_path == "" or not ResourceLoader.exists(weapon_path):
+		return
+	var weapon = load(weapon_path)
+	if weapon == null:
+		return
+	var hand = "left" if slot == "weapon_left" else "right"
+	var node_name = "WeaponVisual_" + hand
+	var existing = mecha.get_node_or_null(node_name)
+	if existing:
+		existing.queue_free()
+	var mount := Node3D.new()
+	mount.name = node_name
+	mount.position = Vector3(-0.85, 1.4, 0.4) if hand == "left" else Vector3(0.85, 1.4, 0.4)
+	mount.add_child(WeaponVisualFactory.build(weapon))
+	mecha.add_child(mount)
 
 
 func _update_all_3d_slots_preview() -> void:
@@ -1351,6 +1389,34 @@ func _update_all_3d_slots_preview() -> void:
 	var attachment_manager = mecha.get_node_or_null("AttachmentManager") if mecha else null
 	if attachment_manager:
 		attachment_manager.rebuild_from_global_data()
+
+	_update_weapon_preview(mecha)
+
+
+# Shows the equipped weapons on the mech's hands in the 3D garage.
+# Uses the SAME shared factory (WeaponVisualFactory) as battle so the model
+# shown in the hangar is exactly what appears on the hands in combat.
+func _update_weapon_preview(mecha: Node3D) -> void:
+	if mecha == null:
+		return
+	for hand in ["left", "right"]:
+		var node_name = "WeaponVisual_" + hand
+		var existing = mecha.get_node_or_null(node_name)
+		if existing:
+			existing.queue_free()
+		var weapon = GlobalData.get_equipped_weapon(hand)
+		if weapon == null:
+			continue
+		# If the arm frame holding this hand's weapon is destroyed, the weapon
+		# is no longer mounted on the mech (it was dropped in battle).
+		var arm_slot = "arm_left" if hand == "left" else "arm_right"
+		if GlobalData.part_damage.get(arm_slot + "_frame", 0.0) >= 1.0:
+			continue
+		var mount := Node3D.new()
+		mount.name = node_name
+		mount.position = Vector3(-0.85, 1.4, 0.4) if hand == "left" else Vector3(0.85, 1.4, 0.4)
+		mount.add_child(WeaponVisualFactory.build(weapon))
+		mecha.add_child(mount)
 
 
 func _get_attachment_capacity(slot: String) -> float:
@@ -1523,17 +1589,31 @@ func _on_equip_pressed() -> void:
 	elif selected_part_path != "" and ResourceLoader.exists(selected_part_path):
 		var res = load(selected_part_path)
 		if res:
-			var pname = res.get("part_name") if ("part_name" in res and res.get("part_name") != null) else "Part"
-			var php = res.get("max_hp") if ("max_hp" in res and res.get("max_hp") != null) else 100.0
-			var pwt = res.get("weight") if ("weight" in res and res.get("weight") != null) else 0.0
-			var part_data = {
-				"id": selected_part_id,
-				"name": str(pname),
-				"hp": float(php),
-				"weight": float(pwt),
-				"path": selected_part_path,
-				"equipped": true
-			}
+			var part_data: Dictionary
+			if selected_slot.begins_with("weapon"):
+				# Weapon slots store a WeaponPart resource entry (kept in equipped_parts
+				# like armor, so GlobalData.get_equipped_weapon() can find it).
+				var wname = res.get("weapon_name") if ("weapon_name" in res and res.get("weapon_name") != null) else "Weapon"
+				var wwt = res.get("weight") if ("weight" in res and res.get("weight") != null) else 5.0
+				part_data = {
+					"id": selected_part_id,
+					"name": str(wname),
+					"path": selected_part_path,
+					"weight": float(wwt),
+					"equipped": true
+				}
+			else:
+				var pname = res.get("part_name") if ("part_name" in res and res.get("part_name") != null) else "Part"
+				var php = res.get("max_hp") if ("max_hp" in res and res.get("max_hp") != null) else 100.0
+				var pwt = res.get("weight") if ("weight" in res and res.get("weight") != null) else 0.0
+				part_data = {
+					"id": selected_part_id,
+					"name": str(pname),
+					"hp": float(php),
+					"weight": float(pwt),
+					"path": selected_part_path,
+					"equipped": true
+				}
 			GlobalData.equipped_parts[selected_slot] = part_data
 			GlobalData.part_damage.erase(selected_slot)
 			status_message_label.text = "Equipped & Saved Armor: %s!" % part_data["name"]

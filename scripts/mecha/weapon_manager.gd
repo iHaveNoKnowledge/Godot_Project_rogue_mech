@@ -347,6 +347,7 @@ func _scroll(hand: String, direction: int) -> void:
 	weapon_switched.emit(hand, preview.weapon_name)
 	ammo_changed.emit(hand, _get_ammo(preview), preview.max_ammo)
 	carry_updated.emit(carry)
+	_update_weapon_visuals()
 
 
 func _commit_selection(hand: String) -> void:
@@ -380,6 +381,7 @@ func _commit_selection(hand: String) -> void:
 		weapon_switched.emit(hand, new_weapon.weapon_name)
 		ammo_changed.emit(hand, _get_ammo(new_weapon), new_weapon.max_ammo)
 		carry_updated.emit(carry)
+		_update_weapon_visuals()
 		return
 
 	# Take the highlighted weapon out of carry into hand
@@ -395,6 +397,7 @@ func _commit_selection(hand: String) -> void:
 	if w:
 		ammo_changed.emit(hand, _get_ammo(w), w.max_ammo)
 	carry_updated.emit(carry)
+	_update_weapon_visuals()
 
 
 # ====================================================================
@@ -412,6 +415,7 @@ func _cycle_left() -> void:
 	if left_hand:
 		ammo_changed.emit("left", _get_ammo(left_hand), left_hand.max_ammo)
 	carry_updated.emit(carry)
+	_update_weapon_visuals()
 
 
 func _cycle_right() -> void:
@@ -425,6 +429,7 @@ func _cycle_right() -> void:
 	if right_hand:
 		ammo_changed.emit("right", _get_ammo(right_hand), right_hand.max_ammo)
 	carry_updated.emit(carry)
+	_update_weapon_visuals()
 
 
 # ====================================================================
@@ -442,6 +447,7 @@ func _drop_weapon(hand: String) -> void:
 	if weapon:
 		weapon_dropped.emit(hand, weapon)
 		weapon_switched.emit(hand, "Empty")
+		_update_weapon_visuals()
 
 
 # Called by HealthSystem when the arm frame on this hand is destroyed.
@@ -478,6 +484,7 @@ func add_weapon(weapon: WeaponPart) -> void:
 	carry.append(weapon)
 	ammo_pool[weapon.weapon_name] = weapon.max_ammo
 	carry_updated.emit(carry)
+	_update_weapon_visuals()
 
 
 func add_ammo(amount: int, hand: String = "", ammo_type: String = "") -> void:

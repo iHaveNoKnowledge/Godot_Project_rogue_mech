@@ -2,6 +2,7 @@ extends Node
 
 var chassis_id: String = "standard"
 var equipped_parts: Dictionary = {}
+var attachments: Array = []
 
 # ==============================================================================
 # ARMOR CATALOG — Single source of truth for all stock armor parts.
@@ -80,9 +81,15 @@ func get_equipped_part_id(slot: String) -> String:
 # Used by mecha_controller at combat start so it doesn't rely on @export chassis resource.
 # Keys: "speed" (float), "max_weight" (float), "color" (Color), "name" (String)
 func get_chassis_stats() -> Dictionary:
-	return chassis_catalog.get(chassis_id, chassis_catalog.get("standard", {
+	var result: Dictionary = chassis_catalog.get(chassis_id, chassis_catalog.get("standard", {
 		"name": "Standard", "speed": 14.0, "max_weight": 75.0, "color": Color(0.6, 0.65, 0.7)
-	}))
+	})).duplicate(true)
+	if not result.has("attachment_capacity"):
+		var capacity := float(result.get("max_weight", 75.0))
+		result["attachment_capacity"] = {"head": capacity * 0.10, "body": capacity * 0.35, "arm_left": capacity * 0.14, "arm_right": capacity * 0.14, "leg_left": capacity * 0.16, "leg_right": capacity * 0.16}
+	result["movement_type"] = {"standard": "biped", "titan": "heavy", "vanguard": "light", "aegis": "hover", "brawler": "brawler"}.get(chassis_id, "biped")
+	result["water_traversal"] = result["movement_type"] == "hover"
+	return result
 
 
 var equipped_frames: Dictionary = {
@@ -208,6 +215,7 @@ func register_weapon(path: String, weapon_name: String, slot: String = "stored")
 func reset_run_data() -> void:
 	equipped_parts.clear()
 	part_damage.clear()
+	attachments.clear()
 	board_grid.clear()
 	current_tile = Vector2i.ZERO
 	heat = 0
@@ -245,6 +253,7 @@ func save_run() -> void:
 		"chassis": chassis_id,
 		"parts": _serialize_parts(),
 		"damage": part_damage.duplicate(),
+		"attachments": _serialize_attachments(),
 		"position": {"x": current_tile.x, "y": current_tile.y},
 		"heat": heat,
 		"wanted": wanted_level,
@@ -281,6 +290,7 @@ func load_run() -> bool:
 func _restore_from_dict(data: Dictionary) -> void:
 	chassis_id = data.get("chassis", "standard")
 	part_damage = data.get("damage", {})
+	attachments = data.get("attachments", []).duplicate(true)
 	heat = data.get("heat", 0)
 	wanted_level = data.get("wanted", 0)
 	credits = data.get("credits", 0)
@@ -336,4 +346,16 @@ func _serialize_parts() -> Dictionary:
 			result[slot] = item.duplicate()
 		else:
 			result[slot] = str(item)
+	return result
+
+
+func _serialize_attachments() -> Array:
+	var result: Array = []
+	for attachment in attachments:
+		var copy: Dictionary = attachment.duplicate(true)
+		for key in ["position", "rotation", "scale", "size"]:
+			if copy.get(key) is Vector3:
+				var value: Vector3 = copy[key]
+				copy[key] = {"x": value.x, "y": value.y, "z": value.z}
+		result.append(copy)
 	return result

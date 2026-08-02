@@ -9,6 +9,7 @@
 [ext_resource type="Script" uid="uid://cj824bhe7i4we" path="res://scripts/mecha/mecha_eject.gd" id="7"]
 [ext_resource type="PackedScene" uid="uid://dms3f2k3mor6t" path="res://scenes/mecha/zenisrev/scene.gltf" id="8_8vx60"]
 [ext_resource type="Script" uid="uid://duoijt26josu5" path="res://scripts/mecha/part_mesh_manager.gd" id="9_partmesh"]
+[ext_resource type="Script" path="res://scripts/mecha/attachment_manager.gd" id="10_attachment"]
 
 [sub_resource type="CapsuleShape3D" id="FullBodyShape"]
 radius = 0.8
@@ -89,6 +90,9 @@ radius = 2.5
 [node name="MechaBase" type="CharacterBody3D" unique_id=1003373891]
 collision_mask = 3
 script = ExtResource("1")
+
+[node name="AttachmentManager" type="Node3D" parent="."]
+script = ExtResource("10_attachment")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=883517169]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)

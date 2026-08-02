@@ -12,17 +12,25 @@ var _bg_color: Color = Color(0.08, 0.08, 0.12, 0.85)
 var _accent_color: Color = Color(0.3, 0.6, 1.0, 1.0)
 var _highlight_color: Color = Color(1.0, 0.9, 0.3, 1.0)
 var _dim_color: Color = Color(0.5, 0.5, 0.5, 1.0)
-var current_mode: String = "armor" # "armor", "frame", "chassis", "upgrade"
+var current_mode: String = "armor" # "armor", "frame", "attachment", "chassis", "upgrade"
 var selected_slot: String = "head"
 var selected_part_path: String = ""
 var selected_salvage_info: Dictionary = {}
 var selected_frame_info: Dictionary = {}
+var selected_attachment_info: Dictionary = {}
 var selected_chassis_key: String = "standard"
 var _last_selected_item_index: int = -1
 # When true, _on_part_item_selected should only update stats text and NOT change
 # the 3D model preview. Set during _populate_part_list_for_slot() auto-selects.
 var _is_populating: bool = false
 var _is_dragging_3d: bool = false
+
+var attachment_catalog: Array = [
+	{"id": "sensor_mk1", "name": "Sensor Module MK-I", "weight": 2.0, "power_cost": 5.0, "size": Vector3(0.3, 0.2, 0.25), "color": Color(0.1, 0.75, 1.0)},
+	{"id": "armor_module", "name": "Reactive Armor Module", "weight": 4.0, "power_cost": 0.0, "size": Vector3(0.45, 0.3, 0.2), "color": Color(0.9, 0.4, 0.15)},
+	{"id": "booster_mk1", "name": "Thrust Booster MK-I", "weight": 6.0, "power_cost": 12.0, "size": Vector3(0.28, 0.5, 0.28), "color": Color(0.9, 0.8, 0.2)},
+	{"id": "ammo_pod", "name": "Universal Ammo Pod", "weight": 5.0, "power_cost": 0.0, "size": Vector3(0.4, 0.35, 0.3), "color": Color(0.35, 0.45, 0.55)}
+]
 
 # 3D Garage Nodes
 var viewport_container: SubViewportContainer
@@ -263,6 +271,12 @@ func _build_ui_layout() -> void:
 	btn_frame.pressed.connect(func(): _switch_custom_mode("frame"))
 	sub_toggle_container.add_child(btn_frame)
 
+	var btn_attachment = Button.new()
+	btn_attachment.text = "🔩 FREE ATTACHMENT"
+	btn_attachment.custom_minimum_size = Vector2(170, 32)
+	btn_attachment.pressed.connect(func(): _switch_custom_mode("attachment"))
+	sub_toggle_container.add_child(btn_attachment)
+
 	frame_upgrade_button = Button.new()
 	frame_upgrade_button.text = "⚡ REACTOR POWER UPGRADE"
 	frame_upgrade_button.custom_minimum_size = Vector2(180, 32)
@@ -409,7 +423,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			_is_dragging_3d = event.pressed
 	elif event is InputEventMouseMotion and _is_dragging_3d:
-		if turntable_node:
+		if current_mode == "attachment" and not selected_attachment_info.is_empty():
+			_move_selected_attachment(event.relative)
+		elif turntable_node:
 			turntable_node.rotate_y(event.relative.x * 0.008)
 
 
@@ -565,6 +581,7 @@ func _switch_custom_mode(mode: String) -> void:
 	current_mode = mode
 	if selected_slot == "chassis":
 		return
+
 	_populate_part_list_for_slot(selected_slot)
 
 
@@ -669,6 +686,22 @@ func _populate_part_list_for_slot(slot: String) -> void:
 		_is_populating = false
 		return
 
+	if current_mode == "attachment":
+		if slot not in ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]:
+			part_item_list.add_item("Select a body section first")
+		else:
+			var capacity = _get_attachment_capacity(slot)
+			var used = _get_attachment_weight(slot)
+			for info in attachment_catalog:
+				var prefix = "[E] " if _has_attachment(info["id"], slot) else "    "
+				part_item_list.add_item("%s%s (%.1fkg / %.1fkg capacity)" % [prefix, info["name"], info["weight"], capacity])
+			if part_item_list.item_count > 0:
+				part_item_list.select(0)
+				_last_selected_item_index = 0
+				_on_part_item_selected(0)
+		_is_populating = false
+		return
+
 	if slot == "chassis":
 		for key in GlobalData.chassis_catalog:
 			var info = GlobalData.chassis_catalog[key]
@@ -745,6 +778,17 @@ func _on_part_item_selected(index: int) -> void:
 		# Chassis preview: only show color change when user clicks, not during populate
 		if not _is_populating:
 			_apply_3d_chassis_preview(info)
+		return
+
+	if current_mode == "attachment":
+		if index < 0 or index >= attachment_catalog.size(): return
+		selected_attachment_info = attachment_catalog[index].duplicate(true)
+		selected_attachment_info["slot"] = selected_slot
+		var capacity = _get_attachment_capacity(selected_slot)
+		var used = _get_attachment_weight(selected_slot, selected_attachment_info["id"])
+		stats_label.text = "ATTACHMENT: %s\n\nTARGET SECTION: %s\nWEIGHT: %.1f kg\nSECTION CAPACITY: %.1f kg\nCURRENT LOAD: %.1f kg\nPOWER COST: %.1f\n\nDrag on the 3D Mecha to place this module." % [
+			selected_attachment_info["name"], selected_slot.to_upper(), selected_attachment_info["weight"], capacity, used, selected_attachment_info["power_cost"]
+		]
 		return
 
 	if current_mode == "frame" and frame_catalog.has(selected_slot):
@@ -1191,6 +1235,74 @@ func _update_all_3d_slots_preview() -> void:
 				part = armor_data
 			pmm.initialize_slot(slot, part)
 
+	var attachment_manager = mecha.get_node_or_null("AttachmentManager") if mecha else null
+	if attachment_manager:
+		attachment_manager.rebuild_from_global_data()
+
+
+func _get_attachment_capacity(slot: String) -> float:
+	var info = GlobalData.get_chassis_stats()
+	var capacities: Dictionary = info.get("attachment_capacity", {})
+	return float(capacities.get(slot, 0.0))
+
+
+func _get_attachment_weight(slot: String, excluding_id: String = "") -> float:
+	var total := 0.0
+	for attachment in GlobalData.attachments:
+		if attachment.get("slot", "") == slot and attachment.get("id", "") != excluding_id:
+			total += float(attachment.get("weight", 0.0))
+	return total
+
+
+func _get_total_load(excluding_attachment_id: String = "", excluding_slot: String = "") -> float:
+	var total := 0.0
+	for frame in GlobalData.equipped_frames.values():
+		total += float(frame.get("weight", 0.0))
+	for slot in GlobalData.equipped_parts:
+		var part = GlobalData.equipped_parts[slot]
+		if part is Dictionary:
+			total += float(part.get("weight", 0.0))
+	for attachment in GlobalData.attachments:
+		if attachment.get("id", "") != excluding_attachment_id or attachment.get("slot", "") != excluding_slot:
+			total += float(attachment.get("weight", 0.0))
+	return total
+
+
+func _has_attachment(attachment_id: String, slot: String) -> bool:
+	for attachment in GlobalData.attachments:
+		if attachment.get("id", "") == attachment_id and attachment.get("slot", "") == slot:
+			return true
+	return false
+
+
+func _get_default_attachment_position(slot: String) -> Vector3:
+	match slot:
+		"head": return Vector3(0.0, 0.15, -0.35)
+		"body": return Vector3(0.0, 0.2, -0.45)
+		"arm_left": return Vector3(-0.05, -0.2, -0.25)
+		"arm_right": return Vector3(0.05, -0.2, -0.25)
+		"leg_left": return Vector3(0.0, -0.45, -0.2)
+		"leg_right": return Vector3(0.0, -0.45, -0.2)
+	return Vector3.ZERO
+
+
+func _move_selected_attachment(mouse_delta: Vector2) -> void:
+	var id := str(selected_attachment_info.get("id", ""))
+	if id.is_empty(): return
+	for attachment in GlobalData.attachments:
+		if attachment.get("id", "") == id and attachment.get("slot", "") == selected_slot:
+			var raw_position = attachment.get("position", Vector3.ZERO)
+			var position: Vector3 = raw_position if raw_position is Vector3 else Vector3(raw_position.get("x", 0.0), raw_position.get("y", 0.0), raw_position.get("z", 0.0))
+			position.x = clampf(position.x + mouse_delta.x * 0.004, -1.5, 1.5)
+			position.y = clampf(position.y - mouse_delta.y * 0.004, -1.5, 1.5)
+			attachment["position"] = position
+			var mecha = mecha_3d_root.get_node_or_null("MechaBase") if mecha_3d_root else null
+			var manager = mecha.get_node_or_null("AttachmentManager") if mecha else null
+			if manager:
+				manager.update_attachment_transform(id, position, attachment.get("rotation", Vector3.ZERO))
+			GlobalData.save_run()
+			return
+
 
 func _apply_3d_salvage_preview(slot: String, info: Dictionary) -> void:
 	if mecha_3d_root == null: return
@@ -1243,6 +1355,33 @@ func _on_equip_pressed() -> void:
 		var name_str = GlobalData.chassis_catalog[selected_chassis_key].get("name", "Chassis")
 		status_message_label.text = "Chassis Model Set & Applied: %s!" % name_str
 		GlobalData.save_run()
+		_update_total_stats()
+		return
+
+	if current_mode == "attachment" and not selected_attachment_info.is_empty():
+		var attachment = selected_attachment_info.duplicate(true)
+		attachment["slot"] = selected_slot
+		attachment["position"] = _get_default_attachment_position(selected_slot)
+		attachment["rotation"] = Vector3.ZERO
+		attachment["scale"] = Vector3.ONE
+		if _get_attachment_weight(selected_slot, attachment["id"]) + float(attachment["weight"]) > _get_attachment_capacity(selected_slot):
+			status_message_label.text = "Attachment rejected: section capacity exceeded."
+			return
+		var total_capacity = float(GlobalData.get_chassis_stats().get("max_weight", 75.0)) + ((GlobalData.frame_upgrade_level - 1) * 15.0)
+		if _get_total_load(attachment["id"], selected_slot) + float(attachment["weight"]) > total_capacity:
+			status_message_label.text = "Attachment rejected: total Frame capacity exceeded."
+			return
+		var replaced := false
+		for i in range(GlobalData.attachments.size()):
+			if GlobalData.attachments[i].get("id", "") == attachment["id"] and GlobalData.attachments[i].get("slot", "") == selected_slot:
+				GlobalData.attachments[i] = attachment
+				replaced = true
+				break
+		if not replaced:
+			GlobalData.attachments.append(attachment)
+		status_message_label.text = "Mounted %s on %s. Drag it in 3D to reposition." % [attachment["name"], selected_slot.to_upper()]
+		GlobalData.save_run()
+		_update_all_3d_slots_preview()
 		_update_total_stats()
 		return
 
@@ -1328,6 +1467,7 @@ func _update_total_stats() -> void:
 	var total_armor_weight = 0.0
 	var total_frame_hp = 0.0
 	var total_armor_hp = 0.0
+	var total_attachment_weight = 0.0
 
 	for slot in GlobalData.equipped_frames:
 		var f = GlobalData.equipped_frames[slot]
@@ -1341,16 +1481,19 @@ func _update_total_stats() -> void:
 		if p and p.get("max_hp") != null:
 			total_armor_hp += p.max_hp
 
-	var total_weight = total_frame_weight + total_armor_weight
+	for attachment in GlobalData.attachments:
+		total_attachment_weight += float(attachment.get("weight", 0.0))
+
+	var total_weight = total_frame_weight + total_armor_weight + total_attachment_weight
 
 	if weight_bar:
 		weight_bar.max_value = max_weight
 		weight_bar.value = total_weight
 
 	if total_stats_label:
-		total_stats_label.text = "FRAME LVL: %d | FRAME HP: %.0f | ARMOR HP: %.0f\nFRAME W: %.1fkg | ARMOR W: %.1fkg\nTOTAL WEIGHT: %.1f / %.1f kg\nCREDITS: %d cr | CORES: %d" % [
+		total_stats_label.text = "FRAME LVL: %d | FRAME HP: %.0f | ARMOR HP: %.0f\nFRAME W: %.1fkg | ARMOR W: %.1fkg | ATTACH W: %.1fkg\nTOTAL WEIGHT: %.1f / %.1f kg\nCREDITS: %d cr | CORES: %d" % [
 			GlobalData.frame_upgrade_level, total_frame_hp, total_armor_hp,
-			total_frame_weight, total_armor_weight,
+			total_frame_weight, total_armor_weight, total_attachment_weight,
 			total_weight, max_weight,
 			GlobalData.credits, GlobalData.data_cores
 		]

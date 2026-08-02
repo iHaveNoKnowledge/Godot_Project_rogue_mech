@@ -27,6 +27,7 @@ var roller_skate_timer: float = 0.0
 # Populated by _apply_chassis_from_global_data() from GlobalData.chassis_id.
 var _chassis_speed_override: float = 14.0
 var _chassis_weight_capacity_override: float = 75.0
+var can_traverse_water: bool = false
 
 
 func _ready() -> void:
@@ -36,6 +37,9 @@ func _ready() -> void:
 	_apply_chassis_from_global_data()
 	_recalculate_weight()
 	_initialize_mesh_from_global_data()
+	var attachment_manager = get_node_or_null("AttachmentManager")
+	if attachment_manager:
+		attachment_manager.rebuild_from_global_data()
 	EventBus.weight_changed.connect(_on_weight_changed)
 
 
@@ -47,6 +51,7 @@ func _apply_chassis_from_global_data() -> void:
 	var info = GlobalData.get_chassis_stats()
 	_chassis_speed_override = info.get("speed", 7.0)
 	_chassis_weight_capacity_override = info.get("max_weight", 75.0)
+	can_traverse_water = info.get("water_traversal", false)
 
 
 func _input(event: InputEvent) -> void:
@@ -110,6 +115,8 @@ func _apply_movement(delta: float) -> void:
 	var move_speed = current_speed
 	if is_roller_dashing:
 		move_speed *= 2.0
+	if _is_in_water() and not can_traverse_water:
+		move_speed *= 0.45
 
 	var desired_velocity := Vector3.ZERO
 	desired_velocity = (forward * -input_dir.y + right * input_dir.x) * move_speed
@@ -171,6 +178,11 @@ func _trigger_landing_impact() -> void:
 
 	# 3. Ground Shockwave Ring & Dust VFX
 	_spawn_landing_impact_effect()
+
+
+func _is_in_water() -> bool:
+	# ArenaGenerator places the central water trench across the middle of the arena.
+	return absf(global_position.z) < 20.0
 
 
 func _spawn_landing_impact_effect() -> void:
@@ -318,6 +330,8 @@ func _recalculate_weight() -> void:
 					total_weight += part.weight
 				elif part is Dictionary:
 					total_weight += part.get("weight", 0.0)
+	for attachment in GlobalData.attachments:
+		total_weight += float(attachment.get("weight", 0.0))
 
 	# Override vars are set from GlobalData.chassis_id by _apply_chassis_from_global_data().
 	# ChassisData resource is used for base_turn_rate if assigned.

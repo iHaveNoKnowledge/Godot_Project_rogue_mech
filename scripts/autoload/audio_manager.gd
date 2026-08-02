@@ -74,7 +74,7 @@ func _setup_music_players() -> void:
 
 
 func _generate_sounds() -> void:
-	_sound_cache["beam_rifle"] = preload("res://resources/audio/sfx/beamrifle01.wav")
+	_sound_cache["beam_rifle"] = preload("res://resources/audio/sfx/beam_fire_01.wav")
 	_sound_cache["machine_gun"] = preload("res://resources/audio/sfx/machine_gun01.wav")
 	_sound_cache["missile"] = preload("res://resources/audio/sfx/missile01.wav")
 	_sound_cache["shotgun"] = preload("res://resources/audio/sfx/Dense_heavy_combat_s_#1-1782744878871.wav")
@@ -113,8 +113,8 @@ func _generate_sounds() -> void:
 	]
 	_sound_cache["melee"] = [
 		_gen_sine_chop(400.0, 0.08, 0.3),
-		_gen_sine_chop(430.0, 0.07, 0.3),
-		_gen_sine_chop(370.0, 0.09, 0.28),
+		preload("res://resources/audio/sfx/melee_hit02.wav"),
+		preload("res://resources/audio/sfx/melee_hit01.wav"),
 	]
 
 

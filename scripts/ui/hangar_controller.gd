@@ -39,6 +39,7 @@ var hangar_env_node: Node3D
 var garage_cam: Camera3D
 var mecha_3d_root: Node3D
 var turntable_node: Node3D
+var selection_highlight: MeshInstance3D
 var cam_target_pos: Vector3 = Vector3(2.8, 2.2, 3.8)
 var cam_look_target: Vector3 = Vector3(0, 1.8, 0)
 var current_cam_pos: Vector3 = Vector3(2.8, 2.2, 3.8)
@@ -228,6 +229,13 @@ func _build_ui_layout() -> void:
 	title_lbl.add_theme_font_size_override("font_size", 16)
 	title_lbl.add_theme_color_override("font_color", Color(1.0, 0.8, 0.2))
 	hdr_box.add_child(title_lbl)
+
+	var selection_label = Label.new()
+	selection_label.name = "SelectionLabel"
+	selection_label.text = "EDITING: CHASSIS"
+	selection_label.add_theme_font_size_override("font_size", 14)
+	selection_label.add_theme_color_override("font_color", Color(0.25, 0.9, 1.0))
+	hdr_box.add_child(selection_label)
 
 	tab_container = HBoxContainer.new()
 	tab_container.add_theme_constant_override("separation", 4)
@@ -591,6 +599,64 @@ func _select_slot_tab(slot: String) -> void:
 	_update_camera_focus_for_slot(slot)
 	_populate_part_list_for_slot(slot)
 	_update_total_stats()
+	_update_selection_highlight(slot)
+
+
+func _update_selection_highlight(slot: String) -> void:
+	var label = root_control.get_node_or_null("SelectionLabel") if root_control else null
+	if label:
+		label.text = "EDITING: %s" % slot.to_upper()
+
+	if selection_highlight and is_instance_valid(selection_highlight):
+		selection_highlight.queue_free()
+	selection_highlight = null
+	if mecha_3d_root == null or slot == "chassis" or slot.begins_with("weapon"):
+		return
+
+	var parent_path := "MechaBase/" + {
+		"head": "Head",
+		"body": "Body",
+		"arm_left": "ArmLeft",
+		"arm_right": "ArmRight",
+		"leg_left": "LegLeft",
+		"leg_right": "LegRight"
+	}.get(slot, "")
+	var parent = mecha_3d_root.get_node_or_null(parent_path)
+	if parent == null:
+		return
+
+	var size := Vector3(0.8, 0.7, 0.8)
+	var local_position := Vector3.ZERO
+	match slot:
+		"head":
+			size = Vector3(0.85, 0.75, 0.9)
+		"body":
+			size = Vector3(1.45, 1.55, 1.15)
+		"arm_left", "arm_right":
+			size = Vector3(0.65, 1.45, 0.65)
+			local_position = Vector3(0.0, -0.35, 0.0)
+		"leg_left", "leg_right":
+			size = Vector3(0.7, 1.75, 0.75)
+			local_position = Vector3(0.0, -0.55, 0.0)
+
+	selection_highlight = MeshInstance3D.new()
+	selection_highlight.name = "SelectedSectionHighlight"
+	selection_highlight.position = local_position
+	var box := BoxMesh.new()
+	box.size = size
+	selection_highlight.mesh = box
+	var material := StandardMaterial3D.new()
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.albedo_color = Color(0.1, 0.8, 1.0, 0.16)
+	material.emission_enabled = true
+	material.emission = Color(0.05, 0.65, 1.0)
+	material.emission_energy_multiplier = 2.5
+	material.no_depth_test = true
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	selection_highlight.material_override = material
+	selection_highlight.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(selection_highlight)
 
 
 func _update_camera_focus_for_slot(slot: String) -> void:

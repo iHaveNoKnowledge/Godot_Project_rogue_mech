@@ -927,7 +927,6 @@ func _populate_part_list_for_slot(slot: String) -> void:
 		return
 
 	var is_destroyed = GlobalData.part_damage.get(slot + "_frame", 0.0) >= 1.0
-	var state_tag = " [DESTROYED]" if is_destroyed else ""
 
 	if current_mode == "frame" and frame_catalog.has(slot):
 		var items = frame_catalog[slot]
@@ -937,6 +936,7 @@ func _populate_part_list_for_slot(slot: String) -> void:
 			var fname = info.get("name", "Frame Part")
 			var fhp = info.get("hp", 20.0)
 			var fwt = info.get("weight", 3.0)
+			var state_tag = " [DESTROYED]" if (is_eq and is_destroyed) else ""
 			var label_str = "%s%s (HP: %.0f, %.1fkg)%s" % [prefix, fname, fhp, fwt, state_tag]
 			part_item_list.add_item(label_str)
 		if items.size() > 0:
@@ -954,7 +954,7 @@ func _populate_part_list_for_slot(slot: String) -> void:
 			var wcount = inv.get("count", 1)
 			var is_eq = _is_weapon_in_loadout(slot, wpath)
 			var prefix = "[E] " if is_eq else "    "
-			var label_str = "%s%s x%d%s" % [prefix, wname, wcount, state_tag]
+			var label_str = "%s%s x%d" % [prefix, wname, wcount]
 			part_item_list.add_item(label_str)
 			visible_weapon_indices.append(index)
 		if part_item_list.item_count > 0:
@@ -967,6 +967,7 @@ func _populate_part_list_for_slot(slot: String) -> void:
 		for info in items:
 			var is_eq = _is_item_equipped(slot, info)
 			var prefix = "[X] " if is_eq and is_destroyed else ("[E] " if is_eq else "     ")
+			var state_tag = " [DESTROYED]" if (is_eq and is_destroyed) else ""
 			var label_str = "%s%s [%s]%s" % [prefix, info["name"], info["type"], state_tag]
 			if info.get("weight", 0.0) > 0:
 				label_str += " - %.1fkg" % info["weight"]
@@ -979,6 +980,7 @@ func _populate_part_list_for_slot(slot: String) -> void:
 				visible_salvage_indices.append(salvage_index)
 				var is_eq = _is_item_equipped(slot, salvaged)
 				var prefix = "[X] " if is_eq and is_destroyed else ("[E] " if is_eq else "     ")
+				var state_tag = " [DESTROYED]" if (is_eq and is_destroyed) else ""
 				var drop_label = "%sSALVAGED: %s [%s]%s" % [prefix, salvaged["name"], salvaged.get("type", "Enemy"), state_tag]
 				part_item_list.add_item(drop_label)
 
@@ -1037,9 +1039,16 @@ func _on_part_item_selected(index: int) -> void:
 			var fname = selected_frame_info.get("name", selected_frame_info.get("part_name", "Inner Frame"))
 			var fhp = selected_frame_info.get("hp", selected_frame_info.get("max_hp", 25.0))
 			var fwt = selected_frame_info.get("weight", 3.0)
-			stats_label.text = "INNER FRAME PART: %s\n\nFRAME HP: %.0f\nFRAME WEIGHT: %.1f kg" % [
-				fname, fhp, fwt
-			]
+			var is_eq = _is_item_equipped(selected_slot, selected_frame_info)
+			if is_eq:
+				var frame_dmg = GlobalData.part_damage.get(selected_slot + "_frame", 0.0)
+				stats_label.text = "INNER FRAME PART: %s  [E]\n\nFRAME HP: %.0f / %.0f\nFRAME WEIGHT: %.1f kg\n\nThis frame is currently equipped." % [
+					fname, fhp * (1.0 - clampf(frame_dmg, 0.0, 1.0)), fhp, fwt
+				]
+			else:
+				stats_label.text = "INNER FRAME PART: %s\n\nFRAME HP: %.0f\nFRAME WEIGHT: %.1f kg\n\nEquip this frame to install it fresh at 100%% HP." % [
+					fname, fhp, fwt
+				]
 			# Only change 3D model when user explicitly picks a part, not on section switch
 			if not _is_populating:
 				_apply_3d_frame_preview(selected_slot, selected_frame_info)
@@ -1108,9 +1117,16 @@ func _on_part_item_selected(index: int) -> void:
 					item_name, item_type, item_weight
 				]
 			else:
-				stats_label.text = "OUTER ARMOR: %s\nTYPE: %s\n\nARMOR HP: %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg" % [
-					item_name, item_type, item_hp, item_armor, item_weight
-				]
+				var is_eq = _is_item_equipped(selected_slot, selected_info)
+				if is_eq:
+					var armor_dmg = GlobalData.part_damage.get(selected_slot, 0.0)
+					stats_label.text = "OUTER ARMOR: %s  [E]\nTYPE: %s\n\nARMOR HP: %.0f / %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg\n\nThis plate is currently equipped." % [
+						item_name, item_type, item_hp * (1.0 - clampf(armor_dmg, 0.0, 1.0)), item_hp, item_armor, item_weight
+					]
+				else:
+					stats_label.text = "OUTER ARMOR: %s\nTYPE: %s\n\nARMOR HP: %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg\n\nEquip this plate to install it fresh at 100%% HP." % [
+						item_name, item_type, item_hp, item_armor, item_weight
+					]
 			# Only change 3D model when user explicitly picks a part, not on section switch
 			if not _is_populating:
 				_apply_3d_armor_preview(selected_slot, selected_info)
@@ -1128,9 +1144,16 @@ func _on_part_item_selected(index: int) -> void:
 			var item_armor = selected_salvage_info.get("armor", 15.0)
 			var item_weight = selected_salvage_info.get("weight", 4.0)
 
-			stats_label.text = "SALVAGED ENEMY ARMOR: %s\nTYPE: %s\n\nARMOR HP: %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg" % [
-				item_name, item_type, item_hp, item_armor, item_weight
-			]
+			var is_eq = _is_item_equipped(selected_slot, selected_salvage_info)
+			if is_eq:
+				var armor_dmg = GlobalData.part_damage.get(selected_slot, 0.0)
+				stats_label.text = "SALVAGED ENEMY ARMOR: %s  [E]\nTYPE: %s\n\nARMOR HP: %.0f / %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg\n\nThis plate is currently equipped." % [
+					item_name, item_type, item_hp * (1.0 - clampf(armor_dmg, 0.0, 1.0)), item_hp, item_armor, item_weight
+				]
+			else:
+				stats_label.text = "SALVAGED ENEMY ARMOR: %s\nTYPE: %s\n\nARMOR HP: %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg\n\nEquip this plate to install it fresh at 100%% HP." % [
+					item_name, item_type, item_hp, item_armor, item_weight
+				]
 			# Only change 3D model when user explicitly picks a part, not on section switch
 			if not _is_populating:
 				_apply_3d_salvage_preview(selected_slot, selected_salvage_info)
@@ -1368,6 +1391,9 @@ func _show_part_action_modal(info: Dictionary) -> void:
 func _equip_part_to_slot(slot: String, info: Dictionary) -> void:
 	if current_mode == "frame":
 		GlobalData.equipped_frames[slot] = info.duplicate()
+		# A brand-new frame is installed: it starts at full HP, so wipe any
+		# frame damage that belonged to the PREVIOUS frame in this slot.
+		GlobalData.part_damage.erase(slot + "_frame")
 		GlobalData.save_run()
 		_update_total_stats()
 		_populate_part_list_for_slot(slot)
@@ -1405,6 +1431,9 @@ func _equip_part_to_slot(slot: String, info: Dictionary) -> void:
 	var data = info.duplicate()
 	data["equipped"] = true  # Mark as explicitly equipped for 3D preview distinction
 	GlobalData.equipped_parts[slot] = data
+	# A brand-new armor plate is installed: it starts at full HP, so wipe any
+	# armor damage that belonged to the PREVIOUS armor in this slot.
+	GlobalData.part_damage.erase(slot)
 	GlobalData.save_run()
 	_apply_3d_armor_preview(slot, info)
 	_update_total_stats()
@@ -1889,7 +1918,8 @@ func _on_equip_pressed() -> void:
 
 	if current_mode == "frame" and not selected_frame_info.is_empty():
 		GlobalData.equipped_frames[selected_slot] = selected_frame_info.duplicate()
-		GlobalData.part_damage.erase(selected_slot)
+		# A brand-new frame is installed: it starts at full HP, so wipe any
+		# frame damage that belonged to the PREVIOUS frame in this slot.
 		GlobalData.part_damage.erase(selected_slot + "_frame")
 		var fname = selected_frame_info.get("name", "Frame")
 		status_message_label.text = "Equipped Inner Frame: %s!" % fname

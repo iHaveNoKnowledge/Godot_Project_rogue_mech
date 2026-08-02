@@ -352,24 +352,32 @@ func _build_crossroads_structures() -> void:
 
 
 func _build_river_bridge_structures() -> void:
-	# 1. Animated Water Trench in Center (Z = -20 to 20)
-	var water = MeshInstance3D.new()
-	var water_box = BoxMesh.new()
-	water_box.size = Vector3(arena_size, 0.2, 40)
-	water.mesh = water_box
+	# 1. Submerged riverbed floor so mechs can wade through the water trench
+	_spawn_riverbed_floor()
 
-	var water_mat = StandardMaterial3D.new()
-	water_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	water_mat.albedo_color = Color(0.1, 0.4, 0.7, 0.75)
-	water_mat.emission_enabled = true
-	water_mat.emission = Color(0.05, 0.25, 0.5)
-	water_mat.emission_energy_multiplier = 1.2
-	water_mat.roughness = 0.1
-	water.material_override = water_mat
-	water.position = Vector3(0, -0.6, 0)
-	structures_container.add_child(water)
+	# 2. Water trench as TALL passable volumes (Z = -20 to 20), split around the
+	#    bridge strips so standing on a bridge never counts as "in water".
+	#    Center bridge spans X in [-15, 15]; flanking bridges at X = +-75 (width 15).
+	var water_mat = _create_water_material()
+	var center_bridge_half = 15.0
+	var flank_center_x = 75.0
+	var flank_bridge_half = 7.5
+	var half = arena_size / 2.0
+	var water_x_ranges = [
+		[-half, -flank_center_x - flank_bridge_half],
+		[-flank_center_x + flank_bridge_half, -center_bridge_half],
+		[center_bridge_half, flank_center_x - flank_bridge_half],
+		[flank_center_x + flank_bridge_half, half],
+	]
+	for x_range in water_x_ranges:
+		var x0: float = x_range[0]
+		var x1: float = x_range[1]
+		var width: float = x1 - x0
+		if width <= 0.0:
+			continue
+		_spawn_water_volume((x0 + x1) * 0.5, width, water_mat)
 
-	# 2. Main Center Steel Bridge Crossing (X = -20 to 20, Z = -25 to 25)
+	# 3. Main Center Steel Bridge Crossing (X = -20 to 20, Z = -25 to 25)
 	var bridge = StaticBody3D.new()
 	bridge.collision_layer = 2
 	bridge.collision_mask = 1
@@ -408,7 +416,7 @@ func _build_river_bridge_structures() -> void:
 	bridge.position = Vector3(0, 0, 0)
 	structures_container.add_child(bridge)
 
-	# 3. Flanking Side Bridges (East and West)
+	# 4. Flanking Side Bridges (East and West)
 	for flank_x in [-75.0, 75.0]:
 		var f_bridge = StaticBody3D.new()
 		f_bridge.collision_layer = 2
@@ -430,3 +438,68 @@ func _build_river_bridge_structures() -> void:
 
 		f_bridge.position = Vector3(flank_x, 0, 0)
 		structures_container.add_child(f_bridge)
+
+
+func _spawn_riverbed_floor() -> void:
+	var floor_body = StaticBody3D.new()
+	floor_body.collision_layer = 2
+	floor_body.collision_mask = 1
+
+	var col = CollisionShape3D.new()
+	var shape = BoxShape3D.new()
+	shape.size = Vector3(arena_size, 0.6, 40)
+	col.shape = shape
+	floor_body.add_child(col)
+
+	var mesh = MeshInstance3D.new()
+	var box = BoxMesh.new()
+	box.size = shape.size
+	mesh.mesh = box
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(0.20, 0.25, 0.30)
+	mat.roughness = 0.9
+	mesh.material_override = mat
+	floor_body.add_child(mesh)
+
+	floor_body.position = Vector3(0, -1.25, 0)
+	structures_container.add_child(floor_body)
+
+
+func _create_water_material() -> StandardMaterial3D:
+	var mat = StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(0.15, 0.6, 1.0, 0.55)
+	mat.emission_enabled = true
+	mat.emission = Color(0.1, 0.4, 0.9)
+	mat.emission_energy_multiplier = 1.6
+	mat.metallic = 0.3
+	mat.roughness = 0.1
+	return mat
+
+
+# Spawns a tall, passable, glowing blue water block tagged as a water volume.
+# The mech walks straight through it (Area3D has no physical collision) but gets
+# slowed while inside — and bridges, being separate geometry, never trigger it.
+func _spawn_water_volume(center_x: float, width: float, mat: StandardMaterial3D) -> void:
+	var area = Area3D.new()
+	area.name = "WaterVolume"
+	area.collision_layer = 4
+	area.collision_mask = 0
+	area.monitoring = true
+	area.add_to_group("water_volume")
+
+	var col = CollisionShape3D.new()
+	var shape = BoxShape3D.new()
+	shape.size = Vector3(width, 4.0, 40)
+	col.shape = shape
+	area.add_child(col)
+
+	var mesh = MeshInstance3D.new()
+	var box = BoxMesh.new()
+	box.size = shape.size
+	mesh.mesh = box
+	mesh.material_override = mat
+	area.add_child(mesh)
+
+	area.position = Vector3(center_x, 1.0, 0)
+	structures_container.add_child(area)

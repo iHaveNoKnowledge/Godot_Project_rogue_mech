@@ -64,7 +64,12 @@ func get_obstacle_positions(theme: int = 0, arena_size: float = 240.0) -> Array:
 			for i in range(rng.randi_range(25, 35)):
 				var rx = rng.randf_range(-half, half)
 				var rz = rng.randf_range(-half, half)
-				if absf(rz) < 22.0 and absf(rx) > 20.0: continue # In water
+				if absf(rz) < 22.0:
+					# Trench zone: only bridge strips are dry ground (center + flanks)
+					var on_center_bridge = absf(rx) <= 15.0
+					var on_flank_bridge = absf(rx - 75.0) <= 7.5 or absf(rx + 75.0) <= 7.5
+					if not on_center_bridge and not on_flank_bridge:
+						continue # In water
 				positions.append({
 					"pos": Vector3(rx, 0, rz),
 					"type": rng.randi_range(0, 5),

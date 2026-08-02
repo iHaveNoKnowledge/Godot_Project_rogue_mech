@@ -1155,8 +1155,6 @@ func _show_part_action_modal(info: Dictionary) -> void:
 	)
 	grid.add_child(toggle_btn)
 
-	var is_weapon_slot = selected_slot.begins_with("weapon")
-
 	# 2. REPAIR (not applicable to weapons)
 	if not is_weapon_slot:
 		var repair_btn = Button.new()

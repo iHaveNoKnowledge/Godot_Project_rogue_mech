@@ -5,45 +5,65 @@ var equipped_parts: Dictionary = {}
 var attachments: Array = []
 
 # ==============================================================================
-# ARMOR CATALOG — Single source of truth for all stock armor parts.
-# hangar_controller.gd reads this instead of duplicating the data.
-# key: slot_name -> Array of armor info Dictionaries
-# Each entry: {id, name, path, hp, armor, weight, color, type}
+# CATALOG DATABASE — static item definitions, loaded from resources/data/mech_catalogs.tres
+# Single source of truth for all stock items (armor, chassis, frames, attachments).
+# Inventory (equipped parts/frames) persists only id references + instance state
+# and resolves the static stats back through these catalogs at load time.
 # ==============================================================================
-var armor_catalog: Dictionary = {
-	"head": [
-		{"id": "head_001", "name": "Barbatos White Visor Plating", "path": "res://resources/mech/stock/head_standard.tres", "hp": 30.0, "armor": 20.0, "weight": 4.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"},
-		{"id": "head_002", "name": "Vanguard Light Recon Helmet",  "path": "res://resources/mech/stock/head_standard.tres",    "hp": 20.0, "armor": 12.0, "weight": 2.0, "color": Color(0.8, 0.85, 0.9), "type": "Light Plating"}
-	],
-	"body": [
-		{"id": "body_001", "name": "Barbatos Chest Armor Plate",        "path": "res://resources/mech/stock/torso_standard.tres", "hp": 60.0,  "armor": 40.0, "weight": 14.0, "color": Color(0.9, 0.9, 0.95),    "type": "Standard Armor"},
-		{"id": "body_002", "name": "Fortress Heavy Reactive Chestplate", "path": "res://resources/mech/stock/torso_standard.tres", "hp": 110.0, "armor": 75.0, "weight": 24.0, "color": Color(0.25, 0.2, 0.35), "type": "Heavy Armor"}
-	],
-	"arm_left": [
-		{"id": "arm_left_001", "name": "Barbatos Left Shoulder Guard", "path": "res://resources/mech/stock/arm_left_standard.tres", "hp": 25.0, "armor": 15.0, "weight": 6.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"}
-	],
-	"arm_right": [
-		{"id": "arm_right_001", "name": "Barbatos Right Shoulder Guard", "path": "res://resources/mech/stock/arm_right_standard.tres", "hp": 25.0, "armor": 15.0, "weight": 6.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"}
-	],
-	"leg_left": [
-		{"id": "leg_left_001", "name": "Barbatos Left Leg Armor Guard", "path": "res://resources/mech/stock/leg_left_standard.tres", "hp": 30.0, "armor": 20.0, "weight": 8.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"}
-	],
-	"leg_right": [
-		{"id": "leg_right_001", "name": "Barbatos Right Leg Armor Guard", "path": "res://resources/mech/stock/leg_right_standard.tres", "hp": 30.0, "armor": 20.0, "weight": 8.0, "color": Color(0.9, 0.9, 0.95), "type": "Standard Armor"}
-	],
-	"weapon_right": [
-		{"id": "wep_r_001", "name": "Beam Carbine",     "path": "res://resources/mech/stock/weapon_beam_carbine.tres",      "hp": 0.0, "armor": 0.0, "weight": 7.0, "type": "Beam Weapon"},
-		{"id": "wep_r_002", "name": "Heavy Machine Gun","path": "res://resources/mech/stock/weapon_heavy_machine_gun.tres", "hp": 0.0, "armor": 0.0, "weight": 9.0, "type": "Kinetic Weapon"},
-		{"id": "wep_r_003", "name": "Combat Shotgun",   "path": "res://resources/mech/stock/weapon_combat_shotgun.tres",   "hp": 0.0, "armor": 0.0, "weight": 8.0, "type": "Shotgun"}
-	],
-	"weapon_left": [
-		{"id": "wep_l_001", "name": "Heat Blade",  "path": "res://resources/mech/stock/weapon_heat_blade.tres",  "hp": 0.0, "armor": 0.0, "weight": 5.0,  "type": "Melee Weapon"},
-		{"id": "wep_l_002", "name": "Pile Bunker",  "path": "res://resources/mech/stock/weapon_pile_bunker.tres", "hp": 0.0, "armor": 0.0, "weight": 11.0, "type": "Melee Weapon"}
-	]
-}
+var armor_catalog: Dictionary = {}
+var chassis_catalog: Dictionary = {}
+var frame_catalog: Dictionary = {}
+var attachment_catalog: Array = []
+
+
+func _load_catalogs() -> void:
+	var db = load("res://resources/data/mech_catalogs.tres") as CatalogData
+	if db == null:
+		push_error("Failed to load mech_catalogs.tres")
+		return
+	armor_catalog = db.armor_catalog
+	chassis_catalog = db.chassis_catalog
+	frame_catalog = db.frame_catalog
+	attachment_catalog = db.attachment_catalog
+
+
+# --- Catalog lookups (by id) ---
+
+func get_armor_catalog_entry(part_id: String) -> Dictionary:
+	for slot in armor_catalog:
+		for entry in armor_catalog[slot]:
+			if entry.get("id", "") == part_id:
+				return entry
+	return {}
+
+
+func get_frame_catalog_entry(frame_id: String) -> Dictionary:
+	for slot in frame_catalog:
+		for entry in frame_catalog[slot]:
+			if entry.get("id", "") == frame_id:
+				return entry
+	return {}
+
+
+func get_frame_catalog_entry_by_name(frame_name: String) -> Dictionary:
+	for slot in frame_catalog:
+		for entry in frame_catalog[slot]:
+			if entry.get("name", "") == frame_name:
+				return entry
+	return {}
+
+
+func is_catalog_armor_id(part_id: String) -> bool:
+	return not get_armor_catalog_entry(part_id).is_empty()
+
+
+func is_catalog_frame_id(frame_id: String) -> bool:
+	return not get_frame_catalog_entry(frame_id).is_empty()
 
 
 func _ready() -> void:
+	_load_catalogs()
+	_ensure_default_frames()
 	ensure_default_equipped_parts()
 
 
@@ -119,25 +139,28 @@ func can_add_weapon_to_field_pack(weapon: WeaponPart) -> bool:
 	return get_field_pack_weight() + float(weapon.weight) <= get_field_pack_capacity()
 
 
-# Older saves predate carry_bonus on frames. Fill it from the frame name so the
-# Field Pack capacity is consistent across old save files.
-func _backfill_frame_carry_bonus() -> void:
-	var name_to_bonus: Dictionary = {
-		"Standard Light Alloy Frame": 2.0,
-		"Standard Core Structure": 8.0,
-		"Standard Articulated Arm Frame": 3.0,
-		"Standard Actuator Leg Frame": 4.0,
-		"Alaya-Vijnana Head Skeleton": 4.0,
-		"Alaya-Vijnana Core Spine": 12.0,
-		"Alaya-Vijnana Arm Joint (L)": 5.0,
-		"Alaya-Vijnana Arm Joint (R)": 5.0,
-		"Alaya-Vijnana Leg Actuator (L)": 6.0,
-		"Alaya-Vijnana Leg Actuator (R)": 6.0,
-	}
-	for slot in equipped_frames:
-		var f = equipped_frames[slot]
-		if f is Dictionary and not f.has("carry_bonus"):
-			f["carry_bonus"] = name_to_bonus.get(f.get("name", ""), 2.0)
+# Older saves predate frame ids. Resolve a saved frame value into a full catalog
+# entry so the Field Pack capacity and stats stay consistent across old save files.
+func _resolve_frame_value(v: Variant) -> Variant:
+	if v is Dictionary:
+		var entry: Dictionary = {}
+		var fid = v.get("id", "")
+		if fid != "":
+			entry = get_frame_catalog_entry(fid)
+		if entry.is_empty():
+			entry = get_frame_catalog_entry_by_name(v.get("name", ""))
+		if not entry.is_empty():
+			return entry.duplicate(true)
+		return v.duplicate(true)
+	return v
+
+
+func _ensure_default_frames() -> void:
+	if not equipped_frames.is_empty():
+		return
+	for slot in ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]:
+		if frame_catalog.has(slot) and frame_catalog[slot].size() > 0:
+			equipped_frames[slot] = frame_catalog[slot][0].duplicate()
 
 # -----------------------------------------------------------------------------
 # WEAPON LOADOUT — central state for what the mech carries into battle.
@@ -286,14 +309,9 @@ func get_chassis_stats() -> Dictionary:
 	return result
 
 
-var equipped_frames: Dictionary = {
-	"head": {"name": "Standard Light Alloy Frame", "hp": 20.0, "weight": 2.0, "carry_bonus": 2.0},
-	"body": {"name": "Standard Core Structure", "hp": 40.0, "weight": 6.0, "carry_bonus": 8.0},
-	"arm_left": {"name": "Standard Articulated Arm Frame", "hp": 15.0, "weight": 3.0, "carry_bonus": 3.0},
-	"arm_right": {"name": "Standard Articulated Arm Frame", "hp": 15.0, "weight": 3.0, "carry_bonus": 3.0},
-	"leg_left": {"name": "Standard Actuator Leg Frame", "hp": 20.0, "weight": 4.0, "carry_bonus": 4.0},
-	"leg_right": {"name": "Standard Actuator Leg Frame", "hp": 20.0, "weight": 4.0, "carry_bonus": 4.0}
-}
+# Equipped inner frames. Values are full catalog-entry dicts at runtime; the
+# save file persists only {"id": ...} references (see _serialize_frames).
+var equipped_frames: Dictionary = {}
 var frame_upgrade_level: int = 1
 var salvaged_armor_inventory: Array = [
 	{"name": "Zaku Military Green Arm Guard", "slot": "arm_left", "hp": 35.0, "armor": 22.0, "weight": 5.5, "color": Color(0.2, 0.45, 0.25), "type": "Zaku Salvage"},
@@ -302,39 +320,6 @@ var salvaged_armor_inventory: Array = [
 	{"name": "Crimson Ace Visor Helmet", "slot": "head", "hp": 40.0, "armor": 30.0, "weight": 4.0, "color": Color(0.85, 0.1, 0.15), "type": "Ace Salvage"}
 ]
 var part_damage: Dictionary = {}
-
-var chassis_catalog: Dictionary = {
-	"standard": {
-		"name": "ZENISREV-01 (Standard Scout)",
-		"speed": 14.0,
-		"max_weight": 75.0,
-		"color": Color(0.6, 0.65, 0.7)
-	},
-	"titan": {
-		"name": "TITAN OVERLORD-X (Heavy Siege)",
-		"speed": 10.5,
-		"max_weight": 110.0,
-		"color": Color(0.3, 0.15, 0.35)
-	},
-	"vanguard": {
-		"name": "VANGUARD STRIKER-09 (High-Mobility Recon)",
-		"speed": 18.0,
-		"max_weight": 55.0,
-		"color": Color(0.85, 0.85, 0.9)
-	},
-	"aegis": {
-		"name": "AEGIS FORTRESS-04 (Heavy Defense Barrier)",
-		"speed": 11.5,
-		"max_weight": 95.0,
-		"color": Color(0.2, 0.4, 0.5)
-	},
-	"brawler": {
-		"name": "BERSERKER BRAWLER-X (Close Combat Specialist)",
-		"speed": 15.0,
-		"max_weight": 88.0,
-		"color": Color(0.35, 0.40, 0.28)
-	}
-}
 
 var board_grid: Array = []
 var current_tile: Vector2i = Vector2i.ZERO
@@ -458,7 +443,7 @@ func save_run() -> void:
 	var data := {
 		"chassis": chassis_id,
 		"parts": _serialize_parts(),
-		"frames": equipped_frames.duplicate(true),
+		"frames": _serialize_frames(),
 		"damage": part_damage.duplicate(),
 		"attachments": _serialize_attachments(),
 		"position": {"x": current_tile.x, "y": current_tile.y},
@@ -501,8 +486,8 @@ func _restore_from_dict(data: Dictionary) -> void:
 	var frames_data = data.get("frames", {})
 	if frames_data is Dictionary and not frames_data.is_empty():
 		for slot in frames_data:
-			equipped_frames[slot] = frames_data[slot]
-	_backfill_frame_carry_bonus()
+			equipped_frames[slot] = _resolve_frame_value(frames_data[slot])
+	_ensure_default_frames()
 	part_damage = data.get("damage", {})
 	attachments = data.get("attachments", []).duplicate(true)
 	heat = data.get("heat", 0)
@@ -518,11 +503,7 @@ func _restore_from_dict(data: Dictionary) -> void:
 	var parts_dict: Dictionary = data.get("parts", {})
 	equipped_parts.clear()
 	for slot in parts_dict:
-		var p_val = parts_dict[slot]
-		if p_val is String and ResourceLoader.exists(p_val):
-			equipped_parts[slot] = load(p_val)
-		else:
-			equipped_parts[slot] = p_val
+		equipped_parts[slot] = _resolve_armor_value(parts_dict[slot])
 		
 	enemy_forces = data.get("enemy_forces", {
 		"boss_current": 1, "boss_max": 1,
@@ -564,16 +545,55 @@ func _serialize_parts() -> Dictionary:
 	var result := {}
 	for slot in equipped_parts:
 		var item = equipped_parts[slot]
-		if item is Resource and "resource_path" in item and item.resource_path != "":
+		if item == null:
+			result[slot] = null
+		elif item is Resource and "resource_path" in item and item.resource_path != "":
 			# Resource file: save path string for reload
 			result[slot] = item.resource_path
 		elif item is Dictionary:
-			# Dictionary (from armor_catalog or equip action): save full dict to
-			# preserve all fields including the "equipped" flag
-			result[slot] = item.duplicate()
+			var pid = item.get("id", "")
+			if pid != "" and is_catalog_armor_id(pid):
+				# Catalog part: persist only the id reference + equipped state.
+				# Static stats always come from the catalog (single source of truth).
+				result[slot] = {"id": pid, "equipped": item.get("equipped", true)}
+			else:
+				# Instance part (salvaged / non-catalog): persist the full dict.
+				result[slot] = item.duplicate(true)
 		else:
 			result[slot] = str(item)
 	return result
+
+
+func _serialize_frames() -> Dictionary:
+	var result := {}
+	for slot in equipped_frames:
+		var f = equipped_frames[slot]
+		if f is Dictionary and f.get("id", "") != "" and is_catalog_frame_id(f["id"]):
+			# Catalog frame: persist only the id reference.
+			result[slot] = {"id": f["id"]}
+		else:
+			result[slot] = f.duplicate(true)
+	return result
+
+
+# Resolves a saved equipped-part value into a usable runtime part.
+#   - Resource path string -> loads the Resource
+#   - Catalog id reference -> resolved fresh from armor_catalog (with instance flags)
+#   - Full legacy/salvaged dict -> returned as-is (instance data, not in catalog)
+func _resolve_armor_value(v: Variant) -> Variant:
+	if v is String and ResourceLoader.exists(v):
+		return load(v)
+	if v is Dictionary:
+		var pid = v.get("id", "")
+		var entry: Dictionary = {}
+		if pid != "":
+			entry = get_armor_catalog_entry(pid)
+		if not entry.is_empty():
+			var resolved = entry.duplicate()
+			resolved["equipped"] = v.get("equipped", true)
+			return resolved
+		return v.duplicate(true)
+	return v
 
 
 func _serialize_attachments() -> Array:

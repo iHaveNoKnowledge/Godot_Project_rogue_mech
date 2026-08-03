@@ -29,12 +29,10 @@ var _is_populating: bool = false
 var _is_dragging_3d: bool = false
 var _part_action_modal: Control = null
 
-var attachment_catalog: Array = [
-	{"id": "sensor_mk1", "name": "Sensor Module MK-I", "weight": 2.0, "power_cost": 5.0, "size": Vector3(0.3, 0.2, 0.25), "color": Color(0.1, 0.75, 1.0)},
-	{"id": "armor_module", "name": "Reactive Armor Module", "weight": 4.0, "power_cost": 0.0, "size": Vector3(0.45, 0.3, 0.2), "color": Color(0.9, 0.4, 0.15)},
-	{"id": "booster_mk1", "name": "Thrust Booster MK-I", "weight": 6.0, "power_cost": 12.0, "size": Vector3(0.28, 0.5, 0.28), "color": Color(0.9, 0.8, 0.2)},
-	{"id": "ammo_pod", "name": "Universal Ammo Pod", "weight": 5.0, "power_cost": 0.0, "size": Vector3(0.4, 0.35, 0.3), "color": Color(0.35, 0.45, 0.55)}
-]
+# Attachment Catalog — lives in GlobalData (loaded from resources/data/mech_catalogs.tres).
+var attachment_catalog: Array:
+	get:
+		return GlobalData.attachment_catalog
 
 # 3D Garage Nodes
 var viewport_container: SubViewportContainer
@@ -67,8 +65,10 @@ var status_message_label: Label
 # NOTE: First entry per slot must match GlobalData.equipped_frames default names so
 # the starter frames show up as "[E]" equipped in the list.
 # "carry_bonus" = kg of Field Pack capacity this frame adds (frame = class system).
-# Data lives in resources/data/frame_catalog.json (loaded in _load_frame_catalog()).
-var frame_catalog: Dictionary = {}
+# Data lives in GlobalData (loaded from resources/data/mech_catalogs.tres).
+var frame_catalog: Dictionary:
+	get:
+		return GlobalData.frame_catalog
 
 # Outer Armor Catalog
 ## Armor catalog is now stored in GlobalData.armor_catalog (single source of truth).
@@ -80,25 +80,11 @@ var armor_catalog: Dictionary:
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	_load_frame_catalog()
 	_build_3d_garage()
 	_build_ui_layout()
 	show_hangar()
 	if has_node("/root/AudioManager"):
 		AudioManager.play_hangar_music()
-
-
-# Loads the inner frame catalog from resources/data/frame_catalog.json.
-func _load_frame_catalog() -> void:
-	const FRAME_CATALOG_PATH := "res://resources/data/frame_catalog.json"
-	if not FileAccess.file_exists(FRAME_CATALOG_PATH):
-		push_warning("frame_catalog.json not found at %s" % FRAME_CATALOG_PATH)
-		return
-	var parsed = JSON.parse_string(FileAccess.get_file_as_string(FRAME_CATALOG_PATH))
-	if parsed is Dictionary:
-		frame_catalog = parsed
-	else:
-		push_error("Failed to parse frame_catalog.json")
 
 
 # Returns [credits_cost, cores_cost] for next frame upgrade level.

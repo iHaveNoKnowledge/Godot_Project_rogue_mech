@@ -116,6 +116,9 @@ func _generate_sounds() -> void:
 		preload("res://resources/audio/sfx/melee_hit02.wav"),
 		preload("res://resources/audio/sfx/melee_hit01.wav"),
 	]
+	# Pile Bunker: explosive shell-driven punch
+	_sound_cache["pile_bunker_fire"] = _gen_pile_bunker_fire()
+	_sound_cache["pile_bunker_hit"] = _gen_pile_bunker_hit()
 
 
 # --- Sound Generation Helpers ---
@@ -189,6 +192,71 @@ func _gen_sine_tone(freq: float, duration: float, volume: float) -> AudioStreamW
 
 func _gen_sine_chop(freq: float, duration: float, volume: float) -> AudioStreamWAV:
 	return _gen_sine_tone(freq, duration, volume)
+
+
+func _gen_pile_bunker_fire() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 0.35
+	var num_samples = int(duration * sample_rate)
+	var data = PackedByteArray()
+	data.resize(num_samples * 2)
+
+	for i in range(num_samples):
+		var t = float(i) / sample_rate
+		var attack = minf(t / 0.005, 1.0)
+		var envelope = attack * exp(-t * 8.0)
+		# Deep hydraulic slam with falling pitch
+		var thump_freq = lerp(180.0, 45.0, t / duration)
+		var sample = sin(TAU * thump_freq * t) * 0.6 * envelope
+		# Metallic "thunk" overtone
+		sample += sin(TAU * 260.0 * t) * 0.3 * envelope
+		# Air / gas hiss
+		sample += (randf() * 2.0 - 1.0) * 0.12 * envelope
+		# Bright metal ring after impact
+		var release = maxf(0.0, (t - 0.15) / 0.2)
+		if release > 0.0:
+			sample += sin(TAU * 2400.0 * t) * 0.15 * release * exp(-(t - 0.15) * 12.0)
+		var val = int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+
+	var stream = AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream
+
+
+func _gen_pile_bunker_hit() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 0.3
+	var num_samples = int(duration * sample_rate)
+	var data = PackedByteArray()
+	data.resize(num_samples * 2)
+
+	for i in range(num_samples):
+		var t = float(i) / sample_rate
+		var attack = minf(t / 0.003, 1.0)
+		var envelope = attack * exp(-t * 10.0)
+		# Heavy impact thump with falling pitch
+		var thump_freq = lerp(140.0, 35.0, t / duration)
+		var sample = sin(TAU * thump_freq * t) * 0.65 * envelope
+		# Metallic clang with beating harmonics
+		sample += sin(TAU * 820.0 * t) * 0.28 * envelope
+		sample += sin(TAU * 1650.0 * t) * 0.18 * envelope
+		# Gritty impact noise
+		sample += (randf() * 2.0 - 1.0) * 0.2 * envelope
+		var val = int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+
+	var stream = AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream
 
 
 func _gen_pitch_variant(source: AudioStreamWAV, pitch_ratio: float) -> AudioStreamWAV:
@@ -345,6 +413,14 @@ func play_weapon_sfx_with_override(weapon: WeaponPart, pos: Vector3) -> void:
 
 func play_impact(pos: Vector3) -> void:
 	play_sfx("impact", pos, -5.0)
+
+
+func play_pile_bunker_fire(pos: Vector3) -> void:
+	play_sfx("pile_bunker_fire", pos, 2.0)
+
+
+func play_pile_bunker_hit(pos: Vector3) -> void:
+	play_sfx("pile_bunker_hit", pos, 2.0)
 
 
 func play_armor_break(pos: Vector3) -> void:

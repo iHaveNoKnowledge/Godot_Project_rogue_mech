@@ -801,8 +801,11 @@ func _melee_attack(hand: String, weapon: WeaponPart) -> void:
 	_perform_pile_bunker_lunge_anim(mecha, dir, weapon)
 
 	_spawn_melee_trail(mecha, dir)
-	_check_melee_hit(mecha, dir, weapon.damage)
-	AudioManager.play_weapon_sfx_with_override(weapon, mecha.global_position)
+	_check_melee_hit(mecha, dir, weapon.damage, weapon)
+	if weapon and weapon.weapon_name.to_lower().contains("pile"):
+		AudioManager.play_pile_bunker_fire(mecha.global_position)
+	else:
+		AudioManager.play_weapon_sfx_with_override(weapon, mecha.global_position)
 
 func _perform_pile_bunker_lunge_anim(mecha: Node3D, dir: Vector3, weapon: WeaponPart) -> void:
 	if not mecha:
@@ -874,7 +877,7 @@ func _spawn_melee_trail(mecha: Node3D, direction: Vector3) -> void:
 		tween.tween_callback(trail.queue_free)
 
 
-func _check_melee_hit(mecha: Node3D, direction: Vector3, damage: float) -> void:
+func _check_melee_hit(mecha: Node3D, direction: Vector3, damage: float, weapon: WeaponPart = null) -> void:
 	var cam = get_viewport().get_camera_3d()
 	if cam == null:
 		return
@@ -910,6 +913,8 @@ func _check_melee_hit(mecha: Node3D, direction: Vector3, damage: float) -> void:
 			elif enemy.has_method("take_damage"):
 				enemy.take_damage(damage, "melee")
 			EffectManager.spawn_damage_number(enemy.global_position + Vector3(0, 2.5, 0), damage, Color(1, 0.5, 0))
+			if weapon and weapon.weapon_name.to_lower().contains("pile"):
+				AudioManager.play_pile_bunker_hit(enemy.global_position)
 
 
 # ====================================================================

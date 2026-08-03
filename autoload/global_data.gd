@@ -15,6 +15,10 @@ var chassis_catalog: Dictionary = {}
 var frame_catalog: Dictionary = {}
 var attachment_catalog: Array = []
 
+# Fleet / research catalog (blueprints for allied mechs and gundam-tier gear).
+var gundam_research_projects: Array = []
+var ally_unit_templates: Dictionary = {}
+
 
 func _load_catalogs() -> void:
 	var db = load("res://resources/data/mech_catalogs.tres") as CatalogData
@@ -25,6 +29,14 @@ func _load_catalogs() -> void:
 	chassis_catalog = db.chassis_catalog
 	frame_catalog = db.frame_catalog
 	attachment_catalog = db.attachment_catalog
+
+	var gb = load("res://resources/data/gundam_catalogs.tres") as GundamCatalogData
+	if gb == null:
+		push_error("Failed to load gundam_catalogs.tres")
+		return
+	gundam_research_projects = gb.research_projects
+	for template in gb.ally_unit_templates:
+		ally_unit_templates[template.get("id", "")] = template
 
 
 # --- Catalog lookups (by id) ---
@@ -65,6 +77,19 @@ func _ready() -> void:
 	_load_catalogs()
 	_ensure_default_frames()
 	ensure_default_equipped_parts()
+	EventBus.tile_entered.connect(_on_tile_entered)
+	EventBus.combat_ended.connect(_on_combat_ended)
+
+
+# Research timers advance with turn progress: each board move = 1 point,
+# each completed combat = 2 points.
+func _on_tile_entered(_tile_pos: Vector2i, _tile_data: Node) -> void:
+	tick_research(1)
+
+
+func _on_combat_ended(victory: bool) -> void:
+	if victory:
+		tick_research(2)
 
 
 # Initialise equipped_parts from armor_catalog[slot][0] (first/default entry per slot).
@@ -331,6 +356,140 @@ var safehouse_upgrades: Array = []
 var credits: int = 0
 var data_cores: int = 0
 
+# -----------------------------------------------------------------------------
+# FLEET (กองยาน) — roster of allied mech units the player owns.
+# Each entry is a per-unit record: {"template_id", "name", "hp", "max_hp",
+# "destroyed", "fielded"}. Units are researched from blueprints (data_cores)
+# at the research base; fielded units tag along into combat as AI squadmates.
+# -----------------------------------------------------------------------------
+var fleet_roster: Array = []
+
+# Active research: {project_id: {"progress": int, "required": int, "started": bool}}
+var research_projects: Dictionary = {}
+
+# Blueprint projects fully researched and unlocked (ids), e.g. units/gear.
+var research_unlocked: Array = []
+
+
+func get_ally_template(template_id: String) -> Dictionary:
+	return ally_unit_templates.get(template_id, {})
+
+
+func get_fielded_units() -> Array:
+	var result: Array = []
+	for unit in fleet_roster:
+		if unit is Dictionary and unit.get("fielded", true) and not unit.get("destroyed", false):
+			result.append(unit)
+	return result
+
+
+func get_fleet_unit(template_id: String) -> Dictionary:
+	for unit in fleet_roster:
+		if unit.get("template_id", "") == template_id:
+			return unit
+	return {}
+
+
+func has_ally_unit(template_id: String) -> bool:
+	return not get_fleet_unit(template_id).is_empty()
+
+
+func add_ally_unit(template_id: String) -> bool:
+	var template = get_ally_template(template_id)
+	if template.is_empty():
+		push_warning("add_ally_unit: unknown template '%s'" % template_id)
+		return false
+	if has_ally_unit(template_id):
+		return false
+	fleet_roster.append({
+		"template_id": template_id,
+		"name": template.get("name", template_id),
+		"hp": float(template.get("frame_hp", 50.0)),
+		"max_hp": float(template.get("frame_hp", 50.0)),
+		"destroyed": false,
+		"fielded": template.get("fielded", true),
+	})
+	return true
+
+
+func set_unit_fielded(template_id: String, fielded: bool) -> void:
+	var unit = get_fleet_unit(template_id)
+	if unit.is_empty():
+		return
+	unit["fielded"] = fielded
+
+
+# --- Research base ----------------------------------------------------------
+
+func get_research_project(project_id: String) -> Dictionary:
+	for project in gundam_research_projects:
+		if project.get("id", "") == project_id:
+			return project
+	return {}
+
+
+func is_research_active(project_id: String) -> bool:
+	return research_projects.has(project_id)
+
+
+func is_research_completed(project_id: String) -> bool:
+	return project_id in research_unlocked
+
+
+# Start a research project: consumes data_cores (the blueprint) and begins the
+# clock. Research time progresses via board moves (tick_research(1)) and
+# completed combats (tick_research(2)).
+func start_research(project_id: String) -> bool:
+	if is_research_active(project_id) or is_research_completed(project_id):
+		return false
+	var project = get_research_project(project_id)
+	if project.is_empty():
+		return false
+	var cost = int(project.get("data_cores", 1))
+	if data_cores < cost:
+		return false
+	data_cores -= cost
+	research_projects[project_id] = {
+		"progress": 0,
+		"required": int(project.get("research_time", 6)),
+		"started": true,
+	}
+	return true
+
+
+# Advance all active research by `points`. Returns project ids completed now.
+func tick_research(points: int) -> Array:
+	var completed: Array = []
+	for project_id in research_projects.keys():
+		var state = research_projects[project_id]
+		if state is Dictionary:
+			state["progress"] = int(state.get("progress", 0)) + points
+			if int(state.get("progress", 0)) >= int(state.get("required", 1)) and not (project_id in completed):
+				research_unlocked.append(project_id)
+				research_projects.erase(project_id)
+				_apply_research_reward(project_id)
+				completed.append(project_id)
+	return completed
+
+
+func get_research_progress(project_id: String) -> Dictionary:
+	if not research_projects.has(project_id):
+		return {}
+	return research_projects[project_id]
+
+
+func _apply_research_reward(project_id: String) -> void:
+	var project = get_research_project(project_id)
+	if project.is_empty():
+		return
+	match project.get("reward_type", ""):
+		"unit":
+			add_ally_unit(str(project.get("reward_id", "")))
+		"armor", "frame":
+			# Unlocked gear becomes usable in the hangar. Gear entries are stored
+			# by id; the hangar reads this list when building upgrade lists.
+			pass
+
 var current_sector: int = 1
 var max_sectors: int = 3
 
@@ -449,6 +608,9 @@ func save_run() -> void:
 		"wanted": wanted_level,
 		"credits": credits,
 		"data_cores": data_cores,
+		"fleet_roster": fleet_roster.duplicate(true),
+		"research_projects": research_projects.duplicate(true),
+		"research_unlocked": research_unlocked.duplicate(),
 		"sector": current_sector,
 		"board_seed": board_seed,
 		"enemy_forces": enemy_forces.duplicate(),
@@ -493,6 +655,16 @@ func _restore_from_dict(data: Dictionary) -> void:
 	data_cores = data.get("data_cores", 0)
 	current_sector = data.get("sector", 1)
 	board_seed = data.get("board_seed", randi())
+
+	var loaded_roster = data.get("fleet_roster", [])
+	if loaded_roster is Array:
+		fleet_roster = loaded_roster.duplicate(true)
+	var loaded_research = data.get("research_projects", {})
+	if loaded_research is Dictionary:
+		research_projects = loaded_research.duplicate(true)
+	var loaded_unlocked = data.get("research_unlocked", [])
+	if loaded_unlocked is Array:
+		research_unlocked = loaded_unlocked.duplicate()
 	
 	var pos = data.get("position", {"x": 0, "y": 0})
 	current_tile = Vector2i(pos.x, pos.y)

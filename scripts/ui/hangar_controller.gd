@@ -67,44 +67,8 @@ var status_message_label: Label
 # NOTE: First entry per slot must match GlobalData.equipped_frames default names so
 # the starter frames show up as "[E]" equipped in the list.
 # "carry_bonus" = kg of Field Pack capacity this frame adds (frame = class system).
-var frame_catalog: Dictionary = {
-	"head": [
-		{"name": "Standard Light Alloy Frame", "hp": 20.0, "weight": 2.0, "type": "Standard Frame", "carry_bonus": 2.0},
-		{"name": "Alaya-Vijnana Head Skeleton", "hp": 25.0, "weight": 2.0, "type": "Gundam Frame", "carry_bonus": 4.0},
-		{"name": "Reinforced Sensor Joint Frame", "hp": 35.0, "weight": 3.5, "type": "Medium Frame", "carry_bonus": 6.0},
-		{"name": "Titan Heavy Structure Head Frame", "hp": 50.0, "weight": 5.5, "type": "Heavy Frame", "carry_bonus": 8.0}
-	],
-	"body": [
-		{"name": "Standard Core Structure", "hp": 40.0, "weight": 6.0, "type": "Standard Frame", "carry_bonus": 8.0},
-		{"name": "Alaya-Vijnana Core Spine", "hp": 50.0, "weight": 6.0, "type": "Gundam Frame", "carry_bonus": 12.0},
-		{"name": "Reinforced Composite Torso Frame", "hp": 75.0, "weight": 10.0, "type": "Medium Frame", "carry_bonus": 16.0},
-		{"name": "Fortress Heavy Structural Spine", "hp": 110.0, "weight": 16.0, "type": "Heavy Frame", "carry_bonus": 20.0}
-	],
-	"arm_left": [
-		{"name": "Standard Articulated Arm Frame", "hp": 15.0, "weight": 3.0, "type": "Standard Frame", "carry_bonus": 3.0},
-		{"name": "Alaya-Vijnana Arm Joint (L)", "hp": 20.0, "weight": 3.0, "type": "Gundam Frame", "carry_bonus": 5.0},
-		{"name": "High-Torque Hydraulic Arm Frame (L)", "hp": 32.0, "weight": 5.0, "type": "Medium Frame", "carry_bonus": 7.0},
-		{"name": "Heavy Reinforced Siege Arm Frame (L)", "hp": 48.0, "weight": 8.0, "type": "Heavy Frame", "carry_bonus": 9.0}
-	],
-	"arm_right": [
-		{"name": "Standard Articulated Arm Frame", "hp": 15.0, "weight": 3.0, "type": "Standard Frame", "carry_bonus": 3.0},
-		{"name": "Alaya-Vijnana Arm Joint (R)", "hp": 20.0, "weight": 3.0, "type": "Gundam Frame", "carry_bonus": 5.0},
-		{"name": "High-Torque Hydraulic Arm Frame (R)", "hp": 32.0, "weight": 5.0, "type": "Medium Frame", "carry_bonus": 7.0},
-		{"name": "Heavy Reinforced Siege Arm Frame (R)", "hp": 48.0, "weight": 8.0, "type": "Heavy Frame", "carry_bonus": 9.0}
-	],
-	"leg_left": [
-		{"name": "Standard Actuator Leg Frame", "hp": 20.0, "weight": 4.0, "type": "Standard Frame", "carry_bonus": 4.0},
-		{"name": "Alaya-Vijnana Leg Actuator (L)", "hp": 25.0, "weight": 4.0, "type": "Gundam Frame", "carry_bonus": 6.0},
-		{"name": "Roller Suspension Leg Frame (L)", "hp": 40.0, "weight": 6.5, "type": "High-Mobility", "carry_bonus": 8.0},
-		{"name": "Heavy Hydraulic Titan Leg Frame (L)", "hp": 60.0, "weight": 10.0, "type": "Heavy Frame", "carry_bonus": 10.0}
-	],
-	"leg_right": [
-		{"name": "Standard Actuator Leg Frame", "hp": 20.0, "weight": 4.0, "type": "Standard Frame", "carry_bonus": 4.0},
-		{"name": "Alaya-Vijnana Leg Actuator (R)", "hp": 25.0, "weight": 4.0, "type": "Gundam Frame", "carry_bonus": 6.0},
-		{"name": "Roller Suspension Leg Frame (R)", "hp": 40.0, "weight": 6.5, "type": "High-Mobility", "carry_bonus": 8.0},
-		{"name": "Heavy Hydraulic Titan Leg Frame (R)", "hp": 60.0, "weight": 10.0, "type": "Heavy Frame", "carry_bonus": 10.0}
-	]
-}
+# Data lives in resources/data/frame_catalog.json (loaded in _load_frame_catalog()).
+var frame_catalog: Dictionary = {}
 
 # Outer Armor Catalog
 ## Armor catalog is now stored in GlobalData.armor_catalog (single source of truth).
@@ -116,11 +80,25 @@ var armor_catalog: Dictionary:
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_load_frame_catalog()
 	_build_3d_garage()
 	_build_ui_layout()
 	show_hangar()
 	if has_node("/root/AudioManager"):
 		AudioManager.play_hangar_music()
+
+
+# Loads the inner frame catalog from resources/data/frame_catalog.json.
+func _load_frame_catalog() -> void:
+	const FRAME_CATALOG_PATH := "res://resources/data/frame_catalog.json"
+	if not FileAccess.file_exists(FRAME_CATALOG_PATH):
+		push_warning("frame_catalog.json not found at %s" % FRAME_CATALOG_PATH)
+		return
+	var parsed = JSON.parse_string(FileAccess.get_file_as_string(FRAME_CATALOG_PATH))
+	if parsed is Dictionary:
+		frame_catalog = parsed
+	else:
+		push_error("Failed to parse frame_catalog.json")
 
 
 # Returns [credits_cost, cores_cost] for next frame upgrade level.

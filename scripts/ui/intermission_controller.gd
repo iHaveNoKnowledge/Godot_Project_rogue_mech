@@ -108,14 +108,19 @@ func _create_ui() -> void:
 	info_style.content_margin_bottom = 15
 	info_panel.add_theme_stylebox_override("panel", info_style)
 
+	# Inner VBox so label + action buttons stack instead of overlapping.
+	var info_vbox = VBoxContainer.new()
+	info_vbox.add_theme_constant_override("separation", 10)
+	info_panel.add_child(info_vbox)
+
 	info_label = Label.new()
 	info_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	info_panel.add_child(info_label)
+	info_vbox.add_child(info_label)
 
 	# Dynamic action container (research/fleet buttons) rebuilt per view.
 	action_container = VBoxContainer.new()
 	action_container.add_theme_constant_override("separation", 6)
-	info_panel.add_child(action_container)
+	info_vbox.add_child(action_container)
 
 	# Status panel (bottom)
 	status_panel = PanelContainer.new()

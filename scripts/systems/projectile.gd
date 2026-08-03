@@ -35,9 +35,11 @@ func _physics_process(delta: float) -> void:
 	_check_obstacle_collision()
 
 	if fired_by_enemy:
-		# Enemy projectile -> check for player mecha
-		var mechas = get_tree().get_nodes_in_group("mecha")
-		for mecha in mechas:
+		# Enemy projectile -> check for player mecha and fielded allies
+		var targets: Array = []
+		targets.append_array(get_tree().get_nodes_in_group("mecha"))
+		targets.append_array(get_tree().get_nodes_in_group("ally"))
+		for mecha in targets:
 			if not is_instance_valid(mecha):
 				continue
 			var dist = global_position.distance_to(mecha.global_position + Vector3(0, 1.5, 0))
@@ -138,9 +140,10 @@ func _explode(blast_pos: Vector3) -> void:
 
 	var candidates: Array
 	if fired_by_enemy:
-		candidates = get_tree().get_nodes_in_group("mecha")
+		candidates.append_array(get_tree().get_nodes_in_group("mecha"))
+		candidates.append_array(get_tree().get_nodes_in_group("ally"))
 	else:
-		candidates = get_tree().get_nodes_in_group("enemy")
+		candidates.append_array(get_tree().get_nodes_in_group("enemy"))
 
 	for target in candidates:
 		if not is_instance_valid(target):

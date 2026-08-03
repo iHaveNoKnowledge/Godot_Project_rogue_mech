@@ -78,6 +78,7 @@ func _get_active_defs() -> Array:
 
 func _ready() -> void:
 	_generate_spawn_points()
+	_spawn_fielded_allies()
 	await get_tree().create_timer(1.0).timeout
 	start_waves()
 
@@ -91,6 +92,39 @@ func _generate_spawn_points() -> void:
 		marker.position = pos
 		add_child(marker)
 		spawn_points.append(marker)
+
+
+# Spawn all fielded allied units from the fleet so they fight alongside the
+# player (GM vs Zaku — our side tags into battle).
+func _spawn_fielded_allies() -> void:
+	var fielded = GlobalData.get_fielded_units()
+	if fielded.is_empty():
+		return
+	var mecha = get_tree().current_scene.get_node_or_null("Mecha")
+	var anchor = mecha.global_position if mecha else Vector3.ZERO
+	var i := 0
+	for unit in fielded:
+		var template = GlobalData.get_ally_template(unit.get("template_id", ""))
+		if template.is_empty():
+			continue
+		var scene_path = str(template.get("scene_path", "res://scenes/mecha/ally_dummy.tscn"))
+		if not ResourceLoader.exists(scene_path):
+			continue
+		var ally_scene = load(scene_path) as PackedScene
+		if ally_scene == null:
+			continue
+		var ally_unit = ally_scene.instantiate()
+		ally_unit.template_id = unit.get("template_id", "")
+		i += 1
+		# Fan allies out behind/around the player.
+		var angle = (PI / 2.0) + (i - 1) * -(0.5)
+		var offset = Vector3(cos(angle) * 6.0, 0.0, sin(angle) * 6.0)
+		if mecha == null:
+			offset = Vector3(4.0 * i, 0.0, -2.0)
+		ally_unit.position = (anchor + offset) if mecha else offset
+		# Positioned near the player, aligned to ground.
+		ally_unit.position.y = 0.1
+		add_child(ally_unit)
 
 
 func start_waves() -> void:

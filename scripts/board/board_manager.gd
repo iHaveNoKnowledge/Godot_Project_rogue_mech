@@ -182,7 +182,7 @@ func _trigger_stalker_surprise_ambush() -> void:
 func _trigger_random_event() -> void:
 	var events = [
 		{"name": "Abandoned Cache", "effect": "credits", "amount": 50, "desc": "Found abandoned cache! +50 credits"},
-		{"name": "Salvage Parts", "effect": "spare_parts", "amount": 5, "desc": "Salvaged parts! +5 spare parts"},
+		{"name": "Salvage Cache", "effect": "credits", "amount": 50, "desc": "Salvaged scrap cache! +50 credits"},
 		{"name": "Ambush", "effect": "damage", "amount": 20, "desc": "Ambushed by partisans! Took 20 damage"},
 		{"name": "Friendly Trader", "effect": "credits", "amount": 30, "desc": "Friendly trader caravan! +30 credits"},
 		{"name": "Data Terminal", "effect": "data_cores", "amount": 1, "desc": "Hacked old terminal! +1 data core"},
@@ -193,8 +193,6 @@ func _trigger_random_event() -> void:
 	match event["effect"]:
 		"credits":
 			GlobalData.credits += event["amount"]
-		"spare_parts":
-			GlobalData.spare_parts += event["amount"]
 		"data_cores":
 			GlobalData.data_cores += event["amount"]
 		"damage":

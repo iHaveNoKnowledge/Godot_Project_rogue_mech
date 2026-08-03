@@ -329,7 +329,6 @@ var wanted_level: int = 0
 var safehouse_upgrades: Array = []
 
 var credits: int = 0
-var spare_parts: int = 0
 var data_cores: int = 0
 
 var current_sector: int = 1
@@ -401,8 +400,7 @@ func reset_run_data() -> void:
 	heat = 0
 	wanted_level = 0
 	safehouse_upgrades.clear()
-	credits = 100
-	spare_parts = 10
+	credits = 110
 	data_cores = 0
 	current_sector = 1
 	enemy_forces = {
@@ -450,7 +448,6 @@ func save_run() -> void:
 		"heat": heat,
 		"wanted": wanted_level,
 		"credits": credits,
-		"spare_parts": spare_parts,
 		"data_cores": data_cores,
 		"sector": current_sector,
 		"board_seed": board_seed,
@@ -492,8 +489,7 @@ func _restore_from_dict(data: Dictionary) -> void:
 	attachments = data.get("attachments", []).duplicate(true)
 	heat = data.get("heat", 0)
 	wanted_level = data.get("wanted", 0)
-	credits = data.get("credits", 0)
-	spare_parts = data.get("spare_parts", 0)
+	credits = data.get("credits", 0) + int(data.get("spare_parts", 0))
 	data_cores = data.get("data_cores", 0)
 	current_sector = data.get("sector", 1)
 	board_seed = data.get("board_seed", randi())

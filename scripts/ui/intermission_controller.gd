@@ -214,7 +214,6 @@ func _build_mech_status_text() -> String:
 	var text = "=== MECH STATUS ===\n\n"
 	text += "Chassis: %s\n" % GlobalData.chassis_id
 	text += "Credits: %d\n" % GlobalData.credits
-	text += "Spare Parts: %d\n" % GlobalData.spare_parts
 	text += "Data Cores: %d\n\n" % GlobalData.data_cores
 
 	text += "--- Armor Parts ---\n"
@@ -232,8 +231,7 @@ func _build_mech_status_text() -> String:
 func _build_inventory_text() -> String:
 	var text = "=== INVENTORY & RESERVES ===\n\n"
 	text += "Credits: %d\n" % GlobalData.credits
-	text += "Spare Parts: %d\n" % GlobalData.spare_parts
-	text += "Data Cores: %d\n\n" % GlobalData.data_cores
+	text += "Data Cores (Research): %d\n\n" % GlobalData.data_cores
 
 	text += "--- Reserve Ammo Stock ---\n"
 	text += "Kinetic Ammo: %d\n" % GlobalData.get_reserve_ammo("kinetic")

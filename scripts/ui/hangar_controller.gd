@@ -87,10 +87,10 @@ func _ready() -> void:
 		AudioManager.play_hangar_music()
 
 
-# Returns [credits_cost, cores_cost] for next frame upgrade level.
+# Returns credits_cost for next frame upgrade level.
 # Single source of truth — use this instead of inline calculations.
-func _get_upgrade_cost() -> Array:
-	return [GlobalData.frame_upgrade_level * 150, GlobalData.frame_upgrade_level]
+func _get_upgrade_cost() -> int:
+	return GlobalData.frame_upgrade_level * 150
 
 
 # --- 3D GARAGE ENVIRONMENT ---
@@ -850,10 +850,8 @@ func _populate_part_list_for_slot(slot: String) -> void:
 
 	if current_mode == "upgrade":
 		var cost = _get_upgrade_cost()
-		var cost_cr = cost[0]
-		var cost_cores = cost[1]
-		part_item_list.add_item("Upgrade Inner Frame to Level %d (%d cr, %d cores)" % [
-			GlobalData.frame_upgrade_level + 1, cost_cr, cost_cores
+		part_item_list.add_item("Upgrade Inner Frame to Level %d (%d cr)" % [
+			GlobalData.frame_upgrade_level + 1, cost
 		])
 		if part_item_list.item_count > 0:
 			part_item_list.select(0)
@@ -960,10 +958,8 @@ func _populate_part_list_for_slot(slot: String) -> void:
 func _on_part_item_selected(index: int) -> void:
 	if current_mode == "upgrade":
 		var cost = _get_upgrade_cost()
-		var cost_cr = cost[0]
-		var cost_cores = cost[1]
-		stats_label.text = "INNER FRAME REACTOR LEVEL: %d -> %d\n\nEFFECTS:\n+25 FRAME HP per slot\n+15.0 kg MAX WEIGHT CAPACITY\n+1.5 m/s DASH THRUST SPEED\n\nUPGRADE COST: %d Credits, %d Data Cores" % [
-			GlobalData.frame_upgrade_level, GlobalData.frame_upgrade_level + 1, cost_cr, cost_cores
+		stats_label.text = "INNER FRAME REACTOR LEVEL: %d -> %d\n\nEFFECTS:\n+25 FRAME HP per slot\n+15.0 kg MAX WEIGHT CAPACITY\n+1.5 m/s DASH THRUST SPEED\n\nUPGRADE COST: %d Credits" % [
+			GlobalData.frame_upgrade_level, GlobalData.frame_upgrade_level + 1, cost
 		]
 		selected_salvage_info.clear()
 		return
@@ -1820,17 +1816,14 @@ func _set_slot_material(slot: String, mat: Material) -> void:
 func _on_equip_pressed() -> void:
 	if current_mode == "upgrade":
 		var cost = _get_upgrade_cost()
-		var cost_cr = cost[0]
-		var cost_cores = cost[1]
-		if GlobalData.credits >= cost_cr and GlobalData.data_cores >= cost_cores:
-			GlobalData.credits -= cost_cr
-			GlobalData.data_cores -= cost_cores
+		if GlobalData.credits >= cost:
+			GlobalData.credits -= cost
 			GlobalData.frame_upgrade_level += 1
 			status_message_label.text = "Frame Reactor Upgraded to Level %d!" % GlobalData.frame_upgrade_level
 			GlobalData.save_run()
 			_update_total_stats()
 		else:
-			status_message_label.text = "Insufficient Credits or Data Cores!"
+			status_message_label.text = "Insufficient Credits!"
 		return
 
 	if selected_slot == "chassis":
@@ -2018,12 +2011,12 @@ func _update_total_stats() -> void:
 		weight_bar.value = total_weight
 
 	if total_stats_label:
-		total_stats_label.text = "FRAME LVL: %d | FRAME HP: %.0f | ARMOR HP: %.0f\nFRAME W: %.1fkg | ARMOR W: %.1fkg | ATTACH W: %.1fkg | WEAPON W: %.1fkg\nTOTAL WEIGHT: %.1f / %.1f kg\nFIELD PACK: %.1f / %.1f kg\nCREDITS: %d cr | CORES: %d" % [
+		total_stats_label.text = "FRAME LVL: %d | FRAME HP: %.0f | ARMOR HP: %.0f\nFRAME W: %.1fkg | ARMOR W: %.1fkg | ATTACH W: %.1fkg | WEAPON W: %.1fkg\nTOTAL WEIGHT: %.1f / %.1f kg\nFIELD PACK: %.1f / %.1f kg\nCREDITS: %d cr" % [
 			GlobalData.frame_upgrade_level, total_frame_hp, total_armor_hp,
 			total_frame_weight, total_armor_weight, total_attachment_weight, total_weapon_weight,
 			total_weight, max_weight,
 			field_pack_weight, field_pack_capacity,
-			GlobalData.credits, GlobalData.data_cores
+			GlobalData.credits
 		]
 
 

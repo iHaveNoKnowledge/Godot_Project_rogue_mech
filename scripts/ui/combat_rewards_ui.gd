@@ -99,15 +99,13 @@ func _show_victory_rewards() -> void:
 	var is_boss = GameManager.is_boss_combat
 	var is_final_sector = (GlobalData.current_sector >= GlobalData.max_sectors)
 
-	var credits_gained = randi_range(30, 80)
-	var spare_parts_gained = randi_range(1, 5)
+	var credits_gained = randi_range(30, 80) + randi_range(1, 5)
 	var heat_gained = 2
 	var data_cores_gained = 0
 
 	if is_boss:
 		title_label.text = "SECTOR %d CLEARED!" % GlobalData.current_sector
-		credits_gained += 100
-		spare_parts_gained += 5
+		credits_gained += 105
 		data_cores_gained = 1
 		GlobalData.data_cores += data_cores_gained
 
@@ -121,20 +119,17 @@ func _show_victory_rewards() -> void:
 		continue_button.text = "Continue [Enter / Space / Click]"
 
 	GlobalData.credits += credits_gained
-	GlobalData.spare_parts += spare_parts_gained
 
 	rewards = {
 		"credits": credits_gained,
-		"spare_parts": spare_parts_gained,
 		"heat": heat_gained,
 		"data_cores": data_cores_gained
 	}
 
 	rewards_label.text = "Rewards:\n"
 	rewards_label.text += "+%d Credits\n" % credits_gained
-	rewards_label.text += "+%d Spare Parts\n" % spare_parts_gained
 	if data_cores_gained > 0:
-		rewards_label.text += "+%d Data Cores (Boss Bonus)\n" % data_cores_gained
+		rewards_label.text += "+%d Data Cores (Research Item)\n" % data_cores_gained
 	rewards_label.text += "+%d Heat\n" % heat_gained
 	rewards_label.text += "\nTotal Credits: %d" % GlobalData.credits
 

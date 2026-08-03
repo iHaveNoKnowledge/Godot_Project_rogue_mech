@@ -789,7 +789,7 @@ func _melee_attack(hand: String, weapon: WeaponPart) -> void:
 	var dir = (target_point - mecha.global_position).normalized()
 	dir.y = 0.0
 	if dir.length() > 0.1:
-		var target_angle = atan2(dir.x, dir.z)
+		var target_angle = atan2(-dir.x, -dir.z)
 		mecha.rotation.y = lerp_angle(mecha.rotation.y, target_angle, 0.3)
 
 	# Eject spent shell casing for Pile Bunker / kinetic melee

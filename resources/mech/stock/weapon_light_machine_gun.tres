@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1")
 weapon_name = "Light Machine Gun"
-weapon_type = 0
+weapon_type = 1
 damage = 4.0
 fire_rate = 0.06
 max_ammo = 300

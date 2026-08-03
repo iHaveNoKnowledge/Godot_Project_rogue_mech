@@ -181,9 +181,9 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
 		var dir = 0
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			dir = -1   # up = lower index
+			dir = -1 # up = lower index
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			dir = 1    # down = higher index
+			dir = 1 # down = higher index
 		if dir != 0:
 			if holding_left:
 				_scroll("left", dir)
@@ -255,7 +255,7 @@ func reload_weapon(hand: String) -> void:
 	else:
 		reloading_right = true
 
-	var target_word: String = "reload!"
+	var target_word: String = "RELOAD!"
 	var char_count = target_word.length()
 	var total_reload_time: float = 1.0
 	var time_per_char = total_reload_time / float(char_count + 1)
@@ -561,7 +561,6 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 			_fire_projectile(hand, weapon)
 
 
-
 func _fire_projectile(hand: String, weapon: WeaponPart) -> void:
 	var mecha = get_parent()
 	if mecha == null:
@@ -691,7 +690,6 @@ func _fire_missile(hand: String, weapon: WeaponPart) -> void:
 
 
 func _fire_shotgun(hand: String, weapon: WeaponPart) -> void:
-
 	var mecha = get_parent()
 	if mecha == null:
 		return
@@ -1104,7 +1102,7 @@ func _update_carry_visuals(mecha: Node3D) -> void:
 	var back_mount = Node3D.new()
 	back_mount.name = "CarryWeapons"
 	# Spread carried weapons horizontally across the back pack.
-	var offset := -((carry.size() - 1) * 0.22)
+	var offset := - ((carry.size() - 1) * 0.22)
 	for weapon in carry:
 		if weapon == null:
 			continue

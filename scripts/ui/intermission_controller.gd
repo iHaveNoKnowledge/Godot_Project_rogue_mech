@@ -6,6 +6,7 @@ var info_panel: PanelContainer
 var info_label: Label
 var status_panel: PanelContainer
 var status_label: Label
+var action_container: VBoxContainer
 var current_view: String = "menu"
 
 
@@ -77,6 +78,8 @@ func _create_ui() -> void:
 	_add_menu_button("Move on Board", _on_move_pressed)
 	_add_menu_button("Mech Status", _on_status_pressed)
 	_add_menu_button("Inventory", _on_inventory_pressed)
+	_add_menu_button("Research Base", _on_research_pressed)
+	_add_menu_button("Fleet Roster", _on_fleet_pressed)
 	_add_menu_button("Board Info", _on_board_info_pressed)
 	_add_menu_button("Hangar", _on_hangar_pressed)
 	_add_menu_button("Save Game", _on_save_pressed)
@@ -108,6 +111,11 @@ func _create_ui() -> void:
 	info_label = Label.new()
 	info_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	info_panel.add_child(info_label)
+
+	# Dynamic action container (research/fleet buttons) rebuilt per view.
+	action_container = VBoxContainer.new()
+	action_container.add_theme_constant_override("separation", 6)
+	info_panel.add_child(action_container)
 
 	# Status panel (bottom)
 	status_panel = PanelContainer.new()
@@ -175,19 +183,145 @@ func _on_move_pressed() -> void:
 func _on_status_pressed() -> void:
 	current_view = "status"
 	info_panel.visible = true
+	_clear_actions()
 	info_label.text = _build_mech_status_text()
 
 
 func _on_inventory_pressed() -> void:
 	current_view = "inventory"
 	info_panel.visible = true
+	_clear_actions()
 	info_label.text = _build_inventory_text()
 
 
 func _on_board_info_pressed() -> void:
 	current_view = "board_info"
 	info_panel.visible = true
+	_clear_actions()
 	info_label.text = _build_board_info_text()
+
+
+func _clear_actions() -> void:
+	for child in action_container.get_children():
+		child.queue_free()
+
+
+func _on_research_pressed() -> void:
+	current_view = "research"
+	info_panel.visible = true
+	_clear_actions()
+	info_label.text = _build_research_text()
+
+	# Start buttons for available projects
+	for project in GlobalData.gundam_research_projects:
+		var project_id = project.get("id", "")
+		if GlobalData.is_research_active(project_id) or GlobalData.is_research_completed(project_id):
+			continue
+		var cost = int(project.get("data_cores", 1))
+		var has_cores = GlobalData.data_cores >= cost
+		var btn = Button.new()
+		btn.text = "Start: %s (%d core%s)" % [
+			project.get("name", project_id), cost, "s" if cost != 1 else ""
+		]
+		btn.disabled = not has_cores
+		btn.pressed.connect(_start_research.bind(project_id))
+		action_container.add_child(btn)
+
+
+func _start_research(project_id: String) -> void:
+	if GlobalData.start_research(project_id):
+		status_label.text = _get_status_text() + "  [Research started: %s]" % GlobalData.get_research_project(project_id).get("name", project_id)
+		_on_research_pressed()  # refresh list
+	else:
+		status_label.text = _get_status_text() + "  [Not enough data cores / already active]"
+
+
+func _build_research_text() -> String:
+	var text = "=== RESEARCH BASE ===\n\n"
+	text += "Data Cores (blueprints): %d\n\n" % GlobalData.data_cores
+	text += "Research advances 1 point per board move, +2 per combat won.\n\n"
+
+	text += "--- Active Projects ---\n"
+	if GlobalData.research_projects.is_empty():
+		text += "(None)\n"
+	else:
+		for project_id in GlobalData.research_projects:
+			var state = GlobalData.research_projects[project_id]
+			var project = GlobalData.get_research_project(project_id)
+			text += "%s: %d/%d\n" % [
+				project.get("name", project_id),
+				int(state.get("progress", 0)),
+				int(state.get("required", 1))
+			]
+	text += "\n"
+
+	text += "--- Unlocked ---\n"
+	if GlobalData.research_unlocked.is_empty():
+		text += "(Nothing researched yet)\n"
+	else:
+		for project_id in GlobalData.research_unlocked:
+			text += "- %s\n" % GlobalData.get_research_project(project_id).get("name", project_id)
+	text += "\n"
+
+	text += "--- Available Blueprints ---\n"
+	for project in GlobalData.gundam_research_projects:
+		var project_id = project.get("id", "")
+		if GlobalData.is_research_active(project_id) or GlobalData.is_research_completed(project_id):
+			continue
+		text += "%s — %d cores, %d turns\n" % [
+			project.get("name", project_id),
+			int(project.get("data_cores", 1)),
+			int(project.get("research_time", 6))
+		]
+		text += "   %s\n" % project.get("desc", "")
+	return text
+
+
+func _on_fleet_pressed() -> void:
+	current_view = "fleet"
+	info_panel.visible = true
+	_clear_actions()
+	info_label.text = _build_fleet_text()
+
+	# Fielded toggle per unit
+	for unit in GlobalData.fleet_roster:
+		if not (unit is Dictionary):
+			continue
+		var template_id = unit.get("template_id", "")
+		var fielded = unit.get("fielded", true)
+		var destroyed = unit.get("destroyed", false)
+		var btn = Button.new()
+		btn.text = "%s: %s" % [unit.get("name", template_id), "FIELDED" if fielded else "STANDING DOWN"]
+		btn.disabled = destroyed
+		btn.pressed.connect(_toggle_fielded.bind(template_id))
+		action_container.add_child(btn)
+
+
+func _toggle_fielded(template_id: String) -> void:
+	var unit = GlobalData.get_fleet_unit(template_id)
+	if unit.is_empty():
+		return
+	GlobalData.set_unit_fielded(template_id, not unit.get("fielded", true))
+	_on_fleet_pressed()  # refresh
+
+
+func _build_fleet_text() -> String:
+	var text = "=== FLEET ROSTER ===\n\n"
+	text += "Fielded units fight alongside you in combat.\n\n"
+	if GlobalData.fleet_roster.is_empty():
+		text += "No units yet. Research blueprints at the Research Base to unlock squadmates."
+		return text
+	for unit in GlobalData.fleet_roster:
+		var state = "ACTIVE" if unit.get("fielded", true) else "STANDBY"
+		if unit.get("destroyed", false):
+			state = "DESTROYED"
+		text += "- %s [%s] HP: %d/%d\n" % [
+			unit.get("name", unit.get("template_id", "?")),
+			state,
+			int(unit.get("hp", 0)),
+			int(unit.get("max_hp", 0))
+		]
+	return text
 
 
 func _on_hangar_pressed() -> void:

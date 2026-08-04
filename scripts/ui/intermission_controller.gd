@@ -358,11 +358,19 @@ func _build_mech_status_text() -> String:
 	text += "--- Armor Parts ---\n"
 	for slot in GlobalData.equipped_parts:
 		var part = GlobalData.equipped_parts[slot]
-		if part and part is ArmorPart:
-			var dmg = GlobalData.part_damage.get(slot, 0.0)
+		if not part:
+			continue
+		var dmg = GlobalData.part_damage.get(slot, 0.0)
+		if part is ArmorPart:
 			var status = "OK" if dmg < part.break_threshold else "BROKEN"
 			text += "%s: %s (HP: %.0f, W: %.1f) [%s]\n" % [
 				part.part_name, slot, part.max_hp, part.weight, status
+			]
+		elif part is Dictionary:
+			var status = "OK" if dmg < 0.9 else "BROKEN"
+			text += "%s: %s (HP: %.0f, W: %.1f) [%s]\n" % [
+				part.get("name", part.get("part_name", "Part")), slot,
+				part.get("hp", part.get("max_hp", 0.0)), part.get("weight", 0.0), status
 			]
 	return text
 
@@ -384,21 +392,21 @@ func _build_inventory_text() -> String:
 	else:
 		for item in GlobalData.weapon_inventory:
 			var w_name = item.get("name", "Unknown Weapon")
-			var count = item.get("count", 1)
-			text += "- %s x%d\n" % [w_name, count]
+			text += "- %s (%.0f%%)\n" % [w_name, clampf(float(item.get("durability", 1.0)), 0.0, 1.0) * 100.0]
 	text += "\n"
 
-	text += "--- Salvaged Armor Parts ---\n"
-	if GlobalData.salvaged_armor_inventory.is_empty():
-		text += "(No salvaged armor in inventory)\n"
+	text += "--- Armor Inventory ---\n"
+	if GlobalData.armor_inventory.is_empty():
+		text += "(No armor in inventory)\n"
 	else:
-		for item in GlobalData.salvaged_armor_inventory:
-			text += "- %s [%s] (HP: %.0f, Armor: %.0f, Weight: %.1f)\n" % [
+		for item in GlobalData.armor_inventory:
+			text += "- %s [%s] (HP: %.0f, Armor: %.0f, Weight: %.1f, Dur: %.0f%%)\n" % [
 				item.get("name", "Armor"),
 				item.get("slot", "body"),
 				item.get("hp", 0.0),
 				item.get("armor", 0.0),
-				item.get("weight", 0.0)
+				item.get("weight", 0.0),
+				clampf(float(item.get("durability", 1.0)), 0.0, 1.0) * 100.0
 			]
 	return text
 

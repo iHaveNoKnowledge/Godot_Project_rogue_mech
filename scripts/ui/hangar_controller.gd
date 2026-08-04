@@ -783,6 +783,10 @@ func _is_item_equipped(slot: String, info: Dictionary) -> bool:
 		if cur == null:
 			return false
 
+		# 0. Match by instance uid (authoritative for owned instances)
+		if cur is Dictionary and cur.has("uid") and info.has("uid"):
+			return cur["uid"] == info["uid"]
+
 		# 1. Match by unique ID if available
 		var cur_id = ""
 		if cur is Dictionary:
@@ -818,6 +822,15 @@ func _is_item_equipped(slot: String, info: Dictionary) -> bool:
 			return cur_name == info_name
 
 		return false
+
+
+# Current durability fraction (0..1) of an owned armor instance. Uses the live
+# combat damage cache for the equipped one, otherwise the instance's persisted
+# durability.
+func _get_instance_durability(slot: String, inst: Dictionary) -> float:
+	if _is_item_equipped(slot, inst):
+		return 1.0 - clampf(GlobalData.part_damage.get(slot, 0.0), 0.0, 1.0)
+	return clampf(float(inst.get("durability", 1.0)), 0.0, 1.0)
 
 
 # Whether a weapon path is part of the current loadout for this weapon slot.
@@ -913,10 +926,10 @@ func _populate_part_list_for_slot(slot: String) -> void:
 			var inv = GlobalData.weapon_inventory[index]
 			var wpath = inv.get("path", "")
 			var wname = inv.get("name", "Weapon")
-			var wcount = inv.get("count", 1)
+			var wdur = clampf(float(inv.get("durability", 1.0)), 0.0, 1.0)
 			var is_eq = _is_weapon_in_loadout(slot, wpath)
 			var prefix = "[E] " if is_eq else "    "
-			var label_str = "%s%s x%d" % [prefix, wname, wcount]
+			var label_str = "%s%s (%.0f%%)" % [prefix, wname, wdur * 100.0]
 			part_item_list.add_item(label_str)
 			visible_weapon_indices.append(index)
 		if part_item_list.item_count > 0:
@@ -935,16 +948,19 @@ func _populate_part_list_for_slot(slot: String) -> void:
 				label_str += " - %.1fkg" % info["weight"]
 			part_item_list.add_item(label_str)
 
-		# Show salvaged enemy drops
-		for salvage_index in range(GlobalData.salvaged_armor_inventory.size()):
-			var salvaged = GlobalData.salvaged_armor_inventory[salvage_index]
-			if salvaged.get("slot", "") == slot:
-				visible_salvage_indices.append(salvage_index)
-				var is_eq = _is_item_equipped(slot, salvaged)
-				var prefix = "[X] " if is_eq and is_destroyed else ("[E] " if is_eq else "     ")
-				var state_tag = " [DESTROYED]" if (is_eq and is_destroyed) else ""
-				var drop_label = "%sSALVAGED: %s [%s]%s" % [prefix, salvaged["name"], salvaged.get("type", "Enemy"), state_tag]
-				part_item_list.add_item(drop_label)
+		# Show owned armor instances (drops, previously purchased stock)
+		visible_salvage_indices.clear()
+		for inst_index in range(GlobalData.armor_inventory.size()):
+			var inst = GlobalData.armor_inventory[inst_index]
+			if inst.get("slot", "") != slot:
+				continue
+			visible_salvage_indices.append(inst_index)
+			var is_eq = _is_item_equipped(slot, inst)
+			var prefix = "[X] " if is_eq and is_destroyed else ("[E] " if is_eq else "     ")
+			var state_tag = " [DESTROYED]" if (is_eq and is_destroyed) else ""
+			var dur_pct = _get_instance_durability(slot, inst)
+			var inst_label = "%s%s [%s] (%.0f%%)%s" % [prefix, inst.get("name", "Armor"), inst.get("type", "Instance"), dur_pct * 100.0, state_tag]
+			part_item_list.add_item(inst_label)
 
 		if part_item_list.item_count > 0:
 			part_item_list.select(0)
@@ -1026,7 +1042,7 @@ func _on_part_item_selected(index: int) -> void:
 			selected_salvage_info.clear()
 
 			var wname = inv.get("name", "Weapon")
-			var wcount = inv.get("count", 1)
+			var wdur = clampf(float(inv.get("durability", 1.0)), 0.0, 1.0)
 			var wwt := 0.0
 			var wtype := "Unknown"
 			if wpath != "" and ResourceLoader.exists(wpath):
@@ -1038,16 +1054,16 @@ func _on_part_item_selected(index: int) -> void:
 			if selected_slot == "weapon_carry":
 				var eq = GlobalData.is_weapon_in_carry(wpath)
 				var prefix = "[E] " if eq else ""
-				stats_label.text = "BACK CARRY: %s%s\nTYPE: %s\n\nWEIGHT: %.1f kg\nCOUNT: x%d\n\nAssigns to the mech's back pack (FIELD PACK).\nFIELD PACK: %.1f / %.1f kg\nPick weapons from the stash below." % [
-					prefix, wname, wtype, wwt, wcount,
+				stats_label.text = "BACK CARRY: %s%s\nTYPE: %s\n\nWEIGHT: %.1f kg\nDURABILITY: %.0f%%\n\nAssigns to the mech's back pack (FIELD PACK).\nFIELD PACK: %.1f / %.1f kg\nPick weapons from the stash below." % [
+					prefix, wname, wtype, wwt, wdur * 100.0,
 					GlobalData.get_field_pack_weight(), GlobalData.get_field_pack_capacity()
 				]
 			else:
 				var hand = "left" if selected_slot == "weapon_left" else "right"
 				var eq = str(GlobalData.weapon_loadout.get(hand, "")) == wpath
 				var prefix = "[E] " if eq else ""
-				stats_label.text = "%s HAND WEAPON: %s%s\nTYPE: %s\n\nWEIGHT: %.1f kg\nCOUNT: x%d\n\nEquip this weapon to the %s hand.\nFIELD PACK: %.1f / %.1f kg" % [
-					hand.to_upper(), prefix, wname, wtype, wwt, wcount, hand,
+				stats_label.text = "%s HAND WEAPON: %s%s\nTYPE: %s\n\nWEIGHT: %.1f kg\nDURABILITY: %.0f%%\n\nEquip this weapon to the %s hand.\nFIELD PACK: %.1f / %.1f kg" % [
+					hand.to_upper(), prefix, wname, wtype, wwt, wdur * 100.0, hand,
 					GlobalData.get_field_pack_weight(), GlobalData.get_field_pack_capacity()
 				]
 			# Only change 3D model when user explicitly picks a part, not on section switch
@@ -1093,13 +1109,13 @@ func _on_part_item_selected(index: int) -> void:
 		elif index - stock_items.size() >= 0 and index - stock_items.size() < visible_salvage_indices.size():
 			var visible_salvage_idx = index - stock_items.size()
 			var salvaged_idx = visible_salvage_indices[visible_salvage_idx]
-			selected_salvage_info = GlobalData.salvaged_armor_inventory[salvaged_idx]
+			selected_salvage_info = GlobalData.armor_inventory[salvaged_idx]
 			selected_part_path = ""
 			selected_part_id = ""
 			selected_frame_info.clear()
 
-			var item_name = selected_salvage_info.get("name", selected_salvage_info.get("part_name", "Salvaged Armor"))
-			var item_type = selected_salvage_info.get("type", "Enemy")
+			var item_name = selected_salvage_info.get("name", selected_salvage_info.get("part_name", "Armor Instance"))
+			var item_type = selected_salvage_info.get("type", "Instance")
 			var item_hp = selected_salvage_info.get("hp", selected_salvage_info.get("max_hp", 30.0))
 			var item_armor = selected_salvage_info.get("armor", 15.0)
 			var item_weight = selected_salvage_info.get("weight", 4.0)
@@ -1107,12 +1123,13 @@ func _on_part_item_selected(index: int) -> void:
 			var is_eq = _is_item_equipped(selected_slot, selected_salvage_info)
 			if is_eq:
 				var armor_dmg = GlobalData.part_damage.get(selected_slot, 0.0)
-				stats_label.text = "SALVAGED ENEMY ARMOR: %s  [E]\nTYPE: %s\n\nARMOR HP: %.0f / %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg\n\nThis plate is currently equipped." % [
+				stats_label.text = "OWNED ARMOR: %s  [E]\nTYPE: %s\n\nARMOR HP: %.0f / %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg\n\nThis plate is currently equipped." % [
 					item_name, item_type, item_hp * (1.0 - clampf(armor_dmg, 0.0, 1.0)), item_hp, item_armor, item_weight
 				]
 			else:
-				stats_label.text = "SALVAGED ENEMY ARMOR: %s\nTYPE: %s\n\nARMOR HP: %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg\n\nEquip this plate to install it fresh at 100%% HP." % [
-					item_name, item_type, item_hp, item_armor, item_weight
+				var dur_pct = _get_instance_durability(selected_slot, selected_salvage_info)
+				stats_label.text = "OWNED ARMOR: %s\nTYPE: %s\n\nARMOR HP: %.0f / %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg\nDURABILITY: %.0f%%\n\nEquip this plate to install it." % [
+					item_name, item_type, item_hp * dur_pct, item_hp, item_armor, item_weight, dur_pct * 100.0
 				]
 			# Only change 3D model when user explicitly picks a part, not on section switch
 			if not _is_populating:
@@ -1213,8 +1230,7 @@ func _show_part_action_modal(info: Dictionary) -> void:
 	vbox.add_child(title)
 
 	var is_weapon_slot = selected_slot.begins_with("weapon")
-	var hp_val = info.get("durability", info.get("hp", info.get("max_hp", 100.0)))
-	var max_hp_val = info.get("max_hp", 100.0)
+	var is_instance = info.has("uid")
 	var wt_val = info.get("weight", 10.0)
 	var details = Label.new()
 	if is_weapon_slot:
@@ -1223,9 +1239,14 @@ func _show_part_action_modal(info: Dictionary) -> void:
 			var res = load(wp)
 			if res:
 				wt_val = float(res.weight) if "weight" in res and res.weight != null else 0.0
-		details.text = "WEIGHT: %.1f kg   COUNT: x%d" % [wt_val, info.get("count", 1)]
+		var wdur = clampf(float(info.get("durability", 1.0)), 0.0, 1.0)
+		details.text = "WEIGHT: %.1f kg   DURABILITY: %.0f%%" % [wt_val, wdur * 100.0]
 	else:
-		details.text = "DURABILITY: %.0f / %.0f HP  |  WEIGHT: %.1f kg" % [hp_val, max_hp_val, wt_val]
+		var full_hp = float(info.get("hp", info.get("max_hp", 100.0)))
+		var dur_ratio = clampf(float(info.get("durability", 1.0)), 0.0, 1.0)
+		if _is_item_equipped(selected_slot, info):
+			dur_ratio = 1.0 - clampf(GlobalData.part_damage.get(selected_slot, 0.0), 0.0, 1.0)
+		details.text = "DURABILITY: %.0f / %.0f HP  |  WEIGHT: %.1f kg" % [full_hp * dur_ratio, full_hp, wt_val]
 	details.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	details.add_theme_color_override("font_color", Color(0.8, 0.85, 0.9))
 	vbox.add_child(details)
@@ -1260,16 +1281,16 @@ func _show_part_action_modal(info: Dictionary) -> void:
 	)
 	grid.add_child(toggle_btn)
 
-	# 2. REPAIR (not applicable to weapons)
-	if not is_weapon_slot:
+	# 2. REPAIR — owned armor instances & inner frames only (never mutates the catalog)
+	if not is_weapon_slot and (is_instance or current_mode == "frame"):
 		var repair_btn = Button.new()
 		repair_btn.text = "REPAIR (10 cr)"
 		repair_btn.custom_minimum_size = Vector2(180, 36)
 		repair_btn.pressed.connect(func():
 			if GlobalData.credits >= 10:
 				GlobalData.credits -= 10
-				info["hp"] = info.get("max_hp", 100.0)
-				info["durability"] = info.get("max_hp", 100.0)
+				if info.has("uid"):
+					info["durability"] = 1.0
 				GlobalData.part_damage.erase(selected_slot)
 				GlobalData.part_damage.erase(selected_slot + "_frame")
 				status_message_label.text = "Part Repaired to 100% HP!"
@@ -1285,54 +1306,60 @@ func _show_part_action_modal(info: Dictionary) -> void:
 		)
 		grid.add_child(repair_btn)
 
-		# 3. UPGRADE
-		var upgrade_btn = Button.new()
-		upgrade_btn.text = "UPGRADE (+15 HP)"
-		upgrade_btn.custom_minimum_size = Vector2(180, 36)
-		upgrade_btn.pressed.connect(func():
-			if GlobalData.credits >= 50:
-				GlobalData.credits -= 50
-				var old_hp = info.get("max_hp", info.get("hp", 30.0))
-				info["max_hp"] = old_hp + 15.0
-				info["hp"] = info.get("max_hp", 45.0)
-				status_message_label.text = "Part Upgraded! Max HP increased to %.0f" % info["max_hp"]
-				GlobalData.save_run()
-				_update_total_stats()
-			else:
-				status_message_label.text = "Insufficient Credits for upgrade (50 cr needed)!"
-			_close_part_action_modal()
-		)
-		grid.add_child(upgrade_btn)
+		# 3. UPGRADE — raises this instance's own Max HP (its upgrade_level)
+		if is_instance:
+			var upgrade_btn = Button.new()
+			upgrade_btn.text = "UPGRADE (+15 HP)"
+			upgrade_btn.custom_minimum_size = Vector2(180, 36)
+			upgrade_btn.pressed.connect(func():
+				if GlobalData.credits >= 50:
+					GlobalData.credits -= 50
+					var old_hp = float(info.get("hp", info.get("max_hp", 30.0)))
+					info["hp"] = old_hp + 15.0
+					info["max_hp"] = info["hp"]
+					info["upgrade_level"] = int(info.get("upgrade_level", 1)) + 1
+					info["durability"] = 1.0
+					if GlobalData.equipped_parts.get(selected_slot) == info:
+						GlobalData.part_damage.erase(selected_slot)
+					status_message_label.text = "Part Upgraded! Max HP increased to %.0f" % info["hp"]
+					GlobalData.save_run()
+					_update_total_stats()
+				else:
+					status_message_label.text = "Insufficient Credits for upgrade (50 cr needed)!"
+				_close_part_action_modal()
+			)
+			grid.add_child(upgrade_btn)
 
-		# 4. PAINT
-		var paint_btn = Button.new()
-		paint_btn.text = "PAINT COLOR"
-		paint_btn.custom_minimum_size = Vector2(180, 36)
-		paint_btn.pressed.connect(func():
-			var palette = [
-				Color(0.25, 0.40, 0.60), # Mecha Navy Blue
-				Color(0.80, 0.20, 0.20), # Crimson Ace Red
-				Color(0.90, 0.90, 0.95), # Gundam White
-				Color(0.20, 0.65, 0.35), # Zaku Green
-				Color(0.85, 0.70, 0.20), # Gold Trim
-				Color(0.20, 0.22, 0.26)  # Dark Steel Frame
-			]
-			var cur_col = info.get("color", Color(0.25, 0.40, 0.60))
-			var next_idx = 0
-			for i in range(palette.size()):
-				if palette[i].is_equal_approx(cur_col):
-					next_idx = (i + 1) % palette.size()
-					break
-			var new_color = palette[next_idx]
-			info["color"] = new_color
-			info["part_color"] = new_color
-			status_message_label.text = "Armor paint updated!"
-			_apply_3d_armor_preview(selected_slot, info)
-			if GlobalData.equipped_parts.get(selected_slot) == info or GlobalData.equipped_parts.has(selected_slot):
-				GlobalData.equipped_parts[selected_slot]["color"] = new_color
-			GlobalData.save_run()
-		)
-		grid.add_child(paint_btn)
+		# 4. PAINT — recolors this instance (the catalog template is never touched)
+		if is_instance:
+			var paint_btn = Button.new()
+			paint_btn.text = "PAINT COLOR"
+			paint_btn.custom_minimum_size = Vector2(180, 36)
+			paint_btn.pressed.connect(func():
+				var palette = [
+					Color(0.25, 0.40, 0.60), # Mecha Navy Blue
+					Color(0.80, 0.20, 0.20), # Crimson Ace Red
+					Color(0.90, 0.90, 0.95), # Gundam White
+					Color(0.20, 0.65, 0.35), # Zaku Green
+					Color(0.85, 0.70, 0.20), # Gold Trim
+					Color(0.20, 0.22, 0.26)  # Dark Steel Frame
+				]
+				var cur_col = info.get("color", Color(0.25, 0.40, 0.60))
+				var next_idx = 0
+				for i in range(palette.size()):
+					if palette[i].is_equal_approx(cur_col):
+						next_idx = (i + 1) % palette.size()
+						break
+				var new_color = palette[next_idx]
+				info["color"] = new_color
+				info["part_color"] = new_color
+				status_message_label.text = "Armor paint updated!"
+				_apply_3d_armor_preview(selected_slot, info)
+				if GlobalData.equipped_parts.get(selected_slot) == info or GlobalData.equipped_parts.has(selected_slot):
+					GlobalData.equipped_parts[selected_slot]["color"] = new_color
+				GlobalData.save_run()
+			)
+			grid.add_child(paint_btn)
 
 	# 5. CANCEL
 	var cancel_btn = Button.new()
@@ -1388,14 +1415,18 @@ func _equip_part_to_slot(slot: String, info: Dictionary) -> void:
 		AudioManager.play_ui_confirm()
 		return
 
-	var data = info.duplicate()
-	data["equipped"] = true  # Mark as explicitly equipped for 3D preview distinction
-	GlobalData.equipped_parts[slot] = data
-	# A brand-new armor plate is installed: it starts at full HP, so wipe any
-	# armor damage that belonged to the PREVIOUS armor in this slot.
-	GlobalData.part_damage.erase(slot)
+	var inst := info
+	if not info.has("uid"):
+		var pid = info.get("id", "")
+		inst = GlobalData.make_armor_instance_from_catalog(pid) if pid != "" else {}
+		if inst.is_empty():
+			status_message_label.text = "Cannot acquire armor: unknown catalog entry."
+			return
+	if not GlobalData.equip_armor_instance(inst["uid"], slot):
+		status_message_label.text = "Failed to equip armor."
+		return
 	GlobalData.save_run()
-	_apply_3d_armor_preview(slot, info)
+	_apply_3d_armor_preview(slot, inst)
 	_update_total_stats()
 	_populate_part_list_for_slot(slot)
 	AudioManager.play_ui_confirm()
@@ -1434,7 +1465,7 @@ func _unequip_part_from_slot(slot: String) -> void:
 		AudioManager.play_ui_click()
 		return
 
-	GlobalData.equipped_parts[slot] = null
+	GlobalData.unequip_armor_instance(slot)
 	GlobalData.save_run()
 	if mecha_3d_root:
 		var mecha = mecha_3d_root.get_node_or_null("MechaBase") if mecha_3d_root.has_node("MechaBase") else mecha_3d_root
@@ -1862,12 +1893,10 @@ func _on_equip_pressed() -> void:
 		return
 
 	if not selected_salvage_info.is_empty():
-		# Mark as explicitly equipped for _update_all_3d_slots_preview
-		var salvage_data = selected_salvage_info.duplicate()
-		salvage_data["equipped"] = true
-		GlobalData.equipped_parts[selected_slot] = salvage_data
-		GlobalData.part_damage.erase(selected_slot)
-		status_message_label.text = "Equipped & Saved: %s!" % salvage_data.get("name", "Salvaged Plate")
+		if not selected_salvage_info.has("uid") or not GlobalData.equip_armor_instance(selected_salvage_info["uid"], selected_slot):
+			status_message_label.text = "Failed to equip armor instance."
+			return
+		status_message_label.text = "Equipped & Saved: %s!" % selected_salvage_info.get("name", "Armor Plate")
 		GlobalData.save_run()
 		_update_total_stats()
 		_update_all_3d_slots_preview()

@@ -89,6 +89,7 @@ func _on_tile_entered(_tile_pos: Vector2i, _tile_data: Node) -> void:
 
 func _on_combat_ended(victory: bool) -> void:
 	if victory:
+		sync_equipped_armor_durability()
 		tick_research(2)
 
 
@@ -99,9 +100,94 @@ func ensure_default_equipped_parts() -> void:
 		return
 	for slot in ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]:
 		if armor_catalog.has(slot) and armor_catalog[slot].size() > 0:
-			var starter_part = armor_catalog[slot][0].duplicate()
-			starter_part["equipped"] = true
-			equipped_parts[slot] = starter_part
+			var pid = armor_catalog[slot][0].get("id", "")
+			if pid == "":
+				continue
+			var inst := make_armor_instance_from_catalog(pid)
+			if not inst.is_empty():
+				equip_armor_instance(inst["uid"], slot)
+
+
+# -----------------------------------------------------------------------------
+# ARMOR INSTANCE INVENTORY
+# Each owned armor piece is a unique instance (uid) with its own durability and
+# upgrade level. `part_damage[slot]` remains the live combat damage cache of the
+# currently equipped instance; instance.durability is the persistent source for
+# everything sitting in the inventory (equipped included, kept in sync).
+# -----------------------------------------------------------------------------
+
+func _new_uid(prefix: String) -> String:
+	return "%s_%d_%d" % [prefix, Time.get_ticks_usec(), randi() % 0xFFFFF]
+
+
+func get_armor_catalog_slot(part_id: String) -> String:
+	for slot in armor_catalog:
+		for entry in armor_catalog[slot]:
+			if entry.get("id", "") == part_id:
+				return slot
+	return ""
+
+
+# Creates a fresh instance from a catalog template and adds it to armor_inventory.
+func make_armor_instance_from_catalog(part_id: String) -> Dictionary:
+	var entry := get_armor_catalog_entry(part_id)
+	if entry.is_empty():
+		return {}
+	var instance := entry.duplicate(true)
+	instance["uid"] = _new_uid("a")
+	instance["db_id"] = entry.get("id", "")
+	instance["slot"] = get_armor_catalog_slot(part_id)
+	instance["durability"] = 1.0
+	instance["upgrade_level"] = 1
+	instance["equipped"] = false
+	armor_inventory.append(instance)
+	return instance
+
+
+func get_armor_instance(uid: String) -> Dictionary:
+	for inst in armor_inventory:
+		if inst.get("uid", "") == uid:
+			return inst
+	return {}
+
+
+# Equips an owned instance into a slot, carrying its wear into the combat cache.
+func equip_armor_instance(uid: String, slot: String) -> bool:
+	var inst := get_armor_instance(uid)
+	if inst.is_empty():
+		return false
+	unequip_armor_instance(slot)
+	inst["equipped"] = true
+	inst["slot"] = slot
+	equipped_parts[slot] = inst
+	var dmg := 1.0 - clampf(float(inst.get("durability", 1.0)), 0.0, 1.0)
+	if dmg <= 0.0:
+		part_damage.erase(slot)
+	else:
+		part_damage[slot] = dmg
+	return true
+
+
+func unequip_armor_instance(slot: String) -> void:
+	var current = equipped_parts.get(slot)
+	if current is Dictionary and current.has("uid"):
+		var inst := get_armor_instance(str(current["uid"]))
+		if not inst.is_empty():
+			inst["durability"] = 1.0 - clampf(float(part_damage.get(slot, 0.0)), 0.0, 1.0)
+			inst["equipped"] = false
+	equipped_parts[slot] = null
+	part_damage.erase(slot)
+	part_damage.erase(slot + "_frame")
+
+
+# Writes the live combat damage cache back into the equipped instances' durability.
+func sync_equipped_armor_durability() -> void:
+	for slot in equipped_parts:
+		var part = equipped_parts[slot]
+		if part is Dictionary and part.has("uid"):
+			var inst := get_armor_instance(str(part["uid"]))
+			if not inst.is_empty():
+				inst["durability"] = 1.0 - clampf(float(part_damage.get(slot, 0.0)), 0.0, 1.0)
 
 
 # Default stock weapons that the player starts with on each hand / on the back.
@@ -338,12 +424,13 @@ func get_chassis_stats() -> Dictionary:
 # save file persists only {"id": ...} references (see _serialize_frames).
 var equipped_frames: Dictionary = {}
 var frame_upgrade_level: int = 1
-var salvaged_armor_inventory: Array = [
-	{"name": "Zaku Military Green Arm Guard", "slot": "arm_left", "hp": 35.0, "armor": 22.0, "weight": 5.5, "color": Color(0.2, 0.45, 0.25), "type": "Zaku Salvage"},
-	{"name": "Zaku Military Green Chest Plate", "slot": "body", "hp": 75.0, "armor": 45.0, "weight": 16.0, "color": Color(0.2, 0.45, 0.25), "type": "Zaku Salvage"},
-	{"name": "Heavy Tank Chobham Shield (R)", "slot": "arm_right", "hp": 55.0, "armor": 40.0, "weight": 12.0, "color": Color(0.25, 0.25, 0.3), "type": "Tank Salvage"},
-	{"name": "Crimson Ace Visor Helmet", "slot": "head", "hp": 40.0, "armor": 30.0, "weight": 4.0, "color": Color(0.85, 0.1, 0.15), "type": "Ace Salvage"}
-]
+
+# Owned armor instances. Every acquired part is a distinct instance with its own
+# durability (0..1) and upgrade_level. Catalog entries are templates only; the
+# stats are duplicated into the instance at creation and never mutate the catalog.
+# Entry: {"uid", "db_id", "name", "slot", "type", "hp", "armor", "weight", "color",
+#         "durability", "upgrade_level", "equipped"}
+var armor_inventory: Array = []
 var part_damage: Dictionary = {}
 
 var board_grid: Array = []
@@ -512,9 +599,9 @@ var ammo_inventory: Dictionary = {
 }
 
 var weapon_inventory: Array = [
-	{"path": "res://resources/mech/stock/weapon_beam_rifle.tres", "name": "Beam Rifle", "count": 1},
-	{"path": "res://resources/mech/stock/weapon_heat_blade.tres", "name": "Heat Blade", "count": 1},
-	{"path": "res://resources/mech/stock/weapon_combat_shotgun.tres", "name": "Combat Shotgun", "count": 1}
+	{"uid": "w_starter_left", "path": "res://resources/mech/stock/weapon_beam_rifle.tres", "name": "Beam Rifle", "durability": 1.0, "upgrade_level": 1},
+	{"uid": "w_starter_right", "path": "res://resources/mech/stock/weapon_heat_blade.tres", "name": "Heat Blade", "durability": 1.0, "upgrade_level": 1},
+	{"uid": "w_starter_carry", "path": "res://resources/mech/stock/weapon_combat_shotgun.tres", "name": "Combat Shotgun", "durability": 1.0, "upgrade_level": 1}
 ]
 
 const SAVE_PATH := "user://savegame.json"
@@ -538,14 +625,12 @@ func consume_reserve_ammo(ammo_type: String, amount: int) -> int:
 
 
 func register_weapon(path: String, weapon_name: String) -> void:
-	for entry in weapon_inventory:
-		if entry.get("path", "") == path:
-			entry["count"] = entry.get("count", 1) + 1
-			return
 	weapon_inventory.append({
+		"uid": _new_uid("w"),
 		"path": path,
 		"name": weapon_name,
-		"count": 1
+		"durability": 1.0,
+		"upgrade_level": 1
 	})
 
 
@@ -579,9 +664,9 @@ func reset_run_data() -> void:
 		"missile": 12
 	}
 	weapon_inventory = [
-		{"path": "res://resources/mech/stock/weapon_beam_rifle.tres", "name": "Beam Rifle", "count": 1},
-		{"path": "res://resources/mech/stock/weapon_heat_blade.tres", "name": "Heat Blade", "count": 1},
-		{"path": "res://resources/mech/stock/weapon_combat_shotgun.tres", "name": "Combat Shotgun", "count": 1}
+		{"uid": "w_starter_left", "path": "res://resources/mech/stock/weapon_beam_rifle.tres", "name": "Beam Rifle", "durability": 1.0, "upgrade_level": 1},
+		{"uid": "w_starter_right", "path": "res://resources/mech/stock/weapon_heat_blade.tres", "name": "Heat Blade", "durability": 1.0, "upgrade_level": 1},
+		{"uid": "w_starter_carry", "path": "res://resources/mech/stock/weapon_combat_shotgun.tres", "name": "Combat Shotgun", "durability": 1.0, "upgrade_level": 1}
 	]
 	weapon_loadout = {
 		"left": DEFAULT_LEFT_WEAPON_PATH,
@@ -594,15 +679,19 @@ func reset_run_data() -> void:
 			"missile": 12
 		}
 	}
+	armor_inventory.clear()
+	ensure_default_equipped_parts()
 
 
 func save_run() -> void:
+	sync_equipped_armor_durability()
 	var data := {
 		"chassis": chassis_id,
 		"parts": _serialize_parts(),
 		"frames": _serialize_frames(),
 		"damage": part_damage.duplicate(),
 		"attachments": _serialize_attachments(),
+		"armor_inventory": _serialize_armor_inventory(),
 		"position": {"x": current_tile.x, "y": current_tile.y},
 		"heat": heat,
 		"wanted": wanted_level,
@@ -668,10 +757,33 @@ func _restore_from_dict(data: Dictionary) -> void:
 	
 	var pos = data.get("position", {"x": 0, "y": 0})
 	current_tile = Vector2i(pos.x, pos.y)
+
+	# --- Armor instance inventory (new schema) ---
+	armor_inventory = []
+	var loaded_armor = data.get("armor_inventory", [])
+	if loaded_armor is Array:
+		for raw in loaded_armor:
+			if raw is Dictionary:
+				armor_inventory.append(_restore_armor_instance(raw))
+	# Legacy migration: old "salvaged armor" drops become regular instances.
+	var legacy_salvage = data.get("salvaged_armor_inventory", [])
+	if legacy_salvage is Array:
+		for item in legacy_salvage:
+			if item is Dictionary:
+				var inst: Dictionary = item.duplicate(true)
+				inst["uid"] = _new_uid("a")
+				inst["db_id"] = ""
+				inst["durability"] = clampf(float(inst.get("durability", 1.0)), 0.0, 1.0)
+				inst["upgrade_level"] = 1
+				inst["equipped"] = false
+				armor_inventory.append(inst)
+
 	var parts_dict: Dictionary = data.get("parts", {})
 	equipped_parts.clear()
 	for slot in parts_dict:
-		equipped_parts[slot] = _resolve_armor_value(parts_dict[slot])
+		equipped_parts[slot] = _resolve_equipped_part(parts_dict[slot])
+	_ensure_equipped_parts_are_instances()
+	sync_equipped_armor_durability()
 		
 	enemy_forces = data.get("enemy_forces", {
 		"boss_current": 1, "boss_max": 1,
@@ -693,8 +805,21 @@ func _restore_from_dict(data: Dictionary) -> void:
 		ammo_inventory = loaded_ammo.duplicate()
 
 	var loaded_weapons = data.get("weapon_inventory", [])
-	if loaded_weapons is Array and not loaded_weapons.is_empty():
-		weapon_inventory = loaded_weapons.duplicate()
+	weapon_inventory = []
+	if loaded_weapons is Array:
+		for entry in loaded_weapons:
+			if entry is Dictionary and entry.has("uid"):
+				weapon_inventory.append(entry.duplicate())
+			elif entry is Dictionary:
+				# Legacy count-based stash: expand each copy into its own instance.
+				var count = int(entry.get("count", 1))
+				for i in range(maxi(count, 1)):
+					var inst: Dictionary = entry.duplicate(true)
+					inst.erase("count")
+					inst["uid"] = _new_uid("w")
+					inst["durability"] = 1.0
+					inst["upgrade_level"] = 1
+					weapon_inventory.append(inst)
 
 	var loaded_loadout = data.get("weapon_loadout", null)
 	if loaded_loadout is Dictionary and not loaded_loadout.is_empty():
@@ -715,21 +840,48 @@ func _serialize_parts() -> Dictionary:
 		var item = equipped_parts[slot]
 		if item == null:
 			result[slot] = null
+		elif item is Dictionary and item.has("uid"):
+			# Owned instance: persist the uid reference (armor_inventory has the rest).
+			result[slot] = {"uid": item["uid"], "equipped": item.get("equipped", true)}
 		elif item is Resource and "resource_path" in item and item.resource_path != "":
 			# Resource file: save path string for reload
 			result[slot] = item.resource_path
 		elif item is Dictionary:
 			var pid = item.get("id", "")
 			if pid != "" and is_catalog_armor_id(pid):
-				# Catalog part: persist only the id reference + equipped state.
+				# Legacy catalog part: persist only the id reference + equipped state.
 				# Static stats always come from the catalog (single source of truth).
 				result[slot] = {"id": pid, "equipped": item.get("equipped", true)}
 			else:
-				# Instance part (salvaged / non-catalog): persist the full dict.
+				# Legacy instance part (non-catalog): persist the full dict.
 				result[slot] = item.duplicate(true)
 		else:
 			result[slot] = str(item)
 	return result
+
+
+func _serialize_armor_inventory() -> Array:
+	var result: Array = []
+	for inst in armor_inventory:
+		var copy: Dictionary = inst.duplicate(true)
+		if copy.get("color") is Color:
+			var c: Color = copy["color"]
+			copy["color"] = {"r": c.r, "g": c.g, "b": c.b, "a": c.a}
+		result.append(copy)
+	return result
+
+
+func _restore_armor_instance(raw: Dictionary) -> Dictionary:
+	var inst := raw.duplicate(true)
+	if inst.get("color") is Dictionary:
+		var cd: Dictionary = inst["color"]
+		inst["color"] = Color(
+			float(cd.get("r", 0.5)), float(cd.get("g", 0.5)),
+			float(cd.get("b", 0.5)), float(cd.get("a", 1.0))
+		)
+	inst["durability"] = clampf(float(inst.get("durability", 1.0)), 0.0, 1.0)
+	inst["upgrade_level"] = int(inst.get("upgrade_level", 1))
+	return inst
 
 
 func _serialize_frames() -> Dictionary:
@@ -762,6 +914,44 @@ func _resolve_armor_value(v: Variant) -> Variant:
 			return resolved
 		return v.duplicate(true)
 	return v
+
+
+# Resolves a saved equipped-part value. Owned instances resolve to the instance
+# stored in armor_inventory (shared reference); everything else falls back to the
+# legacy resolver.
+func _resolve_equipped_part(v: Variant) -> Variant:
+	if v is Dictionary and v.has("uid"):
+		var inst := get_armor_instance(str(v["uid"]))
+		if not inst.is_empty():
+			inst["equipped"] = v.get("equipped", true)
+			return inst
+	return _resolve_armor_value(v)
+
+
+# Migrates any legacy equipped part (catalog id / full dict without a uid) into a
+# proper instance so the whole loadout is instance-based after loading old saves.
+func _ensure_equipped_parts_are_instances() -> void:
+	for slot in equipped_parts.keys():
+		var part = equipped_parts[slot]
+		if part == null or part is Resource:
+			continue
+		if part is Dictionary and part.has("uid"):
+			continue
+		var inst: Dictionary = {}
+		var pid = part.get("id", "") if part is Dictionary else ""
+		if pid != "" and is_catalog_armor_id(pid):
+			var created := make_armor_instance_from_catalog(pid)
+			if not created.is_empty():
+				inst = created
+		else:
+			inst = (part.duplicate(true) if part is Dictionary else {})
+			inst["uid"] = _new_uid("a")
+			inst["db_id"] = ""
+			inst["slot"] = str(part.get("slot", slot)) if part is Dictionary else slot
+			inst["durability"] = 1.0
+			inst["upgrade_level"] = 1
+		if not inst.is_empty():
+			equip_armor_instance(inst["uid"], slot)
 
 
 func _serialize_attachments() -> Array:

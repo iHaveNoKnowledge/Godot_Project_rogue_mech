@@ -56,7 +56,7 @@ func _ready() -> void:
 
 
 func _on_combat_ended(_victory: bool) -> void:
-	# Never leave the decision menu (and its pause/mouse lock) open past combat.
+	# Never leave the decision menu (and its mouse lock) open past combat.
 	if pickup_menu_open:
 		_close_pickup_menu()
 
@@ -392,9 +392,9 @@ func _toggle_pickup_menu() -> void:
 	pickup_menu_open = true
 	pickup_choice_panel.visible = true
 	_set_prompt_visible(false)
-	# The F-menu is a decision modal: pause the battle and free the mouse from the
-	# camera look so the player can actually click a choice.
-	get_tree().paused = true
+	# The F-menu is a decision modal: real-time, so the battle keeps running, but
+	# the mouse must be freed from camera-look to click a choice (weapon_manager
+	# ignores firing while this menu is open).
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	var can_carry: bool = nearby_pickup.can_take_to_field_pack()
 	if take_weapon_btn:
@@ -410,9 +410,7 @@ func _close_pickup_menu() -> void:
 	pickup_menu_open = false
 	if pickup_choice_panel:
 		pickup_choice_panel.visible = false
-	# Resume the battle and give the camera the mouse back.
-	if get_tree().paused:
-		get_tree().paused = false
+	# Hand the mouse back to the camera look.
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 

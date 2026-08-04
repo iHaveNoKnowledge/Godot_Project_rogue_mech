@@ -158,6 +158,12 @@ func _physics_process(delta: float) -> void:
 # ====================================================================
 
 func _input(event: InputEvent) -> void:
+	# While the F pickup-decision menu is open (real-time mode) the hands must not
+	# fire/swap/drop — mouse clicks belong to the menu buttons, not the weapons.
+	if get_tree() and get_tree().current_scene:
+		var hud = get_tree().current_scene.get_node_or_null("WeaponHUD")
+		if hud and hud.get("pickup_menu_open"):
+			return
 	# --- LEFT HAND SWAP (key 1) ---
 	if event.is_action_pressed("weapon_left"):
 		_start_selection("left")

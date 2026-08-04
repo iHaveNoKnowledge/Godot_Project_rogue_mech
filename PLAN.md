@@ -55,5 +55,7 @@
 | Docs | ARCHITECTURE.md:240,286, design.md | — | stale | อัปเดตทีหลัง |
 
 ## หมายเหตุ
-- ไม่มี Godot binary ในเครื่อง → ทุกเฟสต้องให้ผู้ใช้เปิดโปรเจกต์ทดสอบจริง (headless validate ไม่ได้)
+- มี Godot binary: `D:\godot\Godot_v4.6.2-stable_win64.exe` → ใช้ headless validate ได้
+- คำสั่งตรวจ: `--headless --import` (validate resources) + `--headless --quit-after 5 <scene.tscn>` (compile scripts/scene ที่ระบุ; รันผ่าน main scene เฉพาะเมนู ไม่ได้แตะหน้าในเกม)
+- ข้อจำกัด: `--check-only --script` ให้ false positive (ไม่มี autoload) อย่าใช้ตัดสิน ต้องรันผ่าน scene แทน
 - ทุกเฟสจบแล้ว commit + push (ตาม AGENTS.md)

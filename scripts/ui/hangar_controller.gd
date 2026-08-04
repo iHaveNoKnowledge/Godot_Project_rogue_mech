@@ -26,9 +26,8 @@ var visible_weapon_indices: Array[int] = []
 var _is_populating: bool = false
 var _is_dragging_3d: bool = false
 var _part_action_modal: Control = null
-# Equip vs Craft separation: armor slots show owned instances when "equip",
-# or craftable catalog templates when "craft" (kept in a separate toggle).
-var current_sub_mode: String = "equip"
+# Crafting lives in its own separate window, never inside the equip list.
+var craft_window: Control = null
 # Slot tab buttons keyed by slot id, reused for UI-only selection highlight.
 var slot_tab_buttons: Dictionary = {}
 var _blink_timer: float = 0.0
@@ -62,7 +61,7 @@ var stats_label: Label
 var total_stats_label: Label
 var weight_bar: ProgressBar
 var equip_button: Button
-var equip_craft_toggle: Button
+var craft_button: Button
 var frame_upgrade_button: Button
 var repair_part_button: Button
 var full_repair_button: Button
@@ -314,11 +313,11 @@ func _build_ui_layout() -> void:
 	part_item_list.item_activated.connect(_on_part_item_activated)
 	left_box.add_child(part_item_list)
 
-	equip_craft_toggle = Button.new()
-	equip_craft_toggle.text = "CRAFT MODE"
-	equip_craft_toggle.custom_minimum_size = Vector2(0, 30)
-	equip_craft_toggle.pressed.connect(_on_equip_craft_toggle)
-	left_box.add_child(equip_craft_toggle)
+	craft_button = Button.new()
+	craft_button.text = "🏭 CRAFTERY (craft parts in a separate window)"
+	craft_button.custom_minimum_size = Vector2(0, 30)
+	craft_button.pressed.connect(_on_craft_window_open)
+	left_box.add_child(craft_button)
 
 	_build_ammo_loadout_ui(left_box)
 
@@ -687,45 +686,159 @@ func show_hangar() -> void:
 
 func _switch_custom_mode(mode: String) -> void:
 	current_mode = mode
-	if mode != "armor":
-		# Equip is the default; drop any stale craft state so owned instances
-		# always show first when returning to outer-armor mode.
-		current_sub_mode = "equip"
 	if selected_slot == "chassis":
 		return
 
-	_update_equip_craft_toggle_visibility()
 	_populate_part_list_for_slot(selected_slot)
 
 
-func _on_equip_craft_toggle() -> void:
-	current_sub_mode = "craft" if current_sub_mode == "equip" else "equip"
-	_update_equip_craft_toggle_visibility()
-	_populate_part_list_for_slot(selected_slot)
+# --- SEPARATE CRAFT WINDOW (unrelated to the equip list) ---
+# Crafting armor from a catalog template produces a brand-new owned instance.
+# It never touches anything already in the equip list / inventory.
 
-
-# The Craft/Equip toggle only matters for armor slots: owned instances to equip,
-# or craftable catalog templates to craft into new instances.
-func _update_equip_craft_toggle_visibility() -> void:
-	if equip_craft_toggle == null:
+func _on_craft_window_open() -> void:
+	if not armor_catalog.has(selected_slot):
+		status_message_label.text = "Select an armor section first, then open the Craftery."
 		return
-	var show := current_mode == "armor" \
-		and selected_slot != "chassis" \
-		and not selected_slot.begins_with("weapon") \
-		and armor_catalog.has(selected_slot)
-	equip_craft_toggle.visible = show
-	if show:
-		equip_craft_toggle.text = "CRAFT MODE: ON" if current_sub_mode == "craft" else "CRAFT MODE: OFF"
+	_close_part_action_modal()
+	_close_craft_window()
+	_build_craft_window()
+
+
+func _close_craft_window() -> void:
+	if craft_window and is_instance_valid(craft_window):
+		craft_window.queue_free()
+	craft_window = null
+
+
+func _build_craft_window() -> void:
+	var modal = PanelContainer.new()
+	modal.name = "CraftWindow"
+	modal.anchor_left = 0.0
+	modal.anchor_right = 0.0
+	modal.anchor_top = 0.5
+	modal.anchor_bottom = 0.5
+	modal.offset_left = 340
+	modal.offset_right = 900
+	modal.offset_top = -260
+	modal.offset_bottom = 260
+
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.10, 0.10, 0.16, 0.97)
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.border_color = _highlight_color
+	style.corner_radius_top_left = 8
+	style.corner_radius_top_right = 8
+	style.corner_radius_bottom_left = 8
+	style.corner_radius_bottom_right = 8
+	modal.add_theme_stylebox_override("panel", style)
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	modal.add_child(vbox)
+
+	var title = Label.new()
+	title.text = "🏭 CRAFTERY — CRAFT ARMOR FOR %s" % selected_slot.to_upper()
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_color_override("font_color", _highlight_color)
+	title.add_theme_font_size_override("font_size", 15)
+	vbox.add_child(title)
+
+	var hint = Label.new()
+	hint.text = "Scrap: %d   Credits: %d" % [GlobalData.scrap, GlobalData.credits]
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.add_theme_color_override("font_color", Color(0.5, 0.9, 0.6))
+	vbox.add_child(hint)
+
+	var sep = HSeparator.new()
+	vbox.add_child(sep)
+
+	var scroll = ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(540, 400)
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(scroll)
+
+	var rows = VBoxContainer.new()
+	rows.add_theme_constant_override("separation", 6)
+	rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(rows)
+
+	for info in armor_catalog[selected_slot]:
+		var s_cost := GlobalData.get_armor_scrap_cost(info)
+		var c_cost := GlobalData.get_armor_credit_cost(info)
+		var can_afford := GlobalData.scrap >= s_cost and GlobalData.credits >= c_cost
+
+		var row = HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		rows.add_child(row)
+
+		var info_lbl = Label.new()
+		info_lbl.text = "%s [%s]  %.1fkg   (%.0f HP / %.0f armor)" % [
+			info.get("name", "Armor"), info.get("type", "?"),
+			GlobalData.part_stat(info, "weight", 0.0),
+			GlobalData.part_stat(info, "max_hp", 0.0),
+			GlobalData.part_stat(info, "armor", 0.0)
+		]
+		info_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		info_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		row.add_child(info_lbl)
+
+		var craft_btn = Button.new()
+		craft_btn.text = "CRAFT  %d scrap / %d cr" % [s_cost, c_cost]
+		craft_btn.custom_minimum_size = Vector2(160, 32)
+		craft_btn.disabled = not can_afford
+		craft_btn.pressed.connect(func(): _craft_armor_from_template(info))
+		row.add_child(craft_btn)
+
+	var sep2 = HSeparator.new()
+	vbox.add_child(sep2)
+
+	var close_btn = Button.new()
+	close_btn.text = "CLOSE CRAFTERY"
+	close_btn.custom_minimum_size = Vector2(0, 36)
+	close_btn.pressed.connect(func(): _close_craft_window())
+	vbox.add_child(close_btn)
+
+	if root_control:
+		root_control.add_child(modal)
+	else:
+		add_child(modal)
+	craft_window = modal
+
+
+func _craft_armor_from_template(info: Dictionary) -> void:
+	var pid = info.get("id", "")
+	if pid == "":
+		status_message_label.text = "Cannot craft: unknown template."
+		return
+	var s_cost := GlobalData.get_armor_scrap_cost(info)
+	var c_cost := GlobalData.get_armor_credit_cost(info)
+	if GlobalData.scrap < s_cost or GlobalData.credits < c_cost:
+		status_message_label.text = "Not enough scrap/credits to craft this armor."
+		return
+	var inst := GlobalData.try_craft_armor_from_catalog(pid)
+	if inst.is_empty():
+		status_message_label.text = "Failed to craft armor."
+		return
+	status_message_label.text = "Crafted %s! It is now in the Equip list." % inst.get("name", "Armor")
+	GlobalData.save_run()
+	_close_craft_window()
+	_populate_part_list_for_slot(selected_slot)
+	_update_total_stats()
+	AudioManager.play_ui_confirm()
 
 
 func _select_slot_tab(slot: String) -> void:
 	selected_slot = slot
+	_close_craft_window()
 	sub_toggle_container.visible = (slot != "chassis" and not slot.begins_with("weapon"))
 	if ammo_loadout_box:
 		ammo_loadout_box.visible = slot.begins_with("weapon")
 		if ammo_loadout_box.visible:
 			_refresh_ammo_loadout_ui()
-	_update_equip_craft_toggle_visibility()
 	_update_camera_focus_for_slot(slot)
 	_populate_part_list_for_slot(slot)
 	_update_total_stats()
@@ -970,52 +1083,37 @@ func _populate_part_list_for_slot(slot: String) -> void:
 			_last_selected_item_index = 0
 			_on_part_item_selected(0)
 	elif armor_catalog.has(slot):
-		if current_sub_mode == "craft":
-			# CRAFT MODE: show craftable stock templates. Creating one spends scrap
-			# + credits and produces a NEW owned instance (equip is a separate step).
-			var items = armor_catalog[slot]
-			for info in items:
-				var label_str = "%s [%s] - %.1fkg   [CRAFT: %d scrap / %d cr]" % [
-					info["name"], info["type"], info.get("weight", 0.0),
-					GlobalData.get_armor_scrap_cost(info), GlobalData.get_armor_credit_cost(info)
-				]
-				part_item_list.add_item(label_str)
-			if part_item_list.item_count > 0:
-				part_item_list.select(0)
-				_last_selected_item_index = 0
-				_on_part_item_selected(0)
-		else:
-			# EQUIP MODE: owned armor instances only. Matching the equipped slot is
-			# strictly instance-uid based, so exactly one item ever shows "[E]".
-			# The currently equipped instance is always included by uid even if its
-			# stored slot tag is missing/stale (legacy saves), so a part never
-			# "disappears" from the list after switching modes.
-			visible_salvage_indices.clear()
-			var shown_uids := {}
-			var equipped_uid := ""
-			var eq_part = GlobalData.equipped_parts.get(slot)
-			if eq_part is Dictionary:
-				equipped_uid = str(eq_part.get("uid", ""))
-			for inst_index in range(GlobalData.armor_inventory.size()):
-				var inst = GlobalData.armor_inventory[inst_index]
-				var uid = str(inst.get("uid", ""))
-				if str(inst.get("slot", "")) != slot and uid != equipped_uid:
-					continue
-				if uid in shown_uids and uid != "":
-					continue
-				if uid != "":
-					shown_uids[uid] = true
-				visible_salvage_indices.append(inst_index)
-				var is_eq = _is_item_equipped(slot, inst)
-				var prefix = "[E] " if is_eq else "    "
-				var state_tag = " [DESTROYED]" if (is_eq and is_destroyed) else ""
-				var dur_pct = _get_instance_durability(slot, inst)
-				var inst_label = "%s%s [%s] (%.0f%%)%s" % [prefix, inst.get("name", "Armor"), inst.get("type", "Instance"), dur_pct * 100.0, state_tag]
-				part_item_list.add_item(inst_label)
-			if part_item_list.item_count > 0:
-				part_item_list.select(0)
-				_last_selected_item_index = 0
-				_on_part_item_selected(0)
+		# EQUIP list = owned armor instances only. The equipped slot is matched
+		# strictly by instance uid, so exactly one item ever shows "[E]". The
+		# currently equipped instance is always included by uid even if its stored
+		# slot tag is missing/stale (legacy saves). Crafting lives in the separate
+		# Craftery window and never alters what appears here.
+		visible_salvage_indices.clear()
+		var shown_uids := {}
+		var equipped_uid := ""
+		var eq_part = GlobalData.equipped_parts.get(slot)
+		if eq_part is Dictionary:
+			equipped_uid = str(eq_part.get("uid", ""))
+		for inst_index in range(GlobalData.armor_inventory.size()):
+			var inst = GlobalData.armor_inventory[inst_index]
+			var uid = str(inst.get("uid", ""))
+			if str(inst.get("slot", "")) != slot and uid != equipped_uid:
+				continue
+			if uid in shown_uids and uid != "":
+				continue
+			if uid != "":
+				shown_uids[uid] = true
+			visible_salvage_indices.append(inst_index)
+			var is_eq = _is_item_equipped(slot, inst)
+			var prefix = "[E] " if is_eq else "    "
+			var state_tag = " [DESTROYED]" if (is_eq and is_destroyed) else ""
+			var dur_pct = _get_instance_durability(slot, inst)
+			var inst_label = "%s%s [%s] (%.0f%%)%s" % [prefix, inst.get("name", "Armor"), inst.get("type", "Instance"), dur_pct * 100.0, state_tag]
+			part_item_list.add_item(inst_label)
+		if part_item_list.item_count > 0:
+			part_item_list.select(0)
+			_last_selected_item_index = 0
+			_on_part_item_selected(0)
 
 	_is_populating = false  # Restore flag
 
@@ -1123,56 +1221,33 @@ func _on_part_item_selected(index: int) -> void:
 		return
 
 	if armor_catalog.has(selected_slot):
-		if current_sub_mode == "craft":
-			var stock_items = armor_catalog[selected_slot]
-			if index >= 0 and index < stock_items.size():
-				var selected_info = stock_items[index]
-				selected_part_path = selected_info.get("path", "")
-				selected_part_id = selected_info.get("id", "")
-				selected_frame_info.clear()
-				selected_salvage_info.clear()
+		if index >= 0 and index < visible_salvage_indices.size():
+			var salvaged_idx = visible_salvage_indices[index]
+			selected_salvage_info = GlobalData.armor_inventory[salvaged_idx]
+			selected_part_path = ""
+			selected_part_id = ""
+			selected_frame_info.clear()
 
-				var item_name = selected_info.get("name", selected_info.get("part_name", "Armor Part"))
-				var item_type = selected_info.get("type", "Standard")
-				var item_hp = GlobalData.part_stat(selected_info, "max_hp", 30.0)
-				var item_armor = GlobalData.part_stat(selected_info, "armor", 15.0)
-				var item_weight = GlobalData.part_stat(selected_info, "weight", 4.0)
-				var s_cost = GlobalData.get_armor_scrap_cost(selected_info)
-				var c_cost = GlobalData.get_armor_credit_cost(selected_info)
-				stats_label.text = "OUTER ARMOR TEMPLATE: %s\nTYPE: %s\n\nARMOR HP: %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg\nCRAFT COST: %d scrap + %d credits\n\nCrafting produces a NEW owned instance that you then equip from the Equip list." % [
-					item_name, item_type, item_hp, item_armor, item_weight, s_cost, c_cost
+			var item_name = selected_salvage_info.get("name", selected_salvage_info.get("part_name", "Armor Instance"))
+			var item_type = selected_salvage_info.get("type", "Instance")
+			var item_hp = selected_salvage_info.get("hp", selected_salvage_info.get("max_hp", 30.0))
+			var item_armor = selected_salvage_info.get("armor", 15.0)
+			var item_weight = selected_salvage_info.get("weight", 4.0)
+
+			var is_eq = _is_item_equipped(selected_slot, selected_salvage_info)
+			if is_eq:
+				var armor_dmg = GlobalData.part_damage.get(selected_slot, 0.0)
+				stats_label.text = "OWNED ARMOR: %s  [E]\nTYPE: %s\n\nARMOR HP: %.0f / %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg\n\nThis plate is currently equipped." % [
+					item_name, item_type, item_hp * (1.0 - clampf(armor_dmg, 0.0, 1.0)), item_hp, item_armor, item_weight
 				]
-				if not _is_populating:
-					_apply_3d_armor_preview(selected_slot, selected_info)
-		else:
-			if index >= 0 and index < visible_salvage_indices.size():
-				var visible_salvage_idx = index
-				var salvaged_idx = visible_salvage_indices[visible_salvage_idx]
-				selected_salvage_info = GlobalData.armor_inventory[salvaged_idx]
-				selected_part_path = ""
-				selected_part_id = ""
-				selected_frame_info.clear()
-
-				var item_name = selected_salvage_info.get("name", selected_salvage_info.get("part_name", "Armor Instance"))
-				var item_type = selected_salvage_info.get("type", "Instance")
-				var item_hp = selected_salvage_info.get("hp", selected_salvage_info.get("max_hp", 30.0))
-				var item_armor = selected_salvage_info.get("armor", 15.0)
-				var item_weight = selected_salvage_info.get("weight", 4.0)
-
-				var is_eq = _is_item_equipped(selected_slot, selected_salvage_info)
-				if is_eq:
-					var armor_dmg = GlobalData.part_damage.get(selected_slot, 0.0)
-					stats_label.text = "OWNED ARMOR: %s  [E]\nTYPE: %s\n\nARMOR HP: %.0f / %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg\n\nThis plate is currently equipped." % [
-						item_name, item_type, item_hp * (1.0 - clampf(armor_dmg, 0.0, 1.0)), item_hp, item_armor, item_weight
-					]
-				else:
-					var dur_pct = _get_instance_durability(selected_slot, selected_salvage_info)
-					stats_label.text = "OWNED ARMOR: %s\nTYPE: %s\n\nARMOR HP: %.0f / %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg\nDURABILITY: %.0f%%\n\nEquip this plate to install it." % [
-						item_name, item_type, item_hp * dur_pct, item_hp, item_armor, item_weight, dur_pct * 100.0
-					]
-				# Only change 3D model when user explicitly picks a part, not on section switch
-				if not _is_populating:
-					_apply_3d_salvage_preview(selected_slot, selected_salvage_info)
+			else:
+				var dur_pct = _get_instance_durability(selected_slot, selected_salvage_info)
+				stats_label.text = "OWNED ARMOR: %s\nTYPE: %s\n\nARMOR HP: %.0f / %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg\nDURABILITY: %.0f%%\n\nEquip this plate to install it." % [
+					item_name, item_type, item_hp * dur_pct, item_hp, item_armor, item_weight, dur_pct * 100.0
+				]
+			# Only change 3D model when user explicitly picks a part, not on section switch
+			if not _is_populating:
+				_apply_3d_salvage_preview(selected_slot, selected_salvage_info)
 	_update_total_stats()
 
 
@@ -1207,11 +1282,7 @@ func _resolve_part_info_for_index(index: int) -> Dictionary:
 			var inv_idx = visible_weapon_indices[index]
 			info_to_show = GlobalData.weapon_inventory[inv_idx]
 	elif armor_catalog.has(selected_slot):
-		if current_sub_mode == "craft":
-			var stock_items = armor_catalog[selected_slot]
-			if index >= 0 and index < stock_items.size():
-				info_to_show = stock_items[index]
-		elif index >= 0 and index < visible_salvage_indices.size():
+		if index >= 0 and index < visible_salvage_indices.size():
 			info_to_show = GlobalData.armor_inventory[visible_salvage_indices[index]]
 	return info_to_show
 
@@ -1308,10 +1379,7 @@ func _show_part_action_modal(info: Dictionary) -> void:
 	vbox.add_child(grid)
 
 	# 1. EQUIP / UNEQUIP CONTEXT BUTTON BASED ON BULLETPROOF EQUIPPED MATCH
-	# In CRAFT mode the entry is always a template to craft, never "un-equip".
-	var is_eq := false
-	if not (current_mode == "armor" and current_sub_mode == "craft"):
-		is_eq = _is_item_equipped(selected_slot, info)
+	var is_eq = _is_item_equipped(selected_slot, info)
 
 	var toggle_btn = Button.new()
 	if is_eq:
@@ -1884,14 +1952,6 @@ func _on_equip_pressed() -> void:
 		GlobalData.save_run()
 		_update_all_3d_slots_preview()
 		_update_total_stats()
-		return
-
-	if current_mode == "armor" and current_sub_mode == "craft" and selected_part_id != "":
-		var entry := GlobalData.get_armor_catalog_entry(selected_part_id)
-		if entry.is_empty():
-			status_message_label.text = "Unknown armor template."
-			return
-		_equip_part_to_slot(selected_slot, entry)
 		return
 
 	if not selected_salvage_info.is_empty():

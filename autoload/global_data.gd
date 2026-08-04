@@ -151,20 +151,25 @@ func get_armor_instance(uid: String) -> Dictionary:
 	return {}
 
 
+# Extracts hp/armor/weight floats from a catalog entry (shared by cost formulas).
+func _get_armor_cost_stats(entry: Dictionary) -> Dictionary:
+	return {
+		"hp": part_stat(entry, "hp", 30.0),
+		"armor": part_stat(entry, "armor", 15.0),
+		"weight": part_stat(entry, "weight", 4.0)
+	}
+
+
 # Scrap material cost to craft a catalog armor entry (derived from its stats).
 func get_armor_scrap_cost(entry: Dictionary) -> int:
-	var hp := float(entry.get("hp", entry.get("max_hp", 30.0)))
-	var ac := float(entry.get("armor", entry.get("armor_class", 15.0)))
-	var wt := float(entry.get("weight", 4.0))
-	return maxi(1, int(ceil((hp + ac * 1.5 + wt * 2.0) / 20.0)))
+	var s := _get_armor_cost_stats(entry)
+	return maxi(1, int(ceil((s.hp + s.armor * 1.5 + s.weight * 2.0) / 20.0)))
 
 
 # Credit cost to craft a catalog armor entry (derived from its stats).
 func get_armor_credit_cost(entry: Dictionary) -> int:
-	var hp := float(entry.get("hp", entry.get("max_hp", 30.0)))
-	var ac := float(entry.get("armor", entry.get("armor_class", 15.0)))
-	var wt := float(entry.get("weight", 4.0))
-	return maxi(1, int(ceil((hp + ac + wt) / 15.0)))
+	var s := _get_armor_cost_stats(entry)
+	return maxi(1, int(ceil((s.hp + s.armor + s.weight) / 15.0)))
 
 
 # Attempts to craft a fresh armor instance from the catalog, spending scrap + credits.
@@ -190,7 +195,7 @@ func equip_armor_instance(uid: String, slot: String) -> bool:
 	inst["equipped"] = true
 	inst["slot"] = slot
 	equipped_parts[slot] = inst
-	var dmg := 1.0 - clampf(float(inst.get("durability", 1.0)), 0.0, 1.0)
+	var dmg := 1.0 - get_durability_ratio(inst)
 	if dmg <= 0.0:
 		part_damage.erase(slot)
 	else:
@@ -203,7 +208,7 @@ func unequip_armor_instance(slot: String) -> void:
 	if current is Dictionary and current.has("uid"):
 		var inst := get_armor_instance(str(current["uid"]))
 		if not inst.is_empty():
-			inst["durability"] = 1.0 - clampf(float(part_damage.get(slot, 0.0)), 0.0, 1.0)
+			inst["durability"] = get_part_durability(slot)
 			inst["equipped"] = false
 	equipped_parts[slot] = null
 	part_damage.erase(slot)
@@ -217,13 +222,86 @@ func sync_equipped_armor_durability() -> void:
 		if part is Dictionary and part.has("uid"):
 			var inst := get_armor_instance(str(part["uid"]))
 			if not inst.is_empty():
-				inst["durability"] = 1.0 - clampf(float(part_damage.get(slot, 0.0)), 0.0, 1.0)
+				inst["durability"] = get_part_durability(slot)
+
+
+# -----------------------------------------------------------------------------
+# SHARED PART HELPERS — single source for stat/durability/cost reads so the
+# hangar, safehouse, intermission and mecha UIs can never disagree.
+# -----------------------------------------------------------------------------
+
+# Reads a numeric stat from either an ArmorPart resource or a Dictionary
+# instance, normalizing key aliases (max_hp/hp, armor_class/armor).
+func part_stat(part: Variant, key: String, default: float = 0.0) -> float:
+	var v: Variant = default
+	if part is ArmorPart:
+		if key == "hp" or key == "max_hp":
+			v = part.max_hp
+		elif key == "armor" or key == "armor_class":
+			v = part.armor_class
+		elif key == "weight":
+			v = part.weight
+	else:
+		var d: Dictionary = part if part is Dictionary else {}
+		if key == "hp" or key == "max_hp":
+			v = d.get("hp", d.get("max_hp", default))
+		elif key == "armor" or key == "armor_class":
+			v = d.get("armor", d.get("armor_class", default))
+		elif key == "weight":
+			v = d.get("weight", default)
+	return float(v)
+
+
+# Normalizes an armor instance's stored durability to a 0..1 fraction.
+func get_durability_ratio(inst: Dictionary) -> float:
+	return clampf(float(inst.get("durability", 1.0)), 0.0, 1.0)
+
+
+# Live durability fraction (0..1) of the currently equipped part in a slot,
+# derived from the combat damage cache.
+func get_part_durability(slot: String) -> float:
+	return 1.0 - clampf(float(part_damage.get(slot, 0.0)), 0.0, 1.0)
+
+
+# Credit cost to fully repair a slot (armor + inner frame). One formula, used by
+# every repair UI so the same damage always costs the same credits.
+func get_repair_cost(slot: String) -> int:
+	var dmg := clampf(float(part_damage.get(slot, 0.0)), 0.0, 1.0)
+	var frame_dmg := clampf(float(part_damage.get(slot + "_frame", 0.0)), 0.0, 1.0)
+	if dmg <= 0.0 and frame_dmg <= 0.0:
+		return 0
+	var armor_max_hp := part_stat(equipped_parts.get(slot), "max_hp", 50.0)
+	var frame_max_hp := part_stat(equipped_frames.get(slot), "max_hp", 50.0)
+	var cost := dmg * armor_max_hp * REPAIR_COST_PER_HP
+	cost += frame_dmg * frame_max_hp * REPAIR_COST_PER_HP
+	return maxi(1, int(ceil(cost)))
+
+
+# Maps a mech slot name to the mecha-root-relative node path holding that
+# section's meshes. Single source of truth for all part visuals.
+func get_slot_node_path(slot: String) -> String:
+	match slot:
+		"head": return "Head"
+		"body": return "Body"
+		"arm_left": return "ArmLeft"
+		"arm_right": return "ArmRight"
+		"leg_left": return "LegLeft"
+		"leg_right": return "LegRight"
+	return ""
 
 
 # Default stock weapons that the player starts with on each hand / on the back.
 const DEFAULT_LEFT_WEAPON_PATH := "res://resources/mech/stock/weapon_beam_rifle.tres"
 const DEFAULT_RIGHT_WEAPON_PATH := "res://resources/mech/stock/weapon_heat_blade.tres"
 const DEFAULT_CARRY_WEAPON_PATH := "res://resources/mech/stock/weapon_combat_shotgun.tres"
+
+# The six armor/frame slots of the mech, in a stable order.
+const MECHA_SLOTS: Array[String] = [
+	"head", "body", "arm_left", "arm_right", "leg_left", "leg_right"
+]
+
+# Credits charged per point of HP repaired.
+const REPAIR_COST_PER_HP := 0.5
 
 # -----------------------------------------------------------------------------
 # FIELD PACK vs DEPOT
@@ -253,16 +331,7 @@ func get_field_pack_capacity() -> float:
 
 # Current Field Pack load weight in kg (hand weapons + carry weapons + ammo).
 func get_field_pack_weight() -> float:
-	var total := 0.0
-	var left = get_equipped_weapon("left")
-	var right = get_equipped_weapon("right")
-	if left:
-		total += float(left.weight)
-	if right:
-		total += float(right.weight)
-	for w in get_carry_weapons():
-		total += float(w.weight)
-	return total + get_field_pack_ammo_weight()
+	return get_loadout_weapons_total() + get_field_pack_ammo_weight()
 
 
 # Weight of the ammo the player chose to carry (the "ammo" loadout).
@@ -351,7 +420,7 @@ func get_carry_weapons() -> Array[WeaponPart]:
 
 
 # Total weight of all loadout weapons (both hands + back).
-func get_loadout_weapon_weight() -> float:
+func get_loadout_weapons_total() -> float:
 	var total := 0.0
 	var left = get_equipped_weapon("left")
 	if left:
@@ -362,6 +431,11 @@ func get_loadout_weapon_weight() -> float:
 	for w in get_carry_weapons():
 		total += float(w.weight)
 	return total
+
+
+# Total weight of all loadout weapons (both hands + back).
+func get_loadout_weapon_weight() -> float:
+	return get_loadout_weapons_total()
 
 
 # Assigns a weapon resource path to a hand. Empty path = unarmed hand.

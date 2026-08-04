@@ -1084,43 +1084,8 @@ func _update_weapon_visuals() -> void:
 	_update_carry_visuals(mecha)
 
 func _update_hand_weapon_visual(mecha: Node3D, hand: String, weapon: WeaponPart) -> void:
-	var node_name = "WeaponMesh_" + hand
-	var existing = mecha.get_node_or_null(node_name)
-	if existing:
-		existing.queue_free()
-	
-	if weapon == null:
-		return
-		
-	var mount = Node3D.new()
-	mount.name = node_name
-	
-	var is_left = (hand == "left")
-	mount.position = Vector3(-0.85, 1.4, 0.4) if is_left else Vector3(0.85, 1.4, 0.4)
-	
-	mount.add_child(WeaponVisualFactory.build(weapon))
-	
-	mecha.add_child(mount)
+	WeaponVisualFactory.mount_hand(mecha, hand, weapon, "WeaponMesh_" + hand)
 
 # Renders the weapons carried on the mech's back (from the loadout).
 func _update_carry_visuals(mecha: Node3D) -> void:
-	var existing = mecha.get_node_or_null("CarryWeapons")
-	if existing:
-		existing.queue_free()
-	if carry.is_empty():
-		return
-
-	var back_mount = Node3D.new()
-	back_mount.name = "CarryWeapons"
-	# Spread carried weapons horizontally across the back pack.
-	var offset := - ((carry.size() - 1) * 0.22)
-	for weapon in carry:
-		if weapon == null:
-			continue
-		var mount = Node3D.new()
-		mount.position = Vector3(offset, 1.65, -0.55)
-		mount.rotation_degrees = Vector3(-15, 0, 0)
-		mount.add_child(WeaponVisualFactory.build(weapon))
-		back_mount.add_child(mount)
-		offset += 0.44
-	mecha.add_child(back_mount)
+	WeaponVisualFactory.mount_carry(mecha, carry, "CarryWeapons")

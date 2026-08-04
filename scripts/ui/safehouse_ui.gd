@@ -11,7 +11,7 @@ var repair_all_button: Button
 var leave_button: Button
 var status_label: Label
 
-const COST_PER_HP: float = 0.5  # credits per 1 HP repaired
+const COST_PER_HP: float = 0.5  # credits per 1 HP repaired (shared with GlobalData)
 
 
 func _ready() -> void:
@@ -116,31 +116,31 @@ func _refresh_parts_list() -> void:
 	for child in parts_container.get_children():
 		child.queue_free()
 
-	var total_cost = 0.0
+	var total_cost = 0
 	var has_damaged = false
 
-	for slot in GlobalData.equipped_parts:
-		var part = GlobalData.equipped_parts[slot]
-		if part == null or not (part is ArmorPart):
-			continue
-
-		var damage = GlobalData.part_damage.get(slot, 0.0)
-		if damage <= 0.0:
+	for slot in GlobalData.MECHA_SLOTS:
+		var cost := GlobalData.get_repair_cost(slot)
+		if cost <= 0:
 			continue
 
 		has_damaged = true
-		var repairable_hp = damage * part.max_hp
-		var cost = repairable_hp * COST_PER_HP
 		total_cost += cost
 
 		var btn = Button.new()
 		btn.custom_minimum_size = Vector2(460, 32)
 
-		var status = "OK" if damage < part.break_threshold else "BROKEN"
-		btn.text = "%s [%s] - Damaged: %.0f HP - Cost: %d credits" % [
-			part.part_name, status, repairable_hp, int(cost)
-		]
-		btn.pressed.connect(_on_repair_part_pressed.bind(slot, cost))
+		var part_name = slot.to_upper()
+		var part = GlobalData.equipped_parts.get(slot)
+		if part is ArmorPart:
+			part_name = part.part_name
+		elif part is Dictionary:
+			part_name = part.get("name", part.get("part_name", part_name))
+
+		var frame_dmg = GlobalData.part_damage.get(slot + "_frame", 0.0)
+		var status = "BROKEN" if frame_dmg >= 1.0 else "DAMAGED"
+		btn.text = "%s [%s] - Cost: %d credits" % [part_name, status, cost]
+		btn.pressed.connect(_on_repair_part_pressed.bind(slot))
 		parts_container.add_child(btn)
 
 	if not has_damaged:
@@ -150,44 +150,36 @@ func _refresh_parts_list() -> void:
 		parts_container.add_child(lbl)
 		repair_all_button.disabled = true
 	else:
-		repair_all_button.text = "Repair All Parts - %d credits" % int(total_cost)
-		repair_all_button.disabled = GlobalData.credits < int(total_cost)
+		repair_all_button.text = "Repair All Parts - %d credits" % total_cost
+		repair_all_button.disabled = GlobalData.credits < total_cost
 
 	status_label.text = "Credits: %d" % GlobalData.credits
 
 
-func _on_repair_part_pressed(slot: String, cost: float) -> void:
-	if GlobalData.credits < int(cost):
+func _on_repair_part_pressed(slot: String) -> void:
+	var cost := GlobalData.get_repair_cost(slot)
+	if GlobalData.credits < cost:
 		status_label.text = "Not enough credits!"
 		return
 
-	GlobalData.credits -= int(cost)
+	GlobalData.credits -= cost
 	GlobalData.part_damage.erase(slot)
+	GlobalData.part_damage.erase(slot + "_frame")
 	status_label.text = "Repaired! Credits: %d" % GlobalData.credits
 	_refresh_parts_list()
 
 
 func _on_repair_all_pressed() -> void:
-	var total_cost = 0.0
-	var slots_to_repair: Array = []
+	var total_cost := 0
+	for slot in GlobalData.MECHA_SLOTS:
+		total_cost += GlobalData.get_repair_cost(slot)
 
-	for slot in GlobalData.equipped_parts:
-		var part = GlobalData.equipped_parts[slot]
-		if part == null or not (part is ArmorPart):
-			continue
-		var damage = GlobalData.part_damage.get(slot, 0.0)
-		if damage > 0.0:
-			var cost = damage * part.max_hp * COST_PER_HP
-			total_cost += cost
-			slots_to_repair.append(slot)
-
-	if GlobalData.credits < int(total_cost):
-		status_label.text = "Not enough credits! Need %d" % int(total_cost)
+	if GlobalData.credits < total_cost:
+		status_label.text = "Not enough credits! Need %d" % total_cost
 		return
 
-	GlobalData.credits -= int(total_cost)
-	for slot in slots_to_repair:
-		GlobalData.part_damage.erase(slot)
+	GlobalData.credits -= total_cost
+	GlobalData.part_damage.clear()
 	status_label.text = "All repaired! Credits: %d" % GlobalData.credits
 	_refresh_parts_list()
 

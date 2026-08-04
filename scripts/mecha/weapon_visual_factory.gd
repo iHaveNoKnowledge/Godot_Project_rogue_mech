@@ -1,6 +1,60 @@
 class_name WeaponVisualFactory
 extends RefCounted
 
+# Shared mount transforms (hangar preview and battle use the same placements).
+const HAND_LEFT_POS := Vector3(-0.85, 1.4, 0.4)
+const HAND_RIGHT_POS := Vector3(0.85, 1.4, 0.4)
+const BACK_Y := 1.65
+const BACK_Z := -0.55
+const BACK_ROT_DEG := Vector3(-15, 0, 0)
+const CARRY_SPREAD := 0.44
+const CARRY_OFFSET_STEP := 0.22
+
+
+# Returns the mount position for a hand ("left"/"right").
+static func hand_mount_position(hand: String) -> Vector3:
+	return HAND_LEFT_POS if hand == "left" else HAND_RIGHT_POS
+
+
+# Mounts a weapon onto a hand of the mecha. Replaces any existing node with the
+# given name; a null weapon just clears the mount.
+static func mount_hand(mecha: Node3D, hand: String, weapon: WeaponPart, node_name: String) -> Node3D:
+	var existing = mecha.get_node_or_null(node_name)
+	if existing:
+		existing.queue_free()
+	if weapon == null:
+		return null
+	var mount := Node3D.new()
+	mount.name = node_name
+	mount.position = hand_mount_position(hand)
+	mount.add_child(build(weapon))
+	mecha.add_child(mount)
+	return mount
+
+
+# Renders back-carried weapons spread horizontally across the back pack. Replaces
+# any existing node with the given name.
+static func mount_carry(mecha: Node3D, weapons: Array, node_name: String) -> Node3D:
+	var existing = mecha.get_node_or_null(node_name)
+	if existing:
+		existing.queue_free()
+	if weapons.is_empty():
+		return null
+	var back_mount := Node3D.new()
+	back_mount.name = node_name
+	var offset := -((weapons.size() - 1) * CARRY_OFFSET_STEP)
+	for weapon in weapons:
+		if weapon == null:
+			continue
+		var wmount := Node3D.new()
+		wmount.position = Vector3(offset, BACK_Y, BACK_Z)
+		wmount.rotation_degrees = BACK_ROT_DEG
+		wmount.add_child(build(weapon))
+		back_mount.add_child(wmount)
+		offset += CARRY_SPREAD
+	mecha.add_child(back_mount)
+	return back_mount
+
 
 ## Builds a shared weapon model (Node3D) for a WeaponPart resource.
 ## Used by BOTH the Hangar preview and the battle WeaponManager so the weapon

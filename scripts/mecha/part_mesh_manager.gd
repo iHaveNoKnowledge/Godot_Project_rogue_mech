@@ -136,6 +136,48 @@ func _hide_legacy_slot_meshes(parent_node: Node3D) -> void:
 					grand.visible = false
 
 
+# Converts a GlobalData equipped part (Dictionary instance, ArmorPart resource or
+# null) into the ArmorPart used for rendering that slot.
+func build_part_for_slot(equipped: Variant) -> ArmorPart:
+	if equipped is ArmorPart:
+		return equipped
+	var part_obj := ArmorPart.new()
+	if equipped is Dictionary:
+		part_obj.part_name = equipped.get("name", equipped.get("part_name", "Armor"))
+		part_obj.max_hp = GlobalData.part_stat(equipped, "max_hp", 100.0)
+		if equipped.has("color"):
+			part_obj.part_color = equipped.get("color")
+	return part_obj
+
+
+# Rebuilds the visuals of every armor slot from the current GlobalData loadout.
+# Hides slots without an inner frame, renders bare frames without armor, and
+# renders the equipped armor otherwise. Shared by the hangar and the mecha.
+func refresh_slots() -> void:
+	_hide_all_legacy_models()
+	for slot in GlobalData.MECHA_SLOTS:
+		var frame_data = GlobalData.equipped_frames.get(slot)
+		var has_frame = frame_data != null and not (frame_data is Dictionary and frame_data.is_empty())
+
+		var equipped = GlobalData.equipped_parts.get(slot)
+		var is_armor_equipped = (
+			equipped != null and
+			not (equipped is Dictionary and equipped.is_empty()) and
+			not (equipped is Dictionary and not equipped.get("equipped", false))
+		)
+
+		if not has_frame:
+			# NO INNER FRAME EQUIPPED: Hide slot completely
+			hide_slot_completely(slot)
+		elif not is_armor_equipped:
+			# INNER FRAME EQUIPPED, NO ARMOR: Render bare skeletal inner frame only
+			initialize_slot(slot, null)
+			_show_inner_frame(slot)
+		else:
+			# INNER FRAME + OUTER ARMOR EQUIPPED: Render armor over inner frame
+			initialize_slot(slot, build_part_for_slot(equipped))
+
+
 func _get_slot_parent_node(slot_name: String) -> Node3D:
 	var mecha = get_parent()
 	if not mecha:

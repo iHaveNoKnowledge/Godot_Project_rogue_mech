@@ -5,8 +5,6 @@ extends Node3D
 ## - Outer Armor Plating allows visual freedom & scavenged enemy armor patching (Zaku Green, Tank Grey, Crimson Ace).
 ## - Live 3D Viewport Turntable renders mix-and-matched scavenger armor colors over the dark Gundam Inner Frame!
 
-const COST_PER_HP: float = 0.5
-
 var root_control: Control
 var _bg_color: Color = Color(0.08, 0.08, 0.12, 0.85)
 var _accent_color: Color = Color(0.3, 0.6, 1.0, 1.0)
@@ -829,8 +827,8 @@ func _is_item_equipped(slot: String, info: Dictionary) -> bool:
 # durability.
 func _get_instance_durability(slot: String, inst: Dictionary) -> float:
 	if _is_item_equipped(slot, inst):
-		return 1.0 - clampf(GlobalData.part_damage.get(slot, 0.0), 0.0, 1.0)
-	return clampf(float(inst.get("durability", 1.0)), 0.0, 1.0)
+		return GlobalData.get_part_durability(slot)
+	return GlobalData.get_durability_ratio(inst)
 
 
 # Whether a weapon path is part of the current loadout for this weapon slot.
@@ -926,7 +924,7 @@ func _populate_part_list_for_slot(slot: String) -> void:
 			var inv = GlobalData.weapon_inventory[index]
 			var wpath = inv.get("path", "")
 			var wname = inv.get("name", "Weapon")
-			var wdur = clampf(float(inv.get("durability", 1.0)), 0.0, 1.0)
+			var wdur = GlobalData.get_durability_ratio(inv)
 			var is_eq = _is_weapon_in_loadout(slot, wpath)
 			var prefix = "[E] " if is_eq else "    "
 			var label_str = "%s%s (%.0f%%)" % [prefix, wname, wdur * 100.0]
@@ -1046,7 +1044,7 @@ func _on_part_item_selected(index: int) -> void:
 			selected_salvage_info.clear()
 
 			var wname = inv.get("name", "Weapon")
-			var wdur = clampf(float(inv.get("durability", 1.0)), 0.0, 1.0)
+			var wdur = GlobalData.get_durability_ratio(inv)
 			var wwt := 0.0
 			var wtype := "Unknown"
 			if wpath != "" and ResourceLoader.exists(wpath):
@@ -1088,9 +1086,9 @@ func _on_part_item_selected(index: int) -> void:
 
 			var item_name = selected_info.get("name", selected_info.get("part_name", "Armor Part"))
 			var item_type = selected_info.get("type", "Standard")
-			var item_hp = selected_info.get("hp", selected_info.get("durability", selected_info.get("max_hp", 30.0)))
-			var item_armor = selected_info.get("armor", selected_info.get("armor_class", 15.0))
-			var item_weight = selected_info.get("weight", 4.0)
+			var item_hp = GlobalData.part_stat(selected_info, "max_hp", 30.0)
+			var item_armor = GlobalData.part_stat(selected_info, "armor", 15.0)
+			var item_weight = GlobalData.part_stat(selected_info, "weight", 4.0)
 
 			if selected_slot.begins_with("weapon"):
 				stats_label.text = "WEAPON: %s\nTYPE: %s\n\nWEIGHT: %.1f kg\nPOWER OUTPUT: Heavy" % [
@@ -1245,18 +1243,18 @@ func _show_part_action_modal(info: Dictionary) -> void:
 			var res = load(wp)
 			if res:
 				wt_val = float(res.weight) if "weight" in res and res.weight != null else 0.0
-		var wdur = clampf(float(info.get("durability", 1.0)), 0.0, 1.0)
+		var wdur = GlobalData.get_durability_ratio(info)
 		details.text = "WEIGHT: %.1f kg   DURABILITY: %.0f%%" % [wt_val, wdur * 100.0]
 	else:
-		var full_hp = float(info.get("hp", info.get("max_hp", 100.0)))
+		var full_hp = GlobalData.part_stat(info, "max_hp", 100.0)
 		if current_mode == "armor" and not is_instance:
 			var s_cost := GlobalData.get_armor_scrap_cost(info)
 			var c_cost := GlobalData.get_armor_credit_cost(info)
 			details.text = "CRAFT COST: %d scrap + %d credits  |  WEIGHT: %.1f kg" % [s_cost, c_cost, wt_val]
 		else:
-			var dur_ratio = clampf(float(info.get("durability", 1.0)), 0.0, 1.0)
+			var dur_ratio = GlobalData.get_durability_ratio(info)
 			if _is_item_equipped(selected_slot, info):
-				dur_ratio = 1.0 - clampf(GlobalData.part_damage.get(selected_slot, 0.0), 0.0, 1.0)
+				dur_ratio = GlobalData.get_part_durability(selected_slot)
 			details.text = "DURABILITY: %.0f / %.0f HP  |  WEIGHT: %.1f kg" % [full_hp * dur_ratio, full_hp, wt_val]
 	details.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	details.add_theme_color_override("font_color", Color(0.8, 0.85, 0.9))
@@ -1298,11 +1296,12 @@ func _show_part_action_modal(info: Dictionary) -> void:
 	# 2. REPAIR — owned armor instances & inner frames only (never mutates the catalog)
 	if not is_weapon_slot and (is_instance or current_mode == "frame"):
 		var repair_btn = Button.new()
-		repair_btn.text = "REPAIR (10 cr)"
+		var repair_cost := GlobalData.get_repair_cost(selected_slot)
+		repair_btn.text = "REPAIR (%d cr)" % repair_cost
 		repair_btn.custom_minimum_size = Vector2(180, 36)
 		repair_btn.pressed.connect(func():
-			if GlobalData.credits >= 10:
-				GlobalData.credits -= 10
+			if GlobalData.credits >= repair_cost:
+				GlobalData.credits -= repair_cost
 				if info.has("uid"):
 					info["durability"] = 1.0
 				GlobalData.part_damage.erase(selected_slot)
@@ -1485,7 +1484,7 @@ func _unequip_part_from_slot(slot: String) -> void:
 			var hand = "left" if slot == "weapon_left" else "right"
 			GlobalData.set_hand_weapon(hand, "")
 		GlobalData.save_run()
-		var mecha = mecha_3d_root.get_node_or_null("MechaBase") if mecha_3d_root and mecha_3d_root.has_node("MechaBase") else mecha_3d_root
+		var mecha = _get_mecha_base()
 		if mecha:
 			for node_name in ["WeaponVisual_left", "WeaponVisual_right", "WeaponVisual_carry"]:
 				var existing = mecha.get_node_or_null(node_name)
@@ -1499,11 +1498,9 @@ func _unequip_part_from_slot(slot: String) -> void:
 
 	GlobalData.unequip_armor_instance(slot)
 	GlobalData.save_run()
-	if mecha_3d_root:
-		var mecha = mecha_3d_root.get_node_or_null("MechaBase") if mecha_3d_root.has_node("MechaBase") else mecha_3d_root
-		var pmm = mecha.get_node_or_null("PartMeshManager") if mecha else null
-		if pmm:
-			pmm._show_inner_frame(slot)
+	var pmm = _get_part_mesh_manager()
+	if pmm:
+		pmm._show_inner_frame(slot)
 	_update_total_stats()
 	_populate_part_list_for_slot(slot)
 	AudioManager.play_ui_click()
@@ -1620,8 +1617,8 @@ func _apply_3d_armor_preview(slot: String, info: Dictionary) -> void:
 	if slot.begins_with("weapon"):
 		_preview_weapon_on_hand(slot, info)
 		return
-	var mecha = mecha_3d_root.get_node_or_null("MechaBase") if mecha_3d_root.has_node("MechaBase") else mecha_3d_root
-	var pmm = mecha.get_node_or_null("PartMeshManager") if mecha else null
+	var mecha = _get_mecha_base()
+	var pmm = _get_part_mesh_manager()
 	if pmm:
 		var part = ArmorPart.new()
 		part.part_name = info.get("name", "Spiky Armor")
@@ -1631,10 +1628,23 @@ func _apply_3d_armor_preview(slot: String, info: Dictionary) -> void:
 		pmm.initialize_slot(slot, part)
 
 
+# Returns the mech's root Node3D (MechaBase if present, else the whole scene).
+func _get_mecha_base() -> Node3D:
+	if mecha_3d_root == null:
+		return null
+	return mecha_3d_root.get_node_or_null("MechaBase") if mecha_3d_root.has_node("MechaBase") else mecha_3d_root
+
+
+# Returns the PartMeshManager attached to the mech base, or null.
+func _get_part_mesh_manager() -> Node:
+	var mecha = _get_mecha_base()
+	return mecha.get_node_or_null("PartMeshManager") if mecha else null
+
+
 # Shows a selected weapon on the matching hand (or on the back for carry) as a
 # live preview (not yet equipped).
 func _preview_weapon_on_hand(slot: String, info: Dictionary) -> void:
-	var mecha = mecha_3d_root.get_node_or_null("MechaBase") if mecha_3d_root.has_node("MechaBase") else mecha_3d_root
+	var mecha = _get_mecha_base()
 	if mecha == null:
 		return
 	var weapon_path = info.get("path", "")
@@ -1643,67 +1653,19 @@ func _preview_weapon_on_hand(slot: String, info: Dictionary) -> void:
 	var weapon = load(weapon_path)
 	if weapon == null:
 		return
-	var node_name: String
-	var mount := Node3D.new()
 	if slot == "weapon_carry":
-		node_name = "WeaponVisual_carry"
-		var existing_c = mecha.get_node_or_null(node_name)
-		if existing_c:
-			existing_c.queue_free()
-		mount.name = node_name
-		mount.position = Vector3(0, 1.65, -0.55)
-		mount.rotation_degrees = Vector3(-15, 0, 0)
+		WeaponVisualFactory.mount_carry(mecha, [weapon], "WeaponVisual_carry")
 	else:
 		var hand = "left" if slot == "weapon_left" else "right"
-		node_name = "WeaponVisual_" + hand
-		var existing = mecha.get_node_or_null(node_name)
-		if existing:
-			existing.queue_free()
-		mount.name = node_name
-		mount.position = Vector3(-0.85, 1.4, 0.4) if hand == "left" else Vector3(0.85, 1.4, 0.4)
-	mount.add_child(WeaponVisualFactory.build(weapon))
-	mecha.add_child(mount)
+		WeaponVisualFactory.mount_hand(mecha, hand, weapon, "WeaponVisual_" + hand)
 
 
 func _update_all_3d_slots_preview() -> void:
-	if mecha_3d_root == null: return
-	var mecha = mecha_3d_root.get_node_or_null("MechaBase") if mecha_3d_root.has_node("MechaBase") else mecha_3d_root
-	var pmm = mecha.get_node_or_null("PartMeshManager") if mecha else null
+	var mecha = _get_mecha_base()
+	var pmm = _get_part_mesh_manager()
 	if not pmm: return
 
-	# Hide legacy Zenisrev model and default primitive meshes
-	pmm._hide_all_legacy_models()
-
-	var slots = ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]
-	for slot in slots:
-		var frame_data = GlobalData.equipped_frames.get(slot)
-		var has_frame = frame_data != null and not (frame_data is Dictionary and frame_data.is_empty())
-
-		var armor_data = GlobalData.equipped_parts.get(slot)
-		var is_armor_equipped = (
-			armor_data != null and
-			not (armor_data is Dictionary and armor_data.is_empty()) and
-			not (armor_data is Dictionary and not armor_data.get("equipped", false))
-		)
-
-		if not has_frame:
-			# NO INNER FRAME EQUIPPED: Hide slot completely
-			pmm.hide_slot_completely(slot)
-		elif not is_armor_equipped:
-			# INNER FRAME EQUIPPED, NO ARMOR: Render bare skeletal inner frame only
-			pmm.initialize_slot(slot, null)
-			pmm._show_inner_frame(slot)
-		else:
-			# INNER FRAME + OUTER ARMOR EQUIPPED: Render armor over inner frame
-			var part = ArmorPart.new()
-			if armor_data is Dictionary:
-				part.part_name = armor_data.get("name", armor_data.get("part_name", "Armor"))
-				part.max_hp = armor_data.get("hp", armor_data.get("durability", armor_data.get("max_hp", 100.0)))
-				if armor_data.has("color"):
-					part.part_color = armor_data.get("color")
-			elif armor_data is ArmorPart:
-				part = armor_data
-			pmm.initialize_slot(slot, part)
+	pmm.refresh_slots()
 
 	var attachment_manager = mecha.get_node_or_null("AttachmentManager") if mecha else null
 	if attachment_manager:
@@ -1719,44 +1681,16 @@ func _update_weapon_preview(mecha: Node3D) -> void:
 	if mecha == null:
 		return
 	for hand in ["left", "right"]:
-		var node_name = "WeaponVisual_" + hand
-		var existing = mecha.get_node_or_null(node_name)
-		if existing:
-			existing.queue_free()
 		var weapon = GlobalData.get_equipped_weapon(hand)
-		if weapon == null:
-			continue
 		# If the arm frame holding this hand's weapon is destroyed, the weapon
 		# is no longer mounted on the mech (it was dropped in battle).
 		var arm_slot = "arm_left" if hand == "left" else "arm_right"
-		if GlobalData.part_damage.get(arm_slot + "_frame", 0.0) >= 1.0:
-			continue
-		var mount := Node3D.new()
-		mount.name = node_name
-		mount.position = Vector3(-0.85, 1.4, 0.4) if hand == "left" else Vector3(0.85, 1.4, 0.4)
-		mount.add_child(WeaponVisualFactory.build(weapon))
-		mecha.add_child(mount)
+		if weapon == null or GlobalData.part_damage.get(arm_slot + "_frame", 0.0) >= 1.0:
+			weapon = null
+		WeaponVisualFactory.mount_hand(mecha, hand, weapon, "WeaponVisual_" + hand)
 
 	# Back carry weapons (spread horizontally across the back pack).
-	var existing_carry = mecha.get_node_or_null("WeaponVisual_carry")
-	if existing_carry:
-		existing_carry.queue_free()
-	var carry_weapons = GlobalData.get_carry_weapons()
-	if carry_weapons.is_empty():
-		return
-	var back_mount := Node3D.new()
-	back_mount.name = "WeaponVisual_carry"
-	var offset := -((carry_weapons.size() - 1) * 0.22)
-	for weapon in carry_weapons:
-		if weapon == null:
-			continue
-		var wmount := Node3D.new()
-		wmount.position = Vector3(offset, 1.65, -0.55)
-		wmount.rotation_degrees = Vector3(-15, 0, 0)
-		wmount.add_child(WeaponVisualFactory.build(weapon))
-		back_mount.add_child(wmount)
-		offset += 0.44
-	mecha.add_child(back_mount)
+	WeaponVisualFactory.mount_carry(mecha, GlobalData.get_carry_weapons(), "WeaponVisual_carry")
 
 
 func _get_attachment_capacity(slot: String) -> float:
@@ -1792,15 +1726,7 @@ func _get_total_load(excluding_attachment_id: String = "", excluding_slot: Strin
 # `replaced_path`) would push the total frame load over the chassis max weight.
 # Field Pack capacity check (hand weapons + carry weapons + ammo <= frame-based cap).
 func _would_exceed_field_pack(new_weight_path: String, replaced_path: String = "") -> bool:
-	var current_weapons := 0.0
-	var left = GlobalData.get_equipped_weapon("left")
-	if left:
-		current_weapons += float(left.weight)
-	var right = GlobalData.get_equipped_weapon("right")
-	if right:
-		current_weapons += float(right.weight)
-	for w in GlobalData.get_carry_weapons():
-		current_weapons += float(w.weight)
+	var current_weapons := GlobalData.get_loadout_weapons_total()
 	if replaced_path != "" and ResourceLoader.exists(replaced_path):
 		var old = load(replaced_path)
 		if old:
@@ -1838,7 +1764,7 @@ func _move_selected_attachment(mouse_delta: Vector2) -> void:
 			position.x = clampf(position.x + mouse_delta.x * 0.004, -1.5, 1.5)
 			position.y = clampf(position.y - mouse_delta.y * 0.004, -1.5, 1.5)
 			attachment["position"] = position
-			var mecha = mecha_3d_root.get_node_or_null("MechaBase") if mecha_3d_root else null
+			var mecha = _get_mecha_base()
 			var manager = mecha.get_node_or_null("AttachmentManager") if mecha else null
 			if manager:
 				manager.update_attachment_transform(id, position, attachment.get("rotation", Vector3.ZERO))
@@ -1856,24 +1782,19 @@ func _apply_3d_salvage_preview(slot: String, info: Dictionary) -> void:
 
 
 func _set_slot_material(slot: String, mat: Material) -> void:
-	match slot:
-		"head":
-			var node = mecha_3d_root.get_node_or_null("MechaBase/Head/HeadMesh")
+	var mecha = _get_mecha_base()
+	if mecha == null:
+		return
+	var section := GlobalData.get_slot_node_path(slot)
+	if slot == "leg_left" or slot == "leg_right":
+		for leg in ["LegLeft", "LegRight"]:
+			var node = mecha.get_node_or_null(leg + "/" + leg + "Mesh")
 			if node: node.material_override = mat
-		"body":
-			var node = mecha_3d_root.get_node_or_null("MechaBase/Body/BodyMesh")
-			if node: node.material_override = mat
-		"arm_left":
-			var node = mecha_3d_root.get_node_or_null("MechaBase/ArmLeft/ArmLeftMesh")
-			if node: node.material_override = mat
-		"arm_right":
-			var node = mecha_3d_root.get_node_or_null("MechaBase/ArmRight/ArmRightMesh")
-			if node: node.material_override = mat
-		"leg_left", "leg_right":
-			var n1 = mecha_3d_root.get_node_or_null("MechaBase/LegLeft/LegLeftMesh")
-			var n2 = mecha_3d_root.get_node_or_null("MechaBase/LegRight/LegRightMesh")
-			if n1: n1.material_override = mat
-			if n2: n2.material_override = mat
+		return
+	if section == "":
+		return
+	var node = mecha.get_node_or_null(section + "/" + section + "Mesh")
+	if node: node.material_override = mat
 
 
 func _on_equip_pressed() -> void:
@@ -1995,16 +1916,14 @@ func _on_equip_pressed() -> void:
 
 
 func _on_repair_part_pressed() -> void:
-	var dmg = GlobalData.part_damage.get(selected_slot, 0.0)
-	var frame_dmg = GlobalData.part_damage.get(selected_slot + "_frame", 0.0)
-	if dmg <= 0.0 and frame_dmg <= 0.0:
+	var repair_cost := GlobalData.get_repair_cost(selected_slot)
+	if repair_cost <= 0:
 		status_message_label.text = "%s is fully functional!" % selected_slot.to_upper()
 		return
-	var cost = int((dmg + frame_dmg) * 50.0 * COST_PER_HP)
-	if GlobalData.credits < cost:
-		status_message_label.text = "Need %d credits!" % cost
+	if GlobalData.credits < repair_cost:
+		status_message_label.text = "Need %d credits!" % repair_cost
 		return
-	GlobalData.credits -= cost
+	GlobalData.credits -= repair_cost
 	GlobalData.part_damage.erase(selected_slot)
 	GlobalData.part_damage.erase(selected_slot + "_frame")
 	status_message_label.text = "Repaired %s!" % selected_slot.to_upper()
@@ -2013,21 +1932,19 @@ func _on_repair_part_pressed() -> void:
 
 
 func _on_full_repair_pressed() -> void:
-	var total_cost = 0.0
-	for slot in GlobalData.equipped_parts:
-		var dmg = GlobalData.part_damage.get(slot, 0.0)
-		var frame_dmg = GlobalData.part_damage.get(slot + "_frame", 0.0)
-		total_cost += (dmg + frame_dmg) * 50.0 * COST_PER_HP
+	var total_cost := 0
+	for slot in GlobalData.MECHA_SLOTS:
+		total_cost += GlobalData.get_repair_cost(slot)
 
 	if total_cost <= 0:
 		status_message_label.text = "All parts OK!"
 		return
 
-	if GlobalData.credits < int(total_cost):
-		status_message_label.text = "Need %d credits!" % int(total_cost)
+	if GlobalData.credits < total_cost:
+		status_message_label.text = "Need %d credits!" % total_cost
 		return
 
-	GlobalData.credits -= int(total_cost)
+	GlobalData.credits -= total_cost
 	GlobalData.part_damage.clear()
 	status_message_label.text = "Full Repair Complete!"
 	_update_total_stats()

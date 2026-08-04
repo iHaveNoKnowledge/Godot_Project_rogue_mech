@@ -395,7 +395,7 @@ func _build_inventory_text() -> String:
 	else:
 		for item in GlobalData.weapon_inventory:
 			var w_name = item.get("name", "Unknown Weapon")
-			text += "- %s (%.0f%%)\n" % [w_name, clampf(float(item.get("durability", 1.0)), 0.0, 1.0) * 100.0]
+			text += "- %s (%.0f%%)\n" % [w_name, GlobalData.get_durability_ratio(item) * 100.0]
 	text += "\n"
 
 	text += "--- Armor Inventory ---\n"
@@ -409,7 +409,7 @@ func _build_inventory_text() -> String:
 				item.get("hp", 0.0),
 				item.get("armor", 0.0),
 				item.get("weight", 0.0),
-				clampf(float(item.get("durability", 1.0)), 0.0, 1.0) * 100.0
+				GlobalData.get_durability_ratio(item) * 100.0
 			]
 	return text
 

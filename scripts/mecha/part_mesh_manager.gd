@@ -225,27 +225,6 @@ func _show_inner_frame(slot_name: String) -> void:
 	if entry.get("frame_lower") and entry["frame_lower"]: entry["frame_lower"].visible = true
 
 
-func repair_slot(slot_name: String) -> void:
-	var entry = slot_meshes.get(slot_name)
-	if entry == null:
-		return
-	if entry["armor"]: entry["armor"].visible = true
-	if entry.get("armor_lower") and entry["armor_lower"]: entry["armor_lower"].visible = true
-	if entry["frame"]: entry["frame"].visible = true
-	if entry.get("frame_lower") and entry["frame_lower"]: entry["frame_lower"].visible = true
-
-
-func _destroy_frame(slot_name: String) -> void:
-	var entry = slot_meshes.get(slot_name)
-	if entry == null:
-		return
-	if entry["armor"]: entry["armor"].visible = false
-	if entry.get("armor_lower") and entry["armor_lower"]: entry["armor_lower"].visible = false
-	if entry["frame"]: entry["frame"].visible = false
-	if entry.get("frame_lower") and entry["frame_lower"]: entry["frame_lower"].visible = false
-	_spawn_destroy_vfx(slot_name)
-
-
 func _spawn_break_vfx(slot_name: String) -> void:
 	var entry = slot_meshes.get(slot_name)
 	if entry == null or entry["frame"] == null:
@@ -289,9 +268,6 @@ func _spawn_break_vfx(slot_name: String) -> void:
 		entry["armor"].get_parent().add_child(vfx)
 		vfx.global_position = entry["armor"].global_position
 
-
-func _spawn_destroy_vfx(slot_name: String) -> void:
-	pass
 
 # Helper materials for inner frame & armor
 func _get_dark_frame_material() -> StandardMaterial3D:

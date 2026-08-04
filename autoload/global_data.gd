@@ -342,13 +342,6 @@ func get_field_pack_ammo_weight() -> float:
 	return total
 
 
-# Can this weapon be added to the Field Pack without exceeding capacity?
-func can_add_weapon_to_field_pack(weapon: WeaponPart) -> bool:
-	if weapon == null:
-		return false
-	return get_field_pack_weight() + float(weapon.weight) <= get_field_pack_capacity()
-
-
 # Older saves predate frame ids. Resolve a saved frame value into a full catalog
 # entry so the Field Pack capacity and stats stay consistent across old save files.
 func _resolve_frame_value(v: Variant) -> Variant:
@@ -662,12 +655,6 @@ func tick_research(points: int) -> Array:
 				_apply_research_reward(project_id)
 				completed.append(project_id)
 	return completed
-
-
-func get_research_progress(project_id: String) -> Dictionary:
-	if not research_projects.has(project_id):
-		return {}
-	return research_projects[project_id]
 
 
 func _apply_research_reward(project_id: String) -> void:

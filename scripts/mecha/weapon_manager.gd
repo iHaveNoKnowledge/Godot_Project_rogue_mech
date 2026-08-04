@@ -407,38 +407,6 @@ func _commit_selection(hand: String) -> void:
 
 
 # ====================================================================
-# CYCLE (legacy — kept for compatibility)
-# ====================================================================
-
-func _cycle_left() -> void:
-	if carry.is_empty():
-		return
-	var old_weapon = left_hand
-	if old_weapon:
-		carry.append(old_weapon)
-	left_hand = carry.pop_at(0) if not carry.is_empty() else null
-	weapon_switched.emit("left", left_hand.weapon_name if left_hand else "Empty")
-	if left_hand:
-		ammo_changed.emit("left", _get_ammo(left_hand), left_hand.max_ammo)
-	carry_updated.emit(carry)
-	_update_weapon_visuals()
-
-
-func _cycle_right() -> void:
-	if carry.is_empty():
-		return
-	var old_weapon = right_hand
-	if old_weapon:
-		carry.append(old_weapon)
-	right_hand = carry.pop_at(0) if not carry.is_empty() else null
-	weapon_switched.emit("right", right_hand.weapon_name if right_hand else "Empty")
-	if right_hand:
-		ammo_changed.emit("right", _get_ammo(right_hand), right_hand.max_ammo)
-	carry_updated.emit(carry)
-	_update_weapon_visuals()
-
-
-# ====================================================================
 # DROP
 # ====================================================================
 
@@ -931,28 +899,6 @@ func _get_ammo(weapon: WeaponPart) -> int:
 	return ammo_pool.get(weapon.weapon_name, 0)
 
 
-func get_left_hand() -> WeaponPart:
-	return left_hand
-
-
-func get_right_hand() -> WeaponPart:
-	return right_hand
-
-
-func get_carry() -> Array[WeaponPart]:
-	return carry
-
-
-func get_all_weapons() -> Array:
-	var all: Array = []
-	if left_hand:
-		all.append(left_hand)
-	if right_hand:
-		all.append(right_hand)
-	all.append_array(carry)
-	return all
-
-
 # ====================================================================
 # SHIELD
 # ====================================================================
@@ -988,14 +934,6 @@ func absorb_damage_with_shield(amount: float) -> float:
 		var hand = "left" if left_hand and left_hand.weapon_type == WeaponPart.WeaponType.SHIELD else "right"
 		weapon_switched.emit(hand, "Shield BROKEN")
 	return remaining
-
-
-func get_shield_hp() -> float:
-	return shield_current_hp
-
-
-func get_shield_max_hp() -> float:
-	return shield_max_hp
 
 
 func is_shield_active() -> bool:

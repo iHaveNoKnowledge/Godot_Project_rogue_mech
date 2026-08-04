@@ -687,6 +687,10 @@ func show_hangar() -> void:
 
 func _switch_custom_mode(mode: String) -> void:
 	current_mode = mode
+	if mode != "armor":
+		# Equip is the default; drop any stale craft state so owned instances
+		# always show first when returning to outer-armor mode.
+		current_sub_mode = "equip"
 	if selected_slot == "chassis":
 		return
 
@@ -983,11 +987,24 @@ func _populate_part_list_for_slot(slot: String) -> void:
 		else:
 			# EQUIP MODE: owned armor instances only. Matching the equipped slot is
 			# strictly instance-uid based, so exactly one item ever shows "[E]".
+			# The currently equipped instance is always included by uid even if its
+			# stored slot tag is missing/stale (legacy saves), so a part never
+			# "disappears" from the list after switching modes.
 			visible_salvage_indices.clear()
+			var shown_uids := {}
+			var equipped_uid := ""
+			var eq_part = GlobalData.equipped_parts.get(slot)
+			if eq_part is Dictionary:
+				equipped_uid = str(eq_part.get("uid", ""))
 			for inst_index in range(GlobalData.armor_inventory.size()):
 				var inst = GlobalData.armor_inventory[inst_index]
-				if inst.get("slot", "") != slot:
+				var uid = str(inst.get("uid", ""))
+				if str(inst.get("slot", "")) != slot and uid != equipped_uid:
 					continue
+				if uid in shown_uids and uid != "":
+					continue
+				if uid != "":
+					shown_uids[uid] = true
 				visible_salvage_indices.append(inst_index)
 				var is_eq = _is_item_equipped(slot, inst)
 				var prefix = "[E] " if is_eq else "    "

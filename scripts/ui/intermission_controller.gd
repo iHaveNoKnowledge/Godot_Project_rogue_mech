@@ -157,10 +157,11 @@ func _add_menu_button(text: String, callback: Callable) -> void:
 
 
 func _get_status_text() -> String:
-	return "Heat: %d | Wanted: %d | Credits: %d | Tile: %s" % [
+	return "Heat: %d | Wanted: %d | Credits: %d | Scrap: %d | Tile: %s" % [
 		GlobalData.heat,
 		GlobalData.wanted_level,
 		GlobalData.credits,
+		GlobalData.scrap,
 		str(GlobalData.current_tile)
 	]
 
@@ -353,6 +354,7 @@ func _build_mech_status_text() -> String:
 	var text = "=== MECH STATUS ===\n\n"
 	text += "Chassis: %s\n" % GlobalData.chassis_id
 	text += "Credits: %d\n" % GlobalData.credits
+	text += "Scrap: %d\n" % GlobalData.scrap
 	text += "Data Cores: %d\n\n" % GlobalData.data_cores
 
 	text += "--- Armor Parts ---\n"
@@ -378,6 +380,7 @@ func _build_mech_status_text() -> String:
 func _build_inventory_text() -> String:
 	var text = "=== INVENTORY & RESERVES ===\n\n"
 	text += "Credits: %d\n" % GlobalData.credits
+	text += "Scrap (Material): %d\n" % GlobalData.scrap
 	text += "Data Cores (Research): %d\n\n" % GlobalData.data_cores
 
 	text += "--- Reserve Ammo Stock ---\n"

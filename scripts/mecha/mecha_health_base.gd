@@ -153,6 +153,7 @@ func _on_frame_destroyed(slot_name: String) -> void:
 	_hide_part(slot_name)
 	if is_player:
 		_spawn_scrap_wreckage(slot_name)
+		_spawn_part_scrap_pickup(slot_name)
 		# The arm frame holding the weapon broke → the weapon on that hand is
 		# dropped as a recoverable pickup (the weapon itself is NOT destroyed).
 		if slot_name == "arm_left":
@@ -313,6 +314,26 @@ func _get_scrap_size(slot_name: String) -> Vector3:
 		"leg_left", "leg_right":
 			return Vector3(0.5, 0.9, 0.5)
 	return Vector3(0.5, 0.5, 0.5)
+
+
+# The destroyed player part leaves a collectible scrap-material pickup so the
+# wreckage actually becomes crafting material (matches the visual debris above).
+func _spawn_part_scrap_pickup(slot_name: String) -> void:
+	var scrap_amount := 3
+	match slot_name:
+		"head":
+			scrap_amount = 4
+		"body":
+			scrap_amount = 5
+		"arm_left", "arm_right", "leg_left", "leg_right":
+			scrap_amount = 3
+	var section = _get_section_node(slot_name)
+	if section == null:
+		return
+	var loot = get_node_or_null("/root/GameWorld/LootSystem")
+	if loot == null or not loot.has_method("spawn_scrap_pickup"):
+		return
+	loot.spawn_scrap_pickup(section.global_position + Vector3(0, 0.5, 0), scrap_amount)
 
 
 # The arm frame holding the weapon broke → drop the weapon on that hand as a

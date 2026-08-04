@@ -151,6 +151,36 @@ func get_armor_instance(uid: String) -> Dictionary:
 	return {}
 
 
+# Scrap material cost to craft a catalog armor entry (derived from its stats).
+func get_armor_scrap_cost(entry: Dictionary) -> int:
+	var hp := float(entry.get("hp", entry.get("max_hp", 30.0)))
+	var ac := float(entry.get("armor", entry.get("armor_class", 15.0)))
+	var wt := float(entry.get("weight", 4.0))
+	return maxi(1, int(ceil((hp + ac * 1.5 + wt * 2.0) / 20.0)))
+
+
+# Credit cost to craft a catalog armor entry (derived from its stats).
+func get_armor_credit_cost(entry: Dictionary) -> int:
+	var hp := float(entry.get("hp", entry.get("max_hp", 30.0)))
+	var ac := float(entry.get("armor", entry.get("armor_class", 15.0)))
+	var wt := float(entry.get("weight", 4.0))
+	return maxi(1, int(ceil((hp + ac + wt) / 15.0)))
+
+
+# Attempts to craft a fresh armor instance from the catalog, spending scrap + credits.
+# Returns the new instance on success, or an empty Dictionary on any failure
+# (unknown id / insufficient scrap / insufficient credits).
+func try_craft_armor_from_catalog(part_id: String) -> Dictionary:
+	var entry := get_armor_catalog_entry(part_id)
+	if entry.is_empty():
+		return {}
+	if scrap < get_armor_scrap_cost(entry) or credits < get_armor_credit_cost(entry):
+		return {}
+	scrap -= get_armor_scrap_cost(entry)
+	credits -= get_armor_credit_cost(entry)
+	return make_armor_instance_from_catalog(part_id)
+
+
 # Equips an owned instance into a slot, carrying its wear into the combat cache.
 func equip_armor_instance(uid: String, slot: String) -> bool:
 	var inst := get_armor_instance(uid)
@@ -442,6 +472,7 @@ var safehouse_upgrades: Array = []
 
 var credits: int = 0
 var data_cores: int = 0
+var scrap: int = 0
 
 # -----------------------------------------------------------------------------
 # FLEET (กองยาน) — roster of allied mech units the player owns.
@@ -646,6 +677,7 @@ func reset_run_data() -> void:
 	safehouse_upgrades.clear()
 	credits = 110
 	data_cores = 0
+	scrap = 0
 	current_sector = 1
 	enemy_forces = {
 		"boss_current": 1, "boss_max": 1,
@@ -697,6 +729,7 @@ func save_run() -> void:
 		"wanted": wanted_level,
 		"credits": credits,
 		"data_cores": data_cores,
+		"scrap": scrap,
 		"fleet_roster": fleet_roster.duplicate(true),
 		"research_projects": research_projects.duplicate(true),
 		"research_unlocked": research_unlocked.duplicate(),
@@ -742,6 +775,7 @@ func _restore_from_dict(data: Dictionary) -> void:
 	wanted_level = data.get("wanted", 0)
 	credits = data.get("credits", 0) + int(data.get("spare_parts", 0))
 	data_cores = data.get("data_cores", 0)
+	scrap = data.get("scrap", 0)
 	current_sector = data.get("sector", 1)
 	board_seed = data.get("board_seed", randi())
 

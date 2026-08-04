@@ -56,10 +56,14 @@ func take_weapon() -> bool:
 
 
 # Player chose to scrap the weapon and keep only its ammo (in the battle reserve).
+# The scrap metal of the weapon itself becomes crafting material.
 func take_ammo_only() -> void:
 	var wm = get_weapon_manager()
 	if wm and weapon_resource:
 		wm.add_ammo(weapon_resource.max_ammo, "", weapon_resource.get_ammo_type())
+	if weapon_resource:
+		var scrap_value := maxi(2, int(round(float(weapon_resource.weight))) + int(weapon_resource.rarity) * 5)
+		GlobalData.scrap += scrap_value
 	queue_free()
 
 

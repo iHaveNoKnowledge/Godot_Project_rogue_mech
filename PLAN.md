@@ -15,25 +15,21 @@
 ## เฟสที่เหลือ (ยังไม่ทำ)
 
 ### เฟส 2: Instance Inventory (ฐานของทั้งหมด — ควรทำก่อน)
-- ยูนิฟาย inventory: ทุก instance = `{ uid, db_id, durability, upgrade_level }`
-- เอา `salvaged_armor_inventory` ออก
-  - `spawn_enemy_armor_salvage()` เป็น **dead code** (ไม่มี caller) — ลบได้ปลอดภัย
-  - `salvaged_armor_inventory` **ไม่ถูก save** (ไม่มีใน `save_run()`) — เอาไม่มีผลกับ save เดิม
-- `weapon_inventory` (count-based) → instance-based
-  - `register_weapon()` ตอนนี้ dedupe + `count++` → เปลี่ยนเป็น append 1 instance/ครั้ง
-  - caller: `weapon_manager.gd:491`, `weapon_pickup.gd:71`, `salvage_ui.gd` → `salvage_all()`
-  - reader: `hangar_controller.gd:912,1021,1152`, `intermission_controller.gd:385`
-- durability: เก็บหลักที่ instance, **`part_damage` ยังเป็น key-by-slot = cache runtime ของ instance ที่สวม** (sync ตอน equip/unequip) → ไม่ต้องแตะ 55 จุดคอมแบท (mecha_health/part_slot/hud/part_mesh/safehouse ฯลฯ)
-- save schema: เพิ่ม armor instances + weapon instances (uid+durability+upgrade), migration จาก count เดิม
+- [x] ยูนิฟาย inventory: ทุก instance = `{ uid, db_id, durability, upgrade_level }` — `aec40f0`
+- [x] เอา `salvaged_armor_inventory` ออก (`spawn_enemy_armor_salvage()` ลบแล้ว) — `aec40f0`
+- [x] `weapon_inventory` (count-based) → instance-based (`register_weapon()` append instance) — `aec40f0`
+- [x] durability bridge: instance = เก็บหลัก, `part_damage` = cache instance ที่สวม (sync equip/unequip/save/combat end) — `aec40f0`
+- [x] save schema: armor instances + weapon instances + migration จาก save เก่า — `aec40f0`
 
 ### เฟส 3: Scrap & Crafting
-- เพิ่มสกุล "scrap" (วัสดุ) ใหม่
-- ยูนิฟายคำว่า "scrap" ที่กำลังมี 3 แนวคิด:
-  - `_spawn_scrap_wreckage()` (`mecha_health_base.gd:268`) — debris visual ตอนแขนหัก (group "scrap", layer 8)
-  - `weapon_pickup.gd:58` — กด F "scrap" อาวุธ = ทิ้งอาวุธเอาอมโม (ตอนนี้ไม่มี material)
-  - board event "Salvage Cache" (`board_manager.gd:185`) — ตอนนี้ให้ **credits** (เพิ่งสร้าง) ควรเปลี่ยนให้ scrap ตอนเฟสนี้ลง กันลืม
-- `loot_system.gd` เพิ่ม pickup type "scrap" (แบบเดียวกับ ammo/repair)
-- คราฟเกราะจาก scrap + credits ที่ hangar; เกราะที่คราฟ = instance ใหม่ (ต่อเข้ากับเฟส 2)
+- [x] เพิ่มสกุล "scrap" (วัสดุ) ใหม่ — ประกาศ/reset/save/load ครบ (ค่าเริ่ม 0)
+- [x] ยูนิฟายคำว่า "scrap" 3 แนวคิด:
+  - [x] `_spawn_scrap_wreckage()` — debris visual ยังอยู่ + ตอนนี้**ทิ้ง scrap pickup** (เป็นวัสดุได้จริง, เก็บ auto-collect เหมือน ammo)
+  - [x] `weapon_pickup.gd` — กด F "scrap" อาวุธ = ได้อมโม + scrap วัสดุ (weight + rarity)
+  - [x] board event "Salvage Cache" — เปลี่ยนจาก credits → ให้ **scrap**
+- [x] `loot_system.gd` เพิ่ม pickup type "scrap" + enemy drops scrap (ตาราง drop)
+- [x] คราฟเกราะจาก scrap + credits ที่ hangar (ค่ายิงจาก stats: scrap = ceil((hp+1.5ac+2wt)/20), cr = ceil((hp+ac+wt)/15)); เกราะที่คราฟ = instance ใหม่ (ต่อเฟส 2); cost-gate ที่ equip template
+- [x] UI แสดง scrap: hangar stats bar, intermission (status/mech/inventory), combat rewards
 
 ### เฟส 4: Research & Blueprint (Gundam-type)
 - `data_cores` → ส่งเข้าสถานีวิจัย → ปลดล็อก blueprint ต่อ run

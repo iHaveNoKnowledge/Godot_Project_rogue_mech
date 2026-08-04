@@ -42,6 +42,9 @@ func _create_loot_pickup(pos: Vector3, loot_data: Dictionary) -> void:
 			material.albedo_color = Color(0.2, 0.8, 0.2)
 		"repair":
 			material.albedo_color = Color(0.2, 0.2, 0.9)
+		"scrap":
+			material.albedo_color = Color(0.75, 0.55, 0.25)
+			box.size = Vector3(0.4, 0.4, 0.4)
 	mesh.set_surface_override_material(0, material)
 
 	pickup.set_meta("loot_data", loot_data)
@@ -88,13 +91,23 @@ func _on_pickup_body_entered(body: Node3D, pickup: Area3D) -> void:
 				GlobalData.part_damage.erase(slot + "_armor")
 				GlobalData.part_damage.erase(slot + "_frame")
 				EventBus.weight_changed.emit(0.0)
+		"scrap":
+			GlobalData.scrap += loot_data.get("amount", 1)
 	pickup.queue_free()
+
+
+# Spawns a single scrap-material pickup (used by wreckage debris when a player
+# part is destroyed mid-combat). Amount is the scrap granted on collection.
+func spawn_scrap_pickup(pos: Vector3, amount: int) -> void:
+	_create_loot_pickup(pos, {"type": "scrap", "amount": maxi(1, amount)})
 
 
 func spawn_enemy_loot(enemy_position: Vector3) -> void:
 	var loot_table = [
 		{"type": "ammo", "amount": 15, "drop_chance": 0.7},
 		{"type": "ammo", "amount": 25, "drop_chance": 0.3},
+		{"type": "scrap", "amount": 3, "drop_chance": 0.35},
+		{"type": "scrap", "amount": 5, "drop_chance": 0.2},
 		{"type": "repair", "slot": "body", "drop_chance": 0.15},
 		{"type": "weapon", "weapon": preload("res://resources/mech/stock/weapon_beam_carbine.tres"), "drop_chance": 0.08},
 		{"type": "weapon", "weapon": preload("res://resources/mech/stock/weapon_light_machine_gun.tres"), "drop_chance": 0.08},

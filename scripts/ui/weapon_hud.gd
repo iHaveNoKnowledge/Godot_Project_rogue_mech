@@ -275,7 +275,7 @@ func _create_pickup_ui() -> void:
 	vbox.add_child(pickup_prompt_label)
 
 	var hint = Label.new()
-	hint.text = "Press F to decide: carry it, stash it, or take just its ammo"
+	hint.text = "Press F to decide: carry it, stash it, or scrap it for ammo + material"
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.add_theme_font_size_override("font_size", 11)
 	hint.add_theme_color_override("font_color", Color(0.7, 0.8, 0.7))
@@ -323,7 +323,7 @@ func _create_pickup_ui() -> void:
 	cbox.add_child(depot_btn)
 
 	take_ammo_btn = Button.new()
-	take_ammo_btn.text = "TAKE AMMO ONLY (เอาแค่กระสุน)"
+	take_ammo_btn.text = "TAKE AMMO ONLY + SCRAP (เอาแค่กระสุน)"
 	take_ammo_btn.custom_minimum_size = Vector2(0, 38)
 	take_ammo_btn.pressed.connect(_on_take_ammo_only_pressed)
 	cbox.add_child(take_ammo_btn)

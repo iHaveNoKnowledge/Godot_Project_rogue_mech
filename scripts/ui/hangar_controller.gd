@@ -937,7 +937,7 @@ func _populate_part_list_for_slot(slot: String) -> void:
 			_last_selected_item_index = 0
 			_on_part_item_selected(0)
 	elif armor_catalog.has(slot):
-		# Show stock armor
+		# Show stock armor (craftable templates)
 		var items = armor_catalog[slot]
 		for info in items:
 			var is_eq = _is_item_equipped(slot, info)
@@ -946,6 +946,10 @@ func _populate_part_list_for_slot(slot: String) -> void:
 			var label_str = "%s%s [%s]%s" % [prefix, info["name"], info["type"], state_tag]
 			if info.get("weight", 0.0) > 0:
 				label_str += " - %.1fkg" % info["weight"]
+			if not is_eq:
+				label_str += "  [CRAFT: %d scrap / %d cr]" % [
+					GlobalData.get_armor_scrap_cost(info), GlobalData.get_armor_credit_cost(info)
+				]
 			part_item_list.add_item(label_str)
 
 		# Show owned armor instances (drops, previously purchased stock)
@@ -1100,8 +1104,10 @@ func _on_part_item_selected(index: int) -> void:
 						item_name, item_type, item_hp * (1.0 - clampf(armor_dmg, 0.0, 1.0)), item_hp, item_armor, item_weight
 					]
 				else:
-					stats_label.text = "OUTER ARMOR: %s\nTYPE: %s\n\nARMOR HP: %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg\n\nEquip this plate to install it fresh at 100%% HP." % [
-						item_name, item_type, item_hp, item_armor, item_weight
+					var s_cost = GlobalData.get_armor_scrap_cost(selected_info)
+					var c_cost = GlobalData.get_armor_credit_cost(selected_info)
+					stats_label.text = "OUTER ARMOR: %s\nTYPE: %s\n\nARMOR HP: %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg\nCRAFT COST: %d scrap + %d credits\n\nCraft & equip this plate fresh at 100%% HP." % [
+						item_name, item_type, item_hp, item_armor, item_weight, s_cost, c_cost
 					]
 			# Only change 3D model when user explicitly picks a part, not on section switch
 			if not _is_populating:
@@ -1243,10 +1249,15 @@ func _show_part_action_modal(info: Dictionary) -> void:
 		details.text = "WEIGHT: %.1f kg   DURABILITY: %.0f%%" % [wt_val, wdur * 100.0]
 	else:
 		var full_hp = float(info.get("hp", info.get("max_hp", 100.0)))
-		var dur_ratio = clampf(float(info.get("durability", 1.0)), 0.0, 1.0)
-		if _is_item_equipped(selected_slot, info):
-			dur_ratio = 1.0 - clampf(GlobalData.part_damage.get(selected_slot, 0.0), 0.0, 1.0)
-		details.text = "DURABILITY: %.0f / %.0f HP  |  WEIGHT: %.1f kg" % [full_hp * dur_ratio, full_hp, wt_val]
+		if current_mode == "armor" and not is_instance:
+			var s_cost := GlobalData.get_armor_scrap_cost(info)
+			var c_cost := GlobalData.get_armor_credit_cost(info)
+			details.text = "CRAFT COST: %d scrap + %d credits  |  WEIGHT: %.1f kg" % [s_cost, c_cost, wt_val]
+		else:
+			var dur_ratio = clampf(float(info.get("durability", 1.0)), 0.0, 1.0)
+			if _is_item_equipped(selected_slot, info):
+				dur_ratio = 1.0 - clampf(GlobalData.part_damage.get(selected_slot, 0.0), 0.0, 1.0)
+			details.text = "DURABILITY: %.0f / %.0f HP  |  WEIGHT: %.1f kg" % [full_hp * dur_ratio, full_hp, wt_val]
 	details.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	details.add_theme_color_override("font_color", Color(0.8, 0.85, 0.9))
 	vbox.add_child(details)
@@ -1267,6 +1278,9 @@ func _show_part_action_modal(info: Dictionary) -> void:
 	if is_eq:
 		toggle_btn.text = "[ UNEQUIP ]"
 		toggle_btn.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
+	elif current_mode == "armor" and not is_instance:
+		toggle_btn.text = "[ CRAFT & EQUIP ]"
+		toggle_btn.add_theme_color_override("font_color", Color(0.4, 1.0, 0.5))
 	else:
 		toggle_btn.text = "[ EQUIP ]"
 		toggle_btn.add_theme_color_override("font_color", Color(0.4, 1.0, 0.5))
@@ -1417,11 +1431,29 @@ func _equip_part_to_slot(slot: String, info: Dictionary) -> void:
 
 	var inst := info
 	if not info.has("uid"):
+		# Catalog template: crafting it costs scrap + credits and produces a new
+		# instance (the catalog itself is never mutated).
 		var pid = info.get("id", "")
-		inst = GlobalData.make_armor_instance_from_catalog(pid) if pid != "" else {}
-		if inst.is_empty():
+		if pid == "":
 			status_message_label.text = "Cannot acquire armor: unknown catalog entry."
 			return
+		var entry := GlobalData.get_armor_catalog_entry(pid)
+		if entry.is_empty():
+			status_message_label.text = "Cannot acquire armor: unknown catalog entry."
+			return
+		var s_cost := GlobalData.get_armor_scrap_cost(entry)
+		var c_cost := GlobalData.get_armor_credit_cost(entry)
+		if GlobalData.scrap < s_cost:
+			status_message_label.text = "Not enough scrap to craft this armor! (%d scrap needed)" % s_cost
+			return
+		if GlobalData.credits < c_cost:
+			status_message_label.text = "Not enough credits to craft this armor! (%d cr needed)" % c_cost
+			return
+		inst = GlobalData.try_craft_armor_from_catalog(pid)
+		if inst.is_empty():
+			status_message_label.text = "Failed to craft armor."
+			return
+		status_message_label.text = "Armor crafted and equipped!"
 	if not GlobalData.equip_armor_instance(inst["uid"], slot):
 		status_message_label.text = "Failed to equip armor."
 		return
@@ -2040,12 +2072,12 @@ func _update_total_stats() -> void:
 		weight_bar.value = total_weight
 
 	if total_stats_label:
-		total_stats_label.text = "FRAME LVL: %d | FRAME HP: %.0f | ARMOR HP: %.0f\nFRAME W: %.1fkg | ARMOR W: %.1fkg | ATTACH W: %.1fkg | WEAPON W: %.1fkg\nTOTAL WEIGHT: %.1f / %.1f kg\nFIELD PACK: %.1f / %.1f kg\nCREDITS: %d cr" % [
+		total_stats_label.text = "FRAME LVL: %d | FRAME HP: %.0f | ARMOR HP: %.0f\nFRAME W: %.1fkg | ARMOR W: %.1fkg | ATTACH W: %.1fkg | WEAPON W: %.1fkg\nTOTAL WEIGHT: %.1f / %.1f kg\nFIELD PACK: %.1f / %.1f kg\nCREDITS: %d cr   |   SCRAP: %d" % [
 			GlobalData.frame_upgrade_level, total_frame_hp, total_armor_hp,
 			total_frame_weight, total_armor_weight, total_attachment_weight, total_weapon_weight,
 			total_weight, max_weight,
 			field_pack_weight, field_pack_capacity,
-			GlobalData.credits
+			GlobalData.credits, GlobalData.scrap
 		]
 
 

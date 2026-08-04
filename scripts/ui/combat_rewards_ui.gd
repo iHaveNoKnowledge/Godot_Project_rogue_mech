@@ -100,12 +100,14 @@ func _show_victory_rewards() -> void:
 	var is_final_sector = (GlobalData.current_sector >= GlobalData.max_sectors)
 
 	var credits_gained = randi_range(30, 80) + randi_range(1, 5)
+	var scrap_gained = randi_range(4, 10)
 	var heat_gained = 2
 	var data_cores_gained = 0
 
 	if is_boss:
 		title_label.text = "SECTOR %d CLEARED!" % GlobalData.current_sector
 		credits_gained += 105
+		scrap_gained += 15
 		data_cores_gained = 1
 		GlobalData.data_cores += data_cores_gained
 
@@ -119,19 +121,22 @@ func _show_victory_rewards() -> void:
 		continue_button.text = "Continue [Enter / Space / Click]"
 
 	GlobalData.credits += credits_gained
+	GlobalData.scrap += scrap_gained
 
 	rewards = {
 		"credits": credits_gained,
+		"scrap": scrap_gained,
 		"heat": heat_gained,
 		"data_cores": data_cores_gained
 	}
 
 	rewards_label.text = "Rewards:\n"
 	rewards_label.text += "+%d Credits\n" % credits_gained
+	rewards_label.text += "+%d Scrap (Material)\n" % scrap_gained
 	if data_cores_gained > 0:
 		rewards_label.text += "+%d Data Cores (Research Item)\n" % data_cores_gained
 	rewards_label.text += "+%d Heat\n" % heat_gained
-	rewards_label.text += "\nTotal Credits: %d" % GlobalData.credits
+	rewards_label.text += "\nTotal Credits: %d | Scrap: %d" % [GlobalData.credits, GlobalData.scrap]
 
 	await get_tree().process_frame
 	if continue_button:

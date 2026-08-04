@@ -44,12 +44,21 @@ const WEAPON_ICONS: Dictionary = {
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_create_root()
 	_create_left_panel()
 	_create_right_panel()
 	_create_carry_ui()
 	_create_pickup_ui()
 	_try_connect_weapon_manager()
+	if has_node("/root/EventBus"):
+		EventBus.combat_ended.connect(_on_combat_ended)
+
+
+func _on_combat_ended(_victory: bool) -> void:
+	# Never leave the decision menu (and its pause/mouse lock) open past combat.
+	if pickup_menu_open:
+		_close_pickup_menu()
 
 
 func _process(_delta: float) -> void:
@@ -112,6 +121,7 @@ func _input(event: InputEvent) -> void:
 func _create_root() -> void:
 	root_control = Control.new()
 	root_control.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root_control.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(root_control)
 
 
@@ -382,6 +392,10 @@ func _toggle_pickup_menu() -> void:
 	pickup_menu_open = true
 	pickup_choice_panel.visible = true
 	_set_prompt_visible(false)
+	# The F-menu is a decision modal: pause the battle and free the mouse from the
+	# camera look so the player can actually click a choice.
+	get_tree().paused = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	var can_carry: bool = nearby_pickup.can_take_to_field_pack()
 	if take_weapon_btn:
 		take_weapon_btn.disabled = not can_carry
@@ -396,6 +410,10 @@ func _close_pickup_menu() -> void:
 	pickup_menu_open = false
 	if pickup_choice_panel:
 		pickup_choice_panel.visible = false
+	# Resume the battle and give the camera the mouse back.
+	if get_tree().paused:
+		get_tree().paused = false
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
 func _on_take_weapon_pressed() -> void:

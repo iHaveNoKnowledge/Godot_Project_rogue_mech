@@ -621,6 +621,48 @@ var research_projects: Dictionary = {}
 # Blueprint projects fully researched and unlocked (ids), e.g. units/gear.
 var research_unlocked: Array = []
 
+# -----------------------------------------------------------------------------
+# FLEET SECURITY — how well our ships/facility fend off enemy espionage.
+# - fleet_security:      0-100. Higher value = enemy spies more likely to be
+#   caught before stealing mech data.
+# - security_upgrade_level: the fleet's defensive-hardening branch level. Each
+#   upgrade costs credits and raises fleet_security (separate from research).
+# -----------------------------------------------------------------------------
+var fleet_security: float = 25.0
+var security_upgrade_level: int = 1
+
+const FLEET_SECURITY_MIN := 0.0
+const FLEET_SECURITY_MAX := 100.0
+const SECURITY_PER_UPGRADE := 10.0
+const SECURITY_UPGRADE_BASE_COST := 50
+
+
+func get_fleet_security() -> float:
+	return clampf(fleet_security, FLEET_SECURITY_MIN, FLEET_SECURITY_MAX)
+
+
+func get_security_upgrade_cost() -> int:
+	return SECURITY_UPGRADE_BASE_COST + (security_upgrade_level - 1) * 75
+
+
+# Spend credits to raise fleet security. Returns false if unaffordable or maxed.
+func upgrade_fleet_security() -> bool:
+	var cost := get_security_upgrade_cost()
+	if credits < cost:
+		return false
+	if get_fleet_security() >= FLEET_SECURITY_MAX:
+		return false
+	credits -= cost
+	security_upgrade_level += 1
+	fleet_security = minf(get_fleet_security() + SECURITY_PER_UPGRADE, FLEET_SECURITY_MAX)
+	return true
+
+
+# Chance (0..1) that an enemy spy attempt on our mech data FAILS before stealing
+# anything. Scales with security; at 100 security the counter is very strong.
+func get_spy_counter_chance() -> float:
+	return clampf(0.15 + get_fleet_security() * 0.008, 0.15, 0.95)
+
 
 func get_ally_template(template_id: String) -> Dictionary:
 	return ally_unit_templates.get(template_id, {})
@@ -1149,6 +1191,8 @@ func reset_run_data() -> void:
 	blocked_intermission = false
 	enemy_tech_tier = 1
 	pending_escalation_event = false
+	fleet_security = 25.0
+	security_upgrade_level = 1
 	_combat_friendly_total_hp = 0.0
 	_combat_friendly_damage = 0.0
 	last_combat_damage_ratio = 0.0
@@ -1219,7 +1263,9 @@ func save_run() -> void:
 		"ceasefire_turns": ceasefire_turns,
 		"blocked_intermission": blocked_intermission,
 		"enemy_tech_tier": enemy_tech_tier,
-		"last_combat_damage_ratio": last_combat_damage_ratio
+		"last_combat_damage_ratio": last_combat_damage_ratio,
+		"fleet_security": fleet_security,
+		"security_upgrade_level": security_upgrade_level
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file:
@@ -1264,6 +1310,8 @@ func _restore_from_dict(data: Dictionary) -> void:
 	blocked_intermission = bool(data.get("blocked_intermission", false))
 	enemy_tech_tier = int(data.get("enemy_tech_tier", 1))
 	last_combat_damage_ratio = float(data.get("last_combat_damage_ratio", 0.0))
+	fleet_security = float(data.get("fleet_security", 25.0))
+	security_upgrade_level = int(data.get("security_upgrade_level", 1))
 
 	var loaded_roster = data.get("fleet_roster", [])
 	if loaded_roster is Array:

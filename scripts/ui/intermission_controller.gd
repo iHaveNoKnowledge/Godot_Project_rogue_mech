@@ -83,6 +83,7 @@ func _create_ui() -> void:
 	_add_menu_button("Inventory", _on_inventory_pressed)
 	_add_menu_button("Research Base", _on_research_pressed)
 	_add_menu_button("Fleet Roster", _on_fleet_pressed)
+	_add_menu_button("Fleet Security", _on_security_pressed)
 	_add_menu_button("Board Info", _on_board_info_pressed)
 	_add_menu_button("Hangar", _on_hangar_pressed)
 	_add_menu_button("Save Game", _on_save_pressed)
@@ -332,6 +333,42 @@ func _build_fleet_text() -> String:
 			int(unit.get("hp", 0)),
 			int(unit.get("max_hp", 0))
 		]
+	return text
+
+
+func _on_security_pressed() -> void:
+	current_view = "security"
+	info_panel.visible = true
+	_clear_actions()
+	info_label.text = _build_security_text()
+	_upgrade_security_button()
+
+
+func _upgrade_security_button() -> void:
+	if GlobalData.get_fleet_security() >= GlobalData.FLEET_SECURITY_MAX:
+		return
+	var cost := GlobalData.get_security_upgrade_cost()
+	var btn = Button.new()
+	btn.text = "Upgrade Security (%d credits)" % cost
+	btn.disabled = GlobalData.credits < cost
+	btn.pressed.connect(_on_upgrade_security_pressed)
+	action_container.add_child(btn)
+
+
+func _on_upgrade_security_pressed() -> void:
+	if GlobalData.upgrade_fleet_security():
+		_on_security_pressed()  # refresh
+	else:
+		status_label.text = _get_status_text() + "  [Not enough credits / maxed out]"
+
+
+func _build_security_text() -> String:
+	var text = "=== FLEET SECURITY ===\n\n"
+	text += "Fleet security hardens our ships and facility against enemy spies.\n\n"
+	text += "Security: %d / %d\n" % [int(GlobalData.get_fleet_security()), int(GlobalData.FLEET_SECURITY_MAX)]
+	text += "Hardening level: %d\n" % GlobalData.security_upgrade_level
+	text += "Spy counter chance: %d%%\n\n" % int(GlobalData.get_spy_counter_chance() * 100.0)
+	text += "Higher security makes enemy espionage against your mech data far more likely to be caught."
 	return text
 
 

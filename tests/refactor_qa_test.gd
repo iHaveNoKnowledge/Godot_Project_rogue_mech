@@ -18,6 +18,7 @@ func _ready() -> void:
 	_test_theme_switch_once()
 	_test_event_effects()
 	_test_combat_damage_tracking()
+	_test_fleet_security()
 	_test_tech_escalation()
 	print("REPAIR_QA_RESULT: %d passed, %d failed" % [_passed, _failed])
 	get_tree().quit(1 if _failed > 0 else 0)
@@ -249,6 +250,34 @@ func _test_combat_damage_tracking() -> void:
 	EventBus.friendly_damage_received.emit(30.0)
 	EventBus.friendly_damage_received.emit(20.0)
 	_check(is_equal_approx(GlobalData.get_combat_friendly_damage(), 50.0), "bus accumulates friendly damage")
+
+
+func _test_fleet_security() -> void:
+	GlobalData.reset_run_data()
+	_check(is_equal_approx(GlobalData.get_fleet_security(), 25.0), "default security is 25")
+	_check(GlobalData.security_upgrade_level == 1, "default hardening level is 1")
+	var base_counter := GlobalData.get_spy_counter_chance()
+	_check(base_counter >= 0.15 and base_counter <= 0.95, "spy counter chance in valid range")
+
+	# Upgrade requires credits.
+	var cost := GlobalData.get_security_upgrade_cost()
+	GlobalData.credits = cost - 1
+	_check(not GlobalData.upgrade_fleet_security(), "cannot upgrade without enough credits")
+	_check(GlobalData.security_upgrade_level == 1, "level unchanged when poor")
+
+	GlobalData.credits = cost
+	var level_before := GlobalData.security_upgrade_level
+	_check(GlobalData.upgrade_fleet_security(), "upgrade succeeds with credits")
+	_check(GlobalData.security_upgrade_level == level_before + 1, "hardening level increased")
+	_check(is_equal_approx(GlobalData.get_fleet_security(), 35.0), "security raised by upgrade")
+
+	# Upgrades are progressively more expensive.
+	var next_cost := GlobalData.get_security_upgrade_cost()
+	_check(next_cost > cost, "later upgrades cost more")
+
+	# Security raises the spy counter chance.
+	var high_counter := GlobalData.get_spy_counter_chance()
+	_check(high_counter > base_counter, "more security -> stronger spy counter")
 
 
 func _test_tech_escalation() -> void:

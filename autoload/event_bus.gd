@@ -2,6 +2,9 @@ extends Node
 
 # --- Damage Pipeline ---
 signal damage_received(slot_name: String, raw_damage: float, damage_type: String)
+## Fired for every friendly unit (player mech + fielded allies) that takes
+## damage, so combat can measure how "decisive" our victory was.
+signal friendly_damage_received(raw_damage: float)
 signal armor_degraded(slot_name: String, current_hp: float, max_hp: float)
 signal part_destroyed(slot_name: String)
 signal mecha_destroyed()

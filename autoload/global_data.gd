@@ -97,6 +97,7 @@ func _ready() -> void:
 	ensure_default_equipped_parts()
 	EventBus.tile_entered.connect(_on_tile_entered)
 	EventBus.combat_ended.connect(_on_combat_ended)
+	EventBus.friendly_damage_received.connect(_on_friendly_damage_received)
 
 
 # Research timers advance with turn progress: each board move = 1 point,
@@ -106,10 +107,17 @@ func _on_tile_entered(_tile_pos: Vector2i, _tile_data: Node) -> void:
 
 
 func _on_combat_ended(victory: bool) -> void:
+	# Finalize combat damage stats before any tech/reputation logic reads them.
+	_compute_last_combat_damage_ratio()
 	on_combat_ended_for_tech(victory)
 	if victory:
 		sync_equipped_armor_durability()
 		tick_research(2)
+
+
+func _on_friendly_damage_received(raw_damage: float) -> void:
+	if raw_damage > 0.0:
+		_combat_friendly_damage += raw_damage
 
 
 # Initialise equipped_parts from armor_catalog[slot][0] (first/default entry per slot).
@@ -584,6 +592,20 @@ var enemy_tech_tier: int = 1
 var tech_copy_progress: float = 0.0
 var tiles_since_combat: int = 0
 
+# -----------------------------------------------------------------------------
+# COMBAT DAMAGE TRACKING — measures how "decisive" our victory was.
+# - _combat_friendly_total_hp: snapshot of combined max HP of every friendly
+#   unit fielded (player mech + allies) taken at combat start.
+# - _combat_friendly_damage:   accumulated raw HP lost by friendly units.
+# - last_combat_damage_ratio:  damage / total_hp, finalized at combat end.
+#   A decisive victory keeps this <= 0.5 (we took <= 50% combined damage).
+# -----------------------------------------------------------------------------
+var _combat_friendly_total_hp: float = 0.0
+var _combat_friendly_damage: float = 0.0
+var last_combat_damage_ratio: float = 0.0
+
+const DECISIVE_VICTORY_RATIO := 0.5
+
 const FRAME_TYPE_TIER: Dictionary = {
 	"Standard Frame": 1,
 	"High-Mobility": 2,
@@ -850,6 +872,54 @@ func on_combat_ended_for_tech(victory: bool) -> void:
 func get_enemy_tech_multiplier() -> float:
 	var cfg := get_escalation_config()
 	return 1.0 + float(enemy_tech_tier - 1) * float(cfg.get("hp_per_tier", 0.35))
+
+
+# Snapshot the combined max HP of every friendly unit in the current scene:
+# the player mech + all fielded allies. Also resets the damage accumulator.
+func begin_combat_stats() -> void:
+	_combat_friendly_damage = 0.0
+	_combat_friendly_total_hp = 0.0
+	var scene = get_tree().current_scene
+	if scene == null:
+		return
+	var mecha = scene.get_node_or_null("Mecha")
+	if mecha:
+		var hs = mecha.get_node_or_null("HealthSystem")
+		if hs and hs.has_method("get_health_percent"):
+			_combat_friendly_total_hp += float(hs.max_total_armor + hs.max_total_frame)
+	for ally in get_tree().get_nodes_in_group("ally"):
+		if not is_instance_valid(ally):
+			continue
+		var hs = ally.get_node_or_null("HealthSystem")
+		if hs and hs.has_method("get_health_percent"):
+			_combat_friendly_total_hp += float(hs.max_total_armor + hs.max_total_frame)
+
+
+# Allow tests / callers to supply the snapshot directly without a live scene.
+func set_combat_hp_snapshot(total_hp: float) -> void:
+	_combat_friendly_total_hp = maxf(total_hp, 0.0)
+	_combat_friendly_damage = 0.0
+
+
+func get_combat_friendly_total_hp() -> float:
+	return _combat_friendly_total_hp
+
+
+func get_combat_friendly_damage() -> float:
+	return _combat_friendly_damage
+
+
+# ratio = friendly damage taken / combined friendly HP. 0 if nothing fielded.
+func _compute_last_combat_damage_ratio() -> void:
+	if _combat_friendly_total_hp <= 0.0:
+		last_combat_damage_ratio = 0.0
+		return
+	last_combat_damage_ratio = clampf(_combat_friendly_damage / _combat_friendly_total_hp, 0.0, 1.0)
+
+
+# A victory is "decisive" when we took at most 50% of our combined HP in damage.
+func was_decisive_victory() -> bool:
+	return last_combat_damage_ratio <= DECISIVE_VICTORY_RATIO
 
 
 # Picks a weighted-random chassis key from a theme's chassis_weights.
@@ -1119,6 +1189,9 @@ func reset_run_data() -> void:
 	enemy_tech_tier = 1
 	tech_copy_progress = 0.0
 	tiles_since_combat = 0
+	_combat_friendly_total_hp = 0.0
+	_combat_friendly_damage = 0.0
+	last_combat_damage_ratio = 0.0
 	fleet_roster.clear()
 	research_projects.clear()
 	research_unlocked.clear()

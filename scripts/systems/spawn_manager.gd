@@ -108,6 +108,9 @@ func _get_active_defs() -> Array:
 func _ready() -> void:
 	_generate_spawn_points()
 	_spawn_fielded_allies()
+	# Snapshot friendly combat HP after the player mech + allies are in the scene,
+	# so the decisive-victory check knows the combined HP of our fielded side.
+	GlobalData.begin_combat_stats()
 	await get_tree().create_timer(1.0).timeout
 	start_waves()
 

@@ -113,6 +113,8 @@ func _apply_armor_damage(slot_name: String, amount: float, damage_type: String) 
 
 	if is_player:
 		EventBus.damage_received.emit(slot_name, reduced, damage_type)
+	if _is_friendly():
+		EventBus.friendly_damage_received.emit(reduced)
 
 	if part["armor_hp"] <= 0.0:
 		_on_armor_broken(slot_name)
@@ -132,6 +134,8 @@ func _apply_frame_damage(slot_name: String, amount: float, damage_type: String) 
 
 	if is_player:
 		EventBus.damage_received.emit(slot_name, amount, damage_type)
+	if _is_friendly():
+		EventBus.friendly_damage_received.emit(amount)
 
 	if part["frame_hp"] <= 0.0:
 		_on_frame_destroyed(slot_name)
@@ -377,6 +381,14 @@ func _drop_hand_weapon_pickup(hand: String, arm_slot: String) -> void:
 
 func _on_damage_received(_slot: String, _amount: float, _type: String) -> void:
 	pass
+
+
+# A friendly unit is the player mech or a fielded ally (group "ally").
+func _is_friendly() -> bool:
+	if is_player:
+		return true
+	var parent = get_parent()
+	return parent != null and parent.is_in_group("ally")
 
 
 func get_health_percent() -> float:

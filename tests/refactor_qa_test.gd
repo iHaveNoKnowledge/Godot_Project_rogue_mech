@@ -17,6 +17,7 @@ func _ready() -> void:
 	_test_reputation_gate()
 	_test_theme_switch_once()
 	_test_event_effects()
+	_test_combat_damage_tracking()
 	_test_tech_escalation()
 	_test_tech_escalation_anti_turtle()
 	print("REPAIR_QA_RESULT: %d passed, %d failed" % [_passed, _failed])
@@ -219,6 +220,36 @@ func _test_event_effects() -> void:
 	var forced := GlobalData.apply_event_effect({"effect": "force_combat", "params": {"combat_type": "grunt"}})
 	_check(forced, "force_combat effect returns true")
 	_check(GlobalData.blocked_intermission, "force_combat blocks intermission")
+
+
+func _test_combat_damage_tracking() -> void:
+	GlobalData.reset_run_data()
+	GlobalData.set_combat_hp_snapshot(200.0)
+	GlobalData._combat_friendly_damage = 50.0
+	GlobalData._compute_last_combat_damage_ratio()
+	_check(is_equal_approx(GlobalData.last_combat_damage_ratio, 0.25), "damage ratio 50/200 = 0.25")
+	_check(GlobalData.was_decisive_victory(), "25% damage is a decisive victory")
+
+	GlobalData._combat_friendly_damage = 120.0
+	GlobalData._compute_last_combat_damage_ratio()
+	_check(is_equal_approx(GlobalData.last_combat_damage_ratio, 0.6), "damage ratio 120/200 = 0.6")
+	_check(not GlobalData.was_decisive_victory(), "60% damage is NOT decisive")
+
+	# Exactly 50% counts as decisive (<= threshold).
+	GlobalData._combat_friendly_damage = 100.0
+	GlobalData._compute_last_combat_damage_ratio()
+	_check(GlobalData.was_decisive_victory(), "exactly 50% counts as decisive")
+
+	# No friendly units fielded -> ratio 0, decisive (avoid divide-by-zero).
+	GlobalData.set_combat_hp_snapshot(0.0)
+	GlobalData._compute_last_combat_damage_ratio()
+	_check(is_equal_approx(GlobalData.last_combat_damage_ratio, 0.0), "no fielded units yields ratio 0")
+
+	# friendly_damage_received accumulates through the event bus.
+	GlobalData.set_combat_hp_snapshot(100.0)
+	EventBus.friendly_damage_received.emit(30.0)
+	EventBus.friendly_damage_received.emit(20.0)
+	_check(is_equal_approx(GlobalData.get_combat_friendly_damage(), 50.0), "bus accumulates friendly damage")
 
 
 func _test_tech_escalation() -> void:

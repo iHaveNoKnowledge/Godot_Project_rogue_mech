@@ -164,6 +164,8 @@ func _get_status_text() -> String:
 	var base_info := ""
 	if GlobalData.enemy_base_active:
 		base_info = " | Enemy Base: %d%%" % int((GlobalData.enemy_base_progress / GlobalData.enemy_base_required) * 100.0)
+	if not GlobalData.stalking_aces.is_empty():
+		base_info += " | HUNTED by %s" % ", ".join(GlobalData.stalking_aces)
 	return "Rep: %d | Heat: %d | Wanted: %d | Credits: %d | Scrap: %d | Enemy Tier: %d | Security: %d%s | Tile: %s" % [
 		GlobalData.reputation,
 		GlobalData.heat,

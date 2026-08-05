@@ -284,13 +284,13 @@ func _build_tech_copy_event() -> Dictionary:
 # falling back to any tile further ahead, then any non-start/exit tile.
 func _place_enemy_base_node() -> void:
 	var current_layer := current_pos.x
-	var target_layers := [current_layer + 2, current_layer + 3, current_layer + 4]
-	var target_layer := target_layers[randi() % target_layers.size()]
+	var target_layers: Array[int] = [current_layer + 2, current_layer + 3, current_layer + 4]
+	var target_layer: int = target_layers[randi() % target_layers.size()]
 
 	var candidates: Array = []
 	var fallback: Array = []
 	for key in nodes_dict:
-		var tile_type := nodes_dict[key].get_meta("tile_type", "empty")
+		var tile_type: String = nodes_dict[key].get_meta("tile_type", "empty")
 		if tile_type in ["start", "exit", "safehouse"]:
 			continue
 		if key.x == target_layer and tile_type != "enemy_base":

@@ -98,11 +98,16 @@ func _show_victory_rewards() -> void:
 
 	var is_boss = GameManager.is_boss_combat
 	var is_final_sector = (GlobalData.current_sector >= GlobalData.max_sectors)
+	var is_raid = (GameManager.combat_node_type == "enemy_base")
 
 	var credits_gained = randi_range(30, 80) + randi_range(1, 5)
 	var scrap_gained = randi_range(4, 10)
 	var heat_gained = 2
 	var data_cores_gained = 0
+
+	if is_raid:
+		credits_gained += 60
+		scrap_gained += 10
 
 	if is_boss:
 		var ending: Dictionary = GlobalData.get_theme_ending()
@@ -120,8 +125,12 @@ func _show_victory_rewards() -> void:
 			rewards_label.text = "%s\n\n" % ending.get("name", "Sector Battle")
 			continue_button.text = "Proceed to Sector %d [Enter / Space]" % (GlobalData.current_sector + 1)
 	else:
-		title_label.text = "COMBAT VICTORY"
-		continue_button.text = "Continue [Enter / Space / Click]"
+		if is_raid:
+			title_label.text = "RESEARCH BASE DESTROYED!"
+			continue_button.text = "Continue [Enter / Space / Click]"
+		else:
+			title_label.text = "COMBAT VICTORY"
+			continue_button.text = "Continue [Enter / Space / Click]"
 
 	GlobalData.credits += credits_gained
 	GlobalData.scrap += scrap_gained

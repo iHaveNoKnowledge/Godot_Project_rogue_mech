@@ -213,12 +213,15 @@ func _check_combat_ended() -> void:
 
 
 func _trigger_stalking_ace_ambush() -> void:
-	var ace_data = GlobalData.stalking_aces.pop_front()
+	var ace_kind = GlobalData.stalking_aces.pop_front()
 	GlobalData.ambush_probability = 0.0
 	print("SIREN WARNING! STALKING ACE WARPING IN!")
 	AudioManager.play_combat_music("ace")
 	var spawn_pos = _get_spawn_position()
-	_spawn_enemy("heavy_full", 2, spawn_pos, 1.8)
+	var hp_scale := 1.8
+	if ace_kind == "gundam_copy":
+		hp_scale = 2.4
+	_spawn_enemy("heavy_full", 2, spawn_pos, hp_scale)
 
 
 func _spawn_enemy(type: String, archetype: int, pos: Vector3, hp_scale: float) -> void:

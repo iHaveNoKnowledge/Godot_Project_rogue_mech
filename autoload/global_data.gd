@@ -1047,8 +1047,18 @@ func _apply_enemy_base_outcome(outcome: String) -> void:
 			enemy_grunt_upgrade_level += 2
 		"special_ace":
 			enemy_special_units.append({"kind": "special_ace", "source": "research_node"})
+			_add_stalking_ace("special_ace")
 		"gundam_copy":
 			enemy_special_units.append({"kind": "gundam_copy", "source": "research_node"})
+			_add_stalking_ace("gundam_copy")
+
+
+# A completed research node deploys its counter-unit as a stalking ace that
+# hunts the player across the board. Once deployed it starts accumulating
+# ambush chance with every move and will force a fight.
+func _add_stalking_ace(ace_kind: String) -> void:
+	if not stalking_aces.has(ace_kind):
+		stalking_aces.append(ace_kind)
 
 
 # Snapshot the combined max HP of every friendly unit in the current scene:

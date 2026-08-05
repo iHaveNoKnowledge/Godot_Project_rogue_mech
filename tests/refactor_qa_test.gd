@@ -357,6 +357,7 @@ func _test_enemy_research_node() -> void:
 		_check(GlobalData.enemy_grunt_upgrade_level >= 2, "MKII grants grunt upgrade")
 	else:
 		_check(GlobalData.enemy_special_units.size() >= 1, "special/copy outcome fields a unit")
+		_check(GlobalData.stalking_aces.has(GlobalData.enemy_copy_outcome), "deployed counter-unit hunts the player")
 
 	# Destroying an active node yields only a partial grunt upgrade.
 	GlobalData.reset_run_data()

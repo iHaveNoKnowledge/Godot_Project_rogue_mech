@@ -582,15 +582,12 @@ var blocked_intermission: bool = false
 # -----------------------------------------------------------------------------
 # ENEMY TECH ESCALATION — enemies reverse-engineer our mech over time.
 # - enemy_tech_tier:     the enemy's current standard (new unit tier).
-# - tech_copy_progress:  countdown toward the next tier-up, counted in tiles
-#   walked. It only advances while the enemy perceives our mech is stronger
-#   (player tier > enemy tier) AND has observed us in combat recently.
-# - tiles_since_combat:  anti-turtle tracker — no combat for too many tiles
-#   makes the enemy lose interest, so the copy event won't fire.
+#   It rises one step at a time whenever we win a battle DECISIVELY (we took
+#   at most 50% of our combined fielded HP in damage). Decisive wins prove
+#   our gear works; the enemy copies it for the next deployment.
 # -----------------------------------------------------------------------------
 var enemy_tech_tier: int = 1
-var tech_copy_progress: float = 0.0
-var tiles_since_combat: int = 0
+var pending_escalation_event: bool = false
 
 # -----------------------------------------------------------------------------
 # COMBAT DAMAGE TRACKING — measures how "decisive" our victory was.
@@ -605,14 +602,6 @@ var _combat_friendly_damage: float = 0.0
 var last_combat_damage_ratio: float = 0.0
 
 const DECISIVE_VICTORY_RATIO := 0.5
-
-const FRAME_TYPE_TIER: Dictionary = {
-	"Standard Frame": 1,
-	"High-Mobility": 2,
-	"Medium Frame": 3,
-	"Heavy Frame": 4,
-	"Gundam Frame": 5,
-}
 
 var credits: int = 0
 var data_cores: int = 0
@@ -799,73 +788,45 @@ func get_theme_ending() -> Dictionary:
 # ENEMY TECH ESCALATION — see state block near the theme fields.
 # -----------------------------------------------------------------------------
 
-# The player's effective mech tier: highest-tier equipped frame + reactor
-# upgrade bonus. A fully standard mech is tier 1; gundam frames push it up.
-func get_player_mech_tier() -> int:
-	var best := 1
-	for slot in equipped_frames:
-		var f = equipped_frames[slot]
-		if f is Dictionary:
-			var ft = FRAME_TYPE_TIER.get(str(f.get("type", "Standard Frame")), 1)
-			best = maxi(best, ft)
-	return best + maxi(0, frame_upgrade_level - 1)
-
-
 # Per-theme escalation tuning; falls back to sensible defaults.
 func get_escalation_config() -> Dictionary:
 	var theme = get_run_theme()
 	var flow: Dictionary = theme.get("flow", {})
 	return {
-		"per_tile": float(flow.get("escalation_per_tile", 0.12)),
-		"threshold": int(flow.get("escalation_threshold", 10)),
-		"stall_tiles": int(flow.get("escalation_stall_tiles", 4)),
 		"max_tier": int(flow.get("escalation_max_tier", 4)),
 		"hp_per_tier": float(flow.get("escalation_hp_per_tier", 0.35)),
+		"spy_base_chance": float(flow.get("escalation_spy_base_chance", 0.05)),
+		"spy_chance_per_tier": float(flow.get("escalation_spy_chance_per_tier", 0.06)),
 	}
 
 
-# Call on every board move. Advances the copy countdown; returns true when the
-# enemy completed a tier-up (caller fires the visible copy event).
-func tick_tech_copy() -> bool:
-	var cfg := get_escalation_config()
-	tiles_since_combat += 1
-
-	# Anti-turtle: after too many tiles without combat the enemy loses interest
-	# and the copy event won't happen while we camp.
-	if tiles_since_combat > int(cfg.get("stall_tiles", 4)):
-		return false
-
-	# Perception gate: the enemy only bothers copying tech it has seen beat
-	# its current tier. A weaker/equal mech is no threat.
-	if get_player_mech_tier() <= enemy_tech_tier:
-		return false
-
-	tech_copy_progress += float(cfg.get("per_tile", 0.12))
-	var threshold := int(cfg.get("threshold", 10))
-	if tech_copy_progress < float(threshold):
-		return false
-
-	# Tier-up completed — new enemy standard.
-	enemy_tech_tier = mini(enemy_tech_tier + 1, int(cfg.get("max_tier", 4)))
-	tech_copy_progress = 0.0
-	tiles_since_combat = 0
-	EventBus.enemy_tech_escalated.emit(enemy_tech_tier)
-	return true
-
-
-# Called when a battle ends: fresh observation resets the anti-turtle counter,
-# and winning accelerates reverse-engineering.
+# Called when a battle ends. The enemy tiers up one step when we win a battle
+# DECISIVELY — i.e. we took at most 50% of our combined fielded HP in damage.
+# Decisive wins prove our gear works, so the enemy copies it. Non-decisive
+# wins or losses don't escalate (our build barely worked / we failed).
 func on_combat_ended_for_tech(victory: bool) -> void:
-	tiles_since_combat = 0
-	if victory:
-		var cfg := get_escalation_config()
-		tech_copy_progress += float(cfg.get("per_tile", 0.12)) * 2.0
-		if tech_copy_progress >= float(cfg.get("threshold", 10)):
-			# A win right after a battle still completes the copy (observed).
-			enemy_tech_tier = mini(enemy_tech_tier + 1, int(cfg.get("max_tier", 4)))
-			tech_copy_progress = 0.0
-			tiles_since_combat = 0
-			EventBus.enemy_tech_escalated.emit(enemy_tech_tier)
+	if not victory:
+		return
+	var cfg := get_escalation_config()
+	if last_combat_damage_ratio <= DECISIVE_VICTORY_RATIO:
+		_try_escalate(cfg)
+
+
+func _try_escalate(cfg: Dictionary) -> void:
+	var max_tier := int(cfg.get("max_tier", 4))
+	if enemy_tech_tier >= max_tier:
+		return
+	enemy_tech_tier = mini(enemy_tech_tier + 1, max_tier)
+	pending_escalation_event = true
+	EventBus.enemy_tech_escalated.emit(enemy_tech_tier)
+
+
+# Returns true once so the board can surface the "enemy upgraded" popup when
+# the player returns from combat.
+func consume_pending_escalation_event() -> bool:
+	var had_pending := pending_escalation_event
+	pending_escalation_event = false
+	return had_pending
 
 
 # Multiplier applied to freshly spawned enemy HP/damage based on tech tier.
@@ -1187,8 +1148,7 @@ func reset_run_data() -> void:
 	ceasefire_turns = 0
 	blocked_intermission = false
 	enemy_tech_tier = 1
-	tech_copy_progress = 0.0
-	tiles_since_combat = 0
+	pending_escalation_event = false
 	_combat_friendly_total_hp = 0.0
 	_combat_friendly_damage = 0.0
 	last_combat_damage_ratio = 0.0
@@ -1259,8 +1219,7 @@ func save_run() -> void:
 		"ceasefire_turns": ceasefire_turns,
 		"blocked_intermission": blocked_intermission,
 		"enemy_tech_tier": enemy_tech_tier,
-		"tech_copy_progress": tech_copy_progress,
-		"tiles_since_combat": tiles_since_combat
+		"last_combat_damage_ratio": last_combat_damage_ratio
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file:
@@ -1304,8 +1263,7 @@ func _restore_from_dict(data: Dictionary) -> void:
 	ceasefire_turns = int(data.get("ceasefire_turns", 0))
 	blocked_intermission = bool(data.get("blocked_intermission", false))
 	enemy_tech_tier = int(data.get("enemy_tech_tier", 1))
-	tech_copy_progress = float(data.get("tech_copy_progress", 0.0))
-	tiles_since_combat = int(data.get("tiles_since_combat", 0))
+	last_combat_damage_ratio = float(data.get("last_combat_damage_ratio", 0.0))
 
 	var loaded_roster = data.get("fleet_roster", [])
 	if loaded_roster is Array:

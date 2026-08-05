@@ -32,6 +32,11 @@ func _ready() -> void:
 	_update_token_position()
 	_highlight_adjacent()
 
+	# If the enemy upgraded after the last combat, surface the popup now that
+	# we're back on the board.
+	if GlobalData.consume_pending_escalation_event():
+		EventBus.event_triggered.emit(_build_tech_copy_event())
+
 
 func move_to_tile(target: Vector2i) -> bool:
 	if not _is_connected_path(current_pos, target):
@@ -46,11 +51,6 @@ func move_to_tile(target: Vector2i) -> bool:
 
 	# Moving again means the ambush is behind us — re-enable the intermission.
 	GlobalData.blocked_intermission = false
-
-	# Enemy tech escalation: each tile we advance lets them reverse-engineer
-	# our mech. On completion, show the copy event before moving on.
-	if GlobalData.tick_tech_copy():
-		EventBus.event_triggered.emit(_build_tech_copy_event())
 
 	var tile_data = nodes_dict[target]
 	var tile_type = tile_data.get_meta("tile_type", "empty")
@@ -247,10 +247,10 @@ func _trigger_default_event() -> void:
 func _build_tech_copy_event() -> Dictionary:
 	var tier := GlobalData.enemy_tech_tier
 	return {
-		"name": "TECH STOLEN",
+		"name": "ENEMY TECH COPY",
 		"effect": "none",
 		"amount": 0,
-		"desc": "The enemy reverse-engineered your mech! New enemy standard: Tier %d. Expect tougher foes." % tier,
+		"desc": "Your last victory was so clean the enemy copied your combat data! New enemy standard: Tier %d. Expect tougher foes." % tier,
 	}
 
 

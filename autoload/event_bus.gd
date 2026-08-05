@@ -26,10 +26,11 @@ signal backup_mech_destroyed()
 
 # --- Board ---
 signal tile_entered(tile_pos: Vector2i, tile_data: Node)
-signal event_triggered(event_data: Resource)
+signal event_triggered(event_data: Dictionary)
 signal heat_changed(new_heat: int)
 signal wanted_changed(new_wanted: int)
 signal combat_ended(victory: bool)
+signal enemy_tech_escalated(new_tier: int)
 
 # --- Game State ---
 signal game_state_changed(old_state: String, new_state: String)

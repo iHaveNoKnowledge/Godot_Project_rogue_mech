@@ -160,12 +160,13 @@ func _add_menu_button(text: String, callback: Callable) -> void:
 
 
 func _get_status_text() -> String:
-	return "Rep: %d | Heat: %d | Wanted: %d | Credits: %d | Scrap: %d | Tile: %s" % [
+	return "Rep: %d | Heat: %d | Wanted: %d | Credits: %d | Scrap: %d | Enemy Tier: %d | Tile: %s" % [
 		GlobalData.reputation,
 		GlobalData.heat,
 		GlobalData.wanted_level,
 		GlobalData.credits,
 		GlobalData.scrap,
+		GlobalData.enemy_tech_tier,
 		str(GlobalData.current_tile)
 	]
 

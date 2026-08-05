@@ -17,6 +17,8 @@ func _ready() -> void:
 	_test_reputation_gate()
 	_test_theme_switch_once()
 	_test_event_effects()
+	_test_tech_escalation()
+	_test_tech_escalation_anti_turtle()
 	print("REPAIR_QA_RESULT: %d passed, %d failed" % [_passed, _failed])
 	get_tree().quit(1 if _failed > 0 else 0)
 
@@ -217,3 +219,64 @@ func _test_event_effects() -> void:
 	var forced := GlobalData.apply_event_effect({"effect": "force_combat", "params": {"combat_type": "grunt"}})
 	_check(forced, "force_combat effect returns true")
 	_check(GlobalData.blocked_intermission, "force_combat blocks intermission")
+
+
+func _test_tech_escalation() -> void:
+	GlobalData.reset_run_data()
+	# Give the player a gundam-tier frame so the enemy perceives a threat.
+	GlobalData.equipped_frames["body"] = GlobalData.get_frame_catalog_entry("frame_body_02")
+	GlobalData.enemy_tech_tier = 1
+	GlobalData.tech_copy_progress = 0.0
+	GlobalData.tiles_since_combat = 0
+	var cfg := GlobalData.get_escalation_config()
+	_check(GlobalData.get_player_mech_tier() >= 4, "gundam frame raises player mech tier")
+
+	var escalated := false
+	var guard := 0
+	while not escalated and guard < 300:
+		guard += 1
+		var before := GlobalData.enemy_tech_tier
+		GlobalData.tick_tech_copy()
+		# A win gives fresh observation (resets the anti-turtle counter) and
+		# accelerates reverse-engineering.
+		GlobalData.on_combat_ended_for_tech(true)
+		if GlobalData.enemy_tech_tier > before:
+			escalated = true
+	_check(escalated, "copy countdown completes over tiles + combat observation")
+	_check(GlobalData.enemy_tech_tier >= 2, "enemy tier increased after copy completes")
+	_check(GlobalData.get_enemy_tech_multiplier() > 1.0, "tech multiplier scales spawns")
+
+	GlobalData.enemy_tech_tier = 3
+	_check(GlobalData.get_enemy_tech_multiplier() > 1.0, "multiplier grows with tier")
+
+
+func _test_tech_escalation_anti_turtle() -> void:
+	GlobalData.reset_run_data()
+	GlobalData.equipped_frames["body"] = GlobalData.get_frame_catalog_entry("frame_body_02")
+	GlobalData.enemy_tech_tier = 1
+	GlobalData.tech_copy_progress = 0.0
+	GlobalData.tiles_since_combat = 999  # camping too long
+	var cfg := GlobalData.get_escalation_config()
+	_check(not GlobalData.tick_tech_copy(), "camping stalls the copy countdown")
+	_check(GlobalData.enemy_tech_tier == 1, "enemy does not tier up while camping")
+
+	# A fresh combat observation resets the turtle counter.
+	GlobalData.tiles_since_combat = 0
+	var escalated := false
+	var guard := 0
+	while not escalated and guard < 300:
+		guard += 1
+		var before := GlobalData.enemy_tech_tier
+		GlobalData.tick_tech_copy()
+		GlobalData.on_combat_ended_for_tech(true)
+		if GlobalData.enemy_tech_tier > before:
+			escalated = true
+	_check(escalated, "copy resumes after fresh combat observation")
+
+	# A mech equal to or below the enemy tier is no threat — no copying.
+	GlobalData.reset_run_data()
+	GlobalData.enemy_tech_tier = 2
+	GlobalData.tech_copy_progress = 0.0
+	GlobalData.tiles_since_combat = 0
+	var base_tier := GlobalData.get_player_mech_tier()
+	_check(not GlobalData.tick_tech_copy(), "weak mech does not trigger copying")

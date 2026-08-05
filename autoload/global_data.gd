@@ -640,8 +640,8 @@ var security_upgrade_level: int = 1
 
 const FLEET_SECURITY_MIN := 0.0
 const FLEET_SECURITY_MAX := 100.0
-const SECURITY_PER_UPGRADE := 10.0
-const SECURITY_UPGRADE_BASE_COST := 50
+const SECURITY_PER_UPGRADE := 12.0
+const SECURITY_UPGRADE_BASE_COST := 40
 
 
 func get_fleet_security() -> float:
@@ -649,7 +649,7 @@ func get_fleet_security() -> float:
 
 
 func get_security_upgrade_cost() -> int:
-	return SECURITY_UPGRADE_BASE_COST + (security_upgrade_level - 1) * 75
+	return SECURITY_UPGRADE_BASE_COST + (security_upgrade_level - 1) * 45
 
 
 # Spend credits to raise fleet security. Returns false if unaffordable or maxed.
@@ -666,9 +666,9 @@ func upgrade_fleet_security() -> bool:
 
 
 # Chance (0..1) that an enemy spy attempt on our mech data FAILS before stealing
-# anything. Scales with security; at 100 security the counter is very strong.
+# anything. 25 = starting security, 50 = one strong investment, 90+ = fortress.
 func get_spy_counter_chance() -> float:
-	return clampf(0.15 + get_fleet_security() * 0.008, 0.15, 0.95)
+	return clampf(0.10 + get_fleet_security() * 0.008, 0.10, 0.90)
 
 
 func get_ally_template(template_id: String) -> Dictionary:
@@ -887,7 +887,7 @@ func get_enemy_tech_multiplier() -> float:
 # Combined spawn scaling including the partial grunt upgrades salvaged from
 # destroyed research nodes. Grunts get tougher even without a full tier-up.
 func get_enemy_grunt_multiplier() -> float:
-	return get_enemy_tech_multiplier() + float(enemy_grunt_upgrade_level) * 0.12
+	return get_enemy_tech_multiplier() + float(enemy_grunt_upgrade_level) * 0.10
 
 
 # -----------------------------------------------------------------------------
@@ -907,7 +907,7 @@ var enemy_research_progress: float = 0.0
 # three upgraded unit types (grunt MKII / special ace / gundam copy).
 var enemy_base_active: bool = false
 var enemy_base_progress: float = 0.0
-var enemy_base_required: float = 8.0
+var enemy_base_required: float = 6.0
 var enemy_base_tile_pos: Vector2i = Vector2i(-1, -1)
 
 # Partial upgrade granted when the player destroys the base before completion.
@@ -943,11 +943,13 @@ func roll_spy_event() -> Dictionary:
 	var counter := get_spy_counter_chance()
 	var caught := randf() < counter
 	if caught:
+		var bounty := 20 + int(randf() * 30)
+		credits += bounty
 		return {
 			"name": "SPY CAUGHT",
 			"effect": "none",
 			"amount": 0,
-			"desc": "Your fleet security intercepted an enemy spy before it could reach your mech data. Fleet security pays off!",
+			"desc": "Your fleet security intercepted an enemy spy and captured its gear! +%d credits." % bounty,
 		}
 	enemy_research_progress = minf(enemy_research_progress + 1.0, _get_enemy_research_cap())
 	var stolen = {
@@ -966,7 +968,7 @@ func roll_spy_event() -> Dictionary:
 
 
 func _get_enemy_research_cap() -> float:
-	return 3.0
+	return 2.0
 
 
 # -----------------------------------------------------------------------------
@@ -1042,7 +1044,7 @@ func _roll_enemy_base_outcome() -> String:
 func _apply_enemy_base_outcome(outcome: String) -> void:
 	match outcome:
 		"grunt_mk2":
-			enemy_grunt_upgrade_level += 3
+			enemy_grunt_upgrade_level += 2
 		"special_ace":
 			enemy_special_units.append({"kind": "special_ace", "source": "research_node"})
 		"gundam_copy":

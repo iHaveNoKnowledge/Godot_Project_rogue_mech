@@ -259,7 +259,7 @@ func _test_fleet_security() -> void:
 	_check(is_equal_approx(GlobalData.get_fleet_security(), 25.0), "default security is 25")
 	_check(GlobalData.security_upgrade_level == 1, "default hardening level is 1")
 	var base_counter := GlobalData.get_spy_counter_chance()
-	_check(base_counter >= 0.15 and base_counter <= 0.95, "spy counter chance in valid range")
+	_check(base_counter >= 0.10 and base_counter <= 0.90, "spy counter chance in valid range")
 
 	# Upgrade requires credits.
 	var cost := GlobalData.get_security_upgrade_cost()
@@ -271,7 +271,7 @@ func _test_fleet_security() -> void:
 	var level_before := GlobalData.security_upgrade_level
 	_check(GlobalData.upgrade_fleet_security(), "upgrade succeeds with credits")
 	_check(GlobalData.security_upgrade_level == level_before + 1, "hardening level increased")
-	_check(is_equal_approx(GlobalData.get_fleet_security(), 35.0), "security raised by upgrade")
+	_check(is_equal_approx(GlobalData.get_fleet_security(), 37.0), "security raised by upgrade")
 
 	# Upgrades are progressively more expensive.
 	var next_cost := GlobalData.get_security_upgrade_cost()
@@ -292,21 +292,27 @@ func _test_spy_event() -> void:
 	_check(high > low, "higher enemy tier raises spy attempt chance")
 	_check(low >= 0.0 and low <= 1.0, "spy chance within [0,1]")
 
-	# Force a spy attempt (chance = 1) and a security counter (chance = 1):
-	# spy is always caught -> no research progress, event returned.
+	# Max security makes catches overwhelmingly likely.
 	GlobalData.enemy_tech_tier = 1
 	GlobalData.fleet_security = 100.0
 	var attempts := 0
+	var caught := 0
+	var leaked := 0
 	for i in range(200):
 		var ev := GlobalData.roll_spy_event()
 		if not ev.is_empty():
 			attempts += 1
-			_check(ev.get("name", "") == "SPY CAUGHT", "max security always catches spies")
+			if ev.get("name", "") == "SPY CAUGHT":
+				caught += 1
+			elif ev.get("name", "") == "DATA STOLEN":
+				leaked += 1
 	_check(attempts > 0, "spy events fire under forced chance")
-	_check(GlobalData.enemy_research_progress == 0.0, "caught spies never advance research")
+	_check(caught > leaked, "high security catches more spies than it misses")
 
 	# Zero security -> spies get through and research advances.
 	GlobalData.fleet_security = 0.0
+	GlobalData.enemy_research_progress = 0.0
+	GlobalData.enemy_base_active = false
 	var stolen := false
 	var guard := 0
 	while not stolen and guard < 200:
@@ -348,7 +354,7 @@ func _test_enemy_research_node() -> void:
 
 	# Outcomes apply their reward.
 	if GlobalData.enemy_copy_outcome == "grunt_mk2":
-		_check(GlobalData.enemy_grunt_upgrade_level >= 3, "MKII grants grunt upgrade")
+		_check(GlobalData.enemy_grunt_upgrade_level >= 2, "MKII grants grunt upgrade")
 	else:
 		_check(GlobalData.enemy_special_units.size() >= 1, "special/copy outcome fields a unit")
 

@@ -280,26 +280,33 @@ func _build_tech_copy_event() -> Dictionary:
 
 
 # Place the enemy research node on an unreached tile so the player must hunt
-# it down. Picks a tile ahead of the player (later layer) that isn't start/
-# exit/safehouse. Falls back to the current position tile type swap.
+# it down. Prefers a tile 2+ layers ahead (a real chase with time pressure),
+# falling back to any tile further ahead, then any non-start/exit tile.
 func _place_enemy_base_node() -> void:
-	var candidates: Array = []
 	var current_layer := current_pos.x
+	var target_layers := [current_layer + 2, current_layer + 3, current_layer + 4]
+	var target_layer := target_layers[randi() % target_layers.size()]
+
+	var candidates: Array = []
+	var fallback: Array = []
 	for key in nodes_dict:
-		var tile = nodes_dict[key]
-		if tile.get_meta("tile_type", "empty") in ["start", "exit", "safehouse"]:
+		var tile_type := nodes_dict[key].get_meta("tile_type", "empty")
+		if tile_type in ["start", "exit", "safehouse"]:
 			continue
-		if key.x <= current_layer:
-			continue
-		candidates.append(key)
+		if key.x == target_layer and tile_type != "enemy_base":
+			candidates.append(key)
+		elif key.x > current_layer:
+			fallback.append(key)
+	if candidates.is_empty():
+		candidates = fallback
 	if candidates.is_empty():
 		for key in nodes_dict:
 			if key != current_pos and nodes_dict[key].get_meta("tile_type", "empty") not in ["start", "exit"]:
 				candidates.append(key)
 	if candidates.is_empty():
 		candidates = [current_pos]
-	candidates.sort_custom(func(a, b): return a.x < b.x)
-	var target_key: Vector2i = candidates[0]
+
+	var target_key: Vector2i = candidates[randi() % candidates.size()]
 	var tile = nodes_dict[target_key]
 	tile.set_meta("tile_type", "enemy_base")
 	GlobalData.enemy_base_tile_pos = target_key

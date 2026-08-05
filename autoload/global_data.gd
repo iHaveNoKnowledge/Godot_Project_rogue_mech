@@ -640,8 +640,8 @@ var security_upgrade_level: int = 1
 
 const FLEET_SECURITY_MIN := 0.0
 const FLEET_SECURITY_MAX := 100.0
-const SECURITY_PER_UPGRADE := 12.0
-const SECURITY_UPGRADE_BASE_COST := 40
+const SECURITY_PER_UPGRADE := 14.0
+const SECURITY_UPGRADE_BASE_COST := 35
 
 
 func get_fleet_security() -> float:
@@ -649,7 +649,7 @@ func get_fleet_security() -> float:
 
 
 func get_security_upgrade_cost() -> int:
-	return SECURITY_UPGRADE_BASE_COST + (security_upgrade_level - 1) * 45
+	return SECURITY_UPGRADE_BASE_COST + (security_upgrade_level - 1) * 40
 
 
 # Spend credits to raise fleet security. Returns false if unaffordable or maxed.

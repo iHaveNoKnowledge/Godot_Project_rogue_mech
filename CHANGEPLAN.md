@@ -21,17 +21,17 @@
 
 ## 4. BALANCE — ยังไม่ได้ playtest จริง (ตัวเลขตั้งไว้ตามเหตุผล)
 
-ตัวเลขปัจจุบัน (หลัง commit ล่าสุด):
-- Spy attempt: soldier 0.12, scavenger 0.14, merc 0.16 + per tier 0.05-0.06
+ตัวเลขปัจจุบัน (หลัง commit `13d6c6d` + ปรับ balance รอบแรก):
+- Spy attempt: soldier 0.20, scavenger 0.22, merc 0.25 + per tier 0.04-0.05 (บอร์ด 7 เลเยอร์ ~12-15 moves → เป้า ~3-5 event/board)
 - Counter chance: `0.10 + security*0.008`, clamp 0.10-0.90 → security 25 = ~30%, 100 = 90%
-- Security cost: 40/85/130/175/... (+45/cấp), +12 security/upgrade, max 100
+- Security cost: 35/75/115/155/... (+40/level), +14 security/upgrade, max 100
 - Research node: เกิดจาก 2 thefts, `enemy_base_required = 6` (จบใน 6 moves)
 - Income: ปกติ 30-80/victory, boss +105, raid bonus +60/+10, spy caught bounty 20-50
 - Grunt: hp/tier 0.22-0.30, grunt_upgrade +0.10/level, MKII grant +2
 
-**สิ่งที่ควรเช็คตอน playtest:**
-- [ ] รู้สึกถึง spy event กี่ครั้ง/board? (เป้า ~3-4 ครั้ง) → ปรับ `spy_base_chance` ใน `run_theme_catalogs.tres`
-- [ ] security ตัวอ่อนเกินไปไหม (upgrade 40 ครั้งแรกควร "คุ้ม") → ปรับ `SECURITY_UPGRADE_BASE_COST`/`SECURITY_PER_UPGRADE`
+**สิ่งที่ควรเช็คตอน playtest (เทียบ baseline รอบแรก):**
+- [ ] spy event เกิดบ่อยเกินไปไหม (รอบแรกตั้งให้มาได้ ~3-5 event แทนไม่พอจะเกิด node) → ปรับ `escalation_spy_base_chance`
+- [ ] security upgrade 35 ครั้งแรก (ให้ +14 sec ~ +11% catch) "คุ้ม" ไหม → ปรับ `SECURITY_UPGRADE_BASE_COST`/`SECURITY_PER_UPGRADE`
 - [ ] 6 moves พอจะลุยถึง node ได้จริงไหม (บอร์ด 7 ชั้น) → ปรับ `enemy_base_required` / placement layers
 - [ ] enemy HP ตอนท้าย sector โหดไปไหม (hp_per_tier + wanted + grunt upgrade stack กัน) → ปรับ `escalation_hp_per_tier`
 - [ ] raid bonus +60 คุ้มค่ากับความเสี่ยงไหม

@@ -23,8 +23,12 @@ func _ready() -> void:
 	_test_enemy_research_node()
 	_test_enemy_base_tile_reset()
 	_test_board_has_no_random_enemy_base()
-	_test_hangar_selection_preserves_loadout()
 	_test_tech_escalation()
+	# The hangar test is async (it awaits a frame while building the scene), so
+	# it must be awaited to completion before the result is printed; otherwise
+	# later reset_run_data() calls would mutate GlobalData under its pending
+	# sidestream comparison and the final tally would miss its late FAIL lines.
+	await _test_hangar_selection_preserves_loadout()
 	print("REPAIR_QA_RESULT: %d passed, %d failed" % [_passed, _failed])
 	get_tree().quit(1 if _failed > 0 else 0)
 
@@ -274,7 +278,7 @@ func _test_fleet_security() -> void:
 	var level_before := GlobalData.security_upgrade_level
 	_check(GlobalData.upgrade_fleet_security(), "upgrade succeeds with credits")
 	_check(GlobalData.security_upgrade_level == level_before + 1, "hardening level increased")
-	_check(is_equal_approx(GlobalData.get_fleet_security(), 37.0), "security raised by upgrade")
+	_check(is_equal_approx(GlobalData.get_fleet_security(), 39.0), "security raised by upgrade")
 
 	# Upgrades are progressively more expensive.
 	var next_cost := GlobalData.get_security_upgrade_cost()

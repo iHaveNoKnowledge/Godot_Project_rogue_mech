@@ -14,8 +14,17 @@ extends CanvasLayer
 var health_system: Node = null
 var roller_dash_label: Label = null
 
+const ARMOR_COLOR := Color("#c4c3c0")
+const FRAME_COLOR := Color("#87c790")
+const TRACK_COLOR := Color(0.08, 0.08, 0.1, 0.9)
+
+var _armor_texture: GradientTexture2D = null
+var _frame_texture: GradientTexture2D = null
+var _track_texture: GradientTexture2D = null
+
 
 func _ready() -> void:
+	_apply_bar_style()
 	await get_tree().process_frame
 	var mecha = get_tree().current_scene.get_node_or_null("Mecha")
 	if mecha:
@@ -23,6 +32,46 @@ func _ready() -> void:
 		if health_system:
 			health_system.health_changed.connect(_on_health_changed)
 			_update_all_bars()
+
+
+func _make_gradient_texture(base: Color) -> GradientTexture2D:
+	var gradient := Gradient.new()
+	gradient.set_color(0, base.lightened(0.18))
+	gradient.set_color(1, base.darkened(0.28))
+	var tex := GradientTexture2D.new()
+	tex.gradient = gradient
+	tex.width = 64
+	tex.height = 16
+	tex.fill_from = Vector2(0, 0)
+	tex.fill_to = Vector2(1, 0)
+	return tex
+
+
+func _make_track_texture() -> GradientTexture2D:
+	var gradient := Gradient.new()
+	gradient.set_color(0, TRACK_COLOR)
+	gradient.set_color(1, TRACK_COLOR)
+	var tex := GradientTexture2D.new()
+	tex.gradient = gradient
+	tex.width = 4
+	tex.height = 16
+	return tex
+
+
+func _apply_bar_style() -> void:
+	_armor_texture = _make_gradient_texture(ARMOR_COLOR)
+	_frame_texture = _make_gradient_texture(FRAME_COLOR)
+	_track_texture = _make_track_texture()
+	for slot in bars:
+		var entry = bars[slot]
+		_setup_bar(entry["armor_bar"], _armor_texture)
+		_setup_bar(entry["frame_bar"], _frame_texture)
+
+
+func _setup_bar(bar: TextureProgressBar, fill: GradientTexture2D) -> void:
+	bar.texture_under = _track_texture
+	bar.texture_progress = fill
+	bar.fill_mode = TextureProgressBar.FILL_LEFT_TO_RIGHT
 
 
 func _on_health_changed(slot_name: String, layer: String, current_hp: float, max_hp: float) -> void:

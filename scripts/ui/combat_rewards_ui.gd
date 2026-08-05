@@ -105,6 +105,7 @@ func _show_victory_rewards() -> void:
 	var data_cores_gained = 0
 
 	if is_boss:
+		var ending: Dictionary = GlobalData.get_theme_ending()
 		title_label.text = "SECTOR %d CLEARED!" % GlobalData.current_sector
 		credits_gained += 105
 		scrap_gained += 15
@@ -113,8 +114,10 @@ func _show_victory_rewards() -> void:
 
 		if is_final_sector:
 			title_label.text = "CAMPAIGN VICTORY!"
+			rewards_label.text = "%s\n\n" % ending.get("victory_text", "The war is over. You won.")
 			continue_button.text = "Finish Run [Enter / Space]"
 		else:
+			rewards_label.text = "%s\n\n" % ending.get("name", "Sector Battle")
 			continue_button.text = "Proceed to Sector %d [Enter / Space]" % (GlobalData.current_sector + 1)
 	else:
 		title_label.text = "COMBAT VICTORY"
@@ -130,13 +133,14 @@ func _show_victory_rewards() -> void:
 		"data_cores": data_cores_gained
 	}
 
-	rewards_label.text = "Rewards:\n"
-	rewards_label.text += "+%d Credits\n" % credits_gained
-	rewards_label.text += "+%d Scrap (Material)\n" % scrap_gained
-	if data_cores_gained > 0:
-		rewards_label.text += "+%d Data Cores (Research Item)\n" % data_cores_gained
-	rewards_label.text += "+%d Heat\n" % heat_gained
-	rewards_label.text += "\nTotal Credits: %d | Scrap: %d" % [GlobalData.credits, GlobalData.scrap]
+	if not is_boss or not is_final_sector:
+		rewards_label.text += "Rewards:\n"
+		rewards_label.text += "+%d Credits\n" % credits_gained
+		rewards_label.text += "+%d Scrap (Material)\n" % scrap_gained
+		if data_cores_gained > 0:
+			rewards_label.text += "+%d Data Cores (Research Item)\n" % data_cores_gained
+		rewards_label.text += "+%d Heat\n" % heat_gained
+		rewards_label.text += "\nTotal Credits: %d | Scrap: %d" % [GlobalData.credits, GlobalData.scrap]
 
 	await get_tree().process_frame
 	if continue_button:
@@ -145,8 +149,9 @@ func _show_victory_rewards() -> void:
 
 func _show_defeat_screen() -> void:
 	visible = true
+	var ending: Dictionary = GlobalData.get_theme_ending()
 	title_label.text = "DEFEATED"
-	rewards_label.text = "Your mech has been destroyed.\n\nReturning to main menu..."
+	rewards_label.text = ending.get("defeat_text", "Your mech has been destroyed.\n\nReturning to main menu...")
 	continue_button.text = "Continue [Enter / Space / Click]"
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE

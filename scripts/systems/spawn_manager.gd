@@ -65,11 +65,40 @@ var boss_wave_defs = [
 	 {"type": "support_full", "archetype": 3, "count": 2}],
 ]
 
+# Per-theme boss compositions. Keyed by theme_id; falls back to boss_wave_defs.
+var theme_boss_wave_defs: Dictionary = {
+	"soldier": [
+		[{"type": "tank_full", "archetype": 1, "count": 3},
+		 {"type": "ranged_full", "archetype": 1, "count": 2}],
+		[{"type": "heavy_full", "archetype": 2, "count": 3},
+		 {"type": "support_full", "archetype": 3, "count": 2}],
+		[{"type": "boss_overlord", "archetype": 2, "count": 1},
+		 {"type": "heavy_full", "archetype": 2, "count": 2},
+		 {"type": "support_full", "archetype": 3, "count": 1}],
+	],
+	"gundam_merc": [
+		[{"type": "ranged_full", "archetype": 1, "count": 3},
+		 {"type": "heavy_full", "archetype": 2, "count": 1}],
+		[{"type": "heavy_full", "archetype": 2, "count": 2},
+		 {"type": "ranged_full", "archetype": 1, "count": 3}],
+		[{"type": "boss_overlord", "archetype": 2, "count": 1},
+		 {"type": "heavy_full", "archetype": 2, "count": 2}],
+	],
+	"scavenger": [
+		[{"type": "tank_full", "archetype": 1, "count": 2},
+		 {"type": "support_full", "archetype": 3, "count": 2}],
+		[{"type": "heavy_full", "archetype": 2, "count": 2},
+		 {"type": "ranged_full", "archetype": 1, "count": 2}],
+		[{"type": "boss_overlord", "archetype": 2, "count": 1},
+		 {"type": "support_full", "archetype": 3, "count": 2}],
+	],
+}
+
 
 func _get_active_defs() -> Array:
 	match GameManager.combat_node_type:
 		"boss":
-			return boss_wave_defs
+			return theme_boss_wave_defs.get(GlobalData.theme_id, boss_wave_defs)
 		"ace":
 			return ace_wave_defs
 		_:

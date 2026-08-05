@@ -1,0 +1,124 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/data/run_theme_catalog_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+themes = [{
+"ending": {
+"boss_waves": "soldier",
+"defeat_text": "The fleet has fallen. Your name is crossed from the records, and the front line moves on without you.",
+"name": "Siege of the Capital",
+"victory_text": "The capital falls to the allied offensive. You are decorated as a hero of the fleet."
+},
+"events": ["political_ceasefire", "supply_drop", "fleet_reinforcement", "tactical_intel"],
+"flavor": "You are a conscript of the fleet. A serial number, a mech, and a war that does not care who you are.",
+"flow": {
+"ceasefire_chance": 0.3,
+"heat_rate": 1.0
+},
+"id": "soldier",
+"name": "Fleet Soldier",
+"start": {
+"allies": {
+"max": 3,
+"min": 2,
+"templates": ["ally_gm", "ally_gunner"]
+},
+"chassis_weights": {
+"aegis": 5,
+"brawler": 10,
+"standard": 50,
+"titan": 15,
+"vanguard": 20
+},
+"credits": [100, 200],
+"data_cores": [0, 1],
+"part_tier_weights": {
+"gundam": 5,
+"heavy": 10,
+"medium": 25,
+"standard": 60
+},
+"scrap": [0, 10],
+"weapon_pool": ["res://resources/mech/stock/weapon_beam_rifle.tres", "res://resources/mech/stock/weapon_beam_carbine.tres", "res://resources/mech/stock/weapon_machine_gun.tres", "res://resources/mech/stock/weapon_heavy_machine_gun.tres", "res://resources/mech/stock/weapon_combat_shotgun.tres"]
+}
+}, {
+"ending": {
+"boss_waves": "gundam_merc",
+"defeat_text": "They hunted you down like a war machine that outlived its purpose. The family name ends here.",
+"name": "Hunt for the Heir",
+"victory_text": "You out-flew every ace they sent and carved your name into the sky. The world now knows what your family's machine can do."
+},
+"events": ["rebel_hideout", "fellow_rebels", "bounty_hunters", "underground_respect"],
+"flavor": "A letter from a family you barely knew bequeaths you a legendary mech. Everyone wants it. Everyone wants you dead.",
+"flow": {
+"ceasefire_chance": 0.1,
+"heat_rate": 1.3
+},
+"id": "gundam_merc",
+"name": "Gundam Heir",
+"start": {
+"allies": {
+"max": 1,
+"min": 0,
+"templates": ["ally_gm"]
+},
+"chassis_weights": {
+"aegis": 10,
+"brawler": 30,
+"standard": 20,
+"titan": 10,
+"vanguard": 30
+},
+"credits": [50, 100],
+"data_cores": [1, 2],
+"part_tier_weights": {
+"gundam": 55,
+"heavy": 15,
+"medium": 20,
+"standard": 10
+},
+"scrap": [0, 5],
+"weapon_pool": ["res://resources/mech/stock/weapon_beam_rifle_mk2.tres", "res://resources/mech/stock/weapon_beam_sniper.tres", "res://resources/mech/stock/weapon_beam_carbine.tres", "res://resources/mech/stock/weapon_gatling_gun.tres"]
+}
+}, {
+"ending": {
+"boss_waves": "scavenger",
+"defeat_text": "Out in the wastes there is no funeral, only salvage. Something else will pick your mech clean.",
+"name": "The Final Haul",
+"victory_text": "The big score came through. Your crew survives another season, legends of the wasteland."
+},
+"events": ["depot_raid", "rival_gang", "raider_rumors", "military_commission"],
+"flavor": "A crew of scavengers living score to score. No flag, no cause — just the next haul and whoever is fastest to the wreck.",
+"flow": {
+"ceasefire_chance": 0.15,
+"heat_rate": 1.1
+},
+"id": "scavenger",
+"name": "Scavenger Crew",
+"start": {
+"allies": {
+"max": 2,
+"min": 1,
+"templates": ["ally_gm", "ally_gunner"]
+},
+"chassis_weights": {
+"aegis": 10,
+"brawler": 20,
+"standard": 40,
+"titan": 10,
+"vanguard": 20
+},
+"credits": [60, 120],
+"data_cores": [0, 0],
+"part_tier_weights": {
+"gundam": 10,
+"heavy": 15,
+"medium": 30,
+"standard": 45
+},
+"scrap": [10, 25],
+"weapon_pool": ["res://resources/mech/stock/weapon_heavy_machine_gun.tres", "res://resources/mech/stock/weapon_light_machine_gun.tres", "res://resources/mech/stock/weapon_machine_gun.tres", "res://resources/mech/stock/weapon_shotgun.tres", "res://resources/mech/stock/weapon_sawed_off.tres"]
+}
+}]

@@ -19,6 +19,12 @@ var attachment_catalog: Array = []
 var gundam_research_projects: Array = []
 var ally_unit_templates: Dictionary = {}
 
+# Run theme / event catalogs (single source of truth for theme starts, event
+# pools and per-theme endings). Loaded from run_theme_catalogs.tres and
+# run_events.tres.
+var run_themes: Array = []
+var run_events: Array = []
+
 
 func _load_catalogs() -> void:
 	var db = load("res://resources/data/mech_catalogs.tres") as CatalogData
@@ -37,6 +43,18 @@ func _load_catalogs() -> void:
 	gundam_research_projects = gb.research_projects
 	for template in gb.ally_unit_templates:
 		ally_unit_templates[template.get("id", "")] = template
+
+	var rt = load("res://resources/data/run_theme_catalogs.tres") as RunThemeCatalogData
+	if rt == null:
+		push_error("Failed to load run_theme_catalogs.tres")
+	else:
+		run_themes = rt.themes
+
+	var re = load("res://resources/data/run_events.tres") as RunEventCatalogData
+	if re == null:
+		push_error("Failed to load run_events.tres")
+	else:
+		run_events = re.events
 
 
 # --- Catalog lookups (by id) ---
@@ -537,6 +555,21 @@ var heat: int = 0
 var wanted_level: int = 0
 var safehouse_upgrades: Array = []
 
+# -----------------------------------------------------------------------------
+# RUN THEME — the identity of the current run (see run_theme_catalogs.tres).
+# - theme_id:       which story this run is (soldier / gundam_merc / scavenger).
+# - reputation:     accrued deeds that gate high-tier choice events.
+# - theme_switched: allows a theme_switch event to fire at most once per run.
+# - ceasefire_turns: board moves left with no combat (political ceasefire).
+# - blocked_intermission: set when a force_combat event denies the intermission
+#   between battles.
+# -----------------------------------------------------------------------------
+var theme_id: String = "soldier"
+var reputation: int = 0
+var theme_switched: bool = false
+var ceasefire_turns: int = 0
+var blocked_intermission: bool = false
+
 var credits: int = 0
 var data_cores: int = 0
 var scrap: int = 0
@@ -669,6 +702,232 @@ func _apply_research_reward(project_id: String) -> void:
 			# by id; the hangar reads this list when building upgrade lists.
 			pass
 
+# -----------------------------------------------------------------------------
+# RUN THEME HELPERS
+# -----------------------------------------------------------------------------
+
+func get_run_theme() -> Dictionary:
+	for theme in run_themes:
+		if theme.get("id", "") == theme_id:
+			return theme
+	return {}
+
+
+func get_theme_event_pool() -> Array:
+	var theme = get_run_theme()
+	var forced: Array = theme.get("events", [])
+	var result: Array = []
+	for event in run_events:
+		if not (event is Dictionary):
+			continue
+		var themes = event.get("themes", [])
+		if themes is Array and not themes.is_empty() and not (theme_id in themes):
+			continue
+		if int(event.get("min_reputation", 0)) > reputation:
+			continue
+		if str(event.get("id", "")) in forced:
+			continue
+		result.append(event)
+	for event_id in forced:
+		var event = get_run_event(event_id)
+		if event.is_empty():
+			continue
+		# Theme-forced events still respect the reputation gate.
+		if int(event.get("min_reputation", 0)) > reputation:
+			continue
+		result.append(event)
+	return result
+
+
+func get_run_event(event_id: String) -> Dictionary:
+	for event in run_events:
+		if event.get("id", "") == event_id:
+			return event
+	return {}
+
+
+func get_theme_ending() -> Dictionary:
+	var theme = get_run_theme()
+	return theme.get("ending", {})
+
+
+# Picks a weighted-random chassis key from a theme's chassis_weights.
+func _roll_weighted_chassis(theme: Dictionary) -> String:
+	var weights: Dictionary = theme.get("start", {}).get("chassis_weights", {})
+	var total := 0
+	for key in weights:
+		total += int(weights[key])
+	if total <= 0:
+		return "standard"
+	var roll := randi() % total
+	for key in weights:
+		roll -= int(weights[key])
+		if roll < 0:
+			return key
+	return "standard"
+
+
+# Picks a random catalog part id for an armor slot (lowest tier always exists).
+func _roll_armor_part(slot: String) -> String:
+	if armor_catalog.has(slot) and armor_catalog[slot].size() > 0:
+		return str(armor_catalog[slot][0].get("id", ""))
+	return ""
+
+
+# Picks a frame id for a slot weighted by part_tier_weights.
+# frame_catalog[slot] is ordered: [standard, gundam, medium, heavy] per slot.
+func _roll_frame(slot: String, tier_weights: Dictionary) -> String:
+	var entries: Array = frame_catalog.get(slot, [])
+	if entries.is_empty():
+		return ""
+	var tier_order := ["standard", "gundam", "medium", "heavy"]
+	var total := 0
+	for tier in tier_order:
+		total += int(tier_weights.get(tier, 0))
+	if total <= 0:
+		return str(entries[0].get("id", ""))
+	var roll := randi() % total
+	var index := 0
+	for tier in tier_order:
+		var w := int(tier_weights.get(tier, 0))
+		if roll < w:
+			index = tier_order.find(tier)
+			break
+		roll -= w
+	index = clampi(index, 0, entries.size() - 1)
+	return str(entries[index].get("id", ""))
+
+
+# Rolls and installs a random starting loadout for the current theme.
+func roll_random_start() -> void:
+	var theme = get_run_theme()
+	if theme.is_empty():
+		return
+	var start: Dictionary = theme.get("start", {})
+
+	# Chassis.
+	chassis_id = _roll_weighted_chassis(theme)
+
+	# Armor + frames per slot.
+	equipped_parts.clear()
+	part_damage.clear()
+	armor_inventory.clear()
+	equipped_frames.clear()
+	var tier_weights: Dictionary = start.get("part_tier_weights", {})
+	for slot in MECHA_SLOTS:
+		var armor_id := _roll_armor_part(slot)
+		if armor_id != "":
+			var inst := make_armor_instance_from_catalog(armor_id)
+			if not inst.is_empty():
+				equip_armor_instance(inst["uid"], slot)
+		var frame_id := _roll_frame(slot, tier_weights)
+		if frame_id != "":
+			equipped_frames[slot] = get_frame_catalog_entry(frame_id)
+	_ensure_default_frames()
+
+	# Weapons.
+	var pool: Array = start.get("weapon_pool", [])
+	if pool.is_empty():
+		pool = [DEFAULT_LEFT_WEAPON_PATH, DEFAULT_RIGHT_WEAPON_PATH, DEFAULT_CARRY_WEAPON_PATH]
+	var valid: Array = []
+	for p in pool:
+		if p is String and ResourceLoader.exists(p):
+			valid.append(p)
+	weapon_loadout["left"] = valid[randi() % valid.size()] if not valid.is_empty() else DEFAULT_LEFT_WEAPON_PATH
+	weapon_loadout["right"] = DEFAULT_RIGHT_WEAPON_PATH
+	weapon_loadout["carry"] = [DEFAULT_CARRY_WEAPON_PATH]
+	weapon_inventory.clear()
+	for path in [weapon_loadout["left"], weapon_loadout["right"], weapon_loadout["carry"][0]]:
+		if path is String and path != "":
+			register_weapon(path, "Starter")
+
+	# Allies.
+	fleet_roster.clear()
+	var allies: Dictionary = start.get("allies", {})
+	var templates: Array = allies.get("templates", [])
+	var min_a := int(allies.get("min", 0))
+	var max_a := int(allies.get("max", min_a))
+	if not templates.is_empty():
+		var count := randi_range(min_a, max_a)
+		var shuffled := templates.duplicate()
+		shuffled.shuffle()
+		for tpl in shuffled.slice(0, count):
+			add_ally_unit(str(tpl))
+
+	# Resources.
+	var credits_range: Array = start.get("credits", [100, 150])
+	var scrap_range: Array = start.get("scrap", [0, 10])
+	var cores_range: Array = start.get("data_cores", [0, 0])
+	credits = randi_range(int(credits_range[0]), int(credits_range[1]))
+	scrap = randi_range(int(scrap_range[0]), int(scrap_range[1]))
+	data_cores = randi_range(int(cores_range[0]), int(cores_range[1]))
+
+
+# Adds a run theme to the current run (used by theme_switch events).
+func switch_theme(new_theme_id: String) -> bool:
+	if not theme_switched:
+		theme_id = new_theme_id
+		theme_switched = true
+		return true
+	return false
+
+
+# Adjusts run reputation and clamps it to a sane range.
+func add_reputation(amount: int) -> void:
+	reputation = clampi(reputation + amount, -20, 100)
+
+
+# Applies a board event's effect immediately. Returns true when the event forced
+# a scene transition (e.g. force_combat) — the caller should stop afterwards.
+func apply_event_effect(event: Dictionary) -> bool:
+	var effect := str(event.get("effect", ""))
+	var amount := int(event.get("amount", 0))
+	var params: Dictionary = event.get("params", {})
+
+	match effect:
+		"credits":
+			credits += amount
+		"scrap":
+			scrap += amount
+		"data_cores":
+			data_cores += amount
+		"damage":
+			if not equipped_parts.is_empty():
+				var keys = equipped_parts.keys()
+				var rand_part = keys[randi() % keys.size()]
+				var cur_dmg = part_damage.get(rand_part, 0.0)
+				part_damage[rand_part] = minf(cur_dmg + float(amount) / 100.0, 1.0)
+		"reputation":
+			add_reputation(amount)
+		"supply_drop":
+			credits += amount
+			scrap += int(params.get("scrap", 0))
+		"ceasefire":
+			ceasefire_turns = maxi(ceasefire_turns, int(params.get("turns", amount)))
+		"add_ally":
+			add_ally_unit(str(params.get("unit_id", "")))
+		"heat_bonus":
+			heat = maxi(0, heat + int(params.get("heat", amount)))
+		"theme_switch":
+			return switch_theme(str(params.get("theme_id", "")))
+		"force_combat":
+			blocked_intermission = true
+			return true
+		"choice":
+			# Choices are resolved by the event UI; nothing to apply here.
+			pass
+		_:
+			push_warning("apply_event_effect: unknown effect '%s'" % effect)
+	return false
+
+
+# Called when a battle ends: applies reputation from the outcome.
+func on_combat_ended_for_reputation(victory: bool) -> void:
+	if victory:
+		add_reputation(1)
+		if GameManager.is_boss_combat:
+			add_reputation(2)
+
 var current_sector: int = 1
 var max_sectors: int = 3
 
@@ -750,6 +1009,18 @@ func reset_run_data() -> void:
 	stalking_aces.clear()
 	stalking_chance = 0.0
 
+	# Run identity — a new run is a brand-new story: nothing carries over.
+	theme_id = "soldier"
+	reputation = 0
+	theme_switched = false
+	ceasefire_turns = 0
+	blocked_intermission = false
+	fleet_roster.clear()
+	research_projects.clear()
+	research_unlocked.clear()
+	chassis_id = "standard"
+	equipped_frames.clear()
+
 	ammo_inventory = {
 		"kinetic": 300,
 		"energy": 150,
@@ -774,6 +1045,7 @@ func reset_run_data() -> void:
 	}
 	armor_inventory.clear()
 	ensure_default_equipped_parts()
+	_ensure_default_frames()
 
 
 func save_run() -> void:
@@ -803,7 +1075,12 @@ func save_run() -> void:
 		"stalking_chance": stalking_chance,
 		"ammo_inventory": ammo_inventory.duplicate(),
 		"weapon_inventory": weapon_inventory.duplicate(),
-		"weapon_loadout": weapon_loadout.duplicate(true)
+		"weapon_loadout": weapon_loadout.duplicate(true),
+		"theme_id": theme_id,
+		"reputation": reputation,
+		"theme_switched": theme_switched,
+		"ceasefire_turns": ceasefire_turns,
+		"blocked_intermission": blocked_intermission
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file:
@@ -839,6 +1116,13 @@ func _restore_from_dict(data: Dictionary) -> void:
 	scrap = data.get("scrap", 0)
 	current_sector = data.get("sector", 1)
 	board_seed = data.get("board_seed", randi())
+
+	# Run theme fields (fallbacks keep older saves working).
+	theme_id = str(data.get("theme_id", "soldier"))
+	reputation = int(data.get("reputation", 0))
+	theme_switched = bool(data.get("theme_switched", false))
+	ceasefire_turns = int(data.get("ceasefire_turns", 0))
+	blocked_intermission = bool(data.get("blocked_intermission", false))
 
 	var loaded_roster = data.get("fleet_roster", [])
 	if loaded_roster is Array:

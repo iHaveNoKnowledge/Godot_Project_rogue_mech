@@ -28,6 +28,9 @@ func _on_visibility_changed() -> void:
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("pause"):
 		if GameManager.current_state == GameManager.State.BOARD:
+			if GlobalData.blocked_intermission:
+				# Ambush aftermath: no time to reorganize at the menu.
+				return
 			visible = true
 			info_panel.visible = false
 			status_label.text = _get_status_text()
@@ -43,9 +46,9 @@ func _create_ui() -> void:
 	var menu_panel = PanelContainer.new()
 	menu_panel.set_anchors_preset(Control.PRESET_LEFT_WIDE)
 	menu_panel.offset_right = 250
-	menu_panel.offset_left = 10
-	menu_panel.offset_top = 10
-	menu_panel.offset_bottom = -10
+	menu_panel.offset_left = 20
+	menu_panel.offset_top = 20
+	menu_panel.offset_bottom = -20
 	root_control.add_child(menu_panel)
 
 	var menu_style = StyleBoxFlat.new()
@@ -89,10 +92,10 @@ func _create_ui() -> void:
 	# Info panel (right side)
 	info_panel = PanelContainer.new()
 	info_panel.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
-	info_panel.offset_left = 270
-	info_panel.offset_right = -10
-	info_panel.offset_top = 10
-	info_panel.offset_bottom = -10
+	info_panel.offset_left = 285
+	info_panel.offset_right = -20
+	info_panel.offset_top = 20
+	info_panel.offset_bottom = -20
 	info_panel.visible = false
 	root_control.add_child(info_panel)
 
@@ -126,9 +129,9 @@ func _create_ui() -> void:
 	status_panel = PanelContainer.new()
 	status_panel.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	status_panel.offset_top = -60
-	status_panel.offset_left = 10
-	status_panel.offset_right = -10
-	status_panel.offset_bottom = -10
+	status_panel.offset_left = 20
+	status_panel.offset_right = -20
+	status_panel.offset_bottom = -20
 	root_control.add_child(status_panel)
 
 	var status_style = StyleBoxFlat.new()
@@ -157,7 +160,8 @@ func _add_menu_button(text: String, callback: Callable) -> void:
 
 
 func _get_status_text() -> String:
-	return "Heat: %d | Wanted: %d | Credits: %d | Scrap: %d | Tile: %s" % [
+	return "Rep: %d | Heat: %d | Wanted: %d | Credits: %d | Scrap: %d | Tile: %s" % [
+		GlobalData.reputation,
 		GlobalData.heat,
 		GlobalData.wanted_level,
 		GlobalData.credits,

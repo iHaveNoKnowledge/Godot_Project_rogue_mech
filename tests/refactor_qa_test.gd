@@ -11,6 +11,12 @@ func _ready() -> void:
 	_test_repair_cost_consistency()
 	_test_loadout_weight()
 	_test_slot_paths()
+	_test_run_reset_is_clean()
+	_test_roll_random_start()
+	_test_theme_event_pool()
+	_test_reputation_gate()
+	_test_theme_switch_once()
+	_test_event_effects()
 	print("REPAIR_QA_RESULT: %d passed, %d failed" % [_passed, _failed])
 	get_tree().quit(1 if _failed > 0 else 0)
 
@@ -103,3 +109,111 @@ func _test_slot_paths() -> void:
 	_check(GlobalData.get_slot_node_path("bogus") == "", "slot path unknown empty")
 	_check(GlobalData.MECHA_SLOTS.size() == 6, "MECHA_SLOTS has 6 slots")
 	_check("leg_right" in GlobalData.MECHA_SLOTS, "MECHA_SLOTS contains leg_right")
+
+
+func _test_run_reset_is_clean() -> void:
+	GlobalData.reset_run_data()
+	_check(GlobalData.fleet_roster.is_empty(), "reset clears fleet roster")
+	_check(GlobalData.research_projects.is_empty(), "reset clears research projects")
+	_check(GlobalData.research_unlocked.is_empty(), "reset clears research unlocks")
+	_check(GlobalData.theme_id == "soldier", "reset defaults theme to soldier")
+	_check(GlobalData.reputation == 0, "reset zeroes reputation")
+	_check(GlobalData.theme_switched == false, "reset clears theme switch flag")
+	_check(GlobalData.ceasefire_turns == 0, "reset clears ceasefire counter")
+	_check(GlobalData.blocked_intermission == false, "reset clears intermission block")
+	_check(GlobalData.chassis_id == "standard", "reset defaults chassis to standard")
+	_check(GlobalData.equipped_frames.size() == 6, "reset restores 6 default frames")
+
+
+func _test_roll_random_start() -> void:
+	GlobalData.reset_run_data()
+	GlobalData.theme_id = "gundam_merc"
+	GlobalData.roll_random_start()
+	_check(GlobalData.equipped_parts.size() == 6, "roll_start equips all 6 slots")
+	_check(GlobalData.armor_inventory.size() >= 6, "roll_start creates armor instances")
+	var all_instances := true
+	for slot in GlobalData.equipped_parts:
+		var part = GlobalData.equipped_parts[slot]
+		if not (part is Dictionary) or not part.has("uid"):
+			all_instances = false
+	_check(all_instances, "roll_start parts are instance dicts")
+	_check(GlobalData.equipped_frames.size() == 6, "roll_start sets 6 frames")
+	var left_weapon: String = GlobalData.weapon_loadout.get("left", "")
+	_check(left_weapon != "", "roll_start sets a left weapon")
+	_check(GlobalData.theme_id == "gundam_merc", "roll_start keeps selected theme")
+
+
+func _test_theme_event_pool() -> void:
+	GlobalData.reset_run_data()
+	GlobalData.theme_id = "soldier"
+	GlobalData.reputation = 0
+	var pool := GlobalData.get_theme_event_pool()
+	_check(not pool.is_empty(), "soldier theme has event pool")
+	var has_soldier_event := false
+	var has_common_event := false
+	for event in pool:
+		var themes = event.get("themes", [])
+		if themes is Array and "soldier" in themes:
+			has_soldier_event = true
+		if themes is Array and themes.is_empty():
+			has_common_event = true
+	_check(has_soldier_event, "soldier pool includes soldier-specific events")
+	_check(has_common_event, "soldier pool includes common events")
+
+	GlobalData.theme_id = "scavenger"
+	GlobalData.reputation = 3
+	var scav_pool := GlobalData.get_theme_event_pool()
+	var has_military_commission := false
+	for event in scav_pool:
+		if event.get("id", "") == "military_commission":
+			has_military_commission = true
+	_check(has_military_commission, "scavenger pool includes military_commission")
+
+
+func _test_reputation_gate() -> void:
+	GlobalData.reset_run_data()
+	GlobalData.theme_id = "scavenger"
+	GlobalData.reputation = 0
+	var pool_low := GlobalData.get_theme_event_pool()
+	var has_commission_low := false
+	for event in pool_low:
+		if event.get("id", "") == "military_commission":
+			has_commission_low = true
+	_check(not has_commission_low, "military_commission gated below rep 3")
+
+	GlobalData.reputation = 3
+	var pool_high := GlobalData.get_theme_event_pool()
+	var has_commission_high := false
+	for event in pool_high:
+		if event.get("id", "") == "military_commission":
+			has_commission_high = true
+	_check(has_commission_high, "military_commission available at rep 3")
+
+
+func _test_theme_switch_once() -> void:
+	GlobalData.reset_run_data()
+	GlobalData.theme_id = "scavenger"
+	_check(GlobalData.switch_theme("soldier"), "first theme switch succeeds")
+	_check(GlobalData.theme_id == "soldier", "theme switched to soldier")
+	_check(not GlobalData.switch_theme("gundam_merc"), "second theme switch blocked")
+	_check(GlobalData.theme_id == "soldier", "theme unchanged after blocked switch")
+
+
+func _test_event_effects() -> void:
+	GlobalData.reset_run_data()
+	GlobalData.credits = 0
+	GlobalData.apply_event_effect({"effect": "credits", "amount": 50})
+	_check(GlobalData.credits == 50, "credits effect adds credits")
+
+	GlobalData.apply_event_effect({"effect": "reputation", "amount": 2})
+	_check(GlobalData.reputation == 2, "reputation effect adds reputation")
+
+	GlobalData.apply_event_effect({"effect": "ceasefire", "amount": 0, "params": {"turns": 3}})
+	_check(GlobalData.ceasefire_turns == 3, "ceasefire effect sets counter")
+
+	GlobalData.apply_event_effect({"effect": "add_ally", "params": {"unit_id": "ally_gm"}})
+	_check(GlobalData.has_ally_unit("ally_gm"), "add_ally effect adds unit")
+
+	var forced := GlobalData.apply_event_effect({"effect": "force_combat", "params": {"combat_type": "grunt"}})
+	_check(forced, "force_combat effect returns true")
+	_check(GlobalData.blocked_intermission, "force_combat blocks intermission")

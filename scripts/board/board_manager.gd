@@ -44,6 +44,9 @@ func move_to_tile(target: Vector2i) -> bool:
 	_clear_highlights()
 	_highlight_adjacent()
 
+	# Moving again means the ambush is behind us — re-enable the intermission.
+	GlobalData.blocked_intermission = false
+
 	var tile_data = nodes_dict[target]
 	var tile_type = tile_data.get_meta("tile_type", "empty")
 
@@ -118,7 +121,10 @@ func accumulate_stalker_chance() -> void:
 func _process_tile_effect(tile_type: String) -> void:
 	match tile_type:
 		"combat":
-			if not GlobalData.stalking_aces.is_empty() and randf() < GlobalData.stalking_chance:
+			if GlobalData.ceasefire_turns > 0:
+				GlobalData.ceasefire_turns -= 1
+				_trigger_ceasefire_skip()
+			elif not GlobalData.stalking_aces.is_empty() and randf() < GlobalData.stalking_chance:
 				_trigger_stalker_surprise_ambush()
 			else:
 				GameManager.enter_combat("grunt")
@@ -140,6 +146,16 @@ func _process_tile_effect(tile_type: String) -> void:
 			_trigger_exit_event()
 		_:
 			pass
+
+
+func _trigger_ceasefire_skip() -> void:
+	var event = {
+		"name": "Ceasefire Holds",
+		"effect": "none",
+		"amount": 0,
+		"desc": "The front is quiet. %d tile(s) of ceasefire remain." % GlobalData.ceasefire_turns,
+	}
+	EventBus.event_triggered.emit(event)
 
 
 func _trigger_data_node_event() -> void:
@@ -180,29 +196,47 @@ func _trigger_stalker_surprise_ambush() -> void:
 
 
 func _trigger_random_event() -> void:
-	var events = [
-		{"name": "Abandoned Cache", "effect": "credits", "amount": 50, "desc": "Found abandoned cache! +50 credits"},
-		{"name": "Salvage Cache", "effect": "scrap", "amount": 15, "desc": "Salvaged scrap cache! +15 scrap"},
-		{"name": "Ambush", "effect": "damage", "amount": 20, "desc": "Ambushed by partisans! Took 20 damage"},
-		{"name": "Friendly Trader", "effect": "credits", "amount": 30, "desc": "Friendly trader caravan! +30 credits"},
-		{"name": "Data Terminal", "effect": "data_cores", "amount": 1, "desc": "Hacked old terminal! +1 data core"},
-	]
-	var event = events[randi() % events.size()]
-	EventBus.event_triggered.emit(event)
+	var pool := GlobalData.get_theme_event_pool()
+	if pool.is_empty():
+		_trigger_default_event()
+		return
 
-	match event["effect"]:
-		"credits":
-			GlobalData.credits += event["amount"]
-		"data_cores":
-			GlobalData.data_cores += event["amount"]
-		"scrap":
-			GlobalData.scrap += event["amount"]
-		"damage":
-			if not GlobalData.equipped_parts.is_empty():
-				var keys = GlobalData.equipped_parts.keys()
-				var rand_part = keys[randi() % keys.size()]
-				var cur_dmg = GlobalData.part_damage.get(rand_part, 0.0)
-				GlobalData.part_damage[rand_part] = minf(cur_dmg + 0.25, 1.0)
+	# Weighted pick: theme-specific events get a bonus so the common pool does
+	# not drown them out entirely.
+	var total := 0
+	for event in pool:
+		var weight := int(event.get("weight", 1))
+		var themes = event.get("themes", [])
+		if themes is Array and not themes.is_empty():
+			weight = int(weight * 1.5)
+		total += maxi(1, weight)
+	var roll := randi() % total
+	var chosen: Dictionary = pool[0]
+	for event in pool:
+		var weight := int(event.get("weight", 1))
+		var themes = event.get("themes", [])
+		if themes is Array and not themes.is_empty():
+			weight = int(weight * 1.5)
+		roll -= maxi(1, weight)
+		if roll < 0:
+			chosen = event
+			break
+
+	EventBus.event_triggered.emit(chosen)
+	if GlobalData.apply_event_effect(chosen):
+		# force_combat — the intermission is blocked; jump straight into battle.
+		GameManager.enter_combat(str(chosen.get("params", {}).get("combat_type", "grunt")))
+
+
+func _trigger_default_event() -> void:
+	var event = {
+		"name": "Abandoned Cache",
+		"effect": "credits",
+		"amount": 50,
+		"desc": "Found abandoned cache! +50 credits",
+	}
+	EventBus.event_triggered.emit(event)
+	GlobalData.apply_event_effect(event)
 
 
 func get_tile_type(pos: Vector2i) -> String:

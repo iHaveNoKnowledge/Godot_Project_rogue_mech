@@ -1,0 +1,220 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/data/run_event_catalog_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+events = [{
+"amount": 50,
+"desc": "Found an abandoned cache of supplies! +50 credits.",
+"effect": "credits",
+"id": "abandoned_cache",
+"min_reputation": 0,
+"name": "Abandoned Cache",
+"themes": [],
+"weight": 10
+}, {
+"amount": 15,
+"desc": "Salvaged a scattered scrap pile! +15 scrap.",
+"effect": "scrap",
+"id": "salvage_cache",
+"min_reputation": 0,
+"name": "Salvage Cache",
+"themes": [],
+"weight": 10
+}, {
+"amount": 20,
+"desc": "Partisans ambushed the convoy! One part took 20%% damage.",
+"effect": "damage",
+"id": "partisan_ambush",
+"min_reputation": 0,
+"name": "Partisan Ambush",
+"themes": [],
+"weight": 9
+}, {
+"amount": 30,
+"desc": "A friendly trader caravan passed by. +30 credits.",
+"effect": "credits",
+"id": "friendly_trader",
+"min_reputation": 0,
+"name": "Friendly Trader",
+"themes": [],
+"weight": 8
+}, {
+"amount": 1,
+"desc": "Hacked an old terminal! +1 data core.",
+"effect": "data_cores",
+"id": "data_terminal",
+"min_reputation": 0,
+"name": "Data Terminal",
+"themes": [],
+"weight": 6
+}, {
+"amount": 0,
+"desc": "Enemy scouts spotted your route and forced an engagement! No time to reorganize.",
+"effect": "force_combat",
+"id": "surprise_raid",
+"min_reputation": 0,
+"name": "Surprise Raid",
+"params": {
+"combat_type": "grunt"
+},
+"themes": [],
+"weight": 7
+}, {
+"amount": 12,
+"desc": "Found rare usable components among the wreckage. +12 scrap.",
+"effect": "scrap",
+"id": "component_find",
+"min_reputation": 0,
+"name": "Component Find",
+"themes": [],
+"weight": 8
+}, {
+"amount": 1,
+"desc": "Your unit's discipline impressed the local command. +1 reputation.",
+"effect": "reputation",
+"id": "tactical_intel",
+"min_reputation": 0,
+"name": "Tactical Intel",
+"themes": ["soldier"],
+"weight": 9
+}, {
+"amount": 3,
+"desc": "A political ceasefire settles over the front. No combat for the next 3 tiles.",
+"effect": "ceasefire",
+"id": "political_ceasefire",
+"min_reputation": 0,
+"name": "Political Ceasefire",
+"params": {
+"turns": 3
+},
+"themes": ["soldier"],
+"weight": 8
+}, {
+"amount": 25,
+"desc": "Quartermasters dropped a supply crate. +25 credits, +8 scrap.",
+"effect": "supply_drop",
+"id": "supply_drop",
+"min_reputation": 0,
+"name": "Supply Drop",
+"params": {
+"scrap": 8
+},
+"themes": ["soldier"],
+"weight": 8
+}, {
+"amount": 0,
+"desc": "Reinforcements from the fleet respond to your beacon! GM-II joins the roster.",
+"effect": "add_ally",
+"id": "fleet_reinforcement",
+"min_reputation": 0,
+"name": "Fleet Reinforcement",
+"params": {
+"unit_id": "ally_gm"
+},
+"themes": ["soldier"],
+"weight": 6
+}, {
+"amount": 4,
+"desc": "You used a hidden rebel hideout. Heat drops faster for a while.",
+"effect": "heat_bonus",
+"id": "rebel_hideout",
+"min_reputation": 0,
+"name": "Rebel Hideout",
+"params": {
+"heat": -4
+},
+"themes": ["gundam_merc"],
+"weight": 9
+}, {
+"amount": 0,
+"desc": "A partisan who shares your cause offers to fight alongside you. GM Sniper joins.",
+"effect": "add_ally",
+"id": "fellow_rebels",
+"min_reputation": 2,
+"name": "Fellow Rebels",
+"params": {
+"unit_id": "ally_gunner"
+},
+"themes": ["gundam_merc"],
+"weight": 7
+}, {
+"amount": 0,
+"desc": "A government ace hunting your kind cornered you!",
+"effect": "force_combat",
+"id": "bounty_hunters",
+"min_reputation": 0,
+"name": "Bounty Hunters",
+"params": {
+"combat_type": "ace"
+},
+"themes": ["gundam_merc"],
+"weight": 7
+}, {
+"amount": 1,
+"desc": "The underground respects your piloting. +1 reputation.",
+"effect": "reputation",
+"id": "underground_respect",
+"min_reputation": 0,
+"name": "Underground Respect",
+"themes": ["gundam_merc"],
+"weight": 8
+}, {
+"amount": 18,
+"desc": "Raided an old military depot! +18 scrap.",
+"effect": "scrap",
+"id": "depot_raid",
+"min_reputation": 0,
+"name": "Depot Raid",
+"themes": ["scavenger"],
+"weight": 9
+}, {
+"amount": 0,
+"desc": "A rival scavenger gang clashes with you for the territory.",
+"effect": "force_combat",
+"id": "rival_gang",
+"min_reputation": 0,
+"name": "Rival Gang",
+"params": {
+"combat_type": "grunt"
+},
+"themes": ["scavenger"],
+"weight": 7
+}, {
+"amount": -1,
+"desc": "Rumors paint you as an opportunistic raider. -1 reputation.",
+"effect": "reputation",
+"id": "raider_rumors",
+"min_reputation": 0,
+"name": "Raider Rumors",
+"themes": ["scavenger"],
+"weight": 7
+}, {
+"amount": 0,
+"desc": "The military offers you a commission. Enlist as a regular soldier, or stay a free scavenger?",
+"effect": "choice",
+"id": "military_commission",
+"min_reputation": 3,
+"name": "Military Commission",
+"params": {
+"choices": [{
+"amount": 1,
+"desc": "Enlist in the army. Your theme becomes a fleet soldier.",
+"effect": "theme_switch",
+"id": "enlist",
+"label": "Enlist",
+"params": {
+"theme_id": "soldier"
+}
+}, {
+"amount": 1,
+"desc": "Refuse the contract. +1 reputation for independence.",
+"effect": "reputation",
+"id": "refuse",
+"label": "Refuse"
+}]
+},
+"themes": ["scavenger"],
+"weight": 8
+}]

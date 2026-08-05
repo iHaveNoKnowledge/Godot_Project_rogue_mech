@@ -5,6 +5,7 @@ var panel: PanelContainer
 var title_label: Label
 var desc_label: Label
 var continue_button: Button
+var choice_container: VBoxContainer
 
 
 func _ready() -> void:
@@ -65,12 +66,48 @@ func _create_ui() -> void:
 	continue_button.pressed.connect(_on_continue_pressed)
 	vbox.add_child(continue_button)
 
+	# Choice buttons are added dynamically for choice/theme_switch events.
+	choice_container = VBoxContainer.new()
+	choice_container.add_theme_constant_override("separation", 8)
+	vbox.add_child(choice_container)
+
 
 func _on_event_triggered(event: Dictionary) -> void:
 	visible = true
 	title_label.text = event.get("name", "RANDOM EVENT")
 	desc_label.text = event.get("desc", "Something happened!")
 	get_tree().paused = true
+
+	# Multi-choice events swap the single Continue button for one button per choice.
+	var choices: Array = event.get("params", {}).get("choices", [])
+	_clear_choices()
+	if choices is Array and not choices.is_empty():
+		continue_button.visible = false
+		for choice in choices:
+			if not (choice is Dictionary):
+				continue
+			var btn = Button.new()
+			btn.text = str(choice.get("label", "Continue"))
+			btn.custom_minimum_size = Vector2(200, 36)
+			btn.pressed.connect(_on_choice_pressed.bind(choice))
+			choice_container.add_child(btn)
+		if choice_container.get_child_count() > 0:
+			choice_container.get_child(0).grab_focus()
+	else:
+		continue_button.visible = true
+		continue_button.grab_focus()
+
+
+func _clear_choices() -> void:
+	for child in choice_container.get_children():
+		child.queue_free()
+
+
+func _on_choice_pressed(choice: Dictionary) -> void:
+	visible = false
+	get_tree().paused = false
+	GlobalData.apply_event_effect(choice)
+	GameManager.return_to_board()
 
 
 func _on_continue_pressed() -> void:

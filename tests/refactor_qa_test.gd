@@ -20,6 +20,7 @@ func _ready() -> void:
 	_test_combat_damage_tracking()
 	_test_fleet_security()
 	_test_spy_event()
+	_test_enemy_research_node()
 	_test_tech_escalation()
 	print("REPAIR_QA_RESULT: %d passed, %d failed" % [_passed, _failed])
 	get_tree().quit(1 if _failed > 0 else 0)
@@ -315,6 +316,59 @@ func _test_spy_event() -> void:
 			stolen = true
 	_check(stolen, "no security lets spies steal data")
 	_check(GlobalData.enemy_research_progress > 0.0, "successful theft advances enemy research")
+
+
+func _test_enemy_research_node() -> void:
+	GlobalData.reset_run_data()
+	_check(not GlobalData.enemy_base_active, "no research node by default")
+
+	# Spy thefts fill research; when full, a spawn request is queued.
+	GlobalData.enemy_tech_tier = 1
+	GlobalData.fleet_security = 0.0
+	var attempts := 0
+	while not GlobalData.enemy_base_active and attempts < 200:
+		attempts += 1
+		GlobalData.roll_spy_event()
+	_check(GlobalData.enemy_base_active, "stolen data coalesces into a research node")
+	_check(GlobalData.consume_enemy_base_spawn_request(), "spawn request queued when node forms")
+	_check(not GlobalData.consume_enemy_base_spawn_request(), "spawn request consumed once")
+
+	# Progress ticks per board move; completion rolls an outcome.
+	GlobalData._combat_friendly_damage = 0.0
+	var completed := false
+	var guard := 0
+	while not completed and guard < 100:
+		guard += 1
+		if GlobalData.tick_enemy_base_progress(1.0):
+			completed = true
+	_check(completed, "research node completes after enough moves")
+	_check(not GlobalData.enemy_base_active, "node inactive after completion")
+	_check(GlobalData.enemy_copy_outcome in ["grunt_mk2", "special_ace", "gundam_copy"], "completion rolls a valid outcome")
+	_check(GlobalData.consume_pending_enemy_base_outcome(), "outcome event pending after completion")
+
+	# Outcomes apply their reward.
+	if GlobalData.enemy_copy_outcome == "grunt_mk2":
+		_check(GlobalData.enemy_grunt_upgrade_level >= 3, "MKII grants grunt upgrade")
+	else:
+		_check(GlobalData.enemy_special_units.size() >= 1, "special/copy outcome fields a unit")
+
+	# Destroying an active node yields only a partial grunt upgrade.
+	GlobalData.reset_run_data()
+	GlobalData.enemy_base_active = true
+	GlobalData.enemy_base_progress = 2.0
+	GlobalData.enemy_base_required = 8.0
+	var upgrade_before := GlobalData.enemy_grunt_upgrade_level
+	GlobalData.destroy_enemy_base()
+	_check(not GlobalData.enemy_base_active, "destroyed node is inactive")
+	_check(GlobalData.enemy_grunt_upgrade_level == upgrade_before + 1, "destroyed node grants partial grunt upgrade")
+	_check(GlobalData.enemy_copy_outcome == "", "destroyed node produces no counter-unit")
+	_check(GlobalData.consume_pending_enemy_base_destroyed(), "destroyed event pending")
+
+	# Grunt multiplier scales with partial upgrades.
+	GlobalData.reset_run_data()
+	var base_mult := GlobalData.get_enemy_grunt_multiplier()
+	GlobalData.enemy_grunt_upgrade_level = 2
+	_check(GlobalData.get_enemy_grunt_multiplier() > base_mult, "grunt multiplier rises with salvaged upgrades")
 
 
 func _test_tech_escalation() -> void:

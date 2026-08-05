@@ -37,6 +37,10 @@ func _ready() -> void:
 	if GlobalData.consume_pending_escalation_event():
 		EventBus.event_triggered.emit(_build_tech_copy_event())
 
+	# If the player destroyed the enemy research node, surface that result.
+	if GlobalData.consume_pending_enemy_base_destroyed():
+		EventBus.event_triggered.emit(_build_enemy_base_destroyed_event())
+
 
 func move_to_tile(target: Vector2i) -> bool:
 	if not _is_connected_path(current_pos, target):
@@ -64,6 +68,17 @@ func move_to_tile(target: Vector2i) -> bool:
 	var spy_event := GlobalData.roll_spy_event()
 	if not spy_event.is_empty():
 		EventBus.event_triggered.emit(spy_event)
+
+	# If the stolen data coalesced into a research node, place it on the board
+	# so the player can hunt it down.
+	if GlobalData.consume_enemy_base_spawn_request():
+		_place_enemy_base_node()
+		EventBus.event_triggered.emit(_build_enemy_base_spawn_event())
+
+	# The research node's counter-unit progress ticks with every move we make
+	# while it is active. If it completes, surface the outcome popup.
+	if GlobalData.tick_enemy_base_progress(1.0):
+		EventBus.event_triggered.emit(_build_enemy_base_completed_event())
 
 	EventBus.tile_entered.emit(target, tile_data)
 	_process_tile_effect(tile_type)
@@ -139,6 +154,10 @@ func _process_tile_effect(tile_type: String) -> void:
 				_trigger_stalker_surprise_ambush()
 			else:
 				GameManager.enter_combat("grunt")
+		"enemy_base":
+			# The enemy research node is a raid: destroy it to stop the
+			# counter-unit. Winning clears the node's active state.
+			GameManager.enter_combat("enemy_base")
 		"event":
 			_trigger_random_event()
 		"safehouse":
@@ -257,6 +276,78 @@ func _build_tech_copy_event() -> Dictionary:
 		"effect": "none",
 		"amount": 0,
 		"desc": "Your last victory was so clean the enemy copied your combat data! New enemy standard: Tier %d. Expect tougher foes." % tier,
+	}
+
+
+# Place the enemy research node on an unreached tile so the player must hunt
+# it down. Picks a tile ahead of the player (later layer) that isn't start/
+# exit/safehouse. Falls back to the current position tile type swap.
+func _place_enemy_base_node() -> void:
+	var candidates: Array = []
+	var current_layer := current_pos.x
+	for key in nodes_dict:
+		var tile = nodes_dict[key]
+		if tile.get_meta("tile_type", "empty") in ["start", "exit", "safehouse"]:
+			continue
+		if key.x <= current_layer:
+			continue
+		candidates.append(key)
+	if candidates.is_empty():
+		for key in nodes_dict:
+			if key != current_pos and nodes_dict[key].get_meta("tile_type", "empty") not in ["start", "exit"]:
+				candidates.append(key)
+	if candidates.is_empty():
+		candidates = [current_pos]
+	candidates.sort_custom(func(a, b): return a.x < b.x)
+	var target_key: Vector2i = candidates[0]
+	var tile = nodes_dict[target_key]
+	tile.set_meta("tile_type", "enemy_base")
+	GlobalData.enemy_base_tile_pos = target_key
+	tile.reveal()
+	if tile.has_method("_update_visual"):
+		tile._update_visual()
+
+
+func _build_enemy_base_spawn_event() -> Dictionary:
+	return {
+		"name": "ENEMY RESEARCH BASE",
+		"effect": "none",
+		"amount": 0,
+		"desc": "A stolen-data research base has been detected on the map (red tile). Reach it and destroy it before the enemy finishes a counter-unit!",
+	}
+
+
+func _build_enemy_base_completed_event() -> Dictionary:
+	match GlobalData.enemy_copy_outcome:
+		"grunt_mk2":
+			return {
+				"name": "ENEMY GRUNT MKII DEPLOYED",
+				"effect": "none",
+				"amount": 0,
+				"desc": "The enemy research base completed! Their grunts have been refit into a stronger MKII standard. Expect tougher infantry.",
+			}
+		"special_ace":
+			return {
+				"name": "SPECIAL ACE FIELDED",
+				"effect": "none",
+				"amount": 0,
+				"desc": "The enemy research base completed! A special ace unit matching your mech class has been deployed to hunt you.",
+			}
+		_:
+			return {
+				"name": "GUNDAM COPY FIELDED",
+				"effect": "none",
+				"amount": 0,
+				"desc": "The enemy research base completed! They have produced a copy of your gundam-class mech. It fights with your own tech.",
+			}
+
+
+func _build_enemy_base_destroyed_event() -> Dictionary:
+	return {
+		"name": "ENEMY RESEARCH BASE DESTROYED",
+		"effect": "none",
+		"amount": 0,
+		"desc": "You destroyed the enemy research base! The enemy only salvaged a partial grunt upgrade instead of a full counter-unit.",
 	}
 
 

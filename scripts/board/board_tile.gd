@@ -13,7 +13,7 @@ func _ready() -> void:
 	grid_pos = get_meta("grid_pos", Vector2i.ZERO)
 	connections = get_meta("connections", [])
 	
-	if tile_type in ["start", "exit", "safehouse", "data_node"]:
+	if tile_type in ["start", "exit", "safehouse", "data_node", "enemy_base"]:
 		is_revealed = true
 	_update_visual()
 
@@ -80,6 +80,8 @@ func _update_visual() -> void:
 			material.albedo_color = Color(0.2, 0.8, 0.2) # Green Safehouse
 		"data_node":
 			material.albedo_color = Color(0.9, 0.8, 0.1) # Gold Data Terminal
+		"enemy_base":
+			material.albedo_color = Color(0.9, 0.2, 0.1) # Burning Red Research Base
 		"dead_end":
 			material.albedo_color = Color(0.15, 0.15, 0.2) # Dark Obstacle Wall
 		_:

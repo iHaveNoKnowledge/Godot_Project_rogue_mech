@@ -61,7 +61,7 @@ func generate_board() -> Dictionary:
 				connections_dict[source_key].append(n_key)
 
 	# Step 3: Instantiate tiles with tile types
-	var type_pool = ["combat", "combat", "event", "safehouse", "data_node", "dead_end"]
+	var type_pool = ["combat", "combat", "event", "safehouse", "data_node", "dead_end", "enemy_base"]
 
 	for l in range(num_layers):
 		var keys = layer_nodes[l]

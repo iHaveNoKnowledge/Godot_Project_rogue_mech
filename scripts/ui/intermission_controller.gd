@@ -161,13 +161,18 @@ func _add_menu_button(text: String, callback: Callable) -> void:
 
 
 func _get_status_text() -> String:
-	return "Rep: %d | Heat: %d | Wanted: %d | Credits: %d | Scrap: %d | Enemy Tier: %d | Tile: %s" % [
+	var base_info := ""
+	if GlobalData.enemy_base_active:
+		base_info = " | Enemy Base: %d%%" % int((GlobalData.enemy_base_progress / GlobalData.enemy_base_required) * 100.0)
+	return "Rep: %d | Heat: %d | Wanted: %d | Credits: %d | Scrap: %d | Enemy Tier: %d | Security: %d%s | Tile: %s" % [
 		GlobalData.reputation,
 		GlobalData.heat,
 		GlobalData.wanted_level,
 		GlobalData.credits,
 		GlobalData.scrap,
 		GlobalData.enemy_tech_tier,
+		int(GlobalData.get_fleet_security()),
+		base_info,
 		str(GlobalData.current_tile)
 	]
 

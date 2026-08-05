@@ -180,7 +180,7 @@ func _spawn_next_wave() -> void:
 
 	var wanted = GlobalData.wanted_level
 	var hp_scale = 1.0 + min(wanted, 5) * 0.15
-	hp_scale *= GlobalData.get_enemy_tech_multiplier()
+	hp_scale *= GlobalData.get_enemy_grunt_multiplier()
 	var extra_count = mini(wanted, 2)
 
 	for entry in wave_def:

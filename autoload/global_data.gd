@@ -109,6 +109,13 @@ func _on_tile_entered(_tile_pos: Vector2i, _tile_data: Node) -> void:
 func _on_combat_ended(victory: bool) -> void:
 	# Finalize combat damage stats before any tech/reputation logic reads them.
 	_compute_last_combat_damage_ratio()
+	# A raid on the enemy research node is not a normal battle: winning destroys
+	# the node (only a partial grunt upgrade for them), and it never escalates
+	# the enemy tech tier.
+	if GameManager.combat_node_type == "enemy_base":
+		if victory:
+			destroy_enemy_base()
+		return
 	on_combat_ended_for_tech(victory)
 	if victory:
 		sync_equipped_armor_durability()
@@ -877,6 +884,12 @@ func get_enemy_tech_multiplier() -> float:
 	return 1.0 + float(enemy_tech_tier - 1) * float(cfg.get("hp_per_tier", 0.35))
 
 
+# Combined spawn scaling including the partial grunt upgrades salvaged from
+# destroyed research nodes. Grunts get tougher even without a full tier-up.
+func get_enemy_grunt_multiplier() -> float:
+	return get_enemy_tech_multiplier() + float(enemy_grunt_upgrade_level) * 0.12
+
+
 # -----------------------------------------------------------------------------
 # ENEMY SPY / DATA THEFT — the enemy tries to steal our mech data out of combat.
 # - Rolled on board moves. Attempt chance rises with the enemy tier (the higher
@@ -886,6 +899,29 @@ func get_enemy_tech_multiplier() -> float:
 #   a research node the player must destroy (see Phase 5).
 # -----------------------------------------------------------------------------
 var enemy_research_progress: float = 0.0
+
+# --- Enemy research node (Phase 5) ---
+# When enough mech data is stolen, the enemy spins up a research base node on
+# the board. The player must reach it and destroy it before the enemy's
+# counter-unit research completes. If it completes, the enemy fields one of
+# three upgraded unit types (grunt MKII / special ace / gundam copy).
+var enemy_base_active: bool = false
+var enemy_base_progress: float = 0.0
+var enemy_base_required: float = 8.0
+var enemy_base_tile_pos: Vector2i = Vector2i(-1, -1)
+
+# Partial upgrade granted when the player destroys the base before completion.
+var enemy_grunt_upgrade_level: int = 0
+
+# The outcome of a completed (NOT destroyed) research node.
+var enemy_copy_outcome: String = ""  # "", "grunt_mk2", "special_ace", "gundam_copy"
+
+# Units the enemy fields as a result of completed research (real mechs later).
+var enemy_special_units: Array = []
+
+var pending_enemy_base_spawn: bool = false
+var pending_enemy_base_outcome: bool = false
+var pending_enemy_base_destroyed: bool = false
 
 # Probability that the enemy attempts a spy this move (0..1).
 func get_spy_attempt_chance() -> float:
@@ -914,16 +950,103 @@ func roll_spy_event() -> Dictionary:
 			"desc": "Your fleet security intercepted an enemy spy before it could reach your mech data. Fleet security pays off!",
 		}
 	enemy_research_progress = minf(enemy_research_progress + 1.0, _get_enemy_research_cap())
-	return {
+	var stolen = {
 		"name": "DATA STOLEN",
 		"effect": "none",
 		"amount": 0,
 		"desc": "An enemy spy slipped past your security and stole mech data! The enemy has started researching a counter-unit.",
 	}
+	if enemy_research_progress >= _get_enemy_research_cap():
+		enemy_research_progress = 0.0
+		enemy_base_active = true
+		enemy_base_progress = 0.0
+		pending_enemy_base_spawn = true
+		stolen["desc"] = "The enemy's stolen data has coalesced into a research base on the sector map! Destroy it before they finish a counter-unit."
+	return stolen
 
 
 func _get_enemy_research_cap() -> float:
 	return 3.0
+
+
+# -----------------------------------------------------------------------------
+# ENEMY RESEARCH NODE LIFECYCLE — the spawned board node and its outcome.
+# -----------------------------------------------------------------------------
+
+# Called by the board once it has physically placed the enemy_base tile.
+func consume_enemy_base_spawn_request() -> bool:
+	var was_pending := pending_enemy_base_spawn
+	pending_enemy_base_spawn = false
+	return was_pending
+
+
+# Advance the research node's counter-unit progress (1 per board move).
+# Returns true when the enemy completes their counter-unit.
+func tick_enemy_base_progress(points: float) -> bool:
+	if not enemy_base_active:
+		return false
+	enemy_base_progress = minf(enemy_base_progress + points, enemy_base_required)
+	if enemy_base_progress >= enemy_base_required:
+		_enemy_base_completed()
+		return true
+	return false
+
+
+func _enemy_base_completed() -> void:
+	enemy_base_active = false
+	enemy_base_tile_pos = Vector2i(-1, -1)
+	enemy_copy_outcome = _roll_enemy_base_outcome()
+	_apply_enemy_base_outcome(enemy_copy_outcome)
+	pending_enemy_base_outcome = true
+
+
+# The player reached and destroyed the node. The enemy only salvages a partial
+# grunt upgrade instead of a full counter-unit.
+func destroy_enemy_base() -> void:
+	enemy_base_active = false
+	enemy_base_progress = 0.0
+	enemy_base_tile_pos = Vector2i(-1, -1)
+	enemy_grunt_upgrade_level += 1
+	pending_enemy_base_destroyed = true
+
+
+func consume_pending_enemy_base_outcome() -> bool:
+	var was_pending := pending_enemy_base_outcome
+	pending_enemy_base_outcome = false
+	return was_pending
+
+
+func consume_pending_enemy_base_destroyed() -> bool:
+	var was_pending := pending_enemy_base_destroyed
+	pending_enemy_base_destroyed = false
+	return was_pending
+
+
+# Outcome probabilities shift toward stronger copies as the enemy tier rises.
+func _roll_enemy_base_outcome() -> String:
+	var cfg := get_escalation_config()
+	var max_tier := int(cfg.get("max_tier", 4))
+	var tier_factor := clampf(float(enemy_tech_tier) / float(maxf(max_tier, 1)), 0.0, 1.0)
+	var mk2_weight := int(lerpf(50.0, 25.0, tier_factor))
+	var special_weight := int(lerpf(35.0, 35.0, tier_factor))
+	var copy_weight := int(lerpf(15.0, 40.0, tier_factor))
+	var total := mk2_weight + special_weight + copy_weight
+	var roll := randi() % maxi(total, 1)
+	if roll < mk2_weight:
+		return "grunt_mk2"
+	if roll < mk2_weight + special_weight:
+		return "special_ace"
+	return "gundam_copy"
+
+
+func _apply_enemy_base_outcome(outcome: String) -> void:
+	match outcome:
+		"grunt_mk2":
+			enemy_grunt_upgrade_level += 3
+		"special_ace":
+			enemy_special_units.append({"kind": "special_ace", "source": "research_node"})
+		"gundam_copy":
+			enemy_special_units.append({"kind": "gundam_copy", "source": "research_node"})
 
 
 # Snapshot the combined max HP of every friendly unit in the current scene:
@@ -1241,6 +1364,16 @@ func reset_run_data() -> void:
 	enemy_tech_tier = 1
 	pending_escalation_event = false
 	enemy_research_progress = 0.0
+	enemy_base_active = false
+	enemy_base_progress = 0.0
+	enemy_base_required = 8.0
+	enemy_base_tile_pos = Vector2i(-1, -1)
+	enemy_grunt_upgrade_level = 0
+	enemy_copy_outcome = ""
+	enemy_special_units.clear()
+	pending_enemy_base_spawn = false
+	pending_enemy_base_outcome = false
+	pending_enemy_base_destroyed = false
 	fleet_security = 25.0
 	security_upgrade_level = 1
 	_combat_friendly_total_hp = 0.0
@@ -1315,6 +1448,13 @@ func save_run() -> void:
 		"enemy_tech_tier": enemy_tech_tier,
 		"last_combat_damage_ratio": last_combat_damage_ratio,
 		"enemy_research_progress": enemy_research_progress,
+		"enemy_base_active": enemy_base_active,
+		"enemy_base_progress": enemy_base_progress,
+		"enemy_base_required": enemy_base_required,
+		"enemy_base_tile_pos": {"x": enemy_base_tile_pos.x, "y": enemy_base_tile_pos.y},
+		"enemy_grunt_upgrade_level": enemy_grunt_upgrade_level,
+		"enemy_copy_outcome": enemy_copy_outcome,
+		"enemy_special_units": enemy_special_units.duplicate(true),
 		"fleet_security": fleet_security,
 		"security_upgrade_level": security_upgrade_level
 	}
@@ -1362,6 +1502,16 @@ func _restore_from_dict(data: Dictionary) -> void:
 	enemy_tech_tier = int(data.get("enemy_tech_tier", 1))
 	last_combat_damage_ratio = float(data.get("last_combat_damage_ratio", 0.0))
 	enemy_research_progress = float(data.get("enemy_research_progress", 0.0))
+	enemy_base_active = bool(data.get("enemy_base_active", false))
+	enemy_base_progress = float(data.get("enemy_base_progress", 0.0))
+	enemy_base_required = float(data.get("enemy_base_required", 8.0))
+	var base_tile = data.get("enemy_base_tile_pos", {})
+	enemy_base_tile_pos = Vector2i(int(base_tile.get("x", -1)), int(base_tile.get("y", -1)))
+	enemy_grunt_upgrade_level = int(data.get("enemy_grunt_upgrade_level", 0))
+	enemy_copy_outcome = str(data.get("enemy_copy_outcome", ""))
+	var special_units = data.get("enemy_special_units", [])
+	if special_units is Array:
+		enemy_special_units = special_units.duplicate(true)
 	fleet_security = float(data.get("fleet_security", 25.0))
 	security_upgrade_level = int(data.get("security_upgrade_level", 1))
 

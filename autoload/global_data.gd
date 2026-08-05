@@ -877,6 +877,55 @@ func get_enemy_tech_multiplier() -> float:
 	return 1.0 + float(enemy_tech_tier - 1) * float(cfg.get("hp_per_tier", 0.35))
 
 
+# -----------------------------------------------------------------------------
+# ENEMY SPY / DATA THEFT — the enemy tries to steal our mech data out of combat.
+# - Rolled on board moves. Attempt chance rises with the enemy tier (the higher
+#   their tech interest, the more they probe us).
+# - If a spy attempts, our fleet security decides whether it gets caught. A
+#   successful theft starts the enemy's mech-copy research, which later spawns
+#   a research node the player must destroy (see Phase 5).
+# -----------------------------------------------------------------------------
+var enemy_research_progress: float = 0.0
+
+# Probability that the enemy attempts a spy this move (0..1).
+func get_spy_attempt_chance() -> float:
+	var cfg := get_escalation_config()
+	return clampf(
+		float(cfg.get("spy_base_chance", 0.05))
+		+ float(enemy_tech_tier - 1) * float(cfg.get("spy_chance_per_tier", 0.06)),
+		0.0,
+		1.0
+	)
+
+
+# Rolls a full spy event for the current board move. Returns a Dictionary the
+# board can surface. On success, enemy_research_progress is bumped.
+func roll_spy_event() -> Dictionary:
+	var chance := get_spy_attempt_chance()
+	if randf() > chance:
+		return {}
+	var counter := get_spy_counter_chance()
+	var caught := randf() < counter
+	if caught:
+		return {
+			"name": "SPY CAUGHT",
+			"effect": "none",
+			"amount": 0,
+			"desc": "Your fleet security intercepted an enemy spy before it could reach your mech data. Fleet security pays off!",
+		}
+	enemy_research_progress = minf(enemy_research_progress + 1.0, _get_enemy_research_cap())
+	return {
+		"name": "DATA STOLEN",
+		"effect": "none",
+		"amount": 0,
+		"desc": "An enemy spy slipped past your security and stole mech data! The enemy has started researching a counter-unit.",
+	}
+
+
+func _get_enemy_research_cap() -> float:
+	return 3.0
+
+
 # Snapshot the combined max HP of every friendly unit in the current scene:
 # the player mech + all fielded allies. Also resets the damage accumulator.
 func begin_combat_stats() -> void:
@@ -1191,6 +1240,7 @@ func reset_run_data() -> void:
 	blocked_intermission = false
 	enemy_tech_tier = 1
 	pending_escalation_event = false
+	enemy_research_progress = 0.0
 	fleet_security = 25.0
 	security_upgrade_level = 1
 	_combat_friendly_total_hp = 0.0
@@ -1264,6 +1314,7 @@ func save_run() -> void:
 		"blocked_intermission": blocked_intermission,
 		"enemy_tech_tier": enemy_tech_tier,
 		"last_combat_damage_ratio": last_combat_damage_ratio,
+		"enemy_research_progress": enemy_research_progress,
 		"fleet_security": fleet_security,
 		"security_upgrade_level": security_upgrade_level
 	}
@@ -1310,6 +1361,7 @@ func _restore_from_dict(data: Dictionary) -> void:
 	blocked_intermission = bool(data.get("blocked_intermission", false))
 	enemy_tech_tier = int(data.get("enemy_tech_tier", 1))
 	last_combat_damage_ratio = float(data.get("last_combat_damage_ratio", 0.0))
+	enemy_research_progress = float(data.get("enemy_research_progress", 0.0))
 	fleet_security = float(data.get("fleet_security", 25.0))
 	security_upgrade_level = int(data.get("security_upgrade_level", 1))
 

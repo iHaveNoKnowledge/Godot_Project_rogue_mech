@@ -59,6 +59,12 @@ func move_to_tile(target: Vector2i) -> bool:
 	process_turn_mobilization()
 	accumulate_stalker_chance()
 
+	# Enemy espionage: each board move the enemy may send a spy to steal mech
+	# data. Security determines whether the spy is caught.
+	var spy_event := GlobalData.roll_spy_event()
+	if not spy_event.is_empty():
+		EventBus.event_triggered.emit(spy_event)
+
 	EventBus.tile_entered.emit(target, tile_data)
 	_process_tile_effect(tile_type)
 

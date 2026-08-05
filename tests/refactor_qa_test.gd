@@ -19,6 +19,7 @@ func _ready() -> void:
 	_test_event_effects()
 	_test_combat_damage_tracking()
 	_test_fleet_security()
+	_test_spy_event()
 	_test_tech_escalation()
 	print("REPAIR_QA_RESULT: %d passed, %d failed" % [_passed, _failed])
 	get_tree().quit(1 if _failed > 0 else 0)
@@ -278,6 +279,42 @@ func _test_fleet_security() -> void:
 	# Security raises the spy counter chance.
 	var high_counter := GlobalData.get_spy_counter_chance()
 	_check(high_counter > base_counter, "more security -> stronger spy counter")
+
+
+func _test_spy_event() -> void:
+	GlobalData.reset_run_data()
+	GlobalData.theme_id = "soldier"
+	GlobalData.enemy_tech_tier = 1
+	var low := GlobalData.get_spy_attempt_chance()
+	GlobalData.enemy_tech_tier = 3
+	var high := GlobalData.get_spy_attempt_chance()
+	_check(high > low, "higher enemy tier raises spy attempt chance")
+	_check(low >= 0.0 and low <= 1.0, "spy chance within [0,1]")
+
+	# Force a spy attempt (chance = 1) and a security counter (chance = 1):
+	# spy is always caught -> no research progress, event returned.
+	GlobalData.enemy_tech_tier = 1
+	GlobalData.fleet_security = 100.0
+	var attempts := 0
+	for i in range(200):
+		var ev := GlobalData.roll_spy_event()
+		if not ev.is_empty():
+			attempts += 1
+			_check(ev.get("name", "") == "SPY CAUGHT", "max security always catches spies")
+	_check(attempts > 0, "spy events fire under forced chance")
+	_check(GlobalData.enemy_research_progress == 0.0, "caught spies never advance research")
+
+	# Zero security -> spies get through and research advances.
+	GlobalData.fleet_security = 0.0
+	var stolen := false
+	var guard := 0
+	while not stolen and guard < 200:
+		guard += 1
+		var ev := GlobalData.roll_spy_event()
+		if ev.get("name", "") == "DATA STOLEN":
+			stolen = true
+	_check(stolen, "no security lets spies steal data")
+	_check(GlobalData.enemy_research_progress > 0.0, "successful theft advances enemy research")
 
 
 func _test_tech_escalation() -> void:

@@ -923,6 +923,11 @@ var pending_enemy_base_spawn: bool = false
 var pending_enemy_base_outcome: bool = false
 var pending_enemy_base_destroyed: bool = false
 
+# Position of the node tile that must be reverted back to a normal combat tile
+# once the node is destroyed or finishes its counter-unit. Set before
+# enemy_base_tile_pos is cleared so the board can reset the stale tile's meta.
+var pending_enemy_base_tile_reset: Vector2i = Vector2i(-1, -1)
+
 # Probability that the enemy attempts a spy this move (0..1).
 func get_spy_attempt_chance() -> float:
 	var cfg := get_escalation_config()
@@ -996,6 +1001,7 @@ func tick_enemy_base_progress(points: float) -> bool:
 
 func _enemy_base_completed() -> void:
 	enemy_base_active = false
+	pending_enemy_base_tile_reset = enemy_base_tile_pos
 	enemy_base_tile_pos = Vector2i(-1, -1)
 	enemy_copy_outcome = _roll_enemy_base_outcome()
 	_apply_enemy_base_outcome(enemy_copy_outcome)
@@ -1007,9 +1013,18 @@ func _enemy_base_completed() -> void:
 func destroy_enemy_base() -> void:
 	enemy_base_active = false
 	enemy_base_progress = 0.0
+	pending_enemy_base_tile_reset = enemy_base_tile_pos
 	enemy_base_tile_pos = Vector2i(-1, -1)
 	enemy_grunt_upgrade_level += 1
 	pending_enemy_base_destroyed = true
+
+
+# Returns the board tile position that must be reset (consumed once), or
+# Vector2i(-1, -1) when there is nothing to reset.
+func consume_enemy_base_tile_reset() -> Vector2i:
+	var pos := pending_enemy_base_tile_reset
+	pending_enemy_base_tile_reset = Vector2i(-1, -1)
+	return pos
 
 
 func consume_pending_enemy_base_outcome() -> bool:
@@ -1386,6 +1401,7 @@ func reset_run_data() -> void:
 	pending_enemy_base_spawn = false
 	pending_enemy_base_outcome = false
 	pending_enemy_base_destroyed = false
+	pending_enemy_base_tile_reset = Vector2i(-1, -1)
 	fleet_security = 25.0
 	security_upgrade_level = 1
 	_combat_friendly_total_hp = 0.0

@@ -61,7 +61,9 @@ func generate_board() -> Dictionary:
 				connections_dict[source_key].append(n_key)
 
 	# Step 3: Instantiate tiles with tile types
-	var type_pool = ["combat", "combat", "event", "safehouse", "data_node", "dead_end", "enemy_base"]
+	# enemy_base is intentionally NOT in the pool: research nodes only appear
+	# when the enemy's spy system coalesces stolen data (see board_manager).
+	var type_pool = ["combat", "combat", "event", "safehouse", "data_node", "dead_end"]
 
 	for l in range(num_layers):
 		var keys = layer_nodes[l]

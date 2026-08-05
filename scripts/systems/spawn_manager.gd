@@ -214,14 +214,36 @@ func _check_combat_ended() -> void:
 
 func _trigger_stalking_ace_ambush() -> void:
 	var ace_kind = GlobalData.stalking_aces.pop_front()
-	GlobalData.ambush_probability = 0.0
+	GlobalData.stalking_chance = 0.0
+	_consume_enemy_special_unit(str(ace_kind))
 	print("SIREN WARNING! STALKING ACE WARPING IN!")
 	AudioManager.play_combat_music("ace")
 	var spawn_pos = _get_spawn_position()
-	var hp_scale := 1.8
+
+	# Give each counter-unit a distinct battlefield identity instead of both
+	# being plain heavy units: a special ace is a brutal melee stalker, while a
+	# gundam copy is a slower, armored threat that mirrors heavier mech tech.
+	var scene_type := "heavy_full"
+	var archetype := 2
+	var hp_scale := 2.2
 	if ace_kind == "gundam_copy":
-		hp_scale = 2.4
-	_spawn_enemy("heavy_full", 2, spawn_pos, hp_scale)
+		scene_type = "tank_full"
+		archetype = 1
+		hp_scale = 2.6
+	_spawn_enemy(scene_type, archetype, spawn_pos, hp_scale)
+
+
+# A completed research node records its deployed counter-unit in
+# enemy_special_units. Once it actually fights (and is defeated), clear that
+# record so it is not re-fielded later.
+func _consume_enemy_special_unit(kind: String) -> void:
+	if kind == "":
+		return
+	for i in range(GlobalData.enemy_special_units.size()):
+		var unit = GlobalData.enemy_special_units[i]
+		if unit is Dictionary and unit.get("kind", "") == kind:
+			GlobalData.enemy_special_units.remove_at(i)
+			return
 
 
 func _spawn_enemy(type: String, archetype: int, pos: Vector3, hp_scale: float) -> void:

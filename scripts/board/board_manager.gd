@@ -32,6 +32,10 @@ func _ready() -> void:
 	_update_token_position()
 	_highlight_adjacent()
 
+	# Revert any stale enemy_base tile left over from a node that was destroyed
+	# or finished its counter-unit on the previous board before surfacing popups.
+	_clear_enemy_base_tile()
+
 	# If the enemy upgraded after the last combat, surface the popup now that
 	# we're back on the board.
 	if GlobalData.consume_pending_escalation_event():
@@ -46,6 +50,10 @@ func move_to_tile(target: Vector2i) -> bool:
 	if not _is_connected_path(current_pos, target):
 		print("Invalid path! Must follow connected branching node paths.")
 		return false
+
+	# A node can finish its counter-unit mid-move without a board reload; revert
+	# its tile as soon as we step elsewhere.
+	_clear_enemy_base_tile()
 
 	current_pos = target
 	GlobalData.current_tile = target
@@ -120,6 +128,22 @@ func _update_token_position() -> void:
 		player_token.global_position = tile.global_position + Vector3(0, 0.5, 0)
 
 
+# Reverts the stale enemy_base tile (set when its node was destroyed or finished
+# its counter-unit) back to a normal combat tile so stepping on it again cannot
+# re-trigger a raid. Does nothing when there is no pending reset.
+func _clear_enemy_base_tile() -> void:
+	var reset_pos := GlobalData.consume_enemy_base_tile_reset()
+	if reset_pos == Vector2i(-1, -1):
+		return
+	if not nodes_dict.has(reset_pos):
+		return
+	var tile = nodes_dict[reset_pos]
+	tile.set_meta("tile_type", "combat")
+	tile.tile_type = "combat"
+	if tile.has_method("_update_visual"):
+		tile._update_visual()
+
+
 # Turn mobilization refilling (Low Heat Grace Period: suppressed when Heat < 3)
 func process_turn_mobilization() -> void:
 	if GlobalData.heat < 3:
@@ -156,8 +180,14 @@ func _process_tile_effect(tile_type: String) -> void:
 				GameManager.enter_combat("grunt")
 		"enemy_base":
 			# The enemy research node is a raid: destroy it to stop the
-			# counter-unit. Winning clears the node's active state.
-			GameManager.enter_combat("enemy_base")
+			# counter-unit. Winning clears the node's active state. If the node
+			# is already resolved (destroyed / counter-unit finished), the tile
+			# is just a normal combat tile — never re-trigger the raid.
+			var stepped_pos: Vector2i = nodes_dict[current_pos].get_meta("grid_pos", Vector2i(-1, -1)) if nodes_dict.has(current_pos) else Vector2i(-1, -1)
+			if GlobalData.enemy_base_active and GlobalData.enemy_base_tile_pos == stepped_pos:
+				GameManager.enter_combat("enemy_base")
+			else:
+				GameManager.enter_combat("grunt")
 		"event":
 			_trigger_random_event()
 		"safehouse":

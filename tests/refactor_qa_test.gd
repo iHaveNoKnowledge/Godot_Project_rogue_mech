@@ -21,6 +21,8 @@ func _ready() -> void:
 	_test_fleet_security()
 	_test_spy_event()
 	_test_enemy_research_node()
+	_test_enemy_base_tile_reset()
+	_test_board_has_no_random_enemy_base()
 	_test_tech_escalation()
 	print("REPAIR_QA_RESULT: %d passed, %d failed" % [_passed, _failed])
 	get_tree().quit(1 if _failed > 0 else 0)
@@ -376,6 +378,48 @@ func _test_enemy_research_node() -> void:
 	var base_mult := GlobalData.get_enemy_grunt_multiplier()
 	GlobalData.enemy_grunt_upgrade_level = 2
 	_check(GlobalData.get_enemy_grunt_multiplier() > base_mult, "grunt multiplier rises with salvaged upgrades")
+
+
+func _test_enemy_base_tile_reset() -> void:
+	GlobalData.reset_run_data()
+	GlobalData.enemy_base_active = true
+	GlobalData.enemy_base_tile_pos = Vector2i(3, 1)
+	var pos_before := GlobalData.enemy_base_tile_pos
+	GlobalData.destroy_enemy_base()
+	_check(GlobalData.enemy_base_tile_pos == Vector2i(-1, -1), "destroy clears node tile pos")
+	_check(GlobalData.consume_enemy_base_tile_reset() == pos_before, "destroy queues tile reset at node pos")
+	_check(GlobalData.consume_enemy_base_tile_reset() == Vector2i(-1, -1), "tile reset consumed once")
+
+	# The counter-unit completion path also queues a reset so the stale tile is
+	# reverted even though the player never stepped on it.
+	GlobalData.reset_run_data()
+	GlobalData.enemy_base_active = true
+	GlobalData.enemy_base_progress = GlobalData.enemy_base_required - 0.9
+	GlobalData.enemy_base_tile_pos = Vector2i(4, 2)
+	var cpos := GlobalData.enemy_base_tile_pos
+	GlobalData.tick_enemy_base_progress(1.0)
+	_check(not GlobalData.enemy_base_active, "completion deactivates node")
+	_check(GlobalData.consume_enemy_base_tile_reset() == cpos, "completion queues tile reset")
+
+	# Stepping on a resolved node tile must NOT re-trigger a raid: the guard
+	# treats an inactive node's tile as a plain combat tile.
+	GlobalData.reset_run_data()
+	GlobalData.enemy_base_active = false
+	_check(GlobalData.enemy_base_tile_pos == Vector2i(-1, -1), "inactive node has no tile pos")
+
+
+func _test_board_has_no_random_enemy_base() -> void:
+	GlobalData.reset_run_data()
+	GlobalData.board_seed = 12345
+	var gen = load("res://scripts/board/board_generator.gd").new()
+	var data = gen.generate_board()
+	var found := false
+	for key in data["nodes"]:
+		if data["nodes"][key].get_meta("tile_type", "") == "enemy_base":
+			found = true
+		data["nodes"][key].free()
+	_check(not found, "board generation never places a random enemy_base tile")
+	gen.free()
 
 
 func _test_tech_escalation() -> void:

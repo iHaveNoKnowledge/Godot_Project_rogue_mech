@@ -1,52 +1,23 @@
 # CHANGEPLAN — งานที่เหลือทำต่อ (Resume Point)
 
-> ย้ายเครื่องมาแล้วอ่านไฟล์นี้ก่อน ข้อมูลในนี้ตรงกับโค้ด commit `c249f34` บน branch `main`
+> ย้ายเครื่องมาแล้วอ่านไฟล์นี้ก่อน ข้อมูลในนี้ตรงกับโค้ด commit `165405f` บน branch `main`
 > วิธีรันเทสต์ headless:
 > `D:\godot\Godot_v4.6.2-stable_win64.exe --headless --quit-after 5 res://tests/refactor_qa_test.tscn`
+> (เครื่องนี้ Godot อยู่ที่ `H:\hack\project\godot\Godot_v4.6.2-stable_win64.exe`; ถ้าเพิ่ง clone ใหม่ต้องรัน `--import` ก่อนเพื่อ build class cache)
 > หลังแก้ทุกครั้ง: รันเทสต์หลายรอบ (test มี randomness ต้องรัน 8-15 รอบ) + `git commit` + `git push` ตาม AGENTS.md
 
 ---
 
-## 1. BUG — tile `enemy_base` ไม่ถูก reset หลังจบ node (สำคัญ)
+## ✅ DONE — commit `165405f`
 
-**ปัญหา:** เมื่อ node ถูกทำลาย (`destroy_enemy_base`) หรือสร้าง counter-unit เสร็จ (`_enemy_base_completed`)
-tile บน board ยังคง meta `tile_type = "enemy_base"` อยู่ (ถูก set ใน `_place_enemy_base_node`)
-
-**ผลกระทบ:** เดินเหยียบซ้ำ tile เดิม → `_process_tile_effect` ส่งเข้าต่อสู้ `enemy_base` อีก →
-ชนะแล้วได้ grunt upgrade +1 ฟรีซ้ำๆ (exploit) และ node ที่จบไปแล้วยังโดน raid ได้ทั้งที่ `enemy_base_active = false`
-
-**ไฟล์:**
-- `scripts/board/board_manager.gd`
-  - `_process_tile_effect` (บรรทัด ~157) — ป้องกันไว้ด้วย: กรณี `enemy_base` แต่ `not GlobalData.enemy_base_active` ให้ treat เป็น `combat` แทน
-  - `_place_enemy_base_node` (บรรทัด ~285) — แจ้งให้ reset tile เดิมก่อนวางใหม่ (ถ้า node เดิมยังค้างบน board)
-- `autoload/global_data.gd` — `destroy_enemy_base()` / `_enemy_base_completed()` อาจตั้ง flag ให้ board รู้ว่า tile ไหนต้องล้าง
-- `scripts/board/board_tile.gd` — `_update_visual()` ต้องคืนสีปกติเมื่อ tile type เปลี่ยนกลับ
-
-**วิธี fix ที่แนะนำ:** ให้ `board_manager` ตรวจ flag ตอน `_ready`/`move_to_tile`:
-เมื่อ consume `pending_enemy_base_destroyed` หรือ `pending_enemy_base_outcome` → reset tile ตัวเก่า
-(`GlobalData.enemy_base_tile_pos`) ให้เป็น `"combat"` + `_update_visual()`
+- **Item 1 (BUG tile reset):** `destroy_enemy_base()` / `_enemy_base_completed()` ตั้ง `pending_enemy_base_tile_reset` ก่อนล้าง tile pos → `board_manager` เรียก `_clear_enemy_base_tile()` ตอน `_ready` + `move_to_tile` (set meta กลับเป็น `"combat"` + `_update_visual()`). เพิ่ม guard ใน `_process_tile_effect` ให้ raid เฉพาะเมื่อ `enemy_base_active` + pos ตรง node จริง ไม่งั้น = combat
+- **Item 2 (type_pool):** เอาออก `"enemy_base"` จาก `type_pool` ใน `board_generator.gd` → enemy_base เกิดจาก spy system อย่างเดียว
+- **Item 3 (counter-unit identity):** `_trigger_stalking_ace_ambush` แยกตัวตน — `special_ace` = heavy_full (HP 2.2), `gundam_copy` = tank_full (HP 2.6); reset `stalking_chance` แทน `ambush_probability` ที่ตายแล้ว
+- **Item 5 (tests):** เพิ่ม `_test_enemy_base_tile_reset` (destroy + completion reset), `_test_board_has_no_random_enemy_base`; เพิ่ม `_consume_enemy_special_unit()` ให้ consume `enemy_special_units` จริงหลังต่อสู้จบ — ผลเทสต์ 0 failed (106-107 passed ตาม outcome สุ่ม)
 
 ---
 
-## 2. DESIGN — enemy_base ติดอยู่ใน type_pool ตอน gen board
-
-**ปัญหา:** `board_generator.gd` บรรทัด 64 มี `"enemy_base"` ใน type_pool (1/7) →
-มี tile enemy_base เกิดแบบสุ่มโดยไม่เกี่ยวกับ spy system → เดินเข้าไปแล้ว raid ทั้งที่ยังไม่มี research node จริง
-
-**ตัดสินใจได้:**
-- (A) เอาออก `type_pool` ให้ enemy_base เกิดจาก spy system เท่านั้น ← **แนะนำ** (สอดคล้อง design)
-- (B) เก็บไว้แต่เปลี่ยน `_process_tile_effect` ให้ raid เฉพาะเมื่อ `enemy_base_active` จริง (กรณีอื่น = combat)
-
----
-
-## 3. POLISH — ambush ของ counter-unit ยังเหมือนกันหมด
-
-**ปัจจุบัน:** `special_ace` กับ `gundam_copy` ambush เป็น `heavy_full` เหมือนกัน ต่างแค่ HP scale (1.8 vs 2.4)
-ใน `scripts/systems/spawn_manager.gd` `_trigger_stalking_ace_ambush`
-
-**ไอเดีย:** ทำให้แยกตัวตนชัดขึ้น เช่น special_ace → `heavy_full` เร็ว/โหด, gundam_copy → ใช้ enemy scene ที่เลียนแบบ player ตัวจริง (ถ้ามี), หรือเพิ่ม entry เฉพาะใน `enemy_scene_paths`
-
----
+## ⏳ REMAINING
 
 ## 4. BALANCE — ยังไม่ได้ playtest จริง (ตัวเลขตั้งไว้ตามเหตุผล)
 
@@ -67,11 +38,11 @@ tile บน board ยังคง meta `tile_type = "enemy_base"` อยู่ (
 
 ---
 
-## 5. TEST — เพิ่ม coverage ตาม feature ใหม่
+## 5. TEST — เพิ่ม coverage ตาม feature ใหม่ ✅ (commit `165405f`)
 
-- [ ] Test: หลัง destroy node → `_process_tile_effect("enemy_base")` ตอน `enemy_base_active=false` ต้องไม่เข้า raid (item 1)
-- [ ] Test: `enemy_special_units` ถูก consume จริงใน combat (ตอนนี้ยังไม่มีโค้ด consume — เช็ค item 3 ว่าไม่ใช่ dead code)
-- [ ] Test: stalking ace ที่เกิดจาก node เมื่อ player ชนะ → ถูก pop ออกจาก `stalking_aces`
+- [x] Test: หลัง destroy node → node tile ถูก reset / guard ไม่ให้ raid ซ้ำตอน `enemy_base_active=false`
+- [x] Test: `enemy_special_units` ถูก consume จริงใน combat (`_consume_enemy_special_unit` ใน spawn_manager)
+- [x] Test: stalking ace ที่เกิดจาก node → ถูก pop ออกจาก `stalking_aces` ตอนเกิด ambush
 
 ---
 

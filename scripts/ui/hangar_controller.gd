@@ -1125,7 +1125,7 @@ func _on_part_item_selected(index: int) -> void:
 		stats_label.text = "INNER FRAME REACTOR LEVEL: %d -> %d\n\nEFFECTS:\n+25 FRAME HP per slot\n+15.0 kg MAX WEIGHT CAPACITY\n+1.5 m/s DASH THRUST SPEED\n\nUPGRADE COST: %d Credits" % [
 			GlobalData.frame_upgrade_level, GlobalData.frame_upgrade_level + 1, cost
 		]
-		selected_salvage_info.clear()
+		selected_salvage_info = {}
 		return
 
 	if current_mode == "chassis":
@@ -1158,7 +1158,7 @@ func _on_part_item_selected(index: int) -> void:
 			selected_frame_info = frame_items[index]
 			selected_part_path = ""
 			selected_part_id = ""
-			selected_salvage_info.clear()
+			selected_salvage_info = {}
 
 			var fname = selected_frame_info.get("name", selected_frame_info.get("part_name", "Inner Frame"))
 			var fhp = selected_frame_info.get("hp", selected_frame_info.get("max_hp", 25.0))
@@ -1186,8 +1186,8 @@ func _on_part_item_selected(index: int) -> void:
 			var wpath = inv.get("path", "")
 			selected_part_path = wpath
 			selected_part_id = wpath
-			selected_frame_info.clear()
-			selected_salvage_info.clear()
+			selected_frame_info = {}
+			selected_salvage_info = {}
 
 			var wname = inv.get("name", "Weapon")
 			var wdur = GlobalData.get_durability_ratio(inv)
@@ -1226,7 +1226,7 @@ func _on_part_item_selected(index: int) -> void:
 			selected_salvage_info = GlobalData.armor_inventory[salvaged_idx]
 			selected_part_path = ""
 			selected_part_id = ""
-			selected_frame_info.clear()
+			selected_frame_info = {}
 
 			var item_name = selected_salvage_info.get("name", selected_salvage_info.get("part_name", "Armor Instance"))
 			var item_type = selected_salvage_info.get("type", "Instance")

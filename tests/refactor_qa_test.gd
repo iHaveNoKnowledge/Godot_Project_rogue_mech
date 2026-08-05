@@ -23,6 +23,7 @@ func _ready() -> void:
 	_test_enemy_research_node()
 	_test_enemy_base_tile_reset()
 	_test_board_has_no_random_enemy_base()
+	_test_hangar_selection_preserves_loadout()
 	_test_tech_escalation()
 	print("REPAIR_QA_RESULT: %d passed, %d failed" % [_passed, _failed])
 	get_tree().quit(1 if _failed > 0 else 0)
@@ -420,6 +421,56 @@ func _test_board_has_no_random_enemy_base() -> void:
 		data["nodes"][key].free()
 	_check(not found, "board generation never places a random enemy_base tile")
 	gen.free()
+
+
+func _test_hangar_selection_preserves_loadout() -> void:
+	# Regression: rapidly clicking part category tabs / sub-modes must never
+	# mutate the equipped loadout. Previously _on_part_item_selected() used
+	# .clear() on selection dicts that held LIVE references into GlobalData
+	# (armor instances, catalog frames), wiping equipped parts/frames.
+	GlobalData.reset_run_data()
+	GlobalData.roll_random_start()
+
+	var before_parts := {}
+	for slot in GlobalData.equipped_parts:
+		var p = GlobalData.equipped_parts[slot]
+		before_parts[slot] = p.get("uid", "") if p is Dictionary else str(p)
+	var before_frames := {}
+	for slot in GlobalData.equipped_frames:
+		var f = GlobalData.equipped_frames[slot]
+		before_frames[slot] = str(f.get("name", "") if f is Dictionary else f)
+	var before_left: Variant = GlobalData.weapon_loadout.get("left")
+	var before_right: Variant = GlobalData.weapon_loadout.get("right")
+
+	var hangar = load("res://scenes/ui/hangar_scene.tscn").instantiate()
+	add_child(hangar)
+	await get_tree().process_frame
+
+	var slots := ["chassis", "head", "body", "arm_left", "arm_right", "leg_left", "leg_right",
+		"weapon_left", "weapon_right", "weapon_carry"]
+	var modes := ["armor", "frame", "attachment"]
+	for round in range(2):
+		for idx in range(slots.size()):
+			hangar._select_slot_tab(slots[idx])
+			hangar._switch_custom_mode(modes[idx % modes.size()])
+	hangar.queue_free()
+
+	var parts_ok := true
+	for slot in before_parts:
+		var p = GlobalData.equipped_parts.get(slot)
+		if (p.get("uid", "") if p is Dictionary else str(p)) != before_parts[slot]:
+			parts_ok = false
+	_check(parts_ok, "hangar tab switching keeps equipped_parts intact")
+
+	var frames_ok := true
+	for slot in before_frames:
+		var f = GlobalData.equipped_frames.get(slot)
+		if (str(f.get("name", "") if f is Dictionary else f)) != before_frames[slot]:
+			frames_ok = false
+	_check(frames_ok, "hangar tab switching keeps equipped_frames intact")
+
+	_check(GlobalData.weapon_loadout.get("left") == before_left, "hangar tab switching keeps left weapon")
+	_check(GlobalData.weapon_loadout.get("right") == before_right, "hangar tab switching keeps right weapon")
 
 
 func _test_tech_escalation() -> void:

@@ -9,24 +9,25 @@ script = ExtResource("1")
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -210.0
+offset_left = -250.0
 offset_top = 10.0
 offset_right = -10.0
-offset_bottom = 260.0
+offset_bottom = 310.0
 grow_horizontal = 0
 
 [node name="VBox" type="VBoxContainer" parent="Panel"]
 layout_mode = 2
+theme_override_constants/separation = 4
 
 [node name="Title" type="Label" parent="Panel/VBox"]
 layout_mode = 2
 text = "STATUS"
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 13
 
 [node name="CoreSection" type="VBoxContainer" parent="Panel/VBox"]
 layout_mode = 2
-theme_override_constants/separation = 0
+theme_override_constants/separation = 2
 
 [node name="HeadLabel" type="Label" parent="Panel/VBox/CoreSection"]
 unique_name_in_owner = true
@@ -39,7 +40,7 @@ theme_override_font_sizes/font_size = 10
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 2)
+custom_minimum_size = Vector2(0, 10)
 max_value = 100.0
 value = 100.0
 
@@ -62,7 +63,7 @@ theme_override_font_sizes/font_size = 8
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 1.5)
+custom_minimum_size = Vector2(0, 6)
 max_value = 100.0
 value = 100.0
 
@@ -92,7 +93,7 @@ theme_override_font_sizes/font_size = 10
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 2)
+custom_minimum_size = Vector2(0, 10)
 max_value = 100.0
 value = 100.0
 
@@ -115,7 +116,7 @@ theme_override_font_sizes/font_size = 8
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 1.5)
+custom_minimum_size = Vector2(0, 6)
 max_value = 100.0
 value = 100.0
 
@@ -140,17 +141,17 @@ theme_override_constants/separation = 4
 
 [node name="ArmRow" type="HBoxContainer" parent="Panel/VBox/LimbSection"]
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 6
 
 [node name="ArmLeftSection" type="VBoxContainer" parent="Panel/VBox/LimbSection/ArmRow"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 0
+theme_override_constants/separation = 2
 
 [node name="ArmLeftLabel" type="Label" parent="Panel/VBox/LimbSection/ArmRow/ArmLeftSection"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "ARM_L"
+text = "ARM  L"
 theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
 theme_override_font_sizes/font_size = 10
 
@@ -158,7 +159,7 @@ theme_override_font_sizes/font_size = 10
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 2)
+custom_minimum_size = Vector2(0, 10)
 max_value = 100.0
 value = 100.0
 
@@ -181,7 +182,7 @@ theme_override_font_sizes/font_size = 8
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 1.5)
+custom_minimum_size = Vector2(0, 6)
 max_value = 100.0
 value = 100.0
 
@@ -203,12 +204,12 @@ theme_override_font_sizes/font_size = 8
 [node name="ArmRightSection" type="VBoxContainer" parent="Panel/VBox/LimbSection/ArmRow"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 0
+theme_override_constants/separation = 2
 
 [node name="ArmRightLabel" type="Label" parent="Panel/VBox/LimbSection/ArmRow/ArmRightSection"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "ARM_R"
+text = "ARM  R"
 theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
 theme_override_font_sizes/font_size = 10
 
@@ -216,7 +217,7 @@ theme_override_font_sizes/font_size = 10
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 2)
+custom_minimum_size = Vector2(0, 10)
 max_value = 100.0
 value = 100.0
 
@@ -239,7 +240,7 @@ theme_override_font_sizes/font_size = 8
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 1.5)
+custom_minimum_size = Vector2(0, 6)
 max_value = 100.0
 value = 100.0
 
@@ -260,17 +261,17 @@ theme_override_font_sizes/font_size = 8
 
 [node name="LegRow" type="HBoxContainer" parent="Panel/VBox/LimbSection"]
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 6
 
 [node name="LegLeftSection" type="VBoxContainer" parent="Panel/VBox/LimbSection/LegRow"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 0
+theme_override_constants/separation = 2
 
 [node name="LegLeftLabel" type="Label" parent="Panel/VBox/LimbSection/LegRow/LegLeftSection"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "LEG_L"
+text = "LEG  L"
 theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
 theme_override_font_sizes/font_size = 10
 
@@ -278,7 +279,7 @@ theme_override_font_sizes/font_size = 10
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 2)
+custom_minimum_size = Vector2(0, 10)
 max_value = 100.0
 value = 100.0
 
@@ -301,7 +302,7 @@ theme_override_font_sizes/font_size = 8
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 1.5)
+custom_minimum_size = Vector2(0, 6)
 max_value = 100.0
 value = 100.0
 
@@ -323,12 +324,12 @@ theme_override_font_sizes/font_size = 8
 [node name="LegRightSection" type="VBoxContainer" parent="Panel/VBox/LimbSection/LegRow"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 0
+theme_override_constants/separation = 2
 
 [node name="LegRightLabel" type="Label" parent="Panel/VBox/LimbSection/LegRow/LegRightSection"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "LEG_R"
+text = "LEG  R"
 theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
 theme_override_font_sizes/font_size = 10
 
@@ -336,7 +337,7 @@ theme_override_font_sizes/font_size = 10
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 2)
+custom_minimum_size = Vector2(0, 10)
 max_value = 100.0
 value = 100.0
 
@@ -359,7 +360,7 @@ theme_override_font_sizes/font_size = 8
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 1.5)
+custom_minimum_size = Vector2(0, 6)
 max_value = 100.0
 value = 100.0
 
@@ -381,16 +382,22 @@ theme_override_font_sizes/font_size = 8
 [node name="HSep" type="HSeparator" parent="Panel/VBox"]
 layout_mode = 2
 
-[node name="ArmorTotal" type="Label" parent="Panel/VBox"]
+[node name="TotalRow" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="ArmorTotal" type="Label" parent="Panel/VBox/TotalRow"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 text = "ARMOR: 100%"
-horizontal_alignment = 1
+horizontal_alignment = 0
 theme_override_font_sizes/font_size = 11
 
-[node name="FrameTotal" type="Label" parent="Panel/VBox"]
+[node name="FrameTotal" type="Label" parent="Panel/VBox/TotalRow"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 text = "FRAME: 100%"
-horizontal_alignment = 1
+horizontal_alignment = 0
 theme_override_font_sizes/font_size = 11

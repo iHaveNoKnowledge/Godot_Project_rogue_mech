@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3]
+﻿[gd_scene load_steps=2 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/limb_hud.gd" id="1"]
 
@@ -9,46 +9,46 @@ script = ExtResource("1")
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -270.0
-offset_top = 375.0
+offset_left = -165.0
+offset_top = 165.0
 offset_right = -10.0
-offset_bottom = 620.0
+offset_bottom = 340.0
 grow_horizontal = 0
 
 [node name="VBox" type="VBoxContainer" parent="Panel"]
 layout_mode = 2
-theme_override_constants/separation = 4
+theme_override_constants/separation = 2
 
 [node name="Title" type="Label" parent="Panel/VBox"]
 layout_mode = 2
 text = "LIMBS"
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 10
 
 [node name="Grid" type="GridContainer" parent="Panel/VBox"]
 layout_mode = 2
 columns = 2
-theme_override_constants/h_separation = 6
-theme_override_constants/v_separation = 2
+theme_override_constants/h_separation = 4
+theme_override_constants/v_separation = 1
 
 [node name="LeftColumn" type="VBoxContainer" parent="Panel/VBox/Grid"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 2
+theme_override_constants/separation = 1
 
 [node name="ArmLeftLabel" type="Label" parent="Panel/VBox/Grid/LeftColumn"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "ARM  L"
 theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
-theme_override_font_sizes/font_size = 10
+theme_override_font_sizes/font_size = 9
 
 [node name="ArmLeftArmorBar" type="TextureProgressBar" parent="Panel/VBox/Grid/LeftColumn"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 22)
+custom_minimum_size = Vector2(0, 8)
 max_value = 100.0
 value = 100.0
 
@@ -58,20 +58,20 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_right = -3.0
+offset_right = -2.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 text = "100"
 horizontal_alignment = 2
 vertical_alignment = 1
-theme_override_font_sizes/font_size = 8
+theme_override_font_sizes/font_size = 7
 
 [node name="ArmLeftFrameBar" type="TextureProgressBar" parent="Panel/VBox/Grid/LeftColumn"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 12)
+custom_minimum_size = Vector2(0, 5)
 max_value = 100.0
 value = 100.0
 
@@ -81,27 +81,27 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_right = -3.0
+offset_right = -2.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 text = "100"
 horizontal_alignment = 2
 vertical_alignment = 1
-theme_override_font_sizes/font_size = 8
+theme_override_font_sizes/font_size = 7
 
 [node name="LegLeftLabel" type="Label" parent="Panel/VBox/Grid/LeftColumn"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "LEG  L"
 theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
-theme_override_font_sizes/font_size = 10
+theme_override_font_sizes/font_size = 9
 
 [node name="LegLeftArmorBar" type="TextureProgressBar" parent="Panel/VBox/Grid/LeftColumn"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 22)
+custom_minimum_size = Vector2(0, 8)
 max_value = 100.0
 value = 100.0
 
@@ -111,20 +111,20 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_right = -3.0
+offset_right = -2.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 text = "100"
 horizontal_alignment = 2
 vertical_alignment = 1
-theme_override_font_sizes/font_size = 8
+theme_override_font_sizes/font_size = 7
 
 [node name="LegLeftFrameBar" type="TextureProgressBar" parent="Panel/VBox/Grid/LeftColumn"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 12)
+custom_minimum_size = Vector2(0, 5)
 max_value = 100.0
 value = 100.0
 
@@ -134,33 +134,33 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_right = -3.0
+offset_right = -2.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 text = "100"
 horizontal_alignment = 2
 vertical_alignment = 1
-theme_override_font_sizes/font_size = 8
+theme_override_font_sizes/font_size = 7
 
 [node name="RightColumn" type="VBoxContainer" parent="Panel/VBox/Grid"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 2
+theme_override_constants/separation = 1
 
 [node name="ArmRightLabel" type="Label" parent="Panel/VBox/Grid/RightColumn"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "ARM  R"
 theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
-theme_override_font_sizes/font_size = 10
+theme_override_font_sizes/font_size = 9
 
 [node name="ArmRightArmorBar" type="TextureProgressBar" parent="Panel/VBox/Grid/RightColumn"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 22)
+custom_minimum_size = Vector2(0, 8)
 max_value = 100.0
 value = 100.0
 
@@ -170,20 +170,20 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_right = -3.0
+offset_right = -2.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 text = "100"
 horizontal_alignment = 2
 vertical_alignment = 1
-theme_override_font_sizes/font_size = 8
+theme_override_font_sizes/font_size = 7
 
 [node name="ArmRightFrameBar" type="TextureProgressBar" parent="Panel/VBox/Grid/RightColumn"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 12)
+custom_minimum_size = Vector2(0, 5)
 max_value = 100.0
 value = 100.0
 
@@ -193,27 +193,27 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_right = -3.0
+offset_right = -2.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 text = "100"
 horizontal_alignment = 2
 vertical_alignment = 1
-theme_override_font_sizes/font_size = 8
+theme_override_font_sizes/font_size = 7
 
 [node name="LegRightLabel" type="Label" parent="Panel/VBox/Grid/RightColumn"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "LEG  R"
 theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
-theme_override_font_sizes/font_size = 10
+theme_override_font_sizes/font_size = 9
 
 [node name="LegRightArmorBar" type="TextureProgressBar" parent="Panel/VBox/Grid/RightColumn"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 22)
+custom_minimum_size = Vector2(0, 8)
 max_value = 100.0
 value = 100.0
 
@@ -223,20 +223,20 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_right = -3.0
+offset_right = -2.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 text = "100"
 horizontal_alignment = 2
 vertical_alignment = 1
-theme_override_font_sizes/font_size = 8
+theme_override_font_sizes/font_size = 7
 
 [node name="LegRightFrameBar" type="TextureProgressBar" parent="Panel/VBox/Grid/RightColumn"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 12)
+custom_minimum_size = Vector2(0, 5)
 max_value = 100.0
 value = 100.0
 
@@ -246,11 +246,11 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_right = -3.0
+offset_right = -2.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 text = "100"
 horizontal_alignment = 2
 vertical_alignment = 1
-theme_override_font_sizes/font_size = 8
+theme_override_font_sizes/font_size = 7

@@ -5,39 +5,38 @@
 [node name="HealthHUD" type="CanvasLayer"]
 script = ExtResource("1")
 
-[node name="HBox" type="HBoxContainer" parent="."]
+[node name="Panel" type="PanelContainer" parent="."]
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -560.0
+offset_left = -270.0
 offset_top = 10.0
 offset_right = -10.0
 offset_bottom = 360.0
 grow_horizontal = 0
-theme_override_constants/separation = 8
 
-[node name="CorePanel" type="PanelContainer" parent="HBox"]
+[node name="VBox" type="VBoxContainer" parent="Panel"]
 layout_mode = 2
-size_flags_horizontal = 3
+theme_override_constants/separation = 4
 
-[node name="CoreVBox" type="VBoxContainer" parent="HBox/CorePanel"]
+[node name="Title" type="Label" parent="Panel/VBox"]
 layout_mode = 2
-theme_override_constants/separation = 2
-
-[node name="CoreLabel" type="Label" parent="HBox/CorePanel/CoreVBox"]
-layout_mode = 2
-text = "CORE"
+text = "STATUS"
 horizontal_alignment = 1
 theme_override_font_sizes/font_size = 13
 
-[node name="HeadLabel" type="Label" parent="HBox/CorePanel/CoreVBox"]
+[node name="CoreSection" type="VBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="HeadLabel" type="Label" parent="Panel/VBox/CoreSection"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "HEAD"
 theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
 theme_override_font_sizes/font_size = 10
 
-[node name="HeadArmorBar" type="TextureProgressBar" parent="HBox/CorePanel/CoreVBox"]
+[node name="HeadArmorBar" type="TextureProgressBar" parent="Panel/VBox/CoreSection"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -45,7 +44,7 @@ custom_minimum_size = Vector2(0, 22)
 max_value = 100.0
 value = 100.0
 
-[node name="HeadArmorValue" type="Label" parent="HBox/CorePanel/CoreVBox/HeadArmorBar"]
+[node name="HeadArmorValue" type="Label" parent="Panel/VBox/CoreSection/HeadArmorBar"]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -60,7 +59,7 @@ horizontal_alignment = 2
 vertical_alignment = 1
 theme_override_font_sizes/font_size = 8
 
-[node name="HeadFrameBar" type="TextureProgressBar" parent="HBox/CorePanel/CoreVBox"]
+[node name="HeadFrameBar" type="TextureProgressBar" parent="Panel/VBox/CoreSection"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -68,7 +67,7 @@ custom_minimum_size = Vector2(0, 12)
 max_value = 100.0
 value = 100.0
 
-[node name="HeadFrameValue" type="Label" parent="HBox/CorePanel/CoreVBox/HeadFrameBar"]
+[node name="HeadFrameValue" type="Label" parent="Panel/VBox/CoreSection/HeadFrameBar"]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -83,14 +82,14 @@ horizontal_alignment = 2
 vertical_alignment = 1
 theme_override_font_sizes/font_size = 8
 
-[node name="BodyLabel" type="Label" parent="HBox/CorePanel/CoreVBox"]
+[node name="BodyLabel" type="Label" parent="Panel/VBox/CoreSection"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "BODY"
 theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
 theme_override_font_sizes/font_size = 10
 
-[node name="BodyArmorBar" type="TextureProgressBar" parent="HBox/CorePanel/CoreVBox"]
+[node name="BodyArmorBar" type="TextureProgressBar" parent="Panel/VBox/CoreSection"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -98,7 +97,7 @@ custom_minimum_size = Vector2(0, 22)
 max_value = 100.0
 value = 100.0
 
-[node name="BodyArmorValue" type="Label" parent="HBox/CorePanel/CoreVBox/BodyArmorBar"]
+[node name="BodyArmorValue" type="Label" parent="Panel/VBox/CoreSection/BodyArmorBar"]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -113,7 +112,7 @@ horizontal_alignment = 2
 vertical_alignment = 1
 theme_override_font_sizes/font_size = 8
 
-[node name="BodyFrameBar" type="TextureProgressBar" parent="HBox/CorePanel/CoreVBox"]
+[node name="BodyFrameBar" type="TextureProgressBar" parent="Panel/VBox/CoreSection"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -121,7 +120,7 @@ custom_minimum_size = Vector2(0, 12)
 max_value = 100.0
 value = 100.0
 
-[node name="BodyFrameValue" type="Label" parent="HBox/CorePanel/CoreVBox/BodyFrameBar"]
+[node name="BodyFrameValue" type="Label" parent="Panel/VBox/CoreSection/BodyFrameBar"]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -136,14 +135,240 @@ horizontal_alignment = 2
 vertical_alignment = 1
 theme_override_font_sizes/font_size = 8
 
-[node name="HSep" type="HSeparator" parent="HBox/CorePanel/CoreVBox"]
+[node name="LimbHBox" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="LeftColumn" type="VBoxContainer" parent="Panel/VBox/LimbHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="ArmLeftLabel" type="Label" parent="Panel/VBox/LimbHBox/LeftColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "ARM  L"
+theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
+theme_override_font_sizes/font_size = 10
+
+[node name="ArmLeftArmorBar" type="TextureProgressBar" parent="Panel/VBox/LimbHBox/LeftColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 22)
+max_value = 100.0
+value = 100.0
+
+[node name="ArmLeftArmorValue" type="Label" parent="Panel/VBox/LimbHBox/LeftColumn/ArmLeftArmorBar"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -3.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+text = "100"
+horizontal_alignment = 2
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 8
+
+[node name="ArmLeftFrameBar" type="TextureProgressBar" parent="Panel/VBox/LimbHBox/LeftColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 12)
+max_value = 100.0
+value = 100.0
+
+[node name="ArmLeftFrameValue" type="Label" parent="Panel/VBox/LimbHBox/LeftColumn/ArmLeftFrameBar"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -3.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+text = "100"
+horizontal_alignment = 2
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 8
+
+[node name="LegLeftLabel" type="Label" parent="Panel/VBox/LimbHBox/LeftColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "LEG  L"
+theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
+theme_override_font_sizes/font_size = 10
+
+[node name="LegLeftArmorBar" type="TextureProgressBar" parent="Panel/VBox/LimbHBox/LeftColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 22)
+max_value = 100.0
+value = 100.0
+
+[node name="LegLeftArmorValue" type="Label" parent="Panel/VBox/LimbHBox/LeftColumn/LegLeftArmorBar"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -3.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+text = "100"
+horizontal_alignment = 2
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 8
+
+[node name="LegLeftFrameBar" type="TextureProgressBar" parent="Panel/VBox/LimbHBox/LeftColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 12)
+max_value = 100.0
+value = 100.0
+
+[node name="LegLeftFrameValue" type="Label" parent="Panel/VBox/LimbHBox/LeftColumn/LegLeftFrameBar"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -3.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+text = "100"
+horizontal_alignment = 2
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 8
+
+[node name="RightColumn" type="VBoxContainer" parent="Panel/VBox/LimbHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="ArmRightLabel" type="Label" parent="Panel/VBox/LimbHBox/RightColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "ARM  R"
+theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
+theme_override_font_sizes/font_size = 10
+
+[node name="ArmRightArmorBar" type="TextureProgressBar" parent="Panel/VBox/LimbHBox/RightColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 22)
+max_value = 100.0
+value = 100.0
+
+[node name="ArmRightArmorValue" type="Label" parent="Panel/VBox/LimbHBox/RightColumn/ArmRightArmorBar"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -3.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+text = "100"
+horizontal_alignment = 2
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 8
+
+[node name="ArmRightFrameBar" type="TextureProgressBar" parent="Panel/VBox/LimbHBox/RightColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 12)
+max_value = 100.0
+value = 100.0
+
+[node name="ArmRightFrameValue" type="Label" parent="Panel/VBox/LimbHBox/RightColumn/ArmRightFrameBar"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -3.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+text = "100"
+horizontal_alignment = 2
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 8
+
+[node name="LegRightLabel" type="Label" parent="Panel/VBox/LimbHBox/RightColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "LEG  R"
+theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
+theme_override_font_sizes/font_size = 10
+
+[node name="LegRightArmorBar" type="TextureProgressBar" parent="Panel/VBox/LimbHBox/RightColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 22)
+max_value = 100.0
+value = 100.0
+
+[node name="LegRightArmorValue" type="Label" parent="Panel/VBox/LimbHBox/RightColumn/LegRightArmorBar"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -3.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+text = "100"
+horizontal_alignment = 2
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 8
+
+[node name="LegRightFrameBar" type="TextureProgressBar" parent="Panel/VBox/LimbHBox/RightColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 12)
+max_value = 100.0
+value = 100.0
+
+[node name="LegRightFrameValue" type="Label" parent="Panel/VBox/LimbHBox/RightColumn/LegRightFrameBar"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -3.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+text = "100"
+horizontal_alignment = 2
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 8
+
+[node name="HSep" type="HSeparator" parent="Panel/VBox"]
 layout_mode = 2
 
-[node name="TotalRow" type="HBoxContainer" parent="HBox/CorePanel/CoreVBox"]
+[node name="TotalRow" type="HBoxContainer" parent="Panel/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="ArmorTotal" type="Label" parent="HBox/CorePanel/CoreVBox/TotalRow"]
+[node name="ArmorTotal" type="Label" parent="Panel/VBox/TotalRow"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -151,7 +376,7 @@ text = "ARMOR: 100%"
 horizontal_alignment = 0
 theme_override_font_sizes/font_size = 11
 
-[node name="FrameTotal" type="Label" parent="HBox/CorePanel/CoreVBox/TotalRow"]
+[node name="FrameTotal" type="Label" parent="Panel/VBox/TotalRow"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -159,242 +384,3 @@ text = "FRAME: 100%"
 horizontal_alignment = 0
 theme_override_font_sizes/font_size = 11
 
-[node name="LimbPanel" type="PanelContainer" parent="HBox"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="LimbVBox" type="VBoxContainer" parent="HBox/LimbPanel"]
-layout_mode = 2
-theme_override_constants/separation = 2
-
-[node name="LimbLabel" type="Label" parent="HBox/LimbPanel/LimbVBox"]
-layout_mode = 2
-text = "LIMBS"
-horizontal_alignment = 1
-theme_override_font_sizes/font_size = 13
-
-[node name="LimbHBox" type="HBoxContainer" parent="HBox/LimbPanel/LimbVBox"]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="LeftColumn" type="VBoxContainer" parent="HBox/LimbPanel/LimbVBox/LimbHBox"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 2
-
-[node name="ArmLeftLabel" type="Label" parent="HBox/LimbPanel/LimbVBox/LimbHBox/LeftColumn"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "ARM  L"
-theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
-theme_override_font_sizes/font_size = 10
-
-[node name="ArmLeftArmorBar" type="TextureProgressBar" parent="HBox/LimbPanel/LimbVBox/LimbHBox/LeftColumn"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 22)
-max_value = 100.0
-value = 100.0
-
-[node name="ArmLeftArmorValue" type="Label" parent="HBox/LimbPanel/LimbVBox/LimbHBox/LeftColumn/ArmLeftArmorBar"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_right = -3.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-text = "100"
-horizontal_alignment = 2
-vertical_alignment = 1
-theme_override_font_sizes/font_size = 8
-
-[node name="ArmLeftFrameBar" type="TextureProgressBar" parent="HBox/LimbPanel/LimbVBox/LimbHBox/LeftColumn"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 12)
-max_value = 100.0
-value = 100.0
-
-[node name="ArmLeftFrameValue" type="Label" parent="HBox/LimbPanel/LimbVBox/LimbHBox/LeftColumn/ArmLeftFrameBar"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_right = -3.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-text = "100"
-horizontal_alignment = 2
-vertical_alignment = 1
-theme_override_font_sizes/font_size = 8
-
-[node name="LegLeftLabel" type="Label" parent="HBox/LimbPanel/LimbVBox/LimbHBox/LeftColumn"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "LEG  L"
-theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
-theme_override_font_sizes/font_size = 10
-
-[node name="LegLeftArmorBar" type="TextureProgressBar" parent="HBox/LimbPanel/LimbVBox/LimbHBox/LeftColumn"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 22)
-max_value = 100.0
-value = 100.0
-
-[node name="LegLeftArmorValue" type="Label" parent="HBox/LimbPanel/LimbVBox/LimbHBox/LeftColumn/LegLeftArmorBar"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_right = -3.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-text = "100"
-horizontal_alignment = 2
-vertical_alignment = 1
-theme_override_font_sizes/font_size = 8
-
-[node name="LegLeftFrameBar" type="TextureProgressBar" parent="HBox/LimbPanel/LimbVBox/LimbHBox/LeftColumn"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 12)
-max_value = 100.0
-value = 100.0
-
-[node name="LegLeftFrameValue" type="Label" parent="HBox/LimbPanel/LimbVBox/LimbHBox/LeftColumn/LegLeftFrameBar"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_right = -3.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-text = "100"
-horizontal_alignment = 2
-vertical_alignment = 1
-theme_override_font_sizes/font_size = 8
-
-[node name="RightColumn" type="VBoxContainer" parent="HBox/LimbPanel/LimbVBox/LimbHBox"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 2
-
-[node name="ArmRightLabel" type="Label" parent="HBox/LimbPanel/LimbVBox/LimbHBox/RightColumn"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "ARM  R"
-theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
-theme_override_font_sizes/font_size = 10
-
-[node name="ArmRightArmorBar" type="TextureProgressBar" parent="HBox/LimbPanel/LimbVBox/LimbHBox/RightColumn"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 22)
-max_value = 100.0
-value = 100.0
-
-[node name="ArmRightArmorValue" type="Label" parent="HBox/LimbPanel/LimbVBox/LimbHBox/RightColumn/ArmRightArmorBar"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_right = -3.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-text = "100"
-horizontal_alignment = 2
-vertical_alignment = 1
-theme_override_font_sizes/font_size = 8
-
-[node name="ArmRightFrameBar" type="TextureProgressBar" parent="HBox/LimbPanel/LimbVBox/LimbHBox/RightColumn"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 12)
-max_value = 100.0
-value = 100.0
-
-[node name="ArmRightFrameValue" type="Label" parent="HBox/LimbPanel/LimbVBox/LimbHBox/RightColumn/ArmRightFrameBar"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_right = -3.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-text = "100"
-horizontal_alignment = 2
-vertical_alignment = 1
-theme_override_font_sizes/font_size = 8
-
-[node name="LegRightLabel" type="Label" parent="HBox/LimbPanel/LimbVBox/LimbHBox/RightColumn"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "LEG  R"
-theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
-theme_override_font_sizes/font_size = 10
-
-[node name="LegRightArmorBar" type="TextureProgressBar" parent="HBox/LimbPanel/LimbVBox/LimbHBox/RightColumn"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 22)
-max_value = 100.0
-value = 100.0
-
-[node name="LegRightArmorValue" type="Label" parent="HBox/LimbPanel/LimbVBox/LimbHBox/RightColumn/LegRightArmorBar"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_right = -3.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-text = "100"
-horizontal_alignment = 2
-vertical_alignment = 1
-theme_override_font_sizes/font_size = 8
-
-[node name="LegRightFrameBar" type="TextureProgressBar" parent="HBox/LimbPanel/LimbVBox/LimbHBox/RightColumn"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 12)
-max_value = 100.0
-value = 100.0
-
-[node name="LegRightFrameValue" type="Label" parent="HBox/LimbPanel/LimbVBox/LimbHBox/RightColumn/LegRightFrameBar"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_right = -3.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-text = "100"
-horizontal_alignment = 2
-vertical_alignment = 1
-theme_override_font_sizes/font_size = 8

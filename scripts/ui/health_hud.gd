@@ -50,7 +50,7 @@ func _make_gradient_texture(base: Color, bar_height: int) -> GradientTexture2D:
 	gradient.set_color(1, base.darkened(0.28))
 	var tex := GradientTexture2D.new()
 	tex.gradient = gradient
-	tex.width = 64
+	tex.width = 512
 	tex.height = bar_height
 	tex.fill_from = Vector2(0, 0)
 	tex.fill_to = Vector2(1, 0)

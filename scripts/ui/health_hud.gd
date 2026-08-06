@@ -1,12 +1,18 @@
 extends CanvasLayer
 
 @onready var bars: Dictionary = {
-	"head": {"armor_bar": %HeadArmorBar, "frame_bar": %HeadFrameBar, "label": %HeadLabel},
-	"body": {"armor_bar": %BodyArmorBar, "frame_bar": %BodyFrameBar, "label": %BodyLabel},
-	"arm_left": {"armor_bar": %ArmLeftArmorBar, "frame_bar": %ArmLeftFrameBar, "label": %ArmLeftLabel},
-	"arm_right": {"armor_bar": %ArmRightArmorBar, "frame_bar": %ArmRightFrameBar, "label": %ArmRightLabel},
-	"leg_left": {"armor_bar": %LegLeftArmorBar, "frame_bar": %LegLeftFrameBar, "label": %LegLeftLabel},
-	"leg_right": {"armor_bar": %LegRightArmorBar, "frame_bar": %LegRightFrameBar, "label": %LegRightLabel},
+	"head": {"armor_bar": %HeadArmorBar, "frame_bar": %HeadFrameBar, "label": %HeadLabel,
+		"armor_value": %HeadArmorValue, "frame_value": %HeadFrameValue},
+	"body": {"armor_bar": %BodyArmorBar, "frame_bar": %BodyFrameBar, "label": %BodyLabel,
+		"armor_value": %BodyArmorValue, "frame_value": %BodyFrameValue},
+	"arm_left": {"armor_bar": %ArmLeftArmorBar, "frame_bar": %ArmLeftFrameBar, "label": %ArmLeftLabel,
+		"armor_value": %ArmLeftArmorValue, "frame_value": %ArmLeftFrameValue},
+	"arm_right": {"armor_bar": %ArmRightArmorBar, "frame_bar": %ArmRightFrameBar, "label": %ArmRightLabel,
+		"armor_value": %ArmRightArmorValue, "frame_value": %ArmRightFrameValue},
+	"leg_left": {"armor_bar": %LegLeftArmorBar, "frame_bar": %LegLeftFrameBar, "label": %LegLeftLabel,
+		"armor_value": %LegLeftArmorValue, "frame_value": %LegLeftFrameValue},
+	"leg_right": {"armor_bar": %LegRightArmorBar, "frame_bar": %LegRightFrameBar, "label": %LegRightLabel,
+		"armor_value": %LegRightArmorValue, "frame_value": %LegRightFrameValue},
 }
 @onready var armor_total: Label = %ArmorTotal
 @onready var frame_total: Label = %FrameTotal
@@ -94,11 +100,8 @@ func _update_label(slot_name: String) -> void:
 		return
 	var part = health_system.parts[slot_name]
 	var entry = bars[slot_name]
-	entry["label"].text = "%s: A%d/F%d" % [
-		slot_name.to_upper(),
-		int(part["armor_hp"]),
-		int(part["frame_hp"])
-	]
+	entry["armor_value"].text = "%d" % int(part["armor_hp"])
+	entry["frame_value"].text = "%d" % int(part["frame_hp"])
 
 
 func _update_all_bars() -> void:

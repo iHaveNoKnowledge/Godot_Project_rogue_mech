@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3]
+﻿[gd_scene load_steps=2 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/health_hud.gd" id="1"]
 
@@ -26,6 +26,7 @@ theme_override_font_sizes/font_size = 12
 
 [node name="HeadSection" type="VBoxContainer" parent="Panel/VBox"]
 layout_mode = 2
+theme_override_constants/separation = 0
 
 [node name="HeadLabel" type="Label" parent="Panel/VBox/HeadSection"]
 unique_name_in_owner = true
@@ -37,19 +38,52 @@ theme_override_font_sizes/font_size = 10
 [node name="HeadArmorBar" type="TextureProgressBar" parent="Panel/VBox/HeadSection"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(180, 8)
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 4)
 max_value = 100.0
 value = 100.0
+
+[node name="HeadArmorValue" type="Label" parent="Panel/VBox/HeadSection/HeadArmorBar"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -3.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+text = "100"
+horizontal_alignment = 2
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 8
 
 [node name="HeadFrameBar" type="TextureProgressBar" parent="Panel/VBox/HeadSection"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(180, 5)
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 3)
 max_value = 100.0
 value = 100.0
 
+[node name="HeadFrameValue" type="Label" parent="Panel/VBox/HeadSection/HeadFrameBar"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -3.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+text = "100"
+horizontal_alignment = 2
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 8
+
 [node name="BodySection" type="VBoxContainer" parent="Panel/VBox"]
 layout_mode = 2
+theme_override_constants/separation = 0
 
 [node name="BodyLabel" type="Label" parent="Panel/VBox/BodySection"]
 unique_name_in_owner = true
@@ -61,16 +95,48 @@ theme_override_font_sizes/font_size = 10
 [node name="BodyArmorBar" type="TextureProgressBar" parent="Panel/VBox/BodySection"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(180, 8)
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 4)
 max_value = 100.0
 value = 100.0
+
+[node name="BodyArmorValue" type="Label" parent="Panel/VBox/BodySection/BodyArmorBar"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -3.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+text = "100"
+horizontal_alignment = 2
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 8
 
 [node name="BodyFrameBar" type="TextureProgressBar" parent="Panel/VBox/BodySection"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(180, 5)
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 3)
 max_value = 100.0
 value = 100.0
+
+[node name="BodyFrameValue" type="Label" parent="Panel/VBox/BodySection/BodyFrameBar"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -3.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+text = "100"
+horizontal_alignment = 2
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 8
 
 [node name="LimbRow" type="HBoxContainer" parent="Panel/VBox"]
 layout_mode = 2
@@ -79,6 +145,7 @@ theme_override_constants/separation = 8
 [node name="ArmLeftSection" type="VBoxContainer" parent="Panel/VBox/LimbRow"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_constants/separation = 0
 
 [node name="ArmLeftLabel" type="Label" parent="Panel/VBox/LimbRow/ArmLeftSection"]
 unique_name_in_owner = true
@@ -90,20 +157,51 @@ theme_override_font_sizes/font_size = 10
 [node name="ArmLeftArmorBar" type="TextureProgressBar" parent="Panel/VBox/LimbRow/ArmLeftSection"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(82, 8)
+custom_minimum_size = Vector2(82, 4)
 max_value = 100.0
 value = 100.0
+
+[node name="ArmLeftArmorValue" type="Label" parent="Panel/VBox/LimbRow/ArmLeftSection/ArmLeftArmorBar"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -3.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+text = "100"
+horizontal_alignment = 2
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 8
 
 [node name="ArmLeftFrameBar" type="TextureProgressBar" parent="Panel/VBox/LimbRow/ArmLeftSection"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(82, 5)
+custom_minimum_size = Vector2(82, 3)
 max_value = 100.0
 value = 100.0
+
+[node name="ArmLeftFrameValue" type="Label" parent="Panel/VBox/LimbRow/ArmLeftSection/ArmLeftFrameBar"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -3.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+text = "100"
+horizontal_alignment = 2
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 8
 
 [node name="ArmRightSection" type="VBoxContainer" parent="Panel/VBox/LimbRow"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_constants/separation = 0
 
 [node name="ArmRightLabel" type="Label" parent="Panel/VBox/LimbRow/ArmRightSection"]
 unique_name_in_owner = true
@@ -115,16 +213,46 @@ theme_override_font_sizes/font_size = 10
 [node name="ArmRightArmorBar" type="TextureProgressBar" parent="Panel/VBox/LimbRow/ArmRightSection"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(82, 8)
+custom_minimum_size = Vector2(82, 4)
 max_value = 100.0
 value = 100.0
+
+[node name="ArmRightArmorValue" type="Label" parent="Panel/VBox/LimbRow/ArmRightSection/ArmRightArmorBar"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -3.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+text = "100"
+horizontal_alignment = 2
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 8
 
 [node name="ArmRightFrameBar" type="TextureProgressBar" parent="Panel/VBox/LimbRow/ArmRightSection"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(82, 5)
+custom_minimum_size = Vector2(82, 3)
 max_value = 100.0
 value = 100.0
+
+[node name="ArmRightFrameValue" type="Label" parent="Panel/VBox/LimbRow/ArmRightSection/ArmRightFrameBar"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -3.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+text = "100"
+horizontal_alignment = 2
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 8
 
 [node name="LegRow" type="HBoxContainer" parent="Panel/VBox"]
 layout_mode = 2
@@ -133,6 +261,7 @@ theme_override_constants/separation = 8
 [node name="LegLeftSection" type="VBoxContainer" parent="Panel/VBox/LegRow"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_constants/separation = 0
 
 [node name="LegLeftLabel" type="Label" parent="Panel/VBox/LegRow/LegLeftSection"]
 unique_name_in_owner = true
@@ -144,20 +273,51 @@ theme_override_font_sizes/font_size = 10
 [node name="LegLeftArmorBar" type="TextureProgressBar" parent="Panel/VBox/LegRow/LegLeftSection"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(82, 8)
+custom_minimum_size = Vector2(82, 4)
 max_value = 100.0
 value = 100.0
+
+[node name="LegLeftArmorValue" type="Label" parent="Panel/VBox/LegRow/LegLeftSection/LegLeftArmorBar"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -3.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+text = "100"
+horizontal_alignment = 2
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 8
 
 [node name="LegLeftFrameBar" type="TextureProgressBar" parent="Panel/VBox/LegRow/LegLeftSection"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(82, 5)
+custom_minimum_size = Vector2(82, 3)
 max_value = 100.0
 value = 100.0
+
+[node name="LegLeftFrameValue" type="Label" parent="Panel/VBox/LegRow/LegLeftSection/LegLeftFrameBar"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -3.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+text = "100"
+horizontal_alignment = 2
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 8
 
 [node name="LegRightSection" type="VBoxContainer" parent="Panel/VBox/LegRow"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_constants/separation = 0
 
 [node name="LegRightLabel" type="Label" parent="Panel/VBox/LegRow/LegRightSection"]
 unique_name_in_owner = true
@@ -169,16 +329,46 @@ theme_override_font_sizes/font_size = 10
 [node name="LegRightArmorBar" type="TextureProgressBar" parent="Panel/VBox/LegRow/LegRightSection"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(82, 8)
+custom_minimum_size = Vector2(82, 4)
 max_value = 100.0
 value = 100.0
+
+[node name="LegRightArmorValue" type="Label" parent="Panel/VBox/LegRow/LegRightSection/LegRightArmorBar"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -3.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+text = "100"
+horizontal_alignment = 2
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 8
 
 [node name="LegRightFrameBar" type="TextureProgressBar" parent="Panel/VBox/LegRow/LegRightSection"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(82, 5)
+custom_minimum_size = Vector2(82, 3)
 max_value = 100.0
 value = 100.0
+
+[node name="LegRightFrameValue" type="Label" parent="Panel/VBox/LegRow/LegRightSection/LegRightFrameBar"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -3.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+text = "100"
+horizontal_alignment = 2
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 8
 
 [node name="HSep" type="HSeparator" parent="Panel/VBox"]
 layout_mode = 2

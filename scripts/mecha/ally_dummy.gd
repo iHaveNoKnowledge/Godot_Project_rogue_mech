@@ -123,7 +123,7 @@ func _physics_process(delta: float) -> void:
 
 
 func _acquire_target() -> void:
-	if target and is_instance_valid(target) and not target.health_system.get("is_destroyed", false):
+	if target and is_instance_valid(target) and target.health_system and not target.health_system.is_destroyed:
 		return
 	target = null
 	scan_timer -= get_physics_process_delta_time()
@@ -136,7 +136,7 @@ func _acquire_target() -> void:
 	for e in enemies:
 		if not is_instance_valid(e) or e.get("health_system") == null:
 			continue
-		if e.health_system.get("is_destroyed", false):
+		if e.health_system.is_destroyed:
 			continue
 		var dist = global_position.distance_to(e.global_position)
 		if dist < nearest_dist:

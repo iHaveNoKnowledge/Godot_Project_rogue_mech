@@ -29,8 +29,8 @@ var _frame_texture: GradientTexture2D = null
 var _armor_track_texture: GradientTexture2D = null
 var _frame_track_texture: GradientTexture2D = null
 
-const ARMOR_BAR_HEIGHT := 16
-const FRAME_BAR_HEIGHT := 9
+const ARMOR_BAR_HEIGHT := 22
+const FRAME_BAR_HEIGHT := 12
 
 
 func _ready() -> void:

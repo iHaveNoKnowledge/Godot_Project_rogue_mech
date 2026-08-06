@@ -748,10 +748,17 @@ func _build_craft_window() -> void:
 	vbox.add_child(title)
 
 	var hint = Label.new()
-	hint.text = "Scrap: %d   Credits: %d" % [GlobalData.scrap, GlobalData.credits]
+	hint.text = "Scrap: %d   Credits: %d   Data Cores: %d" % [GlobalData.scrap, GlobalData.credits, GlobalData.data_cores]
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.add_theme_color_override("font_color", Color(0.5, 0.9, 0.6))
 	vbox.add_child(hint)
+
+	var bp_hint = Label.new()
+	bp_hint.text = "[BLUEPRINT] parts require researching their blueprint at the Research Base first."
+	bp_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	bp_hint.add_theme_color_override("font_color", Color(0.5, 0.7, 0.9))
+	bp_hint.add_theme_font_size_override("font_size", 11)
+	vbox.add_child(bp_hint)
 
 	var sep = HSeparator.new()
 	vbox.add_child(sep)
@@ -769,6 +776,7 @@ func _build_craft_window() -> void:
 	for info in armor_catalog[selected_slot]:
 		var s_cost := GlobalData.get_armor_scrap_cost(info)
 		var c_cost := GlobalData.get_armor_credit_cost(info)
+		var blueprint_locked := GlobalData.entry_is_blueprint_locked(info)
 		var can_afford := GlobalData.scrap >= s_cost and GlobalData.credits >= c_cost
 
 		var row = HBoxContainer.new()
@@ -776,8 +784,9 @@ func _build_craft_window() -> void:
 		rows.add_child(row)
 
 		var info_lbl = Label.new()
-		info_lbl.text = "%s [%s]  %.1fkg   (%.0f HP / %.0f armor)" % [
-			info.get("name", "Armor"), info.get("type", "?"),
+		var bp_tag = "  [BLUEPRINT]" if blueprint_locked else ""
+		info_lbl.text = "%s%s [%s]  %.1fkg   (%.0f HP / %.0f armor)" % [
+			info.get("name", "Armor"), bp_tag, info.get("type", "?"),
 			GlobalData.part_stat(info, "weight", 0.0),
 			GlobalData.part_stat(info, "max_hp", 0.0),
 			GlobalData.part_stat(info, "armor", 0.0)
@@ -787,10 +796,14 @@ func _build_craft_window() -> void:
 		row.add_child(info_lbl)
 
 		var craft_btn = Button.new()
-		craft_btn.text = "CRAFT  %d scrap / %d cr" % [s_cost, c_cost]
+		if blueprint_locked:
+			craft_btn.text = "RESEARCH TO UNLOCK"
+			craft_btn.disabled = true
+		else:
+			craft_btn.text = "CRAFT  %d scrap / %d cr" % [s_cost, c_cost]
+			craft_btn.disabled = not can_afford
+			craft_btn.pressed.connect(func(): _craft_armor_from_template(info))
 		craft_btn.custom_minimum_size = Vector2(160, 32)
-		craft_btn.disabled = not can_afford
-		craft_btn.pressed.connect(func(): _craft_armor_from_template(info))
 		row.add_child(craft_btn)
 
 	var sep2 = HSeparator.new()
@@ -813,6 +826,9 @@ func _craft_armor_from_template(info: Dictionary) -> void:
 	var pid = info.get("id", "")
 	if pid == "":
 		status_message_label.text = "Cannot craft: unknown template."
+		return
+	if GlobalData.entry_is_blueprint_locked(info):
+		status_message_label.text = "This gundam part requires its blueprint researched first."
 		return
 	var s_cost := GlobalData.get_armor_scrap_cost(info)
 	var c_cost := GlobalData.get_armor_credit_cost(info)
@@ -1548,6 +1564,9 @@ func _equip_part_to_slot(slot: String, info: Dictionary) -> void:
 		var entry := GlobalData.get_armor_catalog_entry(pid)
 		if entry.is_empty():
 			status_message_label.text = "Cannot acquire armor: unknown catalog entry."
+			return
+		if GlobalData.entry_is_blueprint_locked(entry):
+			status_message_label.text = "Cannot equip: research this blueprint at the Research Base first."
 			return
 		var s_cost := GlobalData.get_armor_scrap_cost(entry)
 		var c_cost := GlobalData.get_armor_credit_cost(entry)

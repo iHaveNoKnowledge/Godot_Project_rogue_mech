@@ -24,6 +24,7 @@ func _ready() -> void:
 	_test_enemy_base_tile_reset()
 	_test_board_has_no_random_enemy_base()
 	_test_tech_escalation()
+	_test_blueprint_gated_gundam_armor()
 	# The hangar test is async (it awaits a frame while building the scene), so
 	# it must be awaited to completion before the result is printed; otherwise
 	# later reset_run_data() calls would mutate GlobalData under its pending
@@ -526,3 +527,47 @@ func _test_tech_escalation() -> void:
 	_check(GlobalData.enemy_tech_tier == 2, "escalation from clean win")
 	_check(GlobalData.consume_pending_escalation_event(), "pending escalation flag set")
 	_check(not GlobalData.consume_pending_escalation_event(), "pending flag consumed once")
+
+
+func _test_blueprint_gated_gundam_armor() -> void:
+	GlobalData.reset_run_data()
+	var gundam := GlobalData.get_armor_catalog_entry("body_003_gundam")
+	_check(not gundam.is_empty(), "gundam armor exists in catalog")
+	_check(bool(gundam.get("blueprint_only", false)), "gundam part is blueprint_only")
+	_check(gundam.get("blueprint_id", "") == "bp_gundam_armor", "gundam part points at gundam armor project")
+	var standard := GlobalData.get_armor_catalog_entry("body_001")
+	_check(not GlobalData.entry_is_blueprint_locked(standard), "standard armor is never blueprint-locked")
+
+	# Fresh run: blueprint NOT researched -> locked, crafting blocked.
+	_check(GlobalData.entry_is_blueprint_locked(gundam), "unresearched gundam part is locked")
+	GlobalData.scrap = 999
+	GlobalData.credits = 999
+	var before_instances := GlobalData.armor_inventory.size()
+	var crafted := GlobalData.try_craft_armor_from_catalog("body_003_gundam")
+	_check(crafted.is_empty(), "crafting a locked gundam part is refused")
+	_check(GlobalData.armor_inventory.size() == before_instances, "no instance created while locked")
+
+	# Random start loadouts never include blueprint-only parts.
+	GlobalData.roll_random_start()
+	var has_gundam_part := false
+	for slot in GlobalData.equipped_parts:
+		var part = GlobalData.equipped_parts[slot]
+		var id = part.get("db_id", part.get("id", "")) if part is Dictionary else ""
+		if str(id).ends_with("_gundam"):
+			has_gundam_part = true
+	_check(not has_gundam_part, "random start never assigns gundam parts")
+
+	# Researching the blueprint unlocks crafting.
+	GlobalData.reset_run_data()
+	GlobalData.data_cores = 10
+	GlobalData.scrap = 999
+	GlobalData.credits = 999
+	GlobalData.start_research("bp_gundam_armor")
+	var guard := 0
+	while GlobalData.research_projects.has("bp_gundam_armor") and guard < 100:
+		guard += 1
+		GlobalData.tick_research(1)
+	_check("bp_gundam_armor" in GlobalData.research_unlocked, "researching gundam armor blueprint unlocks it")
+	_check(not GlobalData.entry_is_blueprint_locked(gundam), "researched gundam part is unlocked")
+	crafted = GlobalData.try_craft_armor_from_catalog("body_003_gundam")
+	_check(not crafted.is_empty(), "researched gundam part can be crafted")

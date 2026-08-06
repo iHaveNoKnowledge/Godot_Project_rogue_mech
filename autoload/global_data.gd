@@ -206,12 +206,23 @@ func get_armor_credit_cost(entry: Dictionary) -> int:
 	return maxi(1, int(ceil((s.hp + s.armor + s.weight) / 15.0)))
 
 
+# True when a catalog armor entry is a gundam-tier part that must first be
+# researched (its matching research project completed) before it can be crafted.
+func entry_is_blueprint_locked(entry: Dictionary) -> bool:
+	if not bool(entry.get("blueprint_only", false)):
+		return false
+	var blueprint_id := str(entry.get("blueprint_id", ""))
+	return blueprint_id == "" or not is_research_completed(blueprint_id)
+
+
 # Attempts to craft a fresh armor instance from the catalog, spending scrap + credits.
 # Returns the new instance on success, or an empty Dictionary on any failure
-# (unknown id / insufficient scrap / insufficient credits).
+# (unknown id / insufficient scrap / insufficient credits / blueprint not researched).
 func try_craft_armor_from_catalog(part_id: String) -> Dictionary:
 	var entry := get_armor_catalog_entry(part_id)
 	if entry.is_empty():
+		return {}
+	if entry_is_blueprint_locked(entry):
 		return {}
 	if scrap < get_armor_scrap_cost(entry) or credits < get_armor_credit_cost(entry):
 		return {}
@@ -780,8 +791,11 @@ func _apply_research_reward(project_id: String) -> void:
 		"unit":
 			add_ally_unit(str(project.get("reward_id", "")))
 		"armor", "frame":
-			# Unlocked gear becomes usable in the hangar. Gear entries are stored
-			# by id; the hangar reads this list when building upgrade lists.
+			# Completing an armor/frame blueprint unlocks crafting access to the
+			# matching gundam-tier catalog parts (flagged blueprint_only). The
+			# unlocking is recorded in research_unlocked; the hangar/craft gates
+			# read entry_is_blueprint_locked() against that list. The blueprint_id
+			# on each guarded catalog entry must equal this project_id.
 			pass
 
 # -----------------------------------------------------------------------------

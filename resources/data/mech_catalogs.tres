@@ -14,6 +14,17 @@ armor_catalog = {
 "path": "res://resources/mech/stock/arm_left_standard.tres",
 "type": "Standard Armor",
 "weight": 6.0
+}, {
+"armor": 30.0,
+"blueprint_id": "bp_gundam_armor",
+"blueprint_only": true,
+"color": Color(0.9, 0.2, 0.25, 1),
+"hp": 40.0,
+"id": "arm_left_002_gundam",
+"name": "Gundam Reactive Shoulder Plate (L)",
+"path": "res://resources/mech/stock/arm_left_standard.tres",
+"type": "Gundam Armor",
+"weight": 5.0
 }],
 "arm_right": [{
 "armor": 15.0,
@@ -24,6 +35,17 @@ armor_catalog = {
 "path": "res://resources/mech/stock/arm_right_standard.tres",
 "type": "Standard Armor",
 "weight": 6.0
+}, {
+"armor": 30.0,
+"blueprint_id": "bp_gundam_armor",
+"blueprint_only": true,
+"color": Color(0.9, 0.2, 0.25, 1),
+"hp": 40.0,
+"id": "arm_right_002_gundam",
+"name": "Gundam Reactive Shoulder Plate (R)",
+"path": "res://resources/mech/stock/arm_right_standard.tres",
+"type": "Gundam Armor",
+"weight": 5.0
 }],
 "body": [{
 "armor": 40.0,
@@ -43,6 +65,17 @@ armor_catalog = {
 "path": "res://resources/mech/stock/torso_standard.tres",
 "type": "Heavy Armor",
 "weight": 24.0
+}, {
+"armor": 85.0,
+"blueprint_id": "bp_gundam_armor",
+"blueprint_only": true,
+"color": Color(0.9, 0.2, 0.25, 1),
+"hp": 130.0,
+"id": "body_003_gundam",
+"name": "Gundam Core Reactive Chestplate",
+"path": "res://resources/mech/stock/torso_standard.tres",
+"type": "Gundam Armor",
+"weight": 18.0
 }],
 "head": [{
 "armor": 20.0,
@@ -62,6 +95,17 @@ armor_catalog = {
 "path": "res://resources/mech/stock/head_standard.tres",
 "type": "Light Plating",
 "weight": 2.0
+}, {
+"armor": 32.0,
+"blueprint_id": "bp_gundam_armor",
+"blueprint_only": true,
+"color": Color(0.9, 0.2, 0.25, 1),
+"hp": 55.0,
+"id": "head_003_gundam",
+"name": "Gundam Duo-visor Plating",
+"path": "res://resources/mech/stock/head_standard.tres",
+"type": "Gundam Armor",
+"weight": 3.0
 }],
 "leg_left": [{
 "armor": 20.0,
@@ -72,6 +116,17 @@ armor_catalog = {
 "path": "res://resources/mech/stock/leg_left_standard.tres",
 "type": "Standard Armor",
 "weight": 8.0
+}, {
+"armor": 35.0,
+"blueprint_id": "bp_gundam_armor",
+"blueprint_only": true,
+"color": Color(0.9, 0.2, 0.25, 1),
+"hp": 55.0,
+"id": "leg_left_002_gundam",
+"name": "Gundam Reactive Leg Guard (L)",
+"path": "res://resources/mech/stock/leg_left_standard.tres",
+"type": "Gundam Armor",
+"weight": 7.0
 }],
 "leg_right": [{
 "armor": 20.0,
@@ -82,6 +137,17 @@ armor_catalog = {
 "path": "res://resources/mech/stock/leg_right_standard.tres",
 "type": "Standard Armor",
 "weight": 8.0
+}, {
+"armor": 35.0,
+"blueprint_id": "bp_gundam_armor",
+"blueprint_only": true,
+"color": Color(0.9, 0.2, 0.25, 1),
+"hp": 55.0,
+"id": "leg_right_002_gundam",
+"name": "Gundam Reactive Leg Guard (R)",
+"path": "res://resources/mech/stock/leg_right_standard.tres",
+"type": "Gundam Armor",
+"weight": 7.0
 }],
 "weapon_left": [{
 "armor": 0.0,

@@ -40,7 +40,7 @@ theme_override_font_sizes/font_size = 10
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 10)
+custom_minimum_size = Vector2(0, 16)
 max_value = 100.0
 value = 100.0
 
@@ -63,7 +63,7 @@ theme_override_font_sizes/font_size = 8
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 6)
+custom_minimum_size = Vector2(0, 9)
 max_value = 100.0
 value = 100.0
 
@@ -93,7 +93,7 @@ theme_override_font_sizes/font_size = 10
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 10)
+custom_minimum_size = Vector2(0, 16)
 max_value = 100.0
 value = 100.0
 
@@ -116,7 +116,7 @@ theme_override_font_sizes/font_size = 8
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 6)
+custom_minimum_size = Vector2(0, 9)
 max_value = 100.0
 value = 100.0
 
@@ -159,7 +159,7 @@ theme_override_font_sizes/font_size = 10
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 10)
+custom_minimum_size = Vector2(0, 16)
 max_value = 100.0
 value = 100.0
 
@@ -182,7 +182,7 @@ theme_override_font_sizes/font_size = 8
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 6)
+custom_minimum_size = Vector2(0, 9)
 max_value = 100.0
 value = 100.0
 
@@ -217,7 +217,7 @@ theme_override_font_sizes/font_size = 10
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 10)
+custom_minimum_size = Vector2(0, 16)
 max_value = 100.0
 value = 100.0
 
@@ -240,7 +240,7 @@ theme_override_font_sizes/font_size = 8
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 6)
+custom_minimum_size = Vector2(0, 9)
 max_value = 100.0
 value = 100.0
 
@@ -279,7 +279,7 @@ theme_override_font_sizes/font_size = 10
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 10)
+custom_minimum_size = Vector2(0, 16)
 max_value = 100.0
 value = 100.0
 
@@ -302,7 +302,7 @@ theme_override_font_sizes/font_size = 8
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 6)
+custom_minimum_size = Vector2(0, 9)
 max_value = 100.0
 value = 100.0
 
@@ -337,7 +337,7 @@ theme_override_font_sizes/font_size = 10
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 10)
+custom_minimum_size = Vector2(0, 16)
 max_value = 100.0
 value = 100.0
 
@@ -360,7 +360,7 @@ theme_override_font_sizes/font_size = 8
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 6)
+custom_minimum_size = Vector2(0, 9)
 max_value = 100.0
 value = 100.0
 

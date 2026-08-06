@@ -26,7 +26,11 @@ const TRACK_COLOR := Color(0.08, 0.08, 0.1, 0.9)
 
 var _armor_texture: GradientTexture2D = null
 var _frame_texture: GradientTexture2D = null
-var _track_texture: GradientTexture2D = null
+var _armor_track_texture: GradientTexture2D = null
+var _frame_track_texture: GradientTexture2D = null
+
+const ARMOR_BAR_HEIGHT := 16
+const FRAME_BAR_HEIGHT := 9
 
 
 func _ready() -> void:
@@ -40,42 +44,43 @@ func _ready() -> void:
 			_update_all_bars()
 
 
-func _make_gradient_texture(base: Color) -> GradientTexture2D:
+func _make_gradient_texture(base: Color, bar_height: int) -> GradientTexture2D:
 	var gradient := Gradient.new()
 	gradient.set_color(0, base.lightened(0.18))
 	gradient.set_color(1, base.darkened(0.28))
 	var tex := GradientTexture2D.new()
 	tex.gradient = gradient
 	tex.width = 64
-	tex.height = 16
+	tex.height = bar_height
 	tex.fill_from = Vector2(0, 0)
 	tex.fill_to = Vector2(1, 0)
 	return tex
 
 
-func _make_track_texture() -> GradientTexture2D:
+func _make_track_texture(bar_height: int) -> GradientTexture2D:
 	var gradient := Gradient.new()
 	gradient.set_color(0, TRACK_COLOR)
 	gradient.set_color(1, TRACK_COLOR)
 	var tex := GradientTexture2D.new()
 	tex.gradient = gradient
 	tex.width = 4
-	tex.height = 16
+	tex.height = bar_height
 	return tex
 
 
 func _apply_bar_style() -> void:
-	_armor_texture = _make_gradient_texture(ARMOR_COLOR)
-	_frame_texture = _make_gradient_texture(FRAME_COLOR)
-	_track_texture = _make_track_texture()
+	_armor_texture = _make_gradient_texture(ARMOR_COLOR, ARMOR_BAR_HEIGHT)
+	_frame_texture = _make_gradient_texture(FRAME_COLOR, FRAME_BAR_HEIGHT)
+	_armor_track_texture = _make_track_texture(ARMOR_BAR_HEIGHT)
+	_frame_track_texture = _make_track_texture(FRAME_BAR_HEIGHT)
 	for slot in bars:
 		var entry = bars[slot]
-		_setup_bar(entry["armor_bar"], _armor_texture)
-		_setup_bar(entry["frame_bar"], _frame_texture)
+		_setup_bar(entry["armor_bar"], _armor_texture, _armor_track_texture)
+		_setup_bar(entry["frame_bar"], _frame_texture, _frame_track_texture)
 
 
-func _setup_bar(bar: TextureProgressBar, fill: GradientTexture2D) -> void:
-	bar.texture_under = _track_texture
+func _setup_bar(bar: TextureProgressBar, fill: GradientTexture2D, track: GradientTexture2D) -> void:
+	bar.texture_under = track
 	bar.texture_progress = fill
 	bar.fill_mode = TextureProgressBar.FILL_LEFT_TO_RIGHT
 

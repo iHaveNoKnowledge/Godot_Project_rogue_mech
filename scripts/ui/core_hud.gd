@@ -5,20 +5,11 @@ extends CanvasLayer
 		"armor_value": %HeadArmorValue, "frame_value": %HeadFrameValue},
 	"body": {"armor_bar": %BodyArmorBar, "frame_bar": %BodyFrameBar, "label": %BodyLabel,
 		"armor_value": %BodyArmorValue, "frame_value": %BodyFrameValue},
-	"arm_left": {"armor_bar": %ArmLeftArmorBar, "frame_bar": %ArmLeftFrameBar, "label": %ArmLeftLabel,
-		"armor_value": %ArmLeftArmorValue, "frame_value": %ArmLeftFrameValue},
-	"arm_right": {"armor_bar": %ArmRightArmorBar, "frame_bar": %ArmRightFrameBar, "label": %ArmRightLabel,
-		"armor_value": %ArmRightArmorValue, "frame_value": %ArmRightFrameValue},
-	"leg_left": {"armor_bar": %LegLeftArmorBar, "frame_bar": %LegLeftFrameBar, "label": %LegLeftLabel,
-		"armor_value": %LegLeftArmorValue, "frame_value": %LegLeftFrameValue},
-	"leg_right": {"armor_bar": %LegRightArmorBar, "frame_bar": %LegRightFrameBar, "label": %LegRightLabel,
-		"armor_value": %LegRightArmorValue, "frame_value": %LegRightFrameValue},
 }
 @onready var armor_total: Label = %ArmorTotal
 @onready var frame_total: Label = %FrameTotal
 
 var health_system: Node = null
-var roller_dash_label: Label = null
 
 const ARMOR_COLOR := Color("#c4c3c0")
 const FRAME_COLOR := Color("#87c790")
@@ -113,6 +104,8 @@ func _update_all_bars() -> void:
 	if health_system == null:
 		return
 	for slot in health_system.parts:
+		if not bars.has(slot):
+			continue
 		var part = health_system.parts[slot]
 		_on_health_changed(slot, "armor", part["armor_hp"], part["max_armor"])
 		_on_health_changed(slot, "frame", part["frame_hp"], part["max_frame"])
@@ -123,28 +116,3 @@ func _update_totals() -> void:
 		return
 	armor_total.text = "ARMOR: %d%%" % int(health_system.get_armor_percent() * 100.0)
 	frame_total.text = "FRAME: %d%%" % int(health_system.get_frame_percent() * 100.0)
-
-
-func _process(_delta: float) -> void:
-	var mecha = get_tree().current_scene.get_node_or_null("Mecha") if get_tree().current_scene else null
-	if mecha and mecha.get("is_roller_dashing") != null:
-		if roller_dash_label == null:
-			_create_roller_dash_label()
-		if mecha.is_roller_dashing:
-			roller_dash_label.visible = true
-			roller_dash_label.text = "[ ROLLER DASH: ACTIVE ] (Ctrl)"
-		else:
-			roller_dash_label.visible = false
-
-
-func _create_roller_dash_label() -> void:
-	roller_dash_label = Label.new()
-	roller_dash_label.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	roller_dash_label.offset_left = -320
-	roller_dash_label.offset_top = -60
-	roller_dash_label.offset_right = -20
-	roller_dash_label.offset_bottom = -20
-	roller_dash_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	roller_dash_label.add_theme_font_size_override("font_size", 18)
-	roller_dash_label.add_theme_color_override("font_color", Color(1.0, 0.75, 0.2))
-	add_child(roller_dash_label)

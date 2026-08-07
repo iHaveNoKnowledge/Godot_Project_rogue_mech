@@ -382,6 +382,13 @@ func apply_emergency_repair(slot: String, primitives: Array = []) -> Dictionary:
 		elif p.get("armor") != null:
 			armor_class = maxf(float(p.get("armor", 10.0)) / 10.0, 0.1)
 
+	# Primitives are stored JSON-safe (arrays for vec3/color) so the patch
+	# survives save_run()/load_run() round-trips.
+	var safe_primitives: Array = []
+	for primitive in primitives:
+		if primitive is Dictionary:
+			safe_primitives.append(_scrap_primitive_to_json_safe(primitive))
+
 	var patch := {
 		"tier": tier,
 		"stat_scale": scale,
@@ -389,7 +396,7 @@ func apply_emergency_repair(slot: String, primitives: Array = []) -> Dictionary:
 		"scrap_frame_hp": maxf(frame_max_hp * scale, 1.0),
 		"armor_class": maxf(armor_class * scale, 0.1),
 		"scrap_spent": cost,
-		"primitives": primitives,
+		"primitives": safe_primitives,
 	}
 	scrap_patches[slot] = patch
 	part_damage.erase(slot)
@@ -400,12 +407,107 @@ func apply_emergency_repair(slot: String, primitives: Array = []) -> Dictionary:
 	return patch
 
 
+# Converts a scrap primitive's Vector3/Color fields into JSON-safe arrays.
+func _scrap_primitive_to_json_safe(primitive: Dictionary) -> Dictionary:
+	var out := primitive.duplicate(true)
+	var pos = primitive.get("pos")
+	if pos is Vector3:
+		out["pos"] = [pos.x, pos.y, pos.z]
+	var rot = primitive.get("rot")
+	if rot is Vector3:
+		out["rot"] = [rot.x, rot.y, rot.z]
+	var scale = primitive.get("scale")
+	if scale is Vector3:
+		out["scale"] = [scale.x, scale.y, scale.z]
+	elif scale is float or scale is int:
+		var f := float(scale)
+		out["scale"] = [f, f, f]
+	var color = primitive.get("color")
+	if color is Color:
+		out["color"] = [color.r, color.g, color.b, color.a]
+	return out
+
+
+func scrap_primitive_pos(primitive: Dictionary) -> Vector3:
+	var raw = primitive.get("pos")
+	if raw is Vector3:
+		return raw
+	if raw is Array and raw.size() >= 3:
+		return Vector3(float(raw[0]), float(raw[1]), float(raw[2]))
+	return Vector3.ZERO
+
+
+func scrap_primitive_rot(primitive: Dictionary) -> Vector3:
+	var raw = primitive.get("rot")
+	if raw is Vector3:
+		return raw
+	if raw is Array and raw.size() >= 3:
+		return Vector3(float(raw[0]), float(raw[1]), float(raw[2]))
+	return Vector3.ZERO
+
+
+func scrap_primitive_scale(primitive: Dictionary) -> Vector3:
+	var raw = primitive.get("scale")
+	if raw is Vector3:
+		return raw
+	if raw is Array and raw.size() >= 3:
+		return Vector3(float(raw[0]), float(raw[1]), float(raw[2]))
+	var flat = primitive.get("scale")
+	if flat is float or flat is int:
+		var f := float(flat)
+		return Vector3(f, f, f)
+	return Vector3.ONE
+
+
+func scrap_primitive_color(primitive: Dictionary) -> Color:
+	var raw = primitive.get("color")
+	if raw is Color:
+		return raw
+	if raw is Array and raw.size() >= 4:
+		return Color(float(raw[0]), float(raw[1]), float(raw[2]), float(raw[3]))
+	return Color(0.55, 0.55, 0.6, 1.0)
+
+
 func has_scrap_patch(slot: String) -> bool:
 	return scrap_patches.has(slot)
 
 
 func remove_scrap_patch(slot: String) -> void:
 	scrap_patches.erase(slot)
+
+
+# -----------------------------------------------------------------------------
+# PROFESSIONAL REPAIR — a fleet mechanic / village workshop rebuilds a scrap-
+# patched (or damaged) slot into fresh catalog armor. Costs credits and consumes
+# the node you're standing on. Returns the credit price for the slot.
+# -----------------------------------------------------------------------------
+const PROFESSIONAL_REPAIR_CREDITS_PER_ARMOR_HP := 1.0
+const PROFESSIONAL_REPAIR_CREDITS_PER_FRAME_HP := 0.75
+
+
+func get_professional_repair_cost(slot: String) -> int:
+	if slot not in MECHA_SLOTS:
+		return 0
+	var armor_max_hp := part_stat(equipped_parts.get(slot), "max_hp", 50.0)
+	var frame_max_hp := part_stat(equipped_frames.get(slot), "max_hp", 50.0)
+	var cost := armor_max_hp * PROFESSIONAL_REPAIR_CREDITS_PER_ARMOR_HP
+	cost += frame_max_hp * PROFESSIONAL_REPAIR_CREDITS_PER_FRAME_HP
+	return maxi(1, int(ceil(cost)))
+
+
+# The mechanic rebuilds the slot: removes any scrap patch, clears all damage and
+# restores the real catalog armor at full HP. Returns false if unaffordable.
+func apply_professional_repair(slot: String) -> bool:
+	if slot not in MECHA_SLOTS:
+		return false
+	var cost := get_professional_repair_cost(slot)
+	if credits < cost:
+		return false
+	credits -= cost
+	scrap_patches.erase(slot)
+	part_damage.erase(slot)
+	part_damage.erase(slot + "_frame")
+	return true
 
 
 # Maps a mech slot name to the mecha-root-relative node path holding that

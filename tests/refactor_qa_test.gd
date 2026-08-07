@@ -28,6 +28,8 @@ func _ready() -> void:
 	_test_location_based_damage()
 	_test_driver_repair_skill()
 	_test_emergency_scrap_patch()
+	_test_scrap_primitive_json_safety()
+	_test_professional_repair()
 	# The hangar test is async (it awaits a frame while building the scene), so
 	# it must be awaited to completion before the result is printed; otherwise
 	# later reset_run_data() calls would mutate GlobalData under its pending
@@ -770,3 +772,62 @@ func _test_emergency_scrap_patch() -> void:
 	GlobalData.scrap_patches["head"] = patch
 	GlobalData.reset_run_data()
 	_check(GlobalData.scrap_patches.is_empty(), "reset_run_data clears scrap patches")
+
+
+func _test_scrap_primitive_json_safety() -> void:
+	GlobalData.reset_run_data()
+	GlobalData.driver_repair_skill = 1
+	GlobalData.scrap = 500
+
+	GlobalData.part_damage["body"] = 0.6
+	var patch := GlobalData.apply_emergency_repair("body", [{
+		"shape": "box",
+		"pos": Vector3(1.0, 2.0, 3.0),
+		"rot": Vector3.ZERO,
+		"scale": Vector3(2.0, 2.0, 2.0),
+		"color": Color(1.0, 0.0, 0.0, 1.0),
+	}])
+	_check(not patch.is_empty(), "json-safe patch applies")
+
+	var stored: Array = patch.get("primitives", [])
+	_check(stored.size() == 1, "patch keeps its primitive")
+	_check(stored[0].get("pos") is Array, "Vector3 pos is stored as a JSON-safe array")
+	_check(stored[0].get("color") is Array, "Color is stored as a JSON-safe array")
+
+	var pos: Vector3 = GlobalData.scrap_primitive_pos(stored[0])
+	_check(pos.is_equal_approx(Vector3(1.0, 2.0, 3.0)), "scrap_primitive_pos reads back the array")
+	var col: Color = GlobalData.scrap_primitive_color(stored[0])
+	_check(col.is_equal_approx(Color(1.0, 0.0, 0.0, 1.0)), "scrap_primitive_color reads back the array")
+	_check(GlobalData.scrap_primitive_scale(stored[0]).is_equal_approx(Vector3(2.0, 2.0, 2.0)), "scrap_primitive_scale reads back the array")
+
+	# JSON.stringify must not silently drop the primitive into an empty object.
+	var json := JSON.stringify({"patches": GlobalData.scrap_patches})
+	_check(not json.contains("{}"), "scrap patches survive JSON.stringify without data loss")
+
+
+func _test_professional_repair() -> void:
+	GlobalData.reset_run_data()
+	GlobalData.driver_repair_skill = 1
+	GlobalData.scrap = 500
+	GlobalData.credits = 0
+
+	GlobalData.part_damage["body"] = 0.6
+	var patch := GlobalData.apply_emergency_repair("body", [{"shape": "box"}])
+	_check(not patch.is_empty(), "set up a scrap patch for professional repair")
+	_check(GlobalData.has_scrap_patch("body"), "patch exists before professional repair")
+
+	var armor_max := GlobalData.part_stat(GlobalData.equipped_parts.get("body"), "max_hp", 50.0)
+	var frame_max := GlobalData.part_stat(GlobalData.equipped_frames.get("body"), "max_hp", 50.0)
+	var expected := maxi(1, int(ceil(armor_max * 1.0 + frame_max * 0.75)))
+	var cost := GlobalData.get_professional_repair_cost("body")
+	_check(cost == expected, "professional cost prices the full catalog rebuild")
+
+	_check(not GlobalData.apply_professional_repair("body"), "professional repair refused with no credits")
+	_check(GlobalData.has_scrap_patch("body"), "patch survives an unaffordable attempt")
+
+	GlobalData.credits = cost
+	_check(GlobalData.apply_professional_repair("body"), "professional repair succeeds with credits")
+	_check(GlobalData.credits == 0, "professional repair charges the credits")
+	_check(not GlobalData.has_scrap_patch("body"), "professional repair removes the scrap patch")
+	_check(not GlobalData.part_damage.has("body"), "professional repair clears armor damage")
+	_check(not GlobalData.part_damage.has("body_frame"), "professional repair clears frame damage")

@@ -169,6 +169,13 @@ func refresh_slots() -> void:
 		if not has_frame:
 			# NO INNER FRAME EQUIPPED: Hide slot completely
 			hide_slot_completely(slot)
+		elif GlobalData.scrap_patches.has(slot):
+			# EMERGENCY SCRAP PATCH: the slot was rebuilt from scrap, so show the
+			# bare inner frame (or scrap stand-in) plus the crude patch primitives
+			# the driver placed on it.
+			initialize_slot(slot, null)
+			_show_inner_frame(slot)
+			_render_scrap_patch(slot)
 		elif not is_armor_equipped:
 			# INNER FRAME EQUIPPED, NO ARMOR: Render bare skeletal inner frame only
 			initialize_slot(slot, null)
@@ -176,6 +183,83 @@ func refresh_slots() -> void:
 		else:
 			# INNER FRAME + OUTER ARMOR EQUIPPED: Render armor over inner frame
 			initialize_slot(slot, build_part_for_slot(equipped))
+
+
+# Rebuilds (or removes) the ScrapPatch primitive visuals for a patched slot.
+# Primitive data is stored JSON-safe (arrays) in GlobalData.scrap_patches.
+func refresh_scrap_patches() -> void:
+	for slot in GlobalData.MECHA_SLOTS:
+		if GlobalData.scrap_patches.has(slot):
+			_render_scrap_patch(slot)
+		else:
+			var parent = _get_slot_parent_node(slot)
+			if parent:
+				var container = parent.get_node_or_null("ScrapPatch")
+				if container:
+					container.queue_free()
+
+
+func _render_scrap_patch(slot: String) -> void:
+	var patch: Dictionary = GlobalData.scrap_patches.get(slot, {})
+	if patch.is_empty():
+		return
+	var primitives: Array = patch.get("primitives", [])
+	if not (primitives is Array):
+		return
+	var parent = _get_slot_parent_node(slot)
+	if parent == null:
+		return
+
+	var container: Node3D = parent.get_node_or_null("ScrapPatch")
+	if container == null:
+		container = Node3D.new()
+		container.name = "ScrapPatch"
+		parent.add_child(container)
+	_clear_children(container)
+
+	for primitive in primitives:
+		if not (primitive is Dictionary):
+			continue
+		var shape: String = str(primitive.get("shape", "box"))
+		var pos: Vector3 = GlobalData.scrap_primitive_pos(primitive)
+		var rot: Vector3 = GlobalData.scrap_primitive_rot(primitive)
+		var scale: Vector3 = GlobalData.scrap_primitive_scale(primitive)
+		var color: Color = GlobalData.scrap_primitive_color(primitive)
+
+		var mi := MeshInstance3D.new()
+		mi.position = pos
+		mi.rotation = rot
+		mi.scale = scale
+		mi.mesh = _build_scrap_primitive_mesh(shape)
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = color
+		mat.metallic = 0.1
+		mat.roughness = 0.85
+		mi.material_override = mat
+		container.add_child(mi)
+
+
+func _build_scrap_primitive_mesh(shape: String) -> Mesh:
+	match shape.to_lower():
+		"sphere":
+			var s := SphereMesh.new()
+			s.radius = 0.5
+			s.height = 1.0
+			return s
+		"wedge":
+			var w := PrismMesh.new()
+			w.size = Vector3.ONE
+			return w
+		"cylinder":
+			var c := CylinderMesh.new()
+			c.top_radius = 0.5
+			c.bottom_radius = 0.5
+			c.height = 1.0
+			return c
+		_:
+			var b := BoxMesh.new()
+			b.size = Vector3.ONE
+			return b
 
 
 func _get_slot_parent_node(slot_name: String) -> Node3D:

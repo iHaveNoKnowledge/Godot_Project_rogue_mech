@@ -8,6 +8,7 @@ var status_panel: PanelContainer
 var status_label: Label
 var action_container: VBoxContainer
 var current_view: String = "menu"
+var scrap_editor: CanvasLayer
 
 
 func _ready() -> void:
@@ -20,6 +21,13 @@ func _ready() -> void:
 		AudioManager.play_menu_music()
 
 
+func _init_scrap_editor() -> void:
+	if scrap_editor != null:
+		return
+	scrap_editor = preload("res://scripts/ui/scrap_repair_editor.gd").new()
+	add_child(scrap_editor)
+
+
 func _on_visibility_changed() -> void:
 	if visible:
 		AudioManager.play_menu_music()
@@ -30,6 +38,10 @@ func _input(event: InputEvent) -> void:
 		if GameManager.current_state == GameManager.State.BOARD:
 			if GlobalData.blocked_intermission:
 				# Ambush aftermath: no time to reorganize at the menu.
+				return
+			if scrap_editor != null and scrap_editor.visible:
+				# Editor overlay is open — pause only closes the editor.
+				scrap_editor.close()
 				return
 			visible = true
 			info_panel.visible = false
@@ -86,6 +98,7 @@ func _create_ui() -> void:
 	_add_menu_button("Fleet Security", _on_security_pressed)
 	_add_menu_button("Board Info", _on_board_info_pressed)
 	_add_menu_button("Hangar", _on_hangar_pressed)
+	_add_menu_button("Emergency Repair", _on_emergency_repair_pressed)
 	_add_menu_button("Save Game", _on_save_pressed)
 	_add_menu_button("Load Game", _on_load_pressed)
 	_add_menu_button("Exit to Menu", _on_exit_pressed)
@@ -381,6 +394,16 @@ func _build_security_text() -> String:
 
 func _on_hangar_pressed() -> void:
 	GameManager.enter_hangar()
+
+
+func _on_emergency_repair_pressed() -> void:
+	_init_scrap_editor()
+	var first_slot := ""
+	for slot in GlobalData.MECHA_SLOTS:
+		if GlobalData.get_emergency_repair_scrap_cost(slot) > 0:
+			first_slot = slot
+			break
+	scrap_editor.open(first_slot)
 
 
 func _on_save_pressed() -> void:

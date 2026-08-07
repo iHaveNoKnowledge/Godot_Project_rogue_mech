@@ -61,7 +61,7 @@ func _create_ui() -> void:
 	vbox.add_child(separator)
 
 	info_label = Label.new()
-	info_label.text = "Select parts to repair. Cost: %.1f credits per HP." % COST_PER_HP
+	info_label.text = "The fleet mechanic rebuilds damaged armor from the catalog.\nStandard repair: %.1f credits per HP. Rebuilding a scrap patch is a flat catalog price." % COST_PER_HP
 	info_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	info_label.add_theme_font_size_override("font_size", 13)
 	vbox.add_child(info_label)
@@ -153,7 +153,35 @@ func _refresh_parts_list() -> void:
 		repair_all_button.text = "Repair All Parts - %d credits" % total_cost
 		repair_all_button.disabled = GlobalData.credits < total_cost
 
+	# --- Professional rebuild of scrap patches (mechanic restores catalog armor) ---
+	var patched := false
+	for slot in GlobalData.MECHA_SLOTS:
+		if not GlobalData.has_scrap_patch(slot):
+			continue
+		patched = true
+		var cost := GlobalData.get_professional_repair_cost(slot)
+		var btn = Button.new()
+		btn.custom_minimum_size = Vector2(460, 32)
+		btn.text = "Rebuild Catalog Armor: %s (%d credits)" % [slot.to_upper(), cost]
+		btn.disabled = GlobalData.credits < cost
+		btn.pressed.connect(_on_rebuild_catalog_pressed.bind(slot))
+		parts_container.add_child(btn)
+	if patched:
+		var note = Label.new()
+		note.text = "Scrap patches are weaker than real armor. Rebuild them here."
+		note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		note.add_theme_font_size_override("font_size", 11)
+		parts_container.add_child(note)
+
 	status_label.text = "Credits: %d" % GlobalData.credits
+
+
+func _on_rebuild_catalog_pressed(slot: String) -> void:
+	if GlobalData.apply_professional_repair(slot):
+		status_label.text = "Mechanic rebuilt %s with fresh catalog armor! Credits: %d" % [slot.to_upper(), GlobalData.credits]
+	else:
+		status_label.text = "Not enough credits for a professional rebuild!"
+	_refresh_parts_list()
 
 
 func _on_repair_part_pressed(slot: String) -> void:

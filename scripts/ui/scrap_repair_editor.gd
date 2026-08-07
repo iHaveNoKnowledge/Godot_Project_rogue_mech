@@ -661,7 +661,7 @@ func _input(event: InputEvent) -> void:
 	if not visible:
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
-		var shift := event.shift_pressed
+		var shift = event.shift_pressed
 		var step := 0.03 if shift else MOVE_STEP
 		var consumed := true
 		match event.keycode:

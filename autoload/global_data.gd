@@ -322,6 +322,92 @@ func get_repair_cost(slot: String) -> int:
 	return maxi(1, int(ceil(cost)))
 
 
+# -----------------------------------------------------------------------------
+# SCRAP PATCHES — emergency self-repair done in the intermission screen when the
+# driver has no fleet mechanic available. Scrap is used to build crude armor out
+# of basic primitives (boxes / spheres / wedges) placed on the mech like a Mass
+# Builder frame editor. A patched slot uses WEAKER scrap stats derived from the
+# driver's repair-skill tier and stays patched until a professional mechanic
+# rebuilds the real armor.
+#   key: slot name
+#   value: {
+#     "tier": 1..5, "stat_scale": 0.40..0.80,
+#     "scrap_armor_hp": float, "scrap_frame_hp": float,
+#     "armor_class": float, "scrap_spent": int,
+#     "primitives": [ {shape, pos, rot, scale, color} ]
+#   }
+# -----------------------------------------------------------------------------
+var scrap_patches: Dictionary = {}
+
+const EMERGENCY_REPAIR_BASE_SCRAP := 5
+const EMERGENCY_REPAIR_SCRAP_PER_ARMOR_HP := 0.04
+const EMERGENCY_REPAIR_SCRAP_PER_FRAME_HP := 0.03
+
+
+# Scrap cost to emergency-patch a slot, based on how much of it is damaged.
+func get_emergency_repair_scrap_cost(slot: String) -> int:
+	var dmg := clampf(float(part_damage.get(slot, 0.0)), 0.0, 1.0)
+	var frame_dmg := clampf(float(part_damage.get(slot + "_frame", 0.0)), 0.0, 1.0)
+	if dmg <= 0.0 and frame_dmg <= 0.0:
+		return 0
+	var armor_max_hp := part_stat(equipped_parts.get(slot), "max_hp", 50.0)
+	var frame_max_hp := part_stat(equipped_frames.get(slot), "max_hp", 50.0)
+	var cost := EMERGENCY_REPAIR_BASE_SCRAP
+	cost += int(ceil(dmg * armor_max_hp * EMERGENCY_REPAIR_SCRAP_PER_ARMOR_HP))
+	cost += int(ceil(frame_dmg * frame_max_hp * EMERGENCY_REPAIR_SCRAP_PER_FRAME_HP))
+	return maxi(1, cost)
+
+
+# Builds and records a scrap patch on a slot: spends scrap, restores the slot to
+# a partial weaker state (stats scaled by the driver's repair-skill tier) and
+# clears its damage. Returns the patch, or {} when the slot is fine / unaffordable.
+func apply_emergency_repair(slot: String, primitives: Array = []) -> Dictionary:
+	if slot not in MECHA_SLOTS:
+		return {}
+	var cost := get_emergency_repair_scrap_cost(slot)
+	if cost <= 0 or scrap < cost:
+		return {}
+	scrap -= cost
+
+	var tier := get_scrap_armor_tier()
+	var scale := get_scrap_armor_stat_scale()
+	var armor_max_hp := part_stat(equipped_parts.get(slot), "max_hp", 50.0)
+	var frame_max_hp := part_stat(equipped_frames.get(slot), "max_hp", 50.0)
+
+	var armor_class := 1.0
+	var p = equipped_parts.get(slot)
+	if p:
+		if p.get("armor_class") != null:
+			armor_class = float(p.armor_class)
+		elif p.get("armor") != null:
+			armor_class = maxf(float(p.get("armor", 10.0)) / 10.0, 0.1)
+
+	var patch := {
+		"tier": tier,
+		"stat_scale": scale,
+		"scrap_armor_hp": maxf(armor_max_hp * scale, 1.0),
+		"scrap_frame_hp": maxf(frame_max_hp * scale, 1.0),
+		"armor_class": maxf(armor_class * scale, 0.1),
+		"scrap_spent": cost,
+		"primitives": primitives,
+	}
+	scrap_patches[slot] = patch
+	part_damage.erase(slot)
+	part_damage.erase(slot + "_frame")
+
+	# Practice makes perfect — patching is how the driver's repair skill grows.
+	gain_repair_xp(10 + cost)
+	return patch
+
+
+func has_scrap_patch(slot: String) -> bool:
+	return scrap_patches.has(slot)
+
+
+func remove_scrap_patch(slot: String) -> void:
+	scrap_patches.erase(slot)
+
+
 # Maps a mech slot name to the mecha-root-relative node path holding that
 # section's meshes. Single source of truth for all part visuals.
 func get_slot_node_path(slot: String) -> String:
@@ -1469,6 +1555,7 @@ func reset_run_data() -> void:
 	security_upgrade_level = 1
 	driver_repair_skill = 1
 	driver_repair_xp = 0
+	scrap_patches.clear()
 	_combat_friendly_total_hp = 0.0
 	_combat_friendly_damage = 0.0
 	last_combat_damage_ratio = 0.0
@@ -1551,7 +1638,8 @@ func save_run() -> void:
 		"fleet_security": fleet_security,
 		"security_upgrade_level": security_upgrade_level,
 		"driver_repair_skill": driver_repair_skill,
-		"driver_repair_xp": driver_repair_xp
+		"driver_repair_xp": driver_repair_xp,
+		"scrap_patches": scrap_patches.duplicate(true)
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file:
@@ -1611,6 +1699,9 @@ func _restore_from_dict(data: Dictionary) -> void:
 	security_upgrade_level = int(data.get("security_upgrade_level", 1))
 	driver_repair_skill = int(data.get("driver_repair_skill", 1))
 	driver_repair_xp = int(data.get("driver_repair_xp", 0))
+	var loaded_patches = data.get("scrap_patches", {})
+	if loaded_patches is Dictionary:
+		scrap_patches = loaded_patches.duplicate(true)
 
 	var loaded_roster = data.get("fleet_roster", [])
 	if loaded_roster is Array:

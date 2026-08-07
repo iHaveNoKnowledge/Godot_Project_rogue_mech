@@ -27,6 +27,7 @@ func _ready() -> void:
 	_test_blueprint_gated_gundam_armor()
 	_test_location_based_damage()
 	_test_driver_repair_skill()
+	_test_emergency_scrap_patch()
 	# The hangar test is async (it awaits a frame while building the scene), so
 	# it must be awaited to completion before the result is printed; otherwise
 	# later reset_run_data() calls would mutate GlobalData under its pending
@@ -701,3 +702,71 @@ func _test_driver_repair_skill() -> void:
 	GlobalData.reset_run_data()
 	_check(GlobalData.driver_repair_skill == 1, "reset_run_data restores skill to tier 1")
 	_check(GlobalData.driver_repair_xp == 0, "reset_run_data clears repair xp")
+
+
+func _test_emergency_scrap_patch() -> void:
+	GlobalData.reset_run_data()
+	GlobalData.driver_repair_skill = 1
+	GlobalData.driver_repair_xp = 0
+	GlobalData.scrap = 50
+
+	GlobalData.part_damage.clear()
+	_check(GlobalData.get_emergency_repair_scrap_cost("head") == 0, "undamaged slot has zero emergency cost")
+	_check(GlobalData.apply_emergency_repair("head").is_empty(), "apply refuses a fully healthy slot")
+
+	# Damage the slot; the cost scales with how much is broken.
+	GlobalData.part_damage["head"] = 0.5
+	GlobalData.part_damage["head_frame"] = 0.3
+	var cost := GlobalData.get_emergency_repair_scrap_cost("head")
+	_check(cost > 0, "damaged slot has a positive emergency cost")
+
+	# Too little scrap -> refused, nothing patched.
+	GlobalData.scrap = maxi(cost - 1, 0)
+	_check(GlobalData.apply_emergency_repair("head").is_empty(), "apply refused when scrap is insufficient")
+	_check(not GlobalData.has_scrap_patch("head"), "no patch recorded when unaffordable")
+
+	# Enough scrap -> tier 1 patch at 40% of real armor stats.
+	GlobalData.scrap = 500
+	var patch := GlobalData.apply_emergency_repair("head", [{"shape": "box", "pos": Vector3.ZERO}])
+	_check(not patch.is_empty(), "apply creates a scrap patch")
+	_check(int(patch.get("tier", 0)) == 1, "patch tier matches driver skill tier 1")
+	_check(is_equal_approx(float(patch.get("stat_scale", 0.0)), 0.40), "patch stat scale is 0.40 at tier 1")
+	_check(GlobalData.has_scrap_patch("head"), "patch is tracked per slot")
+	var armor_max := GlobalData.part_stat(GlobalData.equipped_parts.get("head"), "max_hp", 50.0)
+	_check(is_equal_approx(float(patch.get("scrap_armor_hp", 0.0)), armor_max * 0.40), "scrap armor hp is 40% of real armor")
+	_check(not GlobalData.part_damage.has("head"), "patch clears armor damage")
+	_check(not GlobalData.part_damage.has("head_frame"), "patch clears frame damage")
+
+	# Higher driver skill builds stronger scrap armor.
+	GlobalData.driver_repair_skill = 4
+	GlobalData.scrap = 500
+	GlobalData.part_damage["head"] = 0.5
+	var better := GlobalData.apply_emergency_repair("head")
+	_check(is_equal_approx(float(better.get("stat_scale", 0.0)), 0.70), "tier 4 scrap armor is 70% of real stats")
+
+	# Professional repair removes the patch.
+	GlobalData.remove_scrap_patch("head")
+	_check(not GlobalData.has_scrap_patch("head"), "remove_scrap_patch clears the patch")
+
+	# Integration: a scrap-patched slot loads into combat with scrap stats.
+	GlobalData.scrap = 500
+	GlobalData.driver_repair_skill = 2
+	GlobalData.part_damage["head"] = 0.5
+	var ipatch := GlobalData.apply_emergency_repair("head")
+	var iarmor: float = ipatch.get("scrap_armor_hp", 0.0)
+	var mecha := Node3D.new()
+	mecha.name = "QA_PatchMecha"
+	add_child(mecha)
+	var health = load("res://scripts/mecha/mecha_health.gd").new()
+	health.is_player = false
+	mecha.add_child(health)
+	health.is_player = false
+	var head_part = health.parts["head"]
+	_check(is_equal_approx(head_part["max_armor"], iarmor), "combat load uses scrap armor hp for patched slot")
+	_check(not head_part["destroyed"], "patched slot is not destroyed in combat")
+	mecha.queue_free()
+
+	# New run resets all patches.
+	GlobalData.scrap_patches["head"] = patch
+	GlobalData.reset_run_data()
+	_check(GlobalData.scrap_patches.is_empty(), "reset_run_data clears scrap patches")

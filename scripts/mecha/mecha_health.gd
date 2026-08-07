@@ -59,6 +59,27 @@ func _init_parts() -> void:
 				parts[slot]["armor_class"] = maxf(p.get("armor", 10.0) / 10.0, 0.1)
 
 		# -----------------------------------------------------------------------
+		# Scrap emergency patch: this slot was rebuilt from scrap in the
+		# intermission screen, so it uses WEAKER scrap stats (scaled by the
+		# driver's repair-skill tier) instead of the real armor plate. If the
+		# real frame was destroyed, the scrap structure stands in for it.
+		# -----------------------------------------------------------------------
+		if GlobalData.scrap_patches.has(slot):
+			var patch = GlobalData.scrap_patches[slot]
+			var scrap_armor: float = patch.get("scrap_armor_hp", parts[slot]["max_armor"])
+			parts[slot]["armor_hp"] = scrap_armor
+			parts[slot]["max_armor"] = scrap_armor
+			parts[slot]["armor_class"] = patch.get("armor_class", parts[slot]["armor_class"])
+			if GlobalData.part_damage.get(slot + "_frame", 0.0) >= 1.0:
+				var scrap_frame: float = patch.get("scrap_frame_hp", parts[slot]["max_frame"])
+				parts[slot]["frame_hp"] = scrap_frame
+				parts[slot]["max_frame"] = scrap_frame
+			# The patch rebuilt the slot, so no persistent damage applies to it.
+			GlobalData.part_damage.erase(slot)
+			GlobalData.part_damage.erase(slot + "_frame")
+			continue
+
+		# -----------------------------------------------------------------------
 		# Restore persistent damage from previous combat / Hangar session.
 		# Armor damage key: "slot_name"       (ratio 0.0 = full, 1.0 = destroyed)
 		# Frame damage key: "slot_name_frame" (ratio 0.0 = full, 1.0 = destroyed)

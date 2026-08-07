@@ -232,7 +232,7 @@ func _on_research_pressed() -> void:
 	info_label.text = _build_research_text()
 
 	# Start buttons for available projects
-	for project in GlobalData.gundam_research_projects:
+	for project in GlobalData.research_blueprints:
 		var project_id = project.get("id", "")
 		if GlobalData.is_research_active(project_id) or GlobalData.is_research_completed(project_id):
 			continue
@@ -283,7 +283,7 @@ func _build_research_text() -> String:
 	text += "\n"
 
 	text += "--- Available Blueprints ---\n"
-	for project in GlobalData.gundam_research_projects:
+	for project in GlobalData.research_blueprints:
 		var project_id = project.get("id", "")
 		if GlobalData.is_research_active(project_id) or GlobalData.is_research_completed(project_id):
 			continue

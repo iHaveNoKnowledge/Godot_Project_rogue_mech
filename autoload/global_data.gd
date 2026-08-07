@@ -15,8 +15,8 @@ var chassis_catalog: Dictionary = {}
 var frame_catalog: Dictionary = {}
 var attachment_catalog: Array = []
 
-# Fleet / research catalog (blueprints for allied mechs and gundam-tier gear).
-var gundam_research_projects: Array = []
+# Fleet / research catalog (blueprints for allied units and high-tier gear).
+var research_blueprints: Array = []
 var ally_unit_templates: Dictionary = {}
 
 # Run theme / event catalogs (single source of truth for theme starts, event
@@ -36,12 +36,12 @@ func _load_catalogs() -> void:
 	frame_catalog = db.frame_catalog
 	attachment_catalog = db.attachment_catalog
 
-	var gb = load("res://resources/data/gundam_catalogs.tres") as GundamCatalogData
-	if gb == null:
-		push_error("Failed to load gundam_catalogs.tres")
+	var research_db = load("res://resources/data/research_catalogs.tres") as ResearchCatalogData
+	if research_db == null:
+		push_error("Failed to load research_catalogs.tres")
 		return
-	gundam_research_projects = gb.research_projects
-	for template in gb.ally_unit_templates:
+	research_blueprints = research_db.research_projects
+	for template in research_db.ally_unit_templates:
 		ally_unit_templates[template.get("id", "")] = template
 
 	var rt = load("res://resources/data/run_theme_catalogs.tres") as RunThemeCatalogData
@@ -733,7 +733,7 @@ func set_unit_fielded(template_id: String, fielded: bool) -> void:
 # --- Research base ----------------------------------------------------------
 
 func get_research_project(project_id: String) -> Dictionary:
-	for project in gundam_research_projects:
+	for project in research_blueprints:
 		if project.get("id", "") == project_id:
 			return project
 	return {}

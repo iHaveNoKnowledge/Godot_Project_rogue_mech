@@ -1,4 +1,4 @@
-class_name GundamCatalogData
+class_name ResearchCatalogData
 extends Resource
 
 ## Fleet / research catalog database.
@@ -9,11 +9,11 @@ extends Resource
 ##   - ally_unit_templates: allied mech templates (our side) that can be added to
 ##     the fleet roster and fielded in combat as squadmates.
 ##
-## Data lives in resources/data/gundam_catalogs.tres.
+## Data lives in resources/data/research_catalogs.tres.
 
 ## Research project entry shape:
 ## {
-##   "id": "gundam_gm", "name": "GM-II Blueprint",
+##   "id": "bp_ally_gm", "name": "GM-II Blueprint",
 ##   "desc": "Standard-issue allied mobile suit (our side).",
 ##   "data_cores": 3,           # cores consumed when research starts
 ##   "research_time": 8,        # research points needed (board move = 1, combat = 2)

@@ -139,13 +139,17 @@ func _select_target() -> String:
 
 
 # Resolves which slot + surface layer a world-space impact point hits.
-# A point inside an armor plate AABB hits armor (armor is the outer shell).
-# A point OUTSIDE every armor AABB but inside a frame AABB hits the exposed
-# frame directly (frame protrusions poking through armor are shootable).
+# The armor protects its covered area. Frame geometry whose AABB overlaps the
+# armor AABB (it pokes through the armor) is also protected — hits there damage
+# armor while it is intact. Only frame geometry that never overlaps any armor
+# AABB (e.g. spikes mounted beside the armor) is exposed and takes frame damage.
 func _resolve_hit(world_pos: Vector3) -> Dictionary:
-	var best_slot := ""
-	var best_layer := ""
-	var best_dist := INF
+	var armor_slot := ""
+	var armor_dist := INF
+	var shielded_slot := ""
+	var shielded_dist := INF
+	var exposed_slot := ""
+	var exposed_dist := INF
 
 	var fallback_slot := ""
 	var fallback_dist := INF
@@ -154,20 +158,30 @@ func _resolve_hit(world_pos: Vector3) -> Dictionary:
 		if parts[slot]["destroyed"]:
 			continue
 
-		if not parts[slot]["armor_broken"]:
-			for mesh in _get_slot_surfaces(slot, "ArmorMesh"):
-				var d := _surface_hit_distance(mesh, world_pos)
-				if d >= 0.0 and d < best_dist:
-					best_dist = d
-					best_slot = slot
-					best_layer = "armor"
+		var armor_meshes := _get_slot_surfaces(slot, "ArmorMesh")
+		var frame_meshes := _get_slot_surfaces(slot, "FrameMesh")
+		var armor_intact: bool = not parts[slot]["armor_broken"]
 
-		for mesh in _get_slot_surfaces(slot, "FrameMesh"):
+		if armor_intact:
+			for mesh in armor_meshes:
+				var d := _surface_hit_distance(mesh, world_pos)
+				if d >= 0.0 and d < armor_dist:
+					armor_dist = d
+					armor_slot = slot
+			for mesh in frame_meshes:
+				if _frame_shielded_by_armor(mesh, armor_meshes):
+					var d := _surface_hit_distance(mesh, world_pos)
+					if d >= 0.0 and d < shielded_dist:
+						shielded_dist = d
+						shielded_slot = slot
+
+		for mesh in frame_meshes:
+			if armor_intact and _frame_shielded_by_armor(mesh, armor_meshes):
+				continue
 			var d := _surface_hit_distance(mesh, world_pos)
-			if d >= 0.0 and d < best_dist:
-				best_dist = d
-				best_slot = slot
-				best_layer = "frame"
+			if d >= 0.0 and d < exposed_dist:
+				exposed_dist = d
+				exposed_slot = slot
 
 		var section := _get_section_node(slot)
 		if section:
@@ -176,22 +190,50 @@ func _resolve_hit(world_pos: Vector3) -> Dictionary:
 				fallback_dist = d
 				fallback_slot = slot
 
-	if best_slot != "":
-		return {"slot": best_slot, "layer": best_layer}
+	if armor_slot != "":
+		return {"slot": armor_slot, "layer": "armor"}
+	if shielded_slot != "":
+		return {"slot": shielded_slot, "layer": "armor"}
+	if exposed_slot != "":
+		return {"slot": exposed_slot, "layer": "frame"}
 	return {"slot": fallback_slot, "layer": ""}
+
+
+# True when a frame mesh passes through the area an armor plate covers, meaning
+# the armor is mounted over it and shields it from direct frame damage.
+func _frame_shielded_by_armor(frame_mesh: MeshInstance3D, armor_meshes: Array) -> bool:
+	var frame_aabb := _mesh_global_aabb(frame_mesh)
+	if frame_aabb.size == Vector3.ZERO:
+		return false
+	for armor_mesh in armor_meshes:
+		var armor_aabb := _mesh_global_aabb(armor_mesh)
+		if armor_aabb.size != Vector3.ZERO and armor_aabb.intersects(frame_aabb):
+			return true
+	return false
 
 
 func _resolve_layer_for_slot(slot_name: String, world_pos: Vector3) -> String:
 	if not parts.has(slot_name) or parts[slot_name]["destroyed"]:
 		return ""
+	var armor_meshes := _get_slot_surfaces(slot_name, "ArmorMesh")
+	var frame_meshes := _get_slot_surfaces(slot_name, "FrameMesh")
+	var armor_intact: bool = not parts[slot_name]["armor_broken"]
+
 	var armor_dist := INF
 	var frame_dist := INF
-	if not parts[slot_name]["armor_broken"]:
-		for mesh in _get_slot_surfaces(slot_name, "ArmorMesh"):
+	if armor_intact:
+		for mesh in armor_meshes:
 			var d := _surface_hit_distance(mesh, world_pos)
 			if d >= 0.0:
 				armor_dist = minf(armor_dist, d)
-	for mesh in _get_slot_surfaces(slot_name, "FrameMesh"):
+		for mesh in frame_meshes:
+			if _frame_shielded_by_armor(mesh, armor_meshes):
+				var d := _surface_hit_distance(mesh, world_pos)
+				if d >= 0.0:
+					armor_dist = minf(armor_dist, d)
+	for mesh in frame_meshes:
+		if armor_intact and _frame_shielded_by_armor(mesh, armor_meshes):
+			continue
 		var d := _surface_hit_distance(mesh, world_pos)
 		if d >= 0.0:
 			frame_dist = minf(frame_dist, d)

@@ -577,7 +577,9 @@ func _test_blueprint_gated_gundam_armor() -> void:
 func _test_location_based_damage() -> void:
 	# Regression: a projectile's impact point must decide WHICH part surface
 	# (armor plate vs exposed frame) takes the damage. Builds a minimal mecha
-	# whose Head has an armor box and a frame spike poking out sideways.
+	# whose Head has an armor box, a frame spike that pokes THROUGH the armor
+	# (overlapping AABB -> armor shields it) and a spike mounted BESIDE the
+	# armor (no overlap -> exposed frame).
 	var mecha := Node3D.new()
 	mecha.name = "QA_Mecha"
 	add_child(mecha)
@@ -603,12 +605,22 @@ func _test_location_based_damage() -> void:
 	var frame_container := Node3D.new()
 	frame_container.name = "FrameMesh"
 	head.add_child(frame_container)
+	# Spike mounted BESIDE the armor: AABB [1.75,2.25] never overlaps [-0.5,0.5]
+	# (kept clear of the shielded spike's boundary to avoid edge cases).
 	var frame_mesh := MeshInstance3D.new()
 	var spike := BoxMesh.new()
 	spike.size = Vector3(0.5, 0.5, 0.5)
 	frame_mesh.mesh = spike
-	frame_mesh.position = Vector3(1.5, 0, 0)
+	frame_mesh.position = Vector3(2.0, 0, 0)
 	frame_container.add_child(frame_mesh)
+	# Spike poking THROUGH the armor: AABB [0.0,1.5]x[-0.2,0.2]^2 overlaps the
+	# armor box, so its exposed tip is still covered by the armor.
+	var shielded_mesh := MeshInstance3D.new()
+	var sh_spike := BoxMesh.new()
+	sh_spike.size = Vector3(1.5, 0.4, 0.4)
+	shielded_mesh.mesh = sh_spike
+	shielded_mesh.position = Vector3(0.75, 0, 0)
+	frame_container.add_child(shielded_mesh)
 
 	var head_part = health.parts["head"]
 	var armor0: float = head_part["armor_hp"]
@@ -640,6 +652,16 @@ func _test_location_based_damage() -> void:
 	_check(is_equal_approx(head_part["armor_hp"], armor_before - 10.0 / head_part["armor_class"]), "impact inside armor AABB hits armor")
 	_check(is_equal_approx(head_part["frame_hp"], frame_before_point), "impact inside armor AABB misses frame")
 
+	# The frame spike that pokes through the armor (AABB overlaps armor) is
+	# still covered by the armor -> its exposed tip damages armor, not frame.
+	var armor_before_shielded: float = head_part["armor_hp"]
+	var frame_before_shielded: float = head_part["frame_hp"]
+	var shielded_tip := mecha.to_global(Vector3(1.0, 3.0, 0.0))
+	health.take_damage_at_point(6.0, shielded_tip)
+	_check(is_equal_approx(head_part["armor_hp"], armor_before_shielded - 6.0 / head_part["armor_class"]), "frame poking through armor is still armored")
+	_check(is_equal_approx(head_part["frame_hp"], frame_before_shielded), "frame poking through armor never hits frame")
+
+	# The spike mounted BESIDE the armor has no overlap -> exposed frame.
 	var armor_after_point: float = head_part["armor_hp"]
 	var frame_after_point: float = head_part["frame_hp"]
 	health.take_damage_at_point(4.0, frame_mesh.global_position)

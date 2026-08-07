@@ -4,6 +4,13 @@ var chassis_id: String = "standard"
 var equipped_parts: Dictionary = {}
 var attachments: Array = []
 
+# Built mech roster. A hangar entry is a saved loadout, not a generated enemy
+# capsule: it references the owned armor instances and frame catalog entries
+# used to assemble that mech. The active entry mirrors the live loadout above.
+const HANGAR_MAX_SLOTS := 6
+var hangar_mechs: Array = []
+var active_hangar_mech_id: String = ""
+
 # ==============================================================================
 # CATALOG DATABASE — static item definitions, loaded from resources/data/mech_catalogs.tres
 # Single source of truth for all stock items (armor, chassis, frames, attachments).
@@ -597,6 +604,136 @@ func _ensure_default_frames() -> void:
 	for slot in ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]:
 		if frame_catalog.has(slot) and frame_catalog[slot].size() > 0:
 			equipped_frames[slot] = frame_catalog[slot][0].duplicate()
+
+
+# -----------------------------------------------------------------------------
+# HANGAR MECH ROSTER
+# A roster entry is a built machine that can be selected in the hangar. It is
+# deliberately a loadout snapshot, so entering a different mech never mutates
+# the catalog or invents a placeholder backup body.
+# -----------------------------------------------------------------------------
+func _new_hangar_mech_id() -> String:
+	return _new_uid("mech")
+
+
+func _capture_hangar_mech_snapshot(mech_id: String, mech_name: String) -> Dictionary:
+	sync_equipped_armor_durability()
+	return {
+		"id": mech_id,
+		"name": mech_name,
+		"chassis_id": chassis_id,
+		"frames": _serialize_frames(),
+		"parts": _serialize_parts(),
+		"damage": part_damage.duplicate(true),
+		"attachments": _serialize_attachments(),
+		"weapon_loadout": weapon_loadout.duplicate(true),
+		"scrap_patches": scrap_patches.duplicate(true),
+	}
+
+
+func _find_hangar_mech(mech_id: String) -> Dictionary:
+	for mech in hangar_mechs:
+		if mech is Dictionary and str(mech.get("id", "")) == mech_id:
+			return mech
+	return {}
+
+
+func ensure_hangar_roster() -> void:
+	if not hangar_mechs.is_empty():
+		if active_hangar_mech_id == "" or _find_hangar_mech(active_hangar_mech_id).is_empty():
+			active_hangar_mech_id = str(hangar_mechs[0].get("id", ""))
+		return
+	var first_id := _new_hangar_mech_id()
+	hangar_mechs.append(_capture_hangar_mech_snapshot(first_id, "Mech 01"))
+	active_hangar_mech_id = first_id
+
+
+func get_hangar_mechs() -> Array:
+	ensure_hangar_roster()
+	return hangar_mechs
+
+
+func get_active_hangar_mech() -> Dictionary:
+	ensure_hangar_roster()
+	return _find_hangar_mech(active_hangar_mech_id)
+
+
+func save_active_hangar_mech() -> bool:
+	ensure_hangar_roster()
+	var active := _find_hangar_mech(active_hangar_mech_id)
+	if active.is_empty():
+		return false
+	var updated := _capture_hangar_mech_snapshot(active_hangar_mech_id, str(active.get("name", "Mech")))
+	for i in range(hangar_mechs.size()):
+		if str(hangar_mechs[i].get("id", "")) == active_hangar_mech_id:
+			hangar_mechs[i] = updated
+			return true
+	return false
+
+
+# Builds another hangar entry from the currently assembled parts. A complete
+# walking chassis needs a body frame and both leg frames; armor is optional and
+# can be installed later in the normal hangar editor.
+func build_hangar_mech(mech_name: String = "") -> Dictionary:
+	for required in ["body", "leg_left", "leg_right"]:
+		if not equipped_frames.has(required) or equipped_frames[required] == null:
+			return {}
+	if hangar_mechs.size() >= HANGAR_MAX_SLOTS:
+		return {}
+	save_active_hangar_mech()
+	var mech_id := _new_hangar_mech_id()
+	var display_name := mech_name.strip_edges()
+	if display_name == "":
+		display_name = "Mech %02d" % (hangar_mechs.size() + 1)
+	var snapshot := _capture_hangar_mech_snapshot(mech_id, display_name)
+	hangar_mechs.append(snapshot)
+	return snapshot
+
+
+func get_backup_hangar_mech_id() -> String:
+	ensure_hangar_roster()
+	for mech in hangar_mechs:
+		var mech_id := str(mech.get("id", ""))
+		if mech_id != "" and mech_id != active_hangar_mech_id:
+			return mech_id
+	return ""
+
+
+func switch_hangar_mech(mech_id: String) -> bool:
+	ensure_hangar_roster()
+	var target := _find_hangar_mech(mech_id)
+	if target.is_empty() or mech_id == active_hangar_mech_id:
+		return not target.is_empty()
+	save_active_hangar_mech()
+
+	# Release the old armor instances before attaching the target references.
+	for old_part in equipped_parts.values():
+		if old_part is Dictionary and old_part.has("uid"):
+			var old_inst := get_armor_instance(str(old_part["uid"]))
+			if not old_inst.is_empty():
+				old_inst["equipped"] = false
+
+	chassis_id = str(target.get("chassis_id", "standard"))
+	equipped_frames.clear()
+	var saved_frames: Dictionary = target.get("frames", {})
+	for slot in saved_frames:
+		equipped_frames[slot] = _resolve_frame_value(saved_frames[slot])
+	_ensure_default_frames()
+
+	equipped_parts.clear()
+	var saved_parts: Dictionary = target.get("parts", {})
+	for slot in saved_parts:
+		var part = _resolve_equipped_part(saved_parts[slot])
+		equipped_parts[slot] = part
+		if part is Dictionary and part.has("uid"):
+			part["equipped"] = true
+
+	part_damage = target.get("damage", {}).duplicate(true)
+	attachments = target.get("attachments", []).duplicate(true)
+	weapon_loadout = target.get("weapon_loadout", weapon_loadout).duplicate(true)
+	scrap_patches = target.get("scrap_patches", {}).duplicate(true)
+	active_hangar_mech_id = mech_id
+	return true
 
 # -----------------------------------------------------------------------------
 # WEAPON LOADOUT — central state for what the mech carries into battle.
@@ -1485,6 +1622,8 @@ func roll_random_start() -> void:
 	credits = randi_range(int(credits_range[0]), int(credits_range[1]))
 	scrap = randi_range(int(scrap_range[0]), int(scrap_range[1]))
 	data_cores = randi_range(int(cores_range[0]), int(cores_range[1]))
+	ensure_hangar_roster()
+	save_active_hangar_mech()
 
 
 # Adds a run theme to the current run (used by theme_switch events).
@@ -1692,6 +1831,9 @@ func reset_run_data() -> void:
 	armor_inventory.clear()
 	ensure_default_equipped_parts()
 	_ensure_default_frames()
+	hangar_mechs.clear()
+	active_hangar_mech_id = ""
+	ensure_hangar_roster()
 
 
 func save_run() -> void:
@@ -1741,7 +1883,9 @@ func save_run() -> void:
 		"security_upgrade_level": security_upgrade_level,
 		"driver_repair_skill": driver_repair_skill,
 		"driver_repair_xp": driver_repair_xp,
-		"scrap_patches": scrap_patches.duplicate(true)
+		"scrap_patches": scrap_patches.duplicate(true),
+		"hangar_mechs": hangar_mechs.duplicate(true),
+		"active_hangar_mech_id": active_hangar_mech_id
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file:
@@ -1804,6 +1948,10 @@ func _restore_from_dict(data: Dictionary) -> void:
 	var loaded_patches = data.get("scrap_patches", {})
 	if loaded_patches is Dictionary:
 		scrap_patches = loaded_patches.duplicate(true)
+	var loaded_hangar = data.get("hangar_mechs", [])
+	if loaded_hangar is Array:
+		hangar_mechs = loaded_hangar.duplicate(true)
+	active_hangar_mech_id = str(data.get("active_hangar_mech_id", ""))
 
 	var loaded_roster = data.get("fleet_roster", [])
 	if loaded_roster is Array:
@@ -1844,6 +1992,7 @@ func _restore_from_dict(data: Dictionary) -> void:
 		equipped_parts[slot] = _resolve_equipped_part(parts_dict[slot])
 	_ensure_equipped_parts_are_instances()
 	sync_equipped_armor_durability()
+	ensure_hangar_roster()
 		
 	enemy_forces = data.get("enemy_forces", {
 		"boss_current": 1, "boss_max": 1,

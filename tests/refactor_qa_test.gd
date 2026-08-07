@@ -30,6 +30,7 @@ func _ready() -> void:
 	_test_emergency_scrap_patch()
 	_test_scrap_primitive_json_safety()
 	_test_professional_repair()
+	_test_hangar_mech_roster()
 	# The hangar test is async (it awaits a frame while building the scene), so
 	# it must be awaited to completion before the result is printed; otherwise
 	# later reset_run_data() calls would mutate GlobalData under its pending
@@ -831,3 +832,20 @@ func _test_professional_repair() -> void:
 	_check(not GlobalData.has_scrap_patch("body"), "professional repair removes the scrap patch")
 	_check(not GlobalData.part_damage.has("body"), "professional repair clears armor damage")
 	_check(not GlobalData.part_damage.has("body_frame"), "professional repair clears frame damage")
+
+
+func _test_hangar_mech_roster() -> void:
+	GlobalData.reset_run_data()
+	GlobalData.ensure_hangar_roster()
+	_check(GlobalData.hangar_mechs.size() == 1, "new run creates one active hangar mech")
+	_check(GlobalData.active_hangar_mech_id != "", "active hangar mech has an id")
+	_check(GlobalData.get_backup_hangar_mech_id() == "", "no backup exists before building a second mech")
+
+	var built := GlobalData.build_hangar_mech("Scout Frame")
+	_check(not built.is_empty(), "body and both leg frames can build a hangar mech")
+	_check(GlobalData.hangar_mechs.size() == 2, "hangar stores multiple built mechs")
+	var backup_id := GlobalData.get_backup_hangar_mech_id()
+	_check(backup_id != "", "second built mech is available as backup")
+	_check(GlobalData.switch_hangar_mech(backup_id), "hangar can switch to another built mech")
+	_check(GlobalData.active_hangar_mech_id == backup_id, "switch updates active hangar mech")
+	_check(GlobalData.get_active_hangar_mech().get("name", "") == "Scout Frame", "switch loads the selected mech snapshot")

@@ -67,6 +67,8 @@ var repair_part_button: Button
 var full_repair_button: Button
 var close_button: Button
 var status_message_label: Label
+var roster_container: VBoxContainer
+var roster_status_label: Label
 
 # Inner Frame Catalog
 # NOTE: First entry per slot must match GlobalData.equipped_frames default names so
@@ -391,6 +393,8 @@ func _build_ui_layout() -> void:
 	full_repair_button.pressed.connect(_on_full_repair_pressed)
 	right_box.add_child(full_repair_button)
 
+	_build_hangar_roster_ui(right_box)
+
 	status_message_label = Label.new()
 	status_message_label.text = ""
 	status_message_label.add_theme_color_override("font_color", Color(0.3, 0.9, 0.4))
@@ -405,6 +409,91 @@ func _build_ui_layout() -> void:
 	close_button.custom_minimum_size = Vector2(0, 44)
 	close_button.pressed.connect(_on_close_pressed)
 	right_box.add_child(close_button)
+
+
+# --- HANGAR MECH ROSTER ---
+func _build_hangar_roster_ui(parent_box: VBoxContainer) -> void:
+	var separator := HSeparator.new()
+	parent_box.add_child(separator)
+	var title := Label.new()
+	title.text = "HANGAR ROSTER"
+	title.add_theme_font_size_override("font_size", 13)
+	title.add_theme_color_override("font_color", Color(0.4, 0.85, 1.0))
+	parent_box.add_child(title)
+
+	var description := Label.new()
+	description.text = "Store built mechs and switch between complete loadouts."
+	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	description.add_theme_font_size_override("font_size", 11)
+	parent_box.add_child(description)
+
+	roster_container = VBoxContainer.new()
+	roster_container.add_theme_constant_override("separation", 3)
+	parent_box.add_child(roster_container)
+
+	var build_button := Button.new()
+	build_button.text = "BUILD NEW FROM CURRENT LOADOUT"
+	build_button.custom_minimum_size = Vector2(0, 30)
+	build_button.focus_mode = Control.FOCUS_NONE
+	build_button.pressed.connect(_on_build_hangar_mech_pressed)
+	parent_box.add_child(build_button)
+
+	roster_status_label = Label.new()
+	roster_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	roster_status_label.add_theme_font_size_override("font_size", 11)
+	parent_box.add_child(roster_status_label)
+
+	_refresh_hangar_roster_ui()
+
+
+func _refresh_hangar_roster_ui() -> void:
+	if roster_container == null:
+		return
+	for child in roster_container.get_children():
+		child.queue_free()
+	GlobalData.ensure_hangar_roster()
+	for mech in GlobalData.get_hangar_mechs():
+		if not (mech is Dictionary):
+			continue
+		var mech_id := str(mech.get("id", ""))
+		var active := mech_id == GlobalData.active_hangar_mech_id
+		var button := Button.new()
+		button.text = "%s%s" % [
+			str(mech.get("name", "Unnamed Mech")),
+			" [ACTIVE]" if active else "",
+		]
+		button.disabled = active
+		button.custom_minimum_size = Vector2(0, 28)
+		button.focus_mode = Control.FOCUS_NONE
+		button.pressed.connect(_on_hangar_mech_selected.bind(mech_id))
+		roster_container.add_child(button)
+	if roster_status_label:
+		roster_status_label.text = "Slots: %d/%d | Body + both leg frames required to build" % [
+			GlobalData.hangar_mechs.size(), GlobalData.HANGAR_MAX_SLOTS,
+		]
+
+
+func _on_build_hangar_mech_pressed() -> void:
+	var built := GlobalData.build_hangar_mech()
+	if built.is_empty():
+		roster_status_label.text = "Cannot build: install body, left-leg and right-leg frames first, or hangar is full."
+		return
+	GlobalData.save_run()
+	roster_status_label.text = "Built and stored %s." % str(built.get("name", "Mech"))
+	_refresh_hangar_roster_ui()
+
+
+func _on_hangar_mech_selected(mech_id: String) -> void:
+	if not GlobalData.switch_hangar_mech(mech_id):
+		roster_status_label.text = "Unable to load that hangar mech."
+		return
+	selected_chassis_key = GlobalData.chassis_id
+	_refresh_hangar_roster_ui()
+	_update_all_3d_slots_preview()
+	_update_total_stats()
+	_populate_part_list_for_slot(selected_slot)
+	GlobalData.save_run()
+	roster_status_label.text = "Loaded %s." % str(GlobalData.get_active_hangar_mech().get("name", "Mech"))
 
 
 # --- AMMO LOADOUT UI (how much ammo to carry into the next battle) ---

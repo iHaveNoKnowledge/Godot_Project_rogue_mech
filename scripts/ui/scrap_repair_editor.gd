@@ -273,8 +273,8 @@ func _build_garage() -> void:
 
 	var ring := MeshInstance3D.new()
 	var cyl := CylinderMesh.new()
-	cyl.top_radius = 2.2
-	cyl.bottom_radius = 2.4
+	cyl.top_radius = 3.5
+	cyl.bottom_radius = 3.8
 	cyl.height = 0.12
 	ring.mesh = cyl
 	var mat_ring := StandardMaterial3D.new()
@@ -288,7 +288,7 @@ func _build_garage() -> void:
 	var spot := SpotLight3D.new()
 	spot.position = Vector3(3, 8, 5)
 	env.add_child(spot)
-	spot.look_at(Vector3(0, 1.8, 0), Vector3.UP)
+	spot.look_at(Vector3(0, 2.9, 0), Vector3.UP)
 	spot.light_energy = 4.0
 	spot.spot_range = 20.0
 	spot.spot_angle = 45.0
@@ -296,7 +296,7 @@ func _build_garage() -> void:
 	var rim := SpotLight3D.new()
 	rim.position = Vector3(-4, 5, -4)
 	env.add_child(rim)
-	rim.look_at(Vector3(0, 1.5, 0), Vector3.UP)
+	rim.look_at(Vector3(0, 2.5, 0), Vector3.UP)
 	rim.light_energy = 2.5
 	rim.light_color = Color(1.0, 0.8, 0.5)
 
@@ -311,9 +311,9 @@ func _build_garage() -> void:
 	pmm = scene_base.get_node_or_null("PartMeshManager")
 
 	var cam := Camera3D.new()
-	cam.position = Vector3(3.0, 2.4, 4.2)
+	cam.position = Vector3(4.8, 3.8, 6.7)
 	env.add_child(cam)
-	cam.look_at(Vector3(0, 1.6, 0), Vector3.UP)
+	cam.look_at(Vector3(0, 2.9, 0), Vector3.UP)
 	cam.fov = 55.0
 
 

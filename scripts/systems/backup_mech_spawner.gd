@@ -19,18 +19,18 @@ func spawn_backup_mech() -> void:
 
 	var collision = CollisionShape3D.new()
 	var shape = CapsuleShape3D.new()
-	shape.height = 3.5
-	shape.radius = 0.8
+	shape.height = 4.5
+	shape.radius = 1.0
 	collision.shape = shape
-	collision.position.y = 1.75
+	collision.position.y = 2.25
 	backup.add_child(collision)
 
 	var mesh = MeshInstance3D.new()
 	var capsule_mesh = CapsuleMesh.new()
-	capsule_mesh.height = 3.5
-	capsule_mesh.radius = 0.8
+	capsule_mesh.height = 4.5
+	capsule_mesh.radius = 1.0
 	mesh.mesh = capsule_mesh
-	mesh.position.y = 1.75
+	mesh.position.y = 2.25
 	backup.add_child(mesh)
 
 	get_parent().add_child(backup)

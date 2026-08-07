@@ -50,8 +50,8 @@ var turntable_node: Node3D
 var selection_highlight: MeshInstance3D
 var cam_target_pos: Vector3 = Vector3(2.8, 2.2, 3.8)
 var cam_look_target: Vector3 = Vector3(0, 1.8, 0)
-var current_cam_pos: Vector3 = Vector3(2.8, 2.2, 3.8)
-var current_look_pos: Vector3 = Vector3(0, 1.8, 0)
+var current_cam_pos: Vector3 = Vector3(4.5, 3.5, 6.1)
+var current_look_pos: Vector3 = Vector3(0, 2.9, 0)
 
 # UI Nodes
 var tab_container: HBoxContainer
@@ -132,8 +132,8 @@ func _build_3d_garage() -> void:
 
 	var ring = MeshInstance3D.new()
 	var cyl = CylinderMesh.new()
-	cyl.top_radius = 3.2
-	cyl.bottom_radius = 3.5
+	cyl.top_radius = 4.0
+	cyl.bottom_radius = 4.3
 	cyl.height = 0.15
 	ring.mesh = cyl
 	var mat_ring = StandardMaterial3D.new()
@@ -148,7 +148,7 @@ func _build_3d_garage() -> void:
 	var spot = SpotLight3D.new()
 	spot.position = Vector3(3, 8, 5)
 	hangar_env_node.add_child(spot)
-	spot.look_at(Vector3(0, 1.8, 0), Vector3.UP)
+	spot.look_at(Vector3(0, 2.9, 0), Vector3.UP)
 	spot.light_energy = 4.0
 	spot.spot_range = 20.0
 	spot.spot_angle = 45.0
@@ -157,7 +157,7 @@ func _build_3d_garage() -> void:
 	var rim = SpotLight3D.new()
 	rim.position = Vector3(-4, 5, -4)
 	hangar_env_node.add_child(rim)
-	rim.look_at(Vector3(0, 1.5, 0), Vector3.UP)
+	rim.look_at(Vector3(0, 2.5, 0), Vector3.UP)
 	rim.light_energy = 2.5
 	rim.light_color = Color(0.3, 0.7, 1.0)
 

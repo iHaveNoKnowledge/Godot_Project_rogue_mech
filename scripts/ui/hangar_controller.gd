@@ -995,23 +995,23 @@ func _apply_tab_blink(on: bool) -> void:
 func _update_camera_focus_for_slot(slot: String) -> void:
 	match slot:
 		"chassis":
-			cam_target_pos = Vector3(3.5, 2.2, 4.5)
-			cam_look_target = Vector3(0, 1.8, 0)
+			cam_target_pos = Vector3(4.6, 2.6, 5.5)
+			cam_look_target = Vector3(0, 2.3, 0)
 		"head":
-			cam_target_pos = Vector3(1.4, 2.6, 2.0)
-			cam_look_target = Vector3(0, 2.5, 0)
+			cam_target_pos = Vector3(2.6, 3.0, 3.2)
+			cam_look_target = Vector3(0, 3.0, 0)
 		"body":
-			cam_target_pos = Vector3(2.2, 2.0, 2.8)
-			cam_look_target = Vector3(0, 2.0, 0)
+			cam_target_pos = Vector3(3.4, 2.5, 4.0)
+			cam_look_target = Vector3(0, 2.5, 0)
 		"arm_left", "arm_right", "weapon_left", "weapon_right", "weapon_carry":
-			cam_target_pos = Vector3(2.5, 1.8, 2.2)
-			cam_look_target = Vector3(0, 1.8, 0)
+			cam_target_pos = Vector3(3.4, 2.3, 3.2)
+			cam_look_target = Vector3(0, 2.3, 0)
 		"leg_left", "leg_right":
-			cam_target_pos = Vector3(2.8, 1.0, 2.8)
-			cam_look_target = Vector3(0, 0.8, 0)
+			cam_target_pos = Vector3(3.8, 1.6, 3.8)
+			cam_look_target = Vector3(0, 1.2, 0)
 		_:
-			cam_target_pos = Vector3(3.2, 2.0, 4.0)
-			cam_look_target = Vector3(0, 1.8, 0)
+			cam_target_pos = Vector3(4.2, 2.4, 5.0)
+			cam_look_target = Vector3(0, 2.2, 0)
 
 
 func _is_item_equipped(slot: String, info: Dictionary) -> bool:
@@ -1156,8 +1156,13 @@ func _populate_part_list_for_slot(slot: String) -> void:
 
 	if current_mode == "frame" and frame_catalog.has(slot):
 		var items = frame_catalog[slot]
+		# Roguelike: a destroyed frame is gone. Hide the equipped broken frame so
+		# it can no longer be repaired or re-selected from the list.
+		var frame_gone: bool = GlobalData.part_damage.get(slot + "_frame", 0.0) >= 1.0
 		for info in items:
 			var is_eq = _is_item_equipped(slot, info)
+			if is_eq and frame_gone:
+				continue
 			var prefix = "[X] " if is_eq and is_destroyed else ("[E] " if is_eq else "     ")
 			var fname = info.get("name", "Frame Part")
 			var fhp = info.get("hp", 20.0)
@@ -1210,6 +1215,10 @@ func _populate_part_list_for_slot(slot: String) -> void:
 				shown_uids[uid] = true
 			visible_salvage_indices.append(inst_index)
 			var is_eq = _is_item_equipped(slot, inst)
+			# Roguelike: a destroyed part is gone. Hide the equipped broken armor
+			# so it can no longer be selected, repaired, or re-equipped.
+			if is_eq and (GlobalData.part_damage.get(slot, 0.0) >= 1.0 or GlobalData.part_damage.get(slot + "_frame", 0.0) >= 1.0):
+				continue
 			var prefix = "[E] " if is_eq else "    "
 			var state_tag = " [DESTROYED]" if (is_eq and is_destroyed) else ""
 			var dur_pct = _get_instance_durability(slot, inst)

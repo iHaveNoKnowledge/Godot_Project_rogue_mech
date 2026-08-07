@@ -317,7 +317,6 @@ func _spawn_break_vfx(slot_name: String) -> void:
 	
 	for i in range(5):
 		var debris = RigidBody3D.new()
-		debris.global_position = origin_pos + Vector3(randf_range(-0.3, 0.3), randf_range(0.2, 0.6), randf_range(-0.3, 0.3))
 		
 		var col = CollisionShape3D.new()
 		var shape = BoxShape3D.new()
@@ -338,6 +337,9 @@ func _spawn_break_vfx(slot_name: String) -> void:
 		debris.add_child(mesh_inst)
 		
 		get_tree().current_scene.add_child(debris)
+		# Position must be set while already inside the tree (global_position on a
+		# node not yet added to the scene returns a null transform).
+		debris.position = origin_pos + Vector3(randf_range(-0.3, 0.3), randf_range(0.2, 0.6), randf_range(-0.3, 0.3))
 		
 		var impulse = Vector3(randf_range(-4, 4), randf_range(3, 7), randf_range(-4, 4))
 		debris.apply_central_impulse(impulse)
@@ -347,7 +349,7 @@ func _spawn_break_vfx(slot_name: String) -> void:
 		tween.tween_callback(debris.queue_free)
 		
 	var vfx_scene = load("res://scenes/mecha/effects/vfx_armor_break.tscn")
-	if vfx_scene:
+	if vfx_scene and entry["armor"] and entry["armor"].is_inside_tree():
 		var vfx = vfx_scene.instantiate()
 		entry["armor"].get_parent().add_child(vfx)
 		vfx.global_position = entry["armor"].global_position

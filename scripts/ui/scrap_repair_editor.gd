@@ -31,6 +31,11 @@ var selected_primitive_index: int = -1
 
 var _dragging: bool = false
 
+# Backup of the global combat actions that collide with the editor's own keys
+# (e.g. "dash" is bound to Shift in the InputMap). While the editor is open these
+# actions are silenced so holding Shift for fine-step moves can't trigger a dash.
+var _saved_combat_actions: Dictionary = {}
+
 const MOVE_STEP := 0.15
 const ROT_STEP := 15.0 * PI / 180.0
 const SCALE_FACTOR := 1.1
@@ -60,6 +65,7 @@ func open(initial_slot: String = "") -> void:
 	if pmm == null:
 		_build_garage()
 	visible = true
+	_silence_combat_actions()
 	if pmm and pmm.has_method("refresh_slots"):
 		pmm.refresh_slots()
 	_refresh_slot_list()
@@ -77,7 +83,34 @@ func open(initial_slot: String = "") -> void:
 
 func close() -> void:
 	_clear_live_primitives()
+	_restore_combat_actions()
 	visible = false
+
+
+# While the repair todo overlap is open, temporarily silence the combat actions
+# that share keys with the editor (dash=Shift, roller, jump, eject). Restored on
+# close() so gameplay keybinds come back exactly as they were.
+func _silence_combat_actions() -> void:
+	if not _saved_combat_actions.is_empty():
+		return
+	for action in ["dash", "roller_dash", "jump", "eject"]:
+		if InputMap.has_action(action):
+			_saved_combat_actions[action] = InputMap.action_get_events(action)
+			InputMap.action_erase_events(action)
+
+
+func _restore_combat_actions() -> void:
+	for action in _saved_combat_actions:
+		var events: Array = _saved_combat_actions[action]
+		for ev in events:
+			if not InputMap.action_has_event(action, ev):
+				InputMap.action_add_event(action, ev)
+	_saved_combat_actions.clear()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE and not _saved_combat_actions.is_empty():
+		_restore_combat_actions()
 
 
 # ---------------------------------------------------------------------------

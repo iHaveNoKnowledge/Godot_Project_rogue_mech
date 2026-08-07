@@ -110,7 +110,7 @@ func take_damage(amount: float, damage_type: String = "kinetic") -> void:
 	super.take_damage(amount, damage_type)
 
 
-func take_damage_to_part(slot_name: String, amount: float, damage_type: String = "kinetic") -> void:
+func take_damage_to_part(slot_name: String, amount: float, damage_type: String = "kinetic", layer: String = "") -> void:
 	if is_destroyed:
 		return
 	# Shield absorption
@@ -119,7 +119,30 @@ func take_damage_to_part(slot_name: String, amount: float, damage_type: String =
 		amount = wm.absorb_damage_with_shield(amount)
 		if amount <= 0.0:
 			return
-	super.take_damage_to_part(slot_name, amount, damage_type)
+	super.take_damage_to_part(slot_name, amount, damage_type, layer)
+
+
+func take_damage_at_point(amount: float, world_pos: Vector3, damage_type: String = "kinetic") -> void:
+	if is_destroyed:
+		return
+	# Shield absorption
+	var wm = _get_weapon_manager()
+	if wm and wm.is_shield_active():
+		amount = wm.absorb_damage_with_shield(amount)
+		if amount <= 0.0:
+			return
+	super.take_damage_at_point(amount, world_pos, damage_type)
+
+
+func take_damage_to_part_at(slot_name: String, amount: float, world_pos: Vector3, damage_type: String = "kinetic") -> void:
+	if is_destroyed:
+		return
+	var wm = _get_weapon_manager()
+	if wm and wm.is_shield_active():
+		amount = wm.absorb_damage_with_shield(amount)
+		if amount <= 0.0:
+			return
+	super.take_damage_to_part_at(slot_name, amount, world_pos, damage_type)
 
 
 func _get_weapon_manager():

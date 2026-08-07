@@ -25,6 +25,7 @@ func _ready() -> void:
 	_test_board_has_no_random_enemy_base()
 	_test_tech_escalation()
 	_test_blueprint_gated_gundam_armor()
+	_test_location_based_damage()
 	# The hangar test is async (it awaits a frame while building the scene), so
 	# it must be awaited to completion before the result is printed; otherwise
 	# later reset_run_data() calls would mutate GlobalData under its pending
@@ -571,3 +572,83 @@ func _test_blueprint_gated_gundam_armor() -> void:
 	_check(not GlobalData.entry_is_blueprint_locked(gundam), "researched gundam part is unlocked")
 	crafted = GlobalData.try_craft_armor_from_catalog("body_003_gundam")
 	_check(not crafted.is_empty(), "researched gundam part can be crafted")
+
+
+func _test_location_based_damage() -> void:
+	# Regression: a projectile's impact point must decide WHICH part surface
+	# (armor plate vs exposed frame) takes the damage. Builds a minimal mecha
+	# whose Head has an armor box and a frame spike poking out sideways.
+	var mecha := Node3D.new()
+	mecha.name = "QA_Mecha"
+	add_child(mecha)
+
+	var health = load("res://scripts/mecha/mecha_health.gd").new()
+	health.is_player = false
+	mecha.add_child(health)
+	health.is_player = false
+	var head := Node3D.new()
+	head.name = "Head"
+	head.position = Vector3(0, 3, 0)
+	mecha.add_child(head)
+
+	var armor_container := Node3D.new()
+	armor_container.name = "ArmorMesh"
+	head.add_child(armor_container)
+	var armor_mesh := MeshInstance3D.new()
+	var plate := BoxMesh.new()
+	plate.size = Vector3(1, 1, 1)
+	armor_mesh.mesh = plate
+	armor_container.add_child(armor_mesh)
+
+	var frame_container := Node3D.new()
+	frame_container.name = "FrameMesh"
+	head.add_child(frame_container)
+	var frame_mesh := MeshInstance3D.new()
+	var spike := BoxMesh.new()
+	spike.size = Vector3(0.5, 0.5, 0.5)
+	frame_mesh.mesh = spike
+	frame_mesh.position = Vector3(1.5, 0, 0)
+	frame_container.add_child(frame_mesh)
+
+	var head_part = health.parts["head"]
+	var armor0: float = head_part["armor_hp"]
+	var frame0: float = head_part["frame_hp"]
+
+	# Explicit layer routing.
+	health.take_damage_to_part("head", 12.0, "kinetic", "armor")
+	_check(is_equal_approx(head_part["armor_hp"], armor0 - 12.0 / head_part["armor_class"]), "layer=armor reduces armor HP")
+	_check(is_equal_approx(head_part["frame_hp"], frame0), "layer=armor leaves frame untouched")
+
+	health.take_damage_to_part("head", 7.0, "kinetic", "frame")
+	_check(is_equal_approx(head_part["frame_hp"], frame0 - 7.0), "layer=frame reduces frame HP")
+	_check(is_equal_approx(head_part["armor_hp"], armor0 - 12.0 / head_part["armor_class"]), "layer=frame leaves armor untouched")
+
+	# Armor passes damage through once it is broken.
+	head_part["armor_hp"] = 0.0
+	head_part["armor_broken"] = true
+	var frame_before: float = head_part["frame_hp"]
+	health.take_damage_to_part("head", 5.0, "kinetic", "armor")
+	_check(is_equal_approx(head_part["frame_hp"], frame_before - 5.0), "broken armor lets armor-layer hit reach the frame")
+
+	# Point-based resolution.
+	head_part["armor_broken"] = false
+	head_part["armor_hp"] = head_part["max_armor"]
+	var armor_before: float = head_part["armor_hp"]
+	var frame_before_point: float = head_part["frame_hp"]
+
+	health.take_damage_at_point(10.0, head.global_position)
+	_check(is_equal_approx(head_part["armor_hp"], armor_before - 10.0 / head_part["armor_class"]), "impact inside armor AABB hits armor")
+	_check(is_equal_approx(head_part["frame_hp"], frame_before_point), "impact inside armor AABB misses frame")
+
+	var armor_after_point: float = head_part["armor_hp"]
+	var frame_after_point: float = head_part["frame_hp"]
+	health.take_damage_at_point(4.0, frame_mesh.global_position)
+	_check(is_equal_approx(head_part["frame_hp"], frame_after_point - 4.0), "impact on exposed frame spike hits frame")
+	_check(is_equal_approx(head_part["armor_hp"], armor_after_point), "impact on exposed frame spike misses armor")
+
+	# Enemy-style variant: slot passed in, layer resolved from the world point.
+	var frame_after_at: float = head_part["frame_hp"]
+	health.take_damage_to_part_at("head", 3.0, frame_mesh.global_position)
+	_check(is_equal_approx(head_part["frame_hp"], frame_after_at - 3.0), "take_damage_to_part_at resolves frame layer from impact point")
+
+	mecha.queue_free()

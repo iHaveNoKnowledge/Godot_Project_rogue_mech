@@ -65,7 +65,10 @@ func take_damage(amount: float, damage_type: String = "kinetic") -> void:
 		_apply_frame_damage(target_slot, amount, damage_type)
 
 
-func take_damage_to_part(slot_name: String, amount: float, damage_type: String = "kinetic") -> void:
+# `layer` routes damage straight to a surface: "armor" hits armor first (only
+# while it is intact), "frame" always hits the frame. Empty means the classic
+# armor-first behaviour (armor absorbs until it breaks, then frame takes over).
+func take_damage_to_part(slot_name: String, amount: float, damage_type: String = "kinetic", layer: String = "") -> void:
 	if is_destroyed:
 		return
 	if not parts.has(slot_name):
@@ -74,10 +77,47 @@ func take_damage_to_part(slot_name: String, amount: float, damage_type: String =
 		return
 
 	var part = parts[slot_name]
+	if part["destroyed"]:
+		return
+
+	match layer.to_lower():
+		"armor":
+			if not part["armor_broken"]:
+				_apply_armor_damage(slot_name, amount, damage_type)
+			else:
+				_apply_frame_damage(slot_name, amount, damage_type)
+			return
+		"frame":
+			_apply_frame_damage(slot_name, amount, damage_type)
+			return
+
 	if not part["armor_broken"]:
 		_apply_armor_damage(slot_name, amount, damage_type)
 	else:
 		_apply_frame_damage(slot_name, amount, damage_type)
+
+
+# Location-based damage: the impact point decides which part AND which surface
+# (armor plate vs exposed frame) takes the hit. Projectiles already call this
+# with the projectile position, so where the bullet lands is what matters.
+func take_damage_at_point(amount: float, world_pos: Vector3, damage_type: String = "kinetic") -> void:
+	if is_destroyed:
+		return
+	var hit := _resolve_hit(world_pos)
+	if hit["slot"] != "":
+		take_damage_to_part(hit["slot"], amount, damage_type, hit["layer"])
+
+
+# Variant used by enemy mechas: they resolve the part themselves (their meshes
+# have no armor/frame split), we only need to resolve the surface layer here.
+func take_damage_to_part_at(slot_name: String, amount: float, world_pos: Vector3, damage_type: String = "kinetic") -> void:
+	if is_destroyed:
+		return
+	if not parts.has(slot_name):
+		take_damage_at_point(amount, world_pos, damage_type)
+		return
+	var layer := _resolve_layer_for_slot(slot_name, world_pos)
+	take_damage_to_part(slot_name, amount, damage_type, layer)
 
 
 func _select_target() -> String:
@@ -96,6 +136,129 @@ func _select_target() -> String:
 	)
 
 	return candidates[0]
+
+
+# Resolves which slot + surface layer a world-space impact point hits.
+# A point inside an armor plate AABB hits armor (armor is the outer shell).
+# A point OUTSIDE every armor AABB but inside a frame AABB hits the exposed
+# frame directly (frame protrusions poking through armor are shootable).
+func _resolve_hit(world_pos: Vector3) -> Dictionary:
+	var best_slot := ""
+	var best_layer := ""
+	var best_dist := INF
+
+	var fallback_slot := ""
+	var fallback_dist := INF
+
+	for slot in parts:
+		if parts[slot]["destroyed"]:
+			continue
+
+		if not parts[slot]["armor_broken"]:
+			for mesh in _get_slot_surfaces(slot, "ArmorMesh"):
+				var d := _surface_hit_distance(mesh, world_pos)
+				if d >= 0.0 and d < best_dist:
+					best_dist = d
+					best_slot = slot
+					best_layer = "armor"
+
+		for mesh in _get_slot_surfaces(slot, "FrameMesh"):
+			var d := _surface_hit_distance(mesh, world_pos)
+			if d >= 0.0 and d < best_dist:
+				best_dist = d
+				best_slot = slot
+				best_layer = "frame"
+
+		var section := _get_section_node(slot)
+		if section:
+			var d := world_pos.distance_to(section.global_position)
+			if d < fallback_dist:
+				fallback_dist = d
+				fallback_slot = slot
+
+	if best_slot != "":
+		return {"slot": best_slot, "layer": best_layer}
+	return {"slot": fallback_slot, "layer": ""}
+
+
+func _resolve_layer_for_slot(slot_name: String, world_pos: Vector3) -> String:
+	if not parts.has(slot_name) or parts[slot_name]["destroyed"]:
+		return ""
+	var armor_dist := INF
+	var frame_dist := INF
+	if not parts[slot_name]["armor_broken"]:
+		for mesh in _get_slot_surfaces(slot_name, "ArmorMesh"):
+			var d := _surface_hit_distance(mesh, world_pos)
+			if d >= 0.0:
+				armor_dist = minf(armor_dist, d)
+	for mesh in _get_slot_surfaces(slot_name, "FrameMesh"):
+		var d := _surface_hit_distance(mesh, world_pos)
+		if d >= 0.0:
+			frame_dist = minf(frame_dist, d)
+
+	if armor_dist < frame_dist:
+		return "armor"
+	if frame_dist < INF:
+		return "frame"
+	return ""
+
+
+# Returns the distance to a mesh surface if world_pos is inside its AABB,
+# or -1.0 when the point misses that mesh.
+func _surface_hit_distance(mesh: MeshInstance3D, world_pos: Vector3) -> float:
+	var aabb := _mesh_global_aabb(mesh)
+	if aabb.size == Vector3.ZERO or not aabb.has_point(world_pos):
+		return -1.0
+	return world_pos.distance_to(mesh.global_position)
+
+
+func _mesh_global_aabb(mesh: MeshInstance3D) -> AABB:
+	var local := mesh.get_aabb()
+	if local.size == Vector3.ZERO:
+		return AABB()
+	var t := mesh.get_global_transform()
+	var p := local.position
+	var e := local.size
+	var corners := PackedVector3Array([
+		t * (p + Vector3(0, 0, 0)),
+		t * (p + Vector3(e.x, 0, 0)),
+		t * (p + Vector3(0, e.y, 0)),
+		t * (p + Vector3(0, 0, e.z)),
+		t * (p + Vector3(e.x, e.y, 0)),
+		t * (p + Vector3(e.x, 0, e.z)),
+		t * (p + Vector3(0, e.y, e.z)),
+		t * (p + Vector3(e.x, e.y, e.z)),
+	])
+	var aabb := AABB(corners[0], Vector3.ZERO)
+	for c in corners:
+		aabb = aabb.expand(c)
+	return aabb
+
+
+# Collects every rendered mesh under a slot's ArmorMesh/FrameMesh containers
+# (including lower-joint containers such as Forearm/Shin sub-meshes).
+func _get_slot_surfaces(slot_name: String, container_name: String) -> Array:
+	var section := _get_section_node(slot_name)
+	var result: Array = []
+	if section == null:
+		return result
+	_collect_surface_meshes(section, container_name, result)
+	return result
+
+
+func _collect_surface_meshes(node: Node, container_name: String, into: Array) -> void:
+	if node is Node3D and node.name == container_name:
+		_collect_mesh_descendants(node, into)
+		return
+	for child in node.get_children():
+		_collect_surface_meshes(child, container_name, into)
+
+
+func _collect_mesh_descendants(node: Node, into: Array) -> void:
+	if node is MeshInstance3D:
+		into.append(node)
+	for child in node.get_children():
+		_collect_mesh_descendants(child, into)
 
 
 func _apply_armor_damage(slot_name: String, amount: float, damage_type: String) -> void:

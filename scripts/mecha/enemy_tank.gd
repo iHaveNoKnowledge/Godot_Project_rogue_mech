@@ -47,9 +47,12 @@ func take_damage_at_point(amount: float, world_pos: Vector3, damage_type: String
 		elif local_pos.y < 0.5:
 			target_part = "treads"
 
-		health_system.take_damage_to_part(target_part, amount, damage_type)
-	else:
-		take_damage(amount, damage_type)
+		if health_system.has_method("take_damage_to_part_at"):
+			health_system.take_damage_to_part_at(target_part, amount, world_pos, damage_type)
+		elif health_system.has_method("take_damage_to_part"):
+			health_system.take_damage_to_part(target_part, amount, damage_type)
+		else:
+			take_damage(amount, damage_type)
 
 
 func take_damage(amount: float, damage_type: String = "kinetic") -> void:

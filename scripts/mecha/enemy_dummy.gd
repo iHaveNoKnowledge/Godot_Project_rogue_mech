@@ -215,7 +215,10 @@ func take_damage_at_point(amount: float, world_pos: Vector3, damage_type: String
 		if target_part == "":
 			return
 
-	health_system.take_damage_to_part(target_part, amount, damage_type)
+	if health_system.has_method("take_damage_to_part_at"):
+		health_system.take_damage_to_part_at(target_part, amount, world_pos, damage_type)
+	else:
+		health_system.take_damage_to_part(target_part, amount, damage_type)
 
 
 func _find_alive_part() -> String:

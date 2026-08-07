@@ -28,11 +28,9 @@ offset_bottom = 250.0
 grow_horizontal = 0
 theme_override_styles/panel = SubResource("PanelStyle")
 
-[node name="Grid" type="GridContainer" parent="Panel"]
+[node name="Grid" type="VBoxContainer" parent="Panel"]
 layout_mode = 2
-columns = 2
-theme_override_constants/h_separation = 40
-theme_override_constants/v_separation = 10
+theme_override_constants/separation = 10
 
 [node name="HeadCell" type="VBoxContainer" parent="Panel/Grid"]
 unique_name_in_owner = true
@@ -164,18 +162,24 @@ theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
 theme_override_constants/outline_size = 2
 theme_override_font_sizes/font_size = 7
 
-[node name="LeftCell" type="VBoxContainer" parent="Panel/Grid"]
+[node name="PartsGrid" type="GridContainer" parent="Panel/Grid"]
+layout_mode = 2
+columns = 2
+theme_override_constants/h_separation = 40
+theme_override_constants/v_separation = 10
+
+[node name="LeftCell" type="VBoxContainer" parent="Panel/Grid/PartsGrid"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 2
 
-[node name="ArmLLabel" type="Label" parent="Panel/Grid/LeftCell"]
+[node name="ArmLLabel" type="Label" parent="Panel/Grid/PartsGrid/LeftCell"]
 layout_mode = 2
 text = "ARM L:"
 theme_override_colors/font_color = Color(0.85, 0.85, 0.85, 1)
 theme_override_font_sizes/font_size = 11
 
-[node name="ArmLArmorBar" type="Control" parent="Panel/Grid/LeftCell"]
+[node name="ArmLArmorBar" type="Control" parent="Panel/Grid/PartsGrid/LeftCell"]
 unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(210, 18)
@@ -183,7 +187,7 @@ script = ExtResource("2")
 fill_color_a = Color(0.77, 0.76, 0.75, 1)
 fill_color_b = Color(0.6, 0.6, 0.6, 1)
 
-[node name="ArmLArmorValue" type="Label" parent="Panel/Grid/LeftCell/ArmLArmorBar"]
+[node name="ArmLArmorValue" type="Label" parent="Panel/Grid/PartsGrid/LeftCell/ArmLArmorBar"]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -202,7 +206,7 @@ theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
 theme_override_constants/outline_size = 3
 theme_override_font_sizes/font_size = 9
 
-[node name="ArmLFrameBar" type="Control" parent="Panel/Grid/LeftCell"]
+[node name="ArmLFrameBar" type="Control" parent="Panel/Grid/PartsGrid/LeftCell"]
 unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(210, 8)
@@ -210,7 +214,7 @@ script = ExtResource("2")
 fill_color_a = Color(0.376, 0.82, 0.43, 1)
 fill_color_b = Color(0.537, 1, 0.53, 1)
 
-[node name="ArmLFrameValue" type="Label" parent="Panel/Grid/LeftCell/ArmLFrameBar"]
+[node name="ArmLFrameValue" type="Label" parent="Panel/Grid/PartsGrid/LeftCell/ArmLFrameBar"]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -229,13 +233,13 @@ theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
 theme_override_constants/outline_size = 2
 theme_override_font_sizes/font_size = 7
 
-[node name="LegLLabel" type="Label" parent="Panel/Grid/LeftCell"]
+[node name="LegLLabel" type="Label" parent="Panel/Grid/PartsGrid/LeftCell"]
 layout_mode = 2
 text = "LEG L:"
 theme_override_colors/font_color = Color(0.85, 0.85, 0.85, 1)
 theme_override_font_sizes/font_size = 11
 
-[node name="LegLArmorBar" type="Control" parent="Panel/Grid/LeftCell"]
+[node name="LegLArmorBar" type="Control" parent="Panel/Grid/PartsGrid/LeftCell"]
 unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(210, 18)
@@ -243,7 +247,7 @@ script = ExtResource("2")
 fill_color_a = Color(0.77, 0.76, 0.75, 1)
 fill_color_b = Color(0.6, 0.6, 0.6, 1)
 
-[node name="LegLArmorValue" type="Label" parent="Panel/Grid/LeftCell/LegLArmorBar"]
+[node name="LegLArmorValue" type="Label" parent="Panel/Grid/PartsGrid/LeftCell/LegLArmorBar"]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -262,7 +266,7 @@ theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
 theme_override_constants/outline_size = 3
 theme_override_font_sizes/font_size = 9
 
-[node name="LegLFrameBar" type="Control" parent="Panel/Grid/LeftCell"]
+[node name="LegLFrameBar" type="Control" parent="Panel/Grid/PartsGrid/LeftCell"]
 unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(210, 8)
@@ -270,7 +274,7 @@ script = ExtResource("2")
 fill_color_a = Color(0.376, 0.82, 0.43, 1)
 fill_color_b = Color(0.537, 1, 0.53, 1)
 
-[node name="LegLFrameValue" type="Label" parent="Panel/Grid/LeftCell/LegLFrameBar"]
+[node name="LegLFrameValue" type="Label" parent="Panel/Grid/PartsGrid/LeftCell/LegLFrameBar"]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -289,18 +293,18 @@ theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
 theme_override_constants/outline_size = 2
 theme_override_font_sizes/font_size = 7
 
-[node name="RightCell" type="VBoxContainer" parent="Panel/Grid"]
+[node name="RightCell" type="VBoxContainer" parent="Panel/Grid/PartsGrid"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 2
 
-[node name="ArmRLabel" type="Label" parent="Panel/Grid/RightCell"]
+[node name="ArmRLabel" type="Label" parent="Panel/Grid/PartsGrid/RightCell"]
 layout_mode = 2
 text = "ARM R:"
 theme_override_colors/font_color = Color(0.85, 0.85, 0.85, 1)
 theme_override_font_sizes/font_size = 11
 
-[node name="ArmRArmorBar" type="Control" parent="Panel/Grid/RightCell"]
+[node name="ArmRArmorBar" type="Control" parent="Panel/Grid/PartsGrid/RightCell"]
 unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(210, 18)
@@ -308,7 +312,7 @@ script = ExtResource("2")
 fill_color_a = Color(0.77, 0.76, 0.75, 1)
 fill_color_b = Color(0.6, 0.6, 0.6, 1)
 
-[node name="ArmRArmorValue" type="Label" parent="Panel/Grid/RightCell/ArmRArmorBar"]
+[node name="ArmRArmorValue" type="Label" parent="Panel/Grid/PartsGrid/RightCell/ArmRArmorBar"]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -327,7 +331,7 @@ theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
 theme_override_constants/outline_size = 3
 theme_override_font_sizes/font_size = 9
 
-[node name="ArmRFrameBar" type="Control" parent="Panel/Grid/RightCell"]
+[node name="ArmRFrameBar" type="Control" parent="Panel/Grid/PartsGrid/RightCell"]
 unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(210, 8)
@@ -335,7 +339,7 @@ script = ExtResource("2")
 fill_color_a = Color(0.376, 0.82, 0.43, 1)
 fill_color_b = Color(0.537, 1, 0.53, 1)
 
-[node name="ArmRFrameValue" type="Label" parent="Panel/Grid/RightCell/ArmRFrameBar"]
+[node name="ArmRFrameValue" type="Label" parent="Panel/Grid/PartsGrid/RightCell/ArmRFrameBar"]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -354,13 +358,13 @@ theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
 theme_override_constants/outline_size = 2
 theme_override_font_sizes/font_size = 7
 
-[node name="LegRLabel" type="Label" parent="Panel/Grid/RightCell"]
+[node name="LegRLabel" type="Label" parent="Panel/Grid/PartsGrid/RightCell"]
 layout_mode = 2
 text = "LEG R:"
 theme_override_colors/font_color = Color(0.85, 0.85, 0.85, 1)
 theme_override_font_sizes/font_size = 11
 
-[node name="LegRArmorBar" type="Control" parent="Panel/Grid/RightCell"]
+[node name="LegRArmorBar" type="Control" parent="Panel/Grid/PartsGrid/RightCell"]
 unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(210, 18)
@@ -368,7 +372,7 @@ script = ExtResource("2")
 fill_color_a = Color(0.77, 0.76, 0.75, 1)
 fill_color_b = Color(0.6, 0.6, 0.6, 1)
 
-[node name="LegRArmorValue" type="Label" parent="Panel/Grid/RightCell/LegRArmorBar"]
+[node name="LegRArmorValue" type="Label" parent="Panel/Grid/PartsGrid/RightCell/LegRArmorBar"]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -387,7 +391,7 @@ theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
 theme_override_constants/outline_size = 3
 theme_override_font_sizes/font_size = 9
 
-[node name="LegRFrameBar" type="Control" parent="Panel/Grid/RightCell"]
+[node name="LegRFrameBar" type="Control" parent="Panel/Grid/PartsGrid/RightCell"]
 unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(210, 8)
@@ -395,7 +399,7 @@ script = ExtResource("2")
 fill_color_a = Color(0.376, 0.82, 0.43, 1)
 fill_color_b = Color(0.537, 1, 0.53, 1)
 
-[node name="LegRFrameValue" type="Label" parent="Panel/Grid/RightCell/LegRFrameBar"]
+[node name="LegRFrameValue" type="Label" parent="Panel/Grid/PartsGrid/RightCell/LegRFrameBar"]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15

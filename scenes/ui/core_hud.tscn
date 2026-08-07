@@ -1,6 +1,18 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/core_hud.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/ui/hp_part_bar.gd" id="2"]
+
+[sub_resource type="StyleBoxFlat" id="PanelStyle"]
+content_margin_left = 14.0
+content_margin_top = 10.0
+content_margin_right = 14.0
+content_margin_bottom = 10.0
+bg_color = Color(0.1, 0.1, 0.1, 0.85)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
 
 [node name="CoreHUD" type="CanvasLayer"]
 script = ExtResource("1")
@@ -9,151 +21,221 @@ script = ExtResource("1")
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -165.0
+offset_left = -500.0
 offset_top = 10.0
 offset_right = -10.0
-offset_bottom = 155.0
+offset_bottom = 200.0
 grow_horizontal = 0
+theme_override_styles/panel = SubResource("PanelStyle")
 
-[node name="VBox" type="VBoxContainer" parent="Panel"]
+[node name="Grid" type="GridContainer" parent="Panel"]
 layout_mode = 2
-theme_override_constants/separation = 2
+columns = 2
+theme_override_constants/h_separation = 40
+theme_override_constants/v_separation = 10
 
-[node name="Title" type="Label" parent="Panel/VBox"]
+[node name="HeadCell" type="VBoxContainer" parent="Panel/Grid"]
+unique_name_in_owner = true
 layout_mode = 2
-text = "STATUS"
-horizontal_alignment = 1
+theme_override_constants/separation = 3
+
+[node name="HeadLabel" type="Label" parent="Panel/Grid/HeadCell"]
+layout_mode = 2
+text = "HEAD:"
+theme_override_colors/font_color = Color(0.85, 0.85, 0.85, 1)
+theme_override_font_sizes/font_size = 11
+
+[node name="HeadBar" type="Control" parent="Panel/Grid/HeadCell"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(210, 20)
+script = ExtResource("2")
+
+[node name="HeadValue" type="Label" parent="Panel/Grid/HeadCell/HeadBar"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 14.0
+offset_right = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+text = "100"
+horizontal_alignment = 2
+vertical_alignment = 1
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
+theme_override_constants/outline_size = 3
 theme_override_font_sizes/font_size = 10
 
-[node name="CoreSection" type="VBoxContainer" parent="Panel/VBox"]
-layout_mode = 2
-theme_override_constants/separation = 1
-
-[node name="HeadLabel" type="Label" parent="Panel/VBox/CoreSection"]
+[node name="BodyCell" type="VBoxContainer" parent="Panel/Grid"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "HEAD"
-theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
-theme_override_font_sizes/font_size = 9
+theme_override_constants/separation = 3
 
-[node name="HeadArmorBar" type="TextureProgressBar" parent="Panel/VBox/CoreSection"]
+[node name="BodyLabel" type="Label" parent="Panel/Grid/BodyCell"]
+layout_mode = 2
+text = "BODY:"
+theme_override_colors/font_color = Color(0.85, 0.85, 0.85, 1)
+theme_override_font_sizes/font_size = 11
+
+[node name="BodyBar" type="Control" parent="Panel/Grid/BodyCell"]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 8)
-max_value = 100.0
-value = 100.0
+custom_minimum_size = Vector2(210, 20)
+script = ExtResource("2")
 
-[node name="HeadArmorValue" type="Label" parent="Panel/VBox/CoreSection/HeadArmorBar"]
+[node name="BodyValue" type="Label" parent="Panel/Grid/BodyCell/BodyBar"]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_right = -2.0
+offset_left = 14.0
+offset_right = -8.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 text = "100"
 horizontal_alignment = 2
 vertical_alignment = 1
-theme_override_font_sizes/font_size = 7
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 10
 
-[node name="HeadFrameBar" type="TextureProgressBar" parent="Panel/VBox/CoreSection"]
+[node name="LeftCell" type="VBoxContainer" parent="Panel/Grid"]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 5)
-max_value = 100.0
-value = 100.0
+theme_override_constants/separation = 3
 
-[node name="HeadFrameValue" type="Label" parent="Panel/VBox/CoreSection/HeadFrameBar"]
+[node name="ArmLLabel" type="Label" parent="Panel/Grid/LeftCell"]
+layout_mode = 2
+text = "ARM L:"
+theme_override_colors/font_color = Color(0.85, 0.85, 0.85, 1)
+theme_override_font_sizes/font_size = 11
+
+[node name="ArmLBar" type="Control" parent="Panel/Grid/LeftCell"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(210, 20)
+script = ExtResource("2")
+
+[node name="ArmLValue" type="Label" parent="Panel/Grid/LeftCell/ArmLBar"]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_right = -2.0
+offset_left = 14.0
+offset_right = -8.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 text = "100"
 horizontal_alignment = 2
 vertical_alignment = 1
-theme_override_font_sizes/font_size = 7
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 10
 
-[node name="BodyLabel" type="Label" parent="Panel/VBox/CoreSection"]
+[node name="LegLLabel" type="Label" parent="Panel/Grid/LeftCell"]
+layout_mode = 2
+text = "LEG L:"
+theme_override_colors/font_color = Color(0.85, 0.85, 0.85, 1)
+theme_override_font_sizes/font_size = 11
+
+[node name="LegLBar" type="Control" parent="Panel/Grid/LeftCell"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "BODY"
-theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
-theme_override_font_sizes/font_size = 9
+custom_minimum_size = Vector2(210, 20)
+script = ExtResource("2")
 
-[node name="BodyArmorBar" type="TextureProgressBar" parent="Panel/VBox/CoreSection"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 8)
-max_value = 100.0
-value = 100.0
-
-[node name="BodyArmorValue" type="Label" parent="Panel/VBox/CoreSection/BodyArmorBar"]
+[node name="LegLValue" type="Label" parent="Panel/Grid/LeftCell/LegLBar"]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_right = -2.0
+offset_left = 14.0
+offset_right = -8.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 text = "100"
 horizontal_alignment = 2
 vertical_alignment = 1
-theme_override_font_sizes/font_size = 7
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 10
 
-[node name="BodyFrameBar" type="TextureProgressBar" parent="Panel/VBox/CoreSection"]
+[node name="RightCell" type="VBoxContainer" parent="Panel/Grid"]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 5)
-max_value = 100.0
-value = 100.0
+theme_override_constants/separation = 3
 
-[node name="BodyFrameValue" type="Label" parent="Panel/VBox/CoreSection/BodyFrameBar"]
+[node name="ArmRLabel" type="Label" parent="Panel/Grid/RightCell"]
+layout_mode = 2
+text = "ARM R:"
+theme_override_colors/font_color = Color(0.85, 0.85, 0.85, 1)
+theme_override_font_sizes/font_size = 11
+
+[node name="ArmRBar" type="Control" parent="Panel/Grid/RightCell"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(210, 20)
+script = ExtResource("2")
+
+[node name="ArmRValue" type="Label" parent="Panel/Grid/RightCell/ArmRBar"]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_right = -2.0
+offset_left = 14.0
+offset_right = -8.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 text = "100"
 horizontal_alignment = 2
 vertical_alignment = 1
-theme_override_font_sizes/font_size = 7
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 10
 
-[node name="HSep" type="HSeparator" parent="Panel/VBox"]
+[node name="LegRLabel" type="Label" parent="Panel/Grid/RightCell"]
 layout_mode = 2
+text = "LEG R:"
+theme_override_colors/font_color = Color(0.85, 0.85, 0.85, 1)
+theme_override_font_sizes/font_size = 11
 
-[node name="TotalRow" type="HBoxContainer" parent="Panel/VBox"]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="ArmorTotal" type="Label" parent="Panel/VBox/TotalRow"]
+[node name="LegRBar" type="Control" parent="Panel/Grid/RightCell"]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 3
-text = "ARMOR: 100%"
-horizontal_alignment = 0
-theme_override_font_sizes/font_size = 9
+custom_minimum_size = Vector2(210, 20)
+script = ExtResource("2")
 
-[node name="FrameTotal" type="Label" parent="Panel/VBox/TotalRow"]
+[node name="LegRValue" type="Label" parent="Panel/Grid/RightCell/LegRBar"]
 unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-text = "FRAME: 100%"
-horizontal_alignment = 0
-theme_override_font_sizes/font_size = 9
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 14.0
+offset_right = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+text = "100"
+horizontal_alignment = 2
+vertical_alignment = 1
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 10

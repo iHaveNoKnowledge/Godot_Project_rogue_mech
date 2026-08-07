@@ -302,6 +302,13 @@ func _build_garage() -> void:
 	rim.light_color = Color(1.0, 0.8, 0.5)
 
 	var scene_base = preload("res://scenes/mecha/mecha_base.tscn").instantiate()
+	# Disable the living mech (controller, animations, health) so it can't react to
+	# battle keybinds in this editor viewport — otherwise it skates off the display
+	# (the battle move actions are read directly via Input, not per-event, so marking
+	# editor key events as handled is not enough).
+	scene_base.set_process(false)
+	scene_base.set_physics_process(false)
+	scene_base.set_process_input(false)
 	for child in scene_base.get_children():
 		child.set_process(false)
 		child.set_physics_process(false)

@@ -61,6 +61,38 @@ func _input(event: InputEvent) -> void:
 			eject.initiate_eject()
 
 
+# --- Damage routing ---------------------------------------------------------
+# Enemies/projectiles hit the mecha root (group "mecha"). The actual health
+# lives on the child HealthSystem, so forward every damage entry point here so
+# incoming fire actually reduces the pilot's HP instead of passing through.
+func _health_system() -> Node:
+	return get_node_or_null("HealthSystem")
+
+
+func take_damage(amount: float, damage_type: String = "kinetic") -> void:
+	var hs := _health_system()
+	if hs and hs.has_method("take_damage"):
+		hs.take_damage(amount, damage_type)
+
+
+func take_damage_at_point(amount: float, world_pos: Vector3, damage_type: String = "kinetic") -> void:
+	var hs := _health_system()
+	if hs and hs.has_method("take_damage_at_point"):
+		hs.take_damage_at_point(amount, world_pos, damage_type)
+
+
+func take_damage_to_part(slot_name: String, amount: float, damage_type: String = "kinetic", layer: String = "") -> void:
+	var hs := _health_system()
+	if hs and hs.has_method("take_damage_to_part"):
+		hs.take_damage_to_part(slot_name, amount, damage_type, layer)
+
+
+func take_damage_to_part_at(slot_name: String, amount: float, world_pos: Vector3, damage_type: String = "kinetic") -> void:
+	var hs := _health_system()
+	if hs and hs.has_method("take_damage_to_part_at"):
+		hs.take_damage_to_part_at(slot_name, amount, world_pos, damage_type)
+
+
 func _physics_process(delta: float) -> void:
 	dash_cooldown_timer -= delta
 

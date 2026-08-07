@@ -477,9 +477,11 @@ func _create_water_material() -> StandardMaterial3D:
 	return mat
 
 
-# Spawns a tall, passable, glowing blue water block tagged as a water volume.
-# The mech walks straight through it (Area3D has no physical collision) but gets
-# slowed while inside — and bridges, being separate geometry, never trigger it.
+# Spawns a passable water volume tagged as a water volume.
+# The DETECTION box is a tall, invisible volume so a wading mech (feet down in
+# the trench) is counted as "in water". The VISUAL is a thin, flat sheet sunk
+# below the riverbanks and bridge deck — water must sit lower than the ground
+# and lower than the bridge, never as a tall cube rising above them.
 func _spawn_water_volume(center_x: float, width: float, mat: StandardMaterial3D) -> void:
 	var area = Area3D.new()
 	area.name = "WaterVolume"
@@ -494,12 +496,15 @@ func _spawn_water_volume(center_x: float, width: float, mat: StandardMaterial3D)
 	col.shape = shape
 	area.add_child(col)
 
+	# Visual: thin low sheet so the water reads as a sunken surface, well below
+	# the riverbank ground (top ~ -0.34) and the bridge deck (top ~ +0.5).
 	var mesh = MeshInstance3D.new()
 	var box = BoxMesh.new()
-	box.size = shape.size
+	box.size = Vector3(width, 0.3, 40)
 	mesh.mesh = box
 	mesh.material_override = mat
+	mesh.position.y = -0.6
 	area.add_child(mesh)
 
-	area.position = Vector3(center_x, 1.0, 0)
+	area.position = Vector3(center_x, -0.6, 0)
 	structures_container.add_child(area)

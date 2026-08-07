@@ -682,6 +682,55 @@ func get_spy_counter_chance() -> float:
 	return clampf(0.10 + get_fleet_security() * 0.008, 0.10, 0.90)
 
 
+# -----------------------------------------------------------------------------
+# DRIVER REPAIR SKILL — how skilled the pilot is at field repairs.
+# - driver_repair_skill: 1..5. Determines the tier of scrap armor a driver can
+#   build from emergency patches. Higher skill = stronger (but never equal to
+#   proper catalog armor) scrap armor.
+# - driver_repair_xp:    earned by doing emergency scrap repairs (practice makes
+#   perfect); leveling up raises the skill tier.
+# -----------------------------------------------------------------------------
+var driver_repair_skill: int = 1
+var driver_repair_xp: int = 0
+
+const REPAIR_SKILL_MAX := 5
+const REPAIR_XP_BASE := 30
+const REPAIR_XP_PER_LEVEL := 25
+
+
+# XP required to advance from `level` to `level + 1`.
+func get_repair_skill_xp_for_next(level: int) -> int:
+	return REPAIR_XP_BASE + maxi(level - 1, 0) * REPAIR_XP_PER_LEVEL
+
+
+# Returns true when the XP gain pushed the skill to a new tier.
+func gain_repair_xp(amount: int) -> bool:
+	if amount <= 0 or driver_repair_skill >= REPAIR_SKILL_MAX:
+		return false
+	driver_repair_xp += amount
+	var leveled_up := false
+	while driver_repair_skill < REPAIR_SKILL_MAX:
+		var needed := get_repair_skill_xp_for_next(driver_repair_skill)
+		if driver_repair_xp < needed:
+			break
+		driver_repair_xp -= needed
+		driver_repair_skill += 1
+		leveled_up = true
+	return leveled_up
+
+
+# The scrap armor tier the driver can build right now (1..5).
+func get_scrap_armor_tier() -> int:
+	return clamp(driver_repair_skill, 1, REPAIR_SKILL_MAX)
+
+
+# Stats multiplier for scrap-built armor vs the real catalog part. Tier 1 gives
+# 40% of the real stats, each tier +10% up to 80% — scrap can never match a
+# properly-crafted armor plate.
+func get_scrap_armor_stat_scale() -> float:
+	return clampf(0.40 + 0.10 * (get_scrap_armor_tier() - 1), 0.40, 0.80)
+
+
 func get_ally_template(template_id: String) -> Dictionary:
 	return ally_unit_templates.get(template_id, {})
 
@@ -1418,6 +1467,8 @@ func reset_run_data() -> void:
 	pending_enemy_base_tile_reset = Vector2i(-1, -1)
 	fleet_security = 25.0
 	security_upgrade_level = 1
+	driver_repair_skill = 1
+	driver_repair_xp = 0
 	_combat_friendly_total_hp = 0.0
 	_combat_friendly_damage = 0.0
 	last_combat_damage_ratio = 0.0
@@ -1498,7 +1549,9 @@ func save_run() -> void:
 		"enemy_copy_outcome": enemy_copy_outcome,
 		"enemy_special_units": enemy_special_units.duplicate(true),
 		"fleet_security": fleet_security,
-		"security_upgrade_level": security_upgrade_level
+		"security_upgrade_level": security_upgrade_level,
+		"driver_repair_skill": driver_repair_skill,
+		"driver_repair_xp": driver_repair_xp
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file:
@@ -1556,6 +1609,8 @@ func _restore_from_dict(data: Dictionary) -> void:
 		enemy_special_units = special_units.duplicate(true)
 	fleet_security = float(data.get("fleet_security", 25.0))
 	security_upgrade_level = int(data.get("security_upgrade_level", 1))
+	driver_repair_skill = int(data.get("driver_repair_skill", 1))
+	driver_repair_xp = int(data.get("driver_repair_xp", 0))
 
 	var loaded_roster = data.get("fleet_roster", [])
 	if loaded_roster is Array:

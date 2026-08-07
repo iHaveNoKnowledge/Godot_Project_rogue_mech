@@ -26,6 +26,7 @@ func _ready() -> void:
 	_test_tech_escalation()
 	_test_blueprint_gated_gundam_armor()
 	_test_location_based_damage()
+	_test_driver_repair_skill()
 	# The hangar test is async (it awaits a frame while building the scene), so
 	# it must be awaited to completion before the result is printed; otherwise
 	# later reset_run_data() calls would mutate GlobalData under its pending
@@ -674,3 +675,29 @@ func _test_location_based_damage() -> void:
 	_check(is_equal_approx(head_part["frame_hp"], frame_after_at - 3.0), "take_damage_to_part_at resolves frame layer from impact point")
 
 	mecha.queue_free()
+
+
+func _test_driver_repair_skill() -> void:
+	GlobalData.reset_run_data()
+	_check(GlobalData.driver_repair_skill == 1, "driver repair skill starts at tier 1")
+	_check(GlobalData.driver_repair_xp == 0, "driver repair xp starts at 0")
+	_check(GlobalData.get_scrap_armor_tier() == 1, "scrap armor tier starts at 1")
+	_check(is_equal_approx(GlobalData.get_scrap_armor_stat_scale(), 0.40), "tier 1 scrap armor is 40% of real stats")
+
+	# XP to level 2 is REPAIR_XP_BASE (30). Gaining exactly that levels up.
+	_check(GlobalData.gain_repair_xp(GlobalData.get_repair_skill_xp_for_next(1)), "enough xp levels the skill up")
+	_check(GlobalData.driver_repair_skill == 2, "skill advanced to tier 2")
+	_check(GlobalData.driver_repair_xp == 0, "xp resets after leveling")
+	_check(is_equal_approx(GlobalData.get_scrap_armor_stat_scale(), 0.50), "tier 2 scrap armor is 50% of real stats")
+
+	# Overflow carries into the next tier; gain returns false only at max.
+	GlobalData.driver_repair_skill = 5
+	GlobalData.driver_repair_xp = 0
+	_check(not GlobalData.gain_repair_xp(1000), "maxed skill rejects further xp")
+	_check(GlobalData.driver_repair_skill == 5, "skill stays capped at tier 5")
+	_check(is_equal_approx(GlobalData.get_scrap_armor_stat_scale(), 0.80), "tier 5 scrap armor is 80% of real stats")
+
+	# New run resets the skill.
+	GlobalData.reset_run_data()
+	_check(GlobalData.driver_repair_skill == 1, "reset_run_data restores skill to tier 1")
+	_check(GlobalData.driver_repair_xp == 0, "reset_run_data clears repair xp")

@@ -1,46 +1,38 @@
 extends Control
 
-## Skewed health bar (mockup style): dark track, green gradient fill, skewed
-## by -30deg like CSS skewX(). Each bar holds an outer armor layer on top of a
-## dimmer frame layer. When the armor breaks the green drains and the frame
-## layer shows underneath.
+## Single skewed health bar (CSS skewX(-30deg) style). Dark track + configurable
+## fill gradient. Armor bars use silver/gray, frame bars use green — each part
+## shows two of these stacked (armor on top, frame below).
 
 const TRACK_COLOR := Color("#333333")
-const FRAME_COLOR := Color("#5c7a5f")
 const DESTROY_COLOR := Color(0.12, 0.12, 0.12, 1)
-const ARMOR_COLOR_A := Color("#60D16D")
-const ARMOR_COLOR_B := Color("#89FF87")
 
 const SKEW_DEGREES := -30.0
 
-var armor_ratio: float = 1.0
-var frame_ratio: float = 1.0
+@export var fill_color_a: Color = Color("#c4c3c0")
+@export var fill_color_b: Color = Color("#9a9a9a")
+
+var ratio: float = 1.0
 var destroyed: bool = false
 
-var _display_armor: float = 1.0
-var _display_frame: float = 1.0
+var _display: float = 1.0
 var _wants_redraw: bool = true
 
 
 func _ready() -> void:
-	_display_armor = armor_ratio
-	_display_frame = frame_ratio
+	_display = ratio
 
 
-func setup(armor_hp: float, max_armor: float, frame_hp: float, max_frame: float, is_destroyed: bool) -> void:
-	var new_armor := clampf(armor_hp / maxf(max_armor, 1.0), 0.0, 1.0) if max_armor > 0.0 else 0.0
-	var new_frame := clampf(frame_hp / maxf(max_frame, 1.0), 0.0, 1.0) if max_frame > 0.0 else 0.0
-	armor_ratio = new_armor
-	frame_ratio = new_frame
+func setup(current_hp: float, max_hp: float, is_destroyed: bool) -> void:
+	ratio = clampf(current_hp / maxf(max_hp, 1.0), 0.0, 1.0) if max_hp > 0.0 else 0.0
 	destroyed = is_destroyed
 	_wants_redraw = true
 
 
 func _process(delta: float) -> void:
 	var smooth := 1.0 - exp(-12.0 * delta)
-	_display_armor = lerpf(_display_armor, armor_ratio, smooth)
-	_display_frame = lerpf(_display_frame, frame_ratio, smooth)
-	if _wants_redraw or absf(_display_armor - armor_ratio) > 0.0005 or absf(_display_frame - frame_ratio) > 0.0005:
+	_display = lerpf(_display, ratio, smooth)
+	if _wants_redraw or absf(_display - ratio) > 0.0005:
 		queue_redraw()
 		_wants_redraw = false
 
@@ -56,14 +48,11 @@ func _draw() -> void:
 	_draw_skew(w, h, skew, TRACK_COLOR, TRACK_COLOR)
 
 	if destroyed:
-		_draw_skew(w * _display_frame, h, skew, DESTROY_COLOR, DESTROY_COLOR)
+		_draw_skew(w * _display, h, skew, DESTROY_COLOR, DESTROY_COLOR)
 		return
 
-	if _display_frame > 0.001:
-		_draw_skew(w * _display_frame, h, skew, FRAME_COLOR, FRAME_COLOR)
-
-	if _display_armor > 0.001:
-		_draw_skew(w * _display_armor, h, skew, ARMOR_COLOR_A, ARMOR_COLOR_B)
+	if _display > 0.001:
+		_draw_skew(w * _display, h, skew, fill_color_a, fill_color_b)
 
 
 func _draw_skew(fill_w: float, h: float, skew: float, color_left: Color, color_right: Color) -> void:

@@ -1,21 +1,39 @@
 extends CanvasLayer
 
-@onready var bars: Dictionary = {
-	"head": %HeadBar,
-	"body": %BodyBar,
-	"arm_left": %ArmLBar,
-	"leg_left": %LegLBar,
-	"arm_right": %ArmRBar,
-	"leg_right": %LegRBar,
+@onready var armor_bars: Dictionary = {
+	"head": %HeadArmorBar,
+	"body": %BodyArmorBar,
+	"arm_left": %ArmLArmorBar,
+	"leg_left": %LegLArmorBar,
+	"arm_right": %ArmRArmorBar,
+	"leg_right": %LegRArmorBar,
 }
 
-@onready var value_labels: Dictionary = {
-	"head": %HeadValue,
-	"body": %BodyValue,
-	"arm_left": %ArmLValue,
-	"leg_left": %LegLValue,
-	"arm_right": %ArmRValue,
-	"leg_right": %LegRValue,
+@onready var frame_bars: Dictionary = {
+	"head": %HeadFrameBar,
+	"body": %BodyFrameBar,
+	"arm_left": %ArmLFrameBar,
+	"leg_left": %LegLFrameBar,
+	"arm_right": %ArmRFrameBar,
+	"leg_right": %LegRFrameBar,
+}
+
+@onready var armor_values: Dictionary = {
+	"head": %HeadArmorValue,
+	"body": %BodyArmorValue,
+	"arm_left": %ArmLArmorValue,
+	"leg_left": %LegLArmorValue,
+	"arm_right": %ArmRArmorValue,
+	"leg_right": %LegRArmorValue,
+}
+
+@onready var frame_values: Dictionary = {
+	"head": %HeadFrameValue,
+	"body": %BodyFrameValue,
+	"arm_left": %ArmLFrameValue,
+	"leg_left": %LegLFrameValue,
+	"arm_right": %ArmRFrameValue,
+	"leg_right": %LegRFrameValue,
 }
 
 var health_system: Node = null
@@ -46,21 +64,17 @@ func _on_part_destroyed(slot_name: String) -> void:
 
 
 func _refresh(slot_name: String) -> void:
-	if not bars.has(slot_name) or health_system == null:
+	if not armor_bars.has(slot_name) or health_system == null:
 		return
 	if not health_system.parts.has(slot_name):
 		return
 	var part = health_system.parts[slot_name]
-	bars[slot_name].setup(part["armor_hp"], part["max_armor"], part["frame_hp"], part["max_frame"], part["destroyed"])
-	var label: Label = value_labels[slot_name]
-	if part["destroyed"]:
-		label.text = "DESTROYED"
-	elif part["armor_broken"]:
-		label.text = "%d" % int(part["frame_hp"])
-	else:
-		label.text = "%d" % int(part["armor_hp"])
+	armor_bars[slot_name].setup(part["armor_hp"], part["max_armor"], part["destroyed"])
+	frame_bars[slot_name].setup(part["frame_hp"], part["max_frame"], part["destroyed"])
+	armor_values[slot_name].text = "%d" % int(part["armor_hp"])
+	frame_values[slot_name].text = "%d" % int(part["frame_hp"])
 
 
 func _update_all_bars() -> void:
-	for slot_name in bars:
+	for slot_name in armor_bars:
 		_refresh(slot_name)

@@ -65,12 +65,13 @@ func open(initial_slot: String = "") -> void:
 	_refresh_slot_list()
 	if initial_slot != "" and GlobalData.get_emergency_repair_scrap_cost(initial_slot) > 0:
 		_select_slot(initial_slot)
-	elif not slot_container.get_children().is_empty():
-		var first: Button = slot_container.get_children()[0]
-		_select_slot(str(first.get_meta("slot_name", "")))
 	else:
-		selected_slot = ""
-		_clear_live_primitives()
+		var first_slot := _first_slot_button_name()
+		if first_slot != "":
+			_select_slot(first_slot)
+		else:
+			selected_slot = ""
+			_clear_live_primitives()
 	_update_status()
 
 
@@ -343,6 +344,13 @@ func _apply_neutral_pose(mecha_node: Node3D) -> void:
 # ---------------------------------------------------------------------------
 # Slot selection & slot list
 # ---------------------------------------------------------------------------
+func _first_slot_button_name() -> String:
+	for child in slot_container.get_children():
+		if child is Button:
+			return str(child.get_meta("slot_name", ""))
+	return ""
+
+
 func _refresh_slot_list() -> void:
 	for child in slot_container.get_children():
 		child.queue_free()

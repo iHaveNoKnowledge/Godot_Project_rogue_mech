@@ -88,7 +88,9 @@ func _on_pickup_body_entered(body: Node3D, pickup: Area3D) -> void:
 		"repair":
 			var slot: String = loot_data.get("slot", "")
 			if slot:
-				GlobalData.part_damage.erase(slot + "_armor")
+				# Armor damage key is the bare slot name ("body"); frame damage
+				# uses the "_frame" suffix. (Do NOT use slot + "_armor".)
+				GlobalData.part_damage.erase(slot)
 				GlobalData.part_damage.erase(slot + "_frame")
 				EventBus.weight_changed.emit(0.0)
 		"scrap":

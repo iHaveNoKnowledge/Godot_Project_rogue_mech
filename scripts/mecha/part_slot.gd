@@ -22,7 +22,7 @@ func _initialize_part() -> void:
 	else:
 		part_resource = _get_default_part()
 	if part_resource:
-		current_hp = part_resource.max_hp * (1.0 - GlobalData.part_damage.get(slot_name + "_armor", 0.0))
+		current_hp = part_resource.max_hp * (1.0 - GlobalData.part_damage.get(slot_name, 0.0))
 		current_frame_hp = part_resource.max_frame_hp * (1.0 - GlobalData.part_damage.get(slot_name + "_frame", 0.0))
 		is_armor_broken = current_hp <= 0.0
 		is_frame_destroyed = current_frame_hp <= 0.0
@@ -42,7 +42,7 @@ func take_damage(amount: float, damage_type: String = "kinetic") -> void:
 		var result = DamageCalculator.calculate_damage(amount, part_resource.armor_class, current_hp, is_armor_broken)
 		current_hp = result["remaining"]
 		var armor_damage_pct = 1.0 - (current_hp / part_resource.max_hp)
-		GlobalData.part_damage[slot_name + "_armor"] = clampf(armor_damage_pct, 0.0, 1.0)
+		GlobalData.part_damage[slot_name] = clampf(armor_damage_pct, 0.0, 1.0)
 		EventBus.damage_received.emit(slot_name, result["reduced"], damage_type)
 		EventBus.armor_degraded.emit(slot_name, current_hp, part_resource.max_hp)
 		if result["destroyed"]:
@@ -60,7 +60,7 @@ func take_damage(amount: float, damage_type: String = "kinetic") -> void:
 func _on_armor_broken() -> void:
 	is_armor_broken = true
 	current_hp = 0.0
-	GlobalData.part_damage[slot_name + "_armor"] = 1.0
+	GlobalData.part_damage[slot_name] = 1.0
 	EventBus.part_destroyed.emit(slot_name)
 	EventBus.weight_changed.emit(0.0)
 	hitbox.set_deferred("monitoring", false)

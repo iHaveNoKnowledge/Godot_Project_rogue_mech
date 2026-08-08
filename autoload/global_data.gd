@@ -598,130 +598,35 @@ func _ensure_default_frames() -> void:
 # HANGAR MECH ROSTER
 # A roster entry is a built machine that can be selected in the hangar. It is
 # deliberately a loadout snapshot, so entering a different mech never mutates
-# the catalog or invents a placeholder backup body.
+# the catalog or invents a placeholder backup body. Logic lives in HangarManager;
+# GlobalData keeps these thin facades so all existing callers stay untouched.
 # -----------------------------------------------------------------------------
-func _new_hangar_mech_id() -> String:
-	return _new_uid("mech")
-
-
-func _capture_hangar_mech_snapshot(mech_id: String, mech_name: String) -> Dictionary:
-	sync_equipped_armor_durability()
-	return {
-		"id": mech_id,
-		"name": mech_name,
-		"chassis_id": chassis_id,
-		"frames": SaveGameIO.serialize_frames(),
-		"parts": SaveGameIO.serialize_parts(),
-		"damage": part_damage.duplicate(true),
-		"attachments": SaveGameIO.serialize_attachments(),
-		"weapon_loadout": weapon_loadout.duplicate(true),
-		"scrap_patches": scrap_patches.duplicate(true),
-	}
-
-
-func _find_hangar_mech(mech_id: String) -> Dictionary:
-	for mech in hangar_mechs:
-		if mech is Dictionary and str(mech.get("id", "")) == mech_id:
-			return mech
-	return {}
-
-
 func ensure_hangar_roster() -> void:
-	if not hangar_mechs.is_empty():
-		if active_hangar_mech_id == "" or _find_hangar_mech(active_hangar_mech_id).is_empty():
-			active_hangar_mech_id = str(hangar_mechs[0].get("id", ""))
-		return
-	var first_id := _new_hangar_mech_id()
-	hangar_mechs.append(_capture_hangar_mech_snapshot(first_id, "Mech 01"))
-	active_hangar_mech_id = first_id
+	HangarManager.ensure_roster()
 
 
 func get_hangar_mechs() -> Array:
-	ensure_hangar_roster()
-	return hangar_mechs
+	return HangarManager.get_mechs()
 
 
 func get_active_hangar_mech() -> Dictionary:
-	ensure_hangar_roster()
-	return _find_hangar_mech(active_hangar_mech_id)
+	return HangarManager.get_active_mech()
 
 
 func save_active_hangar_mech() -> bool:
-	ensure_hangar_roster()
-	var active := _find_hangar_mech(active_hangar_mech_id)
-	if active.is_empty():
-		return false
-	var updated := _capture_hangar_mech_snapshot(active_hangar_mech_id, str(active.get("name", "Mech")))
-	for i in range(hangar_mechs.size()):
-		if str(hangar_mechs[i].get("id", "")) == active_hangar_mech_id:
-			hangar_mechs[i] = updated
-			return true
-	return false
+	return HangarManager.save_active()
 
 
-# Builds another hangar entry from the currently assembled parts. A complete
-# walking chassis needs a body frame and both leg frames; armor is optional and
-# can be installed later in the normal hangar editor.
 func build_hangar_mech(mech_name: String = "") -> Dictionary:
-	for required in ["body", "leg_left", "leg_right"]:
-		if not equipped_frames.has(required) or equipped_frames[required] == null:
-			return {}
-	if hangar_mechs.size() >= HANGAR_MAX_SLOTS:
-		return {}
-	save_active_hangar_mech()
-	var mech_id := _new_hangar_mech_id()
-	var display_name := mech_name.strip_edges()
-	if display_name == "":
-		display_name = "Mech %02d" % (hangar_mechs.size() + 1)
-	var snapshot := _capture_hangar_mech_snapshot(mech_id, display_name)
-	hangar_mechs.append(snapshot)
-	return snapshot
+	return HangarManager.build(mech_name)
 
 
 func get_backup_hangar_mech_id() -> String:
-	ensure_hangar_roster()
-	for mech in hangar_mechs:
-		var mech_id := str(mech.get("id", ""))
-		if mech_id != "" and mech_id != active_hangar_mech_id:
-			return mech_id
-	return ""
+	return HangarManager.get_backup_id()
 
 
 func switch_hangar_mech(mech_id: String) -> bool:
-	ensure_hangar_roster()
-	var target := _find_hangar_mech(mech_id)
-	if target.is_empty() or mech_id == active_hangar_mech_id:
-		return not target.is_empty()
-	save_active_hangar_mech()
-
-	# Release the old armor instances before attaching the target references.
-	for old_part in equipped_parts.values():
-		if old_part is Dictionary and old_part.has("uid"):
-			var old_inst := get_armor_instance(str(old_part["uid"]))
-			if not old_inst.is_empty():
-				old_inst["equipped"] = false
-
-	chassis_id = str(target.get("chassis_id", "standard"))
-	equipped_frames.clear()
-	var saved_frames: Dictionary = target.get("frames", {})
-	for slot in saved_frames:
-		equipped_frames[slot] = SaveGameIO.resolve_frame_value(saved_frames[slot])
-	_ensure_default_frames()
-
-	equipped_parts.clear()
-	var saved_parts: Dictionary = target.get("parts", {})
-	for slot in saved_parts:
-		var part = SaveGameIO.resolve_equipped_part(saved_parts[slot])
-		equipped_parts[slot] = part
-		if part is Dictionary and part.has("uid"):
-			part["equipped"] = true
-
-	part_damage = target.get("damage", {}).duplicate(true)
-	attachments = target.get("attachments", []).duplicate(true)
-	weapon_loadout = target.get("weapon_loadout", weapon_loadout).duplicate(true)
-	scrap_patches = target.get("scrap_patches", {}).duplicate(true)
-	active_hangar_mech_id = mech_id
-	return true
+	return HangarManager.switch_mech(mech_id)
 
 # -----------------------------------------------------------------------------
 # WEAPON LOADOUT — central state for what the mech carries into battle.

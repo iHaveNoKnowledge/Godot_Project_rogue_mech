@@ -37,6 +37,7 @@ func _ready() -> void:
 	# sidestream comparison and the final tally would miss its late FAIL lines.
 	await _test_hangar_selection_preserves_loadout()
 	_test_save_load_roundtrip()
+	_test_escape_zone()
 	print("REPAIR_QA_RESULT: %d passed, %d failed" % [_passed, _failed])
 	get_tree().quit(1 if _failed > 0 else 0)
 
@@ -899,3 +900,63 @@ func _test_save_load_roundtrip() -> void:
 			wf.store_string(backup)
 	else:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path))
+
+
+func _test_escape_zone() -> void:
+	GameManager.is_escaping = false
+
+	# A fake "mecha" body with a live health system, so the zone can detect it.
+	var fake := CharacterBody3D.new()
+	fake.name = "FakeMecha"
+	fake.add_to_group("mecha")
+	var hs := Node3D.new()
+	hs.name = "HealthSystem"
+	hs.set("is_destroyed", false)
+	fake.add_child(hs)
+	add_child(fake)
+
+	# Zones are kept out of the tree so the real physics process can't add
+	# uncontrolled delta to the manually-driven hold timer.
+	var zone := preload("res://scripts/arena/escape_zone.gd").new()
+	zone.escape_time = 0.5
+
+	var escaped_fired := [false]
+	var escaped_listener := func() -> void: escaped_fired[0] = true
+	EventBus.combat_escaped.connect(escaped_listener)
+
+	# Standing inside builds the timer; it must not fire early.
+	zone._on_body_entered(fake)
+	zone._physics_process(0.2)
+	_check(not zone._escaped, "escape does not fire before the hold time")
+	_check(is_equal_approx(zone._time_inside, 0.2), "hold timer accumulates while standing inside")
+
+	zone._physics_process(0.4)
+	_check(zone._escaped, "escape fires after the hold time")
+	_check(GameManager.is_escaping, "escape flags GameManager.is_escaping")
+	_check(escaped_fired[0], "escape emits EventBus.combat_escaped")
+	EventBus.combat_escaped.disconnect(escaped_listener)
+	GameManager.is_escaping = false
+
+	# Leaving the zone resets the accumulated timer.
+	var zone2 := preload("res://scripts/arena/escape_zone.gd").new()
+	zone2.escape_time = 0.5
+	zone2._on_body_entered(fake)
+	zone2._physics_process(0.3)
+	zone2._on_body_exited(fake)
+	zone2._physics_process(0.3)
+	_check(not zone2._escaped, "leaving the zone resets the hold timer")
+	_check(is_equal_approx(zone2._time_inside, 0.0), "hold timer resets to zero on exit")
+
+	# A destroyed mech can no longer retreat.
+	hs.set("is_destroyed", true)
+	var zone3 := preload("res://scripts/arena/escape_zone.gd").new()
+	zone3.escape_time = 0.5
+	zone3._on_body_entered(fake)
+	zone3._physics_process(0.6)
+	_check(not zone3._escaped, "a destroyed mech cannot escape")
+
+	zone.free()
+	zone2.free()
+	zone3.free()
+	fake.queue_free()
+	GameManager.is_escaping = false

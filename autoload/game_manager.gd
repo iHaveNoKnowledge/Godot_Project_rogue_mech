@@ -7,6 +7,10 @@ var current_state: State = State.MENU
 
 var is_boss_combat: bool = false
 
+# True while the player is abandoning a battle via an escape zone, so the
+# death/defeat path can't fire at the same time as the retreat.
+var is_escaping: bool = false
+
 
 # Central lookup for the active player mecha. Avoids repeating fragile
 # `current_scene.get_node_or_null("Mecha")` string paths across scripts.
@@ -36,6 +40,7 @@ var combat_node_type: String = "grunt"
 func enter_combat(combat_type: String = "grunt") -> void:
 	combat_node_type = combat_type
 	is_boss_combat = (combat_type == "boss")
+	is_escaping = false
 	get_tree().change_scene_to_file("res://scenes/game_world.tscn")
 	transition_to(State.COMBAT)
 	EventBus.combat_intensity_changed.emit(1.0)

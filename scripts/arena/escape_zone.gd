@@ -1,0 +1,189 @@
+extends Area3D
+
+## A retreat point on the battlefield edge (replaces the old boundary walls).
+## While the player mech stays inside the zone a hold timer builds up; the zone's
+## light indicator shifts from cyan to amber to red as it charges. If the player
+## holds position for the full escape time the battle is abandoned and the player
+## retreats back to the board without any victory rewards.
+
+const DEFAULT_ESCAPE_TIME := 30.0
+
+@export var escape_time: float = DEFAULT_ESCAPE_TIME
+
+# Indicator colors: idle → charging → almost done.
+const IDLE_COLOR := Color(0.35, 0.8, 1.0)
+const CHARGE_COLOR := Color(0.9, 0.9, 0.2)
+const DANGER_COLOR := Color(1.0, 0.25, 0.2)
+
+var _time_inside := 0.0
+var _player_inside := false
+var _tracked_body: Node3D = null
+var _escaped := false
+var _battle_over := false
+
+var _zone_mesh: MeshInstance3D
+var _zone_material: StandardMaterial3D
+var _beacon: OmniLight3D
+var _status_label: Label3D
+
+
+func _ready() -> void:
+	# Detect the player mech (collision layer 1); never behave as a collidable body.
+	collision_layer = 0
+	collision_mask = 1
+	monitoring = true
+
+	body_entered.connect(_on_body_entered)
+	body_exited.connect(_on_body_exited)
+	EventBus.combat_ended.connect(_on_combat_ended)
+	# Rebuild the visuals if the generator attached them after _ready.
+	if _zone_material == null:
+		_build_visuals()
+
+
+func _physics_process(delta: float) -> void:
+	if _escaped or _battle_over or GameManager.is_escaping:
+		return
+	if _player_inside:
+		# Re-validate each frame: the mech may have left or been destroyed.
+		if _tracked_body == null or not is_instance_valid(_tracked_body) or not _is_player_body(_tracked_body):
+			_player_inside = false
+			_tracked_body = null
+			_time_inside = 0.0
+			_update_visual()
+			return
+		_time_inside += delta
+		_update_visual()
+		if _time_inside >= escape_time:
+			_complete_escape()
+
+
+func _on_body_entered(body: Node3D) -> void:
+	if _is_player_body(body):
+		_player_inside = true
+		_tracked_body = body
+
+
+func _on_body_exited(body: Node3D) -> void:
+	if body == _tracked_body:
+		_player_inside = false
+		_tracked_body = null
+		_time_inside = 0.0
+		_update_visual()
+
+
+func _on_combat_ended(_victory: bool) -> void:
+	_battle_over = true
+
+
+func _is_player_body(body: Node3D) -> bool:
+	if body != GameManager.get_player_mecha() and not body.is_in_group("mecha"):
+		return false
+	# A destroyed mech is no longer able to retreat on foot.
+	var hs = body.get_node_or_null("HealthSystem")
+	if hs and hs.get("is_destroyed"):
+		return false
+	return true
+
+
+func _complete_escape() -> void:
+	if _escaped or _battle_over or GameManager.is_escaping:
+		return
+	_escaped = true
+	_update_visual()
+	GameManager.is_escaping = true
+	EventBus.combat_escaped.emit()
+
+
+func _update_visual() -> void:
+	if _zone_material == null:
+		return
+
+	var t := clampf(_time_inside / maxf(escape_time, 0.001), 0.0, 1.0)
+	var color: Color
+	var energy: float
+	var alpha: float
+
+	if _escaped:
+		color = DANGER_COLOR
+		energy = 8.0
+		alpha = 0.6
+	elif _player_inside:
+		if t < 0.5:
+			color = IDLE_COLOR.lerp(CHARGE_COLOR, t * 2.0)
+		else:
+			color = CHARGE_COLOR.lerp(DANGER_COLOR, (t - 0.5) * 2.0)
+		var pulse := 1.0 + 0.15 * sin(Time.get_ticks_msec() / 1000.0 * 6.0)
+		energy = 1.5 + t * 4.0
+		energy *= pulse
+		alpha = 0.35 + t * 0.3
+	else:
+		color = IDLE_COLOR
+		energy = 0.6
+		alpha = 0.18
+
+	_zone_material.emission = color
+	_zone_material.emission_energy_multiplier = energy
+	_zone_material.albedo_color = Color(color.r, color.g, color.b, alpha)
+
+	if _beacon:
+		_beacon.light_color = color
+		_beacon.light_energy = 0.4 + t * 3.0
+
+	if _status_label:
+		if _escaped:
+			_status_label.text = "RETREATING..."
+		elif _player_inside:
+			_status_label.text = "RETREAT: HOLD %.1fs" % maxf(escape_time - _time_inside, 0.0)
+		else:
+			_status_label.text = "RETREAT ZONE"
+
+
+# Builds the glow strip, beacon light and status label. The generator adds the
+# collision shape first so _ready() can read its size and build matching visuals.
+func _build_visuals() -> void:
+	var col := get_node_or_null("CollisionShape3D") as CollisionShape3D
+	var size := Vector3(20.0, 2.0, 20.0)
+	if col and col.shape is BoxShape3D:
+		size = (col.shape as BoxShape3D).size
+
+	# Glow strip on the ground.
+	_zone_material = StandardMaterial3D.new()
+	_zone_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_zone_material.albedo_color = Color(IDLE_COLOR.r, IDLE_COLOR.g, IDLE_COLOR.b, 0.18)
+	_zone_material.emission_enabled = true
+	_zone_material.emission = IDLE_COLOR
+	_zone_material.emission_energy_multiplier = 0.6
+	_zone_material.roughness = 0.4
+
+	_zone_mesh = MeshInstance3D.new()
+	_zone_mesh.name = "GlowStrip"
+	var strip := BoxMesh.new()
+	strip.size = Vector3(size.x, 0.04, size.z)
+	_zone_mesh.mesh = strip
+	_zone_mesh.material_override = _zone_material
+	_zone_mesh.position.y = -size.y * 0.5 + 0.03
+	add_child(_zone_mesh)
+
+	# Beacon light.
+	_beacon = OmniLight3D.new()
+	_beacon.name = "Beacon"
+	_beacon.light_color = IDLE_COLOR
+	_beacon.light_energy = 0.4
+	_beacon.omni_range = 18.0
+	_beacon.position.y = size.y * 0.5 + 1.5
+	add_child(_beacon)
+
+	# Status label above the strip.
+	_status_label = Label3D.new()
+	_status_label.name = "StatusLabel"
+	_status_label.text = "RETREAT ZONE"
+	_status_label.font_size = 28
+	_status_label.pixel_size = 0.02
+	_status_label.outline_size = 10
+	_status_label.outline_modulate = Color(0, 0, 0, 0.8)
+	_status_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_status_label.position.y = size.y * 0.5 + 3.0
+	add_child(_status_label)
+
+	_update_visual()

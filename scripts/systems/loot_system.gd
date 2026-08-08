@@ -94,7 +94,7 @@ func _on_pickup_body_entered(body: Node3D, pickup: Area3D) -> void:
 				GlobalData.part_damage.erase(slot + "_frame")
 				EventBus.weight_changed.emit(0.0)
 		"scrap":
-			GlobalData.scrap += loot_data.get("amount", 1)
+			GlobalData.gain_scrap(loot_data.get("amount", 1))
 	pickup.queue_free()
 
 

@@ -1523,8 +1523,7 @@ func _show_part_action_modal(info: Dictionary) -> void:
 		repair_btn.text = "REPAIR (%d cr)" % repair_cost
 		repair_btn.custom_minimum_size = Vector2(180, 36)
 		repair_btn.pressed.connect(func():
-			if GlobalData.credits >= repair_cost:
-				GlobalData.credits -= repair_cost
+			if GlobalData.try_spend_credits(repair_cost):
 				if info.has("uid"):
 					info["durability"] = 1.0
 				GlobalData.part_damage.erase(selected_slot)
@@ -1548,8 +1547,7 @@ func _show_part_action_modal(info: Dictionary) -> void:
 			upgrade_btn.text = "UPGRADE (+15 HP)"
 			upgrade_btn.custom_minimum_size = Vector2(180, 36)
 			upgrade_btn.pressed.connect(func():
-				if GlobalData.credits >= 50:
-					GlobalData.credits -= 50
+				if GlobalData.try_spend_credits(50):
 					var old_hp = float(info.get("hp", info.get("max_hp", 30.0)))
 					info["hp"] = old_hp + 15.0
 					info["max_hp"] = info["hp"]
@@ -2026,8 +2024,7 @@ func _set_slot_material(slot: String, mat: Material) -> void:
 func _on_equip_pressed() -> void:
 	if current_mode == "upgrade":
 		var cost = _get_upgrade_cost()
-		if GlobalData.credits >= cost:
-			GlobalData.credits -= cost
+		if GlobalData.try_spend_credits(cost):
 			GlobalData.frame_upgrade_level += 1
 			status_message_label.text = "Frame Reactor Upgraded to Level %d!" % GlobalData.frame_upgrade_level
 			GlobalData.save_run()
@@ -2146,10 +2143,9 @@ func _on_repair_part_pressed() -> void:
 	if repair_cost <= 0:
 		status_message_label.text = "%s is fully functional!" % selected_slot.to_upper()
 		return
-	if GlobalData.credits < repair_cost:
+	if not GlobalData.try_spend_credits(repair_cost):
 		status_message_label.text = "Need %d credits!" % repair_cost
 		return
-	GlobalData.credits -= repair_cost
 	GlobalData.part_damage.erase(selected_slot)
 	GlobalData.part_damage.erase(selected_slot + "_frame")
 	status_message_label.text = "Repaired %s!" % selected_slot.to_upper()
@@ -2166,11 +2162,10 @@ func _on_full_repair_pressed() -> void:
 		status_message_label.text = "All parts OK!"
 		return
 
-	if GlobalData.credits < total_cost:
+	if not GlobalData.try_spend_credits(total_cost):
 		status_message_label.text = "Need %d credits!" % total_cost
 		return
 
-	GlobalData.credits -= total_cost
 	GlobalData.part_damage.clear()
 	status_message_label.text = "Full Repair Complete!"
 	_update_total_stats()

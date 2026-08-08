@@ -115,7 +115,7 @@ func _show_victory_rewards() -> void:
 		credits_gained += 105
 		scrap_gained += 15
 		data_cores_gained = 1
-		GlobalData.data_cores += data_cores_gained
+		GlobalData.gain_data_cores(data_cores_gained)
 
 		if is_final_sector:
 			title_label.text = "CAMPAIGN VICTORY!"
@@ -132,8 +132,8 @@ func _show_victory_rewards() -> void:
 			title_label.text = "COMBAT VICTORY"
 			continue_button.text = "Continue [Enter / Space / Click]"
 
-	GlobalData.credits += credits_gained
-	GlobalData.scrap += scrap_gained
+	GlobalData.gain_credits(credits_gained)
+	GlobalData.gain_scrap(scrap_gained)
 
 	rewards = {
 		"credits": credits_gained,

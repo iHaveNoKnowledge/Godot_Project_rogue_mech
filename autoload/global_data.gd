@@ -967,6 +967,45 @@ var credits: int = 0
 var data_cores: int = 0
 var scrap: int = 0
 
+
+# --- Currency API ---
+# All external code should mutate currency through these helpers so spending
+# rules stay in one place (single source of truth for the economy).
+func try_spend_credits(amount: int) -> bool:
+	if amount <= 0 or credits < amount:
+		return false
+	credits -= amount
+	return true
+
+
+func gain_credits(amount: int) -> void:
+	if amount > 0:
+		credits += amount
+
+
+func try_spend_scrap(amount: int) -> bool:
+	if amount <= 0 or scrap < amount:
+		return false
+	scrap -= amount
+	return true
+
+
+func gain_scrap(amount: int) -> void:
+	if amount > 0:
+		scrap += amount
+
+
+func try_spend_data_cores(amount: int) -> bool:
+	if amount <= 0 or data_cores < amount:
+		return false
+	data_cores -= amount
+	return true
+
+
+func gain_data_cores(amount: int) -> void:
+	if amount > 0:
+		data_cores += amount
+
 # -----------------------------------------------------------------------------
 # FLEET (กองยาน) — roster of allied mech units the player owns.
 # Each entry is a per-unit record: {"template_id", "name", "hp", "max_hp",

@@ -892,6 +892,23 @@ func get_chassis_stats() -> Dictionary:
 var equipped_frames: Dictionary = {}
 var frame_upgrade_level: int = 1
 
+
+const FRAME_UPGRADE_HP_BONUS: float = 25.0
+const FRAME_UPGRADE_WEIGHT_BONUS: float = 15.0
+const FRAME_UPGRADE_BASE_COST: int = 150
+
+
+func get_frame_upgrade_hp_bonus() -> float:
+	return float(maxi(frame_upgrade_level - 1, 0)) * FRAME_UPGRADE_HP_BONUS
+
+
+func get_frame_upgrade_weight_bonus() -> float:
+	return float(maxi(frame_upgrade_level - 1, 0)) * FRAME_UPGRADE_WEIGHT_BONUS
+
+
+func get_frame_upgrade_cost() -> int:
+	return frame_upgrade_level * FRAME_UPGRADE_BASE_COST
+
 # Owned armor instances. Every acquired part is a distinct instance with its own
 # durability (0..1) and upgrade_level. Catalog entries are templates only; the
 # stats are duplicated into the instance at creation and never mutate the catalog.

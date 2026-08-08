@@ -99,7 +99,7 @@ func _ready() -> void:
 # Returns credits_cost for next frame upgrade level.
 # Single source of truth — use this instead of inline calculations.
 func _get_upgrade_cost() -> int:
-	return GlobalData.frame_upgrade_level * 150
+	return GlobalData.get_frame_upgrade_cost()
 
 
 # --- 3D GARAGE ENVIRONMENT ---
@@ -2053,7 +2053,7 @@ func _on_equip_pressed() -> void:
 		if _get_attachment_weight(selected_slot, attachment["id"]) + float(attachment["weight"]) > _get_attachment_capacity(selected_slot):
 			status_message_label.text = "Attachment rejected: section capacity exceeded."
 			return
-		var total_capacity = float(GlobalData.get_chassis_stats().get("max_weight", 75.0)) + ((GlobalData.frame_upgrade_level - 1) * 15.0)
+		var total_capacity = float(GlobalData.get_chassis_stats().get("max_weight", 75.0)) + GlobalData.get_frame_upgrade_weight_bonus()
 		if _get_total_load(attachment["id"], selected_slot) + float(attachment["weight"]) > total_capacity:
 			status_message_label.text = "Attachment rejected: total Frame capacity exceeded."
 			return
@@ -2179,7 +2179,7 @@ func _on_full_repair_pressed() -> void:
 
 func _update_total_stats() -> void:
 	var chassis_info = GlobalData.chassis_catalog.get(GlobalData.chassis_id, GlobalData.chassis_catalog["standard"])
-	var max_weight = chassis_info["max_weight"] + ((GlobalData.frame_upgrade_level - 1) * 15.0)
+	var max_weight = chassis_info["max_weight"] + GlobalData.get_frame_upgrade_weight_bonus()
 
 	var total_frame_weight = 0.0
 	var total_armor_weight = 0.0
@@ -2189,7 +2189,7 @@ func _update_total_stats() -> void:
 
 	for slot in GlobalData.equipped_frames:
 		var f = GlobalData.equipped_frames[slot]
-		var max_fhp = f.get("hp", 0.0) + ((GlobalData.frame_upgrade_level - 1) * 25.0)
+		var max_fhp = f.get("hp", 0.0) + GlobalData.get_frame_upgrade_hp_bonus()
 		total_frame_weight += f.get("weight", 0.0)
 		total_frame_hp += max_fhp * (1.0 - clampf(GlobalData.part_damage.get(slot + "_frame", 0.0), 0.0, 1.0))
 

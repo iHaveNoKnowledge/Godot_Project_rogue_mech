@@ -4,7 +4,7 @@ extends Node
 
 
 func spawn_backup_mech() -> void:
-	var mecha = get_tree().current_scene.get_node_or_null("Mecha")
+	var mecha = GameManager.get_player_mecha()
 	var backup_id := GlobalData.get_backup_hangar_mech_id()
 	if backup_id == "":
 		push_warning("No second built mech is stored in the hangar.")

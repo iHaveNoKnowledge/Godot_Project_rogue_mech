@@ -23,7 +23,7 @@ func _on_body_exited(body: Node3D) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("interact") and nearby_backup:
-		var mecha = get_tree().current_scene.get_node_or_null("Mecha")
+		var mecha = GameManager.get_player_mecha()
 		if mecha:
 			var eject = mecha.get_node_or_null("MechaEject")
 			if eject:

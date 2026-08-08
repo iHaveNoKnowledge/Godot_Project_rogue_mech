@@ -132,7 +132,7 @@ func _spawn_fielded_allies() -> void:
 	var fielded = GlobalData.get_fielded_units()
 	if fielded.is_empty():
 		return
-	var mecha = get_tree().current_scene.get_node_or_null("Mecha")
+	var mecha = GameManager.get_player_mecha()
 	var anchor = mecha.global_position if mecha else Vector3.ZERO
 	var i := 0
 	for unit in fielded:

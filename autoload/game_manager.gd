@@ -8,6 +8,15 @@ var current_state: State = State.MENU
 var is_boss_combat: bool = false
 
 
+# Central lookup for the active player mecha. Avoids repeating fragile
+# `current_scene.get_node_or_null("Mecha")` string paths across scripts.
+func get_player_mecha() -> Node3D:
+	var scene := get_tree().current_scene
+	if scene == null:
+		return null
+	return scene.get_node_or_null("Mecha") as Node3D
+
+
 func transition_to(new_state: State) -> void:
 	get_tree().paused = false
 	var old_name = State.keys()[current_state]

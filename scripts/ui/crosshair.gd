@@ -11,7 +11,7 @@ var overlay_control: Control = null
 
 func _ready() -> void:
 	await get_tree().process_frame
-	var mecha = get_tree().current_scene.get_node_or_null("Mecha")
+	var mecha = GameManager.get_player_mecha()
 	if mecha:
 		aim_ray = mecha.get_node_or_null("AimRay")
 		if aim_ray:
@@ -49,7 +49,7 @@ func _process(_delta: float) -> void:
 
 
 func _check_head_status() -> void:
-	var mecha = get_tree().current_scene.get_node_or_null("Mecha")
+	var mecha = GameManager.get_player_mecha()
 	if mecha:
 		var health = mecha.get_node_or_null("HealthSystem")
 		if health:

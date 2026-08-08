@@ -11,8 +11,9 @@ var hitbox: Area3D
 
 
 func _ready() -> void:
-	hitbox = get_node("Area3D")
-	hitbox.area_entered.connect(_on_hitbox_area_entered)
+	hitbox = get_node_or_null("Area3D")
+	if hitbox:
+		hitbox.area_entered.connect(_on_hitbox_area_entered)
 	_initialize_part()
 
 
@@ -63,7 +64,8 @@ func _on_armor_broken() -> void:
 	GlobalData.part_damage[slot_name] = 1.0
 	EventBus.part_destroyed.emit(slot_name)
 	EventBus.weight_changed.emit(0.0)
-	hitbox.set_deferred("monitoring", false)
+	if hitbox:
+		hitbox.set_deferred("monitoring", false)
 
 
 func _on_frame_destroyed() -> void:

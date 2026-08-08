@@ -909,9 +909,9 @@ func _test_escape_zone() -> void:
 	var fake := CharacterBody3D.new()
 	fake.name = "FakeMecha"
 	fake.add_to_group("mecha")
-	var hs := Node3D.new()
+	var hs := preload("res://scripts/mecha/mecha_health_base.gd").new()
 	hs.name = "HealthSystem"
-	hs.set("is_destroyed", false)
+	hs.is_destroyed = false
 	fake.add_child(hs)
 	add_child(fake)
 
@@ -948,7 +948,7 @@ func _test_escape_zone() -> void:
 	_check(is_equal_approx(zone2._time_inside, 0.0), "hold timer resets to zero on exit")
 
 	# A destroyed mech can no longer retreat.
-	hs.set("is_destroyed", true)
+	hs.is_destroyed = true
 	var zone3 := preload("res://scripts/arena/escape_zone.gd").new()
 	zone3.escape_time = 0.5
 	zone3._on_body_entered(fake)

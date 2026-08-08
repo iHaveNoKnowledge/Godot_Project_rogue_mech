@@ -36,6 +36,7 @@ func _ready() -> void:
 	# later reset_run_data() calls would mutate GlobalData under its pending
 	# sidestream comparison and the final tally would miss its late FAIL lines.
 	await _test_hangar_selection_preserves_loadout()
+	_test_save_load_roundtrip()
 	print("REPAIR_QA_RESULT: %d passed, %d failed" % [_passed, _failed])
 	get_tree().quit(1 if _failed > 0 else 0)
 
@@ -849,3 +850,52 @@ func _test_hangar_mech_roster() -> void:
 	_check(GlobalData.switch_hangar_mech(backup_id), "hangar can switch to another built mech")
 	_check(GlobalData.active_hangar_mech_id == backup_id, "switch updates active hangar mech")
 	_check(GlobalData.get_active_hangar_mech().get("name", "") == "Scout Frame", "switch loads the selected mech snapshot")
+
+
+# Round-trips a distinctive run state through save_run()/load_run() to prove the
+# persistence layer survives refactors. Backs up any existing save file first so
+# a real playthrough save is never destroyed by the QA suite.
+func _test_save_load_roundtrip() -> void:
+	var save_path := "user://savegame.json"
+	var backup := ""
+	if FileAccess.file_exists(save_path):
+		var f := FileAccess.open(save_path, FileAccess.READ)
+		if f:
+			backup = f.get_as_text()
+
+	GlobalData.reset_run_data()
+	GlobalData.chassis_id = "titan"
+	GlobalData.credits = 777
+	GlobalData.scrap = 321
+	GlobalData.data_cores = 9
+	GlobalData.theme_id = "scavenger"
+	GlobalData.heat = 42
+	GlobalData.wanted_level = 3
+	GlobalData.current_sector = 4
+	GlobalData.part_damage["body"] = 0.5
+	GlobalData.part_damage["body_frame"] = 1.0
+	GlobalData.save_run()
+
+	GlobalData.reset_run_data()
+	_check(GlobalData.chassis_id != "titan", "state reset before load")
+	_check(GlobalData.credits == 110, "reset grants the standard starting credits")
+
+	var loaded := GlobalData.load_run()
+	_check(loaded, "load_run returns true after save")
+	_check(GlobalData.chassis_id == "titan", "load restores chassis id")
+	_check(GlobalData.credits == 777, "load restores credits")
+	_check(GlobalData.scrap == 321, "load restores scrap")
+	_check(GlobalData.data_cores == 9, "load restores data cores")
+	_check(GlobalData.theme_id == "scavenger", "load restores theme id")
+	_check(GlobalData.heat == 42, "load restores heat")
+	_check(GlobalData.wanted_level == 3, "load restores wanted level")
+	_check(GlobalData.current_sector == 4, "load restores sector")
+	_check(is_equal_approx(GlobalData.part_damage.get("body", 0.0), 0.5), "load restores armor damage cache")
+	_check(is_equal_approx(GlobalData.part_damage.get("body_frame", 0.0), 1.0), "load restores frame damage cache")
+
+	if backup != "":
+		var wf := FileAccess.open(save_path, FileAccess.WRITE)
+		if wf:
+			wf.store_string(backup)
+	else:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path))

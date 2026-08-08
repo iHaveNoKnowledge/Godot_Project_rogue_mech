@@ -22,6 +22,7 @@ func _ready() -> void:
 func generate_arena() -> void:
 	_create_containers()
 	_add_ground_tiles()
+	_add_ground_collision()
 	_create_escape_zones()
 	_create_void_barrier()
 	_create_theme_structures()
@@ -68,8 +69,57 @@ func _add_ground_tiles() -> void:
 			mat.roughness = 0.8
 			tile.material_override = mat
 
-			tile.position = Vector3(pos_x, -0.39, pos_z)
+			var tile_y := -0.39
+			if current_theme == BiomeTheme.RIVER_BRIDGE:
+				tile_y = 0.45
+			tile.position = Vector3(pos_x, tile_y, pos_z)
 			tile_container.add_child(tile)
+
+
+# The main walkable ground per theme. The global Ground in game_world.tscn is
+# only a deep safety net now (top ~ -2.5), so each theme must build its own
+# collision surface: a flat plane for most themes, and raised riverbanks for
+# RIVER_BRIDGE so the water trench reads as a real sunken channel.
+func _add_ground_collision() -> void:
+	if current_theme == BiomeTheme.RIVER_BRIDGE:
+		_add_riverbank_collision()
+		return
+
+	var ground = StaticBody3D.new()
+	ground.name = "GroundCollision"
+	ground.collision_layer = 2
+	ground.collision_mask = 1
+
+	var col = CollisionShape3D.new()
+	var shape = BoxShape3D.new()
+	shape.size = Vector3(arena_size, 0.8, arena_size)
+	col.shape = shape
+	ground.add_child(col)
+
+	ground.position = Vector3(0, -0.8, 0)
+	structures_container.add_child(ground)
+
+
+func _add_riverbank_collision() -> void:
+	var half := arena_size / 2.0
+	var trench_half := 22.0
+	var bank_depth := half - trench_half
+
+	for sign_z in [1.0, -1.0]:
+		var bank = StaticBody3D.new()
+		bank.name = "RiverbankCollision"
+		bank.collision_layer = 2
+		bank.collision_mask = 1
+
+		var col = CollisionShape3D.new()
+		var shape = BoxShape3D.new()
+		shape.size = Vector3(arena_size, 1.0, bank_depth)
+		col.shape = shape
+		bank.add_child(col)
+
+		var z_center = sign_z * (trench_half + bank_depth * 0.5)
+		bank.position = Vector3(0, 0.0, z_center)
+		structures_container.add_child(bank)
 
 
 func _get_theme_tile_color(x: int, z: int, pos_x: float, pos_z: float) -> Color:
@@ -436,19 +486,39 @@ func _spawn_riverbed_floor() -> void:
 	mesh.material_override = mat
 	floor_body.add_child(mesh)
 
-	floor_body.position = Vector3(0, -1.25, 0)
+	floor_body.position = Vector3(0, -1.5, 0)
 	structures_container.add_child(floor_body)
 
 
-func _create_water_material() -> StandardMaterial3D:
-	var mat = StandardMaterial3D.new()
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(0.15, 0.6, 1.0, 0.55)
-	mat.emission_enabled = true
-	mat.emission = Color(0.1, 0.4, 0.9)
-	mat.emission_energy_multiplier = 1.6
-	mat.metallic = 0.3
-	mat.roughness = 0.1
+func _create_water_material() -> ShaderMaterial:
+	var mat = ShaderMaterial.new()
+	var shader = Shader.new()
+	shader.code = """
+shader_type spatial;
+render_mode blend_mix, depth_draw_opaque, cull_back;
+
+uniform vec4 water_color : source_color = vec4(0.15, 0.6, 1.0, 0.62);
+uniform float wave_speed : hint_range(0, 10) = 2.5;
+uniform float wave_strength : hint_range(0, 0.5) = 0.06;
+uniform float emission_energy = 1.6;
+
+void vertex() {
+	UV *= 8.0;
+}
+
+void fragment() {
+	float t = TIME * wave_speed;
+	vec2 uv = UV;
+	uv.y += t;
+	uv.y += sin(uv.x * 6.0 + t) * wave_strength;
+	ALBEDO = water_color.rgb;
+	ALPHA = water_color.a;
+	EMISSION = vec3(0.1, 0.4, 0.9) * emission_energy;
+	ROUGHNESS = 0.1;
+	METALLIC = 0.3;
+}
+"""
+	mat.shader = shader
 	return mat
 
 
@@ -457,7 +527,7 @@ func _create_water_material() -> StandardMaterial3D:
 # the trench) is counted as "in water". The VISUAL is a thin, flat sheet sunk
 # below the riverbanks and bridge deck — water must sit lower than the ground
 # and lower than the bridge, never as a tall cube rising above them.
-func _spawn_water_volume(center_x: float, width: float, mat: StandardMaterial3D) -> void:
+func _spawn_water_volume(center_x: float, width: float, mat: Material) -> void:
 	var area = Area3D.new()
 	area.name = "WaterVolume"
 	area.collision_layer = 4
@@ -467,19 +537,20 @@ func _spawn_water_volume(center_x: float, width: float, mat: StandardMaterial3D)
 
 	var col = CollisionShape3D.new()
 	var shape = BoxShape3D.new()
-	shape.size = Vector3(width, 4.0, 40)
+	shape.size = Vector3(width, 2.6, 40)
 	col.shape = shape
 	area.add_child(col)
 
 	# Visual: thin low sheet so the water reads as a sunken surface, well below
-	# the riverbank ground (top ~ -0.34) and the bridge deck (top ~ +0.5).
+	# the riverbank ground (top ~ +0.5) and the bridge deck (top ~ +0.5), but
+	# high enough above the riverbed (top ~ -1.2) to read as flowing water.
 	var mesh = MeshInstance3D.new()
 	var box = BoxMesh.new()
 	box.size = Vector3(width, 0.3, 40)
 	mesh.mesh = box
 	mesh.material_override = mat
-	mesh.position.y = -0.6
+	mesh.position.y = -0.55
 	area.add_child(mesh)
 
-	area.position = Vector3(center_x, -0.6, 0)
+	area.position = Vector3(center_x, -0.9, 0)
 	structures_container.add_child(area)

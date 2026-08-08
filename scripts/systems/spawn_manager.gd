@@ -117,9 +117,18 @@ func _ready() -> void:
 
 func _generate_spawn_points() -> void:
 	var half = 110.0  # Inside 240m walls
+	var arena_gen = get_node_or_null("../ArenaGenerator")
+	var is_river_bridge: bool = arena_gen != null and arena_gen.current_theme == 3
 	for i in range(12):
 		var angle = (i / 12.0) * TAU
 		var pos = Vector3(cos(angle) * half, 0.05, sin(angle) * half)
+		# On RIVER_BRIDGE the riverbanks are raised (top ~ +0.5) and the water
+		# trench (|z| < 22) is below the banks, so keep spawns on dry land and
+		# lift them onto the bank surface.
+		if is_river_bridge:
+			if absf(pos.z) < 22.0:
+				continue
+			pos.y = 0.55
 		var marker = Marker3D.new()
 		marker.position = pos
 		add_child(marker)

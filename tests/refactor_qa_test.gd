@@ -39,6 +39,7 @@ func _ready() -> void:
 	_test_save_load_roundtrip()
 	_test_escape_zone()
 	_test_battle_loadout_persistence()
+	_test_battle_pickup_weight()
 	print("REPAIR_QA_RESULT: %d passed, %d failed" % [_passed, _failed])
 	get_tree().quit(1 if _failed > 0 else 0)
 
@@ -514,6 +515,37 @@ func _test_battle_loadout_persistence() -> void:
 	wm.left_hand = null
 	wm.sync_loadout_to_global()
 	_check(GlobalData.weapon_loadout.get("left", "") == "", "battle drop clears left hand in loadout")
+
+
+func _test_battle_pickup_weight() -> void:
+	# Regression: picking up a weapon mid-battle must raise the FIELD PACK weight
+	# the HUD shows (GlobalData.weapon_loadout) AND the battle-local pack weight.
+	# The mech's live weight (speed/turn) also includes loadout weapons, so the
+	# weight system must respond to pickups, not just the hidden label.
+	GlobalData.reset_run_data()
+	GlobalData.weapon_loadout.clear()
+	GlobalData.set_hand_weapon("left", GlobalData.DEFAULT_LEFT_WEAPON_PATH)
+	GlobalData.set_hand_weapon("right", GlobalData.DEFAULT_RIGHT_WEAPON_PATH)
+
+	var wm = preload("res://scripts/mecha/weapon_manager.gd").new()
+	wm.left_hand = load(GlobalData.DEFAULT_LEFT_WEAPON_PATH)
+	wm.right_hand = load(GlobalData.DEFAULT_RIGHT_WEAPON_PATH)
+
+	var global_before := GlobalData.get_field_pack_weight()
+	var battle_before := wm.get_battle_field_pack_weight()
+
+	var shotgun := preload("res://resources/mech/stock/weapon_combat_shotgun.tres")
+	wm.add_weapon(shotgun)
+
+	_check(wm.get_battle_field_pack_weight() > battle_before, "battle pack weight rises after pickup")
+	_check(GlobalData.get_field_pack_weight() > global_before, "HUD field pack weight rises after pickup")
+	_check(is_equal_approx(GlobalData.get_field_pack_weight() - global_before, float(shotgun.weight)), "global weight rises exactly by weapon weight")
+	_check(GlobalData.get_loadout_weapon_weight() == GlobalData.get_field_pack_weight(), "mech live weight counts the same weapons as field pack")
+
+	# Dropping the weapon back out removes that weight again.
+	wm.carry.erase(shotgun)
+	wm.sync_loadout_to_global()
+	_check(is_equal_approx(GlobalData.get_field_pack_weight(), global_before), "global weight returns after drop")
 
 
 func _test_tech_escalation() -> void:

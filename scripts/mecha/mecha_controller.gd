@@ -394,6 +394,9 @@ func _recalculate_weight() -> void:
 					total_weight += part.get("weight", 0.0)
 	for attachment in GlobalData.attachments:
 		total_weight += float(attachment.get("weight", 0.0))
+	# Weapons (hands + back-carry) are real carried mass: count them exactly like
+	# the Hangar TOTAL WEIGHT does, so mid-battle pickups/drops affect the mech.
+	total_weight += GlobalData.get_loadout_weapon_weight()
 
 	# Override vars are set from GlobalData.chassis_id by _apply_chassis_from_global_data().
 	# ChassisData resource is used for base_turn_rate if assigned.

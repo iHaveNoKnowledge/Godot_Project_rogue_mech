@@ -115,6 +115,9 @@ func sync_loadout_to_global() -> void:
 		if weapon:
 			carry_paths.append(weapon.resource_path)
 	GlobalData.weapon_loadout["carry"] = carry_paths
+	# The mech's total weight now includes the loadout weapons, so a pickup/drop
+	# must re-trigger the live weight calculation (speed/turn) right away.
+	EventBus.weight_changed.emit(0.0)
 
 
 func get_battle_reserve(ammo_type: String) -> int:

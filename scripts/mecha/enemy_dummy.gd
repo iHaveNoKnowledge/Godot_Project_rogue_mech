@@ -38,10 +38,37 @@ func _ready() -> void:
 	_setup_enemy_status()
 	health_system.mecha_destroyed.connect(_on_destroyed)
 	health_system.armor_broken.connect(_on_armor_broken)
+	_apply_catalog_health()
 	_scale_by_wanted_level()
 	_apply_archetype_stats()
 	_build_catalog_body()
 	_setup_state_machine()
+
+
+# Writes the armor/frame HP of the loadout this enemy wears into its health
+# system, so durability matches the plates the mech displays on screen. Slots
+# the simple health system doesn't track (single-body capsule) are skipped.
+# armor_class stays per-slot combat default (player's mecha fights the same way
+# — its equipped dict carries no armor key), so balance is preserved.
+func _apply_catalog_health() -> void:
+	if health_system == null:
+		return
+	var loadout := _enemy_loadout()
+	for slot in loadout:
+		var part: Dictionary = health_system.parts.get(slot, {})
+		if part.is_empty():
+			continue
+		var armor: Dictionary = loadout[slot].get("armor", {})
+		if not armor.is_empty():
+			var hp: float = float(armor.get("hp", part["max_armor"]))
+			part["armor_hp"] = hp
+			part["max_armor"] = hp
+		var frame: Dictionary = loadout[slot].get("frame", {})
+		if not frame.is_empty():
+			var fp: float = float(frame.get("hp", part["max_frame"]))
+			part["frame_hp"] = fp
+			part["max_frame"] = fp
+	health_system._calculate_totals()
 
 
 # Assembles the enemy from the SAME mech armor catalog the player uses

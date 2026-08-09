@@ -18,6 +18,9 @@ var state_machine: EnemyStateMachine
 # Stagger from heavy impacts: briefly interrupts the enemy so it can't act.
 var stagger_timer: float = 0.0
 
+# PartMeshManager that renders this enemy from the mech armor catalog.
+var catalog_body: Node = null
+
 # Ammo system for ranged enemies
 var ammo: int = 0
 var max_ammo: int = 0
@@ -37,7 +40,127 @@ func _ready() -> void:
 	health_system.armor_broken.connect(_on_armor_broken)
 	_scale_by_wanted_level()
 	_apply_archetype_stats()
+	_build_catalog_body()
 	_setup_state_machine()
+
+
+# Assembles the enemy from the SAME mech armor catalog the player uses
+# (GlobalData.armor_catalog / frame_catalog) so grunts look like real mechs
+# instead of placeholder capsules. Per-archetype colors keep them readable.
+func _build_catalog_body() -> void:
+	if get_node_or_null("CatalogBody") != null:
+		return
+	_ensure_slot_nodes()
+	var pmm = Node3D.new()
+	pmm.name = "CatalogBody"
+	pmm.set_script(preload("res://scripts/mecha/part_mesh_manager.gd"))
+	catalog_body = pmm
+	add_child(pmm)
+
+	# Extra bulk for heavy grunts so the silhouette reads at a glance.
+	if archetype == 2:
+		pmm.scale = Vector3(1.6, 1.6, 1.6)
+	elif archetype == 3:
+		pmm.scale = Vector3(1.05, 1.05, 1.05)
+	elif archetype == 0:
+		pmm.scale = Vector3(0.95, 0.95, 0.95)
+
+	var loadout := _enemy_loadout()
+	pmm.refresh_from_loadout(loadout)
+
+	# Placeholder scenes (capsule rusher) put their legacy mesh at the root, not
+	# under a slot node, so slot hiding never touches it. Hide it explicitly.
+	for child in get_children():
+		if child == pmm or child.name == "HealthSystem" or child is Area3D or child is CollisionShape3D:
+			continue
+		if child is MeshInstance3D or child is VisualInstance3D:
+			child.visible = false
+
+
+# The PartMeshManager assembles meshes inside Head/Body/ArmLeft/... nodes.
+# Placeholder scenes (e.g. the capsule rusher) may not ship those nodes, so we
+# create matching ones (with the same offsets as real enemy scenes) if missing.
+func _ensure_slot_nodes() -> void:
+	var slot_positions := {
+		"Head": Vector3(0, 2.2, 0),
+		"Body": Vector3(0, 1.3, 0),
+		"ArmLeft": Vector3(-0.75, 1.3, 0),
+		"ArmRight": Vector3(0.75, 1.3, 0),
+		"LegLeft": Vector3(-0.35, 0.6, 0),
+		"LegRight": Vector3(0.35, 0.6, 0),
+	}
+	for name in slot_positions:
+		if get_node_or_null(name) != null:
+			continue
+		var slot_node := Node3D.new()
+		slot_node.name = name
+		slot_node.position = slot_positions[name]
+		add_child(slot_node)
+
+	# Lower-joint containers (Forearm/Shin) must exist too or the catalog
+	# builder has nowhere to mount the elbow/knee segments.
+	var lower_parent_names: Array[String] = [
+		"ArmLeft/ForearmLeft",
+		"ArmRight/ForearmRight",
+		"LegLeft/ShinLeft",
+		"LegRight/ShinRight",
+	]
+	var lower_offsets := {
+		"ArmLeft/ForearmLeft": Vector3(0, -0.38, 0),
+		"ArmRight/ForearmRight": Vector3(0, -0.38, 0),
+		"LegLeft/ShinLeft": Vector3(0, -0.55, 0),
+		"LegRight/ShinRight": Vector3(0, -0.55, 0),
+	}
+	for node_path in lower_parent_names:
+		if get_node_or_null(node_path) != null:
+			continue
+		var parts_path: PackedStringArray = node_path.split("/")
+		var lower := Node3D.new()
+		lower.name = parts_path[1]
+		lower.position = lower_offsets[node_path]
+		get_node(parts_path[0]).add_child(lower)
+
+
+# Picks a per-slot frame + armor entry from the catalogs and applies the
+# archetype's faction color so each enemy variety remains visually distinct.
+func _enemy_loadout() -> Dictionary:
+	var palette := _archetype_palette()
+	var loadout: Dictionary = {}
+	for slot in ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]:
+		var frame_entry: Dictionary = {}
+		var frames = GlobalData.frame_catalog.get(slot, [])
+		if frames is Array and frames.size() > 0:
+			frame_entry = (frames[0] as Dictionary).duplicate(true)
+
+		var armor_entry: Dictionary = {}
+		var armors = GlobalData.armor_catalog.get(slot, [])
+		if armors is Array and armors.size() > 0:
+			# Skip blueprint-only tiers so grunts only wear baseline armor.
+			for entry in armors:
+				if entry.get("blueprint_only", false):
+					continue
+				armor_entry = (entry as Dictionary).duplicate(true)
+				break
+			if armor_entry.is_empty():
+				armor_entry = (armors[0] as Dictionary).duplicate(true)
+		if not armor_entry.is_empty():
+			armor_entry["equipped"] = true
+			armor_entry["color"] = palette.get(slot, palette.get("default", Color(0.7, 0.15, 0.15)))
+
+		loadout[slot] = {"frame": frame_entry, "armor": armor_entry}
+	return loadout
+
+
+func _archetype_palette() -> Dictionary:
+	match archetype:
+		1:
+			return {"default": Color(0.25, 0.55, 0.8), "head": Color(0.2, 0.5, 0.75)}
+		2:
+			return {"default": Color(0.65, 0.15, 0.2), "head": Color(0.75, 0.2, 0.15)}
+		3:
+			return {"default": Color(0.75, 0.65, 0.2), "head": Color(0.8, 0.7, 0.25)}
+		_:
+			return {"default": Color(0.75, 0.2, 0.2), "head": Color(0.85, 0.25, 0.25)}
 
 
 func _setup_state_machine() -> void:

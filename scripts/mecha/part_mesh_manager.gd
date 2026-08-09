@@ -156,33 +156,47 @@ func build_part_for_slot(equipped: Variant) -> ArmorPart:
 func refresh_slots() -> void:
 	_hide_all_legacy_models()
 	for slot in GlobalData.MECHA_SLOTS:
-		var frame_data = GlobalData.equipped_frames.get(slot)
-		var has_frame = frame_data != null and not (frame_data is Dictionary and frame_data.is_empty())
+		_rebuild_slot(slot, GlobalData.equipped_frames.get(slot), GlobalData.equipped_parts.get(slot), true)
 
-		var equipped = GlobalData.equipped_parts.get(slot)
-		var is_armor_equipped = (
-			equipped != null and
-			not (equipped is Dictionary and equipped.is_empty()) and
-			not (equipped is Dictionary and not equipped.get("equipped", false))
-		)
 
-		if not has_frame:
-			# NO INNER FRAME EQUIPPED: Hide slot completely
-			hide_slot_completely(slot)
-		elif GlobalData.scrap_patches.has(slot):
-			# EMERGENCY SCRAP PATCH: the slot was rebuilt from scrap, so show the
-			# bare inner frame (or scrap stand-in) plus the crude patch primitives
-			# the driver placed on it.
-			initialize_slot(slot, null)
-			_show_inner_frame(slot)
-			_render_scrap_patch(slot)
-		elif not is_armor_equipped:
-			# INNER FRAME EQUIPPED, NO ARMOR: Render bare skeletal inner frame only
-			initialize_slot(slot, null)
-			_show_inner_frame(slot)
-		else:
-			# INNER FRAME + OUTER ARMOR EQUIPPED: Render armor over inner frame
-			initialize_slot(slot, build_part_for_slot(equipped))
+# Builds every armor slot from explicit per-slot frame + armor dictionaries —
+# same rendering path as the player mech, but fed from an arbitrary loadout so
+# enemies can be assembled from the armor catalog. `loadout` maps slot name to
+# a {"frame": {...}, "armor": {...}} pair (either may be null/empty).
+func refresh_from_loadout(loadout: Dictionary) -> void:
+	_hide_all_legacy_models()
+	for slot in GlobalData.MECHA_SLOTS:
+		var entry: Dictionary = loadout.get(slot, {})
+		_rebuild_slot(slot, entry.get("frame"), entry.get("armor"), false)
+
+
+# Core per-slot rebuild shared by refresh_slots() and refresh_from_loadout().
+func _rebuild_slot(slot: String, frame_data: Variant, equipped: Variant, apply_player_scrap: bool) -> void:
+	var has_frame = frame_data != null and not (frame_data is Dictionary and frame_data.is_empty())
+
+	var is_armor_equipped = (
+		equipped != null and
+		not (equipped is Dictionary and equipped.is_empty()) and
+		not (equipped is Dictionary and not equipped.get("equipped", false))
+	)
+
+	if not has_frame:
+		# NO INNER FRAME EQUIPPED: Hide slot completely
+		hide_slot_completely(slot)
+	elif apply_player_scrap and GlobalData.scrap_patches.has(slot):
+		# EMERGENCY SCRAP PATCH: the slot was rebuilt from scrap, so show the
+		# bare inner frame (or scrap stand-in) plus the crude patch primitives
+		# the driver placed on it.
+		initialize_slot(slot, null)
+		_show_inner_frame(slot)
+		_render_scrap_patch(slot)
+	elif not is_armor_equipped:
+		# INNER FRAME EQUIPPED, NO ARMOR: Render bare skeletal inner frame only
+		initialize_slot(slot, null)
+		_show_inner_frame(slot)
+	else:
+		# INNER FRAME + OUTER ARMOR EQUIPPED: Render armor over inner frame
+		initialize_slot(slot, build_part_for_slot(equipped))
 
 
 # Rebuilds (or removes) the ScrapPatch primitive visuals for a patched slot.

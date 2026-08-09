@@ -16,3 +16,7 @@ weight = 10.0
 range_distance = 90.0
 description = "ปืนกลหนัก damage สูง ยิงเร็ว แต่หนัก"
 rarity = 2
+heat_capacity = 100.0
+heat_per_shot = 4.0
+heat_cool_rate = 20.0
+heat_release_ratio = 0.5

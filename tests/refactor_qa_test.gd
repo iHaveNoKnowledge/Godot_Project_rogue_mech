@@ -37,6 +37,7 @@ func _ready() -> void:
 	# later reset_run_data() calls would mutate GlobalData under its pending
 	# sidestream comparison and the final tally would miss its late FAIL lines.
 	await _test_hangar_selection_preserves_loadout()
+	await _test_hangar_menu_flow()
 	_test_save_load_roundtrip()
 	_test_escape_zone()
 	_test_battle_loadout_persistence()
@@ -496,7 +497,7 @@ func _test_hangar_selection_preserves_loadout() -> void:
 	add_child(hangar)
 	await get_tree().process_frame
 
-	var slots := ["chassis", "head", "body", "arm_left", "arm_right", "leg_left", "leg_right",
+	var slots := ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right",
 		"weapon_left", "weapon_right", "weapon_carry"]
 	var modes := ["armor", "frame", "attachment"]
 	for round in range(2):
@@ -521,6 +522,53 @@ func _test_hangar_selection_preserves_loadout() -> void:
 
 	_check(GlobalData.weapon_loadout.get("left") == before_left, "hangar tab switching keeps left weapon")
 	_check(GlobalData.weapon_loadout.get("right") == before_right, "hangar tab switching keeps right weapon")
+
+
+func _test_hangar_menu_flow() -> void:
+	# New hangar UX: entering the hangar shows the landing sub-menu first, the
+	# customize page only appears after picking a topic, and the CHASSIS tab was
+	# moved out of the customize page into the catalog.
+	GlobalData.reset_run_data()
+	GlobalData.roll_random_start()
+
+	var hangar = load("res://scenes/ui/hangar_scene.tscn").instantiate()
+	add_child(hangar)
+	await get_tree().process_frame
+
+	# Landing: only the sub-menu rail is visible; the customize page is hidden.
+	_check(hangar.submenu_rail != null and hangar.submenu_rail.visible, "hangar shows the landing sub-menu first")
+	_check(not hangar.left_panel.visible, "customize part panel hidden on landing")
+	_check(not hangar.right_panel.visible, "stats panel hidden on landing")
+	_check(not hangar.tab_container.visible, "slot tabs hidden on landing")
+
+	# The CHASSIS slot tab no longer exists on the customize page.
+	_check(not hangar.slot_tab_buttons.has("chassis"), "CHASSIS tab removed from the customize page")
+
+	# Picking CUSTOMIZE opens the customize page.
+	hangar._select_hangar_submenu("customize")
+	_check(not hangar.submenu_rail.visible, "sub-menu hides after choosing a page")
+	_check(hangar.left_panel.visible, "customize page part panel is shown")
+	_check(hangar.right_panel.visible, "customize page stats panel is shown")
+
+	# Catalog lets the driver switch the chassis model.
+	var before_chassis: String = GlobalData.chassis_id
+	hangar._select_hangar_submenu("catalog")
+	_check(hangar.catalog_window != null and is_instance_valid(hangar.catalog_window), "catalog window opens with chassis section")
+	var alt_key := ""
+	for key in GlobalData.chassis_catalog:
+		if str(key) != before_chassis:
+			alt_key = key
+			break
+	if alt_key != "":
+		hangar._apply_chassis_from_catalog(alt_key)
+		_check(GlobalData.chassis_id == alt_key, "catalog chassis selection switches the chassis model")
+
+	# BACK TO MENU returns to the landing screen.
+	hangar._on_back_to_menu_pressed()
+	_check(hangar.submenu_rail.visible, "back-to-menu returns to the landing screen")
+
+	hangar.queue_free()
+	await get_tree().process_frame
 
 
 func _test_battle_loadout_persistence() -> void:

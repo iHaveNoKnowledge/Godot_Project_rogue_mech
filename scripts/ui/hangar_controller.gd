@@ -38,12 +38,19 @@ var _blink_interval: float = 0.45
 var _blink_on: bool = true
 var _blink_target_button: Button = null
 
-# Top-level hangar sub-menu: [CUSTOMIZE | EMERGENCY REPAIR | UPGRADE | CRAFT | CATALOG]
+# Top-level hangar sub-menu (landing screen): [CUSTOMIZE | EMERGENCY REPAIR |
+# UPGRADE | CRAFT | CATALOG]. It is the FIRST thing shown after entering the
+# hangar as a long vertical list on the left; each choice opens its own page.
 var hangar_submenu_buttons: Dictionary = {}
-var current_submenu: String = "customize"
+var current_submenu: String = "" # "" = landing menu
 var scrap_editor: CanvasLayer = null
 # Hover-preview label on the right panel (shows the item under the cursor).
 var hover_stats_label: Label = null
+# Landing sub-menu rail + the page widgets it toggles.
+var submenu_rail: PanelContainer = null
+var back_to_menu_button: Button = null
+var left_panel: PanelContainer = null
+var right_panel: PanelContainer = null
 
 # Attachment Catalog — lives in GlobalData (loaded from resources/data/mech_catalogs.tres).
 var attachment_catalog: Array:
@@ -211,6 +218,7 @@ func _build_ui_layout() -> void:
 	header.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	header.custom_minimum_size = Vector2(0, 80)
 	root.add_child(header)
+	header.mouse_filter = Control.MOUSE_FILTER_PASS
 
 	var style_hdr = StyleBoxFlat.new()
 	style_hdr.bg_color = Color(0.06, 0.08, 0.12, 0.92)
@@ -242,7 +250,6 @@ func _build_ui_layout() -> void:
 	hdr_box.add_child(tab_container)
 
 	var slots = [
-		{"id": "chassis", "label": "🤖 CHASSIS"},
 		{"id": "head", "label": "HEAD"},
 		{"id": "body", "label": "BODY"},
 		{"id": "arm_left", "label": "L.ARM"},
@@ -257,30 +264,87 @@ func _build_ui_layout() -> void:
 	for slot_info in slots:
 		var btn = Button.new()
 		btn.text = slot_info["label"]
-		btn.custom_minimum_size = Vector2(80, 36)
+		btn.custom_minimum_size = Vector2(72, 36)
 		btn.pressed.connect(func(): _select_slot_tab(slot_info["id"]))
 		slot_tab_buttons[slot_info["id"]] = btn
 		tab_container.add_child(btn)
 
-	# Sub-Menu bar (second header row): quick switch between hangar pages.
-	var submenu_box = HBoxContainer.new()
-	submenu_box.add_theme_constant_override("separation", 6)
-	header_vbox.add_child(submenu_box)
+	# Spacer pushes the back-to-menu button to the far right of the header.
+	var hdr_spacer = Control.new()
+	hdr_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hdr_box.add_child(hdr_spacer)
+
+	back_to_menu_button = Button.new()
+	back_to_menu_button.text = "◀ BACK TO MENU"
+	back_to_menu_button.custom_minimum_size = Vector2(150, 32)
+	back_to_menu_button.focus_mode = Control.FOCUS_NONE
+	back_to_menu_button.pressed.connect(_on_back_to_menu_pressed)
+	back_to_menu_button.visible = false
+	hdr_box.add_child(back_to_menu_button)
+
+	# Hangar sub-menu rail: the landing screen. A long vertical list on the left
+	# shown first after entering the hangar; each entry opens its own page.
+	var submenu_panel = PanelContainer.new()
+	submenu_panel.set_anchors_preset(Control.PRESET_LEFT_WIDE)
+	submenu_panel.offset_top = 90
+	submenu_panel.offset_bottom = -20
+	submenu_panel.offset_left = 20
+	submenu_panel.custom_minimum_size = Vector2(250, 0)
+	submenu_rail = submenu_panel
+	root.add_child(submenu_panel)
+
+	var style_rail = StyleBoxFlat.new()
+	style_rail.bg_color = Color(0.08, 0.1, 0.15, 0.92)
+	style_rail.corner_radius_top_left = 8
+	style_rail.corner_radius_top_right = 8
+	style_rail.corner_radius_bottom_left = 8
+	style_rail.corner_radius_bottom_right = 8
+	style_rail.content_margin_left = 14
+	style_rail.content_margin_right = 14
+	style_rail.content_margin_top = 14
+	style_rail.content_margin_bottom = 14
+	submenu_panel.add_theme_stylebox_override("panel", style_rail)
+
+	var rail_box = VBoxContainer.new()
+	rail_box.add_theme_constant_override("separation", 8)
+	submenu_panel.add_child(rail_box)
+
+	var rail_title = Label.new()
+	rail_title.text = "HANGAR MENU"
+	rail_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	rail_title.add_theme_font_size_override("font_size", 18)
+	rail_title.add_theme_color_override("font_color", Color(1.0, 0.8, 0.2))
+	rail_box.add_child(rail_title)
+
+	var rail_sep = HSeparator.new()
+	rail_box.add_child(rail_sep)
+
 	var submenu_items = [
-		{"id": "customize", "label": "CUSTOMIZE"},
-		{"id": "emergency", "label": "EMERGENCY REPAIR"},
-		{"id": "upgrade", "label": "UPGRADE"},
-		{"id": "craft", "label": "CRAFT"},
-		{"id": "catalog", "label": "CATALOG"},
+		{"id": "customize", "label": "CUSTOMIZE (แต่งหุ่น)"},
+		{"id": "emergency", "label": "EMERGENCY REPAIR (ซ่อมแซม)"},
+		{"id": "upgrade", "label": "UPGRADE (อัพเกรด)"},
+		{"id": "craft", "label": "CRAFT (คราฟ)"},
+		{"id": "catalog", "label": "CATALOG (แคตตาล็อก)"},
 	]
 	for item in submenu_items:
 		var sbtn = Button.new()
 		sbtn.text = item["label"]
-		sbtn.custom_minimum_size = Vector2(150, 26)
+		sbtn.custom_minimum_size = Vector2(0, 34)
 		sbtn.focus_mode = Control.FOCUS_NONE
 		sbtn.pressed.connect(func(): _select_hangar_submenu(item["id"]))
 		hangar_submenu_buttons[item["id"]] = sbtn
-		submenu_box.add_child(sbtn)
+		rail_box.add_child(sbtn)
+
+	var rail_spacer = Control.new()
+	rail_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	rail_box.add_child(rail_spacer)
+
+	var rail_exit = Button.new()
+	rail_exit.text = "EXIT HANGAR"
+	rail_exit.custom_minimum_size = Vector2(0, 40)
+	rail_exit.focus_mode = Control.FOCUS_NONE
+	rail_exit.pressed.connect(_on_close_pressed)
+	rail_box.add_child(rail_exit)
 
 	# Sub-Toggle Bar for Armor Plating vs Inner Skeleton Frame vs Power Upgrade
 	sub_toggle_container = HBoxContainer.new()
@@ -320,6 +384,7 @@ func _build_ui_layout() -> void:
 	left_panel.offset_bottom = -20
 	left_panel.offset_left = 20
 	left_panel.custom_minimum_size = Vector2(330, 0)
+	self.left_panel = left_panel
 	root.add_child(left_panel)
 
 	var style_left = StyleBoxFlat.new()
@@ -370,6 +435,7 @@ func _build_ui_layout() -> void:
 	right_panel.offset_bottom = -20
 	right_panel.offset_right = -20
 	right_panel.custom_minimum_size = Vector2(350, 0)
+	self.right_panel = right_panel
 	root.add_child(right_panel)
 
 	var style_right = StyleBoxFlat.new()
@@ -815,23 +881,73 @@ func show_hangar() -> void:
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_update_total_stats()
-	_populate_part_list_for_slot(selected_slot)
 	AudioManager.play_hangar_music()
 	call_deferred("_update_all_3d_slots_preview")
-	_select_slot_tab("chassis")
-	_refresh_ammo_loadout_ui()
-	_update_total_stats()
+	# Entering the hangar shows the landing sub-menu first — the customize page
+	# only appears once the driver picks a topic (CUSTOMIZE / UPGRADE / etc).
+	_show_hangar_menu()
 
 
 func _switch_custom_mode(mode: String) -> void:
 	current_mode = mode
-	if selected_slot == "chassis":
-		return
-
 	_populate_part_list_for_slot(selected_slot)
 
 
-# --- HANGAR SUB-MENU (CUSTOMIZE / EMERGENCY REPAIR / UPGRADE / CRAFT / CATALOG) ---
+# --- HANGAR SUB-MENU (landing list: CUSTOMIZE / EMERGENCY REPAIR / UPGRADE / CRAFT / CATALOG) ---
+
+# Landing screen: the long vertical sub-menu list. Every page widget is hidden
+# until the driver picks a topic.
+func _show_hangar_menu() -> void:
+	current_submenu = ""
+	_close_craft_window()
+	_close_catalog_window()
+	if scrap_editor != null and is_instance_valid(scrap_editor) and scrap_editor.visible:
+		scrap_editor.close()
+	if submenu_rail:
+		submenu_rail.visible = true
+	if back_to_menu_button:
+		back_to_menu_button.visible = false
+	if tab_container:
+		tab_container.visible = false
+	if sub_toggle_container:
+		sub_toggle_container.visible = false
+	if left_panel:
+		left_panel.visible = false
+	if right_panel:
+		right_panel.visible = false
+	if root_control:
+		var label := root_control.find_child("SelectionLabel", true, false) as Label
+		if label:
+			label.text = "HANGAR MENU"
+	_blink_target_button = null
+
+
+# The customize page (mech center, part list left, stats right). Also the base
+# surface for upgrade/craft/catalog which open their windows over it.
+func _show_customize_page() -> void:
+	if submenu_rail:
+		submenu_rail.visible = false
+	if back_to_menu_button:
+		back_to_menu_button.visible = true
+	if tab_container:
+		tab_container.visible = true
+	if left_panel:
+		left_panel.visible = true
+	if right_panel:
+		right_panel.visible = true
+	if sub_toggle_container:
+		sub_toggle_container.visible = not selected_slot.begins_with("weapon")
+	_populate_part_list_for_slot(selected_slot)
+	_update_selection_highlight(selected_slot)
+
+
+func _on_back_to_menu_pressed() -> void:
+	_close_craft_window()
+	_close_catalog_window()
+	if scrap_editor != null and is_instance_valid(scrap_editor) and scrap_editor.visible:
+		scrap_editor.close()
+	_show_hangar_menu()
+
 
 func _select_hangar_submenu(id: String) -> void:
 	current_submenu = id
@@ -839,7 +955,9 @@ func _select_hangar_submenu(id: String) -> void:
 	_close_catalog_window()
 	match id:
 		"emergency":
-			# Emergency scrap repair runs right inside the hangar as a page.
+			# Emergency scrap repair is a full-screen overlay opened straight from
+			# the landing menu; the menu stays behind so closing the editor
+			# returns the driver to the hangar menu.
 			_init_scrap_editor()
 			var first_slot := ""
 			for slot in GlobalData.MECHA_SLOTS:
@@ -848,18 +966,21 @@ func _select_hangar_submenu(id: String) -> void:
 					break
 			scrap_editor.open(first_slot)
 		"upgrade":
+			_show_customize_page()
 			_switch_custom_mode("upgrade")
 		"craft":
+			_show_customize_page()
 			if not armor_catalog.has(selected_slot):
 				selected_slot = "body"
 				_update_selection_highlight(selected_slot)
 				_populate_part_list_for_slot(selected_slot)
 			_on_craft_window_open()
 		"catalog":
+			_show_customize_page()
 			_build_catalog_window()
 		_:
 			# "customize" (and any fallback): restore the standard editing view.
-			_populate_part_list_for_slot(selected_slot)
+			_show_customize_page()
 
 
 func _init_scrap_editor() -> void:
@@ -873,6 +994,26 @@ func _close_catalog_window() -> void:
 	if catalog_window and is_instance_valid(catalog_window):
 		catalog_window.queue_free()
 	catalog_window = null
+
+
+# Applies a chassis model chosen from the catalog (chassis selection was moved
+# out of the customize page into the catalog).
+func _apply_chassis_from_catalog(key: String) -> void:
+	if not GlobalData.chassis_catalog.has(key):
+		return
+	selected_chassis_key = key
+	GlobalData.chassis_id = key
+	var info: Dictionary = GlobalData.chassis_catalog[key]
+	if status_message_label:
+		status_message_label.text = "Chassis model set to %s!" % info.get("name", key)
+	GlobalData.save_run()
+	_update_total_stats()
+	_update_all_3d_slots_preview()
+	if not info.is_empty():
+		_apply_3d_chassis_preview(info)
+	AudioManager.play_ui_confirm()
+	# Rebuild so the [CURRENT]/ACTIVE marker moves to the new selection.
+	_build_catalog_window()
 
 
 # A full hangar catalog: every craftable armor template across all slots plus
@@ -911,7 +1052,7 @@ func _build_catalog_window() -> void:
 	modal.add_child(vbox)
 
 	var title = Label.new()
-	title.text = "CATALOG — ALL ARMOR & WEAPONS"
+	title.text = "CATALOG — CHASSIS, ALL ARMOR & WEAPONS"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_color_override("font_color", _highlight_color)
 	title.add_theme_font_size_override("font_size", 15)
@@ -932,6 +1073,45 @@ func _build_catalog_window() -> void:
 	rows.add_theme_constant_override("separation", 5)
 	rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(rows)
+
+	# Chassis models now live here (the CHASSIS tab was moved out of the
+	# customize page into the catalog).
+	var chassis_title = Label.new()
+	chassis_title.text = "=== CHASSIS (MODEL) ==="
+	chassis_title.add_theme_color_override("font_color", Color(0.4, 0.85, 1.0))
+	chassis_title.add_theme_font_size_override("font_size", 13)
+	rows.add_child(chassis_title)
+
+	for key in GlobalData.chassis_catalog:
+		var cinfo: Dictionary = GlobalData.chassis_catalog[key]
+		var is_current: bool = key == GlobalData.chassis_id
+		var crow = HBoxContainer.new()
+		crow.add_theme_constant_override("separation", 8)
+		rows.add_child(crow)
+
+		var clbl = Label.new()
+		clbl.text = "%s%s  (load %.0fkg, %.1f m/s)" % [
+			("[CURRENT] " if is_current else ""),
+			cinfo.get("name", key),
+			cinfo.get("max_weight", 75.0),
+			cinfo.get("speed", 10.0),
+		]
+		clbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		clbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		crow.add_child(clbl)
+
+		var sel_btn = Button.new()
+		if is_current:
+			sel_btn.text = "ACTIVE"
+			sel_btn.disabled = true
+		else:
+			sel_btn.text = "SELECT"
+			sel_btn.pressed.connect(func(): _apply_chassis_from_catalog(key))
+		sel_btn.custom_minimum_size = Vector2(160, 30)
+		crow.add_child(sel_btn)
+
+	var chass_sep = HSeparator.new()
+	rows.add_child(chass_sep)
 
 	for slot in GlobalData.MECHA_SLOTS:
 		if not armor_catalog.has(slot):
@@ -1049,15 +1229,6 @@ func _stats_text_for_index(index: int) -> String:
 		var cost = _get_upgrade_cost()
 		return "INNER FRAME REACTOR LEVEL: %d -> %d\n\nEFFECTS:\n+25 FRAME HP per slot\n+15.0 kg MAX WEIGHT CAPACITY\n+1.5 m/s DASH THRUST SPEED\n\nUPGRADE COST: %d Credits" % [
 			GlobalData.frame_upgrade_level, GlobalData.frame_upgrade_level + 1, cost
-		]
-
-	if current_mode == "chassis":
-		var keys = GlobalData.chassis_catalog.keys()
-		if index < 0 or index >= keys.size():
-			return ""
-		var info = GlobalData.chassis_catalog[keys[index]]
-		return "MODEL: %s\n\nSPEED BOOST: %.1f m/s\nMAX LOAD CAPACITY: %.1f kg\nSTRUCTURE RATING: Military Grade" % [
-			info.get("name", "Chassis"), info.get("speed", 10.0), info.get("max_weight", 100.0)
 		]
 
 	if current_mode == "attachment":
@@ -1287,7 +1458,7 @@ func _craft_armor_from_template(info: Dictionary) -> void:
 func _select_slot_tab(slot: String) -> void:
 	selected_slot = slot
 	_close_craft_window()
-	sub_toggle_container.visible = (slot != "chassis" and not slot.begins_with("weapon"))
+	sub_toggle_container.visible = not slot.begins_with("weapon")
 	if ammo_loadout_box:
 		ammo_loadout_box.visible = slot.begins_with("weapon")
 		if ammo_loadout_box.visible:
@@ -1362,9 +1533,6 @@ func _apply_tab_blink(on: bool) -> void:
 
 func _update_camera_focus_for_slot(slot: String) -> void:
 	match slot:
-		"chassis":
-			cam_target_pos = Vector3(4.6, 2.6, 5.5)
-			cam_look_target = Vector3(0, 2.3, 0)
 		"head":
 			cam_target_pos = Vector3(2.6, 3.0, 3.2)
 			cam_look_target = Vector3(0, 3.0, 0)
@@ -1508,18 +1676,6 @@ func _populate_part_list_for_slot(slot: String) -> void:
 		_is_populating = false
 		return
 
-	if slot == "chassis":
-		for key in GlobalData.chassis_catalog:
-			var info = GlobalData.chassis_catalog[key]
-			var label_str = "%s [Limit: %.0fkg]" % [info["name"], info["max_weight"]]
-			part_item_list.add_item(label_str)
-		if GlobalData.chassis_catalog.size() > 0:
-			part_item_list.select(0)
-			_last_selected_item_index = 0
-			_on_part_item_selected(0)
-		_is_populating = false
-		return
-
 	var is_destroyed = GlobalData.part_damage.get(slot + "_frame", 0.0) >= 1.0
 
 	if current_mode == "frame" and frame_catalog.has(slot):
@@ -1612,19 +1768,6 @@ func _on_part_item_selected(index: int) -> void:
 			GlobalData.frame_upgrade_level, GlobalData.frame_upgrade_level + 1, cost
 		]
 		selected_salvage_info = {}
-		return
-
-	if current_mode == "chassis":
-		var keys = GlobalData.chassis_catalog.keys()
-		if index < 0 or index >= keys.size(): return
-		selected_chassis_key = keys[index]
-		var info = GlobalData.chassis_catalog[selected_chassis_key]
-		stats_label.text = "MODEL: %s\n\nSPEED BOOST: %.1f m/s\nMAX LOAD CAPACITY: %.1f kg\nSTRUCTURE RATING: Military Grade" % [
-			info.get("name", "Chassis"), info.get("speed", 10.0), info.get("max_weight", 100.0)
-		]
-		# Chassis preview: only show color change when user clicks, not during populate
-		if not _is_populating:
-			_apply_3d_chassis_preview(info)
 		return
 
 	if current_mode == "attachment":
@@ -2411,14 +2554,6 @@ func _on_equip_pressed() -> void:
 			_update_total_stats()
 		else:
 			status_message_label.text = "Insufficient Credits!"
-		return
-
-	if selected_slot == "chassis":
-		GlobalData.chassis_id = selected_chassis_key
-		var name_str = GlobalData.chassis_catalog[selected_chassis_key].get("name", "Chassis")
-		status_message_label.text = "Chassis Model Set & Applied: %s!" % name_str
-		GlobalData.save_run()
-		_update_total_stats()
 		return
 
 	if current_mode == "attachment" and not selected_attachment_info.is_empty():

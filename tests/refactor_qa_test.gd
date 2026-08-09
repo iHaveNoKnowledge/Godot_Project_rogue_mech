@@ -10,6 +10,7 @@ func _ready() -> void:
 	_test_durability_helpers()
 	_test_repair_cost_consistency()
 	_test_loadout_weight()
+	_test_weapon_duplicate_items()
 	_test_slot_paths()
 	_test_run_reset_is_clean()
 	_test_roll_random_start()
@@ -125,6 +126,39 @@ func _test_loadout_weight() -> void:
 	var expected := float(left.weight) + float(right.weight) + float(carry.weight)
 	_check(is_equal_approx(GlobalData.get_loadout_weapons_total(), expected), "loadout weight sums weapons")
 	_check(is_equal_approx(GlobalData.get_loadout_weapon_weight(), GlobalData.get_loadout_weapons_total()), "weight alias matches")
+
+
+func _test_weapon_duplicate_items() -> void:
+	# Regression: same-model weapons are DISTINCT items. Two copies of one weapon
+	# id must be two inventory counts, two carry slots, and double the field-pack
+	# weight — never merged into one (which made a single carried weapon show
+	# "[E]" on several list rows).
+	GlobalData.reset_run_data()
+	GlobalData.weapon_inventory.clear()
+	GlobalData.weapon_loadout.clear()
+
+	# register_weapon dedupes by path but keeps a count; it also uses the real
+	# weapon name instead of any caller-supplied label like "Starter".
+	GlobalData.register_weapon(GlobalData.DEFAULT_LEFT_WEAPON_PATH, "Starter")
+	GlobalData.register_weapon(GlobalData.DEFAULT_LEFT_WEAPON_PATH, "Starter")
+	_check(GlobalData.weapon_inventory.size() == 1, "registering same weapon twice keeps one inventory row")
+	_check(int(GlobalData.weapon_inventory[0].get("count", 0)) == 2, "inventory count tracks both copies")
+	var real_name = load(GlobalData.DEFAULT_LEFT_WEAPON_PATH).weapon_name
+	_check(str(GlobalData.weapon_inventory[0].get("name", "")) == str(real_name), "inventory shows real weapon name, not 'Starter'")
+
+	# Carrying both copies is allowed and both are counted.
+	GlobalData.add_carry_weapon(GlobalData.DEFAULT_LEFT_WEAPON_PATH)
+	GlobalData.add_carry_weapon(GlobalData.DEFAULT_LEFT_WEAPON_PATH)
+	_check(GlobalData.is_weapon_in_carry(GlobalData.DEFAULT_LEFT_WEAPON_PATH), "weapon is in carry")
+	_check(GlobalData.count_carry_weapon(GlobalData.DEFAULT_LEFT_WEAPON_PATH) == 2, "carry counts both copies")
+
+	# Field-pack weight reflects both physical copies.
+	var one_weight := float(load(GlobalData.DEFAULT_LEFT_WEAPON_PATH).weight)
+	_check(is_equal_approx(GlobalData.get_loadout_weapons_total(), one_weight * 2.0), "two carried copies weigh double")
+
+	# Dropping one copy removes exactly one.
+	GlobalData.remove_carry_weapon(GlobalData.DEFAULT_LEFT_WEAPON_PATH)
+	_check(GlobalData.count_carry_weapon(GlobalData.DEFAULT_LEFT_WEAPON_PATH) == 1, "drop removes a single copy")
 
 
 func _test_slot_paths() -> void:

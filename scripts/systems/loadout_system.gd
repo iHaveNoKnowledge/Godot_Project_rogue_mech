@@ -110,12 +110,25 @@ static func is_weapon_in_carry(path: String) -> bool:
 
 
 static func add_carry_weapon(path: String) -> void:
+	# Each entry is one physical copy. Same-model weapons are distinct items
+	# (like two controllers of the same model), so duplicates are allowed.
 	var carry_paths = GlobalData.weapon_loadout.get("carry", [])
 	if not (carry_paths is Array):
 		carry_paths = []
-	if path not in carry_paths:
-		carry_paths.append(path)
+	carry_paths.append(path)
 	GlobalData.weapon_loadout["carry"] = carry_paths
+
+
+# How many physical copies of a weapon model are currently on the back pack.
+static func count_carry_weapon(path: String) -> int:
+	var carry_paths = GlobalData.weapon_loadout.get("carry", [])
+	if not (carry_paths is Array):
+		return 0
+	var count := 0
+	for p in carry_paths:
+		if str(p) == path:
+			count += 1
+	return count
 
 
 static func remove_carry_weapon(path: String) -> void:
@@ -225,11 +238,31 @@ static func consume_reserve_ammo(ammo_type: String, amount: int) -> int:
 	return taken
 
 
-static func register_weapon(path: String, weapon_name: String) -> void:
+static func register_weapon(path: String, weapon_name: String = "") -> void:
+	# The real weapon model name wins over any caller-provided label (e.g. the
+	# run-start code once registered everything as "Starter"). Keeps the stash
+	# listing readable no matter who called in.
+	var display_name := weapon_name
+	if ResourceLoader.exists(path):
+		var res = load(path)
+		if res and ("weapon_name" in res) and str(res.weapon_name) != "":
+			display_name = str(res.weapon_name)
+	if display_name == "":
+		display_name = "Weapon"
+	# One inventory entry per weapon MODEL (same id/path), with a count. Picking
+	# up or crafting another copy of the same model increments the count instead
+	# of appending duplicate rows (which made one carried weapon show "[E]" on
+	# several list entries).
+	for entry in GlobalData.weapon_inventory:
+		if str(entry.get("path", "")) == path:
+			entry["count"] = int(entry.get("count", 1)) + 1
+			entry["name"] = display_name
+			return
 	GlobalData.weapon_inventory.append({
 		"uid": GlobalData._new_uid("w"),
 		"path": path,
-		"name": weapon_name,
+		"name": display_name,
 		"durability": 1.0,
-		"upgrade_level": 1
+		"upgrade_level": 1,
+		"count": 1
 	})

@@ -25,15 +25,25 @@ var visible_weapon_indices: Array[int] = []
 # the 3D model preview. Set during _populate_part_list_for_slot() auto-selects.
 var _is_populating: bool = false
 var _is_dragging_3d: bool = false
+var _last_hover_index: int = -1
 var _part_action_modal: Control = null
 # Crafting lives in its own separate window, never inside the equip list.
 var craft_window: Control = null
+# Global catalog browser (all armor templates + owned weapons).
+var catalog_window: Control = null
 # Slot tab buttons keyed by slot id, reused for UI-only selection highlight.
 var slot_tab_buttons: Dictionary = {}
 var _blink_timer: float = 0.0
 var _blink_interval: float = 0.45
 var _blink_on: bool = true
 var _blink_target_button: Button = null
+
+# Top-level hangar sub-menu: [CUSTOMIZE | EMERGENCY REPAIR | UPGRADE | CRAFT | CATALOG]
+var hangar_submenu_buttons: Dictionary = {}
+var current_submenu: String = "customize"
+var scrap_editor: CanvasLayer = null
+# Hover-preview label on the right panel (shows the item under the cursor).
+var hover_stats_label: Label = null
 
 # Attachment Catalog — lives in GlobalData (loaded from resources/data/mech_catalogs.tres).
 var attachment_catalog: Array:
@@ -199,16 +209,20 @@ func _build_ui_layout() -> void:
 	# Top Header Bar
 	var header = PanelContainer.new()
 	header.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	header.custom_minimum_size = Vector2(0, 52)
+	header.custom_minimum_size = Vector2(0, 80)
 	root.add_child(header)
 
 	var style_hdr = StyleBoxFlat.new()
 	style_hdr.bg_color = Color(0.06, 0.08, 0.12, 0.92)
 	header.add_theme_stylebox_override("panel", style_hdr)
 
+	var header_vbox = VBoxContainer.new()
+	header_vbox.add_theme_constant_override("separation", 2)
+	header.add_child(header_vbox)
+
 	var hdr_box = HBoxContainer.new()
 	hdr_box.add_theme_constant_override("separation", 15)
-	header.add_child(hdr_box)
+	header_vbox.add_child(hdr_box)
 
 	var title_lbl = Label.new()
 	title_lbl.text = " 🛠️ 3D MECHA GARAGE "
@@ -248,10 +262,30 @@ func _build_ui_layout() -> void:
 		slot_tab_buttons[slot_info["id"]] = btn
 		tab_container.add_child(btn)
 
+	# Sub-Menu bar (second header row): quick switch between hangar pages.
+	var submenu_box = HBoxContainer.new()
+	submenu_box.add_theme_constant_override("separation", 6)
+	header_vbox.add_child(submenu_box)
+	var submenu_items = [
+		{"id": "customize", "label": "CUSTOMIZE"},
+		{"id": "emergency", "label": "EMERGENCY REPAIR"},
+		{"id": "upgrade", "label": "UPGRADE"},
+		{"id": "craft", "label": "CRAFT"},
+		{"id": "catalog", "label": "CATALOG"},
+	]
+	for item in submenu_items:
+		var sbtn = Button.new()
+		sbtn.text = item["label"]
+		sbtn.custom_minimum_size = Vector2(150, 26)
+		sbtn.focus_mode = Control.FOCUS_NONE
+		sbtn.pressed.connect(func(): _select_hangar_submenu(item["id"]))
+		hangar_submenu_buttons[item["id"]] = sbtn
+		submenu_box.add_child(sbtn)
+
 	# Sub-Toggle Bar for Armor Plating vs Inner Skeleton Frame vs Power Upgrade
 	sub_toggle_container = HBoxContainer.new()
 	sub_toggle_container.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	sub_toggle_container.offset_top = 58
+	sub_toggle_container.offset_top = 86
 	sub_toggle_container.add_theme_constant_override("separation", 8)
 	root.add_child(sub_toggle_container)
 
@@ -282,7 +316,7 @@ func _build_ui_layout() -> void:
 	# Left Sidebar (Part Catalog List & Salvaged Drops)
 	var left_panel = PanelContainer.new()
 	left_panel.set_anchors_preset(Control.PRESET_LEFT_WIDE)
-	left_panel.offset_top = 96
+	left_panel.offset_top = 128
 	left_panel.offset_bottom = -20
 	left_panel.offset_left = 20
 	left_panel.custom_minimum_size = Vector2(330, 0)
@@ -332,7 +366,7 @@ func _build_ui_layout() -> void:
 	# Right Sidebar (Stats & Gundam Frame Core Power Panel)
 	var right_panel = PanelContainer.new()
 	right_panel.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
-	right_panel.offset_top = 96
+	right_panel.offset_top = 128
 	right_panel.offset_bottom = -20
 	right_panel.offset_right = -20
 	right_panel.custom_minimum_size = Vector2(350, 0)
@@ -362,6 +396,19 @@ func _build_ui_layout() -> void:
 	stats_label.text = "Select a chassis, frame, or armor to view specifications"
 	stats_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	right_box.add_child(stats_label)
+
+	# Hover preview: shows the stats of the item currently under the cursor.
+	var hover_title = Label.new()
+	hover_title.text = "--- HOVER INFO ---"
+	hover_title.add_theme_font_size_override("font_size", 12)
+	hover_title.add_theme_color_override("font_color", Color(0.5, 0.85, 0.6))
+	right_box.add_child(hover_title)
+
+	hover_stats_label = Label.new()
+	hover_stats_label.text = "Point at an item in the list to preview its stats."
+	hover_stats_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hover_stats_label.add_theme_font_size_override("font_size", 11)
+	right_box.add_child(hover_stats_label)
 
 	var sep = HSeparator.new()
 	right_box.add_child(sep)
@@ -610,6 +657,9 @@ func _process(delta: float) -> void:
 			_blink_on = not _blink_on
 			_apply_tab_blink(_blink_on)
 
+	# Live hover preview of the list row under the cursor (customize page).
+	_refresh_hover_stats()
+
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not visible:
@@ -779,6 +829,304 @@ func _switch_custom_mode(mode: String) -> void:
 		return
 
 	_populate_part_list_for_slot(selected_slot)
+
+
+# --- HANGAR SUB-MENU (CUSTOMIZE / EMERGENCY REPAIR / UPGRADE / CRAFT / CATALOG) ---
+
+func _select_hangar_submenu(id: String) -> void:
+	current_submenu = id
+	_close_craft_window()
+	_close_catalog_window()
+	match id:
+		"emergency":
+			# Emergency scrap repair runs right inside the hangar as a page.
+			_init_scrap_editor()
+			var first_slot := ""
+			for slot in GlobalData.MECHA_SLOTS:
+				if GlobalData.get_emergency_repair_scrap_cost(slot) > 0:
+					first_slot = slot
+					break
+			scrap_editor.open(first_slot)
+		"upgrade":
+			_switch_custom_mode("upgrade")
+		"craft":
+			if not armor_catalog.has(selected_slot):
+				selected_slot = "body"
+				_update_selection_highlight(selected_slot)
+				_populate_part_list_for_slot(selected_slot)
+			_on_craft_window_open()
+		"catalog":
+			_build_catalog_window()
+		_:
+			# "customize" (and any fallback): restore the standard editing view.
+			_populate_part_list_for_slot(selected_slot)
+
+
+func _init_scrap_editor() -> void:
+	if scrap_editor != null:
+		return
+	scrap_editor = preload("res://scripts/ui/scrap_repair_editor.gd").new()
+	add_child(scrap_editor)
+
+
+func _close_catalog_window() -> void:
+	if catalog_window and is_instance_valid(catalog_window):
+		catalog_window.queue_free()
+	catalog_window = null
+
+
+# A full hangar catalog: every craftable armor template across all slots plus
+# the weapons you own, so the driver can browse/craft in one place.
+func _build_catalog_window() -> void:
+	_close_part_action_modal()
+	_close_craft_window()
+	_close_catalog_window()
+
+	var modal = PanelContainer.new()
+	modal.name = "CatalogWindow"
+	modal.anchor_left = 0.5
+	modal.anchor_right = 0.5
+	modal.anchor_top = 0.5
+	modal.anchor_bottom = 0.5
+	modal.offset_left = -420
+	modal.offset_right = 420
+	modal.offset_top = -330
+	modal.offset_bottom = 330
+
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.10, 0.10, 0.16, 0.97)
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.border_color = _highlight_color
+	style.corner_radius_top_left = 8
+	style.corner_radius_top_right = 8
+	style.corner_radius_bottom_left = 8
+	style.corner_radius_bottom_right = 8
+	modal.add_theme_stylebox_override("panel", style)
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	modal.add_child(vbox)
+
+	var title = Label.new()
+	title.text = "CATALOG — ALL ARMOR & WEAPONS"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_color_override("font_color", _highlight_color)
+	title.add_theme_font_size_override("font_size", 15)
+	vbox.add_child(title)
+
+	var hint = Label.new()
+	hint.text = "Scrap: %d   Credits: %d   Data Cores: %d" % [GlobalData.scrap, GlobalData.credits, GlobalData.data_cores]
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.add_theme_color_override("font_color", Color(0.5, 0.9, 0.6))
+	vbox.add_child(hint)
+
+	var scroll = ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(800, 520)
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(scroll)
+
+	var rows = VBoxContainer.new()
+	rows.add_theme_constant_override("separation", 5)
+	rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(rows)
+
+	for slot in GlobalData.MECHA_SLOTS:
+		if not armor_catalog.has(slot):
+			continue
+		var sec_title = Label.new()
+		sec_title.text = "=== %s ===" % slot.to_upper()
+		sec_title.add_theme_color_override("font_color", Color(0.4, 0.85, 1.0))
+		sec_title.add_theme_font_size_override("font_size", 13)
+		rows.add_child(sec_title)
+
+		for info in armor_catalog[slot]:
+			var s_cost := GlobalData.get_armor_scrap_cost(info)
+			var c_cost := GlobalData.get_armor_credit_cost(info)
+			var blueprint_locked := GlobalData.entry_is_blueprint_locked(info)
+
+			var row = HBoxContainer.new()
+			row.add_theme_constant_override("separation", 8)
+			rows.add_child(row)
+
+			var info_lbl = Label.new()
+			var bp_tag = "  [BLUEPRINT]" if blueprint_locked else ""
+			info_lbl.text = "%s%s [%s]  %.1fkg   (%.0f HP / %.0f armor)" % [
+				info.get("name", "Armor"), bp_tag, info.get("type", "?"),
+				GlobalData.part_stat(info, "weight", 0.0),
+				GlobalData.part_stat(info, "max_hp", 0.0),
+				GlobalData.part_stat(info, "armor", 0.0)
+			]
+			info_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			info_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			row.add_child(info_lbl)
+
+			var craft_btn = Button.new()
+			if blueprint_locked:
+				craft_btn.text = "RESEARCH TO UNLOCK"
+				craft_btn.disabled = true
+			else:
+				craft_btn.text = "CRAFT  %d scrap / %d cr" % [s_cost, c_cost]
+				craft_btn.disabled = GlobalData.scrap < s_cost or GlobalData.credits < c_cost
+				craft_btn.pressed.connect(func(): _craft_armor_from_template(info))
+			craft_btn.custom_minimum_size = Vector2(160, 30)
+			row.add_child(craft_btn)
+
+	var wsec = Label.new()
+	wsec.text = "=== WEAPON STASH (OWNED) ==="
+	wsec.add_theme_color_override("font_color", Color(0.4, 0.85, 1.0))
+	wsec.add_theme_font_size_override("font_size", 13)
+	rows.add_child(wsec)
+
+	if GlobalData.weapon_inventory.is_empty():
+		var none = Label.new()
+		none.text = "No weapons owned yet."
+		rows.add_child(none)
+	for inv in GlobalData.weapon_inventory:
+		var wpath := str(inv.get("path", ""))
+		var wname := str(inv.get("name", "Weapon"))
+		var count := int(inv.get("count", 1))
+		var type_str := "?"
+		var wt := 0.0
+		if wpath != "" and ResourceLoader.exists(wpath):
+			var res = load(wpath)
+			if res:
+				type_str = _weapon_type_label(res.weapon_type) if "weapon_type" in res else "?"
+				wt = float(res.weight) if "weight" in res and res.weight != null else 0.0
+		var wrow = HBoxContainer.new()
+		rows.add_child(wrow)
+		var wlbl = Label.new()
+		wlbl.text = "x%d  %s  (%s, %.1fkg)" % [count, wname, type_str, wt]
+		wlbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		wrow.add_child(wlbl)
+
+	var sep = HSeparator.new()
+	vbox.add_child(sep)
+
+	var close_btn = Button.new()
+	close_btn.text = "CLOSE CATALOG"
+	close_btn.custom_minimum_size = Vector2(0, 36)
+	close_btn.pressed.connect(func(): _close_catalog_window())
+	vbox.add_child(close_btn)
+
+	if root_control:
+		root_control.add_child(modal)
+	else:
+		add_child(modal)
+	catalog_window = modal
+
+
+# --- HOVER STATS (right-side preview of the item under the cursor) ---
+
+func _refresh_hover_stats() -> void:
+	if hover_stats_label == null:
+		return
+	var idx := _hovered_list_index()
+	if idx == _last_hover_index:
+		return
+	_last_hover_index = idx
+	if idx < 0:
+		hover_stats_label.text = "Point at an item in the list to preview its stats."
+		return
+	hover_stats_label.text = _stats_text_for_index(idx)
+
+
+func _hovered_list_index() -> int:
+	if part_item_list == null or not part_item_list.visible:
+		return -1
+	var mouse_pos := part_item_list.get_global_mouse_position()
+	if not part_item_list.get_global_rect().has_point(mouse_pos):
+		return -1
+	return part_item_list.get_item_at_position(part_item_list.get_local_mouse_position())
+
+
+# Builds a plain-text stat card for a list row WITHOUT changing selection or the
+# 3D preview. Mirrors the text of _on_part_item_selected for each mode.
+func _stats_text_for_index(index: int) -> String:
+	if current_mode == "upgrade":
+		var cost = _get_upgrade_cost()
+		return "INNER FRAME REACTOR LEVEL: %d -> %d\n\nEFFECTS:\n+25 FRAME HP per slot\n+15.0 kg MAX WEIGHT CAPACITY\n+1.5 m/s DASH THRUST SPEED\n\nUPGRADE COST: %d Credits" % [
+			GlobalData.frame_upgrade_level, GlobalData.frame_upgrade_level + 1, cost
+		]
+
+	if current_mode == "chassis":
+		var keys = GlobalData.chassis_catalog.keys()
+		if index < 0 or index >= keys.size():
+			return ""
+		var info = GlobalData.chassis_catalog[keys[index]]
+		return "MODEL: %s\n\nSPEED BOOST: %.1f m/s\nMAX LOAD CAPACITY: %.1f kg\nSTRUCTURE RATING: Military Grade" % [
+			info.get("name", "Chassis"), info.get("speed", 10.0), info.get("max_weight", 100.0)
+		]
+
+	if current_mode == "attachment":
+		if index < 0 or index >= attachment_catalog.size():
+			return ""
+		var info = attachment_catalog[index]
+		var capacity = _get_attachment_capacity(selected_slot)
+		var used = _get_attachment_weight(selected_slot, info["id"])
+		return "ATTACHMENT: %s\n\nTARGET SECTION: %s\nWEIGHT: %.1f kg\nSECTION CAPACITY: %.1f kg\nCURRENT LOAD: %.1f kg\nPOWER COST: %.1f" % [
+			info["name"], selected_slot.to_upper(), info["weight"], capacity, used, info["power_cost"]
+		]
+
+	if current_mode == "frame" and frame_catalog.has(selected_slot):
+		var frame_items = frame_catalog[selected_slot]
+		if index < 0 or index >= frame_items.size():
+			return ""
+		var info = frame_items[index]
+		var fname = info.get("name", info.get("part_name", "Inner Frame"))
+		var fhp = info.get("hp", info.get("max_hp", 25.0))
+		var fwt = info.get("weight", 3.0)
+		if _is_item_equipped(selected_slot, info):
+			var frame_dmg = GlobalData.part_damage.get(selected_slot + "_frame", 0.0)
+			return "INNER FRAME PART: %s  [E]\n\nFRAME HP: %.0f / %.0f\nFRAME WEIGHT: %.1f kg\n\nCurrently equipped." % [
+				fname, fhp * (1.0 - clampf(frame_dmg, 0.0, 1.0)), fhp, fwt
+			]
+		return "INNER FRAME PART: %s\n\nFRAME HP: %.0f\nFRAME WEIGHT: %.1f kg\n\nEquip to install fresh at 100%% HP." % [fname, fhp, fwt]
+
+	if selected_slot.begins_with("weapon"):
+		if index < 0 or index >= visible_weapon_indices.size():
+			return ""
+		var inv = GlobalData.weapon_inventory[visible_weapon_indices[index]]
+		var wpath = inv.get("path", "")
+		var wname = inv.get("name", "Weapon")
+		var wdur = GlobalData.get_durability_ratio(inv)
+		var wwt := 0.0
+		var wtype := "Unknown"
+		if wpath != "" and ResourceLoader.exists(wpath):
+			var res = load(wpath)
+			if res:
+				wwt = float(res.weight) if "weight" in res and res.weight != null else 0.0
+				wtype = _weapon_type_label(res.weapon_type) if "weapon_type" in res else "Unknown"
+		var owned := int(inv.get("count", 1))
+		if selected_slot == "weapon_carry":
+			var carried := GlobalData.count_carry_weapon(wpath)
+			return "BACK CARRY: %s\nTYPE: %s\n\nWEIGHT: %.1f kg\nDURABILITY: %.0f%%\nOWNED: x%d | ON PACK: x%d\n\nFIELD PACK: %.1f / %.1f kg" % [
+				wname, wtype, wwt, wdur * 100.0, owned, carried,
+				GlobalData.get_field_pack_weight(), GlobalData.get_field_pack_capacity()
+			]
+		var hand = "left" if selected_slot == "weapon_left" else "right"
+		var eq = str(GlobalData.weapon_loadout.get(hand, "")) == wpath
+		return "%s HAND WEAPON: %s%s\nTYPE: %s\n\nWEIGHT: %.1f kg\nDURABILITY: %.0f%%\nOWNED: x%d\n\nFIELD PACK: %.1f / %.1f kg" % [
+			hand.to_upper(), "[E] " if eq else "", wname, wtype, wwt, wdur * 100.0, owned,
+			GlobalData.get_field_pack_weight(), GlobalData.get_field_pack_capacity()
+		]
+
+	if armor_catalog.has(selected_slot):
+		if index >= 0 and index < visible_salvage_indices.size():
+			var inst = GlobalData.armor_inventory[visible_salvage_indices[index]]
+			var item_name = inst.get("name", inst.get("part_name", "Armor Instance"))
+			var item_type = inst.get("type", "Instance")
+			var item_hp = inst.get("hp", inst.get("max_hp", 30.0))
+			var item_armor = inst.get("armor", 15.0)
+			var item_weight = inst.get("weight", 4.0)
+			var dur_pct = _get_instance_durability(selected_slot, inst)
+			var is_eq = _is_item_equipped(selected_slot, inst)
+			return "OWNED ARMOR: %s  %s\nTYPE: %s\n\nARMOR HP: %.0f / %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg\nDURABILITY: %.0f%%" % [
+				item_name, "[E]" if is_eq else "", item_type, item_hp * dur_pct, item_hp, item_armor, item_weight, dur_pct * 100.0
+			]
+	return ""
 
 
 # --- SEPARATE CRAFT WINDOW (unrelated to the equip list) ---
@@ -951,7 +1299,9 @@ func _select_slot_tab(slot: String) -> void:
 
 
 func _update_selection_highlight(slot: String) -> void:
-	var label = root_control.get_node_or_null("SelectionLabel") if root_control else null
+	var label: Label = null
+	if root_control:
+		label = root_control.find_child("SelectionLabel", true, false) as Label
 	if label:
 		label.text = "EDITING: %s" % slot.to_upper()
 
@@ -959,16 +1309,24 @@ func _update_selection_highlight(slot: String) -> void:
 	_remove_3d_selection_highlight()
 	_blink_target_button = null
 	for key in slot_tab_buttons:
-		var btn: Button = slot_tab_buttons[key]
-		btn.remove_theme_color_override("font_color")
-		btn.remove_theme_color_override("font_hover_color")
-		btn.remove_theme_color_override("font_pressed_color")
-		btn.modulate = Color.WHITE
+		_apply_tab_unselected(slot_tab_buttons[key])
 	if slot_tab_buttons.has(slot):
 		_blink_target_button = slot_tab_buttons[slot]
 		_blink_timer = 0.0
 		_blink_on = true
 		_apply_tab_blink(true)
+
+
+func _apply_tab_unselected(btn: Button) -> void:
+	if btn == null or not is_instance_valid(btn):
+		return
+	# Unselected slot tabs are dimmed/grayed out entirely.
+	btn.modulate = Color(0.5, 0.5, 0.56)
+	btn.remove_theme_color_override("font_color")
+	btn.remove_theme_color_override("font_hover_color")
+	btn.remove_theme_color_override("font_pressed_color")
+	for state in ["normal", "hover", "pressed", "focus"]:
+		btn.remove_theme_stylebox_override(state)
 
 
 func _remove_3d_selection_highlight() -> void:
@@ -980,16 +1338,26 @@ func _remove_3d_selection_highlight() -> void:
 func _apply_tab_blink(on: bool) -> void:
 	if _blink_target_button == null or not is_instance_valid(_blink_target_button):
 		return
-	if on:
-		_blink_target_button.modulate = Color.WHITE
-		_blink_target_button.add_theme_color_override("font_color", _highlight_color)
-		_blink_target_button.add_theme_color_override("font_hover_color", _highlight_color)
-		_blink_target_button.add_theme_color_override("font_pressed_color", _highlight_color)
-	else:
-		_blink_target_button.modulate = Color(0.72, 0.76, 0.82)
-		_blink_target_button.remove_theme_color_override("font_hover_color")
-		_blink_target_button.remove_theme_color_override("font_pressed_color")
-		_blink_target_button.add_theme_color_override("font_color", Color(0.62, 0.66, 0.72))
+	var btn: Button = _blink_target_button
+	# Blink the ENTIRE tab rectangle (background), not just the text: a filled
+	# accent stylebox that pulses between bright and dim.
+	btn.modulate = Color.WHITE
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.25, 0.55, 1.0, 0.95 if on else 0.35)
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.border_color = Color(1.0, 0.9, 0.4, 1.0)
+	style.corner_radius_top_left = 4
+	style.corner_radius_top_right = 4
+	style.corner_radius_bottom_left = 4
+	style.corner_radius_bottom_right = 4
+	for state in ["normal", "hover", "pressed", "focus"]:
+		btn.add_theme_stylebox_override(state, style)
+	btn.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 1.0))
+	btn.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 1.0, 1.0))
+	btn.add_theme_color_override("font_pressed_color", Color(1.0, 1.0, 1.0, 1.0))
 
 
 func _update_camera_focus_for_slot(slot: String) -> void:
@@ -1185,7 +1553,11 @@ func _populate_part_list_for_slot(slot: String) -> void:
 			var wdur = GlobalData.get_durability_ratio(inv)
 			var is_eq = _is_weapon_in_loadout(slot, wpath)
 			var prefix = "[E] " if is_eq else "    "
-			var label_str = "%s%s (%.0f%%)" % [prefix, wname, wdur * 100.0]
+			# Same-model copies are distinct items: show how many you own and, on
+			# the carry slot, how many are actually on the pack right now.
+			var count := int(inv.get("count", 1))
+			var count_str := " x%d" % count if count > 1 else ""
+			var label_str = "%s%s%s (DUR: %.0f%%)" % [prefix, wname, count_str, wdur * 100.0]
 			part_item_list.add_item(label_str)
 			visible_weapon_indices.append(index)
 		if part_item_list.item_count > 0:
@@ -1315,9 +1687,14 @@ func _on_part_item_selected(index: int) -> void:
 
 			if selected_slot == "weapon_carry":
 				var eq = GlobalData.is_weapon_in_carry(wpath)
+				var carried := GlobalData.count_carry_weapon(wpath)
+				var owned := int(inv.get("count", 1))
 				var prefix = "[E] " if eq else ""
-				stats_label.text = "BACK CARRY: %s%s\nTYPE: %s\n\nWEIGHT: %.1f kg\nDURABILITY: %.0f%%\n\nAssigns to the mech's back pack (FIELD PACK).\nFIELD PACK: %.1f / %.1f kg\nPick weapons from the stash below." % [
-					prefix, wname, wtype, wwt, wdur * 100.0,
+				var copies := ""
+				if owned > 1:
+					copies = "\nOWNED: x%d | ON PACK: x%d" % [owned, carried]
+				stats_label.text = "BACK CARRY: %s%s\nTYPE: %s\n\nWEIGHT: %.1f kg\nDURABILITY: %.0f%%%s\n\nAssigns a copy to the mech's back pack (FIELD PACK).\nFIELD PACK: %.1f / %.1f kg\nPick weapons from the stash below." % [
+					prefix, wname, wtype, wwt, wdur * 100.0, copies,
 					GlobalData.get_field_pack_weight(), GlobalData.get_field_pack_capacity()
 				]
 			else:
@@ -1628,7 +2005,10 @@ func _equip_part_to_slot(slot: String, info: Dictionary) -> void:
 			status_message_label.text = "Weapon not found in stash."
 			return
 		if slot == "weapon_carry":
-			if GlobalData.is_weapon_in_carry(wpath):
+			var carried := GlobalData.count_carry_weapon(wpath)
+			var owned := int(info.get("count", 1))
+			if carried >= owned:
+				status_message_label.text = "You are already carrying every copy of this weapon."
 				return
 			if _would_exceed_field_pack(wpath):
 				status_message_label.text = "FIELD PACK full: exceeds carry capacity!"

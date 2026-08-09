@@ -620,6 +620,10 @@ func _crossfade_to_stream(new_stream: AudioStream, fade_time: float) -> void:
 	var next_player: AudioStreamPlayer = music_player_b if current_music == music_player_a else music_player_a
 	var target_volume_db = linear_to_db(music_volume)
 
+	# Music tracks must loop forever. Imported files (e.g. hangar MP3) usually
+	# come in with loop=false, so a track would play once and then go silent.
+	_enable_looping(new_stream)
+
 	next_player.stream = new_stream
 	next_player.volume_db = -80.0
 	next_player.play()
@@ -637,6 +641,19 @@ func _crossfade_to_stream(new_stream: AudioStream, fade_time: float) -> void:
 	var cleanup_tween = create_tween()
 	cleanup_tween.tween_interval(fade_time)
 	cleanup_tween.tween_callback(func(): old_player.stop())
+
+
+func _enable_looping(stream: AudioStream) -> void:
+	if stream == null:
+		return
+	if stream is AudioStreamMP3:
+		stream.loop = true
+	elif stream is AudioStreamOggVorbis:
+		stream.loop = true
+	elif stream is AudioStreamWAV:
+		stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+		stream.loop_begin = 0
+		stream.loop_end = int(stream.data.size() / (stream.format + 1)) if stream.format == AudioStreamWAV.FORMAT_8_BITS else int(stream.data.size() / 2)
 
 
 func _gen_procedural_menu_track() -> AudioStreamWAV:

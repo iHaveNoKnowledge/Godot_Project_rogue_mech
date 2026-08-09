@@ -507,6 +507,11 @@ func remove_carry_weapon(path: String) -> void:
 	LoadoutSystem.remove_carry_weapon(path)
 
 
+# How many physical copies of a weapon model are currently on the back pack.
+func count_carry_weapon(path: String) -> int:
+	return LoadoutSystem.count_carry_weapon(path)
+
+
 # Returns how much ammo of the given type the player carries into the next battle.
 func get_loadout_ammo(ammo_type: String) -> int:
 	return LoadoutSystem.get_loadout_ammo(ammo_type)

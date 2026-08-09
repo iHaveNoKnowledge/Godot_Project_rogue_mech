@@ -150,32 +150,66 @@ func _ensure_slot_nodes() -> void:
 
 # Picks a per-slot frame + armor entry from the catalogs and applies the
 # archetype's faction color so each enemy variety remains visually distinct.
+# Durability tiers follow the archetype: Heavy gets the bulkiest non-blueprint
+# plates/frames (so its HP matches its 1.6x silhouette), faster archetypes stay
+# light. Blueprint-only tiers (Gundam etc.) are never worn by grunts.
 func _enemy_loadout() -> Dictionary:
 	var palette := _archetype_palette()
+	var wants_heavy := archetype == 2
 	var loadout: Dictionary = {}
 	for slot in ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]:
 		var frame_entry: Dictionary = {}
 		var frames = GlobalData.frame_catalog.get(slot, [])
 		if frames is Array and frames.size() > 0:
-			frame_entry = (frames[0] as Dictionary).duplicate(true)
+			var f_idx: int = clampi(_archetype_frame_index(), 0, frames.size() - 1)
+			frame_entry = (frames[f_idx] as Dictionary).duplicate(true)
 
 		var armor_entry: Dictionary = {}
+		var eligible: Array = []
 		var armors = GlobalData.armor_catalog.get(slot, [])
-		if armors is Array and armors.size() > 0:
-			# Skip blueprint-only tiers so grunts only wear baseline armor.
+		if armors is Array:
 			for entry in armors:
-				if entry.get("blueprint_only", false):
-					continue
-				armor_entry = (entry as Dictionary).duplicate(true)
-				break
-			if armor_entry.is_empty():
-				armor_entry = (armors[0] as Dictionary).duplicate(true)
+				if not entry.get("blueprint_only", false):
+					eligible.append(entry as Dictionary)
+		if eligible.size() > 0:
+			# Heaviest grunt wears the most durable plate; faster archetypes the
+			# lightest. Picking by HP is safer than by index (catalog order isn't
+			# always worst->best, e.g. head_002 is a light recon helmet).
+			armor_entry = _pick_armor_by_tier(eligible, wants_heavy).duplicate(true)
 		if not armor_entry.is_empty():
 			armor_entry["equipped"] = true
 			armor_entry["color"] = palette.get(slot, palette.get("default", Color(0.7, 0.15, 0.15)))
 
 		loadout[slot] = {"frame": frame_entry, "armor": armor_entry}
 	return loadout
+
+
+# Frame durability tier per archetype: Rusher=base 0, Ranged=1, Support=2,
+# Heavy=3 (indexes into the per-slot frame_catalog arrays).
+func _archetype_frame_index() -> int:
+	match archetype:
+		1:
+			return 1
+		2:
+			return 3
+		3:
+			return 2
+		_:
+			return 0
+
+
+# Returns the armor entry with the greatest (heavy) or smallest (light) HP
+# among the non-blueprint plates a slot has available.
+func _pick_armor_by_tier(eligible: Array, heaviest: bool) -> Dictionary:
+	var best := eligible[0] as Dictionary
+	for entry in eligible:
+		var hp: float = float(entry.get("hp", 0.0))
+		var best_hp: float = float(best.get("hp", 0.0))
+		if heaviest and hp > best_hp:
+			best = entry
+		elif not heaviest and hp < best_hp:
+			best = entry
+	return best
 
 
 func _archetype_palette() -> Dictionary:

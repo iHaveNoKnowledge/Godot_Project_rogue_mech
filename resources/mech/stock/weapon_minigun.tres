@@ -1,0 +1,28 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/mech/weapon_part.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+weapon_name = "Minigun"
+weapon_type = 7
+damage = 8.0
+fire_rate = 0.045
+max_ammo = 200
+ammo_per_shot = 1
+projectile_speed = 120.0
+spread = 0.08
+weight = 20.0
+range_distance = 80.0
+description = "อาวุธสอง_hand อัตรายิงสูงสุด ดาเมจสะสมรุนแรง แต่ร้อนเร็วมาก ต้องใช้ Power เพลย์"
+rarity = 2
+ammo_type = "kinetic"
+two_handed = true
+power_required = 14.0
+heat_capacity = 100.0
+heat_per_shot = 3.5
+heat_cool_rate = 22.0
+heat_release_ratio = 0.4
+recoil_force = 4.0
+recoil_shake = 0.18
+impact = 0.6

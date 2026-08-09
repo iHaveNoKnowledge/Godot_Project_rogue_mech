@@ -226,30 +226,35 @@ chassis_catalog = {
 "color": Color(0.2, 0.4, 0.5, 1),
 "max_weight": 95.0,
 "name": "AEGIS FORTRESS-04 (Heavy Defense Barrier)",
+"power": 14.0,
 "speed": 11.5
 },
 "brawler": {
 "color": Color(0.35, 0.4, 0.28, 1),
 "max_weight": 88.0,
 "name": "BERSERKER BRAWLER-X (Close Combat Specialist)",
+"power": 13.0,
 "speed": 15.0
 },
 "standard": {
 "color": Color(0.6, 0.65, 0.7, 1),
 "max_weight": 75.0,
 "name": "ZENISREV-01 (Standard Scout)",
+"power": 12.0,
 "speed": 14.0
 },
 "titan": {
 "color": Color(0.3, 0.15, 0.35, 1),
 "max_weight": 110.0,
 "name": "TITAN OVERLORD-X (Heavy Siege)",
+"power": 18.0,
 "speed": 10.5
 },
 "vanguard": {
 "color": Color(0.85, 0.85, 0.9, 1),
 "max_weight": 55.0,
 "name": "VANGUARD STRIKER-09 (High-Mobility Recon)",
+"power": 8.0,
 "speed": 18.0
 }
 }

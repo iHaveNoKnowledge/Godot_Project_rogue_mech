@@ -3,6 +3,7 @@ extends CharacterBody3D
 var speed: float = 50.0
 var damage: float = 25.0
 var damage_type: String = "kinetic"
+var impact: float = 0.0
 var lifetime: float = 5.0
 var timer: float = 0.0
 var trail_timer: float = 0.0
@@ -128,6 +129,9 @@ func _hit_target(target: Node3D) -> void:
 		target.take_damage_at_point(final_damage, position, damage_type)
 	elif target.has_method("take_damage"):
 		target.take_damage(final_damage, damage_type)
+
+	if target.has_method("apply_impact") and impact > 0.0:
+		target.apply_impact(impact, direction)
 
 	EffectManager.spawn_damage_number(position + Vector3(0, 1.5, 0), final_damage, Color.WHITE)
 	queue_free()

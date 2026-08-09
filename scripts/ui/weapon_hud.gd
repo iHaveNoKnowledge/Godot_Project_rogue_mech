@@ -7,11 +7,13 @@ var left_panel: PanelContainer
 var left_name_label: Label
 var left_ammo_label: Label
 var left_type_label: Label
+var left_heat_bar: ProgressBar
 
 var right_panel: PanelContainer
 var right_name_label: Label
 var right_ammo_label: Label
 var right_type_label: Label
+var right_heat_bar: ProgressBar
 
 var carry_panel: PanelContainer
 var carry_container: VBoxContainer
@@ -40,6 +42,7 @@ var _dim_color: Color = Color(0.5, 0.5, 0.5, 1)
 const WEAPON_ICONS: Dictionary = {
 	0: "[RIFLE]", 1: "[MG]", 2: "[MISSILE]",
 	3: "[SPREAD]", 4: "[BLADE]", 5: "[SHIELD]",
+	6: "[RAIL]", 7: "[MG2]",
 }
 
 
@@ -79,6 +82,8 @@ func _try_connect_weapon_manager() -> void:
 	weapon_manager = wm
 	weapon_manager.weapon_switched.connect(_on_weapon_switched)
 	weapon_manager.ammo_changed.connect(_on_ammo_changed)
+	if weapon_manager.has_signal("heat_changed"):
+		weapon_manager.heat_changed.connect(_on_heat_changed)
 	if weapon_manager.has_signal("reload_progress"):
 		weapon_manager.reload_progress.connect(_on_reload_progress)
 	weapon_manager.carry_updated.connect(_on_carry_updated)
@@ -144,6 +149,16 @@ func _make_panel_style(bg_color: Color = _bg_color, corner: int = 8) -> StyleBox
 	return style
 
 
+func _make_heat_style() -> StyleBoxFlat:
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.6, 0.1, 0.05, 0.9)
+	style.corner_radius_top_left = 3
+	style.corner_radius_top_right = 3
+	style.corner_radius_bottom_left = 3
+	style.corner_radius_bottom_right = 3
+	return style
+
+
 func _create_left_panel() -> void:
 	left_panel = PanelContainer.new()
 	left_panel.anchor_left = 0.0
@@ -179,6 +194,29 @@ func _create_left_panel() -> void:
 	left_ammo_label.add_theme_font_size_override("font_size", 22)
 	left_ammo_label.add_theme_color_override("font_color", _highlight_color)
 	vbox.add_child(left_ammo_label)
+
+	left_heat_bar = ProgressBar.new()
+	left_heat_bar.min_value = 0.0
+	left_heat_bar.max_value = 100.0
+	left_heat_bar.value = 0.0
+	left_heat_bar.custom_minimum_size = Vector2(0, 8)
+	left_heat_bar.show_percentage = false
+	left_heat_bar.visible = false
+	var heat_style = StyleBoxFlat.new()
+	heat_style.bg_color = Color(0.6, 0.1, 0.05, 0.9)
+	heat_style.corner_radius_top_left = 3
+	heat_style.corner_radius_top_right = 3
+	heat_style.corner_radius_bottom_left = 3
+	heat_style.corner_radius_bottom_right = 3
+	var bg_style = StyleBoxFlat.new()
+	bg_style.bg_color = Color(0.15, 0.15, 0.2, 0.8)
+	bg_style.corner_radius_top_left = 3
+	bg_style.corner_radius_top_right = 3
+	bg_style.corner_radius_bottom_left = 3
+	bg_style.corner_radius_bottom_right = 3
+	left_heat_bar.add_theme_stylebox_override("fill", _make_heat_style())
+	left_heat_bar.add_theme_stylebox_override("background", bg_style)
+	vbox.add_child(left_heat_bar)
 
 	var key_hint = Label.new()
 	key_hint.text = "[LMB] Fire  |  [1] Switch"
@@ -222,6 +260,29 @@ func _create_right_panel() -> void:
 	right_ammo_label.add_theme_font_size_override("font_size", 22)
 	right_ammo_label.add_theme_color_override("font_color", _highlight_color)
 	vbox.add_child(right_ammo_label)
+
+	right_heat_bar = ProgressBar.new()
+	right_heat_bar.min_value = 0.0
+	right_heat_bar.max_value = 100.0
+	right_heat_bar.value = 0.0
+	right_heat_bar.custom_minimum_size = Vector2(0, 8)
+	right_heat_bar.show_percentage = false
+	right_heat_bar.visible = false
+	var rheat_style = StyleBoxFlat.new()
+	rheat_style.bg_color = Color(0.6, 0.1, 0.05, 0.9)
+	rheat_style.corner_radius_top_left = 3
+	rheat_style.corner_radius_top_right = 3
+	rheat_style.corner_radius_bottom_left = 3
+	rheat_style.corner_radius_bottom_right = 3
+	var rbg_style = StyleBoxFlat.new()
+	rbg_style.bg_color = Color(0.15, 0.15, 0.2, 0.8)
+	rbg_style.corner_radius_top_left = 3
+	rbg_style.corner_radius_top_right = 3
+	rbg_style.corner_radius_bottom_left = 3
+	rbg_style.corner_radius_bottom_right = 3
+	right_heat_bar.add_theme_stylebox_override("fill", _make_heat_style())
+	right_heat_bar.add_theme_stylebox_override("background", rbg_style)
+	vbox.add_child(right_heat_bar)
 
 	var key_hint = Label.new()
 	key_hint.text = "[RMB] Fire  |  [3] Switch"
@@ -549,6 +610,16 @@ func _on_ammo_changed(_hand: String, _current: int, _max_ammo: int) -> void:
 		_update_carry_display("left" if left_holding else "right")
 
 
+func _on_heat_changed(hand: String, current: float, _max_heat: float, overheated: bool) -> void:
+	var bar: ProgressBar = left_heat_bar if hand == "left" else right_heat_bar
+	if bar == null:
+		return
+	bar.max_value = maxf(_max_heat, 1.0)
+	bar.value = current
+	bar.visible = true
+	bar.modulate = Color(1.0, 0.4, 0.4) if overheated else Color.WHITE
+
+
 func _update_display() -> void:
 	if weapon_manager == null:
 		return
@@ -557,6 +628,13 @@ func _update_display() -> void:
 		var w = weapon_manager.left_hand
 		left_name_label.text = w.weapon_name
 		left_type_label.text = WEAPON_ICONS.get(w.weapon_type, "[?]")
+		if w.uses_heat():
+			left_heat_bar.visible = true
+			left_heat_bar.max_value = maxf(w.heat_capacity, 1.0)
+			left_heat_bar.value = weapon_manager._get_heat(w)
+			left_heat_bar.modulate = Color(1.0, 0.4, 0.4) if weapon_manager.is_overheated("left") else Color.WHITE
+		else:
+			left_heat_bar.visible = false
 		var ammo = weapon_manager._get_ammo(w)
 		if not weapon_manager.get("reloading_left"):
 			left_ammo_label.modulate = Color.WHITE
@@ -570,11 +648,19 @@ func _update_display() -> void:
 		left_type_label.text = ""
 		left_ammo_label.text = ""
 		left_ammo_label.modulate = Color.WHITE
+		left_heat_bar.visible = false
 
 	if weapon_manager.right_hand:
 		var w = weapon_manager.right_hand
 		right_name_label.text = w.weapon_name
 		right_type_label.text = WEAPON_ICONS.get(w.weapon_type, "[?]")
+		if w.uses_heat():
+			right_heat_bar.visible = true
+			right_heat_bar.max_value = maxf(w.heat_capacity, 1.0)
+			right_heat_bar.value = weapon_manager._get_heat(w)
+			right_heat_bar.modulate = Color(1.0, 0.4, 0.4) if weapon_manager.is_overheated("right") else Color.WHITE
+		else:
+			right_heat_bar.visible = false
 		var ammo = weapon_manager._get_ammo(w)
 		if not weapon_manager.get("reloading_right"):
 			right_ammo_label.modulate = Color.WHITE
@@ -588,6 +674,7 @@ func _update_display() -> void:
 		right_type_label.text = ""
 		right_ammo_label.text = ""
 		right_ammo_label.modulate = Color.WHITE
+		right_heat_bar.visible = false
 
 
 func _on_carry_updated(_carry_list: Array) -> void:

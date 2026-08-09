@@ -10,6 +10,7 @@ var _loot_script = preload("res://scripts/systems/loot_system.gd")
 var archetype: int = 1  # RANGED
 var target: Node3D = null
 var attack_timer: float = 0.0
+var stagger_timer: float = 0.0
 
 # Tank specific part statuses
 var turret_destroyed: bool = false
@@ -65,6 +66,18 @@ func take_damage_to_part(slot_name: String, amount: float, damage_type: String =
 		health_system.take_damage_to_part(slot_name, amount, damage_type)
 
 
+# Stagger interrupt: heavy impacts stun the tank (stops fire + gives a small
+# knockback shove) so brief windows open up to flank it.
+func apply_impact(amount: float, from_dir: Vector3) -> void:
+	stagger_timer = maxf(stagger_timer, clampf(0.2 + amount * 0.015, 0.25, 1.0))
+	from_dir.y = 0.0
+	if from_dir.length() > 0.001:
+		var shove = from_dir.normalized() * minf(amount * 2.0, 7.0)
+		velocity.x += shove.x
+		velocity.z += shove.z
+	attack_timer = maxf(attack_timer, mini(attack_timer + 0.4, attack_cooldown))
+
+
 
 func _on_part_destroyed(slot_name: String) -> void:
 	match slot_name:
@@ -84,6 +97,14 @@ func _on_part_destroyed(slot_name: String) -> void:
 
 func _physics_process(delta: float) -> void:
 	if hull_destroyed or health_system.get("is_destroyed"):
+		return
+
+	# Staggered: halt firing & movement while the impact shock plays out.
+	if stagger_timer > 0.0:
+		stagger_timer -= delta
+		velocity.x = move_toward(velocity.x, 0.0, 20.0 * delta)
+		velocity.z = move_toward(velocity.z, 0.0, 20.0 * delta)
+		move_and_slide()
 		return
 
 	# Acquire target

@@ -15,6 +15,9 @@ var attack_timer: float = 0.0
 var health_system: Node = null
 var state_machine: EnemyStateMachine
 
+# Stagger from heavy impacts: briefly interrupts the enemy so it can't act.
+var stagger_timer: float = 0.0
+
 # Ammo system for ranged enemies
 var ammo: int = 0
 var max_ammo: int = 0
@@ -186,9 +189,32 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector3.ZERO
 		return
 
+	# Staggered: freeze AI actions while the stumble plays out.
+	if stagger_timer > 0.0:
+		stagger_timer -= delta
+		velocity.x = move_toward(velocity.x, 0.0, 25.0 * delta)
+		velocity.z = move_toward(velocity.z, 0.0, 25.0 * delta)
+		move_and_slide()
+		return
+
 	# Delegate to state machine
 	if state_machine:
 		state_machine._physics_process(delta)
+
+
+# Called by the player's weapons when they land an impact-heavy hit. Stall the
+# current action: interrupt the attack briefly (stagger) and shove the enemy.
+func apply_impact(amount: float, from_dir: Vector3) -> void:
+	stagger_timer = maxf(stagger_timer, clampf(0.25 + amount * 0.02, 0.3, 1.2))
+	from_dir.y = 0.0
+	if from_dir.length() > 0.001:
+		var shove = from_dir.normalized() * minf(amount * 2.5, 9.0)
+		velocity.x += shove.x
+		velocity.z += shove.z
+	if state_machine:
+		var attack_state = state_machine.get_node_or_null("StateAttack")
+		if attack_state and attack_state.get("attack_timer") != null and attack_state.attack_timer > 0.0:
+			attack_state.attack_timer = maxf(0.0, attack_state.attack_timer - amount * 0.25)
 
 
 

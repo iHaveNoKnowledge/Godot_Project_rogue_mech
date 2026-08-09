@@ -18,6 +18,9 @@ var dash_timer: float = 0.0
 var dash_cooldown_timer: float = 0.0
 var is_dashing: bool = false
 var dash_direction: Vector3 = Vector3.ZERO
+# Recoil kick applied by heavy weapons (see apply_recoil_impulse). Decays over
+# a short window so the mech staggers backwards instead of teleporting.
+var recoil_vector: Vector3 = Vector3.ZERO
 var _recalculating: bool = false
 var was_in_air: bool = false
 var footstep_timer: float = 0.0
@@ -91,6 +94,15 @@ func take_damage_to_part_at(slot_name: String, amount: float, world_pos: Vector3
 	var hs := _health_system()
 	if hs and hs.has_method("take_damage_to_part_at"):
 		hs.take_damage_to_part_at(slot_name, amount, world_pos, damage_type)
+
+
+# Called by WeaponManager when a weapon with recoil fires: shoves the mech along
+# a horizontal world direction (unit vector already * recoil force).
+func apply_recoil_impulse(backward: Vector3) -> void:
+	backward.y = 0.0
+	if backward.length() < 0.001:
+		return
+	recoil_vector += backward.normalized() * minf(backward.length(), 12.0)
 
 
 func _physics_process(delta: float) -> void:
@@ -190,6 +202,12 @@ func _apply_movement(delta: float) -> void:
 		velocity.y = 15.0
 		if has_node("/root/AudioManager"):
 			AudioManager.play_jump(global_position)
+
+	# Blend in any weapon recoil push then decay it quickly.
+	if recoil_vector.length() > 0.001:
+		velocity.x += recoil_vector.x
+		velocity.z += recoil_vector.z
+		recoil_vector = recoil_vector.move_toward(Vector3.ZERO, 30.0 * delta)
 
 	velocity.y -= GRAVITY * delta
 

@@ -884,7 +884,22 @@ func get_chassis_stats() -> Dictionary:
 		result["attachment_capacity"] = {"head": capacity * 0.10, "body": capacity * 0.35, "arm_left": capacity * 0.14, "arm_right": capacity * 0.14, "leg_left": capacity * 0.16, "leg_right": capacity * 0.16}
 	result["movement_type"] = {"standard": "biped", "titan": "heavy", "vanguard": "light", "aegis": "hover", "brawler": "brawler"}.get(chassis_id, "biped")
 	result["water_traversal"] = result["movement_type"] == "hover"
+	# Power stat gates one-hand gripping of heavy two-hand weapons (rail/minigun).
+	# It comes from the chassis plus the strength of both arm frames.
+	if not result.has("power"):
+		result["power"] = {"standard": 12.0, "titan": 18.0, "vanguard": 8.0, "aegis": 14.0, "brawler": 13.0}.get(chassis_id, 12.0)
 	return result
+
+
+# Total mech Power: chassis base + arm-frame strength that contributes to
+# supporting heavy weapons in a single hand.
+func get_mech_power() -> float:
+	var power := float(get_chassis_stats().get("power", 12.0))
+	for arm in ["arm_left", "arm_right"]:
+		var f = equipped_frames.get(arm, {})
+		if f is Dictionary:
+			power += float(f.get("carry_bonus", 0.0)) * 0.5
+	return power
 
 
 # Equipped inner frames. Values are full catalog-entry dicts at runtime; the

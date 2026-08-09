@@ -5,6 +5,7 @@ signal ammo_changed(hand: String, current: int, max_ammo: int)
 signal reload_progress(hand: String, partial_text: String, reserve_ammo: int, percent: float)
 signal carry_updated(carry_list: Array)
 signal weapon_dropped(hand: String, weapon: WeaponPart)
+signal heat_changed(hand: String, current: float, max_heat: float, overheated: bool)
 
 # --- Slots ---
 var left_hand: WeaponPart = null
@@ -21,6 +22,10 @@ var battle_reserve: Dictionary = {}
 # --- Cooldowns ---
 var left_cooldown: float = 0.0
 var right_cooldown: float = 0.0
+
+# --- Heat (per weapon name so swapped weapons keep their thermal state) ---
+var heat_levels: Dictionary = {}
+var heat_overheated: Dictionary = {}
 
 # --- Input State ---
 var holding_left: bool = false
@@ -113,6 +118,7 @@ func consume_battle_reserve(ammo_type: String, amount: int) -> int:
 
 
 func _emit_initial_state() -> void:
+	_enforce_two_hand_grip()
 	if left_hand == null and right_hand == null:
 		return
 	if left_hand:
@@ -130,6 +136,9 @@ func _physics_process(delta: float) -> void:
 		left_cooldown -= delta
 	if right_cooldown > 0.0:
 		right_cooldown -= delta
+
+	_cool_heat("left", left_hand, delta)
+	_cool_heat("right", right_hand, delta)
 
 	if holding_left:
 		_hold_time_left += delta
@@ -384,6 +393,7 @@ func _commit_selection(hand: String) -> void:
 		else:
 			right_hand = new_weapon
 		carry.remove_at(0)
+		_enforce_two_hand_grip()
 		weapon_switched.emit(hand, new_weapon.weapon_name)
 		ammo_changed.emit(hand, _get_ammo(new_weapon), new_weapon.max_ammo)
 		carry_updated.emit(carry)
@@ -397,6 +407,8 @@ func _commit_selection(hand: String) -> void:
 		else:
 			right_hand = carry[idx]
 		carry.remove_at(idx)
+
+	_enforce_two_hand_grip()
 
 	weapon_switched.emit(hand, (left_hand if is_left else right_hand).weapon_name)
 	var w = left_hand if is_left else right_hand
@@ -515,6 +527,8 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 		return
 	if hand == "right" and right_cooldown > 0.0:
 		return
+	if weapon.uses_heat() and heat_overheated.get(weapon.weapon_name, false):
+		return
 
 	if hand == "left":
 		left_cooldown = weapon.get_fire_interval()
@@ -523,6 +537,9 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 
 	ammo_pool[weapon.weapon_name] = current_ammo - weapon.ammo_per_shot
 	ammo_changed.emit(hand, _get_ammo(weapon), weapon.max_ammo)
+
+	_accumulate_heat(hand, weapon)
+	_apply_recoil(weapon)
 
 	match weapon.weapon_type:
 		WeaponPart.WeaponType.MELEE:
@@ -598,6 +615,7 @@ func _fire_projectile(hand: String, weapon: WeaponPart) -> void:
 	projectile.speed = weapon.projectile_speed
 	projectile.damage = weapon.damage
 	projectile.damage_type = "kinetic"
+	projectile.impact = weapon.impact
 	projectile.direction = direction
 
 	EffectManager.spawn_muzzle_flash(spawn_pos, direction)
@@ -640,6 +658,7 @@ func _fire_missile(hand: String, weapon: WeaponPart) -> void:
 	projectile.speed = weapon.projectile_speed
 	projectile.damage = weapon.damage
 	projectile.damage_type = "explosive"
+	projectile.impact = weapon.impact
 	projectile.direction = direction
 
 	var mesh = MeshInstance3D.new()
@@ -731,6 +750,7 @@ func _fire_shotgun(hand: String, weapon: WeaponPart) -> void:
 		projectile.speed = weapon.projectile_speed
 		projectile.damage = weapon.damage
 		projectile.damage_type = "kinetic"
+		projectile.impact = weapon.impact
 		projectile.direction = pellet_dir
 
 	EffectManager.spawn_muzzle_flash(spawn_pos, ray_dir)
@@ -886,9 +906,57 @@ func _check_melee_hit(mecha: Node3D, direction: Vector3, damage: float, weapon: 
 				enemy.take_damage_at_point(damage, aim_point, "melee")
 			elif enemy.has_method("take_damage"):
 				enemy.take_damage(damage, "melee")
+			if weapon != null and weapon.impact > 0.0 and enemy.has_method("apply_impact"):
+				enemy.apply_impact(weapon.impact, direction)
 			EffectManager.spawn_damage_number(enemy.global_position + Vector3(0, 2.5, 0), damage, Color(1, 0.5, 0))
 			if weapon and weapon.weapon_name.to_lower().contains("pile"):
 				AudioManager.play_pile_bunker_hit(enemy.global_position)
+
+
+# ====================================================================
+# TWO-HAND GRIP — big weapons need both hands without enough mech Power
+# ====================================================================
+
+func _mech_power() -> float:
+	return GlobalData.get_mech_power()
+
+
+func weapon_needs_both_hands(weapon: WeaponPart) -> bool:
+	return weapon != null and weapon.two_handed and weapon.requires_two_hand(_mech_power())
+
+
+# Returns the hand that currently holds a weapon needing a two-hand grip.
+func _two_hand_hand() -> String:
+	if left_hand and weapon_needs_both_hands(left_hand):
+		return "left"
+	if right_hand and weapon_needs_both_hands(right_hand):
+		return "right"
+	return ""
+
+
+# When a two-hand weapon is gripped, the other hand is holstered (returned to
+# the pack carry) so both arms support the weapon and it can't be dual-wielded.
+func _enforce_two_hand_grip() -> void:
+	var grip = _two_hand_hand()
+	if grip == "":
+		return
+	var other := "right" if grip == "left" else "left"
+	var other_weapon: WeaponPart = right_hand if other == "right" else left_hand
+	if other_weapon == null:
+		return
+	# Holster: put the other weapon first in the carry pack and free the hand.
+	carry.insert(0, other_weapon)
+	if other == "left":
+		left_hand = null
+	else:
+		right_hand = null
+	weapon_switched.emit(other, "Empty")
+	carry_updated.emit(carry)
+	_update_weapon_visuals()
+
+
+func is_two_hand_gripped_hand(hand: String) -> bool:
+	return _two_hand_hand() == hand
 
 
 # ====================================================================
@@ -897,6 +965,113 @@ func _check_melee_hit(mecha: Node3D, direction: Vector3, damage: float, weapon: 
 
 func _get_ammo(weapon: WeaponPart) -> int:
 	return ammo_pool.get(weapon.weapon_name, 0)
+
+
+# ====================================================================
+# HEAT SYSTEM (every weapon with heat_capacity > 0)
+# ====================================================================
+
+func _get_heat(weapon: WeaponPart) -> float:
+	return heat_levels.get(weapon.weapon_name, 0.0)
+
+
+func get_heat(hand: String) -> float:
+	var weapon = left_hand if hand == "left" else right_hand
+	if weapon == null:
+		return 0.0
+	return _get_heat(weapon)
+
+
+func get_heat_percent(hand: String) -> float:
+	var weapon = left_hand if hand == "left" else right_hand
+	if weapon == null or not weapon.uses_heat():
+		return 0.0
+	return _get_heat(weapon) / weapon.heat_capacity
+
+
+func is_overheated(hand: String) -> bool:
+	var weapon = left_hand if hand == "left" else right_hand
+	if weapon == null:
+		return false
+	return heat_overheated.get(weapon.weapon_name, false)
+
+
+func _accumulate_heat(hand: String, weapon: WeaponPart) -> void:
+	if not weapon.uses_heat():
+		return
+	var level = _get_heat(weapon) + weapon.heat_per_shot
+	level = minf(level, weapon.heat_capacity)
+	heat_levels[weapon.weapon_name] = level
+	var overheated: bool = level >= weapon.heat_capacity
+	if overheated:
+		heat_overheated[weapon.weapon_name] = true
+	emit_changed(hand)
+
+
+# Cooldown per frame; once overheated the weapon un-locks when it cools below
+# the release ratio (heat_release_ratio) so it has a meaningful overheat penalty.
+func _cool_heat(hand: String, weapon: WeaponPart, delta: float) -> void:
+	if weapon == null or not weapon.uses_heat():
+		return
+	var level = _get_heat(weapon)
+	var cooled = maxf(level - weapon.heat_cool_rate * delta, 0.0)
+	if heat_overheated.get(weapon.weapon_name, false) and cooled <= weapon.heat_capacity * weapon.heat_release_ratio:
+		heat_overheated[weapon.weapon_name] = false
+		heat_levels[weapon.weapon_name] = cooled
+		emit_changed(hand)
+		return
+	if not is_equal_approx(level, cooled):
+		heat_levels[weapon.weapon_name] = cooled
+		emit_changed(hand)
+
+
+func emit_changed(hand: String, _hand_arg: String = "") -> void:
+	var weapon = left_hand if hand == "left" else right_hand
+	if weapon == null:
+		return
+	var max_heat: float = weapon.heat_capacity
+	var current: float = _get_heat(weapon)
+	heat_changed.emit(hand, current, max_heat, heat_overheated.get(weapon.weapon_name, false))
+
+
+# ====================================================================
+# RECOIL — pushes the shooter's mech back along the weapon's facing
+# ====================================================================
+
+func _apply_recoil(weapon: WeaponPart) -> void:
+	if weapon == null or weapon.recoil_force <= 0.0:
+		return
+	var mecha = get_parent()
+	if mecha == null:
+		return
+	var cam = get_viewport().get_camera_3d()
+	if cam == null:
+		return
+
+	# Pull the mech backward along the camera aim direction.
+	var cam_basis = cam.global_transform.basis
+	var backward = cam_basis.z  # +Z faces AWAY from aim
+	backward.y = 0.0
+	if backward.length() > 0.01:
+		backward = backward.normalized()
+		if mecha.has_method("apply_recoil_impulse"):
+			mecha.apply_recoil_impulse(backward * weapon.recoil_force)
+
+	# Camera shake proportional to recoil.
+	if weapon.recoil_shake > 0.0:
+		var rigs = get_tree().get_nodes_in_group("camera_rig")
+		if not rigs.is_empty() and rigs[0].has_method("add_shake"):
+			rigs[0].add_shake(weapon.recoil_shake)
+
+
+# Applies a weapon's impact/stagger to a target enemy after a hit.
+func apply_impact_to_target(target: Node3D, weapon: WeaponPart, from_dir: Vector3) -> void:
+	if weapon == null or weapon.impact <= 0.0:
+		return
+	if target == null or not is_instance_valid(target):
+		return
+	if target.has_method("apply_impact"):
+		target.apply_impact(weapon.impact, from_dir)
 
 
 # ====================================================================

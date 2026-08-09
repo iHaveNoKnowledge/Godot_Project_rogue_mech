@@ -1,0 +1,28 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/mech/weapon_part.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+weapon_name = "Railgun"
+weapon_type = 6
+damage = 150.0
+fire_rate = 0.7
+max_ammo = 12
+ammo_per_shot = 1
+projectile_speed = 160.0
+spread = 0.0
+weight = 26.0
+range_distance = 110.0
+description = "อาวุธ_two-hand_หนัก, ดาเมจสูงสุด, ชาร์จแลกกระทิง, ต้องใช้ Power เพลย์"
+rarity = 3
+ammo_type = "kinetic"
+two_handed = true
+power_required = 18.0
+heat_capacity = 100.0
+heat_per_shot = 40.0
+heat_cool_rate = 18.0
+heat_release_ratio = 0.4
+recoil_force = 22.0
+recoil_shake = 0.55
+impact = 3.5

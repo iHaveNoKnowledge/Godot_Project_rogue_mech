@@ -998,7 +998,7 @@ func _update_gizmo_hover(mouse: Vector2) -> void:
 func _sync_gizmo_hover() -> void:
 	for axis in gizmo_handle_mats:
 		var mats: Array = gizmo_handle_mats[axis]
-		var active := axis == _gizmo_hover_axis or axis == _gizmo_drag_axis
+		var active: bool = str(axis) == _gizmo_hover_axis or str(axis) == _gizmo_drag_axis
 		for m in mats:
 			m.emission_energy_multiplier = 2.4 if active else 0.8
 

@@ -87,13 +87,15 @@ func close() -> void:
 	visible = false
 
 
-# While the repair todo overlap is open, temporarily silence the combat actions
-# that share keys with the editor (dash=Shift, roller, jump, eject). Restored on
-# close() so gameplay keybinds come back exactly as they were.
+# While the repair editor is open it is a modal: silence every gameplay input
+# action (movement/WASD, dash, roller, jump, eject, camera pan). Otherwise the
+# board camera / mech keep responding to held keys under the overlay and the
+# driver can't use the editor cleanly. Restored on close() so keybinds come
+# back exactly as they were.
 func _silence_combat_actions() -> void:
 	if not _saved_combat_actions.is_empty():
 		return
-	for action in ["dash", "roller_dash", "jump", "eject"]:
+	for action in ["dash", "roller_dash", "jump", "eject", "move_forward", "move_back", "move_left", "move_right", "strafe", "camera_unlock"]:
 		if InputMap.has_action(action):
 			_saved_combat_actions[action] = InputMap.action_get_events(action)
 			InputMap.action_erase_events(action)

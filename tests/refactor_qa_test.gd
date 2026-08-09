@@ -40,6 +40,7 @@ func _ready() -> void:
 	_test_escape_zone()
 	_test_battle_loadout_persistence()
 	_test_battle_pickup_weight()
+	await _test_scrap_editor_silences_movement()
 	print("REPAIR_QA_RESULT: %d passed, %d failed" % [_passed, _failed])
 	get_tree().quit(1 if _failed > 0 else 0)
 
@@ -546,6 +547,41 @@ func _test_battle_pickup_weight() -> void:
 	wm.carry.erase(shotgun)
 	wm.sync_loadout_to_global()
 	_check(is_equal_approx(GlobalData.get_field_pack_weight(), global_before), "global weight returns after drop")
+
+
+func _test_scrap_editor_silences_movement() -> void:
+	# Regression: the emergency repair editor is a modal — while it is open the
+	# board camera / mech must not keep moving (WASD pan + dash + jump all
+	# silenced), and closing it must restore the exact original keybindings.
+	var editor = preload("res://scripts/ui/scrap_repair_editor.gd").new()
+	add_child(editor)
+	await get_tree().process_frame
+
+	var before_fwd := InputMap.action_get_events("move_forward").size()
+	var before_left := InputMap.action_get_events("move_left").size()
+	var before_dash := InputMap.action_get_events("dash").size()
+	var before_cam := InputMap.action_get_events("camera_unlock").size()
+	var before_jump := InputMap.action_get_events("jump").size()
+
+	editor.open("")
+
+	_check(InputMap.action_get_events("move_forward").is_empty(), "editor silences move_forward while open")
+	_check(InputMap.action_get_events("move_left").is_empty(), "editor silences move_left while open")
+	_check(InputMap.action_get_events("move_back").is_empty(), "editor silences move_back while open")
+	_check(InputMap.action_get_events("move_right").is_empty(), "editor silences move_right while open")
+	_check(InputMap.action_get_events("dash").is_empty(), "editor silences dash while open")
+	_check(InputMap.action_get_events("jump").is_empty(), "editor silences jump while open")
+	_check(InputMap.action_get_events("camera_unlock").is_empty(), "editor silences camera pan while open")
+
+	editor.close()
+
+	_check(InputMap.action_get_events("move_forward").size() == before_fwd, "close restores move_forward bindings")
+	_check(InputMap.action_get_events("move_left").size() == before_left, "close restores move_left bindings")
+	_check(InputMap.action_get_events("dash").size() == before_dash, "close restores dash bindings")
+	_check(InputMap.action_get_events("camera_unlock").size() == before_cam, "close restores camera_unlock bindings")
+	_check(InputMap.action_get_events("jump").size() == before_jump, "close restores jump bindings")
+
+	editor.queue_free()
 
 
 func _test_tech_escalation() -> void:

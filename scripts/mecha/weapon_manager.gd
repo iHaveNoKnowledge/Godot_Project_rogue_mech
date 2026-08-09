@@ -91,6 +91,25 @@ func _on_combat_ended(_victory: bool) -> void:
 		if amount > 0:
 			GlobalData.add_reserve_ammo(ammo_type, amount)
 	battle_reserve.clear()
+	# Persist whatever the mech is actually carrying so the next battle starts
+	# with the weapons picked up / swapped during this one. Skip while a hand is
+	# still mid-swap (weapon temporarily held out of the hand, not yet committed).
+	if not _selecting_left and not _selecting_right:
+		sync_loadout_to_global()
+
+
+# Writes the current hands + back-carry back into GlobalData.weapon_loadout so
+# in-battle pickups and swaps survive into the next battle. Runs at combat end
+# (and after each commit/drop) since return_to_board() -> save_run() only saves
+# the state GlobalData holds at that moment.
+func sync_loadout_to_global() -> void:
+	GlobalData.set_hand_weapon("left", left_hand.resource_path if left_hand else "")
+	GlobalData.set_hand_weapon("right", right_hand.resource_path if right_hand else "")
+	var carry_paths: Array = []
+	for weapon in carry:
+		if weapon:
+			carry_paths.append(weapon.resource_path)
+	GlobalData.weapon_loadout["carry"] = carry_paths
 
 
 func get_battle_reserve(ammo_type: String) -> int:
@@ -388,6 +407,7 @@ func _commit_selection(hand: String) -> void:
 		ammo_changed.emit(hand, _get_ammo(new_weapon), new_weapon.max_ammo)
 		carry_updated.emit(carry)
 		_update_weapon_visuals()
+		sync_loadout_to_global()
 		return
 
 	# Take the highlighted weapon out of carry into hand
@@ -404,6 +424,7 @@ func _commit_selection(hand: String) -> void:
 		ammo_changed.emit(hand, _get_ammo(w), w.max_ammo)
 	carry_updated.emit(carry)
 	_update_weapon_visuals()
+	sync_loadout_to_global()
 
 
 # ====================================================================
@@ -422,6 +443,7 @@ func _drop_weapon(hand: String) -> void:
 		weapon_dropped.emit(hand, weapon)
 		weapon_switched.emit(hand, "Empty")
 		_update_weapon_visuals()
+		sync_loadout_to_global()
 
 
 # Called by HealthSystem when the arm frame on this hand is destroyed.
@@ -439,6 +461,7 @@ func drop_weapon_from_destroyed_arm(hand: String) -> WeaponPart:
 		weapon_dropped.emit(hand, weapon)
 		weapon_switched.emit(hand, "Empty")
 		_update_weapon_visuals()
+		sync_loadout_to_global()
 	return weapon
 
 
@@ -472,6 +495,7 @@ func add_weapon(weapon: WeaponPart) -> void:
 	ammo_pool[weapon.weapon_name] = weapon.max_ammo
 	carry_updated.emit(carry)
 	_update_weapon_visuals()
+	sync_loadout_to_global()
 
 
 func add_ammo(amount: int, hand: String = "", ammo_type: String = "") -> void:

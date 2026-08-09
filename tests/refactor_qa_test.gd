@@ -38,6 +38,7 @@ func _ready() -> void:
 	await _test_hangar_selection_preserves_loadout()
 	_test_save_load_roundtrip()
 	_test_escape_zone()
+	_test_battle_loadout_persistence()
 	print("REPAIR_QA_RESULT: %d passed, %d failed" % [_passed, _failed])
 	get_tree().quit(1 if _failed > 0 else 0)
 
@@ -484,6 +485,35 @@ func _test_hangar_selection_preserves_loadout() -> void:
 
 	_check(GlobalData.weapon_loadout.get("left") == before_left, "hangar tab switching keeps left weapon")
 	_check(GlobalData.weapon_loadout.get("right") == before_right, "hangar tab switching keeps right weapon")
+
+
+func _test_battle_loadout_persistence() -> void:
+	# Regression: weapons picked up / swapped during a battle must be written
+	# back into GlobalData.weapon_loadout so the next battle starts with them.
+	# Previously only the battle-local WeaponManager state changed and the next
+	# battle always reloaded the run-start weapons.
+	GlobalData.reset_run_data()
+	GlobalData.roll_random_start()
+
+	var wm = preload("res://scripts/mecha/weapon_manager.gd").new()
+	var rifle := preload("res://resources/mech/stock/weapon_beam_rifle.tres")
+	var blade := preload("res://resources/mech/stock/weapon_heat_blade.tres")
+	var shotgun := preload("res://resources/mech/stock/weapon_combat_shotgun.tres")
+	wm.left_hand = rifle
+	wm.right_hand = blade
+	wm.carry.append(shotgun)
+	wm.carry.append(rifle)
+	wm.sync_loadout_to_global()
+
+	_check(GlobalData.weapon_loadout.get("left", "") == rifle.resource_path, "battle pickup persists left hand to loadout")
+	_check(GlobalData.weapon_loadout.get("right", "") == blade.resource_path, "battle pickup persists right hand to loadout")
+	var carry: Array = GlobalData.weapon_loadout.get("carry", [])
+	_check(carry.size() == 2 and shotgun.resource_path in carry and rifle.resource_path in carry, "battle pickup persists back-carry to loadout")
+
+	# Dropping a weapon clears the hand slot in the loadout.
+	wm.left_hand = null
+	wm.sync_loadout_to_global()
+	_check(GlobalData.weapon_loadout.get("left", "") == "", "battle drop clears left hand in loadout")
 
 
 func _test_tech_escalation() -> void:

@@ -41,7 +41,7 @@ func hide_slot_completely(slot_name: String) -> void:
 	if entry.get("frame_lower") and entry["frame_lower"]: entry["frame_lower"].visible = false
 
 
-func initialize_slot(slot_name: String, part: ArmorPart) -> void:
+func initialize_slot(slot_name: String, part: ArmorPart, apply_player_damage: bool = true) -> void:
 	var parent_node = _get_slot_parent_node(slot_name)
 	if parent_node == null:
 		return
@@ -112,8 +112,14 @@ func initialize_slot(slot_name: String, part: ArmorPart) -> void:
 		else:
 			_build_procedural_outer_armor(slot_name, armor_mesh, armor_mesh_lower, part)
 
-		var armor_dmg = GlobalData.part_damage.get(slot_name, 0.0)
-		var frame_dmg = GlobalData.part_damage.get(slot_name + "_frame", 0.0)
+		# Player-only: reflect the current combat damage cache in the visuals.
+		# Enemies (refresh_from_loadout) skip this — their damage lives in their
+		# own health system and is driven by the part_destroyed signal instead.
+		var armor_dmg: float = 0.0
+		var frame_dmg: float = 0.0
+		if apply_player_damage:
+			armor_dmg = GlobalData.part_damage.get(slot_name, 0.0)
+			frame_dmg = GlobalData.part_damage.get(slot_name + "_frame", 0.0)
 		if frame_dmg >= 1.0:
 			hide_slot_completely(slot_name)
 		elif armor_dmg >= 1.0:
@@ -187,16 +193,16 @@ func _rebuild_slot(slot: String, frame_data: Variant, equipped: Variant, apply_p
 		# EMERGENCY SCRAP PATCH: the slot was rebuilt from scrap, so show the
 		# bare inner frame (or scrap stand-in) plus the crude patch primitives
 		# the driver placed on it.
-		initialize_slot(slot, null)
+		initialize_slot(slot, null, apply_player_scrap)
 		_show_inner_frame(slot)
 		_render_scrap_patch(slot)
 	elif not is_armor_equipped:
 		# INNER FRAME EQUIPPED, NO ARMOR: Render bare skeletal inner frame only
-		initialize_slot(slot, null)
+		initialize_slot(slot, null, apply_player_scrap)
 		_show_inner_frame(slot)
 	else:
 		# INNER FRAME + OUTER ARMOR EQUIPPED: Render armor over inner frame
-		initialize_slot(slot, build_part_for_slot(equipped))
+		initialize_slot(slot, build_part_for_slot(equipped), apply_player_scrap)
 
 
 # Rebuilds (or removes) the ScrapPatch primitive visuals for a patched slot.

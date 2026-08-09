@@ -160,9 +160,14 @@ func _enemy_loadout() -> Dictionary:
 	for slot in ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]:
 		var frame_entry: Dictionary = {}
 		var frames = GlobalData.frame_catalog.get(slot, [])
-		if frames is Array and frames.size() > 0:
-			var f_idx: int = clampi(_archetype_frame_index(), 0, frames.size() - 1)
-			frame_entry = (frames[f_idx] as Dictionary).duplicate(true)
+		var eligible_frames: Array = []
+		if frames is Array:
+			for entry in frames:
+				if entry is Dictionary and not _is_blueprint_frame(entry):
+					eligible_frames.append(entry)
+		if eligible_frames.size() > 0:
+			var f_idx: int = clampi(_archetype_frame_index(), 0, eligible_frames.size() - 1)
+			frame_entry = (eligible_frames[f_idx] as Dictionary).duplicate(true)
 
 		var armor_entry: Dictionary = {}
 		var eligible: Array = []
@@ -184,18 +189,26 @@ func _enemy_loadout() -> Dictionary:
 	return loadout
 
 
-# Frame durability tier per archetype: Rusher=base 0, Ranged=1, Support=2,
-# Heavy=3 (indexes into the per-slot frame_catalog arrays).
+# Blueprint-only catalog entries (Gundam tier) must never be worn by grunts.
+# Armor carries an explicit `blueprint_only` flag; frames mark the tier via the
+# `type` field instead, so detect it by name.
+func _is_blueprint_frame(entry: Dictionary) -> bool:
+	return str(entry.get("type", "")).contains("Gundam")
+
+
+# Frame durability tier per archetype. frame_catalog[slot] is ordered
+# [standard, gundam, medium, heavy]; the Gundam tier is filtered out above,
+# leaving [standard, medium, heavy] to index into.
 func _archetype_frame_index() -> int:
 	match archetype:
 		1:
-			return 1
+			return 1  # Ranged: medium (slightly sturdier than a Rusher)
 		2:
-			return 3
+			return 2  # Heavy: heaviest non-blueprint frame
 		3:
-			return 2
+			return 1  # Support: medium
 		_:
-			return 0
+			return 0  # Rusher: lightest
 
 
 # Returns the armor entry with the greatest (heavy) or smallest (light) HP
@@ -465,13 +478,9 @@ func _scale_by_wanted_level() -> void:
 	attack_damage *= scale_factor
 	attack_cooldown /= scale_factor
 
-	if health_system:
-		for slot in health_system.parts:
-			health_system.parts[slot]["armor_hp"] *= scale_factor
-			health_system.parts[slot]["max_armor"] *= scale_factor
-			health_system.parts[slot]["frame_hp"] *= scale_factor
-			health_system.parts[slot]["max_frame"] *= scale_factor
-		health_system._calculate_totals()
+	# HP scaling is handled by SpawnManager (wanted + grunt multiplier) after
+	# ready; scaling it here too would double-dip and inflate durability
+	# quadratically at high wanted levels.
 
 	# Visual feedback
 	if wanted >= 3:

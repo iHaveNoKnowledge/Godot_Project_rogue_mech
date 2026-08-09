@@ -14,6 +14,17 @@ var enemy_scene_paths: Dictionary = {
 	"boss_overlord": "res://scenes/mecha/enemy_boss.tscn",
 }
 
+# Fan-out offsets for squad fire-team members around their commander (center).
+const SQUAD_FORMATION: Array[Vector3] = [
+	Vector3(-3.5, 0, 1.5),
+	Vector3(3.5, 0, 1.5),
+	Vector3(-6.5, 0, 3.0),
+	Vector3(6.5, 0, 3.0),
+	Vector3(-9.5, 0, 4.5),
+	Vector3(9.5, 0, 4.5),
+	Vector3(0, 0, 3.0),
+]
+
 var _loaded_enemy_scenes: Dictionary = {}
 
 
@@ -94,15 +105,57 @@ var theme_boss_wave_defs: Dictionary = {
 	],
 }
 
+# Per-theme grunt (standard node) wave defs. Military themes field organized
+# squad fire teams (1 commander + squad-size members); scavengers stay ragtag.
+var theme_grunt_wave_defs: Dictionary = {
+	"soldier": [
+		[{"type": "rusher_simple", "archetype": 0, "count": 5}],
+		[{"type": "ranged_simple", "archetype": 1, "count": 3},
+		 {"type": "rusher_simple", "archetype": 0, "count": 2}],
+	],
+	"gundam_merc": [
+		[{"type": "ranged_simple", "archetype": 1, "count": 4},
+		 {"type": "support_simple", "archetype": 3, "count": 1}],
+		[{"type": "rusher_simple", "archetype": 0, "count": 2},
+		 {"type": "ranged_simple", "archetype": 1, "count": 3}],
+	],
+	"scavenger": [
+		[{"type": "rusher_simple", "archetype": 0, "count": 3}],
+		[{"type": "rusher_simple", "archetype": 0, "count": 2},
+		 {"type": "ranged_simple", "archetype": 1, "count": 2}],
+	],
+}
+
+var theme_ace_wave_defs: Dictionary = {
+	"soldier": [
+		[{"type": "rusher_full", "archetype": 0, "count": 3},
+		 {"type": "support_simple", "archetype": 3, "count": 2}],
+		[{"type": "heavy_full", "archetype": 2, "count": 2},
+		 {"type": "ranged_full", "archetype": 1, "count": 3}],
+	],
+	"gundam_merc": [
+		[{"type": "ranged_full", "archetype": 1, "count": 4},
+		 {"type": "heavy_full", "archetype": 2, "count": 1}],
+		[{"type": "heavy_full", "archetype": 2, "count": 3},
+		 {"type": "ranged_full", "archetype": 1, "count": 2}],
+	],
+	"scavenger": [
+		[{"type": "rusher_full", "archetype": 0, "count": 2},
+		 {"type": "support_simple", "archetype": 3, "count": 1}],
+		[{"type": "heavy_full", "archetype": 2, "count": 1},
+		 {"type": "ranged_full", "archetype": 1, "count": 2}],
+	],
+}
+
 
 func _get_active_defs() -> Array:
 	match GameManager.combat_node_type:
 		"boss":
 			return theme_boss_wave_defs.get(GlobalData.theme_id, boss_wave_defs)
 		"ace":
-			return ace_wave_defs
+			return theme_ace_wave_defs.get(GlobalData.theme_id, ace_wave_defs)
 		_:
-			return grunt_wave_defs
+			return theme_grunt_wave_defs.get(GlobalData.theme_id, grunt_wave_defs)
 
 
 func _ready() -> void:
@@ -191,16 +244,27 @@ func _spawn_next_wave() -> void:
 	var hp_scale = 1.0 + min(wanted, 5) * 0.15
 	hp_scale *= GlobalData.get_enemy_grunt_multiplier()
 	var extra_count = mini(wanted, 2)
+	var org: Dictionary = _get_org_config()
+	var style := str(org.get("style", "ragtag"))
 
 	for entry in wave_def:
 		var count = entry["count"]
 		if entry["archetype"] != 2 and entry["type"] != "boss_overlord":
 			count += extra_count
 
-		for j in range(count):
-			var spawn_pos = _get_spawn_position()
-			var final_hp_scale = hp_scale * (3.5 if entry["type"] == "boss_overlord" else 1.0)
-			_spawn_enemy(entry["type"], entry["archetype"], spawn_pos, final_hp_scale)
+		var final_hp_scale = hp_scale * (3.5 if entry["type"] == "boss_overlord" else 1.0)
+
+		if style == "squad":
+			# Military themes field each entry as one fire team: a full-rig
+			# commander (accent shoulders) + the rest as standard members around it.
+			_spawn_squad(entry, count, final_hp_scale, org)
+		else:
+			# Ragtag factions scatter and every unit gets its own worn paint job.
+			for j in range(count):
+				_spawn_enemy(
+					entry["type"], entry["archetype"], _get_spawn_position(),
+					final_hp_scale, "", _paint_for_enemy(org, "member")
+				)
 
 
 func notify_enemy_killed() -> void:
@@ -255,7 +319,7 @@ func _consume_enemy_special_unit(kind: String) -> void:
 			return
 
 
-func _spawn_enemy(type: String, archetype: int, pos: Vector3, hp_scale: float) -> void:
+func _spawn_enemy(type: String, archetype: int, pos: Vector3, hp_scale: float, squad_role: String = "", paint: Dictionary = {}) -> void:
 	var scene = _get_enemy_scene(type)
 	if scene == null:
 		return
@@ -263,6 +327,8 @@ func _spawn_enemy(type: String, archetype: int, pos: Vector3, hp_scale: float) -
 	var enemy = scene.instantiate()
 	enemy.archetype = archetype
 	enemy.position = pos
+	enemy.squad_role = squad_role
+	enemy.faction_paint = paint
 
 	add_child(enemy)
 	await enemy.ready
@@ -277,6 +343,62 @@ func _spawn_enemy(type: String, archetype: int, pos: Vector3, hp_scale: float) -
 			enemy.health_system._calculate_totals()
 
 	enemies_alive += 1
+
+
+# The run theme's enemy organization config (style/paint/variance), see
+# run_theme_catalogs.tres -> enemy_org. Defaults to a ragtag scatter.
+func _get_org_config() -> Dictionary:
+	return ThemeSystem.get_run_theme().get("enemy_org", {})
+
+
+# Returns the paint dictionary to hand an enemy. Squad members keep the faction
+# colors; ragtag units (paint_variance > 0) get a hue-shifted, worn paint job so
+# no two look alike.
+func _paint_for_enemy(org: Dictionary, role: String) -> Dictionary:
+	var paint: Dictionary = (org.get("paint", {}) as Dictionary).duplicate(true)
+	var variance := float(org.get("paint_variance", 0.0))
+	if variance > 0.0 and paint.has("base"):
+		var base: Color = paint["base"]
+		var shift := randf_range(-variance, variance)
+		paint["base"] = Color.from_hsv(
+			fposmod(base.h + shift, 1.0),
+			clampf(base.s, 0.15, 1.0),
+			base.v
+		)
+		paint["trim"] = Color.from_hsv(
+			fposmod(base.h + shift * 0.5, 1.0),
+			base.s,
+			base.v * 0.35
+		)
+	return paint
+
+
+# Spawns one squad fire team for military themes: the leader (full-rig variant
+# so it reads as a commander) stands at the center with the other members fanned
+# out behind it. `count` covers the whole team (leader + members).
+func _spawn_squad(entry: Dictionary, count: int, hp_scale: float, org: Dictionary) -> void:
+	if count <= 0:
+		return
+	var center: Vector3 = _get_spawn_position()
+	var leader_type: String = _squad_leader_type(entry["type"])
+	_spawn_enemy(leader_type, entry["archetype"], center, hp_scale, "commander", _paint_for_enemy(org, "commander"))
+	for i in range(1, count):
+		var offset: Vector3 = SQUAD_FORMATION[(i - 1) % SQUAD_FORMATION.size()]
+		_spawn_enemy(entry["type"], entry["archetype"], center + offset, hp_scale, "member", _paint_for_enemy(org, "member"))
+
+
+# The squad commander fields the full-rig variant of its archetype (more part
+# slots, tankier) so it stands out from the simple grunts around it.
+func _squad_leader_type(entry_type: String) -> String:
+	match entry_type:
+		"rusher_simple":
+			return "rusher_full"
+		"ranged_simple":
+			return "ranged_full"
+		"support_simple":
+			return "support_full"
+		_:
+			return entry_type
 
 
 func _get_spawn_position() -> Vector3:

@@ -21,6 +21,13 @@ var stagger_timer: float = 0.0
 # PartMeshManager that renders this enemy from the mech armor catalog.
 var catalog_body: Node = null
 
+# Faction paint assigned by SpawnManager before ready (see run theme enemy_org).
+# Overrides the archetype palette so military squads share a uniform color while
+# commanders flare their shoulder plates with the accent color.
+var faction_paint: Dictionary = {}
+# "commander" / "member" within a squad fire team ("" for ragtag units).
+var squad_role: String = ""
+
 # Ammo system for ranged enemies
 var ammo: int = 0
 var max_ammo: int = 0
@@ -97,10 +104,11 @@ func _build_catalog_body() -> void:
 
 	# Placeholder scenes (capsule rusher) put their legacy mesh at the root, not
 	# under a slot node, so slot hiding never touches it. Hide it explicitly.
+	# Label3D is also a VisualInstance3D, so keep the name plates visible.
 	for child in get_children():
 		if child == pmm or child.name == "HealthSystem" or child is Area3D or child is CollisionShape3D:
 			continue
-		if child is MeshInstance3D or child is VisualInstance3D:
+		if child is MeshInstance3D or (child is VisualInstance3D and not child is Label3D):
 			child.visible = false
 
 
@@ -226,6 +234,20 @@ func _pick_armor_by_tier(eligible: Array, heaviest: bool) -> Dictionary:
 
 
 func _archetype_palette() -> Dictionary:
+	# Faction paint from the run theme wins when present. A squad commander keeps
+	# the base color everywhere except its head visor and shoulder plates, which
+	# flare with the accent (e.g. a red-shouldered officer).
+	if not faction_paint.is_empty():
+		var base: Color = faction_paint.get("base", Color(0.6, 0.6, 0.6))
+		var accent: Color = faction_paint.get("accent", base)
+		var trim: Color = faction_paint.get("trim", base)
+		var is_commander := squad_role == "commander"
+		return {
+			"default": base,
+			"head": accent if is_commander else trim,
+			"arm_left": accent if is_commander else base,
+			"arm_right": accent if is_commander else base,
+		}
 	match archetype:
 		1:
 			return {"default": Color(0.25, 0.55, 0.8), "head": Color(0.2, 0.5, 0.75)}
@@ -489,12 +511,15 @@ func _scale_by_wanted_level() -> void:
 
 func _apply_archetype_color() -> void:
 	var color: Color
-	match archetype:
-		0: color = Color(0.55, 0.27, 0.07, 1)   # Rusher: dark orange
-		1: color = Color(0.27, 0.51, 0.71, 1)    # Ranged: steel blue
-		2: color = Color(0.55, 0.0, 0.0, 1)      # Heavy: dark red
-		3: color = Color(0.33, 0.42, 0.18, 1)    # Support: olive green
-		_: color = Color(0.8, 0.2, 0.2, 1)
+	if not faction_paint.is_empty():
+		color = faction_paint.get("base", Color(0.8, 0.2, 0.2, 1))
+	else:
+		match archetype:
+			0: color = Color(0.55, 0.27, 0.07, 1)   # Rusher: dark orange
+			1: color = Color(0.27, 0.51, 0.71, 1)    # Ranged: steel blue
+			2: color = Color(0.55, 0.0, 0.0, 1)      # Heavy: dark red
+			3: color = Color(0.33, 0.42, 0.18, 1)    # Support: olive green
+			_: color = Color(0.8, 0.2, 0.2, 1)
 
 	# Apply to all MeshInstance3D children
 	for child in get_children():

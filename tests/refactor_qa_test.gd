@@ -30,6 +30,7 @@ func _ready() -> void:
 	_test_driver_repair_skill()
 	_test_emergency_scrap_patch()
 	_test_scrap_primitive_json_safety()
+	await _test_scrap_attach_nodes()
 	_test_professional_repair()
 	_test_hangar_mech_roster()
 	# The hangar test is async (it awaits a frame while building the scene), so
@@ -986,6 +987,56 @@ func _test_scrap_primitive_json_safety() -> void:
 	# JSON.stringify must not silently drop the primitive into an empty object.
 	var json := JSON.stringify({"patches": GlobalData.scrap_patches})
 	_check(not json.contains("{}"), "scrap patches survive JSON.stringify without data loss")
+
+
+func _test_scrap_attach_nodes() -> void:
+	# SCRAP ATTACH TARGETS: a scrap primitive may be pinned to a specific skeleton
+	# bone (e.g. the forearm, the backpack) so a patched limb stays covered as the
+	# mech animates, instead of floating at a fixed slot position.
+	GlobalData.reset_run_data()
+	GlobalData.driver_repair_skill = 1
+	GlobalData.scrap = 500
+
+	_check(GlobalData.scrap_attach_node_paths("arm_left") == ["ArmLeft", "ArmLeft/ForearmLeft"], "arm attach targets include the forearm")
+	_check(GlobalData.scrap_attach_node_paths("body") == ["Body", "Body/ChestPlate", "Body/Backpack"], "body attach targets include chest + backpack")
+	_check(GlobalData.scrap_attach_node_paths("head") == ["Head"], "head attaches to its root only")
+	_check(GlobalData.scrap_attach_node_paths("bogus").is_empty(), "unknown slot has no attach targets")
+
+	# An "attach" field survives the apply + JSON round-trip.
+	GlobalData.part_damage["arm_left"] = 0.5
+	var patch := GlobalData.apply_emergency_repair("arm_left", [{
+		"shape": "box",
+		"pos": [0.1, 0.2, 0.3],
+		"rot": [0.0, 0.0, 0.0],
+		"scale": [0.5, 0.5, 0.5],
+		"color": Color(0.5, 0.5, 0.5, 1.0),
+		"attach": "ArmLeft/ForearmLeft",
+	}])
+	_check(not patch.is_empty(), "patch with attach applies")
+	var stored: Array = patch.get("primitives", [])
+	_check(str(stored[0].get("attach", "")) == "ArmLeft/ForearmLeft", "attach field is stored on the primitive")
+	var json := JSON.stringify({"patches": GlobalData.scrap_patches})
+	_check(json.contains("ArmLeft/ForearmLeft"), "attach field survives JSON.stringify")
+
+	# The editor renders each primitive under its chosen attach bone.
+	GlobalData.scrap_patches.clear()
+	var editor = preload("res://scripts/ui/scrap_repair_editor.gd").new()
+	add_child(editor)
+	await get_tree().process_frame
+	editor._select_slot("arm_left")
+	editor._add_primitive("box")
+	var prim := editor._get_selected_primitive()
+	prim["attach"] = "ArmLeft/ForearmLeft"
+	editor._render_live_primitives()
+	var forearm = editor.mecha_node.get_node_or_null("ArmLeft/ForearmLeft") if editor.mecha_node else null
+	_check(forearm != null, "mecha base exposes the forearm bone")
+	var f_container = forearm.get_node_or_null("EditorScrapPatch") if forearm else null
+	_check(f_container != null and f_container.get_child_count() == 1, "primitive rendered under its attach bone")
+	var upper = editor.mecha_node.get_node_or_null("ArmLeft") if editor.mecha_node else null
+	var u_container = upper.get_node_or_null("EditorScrapPatch") if upper else null
+	_check(u_container == null or not u_container.visible, "slot root container hidden once the part moved to the forearm")
+	editor.queue_free()
+	await get_tree().process_frame
 
 
 func _test_professional_repair() -> void:

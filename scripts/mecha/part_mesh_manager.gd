@@ -206,17 +206,27 @@ func _rebuild_slot(slot: String, frame_data: Variant, equipped: Variant, apply_p
 
 
 # Rebuilds (or removes) the ScrapPatch primitive visuals for a patched slot.
-# Primitive data is stored JSON-safe (arrays) in GlobalData.scrap_patches.
+# Primitive data is stored JSON-safe (arrays) in GlobalData.scrap_patches. Each
+# primitive renders under the skeleton node it is attached to (see the per-
+# primitive "attach" field and GlobalData.SCRAP_ATTACH_OPTIONS) so the crude
+# armor follows the limb it was placed on.
 func refresh_scrap_patches() -> void:
+	var mecha = get_parent()
+	if mecha == null:
+		return
+	# Hide every existing patch container first, so stale primitives never linger
+	# when a patch is removed or its attach target changes.
 	for slot in GlobalData.MECHA_SLOTS:
+		for path in GlobalData.scrap_attach_node_paths(slot):
+			var parent = mecha.get_node_or_null(path)
+			if parent == null:
+				continue
+			var container = parent.get_node_or_null("ScrapPatch")
+			if container:
+				_free_patch_children(container)
+				container.visible = false
 		if GlobalData.scrap_patches.has(slot):
 			_render_scrap_patch(slot)
-		else:
-			var parent = _get_slot_parent_node(slot)
-			if parent:
-				var container = parent.get_node_or_null("ScrapPatch")
-				if container:
-					container.queue_free()
 
 
 func _render_scrap_patch(slot: String) -> void:
@@ -226,20 +236,24 @@ func _render_scrap_patch(slot: String) -> void:
 	var primitives: Array = patch.get("primitives", [])
 	if not (primitives is Array):
 		return
-	var parent = _get_slot_parent_node(slot)
-	if parent == null:
-		return
 
-	var container: Node3D = parent.get_node_or_null("ScrapPatch")
-	if container == null:
-		container = Node3D.new()
-		container.name = "ScrapPatch"
-		parent.add_child(container)
-	_clear_children(container)
-
+	var containers_used: Dictionary = {}
 	for primitive in primitives:
 		if not (primitive is Dictionary):
 			continue
+		var parent = _get_scrap_patch_parent(slot, str(primitive.get("attach", "")))
+		if parent == null:
+			continue
+		var container: Node3D = parent.get_node_or_null("ScrapPatch")
+		if container == null:
+			container = Node3D.new()
+			container.name = "ScrapPatch"
+			parent.add_child(container)
+		if not containers_used.has(container):
+			_free_patch_children(container)
+			containers_used[container] = true
+		container.visible = true
+
 		var shape: String = str(primitive.get("shape", "box"))
 		var pos: Vector3 = GlobalData.scrap_primitive_pos(primitive)
 		var rot: Vector3 = GlobalData.scrap_primitive_rot(primitive)
@@ -257,6 +271,24 @@ func _render_scrap_patch(slot: String) -> void:
 		mat.roughness = 0.85
 		mi.material_override = mat
 		container.add_child(mi)
+
+
+func _get_scrap_patch_parent(slot: String, attach_path: String) -> Node3D:
+	var mecha = get_parent()
+	if mecha == null:
+		return null
+	if attach_path != "":
+		var node = mecha.get_node_or_null(attach_path)
+		if node != null:
+			return node
+	return _get_slot_parent_node(slot)
+
+
+func _free_patch_children(container: Node) -> void:
+	if container == null:
+		return
+	for child in container.get_children():
+		child.free()
 
 
 func _build_scrap_primitive_mesh(shape: String) -> Mesh:

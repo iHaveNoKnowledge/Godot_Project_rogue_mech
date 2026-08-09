@@ -730,6 +730,10 @@ func _process(delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not visible:
 		return
+	# The emergency repair editor is a full-screen modal: don't rotate the hangar
+	# turntable or drag attachments while it is open on top.
+	if _is_scrap_editor_open():
+		return
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			_is_dragging_3d = event.pressed
@@ -738,6 +742,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			_move_selected_attachment(event.relative)
 		elif turntable_node:
 			turntable_node.rotate_y(event.relative.x * 0.008)
+
+
+func _is_scrap_editor_open() -> bool:
+	return scrap_editor != null and is_instance_valid(scrap_editor) and scrap_editor.visible
 
 
 # --- ARMORED CORE / 30MM TACTICAL COMBAT IDLE POSE ---
@@ -987,7 +995,19 @@ func _init_scrap_editor() -> void:
 	if scrap_editor != null:
 		return
 	scrap_editor = preload("res://scripts/ui/scrap_repair_editor.gd").new()
+	scrap_editor.applied.connect(_on_scrap_editor_applied)
+	scrap_editor.closed.connect(_on_scrap_editor_closed)
 	add_child(scrap_editor)
+
+
+# A patch was applied (or the editor closed): re-sync the hangar's own 3D mech
+# preview so the crude scrap armor shows on the correct skeleton parts.
+func _on_scrap_editor_applied(_slot: String) -> void:
+	call_deferred("_update_all_3d_slots_preview")
+
+
+func _on_scrap_editor_closed() -> void:
+	call_deferred("_update_all_3d_slots_preview")
 
 
 func _close_catalog_window() -> void:

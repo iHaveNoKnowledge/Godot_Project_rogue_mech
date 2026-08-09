@@ -263,10 +263,55 @@ func get_repair_cost(slot: String) -> int:
 #     "tier": 1..5, "stat_scale": 0.40..0.80,
 #     "scrap_armor_hp": float, "scrap_frame_hp": float,
 #     "armor_class": float, "scrap_spent": int,
-#     "primitives": [ {shape, pos, rot, scale, color} ]
+#     "primitives": [ {shape, pos, rot, scale, color, attach} ]
 #   }
 # -----------------------------------------------------------------------------
 var scrap_patches: Dictionary = {}
+
+
+# Where a scrap primitive may be attached on the mech. `node` is a
+# mecha-root-relative path to the skeleton node the primitive should follow
+# (so a patch on the arm can ride the upper arm, forearm, ...). The slot's
+# first option is always its root skeleton node. Single source of truth shared
+# by the repair editor and the combat/hangar scrap-patch renderer.
+const SCRAP_ATTACH_OPTIONS := {
+	"head": [
+		{"name": "Head", "node": "Head"},
+	],
+	"body": [
+		{"name": "Body", "node": "Body"},
+		{"name": "Chest Plate", "node": "Body/ChestPlate"},
+		{"name": "Backpack", "node": "Body/Backpack"},
+	],
+	"arm_left": [
+		{"name": "Upper Arm", "node": "ArmLeft"},
+		{"name": "Forearm", "node": "ArmLeft/ForearmLeft"},
+	],
+	"arm_right": [
+		{"name": "Upper Arm", "node": "ArmRight"},
+		{"name": "Forearm", "node": "ArmRight/ForearmRight"},
+	],
+	"leg_left": [
+		{"name": "Thigh", "node": "LegLeft"},
+		{"name": "Shin", "node": "LegLeft/ShinLeft"},
+	],
+	"leg_right": [
+		{"name": "Thigh", "node": "LegRight"},
+		{"name": "Shin", "node": "LegRight/ShinRight"},
+	],
+}
+
+
+# Mecha-root-relative skeleton node paths a scrap patch on `slot` can attach to.
+# Includes the slot's own root node as the first entry.
+func scrap_attach_node_paths(slot: String) -> Array[String]:
+	var paths: Array[String] = []
+	for opt in SCRAP_ATTACH_OPTIONS.get(slot, []):
+		if opt is Dictionary:
+			var p := str(opt.get("node", ""))
+			if p != "":
+				paths.append(p)
+	return paths
 
 
 const EMERGENCY_REPAIR_BASE_SCRAP := 5

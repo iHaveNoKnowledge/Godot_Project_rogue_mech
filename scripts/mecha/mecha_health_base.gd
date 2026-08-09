@@ -389,7 +389,11 @@ func _on_mecha_destroyed() -> void:
 
 	# Handle player death
 	if is_player:
+		if GameManager.is_escaping:
+			return
 		await get_tree().create_timer(2.0).timeout
+		if GameManager.is_escaping:
+			return
 		EventBus.combat_ended.emit(false)
 		GameManager.game_over()
 

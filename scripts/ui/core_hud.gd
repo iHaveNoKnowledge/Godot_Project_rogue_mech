@@ -41,7 +41,7 @@ var health_system: Node = null
 
 func _ready() -> void:
 	await get_tree().process_frame
-	var mecha = get_tree().current_scene.get_node_or_null("Mecha")
+	var mecha = GameManager.get_player_mecha()
 	if mecha:
 		health_system = mecha.get_node_or_null("HealthSystem")
 		if health_system:

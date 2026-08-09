@@ -8,6 +8,11 @@ var continue_button: Button
 
 var rewards: Dictionary = {}
 
+# Heat gained when the player abandons a battle through a retreat zone.
+const ESCAPE_HEAT_PENALTY := 4
+
+var is_escaped := false
+
 
 func _ready() -> void:
 	layer = 100
@@ -15,6 +20,7 @@ func _ready() -> void:
 	_create_ui()
 	visible = false
 	EventBus.combat_ended.connect(_on_combat_ended)
+	EventBus.combat_escaped.connect(_on_combat_escaped)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -91,6 +97,15 @@ func _on_combat_ended(victory: bool) -> void:
 		_show_defeat_screen()
 
 
+func _on_combat_escaped() -> void:
+	if is_escaped:
+		return
+	is_escaped = true
+	if has_node("/root/HeatWantedSystem"):
+		HeatWantedSystem.modify_heat(ESCAPE_HEAT_PENALTY)
+	_show_escape_screen()
+
+
 func _show_victory_rewards() -> void:
 	visible = true
 	get_tree().paused = true
@@ -115,7 +130,7 @@ func _show_victory_rewards() -> void:
 		credits_gained += 105
 		scrap_gained += 15
 		data_cores_gained = 1
-		GlobalData.data_cores += data_cores_gained
+		GlobalData.gain_data_cores(data_cores_gained)
 
 		if is_final_sector:
 			title_label.text = "CAMPAIGN VICTORY!"
@@ -132,8 +147,8 @@ func _show_victory_rewards() -> void:
 			title_label.text = "COMBAT VICTORY"
 			continue_button.text = "Continue [Enter / Space / Click]"
 
-	GlobalData.credits += credits_gained
-	GlobalData.scrap += scrap_gained
+	GlobalData.gain_credits(credits_gained)
+	GlobalData.gain_scrap(scrap_gained)
 
 	rewards = {
 		"credits": credits_gained,
@@ -150,6 +165,19 @@ func _show_victory_rewards() -> void:
 			rewards_label.text += "+%d Data Cores (Research Item)\n" % data_cores_gained
 		rewards_label.text += "+%d Heat\n" % heat_gained
 		rewards_label.text += "\nTotal Credits: %d | Scrap: %d" % [GlobalData.credits, GlobalData.scrap]
+
+	await get_tree().process_frame
+	if continue_button:
+		continue_button.grab_focus()
+
+
+func _show_escape_screen() -> void:
+	visible = true
+	title_label.text = "WITHDREW FROM COMBAT"
+	rewards_label.text = "You held position in the retreat zone and abandoned the battle.\n\nNo rewards are collected for a retreat.\n\n+%d Heat — enemy forces tighten their pursuit." % ESCAPE_HEAT_PENALTY
+	continue_button.text = "Return to Board [Enter / Space / Click]"
+	get_tree().paused = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 	await get_tree().process_frame
 	if continue_button:
@@ -173,7 +201,11 @@ func _show_defeat_screen() -> void:
 func _on_continue_pressed() -> void:
 	visible = false
 	get_tree().paused = false
-	if title_label.text == "DEFEATED":
+	if is_escaped:
+		is_escaped = false
+		GameManager.is_escaping = false
+		GameManager.return_to_board()
+	elif title_label.text == "DEFEATED":
 		GameManager.game_over()
 	elif GameManager.is_boss_combat:
 		if GlobalData.current_sector >= GlobalData.max_sectors:

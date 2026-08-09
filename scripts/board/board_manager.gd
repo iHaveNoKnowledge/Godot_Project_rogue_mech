@@ -219,7 +219,7 @@ func _trigger_ceasefire_skip() -> void:
 
 
 func _trigger_data_node_event() -> void:
-	GlobalData.data_cores += 2
+	GlobalData.gain_data_cores(2)
 	var event = {
 		"name": "Data Terminal Extraction",
 		"effect": "data_cores",

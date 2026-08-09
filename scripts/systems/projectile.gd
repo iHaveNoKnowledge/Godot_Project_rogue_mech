@@ -58,7 +58,10 @@ func _physics_process(delta: float) -> void:
 				_hit_target(enemy)
 				return
 
-	if global_position.y <= 0.0:
+	# Fallback: explode below the lowest possible terrain (global safety net at
+	# top ~ -2.5). Real terrain (banks, bridges, riverbed) is already caught by
+	# the raycast above.
+	if global_position.y <= -2.5:
 		if damage_type.to_lower() == "explosive":
 			_explode(global_position)
 		else:

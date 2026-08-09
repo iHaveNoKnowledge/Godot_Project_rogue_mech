@@ -36,6 +36,9 @@ func _ready() -> void:
 	# later reset_run_data() calls would mutate GlobalData under its pending
 	# sidestream comparison and the final tally would miss its late FAIL lines.
 	await _test_hangar_selection_preserves_loadout()
+	_test_save_load_roundtrip()
+	_test_escape_zone()
+	_test_battle_loadout_persistence()
 	print("REPAIR_QA_RESULT: %d passed, %d failed" % [_passed, _failed])
 	get_tree().quit(1 if _failed > 0 else 0)
 
@@ -484,6 +487,35 @@ func _test_hangar_selection_preserves_loadout() -> void:
 	_check(GlobalData.weapon_loadout.get("right") == before_right, "hangar tab switching keeps right weapon")
 
 
+func _test_battle_loadout_persistence() -> void:
+	# Regression: weapons picked up / swapped during a battle must be written
+	# back into GlobalData.weapon_loadout so the next battle starts with them.
+	# Previously only the battle-local WeaponManager state changed and the next
+	# battle always reloaded the run-start weapons.
+	GlobalData.reset_run_data()
+	GlobalData.roll_random_start()
+
+	var wm = preload("res://scripts/mecha/weapon_manager.gd").new()
+	var rifle := preload("res://resources/mech/stock/weapon_beam_rifle.tres")
+	var blade := preload("res://resources/mech/stock/weapon_heat_blade.tres")
+	var shotgun := preload("res://resources/mech/stock/weapon_combat_shotgun.tres")
+	wm.left_hand = rifle
+	wm.right_hand = blade
+	wm.carry.append(shotgun)
+	wm.carry.append(rifle)
+	wm.sync_loadout_to_global()
+
+	_check(GlobalData.weapon_loadout.get("left", "") == rifle.resource_path, "battle pickup persists left hand to loadout")
+	_check(GlobalData.weapon_loadout.get("right", "") == blade.resource_path, "battle pickup persists right hand to loadout")
+	var carry: Array = GlobalData.weapon_loadout.get("carry", [])
+	_check(carry.size() == 2 and shotgun.resource_path in carry and rifle.resource_path in carry, "battle pickup persists back-carry to loadout")
+
+	# Dropping a weapon clears the hand slot in the loadout.
+	wm.left_hand = null
+	wm.sync_loadout_to_global()
+	_check(GlobalData.weapon_loadout.get("left", "") == "", "battle drop clears left hand in loadout")
+
+
 func _test_tech_escalation() -> void:
 	GlobalData.reset_run_data()
 	GlobalData.enemy_tech_tier = 1
@@ -849,3 +881,112 @@ func _test_hangar_mech_roster() -> void:
 	_check(GlobalData.switch_hangar_mech(backup_id), "hangar can switch to another built mech")
 	_check(GlobalData.active_hangar_mech_id == backup_id, "switch updates active hangar mech")
 	_check(GlobalData.get_active_hangar_mech().get("name", "") == "Scout Frame", "switch loads the selected mech snapshot")
+
+
+# Round-trips a distinctive run state through save_run()/load_run() to prove the
+# persistence layer survives refactors. Backs up any existing save file first so
+# a real playthrough save is never destroyed by the QA suite.
+func _test_save_load_roundtrip() -> void:
+	var save_path := "user://savegame.json"
+	var backup := ""
+	if FileAccess.file_exists(save_path):
+		var f := FileAccess.open(save_path, FileAccess.READ)
+		if f:
+			backup = f.get_as_text()
+
+	GlobalData.reset_run_data()
+	GlobalData.chassis_id = "titan"
+	GlobalData.credits = 777
+	GlobalData.scrap = 321
+	GlobalData.data_cores = 9
+	GlobalData.theme_id = "scavenger"
+	GlobalData.heat = 42
+	GlobalData.wanted_level = 3
+	GlobalData.current_sector = 4
+	GlobalData.part_damage["body"] = 0.5
+	GlobalData.part_damage["body_frame"] = 1.0
+	GlobalData.save_run()
+
+	GlobalData.reset_run_data()
+	_check(GlobalData.chassis_id != "titan", "state reset before load")
+	_check(GlobalData.credits == 110, "reset grants the standard starting credits")
+
+	var loaded := GlobalData.load_run()
+	_check(loaded, "load_run returns true after save")
+	_check(GlobalData.chassis_id == "titan", "load restores chassis id")
+	_check(GlobalData.credits == 777, "load restores credits")
+	_check(GlobalData.scrap == 321, "load restores scrap")
+	_check(GlobalData.data_cores == 9, "load restores data cores")
+	_check(GlobalData.theme_id == "scavenger", "load restores theme id")
+	_check(GlobalData.heat == 42, "load restores heat")
+	_check(GlobalData.wanted_level == 3, "load restores wanted level")
+	_check(GlobalData.current_sector == 4, "load restores sector")
+	_check(is_equal_approx(GlobalData.part_damage.get("body", 0.0), 0.5), "load restores armor damage cache")
+	_check(is_equal_approx(GlobalData.part_damage.get("body_frame", 0.0), 1.0), "load restores frame damage cache")
+
+	if backup != "":
+		var wf := FileAccess.open(save_path, FileAccess.WRITE)
+		if wf:
+			wf.store_string(backup)
+	else:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path))
+
+
+func _test_escape_zone() -> void:
+	GameManager.is_escaping = false
+
+	# A fake "mecha" body with a live health system, so the zone can detect it.
+	var fake := CharacterBody3D.new()
+	fake.name = "FakeMecha"
+	fake.add_to_group("mecha")
+	var hs := preload("res://scripts/mecha/mecha_health_base.gd").new()
+	hs.name = "HealthSystem"
+	hs.is_destroyed = false
+	fake.add_child(hs)
+	add_child(fake)
+
+	# Zones are kept out of the tree so the real physics process can't add
+	# uncontrolled delta to the manually-driven hold timer.
+	var zone := preload("res://scripts/arena/escape_zone.gd").new()
+	zone.escape_time = 0.5
+
+	var escaped_fired := [false]
+	var escaped_listener := func() -> void: escaped_fired[0] = true
+	EventBus.combat_escaped.connect(escaped_listener)
+
+	# Standing inside builds the timer; it must not fire early.
+	zone._on_body_entered(fake)
+	zone._physics_process(0.2)
+	_check(not zone._escaped, "escape does not fire before the hold time")
+	_check(is_equal_approx(zone._time_inside, 0.2), "hold timer accumulates while standing inside")
+
+	zone._physics_process(0.4)
+	_check(zone._escaped, "escape fires after the hold time")
+	_check(GameManager.is_escaping, "escape flags GameManager.is_escaping")
+	_check(escaped_fired[0], "escape emits EventBus.combat_escaped")
+	EventBus.combat_escaped.disconnect(escaped_listener)
+	GameManager.is_escaping = false
+
+	# Leaving the zone resets the accumulated timer.
+	var zone2 := preload("res://scripts/arena/escape_zone.gd").new()
+	zone2.escape_time = 0.5
+	zone2._on_body_entered(fake)
+	zone2._physics_process(0.3)
+	zone2._on_body_exited(fake)
+	zone2._physics_process(0.3)
+	_check(not zone2._escaped, "leaving the zone resets the hold timer")
+	_check(is_equal_approx(zone2._time_inside, 0.0), "hold timer resets to zero on exit")
+
+	# A destroyed mech can no longer retreat.
+	hs.is_destroyed = true
+	var zone3 := preload("res://scripts/arena/escape_zone.gd").new()
+	zone3.escape_time = 0.5
+	zone3._on_body_entered(fake)
+	zone3._physics_process(0.6)
+	_check(not zone3._escaped, "a destroyed mech cannot escape")
+
+	zone.free()
+	zone2.free()
+	zone3.free()
+	fake.queue_free()
+	GameManager.is_escaping = false

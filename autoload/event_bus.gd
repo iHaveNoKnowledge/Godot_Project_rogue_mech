@@ -33,6 +33,9 @@ signal event_triggered(event_data: Dictionary)
 signal heat_changed(new_heat: int)
 signal wanted_changed(new_wanted: int)
 signal combat_ended(victory: bool)
+## Fired when the player completes a retreat: held position inside an escape
+## zone long enough to abandon the battle without destroying every enemy.
+signal combat_escaped()
 signal enemy_tech_escalated(new_tier: int)
 
 # --- Game State ---

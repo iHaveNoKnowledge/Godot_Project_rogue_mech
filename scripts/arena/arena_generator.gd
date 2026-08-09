@@ -3,16 +3,14 @@ extends Node3D
 ## Generates procedural combat maps: Desert, Skyscraper City, Urban Crossroads, and River Bridge.
 
 @export var arena_size: float = 240.0
-@export var wall_height: float = 14.0
-@export var wall_thickness: float = 3.0
 @export var tile_count: int = 24
-@export var pillar_size: float = 6.0
+@export var escape_zone_depth: float = 16.0
 
 enum BiomeTheme { DESERT, CITY_HIGHRISE, CROSSROADS, RIVER_BRIDGE }
 
 var current_theme: BiomeTheme = BiomeTheme.DESERT
 var tile_container: Node3D
-var wall_container: Node3D
+var escape_zone_container: Node3D
 var structures_container: Node3D
 
 
@@ -24,8 +22,9 @@ func _ready() -> void:
 func generate_arena() -> void:
 	_create_containers()
 	_add_ground_tiles()
-	_create_walls()
-	_create_pillars()
+	_add_ground_collision()
+	_create_escape_zones()
+	_create_void_barrier()
 	_create_theme_structures()
 	EventBus.arena_generated.emit({
 		"size": arena_size,
@@ -34,9 +33,9 @@ func generate_arena() -> void:
 
 
 func _create_containers() -> void:
-	wall_container = Node3D.new()
-	wall_container.name = "Walls"
-	add_child(wall_container)
+	escape_zone_container = Node3D.new()
+	escape_zone_container.name = "EscapeZones"
+	add_child(escape_zone_container)
 
 	tile_container = Node3D.new()
 	tile_container.name = "GroundTiles"
@@ -70,8 +69,57 @@ func _add_ground_tiles() -> void:
 			mat.roughness = 0.8
 			tile.material_override = mat
 
-			tile.position = Vector3(pos_x, -0.39, pos_z)
+			var tile_y := -0.39
+			if current_theme == BiomeTheme.RIVER_BRIDGE:
+				tile_y = 0.45
+			tile.position = Vector3(pos_x, tile_y, pos_z)
 			tile_container.add_child(tile)
+
+
+# The main walkable ground per theme. The global Ground in game_world.tscn is
+# only a deep safety net now (top ~ -2.5), so each theme must build its own
+# collision surface: a flat plane for most themes, and raised riverbanks for
+# RIVER_BRIDGE so the water trench reads as a real sunken channel.
+func _add_ground_collision() -> void:
+	if current_theme == BiomeTheme.RIVER_BRIDGE:
+		_add_riverbank_collision()
+		return
+
+	var ground = StaticBody3D.new()
+	ground.name = "GroundCollision"
+	ground.collision_layer = 2
+	ground.collision_mask = 1
+
+	var col = CollisionShape3D.new()
+	var shape = BoxShape3D.new()
+	shape.size = Vector3(arena_size, 0.8, arena_size)
+	col.shape = shape
+	ground.add_child(col)
+
+	ground.position = Vector3(0, -0.8, 0)
+	structures_container.add_child(ground)
+
+
+func _add_riverbank_collision() -> void:
+	var half := arena_size / 2.0
+	var trench_half := 22.0
+	var bank_depth := half - trench_half
+
+	for sign_z in [1.0, -1.0]:
+		var bank = StaticBody3D.new()
+		bank.name = "RiverbankCollision"
+		bank.collision_layer = 2
+		bank.collision_mask = 1
+
+		var col = CollisionShape3D.new()
+		var shape = BoxShape3D.new()
+		shape.size = Vector3(arena_size, 1.0, bank_depth)
+		col.shape = shape
+		bank.add_child(col)
+
+		var z_center = sign_z * (trench_half + bank_depth * 0.5)
+		bank.position = Vector3(0, 0.0, z_center)
+		structures_container.add_child(bank)
 
 
 func _get_theme_tile_color(x: int, z: int, pos_x: float, pos_z: float) -> Color:
@@ -105,88 +153,65 @@ func _get_theme_tile_color(x: int, z: int, pos_x: float, pos_z: float) -> Color:
 
 
 
-func _create_walls() -> void:
-	var half = arena_size / 2.0
+func _create_escape_zones() -> void:
+	var half := arena_size / 2.0
+	var depth := escape_zone_depth
+	var len := arena_size
 
-	var wall_defs = [
-		{"pos": Vector3(0, wall_height / 2.0, -half), "size": Vector3(arena_size + wall_thickness * 2, wall_height, wall_thickness)},
-		{"pos": Vector3(0, wall_height / 2.0, half), "size": Vector3(arena_size + wall_thickness * 2, wall_height, wall_thickness)},
-		{"pos": Vector3(-half, wall_height / 2.0, 0), "size": Vector3(wall_thickness, wall_height, arena_size)},
-		{"pos": Vector3(half, wall_height / 2.0, 0), "size": Vector3(wall_thickness, wall_height, arena_size)},
+	var zone_defs = [
+		{"pos": Vector3(0, 1.0, -(half - depth * 0.5)), "size": Vector3(len, 2.0, depth)},
+		{"pos": Vector3(0, 1.0, (half - depth * 0.5)), "size": Vector3(len, 2.0, depth)},
+		{"pos": Vector3(-(half - depth * 0.5), 1.0, 0), "size": Vector3(depth, 2.0, len)},
+		{"pos": Vector3((half - depth * 0.5), 1.0, 0), "size": Vector3(depth, 2.0, len)},
 	]
 
-	var wall_mat = StandardMaterial3D.new()
-	wall_mat.albedo_color = _get_wall_color()
-	wall_mat.roughness = 0.85
+	var zone_script := preload("res://scripts/arena/escape_zone.gd")
 
-	for def in wall_defs:
-		var wall = StaticBody3D.new()
-		wall.collision_layer = 2
-		wall.collision_mask = 1
+	for def in zone_defs:
+		var zone := Area3D.new()
+		zone.name = "EscapeZone"
+		zone.add_to_group("escape_zone")
+		zone.set_script(zone_script)
+		zone.position = def["pos"]
 
-		var collision = CollisionShape3D.new()
-		var shape = BoxShape3D.new()
+		var collision := CollisionShape3D.new()
+		var shape := BoxShape3D.new()
 		shape.size = def["size"]
 		collision.shape = shape
-		wall.add_child(collision)
+		zone.add_child(collision)
 
-		var mesh_inst = MeshInstance3D.new()
-		var box_mesh = BoxMesh.new()
-		box_mesh.size = def["size"]
-		mesh_inst.mesh = box_mesh
-		mesh_inst.material_override = wall_mat
-		wall.add_child(mesh_inst)
-
-		wall.position = def["pos"]
-		wall_container.add_child(wall)
+		escape_zone_container.add_child(zone)
 
 
-func _get_wall_color() -> Color:
-	match current_theme:
-		BiomeTheme.DESERT: return Color(0.48, 0.40, 0.30)
-		BiomeTheme.CITY_HIGHRISE: return Color(0.20, 0.22, 0.28)
-		BiomeTheme.CROSSROADS: return Color(0.25, 0.27, 0.32)
-		BiomeTheme.RIVER_BRIDGE: return Color(0.30, 0.32, 0.35)
-		_: return Color(0.30, 0.30, 0.30)
+# Invisible safety frame just past the escape zones so the player (and enemies)
+# can't walk off the edge of the ground plane and fall into the void.
+func _create_void_barrier() -> void:
+	var half := arena_size / 2.0
+	var barrier_pos := half + 2.0
+	var thickness := 2.0
+	var height := 6.0
 
-
-
-func _create_pillars() -> void:
-	var half = arena_size / 2.0
-	var offset = pillar_size
-
-	var pillar_positions = [
-		Vector3(-half + offset, 0, -half + offset),
-		Vector3(half - offset, 0, -half + offset),
-		Vector3(-half + offset, 0, half - offset),
-		Vector3(half - offset, 0, half - offset),
+	var barrier_defs = [
+		{"pos": Vector3(0, height * 0.5, -barrier_pos), "size": Vector3(arena_size + thickness * 2, height, thickness)},
+		{"pos": Vector3(0, height * 0.5, barrier_pos), "size": Vector3(arena_size + thickness * 2, height, thickness)},
+		{"pos": Vector3(-barrier_pos, height * 0.5, 0), "size": Vector3(thickness, height, arena_size + thickness * 2)},
+		{"pos": Vector3(barrier_pos, height * 0.5, 0), "size": Vector3(thickness, height, arena_size + thickness * 2)},
 	]
 
-	var pillar_mat = StandardMaterial3D.new()
-	pillar_mat.albedo_color = _get_wall_color().darkened(0.2)
-	pillar_mat.roughness = 0.7
+	for def in barrier_defs:
+		var barrier := StaticBody3D.new()
+		barrier.name = "VoidBarrier"
+		barrier.collision_layer = 2
+		barrier.collision_mask = 0
 
-	for pos in pillar_positions:
-		var pillar = StaticBody3D.new()
-		pillar.collision_layer = 2
-		pillar.collision_mask = 1
-
-		var collision = CollisionShape3D.new()
-		var shape = BoxShape3D.new()
-		shape.size = Vector3(pillar_size, wall_height + 4, pillar_size)
+		var collision := CollisionShape3D.new()
+		var shape := BoxShape3D.new()
+		shape.size = def["size"]
 		collision.shape = shape
-		collision.position.y = (wall_height + 4) / 2.0
-		pillar.add_child(collision)
+		barrier.add_child(collision)
 
-		var mesh_inst = MeshInstance3D.new()
-		var box_mesh = BoxMesh.new()
-		box_mesh.size = Vector3(pillar_size, wall_height + 4, pillar_size)
-		mesh_inst.mesh = box_mesh
-		mesh_inst.material_override = pillar_mat
-		pillar.add_child(mesh_inst)
-
-		pillar.position = pos
-		wall_container.add_child(pillar)
+		barrier.position = def["pos"]
+		escape_zone_container.add_child(barrier)
 
 
 # ====================================================================
@@ -461,19 +486,39 @@ func _spawn_riverbed_floor() -> void:
 	mesh.material_override = mat
 	floor_body.add_child(mesh)
 
-	floor_body.position = Vector3(0, -1.25, 0)
+	floor_body.position = Vector3(0, -1.5, 0)
 	structures_container.add_child(floor_body)
 
 
-func _create_water_material() -> StandardMaterial3D:
-	var mat = StandardMaterial3D.new()
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(0.15, 0.6, 1.0, 0.55)
-	mat.emission_enabled = true
-	mat.emission = Color(0.1, 0.4, 0.9)
-	mat.emission_energy_multiplier = 1.6
-	mat.metallic = 0.3
-	mat.roughness = 0.1
+func _create_water_material() -> ShaderMaterial:
+	var mat = ShaderMaterial.new()
+	var shader = Shader.new()
+	shader.code = """
+shader_type spatial;
+render_mode blend_mix, depth_draw_opaque, cull_back;
+
+uniform vec4 water_color : source_color = vec4(0.15, 0.6, 1.0, 0.62);
+uniform float wave_speed : hint_range(0, 10) = 2.5;
+uniform float wave_strength : hint_range(0, 0.5) = 0.06;
+uniform float emission_energy = 1.6;
+
+void vertex() {
+	UV *= 8.0;
+}
+
+void fragment() {
+	float t = TIME * wave_speed;
+	vec2 uv = UV;
+	uv.y += t;
+	uv.y += sin(uv.x * 6.0 + t) * wave_strength;
+	ALBEDO = water_color.rgb;
+	ALPHA = water_color.a;
+	EMISSION = vec3(0.1, 0.4, 0.9) * emission_energy;
+	ROUGHNESS = 0.1;
+	METALLIC = 0.3;
+}
+"""
+	mat.shader = shader
 	return mat
 
 
@@ -482,7 +527,7 @@ func _create_water_material() -> StandardMaterial3D:
 # the trench) is counted as "in water". The VISUAL is a thin, flat sheet sunk
 # below the riverbanks and bridge deck — water must sit lower than the ground
 # and lower than the bridge, never as a tall cube rising above them.
-func _spawn_water_volume(center_x: float, width: float, mat: StandardMaterial3D) -> void:
+func _spawn_water_volume(center_x: float, width: float, mat: Material) -> void:
 	var area = Area3D.new()
 	area.name = "WaterVolume"
 	area.collision_layer = 4
@@ -492,19 +537,20 @@ func _spawn_water_volume(center_x: float, width: float, mat: StandardMaterial3D)
 
 	var col = CollisionShape3D.new()
 	var shape = BoxShape3D.new()
-	shape.size = Vector3(width, 4.0, 40)
+	shape.size = Vector3(width, 2.6, 40)
 	col.shape = shape
 	area.add_child(col)
 
 	# Visual: thin low sheet so the water reads as a sunken surface, well below
-	# the riverbank ground (top ~ -0.34) and the bridge deck (top ~ +0.5).
+	# the riverbank ground (top ~ +0.5) and the bridge deck (top ~ +0.5), but
+	# high enough above the riverbed (top ~ -1.2) to read as flowing water.
 	var mesh = MeshInstance3D.new()
 	var box = BoxMesh.new()
 	box.size = Vector3(width, 0.3, 40)
 	mesh.mesh = box
 	mesh.material_override = mat
-	mesh.position.y = -0.6
+	mesh.position.y = -0.55
 	area.add_child(mesh)
 
-	area.position = Vector3(center_x, -0.6, 0)
+	area.position = Vector3(center_x, -0.9, 0)
 	structures_container.add_child(area)

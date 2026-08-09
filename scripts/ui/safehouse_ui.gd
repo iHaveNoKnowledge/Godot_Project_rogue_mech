@@ -186,11 +186,10 @@ func _on_rebuild_catalog_pressed(slot: String) -> void:
 
 func _on_repair_part_pressed(slot: String) -> void:
 	var cost := GlobalData.get_repair_cost(slot)
-	if GlobalData.credits < cost:
+	if not GlobalData.try_spend_credits(cost):
 		status_label.text = "Not enough credits!"
 		return
 
-	GlobalData.credits -= cost
 	GlobalData.part_damage.erase(slot)
 	GlobalData.part_damage.erase(slot + "_frame")
 	status_label.text = "Repaired! Credits: %d" % GlobalData.credits
@@ -202,11 +201,10 @@ func _on_repair_all_pressed() -> void:
 	for slot in GlobalData.MECHA_SLOTS:
 		total_cost += GlobalData.get_repair_cost(slot)
 
-	if GlobalData.credits < total_cost:
+	if not GlobalData.try_spend_credits(total_cost):
 		status_label.text = "Not enough credits! Need %d" % total_cost
 		return
 
-	GlobalData.credits -= total_cost
 	GlobalData.part_damage.clear()
 	status_label.text = "All repaired! Credits: %d" % GlobalData.credits
 	_refresh_parts_list()

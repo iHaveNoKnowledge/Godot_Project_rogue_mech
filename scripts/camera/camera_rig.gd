@@ -26,7 +26,7 @@ func _ready() -> void:
 	EventBus.camera_mode_changed.connect(_on_camera_mode_changed)
 	EventBus.combat_ended.connect(_on_combat_ended)
 	await get_tree().process_frame
-	target = get_tree().current_scene.get_node_or_null("Mecha")
+	target = GameManager.get_player_mecha()
 
 
 func add_shake(amount: float) -> void:

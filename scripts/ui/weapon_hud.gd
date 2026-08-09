@@ -71,7 +71,7 @@ func _process(_delta: float) -> void:
 
 
 func _try_connect_weapon_manager() -> void:
-	var mecha = get_tree().current_scene.get_node_or_null("Mecha")
+	var mecha = GameManager.get_player_mecha()
 	if mecha == null:
 		return
 	var wm = mecha.get_node_or_null("WeaponManager")
@@ -410,7 +410,7 @@ func _update_nearby_pickup() -> void:
 	if pickup_menu_open:
 		# Keep the menu open even if the mech nudges out of the radius.
 		return
-	var mecha = get_tree().current_scene.get_node_or_null("Mecha")
+	var mecha = GameManager.get_player_mecha()
 	if mecha == null:
 		_set_prompt_visible(false)
 		nearby_pickup = null

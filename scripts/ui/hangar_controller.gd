@@ -1267,14 +1267,13 @@ func _stats_text_for_index(index: int) -> String:
 			return ""
 		var info = frame_items[index]
 		var fname = info.get("name", info.get("part_name", "Inner Frame"))
-		var fhp = info.get("hp", info.get("max_hp", 25.0))
-		var fwt = info.get("weight", 3.0)
+		var fcap = _frame_capability_text(info)
 		if _is_item_equipped(selected_slot, info):
 			var frame_dmg = GlobalData.part_damage.get(selected_slot + "_frame", 0.0)
-			return "INNER FRAME PART: %s  [E]\n\nFRAME HP: %.0f / %.0f\nFRAME WEIGHT: %.1f kg\n\nCurrently equipped." % [
-				fname, fhp * (1.0 - clampf(frame_dmg, 0.0, 1.0)), fhp, fwt
+			return "INNER FRAME PART: %s  [E]\nDURABILITY: %.0f%%\n\n%s\n\nCurrently equipped." % [
+				fname, (1.0 - clampf(frame_dmg, 0.0, 1.0)) * 100.0, fcap
 			]
-		return "INNER FRAME PART: %s\n\nFRAME HP: %.0f\nFRAME WEIGHT: %.1f kg\n\nEquip to install fresh at 100%% HP." % [fname, fhp, fwt]
+		return "INNER FRAME PART: %s\nDURABILITY: 100%%\n\n%s\n\nEquip to install fresh at 100%% HP." % [fname, fcap]
 
 	if selected_slot.begins_with("weapon"):
 		if index < 0 or index >= visible_weapon_indices.size():
@@ -1313,14 +1312,11 @@ func _stats_text_for_index(index: int) -> String:
 		if index >= 0 and index < visible_salvage_indices.size():
 			var inst = GlobalData.armor_inventory[visible_salvage_indices[index]]
 			var item_name = inst.get("name", inst.get("part_name", "Armor Instance"))
-			var item_type = inst.get("type", "Instance")
-			var item_hp = inst.get("hp", inst.get("max_hp", 30.0))
-			var item_armor = inst.get("armor", 15.0)
-			var item_weight = inst.get("weight", 4.0)
+			var acap = _armor_capability_text(selected_slot, inst)
 			var dur_pct = _get_instance_durability(selected_slot, inst)
 			var is_eq = _is_item_equipped(selected_slot, inst)
-			return "OWNED ARMOR: %s  %s\nTYPE: %s\n\nARMOR HP: %.0f / %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg\nDURABILITY: %.0f%%" % [
-				item_name, "[E]" if is_eq else "", item_type, item_hp * dur_pct, item_hp, item_armor, item_weight, dur_pct * 100.0
+			return "OWNED ARMOR: %s  %s\nDURABILITY: %.0f%%\n\n%s" % [
+				item_name, "[E]" if is_eq else "", dur_pct * 100.0, acap
 			]
 	return ""
 
@@ -1737,6 +1733,59 @@ func _weapon_capability_text(res: Resource) -> String:
 	return "\n".join(lines)
 
 
+# Builds a defensive stat block for an owned armor instance (type, armor class,
+# HP, weight, durability, upgrade level). Only lines with a meaningful value
+# are shown. Used by the selection + hover stat cards on the customize page.
+func _armor_capability_text(slot: String, inst: Dictionary) -> String:
+	if inst.is_empty():
+		return ""
+	var lines: Array[String] = []
+
+	lines.append("TYPE: %s" % inst.get("type", "Instance"))
+
+	var full_hp := GlobalData.part_stat(inst, "max_hp", 30.0)
+	var dur := _get_instance_durability(slot, inst)
+	lines.append("ARMOR HP: %.0f / %.0f" % [full_hp * dur, full_hp])
+
+	var armor_class := GlobalData.part_stat(inst, "armor", 0.0)
+	if armor_class > 0.0:
+		lines.append("ARMOR CLASS: %.0f" % armor_class)
+
+	var weight := GlobalData.part_stat(inst, "weight", 0.0)
+	if weight > 0.0:
+		lines.append("WEIGHT: %.1f kg" % weight)
+
+	var upg := int(inst.get("upgrade_level", 1))
+	if upg > 1:
+		lines.append("UPGRADE LEVEL: %d (+%d HP)" % [upg, (upg - 1) * 15])
+
+	return "\n".join(lines)
+
+
+# Builds a frame stat block for an inner frame catalog entry (type, frame HP,
+# weight, field-pack carry bonus). Mirrors _weapon_capability_text so frames
+# get the same rich stat cards as weapons and armor.
+func _frame_capability_text(info: Dictionary) -> String:
+	if info.is_empty():
+		return ""
+	var lines: Array[String] = []
+
+	lines.append("TYPE: %s" % info.get("type", "Inner Frame"))
+
+	var fhp := float(info.get("hp", info.get("max_hp", 20.0)))
+	lines.append("FRAME HP: %.0f" % fhp)
+
+	var fwt := float(info.get("weight", 0.0))
+	if fwt > 0.0:
+		lines.append("WEIGHT: %.1f kg" % fwt)
+
+	var bonus := float(info.get("carry_bonus", 0.0))
+	if bonus > 0.0:
+		lines.append("FIELD PACK BONUS: +%.1f kg" % bonus)
+
+	return "\n".join(lines)
+
+
 func _populate_part_list_for_slot(slot: String) -> void:
 	_close_part_action_modal()
 	part_item_list.clear()
@@ -1886,17 +1935,16 @@ func _on_part_item_selected(index: int) -> void:
 			selected_salvage_info = {}
 
 			var fname = selected_frame_info.get("name", selected_frame_info.get("part_name", "Inner Frame"))
-			var fhp = selected_frame_info.get("hp", selected_frame_info.get("max_hp", 25.0))
-			var fwt = selected_frame_info.get("weight", 3.0)
+			var fcap = _frame_capability_text(selected_frame_info)
 			var is_eq = _is_item_equipped(selected_slot, selected_frame_info)
 			if is_eq:
 				var frame_dmg = GlobalData.part_damage.get(selected_slot + "_frame", 0.0)
-				stats_label.text = "INNER FRAME PART: %s  [E]\n\nFRAME HP: %.0f / %.0f\nFRAME WEIGHT: %.1f kg\n\nThis frame is currently equipped." % [
-					fname, fhp * (1.0 - clampf(frame_dmg, 0.0, 1.0)), fhp, fwt
+				stats_label.text = "INNER FRAME PART: %s  [E]\nDURABILITY: %.0f%%\n\n%s\n\nThis frame is currently equipped." % [
+					fname, (1.0 - clampf(frame_dmg, 0.0, 1.0)) * 100.0, fcap
 				]
 			else:
-				stats_label.text = "INNER FRAME PART: %s\n\nFRAME HP: %.0f\nFRAME WEIGHT: %.1f kg\n\nEquip this frame to install it fresh at 100%% HP." % [
-					fname, fhp, fwt
+				stats_label.text = "INNER FRAME PART: %s\nDURABILITY: 100%%\n\n%s\n\nEquip this frame to install it fresh at 100%% HP." % [
+					fname, fcap
 				]
 			# Only change 3D model when user explicitly picks a part, not on section switch
 			if not _is_populating:
@@ -1964,21 +2012,17 @@ func _on_part_item_selected(index: int) -> void:
 			selected_frame_info = {}
 
 			var item_name = selected_salvage_info.get("name", selected_salvage_info.get("part_name", "Armor Instance"))
-			var item_type = selected_salvage_info.get("type", "Instance")
-			var item_hp = selected_salvage_info.get("hp", selected_salvage_info.get("max_hp", 30.0))
-			var item_armor = selected_salvage_info.get("armor", 15.0)
-			var item_weight = selected_salvage_info.get("weight", 4.0)
+			var acap = _armor_capability_text(selected_slot, selected_salvage_info)
 
 			var is_eq = _is_item_equipped(selected_slot, selected_salvage_info)
 			if is_eq:
-				var armor_dmg = GlobalData.part_damage.get(selected_slot, 0.0)
-				stats_label.text = "OWNED ARMOR: %s  [E]\nTYPE: %s\n\nARMOR HP: %.0f / %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg\n\nThis plate is currently equipped." % [
-					item_name, item_type, item_hp * (1.0 - clampf(armor_dmg, 0.0, 1.0)), item_hp, item_armor, item_weight
+				stats_label.text = "OWNED ARMOR: %s  [E]\nDURABILITY: %.0f%%\n\n%s\n\nThis plate is currently equipped." % [
+					item_name, _get_instance_durability(selected_slot, selected_salvage_info) * 100.0, acap
 				]
 			else:
 				var dur_pct = _get_instance_durability(selected_slot, selected_salvage_info)
-				stats_label.text = "OWNED ARMOR: %s\nTYPE: %s\n\nARMOR HP: %.0f / %.0f\nARMOR CLASS: %.0f\nARMOR WEIGHT: %.1f kg\nDURABILITY: %.0f%%\n\nEquip this plate to install it." % [
-					item_name, item_type, item_hp * dur_pct, item_hp, item_armor, item_weight, dur_pct * 100.0
+				stats_label.text = "OWNED ARMOR: %s\nDURABILITY: %.0f%%\n\n%s\n\nEquip this plate to install it." % [
+					item_name, dur_pct * 100.0, acap
 				]
 			# Only change 3D model when user explicitly picks a part, not on section switch
 			if not _is_populating:

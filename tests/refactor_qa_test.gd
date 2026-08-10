@@ -39,6 +39,7 @@ func _ready() -> void:
 	# sidestream comparison and the final tally would miss its late FAIL lines.
 	await _test_hangar_selection_preserves_loadout()
 	await _test_hangar_menu_flow()
+	await _test_hangar_stat_cards_show_capabilities()
 	_test_save_load_roundtrip()
 	_test_escape_zone()
 	_test_battle_loadout_persistence()
@@ -567,6 +568,53 @@ func _test_hangar_menu_flow() -> void:
 	# BACK TO MENU returns to the landing screen.
 	hangar._on_back_to_menu_pressed()
 	_check(hangar.submenu_rail.visible, "back-to-menu returns to the landing screen")
+
+	hangar.queue_free()
+	await get_tree().process_frame
+
+
+func _test_hangar_stat_cards_show_capabilities() -> void:
+	# Stat cards on the customize page (right panel) must show rich capability
+	# blocks for EVERY item type: weapons (damage/fire rate/mag), armor (armor
+	# class/HP/weight/upgrade) and frames (frame HP/weight/carry bonus). These
+	# replaced the old bare "TYPE/WEIGHT/HP" lines.
+	GlobalData.reset_run_data()
+	GlobalData.roll_random_start()
+
+	var hangar = load("res://scenes/ui/hangar_scene.tscn").instantiate()
+	add_child(hangar)
+	await get_tree().process_frame
+	hangar._show_customize_page()
+
+	# ARMOR: the first owned head plate must print the capability block.
+	hangar._select_slot_tab("head")
+	hangar._switch_custom_mode("armor")
+	var armor_text: String = hangar.stats_label.text
+	_check(armor_text.contains("ARMOR HP:"), "armor card shows ARMOR HP line")
+	_check(armor_text.contains("ARMOR CLASS:"), "armor card shows ARMOR CLASS line")
+	_check(armor_text.contains("DURABILITY:"), "armor card shows DURABILITY line")
+
+	# FRAME: selecting a frame slot prints frame capability (HP/weight/carry).
+	hangar._switch_custom_mode("frame")
+	var frame_text: String = hangar.stats_label.text
+	_check(frame_text.contains("INNER FRAME PART:"), "frame card shows the frame name")
+	_check(frame_text.contains("FRAME HP:"), "frame card shows FRAME HP line")
+	_check(frame_text.contains("FIELD PACK BONUS:"), "frame card shows carry bonus line")
+
+	# WEAPON: hand weapon card prints combat capabilities (damage/fire/mag).
+	hangar._select_slot_tab("weapon_left")
+	var weapon_text: String = hangar.stats_label.text
+	_check(weapon_text.contains("HAND WEAPON:"), "weapon card shows the hand weapon title")
+	_check(weapon_text.contains("DAMAGE:"), "weapon card shows DAMAGE line")
+	_check(weapon_text.contains("FIRE RATE:"), "weapon card shows FIRE RATE line")
+
+	# HOVER: the hover preview mirrors the selected card (armor slot).
+	hangar._select_slot_tab("head")
+	hangar._switch_custom_mode("armor")
+	var hover_text: String = hangar._stats_text_for_index(0)
+	_check(hover_text.contains("OWNED ARMOR:"), "armor hover card shows the armor name")
+	_check(hover_text.contains("ARMOR HP:"), "armor hover card shows ARMOR HP line")
+	_check(hover_text.contains("DURABILITY:"), "armor hover card shows DURABILITY line")
 
 	hangar.queue_free()
 	await get_tree().process_frame

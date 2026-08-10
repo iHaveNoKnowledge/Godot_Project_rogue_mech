@@ -431,9 +431,11 @@ func _build_ui_layout() -> void:
 	# Right Sidebar (Stats & Gundam Frame Core Power Panel)
 	var right_panel = PanelContainer.new()
 	right_panel.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
+	right_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	right_panel.offset_top = 128
 	right_panel.offset_bottom = -20
 	right_panel.offset_right = -20
+	right_panel.offset_left = -370
 	right_panel.custom_minimum_size = Vector2(350, 0)
 	self.right_panel = right_panel
 	root.add_child(right_panel)

@@ -40,6 +40,7 @@ func _ready() -> void:
 	await _test_hangar_selection_preserves_loadout()
 	await _test_hangar_menu_flow()
 	await _test_hangar_stat_cards_show_capabilities()
+	await _test_ui_sounds_wire_buttons()
 	_test_save_load_roundtrip()
 	_test_escape_zone()
 	_test_battle_loadout_persistence()
@@ -551,6 +552,14 @@ func _test_hangar_menu_flow() -> void:
 	_check(not hangar.submenu_rail.visible, "sub-menu hides after choosing a page")
 	_check(hangar.left_panel.visible, "customize page part panel is shown")
 	_check(hangar.right_panel.visible, "customize page stats panel is shown")
+	# The stats panel must be anchored inside the window, not pushed off-screen
+	# (PRESET_RIGHT_WIDE needs a negative offset_left to set its width).
+	_check(hangar.right_panel.offset_left == -370, "stats panel is anchored on-screen (offset_left)")
+	await get_tree().process_frame
+	var root_rect: Rect2 = hangar.root_control.get_global_rect()
+	var panel_rect: Rect2 = hangar.right_panel.get_global_rect()
+	_check(panel_rect.position.x >= root_rect.position.x and panel_rect.end.x <= root_rect.end.x,
+		"stats panel rect sits inside the hangar root control")
 
 	# Catalog lets the driver switch the chassis model.
 	var before_chassis: String = GlobalData.chassis_id
@@ -616,6 +625,35 @@ func _test_hangar_stat_cards_show_capabilities() -> void:
 	_check(hover_text.contains("ARMOR HP:"), "armor hover card shows ARMOR HP line")
 	_check(hover_text.contains("DURABILITY:"), "armor hover card shows DURABILITY line")
 
+	hangar.queue_free()
+	await get_tree().process_frame
+
+
+func _test_ui_sounds_wire_buttons() -> void:
+	# Regression: button clicks must play a sound. UISounds auto-attaches a
+	# click handler to every BaseButton, including buttons created at runtime
+	# (the hangar builds all of its UI in code), so a fresh button in the tree
+	# must already have a pressed handler connected.
+	GlobalData.reset_run_data()
+	GlobalData.roll_random_start()
+
+	var hangar = load("res://scenes/ui/hangar_scene.tscn").instantiate()
+	add_child(hangar)
+	await get_tree().process_frame
+
+	var probe := Button.new()
+	probe.text = "probe"
+	hangar.add_child(probe)
+	await get_tree().process_frame
+
+	var handlers := probe.pressed.get_connections()
+	_check(handlers.size() == 1, "runtime button gets one auto-connected click handler")
+	if handlers.size() == 1:
+		var target: Node = handlers[0]["callable"].get_object()
+		_check(target != null and target.get_script().resource_path == "res://scripts/audio/ui_sounds.gd",
+			"runtime button click handler comes from ui_sounds.gd")
+
+	probe.queue_free()
 	hangar.queue_free()
 	await get_tree().process_frame
 

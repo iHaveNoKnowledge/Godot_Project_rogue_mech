@@ -1031,7 +1031,7 @@ func _apply_gizmo_drag(mouse: Vector2) -> void:
 	var plane := Plane(-cam.global_transform.basis.z, _gizmo_drag_origin)
 	var ray_origin := cam.project_ray_origin(_to_subviewport(mouse))
 	var ray_dir := cam.project_ray_normal(_to_subviewport(mouse))
-	var hit: Variant = plane.intersects_ray(ray_origin, ray_dir)
+	var hit := plane.intersects_ray(ray_origin, ray_dir) as Vector3
 	if hit == null:
 		return
 	var along := (hit - _gizmo_drag_origin).dot(_gizmo_drag_axis_dir)

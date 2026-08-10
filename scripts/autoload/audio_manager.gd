@@ -80,8 +80,12 @@ func _generate_sounds() -> void:
 	_sound_cache["shotgun"] = preload("res://resources/audio/sfx/Dense_heavy_combat_s_#1-1782744878871.wav")
 	_sound_cache["armor_break"] = _gen_crack(0.12, 0.4)
 	_sound_cache["explosion"] = _gen_explosion(0.4, 0.6)
-	_sound_cache["ui_click"] = _gen_sine_tone(800.0, 0.05, 0.15)
-	_sound_cache["ui_confirm"] = _gen_sine_tone(1200.0, 0.08, 0.2)
+	# UI sounds prefer real files dropped in res://resources/audio/ui/ and fall
+	# back to procedurally generated tones when no file exists.
+	var ui_click := _load_ui_sound("click")
+	_sound_cache["ui_click"] = ui_click if ui_click != null else _gen_sine_tone(800.0, 0.05, 0.15)
+	var ui_confirm := _load_ui_sound("confirm")
+	_sound_cache["ui_confirm"] = ui_confirm if ui_confirm != null else _gen_sine_tone(1200.0, 0.08, 0.2)
 	_sound_cache["footstep"] = _gen_noise_burst(0.04, 0.08)
 	_sound_cache["dash"] = _gen_sine_sweep(300.0, 600.0, 0.1, 0.2)
 	# New movement & impact SFX
@@ -122,6 +126,30 @@ func _generate_sounds() -> void:
 
 
 # --- Sound Generation Helpers ---
+
+func _load_ui_sound(base_name: String) -> AudioStream:
+	# Drop click.wav / click.ogg / click.mp3 (etc.) into res://resources/audio/ui/
+	# to override the generated UI tones.
+	var dir_path := "res://resources/audio/ui"
+	if not DirAccess.dir_exists_absolute(dir_path):
+		return null
+	var dir := DirAccess.open(dir_path)
+	if dir == null:
+		return null
+	dir.list_dir_begin()
+	var file_name := dir.get_next()
+	while file_name != "":
+		if not dir.current_is_dir():
+			var base := file_name.get_basename()
+			if base.to_lower() == base_name.to_lower():
+				var ext := file_name.get_extension().to_lower()
+				if ext in ["wav", "ogg", "mp3"]:
+					var stream := load(dir_path.path_join(file_name)) as AudioStream
+					if stream != null:
+						return stream
+		file_name = dir.get_next()
+	return null
+
 
 func _gen_sine_sweep(freq_start: float, freq_end: float, duration: float, volume: float) -> AudioStreamWAV:
 	var sample_rate = 22050

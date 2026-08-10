@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://bvaj7kcjyd61"]
 
 [ext_resource type="Script" uid="uid://0adml4fl6v5l" path="res://scripts/ui/main_menu_controller.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/audio/ui_sounds.gd" id="2"]
 
 [node name="MainMenu" type="Control" unique_id=204330875]
 layout_mode = 3
@@ -10,3 +11,6 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1")
+
+[node name="UISounds" type="Node" parent="."]
+script = ExtResource("2")

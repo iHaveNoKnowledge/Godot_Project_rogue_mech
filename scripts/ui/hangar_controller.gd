@@ -1285,22 +1285,27 @@ func _stats_text_for_index(index: int) -> String:
 		var wdur = GlobalData.get_durability_ratio(inv)
 		var wwt := 0.0
 		var wtype := "Unknown"
+		var wcap := ""
 		if wpath != "" and ResourceLoader.exists(wpath):
 			var res = load(wpath)
 			if res:
 				wwt = float(res.weight) if "weight" in res and res.weight != null else 0.0
 				wtype = _weapon_type_label(res.weapon_type) if "weapon_type" in res else "Unknown"
+				wcap = _weapon_capability_text(res)
 		var owned := int(inv.get("count", 1))
 		if selected_slot == "weapon_carry":
 			var carried := GlobalData.count_carry_weapon(wpath)
-			return "BACK CARRY: %s\nTYPE: %s\n\nWEIGHT: %.1f kg\nDURABILITY: %.0f%%\nOWNED: x%d | ON PACK: x%d\n\nFIELD PACK: %.1f / %.1f kg" % [
-				wname, wtype, wwt, wdur * 100.0, owned, carried,
+			return "BACK CARRY: %s\nDURABILITY: %.0f%%\n\n%s\nWEIGHT: %.1f kg\nOWNED: x%d | ON PACK: x%d\n\nFIELD PACK: %.1f / %.1f kg" % [
+				wname, wdur * 100.0, wcap if not wcap.is_empty() else "TYPE: %s" % wtype,
+				wwt, owned, carried,
 				GlobalData.get_field_pack_weight(), GlobalData.get_field_pack_capacity()
 			]
 		var hand = "left" if selected_slot == "weapon_left" else "right"
 		var eq = str(GlobalData.weapon_loadout.get(hand, "")) == wpath
-		return "%s HAND WEAPON: %s%s\nTYPE: %s\n\nWEIGHT: %.1f kg\nDURABILITY: %.0f%%\nOWNED: x%d\n\nFIELD PACK: %.1f / %.1f kg" % [
-			hand.to_upper(), "[E] " if eq else "", wname, wtype, wwt, wdur * 100.0, owned,
+		return "%s HAND WEAPON: %s%s\nDURABILITY: %.0f%%\n\n%s\nWEIGHT: %.1f kg\nOWNED: x%d\n\nFIELD PACK: %.1f / %.1f kg" % [
+			hand.to_upper(), "[E] " if eq else "", wname, wdur * 100.0,
+			wcap if not wcap.is_empty() else "TYPE: %s" % wtype,
+			wwt, owned,
 			GlobalData.get_field_pack_weight(), GlobalData.get_field_pack_capacity()
 		]
 
@@ -1658,7 +1663,78 @@ func _weapon_type_label(wtype) -> String:
 		3: return "Shotgun"
 		4: return "Melee Weapon"
 		5: return "Shield"
+		6: return "Railgun"
+		7: return "Minigun"
 	return "Unknown"
+
+
+# Builds a combat-capability stat block for a weapon resource (damage, fire
+# rate, mag size, range, heat, recoil, ...). Only lines with a meaningful value
+# are shown. Used by the selection + hover stat cards on the customize page.
+func _weapon_capability_text(res: Resource) -> String:
+	if res == null:
+		return ""
+	var lines: Array[String] = []
+
+	var wtype := _weapon_type_label(res.weapon_type) if "weapon_type" in res else "Unknown"
+	lines.append("TYPE: %s" % wtype)
+
+	if "damage" in res and res.damage != null and float(res.damage) > 0.0:
+		lines.append("DAMAGE: %.1f" % float(res.damage))
+
+	if "fire_rate" in res and res.fire_rate != null and float(res.fire_rate) > 0.0:
+		var fr := float(res.fire_rate)
+		lines.append("FIRE RATE: %.3fs / shot (%.1f /s)" % [fr, 1.0 / fr])
+
+	var max_ammo := int(res.max_ammo) if "max_ammo" in res and res.max_ammo != null else 0
+	var ammo_per_shot := int(res.ammo_per_shot) if "ammo_per_shot" in res and res.ammo_per_shot != null else 1
+	var is_melee_or_shield := int(res.weapon_type) in [4, 5]
+	if max_ammo > 0 and not is_melee_or_shield:
+		lines.append("MAG SIZE: %d rounds" % max_ammo)
+		if ammo_per_shot > 1:
+			lines.append("AMMO / SHOT: %d" % ammo_per_shot)
+	elif is_melee_or_shield:
+		lines.append("AMMO: NONE")
+
+	if "range_distance" in res and res.range_distance != null and float(res.range_distance) > 0.0:
+		lines.append("RANGE: %.1f m" % float(res.range_distance))
+
+	if "projectile_speed" in res and res.projectile_speed != null and float(res.projectile_speed) > 0.0:
+		lines.append("PROJECTILE SPEED: %.1f" % float(res.projectile_speed))
+
+	if "spread" in res and res.spread != null and float(res.spread) > 0.0:
+		lines.append("SPREAD: %.2f" % float(res.spread))
+
+	if "heat_capacity" in res and res.heat_capacity != null and float(res.heat_capacity) > 0.0:
+		var hcap := float(res.heat_capacity)
+		var hshot := float(res.heat_per_shot) if "heat_per_shot" in res and res.heat_per_shot != null else 0.0
+		var hcool := float(res.heat_cool_rate) if "heat_cool_rate" in res and res.heat_cool_rate != null else 0.0
+		lines.append("HEAT: %.1f cap | %.1f /shot | cool %.1f/s" % [hcap, hshot, hcool])
+
+	if "impact" in res and res.impact != null and float(res.impact) > 0.0:
+		lines.append("IMPACT (Stagger): %.1f" % float(res.impact))
+
+	if "recoil_force" in res and res.recoil_force != null and float(res.recoil_force) > 0.0:
+		lines.append("RECOIL: %.1f" % float(res.recoil_force))
+
+	if int(res.weapon_type) == 5:
+		var shp := float(res.shield_hp) if "shield_hp" in res and res.shield_hp != null else 0.0
+		var srch := float(res.shield_recharge_rate) if "shield_recharge_rate" in res and res.shield_recharge_rate != null else 0.0
+		lines.append("SHIELD HP: %.1f" % shp)
+		lines.append("SHIELD RECHARGE: %.1f /s" % srch)
+
+	if "two_handed" in res and res.two_handed:
+		var power_need := float(res.power_required) if "power_required" in res and res.power_required != null else 0.0
+		lines.append("GRIP: TWO-HANDED (needs Power %.1f to one-hand)" % power_need)
+
+	var desc := ""
+	if "description" in res and res.description != null:
+		desc = str(res.description).strip_edges()
+	if not desc.is_empty():
+		lines.append("")
+		lines.append("DESC: %s" % desc)
+
+	return "\n".join(lines)
 
 
 func _populate_part_list_for_slot(slot: String) -> void:
@@ -1842,11 +1918,14 @@ func _on_part_item_selected(index: int) -> void:
 			var wdur = GlobalData.get_durability_ratio(inv)
 			var wwt := 0.0
 			var wtype := "Unknown"
+			var wcap := ""
+			var res = null
 			if wpath != "" and ResourceLoader.exists(wpath):
-				var res = load(wpath)
+				res = load(wpath)
 				if res:
 					wwt = float(res.weight) if "weight" in res and res.weight != null else 0.0
 					wtype = _weapon_type_label(res.weapon_type) if "weapon_type" in res else "Unknown"
+					wcap = _weapon_capability_text(res)
 
 			if selected_slot == "weapon_carry":
 				var eq = GlobalData.is_weapon_in_carry(wpath)
@@ -1856,16 +1935,18 @@ func _on_part_item_selected(index: int) -> void:
 				var copies := ""
 				if owned > 1:
 					copies = "\nOWNED: x%d | ON PACK: x%d" % [owned, carried]
-				stats_label.text = "BACK CARRY: %s%s\nTYPE: %s\n\nWEIGHT: %.1f kg\nDURABILITY: %.0f%%%s\n\nAssigns a copy to the mech's back pack (FIELD PACK).\nFIELD PACK: %.1f / %.1f kg\nPick weapons from the stash below." % [
-					prefix, wname, wtype, wwt, wdur * 100.0, copies,
+				stats_label.text = "BACK CARRY: %s%s\nDURABILITY: %.0f%%%s\n\n%s\nWEIGHT: %.1f kg\n\nAssigns a copy to the mech's back pack (FIELD PACK).\nFIELD PACK: %.1f / %.1f kg\nPick weapons from the stash below." % [
+					prefix, wname, wdur * 100.0, copies, wcap if not wcap.is_empty() else "TYPE: %s" % wtype,
+					wwt,
 					GlobalData.get_field_pack_weight(), GlobalData.get_field_pack_capacity()
 				]
 			else:
 				var hand = "left" if selected_slot == "weapon_left" else "right"
 				var eq = str(GlobalData.weapon_loadout.get(hand, "")) == wpath
 				var prefix = "[E] " if eq else ""
-				stats_label.text = "%s HAND WEAPON: %s%s\nTYPE: %s\n\nWEIGHT: %.1f kg\nDURABILITY: %.0f%%\n\nEquip this weapon to the %s hand.\nFIELD PACK: %.1f / %.1f kg" % [
-					hand.to_upper(), prefix, wname, wtype, wwt, wdur * 100.0, hand,
+				stats_label.text = "%s HAND WEAPON: %s%s\nDURABILITY: %.0f%%\n\n%s\nWEIGHT: %.1f kg\n\nEquip this weapon to the %s hand.\nFIELD PACK: %.1f / %.1f kg" % [
+					hand.to_upper(), prefix, wname, wdur * 100.0, wcap if not wcap.is_empty() else "TYPE: %s" % wtype,
+					wwt, hand,
 					GlobalData.get_field_pack_weight(), GlobalData.get_field_pack_capacity()
 				]
 			# Only change 3D model when user explicitly picks a part, not on section switch

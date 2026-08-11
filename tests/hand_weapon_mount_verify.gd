@@ -73,7 +73,9 @@ func _ready() -> void:
 		"no duplicate mount nodes pile up on re-mount")
 
 	# 4. Passing a null weapon clears the hand mount (weapon removed).
+	#    queue_free is deferred, so wait a frame before asserting.
 	WeaponVisualFactory.mount_hand(mech, "left", null, "WeaponVisual_left")
+	await get_tree().process_frame
 	_check(mount.get_child_count() == 0, "null weapon clears the hand mount children")
 
 	# 5. The weapon still follows the forearm when the arm rotates (mount is a

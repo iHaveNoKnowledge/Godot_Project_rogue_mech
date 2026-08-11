@@ -651,6 +651,9 @@ func _show_roster_page() -> void:
 func _refresh_mech_badge() -> void:
 	if mech_slot_label == null:
 		return
+	if GlobalData.mech_less:
+		mech_slot_label.text = "ON FOOT — NO MECH PARKED"
+		return
 	var capacity := GlobalData.get_hangar_capacity()
 	var active := GlobalData.get_active_hangar_mech()
 	var slot := int(active.get("slot", 0))
@@ -715,14 +718,23 @@ func _refresh_roster_page() -> void:
 			_build_roster_slot_row(int(slot), by_slot[int(slot)], true)
 
 	if roster_status_label:
+		var affiliation := GlobalData.get_run_affiliation()
+		var aff_prefix := "%s · %s" % [
+			affiliation.get("name", "Mech Convoy"),
+			affiliation.get("transport", "Truck convoy"),
+		]
+		if GlobalData.mech_less:
+			roster_status_label.text = "%s\nON FOOT — every mech is gone. Board combat tiles become recovery missions until you rebuild a chassis." \
+				% aff_prefix
+			return
 		var convoy_desc := ""
 		if fleet <= 1:
 			convoy_desc = "SOLO CONVOY · 1 trailer · 2 berths"
 		else:
 			convoy_desc = "FLEET CONVOY · %d pilots · %d trucks · %d berths" \
 				% [fleet, ceili(fleet / 2.0), capacity]
-		roster_status_label.text = "%s\nBody + both leg frames are required to assemble a mech." \
-			% convoy_desc
+		roster_status_label.text = "%s\n%s\nBody + both leg frames are required to assemble a mech." \
+			% [aff_prefix, convoy_desc]
 
 
 func _build_roster_slot_row(slot: int, mech: Dictionary, over_capacity: bool) -> void:

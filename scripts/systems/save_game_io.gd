@@ -43,6 +43,7 @@ static func save_run() -> void:
 		"theme_switched": GlobalData.theme_switched,
 		"ceasefire_turns": GlobalData.ceasefire_turns,
 		"blocked_intermission": GlobalData.blocked_intermission,
+		"mech_less": GlobalData.mech_less,
 		"enemy_tech_tier": GlobalData.enemy_tech_tier,
 		"last_combat_damage_ratio": GlobalData.last_combat_damage_ratio,
 		"enemy_research_progress": GlobalData.enemy_research_progress,
@@ -102,6 +103,7 @@ static func restore_from_dict(data: Dictionary) -> void:
 	GlobalData.theme_switched = bool(data.get("theme_switched", false))
 	GlobalData.ceasefire_turns = int(data.get("ceasefire_turns", 0))
 	GlobalData.blocked_intermission = bool(data.get("blocked_intermission", false))
+	GlobalData.mech_less = bool(data.get("mech_less", false))
 	GlobalData.enemy_tech_tier = int(data.get("enemy_tech_tier", 1))
 	GlobalData.last_combat_damage_ratio = float(data.get("last_combat_damage_ratio", 0.0))
 	GlobalData.enemy_research_progress = float(data.get("enemy_research_progress", 0.0))

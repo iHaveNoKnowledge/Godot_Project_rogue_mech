@@ -45,6 +45,18 @@ func _ready() -> void:
 	if GlobalData.consume_pending_enemy_base_destroyed():
 		EventBus.event_triggered.emit(_build_enemy_base_destroyed_event())
 
+	# Surface a one-shot convoy report (mech destroyed / rebuilt / wanderer) left
+	# by the previous screen, then clear it so it only shows once.
+	if GlobalData.run_notice != "":
+		var notice := GlobalData.run_notice
+		GlobalData.run_notice = ""
+		EventBus.event_triggered.emit({
+			"name": "CONVOY REPORT",
+			"effect": "none",
+			"amount": 0,
+			"desc": notice,
+		})
+
 
 func move_to_tile(target: Vector2i) -> bool:
 	if not _is_connected_path(current_pos, target):
@@ -171,7 +183,11 @@ func accumulate_stalker_chance() -> void:
 func _process_tile_effect(tile_type: String) -> void:
 	match tile_type:
 		"combat":
-			if GlobalData.ceasefire_turns > 0:
+			if GlobalData.mech_less:
+				# On foot there is no battle to pick — the pilots hunt for a
+				# replacement mech instead.
+				_trigger_recovery_event()
+			elif GlobalData.ceasefire_turns > 0:
 				GlobalData.ceasefire_turns -= 1
 				_trigger_ceasefire_skip()
 			elif not GlobalData.stalking_aces.is_empty() and randf() < GlobalData.stalking_chance:
@@ -183,6 +199,9 @@ func _process_tile_effect(tile_type: String) -> void:
 			# counter-unit. Winning clears the node's active state. If the node
 			# is already resolved (destroyed / counter-unit finished), the tile
 			# is just a normal combat tile — never re-trigger the raid.
+			if GlobalData.mech_less:
+				_trigger_recovery_event()
+				return
 			var stepped_pos: Vector2i = nodes_dict[current_pos].get_meta("grid_pos", Vector2i(-1, -1)) if nodes_dict.has(current_pos) else Vector2i(-1, -1)
 			if GlobalData.enemy_base_active and GlobalData.enemy_base_tile_pos == stepped_pos:
 				GameManager.enter_combat("enemy_base")
@@ -240,8 +259,31 @@ func _trigger_dead_end_event() -> void:
 
 
 func _trigger_exit_event() -> void:
+	if GlobalData.mech_less:
+		# On foot the extraction zone is a death sentence — a wanderer rides up
+		# and tosses you the keys to a spare chassis right before the final push.
+		var event = {
+			"name": "The Wanderer",
+			"effect": "wanderer_join",
+			"amount": 0,
+			"desc": "On foot, the extraction zone is a death sentence. A lone wanderer pulls up beside your convoy and hands you the keys to a spare chassis.",
+			"params": {"recovery": true},
+		}
+		EventBus.event_triggered.emit(event)
+		GlobalData.apply_event_effect(event)
+		GameManager.enter_combat("boss")
+		return
 	print("Entering Extraction Zone / Final Boss Battle!")
 	GameManager.enter_combat("boss")
+
+
+func _trigger_recovery_event() -> void:
+	var event := GlobalData.get_weighted_recovery_event()
+	if event.is_empty():
+		_trigger_default_event()
+		return
+	EventBus.event_triggered.emit(event)
+	GlobalData.apply_event_effect(event)
 
 
 func _trigger_stalker_surprise_ambush() -> void:
@@ -257,6 +299,15 @@ func _trigger_stalker_surprise_ambush() -> void:
 
 func _trigger_random_event() -> void:
 	var pool := GlobalData.get_theme_event_pool()
+	if pool.is_empty():
+		_trigger_default_event()
+		return
+
+	# On foot there is nothing to fight with — an ambush can't force a battle
+	# (it would just be a one-sided massacre), so skip those events.
+	if GlobalData.mech_less:
+		pool = pool.filter(func(event):
+			return str(event.get("effect", "")) != "force_combat")
 	if pool.is_empty():
 		_trigger_default_event()
 		return

@@ -106,8 +106,12 @@ func _clear_choices() -> void:
 func _on_choice_pressed(choice: Dictionary) -> void:
 	visible = false
 	get_tree().paused = false
-	GlobalData.apply_event_effect(choice)
-	GameManager.return_to_board()
+	var forced := GlobalData.apply_event_effect(choice)
+	if forced:
+		# The choice sprang a trap — jump straight into battle.
+		GameManager.enter_combat(str(choice.get("params", {}).get("combat_type", "grunt")))
+	else:
+		GameManager.return_to_board()
 
 
 func _on_continue_pressed() -> void:

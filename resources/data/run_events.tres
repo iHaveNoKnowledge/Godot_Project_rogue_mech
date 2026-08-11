@@ -217,4 +217,79 @@ events = [{
 },
 "themes": ["scavenger"],
 "weight": 8
+}, {
+"amount": 0,
+"desc": "Your pilots find a deserted mech garage, tools still on the benches. The wreckage might hold enough to rebuild.",
+"effect": "choice",
+"id": "abandoned_garage",
+"min_reputation": 0,
+"name": "Abandoned Garage",
+"params": {
+"choices": [{
+"amount": 30,
+"desc": "Strip the workbench for parts. +30 scrap and a quick field patch.",
+"effect": "scrap",
+"id": "strip_parts",
+"label": "Strip It For Scrap",
+"params": {
+"repair": 15
+}
+}, {
+"amount": 0,
+"desc": "Rebuild a walking chassis from the garage frames and the convoy's spares. Your mech is back in the fight.",
+"effect": "recover_mech",
+"id": "rebuild_chassis",
+"label": "Rebuild a Chassis",
+"params": {
+"fallback_scrap": 30,
+"heat": 1
+}
+}, {
+"amount": 0,
+"desc": "Ask the locals who parked this rig here. A salvage crew offers to ride along.",
+"effect": "recover_escort",
+"id": "ask_locals",
+"label": "Ask the Locals"
+}],
+"recovery": true
+},
+"recovery_only": true,
+"themes": [],
+"weight": 60
+}, {
+"amount": 0,
+"desc": "A ramshackle garage sits open on the road. The owner claims everything inside is genuine — everything.",
+"effect": "choice",
+"id": "shady_garage",
+"min_reputation": 0,
+"name": "Shady Garage",
+"params": {
+"choices": [{
+"amount": -40,
+"desc": "Pay 40 credits for spare parts and a quick patch job.",
+"effect": "credits",
+"id": "buy_parts",
+"label": "Buy Spare Parts",
+"params": {
+"repair": 15
+}
+}, {
+"amount": 0,
+"desc": "Walk away. Nothing gained, nothing lost.",
+"effect": "none",
+"id": "walk_away",
+"label": "Walk Away"
+}, {
+"amount": 0,
+"desc": "Your team pries open the back bay — and finds an ambush waiting inside.",
+"effect": "force_combat",
+"id": "raid_back_bay",
+"label": "Raid the Back Bay",
+"params": {
+"combat_type": "grunt"
+}
+}]
+},
+"themes": [],
+"weight": 12
 }]

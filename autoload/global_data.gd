@@ -515,6 +515,22 @@ func assign_hangar_pilot(mech_id: String, pilot_id: String) -> bool:
 func get_hangar_slot_of(mech_id: String) -> int:
 	return HangarManager.get_slot_of(mech_id)
 
+
+# Removes a destroyed mech from the roster (switches the active mech away first).
+func remove_hangar_mech(mech_id: String) -> bool:
+	return HangarManager.remove_mech(mech_id)
+
+
+# True when the player is pilot-only but the convoy has squadmates left, so a
+# defeat retreats instead of ending the run.
+func can_mechless_retreat() -> bool:
+	return HangarManager.can_mechless_retreat()
+
+
+# Builds a fresh walking chassis from convoy spares and ends pilot-only mode.
+func grant_recovery_hangar_mech() -> Dictionary:
+	return HangarManager.grant_recovery_mech()
+
 # -----------------------------------------------------------------------------
 # WEAPON LOADOUT — central state for what the mech carries into battle.
 # "left"/"right" are the hand weapons (resource path, "" = unarmed hand).
@@ -683,6 +699,16 @@ var reputation: int = 0
 var theme_switched: bool = false
 var ceasefire_turns: int = 0
 var blocked_intermission: bool = false
+
+# PILOT-ONLY MODE — true while the convoy owns no mech (the player fights on
+# foot). Set when the last parked mech is destroyed in battle; cleared when a
+# recovery event or reward grants a fresh chassis. While true the hangar roster
+# stays empty and board "combat" tiles become recovery events.
+var mech_less: bool = false
+
+# Text shown to the player on the next screen after an event's effect lands
+# (e.g. "Scrap truck driver joins your convoy"). Cleared on read.
+var run_notice: String = ""
 
 # -----------------------------------------------------------------------------
 # ENEMY TECH ESCALATION — enemies reverse-engineer our mech over time.
@@ -902,6 +928,14 @@ func get_run_theme() -> Dictionary:
 
 func get_theme_event_pool() -> Array:
 	return ThemeSystem.get_theme_event_pool()
+
+
+func get_weighted_recovery_event() -> Dictionary:
+	return ThemeSystem.get_weighted_recovery_event()
+
+
+func get_run_affiliation() -> Dictionary:
+	return ThemeSystem.get_affiliation()
 
 
 func get_run_event(event_id: String) -> Dictionary:
@@ -1203,6 +1237,8 @@ func reset_run_data() -> void:
 	theme_switched = false
 	ceasefire_turns = 0
 	blocked_intermission = false
+	mech_less = false
+	run_notice = ""
 	enemy_tech_tier = 1
 	pending_escalation_event = false
 	enemy_research_progress = 0.0

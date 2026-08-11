@@ -70,6 +70,8 @@ static func get_pilot_name(pilot_id: String) -> String:
 
 
 static func ensure_roster() -> void:
+	if GlobalData.mech_less:
+		return
 	if GlobalData.hangar_mechs.is_empty():
 		var first_id := _new_id()
 		GlobalData.hangar_mechs.append(_capture_snapshot(first_id, "Mech 01", PLAYER_PILOT_ID, 1))
@@ -162,6 +164,8 @@ static func save_active() -> bool:
 # in the normal hangar editor. The newly parked mech has no pilot until one is
 # assigned from the roster page.
 static func build(mech_name: String = "", requested_slot: int = 0) -> Dictionary:
+	if GlobalData.mech_less:
+		return {}
 	for required in ["body", "leg_left", "leg_right"]:
 		if not GlobalData.equipped_frames.has(required) or GlobalData.equipped_frames[required] == null:
 			return {}
@@ -190,6 +194,58 @@ static func get_backup_id() -> String:
 		if mech_id != "" and mech_id != GlobalData.active_hangar_mech_id:
 			return mech_id
 	return ""
+
+
+# Removes a parked mech from the convoy roster. Used when a machine is destroyed
+# in battle. If the active mech is the one removed, the player is handed the
+# first remaining berth (or none, which is a valid pilot-only convoy state).
+static func remove_mech(mech_id: String) -> bool:
+	ensure_roster()
+	var removed := false
+	for i in range(GlobalData.hangar_mechs.size() - 1, -1, -1):
+		if str(GlobalData.hangar_mechs[i].get("id", "")) == mech_id:
+			GlobalData.hangar_mechs.remove_at(i)
+			removed = true
+	if not removed:
+		return false
+	if GlobalData.active_hangar_mech_id == mech_id:
+		GlobalData.active_hangar_mech_id = ""
+		for mech in GlobalData.hangar_mechs:
+			if mech is Dictionary and not str(mech.get("id", "")).is_empty():
+				GlobalData.active_hangar_mech_id = str(mech.get("id", ""))
+				break
+	return true
+
+
+# True when the player is pilot-only (every mech lost) and the convoy can still
+# retreat: squadmates must hold the convoy AND the theme must have a transport
+# that parks spare mechs (a solo Gundam Heir has no backup truck, so losing the
+# machine ends the run).
+static func can_mechless_retreat() -> bool:
+	if not GlobalData.mech_less:
+		return false
+	if get_fleet_size() < 2:
+		return false
+	var affiliation: Dictionary = GlobalData.get_run_affiliation()
+	return bool(affiliation.get("mechless_retreat", true))
+
+
+# Builds a fresh walking chassis from whatever parts the convoy still carries
+# and parks it in the roster, ending pilot-only mode. Returns the new mech.
+static func grant_recovery_mech() -> Dictionary:
+	if GlobalData.hangar_mechs.size() >= get_capacity():
+		return {}
+	if GlobalData.hangar_mechs.size() >= get_hard_max():
+		return {}
+	save_active()
+	var mech_id := _new_id()
+	var slot := _next_free_slot()
+	var display_name := "Mech %02d" % slot
+	var snapshot := _capture_snapshot(mech_id, display_name, PLAYER_PILOT_ID, slot)
+	GlobalData.hangar_mechs.append(snapshot)
+	GlobalData.active_hangar_mech_id = mech_id
+	GlobalData.mech_less = false
+	return snapshot
 
 
 static func get_slot_of(mech_id: String) -> int:

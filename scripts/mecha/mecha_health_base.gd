@@ -387,7 +387,11 @@ func _on_mecha_destroyed() -> void:
 	for slot in parts:
 		_hide_part(slot)
 
-	# Handle player death
+	# Handle player death: the pilot ejects and the destroyed machine is removed
+	# from the convoy roster. Losing your mech is not automatically a game over —
+	# the pilots retreat from the field. If squadmates still hold the convoy, the
+	# run continues pilot-only (no mech) until a recovery event grants a new one.
+	# A parked reserve mech means the player just falls back to that machine.
 	if is_player:
 		if GameManager.is_escaping:
 			return
@@ -395,7 +399,16 @@ func _on_mecha_destroyed() -> void:
 		if GameManager.is_escaping:
 			return
 		EventBus.combat_ended.emit(false)
-		GameManager.game_over()
+		GlobalData.remove_hangar_mech(GlobalData.active_hangar_mech_id)
+		GlobalData.mech_less = GlobalData.hangar_mechs.is_empty()
+		if GlobalData.can_mechless_retreat():
+			GlobalData.run_notice = "Your mech is gone, but the pilots make it out. With no machine left, board combat tiles become rescue missions to recover a replacement mech."
+			GameManager.return_to_board()
+		elif GlobalData.mech_less:
+			GameManager.game_over()
+		else:
+			GlobalData.run_notice = "Your mech was destroyed, but a reserve machine is still parked in the convoy."
+			GameManager.return_to_board()
 
 
 func _get_section_node(slot_name: String) -> Node3D:

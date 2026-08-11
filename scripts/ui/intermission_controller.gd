@@ -83,6 +83,7 @@ func _create_ui() -> void:
 	_add_menu_button("Inventory", _on_inventory_pressed)
 	_add_menu_button("Research Base", _on_research_pressed)
 	_add_menu_button("Fleet Roster", _on_fleet_pressed)
+	_add_menu_button("Convoy", _on_convoy_pressed)
 	_add_menu_button("Fleet Security", _on_security_pressed)
 	_add_menu_button("Board Info", _on_board_info_pressed)
 	_add_menu_button("Hangar", _on_hangar_pressed)
@@ -162,8 +163,10 @@ func _add_menu_button(text: String, callback: Callable) -> void:
 
 func _get_status_text() -> String:
 	var base_info := ""
+	if GlobalData.mech_less:
+		base_info = " | ON FOOT — no mech"
 	if GlobalData.enemy_base_active:
-		base_info = " | Enemy Base: %d%%" % int((GlobalData.enemy_base_progress / GlobalData.enemy_base_required) * 100.0)
+		base_info += " | Enemy Base: %d%%" % int((GlobalData.enemy_base_progress / GlobalData.enemy_base_required) * 100.0)
 	if not GlobalData.stalking_aces.is_empty():
 		base_info += " | HUNTED by %s" % ", ".join(GlobalData.stalking_aces)
 	return "Rep: %d | Heat: %d | Wanted: %d | Credits: %d | Scrap: %d | Enemy Tier: %d | Security: %d%s | Tile: %s" % [
@@ -340,6 +343,35 @@ func _build_fleet_text() -> String:
 			int(unit.get("hp", 0)),
 			int(unit.get("max_hp", 0))
 		]
+	return text
+
+
+func _on_convoy_pressed() -> void:
+	current_view = "convoy"
+	info_panel.visible = true
+	_clear_actions()
+	info_label.text = _build_convoy_text()
+
+
+func _build_convoy_text() -> String:
+	var affiliation := GlobalData.get_run_affiliation()
+	var text = "=== CONVOY ===\n\n"
+	text += "Affiliation: %s\n" % affiliation.get("name", GlobalData.theme_id)
+	text += "Transport: %s\n\n" % affiliation.get("transport", "Truck convoy")
+	text += "%s\n\n" % affiliation.get("transport_desc", "")
+	if GlobalData.mech_less:
+		text += "STATUS: ON FOOT — every mech is gone.\n"
+		text += "Board combat tiles become recovery missions until a replacement chassis is found.\n"
+	else:
+		text += "STATUS: %d/%d mech berths parked.\n" % [GlobalData.hangar_mechs.size(), GlobalData.get_hangar_capacity()]
+	text += "\n"
+	text += "Pilots in convoy: %d\n" % GlobalData.get_hangar_fleet_size()
+	text += "Reserve ammo: Kin %d | En %d | Exp %d | Ms %d\n" % [
+		GlobalData.get_reserve_ammo("kinetic"),
+		GlobalData.get_reserve_ammo("energy"),
+		GlobalData.get_reserve_ammo("explosive"),
+		GlobalData.get_reserve_ammo("missile")
+	]
 	return text
 
 

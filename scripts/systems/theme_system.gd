@@ -30,6 +30,9 @@ static func get_theme_event_pool() -> Array:
 	for event in GlobalData.run_events:
 		if not (event is Dictionary):
 			continue
+		# Pilot-only recovery events only appear on mech-less board tiles.
+		if event.get("recovery_only", false):
+			continue
 		var themes = event.get("themes", [])
 		if themes is Array and not themes.is_empty() and not (GlobalData.theme_id in themes):
 			continue
@@ -47,6 +50,47 @@ static func get_theme_event_pool() -> Array:
 			continue
 		result.append(event)
 	return result
+
+
+# Board events aimed at restoring a mech to a pilot-only convoy. Only these are
+# offered when the player is on foot (mech_less).
+static func get_recovery_event_pool() -> Array:
+	var result: Array = []
+	for event in GlobalData.run_events:
+		if not (event is Dictionary):
+			continue
+		var params: Dictionary = event.get("params", {})
+		if not params.get("recovery", false):
+			continue
+		var themes = event.get("themes", [])
+		if themes is Array and not themes.is_empty() and not (GlobalData.theme_id in themes):
+			continue
+		if int(event.get("min_reputation", 0)) > GlobalData.reputation:
+			continue
+		result.append(event)
+	return result
+
+
+static func get_weighted_recovery_event() -> Dictionary:
+	var pool := get_recovery_event_pool()
+	if pool.is_empty():
+		return {}
+	var total := 0
+	for event in pool:
+		total += maxi(1, int(event.get("weight", 1)))
+	var roll := randi() % total
+	for event in pool:
+		roll -= maxi(1, int(event.get("weight", 1)))
+		if roll < 0:
+			return event
+	return pool[0]
+
+
+# Transport / affiliation flavor for the current theme (used by the intermission
+# and hangar to describe what happens when the convoy is on foot).
+static func get_affiliation() -> Dictionary:
+	var theme = get_run_theme()
+	return theme.get("affiliation", {})
 
 
 static func get_run_event(event_id: String) -> Dictionary:
@@ -85,8 +129,20 @@ static func apply_event_effect(event: Dictionary) -> bool:
 	match effect:
 		"credits":
 			GlobalData.credits += amount
+			_apply_repair_params(params)
 		"scrap":
 			GlobalData.scrap += amount
+			_apply_repair_params(params)
+		"repair":
+			_apply_repair_params({"repair": amount if amount != 0 else float(params.get("repair", 0))})
+		"recover_mech":
+			_apply_recover_mech(params)
+		"wanderer_join":
+			_apply_wanderer_join(params)
+		"recover_escort":
+			_apply_recover_escort(params)
+		"none":
+			pass
 		"data_cores":
 			GlobalData.data_cores += amount
 		"damage":
@@ -125,3 +181,59 @@ static func on_combat_ended_for_reputation(victory: bool) -> void:
 		add_reputation(1)
 		if GameManager.is_boss_combat:
 			add_reputation(2)
+
+
+# Repairs `repair` percentage points of damage across every damaged part.
+static func _apply_repair_params(params: Dictionary) -> void:
+	var repair := float(params.get("repair", 0))
+	if repair <= 0.0:
+		return
+	for key in GlobalData.part_damage:
+		var cur := float(GlobalData.part_damage[key])
+		GlobalData.part_damage[key] = maxf(cur - repair / 100.0, 0.0)
+
+
+# Rebuilds a walking chassis from convoy spares and ends pilot-only mode. If no
+# berth is available the convoy strips the garage for scrap instead.
+static func _apply_recover_mech(params: Dictionary) -> void:
+	var granted := HangarManager.grant_recovery_mech()
+	if granted.is_empty():
+		var fallback := int(params.get("fallback_scrap", 30))
+		GlobalData.scrap += fallback
+		GlobalData.run_notice = "The garage holds no usable chassis — your team strips it for %d scrap instead." % fallback
+		return
+	var heat := int(params.get("heat", 1))
+	GlobalData.heat = maxi(0, GlobalData.heat + heat)
+	GlobalData.run_notice = "Your mechanics rebuild a walking chassis from the convoy spares: %s is ready for combat." % str(granted.get("name", "Mech"))
+
+
+# A lone wanderer brings a spare chassis (ending pilot-only mode) and, when room
+# allows, rides along as an escort. Used when the sector exit is reached on foot.
+static func _apply_wanderer_join(_params: Dictionary) -> void:
+	var granted := HangarManager.grant_recovery_mech()
+	var escort := false
+	for template_id in ["ally_gm", "ally_gunner", "ally_blade"]:
+		if FleetSystem.add_ally_unit(template_id):
+			escort = true
+			break
+	if granted.is_empty():
+		GlobalData.run_notice = "A lone wanderer offers an escort out of the sector — the convoy rides together."
+	elif escort:
+		GlobalData.run_notice = "A lone wanderer joins the convoy, piloting a spare chassis and riding along as an escort."
+	else:
+		GlobalData.run_notice = "A lone wanderer joins the convoy, piloting a spare chassis."
+
+
+# A local crew offers to ride along: the first ally template the fleet does not
+# already own joins the roster. Grants reputation either way.
+static func _apply_recover_escort(_params: Dictionary) -> void:
+	var joined := false
+	for template_id in ["ally_gm", "ally_gunner", "ally_blade"]:
+		if FleetSystem.add_ally_unit(template_id):
+			joined = true
+			break
+	if joined:
+		add_reputation(1)
+		GlobalData.run_notice = "A local salvage crew rides along with the convoy. +1 reputation."
+	else:
+		GlobalData.run_notice = "The locals are already part of the convoy — they wish you luck."

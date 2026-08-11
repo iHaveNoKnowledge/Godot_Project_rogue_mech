@@ -12,6 +12,12 @@ themes = [{
 "victory_text": "The capital falls to the allied offensive. You are decorated as a hero of the fleet."
 },
 "events": ["political_ceasefire", "supply_drop", "fleet_reinforcement", "tactical_intel"],
+"affiliation": {
+"mechless_retreat": true,
+"name": "Fleet Soldier",
+"transport": "Fleet carrier convoy",
+"transport_desc": "Military carriers keep reserve mechs parked in the fleet's trucks."
+},
 "flavor": "You are a conscript of the fleet. A serial number, a mech, and a war that does not care who you are.",
 "flow": {
 "ceasefire_chance": 0.3,
@@ -63,6 +69,12 @@ themes = [{
 "victory_text": "You out-flew every ace they sent and carved your name into the sky. The world now knows what your family's machine can do."
 },
 "events": ["rebel_hideout", "fellow_rebels", "bounty_hunters", "underground_respect"],
+"affiliation": {
+"mechless_retreat": false,
+"name": "Gundam Heir",
+"transport": "None — you fly solo",
+"transport_desc": "No backup transport. Lose your machine and the hunt is over."
+},
 "flavor": "A letter from a family you barely knew bequeaths you a legendary mech. Everyone wants it. Everyone wants you dead.",
 "flow": {
 "ceasefire_chance": 0.1,
@@ -114,6 +126,12 @@ themes = [{
 "victory_text": "The big score came through. Your crew survives another season, legends of the wasteland."
 },
 "events": ["depot_raid", "rival_gang", "raider_rumors", "military_commission"],
+"affiliation": {
+"mechless_retreat": true,
+"name": "Scavenger Crew",
+"transport": "Crew transport truck",
+"transport_desc": "Your crew's truck carries spare frames across the wastes."
+},
 "flavor": "A crew of scavengers living score to score. No flag, no cause — just the next haul and whoever is fastest to the wreck.",
 "flow": {
 "ceasefire_chance": 0.15,

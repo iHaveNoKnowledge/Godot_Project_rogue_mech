@@ -65,10 +65,10 @@ var garage_cam: Camera3D
 var mecha_3d_root: Node3D
 var turntable_node: Node3D
 var selection_highlight: MeshInstance3D
-var cam_target_pos: Vector3 = Vector3(2.8, 2.2, 3.8)
-var cam_look_target: Vector3 = Vector3(0, 1.8, 0)
-var current_cam_pos: Vector3 = Vector3(4.5, 3.5, 6.1)
-var current_look_pos: Vector3 = Vector3(0, 2.9, 0)
+var cam_target_pos: Vector3 = Vector3(6.2, 1.6, 8.8)
+var cam_look_target: Vector3 = Vector3(0, 3.2, 0)
+var current_cam_pos: Vector3 = Vector3(6.2, 1.6, 8.8)
+var current_look_pos: Vector3 = Vector3(0, 3.2, 0)
 
 # UI Nodes
 var tab_container: HBoxContainer

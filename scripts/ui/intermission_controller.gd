@@ -199,7 +199,6 @@ func _show_menu() -> void:
 func _on_move_pressed() -> void:
 	# Hide intermission UI, show board for tile selection
 	visible = false
-	get_tree().current_scene.set("showing_board", true)
 
 
 func _on_status_pressed() -> void:

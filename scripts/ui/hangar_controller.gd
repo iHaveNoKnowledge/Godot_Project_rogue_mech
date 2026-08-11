@@ -2530,8 +2530,13 @@ func _show_part_action_modal(info: Dictionary) -> void:
 				info["part_color"] = new_color
 				status_message_label.text = "Armor paint updated!"
 				_apply_3d_armor_preview(selected_slot, info)
-				if GlobalData.equipped_parts.get(selected_slot) == info or GlobalData.equipped_parts.has(selected_slot):
-					GlobalData.equipped_parts[selected_slot]["color"] = new_color
+				# Only sync the equipped copy when the same instance is mounted;
+				# .has() is true even for null/other instances, and Dictionary ==
+				# compares by value (not reference) — match on the unique uid instead.
+				var equipped = GlobalData.equipped_parts.get(selected_slot)
+				if equipped is Dictionary and info.has("uid") and equipped.get("uid", "") == str(info["uid"]):
+					equipped["color"] = new_color
+					equipped["part_color"] = new_color
 				GlobalData.save_run()
 			)
 			grid.add_child(paint_btn)

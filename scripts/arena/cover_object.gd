@@ -90,8 +90,9 @@ func _spawn_debris() -> void:
 		debris.global_position = global_position + Vector3(randf_range(-0.5, 0.5), 1.0, randf_range(-0.5, 0.5))
 
 		var velocity = Vector3(randf_range(-3, 3), randf_range(2, 5), randf_range(-3, 3))
+		# Sequential tweens: fly outward first, then drop — parallel mode made both
+		# write `position` every frame, so the debris ended up fighting itself.
 		var tween = get_tree().create_tween()
-		tween.set_parallel(true)
 		tween.tween_property(debris, "position", debris.position + velocity * 0.5, 0.5).set_ease(Tween.EASE_OUT)
 		tween.tween_property(debris, "position:y", debris.position.y - 3.0, 0.5).set_delay(0.2).set_ease(Tween.EASE_IN)
-		tween.chain().tween_callback(debris.queue_free).set_delay(0.3)
+		tween.tween_callback(debris.queue_free).set_delay(0.3)

@@ -80,13 +80,25 @@ func add_wave_heat() -> void:
 
 
 func _update_wanted() -> void:
-	var new_wanted = 0
+	# Heat thresholds push wanted up to 3; sector progression escalates it
+	# further via escalate_wanted(). The escalation acts as a floor so a
+	# heat cool-down never undoes the run's progression.
+	var heat_derived = 0
 	for threshold in wanted_thresholds:
 		if GlobalData.heat >= threshold:
-			new_wanted += 1
+			heat_derived += 1
+	var new_wanted = maxi(heat_derived, GlobalData.wanted_escalation)
 	if new_wanted != GlobalData.wanted_level:
 		GlobalData.wanted_level = new_wanted
 		EventBus.wanted_changed.emit(new_wanted)
+
+
+# Sector progression: the run gets hotter each sector even after heat cools
+# between sectors. Keeps signals and enemy mobilization in sync.
+func escalate_wanted(amount: int = 1, max_wanted: int = 5) -> void:
+	GlobalData.wanted_escalation = mini(GlobalData.wanted_escalation + amount, max_wanted)
+	_update_wanted()
+	update_enemy_mobilization_capacity()
 
 
 # ดึงสัดส่วนตัวคูณความยากตามค่า Heat และ Notoriety Memory ผสมผสานกัน

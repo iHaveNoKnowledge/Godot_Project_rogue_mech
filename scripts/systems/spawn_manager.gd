@@ -327,8 +327,13 @@ func _spawn_enemy(type: String, archetype: int, pos: Vector3, hp_scale: float, s
 	var enemy = scene.instantiate()
 	enemy.archetype = archetype
 	enemy.position = pos
-	enemy.squad_role = squad_role
-	enemy.faction_paint = paint
+	# Only squads/full-rig enemies declare these — tanks (enemy_tank.gd) don't,
+	# so guard the assignment or Godot prints "Invalid set index" on every tank spawn.
+	# enemy.get() returns null only when the property does not exist.
+	if enemy.get("squad_role") != null:
+		enemy.squad_role = squad_role
+	if enemy.get("faction_paint") != null:
+		enemy.faction_paint = paint
 
 	add_child(enemy)
 	await enemy.ready

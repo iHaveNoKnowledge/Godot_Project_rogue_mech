@@ -54,4 +54,7 @@ func _on_frame_destroyed(slot_name: String) -> void:
 				get_parent().disable_weapons()
 		"hull":
 			# ตัวถังหลักพัง: ระเบิดรถถังพังทลายทันที
-			_on_mecha_destroyed()
+			# super._on_frame_destroyed เรียก _on_mecha_destroyed ไปแล้วเมื่อ
+			# total_frame_hp <= 0 — guard กันการระเบิด/ดรอป loot ซ้ำสองรอบ
+			if not is_destroyed:
+				_on_mecha_destroyed()

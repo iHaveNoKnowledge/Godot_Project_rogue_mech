@@ -213,8 +213,5 @@ func _on_repair_all_pressed() -> void:
 func _on_leave_pressed() -> void:
 	visible = false
 	get_tree().paused = false
-	# Return to board movement mode
-	var board = get_tree().current_scene
-	if board:
-		board.set("showing_board", true)
+	# Return to board movement mode (tile clicks drive movement — no flag needed)
 	EventBus.repair_requested.emit()

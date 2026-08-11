@@ -416,8 +416,11 @@ func _commit_selection(hand: String) -> void:
 			right_hand = new_weapon
 		carry.remove_at(0)
 		_enforce_two_hand_grip()
-		weapon_switched.emit(hand, new_weapon.weapon_name)
-		ammo_changed.emit(hand, _get_ammo(new_weapon), new_weapon.max_ammo)
+		# Grip enforcement may holster the cycled weapon — report the real state.
+		var w2 = left_hand if is_left else right_hand
+		weapon_switched.emit(hand, w2.weapon_name if w2 else "Empty")
+		if w2:
+			ammo_changed.emit(hand, _get_ammo(w2), w2.max_ammo)
 		carry_updated.emit(carry)
 		_update_weapon_visuals()
 		sync_loadout_to_global()
@@ -433,8 +436,10 @@ func _commit_selection(hand: String) -> void:
 
 	_enforce_two_hand_grip()
 
-	weapon_switched.emit(hand, (left_hand if is_left else right_hand).weapon_name)
+	# The grip enforcement may have holstered the just-committed weapon when the
+	# other hand holds a two-hand weapon — guard against a null hand afterwards.
 	var w = left_hand if is_left else right_hand
+	weapon_switched.emit(hand, w.weapon_name if w else "Empty")
 	if w:
 		ammo_changed.emit(hand, _get_ammo(w), w.max_ammo)
 	carry_updated.emit(carry)

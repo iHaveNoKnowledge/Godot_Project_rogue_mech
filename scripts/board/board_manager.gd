@@ -103,7 +103,7 @@ func move_to_tile(target: Vector2i) -> bool:
 	EventBus.tile_entered.emit(target, tile_data)
 	_process_tile_effect(tile_type)
 
-	if tile_type not in ["combat", "exit"]:
+	if tile_type not in ["combat", "exit", "enemy_base"]:
 		var intermission = get_node_or_null("IntermissionUI")
 		if intermission:
 			intermission.visible = true
@@ -211,7 +211,7 @@ func _process_tile_effect(tile_type: String) -> void:
 			_trigger_random_event()
 		"safehouse":
 			HeatWantedSystem.modify_heat(-4)
-			var safehouse = get_node_or_null("../SafehouseUI")
+			var safehouse = get_node_or_null("SafehouseUI")
 			if safehouse:
 				safehouse.visible = true
 				get_tree().paused = true
@@ -290,7 +290,7 @@ func _trigger_stalker_surprise_ambush() -> void:
 	var active_stalker = GlobalData.stalking_aces[0]
 	GlobalData.stalking_chance = 0.0
 
-	var safehouse_ui = get_node_or_null("../SafehouseUI")
+	var safehouse_ui = get_node_or_null("SafehouseUI")
 	if safehouse_ui:
 		safehouse_ui.status_label.text = "SIREN WARNING! Stalking Ace: " + active_stalker + " Ambushed!"
 

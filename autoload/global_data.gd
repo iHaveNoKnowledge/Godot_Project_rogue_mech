@@ -683,6 +683,8 @@ var current_tile: Vector2i = Vector2i.ZERO
 var board_seed: int = 0
 var heat: int = 0
 var wanted_level: int = 0
+# Sector-progression floor for wanted_level, raised by HeatWantedSystem.escalate_wanted().
+var wanted_escalation: int = 0
 var safehouse_upgrades: Array = []
 
 # -----------------------------------------------------------------------------
@@ -1216,6 +1218,7 @@ func reset_run_data() -> void:
 	board_seed = randi()
 	heat = 0
 	wanted_level = 0
+	wanted_escalation = 0
 	safehouse_upgrades.clear()
 	credits = 110
 	data_cores = 0
@@ -1266,6 +1269,7 @@ func reset_run_data() -> void:
 	research_unlocked.clear()
 	chassis_id = "standard"
 	equipped_frames.clear()
+	frame_upgrade_level = 1
 
 	ammo_inventory = {
 		"kinetic": 300,

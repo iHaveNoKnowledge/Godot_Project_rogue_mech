@@ -12,7 +12,9 @@ func set_seed(level: int, tile_pos: Vector2i) -> void:
 
 
 func get_obstacle_positions(theme: int = 0, arena_size: float = 240.0) -> Array:
-	rng.randomize()
+	# NOTE: never randomize() here — that would defeat the deterministic seed
+	# set by set_seed(). Callers must call set_seed() first (or leave the seed 0
+	# for a fixed default layout).
 	var half = arena_size / 2.0 - 15.0
 	var positions = []
 

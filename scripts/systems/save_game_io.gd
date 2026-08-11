@@ -22,6 +22,7 @@ static func save_run() -> void:
 		"position": {"x": GlobalData.current_tile.x, "y": GlobalData.current_tile.y},
 		"heat": GlobalData.heat,
 		"wanted": GlobalData.wanted_level,
+		"wanted_escalation": GlobalData.wanted_escalation,
 		"credits": GlobalData.credits,
 		"data_cores": GlobalData.data_cores,
 		"scrap": GlobalData.scrap,
@@ -60,7 +61,8 @@ static func save_run() -> void:
 		"driver_repair_xp": GlobalData.driver_repair_xp,
 		"scrap_patches": GlobalData.scrap_patches.duplicate(true),
 		"hangar_mechs": GlobalData.hangar_mechs.duplicate(true),
-		"active_hangar_mech_id": GlobalData.active_hangar_mech_id
+		"active_hangar_mech_id": GlobalData.active_hangar_mech_id,
+		"frame_upgrade_level": GlobalData.frame_upgrade_level
 	}
 	var file := FileAccess.open(GlobalData.SAVE_PATH, FileAccess.WRITE)
 	if file:
@@ -87,10 +89,10 @@ static func restore_from_dict(data: Dictionary) -> void:
 		for slot in frames_data:
 			GlobalData.equipped_frames[slot] = resolve_frame_value(frames_data[slot])
 	GlobalData._ensure_default_frames()
-	GlobalData.part_damage = data.get("damage", {})
 	GlobalData.attachments = data.get("attachments", []).duplicate(true)
 	GlobalData.heat = data.get("heat", 0)
 	GlobalData.wanted_level = data.get("wanted", 0)
+	GlobalData.wanted_escalation = int(data.get("wanted_escalation", 0))
 	GlobalData.credits = data.get("credits", 0) + int(data.get("spare_parts", 0))
 	GlobalData.data_cores = data.get("data_cores", 0)
 	GlobalData.scrap = data.get("scrap", 0)
@@ -128,6 +130,8 @@ static func restore_from_dict(data: Dictionary) -> void:
 	if loaded_hangar is Array:
 		GlobalData.hangar_mechs = loaded_hangar.duplicate(true)
 	GlobalData.active_hangar_mech_id = str(data.get("active_hangar_mech_id", ""))
+	# Clamp to >= 1 so a null/corrupt value can't produce a negative upgrade level.
+	GlobalData.frame_upgrade_level = maxi(int(data.get("frame_upgrade_level", 1)), 1)
 
 	var loaded_roster = data.get("fleet_roster", [])
 	if loaded_roster is Array:
@@ -167,6 +171,10 @@ static func restore_from_dict(data: Dictionary) -> void:
 	for slot in parts_dict:
 		GlobalData.equipped_parts[slot] = resolve_equipped_part(parts_dict[slot])
 	ensure_equipped_parts_are_instances()
+	# Restore the saved damage AFTER migration — equip_armor_instance() rewrites
+	# part_damage from the fresh instance durability (1.0), which would otherwise
+	# wipe the wear that was already restored above.
+	GlobalData.part_damage = data.get("damage", {})
 	GlobalData.sync_equipped_armor_durability()
 	GlobalData.ensure_hangar_roster()
 
@@ -352,6 +360,11 @@ static func ensure_equipped_parts_are_instances() -> void:
 			inst["durability"] = 1.0
 			inst["upgrade_level"] = 1
 		if not inst.is_empty():
+			# The legacy non-catalog instance is NOT part of armor_inventory yet —
+			# register it first, otherwise equip_armor_instance() can't find the uid
+			# and the freshly minted instance is silently orphaned.
+			if GlobalData.get_armor_instance(str(inst["uid"])).is_empty():
+				GlobalData.armor_inventory.append(inst)
 			GlobalData.equip_armor_instance(inst["uid"], slot)
 
 

@@ -12,11 +12,21 @@ func enter() -> void:
 	flee_timer = 0.0
 	path = []
 	path_index = 0
+	if not _has_valid_target():
+		enemy.target = null
+		state_machine.transition_to("StateIdle")
+		return
 	_update_flee_path()
 
 
 func physics_process(delta: float) -> void:
 	flee_timer += delta
+
+	# Validate the target first — everything below dereferences it.
+	if not _has_valid_target():
+		enemy.target = null
+		state_machine.transition_to("StateIdle")
+		return
 
 	# After fleeing for a while, reassess
 	if flee_timer > 3.0:
@@ -25,11 +35,6 @@ func physics_process(delta: float) -> void:
 			return
 		flee_timer = 0.0
 		_update_flee_path()
-
-	if not enemy.target or not is_instance_valid(enemy.target):
-		enemy.target = null
-		state_machine.transition_to("StateIdle")
-		return
 
 	# Follow flee path
 	if path.is_empty():
@@ -60,7 +65,13 @@ func physics_process(delta: float) -> void:
 		enemy.rotation.y = lerp_angle(enemy.rotation.y, atan2(direction.x, direction.z), 5.0 * delta)
 
 
+func _has_valid_target() -> bool:
+	return enemy.target != null and is_instance_valid(enemy.target)
+
+
 func _update_flee_path() -> void:
+	if not _has_valid_target():
+		return
 	var maps = NavigationServer3D.get_maps()
 	if maps.is_empty():
 		return
@@ -77,6 +88,8 @@ func _update_flee_path() -> void:
 
 
 func _direct_flee(delta: float) -> void:
+	if not _has_valid_target():
+		return
 	var away_dir = (enemy.global_position - enemy.target.global_position).normalized()
 	away_dir.y = 0.0
 	away_dir = away_dir.rotated(Vector3.UP, randf_range(-0.5, 0.5)).normalized()

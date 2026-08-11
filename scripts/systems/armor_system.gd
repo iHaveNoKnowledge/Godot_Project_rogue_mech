@@ -128,7 +128,8 @@ static func unequip_armor_instance(slot: String) -> void:
 			inst["equipped"] = false
 	GlobalData.equipped_parts[slot] = null
 	GlobalData.part_damage.erase(slot)
-	GlobalData.part_damage.erase(slot + "_frame")
+	# NOTE: frame damage (part_damage[slot + "_frame"]) belongs to the mech's
+	# frame, not the armor being swapped out — swapping armor must NOT heal it.
 
 
 # Writes the live combat damage cache back into the equipped instances' durability.

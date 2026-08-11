@@ -52,8 +52,10 @@ func advance_to_next_sector() -> void:
 	GlobalData.current_sector += 1
 	GlobalData.current_tile = Vector2i.ZERO
 	GlobalData.board_seed = randi()
-	GlobalData.heat = max(0, GlobalData.heat - 2)
-	GlobalData.wanted_level = min(GlobalData.wanted_level + 1, 5)
+	# Route through HeatWantedSystem so the HUD signals, wanted escalation floor
+	# and enemy mobilization capacity all stay in sync (never mutate directly).
+	HeatWantedSystem.modify_heat(-2)
+	HeatWantedSystem.escalate_wanted(1, 5)
 	GlobalData.save_run()
 	EventBus.combat_intensity_changed.emit(0.0)
 	AudioManager.stop_music()

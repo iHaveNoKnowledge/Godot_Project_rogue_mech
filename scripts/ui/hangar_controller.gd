@@ -2660,7 +2660,11 @@ func _unequip_part_from_slot(slot: String) -> void:
 		var mecha = _get_mecha_base()
 		if mecha:
 			for node_name in ["WeaponVisual_left", "WeaponVisual_right", "WeaponVisual_carry"]:
-				var existing = mecha.get_node_or_null(node_name)
+				var existing = mecha.get_node_or_null("ArmLeft/ForearmLeft/" + node_name)
+				if existing == null:
+					existing = mecha.get_node_or_null("ArmRight/ForearmRight/" + node_name)
+				if existing == null:
+					existing = mecha.get_node_or_null(node_name)
 				if existing:
 					existing.queue_free()
 		_update_total_stats()

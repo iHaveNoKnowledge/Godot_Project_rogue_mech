@@ -11,6 +11,10 @@ const CARRY_SPREAD := 0.44
 const CARRY_OFFSET_STEP := 0.22
 
 
+# Hand position in the forearm node's local space (bottom of the forearm mesh).
+const HAND_FOREARM_POS := Vector3(0.0, -0.72, 0.0)
+
+
 # Returns the mount position for a hand ("left"/"right").
 static func hand_mount_position(hand: String) -> Vector3:
 	return HAND_LEFT_POS if hand == "left" else HAND_RIGHT_POS
@@ -18,13 +22,31 @@ static func hand_mount_position(hand: String) -> Vector3:
 
 # Mounts a weapon onto a hand of the mecha. Reuses the existing node (if the
 # given hand already has a mount) so swapping does not pile up stale models.
+# The weapon is parented to the Forearm* node (when present) so it sits in the
+# hand and follows the arm animations instead of floating at a fixed offset.
 static func mount_hand(mecha: Node3D, hand: String, weapon: WeaponPart, node_name: String) -> Node3D:
-	var mount = mecha.get_node_or_null(node_name)
-	if mount == null:
-		mount = Node3D.new()
-		mount.name = node_name
-		mecha.add_child(mount)
-	mount.position = hand_mount_position(hand)
+	var side := "Left" if hand == "left" else "Right"
+	var forearm := mecha.get_node_or_null("Arm" + side + "/Forearm" + side) as Node3D
+	var mount: Node3D = null
+	if forearm != null:
+		# Free any stale root-anchored mount from a previous version.
+		var stale := mecha.get_node_or_null(node_name)
+		if stale != null:
+			stale.queue_free()
+		mount = forearm.get_node_or_null(node_name)
+		if mount == null:
+			mount = Node3D.new()
+			mount.name = node_name
+			forearm.add_child(mount)
+		mount.position = HAND_FOREARM_POS
+		mount.rotation = Vector3.ZERO
+	else:
+		mount = mecha.get_node_or_null(node_name)
+		if mount == null:
+			mount = Node3D.new()
+			mount.name = node_name
+			mecha.add_child(mount)
+		mount.position = hand_mount_position(hand)
 	for child in mount.get_children():
 		child.queue_free()
 	if weapon == null:

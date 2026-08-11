@@ -84,8 +84,16 @@ var repair_part_button: Button
 var full_repair_button: Button
 var close_button: Button
 var status_message_label: Label
-var roster_container: VBoxContainer
-var roster_status_label: Label
+# Mech roster page (truck-convoy parking). Opens from the hangar menu and shows
+# every berth as a row: parked mechs with their pilot + empty berths to build.
+var roster_panel: PanelContainer = null
+var roster_slot_list: VBoxContainer = null
+var roster_page_title: Label = null
+var roster_status_label: Label = null
+# Header badge + prev/next controls for switching the mech being edited.
+var mech_slot_label: Label = null
+var mech_prev_button: Button = null
+var mech_next_button: Button = null
 
 # Inner Frame Catalog
 # NOTE: First entry per slot must match GlobalData.equipped_frames default names so
@@ -245,6 +253,34 @@ func _build_ui_layout() -> void:
 	selection_label.add_theme_color_override("font_color", Color(0.25, 0.9, 1.0))
 	hdr_box.add_child(selection_label)
 
+	# Mech-slot switcher: which berth in the hangar convoy is being edited.
+	# Prev/next wrap around, exactly like paging through parked mechs.
+	mech_prev_button = Button.new()
+	mech_prev_button.text = "◀"
+	mech_prev_button.tooltip_text = "Previous hangar mech"
+	mech_prev_button.custom_minimum_size = Vector2(34, 32)
+	mech_prev_button.focus_mode = Control.FOCUS_NONE
+	mech_prev_button.visible = false
+	mech_prev_button.pressed.connect(func(): _cycle_hangar_mech(-1))
+	hdr_box.add_child(mech_prev_button)
+
+	mech_slot_label = Label.new()
+	mech_slot_label.name = "MechSlotLabel"
+	mech_slot_label.text = "MECH SLOT 1/2"
+	mech_slot_label.add_theme_font_size_override("font_size", 14)
+	mech_slot_label.add_theme_color_override("font_color", Color(1.0, 0.8, 0.2))
+	mech_slot_label.visible = false
+	hdr_box.add_child(mech_slot_label)
+
+	mech_next_button = Button.new()
+	mech_next_button.text = "▶"
+	mech_next_button.tooltip_text = "Next hangar mech"
+	mech_next_button.custom_minimum_size = Vector2(34, 32)
+	mech_next_button.focus_mode = Control.FOCUS_NONE
+	mech_next_button.visible = false
+	mech_next_button.pressed.connect(func(): _cycle_hangar_mech(1))
+	hdr_box.add_child(mech_next_button)
+
 	tab_container = HBoxContainer.new()
 	tab_container.add_theme_constant_override("separation", 4)
 	hdr_box.add_child(tab_container)
@@ -320,6 +356,7 @@ func _build_ui_layout() -> void:
 	rail_box.add_child(rail_sep)
 
 	var submenu_items = [
+		{"id": "roster", "label": "ROSTER (จัดเก็บหุ่น)"},
 		{"id": "customize", "label": "CUSTOMIZE (แต่งหุ่น)"},
 		{"id": "emergency", "label": "EMERGENCY REPAIR (ซ่อมแซม)"},
 		{"id": "upgrade", "label": "UPGRADE (อัพเกรด)"},
@@ -508,7 +545,58 @@ func _build_ui_layout() -> void:
 	full_repair_button.pressed.connect(_on_full_repair_pressed)
 	right_box.add_child(full_repair_button)
 
-	_build_hangar_roster_ui(right_box)
+	# Mech roster page: opens from the hangar menu, shows the truck-convoy
+	# parking grid (one row per berth) with the 3D mech preview behind it.
+	var roster_panel = PanelContainer.new()
+	roster_panel.set_anchors_preset(Control.PRESET_LEFT_WIDE)
+	roster_panel.offset_top = 128
+	roster_panel.offset_bottom = -20
+	roster_panel.offset_left = 20
+	roster_panel.custom_minimum_size = Vector2(540, 0)
+	roster_panel.visible = false
+	self.roster_panel = roster_panel
+	root.add_child(roster_panel)
+
+	var style_roster = StyleBoxFlat.new()
+	style_roster.bg_color = Color(0.07, 0.09, 0.14, 0.94)
+	style_roster.corner_radius_top_left = 8
+	style_roster.corner_radius_bottom_left = 8
+	style_roster.content_margin_left = 14
+	style_roster.content_margin_right = 14
+	style_roster.content_margin_top = 14
+	style_roster.content_margin_bottom = 14
+	roster_panel.add_theme_stylebox_override("panel", style_roster)
+
+	var roster_box = VBoxContainer.new()
+	roster_box.add_theme_constant_override("separation", 8)
+	roster_panel.add_child(roster_box)
+
+	roster_page_title = Label.new()
+	roster_page_title.text = "HANGAR ROSTER"
+	roster_page_title.add_theme_font_size_override("font_size", 16)
+	roster_page_title.add_theme_color_override("font_color", Color(1.0, 0.8, 0.2))
+	roster_box.add_child(roster_page_title)
+
+	var roster_desc = Label.new()
+	roster_desc.text = "Every berth in the transport convoy. Parked mechs keep their own \
+loadout and pilot; empty berths let you assemble a new mech from the parts you \
+are currently editing."
+	roster_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	roster_desc.add_theme_font_size_override("font_size", 11)
+	roster_box.add_child(roster_desc)
+
+	var roster_sep = HSeparator.new()
+	roster_box.add_child(roster_sep)
+
+	roster_slot_list = VBoxContainer.new()
+	roster_slot_list.add_theme_constant_override("separation", 4)
+	roster_slot_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	roster_box.add_child(roster_slot_list)
+
+	roster_status_label = Label.new()
+	roster_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	roster_status_label.add_theme_font_size_override("font_size", 11)
+	roster_box.add_child(roster_status_label)
 
 	status_message_label = Label.new()
 	status_message_label.text = ""
@@ -526,89 +614,244 @@ func _build_ui_layout() -> void:
 	right_box.add_child(close_button)
 
 
-# --- HANGAR MECH ROSTER ---
-func _build_hangar_roster_ui(parent_box: VBoxContainer) -> void:
-	var separator := HSeparator.new()
-	parent_box.add_child(separator)
-	var title := Label.new()
-	title.text = "HANGAR ROSTER"
-	title.add_theme_font_size_override("font_size", 13)
-	title.add_theme_color_override("font_color", Color(0.4, 0.85, 1.0))
-	parent_box.add_child(title)
+# --- HANGAR MECH ROSTER (truck-convoy parking page) ---
 
-	var description := Label.new()
-	description.text = "Store built mechs and switch between complete loadouts."
-	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	description.add_theme_font_size_override("font_size", 11)
-	parent_box.add_child(description)
-
-	roster_container = VBoxContainer.new()
-	roster_container.add_theme_constant_override("separation", 3)
-	parent_box.add_child(roster_container)
-
-	var build_button := Button.new()
-	build_button.text = "BUILD NEW FROM CURRENT LOADOUT"
-	build_button.custom_minimum_size = Vector2(0, 30)
-	build_button.focus_mode = Control.FOCUS_NONE
-	build_button.pressed.connect(_on_build_hangar_mech_pressed)
-	parent_box.add_child(build_button)
-
-	roster_status_label = Label.new()
-	roster_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	roster_status_label.add_theme_font_size_override("font_size", 11)
-	parent_box.add_child(roster_status_label)
-
-	_refresh_hangar_roster_ui()
+func _show_roster_page() -> void:
+	current_submenu = "roster"
+	_close_craft_window()
+	_close_catalog_window()
+	if scrap_editor != null and is_instance_valid(scrap_editor) and scrap_editor.visible:
+		scrap_editor.close()
+	if submenu_rail:
+		submenu_rail.visible = false
+	if back_to_menu_button:
+		back_to_menu_button.visible = true
+	if tab_container:
+		tab_container.visible = false
+	if sub_toggle_container:
+		sub_toggle_container.visible = false
+	if left_panel:
+		left_panel.visible = false
+	if right_panel:
+		right_panel.visible = false
+	if roster_panel:
+		roster_panel.visible = true
+	if mech_slot_label:
+		mech_slot_label.visible = true
+	if mech_prev_button:
+		mech_prev_button.visible = true
+	if mech_next_button:
+		mech_next_button.visible = true
+	_refresh_mech_badge()
+	_refresh_roster_page()
+	call_deferred("_update_all_3d_slots_preview")
 
 
-func _refresh_hangar_roster_ui() -> void:
-	if roster_container == null:
+# Header badge: which berth is being edited, e.g. "MECH SLOT 3/8 · Mech 03".
+func _refresh_mech_badge() -> void:
+	if mech_slot_label == null:
 		return
-	for child in roster_container.get_children():
-		child.queue_free()
-	GlobalData.ensure_hangar_roster()
-	for mech in GlobalData.get_hangar_mechs():
-		if not (mech is Dictionary):
-			continue
-		var mech_id := str(mech.get("id", ""))
-		var active := mech_id == GlobalData.active_hangar_mech_id
-		var button := Button.new()
-		button.text = "%s%s" % [
-			str(mech.get("name", "Unnamed Mech")),
-			" [ACTIVE]" if active else "",
-		]
-		button.disabled = active
-		button.custom_minimum_size = Vector2(0, 28)
-		button.focus_mode = Control.FOCUS_NONE
-		button.pressed.connect(_on_hangar_mech_selected.bind(mech_id))
-		roster_container.add_child(button)
-	if roster_status_label:
-		roster_status_label.text = "Slots: %d/%d | Body + both leg frames required to build" % [
-			GlobalData.hangar_mechs.size(), GlobalData.HANGAR_MAX_SLOTS,
-		]
+	var capacity := GlobalData.get_hangar_capacity()
+	var active := GlobalData.get_active_hangar_mech()
+	var slot := int(active.get("slot", 0))
+	if slot <= 0:
+		slot = GlobalData.get_hangar_slot_of(GlobalData.active_hangar_mech_id)
+	if slot <= 0:
+		slot = 1
+	mech_slot_label.text = "MECH SLOT %d/%d · %s" % [slot, capacity, str(active.get("name", "Mech"))]
 
 
-func _on_build_hangar_mech_pressed() -> void:
-	var built := GlobalData.build_hangar_mech()
-	if built.is_empty():
-		roster_status_label.text = "Cannot build: install body, left-leg and right-leg frames first, or hangar is full."
+# Page between parked mechs (wrap-around). Builds nothing and only touches the
+# saved roster, so equipping is safe on whichever mech the driver is on now.
+func _cycle_hangar_mech(direction: int) -> void:
+	var mechs := GlobalData.get_hangar_mechs()
+	if mechs.size() <= 1:
 		return
-	GlobalData.save_run()
-	roster_status_label.text = "Built and stored %s." % str(built.get("name", "Mech"))
-	_refresh_hangar_roster_ui()
-
-
-func _on_hangar_mech_selected(mech_id: String) -> void:
-	if not GlobalData.switch_hangar_mech(mech_id):
-		roster_status_label.text = "Unable to load that hangar mech."
+	var index := -1
+	for i in range(mechs.size()):
+		if str(mechs[i].get("id", "")) == GlobalData.active_hangar_mech_id:
+			index = i
+			break
+	if index < 0:
+		index = 0
+	var next := (index + direction + mechs.size()) % mechs.size()
+	var target_id := str(mechs[next].get("id", ""))
+	if not GlobalData.switch_hangar_mech(target_id):
 		return
 	selected_chassis_key = GlobalData.chassis_id
-	_refresh_hangar_roster_ui()
+	GlobalData.save_run()
+	_refresh_mech_badge()
 	_update_all_3d_slots_preview()
 	_update_total_stats()
 	_populate_part_list_for_slot(selected_slot)
+	if roster_panel and roster_panel.visible:
+		_refresh_roster_page()
+
+
+func _refresh_roster_page() -> void:
+	if roster_slot_list == null:
+		return
+	GlobalData.ensure_hangar_roster()
+	var capacity := GlobalData.get_hangar_capacity()
+	var fleet := GlobalData.get_hangar_fleet_size()
+	var mechs := GlobalData.get_hangar_mechs()
+	var by_slot: Dictionary = {}
+	for mech in mechs:
+		if mech is Dictionary:
+			by_slot[int(mech.get("slot", 0))] = mech
+
+	for child in roster_slot_list.get_children():
+		child.queue_free()
+
+	roster_page_title.text = "HANGAR ROSTER — MECH %d/%d" % [mechs.size(), capacity]
+
+	for slot in range(1, capacity + 1):
+		_build_roster_slot_row(slot, by_slot.get(slot, {}), false)
+
+	# Saves written under a bigger fleet can exceed today's capacity. Never drop
+	# those mechs: show them as over-capacity rows (still switchable/assignable).
+	for slot in by_slot.keys():
+		if int(slot) > capacity:
+			_build_roster_slot_row(int(slot), by_slot[int(slot)], true)
+
+	if roster_status_label:
+		var convoy_desc := ""
+		if fleet <= 1:
+			convoy_desc = "SOLO CONVOY · 1 trailer · 2 berths"
+		else:
+			convoy_desc = "FLEET CONVOY · %d pilots · %d trucks · %d berths" \
+				% [fleet, ceili(fleet / 2.0), capacity]
+		roster_status_label.text = "%s\nBody + both leg frames are required to assemble a mech." \
+			% convoy_desc
+
+
+func _build_roster_slot_row(slot: int, mech: Dictionary, over_capacity: bool) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	roster_slot_list.add_child(row)
+
+	var slot_lbl := Label.new()
+	slot_lbl.text = "SLOT %02d" % slot
+	slot_lbl.custom_minimum_size = Vector2(70, 0)
+	slot_lbl.add_theme_font_size_override("font_size", 12)
+	slot_lbl.add_theme_color_override("font_color", Color(0.5, 0.6, 0.75))
+	row.add_child(slot_lbl)
+
+	if mech.is_empty():
+		var empty_lbl := Label.new()
+		empty_lbl.text = "EMPTY BERTH"
+		empty_lbl.custom_minimum_size = Vector2(180, 0)
+		empty_lbl.add_theme_color_override("font_color", Color(0.45, 0.5, 0.6))
+		row.add_child(empty_lbl)
+
+		var assemble := Button.new()
+		assemble.text = "ASSEMBLE MECH HERE"
+		assemble.custom_minimum_size = Vector2(0, 28)
+		assemble.focus_mode = Control.FOCUS_NONE
+		assemble.pressed.connect(_on_assemble_slot_pressed.bind(slot))
+		row.add_child(assemble)
+		return
+
+	var mech_id := str(mech.get("id", ""))
+	var is_active := mech_id == GlobalData.active_hangar_mech_id
+
+	var name_lbl := Label.new()
+	name_lbl.text = "%s%s" % [
+		str(mech.get("name", "Unnamed Mech")),
+		" [ACTIVE]" if is_active else "",
+	]
+	name_lbl.custom_minimum_size = Vector2(150, 0)
+	name_lbl.add_theme_font_size_override("font_size", 12)
+	name_lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.4) if is_active else Color(0.85, 0.9, 0.95))
+	row.add_child(name_lbl)
+
+	var pilot_lbl := Label.new()
+	pilot_lbl.text = "PILOT: %s" % GlobalData.get_hangar_pilot_name(str(mech.get("pilot", "")))
+	pilot_lbl.custom_minimum_size = Vector2(160, 0)
+	pilot_lbl.add_theme_font_size_override("font_size", 11)
+	pilot_lbl.add_theme_color_override("font_color", Color(0.55, 0.8, 1.0))
+	row.add_child(pilot_lbl)
+
+	var pilot_btn := Button.new()
+	pilot_btn.text = "PILOT ▾"
+	pilot_btn.custom_minimum_size = Vector2(80, 28)
+	pilot_btn.focus_mode = Control.FOCUS_NONE
+	pilot_btn.pressed.connect(_open_pilot_picker.bind(mech_id, pilot_btn))
+	row.add_child(pilot_btn)
+
+	if not is_active and not over_capacity:
+		var switch_btn := Button.new()
+		switch_btn.text = "SWITCH"
+		switch_btn.custom_minimum_size = Vector2(80, 28)
+		switch_btn.focus_mode = Control.FOCUS_NONE
+		switch_btn.pressed.connect(_on_switch_mech_pressed.bind(mech_id))
+		row.add_child(switch_btn)
+
+
+func _on_assemble_slot_pressed(slot: int) -> void:
+	var built := GlobalData.build_hangar_mech("", slot)
+	if built.is_empty():
+		if roster_status_label:
+			roster_status_label.text = "Cannot assemble: install body, left-leg and right-leg frames in the editor first, or the convoy is full."
+		return
 	GlobalData.save_run()
-	roster_status_label.text = "Loaded %s." % str(GlobalData.get_active_hangar_mech().get("name", "Mech"))
+	if roster_status_label:
+		roster_status_label.text = "Assembled and parked %s in SLOT %02d." % [str(built.get("name", "Mech")), slot]
+	_refresh_roster_page()
+	_refresh_mech_badge()
+	call_deferred("_update_all_3d_slots_preview")
+
+
+func _on_switch_mech_pressed(mech_id: String) -> void:
+	if not GlobalData.switch_hangar_mech(mech_id):
+		if roster_status_label:
+			roster_status_label.text = "Unable to load that hangar mech."
+		return
+	selected_chassis_key = GlobalData.chassis_id
+	GlobalData.save_run()
+	_refresh_mech_badge()
+	_refresh_roster_page()
+	_update_all_3d_slots_preview()
+	_update_total_stats()
+	if roster_status_label:
+		roster_status_label.text = "Loaded %s." % str(GlobalData.get_active_hangar_mech().get("name", "Mech"))
+
+
+func _mech_label_for_pilot(pilot_id: String) -> String:
+	for mech in GlobalData.get_hangar_mechs():
+		if str(mech.get("pilot", "")) == pilot_id:
+			return "· %s" % str(mech.get("name", "Mech"))
+	return ""
+
+
+# Popup picker listing every pilot in the convoy; selecting one drives that
+# mech (swapping berths when the pilot already sits elsewhere). "(no pilot)"
+# clears the seat.
+func _open_pilot_picker(mech_id: String, anchor_btn: Button) -> void:
+	for existing in get_children():
+		if existing is PopupMenu and is_instance_valid(existing):
+			existing.queue_free()
+	var pop := PopupMenu.new()
+	add_child(pop)
+	pop.add_item("(no pilot)", 0)
+	var pilots := GlobalData.get_hangar_pilots()
+	for i in range(pilots.size()):
+		var pilot: Dictionary = pilots[i]
+		pop.add_item("%s  %s" % [
+			str(pilot.get("name", "?")),
+			_mech_label_for_pilot(str(pilot.get("id", ""))),
+		], i + 1)
+	pop.id_pressed.connect(func(id):
+		var pilot_id := "" if id == 0 else str(pilots[id - 1].get("id", ""))
+		if GlobalData.assign_hangar_pilot(mech_id, pilot_id):
+			pop.queue_free()
+			_refresh_roster_page()
+	)
+	pop.popup_hide.connect(func():
+		if is_instance_valid(pop):
+			pop.queue_free()
+	)
+	pop.popup(Rect2i(anchor_btn.global_position, Vector2i(280, 0)))
 
 
 # --- AMMO LOADOUT UI (how much ammo to carry into the next battle) ---
@@ -925,6 +1168,14 @@ func _show_hangar_menu() -> void:
 		left_panel.visible = false
 	if right_panel:
 		right_panel.visible = false
+	if roster_panel:
+		roster_panel.visible = false
+	if mech_slot_label:
+		mech_slot_label.visible = false
+	if mech_prev_button:
+		mech_prev_button.visible = false
+	if mech_next_button:
+		mech_next_button.visible = false
 	if root_control:
 		var label := root_control.find_child("SelectionLabel", true, false) as Label
 		if label:
@@ -945,8 +1196,17 @@ func _show_customize_page() -> void:
 		left_panel.visible = true
 	if right_panel:
 		right_panel.visible = true
+	if roster_panel:
+		roster_panel.visible = false
+	if mech_slot_label:
+		mech_slot_label.visible = true
+	if mech_prev_button:
+		mech_prev_button.visible = true
+	if mech_next_button:
+		mech_next_button.visible = true
 	if sub_toggle_container:
 		sub_toggle_container.visible = not selected_slot.begins_with("weapon")
+	_refresh_mech_badge()
 	_populate_part_list_for_slot(selected_slot)
 	_update_selection_highlight(selected_slot)
 
@@ -988,6 +1248,8 @@ func _select_hangar_submenu(id: String) -> void:
 		"catalog":
 			_show_customize_page()
 			_build_catalog_window()
+		"roster":
+			_show_roster_page()
 		_:
 			# "customize" (and any fallback): restore the standard editing view.
 			_show_customize_page()

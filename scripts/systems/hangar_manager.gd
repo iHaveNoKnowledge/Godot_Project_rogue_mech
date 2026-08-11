@@ -12,22 +12,125 @@ extends RefCounted
 # A roster entry is a built machine that can be selected in the hangar. It is
 # deliberately a loadout snapshot, so entering a different mech never mutates
 # the catalog or invents a placeholder backup body.
+#
+# The roster models a truck convoy. The hangar is the fleet's transport: a lone
+# driver owns one small trailer that parks 2 mechs; every two fleet pilots buy
+# one more transport, and each fleet truck parks 4 berths. So a fleet of 3
+# pilots (YOU + 2 squadmates) gets 2 trucks -> 8 berths, shown as "3/8".
+#
+# Each parked mech also records which pilot (YOU or a fleet unit) drives it.
+# Pilots are just labels in the snapshot; they can be freely reassigned between
+# mechs, which moves the driver between berths without touching the loadouts.
 # -----------------------------------------------------------------------------
+
+const PLAYER_PILOT_ID := "player"
+
+
+# Number of pilots in the convoy: the player driver plus every researched fleet
+# unit (regardless of fielded/destroyed status — they still occupy a berth).
+static func get_fleet_size() -> int:
+	return maxi(1, GlobalData.fleet_roster.size() + 1)
+
+
+# Parking berths in the convoy. Solo driver: 1 trailer, 2 berths. Fleet:
+# ceil(fleet/2) trucks at 4 berths each (3 pilots -> 2 trucks -> 8 berths).
+static func get_capacity() -> int:
+	var fleet_size := get_fleet_size()
+	if fleet_size <= 1:
+		return 2
+	return ceili(fleet_size / 2.0) * 4
+
+
+# Physical hard cap for the roster array. Kept above any fleet-derived capacity
+# so a save made under a bigger fleet never loses parked mechs.
+static func get_hard_max() -> int:
+	return GlobalData.HANGAR_HARD_MAX
+
+
+# Every pilot available in the convoy. Entries are {id, name}. Fleet units are
+# keyed by their template so a pilot survives renames in the fleet roster.
+static func get_pilots() -> Array:
+	var pilots: Array = [{"id": PLAYER_PILOT_ID, "name": "YOU (driver)"}]
+	for unit in GlobalData.fleet_roster:
+		if unit is Dictionary:
+			pilots.append({
+				"id": "fleet_%s" % str(unit.get("template_id", "")),
+				"name": str(unit.get("name", "Fleet Unit")),
+			})
+	return pilots
+
+
+static func get_pilot_name(pilot_id: String) -> String:
+	if pilot_id == "":
+		return "(no pilot)"
+	for pilot in get_pilots():
+		if str(pilot.get("id", "")) == pilot_id:
+			return str(pilot.get("name", pilot_id))
+	return pilot_id
 
 
 static func ensure_roster() -> void:
-	if not GlobalData.hangar_mechs.is_empty():
+	if GlobalData.hangar_mechs.is_empty():
+		var first_id := _new_id()
+		GlobalData.hangar_mechs.append(_capture_snapshot(first_id, "Mech 01", PLAYER_PILOT_ID, 1))
+		GlobalData.active_hangar_mech_id = first_id
+	else:
 		if GlobalData.active_hangar_mech_id == "" or _find(GlobalData.active_hangar_mech_id).is_empty():
 			GlobalData.active_hangar_mech_id = str(GlobalData.hangar_mechs[0].get("id", ""))
-		return
-	var first_id := _new_id()
-	GlobalData.hangar_mechs.append(_capture_snapshot(first_id, "Mech 01"))
-	GlobalData.active_hangar_mech_id = first_id
+	if _migrate_old_saves():
+		GlobalData.save_run()
+
+
+# Old saves predate pilots/slots: back-fill a stable slot number for every mech
+# and hand unassigned pilots to parked mechs (player driver first). Returns true
+# if anything changed so the caller can persist the migration once.
+static func _migrate_old_saves() -> bool:
+	var dirty := false
+	var used_slots: Dictionary = {}
+	var used_pilots: Dictionary = {}
+	for mech in GlobalData.hangar_mechs:
+		if not (mech is Dictionary):
+			continue
+		var slot := int(mech.get("slot", 0))
+		if slot > 0:
+			used_slots[slot] = true
+		var pilot := str(mech.get("pilot", ""))
+		if pilot != "":
+			used_pilots[pilot] = true
+
+	var next_slot := 1
+	var free_pilots: Array = []
+	for pilot in get_pilots():
+		if not used_pilots.has(str(pilot.get("id", ""))):
+			free_pilots.append(str(pilot.get("id", "")))
+
+	for mech in GlobalData.hangar_mechs:
+		if not (mech is Dictionary):
+			continue
+		if int(mech.get("slot", 0)) <= 0:
+			while used_slots.has(next_slot):
+				next_slot += 1
+			mech["slot"] = next_slot
+			used_slots[next_slot] = true
+			dirty = true
+		# Only legacy entries that never had a pilot field get back-filled. A mech
+		# whose pilot is explicitly "" (a spare berth) must stay empty, otherwise
+		# every roster refresh would re-seat spare mechs with squadmates.
+		if not mech.has("pilot"):
+			var new_pilot := ""
+			if not free_pilots.is_empty():
+				new_pilot = free_pilots.pop_front()
+			mech["pilot"] = new_pilot
+			dirty = true
+	return dirty
 
 
 static func get_mechs() -> Array:
 	ensure_roster()
-	return GlobalData.hangar_mechs
+	var sorted := GlobalData.hangar_mechs.duplicate()
+	sorted.sort_custom(func(a, b):
+		return int(a.get("slot", 0x7FFFFFFF)) < int(b.get("slot", 0x7FFFFFFF)))
+	return sorted
 
 
 static func get_active_mech() -> Dictionary:
@@ -40,7 +143,12 @@ static func save_active() -> bool:
 	var active := _find(GlobalData.active_hangar_mech_id)
 	if active.is_empty():
 		return false
-	var updated := _capture_snapshot(GlobalData.active_hangar_mech_id, str(active.get("name", "Mech")))
+	var updated := _capture_snapshot(
+		GlobalData.active_hangar_mech_id,
+		str(active.get("name", "Mech")),
+		str(active.get("pilot", "")),
+		int(active.get("slot", get_slot_of(GlobalData.active_hangar_mech_id))),
+	)
 	for i in range(GlobalData.hangar_mechs.size()):
 		if str(GlobalData.hangar_mechs[i].get("id", "")) == GlobalData.active_hangar_mech_id:
 			GlobalData.hangar_mechs[i] = updated
@@ -48,21 +156,29 @@ static func save_active() -> bool:
 	return false
 
 
-# Builds another hangar entry from the currently assembled parts. A complete
-# walking chassis needs a body frame and both leg frames; armor is optional and
-# can be installed later in the normal hangar editor.
-static func build(mech_name: String = "") -> Dictionary:
+# Builds another hangar entry from the currently assembled parts and parks it in
+# `requested_slot` (0 = first free berth). A complete walking chassis needs a
+# body frame and both leg frames; armor is optional and can be installed later
+# in the normal hangar editor. The newly parked mech has no pilot until one is
+# assigned from the roster page.
+static func build(mech_name: String = "", requested_slot: int = 0) -> Dictionary:
 	for required in ["body", "leg_left", "leg_right"]:
 		if not GlobalData.equipped_frames.has(required) or GlobalData.equipped_frames[required] == null:
 			return {}
-	if GlobalData.hangar_mechs.size() >= GlobalData.HANGAR_MAX_SLOTS:
+	if GlobalData.hangar_mechs.size() >= get_capacity():
+		return {}
+	if GlobalData.hangar_mechs.size() >= get_hard_max():
+		return {}
+	if requested_slot <= 0:
+		requested_slot = _next_free_slot()
+	if requested_slot > get_capacity() or _used_slots().has(requested_slot):
 		return {}
 	save_active()
 	var mech_id := _new_id()
 	var display_name := mech_name.strip_edges()
 	if display_name == "":
-		display_name = "Mech %02d" % (GlobalData.hangar_mechs.size() + 1)
-	var snapshot := _capture_snapshot(mech_id, display_name)
+		display_name = "Mech %02d" % requested_slot
+	var snapshot := _capture_snapshot(mech_id, display_name, "", requested_slot)
 	GlobalData.hangar_mechs.append(snapshot)
 	return snapshot
 
@@ -74,6 +190,33 @@ static func get_backup_id() -> String:
 		if mech_id != "" and mech_id != GlobalData.active_hangar_mech_id:
 			return mech_id
 	return ""
+
+
+static func get_slot_of(mech_id: String) -> int:
+	for mech in GlobalData.hangar_mechs:
+		if mech is Dictionary and str(mech.get("id", "")) == mech_id:
+			return int(mech.get("slot", 0))
+	return 0
+
+
+# Reassigns which pilot drives `mech_id`. If the chosen pilot already sits in
+# another mech, the two berths swap pilots (so a squadmate never ends up with
+# two mechs). Passing "" unassigns the mech's pilot.
+static func assign_pilot(mech_id: String, pilot_id: String) -> bool:
+	ensure_roster()
+	var target := _find(mech_id)
+	if target.is_empty():
+		return false
+	if str(target.get("pilot", "")) == pilot_id:
+		return true
+	var prev_pilot := str(target.get("pilot", ""))
+	var source_id := _mech_with_pilot(pilot_id)
+	target["pilot"] = pilot_id
+	if source_id != "" and source_id != mech_id:
+		var source := _find(source_id)
+		if not source.is_empty():
+			source["pilot"] = prev_pilot
+	return true
 
 
 static func switch_mech(mech_id: String) -> bool:
@@ -113,11 +256,13 @@ static func switch_mech(mech_id: String) -> bool:
 	return true
 
 
-static func _capture_snapshot(mech_id: String, mech_name: String) -> Dictionary:
+static func _capture_snapshot(mech_id: String, mech_name: String, pilot_id: String, slot: int) -> Dictionary:
 	GlobalData.sync_equipped_armor_durability()
 	return {
 		"id": mech_id,
 		"name": mech_name,
+		"slot": slot,
+		"pilot": pilot_id,
 		"chassis_id": GlobalData.chassis_id,
 		"frames": SaveGameIO.serialize_frames(),
 		"parts": SaveGameIO.serialize_parts(),
@@ -126,6 +271,31 @@ static func _capture_snapshot(mech_id: String, mech_name: String) -> Dictionary:
 		"weapon_loadout": GlobalData.weapon_loadout.duplicate(true),
 		"scrap_patches": GlobalData.scrap_patches.duplicate(true),
 	}
+
+
+static func _used_slots() -> Dictionary:
+	var used: Dictionary = {}
+	for mech in GlobalData.hangar_mechs:
+		if mech is Dictionary:
+			used[int(mech.get("slot", 0))] = true
+	return used
+
+
+static func _next_free_slot() -> int:
+	var used := _used_slots()
+	var slot := 1
+	while used.has(slot):
+		slot += 1
+	return slot
+
+
+static func _mech_with_pilot(pilot_id: String) -> String:
+	if pilot_id == "":
+		return ""
+	for mech in GlobalData.hangar_mechs:
+		if mech is Dictionary and str(mech.get("pilot", "")) == pilot_id:
+			return str(mech.get("id", ""))
+	return ""
 
 
 static func _find(mech_id: String) -> Dictionary:

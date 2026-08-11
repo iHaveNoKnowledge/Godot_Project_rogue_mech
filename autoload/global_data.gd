@@ -7,7 +7,11 @@ var attachments: Array = []
 # Built mech roster. A hangar entry is a saved loadout, not a generated enemy
 # capsule: it references the owned armor instances and frame catalog entries
 # used to assemble that mech. The active entry mirrors the live loadout above.
-const HANGAR_MAX_SLOTS := 6
+# Each entry carries a stable `slot` (its parking berth in the truck convoy),
+# a `pilot` (who drives it) and the loadout snapshot.
+# The usable number of berths comes from HangarManager.get_capacity() (fleet
+# size); HANGAR_HARD_MAX is only a physical safety cap for the stored array.
+const HANGAR_HARD_MAX := 12
 var hangar_mechs: Array = []
 var active_hangar_mech_id: String = ""
 
@@ -465,8 +469,8 @@ func save_active_hangar_mech() -> bool:
 	return HangarManager.save_active()
 
 
-func build_hangar_mech(mech_name: String = "") -> Dictionary:
-	return HangarManager.build(mech_name)
+func build_hangar_mech(mech_name: String = "", requested_slot: int = 0) -> Dictionary:
+	return HangarManager.build(mech_name, requested_slot)
 
 
 func get_backup_hangar_mech_id() -> String:
@@ -475,6 +479,41 @@ func get_backup_hangar_mech_id() -> String:
 
 func switch_hangar_mech(mech_id: String) -> bool:
 	return HangarManager.switch_mech(mech_id)
+
+
+# Fleet-driven convoy capacity: number of parking berths the hangar has.
+func get_hangar_capacity() -> int:
+	return HangarManager.get_capacity()
+
+
+# Number of pilots in the convoy (the player driver + every fleet unit).
+func get_hangar_fleet_size() -> int:
+	return HangarManager.get_fleet_size()
+
+
+# Physical hard cap of the stored roster array.
+func get_hangar_hard_max() -> int:
+	return HangarManager.get_hard_max()
+
+
+# All assignable pilots: {"id": "...", "name": "..."}.
+func get_hangar_pilots() -> Array:
+	return HangarManager.get_pilots()
+
+
+func get_hangar_pilot_name(pilot_id: String) -> String:
+	return HangarManager.get_pilot_name(pilot_id)
+
+
+# Reassigns the pilot driving a parked mech (swaps when the pilot already has a
+# mech). Caller persists with save_run().
+func assign_hangar_pilot(mech_id: String, pilot_id: String) -> bool:
+	return HangarManager.assign_pilot(mech_id, pilot_id)
+
+
+# Parking berth (slot number) of a stored mech, 0 when unknown.
+func get_hangar_slot_of(mech_id: String) -> int:
+	return HangarManager.get_slot_of(mech_id)
 
 # -----------------------------------------------------------------------------
 # WEAPON LOADOUT — central state for what the mech carries into battle.

@@ -26,6 +26,11 @@ var current_music: AudioStreamPlayer
 var current_music_category: String = ""
 var current_track: AudioStream = null
 
+# While true, every battle-related sound (combat music + SFX) is suppressed.
+# The combat intro overlay toggles this while the mech drops in from the sky, so
+# the loading screen is silent and the battle audio only comes back on reveal.
+var combat_muted: bool = false
+
 var _music_tween: Tween = null
 var _procedural_music_cache: Dictionary = {}
 
@@ -384,6 +389,8 @@ func _pick_stream(sound_name: String) -> AudioStream:
 
 
 func play_sfx(sound_name: String, pos: Vector3 = Vector3.ZERO, volume_db: float = 0.0, bus: String = "SFX") -> void:
+	if combat_muted:
+		return
 	var stream = _pick_stream(sound_name)
 	if stream == null:
 		return
@@ -400,6 +407,8 @@ func play_sfx(sound_name: String, pos: Vector3 = Vector3.ZERO, volume_db: float 
 
 
 func play_sfx_2d(sound_name: String, volume_db: float = 0.0, bus: String = "SFX") -> void:
+	if combat_muted:
+		return
 	var stream = _pick_stream(sound_name)
 	if stream == null:
 		return
@@ -424,6 +433,8 @@ func play_weapon_sfx(weapon_type: int, pos: Vector3) -> void:
 
 
 func play_weapon_sfx_with_override(weapon: WeaponPart, pos: Vector3) -> void:
+	if combat_muted:
+		return
 	if weapon.fire_sfx != null:
 		# Custom sound override — play directly from stream
 		var player = _get_free_3d_player()
@@ -644,9 +655,32 @@ func stop_music(fade_time: float = 1.0) -> void:
 	_music_tween.tween_callback(func(): current_music.stop())
 
 
+# Mutes/unmutes every battle-related sound while the combat intro overlay is up.
+# Combat music keeps playing underneath (so it is already there on reveal) but is
+# held at silence, and SFX play calls are dropped entirely until unmuted.
+func set_combat_muted(muted: bool) -> void:
+	if combat_muted == muted:
+		return
+	combat_muted = muted
+	if muted:
+		if _music_tween and _music_tween.is_valid():
+			_music_tween.kill()
+		music_player_a.volume_db = -80.0
+		music_player_b.volume_db = -80.0
+	else:
+		if _music_tween and _music_tween.is_valid():
+			_music_tween.kill()
+		if current_music and current_music.playing and current_music_category != "":
+			current_music.volume_db = -80.0
+			_music_tween = create_tween()
+			_music_tween.tween_property(current_music, "volume_db", linear_to_db(music_volume), 0.8)
+
+
 func _crossfade_to_stream(new_stream: AudioStream, fade_time: float) -> void:
 	var next_player: AudioStreamPlayer = music_player_b if current_music == music_player_a else music_player_a
 	var target_volume_db = linear_to_db(music_volume)
+	if combat_muted:
+		target_volume_db = -80.0
 
 	# Music tracks must loop forever. Imported files (e.g. hangar MP3) usually
 	# come in with loop=false, so a track would play once and then go silent.

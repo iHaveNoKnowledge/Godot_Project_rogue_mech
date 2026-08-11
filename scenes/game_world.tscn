@@ -23,6 +23,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/keybind_display.tscn" id="24"]
 [ext_resource type="PackedScene" path="res://scenes/ui/pause_menu.tscn" id="25"]
 [ext_resource type="Script" path="res://scripts/ui/combat_hud.gd" id="26"]
+[ext_resource type="Script" path="res://scripts/ui/combat_intro.gd" id="27"]
 [ext_resource type="Resource" path="res://resources/mech/stock/weapon_machine_gun.tres" id="10"]
 [ext_resource type="Resource" path="res://resources/mech/stock/weapon_shotgun.tres" id="11"]
 [ext_resource type="Resource" path="res://resources/mech/stock/weapon_pile_bunker.tres" id="12"]
@@ -70,6 +71,10 @@ shadow_enabled = true
 
 [node name="Mecha" parent="." instance=ExtResource("2")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 5)
+
+[node name="CombatIntro" type="CanvasLayer" parent="."]
+layer = 100
+script = ExtResource("27")
 
 [node name="WeaponManager" type="Node3D" parent="Mecha"]
 script = ExtResource("3")

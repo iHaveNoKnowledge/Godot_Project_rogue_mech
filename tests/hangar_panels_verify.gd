@@ -339,6 +339,17 @@ func _verify_roster_panel() -> void:
 	await get_tree().process_frame
 	var heal_btn := _find_heal_button(rp)
 	_check(heal_btn != null, "wounded pilot row offers a HEAL button")
+	# The PILOT label explains the WOUNDED countdown on hover.
+	var wound_tooltip := ""
+	for child in rp.roster_slot_list.get_children():
+		if not is_instance_valid(child) or child.is_queued_for_deletion():
+			continue
+		for sub in child.get_children():
+			if sub is Label and sub.text.begins_with("PILOT: Test Unit · WOUNDED") and is_instance_valid(sub) and not sub.is_queued_for_deletion():
+				wound_tooltip = sub.tooltip_text
+	_check(wound_tooltip.contains("WOUNDED — recovering"), "wounded pilot label explains the recovery countdown")
+	_check(wound_tooltip.contains("2 board moves left"), "tooltip shows the remaining board moves")
+	_check(wound_tooltip.contains("HEAL (%d cr)" % heal_cost), "tooltip points at the HEAL shortcut with its price")
 	if heal_btn:
 		_check(heal_btn.text.contains("%d" % heal_cost), "HEAL button shows the credit price")
 		# Broke: the button refuses and spends nothing.

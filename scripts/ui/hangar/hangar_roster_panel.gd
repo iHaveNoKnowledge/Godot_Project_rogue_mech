@@ -332,6 +332,17 @@ func build_slot_row(slot: int, mech: Dictionary, over_capacity: bool) -> void:
 		Color(1.0, 0.5, 0.5) if is_wounded or pilot_status.contains("DESTROYED") else Color(0.55, 0.8, 1.0))
 	pilot_lbl.custom_minimum_size = Vector2(160, 0)
 	pilot_lbl.add_theme_font_size_override("font_size", 11)
+	# Hovering a WOUNDED row explains the countdown: recovery ticks down on every
+	# board move, and the HEAL button skips the wait for credits.
+	if pilot_id.begins_with("fleet_") and is_wounded:
+		var template_id := pilot_id.trim_prefix("fleet_")
+		var turns := 0
+		var unit := GlobalData.get_fleet_unit(template_id)
+		if not unit.is_empty():
+			turns = maxi(int(unit.get("wound_turns", 1)), 1)
+		var heal_cost := GlobalData.get_wound_heal_cost(template_id)
+		pilot_lbl.tooltip_text = "WOUNDED — recovering (%d board move%s left).\nReturns to the field at half HP when the timer ends,\nor press HEAL (%d cr) to recover now at full HP." % [
+			turns, "s" if turns != 1 else "", heal_cost]
 	row.add_child(pilot_lbl)
 
 	var pilot_btn := Button.new()

@@ -14,6 +14,10 @@ extends Node
 ##   HangarNavPanel      — submenu + page navigation (landing / pages)
 ##   HangarRepairPanel   — repair selected slot / full field repair
 ##   HangarSlotPanel     — slot tab selection (body/weapon hands + refresh)
+##   HangarHeaderPanel   — top header bar (title, slot tabs, back-to-menu)
+##   HangarLeftPanel     — left sidebar (part list, craftery, ammo, equip)
+##   HangarRightPanel    — right sidebar (stats, weight, repair, status, exit)
+##   nav/landing builders — sub-menu rail + mode-toggle bar
 ## Run: godot --headless --path . res://tests/hangar_panels_verify.tscn
 
 var _fails: int = 0
@@ -35,6 +39,7 @@ func _ready() -> void:
 	await _verify_nav_panel()
 	await _verify_repair_panel()
 	await _verify_slot_panel()
+	await _verify_layout_panels()
 	print("HANGAR_PANELS_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	await get_tree().process_frame
 	get_tree().quit(1 if _fails > 0 else 0)
@@ -897,3 +902,85 @@ func _verify_slot_panel() -> void:
 
 	ctrl.queue_free()
 	await get_tree().process_frame
+
+
+func _verify_layout_panels() -> void:
+	GlobalData.reset_run_data()
+	var ctrl: Node = load("res://scenes/ui/hangar_scene.tscn").instantiate()
+	add_child(ctrl)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	# --- Header panel: title, selection label, slot tabs, back-to-menu. ---
+	_check(ctrl.header_panel != null, "controller builds a HangarHeaderPanel")
+	_check(ctrl.header_panel.controller == ctrl, "header panel holds the controller back-ref")
+	var title_lbl: Label = ctrl.root_control.find_child("SelectionLabel", true, false) as Label
+	_check(title_lbl != null and title_lbl.text == "HANGAR MENU", "header builds the selection label (boot lands on HANGAR MENU)")
+	_check(ctrl.tab_container != null and ctrl.tab_container.get_child_count() == 9, "header builds all 9 slot tabs")
+	_check(ctrl.slot_tab_buttons.size() == 9, "header registers every slot tab button")
+	_check(ctrl.slot_tab_buttons.has("weapon_carry"), "header registers the BACK CARRY tab")
+	_check(ctrl.back_to_menu_button != null and ctrl.back_to_menu_button.text.contains("BACK TO MENU"), "header builds the back-to-menu button")
+	_check(ctrl.back_to_menu_button.visible == false, "back-to-menu starts hidden")
+
+	# --- Landing rail (nav panel): menu title + every submenu entry + exit. ---
+	var np = ctrl.nav_panel
+	_check(np != null and np.has_method("build_landing_rail"), "nav panel owns the landing rail builder")
+	_check(ctrl.submenu_rail != null, "landing rail builds the rail panel")
+	var rail_text := _collect_label_text(ctrl.submenu_rail)
+	_check(rail_text.contains("HANGAR MENU"), "landing rail shows the menu title")
+	var rail_buttons := 0
+	for child in ctrl.submenu_rail.get_children():
+		rail_buttons += _count_buttons(child)
+	_check(rail_buttons >= 7, "landing rail lists the submenu + exit buttons")
+
+	# --- Mode-toggle bar (nav panel): 4 mode buttons. ---
+	_check(np.has_method("build_mode_toggles"), "nav panel owns the mode-toggle builder")
+	_check(ctrl.sub_toggle_container != null, "mode toggles build the container")
+	_check(ctrl.sub_toggle_container.get_child_count() == 4, "mode toggles build 4 buttons")
+	_check(ctrl.frame_upgrade_button != null, "mode toggles build the reactor upgrade button")
+	var toggle_text := ""
+	for child in ctrl.sub_toggle_container.get_children():
+		if child is Button:
+			toggle_text += child.text + "\n"
+	_check(toggle_text.contains("OUTER ARMOR") and toggle_text.contains("INNER SKELETON"), "mode toggles label armor + frame modes")
+
+	# --- Left sidebar: part list, craftery, ammo, equip. ---
+	_check(ctrl.left_panel_ui != null, "controller builds a HangarLeftPanel")
+	_check(ctrl.left_panel_ui.controller == ctrl, "left panel holds the controller back-ref")
+	_check(ctrl.left_panel != null, "left sidebar builds the panel")
+	_check(ctrl.part_item_list != null and ctrl.part_item_list is ItemList, "left sidebar builds the part ItemList")
+	_check(ctrl.craft_button != null and ctrl.craft_button.text.contains("CRAFTERY"), "left sidebar builds the craftery button")
+	_check(ctrl.equip_button != null and ctrl.equip_button.text.contains("EQUIP"), "left sidebar builds the equip button")
+	_check(ctrl.ammo_panel != null, "left sidebar builds the ammo panel")
+	_check(ctrl.ammo_panel.ammo_loadout_box != null, "ammo panel builds its loadout box")
+
+	# --- Right sidebar: stats, weight, repair, status, exit. ---
+	_check(ctrl.right_panel_ui != null, "controller builds a HangarRightPanel")
+	_check(ctrl.right_panel_ui.controller == ctrl, "right panel holds the controller back-ref")
+	_check(ctrl.right_panel != null, "right sidebar builds the panel")
+	_check(ctrl.stats_label != null and ctrl.stats_label.text.contains("Select a chassis"), "right sidebar builds the spec label")
+	_check(ctrl.weight_bar != null and ctrl.weight_bar.max_value > 0.0, "right sidebar builds the weight bar")
+	_check(ctrl.total_stats_label != null and ctrl.total_stats_label.text.contains("TOTAL WEIGHT"), "right sidebar builds the total stats label")
+	_check(ctrl.repair_part_button != null and ctrl.full_repair_button != null, "right sidebar builds the repair buttons")
+	_check(ctrl.close_button != null and ctrl.close_button.text.contains("EXIT HANGAR"), "right sidebar builds the exit button")
+	_check(ctrl.status_message_label != null, "right sidebar builds the status label")
+	_check(ctrl.status_message_label == ctrl.ammo_panel.status_label, "status label is shared with the ammo panel")
+
+	# --- Signal wiring fires: craftery button opens the craft window. ---
+	ctrl.craft_button.pressed.emit()
+	await get_tree().process_frame
+	_check(ctrl.craft_panel.craft_window != null, "craftery button opens the craft window")
+	ctrl.craft_panel.close_window()
+	await get_tree().process_frame
+
+	ctrl.queue_free()
+	await get_tree().process_frame
+
+
+func _count_buttons(node: Node) -> int:
+	var count := 0
+	if node is Button:
+		count += 1
+	for child in node.get_children():
+		count += _count_buttons(child)
+	return count

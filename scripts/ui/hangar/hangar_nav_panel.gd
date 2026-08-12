@@ -38,6 +38,109 @@ func switch_custom_mode(mode: String) -> void:
 	controller.part_list_panel.populate(controller.selected_slot)
 
 
+# Build the landing sub-menu rail (the long vertical list shown first after
+# entering the hangar) into `root`. Each entry opens its own page.
+func build_landing_rail(root: Control) -> void:
+	# Hangar sub-menu rail: the landing screen. A long vertical list on the left
+	# shown first after entering the hangar; each entry opens its own page.
+	var submenu_panel = PanelContainer.new()
+	submenu_panel.set_anchors_preset(Control.PRESET_LEFT_WIDE)
+	submenu_panel.offset_top = 90
+	submenu_panel.offset_bottom = -20
+	submenu_panel.offset_left = 20
+	submenu_panel.custom_minimum_size = Vector2(250, 0)
+	controller.submenu_rail = submenu_panel
+	root.add_child(submenu_panel)
+
+	var style_rail = StyleBoxFlat.new()
+	style_rail.bg_color = Color(0.08, 0.1, 0.15, 0.92)
+	style_rail.corner_radius_top_left = 8
+	style_rail.corner_radius_top_right = 8
+	style_rail.corner_radius_bottom_left = 8
+	style_rail.corner_radius_bottom_right = 8
+	style_rail.content_margin_left = 14
+	style_rail.content_margin_right = 14
+	style_rail.content_margin_top = 14
+	style_rail.content_margin_bottom = 14
+	submenu_panel.add_theme_stylebox_override("panel", style_rail)
+
+	var rail_box = VBoxContainer.new()
+	rail_box.add_theme_constant_override("separation", 8)
+	submenu_panel.add_child(rail_box)
+
+	var rail_title = Label.new()
+	rail_title.text = "HANGAR MENU"
+	rail_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	rail_title.add_theme_font_size_override("font_size", 18)
+	rail_title.add_theme_color_override("font_color", Color(1.0, 0.8, 0.2))
+	rail_box.add_child(rail_title)
+
+	var rail_sep = HSeparator.new()
+	rail_box.add_child(rail_sep)
+
+	var submenu_items = [
+		{"id": "roster", "label": "ROSTER (จัดเก็บหุ่น)"},
+		{"id": "customize", "label": "CUSTOMIZE (แต่งหุ่น)"},
+		{"id": "emergency", "label": "EMERGENCY REPAIR (ซ่อมแซม)"},
+		{"id": "upgrade", "label": "UPGRADE (อัพเกรด)"},
+		{"id": "craft", "label": "CRAFT (คราฟ)"},
+		{"id": "catalog", "label": "CATALOG (แคตตาล็อก)"},
+	]
+	for item in submenu_items:
+		var sbtn = Button.new()
+		sbtn.text = item["label"]
+		sbtn.custom_minimum_size = Vector2(0, 34)
+		sbtn.focus_mode = Control.FOCUS_NONE
+		sbtn.pressed.connect(func(): select_submenu(item["id"]))
+		rail_box.add_child(sbtn)
+
+	var rail_spacer = Control.new()
+	rail_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	rail_box.add_child(rail_spacer)
+
+	var rail_exit = Button.new()
+	rail_exit.text = "EXIT HANGAR"
+	rail_exit.custom_minimum_size = Vector2(0, 40)
+	rail_exit.focus_mode = Control.FOCUS_NONE
+	rail_exit.pressed.connect(controller._on_close_pressed)
+	rail_box.add_child(rail_exit)
+
+
+# Build the sub-toggle bar (Armor Plating vs Inner Skeleton Frame vs Power
+# Upgrade) into `root`. Each button swaps the part-list mode via
+# switch_custom_mode().
+func build_mode_toggles(root: Control) -> void:
+	controller.sub_toggle_container = HBoxContainer.new()
+	controller.sub_toggle_container.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	controller.sub_toggle_container.offset_top = 86
+	controller.sub_toggle_container.add_theme_constant_override("separation", 8)
+	root.add_child(controller.sub_toggle_container)
+
+	var btn_armor = Button.new()
+	btn_armor.text = "🛡️ OUTER ARMOR (SCAVENGER)"
+	btn_armor.custom_minimum_size = Vector2(170, 32)
+	btn_armor.pressed.connect(func(): switch_custom_mode("armor"))
+	controller.sub_toggle_container.add_child(btn_armor)
+
+	var btn_frame = Button.new()
+	btn_frame.text = "⚙️ INNER SKELETON FRAME"
+	btn_frame.custom_minimum_size = Vector2(170, 32)
+	btn_frame.pressed.connect(func(): switch_custom_mode("frame"))
+	controller.sub_toggle_container.add_child(btn_frame)
+
+	var btn_attachment = Button.new()
+	btn_attachment.text = "🔩 FREE ATTACHMENT"
+	btn_attachment.custom_minimum_size = Vector2(170, 32)
+	btn_attachment.pressed.connect(func(): switch_custom_mode("attachment"))
+	controller.sub_toggle_container.add_child(btn_attachment)
+
+	controller.frame_upgrade_button = Button.new()
+	controller.frame_upgrade_button.text = "⚡ REACTOR POWER UPGRADE"
+	controller.frame_upgrade_button.custom_minimum_size = Vector2(180, 32)
+	controller.frame_upgrade_button.pressed.connect(func(): switch_custom_mode("upgrade"))
+	controller.sub_toggle_container.add_child(controller.frame_upgrade_button)
+
+
 # --- HANGAR SUB-MENU (landing list: CUSTOMIZE / EMERGENCY REPAIR / UPGRADE / CRAFT / CATALOG) ---
 
 # Landing screen: the long vertical sub-menu list. Every page widget is hidden

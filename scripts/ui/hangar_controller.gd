@@ -27,6 +27,9 @@ var stats_panel: HangarStatsPanel = null
 var nav_panel: HangarNavPanel = null
 var repair_panel: HangarRepairPanel = null
 var slot_panel: HangarSlotPanel = null
+var header_panel: HangarHeaderPanel = null
+var left_panel_ui: HangarLeftPanel = null
+var right_panel_ui: HangarRightPanel = null
 # Slot tab buttons keyed by slot id, reused for UI-only selection highlight.
 var slot_tab_buttons: Dictionary = {}
 
@@ -126,6 +129,13 @@ func _build_ui_layout() -> void:
 	repair_panel.controller = self
 	slot_panel = HangarSlotPanel.new()
 	slot_panel.controller = self
+	header_panel = HangarHeaderPanel.new()
+	header_panel.controller = self
+	left_panel_ui = HangarLeftPanel.new()
+	left_panel_ui.controller = self
+	right_panel_ui = HangarRightPanel.new()
+	right_panel_ui.controller = self
+
 	var root = Control.new()
 	root.name = "RootControl"
 	root_control = root
@@ -133,315 +143,15 @@ func _build_ui_layout() -> void:
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
 
-	# Top Header Bar
-	var header = PanelContainer.new()
-	header.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	header.custom_minimum_size = Vector2(0, 80)
-	root.add_child(header)
-	header.mouse_filter = Control.MOUSE_FILTER_PASS
-
-	var style_hdr = StyleBoxFlat.new()
-	style_hdr.bg_color = Color(0.06, 0.08, 0.12, 0.92)
-	header.add_theme_stylebox_override("panel", style_hdr)
-
-	var header_vbox = VBoxContainer.new()
-	header_vbox.add_theme_constant_override("separation", 2)
-	header.add_child(header_vbox)
-
-	var hdr_box = HBoxContainer.new()
-	hdr_box.add_theme_constant_override("separation", 15)
-	header_vbox.add_child(hdr_box)
-
-	var title_lbl = Label.new()
-	title_lbl.text = " 🛠️ 3D MECHA GARAGE "
-	title_lbl.add_theme_font_size_override("font_size", 16)
-	title_lbl.add_theme_color_override("font_color", Color(1.0, 0.8, 0.2))
-	hdr_box.add_child(title_lbl)
-
-	var selection_label = Label.new()
-	selection_label.name = "SelectionLabel"
-	selection_label.text = "EDITING: CHASSIS"
-	selection_label.add_theme_font_size_override("font_size", 14)
-	selection_label.add_theme_color_override("font_color", Color(0.25, 0.9, 1.0))
-	hdr_box.add_child(selection_label)
-
-	# Mech-slot switcher (badge + prev/next) lives in the roster panel.
-	roster_panel_ui.build_badge_header(hdr_box)
-
-	tab_container = HBoxContainer.new()
-	tab_container.add_theme_constant_override("separation", 4)
-	hdr_box.add_child(tab_container)
-
-	var slots = [
-		{"id": "head", "label": "HEAD"},
-		{"id": "body", "label": "BODY"},
-		{"id": "arm_left", "label": "L.ARM"},
-		{"id": "arm_right", "label": "R.ARM"},
-		{"id": "leg_left", "label": "L.LEGS"},
-		{"id": "leg_right", "label": "R.LEGS"},
-		{"id": "weapon_left", "label": "L.HAND"},
-		{"id": "weapon_right", "label": "R.HAND"},
-		{"id": "weapon_carry", "label": "BACK CARRY"}
-	]
-
-	for slot_info in slots:
-		var btn = Button.new()
-		btn.text = slot_info["label"]
-		btn.custom_minimum_size = Vector2(72, 36)
-		btn.pressed.connect(func(): if slot_panel: slot_panel.select(slot_info["id"]))
-		slot_tab_buttons[slot_info["id"]] = btn
-		tab_container.add_child(btn)
-
-	# Spacer pushes the back-to-menu button to the far right of the header.
-	var hdr_spacer = Control.new()
-	hdr_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hdr_box.add_child(hdr_spacer)
-
-	back_to_menu_button = Button.new()
-	back_to_menu_button.text = "◀ BACK TO MENU"
-	back_to_menu_button.custom_minimum_size = Vector2(150, 32)
-	back_to_menu_button.focus_mode = Control.FOCUS_NONE
-	back_to_menu_button.pressed.connect(func(): nav_panel.on_back_to_menu_pressed())
-	back_to_menu_button.visible = false
-	hdr_box.add_child(back_to_menu_button)
-
-	# Hangar sub-menu rail: the landing screen. A long vertical list on the left
-	# shown first after entering the hangar; each entry opens its own page.
-	var submenu_panel = PanelContainer.new()
-	submenu_panel.set_anchors_preset(Control.PRESET_LEFT_WIDE)
-	submenu_panel.offset_top = 90
-	submenu_panel.offset_bottom = -20
-	submenu_panel.offset_left = 20
-	submenu_panel.custom_minimum_size = Vector2(250, 0)
-	submenu_rail = submenu_panel
-	root.add_child(submenu_panel)
-
-	var style_rail = StyleBoxFlat.new()
-	style_rail.bg_color = Color(0.08, 0.1, 0.15, 0.92)
-	style_rail.corner_radius_top_left = 8
-	style_rail.corner_radius_top_right = 8
-	style_rail.corner_radius_bottom_left = 8
-	style_rail.corner_radius_bottom_right = 8
-	style_rail.content_margin_left = 14
-	style_rail.content_margin_right = 14
-	style_rail.content_margin_top = 14
-	style_rail.content_margin_bottom = 14
-	submenu_panel.add_theme_stylebox_override("panel", style_rail)
-
-	var rail_box = VBoxContainer.new()
-	rail_box.add_theme_constant_override("separation", 8)
-	submenu_panel.add_child(rail_box)
-
-	var rail_title = Label.new()
-	rail_title.text = "HANGAR MENU"
-	rail_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	rail_title.add_theme_font_size_override("font_size", 18)
-	rail_title.add_theme_color_override("font_color", Color(1.0, 0.8, 0.2))
-	rail_box.add_child(rail_title)
-
-	var rail_sep = HSeparator.new()
-	rail_box.add_child(rail_sep)
-
-	var submenu_items = [
-		{"id": "roster", "label": "ROSTER (จัดเก็บหุ่น)"},
-		{"id": "customize", "label": "CUSTOMIZE (แต่งหุ่น)"},
-		{"id": "emergency", "label": "EMERGENCY REPAIR (ซ่อมแซม)"},
-		{"id": "upgrade", "label": "UPGRADE (อัพเกรด)"},
-		{"id": "craft", "label": "CRAFT (คราฟ)"},
-		{"id": "catalog", "label": "CATALOG (แคตตาล็อก)"},
-	]
-	for item in submenu_items:
-		var sbtn = Button.new()
-		sbtn.text = item["label"]
-		sbtn.custom_minimum_size = Vector2(0, 34)
-		sbtn.focus_mode = Control.FOCUS_NONE
-		sbtn.pressed.connect(func(): nav_panel.select_submenu(item["id"]))
-		rail_box.add_child(sbtn)
-
-	var rail_spacer = Control.new()
-	rail_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	rail_box.add_child(rail_spacer)
-
-	var rail_exit = Button.new()
-	rail_exit.text = "EXIT HANGAR"
-	rail_exit.custom_minimum_size = Vector2(0, 40)
-	rail_exit.focus_mode = Control.FOCUS_NONE
-	rail_exit.pressed.connect(_on_close_pressed)
-	rail_box.add_child(rail_exit)
-
-	# Sub-Toggle Bar for Armor Plating vs Inner Skeleton Frame vs Power Upgrade
-	sub_toggle_container = HBoxContainer.new()
-	sub_toggle_container.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	sub_toggle_container.offset_top = 86
-	sub_toggle_container.add_theme_constant_override("separation", 8)
-	root.add_child(sub_toggle_container)
-
-	var btn_armor = Button.new()
-	btn_armor.text = "🛡️ OUTER ARMOR (SCAVENGER)"
-	btn_armor.custom_minimum_size = Vector2(170, 32)
-	btn_armor.pressed.connect(func(): nav_panel.switch_custom_mode("armor"))
-	sub_toggle_container.add_child(btn_armor)
-
-	var btn_frame = Button.new()
-	btn_frame.text = "⚙️ INNER SKELETON FRAME"
-	btn_frame.custom_minimum_size = Vector2(170, 32)
-	btn_frame.pressed.connect(func(): nav_panel.switch_custom_mode("frame"))
-	sub_toggle_container.add_child(btn_frame)
-
-	var btn_attachment = Button.new()
-	btn_attachment.text = "🔩 FREE ATTACHMENT"
-	btn_attachment.custom_minimum_size = Vector2(170, 32)
-	btn_attachment.pressed.connect(func(): nav_panel.switch_custom_mode("attachment"))
-	sub_toggle_container.add_child(btn_attachment)
-
-	frame_upgrade_button = Button.new()
-	frame_upgrade_button.text = "⚡ REACTOR POWER UPGRADE"
-	frame_upgrade_button.custom_minimum_size = Vector2(180, 32)
-	frame_upgrade_button.pressed.connect(func(): nav_panel.switch_custom_mode("upgrade"))
-	sub_toggle_container.add_child(frame_upgrade_button)
-
-	# Left Sidebar (Part Catalog List & Salvaged Drops)
-	var left_panel = PanelContainer.new()
-	left_panel.set_anchors_preset(Control.PRESET_LEFT_WIDE)
-	left_panel.offset_top = 128
-	left_panel.offset_bottom = -20
-	left_panel.offset_left = 20
-	left_panel.custom_minimum_size = Vector2(330, 0)
-	self.left_panel = left_panel
-	root.add_child(left_panel)
-
-	var style_left = StyleBoxFlat.new()
-	style_left.bg_color = Color(0.08, 0.1, 0.15, 0.88)
-	style_left.corner_radius_top_left = 8
-	style_left.corner_radius_bottom_left = 8
-	style_left.content_margin_left = 12
-	style_left.content_margin_right = 12
-	style_left.content_margin_top = 12
-	style_left.content_margin_bottom = 12
-	left_panel.add_theme_stylebox_override("panel", style_left)
-
-	var left_box = VBoxContainer.new()
-	left_box.add_theme_constant_override("separation", 10)
-	left_panel.add_child(left_box)
-
-	var list_title = Label.new()
-	list_title.text = "SCAVENGER INVENTORY & CATALOG"
-	list_title.add_theme_font_size_override("font_size", 14)
-	list_title.add_theme_color_override("font_color", Color(0.4, 0.85, 1.0))
-	left_box.add_child(list_title)
-
-	part_item_list = ItemList.new()
-	part_item_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	part_item_list.item_selected.connect(func(i: int): if part_list_panel: part_list_panel.on_item_selected(i))
-	part_item_list.item_clicked.connect(func(i: int, p: Vector2, b: int): if part_list_panel: part_list_panel.on_item_clicked(i, p, b))
-	part_item_list.item_activated.connect(func(i: int): if part_list_panel: part_list_panel.on_item_activated(i))
-	left_box.add_child(part_item_list)
-
-	craft_button = Button.new()
-	craft_button.text = "🏭 CRAFTERY (craft parts in a separate window)"
-	craft_button.custom_minimum_size = Vector2(0, 30)
-	craft_button.pressed.connect(func(): if craft_panel: craft_panel.open())
-	left_box.add_child(craft_button)
-
-	ammo_panel = HangarAmmoPanel.new()
-	ammo_panel.build(left_box)
-
-	equip_button = Button.new()
-	equip_button.text = "EQUIP SELECTION"
-	equip_button.custom_minimum_size = Vector2(0, 42)
-	equip_button.pressed.connect(func(): if equip_panel: equip_panel.on_equip_pressed())
-	left_box.add_child(equip_button)
-
-	# Right Sidebar (Stats & Gundam Frame Core Power Panel)
-	var right_panel = PanelContainer.new()
-	right_panel.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
-	right_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	right_panel.offset_top = 128
-	right_panel.offset_bottom = -20
-	right_panel.offset_right = -20
-	right_panel.offset_left = -370
-	right_panel.custom_minimum_size = Vector2(350, 0)
-	self.right_panel = right_panel
-	root.add_child(right_panel)
-
-	var style_right = StyleBoxFlat.new()
-	style_right.bg_color = Color(0.08, 0.1, 0.15, 0.88)
-	style_right.corner_radius_top_right = 8
-	style_right.corner_radius_bottom_right = 8
-	style_right.content_margin_left = 14
-	style_right.content_margin_right = 14
-	style_right.content_margin_top = 14
-	style_right.content_margin_bottom = 14
-	right_panel.add_theme_stylebox_override("panel", style_right)
-
-	var right_box = VBoxContainer.new()
-	right_box.add_theme_constant_override("separation", 10)
-	right_panel.add_child(right_box)
-
-	var stats_title = Label.new()
-	stats_title.text = "GUNDAM FRAME CORE SPECIFICATIONS"
-	stats_title.add_theme_font_size_override("font_size", 14)
-	stats_title.add_theme_color_override("font_color", Color(1.0, 0.8, 0.2))
-	right_box.add_child(stats_title)
-
-	stats_label = Label.new()
-	stats_label.text = "Select a chassis, frame, or armor to view specifications"
-	stats_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	right_box.add_child(stats_label)
-
-	# Hover preview (title + stat card) lives in the catalog panel.
-	catalog_panel.build_hover_stats_label(right_box)
-
-	var sep = HSeparator.new()
-	right_box.add_child(sep)
-
-	var total_title = Label.new()
-	total_title.text = "FRAME VS. ARMOR DUAL CAPACITY"
-	total_title.add_theme_font_size_override("font_size", 13)
-	right_box.add_child(total_title)
-
-	weight_bar = ProgressBar.new()
-	weight_bar.custom_minimum_size = Vector2(0, 22)
-	weight_bar.max_value = 85.0
-	right_box.add_child(weight_bar)
-
-	total_stats_label = Label.new()
-	total_stats_label.text = "FRAME HP: 150 | ARMOR HP: 210\nTOTAL WEIGHT: 42.0 / 75.0 kg"
-	right_box.add_child(total_stats_label)
-
-	var sep2 = HSeparator.new()
-	right_box.add_child(sep2)
-
-	repair_part_button = Button.new()
-	repair_part_button.text = "Repair Selected Slot"
-	repair_part_button.pressed.connect(func(): if repair_panel: repair_panel.repair_part())
-	right_box.add_child(repair_part_button)
-
-	full_repair_button = Button.new()
-	full_repair_button.text = "Full Field Repair"
-	full_repair_button.pressed.connect(func(): if repair_panel: repair_panel.full_repair())
-	right_box.add_child(full_repair_button)
-
-	# Mech roster page (parking grid) lives in the roster panel.
-	roster_panel_ui.build(root)
-
-	status_message_label = Label.new()
-	status_message_label.text = ""
-	status_message_label.add_theme_color_override("font_color", Color(0.3, 0.9, 0.4))
-	right_box.add_child(status_message_label)
-
-	if ammo_panel:
-		ammo_panel.status_label = status_message_label
-
-	var spacer = Control.new()
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	right_box.add_child(spacer)
-
-	close_button = Button.new()
-	close_button.text = "EXIT HANGAR"
-	close_button.custom_minimum_size = Vector2(0, 44)
-	close_button.pressed.connect(_on_close_pressed)
-	right_box.add_child(close_button)
+	# Top header bar (title, slot tabs, back-to-menu) + badge from the roster panel.
+	header_panel.build(root)
+	# Landing sub-menu rail + the mode-toggle bar (armor / frame / attachment / upgrade).
+	nav_panel.build_landing_rail(root)
+	nav_panel.build_mode_toggles(root)
+	# Left sidebar (part list, craftery, ammo loadout, equip) + right sidebar
+	# (stats, weight bar, repair buttons, status message, exit).
+	left_panel_ui.build(root)
+	right_panel_ui.build(root)
 
 
 # --- HANGAR MECH ROSTER (truck-convoy parking page) ---

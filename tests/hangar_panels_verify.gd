@@ -175,6 +175,45 @@ func _verify_roster_panel() -> void:
 				stored_pilot = str(m.get("pilot", ""))
 		_check(stored_pilot == "", "pilot picker '(no pilot)' clears the seat")
 
+	# --- REGISTER: empty berths offer a frame-assembly button. ---
+	# Solo convoy: capacity 2 with one parked mech -> SLOT 02 is an empty berth.
+	var register_btn := _find_register_button(rp)
+	_check(register_btn != null, "empty berth row offers a REGISTER button")
+	var mechs_before := GlobalData.get_hangar_mechs().size()
+	if register_btn:
+		register_btn.pressed.emit()
+		await get_tree().process_frame
+	_check(GlobalData.get_hangar_mechs().size() == mechs_before + 1, "REGISTER assembles a mech into the empty berth")
+	_check(rp.roster_status_label.text.contains("Registered"), "REGISTER reports the new mech")
+	_check(_find_register_button(rp) == null, "a filled berth no longer offers REGISTER")
+
+	# Free the berth, then verify the walking-chassis gate: without a body frame
+	# the build is blocked with a hint and nothing is parked.
+	var parked_id := ""
+	for m in GlobalData.get_hangar_mechs():
+		if int(m.get("slot", 0)) == 2:
+			parked_id = str(m.get("id", ""))
+			break
+	if parked_id != "":
+		GlobalData.remove_hangar_mech(parked_id)
+		GlobalData.equipped_frames.erase("body")
+		rp.register_mech(2)
+		_check(rp.roster_status_label.text.contains("walking chassis"), "REGISTER blocks without a walking chassis")
+		_check(GlobalData.get_hangar_mechs().size() == mechs_before, "blocked REGISTER parks no mech")
+		GlobalData.equipped_frames["body"] = (GlobalData.frame_catalog["body"][0] as Dictionary).duplicate()
+
+	# Pilot-only mode: the button disappears and register_mech points at the
+	# recovery path instead of building.
+	GlobalData.mech_less = true
+	GlobalData.hangar_mechs.clear()
+	rp.refresh_page()
+	await get_tree().process_frame
+	_check(_find_register_button(rp) == null, "on-foot mode hides the REGISTER button")
+	rp.register_mech(2)
+	_check(rp.roster_status_label.text.begins_with("You're on foot"), "on-foot register explains the recovery path")
+	_check(GlobalData.get_hangar_mechs().size() == 0, "on-foot register parks no mech")
+	GlobalData.mech_less = false
+
 	ctrl.nav_panel.show_hangar_menu()
 	await get_tree().process_frame
 	_check(not rp.roster_panel.visible, "hangar menu hides the roster page")
@@ -183,6 +222,14 @@ func _verify_roster_panel() -> void:
 	ctrl.queue_free()
 	anchor.queue_free()
 	await get_tree().process_frame
+
+
+func _find_register_button(rp) -> Button:
+	for row in rp.roster_slot_list.get_children():
+		for child in row.get_children():
+			if child is Button and child.text == "REGISTER" and is_instance_valid(child) and not child.is_queued_for_deletion():
+				return child
+	return null
 
 
 func _find_popup(host: Node) -> PopupMenu:

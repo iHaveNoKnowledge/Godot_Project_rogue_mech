@@ -33,6 +33,11 @@ const ARCHETYPE_RANGED := 1
 const ARCHETYPE_HEAVY := 2
 const ARCHETYPE_SUPPORT := 3
 
+# Walking-chassis requirement: a mech needs these three inner frames equipped
+# before it can be parked as a new hangar berth. Shared by build() and the
+# roster page's REGISTER action so the gate can never drift between them.
+const REQUIRED_WALKING_FRAMES: Array[String] = ["body", "leg_left", "leg_right"]
+
 
 # Number of pilots in the convoy: the player driver plus every researched fleet
 # unit (regardless of fielded/destroyed status — they still occupy a berth).
@@ -177,7 +182,7 @@ static func save_active() -> bool:
 static func build(mech_name: String = "", requested_slot: int = 0) -> Dictionary:
 	if GlobalData.mech_less:
 		return {}
-	for required in ["body", "leg_left", "leg_right"]:
+	for required in REQUIRED_WALKING_FRAMES:
 		if not GlobalData.equipped_frames.has(required) or GlobalData.equipped_frames[required] == null:
 			return {}
 	if GlobalData.hangar_mechs.size() >= get_capacity():

@@ -258,9 +258,22 @@ func build_slot_row(slot: int, mech: Dictionary, over_capacity: bool) -> void:
 		empty_lbl.add_theme_color_override("font_color", Color(0.45, 0.5, 0.6))
 		row.add_child(empty_lbl)
 
+		# REGISTER assembles the currently built parts into this berth. While on
+		# foot (mech_less) the hangar has nothing to build from — a chassis has to
+		# come back through recovery missions, so the button is withheld.
+		if not GlobalData.mech_less:
+			var register_btn := Button.new()
+			register_btn.text = "REGISTER"
+			register_btn.tooltip_text = "Assemble a mech frame into this berth from the currently assembled parts (needs a body + both leg frames)."
+			register_btn.custom_minimum_size = Vector2(96, 28)
+			register_btn.focus_mode = Control.FOCUS_NONE
+			register_btn.pressed.connect(register_mech.bind(slot))
+			row.add_child(register_btn)
+
 		var hint := Label.new()
-		hint.text = "Obtain a mech by assembling frames, or from events"
-		hint.custom_minimum_size = Vector2(240, 0)
+		hint.text = "Assemble a frame from the current build" if not GlobalData.mech_less \
+			else "On foot — rebuild a chassis through recovery missions"
+		hint.custom_minimum_size = Vector2(200, 0)
 		hint.add_theme_font_size_override("font_size", 10)
 		hint.add_theme_color_override("font_color", Color(0.5, 0.55, 0.65))
 		row.add_child(hint)
@@ -307,6 +320,34 @@ func build_slot_row(slot: int, mech: Dictionary, over_capacity: bool) -> void:
 		switch_btn.focus_mode = Control.FOCUS_NONE
 		switch_btn.pressed.connect(on_switch_mech_pressed.bind(mech_id))
 		row.add_child(switch_btn)
+
+
+# REGISTER — assembles the currently built parts (the working set) into an empty
+# convoy berth as a parked mech. Mirrors build_hangar_mech's rules: a walking
+# chassis (body + both leg frames) must be equipped and pilot-only mode must be
+# off. The new berth parks pilotless; assign a pilot or SWITCH to it from here.
+func register_mech(slot: int) -> void:
+	if GlobalData.mech_less:
+		if roster_status_label:
+			roster_status_label.text = "You're on foot — rebuild a chassis through recovery missions."
+		return
+	var new_mech := GlobalData.build_hangar_mech("", slot)
+	if new_mech.is_empty():
+		var needs_chassis := false
+		for required in HangarManager.REQUIRED_WALKING_FRAMES:
+			if not GlobalData.equipped_frames.has(required) or GlobalData.equipped_frames[required] == null:
+				needs_chassis = true
+				break
+		if roster_status_label:
+			roster_status_label.text = "REGISTER needs a walking chassis (body + both leg frames) equipped." \
+				if needs_chassis else "No free berth in the convoy."
+		return
+	GlobalData.save_run()
+	refresh_badge()
+	refresh_page()
+	if roster_status_label:
+		roster_status_label.text = "Registered %s in SLOT %02d. Assign a pilot or SWITCH to it from here." % [
+			str(new_mech.get("name", "Mech")), slot]
 
 
 # Popup picker choosing which combat archetype a mech fights as when fielded as

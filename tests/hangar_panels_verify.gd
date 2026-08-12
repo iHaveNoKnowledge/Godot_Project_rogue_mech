@@ -1117,6 +1117,10 @@ func _verify_stats_panel() -> void:
 	_check(ctrl.total_stats_label.text.contains("TOTAL WEIGHT"), "stats label shows the total weight")
 	_check(ctrl.total_stats_label.text.contains("FIELD PACK"), "stats label shows the field pack")
 	_check(ctrl.total_stats_label.text.contains("PILOT: YOU (driver)"), "stats label shows the edited mech's pilot")
+	# The shared berth->pilot helper: unknown ids resolve to "(no pilot)" and
+	# the active berth resolves the player driver.
+	_check(GlobalData.get_hangar_mech_pilot_name("") == "(no pilot)", "mech pilot helper handles unknown ids")
+	_check(GlobalData.get_hangar_mech_pilot_name(GlobalData.active_hangar_mech_id) == "YOU (driver)", "mech pilot helper resolves the active berth")
 
 	# Sums are deterministic: reset seeds 3 starter weapons + default frames.
 	# The label's TOTAL WEIGHT is unclamped (the bar clamps to capacity), so

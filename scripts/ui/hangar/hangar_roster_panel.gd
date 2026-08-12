@@ -179,9 +179,9 @@ func refresh_badge() -> void:
 	if slot <= 0:
 		slot = 1
 	var name_str := str(editing.get("name", "Mech")) if not editing.is_empty() else "Mech"
-	# Show who drives the berth being edited: the pilot label resolves fleet
-	# pilots and the player driver ("(no pilot)" for an empty seat).
-	var pilot_str := GlobalData.get_hangar_pilot_name(str(editing.get("pilot", ""))) if not editing.is_empty() else "(no pilot)"
+	# Show who drives the berth being edited: the berth->pilot lookup is shared
+	# with the stats panel (resolves fleet pilots + the player driver).
+	var pilot_str := GlobalData.get_hangar_mech_pilot_name(editing_id)
 	var driver_note := ""
 	if editing_id == GlobalData.active_hangar_mech_id:
 		driver_note = " · PILOTING"

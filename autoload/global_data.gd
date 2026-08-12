@@ -543,6 +543,12 @@ func get_hangar_pilot_name(pilot_id: String) -> String:
 	return HangarManager.get_pilot_name(pilot_id)
 
 
+# Pilot display name for a specific berth ("YOU (driver)" / fleet name /
+# "(no pilot)"). Shared by the roster badge and the customize stats panel.
+func get_hangar_mech_pilot_name(mech_id: String) -> String:
+	return HangarManager.get_mech_pilot_name(mech_id)
+
+
 # Short status suffix for a fleet pilot (" · DESTROYED" / " · WOUNDED (nT)" /
 # " · hp/max HP"); empty for the player driver.
 func get_hangar_pilot_status(pilot_id: String) -> String:

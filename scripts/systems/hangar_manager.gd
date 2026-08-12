@@ -90,6 +90,16 @@ static func get_pilot_name(pilot_id: String) -> String:
 	return pilot_id
 
 
+# Pilot display name for a specific berth ("YOU (driver)", a fleet pilot's
+# name, or "(no pilot)"). Single source for every surface that shows who
+# drives a mech (roster badge, stats panel), so the lookup can never drift.
+static func get_mech_pilot_name(mech_id: String) -> String:
+	var mech := _find(mech_id)
+	if mech.is_empty():
+		return "(no pilot)"
+	return get_pilot_name(str(mech.get("pilot", "")))
+
+
 # Short status suffix for a fleet pilot shown on the roster rows (the player
 # driver has none): " · DESTROYED", " · WOUNDED (nT)" while recovering, or
 # " · hp/max HP" while damaged. Reads the unit's live state from the fleet.

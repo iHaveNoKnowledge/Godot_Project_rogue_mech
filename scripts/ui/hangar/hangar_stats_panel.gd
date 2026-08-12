@@ -13,14 +13,12 @@ var controller: Node
 
 # The pilot driving the mech currently open in the editor (the berth whose
 # state is loaded into the working set), e.g. "YOU (driver)" or "(no pilot)".
+# The berth->pilot lookup lives in HangarManager (shared with the badge).
 func _editing_pilot_name() -> String:
 	var editing_id: String = ""
 	if controller and controller.has_method("get_editing_mech_id"):
 		editing_id = controller.get_editing_mech_id()
-	for m in GlobalData.get_hangar_mechs():
-		if str(m.get("id", "")) == editing_id:
-			return GlobalData.get_hangar_pilot_name(str(m.get("pilot", "")))
-	return "(no pilot)"
+	return GlobalData.get_hangar_mech_pilot_name(editing_id)
 
 
 func update() -> void:

@@ -991,6 +991,7 @@ func _verify_stats_panel() -> void:
 	_check(ctrl.total_stats_label.text.contains("FRAME LVL"), "stats label shows the frame level")
 	_check(ctrl.total_stats_label.text.contains("TOTAL WEIGHT"), "stats label shows the total weight")
 	_check(ctrl.total_stats_label.text.contains("FIELD PACK"), "stats label shows the field pack")
+	_check(ctrl.total_stats_label.text.contains("PILOT: YOU (driver)"), "stats label shows the edited mech's pilot")
 
 	# Sums are deterministic: reset seeds 3 starter weapons + default frames.
 	# The label's TOTAL WEIGHT is unclamped (the bar clamps to capacity), so
@@ -1045,6 +1046,7 @@ func _verify_nav_panel() -> void:
 	_check(np.current_submenu == "customize", "select_submenu records the page id")
 	_check(ctrl.left_panel.visible, "customize page shows the left panel")
 	_check(ctrl.right_panel != null and ctrl.right_panel.visible, "customize page shows the right panel")
+	_check(ctrl.total_stats_label != null and ctrl.total_stats_label.text.contains("PILOT:"), "entering customize refreshes the stats pilot line")
 	_check(ctrl.tab_container != null and ctrl.tab_container.visible, "customize page shows the tab container")
 	_check(ctrl.back_to_menu_button.visible, "customize page shows the back button")
 	_check(not ctrl.submenu_rail.visible, "customize page hides the sub-menu rail")

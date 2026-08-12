@@ -11,6 +11,18 @@ extends RefCounted
 var controller: Node
 
 
+# The pilot driving the mech currently open in the editor (the berth whose
+# state is loaded into the working set), e.g. "YOU (driver)" or "(no pilot)".
+func _editing_pilot_name() -> String:
+	var editing_id: String = ""
+	if controller and controller.has_method("get_editing_mech_id"):
+		editing_id = controller.get_editing_mech_id()
+	for m in GlobalData.get_hangar_mechs():
+		if str(m.get("id", "")) == editing_id:
+			return GlobalData.get_hangar_pilot_name(str(m.get("pilot", "")))
+	return "(no pilot)"
+
+
 func update() -> void:
 	var chassis_info = GlobalData.chassis_catalog.get(GlobalData.chassis_id, GlobalData.chassis_catalog["standard"])
 	var max_weight = chassis_info["max_weight"] + GlobalData.get_frame_upgrade_weight_bonus()
@@ -49,8 +61,10 @@ func update() -> void:
 		controller.weight_bar.value = total_weight
 
 	if controller.total_stats_label:
-		controller.total_stats_label.text = "FRAME LVL: %d | FRAME HP: %.0f | ARMOR HP: %.0f\nFRAME W: %.1fkg | ARMOR W: %.1fkg | ATTACH W: %.1fkg | WEAPON W: %.1fkg\nTOTAL WEIGHT: %.1f / %.1f kg\nFIELD PACK: %.1f / %.1f kg\nCREDITS: %d cr   |   SCRAP: %d" % [
-			GlobalData.frame_upgrade_level, total_frame_hp, total_armor_hp,
+		# PILOT leads the block so who drives the mech being edited is visible at
+		# a glance on the customize page (the header badge carries it too).
+		controller.total_stats_label.text = "PILOT: %s\nFRAME LVL: %d | FRAME HP: %.0f | ARMOR HP: %.0f\nFRAME W: %.1fkg | ARMOR W: %.1fkg | ATTACH W: %.1fkg | WEAPON W: %.1fkg\nTOTAL WEIGHT: %.1f / %.1f kg\nFIELD PACK: %.1f / %.1f kg\nCREDITS: %d cr   |   SCRAP: %d" % [
+			_editing_pilot_name(), GlobalData.frame_upgrade_level, total_frame_hp, total_armor_hp,
 			total_frame_weight, total_armor_weight, total_attachment_weight, total_weapon_weight,
 			total_weight, max_weight,
 			field_pack_weight, field_pack_capacity,

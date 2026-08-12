@@ -197,6 +197,10 @@ func show_customize_page() -> void:
 		controller.sub_toggle_container.visible = not controller.selected_slot.begins_with("weapon")
 	if controller.roster_panel_ui:
 		controller.roster_panel_ui.refresh_badge()
+	# Refresh the right-panel stats (incl. the PILOT line) so the page is never
+	# shown with a stale driver readout.
+	if controller.stats_panel:
+		controller.stats_panel.update()
 	controller.part_list_panel.populate(controller.selected_slot)
 	controller.garage_panel.update_selection_highlight(controller.selected_slot)
 

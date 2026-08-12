@@ -583,8 +583,8 @@ func _build_ui_layout() -> void:
 
 	var roster_desc = Label.new()
 	roster_desc.text = "Every berth in the transport convoy. Parked mechs keep their own \
-loadout and pilot; empty berths let you assemble a new mech from the parts you \
-are currently editing."
+loadout and pilot. New mechs come from assembling frames in the editor or from \
+events out in the field (surrenders, captures, shops)."
 	roster_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	roster_desc.add_theme_font_size_override("font_size", 11)
 	roster_box.add_child(roster_desc)
@@ -754,7 +754,7 @@ func _refresh_roster_page() -> void:
 		else:
 			convoy_desc = "FLEET CONVOY · %d pilots · %d trucks · %d berths" \
 				% [fleet, ceili(fleet / 2.0), capacity]
-		roster_status_label.text = "%s\n%s\nBody + both leg frames are required to assemble a mech." \
+		roster_status_label.text = "%s\n%s\nNew mechs are obtained by assembling frames from your inventory or through events (surrenders, captures, shops)." \
 			% [aff_prefix, convoy_desc]
 
 
@@ -777,12 +777,12 @@ func _build_roster_slot_row(slot: int, mech: Dictionary, over_capacity: bool) ->
 		empty_lbl.add_theme_color_override("font_color", Color(0.45, 0.5, 0.6))
 		row.add_child(empty_lbl)
 
-		var assemble := Button.new()
-		assemble.text = "ASSEMBLE MECH HERE"
-		assemble.custom_minimum_size = Vector2(0, 28)
-		assemble.focus_mode = Control.FOCUS_NONE
-		assemble.pressed.connect(_on_assemble_slot_pressed.bind(slot))
-		row.add_child(assemble)
+		var hint := Label.new()
+		hint.text = "Obtain a mech by assembling frames, or from events"
+		hint.custom_minimum_size = Vector2(240, 0)
+		hint.add_theme_font_size_override("font_size", 10)
+		hint.add_theme_color_override("font_color", Color(0.5, 0.55, 0.65))
+		row.add_child(hint)
 		return
 
 	var mech_id := str(mech.get("id", ""))
@@ -819,20 +819,6 @@ func _build_roster_slot_row(slot: int, mech: Dictionary, over_capacity: bool) ->
 		switch_btn.focus_mode = Control.FOCUS_NONE
 		switch_btn.pressed.connect(_on_switch_mech_pressed.bind(mech_id))
 		row.add_child(switch_btn)
-
-
-func _on_assemble_slot_pressed(slot: int) -> void:
-	var built := GlobalData.build_hangar_mech("", slot)
-	if built.is_empty():
-		if roster_status_label:
-			roster_status_label.text = "Cannot assemble: install body, left-leg and right-leg frames in the editor first, or the convoy is full."
-		return
-	GlobalData.save_run()
-	if roster_status_label:
-		roster_status_label.text = "Assembled and parked %s in SLOT %02d." % [str(built.get("name", "Mech")), slot]
-	_refresh_roster_page()
-	_refresh_mech_badge()
-	call_deferred("_update_all_3d_slots_preview")
 
 
 func _on_switch_mech_pressed(mech_id: String) -> void:

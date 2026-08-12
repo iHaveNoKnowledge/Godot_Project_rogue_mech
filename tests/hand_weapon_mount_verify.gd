@@ -78,6 +78,18 @@ func _ready() -> void:
 	await get_tree().process_frame
 	_check(mount.get_child_count() == 0, "null weapon clears the hand mount children")
 
+	# 4b. Re-mounting in the SAME frame the old mount is queue_freed (hangar
+	#     unequip + preview) must NOT attach the weapon to the dying node.
+	var dying := WeaponVisualFactory.mount_hand(mech, "right", weapon, "WeaponVisual_right")
+	dying.queue_free()
+	var remounted := WeaponVisualFactory.mount_hand(mech, "right", weapon, "WeaponVisual_right")
+	_check(remounted != dying, "re-mount after queue_free builds a fresh mount node")
+	await get_tree().process_frame
+	_check(remounted.is_inside_tree() and remounted.get_child_count() == 1,
+		"fresh mount survives the frame and still shows the weapon")
+	_check(mount_r.get_child_count() == 0 or not mount_r.is_inside_tree(),
+		"dying mount does not keep a live weapon child")
+
 	# 5. The weapon still follows the forearm when the arm rotates (mount is a
 	#    child of the animated node, so it inherits the transform).
 	var forearm_left: Node3D = mech.get_node("ArmLeft/ForearmLeft")

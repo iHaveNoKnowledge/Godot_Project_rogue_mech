@@ -34,7 +34,12 @@ static func mount_hand(mecha: Node3D, hand: String, weapon: WeaponPart, node_nam
 		if stale != null:
 			stale.queue_free()
 		mount = forearm.get_node_or_null(node_name)
-		if mount == null:
+		if mount == null or not mount.is_inside_tree() or mount.is_queued_for_deletion():
+			# The old mount is queued for deletion (e.g. hangar unequip called the
+			# preview in the same frame): drop it and build a fresh one so the new
+			# weapon isn't added to a node that vanishes at the end of the frame.
+			if mount != null and mount.is_inside_tree():
+				forearm.remove_child(mount)
 			mount = Node3D.new()
 			mount.name = node_name
 			forearm.add_child(mount)
@@ -42,7 +47,9 @@ static func mount_hand(mecha: Node3D, hand: String, weapon: WeaponPart, node_nam
 		mount.rotation = Vector3.ZERO
 	else:
 		mount = mecha.get_node_or_null(node_name)
-		if mount == null:
+		if mount == null or not mount.is_inside_tree() or mount.is_queued_for_deletion():
+			if mount != null and mount.is_inside_tree():
+				mecha.remove_child(mount)
 			mount = Node3D.new()
 			mount.name = node_name
 			mecha.add_child(mount)
@@ -59,7 +66,12 @@ static func mount_hand(mecha: Node3D, hand: String, weapon: WeaponPart, node_nam
 # the existing node (if one is mounted) so swapping does not pile up stale models.
 static func mount_carry(mecha: Node3D, weapons: Array, node_name: String) -> Node3D:
 	var back_mount = mecha.get_node_or_null(node_name)
-	if back_mount == null:
+	if back_mount == null or not back_mount.is_inside_tree() or back_mount.is_queued_for_deletion():
+		# Hangar unequip queue_frees the carry mount and refreshes the preview in
+		# the same frame: never reuse a node that is about to die (it would take
+		# the fresh weapon models with it when the frame ends).
+		if back_mount != null and back_mount.is_inside_tree():
+			mecha.remove_child(back_mount)
 		back_mount = Node3D.new()
 		back_mount.name = node_name
 		mecha.add_child(back_mount)

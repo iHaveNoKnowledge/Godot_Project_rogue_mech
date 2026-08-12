@@ -98,14 +98,6 @@ func _ready() -> void:
 		AudioManager.play_hangar_music()
 
 
-# 3D slot preview refresh is owned by the garage panel; this shim keeps the
-# many call sites (equip/unequip/menu switches) and the call_deferred string
-# form working unchanged.
-func _update_all_3d_slots_preview() -> void:
-	if garage_panel:
-		garage_panel.update_all_slots_preview()
-
-
 # Returns credits_cost for next frame upgrade level.
 # Single source of truth — use this instead of inline calculations.
 func _get_upgrade_cost() -> int:
@@ -463,7 +455,7 @@ func _show_roster_page() -> void:
 		right_panel.visible = false
 	if roster_panel_ui:
 		roster_panel_ui.show_page()
-	call_deferred("_update_all_3d_slots_preview")
+	garage_panel.call_deferred("update_all_slots_preview")
 
 
 # Cross-page editing state lives on the controller (_customize_mech_id) because
@@ -481,7 +473,7 @@ func set_editing_mech_id(id: String) -> void:
 # preview + total stats, and (optionally) the current slot's part list — the
 # same refresh set the old in-controller cycle/switch logic ran.
 func refresh_after_mech_change(repopulate_parts: bool) -> void:
-	_update_all_3d_slots_preview()
+	garage_panel.update_all_slots_preview()
 	_update_total_stats()
 	if repopulate_parts:
 		_populate_part_list_for_slot(selected_slot)
@@ -492,7 +484,7 @@ func refresh_after_mech_change(repopulate_parts: bool) -> void:
 # chassis apply ran.
 func refresh_after_chassis_change(chassis_info: Dictionary) -> void:
 	_update_total_stats()
-	_update_all_3d_slots_preview()
+	garage_panel.update_all_slots_preview()
 	if not chassis_info.is_empty() and garage_panel:
 		garage_panel.apply_chassis_preview(chassis_info)
 
@@ -662,7 +654,7 @@ func show_hangar() -> void:
 	_customize_mech_id = GlobalData.active_hangar_mech_id
 	_update_total_stats()
 	AudioManager.play_hangar_music()
-	call_deferred("_update_all_3d_slots_preview")
+	garage_panel.call_deferred("update_all_slots_preview")
 	# Entering the hangar shows the landing sub-menu first — the customize page
 	# only appears once the driver picks a topic (CUSTOMIZE / UPGRADE / etc).
 	_show_hangar_menu()
@@ -793,11 +785,11 @@ func _init_scrap_editor() -> void:
 # A patch was applied (or the editor closed): re-sync the hangar's own 3D mech
 # preview so the crude scrap armor shows on the correct skeleton parts.
 func _on_scrap_editor_applied(_slot: String) -> void:
-	call_deferred("_update_all_3d_slots_preview")
+	garage_panel.call_deferred("update_all_slots_preview")
 
 
 func _on_scrap_editor_closed() -> void:
-	call_deferred("_update_all_3d_slots_preview")
+	garage_panel.call_deferred("update_all_slots_preview")
 
 
 func _select_slot_tab(slot: String) -> void:
@@ -1306,7 +1298,7 @@ func _show_part_action_modal(info: Dictionary) -> void:
 				GlobalData.save_run()
 				_update_total_stats()
 				if current_mode == "frame":
-					_update_all_3d_slots_preview()
+					garage_panel.update_all_slots_preview()
 				else:
 					garage_panel.apply_armor_preview(selected_slot, info)
 			else:
@@ -1397,7 +1389,7 @@ func _equip_part_to_slot(slot: String, info: Dictionary) -> void:
 		_commit_editing_mech_and_save()
 		_update_total_stats()
 		_populate_part_list_for_slot(slot)
-		_update_all_3d_slots_preview()
+		garage_panel.update_all_slots_preview()
 		AudioManager.play_ui_confirm()
 		return
 
@@ -1427,7 +1419,7 @@ func _equip_part_to_slot(slot: String, info: Dictionary) -> void:
 		garage_panel.apply_armor_preview(slot, info)
 		_update_total_stats()
 		_populate_part_list_for_slot(slot)
-		_update_all_3d_slots_preview()
+		garage_panel.update_all_slots_preview()
 		AudioManager.play_ui_confirm()
 		return
 
@@ -1477,7 +1469,7 @@ func _unequip_part_from_slot(slot: String) -> void:
 		_commit_editing_mech_and_save()
 		_update_total_stats()
 		_populate_part_list_for_slot(slot)
-		_update_all_3d_slots_preview()
+		garage_panel.update_all_slots_preview()
 		AudioManager.play_ui_click()
 		return
 
@@ -1502,7 +1494,7 @@ func _unequip_part_from_slot(slot: String) -> void:
 					existing.queue_free()
 		_update_total_stats()
 		_populate_part_list_for_slot(slot)
-		_update_all_3d_slots_preview()
+		garage_panel.update_all_slots_preview()
 		AudioManager.play_ui_click()
 		return
 
@@ -1550,7 +1542,7 @@ func _on_equip_pressed() -> void:
 			GlobalData.attachments.append(attachment)
 		status_message_label.text = "Mounted %s on %s. Drag it in 3D to reposition." % [attachment["name"], selected_slot.to_upper()]
 		GlobalData.save_run()
-		_update_all_3d_slots_preview()
+		garage_panel.update_all_slots_preview()
 		_update_total_stats()
 		return
 
@@ -1561,7 +1553,7 @@ func _on_equip_pressed() -> void:
 		status_message_label.text = "Equipped & Saved: %s!" % selected_salvage_info.get("name", "Armor Plate")
 		GlobalData.save_run()
 		_update_total_stats()
-		_update_all_3d_slots_preview()
+		garage_panel.update_all_slots_preview()
 		return
 
 	if current_mode == "frame" and not selected_frame_info.is_empty():
@@ -1574,7 +1566,7 @@ func _on_equip_pressed() -> void:
 		GlobalData.save_run()
 		_update_total_stats()
 		_populate_part_list_for_slot(selected_slot)
-		_update_all_3d_slots_preview()
+		garage_panel.update_all_slots_preview()
 	elif selected_part_path != "" and ResourceLoader.exists(selected_part_path):
 		var res = load(selected_part_path)
 		if res:
@@ -1600,7 +1592,7 @@ func _on_equip_pressed() -> void:
 					status_message_label.text = "Equipped %s on %s hand!" % [(res.weapon_name if "weapon_name" in res else "Weapon"), hand]
 				GlobalData.save_run()
 				_update_total_stats()
-				_update_all_3d_slots_preview()
+				garage_panel.update_all_slots_preview()
 				_populate_part_list_for_slot(selected_slot)
 				return
 
@@ -1621,7 +1613,7 @@ func _on_equip_pressed() -> void:
 			status_message_label.text = "Equipped & Saved Armor: %s!" % part_data["name"]
 			GlobalData.save_run()
 			_update_total_stats()
-			_update_all_3d_slots_preview()
+			garage_panel.update_all_slots_preview()
 
 
 func _on_repair_part_pressed() -> void:
@@ -1636,7 +1628,7 @@ func _on_repair_part_pressed() -> void:
 	GlobalData.part_damage.erase(selected_slot + "_frame")
 	status_message_label.text = "Repaired %s!" % selected_slot.to_upper()
 	_update_total_stats()
-	_update_all_3d_slots_preview()
+	garage_panel.update_all_slots_preview()
 
 
 func _on_full_repair_pressed() -> void:
@@ -1655,7 +1647,7 @@ func _on_full_repair_pressed() -> void:
 	GlobalData.part_damage.clear()
 	status_message_label.text = "Full Repair Complete!"
 	_update_total_stats()
-	_update_all_3d_slots_preview()
+	garage_panel.update_all_slots_preview()
 
 
 func _update_total_stats() -> void:

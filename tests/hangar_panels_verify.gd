@@ -179,6 +179,76 @@ func _verify_roster_panel() -> void:
 	# deletion) berth rows linger when the REGISTER checks look for a button.
 	await get_tree().process_frame
 
+	# --- RENAME: occupied rows offer a rename button that opens a pre-filled ---
+	# --- prompt; confirming renames the berth, cancelling leaves it alone. ---
+	var rename_btn := _find_rename_button(rp)
+	_check(rename_btn != null, "occupied berth row offers a RENAME button")
+	if rename_btn:
+		rename_btn.pressed.emit()
+		await get_tree().process_frame
+	_check(rp.rename_dialog != null, "RENAME opens the rename prompt")
+	_check(rp.rename_dialog_edit != null, "rename prompt builds the LineEdit")
+	_check(rp.rename_dialog_edit.text == "Mech 01", "rename prompt pre-fills the current name")
+	# CANCEL aborts without touching the roster.
+	if rp.rename_dialog:
+		var rename_cancel := _find_button_by_text(rp.rename_dialog, "CANCEL")
+		_check(rename_cancel != null, "rename prompt builds the CANCEL button")
+		if rename_cancel:
+			rename_cancel.pressed.emit()
+			await get_tree().process_frame
+	_check(rp.rename_dialog == null or not is_instance_valid(rp.rename_dialog), "CANCEL closes the rename prompt")
+	var renamed := false
+	for m in GlobalData.get_hangar_mechs():
+		if str(m.get("name", "")) == "Striker":
+			renamed = true
+	_check(not renamed, "CANCEL does not rename the mech")
+	# Confirm with a custom name renames, persists and refreshes the badge.
+	var rename_btn2 := _find_rename_button(rp)
+	if rename_btn2:
+		rename_btn2.pressed.emit()
+		await get_tree().process_frame
+	if rp.rename_dialog_edit:
+		rp.rename_dialog_edit.text = "Striker"
+	if rp.rename_dialog:
+		var rename_ok := _find_button_by_text(rp.rename_dialog, "RENAME")
+		_check(rename_ok != null, "rename prompt builds the confirm button")
+		if rename_ok:
+			rename_ok.pressed.emit()
+			await get_tree().process_frame
+	renamed = false
+	for m in GlobalData.get_hangar_mechs():
+		if str(m.get("name", "")) == "Striker":
+			renamed = true
+	_check(renamed, "RENAME applies the new name")
+	_check(rp.mech_slot_label.text.contains("Striker"), "badge reflects the renamed mech")
+	_check(rp.roster_status_label.text.contains("Renamed to Striker"), "RENAME reports the new name")
+	# A blank name falls back to the slot-based name.
+	var rename_btn3 := _find_rename_button(rp)
+	if rename_btn3:
+		rename_btn3.pressed.emit()
+		await get_tree().process_frame
+	if rp.rename_dialog_edit:
+		rp.rename_dialog_edit.text = "   "
+		# Enter (text_submitted) is the keyboard path into _confirm_rename.
+		rp.rename_dialog_edit.text_submitted.emit("   ")
+	await get_tree().process_frame
+	var back_to_slot_name := false
+	for m in GlobalData.get_hangar_mechs():
+		if str(m.get("name", "")) == "Mech 01":
+			back_to_slot_name = true
+	_check(back_to_slot_name, "blank rename falls back to the slot-based name")
+	# Leaving the page closes an open rename prompt.
+	var rename_btn4 := _find_rename_button(rp)
+	if rename_btn4:
+		rename_btn4.pressed.emit()
+		await get_tree().process_frame
+	_check(rp.rename_dialog != null, "rename prompt reopens for the close-on-leave check")
+	rp.hide_page()
+	await get_tree().process_frame
+	_check(rp.rename_dialog == null or not is_instance_valid(rp.rename_dialog), "leaving the page closes the rename prompt")
+	rp.show_page()
+	await get_tree().process_frame
+
 	# --- REGISTER: empty berths offer a frame-assembly button that opens the ---
 	# --- build flow: it jumps into the customize page (INNER SKELETON) with a ---
 	# --- pending banner; the name prompt only opens once BODY + both legs are ---
@@ -477,6 +547,16 @@ func _find_register_button(rp) -> Button:
 			continue
 		for child in row.get_children():
 			if child is Button and child.text == "REGISTER" and is_instance_valid(child) and not child.is_queued_for_deletion():
+				return child
+	return null
+
+
+func _find_rename_button(rp) -> Button:
+	for row in rp.roster_slot_list.get_children():
+		if not is_instance_valid(row) or row.is_queued_for_deletion():
+			continue
+		for child in row.get_children():
+			if child is Button and child.text == "RENAME" and is_instance_valid(child) and not child.is_queued_for_deletion():
 				return child
 	return null
 

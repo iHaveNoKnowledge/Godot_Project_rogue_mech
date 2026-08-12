@@ -322,6 +322,21 @@ static func assign_pilot(mech_id: String, pilot_id: String) -> bool:
 
 
 # Reads the combat archetype a mech fights as when fielded as an ally.
+# Renames a parked mech (identity field only — loadout/pilot/slot untouched).
+# A blank name falls back to the slot-based name ("Mech 01"). Returns false
+# when the berth doesn't exist. Caller persists with save_run().
+static func rename_mech(mech_id: String, new_name: String) -> bool:
+	ensure_roster()
+	var target := _find(mech_id)
+	if target.is_empty():
+		return false
+	var clean := new_name.strip_edges()
+	if clean == "":
+		clean = "Mech %02d" % int(target.get("slot", 1))
+	target["name"] = clean
+	return true
+
+
 static func get_archetype(mech_id: String) -> int:
 	var target := _find(mech_id)
 	if target.is_empty():

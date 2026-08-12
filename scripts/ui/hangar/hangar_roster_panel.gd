@@ -23,6 +23,10 @@ var mech_next_button: Button = null
 # members so callers (and the test suite) can drive the LineEdit + confirm.
 var register_dialog: Control = null
 var register_dialog_edit: LineEdit = null
+# Rename-prompt modal opened from an occupied roster row (same test-drivable
+# pattern as the register prompt).
+var rename_dialog: Control = null
+var rename_dialog_edit: LineEdit = null
 # Pending-register banner shown on the customize page while a berth is being
 # assembled: the required walking-chassis checklist (BODY + both legs) and the
 # REGISTER FRAME confirm, locked until every required frame is equipped.
@@ -126,9 +130,10 @@ events out in the field (surrenders, captures, shops)."
 func set_panel_visible(v: bool) -> void:
 	if roster_panel:
 		roster_panel.visible = v
-	# Leaving the roster page (or the hangar) must not leave the name prompt up.
+	# Leaving the roster page (or the hangar) must not leave any prompt up.
 	if not v:
 		close_register_dialog()
+		close_rename_dialog()
 
 
 func set_badge_visible(v: bool) -> void:
@@ -336,6 +341,14 @@ func build_slot_row(slot: int, mech: Dictionary, over_capacity: bool) -> void:
 	role_btn.focus_mode = Control.FOCUS_NONE
 	role_btn.pressed.connect(open_role_picker.bind(mech_id, role_btn))
 	row.add_child(role_btn)
+
+	var rename_btn := Button.new()
+	rename_btn.text = "RENAME"
+	rename_btn.custom_minimum_size = Vector2(76, 28)
+	rename_btn.focus_mode = Control.FOCUS_NONE
+	rename_btn.tooltip_text = "Rename this parked mech"
+	rename_btn.pressed.connect(open_rename_dialog.bind(mech_id))
+	row.add_child(rename_btn)
 
 	if not is_active and not over_capacity:
 		var switch_btn := Button.new()
@@ -730,6 +743,124 @@ func close_register_dialog() -> void:
 		register_dialog.queue_free()
 	register_dialog = null
 	register_dialog_edit = null
+
+
+# RENAME — small modal that renames a parked mech straight from its roster row.
+# The name field is pre-filled with the current name (selected, so typing
+# replaces it); a blank confirm falls back to the slot-based name.
+func open_rename_dialog(mech_id: String) -> void:
+	var mech: Dictionary = {}
+	for m in GlobalData.get_hangar_mechs():
+		if str(m.get("id", "")) == mech_id:
+			mech = m
+			break
+	if mech.is_empty():
+		return
+	close_rename_dialog()
+	build_rename_dialog(mech)
+
+
+func build_rename_dialog(mech: Dictionary) -> void:
+	var modal := PanelContainer.new()
+	modal.name = "RenameMechDialog"
+	modal.anchor_left = 0.5
+	modal.anchor_right = 0.5
+	modal.anchor_top = 0.5
+	modal.anchor_bottom = 0.5
+	modal.offset_left = -200
+	modal.offset_right = 200
+	modal.offset_top = -110
+	modal.offset_bottom = 110
+
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.10, 0.10, 0.16, 0.97)
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.border_color = controller._highlight_color
+	style.corner_radius_top_left = 8
+	style.corner_radius_top_right = 8
+	style.corner_radius_bottom_left = 8
+	style.corner_radius_bottom_right = 8
+	modal.add_theme_stylebox_override("panel", style)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 10)
+	modal.add_child(vbox)
+
+	var title := Label.new()
+	title.text = "✏️ RENAME MECH"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_color_override("font_color", controller._highlight_color)
+	title.add_theme_font_size_override("font_size", 15)
+	vbox.add_child(title)
+
+	var hint := Label.new()
+	hint.text = "SLOT %02d · currently \"%s\"" % [int(mech.get("slot", 1)), str(mech.get("name", "Mech"))]
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.add_theme_color_override("font_color", Color(0.5, 0.7, 0.9))
+	hint.add_theme_font_size_override("font_size", 11)
+	vbox.add_child(hint)
+
+	var edit := LineEdit.new()
+	edit.text = str(mech.get("name", "Mech"))
+	edit.placeholder_text = "Frame name / callsign"
+	edit.custom_minimum_size = Vector2(0, 34)
+	edit.select_all()
+	edit.text_submitted.connect(func(_t: String): _confirm_rename(str(mech.get("id", ""))))
+	vbox.add_child(edit)
+
+	var btn_row := HBoxContainer.new()
+	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	btn_row.add_theme_constant_override("separation", 12)
+	vbox.add_child(btn_row)
+
+	var ok_btn := Button.new()
+	ok_btn.text = "RENAME"
+	ok_btn.custom_minimum_size = Vector2(120, 34)
+	ok_btn.pressed.connect(func(): _confirm_rename(str(mech.get("id", ""))))
+	btn_row.add_child(ok_btn)
+
+	var cancel_btn := Button.new()
+	cancel_btn.text = "CANCEL"
+	cancel_btn.custom_minimum_size = Vector2(120, 34)
+	cancel_btn.pressed.connect(close_rename_dialog)
+	btn_row.add_child(cancel_btn)
+
+	if controller.root_control:
+		controller.root_control.add_child(modal)
+	else:
+		controller.add_child(modal)
+	rename_dialog = modal
+	rename_dialog_edit = edit
+	edit.grab_focus()
+
+
+func _confirm_rename(mech_id: String) -> void:
+	var chosen := ""
+	if rename_dialog_edit and is_instance_valid(rename_dialog_edit):
+		chosen = rename_dialog_edit.text
+	close_rename_dialog()
+	if not GlobalData.rename_hangar_mech(mech_id, chosen):
+		_set_status("Unable to rename that berth.")
+		return
+	GlobalData.save_run()
+	refresh_badge()
+	refresh_page()
+	var final_name := ""
+	for m in GlobalData.get_hangar_mechs():
+		if str(m.get("id", "")) == mech_id:
+			final_name = str(m.get("name", ""))
+			break
+	_set_status("Renamed to %s." % final_name)
+
+
+func close_rename_dialog() -> void:
+	if rename_dialog and is_instance_valid(rename_dialog):
+		rename_dialog.queue_free()
+	rename_dialog = null
+	rename_dialog_edit = null
 
 
 # Popup picker choosing which combat archetype a mech fights as when fielded as

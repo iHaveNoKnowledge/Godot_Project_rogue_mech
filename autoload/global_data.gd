@@ -549,6 +549,12 @@ func assign_hangar_pilot(mech_id: String, pilot_id: String) -> bool:
 	return HangarManager.assign_pilot(mech_id, pilot_id)
 
 
+# Renames a parked mech (identity field only; blank name falls back to the
+# slot-based name). Caller persists with save_run().
+func rename_hangar_mech(mech_id: String, new_name: String) -> bool:
+	return HangarManager.rename_mech(mech_id, new_name)
+
+
 # Combat archetype a parked mech fights as when fielded as an ally (see
 # HangarManager.ARCHETYPE_*). Caller persists with save_run().
 func get_hangar_archetype(mech_id: String) -> int:

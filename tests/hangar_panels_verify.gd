@@ -19,6 +19,7 @@ extends Node
 ##   HangarRightPanel    — right sidebar (stats, weight, repair, status, exit)
 ##   nav/landing builders — sub-menu rail + mode-toggle bar
 ##   HangarReadinessPanel — combat-readiness warning modal
+##   HangarPersistPanel   — persist/commit the edited mech working set
 ## Run: godot --headless --path . res://tests/hangar_panels_verify.tscn
 
 var _fails: int = 0
@@ -45,6 +46,7 @@ func _ready() -> void:
 	await _verify_slot_panel()
 	await _verify_layout_panels()
 	await _verify_readiness_panel()
+	await _verify_persist_panel()
 	print("HANGAR_PANELS_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	await get_tree().process_frame
 	get_tree().quit(1 if _fails > 0 else 0)
@@ -1056,6 +1058,61 @@ func _verify_readiness_panel() -> void:
 			if _find_button_by_text(child, "LAUNCH ANYWAY") != null:
 				modal_count += 1
 	_check(modal_count == 1, "re-checking replaces rather than stacks the modal")
+
+	ctrl.queue_free()
+	await get_tree().process_frame
+
+
+func _verify_persist_panel() -> void:
+	GlobalData.reset_run_data()
+	var ctrl: Node = load("res://scenes/ui/hangar_scene.tscn").instantiate()
+	add_child(ctrl)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var pp = ctrl.persist_panel
+	_check(pp != null, "controller builds a HangarPersistPanel")
+	_check(pp.controller == ctrl, "persist panel holds the controller back-ref")
+
+	# persist_edits with no editing target is a safe no-op.
+	ctrl._customize_mech_id = ""
+	pp.persist_edits()
+	_check(true, "persist_edits no-ops with no editing target")
+
+	# persist_edits saves the working set onto the editing berth and, when that
+	# berth is not the active mech, reloads the ACTIVE mech's parts back into
+	# the working set (so leaving the hangar pilots the right machine).
+	var active_id: String = str(GlobalData.active_hangar_mech_id)
+	var other_id := active_id
+	for m in GlobalData.get_hangar_mechs():
+		if str(m.get("id", "")) != active_id:
+			other_id = str(m.get("id", ""))
+			break
+	ctrl._customize_mech_id = other_id
+	GlobalData.equipped_parts["body"] = {"uid": "persist_probe", "name": "Probe", "hp": 50.0, "max_hp": 50.0, "weight": 5.0}
+	pp.persist_edits()
+	_check(ctrl._customize_mech_id == other_id, "persist_edits keeps the editing target")
+	if other_id != active_id:
+		# After persist, the ACTIVE mech's snapshot replaces the working set.
+		var restored: Dictionary = GlobalData.equipped_parts.get("body", {})
+		_check(str(restored.get("uid", "")) != "persist_probe" or GlobalData.equipped_parts.is_empty(), "persist_edits reloads the active mech's parts")
+
+	# commit_and_save pushes the working set onto the editing berth (roster
+	# snapshot) and saves the run.
+	ctrl._customize_mech_id = active_id
+	GlobalData.equipped_parts["body"] = {"uid": "commit_probe", "name": "Probe", "hp": 50.0, "max_hp": 50.0, "weight": 5.0}
+	pp.commit_and_save()
+	# Loading the committed state back reproduces the probe body.
+	GlobalData.equipped_parts.clear()
+	GlobalData.load_hangar_mech_state(active_id)
+	var probe: Dictionary = GlobalData.equipped_parts.get("body", {})
+	_check(str(probe.get("uid", "")) == "commit_probe", "commit_and_save persists the working set onto the berth")
+	GlobalData.equipped_parts.erase("body")
+
+	# commit_and_save with no editing target still saves the run.
+	ctrl._customize_mech_id = ""
+	pp.commit_and_save()
+	_check(true, "commit_and_save works with no editing target")
 
 	ctrl.queue_free()
 	await get_tree().process_frame

@@ -19,7 +19,7 @@ func equip_part(slot: String, info: Dictionary) -> void:
 		# A brand-new frame is installed: it starts at full HP, so wipe any
 		# frame damage that belonged to the PREVIOUS frame in this slot.
 		GlobalData.part_damage.erase(slot + "_frame")
-		controller._commit_editing_mech_and_save()
+		controller.persist_panel.commit_and_save()
 		controller.stats_panel.update()
 		controller.part_list_panel.populate(slot)
 		controller.garage_panel.update_all_slots_preview()
@@ -48,7 +48,7 @@ func equip_part(slot: String, info: Dictionary) -> void:
 				controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
 				return
 			GlobalData.set_hand_weapon(hand, wpath)
-		controller._commit_editing_mech_and_save()
+		controller.persist_panel.commit_and_save()
 		controller.garage_panel.apply_armor_preview(slot, info)
 		controller.stats_panel.update()
 		controller.part_list_panel.populate(slot)
@@ -87,7 +87,7 @@ func equip_part(slot: String, info: Dictionary) -> void:
 	if not GlobalData.equip_armor_instance(inst["uid"], slot):
 		controller.status_message_label.text = "Failed to equip armor."
 		return
-	controller._commit_editing_mech_and_save()
+	controller.persist_panel.commit_and_save()
 	controller.garage_panel.apply_armor_preview(slot, inst)
 	controller.stats_panel.update()
 	controller.part_list_panel.populate(slot)
@@ -99,7 +99,7 @@ func unequip_part(slot: String) -> void:
 		GlobalData.equipped_frames.erase(slot)
 		GlobalData.part_damage.erase(slot)
 		GlobalData.part_damage.erase(slot + "_frame")
-		controller._commit_editing_mech_and_save()
+		controller.persist_panel.commit_and_save()
 		controller.stats_panel.update()
 		controller.part_list_panel.populate(slot)
 		controller.garage_panel.update_all_slots_preview()
@@ -114,7 +114,7 @@ func unequip_part(slot: String) -> void:
 		else:
 			var hand = "left" if slot == "weapon_left" else "right"
 			GlobalData.set_hand_weapon(hand, "")
-		controller._commit_editing_mech_and_save()
+		controller.persist_panel.commit_and_save()
 		var mecha = controller.garage_panel.get_mecha_base()
 		if mecha:
 			for node_name in ["WeaponVisual_left", "WeaponVisual_right", "WeaponVisual_carry"]:
@@ -132,7 +132,7 @@ func unequip_part(slot: String) -> void:
 		return
 
 	GlobalData.unequip_armor_instance(slot)
-	controller._commit_editing_mech_and_save()
+	controller.persist_panel.commit_and_save()
 	var pmm = controller.garage_panel.get_part_mesh_manager()
 	if pmm:
 		pmm._show_inner_frame(slot)

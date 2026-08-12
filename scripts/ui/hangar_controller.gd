@@ -28,6 +28,7 @@ var nav_panel: HangarNavPanel = null
 var repair_panel: HangarRepairPanel = null
 var slot_panel: HangarSlotPanel = null
 var readiness_panel: HangarReadinessPanel = null
+var persist_panel: HangarPersistPanel = null
 var header_panel: HangarHeaderPanel = null
 var left_panel_ui: HangarLeftPanel = null
 var right_panel_ui: HangarRightPanel = null
@@ -132,6 +133,8 @@ func _build_ui_layout() -> void:
 	slot_panel.controller = self
 	readiness_panel = HangarReadinessPanel.new()
 	readiness_panel.controller = self
+	persist_panel = HangarPersistPanel.new()
+	persist_panel.controller = self
 	header_panel = HangarHeaderPanel.new()
 	header_panel.controller = self
 	left_panel_ui = HangarLeftPanel.new()
@@ -235,7 +238,7 @@ func _on_close_pressed() -> void:
 	# Persist any edits made on the customize page to the berth being edited,
 	# then restore the ACTIVE mech (the one the player actually pilots) back into
 	# the working set so combat loads the right machine.
-	_persist_customize_edits()
+	persist_panel.persist_edits()
 	readiness_panel.check(func():
 		visible = false
 		get_tree().paused = false
@@ -251,25 +254,6 @@ func _on_close_pressed() -> void:
 # Save the current working set onto the mech that's open in the editor, then
 # (if that isn't the active/piloting mech) reload the active mech's parts so the
 # player leaves the hangar with the machine they'll actually pilot.
-func _persist_customize_edits() -> void:
-	var editing_id := get_editing_mech_id()
-	if editing_id == "":
-		return
-	GlobalData.save_hangar_mech_state(editing_id)
-	_customize_mech_id = editing_id
-	if editing_id != GlobalData.active_hangar_mech_id:
-		GlobalData.load_hangar_mech_state(GlobalData.active_hangar_mech_id)
-
-
-# Persist the working set back onto the berth being edited (so its roster
-# snapshot is fresh), then save the run. Called after equip/unequip so edits to
-# a non-active mech on the customize page land on the right entry.
-func _commit_editing_mech_and_save() -> void:
-	if _customize_mech_id != "":
-		GlobalData.save_hangar_mech_state(_customize_mech_id)
-	GlobalData.save_run()
-
-
 # A patch was applied (or the editor closed): re-sync the hangar's own 3D mech
 # preview so the crude scrap armor shows on the correct skeleton parts.
 func _on_scrap_editor_applied(_slot: String) -> void:

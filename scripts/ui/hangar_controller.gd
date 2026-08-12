@@ -24,14 +24,13 @@ var action_panel: HangarActionPanel = null
 var equip_panel: HangarEquipPanel = null
 var part_list_panel: HangarPartListPanel = null
 var stats_panel: HangarStatsPanel = null
+var nav_panel: HangarNavPanel = null
 # Slot tab buttons keyed by slot id, reused for UI-only selection highlight.
 var slot_tab_buttons: Dictionary = {}
 
 # Top-level hangar sub-menu (landing screen): [CUSTOMIZE | EMERGENCY REPAIR |
 # UPGRADE | CRAFT | CATALOG]. It is the FIRST thing shown after entering the
 # hangar as a long vertical list on the left; each choice opens its own page.
-var hangar_submenu_buttons: Dictionary = {}
-var current_submenu: String = "" # "" = landing menu
 var scrap_editor: CanvasLayer = null
 # Landing sub-menu rail + the page widgets it toggles.
 var submenu_rail: PanelContainer = null
@@ -92,7 +91,7 @@ func _ready() -> void:
 	garage_panel.controller = self
 	garage_panel.build_garage()
 	_build_ui_layout()
-	show_hangar()
+	nav_panel.show_hangar()
 	if has_node("/root/AudioManager"):
 		AudioManager.play_hangar_music()
 
@@ -119,6 +118,8 @@ func _build_ui_layout() -> void:
 	part_list_panel.controller = self
 	stats_panel = HangarStatsPanel.new()
 	stats_panel.controller = self
+	nav_panel = HangarNavPanel.new()
+	nav_panel.controller = self
 	var root = Control.new()
 	root.name = "RootControl"
 	root_control = root
@@ -194,7 +195,7 @@ func _build_ui_layout() -> void:
 	back_to_menu_button.text = "◀ BACK TO MENU"
 	back_to_menu_button.custom_minimum_size = Vector2(150, 32)
 	back_to_menu_button.focus_mode = Control.FOCUS_NONE
-	back_to_menu_button.pressed.connect(_on_back_to_menu_pressed)
+	back_to_menu_button.pressed.connect(func(): nav_panel.on_back_to_menu_pressed())
 	back_to_menu_button.visible = false
 	hdr_box.add_child(back_to_menu_button)
 
@@ -248,8 +249,7 @@ func _build_ui_layout() -> void:
 		sbtn.text = item["label"]
 		sbtn.custom_minimum_size = Vector2(0, 34)
 		sbtn.focus_mode = Control.FOCUS_NONE
-		sbtn.pressed.connect(func(): _select_hangar_submenu(item["id"]))
-		hangar_submenu_buttons[item["id"]] = sbtn
+		sbtn.pressed.connect(func(): nav_panel.select_submenu(item["id"]))
 		rail_box.add_child(sbtn)
 
 	var rail_spacer = Control.new()
@@ -273,25 +273,25 @@ func _build_ui_layout() -> void:
 	var btn_armor = Button.new()
 	btn_armor.text = "🛡️ OUTER ARMOR (SCAVENGER)"
 	btn_armor.custom_minimum_size = Vector2(170, 32)
-	btn_armor.pressed.connect(func(): _switch_custom_mode("armor"))
+	btn_armor.pressed.connect(func(): nav_panel.switch_custom_mode("armor"))
 	sub_toggle_container.add_child(btn_armor)
 
 	var btn_frame = Button.new()
 	btn_frame.text = "⚙️ INNER SKELETON FRAME"
 	btn_frame.custom_minimum_size = Vector2(170, 32)
-	btn_frame.pressed.connect(func(): _switch_custom_mode("frame"))
+	btn_frame.pressed.connect(func(): nav_panel.switch_custom_mode("frame"))
 	sub_toggle_container.add_child(btn_frame)
 
 	var btn_attachment = Button.new()
 	btn_attachment.text = "🔩 FREE ATTACHMENT"
 	btn_attachment.custom_minimum_size = Vector2(170, 32)
-	btn_attachment.pressed.connect(func(): _switch_custom_mode("attachment"))
+	btn_attachment.pressed.connect(func(): nav_panel.switch_custom_mode("attachment"))
 	sub_toggle_container.add_child(btn_attachment)
 
 	frame_upgrade_button = Button.new()
 	frame_upgrade_button.text = "⚡ REACTOR POWER UPGRADE"
 	frame_upgrade_button.custom_minimum_size = Vector2(180, 32)
-	frame_upgrade_button.pressed.connect(func(): _switch_custom_mode("upgrade"))
+	frame_upgrade_button.pressed.connect(func(): nav_panel.switch_custom_mode("upgrade"))
 	sub_toggle_container.add_child(frame_upgrade_button)
 
 	# Left Sidebar (Part Catalog List & Salvaged Drops)
@@ -439,31 +439,6 @@ func _build_ui_layout() -> void:
 
 
 # --- HANGAR MECH ROSTER (truck-convoy parking page) ---
-
-func _show_roster_page() -> void:
-	current_submenu = "roster"
-	if craft_panel:
-		craft_panel.close_window()
-	if catalog_panel:
-		catalog_panel.close_window()
-	if scrap_editor != null and is_instance_valid(scrap_editor) and scrap_editor.visible:
-		scrap_editor.close()
-	if submenu_rail:
-		submenu_rail.visible = false
-	if back_to_menu_button:
-		back_to_menu_button.visible = true
-	if tab_container:
-		tab_container.visible = false
-	if sub_toggle_container:
-		sub_toggle_container.visible = false
-	if left_panel:
-		left_panel.visible = false
-	if right_panel:
-		right_panel.visible = false
-	if roster_panel_ui:
-		roster_panel_ui.show_page()
-	garage_panel.call_deferred("update_all_slots_preview")
-
 
 # Cross-page editing state lives on the controller (_customize_mech_id) because
 # the customize page reads/writes the same berth. These accessors are the seam
@@ -651,142 +626,6 @@ func _check_combat_readiness_warning(on_confirm: Callable) -> void:
 	hbox.add_child(back_btn)
 
 	root_control.add_child(modal)
-
-
-func show_hangar() -> void:
-	visible = true
-	get_tree().paused = true
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	# Open the editor on the mech the player is currently piloting.
-	_customize_mech_id = GlobalData.active_hangar_mech_id
-	stats_panel.update()
-	AudioManager.play_hangar_music()
-	garage_panel.call_deferred("update_all_slots_preview")
-	# Entering the hangar shows the landing sub-menu first — the customize page
-	# only appears once the driver picks a topic (CUSTOMIZE / UPGRADE / etc).
-	_show_hangar_menu()
-
-
-func _switch_custom_mode(mode: String) -> void:
-	current_mode = mode
-	part_list_panel.populate(selected_slot)
-
-
-# --- HANGAR SUB-MENU (landing list: CUSTOMIZE / EMERGENCY REPAIR / UPGRADE / CRAFT / CATALOG) ---
-
-# Landing screen: the long vertical sub-menu list. Every page widget is hidden
-# until the driver picks a topic.
-func _show_hangar_menu() -> void:
-	current_submenu = ""
-	if craft_panel:
-		craft_panel.close_window()
-	if catalog_panel:
-		catalog_panel.close_window()
-	if scrap_editor != null and is_instance_valid(scrap_editor) and scrap_editor.visible:
-		scrap_editor.close()
-	if submenu_rail:
-		submenu_rail.visible = true
-	if back_to_menu_button:
-		back_to_menu_button.visible = false
-	if tab_container:
-		tab_container.visible = false
-	if sub_toggle_container:
-		sub_toggle_container.visible = false
-	if left_panel:
-		left_panel.visible = false
-	if right_panel:
-		right_panel.visible = false
-	if roster_panel_ui:
-		roster_panel_ui.hide_page()
-	if root_control:
-		var label := root_control.find_child("SelectionLabel", true, false) as Label
-		if label:
-			label.text = "HANGAR MENU"
-	if garage_panel:
-		garage_panel.clear_selection_blink()
-
-
-# The customize page (mech center, part list left, stats right). Also the base
-# surface for upgrade/craft/catalog which open their windows over it.
-func _show_customize_page() -> void:
-	if submenu_rail:
-		submenu_rail.visible = false
-	if back_to_menu_button:
-		back_to_menu_button.visible = true
-	if tab_container:
-		tab_container.visible = true
-	if left_panel:
-		left_panel.visible = true
-	if right_panel:
-		right_panel.visible = true
-	if roster_panel_ui:
-		roster_panel_ui.set_panel_visible(false)
-		roster_panel_ui.set_badge_visible(true)
-	if sub_toggle_container:
-		sub_toggle_container.visible = not selected_slot.begins_with("weapon")
-	if roster_panel_ui:
-		roster_panel_ui.refresh_badge()
-	part_list_panel.populate(selected_slot)
-	garage_panel.update_selection_highlight(selected_slot)
-
-
-func _on_back_to_menu_pressed() -> void:
-	if craft_panel:
-		craft_panel.close_window()
-	if catalog_panel:
-		catalog_panel.close_window()
-	if scrap_editor != null and is_instance_valid(scrap_editor) and scrap_editor.visible:
-		scrap_editor.close()
-	_show_hangar_menu()
-
-
-func _select_hangar_submenu(id: String) -> void:
-	current_submenu = id
-	if craft_panel:
-		craft_panel.close_window()
-	if catalog_panel:
-		catalog_panel.close_window()
-	match id:
-		"emergency":
-			# Emergency scrap repair is a full-screen overlay opened straight from
-			# the landing menu; the menu stays behind so closing the editor
-			# returns the driver to the hangar menu.
-			_init_scrap_editor()
-			var first_slot := ""
-			for slot in GlobalData.MECHA_SLOTS:
-				if GlobalData.get_emergency_repair_scrap_cost(slot) > 0:
-					first_slot = slot
-					break
-			scrap_editor.open(first_slot)
-		"upgrade":
-			_show_customize_page()
-			_switch_custom_mode("upgrade")
-		"craft":
-			_show_customize_page()
-			if not armor_catalog.has(selected_slot):
-				selected_slot = "body"
-				garage_panel.update_selection_highlight(selected_slot)
-				part_list_panel.populate(selected_slot)
-			if craft_panel:
-				craft_panel.open()
-		"catalog":
-			_show_customize_page()
-			if catalog_panel:
-				catalog_panel.build_window()
-		"roster":
-			_show_roster_page()
-		_:
-			# "customize" (and any fallback): restore the standard editing view.
-			_show_customize_page()
-
-
-func _init_scrap_editor() -> void:
-	if scrap_editor != null:
-		return
-	scrap_editor = preload("res://scripts/ui/scrap_repair_editor.gd").new()
-	scrap_editor.applied.connect(_on_scrap_editor_applied)
-	scrap_editor.closed.connect(_on_scrap_editor_closed)
-	add_child(scrap_editor)
 
 
 # A patch was applied (or the editor closed): re-sync the hangar's own 3D mech

@@ -11,6 +11,7 @@ extends Node
 ##   HangarEquipPanel    — equip/unequip flow (hands, back carry, armor, frames)
 ##   HangarPartListPanel — part list populate + selection + equipped queries
 ##   HangarStatsPanel    — total mech stats aggregation (weight bar + label)
+##   HangarNavPanel      — submenu + page navigation (landing / pages)
 ## Run: godot --headless --path . res://tests/hangar_panels_verify.tscn
 
 var _fails: int = 0
@@ -29,6 +30,7 @@ func _ready() -> void:
 	await _verify_equip_panel()
 	await _verify_part_list_panel()
 	await _verify_stats_panel()
+	await _verify_nav_panel()
 	print("HANGAR_PANELS_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	await get_tree().process_frame
 	get_tree().quit(1 if _fails > 0 else 0)
@@ -117,7 +119,7 @@ func _verify_roster_panel() -> void:
 	_check(rp.roster_panel.visible == false, "roster panel starts hidden")
 	_check(rp.mech_slot_label.visible == false, "badge starts hidden")
 
-	ctrl._select_hangar_submenu("roster")
+	ctrl.nav_panel.select_submenu("roster")
 	await get_tree().process_frame
 	_check(rp.roster_panel.visible, "roster page shows the panel")
 	_check(rp.roster_slot_list.get_child_count() > 0, "roster page lists berth rows")
@@ -151,7 +153,7 @@ func _verify_roster_panel() -> void:
 				stored_pilot = str(m.get("pilot", ""))
 		_check(stored_pilot == "", "pilot picker '(no pilot)' clears the seat")
 
-	ctrl._show_hangar_menu()
+	ctrl.nav_panel.show_hangar_menu()
 	await get_tree().process_frame
 	_check(not rp.roster_panel.visible, "hangar menu hides the roster page")
 	_check(not rp.mech_slot_label.visible, "hangar menu hides the badge")
@@ -181,7 +183,7 @@ func _verify_catalog_panel() -> void:
 	_check(cp.hover_stats_label.text.contains("Point at"), "hover label starts with the hint text")
 
 	# Catalog window opens from the sub-menu and lists every section.
-	ctrl._select_hangar_submenu("catalog")
+	ctrl.nav_panel.select_submenu("catalog")
 	await get_tree().process_frame
 	_check(cp.catalog_window != null, "catalog window builds a modal")
 	_check(cp.catalog_window.is_inside_tree(), "catalog modal is added to the tree")
@@ -294,7 +296,7 @@ func _verify_craft_panel() -> void:
 	_check(ctrl.status_message_label.text.contains("Cannot craft"), "craft rejects an unknown template")
 
 	# The real submenu path opens the craftery too.
-	ctrl._select_hangar_submenu("craft")
+	ctrl.nav_panel.select_submenu("craft")
 	await get_tree().process_frame
 	_check(cp.craft_window != null, "craft submenu opens the craftery")
 	cp.close_window()
@@ -697,6 +699,95 @@ func _verify_stats_panel() -> void:
 	# update() is safe with no meaningful state (pure aggregation).
 	sp.update()
 	_check(true, "stats update runs without error on repeated calls")
+
+	ctrl.queue_free()
+	await get_tree().process_frame
+
+
+func _verify_nav_panel() -> void:
+	GlobalData.reset_run_data()
+	var ctrl: Node = load("res://scenes/ui/hangar_scene.tscn").instantiate()
+	add_child(ctrl)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var np = ctrl.nav_panel
+	_check(np != null, "controller builds a HangarNavPanel")
+	_check(np.controller == ctrl, "nav panel holds the controller back-ref")
+
+	# Landing menu: entering the hangar shows the sub-menu rail first.
+	_check(np.current_submenu == "", "hangar opens on the landing sub-menu")
+	_check(ctrl.submenu_rail != null and ctrl.submenu_rail.visible, "landing shows the sub-menu rail")
+	_check(ctrl.back_to_menu_button != null and not ctrl.back_to_menu_button.visible, "landing hides the back button")
+	_check(ctrl.left_panel != null and not ctrl.left_panel.visible, "landing hides the customize left panel")
+
+	# Customize submenu restores the editing page.
+	np.select_submenu("customize")
+	await get_tree().process_frame
+	_check(np.current_submenu == "customize", "select_submenu records the page id")
+	_check(ctrl.left_panel.visible, "customize page shows the left panel")
+	_check(ctrl.right_panel != null and ctrl.right_panel.visible, "customize page shows the right panel")
+	_check(ctrl.tab_container != null and ctrl.tab_container.visible, "customize page shows the tab container")
+	_check(ctrl.back_to_menu_button.visible, "customize page shows the back button")
+	_check(not ctrl.submenu_rail.visible, "customize page hides the sub-menu rail")
+	var sel_lbl: Label = ctrl.root_control.find_child("SelectionLabel", true, false) as Label
+	_check(sel_lbl != null and sel_lbl.text != "HANGAR MENU", "customize page drops the HANGAR MENU label")
+
+	# Upgrade submenu switches the left-list mode to the reactor row.
+	np.select_submenu("upgrade")
+	await get_tree().process_frame
+	_check(np.current_submenu == "upgrade", "upgrade submenu records its id")
+	_check(ctrl.current_mode == "upgrade", "upgrade submenu switches the part-list mode")
+
+	# switch_custom_mode repopulates the list for the new mode.
+	np.switch_custom_mode("armor")
+	_check(ctrl.current_mode == "armor", "switch_custom_mode sets the part-list mode")
+	_check(ctrl.part_item_list != null and ctrl.part_item_list.item_count >= 0, "switch_custom_mode repopulates the part list")
+
+	# Emergency opens the scrap-repair overlay and records its id.
+	np.select_submenu("emergency")
+	await get_tree().process_frame
+	_check(np.current_submenu == "emergency", "emergency submenu records its id")
+	_check(ctrl.scrap_editor != null, "emergency submenu builds the scrap editor")
+	if ctrl.scrap_editor:
+		ctrl.scrap_editor.close()
+		await get_tree().process_frame
+
+	# Craft + catalog open their windows over the customize page.
+	np.select_submenu("craft")
+	await get_tree().process_frame
+	_check(ctrl.craft_panel.craft_window != null, "craft submenu opens the craftery")
+	if ctrl.craft_panel.craft_window:
+		ctrl.craft_panel.close_window()
+		await get_tree().process_frame
+	np.select_submenu("catalog")
+	await get_tree().process_frame
+	_check(ctrl.catalog_panel.catalog_window != null, "catalog submenu opens the catalog window")
+	if ctrl.catalog_panel.catalog_window:
+		ctrl.catalog_panel.close_window()
+		await get_tree().process_frame
+
+	# Roster submenu shows the roster page instead of the customize page.
+	np.select_submenu("roster")
+	await get_tree().process_frame
+	_check(np.current_submenu == "roster", "roster submenu records its id")
+	_check(ctrl.roster_panel_ui.roster_panel != null and ctrl.roster_panel_ui.roster_panel.visible, "roster submenu shows the roster page")
+	_check(ctrl.left_panel != null and not ctrl.left_panel.visible, "roster page hides the customize left panel")
+
+	# Back-to-menu from any page restores the landing screen.
+	np.on_back_to_menu_pressed()
+	await get_tree().process_frame
+	_check(np.current_submenu == "", "back-to-menu returns to the landing sub-menu")
+	_check(ctrl.submenu_rail.visible, "back-to-menu restores the sub-menu rail")
+	_check(not ctrl.roster_panel_ui.roster_panel.visible, "back-to-menu hides the roster page")
+
+	# show_hangar re-opens on the landing menu and re-targets the piloted mech.
+	np.show_hangar()
+	await get_tree().process_frame
+	_check(np.current_submenu == "", "show_hangar lands on the sub-menu again")
+	_check(ctrl._customize_mech_id == GlobalData.active_hangar_mech_id, "show_hangar re-targets the active mech")
+	var sel_lbl2: Label = ctrl.root_control.find_child("SelectionLabel", true, false) as Label
+	_check(sel_lbl2 != null and sel_lbl2.text == "HANGAR MENU", "show_hangar restores the HANGAR MENU label")
 
 	ctrl.queue_free()
 	await get_tree().process_frame

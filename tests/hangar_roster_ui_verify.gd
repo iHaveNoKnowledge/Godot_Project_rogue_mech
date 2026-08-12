@@ -19,9 +19,9 @@ func _ready() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 
-	_check(ctrl.has_method("_select_hangar_submenu"), "hangar controller loaded")
+	_check(ctrl.nav_panel != null and ctrl.nav_panel.current_submenu == "", "hangar controller loaded")
 
-	ctrl._select_hangar_submenu("roster")
+	ctrl.nav_panel.select_submenu("roster")
 	await get_tree().process_frame
 	var rp = ctrl.roster_panel_ui
 	_check(rp != null, "hangar controller builds a roster panel")
@@ -30,14 +30,14 @@ func _ready() -> void:
 	_check(rp.mech_slot_label != null and rp.mech_slot_label.visible, "mech-slot badge visible on roster page")
 	_check(rp.mech_slot_label.text.begins_with("MECH SLOT"), "badge text is MECH SLOT x/y")
 
-	ctrl._select_hangar_submenu("customize")
+	ctrl.nav_panel.select_submenu("customize")
 	await get_tree().process_frame
 	_check(rp.roster_panel != null and not rp.roster_panel.visible, "customize page hides roster page")
 	_check(rp.mech_prev_button != null and rp.mech_prev_button.visible, "customize page shows prev-slot button")
 	_check(rp.mech_next_button != null and rp.mech_next_button.visible, "customize page shows next-slot button")
 	_check(rp.mech_slot_label.text.begins_with("MECH SLOT"), "customize page keeps the slot badge")
 
-	ctrl._show_hangar_menu()
+	ctrl.nav_panel.show_hangar_menu()
 	await get_tree().process_frame
 	_check(not rp.mech_slot_label.visible, "hangar menu hides the slot badge")
 

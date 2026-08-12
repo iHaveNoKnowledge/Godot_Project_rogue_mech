@@ -177,7 +177,7 @@ func on_item_selected(index: int) -> void:
 			# Only change 3D model when user explicitly picks a part, not on section switch
 			if not _is_populating:
 				controller.garage_panel.apply_frame_preview(controller.selected_slot, controller.selected_frame_info)
-		controller._update_total_stats()
+		controller.stats_panel.update()
 		return
 
 	if controller.selected_slot.begins_with("weapon"):
@@ -228,7 +228,7 @@ func on_item_selected(index: int) -> void:
 			# Only change 3D model when user explicitly picks a part, not on section switch
 			if not _is_populating:
 				controller.garage_panel.preview_weapon_on_hand(controller.selected_slot, inv)
-		controller._update_total_stats()
+		controller.stats_panel.update()
 		return
 
 	if controller.armor_catalog.has(controller.selected_slot):
@@ -255,7 +255,7 @@ func on_item_selected(index: int) -> void:
 			# Only change 3D model when user explicitly picks a part, not on section switch
 			if not _is_populating:
 				controller.garage_panel.apply_salvage_preview(controller.selected_slot, controller.selected_salvage_info)
-	controller._update_total_stats()
+	controller.stats_panel.update()
 
 
 func on_item_clicked(index: int, _at_position: Vector2 = Vector2.ZERO, _mouse_button_index: int = 1) -> void:

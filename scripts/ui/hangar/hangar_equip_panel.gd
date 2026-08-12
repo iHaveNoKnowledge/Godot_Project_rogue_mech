@@ -20,7 +20,7 @@ func equip_part(slot: String, info: Dictionary) -> void:
 		# frame damage that belonged to the PREVIOUS frame in this slot.
 		GlobalData.part_damage.erase(slot + "_frame")
 		controller._commit_editing_mech_and_save()
-		controller._update_total_stats()
+		controller.stats_panel.update()
 		controller.part_list_panel.populate(slot)
 		controller.garage_panel.update_all_slots_preview()
 		AudioManager.play_ui_confirm()
@@ -50,7 +50,7 @@ func equip_part(slot: String, info: Dictionary) -> void:
 			GlobalData.set_hand_weapon(hand, wpath)
 		controller._commit_editing_mech_and_save()
 		controller.garage_panel.apply_armor_preview(slot, info)
-		controller._update_total_stats()
+		controller.stats_panel.update()
 		controller.part_list_panel.populate(slot)
 		controller.garage_panel.update_all_slots_preview()
 		AudioManager.play_ui_confirm()
@@ -89,7 +89,7 @@ func equip_part(slot: String, info: Dictionary) -> void:
 		return
 	controller._commit_editing_mech_and_save()
 	controller.garage_panel.apply_armor_preview(slot, inst)
-	controller._update_total_stats()
+	controller.stats_panel.update()
 	controller.part_list_panel.populate(slot)
 	AudioManager.play_ui_confirm()
 
@@ -100,7 +100,7 @@ func unequip_part(slot: String) -> void:
 		GlobalData.part_damage.erase(slot)
 		GlobalData.part_damage.erase(slot + "_frame")
 		controller._commit_editing_mech_and_save()
-		controller._update_total_stats()
+		controller.stats_panel.update()
 		controller.part_list_panel.populate(slot)
 		controller.garage_panel.update_all_slots_preview()
 		AudioManager.play_ui_click()
@@ -125,7 +125,7 @@ func unequip_part(slot: String) -> void:
 					existing = mecha.get_node_or_null(node_name)
 				if existing:
 					existing.queue_free()
-		controller._update_total_stats()
+		controller.stats_panel.update()
 		controller.part_list_panel.populate(slot)
 		controller.garage_panel.update_all_slots_preview()
 		AudioManager.play_ui_click()
@@ -136,7 +136,7 @@ func unequip_part(slot: String) -> void:
 	var pmm = controller.garage_panel.get_part_mesh_manager()
 	if pmm:
 		pmm._show_inner_frame(slot)
-	controller._update_total_stats()
+	controller.stats_panel.update()
 	controller.part_list_panel.populate(slot)
 	AudioManager.play_ui_click()
 
@@ -148,7 +148,7 @@ func on_equip_pressed() -> void:
 			GlobalData.frame_upgrade_level += 1
 			controller.status_message_label.text = "Frame Reactor Upgraded to Level %d!" % GlobalData.frame_upgrade_level
 			GlobalData.save_run()
-			controller._update_total_stats()
+			controller.stats_panel.update()
 		else:
 			controller.status_message_label.text = "Insufficient Credits!"
 		return
@@ -177,7 +177,7 @@ func on_equip_pressed() -> void:
 		controller.status_message_label.text = "Mounted %s on %s. Drag it in 3D to reposition." % [attachment["name"], controller.selected_slot.to_upper()]
 		GlobalData.save_run()
 		controller.garage_panel.update_all_slots_preview()
-		controller._update_total_stats()
+		controller.stats_panel.update()
 		return
 
 	if not controller.selected_salvage_info.is_empty():
@@ -186,7 +186,7 @@ func on_equip_pressed() -> void:
 			return
 		controller.status_message_label.text = "Equipped & Saved: %s!" % controller.selected_salvage_info.get("name", "Armor Plate")
 		GlobalData.save_run()
-		controller._update_total_stats()
+		controller.stats_panel.update()
 		controller.garage_panel.update_all_slots_preview()
 		return
 
@@ -198,7 +198,7 @@ func on_equip_pressed() -> void:
 		var fname = controller.selected_frame_info.get("name", "Frame")
 		controller.status_message_label.text = "Equipped Inner Frame: %s!" % fname
 		GlobalData.save_run()
-		controller._update_total_stats()
+		controller.stats_panel.update()
 		controller.part_list_panel.populate(controller.selected_slot)
 		controller.garage_panel.update_all_slots_preview()
 	elif controller.selected_part_path != "" and ResourceLoader.exists(controller.selected_part_path):
@@ -225,7 +225,7 @@ func on_equip_pressed() -> void:
 					GlobalData.set_hand_weapon(hand, wpath)
 					controller.status_message_label.text = "Equipped %s on %s hand!" % [(res.weapon_name if "weapon_name" in res else "Weapon"), hand]
 				GlobalData.save_run()
-				controller._update_total_stats()
+				controller.stats_panel.update()
 				controller.garage_panel.update_all_slots_preview()
 				controller.part_list_panel.populate(controller.selected_slot)
 				return
@@ -246,5 +246,5 @@ func on_equip_pressed() -> void:
 			GlobalData.part_damage.erase(controller.selected_slot)
 			controller.status_message_label.text = "Equipped & Saved Armor: %s!" % part_data["name"]
 			GlobalData.save_run()
-			controller._update_total_stats()
+			controller.stats_panel.update()
 			controller.garage_panel.update_all_slots_preview()

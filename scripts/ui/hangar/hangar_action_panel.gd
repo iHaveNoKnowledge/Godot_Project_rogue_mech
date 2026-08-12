@@ -143,7 +143,7 @@ func show(info: Dictionary) -> void:
 				GlobalData.part_damage.erase(controller.selected_slot + "_frame")
 				controller.status_message_label.text = "Part Repaired to 100% HP!"
 				GlobalData.save_run()
-				controller._update_total_stats()
+				controller.stats_panel.update()
 				if controller.current_mode == "frame":
 					controller.garage_panel.update_all_slots_preview()
 				else:
@@ -170,7 +170,7 @@ func show(info: Dictionary) -> void:
 						GlobalData.part_damage.erase(controller.selected_slot)
 					controller.status_message_label.text = "Part Upgraded! Max HP increased to %.0f" % info["hp"]
 					GlobalData.save_run()
-					controller._update_total_stats()
+					controller.stats_panel.update()
 				else:
 					controller.status_message_label.text = "Insufficient Credits for upgrade (50 cr needed)!"
 				close()

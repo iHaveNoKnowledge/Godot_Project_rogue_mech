@@ -23,6 +23,7 @@ var visible_weapon_indices: Array[int] = []
 var action_panel: HangarActionPanel = null
 var equip_panel: HangarEquipPanel = null
 var part_list_panel: HangarPartListPanel = null
+var stats_panel: HangarStatsPanel = null
 # Slot tab buttons keyed by slot id, reused for UI-only selection highlight.
 var slot_tab_buttons: Dictionary = {}
 
@@ -116,6 +117,8 @@ func _build_ui_layout() -> void:
 	equip_panel.controller = self
 	part_list_panel = HangarPartListPanel.new()
 	part_list_panel.controller = self
+	stats_panel = HangarStatsPanel.new()
+	stats_panel.controller = self
 	var root = Control.new()
 	root.name = "RootControl"
 	root_control = root
@@ -478,7 +481,7 @@ func set_editing_mech_id(id: String) -> void:
 # same refresh set the old in-controller cycle/switch logic ran.
 func refresh_after_mech_change(repopulate_parts: bool) -> void:
 	garage_panel.update_all_slots_preview()
-	_update_total_stats()
+	stats_panel.update()
 	if repopulate_parts:
 		part_list_panel.populate(selected_slot)
 
@@ -487,7 +490,7 @@ func refresh_after_mech_change(repopulate_parts: bool) -> void:
 # + the 3D preview with the new model — same refresh set the old in-controller
 # chassis apply ran.
 func refresh_after_chassis_change(chassis_info: Dictionary) -> void:
-	_update_total_stats()
+	stats_panel.update()
 	garage_panel.update_all_slots_preview()
 	if not chassis_info.is_empty() and garage_panel:
 		garage_panel.apply_chassis_preview(chassis_info)
@@ -498,7 +501,7 @@ func refresh_after_chassis_change(chassis_info: Dictionary) -> void:
 # in-controller craft flow ran.
 func refresh_after_craft(slot: String) -> void:
 	part_list_panel.populate(slot)
-	_update_total_stats()
+	stats_panel.update()
 
 
 # --- AMMO LOADOUT UI (how much ammo to carry into the next battle) ---
@@ -656,7 +659,7 @@ func show_hangar() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	# Open the editor on the mech the player is currently piloting.
 	_customize_mech_id = GlobalData.active_hangar_mech_id
-	_update_total_stats()
+	stats_panel.update()
 	AudioManager.play_hangar_music()
 	garage_panel.call_deferred("update_all_slots_preview")
 	# Entering the hangar shows the landing sub-menu first — the customize page
@@ -807,7 +810,7 @@ func _select_slot_tab(slot: String) -> void:
 			ammo_panel.refresh()
 	garage_panel.update_camera_focus(slot)
 	part_list_panel.populate(slot)
-	_update_total_stats()
+	stats_panel.update()
 	garage_panel.update_selection_highlight(slot)
 
 
@@ -822,7 +825,7 @@ func _on_repair_part_pressed() -> void:
 	GlobalData.part_damage.erase(selected_slot)
 	GlobalData.part_damage.erase(selected_slot + "_frame")
 	status_message_label.text = "Repaired %s!" % selected_slot.to_upper()
-	_update_total_stats()
+	stats_panel.update()
 	garage_panel.update_all_slots_preview()
 
 
@@ -841,55 +844,8 @@ func _on_full_repair_pressed() -> void:
 
 	GlobalData.part_damage.clear()
 	status_message_label.text = "Full Repair Complete!"
-	_update_total_stats()
+	stats_panel.update()
 	garage_panel.update_all_slots_preview()
-
-
-func _update_total_stats() -> void:
-	var chassis_info = GlobalData.chassis_catalog.get(GlobalData.chassis_id, GlobalData.chassis_catalog["standard"])
-	var max_weight = chassis_info["max_weight"] + GlobalData.get_frame_upgrade_weight_bonus()
-
-	var total_frame_weight = 0.0
-	var total_armor_weight = 0.0
-	var total_frame_hp = 0.0
-	var total_armor_hp = 0.0
-	var total_attachment_weight = 0.0
-
-	for slot in GlobalData.equipped_frames:
-		var f = GlobalData.equipped_frames[slot]
-		var max_fhp = f.get("hp", 0.0) + GlobalData.get_frame_upgrade_hp_bonus()
-		total_frame_weight += f.get("weight", 0.0)
-		total_frame_hp += max_fhp * (1.0 - clampf(GlobalData.part_damage.get(slot + "_frame", 0.0), 0.0, 1.0))
-
-	for slot in GlobalData.equipped_parts:
-		var p = GlobalData.equipped_parts[slot]
-		if p and p.get("weight") != null:
-			total_armor_weight += p.weight
-		if p and (p.get("hp") != null or p.get("max_hp") != null):
-			var max_ahp = float(p.get("hp", p.get("max_hp", 0.0)))
-			total_armor_hp += max_ahp * (1.0 - clampf(GlobalData.part_damage.get(slot, 0.0), 0.0, 1.0))
-
-	for attachment in GlobalData.attachments:
-		total_attachment_weight += float(attachment.get("weight", 0.0))
-
-	var total_weapon_weight = GlobalData.get_loadout_weapon_weight()
-	var total_weight = total_frame_weight + total_armor_weight + total_attachment_weight + total_weapon_weight
-
-	var field_pack_weight = GlobalData.get_field_pack_weight()
-	var field_pack_capacity = GlobalData.get_field_pack_capacity()
-
-	if weight_bar:
-		weight_bar.max_value = max_weight
-		weight_bar.value = total_weight
-
-	if total_stats_label:
-		total_stats_label.text = "FRAME LVL: %d | FRAME HP: %.0f | ARMOR HP: %.0f\nFRAME W: %.1fkg | ARMOR W: %.1fkg | ATTACH W: %.1fkg | WEAPON W: %.1fkg\nTOTAL WEIGHT: %.1f / %.1f kg\nFIELD PACK: %.1f / %.1f kg\nCREDITS: %d cr   |   SCRAP: %d" % [
-			GlobalData.frame_upgrade_level, total_frame_hp, total_armor_hp,
-			total_frame_weight, total_armor_weight, total_attachment_weight, total_weapon_weight,
-			total_weight, max_weight,
-			field_pack_weight, field_pack_capacity,
-			GlobalData.credits, GlobalData.scrap
-		]
 
 
 func _input(event: InputEvent) -> void:

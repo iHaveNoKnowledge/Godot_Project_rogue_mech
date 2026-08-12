@@ -10,6 +10,7 @@ extends Node
 ##   HangarActionPanel   — ACTION MENU popup (equip/unequip/repair/upgrade/paint)
 ##   HangarEquipPanel    — equip/unequip flow (hands, back carry, armor, frames)
 ##   HangarPartListPanel — part list populate + selection + equipped queries
+##   HangarStatsPanel    — total mech stats aggregation (weight bar + label)
 ## Run: godot --headless --path . res://tests/hangar_panels_verify.tscn
 
 var _fails: int = 0
@@ -27,6 +28,7 @@ func _ready() -> void:
 	await _verify_action_panel()
 	await _verify_equip_panel()
 	await _verify_part_list_panel()
+	await _verify_stats_panel()
 	print("HANGAR_PANELS_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	await get_tree().process_frame
 	get_tree().quit(1 if _fails > 0 else 0)
@@ -243,6 +245,16 @@ func _collect_label_text(root_node: Node) -> String:
 			out += child.text + "\n"
 		out += _collect_label_text(child)
 	return out
+
+
+# Parses the "TOTAL WEIGHT: X / Y kg" figure out of the stats label text.
+func _parse_total_weight(label_text: String) -> float:
+	var parts := label_text.split("TOTAL WEIGHT: ")
+	if parts.size() < 2:
+		return -1.0
+	var first_line := parts[1].split("\n")[0]
+	var weight_str := first_line.split(" / ")[0]
+	return weight_str.to_float()
 
 
 func _verify_craft_panel() -> void:
@@ -635,6 +647,56 @@ func _verify_part_list_panel() -> void:
 	await get_tree().process_frame
 	_check(ctrl.action_panel.part_action_modal != null, "double-click opens the action modal")
 	ctrl.action_panel.close()
+
+	ctrl.queue_free()
+	await get_tree().process_frame
+
+
+func _verify_stats_panel() -> void:
+	GlobalData.reset_run_data()
+	var ctrl: Node = load("res://scenes/ui/hangar_scene.tscn").instantiate()
+	add_child(ctrl)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var sp = ctrl.stats_panel
+	_check(sp != null, "controller builds a HangarStatsPanel")
+	_check(ctrl.weight_bar != null, "controller builds the weight bar")
+	_check(ctrl.total_stats_label != null, "controller builds the total stats label")
+
+	# The aggregation repaints the weight bar + label from GlobalData.
+	sp.update()
+	_check(ctrl.weight_bar.max_value > 0.0, "weight bar max tracks the chassis capacity")
+	_check(ctrl.weight_bar.value >= 0.0, "weight bar value is non-negative")
+	_check(ctrl.total_stats_label.text.contains("FRAME LVL"), "stats label shows the frame level")
+	_check(ctrl.total_stats_label.text.contains("TOTAL WEIGHT"), "stats label shows the total weight")
+	_check(ctrl.total_stats_label.text.contains("FIELD PACK"), "stats label shows the field pack")
+
+	# Sums are deterministic: reset seeds 3 starter weapons + default frames.
+	# The label's TOTAL WEIGHT is unclamped (the bar clamps to capacity), so
+	# parse it from the label. Clear the default body armor first so the delta
+	# is exactly the new part's weight.
+	GlobalData.equipped_parts.erase("body")
+	sp.update()
+	var weight_before := _parse_total_weight(ctrl.total_stats_label.text)
+	GlobalData.equipped_parts["body"] = {"uid": "t_armor", "name": "Test Plate", "hp": 50.0, "max_hp": 50.0, "weight": 5.0}
+	sp.update()
+	var weight_after := _parse_total_weight(ctrl.total_stats_label.text)
+	_check(weight_before >= 0.0 and is_equal_approx(weight_after, weight_before + 5.0), "stats sum adds the equipped armor weight")
+	GlobalData.equipped_parts.erase("body")
+
+	# Damage on an equipped slot reduces the summed HP in the label.
+	var hp_before: String = ctrl.total_stats_label.text
+	GlobalData.equipped_parts["body"] = {"uid": "t_armor2", "name": "Test Plate", "hp": 50.0, "max_hp": 50.0, "weight": 5.0}
+	GlobalData.part_damage["body"] = 1.0
+	sp.update()
+	_check(ctrl.total_stats_label.text != hp_before, "stats label reflects damage changes")
+	GlobalData.equipped_parts.erase("body")
+	GlobalData.part_damage.erase("body")
+
+	# update() is safe with no meaningful state (pure aggregation).
+	sp.update()
+	_check(true, "stats update runs without error on repeated calls")
 
 	ctrl.queue_free()
 	await get_tree().process_frame

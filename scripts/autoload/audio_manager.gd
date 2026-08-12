@@ -129,6 +129,20 @@ func _generate_sounds() -> void:
 	_sound_cache["pile_bunker_fire"] = _gen_pile_bunker_fire()
 	_sound_cache["pile_bunker_hit"] = _gen_pile_bunker_hit()
 
+	# Enemy attack telegraph warning (rising alert) — tells the pilot a hostile
+	# mech is about to open fire so they can react before the shot lands.
+	_sound_cache["enemy_warning"] = [
+		_gen_sine_sweep(600.0, 1100.0, 0.28, 0.35),
+		_gen_sine_sweep(640.0, 1180.0, 0.26, 0.32),
+		_gen_sine_sweep(580.0, 1050.0, 0.3, 0.38),
+	]
+	# Direct hit cue when the player's own mech takes damage.
+	_sound_cache["player_hit"] = [
+		_gen_crack(0.07, 0.5),
+		_gen_crack(0.06, 0.45),
+		_gen_crack(0.08, 0.55),
+	]
+
 
 # --- Sound Generation Helpers ---
 
@@ -504,6 +518,17 @@ func play_impact_by_type(damage_type: String, pos: Vector3) -> void:
 
 func play_ui_click() -> void:
 	play_sfx_2d("ui_click", -5.0, "UI")
+
+
+# Rising alert played on the enemy right as it starts its attack telegraph, so
+# the pilot hears the hostile charging up before the shot.
+func play_enemy_warning(pos: Vector3) -> void:
+	play_sfx("enemy_warning", pos, -2.0)
+
+
+# Loud, unmistakable cue when the player's mech takes a hit.
+func play_player_hit() -> void:
+	play_sfx_2d("player_hit", 0.0, "SFX")
 
 
 func play_ui_confirm() -> void:

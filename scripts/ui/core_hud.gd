@@ -38,8 +38,15 @@ extends CanvasLayer
 
 var health_system: Node = null
 
+# Hit feedback: a red full-screen flash + camera shake whenever the player's
+# mech takes damage, so getting shot is impossible to miss.
+var _hit_flash: ColorRect = null
+var _hit_flash_tween: Tween = null
+
 
 func _ready() -> void:
+	_create_hit_flash()
+	EventBus.damage_received.connect(_on_player_damaged)
 	await get_tree().process_frame
 	var mecha = GameManager.get_player_mecha()
 	if mecha:
@@ -49,6 +56,37 @@ func _ready() -> void:
 			health_system.armor_broken.connect(_on_armor_broken)
 			health_system.part_destroyed.connect(_on_part_destroyed)
 			_update_all_bars()
+
+
+# A transparent full-screen ColorRect sits above the HUD and flashes red on hit.
+func _create_hit_flash() -> void:
+	_hit_flash = ColorRect.new()
+	_hit_flash.name = "HitFlash"
+	_hit_flash.color = Color(1.0, 0.05, 0.02, 0.0)
+	_hit_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_hit_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_hit_flash)
+	_hit_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
+
+
+func _on_player_damaged(_slot_name: String, _amount: float, _damage_type: String) -> void:
+	if _hit_flash == null:
+		return
+	# Screen flash: briefly show a strong red, then fade out.
+	if _hit_flash_tween and _hit_flash_tween.is_valid():
+		_hit_flash_tween.kill()
+	_hit_flash.color.a = 0.5
+	_hit_flash_tween = create_tween()
+	_hit_flash_tween.tween_property(_hit_flash, "color:a", 0.0, 0.35)
+
+	# Distinct audio cue that the player is under fire.
+	if has_node("/root/AudioManager"):
+		AudioManager.play_player_hit()
+
+	# Camera shake so the impact is felt, not just seen.
+	var rig = get_tree().get_first_node_in_group("camera_rig")
+	if rig and rig.has_method("add_shake"):
+		rig.add_shake(0.35)
 
 
 func _on_health_changed(slot_name: String, _layer: String, _current_hp: float, _max_hp: float) -> void:

@@ -35,6 +35,12 @@ var reload_time: float = 3.0
 var reload_timer: float = 0.0
 var is_reloading: bool = false
 
+# Red telegraph flash: the state machine toggles this just before attacking so
+# the player can read that a shot is coming. Original material overrides are
+# cached on first flash and restored afterwards.
+var _flash_original_materials: Dictionary = {}
+var _flash_material: StandardMaterial3D = null
+
 
 func _ready() -> void:
 	add_to_group("enemy")
@@ -401,6 +407,52 @@ func _setup_enemy_status() -> void:
 	var status = get_node_or_null("EnemyStatus")
 	if status and status.has_method("setup_target"):
 		status.setup_target(self)
+
+
+# Toggles a red emissive flash across every rendered mesh of the enemy. Used as
+# the pre-attack telegraph so the player can tell which hostile is about to fire.
+# The first call caches each mesh's original material_override so the flash can
+# be removed cleanly (the original never gets overwritten).
+func set_attack_flash(on: bool) -> void:
+	if _flash_material == null:
+		_flash_material = StandardMaterial3D.new()
+		_flash_material.albedo_color = Color(1.0, 0.12, 0.05)
+		_flash_material.emission_enabled = true
+		_flash_material.emission = Color(1.0, 0.15, 0.06)
+		_flash_material.emission_energy_multiplier = 4.0
+		_flash_material.metallic = 0.3
+		_flash_material.roughness = 0.4
+
+	var meshes := _flash_meshes()
+	if on:
+		for m in meshes:
+			if not _flash_original_materials.has(m):
+				_flash_original_materials[m] = m.material_override
+			m.material_override = _flash_material
+	else:
+		for m in meshes:
+			if _flash_original_materials.has(m):
+				m.material_override = _flash_original_materials[m]
+				_flash_original_materials.erase(m)
+
+
+# Collects every MeshInstance3D on the enemy body (catalog meshes and any legacy
+# primitive meshes), skipping the status Label3D and the health/hitbox internals.
+func _flash_meshes() -> Array:
+	var result: Array = []
+	for child in get_children():
+		_collect_flash_meshes(child, result)
+	return result
+
+
+func _collect_flash_meshes(node: Node, into: Array) -> void:
+	if node is MeshInstance3D:
+		into.append(node)
+	# Don't recurse into the health/hitbox logic nodes or the status billboard.
+	if node is Area3D or node is CollisionShape3D or node is Label3D:
+		return
+	for child in node.get_children():
+		_collect_flash_meshes(child, into)
 
 
 func _physics_process(delta: float) -> void:

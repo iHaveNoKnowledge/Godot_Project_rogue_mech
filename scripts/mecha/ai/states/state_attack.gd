@@ -6,11 +6,36 @@ var attack_timer: float = 0.0
 var strafe_timer: float = 0.0
 var strafe_direction: float = 0.0
 
+# --- Attack telegraph: the enemy blinks red + plays a rising warning sound for
+# the last ~0.35x of its cooldown so the player sees/hears the shot coming. ---
+const TELEGRAPH_FRACTION := 0.35
+const TELEGRAPH_MIN := 0.35
+const TELEGRAPH_MAX := 0.9
+const BLINK_INTERVAL := 0.14
+var _telegraph_active: bool = false
+var _telegraph_remaining: float = 0.0
+var _blink_timer: float = 0.0
+var _flash_visible: bool = false
+
 
 func enter() -> void:
-	attack_timer = 0.0
+	# Small delay before the first attack so the telegraph has time to play.
+	attack_timer = minf(enemy.attack_cooldown, 0.9)
 	strafe_timer = 0.0
 	strafe_direction = [-1.0, 1.0][randi() % 2]
+	_telegraph_active = false
+	_telegraph_remaining = 0.0
+	_blink_timer = 0.0
+	_flash_visible = false
+	if enemy and enemy.has_method("set_attack_flash"):
+		enemy.set_attack_flash(false)
+
+
+func exit() -> void:
+	# Never leave the enemy stuck glowing red when it switches states.
+	_telegraph_active = false
+	if enemy and enemy.has_method("set_attack_flash"):
+		enemy.set_attack_flash(false)
 
 
 func physics_process(delta: float) -> void:
@@ -50,9 +75,43 @@ func physics_process(delta: float) -> void:
 
 	# Attack
 	attack_timer -= delta
+	# Start the warning telegraph as soon as we enter the pre-fire window, so the
+	# player sees the red blink and hears the rising tone BEFORE the shot lands.
+	if not _telegraph_active and attack_timer <= _telegraph_duration():
+		_telegraph_active = true
+		_telegraph_remaining = attack_timer
+		_blink_timer = 0.0
+		_flash_visible = false
+		if enemy.get_tree() and enemy.get_tree().root.has_node("AudioManager"):
+			AudioManager.play_enemy_warning(enemy.global_position + Vector3(0, 2, 0))
+	_update_telegraph(delta)
 	if attack_timer <= 0.0:
 		attack_timer = enemy.attack_cooldown
+		_telegraph_active = false
 		_perform_attack()
+
+
+# The warning lasts a fraction of the cooldown (clamped) so fast ranged units
+# blink briefly and heavy hitters telegraph longer, but never longer than ~0.9s.
+func _telegraph_duration() -> float:
+	var base = enemy.attack_cooldown * TELEGRAPH_FRACTION
+	return clampf(base, TELEGRAPH_MIN, TELEGRAPH_MAX)
+
+
+func _update_telegraph(delta: float) -> void:
+	if not _telegraph_active or _telegraph_remaining <= 0.0:
+		return
+	_telegraph_remaining -= delta
+	_blink_timer -= delta
+	if _blink_timer <= 0.0:
+		_blink_timer = BLINK_INTERVAL
+		_flash_visible = not _flash_visible
+		if enemy and enemy.has_method("set_attack_flash"):
+			enemy.set_attack_flash(_flash_visible)
+	if _telegraph_remaining <= 0.0:
+		_telegraph_active = false
+		if enemy and enemy.has_method("set_attack_flash"):
+			enemy.set_attack_flash(false)
 
 
 func _perform_attack() -> void:
@@ -118,6 +177,10 @@ func _fire_ranged() -> void:
 	var projectile = projectile_scene.instantiate()
 	enemy.get_tree().current_scene.add_child(projectile)
 	projectile.global_position = from_pos
+
+	# Fire sound at the muzzle so the player can hear the shot being fired.
+	if enemy.has_node("/root/AudioManager"):
+		AudioManager.play_sfx("machine_gun", from_pos, -3.0)
 
 	var dir = (to_pos - from_pos).normalized()
 

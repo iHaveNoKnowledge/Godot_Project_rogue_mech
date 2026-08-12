@@ -315,6 +315,82 @@ func _verify_garage_panel() -> void:
 	gp.update_camera_focus("leg_left")
 	_check(gp.cam_target_pos == Vector3(3.8, 1.6, 3.8), "camera focus targets the legs")
 
+	# --- Turntable drag: press starts the drag, motion rotates, release stops. ---
+	var press := InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_LEFT
+	press.pressed = true
+	gp.handle_input(press)
+	_check(gp._is_dragging_3d, "left press starts the 3D drag")
+
+	var motion := InputEventMouseMotion.new()
+	motion.relative = Vector2(100, 0)
+	var rot_before: float = gp.turntable_node.rotation.y
+	gp.handle_input(motion)
+	_check(is_equal_approx(gp.turntable_node.rotation.y, rot_before + 100.0 * 0.008), "drag rotates the turntable by relative.x * 0.008")
+
+	var release := InputEventMouseButton.new()
+	release.button_index = MOUSE_BUTTON_LEFT
+	release.pressed = false
+	gp.handle_input(release)
+	_check(not gp._is_dragging_3d, "left release ends the 3D drag")
+
+	# Motion without an active drag leaves the turntable still.
+	var rot_idle: float = gp.turntable_node.rotation.y
+	gp.handle_input(motion)
+	_check(is_equal_approx(gp.turntable_node.rotation.y, rot_idle), "motion without a drag does not rotate")
+
+	# In attachment mode with a selected attachment, drag moves the attachment
+	# instead of the turntable (unknown id -> early return, table stays put).
+	ctrl.current_mode = "attachment"
+	ctrl.selected_attachment_info = {"id": "no_such_attach", "slot": "body"}
+	gp.handle_input(press)
+	var rot_attach: float = gp.turntable_node.rotation.y
+	gp.handle_input(motion)
+	_check(is_equal_approx(gp.turntable_node.rotation.y, rot_attach), "attachment drag does not rotate the turntable")
+	gp.handle_input(release)
+	ctrl.current_mode = "armor"
+	ctrl.selected_attachment_info = {}
+
+	# --- Selection highlight + tab blink ---
+	gp.update_selection_highlight("body")
+	var body_btn: Button = ctrl.slot_tab_buttons.get("body", null)
+	_check(gp._blink_target_button == body_btn, "highlight targets the body slot tab")
+	_check(gp._blink_on, "highlight starts the blink in the ON phase")
+
+	# Blink paints a bright then dim stylebox on the target tab.
+	gp.apply_tab_blink(true)
+	if body_btn:
+		var sb_on: StyleBoxFlat = body_btn.get_theme_stylebox("normal") as StyleBoxFlat
+		_check(sb_on != null and sb_on.bg_color.a > 0.9, "blink ON paints a bright stylebox")
+	gp.apply_tab_blink(false)
+	if body_btn:
+		var sb_off: StyleBoxFlat = body_btn.get_theme_stylebox("normal") as StyleBoxFlat
+		_check(sb_off != null and sb_off.bg_color.a < 0.5, "blink OFF dims the stylebox")
+
+	# process() toggles the phase once the interval elapses, then resets the timer.
+	gp._blink_timer = 0.0
+	gp._blink_on = true
+	gp.process(gp._blink_interval + 0.1)
+	_check(not gp._blink_on, "process toggles the blink phase after the interval")
+	_check(gp._blink_timer < gp._blink_interval, "process resets the blink timer")
+
+	# Unselected tabs are dimmed gray.
+	var head_btn: Button = ctrl.slot_tab_buttons.get("head", null)
+	if head_btn:
+		gp.apply_tab_unselected(head_btn)
+		_check(head_btn.modulate == Color(0.5, 0.5, 0.56), "unselected tab is dimmed")
+
+	# remove_3d_selection_highlight frees and nulls the 3D highlight mesh.
+	gp.selection_highlight = MeshInstance3D.new()
+	ctrl.add_child(gp.selection_highlight)
+	gp.remove_3d_selection_highlight()
+	_check(gp.selection_highlight == null, "remove_3d_selection_highlight nulls the highlight")
+	_check(not is_instance_valid(gp.selection_highlight), "remove_3d_selection_highlight frees the highlight mesh")
+
+	# clear_selection_blink drops the target so process stops pulsing.
+	gp.clear_selection_blink()
+	_check(gp._blink_target_button == null, "clear_selection_blink drops the blink target")
+
 	# Attachment math helpers.
 	_check(gp.get_attachment_capacity("head") >= 0.0, "attachment capacity is non-negative")
 	_check(gp.get_attachment_weight("head") >= 0.0, "attachment weight is non-negative")

@@ -1,8 +1,9 @@
 extends Node
 
 ## Headless verification of the panels extracted from hangar_controller.gd:
-##   HangarPartText  — pure stat-card text helpers
-##   HangarAmmoPanel — ammo-to-carry loadout build/adjust/refresh
+##   HangarPartText     — pure stat-card text helpers
+##   HangarAmmoPanel    — ammo-to-carry loadout build/adjust/refresh
+##   HangarRosterPanel  — roster page (badge, slot rows, pilot/role pickers)
 ## Run: godot --headless --path . res://tests/hangar_panels_verify.tscn
 
 var _fails: int = 0
@@ -13,6 +14,7 @@ func _ready() -> void:
 	await get_tree().process_frame
 	_verify_text_helpers()
 	await _verify_ammo_panel()
+	await _verify_roster_panel()
 	print("HANGAR_PANELS_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	await get_tree().process_frame
 	get_tree().quit(1 if _fails > 0 else 0)
@@ -83,3 +85,70 @@ func _verify_ammo_panel() -> void:
 
 	box.queue_free()
 	status_lbl.queue_free()
+
+
+func _verify_roster_panel() -> void:
+	GlobalData.reset_run_data()
+	var ctrl: Node = load("res://scenes/ui/hangar_scene.tscn").instantiate()
+	add_child(ctrl)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var rp = ctrl.roster_panel_ui
+	_check(rp != null, "controller builds a HangarRosterPanel")
+	_check(rp.roster_panel != null, "roster panel builds its root panel")
+	_check(rp.roster_slot_list != null, "roster panel builds the slot list")
+	_check(rp.roster_page_title != null and rp.roster_status_label != null, "roster panel builds title + status labels")
+	_check(rp.mech_slot_label != null and rp.mech_prev_button != null and rp.mech_next_button != null, "roster panel builds badge + prev/next")
+	_check(rp.roster_panel.visible == false, "roster panel starts hidden")
+	_check(rp.mech_slot_label.visible == false, "badge starts hidden")
+
+	ctrl._select_hangar_submenu("roster")
+	await get_tree().process_frame
+	_check(rp.roster_panel.visible, "roster page shows the panel")
+	_check(rp.roster_slot_list.get_child_count() > 0, "roster page lists berth rows")
+	_check(rp.mech_slot_label.visible, "badge visible on roster page")
+	_check(rp.mech_slot_label.text.begins_with("MECH SLOT"), "badge reads MECH SLOT x/y")
+	_check(rp.roster_status_label.text.contains("CONVOY"), "roster status shows the convoy summary")
+
+	# Role picker: open for the active mech, pick "Ranged", assert it persists.
+	var mech_id := str(GlobalData.get_active_hangar_mech().get("id", ""))
+	var anchor := Button.new()
+	add_child(anchor)
+	rp.open_role_picker(mech_id, anchor)
+	var pop := _find_popup(ctrl)
+	_check(pop != null, "role picker creates a popup menu")
+	if pop:
+		pop.id_pressed.emit(1) # Ranged
+		_check(GlobalData.get_hangar_archetype(mech_id) == HangarManager.ARCHETYPE_RANGED, "role picker assigns the chosen archetype")
+
+	# Pilot picker: assign a pilot if one exists, then "(no pilot)" clears it.
+	var pilots := GlobalData.get_hangar_pilots()
+	if not pilots.is_empty():
+		GlobalData.assign_hangar_pilot(mech_id, str(pilots[0].get("id", "")))
+	rp.open_pilot_picker(mech_id, anchor)
+	pop = _find_popup(ctrl)
+	_check(pop != null, "pilot picker creates a popup menu")
+	if pop:
+		pop.id_pressed.emit(0)
+		var stored_pilot := ""
+		for m in GlobalData.get_hangar_mechs():
+			if str(m.get("id", "")) == mech_id:
+				stored_pilot = str(m.get("pilot", ""))
+		_check(stored_pilot == "", "pilot picker '(no pilot)' clears the seat")
+
+	ctrl._show_hangar_menu()
+	await get_tree().process_frame
+	_check(not rp.roster_panel.visible, "hangar menu hides the roster page")
+	_check(not rp.mech_slot_label.visible, "hangar menu hides the badge")
+
+	ctrl.queue_free()
+	anchor.queue_free()
+	await get_tree().process_frame
+
+
+func _find_popup(host: Node) -> PopupMenu:
+	for child in host.get_children():
+		if child is PopupMenu and is_instance_valid(child) and not child.is_queued_for_deletion():
+			return child
+	return null

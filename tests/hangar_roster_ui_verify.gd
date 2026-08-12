@@ -23,27 +23,29 @@ func _ready() -> void:
 
 	ctrl._select_hangar_submenu("roster")
 	await get_tree().process_frame
-	_check(ctrl.roster_panel != null and ctrl.roster_panel.visible, "roster page opens from hangar menu")
-	_check(ctrl.roster_slot_list != null and ctrl.roster_slot_list.get_child_count() > 0, "roster page lists berths")
-	_check(ctrl.mech_slot_label != null and ctrl.mech_slot_label.visible, "mech-slot badge visible on roster page")
-	_check(ctrl.mech_slot_label.text.begins_with("MECH SLOT"), "badge text is MECH SLOT x/y")
+	var rp = ctrl.roster_panel_ui
+	_check(rp != null, "hangar controller builds a roster panel")
+	_check(rp.roster_panel != null and rp.roster_panel.visible, "roster page opens from hangar menu")
+	_check(rp.roster_slot_list != null and rp.roster_slot_list.get_child_count() > 0, "roster page lists berths")
+	_check(rp.mech_slot_label != null and rp.mech_slot_label.visible, "mech-slot badge visible on roster page")
+	_check(rp.mech_slot_label.text.begins_with("MECH SLOT"), "badge text is MECH SLOT x/y")
 
 	ctrl._select_hangar_submenu("customize")
 	await get_tree().process_frame
-	_check(ctrl.roster_panel != null and not ctrl.roster_panel.visible, "customize page hides roster page")
-	_check(ctrl.mech_prev_button != null and ctrl.mech_prev_button.visible, "customize page shows prev-slot button")
-	_check(ctrl.mech_next_button != null and ctrl.mech_next_button.visible, "customize page shows next-slot button")
-	_check(ctrl.mech_slot_label.text.begins_with("MECH SLOT"), "customize page keeps the slot badge")
+	_check(rp.roster_panel != null and not rp.roster_panel.visible, "customize page hides roster page")
+	_check(rp.mech_prev_button != null and rp.mech_prev_button.visible, "customize page shows prev-slot button")
+	_check(rp.mech_next_button != null and rp.mech_next_button.visible, "customize page shows next-slot button")
+	_check(rp.mech_slot_label.text.begins_with("MECH SLOT"), "customize page keeps the slot badge")
 
 	ctrl._show_hangar_menu()
 	await get_tree().process_frame
-	_check(not ctrl.mech_slot_label.visible, "hangar menu hides the slot badge")
+	_check(not rp.mech_slot_label.visible, "hangar menu hides the slot badge")
 
 	# Switching to an active slot with only one parked mech is a no-op (safe).
-	var before: String = ctrl.mech_slot_label.text
-	ctrl._cycle_hangar_mech(1)
+	var before: String = rp.mech_slot_label.text
+	rp.cycle_hangar_mech(1)
 	await get_tree().process_frame
-	_check(ctrl.mech_slot_label.text == before, "cycling with one mech is a no-op")
+	_check(rp.mech_slot_label.text == before, "cycling with one mech is a no-op")
 
 	print("HANGAR_ROSTER_UI_VERIFY: fails=%d" % _fails)
 	get_tree().quit(1 if _fails > 0 else 0)

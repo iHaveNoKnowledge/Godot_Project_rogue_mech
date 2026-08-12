@@ -222,6 +222,15 @@ func _verify_roster_panel() -> void:
 	_check(GlobalData.scrap == scrap_after_grant and GlobalData.credits == credits_after_grant, "CANCEL spends nothing")
 
 	# Confirming with a custom name parks the mech and charges the exact cost.
+	# Re-seat the player in the original berth first so the register pilot swap
+	# is actually exercised (the old mech must end up as a pilotless spare).
+	var old_id := ""
+	for m in GlobalData.get_hangar_mechs():
+		if int(m.get("slot", 0)) == 1:
+			old_id = str(m.get("id", ""))
+			break
+	if old_id != "":
+		GlobalData.assign_hangar_pilot(old_id, HangarManager.PLAYER_PILOT_ID)
 	if register_btn and is_instance_valid(register_btn):
 		register_btn.pressed.emit()
 		await get_tree().process_frame
@@ -257,6 +266,18 @@ func _verify_roster_panel() -> void:
 	_check(rp.roster_panel == null or not rp.roster_panel.visible, "roster page is left after REGISTER")
 	_check(ctrl._customize_mech_id == new_id, "editing target follows the freshly registered mech")
 	_check(rp.mech_slot_label.text.contains("Vanguard"), "badge tracks the freshly registered mech")
+	# The frame also becomes the player's mech: active + pilot label move over,
+	# and the previous machine parks as a pilotless spare.
+	_check(GlobalData.active_hangar_mech_id == new_id, "freshly registered mech becomes the piloted mech")
+	var pilot_of_new := ""
+	var pilot_of_old := ""
+	for m in GlobalData.get_hangar_mechs():
+		if str(m.get("id", "")) == new_id:
+			pilot_of_new = str(m.get("pilot", ""))
+		elif int(m.get("slot", 0)) == 1:
+			pilot_of_old = str(m.get("pilot", ""))
+	_check(pilot_of_new == "player", "player pilot auto-assigned to the new frame")
+	_check(pilot_of_old == "", "the previous mech parks as a pilotless spare")
 	_check(_find_register_button(rp) == null, "a filled berth no longer offers REGISTER")
 
 	# Free the berth, then verify the walking-chassis gate: without a body frame

@@ -335,8 +335,8 @@ func build_slot_row(slot: int, mech: Dictionary, over_capacity: bool) -> void:
 # convoy berth as a parked mech. Mirrors build_hangar_mech's rules: a walking
 # chassis (body + both leg frames) must be equipped, pilot-only mode must be
 # off, and the assembly costs scrap + credits. Asks for the new frame's name
-# first instead of auto-naming it "Mech 02"; the new berth still parks
-# pilotless (assign a pilot or SWITCH to it after).
+# first instead of auto-naming it "Mech 02"; on confirm the frame becomes the
+# player's mech (active + pilot) and the customize page opens for tuning.
 func register_mech(slot: int) -> void:
 	if GlobalData.mech_less:
 		_set_status("You're on foot — rebuild a chassis through recovery missions.")
@@ -407,7 +407,7 @@ func build_register_dialog(slot: int) -> void:
 	vbox.add_child(cost_lbl)
 
 	var hint := Label.new()
-	hint.text = "Name the frame you are assembling from the current build. It parks\npilotless — assign a pilot or SWITCH to it from the roster after."
+	hint.text = "Name the frame you are assembling from the current build. Once\nregistered it becomes your piloted mech — tune it right away."
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.add_theme_color_override("font_color", Color(0.5, 0.7, 0.9))
 	hint.add_theme_font_size_override("font_size", 11)
@@ -489,23 +489,20 @@ func _confirm_register(slot: int) -> void:
 	# Charged here (not in build()) so recovery grants / recruit parking stay free.
 	GlobalData.try_spend_scrap(GlobalData.get_frame_register_scrap_cost())
 	GlobalData.try_spend_credits(GlobalData.get_frame_register_credit_cost())
+	# The freshly assembled frame becomes the player's mech: it takes over as
+	# the active/piloted machine (the previous one parks as a pilotless spare)
+	# so tuning it on the customize page carries straight into the next fight.
+	var new_id := str(new_mech.get("id", ""))
+	controller.set_editing_mech_id(new_id)
+	if GlobalData.switch_hangar_mech(new_id):
+		controller.selected_chassis_key = GlobalData.chassis_id
+	GlobalData.assign_hangar_pilot(new_id, HangarManager.PLAYER_PILOT_ID)
 	GlobalData.save_run()
 	AudioManager.play_ui_confirm()
 	refresh_page()
-	# Jump straight into the customize page for the freshly assembled frame so
-	# the driver can tune it (armor/frames/loadout) instead of staring at the
-	# roster. The editing target follows the new berth and its snapshot loads
-	# into the working set; the player still pilots their previous mech until
-	# they SWITCH from the roster.
-	var new_id := str(new_mech.get("id", ""))
-	controller.set_editing_mech_id(new_id)
-	# Guard the load so the "working set follows the new mech" invariant stays
-	# explicit (it can't realistically fail — the mech was just appended).
-	if GlobalData.load_hangar_mech_state(new_id):
-		controller.selected_chassis_key = GlobalData.chassis_id
 	controller.refresh_panel.after_mech_change(false)
 	controller.nav_panel.select_submenu("customize")
-	_set_status("Registered %s in SLOT %02d (-%d scrap, -%d cr). Tune it here, or SWITCH to pilot it from the roster." % [
+	_set_status("Registered %s in SLOT %02d (-%d scrap, -%d cr). It is now your piloted mech — tune it here." % [
 		str(new_mech.get("name", "Mech")), slot,
 		GlobalData.get_frame_register_scrap_cost(), GlobalData.get_frame_register_credit_cost()])
 

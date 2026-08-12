@@ -15,6 +15,10 @@ var controller  # hangar_controller.gd
 # then restore the ACTIVE mech (the one the player actually pilots) back into
 # the working set so combat loads the right machine.
 func close() -> void:
+	# Drop any in-progress frame assembly first (reverts loadout leaks back onto
+	# the pre-flow berths) so its edits never persist as normal customize edits.
+	if controller.roster_panel_ui:
+		controller.roster_panel_ui.close_pending_register()
 	controller.persist_panel.persist_edits()
 	controller.readiness_panel.check(func():
 		controller.visible = false

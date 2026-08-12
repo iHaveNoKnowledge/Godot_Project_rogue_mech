@@ -512,6 +512,13 @@ func save_hangar_mech_state(mech_id: String) -> bool:
 	return HangarManager.save_mech_state(mech_id)
 
 
+# Replaces a parked mech's loadout with the given snapshot while preserving its
+# identity (id/name/slot/pilot/archetype). Used to undo working-set edits that
+# leaked onto a berth during the REGISTER assembly flow.
+func restore_berth_loadout(mech_id: String, snapshot: Dictionary) -> bool:
+	return HangarManager.restore_berth_loadout(mech_id, snapshot)
+
+
 # Fleet-driven convoy capacity: number of parking berths the hangar has.
 func get_hangar_capacity() -> int:
 	return HangarManager.get_capacity()

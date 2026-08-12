@@ -179,7 +179,10 @@ func _verify_roster_panel() -> void:
 	# deletion) berth rows linger when the REGISTER checks look for a button.
 	await get_tree().process_frame
 
-	# --- REGISTER: empty berths offer a frame-assembly button + name prompt. ---
+	# --- REGISTER: empty berths offer a frame-assembly button that opens the ---
+	# --- build flow: it jumps into the customize page (INNER SKELETON) with a ---
+	# --- pending banner; the name prompt only opens once BODY + both legs are ---
+	# --- equipped and REGISTER FRAME is pressed. ---
 	# Solo convoy: capacity 2 with one parked mech -> SLOT 02 is an empty berth.
 	var register_btn := _find_register_button(rp)
 	_check(register_btn != null, "empty berth row offers a REGISTER button")
@@ -189,29 +192,53 @@ func _verify_roster_panel() -> void:
 	var scrap_before := GlobalData.scrap
 	var credits_before := GlobalData.credits
 
-	# REGISTER costs scrap + credits (HangarManager.REGISTER_*_COST). reset_run_data
-	# leaves scrap at 0, so the price gate blocks until resources are granted.
+	# Pressing REGISTER always jumps to customize (frame mode, BODY slot) and
+	# raises the pending banner — no price or chassis gate at press time.
 	rp.register_mech(2)
-	_check(rp.roster_status_label.text.contains("not enough resources"), "REGISTER blocks without enough scrap/credits")
-	_check(rp.register_dialog == null, "unaffordable REGISTER opens no name prompt")
-	_check(GlobalData.get_hangar_mechs().size() == mechs_before, "unaffordable REGISTER parks no mech")
-	_check(GlobalData.scrap == scrap_before and GlobalData.credits == credits_before, "unaffordable REGISTER spends nothing")
+	await get_tree().process_frame
+	_check(ctrl.nav_panel.current_submenu == "customize", "REGISTER jumps into the customize page")
+	_check(ctrl.current_mode == "frame", "REGISTER switches the part list to INNER SKELETON")
+	_check(ctrl.selected_slot == "body", "REGISTER opens on the BODY slot")
+	_check(rp.register_dialog == null, "REGISTER opens no name prompt yet")
+	_check(rp.pending_register_banner != null and is_instance_valid(rp.pending_register_banner), "REGISTER raises the pending banner")
+	_check(GlobalData.get_hangar_mechs().size() == mechs_before, "REGISTER parks nothing while building")
+	var banner_text := _collect_label_text(rp.pending_register_banner)
+	_check(banner_text.contains("COST: %d scrap" % reg_scrap), "pending banner shows the assembly cost")
+	_check(banner_text.contains("BODY") and banner_text.contains("LEFT LEG") and banner_text.contains("RIGHT LEG"), "pending banner lists the required frames")
+	var pending_ok: Button = _find_button_by_text(rp.pending_register_banner, "REGISTER FRAME")
+	var pending_cancel: Button = _find_button_by_text(rp.pending_register_banner, "✕")
+	_check(pending_ok != null, "pending banner builds the REGISTER FRAME button")
+	_check(pending_cancel != null, "pending banner builds the abandon button")
+	# The default working set already carries a walking chassis (reset seeds the
+	# body + both leg frames), so the confirm is unlocked immediately.
+	_check(rp.pending_register_button != null and not rp.pending_register_button.disabled, "REGISTER FRAME enabled with a complete chassis")
 
-	# Grant enough resources for the rest of the flow, then press REGISTER.
+	# The price moved to the confirm: without resources, REGISTER FRAME reports
+	# the shortfall instead of opening the name prompt.
+	if pending_ok:
+		pending_ok.pressed.emit()
+		await get_tree().process_frame
+	_check(rp.roster_status_label.text.contains("not enough resources"), "REGISTER FRAME blocks without enough scrap/credits")
+	_check(rp.register_dialog == null, "unaffordable REGISTER FRAME opens no name prompt")
+	_check(GlobalData.get_hangar_mechs().size() == mechs_before, "unaffordable REGISTER FRAME parks no mech")
+	_check(GlobalData.scrap == scrap_before and GlobalData.credits == credits_before, "unaffordable REGISTER FRAME spends nothing")
+
+	# Grant enough resources, then open the name prompt from the banner.
 	GlobalData.gain_scrap(reg_scrap + 500)
 	GlobalData.gain_credits(reg_credits + 500)
 	var scrap_after_grant := GlobalData.scrap
 	var credits_after_grant := GlobalData.credits
-	if register_btn:
-		register_btn.pressed.emit()
+	if pending_ok and is_instance_valid(pending_ok):
+		pending_ok.pressed.emit()
 		await get_tree().process_frame
-	_check(rp.register_dialog != null, "REGISTER opens the name prompt dialog")
+	_check(rp.register_dialog != null, "REGISTER FRAME opens the name prompt dialog")
 	_check(rp.register_dialog_edit != null, "name prompt builds the LineEdit")
 	_check(rp.register_dialog_edit.text == "Mech 02", "name prompt defaults to the slot-based name")
 	_check(_collect_label_text(rp.register_dialog).contains("COST: %d scrap" % reg_scrap), "name prompt shows the assembly cost")
 	_check(GlobalData.get_hangar_mechs().size() == mechs_before, "nothing is parked until the name is confirmed")
 
-	# Cancelling aborts without parking or spending anything.
+	# Cancelling aborts without parking or spending anything; the banner stays
+	# armed so the assembly can be resumed.
 	if rp.register_dialog:
 		var cancel_btn := _find_button_by_text(rp.register_dialog, "CANCEL")
 		_check(cancel_btn != null, "name prompt builds the CANCEL button")
@@ -222,9 +249,46 @@ func _verify_roster_panel() -> void:
 	_check(GlobalData.get_hangar_mechs().size() == mechs_before, "CANCEL parks nothing")
 	_check(GlobalData.scrap == scrap_after_grant and GlobalData.credits == credits_after_grant, "CANCEL spends nothing")
 
-	# Confirming with a custom name parks the mech and charges the exact cost.
-	# Re-seat the player in the original berth first so the register pilot swap
-	# is actually exercised (the old mech must end up as a pilotless spare).
+	# The banner's abandon button drops the pending assembly without side
+	# effects (no park, no spend) AND reverts frames equipped mid-flow — they
+	# were meant for the NEW mech, so the old berth keeps its build.
+	var old_slot1_body := {}
+	for m in GlobalData.get_hangar_mechs():
+		if int(m.get("slot", 0)) == 1:
+			old_slot1_body = m.get("frames", {}).get("body", {})
+			break
+	GlobalData.equipped_frames["body"] = {"name": "Scrap Frame", "hp": 10.0}
+	ctrl.persist_panel.commit_and_save()  # real equip path writes the working set onto the edited berth
+	if pending_cancel and is_instance_valid(pending_cancel):
+		pending_cancel.pressed.emit()
+		await get_tree().process_frame
+	_check(rp.pending_register_banner == null or not is_instance_valid(rp.pending_register_banner), "abandon button closes the pending banner")
+	_check(GlobalData.get_hangar_mechs().size() == mechs_before, "abandon parks nothing")
+	_check(GlobalData.scrap == scrap_after_grant and GlobalData.credits == credits_after_grant, "abandon spends nothing")
+	var slot1_body_after := {}
+	for m in GlobalData.get_hangar_mechs():
+		if int(m.get("slot", 0)) == 1:
+			slot1_body_after = m.get("frames", {}).get("body", {})
+			break
+	_check(slot1_body_after == old_slot1_body, "abandon restores the old berth's frame loadout")
+	_check(GlobalData.equipped_frames.get("body", {}).get("name", "") != "Scrap Frame", "abandon reverts the working set")
+
+	# Re-arm it, then confirm with a custom name: parks the mech and charges the
+	# exact cost. Re-seat the player in the original berth first so the register
+	# pilot swap is actually exercised (the old mech must end up pilotless).
+	rp.register_mech(2)
+	await get_tree().process_frame
+	_check(rp.pending_register_banner != null and is_instance_valid(rp.pending_register_banner), "REGISTER re-arms the pending banner")
+	# Equip a different body frame mid-flow (through the real commit path) and
+	# assert it lands ONLY on the new mech: the old berth must keep its build.
+	var slot1_body_before := {}
+	for m in GlobalData.get_hangar_mechs():
+		if int(m.get("slot", 0)) == 1:
+			slot1_body_before = m.get("frames", {}).get("body", {})
+			break
+	GlobalData.equipped_frames["body"] = {"name": "Scrap Frame", "hp": 10.0}
+	ctrl.persist_panel.commit_and_save()
+	_check(rp.pending_register_button != null and not rp.pending_register_button.disabled, "equipped chassis unlocks REGISTER FRAME")
 	var old_id := ""
 	for m in GlobalData.get_hangar_mechs():
 		if int(m.get("slot", 0)) == 1:
@@ -232,10 +296,10 @@ func _verify_roster_panel() -> void:
 			break
 	if old_id != "":
 		GlobalData.assign_hangar_pilot(old_id, HangarManager.PLAYER_PILOT_ID)
-	if register_btn and is_instance_valid(register_btn):
-		register_btn.pressed.emit()
+	if rp.pending_register_button and is_instance_valid(rp.pending_register_button):
+		rp.pending_register_button.pressed.emit()
 		await get_tree().process_frame
-	_check(rp.register_dialog != null, "REGISTER re-opens the prompt for a custom name")
+	_check(rp.register_dialog != null, "REGISTER FRAME re-opens the prompt for a custom name")
 	if rp.register_dialog_edit:
 		rp.register_dialog_edit.text = "Vanguard"
 	if rp.register_dialog:
@@ -258,7 +322,7 @@ func _verify_roster_panel() -> void:
 			new_id = str(m.get("id", ""))
 	_check(registered_name == "Vanguard", "custom name is used instead of the auto 'Mech 02'")
 	_check(ctrl.status_message_label.text.contains("Vanguard"), "REGISTER reports the named mech")
-	# Confirming jumps straight into the customize page for the new mech: the
+	# Confirming lands (and stays) on the customize page for the new mech: the
 	# editing target follows, its snapshot loads into the working set, and the
 	# badge + sidebars show the customize page instead of the roster.
 	_check(ctrl.nav_panel.current_submenu == "customize", "REGISTER lands on the customize page")
@@ -280,7 +344,17 @@ func _verify_roster_panel() -> void:
 			pilot_of_old = str(m.get("pilot", ""))
 	_check(pilot_of_new == "player", "player pilot auto-assigned to the new frame")
 	_check(pilot_of_old == "", "the previous mech parks as a pilotless spare")
+	# The frame equipped during assembly rides on the NEW mech only: Vanguard
+	# carries the Scrap Frame body while the old berth keeps its original build.
+	for m in GlobalData.get_hangar_mechs():
+		if int(m.get("slot", 0)) == 2:
+			_check(str(m.get("frames", {}).get("body", {}).get("name", "")) == "Scrap Frame", "new mech carries the frame equipped during assembly")
+	for m in GlobalData.get_hangar_mechs():
+		if int(m.get("slot", 0)) == 1:
+			_check(m.get("frames", {}).get("body", {}) == slot1_body_before, "assembling frames does not rewrite the old berth")
 	_check(_find_register_button(rp) == null, "a filled berth no longer offers REGISTER")
+	# A successful registration closes the pending banner.
+	_check(rp.pending_register_banner == null or not is_instance_valid(rp.pending_register_banner), "successful REGISTER closes the pending banner")
 	# The success cue is a distinct mech-register sound (not the generic confirm
 	# beep): the AudioManager must expose the API, generate the stream and play
 	# it without error (headless playback is silent but validates the wiring).
@@ -289,8 +363,9 @@ func _verify_roster_panel() -> void:
 	AudioManager.play_mech_register()
 	_check(true, "mech-register cue plays without error")
 
-	# Free the berth, then verify the walking-chassis gate: without a body frame
-	# the build is blocked with a hint and no name prompt is offered.
+	# Free the berth, then verify the walking-chassis gate now lives on the
+	# banner/confirm: without a body frame the REGISTER FRAME button is locked
+	# and pressing it reports the missing frames instead of opening a prompt.
 	var parked_id := ""
 	for m in GlobalData.get_hangar_mechs():
 		if int(m.get("slot", 0)) == 2:
@@ -300,15 +375,28 @@ func _verify_roster_panel() -> void:
 		GlobalData.remove_hangar_mech(parked_id)
 		GlobalData.equipped_frames.erase("body")
 		rp.register_mech(2)
-		_check(rp.roster_status_label.text.contains("walking chassis"), "REGISTER blocks without a walking chassis")
-		_check(rp.register_dialog == null, "chassis gate opens no name prompt")
-		_check(GlobalData.get_hangar_mechs().size() == mechs_before, "blocked REGISTER parks no mech")
-		_check(GlobalData.scrap == scrap_after_first and GlobalData.credits == credits_after_first, "chassis gate spends nothing")
-		# Restore the frame and confirm a blank name -> falls back to "Mech 02".
-		GlobalData.equipped_frames["body"] = (GlobalData.frame_catalog["body"][0] as Dictionary).duplicate()
-		rp.register_mech(2)
 		await get_tree().process_frame
-		_check(rp.register_dialog != null, "valid chassis re-opens the name prompt")
+		_check(rp.pending_register_banner != null and is_instance_valid(rp.pending_register_banner), "REGISTER arms the banner without a walking chassis")
+		_check(rp.register_dialog == null, "incomplete chassis opens no name prompt")
+		_check(rp.pending_register_button != null and rp.pending_register_button.disabled, "REGISTER FRAME locked without a walking chassis")
+		_check(rp.pending_register_status_label != null and rp.pending_register_status_label.text.contains("✗"), "banner marks the missing frames")
+		if rp.pending_register_button:
+			rp.pending_register_button.pressed.emit()
+			await get_tree().process_frame
+		_check(rp.register_dialog == null, "locked REGISTER FRAME opens no prompt")
+		_check(rp.roster_status_label.text.contains("walking chassis"), "locked REGISTER FRAME reports the missing chassis")
+		_check(GlobalData.get_hangar_mechs().size() == mechs_before, "blocked REGISTER parks no mech")
+		_check(GlobalData.scrap == scrap_after_first and GlobalData.credits == credits_after_first, "blocked REGISTER spends nothing")
+		# Restore the body frame -> the banner re-evaluates and unlocks.
+		GlobalData.equipped_frames["body"] = (GlobalData.frame_catalog["body"][0] as Dictionary).duplicate()
+		rp.refresh_pending_register()
+		_check(rp.pending_register_button != null and not rp.pending_register_button.disabled, "restored chassis unlocks REGISTER FRAME")
+		_check(rp.pending_register_status_label != null and not rp.pending_register_status_label.text.contains("✗"), "banner marks every frame present")
+		# Confirm a blank name -> falls back to "Mech 02" and charges the cost.
+		if rp.pending_register_button:
+			rp.pending_register_button.pressed.emit()
+			await get_tree().process_frame
+		_check(rp.register_dialog != null, "valid chassis opens the name prompt")
 		if rp.register_dialog_edit:
 			rp.register_dialog_edit.text = "   "
 			# Enter (text_submitted) is the keyboard path into _confirm_register.
@@ -331,16 +419,21 @@ func _verify_roster_panel() -> void:
 	rp.register_mech(2)
 	_check(rp.roster_status_label.text.begins_with("You're on foot"), "on-foot register explains the recovery path")
 	_check(rp.register_dialog == null, "on-foot register opens no name prompt")
+	_check(rp.pending_register_banner == null, "on-foot register raises no pending banner")
 	_check(GlobalData.get_hangar_mechs().size() == 0, "on-foot register parks no mech")
 	GlobalData.mech_less = false
 
-	# Leaving the roster page closes any open name prompt.
+	# Leaving the page closes any open name prompt.
 	rp.register_mech(2)
 	await get_tree().process_frame
+	_check(rp.pending_register_banner != null and is_instance_valid(rp.pending_register_banner), "pending banner is up before opening the prompt")
+	if rp.pending_register_button and is_instance_valid(rp.pending_register_button):
+		rp.pending_register_button.pressed.emit()
+		await get_tree().process_frame
 	_check(rp.register_dialog != null, "name prompt is open before leaving the page")
 	rp.hide_page()
 	await get_tree().process_frame
-	_check(rp.register_dialog == null or not is_instance_valid(rp.register_dialog), "leaving the roster page closes the name prompt")
+	_check(rp.register_dialog == null or not is_instance_valid(rp.register_dialog), "leaving the page closes the name prompt")
 
 	# Resources drained while the prompt is open: confirming reports the
 	# shortfall, closes the dialog and spends nothing (no negative balances).
@@ -348,6 +441,9 @@ func _verify_roster_panel() -> void:
 	GlobalData.gain_credits(reg_credits + 10)
 	rp.register_mech(2)
 	await get_tree().process_frame
+	if rp.pending_register_button and is_instance_valid(rp.pending_register_button):
+		rp.pending_register_button.pressed.emit()
+		await get_tree().process_frame
 	_check(rp.register_dialog != null, "affordable REGISTER opens the prompt once more")
 	if rp.register_dialog_edit:
 		rp.register_dialog_edit.text = "Drained"
@@ -366,6 +462,7 @@ func _verify_roster_panel() -> void:
 	await get_tree().process_frame
 	_check(not rp.roster_panel.visible, "hangar menu hides the roster page")
 	_check(not rp.mech_slot_label.visible, "hangar menu hides the badge")
+	_check(rp.pending_register_banner == null or not is_instance_valid(rp.pending_register_banner), "hangar menu drops the pending banner")
 
 	ctrl.queue_free()
 	anchor.queue_free()

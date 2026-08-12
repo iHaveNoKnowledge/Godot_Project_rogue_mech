@@ -23,6 +23,18 @@ var mech_next_button: Button = null
 # members so callers (and the test suite) can drive the LineEdit + confirm.
 var register_dialog: Control = null
 var register_dialog_edit: LineEdit = null
+# Pending-register banner shown on the customize page while a berth is being
+# assembled: the required walking-chassis checklist (BODY + both legs) and the
+# REGISTER FRAME confirm, locked until every required frame is equipped.
+var pending_register_banner: Control = null
+var pending_register_button: Button = null
+var pending_register_status_label: Label = null
+var _pending_register_slot: int = -1
+# Pre-flow loadout snapshots of the berths the working set can leak onto while
+# the player assembles frames (the editing target + the active driver), so the
+# registration can restore them once it completes or is abandoned.
+var _pending_original_editing: Dictionary = {}
+var _pending_original_active: Dictionary = {}
 
 
 ## Header badge + prev/next switcher, built into the top header row.
@@ -334,33 +346,234 @@ func build_slot_row(slot: int, mech: Dictionary, over_capacity: bool) -> void:
 		row.add_child(switch_btn)
 
 
-# REGISTER — assembles the currently built parts (the working set) into an empty
-# convoy berth as a parked mech. Mirrors build_hangar_mech's rules: a walking
-# chassis (body + both leg frames) must be equipped, pilot-only mode must be
-# off, and the assembly costs scrap + credits. Asks for the new frame's name
-# first instead of auto-naming it "Mech 02"; on confirm the frame becomes the
-# player's mech (active + pilot) and the customize page opens for tuning.
+# REGISTER — assembles the currently built parts (the working set) into an
+# empty convoy berth as a parked mech. Pressing it jumps into the customize
+# page (INNER SKELETON mode, BODY slot) so the player can equip the frames the
+# new mech needs; the pending banner then confirms the registration, locked
+# until a walking chassis (body + both legs) is equipped. On confirm the frame
+# becomes the player's mech (active + pilot) and costs scrap + credits.
 func register_mech(slot: int) -> void:
 	if GlobalData.mech_less:
 		_set_status("You're on foot — rebuild a chassis through recovery missions.")
 		return
-	# Validate the walking chassis BEFORE asking for a name, so the player is
-	# never prompted for a build that can't happen.
-	var needs_chassis := false
+	close_register_dialog()
+	# Jump straight into the frame picker so equipping BODY + both legs is the
+	# very next action. The chassis + price gates now live on the banner's
+	# REGISTER FRAME confirm (and the confirm-time re-check), not on this press.
+	controller.nav_panel.select_submenu("customize")
+	controller.slot_panel.select("body")
+	controller.nav_panel.switch_custom_mode("frame")
+	start_pending_register(slot)
+
+
+# True when the working set has the walking chassis the register flow needs: a
+# body frame plus both leg frames (the same set build_hangar_mech requires).
+func _has_walking_chassis() -> bool:
 	for required in HangarManager.REQUIRED_WALKING_FRAMES:
 		if not GlobalData.equipped_frames.has(required) or GlobalData.equipped_frames[required] == null:
-			needs_chassis = true
-			break
-	if needs_chassis:
+			return false
+	return true
+
+
+# Arms the pending registration for `slot`: raises the banner on the customize
+# page and records which berth the confirmation should fill.
+func start_pending_register(slot: int) -> void:
+	close_pending_register()
+	_pending_register_slot = slot
+	_capture_pending_originals()
+	build_pending_register_banner(slot)
+	_set_status("Assembling SLOT %02d — equip a BODY + both legs (INNER SKELETON), then press REGISTER FRAME." % slot)
+
+
+# Snapshots the loadouts of the berths the working set can leak onto during the
+# assembly (the editing target + the active driver) so they can be restored
+# once the registration completes or is abandoned.
+func _capture_pending_originals() -> void:
+	_pending_original_editing = {}
+	_pending_original_active = {}
+	var editing_id: String = controller.get_editing_mech_id()
+	var active_id: String = GlobalData.active_hangar_mech_id
+	for m in GlobalData.get_hangar_mechs():
+		var mid := str(m.get("id", ""))
+		if mid == editing_id:
+			# Deep-copy: get_hangar_mechs() only shallow-duplicates the array, so
+			# without this the "original" would share the live entry dict and any
+			# in-place mutation would corrupt the restore.
+			_pending_original_editing = m.duplicate(true)
+		if mid == active_id:
+			_pending_original_active = m.duplicate(true)
+
+
+# Reverts the captured berth loadouts and reloads the previously-edited berth
+# into the working set, so abandoning an assembly leaves every existing mech
+# exactly as it was (the frames equipped mid-flow were meant for the NEW mech).
+func _restore_pending_flow() -> void:
+	var had_originals := not _pending_original_editing.is_empty() or not _pending_original_active.is_empty()
+	_restore_captured_berths()
+	var editing_id := str(_pending_original_editing.get("id", ""))
+	if editing_id != "":
+		GlobalData.load_hangar_mech_state(editing_id)
+	if had_originals:
+		GlobalData.save_run()
+	_pending_original_editing = {}
+	_pending_original_active = {}
+
+
+# Restores the captured berth loadouts WITHOUT touching the working set — used
+# after a successful registration, where the working set already holds the new
+# mech's state.
+func _restore_pending_roster_only() -> void:
+	_restore_captured_berths()
+	_pending_original_editing = {}
+	_pending_original_active = {}
+
+
+# Shared by the two restore paths: writes the pre-flow loadouts back onto the
+# captured berths (identity fields — id/name/slot/pilot/archetype — are kept).
+func _restore_captured_berths() -> void:
+	if not _pending_original_editing.is_empty():
+		GlobalData.restore_berth_loadout(str(_pending_original_editing.get("id", "")), _pending_original_editing)
+	if not _pending_original_active.is_empty():
+		GlobalData.restore_berth_loadout(str(_pending_original_active.get("id", "")), _pending_original_active)
+
+
+# Floating panel on the customize page: the required-frame checklist plus the
+# REGISTER FRAME confirm (locked until a walking chassis is equipped) and an
+# abandon button. Lives on the customize page so the player can switch slots /
+# modes freely while assembling.
+func build_pending_register_banner(slot: int) -> void:
+	var modal := PanelContainer.new()
+	modal.name = "PendingRegisterBanner"
+	modal.anchor_left = 0.5
+	modal.anchor_right = 0.5
+	modal.anchor_top = 0.0
+	modal.anchor_bottom = 0.0
+	modal.offset_left = -190
+	modal.offset_right = 190
+	modal.offset_top = 132
+	modal.offset_bottom = 262
+
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.10, 0.12, 0.18, 0.97)
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.border_color = controller._highlight_color
+	style.corner_radius_top_left = 8
+	style.corner_radius_top_right = 8
+	style.corner_radius_bottom_left = 8
+	style.corner_radius_bottom_right = 8
+	modal.add_theme_stylebox_override("panel", style)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 6)
+	modal.add_child(vbox)
+
+	var title := Label.new()
+	title.text = "🔩 REGISTER — SLOT %02d" % slot
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_color_override("font_color", controller._highlight_color)
+	title.add_theme_font_size_override("font_size", 15)
+	vbox.add_child(title)
+
+	var cost_lbl := Label.new()
+	cost_lbl.text = "COST: %d scrap + %d cr" % [
+		GlobalData.get_frame_register_scrap_cost(), GlobalData.get_frame_register_credit_cost()]
+	cost_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	cost_lbl.add_theme_color_override("font_color", Color(0.9, 0.8, 0.3))
+	cost_lbl.add_theme_font_size_override("font_size", 12)
+	vbox.add_child(cost_lbl)
+
+	var status := Label.new()
+	status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	status.add_theme_font_size_override("font_size", 11)
+	vbox.add_child(status)
+
+	var btn_row := HBoxContainer.new()
+	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	btn_row.add_theme_constant_override("separation", 10)
+	vbox.add_child(btn_row)
+
+	var ok_btn := Button.new()
+	ok_btn.text = "REGISTER FRAME"
+	ok_btn.custom_minimum_size = Vector2(130, 32)
+	ok_btn.disabled = true
+	ok_btn.pressed.connect(_on_pending_register_pressed)
+	btn_row.add_child(ok_btn)
+
+	var cancel_btn := Button.new()
+	cancel_btn.text = "✕"
+	cancel_btn.custom_minimum_size = Vector2(34, 32)
+	cancel_btn.tooltip_text = "Abandon this assembly"
+	cancel_btn.pressed.connect(close_pending_register)
+	btn_row.add_child(cancel_btn)
+
+	if controller.root_control:
+		controller.root_control.add_child(modal)
+	else:
+		controller.add_child(modal)
+	pending_register_banner = modal
+	pending_register_button = ok_btn
+	pending_register_status_label = status
+	refresh_pending_register()
+
+
+# Re-evaluates the pending banner: repaints the required-frame checklist (✓/✗)
+# and locks/unlocks the REGISTER FRAME confirm. Hooked into the persist flow
+# (persist_panel.commit_and_save) so every equip/unequip refreshes it.
+func refresh_pending_register() -> void:
+	if pending_register_banner == null or not is_instance_valid(pending_register_banner):
+		return
+	var parts: Array[String] = []
+	for required in HangarManager.REQUIRED_WALKING_FRAMES:
+		var ok := GlobalData.equipped_frames.has(required) and GlobalData.equipped_frames[required] != null
+		# Readable names for the checklist ("LEFT LEG" not "LEG LEFT").
+		var label: String
+		match required:
+			"leg_left":
+				label = "LEFT LEG"
+			"leg_right":
+				label = "RIGHT LEG"
+			_:
+				label = required.to_upper()
+		parts.append("%s %s" % [label, "✓" if ok else "✗"])
+	if pending_register_status_label:
+		pending_register_status_label.text = "   ".join(parts)
+	if pending_register_button:
+		pending_register_button.disabled = not _has_walking_chassis()
+
+
+# REGISTER FRAME on the banner: opens the name prompt, locked out with a status
+# message while the chassis is incomplete or the price is out of reach.
+func _on_pending_register_pressed() -> void:
+	var slot := _pending_register_slot
+	if slot < 0:
+		return
+	if not _has_walking_chassis():
 		_set_status("REGISTER needs a walking chassis (body + both leg frames) equipped.")
 		return
-	# Same for the price: don't ask for a name the player can't afford to build.
 	if not _can_afford_register():
 		_set_status("REGISTER needs %d scrap + %d cr — not enough resources." % [
 			GlobalData.get_frame_register_scrap_cost(), GlobalData.get_frame_register_credit_cost()])
 		return
 	close_register_dialog()
 	build_register_dialog(slot)
+
+
+# Drops the pending registration (banner + slot). Unless the registration
+# already succeeded (revert_working_set = false), also reverts the loadout
+# leaks onto the pre-flow berths. Called on abandon, on the hangar menu / exit,
+# and after a successful registration.
+func close_pending_register(revert_working_set: bool = true) -> void:
+	if pending_register_banner and is_instance_valid(pending_register_banner):
+		pending_register_banner.queue_free()
+	pending_register_banner = null
+	pending_register_button = null
+	pending_register_status_label = null
+	_pending_register_slot = -1
+	if revert_working_set:
+		_restore_pending_flow()
 
 
 # Small modal asking for the new frame's name; confirming builds it into the
@@ -481,13 +694,8 @@ func _confirm_register(slot: int) -> void:
 	if new_mech.is_empty():
 		# Re-check the chassis gate for an accurate message (frames could have
 		# changed while the dialog was open).
-		var needs_chassis := false
-		for required in HangarManager.REQUIRED_WALKING_FRAMES:
-			if not GlobalData.equipped_frames.has(required) or GlobalData.equipped_frames[required] == null:
-				needs_chassis = true
-				break
 		_set_status("REGISTER needs a walking chassis (body + both leg frames) equipped."
-			if needs_chassis else "No free berth in the convoy.")
+			if not _has_walking_chassis() else "No free berth in the convoy.")
 		return
 	# Charged here (not in build()) so recovery grants / recruit parking stay free.
 	GlobalData.try_spend_scrap(GlobalData.get_frame_register_scrap_cost())
@@ -500,12 +708,18 @@ func _confirm_register(slot: int) -> void:
 	if GlobalData.switch_hangar_mech(new_id):
 		controller.selected_chassis_key = GlobalData.chassis_id
 	GlobalData.assign_hangar_pilot(new_id, HangarManager.PLAYER_PILOT_ID)
+	# The assembled frames leaked onto the pre-flow berths via equip commits
+	# (commit_and_save) and build()/switch_mech()'s save_active() — the new mech
+	# is the only one that should carry the new build, so restore their loadouts
+	# (the pilot swap above is preserved: restore never touches identity fields).
+	_restore_pending_roster_only()
 	GlobalData.save_run()
 	# Distinct cue: the frame is assembled and takes over as the player's mech.
 	AudioManager.play_mech_register()
 	refresh_page()
 	controller.refresh_panel.after_mech_change(false)
 	controller.nav_panel.select_submenu("customize")
+	close_pending_register(false)
 	_set_status("Registered %s in SLOT %02d (-%d scrap, -%d cr). It is now your piloted mech — tune it here." % [
 		str(new_mech.get("name", "Mech")), slot,
 		GlobalData.get_frame_register_scrap_cost(), GlobalData.get_frame_register_credit_cost()])

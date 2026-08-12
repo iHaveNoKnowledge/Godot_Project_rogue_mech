@@ -411,6 +411,24 @@ static func save_mech_state(mech_id: String) -> bool:
 	return false
 
 
+# Replaces a parked mech's loadout fields with the ones from `snapshot` while
+# keeping its identity (id/name/slot/pilot/archetype). Used to undo working-set
+# edits that leaked onto a berth during the REGISTER assembly flow, so frames
+# equipped for a NEW mech never rewrite an existing one.
+static func restore_berth_loadout(mech_id: String, snapshot: Dictionary) -> bool:
+	for i in range(GlobalData.hangar_mechs.size()):
+		var entry = GlobalData.hangar_mechs[i]
+		if entry is Dictionary and str(entry.get("id", "")) == mech_id:
+			var updated: Dictionary = entry.duplicate(true)
+			for key in ["chassis_id", "frames", "parts", "damage", "attachments", "weapon_loadout", "scrap_patches"]:
+				if snapshot.has(key):
+					var value = snapshot[key]
+					updated[key] = value.duplicate(true) if value is Dictionary or value is Array else value
+			GlobalData.hangar_mechs[i] = updated
+			return true
+	return false
+
+
 static func _capture_snapshot(mech_id: String, mech_name: String, pilot_id: String, slot: int) -> Dictionary:
 	GlobalData.sync_equipped_armor_durability()
 	return {

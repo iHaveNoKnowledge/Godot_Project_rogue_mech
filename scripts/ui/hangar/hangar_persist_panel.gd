@@ -33,3 +33,8 @@ func commit_and_save() -> void:
 	if controller._customize_mech_id != "":
 		GlobalData.save_hangar_mech_state(controller._customize_mech_id)
 	GlobalData.save_run()
+	# A frame equip/unequip on the customize page may complete or break the
+	# walking chassis the pending-register banner is waiting on, so the banner
+	# re-evaluates on every committed edit (cheap no-op when nothing is armed).
+	if controller.roster_panel_ui:
+		controller.roster_panel_ui.refresh_pending_register()

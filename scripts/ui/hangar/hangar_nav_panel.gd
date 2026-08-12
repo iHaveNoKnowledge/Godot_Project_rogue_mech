@@ -167,6 +167,8 @@ func show_hangar_menu() -> void:
 		controller.right_panel.visible = false
 	if controller.roster_panel_ui:
 		controller.roster_panel_ui.hide_page()
+		# Leaving the hangar menu drops any in-progress frame assembly.
+		controller.roster_panel_ui.close_pending_register()
 	if controller.root_control:
 		var label := controller.root_control.find_child("SelectionLabel", true, false) as Label
 		if label:

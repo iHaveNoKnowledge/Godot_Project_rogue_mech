@@ -24,9 +24,14 @@ func _ready() -> void:
 	add_to_group("camera_rig")
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	EventBus.camera_mode_changed.connect(_on_camera_mode_changed)
+	EventBus.pilot_spawned.connect(_on_pilot_spawned)
 	EventBus.combat_ended.connect(_on_combat_ended)
 	await get_tree().process_frame
 	target = GameManager.get_player_mecha()
+
+
+func _on_pilot_spawned(pilot_node: Node3D) -> void:
+	target = pilot_node
 
 
 func add_shake(amount: float) -> void:
@@ -138,8 +143,9 @@ func _on_camera_mode_changed(new_mode: String) -> void:
 		"exploration":
 			lock_on_ray.enabled = false
 		"combat":
+			target = GameManager.get_player_mecha()
 			lock_on_ray.enabled = true
-		"eject":
+		"eject", "pilot":
 			lock_on_ray.enabled = false
 		"board":
 			lock_on_ray.enabled = false

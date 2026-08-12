@@ -12,36 +12,50 @@ func _ready() -> void:
 func initiate_eject() -> void:
 	EventBus.eject_initiated.emit()
 	var pilot = pilot_scene.instantiate()
-	mecha.get_parent().add_child(pilot)
-	pilot.global_position = mecha.get_node("EjectPoint").global_position
+	var parent_node = mecha.get_parent()
+	if parent_node == null:
+		parent_node = get_tree().current_scene
+	parent_node.add_child(pilot)
+
+	var eject_point = mecha.get_node_or_null("EjectPoint")
+	if eject_point:
+		pilot.global_position = eject_point.global_position
+	else:
+		pilot.global_position = mecha.global_position + Vector3(0, 1.5, -2.0)
+
+	# Park the mech in place — keep it visible and solid, but suspend active movement.
+	mecha.set_meta("is_parked", true)
 	mecha.set_physics_process(false)
-	mecha.get_node("CollisionShape3D").set_deferred("disabled", true)
-	mecha.visible = false
-	var backup_spawner = get_tree().current_scene.get_node_or_null("BackupSpawner")
-	if backup_spawner and backup_spawner.has_method("spawn_backup_mech"):
-		backup_spawner.spawn_backup_mech()
+	mecha.visible = true
+
 	EventBus.camera_mode_changed.emit("eject")
 	EventBus.pilot_spawned.emit(pilot)
 	GameManager.enter_eject()
 
 
-func board_backup_mech(backup_mech: CharacterBody3D) -> void:
+func board_parked_mecha(parked_mecha: CharacterBody3D) -> void:
 	var pilot = get_tree().current_scene.get_node_or_null("Pilot")
+	if pilot == null:
+		var pilots = get_tree().get_nodes_in_group("pilot")
+		if not pilots.is_empty():
+			pilot = pilots[0]
 	if pilot:
 		pilot.queue_free()
-	var hangar_mech_id := str(backup_mech.get_meta("hangar_mech_id", ""))
-	if hangar_mech_id != "":
-		GlobalData.switch_hangar_mech(hangar_mech_id)
-	mecha.global_position = backup_mech.global_position
-	var health = mecha.get_node_or_null("HealthSystem")
-	if health and health.has_method("_init_parts"):
-		health._init_parts()
-	var pmm = mecha.get_node_or_null("PartMeshManager")
-	if pmm and pmm.has_method("refresh_slots"):
-		pmm.refresh_slots()
+
+	if parked_mecha and parked_mecha.has_meta("is_parked"):
+		parked_mecha.remove_meta("is_parked")
+
 	mecha.set_physics_process(true)
-	mecha.get_node("CollisionShape3D").set_deferred("disabled", false)
 	mecha.visible = true
-	backup_mech.queue_free()
+	var col = mecha.get_node_or_null("CollisionShape3D")
+	if col:
+		col.set_deferred("disabled", false)
+
 	EventBus.camera_mode_changed.emit("combat")
 	GameManager.enter_combat()
+
+
+func board_backup_mech(backup_mech: CharacterBody3D) -> void:
+	board_parked_mecha(mecha)
+	if backup_mech and is_instance_valid(backup_mech) and backup_mech != mecha:
+		backup_mech.queue_free()

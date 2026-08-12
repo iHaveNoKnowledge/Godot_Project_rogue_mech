@@ -102,7 +102,7 @@ func build_landing_rail(root: Control) -> void:
 	rail_exit.text = "EXIT HANGAR"
 	rail_exit.custom_minimum_size = Vector2(0, 40)
 	rail_exit.focus_mode = Control.FOCUS_NONE
-	rail_exit.pressed.connect(controller._on_close_pressed)
+	rail_exit.pressed.connect(func(): if controller.exit_panel: controller.exit_panel.close())
 	rail_box.add_child(rail_exit)
 
 

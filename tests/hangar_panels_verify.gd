@@ -21,6 +21,7 @@ extends Node
 ##   HangarReadinessPanel — combat-readiness warning modal
 ##   HangarPersistPanel   — persist/commit the edited mech working set
 ##   HangarScrapPanel     — scrap editor applied/closed preview refresh
+##   HangarExitPanel      — hangar exit flow (persist + readiness + return)
 ## Run: godot --headless --path . res://tests/hangar_panels_verify.tscn
 
 var _fails: int = 0
@@ -49,6 +50,7 @@ func _ready() -> void:
 	await _verify_readiness_panel()
 	await _verify_persist_panel()
 	await _verify_scrap_panel()
+	await _verify_exit_panel()
 	print("HANGAR_PANELS_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	await get_tree().process_frame
 	get_tree().quit(1 if _fails > 0 else 0)
@@ -1155,6 +1157,73 @@ func _verify_scrap_panel() -> void:
 		_check(true, "editor signals fire through the scrap panel without error")
 		ctrl.scrap_editor.close()
 		await get_tree().process_frame
+
+	ctrl.queue_free()
+	await get_tree().process_frame
+
+
+func _verify_exit_panel() -> void:
+	GlobalData.reset_run_data()
+	var ctrl: Node = load("res://scenes/ui/hangar_scene.tscn").instantiate()
+	add_child(ctrl)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var ep = ctrl.exit_panel
+	_check(ep != null, "controller builds a HangarExitPanel")
+	_check(ep.controller == ctrl, "exit panel holds the controller back-ref")
+
+	# An incomplete mech: close() persists but the readiness check blocks the
+	# actual exit (hangar stays visible + paused, warning modal appears).
+	GlobalData.equipped_parts.clear()
+	ctrl.visible = true
+	get_tree().paused = true
+	ep.close()
+	await get_tree().process_frame
+	_check(_find_modal(ctrl) != null, "exit on an incomplete mech shows the warning modal")
+	_check(ctrl.visible, "exit is blocked while the warning modal is up")
+	_check(get_tree().paused, "hangar stays paused while the warning modal is up")
+
+	# BACK TO HANGAR dismisses and keeps the hangar open.
+	var modal = _find_modal(ctrl)
+	if modal:
+		var back: Button = _find_button_by_text(modal, "BACK TO HANGAR")
+		if back:
+			back.pressed.emit()
+		await get_tree().process_frame
+	_check(_find_modal(ctrl) == null, "BACK TO HANGAR dismisses the exit warning")
+	_check(ctrl.visible, "BACK TO HANGAR keeps the hangar open")
+
+	# The pause key routes through _input to exit_panel.close().
+	get_tree().paused = true
+	ctrl.visible = true
+	var pause_event := InputEventAction.new()
+	pause_event.action = "pause"
+	pause_event.pressed = true
+	ctrl._input(pause_event)
+	await get_tree().process_frame
+	_check(_find_modal(ctrl) != null, "pause key routes to the exit flow")
+	if _find_modal(ctrl):
+		_find_modal(ctrl).queue_free()
+	await get_tree().process_frame
+
+	# The EXIT HANGAR buttons (rail + right sidebar) are wired to exit_panel.
+	# (A ready mech would call GameManager.return_to_board -> change_scene, so
+	# the confirm path itself is left to the readiness/persist verify blocks.)
+	var rail_exit: Button = _find_button_by_text(ctrl.submenu_rail, "EXIT HANGAR")
+	_check(rail_exit != null, "rail builds the EXIT HANGAR button")
+	if rail_exit:
+		_check(rail_exit.pressed.get_connections().size() >= 1, "rail EXIT is wired")
+	_check(ctrl.close_button != null, "right sidebar builds the EXIT HANGAR button")
+	_check(ctrl.close_button.pressed.get_connections().size() >= 1, "sidebar EXIT is wired")
+
+	# Pressing the wired EXIT button on an incomplete mech re-runs the flow and
+	# lands on the warning modal again (no scene change, safe under headless).
+	get_tree().paused = true
+	ctrl.visible = true
+	ctrl.close_button.pressed.emit()
+	await get_tree().process_frame
+	_check(_find_modal(ctrl) != null, "EXIT button routes through the exit flow")
 
 	ctrl.queue_free()
 	await get_tree().process_frame

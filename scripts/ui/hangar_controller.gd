@@ -30,6 +30,7 @@ var slot_panel: HangarSlotPanel = null
 var readiness_panel: HangarReadinessPanel = null
 var persist_panel: HangarPersistPanel = null
 var scrap_panel: HangarScrapPanel = null
+var exit_panel: HangarExitPanel = null
 var header_panel: HangarHeaderPanel = null
 var left_panel_ui: HangarLeftPanel = null
 var right_panel_ui: HangarRightPanel = null
@@ -138,6 +139,8 @@ func _build_ui_layout() -> void:
 	persist_panel.controller = self
 	scrap_panel = HangarScrapPanel.new()
 	scrap_panel.controller = self
+	exit_panel = HangarExitPanel.new()
+	exit_panel.controller = self
 	header_panel = HangarHeaderPanel.new()
 	header_panel.controller = self
 	left_panel_ui = HangarLeftPanel.new()
@@ -237,23 +240,6 @@ func _is_scrap_editor_open() -> bool:
 	return scrap_editor != null and is_instance_valid(scrap_editor) and scrap_editor.visible
 
 
-func _on_close_pressed() -> void:
-	# Persist any edits made on the customize page to the berth being edited,
-	# then restore the ACTIVE mech (the one the player actually pilots) back into
-	# the working set so combat loads the right machine.
-	persist_panel.persist_edits()
-	readiness_panel.check(func():
-		visible = false
-		get_tree().paused = false
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		GlobalData.save_run()
-		if GameManager and GameManager.has_method("return_to_board"):
-			GameManager.return_to_board()
-		else:
-			EventBus.game_state_changed.emit("HANGAR", "INTERMISSION")
-	)
-
-
 func _input(event: InputEvent) -> void:
-	if visible and event.is_action_pressed("pause"):
-		_on_close_pressed()
+	if visible and event.is_action_pressed("pause") and exit_panel:
+		exit_panel.close()

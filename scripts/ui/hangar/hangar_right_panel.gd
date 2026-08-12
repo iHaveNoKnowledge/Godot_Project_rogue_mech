@@ -103,5 +103,5 @@ func build(root: Control) -> void:
 	controller.close_button = Button.new()
 	controller.close_button.text = "EXIT HANGAR"
 	controller.close_button.custom_minimum_size = Vector2(0, 44)
-	controller.close_button.pressed.connect(controller._on_close_pressed)
+	controller.close_button.pressed.connect(func(): if controller.exit_panel: controller.exit_panel.close())
 	right_box.add_child(controller.close_button)

@@ -6,6 +6,7 @@ extends Node
 ##   HangarRosterPanel   — roster page (badge, slot rows, pilot/role pickers)
 ##   HangarCatalogPanel  — catalog window + hover-stats preview
 ##   HangarGaragePanel   — 3D garage preview + attachment math
+##   HangarCraftPanel    — craftery window (craft armor from templates)
 ## Run: godot --headless --path . res://tests/hangar_panels_verify.tscn
 
 var _fails: int = 0
@@ -19,6 +20,7 @@ func _ready() -> void:
 	await _verify_roster_panel()
 	await _verify_catalog_panel()
 	await _verify_garage_panel()
+	await _verify_craft_panel()
 	print("HANGAR_PANELS_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	await get_tree().process_frame
 	get_tree().quit(1 if _fails > 0 else 0)
@@ -235,6 +237,52 @@ func _collect_label_text(root_node: Node) -> String:
 			out += child.text + "\n"
 		out += _collect_label_text(child)
 	return out
+
+
+func _verify_craft_panel() -> void:
+	GlobalData.reset_run_data()
+	var ctrl: Node = load("res://scenes/ui/hangar_scene.tscn").instantiate()
+	add_child(ctrl)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var cp = ctrl.craft_panel
+	_check(cp != null, "controller builds a HangarCraftPanel")
+
+	# A slot outside the armor catalog shows the hint and builds nothing.
+	# (Note: weapon_left/right ARE armor_catalog keys in mech_catalogs.tres,
+	# so the craftery legitimately opens for them — matching the original
+	# `_on_craft_window_open` guard behavior.)
+	ctrl.selected_slot = "no_such_slot"
+	cp.open()
+	await get_tree().process_frame
+	_check(cp.craft_window == null, "craft does not open for a non-armor slot")
+	_check(ctrl.status_message_label.text.contains("Select an armor section"), "craft hints for a non-armor slot")
+
+	# An armor slot builds the window with the craftery title.
+	ctrl.selected_slot = "body"
+	cp.open()
+	await get_tree().process_frame
+	_check(cp.craft_window != null, "craft window builds a modal")
+	_check(cp.craft_window.is_inside_tree(), "craft modal is added to the tree")
+	_check(_collect_label_text(cp.craft_window).contains("CRAFTERY"), "craft window shows the craftery title")
+
+	cp.close_window()
+	await get_tree().process_frame
+	_check(cp.craft_window == null, "closing the craft window clears the ref")
+
+	# Crafting with an unknown template reports the error safely.
+	cp.craft_armor({"id": ""})
+	_check(ctrl.status_message_label.text.contains("Cannot craft"), "craft rejects an unknown template")
+
+	# The real submenu path opens the craftery too.
+	ctrl._select_hangar_submenu("craft")
+	await get_tree().process_frame
+	_check(cp.craft_window != null, "craft submenu opens the craftery")
+	cp.close_window()
+
+	ctrl.queue_free()
+	await get_tree().process_frame
 
 
 func _verify_garage_panel() -> void:

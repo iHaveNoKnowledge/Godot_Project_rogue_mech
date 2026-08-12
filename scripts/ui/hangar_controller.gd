@@ -25,8 +25,6 @@ var visible_weapon_indices: Array[int] = []
 # the 3D model preview. Set during _populate_part_list_for_slot() auto-selects.
 var _is_populating: bool = false
 var _part_action_modal: Control = null
-# Crafting lives in its own separate window, never inside the equip list.
-var craft_window: Control = null
 # Slot tab buttons keyed by slot id, reused for UI-only selection highlight.
 var slot_tab_buttons: Dictionary = {}
 
@@ -66,6 +64,7 @@ var status_message_label: Label
 var roster_panel_ui: HangarRosterPanel = null
 var catalog_panel: HangarCatalogPanel = null
 var garage_panel: HangarGaragePanel = null
+var craft_panel: HangarCraftPanel = null
 # The mech berth currently open in the customize/roster editor. This is separate
 # from GlobalData.active_hangar_mech_id (the mech the player actually pilots in
 # combat): prev/next cycles this editing target without reassigning the driver.
@@ -119,6 +118,8 @@ func _build_ui_layout() -> void:
 	roster_panel_ui.controller = self
 	catalog_panel = HangarCatalogPanel.new()
 	catalog_panel.controller = self
+	craft_panel = HangarCraftPanel.new()
+	craft_panel.controller = self
 	var root = Control.new()
 	root.name = "RootControl"
 	root_control = root
@@ -334,7 +335,7 @@ func _build_ui_layout() -> void:
 	craft_button = Button.new()
 	craft_button.text = "🏭 CRAFTERY (craft parts in a separate window)"
 	craft_button.custom_minimum_size = Vector2(0, 30)
-	craft_button.pressed.connect(_on_craft_window_open)
+	craft_button.pressed.connect(func(): if craft_panel: craft_panel.open())
 	left_box.add_child(craft_button)
 
 	ammo_panel = HangarAmmoPanel.new()
@@ -442,7 +443,8 @@ func _build_ui_layout() -> void:
 
 func _show_roster_page() -> void:
 	current_submenu = "roster"
-	_close_craft_window()
+	if craft_panel:
+		craft_panel.close_window()
 	if catalog_panel:
 		catalog_panel.close_window()
 	if scrap_editor != null and is_instance_valid(scrap_editor) and scrap_editor.visible:
@@ -493,6 +495,14 @@ func refresh_after_chassis_change(chassis_info: Dictionary) -> void:
 	_update_all_3d_slots_preview()
 	if not chassis_info.is_empty() and garage_panel:
 		garage_panel.apply_chassis_preview(chassis_info)
+
+
+# Called by the craft panel after a successful craft: repopulates the slot's
+# part list and refreshes total stats — the same refresh set the old
+# in-controller craft flow ran.
+func refresh_after_craft(slot: String) -> void:
+	_populate_part_list_for_slot(slot)
+	_update_total_stats()
 
 
 # --- AMMO LOADOUT UI (how much ammo to carry into the next battle) ---
@@ -669,7 +679,8 @@ func _switch_custom_mode(mode: String) -> void:
 # until the driver picks a topic.
 func _show_hangar_menu() -> void:
 	current_submenu = ""
-	_close_craft_window()
+	if craft_panel:
+		craft_panel.close_window()
 	if catalog_panel:
 		catalog_panel.close_window()
 	if scrap_editor != null and is_instance_valid(scrap_editor) and scrap_editor.visible:
@@ -721,7 +732,8 @@ func _show_customize_page() -> void:
 
 
 func _on_back_to_menu_pressed() -> void:
-	_close_craft_window()
+	if craft_panel:
+		craft_panel.close_window()
 	if catalog_panel:
 		catalog_panel.close_window()
 	if scrap_editor != null and is_instance_valid(scrap_editor) and scrap_editor.visible:
@@ -731,7 +743,8 @@ func _on_back_to_menu_pressed() -> void:
 
 func _select_hangar_submenu(id: String) -> void:
 	current_submenu = id
-	_close_craft_window()
+	if craft_panel:
+		craft_panel.close_window()
 	if catalog_panel:
 		catalog_panel.close_window()
 	match id:
@@ -755,7 +768,8 @@ func _select_hangar_submenu(id: String) -> void:
 				selected_slot = "body"
 				garage_panel.update_selection_highlight(selected_slot)
 				_populate_part_list_for_slot(selected_slot)
-			_on_craft_window_open()
+			if craft_panel:
+				craft_panel.open()
 		"catalog":
 			_show_customize_page()
 			if catalog_panel:
@@ -786,164 +800,10 @@ func _on_scrap_editor_closed() -> void:
 	call_deferred("_update_all_3d_slots_preview")
 
 
-# --- SEPARATE CRAFT WINDOW (unrelated to the equip list) ---
-# Crafting armor from a catalog template produces a brand-new owned instance.
-# It never touches anything already in the equip list / inventory.
-
-func _on_craft_window_open() -> void:
-	if not armor_catalog.has(selected_slot):
-		status_message_label.text = "Select an armor section first, then open the Craftery."
-		return
-	_close_part_action_modal()
-	_close_craft_window()
-	_build_craft_window()
-
-
-func _close_craft_window() -> void:
-	if craft_window and is_instance_valid(craft_window):
-		craft_window.queue_free()
-	craft_window = null
-
-
-func _build_craft_window() -> void:
-	var modal = PanelContainer.new()
-	modal.name = "CraftWindow"
-	modal.anchor_left = 0.0
-	modal.anchor_right = 0.0
-	modal.anchor_top = 0.5
-	modal.anchor_bottom = 0.5
-	modal.offset_left = 340
-	modal.offset_right = 900
-	modal.offset_top = -260
-	modal.offset_bottom = 260
-
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.10, 0.10, 0.16, 0.97)
-	style.border_width_left = 2
-	style.border_width_top = 2
-	style.border_width_right = 2
-	style.border_width_bottom = 2
-	style.border_color = _highlight_color
-	style.corner_radius_top_left = 8
-	style.corner_radius_top_right = 8
-	style.corner_radius_bottom_left = 8
-	style.corner_radius_bottom_right = 8
-	modal.add_theme_stylebox_override("panel", style)
-
-	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 8)
-	modal.add_child(vbox)
-
-	var title = Label.new()
-	title.text = "🏭 CRAFTERY — CRAFT ARMOR FOR %s" % selected_slot.to_upper()
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_color_override("font_color", _highlight_color)
-	title.add_theme_font_size_override("font_size", 15)
-	vbox.add_child(title)
-
-	var hint = Label.new()
-	hint.text = "Scrap: %d   Credits: %d   Data Cores: %d" % [GlobalData.scrap, GlobalData.credits, GlobalData.data_cores]
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.add_theme_color_override("font_color", Color(0.5, 0.9, 0.6))
-	vbox.add_child(hint)
-
-	var bp_hint = Label.new()
-	bp_hint.text = "[BLUEPRINT] parts require researching their blueprint at the Research Base first."
-	bp_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	bp_hint.add_theme_color_override("font_color", Color(0.5, 0.7, 0.9))
-	bp_hint.add_theme_font_size_override("font_size", 11)
-	vbox.add_child(bp_hint)
-
-	var sep = HSeparator.new()
-	vbox.add_child(sep)
-
-	var scroll = ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(540, 400)
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vbox.add_child(scroll)
-
-	var rows = VBoxContainer.new()
-	rows.add_theme_constant_override("separation", 6)
-	rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(rows)
-
-	for info in armor_catalog[selected_slot]:
-		var s_cost := GlobalData.get_armor_scrap_cost(info)
-		var c_cost := GlobalData.get_armor_credit_cost(info)
-		var blueprint_locked := GlobalData.entry_is_blueprint_locked(info)
-		var can_afford := GlobalData.scrap >= s_cost and GlobalData.credits >= c_cost
-
-		var row = HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
-		rows.add_child(row)
-
-		var info_lbl = Label.new()
-		var bp_tag = "  [BLUEPRINT]" if blueprint_locked else ""
-		info_lbl.text = "%s%s [%s]  %.1fkg   (%.0f HP / %.0f armor)" % [
-			info.get("name", "Armor"), bp_tag, info.get("type", "?"),
-			GlobalData.part_stat(info, "weight", 0.0),
-			GlobalData.part_stat(info, "max_hp", 0.0),
-			GlobalData.part_stat(info, "armor", 0.0)
-		]
-		info_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		info_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		row.add_child(info_lbl)
-
-		var craft_btn = Button.new()
-		if blueprint_locked:
-			craft_btn.text = "RESEARCH TO UNLOCK"
-			craft_btn.disabled = true
-		else:
-			craft_btn.text = "CRAFT  %d scrap / %d cr" % [s_cost, c_cost]
-			craft_btn.disabled = not can_afford
-			craft_btn.pressed.connect(func(): _craft_armor_from_template(info))
-		craft_btn.custom_minimum_size = Vector2(160, 32)
-		row.add_child(craft_btn)
-
-	var sep2 = HSeparator.new()
-	vbox.add_child(sep2)
-
-	var close_btn = Button.new()
-	close_btn.text = "CLOSE CRAFTERY"
-	close_btn.custom_minimum_size = Vector2(0, 36)
-	close_btn.pressed.connect(func(): _close_craft_window())
-	vbox.add_child(close_btn)
-
-	if root_control:
-		root_control.add_child(modal)
-	else:
-		add_child(modal)
-	craft_window = modal
-
-
-func _craft_armor_from_template(info: Dictionary) -> void:
-	var pid = info.get("id", "")
-	if pid == "":
-		status_message_label.text = "Cannot craft: unknown template."
-		return
-	if GlobalData.entry_is_blueprint_locked(info):
-		status_message_label.text = "This gundam part requires its blueprint researched first."
-		return
-	var s_cost := GlobalData.get_armor_scrap_cost(info)
-	var c_cost := GlobalData.get_armor_credit_cost(info)
-	if GlobalData.scrap < s_cost or GlobalData.credits < c_cost:
-		status_message_label.text = "Not enough scrap/credits to craft this armor."
-		return
-	var inst := GlobalData.try_craft_armor_from_catalog(pid)
-	if inst.is_empty():
-		status_message_label.text = "Failed to craft armor."
-		return
-	status_message_label.text = "Crafted %s! It is now in the Equip list." % inst.get("name", "Armor")
-	GlobalData.save_run()
-	_close_craft_window()
-	_populate_part_list_for_slot(selected_slot)
-	_update_total_stats()
-	AudioManager.play_ui_confirm()
-
-
 func _select_slot_tab(slot: String) -> void:
 	selected_slot = slot
-	_close_craft_window()
+	if craft_panel:
+		craft_panel.close_window()
 	sub_toggle_container.visible = not slot.begins_with("weapon")
 	if ammo_panel:
 		ammo_panel.ammo_loadout_box.visible = slot.begins_with("weapon")

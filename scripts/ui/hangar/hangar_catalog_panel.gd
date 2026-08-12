@@ -65,7 +65,7 @@ func apply_chassis(key: String) -> void:
 # the weapons you own, so the driver can browse/craft in one place.
 func build_window() -> void:
 	controller._close_part_action_modal()
-	controller._close_craft_window()
+	controller.craft_panel.close_window()
 	close_window()
 
 	var modal = PanelContainer.new()
@@ -195,7 +195,7 @@ func build_window() -> void:
 			else:
 				craft_btn.text = "CRAFT  %d scrap / %d cr" % [s_cost, c_cost]
 				craft_btn.disabled = GlobalData.scrap < s_cost or GlobalData.credits < c_cost
-				craft_btn.pressed.connect(func(): controller._craft_armor_from_template(info))
+				craft_btn.pressed.connect(func(): controller.craft_panel.craft_armor(info))
 			craft_btn.custom_minimum_size = Vector2(160, 30)
 			row.add_child(craft_btn)
 

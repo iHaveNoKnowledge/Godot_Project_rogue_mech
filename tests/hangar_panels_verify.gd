@@ -277,6 +277,12 @@ func _verify_roster_panel() -> void:
 	rp.refresh_page()
 	await get_tree().process_frame
 	_check(_collect_label_text(rp.roster_slot_list).contains("PILOT: Test Unit · WOUNDED (2T)"), "wounded fleet pilot shows the recovery countdown")
+	# The row marks a recovering driver as unavailable to fight until healed.
+	_check(_collect_label_text(rp.roster_slot_list).contains("RECOVERING (not fielded)"), "wounded pilot row is marked RECOVERING (not fielded)")
+	# And the wounded pilot never tags into combat: the fielded gate skips them.
+	var fielded_units := GlobalData.get_fielded_units()
+	var wounded_in_fielded := fielded_units.any(func(u): return str(u.get("template_id", "")) == "t_verifier")
+	_check(not wounded_in_fielded, "wounded pilot is gated out of the fielded combat roster")
 	# A destroyed unit shows DESTROYED.
 	for u in GlobalData.fleet_roster:
 		if u.get("template_id", "") == "t_verifier":
@@ -311,12 +317,32 @@ func _verify_roster_panel() -> void:
 			_check(picker_items.any(func(t: String): return t.contains("⚠ Test Unit · WOUNDED (2T)")), "pilot picker shows the wounded countdown with a warning marker")
 			# The wounded item carries the same recovery explanation as the row.
 			var picker_tooltip := ""
+			var wounded_idx := -1
 			for i in range(pop.item_count):
 				if pop.get_item_text(i).contains("Test Unit · WOUNDED"):
 					picker_tooltip = pop.get_item_tooltip(i)
+					wounded_idx = i
 			_check(picker_tooltip.contains("WOUNDED — recovering"), "wounded picker item explains the recovery countdown")
 			_check(picker_tooltip.contains("2 board moves left"), "picker tooltip shows the remaining board moves")
-			_check(picker_tooltip.contains("heal this pilot from its roster row"), "picker tooltip points at the roster-row HEAL")
+			_check(picker_tooltip.contains("heal from its roster row"), "picker tooltip points at the roster-row HEAL")
+			# A wounded pilot can still be ASSIGNED (the seat waits for them) —
+			# only the destroyed are locked out. Emitting their id seats the mech.
+			_check(wounded_idx >= 0 and not pop.is_item_disabled(wounded_idx), "wounded pilot stays assignable in the picker")
+			_check(picker_items.any(func(t: String): return t.contains("RECOVERING")), "wounded picker item is marked RECOVERING")
+			if wounded_idx >= 0:
+				pop.id_pressed.emit(wounded_idx)
+				await get_tree().process_frame
+				var seated := false
+				for m in GlobalData.get_hangar_mechs():
+					if str(m.get("id", "")) == slot1_id:
+						seated = str(m.get("pilot", "")) == "fleet_t_verifier"
+				_check(seated, "assigning a wounded pilot seats them on the mech")
+			# Restore the wounded state (the picker refresh above may have left the
+			# seat set) for the destroyed checks below.
+			for u in GlobalData.fleet_roster:
+				if u.get("template_id", "") == "t_verifier":
+					u["wounded"] = true
+					u["wound_turns"] = 2
 		# Destroyed fleet pilot: disabled + red-tinted so it can't be assigned.
 		for u in GlobalData.fleet_roster:
 			if u.get("template_id", "") == "t_verifier":
@@ -1556,6 +1582,42 @@ func _verify_readiness_panel() -> void:
 	_check(_confirm_calls == 1, "ready mech calls on_confirm immediately")
 	_check(_find_modal(ctrl) == null, "ready mech shows no warning modal")
 
+	# Wounded ACTIVE driver: even a fully assembled mech warns — the piloted
+	# mech's driver is recovering and will not fight until healed.
+	var active_mech = GlobalData.get_active_hangar_mech()
+	var active_id := str(active_mech.get("id", ""))
+	GlobalData.fleet_roster.append({"template_id": "t_driver", "name": "Wounded Ace", "hp": 10.0, "max_hp": 80.0, "destroyed": false, "fielded": true, "wounded": true, "wound_turns": 3})
+	if active_id != "":
+		GlobalData.assign_hangar_pilot(active_id, "fleet_t_driver")
+	_confirm_calls = 0
+	rp.check(func(): _confirm_calls += 1)
+	await get_tree().process_frame
+	var wmodal = _find_modal(ctrl)
+	_check(wmodal != null, "wounded active driver shows the warning modal")
+	_check(_confirm_calls == 0, "wounded active driver does not auto-confirm")
+	if wmodal:
+		_check(_collect_label_text(wmodal).contains("Wounded Ace is WOUNDED"), "modal names the recovering driver")
+		_check(_collect_label_text(wmodal).contains("3 moves"), "modal shows the remaining recovery countdown")
+		# Dismiss it via BACK TO HANGAR so the healthy check below starts clean.
+		var wback: Button = _find_button_by_text(wmodal, "BACK TO HANGAR")
+		if wback:
+			wback.pressed.emit()
+		await get_tree().process_frame
+	# A healthy fleet driver passes the readiness check.
+	for u in GlobalData.fleet_roster:
+		if u.get("template_id", "") == "t_driver":
+			u["wounded"] = false
+	_confirm_calls = 0
+	rp.check(func(): _confirm_calls += 1)
+	_check(_confirm_calls == 1, "healthy fleet driver auto-confirms")
+	# Clean up the wounded driver + its seat.
+	if active_id != "":
+		GlobalData.assign_hangar_pilot(active_id, HangarManager.PLAYER_PILOT_ID)
+	for i in range(GlobalData.fleet_roster.size() - 1, -1, -1):
+		if GlobalData.fleet_roster[i].get("template_id", "") == "t_driver":
+			GlobalData.fleet_roster.remove_at(i)
+	_check(_find_modal(ctrl) == null or not is_instance_valid(_find_modal(ctrl)), "readiness modal cleaned up after the driver checks")
+
 	# Incomplete mech: the modal appears and on_confirm waits for LAUNCH ANYWAY.
 	GlobalData.equipped_parts.clear()
 	_confirm_calls = 0
@@ -1565,7 +1627,8 @@ func _verify_readiness_panel() -> void:
 	_check(modal != null, "incomplete mech shows the warning modal")
 	_check(_confirm_calls == 0, "incomplete mech does not auto-confirm")
 	var modal_text := _collect_label_text(modal)
-	_check(modal_text.contains("INCOMPLETE MECH ASSEMBLY"), "warning modal shows the assembly warning")
+	_check(modal_text.contains("NOT COMBAT READY"), "warning modal shows the not-ready warning")
+	_check(modal_text.contains("incomplete (missing a body or legs)"), "warning modal lists the assembly warning")
 
 	# LAUNCH ANYWAY button runs the confirm callback and closes the modal.
 	var launch_btn: Button = _find_button_by_text(modal, "LAUNCH ANYWAY")

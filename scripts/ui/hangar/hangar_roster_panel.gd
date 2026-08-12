@@ -326,6 +326,10 @@ func build_slot_row(slot: int, mech: Dictionary, over_capacity: bool) -> void:
 	# on the row; hurt or dead drivers are tinted red for a quick read.
 	var pilot_status := GlobalData.get_hangar_pilot_status(pilot_id)
 	var is_wounded := pilot_status.contains("WOUNDED")
+	# A wounded pilot can be seated but is NOT fielded until healed: the mech
+	# stays parked (its ally never tags into combat), so mark the row clearly.
+	if is_wounded:
+		pilot_status += " · RECOVERING (not fielded)"
 	var pilot_lbl := Label.new()
 	pilot_lbl.text = "PILOT: %s%s" % [GlobalData.get_hangar_pilot_name(pilot_id), pilot_status]
 	pilot_lbl.add_theme_color_override("font_color",
@@ -999,10 +1003,16 @@ func open_pilot_picker(mech_id: String, anchor_btn: Button) -> void:
 			marker = "⚠ "
 		elif status.contains("DESTROYED"):
 			marker = "⛔ "
-		var label := "%s%s%s  %s" % [
+		# Wounded pilots stay ASSIGNABLE (the seat waits for them) but are
+		# flagged RECOVERING — they will not tag into combat until healed.
+		var suffix := ""
+		if status.contains("WOUNDED"):
+			suffix = " · RECOVERING"
+		var label := "%s%s%s%s  %s" % [
 			marker,
 			str(pilot.get("name", "?")),
 			status,
+			suffix,
 			mech_label_for_pilot(pilot_id),
 		]
 		pop.add_item(label, i + 1)
@@ -1015,7 +1025,7 @@ func open_pilot_picker(mech_id: String, anchor_btn: Button) -> void:
 			if not unit.is_empty():
 				turns = maxi(int(unit.get("wound_turns", 1)), 1)
 			var heal_cost := GlobalData.get_wound_heal_cost(template_id)
-			pop.set_item_tooltip(i + 1, "WOUNDED — recovering (%d board move%s left).\nReturns to the field at half HP when the timer ends,\nor heal this pilot from its roster row for %d cr." % [
+			pop.set_item_tooltip(i + 1, "WOUNDED — recovering (%d board move%s left).\nCan be assigned to a mech, but they will NOT fight until healed.\nRecover at half HP when the timer ends, or heal from its roster row for %d cr." % [
 				turns, "s" if turns != 1 else "", heal_cost])
 		elif status.contains("DESTROYED"):
 			pop.set_item_tooltip(i + 1, "This pilot was lost in combat — they cannot be assigned.")

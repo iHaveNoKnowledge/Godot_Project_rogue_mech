@@ -1,8 +1,10 @@
 class_name HangarReadinessPanel
 extends RefCounted
 # Owns the hangar's combat-readiness warning:
-#   * check(on_confirm) — if the mech has legs + a body, call on_confirm
-#     immediately; otherwise show a modal offering LAUNCH ANYWAY (runs
+#   * check(on_confirm) — when the mech is fully assembled (legs + body) and
+#     the piloted (active) mech's driver is fit to fight, call on_confirm
+#     immediately; otherwise collect every warning (incomplete assembly, a
+#     wounded recovering driver) into one modal offering LAUNCH ANYWAY (runs
 #     on_confirm) or BACK TO HANGAR (dismisses).
 #
 # The modal is added to the controller's root_control so it draws above the
@@ -15,14 +17,49 @@ var controller  # hangar_controller.gd
 var _modal: Node = null
 
 
-# Run on_confirm when the mech is assembled; otherwise warn the driver first.
+# Run on_confirm when the mech is assembled and the driver is combat-ready;
+# otherwise warn the driver first (incomplete assembly and/or a wounded
+# piloted driver who will not fight until healed).
 func check(on_confirm: Callable) -> void:
 	var has_legs = GlobalData.equipped_parts.has("leg_left") or GlobalData.equipped_parts.has("leg_right")
 	var has_body = GlobalData.equipped_parts.has("body")
+	var warnings: Array[String] = []
+	if not (has_legs and has_body):
+		warnings.append("Mech assembly is incomplete (missing a body or legs).")
+	var driver_warning := _wounded_driver_warning()
+	if driver_warning != "":
+		warnings.append(driver_warning)
 
-	if has_legs and has_body:
+	if warnings.is_empty():
 		on_confirm.call()
 		return
+
+	# Single modal for every warning, so a driver with several issues sees one
+	# decision (LAUNCH ANYWAY / BACK TO HANGAR) instead of stacked prompts.
+	_show_warning_modal(warnings, on_confirm)
+
+
+# "" when the piloted (active) mech's driver is fit to fight; otherwise a
+# short warning naming the recovering pilot. The active mech is what the player
+# drives into battle — if a fleet pilot sits in its seat while wounded, they
+# will NOT tag into combat as a squadmate until the countdown ends or the
+# roster's HEAL clears it.
+func _wounded_driver_warning() -> String:
+	var mech = GlobalData.get_active_hangar_mech()
+	if mech.is_empty():
+		return ""
+	var pilot_id := str(mech.get("pilot", ""))
+	if not pilot_id.begins_with("fleet_"):
+		return ""
+	var unit := GlobalData.get_fleet_unit(pilot_id.trim_prefix("fleet_"))
+	if unit.is_empty() or not bool(unit.get("wounded", false)):
+		return ""
+	var turns := maxi(int(unit.get("wound_turns", 1)), 1)
+	return "Pilot %s is WOUNDED (recovering %d move%s) — they will not fight until healed." % [
+		str(unit.get("name", pilot_id)), turns, "s" if turns != 1 else ""]
+
+
+func _show_warning_modal(warnings: Array[String], on_confirm: Callable) -> void:
 
 	if _modal and is_instance_valid(_modal) and not _modal.is_queued_for_deletion():
 		_modal.queue_free()
@@ -35,8 +72,8 @@ func check(on_confirm: Callable) -> void:
 	modal.anchor_bottom = 0.5
 	modal.offset_left = -240
 	modal.offset_right = 240
-	modal.offset_top = -140
-	modal.offset_bottom = 140
+	modal.offset_top = -150
+	modal.offset_bottom = 150
 
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(0.12, 0.08, 0.08, 0.95)
@@ -56,15 +93,16 @@ func check(on_confirm: Callable) -> void:
 	modal.add_child(vbox)
 
 	var title = Label.new()
-	title.text = "⚠️ WARNING: INCOMPLETE MECH ASSEMBLY"
+	title.text = "⚠️ WARNING: NOT COMBAT READY"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_color_override("font_color", Color(1.0, 0.4, 0.2))
 	vbox.add_child(title)
 
 	var msg = Label.new()
-	msg.text = "คำเตือน: หุ่นของคุณประกอบไม่ครบชุด (ไม่มีขา/เกราะไม่ครบ)!\nอาจทำให้เคลื่อนที่และต่อสู้ในด่านได้ยากลำบาก\n\n(คุณยังคงเข้าเล่นด่านได้ แล้วแต่ศรัทธา - รองรับ Hover ในอนาคต)"
+	msg.text = "\n".join(warnings) + "\n\nคุณยังคงเข้าเล่นด่านได้ (LAUNCH ANYWAY) หรือกลับไปจัดการใน hangar (BACK TO HANGAR)"
 	msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	msg.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
+	msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(msg)
 
 	var sep = HSeparator.new()

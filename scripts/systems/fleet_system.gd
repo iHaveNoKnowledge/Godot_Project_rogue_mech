@@ -96,6 +96,12 @@ static func get_fielded_units() -> Array:
 	var result: Array = []
 	for unit in GlobalData.fleet_roster:
 		if unit is Dictionary and unit.get("fielded", true) and not unit.get("destroyed", false):
+			# A wounded pilot can still be ASSIGNED to a berth (so a mech waits for
+			# them), but they never tag into combat until the recovery countdown
+			# ends (or the roster's HEAL clears it). This gate is the source of
+			# truth even if some UI toggles `fielded` back on early.
+			if bool(unit.get("wounded", false)):
+				continue
 			result.append(unit)
 	return result
 

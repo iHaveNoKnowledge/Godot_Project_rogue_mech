@@ -12,14 +12,14 @@ static func get_stats(archetype: int, is_full: bool = false) -> Dictionary:
 			if is_full:
 				return {
 					"move_speed": 3.0,
-					"attack_range": 15.0,
+					"attack_range": 3.5,
 					"attack_damage": 20.0,
 					"attack_cooldown": 2.0,
 				}
 			else:
 				return {
 					"move_speed": 3.0,
-					"attack_range": 15.0,
+					"attack_range": 3.5,
 					"attack_damage": 15.0,
 					"attack_cooldown": 2.0,
 				}

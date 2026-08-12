@@ -74,7 +74,7 @@ ally_unit_templates = [{
 "armor_hp": 70.0,
 "attack_cooldown": 1.6,
 "attack_damage": 30.0,
-"attack_range": 15.0,
+"attack_range": 3.5,
 "color": Color(0.15, 0.7, 0.5, 1),
 "fielded": false,
 "frame_hp": 80.0,

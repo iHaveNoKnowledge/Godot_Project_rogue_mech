@@ -201,15 +201,91 @@ func _strafe_and_attack(delta: float) -> void:
 
 func _perform_attack() -> void:
 	match archetype:
-		0:  # RUSHER - melee
-			if target and target.has_method("take_damage"):
-				target.take_damage(attack_damage, "melee")
+		0:  # RUSHER - melee swing (collision-based, see _perform_melee)
+			_perform_melee()
 		1, 2:  # RANGED / HEAVY - projectile
 			if has_ammo():
 				_fire_ranged()
 				use_ammo()
 		3:  # SUPPORT - heal nearest ally
 			_heal_nearest_ally()
+
+
+func _perform_melee() -> void:
+	if not target or not is_instance_valid(target):
+		return
+	var dir = target.global_position - global_position
+	dir.y = 0.0
+	if dir.length() < 0.01:
+		return
+	dir = dir.normalized()
+	rotation.y = atan2(dir.x, dir.z)
+	_spawn_melee_trail(dir)
+	_check_melee_hit(dir)
+
+
+func _spawn_melee_trail(direction: Vector3) -> void:
+	var trail_count := 5
+	var sweep_width := 5.0
+	for i in range(trail_count):
+		var t := float(i) / float(trail_count - 1)
+		var trail := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(sweep_width, 0.08, 0.2)
+		trail.mesh = box
+
+		var mat := StandardMaterial3D.new()
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		var alpha := 1.0 - t * 0.6
+		mat.albedo_color = Color(0.5, 0.9, 1.0, alpha)
+		mat.emission_enabled = true
+		mat.emission = Color(0.3, 0.7, 1.0)
+		mat.emission_energy_multiplier = 5.0 - t * 3.0
+		mat.no_depth_test = true
+		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		trail.material_override = mat
+
+		get_tree().current_scene.add_child(trail)
+
+		var height_offset := lerpf(1.8, 0.8, t)
+		trail.global_position = global_position + Vector3(0, height_offset, 0) + direction * (1.2 + t * 1.2)
+		trail.look_at(trail.global_position + direction, Vector3.UP)
+		trail.rotate_object_local(Vector3.FORWARD, deg_to_rad(90))
+		trail.rotate_object_local(Vector3.UP, deg_to_rad(-30.0 + t * 60.0))
+
+		var delay := t * 0.04
+		var tween := get_tree().create_tween()
+		tween.tween_interval(delay)
+		tween.tween_property(mat, "albedo_color:a", 0.0, 0.3)
+		tween.tween_callback(trail.queue_free)
+
+
+func _check_melee_hit(direction: Vector3) -> void:
+	# Collision-based melee: only hits if an enemy body is actually in front
+	# within reach along the swing arc — no lock-on.
+	var space_state = get_viewport().get_world_3d().direct_space_state
+	var from_pos = global_position + Vector3(0, 1.5, 0)
+	var end_pos = from_pos + direction * attack_range
+	var query = PhysicsRayQueryParameters3D.create(from_pos, end_pos)
+	# Layer 8 = Enemy bodies; layer 2 = Environment (walls block swings).
+	query.collision_mask = 8 | 2
+	var result = space_state.intersect_ray(query)
+	if not result:
+		return
+
+	var collider: CollisionObject3D = result["collider"]
+	# If the ray stopped on a wall/cover first, the swing whiffs.
+	if collider.collision_layer & 2 != 0:
+		return
+
+	var victim: Node = collider
+	while victim and not victim.has_method("take_damage"):
+		victim = victim.get_parent()
+	if victim == null or not victim.has_method("take_damage"):
+		return
+
+	victim.take_damage(attack_damage, "melee")
+	EffectManager.spawn_damage_number(result["position"] + Vector3(0, 1, 0), attack_damage, Color(1, 0.5, 0))
 
 
 func _heal_nearest_ally() -> void:

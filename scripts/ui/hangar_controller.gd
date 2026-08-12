@@ -31,6 +31,7 @@ var readiness_panel: HangarReadinessPanel = null
 var persist_panel: HangarPersistPanel = null
 var scrap_panel: HangarScrapPanel = null
 var exit_panel: HangarExitPanel = null
+var refresh_panel: HangarRefreshPanel = null
 var header_panel: HangarHeaderPanel = null
 var left_panel_ui: HangarLeftPanel = null
 var right_panel_ui: HangarRightPanel = null
@@ -141,6 +142,8 @@ func _build_ui_layout() -> void:
 	scrap_panel.controller = self
 	exit_panel = HangarExitPanel.new()
 	exit_panel.controller = self
+	refresh_panel = HangarRefreshPanel.new()
+	refresh_panel.controller = self
 	header_panel = HangarHeaderPanel.new()
 	header_panel.controller = self
 	left_panel_ui = HangarLeftPanel.new()
@@ -177,34 +180,6 @@ func get_editing_mech_id() -> String:
 
 func set_editing_mech_id(id: String) -> void:
 	_customize_mech_id = id
-
-
-# Called by the roster panel after the edited berth changes: repaints the 3D
-# preview + total stats, and (optionally) the current slot's part list — the
-# same refresh set the old in-controller cycle/switch logic ran.
-func refresh_after_mech_change(repopulate_parts: bool) -> void:
-	garage_panel.update_all_slots_preview()
-	stats_panel.update()
-	if repopulate_parts:
-		part_list_panel.populate(selected_slot)
-
-
-# Called by the catalog panel after applying a chassis: repaints total stats
-# + the 3D preview with the new model — same refresh set the old in-controller
-# chassis apply ran.
-func refresh_after_chassis_change(chassis_info: Dictionary) -> void:
-	stats_panel.update()
-	garage_panel.update_all_slots_preview()
-	if not chassis_info.is_empty() and garage_panel:
-		garage_panel.apply_chassis_preview(chassis_info)
-
-
-# Called by the craft panel after a successful craft: repopulates the slot's
-# part list and refreshes total stats — the same refresh set the old
-# in-controller craft flow ran.
-func refresh_after_craft(slot: String) -> void:
-	part_list_panel.populate(slot)
-	stats_panel.update()
 
 
 # --- AMMO LOADOUT UI (how much ammo to carry into the next battle) ---

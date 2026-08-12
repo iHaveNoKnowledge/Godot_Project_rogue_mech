@@ -8,7 +8,7 @@ extends RefCounted
 ## Builds a modal listing the craftable templates for the selected slot; the
 ## craft button validates scrap/credits + blueprint lock, crafts via GlobalData,
 ## then repaints the equip list + total stats through the controller's
-## refresh_after_craft seam. `controller` is also the node the modal is added to.
+## refresh_panel.after_craft seam. `controller` is also the node the modal is added to.
 
 var controller: Node
 
@@ -167,5 +167,5 @@ func craft_armor(info: Dictionary) -> void:
 		controller.status_message_label.text = "Crafted %s! It is now in the Equip list." % inst.get("name", "Armor")
 	GlobalData.save_run()
 	close_window()
-	controller.refresh_after_craft(controller.selected_slot)
+	controller.refresh_panel.after_craft(controller.selected_slot)
 	AudioManager.play_ui_confirm()

@@ -55,7 +55,7 @@ func apply_chassis(key: String) -> void:
 	if controller.status_message_label:
 		controller.status_message_label.text = "Chassis model set to %s!" % info.get("name", key)
 	GlobalData.save_run()
-	controller.refresh_after_chassis_change(info)
+	controller.refresh_panel.after_chassis_change(info)
 	AudioManager.play_ui_confirm()
 	# Rebuild so the [CURRENT]/ACTIVE marker moves to the new selection.
 	build_window()

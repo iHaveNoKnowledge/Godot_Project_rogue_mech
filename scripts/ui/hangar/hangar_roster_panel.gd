@@ -7,7 +7,7 @@ extends RefCounted
 ##
 ## The controller keeps the cross-page editing state (_customize_mech_id) and the
 ## 3D/stats refreshes; this panel calls back into it through a small API
-## (get_editing_mech_id / set_editing_mech_id / refresh_after_mech_change).
+## (get_editing_mech_id / set_editing_mech_id / refresh_panel.after_mech_change).
 ## `controller` (the hangar node) is also the parent popup menus are attached to.
 
 var controller: Node
@@ -188,7 +188,7 @@ func cycle_hangar_mech(direction: int) -> void:
 	controller.set_editing_mech_id(target_id)
 	controller.selected_chassis_key = GlobalData.chassis_id
 	refresh_badge()
-	controller.refresh_after_mech_change(true)
+	controller.refresh_panel.after_mech_change(true)
 	if roster_panel and roster_panel.visible:
 		refresh_page()
 
@@ -356,7 +356,7 @@ func on_switch_mech_pressed(mech_id: String) -> void:
 	GlobalData.save_run()
 	refresh_badge()
 	refresh_page()
-	controller.refresh_after_mech_change(false)
+	controller.refresh_panel.after_mech_change(false)
 	if roster_status_label:
 		roster_status_label.text = "Loaded %s." % str(GlobalData.get_active_hangar_mech().get("name", "Mech"))
 

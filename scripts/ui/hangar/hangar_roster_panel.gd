@@ -271,15 +271,17 @@ func build_slot_row(slot: int, mech: Dictionary, over_capacity: bool) -> void:
 		if not GlobalData.mech_less:
 			var register_btn := Button.new()
 			register_btn.text = "REGISTER"
-			register_btn.tooltip_text = "Assemble a mech frame into this berth from the currently assembled parts (needs a body + both leg frames)."
+			register_btn.tooltip_text = "Assemble a mech frame into this berth from the currently assembled parts (%d scrap + %d cr; needs a body + both leg frames)." % [
+				GlobalData.get_frame_register_scrap_cost(), GlobalData.get_frame_register_credit_cost()]
 			register_btn.custom_minimum_size = Vector2(96, 28)
 			register_btn.focus_mode = Control.FOCUS_NONE
 			register_btn.pressed.connect(register_mech.bind(slot))
 			row.add_child(register_btn)
 
 		var hint := Label.new()
-		hint.text = "Assemble a frame from the current build" if not GlobalData.mech_less \
-			else "On foot — rebuild a chassis through recovery missions"
+		hint.text = "Assemble a frame from the current build · %d scrap + %d cr" % [
+			GlobalData.get_frame_register_scrap_cost(), GlobalData.get_frame_register_credit_cost()] \
+			if not GlobalData.mech_less else "On foot — rebuild a chassis through recovery missions"
 		hint.custom_minimum_size = Vector2(200, 0)
 		hint.add_theme_font_size_override("font_size", 10)
 		hint.add_theme_color_override("font_color", Color(0.5, 0.55, 0.65))
@@ -331,9 +333,10 @@ func build_slot_row(slot: int, mech: Dictionary, over_capacity: bool) -> void:
 
 # REGISTER — assembles the currently built parts (the working set) into an empty
 # convoy berth as a parked mech. Mirrors build_hangar_mech's rules: a walking
-# chassis (body + both leg frames) must be equipped and pilot-only mode must be
-# off. Asks for the new frame's name first instead of auto-naming it "Mech 02";
-# the new berth still parks pilotless (assign a pilot or SWITCH to it after).
+# chassis (body + both leg frames) must be equipped, pilot-only mode must be
+# off, and the assembly costs scrap + credits. Asks for the new frame's name
+# first instead of auto-naming it "Mech 02"; the new berth still parks
+# pilotless (assign a pilot or SWITCH to it after).
 func register_mech(slot: int) -> void:
 	if GlobalData.mech_less:
 		if roster_status_label:
@@ -350,6 +353,12 @@ func register_mech(slot: int) -> void:
 		if roster_status_label:
 			roster_status_label.text = "REGISTER needs a walking chassis (body + both leg frames) equipped."
 		return
+	# Same for the price: don't ask for a name the player can't afford to build.
+	if not _can_afford_register():
+		if roster_status_label:
+			roster_status_label.text = "REGISTER needs %d scrap + %d cr — not enough resources." % [
+				GlobalData.get_frame_register_scrap_cost(), GlobalData.get_frame_register_credit_cost()]
+		return
 	close_register_dialog()
 	build_register_dialog(slot)
 
@@ -365,8 +374,8 @@ func build_register_dialog(slot: int) -> void:
 	modal.anchor_bottom = 0.5
 	modal.offset_left = -240
 	modal.offset_right = 240
-	modal.offset_top = -110
-	modal.offset_bottom = 110
+	modal.offset_top = -125
+	modal.offset_bottom = 125
 
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.10, 0.10, 0.16, 0.97)
@@ -391,6 +400,14 @@ func build_register_dialog(slot: int) -> void:
 	title.add_theme_color_override("font_color", controller._highlight_color)
 	title.add_theme_font_size_override("font_size", 15)
 	vbox.add_child(title)
+
+	var cost_lbl := Label.new()
+	cost_lbl.text = "COST: %d scrap + %d cr" % [
+		GlobalData.get_frame_register_scrap_cost(), GlobalData.get_frame_register_credit_cost()]
+	cost_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	cost_lbl.add_theme_color_override("font_color", Color(0.9, 0.8, 0.3))
+	cost_lbl.add_theme_font_size_override("font_size", 12)
+	vbox.add_child(cost_lbl)
 
 	var hint := Label.new()
 	hint.text = "Name the frame you are assembling from the current build. It parks\npilotless — assign a pilot or SWITCH to it from the roster after."
@@ -433,15 +450,28 @@ func build_register_dialog(slot: int) -> void:
 	edit.grab_focus()
 
 
+# Shared affordability gate for the REGISTER price (register_mech + the confirm
+# re-check), so a future cost tweak can't drift the two checks apart.
+func _can_afford_register() -> bool:
+	return GlobalData.scrap >= GlobalData.get_frame_register_scrap_cost() \
+		and GlobalData.credits >= GlobalData.get_frame_register_credit_cost()
+
+
 func _confirm_register(slot: int) -> void:
 	var chosen := ""
 	if register_dialog_edit and is_instance_valid(register_dialog_edit):
 		chosen = register_dialog_edit.text.strip_edges()
 	close_register_dialog()
+	# The dialog only blocks its own rect, so resources could have changed while
+	# it was open — re-check the price before spending anything.
+	if not _can_afford_register():
+		if roster_status_label:
+			roster_status_label.text = "Not enough scrap/credits to assemble the frame."
+		return
 	var new_mech := GlobalData.build_hangar_mech(chosen, slot)
 	if new_mech.is_empty():
-		# The dialog only blocks its own rect, so the frames could have changed
-		# while it was open — re-check the chassis gate for an accurate message.
+		# Re-check the chassis gate for an accurate message (frames could have
+		# changed while the dialog was open).
 		var needs_chassis := false
 		for required in HangarManager.REQUIRED_WALKING_FRAMES:
 			if not GlobalData.equipped_frames.has(required) or GlobalData.equipped_frames[required] == null:
@@ -451,13 +481,17 @@ func _confirm_register(slot: int) -> void:
 			roster_status_label.text = "REGISTER needs a walking chassis (body + both leg frames) equipped." \
 				if needs_chassis else "No free berth in the convoy."
 		return
+	# Charged here (not in build()) so recovery grants / recruit parking stay free.
+	GlobalData.try_spend_scrap(GlobalData.get_frame_register_scrap_cost())
+	GlobalData.try_spend_credits(GlobalData.get_frame_register_credit_cost())
 	GlobalData.save_run()
 	AudioManager.play_ui_confirm()
 	refresh_badge()
 	refresh_page()
 	if roster_status_label:
-		roster_status_label.text = "Registered %s in SLOT %02d. Assign a pilot or SWITCH to it from here." % [
-			str(new_mech.get("name", "Mech")), slot]
+		roster_status_label.text = "Registered %s in SLOT %02d (-%d scrap, -%d cr). Assign a pilot or SWITCH to it from here." % [
+			str(new_mech.get("name", "Mech")), slot,
+			GlobalData.get_frame_register_scrap_cost(), GlobalData.get_frame_register_credit_cost()]
 
 
 func close_register_dialog() -> void:

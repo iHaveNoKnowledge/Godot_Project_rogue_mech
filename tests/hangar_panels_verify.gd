@@ -183,17 +183,34 @@ func _verify_roster_panel() -> void:
 	var register_btn := _find_register_button(rp)
 	_check(register_btn != null, "empty berth row offers a REGISTER button")
 	var mechs_before := GlobalData.get_hangar_mechs().size()
+	var reg_scrap := GlobalData.get_frame_register_scrap_cost()
+	var reg_credits := GlobalData.get_frame_register_credit_cost()
+	var scrap_before := GlobalData.scrap
+	var credits_before := GlobalData.credits
 
-	# Pressing REGISTER asks for a name instead of instantly parking "Mech 02".
+	# REGISTER costs scrap + credits (HangarManager.REGISTER_*_COST). reset_run_data
+	# leaves scrap at 0, so the price gate blocks until resources are granted.
+	rp.register_mech(2)
+	_check(rp.roster_status_label.text.contains("not enough resources"), "REGISTER blocks without enough scrap/credits")
+	_check(rp.register_dialog == null, "unaffordable REGISTER opens no name prompt")
+	_check(GlobalData.get_hangar_mechs().size() == mechs_before, "unaffordable REGISTER parks no mech")
+	_check(GlobalData.scrap == scrap_before and GlobalData.credits == credits_before, "unaffordable REGISTER spends nothing")
+
+	# Grant enough resources for the rest of the flow, then press REGISTER.
+	GlobalData.gain_scrap(reg_scrap + 500)
+	GlobalData.gain_credits(reg_credits + 500)
+	var scrap_after_grant := GlobalData.scrap
+	var credits_after_grant := GlobalData.credits
 	if register_btn:
 		register_btn.pressed.emit()
 		await get_tree().process_frame
 	_check(rp.register_dialog != null, "REGISTER opens the name prompt dialog")
 	_check(rp.register_dialog_edit != null, "name prompt builds the LineEdit")
 	_check(rp.register_dialog_edit.text == "Mech 02", "name prompt defaults to the slot-based name")
+	_check(_collect_label_text(rp.register_dialog).contains("COST: %d scrap" % reg_scrap), "name prompt shows the assembly cost")
 	_check(GlobalData.get_hangar_mechs().size() == mechs_before, "nothing is parked until the name is confirmed")
 
-	# Cancelling aborts without parking anything.
+	# Cancelling aborts without parking or spending anything.
 	if rp.register_dialog:
 		var cancel_btn := _find_button_by_text(rp.register_dialog, "CANCEL")
 		_check(cancel_btn != null, "name prompt builds the CANCEL button")
@@ -202,8 +219,9 @@ func _verify_roster_panel() -> void:
 			await get_tree().process_frame
 	_check(rp.register_dialog == null or not is_instance_valid(rp.register_dialog), "CANCEL closes the name prompt")
 	_check(GlobalData.get_hangar_mechs().size() == mechs_before, "CANCEL parks nothing")
+	_check(GlobalData.scrap == scrap_after_grant and GlobalData.credits == credits_after_grant, "CANCEL spends nothing")
 
-	# Confirming with a custom name parks the mech under that name.
+	# Confirming with a custom name parks the mech and charges the exact cost.
 	if register_btn and is_instance_valid(register_btn):
 		register_btn.pressed.emit()
 		await get_tree().process_frame
@@ -217,6 +235,11 @@ func _verify_roster_panel() -> void:
 			ok_btn.pressed.emit()
 			await get_tree().process_frame
 	_check(GlobalData.get_hangar_mechs().size() == mechs_before + 1, "confirmed REGISTER assembles a mech into the empty berth")
+	var scrap_after_first := GlobalData.scrap
+	var credits_after_first := GlobalData.credits
+	_check(scrap_after_first == scrap_after_grant - reg_scrap, "REGISTER spends exactly the scrap cost")
+	_check(credits_after_first == credits_after_grant - reg_credits, "REGISTER spends exactly the credit cost")
+	_check(rp.roster_status_label.text.contains("-%d scrap" % reg_scrap), "REGISTER reports the spent cost")
 	var registered_name := ""
 	for m in GlobalData.get_hangar_mechs():
 		if int(m.get("slot", 0)) == 2:
@@ -239,6 +262,7 @@ func _verify_roster_panel() -> void:
 		_check(rp.roster_status_label.text.contains("walking chassis"), "REGISTER blocks without a walking chassis")
 		_check(rp.register_dialog == null, "chassis gate opens no name prompt")
 		_check(GlobalData.get_hangar_mechs().size() == mechs_before, "blocked REGISTER parks no mech")
+		_check(GlobalData.scrap == scrap_after_first and GlobalData.credits == credits_after_first, "chassis gate spends nothing")
 		# Restore the frame and confirm a blank name -> falls back to "Mech 02".
 		GlobalData.equipped_frames["body"] = (GlobalData.frame_catalog["body"][0] as Dictionary).duplicate()
 		rp.register_mech(2)
@@ -254,6 +278,7 @@ func _verify_roster_panel() -> void:
 			if int(m.get("slot", 0)) == 2:
 				fallback_name = str(m.get("name", ""))
 		_check(fallback_name == "Mech 02", "blank name falls back to the slot-based name")
+		_check(GlobalData.scrap == scrap_after_first - reg_scrap and GlobalData.credits == credits_after_first - reg_credits, "blank-name REGISTER also charges the cost")
 
 	# Pilot-only mode: the button disappears and register_mech points at the
 	# recovery path instead of building.
@@ -275,6 +300,26 @@ func _verify_roster_panel() -> void:
 	rp.hide_page()
 	await get_tree().process_frame
 	_check(rp.register_dialog == null or not is_instance_valid(rp.register_dialog), "leaving the roster page closes the name prompt")
+
+	# Resources drained while the prompt is open: confirming reports the
+	# shortfall, closes the dialog and spends nothing (no negative balances).
+	GlobalData.gain_scrap(reg_scrap + 10)
+	GlobalData.gain_credits(reg_credits + 10)
+	rp.register_mech(2)
+	await get_tree().process_frame
+	_check(rp.register_dialog != null, "affordable REGISTER opens the prompt once more")
+	if rp.register_dialog_edit:
+		rp.register_dialog_edit.text = "Drained"
+	GlobalData.scrap = 0
+	GlobalData.credits = 0
+	if rp.register_dialog:
+		var drained_ok := _find_button_by_text(rp.register_dialog, "REGISTER FRAME")
+		if drained_ok:
+			drained_ok.pressed.emit()
+			await get_tree().process_frame
+	_check(rp.register_dialog == null or not is_instance_valid(rp.register_dialog), "shortfall at confirm closes the prompt")
+	_check(rp.roster_status_label.text.contains("Not enough scrap/credits"), "shortfall at confirm reports the missing resources")
+	_check(GlobalData.scrap == 0 and GlobalData.credits == 0, "shortfall at confirm spends nothing")
 
 	ctrl.nav_panel.show_hangar_menu()
 	await get_tree().process_frame

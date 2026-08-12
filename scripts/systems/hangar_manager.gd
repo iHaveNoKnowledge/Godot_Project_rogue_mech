@@ -38,6 +38,14 @@ const ARCHETYPE_SUPPORT := 3
 # roster page's REGISTER action so the gate can never drift between them.
 const REQUIRED_WALKING_FRAMES: Array[String] = ["body", "leg_left", "leg_right"]
 
+# Resource cost to assemble a new frame into an empty berth via the roster
+# page's REGISTER action (see build()). Charged by the roster panel, not inside
+# build(), so other callers (recovery grants, recruit parking, tests) stay free.
+# Deliberately above a single armor craft so duplicating a chassis is a real
+# decision instead of a spam action.
+const REGISTER_SCRAP_COST := 25
+const REGISTER_CREDIT_COST := 60
+
 
 # Number of pilots in the convoy: the player driver plus every researched fleet
 # unit (regardless of fielded/destroyed status — they still occupy a berth).

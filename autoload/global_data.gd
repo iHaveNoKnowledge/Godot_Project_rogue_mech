@@ -480,6 +480,16 @@ func build_hangar_mech(mech_name: String = "", requested_slot: int = 0) -> Dicti
 	return HangarManager.build(mech_name, requested_slot)
 
 
+# Resource cost to assemble a new frame into an empty berth (roster REGISTER).
+# Single source of truth so every UI shows the same price.
+func get_frame_register_scrap_cost() -> int:
+	return HangarManager.REGISTER_SCRAP_COST
+
+
+func get_frame_register_credit_cost() -> int:
+	return HangarManager.REGISTER_CREDIT_COST
+
+
 func get_backup_hangar_mech_id() -> String:
 	return HangarManager.get_backup_id()
 

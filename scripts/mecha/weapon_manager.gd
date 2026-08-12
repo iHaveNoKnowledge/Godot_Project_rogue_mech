@@ -13,19 +13,16 @@ var right_hand: WeaponPart = null
 var carry: Array[WeaponPart] = []
 
 # --- Ammo ---
-var ammo_pool: Dictionary = {}
 # Ammo brought into this battle from the Hangar loadout. Reload consumes from
 # this local pool (NOT the persistent stash) so "how much ammo you carry" is the
 # ammo loadout choice. Leftover ammo returns to the stash when combat ends.
 var battle_reserve: Dictionary = {}
 
-# --- Cooldowns ---
-var left_cooldown: float = 0.0
-var right_cooldown: float = 0.0
-
-# --- Heat (per weapon name so swapped weapons keep their thermal state) ---
-var heat_levels: Dictionary = {}
-var heat_overheated: Dictionary = {}
+# --- Firing cores ---
+# Each equipped weapon runs through a WeaponCore (cached by weapon name so a
+# swapped weapon keeps its ammo/heat/cooldown). Cooldown, ammo and heat live in
+# the core; the manager only adds input, aim and presentation.
+var _cores: Dictionary = {}
 
 # --- Input State ---
 var holding_left: bool = false
@@ -69,14 +66,6 @@ func _ready() -> void:
 	left_hand = GlobalData.get_equipped_weapon("left")
 	right_hand = GlobalData.get_equipped_weapon("right")
 	carry = GlobalData.get_carry_weapons()
-	if left_hand:
-		ammo_pool[left_hand.weapon_name] = left_hand.max_ammo
-	if right_hand:
-		ammo_pool[right_hand.weapon_name] = right_hand.max_ammo
-	# Seed ammo for carried weapons so they are usable when swapped into a hand.
-	for weapon in carry:
-		if weapon and not ammo_pool.has(weapon.weapon_name):
-			ammo_pool[weapon.weapon_name] = weapon.max_ammo
 	# Battle reserve = the ammo the player chose to carry in the loadout.
 	# Deduct that from the persistent stash now (what you fire is spent); any
 	# leftover returns to the stash when combat ends.
@@ -153,24 +142,60 @@ func _emit_initial_state() -> void:
 	carry_updated.emit(carry)
 
 
-func _physics_process(delta: float) -> void:
-	if left_cooldown > 0.0:
-		left_cooldown -= delta
-	if right_cooldown > 0.0:
-		right_cooldown -= delta
+# Returns the WeaponCore backing a weapon, creating it once per weapon name so a
+# swapped-out weapon keeps its ammo/heat/cooldown when re-equipped. The core
+# owns cooldown/ammo/heat/reload + projectile spawning; the manager keeps only
+# input, aim and presentation.
+func _core_for_weapon(weapon: WeaponPart) -> WeaponCore:
+	if weapon == null:
+		return null
+	var name = weapon.weapon_name
+	if not _cores.has(name):
+		var core := WeaponCore.from_weapon(weapon)
+		core.auto_reload = false
+		core.manual_reload = true
+		core.ammo_changed.connect(_forward_ammo_changed.bind(name))
+		core.heat_changed.connect(_forward_heat_changed.bind(name))
+		_cores[name] = core
+	return _cores[name]
 
-	_cool_heat("left", left_hand, delta)
-	_cool_heat("right", right_hand, delta)
+
+func _forward_ammo_changed(current: int, max_ammo: int, weapon_name: String) -> void:
+	var hand = _hand_of_weapon(weapon_name)
+	if not hand.is_empty():
+		ammo_changed.emit(hand, current, max_ammo)
+
+
+func _forward_heat_changed(current: float, max_heat: float, overheated: bool, weapon_name: String) -> void:
+	var hand = _hand_of_weapon(weapon_name)
+	if not hand.is_empty():
+		heat_changed.emit(hand, current, max_heat, overheated)
+
+
+func _hand_of_weapon(weapon_name: String) -> String:
+	if left_hand and left_hand.weapon_name == weapon_name:
+		return "left"
+	if right_hand and right_hand.weapon_name == weapon_name:
+		return "right"
+	return ""
+
+
+func _physics_process(delta: float) -> void:
+	# Tick the firing cores (cooldown + heat cooling + auto reloads).
+	if left_hand:
+		_core_for_weapon(left_hand).tick(delta)
+	if right_hand:
+		_core_for_weapon(right_hand).tick(delta)
 
 	if holding_left:
 		_hold_time_left += delta
 	if holding_right:
 		_hold_time_right += delta
 
-	if fire_left_holding and left_hand and left_cooldown <= 0.0:
+	if fire_left_holding and left_hand:
 		if left_hand.weapon_type != WeaponPart.WeaponType.SHIELD:
 			_try_fire("left", left_hand)
-	if fire_right_holding and right_hand and right_cooldown <= 0.0:
+	if fire_right_holding and right_hand:
 		if right_hand.weapon_type != WeaponPart.WeaponType.SHIELD:
 			_try_fire("right", right_hand)
 
@@ -308,7 +333,7 @@ func reload_weapon(hand: String) -> void:
 			return
 
 	var refilled = consume_battle_reserve(ammo_type, needed)
-	ammo_pool[weapon.weapon_name] = current_mag + refilled
+	_core_for_weapon(weapon).ammo = current_mag + refilled
 
 	if is_left:
 		reloading_left = false
@@ -512,7 +537,7 @@ func add_weapon(weapon: WeaponPart) -> void:
 	# Always add a physical copy so picking up the same weapon gives you a second
 	# one (dual-wield the same model) instead of silently converting to ammo.
 	carry.append(weapon)
-	ammo_pool[weapon.weapon_name] = weapon.max_ammo
+	_core_for_weapon(weapon).ammo = weapon.max_ammo
 	carry_updated.emit(carry)
 	_update_weapon_visuals()
 	sync_loadout_to_global()
@@ -552,39 +577,17 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 	if weapon.weapon_type == WeaponPart.WeaponType.SHIELD:
 		return
 
-	var current_ammo = _get_ammo(weapon)
-	if not weapon.can_fire(current_ammo):
-		return
-	if hand == "left" and left_cooldown > 0.0:
-		return
-	if hand == "right" and right_cooldown > 0.0:
-		return
-	if weapon.uses_heat() and heat_overheated.get(weapon.weapon_name, false):
+	var core = _core_for_weapon(weapon)
+	if core == null or not core.can_fire():
 		return
 
-	if hand == "left":
-		left_cooldown = weapon.get_fire_interval()
-	elif hand == "right":
-		right_cooldown = weapon.get_fire_interval()
-
-	ammo_pool[weapon.weapon_name] = current_ammo - weapon.ammo_per_shot
-	ammo_changed.emit(hand, _get_ammo(weapon), weapon.max_ammo)
-
-	_accumulate_heat(hand, weapon)
-	_apply_recoil(weapon)
-
-	match weapon.weapon_type:
-		WeaponPart.WeaponType.MELEE:
+	# Melee keeps its custom lunge/hit animation but obeys the shared rules
+	# (cooldown, ammo, heat) through the core.
+	if weapon.weapon_type == WeaponPart.WeaponType.MELEE:
+		if core.consume_shot():
 			_melee_attack(hand, weapon)
-		WeaponPart.WeaponType.SHOTGUN:
-			_fire_shotgun(hand, weapon)
-		WeaponPart.WeaponType.MISSILE:
-			_fire_missile(hand, weapon)
-		_:
-			_fire_projectile(hand, weapon)
+		return
 
-
-func _fire_projectile(hand: String, weapon: WeaponPart) -> void:
 	var mecha = get_parent()
 	if mecha == null:
 		return
@@ -611,183 +614,15 @@ func _fire_projectile(hand: String, weapon: WeaponPart) -> void:
 	else:
 		target_point = ray_origin + ray_dir * 500.0
 
-	var direction = (target_point - spawn_pos).normalized()
+	var aim_dir = (target_point - spawn_pos).normalized()
 
-	var proj_script = load("res://scripts/systems/projectile.gd")
-	var projectile = CharacterBody3D.new()
-	projectile.set_script(proj_script)
-	projectile.collision_layer = 0
-	projectile.collision_mask = 0
-
-	var collision = CollisionShape3D.new()
-	var shape = SphereShape3D.new()
-	shape.radius = 0.1
-	collision.shape = shape
-	projectile.add_child(collision)
-
-	var mesh = MeshInstance3D.new()
-	var capsule = CapsuleMesh.new()
-	capsule.radius = 0.03
-	capsule.height = 0.25
-	mesh.mesh = capsule
-	var mat = StandardMaterial3D.new()
-	mat.albedo_color = Color(1, 0.8, 0.2, 1)
-	mat.emission_enabled = true
-	mat.emission = Color(1, 0.6, 0.1)
-	mat.emission_energy_multiplier = 2.0
-	mesh.material_override = mat
-	projectile.add_child(mesh)
-
-	get_tree().current_scene.add_child(projectile)
-	projectile.global_position = spawn_pos
-	# Orient capsule along travel direction (must be in tree for look_at)
-	mesh.global_position = spawn_pos
-	mesh.look_at(spawn_pos + direction, Vector3.UP)
-	mesh.rotate_object_local(Vector3.RIGHT, deg_to_rad(90))
-	projectile.speed = weapon.projectile_speed
-	projectile.damage = weapon.damage
-	projectile.damage_type = "kinetic"
-	projectile.impact = weapon.impact
-	projectile.direction = direction
-
-	EffectManager.spawn_muzzle_flash(spawn_pos, direction)
-	AudioManager.play_weapon_sfx_with_override(weapon, spawn_pos)
-	_spawn_shell_casing(spawn_pos, hand)
-
-
-func _fire_missile(hand: String, weapon: WeaponPart) -> void:
-	var mecha = get_parent()
-	if mecha == null:
-		return
-	var cam = get_viewport().get_camera_3d()
-	if cam == null:
-		return
-
-	var offset = Vector3(-0.6, 1.5, 0.5) if hand == "left" else Vector3(0.6, 1.5, 0.5)
-	var spawn_pos = mecha.global_position + mecha.global_transform.basis * offset
-
-	var viewport_size = get_viewport().get_visible_rect().size
-	var center = viewport_size / 2.0
-	var ray_origin = cam.project_ray_origin(center)
-	var ray_dir = cam.project_ray_normal(center)
-
-	var space_state = get_viewport().get_world_3d().direct_space_state
-	var query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 500.0)
-	query.collision_mask = 10
-	var result = space_state.intersect_ray(query)
-
-	var target_point: Vector3
-	if result:
-		target_point = result["position"]
-	else:
-		target_point = ray_origin + ray_dir * 500.0
-
-	var direction = (target_point - spawn_pos).normalized()
-
-	var proj_script = load("res://scripts/systems/projectile.gd")
-	var projectile = CharacterBody3D.new()
-	projectile.set_script(proj_script)
-	projectile.speed = weapon.projectile_speed
-	projectile.damage = weapon.damage
-	projectile.damage_type = "explosive"
-	projectile.impact = weapon.impact
-	projectile.direction = direction
-
-	var mesh = MeshInstance3D.new()
-	var box = BoxMesh.new()
-	box.size = Vector3(0.1, 0.1, 0.4)
-	mesh.mesh = box
-	var mat = StandardMaterial3D.new()
-	mat.albedo_color = Color(1.0, 0.4, 0.1, 1.0)
-	mat.emission_enabled = true
-	mat.emission = Color(1.0, 0.3, 0.0)
-	mat.emission_energy_multiplier = 3.0
-	mesh.material_override = mat
-	projectile.add_child(mesh)
-
-	get_tree().current_scene.add_child(projectile)
-	projectile.global_position = spawn_pos
-	mesh.global_position = spawn_pos
-	mesh.look_at(spawn_pos + direction, Vector3.UP)
-
-	EffectManager.spawn_muzzle_flash(spawn_pos, direction)
-	AudioManager.play_weapon_sfx_with_override(weapon, spawn_pos)
-
-
-func _fire_shotgun(hand: String, weapon: WeaponPart) -> void:
-	var mecha = get_parent()
-	if mecha == null:
-		return
-	var cam = get_viewport().get_camera_3d()
-	if cam == null:
-		return
-
-	var offset = Vector3(-0.6, 1.5, 0.5) if hand == "left" else Vector3(0.6, 1.5, 0.5)
-	var spawn_pos = mecha.global_position + mecha.global_transform.basis * offset
-
-	var viewport_size = get_viewport().get_visible_rect().size
-	var center = viewport_size / 2.0
-	var ray_origin = cam.project_ray_origin(center)
-	var ray_dir = cam.project_ray_normal(center)
-
-	var space_state = get_viewport().get_world_3d().direct_space_state
-	var query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 500.0)
-	query.collision_mask = 10
-	var result = space_state.intersect_ray(query)
-
-	var target_point: Vector3
-	if result:
-		target_point = result["position"]
-	else:
-		target_point = ray_origin + ray_dir * 500.0
-
-	var base_dir = (target_point - spawn_pos).normalized()
-
-	var pellet_count = 7
-	for i in range(pellet_count):
-		var spread_x = randf_range(-weapon.spread, weapon.spread)
-		var spread_y = randf_range(-weapon.spread, weapon.spread)
-		var pellet_dir = (base_dir + Vector3(spread_x, spread_y, 0)).normalized()
-
-		var proj_script = load("res://scripts/systems/projectile.gd")
-		var projectile = CharacterBody3D.new()
-		projectile.set_script(proj_script)
-		projectile.collision_layer = 0
-		projectile.collision_mask = 0
-
-		var collision = CollisionShape3D.new()
-		var shape = SphereShape3D.new()
-		shape.radius = 0.08
-		collision.shape = shape
-		projectile.add_child(collision)
-
-		var mesh = MeshInstance3D.new()
-		var capsule = CapsuleMesh.new()
-		capsule.radius = 0.02
-		capsule.height = 0.15
-		mesh.mesh = capsule
-		var mat = StandardMaterial3D.new()
-		mat.albedo_color = Color(1, 0.8, 0.2, 1)
-		mat.emission_enabled = true
-		mat.emission = Color(1, 0.6, 0.1)
-		mat.emission_energy_multiplier = 2.0
-		mesh.material_override = mat
-		projectile.add_child(mesh)
-
-		get_tree().current_scene.add_child(projectile)
-		projectile.global_position = spawn_pos
-		mesh.global_position = spawn_pos
-		mesh.look_at(spawn_pos + pellet_dir, Vector3.UP)
-		mesh.rotate_object_local(Vector3.RIGHT, deg_to_rad(90))
-		projectile.speed = weapon.projectile_speed
-		projectile.damage = weapon.damage
-		projectile.damage_type = "kinetic"
-		projectile.impact = weapon.impact
-		projectile.direction = pellet_dir
-
-	EffectManager.spawn_muzzle_flash(spawn_pos, ray_dir)
-	AudioManager.play_weapon_sfx_with_override(weapon, spawn_pos)
-	_spawn_shell_casing(spawn_pos, hand)
+	# Fire through the shared core: it consumes cooldown/ammo/heat and spawns the
+	# projectile (bullet/missile/shotgun visuals handled by weapon_type).
+	if core.try_fire(spawn_pos, aim_dir, false, mecha):
+		_apply_recoil(weapon)
+		AudioManager.play_weapon_sfx_with_override(weapon, spawn_pos)
+		if weapon.weapon_type != WeaponPart.WeaponType.MISSILE:
+			_spawn_shell_casing(spawn_pos, hand)
 
 
 func _melee_attack(hand: String, weapon: WeaponPart) -> void:
@@ -996,15 +831,18 @@ func is_two_hand_gripped_hand(hand: String) -> bool:
 # ====================================================================
 
 func _get_ammo(weapon: WeaponPart) -> int:
-	return ammo_pool.get(weapon.weapon_name, 0)
+	var core = _core_for_weapon(weapon)
+	return core.ammo if core else 0
 
 
 # ====================================================================
 # HEAT SYSTEM (every weapon with heat_capacity > 0)
+# State + cooling live in WeaponCore; the manager only exposes it read-only.
 # ====================================================================
 
 func _get_heat(weapon: WeaponPart) -> float:
-	return heat_levels.get(weapon.weapon_name, 0.0)
+	var core = _core_for_weapon(weapon)
+	return core.heat if core else 0.0
 
 
 func get_heat(hand: String) -> float:
@@ -1018,52 +856,16 @@ func get_heat_percent(hand: String) -> float:
 	var weapon = left_hand if hand == "left" else right_hand
 	if weapon == null or not weapon.uses_heat():
 		return 0.0
-	return _get_heat(weapon) / weapon.heat_capacity
+	var core = _core_for_weapon(weapon)
+	return core.get_heat_percent() if core else 0.0
 
 
 func is_overheated(hand: String) -> bool:
 	var weapon = left_hand if hand == "left" else right_hand
 	if weapon == null:
 		return false
-	return heat_overheated.get(weapon.weapon_name, false)
-
-
-func _accumulate_heat(hand: String, weapon: WeaponPart) -> void:
-	if not weapon.uses_heat():
-		return
-	var level = _get_heat(weapon) + weapon.heat_per_shot
-	level = minf(level, weapon.heat_capacity)
-	heat_levels[weapon.weapon_name] = level
-	var overheated: bool = level >= weapon.heat_capacity
-	if overheated:
-		heat_overheated[weapon.weapon_name] = true
-	emit_changed(hand)
-
-
-# Cooldown per frame; once overheated the weapon un-locks when it cools below
-# the release ratio (heat_release_ratio) so it has a meaningful overheat penalty.
-func _cool_heat(hand: String, weapon: WeaponPart, delta: float) -> void:
-	if weapon == null or not weapon.uses_heat():
-		return
-	var level = _get_heat(weapon)
-	var cooled = maxf(level - weapon.heat_cool_rate * delta, 0.0)
-	if heat_overheated.get(weapon.weapon_name, false) and cooled <= weapon.heat_capacity * weapon.heat_release_ratio:
-		heat_overheated[weapon.weapon_name] = false
-		heat_levels[weapon.weapon_name] = cooled
-		emit_changed(hand)
-		return
-	if not is_equal_approx(level, cooled):
-		heat_levels[weapon.weapon_name] = cooled
-		emit_changed(hand)
-
-
-func emit_changed(hand: String, _hand_arg: String = "") -> void:
-	var weapon = left_hand if hand == "left" else right_hand
-	if weapon == null:
-		return
-	var max_heat: float = weapon.heat_capacity
-	var current: float = _get_heat(weapon)
-	heat_changed.emit(hand, current, max_heat, heat_overheated.get(weapon.weapon_name, false))
+	var core = _core_for_weapon(weapon)
+	return core.is_overheated() if core else false
 
 
 # ====================================================================

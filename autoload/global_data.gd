@@ -481,6 +481,20 @@ func switch_hangar_mech(mech_id: String) -> bool:
 	return HangarManager.switch_mech(mech_id)
 
 
+# Loads a parked mech's parts into the working set for editing WITHOUT changing
+# which mech the player actually pilots (active). Used by the customize page so
+# you can tune any berth while keeping the combat mech as-is.
+func load_hangar_mech_state(mech_id: String) -> bool:
+	return HangarManager.load_mech_state(mech_id)
+
+
+# Persists the current working set back onto a specific parked mech. Unlike
+# save_active_hangar_mech(), this targets any berth, so edits to a non-active
+# mech on the customize page are saved to the right entry.
+func save_hangar_mech_state(mech_id: String) -> bool:
+	return HangarManager.save_mech_state(mech_id)
+
+
 # Fleet-driven convoy capacity: number of parking berths the hangar has.
 func get_hangar_capacity() -> int:
 	return HangarManager.get_capacity()

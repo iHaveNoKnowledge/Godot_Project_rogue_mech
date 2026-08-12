@@ -94,6 +94,10 @@ var roster_status_label: Label = null
 var mech_slot_label: Label = null
 var mech_prev_button: Button = null
 var mech_next_button: Button = null
+# The mech berth currently open in the customize/roster editor. This is separate
+# from GlobalData.active_hangar_mech_id (the mech the player actually pilots in
+# combat): prev/next cycles this editing target without reassigning the driver.
+var _customize_mech_id: String = ""
 
 # Inner Frame Catalog
 # NOTE: First entry per slot must match GlobalData.equipped_frames default names so
@@ -655,34 +659,51 @@ func _refresh_mech_badge() -> void:
 		mech_slot_label.text = "ON FOOT — NO MECH PARKED"
 		return
 	var capacity := GlobalData.get_hangar_capacity()
-	var active := GlobalData.get_active_hangar_mech()
-	var slot := int(active.get("slot", 0))
+	var mechs := GlobalData.get_hangar_mechs()
+	var editing_id := _customize_mech_id if _customize_mech_id != "" else GlobalData.active_hangar_mech_id
+	var editing: Dictionary = {}
+	for m in mechs:
+		if str(m.get("id", "")) == editing_id:
+			editing = m
+			break
+	var slot := int(editing.get("slot", 0))
 	if slot <= 0:
-		slot = GlobalData.get_hangar_slot_of(GlobalData.active_hangar_mech_id)
+		slot = GlobalData.get_hangar_slot_of(editing_id)
 	if slot <= 0:
 		slot = 1
-	mech_slot_label.text = "MECH SLOT %d/%d · %s" % [slot, capacity, str(active.get("name", "Mech"))]
+	var name_str := str(editing.get("name", "Mech")) if not editing.is_empty() else "Mech"
+	var driver_note := ""
+	if editing_id == GlobalData.active_hangar_mech_id:
+		driver_note = " · PILOTING"
+	mech_slot_label.text = "MECH SLOT %d/%d · %s%s" % [slot, capacity, name_str, driver_note]
 
 
-# Page between parked mechs (wrap-around). Builds nothing and only touches the
-# saved roster, so equipping is safe on whichever mech the driver is on now.
+# Pages between parked mechs (wrap-around). This only changes which mech is
+# being edited on the customize/roster page — it does NOT switch the player's
+# active (piloting) mech, which stays untouched until the player assigns a
+# pilot or drives it into combat.
 func _cycle_hangar_mech(direction: int) -> void:
 	var mechs := GlobalData.get_hangar_mechs()
 	if mechs.size() <= 1:
 		return
+	# Editing target defaults to the active mech on first open.
+	var current_id := _customize_mech_id if _customize_mech_id != "" else GlobalData.active_hangar_mech_id
+	# Persist edits made on the berth we're leaving before loading the next one.
+	if current_id != "":
+		GlobalData.save_hangar_mech_state(current_id)
 	var index := -1
 	for i in range(mechs.size()):
-		if str(mechs[i].get("id", "")) == GlobalData.active_hangar_mech_id:
+		if str(mechs[i].get("id", "")) == current_id:
 			index = i
 			break
 	if index < 0:
 		index = 0
 	var next := (index + direction + mechs.size()) % mechs.size()
 	var target_id := str(mechs[next].get("id", ""))
-	if not GlobalData.switch_hangar_mech(target_id):
+	if not GlobalData.load_hangar_mech_state(target_id):
 		return
+	_customize_mech_id = target_id
 	selected_chassis_key = GlobalData.chassis_id
-	GlobalData.save_run()
 	_refresh_mech_badge()
 	_update_all_3d_slots_preview()
 	_update_total_stats()
@@ -819,6 +840,8 @@ func _on_switch_mech_pressed(mech_id: String) -> void:
 		if roster_status_label:
 			roster_status_label.text = "Unable to load that hangar mech."
 		return
+	# The player is now piloting this berth, so the editor follows along.
+	_customize_mech_id = mech_id
 	selected_chassis_key = GlobalData.chassis_id
 	GlobalData.save_run()
 	_refresh_mech_badge()
@@ -1052,6 +1075,10 @@ func _apply_tactical_idle_pose(mecha_node: Node3D) -> void:
 
 
 func _on_close_pressed() -> void:
+	# Persist any edits made on the customize page to the berth being edited,
+	# then restore the ACTIVE mech (the one the player actually pilots) back into
+	# the working set so combat loads the right machine.
+	_persist_customize_edits()
 	_check_combat_readiness_warning(func():
 		visible = false
 		get_tree().paused = false
@@ -1062,6 +1089,28 @@ func _on_close_pressed() -> void:
 		else:
 			EventBus.game_state_changed.emit("HANGAR", "INTERMISSION")
 	)
+
+
+# Save the current working set onto the mech that's open in the editor, then
+# (if that isn't the active/piloting mech) reload the active mech's parts so the
+# player leaves the hangar with the machine they'll actually pilot.
+func _persist_customize_edits() -> void:
+	var editing_id := _customize_mech_id if _customize_mech_id != "" else GlobalData.active_hangar_mech_id
+	if editing_id == "":
+		return
+	GlobalData.save_hangar_mech_state(editing_id)
+	_customize_mech_id = editing_id
+	if editing_id != GlobalData.active_hangar_mech_id:
+		GlobalData.load_hangar_mech_state(GlobalData.active_hangar_mech_id)
+
+
+# Persist the working set back onto the berth being edited (so its roster
+# snapshot is fresh), then save the run. Called after equip/unequip so edits to
+# a non-active mech on the customize page land on the right entry.
+func _commit_editing_mech_and_save() -> void:
+	if _customize_mech_id != "":
+		GlobalData.save_hangar_mech_state(_customize_mech_id)
+	GlobalData.save_run()
 
 
 func _check_combat_readiness_warning(on_confirm: Callable) -> void:
@@ -1145,6 +1194,8 @@ func show_hangar() -> void:
 	visible = true
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	# Open the editor on the mech the player is currently piloting.
+	_customize_mech_id = GlobalData.active_hangar_mech_id
 	_update_total_stats()
 	AudioManager.play_hangar_music()
 	call_deferred("_update_all_3d_slots_preview")
@@ -2561,7 +2612,7 @@ func _equip_part_to_slot(slot: String, info: Dictionary) -> void:
 		# A brand-new frame is installed: it starts at full HP, so wipe any
 		# frame damage that belonged to the PREVIOUS frame in this slot.
 		GlobalData.part_damage.erase(slot + "_frame")
-		GlobalData.save_run()
+		_commit_editing_mech_and_save()
 		_update_total_stats()
 		_populate_part_list_for_slot(slot)
 		_update_all_3d_slots_preview()
@@ -2590,7 +2641,7 @@ func _equip_part_to_slot(slot: String, info: Dictionary) -> void:
 				status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
 				return
 			GlobalData.set_hand_weapon(hand, wpath)
-		GlobalData.save_run()
+		_commit_editing_mech_and_save()
 		_apply_3d_armor_preview(slot, info)
 		_update_total_stats()
 		_populate_part_list_for_slot(slot)
@@ -2629,7 +2680,7 @@ func _equip_part_to_slot(slot: String, info: Dictionary) -> void:
 	if not GlobalData.equip_armor_instance(inst["uid"], slot):
 		status_message_label.text = "Failed to equip armor."
 		return
-	GlobalData.save_run()
+	_commit_editing_mech_and_save()
 	_apply_3d_armor_preview(slot, inst)
 	_update_total_stats()
 	_populate_part_list_for_slot(slot)
@@ -2641,7 +2692,7 @@ func _unequip_part_from_slot(slot: String) -> void:
 		GlobalData.equipped_frames.erase(slot)
 		GlobalData.part_damage.erase(slot)
 		GlobalData.part_damage.erase(slot + "_frame")
-		GlobalData.save_run()
+		_commit_editing_mech_and_save()
 		_update_total_stats()
 		_populate_part_list_for_slot(slot)
 		_update_all_3d_slots_preview()
@@ -2656,7 +2707,7 @@ func _unequip_part_from_slot(slot: String) -> void:
 		else:
 			var hand = "left" if slot == "weapon_left" else "right"
 			GlobalData.set_hand_weapon(hand, "")
-		GlobalData.save_run()
+		_commit_editing_mech_and_save()
 		var mecha = _get_mecha_base()
 		if mecha:
 			for node_name in ["WeaponVisual_left", "WeaponVisual_right", "WeaponVisual_carry"]:
@@ -2674,7 +2725,7 @@ func _unequip_part_from_slot(slot: String) -> void:
 		return
 
 	GlobalData.unequip_armor_instance(slot)
-	GlobalData.save_run()
+	_commit_editing_mech_and_save()
 	var pmm = _get_part_mesh_manager()
 	if pmm:
 		pmm._show_inner_frame(slot)

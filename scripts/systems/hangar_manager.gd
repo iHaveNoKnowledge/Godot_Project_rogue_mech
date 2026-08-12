@@ -281,6 +281,20 @@ static func switch_mech(mech_id: String) -> bool:
 	if target.is_empty() or mech_id == GlobalData.active_hangar_mech_id:
 		return not target.is_empty()
 	save_active()
+	load_mech_state(mech_id)
+	GlobalData.active_hangar_mech_id = mech_id
+	return true
+
+
+# Loads a parked mech's parts into the live working set (equipped frames/parts,
+# chassis, damage, attachments, loadout) WITHOUT reassigning the active driver.
+# Used by the customize page so the player can edit another berth's mech while
+# the mech they will actually pilot in combat stays untouched.
+static func load_mech_state(mech_id: String) -> bool:
+	ensure_roster()
+	var target := _find(mech_id)
+	if target.is_empty():
+		return false
 
 	# Release the old armor instances before attaching the target references.
 	for old_part in GlobalData.equipped_parts.values():
@@ -308,8 +322,28 @@ static func switch_mech(mech_id: String) -> bool:
 	GlobalData.attachments = target.get("attachments", []).duplicate(true)
 	GlobalData.weapon_loadout = target.get("weapon_loadout", GlobalData.weapon_loadout).duplicate(true)
 	GlobalData.scrap_patches = target.get("scrap_patches", {}).duplicate(true)
-	GlobalData.active_hangar_mech_id = mech_id
 	return true
+
+
+# Snapshots the live working set back onto a specific parked mech entry. Unlike
+# save_active (which writes to the active driver's mech), this targets any berth
+# so the customize page can persist edits made to a non-active mech.
+static func save_mech_state(mech_id: String) -> bool:
+	ensure_roster()
+	var target := _find(mech_id)
+	if target.is_empty():
+		return false
+	var updated := _capture_snapshot(
+		mech_id,
+		str(target.get("name", "Mech")),
+		str(target.get("pilot", "")),
+		int(target.get("slot", get_slot_of(mech_id))),
+	)
+	for i in range(GlobalData.hangar_mechs.size()):
+		if str(GlobalData.hangar_mechs[i].get("id", "")) == mech_id:
+			GlobalData.hangar_mechs[i] = updated
+			return true
+	return false
 
 
 static func _capture_snapshot(mech_id: String, mech_name: String, pilot_id: String, slot: int) -> Dictionary:

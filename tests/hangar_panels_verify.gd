@@ -279,6 +279,13 @@ func _verify_roster_panel() -> void:
 	_check(pilot_of_new == "player", "player pilot auto-assigned to the new frame")
 	_check(pilot_of_old == "", "the previous mech parks as a pilotless spare")
 	_check(_find_register_button(rp) == null, "a filled berth no longer offers REGISTER")
+	# The success cue is a distinct mech-register sound (not the generic confirm
+	# beep): the AudioManager must expose the API, generate the stream and play
+	# it without error (headless playback is silent but validates the wiring).
+	_check(AudioManager.has_method("play_mech_register"), "AudioManager exposes the mech-register cue")
+	_check(AudioManager._sound_cache.has("mech_register"), "AudioManager generates the mech-register sound")
+	AudioManager.play_mech_register()
+	_check(true, "mech-register cue plays without error")
 
 	# Free the berth, then verify the walking-chassis gate: without a body frame
 	# the build is blocked with a hint and no name prompt is offered.

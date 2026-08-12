@@ -91,6 +91,10 @@ func _generate_sounds() -> void:
 	_sound_cache["ui_click"] = ui_click if ui_click != null else _gen_sine_tone(800.0, 0.05, 0.15)
 	var ui_confirm := _load_ui_sound("confirm")
 	_sound_cache["ui_confirm"] = ui_confirm if ui_confirm != null else _gen_sine_tone(1200.0, 0.08, 0.2)
+	# Distinct celebratory cue for REGISTER: a frame assembles and takes over as
+	# the player's piloted mech (assembly clunk -> power-up sweep -> two-note
+	# confirm chime), so it reads as an event, not just another button confirm.
+	_sound_cache["mech_register"] = _gen_mech_register()
 	_sound_cache["footstep"] = _gen_noise_burst(0.04, 0.08)
 	_sound_cache["dash"] = _gen_sine_sweep(300.0, 600.0, 0.1, 0.2)
 	# New movement & impact SFX
@@ -239,6 +243,49 @@ func _gen_sine_tone(freq: float, duration: float, volume: float) -> AudioStreamW
 
 func _gen_sine_chop(freq: float, duration: float, volume: float) -> AudioStreamWAV:
 	return _gen_sine_tone(freq, duration, volume)
+
+
+func _gen_mech_register() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 0.5
+	var num_samples = int(duration * sample_rate)
+	var data = PackedByteArray()
+	data.resize(num_samples * 2)
+
+	for i in range(num_samples):
+		var t = float(i) / sample_rate
+		var sample = 0.0
+		if t < 0.12:
+			# Assembly clunk: falling hydraulic thump + metallic ring + hiss.
+			var clunk_env = exp(-t * 30.0)
+			sample += sin(TAU * lerp(170.0, 40.0, t / 0.12) * t) * 0.55 * clunk_env
+			sample += sin(TAU * 740.0 * t) * 0.2 * clunk_env
+			sample += (randf() * 2.0 - 1.0) * 0.08 * clunk_env
+		elif t < 0.28:
+			# Reactor power-up: rising whine (pilot transfer spools up).
+			var p = (t - 0.12) / 0.16
+			var sweep_env = sin(PI * p)
+			sample += sin(TAU * lerp(200.0, 820.0, p) * t) * 0.3 * sweep_env
+			sample += sin(TAU * lerp(100.0, 410.0, p) * t) * 0.12 * sweep_env
+		else:
+			# Bright two-note confirm chime — the transfer is complete.
+			var local = t - 0.28
+			var first_note = local < 0.1
+			var note := 660.0 if first_note else 990.0
+			var local_t: float = local if first_note else (local - 0.1)
+			var chime_env = exp(-local_t * 14.0)
+			sample += sin(TAU * note * local_t) * 0.28 * chime_env
+			sample += sin(TAU * note * 2.0 * local_t) * 0.08 * chime_env
+		var val = int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+
+	var stream = AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream
 
 
 func _gen_pile_bunker_fire() -> AudioStreamWAV:
@@ -533,6 +580,12 @@ func play_player_hit() -> void:
 
 func play_ui_confirm() -> void:
 	play_sfx_2d("ui_confirm", 0.0, "UI")
+
+
+# Distinct cue when REGISTER assembles a frame and it becomes the player's
+# piloted mech — assembly clunk, power-up sweep, two-note confirm chime.
+func play_mech_register() -> void:
+	play_sfx_2d("mech_register", 0.0, "UI")
 
 
 func play_reload_complete() -> void:

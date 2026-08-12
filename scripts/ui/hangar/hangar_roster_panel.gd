@@ -498,7 +498,8 @@ func _confirm_register(slot: int) -> void:
 		controller.selected_chassis_key = GlobalData.chassis_id
 	GlobalData.assign_hangar_pilot(new_id, HangarManager.PLAYER_PILOT_ID)
 	GlobalData.save_run()
-	AudioManager.play_ui_confirm()
+	# Distinct cue: the frame is assembled and takes over as the player's mech.
+	AudioManager.play_mech_register()
 	refresh_page()
 	controller.refresh_panel.after_mech_change(false)
 	controller.nav_panel.select_submenu("customize")

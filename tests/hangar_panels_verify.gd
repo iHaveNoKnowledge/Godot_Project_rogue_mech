@@ -5,6 +5,7 @@ extends Node
 ##   HangarAmmoPanel     — ammo-to-carry loadout build/adjust/refresh
 ##   HangarRosterPanel   — roster page (badge, slot rows, pilot/role pickers)
 ##   HangarCatalogPanel  — catalog window + hover-stats preview
+##   HangarGaragePanel   — 3D garage preview + attachment math
 ## Run: godot --headless --path . res://tests/hangar_panels_verify.tscn
 
 var _fails: int = 0
@@ -17,6 +18,7 @@ func _ready() -> void:
 	await _verify_ammo_panel()
 	await _verify_roster_panel()
 	await _verify_catalog_panel()
+	await _verify_garage_panel()
 	print("HANGAR_PANELS_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	await get_tree().process_frame
 	get_tree().quit(1 if _fails > 0 else 0)
@@ -233,3 +235,62 @@ func _collect_label_text(root_node: Node) -> String:
 			out += child.text + "\n"
 		out += _collect_label_text(child)
 	return out
+
+
+func _verify_garage_panel() -> void:
+	GlobalData.reset_run_data()
+	var ctrl: Node = load("res://scenes/ui/hangar_scene.tscn").instantiate()
+	add_child(ctrl)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var gp = ctrl.garage_panel
+	_check(gp != null, "controller builds a HangarGaragePanel")
+	_check(gp.mecha_3d_root != null, "garage builds the 3D mecha root")
+	_check(gp.turntable_node != null, "garage builds the turntable")
+	_check(gp.garage_cam != null, "garage builds the camera")
+	_check(gp.get_mecha_base() != null, "garage resolves the mecha base")
+	_check(gp.get_part_mesh_manager() != null, "garage resolves the PartMeshManager")
+
+	# Selection highlight updates the header label through the real tab path.
+	ctrl._select_slot_tab("body")
+	await get_tree().process_frame
+	_check(ctrl.selected_slot == "body", "slot tab select still works")
+	var label = ctrl.root_control.find_child("SelectionLabel", true, false)
+	_check(label != null and label.text == "EDITING: BODY", "selection highlight updates the header label")
+
+	# Camera focus targets per-slot positions.
+	gp.update_camera_focus("head")
+	_check(gp.cam_target_pos == Vector3(2.6, 3.0, 3.2), "camera focus targets the head")
+	gp.update_camera_focus("leg_left")
+	_check(gp.cam_target_pos == Vector3(3.8, 1.6, 3.8), "camera focus targets the legs")
+
+	# Attachment math helpers.
+	_check(gp.get_attachment_capacity("head") >= 0.0, "attachment capacity is non-negative")
+	_check(gp.get_attachment_weight("head") >= 0.0, "attachment weight is non-negative")
+	_check(gp.get_total_load() >= 0.0, "total load is non-negative")
+	_check(gp.has_attachment("does_not_exist", "head") == false, "unknown attachment is not equipped")
+	_check(gp.get_default_attachment_position("head") == Vector3(0.0, 0.15, -0.35), "default attachment position for head")
+	_check(gp.get_default_attachment_position("nope") == Vector3.ZERO, "unknown slot gets zero position")
+
+	# Field-pack check matches the load formula for a real starter weapon.
+	var shotgun = load("res://resources/mech/stock/weapon_combat_shotgun.tres")
+	_check(shotgun != null, "stock shotgun resource loads")
+	if shotgun:
+		var expected := GlobalData.get_loadout_weapons_total() + float(shotgun.weight) + GlobalData.get_field_pack_ammo_weight() > GlobalData.get_field_pack_capacity()
+		_check(gp.would_exceed_field_pack(shotgun.resource_path) == expected, "field-pack check matches the load formula")
+
+	# 3D previews all run without error (headless node ops).
+	gp.update_all_slots_preview()
+	gp.apply_chassis_preview(GlobalData.chassis_catalog.get("standard", {}))
+	gp.apply_armor_preview("body", {"name": "Test Plate", "durability": 100.0, "color": Color.RED})
+	gp.apply_frame_preview("body", {})
+	gp.apply_salvage_preview("body", {"color": Color.GREEN})
+	gp.clear_selection_blink()
+	gp.process(0.016)
+	gp.handle_input(InputEventMouseButton.new())
+	gp.handle_input(InputEventMouseMotion.new())
+	_check(true, "3D previews, process and input helpers run without error")
+
+	ctrl.queue_free()
+	await get_tree().process_frame

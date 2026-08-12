@@ -281,8 +281,8 @@ func stats_text_for_index(index: int) -> String:
 		if index < 0 or index >= controller.attachment_catalog.size():
 			return ""
 		var info = controller.attachment_catalog[index]
-		var capacity = controller._get_attachment_capacity(controller.selected_slot)
-		var used = controller._get_attachment_weight(controller.selected_slot, info["id"])
+		var capacity = controller.garage_panel.get_attachment_capacity(controller.selected_slot)
+		var used = controller.garage_panel.get_attachment_weight(controller.selected_slot, info["id"])
 		return "ATTACHMENT: %s\n\nTARGET SECTION: %s\nWEIGHT: %.1f kg\nSECTION CAPACITY: %.1f kg\nCURRENT LOAD: %.1f kg\nPOWER COST: %.1f" % [
 			info["name"], controller.selected_slot.to_upper(), info["weight"], capacity, used, info["power_cost"]
 		]

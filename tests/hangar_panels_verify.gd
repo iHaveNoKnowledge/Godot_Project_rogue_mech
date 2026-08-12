@@ -68,6 +68,16 @@ func _check(cond: bool, label: String) -> void:
 		push_error("FAIL: " + label)
 
 
+# Equips the walking chassis frames (BODY + both legs) directly into the working
+# set — the same set _has_walking_chassis() requires. `skip_body` lets a test
+# keep a custom body (e.g. the fake "Scrap Frame") while still adding the legs.
+func _equip_walking_chassis(skip_body: bool = false) -> void:
+	if not skip_body:
+		GlobalData.equipped_frames["body"] = (GlobalData.frame_catalog["body"][0] as Dictionary).duplicate()
+	GlobalData.equipped_frames["leg_left"] = (GlobalData.frame_catalog["leg_left"][0] as Dictionary).duplicate()
+	GlobalData.equipped_frames["leg_right"] = (GlobalData.frame_catalog["leg_right"][0] as Dictionary).duplicate()
+
+
 func _verify_text_helpers() -> void:
 	_check(HangarPartText.weapon_type_label(0) == "Beam Weapon", "weapon_type_label beam")
 	_check(HangarPartText.weapon_type_label(4) == "Melee Weapon", "weapon_type_label melee")
@@ -455,9 +465,20 @@ func _verify_roster_panel() -> void:
 	var pending_cancel: Button = _find_button_by_text(rp.pending_register_banner, "✕")
 	_check(pending_ok != null, "pending banner builds the REGISTER FRAME button")
 	_check(pending_cancel != null, "pending banner builds the abandon button")
-	# The default working set already carries a walking chassis (reset seeds the
-	# body + both leg frames), so the confirm is unlocked immediately.
-	_check(rp.pending_register_button != null and not rp.pending_register_button.disabled, "REGISTER FRAME enabled with a complete chassis")
+	# The assembly starts from a blank slate: REGISTER wipes the current mech's
+	# working set (frames, armor, attachments), so the customize page shows an
+	# empty build — no hand-me-down parts from the machine being edited.
+	_check(GlobalData.equipped_frames.is_empty(), "REGISTER wipes the working frames for a from-zero assembly")
+	_check(GlobalData.equipped_parts.is_empty(), "REGISTER wipes the working armor parts")
+	_check(GlobalData.attachments.is_empty(), "REGISTER wipes the working attachments")
+	_check(rp.pending_register_button != null and rp.pending_register_button.disabled, "REGISTER FRAME locked until a walking chassis is equipped")
+
+	# Equip the walking chassis (BODY + both legs) through the real commit path
+	# — the banner re-evaluates and unlocks REGISTER FRAME.
+	_equip_walking_chassis()
+	ctrl.persist_panel.commit_and_save()
+	_check(rp.pending_register_button != null and not rp.pending_register_button.disabled, "equipping BODY + both legs unlocks REGISTER FRAME")
+	_check(rp.pending_register_status_label != null and not rp.pending_register_status_label.text.contains("✗"), "banner marks every required frame present")
 
 	# The price moved to the confirm: without resources, REGISTER FRAME reports
 	# the shortfall instead of opening the name prompt.
@@ -533,6 +554,7 @@ func _verify_roster_panel() -> void:
 			slot1_body_before = m.get("frames", {}).get("body", {})
 			break
 	GlobalData.equipped_frames["body"] = {"name": "Scrap Frame", "hp": 10.0}
+	_equip_walking_chassis(true)
 	ctrl.persist_panel.commit_and_save()
 	_check(rp.pending_register_button != null and not rp.pending_register_button.disabled, "equipped chassis unlocks REGISTER FRAME")
 	var old_id := ""
@@ -633,8 +655,8 @@ func _verify_roster_panel() -> void:
 		_check(rp.roster_status_label.text.contains("walking chassis"), "locked REGISTER FRAME reports the missing chassis")
 		_check(GlobalData.get_hangar_mechs().size() == mechs_before, "blocked REGISTER parks no mech")
 		_check(GlobalData.scrap == scrap_after_first and GlobalData.credits == credits_after_first, "blocked REGISTER spends nothing")
-		# Restore the body frame -> the banner re-evaluates and unlocks.
-		GlobalData.equipped_frames["body"] = (GlobalData.frame_catalog["body"][0] as Dictionary).duplicate()
+		# Restore the full walking chassis -> the banner re-evaluates and unlocks.
+		_equip_walking_chassis()
 		rp.refresh_pending_register()
 		_check(rp.pending_register_button != null and not rp.pending_register_button.disabled, "restored chassis unlocks REGISTER FRAME")
 		_check(rp.pending_register_status_label != null and not rp.pending_register_status_label.text.contains("✗"), "banner marks every frame present")
@@ -673,6 +695,8 @@ func _verify_roster_panel() -> void:
 	rp.register_mech(2)
 	await get_tree().process_frame
 	_check(rp.pending_register_banner != null and is_instance_valid(rp.pending_register_banner), "pending banner is up before opening the prompt")
+	_equip_walking_chassis()
+	rp.refresh_pending_register()
 	if rp.pending_register_button and is_instance_valid(rp.pending_register_button):
 		rp.pending_register_button.pressed.emit()
 		await get_tree().process_frame
@@ -687,6 +711,8 @@ func _verify_roster_panel() -> void:
 	GlobalData.gain_credits(reg_credits + 10)
 	rp.register_mech(2)
 	await get_tree().process_frame
+	_equip_walking_chassis()
+	rp.refresh_pending_register()
 	if rp.pending_register_button and is_instance_valid(rp.pending_register_button):
 		rp.pending_register_button.pressed.emit()
 		await get_tree().process_frame

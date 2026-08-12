@@ -1418,6 +1418,24 @@ func reset_run_data() -> void:
 	ensure_hangar_roster()
 
 
+# Blanks the live working set so a fresh assembly (e.g. the roster REGISTER
+# flow) starts from an empty build instead of inheriting the current mech's
+# gear. Frames, armor, attachments and combat damage are wiped; equipped armor
+# instances are marked unequipped in the inventory so the part list stays
+# consistent. The chassis falls back to the default platform and the weapon
+# loadout is left untouched (the convoy's arms don't vanish with the frame).
+func clear_working_set() -> void:
+	for slot in equipped_parts:
+		var part = equipped_parts[slot]
+		if part is Dictionary:
+			part["equipped"] = false
+	equipped_parts.clear()
+	equipped_frames.clear()
+	attachments.clear()
+	part_damage.clear()
+	chassis_id = "standard"
+
+
 const SAVE_PATH := "user://savegame.json"
 
 

@@ -398,11 +398,12 @@ func build_slot_row(slot: int, mech: Dictionary, over_capacity: bool) -> void:
 		row.add_child(switch_btn)
 
 
-# REGISTER — assembles the currently built parts (the working set) into an
-# empty convoy berth as a parked mech. Pressing it jumps into the customize
-# page (INNER SKELETON mode, BODY slot) so the player can equip the frames the
-# new mech needs; the pending banner then confirms the registration, locked
-# until a walking chassis (body + both legs) is equipped. On confirm the frame
+# REGISTER — starts a from-zero assembly that ends as a parked mech in an
+# empty convoy berth. Pressing it wipes the working set (blank slate, no parts
+# carried over from the current mech) and jumps into the customize page
+# (INNER SKELETON mode, BODY slot) so the player can equip the frames the new
+# mech needs; the pending banner then confirms the registration, locked until
+# a walking chassis (body + both legs) is equipped. On confirm the frame
 # becomes the player's mech (active + pilot) and costs scrap + credits.
 func register_mech(slot: int) -> void:
 	if GlobalData.mech_less:
@@ -433,7 +434,14 @@ func start_pending_register(slot: int) -> void:
 	close_pending_register()
 	_pending_register_slot = slot
 	_capture_pending_originals()
+	# A fresh frame is assembled from nothing: wipe the current working set so
+	# the customize page starts from an empty build (no hand-me-down frames,
+	# armor or attachments from the machine being edited), then repaint the
+	# garage + part list around the blank slate. The banner's REGISTER FRAME
+	# stays locked until a walking chassis is equipped.
+	GlobalData.clear_working_set()
 	build_pending_register_banner(slot)
+	controller.refresh_panel.after_mech_change(true)
 	_set_status("Assembling SLOT %02d — equip a BODY + both legs (INNER SKELETON), then press REGISTER FRAME." % slot)
 
 

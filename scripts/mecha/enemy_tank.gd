@@ -18,6 +18,10 @@ var treads_destroyed: bool = false
 var hull_destroyed: bool = false
 
 var health_system: Node = null
+
+# Shared firing core: owns cooldown + projectile spawning with the same rules
+# as every other weapon (fire rate is still paced by attack_timer below).
+var fire_core: WeaponCore = null
 @onready var turret_node: Node3D = get_node_or_null("TurretMesh")
 @onready var treads_node: Node3D = get_node_or_null("TreadsMesh")
 @onready var hull_node: Node3D = get_node_or_null("HullMesh")
@@ -29,6 +33,7 @@ func _ready() -> void:
 	floor_max_angle = deg_to_rad(60)
 	_setup_health_system()
 	_scale_by_wanted_level()
+	_build_fire_core()
 
 
 func _setup_health_system() -> void:
@@ -139,25 +144,26 @@ func _physics_process(delta: float) -> void:
 				_fire_tank_cannon()
 
 
+func _build_fire_core() -> void:
+	fire_core = WeaponCore.from_stats({
+		"attack_damage": attack_damage,
+		"attack_cooldown": attack_cooldown,
+		"max_ammo": 0,  # unlimited — the tank fires on its attack_timer
+		"projectile_speed": 35.0,
+		"damage_type": "explosive",
+		"projectile_color": Color(0.55, 0.85, 0.45),
+	})
+	fire_core.fire_interval = 0.0
+
+
 func _fire_tank_cannon() -> void:
-	if turret_destroyed or target == null:
+	if turret_destroyed or target == null or fire_core == null:
 		return
 
 	var from_pos = global_position + Vector3(0, 1.5, 0)
 	var to_pos = target.global_position + Vector3(0, 1.0, 0)
-
-	var projectile_scene = preload("res://scenes/mecha/effects/projectile.tscn")
-	var projectile = projectile_scene.instantiate()
-	get_tree().current_scene.add_child(projectile)
-	projectile.global_position = from_pos
-
 	var dir = (to_pos - from_pos).normalized()
-	projectile.speed = 35.0
-	projectile.damage = attack_damage
-	projectile.damage_type = "explosive"
-	projectile.fired_by_enemy = true
-	projectile.direction = dir
-	projectile.look_at(from_pos + dir, Vector3.UP)
+	fire_core.try_fire(from_pos, dir, true, self)
 
 
 func _explode_and_destroy() -> void:

@@ -28,12 +28,16 @@ var faction_paint: Dictionary = {}
 # "commander" / "member" within a squad fire team ("" for ragtag units).
 var squad_role: String = ""
 
-# Ammo system for ranged enemies
-var ammo: int = 0
+# Ammo system for ranged enemies. Ammo/reload state lives in a shared
+# WeaponCore (same rules as the player's weapons); these fields feed the core's
+# from_stats() build and the getters below delegate to it.
 var max_ammo: int = 0
 var reload_time: float = 3.0
-var reload_timer: float = 0.0
-var is_reloading: bool = false
+var fire_core: WeaponCore = null
+
+var is_reloading: bool:
+	get:
+		return fire_core != null and fire_core.reloading
 
 # Red telegraph flash: the state machine toggles this just before attacking so
 # the player can read that a shot is coming. Original material overrides are
@@ -321,33 +325,41 @@ func _apply_archetype_stats() -> void:
 	# Set ammo for ranged types
 	if archetype == 1:  # RANGED
 		max_ammo = 25
-		ammo = max_ammo
 		reload_time = 3.0
 	elif archetype == 2:  # HEAVY (charge uses stamina-like ammo)
 		max_ammo = 5
-		ammo = max_ammo
 		reload_time = 4.0
+	_build_fire_core()
 
 
 func has_ammo() -> bool:
-	return ammo > 0
+	return fire_core != null and (fire_core.unlimited_ammo or fire_core.ammo > 0)
 
 
-func use_ammo() -> void:
-	if max_ammo == 0:
-		return  # Melee/support = unlimited
-	ammo -= 1
-	if ammo <= 0:
-		is_reloading = true
-		reload_timer = reload_time
+# Builds the shared WeaponCore from the archetype's attack stats. Fire rate is
+# paced by the AI state machine (attack_timer), so the core's own cooldown is
+# disabled (fire_interval = 0) — it owns ammo/reload/heat + projectile spawning.
+func _build_fire_core() -> void:
+	var color := Color(1.0, 0.35, 0.2)
+	match archetype:
+		0: color = Color(1.0, 0.55, 0.2)   # Rusher: orange
+		2: color = Color(0.9, 0.25, 0.25)  # Heavy: red
+		3: color = Color(0.6, 0.85, 0.35)  # Support: lime
+	fire_core = WeaponCore.from_stats({
+		"attack_damage": attack_damage,
+		"attack_cooldown": attack_cooldown,
+		"max_ammo": max_ammo,
+		"reload_time": reload_time,
+		"projectile_speed": 30.0,
+		"damage_type": "kinetic",
+		"projectile_color": color,
+	})
+	fire_core.fire_interval = 0.0
 
 
 func _process(delta: float) -> void:
-	if is_reloading:
-		reload_timer -= delta
-		if reload_timer <= 0.0:
-			is_reloading = false
-			ammo = max_ammo
+	if fire_core:
+		fire_core.tick(delta)
 
 
 func _on_destroyed() -> void:

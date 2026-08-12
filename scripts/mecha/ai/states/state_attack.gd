@@ -133,7 +133,6 @@ func _perform_attack() -> void:
 		1:  # RANGED - projectile
 			if enemy.has_ammo():
 				_fire_ranged()
-				enemy.use_ammo()
 			else:
 				state_machine.transition_to("StateChase")
 		2:  # HEAVY - charge (handled by state_charge)
@@ -273,11 +272,6 @@ func _fire_ranged() -> void:
 			state_machine.transition_to("StateChase")
 			return
 
-	var projectile_scene = preload("res://scenes/mecha/effects/projectile.tscn")
-	var projectile = projectile_scene.instantiate()
-	enemy.get_tree().current_scene.add_child(projectile)
-	projectile.global_position = from_pos
-
 	# Fire sound at the muzzle so the player can hear the shot being fired.
 	if enemy.has_node("/root/AudioManager"):
 		AudioManager.play_sfx("machine_gun", from_pos, -3.0)
@@ -294,12 +288,9 @@ func _fire_ranged() -> void:
 		var wobble = Vector3(randf_range(-0.6, 0.6), randf_range(-0.3, 0.3), randf_range(-0.6, 0.6))
 		dir = (dir + wobble).normalized()
 
-	projectile.speed = 30.0
-	projectile.damage = enemy.attack_damage
-	projectile.damage_type = "kinetic"
-	projectile.fired_by_enemy = true
-	projectile.direction = dir
-	projectile.look_at(from_pos + dir, Vector3.UP)
+	# Spawn through the shared WeaponCore (cooldown/ammo/heat all owned there).
+	if enemy.fire_core:
+		enemy.fire_core.try_fire(from_pos, dir, true, enemy)
 
 
 func _is_low_hp() -> bool:

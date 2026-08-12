@@ -53,22 +53,14 @@ func physics_process(delta: float) -> void:
 		fire_timer = enemy.attack_cooldown
 		if enemy.has_ammo():
 			_fire_at_target()
-			enemy.use_ammo()
 		else:
 			# Out of ammo — chase to reposition while reloading
 			state_machine.transition_to("StateChase")
 
 
 func _fire_at_target() -> void:
-	var projectile_scene = preload("res://scenes/mecha/effects/projectile.tscn")
-	var projectile = projectile_scene.instantiate()
-	enemy.get_tree().current_scene.add_child(projectile)
-	projectile.global_position = enemy.global_position + Vector3(0, 2, 0)
-
+	var from_pos = enemy.global_position + Vector3(0, 2, 0)
 	var dir = (enemy.target.global_position - enemy.global_position).normalized()
-	projectile.speed = 30.0
-	projectile.damage = enemy.attack_damage
-	projectile.damage_type = "kinetic"
-	projectile.fired_by_enemy = true
-	projectile.direction = dir
-	projectile.look_at(enemy.target.global_position, Vector3.UP)
+	# Spawn through the shared WeaponCore (cooldown/ammo/heat all owned there).
+	if enemy.fire_core:
+		enemy.fire_core.try_fire(from_pos, dir, true, enemy)

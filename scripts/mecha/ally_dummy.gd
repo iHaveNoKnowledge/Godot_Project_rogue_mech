@@ -24,12 +24,16 @@ var scan_timer: float = 0.0
 var health_system: Node = null
 var template_color: Color = Color(0.3, 0.6, 0.9, 1)
 
-# Ammo for ranged archetypes
-var ammo: int = 0
+# Ammo for ranged archetypes. Ammo/reload state lives in a shared WeaponCore
+# (same rules as the player's weapons); these fields feed the core's build and
+# the getters delegate to it.
 var max_ammo: int = 0
 var reload_time: float = 3.0
-var reload_timer: float = 0.0
-var is_reloading: bool = false
+var fire_core: WeaponCore = null
+
+var is_reloading: bool:
+	get:
+		return fire_core != null and fire_core.reloading
 
 
 func _ready() -> void:
@@ -64,12 +68,11 @@ func _apply_template(template: Dictionary) -> void:
 func _init_ammo() -> void:
 	if archetype == 1:  # RANGED
 		max_ammo = 25
-		ammo = max_ammo
 		reload_time = 3.0
 	elif archetype == 2:  # HEAVY
 		max_ammo = 5
-		ammo = max_ammo
 		reload_time = 4.0
+	_build_fire_core()
 
 
 # Scale all frame_hp values so the total matches the template's frame HP budget.
@@ -124,11 +127,8 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		return
 
-	if is_reloading:
-		reload_timer -= delta
-		if reload_timer <= 0.0:
-			is_reloading = false
-			ammo = max_ammo
+	if fire_core:
+		fire_core.tick(delta)
 
 	_acquire_target()
 	if target == null:
@@ -206,7 +206,6 @@ func _perform_attack() -> void:
 		1, 2:  # RANGED / HEAVY - projectile
 			if has_ammo():
 				_fire_ranged()
-				use_ammo()
 		3:  # SUPPORT - heal nearest ally
 			_heal_nearest_ally()
 
@@ -307,16 +306,23 @@ func _heal_nearest_ally() -> void:
 
 
 func has_ammo() -> bool:
-	return ammo > 0
+	return fire_core != null and (fire_core.unlimited_ammo or fire_core.ammo > 0)
 
 
-func use_ammo() -> void:
-	if max_ammo == 0:
-		return
-	ammo -= 1
-	if ammo <= 0:
-		is_reloading = true
-		reload_timer = reload_time
+# Builds the shared WeaponCore from the ally's template stats. Fire rate is
+# paced by the ally AI (attack_timer), so the core's own cooldown is disabled
+# (fire_interval = 0) — it owns ammo/reload/heat + projectile spawning.
+func _build_fire_core() -> void:
+	fire_core = WeaponCore.from_stats({
+		"attack_damage": attack_damage,
+		"attack_cooldown": attack_cooldown,
+		"max_ammo": max_ammo,
+		"reload_time": reload_time,
+		"projectile_speed": 35.0,
+		"damage_type": "kinetic",
+		"projectile_color": template_color,
+	})
+	fire_core.fire_interval = 0.0
 
 
 func _fire_ranged() -> void:
@@ -333,22 +339,12 @@ func _fire_ranged() -> void:
 		if obstacle_dist < target_dist * 0.8:
 			return
 
-	var projectile_scene = preload("res://scenes/mecha/effects/projectile.tscn")
-	var projectile = projectile_scene.instantiate()
-	get_tree().current_scene.add_child(projectile)
-	projectile.global_position = from_pos
-
 	# Fire sound at the muzzle so the player can hear their ally fighting back.
 	if has_node("/root/AudioManager"):
 		AudioManager.play_sfx("machine_gun", from_pos, -3.0)
 
 	var dir = (to_pos - from_pos).normalized()
-	projectile.speed = 35.0
-	projectile.damage = attack_damage
-	projectile.damage_type = "kinetic"
-	projectile.fired_by_enemy = false
-	projectile.direction = dir
-	projectile.look_at(from_pos + dir, Vector3.UP)
+	fire_core.try_fire(from_pos, dir, false, self)
 
 
 func _on_destroyed() -> void:

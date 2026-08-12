@@ -26,6 +26,7 @@ var part_list_panel: HangarPartListPanel = null
 var stats_panel: HangarStatsPanel = null
 var nav_panel: HangarNavPanel = null
 var repair_panel: HangarRepairPanel = null
+var slot_panel: HangarSlotPanel = null
 # Slot tab buttons keyed by slot id, reused for UI-only selection highlight.
 var slot_tab_buttons: Dictionary = {}
 
@@ -123,6 +124,8 @@ func _build_ui_layout() -> void:
 	nav_panel.controller = self
 	repair_panel = HangarRepairPanel.new()
 	repair_panel.controller = self
+	slot_panel = HangarSlotPanel.new()
+	slot_panel.controller = self
 	var root = Control.new()
 	root.name = "RootControl"
 	root_control = root
@@ -185,7 +188,7 @@ func _build_ui_layout() -> void:
 		var btn = Button.new()
 		btn.text = slot_info["label"]
 		btn.custom_minimum_size = Vector2(72, 36)
-		btn.pressed.connect(func(): _select_slot_tab(slot_info["id"]))
+		btn.pressed.connect(func(): if slot_panel: slot_panel.select(slot_info["id"]))
 		slot_tab_buttons[slot_info["id"]] = btn
 		tab_container.add_child(btn)
 
@@ -639,21 +642,6 @@ func _on_scrap_editor_applied(_slot: String) -> void:
 
 func _on_scrap_editor_closed() -> void:
 	garage_panel.call_deferred("update_all_slots_preview")
-
-
-func _select_slot_tab(slot: String) -> void:
-	selected_slot = slot
-	if craft_panel:
-		craft_panel.close_window()
-	sub_toggle_container.visible = not slot.begins_with("weapon")
-	if ammo_panel:
-		ammo_panel.ammo_loadout_box.visible = slot.begins_with("weapon")
-		if ammo_panel.ammo_loadout_box.visible:
-			ammo_panel.refresh()
-	garage_panel.update_camera_focus(slot)
-	part_list_panel.populate(slot)
-	stats_panel.update()
-	garage_panel.update_selection_highlight(slot)
 
 
 func _input(event: InputEvent) -> void:

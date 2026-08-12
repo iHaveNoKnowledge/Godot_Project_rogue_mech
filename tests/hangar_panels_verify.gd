@@ -13,6 +13,7 @@ extends Node
 ##   HangarStatsPanel    — total mech stats aggregation (weight bar + label)
 ##   HangarNavPanel      — submenu + page navigation (landing / pages)
 ##   HangarRepairPanel   — repair selected slot / full field repair
+##   HangarSlotPanel     — slot tab selection (body/weapon hands + refresh)
 ## Run: godot --headless --path . res://tests/hangar_panels_verify.tscn
 
 var _fails: int = 0
@@ -33,6 +34,7 @@ func _ready() -> void:
 	await _verify_stats_panel()
 	await _verify_nav_panel()
 	await _verify_repair_panel()
+	await _verify_slot_panel()
 	print("HANGAR_PANELS_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	await get_tree().process_frame
 	get_tree().quit(1 if _fails > 0 else 0)
@@ -323,7 +325,7 @@ func _verify_garage_panel() -> void:
 	_check(gp.get_part_mesh_manager() != null, "garage resolves the PartMeshManager")
 
 	# Selection highlight updates the header label through the real tab path.
-	ctrl._select_slot_tab("body")
+	ctrl.slot_panel.select("body")
 	await get_tree().process_frame
 	_check(ctrl.selected_slot == "body", "slot tab select still works")
 	var label = ctrl.root_control.find_child("SelectionLabel", true, false)
@@ -844,6 +846,54 @@ func _verify_repair_panel() -> void:
 	# Full repair with everything clean reports all-ok.
 	rp.full_repair()
 	_check(ctrl.status_message_label.text.contains("All parts OK"), "full_repair no-ops when nothing is damaged")
+
+	ctrl.queue_free()
+	await get_tree().process_frame
+
+
+func _verify_slot_panel() -> void:
+	GlobalData.reset_run_data()
+	var ctrl: Node = load("res://scenes/ui/hangar_scene.tscn").instantiate()
+	add_child(ctrl)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var sp = ctrl.slot_panel
+	_check(sp != null, "controller builds a HangarSlotPanel")
+	_check(sp.controller == ctrl, "slot panel holds the controller back-ref")
+	_check(ctrl.slot_tab_buttons != null and ctrl.slot_tab_buttons.size() >= 5, "controller builds the slot tab buttons")
+
+	# Body slot: mode buttons visible, ammo box hidden.
+	sp.select("body")
+	await get_tree().process_frame
+	_check(ctrl.selected_slot == "body", "select sets the selected slot")
+	_check(ctrl.sub_toggle_container.visible, "body slot shows the mode toggle buttons")
+	_check(not ctrl.ammo_panel.ammo_loadout_box.visible, "body slot hides the ammo loadout box")
+
+	# Weapon slot: mode buttons hidden, ammo box shown + refreshed.
+	sp.select("weapon_left")
+	await get_tree().process_frame
+	_check(ctrl.selected_slot == "weapon_left", "select switches to a weapon slot")
+	_check(not ctrl.sub_toggle_container.visible, "weapon slot hides the mode toggle buttons")
+	_check(ctrl.ammo_panel.ammo_loadout_box.visible, "weapon slot shows the ammo loadout box")
+
+	# Back to a body slot hides the ammo box again.
+	sp.select("body")
+	await get_tree().process_frame
+	_check(ctrl.selected_slot == "body", "select returns to the body slot")
+	_check(not ctrl.ammo_panel.ammo_loadout_box.visible, "body slot hides the ammo loadout box again")
+
+	# Selecting a slot closes an open craftery.
+	ctrl.craft_panel.open()
+	await get_tree().process_frame
+	_check(ctrl.craft_panel.craft_window != null, "craftery opened for the close-on-select check")
+	sp.select("head")
+	await get_tree().process_frame
+	_check(ctrl.craft_panel.craft_window == null, "select closes an open craftery")
+
+	# The header selection label follows the new slot.
+	var label: Label = ctrl.root_control.find_child("SelectionLabel", true, false) as Label
+	_check(label != null and label.text == "EDITING: HEAD", "select updates the header selection label")
 
 	ctrl.queue_free()
 	await get_tree().process_frame

@@ -1,4 +1,4 @@
-[gd_scene load_steps=27 format=3]
+[gd_scene load_steps=28 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/camera/mecha_camera.tscn" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/mecha/mecha_base.tscn" id="2"]
@@ -24,6 +24,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/pause_menu.tscn" id="25"]
 [ext_resource type="Script" path="res://scripts/ui/combat_hud.gd" id="26"]
 [ext_resource type="Script" path="res://scripts/ui/combat_intro.gd" id="27"]
+[ext_resource type="Script" path="res://scripts/ui/squad_hud.gd" id="28"]
 [ext_resource type="Resource" path="res://resources/mech/stock/weapon_machine_gun.tres" id="10"]
 [ext_resource type="Resource" path="res://resources/mech/stock/weapon_shotgun.tres" id="11"]
 [ext_resource type="Resource" path="res://resources/mech/stock/weapon_pile_bunker.tres" id="12"]
@@ -124,6 +125,9 @@ material_override = SubResource("GroundMat")
 
 [node name="CombatHUD" type="CanvasLayer" parent="."]
 script = ExtResource("26")
+
+[node name="SquadHUD" type="CanvasLayer" parent="."]
+script = ExtResource("28")
 
 [node name="EffectManager" type="Node" parent="."]
 script = ExtResource("8")

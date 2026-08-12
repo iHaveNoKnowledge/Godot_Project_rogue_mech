@@ -8,6 +8,11 @@ var health_system: Node = null
 var panel: PanelContainer = null
 var part_blocks: Dictionary = {}
 
+## Optional pilot name shown above the part blocks. Allies pass their pilot's
+## name so the combat HUD identifies friendlies; enemies leave it empty and the
+## label is skipped entirely (their name plate stays the 3D Label3D only).
+var name_label: Label = null
+
 var _color_green: Color = Color(0.2, 0.8, 0.2, 1)
 var _color_yellow: Color = Color(0.9, 0.9, 0.2, 1)
 var _color_red: Color = Color(0.9, 0.2, 0.2, 1)
@@ -28,11 +33,27 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
-func setup_target(enemy: Node3D) -> void:
+func setup_target(enemy: Node3D, pilot_name: String = "") -> void:
 	target = enemy
 	health_system = enemy.get_node_or_null("HealthSystem")
 	_create_ui()
+	if pilot_name.strip_edges() != "":
+		_add_name_label(pilot_name)
 	visible = true
+
+
+# Name plate above the part blocks, tinted friendly blue to match the ally
+# theme (enemies never set it, so they keep the compact blocks-only billboard).
+func _add_name_label(pilot_name: String) -> void:
+	name_label = Label.new()
+	name_label.text = pilot_name
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_label.add_theme_font_size_override("font_size", 12)
+	name_label.add_theme_color_override("font_color", Color(0.45, 0.85, 1.0))
+	name_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.8))
+	name_label.add_theme_constant_override("shadow_offset_x", 1)
+	name_label.add_theme_constant_override("shadow_offset_y", 1)
+	add_child(name_label)
 
 
 func _create_ui() -> void:
@@ -117,7 +138,11 @@ func _update_position() -> void:
 	visible = true
 	var screen_pos = cam.unproject_position(world_pos)
 	var panel_size = panel.size if panel else Vector2(80, 50)
+	if name_label:
+		panel_size.y += name_label.size.y
 	panel.global_position = screen_pos - panel_size / 2.0
+	if name_label:
+		name_label.global_position = Vector2(panel.global_position.x, screen_pos.y - panel_size.y / 2.0)
 
 
 func _update_status() -> void:

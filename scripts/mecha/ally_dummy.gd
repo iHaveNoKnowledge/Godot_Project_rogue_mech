@@ -24,6 +24,10 @@ var scan_timer: float = 0.0
 var health_system: Node = null
 var template_color: Color = Color(0.3, 0.6, 0.9, 1)
 
+## Pilot display name (from the ally template) shown on the combat HUD: the
+## billboard name plate above the mech and the squad summary panel.
+var display_name: String = "ALLY"
+
 # Ammo for ranged archetypes. Ammo/reload state lives in a shared WeaponCore
 # (same rules as the player's weapons); these fields feed the core's build and
 # the getters delegate to it.
@@ -47,6 +51,22 @@ func _ready() -> void:
 	_setup_enemy_status()
 	health_system.mecha_destroyed.connect(_on_destroyed)
 	health_system.armor_broken.connect(_on_armor_broken)
+	# The HUD squad panel shows the pilot's live HP; keep it in sync.
+	health_system.health_changed.connect(func(_s, _l, _c, _m): if is_instance_valid(self): _emit_squad_hp())
+
+
+# Broadcasts this ally's live HP for the squad panel (and any other HUD that
+# subscribes). Polled by the panel too, but the signal makes bars update the
+# instant a hit lands instead of waiting for the next frame.
+func _emit_squad_hp() -> void:
+	if health_system == null:
+		return
+	EventBus.ally_squad_updated.emit({
+		"template_id": template_id,
+		"name": display_name,
+		"health": SquadHud.live_health_percent(health_system),
+		"destroyed": bool(health_system.get("is_destroyed")),
+	})
 
 
 func _apply_template(template: Dictionary) -> void:
@@ -59,7 +79,8 @@ func _apply_template(template: Dictionary) -> void:
 	archetype = int(template.get("archetype", archetype))
 	template_color = template.get("color", template_color)
 	_scale_to_template_hp(float(template.get("frame_hp", 55.0)))
-	_set_name_label(template.get("name", "ALLY"))
+	display_name = str(template.get("name", "ALLY"))
+	_set_name_label(display_name)
 	_apply_ally_color()
 
 
@@ -111,7 +132,7 @@ func _apply_ally_color() -> void:
 func _setup_enemy_status() -> void:
 	var status = get_node_or_null("EnemyStatus")
 	if status and status.has_method("setup_target"):
-		status.setup_target(self)
+		status.setup_target(self, display_name)
 
 
 func _physics_process(delta: float) -> void:

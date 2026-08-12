@@ -139,12 +139,14 @@ func _verify_tank() -> void:
 
 	var before = _projectiles().size()
 	# _fire_tank_cannon guards on target — set one so the real path fires.
+	# NOTE: the count below is synchronous (try_fire add_childs the projectile
+	# in the same call); awaiting a frame here would let the tank's own
+	# _physics_process auto-fire extra shots and the diving projectile explode.
 	var dummy_target = CharacterBody3D.new()
 	dummy_target.name = "Target"
 	add_child(dummy_target)
 	tank.target = dummy_target
 	tank._fire_tank_cannon()
-	await get_tree().process_frame
 	_check(_projectiles().size() == before + 1, "tank cannon spawned 1 projectile")
 
 	var proj = _last_projectile()

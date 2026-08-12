@@ -185,72 +185,9 @@ func _perform_melee() -> void:
 		return
 
 	enemy.rotation.y = atan2(dir.x, dir.z)
-	_spawn_melee_trail(dir)
-	_check_melee_hit(dir)
-
-
-func _spawn_melee_trail(direction: Vector3) -> void:
-	var trail_count := 5
-	var sweep_width := 5.0
-	for i in range(trail_count):
-		var t := float(i) / float(trail_count - 1)
-		var trail := MeshInstance3D.new()
-		var box := BoxMesh.new()
-		box.size = Vector3(sweep_width, 0.08, 0.2)
-		trail.mesh = box
-
-		var mat := StandardMaterial3D.new()
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		var alpha := 1.0 - t * 0.6
-		mat.albedo_color = Color(1.0, 0.35, 0.2, alpha)
-		mat.emission_enabled = true
-		mat.emission = Color(1.0, 0.3, 0.1)
-		mat.emission_energy_multiplier = 5.0 - t * 3.0
-		mat.no_depth_test = true
-		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-		trail.material_override = mat
-
-		enemy.get_tree().current_scene.add_child(trail)
-
-		var height_offset := lerpf(1.8, 0.8, t)
-		trail.global_position = enemy.global_position + Vector3(0, height_offset, 0) + direction * (1.2 + t * 1.2)
-		trail.look_at(trail.global_position + direction, Vector3.UP)
-		trail.rotate_object_local(Vector3.FORWARD, deg_to_rad(90))
-		trail.rotate_object_local(Vector3.UP, deg_to_rad(-30.0 + t * 60.0))
-
-		var delay := t * 0.04
-		var tween := enemy.get_tree().create_tween()
-		tween.tween_interval(delay)
-		tween.tween_property(mat, "albedo_color:a", 0.0, 0.3)
-		tween.tween_callback(trail.queue_free)
-
-
-func _check_melee_hit(direction: Vector3) -> void:
-	# Collision-based melee: the swing only connects if a target body is
-	# actually in front of the enemy within reach — no lock-on.
-	var space_state = enemy.get_viewport().get_world_3d().direct_space_state
-	var from_pos = enemy.global_position + Vector3(0, 1.5, 0)
-	var end_pos = from_pos + direction * enemy.attack_range
-	var query = PhysicsRayQueryParameters3D.create(from_pos, end_pos)
-	# Layer 1 = Mecha (player body); layer 2 = Environment (walls block swings).
-	query.collision_mask = 1 | 2
-	var result = space_state.intersect_ray(query)
-	if not result:
-		return
-
-	var collider: CollisionObject3D = result["collider"]
-	# If the ray stopped on a wall/cover first, the swing whiffs.
-	if collider.collision_layer & 2 != 0:
-		return
-
-	var victim: Node = collider
-	while victim and not victim.has_method("take_damage"):
-		victim = victim.get_parent()
-	if victim == null or not victim.has_method("take_damage"):
-		return
-
-	victim.take_damage(enemy.attack_damage, "melee")
-	EffectManager.spawn_damage_number(result["position"] + Vector3(0, 1, 0), enemy.attack_damage, Color(1, 0.5, 0))
+	# Shared melee FX + collision hit check (same rules as allies and the player).
+	EffectManager.spawn_melee_trail(enemy.global_position, dir, Color(1.0, 0.35, 0.2), Color(1.0, 0.3, 0.1))
+	EffectManager.melee_hit_ray(enemy, dir, enemy.attack_range, 1 | 2, enemy.attack_damage)
 
 
 func _fire_ranged() -> void:

@@ -696,46 +696,17 @@ var _melee_combo: int = 0
 func _spawn_melee_trail(mecha: Node3D, direction: Vector3) -> void:
 	var is_first_swing = (_melee_combo % 2 == 0)
 	_melee_combo += 1
-
-	var trail_count = 5
-	var sweep_width = 5.0
-
-	for i in range(trail_count):
-		var t = float(i) / float(trail_count - 1)
-		var trail = MeshInstance3D.new()
-		var box = BoxMesh.new()
-		box.size = Vector3(sweep_width, 0.08, 0.2)
-		trail.mesh = box
-
-		var mat = StandardMaterial3D.new()
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		var alpha = 1.0 - t * 0.6
-		mat.albedo_color = Color(0.8, 0.9, 1.0, alpha)
-		mat.emission_enabled = true
-		mat.emission = Color(0.3, 0.5, 1.0)
-		mat.emission_energy_multiplier = 5.0 - t * 3.0
-		mat.no_depth_test = true
-		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-		trail.material_override = mat
-
-		get_tree().current_scene.add_child(trail)
-
-		var height_offset = lerp(1.8, 0.8, t)
-		var forward_offset = direction * (1.5 + t * 1.0)
-		trail.global_position = mecha.global_position + Vector3(0, height_offset, 0) + forward_offset
-		trail.look_at(trail.global_position + direction, Vector3.UP)
-		trail.rotate_object_local(Vector3.FORWARD, deg_to_rad(90))
-
-		if is_first_swing:
-			trail.rotate_object_local(Vector3.UP, deg_to_rad(-30 + t * 60))
-		else:
-			trail.rotate_object_local(Vector3.UP, deg_to_rad(30 - t * 60))
-
-		var delay = t * 0.04
-		var tween = get_tree().create_tween()
-		tween.tween_interval(delay)
-		tween.tween_property(mat, "albedo_color:a", 0.0, 0.3)
-		tween.tween_callback(trail.queue_free)
+	# Shared trail renderer; the combo alternates the sweep direction between
+	# swings (and this weapon's arcs reach slightly further than AI swings).
+	EffectManager.spawn_melee_trail(
+		mecha.global_position,
+		direction,
+		Color(0.8, 0.9, 1.0),
+		Color(0.3, 0.5, 1.0),
+		1.5,
+		1.0,
+		1.0 if is_first_swing else -1.0,
+	)
 
 
 func _check_melee_hit(mecha: Node3D, direction: Vector3, damage: float, weapon: WeaponPart = null) -> void:

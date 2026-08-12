@@ -249,6 +249,51 @@ func _verify_roster_panel() -> void:
 	rp.show_page()
 	await get_tree().process_frame
 
+	# --- PILOT STATUS: fleet pilots carry their live HP / wound state on the ---
+	# --- row; the player driver shows no status suffix. ---
+	var slot1_id := ""
+	for m in GlobalData.get_hangar_mechs():
+		if int(m.get("slot", 0)) == 1:
+			slot1_id = str(m.get("id", ""))
+			break
+	if slot1_id != "":
+		GlobalData.assign_hangar_pilot(slot1_id, HangarManager.PLAYER_PILOT_ID)
+	rp.refresh_page()
+	await get_tree().process_frame
+	_check(_collect_label_text(rp.roster_slot_list).contains("PILOT: YOU (driver)"), "player pilot row shows the driver name")
+	_check(not _collect_label_text(rp.roster_slot_list).contains("PILOT: YOU (driver) ·"), "player pilot row shows no status suffix")
+	# A fleet pilot's row shows current HP.
+	GlobalData.fleet_roster.append({"template_id": "t_verifier", "name": "Test Unit", "hp": 40.0, "max_hp": 80.0, "destroyed": false, "fielded": true})
+	if slot1_id != "":
+		GlobalData.assign_hangar_pilot(slot1_id, "fleet_t_verifier")
+	rp.refresh_page()
+	await get_tree().process_frame
+	_check(_collect_label_text(rp.roster_slot_list).contains("PILOT: Test Unit · 40/80 HP"), "fleet pilot row shows current HP")
+	# A wounded fleet pilot shows the recovery countdown instead of HP.
+	for u in GlobalData.fleet_roster:
+		if u.get("template_id", "") == "t_verifier":
+			u["wounded"] = true
+			u["wound_turns"] = 2
+	rp.refresh_page()
+	await get_tree().process_frame
+	_check(_collect_label_text(rp.roster_slot_list).contains("PILOT: Test Unit · WOUNDED (2T)"), "wounded fleet pilot shows the recovery countdown")
+	# A destroyed unit shows DESTROYED.
+	for u in GlobalData.fleet_roster:
+		if u.get("template_id", "") == "t_verifier":
+			u["destroyed"] = true
+	rp.refresh_page()
+	await get_tree().process_frame
+	_check(_collect_label_text(rp.roster_slot_list).contains("PILOT: Test Unit · DESTROYED"), "destroyed fleet pilot shows DESTROYED")
+	# Clean up: remove the test unit + clear the seat so later sections see the
+	# single-mech convoy again.
+	for i in range(GlobalData.fleet_roster.size() - 1, -1, -1):
+		if GlobalData.fleet_roster[i].get("template_id", "") == "t_verifier":
+			GlobalData.fleet_roster.remove_at(i)
+	if slot1_id != "":
+		GlobalData.assign_hangar_pilot(slot1_id, "")
+	rp.refresh_page()
+	await get_tree().process_frame
+
 	# --- REGISTER: empty berths offer a frame-assembly button that opens the ---
 	# --- build flow: it jumps into the customize page (INNER SKELETON) with a ---
 	# --- pending banner; the name prompt only opens once BODY + both legs are ---

@@ -543,6 +543,12 @@ func get_hangar_pilot_name(pilot_id: String) -> String:
 	return HangarManager.get_pilot_name(pilot_id)
 
 
+# Short status suffix for a fleet pilot (" · DESTROYED" / " · WOUNDED (nT)" /
+# " · hp/max HP"); empty for the player driver.
+func get_hangar_pilot_status(pilot_id: String) -> String:
+	return HangarManager.get_pilot_status(pilot_id)
+
+
 # Reassigns the pilot driving a parked mech (swaps when the pilot already has a
 # mech). Caller persists with save_run().
 func assign_hangar_pilot(mech_id: String, pilot_id: String) -> bool:

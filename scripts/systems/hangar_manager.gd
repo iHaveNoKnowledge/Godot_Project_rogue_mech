@@ -90,6 +90,26 @@ static func get_pilot_name(pilot_id: String) -> String:
 	return pilot_id
 
 
+# Short status suffix for a fleet pilot shown on the roster rows (the player
+# driver has none): " · DESTROYED", " · WOUNDED (nT)" while recovering, or
+# " · hp/max HP" while damaged. Reads the unit's live state from the fleet.
+static func get_pilot_status(pilot_id: String) -> String:
+	if not pilot_id.begins_with("fleet_"):
+		return ""
+	var unit := GlobalData.get_fleet_unit(pilot_id.trim_prefix("fleet_"))
+	if unit.is_empty():
+		return ""
+	if bool(unit.get("destroyed", false)):
+		return " · DESTROYED"
+	if bool(unit.get("wounded", false)):
+		return " · WOUNDED (%dT)" % int(unit.get("wound_turns", 0))
+	var hp := float(unit.get("hp", 0.0))
+	var max_hp := float(unit.get("max_hp", 0.0))
+	if max_hp <= 0.0:
+		return ""
+	return " · %d/%d HP" % [int(hp), int(max_hp)]
+
+
 static func ensure_roster() -> void:
 	if GlobalData.mech_less:
 		return

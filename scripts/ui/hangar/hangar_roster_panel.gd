@@ -321,11 +321,16 @@ func build_slot_row(slot: int, mech: Dictionary, over_capacity: bool) -> void:
 	name_lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.4) if is_active else Color(0.85, 0.9, 0.95))
 	row.add_child(name_lbl)
 
+	var pilot_id := str(mech.get("pilot", ""))
+	# Fleet pilots carry their live status (HP / wounded countdown / destroyed)
+	# on the row; hurt or dead drivers are tinted red for a quick read.
+	var pilot_status := GlobalData.get_hangar_pilot_status(pilot_id)
 	var pilot_lbl := Label.new()
-	pilot_lbl.text = "PILOT: %s" % GlobalData.get_hangar_pilot_name(str(mech.get("pilot", "")))
+	pilot_lbl.text = "PILOT: %s%s" % [GlobalData.get_hangar_pilot_name(pilot_id), pilot_status]
 	pilot_lbl.custom_minimum_size = Vector2(160, 0)
 	pilot_lbl.add_theme_font_size_override("font_size", 11)
-	pilot_lbl.add_theme_color_override("font_color", Color(0.55, 0.8, 1.0))
+	pilot_lbl.add_theme_color_override("font_color",
+		Color(1.0, 0.5, 0.5) if pilot_status.contains("WOUNDED") or pilot_status.contains("DESTROYED") else Color(0.55, 0.8, 1.0))
 	row.add_child(pilot_lbl)
 
 	var pilot_btn := Button.new()

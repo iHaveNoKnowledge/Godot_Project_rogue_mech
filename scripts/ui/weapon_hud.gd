@@ -184,7 +184,7 @@ func _create_left_panel() -> void:
 	vbox.add_child(left_type_label)
 
 	left_name_label = Label.new()
-	left_name_label.text = "--- EMPTY ---"
+	left_name_label.text = "BARE FIST — punch"
 	left_name_label.add_theme_font_size_override("font_size", 16)
 	left_name_label.add_theme_color_override("font_color", Color.WHITE)
 	vbox.add_child(left_name_label)
@@ -250,7 +250,7 @@ func _create_right_panel() -> void:
 	vbox.add_child(right_type_label)
 
 	right_name_label = Label.new()
-	right_name_label.text = "--- EMPTY ---"
+	right_name_label.text = "BARE FIST — punch"
 	right_name_label.add_theme_font_size_override("font_size", 16)
 	right_name_label.add_theme_color_override("font_color", Color.WHITE)
 	vbox.add_child(right_name_label)
@@ -644,7 +644,7 @@ func _update_display() -> void:
 				var res = weapon_manager.get_battle_reserve(w.get_ammo_type())
 				left_ammo_label.text = "%d / %d [Res: %d]" % [ammo, w.max_ammo, res]
 	else:
-		left_name_label.text = "--- EMPTY ---"
+		left_name_label.text = "BARE FIST — punch"
 		left_type_label.text = ""
 		left_ammo_label.text = ""
 		left_ammo_label.modulate = Color.WHITE
@@ -670,7 +670,7 @@ func _update_display() -> void:
 				var res = weapon_manager.get_battle_reserve(w.get_ammo_type())
 				right_ammo_label.text = "%d / %d [Res: %d]" % [ammo, w.max_ammo, res]
 	else:
-		right_name_label.text = "--- EMPTY ---"
+		right_name_label.text = "BARE FIST — punch"
 		right_type_label.text = ""
 		right_ammo_label.text = ""
 		right_ammo_label.modulate = Color.WHITE

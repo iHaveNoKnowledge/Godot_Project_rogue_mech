@@ -58,6 +58,28 @@ const TAP_THRESHOLD: float = 0.25
 var default_left: WeaponPart = preload("res://resources/mech/stock/weapon_beam_rifle.tres")
 var default_right: WeaponPart = preload("res://resources/mech/stock/weapon_heat_blade.tres")
 
+# --- Bare-fist unarmed melee (used when a hand is empty) ---
+const FIST_DAMAGE: float = 8.0
+const FIST_FIRE_INTERVAL: float = 0.5
+const FIST_IMPACT: float = 2.0
+var _fist_weapon: WeaponPart = null
+
+# Synthetic unarmed-melee weapon: an empty hand still fights with a punch. It is
+# a real MELEE WeaponPart (no ammo, no heat) so it flows through the same
+# WeaponCore cooldown and melee-hit pipeline as the heat blade.
+func _fist() -> WeaponPart:
+	if _fist_weapon == null:
+		_fist_weapon = WeaponPart.new()
+		_fist_weapon.weapon_name = "Bare Fist"
+		_fist_weapon.weapon_type = WeaponPart.WeaponType.MELEE
+		_fist_weapon.damage = FIST_DAMAGE
+		_fist_weapon.fire_rate = FIST_FIRE_INTERVAL
+		_fist_weapon.impact = FIST_IMPACT
+		_fist_weapon.max_ammo = 0
+		_fist_weapon.ammo_per_shot = 0
+		_fist_weapon.range_distance = 3.0
+	return _fist_weapon
+
 
 func _ready() -> void:
 	# Load the equipped loadout from the Hangar (GlobalData.weapon_loadout) so the
@@ -181,23 +203,34 @@ func _hand_of_weapon(weapon_name: String) -> String:
 
 
 func _physics_process(delta: float) -> void:
-	# Tick the firing cores (cooldown + heat cooling + auto reloads).
+	# Tick the firing cores (cooldown + heat cooling + auto reloads). Empty
+	# hands tick the shared bare-fist core so its punch cooldown keeps running.
+	# The fist core is shared across both hands, so tick it at most once per
+	# frame even when both hands are empty (otherwise its cooldown drains 2x).
 	if left_hand:
 		_core_for_weapon(left_hand).tick(delta)
 	if right_hand:
 		_core_for_weapon(right_hand).tick(delta)
+	if not left_hand or not right_hand:
+		_core_for_weapon(_fist()).tick(delta)
 
 	if holding_left:
 		_hold_time_left += delta
 	if holding_right:
 		_hold_time_right += delta
 
-	if fire_left_holding and left_hand:
-		if left_hand.weapon_type != WeaponPart.WeaponType.SHIELD:
-			_try_fire("left", left_hand)
-	if fire_right_holding and right_hand:
-		if right_hand.weapon_type != WeaponPart.WeaponType.SHIELD:
-			_try_fire("right", right_hand)
+	if fire_left_holding:
+		if left_hand:
+			if left_hand.weapon_type != WeaponPart.WeaponType.SHIELD:
+				_try_fire("left", left_hand)
+		else:
+			_try_fire("left", null)
+	if fire_right_holding:
+		if right_hand:
+			if right_hand.weapon_type != WeaponPart.WeaponType.SHIELD:
+				_try_fire("right", right_hand)
+		else:
+			_try_fire("right", null)
 
 	# Shield recharge
 	if shield_active and shield_current_hp < shield_max_hp:
@@ -269,6 +302,9 @@ func _input(event: InputEvent) -> void:
 					_toggle_shield("left")
 				else:
 					_try_fire("left", left_hand)
+			else:
+				# Unarmed: bare-fist punch.
+				_try_fire("left", null)
 	if event.is_action_released("fire_left"):
 		fire_left_holding = false
 
@@ -283,6 +319,9 @@ func _input(event: InputEvent) -> void:
 					_toggle_shield("right")
 				else:
 					_try_fire("right", right_hand)
+			else:
+				# Unarmed: bare-fist punch.
+				_try_fire("right", null)
 	if event.is_action_released("fire_right"):
 		fire_right_holding = false
 
@@ -572,6 +611,15 @@ func add_ammo(amount: int, hand: String = "", ammo_type: String = "") -> void:
 # ====================================================================
 
 func _try_fire(hand: String, weapon: WeaponPart) -> void:
+	if weapon == null:
+		# Empty hand: fall back to a bare-fist punch (unarmed melee). It obeys
+		# the shared cooldown core so punches can't exceed the fist cadence.
+		var fist := _fist()
+		var fist_core := _core_for_weapon(fist)
+		if fist_core == null or not fist_core.consume_shot():
+			return
+		_melee_attack(hand, fist)
+		return
 	if (hand == "left" and reloading_left) or (hand == "right" and reloading_right):
 		return
 	if weapon.weapon_type == WeaponPart.WeaponType.SHIELD:
@@ -661,7 +709,7 @@ func _melee_attack(hand: String, weapon: WeaponPart) -> void:
 	# Execute lunging punch animation (Anticipation -> Thrust -> Camera Shake -> Recovery)
 	_perform_pile_bunker_lunge_anim(mecha, dir, weapon)
 
-	_spawn_melee_trail(mecha, dir)
+	_spawn_melee_trail(mecha, dir, weapon)
 	_check_melee_hit(mecha, dir, weapon.damage, weapon)
 	if weapon and weapon.weapon_name.to_lower().contains("pile"):
 		AudioManager.play_pile_bunker_fire(mecha.global_position)
@@ -693,18 +741,28 @@ func _perform_pile_bunker_lunge_anim(mecha: Node3D, dir: Vector3, weapon: Weapon
 
 var _melee_combo: int = 0
 
-func _spawn_melee_trail(mecha: Node3D, direction: Vector3) -> void:
+func _spawn_melee_trail(mecha: Node3D, direction: Vector3, weapon: WeaponPart = null) -> void:
 	var is_first_swing = (_melee_combo % 2 == 0)
 	_melee_combo += 1
+	var color := Color(0.8, 0.9, 1.0)
+	var emission := Color(0.3, 0.5, 1.0)
+	var forward_start := 1.5
+	var forward_step := 1.0
+	if weapon != null and weapon == _fist_weapon:
+		# Bare-fist punch: a shorter, muted steel-white sweep.
+		color = Color(0.9, 0.92, 0.96)
+		emission = Color(0.55, 0.6, 0.7)
+		forward_start = 1.0
+		forward_step = 0.7
 	# Shared trail renderer; the combo alternates the sweep direction between
 	# swings (and this weapon's arcs reach slightly further than AI swings).
 	EffectManager.spawn_melee_trail(
 		mecha.global_position,
 		direction,
-		Color(0.8, 0.9, 1.0),
-		Color(0.3, 0.5, 1.0),
-		1.5,
-		1.0,
+		color,
+		emission,
+		forward_start,
+		forward_step,
 		1.0 if is_first_swing else -1.0,
 	)
 

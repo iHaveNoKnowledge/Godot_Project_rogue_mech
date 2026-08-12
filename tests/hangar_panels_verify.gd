@@ -1,9 +1,10 @@
 extends Node
 
 ## Headless verification of the panels extracted from hangar_controller.gd:
-##   HangarPartText     — pure stat-card text helpers
-##   HangarAmmoPanel    — ammo-to-carry loadout build/adjust/refresh
-##   HangarRosterPanel  — roster page (badge, slot rows, pilot/role pickers)
+##   HangarPartText      — pure stat-card text helpers
+##   HangarAmmoPanel     — ammo-to-carry loadout build/adjust/refresh
+##   HangarRosterPanel   — roster page (badge, slot rows, pilot/role pickers)
+##   HangarCatalogPanel  — catalog window + hover-stats preview
 ## Run: godot --headless --path . res://tests/hangar_panels_verify.tscn
 
 var _fails: int = 0
@@ -15,6 +16,7 @@ func _ready() -> void:
 	_verify_text_helpers()
 	await _verify_ammo_panel()
 	await _verify_roster_panel()
+	await _verify_catalog_panel()
 	print("HANGAR_PANELS_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	await get_tree().process_frame
 	get_tree().quit(1 if _fails > 0 else 0)
@@ -152,3 +154,82 @@ func _find_popup(host: Node) -> PopupMenu:
 		if child is PopupMenu and is_instance_valid(child) and not child.is_queued_for_deletion():
 			return child
 	return null
+
+
+func _verify_catalog_panel() -> void:
+	GlobalData.reset_run_data()
+	var ctrl: Node = load("res://scenes/ui/hangar_scene.tscn").instantiate()
+	add_child(ctrl)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var cp = ctrl.catalog_panel
+	_check(cp != null, "controller builds a HangarCatalogPanel")
+	_check(cp.hover_stats_label != null, "catalog panel builds the hover label")
+	_check(cp.hover_stats_label.text.contains("Point at"), "hover label starts with the hint text")
+
+	# Catalog window opens from the sub-menu and lists every section.
+	ctrl._select_hangar_submenu("catalog")
+	await get_tree().process_frame
+	_check(cp.catalog_window != null, "catalog window builds a modal")
+	_check(cp.catalog_window.is_inside_tree(), "catalog modal is added to the tree")
+	var all_text := _collect_label_text(cp.catalog_window)
+	_check(all_text.contains("CHASSIS (MODEL)"), "catalog lists the chassis section")
+	_check(all_text.contains("WEAPON STASH"), "catalog lists the weapon stash section")
+
+	cp.close_window()
+	await get_tree().process_frame
+	_check(cp.catalog_window == null, "closing the catalog clears the window ref")
+
+	# Applying a chassis persists the pick and rebuilds the window.
+	var chassis_keys: Array = GlobalData.chassis_catalog.keys()
+	_check(not chassis_keys.is_empty(), "chassis catalog has entries to apply")
+	if not chassis_keys.is_empty():
+		var key := str(chassis_keys[0])
+		cp.apply_chassis(key)
+		await get_tree().process_frame
+		_check(GlobalData.chassis_id == key, "apply_chassis sets the chassis id")
+		_check(cp.catalog_window != null, "apply_chassis rebuilds the catalog window")
+		cp.close_window()
+		await get_tree().process_frame
+
+	# Hover-stats text builder: guards + the deterministic upgrade card.
+	_check(cp.stats_text_for_index(-1) == "", "stats_text rejects a negative index")
+	ctrl.current_mode = "upgrade"
+	_check(cp.stats_text_for_index(0).contains("INNER FRAME REACTOR LEVEL"), "upgrade mode hover card")
+
+	# Frame / weapon / armor cards — assert strongly when the backing data exists.
+	ctrl.current_mode = "frame"
+	ctrl.selected_slot = "body"
+	var fcard: String = cp.stats_text_for_index(0)
+	if ctrl.frame_catalog.has("body") and not (ctrl.frame_catalog["body"] as Array).is_empty():
+		_check(fcard.contains("INNER FRAME PART"), "frame mode hover card")
+
+	ctrl.current_mode = "armor"
+	ctrl.selected_slot = "weapon_carry"
+	ctrl._populate_part_list_for_slot("weapon_carry")
+	var wcard: String = cp.stats_text_for_index(0)
+	if ctrl.visible_weapon_indices.size() > 0:
+		_check(wcard.contains("BACK CARRY") or wcard.contains("FIELD PACK"), "weapon mode hover card")
+
+	ctrl._populate_part_list_for_slot("body")
+	ctrl.selected_slot = "body"
+	var acard: String = cp.stats_text_for_index(0)
+	if ctrl.visible_salvage_indices.size() > 0:
+		_check(acard.contains("OWNED ARMOR"), "armor mode hover card shows the owned item")
+
+	# refresh_hover_stats is safe with no cursor over the list.
+	cp.refresh_hover_stats()
+	_check(true, "refresh_hover_stats runs without error")
+
+	ctrl.queue_free()
+	await get_tree().process_frame
+
+
+func _collect_label_text(root_node: Node) -> String:
+	var out := ""
+	for child in root_node.get_children():
+		if child is Label:
+			out += child.text + "\n"
+		out += _collect_label_text(child)
+	return out

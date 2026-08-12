@@ -122,9 +122,9 @@ func show(info: Dictionary) -> void:
 	toggle_btn.custom_minimum_size = Vector2(180, 36)
 	toggle_btn.pressed.connect(func():
 		if is_eq:
-			controller._unequip_part_from_slot(controller.selected_slot)
+			controller.equip_panel.unequip_part(controller.selected_slot)
 		else:
-			controller._equip_part_to_slot(controller.selected_slot, info)
+			controller.equip_panel.equip_part(controller.selected_slot, info)
 		close()
 	)
 	grid.add_child(toggle_btn)

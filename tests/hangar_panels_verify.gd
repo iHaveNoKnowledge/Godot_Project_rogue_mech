@@ -8,6 +8,7 @@ extends Node
 ##   HangarGaragePanel   — 3D garage preview + attachment math
 ##   HangarCraftPanel    — craftery window (craft armor from templates)
 ##   HangarActionPanel   — ACTION MENU popup (equip/unequip/repair/upgrade/paint)
+##   HangarEquipPanel    — equip/unequip flow (hands, back carry, armor, frames)
 ## Run: godot --headless --path . res://tests/hangar_panels_verify.tscn
 
 var _fails: int = 0
@@ -23,6 +24,7 @@ func _ready() -> void:
 	await _verify_garage_panel()
 	await _verify_craft_panel()
 	await _verify_action_panel()
+	await _verify_equip_panel()
 	print("HANGAR_PANELS_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	await get_tree().process_frame
 	get_tree().quit(1 if _fails > 0 else 0)
@@ -472,6 +474,85 @@ func _verify_action_panel() -> void:
 		_check(ap.part_action_modal == null, "closing the action modal clears the ref")
 		shown = true
 	_check(shown, "action modal path was exercised")
+
+	ctrl.queue_free()
+	await get_tree().process_frame
+
+
+func _verify_equip_panel() -> void:
+	GlobalData.reset_run_data()
+	var ctrl: Node = load("res://scenes/ui/hangar_scene.tscn").instantiate()
+	add_child(ctrl)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var ep = ctrl.equip_panel
+	_check(ep != null, "controller builds a HangarEquipPanel")
+
+	# Hand weapon: equip changes the loadout from the default, unequip clears it.
+	ctrl.current_mode = "armor"
+	var heat_blade := {"path": "res://resources/mech/stock/weapon_heat_blade.tres", "count": 1}
+	ep.unequip_part("weapon_right")
+	ep.equip_part("weapon_right", heat_blade)
+	_check(str(GlobalData.weapon_loadout.get("right", "")) == "res://resources/mech/stock/weapon_heat_blade.tres", "equip_part sets the right-hand loadout")
+	ep.unequip_part("weapon_right")
+	_check(str(GlobalData.weapon_loadout.get("right", "x")) == "", "unequip_part clears the right-hand loadout")
+
+	# Back carry: equipping a spare copy increments the carry count, and
+	# unequipping through the selected part path removes it again.
+	var beam_rifle := {"path": "res://resources/mech/stock/weapon_beam_rifle.tres", "count": 1}
+	var carry_before := GlobalData.count_carry_weapon(beam_rifle["path"])
+	ep.equip_part("weapon_carry", beam_rifle)
+	_check(GlobalData.count_carry_weapon(beam_rifle["path"]) == carry_before + 1, "equip_part adds a back-carry copy")
+	ctrl.selected_part_path = beam_rifle["path"]
+	ep.unequip_part("weapon_carry")
+	_check(GlobalData.count_carry_weapon(beam_rifle["path"]) == carry_before, "unequip_part removes the back-carry copy")
+
+	# Armor craft-and-equip: a catalog entry becomes an owned equipped instance.
+	ctrl.selected_slot = "body"
+	var body_entry: Dictionary = GlobalData.armor_catalog["body"][0]
+	GlobalData.scrap = 500
+	GlobalData.credits = 500
+	ep.equip_part("body", body_entry)
+	var equipped_body = GlobalData.equipped_parts.get("body", {})
+	_check(equipped_body is Dictionary and not equipped_body.is_empty(), "equip_part crafts and equips a body armor instance")
+	_check(ctrl.status_message_label.text.contains("crafted and equipped"), "craft-and-equip reports the status message")
+	ep.unequip_part("body")
+	var body_after = GlobalData.equipped_parts.get("body")
+	_check(body_after == null or not (body_after is Dictionary and not body_after.is_empty()), "unequip_part removes the body armor")
+
+	# Frame equip/unequip path.
+	ctrl.current_mode = "frame"
+	var frame_info := {"name": "Test Frame", "hp": 50.0, "weight": 3.0}
+	ep.equip_part("body", frame_info)
+	var equipped_frame = GlobalData.equipped_frames.get("body", {})
+	_check(equipped_frame is Dictionary and not equipped_frame.is_empty(), "frame equip stores the frame")
+	ep.unequip_part("body")
+	_check(not GlobalData.equipped_frames.has("body"), "frame unequip removes the frame")
+	ctrl.current_mode = "armor"
+
+	# on_equip_pressed: upgrade path spends credits and raises the reactor level.
+	ctrl.current_mode = "upgrade"
+	GlobalData.credits = 500
+	var level_before := GlobalData.frame_upgrade_level
+	ep.on_equip_pressed()
+	_check(GlobalData.frame_upgrade_level == level_before + 1, "on_equip_pressed upgrades the frame reactor")
+	ctrl.current_mode = "armor"
+
+	# on_equip_pressed: attachment mount path adds to the attachment list.
+	ctrl.current_mode = "attachment"
+	ctrl.selected_slot = "head"
+	var attach := {"id": "test_opt", "name": "Test Optic", "weight": 1.0, "type": "Sensor"}
+	ctrl.selected_attachment_info = attach
+	var attach_before := GlobalData.attachments.size()
+	ep.on_equip_pressed()
+	_check(GlobalData.attachments.size() > attach_before, "on_equip_pressed mounts the attachment")
+	ctrl.current_mode = "armor"
+	ctrl.selected_attachment_info = {}
+
+	# Guard: an unknown weapon path reports and does not touch the loadout.
+	ep.equip_part("weapon_left", {"path": "res://nope.tres"})
+	_check(ctrl.status_message_label.text.contains("Weapon not found"), "unknown weapon path reports the guard message")
 
 	ctrl.queue_free()
 	await get_tree().process_frame

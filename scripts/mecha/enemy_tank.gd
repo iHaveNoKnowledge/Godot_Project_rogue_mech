@@ -32,9 +32,10 @@ func _ready() -> void:
 
 
 func _setup_health_system() -> void:
-	var tank_health_script = preload("res://scripts/mecha/enemy_tank_health.gd")
-	health_system = tank_health_script.new()
+	var enemy_health_script = preload("res://scripts/mecha/enemy_health.gd")
+	health_system = enemy_health_script.new()
 	health_system.name = "HealthSystem"
+	health_system.layout = enemy_health_script.Layout.TANK
 	add_child(health_system)
 	health_system.mecha_destroyed.connect(_explode_and_destroy)
 

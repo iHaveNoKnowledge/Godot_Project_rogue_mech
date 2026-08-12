@@ -1,7 +1,7 @@
 [gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/mecha/enemy_dummy.gd" id="1"]
-[ext_resource type="Script" path="res://scripts/mecha/enemy_health_full.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/mecha/enemy_health.gd" id="2"]
 [ext_resource type="Script" path="res://scripts/ui/enemy_status_billboard.gd" id="3"]
 [ext_resource type="Script" path="res://scripts/mecha/mecha_hitbox.gd" id="4"]
 
@@ -94,6 +94,7 @@ material_override = SubResource("SupportMatDark")
 
 [node name="HealthSystem" type="Node3D" parent="."]
 script = ExtResource("2")
+layout = 1
 
 [node name="Hitbox" type="Area3D" parent="."]
 collision_layer = 0

@@ -37,6 +37,7 @@ material_override = SubResource("EnemyMat")
 
 [node name="HealthSystem" type="Node3D" parent="."]
 script = ExtResource("2")
+layout = 0
 
 [node name="Hitbox" type="Area3D" parent="."]
 collision_layer = 0

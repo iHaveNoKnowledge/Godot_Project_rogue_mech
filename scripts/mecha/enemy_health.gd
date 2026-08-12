@@ -1,29 +1,160 @@
+class_name EnemyHealth
 extends MechaHealthBase
+
+# Which enemy body layout this health system drives. The scene (or the spawning
+# code for tanks) picks the variant; each one defines its own part table and
+# mesh lookups. SIMPLE = single-body placeholder grunt (enemy_dummy.tscn),
+# FULL = six-slot mech (ranged/heavy/support/boss/ally scenes), TANK =
+# hull/turret/treads with mobility/turret-kill behavior (enemy_tank.gd).
+enum Layout { SIMPLE, FULL, TANK }
+
+@export var layout: Layout = Layout.SIMPLE
+
+# Tank-specific signals (only emitted by the TANK layout).
+signal mobility_lost()
+signal turret_disabled()
 
 
 func take_heal(amount: float) -> void:
 	if is_destroyed:
 		return
-	var part = parts["body"]
-	if part["destroyed"]:
+	# The legacy tank health had no take_heal, so support units (which gate on
+	# has_method("take_heal")) could never heal tanks. Preserve that behavior.
+	if layout == Layout.TANK:
 		return
-	part["frame_hp"] = minf(part["frame_hp"] + amount, part["max_frame"])
-	health_changed.emit("body", "frame", part["frame_hp"], part["max_frame"])
+	# Heal the most damaged alive part. SIMPLE has a single "body" part, so it
+	# behaves exactly like the legacy single-part heal (even at full HP the part
+	# is selected and the heal just clamps); FULL/TANK heal the wounded slot
+	# they actually track.
+	var worst_slot := ""
+	var worst_ratio := INF
+	for slot in parts:
+		if parts[slot]["destroyed"]:
+			continue
+		var ratio = parts[slot]["frame_hp"] / parts[slot]["max_frame"]
+		if ratio < worst_ratio:
+			worst_ratio = ratio
+			worst_slot = slot
+	if worst_slot != "":
+		parts[worst_slot]["frame_hp"] = minf(
+			parts[worst_slot]["frame_hp"] + amount,
+			parts[worst_slot]["max_frame"]
+		)
+		health_changed.emit(worst_slot, "frame", parts[worst_slot]["frame_hp"], parts[worst_slot]["max_frame"])
 
 
 func _init_parts() -> void:
-	parts = {
-		"body": {
-			"armor_hp": 100.0, "max_armor": 100.0, "armor_class": 0.8,
-			"frame_hp": 100.0, "max_frame": 100.0,
-			"armor_broken": false, "destroyed": false, "mesh": null
-		},
-	}
+	match layout:
+		Layout.FULL:
+			parts = {
+				"head": {
+					"armor_hp": 40.0, "max_armor": 40.0, "armor_class": 1.0,
+					"frame_hp": 30.0, "max_frame": 30.0,
+					"armor_broken": false, "destroyed": false, "mesh": null
+				},
+				"body": {
+					"armor_hp": 80.0, "max_armor": 80.0, "armor_class": 0.9,
+					"frame_hp": 60.0, "max_frame": 60.0,
+					"armor_broken": false, "destroyed": false, "mesh": null
+				},
+				"arm_left": {
+					"armor_hp": 30.0, "max_armor": 30.0, "armor_class": 0.8,
+					"frame_hp": 20.0, "max_frame": 20.0,
+					"armor_broken": false, "destroyed": false, "mesh": null
+				},
+				"arm_right": {
+					"armor_hp": 30.0, "max_armor": 30.0, "armor_class": 0.8,
+					"frame_hp": 20.0, "max_frame": 20.0,
+					"armor_broken": false, "destroyed": false, "mesh": null
+				},
+				"leg_left": {
+					"armor_hp": 40.0, "max_armor": 40.0, "armor_class": 0.7,
+					"frame_hp": 30.0, "max_frame": 30.0,
+					"armor_broken": false, "destroyed": false, "mesh": null
+				},
+				"leg_right": {
+					"armor_hp": 40.0, "max_armor": 40.0, "armor_class": 0.7,
+					"frame_hp": 30.0, "max_frame": 30.0,
+					"armor_broken": false, "destroyed": false, "mesh": null
+				},
+			}
+		Layout.TANK:
+			parts = {
+				"hull": {
+					"armor_hp": 80.0, "max_armor": 80.0, "armor_class": 1.2,
+					"frame_hp": 60.0, "max_frame": 60.0,
+					"armor_broken": false, "destroyed": false, "mesh": null
+				},
+				"turret": {
+					"armor_hp": 40.0, "max_armor": 40.0, "armor_class": 0.9,
+					"frame_hp": 30.0, "max_frame": 30.0,
+					"armor_broken": false, "destroyed": false, "mesh": null
+				},
+				"treads": {
+					"armor_hp": 50.0, "max_armor": 50.0, "armor_class": 0.7,
+					"frame_hp": 40.0, "max_frame": 40.0,
+					"armor_broken": false, "destroyed": false, "mesh": null
+				}
+			}
+		_:  # Layout.SIMPLE
+			parts = {
+				"body": {
+					"armor_hp": 100.0, "max_armor": 100.0, "armor_class": 0.8,
+					"frame_hp": 100.0, "max_frame": 100.0,
+					"armor_broken": false, "destroyed": false, "mesh": null
+				},
+			}
 	is_player = false
 
 
 func _find_meshes() -> void:
-	var node = get_node_or_null("../BodyMesh")
-	if node:
-		parts["body"]["mesh"] = node
-		_original_colors["body"] = node.material_override.albedo_color if node.material_override else Color(0.8, 0.2, 0.2, 1)
+	match layout:
+		Layout.FULL:
+			var mappings = {
+				"head": "../Head/HeadMesh",
+				"body": "../Body/BodyMesh",
+				"arm_left": "../ArmLeft/ArmLeftMesh",
+				"arm_right": "../ArmRight/ArmRightMesh",
+				"leg_left": "../LegLeft/LegLeftMesh",
+				"leg_right": "../LegRight/LegRightMesh",
+			}
+			for slot in mappings:
+				var node = get_node_or_null(mappings[slot])
+				if node:
+					parts[slot]["mesh"] = node
+					_original_colors[slot] = node.material_override.albedo_color if node.material_override else Color(0.8, 0.2, 0.2, 1)
+		Layout.TANK:
+			var hull_node = get_node_or_null("../HullMesh")
+			var turret_node = get_node_or_null("../TurretMesh")
+			var treads_node = get_node_or_null("../TreadsMesh")
+			if hull_node: parts["hull"]["mesh"] = hull_node
+			if turret_node: parts["turret"]["mesh"] = turret_node
+			if treads_node: parts["treads"]["mesh"] = treads_node
+		_:  # Layout.SIMPLE
+			var node = get_node_or_null("../BodyMesh")
+			if node:
+				parts["body"]["mesh"] = node
+				_original_colors["body"] = node.material_override.albedo_color if node.material_override else Color(0.8, 0.2, 0.2, 1)
+
+
+# TANK-only: a destroyed part permanently cripples the vehicle (mobility kill /
+# turret kill). Other layouts keep the base part-destroyed behavior untouched.
+func _on_frame_destroyed(slot_name: String) -> void:
+	super._on_frame_destroyed(slot_name)
+	if layout != Layout.TANK:
+		return
+
+	match slot_name:
+		"treads":
+			mobility_lost.emit()
+			if get_parent() and get_parent().has_method("disable_movement"):
+				get_parent().disable_movement()
+		"turret":
+			turret_disabled.emit()
+			if get_parent() and get_parent().has_method("disable_weapons"):
+				get_parent().disable_weapons()
+		"hull":
+			# super._on_frame_destroyed already fires _on_mecha_destroyed when
+			# total_frame_hp hits 0 — guard against double explosion / loot.
+			if not is_destroyed:
+				_on_mecha_destroyed()

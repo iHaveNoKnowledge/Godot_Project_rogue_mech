@@ -19,6 +19,10 @@ var roster_status_label: Label = null
 var mech_slot_label: Label = null
 var mech_prev_button: Button = null
 var mech_next_button: Button = null
+# Name-prompt modal used by the REGISTER action on empty berths. Kept as
+# members so callers (and the test suite) can drive the LineEdit + confirm.
+var register_dialog: Control = null
+var register_dialog_edit: LineEdit = null
 
 
 ## Header badge + prev/next switcher, built into the top header row.
@@ -110,6 +114,9 @@ events out in the field (surrenders, captures, shops)."
 func set_panel_visible(v: bool) -> void:
 	if roster_panel:
 		roster_panel.visible = v
+	# Leaving the roster page (or the hangar) must not leave the name prompt up.
+	if not v:
+		close_register_dialog()
 
 
 func set_badge_visible(v: bool) -> void:
@@ -325,14 +332,116 @@ func build_slot_row(slot: int, mech: Dictionary, over_capacity: bool) -> void:
 # REGISTER — assembles the currently built parts (the working set) into an empty
 # convoy berth as a parked mech. Mirrors build_hangar_mech's rules: a walking
 # chassis (body + both leg frames) must be equipped and pilot-only mode must be
-# off. The new berth parks pilotless; assign a pilot or SWITCH to it from here.
+# off. Asks for the new frame's name first instead of auto-naming it "Mech 02";
+# the new berth still parks pilotless (assign a pilot or SWITCH to it after).
 func register_mech(slot: int) -> void:
 	if GlobalData.mech_less:
 		if roster_status_label:
 			roster_status_label.text = "You're on foot — rebuild a chassis through recovery missions."
 		return
-	var new_mech := GlobalData.build_hangar_mech("", slot)
+	# Validate the walking chassis BEFORE asking for a name, so the player is
+	# never prompted for a build that can't happen.
+	var needs_chassis := false
+	for required in HangarManager.REQUIRED_WALKING_FRAMES:
+		if not GlobalData.equipped_frames.has(required) or GlobalData.equipped_frames[required] == null:
+			needs_chassis = true
+			break
+	if needs_chassis:
+		if roster_status_label:
+			roster_status_label.text = "REGISTER needs a walking chassis (body + both leg frames) equipped."
+		return
+	close_register_dialog()
+	build_register_dialog(slot)
+
+
+# Small modal asking for the new frame's name; confirming builds it into the
+# berth, cancelling aborts without touching the roster.
+func build_register_dialog(slot: int) -> void:
+	var modal := PanelContainer.new()
+	modal.name = "RegisterMechDialog"
+	modal.anchor_left = 0.5
+	modal.anchor_right = 0.5
+	modal.anchor_top = 0.5
+	modal.anchor_bottom = 0.5
+	modal.offset_left = -240
+	modal.offset_right = 240
+	modal.offset_top = -110
+	modal.offset_bottom = 110
+
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.10, 0.10, 0.16, 0.97)
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.border_color = controller._highlight_color
+	style.corner_radius_top_left = 8
+	style.corner_radius_top_right = 8
+	style.corner_radius_bottom_left = 8
+	style.corner_radius_bottom_right = 8
+	modal.add_theme_stylebox_override("panel", style)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 10)
+	modal.add_child(vbox)
+
+	var title := Label.new()
+	title.text = "🔩 ASSEMBLE FRAME — SLOT %02d" % slot
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_color_override("font_color", controller._highlight_color)
+	title.add_theme_font_size_override("font_size", 15)
+	vbox.add_child(title)
+
+	var hint := Label.new()
+	hint.text = "Name the frame you are assembling from the current build. It parks\npilotless — assign a pilot or SWITCH to it from the roster after."
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.add_theme_color_override("font_color", Color(0.5, 0.7, 0.9))
+	hint.add_theme_font_size_override("font_size", 11)
+	vbox.add_child(hint)
+
+	var edit := LineEdit.new()
+	edit.text = "Mech %02d" % slot
+	edit.placeholder_text = "Frame name / callsign"
+	edit.custom_minimum_size = Vector2(0, 34)
+	edit.select_all()
+	edit.text_submitted.connect(func(_t: String): _confirm_register(slot))
+	vbox.add_child(edit)
+
+	var btn_row := HBoxContainer.new()
+	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	btn_row.add_theme_constant_override("separation", 12)
+	vbox.add_child(btn_row)
+
+	var ok_btn := Button.new()
+	ok_btn.text = "REGISTER FRAME"
+	ok_btn.custom_minimum_size = Vector2(120, 34)
+	ok_btn.pressed.connect(func(): _confirm_register(slot))
+	btn_row.add_child(ok_btn)
+
+	var cancel_btn := Button.new()
+	cancel_btn.text = "CANCEL"
+	cancel_btn.custom_minimum_size = Vector2(120, 34)
+	cancel_btn.pressed.connect(func(): close_register_dialog())
+	btn_row.add_child(cancel_btn)
+
+	if controller.root_control:
+		controller.root_control.add_child(modal)
+	else:
+		controller.add_child(modal)
+	register_dialog = modal
+	register_dialog_edit = edit
+	edit.grab_focus()
+
+
+func _confirm_register(slot: int) -> void:
+	var chosen := ""
+	if register_dialog_edit and is_instance_valid(register_dialog_edit):
+		chosen = register_dialog_edit.text.strip_edges()
+	close_register_dialog()
+	var new_mech := GlobalData.build_hangar_mech(chosen, slot)
 	if new_mech.is_empty():
+		# The dialog only blocks its own rect, so the frames could have changed
+		# while it was open — re-check the chassis gate for an accurate message.
 		var needs_chassis := false
 		for required in HangarManager.REQUIRED_WALKING_FRAMES:
 			if not GlobalData.equipped_frames.has(required) or GlobalData.equipped_frames[required] == null:
@@ -343,11 +452,19 @@ func register_mech(slot: int) -> void:
 				if needs_chassis else "No free berth in the convoy."
 		return
 	GlobalData.save_run()
+	AudioManager.play_ui_confirm()
 	refresh_badge()
 	refresh_page()
 	if roster_status_label:
 		roster_status_label.text = "Registered %s in SLOT %02d. Assign a pilot or SWITCH to it from here." % [
 			str(new_mech.get("name", "Mech")), slot]
+
+
+func close_register_dialog() -> void:
+	if register_dialog and is_instance_valid(register_dialog):
+		register_dialog.queue_free()
+	register_dialog = null
+	register_dialog_edit = null
 
 
 # Popup picker choosing which combat archetype a mech fights as when fielded as

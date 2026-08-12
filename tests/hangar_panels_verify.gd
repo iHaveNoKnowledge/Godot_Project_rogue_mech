@@ -174,21 +174,59 @@ func _verify_roster_panel() -> void:
 			if str(m.get("id", "")) == mech_id:
 				stored_pilot = str(m.get("pilot", ""))
 		_check(stored_pilot == "", "pilot picker '(no pilot)' clears the seat")
+	# Let the picker's refresh_page rebuild settle so no stale (queued-for-
+	# deletion) berth rows linger when the REGISTER checks look for a button.
+	await get_tree().process_frame
 
-	# --- REGISTER: empty berths offer a frame-assembly button. ---
+	# --- REGISTER: empty berths offer a frame-assembly button + name prompt. ---
 	# Solo convoy: capacity 2 with one parked mech -> SLOT 02 is an empty berth.
 	var register_btn := _find_register_button(rp)
 	_check(register_btn != null, "empty berth row offers a REGISTER button")
 	var mechs_before := GlobalData.get_hangar_mechs().size()
+
+	# Pressing REGISTER asks for a name instead of instantly parking "Mech 02".
 	if register_btn:
 		register_btn.pressed.emit()
 		await get_tree().process_frame
-	_check(GlobalData.get_hangar_mechs().size() == mechs_before + 1, "REGISTER assembles a mech into the empty berth")
-	_check(rp.roster_status_label.text.contains("Registered"), "REGISTER reports the new mech")
+	_check(rp.register_dialog != null, "REGISTER opens the name prompt dialog")
+	_check(rp.register_dialog_edit != null, "name prompt builds the LineEdit")
+	_check(rp.register_dialog_edit.text == "Mech 02", "name prompt defaults to the slot-based name")
+	_check(GlobalData.get_hangar_mechs().size() == mechs_before, "nothing is parked until the name is confirmed")
+
+	# Cancelling aborts without parking anything.
+	if rp.register_dialog:
+		var cancel_btn := _find_button_by_text(rp.register_dialog, "CANCEL")
+		_check(cancel_btn != null, "name prompt builds the CANCEL button")
+		if cancel_btn:
+			cancel_btn.pressed.emit()
+			await get_tree().process_frame
+	_check(rp.register_dialog == null or not is_instance_valid(rp.register_dialog), "CANCEL closes the name prompt")
+	_check(GlobalData.get_hangar_mechs().size() == mechs_before, "CANCEL parks nothing")
+
+	# Confirming with a custom name parks the mech under that name.
+	if register_btn and is_instance_valid(register_btn):
+		register_btn.pressed.emit()
+		await get_tree().process_frame
+	_check(rp.register_dialog != null, "REGISTER re-opens the prompt for a custom name")
+	if rp.register_dialog_edit:
+		rp.register_dialog_edit.text = "Vanguard"
+	if rp.register_dialog:
+		var ok_btn := _find_button_by_text(rp.register_dialog, "REGISTER FRAME")
+		_check(ok_btn != null, "name prompt builds the confirm button")
+		if ok_btn:
+			ok_btn.pressed.emit()
+			await get_tree().process_frame
+	_check(GlobalData.get_hangar_mechs().size() == mechs_before + 1, "confirmed REGISTER assembles a mech into the empty berth")
+	var registered_name := ""
+	for m in GlobalData.get_hangar_mechs():
+		if int(m.get("slot", 0)) == 2:
+			registered_name = str(m.get("name", ""))
+	_check(registered_name == "Vanguard", "custom name is used instead of the auto 'Mech 02'")
+	_check(rp.roster_status_label.text.contains("Vanguard"), "REGISTER reports the named mech")
 	_check(_find_register_button(rp) == null, "a filled berth no longer offers REGISTER")
 
 	# Free the berth, then verify the walking-chassis gate: without a body frame
-	# the build is blocked with a hint and nothing is parked.
+	# the build is blocked with a hint and no name prompt is offered.
 	var parked_id := ""
 	for m in GlobalData.get_hangar_mechs():
 		if int(m.get("slot", 0)) == 2:
@@ -199,8 +237,23 @@ func _verify_roster_panel() -> void:
 		GlobalData.equipped_frames.erase("body")
 		rp.register_mech(2)
 		_check(rp.roster_status_label.text.contains("walking chassis"), "REGISTER blocks without a walking chassis")
+		_check(rp.register_dialog == null, "chassis gate opens no name prompt")
 		_check(GlobalData.get_hangar_mechs().size() == mechs_before, "blocked REGISTER parks no mech")
+		# Restore the frame and confirm a blank name -> falls back to "Mech 02".
 		GlobalData.equipped_frames["body"] = (GlobalData.frame_catalog["body"][0] as Dictionary).duplicate()
+		rp.register_mech(2)
+		await get_tree().process_frame
+		_check(rp.register_dialog != null, "valid chassis re-opens the name prompt")
+		if rp.register_dialog_edit:
+			rp.register_dialog_edit.text = "   "
+			# Enter (text_submitted) is the keyboard path into _confirm_register.
+			rp.register_dialog_edit.text_submitted.emit("   ")
+		await get_tree().process_frame
+		var fallback_name := ""
+		for m in GlobalData.get_hangar_mechs():
+			if int(m.get("slot", 0)) == 2:
+				fallback_name = str(m.get("name", ""))
+		_check(fallback_name == "Mech 02", "blank name falls back to the slot-based name")
 
 	# Pilot-only mode: the button disappears and register_mech points at the
 	# recovery path instead of building.
@@ -211,8 +264,17 @@ func _verify_roster_panel() -> void:
 	_check(_find_register_button(rp) == null, "on-foot mode hides the REGISTER button")
 	rp.register_mech(2)
 	_check(rp.roster_status_label.text.begins_with("You're on foot"), "on-foot register explains the recovery path")
+	_check(rp.register_dialog == null, "on-foot register opens no name prompt")
 	_check(GlobalData.get_hangar_mechs().size() == 0, "on-foot register parks no mech")
 	GlobalData.mech_less = false
+
+	# Leaving the roster page closes any open name prompt.
+	rp.register_mech(2)
+	await get_tree().process_frame
+	_check(rp.register_dialog != null, "name prompt is open before leaving the page")
+	rp.hide_page()
+	await get_tree().process_frame
+	_check(rp.register_dialog == null or not is_instance_valid(rp.register_dialog), "leaving the roster page closes the name prompt")
 
 	ctrl.nav_panel.show_hangar_menu()
 	await get_tree().process_frame
@@ -226,6 +288,10 @@ func _verify_roster_panel() -> void:
 
 func _find_register_button(rp) -> Button:
 	for row in rp.roster_slot_list.get_children():
+		# Skip stale rows queued by an earlier refresh_page (their children are
+		# about to be freed and must never be clicked or returned).
+		if not is_instance_valid(row) or row.is_queued_for_deletion():
+			continue
 		for child in row.get_children():
 			if child is Button and child.text == "REGISTER" and is_instance_valid(child) and not child.is_queued_for_deletion():
 				return child

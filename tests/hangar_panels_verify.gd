@@ -20,6 +20,7 @@ extends Node
 ##   nav/landing builders — sub-menu rail + mode-toggle bar
 ##   HangarReadinessPanel — combat-readiness warning modal
 ##   HangarPersistPanel   — persist/commit the edited mech working set
+##   HangarScrapPanel     — scrap editor applied/closed preview refresh
 ## Run: godot --headless --path . res://tests/hangar_panels_verify.tscn
 
 var _fails: int = 0
@@ -47,6 +48,7 @@ func _ready() -> void:
 	await _verify_layout_panels()
 	await _verify_readiness_panel()
 	await _verify_persist_panel()
+	await _verify_scrap_panel()
 	print("HANGAR_PANELS_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	await get_tree().process_frame
 	get_tree().quit(1 if _fails > 0 else 0)
@@ -1113,6 +1115,46 @@ func _verify_persist_panel() -> void:
 	ctrl._customize_mech_id = ""
 	pp.commit_and_save()
 	_check(true, "commit_and_save works with no editing target")
+
+	ctrl.queue_free()
+	await get_tree().process_frame
+
+
+func _verify_scrap_panel() -> void:
+	GlobalData.reset_run_data()
+	var ctrl: Node = load("res://scenes/ui/hangar_scene.tscn").instantiate()
+	add_child(ctrl)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var sp = ctrl.scrap_panel
+	_check(sp != null, "controller builds a HangarScrapPanel")
+	_check(sp.controller == ctrl, "scrap panel holds the controller back-ref")
+
+	# The single refresh entry point defers a 3D preview refresh on the garage
+	# panel (used by both the applied and closed editor signals).
+	sp.refresh()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_check(true, "scrap refresh defers the garage preview refresh without error")
+
+	# The nav panel's emergency path builds the editor and wires the signals to
+	# the scrap panel (deferred refresh runs on applied/closed).
+	ctrl.nav_panel.select_submenu("emergency")
+	await get_tree().process_frame
+	_check(ctrl.scrap_editor != null, "emergency submenu builds the scrap editor")
+	if ctrl.scrap_editor:
+		_check(ctrl.scrap_editor.applied.get_connections().size() >= 1, "editor applied signal is wired")
+		_check(ctrl.scrap_editor.closed.get_connections().size() >= 1, "editor closed signal is wired")
+		# Emitting both signals routes to scrap_panel.refresh(), which defers the
+		# garage preview refresh — safe under headless.
+		ctrl.scrap_editor.applied.emit("body")
+		ctrl.scrap_editor.closed.emit()
+		await get_tree().process_frame
+		await get_tree().process_frame
+		_check(true, "editor signals fire through the scrap panel without error")
+		ctrl.scrap_editor.close()
+		await get_tree().process_frame
 
 	ctrl.queue_free()
 	await get_tree().process_frame

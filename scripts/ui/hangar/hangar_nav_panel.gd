@@ -278,6 +278,6 @@ func _init_scrap_editor() -> void:
 	if controller.scrap_editor != null:
 		return
 	controller.scrap_editor = preload("res://scripts/ui/scrap_repair_editor.gd").new()
-	controller.scrap_editor.applied.connect(controller._on_scrap_editor_applied)
-	controller.scrap_editor.closed.connect(controller._on_scrap_editor_closed)
+	controller.scrap_editor.applied.connect(func(_slot: String): if controller.scrap_panel: controller.scrap_panel.refresh())
+	controller.scrap_editor.closed.connect(func(): if controller.scrap_panel: controller.scrap_panel.refresh())
 	controller.add_child(controller.scrap_editor)

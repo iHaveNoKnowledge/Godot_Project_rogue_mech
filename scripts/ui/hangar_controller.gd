@@ -29,6 +29,7 @@ var repair_panel: HangarRepairPanel = null
 var slot_panel: HangarSlotPanel = null
 var readiness_panel: HangarReadinessPanel = null
 var persist_panel: HangarPersistPanel = null
+var scrap_panel: HangarScrapPanel = null
 var header_panel: HangarHeaderPanel = null
 var left_panel_ui: HangarLeftPanel = null
 var right_panel_ui: HangarRightPanel = null
@@ -135,6 +136,8 @@ func _build_ui_layout() -> void:
 	readiness_panel.controller = self
 	persist_panel = HangarPersistPanel.new()
 	persist_panel.controller = self
+	scrap_panel = HangarScrapPanel.new()
+	scrap_panel.controller = self
 	header_panel = HangarHeaderPanel.new()
 	header_panel.controller = self
 	left_panel_ui = HangarLeftPanel.new()
@@ -249,19 +252,6 @@ func _on_close_pressed() -> void:
 		else:
 			EventBus.game_state_changed.emit("HANGAR", "INTERMISSION")
 	)
-
-
-# Save the current working set onto the mech that's open in the editor, then
-# (if that isn't the active/piloting mech) reload the active mech's parts so the
-# player leaves the hangar with the machine they'll actually pilot.
-# A patch was applied (or the editor closed): re-sync the hangar's own 3D mech
-# preview so the crude scrap armor shows on the correct skeleton parts.
-func _on_scrap_editor_applied(_slot: String) -> void:
-	garage_panel.call_deferred("update_all_slots_preview")
-
-
-func _on_scrap_editor_closed() -> void:
-	garage_panel.call_deferred("update_all_slots_preview")
 
 
 func _input(event: InputEvent) -> void:

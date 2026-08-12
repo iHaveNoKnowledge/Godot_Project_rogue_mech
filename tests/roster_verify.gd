@@ -98,5 +98,14 @@ func _ready() -> void:
 	_check(int(mechs[0].get("slot", 0)) == 1 and int(mechs[1].get("slot", 0)) == 2, "old saves get stable slots")
 	_check(str(mechs[0].get("pilot", "")) == "player", "old saves assign the player to the first mech")
 
+	# --- Archetype (ROLE): defaults, set, clamp, persist through save/load ---
+	_check(GlobalData.get_hangar_archetype("old_1") == HangarManager.ARCHETYPE_RANGED, "old saves default to Ranged archetype")
+	_check(GlobalData.get_hangar_archetype("missing") == HangarManager.ARCHETYPE_RANGED, "unknown mech falls back to Ranged")
+	_check(GlobalData.set_hangar_archetype("old_1", HangarManager.ARCHETYPE_RUSHER), "can set Rusher role")
+	_check(GlobalData.get_hangar_archetype("old_1") == HangarManager.ARCHETYPE_RUSHER, "role reads back as Rusher")
+	_check(not GlobalData.set_hangar_archetype("missing", HangarManager.ARCHETYPE_HEAVY), "unknown mech rejects role change")
+	_check(GlobalData.set_hangar_archetype("old_1", 99), "role set clamps out-of-range")
+	_check(GlobalData.get_hangar_archetype("old_1") == HangarManager.ARCHETYPE_SUPPORT, "role clamped to Support max")
+
 	print("ROSTER_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	get_tree().quit(1 if _fails > 0 else 0)

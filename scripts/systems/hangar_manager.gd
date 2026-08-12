@@ -25,6 +25,14 @@ extends RefCounted
 
 const PLAYER_PILOT_ID := "player"
 
+# Combat archetype a parked mech fights as when fielded as an ally. Matches the
+# enemy archetype enum: 0=Rusher melee, 1=Ranged, 2=Heavy, 3=Support. Stored in
+# the snapshot so the roster page can assign it per berth.
+const ARCHETYPE_RUSHER := 0
+const ARCHETYPE_RANGED := 1
+const ARCHETYPE_HEAVY := 2
+const ARCHETYPE_SUPPORT := 3
+
 
 # Number of pilots in the convoy: the player driver plus every researched fleet
 # unit (regardless of fielded/destroyed status — they still occupy a berth).
@@ -123,6 +131,9 @@ static func _migrate_old_saves() -> bool:
 			if not free_pilots.is_empty():
 				new_pilot = free_pilots.pop_front()
 			mech["pilot"] = new_pilot
+			dirty = true
+		if not mech.has("archetype"):
+			mech["archetype"] = ARCHETYPE_RANGED
 			dirty = true
 	return dirty
 
@@ -275,6 +286,25 @@ static func assign_pilot(mech_id: String, pilot_id: String) -> bool:
 	return true
 
 
+# Reads the combat archetype a mech fights as when fielded as an ally.
+static func get_archetype(mech_id: String) -> int:
+	var target := _find(mech_id)
+	if target.is_empty():
+		return ARCHETYPE_RANGED
+	return clampi(int(target.get("archetype", ARCHETYPE_RANGED)), ARCHETYPE_RUSHER, ARCHETYPE_SUPPORT)
+
+
+# Sets which combat archetype a mech fights as when fielded as an ally. Caller
+# persists with save_run(). Returns false when the berth doesn't exist.
+static func set_archetype(mech_id: String, archetype: int) -> bool:
+	ensure_roster()
+	var target := _find(mech_id)
+	if target.is_empty():
+		return false
+	target["archetype"] = clampi(archetype, ARCHETYPE_RUSHER, ARCHETYPE_SUPPORT)
+	return true
+
+
 static func switch_mech(mech_id: String) -> bool:
 	ensure_roster()
 	var target := _find(mech_id)
@@ -360,6 +390,7 @@ static func _capture_snapshot(mech_id: String, mech_name: String, pilot_id: Stri
 		"attachments": SaveGameIO.serialize_attachments(),
 		"weapon_loadout": GlobalData.weapon_loadout.duplicate(true),
 		"scrap_patches": GlobalData.scrap_patches.duplicate(true),
+		"archetype": int(_find(mech_id).get("archetype", ARCHETYPE_RANGED)),
 	}
 
 

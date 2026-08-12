@@ -525,6 +525,16 @@ func assign_hangar_pilot(mech_id: String, pilot_id: String) -> bool:
 	return HangarManager.assign_pilot(mech_id, pilot_id)
 
 
+# Combat archetype a parked mech fights as when fielded as an ally (see
+# HangarManager.ARCHETYPE_*). Caller persists with save_run().
+func get_hangar_archetype(mech_id: String) -> int:
+	return HangarManager.get_archetype(mech_id)
+
+
+func set_hangar_archetype(mech_id: String, archetype: int) -> bool:
+	return HangarManager.set_archetype(mech_id, archetype)
+
+
 # Parking berth (slot number) of a stored mech, 0 when unknown.
 func get_hangar_slot_of(mech_id: String) -> int:
 	return HangarManager.get_slot_of(mech_id)

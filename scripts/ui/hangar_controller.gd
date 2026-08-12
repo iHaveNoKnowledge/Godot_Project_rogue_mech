@@ -812,6 +812,13 @@ func _build_roster_slot_row(slot: int, mech: Dictionary, over_capacity: bool) ->
 	pilot_btn.pressed.connect(_open_pilot_picker.bind(mech_id, pilot_btn))
 	row.add_child(pilot_btn)
 
+	var role_btn := Button.new()
+	role_btn.text = "ROLE ▾"
+	role_btn.custom_minimum_size = Vector2(80, 28)
+	role_btn.focus_mode = Control.FOCUS_NONE
+	role_btn.pressed.connect(_open_role_picker.bind(mech_id, role_btn))
+	row.add_child(role_btn)
+
 	if not is_active and not over_capacity:
 		var switch_btn := Button.new()
 		switch_btn.text = "SWITCH"
@@ -819,6 +826,42 @@ func _build_roster_slot_row(slot: int, mech: Dictionary, over_capacity: bool) ->
 		switch_btn.focus_mode = Control.FOCUS_NONE
 		switch_btn.pressed.connect(_on_switch_mech_pressed.bind(mech_id))
 		row.add_child(switch_btn)
+
+
+# Popup picker choosing which combat archetype a mech fights as when fielded as
+# an ally (Rusher / Ranged / Heavy / Support). The role is stored on the berth
+# and read by SpawnManager when the hangar's piloted mechs tag into battle.
+func _open_role_picker(mech_id: String, anchor_btn: Button) -> void:
+	for existing in get_children():
+		if existing is PopupMenu and is_instance_valid(existing):
+			existing.queue_free()
+	var pop := PopupMenu.new()
+	add_child(pop)
+	var roles := [
+		{"archetype": HangarManager.ARCHETYPE_RUSHER, "label": "Rusher  — close-range melee rush"},
+		{"archetype": HangarManager.ARCHETYPE_RANGED, "label": "Ranged — engage from distance"},
+		{"archetype": HangarManager.ARCHETYPE_HEAVY, "label": "Heavy  — slow, high-damage guns"},
+		{"archetype": HangarManager.ARCHETYPE_SUPPORT, "label": "Support — heal teammates"},
+	]
+	var current := GlobalData.get_hangar_archetype(mech_id)
+	for i in range(roles.size()):
+		var role: Dictionary = roles[i]
+		var label := str(role["label"])
+		if int(role["archetype"]) == current:
+			label = "● " + label
+		pop.add_item(label, i)
+	pop.id_pressed.connect(func(id):
+		var archetype: int = int(roles[id]["archetype"])
+		if GlobalData.set_hangar_archetype(mech_id, archetype):
+			GlobalData.save_run()
+			pop.queue_free()
+			_refresh_roster_page()
+	)
+	pop.popup_hide.connect(func():
+		if is_instance_valid(pop):
+			pop.queue_free()
+	)
+	pop.popup(Rect2i(anchor_btn.global_position, Vector2i(320, 0)))
 
 
 func _on_switch_mech_pressed(mech_id: String) -> void:

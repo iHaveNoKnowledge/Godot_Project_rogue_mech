@@ -12,6 +12,7 @@ extends Node
 ##   HangarPartListPanel — part list populate + selection + equipped queries
 ##   HangarStatsPanel    — total mech stats aggregation (weight bar + label)
 ##   HangarNavPanel      — submenu + page navigation (landing / pages)
+##   HangarRepairPanel   — repair selected slot / full field repair
 ## Run: godot --headless --path . res://tests/hangar_panels_verify.tscn
 
 var _fails: int = 0
@@ -31,6 +32,7 @@ func _ready() -> void:
 	await _verify_part_list_panel()
 	await _verify_stats_panel()
 	await _verify_nav_panel()
+	await _verify_repair_panel()
 	print("HANGAR_PANELS_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	await get_tree().process_frame
 	get_tree().quit(1 if _fails > 0 else 0)
@@ -788,6 +790,60 @@ func _verify_nav_panel() -> void:
 	_check(ctrl._customize_mech_id == GlobalData.active_hangar_mech_id, "show_hangar re-targets the active mech")
 	var sel_lbl2: Label = ctrl.root_control.find_child("SelectionLabel", true, false) as Label
 	_check(sel_lbl2 != null and sel_lbl2.text == "HANGAR MENU", "show_hangar restores the HANGAR MENU label")
+
+	ctrl.queue_free()
+	await get_tree().process_frame
+
+
+func _verify_repair_panel() -> void:
+	GlobalData.reset_run_data()
+	var ctrl: Node = load("res://scenes/ui/hangar_scene.tscn").instantiate()
+	add_child(ctrl)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var rp = ctrl.repair_panel
+	_check(rp != null, "controller builds a HangarRepairPanel")
+	_check(rp.controller == ctrl, "repair panel holds the controller back-ref")
+	_check(ctrl.repair_part_button != null and ctrl.full_repair_button != null, "controller builds the repair buttons")
+
+	# Undamaged slot: repair is a no-op with a status message.
+	ctrl.selected_slot = "body"
+	GlobalData.part_damage.clear()
+	rp.repair_part()
+	_check(ctrl.status_message_label.text.contains("fully functional"), "repair_part skips an undamaged slot")
+
+	# Damaged slot without credits: blocked with the credit shortfall message.
+	GlobalData.part_damage["body"] = 0.5
+	GlobalData.credits = 0
+	rp.repair_part()
+	_check(ctrl.status_message_label.text.begins_with("Need"), "repair_part blocks without credits")
+	_check(GlobalData.part_damage.has("body"), "blocked repair leaves the damage in place")
+
+	# With credits: damage clears and the message confirms.
+	var cost := GlobalData.get_repair_cost("body")
+	GlobalData.credits = cost + 100
+	rp.repair_part()
+	_check(not GlobalData.part_damage.has("body"), "repair_part clears the slot damage")
+	_check(not GlobalData.part_damage.has("body_frame"), "repair_part clears the slot frame damage")
+	_check(ctrl.status_message_label.text.contains("Repaired"), "repair_part confirms the repair")
+	_check(GlobalData.credits == 100, "repair_part spends exactly the repair cost")
+
+	# Full repair: clears every slot's damage and reports the total cost spend.
+	for slot in GlobalData.MECHA_SLOTS:
+		GlobalData.part_damage[slot] = 0.7
+	var total := 0
+	for slot in GlobalData.MECHA_SLOTS:
+		total += GlobalData.get_repair_cost(slot)
+	GlobalData.credits = total + 500
+	rp.full_repair()
+	_check(GlobalData.part_damage.is_empty(), "full_repair clears all part damage")
+	_check(ctrl.status_message_label.text.contains("Full Repair Complete"), "full_repair confirms the repair")
+	_check(GlobalData.credits == 500, "full_repair spends exactly the summed cost")
+
+	# Full repair with everything clean reports all-ok.
+	rp.full_repair()
+	_check(ctrl.status_message_label.text.contains("All parts OK"), "full_repair no-ops when nothing is damaged")
 
 	ctrl.queue_free()
 	await get_tree().process_frame

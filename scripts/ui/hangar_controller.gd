@@ -25,6 +25,7 @@ var equip_panel: HangarEquipPanel = null
 var part_list_panel: HangarPartListPanel = null
 var stats_panel: HangarStatsPanel = null
 var nav_panel: HangarNavPanel = null
+var repair_panel: HangarRepairPanel = null
 # Slot tab buttons keyed by slot id, reused for UI-only selection highlight.
 var slot_tab_buttons: Dictionary = {}
 
@@ -120,6 +121,8 @@ func _build_ui_layout() -> void:
 	stats_panel.controller = self
 	nav_panel = HangarNavPanel.new()
 	nav_panel.controller = self
+	repair_panel = HangarRepairPanel.new()
+	repair_panel.controller = self
 	var root = Control.new()
 	root.name = "RootControl"
 	root_control = root
@@ -408,12 +411,12 @@ func _build_ui_layout() -> void:
 
 	repair_part_button = Button.new()
 	repair_part_button.text = "Repair Selected Slot"
-	repair_part_button.pressed.connect(_on_repair_part_pressed)
+	repair_part_button.pressed.connect(func(): if repair_panel: repair_panel.repair_part())
 	right_box.add_child(repair_part_button)
 
 	full_repair_button = Button.new()
 	full_repair_button.text = "Full Field Repair"
-	full_repair_button.pressed.connect(_on_full_repair_pressed)
+	full_repair_button.pressed.connect(func(): if repair_panel: repair_panel.full_repair())
 	right_box.add_child(full_repair_button)
 
 	# Mech roster page (parking grid) lives in the roster panel.
@@ -651,40 +654,6 @@ func _select_slot_tab(slot: String) -> void:
 	part_list_panel.populate(slot)
 	stats_panel.update()
 	garage_panel.update_selection_highlight(slot)
-
-
-func _on_repair_part_pressed() -> void:
-	var repair_cost := GlobalData.get_repair_cost(selected_slot)
-	if repair_cost <= 0:
-		status_message_label.text = "%s is fully functional!" % selected_slot.to_upper()
-		return
-	if not GlobalData.try_spend_credits(repair_cost):
-		status_message_label.text = "Need %d credits!" % repair_cost
-		return
-	GlobalData.part_damage.erase(selected_slot)
-	GlobalData.part_damage.erase(selected_slot + "_frame")
-	status_message_label.text = "Repaired %s!" % selected_slot.to_upper()
-	stats_panel.update()
-	garage_panel.update_all_slots_preview()
-
-
-func _on_full_repair_pressed() -> void:
-	var total_cost := 0
-	for slot in GlobalData.MECHA_SLOTS:
-		total_cost += GlobalData.get_repair_cost(slot)
-
-	if total_cost <= 0:
-		status_message_label.text = "All parts OK!"
-		return
-
-	if not GlobalData.try_spend_credits(total_cost):
-		status_message_label.text = "Need %d credits!" % total_cost
-		return
-
-	GlobalData.part_damage.clear()
-	status_message_label.text = "Full Repair Complete!"
-	stats_panel.update()
-	garage_panel.update_all_slots_preview()
 
 
 func _input(event: InputEvent) -> void:

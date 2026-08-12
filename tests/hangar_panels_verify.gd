@@ -309,6 +309,14 @@ func _verify_roster_panel() -> void:
 		if pop:
 			picker_items = _popup_item_texts(pop)
 			_check(picker_items.any(func(t: String): return t.contains("⚠ Test Unit · WOUNDED (2T)")), "pilot picker shows the wounded countdown with a warning marker")
+			# The wounded item carries the same recovery explanation as the row.
+			var picker_tooltip := ""
+			for i in range(pop.item_count):
+				if pop.get_item_text(i).contains("Test Unit · WOUNDED"):
+					picker_tooltip = pop.get_item_tooltip(i)
+			_check(picker_tooltip.contains("WOUNDED — recovering"), "wounded picker item explains the recovery countdown")
+			_check(picker_tooltip.contains("2 board moves left"), "picker tooltip shows the remaining board moves")
+			_check(picker_tooltip.contains("heal this pilot from its roster row"), "picker tooltip points at the roster-row HEAL")
 		# Destroyed fleet pilot: disabled + red-tinted so it can't be assigned.
 		for u in GlobalData.fleet_roster:
 			if u.get("template_id", "") == "t_verifier":
@@ -324,6 +332,8 @@ func _verify_roster_panel() -> void:
 					destroyed_idx = i
 					break
 			_check(destroyed_idx >= 0 and pop.is_item_disabled(destroyed_idx), "destroyed pilot is disabled in the picker")
+			if destroyed_idx >= 0:
+				_check(pop.get_item_tooltip(destroyed_idx).contains("cannot be assigned"), "destroyed picker item explains it cannot be assigned")
 	# --- EARLY HEAL: wounded fleet pilots get a HEAL button on their roster ---
 	# --- row; pressing it spends credits, clears the countdown and returns ---
 	# --- the pilot to the field at full HP. ---

@@ -1006,7 +1006,19 @@ func open_pilot_picker(mech_id: String, anchor_btn: Button) -> void:
 			mech_label_for_pilot(pilot_id),
 		]
 		pop.add_item(label, i + 1)
-		if status.contains("DESTROYED"):
+		if status.contains("WOUNDED"):
+			# Same recovery explanation as the roster-row tooltip: the countdown
+			# ticks on every board move and HEAL skips the wait for credits.
+			var template_id := pilot_id.trim_prefix("fleet_") if pilot_id.begins_with("fleet_") else ""
+			var turns := 0
+			var unit := GlobalData.get_fleet_unit(template_id) if template_id != "" else {}
+			if not unit.is_empty():
+				turns = maxi(int(unit.get("wound_turns", 1)), 1)
+			var heal_cost := GlobalData.get_wound_heal_cost(template_id)
+			pop.set_item_tooltip(i + 1, "WOUNDED — recovering (%d board move%s left).\nReturns to the field at half HP when the timer ends,\nor heal this pilot from its roster row for %d cr." % [
+				turns, "s" if turns != 1 else "", heal_cost])
+		elif status.contains("DESTROYED"):
+			pop.set_item_tooltip(i + 1, "This pilot was lost in combat — they cannot be assigned.")
 			pop.set_item_disabled(i + 1, true)
 	pop.id_pressed.connect(func(id):
 		var pilot_id := "" if id == 0 else str(pilots[id - 1].get("id", ""))

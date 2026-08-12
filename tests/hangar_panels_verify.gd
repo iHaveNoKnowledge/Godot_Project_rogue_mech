@@ -53,6 +53,7 @@ func _ready() -> void:
 	await _verify_scrap_panel()
 	await _verify_exit_panel()
 	await _verify_refresh_panel()
+	await _verify_intermission_fleet()
 	print("HANGAR_PANELS_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	await get_tree().process_frame
 	get_tree().quit(1 if _fails > 0 else 0)
@@ -756,6 +757,62 @@ func _popup_item_texts(pop: PopupMenu) -> Array[String]:
 	for i in range(pop.item_count):
 		out.append(pop.get_item_text(i))
 	return out
+
+
+# INTERMISSION FLEET MENU — the board-screen fielded toggle must lock wounded
+# pilots out (same rule as the hangar roster), with an explanation, and the
+# roster text must read them as WOUNDED instead of ACTIVE/STANDBY.
+func _verify_intermission_fleet() -> void:
+	GlobalData.reset_run_data()
+	GlobalData.fleet_roster = [
+		{"template_id": "t_fit", "name": "Fit Unit", "hp": 50.0, "max_hp": 50.0, "destroyed": false, "fielded": true},
+		{"template_id": "t_wound", "name": "Wounded Unit", "hp": 10.0, "max_hp": 50.0, "destroyed": false, "fielded": false, "wounded": true, "wound_turns": 3},
+	]
+	var ui: CanvasLayer = load("res://scenes/ui/intermission_ui.tscn").instantiate()
+	add_child(ui)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	ui._on_fleet_pressed()
+	await get_tree().process_frame
+
+	# The fleet text reads a recovering pilot as WOUNDED (not ACTIVE/STANDBY).
+	var fleet_text: String = ui._build_fleet_text()
+	_check(fleet_text.contains("Fit Unit [ACTIVE]"), "healthy fleet unit shows ACTIVE in the fleet text")
+	_check(fleet_text.contains("Wounded Unit [WOUNDED (3T)]"), "wounded fleet unit shows WOUNDED (nT) in the fleet text")
+	_check(not fleet_text.contains("Wounded Unit [ACTIVE]"), "wounded unit is not marked ACTIVE in the fleet text")
+
+	# Toggle buttons: the fit unit stays enabled, the wounded one is disabled
+	# with a tooltip explaining the recovery.
+	var fit_btn: Button = null
+	var wound_btn: Button = null
+	for child in ui.action_container.get_children():
+		if not is_instance_valid(child) or child.is_queued_for_deletion():
+			continue
+		if child is Button:
+			if str(child.text).begins_with("Fit Unit"):
+				fit_btn = child
+			elif str(child.text).begins_with("Wounded Unit"):
+				wound_btn = child
+	_check(fit_btn != null and not fit_btn.disabled, "healthy unit's fielded toggle stays enabled")
+	_check(wound_btn != null and wound_btn.disabled, "wounded unit's fielded toggle is disabled")
+	if wound_btn:
+		_check(wound_btn.tooltip_text.contains("WOUNDED — recovering"), "wounded toggle tooltip explains the recovery")
+		_check(wound_btn.tooltip_text.contains("3 moves"), "wounded toggle tooltip shows the countdown")
+
+	# Belt+braces: even a direct set_unit_fielded(true) call is refused for a
+	# wounded unit (single source of truth shared by the toggle), while a
+	# healthy unit toggles freely.
+	GlobalData.set_unit_fielded("t_wound", true)
+	_check(bool(GlobalData.get_fleet_unit("t_wound").get("fielded", false)) == false, "set_unit_fielded refuses to field a wounded pilot")
+	GlobalData.set_unit_fielded("t_fit", false)
+	_check(bool(GlobalData.get_fleet_unit("t_fit").get("fielded", true)) == false, "set_unit_fielded still toggles a healthy unit")
+	# Standing a wounded unit DOWN is allowed (fielded=false is always legal).
+	GlobalData.set_unit_fielded("t_wound", false)
+	_check(bool(GlobalData.get_fleet_unit("t_wound").get("fielded", true)) == false, "standing a wounded unit down is allowed")
+
+	ui.queue_free()
+	await get_tree().process_frame
 
 
 func _verify_catalog_panel() -> void:

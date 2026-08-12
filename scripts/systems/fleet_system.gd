@@ -139,6 +139,12 @@ static func set_unit_fielded(template_id: String, fielded: bool) -> void:
 	var unit = get_fleet_unit(template_id)
 	if unit.is_empty():
 		return
+	# A wounded pilot is recovering and cannot be sent into the field — the
+	# get_fielded_units() gate would skip them anyway, so refusing to even flag
+	# them fielded keeps the roster state honest (the intermission toggle and
+	# any other caller share this single source of truth).
+	if fielded and bool(unit.get("wounded", false)):
+		return
 	unit["fielded"] = fielded
 
 

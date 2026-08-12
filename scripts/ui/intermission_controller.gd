@@ -304,16 +304,26 @@ func _on_fleet_pressed() -> void:
 	_clear_actions()
 	info_label.text = _build_fleet_text()
 
-	# Fielded toggle per unit
+	# Fielded toggle per unit. Wounded pilots cannot be toggled: they are
+	# recovering and would be gated out of combat anyway (get_fielded_units),
+	# so the toggle is locked with an explanation instead of silently doing
+	# nothing (destroyed units stay locked for the same reason).
 	for unit in GlobalData.fleet_roster:
 		if not (unit is Dictionary):
 			continue
 		var template_id = unit.get("template_id", "")
 		var fielded = unit.get("fielded", true)
 		var destroyed = unit.get("destroyed", false)
+		var wounded = bool(unit.get("wounded", false))
+		var wound_turns := maxi(int(unit.get("wound_turns", 1)), 1)
 		var btn = Button.new()
 		btn.text = "%s: %s" % [unit.get("name", template_id), "FIELDED" if fielded else "STANDING DOWN"]
-		btn.disabled = destroyed
+		btn.disabled = destroyed or wounded
+		# Only the wounded (not also destroyed) get the recovery explanation — a
+		# dead pilot has nothing to recover from.
+		if wounded and not destroyed:
+			btn.tooltip_text = "WOUNDED — recovering (%d move%s). Cannot fight until healed (HEAL on the hangar roster)." % [
+				wound_turns, "s" if wound_turns != 1 else ""]
 		btn.pressed.connect(_toggle_fielded.bind(template_id))
 		action_container.add_child(btn)
 
@@ -336,6 +346,11 @@ func _build_fleet_text() -> String:
 		var state = "ACTIVE" if unit.get("fielded", true) else "STANDBY"
 		if unit.get("destroyed", false):
 			state = "DESTROYED"
+		elif bool(unit.get("wounded", false)):
+			# Recovering pilots read as WOUNDED (not ACTIVE/STANDBY): they are
+			# locked out of the field until the countdown ends or the hangar's
+			# HEAL clears it.
+			state = "WOUNDED (%dT)" % int(unit.get("wound_turns", 0))
 		text += "- %s [%s] HP: %d/%d\n" % [
 			unit.get("name", unit.get("template_id", "?")),
 			state,

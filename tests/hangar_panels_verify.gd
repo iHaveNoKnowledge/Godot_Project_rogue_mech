@@ -54,6 +54,7 @@ func _ready() -> void:
 	await _verify_exit_panel()
 	await _verify_refresh_panel()
 	await _verify_intermission_fleet()
+	await _verify_wounded_banner()
 	print("HANGAR_PANELS_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	await get_tree().process_frame
 	get_tree().quit(1 if _fails > 0 else 0)
@@ -812,6 +813,61 @@ func _verify_intermission_fleet() -> void:
 	_check(bool(GlobalData.get_fleet_unit("t_wound").get("fielded", true)) == false, "standing a wounded unit down is allowed")
 
 	ui.queue_free()
+	await get_tree().process_frame
+
+
+# HANGAR WOUNDED BANNER — the persistent top strip warns whenever any parked
+# mech has a wounded fleet pilot assigned, and follows heal/assign refreshes.
+func _verify_wounded_banner() -> void:
+	GlobalData.reset_run_data()
+	var ctrl: Node = load("res://scenes/ui/hangar_scene.tscn").instantiate()
+	add_child(ctrl)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var wb = ctrl.wounded_banner
+	_check(wb != null, "controller builds a HangarWoundedBanner")
+	_check(wb.banner_panel != null, "banner builds its panel")
+	_check(wb.banner_label != null, "banner builds its label")
+	_check(wb.banner_panel.visible == false, "banner starts hidden with no wounded pilots")
+
+	# A healthy fleet pilot assigned to a berth keeps the banner hidden.
+	GlobalData.fleet_roster.append({"template_id": "t_fit2", "name": "Fit Ace", "hp": 50.0, "max_hp": 50.0, "destroyed": false, "fielded": true})
+	var slot1_id := ""
+	for m in GlobalData.get_hangar_mechs():
+		if int(m.get("slot", 0)) == 1:
+			slot1_id = str(m.get("id", ""))
+			break
+	if slot1_id != "":
+		GlobalData.assign_hangar_pilot(slot1_id, "fleet_t_fit2")
+	ctrl.wounded_banner.refresh()
+	_check(wb.banner_panel.visible == false, "banner stays hidden for a healthy assigned pilot")
+
+	# Seat a wounded fleet pilot -> the banner appears naming them + the mech +
+	# the countdown, and survives an unrelated roster refresh.
+	GlobalData.fleet_roster.append({"template_id": "t_hurt2", "name": "Hurt Ace", "hp": 10.0, "max_hp": 50.0, "destroyed": false, "fielded": false, "wounded": true, "wound_turns": 3})
+	if slot1_id != "":
+		GlobalData.assign_hangar_pilot(slot1_id, "fleet_t_hurt2")
+	ctrl.roster_panel_ui.refresh_page()
+	await get_tree().process_frame
+	_check(wb.banner_panel.visible, "banner appears when a wounded pilot is seated")
+	_check(wb.banner_label.text.contains("Hurt Ace"), "banner names the wounded pilot")
+	_check(wb.banner_label.text.contains("3 moves left"), "banner shows the recovery countdown")
+	_check(wb.banner_label.text.contains("in "), "banner names the parked mech")
+	# The banner is persistent across pages: it stays up on the landing menu.
+	ctrl.nav_panel.show_hangar_menu()
+	await get_tree().process_frame
+	_check(wb.banner_panel.visible, "banner stays visible on the landing menu")
+
+	# Healing the pilot (through the roster flow) hides the banner.
+	GlobalData.credits = 999
+	if slot1_id != "":
+		ctrl.roster_panel_ui.heal_pilot("t_hurt2")
+	await get_tree().process_frame
+	_check(wb.banner_panel.visible == false, "banner hides once the wounded pilot is healed")
+	_check(wb.banner_label.text == "", "healed banner clears its text")
+
+	ctrl.queue_free()
 	await get_tree().process_frame
 
 

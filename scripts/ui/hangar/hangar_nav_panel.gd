@@ -28,6 +28,9 @@ func show_hangar() -> void:
 	controller.stats_panel.update()
 	AudioManager.play_hangar_music()
 	controller.garage_panel.call_deferred("update_all_slots_preview")
+	# Repaint the wounded-pilot warning from the live roster on entry.
+	if controller.wounded_banner:
+		controller.wounded_banner.refresh()
 	# Entering the hangar shows the landing sub-menu first — the customize page
 	# only appears once the driver picks a topic (CUSTOMIZE / UPGRADE / etc).
 	show_hangar_menu()

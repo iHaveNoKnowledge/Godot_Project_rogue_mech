@@ -73,6 +73,9 @@ var roster_panel_ui: HangarRosterPanel = null
 var catalog_panel: HangarCatalogPanel = null
 var garage_panel: HangarGaragePanel = null
 var craft_panel: HangarCraftPanel = null
+# Persistent top banner warning when any parked mech has a wounded fleet pilot
+# assigned (recovering drivers never tag into combat until healed).
+var wounded_banner: HangarWoundedBanner = null
 # The mech berth currently open in the customize/roster editor. This is separate
 # from GlobalData.active_hangar_mech_id (the mech the player actually pilots in
 # combat): prev/next cycles this editing target without reassigning the driver.
@@ -150,6 +153,8 @@ func _build_ui_layout() -> void:
 	left_panel_ui.controller = self
 	right_panel_ui = HangarRightPanel.new()
 	right_panel_ui.controller = self
+	wounded_banner = HangarWoundedBanner.new()
+	wounded_banner.controller = self
 
 	var root = Control.new()
 	root.name = "RootControl"
@@ -167,6 +172,8 @@ func _build_ui_layout() -> void:
 	# (stats, weight bar, repair buttons, status message, exit).
 	left_panel_ui.build(root)
 	right_panel_ui.build(root)
+	# Persistent wounded-pilot banner drawn above every page.
+	wounded_banner.build(root)
 
 
 # --- HANGAR MECH ROSTER (truck-convoy parking page) ---

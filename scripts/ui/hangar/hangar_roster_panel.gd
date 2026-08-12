@@ -246,6 +246,11 @@ func refresh_page() -> void:
 		if int(slot) > capacity:
 			build_slot_row(int(slot), by_slot[int(slot)], true)
 
+	# The persistent wounded-pilot banner follows every roster mutation (heal,
+	# assign, switch, register) — repaint it here, the single refresh seam.
+	if controller and controller.wounded_banner:
+		controller.wounded_banner.refresh()
+
 	if roster_status_label:
 		var affiliation := GlobalData.get_run_affiliation()
 		var aff_prefix := "%s · %s" % [

@@ -39,6 +39,7 @@ func _ready() -> void:
 	health_system = $HealthSystem
 	if template_id != "":
 		_apply_template(GlobalData.get_ally_template(template_id))
+	_init_ammo()
 	_setup_enemy_status()
 	health_system.mecha_destroyed.connect(_on_destroyed)
 	health_system.armor_broken.connect(_on_armor_broken)
@@ -56,6 +57,19 @@ func _apply_template(template: Dictionary) -> void:
 	_scale_to_template_hp(float(template.get("frame_hp", 55.0)))
 	_set_name_label(template.get("name", "ALLY"))
 	_apply_ally_color()
+
+
+# Ranged/heavy allies need ammo, exactly like their enemy counterparts, or the
+# "has_ammo" gate in _perform_attack blocks every shot and they stand there idle.
+func _init_ammo() -> void:
+	if archetype == 1:  # RANGED
+		max_ammo = 25
+		ammo = max_ammo
+		reload_time = 3.0
+	elif archetype == 2:  # HEAVY
+		max_ammo = 5
+		ammo = max_ammo
+		reload_time = 4.0
 
 
 # Scale all frame_hp values so the total matches the template's frame HP budget.
@@ -100,6 +114,14 @@ func _setup_enemy_status() -> void:
 func _physics_process(delta: float) -> void:
 	if health_system == null or health_system.get("is_destroyed"):
 		velocity = Vector3.ZERO
+		return
+
+	# Staggered: freeze AI actions while the stumble plays out.
+	if stagger_timer > 0.0:
+		stagger_timer -= delta
+		velocity.x = move_toward(velocity.x, 0.0, 25.0 * delta)
+		velocity.z = move_toward(velocity.z, 0.0, 25.0 * delta)
+		move_and_slide()
 		return
 
 	if is_reloading:
@@ -186,6 +208,26 @@ func _perform_attack() -> void:
 			if has_ammo():
 				_fire_ranged()
 				use_ammo()
+		3:  # SUPPORT - heal nearest ally
+			_heal_nearest_ally()
+
+
+func _heal_nearest_ally() -> void:
+	var allies = get_tree().get_nodes_in_group("ally")
+	var nearest: Node3D = null
+	var nearest_dist: float = 999.0
+	for a in allies:
+		if not is_instance_valid(a) or a == self:
+			continue
+		if a.get("health_system") == null or a.health_system.is_destroyed:
+			continue
+		var dist = global_position.distance_to(a.global_position)
+		if dist < 40.0 and dist < nearest_dist:
+			nearest = a
+			nearest_dist = dist
+	if nearest and nearest.health_system and nearest.health_system.has_method("take_heal"):
+		nearest.health_system.take_heal(5.0)
+		EffectManager.spawn_damage_number(nearest.global_position + Vector3(0, 3, 0), 5.0, Color(0.2, 1.0, 0.2))
 
 
 func has_ammo() -> bool:
@@ -220,6 +262,10 @@ func _fire_ranged() -> void:
 	get_tree().current_scene.add_child(projectile)
 	projectile.global_position = from_pos
 
+	# Fire sound at the muzzle so the player can hear their ally fighting back.
+	if has_node("/root/AudioManager"):
+		AudioManager.play_sfx("machine_gun", from_pos, -3.0)
+
 	var dir = (to_pos - from_pos).normalized()
 	projectile.speed = 35.0
 	projectile.damage = attack_damage
@@ -250,3 +296,18 @@ func _on_armor_broken(slot_name: String) -> void:
 func take_damage(amount: float, damage_type: String = "kinetic") -> void:
 	if health_system:
 		health_system.take_damage(amount, damage_type)
+
+
+# Called when the ally eats an impact-heavy enemy shot. Brief stagger so hits
+# feel real, mirroring the enemy behavior (enemy_dummy.apply_impact).
+var stagger_timer: float = 0.0
+
+
+func apply_impact(amount: float, from_dir: Vector3) -> void:
+	stagger_timer = maxf(stagger_timer, clampf(0.25 + amount * 0.02, 0.3, 1.2))
+	from_dir.y = 0.0
+	if from_dir.length() > 0.001:
+		var shove = from_dir.normalized() * minf(amount * 2.5, 9.0)
+		velocity.x += shove.x
+		velocity.z += shove.z
+	attack_timer = maxf(attack_timer, 0.0)

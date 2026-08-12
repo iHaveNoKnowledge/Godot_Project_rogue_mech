@@ -625,7 +625,15 @@ func _on_pending_register_pressed() -> void:
 # already succeeded (revert_working_set = false), also reverts the loadout
 # leaks onto the pre-flow berths. Called on abandon, on the hangar menu / exit,
 # and after a successful registration.
+# True while a REGISTER assembly is armed (the pending banner is up). The
+# garage preview reads this to decide whether missing frame slots should render
+# as translucent ghosts instead of disappearing.
+func is_pending_register_active() -> bool:
+	return pending_register_banner != null and is_instance_valid(pending_register_banner)
+
+
 func close_pending_register(revert_working_set: bool = true) -> void:
+	var was_armed := pending_register_banner != null and is_instance_valid(pending_register_banner)
 	if pending_register_banner and is_instance_valid(pending_register_banner):
 		pending_register_banner.queue_free()
 	pending_register_banner = null
@@ -634,6 +642,12 @@ func close_pending_register(revert_working_set: bool = true) -> void:
 	_pending_register_slot = -1
 	if revert_working_set:
 		_restore_pending_flow()
+		# The assembly is gone: repaint the customize page around the restored
+		# working set so ghost frames don't linger on slots that have gear again.
+		# Only when something was actually armed (boot/menu visits call this
+		# with nothing pending and must not stomp the panel state).
+		if was_armed and controller and controller.refresh_panel:
+			controller.refresh_panel.after_mech_change(true)
 
 
 # Small modal asking for the new frame's name; confirming builds it into the
@@ -777,9 +791,12 @@ func _confirm_register(slot: int) -> void:
 	# Distinct cue: the frame is assembled and takes over as the player's mech.
 	AudioManager.play_mech_register()
 	refresh_page()
+	# Close the pending banner BEFORE the final refresh so the new mech's
+	# missing slots render as plain empty (ghosts are only for the in-progress
+	# assembly, not for the finished build the player now tunes).
+	close_pending_register(false)
 	controller.refresh_panel.after_mech_change(false)
 	controller.nav_panel.select_submenu("customize")
-	close_pending_register(false)
 	_set_status("Registered %s in SLOT %02d (-%d scrap, -%d cr). It is now your piloted mech — tune it here." % [
 		str(new_mech.get("name", "Mech")), slot,
 		GlobalData.get_frame_register_scrap_cost(), GlobalData.get_frame_register_credit_cost()])

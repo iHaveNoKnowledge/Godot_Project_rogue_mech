@@ -472,13 +472,27 @@ func _verify_roster_panel() -> void:
 	_check(GlobalData.equipped_parts.is_empty(), "REGISTER wipes the working armor parts")
 	_check(GlobalData.attachments.is_empty(), "REGISTER wipes the working attachments")
 	_check(rp.pending_register_button != null and rp.pending_register_button.disabled, "REGISTER FRAME locked until a walking chassis is equipped")
+	# The garage preview renders the blank slate as faint ghost skeletons on
+	# every empty frame slot, so the player can see where each part goes.
+	var gp = ctrl.garage_panel
+	var pmm = gp.get_part_mesh_manager()
+	_check(pmm != null and pmm.ghost_mode, "REGISTER arms the ghost-frame preview")
+	_check(pmm.is_ghost_frame_visible("body"), "empty BODY slot renders the ghost frame")
+	_check(pmm.is_ghost_frame_visible("head"), "empty HEAD slot renders the ghost frame")
 
 	# Equip the walking chassis (BODY + both legs) through the real commit path
 	# — the banner re-evaluates and unlocks REGISTER FRAME.
 	_equip_walking_chassis()
 	ctrl.persist_panel.commit_and_save()
+	# The equip path refreshes the garage preview, swapping the ghost for the
+	# real frame on the filled slots while the rest keep ghosting. (A frame
+	# passes so stale ghost meshes queued for deletion are actually freed.)
+	gp.update_all_slots_preview()
+	await get_tree().process_frame
 	_check(rp.pending_register_button != null and not rp.pending_register_button.disabled, "equipping BODY + both legs unlocks REGISTER FRAME")
 	_check(rp.pending_register_status_label != null and not rp.pending_register_status_label.text.contains("✗"), "banner marks every required frame present")
+	_check(not pmm.is_ghost_frame_visible("body"), "equipped BODY swaps the ghost for the real frame")
+	_check(pmm.is_ghost_frame_visible("head"), "unequipped slots keep ghosting while the assembly is armed")
 
 	# The price moved to the confirm: without resources, REGISTER FRAME reports
 	# the shortfall instead of opening the name prompt.
@@ -530,6 +544,7 @@ func _verify_roster_panel() -> void:
 		pending_cancel.pressed.emit()
 		await get_tree().process_frame
 	_check(rp.pending_register_banner == null or not is_instance_valid(rp.pending_register_banner), "abandon button closes the pending banner")
+	_check(pmm.ghost_mode == false, "abandoning the assembly turns the ghost frames off")
 	_check(GlobalData.get_hangar_mechs().size() == mechs_before, "abandon parks nothing")
 	_check(GlobalData.scrap == scrap_after_grant and GlobalData.credits == credits_after_grant, "abandon spends nothing")
 	var slot1_body_after := {}
@@ -621,8 +636,10 @@ func _verify_roster_panel() -> void:
 		if int(m.get("slot", 0)) == 1:
 			_check(m.get("frames", {}).get("body", {}) == slot1_body_before, "assembling frames does not rewrite the old berth")
 	_check(_find_register_button(rp) == null, "a filled berth no longer offers REGISTER")
-	# A successful registration closes the pending banner.
+	# A successful registration closes the pending banner and the ghost frames
+	# (ghosts belong to the in-progress assembly, not the finished build).
 	_check(rp.pending_register_banner == null or not is_instance_valid(rp.pending_register_banner), "successful REGISTER closes the pending banner")
+	_check(pmm.ghost_mode == false, "confirmed REGISTER turns the ghost frames off")
 	# The success cue is a distinct mech-register sound (not the generic confirm
 	# beep): the AudioManager must expose the API, generate the stream and play
 	# it without error (headless playback is silent but validates the wiring).

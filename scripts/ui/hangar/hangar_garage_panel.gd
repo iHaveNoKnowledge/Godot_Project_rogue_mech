@@ -442,6 +442,11 @@ func update_all_slots_preview() -> void:
 	var pmm = get_part_mesh_manager()
 	if not pmm: return
 
+	# While a REGISTER assembly is armed the working set is a blank slate, so
+	# slots without an inner frame render a faint ghost skeleton instead of
+	# vanishing — the player can see exactly where each frame goes.
+	var rp = controller.roster_panel_ui if controller else null
+	pmm.set_ghost_mode(rp != null and rp.has_method("is_pending_register_active") and rp.is_pending_register_active())
 	pmm.refresh_slots()
 
 	var attachment_manager = mecha.get_node_or_null("AttachmentManager") if mecha else null

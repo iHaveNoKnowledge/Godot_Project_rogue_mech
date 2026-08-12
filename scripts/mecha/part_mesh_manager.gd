@@ -1,6 +1,16 @@
 extends Node3D
 
 var slot_meshes: Dictionary = {}
+# When true, slots without an inner frame render a faint translucent skeleton
+# instead of hiding — used by the hangar's from-zero REGISTER assembly so the
+# player can see where each missing frame goes. Driven by the garage preview.
+var ghost_mode: bool = false
+# Cached ghost material: ghost frames rebuild constantly during an assembly.
+var _ghost_mat: StandardMaterial3D = null
+
+
+func set_ghost_mode(enabled: bool) -> void:
+	ghost_mode = enabled
 
 
 func _ready() -> void:
@@ -187,8 +197,18 @@ func _rebuild_slot(slot: String, frame_data: Variant, equipped: Variant, apply_p
 	)
 
 	if not has_frame:
-		# NO INNER FRAME EQUIPPED: Hide slot completely
-		hide_slot_completely(slot)
+		if ghost_mode:
+			# GHOST ASSEMBLY PREVIEW: render a translucent skeleton so the player
+			# can see where the missing inner frame goes (REGISTER blank slate).
+			# Note: initialize_slot clears children with queue_free(), so the old
+			# ghost meshes overlap the rebuilt frame for exactly one frame — a
+			# pre-existing pattern, invisible in practice; don't "fix" it.
+			initialize_slot(slot, null, false)
+			_show_inner_frame(slot)
+			_apply_ghost_material(slot)
+		else:
+			# NO INNER FRAME EQUIPPED: Hide slot completely
+			hide_slot_completely(slot)
 	elif apply_player_scrap and GlobalData.scrap_patches.has(slot):
 		# EMERGENCY SCRAP PATCH: the slot was rebuilt from scrap, so show the
 		# bare inner frame (or scrap stand-in) plus the crude patch primitives
@@ -359,6 +379,63 @@ func _show_inner_frame(slot_name: String) -> void:
 	if entry.get("armor_lower") and entry["armor_lower"]: entry["armor_lower"].visible = false
 	if entry["frame"]: entry["frame"].visible = true
 	if entry.get("frame_lower") and entry["frame_lower"]: entry["frame_lower"].visible = true
+
+
+# True when `slot_name` is rendering the translucent ghost frame — i.e. ghost
+# mode is armed AND the slot currently has no real frame and its skeleton is
+# visible with a transparent override. Used by the hangar verify tests.
+func is_ghost_frame_visible(slot_name: String) -> bool:
+	if not ghost_mode:
+		return false
+	var entry = slot_meshes.get(slot_name)
+	if entry == null or entry["frame"] == null or not entry["frame"].visible:
+		return false
+	return _has_translucent_override(entry["frame"])
+
+
+func _has_translucent_override(node: Node) -> bool:
+	for child in node.get_children():
+		if child is GeometryInstance3D:
+			var mat = child.material_override
+			if mat is BaseMaterial3D and mat.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA:
+				return true
+		if _has_translucent_override(child):
+			return true
+	return false
+
+
+# Translucent cyan hologram material for the from-zero assembly preview.
+# Cached (not rebuilt per slot) since ghosts redraw on every preview refresh.
+func _get_ghost_frame_material() -> StandardMaterial3D:
+	if _ghost_mat == null:
+		_ghost_mat = StandardMaterial3D.new()
+		_ghost_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_ghost_mat.albedo_color = Color(0.35, 0.8, 1.0, 0.18)
+		_ghost_mat.metallic = 0.2
+		_ghost_mat.roughness = 0.4
+		_ghost_mat.emission_enabled = true
+		_ghost_mat.emission = Color(0.2, 0.6, 1.0)
+		_ghost_mat.emission_energy_multiplier = 0.6
+	return _ghost_mat
+
+
+# Overrides every mesh under the slot's frame containers with the ghost
+# material so the whole skeleton renders as a faint hologram.
+func _apply_ghost_material(slot_name: String) -> void:
+	var entry = slot_meshes.get(slot_name)
+	if entry == null:
+		return
+	var ghost_mat := _get_ghost_frame_material()
+	for container in [entry["frame"], entry.get("frame_lower")]:
+		if container != null:
+			_apply_material_recursive(container, ghost_mat)
+
+
+func _apply_material_recursive(node: Node, mat: Material) -> void:
+	for child in node.get_children():
+		if child is GeometryInstance3D:
+			child.material_override = mat
+		_apply_material_recursive(child, mat)
 
 
 func _spawn_break_vfx(slot_name: String) -> void:

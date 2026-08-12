@@ -1,0 +1,374 @@
+class_name HangarPartListPanel
+extends RefCounted
+
+## Part list populate + selection logic for the hangar customize page. Extracted
+## from hangar_controller.gd.
+##
+## Builds the per-slot item list (upgrade / attachment / frame / weapon / armor
+## modes), drives the stats label for the selected row, resolves the selected
+## part's info for the ACTION MENU popup, and answers equipped/durability
+## queries shared with the catalog panel. The controller owns the ItemList /
+## stats Label nodes; this panel fills and reacts to them.
+
+var controller: Node
+
+# Selection state (moved out of the controller with this cluster).
+var _is_populating: bool = false
+var _last_selected_item_index: int = -1
+
+
+func populate(slot: String) -> void:
+	controller.action_panel.close()
+	controller.part_item_list.clear()
+	_last_selected_item_index = -1
+	controller.visible_salvage_indices.clear()
+	_is_populating = true  # Block 3D preview during auto-populate
+
+	if controller.current_mode == "upgrade":
+		var cost = controller._get_upgrade_cost()
+		controller.part_item_list.add_item("Upgrade Inner Frame to Level %d (%d cr)" % [
+			GlobalData.frame_upgrade_level + 1, cost
+		])
+		if controller.part_item_list.item_count > 0:
+			controller.part_item_list.select(0)
+			_last_selected_item_index = 0
+			on_item_selected(0)
+		_is_populating = false
+		return
+
+	if controller.current_mode == "attachment":
+		if slot not in ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]:
+			controller.part_item_list.add_item("Select a body section first")
+		else:
+			var capacity = controller.garage_panel.get_attachment_capacity(slot)
+			for info in controller.attachment_catalog:
+				var prefix = "[E] " if controller.garage_panel.has_attachment(info["id"], slot) else "    "
+				controller.part_item_list.add_item("%s%s (%.1fkg / %.1fkg capacity)" % [prefix, info["name"], info["weight"], capacity])
+			if controller.part_item_list.item_count > 0:
+				controller.part_item_list.select(0)
+				_last_selected_item_index = 0
+				on_item_selected(0)
+		_is_populating = false
+		return
+
+	var is_destroyed = GlobalData.part_damage.get(slot + "_frame", 0.0) >= 1.0
+
+	if controller.current_mode == "frame" and controller.frame_catalog.has(slot):
+		var items = controller.frame_catalog[slot]
+		# Roguelike: a destroyed frame is gone (same is_destroyed flag above). Hide
+		# the equipped broken frame so it can no longer be repaired or re-selected.
+		for info in items:
+			var is_eq = is_item_equipped(slot, info)
+			if is_eq and is_destroyed:
+				continue
+			var prefix = "[X] " if is_eq and is_destroyed else ("[E] " if is_eq else "     ")
+			var fname = info.get("name", "Frame Part")
+			var fhp = info.get("hp", 20.0)
+			var fwt = info.get("weight", 3.0)
+			var state_tag = " [DESTROYED]" if (is_eq and is_destroyed) else ""
+			var label_str = "%s%s (HP: %.0f, %.1fkg)%s" % [prefix, fname, fhp, fwt, state_tag]
+			controller.part_item_list.add_item(label_str)
+		if items.size() > 0:
+			controller.part_item_list.select(0)
+			_last_selected_item_index = 0
+			on_item_selected(0)
+	elif slot.begins_with("weapon"):
+		# Weapons come from the central inventory stash (GlobalData.weapon_inventory),
+		# NOT from armor_catalog — the stash is the single source of owned weapons.
+		controller.visible_weapon_indices.clear()
+		for index in range(GlobalData.weapon_inventory.size()):
+			var inv = GlobalData.weapon_inventory[index]
+			var wpath = inv.get("path", "")
+			var wname = inv.get("name", "Weapon")
+			var wdur = GlobalData.get_durability_ratio(inv)
+			var is_eq = weapon_in_loadout(slot, wpath)
+			var prefix = "[E] " if is_eq else "    "
+			# Same-model copies are distinct items: show how many you own and, on
+			# the carry slot, how many are actually on the pack right now.
+			var count := int(inv.get("count", 1))
+			var count_str := " x%d" % count if count > 1 else ""
+			var label_str = "%s%s%s (DUR: %.0f%%)" % [prefix, wname, count_str, wdur * 100.0]
+			controller.part_item_list.add_item(label_str)
+			controller.visible_weapon_indices.append(index)
+		if controller.part_item_list.item_count > 0:
+			controller.part_item_list.select(0)
+			_last_selected_item_index = 0
+			on_item_selected(0)
+	elif controller.armor_catalog.has(slot):
+		# EQUIP list = owned armor instances only. The equipped slot is matched
+		# strictly by instance uid, so exactly one item ever shows "[E]". The
+		# currently equipped instance is always included by uid even if its stored
+		# slot tag is missing/stale (legacy saves). Crafting lives in the separate
+		# Craftery window and never alters what appears here.
+		controller.visible_salvage_indices.clear()
+		var shown_uids := {}
+		var equipped_uid := ""
+		var eq_part = GlobalData.equipped_parts.get(slot)
+		if eq_part is Dictionary:
+			equipped_uid = str(eq_part.get("uid", ""))
+		for inst_index in range(GlobalData.armor_inventory.size()):
+			var inst = GlobalData.armor_inventory[inst_index]
+			var uid = str(inst.get("uid", ""))
+			if str(inst.get("slot", "")) != slot and uid != equipped_uid:
+				continue
+			if uid in shown_uids and uid != "":
+				continue
+			if uid != "":
+				shown_uids[uid] = true
+			controller.visible_salvage_indices.append(inst_index)
+			var is_eq = is_item_equipped(slot, inst)
+			# Roguelike: a destroyed part is gone. Hide the equipped broken armor
+			# so it can no longer be selected, repaired, or re-equipped.
+			if is_eq and (GlobalData.part_damage.get(slot, 0.0) >= 1.0 or GlobalData.part_damage.get(slot + "_frame", 0.0) >= 1.0):
+				continue
+			var prefix = "[E] " if is_eq else "    "
+			var state_tag = " [DESTROYED]" if (is_eq and is_destroyed) else ""
+			var dur_pct = instance_durability(slot, inst)
+			var inst_label = "%s%s [%s] (%.0f%%)%s" % [prefix, inst.get("name", "Armor"), inst.get("type", "Instance"), dur_pct * 100.0, state_tag]
+			controller.part_item_list.add_item(inst_label)
+		if controller.part_item_list.item_count > 0:
+			controller.part_item_list.select(0)
+			_last_selected_item_index = 0
+			on_item_selected(0)
+
+	_is_populating = false  # Restore flag
+
+
+func on_item_selected(index: int) -> void:
+	if controller.current_mode == "upgrade":
+		var cost = controller._get_upgrade_cost()
+		controller.stats_label.text = "INNER FRAME REACTOR LEVEL: %d -> %d\n\nEFFECTS:\n+25 FRAME HP per slot\n+15.0 kg MAX WEIGHT CAPACITY\n+1.5 m/s DASH THRUST SPEED\n\nUPGRADE COST: %d Credits" % [
+			GlobalData.frame_upgrade_level, GlobalData.frame_upgrade_level + 1, cost
+		]
+		controller.selected_salvage_info = {}
+		return
+
+	if controller.current_mode == "attachment":
+		if index < 0 or index >= controller.attachment_catalog.size(): return
+		controller.selected_attachment_info = controller.attachment_catalog[index].duplicate(true)
+		controller.selected_attachment_info["slot"] = controller.selected_slot
+		var capacity = controller.garage_panel.get_attachment_capacity(controller.selected_slot)
+		var used = controller.garage_panel.get_attachment_weight(controller.selected_slot, controller.selected_attachment_info["id"])
+		controller.stats_label.text = "ATTACHMENT: %s\n\nTARGET SECTION: %s\nWEIGHT: %.1f kg\nSECTION CAPACITY: %.1f kg\nCURRENT LOAD: %.1f kg\nPOWER COST: %.1f\n\nDrag on the 3D Mecha to place this module." % [
+			controller.selected_attachment_info["name"], controller.selected_slot.to_upper(), controller.selected_attachment_info["weight"], capacity, used, controller.selected_attachment_info["power_cost"]
+		]
+		return
+
+	if controller.current_mode == "frame" and controller.frame_catalog.has(controller.selected_slot):
+		var frame_items = controller.frame_catalog[controller.selected_slot]
+		if index >= 0 and index < frame_items.size():
+			controller.selected_frame_info = frame_items[index]
+			controller.selected_part_path = ""
+			controller.selected_part_id = ""
+			controller.selected_salvage_info = {}
+
+			var fname = controller.selected_frame_info.get("name", controller.selected_frame_info.get("part_name", "Inner Frame"))
+			var fcap = HangarPartText.frame_capability_text(controller.selected_frame_info)
+			var is_eq = is_item_equipped(controller.selected_slot, controller.selected_frame_info)
+			if is_eq:
+				var frame_dmg = GlobalData.part_damage.get(controller.selected_slot + "_frame", 0.0)
+				controller.stats_label.text = "INNER FRAME PART: %s  [E]\nDURABILITY: %.0f%%\n\n%s\n\nThis frame is currently equipped." % [
+					fname, (1.0 - clampf(frame_dmg, 0.0, 1.0)) * 100.0, fcap
+				]
+			else:
+				controller.stats_label.text = "INNER FRAME PART: %s\nDURABILITY: 100%%\n\n%s\n\nEquip this frame to install it fresh at 100%% HP." % [
+					fname, fcap
+				]
+			# Only change 3D model when user explicitly picks a part, not on section switch
+			if not _is_populating:
+				controller.garage_panel.apply_frame_preview(controller.selected_slot, controller.selected_frame_info)
+		controller._update_total_stats()
+		return
+
+	if controller.selected_slot.begins_with("weapon"):
+		if index >= 0 and index < controller.visible_weapon_indices.size():
+			var inv_idx = controller.visible_weapon_indices[index]
+			var inv = GlobalData.weapon_inventory[inv_idx]
+			var wpath = inv.get("path", "")
+			controller.selected_part_path = wpath
+			controller.selected_part_id = wpath
+			controller.selected_frame_info = {}
+			controller.selected_salvage_info = {}
+
+			var wname = inv.get("name", "Weapon")
+			var wdur = GlobalData.get_durability_ratio(inv)
+			var wwt := 0.0
+			var wtype := "Unknown"
+			var wcap := ""
+			var res = null
+			if wpath != "" and ResourceLoader.exists(wpath):
+				res = load(wpath)
+				if res:
+					wwt = float(res.weight) if "weight" in res and res.weight != null else 0.0
+					wtype = HangarPartText.weapon_type_label(res.weapon_type) if "weapon_type" in res else "Unknown"
+					wcap = HangarPartText.weapon_capability_text(res)
+
+			if controller.selected_slot == "weapon_carry":
+				var eq = GlobalData.is_weapon_in_carry(wpath)
+				var carried := GlobalData.count_carry_weapon(wpath)
+				var owned := int(inv.get("count", 1))
+				var prefix = "[E] " if eq else ""
+				var copies := ""
+				if owned > 1:
+					copies = "\nOWNED: x%d | ON PACK: x%d" % [owned, carried]
+				controller.stats_label.text = "BACK CARRY: %s%s\nDURABILITY: %.0f%%%s\n\n%s\nWEIGHT: %.1f kg\n\nAssigns a copy to the mech's back pack (FIELD PACK).\nFIELD PACK: %.1f / %.1f kg\nPick weapons from the stash below." % [
+					prefix, wname, wdur * 100.0, copies, wcap if not wcap.is_empty() else "TYPE: %s" % wtype,
+					wwt,
+					GlobalData.get_field_pack_weight(), GlobalData.get_field_pack_capacity()
+				]
+			else:
+				var hand = "left" if controller.selected_slot == "weapon_left" else "right"
+				var eq = str(GlobalData.weapon_loadout.get(hand, "")) == wpath
+				var prefix = "[E] " if eq else ""
+				controller.stats_label.text = "%s HAND WEAPON: %s%s\nDURABILITY: %.0f%%\n\n%s\nWEIGHT: %.1f kg\n\nEquip this weapon to the %s hand.\nFIELD PACK: %.1f / %.1f kg" % [
+					hand.to_upper(), prefix, wname, wdur * 100.0, wcap if not wcap.is_empty() else "TYPE: %s" % wtype,
+					wwt, hand,
+					GlobalData.get_field_pack_weight(), GlobalData.get_field_pack_capacity()
+				]
+			# Only change 3D model when user explicitly picks a part, not on section switch
+			if not _is_populating:
+				controller.garage_panel.preview_weapon_on_hand(controller.selected_slot, inv)
+		controller._update_total_stats()
+		return
+
+	if controller.armor_catalog.has(controller.selected_slot):
+		if index >= 0 and index < controller.visible_salvage_indices.size():
+			var salvaged_idx = controller.visible_salvage_indices[index]
+			controller.selected_salvage_info = GlobalData.armor_inventory[salvaged_idx]
+			controller.selected_part_path = ""
+			controller.selected_part_id = ""
+			controller.selected_frame_info = {}
+
+			var item_name = controller.selected_salvage_info.get("name", controller.selected_salvage_info.get("part_name", "Armor Instance"))
+			var acap = HangarPartText.armor_capability_text(controller.selected_salvage_info, instance_durability(controller.selected_slot, controller.selected_salvage_info))
+
+			var is_eq = is_item_equipped(controller.selected_slot, controller.selected_salvage_info)
+			if is_eq:
+				controller.stats_label.text = "OWNED ARMOR: %s  [E]\nDURABILITY: %.0f%%\n\n%s\n\nThis plate is currently equipped." % [
+					item_name, instance_durability(controller.selected_slot, controller.selected_salvage_info) * 100.0, acap
+				]
+			else:
+				var dur_pct = instance_durability(controller.selected_slot, controller.selected_salvage_info)
+				controller.stats_label.text = "OWNED ARMOR: %s\nDURABILITY: %.0f%%\n\n%s\n\nEquip this plate to install it." % [
+					item_name, dur_pct * 100.0, acap
+				]
+			# Only change 3D model when user explicitly picks a part, not on section switch
+			if not _is_populating:
+				controller.garage_panel.apply_salvage_preview(controller.selected_slot, controller.selected_salvage_info)
+	controller._update_total_stats()
+
+
+func on_item_clicked(index: int, _at_position: Vector2 = Vector2.ZERO, _mouse_button_index: int = 1) -> void:
+	# Single click: select & close any open modal. The Action Popup opens on
+	# double-click (item_activated) so a click never accidentally triggers it.
+	if index != _last_selected_item_index:
+		_last_selected_item_index = index
+		on_item_selected(index)
+	controller.action_panel.close()
+
+
+func on_item_activated(index: int) -> void:
+	# Double-click (or Enter): Open the Action Popup Modal!
+	var info_to_show: Dictionary = resolve_info_for_index(index)
+	if not info_to_show.is_empty():
+		controller.action_panel.show(info_to_show)
+
+
+func resolve_info_for_index(index: int) -> Dictionary:
+	var info_to_show: Dictionary = {}
+	if not controller.selected_salvage_info.is_empty():
+		info_to_show = controller.selected_salvage_info
+	elif not controller.selected_frame_info.is_empty():
+		info_to_show = controller.selected_frame_info
+	elif controller.current_mode == "frame" and controller.frame_catalog.has(controller.selected_slot):
+		var items = controller.frame_catalog[controller.selected_slot]
+		if index >= 0 and index < items.size():
+			info_to_show = items[index]
+	elif controller.selected_slot.begins_with("weapon"):
+		if index >= 0 and index < controller.visible_weapon_indices.size():
+			var inv_idx = controller.visible_weapon_indices[index]
+			info_to_show = GlobalData.weapon_inventory[inv_idx]
+	elif controller.armor_catalog.has(controller.selected_slot):
+		if index >= 0 and index < controller.visible_salvage_indices.size():
+			info_to_show = GlobalData.armor_inventory[controller.visible_salvage_indices[index]]
+	return info_to_show
+
+
+func is_item_equipped(slot: String, info: Dictionary) -> bool:
+	if info.is_empty():
+		return false
+
+	if slot.begins_with("weapon"):
+		return weapon_in_loadout(slot, info.get("path", ""))
+
+	if controller.current_mode == "frame":
+		var cur_frame = GlobalData.equipped_frames.get(slot, {})
+		if cur_frame is Dictionary and not cur_frame.is_empty():
+			var name_a = cur_frame.get("name", cur_frame.get("part_name", "")).to_lower()
+			var name_b = info.get("name", info.get("part_name", "")).to_lower()
+			if name_a != "" and name_b != "":
+				return name_a == name_b
+		return false
+	else:
+		var cur = GlobalData.equipped_parts.get(slot)
+		if cur == null:
+			return false
+
+		# 0. Match by instance uid (authoritative for owned instances)
+		if cur is Dictionary and cur.has("uid") and info.has("uid"):
+			return cur["uid"] == info["uid"]
+
+		# 1. Match by unique ID if available
+		var cur_id = ""
+		if cur is Dictionary:
+			cur_id = cur.get("id", "")
+		elif cur is Resource and "id" in cur:
+			cur_id = cur.id
+		var info_id = info.get("id", "")
+		# Catalog IDs are authoritative. Do not fall back to path/name when both
+		# entries share the same Resource path.
+		if info_id != "":
+			return cur_id != "" and cur_id == info_id
+		if cur_id != "":
+			return false
+
+		# 2. Match by Resource file path
+		var cur_path = ""
+		if cur is Dictionary:
+			cur_path = cur.get("path", "")
+		elif cur is Resource:
+			cur_path = cur.resource_path
+		var info_path = info.get("path", "")
+		if cur_path != "" and info_path != "" and cur_path == info_path:
+			return true
+
+		# 3. Match by Part Name
+		var cur_name = ""
+		if cur is Dictionary:
+			cur_name = cur.get("name", cur.get("part_name", "")).to_lower()
+		elif cur is Resource and "part_name" in cur:
+			cur_name = cur.part_name.to_lower()
+		var info_name = info.get("name", info.get("part_name", "")).to_lower()
+		if cur_name != "" and info_name != "":
+			return cur_name == info_name
+
+		return false
+
+
+# Current durability fraction (0..1) of an owned armor instance. Uses the live
+# combat damage cache for the equipped one, otherwise the instance's persisted
+# durability.
+func instance_durability(slot: String, inst: Dictionary) -> float:
+	if is_item_equipped(slot, inst):
+		return GlobalData.get_part_durability(slot)
+	return GlobalData.get_durability_ratio(inst)
+
+
+# Whether a weapon path is part of the current loadout for this weapon slot.
+func weapon_in_loadout(slot: String, path: String) -> bool:
+	if path == "":
+		return false
+	if slot == "weapon_carry":
+		return GlobalData.is_weapon_in_carry(path)
+	var hand = "left" if slot == "weapon_left" else "right"
+	return str(GlobalData.weapon_loadout.get(hand, "")) == path

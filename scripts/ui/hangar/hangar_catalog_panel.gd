@@ -294,7 +294,7 @@ func stats_text_for_index(index: int) -> String:
 		var info = frame_items[index]
 		var fname = info.get("name", info.get("part_name", "Inner Frame"))
 		var fcap = HangarPartText.frame_capability_text(info)
-		if controller._is_item_equipped(controller.selected_slot, info):
+		if controller.part_list_panel.is_item_equipped(controller.selected_slot, info):
 			var frame_dmg = GlobalData.part_damage.get(controller.selected_slot + "_frame", 0.0)
 			return "INNER FRAME PART: %s  [E]\nDURABILITY: %.0f%%\n\n%s\n\nCurrently equipped." % [
 				fname, (1.0 - clampf(frame_dmg, 0.0, 1.0)) * 100.0, fcap
@@ -338,9 +338,9 @@ func stats_text_for_index(index: int) -> String:
 		if index >= 0 and index < controller.visible_salvage_indices.size():
 			var inst = GlobalData.armor_inventory[controller.visible_salvage_indices[index]]
 			var item_name = inst.get("name", inst.get("part_name", "Armor Instance"))
-			var dur_pct = controller._get_instance_durability(controller.selected_slot, inst)
+			var dur_pct = controller.part_list_panel.instance_durability(controller.selected_slot, inst)
 			var acap = HangarPartText.armor_capability_text(inst, dur_pct)
-			var is_eq = controller._is_item_equipped(controller.selected_slot, inst)
+			var is_eq = controller.part_list_panel.is_item_equipped(controller.selected_slot, inst)
 			return "OWNED ARMOR: %s  %s\nDURABILITY: %.0f%%\n\n%s" % [
 				item_name, "[E]" if is_eq else "", dur_pct * 100.0, acap
 			]

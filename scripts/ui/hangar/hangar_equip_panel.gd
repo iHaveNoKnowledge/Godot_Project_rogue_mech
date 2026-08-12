@@ -21,7 +21,7 @@ func equip_part(slot: String, info: Dictionary) -> void:
 		GlobalData.part_damage.erase(slot + "_frame")
 		controller._commit_editing_mech_and_save()
 		controller._update_total_stats()
-		controller._populate_part_list_for_slot(slot)
+		controller.part_list_panel.populate(slot)
 		controller.garage_panel.update_all_slots_preview()
 		AudioManager.play_ui_confirm()
 		return
@@ -51,7 +51,7 @@ func equip_part(slot: String, info: Dictionary) -> void:
 		controller._commit_editing_mech_and_save()
 		controller.garage_panel.apply_armor_preview(slot, info)
 		controller._update_total_stats()
-		controller._populate_part_list_for_slot(slot)
+		controller.part_list_panel.populate(slot)
 		controller.garage_panel.update_all_slots_preview()
 		AudioManager.play_ui_confirm()
 		return
@@ -90,7 +90,7 @@ func equip_part(slot: String, info: Dictionary) -> void:
 	controller._commit_editing_mech_and_save()
 	controller.garage_panel.apply_armor_preview(slot, inst)
 	controller._update_total_stats()
-	controller._populate_part_list_for_slot(slot)
+	controller.part_list_panel.populate(slot)
 	AudioManager.play_ui_confirm()
 
 
@@ -101,7 +101,7 @@ func unequip_part(slot: String) -> void:
 		GlobalData.part_damage.erase(slot + "_frame")
 		controller._commit_editing_mech_and_save()
 		controller._update_total_stats()
-		controller._populate_part_list_for_slot(slot)
+		controller.part_list_panel.populate(slot)
 		controller.garage_panel.update_all_slots_preview()
 		AudioManager.play_ui_click()
 		return
@@ -126,7 +126,7 @@ func unequip_part(slot: String) -> void:
 				if existing:
 					existing.queue_free()
 		controller._update_total_stats()
-		controller._populate_part_list_for_slot(slot)
+		controller.part_list_panel.populate(slot)
 		controller.garage_panel.update_all_slots_preview()
 		AudioManager.play_ui_click()
 		return
@@ -137,7 +137,7 @@ func unequip_part(slot: String) -> void:
 	if pmm:
 		pmm._show_inner_frame(slot)
 	controller._update_total_stats()
-	controller._populate_part_list_for_slot(slot)
+	controller.part_list_panel.populate(slot)
 	AudioManager.play_ui_click()
 
 
@@ -199,7 +199,7 @@ func on_equip_pressed() -> void:
 		controller.status_message_label.text = "Equipped Inner Frame: %s!" % fname
 		GlobalData.save_run()
 		controller._update_total_stats()
-		controller._populate_part_list_for_slot(controller.selected_slot)
+		controller.part_list_panel.populate(controller.selected_slot)
 		controller.garage_panel.update_all_slots_preview()
 	elif controller.selected_part_path != "" and ResourceLoader.exists(controller.selected_part_path):
 		var res = load(controller.selected_part_path)
@@ -227,7 +227,7 @@ func on_equip_pressed() -> void:
 				GlobalData.save_run()
 				controller._update_total_stats()
 				controller.garage_panel.update_all_slots_preview()
-				controller._populate_part_list_for_slot(controller.selected_slot)
+				controller.part_list_panel.populate(controller.selected_slot)
 				return
 
 			var part_data: Dictionary

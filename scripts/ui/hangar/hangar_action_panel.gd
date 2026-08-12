@@ -89,7 +89,7 @@ func show(info: Dictionary) -> void:
 			details.text = "CRAFT COST: %d scrap + %d credits  |  WEIGHT: %.1f kg" % [s_cost, c_cost, wt_val]
 		else:
 			var dur_ratio = GlobalData.get_durability_ratio(info)
-			if controller._is_item_equipped(controller.selected_slot, info):
+			if controller.part_list_panel.is_item_equipped(controller.selected_slot, info):
 				dur_ratio = GlobalData.get_part_durability(controller.selected_slot)
 			details.text = "DURABILITY: %.0f / %.0f HP  |  WEIGHT: %.1f kg" % [full_hp * dur_ratio, full_hp, wt_val]
 	details.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -106,7 +106,7 @@ func show(info: Dictionary) -> void:
 	vbox.add_child(grid)
 
 	# 1. EQUIP / UNEQUIP CONTEXT BUTTON BASED ON BULLETPROOF EQUIPPED MATCH
-	var is_eq = controller._is_item_equipped(controller.selected_slot, info)
+	var is_eq = controller.part_list_panel.is_item_equipped(controller.selected_slot, info)
 
 	var toggle_btn = Button.new()
 	if is_eq:

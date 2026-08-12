@@ -9,6 +9,7 @@ extends Node
 ##   HangarCraftPanel    — craftery window (craft armor from templates)
 ##   HangarActionPanel   — ACTION MENU popup (equip/unequip/repair/upgrade/paint)
 ##   HangarEquipPanel    — equip/unequip flow (hands, back carry, armor, frames)
+##   HangarPartListPanel — part list populate + selection + equipped queries
 ## Run: godot --headless --path . res://tests/hangar_panels_verify.tscn
 
 var _fails: int = 0
@@ -25,6 +26,7 @@ func _ready() -> void:
 	await _verify_craft_panel()
 	await _verify_action_panel()
 	await _verify_equip_panel()
+	await _verify_part_list_panel()
 	print("HANGAR_PANELS_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	await get_tree().process_frame
 	get_tree().quit(1 if _fails > 0 else 0)
@@ -215,12 +217,12 @@ func _verify_catalog_panel() -> void:
 
 	ctrl.current_mode = "armor"
 	ctrl.selected_slot = "weapon_carry"
-	ctrl._populate_part_list_for_slot("weapon_carry")
+	ctrl.part_list_panel.populate("weapon_carry")
 	var wcard: String = cp.stats_text_for_index(0)
 	if ctrl.visible_weapon_indices.size() > 0:
 		_check(wcard.contains("BACK CARRY") or wcard.contains("FIELD PACK"), "weapon mode hover card")
 
-	ctrl._populate_part_list_for_slot("body")
+	ctrl.part_list_panel.populate("body")
 	ctrl.selected_slot = "body"
 	var acard: String = cp.stats_text_for_index(0)
 	if ctrl.visible_salvage_indices.size() > 0:
@@ -553,6 +555,86 @@ func _verify_equip_panel() -> void:
 	# Guard: an unknown weapon path reports and does not touch the loadout.
 	ep.equip_part("weapon_left", {"path": "res://nope.tres"})
 	_check(ctrl.status_message_label.text.contains("Weapon not found"), "unknown weapon path reports the guard message")
+
+	ctrl.queue_free()
+	await get_tree().process_frame
+
+
+func _verify_part_list_panel() -> void:
+	GlobalData.reset_run_data()
+	var ctrl: Node = load("res://scenes/ui/hangar_scene.tscn").instantiate()
+	add_child(ctrl)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var plp = ctrl.part_list_panel
+	_check(plp != null, "controller builds a HangarPartListPanel")
+
+	# Upgrade mode populates a single reactor row and updates the stats label.
+	ctrl.current_mode = "upgrade"
+	plp.populate("body")
+	_check(ctrl.part_item_list.item_count == 1, "upgrade mode shows the reactor row")
+	_check(ctrl.stats_label.text.contains("INNER FRAME REACTOR LEVEL"), "upgrade selection writes the stats label")
+
+	# Attachment mode lists the attachment catalog for a body section.
+	ctrl.current_mode = "attachment"
+	plp.populate("body")
+	_check(ctrl.part_item_list.item_count >= 1, "attachment mode populates the catalog")
+	plp.populate("nope")
+	_check(ctrl.part_item_list.get_item_text(0).contains("Select a body section"), "attachment guard for non-body slots")
+
+	# Weapon slot lists the weapon inventory stash.
+	ctrl.current_mode = "armor"
+	ctrl.selected_slot = "weapon_left"
+	plp.populate("weapon_left")
+	_check(ctrl.part_item_list.item_count == GlobalData.weapon_inventory.size(), "weapon slot lists the inventory stash")
+	plp.on_item_selected(0)
+	_check(ctrl.selected_part_path != "", "weapon selection resolves the part path")
+	var resolved: Dictionary = plp.resolve_info_for_index(0)
+	_check(resolved.has("path"), "resolve_info_for_index returns the weapon info")
+
+	# Frame slot lists the frame catalog.
+	ctrl.current_mode = "frame"
+	ctrl.selected_slot = "body"
+	plp.populate("body")
+	if ctrl.frame_catalog.has("body") and not (ctrl.frame_catalog["body"] as Array).is_empty():
+		_check(ctrl.part_item_list.item_count >= 1, "frame slot lists the frame catalog")
+
+	# Armor slot lists owned armor instances (reset seeds none -> the list stays
+	# empty unless an owned instance exists; equip one first).
+	ctrl.current_mode = "armor"
+	ctrl.selected_slot = "body"
+	var body_entries: Array = GlobalData.armor_catalog.get("body", [])
+	var armored := false
+	if not body_entries.is_empty():
+		var inst: Dictionary = GlobalData.make_armor_instance_from_catalog(body_entries[0]["id"])
+		GlobalData.armor_inventory.append(inst)
+		plp.populate("body")
+		_check(ctrl.part_item_list.item_count >= 1, "armor slot lists owned instances")
+		_check(plp.is_item_equipped("body", inst) == false, "fresh instance is not equipped")
+		plp.on_item_selected(0)
+		_check(not ctrl.selected_salvage_info.is_empty(), "armor selection stores the salvage info")
+		_check(plp.instance_durability("body", inst) > 0.0, "instance durability resolves above zero")
+		armored = true
+	_check(armored, "armor populate path was exercised")
+
+	# Helper queries.
+	_check(plp.is_item_equipped("body", {}) == false, "is_item_equipped rejects an empty dict")
+	_check(plp.weapon_in_loadout("weapon_left", "") == false, "weapon_in_loadout rejects an empty path")
+	_check(plp.weapon_in_loadout("weapon_left", "res://resources/mech/stock/weapon_beam_rifle.tres"), "default left-hand weapon is in the loadout")
+
+	# on_item_clicked closes any open action modal; on_item_activated opens one.
+	ctrl.action_panel.show({"name": "Probe"})
+	plp.on_item_clicked(0)
+	await get_tree().process_frame
+	_check(ctrl.action_panel.part_action_modal == null, "single click closes the action modal")
+	ctrl.selected_slot = "weapon_left"
+	ctrl.current_mode = "armor"
+	plp.populate("weapon_left")
+	plp.on_item_activated(0)
+	await get_tree().process_frame
+	_check(ctrl.action_panel.part_action_modal != null, "double-click opens the action modal")
+	ctrl.action_panel.close()
 
 	ctrl.queue_free()
 	await get_tree().process_frame

@@ -7,6 +7,7 @@ extends Node
 ##   HangarCatalogPanel  — catalog window + hover-stats preview
 ##   HangarGaragePanel   — 3D garage preview + attachment math
 ##   HangarCraftPanel    — craftery window (craft armor from templates)
+##   HangarActionPanel   — ACTION MENU popup (equip/unequip/repair/upgrade/paint)
 ## Run: godot --headless --path . res://tests/hangar_panels_verify.tscn
 
 var _fails: int = 0
@@ -21,6 +22,7 @@ func _ready() -> void:
 	await _verify_catalog_panel()
 	await _verify_garage_panel()
 	await _verify_craft_panel()
+	await _verify_action_panel()
 	print("HANGAR_PANELS_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	await get_tree().process_frame
 	get_tree().quit(1 if _fails > 0 else 0)
@@ -339,6 +341,61 @@ func _verify_garage_panel() -> void:
 	gp.handle_input(InputEventMouseButton.new())
 	gp.handle_input(InputEventMouseMotion.new())
 	_check(true, "3D previews, process and input helpers run without error")
+
+	ctrl.queue_free()
+	await get_tree().process_frame
+
+
+func _verify_action_panel() -> void:
+	GlobalData.reset_run_data()
+	var ctrl: Node = load("res://scenes/ui/hangar_scene.tscn").instantiate()
+	add_child(ctrl)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var ap = ctrl.action_panel
+	_check(ap != null, "controller builds a HangarActionPanel")
+	_check(ap.part_action_modal == null, "action panel starts with no modal")
+
+	# An empty info dict shows nothing (guard path).
+	ap.show({})
+	await get_tree().process_frame
+	_check(ap.part_action_modal == null, "action panel ignores an empty info dict")
+
+	# A real owned armor instance builds the modal with the ACTION MENU title.
+	ctrl.selected_slot = "body"
+	ctrl.current_mode = "armor"
+	var body_entries: Array = GlobalData.armor_catalog.get("body", [])
+	_check(not body_entries.is_empty(), "body armor catalog has entries to show")
+	var shown := false
+	if not body_entries.is_empty():
+		var inst: Dictionary = GlobalData.make_armor_instance_from_catalog(body_entries[0]["id"])
+		GlobalData.armor_inventory.append(inst)
+		ctrl.selected_salvage_info = inst
+		ctrl.visible_salvage_indices.clear()
+		ctrl.visible_salvage_indices.append(GlobalData.armor_inventory.size() - 1)
+		ap.show(inst)
+		await get_tree().process_frame
+		_check(ap.part_action_modal != null, "action panel builds the modal for an owned armor instance")
+		_check(ap.part_action_modal.is_inside_tree(), "action modal is added to the tree")
+		var modal_text := _collect_label_text(ap.part_action_modal)
+		_check(modal_text.contains("ACTION MENU"), "action modal shows the ACTION MENU title")
+		_check(modal_text.contains("DURABILITY"), "action modal shows durability details")
+
+		# Double-open safety: close() sweeps every PartActionModal in the tree.
+		ap.show(inst)
+		ap.show(inst)
+		ap.close()
+		await get_tree().process_frame
+		var leftover := 0
+		if ctrl.root_control:
+			for child in ctrl.root_control.get_children():
+				if child.name == "PartActionModal" and is_instance_valid(child) and not child.is_queued_for_deletion():
+					leftover += 1
+		_check(leftover == 0, "closing sweeps stacked action modals")
+		_check(ap.part_action_modal == null, "closing the action modal clears the ref")
+		shown = true
+	_check(shown, "action modal path was exercised")
 
 	ctrl.queue_free()
 	await get_tree().process_frame

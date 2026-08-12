@@ -64,7 +64,7 @@ func apply_chassis(key: String) -> void:
 # A full hangar catalog: every craftable armor template across all slots plus
 # the weapons you own, so the driver can browse/craft in one place.
 func build_window() -> void:
-	controller._close_part_action_modal()
+	controller.action_panel.close()
 	controller.craft_panel.close_window()
 	close_window()
 

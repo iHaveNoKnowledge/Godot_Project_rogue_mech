@@ -20,7 +20,7 @@ func open() -> void:
 		if controller.status_message_label:
 			controller.status_message_label.text = "Select an armor section first, then open the Craftery."
 		return
-	controller._close_part_action_modal()
+	controller.action_panel.close()
 	close_window()
 	build_window()
 

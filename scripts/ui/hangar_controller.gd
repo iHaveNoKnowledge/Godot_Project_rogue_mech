@@ -24,7 +24,7 @@ var visible_weapon_indices: Array[int] = []
 # When true, _on_part_item_selected should only update stats text and NOT change
 # the 3D model preview. Set during _populate_part_list_for_slot() auto-selects.
 var _is_populating: bool = false
-var _part_action_modal: Control = null
+var action_panel: HangarActionPanel = null
 # Slot tab buttons keyed by slot id, reused for UI-only selection highlight.
 var slot_tab_buttons: Dictionary = {}
 
@@ -112,6 +112,8 @@ func _build_ui_layout() -> void:
 	catalog_panel.controller = self
 	craft_panel = HangarCraftPanel.new()
 	craft_panel.controller = self
+	action_panel = HangarActionPanel.new()
+	action_panel.controller = self
 	var root = Control.new()
 	root.name = "RootControl"
 	root_control = root
@@ -888,7 +890,7 @@ func _is_weapon_in_loadout(slot: String, path: String) -> bool:
 
 
 func _populate_part_list_for_slot(slot: String) -> void:
-	_close_part_action_modal()
+	action_panel.close()
 	part_item_list.clear()
 	_last_selected_item_index = -1
 	visible_salvage_indices.clear()
@@ -1137,14 +1139,14 @@ func _on_part_item_clicked(index: int, _at_position: Vector2 = Vector2.ZERO, _mo
 	if index != _last_selected_item_index:
 		_last_selected_item_index = index
 		_on_part_item_selected(index)
-	_close_part_action_modal()
+	action_panel.close()
 
 
 func _on_part_item_activated(index: int) -> void:
 	# Double-click (or Enter): Open the Action Popup Modal!
 	var info_to_show: Dictionary = _resolve_part_info_for_index(index)
 	if not info_to_show.is_empty():
-		_show_part_action_modal(info_to_show)
+		action_panel.show(info_to_show)
 
 
 func _resolve_part_info_for_index(index: int) -> Dictionary:
@@ -1165,219 +1167,6 @@ func _resolve_part_info_for_index(index: int) -> Dictionary:
 		if index >= 0 and index < visible_salvage_indices.size():
 			info_to_show = GlobalData.armor_inventory[visible_salvage_indices[index]]
 	return info_to_show
-
-
-func _close_part_action_modal() -> void:
-	# Free EVERY node named PartActionModal. A rapid double-click can briefly
-	# create two stacked modals (old one queued for deletion), and
-	# get_node_or_null would only find the stale one, leaving the popup stuck.
-	if root_control:
-		for child in root_control.get_children():
-			if child.name == "PartActionModal":
-				child.queue_free()
-	var local_old = get_node_or_null("PartActionModal")
-	if local_old:
-		local_old.queue_free()
-	_part_action_modal = null
-
-
-func _show_part_action_modal(info: Dictionary) -> void:
-	if info.is_empty():
-		return
-	_close_part_action_modal()
-
-	var modal_panel = PanelContainer.new()
-	modal_panel.name = "PartActionModal"
-	modal_panel.anchor_left = 0.0
-	modal_panel.anchor_right = 0.0
-	modal_panel.anchor_top = 0.5
-	modal_panel.anchor_bottom = 0.5
-	modal_panel.offset_left = 340
-	modal_panel.offset_right = 730
-	modal_panel.offset_top = -140
-	modal_panel.offset_bottom = 140
-
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.08, 0.10, 0.15, 0.95)
-	style.border_width_left = 2
-	style.border_width_top = 2
-	style.border_width_right = 2
-	style.border_width_bottom = 2
-	style.border_color = _accent_color
-	style.corner_radius_top_left = 8
-	style.corner_radius_top_right = 8
-	style.corner_radius_bottom_left = 8
-	style.corner_radius_bottom_right = 8
-	modal_panel.add_theme_stylebox_override("panel", style)
-
-	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 8)
-	modal_panel.add_child(vbox)
-
-	var item_name = info.get("name", info.get("part_name", "PART OPTIONS"))
-	var title = Label.new()
-	title.text = "ACTION MENU: %s" % item_name.to_upper()
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_color_override("font_color", _highlight_color)
-	title.add_theme_font_size_override("font_size", 14)
-	vbox.add_child(title)
-
-	var is_weapon_slot = selected_slot.begins_with("weapon")
-	var is_instance = info.has("uid")
-	var wt_val = info.get("weight", 10.0)
-	var details = Label.new()
-	if is_weapon_slot:
-		var wp = info.get("path", "")
-		if wp != "" and ResourceLoader.exists(wp):
-			var res = load(wp)
-			if res:
-				wt_val = float(res.weight) if "weight" in res and res.weight != null else 0.0
-		var wdur = GlobalData.get_durability_ratio(info)
-		details.text = "WEIGHT: %.1f kg   DURABILITY: %.0f%%" % [wt_val, wdur * 100.0]
-	else:
-		var full_hp = GlobalData.part_stat(info, "max_hp", 100.0)
-		if current_mode == "armor" and not is_instance:
-			var s_cost := GlobalData.get_armor_scrap_cost(info)
-			var c_cost := GlobalData.get_armor_credit_cost(info)
-			details.text = "CRAFT COST: %d scrap + %d credits  |  WEIGHT: %.1f kg" % [s_cost, c_cost, wt_val]
-		else:
-			var dur_ratio = GlobalData.get_durability_ratio(info)
-			if _is_item_equipped(selected_slot, info):
-				dur_ratio = GlobalData.get_part_durability(selected_slot)
-			details.text = "DURABILITY: %.0f / %.0f HP  |  WEIGHT: %.1f kg" % [full_hp * dur_ratio, full_hp, wt_val]
-	details.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	details.add_theme_color_override("font_color", Color(0.8, 0.85, 0.9))
-	vbox.add_child(details)
-
-	var sep = HSeparator.new()
-	vbox.add_child(sep)
-
-	var grid = GridContainer.new()
-	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 10)
-	grid.add_theme_constant_override("v_separation", 8)
-	vbox.add_child(grid)
-
-	# 1. EQUIP / UNEQUIP CONTEXT BUTTON BASED ON BULLETPROOF EQUIPPED MATCH
-	var is_eq = _is_item_equipped(selected_slot, info)
-
-	var toggle_btn = Button.new()
-	if is_eq:
-		toggle_btn.text = "[ UNEQUIP ]"
-		toggle_btn.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
-	elif current_mode == "armor" and not is_instance:
-		toggle_btn.text = "[ CRAFT & EQUIP ]"
-		toggle_btn.add_theme_color_override("font_color", Color(0.4, 1.0, 0.5))
-	else:
-		toggle_btn.text = "[ EQUIP ]"
-		toggle_btn.add_theme_color_override("font_color", Color(0.4, 1.0, 0.5))
-
-	toggle_btn.custom_minimum_size = Vector2(180, 36)
-	toggle_btn.pressed.connect(func():
-		if is_eq:
-			_unequip_part_from_slot(selected_slot)
-		else:
-			_equip_part_to_slot(selected_slot, info)
-		_close_part_action_modal()
-	)
-	grid.add_child(toggle_btn)
-
-	# 2. REPAIR — owned armor instances & inner frames only (never mutates the catalog)
-	if not is_weapon_slot and (is_instance or current_mode == "frame"):
-		var repair_btn = Button.new()
-		var repair_cost := GlobalData.get_repair_cost(selected_slot)
-		repair_btn.text = "REPAIR (%d cr)" % repair_cost
-		repair_btn.custom_minimum_size = Vector2(180, 36)
-		repair_btn.pressed.connect(func():
-			if GlobalData.try_spend_credits(repair_cost):
-				if info.has("uid"):
-					info["durability"] = 1.0
-				GlobalData.part_damage.erase(selected_slot)
-				GlobalData.part_damage.erase(selected_slot + "_frame")
-				status_message_label.text = "Part Repaired to 100% HP!"
-				GlobalData.save_run()
-				_update_total_stats()
-				if current_mode == "frame":
-					garage_panel.update_all_slots_preview()
-				else:
-					garage_panel.apply_armor_preview(selected_slot, info)
-			else:
-				status_message_label.text = "Insufficient Credits for repair!"
-			_close_part_action_modal()
-		)
-		grid.add_child(repair_btn)
-
-		# 3. UPGRADE — raises this instance's own Max HP (its upgrade_level)
-		if is_instance:
-			var upgrade_btn = Button.new()
-			upgrade_btn.text = "UPGRADE (+15 HP)"
-			upgrade_btn.custom_minimum_size = Vector2(180, 36)
-			upgrade_btn.pressed.connect(func():
-				if GlobalData.try_spend_credits(50):
-					var old_hp = float(info.get("hp", info.get("max_hp", 30.0)))
-					info["hp"] = old_hp + 15.0
-					info["max_hp"] = info["hp"]
-					info["upgrade_level"] = int(info.get("upgrade_level", 1)) + 1
-					info["durability"] = 1.0
-					if GlobalData.equipped_parts.get(selected_slot) == info:
-						GlobalData.part_damage.erase(selected_slot)
-					status_message_label.text = "Part Upgraded! Max HP increased to %.0f" % info["hp"]
-					GlobalData.save_run()
-					_update_total_stats()
-				else:
-					status_message_label.text = "Insufficient Credits for upgrade (50 cr needed)!"
-				_close_part_action_modal()
-			)
-			grid.add_child(upgrade_btn)
-
-		# 4. PAINT — recolors this instance (the catalog template is never touched)
-		if is_instance:
-			var paint_btn = Button.new()
-			paint_btn.text = "PAINT COLOR"
-			paint_btn.custom_minimum_size = Vector2(180, 36)
-			paint_btn.pressed.connect(func():
-				var palette = [
-					Color(0.25, 0.40, 0.60), # Mecha Navy Blue
-					Color(0.80, 0.20, 0.20), # Crimson Ace Red
-					Color(0.90, 0.90, 0.95), # Gundam White
-					Color(0.20, 0.65, 0.35), # Zaku Green
-					Color(0.85, 0.70, 0.20), # Gold Trim
-					Color(0.20, 0.22, 0.26)  # Dark Steel Frame
-				]
-				var cur_col = info.get("color", Color(0.25, 0.40, 0.60))
-				var next_idx = 0
-				for i in range(palette.size()):
-					if palette[i].is_equal_approx(cur_col):
-						next_idx = (i + 1) % palette.size()
-						break
-				var new_color = palette[next_idx]
-				info["color"] = new_color
-				info["part_color"] = new_color
-				status_message_label.text = "Armor paint updated!"
-				garage_panel.apply_armor_preview(selected_slot, info)
-				# Only sync the equipped copy when the same instance is mounted;
-				# .has() is true even for null/other instances, and Dictionary ==
-				# compares by value (not reference) — match on the unique uid instead.
-				var equipped = GlobalData.equipped_parts.get(selected_slot)
-				if equipped is Dictionary and info.has("uid") and equipped.get("uid", "") == str(info["uid"]):
-					equipped["color"] = new_color
-					equipped["part_color"] = new_color
-				GlobalData.save_run()
-			)
-			grid.add_child(paint_btn)
-
-	# 5. CANCEL
-	var cancel_btn = Button.new()
-	cancel_btn.text = "CANCEL"
-	cancel_btn.custom_minimum_size = Vector2(370, 32)
-	cancel_btn.pressed.connect(func(): _close_part_action_modal())
-	vbox.add_child(cancel_btn)
-
-	if root_control:
-		root_control.add_child(modal_panel)
-	else:
-		add_child(modal_panel)
-	_part_action_modal = modal_panel
 
 
 func _equip_part_to_slot(slot: String, info: Dictionary) -> void:

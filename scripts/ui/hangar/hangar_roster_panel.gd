@@ -940,10 +940,25 @@ func open_pilot_picker(mech_id: String, anchor_btn: Button) -> void:
 	var pilots := GlobalData.get_hangar_pilots()
 	for i in range(pilots.size()):
 		var pilot: Dictionary = pilots[i]
-		pop.add_item("%s  %s" % [
+		var pilot_id := str(pilot.get("id", ""))
+		# Fleet pilots carry their live status (HP / wounded countdown /
+		# destroyed) here too — same suffix the roster rows show, so a hurt or
+		# dead driver is readable before assigning them.
+		var status := GlobalData.get_hangar_pilot_status(pilot_id)
+		var marker := ""
+		if status.contains("WOUNDED"):
+			marker = "⚠ "
+		elif status.contains("DESTROYED"):
+			marker = "⛔ "
+		var label := "%s%s%s  %s" % [
+			marker,
 			str(pilot.get("name", "?")),
-			mech_label_for_pilot(str(pilot.get("id", ""))),
-		], i + 1)
+			status,
+			mech_label_for_pilot(pilot_id),
+		]
+		pop.add_item(label, i + 1)
+		if status.contains("DESTROYED"):
+			pop.set_item_disabled(i + 1, true)
 	pop.id_pressed.connect(func(id):
 		var pilot_id := "" if id == 0 else str(pilots[id - 1].get("id", ""))
 		if GlobalData.assign_hangar_pilot(mech_id, pilot_id):

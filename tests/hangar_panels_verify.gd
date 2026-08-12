@@ -284,6 +284,46 @@ func _verify_roster_panel() -> void:
 	rp.refresh_page()
 	await get_tree().process_frame
 	_check(_collect_label_text(rp.roster_slot_list).contains("PILOT: Test Unit · DESTROYED"), "destroyed fleet pilot shows DESTROYED")
+	# --- PILOT PICKER STATUS: the picker menu carries the same live status ---
+	# --- suffix + warning marker, so a hurt/dead driver is readable pre-assign. ---
+	# The row checks above left the unit destroyed; restore the healthy state so
+	# the picker's HP check sees a live driver.
+	for u in GlobalData.fleet_roster:
+		if u.get("template_id", "") == "t_verifier":
+			u["destroyed"] = false
+			u["wounded"] = false
+	rp.open_pilot_picker(slot1_id, anchor)
+	pop = _find_popup(ctrl)
+	_check(pop != null, "pilot picker opens for the status checks")
+	if pop:
+		var picker_items := _popup_item_texts(pop)
+		_check(picker_items.any(func(t: String): return t.contains("Test Unit · 40/80 HP")), "pilot picker shows the fleet pilot's current HP")
+		# Wounded fleet pilot: the picker item carries the recovery countdown.
+		for u in GlobalData.fleet_roster:
+			if u.get("template_id", "") == "t_verifier":
+				u["destroyed"] = false
+				u["wounded"] = true
+				u["wound_turns"] = 2
+		rp.open_pilot_picker(slot1_id, anchor)
+		pop = _find_popup(ctrl)
+		if pop:
+			picker_items = _popup_item_texts(pop)
+			_check(picker_items.any(func(t: String): return t.contains("⚠ Test Unit · WOUNDED (2T)")), "pilot picker shows the wounded countdown with a warning marker")
+		# Destroyed fleet pilot: disabled + red-tinted so it can't be assigned.
+		for u in GlobalData.fleet_roster:
+			if u.get("template_id", "") == "t_verifier":
+				u["destroyed"] = true
+		rp.open_pilot_picker(slot1_id, anchor)
+		pop = _find_popup(ctrl)
+		if pop:
+			picker_items = _popup_item_texts(pop)
+			_check(picker_items.any(func(t: String): return t.contains("⛔ Test Unit · DESTROYED")), "pilot picker shows DESTROYED with a danger marker")
+			var destroyed_idx := -1
+			for i in range(pop.item_count):
+				if pop.get_item_text(i).contains("Test Unit · DESTROYED"):
+					destroyed_idx = i
+					break
+			_check(destroyed_idx >= 0 and pop.is_item_disabled(destroyed_idx), "destroyed pilot is disabled in the picker")
 	# Clean up: remove the test unit + clear the seat so later sections see the
 	# single-mech convoy again.
 	for i in range(GlobalData.fleet_roster.size() - 1, -1, -1):
@@ -611,6 +651,13 @@ func _find_popup(host: Node) -> PopupMenu:
 		if child is PopupMenu and is_instance_valid(child) and not child.is_queued_for_deletion():
 			return child
 	return null
+
+
+func _popup_item_texts(pop: PopupMenu) -> Array[String]:
+	var out: Array[String] = []
+	for i in range(pop.item_count):
+		out.append(pop.get_item_text(i))
+	return out
 
 
 func _verify_catalog_panel() -> void:

@@ -32,7 +32,9 @@ var rename_dialog_edit: LineEdit = null
 # REGISTER FRAME confirm, locked until every required frame is equipped.
 var pending_register_banner: Control = null
 var pending_register_button: Button = null
-var pending_register_status_label: Label = null
+# Live checklist rows (required frame -> {mark, name} labels) in the pending
+# banner; each row ticks ✓/✗ as the matching frame is equipped/unequipped.
+var pending_checklist_labels: Dictionary = {}
 var _pending_register_slot: int = -1
 # Pre-flow loadout snapshots of the berths the working set can leak onto while
 # the player assembles frames (the editing target + the active driver), so the
@@ -510,8 +512,16 @@ func build_pending_register_banner(slot: int) -> void:
 	modal.anchor_bottom = 0.0
 	modal.offset_left = -190
 	modal.offset_right = 190
-	modal.offset_top = 132
-	modal.offset_bottom = 262
+	# Below the 80px header + mode-toggle bar. If the persistent wounded-pilot
+	# banner (offset_top 122, content-height) is showing, stack below it instead
+	# of overlapping, so the two center-top panels never collide.
+	var banner_top := 132
+	if controller and controller.wounded_banner and controller.wounded_banner.banner_panel:
+		var wounded: PanelContainer = controller.wounded_banner.banner_panel
+		if wounded.visible and wounded.size.y > 0.0:
+			banner_top = int(122.0 + wounded.size.y + 8.0)
+	modal.offset_top = banner_top
+	modal.offset_bottom = banner_top + 168
 
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.10, 0.12, 0.18, 0.97)
@@ -545,10 +555,31 @@ func build_pending_register_banner(slot: int) -> void:
 	cost_lbl.add_theme_font_size_override("font_size", 12)
 	vbox.add_child(cost_lbl)
 
-	var status := Label.new()
-	status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	status.add_theme_font_size_override("font_size", 11)
-	vbox.add_child(status)
+	# Required-frame checklist: one row per frame, ticking off live as the
+	# player equips each piece (refreshed on every committed edit).
+	var checklist_box := VBoxContainer.new()
+	checklist_box.add_theme_constant_override("separation", 2)
+	vbox.add_child(checklist_box)
+	pending_checklist_labels.clear()
+	for required in HangarManager.REQUIRED_WALKING_FRAMES:
+		var row := HBoxContainer.new()
+		row.alignment = BoxContainer.ALIGNMENT_CENTER
+		row.add_theme_constant_override("separation", 6)
+		var mark := Label.new()
+		mark.add_theme_font_size_override("font_size", 12)
+		row.add_child(mark)
+		var name_lbl := Label.new()
+		name_lbl.add_theme_font_size_override("font_size", 11)
+		match required:
+			"leg_left":
+				name_lbl.text = "LEFT LEG"
+			"leg_right":
+				name_lbl.text = "RIGHT LEG"
+			_:
+				name_lbl.text = required.to_upper()
+		row.add_child(name_lbl)
+		checklist_box.add_child(row)
+		pending_checklist_labels[required] = {"mark": mark, "name": name_lbl}
 
 	var btn_row := HBoxContainer.new()
 	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -575,7 +606,6 @@ func build_pending_register_banner(slot: int) -> void:
 		controller.add_child(modal)
 	pending_register_banner = modal
 	pending_register_button = ok_btn
-	pending_register_status_label = status
 	refresh_pending_register()
 
 
@@ -585,21 +615,19 @@ func build_pending_register_banner(slot: int) -> void:
 func refresh_pending_register() -> void:
 	if pending_register_banner == null or not is_instance_valid(pending_register_banner):
 		return
-	var parts: Array[String] = []
+	var done_color := Color(0.45, 0.9, 0.5)
+	var missing_color := Color(0.95, 0.4, 0.4)
+	var dim_color := Color(0.6, 0.65, 0.75)
 	for required in HangarManager.REQUIRED_WALKING_FRAMES:
 		var ok := GlobalData.equipped_frames.has(required) and GlobalData.equipped_frames[required] != null
-		# Readable names for the checklist ("LEFT LEG" not "LEG LEFT").
-		var label: String
-		match required:
-			"leg_left":
-				label = "LEFT LEG"
-			"leg_right":
-				label = "RIGHT LEG"
-			_:
-				label = required.to_upper()
-		parts.append("%s %s" % [label, "✓" if ok else "✗"])
-	if pending_register_status_label:
-		pending_register_status_label.text = "   ".join(parts)
+		var row: Dictionary = pending_checklist_labels.get(required, {})
+		var mark: Label = row.get("mark")
+		var name_lbl: Label = row.get("name")
+		if mark:
+			mark.text = "✓" if ok else "✗"
+			mark.add_theme_color_override("font_color", done_color if ok else missing_color)
+		if name_lbl:
+			name_lbl.add_theme_color_override("font_color", Color.WHITE if ok else dim_color)
 	if pending_register_button:
 		pending_register_button.disabled = not _has_walking_chassis()
 
@@ -638,7 +666,7 @@ func close_pending_register(revert_working_set: bool = true) -> void:
 		pending_register_banner.queue_free()
 	pending_register_banner = null
 	pending_register_button = null
-	pending_register_status_label = null
+	pending_checklist_labels.clear()
 	_pending_register_slot = -1
 	if revert_working_set:
 		_restore_pending_flow()

@@ -78,6 +78,16 @@ func _equip_walking_chassis(skip_body: bool = false) -> void:
 	GlobalData.equipped_frames["leg_right"] = (GlobalData.frame_catalog["leg_right"][0] as Dictionary).duplicate()
 
 
+# Reads a pending-banner checklist row's mark (✓/✗) for a required frame slot.
+func _checklist_mark(rp, required: String) -> String:
+	var rows: Dictionary = rp.pending_checklist_labels
+	if rows == null:
+		rows = {}
+	var row: Dictionary = rows.get(required, {})
+	var mark: Label = row.get("mark")
+	return mark.text if mark else ""
+
+
 func _verify_text_helpers() -> void:
 	_check(HangarPartText.weapon_type_label(0) == "Beam Weapon", "weapon_type_label beam")
 	_check(HangarPartText.weapon_type_label(4) == "Melee Weapon", "weapon_type_label melee")
@@ -482,7 +492,12 @@ func _verify_roster_panel() -> void:
 
 	# Equip the walking chassis (BODY + both legs) through the real commit path
 	# — the banner re-evaluates and unlocks REGISTER FRAME.
-	_equip_walking_chassis()
+	GlobalData.equipped_frames["body"] = (GlobalData.frame_catalog["body"][0] as Dictionary).duplicate()
+	ctrl.persist_panel.commit_and_save()
+	_check(_checklist_mark(rp, "body") == "✓", "equipping BODY ticks its checklist row")
+	_check(_checklist_mark(rp, "leg_left") == "✗", "unequipped LEFT LEG stays unchecked")
+	_check(rp.pending_register_button != null and rp.pending_register_button.disabled, "single frame keeps REGISTER FRAME locked")
+	_equip_walking_chassis(true)
 	ctrl.persist_panel.commit_and_save()
 	# The equip path refreshes the garage preview, swapping the ghost for the
 	# real frame on the filled slots while the rest keep ghosting. (A frame
@@ -490,7 +505,7 @@ func _verify_roster_panel() -> void:
 	gp.update_all_slots_preview()
 	await get_tree().process_frame
 	_check(rp.pending_register_button != null and not rp.pending_register_button.disabled, "equipping BODY + both legs unlocks REGISTER FRAME")
-	_check(rp.pending_register_status_label != null and not rp.pending_register_status_label.text.contains("✗"), "banner marks every required frame present")
+	_check(_checklist_mark(rp, "body") == "✓" and _checklist_mark(rp, "leg_left") == "✓" and _checklist_mark(rp, "leg_right") == "✓", "banner ticks every required frame when the chassis is complete")
 	_check(not pmm.is_ghost_frame_visible("body"), "equipped BODY swaps the ghost for the real frame")
 	_check(pmm.is_ghost_frame_visible("head"), "unequipped slots keep ghosting while the assembly is armed")
 
@@ -664,7 +679,7 @@ func _verify_roster_panel() -> void:
 		_check(rp.pending_register_banner != null and is_instance_valid(rp.pending_register_banner), "REGISTER arms the banner without a walking chassis")
 		_check(rp.register_dialog == null, "incomplete chassis opens no name prompt")
 		_check(rp.pending_register_button != null and rp.pending_register_button.disabled, "REGISTER FRAME locked without a walking chassis")
-		_check(rp.pending_register_status_label != null and rp.pending_register_status_label.text.contains("✗"), "banner marks the missing frames")
+		_check(_checklist_mark(rp, "body") == "✗" and _checklist_mark(rp, "leg_left") == "✗" and _checklist_mark(rp, "leg_right") == "✗", "banner marks the missing frames")
 		if rp.pending_register_button:
 			rp.pending_register_button.pressed.emit()
 			await get_tree().process_frame
@@ -676,7 +691,7 @@ func _verify_roster_panel() -> void:
 		_equip_walking_chassis()
 		rp.refresh_pending_register()
 		_check(rp.pending_register_button != null and not rp.pending_register_button.disabled, "restored chassis unlocks REGISTER FRAME")
-		_check(rp.pending_register_status_label != null and not rp.pending_register_status_label.text.contains("✗"), "banner marks every frame present")
+		_check(_checklist_mark(rp, "body") == "✓" and _checklist_mark(rp, "leg_left") == "✓" and _checklist_mark(rp, "leg_right") == "✓", "banner ticks every frame once restored")
 		# Confirm a blank name -> falls back to "Mech 02" and charges the cost.
 		if rp.pending_register_button:
 			rp.pending_register_button.pressed.emit()

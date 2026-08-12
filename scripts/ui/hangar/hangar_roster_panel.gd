@@ -339,8 +339,7 @@ func build_slot_row(slot: int, mech: Dictionary, over_capacity: bool) -> void:
 # pilotless (assign a pilot or SWITCH to it after).
 func register_mech(slot: int) -> void:
 	if GlobalData.mech_less:
-		if roster_status_label:
-			roster_status_label.text = "You're on foot — rebuild a chassis through recovery missions."
+		_set_status("You're on foot — rebuild a chassis through recovery missions.")
 		return
 	# Validate the walking chassis BEFORE asking for a name, so the player is
 	# never prompted for a build that can't happen.
@@ -350,14 +349,12 @@ func register_mech(slot: int) -> void:
 			needs_chassis = true
 			break
 	if needs_chassis:
-		if roster_status_label:
-			roster_status_label.text = "REGISTER needs a walking chassis (body + both leg frames) equipped."
+		_set_status("REGISTER needs a walking chassis (body + both leg frames) equipped.")
 		return
 	# Same for the price: don't ask for a name the player can't afford to build.
 	if not _can_afford_register():
-		if roster_status_label:
-			roster_status_label.text = "REGISTER needs %d scrap + %d cr — not enough resources." % [
-				GlobalData.get_frame_register_scrap_cost(), GlobalData.get_frame_register_credit_cost()]
+		_set_status("REGISTER needs %d scrap + %d cr — not enough resources." % [
+			GlobalData.get_frame_register_scrap_cost(), GlobalData.get_frame_register_credit_cost()])
 		return
 	close_register_dialog()
 	build_register_dialog(slot)
@@ -457,6 +454,16 @@ func _can_afford_register() -> bool:
 		and GlobalData.credits >= GlobalData.get_frame_register_credit_cost()
 
 
+# Writes the same status text to the roster page's label AND the customize
+# sidebar's shared status label, so a message is never hidden by whichever page
+# the player is currently looking at.
+func _set_status(text: String) -> void:
+	if roster_status_label:
+		roster_status_label.text = text
+	if controller and controller.status_message_label:
+		controller.status_message_label.text = text
+
+
 func _confirm_register(slot: int) -> void:
 	var chosen := ""
 	if register_dialog_edit and is_instance_valid(register_dialog_edit):
@@ -465,8 +472,7 @@ func _confirm_register(slot: int) -> void:
 	# The dialog only blocks its own rect, so resources could have changed while
 	# it was open — re-check the price before spending anything.
 	if not _can_afford_register():
-		if roster_status_label:
-			roster_status_label.text = "Not enough scrap/credits to assemble the frame."
+		_set_status("Not enough scrap/credits to assemble the frame.")
 		return
 	var new_mech := GlobalData.build_hangar_mech(chosen, slot)
 	if new_mech.is_empty():
@@ -477,21 +483,31 @@ func _confirm_register(slot: int) -> void:
 			if not GlobalData.equipped_frames.has(required) or GlobalData.equipped_frames[required] == null:
 				needs_chassis = true
 				break
-		if roster_status_label:
-			roster_status_label.text = "REGISTER needs a walking chassis (body + both leg frames) equipped." \
-				if needs_chassis else "No free berth in the convoy."
+		_set_status("REGISTER needs a walking chassis (body + both leg frames) equipped."
+			if needs_chassis else "No free berth in the convoy.")
 		return
 	# Charged here (not in build()) so recovery grants / recruit parking stay free.
 	GlobalData.try_spend_scrap(GlobalData.get_frame_register_scrap_cost())
 	GlobalData.try_spend_credits(GlobalData.get_frame_register_credit_cost())
 	GlobalData.save_run()
 	AudioManager.play_ui_confirm()
-	refresh_badge()
 	refresh_page()
-	if roster_status_label:
-		roster_status_label.text = "Registered %s in SLOT %02d (-%d scrap, -%d cr). Assign a pilot or SWITCH to it from here." % [
-			str(new_mech.get("name", "Mech")), slot,
-			GlobalData.get_frame_register_scrap_cost(), GlobalData.get_frame_register_credit_cost()]
+	# Jump straight into the customize page for the freshly assembled frame so
+	# the driver can tune it (armor/frames/loadout) instead of staring at the
+	# roster. The editing target follows the new berth and its snapshot loads
+	# into the working set; the player still pilots their previous mech until
+	# they SWITCH from the roster.
+	var new_id := str(new_mech.get("id", ""))
+	controller.set_editing_mech_id(new_id)
+	# Guard the load so the "working set follows the new mech" invariant stays
+	# explicit (it can't realistically fail — the mech was just appended).
+	if GlobalData.load_hangar_mech_state(new_id):
+		controller.selected_chassis_key = GlobalData.chassis_id
+	controller.refresh_panel.after_mech_change(false)
+	controller.nav_panel.select_submenu("customize")
+	_set_status("Registered %s in SLOT %02d (-%d scrap, -%d cr). Tune it here, or SWITCH to pilot it from the roster." % [
+		str(new_mech.get("name", "Mech")), slot,
+		GlobalData.get_frame_register_scrap_cost(), GlobalData.get_frame_register_credit_cost()])
 
 
 func close_register_dialog() -> void:

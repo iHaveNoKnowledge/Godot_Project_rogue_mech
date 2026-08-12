@@ -239,13 +239,24 @@ func _verify_roster_panel() -> void:
 	var credits_after_first := GlobalData.credits
 	_check(scrap_after_first == scrap_after_grant - reg_scrap, "REGISTER spends exactly the scrap cost")
 	_check(credits_after_first == credits_after_grant - reg_credits, "REGISTER spends exactly the credit cost")
-	_check(rp.roster_status_label.text.contains("-%d scrap" % reg_scrap), "REGISTER reports the spent cost")
+	_check(ctrl.status_message_label.text.contains("-%d scrap" % reg_scrap), "REGISTER reports the spent cost")
 	var registered_name := ""
+	var new_id := ""
 	for m in GlobalData.get_hangar_mechs():
 		if int(m.get("slot", 0)) == 2:
 			registered_name = str(m.get("name", ""))
+			new_id = str(m.get("id", ""))
 	_check(registered_name == "Vanguard", "custom name is used instead of the auto 'Mech 02'")
-	_check(rp.roster_status_label.text.contains("Vanguard"), "REGISTER reports the named mech")
+	_check(ctrl.status_message_label.text.contains("Vanguard"), "REGISTER reports the named mech")
+	# Confirming jumps straight into the customize page for the new mech: the
+	# editing target follows, its snapshot loads into the working set, and the
+	# badge + sidebars show the customize page instead of the roster.
+	_check(ctrl.nav_panel.current_submenu == "customize", "REGISTER lands on the customize page")
+	_check(ctrl.left_panel != null and ctrl.left_panel.visible, "customize page is visible after REGISTER")
+	_check(ctrl.right_panel != null and ctrl.right_panel.visible, "customize sidebars are visible after REGISTER")
+	_check(rp.roster_panel == null or not rp.roster_panel.visible, "roster page is left after REGISTER")
+	_check(ctrl._customize_mech_id == new_id, "editing target follows the freshly registered mech")
+	_check(rp.mech_slot_label.text.contains("Vanguard"), "badge tracks the freshly registered mech")
 	_check(_find_register_button(rp) == null, "a filled berth no longer offers REGISTER")
 
 	# Free the berth, then verify the walking-chassis gate: without a body frame

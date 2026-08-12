@@ -461,7 +461,8 @@ func _build_ui_layout() -> void:
 	craft_button.pressed.connect(_on_craft_window_open)
 	left_box.add_child(craft_button)
 
-	_build_ammo_loadout_ui(left_box)
+	ammo_panel = HangarAmmoPanel.new()
+	ammo_panel.build(left_box)
 
 	equip_button = Button.new()
 	equip_button.text = "EQUIP SELECTION"
@@ -606,6 +607,9 @@ events out in the field (surrenders, captures, shops)."
 	status_message_label.text = ""
 	status_message_label.add_theme_color_override("font_color", Color(0.3, 0.9, 0.4))
 	right_box.add_child(status_message_label)
+
+	if ammo_panel:
+		ammo_panel.status_label = status_message_label
 
 	var spacer = Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -919,99 +923,8 @@ func _open_pilot_picker(mech_id: String, anchor_btn: Button) -> void:
 
 
 # --- AMMO LOADOUT UI (how much ammo to carry into the next battle) ---
-var ammo_loadout_box: VBoxContainer
-var ammo_value_labels: Dictionary = {}
-
-
-func _build_ammo_loadout_ui(parent_box: VBoxContainer) -> void:
-	ammo_loadout_box = VBoxContainer.new()
-	ammo_loadout_box.add_theme_constant_override("separation", 3)
-	parent_box.add_child(ammo_loadout_box)
-	ammo_loadout_box.visible = false
-
-	var title = Label.new()
-	title.text = "AMMO TO CARRY (กระสุนที่แบกไป)"
-	title.add_theme_font_size_override("font_size", 12)
-	title.add_theme_color_override("font_color", Color(1.0, 0.8, 0.2))
-	ammo_loadout_box.add_child(title)
-
-	var ammo_types := ["kinetic", "energy", "explosive", "missile"]
-	var ammo_names := {"kinetic": "Kinetic", "energy": "Energy", "explosive": "Explosive", "missile": "Missile"}
-	for ammo_type in ammo_types:
-		var row = HBoxContainer.new()
-		row.add_theme_constant_override("separation", 6)
-		ammo_loadout_box.add_child(row)
-
-		var name_lbl = Label.new()
-		name_lbl.text = ammo_names[ammo_type]
-		name_lbl.custom_minimum_size = Vector2(80, 0)
-		name_lbl.add_theme_font_size_override("font_size", 11)
-		row.add_child(name_lbl)
-
-		var minus = Button.new()
-		minus.text = "-"
-		minus.custom_minimum_size = Vector2(26, 26)
-		minus.pressed.connect(func(): _adjust_loadout_ammo(ammo_type, -10))
-		row.add_child(minus)
-
-		var value_lbl = Label.new()
-		value_lbl.text = "0"
-		value_lbl.custom_minimum_size = Vector2(50, 0)
-		value_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		value_lbl.add_theme_font_size_override("font_size", 11)
-		row.add_child(value_lbl)
-		ammo_value_labels[ammo_type] = value_lbl
-
-		var plus = Button.new()
-		plus.text = "+"
-		plus.custom_minimum_size = Vector2(26, 26)
-		plus.pressed.connect(func(): _adjust_loadout_ammo(ammo_type, 10))
-		row.add_child(plus)
-
-		var stash_lbl = Label.new()
-		stash_lbl.text = "owned: %d" % GlobalData.get_reserve_ammo(ammo_type)
-		stash_lbl.custom_minimum_size = Vector2(0, 0)
-		stash_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		stash_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		stash_lbl.add_theme_color_override("font_color", Color(0.5, 0.6, 0.7))
-		stash_lbl.add_theme_font_size_override("font_size", 10)
-		row.add_child(stash_lbl)
-
-
-func _adjust_loadout_ammo(ammo_type: String, delta: int) -> void:
-	var owned = GlobalData.get_reserve_ammo(ammo_type)
-	var current = GlobalData.get_loadout_ammo(ammo_type)
-	var target = clampi(current + delta, 0, owned)
-	var ammo_weight_per_unit = GlobalData.AMMO_WEIGHT_PER_UNIT.get(ammo_type, 0.01)
-	var capacity = GlobalData.get_field_pack_capacity()
-
-	var i = current
-	if target < current:
-		i = target
-	else:
-		var base_weight = GlobalData.get_field_pack_ammo_weight() - current * ammo_weight_per_unit
-		while i < target:
-			if base_weight + (i + 1) * ammo_weight_per_unit > capacity:
-				break
-			i += 1
-	GlobalData.set_loadout_ammo(ammo_type, i)
-	_refresh_ammo_loadout_ui()
-	status_message_label.text = "%s ammo to carry: %d" % [ammo_type.capitalize(), i]
-	GlobalData.save_run()
-
-
-func _refresh_ammo_loadout_ui() -> void:
-	if ammo_loadout_box == null:
-		return
-	for ammo_type in ammo_value_labels:
-		var owned = GlobalData.get_reserve_ammo(ammo_type)
-		var carried = GlobalData.get_loadout_ammo(ammo_type)
-		var value_lbl: Label = ammo_value_labels[ammo_type]
-		value_lbl.text = "%d / %d" % [carried, owned]
-		var row: HBoxContainer = value_lbl.get_parent()
-		var stash_lbl: Label = row.get_child(row.get_child_count() - 1)
-		if stash_lbl is Label:
-			stash_lbl.text = "owned: %d" % owned
+# Lives in its own panel script; builds into the left panel during layout.
+var ammo_panel: HangarAmmoPanel = null
 
 
 # --- 3D CAMERA & MOUSE DRAG PROCESS ---
@@ -1549,7 +1462,7 @@ func _build_catalog_window() -> void:
 		if wpath != "" and ResourceLoader.exists(wpath):
 			var res = load(wpath)
 			if res:
-				type_str = _weapon_type_label(res.weapon_type) if "weapon_type" in res else "?"
+				type_str = HangarPartText.weapon_type_label(res.weapon_type) if "weapon_type" in res else "?"
 				wt = float(res.weight) if "weight" in res and res.weight != null else 0.0
 		var wrow = HBoxContainer.new()
 		rows.add_child(wrow)
@@ -1623,7 +1536,7 @@ func _stats_text_for_index(index: int) -> String:
 			return ""
 		var info = frame_items[index]
 		var fname = info.get("name", info.get("part_name", "Inner Frame"))
-		var fcap = _frame_capability_text(info)
+		var fcap = HangarPartText.frame_capability_text(info)
 		if _is_item_equipped(selected_slot, info):
 			var frame_dmg = GlobalData.part_damage.get(selected_slot + "_frame", 0.0)
 			return "INNER FRAME PART: %s  [E]\nDURABILITY: %.0f%%\n\n%s\n\nCurrently equipped." % [
@@ -1645,8 +1558,8 @@ func _stats_text_for_index(index: int) -> String:
 			var res = load(wpath)
 			if res:
 				wwt = float(res.weight) if "weight" in res and res.weight != null else 0.0
-				wtype = _weapon_type_label(res.weapon_type) if "weapon_type" in res else "Unknown"
-				wcap = _weapon_capability_text(res)
+				wtype = HangarPartText.weapon_type_label(res.weapon_type) if "weapon_type" in res else "Unknown"
+				wcap = HangarPartText.weapon_capability_text(res)
 		var owned := int(inv.get("count", 1))
 		if selected_slot == "weapon_carry":
 			var carried := GlobalData.count_carry_weapon(wpath)
@@ -1668,8 +1581,8 @@ func _stats_text_for_index(index: int) -> String:
 		if index >= 0 and index < visible_salvage_indices.size():
 			var inst = GlobalData.armor_inventory[visible_salvage_indices[index]]
 			var item_name = inst.get("name", inst.get("part_name", "Armor Instance"))
-			var acap = _armor_capability_text(selected_slot, inst)
 			var dur_pct = _get_instance_durability(selected_slot, inst)
+			var acap = HangarPartText.armor_capability_text(inst, dur_pct)
 			var is_eq = _is_item_equipped(selected_slot, inst)
 			return "OWNED ARMOR: %s  %s\nDURABILITY: %.0f%%\n\n%s" % [
 				item_name, "[E]" if is_eq else "", dur_pct * 100.0, acap
@@ -1836,10 +1749,10 @@ func _select_slot_tab(slot: String) -> void:
 	selected_slot = slot
 	_close_craft_window()
 	sub_toggle_container.visible = not slot.begins_with("weapon")
-	if ammo_loadout_box:
-		ammo_loadout_box.visible = slot.begins_with("weapon")
-		if ammo_loadout_box.visible:
-			_refresh_ammo_loadout_ui()
+	if ammo_panel:
+		ammo_panel.ammo_loadout_box.visible = slot.begins_with("weapon")
+		if ammo_panel.ammo_loadout_box.visible:
+			ammo_panel.refresh()
 	_update_camera_focus_for_slot(slot)
 	_populate_part_list_for_slot(slot)
 	_update_total_stats()
@@ -2007,141 +1920,6 @@ func _is_weapon_in_loadout(slot: String, path: String) -> bool:
 	return str(GlobalData.weapon_loadout.get(hand, "")) == path
 
 
-func _weapon_type_label(wtype) -> String:
-	match int(wtype):
-		0: return "Beam Weapon"
-		1: return "Kinetic Weapon"
-		2: return "Missile Launcher"
-		3: return "Shotgun"
-		4: return "Melee Weapon"
-		5: return "Shield"
-		6: return "Railgun"
-		7: return "Minigun"
-	return "Unknown"
-
-
-# Builds a combat-capability stat block for a weapon resource (damage, fire
-# rate, mag size, range, heat, recoil, ...). Only lines with a meaningful value
-# are shown. Used by the selection + hover stat cards on the customize page.
-func _weapon_capability_text(res: Resource) -> String:
-	if res == null:
-		return ""
-	var lines: Array[String] = []
-
-	var wtype := _weapon_type_label(res.weapon_type) if "weapon_type" in res else "Unknown"
-	lines.append("TYPE: %s" % wtype)
-
-	if "damage" in res and res.damage != null and float(res.damage) > 0.0:
-		lines.append("DAMAGE: %.1f" % float(res.damage))
-
-	if "fire_rate" in res and res.fire_rate != null and float(res.fire_rate) > 0.0:
-		var fr := float(res.fire_rate)
-		lines.append("FIRE RATE: %.3fs / shot (%.1f /s)" % [fr, 1.0 / fr])
-
-	var max_ammo := int(res.max_ammo) if "max_ammo" in res and res.max_ammo != null else 0
-	var ammo_per_shot := int(res.ammo_per_shot) if "ammo_per_shot" in res and res.ammo_per_shot != null else 1
-	var is_melee_or_shield := int(res.weapon_type) in [4, 5]
-	if max_ammo > 0 and not is_melee_or_shield:
-		lines.append("MAG SIZE: %d rounds" % max_ammo)
-		if ammo_per_shot > 1:
-			lines.append("AMMO / SHOT: %d" % ammo_per_shot)
-	elif is_melee_or_shield:
-		lines.append("AMMO: NONE")
-
-	if "range_distance" in res and res.range_distance != null and float(res.range_distance) > 0.0:
-		lines.append("RANGE: %.1f m" % float(res.range_distance))
-
-	if "projectile_speed" in res and res.projectile_speed != null and float(res.projectile_speed) > 0.0:
-		lines.append("PROJECTILE SPEED: %.1f" % float(res.projectile_speed))
-
-	if "spread" in res and res.spread != null and float(res.spread) > 0.0:
-		lines.append("SPREAD: %.2f" % float(res.spread))
-
-	if "heat_capacity" in res and res.heat_capacity != null and float(res.heat_capacity) > 0.0:
-		var hcap := float(res.heat_capacity)
-		var hshot := float(res.heat_per_shot) if "heat_per_shot" in res and res.heat_per_shot != null else 0.0
-		var hcool := float(res.heat_cool_rate) if "heat_cool_rate" in res and res.heat_cool_rate != null else 0.0
-		lines.append("HEAT: %.1f cap | %.1f /shot | cool %.1f/s" % [hcap, hshot, hcool])
-
-	if "impact" in res and res.impact != null and float(res.impact) > 0.0:
-		lines.append("IMPACT (Stagger): %.1f" % float(res.impact))
-
-	if "recoil_force" in res and res.recoil_force != null and float(res.recoil_force) > 0.0:
-		lines.append("RECOIL: %.1f" % float(res.recoil_force))
-
-	if int(res.weapon_type) == 5:
-		var shp := float(res.shield_hp) if "shield_hp" in res and res.shield_hp != null else 0.0
-		var srch := float(res.shield_recharge_rate) if "shield_recharge_rate" in res and res.shield_recharge_rate != null else 0.0
-		lines.append("SHIELD HP: %.1f" % shp)
-		lines.append("SHIELD RECHARGE: %.1f /s" % srch)
-
-	if "two_handed" in res and res.two_handed:
-		var power_need := float(res.power_required) if "power_required" in res and res.power_required != null else 0.0
-		lines.append("GRIP: TWO-HANDED (needs Power %.1f to one-hand)" % power_need)
-
-	var desc := ""
-	if "description" in res and res.description != null:
-		desc = str(res.description).strip_edges()
-	if not desc.is_empty():
-		lines.append("")
-		lines.append("DESC: %s" % desc)
-
-	return "\n".join(lines)
-
-
-# Builds a defensive stat block for an owned armor instance (type, armor class,
-# HP, weight, durability, upgrade level). Only lines with a meaningful value
-# are shown. Used by the selection + hover stat cards on the customize page.
-func _armor_capability_text(slot: String, inst: Dictionary) -> String:
-	if inst.is_empty():
-		return ""
-	var lines: Array[String] = []
-
-	lines.append("TYPE: %s" % inst.get("type", "Instance"))
-
-	var full_hp := GlobalData.part_stat(inst, "max_hp", 30.0)
-	var dur := _get_instance_durability(slot, inst)
-	lines.append("ARMOR HP: %.0f / %.0f" % [full_hp * dur, full_hp])
-
-	var armor_class := GlobalData.part_stat(inst, "armor", 0.0)
-	if armor_class > 0.0:
-		lines.append("ARMOR CLASS: %.0f" % armor_class)
-
-	var weight := GlobalData.part_stat(inst, "weight", 0.0)
-	if weight > 0.0:
-		lines.append("WEIGHT: %.1f kg" % weight)
-
-	var upg := int(inst.get("upgrade_level", 1))
-	if upg > 1:
-		lines.append("UPGRADE LEVEL: %d (+%d HP)" % [upg, (upg - 1) * 15])
-
-	return "\n".join(lines)
-
-
-# Builds a frame stat block for an inner frame catalog entry (type, frame HP,
-# weight, field-pack carry bonus). Mirrors _weapon_capability_text so frames
-# get the same rich stat cards as weapons and armor.
-func _frame_capability_text(info: Dictionary) -> String:
-	if info.is_empty():
-		return ""
-	var lines: Array[String] = []
-
-	lines.append("TYPE: %s" % info.get("type", "Inner Frame"))
-
-	var fhp := float(info.get("hp", info.get("max_hp", 20.0)))
-	lines.append("FRAME HP: %.0f" % fhp)
-
-	var fwt := float(info.get("weight", 0.0))
-	if fwt > 0.0:
-		lines.append("WEIGHT: %.1f kg" % fwt)
-
-	var bonus := float(info.get("carry_bonus", 0.0))
-	if bonus > 0.0:
-		lines.append("FIELD PACK BONUS: +%.1f kg" % bonus)
-
-	return "\n".join(lines)
-
-
 func _populate_part_list_for_slot(slot: String) -> void:
 	_close_part_action_modal()
 	part_item_list.clear()
@@ -2291,7 +2069,7 @@ func _on_part_item_selected(index: int) -> void:
 			selected_salvage_info = {}
 
 			var fname = selected_frame_info.get("name", selected_frame_info.get("part_name", "Inner Frame"))
-			var fcap = _frame_capability_text(selected_frame_info)
+			var fcap = HangarPartText.frame_capability_text(selected_frame_info)
 			var is_eq = _is_item_equipped(selected_slot, selected_frame_info)
 			if is_eq:
 				var frame_dmg = GlobalData.part_damage.get(selected_slot + "_frame", 0.0)
@@ -2328,8 +2106,8 @@ func _on_part_item_selected(index: int) -> void:
 				res = load(wpath)
 				if res:
 					wwt = float(res.weight) if "weight" in res and res.weight != null else 0.0
-					wtype = _weapon_type_label(res.weapon_type) if "weapon_type" in res else "Unknown"
-					wcap = _weapon_capability_text(res)
+					wtype = HangarPartText.weapon_type_label(res.weapon_type) if "weapon_type" in res else "Unknown"
+					wcap = HangarPartText.weapon_capability_text(res)
 
 			if selected_slot == "weapon_carry":
 				var eq = GlobalData.is_weapon_in_carry(wpath)
@@ -2368,7 +2146,7 @@ func _on_part_item_selected(index: int) -> void:
 			selected_frame_info = {}
 
 			var item_name = selected_salvage_info.get("name", selected_salvage_info.get("part_name", "Armor Instance"))
-			var acap = _armor_capability_text(selected_slot, selected_salvage_info)
+			var acap = HangarPartText.armor_capability_text(selected_salvage_info, _get_instance_durability(selected_slot, selected_salvage_info))
 
 			var is_eq = _is_item_equipped(selected_slot, selected_salvage_info)
 			if is_eq:

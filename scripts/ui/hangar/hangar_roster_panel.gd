@@ -325,12 +325,13 @@ func build_slot_row(slot: int, mech: Dictionary, over_capacity: bool) -> void:
 	# Fleet pilots carry their live status (HP / wounded countdown / destroyed)
 	# on the row; hurt or dead drivers are tinted red for a quick read.
 	var pilot_status := GlobalData.get_hangar_pilot_status(pilot_id)
+	var is_wounded := pilot_status.contains("WOUNDED")
 	var pilot_lbl := Label.new()
 	pilot_lbl.text = "PILOT: %s%s" % [GlobalData.get_hangar_pilot_name(pilot_id), pilot_status]
+	pilot_lbl.add_theme_color_override("font_color",
+		Color(1.0, 0.5, 0.5) if is_wounded or pilot_status.contains("DESTROYED") else Color(0.55, 0.8, 1.0))
 	pilot_lbl.custom_minimum_size = Vector2(160, 0)
 	pilot_lbl.add_theme_font_size_override("font_size", 11)
-	pilot_lbl.add_theme_color_override("font_color",
-		Color(1.0, 0.5, 0.5) if pilot_status.contains("WOUNDED") or pilot_status.contains("DESTROYED") else Color(0.55, 0.8, 1.0))
 	row.add_child(pilot_lbl)
 
 	var pilot_btn := Button.new()
@@ -354,6 +355,19 @@ func build_slot_row(slot: int, mech: Dictionary, over_capacity: bool) -> void:
 	rename_btn.tooltip_text = "Rename this parked mech"
 	rename_btn.pressed.connect(open_rename_dialog.bind(mech_id))
 	row.add_child(rename_btn)
+
+	# Wounded fleet pilots get a HEAL button: spend credits on the roster to
+	# clear their recovery countdown and return them to the field at full HP.
+	if pilot_id.begins_with("fleet_") and is_wounded:
+		var template_id := pilot_id.trim_prefix("fleet_")
+		var heal_cost := GlobalData.get_wound_heal_cost(template_id)
+		var heal_btn := Button.new()
+		heal_btn.text = "HEAL (%dcr)" % heal_cost
+		heal_btn.custom_minimum_size = Vector2(88, 28)
+		heal_btn.focus_mode = Control.FOCUS_NONE
+		heal_btn.tooltip_text = "Spend %d credits to heal this pilot now (full HP, back in the field)." % heal_cost
+		heal_btn.pressed.connect(heal_pilot.bind(template_id))
+		row.add_child(heal_btn)
 
 	if not is_active and not over_capacity:
 		var switch_btn := Button.new()
@@ -902,6 +916,30 @@ func open_role_picker(mech_id: String, anchor_btn: Button) -> void:
 			pop.queue_free()
 	)
 	pop.popup(Rect2i(anchor_btn.global_position, Vector2i(320, 0)))
+
+
+# HEAL on a wounded fleet-pilot row: spend the credit cost to clear the
+# recovery countdown immediately. Reports the result through the shared status
+# label and repaints the roster so the button disappears once healed.
+func heal_pilot(template_id: String) -> void:
+	var cost := GlobalData.get_wound_heal_cost(template_id)
+	if cost <= 0:
+		_set_status("That pilot is not wounded — nothing to heal.")
+		return
+	if not GlobalData.heal_wounded_pilot(template_id):
+		# The heal spends the credits itself; a failure here means the price
+		# moved (or resources were drained while the roster was open).
+		if GlobalData.credits < cost:
+			_set_status("Need %d credits to heal this pilot." % cost)
+		else:
+			_set_status("The pilot could not be healed.")
+		return
+	GlobalData.save_run()
+	refresh_badge()
+	refresh_page()
+	var unit := GlobalData.get_fleet_unit(template_id)
+	_set_status("%s is healed and ready to fight (-%d credits)." % [
+		str(unit.get("name", "The pilot")), cost])
 
 
 func on_switch_mech_pressed(mech_id: String) -> void:

@@ -293,6 +293,46 @@ static func _park_salvage_wreck(character: Dictionary, template_id: String) -> D
 	return mech
 
 
+# -----------------------------------------------------------------------------
+# EARLY HEAL — spend credits on the hangar roster to clear a wounded pilot's
+# recovery countdown immediately (the alternative is waiting out wound_turns on
+# board moves). Flat base + a premium per remaining turn, so healing a fresh
+# two-turn wound costs more than one that's almost healed.
+# -----------------------------------------------------------------------------
+const HEAL_BASE_CREDITS := 40
+const HEAL_PER_TURN_CREDITS := 20
+
+
+# Credit price to heal `template_id`'s pilot right now (0 when not healable).
+static func get_wound_heal_cost(template_id: String) -> int:
+	var unit := GlobalData.get_fleet_unit(template_id)
+	if unit.is_empty() or not bool(unit.get("wounded", false)):
+		return 0
+	if bool(unit.get("destroyed", false)):
+		return 0
+	var turns := maxi(int(unit.get("wound_turns", 1)), 1)
+	return HEAL_BASE_CREDITS + turns * HEAL_PER_TURN_CREDITS
+
+
+# Spends credits to clear a wounded pilot's recovery timer: they return to the
+# field at full HP (the natural-recovery tick only restores half). Returns false
+# when the unit isn't wounded, is destroyed, or the credits can't be afforded.
+static func heal_wounded_pilot(template_id: String) -> bool:
+	var unit := GlobalData.get_fleet_unit(template_id)
+	if unit.is_empty() or not bool(unit.get("wounded", false)):
+		return false
+	if bool(unit.get("destroyed", false)):
+		return false
+	var cost := get_wound_heal_cost(template_id)
+	if not GlobalData.try_spend_credits(cost):
+		return false
+	unit["wounded"] = false
+	unit["wound_turns"] = 0
+	unit["fielded"] = true
+	unit["hp"] = float(unit.get("max_hp", 50.0))
+	return true
+
+
 # Tick wounded pilots toward recovery (called on each board move).
 static func tick_recovery() -> void:
 	var recovered := false

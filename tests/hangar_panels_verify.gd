@@ -324,6 +324,47 @@ func _verify_roster_panel() -> void:
 					destroyed_idx = i
 					break
 			_check(destroyed_idx >= 0 and pop.is_item_disabled(destroyed_idx), "destroyed pilot is disabled in the picker")
+	# --- EARLY HEAL: wounded fleet pilots get a HEAL button on their roster ---
+	# --- row; pressing it spends credits, clears the countdown and returns ---
+	# --- the pilot to the field at full HP. ---
+	for u in GlobalData.fleet_roster:
+		if u.get("template_id", "") == "t_verifier":
+			u["destroyed"] = false
+			u["wounded"] = true
+			u["wound_turns"] = 2
+			u["hp"] = 10.0
+	var heal_cost := GlobalData.get_wound_heal_cost("t_verifier")
+	_check(heal_cost > 0, "wounded pilot has a heal price")
+	rp.refresh_page()
+	await get_tree().process_frame
+	var heal_btn := _find_heal_button(rp)
+	_check(heal_btn != null, "wounded pilot row offers a HEAL button")
+	if heal_btn:
+		_check(heal_btn.text.contains("%d" % heal_cost), "HEAL button shows the credit price")
+		# Broke: the button refuses and spends nothing.
+		GlobalData.credits = 0
+		heal_btn.pressed.emit()
+		await get_tree().process_frame
+		_check(rp.roster_status_label.text.contains("Need %d credits" % heal_cost), "broke HEAL reports the shortfall")
+		var still_wounded := false
+		for u in GlobalData.fleet_roster:
+			if u.get("template_id", "") == "t_verifier" and bool(u.get("wounded", false)):
+				still_wounded = true
+		_check(still_wounded, "broke HEAL leaves the pilot wounded")
+		_check(GlobalData.credits == 0, "broke HEAL spends nothing")
+		# Funded: heals, spends the exact cost and refreshes the roster.
+		GlobalData.credits = heal_cost + 300
+		heal_btn.pressed.emit()
+		await get_tree().process_frame
+		_check(GlobalData.credits == 300, "HEAL spends exactly the credit cost")
+		var healed := false
+		for u in GlobalData.fleet_roster:
+			if u.get("template_id", "") == "t_verifier":
+				healed = not bool(u.get("wounded", false)) and float(u.get("hp", 0.0)) == float(u.get("max_hp", 0.0))
+		_check(healed, "HEAL clears the countdown and restores full HP")
+		_check(rp.roster_status_label.text.contains("healed"), "HEAL reports the healed pilot")
+		_check(_find_heal_button(rp) == null, "HEAL button disappears once the pilot is healthy")
+	_check(GlobalData.get_wound_heal_cost("t_verifier") == 0, "healthy pilot has no heal price")
 	# Clean up: remove the test unit + clear the seat so later sections see the
 	# single-mech convoy again.
 	for i in range(GlobalData.fleet_roster.size() - 1, -1, -1):
@@ -642,6 +683,16 @@ func _find_rename_button(rp) -> Button:
 			continue
 		for child in row.get_children():
 			if child is Button and child.text == "RENAME" and is_instance_valid(child) and not child.is_queued_for_deletion():
+				return child
+	return null
+
+
+func _find_heal_button(rp) -> Button:
+	for row in rp.roster_slot_list.get_children():
+		if not is_instance_valid(row) or row.is_queued_for_deletion():
+			continue
+		for child in row.get_children():
+			if child is Button and child.text.begins_with("HEAL") and is_instance_valid(child) and not child.is_queued_for_deletion():
 				return child
 	return null
 

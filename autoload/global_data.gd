@@ -957,6 +957,17 @@ func get_fleet_unit(template_id: String) -> Dictionary:
 	return FleetSystem.get_fleet_unit(template_id)
 
 
+# Credit price to instantly heal a wounded fleet pilot (0 when not healable).
+func get_wound_heal_cost(template_id: String) -> int:
+	return RecruitSystem.get_wound_heal_cost(template_id)
+
+
+# Spend credits to clear a wounded pilot's recovery countdown (full HP, fielded
+# again). Returns false when unhealable or unaffordable. Caller persists.
+func heal_wounded_pilot(template_id: String) -> bool:
+	return RecruitSystem.heal_wounded_pilot(template_id)
+
+
 func has_ally_unit(template_id: String) -> bool:
 	return FleetSystem.has_ally_unit(template_id)
 

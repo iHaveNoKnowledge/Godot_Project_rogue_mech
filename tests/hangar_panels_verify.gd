@@ -147,6 +147,7 @@ func _verify_roster_panel() -> void:
 	_check(rp.roster_slot_list.get_child_count() > 0, "roster page lists berth rows")
 	_check(rp.mech_slot_label.visible, "badge visible on roster page")
 	_check(rp.mech_slot_label.text.begins_with("MECH SLOT"), "badge reads MECH SLOT x/y")
+	_check(rp.mech_slot_label.text.contains("PILOT: YOU (driver)"), "badge shows the assigned pilot name")
 	_check(rp.roster_status_label.text.contains("CONVOY"), "roster status shows the convoy summary")
 
 	# Role picker: open for the active mech, pick "Ranged", assert it persists.
@@ -266,6 +267,7 @@ func _verify_roster_panel() -> void:
 	_check(rp.roster_panel == null or not rp.roster_panel.visible, "roster page is left after REGISTER")
 	_check(ctrl._customize_mech_id == new_id, "editing target follows the freshly registered mech")
 	_check(rp.mech_slot_label.text.contains("Vanguard"), "badge tracks the freshly registered mech")
+	_check(rp.mech_slot_label.text.contains("PILOT: YOU (driver)"), "badge pilot follows the newly registered mech")
 	# The frame also becomes the player's mech: active + pilot label move over,
 	# and the previous machine parks as a pilotless spare.
 	_check(GlobalData.active_hangar_mech_id == new_id, "freshly registered mech becomes the piloted mech")

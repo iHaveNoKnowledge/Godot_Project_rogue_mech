@@ -259,6 +259,28 @@ static func grant_recovery_mech() -> Dictionary:
 	return snapshot
 
 
+# Parks a recruited character's signature mech as a new convoy berth, assigned
+# to that pilot. `damage` optionally seeds heavy part damage (0..1 per slot) so
+# a salvaged wreck arrives near-broken and repairable. Returns {} on no berth.
+static func park_ally_mech(mech_name: String, pilot_id: String, archetype: int, damage: Dictionary = {}) -> Dictionary:
+	if GlobalData.mech_less:
+		return {}
+	if GlobalData.hangar_mechs.size() >= get_capacity():
+		return {}
+	if GlobalData.hangar_mechs.size() >= get_hard_max():
+		return {}
+	save_active()
+	var mech_id := _new_id()
+	var slot := _next_free_slot()
+	var snapshot := _capture_snapshot(mech_id, mech_name, pilot_id, slot)
+	snapshot["archetype"] = clampi(archetype, ARCHETYPE_RUSHER, ARCHETYPE_SUPPORT)
+	if not damage.is_empty():
+		for key in damage:
+			snapshot["damage"][key] = clampf(float(damage[key]), 0.0, 1.0)
+	GlobalData.hangar_mechs.append(snapshot)
+	return snapshot
+
+
 static func get_slot_of(mech_id: String) -> int:
 	for mech in GlobalData.hangar_mechs:
 		if mech is Dictionary and str(mech.get("id", "")) == mech_id:

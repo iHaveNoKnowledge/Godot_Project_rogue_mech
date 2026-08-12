@@ -292,4 +292,136 @@ events = [{
 },
 "themes": [],
 "weight": 12
+}, {
+"amount": 0,
+"desc": "A scarred army deserter pilots an Iron Mantis heavy frame. She blocks the road and raises her cannon — then lowers it. \"State your business, wanderer. Make it good.\"",
+"effect": "choice",
+"id": "encounter_serra",
+"min_reputation": 0,
+"name": "A Deserter's Stand",
+"params": {
+"character_id": "serra",
+"choices": [{
+"amount": 0,
+"desc": "Speak plainly and offer her a place in the convoy.",
+"effect": "recruit_ally",
+"id": "serra_friendly",
+"label": "Offer an Alliance",
+"params": {
+"character_id": "serra"
+}
+}, {
+"amount": 0,
+"desc": "One machine, one duel. Win her respect with your piloting.",
+"effect": "duel",
+"id": "serra_duel",
+"label": "Challenge Her to a Duel",
+"params": {
+"character_id": "serra",
+"combat_type": "duel",
+"intent": "test"
+}
+}, {
+"amount": 0,
+"desc": "Cut the talk. You are taking that frame by force.",
+"effect": "duel",
+"id": "serra_threat",
+"label": "Demand the Mech",
+"params": {
+"character_id": "serra",
+"combat_type": "duel",
+"intent": "kill"
+}
+}]
+},
+"themes": ["soldier"],
+"weight": 6
+}, {
+"amount": 0,
+"desc": "A mercenary in a Crimson Fang melee frame circles your position, heat blade still smoking. \"You're the one with the rep. Show me what you've got.\"",
+"effect": "choice",
+"id": "encounter_ren",
+"min_reputation": 0,
+"name": "The Merc's Price",
+"params": {
+"character_id": "ren",
+"choices": [{
+"amount": 0,
+"desc": "Offer credits and a place in the crew. Everyone has a price.",
+"effect": "recruit_ally",
+"id": "ren_friendly",
+"label": "Talk Terms",
+"params": {
+"character_id": "ren"
+}
+}, {
+"amount": 0,
+"desc": "Mercs respect only one thing. Meet the Crimson Fang blade to blade.",
+"effect": "duel",
+"id": "ren_duel",
+"label": "Duel for Respect",
+"params": {
+"character_id": "ren",
+"combat_type": "duel",
+"intent": "test"
+}
+}, {
+"amount": 0,
+"desc": "This is a contract dispute. Settle it with a kill.",
+"effect": "duel",
+"id": "ren_threat",
+"label": "Run Them Down",
+"params": {
+"character_id": "ren",
+"combat_type": "duel",
+"intent": "kill"
+}
+}]
+},
+"themes": ["gundam_merc"],
+"weight": 6
+}, {
+"amount": 0,
+"desc": "A scavenger in a patchwork Mudhorn rig watches you from a ridge, rifle steady. \"Nobody crosses my scrap line without a story. You got one?\"",
+"effect": "choice",
+"id": "encounter_jax",
+"min_reputation": 0,
+"name": "The Scrapdog",
+"params": {
+"character_id": "jax",
+"choices": [{
+"amount": 0,
+"desc": "Talk like one survivor to another. A convoy is worth more than a scrap line.",
+"effect": "recruit_ally",
+"id": "jax_friendly",
+"label": "Share Your Story",
+"params": {
+"character_id": "jax"
+}
+}, {
+"amount": 0,
+"desc": "The wasteland respects only skill. Shoot it out, one on one.",
+"effect": "duel",
+"id": "jax_duel",
+"label": "Prove It With a Duel",
+"params": {
+"character_id": "jax",
+"combat_type": "duel",
+"intent": "test"
+}
+}, {
+"amount": 0,
+"desc": "The Mudhorn is a pile of parts. Take it by force.",
+"effect": "duel",
+"id": "jax_threat",
+"label": "Take the Rig",
+"params": {
+"character_id": "jax",
+"combat_type": "duel",
+"intent": "kill"
+}
+}]
+},
+"themes": ["scavenger"],
+"weight": 6
 }]

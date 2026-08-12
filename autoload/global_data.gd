@@ -112,14 +112,21 @@ func _ready() -> void:
 
 
 # Research timers advance with turn progress: each board move = 1 point,
-# each completed combat = 2 points.
+# each completed combat = 2 points. Wounded pilots also recover over board moves.
 func _on_tile_entered(_tile_pos: Vector2i, _tile_data: Node) -> void:
 	tick_research(1)
+	RecruitSystem.tick_recovery()
 
 
 func _on_combat_ended(victory: bool) -> void:
 	# Finalize combat damage stats before any tech/reputation logic reads them.
 	_compute_last_combat_damage_ratio()
+	# A duel (recruitment fight) resolves here: win/lose decides whether the
+	# rival joins, is salvaged, or simply beats the player. Duel combats never
+	# touch enemy tech escalation / research tick.
+	if RecruitSystem.has_pending_duel():
+		RecruitSystem.resolve_duel(victory)
+		return
 	# A raid on the enemy research node is not a normal battle: winning destroys
 	# the node (only a partial grunt upgrade for them), and it never escalates
 	# the enemy tech tier.
@@ -812,6 +819,18 @@ func gain_data_cores(amount: int) -> void:
 # -----------------------------------------------------------------------------
 var fleet_roster: Array = []
 
+# -----------------------------------------------------------------------------
+# RECRUITABLE CHARACTERS — named pilots met on the board (see RecruitSystem).
+# - recruited_characters: character ids already met/resolved this run, so the
+#   same pilot can't be recruited or duelled twice.
+# - pending_duel: {"character_id", "intent"} while a duel battle is live;
+#   consumed by RecruitSystem when that combat ends.
+# - duel_result_text: outcome text for the combat rewards screen after a duel.
+# -----------------------------------------------------------------------------
+var recruited_characters: Array = []
+var pending_duel: Dictionary = {}
+var duel_result_text: String = ""
+
 # Active research: {project_id: {"progress": int, "required": int, "started": bool}}
 var research_projects: Dictionary = {}
 
@@ -913,6 +932,20 @@ func add_ally_unit(template_id: String) -> bool:
 
 func set_unit_fielded(template_id: String, fielded: bool) -> void:
 	FleetSystem.set_unit_fielded(template_id, fielded)
+
+
+# --- Recruitable characters (see RecruitSystem) -----------------------------
+
+func get_recruit_character(character_id: String) -> Dictionary:
+	return RecruitSystem.get_character(character_id)
+
+
+func is_character_recruited(character_id: String) -> bool:
+	return RecruitSystem.is_character_recruited(character_id)
+
+
+func is_recruit_event_available(event: Dictionary) -> bool:
+	return RecruitSystem.is_event_available(event)
 
 
 # --- Research base ----------------------------------------------------------
@@ -1289,6 +1322,9 @@ func reset_run_data() -> void:
 	_combat_friendly_damage = 0.0
 	last_combat_damage_ratio = 0.0
 	fleet_roster.clear()
+	recruited_characters.clear()
+	pending_duel.clear()
+	duel_result_text = ""
 	research_projects.clear()
 	research_unlocked.clear()
 	chassis_id = "standard"

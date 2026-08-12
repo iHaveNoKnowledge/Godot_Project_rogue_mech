@@ -27,6 +27,8 @@ static func save_run() -> void:
 		"data_cores": GlobalData.data_cores,
 		"scrap": GlobalData.scrap,
 		"fleet_roster": GlobalData.fleet_roster.duplicate(true),
+		"recruited_characters": GlobalData.recruited_characters.duplicate(),
+		"pending_duel": GlobalData.pending_duel.duplicate(true),
 		"research_projects": GlobalData.research_projects.duplicate(true),
 		"research_unlocked": GlobalData.research_unlocked.duplicate(),
 		"sector": GlobalData.current_sector,
@@ -136,6 +138,12 @@ static func restore_from_dict(data: Dictionary) -> void:
 	var loaded_roster = data.get("fleet_roster", [])
 	if loaded_roster is Array:
 		GlobalData.fleet_roster = loaded_roster.duplicate(true)
+	var loaded_recruits = data.get("recruited_characters", [])
+	if loaded_recruits is Array:
+		GlobalData.recruited_characters = loaded_recruits.duplicate()
+	var loaded_duel = data.get("pending_duel", {})
+	if loaded_duel is Dictionary:
+		GlobalData.pending_duel = loaded_duel.duplicate(true)
 	var loaded_research = data.get("research_projects", {})
 	if loaded_research is Dictionary:
 		GlobalData.research_projects = loaded_research.duplicate(true)

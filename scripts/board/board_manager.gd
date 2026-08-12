@@ -308,6 +308,10 @@ func _trigger_random_event() -> void:
 	if GlobalData.mech_less:
 		pool = pool.filter(func(event):
 			return str(event.get("effect", "")) != "force_combat")
+	# Recruit events also hide once their pilot is already in the convoy (and
+	# on foot a duel can't be fought, so these encounters are skipped entirely).
+	pool = pool.filter(func(event):
+		return RecruitSystem.is_event_available(event))
 	if pool.is_empty():
 		_trigger_default_event()
 		return

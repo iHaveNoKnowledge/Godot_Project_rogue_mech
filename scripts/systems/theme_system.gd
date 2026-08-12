@@ -160,6 +160,15 @@ static func apply_event_effect(event: Dictionary) -> bool:
 			GlobalData.ceasefire_turns = maxi(GlobalData.ceasefire_turns, int(params.get("turns", amount)))
 		"add_ally":
 			FleetSystem.add_ally_unit(str(params.get("unit_id", "")))
+		"recruit_ally":
+			# A named pilot joins the convoy (no combat). Resolved by RecruitSystem.
+			RecruitSystem.recruit(str(params.get("character_id", "")))
+		"duel":
+			# The player challenged a pilot: record the 1v1 duel and force the
+			# scene transition into the "duel" combat node.
+			if RecruitSystem.start_duel(str(params.get("character_id", "")), str(params.get("intent", "test"))):
+				return true
+			return false
 		"heat_bonus":
 			GlobalData.heat = maxi(0, GlobalData.heat + int(params.get("heat", amount)))
 		"theme_switch":

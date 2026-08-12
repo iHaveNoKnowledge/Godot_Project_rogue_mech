@@ -154,8 +154,19 @@ func _get_active_defs() -> Array:
 			return theme_boss_wave_defs.get(GlobalData.theme_id, boss_wave_defs)
 		"ace":
 			return theme_ace_wave_defs.get(GlobalData.theme_id, ace_wave_defs)
+		"duel":
+			return _duel_wave_defs()
 		_:
 			return theme_grunt_wave_defs.get(GlobalData.theme_id, grunt_wave_defs)
+
+
+# A duel battle fields exactly one full-rig enemy — the pending character's
+# signature mech (equivalent to a strong ace-scale threat).
+func _duel_wave_defs() -> Array:
+	var character := RecruitSystem.get_pending_character()
+	var scene_type := str(character.get("duel_scene", "heavy_full"))
+	var archetype := int(character.get("duel_archetype", 2))
+	return [[{"type": scene_type, "archetype": archetype, "count": 1}]]
 
 
 func _ready() -> void:
@@ -246,6 +257,22 @@ func _spawn_next_wave() -> void:
 	var extra_count = mini(wanted, 2)
 	var org: Dictionary = _get_org_config()
 	var style := str(org.get("style", "ragtag"))
+
+	# A duel fields exactly one signature enemy — the pending character's own
+	# mech. It never gains squadmates or extra spawns, and it scales up like an
+	# ace so the fight reads as a proper 1v1 challenge.
+	if GameManager.combat_node_type == "duel":
+		var character := RecruitSystem.get_pending_character()
+		var duel_scale := float(character.get("duel_hp_scale", 2.0))
+		_spawn_enemy(
+			str(character.get("duel_scene", "heavy_full")),
+			int(character.get("duel_archetype", 2)),
+			_get_spawn_position(),
+			hp_scale * duel_scale,
+			"commander",
+			_paint_for_enemy(org, "commander")
+		)
+		return
 
 	for entry in wave_def:
 		var count = entry["count"]

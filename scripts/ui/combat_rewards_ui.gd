@@ -111,6 +111,7 @@ func _show_victory_rewards() -> void:
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
+	var is_duel := (GameManager.combat_node_type == "duel")
 	var is_boss = GameManager.is_boss_combat
 	var is_final_sector = (GlobalData.current_sector >= GlobalData.max_sectors)
 	var is_raid = (GameManager.combat_node_type == "enemy_base")
@@ -119,6 +120,13 @@ func _show_victory_rewards() -> void:
 	var scrap_gained = randi_range(4, 10)
 	var heat_gained = 2
 	var data_cores_gained = 0
+
+	if is_duel:
+		# Duel wins grant no standard loot — the outcome is the rival joining,
+		# a salvaged wreck, or parts (already applied by RecruitSystem).
+		credits_gained = 0
+		scrap_gained = 0
+		heat_gained = 1
 
 	if is_raid:
 		credits_gained += 60
@@ -143,6 +151,9 @@ func _show_victory_rewards() -> void:
 		if is_raid:
 			title_label.text = "RESEARCH BASE DESTROYED!"
 			continue_button.text = "Continue [Enter / Space / Click]"
+		elif is_duel:
+			title_label.text = "DUEL RESOLVED"
+			continue_button.text = "Return to Board [Enter / Space / Click]"
 		else:
 			title_label.text = "COMBAT VICTORY"
 			continue_button.text = "Continue [Enter / Space / Click]"
@@ -157,14 +168,21 @@ func _show_victory_rewards() -> void:
 		"data_cores": data_cores_gained
 	}
 
-	if not is_boss or not is_final_sector:
-		rewards_label.text += "Rewards:\n"
-		rewards_label.text += "+%d Credits\n" % credits_gained
-		rewards_label.text += "+%d Scrap (Material)\n" % scrap_gained
-		if data_cores_gained > 0:
-			rewards_label.text += "+%d Data Cores (Research Item)\n" % data_cores_gained
-		rewards_label.text += "+%d Heat\n" % heat_gained
-		rewards_label.text += "\nTotal Credits: %d | Scrap: %d" % [GlobalData.credits, GlobalData.scrap]
+	if is_duel:
+		var duel_text := GlobalData.duel_result_text
+		GlobalData.duel_result_text = ""
+		if duel_text != "":
+			rewards_label.text = "%s\n" % duel_text
+	else:
+		rewards_label.text = ""
+		if not is_boss or not is_final_sector:
+			rewards_label.text += "Rewards:\n"
+			rewards_label.text += "+%d Credits\n" % credits_gained
+			rewards_label.text += "+%d Scrap (Material)\n" % scrap_gained
+			if data_cores_gained > 0:
+				rewards_label.text += "+%d Data Cores (Research Item)\n" % data_cores_gained
+			rewards_label.text += "+%d Heat\n" % heat_gained
+			rewards_label.text += "\nTotal Credits: %d | Scrap: %d" % [GlobalData.credits, GlobalData.scrap]
 
 	await get_tree().process_frame
 	if continue_button:

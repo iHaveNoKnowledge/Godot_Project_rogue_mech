@@ -250,6 +250,65 @@ static func get_backup_id() -> String:
 	return ""
 
 
+# True when the parked mech's driver is unfit to fight: a wounded fleet pilot
+# (recovering, can't fight until healed) or a destroyed one. A wounded pilot
+# can still be seated (the berth waits for them) but never fights until
+# healed, so their mech must not be the one the player pilots into combat.
+static func is_driver_wounded(mech: Dictionary) -> bool:
+	var pilot_id := str(mech.get("pilot", ""))
+	if not pilot_id.begins_with("fleet_"):
+		return false
+	var unit := GlobalData.get_fleet_unit(pilot_id.trim_prefix("fleet_"))
+	if unit.is_empty():
+		return false
+	if bool(unit.get("destroyed", false)):
+		return true
+	return bool(unit.get("wounded", false))
+
+
+# True when the piloted (active) mech's driver is a recovering fleet pilot.
+static func is_active_driver_wounded() -> bool:
+	return is_driver_wounded(get_active_mech())
+
+
+# Best parked berth to pilot into combat when the active driver is wounded:
+# prefers the player-driven machine (the driver is always fit), then any berth
+# whose pilot is healthy or empty. Returns "" when no healthy backup exists.
+static func get_healthy_backup_id() -> String:
+	ensure_roster()
+	var active_id := GlobalData.active_hangar_mech_id
+	var fallback := ""
+	for mech in GlobalData.hangar_mechs:
+		if not (mech is Dictionary):
+			continue
+		var mech_id := str(mech.get("id", ""))
+		if mech_id == "" or mech_id == active_id:
+			continue
+		if is_driver_wounded(mech):
+			continue
+		if str(mech.get("pilot", "")) == PLAYER_PILOT_ID:
+			return mech_id
+		if fallback == "":
+			fallback = mech_id
+	return fallback
+
+
+# Combat-entry safety net: when the piloted (active) mech's driver is a
+# wounded fleet pilot, park that berth and switch the active mech to a healthy
+# backup before the combat scene loads. Returns the new active mech id (""
+# when nothing needed swapping, or no healthy backup exists).
+static func auto_park_wounded_active() -> String:
+	ensure_roster()
+	if not is_active_driver_wounded():
+		return ""
+	var backup_id := get_healthy_backup_id()
+	if backup_id == "":
+		return ""
+	if switch_mech(backup_id):
+		return backup_id
+	return ""
+
+
 # Removes a parked mech from the convoy roster. Used when a machine is destroyed
 # in battle. If the active mech is the one removed, the player is handed the
 # first remaining berth (or none, which is a valid pilot-only convoy state).

@@ -45,17 +45,20 @@ func check(on_confirm: Callable) -> void:
 # will NOT tag into combat as a squadmate until the countdown ends or the
 # roster's HEAL clears it.
 func _wounded_driver_warning() -> String:
+	# Shared boolean from the roster system: only fleet pilots can be wounded,
+	# so this is a single lookup for the driver's state (the message below adds
+	# the name + countdown the boolean can't carry).
+	if not GlobalData.is_active_driver_wounded():
+		return ""
 	var mech = GlobalData.get_active_hangar_mech()
 	if mech.is_empty():
 		return ""
 	var pilot_id := str(mech.get("pilot", ""))
-	if not pilot_id.begins_with("fleet_"):
-		return ""
 	var unit := GlobalData.get_fleet_unit(pilot_id.trim_prefix("fleet_"))
-	if unit.is_empty() or not bool(unit.get("wounded", false)):
-		return ""
 	var turns := maxi(int(unit.get("wound_turns", 1)), 1)
-	return "Pilot %s is WOUNDED (recovering %d move%s) — they will not fight until healed." % [
+	# The combat-entry safety net parks this berth and auto-swaps a healthy
+	# backup, so the warning is informational — the driver never fights.
+	return "Pilot %s is WOUNDED (recovering %d move%s) — the game will park this mech and auto-swap a healthy backup on combat entry." % [
 		str(unit.get("name", pilot_id)), turns, "s" if turns != 1 else ""]
 
 

@@ -55,6 +55,7 @@ func _ready() -> void:
 	await _verify_refresh_panel()
 	await _verify_intermission_fleet()
 	await _verify_wounded_banner()
+	await _verify_auto_park()
 	print("HANGAR_PANELS_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	await get_tree().process_frame
 	get_tree().quit(1 if _fails > 0 else 0)
@@ -868,6 +869,61 @@ func _verify_wounded_banner() -> void:
 	_check(wb.banner_label.text == "", "healed banner clears its text")
 
 	ctrl.queue_free()
+	await get_tree().process_frame
+
+
+# AUTO-PARK WOUNDED ACTIVE — the combat-entry safety net: when the piloted
+# mech's driver is a recovering fleet pilot, the active berth is parked and a
+# healthy backup becomes the mech the player pilots.
+func _verify_auto_park() -> void:
+	GlobalData.reset_run_data()
+	GlobalData.fleet_roster = [
+		{"template_id": "t_bk", "name": "Backup Unit", "hp": 50.0, "max_hp": 50.0, "destroyed": false, "fielded": true},
+		{"template_id": "t_ap", "name": "Hurt Pilot", "hp": 10.0, "max_hp": 50.0, "destroyed": false, "fielded": false, "wounded": true, "wound_turns": 2},
+		{"template_id": "t_ap2", "name": "Hurt Pilot Two", "hp": 10.0, "max_hp": 50.0, "destroyed": false, "fielded": false, "wounded": true, "wound_turns": 1},
+	]
+	# reset seeds a walking chassis, so building a second berth works.
+	var backup := GlobalData.build_hangar_mech("Spare", 0)
+	var backup_id := str(backup.get("id", ""))
+	_check(backup_id != "", "auto-park test builds a spare berth")
+	var active_id := GlobalData.active_hangar_mech_id
+	_check(active_id != backup_id, "spare berth is not the active mech")
+
+	# Healthy active driver: no swap needed.
+	GlobalData.assign_hangar_pilot(active_id, HangarManager.PLAYER_PILOT_ID)
+	_check(not GlobalData.is_active_driver_wounded(), "player-piloted mech is not wounded")
+	_check(GlobalData.auto_park_wounded_active() == "", "healthy active driver triggers no swap")
+
+	# Wounded active driver: auto-park switches to the healthy backup (prefers
+	# the player-driven berth, then any healthy one).
+	GlobalData.assign_hangar_pilot(active_id, "fleet_t_ap")
+	_check(GlobalData.is_active_driver_wounded(), "active driver flagged wounded")
+	var swapped := GlobalData.auto_park_wounded_active()
+	_check(swapped == backup_id, "wounded active driver swaps to the healthy backup")
+	_check(GlobalData.active_hangar_mech_id == backup_id, "backup becomes the active mech")
+	_check(not GlobalData.is_active_driver_wounded(), "swapped-in backup has a fit driver")
+	# The wounded berth stays parked with its pilot still seated (the seat waits
+	# for them) — only the active designation moved.
+	var parked_wounded := false
+	for m in GlobalData.get_hangar_mechs():
+		if str(m.get("id", "")) == active_id:
+			parked_wounded = str(m.get("pilot", "")) == "fleet_t_ap"
+	_check(parked_wounded, "wounded berth stays parked with its pilot seated")
+
+	# No healthy backup: no swap (the wounded mech stays active rather than
+	# swapping into another wounded machine). Both remaining berths get a
+	# wounded driver; assign swaps seats, so park the healthy pilot first then
+	# wound both drivers.
+	GlobalData.assign_hangar_pilot(active_id, "fleet_t_bk")
+	GlobalData.assign_hangar_pilot(backup_id, "fleet_t_ap")
+	GlobalData.assign_hangar_pilot(active_id, "fleet_t_ap2")
+	_check(GlobalData.is_active_driver_wounded(), "active driver wounded when every backup is wounded")
+	_check(GlobalData.auto_park_wounded_active() == "", "no swap when every backup is wounded")
+	_check(GlobalData.active_hangar_mech_id == backup_id, "active mech unchanged without a healthy backup")
+
+	# Cleanup: remove the spare berth + test units.
+	GlobalData.remove_hangar_mech(backup_id)
+	GlobalData.fleet_roster.clear()
 	await get_tree().process_frame
 
 
@@ -1711,6 +1767,7 @@ func _verify_readiness_panel() -> void:
 	if wmodal:
 		_check(_collect_label_text(wmodal).contains("Wounded Ace is WOUNDED"), "modal names the recovering driver")
 		_check(_collect_label_text(wmodal).contains("3 moves"), "modal shows the remaining recovery countdown")
+		_check(_collect_label_text(wmodal).contains("auto-swap a healthy backup"), "modal mentions the combat-entry auto-swap")
 		# Dismiss it via BACK TO HANGAR so the healthy check below starts clean.
 		var wback: Button = _find_button_by_text(wmodal, "BACK TO HANGAR")
 		if wback:

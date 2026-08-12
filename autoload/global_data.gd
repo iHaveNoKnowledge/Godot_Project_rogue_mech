@@ -498,6 +498,17 @@ func switch_hangar_mech(mech_id: String) -> bool:
 	return HangarManager.switch_mech(mech_id)
 
 
+# True when the piloted (active) mech's driver is a recovering fleet pilot.
+func is_active_driver_wounded() -> bool:
+	return HangarManager.is_active_driver_wounded()
+
+
+# Combat-entry safety net: parks the active mech when its driver is wounded and
+# switches to a healthy backup. Returns the new active mech id ("" = no swap).
+func auto_park_wounded_active() -> String:
+	return HangarManager.auto_park_wounded_active()
+
+
 # Loads a parked mech's parts into the working set for editing WITHOUT changing
 # which mech the player actually pilots (active). Used by the customize page so
 # you can tune any berth while keeping the combat mech as-is.

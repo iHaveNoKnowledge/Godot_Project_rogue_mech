@@ -18,10 +18,14 @@ extends Node
 ##   HangarLeftPanel     — left sidebar (part list, craftery, ammo, equip)
 ##   HangarRightPanel    — right sidebar (stats, weight, repair, status, exit)
 ##   nav/landing builders — sub-menu rail + mode-toggle bar
+##   HangarReadinessPanel — combat-readiness warning modal
 ## Run: godot --headless --path . res://tests/hangar_panels_verify.tscn
 
 var _fails: int = 0
 var _checks: int = 0
+# Readiness verify uses a member so the on_confirm lambda (which captures
+# locals by value in GDScript) can still increment it through `self`.
+var _confirm_calls: int = 0
 
 
 func _ready() -> void:
@@ -40,6 +44,7 @@ func _ready() -> void:
 	await _verify_repair_panel()
 	await _verify_slot_panel()
 	await _verify_layout_panels()
+	await _verify_readiness_panel()
 	print("HANGAR_PANELS_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	await get_tree().process_frame
 	get_tree().quit(1 if _fails > 0 else 0)
@@ -975,6 +980,103 @@ func _verify_layout_panels() -> void:
 
 	ctrl.queue_free()
 	await get_tree().process_frame
+
+
+func _verify_readiness_panel() -> void:
+	GlobalData.reset_run_data()
+	var ctrl: Node = load("res://scenes/ui/hangar_scene.tscn").instantiate()
+	add_child(ctrl)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var rp = ctrl.readiness_panel
+	_check(rp != null, "controller builds a HangarReadinessPanel")
+	_check(rp.controller == ctrl, "readiness panel holds the controller back-ref")
+
+	# Ready mech: the confirm callback fires immediately, no modal.
+	GlobalData.equipped_parts["leg_left"] = {"uid": "leg"}
+	GlobalData.equipped_parts["leg_right"] = {"uid": "leg"}
+	GlobalData.equipped_parts["body"] = {"uid": "body"}
+	_confirm_calls = 0
+	rp.check(func(): _confirm_calls += 1)
+	_check(_confirm_calls == 1, "ready mech calls on_confirm immediately")
+	_check(_find_modal(ctrl) == null, "ready mech shows no warning modal")
+
+	# Incomplete mech: the modal appears and on_confirm waits for LAUNCH ANYWAY.
+	GlobalData.equipped_parts.clear()
+	_confirm_calls = 0
+	rp.check(func(): _confirm_calls += 1)
+	await get_tree().process_frame
+	var modal = _find_modal(ctrl)
+	_check(modal != null, "incomplete mech shows the warning modal")
+	_check(_confirm_calls == 0, "incomplete mech does not auto-confirm")
+	var modal_text := _collect_label_text(modal)
+	_check(modal_text.contains("INCOMPLETE MECH ASSEMBLY"), "warning modal shows the assembly warning")
+
+	# LAUNCH ANYWAY button runs the confirm callback and closes the modal.
+	var launch_btn: Button = _find_button_by_text(modal, "LAUNCH ANYWAY")
+	var back_btn: Button = _find_button_by_text(modal, "BACK TO HANGAR")
+	_check(launch_btn != null, "warning modal builds the LAUNCH ANYWAY button")
+	_check(back_btn != null, "warning modal builds the BACK TO HANGAR button")
+	if launch_btn:
+		launch_btn.pressed.emit()
+		await get_tree().process_frame
+		_check(_confirm_calls == 1, "LAUNCH ANYWAY runs the confirm callback")
+	_check(not is_instance_valid(modal), "LAUNCH ANYWAY frees the warning modal")
+
+	# BACK TO HANGAR dismisses without confirming.
+	_confirm_calls = 0
+	rp.check(func(): _confirm_calls += 1)
+	await get_tree().process_frame
+	modal = _find_modal(ctrl)
+	if modal:
+		var back: Button = _find_button_by_text(modal, "BACK TO HANGAR")
+		if back:
+			back.pressed.emit()
+		await get_tree().process_frame
+	_check(_confirm_calls == 0, "BACK TO HANGAR does not confirm")
+	_check(_find_modal(ctrl) == null, "BACK TO HANGAR frees the modal")
+
+	# Re-checking replaces any stale modal rather than stacking duplicates —
+	# across MULTIPLE consecutive checks (a third call proves the panel keeps a
+	# reference instead of relying on a node-name lookup that add_child would
+	# auto-rename away).
+	rp.check(func(): pass)
+	await get_tree().process_frame
+	rp.check(func(): pass)
+	await get_tree().process_frame
+	rp.check(func(): pass)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	# Count semantically (modals carry a LAUNCH ANYWAY button) — the replaced
+	# modal may be auto-renamed while its stale twin is queued for deletion.
+	var modal_count := 0
+	for child in ctrl.root_control.get_children():
+		if is_instance_valid(child) and not child.is_queued_for_deletion():
+			if _find_button_by_text(child, "LAUNCH ANYWAY") != null:
+				modal_count += 1
+	_check(modal_count == 1, "re-checking replaces rather than stacks the modal")
+
+	ctrl.queue_free()
+	await get_tree().process_frame
+
+
+func _find_modal(ctrl: Node) -> Node:
+	if ctrl.root_control:
+		for child in ctrl.root_control.get_children():
+			if child.name == "CombatWarningModal" and is_instance_valid(child) and not child.is_queued_for_deletion():
+				return child
+	return null
+
+
+func _find_button_by_text(node: Node, text: String) -> Button:
+	if node is Button and node.text.contains(text):
+		return node
+	for child in node.get_children():
+		var found := _find_button_by_text(child, text)
+		if found:
+			return found
+	return null
 
 
 func _count_buttons(node: Node) -> int:

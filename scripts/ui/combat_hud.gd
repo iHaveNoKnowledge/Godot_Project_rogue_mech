@@ -15,12 +15,14 @@ func _create_ui() -> void:
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
 
+	# Sits just below the top edge (not glued to it) so it reads as a status
+	# banner instead of part of the screen frame.
 	panel = PanelContainer.new()
 	panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	panel.offset_left = -220
 	panel.offset_right = 220
-	panel.offset_top = 15
-	panel.offset_bottom = 55
+	panel.offset_top = 64
+	panel.offset_bottom = 104
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(panel)
 

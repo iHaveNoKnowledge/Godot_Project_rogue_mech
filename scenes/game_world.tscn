@@ -1,4 +1,4 @@
-[gd_scene load_steps=28 format=3]
+[gd_scene load_steps=27 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/camera/mecha_camera.tscn" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/mecha/mecha_base.tscn" id="2"]
@@ -20,7 +20,6 @@
 [ext_resource type="Script" path="res://scripts/arena/arena_seed_system.gd" id="21"]
 [ext_resource type="Script" path="res://scripts/audio/music_generator.gd" id="22"]
 [ext_resource type="Script" path="res://scripts/audio/ui_sounds.gd" id="23"]
-[ext_resource type="PackedScene" path="res://scenes/ui/keybind_display.tscn" id="24"]
 [ext_resource type="PackedScene" path="res://scenes/ui/pause_menu.tscn" id="25"]
 [ext_resource type="Script" path="res://scripts/ui/combat_hud.gd" id="26"]
 [ext_resource type="Script" path="res://scripts/ui/combat_intro.gd" id="27"]
@@ -178,7 +177,5 @@ script = ExtResource("13")
 script = ExtResource("14")
 
 [node name="CombatRewardsUI" parent="." instance=ExtResource("15")]
-
-[node name="KeybindDisplay" parent="." instance=ExtResource("24")]
 
 [node name="PauseMenu" parent="." instance=ExtResource("25")]

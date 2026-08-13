@@ -325,12 +325,13 @@ func _create_carry_ui() -> void:
 
 func _create_pickup_ui() -> void:
 	# Bottom-center prompt: "[F] Pickup: WeaponName" (F = interact action).
+	# Sits just above the bottom-center HP bar so the two never overlap.
 	pickup_prompt = PanelContainer.new()
 	pickup_prompt.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	pickup_prompt.offset_left = -170
 	pickup_prompt.offset_right = 170
-	pickup_prompt.offset_top = -60
-	pickup_prompt.offset_bottom = -20
+	pickup_prompt.offset_top = -250
+	pickup_prompt.offset_bottom = -190
 	pickup_prompt.add_theme_stylebox_override("panel", _make_panel_style(Color(0.05, 0.1, 0.08, 0.92)))
 	root_control.add_child(pickup_prompt)
 	pickup_prompt.visible = false

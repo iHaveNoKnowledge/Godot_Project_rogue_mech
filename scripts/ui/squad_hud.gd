@@ -1,7 +1,7 @@
 extends CanvasLayer
 class_name SquadHud
 
-## Combat squad HUD: a fixed panel (bottom-left) listing every fielded ally's
+## Combat squad HUD: a fixed panel (top-left) listing every fielded ally's
 ## pilot name and live health bar while they fight alongside the player.
 ##
 ## Ally mechs emit `ally_squad_updated` whenever their HP changes, so bars stay
@@ -42,12 +42,14 @@ func _create_ui() -> void:
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
 
+	# Top-left corner: keeps the squad list clear of the bottom-left hand-weapon
+	# panel and the bottom-center HP bar.
 	panel = PanelContainer.new()
-	panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	panel.offset_left = 20
-	panel.offset_top = -150
-	panel.offset_right = 300
-	panel.offset_bottom = -20
+	panel.offset_top = 15
+	panel.offset_right = 320
+	panel.offset_bottom = 175
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(panel)
 

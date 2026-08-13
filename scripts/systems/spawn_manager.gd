@@ -234,9 +234,12 @@ func _spawn_fielded_allies() -> void:
 		var offset = Vector3(cos(angle) * 6.0, 0.0, sin(angle) * 6.0)
 		if mecha == null:
 			offset = Vector3(4.0 * i, 0.0, -2.0)
-		ally_unit.position = (anchor + offset) if mecha else offset
-		# Positioned near the player, aligned to ground.
-		ally_unit.position.y = 0.1
+		# Positioned near the player and snapped onto the terrain surface (same
+		# as enemies) so allies never spawn half-buried or hovering on dunes.
+		var ally_pos: Vector3 = (anchor + offset) if mecha else offset
+		ally_pos = snap_to_ground(ally_pos, get_world_3d().direct_space_state)
+		ally_pos.y -= body_bottom_offset(ally_unit)
+		ally_unit.position = ally_pos
 		add_child(ally_unit)
 
 

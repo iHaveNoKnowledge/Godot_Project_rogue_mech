@@ -353,7 +353,11 @@ func _spawn_enemy(type: String, archetype: int, pos: Vector3, hp_scale: float, s
 
 	var enemy = scene.instantiate()
 	enemy.archetype = archetype
-	enemy.position = pos
+	var spawn_pos := snap_to_ground(pos, get_world_3d().direct_space_state)
+	# Lift the root by the body's ground-contact offset so the whole mech rests
+	# ON the surface immediately (no half-buried spawn, no pop-up).
+	spawn_pos.y -= body_bottom_offset(enemy)
+	enemy.position = spawn_pos
 	# Only squads/full-rig enemies declare these — tanks (enemy_tank.gd) don't,
 	# so guard the assignment or Godot prints "Invalid set index" on every tank spawn.
 	# enemy.get() returns null only when the property does not exist.
@@ -403,6 +407,44 @@ func _paint_for_enemy(org: Dictionary, role: String) -> Dictionary:
 			base.v * 0.35
 		)
 	return paint
+
+
+# Snaps a spawn point down onto the arena's Environment collision surface
+# (ground tiles, dunes, rocks, riverbanks, bridges) so enemies never spawn
+# half-buried inside terrain. The hardcoded y in _generate_spawn_points is only
+# a rough hint: desert dunes/rocks rise several meters above the flat ground
+# (and flat themes sit at -0.4, river banks at +0.5), so a fixed y leaves some
+# spawns embedded in the ground.
+static func snap_to_ground(pos: Vector3, space_state: PhysicsDirectSpaceState3D) -> Vector3:
+	var query := PhysicsRayQueryParameters3D.create(
+		pos + Vector3(0, 60.0, 0),
+		pos + Vector3(0, -60.0, 0),
+		2  # Environment physics layer: ground, dunes, rocks, bridges, banks.
+	)
+	var hit := space_state.intersect_ray(query)
+	if hit.is_empty():
+		return pos
+	return Vector3(pos.x, hit.position.y + 0.05, pos.z)
+
+
+# The collision body's lowest point relative to the root (negative when the
+# body hangs below the root). Enemy scenes place their ground-contact shape at
+# different heights, so the root must be lifted by this much for the body to
+# rest on the terrain instead of being half-buried.
+static func body_bottom_offset(enemy: Node) -> float:
+	for child in enemy.get_children():
+		if child is CollisionShape3D and child.shape != null:
+			var y0: float = child.position.y
+			var s: Shape3D = child.shape
+			if s is SphereShape3D:
+				return y0 - s.radius
+			if s is CapsuleShape3D:
+				return y0 - s.height * 0.5
+			if s is BoxShape3D:
+				return y0 - s.size.y * 0.5
+			if s is CylinderShape3D:
+				return y0 - s.height * 0.5
+	return 0.0
 
 
 # Spawns one squad fire team for military themes: the leader (full-rig variant

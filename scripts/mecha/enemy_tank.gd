@@ -110,6 +110,7 @@ func _physics_process(delta: float) -> void:
 		stagger_timer -= delta
 		velocity.x = move_toward(velocity.x, 0.0, 20.0 * delta)
 		velocity.z = move_toward(velocity.z, 0.0, 20.0 * delta)
+		velocity.y = -10.0
 		move_and_slide()
 		return
 
@@ -119,29 +120,35 @@ func _physics_process(delta: float) -> void:
 		if not mechas.is_empty():
 			target = mechas[0]
 
-	if target and is_instance_valid(target):
-		var dist = global_position.distance_to(target.global_position)
+	if target == null or not is_instance_valid(target):
+		# No target yet: apply gravity so the tank settles onto the ground at
+		# spawn instead of hovering in mid-air until it finds one.
+		velocity.y = -10.0
+		move_and_slide()
+		return
 
-		# Move if treads intact
-		if not treads_destroyed and dist > 8.0:
-			var dir = (target.global_position - global_position).normalized()
-			dir.y = 0.0
-			velocity = dir * move_speed
-			velocity.y = -10.0
-			move_and_slide()
-			if dir.length() > 0.1:
-				rotation.y = lerp_angle(rotation.y, atan2(dir.x, dir.z), 5.0 * delta)
+	var dist = global_position.distance_to(target.global_position)
 
-		# Rotate turret and shoot if turret intact
-		if not turret_destroyed and dist <= attack_range:
-			if turret_node:
-				var t_dir = (target.global_position - turret_node.global_position).normalized()
-				turret_node.rotation.y = lerp_angle(turret_node.rotation.y, atan2(t_dir.x, t_dir.z), 8.0 * delta)
+	# Move if treads intact
+	if not treads_destroyed and dist > 8.0:
+		var dir = (target.global_position - global_position).normalized()
+		dir.y = 0.0
+		velocity = dir * move_speed
+		velocity.y = -10.0
+		move_and_slide()
+		if dir.length() > 0.1:
+			rotation.y = lerp_angle(rotation.y, atan2(dir.x, dir.z), 5.0 * delta)
 
-			attack_timer -= delta
-			if attack_timer <= 0.0:
-				attack_timer = attack_cooldown
-				_fire_tank_cannon()
+	# Rotate turret and shoot if turret intact
+	if not turret_destroyed and dist <= attack_range:
+		if turret_node:
+			var t_dir = (target.global_position - turret_node.global_position).normalized()
+			turret_node.rotation.y = lerp_angle(turret_node.rotation.y, atan2(t_dir.x, t_dir.z), 8.0 * delta)
+
+		attack_timer -= delta
+		if attack_timer <= 0.0:
+			attack_timer = attack_cooldown
+			_fire_tank_cannon()
 
 
 func _build_fire_core() -> void:

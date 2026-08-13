@@ -139,15 +139,17 @@ func _update_visual() -> void:
 			_status_label.text = "RETREAT ZONE"
 
 
-# Builds the glow strip, beacon light and status label. The generator adds the
+# Builds the glow wall, beacon light and status label. The generator adds the
 # collision shape first so _ready() can read its size and build matching visuals.
 func _build_visuals() -> void:
-	var col := get_node_or_null("CollisionShape3D") as CollisionShape3D
+	var col := _find_collision_shape()
 	var size := Vector3(20.0, 2.0, 20.0)
 	if col and col.shape is BoxShape3D:
 		size = (col.shape as BoxShape3D).size
 
-	# Glow strip on the ground.
+	# Glow wall: a tall translucent force-field wall spanning the zone's full
+	# height. The zone origin is the collision box center (placed by the
+	# generator at wall_height/2), so the wall sits grounded with no offset.
 	_zone_material = StandardMaterial3D.new()
 	_zone_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_zone_material.albedo_color = Color(IDLE_COLOR.r, IDLE_COLOR.g, IDLE_COLOR.b, 0.18)
@@ -157,12 +159,11 @@ func _build_visuals() -> void:
 	_zone_material.roughness = 0.4
 
 	_zone_mesh = MeshInstance3D.new()
-	_zone_mesh.name = "GlowStrip"
-	var strip := BoxMesh.new()
-	strip.size = Vector3(size.x, 0.04, size.z)
-	_zone_mesh.mesh = strip
+	_zone_mesh.name = "GlowWall"
+	var wall := BoxMesh.new()
+	wall.size = Vector3(size.x, size.y, size.z)
+	_zone_mesh.mesh = wall
 	_zone_mesh.material_override = _zone_material
-	_zone_mesh.position.y = -size.y * 0.5 + 0.03
 	add_child(_zone_mesh)
 
 	# Beacon light.
@@ -185,5 +186,14 @@ func _build_visuals() -> void:
 	_status_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_status_label.position.y = size.y * 0.5 + 3.0
 	add_child(_status_label)
+
+
+# Locates the generator-attached trigger shape by class (unnamed runtime nodes
+# get "@ClassName@id" names in Godot 4.6, so name lookups never match).
+func _find_collision_shape() -> CollisionShape3D:
+	for child in get_children():
+		if child is CollisionShape3D:
+			return child as CollisionShape3D
+	return null
 
 	_update_visual()

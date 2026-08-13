@@ -4,7 +4,6 @@ extends Node3D
 
 @export var arena_size: float = 240.0
 @export var tile_count: int = 24
-@export var escape_zone_depth: float = 16.0
 
 enum BiomeTheme { DESERT, CITY_HIGHRISE, CROSSROADS, RIVER_BRIDGE }
 
@@ -155,14 +154,20 @@ func _get_theme_tile_color(x: int, z: int, pos_x: float, pos_z: float) -> Color:
 
 func _create_escape_zones() -> void:
 	var half := arena_size / 2.0
-	var depth := escape_zone_depth
 	var len := arena_size
 
+	# Escape walls form a square frame of tall light walls around the arena's
+	# outer edge — OUTSIDE the combat field (beyond the spawn ring and dunes,
+	# just inside the void barrier) — so retreating never happens mid-fight.
+	# They are tall walls, not flat floor strips.
+	var wall_gap := 1.5
+	var wall_thickness := 2.0
+	var wall_height := 8.0
 	var zone_defs = [
-		{"pos": Vector3(0, 1.0, -(half - depth * 0.5)), "size": Vector3(len, 2.0, depth)},
-		{"pos": Vector3(0, 1.0, (half - depth * 0.5)), "size": Vector3(len, 2.0, depth)},
-		{"pos": Vector3(-(half - depth * 0.5), 1.0, 0), "size": Vector3(depth, 2.0, len)},
-		{"pos": Vector3((half - depth * 0.5), 1.0, 0), "size": Vector3(depth, 2.0, len)},
+		{"pos": Vector3(0, wall_height * 0.5, -(half - wall_gap)), "size": Vector3(len, wall_height, wall_thickness)},
+		{"pos": Vector3(0, wall_height * 0.5, (half - wall_gap)), "size": Vector3(len, wall_height, wall_thickness)},
+		{"pos": Vector3(-(half - wall_gap), wall_height * 0.5, 0), "size": Vector3(wall_thickness, wall_height, len)},
+		{"pos": Vector3((half - wall_gap), wall_height * 0.5, 0), "size": Vector3(wall_thickness, wall_height, len)},
 	]
 
 	var zone_script := preload("res://scripts/arena/escape_zone.gd")

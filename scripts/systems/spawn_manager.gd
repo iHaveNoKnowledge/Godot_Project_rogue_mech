@@ -51,6 +51,14 @@ var enemies_alive: int = 0
 var spawn_points: Array = []
 var is_active: bool = false
 
+# Ring markers already handed out this wave, so multiple enemies never stack
+# on the same spawn point (adjacent markers are ~57m apart, so a distinct
+# marker per enemy is all the separation they need). Reset every wave.
+var _used_spawn_indices: Array = []
+
+# Minimum clearance kept between an enemy spawn and any cover object.
+const SPAWN_COVER_MARGIN := 2.5
+
 # Node-Specific Wave Definitions
 var grunt_wave_defs = [
 	[{"type": "rusher_simple", "archetype": 0, "count": 3}],
@@ -239,6 +247,7 @@ func start_waves() -> void:
 
 
 func _spawn_next_wave() -> void:
+	_used_spawn_indices.clear()
 	var active_defs = _get_active_defs()
 	if current_wave >= active_defs.size():
 		is_active = false
@@ -456,9 +465,18 @@ func _spawn_squad(entry: Dictionary, count: int, hp_scale: float, org: Dictionar
 	var center: Vector3 = _get_spawn_position()
 	var leader_type: String = _squad_leader_type(entry["type"])
 	_spawn_enemy(leader_type, entry["archetype"], center, hp_scale, "commander", _paint_for_enemy(org, "commander"))
+	var slot := 0
 	for i in range(1, count):
-		var offset: Vector3 = SQUAD_FORMATION[(i - 1) % SQUAD_FORMATION.size()]
+		# Step through formation slots, skipping any that land inside cover so
+		# squad members don't spawn embedded in obstacles.
+		var offset: Vector3 = SQUAD_FORMATION[slot % SQUAD_FORMATION.size()]
+		var guard := 0
+		while guard < SQUAD_FORMATION.size() and _spawn_blocked_by_cover(center + offset):
+			slot += 1
+			offset = SQUAD_FORMATION[slot % SQUAD_FORMATION.size()]
+			guard += 1
 		_spawn_enemy(entry["type"], entry["archetype"], center + offset, hp_scale, "member", _paint_for_enemy(org, "member"))
+		slot += 1
 
 
 # The squad commander fields the full-rig variant of its archetype (more part
@@ -479,9 +497,84 @@ func _get_spawn_position() -> Vector3:
 	if spawn_points.is_empty():
 		return Vector3(randf_range(-40, 40), 1.0, randf_range(-40, 40))
 
-	var available = spawn_points.duplicate()
-	available.shuffle()
-	return available[0].global_position
+	var candidates := spawn_points.duplicate()
+	candidates.shuffle()
+
+	# Prefer a marker this wave hasn't used yet and that sits clear of cover
+	# objects. Reusing a marker is what stacks enemies on top of each other.
+	for marker in candidates:
+		if _used_spawn_indices.has(marker.get_instance_id()):
+			continue
+		if _spawn_blocked_by_cover(marker.global_position):
+			continue
+		_used_spawn_indices.append(marker.get_instance_id())
+		return marker.global_position
+
+	# Every marker used (oversized wave): still avoid cover and pick the
+	# least-crowded marker (farthest from living enemies).
+	var best: Marker3D = candidates[0]
+	var best_dist := -1.0
+	for marker in candidates:
+		if _spawn_blocked_by_cover(marker.global_position):
+			continue
+		var d := _distance_to_nearest_enemy(marker.global_position)
+		if d > best_dist:
+			best_dist = d
+			best = marker
+	return best.global_position
+
+
+# True when a spawn position sits inside a cover object's footprint (plus a
+# small margin) — enemies must never spawn embedded in barricades/containers.
+func _spawn_blocked_by_cover(pos: Vector3) -> bool:
+	return is_pos_blocked_by_covers(pos, get_tree().get_nodes_in_group("cover"))
+
+
+static func is_pos_blocked_by_covers(pos: Vector3, covers: Array) -> bool:
+	for c in covers:
+		if not (c is Node3D) or not is_instance_valid(c):
+			continue
+		var aabb := _cover_world_aabb(c as Node3D)
+		if aabb.size == Vector3.ZERO:
+			continue
+		if aabb.grow(SPAWN_COVER_MARGIN).has_point(pos):
+			return true
+	return false
+
+
+# World-space AABB of a cover's collision shape (box or cylinder), so rotated
+# covers are still detected via their true footprint.
+static func _cover_world_aabb(cover: Node3D) -> AABB:
+	for child in cover.get_children():
+		if child is CollisionShape3D and child.shape != null:
+			var s: Shape3D = child.shape
+			var half: Vector3
+			if s is BoxShape3D:
+				half = (s as BoxShape3D).size * 0.5
+			elif s is CylinderShape3D:
+				var cyl := s as CylinderShape3D
+				half = Vector3(cyl.radius, cyl.height * 0.5, cyl.radius)
+			else:
+				continue
+			# World AABB of the rotated box: project the half-extents through the
+			# shape's global basis and center the box on its world origin.
+			var t: Transform3D = (child as CollisionShape3D).global_transform
+			var half_world: Vector3 = (t.basis * half).abs()
+			return AABB(t.origin - half_world, half_world * 2.0)
+	return AABB()
+
+
+# Horizontal distance from pos to the nearest living enemy (INF when none).
+func _distance_to_nearest_enemy(pos: Vector3) -> float:
+	var nearest := INF
+	for e in get_tree().get_nodes_in_group("enemy"):
+		if not is_instance_valid(e):
+			continue
+		var hs = e.get("health_system")
+		if hs == null or hs.get("is_destroyed"):
+			continue
+		nearest = minf(nearest, Vector2(e.global_position.x - pos.x, e.global_position.z - pos.z).length())
+	return nearest
 
 
 func _get_alive_count() -> int:

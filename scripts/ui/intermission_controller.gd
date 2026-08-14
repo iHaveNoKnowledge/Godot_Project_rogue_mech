@@ -17,12 +17,12 @@ func _ready() -> void:
 	EventBus.game_state_changed.connect(_on_state_changed)
 	visibility_changed.connect(_on_visibility_changed)
 	if visible:
-		AudioManager.play_menu_music()
+		AudioManager.play_intermission_music()
 
 
 func _on_visibility_changed() -> void:
 	if visible:
-		AudioManager.play_menu_music()
+		AudioManager.play_intermission_music()
 
 
 func _input(event: InputEvent) -> void:

@@ -82,7 +82,7 @@ func _verify_sortie_page() -> void:
 	_check(_row_with_text(sp.sortie_list, "YOU (driver)") != null, "sortie lists the active mech's driver")
 
 	# An unpiloted spare berth does not appear as a sortie row.
-	var berths_before := sp.sortie_list.get_child_count()
+	var berths_before: int = sp.sortie_list.get_child_count()
 	var spare := GlobalData.build_hangar_mech("Spare 02", 2)
 	_check(not spare.is_empty(), "a spare berth can be parked for the sortie test")
 	if not spare.is_empty():

@@ -12,6 +12,104 @@ extends RefCounted
 
 var controller: Node
 
+# Cross-mech swap confirmation: a weapon/armor model may only be equipped on ONE
+# mech, so equipping one that another parked mech already carries strips it off
+# that berth. Before doing that the player is asked to confirm — the pending
+# operation is stored here and only runs when the dialog's SWAP button fires.
+var swap_confirm_modal: Control = null
+var _pending_swap_action: Callable = Callable()
+
+
+# Requests confirmation before a part is stripped off another mech. `kind` is a
+# display label ("Weapon"/"Armor"), `continuation` is the equip operation to run
+# once the player confirms (it performs the actual transfer + equip).
+func _request_swap_confirm(kind: String, part_name: String, from_mech: String, continuation: Callable) -> void:
+	_pending_swap_action = continuation
+	_build_swap_confirm_modal(kind, part_name, from_mech)
+
+
+func _build_swap_confirm_modal(kind: String, part_name: String, from_mech: String) -> void:
+	_close_swap_confirm()
+	var modal := PanelContainer.new()
+	modal.name = "SwapConfirmDialog"
+	modal.anchor_left = 0.5
+	modal.anchor_right = 0.5
+	modal.anchor_top = 0.5
+	modal.anchor_bottom = 0.5
+	modal.offset_left = -260
+	modal.offset_right = 260
+	modal.offset_top = -110
+	modal.offset_bottom = 110
+
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.10, 0.10, 0.16, 0.97)
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.border_color = controller._highlight_color
+	style.corner_radius_top_left = 8
+	style.corner_radius_top_right = 8
+	style.corner_radius_bottom_left = 8
+	style.corner_radius_bottom_right = 8
+	modal.add_theme_stylebox_override("panel", style)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 10)
+	modal.add_child(vbox)
+
+	var title := Label.new()
+	title.text = "SWAP %s BETWEEN MECHS" % kind.to_upper()
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_color_override("font_color", controller._highlight_color)
+	title.add_theme_font_size_override("font_size", 15)
+	vbox.add_child(title)
+
+	var body := Label.new()
+	body.text = "%s is currently equipped on %s.\nEquipping it here will MOVE it off that mech\n(no duplicate copy is created). Proceed?" % [part_name, from_mech]
+	body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.add_theme_color_override("font_color", Color(0.9, 0.9, 0.95))
+	body.add_theme_font_size_override("font_size", 12)
+	vbox.add_child(body)
+
+	var btn_row := HBoxContainer.new()
+	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	btn_row.add_theme_constant_override("separation", 12)
+	vbox.add_child(btn_row)
+
+	var ok_btn := Button.new()
+	ok_btn.text = "SWAP & EQUIP"
+	ok_btn.custom_minimum_size = Vector2(120, 34)
+	ok_btn.pressed.connect(_confirm_swap_action)
+	btn_row.add_child(ok_btn)
+
+	var cancel_btn := Button.new()
+	cancel_btn.text = "CANCEL"
+	cancel_btn.custom_minimum_size = Vector2(120, 34)
+	cancel_btn.pressed.connect(_close_swap_confirm)
+	btn_row.add_child(cancel_btn)
+
+	if controller.root_control:
+		controller.root_control.add_child(modal)
+	else:
+		controller.add_child(modal)
+	swap_confirm_modal = modal
+
+
+func _confirm_swap_action() -> void:
+	var action := _pending_swap_action
+	_close_swap_confirm()
+	if action.is_valid():
+		action.call()
+
+
+func _close_swap_confirm() -> void:
+	if swap_confirm_modal and is_instance_valid(swap_confirm_modal):
+		swap_confirm_modal.queue_free()
+	swap_confirm_modal = null
+	_pending_swap_action = Callable()
+
 
 func equip_part(slot: String, info: Dictionary) -> void:
 	if controller.current_mode == "frame":
@@ -33,49 +131,13 @@ func equip_part(slot: String, info: Dictionary) -> void:
 			return
 		# A weapon model only exists once. Equipping one that is already carried
 		# somewhere MOVES it to the new slot (or a new mech) instead of creating
-		# a duplicate copy.
-		var moved_note := ""
-		if slot == "weapon_carry":
-			var equipped := GlobalData.weapon_equipped_slot(wpath)
-			if equipped == "carry":
-				controller.status_message_label.text = "This weapon is already on the back pack."
-				return
-			# Moving off a hand frees that hand, so its weight leaves the pack too.
-			var freed_path: String = wpath if equipped != "" else ""
-			if controller.garage_panel.would_exceed_field_pack(wpath, "", freed_path):
-				controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
-				return
-			var from_mech := _transfer_weapon_from_other_mechs(wpath)
-			if from_mech != "":
-				moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
-			elif equipped != "":
-				moved_note = " (moved from %s hand)" % equipped
-			GlobalData.add_carry_weapon(wpath)
-		else:
-			var hand = "left" if slot == "weapon_left" else "right"
-			var equipped := GlobalData.weapon_equipped_slot(wpath)
-			if equipped == hand:
-				controller.status_message_label.text = "This weapon is already equipped in the %s hand." % hand
-				return
-			var replaced_path = str(GlobalData.weapon_loadout.get(hand, ""))
-			var freed_path: String = wpath if equipped != "" else ""
-			if controller.garage_panel.would_exceed_field_pack(wpath, replaced_path, freed_path):
-				controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
-				return
-			var from_mech := _transfer_weapon_from_other_mechs(wpath)
-			if from_mech != "":
-				moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
-			elif equipped != "":
-				moved_note = " (moved from %s)" % ("back carry" if equipped == "carry" else ("right hand" if equipped == "right" else "left hand"))
-			GlobalData.set_hand_weapon(hand, wpath)
-		if moved_note != "":
-			controller.status_message_label.text = "Equipped %s%s" % [info.get("name", "Weapon"), moved_note]
-		controller.persist_panel.commit_and_save()
-		controller.garage_panel.apply_armor_preview(slot, info)
-		controller.stats_panel.update()
-		controller.part_list_panel.populate(slot)
-		controller.garage_panel.update_all_slots_preview()
-		AudioManager.play_ui_confirm()
+		# a duplicate copy. If another parked mech holds it, ask first.
+		var swap_owner := _weapon_swap_owner(wpath)
+		if swap_owner != "":
+			_request_swap_confirm("Weapon", info.get("name", "Weapon"), swap_owner,
+				func(): _perform_weapon_equip(slot, info, wpath))
+			return
+		_perform_weapon_equip(slot, info, wpath)
 		return
 
 	var inst := info
@@ -108,7 +170,66 @@ func equip_part(slot: String, info: Dictionary) -> void:
 		controller.status_message_label.text = "Armor crafted and equipped!"
 	# One physical plate = one mech: an armor instance already worn by another
 	# parked berth transfers here (that mech's slot is emptied) so the same
-	# plate is never equipped twice.
+	# plate is never equipped twice. Ask before stripping it off that mech.
+	if inst.has("uid"):
+		var swap_owner := _armor_swap_owner(str(inst["uid"]))
+		if swap_owner != "":
+			_request_swap_confirm("Armor", inst.get("name", "Armor Plate"), swap_owner,
+				func(): _perform_armor_equip(slot, inst))
+			return
+	_perform_armor_equip(slot, inst)
+
+
+# Performs the weapon equip (including a cross-mech transfer). Runs directly when
+# no other mech holds the weapon, or as the SWAP confirmation continuation.
+func _perform_weapon_equip(slot: String, info: Dictionary, wpath: String) -> void:
+	var moved_note := ""
+	if slot == "weapon_carry":
+		var equipped := GlobalData.weapon_equipped_slot(wpath)
+		if equipped == "carry":
+			controller.status_message_label.text = "This weapon is already on the back pack."
+			return
+		# Moving off a hand frees that hand, so its weight leaves the pack too.
+		var freed_path: String = wpath if equipped != "" else ""
+		if controller.garage_panel.would_exceed_field_pack(wpath, "", freed_path):
+			controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
+			return
+		var from_mech := _transfer_weapon_from_other_mechs(wpath)
+		if from_mech != "":
+			moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
+		elif equipped != "":
+			moved_note = " (moved from %s hand)" % equipped
+		GlobalData.add_carry_weapon(wpath)
+	else:
+		var hand = "left" if slot == "weapon_left" else "right"
+		var equipped := GlobalData.weapon_equipped_slot(wpath)
+		if equipped == hand:
+			controller.status_message_label.text = "This weapon is already equipped in the %s hand." % hand
+			return
+		var replaced_path = str(GlobalData.weapon_loadout.get(hand, ""))
+		var freed_path: String = wpath if equipped != "" else ""
+		if controller.garage_panel.would_exceed_field_pack(wpath, replaced_path, freed_path):
+			controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
+			return
+		var from_mech := _transfer_weapon_from_other_mechs(wpath)
+		if from_mech != "":
+			moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
+		elif equipped != "":
+			moved_note = " (moved from %s)" % ("back carry" if equipped == "carry" else ("right hand" if equipped == "right" else "left hand"))
+		GlobalData.set_hand_weapon(hand, wpath)
+	if moved_note != "":
+		controller.status_message_label.text = "Equipped %s%s" % [info.get("name", "Weapon"), moved_note]
+	controller.persist_panel.commit_and_save()
+	controller.garage_panel.apply_armor_preview(slot, info)
+	controller.stats_panel.update()
+	controller.part_list_panel.populate(slot)
+	controller.garage_panel.update_all_slots_preview()
+	AudioManager.play_ui_confirm()
+
+
+# Performs the armor equip (including a cross-mech transfer). Runs directly when
+# no other mech wears the plate, or as the SWAP confirmation continuation.
+func _perform_armor_equip(slot: String, inst: Dictionary) -> void:
 	var swap_note := ""
 	if inst.has("uid"):
 		var from_mech := _transfer_armor_from_other_mechs(str(inst["uid"]))
@@ -124,6 +245,111 @@ func equip_part(slot: String, info: Dictionary) -> void:
 	controller.stats_panel.update()
 	controller.part_list_panel.populate(slot)
 	AudioManager.play_ui_confirm()
+
+
+# Salvage-armor equip from the on_equip_pressed path. Runs directly when the
+# plate is free, or as the SWAP confirmation continuation.
+func _perform_salvage_armor_equip() -> void:
+	var swap_note := ""
+	if controller.selected_salvage_info.has("uid"):
+		var from_mech := _transfer_armor_from_other_mechs(str(controller.selected_salvage_info["uid"]))
+		if from_mech != "":
+			swap_note = " (SWAPPED from %s — that mech no longer wears it)" % from_mech
+	if not controller.selected_salvage_info.has("uid") or not GlobalData.equip_armor_instance(controller.selected_salvage_info["uid"], controller.selected_slot):
+		controller.status_message_label.text = "Failed to equip armor instance."
+		return
+	controller.status_message_label.text = "Equipped & Saved: %s!%s" % [controller.selected_salvage_info.get("name", "Armor Plate"), swap_note]
+	GlobalData.save_run()
+	controller.stats_panel.update()
+	controller.garage_panel.update_all_slots_preview()
+
+
+# Weapon equip from the on_equip_pressed path (selected part resource). Runs
+# directly when the model is free, or as the SWAP confirmation continuation.
+func _perform_selected_weapon_equip(res: Resource) -> void:
+	var wpath = controller.selected_part_path
+	var equipped := GlobalData.weapon_equipped_slot(wpath)
+	var moved_note := ""
+	var hand := "left" if controller.selected_slot == "weapon_left" else "right"
+	if controller.selected_slot == "weapon_carry":
+		if equipped == "carry":
+			controller.status_message_label.text = "This weapon is already on the back pack."
+			return
+		var freed_path: String = wpath if equipped != "" else ""
+		if controller.garage_panel.would_exceed_field_pack(wpath, "", freed_path):
+			controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
+			return
+		var from_mech := _transfer_weapon_from_other_mechs(wpath)
+		if from_mech != "":
+			moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
+		elif equipped != "":
+			moved_note = " (moved from %s hand)" % equipped
+		GlobalData.add_carry_weapon(wpath)
+		controller.status_message_label.text = "Added to Back Carry: %s!%s" % [(res.weapon_name if "weapon_name" in res else "Weapon"), moved_note]
+	else:
+		if equipped == hand:
+			controller.status_message_label.text = "This weapon is already equipped in the %s hand." % hand
+			return
+		var replaced_path = str(GlobalData.weapon_loadout.get(hand, ""))
+		var freed_path: String = wpath if equipped != "" else ""
+		if controller.garage_panel.would_exceed_field_pack(wpath, replaced_path, freed_path):
+			controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
+			return
+		var from_mech := _transfer_weapon_from_other_mechs(wpath)
+		if from_mech != "":
+			moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
+		elif equipped != "":
+			moved_note = " (moved from %s)" % ("back carry" if equipped == "carry" else ("right hand" if equipped == "right" else "left hand"))
+		GlobalData.set_hand_weapon(hand, wpath)
+		controller.status_message_label.text = "Equipped %s on %s hand!%s" % [(res.weapon_name if "weapon_name" in res else "Weapon"), hand, moved_note]
+	GlobalData.save_run()
+	controller.stats_panel.update()
+	controller.garage_panel.update_all_slots_preview()
+	controller.part_list_panel.populate(controller.selected_slot)
+
+
+# Which OTHER parked mech currently carries this weapon model in its loadout
+# snapshot? Pure lookup (no mutation) used to decide whether a cross-mech swap
+# needs confirming. Returns the mech's display name or "" when free.
+func _weapon_swap_owner(path: String) -> String:
+	if path == "":
+		return ""
+	var editing_id: String = controller.get_editing_mech_id()
+	for mech in GlobalData.hangar_mechs:
+		if not (mech is Dictionary):
+			continue
+		var mech_id := str(mech.get("id", ""))
+		if mech_id == "" or mech_id == editing_id:
+			continue
+		var loadout = mech.get("weapon_loadout", {})
+		if not (loadout is Dictionary):
+			continue
+		if LoadoutSystem.weapon_slot_in_loadout(loadout, path) != "":
+			return str(mech.get("name", "another mech"))
+	return ""
+
+
+# Which OTHER parked mech currently wears this armor instance (by uid)? Pure
+# lookup (no mutation) used to decide whether a cross-mech swap needs confirming.
+# Returns the mech's display name or "" when the plate is free.
+func _armor_swap_owner(uid: String) -> String:
+	if uid == "":
+		return ""
+	var editing_id: String = controller.get_editing_mech_id()
+	for mech in GlobalData.hangar_mechs:
+		if not (mech is Dictionary):
+			continue
+		var mech_id := str(mech.get("id", ""))
+		if mech_id == "" or mech_id == editing_id:
+			continue
+		var parts = mech.get("parts", {})
+		if not (parts is Dictionary):
+			continue
+		for slot in parts:
+			var part = parts[slot]
+			if part is Dictionary and str(part.get("uid", "")) == uid:
+				return str(mech.get("name", "another mech"))
+	return ""
 
 
 # A weapon model may only be carried by ONE mech. When equipping `path` while
@@ -278,20 +504,15 @@ func on_equip_pressed() -> void:
 		return
 
 	if not controller.selected_salvage_info.is_empty():
-		# Same one-plate-per-mech rule as equip_part(): strip the instance from
-		# whichever other berth wears it before equipping it here.
-		var swap_note := ""
+		# Same one-plate-per-mech rule as equip_part(): confirm before stripping
+		# the instance from whichever other berth wears it.
 		if controller.selected_salvage_info.has("uid"):
-			var from_mech := _transfer_armor_from_other_mechs(str(controller.selected_salvage_info["uid"]))
-			if from_mech != "":
-				swap_note = " (SWAPPED from %s — that mech no longer wears it)" % from_mech
-		if not controller.selected_salvage_info.has("uid") or not GlobalData.equip_armor_instance(controller.selected_salvage_info["uid"], controller.selected_slot):
-			controller.status_message_label.text = "Failed to equip armor instance."
-			return
-		controller.status_message_label.text = "Equipped & Saved: %s!%s" % [controller.selected_salvage_info.get("name", "Armor Plate"), swap_note]
-		GlobalData.save_run()
-		controller.stats_panel.update()
-		controller.garage_panel.update_all_slots_preview()
+			var swap_owner := _armor_swap_owner(str(controller.selected_salvage_info["uid"]))
+			if swap_owner != "":
+				_request_swap_confirm("Armor", controller.selected_salvage_info.get("name", "Armor Plate"), swap_owner,
+					func(): _perform_salvage_armor_equip())
+				return
+		_perform_salvage_armor_equip()
 		return
 
 	if controller.current_mode == "frame" and not controller.selected_frame_info.is_empty():
@@ -312,45 +533,14 @@ func on_equip_pressed() -> void:
 				# Weapons go into the central weapon_loadout (hands / back). A weapon
 				# model only exists once: equipping one that is already carried MOVES
 				# it (same mech slot, or transferred from another parked mech).
+				# If another parked mech holds it, ask before stripping it off them.
 				var wpath = controller.selected_part_path
-				var equipped := GlobalData.weapon_equipped_slot(wpath)
-				var moved_note := ""
-				var hand := "left" if controller.selected_slot == "weapon_left" else "right"
-				if controller.selected_slot == "weapon_carry":
-					if equipped == "carry":
-						controller.status_message_label.text = "This weapon is already on the back pack."
-						return
-					var freed_path: String = wpath if equipped != "" else ""
-					if controller.garage_panel.would_exceed_field_pack(wpath, "", freed_path):
-						controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
-						return
-					var from_mech := _transfer_weapon_from_other_mechs(wpath)
-					if from_mech != "":
-						moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
-					elif equipped != "":
-						moved_note = " (moved from %s hand)" % equipped
-					GlobalData.add_carry_weapon(wpath)
-					controller.status_message_label.text = "Added to Back Carry: %s!%s" % [(res.weapon_name if "weapon_name" in res else "Weapon"), moved_note]
-				else:
-					if equipped == hand:
-						controller.status_message_label.text = "This weapon is already equipped in the %s hand." % hand
-						return
-					var replaced_path = str(GlobalData.weapon_loadout.get(hand, ""))
-					var freed_path: String = wpath if equipped != "" else ""
-					if controller.garage_panel.would_exceed_field_pack(wpath, replaced_path, freed_path):
-						controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
-						return
-					var from_mech := _transfer_weapon_from_other_mechs(wpath)
-					if from_mech != "":
-						moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
-					elif equipped != "":
-						moved_note = " (moved from %s)" % ("back carry" if equipped == "carry" else ("right hand" if equipped == "right" else "left hand"))
-					GlobalData.set_hand_weapon(hand, wpath)
-					controller.status_message_label.text = "Equipped %s on %s hand!%s" % [(res.weapon_name if "weapon_name" in res else "Weapon"), hand, moved_note]
-				GlobalData.save_run()
-				controller.stats_panel.update()
-				controller.garage_panel.update_all_slots_preview()
-				controller.part_list_panel.populate(controller.selected_slot)
+				var swap_owner := _weapon_swap_owner(wpath)
+				if swap_owner != "":
+					_request_swap_confirm("Weapon", (res.weapon_name if "weapon_name" in res else "Weapon"), swap_owner,
+						func(): _perform_selected_weapon_equip(res))
+					return
+				_perform_selected_weapon_equip(res)
 				return
 
 			var part_data: Dictionary

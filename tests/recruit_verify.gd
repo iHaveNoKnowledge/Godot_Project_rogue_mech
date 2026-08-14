@@ -96,7 +96,12 @@ func _ready() -> void:
 	for berth in GlobalData.get_hangar_mechs():
 		if str(berth.get("name", "")).contains("Mudhorn"):
 			wreck_parked = true
-	_check(wreck_parked or gained_something, "kill duel yields a wreck or parts")
+	# A kill-duel win ALWAYS yields something: the wreck parked in the hangar,
+	# recovered parts (scrap/credits), OR a wounded survivor joining the fleet
+	# (the pilot crawls out of the wreck — no berth, no parts). All three are
+	# valid outcomes; assert the OR so a lucky survivor roll doesn't fail.
+	var survivor_joined := GlobalData.has_ally_unit("ally_jax") and bool(GlobalData.get_fleet_unit("ally_jax").get("wounded", false))
+	_check(wreck_parked or gained_something or survivor_joined, "kill duel yields a wreck, parts, or a wounded survivor")
 	if wreck_parked:
 		var wreck_damaged := false
 		for slot in GlobalData.MECHA_SLOTS:

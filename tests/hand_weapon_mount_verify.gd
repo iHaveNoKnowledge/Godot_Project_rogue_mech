@@ -87,7 +87,11 @@ func _ready() -> void:
 	await get_tree().process_frame
 	_check(remounted.is_inside_tree() and remounted.get_child_count() == 1,
 		"fresh mount survives the frame and still shows the weapon")
-	_check(mount_r.get_child_count() == 0 or not mount_r.is_inside_tree(),
+	# `dying` is the SAME node as `mount_r` (mount_hand reuses the existing
+	# mount), so after the queue_free it is a freed instance — never touch it
+	# without is_instance_valid, or the call errors out and _ready aborts before
+	# quit(), hanging the whole test.
+	_check(not is_instance_valid(mount_r) or mount_r.get_child_count() == 0,
 		"dying mount does not keep a live weapon child")
 
 	# 5. The weapon still follows the forearm when the arm rotates (mount is a

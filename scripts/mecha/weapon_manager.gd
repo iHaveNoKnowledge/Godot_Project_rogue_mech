@@ -737,11 +737,17 @@ func _melee_attack(hand: String, weapon: WeaponPart) -> void:
 func _perform_pile_bunker_lunge_anim(mecha: Node3D, dir: Vector3, weapon: WeaponPart) -> void:
 	if not mecha:
 		return
+	# Kill any in-flight lunge before starting a new one: two tweens animating
+	# global_position simultaneously (rapid consecutive melee swings) fight over
+	# the same property and fling the mecha around, breaking the swing hit ray.
+	if _lunge_tween != null and _lunge_tween.is_valid():
+		_lunge_tween.kill()
 	var orig_pos = mecha.global_position
 	var is_pile = weapon and weapon.weapon_name.to_lower().contains("pile")
 	var lunge_dist = 2.4 if is_pile else 1.2
 	
-	var tween = mecha.create_tween().set_parallel(false)
+	_lunge_tween = mecha.create_tween().set_parallel(false)
+	var tween: Tween = _lunge_tween
 	# 1. Anticipation: Pull back slightly & crouch
 	tween.tween_property(mecha, "global_position", orig_pos - dir * 0.4, 0.05).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	# 2. Explosive Forward Thrust
@@ -758,6 +764,9 @@ func _perform_pile_bunker_lunge_anim(mecha: Node3D, dir: Vector3, weapon: Weapon
 
 
 var _melee_combo: int = 0
+# The melee lunge tween currently moving the mecha (killed before a new swing
+# starts so consecutive swings never animate global_position concurrently).
+var _lunge_tween: Tween = null
 
 func _spawn_melee_trail(mecha: Node3D, direction: Vector3, weapon: WeaponPart = null) -> void:
 	var is_first_swing = (_melee_combo % 2 == 0)

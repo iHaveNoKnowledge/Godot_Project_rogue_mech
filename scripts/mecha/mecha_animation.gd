@@ -22,11 +22,17 @@ var air_timer: float = 0.0
 var is_moving: bool = false
 var current_recoil: float = 0.0
 var landing_impact: float = 0.0
+# True while the mech is empty (pilot out): it kneels and waits instead of
+# idling upright. Driven by EventBus.mecha_occupancy_changed (and seeded for
+# backup machines that spawn already pilotless).
+var is_kneeling: bool = false
 
 var _original_head_pos: Vector3
 var _original_body_pos: Vector3
 var _original_arm_left_pos: Vector3
 var _original_arm_right_pos: Vector3
+var _original_leg_left_pos: Vector3
+var _original_leg_right_pos: Vector3
 
 
 func _ready() -> void:
@@ -50,10 +56,32 @@ func _ready() -> void:
 		_original_arm_left_pos = arm_left.position
 	if arm_right:
 		_original_arm_right_pos = arm_right.position
+	if leg_left:
+		_original_leg_left_pos = leg_left.position
+	if leg_right:
+		_original_leg_right_pos = leg_right.position
+
+	EventBus.mecha_occupancy_changed.connect(_on_occupancy_changed)
+
+
+# Occupied mechs stand normally; an empty mech (pilot ejected, or a backup
+# machine waiting on the field) kneels until someone boards it.
+func _on_occupancy_changed(occupied: bool) -> void:
+	set_kneeling(not occupied)
+
+
+func set_kneeling(kneel: bool) -> void:
+	is_kneeling = kneel
 
 
 func _physics_process(delta: float) -> void:
 	if mecha == null:
+		return
+
+	# Kneel pose takes over entirely while the mech is empty: the normal
+	# bob/leg/recoil logic resumes (and eases back to standing) on re-board.
+	if is_kneeling:
+		_update_kneel_posture(delta)
 		return
 
 	_update_recoil(delta)
@@ -162,6 +190,46 @@ func _update_airborne_fall_posture(delta: float) -> void:
 	if shin_right: shin_right.rotation.x = lerp_angle(shin_right.rotation.x, target_shin_right, speed)
 
 
+# Kneel pose (pilot out / backup waiting): both thighs fold forward so the
+# knees come down, shins fold back under, and the torso drops and bows while
+# the head stays level and the arms hang relaxed — reads as the mech kneeling
+# to wait for its pilot. Standing resumes through the normal idle/sprint lerps.
+func _update_kneel_posture(delta: float) -> void:
+	var speed = 10.0 * delta
+	var target_drop = -0.5
+	var target_thigh = deg_to_rad(75.0)
+	var target_shin = -deg_to_rad(120.0)
+	var target_body_tilt = -deg_to_rad(12.0)
+	var target_head_tilt = -deg_to_rad(8.0)
+	var target_arm = deg_to_rad(10.0)
+	var target_forearm = deg_to_rad(65.0)
+
+	if body_mesh:
+		body_mesh.rotation.x = lerp_angle(body_mesh.rotation.x, target_body_tilt, speed)
+		body_mesh.position.y = lerp(body_mesh.position.y, _original_body_pos.y + target_drop, speed)
+	if head_mesh:
+		head_mesh.position = head_mesh.position.lerp(_original_head_pos + Vector3(0, target_drop, 0), speed)
+		head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, target_head_tilt, speed)
+
+	if arm_left: arm_left.rotation.x = lerp_angle(arm_left.rotation.x, target_arm, speed)
+	if arm_right: arm_right.rotation.x = lerp_angle(arm_right.rotation.x, target_arm, speed)
+
+	if forearm_left: forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, target_forearm, speed)
+	if forearm_right: forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, target_forearm, speed)
+
+	# The leg roots sit at the hip height; drop them with the torso so the
+	# folded thighs actually reach toward the ground instead of hovering.
+	if leg_left:
+		leg_left.position.y = lerp(leg_left.position.y, _original_leg_left_pos.y + target_drop, speed)
+		leg_left.rotation.x = lerp_angle(leg_left.rotation.x, target_thigh, speed)
+	if leg_right:
+		leg_right.position.y = lerp(leg_right.position.y, _original_leg_right_pos.y + target_drop, speed)
+		leg_right.rotation.x = lerp_angle(leg_right.rotation.x, target_thigh, speed)
+
+	if shin_left: shin_left.rotation.x = lerp_angle(shin_left.rotation.x, target_shin, speed)
+	if shin_right: shin_right.rotation.x = lerp_angle(shin_right.rotation.x, target_shin, speed)
+
+
 func play_landing_impact() -> void:
 	landing_impact = 1.0
 
@@ -254,6 +322,13 @@ func _update_legs(delta: float) -> void:
 	var is_skating = mecha.get("is_roller_dashing") == true
 	if is_skating:
 		return
+
+	# Leg roots only ever move for the kneel pose; ease them back up whenever
+	# the mech is active again so a re-board never leaves it squatting.
+	if leg_left:
+		leg_left.position.y = lerp(leg_left.position.y, _original_leg_left_pos.y, 6.0 * delta)
+	if leg_right:
+		leg_right.position.y = lerp(leg_right.position.y, _original_leg_right_pos.y, 6.0 * delta)
 
 	if is_moving and leg_left and leg_right:
 		var fwd_vel = -mecha.global_transform.basis.z.dot(mecha.velocity)

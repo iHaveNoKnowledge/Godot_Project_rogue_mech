@@ -30,6 +30,9 @@ signal eject_initiated()
 signal pilot_spawned(pilot_node: Node3D)
 signal pilot_boarded_backup(backup_mech: Node3D)
 signal backup_mech_destroyed()
+## Fired whenever a mech gains or loses its pilot so its pose can react:
+## occupied = true -> standing idle, false -> kneel while waiting for its pilot.
+signal mecha_occupancy_changed(occupied: bool)
 
 # --- Board ---
 signal tile_entered(tile_pos: Vector2i, tile_data: Node)

@@ -33,4 +33,13 @@ func spawn_backup_mech() -> void:
 	var pmm = backup.get_node_or_null("PartMeshManager")
 	if pmm and pmm.has_method("refresh_slots"):
 		pmm.refresh_slots()
+	# An empty machine waits kneeling for its pilot — same occupancy rule as
+	# the main mech after an eject. The generic child disable above stopped the
+	# animation too, so wake just the AnimationSystem and seed the pose.
+	var anim = backup.get_node_or_null("AnimationSystem")
+	if anim:
+		anim.set_process(true)
+		anim.set_physics_process(true)
+		if anim.has_method("set_kneeling"):
+			anim.set_kneeling(true)
 	backup.global_position = spawn_pos

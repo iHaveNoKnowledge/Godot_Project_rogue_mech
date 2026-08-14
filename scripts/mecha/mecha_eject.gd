@@ -11,6 +11,8 @@ func _ready() -> void:
 
 func initiate_eject() -> void:
 	EventBus.eject_initiated.emit()
+	# The cockpit is now empty: the mech kneels until its pilot boards again.
+	EventBus.mecha_occupancy_changed.emit(false)
 	var pilot = pilot_scene.instantiate()
 	var parent_node = mecha.get_parent()
 	if parent_node == null:
@@ -52,6 +54,8 @@ func board_parked_mecha(parked_mecha: CharacterBody3D) -> void:
 		col.set_deferred("disabled", false)
 
 	EventBus.camera_mode_changed.emit("combat")
+	# A pilot is seated again: the mech stands back up.
+	EventBus.mecha_occupancy_changed.emit(true)
 	GameManager.enter_combat()
 
 

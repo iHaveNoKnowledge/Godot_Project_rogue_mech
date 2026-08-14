@@ -302,16 +302,14 @@ func build_slot_row(slot: int, mech: Dictionary, over_capacity: bool) -> void:
 		if not GlobalData.mech_less:
 			var register_btn := Button.new()
 			register_btn.text = "REGISTER"
-			register_btn.tooltip_text = "Assemble a mech frame into this berth from the currently assembled parts (%d scrap + %d cr; needs a body + both leg frames)." % [
-				GlobalData.get_frame_register_scrap_cost(), GlobalData.get_frame_register_credit_cost()]
+			register_btn.tooltip_text = "Assemble a mech frame into this berth from the currently assembled parts (free; needs a body + both leg frames)."
 			register_btn.custom_minimum_size = Vector2(96, 28)
 			register_btn.focus_mode = Control.FOCUS_NONE
 			register_btn.pressed.connect(register_mech.bind(slot))
 			row.add_child(register_btn)
 
 		var hint := Label.new()
-		hint.text = "Assemble a frame from the current build · %d scrap + %d cr" % [
-			GlobalData.get_frame_register_scrap_cost(), GlobalData.get_frame_register_credit_cost()] \
+		hint.text = "Assemble a frame from the current build · free (needs a body + both leg frames)" \
 			if not GlobalData.mech_less else "On foot — rebuild a chassis through recovery missions"
 		hint.custom_minimum_size = Vector2(200, 0)
 		hint.add_theme_font_size_override("font_size", 10)
@@ -410,7 +408,8 @@ func build_slot_row(slot: int, mech: Dictionary, over_capacity: bool) -> void:
 # (INNER SKELETON mode, BODY slot) so the player can equip the frames the new
 # mech needs; the pending banner then confirms the registration, locked until
 # a walking chassis (body + both legs) is equipped. On confirm the frame
-# becomes the player's mech (active + pilot) and costs scrap + credits.
+# becomes the player's mech (active + pilot) — assembly is free, the frame
+# belongs to the player.
 func register_mech(slot: int) -> void:
 	if GlobalData.mech_less:
 		_set_status("You're on foot — rebuild a chassis through recovery missions.")
@@ -556,13 +555,12 @@ func build_pending_register_banner(slot: int) -> void:
 	title.add_theme_font_size_override("font_size", 15)
 	vbox.add_child(title)
 
-	var cost_lbl := Label.new()
-	cost_lbl.text = "COST: %d scrap + %d cr" % [
-		GlobalData.get_frame_register_scrap_cost(), GlobalData.get_frame_register_credit_cost()]
-	cost_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	cost_lbl.add_theme_color_override("font_color", Color(0.9, 0.8, 0.3))
-	cost_lbl.add_theme_font_size_override("font_size", 12)
-	vbox.add_child(cost_lbl)
+	var free_lbl := Label.new()
+	free_lbl.text = "FREE ASSEMBLY — the frame is yours to build however you like."
+	free_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	free_lbl.add_theme_color_override("font_color", Color(0.45, 0.85, 0.5))
+	free_lbl.add_theme_font_size_override("font_size", 12)
+	vbox.add_child(free_lbl)
 
 	# Required-frame checklist: one row per frame, ticking off live as the
 	# player equips each piece (refreshed on every committed edit).
@@ -642,17 +640,14 @@ func refresh_pending_register() -> void:
 
 
 # REGISTER FRAME on the banner: opens the name prompt, locked out with a status
-# message while the chassis is incomplete or the price is out of reach.
+# message while the chassis is incomplete. Assembly is free — the frame belongs
+# to the player, so no resource gate is applied.
 func _on_pending_register_pressed() -> void:
 	var slot := _pending_register_slot
 	if slot < 0:
 		return
 	if not _has_walking_chassis():
 		_set_status("REGISTER needs a walking chassis (body + both leg frames) equipped.")
-		return
-	if not _can_afford_register():
-		_set_status("REGISTER needs %d scrap + %d cr — not enough resources." % [
-			GlobalData.get_frame_register_scrap_cost(), GlobalData.get_frame_register_credit_cost()])
 		return
 	close_register_dialog()
 	build_register_dialog(slot)
@@ -724,14 +719,6 @@ func build_register_dialog(slot: int) -> void:
 	title.add_theme_color_override("font_color", controller._highlight_color)
 	title.add_theme_font_size_override("font_size", 15)
 	vbox.add_child(title)
-
-	var cost_lbl := Label.new()
-	cost_lbl.text = "COST: %d scrap + %d cr" % [
-		GlobalData.get_frame_register_scrap_cost(), GlobalData.get_frame_register_credit_cost()]
-	cost_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	cost_lbl.add_theme_color_override("font_color", Color(0.9, 0.8, 0.3))
-	cost_lbl.add_theme_font_size_override("font_size", 12)
-	vbox.add_child(cost_lbl)
 
 	var hint := Label.new()
 	hint.text = "Name the frame and pick who drives it. Choosing YOU makes it your\npiloted mech; a fleet pilot parks the frame as their berth instead."
@@ -825,11 +812,8 @@ func build_register_dialog(slot: int) -> void:
 	edit.grab_focus()
 
 
-# Shared affordability gate for the REGISTER price (register_mech + the confirm
-# re-check), so a future cost tweak can't drift the two checks apart.
-func _can_afford_register() -> bool:
-	return GlobalData.scrap >= GlobalData.get_frame_register_scrap_cost() \
-		and GlobalData.credits >= GlobalData.get_frame_register_credit_cost()
+# Assembly is free — the frame belongs to the player, so no resource gate is
+# needed on the confirm path.
 
 
 # Writes the same status text to the roster page's label AND the customize
@@ -855,11 +839,6 @@ func _confirm_register(slot: int) -> void:
 		if idx >= 0 and idx < pilots.size():
 			chosen_pilot = str(pilots[idx].get("id", ""))
 	close_register_dialog()
-	# The dialog only blocks its own rect, so resources could have changed while
-	# it was open — re-check the price before spending anything.
-	if not _can_afford_register():
-		_set_status("Not enough scrap/credits to assemble the frame.")
-		return
 	var new_mech := GlobalData.build_hangar_mech(chosen, slot)
 	if new_mech.is_empty():
 		# Re-check the chassis gate for an accurate message (frames could have
@@ -867,9 +846,7 @@ func _confirm_register(slot: int) -> void:
 		_set_status("REGISTER needs a walking chassis (body + both leg frames) equipped."
 			if not _has_walking_chassis() else "No free berth in the convoy.")
 		return
-	# Charged here (not in build()) so recovery grants / recruit parking stay free.
-	GlobalData.try_spend_scrap(GlobalData.get_frame_register_scrap_cost())
-	GlobalData.try_spend_credits(GlobalData.get_frame_register_credit_cost())
+	# Assembly is free — the frame is the player's own, so nothing is charged.
 	# The freshly assembled frame takes over as the player's mech when the
 	# driver registers it (the previous one parks as a pilotless spare) so
 	# tuning it on the customize page carries straight into the next fight.
@@ -902,13 +879,11 @@ func _confirm_register(slot: int) -> void:
 	controller.refresh_panel.after_mech_change(false)
 	controller.nav_panel.select_submenu("customize")
 	if is_driver_build:
-		_set_status("Registered %s in SLOT %02d (-%d scrap, -%d cr). It is now your piloted mech — tune it here." % [
-			str(new_mech.get("name", "Mech")), slot,
-			GlobalData.get_frame_register_scrap_cost(), GlobalData.get_frame_register_credit_cost()])
+		_set_status("Registered %s in SLOT %02d — it is now your piloted mech — tune it here." % [
+			str(new_mech.get("name", "Mech")), slot])
 	else:
-		_set_status("Registered %s in SLOT %02d (-%d scrap, -%d cr) for %s — tune it here." % [
+		_set_status("Registered %s in SLOT %02d for %s — tune it here." % [
 			str(new_mech.get("name", "Mech")), slot,
-			GlobalData.get_frame_register_scrap_cost(), GlobalData.get_frame_register_credit_cost(),
 			GlobalData.get_hangar_pilot_name(chosen_pilot)])
 
 

@@ -36,36 +36,37 @@ func _update_visual() -> void:
 		return
 	var material = StandardMaterial3D.new()
 
-	# Tile content trades visual priority with terrain: the objective/hub tiles
-	# keep their signature colors; ordinary tiles show their terrain at a glance.
+	# Fog of war: unexplored tiles still show their TERRAIN dimmed so the map
+	# reads as the theme/area it is (suburb, desert, forest...) — only the
+	# content markers (start/exit/hubs/combat) stay hidden until explored.
 	var color := _terrain_color(terrain)
-	match tile_type:
-		"start":
-			color = Color(0.2, 0.7, 0.9) # Cyan Practice Hangar
-		"exit":
-			color = Color(0.8, 0.2, 0.8) # Magenta Boss Extraction
-		"enemy_base":
-			color = Color(0.9, 0.2, 0.1) # Burning Red Research Base
-		"safehouse":
-			color = Color(0.2, 0.8, 0.2) # Green Safehouse
-		"city":
-			color = Color(0.95, 0.6, 0.2) # Orange Trading City
-		"data_node":
-			color = Color(0.9, 0.8, 0.1) # Gold Data Terminal
+	if is_revealed:
+		# Explored tiles trade visual priority with terrain: the objective/hub
+		# tiles keep their signature colors; ordinary tiles show their terrain.
+		match tile_type:
+			"start":
+				color = Color(0.2, 0.7, 0.9) # Cyan Practice Hangar
+			"exit":
+				color = Color(0.8, 0.2, 0.8) # Magenta Boss Extraction
+			"enemy_base":
+				color = Color(0.9, 0.2, 0.1) # Burning Red Research Base
+			"safehouse":
+				color = Color(0.2, 0.8, 0.2) # Green Safehouse
+			"city":
+				color = Color(0.95, 0.6, 0.2) # Orange Trading City
+			"data_node":
+				color = Color(0.9, 0.8, 0.1) # Gold Data Terminal
+		if tile_type == "combat":
+			material.emission_enabled = true
+			material.emission = Color(0.8, 0.1, 0.1)
+			material.emission_energy_multiplier = 0.7
+	else:
+		color = color.darkened(0.35)
+		color.a = 0.9
 
-	# Fog of war: unrevealed tiles are dim regardless of content.
-	if not is_revealed:
-		color = color.darkened(0.75)
-		color.a = 0.85
 	material.albedo_color = color
 	material.roughness = 0.85
-
 	mesh_instance.set_surface_override_material(0, material)
-
-	if tile_type == "combat":
-		material.emission_enabled = true
-		material.emission = Color(0.8, 0.1, 0.1)
-		material.emission_energy_multiplier = 0.7
 
 
 func _terrain_color(t: String) -> Color:

@@ -17,9 +17,14 @@ func _ready() -> void:
 func _create_ui() -> void:
 	root_control = Control.new()
 	root_control.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# A plain full-rect Control defaults to MOUSE_FILTER_STOP and, being the
+	# topmost layer on the board, would swallow every click (blocking the event
+	# popup Continue button and tile clicks). The tooltip is informational only.
+	root_control.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root_control)
 
 	panel = PanelContainer.new()
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root_control.add_child(panel)
 
 	var style = StyleBoxFlat.new()

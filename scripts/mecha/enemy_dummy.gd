@@ -28,6 +28,11 @@ var faction_paint: Dictionary = {}
 # "commander" / "member" within a squad fire team ("" for ragtag units).
 var squad_role: String = ""
 
+# Concealment state: set by the arena concealment system when this enemy stands
+# inside a cover footprint (tree/building). While concealed the mech + its name
+# plate and health billboard are hidden so the player can't see it lurking.
+var concealed: bool = false
+
 # Ammo system for ranged enemies. Ammo/reload state lives in a shared
 # WeaponCore (same rules as the player's weapons); these fields feed the core's
 # from_stats() build and the getters below delegate to it.
@@ -432,6 +437,19 @@ func _setup_enemy_status() -> void:
 	var status = get_node_or_null("EnemyStatus")
 	if status and status.has_method("setup_target"):
 		status.setup_target(self)
+
+
+# Hides/shows the whole enemy from the player. Concealed enemies (standing in a
+# cover footprint) are visually removed along with their name plate and health
+# billboard, so the player can't tell a hostile is lurking there.
+func set_concealed(on: bool) -> void:
+	if concealed == on:
+		return
+	concealed = on
+	visible = not on
+	var status = get_node_or_null("EnemyStatus")
+	if status and status.has_method("set_concealed"):
+		status.set_concealed(on)
 
 
 # Toggles a red emissive flash across every rendered mesh of the enemy. Used as

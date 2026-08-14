@@ -18,6 +18,7 @@
 [ext_resource type="Script" path="res://scripts/systems/spawn_manager.gd" id="19"]
 [ext_resource type="Script" path="res://scripts/arena/arena_nav_setup.gd" id="20"]
 [ext_resource type="Script" path="res://scripts/arena/arena_seed_system.gd" id="21"]
+[ext_resource type="Script" path="res://scripts/arena/concealment_system.gd" id="24"]
 [ext_resource type="Script" path="res://scripts/audio/music_generator.gd" id="22"]
 [ext_resource type="Script" path="res://scripts/audio/ui_sounds.gd" id="23"]
 [ext_resource type="PackedScene" path="res://scenes/ui/pause_menu.tscn" id="25"]
@@ -96,6 +97,9 @@ script = ExtResource("20")
 
 [node name="ArenaSeedSystem" type="Node" parent="."]
 script = ExtResource("21")
+
+[node name="ConcealmentSystem" type="Node" parent="."]
+script = ExtResource("24")
 
 [node name="MusicGenerator" type="Node" parent="."]
 script = ExtResource("22")

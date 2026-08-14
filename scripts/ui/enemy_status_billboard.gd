@@ -18,6 +18,10 @@ var _color_yellow: Color = Color(0.9, 0.9, 0.2, 1)
 var _color_red: Color = Color(0.9, 0.2, 0.2, 1)
 var _color_black: Color = Color(0.15, 0.15, 0.15, 1)
 
+# Set by the owning enemy when it is concealed inside cover — hides the whole
+# billboard (part blocks + name plate) so no UI betrays the hidden unit.
+var concealed: bool = false
+
 # Layout: [HEAD]
 #          [L ARM] [BODY] [R ARM]
 #          [L LEG]        [R LEG]
@@ -31,6 +35,12 @@ var _layout_labels: Dictionary = {
 func _ready() -> void:
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+
+func set_concealed(on: bool) -> void:
+	concealed = on
+	if on:
+		visible = false
 
 
 func setup_target(enemy: Node3D, pilot_name: String = "") -> void:
@@ -121,6 +131,10 @@ func _process(_delta: float) -> void:
 
 
 func _update_position() -> void:
+	if concealed:
+		visible = false
+		return
+
 	var cam = get_viewport().get_camera_3d()
 	if cam == null:
 		return

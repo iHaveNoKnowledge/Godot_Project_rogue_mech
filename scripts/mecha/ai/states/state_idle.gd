@@ -13,9 +13,13 @@ var has_search_target: bool = false
 var repath_timer: float = 0.0
 const REPATH_INTERVAL: float = 0.7
 const SEARCH_RADIUS: float = 40.0
-const ARENA_RADIUS: float = 110.0
 var path: PackedVector3Array = []
 var path_index: int = 0
+
+# Arena radius the unspotted hunt is clamped to. Scales with the battle field
+# size so enemies still fan out properly on medium/large arenas.
+func _arena_radius() -> float:
+	return GlobalData.current_arena_size * 0.46
 
 
 func enter() -> void:
@@ -76,8 +80,8 @@ func _pick_search_target_if_needed() -> void:
 		0.0,
 		randf_range(-SEARCH_RADIUS, SEARCH_RADIUS)
 	)
-	if flat.length() > ARENA_RADIUS * 0.85:
-		flat = flat.normalized() * ARENA_RADIUS * 0.85
+	if flat.length() > _arena_radius() * 0.85:
+		flat = flat.normalized() * _arena_radius() * 0.85
 	search_target = Vector3(flat.x, enemy.global_position.y, flat.z)
 	has_search_target = true
 	repath_timer = 0.0

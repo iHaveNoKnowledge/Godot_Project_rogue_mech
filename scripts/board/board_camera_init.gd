@@ -85,5 +85,8 @@ func _process(delta: float) -> void:
 	look_at(look_target, Vector3.UP)
 
 
+# Slight isometric tilt: the camera sits diagonal to the player (offset in both
+# X and Z) instead of straight above, so the board reads with depth — tiles and
+# props get a 3/4 view instead of a flat top-down look.
 func _get_offset() -> Vector3:
-	return Vector3(0, camera_height, 10)
+	return Vector3(camera_height * 0.45, camera_height, camera_height * 0.6)

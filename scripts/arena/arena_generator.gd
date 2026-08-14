@@ -7,15 +7,40 @@ extends Node3D
 
 enum BiomeTheme { DESERT, CITY_HIGHRISE, CROSSROADS, RIVER_BRIDGE, FOREST }
 
+# Arena footprint per combat node type — bigger fights need bigger fields so the
+# spawn ring / AI search radius / nav floor all breathe instead of hugging walls.
+const ARENA_SIZES: Dictionary = {
+	"grunt": 240.0,
+	"ace": 320.0,
+	"duel": 300.0,
+	"boss": 400.0,
+	"enemy_base": 400.0,
+}
+
 var current_theme: BiomeTheme = BiomeTheme.DESERT
 var tile_container: Node3D
 var escape_zone_container: Node3D
 var structures_container: Node3D
 
+# Natural ground-variation noise used to tint the seamless floor texture so it
+# reads organic instead of a flat plastic slab.
+var ground_noise: FastNoiseLite = FastNoiseLite.new()
+
 
 func _ready() -> void:
 	current_theme = _theme_from_board()
+	arena_size = _arena_size_for_combat()
+	GlobalData.current_arena_size = arena_size
 	generate_arena()
+
+
+# Picks the field size for the current battle. Defaults to the export value when
+# no recognized combat node type is present (e.g. standalone test scenes).
+func _arena_size_for_combat() -> float:
+	var node_type := GameManager.combat_node_type
+	if ARENA_SIZES.has(node_type):
+		return float(ARENA_SIZES[node_type])
+	return arena_size
 
 
 # The open-grid board theme drives the combat arena biome, so the battle scene
@@ -61,34 +86,91 @@ func _create_containers() -> void:
 	add_child(structures_container)
 
 
+# Builds the battlefield floor as ONE seamless textured plane per theme instead
+# of a grid of 24x24 box tiles (which showed visible seams + hard color
+# patchwork). A 1024px image is generated per theme and stretched across the
+# whole field, so roads/lanes/trails blend naturally with no tile lines.
 func _add_ground_tiles() -> void:
-	var tile_size = arena_size / tile_count
+	var texture := _build_ground_texture()
 
-	for x in range(tile_count):
-		for z in range(tile_count):
-			var pos_x = (x - tile_count / 2.0) * tile_size + tile_size / 2.0
-			var pos_z = (z - tile_count / 2.0) * tile_size + tile_size / 2.0
+	match current_theme:
+		BiomeTheme.RIVER_BRIDGE:
+			# Raised banks on each side of the water trench (|z| < 22 is the
+			# sunken riverbed handled by the river structures).
+			_add_ground_plane(texture, 0.45, -22.0, arena_size / 2.0)
+			_add_ground_plane(texture, 0.45, 22.0, arena_size / 2.0)
+		BiomeTheme.FOREST:
+			# The forest river is a water sheet laid over the ground; keep a
+			# single full plane so the wading band reads continuous.
+			_add_ground_plane(texture, -0.39, -arena_size / 2.0, arena_size / 2.0)
+		_:
+			_add_ground_plane(texture, -0.39, -arena_size / 2.0, arena_size / 2.0)
 
-			# Skip ground mesh inside river trench for RIVER_BRIDGE theme
-			if current_theme == BiomeTheme.RIVER_BRIDGE and absf(pos_z) < 22.0:
-				continue
 
-			var tile = MeshInstance3D.new()
-			var box = BoxMesh.new()
-			box.size = Vector3(tile_size * 0.98, 0.1, tile_size * 0.98)
-			tile.mesh = box
+func _add_ground_plane(texture: Texture2D, y: float, z0: float, z1: float) -> void:
+	var size_z := z1 - z0
+	var center_z := (z0 + z1) * 0.5
+	var plane = MeshInstance3D.new()
+	var box = BoxMesh.new()
+	box.size = Vector3(arena_size, 0.1, size_z)
+	plane.mesh = box
 
-			var mat = StandardMaterial3D.new()
-			var col = _get_theme_tile_color(x, z, pos_x, pos_z)
-			mat.albedo_color = col
-			mat.roughness = 0.8
-			tile.material_override = mat
+	var mat = StandardMaterial3D.new()
+	mat.albedo_texture = texture
+	mat.roughness = 0.85
+	# Stretch UVs so the generated texture spans the full field once (no tiling
+	# seams, roads keep their true metre-scale spacing).
+	mat.uv1_scale = Vector3(1.0, 1.0, 1.0)
+	plane.material_override = mat
 
-			var tile_y := -0.39
-			if current_theme == BiomeTheme.RIVER_BRIDGE:
-				tile_y = 0.45
-			tile.position = Vector3(pos_x, tile_y, pos_z)
-			tile_container.add_child(tile)
+	plane.position = Vector3(0, y, center_z)
+	tile_container.add_child(plane)
+
+
+# Generates a seamless 1024px ground texture for the current theme. Each pixel
+# maps to a world coordinate and gets the theme's palette (roads, sidewalks,
+# lanes, trails) blended with organic noise so it never looks tiled.
+func _build_ground_texture() -> ImageTexture:
+	var res := 1024
+	var img := Image.create(res, res, false, Image.FORMAT_RGB8)
+	var half := arena_size / 2.0
+	for py in range(res):
+		var wz := lerpf(-half, half, float(py) / float(res - 1))
+		for px in range(res):
+			var wx := lerpf(-half, half, float(px) / float(res - 1))
+			img.set_pixel(px, py, _get_theme_ground_color(wx, wz))
+	return ImageTexture.create_from_image(img)
+
+
+func _get_theme_ground_color(pos_x: float, pos_z: float) -> Color:
+	var v := ground_noise.get_noise_2d(pos_x * 0.03, pos_z * 0.03) * 0.05
+	match current_theme:
+		BiomeTheme.DESERT:
+			return Color(0.62 + v, 0.50 + v, 0.32 + v)
+
+		BiomeTheme.CITY_HIGHRISE:
+			if int(abs(pos_x)) % 40 < 12 or int(abs(pos_z)) % 40 < 12:
+				return Color(0.18 + v, 0.19 + v, 0.22 + v)
+			return Color(0.40 + v, 0.42 + v, 0.45 + v)
+
+		BiomeTheme.CROSSROADS:
+			if absf(pos_x) < 18.0 or absf(pos_z) < 18.0:
+				if absf(pos_x) < 1.0 or absf(pos_z) < 1.0:
+					return Color(0.85 + v, 0.75 + v, 0.20 + v)
+				return Color(0.15 + v, 0.16 + v, 0.18 + v)
+			return Color(0.45 + v, 0.45 + v, 0.48 + v)
+
+		BiomeTheme.RIVER_BRIDGE:
+			if absf(pos_z) < 32.0:
+				return Color(0.35 + v, 0.32 + v, 0.28 + v)
+			return Color(0.22 + v, 0.24 + v, 0.26 + v)
+
+		BiomeTheme.FOREST:
+			if int(abs(pos_x)) % 22 < 3 or int(abs(pos_z)) % 22 < 3:
+				return Color(0.24 + v, 0.20 + v, 0.14 + v)
+			return Color(0.14 + v, 0.30 + v, 0.14 + v)
+
+	return Color(0.5, 0.5, 0.5)
 
 
 # The main walkable ground per theme. The global Ground in game_world.tscn is
@@ -135,43 +217,6 @@ func _add_riverbank_collision() -> void:
 		var z_center = sign_z * (trench_half + bank_depth * 0.5)
 		bank.position = Vector3(0, 0.0, z_center)
 		structures_container.add_child(bank)
-
-
-func _get_theme_tile_color(x: int, z: int, pos_x: float, pos_z: float) -> Color:
-	var v = randf_range(-0.04, 0.04)
-	match current_theme:
-		BiomeTheme.DESERT:
-			# Sand dunes yellow/amber
-			return Color(0.62 + v, 0.50 + v, 0.32 + v)
-
-		BiomeTheme.CITY_HIGHRISE:
-			# Asphalt roads and concrete sidewalks
-			if int(abs(pos_x)) % 40 < 12 or int(abs(pos_z)) % 40 < 12:
-				return Color(0.18 + v, 0.19 + v, 0.22 + v) # Asphalt street
-			return Color(0.40 + v, 0.42 + v, 0.45 + v) # Sidewalk
-
-		BiomeTheme.CROSSROADS:
-			# 4-way Urban Intersection
-			if absf(pos_x) < 18.0 or absf(pos_z) < 18.0:
-				if (absf(pos_x) < 1.0 or absf(pos_z) < 1.0):
-					return Color(0.85 + v, 0.75 + v, 0.20 + v) # Yellow center lane lines
-				return Color(0.15 + v, 0.16 + v, 0.18 + v) # Road asphalt
-			return Color(0.45 + v, 0.45 + v, 0.48 + v) # Corner building sidewalk
-
-		BiomeTheme.RIVER_BRIDGE:
-			# Riverbanks and bridge access roads
-			if absf(pos_z) < 32.0:
-				return Color(0.35 + v, 0.32 + v, 0.28 + v) # Riverbank dirt
-			return Color(0.22 + v, 0.24 + v, 0.26 + v) # Access road
-
-		BiomeTheme.FOREST:
-			# Forest floor: mossy grass with scattered dirt patches
-			if int(abs(pos_x)) % 22 < 3 or int(abs(pos_z)) % 22 < 3:
-				return Color(0.24 + v, 0.20 + v, 0.14 + v) # Dirt trail
-			return Color(0.14 + v, 0.30 + v, 0.14 + v) # Mossy grass
-
-	return Color(0.5, 0.5, 0.5)
-
 
 
 func _create_escape_zones() -> void:
@@ -338,70 +383,85 @@ func _spawn_desert_outcrop(pos: Vector3, rock_mat: StandardMaterial3D) -> void:
 
 
 func _build_city_highrise_structures() -> void:
-	# Grid of skyscraper building blocks
+	# Grid of skyscraper building blocks, but never the same city twice: a
+	# seeded roll decides which cells actually rise (and how tall), so two
+	# battles in the highrise never look identical.
 	var b_coords = [-70.0, -35.0, 35.0, 70.0]
 	for bx in b_coords:
 		for bz in b_coords:
 			if absf(bx) < 20.0 and absf(bz) < 20.0:
 				continue # Clear spawn area
+			# ~78% fill: some cells stay as empty lots/parks.
+			if randf() < 0.22:
+				continue
 			var b_height = randf_range(25.0, 45.0)
 			var building = StaticBody3D.new()
 			building.collision_layer = 2
 			building.collision_mask = 1
 
+			var footprint = randf_range(15.0, 24.0)
 			var collision = CollisionShape3D.new()
 			var shape = BoxShape3D.new()
-			shape.size = Vector3(20, b_height, 20)
+			shape.size = Vector3(footprint, b_height, footprint)
 			collision.shape = shape
 			collision.position.y = b_height / 2.0
 			building.add_child(collision)
 
 			var mesh = MeshInstance3D.new()
 			var box = BoxMesh.new()
-			box.size = Vector3(20, b_height, 20)
+			box.size = Vector3(footprint, b_height, footprint)
 			mesh.mesh = box
 			var mat = StandardMaterial3D.new()
-			mat.albedo_color = Color(0.15, 0.18, 0.24)
+			mat.albedo_color = Color(randf_range(0.12, 0.18), randf_range(0.15, 0.22), randf_range(0.20, 0.28))
 			mat.metallic = 0.3
 			mat.roughness = 0.5
 			mesh.material_override = mat
 			building.add_child(mesh)
 
-			building.position = Vector3(bx, 0, bz)
+			# Slight random offset so blocks don't sit in a rigid grid.
+			building.position = Vector3(bx + randf_range(-4, 4), 0, bz + randf_range(-4, 4))
+			building.add_to_group("concealment")
 			structures_container.add_child(building)
 
 
 func _build_crossroads_structures() -> void:
-	# 4 Major corner skyscraper blocks surrounding 4-way intersection
+	# 4-way urban intersection with corner building blocks — but never the same
+	# crossroads twice. A random pick decides whether the intersection is framed
+	# by 2, 3, or all 4 corner blocks, and each block varies in size/position.
 	var corners = [
 		Vector3(-55, 0, -55), Vector3(55, 0, -55),
 		Vector3(-55, 0, 55), Vector3(55, 0, 55)
 	]
-	for pos in corners:
-		var b_height = randf_range(30.0, 50.0)
+	corners.shuffle()
+	var block_count := randi_range(2, 4)
+	for i in range(block_count):
+		var pos = corners[i]
+		var b_height = randf_range(28.0, 52.0)
+		var footprint = randf_range(38.0, 54.0)
 		var block = StaticBody3D.new()
 		block.collision_layer = 2
 		block.collision_mask = 1
 
 		var collision = CollisionShape3D.new()
 		var shape = BoxShape3D.new()
-		shape.size = Vector3(50, b_height, 50)
+		shape.size = Vector3(footprint, b_height, footprint)
 		collision.shape = shape
 		collision.position.y = b_height / 2.0
 		block.add_child(collision)
 
 		var mesh = MeshInstance3D.new()
 		var box = BoxMesh.new()
-		box.size = Vector3(50, b_height, 50)
+		box.size = Vector3(footprint, b_height, footprint)
 		mesh.mesh = box
 		var mat = StandardMaterial3D.new()
-		mat.albedo_color = Color(0.12, 0.14, 0.20)
+		mat.albedo_color = Color(randf_range(0.10, 0.15), randf_range(0.12, 0.17), randf_range(0.18, 0.24))
 		mat.metallic = 0.4
 		mat.roughness = 0.4
 		mesh.material_override = mat
 		block.add_child(mesh)
 
-		block.position = pos
+		block.position = pos + Vector3(randf_range(-8, 8), 0, randf_range(-8, 8))
+		block.add_to_group("concealment")
 		structures_container.add_child(block)
 
 
@@ -782,6 +842,7 @@ func _spawn_forest_tree(pos: Vector3) -> void:
 		tree.add_child(layer)
 
 	tree.position = pos
+	tree.add_to_group("concealment")
 	structures_container.add_child(tree)
 
 

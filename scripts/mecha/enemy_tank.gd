@@ -19,6 +19,10 @@ var hull_destroyed: bool = false
 
 var health_system: Node = null
 
+# Concealment state: set by the arena concealment system when this tank stands
+# inside a cover footprint (tree/building) — hides the hull so it can't be seen.
+var concealed: bool = false
+
 # Shared firing core: owns cooldown + projectile spawning with the same rules
 # as every other weapon (fire rate is still paced by attack_timer below).
 var fire_core: WeaponCore = null
@@ -65,6 +69,13 @@ func take_damage_at_point(amount: float, world_pos: Vector3, damage_type: String
 func take_damage(amount: float, damage_type: String = "kinetic") -> void:
 	if health_system and health_system.has_method("take_damage"):
 		health_system.take_damage(amount, damage_type)
+
+
+func set_concealed(on: bool) -> void:
+	if concealed == on:
+		return
+	concealed = on
+	visible = not on
 
 
 func take_damage_to_part(slot_name: String, amount: float, damage_type: String = "kinetic") -> void:

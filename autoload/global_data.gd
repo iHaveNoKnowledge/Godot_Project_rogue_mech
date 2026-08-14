@@ -768,6 +768,9 @@ var part_damage: Dictionary = {}
 var board_grid: Array = []
 var current_tile: Vector2i = Vector2i.ZERO
 var board_seed: int = 0
+# Current combat arena footprint (side length in meters). Set by the arena
+# generator when a battle loads; scales spawn ring / AI search radius / nav.
+var current_arena_size: float = 240.0
 # --- Open-grid board state (see BoardConfig/Terrain in board scripts) ---
 # Each "day" the player gets board_mp_max movement points; cells cost their
 # terrain move_cost. Research / heat / spy / enemy research node / patrol fleets

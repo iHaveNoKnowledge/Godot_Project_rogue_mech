@@ -31,7 +31,8 @@ func _setup_navigation() -> void:
 	# Create a simple floor mesh for navigation
 	var floor_mesh = MeshInstance3D.new()
 	var box = BoxMesh.new()
-	box.size = Vector3(118, 0.1, 118)  # Slightly smaller than arena
+	var arena_size := GlobalData.current_arena_size
+	box.size = Vector3(arena_size * 0.49, 0.1, arena_size * 0.49)  # Slightly smaller than arena
 	floor_mesh.mesh = box
 	floor_mesh.position.y = 0.05
 	floor_mesh.visible = false

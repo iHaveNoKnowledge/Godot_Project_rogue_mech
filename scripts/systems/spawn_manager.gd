@@ -188,8 +188,10 @@ func _ready() -> void:
 
 
 func _generate_spawn_points() -> void:
-	var half = 110.0  # Inside 240m walls
 	var arena_gen = get_node_or_null("../ArenaGenerator")
+	var half: float = 110.0  # Inside 240m walls (scaled up for larger fields)
+	if arena_gen != null and arena_gen.get("arena_size") != null:
+		half = float(arena_gen.arena_size) * 0.46
 	var is_river_bridge: bool = arena_gen != null and arena_gen.current_theme == 3
 	for i in range(12):
 		var angle = (i / 12.0) * TAU

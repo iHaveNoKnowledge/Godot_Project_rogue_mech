@@ -25,6 +25,10 @@ func spawn_covers() -> void:
 func _generate_positions() -> Array:
 	var arena_gen = get_node_or_null("../ArenaGenerator")
 	var theme = arena_gen.current_theme if arena_gen else 0
+	# Follow the generator's field size so cover spreads across the whole arena
+	# (an ace/boss fight on a bigger field shouldn't cluster cover in the center).
+	if arena_gen != null and arena_gen.get("arena_size") != null:
+		arena_size = float(arena_gen.arena_size)
 
 	if seed_system:
 		if seed_system.has_method("set_seed"):
@@ -60,6 +64,11 @@ func _create_cover(def: Dictionary) -> StaticBody3D:
 	cover.position = pos
 	cover.rotation.y = rot
 	cover.add_to_group("cover")
+
+	# Tall covers (tree trunks, fallen logs) double as concealment: an enemy
+	# standing inside their footprint is hidden from the player.
+	if type == 6 or type == 7:
+		cover.add_to_group("concealment")
 
 	var collision = CollisionShape3D.new()
 	var mesh_inst = MeshInstance3D.new()

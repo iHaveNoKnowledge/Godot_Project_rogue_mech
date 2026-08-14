@@ -32,6 +32,7 @@ var _rig: Node = null
 var _shake_delta := 0.0
 var _crosshair: Node = null
 var _flash_after_swing := 0.0
+var _time_scale_after_swing := 1.0
 
 var _knife: WeaponPart = preload("res://resources/mech/stock/weapon_combat_knife.tres")
 var _pile: WeaponPart = preload("res://resources/mech/stock/weapon_pile_bunker.tres")
@@ -84,6 +85,7 @@ func _start_swing(hand: String, weapon) -> void:
 	_wm._try_fire(hand, weapon)
 	_shake_delta = _rig.total_shake - shake_before
 	_flash_after_swing = _crosshair._flash_strength
+	_time_scale_after_swing = Engine.time_scale
 
 
 func _process(_delta: float) -> void:
@@ -108,6 +110,7 @@ func _process(_delta: float) -> void:
 				_check(_shake_delta > 0.09 and _shake_delta < 0.15, "fist impact shakes the camera lightly (%.3f)" % _shake_delta)
 				_check(_flash_after_swing > 0.5, "fist impact flashes the screen edge (%.2f)" % _flash_after_swing)
 				_check(_crosshair._flash_strength < 0.01, "impact flash fades quickly")
+				_check(_time_scale_after_swing == 1.0, "fist impact does NOT trigger hit-stop")
 				_enemy.position = Vector3(0, 1.5, -3.2)
 				_enemy.damage_taken = 0.0
 		3:
@@ -173,6 +176,8 @@ func _process(_delta: float) -> void:
 				_check(absf(_mecha.position.z) < 0.05, "mech returns to origin after the pile recovery")
 				_check(_shake_delta > 0.32 and _shake_delta < 0.38, "pile impact kicks the camera hardest (%.3f)" % _shake_delta)
 				_check(_shake_delta > _rig.total_shake * 0.45, "pile shake outweighs the earlier melee taps")
+				_check(_time_scale_after_swing < 0.1, "pile impact freezes time (hit-stop at %.2f)" % _time_scale_after_swing)
+				_check(Engine.time_scale == 1.0, "hit-stop ends and time resumes")
 				# Auto-aim: off-center enemies. The camera stays looking straight
 				# ahead (-Z) while the enemy sits off the aim line — the swing's
 				# forward box must catch a target whose BODY fills the crosshair

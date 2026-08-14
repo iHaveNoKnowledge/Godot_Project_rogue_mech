@@ -10,6 +10,15 @@ signal heat_changed(hand: String, current: float, max_heat: float, overheated: b
 # for it to flash the screen edge as impact feedback.
 signal melee_hit_landed
 
+# --- Pile bunker hit-stop ---
+# A freeze-frame when the pile bunker connects: the whole game briefly runs at
+# near-zero Engine.time_scale so the impact lands with weight. Restored by a
+# SceneTreeTimer that ignores time_scale (real-time countdown), so the freeze
+# always ends even at scale ~0.
+const PILE_HITSTOP_SCALE: float = 0.05
+const PILE_HITSTOP_DURATION: float = 0.1
+var _hitstop_timer: SceneTreeTimer = null
+
 # --- Slots ---
 var left_hand: WeaponPart = null
 var right_hand: WeaponPart = null
@@ -799,6 +808,19 @@ var _melee_combo: int = 0
 # starts so consecutive swings never animate global_position concurrently).
 var _lunge_tween: Tween = null
 
+func _apply_pile_hitstop() -> void:
+	if _hitstop_timer != null:
+		return  # time is already frozen from an earlier pile connect
+	Engine.time_scale = PILE_HITSTOP_SCALE
+	_hitstop_timer = get_tree().create_timer(PILE_HITSTOP_DURATION, true, false, true)
+	_hitstop_timer.timeout.connect(_end_pile_hitstop)
+
+
+func _end_pile_hitstop() -> void:
+	_hitstop_timer = null
+	Engine.time_scale = 1.0
+
+
 func _spawn_melee_trail(mecha: Node3D, direction: Vector3, weapon: WeaponPart = null) -> void:
 	var is_first_swing = (_melee_combo % 2 == 0)
 	_melee_combo += 1
@@ -874,6 +896,8 @@ func _check_melee_hit(mecha: Node3D, direction: Vector3, damage: float, weapon: 
 		elif enemy.has_method("take_damage"):
 			enemy.take_damage(damage, "melee")
 		melee_hit_landed.emit()
+		if weapon != null and weapon.weapon_name.to_lower().contains("pile"):
+			_apply_pile_hitstop()
 		if weapon != null and weapon.impact > 0.0 and enemy.has_method("apply_impact"):
 			enemy.apply_impact(weapon.impact, direction)
 			EffectManager.spawn_damage_number(enemy.global_position + Vector3(0, 2.5, 0), damage, Color(1, 0.5, 0))

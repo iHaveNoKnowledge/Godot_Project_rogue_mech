@@ -23,6 +23,10 @@ var mech_next_button: Button = null
 # members so callers (and the test suite) can drive the LineEdit + confirm.
 var register_dialog: Control = null
 var register_dialog_edit: LineEdit = null
+# Pilot picker in the REGISTER name dialog. Populated from the same pilot list
+# as the PILOTS page and the roster PILOT picker (GlobalData.get_hangar_pilots),
+# so who registers a frame is always one of the convoy's actual pilots.
+var register_dialog_pilot: OptionButton = null
 # Rename-prompt modal opened from an occupied roster row (same test-drivable
 # pattern as the register prompt).
 var rename_dialog: Control = null
@@ -725,7 +729,7 @@ func build_register_dialog(slot: int) -> void:
 	vbox.add_child(cost_lbl)
 
 	var hint := Label.new()
-	hint.text = "Name the frame you are assembling from the current build. Once\nregistered it becomes your piloted mech — tune it right away."
+	hint.text = "Name the frame and pick who drives it. Choosing YOU makes it your\npiloted mech; a fleet pilot parks the frame as their berth instead."
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.add_theme_color_override("font_color", Color(0.5, 0.7, 0.9))
 	hint.add_theme_font_size_override("font_size", 11)
@@ -738,6 +742,35 @@ func build_register_dialog(slot: int) -> void:
 	edit.select_all()
 	edit.text_submitted.connect(func(_t: String): _confirm_register(slot))
 	vbox.add_child(edit)
+
+	# Pilot picker — every convoy pilot (same source as the PILOTS page and the
+	# roster PILOT ▾), defaulting to the driver so the classic REGISTER behavior
+	# (the frame becomes your piloted mech) is one press away.
+	var pilot_row := HBoxContainer.new()
+	pilot_row.add_theme_constant_override("separation", 8)
+	vbox.add_child(pilot_row)
+
+	var pilot_lbl := Label.new()
+	pilot_lbl.text = "PILOT:"
+	pilot_lbl.custom_minimum_size = Vector2(60, 0)
+	pilot_lbl.add_theme_font_size_override("font_size", 12)
+	pilot_lbl.add_theme_color_override("font_color", Color(0.55, 0.8, 1.0))
+	pilot_row.add_child(pilot_lbl)
+
+	var pilot_opt := OptionButton.new()
+	pilot_opt.custom_minimum_size = Vector2(320, 32)
+	var pilots := GlobalData.get_hangar_pilots()
+	var default_idx := 0
+	for i in range(pilots.size()):
+		var pilot: Dictionary = pilots[i]
+		var pilot_id := str(pilot.get("id", ""))
+		var status := GlobalData.get_hangar_pilot_status(pilot_id)
+		pilot_opt.add_item("%s%s" % [str(pilot.get("name", "?")), status], i)
+		if pilot_id == HangarManager.PLAYER_PILOT_ID:
+			default_idx = i
+	pilot_opt.selected = default_idx
+	pilot_row.add_child(pilot_opt)
+	register_dialog_pilot = pilot_opt
 
 	var btn_row := HBoxContainer.new()
 	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -786,6 +819,14 @@ func _confirm_register(slot: int) -> void:
 	var chosen := ""
 	if register_dialog_edit and is_instance_valid(register_dialog_edit):
 		chosen = register_dialog_edit.text.strip_edges()
+	# Who drives the freshly assembled frame: default (driver) keeps the classic
+	# REGISTER behavior; a chosen fleet pilot parks the frame as their berth.
+	var chosen_pilot := ""
+	if register_dialog_pilot and is_instance_valid(register_dialog_pilot):
+		var pilots := GlobalData.get_hangar_pilots()
+		var idx := register_dialog_pilot.selected
+		if idx >= 0 and idx < pilots.size():
+			chosen_pilot = str(pilots[idx].get("id", ""))
 	close_register_dialog()
 	# The dialog only blocks its own rect, so resources could have changed while
 	# it was open — re-check the price before spending anything.
@@ -802,14 +843,22 @@ func _confirm_register(slot: int) -> void:
 	# Charged here (not in build()) so recovery grants / recruit parking stay free.
 	GlobalData.try_spend_scrap(GlobalData.get_frame_register_scrap_cost())
 	GlobalData.try_spend_credits(GlobalData.get_frame_register_credit_cost())
-	# The freshly assembled frame becomes the player's mech: it takes over as
-	# the active/piloted machine (the previous one parks as a pilotless spare)
-	# so tuning it on the customize page carries straight into the next fight.
+	# The freshly assembled frame takes over as the player's mech when the
+	# driver registers it (the previous one parks as a pilotless spare) so
+	# tuning it on the customize page carries straight into the next fight.
+	# Picking a fleet pilot instead parks the frame under them and leaves the
+	# driver's active mech untouched.
 	var new_id := str(new_mech.get("id", ""))
 	controller.set_editing_mech_id(new_id)
-	if GlobalData.switch_hangar_mech(new_id):
-		controller.selected_chassis_key = GlobalData.chassis_id
-	GlobalData.assign_hangar_pilot(new_id, HangarManager.PLAYER_PILOT_ID)
+	var is_driver_build := chosen_pilot == "" or chosen_pilot == HangarManager.PLAYER_PILOT_ID
+	if is_driver_build:
+		if GlobalData.switch_hangar_mech(new_id):
+			controller.selected_chassis_key = GlobalData.chassis_id
+		GlobalData.assign_hangar_pilot(new_id, HangarManager.PLAYER_PILOT_ID)
+	else:
+		if GlobalData.load_hangar_mech_state(new_id):
+			controller.selected_chassis_key = GlobalData.chassis_id
+		GlobalData.assign_hangar_pilot(new_id, chosen_pilot)
 	# The assembled frames leaked onto the pre-flow berths via equip commits
 	# (commit_and_save) and build()/switch_mech()'s save_active() — the new mech
 	# is the only one that should carry the new build, so restore their loadouts
@@ -825,9 +874,15 @@ func _confirm_register(slot: int) -> void:
 	close_pending_register(false)
 	controller.refresh_panel.after_mech_change(false)
 	controller.nav_panel.select_submenu("customize")
-	_set_status("Registered %s in SLOT %02d (-%d scrap, -%d cr). It is now your piloted mech — tune it here." % [
-		str(new_mech.get("name", "Mech")), slot,
-		GlobalData.get_frame_register_scrap_cost(), GlobalData.get_frame_register_credit_cost()])
+	if is_driver_build:
+		_set_status("Registered %s in SLOT %02d (-%d scrap, -%d cr). It is now your piloted mech — tune it here." % [
+			str(new_mech.get("name", "Mech")), slot,
+			GlobalData.get_frame_register_scrap_cost(), GlobalData.get_frame_register_credit_cost()])
+	else:
+		_set_status("Registered %s in SLOT %02d (-%d scrap, -%d cr) for %s — tune it here." % [
+			str(new_mech.get("name", "Mech")), slot,
+			GlobalData.get_frame_register_scrap_cost(), GlobalData.get_frame_register_credit_cost(),
+			GlobalData.get_hangar_pilot_name(chosen_pilot)])
 
 
 func close_register_dialog() -> void:
@@ -835,6 +890,7 @@ func close_register_dialog() -> void:
 		register_dialog.queue_free()
 	register_dialog = null
 	register_dialog_edit = null
+	register_dialog_pilot = null
 
 
 # RENAME — small modal that renames a parked mech straight from its roster row.

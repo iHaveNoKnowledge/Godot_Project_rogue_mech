@@ -70,6 +70,10 @@ var status_message_label: Label
 # Mech roster page lives in HangarRosterPanel (badge, slot rows, pilot/role
 # pickers). The controller keeps only the shared editing state below.
 var roster_panel_ui: HangarRosterPanel = null
+# Pilot roster page (who rides with the convoy): read-mostly list of every
+# pilot with live status + the mech they drive. Shares the pilot list source
+# with the roster page's pickers and the REGISTER dialog.
+var pilots_panel_ui: HangarPilotsPanel = null
 var catalog_panel: HangarCatalogPanel = null
 var garage_panel: HangarGaragePanel = null
 var craft_panel: HangarCraftPanel = null
@@ -119,6 +123,8 @@ func _get_upgrade_cost() -> int:
 func _build_ui_layout() -> void:
 	roster_panel_ui = HangarRosterPanel.new()
 	roster_panel_ui.controller = self
+	pilots_panel_ui = HangarPilotsPanel.new()
+	pilots_panel_ui.controller = self
 	catalog_panel = HangarCatalogPanel.new()
 	catalog_panel.controller = self
 	craft_panel = HangarCraftPanel.new()
@@ -174,6 +180,8 @@ func _build_ui_layout() -> void:
 	right_panel_ui.build(root)
 	# Persistent wounded-pilot banner drawn above every page.
 	wounded_banner.build(root)
+	# Pilot roster page (who rides with the convoy).
+	pilots_panel_ui.build(root)
 
 
 # --- HANGAR MECH ROSTER (truck-convoy parking page) ---

@@ -37,6 +37,10 @@ var terrain_noise: FastNoiseLite = FastNoiseLite.new()
 var _forest_fields: Array = []
 var _forest_fields_ready: bool = false
 
+# Counter for unique decor-patch names (Godot auto-renames duplicate sibling
+# names, which would hide all but the first flower/leaf patch from lookups).
+var _forest_decor_seq: int = 0
+
 # Walkable surface height of the forest river strip (matches the riverband
 # collision top) so the bank terrain meets the wading band flush instead of
 # leaving a step that could trap mechs against the water.
@@ -936,9 +940,13 @@ func _build_forest_structures() -> void:
 			continue # Keep the river clear
 		var ground_y := _forest_terrain_height(x, z)
 		if _is_open_field(x, z):
-			# Meadows keep sightlines open; only a few tufts of tall grass.
-			if randf() < 0.35:
+			# Meadows keep sightlines open; only a few tufts of tall grass
+			# and the odd flower patch.
+			var field_roll := randf()
+			if field_roll < 0.3:
 				_spawn_grass_patch(Vector3(x, ground_y, z))
+			elif field_roll < 0.42:
+				_spawn_flower_patch(Vector3(x, ground_y, z))
 			continue
 		var roll := randf()
 		if roll < 0.68:
@@ -950,18 +958,25 @@ func _build_forest_structures() -> void:
 		else:
 			_spawn_grass_patch(Vector3(x, ground_y, z))
 
-	# 3. Dot the open fields with meadow grass so they read as clearings
-	#    (golden-green tufts on flat ground) instead of bare dirt.
+	# 3. Dot the open fields with meadow grass, flower patches, and fallen
+	#    leaves so they read as lived-in clearings instead of bare dirt.
 	_ensure_forest_fields()
 	for f in _forest_fields:
 		var center: Vector2 = f["center"]
 		var radius := float(f["radius"])
-		for i in range(10):
+		for i in range(12):
 			var gx := center.x + randf_range(-radius * 0.75, radius * 0.75)
 			var gz := center.y + randf_range(-radius * 0.75, radius * 0.75)
 			if absf(gz) < 26.0:
 				continue
-			_spawn_grass_patch(Vector3(gx, _forest_terrain_height(gx, gz), gz))
+			var ground_pos := Vector3(gx, _forest_terrain_height(gx, gz), gz)
+			var roll := randf()
+			if roll < 0.45:
+				_spawn_grass_patch(ground_pos)
+			elif roll < 0.70:
+				_spawn_flower_patch(ground_pos)
+			else:
+				_spawn_fallen_leaves(ground_pos)
 
 
 func _spawn_forest_river() -> void:
@@ -1213,4 +1228,85 @@ func _spawn_grass_patch(pos: Vector3) -> void:
 	mat.roughness = 1.0
 	patch.material_override = mat
 	patch.position = pos + Vector3(0, r * 0.5, 0)
+	structures_container.add_child(patch)
+
+
+# A small cluster of tall meadow flowers (green stems + pastel heads) for the
+# open fields. Purely decorative — no collision, like the grass patches.
+func _spawn_flower_patch(pos: Vector3) -> void:
+	var patch := Node3D.new()
+	patch.name = "FlowerPatch%d" % _forest_decor_seq
+	_forest_decor_seq += 1
+	var head_colors := [
+		Color(0.95, 0.55, 0.75),  # pink
+		Color(0.95, 0.95, 0.90),  # white
+		Color(0.95, 0.85, 0.30),  # yellow
+		Color(0.70, 0.50, 0.85),  # violet
+		Color(0.85, 0.30, 0.30),  # red
+	]
+	var count := randi_range(4, 7)
+	for i in range(count):
+		var ox := randf_range(-1.4, 1.4)
+		var oz := randf_range(-1.4, 1.4)
+		var stem_h := randf_range(0.7, 1.3)
+
+		var stem := MeshInstance3D.new()
+		var stem_mesh := CylinderMesh.new()
+		stem_mesh.top_radius = 0.05
+		stem_mesh.bottom_radius = 0.06
+		stem_mesh.height = stem_h
+		stem.mesh = stem_mesh
+		var stem_mat := StandardMaterial3D.new()
+		stem_mat.albedo_color = Color(0.22, 0.45, 0.18)
+		stem_mat.roughness = 1.0
+		stem.material_override = stem_mat
+		stem.position = Vector3(ox, stem_h * 0.5, oz)
+		patch.add_child(stem)
+
+		var head := MeshInstance3D.new()
+		var head_mesh := SphereMesh.new()
+		var hr := randf_range(0.16, 0.34)
+		head_mesh.radius = hr
+		head_mesh.height = hr * 1.3
+		head.mesh = head_mesh
+		var head_mat := StandardMaterial3D.new()
+		head_mat.albedo_color = head_colors[randi() % head_colors.size()]
+		head_mat.roughness = 0.9
+		head.material_override = head_mat
+		head.position = Vector3(ox, stem_h + hr * 0.45, oz)
+		patch.add_child(head)
+	patch.position = pos
+	structures_container.add_child(patch)
+
+
+# A scatter of fallen autumn leaves (thin flat discs) for the open fields.
+func _spawn_fallen_leaves(pos: Vector3) -> void:
+	var patch := Node3D.new()
+	patch.name = "FallenLeaves%d" % _forest_decor_seq
+	_forest_decor_seq += 1
+	var leaf_colors := [
+		Color(0.85, 0.45, 0.15),  # orange
+		Color(0.75, 0.25, 0.20),  # red
+		Color(0.80, 0.70, 0.25),  # yellow
+		Color(0.50, 0.35, 0.15),  # brown
+	]
+	var count := randi_range(6, 10)
+	for i in range(count):
+		var leaf := MeshInstance3D.new()
+		var leaf_mesh := CylinderMesh.new()
+		var lr := randf_range(0.14, 0.30)
+		leaf_mesh.top_radius = lr
+		leaf_mesh.bottom_radius = lr
+		leaf_mesh.height = 0.02
+		leaf.mesh = leaf_mesh
+		var leaf_mat := StandardMaterial3D.new()
+		leaf_mat.albedo_color = leaf_colors[randi() % leaf_colors.size()]
+		leaf_mat.roughness = 1.0
+		leaf.material_override = leaf_mat
+		leaf.position = Vector3(randf_range(-1.8, 1.8), 0.01, randf_range(-1.8, 1.8))
+		leaf.rotation.x = deg_to_rad(randf_range(-10.0, 10.0))
+		leaf.rotation.z = deg_to_rad(randf_range(-10.0, 10.0))
+		leaf.rotation.y = randf_range(0, TAU)
+		patch.add_child(leaf)
+	patch.position = pos
 	structures_container.add_child(patch)

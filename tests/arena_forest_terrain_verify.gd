@@ -114,8 +114,27 @@ func _ready() -> void:
 		_check(found_wood, "found a dense-forest pixel to compare against")
 		_check(field_color.g > wood_color.g + 0.05, "open fields tint lighter than the woods (%.2f vs %.2f)" % [field_color.g, wood_color.g])
 
-	# --- 3. Collision: two HeightMapShape3D banks, no flat box ---
+	# --- 3. Field decorations: flowers + fallen leaves dot the meadows ---
 	var structures := arena.get_node_or_null("ThemeStructures")
+	var flower_patches := 0
+	var leaf_patches := 0
+	if structures:
+		for child in structures.get_children():
+			if child.name.begins_with("FlowerPatch"):
+				flower_patches += 1
+			elif child.name.begins_with("FallenLeaves"):
+				leaf_patches += 1
+	_check(flower_patches >= 3, "open fields have scattered flower patches (got %d)" % flower_patches)
+	_check(leaf_patches >= 3, "open fields have fallen-leaf patches (got %d)" % leaf_patches)
+	# Flower patches are decorative (no collision) and sit on the field surface.
+	if structures:
+		for child in structures.get_children():
+			if child.name.begins_with("FlowerPatch"):
+				_check(absf(child.position.y - arena._forest_terrain_height(child.position.x, child.position.z)) < 0.01, "flower patch rests on the field surface")
+				_check(absf(child.position.y) < 0.01, "flower patch sits on flat field ground")
+				break
+
+	# --- 4. Collision: two HeightMapShape3D banks, no flat box ---
 	var heightmap_bodies := 0
 	var flat_box := false
 	if structures:
@@ -129,7 +148,7 @@ func _ready() -> void:
 	_check(heightmap_bodies == 2, "forest terrain collision = 2 heightmap banks (got %d)" % heightmap_bodies)
 	_check(not flat_box, "forest arena has no flat box ground collision")
 
-	# --- 4. River strip still has full-width walkable collision (no gap between
+	# --- 5. River strip still has full-width walkable collision (no gap between
 	# the band and the bank heightmaps at |z| = 24) ---
 	var has_wide_riverband := false
 	if structures:

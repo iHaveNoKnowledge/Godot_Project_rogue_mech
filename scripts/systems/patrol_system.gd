@@ -10,7 +10,8 @@ extends RefCounted
 #
 # State lives in GlobalData.board_patrols (Array of Dictionaries) so it survives
 # scene changes and save/load. Each entry:
-#   {id, pos: Vector2i, home: Vector2i, name, grunts, aces, aggro: bool}
+#   {id, pos: Vector2i, home: Vector2i, name, grunts, aces, aggro: bool,
+#    faction: "hostile" | "unknown", character_id: String}
 # -----------------------------------------------------------------------------
 
 const NAMES := ["Ravens", "Vultures", "Jackals", "Hawks", "Coyotes", "Strykers"]
@@ -81,6 +82,13 @@ static func spawn_patrols() -> void:
 		var home: Vector2i = candidate[i]
 		var grunts := rng.randi_range(GRUNT_MIN, GRUNT_MAX)
 		var aces := 1 if (rng.randf() < 0.30 and GlobalData.current_sector >= 2) else 0
+		# Unknown fleets are mercenary convoys that fly a white arrow on the map.
+		# They only show up once recruitable pilots exist and never carry aces.
+		var faction := "hostile"
+		var character_id := ""
+		if aces == 0 and rng.randf() < 0.25 and _has_recruitable_pilot():
+			faction = "unknown"
+			character_id = _pick_recruitable_pilot()
 		GlobalData.board_patrols.append({
 			"id": id,
 			"pos": home,
@@ -89,8 +97,39 @@ static func spawn_patrols() -> void:
 			"grunts": grunts,
 			"aces": aces,
 			"aggro": false,
+			"faction": faction,
+			"character_id": character_id,
 		})
 		id += 1
+
+
+# True when at least one recruitable pilot can still be met this run (so an
+# unknown fleet's talk encounter has someone worth talking to).
+static func _has_recruitable_pilot() -> bool:
+	for character in RecruitSystem.CHARACTERS:
+		if RecruitSystem.is_character_available(str(character.get("id", ""))):
+			return true
+	return false
+
+
+# Picks a recruitable pilot for an unknown fleet (biased toward the current run
+# theme so the fleet feels like a story beat rather than a random hire).
+static func _pick_recruitable_pilot() -> String:
+	var themed: Array = []
+	var others: Array = []
+	for character in RecruitSystem.CHARACTERS:
+		var cid := str(character.get("id", ""))
+		if not RecruitSystem.is_character_available(cid):
+			continue
+		if str(character.get("theme", "")) == GlobalData.theme_id:
+			themed.append(cid)
+		else:
+			others.append(cid)
+	if not themed.is_empty():
+		return themed[randi() % themed.size()]
+	if not others.is_empty():
+		return others[randi() % others.size()]
+	return ""
 
 
 # Advances every fleet one cell at the end of a day. Returns the position of a
@@ -112,8 +151,11 @@ static func advance_day(player_pos: Vector2i) -> Vector2i:
 		var cur: Vector2i = p.get("pos")
 		var home: Vector2i = p.get("home")
 		var dist := _manhattan(cur, player_pos)
+		# Unknown fleets never chase the player; they wander and can only be
+		# encountered when the player steps onto them.
+		var is_unknown := str(p.get("faction", "hostile")) == "unknown"
 
-		if dist <= 4:
+		if not is_unknown and dist <= 4:
 			p["aggro"] = true
 		elif p.get("aggro", false) and dist > 7:
 			p["aggro"] = false

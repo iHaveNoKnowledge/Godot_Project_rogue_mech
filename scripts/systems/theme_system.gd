@@ -163,6 +163,14 @@ static func apply_event_effect(event: Dictionary) -> bool:
 		"recruit_ally":
 			# A named pilot joins the convoy (no combat). Resolved by RecruitSystem.
 			RecruitSystem.recruit(str(params.get("character_id", "")))
+		"patrol_recruit":
+			# An unknown fleet's pilot joins the convoy AND the fleet itself stands
+			# down, so its arrow marker is removed from the board.
+			var cid := str(params.get("character_id", ""))
+			if RecruitSystem.is_character_available(cid):
+				RecruitSystem.recruit(cid)
+				PatrolSystem.remove_patrol(GlobalData.board_patrol_engagement)
+			GlobalData.board_patrol_engagement = -1
 		"duel":
 			# The player challenged a pilot: record the 1v1 duel and force the
 			# scene transition into the "duel" combat node.

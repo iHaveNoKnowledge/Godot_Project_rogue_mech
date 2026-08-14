@@ -22,6 +22,7 @@ var current_pos: Vector2i = Vector2i.ZERO
 var nodes_dict: Dictionary = {}
 var _tooltip: Node
 var _reveal_log: Dictionary = {}
+var _patrol_marker_container: Node3D = null
 
 
 func _ready() -> void:
@@ -49,6 +50,7 @@ func _ready() -> void:
 	PatrolSystem.spawn_patrols()
 
 	_reveal_around(current_pos)
+	_refresh_patrol_markers()
 	_update_token_position()
 	_highlight_adjacent()
 
@@ -152,6 +154,8 @@ func _try_step(target: Vector2i) -> bool:
 	_clear_highlights()
 	_highlight_adjacent()
 	var revealed := _reveal_around(target)
+	if revealed > 0:
+		_refresh_patrol_markers()
 
 	GlobalData.blocked_intermission = false
 
@@ -162,7 +166,8 @@ func _try_step(target: Vector2i) -> bool:
 		_announce_objective_done()
 
 	# Stepping onto a patrol fleet forces a fight (checked before the tile's own
-	# effect so a patrol on a combat tile doesn't double-trigger).
+	# effect so a patrol on a combat tile doesn't double-trigger). Unknown fleets
+	# (white arrows) are mercenary convoys: they offer a talk encounter instead.
 	var patrol := PatrolSystem.get_patrol_at(target)
 	var engaged_patrol := false
 	if not patrol.is_empty() and GameManager.current_state == GameManager.State.BOARD:
@@ -173,6 +178,9 @@ func _try_step(target: Vector2i) -> bool:
 	if not engaged_patrol:
 		_process_tile_effect(str(tile.get_meta("tile_type", "empty")))
 	elif GameManager.current_state == GameManager.State.BOARD:
+		if str(patrol.get("faction", "hostile")) == "unknown" and _has_available_recruit(str(patrol.get("character_id", ""))):
+			_trigger_patrol_talk_event(patrol)
+			return true
 		GameManager.enter_combat("grunt" if int(patrol.get("aces", 0)) == 0 else "ace")
 		return true
 
@@ -220,10 +228,14 @@ func _end_day() -> void:
 		var patrol := PatrolSystem.get_patrol_at(ambush)
 		if not patrol.is_empty():
 			GlobalData.board_patrol_engagement = int(patrol.get("id", -1))
+			if str(patrol.get("faction", "hostile")) == "unknown" and _has_available_recruit(str(patrol.get("character_id", ""))):
+				_trigger_patrol_talk_event(patrol)
+				return
 			GameManager.enter_combat("grunt" if int(patrol.get("aces", 0)) == 0 else "ace")
 			return
 
 	_update_token_position()
+	_refresh_patrol_markers()
 	_highlight_adjacent()
 	EventBus.event_triggered.emit({
 		"name": "DAY %d" % GlobalData.board_day,
@@ -316,6 +328,73 @@ func _update_token_position() -> void:
 
 
 # ---------------------------------------------------------------------------
+# PATROL FLEET MARKERS (arrow models on the board, one per fleet)
+# ---------------------------------------------------------------------------
+
+# Spawns one 3D arrow marker on every patrol fleet's tile so fleets read as
+# real units on the map (red = grunts, double red = aces, white = unknown).
+func _refresh_patrol_markers() -> void:
+	if _patrol_marker_container == null:
+		_patrol_marker_container = Node3D.new()
+		_patrol_marker_container.name = "PatrolMarkers"
+		add_child(_patrol_marker_container)
+	for child in _patrol_marker_container.get_children():
+		child.queue_free()
+	for p in GlobalData.board_patrols:
+		var pos: Vector2i = p.get("pos")
+		if not nodes_dict.has(pos):
+			continue
+		# Fleets only show once their tile is revealed (fog of war).
+		if not _reveal_log.has(pos):
+			continue
+		var marker := Node3D.new()
+		marker.set_script(preload("res://scripts/board/patrol_marker.gd"))
+		_patrol_marker_container.add_child(marker)
+		marker.global_position = nodes_dict[pos].global_position + Vector3(0, 1.0, 0)
+		marker.setup(p)
+
+
+# True when `character_id` is a recruitable pilot who hasn't been met yet.
+func _has_available_recruit(character_id: String) -> bool:
+	if character_id == "":
+		return false
+	return RecruitSystem.is_character_available(character_id)
+
+
+# Unknown fleets (white arrows) offer a choice: talk the pilot into joining the
+# convoy, or open fire and take the fleet down.
+func _trigger_patrol_talk_event(patrol: Dictionary) -> void:
+	var character_id := str(patrol.get("character_id", ""))
+	var character := RecruitSystem.get_character(character_id)
+	var name := str(patrol.get("name", "Unknown Fleet"))
+	var greeting := str(character.get("desc", "State your business."))
+	var desc := "An unidentified fleet hails you on open comms. \"%s\" They keep their weapons trained but hold their fire." % greeting
+	var choices: Array = []
+	if not character.is_empty():
+		choices.append({
+			"label": str(character.get("friendly_label", "Recruit")),
+			"desc": str(character.get("friendly_desc", "Talk them into joining the convoy.")),
+			"effect": "patrol_recruit",
+			"amount": 0,
+			"params": {"character_id": character_id},
+		})
+	choices.append({
+		"label": "Fight",
+		"desc": "Open fire and take the fleet down by force.",
+		"effect": "force_combat",
+		"amount": 0,
+		"params": {"combat_type": "grunt"},
+	})
+	EventBus.event_triggered.emit({
+		"name": "UNKNOWN FLEET — %s" % name.to_upper(),
+		"effect": "choice",
+		"amount": 0,
+		"desc": desc,
+		"params": {"choices": choices},
+	})
+
+
+# ---------------------------------------------------------------------------
 # HOVER TOOLTIP (patrol fleet reconnaissance on hover)
 # ---------------------------------------------------------------------------
 
@@ -340,9 +419,12 @@ func _process(_delta: float) -> void:
 	if not BoardConfig.is_passable(terrain):
 		text += "\nIMPassable!"
 	if not patrol.is_empty():
+		var is_unknown := str(patrol.get("faction", "hostile")) == "unknown"
 		text += "\nPATROL: %s — %d grunt(s)" % [patrol.get("name", "fleet"), int(patrol.get("grunts", 1))]
 		if int(patrol.get("aces", 0)) > 0:
 			text += " + %d ACE" % int(patrol.get("aces", 0))
+		if is_unknown:
+			text += "\nUNKNOWN — unaligned fleet (white arrow)."
 		text += "\n[hover reach = contact]"
 	if _tooltip.has_method("show_tile"):
 		_tooltip.show_tile(text, _mouse_screen_pos(), {})

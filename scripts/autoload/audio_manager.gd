@@ -612,7 +612,10 @@ func _pick_stream(sound_name: String) -> AudioStream:
 	return entry
 
 
-func play_sfx(sound_name: String, pos: Vector3 = Vector3.ZERO, volume_db: float = 0.0, bus: String = "SFX") -> void:
+## Plays a cached sound. `pitch_jitter` randomizes the pitch in a small band
+## (e.g. 0.06 = 94%-106%) so repeated hits don't sound identical; players are
+## pooled and reused, so every play resets pitch_scale to 1.0 when not jittering.
+func play_sfx(sound_name: String, pos: Vector3 = Vector3.ZERO, volume_db: float = 0.0, bus: String = "SFX", pitch_jitter: float = 0.0) -> void:
 	if combat_muted:
 		return
 	var stream = _pick_stream(sound_name)
@@ -627,6 +630,10 @@ func play_sfx(sound_name: String, pos: Vector3 = Vector3.ZERO, volume_db: float 
 	player.global_position = pos
 	player.volume_db = volume_db
 	player.bus = bus
+	if pitch_jitter > 0.0:
+		player.pitch_scale = randf_range(maxf(1.0 - pitch_jitter, 0.5), 1.0 + pitch_jitter)
+	else:
+		player.pitch_scale = 1.0
 	player.play()
 
 
@@ -688,6 +695,12 @@ func play_pile_bunker_hit(pos: Vector3) -> void:
 
 # Per-weapon melee swing voice: fist whoosh / knife slash / blade whoosh+ring.
 # Honors a custom fire_sfx override first (same as play_weapon_sfx_with_override).
+# Swing pitch jitters a little more than the hit (rapid knife repeats benefit
+# most), so repeated swings don't sound identical.
+const MELEE_SWING_PITCH_JITTER: float = 0.06
+const MELEE_HIT_PITCH_JITTER: float = 0.05
+
+
 func play_melee_swing(weapon: WeaponPart, pos: Vector3) -> void:
 	if combat_muted:
 		return
@@ -699,16 +712,17 @@ func play_melee_swing(weapon: WeaponPart, pos: Vector3) -> void:
 		player.global_position = pos
 		player.volume_db = 0.0
 		player.bus = "SFX"
+		player.pitch_scale = randf_range(maxf(1.0 - MELEE_SWING_PITCH_JITTER, 0.5), 1.0 + MELEE_SWING_PITCH_JITTER)
 		player.play()
 		return
-	play_sfx(_melee_sfx_name(weapon, false), pos)
+	play_sfx(_melee_sfx_name(weapon, false), pos, 0.0, "SFX", MELEE_SWING_PITCH_JITTER)
 
 
 # Per-weapon melee hit voice: fist thud / knife crack / blade ring.
 func play_melee_hit(weapon: WeaponPart, pos: Vector3) -> void:
 	if combat_muted:
 		return
-	play_sfx(_melee_sfx_name(weapon, true), pos, -1.0)
+	play_sfx(_melee_sfx_name(weapon, true), pos, -1.0, "SFX", MELEE_HIT_PITCH_JITTER)
 
 
 # Maps a melee weapon to its SFX cache key. Exposed for headless tests.

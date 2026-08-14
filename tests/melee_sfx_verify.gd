@@ -91,6 +91,17 @@ func _ready() -> void:
 	var blade_tail := _zero_crossings(am._sound_cache["blade_ring"], 0.7, 1.0)
 	_check(pile_tail < blade_tail * 0.6, "pile hit rings deeper than the blade ring (%d vs %d crossings)" % [pile_tail, blade_tail])
 
+	# 7. Pitch jitter: melee plays randomize the pitch in a small band so
+	#    repeated swings don't sound identical, and a plain play_sfx call
+	#    resets the pooled player back to 1.0 (the pool is shared/reused).
+	am.play_melee_swing(fist, Vector3.ZERO)
+	var swing_pitch: float = am.sfx_pool[0].pitch_scale
+	_check(swing_pitch >= 0.94 and swing_pitch <= 1.06 and not is_equal_approx(swing_pitch, 1.0),
+		"melee swing plays with slight pitch jitter (%.3f)" % swing_pitch)
+	am.sfx_pool[0].stop()
+	am.play_sfx("beam_rifle", Vector3.ZERO)
+	_check(am.sfx_pool[0].pitch_scale == 1.0, "non-jittered sfx resets the pooled player pitch to 1.0")
+
 	print("SFX_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	await get_tree().process_frame
 	get_tree().quit(1 if _fails > 0 else 0)

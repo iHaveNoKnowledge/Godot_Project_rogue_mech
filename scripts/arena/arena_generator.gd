@@ -939,7 +939,10 @@ func _build_forest_structures() -> void:
 		if absf(z) < 24.0:
 			continue # Keep the river clear
 		var ground_y := _forest_terrain_height(x, z)
-		if _is_open_field(x, z):
+		# Only a truly flat meadow (field interior) counts as an open field — the
+		# 8m fade ramp around each field still rolls, so a flower/grass tuft there
+		# would sit on a slope instead of the flat clearing.
+		if _is_open_field(x, z) and absf(ground_y) < 0.05:
 			# Meadows keep sightlines open; only a few tufts of tall grass
 			# and the odd flower patch.
 			var field_roll := randf()

@@ -4,8 +4,8 @@
 [ext_resource type="Script" path="res://scripts/ui/hp_part_bar.gd" id="2"]
 
 [sub_resource type="Gradient" id="Gradient_hp"]
-offsets = PackedFloat32Array(0, 0.45, 1)
-colors = PackedColorArray(0.05, 0.08, 0.14, 0.55, 0.05, 0.08, 0.14, 0.55, 0.05, 0.08, 0.14, 0)
+offsets = PackedFloat32Array(0, 0.7, 1)
+colors = PackedColorArray(0.05, 0.08, 0.14, 0.9, 0.05, 0.08, 0.14, 0.9, 0.05, 0.08, 0.14, 0)
 
 [sub_resource type="GradientTexture2D" id="GradientTexture2D_hp"]
 gradient = SubResource("Gradient_hp")
@@ -31,9 +31,9 @@ anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -152.0
+offset_left = -183.0
 offset_top = -176.0
-offset_right = 152.0
+offset_right = 183.0
 offset_bottom = -20.0
 grow_horizontal = 2
 grow_vertical = 0
@@ -57,7 +57,7 @@ theme_override_font_sizes/font_size = 9
 [node name="HeadArmorBar" type="Control" parent="Panel/Grid/HeadCell"]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 2
+size_flags_horizontal = 1
 custom_minimum_size = Vector2(120, 10)
 script = ExtResource("2")
 fill_color_a = Color(0.77, 0.76, 0.75, 1)
@@ -85,7 +85,7 @@ theme_override_font_sizes/font_size = 7
 [node name="HeadFrameBar" type="Control" parent="Panel/Grid/HeadCell"]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 2
+size_flags_horizontal = 1
 custom_minimum_size = Vector2(120, 6)
 script = ExtResource("2")
 fill_color_a = Color(0.376, 0.82, 0.43, 1)
@@ -124,7 +124,7 @@ theme_override_font_sizes/font_size = 9
 [node name="BodyArmorBar" type="Control" parent="Panel/Grid/BodyCell"]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 2
+size_flags_horizontal = 1
 custom_minimum_size = Vector2(120, 10)
 script = ExtResource("2")
 fill_color_a = Color(0.77, 0.76, 0.75, 1)
@@ -152,7 +152,7 @@ theme_override_font_sizes/font_size = 7
 [node name="BodyFrameBar" type="Control" parent="Panel/Grid/BodyCell"]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 2
+size_flags_horizontal = 1
 custom_minimum_size = Vector2(120, 6)
 script = ExtResource("2")
 fill_color_a = Color(0.376, 0.82, 0.43, 1)
@@ -186,6 +186,7 @@ theme_override_constants/v_separation = 6
 [node name="LeftCell" type="VBoxContainer" parent="Panel/Grid/PartsGrid"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 2
 
 [node name="ArmLLabel" type="Label" parent="Panel/Grid/PartsGrid/LeftCell"]
@@ -197,7 +198,7 @@ theme_override_font_sizes/font_size = 9
 [node name="ArmLArmorBar" type="Control" parent="Panel/Grid/PartsGrid/LeftCell"]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 2
+size_flags_horizontal = 1
 custom_minimum_size = Vector2(120, 10)
 script = ExtResource("2")
 fill_color_a = Color(0.77, 0.76, 0.75, 1)
@@ -225,7 +226,7 @@ theme_override_font_sizes/font_size = 7
 [node name="ArmLFrameBar" type="Control" parent="Panel/Grid/PartsGrid/LeftCell"]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 2
+size_flags_horizontal = 1
 custom_minimum_size = Vector2(120, 6)
 script = ExtResource("2")
 fill_color_a = Color(0.376, 0.82, 0.43, 1)
@@ -259,7 +260,7 @@ theme_override_font_sizes/font_size = 9
 [node name="LegLArmorBar" type="Control" parent="Panel/Grid/PartsGrid/LeftCell"]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 2
+size_flags_horizontal = 1
 custom_minimum_size = Vector2(120, 10)
 script = ExtResource("2")
 fill_color_a = Color(0.77, 0.76, 0.75, 1)
@@ -287,7 +288,7 @@ theme_override_font_sizes/font_size = 7
 [node name="LegLFrameBar" type="Control" parent="Panel/Grid/PartsGrid/LeftCell"]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 2
+size_flags_horizontal = 1
 custom_minimum_size = Vector2(120, 6)
 script = ExtResource("2")
 fill_color_a = Color(0.376, 0.82, 0.43, 1)
@@ -315,6 +316,7 @@ theme_override_font_sizes/font_size = 6
 [node name="RightCell" type="VBoxContainer" parent="Panel/Grid/PartsGrid"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 2
 
 [node name="ArmRLabel" type="Label" parent="Panel/Grid/PartsGrid/RightCell"]
@@ -326,7 +328,7 @@ theme_override_font_sizes/font_size = 9
 [node name="ArmRArmorBar" type="Control" parent="Panel/Grid/PartsGrid/RightCell"]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 2
+size_flags_horizontal = 1
 custom_minimum_size = Vector2(120, 10)
 script = ExtResource("2")
 fill_color_a = Color(0.77, 0.76, 0.75, 1)
@@ -354,7 +356,7 @@ theme_override_font_sizes/font_size = 7
 [node name="ArmRFrameBar" type="Control" parent="Panel/Grid/PartsGrid/RightCell"]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 2
+size_flags_horizontal = 1
 custom_minimum_size = Vector2(120, 6)
 script = ExtResource("2")
 fill_color_a = Color(0.376, 0.82, 0.43, 1)
@@ -388,7 +390,7 @@ theme_override_font_sizes/font_size = 9
 [node name="LegRArmorBar" type="Control" parent="Panel/Grid/PartsGrid/RightCell"]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 2
+size_flags_horizontal = 1
 custom_minimum_size = Vector2(120, 10)
 script = ExtResource("2")
 fill_color_a = Color(0.77, 0.76, 0.75, 1)
@@ -416,7 +418,7 @@ theme_override_font_sizes/font_size = 7
 [node name="LegRFrameBar" type="Control" parent="Panel/Grid/PartsGrid/RightCell"]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 2
+size_flags_horizontal = 1
 custom_minimum_size = Vector2(120, 6)
 script = ExtResource("2")
 fill_color_a = Color(0.376, 0.82, 0.43, 1)

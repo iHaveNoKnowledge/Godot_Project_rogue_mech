@@ -828,6 +828,19 @@ func _verify_intermission_fleet() -> void:
 		{"template_id": "t_fit", "name": "Fit Unit", "hp": 50.0, "max_hp": 50.0, "destroyed": false, "fielded": true},
 		{"template_id": "t_wound", "name": "Wounded Unit", "hp": 10.0, "max_hp": 50.0, "destroyed": false, "fielded": false, "wounded": true, "wound_turns": 3},
 	]
+	# Feature 7: only pilots seated in a hangar mech can field — the intermission
+	# fleet panel drops unseated units, so seat both units before checking.
+	var berths: Array[String] = []
+	for m in GlobalData.get_hangar_mechs():
+		berths.append(str(m.get("id", "")))
+	while berths.size() < 2:
+		var spare := GlobalData.build_hangar_mech("Spare", 0)
+		if spare.is_empty():
+			break
+		berths.append(str(spare.get("id", "")))
+	if berths.size() >= 2:
+		GlobalData.assign_hangar_pilot(berths[0], "fleet_t_fit")
+		GlobalData.assign_hangar_pilot(berths[1], "fleet_t_wound")
 	var ui: CanvasLayer = load("res://scenes/ui/intermission_ui.tscn").instantiate()
 	add_child(ui)
 	await get_tree().process_frame

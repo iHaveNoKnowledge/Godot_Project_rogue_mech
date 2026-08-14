@@ -329,7 +329,7 @@ func _process(_delta: float) -> void:
 		return
 	var pos := tile.get_meta("grid_pos", Vector2i(-1, -1)) as Vector2i
 	var terrain := str(tile.get_meta("terrain", "plain"))
-	var tt := tile.get_meta("tile_type", "empty")
+	var tt: String = tile.get_meta("tile_type", "empty")
 	var patrol := PatrolSystem.get_patrol_at(pos)
 	var text := "%s (%d, %d)\nTerrain: %s — cost %d MP" % [
 		str(tt.to_upper()), pos.x, pos.y, terrain.capitalize(),

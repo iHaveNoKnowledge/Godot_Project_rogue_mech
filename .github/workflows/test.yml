@@ -1,0 +1,43 @@
+name: Godot Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Godot 4.6.2 binary
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: /tmp/godot
+          key: godot-4.6.2-stable
+
+      - name: Download Godot 4.6.2 stable
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p /tmp/godot
+          cd /tmp/godot
+          curl -L -o godot.zip https://github.com/godotengine/godot-builds/releases/download/4.6.2-stable/Godot_v4.6.2-stable_linux.x86_64.zip
+          unzip -o godot.zip
+          chmod +x Godot_v4.6.2-stable_linux.x86_64
+          ./Godot_v4.6.2-stable_linux.x86_64 --version
+
+      - name: Run headless test suite
+        run: |
+          chmod +x scripts/ci/run_test_suite.sh
+          GODOT=/tmp/godot/Godot_v4.6.2-stable_linux.x86_64 ./scripts/ci/run_test_suite.sh
+
+      - name: Upload failing test logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: godot-test-logs
+          path: /tmp/godot_test_logs/
+          if-no-files-found: ignore

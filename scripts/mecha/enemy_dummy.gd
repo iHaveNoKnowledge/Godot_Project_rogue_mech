@@ -59,6 +59,7 @@ func _ready() -> void:
 	_scale_by_wanted_level()
 	_apply_archetype_stats()
 	_build_catalog_body()
+	_setup_leg_animation()
 	_setup_state_machine()
 
 
@@ -267,6 +268,18 @@ func _archetype_palette() -> Dictionary:
 			return {"default": Color(0.75, 0.65, 0.2), "head": Color(0.8, 0.7, 0.25)}
 		_:
 			return {"default": Color(0.75, 0.2, 0.2), "head": Color(0.85, 0.25, 0.25)}
+
+
+# Attaches the walk/run leg animation (same sprint-stride math as the player's
+# mecha). Runs after _build_catalog_body so the LegLeft/LegRight/Shin* slot
+# nodes exist to swing.
+func _setup_leg_animation() -> void:
+	if get_node_or_null("EnemyAnimation") != null:
+		return
+	var anim := Node.new()
+	anim.name = "EnemyAnimation"
+	anim.set_script(preload("res://scripts/mecha/enemy_animation.gd"))
+	add_child(anim)
 
 
 func _setup_state_machine() -> void:

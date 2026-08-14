@@ -26,6 +26,22 @@ var structures_container: Node3D
 # reads organic instead of a flat plastic slab.
 var ground_noise: FastNoiseLite = FastNoiseLite.new()
 
+# Low-frequency noise that rolls the FOREST banks into gentle hills. Seeded
+# from the board seed so the same map always fights on the same terrain while
+# different boards get different contours.
+var terrain_noise: FastNoiseLite = FastNoiseLite.new()
+
+# Open-field blobs (meadow clearings) for the FOREST biome, computed once per
+# arena so the heightmap, floor texture, and prop scatter all agree on where
+# the clearings are.
+var _forest_fields: Array = []
+var _forest_fields_ready: bool = false
+
+# Walkable surface height of the forest river strip (matches the riverband
+# collision top) so the bank terrain meets the wading band flush instead of
+# leaving a step that could trap mechs against the water.
+const FOREST_RIVER_STRIP_Y := -0.35
+
 
 func _ready() -> void:
 	current_theme = _theme_from_board()
@@ -103,9 +119,11 @@ func _add_ground_tiles() -> void:
 			_add_ground_plane(texture, 0.45, -22.0, arena_size / 2.0)
 			_add_ground_plane(texture, 0.45, 22.0, arena_size / 2.0)
 		BiomeTheme.FOREST:
-			# The forest river is a water sheet laid over the ground; keep a
-			# single full plane so the wading band reads continuous.
-			_add_ground_plane(texture, -0.39, -arena_size / 2.0, arena_size / 2.0)
+			# Rolling banks + a flat wading band: the river strip stays a plain
+			# quad (the water sheet sits under it) while the banks are displaced
+			# into gentle hills and open meadow clearings.
+			_add_forest_terrain_banks(texture)
+			_add_forest_strip_plane(texture)
 		_:
 			_add_ground_plane(texture, -0.39, -arena_size / 2.0, arena_size / 2.0)
 
@@ -128,6 +146,124 @@ func _add_ground_plane(texture: Texture2D, y: float, z0: float, z1: float) -> vo
 
 	plane.position = Vector3(0, y, center_z)
 	tile_container.add_child(plane)
+
+
+# The flat river band (|z| < 24) between the two banks. Built as an explicit
+# quad with position-mapped UVs so it shows only the texture's middle band
+# (z -24..24 of the full field) and lines up seamlessly with the bank meshes.
+func _add_forest_strip_plane(texture: Texture2D) -> void:
+	var half := arena_size / 2.0
+	var z0 := -24.0
+	var z1 := 24.0
+	# Keep the same height as the old full-field plane (top ~ -0.34) so the
+	# sunken water sheet and the riverbank look are unchanged.
+	var verts := PackedVector3Array([
+		Vector3(-half, -0.39, z0),
+		Vector3(half, -0.39, z0),
+		Vector3(-half, -0.39, z1),
+		Vector3(half, -0.39, z1),
+	])
+	var uvs := PackedVector2Array([
+		Vector2(0.0, (z0 + half) / arena_size),
+		Vector2(1.0, (z0 + half) / arena_size),
+		Vector2(0.0, (z1 + half) / arena_size),
+		Vector2(1.0, (z1 + half) / arena_size),
+	])
+	var normals := PackedVector3Array([Vector3.UP, Vector3.UP, Vector3.UP, Vector3.UP])
+	var indices := PackedInt32Array([0, 1, 2, 2, 1, 3])
+
+	var mesh := ArrayMesh.new()
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_INDEX] = indices
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = texture
+	mat.roughness = 0.85
+	var surface := MeshInstance3D.new()
+	surface.name = "ForestRiverStrip"
+	surface.mesh = mesh
+	surface.material_override = mat
+	tile_container.add_child(surface)
+
+
+# Builds the two forest bank surfaces (north + south of the river strip) as a
+# displaced ArrayMesh so the terrain rolls into gentle hills and flat meadow
+# clearings instead of being a flat slab. The vertex heights come from the same
+# _forest_terrain_height() the collision uses, so what you see is what you walk.
+func _add_forest_terrain_banks(texture: Texture2D) -> void:
+	var half := arena_size / 2.0
+	_add_forest_bank_mesh(texture, 24.0, half)
+	_add_forest_bank_mesh(texture, -half, -24.0)
+
+
+func _add_forest_bank_mesh(texture: Texture2D, z0: float, z1: float) -> void:
+	var half := arena_size / 2.0
+	var step := 4.0
+	var cols := int(ceil(arena_size / step))
+	var rows := int(ceil((z1 - z0) / step))
+
+	var verts := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var normals := PackedVector3Array()
+	for row in range(rows + 1):
+		var wz := z0 + float(row) * (z1 - z0) / float(rows)
+		for col in range(cols + 1):
+			var wx := -half + float(col) * arena_size / float(cols)
+			verts.append(Vector3(wx, _forest_terrain_height(wx, wz), wz))
+			# UVs map back to world coords so the position-based floor texture
+			# (roads/trails/moss) stays continuous across banks and river strip.
+			uvs.append(Vector2((wx + half) / arena_size, (wz + half) / arena_size))
+			normals.append(Vector3.ZERO)
+
+	var indices := PackedInt32Array()
+	for row in range(rows):
+		for col in range(cols):
+			var i00 := row * (cols + 1) + col
+			var i10 := i00 + 1
+			var i01 := i00 + (cols + 1)
+			var i11 := i01 + 1
+			indices.append(i00)
+			indices.append(i01)
+			indices.append(i10)
+			indices.append(i10)
+			indices.append(i01)
+			indices.append(i11)
+
+	# Smooth vertex normals averaged from face normals so the gentle hills
+	# shade soft instead of showing faceted triangles.
+	for i in range(0, indices.size(), 3):
+		var a := verts[indices[i]]
+		var b := verts[indices[i + 1]]
+		var c := verts[indices[i + 2]]
+		var n := (b - a).cross(c - a)
+		normals[indices[i]] = normals[indices[i]] + n
+		normals[indices[i + 1]] = normals[indices[i + 1]] + n
+		normals[indices[i + 2]] = normals[indices[i + 2]] + n
+	for i in range(normals.size()):
+		normals[i] = normals[i].normalized()
+
+	var mesh := ArrayMesh.new()
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_INDEX] = indices
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = texture
+	mat.roughness = 0.85
+	var surface := MeshInstance3D.new()
+	surface.name = "ForestTerrain"
+	surface.mesh = mesh
+	surface.material_override = mat
+	tile_container.add_child(surface)
 
 
 # Generates a seamless 1024px ground texture for the current theme. Each pixel
@@ -169,6 +305,10 @@ func _get_theme_ground_color(pos_x: float, pos_z: float) -> Color:
 			return Color(0.22 + v, 0.24 + v, 0.26 + v)
 
 		BiomeTheme.FOREST:
+			# Open fields read as sunlit meadow clearings (lighter green); the
+			# rest of the forest floor stays dark mossy undergrowth.
+			if _is_open_field(pos_x, pos_z):
+				return Color(0.32 + v, 0.56 + v, 0.24 + v)
 			if int(abs(pos_x)) % 22 < 3 or int(abs(pos_z)) % 22 < 3:
 				return Color(0.24 + v, 0.20 + v, 0.14 + v)
 			return Color(0.14 + v, 0.30 + v, 0.14 + v)
@@ -183,6 +323,9 @@ func _get_theme_ground_color(pos_x: float, pos_z: float) -> Color:
 func _add_ground_collision() -> void:
 	if current_theme == BiomeTheme.RIVER_BRIDGE:
 		_add_riverbank_collision()
+		return
+	if current_theme == BiomeTheme.FOREST:
+		_add_forest_terrain_collision()
 		return
 
 	var ground = StaticBody3D.new()
@@ -220,6 +363,48 @@ func _add_riverbank_collision() -> void:
 		var z_center = sign_z * (trench_half + bank_depth * 0.5)
 		bank.position = Vector3(0, 0.0, z_center)
 		structures_container.add_child(bank)
+
+
+# Walkable collision for the forest banks: one HeightMapShape3D per bank that
+# matches the visual terrain mesh exactly (1m grid, heights in world units).
+# The river strip keeps its own flat collision + riverbed, so the two surfaces
+# meet flush at |z| = 24 (both sit at FOREST_RIVER_STRIP_Y there).
+func _add_forest_terrain_collision() -> void:
+	var half := arena_size / 2.0
+	_add_forest_bank_collision(24.0, half)
+	_add_forest_bank_collision(-half, -24.0)
+
+
+func _add_forest_bank_collision(z0: float, z1: float) -> void:
+	var half := arena_size / 2.0
+	# HeightMapShape3D grid points sit 1 unit apart, so arena_size samples span
+	# exactly the field width (and (z1 - z0) samples the bank depth).
+	var x_samples := int(round(arena_size)) + 1
+	var z_samples := int(round(z1 - z0)) + 1
+	var data := PackedFloat32Array()
+	data.resize(x_samples * z_samples)
+	for row in range(z_samples):
+		var wz := z0 + float(row) * (z1 - z0) / float(z_samples - 1)
+		for col in range(x_samples):
+			var wx := -half + float(col) * arena_size / float(x_samples - 1)
+			data[row * x_samples + col] = _forest_terrain_height(wx, wz)
+
+	var shape := HeightMapShape3D.new()
+	shape.map_width = x_samples
+	shape.map_depth = z_samples
+	shape.map_data = data
+
+	var body := StaticBody3D.new()
+	body.name = "ForestTerrainCollision"
+	body.collision_layer = 2
+	body.collision_mask = 1
+	var collision := CollisionShape3D.new()
+	collision.shape = shape
+	body.add_child(collision)
+	# The heightmap grid is centered on the node origin; shift it to the bank's
+	# z-center so the grid covers exactly [z0, z1] with heights in world units.
+	body.position = Vector3(0, 0, (z0 + z1) * 0.5)
+	structures_container.add_child(body)
 
 
 func _create_escape_zones() -> void:
@@ -652,11 +837,91 @@ func _spawn_water_volume(center_x: float, width: float, mat: Material) -> void:
 # FOREST BIOME (ป่า: trees, streams, waterfall, rocks, grassland)
 # ====================================================================
 
+# Height of the forest terrain at a world position. Returns
+# FOREST_RIVER_STRIP_Y on the river strip (which includes the center spawn
+# pocket — the shallow stream runs straight through the map), 0 inside open
+# fields, and gentle noise-driven hills (max ~3m) on the banks. Hills ramp in
+# smoothly off the flat pockets and flatten back down near the arena walls so
+# the spawn ring and the escape frame both sit on level ground.
+func _forest_terrain_height(wx: float, wz: float) -> float:
+	_ensure_forest_fields()
+	var nx := absf(wx)
+	var nz := absf(wz)
+	var half := arena_size / 2.0
+	# River strip (|z| < 24) is the flat wading surface — the player and the
+	# spawn ring start on it, so it never rolls.
+	if nz <= 24.0:
+		return FOREST_RIVER_STRIP_Y
+	# Smoothly lift off the river bank and out of the spawn pocket...
+	var river_ramp := clampf((nz - 24.0) / 10.0, 0.0, 1.0)
+	var pocket_ramp := clampf((maxf(nx, nz) - 18.0) / 22.0, 0.0, 1.0)
+	var rise := minf(river_ramp, pocket_ramp)
+	var base := lerpf(FOREST_RIVER_STRIP_Y, 0.0, river_ramp)
+	# ...and flatten back down near the arena walls (escape frame sits flush).
+	var rim := clampf((half - maxf(nx, nz)) / 26.0, 0.0, 1.0)
+	if rise <= 0.0 or rim <= 0.0:
+		return base
+	# Open fields are flat meadows: blend the base up to 0 and fade the hills
+	# out across the field edge so clearings never end in a cliff.
+	var field_mask := _forest_field_mask(wx, wz)
+	var field_flat := 1.0 - field_mask
+	if field_flat >= 1.0:
+		return 0.0
+	var h := terrain_noise.get_noise_2d(wx * 0.016, wz * 0.016) * 0.72
+	h += terrain_noise.get_noise_2d(wx * 0.045 + 31.7, wz * 0.045 - 12.4) * 0.28
+	return lerpf(base, 0.0, field_flat) + h * 3.2 * rise * rim * field_mask
+
+
+# 0 inside an open field, 1 outside. The ring is ramped over 8m so meadow
+# edges blend into the surrounding forest instead of forming a step.
+func _forest_field_mask(wx: float, wz: float) -> float:
+	_ensure_forest_fields()
+	var mask := 1.0
+	for f in _forest_fields:
+		var center: Vector2 = f["center"]
+		var radius := float(f["radius"])
+		var dist := Vector2(wx, wz).distance_to(center)
+		mask = minf(mask, clampf((dist - radius) / 8.0, 0.0, 1.0))
+	return mask
+
+
+func _is_open_field(wx: float, wz: float) -> bool:
+	return _forest_field_mask(wx, wz) < 0.5
+
+
+# Builds the open-field blobs once per arena. Seeded from the board seed so the
+# same map always clears the same meadows, while different boards (and thus
+# different combat encounters) get different field layouts.
+func _ensure_forest_fields() -> void:
+	if _forest_fields_ready:
+		return
+	_forest_fields_ready = true
+	var seed_base := 20260814 + maxi(int(GlobalData.board_seed), 0)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_base
+	terrain_noise.seed = seed_base + 7
+	var half := arena_size / 2.0
+	for i in range(3):
+		var angle := (i / 3.0) * TAU + rng.randf_range(-0.45, 0.45)
+		var radius := rng.randf_range(0.42, 0.72) * half
+		var cx := cos(angle) * radius
+		var cz := sin(angle) * radius
+		# Keep fields on dry land, clear of the river strip and the center pocket.
+		if absf(cz) < 34.0:
+			cz = 34.0 * (1.0 if cz >= 0.0 else -1.0)
+		if absf(cx) < 22.0 and absf(cz) < 22.0:
+			cx = 22.0 * (1.0 if cx >= 0.0 else -1.0)
+		var field_radius := rng.randf_range(0.26, 0.40) * half
+		_forest_fields.append({"center": Vector2(cx, cz), "radius": field_radius})
+
+
 func _build_forest_structures() -> void:
 	# 1. A wide river cut across the map (Z band) with banks of mossy ground.
 	_spawn_forest_river()
 
 	# 2. Scattered trees of varied size (tall/short, thick/thin) + rocks + logs.
+	#    Open fields stay clear of cover so they read as meadows, and every
+	#    prop is planted on the terrain surface so slopes never bury them.
 	var half = arena_size / 2.0 - 15.0
 	var tree_count := randi_range(60, 80)
 	for i in range(tree_count):
@@ -666,15 +931,34 @@ func _build_forest_structures() -> void:
 			continue # Keep spawn area clear
 		if absf(z) < 24.0:
 			continue # Keep the river clear
+		var ground_y := _forest_terrain_height(x, z)
+		if _is_open_field(x, z):
+			# Meadows keep sightlines open; only a few tufts of tall grass.
+			if randf() < 0.35:
+				_spawn_grass_patch(Vector3(x, ground_y, z))
+			continue
 		var roll := randf()
 		if roll < 0.68:
-			_spawn_forest_tree(Vector3(x, 0, z))
+			_spawn_forest_tree(Vector3(x, ground_y, z))
 		elif roll < 0.82:
-			_spawn_fallen_log(Vector3(x, 0, z))
+			_spawn_fallen_log(Vector3(x, ground_y, z))
 		elif roll < 0.94:
-			_spawn_forest_rock(Vector3(x, 0, z))
+			_spawn_forest_rock(Vector3(x, ground_y, z))
 		else:
-			_spawn_grass_patch(Vector3(x, 0, z))
+			_spawn_grass_patch(Vector3(x, ground_y, z))
+
+	# 3. Dot the open fields with meadow grass so they read as clearings
+	#    (golden-green tufts on flat ground) instead of bare dirt.
+	_ensure_forest_fields()
+	for f in _forest_fields:
+		var center: Vector2 = f["center"]
+		var radius := float(f["radius"])
+		for i in range(10):
+			var gx := center.x + randf_range(-radius * 0.75, radius * 0.75)
+			var gz := center.y + randf_range(-radius * 0.75, radius * 0.75)
+			if absf(gz) < 26.0:
+				continue
+			_spawn_grass_patch(Vector3(gx, _forest_terrain_height(gx, gz), gz))
 
 
 func _spawn_forest_river() -> void:
@@ -690,10 +974,12 @@ func _spawn_forest_river() -> void:
 	river_band.collision_layer = 2
 	river_band.collision_mask = 1
 
-	# Shallow water floor (passable) across the whole band.
+	# Shallow water floor (passable) across the whole band. Spans |z| < 24 so it
+	# meets the bank heightmap collision (which starts at |z| = 24) flush — a
+	# narrower band would leave a collision gap mechs fall through at the edge.
 	var col = CollisionShape3D.new()
 	var shape = BoxShape3D.new()
-	shape.size = Vector3(arena_size, 0.5, 44)
+	shape.size = Vector3(arena_size, 0.5, 48)
 	col.shape = shape
 	river_band.add_child(col)
 

@@ -61,7 +61,9 @@ func _create_cover(def: Dictionary) -> StaticBody3D:
 
 	var cover = StaticBody3D.new()
 	cover.set_script(cover_script)
-	cover.position = pos
+	# Drop the cover onto the walkable surface so props sit ON the terrain
+	# (gentle hills, dunes, and riverbanks all rise above the flat floor).
+	cover.position = Vector3(pos.x, _surface_y_at(pos), pos.z)
 	cover.rotation.y = rot
 	cover.add_to_group("cover")
 
@@ -219,3 +221,19 @@ func _create_cover(def: Dictionary) -> StaticBody3D:
 	mesh_inst.material_override = mat
 
 	return cover
+
+
+# Surface height under a spawn position: raycasts down onto the environment
+# collision layer (ground tiles, terrain heightmaps, dunes, riverbanks) so
+# cover never ends up half-buried or floating above the ground.
+func _surface_y_at(pos: Vector3) -> float:
+	var space := get_world_3d().direct_space_state
+	var query := PhysicsRayQueryParameters3D.create(
+		pos + Vector3(0, 80.0, 0),
+		pos + Vector3(0, -80.0, 0),
+		2  # Environment layer: ground, terrain, dunes, banks, bridges.
+	)
+	var hit := space.intersect_ray(query)
+	if hit.is_empty():
+		return pos.y
+	return hit.position.y

@@ -104,28 +104,61 @@ func spawn_scrap_pickup(pos: Vector3, amount: int) -> void:
 	_create_loot_pickup(pos, {"type": "scrap", "amount": maxi(1, amount)})
 
 
-func spawn_enemy_loot(enemy_position: Vector3) -> void:
+# Weapon pools per enemy archetype. Loot drops the SAME kind of weapon the
+# enemy fought with (melee rushers drop blades, ranged drop guns, heavies drop
+# heavy cannons, supports drop support systems), picked occasionally.
+const ARCHETYPE_WEAPON_POOLS: Dictionary = {
+	0: [
+		preload("res://resources/mech/stock/weapon_combat_knife.tres"),
+		preload("res://resources/mech/stock/weapon_mace.tres"),
+		preload("res://resources/mech/stock/weapon_sawed_off.tres"),
+		preload("res://resources/mech/stock/weapon_heat_blade.tres"),
+		preload("res://resources/mech/stock/weapon_pile_bunker.tres"),
+		preload("res://resources/mech/stock/weapon_combat_shotgun.tres"),
+	],
+	1: [
+		preload("res://resources/mech/stock/weapon_beam_carbine.tres"),
+		preload("res://resources/mech/stock/weapon_light_machine_gun.tres"),
+		preload("res://resources/mech/stock/weapon_machine_gun.tres"),
+		preload("res://resources/mech/stock/weapon_beam_rifle.tres"),
+		preload("res://resources/mech/stock/weapon_beam_rifle_mk2.tres"),
+		preload("res://resources/mech/stock/weapon_beam_sniper.tres"),
+		preload("res://resources/mech/stock/weapon_railgun.tres"),
+	],
+	2: [
+		preload("res://resources/mech/stock/weapon_heavy_machine_gun.tres"),
+		preload("res://resources/mech/stock/weapon_assault_cannon.tres"),
+		preload("res://resources/mech/stock/weapon_gatling_gun.tres"),
+		preload("res://resources/mech/stock/weapon_heavy_missile.tres"),
+	],
+	3: [
+		preload("res://resources/mech/stock/weapon_micro_missile.tres"),
+		preload("res://resources/mech/stock/weapon_swarm_missile.tres"),
+		preload("res://resources/mech/stock/weapon_light_buckler.tres"),
+		preload("res://resources/mech/stock/weapon_heavy_shield.tres"),
+	],
+}
+
+# Chance a defeated enemy drops the weapon it actually used (grunts modest,
+# aces/bosses richer). Tuned so loot stays occasional.
+const BASE_WEAPON_DROP_CHANCE: float = 0.12
+
+
+func spawn_enemy_loot(enemy_position: Vector3, archetype: int = -1) -> void:
 	var loot_table = [
 		{"type": "ammo", "amount": 15, "drop_chance": 0.7},
 		{"type": "ammo", "amount": 25, "drop_chance": 0.3},
 		{"type": "scrap", "amount": 3, "drop_chance": 0.35},
 		{"type": "scrap", "amount": 5, "drop_chance": 0.2},
 		{"type": "repair", "slot": "body", "drop_chance": 0.15},
-		{"type": "weapon", "weapon": preload("res://resources/mech/stock/weapon_beam_carbine.tres"), "drop_chance": 0.08},
-		{"type": "weapon", "weapon": preload("res://resources/mech/stock/weapon_light_machine_gun.tres"), "drop_chance": 0.08},
-		{"type": "weapon", "weapon": preload("res://resources/mech/stock/weapon_micro_missile.tres"), "drop_chance": 0.06},
-		{"type": "weapon", "weapon": preload("res://resources/mech/stock/weapon_sawed_off.tres"), "drop_chance": 0.08},
-		{"type": "weapon", "weapon": preload("res://resources/mech/stock/weapon_combat_knife.tres"), "drop_chance": 0.06},
-		{"type": "weapon", "weapon": preload("res://resources/mech/stock/weapon_light_buckler.tres"), "drop_chance": 0.05},
-		{"type": "weapon", "weapon": preload("res://resources/mech/stock/weapon_beam_rifle_mk2.tres"), "drop_chance": 0.04},
-		{"type": "weapon", "weapon": preload("res://resources/mech/stock/weapon_swarm_missile.tres"), "drop_chance": 0.04},
-		{"type": "weapon", "weapon": preload("res://resources/mech/stock/weapon_combat_shotgun.tres"), "drop_chance": 0.04},
-		{"type": "weapon", "weapon": preload("res://resources/mech/stock/weapon_beam_sniper.tres"), "drop_chance": 0.02},
-		{"type": "weapon", "weapon": preload("res://resources/mech/stock/weapon_heavy_machine_gun.tres"), "drop_chance": 0.02},
-		{"type": "weapon", "weapon": preload("res://resources/mech/stock/weapon_heavy_missile.tres"), "drop_chance": 0.02},
-		{"type": "weapon", "weapon": preload("res://resources/mech/stock/weapon_assault_cannon.tres"), "drop_chance": 0.02},
-		{"type": "weapon", "weapon": preload("res://resources/mech/stock/weapon_mace.tres"), "drop_chance": 0.02},
-		{"type": "weapon", "weapon": preload("res://resources/mech/stock/weapon_heavy_shield.tres"), "drop_chance": 0.02},
-		{"type": "weapon", "weapon": preload("res://resources/mech/stock/weapon_gatling_gun.tres"), "drop_chance": 0.01},
 	]
+
+	# Occasionally drop the same kind of weapon the enemy used in combat. A
+	# single archetype-matched pool keeps the drop thematic and readable.
+	if archetype >= 0 and ARCHETYPE_WEAPON_POOLS.has(archetype):
+		var pool: Array = ARCHETYPE_WEAPON_POOLS[archetype]
+		if not pool.is_empty():
+			var weapon: WeaponPart = pool[randi() % pool.size()]
+			loot_table.append({"type": "weapon", "weapon": weapon, "drop_chance": BASE_WEAPON_DROP_CHANCE})
+
 	spawn_loot(enemy_position, loot_table)

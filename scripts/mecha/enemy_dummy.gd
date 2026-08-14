@@ -387,7 +387,7 @@ func _on_destroyed() -> void:
 		loot.set_script(_loot_script)
 		loot.name = "LootSystem"
 		get_tree().current_scene.add_child(loot)
-	loot.spawn_enemy_loot(global_position)
+	loot.spawn_enemy_loot(global_position, archetype)
 
 	var spawn_mgr = get_node_or_null("/root/GameWorld/SpawnManager")
 	if spawn_mgr and spawn_mgr.has_method("notify_enemy_killed"):

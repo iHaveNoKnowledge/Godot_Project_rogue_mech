@@ -185,7 +185,7 @@ func _explode_and_destroy() -> void:
 		loot.set_script(_loot_script)
 		loot.name = "LootSystem"
 		get_tree().current_scene.add_child(loot)
-	loot.spawn_enemy_loot(global_position)
+	loot.spawn_enemy_loot(global_position, archetype)
 
 	set_physics_process(false)
 	visible = false

@@ -117,7 +117,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		for keycode in DIR_KEYS:
-			if event.is_keycode_pressed(keycode):
+			if event.keycode == keycode:
 				var dir: Vector2i = DIR_KEYS[keycode]
 				_try_step(current_pos + dir)
 				return

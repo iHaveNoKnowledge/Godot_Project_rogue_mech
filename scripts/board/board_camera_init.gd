@@ -47,8 +47,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		right = right.normalized()
 		drag_offset -= (right * motion.x + forward * motion.y) * drag_speed
 
-	# Arrow keys to pan camera while on board (WASD is reserved for moving the
-	# player token on the open grid).
+	# Reset camera to follow player with R key
+	if event.is_action_pressed("camera_unlock"):
+		drag_offset = Vector3.ZERO
+
+
+func _process(delta: float) -> void:
+	# Arrow keys pan the camera continuously while on board (WASD is reserved
+	# for moving the player token on the open grid). Moved into _process so
+	# holding a key pans smoothly instead of only on keypress events.
 	if GameManager.current_state == GameManager.State.BOARD:
 		var pan_dir = Vector3.ZERO
 		if Input.is_key_pressed(KEY_DOWN):
@@ -68,14 +75,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			forward = forward.normalized()
 			right.y = 0.0
 			right = right.normalized()
-			drag_offset += (right * pan_dir.x + forward * pan_dir.z) * key_pan_speed * get_process_delta_time()
+			drag_offset += (right * pan_dir.x + forward * pan_dir.z) * key_pan_speed * delta
 
-	# Reset camera to follow player with R key
-	if event.is_action_pressed("camera_unlock"):
-		drag_offset = Vector3.ZERO
-
-
-func _process(delta: float) -> void:
 	if player_token == null or not is_instance_valid(player_token):
 		return
 

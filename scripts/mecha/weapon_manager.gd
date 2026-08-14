@@ -6,6 +6,9 @@ signal reload_progress(hand: String, partial_text: String, reserve_ammo: int, pe
 signal carry_updated(carry_list: Array)
 signal weapon_dropped(hand: String, weapon: WeaponPart)
 signal heat_changed(hand: String, current: float, max_heat: float, overheated: bool)
+# Fired when a melee swing actually connects (damage applied). The HUD listens
+# for it to flash the screen edge as impact feedback.
+signal melee_hit_landed
 
 # --- Slots ---
 var left_hand: WeaponPart = null
@@ -870,6 +873,7 @@ func _check_melee_hit(mecha: Node3D, direction: Vector3, damage: float, weapon: 
 			enemy.take_damage_at_point(damage, aim_point, "melee")
 		elif enemy.has_method("take_damage"):
 			enemy.take_damage(damage, "melee")
+		melee_hit_landed.emit()
 		if weapon != null and weapon.impact > 0.0 and enemy.has_method("apply_impact"):
 			enemy.apply_impact(weapon.impact, direction)
 			EffectManager.spawn_damage_number(enemy.global_position + Vector3(0, 2.5, 0), damage, Color(1, 0.5, 0))

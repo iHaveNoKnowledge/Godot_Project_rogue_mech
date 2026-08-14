@@ -16,6 +16,13 @@ const MELEE_ARC_STEPS: int = 24
 const MELEE_ARC_HALF_ANGLE_DEG: float = 90.0
 const FIST_REACH: float = 3.0
 
+# --- Melee impact flash ---
+# A quick white flash hugging the screen edges when a melee swing connects,
+# drawn as nested screen-edge outlines that fade inward. Decays in ~0.25s.
+var _flash_strength: float = 0.0
+const FLASH_DECAY_PER_SEC: float = 4.0
+const FLASH_COLOR: Color = Color(1.0, 1.0, 1.0)
+
 
 func _ready() -> void:
 	await get_tree().process_frame
@@ -24,9 +31,32 @@ func _ready() -> void:
 		aim_ray = mecha.get_node_or_null("AimRay")
 		if aim_ray:
 			aim_ray.collision_mask = 10
+		var wm = mecha.get_node_or_null("WeaponManager")
+		if wm and wm.has_signal("melee_hit_landed"):
+			wm.melee_hit_landed.connect(_on_melee_hit)
 	_setup_warning_label()
 	_setup_overlay_control()
 	_update_crosshair_position()
+
+
+func _on_melee_hit() -> void:
+	_flash_strength = 1.0
+
+
+func _draw_impact_flash() -> void:
+	if _flash_strength <= 0.001:
+		return
+	var size := get_viewport().get_visible_rect().size
+	var line_w := 4.0
+	for i in range(5):
+		var alpha := _flash_strength * (0.5 - 0.1 * float(i))
+		if alpha <= 0.001:
+			break
+		var inset := float(i) * 14.0
+		overlay_control.draw_rect(
+			Rect2(inset, inset, size.x - inset * 2.0, size.y - inset * 2.0),
+			Color(FLASH_COLOR, alpha), false, line_w)
+		line_w += 2.0
 
 
 func _setup_warning_label() -> void:
@@ -49,9 +79,11 @@ func _setup_overlay_control() -> void:
 	add_child(overlay_control)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	_check_head_status()
 	_update_crosshair_position()
+	if _flash_strength > 0.0:
+		_flash_strength = maxf(_flash_strength - delta * FLASH_DECAY_PER_SEC, 0.0)
 	if overlay_control:
 		overlay_control.queue_redraw()
 
@@ -175,6 +207,8 @@ func _on_overlay_draw() -> void:
 
 	# Melee reach ring under the reticle (only when a hand can melee).
 	_draw_melee_range()
+	# Impact flash on the screen edges from a connected melee swing.
+	_draw_impact_flash()
 
 	if is_head_destroyed:
 		# Sensors offline: a full + through the center signals manual aim only.

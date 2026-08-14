@@ -30,6 +30,8 @@ var _enemy: Node = null
 var _cam: Camera3D = null
 var _rig: Node = null
 var _shake_delta := 0.0
+var _crosshair: Node = null
+var _flash_after_swing := 0.0
 
 var _knife: WeaponPart = preload("res://resources/mech/stock/weapon_combat_knife.tres")
 var _pile: WeaponPart = preload("res://resources/mech/stock/weapon_pile_bunker.tres")
@@ -81,6 +83,7 @@ func _start_swing(hand: String, weapon) -> void:
 	var shake_before: float = _rig.total_shake
 	_wm._try_fire(hand, weapon)
 	_shake_delta = _rig.total_shake - shake_before
+	_flash_after_swing = _crosshair._flash_strength
 
 
 func _process(_delta: float) -> void:
@@ -103,6 +106,8 @@ func _process(_delta: float) -> void:
 				_check(_peak_z <= -1.25, "fist lunges ~1.4m into the punch (peak %.2f)" % _peak_z)
 				_check(absf(_mecha.position.z) < 0.05, "mech returns to origin after the fist recovery")
 				_check(_shake_delta > 0.09 and _shake_delta < 0.15, "fist impact shakes the camera lightly (%.3f)" % _shake_delta)
+				_check(_flash_after_swing > 0.5, "fist impact flashes the screen edge (%.2f)" % _flash_after_swing)
+				_check(_crosshair._flash_strength < 0.01, "impact flash fades quickly")
 				_enemy.position = Vector3(0, 1.5, -3.2)
 				_enemy.damage_taken = 0.0
 		3:
@@ -111,11 +116,13 @@ func _process(_delta: float) -> void:
 				_stage = 4
 				_start_swing("left", null)
 		4:
-			# Fist @ 3.2m: just past range -> the swing must whiff.
+			# Fist @ 3.2m: just past range -> the swing must whiff, and a whiff
+			# must NOT flash the screen.
 			if _elapsed(350):
 				_measuring = false
 				_stage = 5
 				_check(_enemy.damage_taken == 0.0, "fist whiffs just past its 3m range (reach == range)")
+				_check(_flash_after_swing < 0.01, "whiff does not flash the screen edge")
 				_wm.left_hand = _knife
 				_enemy.position = Vector3(0, 1.5, -2.5)
 				_enemy.damage_taken = 0.0
@@ -252,6 +259,12 @@ func _build_scene() -> void:
 	_rig = FakeRig.new()
 	_rig.add_to_group("camera_rig")
 	add_child(_rig)
+
+	# Real crosshair HUD so the melee-hit impact flash can be verified end-to-end
+	# (weapon_manager emits melee_hit_landed -> crosshair flashes).
+	var crosshair_scene: PackedScene = preload("res://scenes/ui/crosshair.tscn")
+	_crosshair = crosshair_scene.instantiate()
+	add_child(_crosshair)
 
 
 func _physics_process(_delta: float) -> void:

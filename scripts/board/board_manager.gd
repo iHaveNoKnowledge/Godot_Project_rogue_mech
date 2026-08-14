@@ -180,7 +180,7 @@ func _try_step(target: Vector2i) -> bool:
 
 
 func _is_adjacent(a: Vector2i, b: Vector2i) -> bool:
-	for d in DIRS:
+	for d: Vector2i in DIRS:
 		if a + d == b:
 			return true
 	return false
@@ -291,7 +291,7 @@ func _tiles_in_radius(center: Vector2i, radius: int) -> Array:
 func _highlight_adjacent() -> void:
 	if not nodes_dict.has(current_pos):
 		return
-	for d in DIRS:
+	for d: Vector2i in DIRS:
 		var target_key := current_pos + d
 		if not nodes_dict.has(target_key):
 			continue

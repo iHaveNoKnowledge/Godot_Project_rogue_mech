@@ -41,7 +41,7 @@ func equip_part(slot: String, info: Dictionary) -> void:
 				controller.status_message_label.text = "This weapon is already on the back pack."
 				return
 			# Moving off a hand frees that hand, so its weight leaves the pack too.
-			var freed_path := wpath if equipped != "" else ""
+			var freed_path: String = wpath if equipped != "" else ""
 			if controller.garage_panel.would_exceed_field_pack(wpath, "", freed_path):
 				controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
 				return
@@ -58,7 +58,7 @@ func equip_part(slot: String, info: Dictionary) -> void:
 				controller.status_message_label.text = "This weapon is already equipped in the %s hand." % hand
 				return
 			var replaced_path = str(GlobalData.weapon_loadout.get(hand, ""))
-			var freed_path := wpath if equipped != "" else ""
+			var freed_path: String = wpath if equipped != "" else ""
 			if controller.garage_panel.would_exceed_field_pack(wpath, replaced_path, freed_path):
 				controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
 				return
@@ -272,7 +272,7 @@ func on_equip_pressed() -> void:
 					if equipped == "carry":
 						controller.status_message_label.text = "This weapon is already on the back pack."
 						return
-					var freed_path := wpath if equipped != "" else ""
+					var freed_path: String = wpath if equipped != "" else ""
 					if controller.garage_panel.would_exceed_field_pack(wpath, "", freed_path):
 						controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
 						return
@@ -288,7 +288,7 @@ func on_equip_pressed() -> void:
 						controller.status_message_label.text = "This weapon is already equipped in the %s hand." % hand
 						return
 					var replaced_path = str(GlobalData.weapon_loadout.get(hand, ""))
-					var freed_path := wpath if equipped != "" else ""
+					var freed_path: String = wpath if equipped != "" else ""
 					if controller.garage_panel.would_exceed_field_pack(wpath, replaced_path, freed_path):
 						controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
 						return

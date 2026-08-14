@@ -70,7 +70,7 @@ func _fit_panel_to_content() -> void:
 	var panel = get_node_or_null("Panel")
 	if panel == null:
 		return
-	var min_height := panel.get_combined_minimum_size().y
+	var min_height: float = panel.get_combined_minimum_size().y
 	if min_height > 0.0:
 		panel.offset_top = panel.offset_bottom - min_height
 

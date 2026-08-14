@@ -74,7 +74,8 @@ func _ready() -> void:
 			"desc": notice,
 		})
 
-	if GlobalData.board_day == 1 and GlobalData.board_mp >= GlobalData.board_mp_max:
+	if GlobalData.board_day == 1 and GlobalData.board_mp >= GlobalData.board_mp_max and not GlobalData.board_objective_intro_consumed:
+		GlobalData.board_objective_intro_consumed = true
 		EventBus.event_triggered.emit(_build_objective_event())
 
 

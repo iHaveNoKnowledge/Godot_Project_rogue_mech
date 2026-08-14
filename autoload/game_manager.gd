@@ -67,6 +67,7 @@ func advance_to_next_sector() -> void:
 	GlobalData.board_objective_id = BoardConfig.get_objective(BoardConfig.theme_for_sector(GlobalData.current_sector))["id"]
 	GlobalData.board_objective_progress = 0
 	GlobalData.board_objective_required = BoardConfig.get_objective(BoardConfig.theme_for_sector(GlobalData.current_sector))["required"]
+	GlobalData.board_objective_intro_consumed = false
 	GlobalData.board_patrols.clear()
 	GlobalData.board_patrol_engagement = -1
 	# Route through HeatWantedSystem so the HUD signals, wanted escalation floor

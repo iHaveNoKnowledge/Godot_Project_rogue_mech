@@ -6,6 +6,8 @@ var info_panel: PanelContainer
 var info_label: Label
 var status_panel: PanelContainer
 var status_label: Label
+var objective_panel: PanelContainer
+var objective_label: Label
 var action_container: VBoxContainer
 var current_view: String = "menu"
 
@@ -14,6 +16,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_create_ui()
 	_show_menu()
+	_update_objective_panel()
 	EventBus.game_state_changed.connect(_on_state_changed)
 	visibility_changed.connect(_on_visibility_changed)
 	if visible:
@@ -23,6 +26,7 @@ func _ready() -> void:
 func _on_visibility_changed() -> void:
 	if visible:
 		AudioManager.play_intermission_music()
+		_update_objective_panel()
 
 
 func _input(event: InputEvent) -> void:
@@ -98,7 +102,7 @@ func _create_ui() -> void:
 	info_panel.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
 	info_panel.offset_left = 285
 	info_panel.offset_right = -20
-	info_panel.offset_top = 20
+	info_panel.offset_top = 160
 	info_panel.offset_bottom = -20
 	info_panel.visible = false
 	root_control.add_child(info_panel)
@@ -128,6 +132,32 @@ func _create_ui() -> void:
 	action_container = VBoxContainer.new()
 	action_container.add_theme_constant_override("separation", 6)
 	info_vbox.add_child(action_container)
+
+	# Objective progress window — always pinned to the top-right corner so the
+	# player can see how far along the current sector objective they are.
+	objective_panel = PanelContainer.new()
+	objective_panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	objective_panel.offset_left = -260
+	objective_panel.offset_right = -20
+	objective_panel.offset_top = 20
+	objective_panel.offset_bottom = 150
+	root_control.add_child(objective_panel)
+
+	var objective_style = StyleBoxFlat.new()
+	objective_style.bg_color = Color(0.12, 0.12, 0.2, 0.92)
+	objective_style.corner_radius_top_left = 8
+	objective_style.corner_radius_top_right = 8
+	objective_style.corner_radius_bottom_left = 8
+	objective_style.corner_radius_bottom_right = 8
+	objective_style.content_margin_left = 15
+	objective_style.content_margin_right = 15
+	objective_style.content_margin_top = 12
+	objective_style.content_margin_bottom = 12
+	objective_panel.add_theme_stylebox_override("panel", objective_style)
+
+	objective_label = Label.new()
+	objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	objective_panel.add_child(objective_label)
 
 	# Status panel (bottom)
 	status_panel = PanelContainer.new()
@@ -163,6 +193,20 @@ func _add_menu_button(text: String, callback: Callable) -> void:
 	menu_container.add_child(button)
 
 
+func _update_objective_panel() -> void:
+	if objective_label == null:
+		return
+	var obj := BoardSystem.get_objective()
+	var progress := GlobalData.board_objective_progress
+	var required := GlobalData.board_objective_required
+	var pct := int(float(progress) / maxi(required, 1) * 100.0)
+	objective_label.text = "OBJECTIVE\n%s\n\nProgress: %d / %d  (%d%%)\n%s" % [
+		obj.get("name", "Objective"),
+		progress, required, pct,
+		BoardSystem.objective_desc(),
+	]
+
+
 func _get_status_text() -> String:
 	var base_info := ""
 	if GlobalData.mech_less:
@@ -193,6 +237,7 @@ func _on_state_changed(old_state: String, new_state: String) -> void:
 		if old_state == "COMBAT":
 			visible = false
 		status_label.text = _get_status_text()
+		_update_objective_panel()
 	elif new_state == "COMBAT":
 		visible = false
 

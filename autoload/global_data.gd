@@ -781,6 +781,10 @@ var board_theme_id: String = "suburb"
 var board_objective_id: String = ""
 var board_objective_progress: int = 0
 var board_objective_required: int = 0
+# Day-1 objective intro popup fires only once per sector. Without this the
+# popup reappears every time the board scene reloads (return_to_board), which
+# loops forever and locks the player at the popup.
+var board_objective_intro_consumed: bool = false
 # Enemy patrol fleets patrolling the grid. Entry: {pos: Vector2i, name, size,
 # grunts, aces, home: Vector2i, aggro: int}.
 var board_patrols: Array = []
@@ -1422,6 +1426,7 @@ func reset_run_data() -> void:
 	board_objective_id = BoardConfig.get_objective("suburb")["id"]
 	board_objective_progress = 0
 	board_objective_required = BoardConfig.get_objective("suburb")["required"]
+	board_objective_intro_consumed = false
 	board_patrols.clear()
 	board_patrol_engagement = -1
 	heat = 0

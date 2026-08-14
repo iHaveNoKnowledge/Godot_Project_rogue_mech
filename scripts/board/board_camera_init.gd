@@ -2,7 +2,9 @@ extends Camera3D
 
 ## Board camera: follows player token, supports mouse drag + arrow keys to pan.
 
-@export var camera_height: float = 18.0
+@export var camera_height: float = 30.0
+@export var camera_height_min: float = 12.0
+@export var camera_height_max: float = 55.0
 @export var follow_speed: float = 8.0
 @export var drag_speed: float = 0.3
 @export var key_pan_speed: float = 40.0
@@ -31,6 +33,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			is_dragging = event.pressed
 		elif event.button_index == MOUSE_BUTTON_RIGHT and Input.is_key_pressed(KEY_CTRL):
 			is_dragging = event.pressed
+		elif event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			camera_height = maxf(camera_height_min, camera_height - 3.0)
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			camera_height = minf(camera_height_max, camera_height + 3.0)
 	elif event is InputEventMouseMotion and is_dragging:
 		var motion = event.relative
 		var right = global_transform.basis.x

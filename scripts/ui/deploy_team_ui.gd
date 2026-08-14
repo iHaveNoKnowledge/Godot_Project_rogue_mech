@@ -119,7 +119,7 @@ func open_deploy(combat_type: String) -> void:
 	_pending_toggles.clear()
 	_repopulate_roster()
 	visible = true
-	if get_tree_or_null():
+	if get_tree():
 		get_tree().paused = true
 	_confirm_button.grab_focus()
 
@@ -235,7 +235,7 @@ func _on_confirm() -> void:
 		FleetSystem.set_unit_fielded(template_id, check.button_pressed)
 	GlobalData.save_run()
 	visible = false
-	if get_tree_or_null():
+	if get_tree():
 		get_tree().paused = false
 	GameManager.enter_combat(_pending_combat_type)
 
@@ -244,7 +244,7 @@ func _on_cancel() -> void:
 	if not is_inside_tree():
 		return
 	visible = false
-	if get_tree_or_null():
+	if get_tree():
 		get_tree().paused = false
 	# The patrol the player stepped onto is NOT consumed by cancelling — they
 	# can back away or re-engage by stepping on it again.

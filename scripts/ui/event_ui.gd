@@ -79,7 +79,7 @@ func _on_event_triggered(event: Dictionary) -> void:
 	# get_tree() == null.
 	if not is_inside_tree():
 		return
-	var tree := get_tree_or_null()
+	var tree := get_tree()
 	if tree == null:
 		return
 	visible = true
@@ -116,7 +116,7 @@ func _on_choice_pressed(choice: Dictionary) -> void:
 	if not is_inside_tree():
 		return
 	visible = false
-	if get_tree_or_null():
+	if get_tree():
 		get_tree().paused = false
 	var forced := GlobalData.apply_event_effect(choice)
 	if forced:
@@ -130,6 +130,6 @@ func _on_continue_pressed() -> void:
 	if not is_inside_tree():
 		return
 	visible = false
-	if get_tree_or_null():
+	if get_tree():
 		get_tree().paused = false
 	GameManager.return_to_board()

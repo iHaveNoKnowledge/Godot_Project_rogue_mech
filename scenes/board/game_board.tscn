@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/board/board_generator.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/board/board_manager.gd" id="2"]
@@ -7,6 +7,8 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/event_ui.tscn" id="5"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hangar_ui.tscn" id="6"]
 [ext_resource type="Script" path="res://scripts/board/board_camera_init.gd" id="7"]
+[ext_resource type="PackedScene" path="res://scenes/ui/city_shop_ui.tscn" id="8"]
+[ext_resource type="PackedScene" path="res://scenes/ui/board_tooltip_ui.tscn" id="9"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_token"]
 size = Vector3(0.5, 0.5, 0.5)
@@ -25,10 +27,14 @@ mesh = SubResource("BoxMesh_token")
 
 [node name="BoardCamera" type="Camera3D" parent="."]
 script = ExtResource("7")
-transform = Transform3D(1, 0, 0, 0, 0.866, 0.5, 0, -0.5, 0.866, 0, 18, 10)
+transform = Transform3D(1, 0, 0, 0, 0.866, 0.5, 0, -0.5, 0.866, 0, 30, 18)
 
 [node name="IntermissionUI" parent="." instance=ExtResource("3")]
 
 [node name="SafehouseUI" parent="." instance=ExtResource("4")]
 
 [node name="EventUI" parent="." instance=ExtResource("5")]
+
+[node name="CityShopUI" parent="." instance=ExtResource("8")]
+
+[node name="BoardTooltipUI" parent="." instance=ExtResource("9")]

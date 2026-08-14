@@ -395,6 +395,10 @@ func _on_mecha_destroyed() -> void:
 	if is_player:
 		if GameManager.is_escaping:
 			return
+		# The pilot ejects from the destroyed machine and takes eject damage —
+		# the pilot's own HP drops (separate from the mech's). Wounded pilots
+		# heal with items bought at city nodes / rest before the next sortie.
+		PilotSystem.on_mecha_destroyed()
 		await get_tree().create_timer(2.0).timeout
 		if GameManager.is_escaping:
 			return

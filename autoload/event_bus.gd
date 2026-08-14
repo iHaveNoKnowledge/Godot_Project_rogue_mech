@@ -36,6 +36,11 @@ signal mecha_occupancy_changed(occupied: bool)
 
 # --- Board ---
 signal tile_entered(tile_pos: Vector2i, tile_data: Node)
+## Fired at the end of a grid "day" (MP exhausted / End Day pressed), so
+## research, heat decay, spy rolls, enemy research nodes, patrol fleets and
+## other once-per-day systems all advance exactly once per day — even though the
+## player may have stepped across many cells that day.
+signal board_day_ended()
 signal event_triggered(event_data: Dictionary)
 signal heat_changed(new_heat: int)
 signal wanted_changed(new_wanted: int)

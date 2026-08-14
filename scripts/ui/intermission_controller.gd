@@ -79,8 +79,10 @@ func _create_ui() -> void:
 
 	# Menu buttons
 	_add_menu_button("Move on Board", _on_move_pressed)
+	_add_menu_button("End Day", _on_end_day_pressed)
 	_add_menu_button("Mech Status", _on_status_pressed)
 	_add_menu_button("Inventory", _on_inventory_pressed)
+	_add_menu_button("Pilot Status", _on_pilot_pressed)
 	_add_menu_button("Research Base", _on_research_pressed)
 	_add_menu_button("Fleet Roster", _on_fleet_pressed)
 	_add_menu_button("Convoy", _on_convoy_pressed)
@@ -169,7 +171,12 @@ func _get_status_text() -> String:
 		base_info += " | Enemy Base: %d%%" % int((GlobalData.enemy_base_progress / GlobalData.enemy_base_required) * 100.0)
 	if not GlobalData.stalking_aces.is_empty():
 		base_info += " | HUNTED by %s" % ", ".join(GlobalData.stalking_aces)
-	return "Rep: %d | Heat: %d | Wanted: %d | Credits: %d | Scrap: %d | Enemy Tier: %d | Security: %d%s | Tile: %s" % [
+	return "Day %d | MP: %d/%d | %s%s | Rep: %d | Heat: %d | Wanted: %d | Credits: %d | Scrap: %d | Enemy Tier: %d | Security: %d | Pos: %s" % [
+		GlobalData.board_day,
+		GlobalData.board_mp,
+		GlobalData.board_mp_max,
+		BoardSystem.progress_text(),
+		base_info,
 		GlobalData.reputation,
 		GlobalData.heat,
 		GlobalData.wanted_level,
@@ -177,7 +184,6 @@ func _get_status_text() -> String:
 		GlobalData.scrap,
 		GlobalData.enemy_tech_tier,
 		int(GlobalData.get_fleet_security()),
-		base_info,
 		str(GlobalData.current_tile)
 	]
 
@@ -201,6 +207,13 @@ func _on_move_pressed() -> void:
 	visible = false
 
 
+func _on_end_day_pressed() -> void:
+	visible = false
+	var board = get_tree().current_scene
+	if board and board.has_method("_end_day"):
+		board._end_day()
+
+
 func _on_status_pressed() -> void:
 	current_view = "status"
 	info_panel.visible = true
@@ -213,6 +226,76 @@ func _on_inventory_pressed() -> void:
 	info_panel.visible = true
 	_clear_actions()
 	info_label.text = _build_inventory_text()
+
+
+# Pilot Status view: the pilot's own HP/weapons/ammo/items (separate from the
+# mech). Healing items are used here — the pilot heals with items, not direct
+# credits, so the buy option lives on the City (trading) node.
+func _on_pilot_pressed() -> void:
+	current_view = "pilot"
+	info_panel.visible = true
+	_clear_actions()
+	info_label.text = _build_pilot_text()
+
+	for entry in GlobalData.get_pilot_items():
+		var item_id := str(entry.get("id", ""))
+		var item := PilotSystem.get_heal_item(item_id)
+		if item.is_empty():
+			continue
+		var heal_text := "full HP" if int(item.get("heal", 0)) <= 0 else "%d HP" % int(item.get("heal", 0))
+		var btn = Button.new()
+		btn.text = "Use %s (heals %s) x%d" % [
+			item.get("name", item_id), heal_text, int(entry.get("count", 0))
+		]
+		btn.disabled = not GlobalData.get_pilot_hp() < GlobalData.get_pilot_max_hp()
+		btn.tooltip_text = str(item.get("desc", ""))
+		btn.pressed.connect(_use_pilot_item.bind(item_id))
+		action_container.add_child(btn)
+
+
+func _use_pilot_item(item_id: String) -> void:
+	var restored := GlobalData.use_pilot_heal_item(item_id)
+	if restored > 0.0:
+		status_label.text = _get_status_text() + "  [Pilot healed +%d HP]" % int(restored)
+	else:
+		status_label.text = _get_status_text() + "  [No item / pilot already at full HP]"
+	_on_pilot_pressed()
+
+
+func _build_pilot_text() -> String:
+	var text := "=== PILOT STATUS (the pilot, not the mech) ===\n\n"
+	text += "HP: %d / %d\n" % [int(GlobalData.get_pilot_hp()), int(GlobalData.get_pilot_max_hp())]
+	if GlobalData.get_pilot_hp() < GlobalData.get_pilot_max_hp():
+		text += "STATUS: INJURED — use healing items (bought at City nodes).\n"
+	else:
+		text += "STATUS: HEALTHY\n"
+	text += "\n--- Personal Weapons ---\n"
+	var weapons := GlobalData.get_pilot_weapons()
+	if weapons.is_empty():
+		text += "(None)\n"
+	else:
+		for wp in weapons:
+			text += "- %s\n" % (wp.weapon_name if wp else "?")
+	text += "\n--- Personal Ammo ---\n"
+	text += "Kinetic: %d | Energy: %d | Explosive: %d | Missile: %d\n" % [
+		GlobalData.get_pilot_ammo("kinetic"),
+		GlobalData.get_pilot_ammo("energy"),
+		GlobalData.get_pilot_ammo("explosive"),
+		GlobalData.get_pilot_ammo("missile"),
+	]
+	text += "\n--- Items ---\n"
+	var items := GlobalData.get_pilot_items()
+	if items.is_empty():
+		text += "(No items — visit a City trading node to buy medkits.)\n"
+	else:
+		for entry in items:
+			var item := PilotSystem.get_heal_item(str(entry.get("id", "")))
+			if item.is_empty():
+				continue
+			text += "- %s x%d (%s)\n" % [
+				item.get("name", "?"), int(entry.get("count", 0)), item.get("desc", "")
+			]
+	return text
 
 
 func _on_board_info_pressed() -> void:
@@ -260,7 +343,7 @@ func _start_research(project_id: String) -> void:
 func _build_research_text() -> String:
 	var text = "=== RESEARCH BASE ===\n\n"
 	text += "Data Cores (blueprints): %d\n\n" % GlobalData.data_cores
-	text += "Research advances 1 point per board move, +2 per combat won.\n\n"
+	text += "Research advances 1 point per day, +2 per combat won.\n\n"
 
 	text += "--- Active Projects ---\n"
 	if GlobalData.research_projects.is_empty():
@@ -511,20 +594,25 @@ func _build_inventory_text() -> String:
 
 func _build_board_info_text() -> String:
 	var text = "=== BOARD INFO ===\n\n"
+	text += "Map theme: %s\n" % GlobalData.board_theme_id.capitalize()
 	text += "Position: %s\n" % str(GlobalData.current_tile)
-	text += "Heat: %d / 15\n" % GlobalData.heat
-	text += "Wanted Level: %d\n\n" % GlobalData.wanted_level
+	text += "Day: %d | MP: %d / %d\n" % [GlobalData.board_day, GlobalData.board_mp, GlobalData.board_mp_max]
+	text += "Objective: %s\n" % BoardSystem.objective_desc()
+	text += "Progress: %s\n\n" % BoardSystem.progress_text()
 
-	text += "--- Tile Types ---\n"
-	text += "Combat (40%) - Fight enemies\n"
-	text += "Event (30%) - Random events\n"
-	text += "Safehouse (15%) - Rest/repair\n"
-	text += "Empty (15%) - Nothing\n\n"
+	text += "--- Movement ---\n"
+	text += "WASD / click an adjacent tile to move. Each cell costs MP by terrain.\n"
+	text += "End key = end the day (refill MP, advance patrols).\n\n"
 
-	text += "--- Nearby Tiles ---\n"
-	var directions = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
-	var dir_names = ["East", "West", "South", "North"]
-	for i in range(4):
-		var pos = GlobalData.current_tile + directions[i]
-		text += "%s: %s\n" % [dir_names[i], str(pos)]
+	text += "--- Terrains ---\n"
+	text += "Road/Plain (1 MP) | Bridge (1 MP)\n"
+	text += "Sand/Forest (2 MP) | Water/Rock (impassable)\n\n"
+
+	text += "--- Tiles ---\n"
+	text += "Combat (red) - Fight enemies\n"
+	text += "Event (blue) - Random events\n"
+	text += "Safehouse (green) - Rest/repair\n"
+	text += "City (orange) - Trade post\n"
+	text += "Data node (gold) - Data cores\n"
+	text += "Exit (magenta) - Boss (requires objective)\n"
 	return text

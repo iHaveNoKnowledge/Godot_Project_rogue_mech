@@ -7,12 +7,19 @@ extends Node
 
 func _ready() -> void:
 	EventBus.tile_entered.connect(_on_tile_entered)
+	EventBus.board_day_ended.connect(_on_board_day_ended)
 	EventBus.combat_ended.connect(_on_combat_ended)
 
 
 func _on_tile_entered(_pos: Vector2i, _data: Node) -> void:
+	pass
+
+
+# The open grid is walked cell-by-cell; heat and notoriety cool down once per
+# day (a day = many cells) instead of on every single cell step.
+func _on_board_day_ended() -> void:
 	modify_heat(-heat_decay_rate)
-	decay_notoriety_memory() # สลายความจำความระแวงลงทีละนิดเมื่อเดินตาใหม่
+	decay_notoriety_memory() # สลายความจำความระแวงลงทีละนิดเมื่อจบวัน
 
 
 func _on_combat_ended(victory: bool) -> void:

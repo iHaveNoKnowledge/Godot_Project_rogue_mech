@@ -14,8 +14,21 @@ var structures_container: Node3D
 
 
 func _ready() -> void:
-	current_theme = randi() % BiomeTheme.size() as BiomeTheme
+	current_theme = _theme_from_board() if GameManager.current_state == GameManager.State.BOARD else randi() % BiomeTheme.size() as BiomeTheme
 	generate_arena()
+
+
+# The open-grid board theme drives the combat arena biome, so the battle scene
+# always matches the map the player is exploring (desert dune fights on the
+# desert board, urban skyscraper fights in the city, etc.).
+func _theme_from_board() -> BiomeTheme:
+	var arena_name: String = BoardConfig.THEME_ARENA.get(GlobalData.board_theme_id, "")
+	if arena_name == "":
+		return randi() % BiomeTheme.size() as BiomeTheme
+	for i in range(BiomeTheme.size()):
+		if BiomeTheme.keys()[i] == arena_name:
+			return i as BiomeTheme
+	return BiomeTheme.DESERT
 
 
 func generate_arena() -> void:

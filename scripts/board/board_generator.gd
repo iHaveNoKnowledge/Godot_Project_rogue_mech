@@ -1,97 +1,56 @@
 extends Node
 
-@export var num_layers: int = 7
-@export var min_nodes_per_layer: int = 2
-@export var max_nodes_per_layer: int = 4
+## Generates an open 2D grid board (free movement, per-cell terrain) instead of
+## the old layered branching node graph. A guaranteed main "road" path runs from
+## the start (0,0) to the exit, and every walkable cell is reachable from start.
 
 var tile_scene: PackedScene = preload("res://scenes/board/board_tile.tscn")
 
+var grid_size: int = BoardConfig.GRID_SIZE
+
 
 func generate_board() -> Dictionary:
-	var nodes_dict: Dictionary = {} # Key: Vector2i(layer, index), Value: Node3D (BoardTile)
-	var layer_nodes: Array = [] # Array of Arrays of Vector2i keys
-
 	var rng := RandomNumberGenerator.new()
 	rng.seed = GlobalData.board_seed
 
-	# Step 1: Determine structure for each layer
-	for l in range(num_layers):
-		var count: int = 1
-		if l == 0 or l == num_layers - 1:
-			count = 1 # Start (Layer 0) and Exit (Last Layer) have exactly 1 node
-		else:
-			count = rng.randi_range(min_nodes_per_layer, max_nodes_per_layer)
+	var theme_id := BoardConfig.theme_for_sector(GlobalData.current_sector)
+	GlobalData.board_theme_id = theme_id
 
-		var current_layer_keys: Array = []
-		for i in range(count):
-			var key = Vector2i(l, i)
-			current_layer_keys.append(key)
-		layer_nodes.append(current_layer_keys)
+	# Step 1: assign a terrain per cell from the theme's weighted pool.
+	var terrain_grid: Dictionary = {} # Vector2i -> String
+	for y in range(grid_size):
+		for x in range(grid_size):
+			terrain_grid[Vector2i(x, y)] = _weighted_terrain(rng, theme_id)
 
-	# Step 2: Determine connections between layer L and L+1
-	var connections_dict: Dictionary = {} # Key: Vector2i(layer, index), Value: Array[Vector2i]
+	# Step 2: carve a guaranteed main road from start (0,0) to exit (last,last).
+	_main_road(terrain_grid, rng)
 
-	for l in range(num_layers - 1):
-		var curr_keys = layer_nodes[l]
-		var next_keys = layer_nodes[l + 1]
+	# Step 3: forest/urban get a river band; bridges keep the road passable.
+	_carve_water(terrain_grid, theme_id, rng)
 
-		# Ensure every node in current layer connects to at least 1 node in next layer
-		for key in curr_keys:
-			if not connections_dict.has(key):
-				connections_dict[key] = []
-			
-			var target_index = rng.randi() % next_keys.size()
-			var target_key = next_keys[target_index]
-			if not connections_dict[key].has(target_key):
-				connections_dict[key].append(target_key)
+	# Step 4: keep only cells reachable from start walkable (flood fill). Cells
+	# the player could never reach become rock so the map reads as solid.
+	_trim_unreachable(terrain_grid)
 
-		# Ensure every node in next layer has at least 1 incoming connection from current layer
-		for n_key in next_keys:
-			var has_incoming = false
-			for c_key in curr_keys:
-				if connections_dict.has(c_key) and connections_dict[c_key].has(n_key):
-					has_incoming = true
-					break
+	# Step 5: pick content tiles on walkable cells.
+	var tile_types := _assign_content(terrain_grid, rng)
 
-			if not has_incoming:
-				# Pick a random node from current layer and add connection
-				var source_key = curr_keys[rng.randi() % curr_keys.size()]
-				if not connections_dict.has(source_key):
-					connections_dict[source_key] = []
-				connections_dict[source_key].append(n_key)
-
-	# Step 3: Instantiate tiles with tile types
-	# enemy_base is intentionally NOT in the pool: research nodes only appear
-	# when the enemy's spy system coalesces stolen data (see board_manager).
-	var type_pool = ["combat", "combat", "event", "safehouse", "data_node", "dead_end"]
-
-	for l in range(num_layers):
-		var keys = layer_nodes[l]
-		var count = keys.size()
-
-		for i in range(count):
-			var key = keys[i]
-			var tile_type: String = "empty"
-
-			if l == 0:
-				tile_type = "start"
-			elif l == num_layers - 1:
-				tile_type = "exit"
-			elif l == int(num_layers / 2) and i == 0:
-				tile_type = "safehouse" # Mid-run guaranteed safehouse
-			else:
-				tile_type = type_pool[rng.randi() % type_pool.size()]
-
-			var tile_instance = tile_scene.instantiate()
-			tile_instance.set_meta("tile_type", tile_type)
+	# Step 6: instantiate tiles + compute 4-dir walkable connections.
+	var nodes_dict: Dictionary = {}
+	for y in range(grid_size):
+		for x in range(grid_size):
+			var key := Vector2i(x, y)
+			var type := str(tile_types.get(key, "empty"))
+			var terrain := str(terrain_grid[key])
+			var tile_instance := tile_scene.instantiate()
+			tile_instance.set_meta("tile_type", type)
 			tile_instance.set_meta("grid_pos", key)
-			
-			# Position in 3D space (X along layer, Z spaced vertically)
-			var x_pos = l * 4.0
-			var z_offset = (float(i) - float(count - 1) / 2.0) * 3.5
-			tile_instance.position = Vector3(x_pos, 0, z_offset)
-			
-			var connects: Array = connections_dict.get(key, [])
+			tile_instance.set_meta("terrain", terrain)
+			tile_instance.position = Vector3(key.x * 4.0, 0, key.y * 4.0)
+
+			var connects := _neighbor_keys(key)
+			connects = connects.filter(func(k: Vector2i) -> bool:
+				return BoardConfig.is_passable(terrain_grid.get(k, "rock")))
 			tile_instance.set_meta("connections", connects)
 
 			nodes_dict[key] = tile_instance
@@ -99,6 +58,148 @@ func generate_board() -> Dictionary:
 	GlobalData.board_grid = [nodes_dict]
 	return {
 		"nodes": nodes_dict,
-		"layer_nodes": layer_nodes,
-		"connections": connections_dict
+		"terrain": terrain_grid,
+		"tile_types": tile_types,
 	}
+
+
+func _weighted_terrain(rng: RandomNumberGenerator, theme_id: String) -> String:
+	var pool: Array = BoardConfig.THEME_TERRAIN.get(theme_id, BoardConfig.THEME_TERRAIN["suburb"])
+	var total := 0
+	for entry in pool:
+		total += int(entry[1])
+	var roll := rng.randi_range(1, maxi(total, 1))
+	for entry in pool:
+		roll -= int(entry[1])
+		if roll <= 0:
+			return str(entry[0])
+	return "plain"
+
+
+func _main_road(terrain_grid: Dictionary, rng: RandomNumberGenerator) -> void:
+	var cur := Vector2i(0, 0)
+	var goal := Vector2i(grid_size - 1, grid_size - 1)
+	terrain_grid[cur] = "road"
+	var guard := 0
+	while cur != goal and guard < grid_size * grid_size * 2:
+		guard += 1
+		var dx := goal.x - cur.x
+		var dy := goal.y - cur.y
+		var horiz := rng.randf() < 0.5
+		if absi(dx) < absi(dy):
+			horiz = false
+		elif absi(dy) < absi(dx):
+			horiz = true
+		var step: Vector2i
+		if horiz and dx != 0:
+			step = Vector2i(signi(dx), 0)
+		elif dy != 0:
+			step = Vector2i(0, signi(dy))
+		else:
+			step = Vector2i(signi(dx), 0)
+		cur += step
+		if terrain_grid.has(cur):
+			terrain_grid[cur] = "road"
+
+
+func _carve_water(terrain_grid: Dictionary, theme_id: String, rng: RandomNumberGenerator) -> void:
+	if theme_id not in ["forest", "urban"]:
+		return
+	var river_row := rng.randi_range(3, grid_size - 4)
+	for x in range(grid_size):
+		var key := Vector2i(x, river_row)
+		if terrain_grid.get(key, "road") == "road":
+			# The main road keeps a bridge crossing here.
+			terrain_grid[key] = "bridge"
+		else:
+			terrain_grid[key] = "water"
+
+
+func _trim_unreachable(terrain_grid: Dictionary) -> void:
+	var visited: Dictionary = {}
+	var frontier: Array = [Vector2i(0, 0)]
+	while not frontier.is_empty():
+		var cur: Vector2i = frontier.pop_back()
+		if visited.has(cur):
+			continue
+		visited[cur] = true
+		for n in _neighbor_keys(cur):
+			if visited.has(n):
+				continue
+			if terrain_grid.has(n) and BoardConfig.is_passable(terrain_grid[n]):
+				frontier.append(n)
+	for key in terrain_grid:
+		if not visited.has(key):
+			terrain_grid[key] = "rock"
+
+
+func _assign_content(terrain_grid: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
+	var grid_size_i := grid_size
+	var start_key := Vector2i(0, 0)
+	var exit_key := Vector2i(grid_size_i - 1, grid_size_i - 1)
+
+	# All non-start/exit walkable cells, in distance-from-start order.
+	var walkable: Array = []
+	for key in terrain_grid:
+		if key == start_key or key == exit_key:
+			continue
+		if BoardConfig.is_passable(terrain_grid[key]):
+			walkable.append(key)
+	walkable.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+		return (a.x + a.y) < (b.x + b.y))
+
+	var result: Dictionary = {}
+	result[start_key] = "start"
+	result[exit_key] = "exit"
+
+	# A random pool of candidate cells (shuffled) to spread content out.
+	walkable.shuffle()
+
+	# Guaranteed hubs near start (safehouse? no — keep start clean) and along
+	# the middle/end: safehouse near half-way, city near 2/3.
+	var mid := walkable.filter(func(k: Vector2i) -> bool:
+		var d := k.x + k.y
+		return d >= (grid_size_i - 1) and d <= (grid_size_i + 4))
+	var far := walkable.filter(func(k: Vector2i) -> bool:
+		var d := k.x + k.y
+		return d >= (2 * (grid_size_i - 1)) / 3)
+	if mid.is_empty() and not walkable.is_empty():
+		mid = [walkable[walkable.size() / 2]]
+	if far.is_empty() and not walkable.is_empty():
+		far = [walkable[walkable.size() - 1]]
+	if not mid.is_empty():
+		result[mid[0]] = "safehouse"
+	if not far.is_empty():
+		result[far[0]] = "city"
+
+	# Scatter content on the rest of the walkable pool.
+	for key in walkable:
+		if result.has(key):
+			continue
+		result[key] = _roll_content(rng)
+
+	# Dead ends: any leftover walkable with no walkable neighbor beyond forward.
+	return result
+
+
+func _roll_content(rng: RandomNumberGenerator) -> String:
+	var roll := rng.randf()
+	if roll < 0.22:
+		return "event"
+	elif roll < 0.34:
+		return "data_node"
+	elif roll < 0.52:
+		return "combat"
+	elif roll < 0.60:
+		return "dead_end"
+	return "empty"
+
+
+func _neighbor_keys(key: Vector2i) -> Array:
+	var dirs := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+	var result: Array = []
+	for d in dirs:
+		var n: Vector2i = key + d
+		if n.x >= 0 and n.y >= 0 and n.x < grid_size and n.y < grid_size:
+			result.append(n)
+	return result

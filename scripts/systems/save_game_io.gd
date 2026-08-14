@@ -33,6 +33,14 @@ static func save_run() -> void:
 		"research_unlocked": GlobalData.research_unlocked.duplicate(),
 		"sector": GlobalData.current_sector,
 		"board_seed": GlobalData.board_seed,
+		"board_mp": GlobalData.board_mp,
+		"board_mp_max": GlobalData.board_mp_max,
+		"board_day": GlobalData.board_day,
+		"board_theme_id": GlobalData.board_theme_id,
+		"board_objective_id": GlobalData.board_objective_id,
+		"board_objective_progress": GlobalData.board_objective_progress,
+		"board_objective_required": GlobalData.board_objective_required,
+		"board_patrols": GlobalData.board_patrols.duplicate(true),
 		"enemy_forces": GlobalData.enemy_forces.duplicate(),
 		"last_combat_squad_size": GlobalData.last_combat_squad_size,
 		"max_notoriety_multiplier": GlobalData.max_notoriety_multiplier,
@@ -64,7 +72,12 @@ static func save_run() -> void:
 		"scrap_patches": GlobalData.scrap_patches.duplicate(true),
 		"hangar_mechs": GlobalData.hangar_mechs.duplicate(true),
 		"active_hangar_mech_id": GlobalData.active_hangar_mech_id,
-		"frame_upgrade_level": GlobalData.frame_upgrade_level
+		"frame_upgrade_level": GlobalData.frame_upgrade_level,
+		"pilot_hp": GlobalData.pilot_hp,
+		"pilot_max_hp": GlobalData.pilot_max_hp,
+		"pilot_weapons": GlobalData.pilot_weapons.duplicate(),
+		"pilot_ammo": GlobalData.pilot_ammo.duplicate(),
+		"pilot_items": GlobalData.pilot_items.duplicate()
 	}
 	var file := FileAccess.open(GlobalData.SAVE_PATH, FileAccess.WRITE)
 	if file:
@@ -100,6 +113,27 @@ static func restore_from_dict(data: Dictionary) -> void:
 	GlobalData.scrap = data.get("scrap", 0)
 	GlobalData.current_sector = data.get("sector", 1)
 	GlobalData.board_seed = data.get("board_seed", randi())
+	GlobalData.board_mp = int(data.get("board_mp", GlobalData.board_mp_max))
+	GlobalData.board_mp_max = maxi(int(data.get("board_mp_max", 8)), 1)
+	GlobalData.board_day = maxi(int(data.get("board_day", 1)), 1)
+	GlobalData.board_theme_id = str(data.get("board_theme_id", "suburb"))
+	GlobalData.board_objective_id = str(data.get("board_objective_id", ""))
+	GlobalData.board_objective_progress = int(data.get("board_objective_progress", 0))
+	GlobalData.board_objective_required = int(data.get("board_objective_required", 0))
+	var loaded_patrols = data.get("board_patrols", [])
+	GlobalData.board_patrols.clear()
+	if loaded_patrols is Array:
+		for p in loaded_patrols:
+			if not (p is Dictionary):
+				continue
+			var p_copy: Dictionary = p.duplicate(true)
+			if p_copy.get("pos") is Dictionary:
+				var pd: Dictionary = p_copy["pos"]
+				p_copy["pos"] = Vector2i(int(pd.get("x", 0)), int(pd.get("y", 0)))
+			if p_copy.get("home") is Dictionary:
+				var hd: Dictionary = p_copy["home"]
+				p_copy["home"] = Vector2i(int(hd.get("x", 0)), int(hd.get("y", 0)))
+			GlobalData.board_patrols.append(p_copy)
 
 	# Run theme fields (fallbacks keep older saves working).
 	GlobalData.theme_id = str(data.get("theme_id", "soldier"))
@@ -134,6 +168,24 @@ static func restore_from_dict(data: Dictionary) -> void:
 	GlobalData.active_hangar_mech_id = str(data.get("active_hangar_mech_id", ""))
 	# Clamp to >= 1 so a null/corrupt value can't produce a negative upgrade level.
 	GlobalData.frame_upgrade_level = maxi(int(data.get("frame_upgrade_level", 1)), 1)
+
+	# Pilot state (fallbacks keep older saves working).
+	GlobalData.pilot_max_hp = maxf(float(data.get("pilot_max_hp", PilotSystem.PILOT_MAX_HP_DEFAULT)), 1.0)
+	GlobalData.pilot_hp = clampf(float(data.get("pilot_hp", GlobalData.pilot_max_hp)), 0.0, GlobalData.pilot_max_hp)
+	var loaded_pilot_weapons = data.get("pilot_weapons", ["res://resources/mech/stock/weapon_beam_rifle.tres"])
+	GlobalData.pilot_weapons = []
+	if loaded_pilot_weapons is Array:
+		for path in loaded_pilot_weapons:
+			if str(path) != "":
+				GlobalData.pilot_weapons.append(str(path))
+	var loaded_pilot_ammo = data.get("pilot_ammo", {})
+	GlobalData.pilot_ammo = {}
+	if loaded_pilot_ammo is Dictionary:
+		GlobalData.pilot_ammo = loaded_pilot_ammo.duplicate()
+	var loaded_pilot_items = data.get("pilot_items", {})
+	GlobalData.pilot_items = {}
+	if loaded_pilot_items is Dictionary:
+		GlobalData.pilot_items = loaded_pilot_items.duplicate()
 
 	var loaded_roster = data.get("fleet_roster", [])
 	if loaded_roster is Array:

@@ -62,6 +62,13 @@ func advance_to_next_sector() -> void:
 	GlobalData.current_sector += 1
 	GlobalData.current_tile = Vector2i.ZERO
 	GlobalData.board_seed = randi()
+	GlobalData.board_day = 1
+	GlobalData.board_mp = GlobalData.board_mp_max
+	GlobalData.board_objective_id = BoardConfig.get_objective(BoardConfig.theme_for_sector(GlobalData.current_sector))["id"]
+	GlobalData.board_objective_progress = 0
+	GlobalData.board_objective_required = BoardConfig.get_objective(BoardConfig.theme_for_sector(GlobalData.current_sector))["required"]
+	GlobalData.board_patrols.clear()
+	GlobalData.board_patrol_engagement = -1
 	# Route through HeatWantedSystem so the HUD signals, wanted escalation floor
 	# and enemy mobilization capacity all stay in sync (never mutate directly).
 	HeatWantedSystem.modify_heat(-2)

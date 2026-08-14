@@ -41,16 +41,17 @@ func _unhandled_input(event: InputEvent) -> void:
 		right = right.normalized()
 		drag_offset -= (right * motion.x + forward * motion.y) * drag_speed
 
-	# Arrow keys / WASD to pan camera while on board
+	# Arrow keys to pan camera while on board (WASD is reserved for moving the
+	# player token on the open grid).
 	if GameManager.current_state == GameManager.State.BOARD:
 		var pan_dir = Vector3.ZERO
-		if Input.is_action_pressed("move_forward"):
-			pan_dir.z -= 1.0
-		if Input.is_action_pressed("move_back"):
+		if Input.is_key_pressed(KEY_DOWN):
 			pan_dir.z += 1.0
-		if Input.is_action_pressed("move_left"):
+		if Input.is_key_pressed(KEY_UP):
+			pan_dir.z -= 1.0
+		if Input.is_key_pressed(KEY_LEFT):
 			pan_dir.x -= 1.0
-		if Input.is_action_pressed("move_right"):
+		if Input.is_key_pressed(KEY_RIGHT):
 			pan_dir.x += 1.0
 
 		if pan_dir.length() > 0.01:

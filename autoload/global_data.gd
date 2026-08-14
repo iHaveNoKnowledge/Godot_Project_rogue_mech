@@ -107,13 +107,18 @@ func _ready() -> void:
 	_ensure_default_frames()
 	ensure_default_equipped_parts()
 	EventBus.tile_entered.connect(_on_tile_entered)
+	EventBus.board_day_ended.connect(_on_board_day_ended)
 	EventBus.combat_ended.connect(_on_combat_ended)
 	EventBus.friendly_damage_received.connect(_on_friendly_damage_received)
 
 
-# Research timers advance with turn progress: each board move = 1 point,
-# each completed combat = 2 points. Wounded pilots also recover over board moves.
+# Research timers advance with run progress: each completed day = 1 point,
+# each completed combat = 2 points. Wounded pilots also recover over days.
 func _on_tile_entered(_tile_pos: Vector2i, _tile_data: Node) -> void:
+	pass
+
+
+func _on_board_day_ended() -> void:
 	tick_research(1)
 	RecruitSystem.tick_recovery()
 
@@ -121,6 +126,11 @@ func _on_tile_entered(_tile_pos: Vector2i, _tile_data: Node) -> void:
 func _on_combat_ended(victory: bool) -> void:
 	# Finalize combat damage stats before any tech/reputation logic reads them.
 	_compute_last_combat_damage_ratio()
+	# A patrol fleet engagement (open-grid board) resolves before any general
+	# escalation: winning destroys the fleet, losing leaves it on the board.
+	if GlobalData.board_patrol_engagement >= 0:
+		PatrolSystem.resolve_patrol_combat(victory)
+		return
 	# A duel (recruitment fight) resolves here: win/lose decides whether the
 	# rival joins, is salvaged, or simply beats the player. Duel combats never
 	# touch enemy tech escalation / research tick.
@@ -758,6 +768,25 @@ var part_damage: Dictionary = {}
 var board_grid: Array = []
 var current_tile: Vector2i = Vector2i.ZERO
 var board_seed: int = 0
+# --- Open-grid board state (see BoardConfig/Terrain in board scripts) ---
+# Each "day" the player gets board_mp_max movement points; cells cost their
+# terrain move_cost. Research / heat / spy / enemy research node / patrol fleets
+# all advance once per day via EventBus.board_day_ended.
+var board_mp_max: int = 8
+var board_mp: int = 8
+var board_day: int = 1
+# Which map theme this sector is: suburb / desert / forest / urban.
+var board_theme_id: String = "suburb"
+# Per-map objective: id + progress (see BoardConfig.OBJECTIVES).
+var board_objective_id: String = ""
+var board_objective_progress: int = 0
+var board_objective_required: int = 0
+# Enemy patrol fleets patrolling the grid. Entry: {pos: Vector2i, name, size,
+# grunts, aces, home: Vector2i, aggro: int}.
+var board_patrols: Array = []
+# Id of the patrol currently engaged in combat (-1 = none). Set by the board
+# before entering a patrol fight; resolved by PatrolSystem on combat end.
+var board_patrol_engagement: int = -1
 var heat: int = 0
 var wanted_level: int = 0
 # Sector-progression floor for wanted_level, raised by HeatWantedSystem.escalate_wanted().
@@ -812,6 +841,62 @@ var _combat_friendly_damage: float = 0.0
 var last_combat_damage_ratio: float = 0.0
 
 const DECISIVE_VICTORY_RATIO := 0.5
+
+# -----------------------------------------------------------------------------
+# PILOT STATE — the player pilot's own condition, kept separate from the mech.
+# The mech has its armor/frame HP; the pilot has their own body, personal
+# weapons, personal ammo and healing items. Logic lives in PilotSystem; GlobalData
+# keeps the raw state + thin facades for its callers (save/load / reset).
+# -----------------------------------------------------------------------------
+var pilot_hp: float = PilotSystem.PILOT_MAX_HP_DEFAULT
+var pilot_max_hp: float = PilotSystem.PILOT_MAX_HP_DEFAULT
+
+# Personal weapons carried on the pilot's body (WeaponPart resource paths).
+var pilot_weapons: Array = ["res://resources/mech/stock/weapon_beam_rifle.tres"]
+
+# Personal ammo reserves for the pilot's own weapons (type -> count).
+var pilot_ammo: Dictionary = {
+	"kinetic": 120,
+	"energy": 40,
+	"explosive": 8,
+	"missile": 3,
+}
+
+# Pilot item inventory (healing items etc.): {item_id: count}.
+var pilot_items: Dictionary = {}
+
+# --- Pilot facades (logic in PilotSystem) ---
+
+func get_pilot_hp() -> float:
+	return PilotSystem.get_hp()
+
+
+func get_pilot_max_hp() -> float:
+	return PilotSystem.get_max_hp()
+
+
+func get_pilot_weapons() -> Array:
+	return PilotSystem.get_weapons()
+
+
+func get_pilot_ammo(ammo_type: String) -> int:
+	return PilotSystem.get_ammo(ammo_type)
+
+
+func get_pilot_ammo_dict() -> Dictionary:
+	return PilotSystem.get_ammo_dict()
+
+
+func get_pilot_items() -> Array:
+	return PilotSystem.get_items()
+
+
+func get_pilot_item_count(item_id: String) -> int:
+	return PilotSystem.get_item_count(item_id)
+
+
+func use_pilot_heal_item(item_id: String) -> float:
+	return PilotSystem.use_heal_item(item_id)
 
 var credits: int = 0
 var data_cores: int = 0
@@ -1330,6 +1415,15 @@ func reset_run_data() -> void:
 	board_grid.clear()
 	current_tile = Vector2i.ZERO
 	board_seed = randi()
+	board_mp_max = 8
+	board_mp = 8
+	board_day = 1
+	board_theme_id = "suburb"
+	board_objective_id = BoardConfig.get_objective("suburb")["id"]
+	board_objective_progress = 0
+	board_objective_required = BoardConfig.get_objective("suburb")["required"]
+	board_patrols.clear()
+	board_patrol_engagement = -1
 	heat = 0
 	wanted_level = 0
 	wanted_escalation = 0
@@ -1378,6 +1472,16 @@ func reset_run_data() -> void:
 	_combat_friendly_total_hp = 0.0
 	_combat_friendly_damage = 0.0
 	last_combat_damage_ratio = 0.0
+	pilot_hp = PilotSystem.PILOT_MAX_HP_DEFAULT
+	pilot_max_hp = PilotSystem.PILOT_MAX_HP_DEFAULT
+	pilot_weapons = ["res://resources/mech/stock/weapon_beam_rifle.tres"]
+	pilot_ammo = {
+		"kinetic": 120,
+		"energy": 40,
+		"explosive": 8,
+		"missile": 3,
+	}
+	pilot_items = {}
 	fleet_roster.clear()
 	recruited_characters.clear()
 	pending_duel.clear()

@@ -1,52 +1,68 @@
 extends Node3D
 
+## Open-grid board controller. Replaces the old layered node graph with a free-
+## movement grid: the player steps cell-by-cell (WASD or click), each cell costs
+## movement points from a per-day pool. Patrol fleets roam the grid, objectives
+## gate the exit, and terrains slow or block movement.
+
 @onready var tile_container: Node3D = $TileContainer
 @onready var player_token: MeshInstance3D = $PlayerToken
 
+const DIRS := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+# WASD moves the token (camera pans with the arrow keys). Physical-key checks so
+# the two never fight over the same input.
+const DIR_KEYS := {
+	KEY_D: Vector2i(1, 0),
+	KEY_A: Vector2i(-1, 0),
+	KEY_S: Vector2i(0, 1),
+	KEY_W: Vector2i(0, -1),
+}
+
 var current_pos: Vector2i = Vector2i.ZERO
 var nodes_dict: Dictionary = {}
+var _tooltip: Node
+var _reveal_log: Dictionary = {}
 
 
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	_tooltip = get_node_or_null("BoardTooltipUI")
 	var generator = get_node_or_null("BoardGenerator")
 	if generator:
 		var data = generator.generate_board()
 		nodes_dict = data["nodes"]
-		
-		# Add tiles to container
+
 		for key in nodes_dict:
 			tile_container.add_child(nodes_dict[key])
-
-		# Generate 3D visual path bridges between connected nodes
-		for key in nodes_dict:
-			var tile = nodes_dict[key]
-			if tile.has_method("create_path_visuals"):
-				tile.create_path_visuals(nodes_dict)
 
 	current_pos = GlobalData.current_tile
 	if not nodes_dict.has(current_pos):
 		current_pos = Vector2i(0, 0)
 		GlobalData.current_tile = current_pos
 
+	# Objective + patrols for this sector (fresh on new sector, restored on
+	# reload after combat).
+	if GlobalData.board_objective_id == "":
+		_setup_objective()
+	GlobalData.board_patrol_engagement = -1
+	PatrolSystem.spawn_patrols()
+
+	_reveal_around(current_pos)
 	_update_token_position()
 	_highlight_adjacent()
 
-	# Revert any stale enemy_base tile left over from a node that was destroyed
-	# or finished its counter-unit on the previous board before surfacing popups.
+	# Revert any stale enemy_base tile, then surface pending events (same flow as
+	# the old graph board).
 	_clear_enemy_base_tile()
 
-	# If the enemy upgraded after the last combat, surface the popup now that
-	# we're back on the board.
 	if GlobalData.consume_pending_escalation_event():
 		EventBus.event_triggered.emit(_build_tech_copy_event())
 
-	# If the player destroyed the enemy research node, surface that result.
 	if GlobalData.consume_pending_enemy_base_destroyed():
 		EventBus.event_triggered.emit(_build_enemy_base_destroyed_event())
+		if BoardSystem.get_objective().get("id", "") == "hq_strike":
+			BoardSystem.complete()
 
-	# Surface a one-shot convoy report (mech destroyed / rebuilt / wanderer) left
-	# by the previous screen, then clear it so it only shows once.
 	if GlobalData.run_notice != "":
 		var notice := GlobalData.run_notice
 		GlobalData.run_notice = ""
@@ -57,76 +73,233 @@ func _ready() -> void:
 			"desc": notice,
 		})
 
+	if GlobalData.board_day == 1 and GlobalData.board_mp >= GlobalData.board_mp_max:
+		EventBus.event_triggered.emit(_build_objective_event())
 
+
+func _setup_objective() -> void:
+	var obj := BoardSystem.get_objective()
+	GlobalData.board_objective_id = str(obj.get("id", ""))
+	GlobalData.board_objective_progress = 0
+	GlobalData.board_objective_required = int(obj.get("required", 1))
+
+
+func _build_objective_event() -> Dictionary:
+	return {
+		"name": "SECTOR OBJECTIVE — %s" % BoardSystem.get_objective().get("name", "?"),
+		"effect": "none",
+		"amount": 0,
+		"desc": BoardSystem.objective_desc(),
+	}
+
+
+# ---------------------------------------------------------------------------
+# MOVEMENT (free grid stepping)
+# ---------------------------------------------------------------------------
+
+# Legacy API kept for click-driven tiles + intermission. Steps the token to an
+# adjacent walkable cell if enough MP remains.
 func move_to_tile(target: Vector2i) -> bool:
-	if not _is_connected_path(current_pos, target):
-		print("Invalid path! Must follow connected branching node paths.")
+	if get_tree().paused or _intermission_open():
+		return false
+	if not _try_step(target):
+		print("Cannot move there! (must be an adjacent walkable cell with enough MP)")
+		return false
+	return true
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if get_tree().paused or not visible or _intermission_open():
+		return
+	if event is InputEventKey and event.pressed and not event.echo:
+		for keycode in DIR_KEYS:
+			if event.is_keycode_pressed(keycode):
+				var dir: Vector2i = DIR_KEYS[keycode]
+				_try_step(current_pos + dir)
+				return
+		if event.is_action_pressed("pause"):
+			return
+		if event.keycode == KEY_END or event.keycode == KEY_ENTER:
+			_end_day()
+
+
+func _try_step(target: Vector2i) -> bool:
+	if not nodes_dict.has(target):
+		return false
+	if target == current_pos:
+		return false
+	var tile = nodes_dict[target]
+	if not BoardConfig.is_passable(str(tile.get_meta("terrain", "plain"))):
+		return false
+	if not _is_adjacent(current_pos, target):
+		return false
+	var cost := BoardConfig.move_cost(str(tile.get_meta("terrain", "plain")))
+	if GlobalData.board_mp < cost:
+		EventBus.event_triggered.emit({
+			"name": "NO MOVEMENT LEFT",
+			"effect": "none",
+			"amount": 0,
+			"desc": "You've run out of movement for today. End the day (End key) to push on.",
+		})
 		return false
 
-	# A node can finish its counter-unit mid-move without a board reload; revert
-	# its tile as soon as we step elsewhere.
-	_clear_enemy_base_tile()
-
+	GlobalData.board_mp = maxi(GlobalData.board_mp - cost, 0)
 	current_pos = target
 	GlobalData.current_tile = target
 	_update_token_position()
 	_clear_highlights()
 	_highlight_adjacent()
+	var revealed := _reveal_around(target)
 
-	# Moving again means the ambush is behind us — re-enable the intermission.
 	GlobalData.blocked_intermission = false
 
-	var tile_data = nodes_dict[target]
-	var tile_type = tile_data.get_meta("tile_type", "empty")
+	# Objective progress triggers.
+	_check_survey_objective(revealed)
+	if str(tile.get_meta("terrain", "plain")) == "bridge" and BoardSystem.get_objective().get("id", "") == "cross_river":
+		BoardSystem.complete()
+		_announce_objective_done()
 
-	# Turn Mobilization & Stalking Ace Interception
+	# Stepping onto a patrol fleet forces a fight (checked before the tile's own
+	# effect so a patrol on a combat tile doesn't double-trigger).
+	var patrol := PatrolSystem.get_patrol_at(target)
+	var engaged_patrol := false
+	if not patrol.is_empty() and GameManager.current_state == GameManager.State.BOARD:
+		engaged_patrol = true
+		GlobalData.board_patrol_engagement = int(patrol.get("id", -1))
+
+	EventBus.tile_entered.emit(target, tile)
+	if not engaged_patrol:
+		_process_tile_effect(str(tile.get_meta("tile_type", "empty")))
+	elif GameManager.current_state == GameManager.State.BOARD:
+		GameManager.enter_combat("grunt" if int(patrol.get("aces", 0)) == 0 else "ace")
+		return true
+
+	if GlobalData.board_mp <= 0:
+		_end_day()
+	return true
+
+
+func _is_adjacent(a: Vector2i, b: Vector2i) -> bool:
+	for d in DIRS:
+		if a + d == b:
+			return true
+	return false
+
+
+func _intermission_open() -> bool:
+	var ui := get_node_or_null("IntermissionUI")
+	return ui != null and ui.visible
+
+
+func _end_day() -> void:
+	GlobalData.board_day += 1
+	GlobalData.board_mp = GlobalData.board_mp_max
+
+	# Once-per-day systems.
 	process_turn_mobilization()
 	accumulate_stalker_chance()
 
-	# Enemy espionage: each board move the enemy may send a spy to steal mech
-	# data. Security determines whether the spy is caught.
 	var spy_event := GlobalData.roll_spy_event()
 	if not spy_event.is_empty():
 		EventBus.event_triggered.emit(spy_event)
 
-	# If the stolen data coalesced into a research node, place it on the board
-	# so the player can hunt it down.
 	if GlobalData.consume_enemy_base_spawn_request():
 		_place_enemy_base_node()
 		EventBus.event_triggered.emit(_build_enemy_base_spawn_event())
 
-	# The research node's counter-unit progress ticks with every move we make
-	# while it is active. If it completes, surface the outcome popup.
 	if GlobalData.tick_enemy_base_progress(1.0):
 		EventBus.event_triggered.emit(_build_enemy_base_completed_event())
 
-	EventBus.tile_entered.emit(target, tile_data)
-	_process_tile_effect(tile_type)
+	EventBus.board_day_ended.emit()
 
-	if tile_type not in ["combat", "exit", "enemy_base"]:
-		var intermission = get_node_or_null("IntermissionUI")
-		if intermission:
-			intermission.visible = true
-			intermission.status_label.text = intermission._get_status_text()
-	return true
+	# Patrols move after the day's systems resolve.
+	var ambush := PatrolSystem.advance_day(current_pos)
+	if ambush != Vector2i(-1, -1) and GameManager.current_state == GameManager.State.BOARD:
+		var patrol := PatrolSystem.get_patrol_at(ambush)
+		if not patrol.is_empty():
+			GlobalData.board_patrol_engagement = int(patrol.get("id", -1))
+			GameManager.enter_combat("grunt" if int(patrol.get("aces", 0)) == 0 else "ace")
+			return
+
+	_update_token_position()
+	_highlight_adjacent()
+	EventBus.event_triggered.emit({
+		"name": "DAY %d" % GlobalData.board_day,
+		"effect": "none",
+		"amount": 0,
+		"desc": "Supplies refreshed — %d MP. %s" % [GlobalData.board_mp_max, BoardSystem.progress_text()],
+	})
 
 
-func _is_connected_path(from_key: Vector2i, to_key: Vector2i) -> bool:
-	if not nodes_dict.has(from_key):
-		return false
-	var from_tile = nodes_dict[from_key]
-	var connects = from_tile.get_meta("connections", [])
-	return to_key in connects
+func _check_survey_objective(newly: int) -> void:
+	if BoardSystem.get_objective().get("id", "") != "survey":
+		return
+	if newly <= 0:
+		return
+	var before := GlobalData.board_objective_progress
+	BoardSystem.add_progress(newly)
+	if not BoardSystem.is_objective_complete() and GlobalData.board_objective_progress > before:
+		EventBus.event_triggered.emit({
+			"name": "Terrain Mapped",
+			"effect": "none",
+			"amount": 0,
+			"desc": "%s" % BoardSystem.progress_text(),
+		})
 
+
+func _announce_objective_done() -> void:
+	EventBus.event_triggered.emit({
+		"name": "OBJECTIVE COMPLETE",
+		"effect": "none",
+		"amount": 0,
+		"desc": "%s complete! The extraction route to the exit is now open." % BoardSystem.get_objective().get("name", "Objective"),
+	})
+
+
+# ---------------------------------------------------------------------------
+# REVEAL / FOG OF WAR
+# ---------------------------------------------------------------------------
+
+func _reveal_around(center: Vector2i) -> int:
+	var newly := 0
+	for k in _tiles_in_radius(center, 1):
+		var tile = nodes_dict.get(k)
+		if tile == null or tile.is_revealed:
+			continue
+		if _reveal_log.has(k):
+			continue
+		tile.reveal()
+		_reveal_log[k] = true
+		newly += 1
+	return newly
+
+
+func _tiles_in_radius(center: Vector2i, radius: int) -> Array:
+	var result: Array = []
+	for y in range(center.y - radius, center.y + radius + 1):
+		for x in range(center.x - radius, center.x + radius + 1):
+			var k := Vector2i(x, y)
+			if nodes_dict.has(k):
+				result.append(k)
+	return result
+
+
+# ---------------------------------------------------------------------------
+# TOKEN / HIGHLIGHTS
+# ---------------------------------------------------------------------------
 
 func _highlight_adjacent() -> void:
 	if not nodes_dict.has(current_pos):
 		return
-	var current_tile = nodes_dict[current_pos]
-	var connects = current_tile.get_meta("connections", [])
-	for target_key in connects:
-		if nodes_dict.has(target_key):
-			nodes_dict[target_key].highlight(true)
+	for d in DIRS:
+		var target_key := current_pos + d
+		if not nodes_dict.has(target_key):
+			continue
+		var tile = nodes_dict[target_key]
+		if not BoardConfig.is_passable(str(tile.get_meta("terrain", "plain"))):
+			continue
+		if GlobalData.board_mp >= BoardConfig.move_cost(str(tile.get_meta("terrain", "plain"))):
+			tile.highlight(true)
 
 
 func _clear_highlights() -> void:
@@ -137,12 +310,66 @@ func _clear_highlights() -> void:
 func _update_token_position() -> void:
 	if nodes_dict.has(current_pos):
 		var tile = nodes_dict[current_pos]
-		player_token.global_position = tile.global_position + Vector3(0, 0.5, 0)
+		player_token.global_position = tile.global_position + Vector3(0, 0.9, 0)
 
 
-# Reverts the stale enemy_base tile (set when its node was destroyed or finished
-# its counter-unit) back to a normal combat tile so stepping on it again cannot
-# re-trigger a raid. Does nothing when there is no pending reset.
+# ---------------------------------------------------------------------------
+# HOVER TOOLTIP (patrol fleet reconnaissance on hover)
+# ---------------------------------------------------------------------------
+
+func _process(_delta: float) -> void:
+	if get_tree().paused or _tooltip == null:
+		if _tooltip and _tooltip.has_method("show_tile"):
+			_tooltip.show_tile("", Vector2(-1, -1), {})
+		return
+	var tile := _hovered_tile()
+	if tile == null:
+		if _tooltip.has_method("show_tile"):
+			_tooltip.show_tile("", Vector2(-1, -1), {})
+		return
+	var pos := tile.get_meta("grid_pos", Vector2i(-1, -1)) as Vector2i
+	var terrain := str(tile.get_meta("terrain", "plain"))
+	var tt := tile.get_meta("tile_type", "empty")
+	var patrol := PatrolSystem.get_patrol_at(pos)
+	var text := "%s (%d, %d)\nTerrain: %s — cost %d MP" % [
+		str(tt.to_upper()), pos.x, pos.y, terrain.capitalize(),
+		BoardConfig.move_cost(terrain)
+	]
+	if not BoardConfig.is_passable(terrain):
+		text += "\nIMPassable!"
+	if not patrol.is_empty():
+		text += "\nPATROL: %s — %d grunt(s)" % [patrol.get("name", "fleet"), int(patrol.get("grunts", 1))]
+		if int(patrol.get("aces", 0)) > 0:
+			text += " + %d ACE" % int(patrol.get("aces", 0))
+		text += "\n[hover reach = contact]"
+	if _tooltip.has_method("show_tile"):
+		_tooltip.show_tile(text, _mouse_screen_pos(), {})
+
+
+func _hovered_tile() -> Node:
+	var camera := get_viewport().get_camera_3d()
+	if camera == null:
+		return null
+	var mouse := get_viewport().get_mouse_position()
+	var from := camera.project_ray_origin(mouse)
+	var to := from + camera.project_ray_normal(mouse) * 400.0
+	var params := PhysicsRayQueryParameters3D.create(from, to)
+	params.collision_mask = 16
+	var space := get_world_3d().direct_space_state
+	var hit := space.intersect_ray(params)
+	if hit.is_empty():
+		return null
+	return hit.get("collider")
+
+
+func _mouse_screen_pos() -> Vector2:
+	return get_viewport().get_mouse_position()
+
+
+# ---------------------------------------------------------------------------
+# LEGACY enemy_base helpers (kept for the research-node lifecycle)
+# ---------------------------------------------------------------------------
+
 func _clear_enemy_base_tile() -> void:
 	var reset_pos := GlobalData.consume_enemy_base_tile_reset()
 	if reset_pos == Vector2i(-1, -1):
@@ -151,26 +378,21 @@ func _clear_enemy_base_tile() -> void:
 		return
 	var tile = nodes_dict[reset_pos]
 	tile.set_meta("tile_type", "combat")
-	tile.tile_type = "combat"
 	if tile.has_method("_update_visual"):
 		tile._update_visual()
 
 
-# Turn mobilization refilling (Low Heat Grace Period: suppressed when Heat < 3)
 func process_turn_mobilization() -> void:
 	if GlobalData.heat < 3:
-		# Low Heat Grace Period: Mobilization suppressed to keep early-game accessible
 		return
-
 	var grunt_recruit = int(GlobalData.enemy_forces["grunt_max"] * randf_range(0.10, 0.20))
 	GlobalData.enemy_forces["grunt_current"] = clampi(
-		GlobalData.enemy_forces["grunt_current"] + grunt_recruit, 
+		GlobalData.enemy_forces["grunt_current"] + grunt_recruit,
 		0, GlobalData.enemy_forces["grunt_max"]
 	)
-
 	if randf() < 0.30:
 		GlobalData.enemy_forces["ace_current"] = clampi(
-			GlobalData.enemy_forces["ace_current"] + 1, 
+			GlobalData.enemy_forces["ace_current"] + 1,
 			0, GlobalData.enemy_forces["ace_max"]
 		)
 
@@ -184,8 +406,6 @@ func _process_tile_effect(tile_type: String) -> void:
 	match tile_type:
 		"combat":
 			if GlobalData.mech_less:
-				# On foot there is no battle to pick — the pilots hunt for a
-				# replacement mech instead.
 				_trigger_recovery_event()
 			elif GlobalData.ceasefire_turns > 0:
 				GlobalData.ceasefire_turns -= 1
@@ -195,15 +415,10 @@ func _process_tile_effect(tile_type: String) -> void:
 			else:
 				GameManager.enter_combat("grunt")
 		"enemy_base":
-			# The enemy research node is a raid: destroy it to stop the
-			# counter-unit. Winning clears the node's active state. If the node
-			# is already resolved (destroyed / counter-unit finished), the tile
-			# is just a normal combat tile — never re-trigger the raid.
 			if GlobalData.mech_less:
 				_trigger_recovery_event()
 				return
-			var stepped_pos: Vector2i = nodes_dict[current_pos].get_meta("grid_pos", Vector2i(-1, -1)) if nodes_dict.has(current_pos) else Vector2i(-1, -1)
-			if GlobalData.enemy_base_active and GlobalData.enemy_base_tile_pos == stepped_pos:
+			if GlobalData.enemy_base_active and GlobalData.enemy_base_tile_pos == current_pos:
 				GameManager.enter_combat("enemy_base")
 			else:
 				GameManager.enter_combat("grunt")
@@ -214,6 +429,11 @@ func _process_tile_effect(tile_type: String) -> void:
 			var safehouse = get_node_or_null("SafehouseUI")
 			if safehouse:
 				safehouse.visible = true
+				get_tree().paused = true
+		"city":
+			var city = get_node_or_null("CityShopUI")
+			if city:
+				city.visible = true
 				get_tree().paused = true
 		"data_node":
 			_trigger_data_node_event()
@@ -232,7 +452,7 @@ func _trigger_ceasefire_skip() -> void:
 		"name": "Ceasefire Holds",
 		"effect": "none",
 		"amount": 0,
-		"desc": "The front is quiet. %d tile(s) of ceasefire remain." % GlobalData.ceasefire_turns,
+		"desc": "The front is quiet. %d day(s) of ceasefire remain." % GlobalData.ceasefire_turns,
 	}
 	EventBus.event_triggered.emit(event)
 
@@ -243,7 +463,7 @@ func _trigger_data_node_event() -> void:
 		"name": "Data Terminal Extraction",
 		"effect": "data_cores",
 		"amount": 2,
-		"desc": "Extracted blueprint data core! +2 Data Cores."
+		"desc": "Extracted blueprint data core! +2 Data Cores.",
 	}
 	EventBus.event_triggered.emit(event)
 
@@ -253,15 +473,21 @@ func _trigger_dead_end_event() -> void:
 		"name": "Hidden Dead End",
 		"effect": "dead_end",
 		"amount": 0,
-		"desc": "Approached a hidden wall/obstacle! Reroute path required."
+		"desc": "Approached a hidden obstacle! Reroute path required.",
 	}
 	EventBus.event_triggered.emit(event)
 
 
 func _trigger_exit_event() -> void:
+	if not BoardSystem.is_objective_complete():
+		EventBus.event_triggered.emit({
+			"name": "ROUTE BLOCKED",
+			"effect": "none",
+			"amount": 0,
+			"desc": "The extraction zone is sealed. Complete the sector objective first: %s" % BoardSystem.progress_text(),
+		})
+		return
 	if GlobalData.mech_less:
-		# On foot the extraction zone is a death sentence — a wanderer rides up
-		# and tosses you the keys to a spare chassis right before the final push.
 		var event = {
 			"name": "The Wanderer",
 			"effect": "wanderer_join",
@@ -289,11 +515,9 @@ func _trigger_recovery_event() -> void:
 func _trigger_stalker_surprise_ambush() -> void:
 	var active_stalker = GlobalData.stalking_aces[0]
 	GlobalData.stalking_chance = 0.0
-
 	var safehouse_ui = get_node_or_null("SafehouseUI")
 	if safehouse_ui:
 		safehouse_ui.status_label.text = "SIREN WARNING! Stalking Ace: " + active_stalker + " Ambushed!"
-
 	GameManager.enter_combat("ace")
 
 
@@ -302,22 +526,14 @@ func _trigger_random_event() -> void:
 	if pool.is_empty():
 		_trigger_default_event()
 		return
-
-	# On foot there is nothing to fight with — an ambush can't force a battle
-	# (it would just be a one-sided massacre), so skip those events.
 	if GlobalData.mech_less:
 		pool = pool.filter(func(event):
 			return str(event.get("effect", "")) != "force_combat")
-	# Recruit events also hide once their pilot is already in the convoy (and
-	# on foot a duel can't be fought, so these encounters are skipped entirely).
 	pool = pool.filter(func(event):
 		return RecruitSystem.is_event_available(event))
 	if pool.is_empty():
 		_trigger_default_event()
 		return
-
-	# Weighted pick: theme-specific events get a bonus so the common pool does
-	# not drown them out entirely.
 	var total := 0
 	for event in pool:
 		var weight := int(event.get("weight", 1))
@@ -336,10 +552,8 @@ func _trigger_random_event() -> void:
 		if roll < 0:
 			chosen = event
 			break
-
 	EventBus.event_triggered.emit(chosen)
 	if GlobalData.apply_event_effect(chosen):
-		# force_combat — the intermission is blocked; jump straight into battle.
 		GameManager.enter_combat(str(chosen.get("params", {}).get("combat_type", "grunt")))
 
 
@@ -364,9 +578,8 @@ func _build_tech_copy_event() -> Dictionary:
 	}
 
 
-# Place the enemy research node on an unreached tile so the player must hunt
-# it down. Prefers a tile 2+ layers ahead (a real chase with time pressure),
-# falling back to any tile further ahead, then any non-start/exit tile.
+# Places the enemy research node on an unsettled (non-special) walkable tile
+# several cells ahead of the player so it becomes a real hunt.
 func _place_enemy_base_node() -> void:
 	var current_layer := current_pos.x
 	var target_layers: Array[int] = [current_layer + 2, current_layer + 3, current_layer + 4]
@@ -376,9 +589,11 @@ func _place_enemy_base_node() -> void:
 	var fallback: Array = []
 	for key in nodes_dict:
 		var tile_type: String = nodes_dict[key].get_meta("tile_type", "empty")
-		if tile_type in ["start", "exit", "safehouse"]:
+		if tile_type in ["start", "exit", "safehouse", "city", "enemy_base"]:
 			continue
-		if key.x == target_layer and tile_type != "enemy_base":
+		if not BoardConfig.is_passable(str(nodes_dict[key].get_meta("terrain", "plain"))):
+			continue
+		if key.x == target_layer:
 			candidates.append(key)
 		elif key.x > current_layer:
 			fallback.append(key)
@@ -386,8 +601,9 @@ func _place_enemy_base_node() -> void:
 		candidates = fallback
 	if candidates.is_empty():
 		for key in nodes_dict:
-			if key != current_pos and nodes_dict[key].get_meta("tile_type", "empty") not in ["start", "exit"]:
-				candidates.append(key)
+			if key != current_pos and nodes_dict[key].get_meta("tile_type", "empty") not in ["start", "exit", "safehouse", "city"]:
+				if BoardConfig.is_passable(str(nodes_dict[key].get_meta("terrain", "plain"))):
+					candidates.append(key)
 	if candidates.is_empty():
 		candidates = [current_pos]
 
@@ -405,7 +621,7 @@ func _build_enemy_base_spawn_event() -> Dictionary:
 		"name": "ENEMY RESEARCH BASE",
 		"effect": "none",
 		"amount": 0,
-		"desc": "A stolen-data research base has been detected on the map (red tile). Reach it and destroy it before the enemy finishes a counter-unit!",
+		"desc": "A stolen-data research base has been detected on the map (burning red tile). Reach it and destroy it before the enemy finishes a counter-unit!",
 	}
 
 

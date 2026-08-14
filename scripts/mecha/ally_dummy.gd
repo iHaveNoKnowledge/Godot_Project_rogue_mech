@@ -299,7 +299,7 @@ func _fire_ranged() -> void:
 
 	# Fire sound at the muzzle so the player can hear their ally fighting back.
 	if has_node("/root/AudioManager"):
-		AudioManager.play_sfx("machine_gun", from_pos, -3.0)
+		AudioManager.play_sfx("machine_gun", from_pos, -8.0)
 
 	var dir = (to_pos - from_pos).normalized()
 	fire_core.try_fire(from_pos, dir, false, self)

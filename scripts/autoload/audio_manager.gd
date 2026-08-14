@@ -487,7 +487,7 @@ func play_sfx_2d(sound_name: String, volume_db: float = 0.0, bus: String = "SFX"
 func play_weapon_sfx(weapon_type: int, pos: Vector3) -> void:
 	match weapon_type:
 		0: play_sfx("beam_rifle", pos)
-		1: play_sfx("machine_gun", pos)
+		1: play_sfx("machine_gun", pos, -8.0)
 		2: play_sfx("missile", pos)
 		3: play_sfx("shotgun", pos)
 		4: play_sfx("melee", pos)

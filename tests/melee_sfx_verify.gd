@@ -102,6 +102,27 @@ func _ready() -> void:
 	am.play_sfx("beam_rifle", Vector3.ZERO)
 	_check(am.sfx_pool[0].pitch_scale == 1.0, "non-jittered sfx resets the pooled player pitch to 1.0")
 
+	# 8. AI melee voices: the enemy brute whoosh exists as a valid distinct
+	#    voice, and the positional AI calls route to the right streams.
+	var enemy_swing: AudioStreamWAV = am._sound_cache["enemy_melee_swing"]
+	_check(enemy_swing != null and enemy_swing.data.size() > 500, "enemy melee swing voice exists")
+	_check(enemy_swing.data != am._sound_cache["blade_swing"].data, "enemy swing voice differs from the player's blade voice")
+
+	am.sfx_pool[0].stop()
+	am.play_enemy_melee_swing(Vector3.ZERO)
+	_check(am.sfx_pool[0].stream == enemy_swing, "enemy melee swing plays its own brute voice")
+	_check(am.sfx_pool[0].pitch_scale >= 0.95 and am.sfx_pool[0].pitch_scale <= 1.05,
+		"enemy swing jitters pitch too (%.3f)" % am.sfx_pool[0].pitch_scale)
+	am.sfx_pool[0].stop()
+
+	am.play_ally_melee_swing(Vector3.ZERO)
+	_check(am.sfx_pool[0].stream == am._sound_cache["blade_swing"], "ally melee swing reuses the player's blade voice")
+	am.sfx_pool[0].stop()
+
+	am.play_npc_melee_hit(Vector3.ZERO)
+	var melee_arr: Array = am._sound_cache["melee"]
+	_check(melee_arr.has(am.sfx_pool[0].stream), "NPC melee hit uses a generic melee hit voice")
+
 	print("SFX_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	await get_tree().process_frame
 	get_tree().quit(1 if _fails > 0 else 0)

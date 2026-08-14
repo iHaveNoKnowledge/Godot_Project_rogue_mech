@@ -138,6 +138,10 @@ func _generate_sounds() -> void:
 	_sound_cache["knife_hit"] = _gen_knife_hit()
 	_sound_cache["blade_swing"] = _gen_blade_swing()
 	_sound_cache["blade_ring"] = _gen_blade_ring()
+	# AI melee attackers have no WeaponPart to dispatch on, so they get their
+	# own positional voices: a low brute whoosh for enemy swings, the player's
+	# blade voice for ally swings, and the generic melee cache for both on hit.
+	_sound_cache["enemy_melee_swing"] = _gen_enemy_melee_swing()
 	# Pile Bunker: explosive shell-driven punch
 	_sound_cache["pile_bunker_fire"] = _gen_pile_bunker_fire()
 	_sound_cache["pile_bunker_hit"] = _gen_pile_bunker_hit()
@@ -516,6 +520,31 @@ func _gen_blade_ring() -> AudioStreamWAV:
 	return stream
 
 
+# Enemy melee swing: a low, gritty brute whoosh — clearly heavier than the
+# player's voices so an enemy RUSHER reads as a big swipe.
+func _gen_enemy_melee_swing() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 0.16
+	var num_samples = int(duration * sample_rate)
+	var data = PackedByteArray()
+	data.resize(num_samples * 2)
+	for i in range(num_samples):
+		var t = float(i) / sample_rate
+		var env = exp(-t * 18.0)
+		var freq = lerp(260.0, 70.0, t / duration)
+		var sample = sin(TAU * freq * t) * 0.3 * env
+		sample += (randf() * 2.0 - 1.0) * 0.16 * env
+		var val = int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+	var stream = AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream
+
+
 func _gen_pitch_variant(source: AudioStreamWAV, pitch_ratio: float) -> AudioStreamWAV:
 	if source == null:
 		return null
@@ -723,6 +752,27 @@ func play_melee_hit(weapon: WeaponPart, pos: Vector3) -> void:
 	if combat_muted:
 		return
 	play_sfx(_melee_sfx_name(weapon, true), pos, -1.0, "SFX", MELEE_HIT_PITCH_JITTER)
+
+
+# Positional melee voices for AI melee attackers (no WeaponPart to dispatch on):
+# the enemy RUSHER swings with a low brute whoosh, allies slash with the same
+# blade voice as the player, and both play the generic melee hit on a connect.
+func play_enemy_melee_swing(pos: Vector3) -> void:
+	if combat_muted:
+		return
+	play_sfx("enemy_melee_swing", pos, -4.0, "SFX", 0.05)
+
+
+func play_ally_melee_swing(pos: Vector3) -> void:
+	if combat_muted:
+		return
+	play_sfx("blade_swing", pos, -4.0, "SFX", 0.06)
+
+
+func play_npc_melee_hit(pos: Vector3) -> void:
+	if combat_muted:
+		return
+	play_sfx("melee", pos, -3.0, "SFX", 0.05)
 
 
 # Maps a melee weapon to its SFX cache key. Exposed for headless tests.

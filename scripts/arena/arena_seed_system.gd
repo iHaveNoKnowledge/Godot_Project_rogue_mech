@@ -79,7 +79,9 @@ func get_obstacle_positions(theme: int = 0, arena_size: float = 240.0) -> Array:
 				})
 
 		4: # FOREST (ป่า)
-			# Trees are both cover and scenery; logs, rocks and ferns add clutter
+			# Trees are both cover and scenery; logs and ferns add clutter. Only
+			# forest cover types (6=tree trunk, 7=fallen log, 8=fern) are used so
+			# no city props (containers, barriers, pillars) break the biome.
 			for i in range(rng.randi_range(34, 46)):
 				var x = rng.randf_range(-half, half)
 				var z = rng.randf_range(-half, half)
@@ -87,7 +89,7 @@ func get_obstacle_positions(theme: int = 0, arena_size: float = 240.0) -> Array:
 					continue # Keep the river band clear of cover
 				positions.append({
 					"pos": Vector3(x, 0, z),
-					"type": rng.randi_range(0, 8),
+					"type": rng.randi_range(6, 8),
 					"rot": rng.randf_range(0, TAU)
 				})
 

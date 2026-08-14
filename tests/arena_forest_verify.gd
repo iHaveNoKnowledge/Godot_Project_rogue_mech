@@ -20,15 +20,20 @@ func _check(cond: bool, name: String) -> void:
 
 
 func _ready() -> void:
+	# Real flow: generate a sector-2 board (odd seed -> forest theme), which is
+	# exactly how board_theme_id is set during gameplay, then build the arena.
 	GlobalData.reset_run_data()
-	GlobalData.board_theme_id = "forest"
+	GlobalData.current_sector = 2
+	GlobalData.board_seed = 1 # odd -> forest
+	var gen := preload("res://scripts/board/board_generator.gd").new()
+	gen.generate_board()
+	_check(GlobalData.board_theme_id == "forest", "board generation sets forest theme")
 
 	var arena_script = preload("res://scripts/arena/arena_generator.gd")
 	var biome = arena_script.BiomeTheme.FOREST
 	_check(biome == 4, "FOREST is enum value 4")
 
 	var arena := arena_script.new()
-	GlobalData.board_theme_id = "forest"
 	arena.current_theme = arena._theme_from_board()
 	_check(arena.current_theme == biome, "board forest -> FOREST biome")
 	arena.arena_size = 240.0
@@ -57,6 +62,15 @@ func _ready() -> void:
 		if absf(c["pos"].z) < 24.0:
 			in_water += 1
 	_check(in_water == 0, "no cover inside the river band (got %d)" % in_water)
+
+	# No city props: every FOREST cover must be a forest type (6-8), never a
+	# city container/barrier/pillar (0-5) — otherwise the forest arena reads as
+	# a building site.
+	var city_props := 0
+	for c in cover:
+		if int(c["type"]) <= 5:
+			city_props += 1
+	_check(city_props == 0, "no city props in forest arena (got %d)" % city_props)
 
 	print("ARENA_FOREST_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	get_tree().quit(1 if _fails > 0 else 0)

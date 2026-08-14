@@ -17,6 +17,7 @@ func _ready() -> void:
 
 	if tile_type in ["start", "exit", "safehouse", "data_node", "enemy_base", "city"]:
 		is_revealed = true
+	_add_terrain_props()
 	_update_visual()
 
 
@@ -56,10 +57,6 @@ func _update_visual() -> void:
 				color = Color(0.95, 0.6, 0.2) # Orange Trading City
 			"data_node":
 				color = Color(0.9, 0.8, 0.1) # Gold Data Terminal
-		if tile_type == "combat":
-			material.emission_enabled = true
-			material.emission = Color(0.8, 0.1, 0.1)
-			material.emission_energy_multiplier = 0.7
 	else:
 		color = color.darkened(0.35)
 		color.a = 0.9
@@ -67,6 +64,13 @@ func _update_visual() -> void:
 	material.albedo_color = color
 	material.roughness = 0.85
 	mesh_instance.set_surface_override_material(0, material)
+
+	# Combat tiles keep their terrain color (no more glowing red floor). A thin
+	# red edge frame marks the tile as a fight zone once it is revealed.
+	if is_revealed and tile_type == "combat":
+		_add_combat_frame()
+	else:
+		_remove_combat_frame()
 
 
 func _terrain_color(t: String) -> Color:
@@ -86,6 +90,169 @@ func _terrain_color(t: String) -> Color:
 		"rock":
 			return Color(0.35, 0.33, 0.30) # Building / boulder
 	return Color(0.5, 0.5, 0.5)
+
+
+# ---------------------------------------------------------------------------
+# TERRAIN PROPS (trees on forest tiles, buildings on rock tiles, etc.)
+# Simple decorative meshes so the board reads as real terrain. Props are pure
+# visual (no physics) so they never block movement, clicks, or the hover ray.
+# ---------------------------------------------------------------------------
+
+func _add_terrain_props() -> void:
+	var prop_node := Node3D.new()
+	prop_node.name = "TerrainProps"
+	add_child(prop_node)
+
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(grid_pos.x * 73856093) ^ int(grid_pos.y * 19349663)
+
+	match terrain:
+		"forest":
+			_add_tree(prop_node, rng, 1.8, 2.8)
+			if rng.randf() < 0.45:
+				_add_tree(prop_node, rng, 1.2, 1.8, Vector3(rng.randf_range(-1.3, 1.3), 0, rng.randf_range(-1.3, 1.3)))
+		"rock":
+			if GlobalData.board_theme_id in ["urban", "suburb"]:
+				_add_building(prop_node, rng)
+			else:
+				_add_boulder(prop_node, rng)
+		"plain":
+			if rng.randf() < 0.35:
+				_add_bush(prop_node, rng)
+		"sand":
+			if rng.randf() < 0.4:
+				_add_boulder(prop_node, rng)
+		_:
+			pass
+
+
+func _add_tree(parent: Node3D, rng: RandomNumberGenerator, trunk_h: float, canopy_r: float, offset: Vector3 = Vector3.ZERO) -> void:
+	var trunk := MeshInstance3D.new()
+	var trunk_mesh := CylinderMesh.new()
+	trunk_mesh.top_radius = 0.12
+	trunk_mesh.bottom_radius = 0.18
+	trunk_mesh.height = trunk_h
+	trunk.mesh = trunk_mesh
+	var trunk_mat := StandardMaterial3D.new()
+	trunk_mat.albedo_color = Color(0.38, 0.26, 0.15)
+	trunk_mat.roughness = 1.0
+	trunk.material_override = trunk_mat
+	trunk.position = offset + Vector3(0, trunk_h * 0.5, 0)
+	parent.add_child(trunk)
+
+	var canopy := MeshInstance3D.new()
+	var canopy_mesh := CylinderMesh.new()
+	canopy_mesh.top_radius = 0.05
+	canopy_mesh.bottom_radius = canopy_r
+	canopy_mesh.height = canopy_r * 1.6
+	canopy.mesh = canopy_mesh
+	var leaf_mat := StandardMaterial3D.new()
+	var shade := rng.randf_range(-0.08, 0.06)
+	leaf_mat.albedo_color = Color(0.14 + shade, 0.34 + shade, 0.15 + shade)
+	leaf_mat.roughness = 1.0
+	canopy.material_override = leaf_mat
+	canopy.position = offset + Vector3(0, trunk_h + canopy_mesh.height * 0.45, 0)
+	canopy.rotation.y = rng.randf_range(0.0, TAU)
+	parent.add_child(canopy)
+
+
+func _add_building(parent: Node3D, rng: RandomNumberGenerator) -> void:
+	var building := MeshInstance3D.new()
+	var body := BoxMesh.new()
+	var bw := rng.randf_range(1.8, 2.6)
+	var bh := rng.randf_range(2.0, 3.6)
+	body.size = Vector3(bw, bh, bw)
+	building.mesh = body
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.30 + rng.randf_range(-0.05, 0.05), 0.31, 0.36)
+	mat.roughness = 0.8
+	building.material_override = mat
+	building.position = Vector3(0, bh * 0.5, 0)
+	parent.add_child(building)
+
+	# Roof slab
+	var roof := MeshInstance3D.new()
+	var roof_mesh := BoxMesh.new()
+	roof_mesh.size = Vector3(bw + 0.2, 0.12, bw + 0.2)
+	roof.mesh = roof_mesh
+	var roof_mat := StandardMaterial3D.new()
+	roof_mat.albedo_color = Color(0.42, 0.43, 0.48)
+	roof_mat.roughness = 0.9
+	roof.material_override = roof_mat
+	roof.position = Vector3(0, bh + 0.06, 0)
+	parent.add_child(roof)
+
+
+func _add_boulder(parent: Node3D, rng: RandomNumberGenerator) -> void:
+	var boulder := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	var size := rng.randf_range(0.7, 1.4)
+	mesh.size = Vector3(size, size * rng.randf_range(0.6, 0.8), size)
+	boulder.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.40, 0.38, 0.34)
+	mat.roughness = 1.0
+	boulder.material_override = mat
+	boulder.position = Vector3(rng.randf_range(-1.4, 1.4), mesh.size.y * 0.5, rng.randf_range(-1.4, 1.4))
+	boulder.rotation.y = rng.randf_range(0.0, TAU)
+	parent.add_child(boulder)
+
+
+func _add_bush(parent: Node3D, rng: RandomNumberGenerator) -> void:
+	var bush := MeshInstance3D.new()
+	var mesh := SphereMesh.new()
+	var size := rng.randf_range(0.35, 0.6)
+	mesh.radius = size
+	mesh.height = size * 1.3
+	bush.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.25, 0.40, 0.22)
+	mat.roughness = 1.0
+	bush.material_override = mat
+	bush.position = Vector3(rng.randf_range(-1.5, 1.5), size * 0.55, rng.randf_range(-1.5, 1.5))
+	parent.add_child(bush)
+
+
+# ---------------------------------------------------------------------------
+# COMBAT FRAME (subtle red edge marker on revealed combat tiles)
+# ---------------------------------------------------------------------------
+
+func _add_combat_frame() -> void:
+	if get_node_or_null("CombatFrame") != null:
+		return
+	var frame := Node3D.new()
+	frame.name = "CombatFrame"
+
+	var frame_mat := StandardMaterial3D.new()
+	frame_mat.albedo_color = Color(0.85, 0.18, 0.12)
+	frame_mat.emission_enabled = true
+	frame_mat.emission = Color(0.8, 0.15, 0.1)
+	frame_mat.emission_energy_multiplier = 0.5
+	frame_mat.roughness = 0.6
+
+	var half := 1.95
+	var thin := 0.12
+	for edge in [
+		{"pos": Vector3(0, 0.025, -half), "size": Vector3(half * 2, thin, thin)},
+		{"pos": Vector3(0, 0.025, half), "size": Vector3(half * 2, thin, thin)},
+		{"pos": Vector3(-half, 0.025, 0), "size": Vector3(thin, thin, half * 2)},
+		{"pos": Vector3(half, 0.025, 0), "size": Vector3(thin, thin, half * 2)},
+	]:
+		var strip := MeshInstance3D.new()
+		var strip_mesh := BoxMesh.new()
+		strip_mesh.size = edge["size"]
+		strip.mesh = strip_mesh
+		strip.material_override = frame_mat
+		strip.position = edge["pos"]
+		frame.add_child(strip)
+
+	add_child(frame)
+
+
+func _remove_combat_frame() -> void:
+	var frame := get_node_or_null("CombatFrame")
+	if frame != null:
+		frame.queue_free()
 
 
 func highlight(active: bool) -> void:

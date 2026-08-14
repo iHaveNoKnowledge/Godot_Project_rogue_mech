@@ -120,13 +120,11 @@ func _ready() -> void:
 	var flat_box := false
 	if structures:
 		for child in structures.get_children():
-			if child.name == "ForestTerrainCollision":
-				for sub in child.get_children():
-					if sub is CollisionShape3D and sub.shape is HeightMapShape3D:
+			for sub in child.get_children():
+				if sub is CollisionShape3D and sub.shape != null:
+					if sub.shape is HeightMapShape3D:
 						heightmap_bodies += 1
-			if child.name == "GroundCollision":
-				for sub in child.get_children():
-					if sub is CollisionShape3D and sub.shape is BoxShape3D:
+					elif sub.shape is BoxShape3D and child.name == "GroundCollision":
 						flat_box = true
 	_check(heightmap_bodies == 2, "forest terrain collision = 2 heightmap banks (got %d)" % heightmap_bodies)
 	_check(not flat_box, "forest arena has no flat box ground collision")

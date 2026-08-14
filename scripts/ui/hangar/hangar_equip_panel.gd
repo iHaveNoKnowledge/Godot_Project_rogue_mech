@@ -24,8 +24,10 @@ var _pending_swap_action: Callable = Callable()
 # display label ("Weapon"/"Armor"), `continuation` is the equip operation to run
 # once the player confirms (it performs the actual transfer + equip).
 func _request_swap_confirm(kind: String, part_name: String, from_mech: String, continuation: Callable) -> void:
-	_pending_swap_action = continuation
+	# Build the modal FIRST: it starts with _close_swap_confirm(), which would
+	# otherwise wipe the continuation we're about to store.
 	_build_swap_confirm_modal(kind, part_name, from_mech)
+	_pending_swap_action = continuation
 
 
 func _build_swap_confirm_modal(kind: String, part_name: String, from_mech: String) -> void:

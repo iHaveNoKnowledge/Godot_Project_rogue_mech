@@ -395,7 +395,7 @@ func _add_forest_bank_collision(z0: float, z1: float) -> void:
 	shape.map_data = data
 
 	var body := StaticBody3D.new()
-	body.name = "ForestTerrainCollision"
+	body.name = "ForestTerrainCollision%s" % ("North" if z0 > 0.0 else "South")
 	body.collision_layer = 2
 	body.collision_mask = 1
 	var collision := CollisionShape3D.new()
@@ -867,9 +867,9 @@ func _forest_terrain_height(wx: float, wz: float) -> float:
 	var field_flat := 1.0 - field_mask
 	if field_flat >= 1.0:
 		return 0.0
-	var h := terrain_noise.get_noise_2d(wx * 0.016, wz * 0.016) * 0.72
-	h += terrain_noise.get_noise_2d(wx * 0.045 + 31.7, wz * 0.045 - 12.4) * 0.28
-	return lerpf(base, 0.0, field_flat) + h * 3.2 * rise * rim * field_mask
+	var h := terrain_noise.get_noise_2d(wx, wz) * 0.72
+	h += terrain_noise.get_noise_2d(wx * 2.3 + 31.7, wz * 2.3 - 12.4) * 0.28
+	return lerpf(base, 0.0, field_flat) + h * 4.0 * rise * rim * field_mask
 
 
 # 0 inside an open field, 1 outside. The ring is ramped over 8m so meadow
@@ -899,7 +899,10 @@ func _ensure_forest_fields() -> void:
 	var seed_base := 20260814 + maxi(int(GlobalData.board_seed), 0)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_base
+	# ~33m wavelength so the hills actually roll across the field (the default
+	# 0.01 frequency at unscaled coords would take ~6km per feature).
 	terrain_noise.seed = seed_base + 7
+	terrain_noise.frequency = 0.03
 	var half := arena_size / 2.0
 	for i in range(3):
 		var angle := (i / 3.0) * TAU + rng.randf_range(-0.45, 0.45)

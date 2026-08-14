@@ -829,12 +829,34 @@ func _spawn_melee_trail(mecha: Node3D, direction: Vector3, weapon: WeaponPart = 
 	var emission := Color(0.3, 0.5, 1.0)
 	var forward_start := 1.5
 	var forward_step := 1.0
-	if weapon != null and weapon == _fist_weapon:
-		# Bare-fist punch: a shorter, muted steel-white sweep.
+	# Subtle per-weapon trail colors matched to each weapon's audio identity:
+	# the fist's muted steel-white, the knife's cool silver slash, the heat
+	# blade's warm ember, and the pile's heavy gunmetal iron. All kept muted so
+	# the trails stay readable against enemy (red) and ally (cyan) swings.
+	if weapon == _fist_weapon:
+		# Bare-fist punch: a short, muted steel-white sweep.
 		color = Color(0.9, 0.92, 0.96)
 		emission = Color(0.55, 0.6, 0.7)
 		forward_start = 1.0
 		forward_step = 0.7
+	elif weapon != null:
+		var wname := weapon.weapon_name.to_lower()
+		if wname.contains("knife"):
+			# Combat knife: a short, cold silver slash (matches its sharp high
+			# slash voice).
+			color = Color(0.78, 0.87, 0.97)
+			emission = Color(0.45, 0.62, 0.85)
+			forward_start = 1.2
+			forward_step = 0.8
+		elif wname.contains("blade"):
+			# Heat blade: a warm ember sweep (matches its ringing tone).
+			color = Color(1.0, 0.76, 0.42)
+			emission = Color(0.92, 0.5, 0.18)
+		elif wname.contains("pile"):
+			# Pile bunker: a heavy gunmetal iron sweep (matches its deep sub-
+			# bass impact).
+			color = Color(0.72, 0.66, 0.6)
+			emission = Color(0.52, 0.38, 0.32)
 	# Shared trail renderer; the combo alternates the sweep direction between
 	# swings (and this weapon's arcs reach slightly further than AI swings).
 	EffectManager.spawn_melee_trail(

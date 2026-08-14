@@ -14,6 +14,7 @@ extends Node
 
 const FIST_DAMAGE: float = 8.0
 const KNIFE_DAMAGE: float = 25.0
+const BLADE_DAMAGE: float = 50.0
 const PILE_DAMAGE: float = 120.0
 
 var _fails := 0
@@ -33,8 +34,10 @@ var _shake_delta := 0.0
 var _crosshair: Node = null
 var _flash_after_swing := 0.0
 var _time_scale_after_swing := 1.0
+var _trail_color_after_swing := Color.WHITE
 
 var _knife: WeaponPart = preload("res://resources/mech/stock/weapon_combat_knife.tres")
+var _blade: WeaponPart = preload("res://resources/mech/stock/weapon_heat_blade.tres")
 var _pile: WeaponPart = preload("res://resources/mech/stock/weapon_pile_bunker.tres")
 
 
@@ -86,6 +89,17 @@ func _start_swing(hand: String, weapon) -> void:
 	_shake_delta = _rig.total_shake - shake_before
 	_flash_after_swing = _crosshair._flash_strength
 	_time_scale_after_swing = Engine.time_scale
+	# The swing's trail spawns synchronously; grab the newest trail box's
+	# albedo (iterate so we end on the LAST = this swing's newest box, which
+	# matters for the rapid double-swing where swing 1's trail still lingers).
+	# Trail boxes are the only BoxMesh meshes with no_depth_test materials
+	# (shell casings and other props don't set it), so that's our filter.
+	_trail_color_after_swing = Color.WHITE
+	for child in get_children():
+		if child is MeshInstance3D and child.mesh is BoxMesh \
+				and child.material_override is StandardMaterial3D \
+				and child.material_override.no_depth_test:
+			_trail_color_after_swing = child.material_override.albedo_color
 
 
 func _process(_delta: float) -> void:
@@ -111,6 +125,8 @@ func _process(_delta: float) -> void:
 				_check(_flash_after_swing > 0.5, "fist impact flashes the screen edge (%.2f)" % _flash_after_swing)
 				_check(_crosshair._flash_strength < 0.01, "impact flash fades quickly")
 				_check(_time_scale_after_swing == 1.0, "fist impact does NOT trigger hit-stop")
+				_check(_trail_color_after_swing.r > 0.85 and _trail_color_after_swing.b > 0.9,
+					"fist trail is muted steel-white (%s)" % _trail_color_after_swing)
 				_enemy.position = Vector3(0, 1.5, -3.2)
 				_enemy.damage_taken = 0.0
 		3:
@@ -154,6 +170,8 @@ func _process(_delta: float) -> void:
 				_check(absf(_mecha.position.z) < 1.0, "mech stays within one lunge step through rapid swings, no tween fighting (z=%.2f)" % _mecha.position.z)
 				_check(_shake_delta > 0.12 and _shake_delta < 0.18, "each knife swing shakes the camera (last %.3f)" % _shake_delta)
 				_check(_rig.total_shake > 0.25, "both rapid knife swings each kick the camera (total %.3f)" % _rig.total_shake)
+				_check(_trail_color_after_swing.r < 0.85 and _trail_color_after_swing.b > 0.9,
+					"knife trail is cool silver (%s)" % _trail_color_after_swing)
 				# Fresh start for the pile charge: reset the mech to origin so the
 				# peak-lunge measurement is measured from a clean stance.
 				_mecha.position = Vector3(0, 1.5, 0)
@@ -178,6 +196,8 @@ func _process(_delta: float) -> void:
 				_check(_shake_delta > _rig.total_shake * 0.45, "pile shake outweighs the earlier melee taps")
 				_check(_time_scale_after_swing < 0.1, "pile impact freezes time (hit-stop at %.2f)" % _time_scale_after_swing)
 				_check(Engine.time_scale == 1.0, "hit-stop ends and time resumes")
+				_check(_trail_color_after_swing.r < 0.8 and _trail_color_after_swing.b < 0.7,
+					"pile trail is heavy gunmetal (%s)" % _trail_color_after_swing)
 				# Auto-aim: off-center enemies. The camera stays looking straight
 				# ahead (-Z) while the enemy sits off the aim line — the swing's
 				# forward box must catch a target whose BODY fills the crosshair
@@ -223,6 +243,22 @@ func _process(_delta: float) -> void:
 			if _elapsed(350):
 				_stage = 16
 				_check(_enemy.damage_taken == 0.0, "enemy beyond the auto-aim width whiffs")
+				# Heat blade: connects at its 3m range with a warm ember trail.
+				_wm.left_hand = _blade
+				_enemy.position = Vector3(0, 1.5, -3.0)
+				_enemy.damage_taken = 0.0
+				_mecha.position = Vector3(0, 1.5, 0)
+		16:
+			if _settle >= 3:
+				_settle = 0
+				_stage = 17
+				_start_swing("left", _wm.left_hand)
+		17:
+			if _elapsed(350):
+				_stage = 18
+				_check(_enemy.damage_taken == BLADE_DAMAGE, "heat blade connects at its 3m range")
+				_check(_trail_color_after_swing.r > 0.9 and _trail_color_after_swing.b < 0.55,
+					"heat blade trail is warm ember (%s)" % _trail_color_after_swing)
 				_finish()
 
 

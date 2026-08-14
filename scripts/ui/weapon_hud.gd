@@ -40,6 +40,13 @@ var _accent_color: Color = Color(0.3, 0.6, 1.0, 1)
 var _highlight_color: Color = Color(1.0, 0.9, 0.3, 1)
 var _dim_color: Color = Color(0.5, 0.5, 0.5, 1)
 
+# Bare-fist punch cadence readout: the shared fist WeaponCore sets a cooldown
+# after every punch (both hands share it), so an empty hand shows that cooldown
+# as a draining gold bar in the heat-bar slot plus a READY / seconds label.
+var _fist_cd_style: StyleBoxFlat = null
+const FIST_READY_COLOR: Color = Color(0.45, 0.95, 0.45)
+const FIST_COOLING_COLOR: Color = Color(1.0, 0.85, 0.3)
+
 const WEAPON_ICONS: Dictionary = {
 	0: "[RIFLE]", 1: "[MG]", 2: "[MISSILE]",
 	3: "[SPREAD]", 4: "[BLADE]", 5: "[SHIELD]",
@@ -69,6 +76,49 @@ func _process(_delta: float) -> void:
 	if weapon_manager == null:
 		_try_connect_weapon_manager()
 	_update_nearby_pickup()
+	_update_fist_cooldown()
+
+
+func _get_fist_cd_style() -> StyleBoxFlat:
+	if _fist_cd_style == null:
+		_fist_cd_style = StyleBoxFlat.new()
+		_fist_cd_style.bg_color = Color(0.95, 0.75, 0.2, 0.95)
+		_fist_cd_style.corner_radius_top_left = 3
+		_fist_cd_style.corner_radius_top_right = 3
+		_fist_cd_style.corner_radius_bottom_left = 3
+		_fist_cd_style.corner_radius_bottom_right = 3
+	return _fist_cd_style
+
+
+# Polls the SHARED bare-fist core every frame and renders its cooldown on every
+# empty hand's panel (both hands punch on the same cadence, so both panels show
+# the same bar). Equipped hands keep their normal ammo/heat display untouched.
+func _update_fist_cooldown() -> void:
+	if weapon_manager == null:
+		return
+	if weapon_manager.left_hand != null and weapon_manager.right_hand != null:
+		return
+	var fist_core: WeaponCore = weapon_manager._core_for_weapon(weapon_manager._fist())
+	if fist_core == null:
+		return
+	if weapon_manager.left_hand == null:
+		_set_fist_cd_ui(left_heat_bar, left_ammo_label, fist_core)
+	if weapon_manager.right_hand == null:
+		_set_fist_cd_ui(right_heat_bar, right_ammo_label, fist_core)
+
+
+func _set_fist_cd_ui(bar: ProgressBar, ammo_label: Label, core: WeaponCore) -> void:
+	var cooling: bool = core.cooldown > 0.0
+	bar.max_value = maxf(core.fire_interval, 0.01)
+	bar.value = core.cooldown
+	bar.visible = cooling
+	if cooling:
+		bar.add_theme_stylebox_override("fill", _get_fist_cd_style())
+		ammo_label.text = "%.1fs" % core.cooldown
+		ammo_label.modulate = FIST_COOLING_COLOR
+	else:
+		ammo_label.text = "READY"
+		ammo_label.modulate = FIST_READY_COLOR
 
 
 func _try_connect_weapon_manager() -> void:

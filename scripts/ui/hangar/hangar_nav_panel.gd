@@ -84,6 +84,7 @@ func build_landing_rail(root: Control) -> void:
 	var submenu_items = [
 		{"id": "roster", "label": "ROSTER (จัดเก็บหุ่น)"},
 		{"id": "pilots", "label": "PILOTS (นักบินในกองยาน)"},
+		{"id": "sortie", "label": "SORTIE (เลือกคนลงสนาม)"},
 		{"id": "customize", "label": "CUSTOMIZE (แต่งหุ่น)"},
 		{"id": "emergency", "label": "EMERGENCY REPAIR (ซ่อมแซม)"},
 		{"id": "upgrade", "label": "UPGRADE (อัพเกรด)"},
@@ -175,6 +176,8 @@ func show_hangar_menu() -> void:
 		controller.roster_panel_ui.close_pending_register()
 	if controller.pilots_panel_ui:
 		controller.pilots_panel_ui.hide_page()
+	if controller.sortie_panel_ui:
+		controller.sortie_panel_ui.hide_page()
 	if controller.root_control:
 		var label := controller.root_control.find_child("SelectionLabel", true, false) as Label
 		if label:
@@ -201,6 +204,8 @@ func show_customize_page() -> void:
 		controller.roster_panel_ui.set_badge_visible(true)
 	if controller.pilots_panel_ui:
 		controller.pilots_panel_ui.hide_page()
+	if controller.sortie_panel_ui:
+		controller.sortie_panel_ui.hide_page()
 	if controller.sub_toggle_container:
 		controller.sub_toggle_container.visible = not controller.selected_slot.begins_with("weapon")
 	if controller.roster_panel_ui:
@@ -260,6 +265,8 @@ func select_submenu(id: String) -> void:
 			_show_roster_page()
 		"pilots":
 			_show_pilots_page()
+		"sortie":
+			_show_sortie_page()
 		_:
 			# "customize" (and any fallback): restore the standard editing view.
 			show_customize_page()
@@ -287,6 +294,8 @@ func _show_roster_page() -> void:
 		controller.right_panel.visible = false
 	if controller.pilots_panel_ui:
 		controller.pilots_panel_ui.hide_page()
+	if controller.sortie_panel_ui:
+		controller.sortie_panel_ui.hide_page()
 	if controller.roster_panel_ui:
 		controller.roster_panel_ui.show_page()
 	controller.garage_panel.call_deferred("update_all_slots_preview")
@@ -316,8 +325,41 @@ func _show_pilots_page() -> void:
 		controller.right_panel.visible = false
 	if controller.roster_panel_ui:
 		controller.roster_panel_ui.hide_page()
+	if controller.sortie_panel_ui:
+		controller.sortie_panel_ui.hide_page()
 	if controller.pilots_panel_ui:
 		controller.pilots_panel_ui.show_page()
+	controller.garage_panel.call_deferred("update_all_slots_preview")
+
+
+# SORTIE page: pick which piloted hangar mechs tag along into combat (see
+# HangarSortiePanel). Mirrors the roster/pilots pages so only one shows at a time.
+func _show_sortie_page() -> void:
+	current_submenu = "sortie"
+	if controller.craft_panel:
+		controller.craft_panel.close_window()
+	if controller.catalog_panel:
+		controller.catalog_panel.close_window()
+	if controller.scrap_editor != null and is_instance_valid(controller.scrap_editor) and controller.scrap_editor.visible:
+		controller.scrap_editor.close()
+	if controller.submenu_rail:
+		controller.submenu_rail.visible = false
+	if controller.back_to_menu_button:
+		controller.back_to_menu_button.visible = true
+	if controller.tab_container:
+		controller.tab_container.visible = false
+	if controller.sub_toggle_container:
+		controller.sub_toggle_container.visible = false
+	if controller.left_panel:
+		controller.left_panel.visible = false
+	if controller.right_panel:
+		controller.right_panel.visible = false
+	if controller.roster_panel_ui:
+		controller.roster_panel_ui.hide_page()
+	if controller.pilots_panel_ui:
+		controller.pilots_panel_ui.hide_page()
+	if controller.sortie_panel_ui:
+		controller.sortie_panel_ui.show_page()
 	controller.garage_panel.call_deferred("update_all_slots_preview")
 
 

@@ -106,6 +106,53 @@ static func get_fielded_units() -> Array:
 	return result
 
 
+# Feature 7 rule: combat allies come ONLY from piloted hangar mechs. A fleet
+# unit can field only when a pilot is seated in a hangar berth AND the unit's
+# fielded flag is on (healthy — not wounded/destroyed). Returns the hangar
+# mechs that tag along, paired with their pilot's fleet unit:
+#   [{mech, unit}] sorted by berth slot. Template-only units (researched
+# blueprints with no seated driver) are dropped from the field.
+static func get_sortie_units() -> Array:
+	var active_id := str(GlobalData.get_active_hangar_mech().get("id", ""))
+	var result: Array = []
+	for mech in GlobalData.get_hangar_mechs():
+		if not (mech is Dictionary):
+			continue
+		var mech_id := str(mech.get("id", ""))
+		# The active mech is the one the player pilots — never an AI ally.
+		if mech_id == active_id:
+			continue
+		var pilot_id := str(mech.get("pilot", ""))
+		if pilot_id == "" or pilot_id == HangarManager.PLAYER_PILOT_ID:
+			continue
+		if not pilot_id.begins_with("fleet_"):
+			continue
+		var template_id := pilot_id.trim_prefix("fleet_")
+		var unit := get_fleet_unit(template_id)
+		if unit.is_empty():
+			continue
+		if bool(unit.get("destroyed", false)):
+			continue
+		if bool(unit.get("wounded", false)):
+			continue
+		if not bool(unit.get("fielded", true)):
+			continue
+		result.append({"mech": mech, "unit": unit})
+	return result
+
+
+# Template ids of every fleet pilot currently seated in a hangar mech — the
+# only units that can field under the Feature 7 rule. Shared by the intermission
+# fleet panel so it never offers a toggle for a pilot-less template unit.
+static func get_seated_template_ids() -> Dictionary:
+	var seated: Dictionary = {}
+	for mech in GlobalData.get_hangar_mechs():
+		var pilot := str(mech.get("pilot", ""))
+		if pilot.begins_with("fleet_"):
+			seated[pilot.trim_prefix("fleet_")] = true
+	return seated
+
+
 static func get_fleet_unit(template_id: String) -> Dictionary:
 	for unit in GlobalData.fleet_roster:
 		if unit.get("template_id", "") == template_id:

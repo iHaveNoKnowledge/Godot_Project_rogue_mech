@@ -74,6 +74,9 @@ var roster_panel_ui: HangarRosterPanel = null
 # pilot with live status + the mech they drive. Shares the pilot list source
 # with the roster page's pickers and the REGISTER dialog.
 var pilots_panel_ui: HangarPilotsPanel = null
+# SORTIE page (who tags along into combat): lists every piloted hangar mech
+# with a FIELDED/STANDBY toggle driving the pilot's fleet-unit fielded flag.
+var sortie_panel_ui: HangarSortiePanel = null
 var catalog_panel: HangarCatalogPanel = null
 var garage_panel: HangarGaragePanel = null
 var craft_panel: HangarCraftPanel = null
@@ -125,6 +128,8 @@ func _build_ui_layout() -> void:
 	roster_panel_ui.controller = self
 	pilots_panel_ui = HangarPilotsPanel.new()
 	pilots_panel_ui.controller = self
+	sortie_panel_ui = HangarSortiePanel.new()
+	sortie_panel_ui.controller = self
 	catalog_panel = HangarCatalogPanel.new()
 	catalog_panel.controller = self
 	craft_panel = HangarCraftPanel.new()
@@ -182,6 +187,8 @@ func _build_ui_layout() -> void:
 	wounded_banner.build(root)
 	# Pilot roster page (who rides with the convoy).
 	pilots_panel_ui.build(root)
+	# SORTIE page (pick who tags along into combat).
+	sortie_panel_ui.build(root)
 
 
 # --- HANGAR MECH ROSTER (truck-convoy parking page) ---

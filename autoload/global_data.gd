@@ -1053,6 +1053,19 @@ func get_fielded_units() -> Array:
 	return FleetSystem.get_fielded_units()
 
 
+# Feature 7: the hangar mechs whose pilots tag along into combat (see
+# FleetSystem.get_sortie_units) — [{mech, unit}] for every seated, fielded,
+# healthy fleet pilot.
+func get_sortie_units() -> Array:
+	return FleetSystem.get_sortie_units()
+
+
+# Template ids of every fleet pilot currently seated in a hangar mech — the
+# only units that can field under the Feature 7 rule.
+func get_seated_template_ids() -> Dictionary:
+	return FleetSystem.get_seated_template_ids()
+
+
 func get_fleet_unit(template_id: String) -> Dictionary:
 	return FleetSystem.get_fleet_unit(template_id)
 

@@ -436,10 +436,18 @@ func _on_fleet_pressed() -> void:
 	# recovering and would be gated out of combat anyway (get_fielded_units),
 	# so the toggle is locked with an explanation instead of silently doing
 	# nothing (destroyed units stay locked for the same reason).
+	#
+	# Feature 7: only units with a pilot seated in a hangar mech can fight —
+	# template-only units (researched blueprints with no berth) are dropped from
+	# the field and not offered here. The hangar SORTIE page is the primary
+	# control; this panel mirrors it for the same seated units.
+	var seated := GlobalData.get_seated_template_ids()
 	for unit in GlobalData.fleet_roster:
 		if not (unit is Dictionary):
 			continue
 		var template_id = unit.get("template_id", "")
+		if not seated.has(template_id):
+			continue
 		var fielded = unit.get("fielded", true)
 		var destroyed = unit.get("destroyed", false)
 		var wounded = bool(unit.get("wounded", false))
@@ -470,7 +478,16 @@ func _build_fleet_text() -> String:
 	if GlobalData.fleet_roster.is_empty():
 		text += "No units yet. Research blueprints at the Research Base to unlock squadmates."
 		return text
+	# Feature 7: only units with a pilot seated in a hangar mech can field.
+	# Template-only units (no berth) are dropped from the field and hidden here
+	# — the hangar SORTIE page is where the lineup is chosen.
+	var seated := GlobalData.get_seated_template_ids()
+	var shown := 0
 	for unit in GlobalData.fleet_roster:
+		var template_id := str(unit.get("template_id", ""))
+		if not seated.has(template_id):
+			continue
+		shown += 1
 		var state = "ACTIVE" if unit.get("fielded", true) else "STANDBY"
 		if unit.get("destroyed", false):
 			state = "DESTROYED"
@@ -480,11 +497,13 @@ func _build_fleet_text() -> String:
 			# HEAL clears it.
 			state = "WOUNDED (%dT)" % int(unit.get("wound_turns", 0))
 		text += "- %s [%s] HP: %d/%d\n" % [
-			unit.get("name", unit.get("template_id", "?")),
+			unit.get("name", template_id),
 			state,
 			int(unit.get("hp", 0)),
 			int(unit.get("max_hp", 0))
 		]
+	if shown == 0:
+		text += "No squadmates on standby. Seat a pilot in a hangar mech (ROSTER) to field them — see the hangar SORTIE page.\n"
 	return text
 
 

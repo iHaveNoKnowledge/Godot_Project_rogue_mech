@@ -69,6 +69,18 @@ func _emit_squad_hp() -> void:
 	})
 
 
+# Applied by the spawner AFTER the template stats land (_ready): when an ally
+# comes from a piloted hangar mech, the berth's combat role + the pilot's name
+# win over the template defaults. Ammo is rebuilt because the ammo pool depends
+# on the archetype (RANGED/HEAVY), which may have changed.
+func apply_mech_override(archetype_override: int, name_override: String) -> void:
+	archetype = clampi(archetype_override, 0, 3)
+	display_name = name_override
+	_init_ammo()
+	_set_name_label(display_name)
+	_setup_enemy_status()
+
+
 func _apply_template(template: Dictionary) -> void:
 	if template.is_empty():
 		return

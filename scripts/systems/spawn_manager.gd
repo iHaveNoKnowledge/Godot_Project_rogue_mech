@@ -207,17 +207,24 @@ func _generate_spawn_points() -> void:
 		spawn_points.append(marker)
 
 
-# Spawn all fielded allied units from the fleet so they fight alongside the
-# player (GM vs Zaku — our side tags into battle).
+# Spawn all fielded allied units so they fight alongside the player (GM vs Zaku
+# — our side tags into battle).
+#
+# Feature 7 rule: combat allies come ONLY from piloted hangar mechs. A fleet
+# unit's `fielded` flag is still the source of truth for whether the pilot tags
+# into this battle, but a template-only unit (researched blueprint with no
+# seated driver) is no longer fielded by itself — a pilot must drive a berth.
+# The shared FleetSystem.get_sortie_units() helper is the single source (also
+# used by the hangar SORTIE page + intermission fleet panel).
 func _spawn_fielded_allies() -> void:
-	var fielded = GlobalData.get_fielded_units()
-	if fielded.is_empty():
-		return
 	var mecha = GameManager.get_player_mecha()
 	var anchor = mecha.global_position if mecha else Vector3.ZERO
 	var i := 0
-	for unit in fielded:
-		var template = GlobalData.get_ally_template(unit.get("template_id", ""))
+	for entry in FleetSystem.get_sortie_units():
+		var mech: Dictionary = entry.get("mech", {})
+		var unit: Dictionary = entry.get("unit", {})
+		var template_id := str(unit.get("template_id", ""))
+		var template = GlobalData.get_ally_template(template_id)
 		if template.is_empty():
 			continue
 		var scene_path = str(template.get("scene_path", "res://scenes/mecha/ally_dummy.tscn"))
@@ -227,7 +234,7 @@ func _spawn_fielded_allies() -> void:
 		if ally_scene == null:
 			continue
 		var ally_unit = ally_scene.instantiate()
-		ally_unit.template_id = unit.get("template_id", "")
+		ally_unit.template_id = template_id
 		i += 1
 		# Fan allies out behind/around the player.
 		var angle = (PI / 2.0) + (i - 1) * -(0.5)
@@ -241,6 +248,12 @@ func _spawn_fielded_allies() -> void:
 		ally_pos.y -= body_bottom_offset(ally_unit)
 		ally_unit.position = ally_pos
 		add_child(ally_unit)
+		# The berth's combat role + the pilot's name win over the template
+		# defaults once the template stats land in _ready.
+		ally_unit.apply_mech_override(
+			GlobalData.get_hangar_archetype(str(mech.get("id", ""))),
+			str(unit.get("name", template.get("name", "ALLY"))),
+		)
 
 
 func start_waves() -> void:

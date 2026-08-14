@@ -275,15 +275,16 @@ func _archetype_palette() -> Dictionary:
 			return {"default": Color(0.75, 0.2, 0.2), "head": Color(0.85, 0.25, 0.25)}
 
 
-# Attaches the walk/run leg animation (same sprint-stride math as the player's
-# mecha). Runs after _build_catalog_body so the LegLeft/LegRight/Shin* slot
-# nodes exist to swing.
+# Attaches the SAME animation script the player's mech uses (mecha_animation.gd)
+# so enemies move with the identical stride, bob and idle combat stance instead
+# of a separate implementation. Runs after _build_catalog_body so the
+# Head/Body/Leg*/Shin* slot nodes exist to drive.
 func _setup_leg_animation() -> void:
 	if get_node_or_null("EnemyAnimation") != null:
 		return
 	var anim := Node.new()
 	anim.name = "EnemyAnimation"
-	anim.set_script(preload("res://scripts/mecha/enemy_animation.gd"))
+	anim.set_script(preload("res://scripts/mecha/mecha_animation.gd"))
 	add_child(anim)
 
 

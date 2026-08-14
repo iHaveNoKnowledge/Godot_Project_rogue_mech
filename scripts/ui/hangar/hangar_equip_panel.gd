@@ -31,29 +31,45 @@ func equip_part(slot: String, info: Dictionary) -> void:
 		if wpath == "" or not ResourceLoader.exists(wpath):
 			controller.status_message_label.text = "Weapon not found in stash."
 			return
+		# A weapon model only exists once. Equipping one that is already carried
+		# somewhere MOVES it to the new slot (or a new mech) instead of creating
+		# a duplicate copy.
+		var moved_note := ""
 		if slot == "weapon_carry":
 			var equipped := GlobalData.weapon_equipped_slot(wpath)
 			if equipped == "carry":
 				controller.status_message_label.text = "This weapon is already on the back pack."
 				return
-			if equipped == "left" or equipped == "right":
-				controller.status_message_label.text = "This weapon is already equipped in the %s hand." % equipped
-				return
-			if controller.garage_panel.would_exceed_field_pack(wpath):
+			# Moving off a hand frees that hand, so its weight leaves the pack too.
+			var freed_path := wpath if equipped != "" else ""
+			if controller.garage_panel.would_exceed_field_pack(wpath, "", freed_path):
 				controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
 				return
+			var from_mech := _transfer_weapon_from_other_mechs(wpath)
+			if from_mech != "":
+				moved_note = " (transferred from %s)" % from_mech
+			elif equipped != "":
+				moved_note = " (moved from %s hand)" % equipped
 			GlobalData.add_carry_weapon(wpath)
 		else:
 			var hand = "left" if slot == "weapon_left" else "right"
 			var equipped := GlobalData.weapon_equipped_slot(wpath)
-			if equipped != "" and equipped != hand:
-				controller.status_message_label.text = "This weapon is already equipped in the %s." % ("back carry" if equipped == "carry" else ("right hand" if equipped == "right" else "left hand"))
+			if equipped == hand:
+				controller.status_message_label.text = "This weapon is already equipped in the %s hand." % hand
 				return
 			var replaced_path = str(GlobalData.weapon_loadout.get(hand, ""))
-			if controller.garage_panel.would_exceed_field_pack(wpath, replaced_path):
+			var freed_path := wpath if equipped != "" else ""
+			if controller.garage_panel.would_exceed_field_pack(wpath, replaced_path, freed_path):
 				controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
 				return
+			var from_mech := _transfer_weapon_from_other_mechs(wpath)
+			if from_mech != "":
+				moved_note = " (transferred from %s)" % from_mech
+			elif equipped != "":
+				moved_note = " (moved from %s)" % ("back carry" if equipped == "carry" else ("right hand" if equipped == "right" else "left hand"))
 			GlobalData.set_hand_weapon(hand, wpath)
+		if moved_note != "":
+			controller.status_message_label.text = "Equipped %s%s" % [info.get("name", "Weapon"), moved_note]
 		controller.persist_panel.commit_and_save()
 		controller.garage_panel.apply_armor_preview(slot, info)
 		controller.stats_panel.update()
@@ -98,6 +114,40 @@ func equip_part(slot: String, info: Dictionary) -> void:
 	controller.stats_panel.update()
 	controller.part_list_panel.populate(slot)
 	AudioManager.play_ui_confirm()
+
+
+# A weapon model may only be carried by ONE mech. When equipping `path` while
+# another parked mech already has it in its loadout snapshot, strip it from that
+# mech so the weapon TRANSFERS to the berth being edited instead of existing on
+# both machines. Returns the name of the mech it was taken from ("" when the
+# weapon wasn't equipped on any other mech).
+func _transfer_weapon_from_other_mechs(path: String) -> String:
+	if path == "":
+		return ""
+	var editing_id: String = controller.get_editing_mech_id()
+	for mech in GlobalData.hangar_mechs:
+		if not (mech is Dictionary):
+			continue
+		var mech_id := str(mech.get("id", ""))
+		if mech_id == "" or mech_id == editing_id:
+			continue
+		var loadout = mech.get("weapon_loadout", {})
+		if not (loadout is Dictionary):
+			continue
+		var slot := LoadoutSystem.weapon_slot_in_loadout(loadout, path)
+		if slot == "":
+			continue
+		if slot == "left":
+			loadout["left"] = ""
+		elif slot == "right":
+			loadout["right"] = ""
+		else:
+			var carry = loadout.get("carry", [])
+			if carry is Array:
+				carry.erase(path)
+				loadout["carry"] = carry
+		return str(mech.get("name", "another mech"))
+	return ""
 
 
 func unequip_part(slot: String) -> void:
@@ -211,32 +261,44 @@ func on_equip_pressed() -> void:
 		var res = load(controller.selected_part_path)
 		if res:
 			if controller.selected_slot.begins_with("weapon"):
-				# Weapons go into the central weapon_loadout (hands / back).
+				# Weapons go into the central weapon_loadout (hands / back). A weapon
+				# model only exists once: equipping one that is already carried MOVES
+				# it (same mech slot, or transferred from another parked mech).
 				var wpath = controller.selected_part_path
 				var equipped := GlobalData.weapon_equipped_slot(wpath)
+				var moved_note := ""
+				var hand := "left" if controller.selected_slot == "weapon_left" else "right"
 				if controller.selected_slot == "weapon_carry":
 					if equipped == "carry":
 						controller.status_message_label.text = "This weapon is already on the back pack."
 						return
-					if equipped == "left" or equipped == "right":
-						controller.status_message_label.text = "This weapon is already equipped in the %s hand." % equipped
-						return
-					if controller.garage_panel.would_exceed_field_pack(wpath):
+					var freed_path := wpath if equipped != "" else ""
+					if controller.garage_panel.would_exceed_field_pack(wpath, "", freed_path):
 						controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
 						return
+					var from_mech := _transfer_weapon_from_other_mechs(wpath)
+					if from_mech != "":
+						moved_note = " (transferred from %s)" % from_mech
+					elif equipped != "":
+						moved_note = " (moved from %s hand)" % equipped
 					GlobalData.add_carry_weapon(wpath)
-					controller.status_message_label.text = "Added to Back Carry: %s!" % (res.weapon_name if "weapon_name" in res else "Weapon")
+					controller.status_message_label.text = "Added to Back Carry: %s!%s" % [(res.weapon_name if "weapon_name" in res else "Weapon"), moved_note]
 				else:
-					var hand = "left" if controller.selected_slot == "weapon_left" else "right"
-					if equipped != "" and equipped != hand:
-						controller.status_message_label.text = "This weapon is already equipped in the %s." % ("back carry" if equipped == "carry" else ("right hand" if equipped == "right" else "left hand"))
+					if equipped == hand:
+						controller.status_message_label.text = "This weapon is already equipped in the %s hand." % hand
 						return
 					var replaced_path = str(GlobalData.weapon_loadout.get(hand, ""))
-					if controller.garage_panel.would_exceed_field_pack(wpath, replaced_path):
+					var freed_path := wpath if equipped != "" else ""
+					if controller.garage_panel.would_exceed_field_pack(wpath, replaced_path, freed_path):
 						controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
 						return
+					var from_mech := _transfer_weapon_from_other_mechs(wpath)
+					if from_mech != "":
+						moved_note = " (transferred from %s)" % from_mech
+					elif equipped != "":
+						moved_note = " (moved from %s)" % ("back carry" if equipped == "carry" else ("right hand" if equipped == "right" else "left hand"))
 					GlobalData.set_hand_weapon(hand, wpath)
-					controller.status_message_label.text = "Equipped %s on %s hand!" % [(res.weapon_name if "weapon_name" in res else "Weapon"), hand]
+					controller.status_message_label.text = "Equipped %s on %s hand!%s" % [(res.weapon_name if "weapon_name" in res else "Weapon"), hand, moved_note]
 				GlobalData.save_run()
 				controller.stats_panel.update()
 				controller.garage_panel.update_all_slots_preview()

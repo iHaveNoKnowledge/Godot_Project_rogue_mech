@@ -12,6 +12,10 @@ var fired_by_enemy: bool = false
 var ricochet_chance: float = 0.15
 var prev_position: Vector3
 var explosion_radius: float = 3.0
+# Gravity pull (m/s^2) applied to the projectile so shots arc and drop over
+# distance instead of flying perfectly straight forever.
+var drop_gravity: float = 6.0
+var _drop_speed: float = 0.0
 
 
 func _ready() -> void:
@@ -31,6 +35,11 @@ func _physics_process(delta: float) -> void:
 
 	prev_position = global_position
 	position += direction * speed * delta
+
+	# Bullet drop: accumulate downward velocity each frame so long shots sag
+	# toward the ground (ground/cover is caught by the between-frame raycast).
+	_drop_speed += drop_gravity * delta
+	position.y -= _drop_speed * delta
 
 	# Check for obstacle (cover) collision using raycast between frames
 	_check_obstacle_collision()
@@ -108,6 +117,7 @@ func _check_obstacle_collision() -> void:
 func _ricochet(hit_pos: Vector3, normal: Vector3) -> void:
 	# Reflect direction off the surface normal
 	direction = direction.bounce(normal).normalized()
+	_drop_speed = 0.0
 	prev_position = hit_pos
 	global_position = hit_pos + normal * 0.1
 	# Reduce damage on ricochet

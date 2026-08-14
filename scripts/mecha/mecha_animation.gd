@@ -190,6 +190,46 @@ func _update_airborne_fall_posture(delta: float) -> void:
 	if shin_right: shin_right.rotation.x = lerp_angle(shin_right.rotation.x, target_shin_right, speed)
 
 
+# Idle combat stance (standing still, ready to fight): knees slightly bent,
+# torso leaning forward, head level and both arms raised in a guard with bent
+# elbows. Replaces the stiff straight-up idle so the mech reads as poised to
+# throw a punch instead of standing at attention.
+func _update_combat_idle_posture(delta: float) -> void:
+	var speed = 6.0 * delta
+	var target_drop = -0.05
+	var target_body_tilt = -deg_to_rad(10.0)
+	var target_head_tilt = -deg_to_rad(5.0)
+	var target_thigh = deg_to_rad(12.0)
+	var target_shin = -deg_to_rad(18.0)
+	var target_arm = deg_to_rad(25.0)
+	var target_forearm = deg_to_rad(55.0)
+
+	if body_mesh:
+		body_mesh.position.y = lerp(body_mesh.position.y, _original_body_pos.y + target_drop, speed)
+		body_mesh.rotation.x = lerp_angle(body_mesh.rotation.x, target_body_tilt, speed)
+	if head_mesh:
+		head_mesh.position = head_mesh.position.lerp(_original_head_pos + Vector3(0, target_drop, 0), speed)
+		head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, target_head_tilt, speed)
+
+	if arm_left: arm_left.rotation.x = lerp_angle(arm_left.rotation.x, target_arm, speed)
+	if arm_right: arm_right.rotation.x = lerp_angle(arm_right.rotation.x, target_arm, speed)
+
+	if forearm_left: forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, target_forearm, speed)
+	if forearm_right: forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, target_forearm, speed)
+
+	# Leg roots only move for the kneel pose; ease them back up whenever the
+	# mech is active again so a re-board never leaves it squatting.
+	if leg_left:
+		leg_left.position.y = lerp(leg_left.position.y, _original_leg_left_pos.y, speed)
+		leg_left.rotation.x = lerp_angle(leg_left.rotation.x, target_thigh, speed)
+	if leg_right:
+		leg_right.position.y = lerp(leg_right.position.y, _original_leg_right_pos.y, speed)
+		leg_right.rotation.x = lerp_angle(leg_right.rotation.x, target_thigh, speed)
+
+	if shin_left: shin_left.rotation.x = lerp_angle(shin_left.rotation.x, target_shin, speed)
+	if shin_right: shin_right.rotation.x = lerp_angle(shin_right.rotation.x, target_shin, speed)
+
+
 # Kneel pose (pilot out / backup waiting): both thighs fold forward so the
 # knees come down, shins fold back under, and the torso drops and bows while
 # the head stays level and the arms hang relaxed — reads as the mech kneeling
@@ -315,7 +355,9 @@ func _update_bob(delta: float) -> void:
 			head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, sprint_lean, 10.0 * delta)
 	elif not is_skating:
 		bob_timer = 0.0
-		_lerp_to_original(delta)
+		# Standing still: settle into the ready-to-fight idle stance (bent knees,
+		# forward lean, raised guard arms) instead of a stiff straight pose.
+		_update_combat_idle_posture(delta)
 
 
 func _update_legs(delta: float) -> void:
@@ -362,18 +404,9 @@ func _update_legs(delta: float) -> void:
 			if forearm_right:
 				forearm_right.rotation.x = deg_to_rad(55.0) + abs(sin(phase_right)) * deg_to_rad(20.0)
 	else:
-		var speed = 6.0 * delta
-		if leg_left: leg_left.rotation = leg_left.rotation.lerp(Vector3.ZERO, speed)
-		if leg_right: leg_right.rotation = leg_right.rotation.lerp(Vector3.ZERO, speed)
-
-		if shin_left: shin_left.rotation = shin_left.rotation.lerp(Vector3.ZERO, speed)
-		if shin_right: shin_right.rotation = shin_right.rotation.lerp(Vector3.ZERO, speed)
-
-		if arm_left: arm_left.rotation = arm_left.rotation.lerp(Vector3.ZERO, speed)
-		if arm_right: arm_right.rotation = arm_right.rotation.lerp(Vector3.ZERO, speed)
-
-		if forearm_left: forearm_left.rotation = forearm_left.rotation.lerp(Vector3.ZERO, speed)
-		if forearm_right: forearm_right.rotation = forearm_right.rotation.lerp(Vector3.ZERO, speed)
+		# Idle: _update_bob already eased every limb into the combat idle stance
+		# this frame, so leave the limbs alone (no fighting the pose).
+		return
 
 
 func _calc_mecha_sprint_leg(phase: float) -> Dictionary:

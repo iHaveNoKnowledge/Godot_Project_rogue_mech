@@ -1,6 +1,5 @@
 extends CanvasLayer
 
-@onready var crosshair_dot: TextureRect = $CrosshairDot
 @onready var aim_ray: RayCast3D = null
 
 var _crosshair_visible: bool = true
@@ -65,8 +64,6 @@ func _check_head_status() -> void:
 func _update_crosshair_position() -> void:
 	var viewport_size = get_viewport().get_visible_rect().size
 	var center = viewport_size / 2.0
-	if crosshair_dot:
-		crosshair_dot.position = center - crosshair_dot.size / 2.0
 	if warning_label:
 		warning_label.position = center + Vector2(-180, -40)
 
@@ -110,11 +107,16 @@ func _on_overlay_draw() -> void:
 	var center = viewport_size / 2.0
 
 	if is_head_destroyed:
+		# Sensors offline: a full + through the center signals manual aim only.
 		overlay_control.draw_line(center + Vector2(-10, 0), center + Vector2(10, 0), Color.RED, 2.0)
 		overlay_control.draw_line(center + Vector2(0, -10), center + Vector2(0, 10), Color.RED, 2.0)
 	else:
-		overlay_control.draw_arc(center, 200.0, 0.0, TAU, 64, Color(0.1, 0.8, 0.1, 0.2), 2.0)
-		overlay_control.draw_line(center + Vector2(-210, 0), center + Vector2(-180, 0), Color(0.1, 0.8, 0.1, 0.4), 1.5)
-		overlay_control.draw_line(center + Vector2(180, 0), center + Vector2(210, 0), Color(0.1, 0.8, 0.1, 0.4), 1.5)
-		overlay_control.draw_line(center + Vector2(0, -210), center + Vector2(0, -180), Color(0.1, 0.8, 0.1, 0.4), 1.5)
-		overlay_control.draw_line(center + Vector2(0, 180), center + Vector2(0, 210), Color(0.1, 0.8, 0.1, 0.4), 1.5)
+		# Compact + with an open center: the empty gap (not a filled square) marks
+		# the exact aim point, so the crosshair never blocks what's being shot.
+		var gap := 6.0
+		var len := 13.0
+		var col := Color(0.25, 0.95, 0.3, 0.95)
+		overlay_control.draw_line(center + Vector2(-gap - len, 0), center + Vector2(-gap, 0), col, 2.0)
+		overlay_control.draw_line(center + Vector2(gap, 0), center + Vector2(gap + len, 0), col, 2.0)
+		overlay_control.draw_line(center + Vector2(0, -gap - len), center + Vector2(0, -gap), col, 2.0)
+		overlay_control.draw_line(center + Vector2(0, gap), center + Vector2(0, gap + len), col, 2.0)

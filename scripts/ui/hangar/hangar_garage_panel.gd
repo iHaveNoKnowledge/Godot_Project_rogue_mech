@@ -507,12 +507,16 @@ func get_total_load(excluding_attachment_id: String = "", excluding_slot: String
 # Returns true if adding `new_weight_path` to the loadout (optionally replacing
 # `replaced_path`) would push the total frame load over the chassis max weight.
 # Field Pack capacity check (hand weapons + carry weapons + ammo <= frame-based cap).
-func would_exceed_field_pack(new_weight_path: String, replaced_path: String = "") -> bool:
+# `freed_path` is a weapon that stops being carried when this equip is a MOVE of
+# an already-equipped model (it is leaving the other hand or the back pack), so
+# its weight no longer counts against the pack.
+func would_exceed_field_pack(new_weight_path: String, replaced_path: String = "", freed_path: String = "") -> bool:
 	var current_weapons := GlobalData.get_loadout_weapons_total()
-	if replaced_path != "" and ResourceLoader.exists(replaced_path):
-		var old = load(replaced_path)
-		if old:
-			current_weapons -= float(old.weight)
+	for subtract_path in [replaced_path, freed_path]:
+		if subtract_path != "" and ResourceLoader.exists(subtract_path):
+			var old = load(subtract_path)
+			if old:
+				current_weapons -= float(old.weight)
 	var new_w = load(new_weight_path)
 	var new_wt = float(new_w.weight) if new_w else 0.0
 	return current_weapons + new_wt + GlobalData.get_field_pack_ammo_weight() > GlobalData.get_field_pack_capacity()

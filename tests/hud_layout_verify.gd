@@ -32,8 +32,10 @@ func _check(cond: bool, label: String) -> void:
 func _verify_hp_panel() -> void:
 	var core = load("res://scenes/ui/core_hud.tscn").instantiate()
 	add_child(core)
-	# Two frames: one for _ready to build the hit flash, one for the container
-	# layout pass that resolves anchors into the final panel rect.
+	# Three frames: _ready builds the hit flash + awaits twice, then auto-fits the
+	# panel height to its content; one more frame applies that layout pass so the
+	# measured rect reflects the fitted size.
+	await get_tree().process_frame
 	await get_tree().process_frame
 	await get_tree().process_frame
 
@@ -67,6 +69,17 @@ func _verify_hp_panel() -> void:
 		# The whole HP UI grew ~20% longer than the compact 304px version.
 		var panel_w = panel.offset_right - panel.offset_left
 		_check(panel_w >= 350.0, "HP panel is ~20% longer than the compact version")
+		# core_hud auto-fits the panel height to its content, so every row —
+		# including the LEG frame bar, the last one — stays INSIDE the panel
+		# frame and inside the viewport instead of poking out of both.
+		var leg_frame = panel.get_node_or_null("Grid/PartsGrid/RightCell/LegRFrameBar")
+		_check(leg_frame != null, "HP panel still builds the leg frame bar")
+		if leg_frame:
+			var panel_bottom = rect.position.y + rect.size.y
+			var leg_bottom = leg_frame.get_global_rect().position.y + leg_frame.get_global_rect().size.y
+			_check(leg_bottom <= panel_bottom + 1.0, "leg HP bar stays inside the panel frame")
+			_check(panel_bottom <= vp.y, "HP panel bottom stays inside the viewport")
+			_check(panel_bottom <= vp.y - 8.0, "HP panel keeps a clear margin off the viewport bottom")
 
 		# The original shape is back: head/body bars span the full container
 		# width while the limb bars sit in their half-width grid columns, and

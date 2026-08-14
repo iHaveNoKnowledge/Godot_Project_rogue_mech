@@ -1330,23 +1330,29 @@ func _verify_equip_panel() -> void:
 	_check(str(GlobalData.weapon_loadout.get("right", "x")) == "", "unequip_part clears the right-hand loadout")
 
 	# A weapon model may only be equipped in ONE slot: the default left hand
-	# holds the beam rifle, so adding the same rifle to the back pack must be
-	# rejected instead of creating a duplicate copy.
+	# holds the beam rifle, so equipping the same rifle onto the back pack MOVES
+	# it there — the pack gains the copy and the left hand is freed — instead of
+	# duplicating it or rejecting the request.
 	var beam_rifle := {"path": "res://resources/mech/stock/weapon_beam_rifle.tres", "count": 1}
 	_check(GlobalData.weapon_equipped_slot(beam_rifle["path"]) == "left", "beam rifle starts on the left hand")
 	var carry_before := GlobalData.count_carry_weapon(beam_rifle["path"])
 	ep.equip_part("weapon_carry", beam_rifle)
-	_check(GlobalData.count_carry_weapon(beam_rifle["path"]) == carry_before, "equipping an already-equipped model to carry is rejected")
-	_check(ctrl.status_message_label.text.contains("already equipped"), "rejected carry equip reports the status message")
+	_check(GlobalData.count_carry_weapon(beam_rifle["path"]) == carry_before + 1, "equipping an already-equipped model to carry moves it onto the pack")
+	_check(str(GlobalData.weapon_loadout.get("left", "x")) == "", "moving the rifle to the pack frees the left hand")
+	_check(ctrl.status_message_label.text.contains("moved from left hand"), "moving between slots reports where the weapon came from")
 
-	# After freeing the left hand, the same rifle CAN go on the back pack, and
-	# unequipping through the selected part path removes it again.
-	ep.unequip_part("weapon_left")
+	# Re-equipping the same model into the same slot is a no-op (no duplicate).
 	ep.equip_part("weapon_carry", beam_rifle)
-	_check(GlobalData.count_carry_weapon(beam_rifle["path"]) == carry_before + 1, "equip_part adds a back-carry copy after freeing the hand")
+	_check(GlobalData.count_carry_weapon(beam_rifle["path"]) == carry_before + 1, "re-equipping the same slot does not duplicate the copy")
+
+	# The move is reversible: equipping the rifle back onto the left hand pulls
+	# it off the pack, then unequipping clears the hand again.
+	ep.equip_part("weapon_left", beam_rifle)
+	_check(str(GlobalData.weapon_loadout.get("left", "")) == beam_rifle["path"], "equipping onto a hand moves the rifle off the pack")
+	_check(GlobalData.count_carry_weapon(beam_rifle["path"]) == carry_before, "moving to the hand frees the pack slot")
 	ctrl.selected_part_path = beam_rifle["path"]
-	ep.unequip_part("weapon_carry")
-	_check(GlobalData.count_carry_weapon(beam_rifle["path"]) == carry_before, "unequip_part removes the back-carry copy")
+	ep.unequip_part("weapon_left")
+	_check(str(GlobalData.weapon_loadout.get("left", "x")) == "", "unequip_part clears the left-hand loadout")
 
 	# Armor craft-and-equip: a catalog entry becomes an owned equipped instance.
 	ctrl.selected_slot = "body"

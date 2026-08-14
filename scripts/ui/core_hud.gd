@@ -47,7 +47,10 @@ var _hit_flash_tween: Tween = null
 func _ready() -> void:
 	_create_hit_flash()
 	EventBus.damage_received.connect(_on_player_damaged)
+	# Two frames so the container layout resolves bar/label minimum sizes.
 	await get_tree().process_frame
+	await get_tree().process_frame
+	_fit_panel_to_content()
 	var mecha = GameManager.get_player_mecha()
 	if mecha:
 		health_system = mecha.get_node_or_null("HealthSystem")
@@ -56,6 +59,20 @@ func _ready() -> void:
 			health_system.armor_broken.connect(_on_armor_broken)
 			health_system.part_destroyed.connect(_on_part_destroyed)
 			_update_all_bars()
+
+
+# The HP panel is bottom-anchored with a fixed height, but the per-slot
+# armor + frame bars can outgrow that height. Grow the panel upward from its
+# bottom anchor so every row (including the LEG HP bars, the last one) stays
+# INSIDE the panel frame instead of poking out of it — and off the bottom of
+# the viewport.
+func _fit_panel_to_content() -> void:
+	var panel = get_node_or_null("Panel")
+	if panel == null:
+		return
+	var min_height := panel.get_combined_minimum_size().y
+	if min_height > 0.0:
+		panel.offset_top = panel.offset_bottom - min_height
 
 
 # A transparent full-screen ColorRect sits above the HUD and flashes red on hit.

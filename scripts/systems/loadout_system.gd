@@ -110,9 +110,23 @@ static func weapon_equipped_slot(path: String) -> String:
 	return ""
 
 
+# Returns the slot ("left"/"right"/"carry") holding `path` inside an arbitrary
+# loadout dictionary (e.g. a parked mech's roster snapshot), or "" when absent.
+static func weapon_slot_in_loadout(loadout: Dictionary, path: String) -> String:
+	if str(loadout.get("left", "")) == path:
+		return "left"
+	if str(loadout.get("right", "")) == path:
+		return "right"
+	var carry = loadout.get("carry", [])
+	if carry is Array and path in carry:
+		return "carry"
+	return ""
+
+
 # Assigns a weapon resource path to a hand. Empty path = unarmed hand.
-# Returns false (and makes no change) if that weapon model is already equipped
-# in the other hand or on the back pack.
+# A weapon model only exists ONCE, so equipping a model that is already held by
+# the other hand or the back pack MOVES it there (the old slot is freed) instead
+# of duplicating it or rejecting the request.
 static func set_hand_weapon(side: String, path: String) -> bool:
 	if path == "":
 		if side == "left":
@@ -122,7 +136,11 @@ static func set_hand_weapon(side: String, path: String) -> bool:
 		return true
 	var equipped_slot := weapon_equipped_slot(path)
 	if equipped_slot != "" and equipped_slot != side:
-		return false
+		if equipped_slot == "carry":
+			remove_carry_weapon(path)
+		else:
+			# The other hand holds the model: free it so the weapon transfers.
+			GlobalData.weapon_loadout[equipped_slot] = ""
 	if side == "left":
 		GlobalData.weapon_loadout["left"] = path
 	else:
@@ -136,10 +154,16 @@ static func is_weapon_in_carry(path: String) -> bool:
 
 
 static func add_carry_weapon(path: String) -> bool:
-	# One physical copy per model: a weapon already in a hand or on the back
-	# pack cannot be added a second time.
-	if path == "" or weapon_equipped_slot(path) != "":
+	# One physical copy per model: a weapon already in a hand is moved onto the
+	# pack (the hand is freed). Adding a model that is already on the pack is a
+	# no-op and returns false.
+	if path == "":
 		return false
+	var equipped_slot := weapon_equipped_slot(path)
+	if equipped_slot == "carry":
+		return false
+	if equipped_slot != "":
+		GlobalData.weapon_loadout[equipped_slot] = ""
 	var carry_paths = GlobalData.weapon_loadout.get("carry", [])
 	if not (carry_paths is Array):
 		carry_paths = []

@@ -133,7 +133,7 @@ func refresh() -> void:
 func _build_row(mech: Dictionary, pilot_id: String, is_active: bool, fielded: bool) -> void:
 	var mech_id := str(mech.get("id", ""))
 	var archetype := GlobalData.get_hangar_archetype(mech_id)
-	var archetype_name := _archetype_names[clampi(archetype, 0, 3)]
+	var archetype_name: String = _archetype_names[clampi(archetype, 0, 3)]
 	var destroyed := false
 	var wounded := false
 	var hp_text := ""

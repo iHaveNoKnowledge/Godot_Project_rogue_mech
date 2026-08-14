@@ -35,6 +35,12 @@ var combat_muted: bool = false
 var _music_tween: Tween = null
 var _procedural_music_cache: Dictionary = {}
 
+# Remembers the intermission track (and its playback position) when combat
+# music takes over, so returning to the board resumes the SAME song instead of
+# restarting a fresh random one every time a turn ends.
+var _saved_intermission_track: AudioStream = null
+var _saved_intermission_pos: float = 0.0
+
 # Procedural sound buffers
 var _sound_cache: Dictionary = {}
 
@@ -883,6 +889,11 @@ func play_menu_music(fade_time: float = 1.5, force_restart: bool = false) -> voi
 	if not force_restart and current_music_category == "menu" and current_music.playing:
 		return
 
+	# Leaving the board for the menu ends the board session: the next run must
+	# start a fresh intermission song, not resume the old run's track.
+	_saved_intermission_track = null
+	_saved_intermission_pos = 0.0
+
 	_auto_scan_music_folders()
 
 	var stream_to_play: AudioStream = null
@@ -912,7 +923,13 @@ func play_intermission_music(fade_time: float = 1.5, force_restart: bool = false
 	_auto_scan_music_folders()
 
 	var stream_to_play: AudioStream = null
-	if not intermission_tracks.is_empty():
+	var resume_pos := 0.0
+	if _saved_intermission_track != null and not force_restart:
+		# Resume the exact track (and position) that was playing when the player
+		# left for combat, instead of picking a new random song from the start.
+		stream_to_play = _saved_intermission_track
+		resume_pos = _saved_intermission_pos
+	elif not intermission_tracks.is_empty():
 		var available = intermission_tracks.duplicate()
 		if available.size() > 1 and current_track != null:
 			available.erase(current_track)
@@ -929,6 +946,10 @@ func play_intermission_music(fade_time: float = 1.5, force_restart: bool = false
 	current_music_category = "intermission"
 	current_track = stream_to_play
 	_crossfade_to_stream(stream_to_play, fade_time)
+	if resume_pos > 0.0:
+		current_music.seek(resume_pos)
+	_saved_intermission_track = null
+	_saved_intermission_pos = 0.0
 
 
 func play_hangar_music(fade_time: float = 1.5, force_restart: bool = false) -> void:
@@ -981,6 +1002,12 @@ func play_combat_music(category: String, fade_time: float = 1.5, force_restart: 
 	category = category.to_lower()
 	if not force_restart and current_music_category == category and current_music.playing:
 		return
+
+	# The board was playing intermission music: remember where it was so the
+	# track keeps flowing when the player returns from combat.
+	if current_music_category == "intermission" and current_music.playing:
+		_saved_intermission_track = current_track
+		_saved_intermission_pos = current_music.get_playback_position()
 
 	_auto_scan_music_folders()
 

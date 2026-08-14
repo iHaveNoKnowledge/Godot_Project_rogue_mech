@@ -1,15 +1,17 @@
 extends CanvasLayer
 
-## Board HUD: a compact overlay on the map screen showing the current day, how
-## many movement points remain out of the daily pool, and the sector objective.
-## The MP readout answers "how many more actions can I take today" at a glance,
-## so the player never walks blind into an early end-of-day.
+## Board HUD: a compact overlay on the map screen showing the current day and
+## how many movement points remain out of the daily pool. The MP readout
+## answers "how many more actions can I take today" at a glance, so the player
+## never walks blind into an early end-of-day. The card hides entirely while
+## the intermission is open (the intermission owns the objective display and
+## its menu must not be overlapped), and the sector objective itself lives only
+## in the intermission's top-right panel.
 
 var _panel: PanelContainer
 var _day_label: Label
 var _mp_label: Label
 var _mp_bar: ProgressBar
-var _objective_label: Label
 
 
 func _ready() -> void:
@@ -89,16 +91,16 @@ func _build_ui() -> void:
 	_mp_bar.add_theme_stylebox_override("background", bg)
 	mp_row.add_child(_mp_bar)
 
-	_objective_label = Label.new()
-	_objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_objective_label.add_theme_font_size_override("font_size", 11)
-	_objective_label.add_theme_color_override("font_color", Color(0.75, 0.8, 0.9))
-	vbox.add_child(_objective_label)
 
 
 func _process(_delta: float) -> void:
 	if _day_label == null:
 		return
+	# The intermission menu has its own full objective panel (top-right) and
+	# status bar, so the compact board card hides entirely while it is open —
+	# the MP readout must never overlap the intermission menu buttons.
+	var intermission := get_parent().get_node_or_null("IntermissionUI") if get_parent() else null
+	_panel.visible = intermission == null or not intermission.visible
 	_refresh()
 
 
@@ -114,7 +116,3 @@ func _refresh() -> void:
 	_mp_bar.value = float(mp)
 	# Red bar as the pool empties so "out of moves" is unmistakable.
 	_mp_bar.modulate = Color(1.0, 0.45, 0.35) if mp <= 0 else Color.WHITE
-	_objective_label.text = "OBJECTIVE: %s\n%s" % [
-		BoardSystem.get_objective().get("name", "?"),
-		BoardSystem.progress_text(),
-	]

@@ -14,13 +14,16 @@ var structures_container: Node3D
 
 
 func _ready() -> void:
-	current_theme = _theme_from_board() if GameManager.current_state == GameManager.State.BOARD else randi() % BiomeTheme.size() as BiomeTheme
+	current_theme = _theme_from_board()
 	generate_arena()
 
 
 # The open-grid board theme drives the combat arena biome, so the battle scene
 # always matches the map the player is exploring (desert dune fights on the
-# desert board, urban skyscraper fights in the city, etc.).
+# desert board, urban skyscraper fights in the city, etc.). The board theme is
+# read from GlobalData directly (not GameManager.current_state) because
+# enter_combat() flips the state to COMBAT before the deferred scene swap runs,
+# so arena_generator._ready() would otherwise never see State.BOARD.
 func _theme_from_board() -> BiomeTheme:
 	var arena_name: String = BoardConfig.THEME_ARENA.get(GlobalData.board_theme_id, "")
 	if arena_name == "":

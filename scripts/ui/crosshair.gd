@@ -7,6 +7,15 @@ var is_head_destroyed: bool = false
 var warning_label: Label = null
 var overlay_control: Control = null
 
+# --- Melee reach ring ---
+# A soft ground arc at the reachable melee range, drawn on the crosshair
+# overlay while aiming so the player can see how close to close before a swing
+# connects. Front-facing only (melee hits forward, not 360°).
+const MELEE_RANGE_COLOR: Color = Color(1.0, 0.8, 0.25, 0.5)
+const MELEE_ARC_STEPS: int = 24
+const MELEE_ARC_HALF_ANGLE_DEG: float = 90.0
+const FIST_REACH: float = 3.0
+
 
 func _ready() -> void:
 	await get_tree().process_frame
@@ -68,6 +77,64 @@ func _update_crosshair_position() -> void:
 		warning_label.position = center + Vector2(-180, -40)
 
 
+# The reachable melee range to draw (0 = none): a held melee weapon's
+# range_distance, else the bare-fist reach when a hand is empty, else nothing
+# for a fully ranged loadout.
+func _get_melee_range() -> float:
+	var mecha = GameManager.get_player_mecha()
+	if mecha == null:
+		return 0.0
+	var wm = mecha.get_node_or_null("WeaponManager")
+	if wm == null:
+		return 0.0
+	var left: WeaponPart = wm.left_hand
+	var right: WeaponPart = wm.right_hand
+	if left != null and left.weapon_type == WeaponPart.WeaponType.MELEE:
+		return left.range_distance
+	if right != null and right.weapon_type == WeaponPart.WeaponType.MELEE:
+		return right.range_distance
+	if left == null or right == null:
+		return FIST_REACH
+	return 0.0
+
+
+# World-space points of the front arc: radius `radius` around mecha_pos,
+# centered on aim_dir, spanning MELEE_ARC_STEPS segments of a 180° front arc.
+# Kept separate from the draw call so the geometry is directly testable.
+func _compute_melee_arc_world_points(mecha_pos: Vector3, aim_dir: Vector3, radius: float) -> PackedVector3Array:
+	var points := PackedVector3Array()
+	var half := deg_to_rad(MELEE_ARC_HALF_ANGLE_DEG)
+	for i in range(MELEE_ARC_STEPS + 1):
+		var a := -half + 2.0 * half * float(i) / float(MELEE_ARC_STEPS)
+		var dir := aim_dir.rotated(Vector3.UP, a)
+		points.append(mecha_pos + Vector3(dir.x, 0.0, dir.z) * radius)
+	return points
+
+
+func _draw_melee_range() -> void:
+	if overlay_control == null:
+		return
+	var range_val := _get_melee_range()
+	if range_val <= 0.0:
+		return
+	var cam = get_viewport().get_camera_3d()
+	if cam == null:
+		return
+	var mecha = GameManager.get_player_mecha()
+	if mecha == null:
+		return
+	var aim_dir := get_aim_direction()
+	aim_dir.y = 0.0
+	if aim_dir.length() < 0.1:
+		return
+	aim_dir = aim_dir.normalized()
+	var world := _compute_melee_arc_world_points(mecha.global_position, aim_dir, range_val)
+	var screen := PackedVector2Array()
+	for p in world:
+		screen.append(cam.unproject_position(p))
+	overlay_control.draw_polyline(screen, MELEE_RANGE_COLOR, 2.0)
+
+
 func get_aim_point() -> Vector3:
 	if aim_ray == null:
 		return Vector3.FORWARD
@@ -105,6 +172,9 @@ func _on_overlay_draw() -> void:
 		return
 	var viewport_size = get_viewport().get_visible_rect().size
 	var center = viewport_size / 2.0
+
+	# Melee reach ring under the reticle (only when a hand can melee).
+	_draw_melee_range()
 
 	if is_head_destroyed:
 		# Sensors offline: a full + through the center signals manual aim only.

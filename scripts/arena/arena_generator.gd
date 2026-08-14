@@ -5,7 +5,7 @@ extends Node3D
 @export var arena_size: float = 240.0
 @export var tile_count: int = 24
 
-enum BiomeTheme { DESERT, CITY_HIGHRISE, CROSSROADS, RIVER_BRIDGE, FOREST }
+enum BiomeTheme { DESERT, CITY_HIGHRISE, CROSSROADS, RIVER_BRIDGE, FOREST, FOREST_ROAD }
 
 # Arena footprint per combat node type — bigger fights need bigger fields so the
 # spawn ring / AI search radius / nav floor all breathe instead of hugging walls.
@@ -52,6 +52,64 @@ func _ready() -> void:
 	arena_size = _arena_size_for_combat()
 	GlobalData.current_arena_size = arena_size
 	generate_arena()
+	_place_player_at_arena_edge()
+
+
+# Moves the player mech to a random EDGE spawn instead of the center of the
+# field, so each battle starts from a different side. The spot is chosen away
+# from cover objects (trees, buildings, dunes) so the player never spawns
+# inside a rock or tree trunk. Falls back to leaving the mech where it is if no
+# clear edge spot exists.
+func _place_player_at_arena_edge() -> void:
+	var host := get_parent()
+	if host == null:
+		return
+	var mecha := host.get_node_or_null("Mecha")
+	if mecha == null:
+		return
+	# Cover objects spawn one frame later (obstacle_spawner awaits a frame), but
+	# their positions are deterministic via the shared seed system — query them
+	# up front so the player never spawns on top of a tree/rock/barricade.
+	var cover_positions: Array = []
+	var seed_sys = host.get_node_or_null("ArenaSeedSystem")
+	if seed_sys and seed_sys.has_method("set_seed") and seed_sys.has_method("get_obstacle_positions"):
+		seed_sys.set_seed(GlobalData.current_sector, GlobalData.current_tile)
+		cover_positions = seed_sys.get_obstacle_positions(current_theme, arena_size)
+	var attempts := 0
+	while attempts < 24:
+		attempts += 1
+		# Pick a point on the outer ring (between 30% and 46% of the arena size
+		# away from center) — clearly off-center, still inside the escape walls.
+		# A random angle every roll so spawns vary per battle.
+		var angle := randf_range(0.0, TAU)
+		var dist := arena_size * randf_range(0.30, 0.46)
+		var candidate := Vector3(cos(angle) * dist, 0.0, sin(angle) * dist)
+		# Keep clear of every concealment object + upcoming cover spawn.
+		if _spawn_point_clear(candidate, 8.0, cover_positions):
+			mecha.position = candidate
+			mecha.position.y = 5.0  # Drop-pod height; combat_intro waits for landing.
+			return
+
+
+# True when no concealment object (cover tree/rock/building that the player
+# would collide with) sits within `min_dist` meters of the point, the point is
+# not on top of a future cover spawn, and it is not inside the void/escape frame.
+func _spawn_point_clear(point: Vector3, min_dist: float, cover_positions: Array = []) -> bool:
+	var half := arena_size * 0.5
+	if absf(point.x) > half - 6.0 or absf(point.z) > half - 6.0:
+		return false
+	for node in get_tree().get_nodes_in_group("concealment"):
+		if node is Node3D:
+			var d := Vector2(point.x, point.z).distance_to(
+				Vector2(node.global_position.x, node.global_position.z))
+			if d < min_dist:
+				return false
+	for cp in cover_positions:
+		if cp is Dictionary:
+			var cpos: Vector3 = cp.get("pos", Vector3.ZERO)
+			if Vector2(point.x, point.z).distance_to(Vector2(cpos.x, cpos.z)) < min_dist:
+				return false
+	return true
 
 
 # Picks the field size for the current battle. Defaults to the export value when
@@ -70,6 +128,11 @@ func _arena_size_for_combat() -> float:
 # enter_combat() flips the state to COMBAT before the deferred scene swap runs,
 # so arena_generator._ready() would otherwise never see State.BOARD.
 func _theme_from_board() -> BiomeTheme:
+	# A forest board fought on a ROAD tile gets the road-through-forest arena:
+	# the enemy was caught on the forest road, so the battle map is a road
+	# cutting through the woods instead of the plain river forest.
+	if GlobalData.board_theme_id == "forest" and GlobalData.combat_tile_terrain == "road":
+		return BiomeTheme.FOREST_ROAD
 	var arena_name: String = BoardConfig.THEME_ARENA.get(GlobalData.board_theme_id, "")
 	# Never fall back to a RANDOM biome: a random pick can drop a forest board
 	# into a street fight (and vice versa). Unknown/empty themes default to the
@@ -122,10 +185,13 @@ func _add_ground_tiles() -> void:
 			# sunken riverbed handled by the river structures).
 			_add_ground_plane(texture, 0.45, -22.0, arena_size / 2.0)
 			_add_ground_plane(texture, 0.45, 22.0, arena_size / 2.0)
-		BiomeTheme.FOREST:
-			# Rolling banks + a flat wading band: the river strip stays a plain
+		BiomeTheme.FOREST, BiomeTheme.FOREST_ROAD:
+			# Rolling banks + a flat central band: the river strip stays a plain
 			# quad (the water sheet sits under it) while the banks are displaced
-			# into gentle hills and open meadow clearings.
+			# into gentle hills and open meadow clearings. FOREST_ROAD reuses the
+			# same geometry but the central band is a level road (see
+			# _forest_terrain_height / _get_theme_ground_color), so the battle
+			# reads as a road cutting through the woods.
 			_add_forest_terrain_banks(texture)
 			_add_forest_strip_plane(texture)
 		_:
@@ -159,13 +225,15 @@ func _add_forest_strip_plane(texture: Texture2D) -> void:
 	var half := arena_size / 2.0
 	var z0 := -24.0
 	var z1 := 24.0
+	var strip_y := _forest_strip_y()
 	# Keep the same height as the old full-field plane (top ~ -0.34) so the
-	# sunken water sheet and the riverbank look are unchanged.
+	# sunken water sheet and the riverbank look are unchanged. FOREST_ROAD
+	# raises the strip to a level road surface instead.
 	var verts := PackedVector3Array([
-		Vector3(-half, -0.39, z0),
-		Vector3(half, -0.39, z0),
-		Vector3(-half, -0.39, z1),
-		Vector3(half, -0.39, z1),
+		Vector3(-half, strip_y - 0.04, z0),
+		Vector3(half, strip_y - 0.04, z0),
+		Vector3(-half, strip_y - 0.04, z1),
+		Vector3(half, strip_y - 0.04, z1),
 	])
 	var uvs := PackedVector2Array([
 		Vector2(0.0, (z0 + half) / arena_size),
@@ -317,6 +385,20 @@ func _get_theme_ground_color(pos_x: float, pos_z: float) -> Color:
 				return Color(0.24 + v, 0.20 + v, 0.14 + v)
 			return Color(0.14 + v, 0.30 + v, 0.14 + v)
 
+		BiomeTheme.FOREST_ROAD:
+			# A packed-dirt / light-asphalt road cuts through the woods along
+			# the central band (|z| < 24); the forest floor around it keeps the
+			# FOREST palette (meadows + mossy undergrowth).
+			if absf(pos_z) < 24.0:
+				if absf(pos_z) < 2.0:
+					return Color(0.30 + v, 0.28 + v, 0.22 + v)
+				return Color(0.26 + v, 0.24 + v, 0.19 + v)
+			if _is_open_field(pos_x, pos_z):
+				return Color(0.32 + v, 0.56 + v, 0.24 + v)
+			if int(abs(pos_x)) % 22 < 3 or int(abs(pos_z)) % 22 < 3:
+				return Color(0.24 + v, 0.20 + v, 0.14 + v)
+			return Color(0.14 + v, 0.30 + v, 0.14 + v)
+
 	return Color(0.5, 0.5, 0.5)
 
 
@@ -328,7 +410,7 @@ func _add_ground_collision() -> void:
 	if current_theme == BiomeTheme.RIVER_BRIDGE:
 		_add_riverbank_collision()
 		return
-	if current_theme == BiomeTheme.FOREST:
+	if current_theme == BiomeTheme.FOREST or current_theme == BiomeTheme.FOREST_ROAD:
 		_add_forest_terrain_collision()
 		return
 
@@ -492,7 +574,7 @@ func _create_theme_structures() -> void:
 			_build_crossroads_structures()
 		BiomeTheme.RIVER_BRIDGE:
 			_build_river_bridge_structures()
-		BiomeTheme.FOREST:
+		BiomeTheme.FOREST, BiomeTheme.FOREST_ROAD:
 			_build_forest_structures()
 
 
@@ -847,20 +929,27 @@ func _spawn_water_volume(center_x: float, width: float, mat: Material) -> void:
 # fields, and gentle noise-driven hills (max ~3m) on the banks. Hills ramp in
 # smoothly off the flat pockets and flatten back down near the arena walls so
 # the spawn ring and the escape frame both sit on level ground.
+# Y of the flat central band. FOREST keeps the sunken river strip;
+# FOREST_ROAD raises it to a level dirt/asphalt road surface.
+func _forest_strip_y() -> float:
+	return 0.0 if current_theme == BiomeTheme.FOREST_ROAD else FOREST_RIVER_STRIP_Y
+
+
 func _forest_terrain_height(wx: float, wz: float) -> float:
 	_ensure_forest_fields()
 	var nx := absf(wx)
 	var nz := absf(wz)
 	var half := arena_size / 2.0
-	# River strip (|z| < 24) is the flat wading surface — the player and the
-	# spawn ring start on it, so it never rolls.
+	var strip_y := _forest_strip_y()
+	# River strip (|z| < 24) is the flat surface — the player and the spawn
+	# ring start on it, so it never rolls.
 	if nz <= 24.0:
-		return FOREST_RIVER_STRIP_Y
+		return strip_y
 	# Smoothly lift off the river bank and out of the spawn pocket...
 	var river_ramp := clampf((nz - 24.0) / 10.0, 0.0, 1.0)
 	var pocket_ramp := clampf((maxf(nx, nz) - 18.0) / 22.0, 0.0, 1.0)
 	var rise := minf(river_ramp, pocket_ramp)
-	var base := lerpf(FOREST_RIVER_STRIP_Y, 0.0, river_ramp)
+	var base := lerpf(strip_y, 0.0, river_ramp)
 	# ...and flatten back down near the arena walls (escape frame sits flush).
 	var rim := clampf((half - maxf(nx, nz)) / 26.0, 0.0, 1.0)
 	if rise <= 0.0 or rim <= 0.0:
@@ -923,8 +1012,12 @@ func _ensure_forest_fields() -> void:
 
 
 func _build_forest_structures() -> void:
-	# 1. A wide river cut across the map (Z band) with banks of mossy ground.
-	_spawn_forest_river()
+	# 1. A wide river cut across the map (Z band) with banks of mossy ground;
+	#    the road-through-forest variant lays a packed-dirt road there instead.
+	if current_theme == BiomeTheme.FOREST_ROAD:
+		_spawn_forest_road()
+	else:
+		_spawn_forest_river()
 
 	# 2. Scattered trees of varied size (tall/short, thick/thin) + rocks + logs.
 	#    Open fields stay clear of cover so they read as meadows, and every
@@ -937,7 +1030,7 @@ func _build_forest_structures() -> void:
 		if absf(x) < 15.0 and absf(z) < 15.0:
 			continue # Keep spawn area clear
 		if absf(z) < 24.0:
-			continue # Keep the river clear
+			continue # Keep the central road/river clear
 		var ground_y := _forest_terrain_height(x, z)
 		# Only a truly flat meadow (field interior) counts as an open field — the
 		# 8m fade ramp around each field still rolls, so a flower/grass tuft there
@@ -980,6 +1073,55 @@ func _build_forest_structures() -> void:
 				_spawn_flower_patch(ground_pos)
 			else:
 				_spawn_fallen_leaves(ground_pos)
+
+
+func _spawn_forest_road() -> void:
+	# Packed-dirt road band cutting across the forest (|z| < 24): a passable
+	# flat surface at y=0 (the strip plane + heightmap already sit there), with
+	# a slightly darker worn lane and edge shoulders so it reads as a road
+	# cutting through the woods rather than a bare strip of dirt.
+	var half := arena_size / 2.0
+
+	var road := StaticBody3D.new()
+	road.name = "ForestRoad"
+	road.collision_layer = 2
+	road.collision_mask = 1
+
+	# Passable floor across the whole band (meets the bank heightmap at |z|=24).
+	var col = CollisionShape3D.new()
+	var shape = BoxShape3D.new()
+	shape.size = Vector3(arena_size, 0.5, 48)
+	col.shape = shape
+	road.add_child(col)
+
+	# Visual: a thin worn-dirt slab slightly above the collision top so the
+	# strip reads as a raised packed road.
+	var mesh = MeshInstance3D.new()
+	var box = BoxMesh.new()
+	box.size = Vector3(arena_size, 0.25, 46)
+	mesh.mesh = box
+	var road_mat := StandardMaterial3D.new()
+	road_mat.albedo_color = Color(0.28, 0.25, 0.18)
+	road_mat.roughness = 0.95
+	mesh.material_override = road_mat
+	mesh.position.y = 0.02
+	road.add_child(mesh)
+
+	# Wheel-rut lanes: two darker parallel strips.
+	for lane_x in [-6.0, 6.0]:
+		var lane := MeshInstance3D.new()
+		var lane_box := BoxMesh.new()
+		lane_box.size = Vector3(0.6, 0.26, 46)
+		lane.mesh = lane_box
+		var lane_mat := StandardMaterial3D.new()
+		lane_mat.albedo_color = Color(0.18, 0.16, 0.12)
+		lane_mat.roughness = 1.0
+		lane.material_override = lane_mat
+		lane.position = Vector3(lane_x, 0.03, 0)
+		road.add_child(lane)
+
+	road.position = Vector3(0, -0.25, 0)
+	structures_container.add_child(road)
 
 
 func _spawn_forest_river() -> void:

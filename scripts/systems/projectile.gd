@@ -9,6 +9,8 @@ var timer: float = 0.0
 var trail_timer: float = 0.0
 var direction: Vector3 = Vector3.FORWARD
 var fired_by_enemy: bool = false
+# Railgun rounds leave a shrinking sonic-boom ring along their flight path.
+var sonic_boom: bool = false
 var ricochet_chance: float = 0.15
 var prev_position: Vector3
 var explosion_radius: float = 3.0
@@ -91,6 +93,8 @@ func _physics_process(delta: float) -> void:
 	if trail_timer >= 0.03:
 		trail_timer = 0.0
 		_spawn_trail()
+		if sonic_boom:
+			_spawn_sonic_boom_ring()
 
 
 func _check_obstacle_collision() -> void:
@@ -212,3 +216,38 @@ func _spawn_trail() -> void:
 	var tween = get_tree().create_tween()
 	tween.tween_property(mat, "albedo_color:a", 0.0, 0.2)
 	tween.tween_callback(trail.queue_free)
+
+
+# A railgun round tears the air as it passes: a bright expanding shockwave ring
+# (torus) that swells out from the flight line and fades, reading as the sonic
+# boom cutting through the air along the projectile's path.
+func _spawn_sonic_boom_ring() -> void:
+	var ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.35
+	torus.outer_radius = 0.5
+	torus.rings = 24
+	torus.ring_segments = 12
+	ring.mesh = torus
+
+	var mat := StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(0.6, 0.9, 1.0, 0.85)
+	mat.emission_enabled = true
+	mat.emission = Color(0.5, 0.85, 1.0)
+	mat.emission_energy_multiplier = 4.0
+	mat.no_depth_test = true
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	ring.material_override = mat
+
+	# Ring lies in the plane perpendicular to the flight line.
+	get_tree().current_scene.add_child(ring)
+	ring.global_position = global_position
+	ring.look_at(global_position + direction, Vector3.UP)
+	ring.rotate_object_local(Vector3.FORWARD, deg_to_rad(90.0))
+
+	var tween := get_tree().create_tween().set_parallel(true)
+	tween.tween_property(ring, "scale", Vector3(3.2, 3.2, 1.0), 0.28) \
+		.set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
+	tween.tween_property(mat, "albedo_color:a", 0.0, 0.28)
+	tween.chain().tween_callback(ring.queue_free)

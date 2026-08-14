@@ -541,6 +541,10 @@ func _process_tile_effect(tile_type: String) -> void:
 # convoy has parked mechs with seated pilots to choose from; solo convoys and
 # surprise ambushes skip straight into the battle.
 func _request_combat(combat_type: String) -> void:
+	# Tell the arena generator what terrain this battle happens on: a forest
+	# board fought on a ROAD tile gets the road-through-forest arena.
+	var tile = nodes_dict.get(current_pos)
+	GlobalData.combat_tile_terrain = str(tile.get_meta("terrain", "plain")) if tile != null else "plain"
 	var deploy := get_node_or_null("DeployTeamUI")
 	if deploy and deploy.has_method("has_ally_candidates") and deploy.has_method("open_deploy") \
 			and deploy.has_ally_candidates():

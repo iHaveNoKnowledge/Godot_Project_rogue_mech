@@ -27,6 +27,8 @@ enum Style { BULLET, MISSILE, SHOTGUN, ORB }
 ## grunts and allied dummies use ORB to keep their silhouette readable).
 var projectile_style: int = Style.ORB
 var projectile_color: Color = Color(1, 0.8, 0.2)
+# Railgun rounds leave a sonic-boom shockwave ring along their flight path.
+var sonic_boom: bool = false
 
 # --- Firing config ---
 var fire_interval: float = 0.2
@@ -88,6 +90,13 @@ static func from_weapon(weapon: WeaponPart) -> WeaponCore:
 		WeaponPart.WeaponType.SHOTGUN:
 			core.projectile_style = Style.SHOTGUN
 			core.pellets = 7
+			core.damage_type = "kinetic"
+		WeaponPart.WeaponType.RAILGUN:
+			# Railgun rounds are hypervelocity: electric-blue bolt, no bullet drop
+			# sag, and a sonic-boom shockwave ring along the flight path.
+			core.projectile_style = Style.BULLET
+			core.projectile_color = Color(0.45, 0.85, 1.0)
+			core.sonic_boom = true
 			core.damage_type = "kinetic"
 		_:
 			core.damage_type = "kinetic"
@@ -286,5 +295,10 @@ func _spawn_projectile(from_pos: Vector3, aim_dir: Vector3, fired_by_enemy: bool
 	projectile.impact = impact
 	projectile.direction = aim_dir
 	projectile.fired_by_enemy = fired_by_enemy
+	projectile.sonic_boom = sonic_boom
+	if sonic_boom:
+		# Hypervelocity round: no bullet drop sag, flat railgun trajectory.
+		projectile.drop_gravity = 0.0
+		projectile.lifetime = 3.0
 
 	EffectManager.spawn_muzzle_flash(from_pos, aim_dir)

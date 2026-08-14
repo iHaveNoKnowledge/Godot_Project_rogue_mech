@@ -6,7 +6,7 @@
 script = ExtResource("1")
 weapon_name = "Railgun"
 weapon_type = 6
-damage = 150.0
+damage = 300.0
 fire_rate = 0.7
 max_ammo = 12
 ammo_per_shot = 1
@@ -14,7 +14,7 @@ projectile_speed = 160.0
 spread = 0.0
 weight = 26.0
 range_distance = 110.0
-description = "อาวุธ_two-hand_หนัก, ดาเมจสูงสุด, ชาร์จแลกกระทิง, ต้องใช้ Power เพลย์"
+description = "ปืนเรลกันไฮเปอร์เวลอซิตี้: damage สูงสุดในเกม, ผลักหุ่นถอยหลังพร้อมต้องทรงตัว, มี sonic boom แหวกลมตามวิถีกระสุน — ต้องใช้ Power แขนพอจะถือมือเดียว"
 rarity = 3
 ammo_type = "kinetic"
 two_handed = true

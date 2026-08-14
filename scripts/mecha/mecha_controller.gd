@@ -21,6 +21,10 @@ var dash_direction: Vector3 = Vector3.ZERO
 # Recoil kick applied by heavy weapons (see apply_recoil_impulse). Decays over
 # a short window so the mech staggers backwards instead of teleporting.
 var recoil_vector: Vector3 = Vector3.ZERO
+# Stance-recovery timer after a heavy shot: while > 0 the mech's recoil decay
+# is slowed (the railgun's kick takes a beat to re-balance) instead of snapping
+# back instantly. Leg power + total weight tune the decay below.
+var _recoil_recovery: float = 0.0
 var _recalculating: bool = false
 var was_in_air: bool = false
 var footstep_timer: float = 0.0
@@ -103,6 +107,19 @@ func apply_recoil_impulse(backward: Vector3) -> void:
 	if backward.length() < 0.001:
 		return
 	recoil_vector += backward.normalized() * minf(backward.length(), 12.0)
+
+
+# Heavy kick (railgun): a big push that also extends the stance-recovery time.
+# The push is capped higher than normal recoil and decays slower, so the mech
+# visibly staggers backwards and takes a beat to re-balance — exactly how a
+# railgun should feel.
+func apply_heavy_recoil_impulse(backward: Vector3) -> void:
+	backward.y = 0.0
+	if backward.length() < 0.001:
+		return
+	recoil_vector += backward.normalized() * minf(backward.length(), 20.0)
+	# Extend the recovery window so the stance takes a moment to settle.
+	_recoil_recovery = clampf(_recoil_recovery + 0.55, 0.0, 2.5)
 
 
 func _physics_process(delta: float) -> void:
@@ -203,13 +220,30 @@ func _apply_movement(delta: float) -> void:
 		if AudioManager:
 			AudioManager.play_jump(global_position)
 
-	# Blend in any weapon recoil push then decay it quickly.
+	# Blend in any weapon recoil push then decay it. The railgun's heavy kick
+	# decays slower while the stance recovers; strong legs and a light mech
+	# re-balance faster, heavy mechs take longer.
 	if recoil_vector.length() > 0.001:
 		velocity.x += recoil_vector.x
 		velocity.z += recoil_vector.z
-		recoil_vector = recoil_vector.move_toward(Vector3.ZERO, 30.0 * delta)
+		var decay_rate := _recoil_decay_rate()
+		if _recoil_recovery > 0.0:
+			_recoil_recovery -= delta
+			decay_rate *= 0.35
+		recoil_vector = recoil_vector.move_toward(Vector3.ZERO, decay_rate * delta)
 
 	velocity.y -= GRAVITY * delta
+
+
+# How fast weapon recoil decays each second. Strong legs brace harder (faster
+# recovery) while heavier mechs take longer to re-stabilize — so a light mech
+# with heavy leg frames snaps back from the railgun kick quickly, and a heavy
+# mech staggers longer.
+func _recoil_decay_rate() -> float:
+	var leg_power := GlobalData.get_leg_power()
+	# Base 30 (the old constant) tuned by bracing strength vs carried mass.
+	var rate := 30.0 + leg_power * 1.2 - clampf(total_weight * 0.12, 0.0, 18.0)
+	return maxf(rate, 14.0)
 
 
 func _trigger_landing_impact() -> void:

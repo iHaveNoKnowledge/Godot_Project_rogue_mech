@@ -939,15 +939,31 @@ func _mech_power() -> float:
 	return GlobalData.get_mech_power()
 
 
-func weapon_needs_both_hands(weapon: WeaponPart) -> bool:
-	return weapon != null and weapon.two_handed and weapon.requires_two_hand(_mech_power())
+# Power of the arm actually holding the weapon. Two-hand weapons check THIS arm:
+# a strong arm can one-hand a railgun while a weak arm still needs the other
+# hand to brace it.
+func _hand_power(hand: String) -> float:
+	return GlobalData.get_arm_power(hand)
+
+
+func weapon_needs_both_hands(weapon: WeaponPart, hand: String = "") -> bool:
+	if weapon == null or not weapon.two_handed:
+		return false
+	# Without an explicit hand (callers that only know the weapon), fall back to
+	# whichever hand currently holds it.
+	if hand == "":
+		if left_hand == weapon:
+			hand = "left"
+		elif right_hand == weapon:
+			hand = "right"
+	return weapon.requires_two_hand(_hand_power(hand))
 
 
 # Returns the hand that currently holds a weapon needing a two-hand grip.
 func _two_hand_hand() -> String:
-	if left_hand and weapon_needs_both_hands(left_hand):
+	if left_hand and weapon_needs_both_hands(left_hand, "left"):
 		return "left"
-	if right_hand and weapon_needs_both_hands(right_hand):
+	if right_hand and weapon_needs_both_hands(right_hand, "right"):
 		return "right"
 	return ""
 
@@ -1035,12 +1051,18 @@ func _apply_recoil(weapon: WeaponPart) -> void:
 
 	# Pull the mech backward along the camera aim direction.
 	var cam_basis = cam.global_transform.basis
-	var backward = cam_basis.z  # +Z faces AWAY from aim
+	var backward: Vector3 = cam_basis.z  # +Z faces AWAY from aim
 	backward.y = 0.0
 	if backward.length() > 0.01:
 		backward = backward.normalized()
-		if mecha.has_method("apply_recoil_impulse"):
-			mecha.apply_recoil_impulse(backward * weapon.recoil_force)
+		var impulse: Vector3 = backward * weapon.recoil_force
+		# Railguns use the heavy kick: a stronger push plus a stance-recovery
+		# beat (decay slowed) so the mech visibly staggers and re-balances.
+		if weapon.weapon_type == WeaponPart.WeaponType.RAILGUN \
+				and mecha.has_method("apply_heavy_recoil_impulse"):
+			mecha.apply_heavy_recoil_impulse(impulse)
+		elif mecha.has_method("apply_recoil_impulse"):
+			mecha.apply_recoil_impulse(impulse)
 
 	# Camera shake proportional to recoil.
 	if weapon.recoil_shake > 0.0:

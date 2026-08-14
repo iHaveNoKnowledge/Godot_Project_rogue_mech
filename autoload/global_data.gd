@@ -742,6 +742,30 @@ func get_mech_power() -> float:
 	return power
 
 
+# Power of ONE arm: chassis base + that arm's frame strength. Two-hand weapons
+# check the arm that actually holds the weapon — a strong arm can one-hand a
+# railgun while a weak arm still needs the other hand to brace it.
+func get_arm_power(side: String) -> float:
+	var power := float(get_chassis_stats().get("power", 12.0))
+	if side != "left" and side != "right":
+		return power
+	var f = equipped_frames.get("arm_%s" % side, {})
+	if f is Dictionary:
+		power += float(f.get("carry_bonus", 0.0))
+	return power
+
+
+# Leg bracing strength: chassis base + both leg frames. Strong legs absorb the
+# railgun's recoil and re-stabilize the stance faster after a heavy shot.
+func get_leg_power() -> float:
+	var power := float(get_chassis_stats().get("power", 12.0))
+	for leg in ["leg_left", "leg_right"]:
+		var f = equipped_frames.get(leg, {})
+		if f is Dictionary:
+			power += float(f.get("carry_bonus", 0.0))
+	return power
+
+
 # Equipped inner frames. Values are full catalog-entry dicts at runtime; the
 # save file persists only {"id": ...} references (see _serialize_frames).
 var equipped_frames: Dictionary = {}
@@ -775,6 +799,11 @@ var part_damage: Dictionary = {}
 var board_grid: Array = []
 var current_tile: Vector2i = Vector2i.ZERO
 var board_seed: int = 0
+# Terrain of the board tile the player stepped onto when a battle started
+# ("road", "forest", "sand"...). The arena generator uses it to pick the battle
+# biome: a forest board fought on a ROAD tile spawns the road-through-forest
+# arena instead of the plain woods. Set by the board before entering combat.
+var combat_tile_terrain: String = "plain"
 # Current combat arena footprint (side length in meters). Set by the arena
 # generator when a battle loads; scales spawn ring / AI search radius / nav.
 var current_arena_size: float = 240.0

@@ -18,8 +18,20 @@ var _stage := 0
 var _settle := 0
 
 var _wm: Node = null
+var _mecha: CharacterBody3D = null
 var _enemy: Node = null
 var _cam: Camera3D = null
+
+
+# The swing's hit reach is measured from the LUNGED position, so the mech's
+# current stance affects whether a punch connects. The test force-advances the
+# shared core without waiting for the real 0.26s lunge tween (headless pacing),
+# so reset the stance to the resting origin before each hit-expecting punch to
+# simulate the previous lunge having completed (real cadences — fist 0.5s,
+# knife 0.25s — never fire into another swing's 0.05s anticipation pull-back).
+func _reset_stance() -> void:
+	if _mecha:
+		_mecha.position = Vector3(0, 1.5, 0)
 
 
 func _check(cond: bool, name: String) -> void:
@@ -83,6 +95,7 @@ func _process(_delta: float) -> void:
 			# headless physics ticks too slowly to wait on). The manager ticks
 			# the same core every physics frame while the hand is empty.
 			_wm._core_for_weapon(_wm._fist()).tick(1.0)
+			_reset_stance()
 			_stage = 5
 			_wm._try_fire("left", null)
 		5:
@@ -99,6 +112,7 @@ func _process(_delta: float) -> void:
 				_check(_enemy.damage_taken == FIST_DAMAGE * 2.0, "hands share the punch cooldown")
 		7:
 			_wm._core_for_weapon(_wm._fist()).tick(1.0)
+			_reset_stance()
 			_stage = 8
 			_wm._try_fire("right", null)
 		8:
@@ -109,13 +123,13 @@ func _process(_delta: float) -> void:
 
 
 func _build_scene() -> void:
-	var mecha := CharacterBody3D.new()
-	mecha.collision_layer = 1
-	mecha.position = Vector3(0, 1.5, 0)
-	add_child(mecha)
+	_mecha = CharacterBody3D.new()
+	_mecha.collision_layer = 1
+	_mecha.position = Vector3(0, 1.5, 0)
+	add_child(_mecha)
 	_wm = Node3D.new()
 	_wm.set_script(preload("res://scripts/mecha/weapon_manager.gd"))
-	mecha.add_child(_wm)
+	_mecha.add_child(_wm)
 	_wm.left_hand = null
 	_wm.right_hand = null
 

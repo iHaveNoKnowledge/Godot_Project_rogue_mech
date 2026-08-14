@@ -1,0 +1,184 @@
+extends Node
+
+## Verifies the melee lunge "feel" tuning headlessly:
+##   - a swing lunges the mech ~(range - reach) so the thrust visual matches the
+##     weapon's range_distance (fist 3.0 -> 1.4m, pile 4.0 -> 2.4m),
+##   - the hit check lands at the thrust peak, so hits connect exactly at the
+##     weapon's range and whiff just past it,
+##   - the mech returns to its origin after the recovery phase,
+##   - rapid consecutive swings (combat knife at 0.25s < 0.26s lunge tween) land
+##     both hits without the tweens fighting and flinging the mech around.
+## Driven by a _process state machine (headless-safe). Tween waits are
+## wall-clock based because headless frame pacing is not guaranteed.
+## Run: godot --headless --path . res://tests/melee_lunge_verify.tscn
+
+const FIST_DAMAGE: float = 8.0
+const KNIFE_DAMAGE: float = 25.0
+const PILE_DAMAGE: float = 120.0
+
+var _fails := 0
+var _checks := 0
+var _stage := 0
+var _settle := 0
+var _fire_msec := 0
+var _measuring := false
+var _peak_z := 0.0
+
+var _wm: Node = null
+var _mecha: CharacterBody3D = null
+var _enemy: Node = null
+var _cam: Camera3D = null
+
+var _knife: WeaponPart = preload("res://resources/mech/stock/weapon_combat_knife.tres")
+var _pile: WeaponPart = preload("res://resources/mech/stock/weapon_pile_bunker.tres")
+
+
+func _check(cond: bool, name: String) -> void:
+	_checks += 1
+	if cond:
+		print("LUNGE OK: " + name)
+	else:
+		_fails += 1
+		print("LUNGE FAIL: " + name)
+
+
+func _elapsed(ms: int) -> bool:
+	return Time.get_ticks_msec() - _fire_msec >= ms
+
+
+func _aim_ray_hits_enemy() -> bool:
+	var space = get_viewport().get_world_3d().direct_space_state
+	var center := get_viewport().get_visible_rect().size / 2.0
+	var query := PhysicsRayQueryParameters3D.create(
+		_cam.project_ray_origin(center), _cam.project_ray_origin(center) + _cam.project_ray_normal(center) * 30.0)
+	query.collision_mask = 10
+	var result := space.intersect_ray(query)
+	return result and result.get("collider") == _enemy
+
+
+func _finish() -> void:
+	print("LUNGE_VERIFY: checks=%d fails=%d" % [_checks, _fails])
+	get_tree().quit(1 if _fails > 0 else 0)
+
+
+func _start_swing(hand: String, weapon) -> void:
+	_fire_msec = Time.get_ticks_msec()
+	_measuring = true
+	_peak_z = _mecha.position.z
+	_wm._try_fire(hand, weapon)
+
+
+func _process(_delta: float) -> void:
+	match _stage:
+		0:
+			_stage = 1
+			_build_scene()
+		1:
+			# Wait until the physics space sees the enemy ahead.
+			if _aim_ray_hits_enemy():
+				_stage = 2
+				_start_swing("left", null)
+		2:
+			# Fist @ 3.0m: should hit, lunge ~1.4m, and return to origin.
+			if _elapsed(350):
+				_measuring = false
+				_stage = 3
+				_check(_enemy.damage_taken == FIST_DAMAGE, "fist connects at its 3m range")
+				_check(_peak_z <= -1.25, "fist lunges ~1.4m into the punch (peak %.2f)" % _peak_z)
+				_check(absf(_mecha.position.z) < 0.05, "mech returns to origin after the fist recovery")
+				_enemy.position = Vector3(0, 1.5, -3.2)
+				_enemy.damage_taken = 0.0
+		3:
+			if _settle >= 3:
+				_settle = 0
+				_stage = 4
+				_start_swing("left", null)
+		4:
+			# Fist @ 3.2m: just past range -> the swing must whiff.
+			if _elapsed(350):
+				_measuring = false
+				_stage = 5
+				_check(_enemy.damage_taken == 0.0, "fist whiffs just past its 3m range (reach == range)")
+				_wm.left_hand = _knife
+				_enemy.position = Vector3(0, 1.5, -2.5)
+				_enemy.damage_taken = 0.0
+		5:
+			if _settle >= 3:
+				_settle = 0
+				_stage = 6
+				_start_swing("left", _wm.left_hand)
+		6:
+			# Second knife swing 4 physics frames later, while the first swing's
+			# 0.26s lunge tween is still running (knife rate 0.25s < tween).
+			if _settle >= 4:
+				_settle = 0
+				_stage = 7
+				_wm._core_for_weapon(_wm.left_hand).tick(0.3)
+				_start_swing("left", _wm.left_hand)
+		7:
+			if _elapsed(400):
+				_measuring = false
+				_stage = 8
+				_check(_enemy.damage_taken == KNIFE_DAMAGE * 2.0, "both rapid knife swings connect (%.0f dmg)" % _enemy.damage_taken)
+				_check(absf(_mecha.position.z) < 0.8, "mech stays put through rapid swings, no tween fighting (z=%.2f)" % _mecha.position.z)
+				# Fresh start for the pile charge: reset the mech to origin so the
+				# peak-lunge measurement is measured from a clean stance.
+				_mecha.position = Vector3(0, 1.5, 0)
+				_wm.left_hand = _pile
+				_enemy.position = Vector3(0, 1.5, -4.0)
+				_enemy.damage_taken = 0.0
+		8:
+			if _settle >= 3:
+				_settle = 0
+				_stage = 9
+				_start_swing("left", _wm.left_hand)
+		9:
+			# Pile bunker @ 4.0m: connects with its big 2.4m charge.
+			if _elapsed(400):
+				_measuring = false
+				_stage = 10
+				_check(_enemy.damage_taken == PILE_DAMAGE, "pile bunker connects at its 4m range")
+				_check(_peak_z <= -2.25, "pile bunker lunges ~2.4m into the charge (peak %.2f)" % _peak_z)
+				_check(absf(_mecha.position.z) < 0.05, "mech returns to origin after the pile recovery")
+				_finish()
+
+
+func _build_scene() -> void:
+	_mecha = CharacterBody3D.new()
+	_mecha.name = "Mecha"
+	_mecha.collision_layer = 1
+	_mecha.position = Vector3(0, 1.5, 0)
+	add_child(_mecha)
+
+	_wm = Node3D.new()
+	_wm.name = "WeaponManager"
+	_wm.set_script(preload("res://scripts/mecha/weapon_manager.gd"))
+	_mecha.add_child(_wm)
+	_wm.left_hand = null
+	_wm.right_hand = null
+
+	_cam = Camera3D.new()
+	_cam.current = true
+	_cam.position = Vector3(0, 1.8, 6.0)
+	_cam.look_at(Vector3(0, 1.5, -3.0))
+	add_child(_cam)
+
+	_enemy = CharacterBody3D.new()
+	_enemy.set_script(preload("res://tests/melee_dummy_target.gd"))
+	_enemy.collision_layer = 8
+	_enemy.add_to_group("enemy")
+	var col := CollisionShape3D.new()
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = 1.0
+	capsule.height = 4.5
+	col.shape = capsule
+	col.position = Vector3(0, 2.25, 0)
+	_enemy.add_child(col)
+	_enemy.position = Vector3(0, 1.5, -3.0)
+	add_child(_enemy)
+
+
+func _physics_process(_delta: float) -> void:
+	_settle += 1
+	if _measuring and _mecha:
+		_peak_z = minf(_peak_z, _mecha.position.z)

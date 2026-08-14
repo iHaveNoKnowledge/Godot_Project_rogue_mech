@@ -62,7 +62,23 @@ var default_right: WeaponPart = preload("res://resources/mech/stock/weapon_heat_
 const FIST_DAMAGE: float = 8.0
 const FIST_FIRE_INTERVAL: float = 0.5
 const FIST_IMPACT: float = 2.0
+
+# A melee swing's arm/weapon extension at the thrust peak (the mech body
+# occupies ~1.5m and the fist/blade reaches out the rest). The lunge carries the
+# mech the remainder, so lunge + reach == the weapon's range_distance exactly:
+# the thrust visual and the hit check agree at every distance.
+const MELEE_HIT_REACH: float = 1.6
 var _fist_weapon: WeaponPart = null
+
+
+# How far a melee swing carries the mech toward the target, matched to the
+# weapon's range_distance (lunge = range - arm reach, floored at 0.8 so even a
+# short weapon still takes a step):
+#   fist 3.0 / heat blade 3.0 -> 1.4   combat knife 2.5 -> 0.9   pile 4.0 -> 2.4
+func _melee_lunge_dist(weapon: WeaponPart) -> float:
+	if weapon == null or weapon.range_distance <= 0.0:
+		return 1.4
+	return maxf(weapon.range_distance - MELEE_HIT_REACH, 0.8)
 
 # Synthetic unarmed-melee weapon: an empty hand still fights with a punch. It is
 # a real MELEE WeaponPart (no ammo, no heat) so it flows through the same
@@ -715,6 +731,7 @@ func _melee_attack(hand: String, weapon: WeaponPart) -> void:
 
 	var dir = (target_point - mecha.global_position).normalized()
 	dir.y = 0.0
+	dir = dir.normalized()
 	if dir.length() > 0.1:
 		var target_angle = atan2(-dir.x, -dir.z)
 		mecha.rotation.y = lerp_angle(mecha.rotation.y, target_angle, 0.3)
@@ -744,7 +761,7 @@ func _perform_pile_bunker_lunge_anim(mecha: Node3D, dir: Vector3, weapon: Weapon
 		_lunge_tween.kill()
 	var orig_pos = mecha.global_position
 	var is_pile = weapon and weapon.weapon_name.to_lower().contains("pile")
-	var lunge_dist = 2.4 if is_pile else 1.2
+	var lunge_dist = _melee_lunge_dist(weapon)
 	
 	_lunge_tween = mecha.create_tween().set_parallel(false)
 	var tween: Tween = _lunge_tween
@@ -816,14 +833,29 @@ func _check_melee_hit(mecha: Node3D, direction: Vector3, damage: float, weapon: 
 		aim_point = ray_origin + ray_dir * 10.0
 
 	var enemies = get_tree().get_nodes_in_group("enemy")
+	# The swing lands at the THRUST PEAK, not at the pre-lunge position: the
+	# lunge carries the mech toward the target, so the hit reach from the
+	# lunged position (MELEE_HIT_REACH) makes the effective range exactly the
+	# weapon's range_distance and the visual matches where hits land.
+	var lunge_dist = _melee_lunge_dist(weapon)
+	var swing_origin = mecha.global_position + direction * lunge_dist
 	for enemy in enemies:
 		if not is_instance_valid(enemy):
 			continue
-		var to_enemy = enemy.global_position + Vector3(0, 1.5, 0) - mecha.global_position
-		var dist = to_enemy.length()
-		if dist > 5.0:
+		# The enemy reference sits at chest height (+1.5m), but REACH is a
+		# horizontal measure: the swing connects when the lunged position's
+		# ground distance to the enemy is within MELEE_HIT_REACH. (The dot keeps
+		# the vertical tilt — the old flat 5.0m cap absorbed it instead.)
+		var to_enemy = enemy.global_position + Vector3(0, 1.5, 0) - swing_origin
+		var flat_dist = Vector2(to_enemy.x, to_enemy.z).length()
+		# A hair of grace past MELEE_HIT_REACH so an enemy at EXACTLY the weapon's
+		# range isn't whiffed by float rounding (range - lunge == reach by
+		# construction, and 1.600000024 > 1.6 would otherwise miss).
+		if flat_dist > MELEE_HIT_REACH + 0.05:
 			continue
-		var dot = direction.dot(to_enemy.normalized())
+		# On top of the target (lunge reached them exactly) the zero vector would
+		# zero the dot product, so treat them as squarely in front.
+		var dot = 1.0 if flat_dist <= 0.01 else direction.dot(to_enemy.normalized())
 		if dot > 0.3:
 			if enemy.has_method("take_damage_at_point"):
 				enemy.take_damage_at_point(damage, aim_point, "melee")

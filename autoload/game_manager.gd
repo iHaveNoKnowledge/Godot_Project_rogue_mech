@@ -95,6 +95,14 @@ func enter_eject() -> void:
 	transition_to(State.EJECT)
 
 
+# Re-boarding after eject: return to the CURRENT battle in place. Unlike
+# enter_combat() this deliberately does NOT change scene — reloading the
+# combat world would restart the whole fight (new arena, respawned enemies),
+# kicking the player out of the battle they were in.
+func resume_combat() -> void:
+	transition_to(State.COMBAT)
+
+
 func game_over() -> void:
 	get_tree().change_scene_to_file("res://scenes/main_menu/main_menu.tscn")
 	transition_to(State.MENU)

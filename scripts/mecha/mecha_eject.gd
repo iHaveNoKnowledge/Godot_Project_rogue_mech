@@ -68,7 +68,9 @@ func board_parked_mecha(parked_mecha: CharacterBody3D) -> void:
 	EventBus.camera_mode_changed.emit("combat")
 	# A pilot is seated again: the mech stands back up.
 	EventBus.mecha_occupancy_changed.emit(true)
-	GameManager.enter_combat()
+	# Resume the SAME battle — never enter_combat(), which would reload the
+	# combat scene and restart the fight (new arena, respawned enemies).
+	GameManager.resume_combat()
 
 
 func board_backup_mech(backup_mech: CharacterBody3D) -> void:

@@ -299,26 +299,28 @@ func _gen_mech_register() -> AudioStreamWAV:
 
 func _gen_pile_bunker_fire() -> AudioStreamWAV:
 	var sample_rate = 22050
-	var duration = 0.35
+	var duration = 0.4
 	var num_samples = int(duration * sample_rate)
 	var data = PackedByteArray()
 	data.resize(num_samples * 2)
 
 	for i in range(num_samples):
 		var t = float(i) / sample_rate
-		var attack = minf(t / 0.005, 1.0)
-		var envelope = attack * exp(-t * 8.0)
-		# Deep hydraulic slam with falling pitch
-		var thump_freq = lerp(180.0, 45.0, t / duration)
-		var sample = sin(TAU * thump_freq * t) * 0.6 * envelope
-		# Metallic "thunk" overtone
-		sample += sin(TAU * 260.0 * t) * 0.3 * envelope
-		# Air / gas hiss
-		sample += (randf() * 2.0 - 1.0) * 0.12 * envelope
-		# Bright metal ring after impact
-		var release = maxf(0.0, (t - 0.15) / 0.2)
+		var attack = minf(t / 0.004, 1.0)
+		var envelope = attack * exp(-t * 9.0)
+		# Massive sub-bass hydraulic slam with falling pitch — the deepest voice
+		# in the melee set so the pile reads as THE heavy weapon.
+		var thump_freq = lerp(115.0, 28.0, t / duration)
+		var sample = sin(TAU * thump_freq * t) * 0.7 * envelope
+		# Mechanical shell-chamber clunk: a mid knock with a hard, sharp attack.
+		sample += sin(TAU * 340.0 * t) * 0.3 * attack * exp(-t * 26.0)
+		# Hydraulic gas hiss
+		sample += (randf() * 2.0 - 1.0) * 0.1 * envelope
+		# Deep barrel ring after the slam — 900Hz, lower and slower than the
+		# blade's bright 1750Hz ring, so the pile keeps its own register.
+		var release = maxf(0.0, (t - 0.18) / 0.22)
 		if release > 0.0:
-			sample += sin(TAU * 2400.0 * t) * 0.15 * release * exp(-(t - 0.15) * 12.0)
+			sample += sin(TAU * 900.0 * t) * 0.2 * release * exp(-(t - 0.18) * 8.0)
 		var val = int(clamp(sample * 32767.0, -32767.0, 32767.0))
 		data[i * 2] = val & 0xFF
 		data[i * 2 + 1] = (val >> 8) & 0xFF
@@ -333,7 +335,7 @@ func _gen_pile_bunker_fire() -> AudioStreamWAV:
 
 func _gen_pile_bunker_hit() -> AudioStreamWAV:
 	var sample_rate = 22050
-	var duration = 0.3
+	var duration = 0.45
 	var num_samples = int(duration * sample_rate)
 	var data = PackedByteArray()
 	data.resize(num_samples * 2)
@@ -341,15 +343,17 @@ func _gen_pile_bunker_hit() -> AudioStreamWAV:
 	for i in range(num_samples):
 		var t = float(i) / sample_rate
 		var attack = minf(t / 0.003, 1.0)
-		var envelope = attack * exp(-t * 10.0)
-		# Heavy impact thump with falling pitch
-		var thump_freq = lerp(140.0, 35.0, t / duration)
-		var sample = sin(TAU * thump_freq * t) * 0.65 * envelope
-		# Metallic clang with beating harmonics
-		sample += sin(TAU * 820.0 * t) * 0.28 * envelope
-		sample += sin(TAU * 1650.0 * t) * 0.18 * envelope
-		# Gritty impact noise
-		sample += (randf() * 2.0 - 1.0) * 0.2 * envelope
+		var envelope = attack * exp(-t * 9.0)
+		# Massive sub-boom with falling pitch — the deepest voice in the melee set.
+		var boom_freq = lerp(120.0, 26.0, t / duration)
+		var sample = sin(TAU * boom_freq * t) * 0.75 * envelope
+		# Heavy resonant clang, kept well BELOW the blade's 1750Hz ring: a 520Hz
+		# fundamental with a beating 1040Hz overtone that rings out long.
+		var clang_env = attack * exp(-t * 6.5)
+		sample += sin(TAU * 520.0 * t) * 0.32 * clang_env
+		sample += sin(TAU * 1040.0 * t) * 0.16 * clang_env
+		# Gritty front-loaded impact noise
+		sample += (randf() * 2.0 - 1.0) * 0.2 * attack * exp(-t * 30.0)
 		var val = int(clamp(sample * 32767.0, -32767.0, 32767.0))
 		data[i * 2] = val & 0xFF
 		data[i * 2 + 1] = (val >> 8) & 0xFF

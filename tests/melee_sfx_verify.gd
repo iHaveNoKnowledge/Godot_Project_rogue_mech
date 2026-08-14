@@ -67,6 +67,48 @@ func _ready() -> void:
 			distinct = false
 	_check(distinct, "the six voices are distinct audio streams")
 
+	# 5. Pile bunker: its fire/hit voices exist, are valid, and are distinct
+	#    from the whole melee set (reworked deeper so they don't collide with
+	#    the blade's bright 1750Hz ring).
+	var pile_fire: AudioStreamWAV = am._sound_cache["pile_bunker_fire"]
+	var pile_hit: AudioStreamWAV = am._sound_cache["pile_bunker_hit"]
+	_check(pile_fire != null and pile_fire.data.size() > 500, "pile bunker fire voice exists")
+	_check(pile_hit != null and pile_hit.data.size() > 500, "pile bunker hit voice exists")
+	var all_melee := keys.duplicate()
+	all_melee.append("pile_bunker_fire")
+	all_melee.append("pile_bunker_hit")
+	var all_distinct := true
+	for i in range(all_melee.size()):
+		for j in range(i + 1, all_melee.size()):
+			if am._sound_cache[all_melee[i]].data == am._sound_cache[all_melee[j]].data:
+				all_distinct = false
+	_check(all_distinct, "pile voices are distinct from every melee voice and each other")
+
+	# 6. The pile hit rings DEEPER than the blade ring: over the decay tail the
+	#    blade's 1750/3500Hz ring crosses zero far more often than the pile's
+	#    sub-boom + 520/1040Hz clang. (Noise has decayed away in both tails.)
+	var pile_tail := _zero_crossings(pile_hit, 0.7, 1.0)
+	var blade_tail := _zero_crossings(am._sound_cache["blade_ring"], 0.7, 1.0)
+	_check(pile_tail < blade_tail * 0.6, "pile hit rings deeper than the blade ring (%d vs %d crossings)" % [pile_tail, blade_tail])
+
 	print("SFX_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	await get_tree().process_frame
 	get_tree().quit(1 if _fails > 0 else 0)
+
+
+# Counts zero crossings of a 16-bit WAV stream between two fractions of its
+# length — a rough spectral proxy (fewer crossings = lower-frequency content).
+func _zero_crossings(stream: AudioStreamWAV, from_frac: float, to_frac: float) -> int:
+	var data := stream.data
+	var from := int(from_frac * data.size() / 2)
+	var to := int(to_frac * data.size() / 2)
+	var crossings := 0
+	var prev := 0
+	for i in range(from, to):
+		var v: int = data[i * 2] | (data[i * 2 + 1] << 8)
+		if v >= 32768:
+			v -= 65536
+		if i > from and ((prev < 0 and v >= 0) or (prev >= 0 and v < 0)):
+			crossings += 1
+		prev = v
+	return crossings

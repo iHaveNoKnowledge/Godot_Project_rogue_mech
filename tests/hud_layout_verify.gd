@@ -58,7 +58,7 @@ func _verify_hp_panel() -> void:
 				_check(colors.size() > 0 and colors[0].a < 1.0, "HP panel background is semi-transparent with faded edges")
 		# The resolved rect lands centered on the bottom edge of the viewport.
 		var vp := get_viewport().get_visible_rect().size
-		var rect := panel.get_global_rect()
+		var rect = panel.get_global_rect()
 		_check(absf((rect.position.x + rect.size.x * 0.5) - vp.x * 0.5) < 2.0, "HP panel renders centered on the bottom edge")
 		_check(absf((rect.position.y + rect.size.y) - (vp.y + panel.offset_bottom)) < 2.0, "HP panel bottom matches its padded offset")
 		# Part bars stay compact (regression against the old 210px-wide bars).
@@ -87,7 +87,7 @@ func _verify_squad_panel() -> void:
 		# Resolved rect stays in the top half / left half, clear of the
 		# bottom-left hand-weapon panel.
 		var vp := get_viewport().get_visible_rect().size
-		var rect := panel.get_global_rect()
+		var rect = panel.get_global_rect()
 		_check(rect.position.y + rect.size.y <= vp.y * 0.5, "squad panel stays in the top half of the screen")
 		_check(rect.position.x < vp.x * 0.5, "squad panel stays in the left half of the screen")
 

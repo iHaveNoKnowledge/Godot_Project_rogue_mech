@@ -33,6 +33,7 @@ var take_ammo_btn: Button
 var depot_btn: Button
 var nearby_pickup = null
 var pickup_menu_open: bool = false
+var _pickup_prompt_tween: Tween = null
 
 var _bg_color: Color = Color(0.08, 0.08, 0.12, 0.85)
 var _accent_color: Color = Color(0.3, 0.6, 1.0, 1)
@@ -324,33 +325,53 @@ func _create_carry_ui() -> void:
 
 
 func _create_pickup_ui() -> void:
-	# Bottom-center prompt: "[F] Pickup: WeaponName" (F = interact action).
-	# Sits just above the bottom-center HP bar so the two never overlap.
+	# Prominent center-screen prompt: "[F] Pickup: WeaponName" (F = interact
+	# action). It sits right below the crosshair dot — in the player's line of
+	# sight — with a bright border and a fade-in pop so it can't be missed.
 	pickup_prompt = PanelContainer.new()
-	pickup_prompt.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	pickup_prompt.offset_left = -170
-	pickup_prompt.offset_right = 170
-	pickup_prompt.offset_top = -250
-	pickup_prompt.offset_bottom = -190
-	pickup_prompt.add_theme_stylebox_override("panel", _make_panel_style(Color(0.05, 0.1, 0.08, 0.92)))
+	pickup_prompt.set_anchors_preset(Control.PRESET_CENTER)
+	pickup_prompt.offset_left = -190
+	pickup_prompt.offset_right = 190
+	pickup_prompt.offset_top = 45
+	pickup_prompt.offset_bottom = 104
+	var prompt_style = StyleBoxFlat.new()
+	prompt_style.bg_color = Color(0.04, 0.1, 0.07, 0.94)
+	prompt_style.corner_radius_top_left = 10
+	prompt_style.corner_radius_top_right = 10
+	prompt_style.corner_radius_bottom_left = 10
+	prompt_style.corner_radius_bottom_right = 10
+	prompt_style.content_margin_left = 16
+	prompt_style.content_margin_right = 16
+	prompt_style.content_margin_top = 8
+	prompt_style.content_margin_bottom = 8
+	prompt_style.border_width_left = 2
+	prompt_style.border_width_right = 2
+	prompt_style.border_width_top = 2
+	prompt_style.border_width_bottom = 2
+	prompt_style.border_color = Color(0.6, 1.0, 0.4, 0.85)
+	pickup_prompt.add_theme_stylebox_override("panel", prompt_style)
 	root_control.add_child(pickup_prompt)
 	pickup_prompt.visible = false
 
 	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 2)
 	pickup_prompt.add_child(vbox)
 
 	pickup_prompt_label = Label.new()
 	pickup_prompt_label.text = "[F] Pickup: ???"
 	pickup_prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	pickup_prompt_label.add_theme_font_size_override("font_size", 16)
+	pickup_prompt_label.add_theme_font_size_override("font_size", 18)
 	pickup_prompt_label.add_theme_color_override("font_color", _highlight_color)
+	pickup_prompt_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.8))
+	pickup_prompt_label.add_theme_constant_override("shadow_offset_x", 1)
+	pickup_prompt_label.add_theme_constant_override("shadow_offset_y", 1)
 	vbox.add_child(pickup_prompt_label)
 
 	var hint = Label.new()
 	hint.text = "Press F to decide: carry it, stash it, or scrap it for ammo + material"
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.add_theme_font_size_override("font_size", 11)
-	hint.add_theme_color_override("font_color", Color(0.7, 0.8, 0.7))
+	hint.add_theme_font_size_override("font_size", 12)
+	hint.add_theme_color_override("font_color", Color(0.75, 0.85, 0.75))
 	vbox.add_child(hint)
 
 	# Center choice modal: FIELD PACK / DEPOT / AMMO ONLY / CANCEL.
@@ -441,6 +462,13 @@ func _update_nearby_pickup() -> void:
 func _set_prompt_visible(show: bool) -> void:
 	if pickup_prompt:
 		pickup_prompt.visible = show
+		if show:
+			# Fade-in pop so the prompt registers in peripheral vision.
+			if _pickup_prompt_tween and _pickup_prompt_tween.is_valid():
+				_pickup_prompt_tween.kill()
+			pickup_prompt.modulate.a = 0.0
+			_pickup_prompt_tween = create_tween()
+			_pickup_prompt_tween.tween_property(pickup_prompt, "modulate:a", 1.0, 0.15)
 
 
 func _toggle_pickup_menu() -> void:

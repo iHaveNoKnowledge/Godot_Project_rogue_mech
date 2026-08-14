@@ -16,13 +16,14 @@ func _create_ui() -> void:
 	add_child(root)
 
 	# Sits just below the top edge (not glued to it) so it reads as a status
-	# banner instead of part of the screen frame.
+	# banner instead of part of the screen frame. Width hugs the status text
+	# (the longest line is the boss-encounter readout) instead of a wide slab.
 	panel = PanelContainer.new()
 	panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	panel.offset_left = -220
-	panel.offset_right = 220
+	panel.offset_left = -185
+	panel.offset_right = 185
 	panel.offset_top = 64
-	panel.offset_bottom = 104
+	panel.offset_bottom = 100
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(panel)
 

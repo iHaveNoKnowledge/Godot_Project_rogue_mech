@@ -40,7 +40,7 @@ static func save_run() -> void:
 		"board_objective_id": GlobalData.board_objective_id,
 		"board_objective_progress": GlobalData.board_objective_progress,
 		"board_objective_required": GlobalData.board_objective_required,
-		"board_patrols": GlobalData.board_patrols.duplicate(true),
+		"board_patrols": _serialize_patrols(),
 		"enemy_forces": GlobalData.enemy_forces.duplicate(),
 		"last_combat_squad_size": GlobalData.last_combat_squad_size,
 		"max_notoriety_multiplier": GlobalData.max_notoriety_multiplier,
@@ -130,9 +130,13 @@ static func restore_from_dict(data: Dictionary) -> void:
 			if p_copy.get("pos") is Dictionary:
 				var pd: Dictionary = p_copy["pos"]
 				p_copy["pos"] = Vector2i(int(pd.get("x", 0)), int(pd.get("y", 0)))
+			elif p_copy.get("pos") is String:
+				p_copy["pos"] = _parse_vec2i(str(p_copy["pos"]))
 			if p_copy.get("home") is Dictionary:
 				var hd: Dictionary = p_copy["home"]
 				p_copy["home"] = Vector2i(int(hd.get("x", 0)), int(hd.get("y", 0)))
+			elif p_copy.get("home") is String:
+				p_copy["home"] = _parse_vec2i(str(p_copy["home"]))
 			GlobalData.board_patrols.append(p_copy)
 
 	# Run theme fields (fallbacks keep older saves working).
@@ -438,3 +442,31 @@ static func serialize_attachments() -> Array:
 				copy[key] = {"x": value.x, "y": value.y, "z": value.z}
 		result.append(copy)
 	return result
+
+
+# Patrol fleets carry their positions as Vector2i, which JSON.stringify() would
+# flatten into a String like "(3, 7)" (losing the int pair). Serialize as plain
+# {x, y} dicts so loading round-trips them back to Vector2i cleanly.
+static func _serialize_patrols() -> Array:
+	var result: Array = []
+	for p in GlobalData.board_patrols:
+		if not (p is Dictionary):
+			continue
+		var copy: Dictionary = p.duplicate(true)
+		if copy.get("pos") is Vector2i:
+			var pos: Vector2i = copy["pos"]
+			copy["pos"] = {"x": pos.x, "y": pos.y}
+		if copy.get("home") is Vector2i:
+			var home: Vector2i = copy["home"]
+			copy["home"] = {"x": home.x, "y": home.y}
+		result.append(copy)
+	return result
+
+
+# Parses a Vector2i stored as a String (JSON-flattened Vector2i or "(x, y)").
+static func _parse_vec2i(raw: String) -> Vector2i:
+	var clean := raw.replace("(", "").replace(")", "").replace("Vector2i", "").strip_edges()
+	var parts := clean.split(",")
+	if parts.size() >= 2:
+		return Vector2i(int(parts[0]), int(parts[1]))
+	return Vector2i(-1, -1)

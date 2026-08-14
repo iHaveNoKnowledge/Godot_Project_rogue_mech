@@ -130,6 +130,14 @@ func _generate_sounds() -> void:
 		preload("res://resources/audio/sfx/melee_hit02.wav"),
 		preload("res://resources/audio/sfx/melee_hit01.wav"),
 	]
+	# Per-weapon melee SFX: a distinct voice per weapon family so a bare-fist
+	# thud, a knife slash, and a heat-blade ring each read differently.
+	_sound_cache["fist_swing"] = _gen_fist_swing()
+	_sound_cache["fist_thud"] = _gen_fist_thud()
+	_sound_cache["knife_swing"] = _gen_knife_swing()
+	_sound_cache["knife_hit"] = _gen_knife_hit()
+	_sound_cache["blade_swing"] = _gen_blade_swing()
+	_sound_cache["blade_ring"] = _gen_blade_ring()
 	# Pile Bunker: explosive shell-driven punch
 	_sound_cache["pile_bunker_fire"] = _gen_pile_bunker_fire()
 	_sound_cache["pile_bunker_hit"] = _gen_pile_bunker_hit()
@@ -354,6 +362,156 @@ func _gen_pile_bunker_hit() -> AudioStreamWAV:
 	return stream
 
 
+# --- Per-weapon melee SFX generators ---
+# Fist swing: a short, soft air-whoosh from a bare-fist punch.
+func _gen_fist_swing() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 0.08
+	var num_samples = int(duration * sample_rate)
+	var data = PackedByteArray()
+	data.resize(num_samples * 2)
+	for i in range(num_samples):
+		var t = float(i) / sample_rate
+		var env = exp(-t * 30.0)
+		var freq = lerp(340.0, 90.0, t / duration)
+		var sample = sin(TAU * freq * t) * 0.22 * env
+		sample += (randf() * 2.0 - 1.0) * 0.05 * env
+		var val = int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+	var stream = AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream
+
+
+# Fist thud: a muffled, low-impact thump when the punch lands.
+func _gen_fist_thud() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 0.14
+	var num_samples = int(duration * sample_rate)
+	var data = PackedByteArray()
+	data.resize(num_samples * 2)
+	for i in range(num_samples):
+		var t = float(i) / sample_rate
+		var attack = minf(t / 0.004, 1.0)
+		var env = attack * exp(-t * 22.0)
+		var freq = lerp(130.0, 45.0, t / duration)
+		var sample = sin(TAU * freq * t) * 0.55 * env
+		sample += sin(TAU * 180.0 * t) * 0.15 * env
+		sample += (randf() * 2.0 - 1.0) * 0.06 * env
+		var val = int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+	var stream = AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream
+
+
+# Knife swing: a fast, sharp high slash.
+func _gen_knife_swing() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 0.06
+	var num_samples = int(duration * sample_rate)
+	var data = PackedByteArray()
+	data.resize(num_samples * 2)
+	for i in range(num_samples):
+		var t = float(i) / sample_rate
+		var env = exp(-t * 25.0)
+		var freq = lerp(1900.0, 480.0, t / duration)
+		var sample = sin(TAU * freq * t) * 0.18 * env
+		sample += (randf() * 2.0 - 1.0) * 0.04 * env
+		var val = int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+	var stream = AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream
+
+
+# Knife hit: a crisp, bright crack as the blade bites.
+func _gen_knife_hit() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 0.07
+	var num_samples = int(duration * sample_rate)
+	var data = PackedByteArray()
+	data.resize(num_samples * 2)
+	for i in range(num_samples):
+		var t = float(i) / sample_rate
+		var env = exp(-t * 30.0)
+		var sample = (randf() * 2.0 - 1.0) * 0.4 * env
+		sample += sin(TAU * 1600.0 * t) * 0.25 * env
+		var val = int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+	var stream = AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream
+
+
+# Blade swing: a broad whoosh with a faint metallic ring tail.
+func _gen_blade_swing() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 0.1
+	var num_samples = int(duration * sample_rate)
+	var data = PackedByteArray()
+	data.resize(num_samples * 2)
+	for i in range(num_samples):
+		var t = float(i) / sample_rate
+		var env = exp(-t * 22.0)
+		var freq = lerp(720.0, 210.0, t / duration)
+		var sample = sin(TAU * freq * t) * 0.2 * env
+		sample += (randf() * 2.0 - 1.0) * 0.05 * env
+		var release = maxf(0.0, (t - 0.06) / 0.04)
+		if release > 0.0:
+			sample += sin(TAU * 2600.0 * t) * 0.08 * release * exp(-(t - 0.06) * 18.0)
+		var val = int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+	var stream = AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream
+
+
+# Blade ring: a resonant metallic ring as the blade connects (fundamental +
+# bright overtone with a long decay).
+func _gen_blade_ring() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 0.35
+	var num_samples = int(duration * sample_rate)
+	var data = PackedByteArray()
+	data.resize(num_samples * 2)
+	for i in range(num_samples):
+		var t = float(i) / sample_rate
+		var env = exp(-t * 9.0)
+		var sample = sin(TAU * 1750.0 * t) * 0.4 * env
+		sample += sin(TAU * 3500.0 * t) * 0.18 * env
+		sample += (randf() * 2.0 - 1.0) * 0.03 * env
+		var val = int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+	var stream = AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream
+
+
 func _gen_pitch_variant(source: AudioStreamWAV, pitch_ratio: float) -> AudioStreamWAV:
 	if source == null:
 		return null
@@ -522,6 +680,43 @@ func play_pile_bunker_fire(pos: Vector3) -> void:
 
 func play_pile_bunker_hit(pos: Vector3) -> void:
 	play_sfx("pile_bunker_hit", pos, 2.0)
+
+
+# Per-weapon melee swing voice: fist whoosh / knife slash / blade whoosh+ring.
+# Honors a custom fire_sfx override first (same as play_weapon_sfx_with_override).
+func play_melee_swing(weapon: WeaponPart, pos: Vector3) -> void:
+	if combat_muted:
+		return
+	if weapon.fire_sfx != null:
+		var player = _get_free_3d_player()
+		if player == null:
+			return
+		player.stream = weapon.fire_sfx
+		player.global_position = pos
+		player.volume_db = 0.0
+		player.bus = "SFX"
+		player.play()
+		return
+	play_sfx(_melee_sfx_name(weapon, false), pos)
+
+
+# Per-weapon melee hit voice: fist thud / knife crack / blade ring.
+func play_melee_hit(weapon: WeaponPart, pos: Vector3) -> void:
+	if combat_muted:
+		return
+	play_sfx(_melee_sfx_name(weapon, true), pos, -1.0)
+
+
+# Maps a melee weapon to its SFX cache key. Exposed for headless tests.
+func _melee_sfx_name(weapon: WeaponPart, is_hit: bool) -> String:
+	var name := weapon.weapon_name.to_lower() if weapon else ""
+	if name.contains("fist"):
+		return "fist_thud" if is_hit else "fist_swing"
+	if name.contains("knife"):
+		return "knife_hit" if is_hit else "knife_swing"
+	if name.contains("blade"):
+		return "blade_ring" if is_hit else "blade_swing"
+	return "melee"
 
 
 func play_armor_break(pos: Vector3) -> void:

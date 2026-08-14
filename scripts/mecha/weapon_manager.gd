@@ -768,7 +768,8 @@ func _melee_attack(hand: String, weapon: WeaponPart) -> void:
 	if weapon and weapon.weapon_name.to_lower().contains("pile"):
 		AudioManager.play_pile_bunker_fire(mecha.global_position)
 	else:
-		AudioManager.play_weapon_sfx_with_override(weapon, mecha.global_position)
+		# Per-weapon melee swing voice (fist whoosh / knife slash / blade ring).
+		AudioManager.play_melee_swing(weapon, mecha.global_position)
 
 func _perform_pile_bunker_lunge_anim(mecha: Node3D, dir: Vector3, weapon: WeaponPart) -> void:
 	if not mecha:
@@ -903,6 +904,9 @@ func _check_melee_hit(mecha: Node3D, direction: Vector3, damage: float, weapon: 
 			EffectManager.spawn_damage_number(enemy.global_position + Vector3(0, 2.5, 0), damage, Color(1, 0.5, 0))
 			if weapon and weapon.weapon_name.to_lower().contains("pile"):
 				AudioManager.play_pile_bunker_hit(enemy.global_position)
+			else:
+				# Per-weapon melee hit voice (fist thud / knife crack / blade ring).
+				AudioManager.play_melee_hit(weapon, enemy.global_position)
 
 
 # ====================================================================

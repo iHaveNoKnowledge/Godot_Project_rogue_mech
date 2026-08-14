@@ -68,6 +68,13 @@ const FIST_IMPACT: float = 2.0
 # mech the remainder, so lunge + reach == the weapon's range_distance exactly:
 # the thrust visual and the hit check agree at every distance.
 const MELEE_HIT_REACH: float = 1.6
+
+# Lateral auto-aim width of a melee swing. An enemy mech's body is ~1m wide, so
+# an off-center enemy whose body fills the crosshair must still connect even
+# though its CENTER is off the aim line (center-based checks miss it). The swing
+# catches any enemy within this distance of the aim line, up to the weapon's
+# forward reach.
+const MELEE_AUTO_AIM_WIDTH: float = 1.2
 var _fist_weapon: WeaponPart = null
 
 
@@ -837,36 +844,34 @@ func _check_melee_hit(mecha: Node3D, direction: Vector3, damage: float, weapon: 
 		aim_point = ray_origin + ray_dir * 10.0
 
 	var enemies = get_tree().get_nodes_in_group("enemy")
-	# The swing lands at the THRUST PEAK, not at the pre-lunge position: the
-	# lunge carries the mech toward the target, so the hit reach from the
-	# lunged position (MELEE_HIT_REACH) makes the effective range exactly the
-	# weapon's range_distance and the visual matches where hits land.
+	# Forward auto-aim box: the swing connects to any enemy within the weapon's
+	# forward reach (lunge + arm reach == range_distance) and within
+	# MELEE_AUTO_AIM_WIDTH of the aim line. Reach uses the FORWARD projection so
+	# an enemy at range but off to the side is still at range, and the lateral
+	# width covers a mech body so a target filling the crosshair connects even
+	# when its center is off the line.
 	var lunge_dist = _melee_lunge_dist(weapon)
-	var swing_origin = mecha.global_position + direction * lunge_dist
+	var swing_range = lunge_dist + MELEE_HIT_REACH
+	var aim2 := Vector2(direction.x, direction.z).normalized()
 	for enemy in enemies:
 		if not is_instance_valid(enemy):
 			continue
-		# The enemy reference sits at chest height (+1.5m), but REACH is a
-		# horizontal measure: the swing connects when the lunged position's
-		# ground distance to the enemy is within MELEE_HIT_REACH. (The dot keeps
-		# the vertical tilt — the old flat 5.0m cap absorbed it instead.)
-		var to_enemy = enemy.global_position + Vector3(0, 1.5, 0) - swing_origin
-		var flat_dist = Vector2(to_enemy.x, to_enemy.z).length()
-		# A hair of grace past MELEE_HIT_REACH so an enemy at EXACTLY the weapon's
-		# range isn't whiffed by float rounding (range - lunge == reach by
-		# construction, and 1.600000024 > 1.6 would otherwise miss).
-		if flat_dist > MELEE_HIT_REACH + 0.05:
+		var to_h := Vector2(enemy.global_position.x - mecha.global_position.x,
+			enemy.global_position.z - mecha.global_position.z)
+		var proj := to_h.dot(aim2)
+		# A hair of grace past swing_range so an enemy at EXACTLY the weapon's
+		# range isn't whiffed by float rounding.
+		if proj < 0.1 or proj > swing_range + 0.05:
 			continue
-		# On top of the target (lunge reached them exactly) the zero vector would
-		# zero the dot product, so treat them as squarely in front.
-		var dot = 1.0 if flat_dist <= 0.01 else direction.dot(to_enemy.normalized())
-		if dot > 0.3:
-			if enemy.has_method("take_damage_at_point"):
-				enemy.take_damage_at_point(damage, aim_point, "melee")
-			elif enemy.has_method("take_damage"):
-				enemy.take_damage(damage, "melee")
-			if weapon != null and weapon.impact > 0.0 and enemy.has_method("apply_impact"):
-				enemy.apply_impact(weapon.impact, direction)
+		var perp := absf(to_h.cross(aim2))
+		if perp > MELEE_AUTO_AIM_WIDTH:
+			continue
+		if enemy.has_method("take_damage_at_point"):
+			enemy.take_damage_at_point(damage, aim_point, "melee")
+		elif enemy.has_method("take_damage"):
+			enemy.take_damage(damage, "melee")
+		if weapon != null and weapon.impact > 0.0 and enemy.has_method("apply_impact"):
+			enemy.apply_impact(weapon.impact, direction)
 			EffectManager.spawn_damage_number(enemy.global_position + Vector3(0, 2.5, 0), damage, Color(1, 0.5, 0))
 			if weapon and weapon.weapon_name.to_lower().contains("pile"):
 				AudioManager.play_pile_bunker_hit(enemy.global_position)

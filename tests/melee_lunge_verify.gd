@@ -166,6 +166,51 @@ func _process(_delta: float) -> void:
 				_check(absf(_mecha.position.z) < 0.05, "mech returns to origin after the pile recovery")
 				_check(_shake_delta > 0.32 and _shake_delta < 0.38, "pile impact kicks the camera hardest (%.3f)" % _shake_delta)
 				_check(_shake_delta > _rig.total_shake * 0.45, "pile shake outweighs the earlier melee taps")
+				# Auto-aim: off-center enemies. The camera stays looking straight
+				# ahead (-Z) while the enemy sits off the aim line — the swing's
+				# forward box must catch a target whose BODY fills the crosshair
+				# (0.9m off, within the 1m body radius) and the true auto-aim band
+				# (1.1m off, crosshair beside the body) but whiff beyond it (1.4m).
+				_wm.left_hand = null
+				_enemy.position = Vector3(0.9, 1.5, -3.0)
+				_enemy.damage_taken = 0.0
+				_mecha.position = Vector3(0, 1.5, 0)
+		10:
+			if _settle >= 3:
+				_settle = 0
+				_stage = 11
+				_wm._core_for_weapon(_wm._fist()).tick(0.6)
+				_start_swing("left", null)
+		11:
+			if _elapsed(350):
+				_stage = 12
+				_check(_enemy.damage_taken == FIST_DAMAGE, "off-center enemy whose body fills the crosshair still connects")
+				_enemy.position = Vector3(1.1, 1.5, -3.0)
+				_enemy.damage_taken = 0.0
+				_mecha.position = Vector3(0, 1.5, 0)
+		12:
+			if _settle >= 3:
+				_settle = 0
+				_stage = 13
+				_wm._core_for_weapon(_wm._fist()).tick(0.6)
+				_start_swing("left", null)
+		13:
+			if _elapsed(350):
+				_stage = 14
+				_check(_enemy.damage_taken == FIST_DAMAGE, "crosshair-beside-body enemy is caught by the auto-aim band")
+				_enemy.position = Vector3(1.4, 1.5, -3.0)
+				_enemy.damage_taken = 0.0
+				_mecha.position = Vector3(0, 1.5, 0)
+		14:
+			if _settle >= 3:
+				_settle = 0
+				_stage = 15
+				_wm._core_for_weapon(_wm._fist()).tick(0.6)
+				_start_swing("left", null)
+		15:
+			if _elapsed(350):
+				_stage = 16
+				_check(_enemy.damage_taken == 0.0, "enemy beyond the auto-aim width whiffs")
 				_finish()
 
 

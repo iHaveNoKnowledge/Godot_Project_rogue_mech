@@ -73,10 +73,19 @@ func _create_ui() -> void:
 
 
 func _on_event_triggered(event: Dictionary) -> void:
+	# The board scene can emit events during a scene swap (e.g. a forced combat
+	# entry frees the board before its end-of-day event fires). An EventUI that
+	# is no longer in the tree must ignore the popup instead of crashing on
+	# get_tree() == null.
+	if not is_inside_tree():
+		return
+	var tree := get_tree_or_null()
+	if tree == null:
+		return
 	visible = true
 	title_label.text = event.get("name", "RANDOM EVENT")
 	desc_label.text = event.get("desc", "Something happened!")
-	get_tree().paused = true
+	tree.paused = true
 
 	# Multi-choice events swap the single Continue button for one button per choice.
 	var choices: Array = event.get("params", {}).get("choices", [])
@@ -104,8 +113,11 @@ func _clear_choices() -> void:
 
 
 func _on_choice_pressed(choice: Dictionary) -> void:
+	if not is_inside_tree():
+		return
 	visible = false
-	get_tree().paused = false
+	if get_tree_or_null():
+		get_tree().paused = false
 	var forced := GlobalData.apply_event_effect(choice)
 	if forced:
 		# The choice sprang a trap — jump straight into battle.
@@ -115,6 +127,9 @@ func _on_choice_pressed(choice: Dictionary) -> void:
 
 
 func _on_continue_pressed() -> void:
+	if not is_inside_tree():
+		return
 	visible = false
-	get_tree().paused = false
+	if get_tree_or_null():
+		get_tree().paused = false
 	GameManager.return_to_board()

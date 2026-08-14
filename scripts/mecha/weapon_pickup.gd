@@ -51,14 +51,13 @@ func is_already_carried() -> bool:
 
 
 # Player chose to take the whole weapon into the FIELD PACK (also registers it in
-# the stash). Checks Field Pack capacity and that the same model isn't already
-# carried; returns false if either rule would be violated.
+# the stash). Checks Field Pack capacity; returns false if it would be violated.
+# Same catalog model = separate items: taking a second copy is allowed (it is
+# added as its own physical weapon, not rejected as a duplicate).
 func take_weapon() -> bool:
 	if weapon_resource == null:
 		return false
 	if not can_take_to_field_pack():
-		return false
-	if is_already_carried():
 		return false
 	var wm = get_weapon_manager()
 	if wm:

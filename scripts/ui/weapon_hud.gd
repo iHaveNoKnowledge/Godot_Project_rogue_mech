@@ -489,9 +489,11 @@ func _toggle_pickup_menu() -> void:
 	var can_carry: bool = nearby_pickup.can_take_to_field_pack()
 	var already_carried: bool = nearby_pickup.is_already_carried()
 	if take_weapon_btn:
-		take_weapon_btn.disabled = not can_carry or already_carried
+		# A duplicate catalog model is a SEPARATE item: it stays pickable (only
+		# field-pack capacity blocks it). The note explains a copy is added.
+		take_weapon_btn.disabled = not can_carry
 		if already_carried:
-			take_weapon_btn.text = "ALREADY CARRIED (ถืออยู่แล้ว)"
+			take_weapon_btn.text = "ADD ANOTHER COPY (+1 ชิ้น)"
 		else:
 			take_weapon_btn.text = "ADD TO FIELD PACK (ใส่สนาม)"
 	if pack_info_label:
@@ -499,7 +501,7 @@ func _toggle_pickup_menu() -> void:
 		if not can_carry:
 			pack_info_label.text += "\nFIELD PACK FULL!"
 		elif already_carried:
-			pack_info_label.text += "\nALREADY CARRYING THIS WEAPON!"
+			pack_info_label.text += "\nYou already carry this model — a separate copy will be added."
 
 
 func _close_pickup_menu() -> void:

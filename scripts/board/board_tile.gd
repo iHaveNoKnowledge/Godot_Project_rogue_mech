@@ -65,13 +65,6 @@ func _update_visual() -> void:
 	material.roughness = 0.85
 	mesh_instance.set_surface_override_material(0, material)
 
-	# Combat tiles keep their terrain color (no more glowing red floor). A thin
-	# red edge frame marks the tile as a fight zone once it is revealed.
-	if is_revealed and tile_type == "combat":
-		_add_combat_frame()
-	else:
-		_remove_combat_frame()
-
 
 func _terrain_color(t: String) -> Color:
 	match t:
@@ -108,9 +101,15 @@ func _add_terrain_props() -> void:
 
 	match terrain:
 		"forest":
-			_add_tree(prop_node, rng, 1.8, 2.8)
-			if rng.randf() < 0.45:
-				_add_tree(prop_node, rng, 1.2, 1.8, Vector3(rng.randf_range(-1.3, 1.3), 0, rng.randf_range(-1.3, 1.3)))
+			# Deep woods (forest map) grow tall dense trees; a forest tile on a
+			# suburb map is just a park cluster, so keep those sparse + short so
+			# the suburb board never reads as a jungle.
+			var is_woods := GlobalData.board_theme_id == "forest"
+			var trunk_h := 1.8 if is_woods else 1.2
+			var canopy_r := 2.8 if is_woods else 1.8
+			_add_tree(prop_node, rng, trunk_h, canopy_r)
+			if rng.randf() < (0.45 if is_woods else 0.22):
+				_add_tree(prop_node, rng, 1.2 if is_woods else 0.9, 1.8 if is_woods else 1.3, Vector3(rng.randf_range(-1.3, 1.3), 0, rng.randf_range(-1.3, 1.3)))
 		"rock":
 			if GlobalData.board_theme_id in ["urban", "suburb"]:
 				_add_building(prop_node, rng)
@@ -211,48 +210,6 @@ func _add_bush(parent: Node3D, rng: RandomNumberGenerator) -> void:
 	bush.material_override = mat
 	bush.position = Vector3(rng.randf_range(-1.5, 1.5), size * 0.55, rng.randf_range(-1.5, 1.5))
 	parent.add_child(bush)
-
-
-# ---------------------------------------------------------------------------
-# COMBAT FRAME (subtle red edge marker on revealed combat tiles)
-# ---------------------------------------------------------------------------
-
-func _add_combat_frame() -> void:
-	if get_node_or_null("CombatFrame") != null:
-		return
-	var frame := Node3D.new()
-	frame.name = "CombatFrame"
-
-	var frame_mat := StandardMaterial3D.new()
-	frame_mat.albedo_color = Color(0.85, 0.18, 0.12)
-	frame_mat.emission_enabled = true
-	frame_mat.emission = Color(0.8, 0.15, 0.1)
-	frame_mat.emission_energy_multiplier = 0.5
-	frame_mat.roughness = 0.6
-
-	var half := 1.95
-	var thin := 0.12
-	for edge in [
-		{"pos": Vector3(0, 0.025, -half), "size": Vector3(half * 2, thin, thin)},
-		{"pos": Vector3(0, 0.025, half), "size": Vector3(half * 2, thin, thin)},
-		{"pos": Vector3(-half, 0.025, 0), "size": Vector3(thin, thin, half * 2)},
-		{"pos": Vector3(half, 0.025, 0), "size": Vector3(thin, thin, half * 2)},
-	]:
-		var strip := MeshInstance3D.new()
-		var strip_mesh := BoxMesh.new()
-		strip_mesh.size = edge["size"]
-		strip.mesh = strip_mesh
-		strip.material_override = frame_mat
-		strip.position = edge["pos"]
-		frame.add_child(strip)
-
-	add_child(frame)
-
-
-func _remove_combat_frame() -> void:
-	var frame := get_node_or_null("CombatFrame")
-	if frame != null:
-		frame.queue_free()
 
 
 func highlight(active: bool) -> void:

@@ -62,6 +62,11 @@ func populate(slot: String) -> void:
 			if is_eq and is_destroyed:
 				continue
 			var prefix = "[X] " if is_eq and is_destroyed else ("[E] " if is_eq else "     ")
+			# A frame already installed on ANOTHER parked mech is marked so the
+			# player sees it is taken (and equipping it here would remove it there).
+			var other_user := other_mech_frame_user(slot, info)
+			if prefix.strip_edges() == "" and other_user != "":
+				prefix = "[E·%s] " % other_user
 			var fname = info.get("name", "Frame Part")
 			var fhp = info.get("hp", 20.0)
 			var fwt = info.get("weight", 3.0)
@@ -83,6 +88,11 @@ func populate(slot: String) -> void:
 			var wdur = GlobalData.get_durability_ratio(inv)
 			var is_eq = weapon_in_loadout(slot, wpath)
 			var prefix = "[E] " if is_eq else "    "
+			# A weapon model already carried by ANOTHER parked mech is marked so
+			# it never reads as an unclaimed spare (equipping it transfers it).
+			var other_user := other_mech_weapon_user(wpath)
+			if prefix.strip_edges() == "" and other_user != "":
+				prefix = "[E·%s] " % other_user
 			# Same-model copies are distinct items: show how many you own and, on
 			# the carry slot, how many are actually on the pack right now.
 			var count := int(inv.get("count", 1))
@@ -122,6 +132,11 @@ func populate(slot: String) -> void:
 			if is_eq and (GlobalData.part_damage.get(slot, 0.0) >= 1.0 or GlobalData.part_damage.get(slot + "_frame", 0.0) >= 1.0):
 				continue
 			var prefix = "[E] " if is_eq else "    "
+			# An armor INSTANCE already worn by another parked mech is marked so it
+			# never reads as a free plate (equipping it here strips it from there).
+			var other_user := other_mech_armor_user(uid) if not is_eq else ""
+			if prefix.strip_edges() == "" and other_user != "":
+				prefix = "[E·%s] " % other_user
 			var state_tag = " [DESTROYED]" if (is_eq and is_destroyed) else ""
 			var dur_pct = instance_durability(slot, inst)
 			var inst_label = "%s%s [%s] (%.0f%%)%s" % [prefix, inst.get("name", "Armor"), inst.get("type", "Instance"), dur_pct * 100.0, state_tag]
@@ -372,3 +387,84 @@ func weapon_in_loadout(slot: String, path: String) -> bool:
 		return GlobalData.is_weapon_in_carry(path)
 	var hand = "left" if slot == "weapon_left" else "right"
 	return str(GlobalData.weapon_loadout.get(hand, "")) == path
+
+
+# ---------------------------------------------------------------------------
+# PARTS USED BY OTHER MECHS
+# A parked mech's snapshot owns its equipped parts. The shared inventories
+# (armor instances, weapon stash, frame catalog) are shown in EVERY mech's
+# list, so a part that another berth already wears must be marked as taken —
+# otherwise it reads as an unclaimed spare and gets "duplicated" by equipping.
+# These helpers return the name of the other mech using a part, or "".
+# ---------------------------------------------------------------------------
+
+# A weapon model counts as used by another mech when it sits in that berth's
+# weapon_loadout (left hand, right hand, or back carry).
+func other_mech_weapon_user(path: String) -> String:
+	if path == "":
+		return ""
+	var editing_id: String = controller.get_editing_mech_id()
+	for mech in GlobalData.hangar_mechs:
+		if not (mech is Dictionary):
+			continue
+		var mid := str(mech.get("id", ""))
+		if mid == "" or mid == editing_id:
+			continue
+		var loadout = mech.get("weapon_loadout", {})
+		if not (loadout is Dictionary):
+			continue
+		if str(loadout.get("left", "")) == path or str(loadout.get("right", "")) == path:
+			return str(mech.get("name", "Mech"))
+		var carry = loadout.get("carry", [])
+		if carry is Array and path in carry:
+			return str(mech.get("name", "Mech"))
+	return ""
+
+
+# An armor instance (matched by uid) is used by another mech when its parts
+# snapshot references the same uid in any slot.
+func other_mech_armor_user(uid: String) -> String:
+	if uid == "":
+		return ""
+	var editing_id: String = controller.get_editing_mech_id()
+	for mech in GlobalData.hangar_mechs:
+		if not (mech is Dictionary):
+			continue
+		var mid := str(mech.get("id", ""))
+		if mid == "" or mid == editing_id:
+			continue
+		var parts = mech.get("parts", {})
+		if not (parts is Dictionary):
+			continue
+		for slot in parts:
+			var part = parts[slot]
+			if part is Dictionary and str(part.get("uid", "")) == uid:
+				return str(mech.get("name", "Mech"))
+	return ""
+
+
+# A frame model (matched by id, falling back to name) is used by another mech
+# when its frames snapshot holds the same entry in this slot.
+func other_mech_frame_user(slot: String, info: Dictionary) -> String:
+	if info.is_empty():
+		return ""
+	var editing_id: String = controller.get_editing_mech_id()
+	var info_id := str(info.get("id", ""))
+	var info_name := str(info.get("name", info.get("part_name", ""))).to_lower()
+	for mech in GlobalData.hangar_mechs:
+		if not (mech is Dictionary):
+			continue
+		var mid := str(mech.get("id", ""))
+		if mid == "" or mid == editing_id:
+			continue
+		var frames = mech.get("frames", {})
+		if not (frames is Dictionary):
+			continue
+		var f = frames.get(slot)
+		if not (f is Dictionary):
+			continue
+		if info_id != "" and str(f.get("id", "")) == info_id:
+			return str(mech.get("name", "Mech"))
+		if info_name != "" and str(f.get("name", f.get("part_name", ""))).to_lower() == info_name:
+			return str(mech.get("name", "Mech"))
+	return ""

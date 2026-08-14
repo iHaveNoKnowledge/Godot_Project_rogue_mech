@@ -168,8 +168,11 @@ func _assign_content(terrain_grid: Dictionary, rng: RandomNumberGenerator) -> Di
 	result[start_key] = "start"
 	result[exit_key] = "exit"
 
-	# A random pool of candidate cells (shuffled) to spread content out.
-	walkable.shuffle()
+	# A random pool of candidate cells (shuffled) to spread content out. The
+	# shuffle uses the board's SEEDED rng so hubs (city/safehouse) and every
+	# content tile land on the SAME cells every time the board is visited —
+	# returning from a battle never relocates the city or the objective.
+	_seeded_shuffle(walkable, rng)
 
 	# Guaranteed hubs near start (safehouse? no — keep start clean) and along
 	# the middle/end: safehouse near half-way, city near 2/3.
@@ -196,6 +199,17 @@ func _assign_content(terrain_grid: Dictionary, rng: RandomNumberGenerator) -> Di
 
 	# Dead ends: any leftover walkable with no walkable neighbor beyond forward.
 	return result
+
+
+# Fisher-Yates shuffle driven by a seeded RandomNumberGenerator, so content
+# placement (city/safehouse/events) is deterministic per board seed instead of
+# re-rolling every time the board scene is rebuilt after a battle.
+func _seeded_shuffle(items: Array, rng: RandomNumberGenerator) -> void:
+	for i in range(items.size() - 1, 0, -1):
+		var j := rng.randi_range(0, i)
+		var tmp = items[i]
+		items[i] = items[j]
+		items[j] = tmp
 
 
 func _roll_content(rng: RandomNumberGenerator) -> String:

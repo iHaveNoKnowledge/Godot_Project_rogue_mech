@@ -51,12 +51,15 @@ func _arena_size_for_combat() -> float:
 # so arena_generator._ready() would otherwise never see State.BOARD.
 func _theme_from_board() -> BiomeTheme:
 	var arena_name: String = BoardConfig.THEME_ARENA.get(GlobalData.board_theme_id, "")
+	# Never fall back to a RANDOM biome: a random pick can drop a forest board
+	# into a street fight (and vice versa). Unknown/empty themes default to the
+	# suburb crossroads, matching the default board theme.
 	if arena_name == "":
-		return randi() % BiomeTheme.size() as BiomeTheme
+		return BiomeTheme.CROSSROADS
 	for i in range(BiomeTheme.size()):
 		if BiomeTheme.keys()[i] == arena_name:
 			return i as BiomeTheme
-	return BiomeTheme.DESERT
+	return BiomeTheme.CROSSROADS
 
 
 func generate_arena() -> void:

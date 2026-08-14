@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scripts/board/board_generator.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/board/board_manager.gd" id="2"]
@@ -9,6 +9,8 @@
 [ext_resource type="Script" path="res://scripts/board/board_camera_init.gd" id="7"]
 [ext_resource type="PackedScene" path="res://scenes/ui/city_shop_ui.tscn" id="8"]
 [ext_resource type="PackedScene" path="res://scenes/ui/board_tooltip_ui.tscn" id="9"]
+[ext_resource type="PackedScene" path="res://scenes/ui/board_hud.tscn" id="10"]
+[ext_resource type="PackedScene" path="res://scenes/ui/deploy_team_ui.tscn" id="11"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_token"]
 size = Vector3(0.5, 0.5, 0.5)
@@ -38,3 +40,7 @@ transform = Transform3D(1, 0, 0, 0, 0.866, 0.5, 0, -0.5, 0.866, 0, 30, 18)
 [node name="CityShopUI" parent="." instance=ExtResource("8")]
 
 [node name="BoardTooltipUI" parent="." instance=ExtResource("9")]
+
+[node name="BoardHUD" parent="." instance=ExtResource("10")]
+
+[node name="DeployTeamUI" parent="." instance=ExtResource("11")]

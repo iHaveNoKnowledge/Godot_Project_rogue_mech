@@ -47,7 +47,7 @@ func equip_part(slot: String, info: Dictionary) -> void:
 				return
 			var from_mech := _transfer_weapon_from_other_mechs(wpath)
 			if from_mech != "":
-				moved_note = " (transferred from %s)" % from_mech
+				moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
 			elif equipped != "":
 				moved_note = " (moved from %s hand)" % equipped
 			GlobalData.add_carry_weapon(wpath)
@@ -64,7 +64,7 @@ func equip_part(slot: String, info: Dictionary) -> void:
 				return
 			var from_mech := _transfer_weapon_from_other_mechs(wpath)
 			if from_mech != "":
-				moved_note = " (transferred from %s)" % from_mech
+				moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
 			elif equipped != "":
 				moved_note = " (moved from %s)" % ("back carry" if equipped == "carry" else ("right hand" if equipped == "right" else "left hand"))
 			GlobalData.set_hand_weapon(hand, wpath)
@@ -106,9 +106,19 @@ func equip_part(slot: String, info: Dictionary) -> void:
 			controller.status_message_label.text = "Failed to craft armor."
 			return
 		controller.status_message_label.text = "Armor crafted and equipped!"
+	# One physical plate = one mech: an armor instance already worn by another
+	# parked berth transfers here (that mech's slot is emptied) so the same
+	# plate is never equipped twice.
+	var swap_note := ""
+	if inst.has("uid"):
+		var from_mech := _transfer_armor_from_other_mechs(str(inst["uid"]))
+		if from_mech != "":
+			swap_note = " (SWAPPED from %s — that mech no longer wears it)" % from_mech
 	if not GlobalData.equip_armor_instance(inst["uid"], slot):
 		controller.status_message_label.text = "Failed to equip armor."
 		return
+	if swap_note != "":
+		controller.status_message_label.text = "Armor equipped%s" % swap_note
 	controller.persist_panel.commit_and_save()
 	controller.garage_panel.apply_armor_preview(slot, inst)
 	controller.stats_panel.update()
@@ -147,6 +157,37 @@ func _transfer_weapon_from_other_mechs(path: String) -> String:
 				carry.erase(path)
 				loadout["carry"] = carry
 		return str(mech.get("name", "another mech"))
+	return ""
+
+
+# An armor instance (matched by uid) may only be equipped on ONE mech. When a
+# parked mech's parts snapshot already wears this plate, empty that berth's slot
+# so the instance transfers to the berth being edited. Returns the name of the
+# mech it was taken from ("" when the plate wasn't equipped anywhere else).
+func _transfer_armor_from_other_mechs(uid: String) -> String:
+	if uid == "":
+		return ""
+	var editing_id: String = controller.get_editing_mech_id()
+	for mech in GlobalData.hangar_mechs:
+		if not (mech is Dictionary):
+			continue
+		var mech_id := str(mech.get("id", ""))
+		if mech_id == "" or mech_id == editing_id:
+			continue
+		var parts = mech.get("parts", {})
+		if not (parts is Dictionary):
+			continue
+		# Find the slot first, then erase AFTER the loop — mutating a Dictionary
+		# while iterating its keys is undefined in GDScript.
+		var worn_slot := ""
+		for slot in parts:
+			var part = parts[slot]
+			if part is Dictionary and str(part.get("uid", "")) == uid:
+				worn_slot = slot
+				break
+		if worn_slot != "":
+			parts.erase(worn_slot)
+			return str(mech.get("name", "another mech"))
 	return ""
 
 
@@ -237,10 +278,17 @@ func on_equip_pressed() -> void:
 		return
 
 	if not controller.selected_salvage_info.is_empty():
+		# Same one-plate-per-mech rule as equip_part(): strip the instance from
+		# whichever other berth wears it before equipping it here.
+		var swap_note := ""
+		if controller.selected_salvage_info.has("uid"):
+			var from_mech := _transfer_armor_from_other_mechs(str(controller.selected_salvage_info["uid"]))
+			if from_mech != "":
+				swap_note = " (SWAPPED from %s — that mech no longer wears it)" % from_mech
 		if not controller.selected_salvage_info.has("uid") or not GlobalData.equip_armor_instance(controller.selected_salvage_info["uid"], controller.selected_slot):
 			controller.status_message_label.text = "Failed to equip armor instance."
 			return
-		controller.status_message_label.text = "Equipped & Saved: %s!" % controller.selected_salvage_info.get("name", "Armor Plate")
+		controller.status_message_label.text = "Equipped & Saved: %s!%s" % [controller.selected_salvage_info.get("name", "Armor Plate"), swap_note]
 		GlobalData.save_run()
 		controller.stats_panel.update()
 		controller.garage_panel.update_all_slots_preview()
@@ -278,7 +326,7 @@ func on_equip_pressed() -> void:
 						return
 					var from_mech := _transfer_weapon_from_other_mechs(wpath)
 					if from_mech != "":
-						moved_note = " (transferred from %s)" % from_mech
+						moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
 					elif equipped != "":
 						moved_note = " (moved from %s hand)" % equipped
 					GlobalData.add_carry_weapon(wpath)
@@ -294,7 +342,7 @@ func on_equip_pressed() -> void:
 						return
 					var from_mech := _transfer_weapon_from_other_mechs(wpath)
 					if from_mech != "":
-						moved_note = " (transferred from %s)" % from_mech
+						moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
 					elif equipped != "":
 						moved_note = " (moved from %s)" % ("back carry" if equipped == "carry" else ("right hand" if equipped == "right" else "left hand"))
 					GlobalData.set_hand_weapon(hand, wpath)

@@ -14,7 +14,11 @@ var prev_position: Vector3
 var explosion_radius: float = 3.0
 # Gravity pull (m/s^2) applied to the projectile so shots arc and drop over
 # distance instead of flying perfectly straight forever.
-var drop_gravity: float = 6.0
+var drop_gravity: float = 3.0
+# Close-range shots stay laser-flat: gravity only starts pulling once the shot
+# has travelled this far, so point-blank hits never sag below the crosshair.
+var drop_start_distance: float = 15.0
+var _traveled: float = 0.0
 var _drop_speed: float = 0.0
 
 
@@ -34,12 +38,17 @@ func _physics_process(delta: float) -> void:
 		return
 
 	prev_position = global_position
-	position += direction * speed * delta
+	var step := speed * delta
+	position += direction * step
+	_traveled += step
 
 	# Bullet drop: accumulate downward velocity each frame so long shots sag
 	# toward the ground (ground/cover is caught by the between-frame raycast).
-	_drop_speed += drop_gravity * delta
-	position.y -= _drop_speed * delta
+	# Gravity only engages after `drop_start_distance` so close-range shots fly
+	# flat; beyond that they arc gently with the reduced pull.
+	if _traveled > drop_start_distance:
+		_drop_speed += drop_gravity * delta
+		position.y -= _drop_speed * delta
 
 	# Check for obstacle (cover) collision using raycast between frames
 	_check_obstacle_collision()
@@ -118,6 +127,7 @@ func _ricochet(hit_pos: Vector3, normal: Vector3) -> void:
 	# Reflect direction off the surface normal
 	direction = direction.bounce(normal).normalized()
 	_drop_speed = 0.0
+	_traveled = 0.0
 	prev_position = hit_pos
 	global_position = hit_pos + normal * 0.1
 	# Reduce damage on ricochet

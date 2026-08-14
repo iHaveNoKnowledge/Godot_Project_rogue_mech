@@ -446,6 +446,11 @@ func start_pending_register(slot: int) -> void:
 	# garage + part list around the blank slate. The banner's REGISTER FRAME
 	# stays locked until a walking chassis is equipped.
 	GlobalData.clear_working_set()
+	# The new mech starts UNARMED too: clear_working_set() keeps the current
+	# weapon loadout (so a mech whose frame was lost keeps its arms), but a
+	# brand-new build must not inherit the previous mech's weapons — that
+	# created duplicate copies of the same weapon model on two berths.
+	GlobalData.weapon_loadout = {"left": "", "right": "", "carry": [], "ammo": {}}
 	build_pending_register_banner(slot)
 	controller.refresh_panel.after_mech_change(true)
 	_set_status("Assembling SLOT %02d — equip a BODY + both legs (INNER SKELETON), then press REGISTER FRAME." % slot)

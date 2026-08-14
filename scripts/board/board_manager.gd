@@ -181,10 +181,15 @@ func _try_step(target: Vector2i) -> bool:
 		if str(patrol.get("faction", "hostile")) == "unknown" and _has_available_recruit(str(patrol.get("character_id", ""))):
 			_trigger_patrol_talk_event(patrol)
 			return true
-		GameManager.enter_combat("grunt" if int(patrol.get("aces", 0)) == 0 else "ace")
+		_request_combat("grunt" if int(patrol.get("aces", 0)) == 0 else "ace")
 		return true
 
-	if GlobalData.board_mp <= 0:
+	# A tile effect may have already entered combat (change_scene_to_file frees
+	# this scene immediately) or opened a pause overlay (safehouse/city shop).
+	# Never run the end-of-day flow on a scene that is no longer in the tree —
+	# its event popup would crash on get_tree() == null.
+	if GlobalData.board_mp <= 0 and get_tree() != null and not get_tree().paused \
+			and GameManager.current_state == GameManager.State.BOARD:
 		_end_day()
 	return true
 
@@ -202,6 +207,10 @@ func _intermission_open() -> bool:
 
 
 func _end_day() -> void:
+	# Safety net: combat was entered this frame (the board scene is already out
+	# of the tree), so the end-of-day emit would hit an orphaned EventUI.
+	if get_tree() == null or GameManager.current_state != GameManager.State.BOARD:
+		return
 	GlobalData.board_day += 1
 	GlobalData.board_mp = GlobalData.board_mp_max
 
@@ -231,7 +240,7 @@ func _end_day() -> void:
 			if str(patrol.get("faction", "hostile")) == "unknown" and _has_available_recruit(str(patrol.get("character_id", ""))):
 				_trigger_patrol_talk_event(patrol)
 				return
-			GameManager.enter_combat("grunt" if int(patrol.get("aces", 0)) == 0 else "ace")
+			_request_combat("grunt" if int(patrol.get("aces", 0)) == 0 else "ace")
 			return
 
 	_update_token_position()
@@ -343,9 +352,6 @@ func _refresh_patrol_markers() -> void:
 	for p in GlobalData.board_patrols:
 		var pos: Vector2i = p.get("pos")
 		if not nodes_dict.has(pos):
-			continue
-		# Fleets only show once their tile is revealed (fog of war).
-		if not _reveal_log.has(pos):
 			continue
 		var marker := Node3D.new()
 		marker.set_script(preload("res://scripts/board/patrol_marker.gd"))
@@ -497,15 +503,15 @@ func _process_tile_effect(tile_type: String) -> void:
 			elif not GlobalData.stalking_aces.is_empty() and randf() < GlobalData.stalking_chance:
 				_trigger_stalker_surprise_ambush()
 			else:
-				GameManager.enter_combat("grunt")
+				_request_combat("grunt")
 		"enemy_base":
 			if GlobalData.mech_less:
 				_trigger_recovery_event()
 				return
 			if GlobalData.enemy_base_active and GlobalData.enemy_base_tile_pos == current_pos:
-				GameManager.enter_combat("enemy_base")
+				_request_combat("enemy_base")
 			else:
-				GameManager.enter_combat("grunt")
+				_request_combat("grunt")
 		"event":
 			_trigger_random_event()
 		"safehouse":
@@ -529,6 +535,18 @@ func _process_tile_effect(tile_type: String) -> void:
 			_trigger_exit_event()
 		_:
 			pass
+
+
+# Routes a board-initiated combat through the DEPLOY SQUAD screen when the
+# convoy has parked mechs with seated pilots to choose from; solo convoys and
+# surprise ambushes skip straight into the battle.
+func _request_combat(combat_type: String) -> void:
+	var deploy := get_node_or_null("DeployTeamUI")
+	if deploy and deploy.has_method("has_ally_candidates") and deploy.has_method("open_deploy") \
+			and deploy.has_ally_candidates():
+		deploy.open_deploy(combat_type)
+		return
+	GameManager.enter_combat(combat_type)
 
 
 func _trigger_ceasefire_skip() -> void:

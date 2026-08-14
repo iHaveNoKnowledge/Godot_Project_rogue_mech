@@ -567,14 +567,11 @@ func get_battle_field_pack_weight() -> float:
 
 
 func add_weapon(weapon: WeaponPart) -> bool:
-	# A weapon model may only be carried once (hands + back): a duplicate pickup
-	# converts to ammo instead of adding a second physical copy.
+	# Same catalog model = separate physical items: a second pickup of a weapon
+	# you already carry adds another copy (hands + back + pack can hold several).
 	if weapon == null:
 		return false
 	var path := weapon.resource_path
-	if is_weapon_model_carried(path):
-		add_battle_reserve(weapon.get_ammo_type(), weapon.max_ammo)
-		return false
 	# Registers the weapon in the central stash (same-ID pickups increment the
 	# count, so owning the same weapon twice enables equipping both hands with it).
 	GlobalData.register_weapon(path, weapon.weapon_name)

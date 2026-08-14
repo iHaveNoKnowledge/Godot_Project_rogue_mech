@@ -24,9 +24,11 @@ const GRID_SIZE: int = 15
 
 # Per-theme weighted terrain pools used by the generator's seeded RNG.
 const THEME_TERRAIN: Dictionary = {
-	# Suburb (chánmeuang): grass + roads, light forest, a creek, some houses.
+	# Suburb (chánmeuang): paved streets + houses with patches of lawn, only a
+	# FEW trees — kept visually distinct from the FOREST map so a suburb board
+	# never reads as a jungle (its arena is the crossroads city, not the woods).
 	"suburb": [
-		["plain", 6], ["road", 3], ["forest", 2], ["rock", 1],
+		["plain", 5], ["road", 4], ["rock", 2], ["forest", 1],
 	],
 	# Desert: sand everywhere, rocks, oasis plains.
 	"desert": [

@@ -93,7 +93,7 @@ func highlight(active: bool) -> void:
 	if mesh_instance == null:
 		return
 	if active:
-		mesh_instance.position.y = 0.06
+		mesh_instance.position.y = 0.04
 		reveal()
 	else:
 		mesh_instance.position.y = 0.0
@@ -104,9 +104,9 @@ func set_hover(hovered: bool) -> void:
 	if mesh_instance == null:
 		return
 	if hovered:
-		mesh_instance.position.y = 0.12
+		mesh_instance.position.y = 0.08
 	else:
-		mesh_instance.position.y = 0.03 if is_highlighted else 0.0
+		mesh_instance.position.y = 0.02 if is_highlighted else 0.0
 
 
 func _on_input_event(_camera: Node, event: InputEvent, _position: Vector3, _normal: Vector3, _shape_idx: int) -> void:

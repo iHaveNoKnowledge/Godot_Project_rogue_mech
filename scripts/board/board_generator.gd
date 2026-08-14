@@ -63,6 +63,22 @@ func generate_board() -> Dictionary:
 	}
 
 
+## Builds a single large ground plane under the whole grid so the board reads
+## as one seamless area instead of a grid of separate tile plates. The tiles
+## themselves stay flush (flat PlaneMesh) so adjacent terrain merges visually.
+func build_ground() -> MeshInstance3D:
+	var ground := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(grid_size * 4.0 + 8.0, grid_size * 4.0 + 8.0)
+	ground.mesh = plane
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.09, 0.11, 0.09)
+	mat.roughness = 1.0
+	ground.material_override = mat
+	ground.position = Vector3(grid_size * 2.0, -0.03, grid_size * 2.0)
+	return ground
+
+
 func _weighted_terrain(rng: RandomNumberGenerator, theme_id: String) -> String:
 	var pool: Array = BoardConfig.THEME_TERRAIN.get(theme_id, BoardConfig.THEME_TERRAIN["suburb"])
 	var total := 0

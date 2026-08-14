@@ -32,6 +32,7 @@ func _ready() -> void:
 		var data = generator.generate_board()
 		nodes_dict = data["nodes"]
 
+		tile_container.add_child(generator.build_ground())
 		for key in nodes_dict:
 			tile_container.add_child(nodes_dict[key])
 

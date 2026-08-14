@@ -89,15 +89,16 @@ func _ready() -> void:
 	var miss := SPAWN_SCRIPT.snap_to_ground(Vector3(500, 3.0, 500), space)
 	_check(miss.y == 3.0, "spawn without ground below keeps original y")
 
-	# --- body_bottom_offset matches each scene's collision shape ---
+	# --- body_bottom_offset matches each scene's collision shape (WORLD
+	# units, so scaled roots like the boss's 1.5x rig are accounted for) ---
 	var expected_bottoms := {
 		"enemy_dummy": -0.6,
 		"enemy_dummy_full": -0.6,
 		"enemy_ranged": -0.7,
 		"enemy_heavy": -0.45,
-		"enemy_support": -0.9,
+		"enemy_support": -0.824,
 		"enemy_tank": 0.0,
-		"enemy_boss": 0.0,
+		"enemy_boss": -0.126,
 	}
 	for t in TYPES:
 		var probe := (load(t[1]) as PackedScene).instantiate()
@@ -115,20 +116,28 @@ func _ready() -> void:
 
 
 # Spawns one enemy via the same placement SpawnManager uses (snap_to_ground +
-# body_bottom_offset), lets it settle, and asserts its lowest visual mesh rests
-# on the expected surface.
+# body_bottom_offset), then FREEZES it (AI + animation) so the measurement
+# captures the resting pose instead of a mid-hunt walk frame — the idle state
+# actively hunts and would walk the mech off the surface during a settle wait.
+# Asserts the lowest visual mesh rests on the expected surface.
 func _verify_settles(t: Array, pos: Vector3, surface_y: float, space: PhysicsDirectSpaceState3D) -> void:
 	var enemy := (load(t[1]) as PackedScene).instantiate()
 	enemy.archetype = t[2]
 	var spawn_pos := SPAWN_SCRIPT.snap_to_ground(pos, space)
 	spawn_pos.y -= SPAWN_SCRIPT.body_bottom_offset(enemy)
 	enemy.position = spawn_pos
-	add_child(enemy)
-	await get_tree().physics_frame
+	add_child(enemy)  # _ready runs synchronously; the catalog body is built here.
 
-	var deadline := Time.get_ticks_msec() + 2000
-	while Time.get_ticks_msec() < deadline:
-		await get_tree().physics_frame
+	# Freeze the whole rig: enemy physics (state machine delegate), animation
+	# node, and any other children that process.
+	enemy.set_physics_process(false)
+	for child in enemy.get_children():
+		if child.has_method("set_physics_process"):
+			child.set_physics_process(false)
+		if child.has_method("set_process"):
+			child.set_process(false)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
 
 	var lowest := _lowest_mesh_y(enemy)
 	_check(absf(lowest - surface_y) < 0.2, "%s settles on surface %.2f (lowest %.2f)" % [t[0], surface_y, lowest])

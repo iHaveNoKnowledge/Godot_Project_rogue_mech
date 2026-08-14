@@ -457,23 +457,28 @@ static func snap_to_ground(pos: Vector3, space_state: PhysicsDirectSpaceState3D)
 	return Vector3(pos.x, hit.position.y + 0.05, pos.z)
 
 
-# The collision body's lowest point relative to the root (negative when the
-# body hangs below the root). Enemy scenes place their ground-contact shape at
-# different heights, so the root must be lifted by this much for the body to
-# rest on the terrain instead of being half-buried.
+# The collision body's lowest point in WORLD units relative to the root
+# (negative when the body hangs below the root). Enemy scenes place their
+# ground-contact shape at different heights, so the root must be lifted by this
+# much for the body to rest on the terrain instead of being half-buried.
+# Scaled roots (e.g. the boss's 1.5x rig) scale the local offset too, so the
+# shape's LOCAL bottom is multiplied by the root scale to get the world lift.
 static func body_bottom_offset(enemy: Node) -> float:
+	var scale_y := 1.0
+	if enemy is Node3D:
+		scale_y = (enemy as Node3D).scale.y
 	for child in enemy.get_children():
 		if child is CollisionShape3D and child.shape != null:
 			var y0: float = child.position.y
 			var s: Shape3D = child.shape
 			if s is SphereShape3D:
-				return y0 - s.radius
+				return (y0 - s.radius) * scale_y
 			if s is CapsuleShape3D:
-				return y0 - s.height * 0.5
+				return (y0 - s.height * 0.5) * scale_y
 			if s is BoxShape3D:
-				return y0 - s.size.y * 0.5
+				return (y0 - s.size.y * 0.5) * scale_y
 			if s is CylinderShape3D:
-				return y0 - s.height * 0.5
+				return (y0 - s.height * 0.5) * scale_y
 	return 0.0
 
 

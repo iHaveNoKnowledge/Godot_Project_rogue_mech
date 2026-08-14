@@ -10,6 +10,11 @@ func _ready() -> void:
 
 
 func initiate_eject() -> void:
+	# One pilot per cockpit: an already-parked mech has its pilot out on the
+	# field, so a repeat eject (e.g. pressing the key again) must not spawn a
+	# second pilot. Boarding clears the parked state, re-arming the eject.
+	if mecha.has_meta("is_parked"):
+		return
 	EventBus.eject_initiated.emit()
 	# The cockpit is now empty: the mech kneels until its pilot boards again.
 	EventBus.mecha_occupancy_changed.emit(false)

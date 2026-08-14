@@ -251,11 +251,14 @@ func _spawn_fielded_allies() -> void:
 		ally_unit.position = ally_pos
 		add_child(ally_unit)
 		# The berth's combat role + the pilot's name win over the template
-		# defaults once the template stats land in _ready.
+		# defaults once the template stats land in _ready, then the mech's ACTUAL
+		# loadout (armor plates + equipped weapons) replaces the template stats
+		# so the ally fights with the gear on its berth.
 		ally_unit.apply_mech_override(
 			GlobalData.get_hangar_archetype(str(mech.get("id", ""))),
 			str(unit.get("name", template.get("name", "ALLY"))),
 		)
+		ally_unit.apply_mech_loadout(mech)
 
 
 func start_waves() -> void:

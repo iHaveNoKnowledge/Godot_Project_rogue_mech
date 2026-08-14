@@ -81,6 +81,152 @@ func apply_mech_override(archetype_override: int, name_override: String) -> void
 	_setup_enemy_status()
 
 
+# Applied by the spawner AFTER apply_mech_override: replaces the template stats
+# with the hangar mech's ACTUAL loadout — the armor/frame plates it wears (with
+# their persistent combat damage) and the weapons it carries. The ally then
+# fights with the berth's real gear instead of generic template numbers.
+func apply_mech_loadout(mech: Dictionary) -> void:
+	if mech.is_empty():
+		return
+	_apply_mech_armor(mech)
+	_apply_mech_weapons(mech)
+
+
+# Writes the mech's equipped armor + inner frame HP (and any persistent damage)
+# into the shared health system, exactly like the player mech reads its own
+# loadout at combat start. Falls back to template/part defaults when a slot has
+# no plate or the snapshot predates the field.
+func _apply_mech_armor(mech: Dictionary) -> void:
+	if health_system == null or not (health_system.parts is Dictionary):
+		return
+	var mech_parts: Dictionary = mech.get("parts", {})
+	var mech_frames: Dictionary = mech.get("frames", {})
+	var mech_damage: Dictionary = mech.get("damage", {})
+	var mech_patches: Dictionary = mech.get("scrap_patches", {})
+	for slot in health_system.parts:
+		var part: Dictionary = health_system.parts[slot]
+		# Inner frame HP (same formula as the player mech: frame hp + upgrade bonus).
+		if mech_frames.has(slot):
+			var f = SaveGameIO.resolve_frame_value(mech_frames[slot])
+			if f is Dictionary:
+				var f_hp = float(f.get("hp", part["max_frame"])) + GlobalData.get_frame_upgrade_hp_bonus()
+				part["frame_hp"] = f_hp
+				part["max_frame"] = f_hp
+		# Outer armor HP + armor_class from the equipped plate (same rules as the
+		# player mech's mecha_health.gd: dicts store "armor" as a class*10 value,
+		# ArmorPart resources expose armor_class directly).
+		if mech_parts.has(slot):
+			var p = SaveGameIO.resolve_equipped_part(mech_parts[slot])
+			if p != null:
+				var p_hp: float = GlobalData.part_stat(p, "max_hp", 0.0)
+				if p_hp > 0.0:
+					part["armor_hp"] = p_hp
+					part["max_armor"] = p_hp
+				if p is Dictionary:
+					if p.get("armor_class") != null:
+						part["armor_class"] = maxf(float(p.armor_class), 0.1)
+					elif p.get("armor") != null:
+						part["armor_class"] = maxf(float(p.get("armor", 10.0)) / 10.0, 0.1)
+				elif p is ArmorPart:
+					part["armor_class"] = maxf(p.armor_class, 0.1)
+		# Scrap emergency patch rebuilt this slot (mirror the player mech).
+		if mech_patches.has(slot):
+			var patch: Dictionary = mech_patches[slot]
+			part["armor_hp"] = float(patch.get("scrap_armor_hp", part["max_armor"]))
+			part["max_armor"] = part["armor_hp"]
+			part["armor_class"] = float(patch.get("armor_class", part["armor_class"]))
+			if float(mech_damage.get(slot + "_frame", 0.0)) >= 1.0:
+				part["frame_hp"] = float(patch.get("scrap_frame_hp", part["max_frame"]))
+				part["max_frame"] = part["frame_hp"]
+			continue
+		# Persistent damage ratios from previous battles ("slot" armor, "slot_frame" frame).
+		var armor_dmg: float = float(mech_damage.get(slot, 0.0))
+		if armor_dmg > 0.0:
+			var lost: float = part["max_armor"] * clampf(armor_dmg, 0.0, 1.0)
+			part["armor_hp"] = maxf(part["max_armor"] - lost, 0.0)
+			if part["armor_hp"] <= 0.0:
+				part["armor_broken"] = true
+				part["armor_hp"] = 0.0
+		var frame_dmg: float = float(mech_damage.get(slot + "_frame", 0.0))
+		if frame_dmg > 0.0:
+			var lost_f: float = part["max_frame"] * clampf(frame_dmg, 0.0, 1.0)
+			part["frame_hp"] = maxf(part["max_frame"] - lost_f, 0.0)
+			if part["frame_hp"] <= 0.0:
+				part["destroyed"] = true
+				part["frame_hp"] = 0.0
+	if health_system.has_method("_calculate_totals"):
+		health_system._calculate_totals()
+
+
+# Builds attack stats + the WeaponCore from the mech's ACTUAL equipped weapon
+# (right hand, then left, then back carry) instead of the template numbers:
+# damage, range, fire rate, ammo and damage type all come from the weapon the
+# berth really carries. Falls back to template stats when nothing is equipped.
+func _apply_mech_weapons(mech: Dictionary) -> void:
+	var weapon := _primary_mech_weapon(mech.get("weapon_loadout", {}))
+	if weapon == null:
+		return
+	attack_damage = weapon.damage
+	attack_range = maxf(weapon.range_distance, 8.0)
+	attack_cooldown = maxf(weapon.get_fire_interval(), 0.25)
+	max_ammo = weapon.max_ammo
+	reload_time = maxf(2.0, weapon.max_ammo * 0.04)
+	_build_fire_core_from_weapon(weapon)
+	_mount_mech_weapon_visual(weapon, mech.get("weapon_loadout", {}))
+
+
+# Picks the weapon the ally fights with. Preference order matches the hangar
+# loadout (right hand, left hand, then back carry); a RUSHER berth prefers its
+# melee blade, the other roles prefer a real gun.
+func _primary_mech_weapon(loadout: Dictionary) -> WeaponPart:
+	var paths: Array = []
+	for key in ["right", "left"]:
+		var p := str(loadout.get(key, ""))
+		if p != "":
+			paths.append(p)
+	var carry = loadout.get("carry", [])
+	if carry is Array:
+		for p in carry:
+			if p is String and p != "":
+				paths.append(p)
+	var prefer_melee: bool = archetype == 0
+	var fallback: WeaponPart = null
+	for path in paths:
+		if not ResourceLoader.exists(path):
+			continue
+		var w = load(path)
+		if not (w is WeaponPart):
+			continue
+		var is_melee: bool = w.weapon_type == WeaponPart.WeaponType.MELEE
+		if prefer_melee == is_melee:
+			return w
+		if fallback == null:
+			fallback = w
+	return fallback
+
+
+# Builds the shared WeaponCore from the actual WeaponPart so the ally's shots
+# (damage, ammo, reload, heat, pellets, damage type) behave like the player
+# firing the same gun. Fire rate stays AI-paced (fire_interval = 0, the ally
+# attack_timer gates shots).
+func _build_fire_core_from_weapon(weapon: WeaponPart) -> void:
+	fire_core = WeaponCore.from_weapon(weapon)
+	fire_core.fire_interval = 0.0
+	fire_core.reload_time = reload_time
+	fire_core.projectile_color = template_color
+	fire_core.unlimited_ammo = weapon.max_ammo <= 0
+	fire_core.auto_reload = not fire_core.unlimited_ammo
+
+
+# Mounts the equipped weapon's model on the ally's hand so the squad visibly
+# carries the mech's actual gun (same factory the hangar + player mech use).
+func _mount_mech_weapon_visual(weapon: WeaponPart, loadout: Dictionary) -> void:
+	var hand := "right"
+	if str(loadout.get("right", "")) != weapon.resource_path and str(loadout.get("left", "")) == weapon.resource_path:
+		hand = "left"
+	WeaponVisualFactory.mount_hand(self, hand, weapon, "AllyWeaponVisual")
+
+
 func _apply_template(template: Dictionary) -> void:
 	if template.is_empty():
 		return

@@ -165,7 +165,9 @@ func _repopulate_roster() -> void:
 			continue
 
 		var pilot_name := GlobalData.get_hangar_pilot_name(pilot_id)
-		var role_label := ["RUSHER", "RANGED", "HEAVY", "SUPPORT"][clampi(GlobalData.get_hangar_archetype(mech_id), 0, 3)]
+		# Indexing an untyped array literal yields Variant, so `:=` can't infer
+		# the type — annotate explicitly.
+		var role_label: String = ["RUSHER", "RANGED", "HEAVY", "SUPPORT"][clampi(GlobalData.get_hangar_archetype(mech_id), 0, 3)]
 		var status := GlobalData.get_hangar_pilot_status(pilot_id)
 
 		if pilot_id == "":

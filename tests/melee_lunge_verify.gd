@@ -28,9 +28,22 @@ var _wm: Node = null
 var _mecha: CharacterBody3D = null
 var _enemy: Node = null
 var _cam: Camera3D = null
+var _rig: Node = null
+var _shake_delta := 0.0
 
 var _knife: WeaponPart = preload("res://resources/mech/stock/weapon_combat_knife.tres")
 var _pile: WeaponPart = preload("res://resources/mech/stock/weapon_pile_bunker.tres")
+
+
+# Stand-in for the real camera rig (camera_rig group + add_shake) so the test
+# can assert that every melee impact kicks the camera.
+class FakeRig:
+	extends Node
+
+	var total_shake: float = 0.0
+
+	func add_shake(amount: float) -> void:
+		total_shake += amount
 
 
 func _check(cond: bool, name: String) -> void:
@@ -65,7 +78,9 @@ func _start_swing(hand: String, weapon) -> void:
 	_fire_msec = Time.get_ticks_msec()
 	_measuring = true
 	_peak_z = _mecha.position.z
+	var shake_before: float = _rig.total_shake
 	_wm._try_fire(hand, weapon)
+	_shake_delta = _rig.total_shake - shake_before
 
 
 func _process(_delta: float) -> void:
@@ -79,13 +94,15 @@ func _process(_delta: float) -> void:
 				_stage = 2
 				_start_swing("left", null)
 		2:
-			# Fist @ 3.0m: should hit, lunge ~1.4m, and return to origin.
+			# Fist @ 3.0m: should hit, lunge ~1.4m, return to origin, and kick
+			# the camera with a light impact shake.
 			if _elapsed(350):
 				_measuring = false
 				_stage = 3
 				_check(_enemy.damage_taken == FIST_DAMAGE, "fist connects at its 3m range")
 				_check(_peak_z <= -1.25, "fist lunges ~1.4m into the punch (peak %.2f)" % _peak_z)
 				_check(absf(_mecha.position.z) < 0.05, "mech returns to origin after the fist recovery")
+				_check(_shake_delta > 0.09 and _shake_delta < 0.15, "fist impact shakes the camera lightly (%.3f)" % _shake_delta)
 				_enemy.position = Vector3(0, 1.5, -3.2)
 				_enemy.damage_taken = 0.0
 		3:
@@ -120,7 +137,13 @@ func _process(_delta: float) -> void:
 				_measuring = false
 				_stage = 8
 				_check(_enemy.damage_taken == KNIFE_DAMAGE * 2.0, "both rapid knife swings connect (%.0f dmg)" % _enemy.damage_taken)
-				_check(absf(_mecha.position.z) < 0.8, "mech stays put through rapid swings, no tween fighting (z=%.2f)" % _mecha.position.z)
+				# The mech rests where swing 2 STARTED (its own orig_pos), which can be
+				# up to a full lunge step (0.9m) into swing 1's thrust depending on
+				# frame timing. Bounded combo stepping-forward is correct; the old
+				# tween-fighting bug flung the mech far beyond this.
+				_check(absf(_mecha.position.z) < 1.0, "mech stays within one lunge step through rapid swings, no tween fighting (z=%.2f)" % _mecha.position.z)
+				_check(_shake_delta > 0.12 and _shake_delta < 0.18, "each knife swing shakes the camera (last %.3f)" % _shake_delta)
+				_check(_rig.total_shake > 0.25, "both rapid knife swings each kick the camera (total %.3f)" % _rig.total_shake)
 				# Fresh start for the pile charge: reset the mech to origin so the
 				# peak-lunge measurement is measured from a clean stance.
 				_mecha.position = Vector3(0, 1.5, 0)
@@ -133,13 +156,16 @@ func _process(_delta: float) -> void:
 				_stage = 9
 				_start_swing("left", _wm.left_hand)
 		9:
-			# Pile bunker @ 4.0m: connects with its big 2.4m charge.
+			# Pile bunker @ 4.0m: connects with its big 2.4m charge and the
+			# hardest shake of the melee set.
 			if _elapsed(400):
 				_measuring = false
 				_stage = 10
 				_check(_enemy.damage_taken == PILE_DAMAGE, "pile bunker connects at its 4m range")
 				_check(_peak_z <= -2.25, "pile bunker lunges ~2.4m into the charge (peak %.2f)" % _peak_z)
 				_check(absf(_mecha.position.z) < 0.05, "mech returns to origin after the pile recovery")
+				_check(_shake_delta > 0.32 and _shake_delta < 0.38, "pile impact kicks the camera hardest (%.3f)" % _shake_delta)
+				_check(_shake_delta > _rig.total_shake * 0.45, "pile shake outweighs the earlier melee taps")
 				_finish()
 
 
@@ -176,6 +202,11 @@ func _build_scene() -> void:
 	_enemy.add_child(col)
 	_enemy.position = Vector3(0, 1.5, -3.0)
 	add_child(_enemy)
+
+	# Fake camera rig so impact shakes can be measured.
+	_rig = FakeRig.new()
+	_rig.add_to_group("camera_rig")
+	add_child(_rig)
 
 
 func _physics_process(_delta: float) -> void:

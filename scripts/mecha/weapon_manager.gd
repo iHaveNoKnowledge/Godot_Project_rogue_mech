@@ -760,7 +760,6 @@ func _perform_pile_bunker_lunge_anim(mecha: Node3D, dir: Vector3, weapon: Weapon
 	if _lunge_tween != null and _lunge_tween.is_valid():
 		_lunge_tween.kill()
 	var orig_pos = mecha.global_position
-	var is_pile = weapon and weapon.weapon_name.to_lower().contains("pile")
 	var lunge_dist = _melee_lunge_dist(weapon)
 	
 	_lunge_tween = mecha.create_tween().set_parallel(false)
@@ -770,12 +769,17 @@ func _perform_pile_bunker_lunge_anim(mecha: Node3D, dir: Vector3, weapon: Weapon
 	# 2. Explosive Forward Thrust
 	tween.tween_property(mecha, "global_position", orig_pos + dir * lunge_dist, 0.07).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
 	
-	# Screen Shake on Impact
-	if is_pile:
-		var camera_rig = get_tree().get_nodes_in_group("camera_rig")
-		if not camera_rig.is_empty() and camera_rig[0].has_method("add_shake"):
-			camera_rig[0].add_shake(0.35)
-			
+	# Screen shake on impact, scaled to the weapon's punch so EVERY melee hit
+	# lands with feedback — not just the pile bunker's charge. Damage-scaled so
+	# the pile (120) still kicks at ~0.35 (unchanged), the heat blade (50) lands
+	# ~0.2, the knife (25) a firm 0.15, and a bare fist (8) a light 0.11 tap.
+	var shake_strength := 0.0
+	if weapon != null:
+		shake_strength = clampf(0.09 + weapon.damage * 0.0022, 0.1, 0.4)
+	var camera_rig = get_tree().get_nodes_in_group("camera_rig")
+	if shake_strength > 0.0 and not camera_rig.is_empty() and camera_rig[0].has_method("add_shake"):
+		camera_rig[0].add_shake(shake_strength)
+		
 	# 3. Recovery
 	tween.tween_property(mecha, "global_position", orig_pos, 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
 

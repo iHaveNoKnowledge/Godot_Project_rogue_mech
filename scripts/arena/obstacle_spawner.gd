@@ -157,6 +157,54 @@ func _create_cover(def: Dictionary) -> StaticBody3D:
 			cover.max_hp = 50.0
 			cover.cover_type = "explosive_barrel"
 
+		6: # Forest Tree Trunk (cover: thick trunk)
+			var shape = CylinderShape3D.new()
+			shape.radius = 1.5
+			shape.height = 9.0
+			collision.shape = shape
+			collision.position.y = 4.5
+			var cyl = CylinderMesh.new()
+			cyl.top_radius = 1.0
+			cyl.bottom_radius = 1.5
+			cyl.height = 9.0
+			mesh_inst.mesh = cyl
+			mesh_inst.position.y = 4.5
+			mat.albedo_color = Color(0.32, 0.20, 0.10, 1)
+			cover.max_hp = 700.0
+			cover.cover_type = "tree_trunk"
+
+		7: # Fallen Log
+			var shape = CylinderShape3D.new()
+			shape.radius = 1.0
+			shape.height = 8.0
+			collision.shape = shape
+			collision.rotation_degrees.x = 90.0
+			var cyl = CylinderMesh.new()
+			cyl.top_radius = 0.9
+			cyl.bottom_radius = 1.0
+			cyl.height = 8.0
+			mesh_inst.mesh = cyl
+			mesh_inst.rotation_degrees.x = 90.0
+			mat.albedo_color = Color(0.30, 0.20, 0.10, 1)
+			cover.max_hp = 250.0
+			cover.cover_type = "fallen_log"
+
+		8: # Forest Fern / Bush
+			var shape = CylinderShape3D.new()
+			shape.radius = 1.2
+			shape.height = 2.2
+			collision.shape = shape
+			collision.position.y = 1.1
+			var cyl = CylinderMesh.new()
+			cyl.top_radius = 1.2
+			cyl.bottom_radius = 1.2
+			cyl.height = 2.2
+			mesh_inst.mesh = cyl
+			mesh_inst.position.y = 1.1
+			mat.albedo_color = Color(0.14, 0.38, 0.14, 1)
+			cover.max_hp = 120.0
+			cover.cover_type = "fern"
+
 	cover.add_child(collision)
 	cover.add_child(mesh_inst)
 	mesh_inst.material_override = mat

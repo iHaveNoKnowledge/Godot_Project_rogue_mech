@@ -46,7 +46,7 @@ const THEME_TERRAIN: Dictionary = {
 const THEME_ARENA: Dictionary = {
 	"suburb": "CROSSROADS",
 	"desert": "DESERT",
-	"forest": "RIVER_BRIDGE",
+	"forest": "FOREST",
 	"urban": "CITY_HIGHRISE",
 }
 

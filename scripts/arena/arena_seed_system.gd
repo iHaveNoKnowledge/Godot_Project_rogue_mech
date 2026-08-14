@@ -78,6 +78,19 @@ func get_obstacle_positions(theme: int = 0, arena_size: float = 240.0) -> Array:
 					"rot": rng.randf_range(0, TAU)
 				})
 
+		4: # FOREST (ป่า)
+			# Trees are both cover and scenery; logs, rocks and ferns add clutter
+			for i in range(rng.randi_range(34, 46)):
+				var x = rng.randf_range(-half, half)
+				var z = rng.randf_range(-half, half)
+				if absf(z) < 24.0:
+					continue # Keep the river band clear of cover
+				positions.append({
+					"pos": Vector3(x, 0, z),
+					"type": rng.randi_range(0, 8),
+					"rot": rng.randf_range(0, TAU)
+				})
+
 	# Filter out player spawn (0, 0)
 	positions = positions.filter(func(p):
 		return p["pos"].length() > 10.0

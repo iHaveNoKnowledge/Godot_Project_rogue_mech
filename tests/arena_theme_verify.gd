@@ -22,7 +22,7 @@ func _check(cond: bool, name: String) -> void:
 func _ready() -> void:
 	# Every sector theme maps to a biome.
 	var biomes := [
-		"DESERT", "CITY_HIGHRISE", "CROSSROADS", "RIVER_BRIDGE",
+		"DESERT", "CITY_HIGHRISE", "CROSSROADS", "RIVER_BRIDGE", "FOREST",
 	]
 	for theme_id in ["suburb", "desert", "forest", "urban"]:
 		var arena_name: String = BoardConfig.THEME_ARENA.get(theme_id, "")
@@ -40,10 +40,11 @@ func _ready() -> void:
 	for theme_id in ["suburb", "desert", "forest", "urban"]:
 		GlobalData.board_theme_id = theme_id
 		var biome = arena._theme_from_board()
-		var biome_name := arena_script.BiomeTheme.keys()[biome]
+		var biome_name: String = arena_script.BiomeTheme.keys()[biome]
 		_check(biome_name == BoardConfig.THEME_ARENA[theme_id], "board %s -> arena %s" % [theme_id, biome_name])
 
 	if _fails == 0:
 		print("THEME_ALL_OK: %d checks passed" % _checks)
 	else:
 		printerr("THEME_FAILURES: %d/%d checks failed" % [_fails, _checks])
+	get_tree().quit(1 if _fails > 0 else 0)

@@ -60,6 +60,16 @@ func _setup_atmosphere() -> void:
 				sun.light_color = Color(0.85, 0.92, 1.0, 1)
 				sun.light_energy = 1.2
 
+		4: # FOREST (ป่า)
+			sky_mat.sky_top_color = Color(0.12, 0.22, 0.10, 1)
+			sky_mat.sky_horizon_color = Color(0.35, 0.52, 0.28, 1) # Sunlit forest canopy
+			env.volumetric_fog_density = 0.030
+			env.volumetric_fog_albedo = Color(0.22, 0.40, 0.18, 1)
+			env.ambient_light_color = Color(0.30, 0.45, 0.25, 1)
+			if sun:
+				sun.light_color = Color(0.90, 1.0, 0.80, 1)
+				sun.light_energy = 1.3
+
 	var sky = Sky.new()
 	sky.sky_material = sky_mat
 	env.sky = sky
@@ -84,6 +94,7 @@ func _add_theme_ambient_lights(theme: int) -> void:
 	if theme == 1: light_col = Color(0.2, 0.8, 1.0) # Cyber blue
 	elif theme == 2: light_col = Color(1.0, 0.5, 0.2) # Warm street light
 	elif theme == 3: light_col = Color(0.4, 0.8, 0.9) # River cyan
+	elif theme == 4: light_col = Color(0.5, 0.9, 0.5) # Forest green
 
 	for pos in positions:
 		var light = OmniLight3D.new()
@@ -124,6 +135,7 @@ func _add_dust_particles(theme: int) -> void:
 	elif theme == 1: draw_mat.albedo_color = Color(0.3, 0.7, 1.0, 0.2) # City motes
 	elif theme == 2: draw_mat.albedo_color = Color(0.9, 0.6, 0.4, 0.2) # Twilight haze
 	elif theme == 3: draw_mat.albedo_color = Color(0.7, 0.85, 1.0, 0.25) # River mist droplets
+	elif theme == 4: draw_mat.albedo_color = Color(0.4, 0.8, 0.4, 0.2) # Forest pollen / leaf motes
 
 	draw_mat.no_depth_test = true
 	draw_mat.cull_mode = BaseMaterial3D.CULL_DISABLED

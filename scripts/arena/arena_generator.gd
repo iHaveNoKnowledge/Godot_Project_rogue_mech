@@ -5,7 +5,7 @@ extends Node3D
 @export var arena_size: float = 240.0
 @export var tile_count: int = 24
 
-enum BiomeTheme { DESERT, CITY_HIGHRISE, CROSSROADS, RIVER_BRIDGE }
+enum BiomeTheme { DESERT, CITY_HIGHRISE, CROSSROADS, RIVER_BRIDGE, FOREST }
 
 var current_theme: BiomeTheme = BiomeTheme.DESERT
 var tile_container: Node3D
@@ -164,6 +164,12 @@ func _get_theme_tile_color(x: int, z: int, pos_x: float, pos_z: float) -> Color:
 				return Color(0.35 + v, 0.32 + v, 0.28 + v) # Riverbank dirt
 			return Color(0.22 + v, 0.24 + v, 0.26 + v) # Access road
 
+		BiomeTheme.FOREST:
+			# Forest floor: mossy grass with scattered dirt patches
+			if int(abs(pos_x)) % 22 < 3 or int(abs(pos_z)) % 22 < 3:
+				return Color(0.24 + v, 0.20 + v, 0.14 + v) # Dirt trail
+			return Color(0.14 + v, 0.30 + v, 0.14 + v) # Mossy grass
+
 	return Color(0.5, 0.5, 0.5)
 
 
@@ -249,6 +255,8 @@ func _create_theme_structures() -> void:
 			_build_crossroads_structures()
 		BiomeTheme.RIVER_BRIDGE:
 			_build_river_bridge_structures()
+		BiomeTheme.FOREST:
+			_build_forest_structures()
 
 
 func _build_desert_structures() -> void:
@@ -575,3 +583,281 @@ func _spawn_water_volume(center_x: float, width: float, mat: Material) -> void:
 
 	area.position = Vector3(center_x, -0.9, 0)
 	structures_container.add_child(area)
+
+
+# ====================================================================
+# FOREST BIOME (ป่า: trees, streams, waterfall, rocks, grassland)
+# ====================================================================
+
+func _build_forest_structures() -> void:
+	# 1. A wide river cut across the map (Z band) with banks of mossy ground.
+	_spawn_forest_river()
+
+	# 2. Scattered trees of varied size (tall/short, thick/thin) + rocks + logs.
+	var half = arena_size / 2.0 - 15.0
+	var tree_count := randi_range(60, 80)
+	for i in range(tree_count):
+		var x = randf_range(-half, half)
+		var z = randf_range(-half, half)
+		if absf(x) < 15.0 and absf(z) < 15.0:
+			continue # Keep spawn area clear
+		if absf(z) < 24.0:
+			continue # Keep the river clear
+		var roll := randf()
+		if roll < 0.68:
+			_spawn_forest_tree(Vector3(x, 0, z))
+		elif roll < 0.82:
+			_spawn_fallen_log(Vector3(x, 0, z))
+		elif roll < 0.94:
+			_spawn_forest_rock(Vector3(x, 0, z))
+		else:
+			_spawn_grass_patch(Vector3(x, 0, z))
+
+
+func _spawn_forest_river() -> void:
+	# Wide river trench (Z from -22 to 22) with the same passable water-volume
+	# technique as the river bridge map: mechs can wade, water stays sunken.
+	_spawn_forest_riverbed_floor()
+
+	var water_mat := _create_water_material()
+	var half := arena_size / 2.0
+
+	var river_band := StaticBody3D.new()
+	river_band.name = "Riverband"
+	river_band.collision_layer = 2
+	river_band.collision_mask = 1
+
+	# Shallow water floor (passable) across the whole band.
+	var col = CollisionShape3D.new()
+	var shape = BoxShape3D.new()
+	shape.size = Vector3(arena_size, 0.5, 44)
+	col.shape = shape
+	river_band.add_child(col)
+
+	var mesh = MeshInstance3D.new()
+	var box = BoxMesh.new()
+	box.size = Vector3(arena_size, 0.3, 44)
+	mesh.mesh = box
+	mesh.material_override = water_mat
+	mesh.position.y = -0.5
+	river_band.add_child(mesh)
+
+	river_band.position = Vector3(0, -0.6, 0)
+	structures_container.add_child(river_band)
+
+	# 2. Waterfall on the west edge feeding the river.
+	_spawn_waterfall(water_mat, -half + 8.0)
+
+
+func _spawn_forest_riverbed_floor() -> void:
+	var floor_body = StaticBody3D.new()
+	floor_body.collision_layer = 2
+	floor_body.collision_mask = 1
+
+	var col = CollisionShape3D.new()
+	var shape = BoxShape3D.new()
+	shape.size = Vector3(arena_size, 0.6, 42)
+	col.shape = shape
+	floor_body.add_child(col)
+
+	var mesh = MeshInstance3D.new()
+	var box = BoxMesh.new()
+	box.size = Vector3(arena_size, 0.6, 42)
+	mesh.mesh = box
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(0.16, 0.20, 0.16)
+	mat.roughness = 0.9
+	mesh.material_override = mat
+	floor_body.add_child(mesh)
+
+	floor_body.position = Vector3(0, -1.4, 0)
+	structures_container.add_child(floor_body)
+
+
+func _spawn_waterfall(water_mat: Material, pos_x: float) -> void:
+	var falls = Area3D.new()
+	falls.name = "Waterfall"
+	falls.collision_layer = 4
+	falls.collision_mask = 0
+	falls.add_to_group("water_volume")
+
+	var col = CollisionShape3D.new()
+	var shape = BoxShape3D.new()
+	shape.size = Vector3(10, 14, 10)
+	col.shape = shape
+	falls.add_child(col)
+
+	var sheet = MeshInstance3D.new()
+	var box = BoxMesh.new()
+	box.size = Vector3(10, 14, 0.8)
+	sheet.mesh = box
+	var sheet_mat := ShaderMaterial.new()
+	var shader := Shader.new()
+	shader.code = """
+shader_type spatial;
+render_mode blend_mix, depth_draw_opaque, cull_back;
+uniform vec4 water_color : source_color = vec4(0.55, 0.85, 1.0, 0.85);
+uniform float wave_speed : hint_range(0, 10) = 4.0;
+uniform float wave_strength : hint_range(0, 0.5) = 0.1;
+void vertex() {
+	UV *= 4.0;
+}
+void fragment() {
+	float t = TIME * wave_speed;
+	vec2 uv = UV;
+	uv.y += t;
+	uv.y += sin(uv.x * 8.0 + t) * wave_strength;
+	ALBEDO = water_color.rgb;
+	ALPHA = water_color.a;
+	EMISSION = vec3(0.4, 0.7, 1.0) * 0.6;
+	ROUGHNESS = 0.1;
+	METALLIC = 0.3;
+}
+"""
+	sheet_mat.shader = shader
+	sheet.material_override = sheet_mat
+	sheet.position = Vector3(pos_x, 5.0, 0)
+	falls.add_child(sheet)
+
+	# Spray mist at the base of the falls.
+	var mist = MeshInstance3D.new()
+	var mist_mesh = BoxMesh.new()
+	mist_mesh.size = Vector3(8, 1.2, 8)
+	mist.mesh = mist_mesh
+	var mist_mat = StandardMaterial3D.new()
+	mist_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mist_mat.albedo_color = Color(0.9, 0.95, 1.0, 0.35)
+	mist.material_override = mist_mat
+	mist.position = Vector3(pos_x, 0.6, 0)
+	falls.add_child(mist)
+
+	falls.position = Vector3(0, 0, 0)
+	structures_container.add_child(falls)
+
+
+func _spawn_forest_tree(pos: Vector3) -> void:
+	var trunk_h = randf_range(4.0, 10.0)   # tall / short
+	var trunk_r = randf_range(0.5, 1.1)    # thick / thin
+	var tree = StaticBody3D.new()
+	tree.collision_layer = 2
+	tree.collision_mask = 1
+
+	var collision = CollisionShape3D.new()
+	var shape = CylinderShape3D.new()
+	shape.radius = trunk_r
+	shape.height = trunk_h
+	collision.shape = shape
+	collision.position.y = trunk_h * 0.5
+	tree.add_child(collision)
+
+	var trunk = MeshInstance3D.new()
+	var trunk_mesh = CylinderMesh.new()
+	trunk_mesh.top_radius = trunk_r * 0.7
+	trunk_mesh.bottom_radius = trunk_r
+	trunk_mesh.height = trunk_h
+	trunk.mesh = trunk_mesh
+	var trunk_mat = StandardMaterial3D.new()
+	trunk_mat.albedo_color = Color(0.34, 0.22, 0.12)
+	trunk_mat.roughness = 0.9
+	trunk.material_override = trunk_mat
+	trunk.position.y = trunk_h * 0.5
+	tree.add_child(trunk)
+
+	# 2-3 layered canopies.
+	var leaf_mat = StandardMaterial3D.new()
+	leaf_mat.albedo_color = Color(randf_range(0.10, 0.18), randf_range(0.32, 0.46), randf_range(0.10, 0.16))
+	leaf_mat.roughness = 1.0
+	var layers = randi_range(2, 3)
+	for l in range(layers):
+		var layer = MeshInstance3D.new()
+		var layer_mesh = CylinderMesh.new()
+		var lr = trunk_r * (2.6 + l * 0.6)
+		var lh = trunk_r * (2.0 + l * 0.5)
+		layer_mesh.top_radius = lr * 0.4
+		layer_mesh.bottom_radius = lr
+		layer_mesh.height = lh
+		layer.mesh = layer_mesh
+		layer.material_override = leaf_mat
+		layer.position.y = trunk_h - lh * 0.5 + l * lh * 0.55
+		tree.add_child(layer)
+
+	tree.position = pos
+	structures_container.add_child(tree)
+
+
+func _spawn_fallen_log(pos: Vector3) -> void:
+	var log = StaticBody3D.new()
+	log.collision_layer = 2
+	log.collision_mask = 1
+
+	var len = randf_range(5.0, 10.0)
+	var r = randf_range(0.6, 1.2)
+
+	var collision = CollisionShape3D.new()
+	var shape = CylinderShape3D.new()
+	shape.radius = r
+	shape.height = len
+	collision.shape = shape
+	collision.rotation_degrees.x = 90.0
+	log.add_child(collision)
+
+	var body = MeshInstance3D.new()
+	var mesh = CylinderMesh.new()
+	mesh.top_radius = r
+	mesh.bottom_radius = r * 1.1
+	mesh.height = len
+	body.mesh = mesh
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(0.30, 0.20, 0.10)
+	mat.roughness = 1.0
+	body.material_override = mat
+	body.rotation_degrees.x = 90.0
+	log.add_child(body)
+
+	log.position = pos + Vector3(0, r * 0.5, 0)
+	log.rotation.y = randf_range(0, TAU)
+	structures_container.add_child(log)
+
+
+func _spawn_forest_rock(pos: Vector3) -> void:
+	var rock = StaticBody3D.new()
+	rock.collision_layer = 2
+	rock.collision_mask = 1
+
+	var size = Vector3(randf_range(1.5, 3.5), randf_range(1.2, 2.8), randf_range(1.5, 3.5))
+	var collision = CollisionShape3D.new()
+	var shape = BoxShape3D.new()
+	shape.size = size
+	collision.shape = shape
+	collision.position.y = size.y * 0.5
+	rock.add_child(collision)
+
+	var mesh = MeshInstance3D.new()
+	var box = BoxMesh.new()
+	box.size = size
+	mesh.mesh = box
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(0.32, 0.34, 0.36)
+	mat.roughness = 1.0
+	mesh.material_override = mat
+	mesh.position.y = size.y * 0.5
+	rock.add_child(mesh)
+
+	rock.position = pos
+	rock.rotation.y = randf_range(0, TAU)
+	structures_container.add_child(rock)
+
+
+func _spawn_grass_patch(pos: Vector3) -> void:
+	var patch = MeshInstance3D.new()
+	var mesh = SphereMesh.new()
+	var r = randf_range(0.8, 1.6)
+	mesh.radius = r
+	mesh.height = r * 1.4
+	patch.mesh = mesh
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(0.16, 0.40, 0.16)
+	mat.roughness = 1.0
+	patch.material_override = mat
+	patch.position = pos + Vector3(0, r * 0.5, 0)
+	structures_container.add_child(patch)

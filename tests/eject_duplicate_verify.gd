@@ -45,6 +45,7 @@ func _verify_eject_guard() -> void:
 	await get_tree().process_frame
 	_check(_pilot_count() == 1, "first eject spawns exactly one pilot")
 	_check(mech.has_meta("is_parked"), "the mech parks after ejecting")
+	_check(mech.is_in_group("backup_mech"), "the parked mech becomes the boarding target")
 
 	# The bug: pressing eject again spawned a duplicate pilot. The parked flag
 	# must suppress any further eject until the pilot boards again.
@@ -55,12 +56,17 @@ func _verify_eject_guard() -> void:
 	# Boarding consumes the pilot and clears the parked state (the full board
 	# path also transitions scenes, which would tear down this test — the eject
 	# guard only reads the parked flag, so simulate the state change directly).
+	# Boarding consumes the pilot and clears the parked state (the full board
+	# path also transitions scenes, which would tear down this test — the eject
+	# guard only reads the parked flag, so simulate the state change directly).
 	for p in get_tree().get_nodes_in_group("pilot"):
 		p.queue_free()
 	mech.remove_meta("is_parked")
+	mech.remove_from_group("backup_mech")
 	await get_tree().process_frame
 	_check(_pilot_count() == 0, "boarding removes the pilot")
 	_check(not mech.has_meta("is_parked"), "boarding clears the parked state")
+	_check(not mech.is_in_group("backup_mech"), "boarding removes the boarding-target group")
 
 	# ...so the pilot can eject again on the next sortie.
 	eject.initiate_eject()

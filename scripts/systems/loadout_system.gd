@@ -96,12 +96,38 @@ static func get_loadout_weapon_weight() -> float:
 	return get_loadout_weapons_total()
 
 
+# A weapon model may only be equipped in ONE slot at a time (left hand, right
+# hand, or back carry). Returns the slot currently holding the model, or ""
+# when it isn't equipped anywhere. Enforced by set_hand_weapon/add_carry_weapon
+# so a shotgun can't be in both hands (or a hand + the back) at once.
+static func weapon_equipped_slot(path: String) -> String:
+	if str(GlobalData.weapon_loadout.get("left", "")) == path:
+		return "left"
+	if str(GlobalData.weapon_loadout.get("right", "")) == path:
+		return "right"
+	if is_weapon_in_carry(path):
+		return "carry"
+	return ""
+
+
 # Assigns a weapon resource path to a hand. Empty path = unarmed hand.
-static func set_hand_weapon(side: String, path: String) -> void:
+# Returns false (and makes no change) if that weapon model is already equipped
+# in the other hand or on the back pack.
+static func set_hand_weapon(side: String, path: String) -> bool:
+	if path == "":
+		if side == "left":
+			GlobalData.weapon_loadout["left"] = ""
+		else:
+			GlobalData.weapon_loadout["right"] = ""
+		return true
+	var equipped_slot := weapon_equipped_slot(path)
+	if equipped_slot != "" and equipped_slot != side:
+		return false
 	if side == "left":
 		GlobalData.weapon_loadout["left"] = path
 	else:
 		GlobalData.weapon_loadout["right"] = path
+	return true
 
 
 static func is_weapon_in_carry(path: String) -> bool:
@@ -109,14 +135,17 @@ static func is_weapon_in_carry(path: String) -> bool:
 	return carry_paths is Array and path in carry_paths
 
 
-static func add_carry_weapon(path: String) -> void:
-	# Each entry is one physical copy. Same-model weapons are distinct items
-	# (like two controllers of the same model), so duplicates are allowed.
+static func add_carry_weapon(path: String) -> bool:
+	# One physical copy per model: a weapon already in a hand or on the back
+	# pack cannot be added a second time.
+	if path == "" or weapon_equipped_slot(path) != "":
+		return false
 	var carry_paths = GlobalData.weapon_loadout.get("carry", [])
 	if not (carry_paths is Array):
 		carry_paths = []
 	carry_paths.append(path)
 	GlobalData.weapon_loadout["carry"] = carry_paths
+	return true
 
 
 # How many physical copies of a weapon model are currently on the back pack.

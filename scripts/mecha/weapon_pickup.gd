@@ -40,13 +40,25 @@ func get_weapon_manager() -> Node:
 	return nearby_mecha.get_node_or_null("WeaponManager")
 
 
+# True when the mecha already carries (hand or back) another copy of this model.
+func is_already_carried() -> bool:
+	if weapon_resource == null:
+		return false
+	var wm = get_weapon_manager()
+	if wm and wm.has_method("is_weapon_model_carried"):
+		return wm.is_weapon_model_carried(weapon_resource.resource_path)
+	return false
+
+
 # Player chose to take the whole weapon into the FIELD PACK (also registers it in
-# the stash so the same-ID count increases, enabling dual-wielding identical
-# weapons). Checks Field Pack capacity; returns false if it would overload.
+# the stash). Checks Field Pack capacity and that the same model isn't already
+# carried; returns false if either rule would be violated.
 func take_weapon() -> bool:
 	if weapon_resource == null:
 		return false
 	if not can_take_to_field_pack():
+		return false
+	if is_already_carried():
 		return false
 	var wm = get_weapon_manager()
 	if wm:

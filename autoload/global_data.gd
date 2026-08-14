@@ -678,16 +678,23 @@ func get_loadout_weapon_weight() -> float:
 
 
 # Assigns a weapon resource path to a hand. Empty path = unarmed hand.
-func set_hand_weapon(side: String, path: String) -> void:
-	LoadoutSystem.set_hand_weapon(side, path)
+# Returns false if the weapon model is already equipped in another slot.
+func set_hand_weapon(side: String, path: String) -> bool:
+	return LoadoutSystem.set_hand_weapon(side, path)
 
 
 func is_weapon_in_carry(path: String) -> bool:
 	return LoadoutSystem.is_weapon_in_carry(path)
 
 
-func add_carry_weapon(path: String) -> void:
-	LoadoutSystem.add_carry_weapon(path)
+# Returns the slot ("left"/"right"/"carry") currently holding a weapon model,
+# or "" when it isn't equipped anywhere.
+func weapon_equipped_slot(path: String) -> String:
+	return LoadoutSystem.weapon_equipped_slot(path)
+
+
+func add_carry_weapon(path: String) -> bool:
+	return LoadoutSystem.add_carry_weapon(path)
 
 
 func remove_carry_weapon(path: String) -> void:

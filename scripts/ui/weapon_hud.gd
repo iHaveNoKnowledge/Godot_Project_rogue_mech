@@ -487,13 +487,19 @@ func _toggle_pickup_menu() -> void:
 	# ignores firing while this menu is open).
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	var can_carry: bool = nearby_pickup.can_take_to_field_pack()
+	var already_carried: bool = nearby_pickup.is_already_carried()
 	if take_weapon_btn:
-		take_weapon_btn.disabled = not can_carry
-		take_weapon_btn.text = "ADD TO FIELD PACK (ใส่สนาม)"
+		take_weapon_btn.disabled = not can_carry or already_carried
+		if already_carried:
+			take_weapon_btn.text = "ALREADY CARRIED (ถืออยู่แล้ว)"
+		else:
+			take_weapon_btn.text = "ADD TO FIELD PACK (ใส่สนาม)"
 	if pack_info_label:
 		pack_info_label.text = "FIELD PACK: %.1f / %.1f kg" % [GlobalData.get_field_pack_weight(), GlobalData.get_field_pack_capacity()]
 		if not can_carry:
 			pack_info_label.text += "\nFIELD PACK FULL!"
+		elif already_carried:
+			pack_info_label.text += "\nALREADY CARRYING THIS WEAPON!"
 
 
 func _close_pickup_menu() -> void:

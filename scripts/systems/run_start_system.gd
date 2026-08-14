@@ -91,9 +91,20 @@ static func roll_random_start() -> void:
 	for p in pool:
 		if p is String and ResourceLoader.exists(p):
 			valid.append(p)
-	GlobalData.weapon_loadout["left"] = valid[randi() % valid.size()] if not valid.is_empty() else GlobalData.DEFAULT_LEFT_WEAPON_PATH
-	GlobalData.weapon_loadout["right"] = GlobalData.DEFAULT_RIGHT_WEAPON_PATH
-	GlobalData.weapon_loadout["carry"] = [GlobalData.DEFAULT_CARRY_WEAPON_PATH]
+	# A weapon model may only be equipped once (left hand, right hand, back
+	# carry), so the rolled left-hand pick must stay distinct from the fixed
+	# right-hand and back-carry defaults.
+	var right_path := GlobalData.DEFAULT_RIGHT_WEAPON_PATH
+	var carry_path := GlobalData.DEFAULT_CARRY_WEAPON_PATH
+	var left_pool: Array = []
+	for p in valid:
+		if str(p) != right_path and str(p) != carry_path:
+			left_pool.append(p)
+	if left_pool.is_empty():
+		left_pool = valid
+	GlobalData.weapon_loadout["left"] = left_pool[randi() % left_pool.size()] if not left_pool.is_empty() else GlobalData.DEFAULT_LEFT_WEAPON_PATH
+	GlobalData.weapon_loadout["right"] = right_path
+	GlobalData.weapon_loadout["carry"] = [carry_path]
 	GlobalData.weapon_inventory.clear()
 	for path in [GlobalData.weapon_loadout["left"], GlobalData.weapon_loadout["right"], GlobalData.weapon_loadout["carry"][0]]:
 		if path is String and path != "":

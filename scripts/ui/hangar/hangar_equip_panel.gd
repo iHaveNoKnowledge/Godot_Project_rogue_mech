@@ -32,10 +32,12 @@ func equip_part(slot: String, info: Dictionary) -> void:
 			controller.status_message_label.text = "Weapon not found in stash."
 			return
 		if slot == "weapon_carry":
-			var carried := GlobalData.count_carry_weapon(wpath)
-			var owned := int(info.get("count", 1))
-			if carried >= owned:
-				controller.status_message_label.text = "You are already carrying every copy of this weapon."
+			var equipped := GlobalData.weapon_equipped_slot(wpath)
+			if equipped == "carry":
+				controller.status_message_label.text = "This weapon is already on the back pack."
+				return
+			if equipped == "left" or equipped == "right":
+				controller.status_message_label.text = "This weapon is already equipped in the %s hand." % equipped
 				return
 			if controller.garage_panel.would_exceed_field_pack(wpath):
 				controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
@@ -43,6 +45,10 @@ func equip_part(slot: String, info: Dictionary) -> void:
 			GlobalData.add_carry_weapon(wpath)
 		else:
 			var hand = "left" if slot == "weapon_left" else "right"
+			var equipped := GlobalData.weapon_equipped_slot(wpath)
+			if equipped != "" and equipped != hand:
+				controller.status_message_label.text = "This weapon is already equipped in the %s." % ("back carry" if equipped == "carry" else ("right hand" if equipped == "right" else "left hand"))
+				return
 			var replaced_path = str(GlobalData.weapon_loadout.get(hand, ""))
 			if controller.garage_panel.would_exceed_field_pack(wpath, replaced_path):
 				controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
@@ -207,9 +213,13 @@ func on_equip_pressed() -> void:
 			if controller.selected_slot.begins_with("weapon"):
 				# Weapons go into the central weapon_loadout (hands / back).
 				var wpath = controller.selected_part_path
+				var equipped := GlobalData.weapon_equipped_slot(wpath)
 				if controller.selected_slot == "weapon_carry":
-					if GlobalData.is_weapon_in_carry(wpath):
-						controller.status_message_label.text = "Already in back carry!"
+					if equipped == "carry":
+						controller.status_message_label.text = "This weapon is already on the back pack."
+						return
+					if equipped == "left" or equipped == "right":
+						controller.status_message_label.text = "This weapon is already equipped in the %s hand." % equipped
 						return
 					if controller.garage_panel.would_exceed_field_pack(wpath):
 						controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
@@ -218,6 +228,9 @@ func on_equip_pressed() -> void:
 					controller.status_message_label.text = "Added to Back Carry: %s!" % (res.weapon_name if "weapon_name" in res else "Weapon")
 				else:
 					var hand = "left" if controller.selected_slot == "weapon_left" else "right"
+					if equipped != "" and equipped != hand:
+						controller.status_message_label.text = "This weapon is already equipped in the %s." % ("back carry" if equipped == "carry" else ("right hand" if equipped == "right" else "left hand"))
+						return
 					var replaced_path = str(GlobalData.weapon_loadout.get(hand, ""))
 					if controller.garage_panel.would_exceed_field_pack(wpath, replaced_path):
 						controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"

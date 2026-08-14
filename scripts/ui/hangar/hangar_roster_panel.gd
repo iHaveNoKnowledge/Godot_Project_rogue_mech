@@ -765,10 +765,32 @@ func build_register_dialog(slot: int) -> void:
 		var pilot: Dictionary = pilots[i]
 		var pilot_id := str(pilot.get("id", ""))
 		var status := GlobalData.get_hangar_pilot_status(pilot_id)
-		pilot_opt.add_item("%s%s" % [str(pilot.get("name", "?")), status], i)
+		# Fleet pilots carry their live status (HP / wounded countdown /
+		# destroyed) here too, with the same ⚠/⛔ markers as the roster picker.
+		var marker := ""
+		if status.contains("WOUNDED"):
+			marker = "⚠ "
+		elif status.contains("DESTROYED"):
+			marker = "⛔ "
+		var suffix := ""
+		if status.contains("WOUNDED"):
+			suffix = " · RECOVERING"
+		pilot_opt.add_item("%s%s%s%s" % [marker, str(pilot.get("name", "?")), status, suffix], i)
+		# Unlike the roster page (where a wounded seat can wait for its pilot),
+		# a REGISTERED frame needs a pilot who can actually drive it — wounded
+		# and lost pilots are shown but locked out of the picker.
+		if status.contains("WOUNDED") or status.contains("DESTROYED"):
+			pilot_opt.set_item_disabled(i, true)
 		if pilot_id == HangarManager.PLAYER_PILOT_ID:
 			default_idx = i
 	pilot_opt.selected = default_idx
+	# Defensive: the driver is always fit, but never leave the pick stuck on a
+	# disabled entry if state shifted while the dialog was being assembled.
+	if pilot_opt.is_item_disabled(pilot_opt.selected):
+		for i in range(pilot_opt.item_count):
+			if not pilot_opt.is_item_disabled(i):
+				pilot_opt.selected = i
+				break
 	pilot_row.add_child(pilot_opt)
 	register_dialog_pilot = pilot_opt
 

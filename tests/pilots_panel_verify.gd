@@ -145,8 +145,11 @@ func _verify_register_pilot() -> void:
 	await get_tree().process_frame
 	var rp = ctrl.roster_panel_ui
 
-	# Give the convoy a fleet pilot to pick in the REGISTER dialog.
+	# Give the convoy a fleet pilot to pick in the REGISTER dialog, plus a
+	# wounded and a destroyed pilot — both must show up but stay locked out.
 	GlobalData.fleet_roster.append({"template_id": "t_reg", "name": "Regina", "hp": 60.0, "max_hp": 60.0, "destroyed": false, "fielded": true})
+	GlobalData.fleet_roster.append({"template_id": "t_regw", "name": "Wanda Wound", "hp": 30.0, "max_hp": 60.0, "destroyed": false, "fielded": true, "wounded": true, "wound_turns": 2})
+	GlobalData.fleet_roster.append({"template_id": "t_regd", "name": "Doris Dead", "hp": 0.0, "max_hp": 60.0, "destroyed": true, "fielded": true})
 
 	# Start the REGISTER assembly for the empty berth and equip a walking chassis.
 	rp.register_mech(2)
@@ -165,6 +168,20 @@ func _verify_register_pilot() -> void:
 	if rp.register_dialog_pilot:
 		_check(rp.register_dialog_pilot.item_count == GlobalData.get_hangar_pilots().size(), "pilot picker lists every convoy pilot")
 		_check(rp.register_dialog_pilot.selected == 0, "pilot picker defaults to the driver")
+		# Wounded and lost pilots are shown with their status but locked out of
+		# REGISTER (a registered frame needs a pilot who can actually drive it).
+		var w_idx := -1
+		var d_idx := -1
+		for i in range(rp.register_dialog_pilot.item_count):
+			var item_text = rp.register_dialog_pilot.get_item_text(i)
+			if item_text.contains("Wanda"):
+				w_idx = i
+			elif item_text.contains("Doris"):
+				d_idx = i
+		_check(w_idx >= 0, "wounded pilot is listed in the REGISTER picker")
+		_check(w_idx >= 0 and rp.register_dialog_pilot.is_item_disabled(w_idx), "wounded pilot is disabled in the REGISTER picker")
+		_check(d_idx >= 0 and rp.register_dialog_pilot.is_item_disabled(d_idx), "destroyed pilot is disabled in the REGISTER picker")
+		_check(not rp.register_dialog_pilot.is_item_disabled(rp.register_dialog_pilot.selected), "the default (driver) pick stays enabled")
 
 	var mechs_before := GlobalData.get_hangar_mechs().size()
 	if rp.register_dialog_edit:
@@ -176,6 +193,7 @@ func _verify_register_pilot() -> void:
 				fleet_idx = i
 				break
 		_check(fleet_idx >= 0, "fleet pilot is selectable in the picker")
+		_check(fleet_idx >= 0 and not rp.register_dialog_pilot.is_item_disabled(fleet_idx), "healthy fleet pilot stays enabled in the picker")
 		if fleet_idx >= 0:
 			rp.register_dialog_pilot.select(fleet_idx)
 	if rp.register_dialog:

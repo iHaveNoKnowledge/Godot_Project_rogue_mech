@@ -60,6 +60,13 @@ static func spawn_patrols() -> void:
 			count = rng.randi_range(2, 3)
 		_:
 			count = rng.randi_range(2, 4)
+	# The patrol_hunt objective demands a fixed number of fleet destructions.
+	# Never spawn fewer hostile fleets than the objective requires, or the
+	# player can be soft-locked (objective never completes, exit stays sealed).
+	var required_hostile := 0
+	if BoardConfig.get_objective(theme).get("id", "") == "patrol_hunt":
+		required_hostile = int(BoardConfig.get_objective(theme).get("required", 1))
+	count = maxi(count, required_hostile)
 
 	var grid_size := BoardConfig.GRID_SIZE
 	var nodes: Dictionary = {}

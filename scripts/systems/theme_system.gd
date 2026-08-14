@@ -165,11 +165,15 @@ static func apply_event_effect(event: Dictionary) -> bool:
 			RecruitSystem.recruit(str(params.get("character_id", "")))
 		"patrol_recruit":
 			# An unknown fleet's pilot joins the convoy AND the fleet itself stands
-			# down, so its arrow marker is removed from the board.
+			# down, so its arrow marker is removed from the board. A fleet taken
+			# off the map counts as neutralized for the patrol_hunt objective —
+			# otherwise recruiting could soft-lock the sector.
 			var cid := str(params.get("character_id", ""))
 			if RecruitSystem.is_character_available(cid):
 				RecruitSystem.recruit(cid)
 				PatrolSystem.remove_patrol(GlobalData.board_patrol_engagement)
+				if BoardSystem.get_objective().get("id", "") == "patrol_hunt":
+					BoardSystem.add_progress(1)
 			GlobalData.board_patrol_engagement = -1
 		"duel":
 			# The player challenged a pilot: record the 1v1 duel and force the

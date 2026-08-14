@@ -101,7 +101,7 @@ func _on_combat_escaped() -> void:
 	if is_escaped:
 		return
 	is_escaped = true
-	if has_node("/root/HeatWantedSystem"):
+	if HeatWantedSystem:
 		HeatWantedSystem.modify_heat(ESCAPE_HEAT_PENALTY)
 	_show_escape_screen()
 

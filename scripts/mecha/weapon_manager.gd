@@ -379,7 +379,7 @@ func reload_weapon(hand: String) -> void:
 	else:
 		reloading_right = false
 
-	if has_node("/root/AudioManager"):
+	if AudioManager:
 		AudioManager.play_reload_complete()
 
 	ammo_changed.emit(hand, _get_ammo(weapon), weapon.max_ammo)

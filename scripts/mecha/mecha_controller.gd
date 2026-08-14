@@ -136,7 +136,7 @@ func _handle_movement_input() -> void:
 
 	if Input.is_action_just_pressed("roller_dash"):
 		is_roller_dashing = not is_roller_dashing
-		if has_node("/root/AudioManager"):
+		if AudioManager:
 			AudioManager.play_ui_click()
 
 	if Input.is_action_just_pressed("dash") and dash_cooldown_timer <= 0.0:
@@ -183,13 +183,13 @@ func _apply_movement(delta: float) -> void:
 			roller_skate_timer -= delta
 			if roller_skate_timer <= 0.0:
 				roller_skate_timer = 0.12
-				if has_node("/root/AudioManager"):
+				if AudioManager:
 					AudioManager.play_roller_skate(global_position)
 		else:
 			footstep_timer -= delta
 			if footstep_timer <= 0.0:
 				footstep_timer = 0.35
-				if has_node("/root/AudioManager"):
+				if AudioManager:
 					AudioManager.play_footstep(global_position)
 
 	if not is_on_floor():
@@ -200,7 +200,7 @@ func _apply_movement(delta: float) -> void:
 
 	if is_on_floor() and Input.is_action_just_pressed("jump"):
 		velocity.y = 15.0
-		if has_node("/root/AudioManager"):
+		if AudioManager:
 			AudioManager.play_jump(global_position)
 
 	# Blend in any weapon recoil push then decay it quickly.
@@ -213,7 +213,7 @@ func _apply_movement(delta: float) -> void:
 
 
 func _trigger_landing_impact() -> void:
-	if has_node("/root/AudioManager"):
+	if AudioManager:
 		AudioManager.play_land(global_position)
 
 	# 1. Screen Shake
@@ -340,7 +340,7 @@ func _start_dash() -> void:
 	dash_cooldown_timer = dash_cooldown
 
 	_spawn_dash_effect()
-	if has_node("/root/AudioManager"):
+	if AudioManager:
 		AudioManager.play_dash(global_position)
 
 

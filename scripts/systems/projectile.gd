@@ -125,7 +125,7 @@ func _hit_target(target: Node3D) -> void:
 		return
 
 	EffectManager.spawn_impact(position, Vector3.UP)
-	if has_node("/root/AudioManager"):
+	if AudioManager:
 		AudioManager.play_impact_by_type(damage_type, position)
 
 	if target.has_method("take_damage_at_point"):
@@ -142,7 +142,7 @@ func _hit_target(target: Node3D) -> void:
 
 func _explode(blast_pos: Vector3) -> void:
 	EffectManager.spawn_explosion(blast_pos)
-	if has_node("/root/AudioManager"):
+	if AudioManager:
 		AudioManager.play_explosion(blast_pos)
 
 	var candidates: Array

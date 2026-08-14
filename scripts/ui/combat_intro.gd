@@ -21,7 +21,7 @@ var _done: bool = false
 func _ready() -> void:
 	layer = 100
 	_build_overlay()
-	if has_node("/root/AudioManager"):
+	if AudioManager:
 		AudioManager.set_combat_muted(true)
 
 
@@ -85,7 +85,7 @@ func _finish() -> void:
 	var tween := create_tween()
 	tween.tween_property(_overlay, "modulate:a", 0.0, FADE_TIME).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tween.tween_callback(func():
-		if has_node("/root/AudioManager"):
+		if AudioManager:
 			AudioManager.set_combat_muted(false)
 		queue_free()
 	)

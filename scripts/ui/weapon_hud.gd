@@ -55,7 +55,7 @@ func _ready() -> void:
 	_create_carry_ui()
 	_create_pickup_ui()
 	_try_connect_weapon_manager()
-	if has_node("/root/EventBus"):
+	if EventBus:
 		EventBus.combat_ended.connect(_on_combat_ended)
 
 

@@ -80,7 +80,7 @@ func _on_player_damaged(_slot_name: String, _amount: float, _damage_type: String
 	_hit_flash_tween.tween_property(_hit_flash, "color:a", 0.0, 0.35)
 
 	# Distinct audio cue that the player is under fire.
-	if has_node("/root/AudioManager"):
+	if AudioManager:
 		AudioManager.play_player_hit()
 
 	# Camera shake so the impact is felt, not just seen.

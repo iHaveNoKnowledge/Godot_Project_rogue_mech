@@ -109,7 +109,7 @@ func _ready() -> void:
 	garage_panel.build_garage()
 	_build_ui_layout()
 	nav_panel.show_hangar()
-	if has_node("/root/AudioManager"):
+	if AudioManager:
 		AudioManager.play_hangar_music()
 
 

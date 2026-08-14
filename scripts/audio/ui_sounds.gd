@@ -36,10 +36,10 @@ func _connect_button(button: BaseButton) -> void:
 
 
 func _on_button_pressed(button: Node = null) -> void:
-	if has_node("/root/AudioManager"):
+	if AudioManager:
 		AudioManager.play_ui_click()
 
 
 func play_menu_open() -> void:
-	if has_node("/root/AudioManager"):
+	if AudioManager:
 		AudioManager.play_ui_confirm()

@@ -68,7 +68,7 @@ func _destroy() -> void:
 	_spawn_debris()
 
 	# Sound
-	if has_node("/root/AudioManager"):
+	if AudioManager:
 		AudioManager.play_explosion(global_position)
 
 	EventBus.cover_destroyed.emit(global_position, cover_type)

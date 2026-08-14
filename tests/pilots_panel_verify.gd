@@ -17,6 +17,7 @@ func _ready() -> void:
 	await get_tree().process_frame
 	await _verify_pilots_page()
 	await _verify_register_pilot()
+	await _verify_main_driver()
 	print("PILOTS_PANEL_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	await get_tree().process_frame
 	get_tree().quit(1 if _fails > 0 else 0)
@@ -55,6 +56,15 @@ func _find_button_by_text(host: Node, text: String) -> Button:
 		var found = _find_button_by_text(child, text)
 		if found:
 			return found
+	return null
+
+
+# Finds the first roster row whose collected text mentions `needle`, so the
+# test can scope a button lookup to one specific pilot's row.
+func _row_with_text(container: Node, needle: String) -> Node:
+	for row in container.get_children():
+		if row is HBoxContainer and _collect_text(row).contains(needle):
+			return row
 	return null
 
 
@@ -187,6 +197,70 @@ func _verify_register_pilot() -> void:
 		_check(pilot_of == "fleet_t_reg", "fleet-pilot REGISTER parks the frame under the chosen pilot")
 		_check(GlobalData.active_hangar_mech_id != new_id, "fleet-pilot REGISTER does not take over the driver's mech")
 	_check(GlobalData.get_hangar_pilot_name("fleet_t_reg") != "", "registered pilot resolves through the shared pilot list")
+
+	ctrl.queue_free()
+	await get_tree().process_frame
+
+
+func _verify_main_driver() -> void:
+	GlobalData.reset_run_data()
+	var ctrl: Node = load("res://scenes/ui/hangar_scene.tscn").instantiate()
+	add_child(ctrl)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var pp = ctrl.pilots_panel_ui
+	ctrl.nav_panel.select_submenu("pilots")
+	await get_tree().process_frame
+
+	var active := GlobalData.get_active_hangar_mech()
+	var active_id := str(active.get("id", ""))
+	_check(active_id != "", "a main mech exists to seat drivers in")
+	_check(str(active.get("pilot", "")) == HangarManager.PLAYER_PILOT_ID, "the player starts as the main driver")
+
+	# The current driver's row shows a read-only star badge, not an action.
+	var you_row := _row_with_text(pp.pilot_list, "YOU (driver)")
+	_check(you_row != null, "the driver row is present")
+	var you_badge: Button = _find_button_by_text(you_row, "★ DRIVER") if you_row else null
+	_check(you_badge != null, "current main driver row shows the ★ DRIVER badge")
+	_check(you_badge != null and you_badge.disabled, "★ DRIVER badge is read-only")
+
+	# A healthy fleet pilot gets an enabled MAIN DRIVER button; pressing it
+	# seats them in the active mech (the same assign call the roster uses).
+	GlobalData.fleet_roster.append({"template_id": "t_md", "name": "Mia Driver", "hp": 70.0, "max_hp": 70.0, "destroyed": false, "fielded": true})
+	pp.refresh()
+	await get_tree().process_frame
+	var mia_row := _row_with_text(pp.pilot_list, "Mia Driver")
+	_check(mia_row != null, "fleet pilot appears on the page")
+	var mia_btn: Button = _find_button_by_text(mia_row, "MAIN DRIVER") if mia_row else null
+	_check(mia_btn != null and not mia_btn.disabled, "healthy fleet pilot gets an enabled MAIN DRIVER button")
+	if mia_btn:
+		mia_btn.pressed.emit()
+		await get_tree().process_frame
+	_check(str(GlobalData.get_active_hangar_mech().get("pilot", "")) == "fleet_t_md", "pressing MAIN DRIVER seats the pilot in the active mech")
+	_check(_find_button_by_text(pp.pilot_list, "★ DRIVER") != null, "the star badge moves to the new driver")
+	# Rows were rebuilt by refresh(): re-capture the player row before poking it.
+	you_row = _row_with_text(pp.pilot_list, "YOU (driver)")
+	_check(you_row != null, "the player row survives the refresh")
+	_check(_find_button_by_text(you_row, "MAIN DRIVER") != null, "the player row offers the restore button once unseated")
+	var status_text := _collect_text(pp.pilots_panel)
+	_check(status_text.contains("MAIN DRIVER: Mia Driver"), "summary names the current main driver")
+
+	# Destroyed pilots are gated, mirroring the roster picker.
+	GlobalData.fleet_roster.append({"template_id": "t_dd", "name": "Dan Dead", "hp": 0.0, "max_hp": 70.0, "destroyed": true, "fielded": true})
+	pp.refresh()
+	await get_tree().process_frame
+	var dan_row := _row_with_text(pp.pilot_list, "Dan Dead")
+	var dan_btn: Button = _find_button_by_text(dan_row, "MAIN DRIVER") if dan_row else null
+	_check(dan_btn != null and dan_btn.disabled, "destroyed pilot's MAIN DRIVER button is disabled")
+
+	# Restoring the player as main driver works from the same button.
+	you_row = _row_with_text(pp.pilot_list, "YOU (driver)")
+	var restore_btn: Button = _find_button_by_text(you_row, "MAIN DRIVER") if you_row else null
+	_check(restore_btn != null, "the player row keeps a restore button")
+	if restore_btn:
+		restore_btn.pressed.emit()
+		await get_tree().process_frame
+	_check(str(GlobalData.get_active_hangar_mech().get("pilot", "")) == HangarManager.PLAYER_PILOT_ID, "the player can take the main driver seat back")
 
 	ctrl.queue_free()
 	await get_tree().process_frame

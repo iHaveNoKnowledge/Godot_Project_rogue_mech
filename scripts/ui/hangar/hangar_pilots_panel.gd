@@ -3,8 +3,9 @@ extends RefCounted
 
 ## PILOTS page (pilot roster): lists everyone riding with the convoy — the
 ## player driver plus every researched fleet pilot — with their live status
-## (HP / wounded countdown / destroyed), the mech they drive, and a HEAL
-## shortcut for recovering pilots.
+## (HP / wounded countdown / destroyed), the mech they drive, a HEAL shortcut
+## for recovering pilots, and a MAIN DRIVER button that seats any pilot in the
+## active mech (the machine the player pilots into combat).
 ##
 ## It is the read-mostly counterpart of the roster page's per-berth PILOT
 ## picker: both read the same pilot list (GlobalData.get_hangar_pilots) so the
@@ -92,9 +93,14 @@ func refresh() -> void:
 	for child in pilot_list.get_children():
 		child.queue_free()
 
+	# The main mech (the one the player pilots into combat) and whoever drives
+	# it — the pilot rows' MAIN DRIVER buttons seat a pilot here.
+	var active := GlobalData.get_active_hangar_mech()
+	var active_id := str(active.get("id", ""))
+	var driver_id := str(active.get("pilot", ""))
 	var pilots := GlobalData.get_hangar_pilots()
 	for pilot in pilots:
-		_build_row(pilot)
+		_build_row(pilot, active_id, driver_id)
 
 	if pilots_status_label:
 		var fleet := GlobalData.get_hangar_fleet_size()
@@ -102,7 +108,9 @@ func refresh() -> void:
 		var convoy := "SOLO CONVOY · 1 trailer · 2 berths" if fleet <= 1 else \
 			"FLEET CONVOY · %d pilots · %d trucks · %d berths" % [fleet, ceili(fleet / 2.0), capacity]
 		var affiliation := GlobalData.get_run_affiliation()
-		pilots_status_label.text = "%s · %s\n%d pilot%s in the convoy · %d/%d berths filled" % [
+		pilots_status_label.text = "MAIN DRIVER: %s · %s\n%s · %s\n%d pilot%s in the convoy · %d/%d berths filled" % [
+			GlobalData.get_hangar_pilot_name(driver_id),
+			str(active.get("name", "Mech")),
 			affiliation.get("name", "Mech Convoy"),
 			convoy,
 			pilots.size(), "s" if pilots.size() != 1 else "",
@@ -110,7 +118,7 @@ func refresh() -> void:
 		]
 
 
-func _build_row(pilot: Dictionary) -> void:
+func _build_row(pilot: Dictionary, active_id: String, driver_id: String) -> void:
 	var pilot_id := str(pilot.get("id", ""))
 	var name := str(pilot.get("name", "?"))
 	var status := GlobalData.get_hangar_pilot_status(pilot_id)
@@ -124,7 +132,11 @@ func _build_row(pilot: Dictionary) -> void:
 	var marker := "⛔ " if is_destroyed else ("⚠ " if is_wounded else "")
 	var name_lbl := Label.new()
 	name_lbl.text = "%s%s%s%s" % [marker, name, status, _mech_label(pilot_id)]
-	name_lbl.custom_minimum_size = Vector2(380, 0)
+	name_lbl.custom_minimum_size = Vector2(250, 0)
+	# Long status suffixes (e.g. "WOUNDED (2T) · Mech 01") trim to ellipsis so a
+	# row never widens past the panel and pushes the HEAL/DRIVER buttons out.
+	name_lbl.clip_text = true
+	name_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	name_lbl.add_theme_font_size_override("font_size", 12)
 	name_lbl.add_theme_color_override("font_color",
 		Color(1.0, 0.5, 0.5) if is_wounded or is_destroyed else Color(0.85, 0.9, 0.95))
@@ -143,6 +155,49 @@ func _build_row(pilot: Dictionary) -> void:
 			heal_btn.tooltip_text = "Spend %d credits to heal this pilot now (full HP, back in the field)." % heal_cost
 			heal_btn.pressed.connect(func(): _heal(template_id))
 			row.add_child(heal_btn)
+
+	# MAIN DRIVER: seats this pilot in the main (active) mech, the machine the
+	# player pilots into combat. The current driver gets a read-only star badge;
+	# everyone else gets the action button (destroyed pilots are gated, mirroring
+	# the roster picker). Seating uses the same assign call as the roster page,
+	# so a pilot who already drives another berth swaps places with the old
+	# driver instead of ending up with two mechs.
+	var is_driver := pilot_id == driver_id
+	var driver_btn := Button.new()
+	driver_btn.custom_minimum_size = Vector2(112, 28)
+	driver_btn.focus_mode = Control.FOCUS_NONE
+	if is_driver:
+		driver_btn.text = "★ DRIVER"
+		driver_btn.disabled = true
+		driver_btn.tooltip_text = "Currently drives the main mech%s." % _mech_label(pilot_id)
+	else:
+		driver_btn.text = "MAIN DRIVER"
+		if is_destroyed:
+			driver_btn.disabled = true
+			driver_btn.tooltip_text = "This pilot was lost in combat — they cannot be assigned."
+		elif is_wounded:
+			driver_btn.tooltip_text = "WOUNDED — they can be seated, but will NOT fight until healed: the main mech auto-swaps to a healthy backup at combat entry."
+		else:
+			driver_btn.tooltip_text = "Seat this pilot in the main mech (the machine you pilot into combat)."
+		driver_btn.pressed.connect(_set_main_driver.bind(pilot_id))
+	row.add_child(driver_btn)
+
+
+# Seats a pilot in the main (active) mech. Same single source as the roster
+# page's PILOT picker (GlobalData.assign_hangar_pilot) so the swap rules never
+# drift; persists and refreshes the page so the star badge moves instantly.
+func _set_main_driver(pilot_id: String) -> void:
+	var active := GlobalData.get_active_hangar_mech()
+	var active_id := str(active.get("id", ""))
+	if active_id == "":
+		return
+	if not GlobalData.assign_hangar_pilot(active_id, pilot_id):
+		return
+	GlobalData.save_run()
+	if controller and controller.status_message_label:
+		controller.status_message_label.text = "%s is now the main driver of %s." % [
+			GlobalData.get_hangar_pilot_name(pilot_id), str(active.get("name", "the main mech"))]
+	refresh()
 
 
 # Which parked mech this pilot drives (" · Mech 01"), or " · (no mech)".

@@ -33,7 +33,7 @@ func physics_process(delta: float) -> void:
 	# soon as it is no longer critically damaged.
 	if flee_timer > 3.0:
 		if enemy.flee_reason == "energy":
-			if enemy.energy >= enemy.RECHARGED_ENERGY:
+			if enemy.energy >= enemy.recharged_energy:
 				enemy.flee_reason = ""
 				state_machine.transition_to("StateChase")
 				return
@@ -67,7 +67,7 @@ func physics_process(delta: float) -> void:
 		direction.y = 0.0
 
 	if direction.length() > 0.1:
-		enemy.velocity = direction.normalized() * enemy.move_speed * 1.2
+		enemy.velocity = direction.normalized() * enemy.move_speed * enemy.flee_speed_mult
 		enemy.velocity.y = gravity
 		enemy.move_and_slide()
 
@@ -103,7 +103,7 @@ func _direct_flee(delta: float) -> void:
 	away_dir.y = 0.0
 	away_dir = away_dir.rotated(Vector3.UP, randf_range(-0.5, 0.5)).normalized()
 
-	enemy.velocity = away_dir * enemy.move_speed * 1.2
+	enemy.velocity = away_dir * enemy.move_speed * enemy.flee_speed_mult
 	enemy.velocity.y = gravity
 	enemy.move_and_slide()
 

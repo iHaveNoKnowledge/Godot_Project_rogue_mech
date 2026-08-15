@@ -25,6 +25,13 @@ func physics_process(delta: float) -> void:
 		state_machine.transition_to("StateIdle")
 		return
 
+	# Drained pool: even a heavy breaks off to recharge instead of charging on
+	# empty (the pool recharges while it withdraws).
+	if enemy.is_low_energy():
+		enemy.flee_reason = "energy"
+		state_machine.transition_to("StateFlee")
+		return
+
 	charge_cooldown -= delta
 
 	if not is_charging:
@@ -39,6 +46,9 @@ func physics_process(delta: float) -> void:
 			is_charging = true
 			charge_timer = 0.0
 			charge_direction = face_dir
+			# A charge costs energy (tuned per archetype), so a heavy that keeps
+			# charging eventually runs dry and withdraws.
+			enemy.energy = maxf(enemy.energy - enemy.charge_energy_cost, 0.0)
 	else:
 		# Charging!
 		enemy.velocity = charge_direction * charge_speed

@@ -26,11 +26,22 @@ var stagger_timer: float = 0.0
 # retreats to recharge instead of fighting on empty (see flee_reason).
 var max_energy: float = 100.0
 var energy: float = 100.0
-const DASH_ENERGY_COST := 18.0        # energy per Rusher dash burst
-const ATTACK_ENERGY_COST := 4.0       # energy per attack cycle (every archetype)
-const ENERGY_REGEN_RATE := 9.0        # per second while not boosting
-const LOW_ENERGY_THRESHOLD := 20.0    # below this the enemy withdraws to regen
-const RECHARGED_ENERGY := 60.0        # flee ends once the pool is back above this
+# Per-archetype economy, set by _apply_energy_tuning() (the defaults are the
+# neutral starting point before archetype stats are applied):
+#   rusher  — burns hard on dashes/swings, recharges fast, makes SHORT fast
+#             withdrawals and comes right back (brawler pacing)
+#   ranged  — sustained fire outpaces regen, so it pulls out EARLY to keep
+#             distance and only returns once the pool is truly full
+#   heavy   — very efficient (charge is the only real drain), rarely runs dry,
+#             but a retreating heavy is SLOW and easy to punish
+#   support — heals are cheap, stays in the fight
+var dash_energy_cost: float = 18.0        # energy per Rusher dash burst
+var attack_energy_cost: float = 4.0       # energy per attack cycle
+var charge_energy_cost: float = 5.0       # energy per Heavy charge attack
+var energy_regen_rate: float = 9.0        # per second while not boosting
+var low_energy_threshold: float = 20.0    # below this the enemy withdraws
+var recharged_energy: float = 60.0        # flee ends once the pool is back above this
+var flee_speed_mult: float = 1.2          # how fast the enemy retreats
 
 # Why the enemy is currently fleeing: "hp" (frame damage) or "energy" (drained
 # pool). StateFlee reassesses differently per reason — an energy-fleeing enemy
@@ -93,6 +104,7 @@ func _ready() -> void:
 	_apply_catalog_health()
 	_scale_by_wanted_level()
 	_apply_archetype_stats()
+	_apply_energy_tuning()
 	_build_catalog_body()
 	_setup_leg_animation()
 	_setup_state_machine()
@@ -412,7 +424,7 @@ func _process(delta: float) -> void:
 	# Recharge the pool whenever the enemy isn't mid-dash. The cost is charged
 	# up front in start_dash(), so an enemy that never boosts stays topped up.
 	if not is_dashing:
-		energy = minf(energy + ENERGY_REGEN_RATE * delta, max_energy)
+		energy = minf(energy + energy_regen_rate * delta, max_energy)
 
 
 func _on_destroyed() -> void:
@@ -570,6 +582,45 @@ func _physics_process(delta: float) -> void:
 
 # Called by the player's weapons when they land an impact-heavy hit. Stall the
 # current action: interrupt the attack briefly (stagger) and shove the enemy.
+# Applies the per-archetype energy economy after archetype stats land (so the
+# costs/drains match how each enemy fights). See the tuning table above.
+func _apply_energy_tuning() -> void:
+	match archetype:
+		0:  # RUSHER — aggressive brawler: dashes + swings are pricey, regen fast,
+			# short withdrawals, sprints away and comes right back.
+			dash_energy_cost = 20.0
+			attack_energy_cost = 6.0
+			energy_regen_rate = 12.0
+			low_energy_threshold = 15.0
+			recharged_energy = 50.0
+			flee_speed_mult = 1.5
+		1:  # RANGED — sustained fire outpaces regen (6/shot @ 0.6s > 8/s), pulls
+			# out early to keep distance and returns only when fully recharged.
+			dash_energy_cost = 18.0
+			attack_energy_cost = 6.0
+			energy_regen_rate = 8.0
+			low_energy_threshold = 25.0
+			recharged_energy = 70.0
+			flee_speed_mult = 1.1
+		2:  # HEAVY — near-efficient: the charge is the only real drain, so it
+			# rarely runs dry; a fleeing heavy is SLOW (easy to punish).
+			dash_energy_cost = 18.0
+			attack_energy_cost = 5.0
+			charge_energy_cost = 5.0
+			energy_regen_rate = 7.0
+			low_energy_threshold = 15.0
+			recharged_energy = 40.0
+			flee_speed_mult = 0.9
+		3:  # SUPPORT — heals are cheap (5 per 1s cycle < 9/s regen), stays in
+			# the fight and retreats at a normal pace.
+			dash_energy_cost = 18.0
+			attack_energy_cost = 5.0
+			energy_regen_rate = 9.0
+			low_energy_threshold = 20.0
+			recharged_energy = 60.0
+			flee_speed_mult = 1.2
+
+
 # --- Rusher dash ------------------------------------------------------------
 # Only the Rusher archetype lunges; the burst costs a chunk of the energy pool
 # so a rusher can't dash forever. Returns false when the pool/cooldown isn't
@@ -577,7 +628,7 @@ func _physics_process(delta: float) -> void:
 func start_dash(dir: Vector3) -> bool:
 	if archetype != 0:
 		return false
-	if energy < DASH_ENERGY_COST or dash_cooldown_timer > 0.0 or is_dashing:
+	if energy < dash_energy_cost or dash_cooldown_timer > 0.0 or is_dashing:
 		return false
 	dash_direction = dir.normalized()
 	dash_direction.y = 0.0
@@ -586,7 +637,7 @@ func start_dash(dir: Vector3) -> bool:
 	is_dashing = true
 	dash_timer = dash_duration
 	dash_cooldown_timer = dash_cooldown
-	energy = maxf(energy - DASH_ENERGY_COST, 0.0)
+	energy = maxf(energy - dash_energy_cost, 0.0)
 	if AudioManager:
 		AudioManager.play_dash(global_position)
 	return true
@@ -595,7 +646,7 @@ func start_dash(dir: Vector3) -> bool:
 # True when the pool is too drained to keep fighting — the enemy should break
 # off and withdraw to recharge (see StateFlee).
 func is_low_energy() -> bool:
-	return energy < LOW_ENERGY_THRESHOLD
+	return energy < low_energy_threshold
 
 
 func apply_impact(amount: float, from_dir: Vector3) -> void:

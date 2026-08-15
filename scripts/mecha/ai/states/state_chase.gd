@@ -23,10 +23,15 @@ func physics_process(delta: float) -> void:
 
 	var distance = enemy.global_position.distance_to(enemy.target.global_position)
 
-	# Transition to attack if in range (but not while reloading)
+	# Transition to attack if in range (but not while reloading). Heavies fight
+	# with their charge instead of the generic attack (whose heavy branch is a
+	# no-op), so route them to StateCharge.
 	if distance <= enemy.attack_range:
 		if not enemy.is_reloading:
-			state_machine.transition_to("StateAttack")
+			if enemy.archetype == 2:
+				state_machine.transition_to("StateCharge")
+			else:
+				state_machine.transition_to("StateAttack")
 		return
 
 	# Drained pool: the enemy withdraws to recharge instead of fighting on empty.

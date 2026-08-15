@@ -18,6 +18,8 @@ func _ready() -> void:
 	await _verify_rusher_dash()
 	await _verify_dash_blocked_when_empty()
 	await _verify_low_energy_flees()
+	await _verify_archetype_tuning()
+	await _verify_heavy_charge_drain()
 	print("ENEMY_ENERGY_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	await get_tree().process_frame
 	get_tree().quit(1 if _fails > 0 else 0)
@@ -46,11 +48,12 @@ func _verify_energy_pool() -> void:
 	# Regen caps at max.
 	enemy._process(5.0)
 	_check(is_equal_approx(enemy.energy, enemy.max_energy), "regen caps the pool at max_energy")
-	# Draining then letting the pool recharge (while not boosting).
+	# Draining then letting the pool recharge (while not boosting). The regen
+	# rate is the rusher's tuned value (fast — 12/s).
 	enemy.energy = 50.0
 	enemy._process(1.0)
-	_check(is_equal_approx(enemy.energy, 59.0), "pool recharges at ENERGY_REGEN_RATE while not boosting")
-	_check(not enemy.is_low_energy(), "59 energy is above the low threshold")
+	_check(is_equal_approx(enemy.energy, 50.0 + enemy.energy_regen_rate), "pool recharges at the archetype's regen rate while not boosting")
+	_check(not enemy.is_low_energy(), "50+ regen energy is above the low threshold")
 
 	enemy.queue_free()
 	await get_tree().process_frame
@@ -64,7 +67,7 @@ func _verify_rusher_dash() -> void:
 	var started: bool = enemy.start_dash(Vector3.FORWARD)
 	_check(started, "rusher starts a dash burst with a full pool")
 	_check(enemy.is_dashing, "rusher is mid-dash after start_dash")
-	_check(is_equal_approx(enemy.energy, start_energy - enemy.DASH_ENERGY_COST), "dash burst costs DASH_ENERGY_COST energy")
+	_check(is_equal_approx(enemy.energy, start_energy - enemy.dash_energy_cost), "dash burst costs the rusher's tuned dash energy")
 	_check(enemy.dash_cooldown_timer > 0.0, "dash starts the cooldown timer")
 
 	# Cooldown blocks a second dash immediately after.
@@ -143,8 +146,9 @@ func _verify_low_energy_flees() -> void:
 	_check(enemy.flee_reason == "energy", "flee is marked as an energy withdrawal (reason=%s)" % enemy.flee_reason)
 
 	# While fleeing the pool recharges (the enemy is not boosting), and once it
-	# climbs back above RECHARGED_ENERGY the flee reassessment returns to chase.
-	enemy.energy = 70.0
+	# climbs back above the archetype's recharged_energy the flee reassessment
+	# returns to chase.
+	enemy.energy = enemy.recharged_energy + 10.0
 	var flee_state = enemy.state_machine.get_node_or_null("StateFlee") if enemy.state_machine else null
 	var returned := false
 	if flee_state:
@@ -158,6 +162,91 @@ func _verify_low_energy_flees() -> void:
 		_check(returned, "recharged enemy returns to combat")
 	else:
 		_check(false, "flee state node exists for reassessment")
+
+	target.queue_free()
+	enemy.queue_free()
+	await get_tree().process_frame
+
+
+func _verify_archetype_tuning() -> void:
+	# Each archetype gets its own energy profile (see _apply_energy_tuning), so
+	# costs, regen, break-off points and flee speed all differ per enemy.
+	var rusher = _spawn_enemy(0)
+	var ranged = _spawn_enemy(1)
+	var heavy = _spawn_enemy(2)
+	var support = _spawn_enemy(3)
+	await get_tree().process_frame
+
+	_check(rusher.dash_energy_cost == 20.0, "rusher dashes cost 20 energy")
+	_check(ranged.dash_energy_cost == 18.0, "ranged keeps the base dash cost (never dashes)")
+	_check(rusher.attack_energy_cost == 6.0, "rusher swings cost 6 energy")
+	_check(ranged.attack_energy_cost == 6.0, "ranged shots cost 6 energy")
+	_check(heavy.attack_energy_cost == 5.0, "heavy keeps a low attack cost")
+	_check(heavy.charge_energy_cost == 5.0, "heavy charges cost 5 energy")
+
+	# Regen: rusher recharges fastest, heavy slowest.
+	_check(rusher.energy_regen_rate == 12.0, "rusher recharges fast (12/s)")
+	_check(ranged.energy_regen_rate == 8.0, "ranged recharges slow (8/s)")
+	_check(heavy.energy_regen_rate == 7.0, "heavy recharges slowest (7/s)")
+
+	# Break-off points: ranged pulls out early, heavy fights almost forever.
+	_check(rusher.low_energy_threshold == 15.0, "rusher fights until very drained (15)")
+	_check(ranged.low_energy_threshold == 25.0, "ranged pulls out early to keep distance (25)")
+	_check(rusher.recharged_energy == 50.0, "rusher returns to combat quickly (50)")
+	_check(ranged.recharged_energy == 70.0, "ranged returns only fully recharged (70)")
+
+	# Flee speed: rusher sprints away, heavy lumbers.
+	_check(rusher.flee_speed_mult == 1.5, "rusher flees fast (1.5x)")
+	_check(ranged.flee_speed_mult == 1.1, "ranged flees at a deliberate 1.1x")
+	_check(heavy.flee_speed_mult == 0.9, "heavy flees slowly (0.9x)")
+	_check(support.flee_speed_mult == 1.2, "support flees at the base 1.2x")
+
+	rusher.queue_free()
+	ranged.queue_free()
+	heavy.queue_free()
+	support.queue_free()
+	await get_tree().process_frame
+
+
+func _verify_heavy_charge_drain() -> void:
+	# A heavy's charge attack costs charge_energy_cost: after the 0.8s wind-up
+	# the charge starts and the pool drops. This also confirms the charge state
+	# now runs for heavies (routed from chase when in range).
+	var enemy = _spawn_enemy(2)  # HEAVY
+	await get_tree().process_frame
+
+	var target := CharacterBody3D.new()
+	target.name = "FakePlayer"
+	target.add_to_group("mecha")
+	target.position = Vector3(5.0, 0.0, 0.0)
+	add_child(target)
+	await get_tree().physics_frame
+	enemy.target = target
+	# Freeze regen for the wind-up window so the charge cost is the only
+	# movement the pool sees (regen is an instance var per archetype now).
+	enemy.energy_regen_rate = 0.0
+
+	var energy_before: float = enemy.energy
+	var charge_state = enemy.state_machine.get_node_or_null("StateCharge") if enemy.state_machine else null
+	var charged := false
+	for i in range(80):  # 0.8s wind-up + margin at 60fps
+		await get_tree().physics_frame
+		if charge_state and charge_state.is_charging:
+			charged = true
+			break
+	_check(charged, "heavy starts its charge attack in range")
+	_check(is_equal_approx(enemy.energy, energy_before - enemy.charge_energy_cost), "charge start drains charge_energy_cost")
+
+	# A heavy that drains below its threshold breaks off to recharge.
+	enemy.energy = 5.0
+	var fled := false
+	for i in range(30):
+		await get_tree().physics_frame
+		if enemy.state_machine and enemy.state_machine.current_state and enemy.state_machine.current_state.name == "StateFlee":
+			fled = true
+			break
+	_check(fled, "drained heavy breaks off to recharge")
+	_check(enemy.flee_reason == "energy", "heavy flee is an energy withdrawal")
 
 	target.queue_free()
 	enemy.queue_free()

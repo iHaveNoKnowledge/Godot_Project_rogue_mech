@@ -108,8 +108,9 @@ func physics_process(delta: float) -> void:
 		_perform_attack()
 		# Every attack action draws from the shared energy pool, so sustained
 		# fire (and rusher dashes) gradually drain the enemy until it breaks
-		# off to recharge instead of fighting forever.
-		enemy.energy = maxf(enemy.energy - enemy.ATTACK_ENERGY_COST, 0.0)
+		# off to recharge instead of fighting forever. The cost is tuned per
+		# archetype (see enemy_dummy._apply_energy_tuning).
+		enemy.energy = maxf(enemy.energy - enemy.attack_energy_cost, 0.0)
 
 
 # The warning lasts a fraction of the cooldown (clamped) so fast ranged units

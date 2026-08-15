@@ -43,9 +43,18 @@ var health_system: Node = null
 var _hit_flash: ColorRect = null
 var _hit_flash_tween: Tween = null
 
+# Energy readout: the mech's boost pool (see mecha_controller) shown as a slim
+# cyan bar in the same bottom-center cluster as the HP tubes.
+var energy_bar: ProgressBar = null
+var energy_label: Label = null
+var _player_mecha: Node = null
+var _energy_fill: StyleBoxFlat = null
+var _energy_bg: StyleBoxFlat = null
+
 
 func _ready() -> void:
 	_create_hit_flash()
+	_create_energy_row()
 	EventBus.damage_received.connect(_on_player_damaged)
 	# Two frames so the container layout resolves bar/label minimum sizes.
 	await get_tree().process_frame
@@ -53,6 +62,7 @@ func _ready() -> void:
 	_fit_panel_to_content()
 	var mecha = GameManager.get_player_mecha()
 	if mecha:
+		_player_mecha = mecha
 		health_system = mecha.get_node_or_null("HealthSystem")
 		if health_system:
 			health_system.health_changed.connect(_on_health_changed)
@@ -63,16 +73,94 @@ func _ready() -> void:
 
 # The HP panel is bottom-anchored with a fixed height, but the per-slot
 # armor + frame bars can outgrow that height. Grow the panel upward from its
-# bottom anchor so every row (including the LEG HP bars, the last one) stays
-# INSIDE the panel frame instead of poking out of it — and off the bottom of
-# the viewport.
+# bottom anchor so every row (including the LEG HP bars) stays INSIDE the
+# panel frame instead of poking out of it — and off the bottom of the
+# viewport. The height is clamped to the viewport (never taller than the
+# screen allows) and the panel clips its children, so no bar can ever render
+# below the bottom edge no matter how short the window is.
 func _fit_panel_to_content() -> void:
 	var panel = get_node_or_null("Panel")
 	if panel == null:
 		return
+	var vp_h := get_viewport().get_visible_rect().size.y
 	var min_height: float = panel.get_combined_minimum_size().y
-	if min_height > 0.0:
-		panel.offset_top = panel.offset_bottom - min_height
+	# Keep a safe margin off the top edge; the bottom offset is already a
+	# negative (padded) value so the panel stays inside the screen.
+	var max_height := maxf(vp_h - 80.0, 40.0)
+	var fit_h := clampf(min_height, 40.0, max_height)
+	panel.offset_top = panel.offset_bottom - fit_h
+	panel.clip_contents = true
+
+
+# Adds the ENERGY row (label + slim cyan bar) at the bottom of the HP panel's
+# grid, so the mech's boost pool reads as part of the same status cluster.
+func _create_energy_row() -> void:
+	var grid = get_node_or_null("Panel/Grid")
+	if grid == null:
+		return
+	var row := VBoxContainer.new()
+	row.name = "EnergyCell"
+	row.add_theme_constant_override("separation", 1)
+	grid.add_child(row)
+
+	energy_label = Label.new()
+	energy_label.text = "ENERGY:"
+	energy_label.add_theme_font_size_override("font_size", 9)
+	energy_label.add_theme_color_override("font_color", Color(0.45, 0.85, 1.0))
+	row.add_child(energy_label)
+
+	energy_bar = ProgressBar.new()
+	energy_bar.custom_minimum_size = Vector2(120, 8)
+	energy_bar.max_value = 100.0
+	energy_bar.value = 100.0
+	energy_bar.show_percentage = false
+	_energy_fill = StyleBoxFlat.new()
+	_energy_fill.bg_color = Color(0.2, 0.75, 1.0)
+	_energy_fill.corner_radius_top_left = 2
+	_energy_fill.corner_radius_top_right = 2
+	_energy_fill.corner_radius_bottom_left = 2
+	_energy_fill.corner_radius_bottom_right = 2
+	energy_bar.add_theme_stylebox_override("fill", _energy_fill)
+	_energy_bg = StyleBoxFlat.new()
+	_energy_bg.bg_color = Color(0.1, 0.12, 0.18, 0.9)
+	_energy_bg.corner_radius_top_left = 2
+	_energy_bg.corner_radius_top_right = 2
+	_energy_bg.corner_radius_bottom_left = 2
+	_energy_bg.corner_radius_bottom_right = 2
+	energy_bar.add_theme_stylebox_override("background", _energy_bg)
+	row.add_child(energy_bar)
+
+
+# Polls the mech's boost pool every frame (the mech can be re-created by
+# eject/backup spawns) and paints the energy bar, tinting it orange when the
+# tank runs low.
+func _process(_delta: float) -> void:
+	if _player_mecha == null or not is_instance_valid(_player_mecha):
+		_player_mecha = GameManager.get_player_mecha()
+		if _player_mecha == null:
+			return
+	_update_energy_bar()
+
+
+func _update_energy_bar() -> void:
+	if energy_bar == null or energy_label == null:
+		return
+	if _player_mecha == null or not is_instance_valid(_player_mecha) or not ("energy" in _player_mecha):
+		return
+	# _player_mecha is a plain Node, so read the mech's energy fields through
+	# the 1-arg Object.get() (missing -> null) and fall back to defaults.
+	var max_e: float = 100.0
+	var max_raw = _player_mecha.get("max_energy")
+	if max_raw != null:
+		max_e = maxf(float(max_raw), 1.0)
+	var cur_raw = _player_mecha.get("energy")
+	var cur_e: float = clampf(float(cur_raw) if cur_raw != null else max_e, 0.0, max_e)
+	energy_bar.max_value = max_e
+	energy_bar.value = cur_e
+	energy_label.text = "ENERGY: %d%%" % int(cur_e / max_e * 100.0)
+	if _energy_fill:
+		var ratio := cur_e / max_e
+		_energy_fill.bg_color = Color(1.0, 0.65, 0.2) if ratio < 0.25 else Color(0.2, 0.75, 1.0)
 
 
 # A transparent full-screen ColorRect sits above the HUD and flashes red on hit.

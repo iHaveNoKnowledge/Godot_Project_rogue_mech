@@ -19,13 +19,17 @@ func _ready() -> void:
 	_update_objective_panel()
 	EventBus.game_state_changed.connect(_on_state_changed)
 	visibility_changed.connect(_on_visibility_changed)
+	# NOTE: the intermission music is owned by the board STATE (GameManager
+	# enter_board / return_to_board / advance_to_next_sector), not by this panel.
+	# Playing it here would restart the track every time the panel is shown or
+	# the scene reloads; the state machine starts/resumes it exactly once per
+	# board session.
 	if visible:
-		AudioManager.play_intermission_music()
+		_update_objective_panel()
 
 
 func _on_visibility_changed() -> void:
 	if visible:
-		AudioManager.play_intermission_music()
 		_update_objective_panel()
 
 

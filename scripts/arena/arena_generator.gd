@@ -497,18 +497,21 @@ func _create_escape_zones() -> void:
 	var half := arena_size / 2.0
 	var len := arena_size
 
-	# Escape walls form a square frame of tall light walls around the arena's
+	# Escape zones form a square frame of tall light walls around the arena's
 	# outer edge — OUTSIDE the combat field (beyond the spawn ring and dunes,
 	# just inside the void barrier) — so retreating never happens mid-fight.
-	# They are tall walls, not flat floor strips.
-	var wall_gap := 1.5
-	var wall_thickness := 2.0
+	# The trigger box now extends WELL PAST the visible wall into the outside
+	# strip (up to and beyond the void barrier): the wall itself is a slim,
+	# purely-visual light wall the player walks straight through, and the
+	# retreat hold keeps charging even out in the dead zone behind it.
 	var wall_height := 8.0
+	var trigger_thickness := 7.0
+	var trigger_center := half - 0.5
 	var zone_defs = [
-		{"pos": Vector3(0, wall_height * 0.5, -(half - wall_gap)), "size": Vector3(len, wall_height, wall_thickness)},
-		{"pos": Vector3(0, wall_height * 0.5, (half - wall_gap)), "size": Vector3(len, wall_height, wall_thickness)},
-		{"pos": Vector3(-(half - wall_gap), wall_height * 0.5, 0), "size": Vector3(wall_thickness, wall_height, len)},
-		{"pos": Vector3((half - wall_gap), wall_height * 0.5, 0), "size": Vector3(wall_thickness, wall_height, len)},
+		{"pos": Vector3(0, wall_height * 0.5, -trigger_center), "size": Vector3(len, wall_height, trigger_thickness)},
+		{"pos": Vector3(0, wall_height * 0.5, trigger_center), "size": Vector3(len, wall_height, trigger_thickness)},
+		{"pos": Vector3(-trigger_center, wall_height * 0.5, 0), "size": Vector3(trigger_thickness, wall_height, len)},
+		{"pos": Vector3(trigger_center, wall_height * 0.5, 0), "size": Vector3(trigger_thickness, wall_height, len)},
 	]
 
 	var zone_script := preload("res://scripts/arena/escape_zone.gd")

@@ -115,21 +115,37 @@ func _clear_choices() -> void:
 func _on_choice_pressed(choice: Dictionary) -> void:
 	if not is_inside_tree():
 		return
-	visible = false
-	if get_tree():
-		get_tree().paused = false
 	var forced := GlobalData.apply_event_effect(choice)
 	if forced:
 		# The choice sprang a trap — jump straight into battle.
+		visible = false
+		if get_tree():
+			get_tree().paused = false
 		GameManager.enter_combat(str(choice.get("params", {}).get("combat_type", "grunt")))
 	else:
-		GameManager.return_to_board()
+		_resume_from_popup()
 
 
 func _on_continue_pressed() -> void:
 	if not is_inside_tree():
 		return
+	_resume_from_popup()
+
+
+# Closes the popup and returns to walking. While already on the BOARD the scene
+# must NOT be reloaded — reloading regenerates the board layout and restarts the
+# intermission music, interrupting the walk after every event popup. Instead the
+# popup just unpauses (the effects were already applied to GlobalData) and the
+# board refreshes its patrol markers / highlights. After combat / hangar the
+# state is not BOARD, so return_to_board() (which loads the board scene) runs.
+func _resume_from_popup() -> void:
 	visible = false
 	if get_tree():
 		get_tree().paused = false
+	if GameManager.current_state == GameManager.State.BOARD:
+		GlobalData.save_run()
+		var board = get_tree().current_scene if get_tree() else null
+		if board and board.has_method("refresh_after_event"):
+			board.refresh_after_event()
+		return
 	GameManager.return_to_board()

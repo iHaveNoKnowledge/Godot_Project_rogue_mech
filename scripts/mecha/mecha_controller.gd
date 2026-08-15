@@ -18,6 +18,20 @@ var dash_timer: float = 0.0
 var dash_cooldown_timer: float = 0.0
 var is_dashing: bool = false
 var dash_direction: Vector3 = Vector3.ZERO
+
+# --- Energy system ----------------------------------------------------------
+# The mech runs on a finite energy pool. Normal walking is nearly free, but
+# every dash costs a chunk of energy and sustained roller dashing drains the
+# pool at an ever-increasing rate — so spamming dashes or holding the roller
+# burns through it fast. Releasing the throttle lets the pool recharge.
+var max_energy: float = 100.0
+var energy: float = 100.0
+const DASH_ENERGY_COST := 12.0        # energy per dash burst
+const ENERGY_REGEN_RATE := 10.0       # per second while not boosting
+const ROLLER_BASE_DRAIN := 4.0        # per second the roller is held
+const ROLLER_RAMP_DRAIN := 7.0        # extra per second per second of continuous roller use
+const ROLLER_MAX_DRAIN := 40.0        # ceiling so a full tank lasts ~2.5s at max burn
+var roller_drain_ramp: float = 0.0    # grows while the roller is held, resets on release
 # Recoil kick applied by heavy weapons (see apply_recoil_impulse). Decays over
 # a short window so the mech staggers backwards instead of teleporting.
 var recoil_vector: Vector3 = Vector3.ZERO
@@ -124,6 +138,7 @@ func apply_heavy_recoil_impulse(backward: Vector3) -> void:
 
 func _physics_process(delta: float) -> void:
 	dash_cooldown_timer -= delta
+	_process_energy(delta)
 
 	if is_dashing:
 		dash_timer -= delta
@@ -152,12 +167,39 @@ func _handle_movement_input() -> void:
 	strafe_mode = Input.is_action_pressed("strafe")
 
 	if Input.is_action_just_pressed("roller_dash"):
-		is_roller_dashing = not is_roller_dashing
-		if AudioManager:
-			AudioManager.play_ui_click()
+		if energy > 1.0:
+			# Re-engaging the roller restarts the burn ramp from zero.
+			if not is_roller_dashing:
+				roller_drain_ramp = 0.0
+			is_roller_dashing = not is_roller_dashing
+			if AudioManager:
+				AudioManager.play_ui_click()
+		else:
+			# Empty tank: the roller refuses to engage until it recharges.
+			is_roller_dashing = false
+			roller_drain_ramp = 0.0
 
 	if Input.is_action_just_pressed("dash") and dash_cooldown_timer <= 0.0:
-		_start_dash()
+		if energy >= DASH_ENERGY_COST:
+			_start_dash()
+
+
+# Regenerates or burns the energy pool every frame. The roller's drain ramps up
+# the longer it is held, so marathon roller dashing exhausts the tank quickly
+# while short bursts stay cheap; releasing it restarts regen immediately.
+func _process_energy(delta: float) -> void:
+	if is_roller_dashing:
+		roller_drain_ramp = minf(roller_drain_ramp + ROLLER_RAMP_DRAIN * delta, ROLLER_MAX_DRAIN)
+		energy = maxf(energy - (ROLLER_BASE_DRAIN + roller_drain_ramp) * delta, 0.0)
+		if energy <= 0.0:
+			# Out of juice: the roller cuts out mid-run.
+			is_roller_dashing = false
+			roller_drain_ramp = 0.0
+			if AudioManager:
+				AudioManager.play_ui_click()
+	else:
+		roller_drain_ramp = 0.0
+		energy = minf(energy + ENERGY_REGEN_RATE * delta, max_energy)
 
 
 func _apply_movement(delta: float) -> void:
@@ -372,6 +414,7 @@ func _start_dash() -> void:
 	is_dashing = true
 	dash_timer = dash_duration
 	dash_cooldown_timer = dash_cooldown
+	energy = maxf(energy - DASH_ENERGY_COST, 0.0)
 
 	_spawn_dash_effect()
 	if AudioManager:

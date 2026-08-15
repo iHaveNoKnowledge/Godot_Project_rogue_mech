@@ -18,6 +18,36 @@ var state_machine: EnemyStateMachine
 # Stagger from heavy impacts: briefly interrupts the enemy so it can't act.
 var stagger_timer: float = 0.0
 
+# --- Enemy energy pool -------------------------------------------------------
+# Hostiles run on the SAME economy the player does: normal walking is nearly
+# free, but a Rusher's dash burst costs a chunk of energy and the pool only
+# recharges while the enemy isn't boosting. That keeps enemies from spamming
+# dashes all fight — and when the tank runs dry the enemy breaks off and
+# retreats to recharge instead of fighting on empty (see flee_reason).
+var max_energy: float = 100.0
+var energy: float = 100.0
+const DASH_ENERGY_COST := 18.0        # energy per Rusher dash burst
+const ATTACK_ENERGY_COST := 4.0       # energy per attack cycle (every archetype)
+const ENERGY_REGEN_RATE := 9.0        # per second while not boosting
+const LOW_ENERGY_THRESHOLD := 20.0    # below this the enemy withdraws to regen
+const RECHARGED_ENERGY := 60.0        # flee ends once the pool is back above this
+
+# Why the enemy is currently fleeing: "hp" (frame damage) or "energy" (drained
+# pool). StateFlee reassesses differently per reason — an energy-fleeing enemy
+# only re-engages after recharging, while a hurt one returns once patched up.
+var flee_reason: String = ""
+
+# Rusher dash burst (combat only — triggered from StateChase, never while
+# patrolling). Movement is applied here in _physics_process so the state
+# machine is paused for the burst's duration.
+var is_dashing: bool = false
+var dash_speed: float = 20.0
+var dash_duration: float = 0.3
+var dash_cooldown: float = 3.2
+var dash_cooldown_timer: float = 0.0
+var dash_timer: float = 0.0
+var dash_direction: Vector3 = Vector3.ZERO
+
 # PartMeshManager that renders this enemy from the mech armor catalog.
 var catalog_body: Node = null
 
@@ -379,6 +409,10 @@ func _build_fire_core() -> void:
 func _process(delta: float) -> void:
 	if fire_core:
 		fire_core.tick(delta)
+	# Recharge the pool whenever the enemy isn't mid-dash. The cost is charged
+	# up front in start_dash(), so an enemy that never boosts stays topped up.
+	if not is_dashing:
+		energy = minf(energy + ENERGY_REGEN_RATE * delta, max_energy)
 
 
 func _on_destroyed() -> void:
@@ -512,6 +546,23 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		return
 
+	# Mid-dash: the burst owns movement for its short duration (the state
+	# machine is paused so the enemy can't act while boosting). Costs are
+	# charged up front by start_dash(); regen resumes once the burst ends.
+	if is_dashing:
+		dash_timer -= delta
+		velocity.x = dash_direction.x * dash_speed
+		velocity.z = dash_direction.z * dash_speed
+		velocity.y = -10.0
+		move_and_slide()
+		if dash_direction.length() > 0.1:
+			rotation.y = lerp_angle(rotation.y, atan2(dash_direction.x, dash_direction.z), 10.0 * delta)
+		if dash_timer <= 0.0:
+			is_dashing = false
+		return
+
+	dash_cooldown_timer = maxf(dash_cooldown_timer - delta, 0.0)
+
 	# Delegate to state machine
 	if state_machine:
 		state_machine._physics_process(delta)
@@ -519,6 +570,34 @@ func _physics_process(delta: float) -> void:
 
 # Called by the player's weapons when they land an impact-heavy hit. Stall the
 # current action: interrupt the attack briefly (stagger) and shove the enemy.
+# --- Rusher dash ------------------------------------------------------------
+# Only the Rusher archetype lunges; the burst costs a chunk of the energy pool
+# so a rusher can't dash forever. Returns false when the pool/cooldown isn't
+# ready so callers fall back to plain pursuit.
+func start_dash(dir: Vector3) -> bool:
+	if archetype != 0:
+		return false
+	if energy < DASH_ENERGY_COST or dash_cooldown_timer > 0.0 or is_dashing:
+		return false
+	dash_direction = dir.normalized()
+	dash_direction.y = 0.0
+	if dash_direction.length() < 0.05:
+		dash_direction = -transform.basis.z
+	is_dashing = true
+	dash_timer = dash_duration
+	dash_cooldown_timer = dash_cooldown
+	energy = maxf(energy - DASH_ENERGY_COST, 0.0)
+	if AudioManager:
+		AudioManager.play_dash(global_position)
+	return true
+
+
+# True when the pool is too drained to keep fighting — the enemy should break
+# off and withdraw to recharge (see StateFlee).
+func is_low_energy() -> bool:
+	return energy < LOW_ENERGY_THRESHOLD
+
+
 func apply_impact(amount: float, from_dir: Vector3) -> void:
 	stagger_timer = maxf(stagger_timer, clampf(0.25 + amount * 0.02, 0.3, 1.2))
 	from_dir.y = 0.0

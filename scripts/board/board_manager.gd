@@ -206,6 +206,16 @@ func _intermission_open() -> bool:
 	return ui != null and ui.visible
 
 
+# Repaints the dynamic board state after an event popup closes WITHOUT reloading
+# the scene (see event_ui._resume_from_popup). Event effects like patrol_recruit
+# remove fleets or move tokens, so the arrow markers and walkable highlights
+# must be redrawn in place instead of waiting for a scene reload.
+func refresh_after_event() -> void:
+	_refresh_patrol_markers()
+	_highlight_adjacent()
+	_update_token_position()
+
+
 func _end_day() -> void:
 	# Safety net: combat was entered this frame (the board scene is already out
 	# of the tree), so the end-of-day emit would hit an orphaned EventUI.

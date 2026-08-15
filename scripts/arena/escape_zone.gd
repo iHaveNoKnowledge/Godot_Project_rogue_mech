@@ -24,7 +24,6 @@ var _battle_over := false
 var _zone_mesh: MeshInstance3D
 var _zone_material: StandardMaterial3D
 var _beacon: OmniLight3D
-var _status_label: Label3D
 
 
 func _ready() -> void:
@@ -95,6 +94,28 @@ func _complete_escape() -> void:
 	EventBus.combat_escaped.emit()
 
 
+# --- State accessors for the combat HUD --------------------------------------
+# The screen-top RETREAT indicator polls the zone group instead of receiving a
+# signal so it stays correct across re-spawns and zone rebuilds.
+
+func is_player_inside() -> bool:
+	return _player_inside and _tracked_body != null and is_instance_valid(_tracked_body)
+
+
+func is_escape_complete() -> bool:
+	return _escaped
+
+
+# How far the hold has charged, 0..1 (drives the HUD color ramp).
+func get_hold_progress() -> float:
+	return clampf(_time_inside / maxf(escape_time, 0.001), 0.0, 1.0)
+
+
+# Seconds left before the retreat completes (for the HUD countdown).
+func get_hold_remaining() -> float:
+	return maxf(escape_time - _time_inside, 0.0)
+
+
 func _update_visual() -> void:
 	if _zone_material == null:
 		return
@@ -130,38 +151,39 @@ func _update_visual() -> void:
 		_beacon.light_color = color
 		_beacon.light_energy = 0.4 + t * 3.0
 
-	if _status_label:
-		if _escaped:
-			_status_label.text = "RETREATING..."
-		elif _player_inside:
-			_status_label.text = "RETREAT: HOLD %.1fs" % maxf(escape_time - _time_inside, 0.0)
-		else:
-			_status_label.text = "RETREAT ZONE"
 
-
-# Builds the glow wall, beacon light and status label. The generator adds the
-# collision shape first so _ready() can read its size and build matching visuals.
+# Builds the glow wall and beacon light. The generator adds the collision
+# shape first so _ready() can read its size and build matching visuals. The
+# trigger box is much thicker than the wall (it extends past the wall into the
+# outside strip), so the visible wall is drawn as a slim slab; it is purely
+# cosmetic — the player walks straight through it. No world-space text is
+# drawn anymore: the RETREAT readout lives on the combat HUD at the top of
+# the screen instead.
 func _build_visuals() -> void:
 	var col := _find_collision_shape()
 	var size := Vector3(20.0, 2.0, 20.0)
 	if col and col.shape is BoxShape3D:
 		size = (col.shape as BoxShape3D).size
 
-	# Glow wall: a tall translucent force-field wall spanning the zone's full
-	# height. The zone origin is the collision box center (placed by the
-	# generator at wall_height/2), so the wall sits grounded with no offset.
+	# Glow wall: a slim translucent force-field slab spanning the zone's full
+	# height, far more transparent than before so the battlefield edge reads
+	# as a light veil rather than a solid barrier. The zone origin is the
+	# collision box center (placed by the generator at wall_height/2), so the
+	# wall sits grounded with no offset.
 	_zone_material = StandardMaterial3D.new()
 	_zone_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	_zone_material.albedo_color = Color(IDLE_COLOR.r, IDLE_COLOR.g, IDLE_COLOR.b, 0.18)
+	_zone_material.albedo_color = Color(IDLE_COLOR.r, IDLE_COLOR.g, IDLE_COLOR.b, 0.08)
 	_zone_material.emission_enabled = true
 	_zone_material.emission = IDLE_COLOR
-	_zone_material.emission_energy_multiplier = 0.6
+	_zone_material.emission_energy_multiplier = 0.4
 	_zone_material.roughness = 0.4
 
 	_zone_mesh = MeshInstance3D.new()
 	_zone_mesh.name = "GlowWall"
 	var wall := BoxMesh.new()
-	wall.size = Vector3(size.x, size.y, size.z)
+	# The trigger extends PAST this wall (the retreat hold keeps charging in the
+	# dead zone behind it), so the visible slab is capped at a slim thickness.
+	wall.size = Vector3(size.x, size.y, minf(size.z, 1.5))
 	_zone_mesh.mesh = wall
 	_zone_mesh.material_override = _zone_material
 	add_child(_zone_mesh)
@@ -174,18 +196,6 @@ func _build_visuals() -> void:
 	_beacon.omni_range = 18.0
 	_beacon.position.y = size.y * 0.5 + 1.5
 	add_child(_beacon)
-
-	# Status label above the strip.
-	_status_label = Label3D.new()
-	_status_label.name = "StatusLabel"
-	_status_label.text = "RETREAT ZONE"
-	_status_label.font_size = 28
-	_status_label.pixel_size = 0.02
-	_status_label.outline_size = 10
-	_status_label.outline_modulate = Color(0, 0, 0, 0.8)
-	_status_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_status_label.position.y = size.y * 0.5 + 3.0
-	add_child(_status_label)
 
 
 # Locates the generator-attached trigger shape by class (unnamed runtime nodes

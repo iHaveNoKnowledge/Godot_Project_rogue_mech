@@ -114,18 +114,11 @@ func _close_swap_confirm() -> void:
 
 
 func equip_part(slot: String, info: Dictionary) -> void:
-	if controller.current_mode == "frame":
-		GlobalData.equipped_frames[slot] = info.duplicate()
-		# A brand-new frame is installed: it starts at full HP, so wipe any
-		# frame damage that belonged to the PREVIOUS frame in this slot.
-		GlobalData.part_damage.erase(slot + "_frame")
-		controller.persist_panel.commit_and_save()
-		controller.stats_panel.update()
-		controller.part_list_panel.populate(slot)
-		controller.garage_panel.update_all_slots_preview()
-		AudioManager.play_ui_confirm()
-		return
-
+	# Weapon slots (hands / back carry) are mode-independent: clicking a weapon
+	# hand tab never changes current_mode, so equipping a weapon must NOT be
+	# hijacked by a leftover mode. (REGISTER drops the player into frame mode,
+	# so equipping weapons on a freshly registered mech would otherwise run the
+	# frame branch below and the weapon would never reach the loadout.)
 	if slot.begins_with("weapon"):
 		var wpath = info.get("path", "")
 		if wpath == "" or not ResourceLoader.exists(wpath):
@@ -140,6 +133,20 @@ func equip_part(slot: String, info: Dictionary) -> void:
 				func(): _perform_weapon_equip(slot, info, wpath))
 			return
 		_perform_weapon_equip(slot, info, wpath)
+		return
+
+	# Inner frames: only reachable for non-weapon slots, so a leftover frame
+	# mode never hijacks weapon equips (see the weapon branch above).
+	if controller.current_mode == "frame":
+		GlobalData.equipped_frames[slot] = info.duplicate()
+		# A brand-new frame is installed: it starts at full HP, so wipe any
+		# frame damage that belonged to the PREVIOUS frame in this slot.
+		GlobalData.part_damage.erase(slot + "_frame")
+		controller.persist_panel.commit_and_save()
+		controller.stats_panel.update()
+		controller.part_list_panel.populate(slot)
+		controller.garage_panel.update_all_slots_preview()
+		AudioManager.play_ui_confirm()
 		return
 
 	var inst := info
@@ -420,17 +427,9 @@ func _transfer_armor_from_other_mechs(uid: String) -> String:
 
 
 func unequip_part(slot: String) -> void:
-	if controller.current_mode == "frame":
-		GlobalData.equipped_frames.erase(slot)
-		GlobalData.part_damage.erase(slot)
-		GlobalData.part_damage.erase(slot + "_frame")
-		controller.persist_panel.commit_and_save()
-		controller.stats_panel.update()
-		controller.part_list_panel.populate(slot)
-		controller.garage_panel.update_all_slots_preview()
-		AudioManager.play_ui_click()
-		return
-
+	# Same mode-independence rule as equip_part(): weapon slots must be handled
+	# before the frame-mode branch, or UNEQUIP on a weapon while in frame mode
+	# would erase a frames-dict key and leave the weapon in the loadout.
 	if slot.begins_with("weapon"):
 		if slot == "weapon_carry":
 			var wpath = controller.selected_part_path
@@ -450,6 +449,19 @@ func unequip_part(slot: String) -> void:
 					existing = mecha.get_node_or_null(node_name)
 				if existing:
 					existing.queue_free()
+		controller.stats_panel.update()
+		controller.part_list_panel.populate(slot)
+		controller.garage_panel.update_all_slots_preview()
+		AudioManager.play_ui_click()
+		return
+
+	# Inner frames: only reachable for non-weapon slots (weapon slots are
+	# handled by the branch above regardless of the leftover mode).
+	if controller.current_mode == "frame":
+		GlobalData.equipped_frames.erase(slot)
+		GlobalData.part_damage.erase(slot)
+		GlobalData.part_damage.erase(slot + "_frame")
+		controller.persist_panel.commit_and_save()
 		controller.stats_panel.update()
 		controller.part_list_panel.populate(slot)
 		controller.garage_panel.update_all_slots_preview()

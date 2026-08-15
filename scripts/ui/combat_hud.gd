@@ -3,10 +3,19 @@ extends CanvasLayer
 var panel: PanelContainer
 var status_label: Label
 
+# Top-of-screen RETREAT indicator: replaces the old world-space "RETREAT ZONE"
+# label with a slim banner pinned to the top edge of the screen (inside the
+# viewport). It appears while the player stands in an escape zone and shows the
+# hold countdown, ramping cyan -> amber -> red as the escape charges.
+var retreat_panel: PanelContainer
+var retreat_label: Label
+var _retreat_fill: StyleBoxFlat
+
 
 func _ready() -> void:
 	layer = 5
 	_create_ui()
+	_create_retreat_indicator()
 
 
 func _create_ui() -> void:
@@ -65,3 +74,82 @@ func _process(_delta: float) -> void:
 		else:
 			status_label.text = "WAVE %d / %d  |  ENEMIES LEFT: %d" % [cur_wave, tot_waves, enemies_left]
 			status_label.add_theme_color_override("font_color", Color(0.4, 0.85, 1.0))
+
+	_update_retreat_indicator()
+
+
+# Builds the slim RETREAT banner pinned to the top-center of the screen, above
+# the wave/status panel (offset_top 64). Fixed offsets keep it fully inside the
+# viewport at every resolution (the project stretches to 1920x1080 logical).
+func _create_retreat_indicator() -> void:
+	retreat_panel = PanelContainer.new()
+	retreat_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	retreat_panel.offset_left = -160
+	retreat_panel.offset_right = 160
+	retreat_panel.offset_top = 8
+	retreat_panel.offset_bottom = 38
+	retreat_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	retreat_panel.visible = false
+	get_child(0).add_child(retreat_panel)
+
+	_retreat_fill = StyleBoxFlat.new()
+	_retreat_fill.bg_color = Color(0.08, 0.12, 0.2, 0.9)
+	_retreat_fill.border_width_left = 2
+	_retreat_fill.border_width_right = 2
+	_retreat_fill.border_width_top = 2
+	_retreat_fill.border_width_bottom = 2
+	_retreat_fill.border_color = Color(0.3, 0.7, 1.0, 0.9)
+	_retreat_fill.corner_radius_top_left = 6
+	_retreat_fill.corner_radius_top_right = 6
+	_retreat_fill.corner_radius_bottom_left = 6
+	_retreat_fill.corner_radius_bottom_right = 6
+	retreat_panel.add_theme_stylebox_override("panel", _retreat_fill)
+
+	retreat_label = Label.new()
+	retreat_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	retreat_label.add_theme_font_size_override("font_size", 15)
+	retreat_label.add_theme_color_override("font_color", Color(0.5, 0.9, 1.0))
+	retreat_panel.add_child(retreat_label)
+
+
+# Polls every escape zone; shows the banner while the player is inside one (or
+# while a retreat is completing) and paints the countdown + color ramp.
+func _update_retreat_indicator() -> void:
+	if retreat_panel == null or retreat_label == null:
+		return
+	var zones := get_tree().get_nodes_in_group("escape_zone")
+	var shown := false
+	var progress := 0.0
+	var remaining := 0.0
+	var completing := false
+	for zone in zones:
+		if not is_instance_valid(zone):
+			continue
+		if zone.has_method("is_escape_complete") and zone.is_escape_complete():
+			completing = true
+			remaining = 0.0
+			progress = 1.0
+			shown = true
+			break
+		if zone.has_method("is_player_inside") and zone.is_player_inside():
+			progress = zone.get_hold_progress()
+			remaining = zone.get_hold_remaining()
+			shown = true
+			break
+
+	if not shown:
+		retreat_panel.visible = false
+		return
+	retreat_panel.visible = true
+
+	if completing:
+		retreat_label.text = "RETREATING..."
+		retreat_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.25))
+		_retreat_fill.border_color = Color(1.0, 0.3, 0.25, 0.9)
+	else:
+		retreat_label.text = "RETREAT — HOLD %.1fs" % remaining
+		var c := Color(0.5, 0.9, 1.0).lerp(Color(1.0, 0.85, 0.25), progress)
+		if progress > 0.5:
+			c = c.lerp(Color(1.0, 0.3, 0.25), (progress - 0.5) * 2.0)
+		retreat_label.add_theme_color_override("font_color", c)
+		_retreat_fill.border_color = Color(c.r, c.g, c.b, 0.9)

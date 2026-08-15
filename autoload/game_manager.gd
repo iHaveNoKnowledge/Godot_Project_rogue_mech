@@ -32,6 +32,10 @@ func transition_to(new_state: State) -> void:
 func enter_board() -> void:
 	get_tree().change_scene_to_file("res://scenes/board/game_board.tscn")
 	transition_to(State.BOARD)
+	# The intermission music is bound to the board state, not to the UI panel:
+	# it plays (or resumes the saved track) every time the board becomes the
+	# active state, so a popup that stays on the board never restarts it.
+	AudioManager.play_intermission_music()
 
 
 var combat_node_type: String = "grunt"
@@ -79,6 +83,7 @@ func advance_to_next_sector() -> void:
 	AudioManager.stop_music()
 	get_tree().change_scene_to_file("res://scenes/board/game_board.tscn")
 	transition_to(State.BOARD)
+	AudioManager.play_intermission_music()
 
 
 func return_to_board() -> void:
@@ -88,6 +93,7 @@ func return_to_board() -> void:
 	AudioManager.stop_music()
 	get_tree().change_scene_to_file("res://scenes/board/game_board.tscn")
 	transition_to(State.BOARD)
+	AudioManager.play_intermission_music()
 
 
 func enter_safehouse() -> void:

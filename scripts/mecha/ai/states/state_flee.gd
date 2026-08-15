@@ -28,11 +28,20 @@ func physics_process(delta: float) -> void:
 		state_machine.transition_to("StateIdle")
 		return
 
-	# After fleeing for a while, reassess
+	# After fleeing for a while, reassess. An energy-fleeing enemy only returns
+	# once the pool recharges (it withdrew to recharge); a hurt one returns as
+	# soon as it is no longer critically damaged.
 	if flee_timer > 3.0:
-		if not _is_low_hp():
-			state_machine.transition_to("StateChase")
-			return
+		if enemy.flee_reason == "energy":
+			if enemy.energy >= enemy.RECHARGED_ENERGY:
+				enemy.flee_reason = ""
+				state_machine.transition_to("StateChase")
+				return
+		else:
+			if not _is_low_hp():
+				enemy.flee_reason = ""
+				state_machine.transition_to("StateChase")
+				return
 		flee_timer = 0.0
 		_update_flee_path()
 

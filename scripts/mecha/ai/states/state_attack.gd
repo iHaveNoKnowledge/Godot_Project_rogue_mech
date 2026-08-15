@@ -56,8 +56,15 @@ func physics_process(delta: float) -> void:
 		state_machine.transition_to("StateChase")
 		return
 
+	# Drained pool: break off and recharge rather than fight on empty.
+	if enemy.is_low_energy():
+		enemy.flee_reason = "energy"
+		state_machine.transition_to("StateFlee")
+		return
+
 	# Low HP check
 	if enemy.health_system and _is_low_hp():
+		enemy.flee_reason = "hp"
 		state_machine.transition_to("StateFlee")
 		return
 
@@ -99,6 +106,10 @@ func physics_process(delta: float) -> void:
 		attack_timer = enemy.attack_cooldown
 		_telegraph_active = false
 		_perform_attack()
+		# Every attack action draws from the shared energy pool, so sustained
+		# fire (and rusher dashes) gradually drain the enemy until it breaks
+		# off to recharge instead of fighting forever.
+		enemy.energy = maxf(enemy.energy - enemy.ATTACK_ENERGY_COST, 0.0)
 
 
 # The warning lasts a fraction of the cooldown (clamped) so fast ranged units

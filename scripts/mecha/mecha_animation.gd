@@ -90,11 +90,35 @@ func set_core_breach(breach: bool) -> void:
 	is_core_breach = breach
 
 
+# When true the AnimationPlayer (MechaRig.ANIM_PLAYER_NODE) drives the mech
+# from external clips instead of the procedural pose. Stays false until skinned
+# parts + animation assets exist; flipping it early safely falls back to
+# procedural until the first clip is present.
+@export var use_clip_animation: bool = false
+
 func _physics_process(delta: float) -> void:
 	if mecha == null:
 		return
 	_refresh_node_refs()
 
+	if use_clip_animation:
+		_update_clip_animation(delta)
+		return
+
+	_run_procedural(delta)
+
+
+# Clip-driven entry point. Once external animation lands, this becomes the
+# state machine that plays/queues the MechaRig.CLIP_* clips (idle, run, jump,
+# kneel, core breach, shield, recoil...). Until clips exist it hands the frame
+# back to the procedural pose so the flag never freezes a mech.
+func _update_clip_animation(delta: float) -> void:
+	var anim_player = mecha.get_node_or_null(MechaRig.ANIM_PLAYER_NODE) as AnimationPlayer
+	if anim_player == null or anim_player.get_animation_list().is_empty():
+		_run_procedural(delta)
+
+
+func _run_procedural(delta: float) -> void:
 	# The death (core-breach) collapse takes precedence over every other pose:
 	# the machine is down and no longer responding to pilot/movement input.
 	if is_core_breach:

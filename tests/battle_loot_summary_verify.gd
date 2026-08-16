@@ -175,7 +175,15 @@ func _verify_unclaimed_salvage() -> void:
 	_check(rewards_ui.rewards_label.text.contains("stripped for +"), "victory summary announces unclaimed salvage")
 	# Baseline AFTER the victory screen (it grants its own credit/scrap rewards).
 	var scrap_before: int = GlobalData.scrap
-	# Take back only the weapon (first row).
+	# Both drops start unclaimed — the summary must show their COMBINED scrap.
+	var both_scrap := 0
+	for e in rewards_ui._left_items:
+		both_scrap += int(rewards_ui._salvage_value(e))
+	_check(both_scrap > 0, "combined unclaimed scrap is positive (%d)" % both_scrap)
+	_check(rewards_ui.rewards_label.text.contains("stripped for +%d" % both_scrap), "summary shows combined scrap for all unclaimed drops")
+
+	# Take back only the weapon (first row) — the figure must DROP to just the
+	# armor's value in real time (no re-opening the screen needed).
 	var left := _loot_buttons(rewards_ui.loot_left_list)
 	if left.size() >= 1:
 		left[0].pressed.emit()
@@ -184,6 +192,26 @@ func _verify_unclaimed_salvage() -> void:
 
 	var expected_scrap: int = int(rewards_ui._salvage_value(rewards_ui._left_items[0]))
 	_check(expected_scrap > 0, "unclaimed armor has a positive scrap value (%d)" % expected_scrap)
+	_check(expected_scrap < both_scrap, "taking a weapon back lowers the unclaimed scrap total (%d -> %d)" % [both_scrap, expected_scrap])
+	_check(rewards_ui.rewards_label.text.contains("stripped for +%d" % expected_scrap), "summary updates live to the new unclaimed scrap total")
+	_check(not rewards_ui.rewards_label.text.contains("stripped for +%d" % both_scrap), "summary no longer shows the old combined total")
+
+	# Move the armor back to TAKE BACK too — nothing unclaimed left.
+	var left_after := _loot_buttons(rewards_ui.loot_left_list)
+	if left_after.size() >= 1:
+		left_after[0].pressed.emit()
+		await get_tree().process_frame
+	_check(rewards_ui._left_items.is_empty(), "both items moved to TAKE BACK, nothing unclaimed")
+	_check(rewards_ui.rewards_label.text.contains("No salvage dropped"), "summary flips to 'no unclaimed drops' when everything is taken")
+
+	# Reset to the unclaimed-armor state so the grant check below is exact:
+	# right = [weapon] (taken back), left = [armor] (unclaimed). Right now right
+	# holds [weapon, armor] in click order, so return the SECOND row (armor).
+	var right_buttons := _loot_buttons(rewards_ui.loot_right_list)
+	if right_buttons.size() >= 2:
+		right_buttons[1].pressed.emit()
+		await get_tree().process_frame
+	_check(rewards_ui._right_items.size() == 1, "weapon stays on TAKE BACK, armor returned to BATTLE DROPS")
 	var stash_before: int = GlobalData.weapon_inventory.size()
 	rewards_ui._grant_take_back_loot()
 	await get_tree().process_frame

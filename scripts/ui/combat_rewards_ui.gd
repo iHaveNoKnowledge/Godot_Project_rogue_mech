@@ -17,6 +17,13 @@ var rewards: Dictionary = {}
 var _left_items: Array = []
 var _right_items: Array = []
 
+# Live loot-summary state: the fixed "Rewards:..." tail that stays pinned below
+# the summary line, and whether the loot summary owns the label (vs. duel /
+# ending text). Moving items between the columns calls _refresh_loot_summary()
+# so the "stripped for +X Scrap" figure updates in real time.
+var _rewards_tail: String = ""
+var _loot_summary_active: bool = false
+
 # Heat gained when the player abandons a battle through a retreat zone.
 const ESCAPE_HEAT_PENALTY := 4
 
@@ -203,6 +210,7 @@ func _toggle_loot_entry(entry: Dictionary) -> void:
 		_right_items.erase(entry)
 		_left_items.append(entry)
 	_populate_loot_picker()
+	_refresh_loot_summary()
 	AudioManager.play_ui_confirm()
 
 
@@ -251,6 +259,25 @@ func _salvage_value(entry: Dictionary) -> int:
 				return 0
 			return GlobalData.get_armor_scrap_cost(inst)
 	return 0
+
+
+# Rebuilds the loot-summary block from the CURRENT left/right split so the
+# "stripped for +X Scrap" figure is always accurate while the player moves
+# items between the columns. Splices the fixed rewards tail back underneath.
+func _refresh_loot_summary() -> void:
+	if not _loot_summary_active or rewards_label == null:
+		return
+	var loot_summary := ""
+	if _left_items.is_empty():
+		loot_summary = "No salvage dropped in this battle.\n"
+	else:
+		var unclaimed_scrap := 0
+		for entry in _left_items:
+			unclaimed_scrap += _salvage_value(entry)
+		loot_summary = "Click items in BATTLE DROPS to take them back.\n"
+		if unclaimed_scrap > 0:
+			loot_summary += "Unclaimed drops are stripped for +%d Scrap.\n" % unclaimed_scrap
+	rewards_label.text = loot_summary + _rewards_tail
 
 
 func _on_combat_ended(victory: bool) -> void:
@@ -339,30 +366,25 @@ func _show_victory_rewards() -> void:
 		loot_picker.visible = not _left_items.is_empty()
 
 	if is_duel:
+		_loot_summary_active = false
 		var duel_text := GlobalData.duel_result_text
 		GlobalData.duel_result_text = ""
 		if duel_text != "":
 			rewards_label.text = "%s\n" % duel_text
 	else:
-		var loot_summary := ""
-		if _left_items.is_empty():
-			loot_summary = "No salvage dropped in this battle.\n"
-		else:
-			var unclaimed_scrap := 0
-			for entry in _left_items:
-				unclaimed_scrap += _salvage_value(entry)
-			loot_summary = "Click items in BATTLE DROPS to take them back.\n"
-			if unclaimed_scrap > 0:
-				loot_summary += "Unclaimed drops are stripped for +%d Scrap.\n" % unclaimed_scrap
-		rewards_label.text = loot_summary
+		_loot_summary_active = true
+		# The fixed block under the live summary line (rebuilt each toggle via
+		# _refresh_loot_summary, which splices it back below the updated figure).
+		_rewards_tail = ""
 		if not is_boss or not is_final_sector:
-			rewards_label.text += "Rewards:\n"
-			rewards_label.text += "+%d Credits\n" % credits_gained
-			rewards_label.text += "+%d Scrap (Material)\n" % scrap_gained
+			_rewards_tail = "Rewards:\n"
+			_rewards_tail += "+%d Credits\n" % credits_gained
+			_rewards_tail += "+%d Scrap (Material)\n" % scrap_gained
 			if data_cores_gained > 0:
-				rewards_label.text += "+%d Data Cores (Research Item)\n" % data_cores_gained
-			rewards_label.text += "+%d Heat\n" % heat_gained
-			rewards_label.text += "\nTotal Credits: %d | Scrap: %d" % [GlobalData.credits, GlobalData.scrap]
+				_rewards_tail += "+%d Data Cores (Research Item)\n" % data_cores_gained
+			_rewards_tail += "+%d Heat\n" % heat_gained
+			_rewards_tail += "\nTotal Credits: %d | Scrap: %d" % [GlobalData.credits, GlobalData.scrap]
+		_refresh_loot_summary()
 
 	await get_tree().process_frame
 	if continue_button:
@@ -371,6 +393,7 @@ func _show_victory_rewards() -> void:
 
 func _show_escape_screen() -> void:
 	visible = true
+	_loot_summary_active = false
 	title_label.text = "WITHDREW FROM COMBAT"
 	rewards_label.text = "You held position in the retreat zone and abandoned the battle.\n\nNo rewards are collected for a retreat.\n\n+%d Heat — enemy forces tighten their pursuit." % ESCAPE_HEAT_PENALTY
 	continue_button.text = "Return to Board [Enter / Space / Click]"
@@ -391,6 +414,7 @@ func _show_escape_screen() -> void:
 
 func _show_defeat_screen() -> void:
 	visible = true
+	_loot_summary_active = false
 	var ending: Dictionary = GlobalData.get_theme_ending()
 	title_label.text = "DEFEATED"
 	rewards_label.text = ending.get("defeat_text", "Your mech has been destroyed.\n\nReturning to main menu...")

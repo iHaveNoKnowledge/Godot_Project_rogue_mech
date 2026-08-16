@@ -4,9 +4,8 @@ extends Node
 ##   - the hangar builds a PILOTS page listing every pilot in the convoy (the
 ##     driver plus each researched fleet unit) with live status and the mech
 ##     they drive; wounded pilots get a HEAL shortcut
-##   - the REGISTER name dialog offers the same pilot list, defaults to the
-##     driver, and assigning a fleet pilot parks the new frame under them
-##     instead of taking over the driver's mech
+##   - the REGISTER name dialog asks only for a name (no pilot pick); the new
+##     frame registers as the player's piloted mech
 ## Run: godot --headless --path . res://tests/pilots_panel_verify.tscn
 
 var _fails: int = 0
@@ -145,11 +144,9 @@ func _verify_register_pilot() -> void:
 	await get_tree().process_frame
 	var rp = ctrl.roster_panel_ui
 
-	# Give the convoy a fleet pilot to pick in the REGISTER dialog, plus a
-	# wounded and a destroyed pilot — both must show up but stay locked out.
+	# Give the convoy a fleet pilot — the REGISTER dialog must NOT offer a pilot
+	# picker anymore: registering a frame just names it and makes it your mech.
 	GlobalData.fleet_roster.append({"template_id": "t_reg", "name": "Regina", "hp": 60.0, "max_hp": 60.0, "destroyed": false, "fielded": true})
-	GlobalData.fleet_roster.append({"template_id": "t_regw", "name": "Wanda Wound", "hp": 30.0, "max_hp": 60.0, "destroyed": false, "fielded": true, "wounded": true, "wound_turns": 2})
-	GlobalData.fleet_roster.append({"template_id": "t_regd", "name": "Doris Dead", "hp": 0.0, "max_hp": 60.0, "destroyed": true, "fielded": true})
 
 	# Start the REGISTER assembly for the empty berth and equip a walking chassis.
 	rp.register_mech(2)
@@ -158,44 +155,15 @@ func _verify_register_pilot() -> void:
 	GlobalData.equipped_frames["leg_left"] = (GlobalData.frame_catalog["leg_left"][0] as Dictionary).duplicate()
 	GlobalData.equipped_frames["leg_right"] = (GlobalData.frame_catalog["leg_right"][0] as Dictionary).duplicate()
 	rp.refresh_pending_register()
-	GlobalData.gain_scrap(200)
-	GlobalData.gain_credits(200)
 	if rp.pending_register_button:
 		rp.pending_register_button.pressed.emit()
 		await get_tree().process_frame
 	_check(rp.register_dialog != null, "REGISTER opens the name dialog")
-	_check(rp.register_dialog_pilot != null, "name dialog offers a pilot picker")
-	if rp.register_dialog_pilot:
-		_check(rp.register_dialog_pilot.item_count == GlobalData.get_hangar_pilots().size(), "pilot picker lists every convoy pilot")
-		_check(rp.register_dialog_pilot.selected == 0, "pilot picker defaults to the driver")
-		# Wounded and lost pilots are shown with their status but locked out of
-		# REGISTER (a registered frame needs a pilot who can actually drive it).
-		var w_idx := -1
-		var d_idx := -1
-		for i in range(rp.register_dialog_pilot.item_count):
-			var item_text = rp.register_dialog_pilot.get_item_text(i)
-			if item_text.contains("Wanda"):
-				w_idx = i
-			elif item_text.contains("Doris"):
-				d_idx = i
-		_check(w_idx >= 0, "wounded pilot is listed in the REGISTER picker")
-		_check(w_idx >= 0 and rp.register_dialog_pilot.is_item_disabled(w_idx), "wounded pilot is disabled in the REGISTER picker")
-		_check(d_idx >= 0 and rp.register_dialog_pilot.is_item_disabled(d_idx), "destroyed pilot is disabled in the REGISTER picker")
-		_check(not rp.register_dialog_pilot.is_item_disabled(rp.register_dialog_pilot.selected), "the default (driver) pick stays enabled")
+	_check(rp.register_dialog != null and not _collect_text(rp.register_dialog).contains("PILOT:"), "REGISTER dialog has no pilot picker")
 
 	var mechs_before := GlobalData.get_hangar_mechs().size()
 	if rp.register_dialog_edit:
 		rp.register_dialog_edit.text = "Reggie"
-	if rp.register_dialog_pilot:
-		var fleet_idx := -1
-		for i in range(rp.register_dialog_pilot.item_count):
-			if rp.register_dialog_pilot.get_item_text(i).contains("Regina"):
-				fleet_idx = i
-				break
-		_check(fleet_idx >= 0, "fleet pilot is selectable in the picker")
-		_check(fleet_idx >= 0 and not rp.register_dialog_pilot.is_item_disabled(fleet_idx), "healthy fleet pilot stays enabled in the picker")
-		if fleet_idx >= 0:
-			rp.register_dialog_pilot.select(fleet_idx)
 	if rp.register_dialog:
 		var ok := _find_button_by_text(rp.register_dialog, "REGISTER FRAME")
 		if ok:
@@ -212,9 +180,8 @@ func _verify_register_pilot() -> void:
 		for m in GlobalData.get_hangar_mechs():
 			if str(m.get("id", "")) == new_id:
 				pilot_of = str(m.get("pilot", ""))
-		_check(pilot_of == "fleet_t_reg", "fleet-pilot REGISTER parks the frame under the chosen pilot")
-		_check(GlobalData.active_hangar_mech_id != new_id, "fleet-pilot REGISTER does not take over the driver's mech")
-	_check(GlobalData.get_hangar_pilot_name("fleet_t_reg") != "", "registered pilot resolves through the shared pilot list")
+		_check(pilot_of == HangarManager.PLAYER_PILOT_ID, "registered frame becomes the player's piloted mech")
+		_check(GlobalData.active_hangar_mech_id == new_id, "registered frame takes over as the active mech")
 
 	ctrl.queue_free()
 	await get_tree().process_frame

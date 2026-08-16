@@ -52,11 +52,10 @@ func _verify_driver_register_weapon_equip() -> void:
 		await get_tree().process_frame
 	_check(rp.register_dialog != null and is_instance_valid(rp.register_dialog), "register name dialog opens")
 
-	# Confirm with the default pilot (driver build) -> the new mech becomes active.
+	# Confirm the name-only dialog (REGISTER has no pilot pick) — the new mech
+	# becomes active.
 	if rp.register_dialog_edit:
 		rp.register_dialog_edit.text = "Reg Mech"
-	if rp.register_dialog_pilot:
-		rp.register_dialog_pilot.selected = 0
 	rp._confirm_register(2)
 	await get_tree().process_frame
 	await get_tree().process_frame
@@ -135,8 +134,6 @@ func _verify_fleet_register_weapon_equip() -> void:
 		await get_tree().process_frame
 	if rp.register_dialog_edit:
 		rp.register_dialog_edit.text = "Fleet Mech"
-	if rp.register_dialog_pilot:
-		rp.register_dialog_pilot.selected = 0
 	rp._confirm_register(2)
 	await get_tree().process_frame
 	await get_tree().process_frame

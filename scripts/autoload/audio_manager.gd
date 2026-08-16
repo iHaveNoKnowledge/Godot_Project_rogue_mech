@@ -158,6 +158,17 @@ func _generate_sounds() -> void:
 	_sound_cache["pile_bunker_fire"] = _gen_pile_bunker_fire()
 	_sound_cache["pile_bunker_hit"] = _gen_pile_bunker_hit()
 
+	# Enemy shield voices: a short metallic clang when a shot is absorbed by a
+	# raised barrier (blocked damage reads as a block) and a distinct shatter
+	# when the shield is depleted — so shield combat is readable by ear, not
+	# just by the fading bubble.
+	_sound_cache["shield_block"] = [
+		_gen_shield_block(1520.0),
+		_gen_shield_block(1180.0),
+		_gen_shield_block(1860.0),
+	]
+	_sound_cache["shield_break"] = _gen_shield_break()
+
 	# Enemy retreat alert: a descending three-pulse klaxon played when a hostile's
 	# energy pool runs dry and it breaks off to recharge — the opposite of the
 	# rising attack warning, so the pilot reads "that one's falling back".
@@ -633,6 +644,78 @@ func _gen_enemy_melee_swing() -> AudioStreamWAV:
 	return stream
 
 
+# Shield block: a short, bright metallic clang — the barrier absorbing a
+# shot. Fast attack with a resonant ring + a faint energy hum, so a stream of
+# blocked bullets reads as "ping-ping-ping" off the shield instead of hits.
+# The ring frequency is parameterized for pitch-varied cache entries.
+func _gen_shield_block(ring_freq: float) -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 0.09
+	var num_samples = int(duration * sample_rate)
+	var data = PackedByteArray()
+	data.resize(num_samples * 2)
+	for i in range(num_samples):
+		var t = float(i) / sample_rate
+		var attack = minf(t / 0.002, 1.0)
+		var env = attack * exp(-t * 34.0)
+		# Metallic ring: fundamental + bright overtone, both ringing out.
+		var sample = sin(TAU * ring_freq * t) * 0.42 * env
+		sample += sin(TAU * ring_freq * 2.0 * t) * 0.18 * env
+		# Faint energy hum under the clang so it reads as a shield, not a bell.
+		sample += sin(TAU * 260.0 * t) * 0.14 * env
+		# Gritty impact transient.
+		sample += (randf() * 2.0 - 1.0) * 0.12 * attack * exp(-t * 60.0)
+		var val = int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+	var stream = AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream
+
+
+# Shield break: the barrier shatters — a low boom as the field collapses, a
+# burst of crack transients, and a long glassy ring as the energy dissipates.
+# Clearly distinct from the block clang and from the armor crack, so the
+# player hears "shield is DOWN" the moment it happens.
+func _gen_shield_break() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 0.5
+	var num_samples = int(duration * sample_rate)
+	var data = PackedByteArray()
+	data.resize(num_samples * 2)
+	# Crack transients at staggered times (the shatter sequence).
+	var crack_times := [0.0, 0.05, 0.11, 0.19]
+	for i in range(num_samples):
+		var t = float(i) / sample_rate
+		var sample = 0.0
+		# Collapsing-field boom: a falling sub-bass thump.
+		var boom_freq = lerp(150.0, 40.0, t / duration)
+		sample += sin(TAU * boom_freq * t) * 0.5 * exp(-t * 7.0)
+		# Shatter cracks: front-loaded noise bursts.
+		for t0 in crack_times:
+			var local = t - t0
+			if local >= 0.0 and local < 0.06:
+				var c_env = exp(-local * 45.0)
+				sample += (randf() * 2.0 - 1.0) * 0.4 * c_env
+				sample += sin(TAU * 2100.0 * local) * 0.2 * c_env
+		# Glassy ring tail: bright resonance with a beating overtone.
+		var ring_env = exp(-t * 9.0)
+		sample += sin(TAU * 2300.0 * t) * 0.28 * ring_env
+		sample += sin(TAU * 3450.0 * t) * 0.14 * ring_env
+		var val = int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+	var stream = AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream
+
+
 func _gen_pitch_variant(source: AudioStreamWAV, pitch_ratio: float) -> AudioStreamWAV:
 	if source == null:
 		return null
@@ -877,6 +960,18 @@ func _melee_sfx_name(weapon: WeaponPart, is_hit: bool) -> String:
 
 func play_armor_break(pos: Vector3) -> void:
 	play_sfx("armor_break", pos, 0.0)
+
+
+# Metallic clang when a raised shield absorbs a hit — blocked damage reads as
+# a block, with slight pitch jitter so rapid volleys don't sound identical.
+func play_shield_block(pos: Vector3) -> void:
+	play_sfx("shield_block", pos, -2.0, "SFX", 0.05)
+
+
+# Distinct shatter when a shield is depleted — "shield is DOWN" the moment it
+# happens, clearly different from the armor crack.
+func play_shield_break(pos: Vector3) -> void:
+	play_sfx("shield_break", pos, 0.0)
 
 
 func play_explosion(pos: Vector3) -> void:

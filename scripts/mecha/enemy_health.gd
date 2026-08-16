@@ -45,11 +45,17 @@ func _absorb_with_shield(amount: float) -> float:
 	var remaining: float = mecha.absorb_damage_with_shield(amount)
 	var absorbed := amount - remaining
 	if absorbed > 0.0:
-		# Shield-hit feedback: a spark at the barrier so blocked shots read as
-		# blocked instead of silently vanishing.
-		EffectManager.spawn_impact(global_position + Vector3(0, 1.5, 0), Vector3.UP)
-		if remaining <= 0.0 and AudioManager:
-			AudioManager.play_armor_break(global_position + Vector3(0, 1.5, 0))
+		var barrier_pos := global_position + Vector3(0, 1.5, 0)
+		# Shield-hit feedback: a spark at the barrier plus a metallic clang, so
+		# blocked shots read as blocked instead of silently vanishing. The
+		# shatter only plays when the hit actually drained the shield to zero
+		# (a fully-blocked hit that leaves HP remaining still just clangs).
+		EffectManager.spawn_impact(barrier_pos, Vector3.UP)
+		if AudioManager:
+			if mecha.shield_current_hp <= 0.0:
+				AudioManager.play_shield_break(barrier_pos)
+			else:
+				AudioManager.play_shield_block(barrier_pos)
 	return remaining
 
 

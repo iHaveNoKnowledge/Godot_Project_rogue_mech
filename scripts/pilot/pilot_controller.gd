@@ -5,6 +5,17 @@ extends CharacterBody3D
 
 var gravity := 20.0
 
+# Sprint + stamina are the PILOT'S OWN system — fully separate from the mech's
+# energy pool. Sprinting drains pilot stamina; it regenerates while walking /
+# standing. Out of stamina, the pilot can't sprint until it recovers.
+@export var sprint_speed: float = 8.2
+@export var max_stamina: float = 100.0
+@export var sprint_drain: float = 22.0
+@export var stamina_regen: float = 14.0
+
+var stamina: float = 100.0
+var _is_sprinting: bool = false
+
 # The pilot fights with their OWN body weapons (PilotSystem), completely
 # separate from the parked mech's loadout. One shared WeaponCore drives ammo /
 # cooldown / projectiles for whichever weapon is in hand; firing consumes the
@@ -64,15 +75,15 @@ func _equip_weapon(index: int) -> void:
 	_rebuild_weapon_mesh()
 
 
-# Rebuilds the pilot's carried-weapon model from the current personal loadout
-# (first weapon in hand). Null clears it.
+# Rebuilds the pilot's carried-weapon model from the CURRENT weapon in hand.
+# Null clears it.
 func _rebuild_weapon_mesh() -> void:
 	if _weapon_mesh and is_instance_valid(_weapon_mesh):
 		_weapon_mesh.queue_free()
 	_weapon_mesh = null
 	if _weapons.is_empty():
 		return
-	var weapon: WeaponPart = _weapons[0]
+	var weapon: WeaponPart = _weapons[_weapon_index % _weapons.size()]
 	_weapon_mesh = Node3D.new()
 	_weapon_mesh.add_child(WeaponVisualFactory.build(weapon))
 	# Held at the pilot's side, like a carried rifle.
@@ -92,6 +103,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		# Cycle personal weapons (key 1 / 3) — the pilot swaps their own sidearm.
 		if _weapons.size() > 1:
 			_equip_weapon(_weapon_index + 1)
+	elif event is InputEventMouseButton:
+		# Scroll wheel swaps the pilot's carried weapon (third-person shooter
+		# style): wheel up = next, wheel down = previous.
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed and _weapons.size() > 1:
+			_equip_weapon(_weapon_index + 1)
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed and _weapons.size() > 1:
+			_equip_weapon(_weapon_index - 1)
 
 
 func _try_fire() -> void:
@@ -167,10 +185,26 @@ func _physics_process(delta: float) -> void:
 	forward = forward.normalized()
 	right.y = 0.0
 	right = right.normalized()
+
+	# Sprint: Shift while moving. Drains pilot stamina (separate from the mech's
+	# energy). Stamina regens while walking/standing; empty stamina = no sprint.
+	var wants_sprint := Input.is_action_pressed("strafe") and input.length() > 0.1
+	_is_sprinting = wants_sprint and stamina > 0.0
+	if _is_sprinting:
+		stamina = maxf(stamina - sprint_drain * delta, 0.0)
+	else:
+		stamina = minf(stamina + stamina_regen * delta, max_stamina)
+	var speed := sprint_speed if _is_sprinting else move_speed
+
 	var velocity_dir = (forward * -input.y + right * input.x)
-	velocity.x = velocity_dir.x * move_speed
-	velocity.z = velocity_dir.z * move_speed
+	velocity.x = velocity_dir.x * speed
+	velocity.z = velocity_dir.z * speed
 	if Input.is_action_just_pressed("jump") and is_on_floor():
 		velocity.y = jump_force
 	velocity.y -= gravity * delta
 	move_and_slide()
+
+
+# Current stamina fraction 0..1 (for the pilot HUD).
+func get_stamina_ratio() -> float:
+	return clampf(stamina / maxf(max_stamina, 0.001), 0.0, 1.0)

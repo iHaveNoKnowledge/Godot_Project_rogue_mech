@@ -533,7 +533,9 @@ func _tilt_over() -> void:
 func _on_destroyed() -> void:
 	set_physics_process(false)
 	velocity = Vector3.ZERO
-	visible = false
+	# Stay VISIBLE through the core-breach warning + detonation (~1.8s) so the
+	# downed machine is seen collapsing and flashing before it blows; the health
+	# system hides the parts at the explosion. (Loot still drops immediately.)
 
 	# Spawn loot
 	var loot = get_node_or_null("/root/GameWorld/LootSystem")

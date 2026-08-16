@@ -138,7 +138,7 @@ func _ready() -> void:
 	# --- Save/load roundtrip preserves pilot state ---
 	GlobalData.pilot_hp = 42.0
 	GlobalData.pilot_items = {"medkit_medium": 2}
-	PilotSystem.add_weapon("res://resources/mech/stock/weapon_machine_gun.tres")
+	PilotSystem.add_weapon("res://resources/mech/stock/weapon_pilot_assault_rifle.tres")
 	GlobalData.save_run()
 	GlobalData.pilot_hp = 100.0
 	GlobalData.pilot_items = {}

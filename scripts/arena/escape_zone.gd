@@ -6,9 +6,16 @@ extends Area3D
 ## holds position for the full escape time the battle is abandoned and the player
 ## retreats back to the board without any victory rewards.
 
-const DEFAULT_ESCAPE_TIME := 30.0
+const DEFAULT_ESCAPE_TIME := 15.0
 
 @export var escape_time: float = DEFAULT_ESCAPE_TIME
+
+# Distance-based visibility: the glow wall only renders when the player is
+# close to it (fade starts at VISIBLE_NEAR, fully invisible beyond VISIBLE_FAR).
+# Far walls of the square frame simply don't draw, keeping the view clean.
+const VISIBLE_NEAR := 22.0
+const VISIBLE_FAR := 48.0
+var _distance_alpha := 1.0
 
 # Indicator colors: idle → charging → almost done.
 const IDLE_COLOR := Color(0.35, 0.8, 1.0)
@@ -25,6 +32,11 @@ var _zone_mesh: MeshInstance3D
 var _zone_material: StandardMaterial3D
 var _beacon: OmniLight3D
 
+# Local offset from the (widened) trigger box center to the arena edge where
+# the visible glow wall is drawn. Set by the generator so the wall stays pinned
+# at the edge while the trigger extends deeper into the field.
+var wall_local: Vector3 = Vector3.ZERO
+
 
 func _ready() -> void:
 	# Detect the player mech (collision layer 1); never behave as a collidable body.
@@ -38,6 +50,10 @@ func _ready() -> void:
 	# Rebuild the visuals if the generator attached them after _ready.
 	if _zone_material == null:
 		_build_visuals()
+
+
+func _process(_delta: float) -> void:
+	_update_distance_visibility()
 
 
 func _physics_process(delta: float) -> void:
@@ -116,6 +132,20 @@ func get_hold_remaining() -> float:
 	return maxf(escape_time - _time_inside, 0.0)
 
 
+func _update_distance_visibility() -> void:
+	if _zone_material == null:
+		return
+	var mecha = GameManager.get_player_mecha()
+	if mecha == null:
+		_distance_alpha = 1.0
+		return
+	var d := global_position.distance_to(mecha.global_position)
+	_distance_alpha = clampf(1.0 - (d - VISIBLE_NEAR) / maxf(VISIBLE_FAR - VISIBLE_NEAR, 0.001), 0.0, 1.0)
+	if _zone_mesh:
+		_zone_mesh.visible = _distance_alpha > 0.03
+	_update_visual()
+
+
 func _update_visual() -> void:
 	if _zone_material == null:
 		return
@@ -142,6 +172,11 @@ func _update_visual() -> void:
 		color = IDLE_COLOR
 		energy = 0.6
 		alpha = 0.18
+
+	# Distance fade: far walls stay invisible; close ones (or the one being
+	# charged) show at their normal alpha.
+	energy *= _distance_alpha
+	alpha *= _distance_alpha
 
 	_zone_material.emission = color
 	_zone_material.emission_energy_multiplier = energy
@@ -186,6 +221,8 @@ func _build_visuals() -> void:
 	wall.size = Vector3(size.x, size.y, minf(size.z, 1.5))
 	_zone_mesh.mesh = wall
 	_zone_mesh.material_override = _zone_material
+	# Pinned at the arena edge (wall_local), not at the widened trigger center.
+	_zone_mesh.position = wall_local
 	add_child(_zone_mesh)
 
 	# Beacon light.
@@ -194,7 +231,7 @@ func _build_visuals() -> void:
 	_beacon.light_color = IDLE_COLOR
 	_beacon.light_energy = 0.4
 	_beacon.omni_range = 18.0
-	_beacon.position.y = size.y * 0.5 + 1.5
+	_beacon.position = wall_local + Vector3(0, size.y * 0.5 + 1.5, 0)
 	add_child(_beacon)
 
 

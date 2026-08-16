@@ -428,22 +428,27 @@ func _on_frame_destroyed(slot_name: String) -> void:
 		_on_mecha_destroyed()
 
 
+# How long the core-breach warning lasts before the machine detonates (safety
+# window so the pilot can eject / the player can see the mech is going down).
+const CORE_BREACH_DELAY := 1.8
+
+
 func _on_mecha_destroyed() -> void:
 	is_destroyed = true
 	mecha_destroyed.emit()
-
-	EffectManager.spawn_explosion(global_position + Vector3(0, 1.5, 0))
-	if AudioManager:
-		AudioManager.play_explosion(global_position + Vector3(0, 1.5, 0))
-
-	for slot in parts:
-		_hide_part(slot)
+	# SAFETY SEQUENCE: the mech goes down and flashes a warning for ~1.8s
+	# before the actual detonation — never an instant explosion. This gives the
+	# pilot the standard eject window (and makes the destruction readable).
+	_start_core_breach_sequence()
 
 	# Handle player death: the pilot ejects and the destroyed machine is removed
 	# from the convoy roster. Losing your mech is not automatically a game over —
 	# the pilots retreat from the field. If squadmates still hold the convoy, the
 	# run continues pilot-only (no mech) until a recovery event grants a new one.
 	# A parked reserve mech means the player just falls back to that machine.
+	# The 2s delay below (combat end) overlaps the core-breach window, so the
+	# eject happens while the warning still plays and the explosion lands with
+	# the retreat.
 	if is_player:
 		if GameManager.is_escaping:
 			return
@@ -473,6 +478,72 @@ func _on_mecha_destroyed() -> void:
 		else:
 			GlobalData.run_notice = "Your mech was destroyed, but a reserve machine is still parked in the convoy."
 			GameManager.return_to_board()
+
+
+# --- Core-breach death sequence (fall -> warning -> detonate) -------------
+
+func _start_core_breach_sequence() -> void:
+	_collapse_mech()
+	_play_core_breach_warning()
+	var elapsed := 0.0
+	var flash_on := false
+	while elapsed < CORE_BREACH_DELAY:
+		await get_tree().create_timer(0.15).timeout
+		if not is_instance_valid(self):
+			return
+		elapsed += 0.15
+		flash_on = not flash_on
+		_core_breach_flash(flash_on)
+	if not is_instance_valid(self):
+		return
+	_core_breach_flash(false)
+	_detonate_mech()
+
+
+# The mech goes limp: the shared mech animation (if attached) switches into its
+# death-collapse pose; the machine stops responding and reads as "down".
+func _collapse_mech() -> void:
+	var mecha = get_parent()
+	if mecha == null or not is_instance_valid(mecha):
+		return
+	for child in mecha.get_children():
+		if child.has_method("set_core_breach"):
+			child.set_core_breach(true)
+
+
+# Alternating red/white emissive flash across the whole machine during the
+# warning window — unmistakable from across the battlefield.
+func _core_breach_flash(on: bool) -> void:
+	var mecha = get_parent()
+	if mecha == null or not is_instance_valid(mecha):
+		return
+	var color := Color(1.0, 0.15, 0.1) if on else Color(0.95, 0.9, 0.85)
+	for child in mecha.get_children():
+		if child is MeshInstance3D and child.material_override:
+			child.material_override.emission_enabled = on
+			child.material_override.emission = color
+			child.material_override.emission_energy_multiplier = 3.0 if on else 0.0
+
+
+# Warning klaxon for the breach window: the rising attack-alert tone plus the
+# descending retreat klaxon layered — reads as "about to blow" without adding
+# a brand-new sound asset.
+func _play_core_breach_warning() -> void:
+	if AudioManager:
+		AudioManager.play_enemy_warning(global_position + Vector3(0, 2.0, 0))
+		AudioManager.play_sfx("enemy_retreat", global_position + Vector3(0, 2.0, 0), -1.0)
+
+
+# The actual detonation (delayed by the core-breach window): explosion effect +
+# sound, then the wrecked parts drop away.
+func _detonate_mech() -> void:
+	if not is_instance_valid(self):
+		return
+	EffectManager.spawn_explosion(global_position + Vector3(0, 1.5, 0))
+	if AudioManager:
+		AudioManager.play_explosion(global_position + Vector3(0, 1.5, 0))
+	for slot in parts:
+		_hide_part(slot)
 
 
 func _get_section_node(slot_name: String) -> Node3D:

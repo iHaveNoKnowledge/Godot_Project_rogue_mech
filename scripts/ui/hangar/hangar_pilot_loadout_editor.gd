@@ -94,6 +94,12 @@ func _build_ui() -> void:
 	section.add_theme_color_override("font_color", Color(0.45, 0.85, 1.0))
 	vbox.add_child(section)
 
+	var budget_label := Label.new()
+	budget_label.name = "BudgetLabel"
+	budget_label.add_theme_font_size_override("font_size", 12)
+	budget_label.add_theme_color_override("font_color", Color(0.75, 0.9, 0.75))
+	vbox.add_child(budget_label)
+
 	var weapon_scroll := ScrollContainer.new()
 	weapon_scroll.custom_minimum_size = Vector2(0, 180)
 	weapon_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -146,16 +152,24 @@ func _refresh_ui() -> void:
 	for child in _weapon_list.get_children():
 		child.queue_free()
 
-	# --- Weapons: every depot-stash weapon is offered; equipped ones are marked
-	# and click toggles them off (one copy per model in the pilot's hands).
+	# --- Carry budget readout: X / 7 points spent (big=3, medium=2, small=1).
+	var budget_label := _find_budget_label()
+	if budget_label:
+		budget_label.text = "CARRY POINTS: %d / %d used  (%d left)" % [
+			PilotSystem.get_pilot_carry_used(),
+			PilotSystem.get_pilot_carry_points(),
+			PilotSystem.get_pilot_carry_remaining(),
+		]
+
+	# --- Weapons: the PILOT WEAPON DATABASE is the only gear a pilot can carry
+	# on foot (mech weapons are never equipable here). Each row shows its size
+	# and point cost; equipping is blocked when it would exceed the budget.
 	var equipped_paths: Array = []
 	for path in GlobalData.pilot_weapons:
 		equipped_paths.append(str(path))
 
 	var added_weapons := 0
-	for entry in GlobalData.weapon_inventory:
-		if not (entry is Dictionary):
-			continue
+	for entry in PilotSystem.get_pilot_weapon_db():
 		var wpath := str(entry.get("path", ""))
 		if wpath == "" or not ResourceLoader.exists(wpath):
 			continue
@@ -164,17 +178,23 @@ func _refresh_ui() -> void:
 			continue
 		added_weapons += 1
 		var is_eq := wpath in equipped_paths
+		var size := str(entry.get("size", "?"))
+		var points := int(entry.get("points", 0))
+		var fits := PilotSystem.can_equip_pilot_weapon(wpath)
 		var row := Button.new()
-		row.text = ("[E] " if is_eq else "    ") + str(res.weapon_name) + " (%.0f%% dur)" % (float(entry.get("durability", 1.0)) * 100.0)
+		row.text = ("[E] " if is_eq else "    ") + str(res.weapon_name) + "  [%s %dp]" % [size.capitalize(), points]
 		row.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		row.focus_mode = Control.FOCUS_NONE
+		row.disabled = not is_eq and not fits
 		row.add_theme_color_override("font_color", Color(0.6, 1.0, 0.6) if is_eq else Color(0.85, 0.9, 0.95))
+		if not is_eq and not fits:
+			row.add_theme_color_override("font_color", Color(0.5, 0.55, 0.6))
 		row.tooltip_text = "Personal weapon carried on foot. Click to %s." % ("unequip" if is_eq else "equip")
 		row.pressed.connect(_toggle_weapon.bind(wpath))
 		_weapon_list.add_child(row)
 	if added_weapons == 0:
 		var empty := Label.new()
-		empty.text = "No weapons in the depot stash."
+		empty.text = "No pilot weapons available."
 		empty.add_theme_font_size_override("font_size", 11)
 		_weapon_list.add_child(empty)
 
@@ -241,11 +261,35 @@ func _toggle_weapon(wpath: String) -> void:
 		if _status_label:
 			_status_label.text = "Weapon unequipped."
 	else:
-		PilotSystem.add_weapon(wpath)
-		if _status_label:
-			_status_label.text = "Weapon equipped as a personal sidearm."
+		if PilotSystem.add_weapon(wpath):
+			if _status_label:
+				_status_label.text = "Weapon equipped as a personal sidearm."
+		else:
+			if _status_label:
+				_status_label.text = "Cannot equip: over the carry point budget (%d/%d)." % [
+					PilotSystem.get_pilot_carry_used(),
+					PilotSystem.get_pilot_carry_points(),
+				]
 	GlobalData.save_run()
 	_refresh_ui()
+
+
+# Finds the carry-points label wherever the built tree put it (panel layout
+# may vary across versions).
+func _find_budget_label() -> Label:
+	if _root == null:
+		return null
+	var found: Array = []
+	_find_label_named(_root, "BudgetLabel", found)
+	return found[0] if not found.is_empty() else null
+
+
+func _find_label_named(node: Node, label_name: String, out: Array) -> void:
+	for child in node.get_children():
+		if child is Label and child.name == label_name:
+			out.append(child)
+			return
+		_find_label_named(child, label_name, out)
 
 
 func _top_up_ammo(ammo_type: String) -> void:

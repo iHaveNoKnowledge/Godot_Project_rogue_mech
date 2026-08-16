@@ -1,0 +1,21 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/mech/weapon_part.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+weapon_name = "Bazooka"
+weapon_type = 2
+damage = 220.0
+fire_rate = 2.8
+max_ammo = 4
+ammo_per_shot = 1
+projectile_speed = 30.0
+spread = 0.0
+weight = 12.0
+range_distance = 75.0
+recoil_force = 4.0
+impact = 2.5
+description = "บาซูก้าทำลายยานเกราะ ระเบิดแรงทำลายล้างสูง กระสุนน้อย ยิงช้า"
+rarity = 2
+ammo_type = "explosive"

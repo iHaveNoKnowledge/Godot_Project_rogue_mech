@@ -53,6 +53,94 @@ const AMMO_PRICES: Dictionary = {
 	"missile": 15,
 }
 
+# -----------------------------------------------------------------------------
+# PILOT WEAPON DATABASE — the weapons a pilot can actually carry on foot.
+# Completely separate from mech weapons: mech guns are too big/unwieldy for a
+# person to use. Each entry: path (WeaponPart resource), size, carry points.
+# Carry budget (PILOT_CARRY_POINTS_BASE, 7 by default) limits how much gear a
+# pilot can bring; future bag/backpack items can raise it.
+#   big    = 3 points (anti-tank rifle, bazooka)
+#   medium = 2 points (assault rifle)
+#   small  = 1 point  (pistol)
+# -----------------------------------------------------------------------------
+const PILOT_WEAPON_DB: Array = [
+	{
+		"path": "res://resources/mech/stock/weapon_pilot_pistol.tres",
+		"name": "Pilot Pistol",
+		"size": "small",
+		"points": 1,
+	},
+	{
+		"path": "res://resources/mech/stock/weapon_pilot_assault_rifle.tres",
+		"name": "Assault Rifle",
+		"size": "medium",
+		"points": 2,
+	},
+	{
+		"path": "res://resources/mech/stock/weapon_pilot_anti_tank_rifle.tres",
+		"name": "Anti-Tank Rifle",
+		"size": "big",
+		"points": 3,
+	},
+	{
+		"path": "res://resources/mech/stock/weapon_pilot_bazooka.tres",
+		"name": "Bazooka",
+		"size": "big",
+		"points": 3,
+	},
+]
+
+# Base carry budget in points (7). Future items (backpacks) add to this.
+const PILOT_CARRY_POINTS_BASE := 7
+
+
+static func get_pilot_weapon_db() -> Array:
+	return PILOT_WEAPON_DB
+
+
+# Returns the DB entry for a pilot weapon path ({} when unknown).
+static func get_pilot_weapon_entry(path: String) -> Dictionary:
+	for entry in PILOT_WEAPON_DB:
+		if str(entry.get("path", "")) == path:
+			return entry
+	return {}
+
+
+# Carry points a single pilot weapon costs (0 for non-DB weapons).
+static func get_pilot_weapon_points(path: String) -> int:
+	return int(get_pilot_weapon_entry(path).get("points", 0))
+
+
+# Size label of a pilot weapon ("small"/"medium"/"big", "?" unknown).
+static func get_pilot_weapon_size(path: String) -> String:
+	return str(get_pilot_weapon_entry(path).get("size", "?"))
+
+
+# Total carry budget: base 7 + any future item bonuses.
+static func get_pilot_carry_points() -> int:
+	return PILOT_CARRY_POINTS_BASE
+
+
+# Points currently spent by the equipped personal weapons.
+static func get_pilot_carry_used() -> int:
+	var used := 0
+	for path in GlobalData.pilot_weapons:
+		used += get_pilot_weapon_points(str(path))
+	return used
+
+
+# Points left before the pilot can't carry more gear.
+static func get_pilot_carry_remaining() -> int:
+	return maxi(get_pilot_carry_points() - get_pilot_carry_used(), 0)
+
+
+# True when equipping `path` would fit inside the carry budget.
+static func can_equip_pilot_weapon(path: String) -> bool:
+	if get_pilot_weapon_entry(path).is_empty():
+		return false
+	return get_pilot_carry_used() + get_pilot_weapon_points(path) <= get_pilot_carry_points()
+
+
 const PILOT_MAX_HP_DEFAULT := 100.0
 
 # Damage the pilot takes when their mech is destroyed and they eject.
@@ -137,11 +225,21 @@ static func get_weapons() -> Array:
 	return result
 
 
-static func add_weapon(path: String) -> void:
+# Equips a pilot weapon into the personal loadout. Returns true when the
+# weapon was a known pilot-DB weapon AND it fits inside the carry budget
+# (7 base points; big=3 / medium=2 / small=1). Mech weapons are never
+# equipable on foot — the pilot fights with their OWN gear.
+static func add_weapon(path: String) -> bool:
 	if path == "" or GlobalData.pilot_weapons.has(path):
-		return
+		return false
+	if get_pilot_weapon_entry(path).is_empty():
+		return false
+	if not can_equip_pilot_weapon(path):
+		return false
 	if ResourceLoader.exists(path):
 		GlobalData.pilot_weapons.append(path)
+		return true
+	return false
 
 
 static func remove_weapon(path: String) -> void:

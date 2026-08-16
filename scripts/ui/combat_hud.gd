@@ -11,11 +11,18 @@ var retreat_panel: PanelContainer
 var retreat_label: Label
 var _retreat_fill: StyleBoxFlat
 
+# Temporary announcement banner (reserve-mech delivery, alerts). Shown at the
+# top-center below the retreat indicator, fades after `announce()` duration.
+var announce_panel: PanelContainer
+var announce_label: Label
+var _announce_tween: Tween = null
+
 
 func _ready() -> void:
 	layer = 5
 	_create_ui()
 	_create_retreat_indicator()
+	_create_announce_banner()
 
 
 func _create_ui() -> void:
@@ -76,6 +83,56 @@ func _process(_delta: float) -> void:
 			status_label.add_theme_color_override("font_color", Color(0.4, 0.85, 1.0))
 
 	_update_retreat_indicator()
+
+
+# Builds the temporary announcement banner pinned under the retreat indicator.
+# `announce()` shows a line here (e.g. "RESERVE MECH INBOUND — ETA 30s") that
+# fades out automatically. Hidden by default; only appears while announcing.
+func _create_announce_banner() -> void:
+	announce_panel = PanelContainer.new()
+	announce_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	announce_panel.offset_left = -260
+	announce_panel.offset_right = 260
+	announce_panel.offset_top = 44
+	announce_panel.offset_bottom = 74
+	announce_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	announce_panel.visible = false
+	get_child(0).add_child(announce_panel)
+
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.05, 0.09, 0.14, 0.92)
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_width_top = 2
+	style.border_width_bottom = 2
+	style.border_color = Color(0.5, 0.85, 1.0, 0.9)
+	style.corner_radius_top_left = 6
+	style.corner_radius_top_right = 6
+	style.corner_radius_bottom_left = 6
+	style.corner_radius_bottom_right = 6
+	announce_panel.add_theme_stylebox_override("panel", style)
+
+	announce_label = Label.new()
+	announce_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	announce_label.add_theme_font_size_override("font_size", 15)
+	announce_label.add_theme_color_override("font_color", Color(0.6, 0.9, 1.0))
+	announce_panel.add_child(announce_label)
+
+
+# Shows a temporary banner line at the top of the screen for `duration` seconds
+# (then fades out). Replaces any active announcement.
+func announce(text: String, duration: float = 3.0) -> void:
+	if announce_panel == null or announce_label == null:
+		return
+	if _announce_tween and _announce_tween.is_valid():
+		_announce_tween.kill()
+	announce_label.text = text
+	announce_panel.visible = true
+	announce_panel.modulate = Color.WHITE
+	_announce_tween = create_tween()
+	_announce_tween.tween_interval(maxf(duration, 0.1))
+	_announce_tween.tween_property(announce_panel, "modulate:a", 0.0, 0.6)
+	_announce_tween.tween_callback(func(): announce_panel.visible = false)
 
 
 # Builds the slim RETREAT banner pinned to the top-center of the screen, above

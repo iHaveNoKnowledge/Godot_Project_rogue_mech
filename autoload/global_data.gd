@@ -1005,8 +1005,9 @@ const DECISIVE_VICTORY_RATIO := 0.5
 var pilot_hp: float = PilotSystem.PILOT_MAX_HP_DEFAULT
 var pilot_max_hp: float = PilotSystem.PILOT_MAX_HP_DEFAULT
 
-# Personal weapons carried on the pilot's body (WeaponPart resource paths).
-var pilot_weapons: Array = ["res://resources/mech/stock/weapon_beam_rifle.tres"]
+# Personal weapons carried on the pilot's body (WeaponPart resource paths,
+# from the PILOT weapon DB — mech weapons are never equipable on foot).
+var pilot_weapons: Array = ["res://resources/mech/stock/weapon_pilot_pistol.tres"]
 
 # Personal ammo reserves for the pilot's own weapons (type -> count).
 var pilot_ammo: Dictionary = {
@@ -1644,7 +1645,7 @@ func reset_run_data() -> void:
 	last_combat_damage_ratio = 0.0
 	pilot_hp = PilotSystem.PILOT_MAX_HP_DEFAULT
 	pilot_max_hp = PilotSystem.PILOT_MAX_HP_DEFAULT
-	pilot_weapons = ["res://resources/mech/stock/weapon_beam_rifle.tres"]
+	pilot_weapons = ["res://resources/mech/stock/weapon_pilot_pistol.tres"]
 	pilot_ammo = {
 		"kinetic": 120,
 		"energy": 40,

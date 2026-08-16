@@ -557,19 +557,20 @@ func _create_escape_zones() -> void:
 	# a slim, purely-visual light wall the player walks straight through, and
 	# the retreat hold keeps charging even out in the dead zone behind it.
 	var wall_height := 8.0
-	# Trigger spans from 4m inside the field (the hold starts charging as the
-	# player approaches the wall) through the whole apron to the barrier's
-	# inner face (half + apron depth + 0.5), so standing anywhere behind the
-	# wall still counts toward the escape.
-	var trigger_inner := half - 4.0
+	# The retreat TRIGGER is 3x deeper than before: it spans from 12m inside the
+	# field (the hold starts charging well before the player reaches the edge)
+	# through the whole apron to the barrier's inner face. The visible wall and
+	# the enemy barrier stay pinned at the arena edge (wall_pos).
+	var wall_pos := half + (ESCAPE_APRON_DEPTH - 3.5) * 0.5
+	var trigger_inner := half - 12.0
 	var trigger_outer := half + ESCAPE_APRON_DEPTH + 0.5
 	var trigger_thickness := trigger_outer - trigger_inner
-	var trigger_center := (trigger_inner + trigger_outer) * 0.5
+	var trigger_mid := (trigger_inner + trigger_outer) * 0.5
 	var zone_defs = [
-		{"pos": Vector3(0, wall_height * 0.5, -trigger_center), "size": Vector3(len, wall_height, trigger_thickness)},
-		{"pos": Vector3(0, wall_height * 0.5, trigger_center), "size": Vector3(len, wall_height, trigger_thickness)},
-		{"pos": Vector3(-trigger_center, wall_height * 0.5, 0), "size": Vector3(trigger_thickness, wall_height, len)},
-		{"pos": Vector3(trigger_center, wall_height * 0.5, 0), "size": Vector3(trigger_thickness, wall_height, len)},
+		{"pos": Vector3(0, wall_height * 0.5, -trigger_mid), "size": Vector3(len, wall_height, trigger_thickness)},
+		{"pos": Vector3(0, wall_height * 0.5, trigger_mid), "size": Vector3(len, wall_height, trigger_thickness)},
+		{"pos": Vector3(-trigger_mid, wall_height * 0.5, 0), "size": Vector3(trigger_thickness, wall_height, len)},
+		{"pos": Vector3(trigger_mid, wall_height * 0.5, 0), "size": Vector3(trigger_thickness, wall_height, len)},
 	]
 
 	var zone_script := preload("res://scripts/arena/escape_zone.gd")
@@ -580,6 +581,14 @@ func _create_escape_zones() -> void:
 		zone.add_to_group("escape_zone")
 		zone.set_script(zone_script)
 		zone.position = def["pos"]
+		# Keep the visible glow wall at the ARENA EDGE (not the widened trigger
+		# center): the wall sits wall_off meters outward along the zone's axis.
+		var wall_off := wall_pos - trigger_mid
+		zone.wall_local = Vector3(
+			(wall_off if def["pos"].x != 0.0 else 0.0) * signf(def["pos"].x),
+			0.0,
+			(wall_off if def["pos"].z != 0.0 else 0.0) * signf(def["pos"].z)
+		)
 
 		var collision := CollisionShape3D.new()
 		var shape := BoxShape3D.new()
@@ -597,7 +606,10 @@ func _create_escape_zones() -> void:
 		barrier.name = "RetreatWallBarrier"
 		barrier.collision_layer = 32
 		barrier.collision_mask = 0
-		barrier.position = def["pos"]
+		# The barrier sits at the ARENA EDGE (the visible wall), not at the
+		# widened trigger's center, so chasing enemies are stopped at the wall
+		# while the player keeps charging the retreat well before it.
+		barrier.position = Vector3(wall_pos if def["pos"].x != 0.0 else 0.0, wall_height * 0.5, wall_pos if def["pos"].z != 0.0 else 0.0)
 
 		var bcol := CollisionShape3D.new()
 		var bshape := BoxShape3D.new()

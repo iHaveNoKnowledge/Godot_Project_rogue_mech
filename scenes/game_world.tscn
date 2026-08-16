@@ -25,6 +25,7 @@
 [ext_resource type="Script" path="res://scripts/ui/combat_hud.gd" id="26"]
 [ext_resource type="Script" path="res://scripts/ui/combat_intro.gd" id="27"]
 [ext_resource type="Script" path="res://scripts/ui/squad_hud.gd" id="28"]
+[ext_resource type="Script" path="res://scripts/ui/combat_tab_menu.gd" id="29"]
 [ext_resource type="Resource" path="res://resources/mech/stock/weapon_machine_gun.tres" id="10"]
 [ext_resource type="Resource" path="res://resources/mech/stock/weapon_shotgun.tres" id="11"]
 [ext_resource type="Resource" path="res://resources/mech/stock/weapon_pile_bunker.tres" id="12"]
@@ -95,6 +96,9 @@ script = ExtResource("19")
 [node name="ArenaNavSetup" type="Node" parent="."]
 script = ExtResource("20")
 
+[node name="BackupMechSpawner" type="Node" parent="."]
+script = ExtResource("13")
+
 [node name="ArenaSeedSystem" type="Node" parent="."]
 script = ExtResource("21")
 
@@ -128,6 +132,9 @@ material_override = SubResource("GroundMat")
 
 [node name="CombatHUD" type="CanvasLayer" parent="."]
 script = ExtResource("26")
+
+[node name="CombatTabMenu" type="CanvasLayer" parent="."]
+script = ExtResource("29")
 
 [node name="SquadHUD" type="CanvasLayer" parent="."]
 script = ExtResource("28")

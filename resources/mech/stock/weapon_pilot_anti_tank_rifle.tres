@@ -1,0 +1,21 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/mech/weapon_part.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+weapon_name = "Anti-Tank Rifle"
+weapon_type = 7
+damage = 90.0
+fire_rate = 1.6
+max_ammo = 8
+ammo_per_shot = 1
+projectile_speed = 95.0
+spread = 0.005
+weight = 14.0
+range_distance = 90.0
+recoil_force = 2.5
+impact = 1.2
+description = "ไรเฟิลต่อต้านยานเกราะลำกล้องใหญ่ กระสุนขนาดใหญ่ทะลวงเกราะ mech ได้ หนักและยิงช้า"
+rarity = 2
+ammo_type = "kinetic"

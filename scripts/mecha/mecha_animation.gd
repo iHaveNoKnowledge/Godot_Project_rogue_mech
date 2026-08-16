@@ -27,6 +27,11 @@ var landing_impact: float = 0.0
 # backup machines that spawn already pilotless).
 var is_kneeling: bool = false
 
+# True while the mech is in its death (core-breach) window: the machine has
+# gone down and is flashing a warning before it detonates. The limp collapse
+# pose takes over every other posture (set by the health system on destroy).
+var is_core_breach: bool = false
+
 var _original_head_pos: Vector3
 var _original_body_pos: Vector3
 var _original_arm_left_pos: Vector3
@@ -37,31 +42,38 @@ var _original_leg_right_pos: Vector3
 
 func _ready() -> void:
 	mecha = get_parent()
-	head_mesh = get_node_or_null("../Head")
-	body_mesh = get_node_or_null("../Body")
-	arm_left = get_node_or_null("../ArmLeft")
-	arm_right = get_node_or_null("../ArmRight")
-	forearm_left = get_node_or_null("../ArmLeft/ForearmLeft")
-	forearm_right = get_node_or_null("../ArmRight/ForearmRight")
-	leg_left = get_node_or_null("../LegLeft")
-	leg_right = get_node_or_null("../LegRight")
-	shin_left = get_node_or_null("../LegLeft/ShinLeft")
-	shin_right = get_node_or_null("../LegRight/ShinRight")
-
-	if head_mesh:
-		_original_head_pos = head_mesh.position
-	if body_mesh:
-		_original_body_pos = body_mesh.position
-	if arm_left:
-		_original_arm_left_pos = arm_left.position
-	if arm_right:
-		_original_arm_right_pos = arm_right.position
-	if leg_left:
-		_original_leg_left_pos = leg_left.position
-	if leg_right:
-		_original_leg_right_pos = leg_right.position
-
+	_refresh_node_refs()
 	EventBus.mecha_occupancy_changed.connect(_on_occupancy_changed)
+
+
+# Resolves the mech's part-slot nodes. Called on _ready AND lazily whenever a
+# reference is still null, so machines whose bodies are assembled AFTER this
+# node's _ready (allies built from a berth loadout, late-spawned bodies) pick
+# the joints up the first time they animate instead of staying frozen.
+func _refresh_node_refs() -> void:
+	head_mesh = get_node_or_null("../Head") if head_mesh == null else head_mesh
+	body_mesh = get_node_or_null("../Body") if body_mesh == null else body_mesh
+	arm_left = get_node_or_null("../ArmLeft") if arm_left == null else arm_left
+	arm_right = get_node_or_null("../ArmRight") if arm_right == null else arm_right
+	forearm_left = get_node_or_null("../ArmLeft/ForearmLeft") if forearm_left == null else forearm_left
+	forearm_right = get_node_or_null("../ArmRight/ForearmRight") if forearm_right == null else forearm_right
+	leg_left = get_node_or_null("../LegLeft") if leg_left == null else leg_left
+	leg_right = get_node_or_null("../LegRight") if leg_right == null else leg_right
+	shin_left = get_node_or_null("../LegLeft/ShinLeft") if shin_left == null else shin_left
+	shin_right = get_node_or_null("../LegRight/ShinRight") if shin_right == null else shin_right
+
+	if head_mesh and _original_head_pos == Vector3.ZERO:
+		_original_head_pos = head_mesh.position
+	if body_mesh and _original_body_pos == Vector3.ZERO:
+		_original_body_pos = body_mesh.position
+	if arm_left and _original_arm_left_pos == Vector3.ZERO:
+		_original_arm_left_pos = arm_left.position
+	if arm_right and _original_arm_right_pos == Vector3.ZERO:
+		_original_arm_right_pos = arm_right.position
+	if leg_left and _original_leg_left_pos == Vector3.ZERO:
+		_original_leg_left_pos = leg_left.position
+	if leg_right and _original_leg_right_pos == Vector3.ZERO:
+		_original_leg_right_pos = leg_right.position
 
 
 # Occupied mechs stand normally; an empty mech (pilot ejected, or a backup
@@ -74,8 +86,19 @@ func set_kneeling(kneel: bool) -> void:
 	is_kneeling = kneel
 
 
+func set_core_breach(breach: bool) -> void:
+	is_core_breach = breach
+
+
 func _physics_process(delta: float) -> void:
 	if mecha == null:
+		return
+	_refresh_node_refs()
+
+	# The death (core-breach) collapse takes precedence over every other pose:
+	# the machine is down and no longer responding to pilot/movement input.
+	if is_core_breach:
+		_update_core_breach_posture(delta)
 		return
 
 	# Kneel pose takes over entirely while the mech is empty: the normal
@@ -492,3 +515,42 @@ func _lerp_to_original(delta: float) -> void:
 
 func play_recoil() -> void:
 	current_recoil = recoil_amount
+
+
+# Death collapse: the mech goes limp before detonating — torso slumps back and
+# drops, head tilts down, arms hang splayed, legs fold under. Driven for the
+# ~2s core-breach warning window so the player sees the machine is down (and
+# the pilot can still eject) before the explosion.
+func _update_core_breach_posture(delta: float) -> void:
+	var speed = 7.0 * delta
+	var target_drop = -0.65
+	var target_body_tilt = deg_to_rad(22.0)
+	var target_head_tilt = -deg_to_rad(35.0)
+	var target_arm = deg_to_rad(55.0)
+	var target_forearm = deg_to_rad(25.0)
+	var target_thigh_left = deg_to_rad(60.0)
+	var target_shin_left = -deg_to_rad(90.0)
+	var target_thigh_right = -deg_to_rad(55.0)
+	var target_shin_right = -deg_to_rad(70.0)
+
+	if body_mesh:
+		body_mesh.rotation.x = lerp_angle(body_mesh.rotation.x, target_body_tilt, speed)
+		body_mesh.position.y = lerp(body_mesh.position.y, _original_body_pos.y + target_drop, speed)
+	if head_mesh:
+		head_mesh.position = head_mesh.position.lerp(_original_head_pos + Vector3(0, target_drop, 0), speed)
+		head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, target_head_tilt, speed)
+
+	if arm_left: arm_left.rotation.x = lerp_angle(arm_left.rotation.x, target_arm, speed)
+	if arm_right: arm_right.rotation.x = lerp_angle(arm_right.rotation.x, target_arm, speed)
+	if forearm_left: forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, target_forearm, speed)
+	if forearm_right: forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, target_forearm, speed)
+
+	if leg_left:
+		leg_left.position.y = lerp(leg_left.position.y, _original_leg_left_pos.y + target_drop, speed)
+		leg_left.rotation.x = lerp_angle(leg_left.rotation.x, target_thigh_left, speed)
+	if leg_right:
+		leg_right.position.y = lerp(leg_right.position.y, _original_leg_right_pos.y + target_drop, speed)
+		leg_right.rotation.x = lerp_angle(leg_right.rotation.x, target_thigh_right, speed)
+
+	if shin_left: shin_left.rotation.x = lerp_angle(shin_left.rotation.x, target_shin_left, speed)
+	if shin_right: shin_right.rotation.x = lerp_angle(shin_right.rotation.x, target_shin_right, speed)

@@ -19,6 +19,43 @@ const GRUNT_MIN: int = 1
 const GRUNT_MAX: int = 3
 
 
+# Patrol entries carry their heading (and pos/home) as Vector2i at runtime, but
+# a save file flattens Vector2i into a String like "(1, 0)" or stores {x, y}
+# dicts. normalize_dir() parses every shape back into a real Vector2i so board
+# arrow markers always have a heading to face — a fleet whose dir broke used to
+# spawn without its arrow after loading a save.
+static func normalize_dir(v: Variant) -> Vector2i:
+	if v is Vector2i:
+		return v
+	if v is Vector2:
+		var v2: Vector2 = v
+		return Vector2i(roundi(v2.x), roundi(v2.y))
+	if v is Dictionary:
+		return Vector2i(int(v.get("x", 1)), int(v.get("y", 0)))
+	if v is String:
+		return _parse_dir_string(v)
+	return Vector2i(1, 0)
+
+
+static func _parse_dir_string(raw: String) -> Vector2i:
+	var clean := raw.replace("(", "").replace(")", "").replace("Vector2i", "").strip_edges()
+	var parts := clean.split(",")
+	if parts.size() >= 2:
+		return Vector2i(int(parts[0]), int(parts[1]))
+	return Vector2i(1, 0)
+
+
+# Repairs a patrol entry (old saves / JSON round-trips) so pos/home/dir are all
+# real Vector2i. Mutates the dictionary in place; the board heals every fleet
+# whenever it redraws the arrow markers.
+static func normalize_patrol(p: Dictionary) -> void:
+	if p.get("pos") is Dictionary or p.get("pos") is String:
+		p["pos"] = normalize_dir(p.get("pos"))
+	if p.get("home") is Dictionary or p.get("home") is String:
+		p["home"] = normalize_dir(p.get("home"))
+	p["dir"] = normalize_dir(p.get("dir"))
+
+
 static func has_patrols() -> bool:
 	return not GlobalData.board_patrols.is_empty()
 
@@ -156,6 +193,8 @@ static func advance_day(player_pos: Vector2i) -> Vector2i:
 
 	var ambush := Vector2i(-1, -1)
 	for p in GlobalData.board_patrols:
+		# Heal entries loaded from older saves before reading their fields.
+		normalize_patrol(p)
 		var cur: Vector2i = p.get("pos")
 		var home: Vector2i = p.get("home")
 		var dist := _manhattan(cur, player_pos)

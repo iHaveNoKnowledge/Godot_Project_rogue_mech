@@ -20,5 +20,8 @@ func setup(fleet: Dictionary) -> void:
 	_arrow.setup(color, aces > 0, 1.0, true)
 	add_child(_arrow)
 
-	var dir: Vector2i = fleet.get("dir", Vector2i(1, 0))
+	# dir can arrive as Vector2i, an {x, y} dict, or a JSON-flattened String
+	# from an older save — normalize before aiming the arrow, otherwise a
+	# broken dir would crash setup() and the fleet never got its marker.
+	var dir := PatrolSystem.normalize_dir(fleet.get("dir"))
 	_arrow.face_heading(dir)

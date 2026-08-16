@@ -188,6 +188,13 @@ static func apply_event_effect(event: Dictionary) -> bool:
 		"force_combat":
 			GlobalData.blocked_intermission = true
 			return true
+		"dead_end_clear":
+			# The player pays MP up front to demolish a dead end's rubble; the
+			# board manager opens the path and advances the day when the popup
+			# closes (the work eats the rest of the day).
+			GlobalData.board_mp = maxi(GlobalData.board_mp - amount, 0)
+			var clear_pos: Dictionary = params.get("pos", {})
+			GlobalData.pending_tile_clear = Vector2i(int(clear_pos.get("x", -1)), int(clear_pos.get("y", -1)))
 		"choice":
 			# Choices are resolved by the event UI; nothing to apply here.
 			pass

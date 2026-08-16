@@ -137,6 +137,14 @@ static func restore_from_dict(data: Dictionary) -> void:
 				p_copy["home"] = Vector2i(int(hd.get("x", 0)), int(hd.get("y", 0)))
 			elif p_copy.get("home") is String:
 				p_copy["home"] = _parse_vec2i(str(p_copy["home"]))
+			# dir is the fleet's last movement heading — restore it to a real
+			# Vector2i (old saves flattened it to a String, which crashed the
+			# patrol arrow marker and left fleets invisible on the board).
+			if p_copy.get("dir") is Dictionary:
+				var dd: Dictionary = p_copy["dir"]
+				p_copy["dir"] = Vector2i(int(dd.get("x", 1)), int(dd.get("y", 0)))
+			elif p_copy.get("dir") is String:
+				p_copy["dir"] = _parse_vec2i(str(p_copy["dir"]), Vector2i(1, 0))
 			GlobalData.board_patrols.append(p_copy)
 
 	# Run theme fields (fallbacks keep older saves working).
@@ -459,14 +467,17 @@ static func _serialize_patrols() -> Array:
 		if copy.get("home") is Vector2i:
 			var home: Vector2i = copy["home"]
 			copy["home"] = {"x": home.x, "y": home.y}
+		if copy.get("dir") is Vector2i:
+			var dir: Vector2i = copy["dir"]
+			copy["dir"] = {"x": dir.x, "y": dir.y}
 		result.append(copy)
 	return result
 
 
 # Parses a Vector2i stored as a String (JSON-flattened Vector2i or "(x, y)").
-static func _parse_vec2i(raw: String) -> Vector2i:
+static func _parse_vec2i(raw: String, fallback: Vector2i = Vector2i(-1, -1)) -> Vector2i:
 	var clean := raw.replace("(", "").replace(")", "").replace("Vector2i", "").strip_edges()
 	var parts := clean.split(",")
 	if parts.size() >= 2:
 		return Vector2i(int(parts[0]), int(parts[1]))
-	return Vector2i(-1, -1)
+	return fallback

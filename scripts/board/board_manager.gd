@@ -205,6 +205,7 @@ func _intermission_open() -> bool:
 # remove fleets or move tokens, so the arrow markers and walkable highlights
 # must be redrawn in place instead of waiting for a scene reload.
 func refresh_after_event() -> void:
+	_apply_pending_tile_clear()
 	_refresh_patrol_markers()
 	_highlight_adjacent()
 	_update_token_position()
@@ -356,6 +357,9 @@ func _refresh_patrol_markers() -> void:
 	for child in _patrol_marker_container.get_children():
 		child.queue_free()
 	for p in GlobalData.board_patrols:
+		# Old saves can carry pos/dir as JSON-flattened Strings — heal the
+		# entry so every fleet reliably draws its arrow marker.
+		PatrolSystem.normalize_patrol(p)
 		var pos: Vector2i = p.get("pos")
 		if not nodes_dict.has(pos):
 			continue
@@ -596,13 +600,68 @@ func _trigger_data_node_event() -> void:
 
 
 func _trigger_dead_end_event() -> void:
-	var event = {
-		"name": "Hidden Dead End",
-		"effect": "dead_end",
+	# A dead end is a walkable cell whose way forward is choked with rubble.
+	# The player can either pay MP to demolish the obstacle (the work takes
+	# the rest of the day) or turn back and find another route.
+	var cost := _dead_end_clear_cost()
+	var choices: Array = []
+	if GlobalData.board_mp >= cost:
+		choices.append({
+			"label": "Clear the path (%d MP)" % cost,
+			"desc": "Spend %d MP demolishing the rubble. The work takes the rest of the day." % cost,
+			"effect": "dead_end_clear",
+			"amount": cost,
+			"params": {"pos": {"x": current_pos.x, "y": current_pos.y}},
+		})
+	choices.append({
+		"label": "Turn back",
+		"desc": "Leave the blockage and look for another route.",
+		"effect": "none",
 		"amount": 0,
-		"desc": "Approached a hidden obstacle! Reroute path required.",
-	}
-	EventBus.event_triggered.emit(event)
+	})
+	var desc := "The way forward is choked with rubble and impassable terrain."
+	if choices.size() == 1:
+		desc += " You do not have enough movement left today to clear it (%d MP required)." % cost
+	EventBus.event_triggered.emit({
+		"name": "BLOCKED PATH",
+		"effect": "choice",
+		"amount": 0,
+		"desc": desc,
+		"params": {"choices": choices},
+	})
+
+
+# Demolishing a dead end's rubble costs roughly half a day of movement.
+func _dead_end_clear_cost() -> int:
+	return maxi(2, int(ceil(float(GlobalData.board_mp_max) * 0.5)))
+
+
+# The player chose to demolish a dead end's rubble (see refresh_after_event).
+# The tile becomes ordinary ground, blocked rock neighbors open up so a real
+# path exists past it, and the work consumes the rest of the day.
+func _apply_pending_tile_clear() -> void:
+	if GlobalData.pending_tile_clear == Vector2i(-1, -1):
+		return
+	var pos: Vector2i = GlobalData.pending_tile_clear
+	GlobalData.pending_tile_clear = Vector2i(-1, -1)
+	if not nodes_dict.has(pos):
+		return
+	var tile = nodes_dict[pos]
+	if str(tile.get_meta("tile_type", "empty")) != "dead_end":
+		return
+	tile.set_meta("tile_type", "empty")
+	if tile.has_method("_update_visual"):
+		tile._update_visual()
+	# Open the rubble cells around the clearing so the dead end stops being one.
+	for n in _tiles_in_radius(pos, 1):
+		var neighbor = nodes_dict.get(n)
+		if neighbor == null:
+			continue
+		if str(neighbor.get_meta("terrain", "plain")) == "rock":
+			neighbor.set_meta("terrain", "plain")
+			if neighbor.has_method("_update_visual"):
+				neighbor._update_visual()
+	_end_day()
 
 
 func _trigger_exit_event() -> void:

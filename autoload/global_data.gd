@@ -830,6 +830,10 @@ var board_patrols: Array = []
 # Id of the patrol currently engaged in combat (-1 = none). Set by the board
 # before entering a patrol fight; resolved by PatrolSystem on combat end.
 var board_patrol_engagement: int = -1
+# Tile the player chose to demolish via the dead-end "clear the path" choice
+# (-1 = none). The board manager opens the path and advances the day when the
+# choice popup closes.
+var pending_tile_clear: Vector2i = Vector2i(-1, -1)
 var heat: int = 0
 var wanted_level: int = 0
 # Sector-progression floor for wanted_level, raised by HeatWantedSystem.escalate_wanted().
@@ -1481,6 +1485,7 @@ func reset_run_data() -> void:
 	board_objective_intro_consumed = false
 	board_patrols.clear()
 	board_patrol_engagement = -1
+	pending_tile_clear = Vector2i(-1, -1)
 	heat = 0
 	wanted_level = 0
 	wanted_escalation = 0

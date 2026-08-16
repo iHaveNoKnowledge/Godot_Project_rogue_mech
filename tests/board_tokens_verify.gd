@@ -191,3 +191,26 @@ func _verify_patrol_dir() -> void:
 		if old != p.get("pos") and p.get("dir") != p.get("pos") - old:
 			in_sync = false
 	_check(in_sync, "advance_day keeps each fleet's heading in sync with its movement")
+
+	# A JSON save/load round-trip must keep pos/home/dir as real Vector2i — the
+	# old code only converted pos/home, so dir flattened to a String and the
+	# fleet's arrow marker crashed/broke on load.
+	var raw_save := SaveGameIO._serialize_patrols()
+	var round_tripped = JSON.parse_string(JSON.stringify(raw_save))
+	SaveGameIO.restore_from_dict({"board_patrols": round_tripped})
+	var all_vec := true
+	for p in GlobalData.board_patrols:
+		if not (p.get("pos") is Vector2i) or not (p.get("home") is Vector2i) or not (p.get("dir") is Vector2i):
+			all_vec = false
+	_check(all_vec, "patrol pos/home/dir round-trip through JSON as real Vector2i")
+
+	# normalize_dir parses every stored shape a patrol field can arrive in.
+	_check(PatrolSystem.normalize_dir("(1, 0)") == Vector2i(1, 0), "normalize_dir parses a JSON-flattened String")
+	_check(PatrolSystem.normalize_dir({"x": 0, "y": -1}) == Vector2i(0, -1), "normalize_dir parses an {x, y} dict")
+	_check(PatrolSystem.normalize_dir(Vector2i(-1, 0)) == Vector2i(-1, 0), "normalize_dir passes a Vector2i through")
+	_check(PatrolSystem.normalize_dir(null) == Vector2i(1, 0), "normalize_dir defaults a missing dir to east")
+
+	# normalize_patrol heals an old-save patrol entry in place.
+	var heal: Dictionary = {"pos": "(3, 4)", "home": "(3, 4)", "dir": "(0, 1)"}
+	PatrolSystem.normalize_patrol(heal)
+	_check(heal["pos"] == Vector2i(3, 4) and heal["dir"] == Vector2i(0, 1), "normalize_patrol heals an old-save patrol in place")

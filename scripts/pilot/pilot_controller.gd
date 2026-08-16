@@ -167,7 +167,7 @@ func _melee_swing(weapon: WeaponPart) -> void:
 	rotation.y = atan2(dir.x, dir.z)
 	EffectManager.spawn_melee_trail(global_position + Vector3(0, 1.2, 0), dir,
 		Color(0.9, 0.95, 1.0), Color(0.5, 0.7, 1.0), 1.0, 0.8)
-	var hit := EffectManager.melee_hit_ray(self, dir, weapon.range_distance, 8 | 2, weapon.damage)
+	var hit := EffectManager.melee_hit_ray(self, dir, weapon.range_distance, 8 | 2, weapon.damage, "blunt")
 	if hit and AudioManager:
 		AudioManager.play_npc_melee_hit(global_position)
 

@@ -3,6 +3,12 @@ class_name WeaponPart
 
 enum WeaponType { BEAM_RIFLE, MACHINE_GUN, MISSILE, SHOTGUN, MELEE, SHIELD, RAILGUN, MINIGUN }
 
+## The three attack types. Every weapon deals one of these, every armor plate
+## defends against one of them, and every shield's plating resists one of them
+## best. Rock-paper-scissors layer on top of raw damage: matching type = the
+## defense works, mismatched = it doesn't.
+enum DamageType { HEAT, PIERCE, BLUNT }
+
 @export var weapon_name: String = ""
 @export var weapon_type: WeaponType = WeaponType.BEAM_RIFLE
 @export var damage: float = 25.0
@@ -53,9 +59,20 @@ enum WeaponType { BEAM_RIFLE, MACHINE_GUN, MISSILE, SHOTGUN, MELEE, SHIELD, RAIL
 # Sound override (null = use type default)
 @export var fire_sfx: AudioStream
 
+# Damage type this weapon deals: "heat" / "pierce" / "blunt". Empty means
+# get_damage_type() derives it from the weapon category (beam/missile = heat,
+# bullet/rail = pierce, shotgun/melee = blunt). Set explicitly on weapons that
+# differ from their category (beam sniper = pierce, knife = pierce, heat blade
+# = heat, pile bunker = pierce).
+@export var damage_type: String = ""
+
 # Shield-specific
 @export var shield_hp: float = 300.0
-@export var shield_recharge_rate: float = 20.0
+# Which attack type this shield's plating resists best ("heat"/"pierce"/"blunt").
+# While raised, the shield fully blocks attacks but drains its HP at 40% rate
+# against its OWN type and 100% against the other two — an anti-pierce plate
+# soaks pierce hits for ages but melts against heat or blunt.
+@export var shield_type: String = ""
 
 
 func get_fire_interval() -> float:
@@ -74,6 +91,24 @@ func can_fire(current_ammo: int) -> bool:
 # does NOT have the Power required to one-hand it.
 func requires_two_hand(power: float) -> bool:
 	return two_handed and (power < power_required)
+
+
+func get_damage_type() -> String:
+	if not damage_type.is_empty():
+		return damage_type.to_lower()
+	match weapon_type:
+		WeaponType.BEAM_RIFLE, WeaponType.MISSILE:
+			return "heat"
+		WeaponType.MACHINE_GUN, WeaponType.RAILGUN, WeaponType.MINIGUN:
+			return "pierce"
+		_:
+			return "blunt"
+
+
+# The anti-type of this shield ("heat"/"pierce"/"blunt"). Falls back to blunt
+# so a shield with no plating still counts as a plain physical plate.
+func get_shield_type() -> String:
+	return shield_type.to_lower() if not shield_type.is_empty() else "blunt"
 
 
 func get_ammo_type() -> String:

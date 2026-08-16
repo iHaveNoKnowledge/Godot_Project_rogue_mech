@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1")
 weapon_name = "Missile Launcher"
+damage_type = "heat"
 weapon_type = 2
 damage = 100.0
 fire_rate = 2.0

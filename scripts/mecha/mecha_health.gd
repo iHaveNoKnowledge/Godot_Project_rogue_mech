@@ -57,6 +57,10 @@ func _init_parts() -> void:
 			elif p and p.get("armor") != null:
 				# Dictionary format from hangar stores "armor" not "armor_class"
 				parts[slot]["armor_class"] = maxf(p.get("armor", 10.0) / 10.0, 0.1)
+			# Which attack type this plate defends against (heat/pierce/blunt).
+			# Empty means a balanced plate that always uses its armor_class.
+			if p and p.get("defense_type") != null:
+				parts[slot]["defense_type"] = str(p.defense_type)
 
 		# -----------------------------------------------------------------------
 		# Scrap emergency patch: this slot was rebuilt from scrap in the
@@ -122,10 +126,11 @@ func _find_meshes() -> void:
 func take_damage(amount: float, damage_type: String = "kinetic") -> void:
 	if is_destroyed:
 		return
-	# Shield absorption
+	# Shield absorption (passes the attack type so the plate's anti-type plating
+	# decides the drain rate: 40% vs its own type, 100% vs the other two).
 	var wm = _get_weapon_manager()
 	if wm and wm.is_shield_active():
-		amount = wm.absorb_damage_with_shield(amount)
+		amount = wm.absorb_damage_with_shield(amount, damage_type)
 		if amount <= 0.0:
 			return
 	super.take_damage(amount, damage_type)
@@ -137,7 +142,7 @@ func take_damage_to_part(slot_name: String, amount: float, damage_type: String =
 	# Shield absorption
 	var wm = _get_weapon_manager()
 	if wm and wm.is_shield_active():
-		amount = wm.absorb_damage_with_shield(amount)
+		amount = wm.absorb_damage_with_shield(amount, damage_type)
 		if amount <= 0.0:
 			return
 	super.take_damage_to_part(slot_name, amount, damage_type, layer)
@@ -149,7 +154,7 @@ func take_damage_at_point(amount: float, world_pos: Vector3, damage_type: String
 	# Shield absorption
 	var wm = _get_weapon_manager()
 	if wm and wm.is_shield_active():
-		amount = wm.absorb_damage_with_shield(amount)
+		amount = wm.absorb_damage_with_shield(amount, damage_type)
 		if amount <= 0.0:
 			return
 	super.take_damage_at_point(amount, world_pos, damage_type)
@@ -160,7 +165,7 @@ func take_damage_to_part_at(slot_name: String, amount: float, world_pos: Vector3
 		return
 	var wm = _get_weapon_manager()
 	if wm and wm.is_shield_active():
-		amount = wm.absorb_damage_with_shield(amount)
+		amount = wm.absorb_damage_with_shield(amount, damage_type)
 		if amount <= 0.0:
 			return
 	super.take_damage_to_part_at(slot_name, amount, world_pos, damage_type)

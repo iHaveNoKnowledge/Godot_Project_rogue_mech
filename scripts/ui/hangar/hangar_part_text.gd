@@ -19,6 +19,16 @@ static func weapon_type_label(wtype) -> String:
 	return "Unknown"
 
 
+# The three attack types. Every weapon deals one, every armor plate defends
+# against one, every shield plate resists one best.
+static func damage_type_label(dtype: String) -> String:
+	match str(dtype).to_lower():
+		"heat": return "HEAT 🔥"
+		"pierce": return "PIERCE 🗡️"
+		"blunt": return "BLUNT 🔨"
+	return "BALANCED"
+
+
 # Builds a combat-capability stat block for a weapon resource (damage, fire
 # rate, mag size, range, heat, recoil, ...). Only lines with a meaningful value
 # are shown. Used by the selection + hover stat cards on the customize page.
@@ -30,7 +40,19 @@ static func weapon_capability_text(res: Resource) -> String:
 	var wtype := weapon_type_label(res.weapon_type) if "weapon_type" in res else "Unknown"
 	lines.append("TYPE: %s" % wtype)
 
-	if "damage" in res and res.damage != null and float(res.damage) > 0.0:
+	if int(res.weapon_type) == 5:
+		# Shield plate: show its anti-type + HP instead of damage numbers.
+		var stype := ""
+		if res.has_method("get_shield_type"):
+			stype = res.get_shield_type()
+		lines.append("ANTI-TYPE: %s" % damage_type_label(stype))
+	else:
+		var dtype := ""
+		if res.has_method("get_damage_type"):
+			dtype = res.get_damage_type()
+		lines.append("DAMAGE TYPE: %s" % damage_type_label(dtype))
+
+	if "damage" in res and res.damage != null and float(res.damage) > 0.0 and int(res.weapon_type) != 5:
 		lines.append("DAMAGE: %.1f" % float(res.damage))
 
 	if "fire_rate" in res and res.fire_rate != null and float(res.fire_rate) > 0.0:
@@ -70,9 +92,8 @@ static func weapon_capability_text(res: Resource) -> String:
 
 	if int(res.weapon_type) == 5:
 		var shp := float(res.shield_hp) if "shield_hp" in res and res.shield_hp != null else 0.0
-		var srch := float(res.shield_recharge_rate) if "shield_recharge_rate" in res and res.shield_recharge_rate != null else 0.0
 		lines.append("SHIELD HP: %.1f" % shp)
-		lines.append("SHIELD RECHARGE: %.1f /s" % srch)
+		lines.append("NOTE: Physical plate — no regen. Drains 40% vs its anti-type, 100% vs others.")
 
 	if "two_handed" in res and res.two_handed:
 		var power_need := float(res.power_required) if "power_required" in res and res.power_required != null else 0.0
@@ -98,6 +119,13 @@ static func armor_capability_text(inst: Dictionary, durability: float) -> String
 	var lines: Array[String] = []
 
 	lines.append("TYPE: %s" % inst.get("type", "Instance"))
+
+	# Which attack type this plate defends against (empty = balanced plate).
+	var ddef := str(inst.get("defense_type", "")).to_lower()
+	if ddef != "":
+		lines.append("DEFENSE TYPE: %s" % damage_type_label(ddef))
+	else:
+		lines.append("DEFENSE TYPE: BALANCED (all types at armor class)")
 
 	var full_hp := GlobalData.part_stat(inst, "max_hp", 30.0)
 	var dur := durability

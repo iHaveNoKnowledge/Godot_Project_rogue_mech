@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1")
 weapon_name = "Combat Shotgun"
+damage_type = "blunt"
 weapon_type = 3
 damage = 15.0
 fire_rate = 0.9

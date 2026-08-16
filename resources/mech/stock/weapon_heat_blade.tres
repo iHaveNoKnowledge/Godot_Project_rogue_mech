@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1")
 weapon_name = "Heat Blade"
+damage_type = "heat"
 weapon_type = 4
 damage = 50.0
 fire_rate = 0.4

@@ -65,6 +65,22 @@ func _find_meshes() -> void:
 	pass
 
 
+## Normalizes every damage-type string down to the three attack types
+## (heat / pierce / blunt). Legacy labels (kinetic, explosive, beam, melee)
+## map onto the new system so armor/shield defenses always compare one of the
+## three. Anything already one of the three passes through untouched.
+static func normalize_damage_type(t: String) -> String:
+	match str(t).to_lower():
+		"heat", "beam", "energy", "thermal", "plasma", "fire", "explosive":
+			return "heat"
+		"pierce", "piercing", "kinetic", "rail", "bullet", "shell":
+			return "pierce"
+		"blunt", "impact", "crush", "melee", "force":
+			return "blunt"
+		_:
+			return str(t).to_lower()
+
+
 func _calculate_totals() -> void:
 	total_armor_hp = 0.0
 	total_frame_hp = 0.0
@@ -333,7 +349,18 @@ func _collect_mesh_descendants(node: Node, into: Array) -> void:
 
 func _apply_armor_damage(slot_name: String, amount: float, damage_type: String) -> void:
 	var part = parts[slot_name]
-	var reduced = amount / maxf(part["armor_class"], 0.1)
+	# Armor only dampens attacks of its OWN defense type. A plate defends
+	# against one of heat/pierce/blunt; when the incoming attack type matches
+	# it, armor_class applies normally. When it doesn't match, the plate can't
+	# shed the damage — it takes the hit at full strength (no armor_class
+	# reduction) until it breaks. Empty defense_type = balanced plate, so the
+	# old armor_class behaviour stays for untyped parts (and scrap patches).
+	var attack := normalize_damage_type(damage_type)
+	var defense := str(part.get("defense_type", "")).to_lower()
+	var resistance := 1.0
+	if defense == "" or defense == "balanced" or defense == attack:
+		resistance = float(part["armor_class"])
+	var reduced = amount / maxf(resistance, 0.1)
 	part["armor_hp"] = maxf(part["armor_hp"] - reduced, 0.0)
 
 	_update_part_visual(slot_name)

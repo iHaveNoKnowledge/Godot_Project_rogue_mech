@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1")
 weapon_name = "Beam Sniper"
+damage_type = "pierce"
 weapon_type = 0
 damage = 80.0
 fire_rate = 1.2

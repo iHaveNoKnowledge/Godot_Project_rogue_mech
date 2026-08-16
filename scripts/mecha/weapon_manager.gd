@@ -48,12 +48,17 @@ var _hold_time_left: float = 0.0
 var _hold_time_right: float = 0.0
 
 # --- Shield State ---
+# Shields are PHYSICAL plates held on one arm (no energy barrier, no
+# regeneration): while raised they fully block attacks and drain their own HP
+# — 40% cost against the plate's own damage type, 100% against the other two
+# (see absorb_damage_with_shield). A broken plate stays broken for the battle.
 var shield_active: bool = false
 var shield_current_hp: float = 0.0
 var shield_max_hp: float = 0.0
-var shield_recharge_timer: float = 0.0
-const SHIELD_RECHARGE_DELAY: float = 3.0
-var _shield_visual: MeshInstance3D = null
+# The exact plate the current HP belongs to (the WeaponPart resource armed in
+# the hand). Re-raising the same broken plate stays broken; swapping in a
+# different plate treats it as fresh.
+var _armed_shield: WeaponPart = null
 
 # --- Weapon Scroll State (per hand) ---
 var _selecting_left: bool = false
@@ -338,14 +343,7 @@ func _physics_process(delta: float) -> void:
 		else:
 			_try_fire("right", null)
 
-	# Shield recharge
-	if shield_active and shield_current_hp < shield_max_hp:
-		shield_recharge_timer = SHIELD_RECHARGE_DELAY
-	elif not shield_active and shield_current_hp < shield_max_hp:
-		shield_recharge_timer -= delta
-		if shield_recharge_timer <= 0.0:
-			shield_current_hp = minf(shield_current_hp + shield_max_hp * 0.15 * delta, shield_max_hp)
-	_update_shield_visual()
+	# Physical shield plates never regenerate — a damaged plate stays damaged.
 
 
 # ====================================================================
@@ -1143,10 +1141,14 @@ func _check_melee_hit(mecha: Node3D, direction: Vector3, damage: float, weapon: 
 		var perp := absf(to_h.cross(aim2))
 		if perp > MELEE_AUTO_AIM_WIDTH:
 			continue
+		# Melee hits carry the weapon's attack type (knife/pile bunker = pierce,
+		# heat blade = heat, mace/fist/shoulder = blunt) so armor + shields can
+		# match on it like any other attack.
+		var melee_type := weapon.get_damage_type() if weapon != null else "blunt"
 		if enemy.has_method("take_damage_at_point"):
-			enemy.take_damage_at_point(damage, aim_point, "melee")
+			enemy.take_damage_at_point(damage, aim_point, melee_type)
 		elif enemy.has_method("take_damage"):
-			enemy.take_damage(damage, "melee")
+			enemy.take_damage(damage, melee_type)
 		melee_hit_landed.emit()
 		if weapon != null and weapon.weapon_name.to_lower().contains("pile"):
 			_apply_pile_hitstop()
@@ -1321,69 +1323,65 @@ func _toggle_shield(hand: String) -> void:
 
 	if shield_active:
 		shield_active = false
-		shield_recharge_timer = SHIELD_RECHARGE_DELAY
 		weapon_switched.emit(hand, weapon.weapon_name + " [DOWN]")
-		_hide_shield_visual()
 	else:
+		# A plate that broke this battle stays broken — re-raising the SAME
+		# plate does not bring its HP back (physical plates never regenerate).
+		# Only a fresh plate (different from the one currently armed) starts
+		# at full HP.
+		if shield_current_hp <= 0.0 and _armed_shield == weapon:
+			return
+		if _armed_shield != weapon:
+			# New plate in hand: arm it at full HP and forget the old one.
+			_armed_shield = weapon
+			shield_current_hp = weapon.shield_hp
 		shield_active = true
 		shield_max_hp = weapon.shield_hp
-		if shield_current_hp <= 0.0:
-			shield_current_hp = shield_max_hp
 		weapon_switched.emit(hand, weapon.weapon_name + " [UP]")
-		_show_shield_visual()
 
 
-func absorb_damage_with_shield(amount: float) -> float:
+# The raised plate fully stops the attack (0.0 leaks through); it just pays
+# the damage from its own HP. The plate's anti-type drains at 40% — an
+# anti-pierce plate soaks pierce for ages but melts against heat/blunt.
+func absorb_damage_with_shield(amount: float, damage_type: String = "") -> float:
 	if not shield_active or shield_current_hp <= 0.0:
 		return amount
-	var absorbed = minf(amount, shield_current_hp)
-	shield_current_hp -= absorbed
-	var remaining = amount - absorbed
+	var weapon := _active_shield_weapon()
+	var attack := MechaHealthBase.normalize_damage_type(damage_type)
+	var drain_mult := 1.0
+	if weapon != null and weapon.get_shield_type() == attack:
+		drain_mult = 0.4
+	shield_current_hp = maxf(shield_current_hp - amount * drain_mult, 0.0)
 	if shield_current_hp <= 0.0:
-		shield_active = false
 		shield_current_hp = 0.0
+		shield_active = false
 		var hand = "left" if left_hand and left_hand.weapon_type == WeaponPart.WeaponType.SHIELD else "right"
 		weapon_switched.emit(hand, "Shield BROKEN")
-	return remaining
+	return 0.0
 
 
 func is_shield_active() -> bool:
 	return shield_active
 
 
-func _show_shield_visual() -> void:
-	if _shield_visual == null:
-		_shield_visual = MeshInstance3D.new()
-		var sphere = SphereMesh.new()
-		sphere.radius = 2.2
-		sphere.height = 4.0
-		_shield_visual.mesh = sphere
-		var mat = StandardMaterial3D.new()
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		mat.albedo_color = Color(0.3, 0.6, 1.0, 0.25)
-		mat.emission_enabled = true
-		mat.emission = Color(0.2, 0.5, 1.0)
-		mat.emission_energy_multiplier = 2.0
-		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-		_shield_visual.material_override = mat
-		add_child(_shield_visual)
-	_shield_visual.visible = true
-	_shield_visual.position = Vector3(0, 1.5, 0)
+# Which hand currently holds a shield plate ("left" / "right"), or "" when
+# no shield is equipped. The mech animation uses this to raise the right arm.
+func get_shield_hand() -> String:
+	if left_hand and left_hand.weapon_type == WeaponPart.WeaponType.SHIELD:
+		return "left"
+	if right_hand and right_hand.weapon_type == WeaponPart.WeaponType.SHIELD:
+		return "right"
+	return ""
 
 
-func _hide_shield_visual() -> void:
-	if _shield_visual:
-		_shield_visual.visible = false
-
-
-func _update_shield_visual() -> void:
-	if _shield_visual == null or not shield_active:
-		return
-	var hp_ratio = shield_current_hp / maxf(shield_max_hp, 1.0)
-	var mat = _shield_visual.material_override as StandardMaterial3D
-	if mat:
-		mat.albedo_color.a = lerp(0.05, 0.3, hp_ratio)
-		mat.emission_energy_multiplier = lerp(0.5, 2.0, hp_ratio)
+# The shield weapon currently held (the SHIELD-type weapon in a hand), used to
+# read its anti-type plating. Null when nothing shield-like is equipped.
+func _active_shield_weapon() -> WeaponPart:
+	if left_hand and left_hand.weapon_type == WeaponPart.WeaponType.SHIELD:
+		return left_hand
+	if right_hand and right_hand.weapon_type == WeaponPart.WeaponType.SHIELD:
+		return right_hand
+	return null
 
 
 # ====================================================================

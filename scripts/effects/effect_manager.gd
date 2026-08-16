@@ -209,6 +209,7 @@ static func melee_hit_ray(
 	range: float,
 	collision_mask: int,
 	damage: float,
+	damage_type: String = "blunt",
 ) -> bool:
 	if attacker == null or attacker.get_viewport() == null:
 		return false
@@ -233,6 +234,8 @@ static func melee_hit_ray(
 	if victim == null or not victim.has_method("take_damage"):
 		return false
 
-	victim.take_damage(damage, "melee")
+	# Melee hits carry their attack type (heat/pierce/blunt) so armor plates
+	# and shields match on it just like bullets and beams.
+	victim.take_damage(damage, damage_type)
 	spawn_damage_number(result["position"] + Vector3(0, 1, 0), damage, Color(1, 0.5, 0))
 	return true

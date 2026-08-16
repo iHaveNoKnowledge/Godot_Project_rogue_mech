@@ -1,14 +1,15 @@
 extends Node
 
 ## Headless verification of the enemy shield system (archetypes 4/5):
-##   1. Shield archetypes spawn with an active shield + HP; non-shield enemies
-##      carry no shield at all.
+##   1. Shield archetypes spawn with an active PHYSICAL plate on their arm;
+##      non-shield enemies carry no shield at all.
 ##   2. Damage funnels through the shield first (health system absorbs before
 ##      touching armor/frame), and a fully-blocked hit deals no part damage.
-##   3. Draining the shield breaks it (inactive + visual hidden), and it
-##      recharges after the delay once dropped.
-##   4. set_shield_up toggles the barrier + its visual on/off.
-##   5. AI: a shield gunner drops the barrier around its shots and raises it
+##   3. The plate drains at 40% against its OWN damage type and 100% against
+##      the other two, and NEVER regenerates — a damaged plate stays damaged.
+##   4. Draining the shield breaks it (inactive). set_shield_up toggles the
+##      plate up/down.
+##   5. AI: a shield gunner drops the plate around its shots and raises it
 ##      again; a shield melee drops it when it commits to a swing.
 ## Run: godot --headless --path . res://tests/enemy_shield_verify.tscn
 
@@ -19,7 +20,8 @@ var _checks: int = 0
 func _ready() -> void:
 	await _verify_shield_stats()
 	await _verify_absorption()
-	await _verify_break_and_recharge()
+	await _verify_no_recharge()
+	await _verify_anti_type_drain()
 	await _verify_shield_toggle()
 	await _verify_shield_audio()
 	await _verify_ai_windows()
@@ -52,20 +54,18 @@ func _verify_shield_stats() -> void:
 	_check(knight.shield_max_hp == 180.0, "shield melee carries a 180 HP shield")
 	_check(knight.shield_active, "shield melee starts with the shield raised")
 	_check(is_equal_approx(knight.shield_current_hp, knight.shield_max_hp), "shield starts full")
-	_check(knight.get_node_or_null("EnemyShieldBubble") != null, "shield melee shows the barrier bubble")
-	if knight.get_node_or_null("EnemyShieldBubble"):
-		_check(knight.get_node("EnemyShieldBubble").visible, "barrier bubble is visible while raised")
+	_check(knight.shield_type == "blunt", "shield melee plate is anti-blunt")
 
 	_check(gunner.shield_max_hp == 120.0, "shield gunner carries a 120 HP shield")
 	_check(gunner.shield_active, "shield gunner starts with the shield raised")
-	_check(gunner.get_node_or_null("EnemyShieldBubble") != null, "shield gunner shows the barrier bubble")
+	_check(gunner.shield_type == "pierce", "shield gunner plate is anti-pierce")
 
 	_check(rusher.shield_max_hp == 0.0, "non-shield enemy carries no shield HP")
 	_check(not rusher.is_shield_active(), "non-shield enemy shield is inactive")
 	rusher.set_shield_up(true)
 	_check(not rusher.is_shield_active(), "set_shield_up is a no-op for non-shield enemies")
 
-	# The loadout models (shield plate + weapon) are mounted on the hands.
+	# The physical plate (shield model) is mounted on a hand, not a bubble.
 	_check(knight.get_node_or_null("EnemyShieldMount") != null or knight._shield_hand_mount != null, "shield melee mounts a shield on a hand")
 	_check(knight._shield_hand_mount != null and knight._weapon_hand_mount != null, "shield melee mounts shield + melee weapon")
 	_check(gunner._shield_hand_mount != null and gunner._weapon_hand_mount != null, "shield gunner mounts shield + gun")
@@ -83,29 +83,31 @@ func _verify_absorption() -> void:
 	var body_armor_before: float = hs.parts["body"]["armor_hp"]
 	var body_frame_before: float = hs.parts["body"]["frame_hp"]
 
-	# A 50-damage hit while the shield is up (180 HP) is fully blocked.
-	hs.take_damage(50.0, "kinetic")
-	_check(is_equal_approx(enemy.shield_current_hp, 130.0), "shield absorbs 50 damage (180 -> 130)")
+	# A 50-damage hit while the shield is up (180 HP) is fully blocked. The
+	# plate is anti-blunt, so a blunt hit drains at the 40% rate: 50 * 0.4 = 20
+	# HP off the plate.
+	hs.take_damage(50.0, "blunt")
+	_check(is_equal_approx(enemy.shield_current_hp, 160.0), "shield absorbs 50 blunt damage at 40% drain (180 -> 160)")
 	_check(is_equal_approx(hs.parts["body"]["armor_hp"], body_armor_before), "fully-blocked hit deals no armor damage")
 	_check(is_equal_approx(hs.parts["body"]["frame_hp"], body_frame_before), "fully-blocked hit deals no frame damage")
 
-	# A hit bigger than the shield leaks the remainder into the mech (the
-	# armor HP comes from the catalog loadout, so only the direction is
-	# asserted — leak drops armor, never frame).
-	hs.take_damage(80.0, "kinetic")
-	_check(is_equal_approx(enemy.shield_current_hp, 50.0), "shield absorbs the next 80 damage (130 -> 50)")
+	# A second blunt hit drains at 40% again (160 -> 128).
+	hs.take_damage(80.0, "blunt")
+	_check(is_equal_approx(enemy.shield_current_hp, 128.0), "shield absorbs the next 80 damage (160 -> 128)")
 	_check(is_equal_approx(hs.parts["body"]["armor_hp"], body_armor_before), "absorbed hit still deals no armor damage")
 
-	# Drain the last of the shield: the small overflow finally reaches armor.
-	hs.take_damage(60.0, "kinetic")
+	# Drain the last of the shield: a hit that breaks the plate is fully
+	# caught by it (like the player's shield, the killing blow never leaks
+	# through), so the armor stays untouched.
+	hs.take_damage(400.0, "blunt")
 	_check(enemy.shield_current_hp == 0.0, "final hit drains the shield to 0")
 	_check(not enemy.is_shield_active(), "drained shield is no longer active")
-	_check(hs.parts["body"]["armor_hp"] < body_armor_before, "overflow damage reaches the armor")
-	_check(hs.parts["body"]["frame_hp"] == body_frame_before, "overflow hits armor first, not frame")
+	_check(is_equal_approx(hs.parts["body"]["armor_hp"], body_armor_before), "the breaking hit is fully caught by the plate")
+	_check(is_equal_approx(hs.parts["body"]["frame_hp"], body_frame_before), "breaking hit leaves the frame untouched")
 
 	# With the shield gone, damage lands directly on the armor.
 	var armor_now: float = hs.parts["body"]["armor_hp"]
-	hs.take_damage(20.0, "kinetic")
+	hs.take_damage(20.0, "blunt")
 	_check(hs.parts["body"]["armor_hp"] < armor_now, "broken shield no longer blocks damage")
 
 	# Point damage (the projectile path) funnels through the shield too.
@@ -113,8 +115,13 @@ func _verify_absorption() -> void:
 	await get_tree().process_frame
 	var ghs = gunner.health_system
 	var g_armor: float = ghs.parts["body"]["armor_hp"]
-	ghs.take_damage_at_point(30.0, gunner.global_position + Vector3(0, 1.5, 0), "kinetic")
-	_check(is_equal_approx(gunner.shield_current_hp, 90.0), "projectile-style damage absorbed by the gunner shield (120 -> 90)")
+	ghs.take_damage_at_point(30.0, gunner.global_position + Vector3(0, 1.5, 0), "pierce")
+	_check(is_equal_approx(gunner.shield_current_hp, 108.0), "point damage absorbed by the anti-pierce gunner plate (120 -> 108 at 40%)")
+
+	# Same 30-damage hit, but HEAT: the anti-pierce plate cannot shed heat, so
+	# it drains at 100% (108 -> 78).
+	ghs.take_damage_at_point(30.0, gunner.global_position + Vector3(0, 1.5, 0), "heat")
+	_check(is_equal_approx(gunner.shield_current_hp, 78.0), "heat on the anti-pierce plate drains at 100% (108 -> 78)")
 	_check(is_equal_approx(ghs.parts["body"]["armor_hp"], g_armor), "point damage fully blocked by shield")
 
 	enemy.queue_free()
@@ -122,35 +129,50 @@ func _verify_absorption() -> void:
 	await get_tree().process_frame
 
 
-func _verify_break_and_recharge() -> void:
+# Physical plates never regenerate: after taking hits the HP stays exactly
+# where it was, no matter how long the enemy idles.
+func _verify_no_recharge() -> void:
 	var enemy = _spawn_enemy(5)
 	await get_tree().process_frame
 
-	# Drain the shield completely: breaks and hides the bubble. A leak big
-	# enough to break the armor would destroy the mech, so use a bare drain.
-	enemy.health_system.take_damage(enemy.shield_max_hp, "kinetic")
-	_check(not enemy.is_shield_active(), "drained shield breaks (inactive)")
-	if enemy.get_node_or_null("EnemyShieldBubble"):
-		_check(not enemy.get_node("EnemyShieldBubble").visible, "barrier bubble hidden after break")
+	# Take a hit that doesn't break the plate, then idle for a long time.
+	enemy.health_system.take_damage(40.0, "heat")  # anti-pierce plate vs heat = 100% drain
+	_check(is_equal_approx(enemy.shield_current_hp, 80.0), "heat hit drains the gunner plate at 100% (120 -> 80)")
+	enemy._process(1.0)
+	enemy._process(3.0)
+	enemy._process(20.0)
+	_check(is_equal_approx(enemy.shield_current_hp, 80.0), "shield never regenerates after long idle")
+	_check(enemy.is_shield_active(), "partial plate stays raised")
 
-	# Recharge: while broken, the delay must elapse before regen starts.
-	var regen_rate: float = enemy.shield_recharge_rate
-	enemy._process(1.0)  # inside the 3s delay -> no regen yet
-	_check(is_equal_approx(enemy.shield_current_hp, 0.0), "no regen during the recharge delay")
-	enemy._process(3.0)  # delay elapsed, then a full 3s of regen ticks
-	_check(is_equal_approx(enemy.shield_current_hp, regen_rate * 3.0), "shield regenerates after the delay at its rate")
-	enemy._process(20.0)  # long idle -> capped at max
-	_check(is_equal_approx(enemy.shield_current_hp, enemy.shield_max_hp), "shield regen caps at max HP")
-
-	# The AI re-raises the barrier once it has recharged (set_shield_up), and
-	# while it is UP the shield never recharges in combat.
+	# Even lowered and re-raised, the HP does not come back.
+	enemy.set_shield_up(false)
 	enemy.set_shield_up(true)
-	enemy.health_system.take_damage(40.0, "kinetic")
-	_check(enemy.shield_active, "shield raised again after recharge")
-	_check(is_equal_approx(enemy.shield_current_hp, enemy.shield_max_hp - 40.0), "re-raised shield absorbs again")
-	enemy.shield_current_hp = enemy.shield_max_hp - 40.0
-	enemy._process(5.0)
-	_check(is_equal_approx(enemy.shield_current_hp, enemy.shield_max_hp - 40.0), "raised shield does not recharge in combat")
+	_check(is_equal_approx(enemy.shield_current_hp, 80.0), "re-raising a lowered plate does not restore HP")
+
+	enemy.queue_free()
+	await get_tree().process_frame
+
+
+# The anti-type rule: a plate drains at 40% against its OWN type and 100%
+# against the other two.
+func _verify_anti_type_drain() -> void:
+	var enemy = _spawn_enemy(4)  # anti-blunt plate, 180 HP
+	await get_tree().process_frame
+
+	# Own type (blunt) drains at 40%.
+	enemy.health_system.take_damage(100.0, "blunt")
+	_check(is_equal_approx(enemy.shield_current_hp, 140.0), "blunt hit on anti-blunt plate drains 40% (180 -> 140)")
+
+	# Other types (heat / pierce) drain at 100%.
+	enemy.health_system.take_damage(50.0, "heat")
+	_check(is_equal_approx(enemy.shield_current_hp, 90.0), "heat hit on anti-blunt plate drains 100% (140 -> 90)")
+	enemy.health_system.take_damage(30.0, "pierce")
+	_check(is_equal_approx(enemy.shield_current_hp, 60.0), "pierce hit on anti-blunt plate drains 100% (90 -> 60)")
+
+	# Legacy labels normalize onto the three types: "kinetic" is pierce, so it
+	# drains at 100% against the anti-blunt plate (60 -> 10).
+	enemy.health_system.take_damage(50.0, "kinetic")
+	_check(is_equal_approx(enemy.shield_current_hp, 10.0), "legacy kinetic normalizes to pierce, drains 100% (60 -> 10)")
 
 	enemy.queue_free()
 	await get_tree().process_frame
@@ -162,19 +184,42 @@ func _verify_shield_toggle() -> void:
 
 	enemy.set_shield_up(false)
 	_check(not enemy.is_shield_active(), "set_shield_up(false) lowers the shield")
-	if enemy.get_node_or_null("EnemyShieldBubble"):
-		_check(not enemy.get_node("EnemyShieldBubble").visible, "bubble hidden when lowered")
 	enemy.set_shield_up(true)
 	_check(enemy.is_shield_active(), "set_shield_up(true) raises the shield")
-	if enemy.get_node_or_null("EnemyShieldBubble"):
-		_check(enemy.get_node("EnemyShieldBubble").visible, "bubble shown when raised")
+	_check(is_equal_approx(enemy.shield_current_hp, enemy.shield_max_hp), "toggling never restores plate HP")
+
+	# The shared mecha_animation drives the guard arm: while the plate is up
+	# the LEFT arm (which holds it) lifts toward the raised pose, and lowers
+	# back when the plate drops.
+	var anim = enemy.get_node_or_null("EnemyAnimation")
+	_check(anim != null, "enemy has the shared mecha_animation node")
+	if anim:
+		# Raise -> wait a few frames for the blend to climb.
+		for i in range(10):
+			enemy.set_shield_up(true)
+			await get_tree().physics_frame
+		var arm_rot_up: float = anim.arm_left.rotation.x
+		_check(arm_rot_up > 0.3, "shield arm lifts while the plate is up (%.2f rad)" % arm_rot_up)
+		# Drop -> the arm eases back down.
+		enemy.set_shield_up(false)
+		for i in range(10):
+			await get_tree().physics_frame
+		var arm_rot_down: float = anim.arm_left.rotation.x
+		_check(arm_rot_down < arm_rot_up, "shield arm lowers back when the plate drops (%.2f < %.2f)" % [arm_rot_down, arm_rot_up])
+
+	# A broken plate cannot be raised (raise it first so the hit hits the plate).
+	enemy.set_shield_up(true)
+	enemy.health_system.take_damage(9999.0, "blunt")
+	_check(not enemy.is_shield_active(), "broken plate is inactive")
+	enemy.set_shield_up(true)
+	_check(not enemy.is_shield_active(), "a broken plate cannot be raised again")
 
 	enemy.queue_free()
 	await get_tree().process_frame
 
 
 # The shield has its own voices: a metallic clang when a shot is absorbed and
-# a distinct shatter when the barrier breaks, so blocking reads by ear.
+# a distinct shatter when the plate breaks, so blocking reads by ear.
 func _verify_shield_audio() -> void:
 	var am := AudioManager
 	_check(am != null, "AudioManager autoload is available")
@@ -221,16 +266,16 @@ func _verify_shield_audio() -> void:
 	var enemy = _spawn_enemy(5)
 	await get_tree().process_frame
 	am.sfx_pool[0].stop()
-	enemy.health_system.take_damage(30.0, "kinetic")  # fully absorbed
+	enemy.health_system.take_damage(30.0, "heat")  # fully absorbed (100% drain)
 	_check(block_arr.has(am.sfx_pool[0].stream), "blocked hit plays the block clang")
 	am.sfx_pool[0].stop()
-	enemy.health_system.take_damage(enemy.shield_max_hp, "kinetic")  # drains to 0
+	enemy.health_system.take_damage(enemy.shield_max_hp, "heat")  # drains to 0
 	_check(am.sfx_pool[0].stream == break_stream, "shield depletion plays the shatter")
 	enemy.queue_free()
 	await get_tree().process_frame
 
 
-# Drives the real AI: a shield gunner must drop its barrier around each shot
+# Drives the real AI: a shield gunner must drop its plate around each shot
 # (punish window) and raise it back, and a shield melee must drop it when it
 # commits to a swing.
 func _verify_ai_windows() -> void:
@@ -252,8 +297,8 @@ func _verify_ai_windows() -> void:
 		if saw_gunner_drop and gunner.is_shield_active():
 			saw_gunner_raise = true
 			break
-	_check(saw_gunner_drop, "shield gunner drops its barrier around a shot")
-	_check(saw_gunner_raise, "shield gunner raises the barrier again after the shot")
+	_check(saw_gunner_drop, "shield gunner drops its plate around a shot")
+	_check(saw_gunner_raise, "shield gunner raises the plate again after the shot")
 
 	target.queue_free()
 	gunner.queue_free()
@@ -274,7 +319,7 @@ func _verify_ai_windows() -> void:
 		if not knight.is_shield_active():
 			saw_knight_drop = true
 			break
-	_check(saw_knight_drop, "shield melee drops its barrier when committing to a swing")
+	_check(saw_knight_drop, "shield melee drops its plate when committing to a swing")
 
 	target2.queue_free()
 	knight.queue_free()

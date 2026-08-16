@@ -129,6 +129,10 @@ func _physics_process(delta: float) -> void:
 			_update_bob(delta)
 			_update_legs(delta)
 
+	# Runs LAST so the raised shield arm overrides whatever the base postures
+	# (idle guard, sprint pumping, airborne) set for that arm this frame.
+	_update_shield_arm(delta)
+
 
 func _update_jump_posture(delta: float) -> void:
 	var speed = 12.0 * delta
@@ -310,6 +314,52 @@ func _update_recoil(delta: float) -> void:
 		if leg_left and leg_right:
 			leg_left.rotation.x = lerp_angle(leg_left.rotation.x, deg_to_rad(22.0) * landing_impact, 12.0 * delta)
 			leg_right.rotation.x = lerp_angle(leg_right.rotation.x, deg_to_rad(22.0) * landing_impact, 12.0 * delta)
+
+
+# Raised-shield guard pose. When a hand is actively holding its shield plate
+# up, that arm lifts in front of the torso (upper arm swung forward, elbow
+# bent hard) so the plate reads as being interposed between the mech and the
+# attacker. Works for BOTH the player mech (shield state lives on the
+# WeaponManager child, which also reports which hand holds it) and enemy
+# shield mechs (state lives on the body itself, plate always on the left arm).
+#
+# The pose is blended by _shield_raise (eased 0..1) and applied AFTER the
+# normal idle/sprint postures, so the shield arm smoothly lifts from whatever
+# the base pose left it at and eases back down when the plate lowers.
+var _shield_raise: float = 0.0
+const SHIELD_RAISE_SPEED: float = 9.0
+
+func _update_shield_arm(delta: float) -> void:
+	var shield_up := false
+	var shield_hand := ""
+
+	var wm = mecha.get_node_or_null("WeaponManager")
+	if wm and wm.has_method("is_shield_active") and wm.has_method("get_shield_hand"):
+		shield_up = wm.is_shield_active()
+		shield_hand = wm.get_shield_hand()
+	elif mecha.has_method("is_shield_active"):
+		# Enemy shield mechs: state is on the body, plate mounted on the left.
+		shield_up = mecha.is_shield_active()
+		shield_hand = "left"
+
+	_shield_raise = move_toward(_shield_raise, 1.0 if shield_up else 0.0, SHIELD_RAISE_SPEED * delta)
+	if _shield_raise <= 0.001:
+		return
+
+	var target_arm := deg_to_rad(70.0)
+	var target_forearm := deg_to_rad(100.0)
+	var blend := _shield_raise
+
+	if shield_hand == "left":
+		if arm_left:
+			arm_left.rotation.x = lerp_angle(arm_left.rotation.x, target_arm, blend)
+		if forearm_left:
+			forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, target_forearm, blend)
+	elif shield_hand == "right":
+		if arm_right:
+			arm_right.rotation.x = lerp_angle(arm_right.rotation.x, target_arm, blend)
+		if forearm_right:
+			forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, target_forearm, blend)
 
 
 func _update_roller_dash_posture(delta: float) -> void:

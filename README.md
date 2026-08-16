@@ -113,6 +113,31 @@ res://scenes/main_menu/main_menu.tscn
 
 แต่ละส่วนมี HP, Armor และ Weight ของตัวเอง เมื่อเกราะถูกทำลาย ระบบจะแสดงความเสียหายและเปลี่ยนสภาพ Mesh ของชิ้นส่วนนั้นเป็น Inner Frame ตามที่กำหนดไว้ในระบบ
 
+### ระบบ Type ของการโจมตี (Heat / Pierce / Blunt)
+
+อาวุธทุกชิ้นยิงหนึ่งในสาม Type:
+
+- 🔥 **Heat** — Beam Rifle/Carbine/Mk2, Missile ทุกแบบ, Heat Blade
+- 🗡️ **Pierce** — Machine Gun/LMG/HMG, Minigun, Railgun, Beam Sniper, Combat Knife, Pile Bunker
+- 🔨 **Blunt** — Shotgun/Sawed-Off, Assault Cannon, Gatling, Mace
+
+เกราะแต่ละชิ้นมี `defense_type` ของตัวเอง (Heat/Pierce/Blunt):
+
+- การโจมตีที่ **ตรงกับ Type** ของเกราะ → เกราะลดทอนด้วย Armor Class ตามปกติ
+- การโจมตีที่ **ไม่ตรง Type** → เกราะลดทอนไม่ได้ รับความเสียหายเต็ม (จนกว่าเกราะจะพัง)
+- เกราะที่ไม่มี defense_type (Balanced) ลดทอนทุก Type อย่างเท่ากัน
+
+### โล่ (Shield Plate)
+
+โล่เป็น **แผ่นวัสดุจริงที่ถือบนแขน** (ไม่ใช่บาเรียพลังงาน) ไม่มี Regeneration — เมื่อรับความเสียหายแล้ว HP โล่จะไม่กลับคืน และโล่ที่พังจะไม่สามารถยกขึ้นมาใช้ได้อีกในการต่อสู้ครั้งนั้น
+
+โล่แต่ละแบบมี `shield_type` (Anti-Type) ของตัวเอง:
+
+- โดนการโจมตี **ตรงกับ Anti-Type** → ดูดซับเต็มที่ แต่ HP โล่ลดช้า (40% ของ damage)
+- โดน Type อื่น → กันได้เต็มที่แต่ HP โล่หมดเร็ว (100% ของ damage)
+
+เช่น ถือโล่ Anti-Pierce แล้วเจอ Pile Bunker (Pierce) — โล่จะกันได้ยาวนานเพราะเป็น Type ที่ตรงกัน แต่ถ้าโดน Heat หรือ Blunt โล่จะละลายเร็ว
+
 ### อาวุธและน้ำหนัก
 
 อาวุธสามารถติดตั้งที่มือซ้าย มือขวา หรือเก็บไว้ใน Carry Inventory อาวุธในโปรเจกต์มีหลายประเภท เช่น:

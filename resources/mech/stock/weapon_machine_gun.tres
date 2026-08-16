@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1")
 weapon_name = "Machine Gun"
+damage_type = "pierce"
 weapon_type = 1
 damage = 6.0
 fire_rate = 0.08

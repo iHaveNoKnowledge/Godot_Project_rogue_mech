@@ -58,7 +58,7 @@ func _verify_enemy_ranged() -> void:
 	_check(core.max_ammo == 25, "enemy core max_ammo 25")
 	_check(core.unlimited_ammo == false, "enemy core finite ammo")
 	_check(core.damage == enemy.attack_damage, "enemy core damage matches archetype")
-	_check(core.damage_type == "kinetic", "enemy core kinetic")
+	_check(core.damage_type == "pierce", "enemy ranged core fires pierce (damage type system)")
 	_check(enemy.has_ammo(), "enemy has_ammo() true at full mag")
 
 	var before = _projectiles().size()
@@ -74,7 +74,7 @@ func _verify_enemy_ranged() -> void:
 	if proj:
 		_check(proj.fired_by_enemy == true, "enemy projectile is enemy-owned")
 		_check(proj.damage == enemy.attack_damage, "enemy projectile damage matches")
-		_check(proj.damage_type == "kinetic", "enemy projectile kinetic")
+		_check(proj.damage_type == "pierce", "enemy projectile carries the pierce type")
 
 	# Drain the magazine: after the final shot the core auto-reloads.
 	for i in range(24):

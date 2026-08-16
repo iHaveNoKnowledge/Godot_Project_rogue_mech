@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1")
 weapon_name = "Light Buckler"
+shield_type = "pierce"
 weapon_type = 5
 damage = 0.0
 fire_rate = 0.3

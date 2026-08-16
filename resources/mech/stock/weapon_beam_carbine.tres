@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1")
 weapon_name = "Beam Carbine"
+damage_type = "heat"
 weapon_type = 0
 damage = 15.0
 fire_rate = 0.25

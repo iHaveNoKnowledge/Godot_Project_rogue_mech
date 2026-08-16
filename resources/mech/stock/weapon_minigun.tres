@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1")
 weapon_name = "Minigun"
+damage_type = "pierce"
 weapon_type = 7
 damage = 8.0
 fire_rate = 0.045

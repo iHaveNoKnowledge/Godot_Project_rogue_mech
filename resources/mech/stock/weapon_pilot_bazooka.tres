@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1")
 weapon_name = "Bazooka"
+damage_type = "heat"
 weapon_type = 2
 damage = 220.0
 fire_rate = 2.8

@@ -252,7 +252,7 @@ func _perform_melee() -> void:
 		AudioManager.play_enemy_melee_swing(enemy.global_position)
 	# Shared melee FX + collision hit check (same rules as allies and the player).
 	EffectManager.spawn_melee_trail(enemy.global_position, dir, Color(1.0, 0.35, 0.2), Color(1.0, 0.3, 0.1))
-	var hit := EffectManager.melee_hit_ray(enemy, dir, enemy.attack_range, 1 | 2, enemy.attack_damage)
+	var hit := EffectManager.melee_hit_ray(enemy, dir, enemy.attack_range, 1 | 2, enemy.attack_damage, "blunt")
 	if hit and AudioManager:
 		AudioManager.play_npc_melee_hit(enemy.global_position)
 

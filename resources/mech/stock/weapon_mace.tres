@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1")
 weapon_name = "Mace"
+damage_type = "blunt"
 weapon_type = 4
 damage = 80.0
 fire_rate = 0.8

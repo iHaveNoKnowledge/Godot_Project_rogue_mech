@@ -23,33 +23,33 @@ signal turret_disabled()
 # -----------------------------------------------------------------------------
 
 func _apply_armor_damage(slot_name: String, amount: float, damage_type: String) -> void:
-	var remaining := _absorb_with_shield(amount)
+	var remaining := _absorb_with_shield(amount, damage_type)
 	if remaining <= 0.0:
 		return
 	super._apply_armor_damage(slot_name, remaining, damage_type)
 
 
 func _apply_frame_damage(slot_name: String, amount: float, damage_type: String) -> void:
-	var remaining := _absorb_with_shield(amount)
+	var remaining := _absorb_with_shield(amount, damage_type)
 	if remaining <= 0.0:
 		return
 	super._apply_frame_damage(slot_name, remaining, damage_type)
 
 
-# Asks the parent mech (enemy_dummy.gd) to absorb damage into its shield.
-# Non-shield enemies simply pass the amount through untouched.
-func _absorb_with_shield(amount: float) -> float:
+# Asks the parent mech (enemy_dummy.gd) to absorb damage into its raised
+# plate. Non-shield enemies simply pass the amount through untouched.
+func _absorb_with_shield(amount: float, damage_type: String) -> float:
 	var mecha := get_parent()
 	if mecha == null or not mecha.get("shield_active") or not mecha.has_method("absorb_damage_with_shield"):
 		return amount
-	var remaining: float = mecha.absorb_damage_with_shield(amount)
+	var remaining: float = mecha.absorb_damage_with_shield(amount, damage_type)
 	var absorbed := amount - remaining
 	if absorbed > 0.0:
 		var barrier_pos := global_position + Vector3(0, 1.5, 0)
-		# Shield-hit feedback: a spark at the barrier plus a metallic clang, so
+		# Shield-hit feedback: a spark at the plate plus a metallic clang, so
 		# blocked shots read as blocked instead of silently vanishing. The
 		# shatter only plays when the hit actually drained the shield to zero
-		# (a fully-blocked hit that leaves HP remaining still just clangs).
+		# (a blocked hit that leaves HP remaining still just clangs).
 		EffectManager.spawn_impact(barrier_pos, Vector3.UP)
 		if AudioManager:
 			if mecha.shield_current_hp <= 0.0:

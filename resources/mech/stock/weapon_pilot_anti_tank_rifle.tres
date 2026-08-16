@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1")
 weapon_name = "Anti-Tank Rifle"
+damage_type = "pierce"
 weapon_type = 7
 damage = 90.0
 fire_rate = 1.6

@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1")
 weapon_name = "Heavy Missile"
+damage_type = "heat"
 weapon_type = 2
 damage = 200.0
 fire_rate = 3.0

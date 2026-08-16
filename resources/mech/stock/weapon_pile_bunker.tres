@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1")
 weapon_name = "Pile Bunker"
+damage_type = "pierce"
 weapon_type = 4
 damage = 120.0
 fire_rate = 2.0

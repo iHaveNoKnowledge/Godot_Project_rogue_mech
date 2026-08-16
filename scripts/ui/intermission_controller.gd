@@ -31,6 +31,10 @@ func _input(event: InputEvent) -> void:
 			if GlobalData.blocked_intermission:
 				# Ambush aftermath: no time to reorganize at the menu.
 				return
+			# An event popup / pause overlay is up (tree paused): ESC belongs to
+			# it, so never stack the menu on top — the popup closes itself.
+			if get_tree().paused:
+				return
 			visible = true
 			info_panel.visible = false
 			status_label.text = _get_status_text()

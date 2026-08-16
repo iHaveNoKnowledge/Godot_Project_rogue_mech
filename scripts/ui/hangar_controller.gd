@@ -254,6 +254,33 @@ func open_pilot_loadout_editor(pilot_id: String, pilot_name: String) -> void:
 	pilot_loadout_editor.open(pilot_id, pilot_name)
 
 
+# ESC steps BACK one menu level at a time instead of always leaving the
+# hangar: full-screen editors close first, then popup windows (craft / catalog /
+# action), then an open submenu page returns to the hangar menu, and only at the
+# hangar menu root does ESC actually exit to the board.
 func _input(event: InputEvent) -> void:
-	if visible and event.is_action_pressed("pause") and exit_panel:
-		exit_panel.close()
+	if not visible or not event.is_action_pressed("pause") or exit_panel == null:
+		return
+	# Full-screen modal editors close first.
+	if _is_scrap_editor_open():
+		scrap_editor.close()
+		return
+	if pilot_loadout_editor and pilot_loadout_editor.visible:
+		pilot_loadout_editor.close()
+		return
+	# Popup windows close next.
+	if craft_panel and craft_panel.craft_window and is_instance_valid(craft_panel.craft_window):
+		craft_panel.close_window()
+		return
+	if catalog_panel and catalog_panel.catalog_window and is_instance_valid(catalog_panel.catalog_window):
+		catalog_panel.close_window()
+		return
+	if action_panel and action_panel.part_action_modal and is_instance_valid(action_panel.part_action_modal):
+		action_panel.close()
+		return
+	# On a submenu page, return to the hangar menu first.
+	if nav_panel and nav_panel.current_submenu != "":
+		nav_panel.show_hangar_menu()
+		return
+	# At the hangar menu root, exit to the board.
+	exit_panel.close()

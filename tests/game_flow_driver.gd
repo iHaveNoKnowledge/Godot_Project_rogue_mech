@@ -270,6 +270,34 @@ func _verify_combat() -> void:
 	if mecha:
 		_check("energy" in mecha and "max_energy" in mecha, "player mecha carries the energy pool")
 
+	# --- The drop-pod landed clear of every solid obstacle --- (the spawn
+	# clearance bug: dunes/buildings/rocks used to swallow the spawn point, so
+	# the mech was wedged inside a wall and couldn't move).
+	var spawn_clear := true
+	if mecha != null:
+		var p: Vector3 = mecha.global_position
+		for body in get_tree().get_nodes_in_group("solid_obstacle"):
+			if not (body is Node3D):
+				continue
+			for ch in body.get_children():
+				if ch is CollisionShape3D and ch.shape != null:
+					var s: Shape3D = ch.shape
+					var half: Vector3
+					if s is BoxShape3D:
+						half = (s as BoxShape3D).size * 0.5
+					elif s is CylinderShape3D:
+						var cyl := s as CylinderShape3D
+						half = Vector3(cyl.radius, cyl.height * 0.5, cyl.radius)
+					else:
+						continue
+					var t: Transform3D = (ch as CollisionShape3D).global_transform
+					var hw: Vector3 = (t.basis * half).abs()
+					var b: AABB = AABB(t.origin - hw, hw * 2.0)
+					if p.x >= b.position.x - 2.0 and p.x <= b.end.x + 2.0 \
+						and p.z >= b.position.z - 2.0 and p.z <= b.end.z + 2.0:
+						spawn_clear = false
+	_check(spawn_clear, "drop-pod spawns clear of solid obstacles (dunes/buildings/rocks)")
+
 	# --- Standing in an escape zone lights up the RETREAT banner ---
 	if zone != null and combat_hud != null and mecha != null:
 		mecha.global_position = zone.global_position + Vector3(0, 2.0, 0)

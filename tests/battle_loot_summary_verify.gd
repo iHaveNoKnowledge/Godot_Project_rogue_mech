@@ -1,0 +1,161 @@
+extends Node
+
+## Headless verification of the post-battle loot summary:
+##   1. Enemy weapon & armor drops go into GlobalData.battle_loot (the post-
+##      battle pool) instead of spawning walk-over pickups.
+##   2. The victory rewards UI builds a two-column picker: BATTLE DROPS on the
+##      left, TAKE BACK on the right.
+##   3. Clicking an item moves it from DROPS to TAKE BACK (and back).
+##   4. Continue grants the TAKE BACK side (weapon registered / armor appended)
+##      and discards the left side, clearing the battle pool.
+## Run: godot --headless --path . res://tests/battle_loot_summary_verify.tscn
+
+var _fails := 0
+var _checks := 0
+
+
+func _check(cond: bool, name: String) -> void:
+	_checks += 1
+	if cond:
+		print("LOOT_OK: " + name)
+	else:
+		_fails += 1
+		printerr("LOOT_FAIL: " + name)
+
+
+func _ready() -> void:
+	GlobalData.reset_run_data()
+	GameManager.combat_node_type = "grunt"
+	GameManager.is_boss_combat = false
+
+	await _verify_drops_route_to_pool()
+	await _verify_picker_and_grant()
+
+	print("BATTLE_LOOT_SUMMARY_VERIFY: checks=%d fails=%d" % [_checks, _fails])
+	get_tree().paused = false
+	await get_tree().process_frame
+	get_tree().quit(1 if _fails > 0 else 0)
+
+
+# spawn_enemy_loot must hold weapon/armor drops for the post-battle summary and
+# keep ammo/scrap/repair as physical pickups. Force the archetype weapon pool so
+# a weapon entry is guaranteed on the table.
+func _verify_drops_route_to_pool() -> void:
+	GlobalData.battle_loot.clear()
+	var loot := Node3D.new()
+	loot.set_script(load("res://scripts/systems/loot_system.gd"))
+	loot.name = "LootSystem"
+	add_child(loot)
+	loot.spawn_enemy_loot(Vector3.ZERO, 1)  # archetype 1 = ranged weapon pool
+	await get_tree().process_frame
+
+	# Every pooled entry must be a weapon or armor part (no ammo/scrap/repair).
+	var only_parts := true
+	for entry in GlobalData.battle_loot:
+		var t := str(entry.get("type", ""))
+		if t != "weapon" and t != "armor":
+			only_parts = false
+	_check(only_parts, "battle_loot pool holds only weapon/armor drops")
+	# Physical pickups spawned this frame may exist (ammo/scrap/repair), but
+	# none of them may be weapon/armor pickups.
+	var pickup_ok := true
+	for pickup in get_tree().get_nodes_in_group("loot_pickup"):
+		var data: Dictionary = pickup.get_meta("loot_data", {})
+		var t := str(data.get("type", "ammo"))
+		if t == "weapon" or t == "armor":
+			pickup_ok = false
+	_check(pickup_ok, "no weapon/armor walk-over pickups spawn from enemy drops")
+	loot.queue_free()
+	await get_tree().process_frame
+
+
+# The rewards UI shows the pool on the left, moving items to the right, and
+# Continue grants exactly the right side.
+func _verify_picker_and_grant() -> void:
+	GlobalData.battle_loot.clear()
+	var weapon_res: WeaponPart = load("res://resources/mech/stock/weapon_pile_bunker.tres")
+	var armor_inst := {
+		"uid": "loot_test_armor_1",
+		"db_id": "zaku_plate",
+		"name": "Zaku Plate",
+		"slot": "body",
+		"type": "armor",
+		"hp": 40.0, "armor": 25.0, "weight": 6.0,
+		"color": Color(0.2, 0.6, 0.3),
+		"durability": 0.8, "upgrade_level": 1, "equipped": false,
+	}
+	GlobalData.battle_loot.append({"type": "weapon", "weapon": weapon_res})
+	GlobalData.battle_loot.append({"type": "armor", "instance": armor_inst})
+
+	var rewards_ui = load("res://scenes/ui/combat_rewards_ui.tscn").instantiate()
+	add_child(rewards_ui)
+	await get_tree().process_frame
+
+	rewards_ui._show_victory_rewards()
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	_check(rewards_ui.visible, "victory rewards screen is visible")
+	_check(rewards_ui._left_items.size() == 2, "both drops start on the BATTLE DROPS side")
+	_check(rewards_ui._right_items.is_empty(), "TAKE BACK starts empty")
+	_check(loot_left_row_count(rewards_ui) == 2, "left column renders 2 item rows")
+	_check(loot_right_row_count(rewards_ui) == 0, "right column starts empty")
+
+	# Click the first left row (Pile Bunker) → moves to TAKE BACK.
+	var left_buttons := _loot_buttons(rewards_ui.loot_left_list)
+	_check(left_buttons.size() == 2, "found the left column buttons")
+	if left_buttons.size() >= 1:
+		left_buttons[0].pressed.emit()
+		await get_tree().process_frame
+		_check(rewards_ui._left_items.size() == 1, "clicking a drop moves it out of BATTLE DROPS")
+		_check(rewards_ui._right_items.size() == 1, "clicking a drop adds it to TAKE BACK")
+		_check(str(rewards_ui._right_items[0].get("type", "")) == "weapon", "the moved item is the weapon")
+		_check(loot_right_row_count(rewards_ui) == 1, "right column renders the moved item")
+
+		# Click it back → returns to the left.
+		var right_buttons := _loot_buttons(rewards_ui.loot_right_list)
+		if right_buttons.size() >= 1:
+			right_buttons[0].pressed.emit()
+			await get_tree().process_frame
+			_check(rewards_ui._right_items.is_empty(), "clicking a taken item returns it to BATTLE DROPS")
+			_check(rewards_ui._left_items.size() == 2, "both drops are back on the left")
+
+		# Move both to TAKE BACK and verify the grant path grants exactly them.
+		# Re-query the list after each click: repopulating frees the old buttons.
+		for i in range(2):
+			var current := _loot_buttons(rewards_ui.loot_left_list)
+			if current.is_empty():
+				break
+			current[0].pressed.emit()
+			await get_tree().process_frame
+		_check(rewards_ui._right_items.size() == 2, "both items moved to TAKE BACK")
+
+		var stash_before: int = GlobalData.weapon_inventory.size()
+		var armor_before: int = GlobalData.armor_inventory.size()
+		rewards_ui._grant_take_back_loot()
+		await get_tree().process_frame
+		_check(GlobalData.weapon_inventory.size() == stash_before + 1, "weapon granted into the depot stash")
+		_check(GlobalData.armor_inventory.size() == armor_before + 1, "armor part granted into the armor inventory")
+		_check(GlobalData.battle_loot.is_empty(), "battle loot pool cleared after granting")
+		_check(rewards_ui._left_items.is_empty() and rewards_ui._right_items.is_empty(), "picker state cleared after grant")
+
+	rewards_ui.queue_free()
+	await get_tree().process_frame
+
+
+func loot_left_row_count(ui: Node) -> int:
+	return _loot_buttons(ui.loot_left_list).size()
+
+
+func loot_right_row_count(ui: Node) -> int:
+	return _loot_buttons(ui.loot_right_list).size()
+
+
+func _loot_buttons(list: Node) -> Array:
+	var out: Array = []
+	if list == null:
+		return out
+	for child in list.get_children():
+		if child is Button:
+			out.append(child)
+	return out

@@ -1655,6 +1655,26 @@ func _verify_nav_panel() -> void:
 	_check(ctrl.roster_panel_ui.roster_panel != null and ctrl.roster_panel_ui.roster_panel.visible, "roster submenu shows the roster page")
 	_check(ctrl.left_panel != null and not ctrl.left_panel.visible, "roster page hides the customize left panel")
 
+	# ESC (pause key) steps BACK one menu level: from a submenu page it returns
+	# to the hangar menu instead of exiting to the board, and at the menu root
+	# it routes to the exit flow (exit_panel.close -> readiness check).
+	var pause_event := InputEventAction.new()
+	pause_event.action = "pause"
+	pause_event.pressed = true
+	np.select_submenu("roster")
+	await get_tree().process_frame
+	_check(np.current_submenu == "roster", "ESC test starts on the roster page")
+	ctrl.visible = true
+	ctrl._input(pause_event)
+	await get_tree().process_frame
+	_check(np.current_submenu == "", "ESC on a submenu page returns to the hangar menu")
+	_check(ctrl.submenu_rail != null and ctrl.submenu_rail.visible, "ESC on a submenu page shows the hangar menu rail")
+	_check(ctrl.visible, "ESC on a submenu page keeps the hangar open (no exit)")
+	# ESC at the hangar menu root routes to the EXIT flow (readiness check +
+	# return_to_board). That path changes scenes, which would free this test's
+	# scene mid-await, so the root-exit routing is asserted in _verify_exit_panel
+	# (where an incomplete mech blocks the exit and keeps the scene alive).
+
 	# Back-to-menu from any page restores the landing screen.
 	np.on_back_to_menu_pressed()
 	await get_tree().process_frame

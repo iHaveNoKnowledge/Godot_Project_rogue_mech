@@ -89,25 +89,31 @@ func _place_player_at_arena_edge() -> void:
 		var angle := randf_range(0.0, TAU)
 		var dist := arena_size * randf_range(0.30, 0.46)
 		var candidate := Vector3(cos(angle) * dist, 0.0, sin(angle) * dist)
-		# Keep clear of every concealment object + upcoming cover spawn.
+		# Keep clear of every solid obstacle + upcoming cover spawn.
 		if _spawn_point_clear(candidate, 8.0, cover_positions):
 			mecha.position = candidate
 			mecha.position.y = 5.0  # Drop-pod height; combat_intro waits for landing.
 			return
+	# No clear ring spot (dense dune/buildings) — fall back to the arena center,
+	# which every theme keeps clear of structures (center pockets stay empty).
+	mecha.position = Vector3.ZERO
+	mecha.position.y = 5.0
 
 
-# True when no concealment object (cover tree/rock/building that the player
-# would collide with) sits within `min_dist` meters of the point, the point is
-# not on top of a future cover spawn, and it is not inside the void/escape frame.
+# True when no solid obstacle (dune, rock, building, tree, log, cover) occupies
+# the point or sits within `min_dist` meters of it, the point is not on top of a
+# future cover spawn, and it is not inside the void/escape frame. Clearance is
+# measured against each obstacle's WORLD AABB (its true footprint) rather than
+# its center — a 24m building or 45m dune blocks its full extent + margin, so
+# the drop-pod never lands embedded inside a wall.
 func _spawn_point_clear(point: Vector3, min_dist: float, cover_positions: Array = []) -> bool:
 	var half := arena_size * 0.5
 	if absf(point.x) > half - 6.0 or absf(point.z) > half - 6.0:
 		return false
-	for node in get_tree().get_nodes_in_group("concealment"):
+	for node in get_tree().get_nodes_in_group("solid_obstacle"):
 		if node is Node3D:
-			var d := Vector2(point.x, point.z).distance_to(
-				Vector2(node.global_position.x, node.global_position.z))
-			if d < min_dist:
+			var aabb := _obstacle_world_aabb(node)
+			if aabb.size != Vector3.ZERO and _point_near_aabb(point, aabb, min_dist):
 				return false
 	for cp in cover_positions:
 		if cp is Dictionary:
@@ -115,6 +121,38 @@ func _spawn_point_clear(point: Vector3, min_dist: float, cover_positions: Array 
 			if Vector2(point.x, point.z).distance_to(Vector2(cpos.x, cpos.z)) < min_dist:
 				return false
 	return true
+
+
+# World-space AABB of a solid obstacle body (from its collision shape, so
+# rotated dunes/buildings still report their true footprint). Returns a
+# zero-sized AABB when the body has no usable collision shape.
+func _obstacle_world_aabb(body: Node3D) -> AABB:
+	for child in body.get_children():
+		if child is CollisionShape3D and child.shape != null:
+			var s: Shape3D = child.shape
+			var half: Vector3
+			if s is BoxShape3D:
+				half = (s as BoxShape3D).size * 0.5
+			elif s is CylinderShape3D:
+				var cyl := s as CylinderShape3D
+				half = Vector3(cyl.radius, cyl.height * 0.5, cyl.radius)
+			else:
+				continue
+			var t: Transform3D = (child as CollisionShape3D).global_transform
+			var half_world: Vector3 = (t.basis * half).abs()
+			return AABB(t.origin - half_world, half_world * 2.0)
+	return AABB()
+
+
+# True when the point's XZ position is within `margin` of the AABB's footprint
+# (expanded box), so a mech standing at `point` would collide with the body.
+func _point_near_aabb(point: Vector3, aabb: AABB, margin: float) -> bool:
+	var min_x := aabb.position.x - margin
+	var max_x := aabb.end.x + margin
+	var min_z := aabb.position.z - margin
+	var max_z := aabb.end.z + margin
+	return point.x >= min_x and point.x <= max_x \
+		and point.z >= min_z and point.z <= max_z
 
 
 # Picks the field size for the current battle. Defaults to the export value when
@@ -733,6 +771,8 @@ func _generate_randomized_desert_dunes() -> void:
 		dune.rotation.x = deg_to_rad(randf_range(-5.0, 5.0))
 		dune.position = Vector3(pos_x, height / 2.0 - 0.2, pos_z)
 		
+		# Solid obstacle: the player must never spawn inside its footprint.
+		dune.add_to_group("solid_obstacle")
 		structures_container.add_child(dune)
 		
 		# 35% chance to spawn a rock outcrop / ancient desert structure on the dune
@@ -760,6 +800,7 @@ func _spawn_desert_outcrop(pos: Vector3, rock_mat: StandardMaterial3D) -> void:
 	rock.rotation.y = randf_range(0, TAU)
 	rock.rotation.z = deg_to_rad(randf_range(-12, 12))
 	rock.position = pos
+	rock.add_to_group("solid_obstacle")
 	structures_container.add_child(rock)
 
 
@@ -802,6 +843,7 @@ func _build_city_highrise_structures() -> void:
 			# Slight random offset so blocks don't sit in a rigid grid.
 			building.position = Vector3(bx + randf_range(-4, 4), 0, bz + randf_range(-4, 4))
 			building.add_to_group("concealment")
+			building.add_to_group("solid_obstacle")
 			structures_container.add_child(building)
 
 
@@ -843,6 +885,7 @@ func _build_crossroads_structures() -> void:
 
 		block.position = pos + Vector3(randf_range(-8, 8), 0, randf_range(-8, 8))
 		block.add_to_group("concealment")
+		block.add_to_group("solid_obstacle")
 		structures_container.add_child(block)
 
 
@@ -1402,6 +1445,7 @@ func _spawn_forest_tree(pos: Vector3) -> void:
 
 	tree.position = pos
 	tree.add_to_group("concealment")
+	tree.add_to_group("solid_obstacle")
 	structures_container.add_child(tree)
 
 
@@ -1436,6 +1480,7 @@ func _spawn_fallen_log(pos: Vector3) -> void:
 
 	log.position = pos + Vector3(0, r * 0.5, 0)
 	log.rotation.y = randf_range(0, TAU)
+	log.add_to_group("solid_obstacle")
 	structures_container.add_child(log)
 
 
@@ -1465,6 +1510,7 @@ func _spawn_forest_rock(pos: Vector3) -> void:
 
 	rock.position = pos
 	rock.rotation.y = randf_range(0, TAU)
+	rock.add_to_group("solid_obstacle")
 	structures_container.add_child(rock)
 
 

@@ -15,6 +15,16 @@ func _ready() -> void:
 	EventBus.event_triggered.connect(_on_event_triggered)
 
 
+# ESC closes the popup exactly like the Continue button. This also stops the
+# pause key from bubbling to the intermission menu while a popup is up (the
+# intermission skips opening when the tree is paused), so closing a "NO
+# MOVEMENT LEFT" popup can never leave the player stuck with no menu access.
+func _input(event: InputEvent) -> void:
+	if visible and event.is_action_pressed("pause"):
+		get_viewport().set_input_as_handled()
+		_on_continue_pressed()
+
+
 func _create_ui() -> void:
 	root_control = Control.new()
 	root_control.set_anchors_preset(Control.PRESET_FULL_RECT)

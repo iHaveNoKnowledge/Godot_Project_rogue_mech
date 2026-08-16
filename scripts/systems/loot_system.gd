@@ -173,7 +173,19 @@ func spawn_enemy_loot(enemy_position: Vector3, archetype: int = -1) -> void:
 			var weapon: WeaponPart = pool[randi() % pool.size()]
 			loot_table.append({"type": "weapon", "weapon": weapon, "drop_chance": BASE_WEAPON_DROP_CHANCE})
 
-	spawn_loot(enemy_position, loot_table)
+	# Weapons and armor parts are held for the POST-BATTLE summary instead of
+	# becoming walk-over pickups: the player picks what to take back from the
+	# summary screen (combat_rewards_ui). Ammo / scrap / repair still drop as
+	# physical pickups for instant use mid-battle.
+	var pickup_table: Array = []
+	for item in loot_table:
+		var drop_type := str(item.get("type", "ammo"))
+		if drop_type == "weapon" or drop_type == "armor":
+			if randf() < item.get("drop_chance", 0.5):
+				GlobalData.battle_loot.append(item)
+		else:
+			pickup_table.append(item)
+	spawn_loot(enemy_position, pickup_table)
 
 
 # A random non-blueprint armor plate off the enemy's wreck, as a real armor

@@ -136,6 +136,10 @@ func _try_step(target: Vector2i) -> bool:
 		return false
 	var cost := BoardConfig.move_cost(str(tile.get_meta("terrain", "plain")))
 	if GlobalData.board_mp < cost:
+		# The player cannot move at all: whatever ambush aftermath was blocking the
+		# intermission menu (blocked_intermission) must not soft-lock them. Clear it
+		# so ESC can open the menu and they can End the Day.
+		GlobalData.blocked_intermission = false
 		EventBus.event_triggered.emit({
 			"name": "NO MOVEMENT LEFT",
 			"effect": "none",

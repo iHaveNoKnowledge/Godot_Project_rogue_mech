@@ -646,6 +646,14 @@ var ammo_inventory: Dictionary = {
 	"missile": 12
 }
 
+# Items that dropped during THIS battle (weapons / salvaged armor parts). Enemy
+# weapon & armor drops land here instead of auto-granting; the post-battle
+# summary (combat_rewards_ui) shows them on the left and lets the player drag the
+# ones they want into the TAKE BACK column, which are granted on continue.
+# Entries: {"type": "weapon", "weapon": WeaponPart} or
+#          {"type": "armor", "instance": {...armor instance...}}
+var battle_loot: Array = []
+
 # Owned weapon collection (each entry: uid/path/name/durability/upgrade_level).
 var weapon_inventory: Array = [
 	{"uid": "w_starter_left", "path": "res://resources/mech/stock/weapon_beam_rifle.tres", "name": "Beam Rifle", "durability": 1.0, "upgrade_level": 1},
@@ -1519,6 +1527,7 @@ func reset_run_data() -> void:
 	max_notoriety_multiplier = 1.0
 	stalking_aces.clear()
 	stalking_chance = 0.0
+	battle_loot.clear()
 
 	# Run identity — a new run is a brand-new story: nothing carries over.
 	theme_id = "soldier"

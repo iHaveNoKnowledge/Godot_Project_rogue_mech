@@ -5,8 +5,17 @@ var panel: PanelContainer
 var title_label: Label
 var rewards_label: Label
 var continue_button: Button
+var loot_picker: HBoxContainer = null
+var loot_left_list: VBoxContainer = null
+var loot_right_list: VBoxContainer = null
 
 var rewards: Dictionary = {}
+
+# Items from this battle still waiting on the left ("dropped") / picked to take
+# back on the right. Populated from GlobalData.battle_loot on the victory screen;
+# Continue grants the right-side entries and discards the left.
+var _left_items: Array = []
+var _right_items: Array = []
 
 # Heat gained when the player abandons a battle through a retreat zone.
 const ESCAPE_HEAT_PENALTY := 4
@@ -45,10 +54,10 @@ func _create_ui() -> void:
 	panel.process_mode = Node.PROCESS_MODE_ALWAYS
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	panel.set_anchors_preset(Control.PRESET_CENTER)
-	panel.offset_left = -250
-	panel.offset_right = 250
-	panel.offset_top = -150
-	panel.offset_bottom = 150
+	panel.offset_left = -360
+	panel.offset_right = 360
+	panel.offset_top = -240
+	panel.offset_bottom = 240
 	root_control.add_child(panel)
 
 	var style = StyleBoxFlat.new()
@@ -59,8 +68,8 @@ func _create_ui() -> void:
 	style.corner_radius_bottom_right = 12
 	style.content_margin_left = 25
 	style.content_margin_right = 25
-	style.content_margin_top = 25
-	style.content_margin_bottom = 25
+	style.content_margin_top = 20
+	style.content_margin_bottom = 20
 	panel.add_theme_stylebox_override("panel", style)
 
 	var vbox = VBoxContainer.new()
@@ -76,9 +85,23 @@ func _create_ui() -> void:
 	var separator = HSeparator.new()
 	vbox.add_child(separator)
 
+	# Two-column battle loot picker: left = items that dropped this battle,
+	# right = items the player takes back. Click an item to move it across.
+	loot_picker = HBoxContainer.new()
+	loot_picker.add_theme_constant_override("separation", 18)
+	loot_picker.custom_minimum_size = Vector2(0, 220)
+	vbox.add_child(loot_picker)
+
+	loot_left_list = _new_loot_list()
+	loot_right_list = _new_loot_list()
+	loot_picker.add_child(_column_frame("BATTLE DROPS — click to take", loot_left_list))
+	loot_picker.add_child(_column_frame("TAKE BACK — click to return", loot_right_list))
+
 	rewards_label = Label.new()
 	rewards_label.text = ""
 	rewards_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	rewards_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	rewards_label.custom_minimum_size = Vector2(0, 60)
 	vbox.add_child(rewards_label)
 
 	continue_button = Button.new()
@@ -88,6 +111,120 @@ func _create_ui() -> void:
 	continue_button.custom_minimum_size = Vector2(200, 44)
 	continue_button.pressed.connect(_on_continue_pressed)
 	vbox.add_child(continue_button)
+
+
+func _new_loot_list() -> VBoxContainer:
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 6)
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	return list
+
+
+func _column_frame(header: String, list: VBoxContainer) -> PanelContainer:
+	var frame := PanelContainer.new()
+	frame.custom_minimum_size = Vector2(310, 0)
+	frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var frame_style := StyleBoxFlat.new()
+	frame_style.bg_color = Color(0.05, 0.07, 0.1, 0.6)
+	frame_style.corner_radius_top_left = 8
+	frame_style.corner_radius_top_right = 8
+	frame_style.corner_radius_bottom_left = 8
+	frame_style.corner_radius_bottom_right = 8
+	frame_style.content_margin_left = 12
+	frame_style.content_margin_right = 12
+	frame_style.content_margin_top = 10
+	frame_style.content_margin_bottom = 10
+	frame.add_theme_stylebox_override("panel", frame_style)
+
+	var column_vbox := VBoxContainer.new()
+	column_vbox.add_theme_constant_override("separation", 8)
+	frame.add_child(column_vbox)
+
+	var head := Label.new()
+	head.text = header
+	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	head.add_theme_font_size_override("font_size", 15)
+	column_vbox.add_child(head)
+
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	column_vbox.add_child(scroll)
+
+	scroll.add_child(list)
+	return frame
+
+
+# Populates both loot columns from the battle pool. Called when the victory
+# screen opens; keeps whatever the player already moved on re-population.
+func _populate_loot_picker() -> void:
+	for child in loot_left_list.get_children():
+		child.queue_free()
+	for child in loot_right_list.get_children():
+		child.queue_free()
+	for entry in _left_items:
+		_add_loot_row(loot_left_list, entry, false)
+	for entry in _right_items:
+		_add_loot_row(loot_right_list, entry, true)
+
+
+func _add_loot_row(list: VBoxContainer, entry: Dictionary, in_right: bool) -> void:
+	var btn := Button.new()
+	btn.text = _loot_entry_label(entry)
+	btn.custom_minimum_size = Vector2(0, 34)
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.tooltip_text = "Click to move to the other column."
+	btn.pressed.connect(func() -> void:
+		_toggle_loot_entry(entry)
+	)
+	list.add_child(btn)
+
+
+func _loot_entry_label(entry: Dictionary) -> String:
+	match str(entry.get("type", "")):
+		"weapon":
+			var w: WeaponPart = entry.get("weapon")
+			if w:
+				return "[W] %s" % w.weapon_name
+			return "[W] Weapon"
+		"armor":
+			var inst: Dictionary = entry.get("instance", {})
+			var name := str(inst.get("name", "Plate"))
+			var slot := str(inst.get("slot", ""))
+			var dur := int(float(inst.get("durability", 1.0)) * 100.0)
+			return "[A] %s [%s] %d%%" % [name, slot, dur]
+	return str(entry.get("type", "Item"))
+
+
+func _toggle_loot_entry(entry: Dictionary) -> void:
+	if _left_items.has(entry):
+		_left_items.erase(entry)
+		_right_items.append(entry)
+	elif _right_items.has(entry):
+		_right_items.erase(entry)
+		_left_items.append(entry)
+	_populate_loot_picker()
+	AudioManager.play_ui_confirm()
+
+
+# Grants every item on the TAKE BACK side: weapons are registered into the depot
+# stash, armor instances appended to the convoy inventory. Left-side items are
+# discarded (left on the battlefield). Clears the battle pool either way.
+func _grant_take_back_loot() -> void:
+	for entry in _right_items:
+		match str(entry.get("type", "")):
+			"weapon":
+				var w: WeaponPart = entry.get("weapon")
+				if w:
+					GlobalData.register_weapon(w.resource_path, w.weapon_name)
+			"armor":
+				var inst: Dictionary = entry.get("instance", {})
+				if not inst.is_empty():
+					var uid := str(inst.get("uid", ""))
+					if uid == "" or GlobalData.get_armor_instance(uid).is_empty():
+						GlobalData.armor_inventory.append(inst)
+	GlobalData.battle_loot.clear()
+	_left_items.clear()
+	_right_items.clear()
 
 
 func _on_combat_ended(victory: bool) -> void:
@@ -168,13 +305,25 @@ func _show_victory_rewards() -> void:
 		"data_cores": data_cores_gained
 	}
 
+	# Load the battle loot into the two-column picker (drops on the left).
+	_left_items = GlobalData.battle_loot.duplicate()
+	_right_items.clear()
+	_populate_loot_picker()
+	if loot_picker:
+		loot_picker.visible = not _left_items.is_empty()
+
 	if is_duel:
 		var duel_text := GlobalData.duel_result_text
 		GlobalData.duel_result_text = ""
 		if duel_text != "":
 			rewards_label.text = "%s\n" % duel_text
 	else:
-		rewards_label.text = ""
+		var loot_summary := ""
+		if _left_items.is_empty():
+			loot_summary = "No salvage dropped in this battle.\n"
+		else:
+			loot_summary = "Click items in BATTLE DROPS to take them back.\n"
+		rewards_label.text = loot_summary
 		if not is_boss or not is_final_sector:
 			rewards_label.text += "Rewards:\n"
 			rewards_label.text += "+%d Credits\n" % credits_gained
@@ -194,6 +343,13 @@ func _show_escape_screen() -> void:
 	title_label.text = "WITHDREW FROM COMBAT"
 	rewards_label.text = "You held position in the retreat zone and abandoned the battle.\n\nNo rewards are collected for a retreat.\n\n+%d Heat — enemy forces tighten their pursuit." % ESCAPE_HEAT_PENALTY
 	continue_button.text = "Return to Board [Enter / Space / Click]"
+	# Abandoned loot is left on the field.
+	GlobalData.battle_loot.clear()
+	_left_items.clear()
+	_right_items.clear()
+	_populate_loot_picker()
+	if loot_picker:
+		loot_picker.visible = false
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
@@ -208,6 +364,13 @@ func _show_defeat_screen() -> void:
 	title_label.text = "DEFEATED"
 	rewards_label.text = ending.get("defeat_text", "Your mech has been destroyed.\n\nReturning to main menu...")
 	continue_button.text = "Continue [Enter / Space / Click]"
+	# Lost loot is left on the field.
+	GlobalData.battle_loot.clear()
+	_left_items.clear()
+	_right_items.clear()
+	_populate_loot_picker()
+	if loot_picker:
+		loot_picker.visible = false
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
@@ -226,9 +389,11 @@ func _on_continue_pressed() -> void:
 	elif title_label.text == "DEFEATED":
 		GameManager.game_over()
 	elif GameManager.is_boss_combat:
+		_grant_take_back_loot()
 		if GlobalData.current_sector >= GlobalData.max_sectors:
 			GameManager.end_run(true)
 		else:
 			GameManager.advance_to_next_sector()
 	else:
+		_grant_take_back_loot()
 		GameManager.return_to_board()

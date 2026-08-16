@@ -177,15 +177,36 @@ func build_part_for_slot(equipped: Variant) -> ArmorPart:
 	return part_obj
 
 
-# Loads the ArmorPart resource referenced by a catalog/instance entry's "path".
-# Returns null when the entry has no path, or the target is not an ArmorPart —
-# callers then fall back to the procedural builders.
+# Loads the ArmorPart resource behind a catalog/instance entry. Resolves the
+# entry's explicit "path" first; if absent (or not an ArmorPart), falls back to
+# the convention path res://resources/mech/parts/{slot}/{id}.tres so future
+# part ids render their own model just by dropping a .tres into that folder.
+# Returns null when nothing authored exists — callers then use the procedural
+# builders.
 func _load_authored_part(equipped: Dictionary) -> ArmorPart:
-	var res_path := str(equipped.get("path", ""))
-	if res_path == "":
+	var res := _try_load_part(str(equipped.get("path", "")))
+	if res == null:
+		res = _try_load_part(_convention_part_path(equipped))
+	return res
+
+
+func _try_load_part(res_path: String) -> ArmorPart:
+	if res_path == "" or not ResourceLoader.exists(res_path):
 		return null
 	var res = load(res_path)
 	return res as ArmorPart
+
+
+func _convention_part_path(equipped: Dictionary) -> String:
+	var part_id := str(equipped.get("id", equipped.get("db_id", "")))
+	if part_id == "":
+		return ""
+	var slot := str(equipped.get("slot", ""))
+	if slot == "":
+		slot = GlobalData.get_armor_catalog_slot(part_id)
+	if slot == "":
+		return ""
+	return "res://resources/mech/parts/%s/%s.tres" % [slot, part_id]
 
 
 # Rebuilds the visuals of every armor slot from the current GlobalData loadout.

@@ -1,4 +1,4 @@
-class_name SaveGameIO
+﻿class_name SaveGameIO
 extends RefCounted
 
 # -----------------------------------------------------------------------------
@@ -518,10 +518,15 @@ static func build_mech_catalog_loadout(mech: Dictionary, fallback_color: Color =
 					armor_entry["name"] = str(p.get("name", p.get("part_name", "Armor")))
 					armor_entry["hp"] = float(GlobalData.part_stat(p, "max_hp", 100.0))
 					armor_entry["color"] = _resolve_armor_paint(p, fallback_color)
+					# Carry the part identity so the visual builder can resolve the
+					# authored model for this exact part id.
+					armor_entry["id"] = str(p.get("db_id", p.get("id", "")))
+					armor_entry["path"] = str(p.get("path", ""))
 				elif p is ArmorPart:
 					armor_entry["name"] = (p as ArmorPart).part_name
 					armor_entry["hp"] = (p as ArmorPart).max_hp
-					armor_entry["color"] = (p as ArmorPart).color
+					armor_entry["color"] = (p as ArmorPart).part_color
+					armor_entry["path"] = (p as ArmorPart).resource_path
 				armor_entry["equipped"] = true
 		loadout[slot] = {"frame": frame_entry, "armor": armor_entry}
 	return loadout

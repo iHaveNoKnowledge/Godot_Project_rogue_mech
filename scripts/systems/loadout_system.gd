@@ -367,6 +367,58 @@ static func has_spare_weapon(path: String) -> bool:
 	return count_owned_weapon(path) > count_equipped_weapon(path)
 
 
+# -----------------------------------------------------------------------------
+# FLEET-WIDE SPARE TRACKING
+# A weapon model may fill several loadout slots, but every slot must hold a
+# DIFFERENT physical copy (uid). To know whether a free copy exists the hangar
+# must count slots across the WHOLE fleet: the editing berth's live central
+# loadout plus every parked mech's roster snapshot. These helpers power the
+# cross-mech swap decisions (equip gate + "used by other mech" marking).
+# -----------------------------------------------------------------------------
+
+# Count of loadout slots holding a copy of `path` inside one loadout dict.
+static func weapon_slots_in_loadout(loadout: Dictionary, path: String) -> int:
+	var n := 0
+	if ref_to_path(loadout.get("left", "")) == path:
+		n += 1
+	if ref_to_path(loadout.get("right", "")) == path:
+		n += 1
+	var carry = loadout.get("carry", [])
+	if carry is Array:
+		for ref in carry:
+			if ref_to_path(ref) == path:
+				n += 1
+	return n
+
+
+# How many slots across the whole fleet hold a copy of `path`. The berth being
+# edited (`editing_id`, "" = none) contributes its LIVE central loadout; every
+# other parked mech contributes its snapshot.
+static func fleet_weapon_slots_used(path: String, editing_id: String = "") -> int:
+	var n := 0
+	if editing_id != "":
+		n += weapon_slots_in_loadout(GlobalData.weapon_loadout, path)
+	for mech in GlobalData.hangar_mechs:
+		if not (mech is Dictionary):
+			continue
+		var mid := str(mech.get("id", ""))
+		if mid == "" or mid == editing_id:
+			continue
+		var loadout = mech.get("weapon_loadout", {})
+		if loadout is Dictionary:
+			n += weapon_slots_in_loadout(loadout, path)
+	return n
+
+
+# True when at least one owned copy of `path` is NOT in any fleet loadout slot
+# (a free spare exists, so equipping it again would not move another mech's
+# copy). Pass the editing mech id so its live loadout counts as a slot.
+static func has_fleet_spare_weapon(path: String, editing_id: String = "") -> bool:
+	if path == "":
+		return false
+	return count_owned_weapon(path) > fleet_weapon_slots_used(path, editing_id)
+
+
 static func remove_carry_weapon(ref) -> void:
 	var target := str(ref)
 	var carry_paths = GlobalData.weapon_loadout.get("carry", [])

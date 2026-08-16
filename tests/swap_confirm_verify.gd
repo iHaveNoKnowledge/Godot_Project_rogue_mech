@@ -15,6 +15,8 @@ func _ready() -> void:
 	await _verify_weapon_swap()
 	await _verify_weapon_cancel()
 	await _verify_armor_swap()
+	await _verify_spare_copy_no_swap()
+	await _verify_frame_swap()
 	print("SWAP_CONFIRM_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	await get_tree().process_frame
 	get_tree().quit(1 if _fails > 0 else 0)
@@ -142,6 +144,119 @@ func _verify_armor_swap() -> void:
 
 
 # --- helpers ---------------------------------------------------------------
+
+# Separate instances: equipping a FREE spare copy (same model, different uid)
+# must NOT open a swap dialog even though another copy sits on a parked mech;
+# only the EXACT copy that berth holds triggers the transfer confirmation.
+func _verify_spare_copy_no_swap() -> void:
+	GlobalData.reset_run_data()
+	var ctrl: Node = load("res://scenes/ui/hangar_scene.tscn").instantiate()
+	add_child(ctrl)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var shotgun := GlobalData.DEFAULT_CARRY_WEAPON_PATH
+	# reset grants one shotgun; mint a second so two physical copies exist.
+	GlobalData.register_weapon(shotgun, "Shotgun")
+	var copy_a := ""
+	var copy_b := ""
+	for entry in GlobalData.weapon_inventory:
+		if str(entry.get("path", "")) == shotgun:
+			if copy_a == "":
+				copy_a = str(entry.get("uid", ""))
+			elif copy_b == "":
+				copy_b = str(entry.get("uid", ""))
+	_check(copy_a != "" and copy_b != "" and copy_a != copy_b, "two distinct shotgun copies exist")
+
+	var active_id := GlobalData.active_hangar_mech_id
+	var spare := GlobalData.build_hangar_mech("Spare", 0)
+	var spare_id := str(spare.get("id", ""))
+	# Park copy_a on the spare's pack; copy_b stays free in the stash.
+	_set_spare_loadout(spare_id, {"left": "", "right": "", "carry": [copy_a]})
+	GlobalData.weapon_loadout = {"left": "", "right": "", "carry": [], "ammo": {}}
+	ctrl.set_editing_mech_id(active_id)
+	var ep = ctrl.equip_panel
+
+	# Equipping the FREE copy (copy_b) to the left hand: no dialog, just equips.
+	ep.equip_part("weapon_left", {"path": shotgun, "name": "Shotgun", "uid": copy_b})
+	await get_tree().process_frame
+	_check(ep.swap_confirm_modal == null or not is_instance_valid(ep.swap_confirm_modal), "free spare copy equips without a swap dialog")
+	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("left", "")) == shotgun, "free spare copy now fills the left hand")
+	_check(_spare_carry_has(spare_id, copy_a), "spare keeps its own copy untouched")
+
+	# Equipping the EXACT copy parked on the spare (copy_a) still needs the
+	# confirmation: it is the spare's physical copy, so it must MOVE not clone.
+	ep.equip_part("weapon_right", {"path": shotgun, "name": "Shotgun", "uid": copy_a})
+	await get_tree().process_frame
+	_check(ep.swap_confirm_modal != null and is_instance_valid(ep.swap_confirm_modal), "the exact copy held by the spare still opens the swap dialog")
+	var ok := _find_button_by_text(ep.swap_confirm_modal, "SWAP & EQUIP")
+	if ok:
+		ok.pressed.emit()
+	await get_tree().process_frame
+	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("right", "")) == shotgun, "swapped copy moves to the edited mech's right hand")
+	_check(not _spare_carry_has(spare_id, copy_a), "spare's copy transferred off the spare after confirming")
+
+	ctrl.queue_free()
+	await get_tree().process_frame
+
+
+# Frames come from the catalog (one model = one unit). Equipping a frame model
+# a parked berth already uses opens the swap dialog and MOVES it — it is never
+# duplicated across berths.
+func _verify_frame_swap() -> void:
+	GlobalData.reset_run_data()
+	var ctrl: Node = load("res://scenes/ui/hangar_scene.tscn").instantiate()
+	add_child(ctrl)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var active_id := GlobalData.active_hangar_mech_id
+	var spare := GlobalData.build_hangar_mech("Spare", 0)
+	var spare_id := str(spare.get("id", ""))
+	var slot := "body"
+	var frames: Array = GlobalData.frame_catalog.get(slot, [])
+	_check(frames.size() >= 2, "frame catalog has enough body frames for the swap test")
+	var frame_a: Dictionary = frames[0]
+	var frame_b: Dictionary = frames[1]
+	# The edited mech runs frame_b; the spare runs frame_a in the same slot.
+	GlobalData.equipped_frames[slot] = frame_b.duplicate(true)
+	_set_spare_frame(spare_id, slot, frame_a)
+	ctrl.set_editing_mech_id(active_id)
+	ctrl.current_mode = "frame"
+	var ep = ctrl.equip_panel
+
+	# Equipping frame_a (already on the spare) opens the confirm dialog — a
+	# frame model is never installed on two berths at once.
+	ep.equip_part(slot, frame_a)
+	await get_tree().process_frame
+	_check(ep.swap_confirm_modal != null and is_instance_valid(ep.swap_confirm_modal), "frame swap opens the confirm dialog")
+	_check(str(GlobalData.equipped_frames.get(slot, {}).get("id", "")) == str(frame_b.get("id", "")), "edited mech keeps frame_b while the dialog is open")
+	var ok := _find_button_by_text(ep.swap_confirm_modal, "SWAP & EQUIP")
+	if ok:
+		ok.pressed.emit()
+	await get_tree().process_frame
+	_check(str(GlobalData.equipped_frames.get(slot, {}).get("id", "")) == str(frame_a.get("id", "")), "frame_a transfers to the edited mech after confirming")
+	_check(_spare_frame_slot(spare_id, slot).is_empty(), "spare no longer holds the frame after the swap")
+
+	ctrl.queue_free()
+	await get_tree().process_frame
+
+
+func _set_spare_frame(mech_id: String, slot: String, frame: Dictionary) -> void:
+	for m in GlobalData.hangar_mechs:
+		if str(m.get("id", "")) == mech_id:
+			var frames: Dictionary = m.get("frames", {})
+			frames[slot] = frame.duplicate(true)
+			m["frames"] = frames
+			return
+
+
+func _spare_frame_slot(mech_id: String, slot: String) -> Dictionary:
+	for m in GlobalData.hangar_mechs:
+		if str(m.get("id", "")) == mech_id:
+			return m.get("frames", {}).get(slot, {})
+	return {}
+
 
 func _set_spare_loadout(mech_id: String, loadout: Dictionary) -> void:
 	for m in GlobalData.hangar_mechs:

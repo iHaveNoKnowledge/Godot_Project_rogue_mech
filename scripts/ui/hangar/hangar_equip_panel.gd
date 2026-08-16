@@ -128,9 +128,10 @@ func equip_part(slot: String, info: Dictionary) -> void:
 		# the equipped one (same-model copies never share the [E] badge). Falls
 		# back to the path when the entry predates per-instance tracking.
 		var wref := str(info.get("uid", wpath))
-		# A weapon model only exists once per copy. Equipping a copy another
-		# parked mech carries MOVES it to the new slot instead of duplicating it.
-		var swap_owner := _weapon_swap_owner(wpath)
+		# One physical copy = one berth. Equipping a copy another parked mech
+		# carries MOVES it to the new slot instead of duplicating it; a free
+		# spare copy (same model, different uid) equips without a swap.
+		var swap_owner := _weapon_swap_owner(wref, wpath)
 		if swap_owner != "":
 			_request_swap_confirm("Weapon", info.get("name", "Weapon"), swap_owner,
 				func(): _perform_weapon_equip(slot, info, wref))
@@ -141,18 +142,15 @@ func equip_part(slot: String, info: Dictionary) -> void:
 	# Inner frames: only reachable for non-weapon slots, so a leftover frame
 	# mode never hijacks weapon equips (see the weapon branch above).
 	if controller.current_mode == "frame":
-		var fdata: Dictionary = info.duplicate()
-		# A fresh install starts at base tier (upgrades apply to this copy).
-		fdata["upgrade_level"] = 1
-		GlobalData.equipped_frames[slot] = fdata
-		# A brand-new frame is installed: it starts at full HP, so wipe any
-		# frame damage that belonged to the PREVIOUS frame in this slot.
-		GlobalData.part_damage.erase(slot + "_frame")
-		controller.persist_panel.commit_and_save()
-		controller.stats_panel.update()
-		controller.part_list_panel.populate(slot)
-		controller.garage_panel.update_all_slots_preview()
-		AudioManager.play_ui_confirm()
+		# A frame model exists once per fleet: equipping one another berth
+		# already uses MOVES it off that berth (no duplicate copies). Ask before
+		# stripping it, mirroring the weapon/armor swap rule.
+		var frame_owner := _frame_swap_owner(slot, info)
+		if frame_owner != "":
+			_request_swap_confirm("Frame", info.get("name", "Inner Frame"), frame_owner,
+				func(): _perform_frame_equip(slot, info))
+			return
+		_perform_frame_equip(slot, info)
 		return
 
 	var inst := info
@@ -222,7 +220,7 @@ func _perform_weapon_equip(slot: String, info: Dictionary, wref: String) -> void
 		if controller.garage_panel.would_exceed_field_pack(wpath, "", freed_path):
 			controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
 			return
-		var from_mech := _transfer_weapon_from_other_mechs(wpath)
+		var from_mech := _transfer_weapon_from_other_mechs(wref, wpath)
 		if from_mech != "":
 			moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
 		elif equipped != "" and not spare:
@@ -241,7 +239,7 @@ func _perform_weapon_equip(slot: String, info: Dictionary, wref: String) -> void
 		if controller.garage_panel.would_exceed_field_pack(wpath, replaced_path, freed_path):
 			controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
 			return
-		var from_mech := _transfer_weapon_from_other_mechs(wpath)
+		var from_mech := _transfer_weapon_from_other_mechs(wref, wpath)
 		if from_mech != "":
 			moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
 		elif equipped != "" and not spare:
@@ -316,22 +314,22 @@ func _perform_selected_weapon_equip(res: Resource) -> void:
 		if equipped == "carry" and not spare:
 			controller.status_message_label.text = "This weapon is already on the back pack (no spare copies)."
 			return
-	elif _arm_destroyed(hand):
-		# A destroyed arm cannot hold a weapon (same rule as combat: a broken
-		# arm cannot fire or wield). Block the equip before the transfer logic.
-		controller.status_message_label.text = "Cannot equip: that arm is destroyed! Repair or replace it first."
-		return
 		var freed_path: String = wpath if (equipped != "" and not spare) else ""
 		if controller.garage_panel.would_exceed_field_pack(wpath, "", freed_path):
 			controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
 			return
-		var from_mech := _transfer_weapon_from_other_mechs(wpath)
+		var from_mech := _transfer_weapon_from_other_mechs(wref, wpath)
 		if from_mech != "":
 			moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
 		elif equipped != "" and not spare:
 			moved_note = " (moved from %s hand)" % equipped
 		GlobalData.add_carry_weapon(wref)
 		controller.status_message_label.text = "Added to Back Carry: %s!%s" % [(res.weapon_name if "weapon_name" in res else "Weapon"), moved_note]
+	elif _arm_destroyed(hand):
+		# A destroyed arm cannot hold a weapon (same rule as combat: a broken
+		# arm cannot fire or wield). Block the equip before the transfer logic.
+		controller.status_message_label.text = "Cannot equip: that arm is destroyed! Repair or replace it first."
+		return
 	else:
 		if equipped == hand:
 			controller.status_message_label.text = "This weapon is already equipped in the %s hand." % hand
@@ -341,7 +339,7 @@ func _perform_selected_weapon_equip(res: Resource) -> void:
 		if controller.garage_panel.would_exceed_field_pack(wpath, replaced_path, freed_path):
 			controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
 			return
-		var from_mech := _transfer_weapon_from_other_mechs(wpath)
+		var from_mech := _transfer_weapon_from_other_mechs(wref, wpath)
 		if from_mech != "":
 			moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
 		elif equipped != "" and not spare:
@@ -354,11 +352,84 @@ func _perform_selected_weapon_equip(res: Resource) -> void:
 	controller.part_list_panel.populate(controller.selected_slot)
 
 
-# Which OTHER parked mech currently carries this weapon model in its loadout
-# snapshot? Pure lookup (no mutation) used to decide whether a cross-mech swap
-# needs confirming. Returns the mech's display name or "" when free.
-func _weapon_swap_owner(path: String) -> String:
+# Frame equip from the equip_part path. Runs directly when the model is free,
+# or as the SWAP confirmation continuation (which strips it off another mech
+# first so the model is never installed on two berths at once).
+func _perform_frame_equip(slot: String, info: Dictionary) -> void:
+	_transfer_frame_from_other_mechs(slot, info)
+	var fdata: Dictionary = info.duplicate()
+	# A fresh install starts at base tier (upgrades apply to this copy).
+	fdata["upgrade_level"] = 1
+	GlobalData.equipped_frames[slot] = fdata
+	# A brand-new frame is installed: it starts at full HP, so wipe any frame
+	# damage that belonged to the PREVIOUS frame in this slot.
+	GlobalData.part_damage.erase(slot + "_frame")
+	controller.persist_panel.commit_and_save()
+	controller.stats_panel.update()
+	controller.part_list_panel.populate(slot)
+	controller.garage_panel.update_all_slots_preview()
+	AudioManager.play_ui_confirm()
+
+
+# Frame equip from the on_equip_pressed path (selected_frame_info). Runs
+# directly when the model is free, or as the SWAP confirmation continuation.
+func _perform_selected_frame_equip() -> void:
+	_transfer_frame_from_other_mechs(controller.selected_slot, controller.selected_frame_info)
+	var fdata: Dictionary = controller.selected_frame_info.duplicate()
+	fdata["upgrade_level"] = 1
+	GlobalData.equipped_frames[controller.selected_slot] = fdata
+	GlobalData.part_damage.erase(controller.selected_slot + "_frame")
+	var fname = controller.selected_frame_info.get("name", "Frame")
+	controller.status_message_label.text = "Equipped Inner Frame: %s!" % fname
+	GlobalData.save_run()
+	controller.stats_panel.update()
+	controller.part_list_panel.populate(controller.selected_slot)
+	controller.garage_panel.update_all_slots_preview()
+
+
+# Which OTHER parked mech currently carries this weapon copy? Matched by the
+# clicked instance uid FIRST: a free spare copy is never "owned" by another
+# berth even when a different copy of the same model is equipped there. Only
+# legacy path refs fall back to a model-level check, and only when no spare
+# copy exists anywhere in the fleet. Pure lookup (no mutation); returns the
+# mech's display name or "" when the copy is free.
+func _weapon_swap_owner(wref: String, wpath: String) -> String:
+	if wref != "" and not wref.begins_with("res://"):
+		var by_uid := _weapon_swap_owner_by_uid(wref)
+		if by_uid != "":
+			return by_uid
+		return ""
+	return _weapon_swap_owner_by_path(wpath)
+
+
+# Exact-instance lookup: the OTHER parked mech whose loadout holds THIS uid.
+func _weapon_swap_owner_by_uid(uid: String) -> String:
+	if uid == "":
+		return ""
+	var editing_id: String = controller.get_editing_mech_id()
+	for mech in GlobalData.hangar_mechs:
+		if not (mech is Dictionary):
+			continue
+		var mech_id := str(mech.get("id", ""))
+		if mech_id == "" or mech_id == editing_id:
+			continue
+		var loadout = mech.get("weapon_loadout", {})
+		if not (loadout is Dictionary):
+			continue
+		if str(loadout.get("left", "")) == uid or str(loadout.get("right", "")) == uid:
+			return str(mech.get("name", "another mech"))
+		var carry = loadout.get("carry", [])
+		if carry is Array and uid in carry:
+			return str(mech.get("name", "another mech"))
+	return ""
+
+
+# Legacy path fallback: the model only reads as taken when every owned copy is
+# already carried by the fleet (no spare left to take instead of stripping).
+func _weapon_swap_owner_by_path(path: String) -> String:
 	if path == "":
+		return ""
+	if LoadoutSystem.has_fleet_spare_weapon(path, controller.get_editing_mech_id()):
 		return ""
 	var editing_id: String = controller.get_editing_mech_id()
 	for mech in GlobalData.hangar_mechs:
@@ -398,13 +469,56 @@ func _armor_swap_owner(uid: String) -> String:
 	return ""
 
 
-# A weapon model may only be carried by ONE mech. When equipping `path` while
-# another parked mech already has it in its loadout snapshot, strip it from that
-# mech so the weapon TRANSFERS to the berth being edited instead of existing on
-# both machines. Returns the name of the mech it was taken from ("" when the
-# weapon wasn't equipped on any other mech).
-func _transfer_weapon_from_other_mechs(path: String) -> String:
+# One physical copy = one berth. When equipping a copy another parked mech
+# already carries, strip it from that mech so the weapon TRANSFERS to the berth
+# being edited instead of existing on both machines. Matched by the clicked
+# instance uid FIRST (only that exact copy moves); legacy path refs fall back
+# to the model level and only strip when no spare copy exists anywhere in the
+# fleet. Returns the name of the mech it was taken from ("" when free).
+func _transfer_weapon_from_other_mechs(wref: String, wpath: String) -> String:
+	if wref != "" and not wref.begins_with("res://"):
+		return _transfer_weapon_from_other_mechs_by_uid(wref)
+	return _transfer_weapon_from_other_mechs_by_path(wpath)
+
+
+# Strips the exact instance (uid) off whichever OTHER parked mech holds it.
+func _transfer_weapon_from_other_mechs_by_uid(uid: String) -> String:
+	if uid == "":
+		return ""
+	var editing_id: String = controller.get_editing_mech_id()
+	for mech in GlobalData.hangar_mechs:
+		if not (mech is Dictionary):
+			continue
+		var mech_id := str(mech.get("id", ""))
+		if mech_id == "" or mech_id == editing_id:
+			continue
+		var loadout = mech.get("weapon_loadout", {})
+		if not (loadout is Dictionary):
+			continue
+		if str(loadout.get("left", "")) == uid:
+			loadout["left"] = ""
+			return str(mech.get("name", "another mech"))
+		if str(loadout.get("right", "")) == uid:
+			loadout["right"] = ""
+			return str(mech.get("name", "another mech"))
+		var carry = loadout.get("carry", [])
+		if carry is Array and uid in carry:
+			var stripped: Array = []
+			for ref in carry:
+				if str(ref) != uid:
+					stripped.append(ref)
+			loadout["carry"] = stripped
+			return str(mech.get("name", "another mech"))
+	return ""
+
+
+# Legacy path fallback: strip ONE physical copy off the first other mech, but
+# only when no spare copy remains anywhere in the fleet (a spare means the
+# equip takes a free copy instead of moving another mech's).
+func _transfer_weapon_from_other_mechs_by_path(path: String) -> String:
 	if path == "":
+		return ""
+	if LoadoutSystem.has_fleet_spare_weapon(path, controller.get_editing_mech_id()):
 		return ""
 	var editing_id: String = controller.get_editing_mech_id()
 	for mech in GlobalData.hangar_mechs:
@@ -426,8 +540,14 @@ func _transfer_weapon_from_other_mechs(path: String) -> String:
 		else:
 			var carry = loadout.get("carry", [])
 			if carry is Array:
-				carry.erase(path)
-				loadout["carry"] = carry
+				var stripped: Array = []
+				var removed := false
+				for ref in carry:
+					if not removed and LoadoutSystem.ref_to_path(ref) == path:
+						removed = true
+						continue
+					stripped.append(ref)
+				loadout["carry"] = stripped
 		return str(mech.get("name", "another mech"))
 	return ""
 
@@ -461,6 +581,66 @@ func _transfer_armor_from_other_mechs(uid: String) -> String:
 			parts.erase(worn_slot)
 			return str(mech.get("name", "another mech"))
 	return ""
+
+
+# A frame model exists once per fleet (it comes from the catalog, not a copy
+# inventory). Which OTHER parked mech has this model installed in the same
+# slot? Pure lookup (no mutation) used to decide whether a cross-mech swap
+# needs confirming. Matches by catalog id, falling back to name.
+func _frame_swap_owner(slot: String, info: Dictionary) -> String:
+	if info.is_empty():
+		return ""
+	var editing_id: String = controller.get_editing_mech_id()
+	var info_id := str(info.get("id", ""))
+	var info_name := str(info.get("name", info.get("part_name", ""))).to_lower()
+	for mech in GlobalData.hangar_mechs:
+		if not (mech is Dictionary):
+			continue
+		var mid := str(mech.get("id", ""))
+		if mid == "" or mid == editing_id:
+			continue
+		var frames = mech.get("frames", {})
+		if not (frames is Dictionary):
+			continue
+		var f = frames.get(slot)
+		if not (f is Dictionary):
+			continue
+		if info_id != "" and str(f.get("id", "")) == info_id:
+			return str(mech.get("name", "another mech"))
+		if info_name != "" and str(f.get("name", f.get("part_name", ""))).to_lower() == info_name:
+			return str(mech.get("name", "another mech"))
+	return ""
+
+
+# A frame model may only be installed on ONE berth. When equipping a model a
+# parked mech's frames snapshot already holds in this slot, empty that berth's
+# slot so the frame transfers here instead of existing on both mechs.
+func _transfer_frame_from_other_mechs(slot: String, info: Dictionary) -> void:
+	if info.is_empty():
+		return
+	var editing_id: String = controller.get_editing_mech_id()
+	var info_id := str(info.get("id", ""))
+	var info_name := str(info.get("name", info.get("part_name", ""))).to_lower()
+	for mech in GlobalData.hangar_mechs:
+		if not (mech is Dictionary):
+			continue
+		var mid := str(mech.get("id", ""))
+		if mid == "" or mid == editing_id:
+			continue
+		var frames = mech.get("frames", {})
+		if not (frames is Dictionary):
+			continue
+		var f = frames.get(slot)
+		if not (f is Dictionary):
+			continue
+		var matches := false
+		if info_id != "" and str(f.get("id", "")) == info_id:
+			matches = true
+		elif info_name != "" and str(f.get("name", f.get("part_name", ""))).to_lower() == info_name:
+			matches = true
+		if matches:
+			frames.erase(slot)
+			return
 
 
 func unequip_part(slot: String) -> void:
@@ -567,19 +747,13 @@ func on_equip_pressed() -> void:
 		return
 
 	if controller.current_mode == "frame" and not controller.selected_frame_info.is_empty():
-		var fdata: Dictionary = controller.selected_frame_info.duplicate()
-		# A fresh install starts at base tier (upgrades apply to this copy).
-		fdata["upgrade_level"] = 1
-		GlobalData.equipped_frames[controller.selected_slot] = fdata
-		# A brand-new frame is installed: it starts at full HP, so wipe any
-		# frame damage that belonged to the PREVIOUS frame in this slot.
-		GlobalData.part_damage.erase(controller.selected_slot + "_frame")
-		var fname = controller.selected_frame_info.get("name", "Frame")
-		controller.status_message_label.text = "Equipped Inner Frame: %s!" % fname
-		GlobalData.save_run()
-		controller.stats_panel.update()
-		controller.part_list_panel.populate(controller.selected_slot)
-		controller.garage_panel.update_all_slots_preview()
+		var frame_owner := _frame_swap_owner(controller.selected_slot, controller.selected_frame_info)
+		if frame_owner != "":
+			_request_swap_confirm("Frame", controller.selected_frame_info.get("name", "Inner Frame"), frame_owner,
+				func(): _perform_selected_frame_equip())
+			return
+		_perform_selected_frame_equip()
+		return
 	elif controller.selected_part_path != "" and ResourceLoader.exists(controller.selected_part_path):
 		var res = load(controller.selected_part_path)
 		if res:
@@ -589,7 +763,11 @@ func on_equip_pressed() -> void:
 				# it (same mech slot, or transferred from another parked mech).
 				# If another parked mech holds it, ask before stripping it off them.
 				var wpath = controller.selected_part_path
-				var swap_owner := _weapon_swap_owner(wpath)
+				# Prefer the selected INSTANCE's uid: a free spare copy (same
+				# model, different uid) equips without a swap; only the exact
+				# copy another berth holds triggers the move confirmation.
+				var wref := str(controller.selected_weapon_uid if controller.selected_weapon_uid != "" else wpath)
+				var swap_owner := _weapon_swap_owner(wref, wpath)
 				if swap_owner != "":
 					_request_swap_confirm("Weapon", (res.weapon_name if "weapon_name" in res else "Weapon"), swap_owner,
 						func(): _perform_selected_weapon_equip(res))

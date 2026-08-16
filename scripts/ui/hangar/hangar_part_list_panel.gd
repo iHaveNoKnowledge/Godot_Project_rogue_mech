@@ -99,7 +99,7 @@ func populate(slot: String) -> void:
 		var wrows: Array = []
 		for index in range(GlobalData.weapon_inventory.size()):
 			var inv = GlobalData.weapon_inventory[index]
-			var other_user := other_mech_weapon_user(str(inv.get("path", "")))
+			var other_user := other_mech_weapon_user(str(inv.get("uid", "")), str(inv.get("path", "")))
 			wrows.append({"idx": index, "eq": weapon_in_loadout(slot, inv), "other": other_user})
 		wrows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 			var ea := 1 if (a["eq"] or a["other"] != "") else 0
@@ -440,16 +440,21 @@ func weapon_in_loadout(slot: String, inv: Dictionary) -> bool:
 # These helpers return the name of the other mech using a part, or "".
 # ---------------------------------------------------------------------------
 
-# A weapon model counts as used by another mech when it sits in that berth's
-# weapon_loadout (left hand, right hand, or back carry). With separate
-# instances the mark only shows when there is NO spare copy left: if the
-# player owns more copies than the other berths are holding, the extra copy
-# is a free spare and the row reads as available.
-func other_mech_weapon_user(path: String) -> String:
+# A weapon COPY (matched by instance uid) counts as used by another mech when
+# that EXACT copy sits in another berth's loadout. Same-model copies are
+# separate physical units, so a free spare is never marked as taken. Legacy
+# path rows fall back to a model-level check: the model only reads as taken
+# when every owned copy is already carried somewhere in the fleet.
+func other_mech_weapon_user(uid: String, path: String) -> String:
+	var editing_id: String = controller.get_editing_mech_id()
+	if uid != "":
+		var by_uid := _other_mech_weapon_uid_user(uid, editing_id)
+		if by_uid != "":
+			return by_uid
 	if path == "":
 		return ""
-	var editing_id: String = controller.get_editing_mech_id()
-	var used_by_others := 0
+	if LoadoutSystem.has_fleet_spare_weapon(path, editing_id):
+		return ""
 	var first_user := ""
 	for mech in GlobalData.hangar_mechs:
 		if not (mech is Dictionary):
@@ -460,22 +465,30 @@ func other_mech_weapon_user(path: String) -> String:
 		var loadout = mech.get("weapon_loadout", {})
 		if not (loadout is Dictionary):
 			continue
-		var slots := 0
-		if LoadoutSystem.ref_to_path(loadout.get("left", "")) == path:
-			slots += 1
-		if LoadoutSystem.ref_to_path(loadout.get("right", "")) == path:
-			slots += 1
-		var carry = loadout.get("carry", [])
-		if carry is Array:
-			for p in carry:
-				if LoadoutSystem.ref_to_path(p) == path:
-					slots += 1
-		if slots > 0:
-			used_by_others += slots
+		if LoadoutSystem.weapon_slot_in_loadout(loadout, path) != "":
 			if first_user == "":
 				first_user = str(mech.get("name", "Mech"))
-	if used_by_others > 0 and used_by_others >= GlobalData.count_owned_weapon(path):
-		return first_user
+	return first_user
+
+
+# The OTHER parked mech whose loadout holds this exact instance uid.
+func _other_mech_weapon_uid_user(uid: String, editing_id: String) -> String:
+	if uid == "":
+		return ""
+	for mech in GlobalData.hangar_mechs:
+		if not (mech is Dictionary):
+			continue
+		var mid := str(mech.get("id", ""))
+		if mid == "" or mid == editing_id:
+			continue
+		var loadout = mech.get("weapon_loadout", {})
+		if not (loadout is Dictionary):
+			continue
+		if str(loadout.get("left", "")) == uid or str(loadout.get("right", "")) == uid:
+			return str(mech.get("name", "Mech"))
+		var carry = loadout.get("carry", [])
+		if carry is Array and uid in carry:
+			return str(mech.get("name", "Mech"))
 	return ""
 
 

@@ -159,11 +159,33 @@ func build_part_for_slot(equipped: Variant) -> ArmorPart:
 		return equipped
 	var part_obj := ArmorPart.new()
 	if equipped is Dictionary:
-		part_obj.part_name = equipped.get("name", equipped.get("part_name", "Armor"))
-		part_obj.max_hp = GlobalData.part_stat(equipped, "max_hp", 100.0)
+		# Seed the visual fields from the authored ArmorPart resource behind this
+		# catalog/instance entry (path), so each part id can carry its own
+		# mesh_scene + inner_frame_scene. Catalog/instance overrides win after.
+		var authored := _load_authored_part(equipped)
+		if authored != null:
+			part_obj.mesh_scene = authored.mesh_scene
+			part_obj.inner_frame_scene = authored.inner_frame_scene
+			part_obj.slot_id = authored.slot_id
+			part_obj.part_color = authored.part_color
+			part_obj.max_hp = authored.max_hp
+			part_obj.part_name = authored.part_name
+		part_obj.part_name = equipped.get("name", equipped.get("part_name", part_obj.part_name))
+		part_obj.max_hp = GlobalData.part_stat(equipped, "max_hp", part_obj.max_hp)
 		if equipped.has("color"):
 			part_obj.part_color = equipped.get("color")
 	return part_obj
+
+
+# Loads the ArmorPart resource referenced by a catalog/instance entry's "path".
+# Returns null when the entry has no path, or the target is not an ArmorPart —
+# callers then fall back to the procedural builders.
+func _load_authored_part(equipped: Dictionary) -> ArmorPart:
+	var res_path := str(equipped.get("path", ""))
+	if res_path == "":
+		return null
+	var res = load(res_path)
+	return res as ArmorPart
 
 
 # Rebuilds the visuals of every armor slot from the current GlobalData loadout.

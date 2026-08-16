@@ -7,7 +7,8 @@ var _loot_script = preload("res://scripts/systems/loot_system.gd")
 @export var attack_damage: float = 10.0
 @export var attack_cooldown: float = 2.0
 
-## Archetype: 0=Rusher, 1=Ranged, 2=Heavy, 3=Support
+## Archetype: 0=Rusher, 1=Ranged, 2=Heavy, 3=Support,
+## 4=ShieldMelee (โล่+ดาบ), 5=ShieldRanged (โล่+ปืน)
 @export var archetype: int = 0
 
 var target: Node3D = null
@@ -74,6 +75,25 @@ var squad_role: String = ""
 # plate and health billboard are hidden so the player can't see it lurking.
 var concealed: bool = false
 
+# --- Enemy shield -----------------------------------------------------------
+# Shield archetypes (4/5) fight with a raised energy shield that absorbs
+# damage while it holds HP (see enemy_health.gd, which asks the parent mech
+# to absorb before applying to parts). The AI drops the shield around its own
+# attacks (state_attack) so the player gets a punish window, and it recharges
+# after a delay once dropped/broken — same rules as the player's shield.
+var shield_active: bool = false
+var shield_max_hp: float = 0.0
+var shield_current_hp: float = 0.0
+var shield_recharge_rate: float = 15.0   # HP restored per second while recharging
+var shield_recharge_delay: float = 3.0   # seconds after drop/break before recharge
+var shield_recharge_timer: float = 0.0
+var _shield_visual: MeshInstance3D = null
+
+# Weapon visuals mounted on the hands (shield + melee / shield + gun) so the
+# loadout reads at a glance. Hidden when the carrying arm is destroyed.
+var _shield_hand_mount: Node3D = null
+var _weapon_hand_mount: Node3D = null
+
 # Ammo system for ranged enemies. Ammo/reload state lives in a shared
 # WeaponCore (same rules as the player's weapons); these fields feed the core's
 # from_stats() build and the getters below delegate to it.
@@ -125,6 +145,8 @@ func _ready() -> void:
 	_apply_archetype_stats()
 	_apply_energy_tuning()
 	_build_catalog_body()
+	_mount_visual_loadout()
+	_apply_shield_stats()
 	_setup_leg_animation()
 	_setup_state_machine()
 
@@ -292,6 +314,8 @@ func _archetype_frame_index() -> int:
 			return 2  # Heavy: heaviest non-blueprint frame
 		3:
 			return 1  # Support: medium
+		4, 5:
+			return 1  # Shield melee/ranged: medium (they carry extra gear)
 		_:
 			return 0  # Rusher: lightest
 
@@ -332,6 +356,10 @@ func _archetype_palette() -> Dictionary:
 			return {"default": Color(0.65, 0.15, 0.2), "head": Color(0.75, 0.2, 0.15)}
 		3:
 			return {"default": Color(0.75, 0.65, 0.2), "head": Color(0.8, 0.7, 0.25)}
+		4:
+			return {"default": Color(0.25, 0.35, 0.55), "head": Color(0.3, 0.5, 0.8)}   # Shield melee: steel knight
+		5:
+			return {"default": Color(0.6, 0.4, 0.2), "head": Color(0.85, 0.6, 0.25)}    # Shield ranged: bronze gunner
 		_:
 			return {"default": Color(0.75, 0.2, 0.2), "head": Color(0.85, 0.25, 0.25)}
 
@@ -409,6 +437,9 @@ func _apply_archetype_stats() -> void:
 	elif archetype == 2:  # HEAVY (charge uses stamina-like ammo)
 		max_ammo = 5
 		reload_time = 4.0
+	elif archetype == 5:  # SHIELD_RANGED (shield + gun)
+		max_ammo = 25
+		reload_time = 3.0
 	_build_fire_core()
 
 
@@ -425,6 +456,8 @@ func _build_fire_core() -> void:
 		0: color = Color(1.0, 0.55, 0.2)   # Rusher: orange
 		2: color = Color(0.9, 0.25, 0.25)  # Heavy: red
 		3: color = Color(0.6, 0.85, 0.35)  # Support: lime
+		4: color = Color(0.35, 0.6, 1.0)   # Shield melee: steel blue
+		5: color = Color(1.0, 0.6, 0.2)    # Shield ranged: amber
 	fire_core = WeaponCore.from_stats({
 		"attack_damage": attack_damage,
 		"attack_cooldown": attack_cooldown,
@@ -444,6 +477,145 @@ func _process(delta: float) -> void:
 	# up front in start_dash(), so an enemy that never boosts stays topped up.
 	if not is_dashing:
 		energy = minf(energy + energy_regen_rate * delta, max_energy)
+	# Shield recharge: while the shield is up it never recharges; once dropped
+	# or broken it waits out the delay, then regenerates to full (same rhythm
+	# as the player's shield).
+	if shield_max_hp > 0.0 and shield_current_hp < shield_max_hp:
+		if shield_active:
+			shield_recharge_timer = shield_recharge_delay
+		else:
+			shield_recharge_timer -= delta
+			if shield_recharge_timer <= 0.0:
+				shield_current_hp = minf(shield_current_hp + shield_recharge_rate * delta, shield_max_hp)
+	_update_shield_visual()
+
+
+# --- Enemy shield -----------------------------------------------------------
+# Applies per-archetype shield stats. Only the shield archetypes (4/5) carry a
+# shield; everyone else stays at 0 HP / inactive, so every set_shield_up call
+# is a safe no-op for non-shield enemies.
+func _apply_shield_stats() -> void:
+	shield_recharge_timer = shield_recharge_delay
+	match archetype:
+		4:  # SHIELD_MELEE — heavy slab, slow recharge (brawler pacing)
+			shield_max_hp = 180.0
+			shield_current_hp = shield_max_hp
+			shield_recharge_rate = 15.0
+			shield_recharge_delay = 3.0
+		5:  # SHIELD_RANGED — lighter field shield, faster recharge
+			shield_max_hp = 120.0
+			shield_current_hp = shield_max_hp
+			shield_recharge_rate = 20.0
+			shield_recharge_delay = 3.0
+		_:
+			shield_max_hp = 0.0
+			shield_current_hp = 0.0
+	if shield_max_hp > 0.0:
+		shield_active = true
+		_show_shield_visual()
+
+
+func set_shield_up(on: bool) -> void:
+	if shield_max_hp <= 0.0 or shield_current_hp <= 0.0:
+		if _shield_visual:
+			_shield_visual.visible = false
+		shield_active = false
+		return
+	shield_active = on
+	if _shield_visual:
+		_shield_visual.visible = on
+	if on:
+		_update_shield_visual()
+
+
+func is_shield_active() -> bool:
+	return shield_active
+
+
+# Absorbs incoming damage into the shield while it is up. Returns the damage
+# that leaks through after the shield HP runs out (0.0 = fully blocked).
+func absorb_damage_with_shield(amount: float) -> float:
+	if not shield_active or shield_max_hp <= 0.0 or shield_current_hp <= 0.0:
+		return amount
+	var absorbed := minf(amount, shield_current_hp)
+	shield_current_hp -= absorbed
+	var remaining := amount - absorbed
+	if shield_current_hp <= 0.0:
+		shield_current_hp = 0.0
+		shield_active = false
+		shield_recharge_timer = shield_recharge_delay
+		if _shield_visual:
+			_shield_visual.visible = false
+	return remaining
+
+
+func _show_shield_visual() -> void:
+	if _shield_visual == null:
+		_shield_visual = MeshInstance3D.new()
+		_shield_visual.name = "EnemyShieldBubble"
+		var sphere := SphereMesh.new()
+		sphere.radius = 1.9
+		sphere.height = 3.4
+		_shield_visual.mesh = sphere
+		var mat := StandardMaterial3D.new()
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.albedo_color = _shield_visual_color(0.3)
+		mat.emission_enabled = true
+		mat.emission = _shield_visual_color(1.0)
+		mat.emission_energy_multiplier = 2.0
+		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_shield_visual.material_override = mat
+		_shield_visual.position = Vector3(0, 1.5, 0)
+		add_child(_shield_visual)
+	_shield_visual.visible = true
+	_update_shield_visual()
+
+
+func _hide_shield_visual() -> void:
+	if _shield_visual:
+		_shield_visual.visible = false
+
+
+# The bubble fades + dims as the shield drains, so the player can read how
+# much protection is left before it breaks.
+func _update_shield_visual() -> void:
+	if _shield_visual == null or not shield_active:
+		return
+	var hp_ratio := shield_current_hp / maxf(shield_max_hp, 1.0)
+	var mat := _shield_visual.material_override as StandardMaterial3D
+	if mat:
+		mat.albedo_color = _shield_visual_color(lerp(0.05, 0.3, hp_ratio))
+		mat.emission = _shield_visual_color(lerp(0.3, 1.0, hp_ratio))
+		mat.emission_energy_multiplier = lerp(0.5, 2.0, hp_ratio)
+
+
+func _shield_visual_color(alpha: float) -> Color:
+	# Melee knight: cold steel-blue barrier. Ranged gunner: amber barrier.
+	if archetype == 5:
+		return Color(1.0, 0.55, 0.15, alpha)
+	return Color(0.25, 0.55, 1.0, alpha)
+
+
+# Mounts the visible loadout on the hands: a shield plate on one arm and the
+# archetype's weapon (blade for shield-melee, gun for shield-ranged) on the
+# other, reusing the same WeaponVisualFactory models the player's mech uses.
+func _mount_visual_loadout() -> void:
+	match archetype:
+		4:  # SHIELD_MELEE: shield + heat blade
+			_shield_hand_mount = WeaponVisualFactory.mount_hand(self, "left", preload("res://resources/mech/stock/weapon_shield.tres"), "EnemyShieldMount")
+			_weapon_hand_mount = WeaponVisualFactory.mount_hand(self, "right", preload("res://resources/mech/stock/weapon_heat_blade.tres"), "EnemyWeaponMount")
+		5:  # SHIELD_RANGED: shield + beam carbine
+			_shield_hand_mount = WeaponVisualFactory.mount_hand(self, "left", preload("res://resources/mech/stock/weapon_shield.tres"), "EnemyShieldMount")
+			_weapon_hand_mount = WeaponVisualFactory.mount_hand(self, "right", preload("res://resources/mech/stock/weapon_beam_carbine.tres"), "EnemyWeaponMount")
+
+
+# The arm frame holding the shield/weapon broke: the hand-mounted gear is gone
+# with it (the mech can no longer grip).
+func _hide_hand_mounts(arm_slot: String) -> void:
+	if arm_slot == "arm_left" and _shield_hand_mount:
+		_shield_hand_mount.visible = false
+	if arm_slot == "arm_right" and _weapon_hand_mount:
+		_weapon_hand_mount.visible = false
 
 
 # True while the mech still has at least one arm to hold a weapon.
@@ -465,7 +637,9 @@ func _both_legs_destroyed() -> bool:
 	return health_system.is_part_destroyed("leg_left") and health_system.is_part_destroyed("leg_right")
 
 
-func _on_part_destroyed(_slot: String) -> void:
+func _on_part_destroyed(slot_name: String) -> void:
+	# A lost arm takes its hand-mounted shield/weapon model with it.
+	_hide_hand_mounts(slot_name)
 	var arms_gone := _both_arms_destroyed()
 	var legs_gone := _both_legs_destroyed()
 	if arms_gone and legs_gone:
@@ -486,7 +660,7 @@ func _on_part_destroyed(_slot: String) -> void:
 # Only long-range archetypes keep fighting after losing both legs — a melee
 # brawler has nothing it can do from the ground.
 func _can_fight_from_ground() -> bool:
-	return archetype == 1 or archetype == 3
+	return archetype == 1 or archetype == 3 or archetype == 5
 
 
 func _ragdoll() -> void:
@@ -785,6 +959,20 @@ func _apply_energy_tuning() -> void:
 			low_energy_threshold = 20.0
 			recharged_energy = 60.0
 			flee_speed_mult = 1.2
+		4:  # SHIELD MELEE — deliberate brawler: slow-ish regen, fights long.
+			dash_energy_cost = 18.0
+			attack_energy_cost = 6.0
+			energy_regen_rate = 8.0
+			low_energy_threshold = 15.0
+			recharged_energy = 45.0
+			flee_speed_mult = 1.1
+		5:  # SHIELD RANGED — sustained fire drains it like a regular ranged unit.
+			dash_energy_cost = 18.0
+			attack_energy_cost = 6.0
+			energy_regen_rate = 8.0
+			low_energy_threshold = 25.0
+			recharged_energy = 70.0
+			flee_speed_mult = 1.1
 
 
 # --- Rusher dash ------------------------------------------------------------

@@ -21,6 +21,8 @@ const TYPES: Array = [
 	["enemy_support", "res://scenes/mecha/enemy_support.tscn", 3],
 	["enemy_tank", "res://scenes/mecha/enemy_tank.tscn", 1],
 	["enemy_boss", "res://scenes/mecha/enemy_boss.tscn", 2],
+	["enemy_shield_melee", "res://scenes/mecha/enemy_shield_melee.tscn", 4],
+	["enemy_shield_ranged", "res://scenes/mecha/enemy_shield_ranged.tscn", 5],
 ]
 
 var _fails := 0
@@ -99,6 +101,8 @@ func _ready() -> void:
 		"enemy_support": -0.824,
 		"enemy_tank": 0.0,
 		"enemy_boss": -0.126,
+		"enemy_shield_melee": -0.45,
+		"enemy_shield_ranged": -0.7,
 	}
 	for t in TYPES:
 		var probe := (load(t[1]) as PackedScene).instantiate()

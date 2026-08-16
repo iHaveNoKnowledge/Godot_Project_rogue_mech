@@ -21,6 +21,14 @@ var _flash_visible: bool = false
 # time to dodge out of the arc. Prevents lock-on guaranteed hits.
 var _melee_swing_dir: Vector3 = Vector3.ZERO
 
+# Shield archetypes (4/5) hold their barrier UP while waiting, then DROP it
+# around their own attack so the player gets a punish window: a shield melee
+# commits (telegraph -> swing) with the shield down, a shield gunner is exposed
+# right after each shot. This timer counts down the exposed window.
+const SHIELD_MELEE_EXPOSED := 0.5   # extra recovery after the swing lands
+const SHIELD_RANGED_EXPOSED := 0.5  # post-shot recoil window
+var _shield_down_timer: float = 0.0
+
 
 func enter() -> void:
 	# Small delay before the first attack so the telegraph has time to play.
@@ -32,8 +40,13 @@ func enter() -> void:
 	_blink_timer = 0.0
 	_flash_visible = false
 	_melee_swing_dir = Vector3.ZERO
+	_shield_down_timer = 0.0
 	if enemy and enemy.has_method("set_attack_flash"):
 		enemy.set_attack_flash(false)
+	# Shield archetypes enter combat with the barrier raised; it only drops
+	# while they commit to an attack (see physics_process below).
+	if enemy and enemy.has_method("set_shield_up"):
+		enemy.set_shield_up(true)
 
 
 func exit() -> void:
@@ -41,6 +54,10 @@ func exit() -> void:
 	_telegraph_active = false
 	if enemy and enemy.has_method("set_attack_flash"):
 		enemy.set_attack_flash(false)
+	# Restore the barrier so the enemy doesn't leave the fight exposed after a
+	# swing/shot interrupted by a state change.
+	if enemy and enemy.has_method("set_shield_up"):
+		enemy.set_shield_up(true)
 
 
 func physics_process(delta: float) -> void:
@@ -108,13 +125,30 @@ func physics_process(delta: float) -> void:
 		_blink_timer = 0.0
 		_flash_visible = false
 		_snapshot_melee_swing_dir()
+		# A shield melee COMMITS to the swing when the telegraph starts: the
+		# barrier drops for the telegraph + swing + recovery, leaving it exposed
+		# — dodge the swing and shoot it while it's open.
+		if enemy.get("archetype") == 4 and enemy.has_method("set_shield_up"):
+			enemy.set_shield_up(false)
+			_shield_down_timer = _telegraph_duration() + SHIELD_MELEE_EXPOSED
 		if enemy.get_tree() and enemy.get_tree().root.has_node("AudioManager"):
 			AudioManager.play_enemy_warning(enemy.global_position + Vector3(0, 2, 0))
 	_update_telegraph(delta)
+	# Count down the shield's exposed window; when it closes the barrier comes
+	# back up (shield archetypes only).
+	if _shield_down_timer > 0.0:
+		_shield_down_timer = maxf(_shield_down_timer - delta, 0.0)
+		if _shield_down_timer <= 0.0 and enemy.has_method("set_shield_up"):
+			enemy.set_shield_up(true)
 	if attack_timer <= 0.0:
 		attack_timer = enemy.attack_cooldown
 		_telegraph_active = false
 		_perform_attack()
+		# A shield gunner is exposed right after each shot (recoil window) so
+		# the player can shoot it back between volleys.
+		if enemy.get("archetype") == 5 and enemy.has_method("set_shield_up"):
+			enemy.set_shield_up(false)
+			_shield_down_timer = SHIELD_RANGED_EXPOSED
 		# Every attack action draws from the shared energy pool, so sustained
 		# fire (and rusher dashes) gradually drain the enemy until it breaks
 		# off to recharge instead of fighting forever. The cost is tuned per
@@ -160,6 +194,13 @@ func _perform_attack() -> void:
 			pass
 		3:  # SUPPORT - heal nearest ally
 			_heal_nearest_ally()
+		4:  # SHIELD MELEE - melee swing, shield dropped around the swing
+			_perform_melee()
+		5:  # SHIELD RANGED - projectile, shield dropped around each shot
+			if enemy.has_ammo():
+				_fire_ranged()
+			else:
+				state_machine.transition_to("StateChase")
 
 
 func _heal_nearest_ally() -> void:

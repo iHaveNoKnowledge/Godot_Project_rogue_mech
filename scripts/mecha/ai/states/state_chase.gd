@@ -13,6 +13,10 @@ func enter() -> void:
 	path = []
 	path_index = 0
 	path_update_timer = 0.0
+	# Shield archetypes advance with the barrier up so closing in doesn't cost
+	# them HP; it drops only when they commit to an attack (state_attack).
+	if enemy and enemy.has_method("set_shield_up"):
+		enemy.set_shield_up(true)
 
 
 func physics_process(delta: float) -> void:

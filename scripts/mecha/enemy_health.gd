@@ -14,6 +14,44 @@ enum Layout { SIMPLE, FULL, TANK }
 signal mobility_lost()
 signal turret_disabled()
 
+# -----------------------------------------------------------------------------
+# SHIELD ABSORPTION
+# Shield archetypes (enemy_dummy archetype 4/5) carry an energy shield on the
+# mech root. Every damage path funnels into _apply_armor_damage/_apply_frame_
+# damage, so absorbing here covers bullets, splash, melee and direct calls —
+# exactly once per hit (the base call chain never re-enters these two).
+# -----------------------------------------------------------------------------
+
+func _apply_armor_damage(slot_name: String, amount: float, damage_type: String) -> void:
+	var remaining := _absorb_with_shield(amount)
+	if remaining <= 0.0:
+		return
+	super._apply_armor_damage(slot_name, remaining, damage_type)
+
+
+func _apply_frame_damage(slot_name: String, amount: float, damage_type: String) -> void:
+	var remaining := _absorb_with_shield(amount)
+	if remaining <= 0.0:
+		return
+	super._apply_frame_damage(slot_name, remaining, damage_type)
+
+
+# Asks the parent mech (enemy_dummy.gd) to absorb damage into its shield.
+# Non-shield enemies simply pass the amount through untouched.
+func _absorb_with_shield(amount: float) -> float:
+	var mecha := get_parent()
+	if mecha == null or not mecha.get("shield_active") or not mecha.has_method("absorb_damage_with_shield"):
+		return amount
+	var remaining: float = mecha.absorb_damage_with_shield(amount)
+	var absorbed := amount - remaining
+	if absorbed > 0.0:
+		# Shield-hit feedback: a spark at the barrier so blocked shots read as
+		# blocked instead of silently vanishing.
+		EffectManager.spawn_impact(global_position + Vector3(0, 1.5, 0), Vector3.UP)
+		if remaining <= 0.0 and AudioManager:
+			AudioManager.play_armor_break(global_position + Vector3(0, 1.5, 0))
+	return remaining
+
 
 func take_heal(amount: float) -> void:
 	if is_destroyed:

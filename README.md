@@ -94,6 +94,8 @@ res://scenes/main_menu/main_menu.tscn
 - Ranged Mecha
 - Heavy Mecha
 - Support Mecha
+- Shield Knight (ถือโล่ + อาวุธ Melee — ยกโล่กันขณะบุก แล้วลดโล่ตอนฟัน)
+- Shield Gunner (ถือโล่ + ปืน — ยกโล่กันระหว่างยิง ช่องโหว่ตอนยิงแต่ละนัด)
 - Tank
 - Stalking Ace
 - Boss Overlord

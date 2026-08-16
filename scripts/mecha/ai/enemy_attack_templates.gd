@@ -2,12 +2,43 @@ class_name EnemyAttackTemplates
 extends RefCounted
 
 ## Static attack pattern definitions per archetype.
+## 4 = SHIELD_MELEE (โล่ + ดาบ), 5 = SHIELD_RANGED (โล่ + ปืน).
 
-enum Archetype { RUSHER, RANGED, HEAVY, SUPPORT }
+enum Archetype { RUSHER, RANGED, HEAVY, SUPPORT, SHIELD_MELEE, SHIELD_RANGED }
 
 
 static func get_stats(archetype: int, is_full: bool = false) -> Dictionary:
 	match archetype:
+		Archetype.SHIELD_MELEE:
+			if is_full:
+				return {
+					"move_speed": 2.8,
+					"attack_range": 3.5,
+					"attack_damage": 24.0,
+					"attack_cooldown": 2.4,
+				}
+			else:
+				return {
+					"move_speed": 2.8,
+					"attack_range": 3.5,
+					"attack_damage": 18.0,
+					"attack_cooldown": 2.4,
+				}
+		Archetype.SHIELD_RANGED:
+			if is_full:
+				return {
+					"move_speed": 3.5,
+					"attack_range": 50.0,
+					"attack_damage": 22.0,
+					"attack_cooldown": 1.2,
+				}
+			else:
+				return {
+					"move_speed": 3.5,
+					"attack_range": 50.0,
+					"attack_damage": 16.0,
+					"attack_cooldown": 1.2,
+				}
 		Archetype.RUSHER:
 			if is_full:
 				return {
@@ -65,6 +96,16 @@ static func get_stats(archetype: int, is_full: bool = false) -> Dictionary:
 
 static func get_hp(archetype: int, is_full: bool = false) -> Dictionary:
 	match archetype:
+		Archetype.SHIELD_MELEE:
+			if is_full:
+				return {"armor": 90.0, "frame": 110.0}
+			else:
+				return {"armor": 45.0, "frame": 65.0}
+		Archetype.SHIELD_RANGED:
+			if is_full:
+				return {"armor": 70.0, "frame": 90.0}
+			else:
+				return {"armor": 40.0, "frame": 55.0}
 		Archetype.RUSHER:
 			if is_full:
 				return {"armor": 80.0, "frame": 100.0}

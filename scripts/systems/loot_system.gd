@@ -148,6 +148,23 @@ const ARCHETYPE_WEAPON_POOLS: Dictionary = {
 		preload("res://resources/mech/stock/weapon_light_buckler.tres"),
 		preload("res://resources/mech/stock/weapon_heavy_shield.tres"),
 	],
+	4: [
+		# Shield melee: blades + shields (drop what it fought with)
+		preload("res://resources/mech/stock/weapon_combat_knife.tres"),
+		preload("res://resources/mech/stock/weapon_mace.tres"),
+		preload("res://resources/mech/stock/weapon_heat_blade.tres"),
+		preload("res://resources/mech/stock/weapon_pile_bunker.tres"),
+		preload("res://resources/mech/stock/weapon_light_buckler.tres"),
+		preload("res://resources/mech/stock/weapon_shield.tres"),
+	],
+	5: [
+		# Shield ranged: guns + shields
+		preload("res://resources/mech/stock/weapon_beam_carbine.tres"),
+		preload("res://resources/mech/stock/weapon_machine_gun.tres"),
+		preload("res://resources/mech/stock/weapon_light_machine_gun.tres"),
+		preload("res://resources/mech/stock/weapon_light_buckler.tres"),
+		preload("res://resources/mech/stock/weapon_shield.tres"),
+	],
 }
 
 # Chance a defeated enemy drops the weapon it actually used (grunts modest,

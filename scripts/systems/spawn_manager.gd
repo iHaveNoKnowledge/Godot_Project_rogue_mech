@@ -13,6 +13,8 @@ var enemy_scene_paths: Dictionary = {
 	"support_full": "res://scenes/mecha/enemy_support.tscn",
 	"tank_full": "res://scenes/mecha/enemy_tank.tscn",
 	"boss_overlord": "res://scenes/mecha/enemy_boss.tscn",
+	"shieldmelee_full": "res://scenes/mecha/enemy_shield_melee.tscn",
+	"shieldranged_full": "res://scenes/mecha/enemy_shield_ranged.tscn",
 }
 
 # Fan-out offsets for squad fire-team members around their commander (center).
@@ -74,6 +76,9 @@ var ace_wave_defs = [
 	 {"type": "support_simple", "archetype": 3, "count": 1}],
 	[{"type": "heavy_full", "archetype": 2, "count": 1},
 	 {"type": "ranged_full", "archetype": 1, "count": 2}],
+	[{"type": "shieldmelee_full", "archetype": 4, "count": 1},
+	 {"type": "shieldranged_full", "archetype": 5, "count": 1},
+	 {"type": "ranged_full", "archetype": 1, "count": 1}],
 ]
 
 var boss_wave_defs = [
@@ -81,6 +86,8 @@ var boss_wave_defs = [
 	 {"type": "support_full", "archetype": 3, "count": 1}],
 	[{"type": "heavy_full", "archetype": 2, "count": 2},
 	 {"type": "ranged_full", "archetype": 1, "count": 2}],
+	[{"type": "shieldmelee_full", "archetype": 4, "count": 2},
+	 {"type": "shieldranged_full", "archetype": 5, "count": 1}],
 	[{"type": "boss_overlord", "archetype": 2, "count": 1},
 	 {"type": "support_full", "archetype": 3, "count": 2}],
 ]
@@ -92,6 +99,8 @@ var theme_boss_wave_defs: Dictionary = {
 		 {"type": "ranged_full", "archetype": 1, "count": 2}],
 		[{"type": "heavy_full", "archetype": 2, "count": 3},
 		 {"type": "support_full", "archetype": 3, "count": 2}],
+		[{"type": "shieldmelee_full", "archetype": 4, "count": 2},
+		 {"type": "shieldranged_full", "archetype": 5, "count": 1}],
 		[{"type": "boss_overlord", "archetype": 2, "count": 1},
 		 {"type": "heavy_full", "archetype": 2, "count": 2},
 		 {"type": "support_full", "archetype": 3, "count": 1}],
@@ -101,6 +110,8 @@ var theme_boss_wave_defs: Dictionary = {
 		 {"type": "heavy_full", "archetype": 2, "count": 1}],
 		[{"type": "heavy_full", "archetype": 2, "count": 2},
 		 {"type": "ranged_full", "archetype": 1, "count": 3}],
+		[{"type": "shieldmelee_full", "archetype": 4, "count": 1},
+		 {"type": "shieldranged_full", "archetype": 5, "count": 2}],
 		[{"type": "boss_overlord", "archetype": 2, "count": 1},
 		 {"type": "heavy_full", "archetype": 2, "count": 2}],
 	],
@@ -109,6 +120,8 @@ var theme_boss_wave_defs: Dictionary = {
 		 {"type": "support_full", "archetype": 3, "count": 2}],
 		[{"type": "heavy_full", "archetype": 2, "count": 2},
 		 {"type": "ranged_full", "archetype": 1, "count": 2}],
+		[{"type": "shieldranged_full", "archetype": 5, "count": 2},
+		 {"type": "rusher_full", "archetype": 0, "count": 1}],
 		[{"type": "boss_overlord", "archetype": 2, "count": 1},
 		 {"type": "support_full", "archetype": 3, "count": 2}],
 	],

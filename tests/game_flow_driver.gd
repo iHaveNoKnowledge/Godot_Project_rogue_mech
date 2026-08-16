@@ -17,6 +17,11 @@ extends Node
 var _fails := 0
 var _checks := 0
 var _music_track_id: int = -1
+# Parts taken back from the battle loot pool (filled by _verify_loot_reaches_hangar,
+# asserted in the hangar part list by _verify_hangar_after_patch).
+var _taken_weapon_name: String = ""
+var _taken_armor_name: String = ""
+var _taken_armor_slot: String = ""
 
 
 func _ready() -> void:
@@ -38,6 +43,10 @@ func run() -> void:
 	# combat mech's _init_parts() applies its weak scrap armor stats.
 	_install_test_scrap_patch()
 	await _verify_combat()
+	# The parts dropped this battle must actually land in the hangar: run the
+	# real enemy-loot path in the live combat scene, grant the take-back through
+	# the real CombatRewardsUI, then confirm the hangar part list shows them.
+	await _verify_loot_reaches_hangar()
 
 	# Leave combat the way a real player does (the pause menu's abandon path)
 	# so the engine unloads the world through its own scene machinery.
@@ -534,6 +543,67 @@ func _verify_scrap_patch_shatters(mecha: Node) -> void:
 
 # After combat returns to the board, enter the REAL hangar and confirm the
 # garage mech no longer renders any scrap patch on the shattered slot.
+# Real-scene end-to-end loot check: an enemy drops parts via the REAL
+# LootSystem path into GlobalData.battle_loot, the REAL CombatRewardsUI grant
+# moves them into the depot/armor inventories, and (after entering the hangar
+# in _verify_hangar_after_patch) the part list renders the taken parts.
+func _verify_loot_reaches_hangar() -> void:
+	var world: Node = current_scene_or_root()
+	if world == null:
+		return
+	# Find the real LootSystem node (game_world) and the real rewards UI.
+	var loot_sys: Node = _find_node_with(world, "spawn_enemy_loot")
+	var rewards_ui: Node = _find_node_with(world, "_grant_take_back_loot")
+	_check(loot_sys != null, "real LootSystem exists in the combat scene")
+	_check(rewards_ui != null, "real CombatRewardsUI exists in the combat scene")
+	if loot_sys == null or rewards_ui == null:
+		return
+	# Run the REAL enemy-drop path until it yields at least one weapon AND one
+	# armor part in the post-battle pool (drop chances are random per call, so
+	# a bounded loop makes the check deterministic in practice).
+	GlobalData.battle_loot.clear()
+	var seen_weapon := false
+	var seen_armor := false
+	for i in range(120):
+		if seen_weapon and seen_armor:
+			break
+		loot_sys.spawn_enemy_loot(Vector3.ZERO, 1)
+		for entry in GlobalData.battle_loot:
+			if entry is Dictionary:
+				match str(entry.get("type", "")):
+					"weapon":
+						seen_weapon = true
+					"armor":
+						seen_armor = true
+	_check(seen_weapon and seen_armor, "real enemy drops land weapon + armor parts in the post-battle pool")
+	if not (seen_weapon and seen_armor):
+		return
+	# Record what was dropped so the hangar check can look for the same names.
+	for entry in GlobalData.battle_loot:
+		if entry is Dictionary:
+			match str(entry.get("type", "")):
+				"weapon":
+					var w: WeaponPart = entry.get("weapon")
+					if w:
+						_taken_weapon_name = w.weapon_name
+				"armor":
+					var inst: Dictionary = entry.get("instance", {})
+					if not inst.is_empty():
+						_taken_armor_name = str(inst.get("name", ""))
+						_taken_armor_slot = str(inst.get("slot", ""))
+	# Player takes everything back through the real grant path (the same function
+	# the Continue button calls): every pool item moves to the TAKE BACK side,
+	# then Continue grants them into the depot stash / armor inventory.
+	var stash_before: int = GlobalData.weapon_inventory.size()
+	var armor_before: int = GlobalData.armor_inventory.size()
+	rewards_ui._left_items = GlobalData.battle_loot.duplicate()
+	rewards_ui._right_items = GlobalData.battle_loot.duplicate()
+	rewards_ui._grant_take_back_loot()
+	_check(GlobalData.weapon_inventory.size() > stash_before, "taken weapon registers into the depot stash (real grant path)")
+	_check(GlobalData.armor_inventory.size() > armor_before, "taken armor part lands in the armor inventory (real grant path)")
+	_check(GlobalData.battle_loot.is_empty(), "post-battle loot pool clears after taking items back")
+
+
 func _verify_hangar_after_patch() -> void:
 	# The body patch shattered in combat, so the stash must be empty of it.
 	_check(not GlobalData.scrap_patches.has("body"), "stash has no body scrap patch when entering the hangar")
@@ -564,6 +634,34 @@ func _verify_hangar_after_patch() -> void:
 				var frame_node: Node = body_entry.get("frame") if body_entry.has("frame") else null
 				body_renders = (armor_node != null and armor_node.visible) or (frame_node != null and frame_node.visible)
 			_check(body_renders, "hangar body slot still renders after the patch shattered")
+
+	# --- The parts taken back from battle must be listed in the hangar ---
+	# Drive the real part-list panel: weapons populate under a weapon slot,
+	# armor under its own slot. This is the exact code path a player sees when
+	# they open the customize page.
+	if _taken_weapon_name != "" and hangar.get("part_list_panel") != null:
+		hangar.current_mode = "weapon"
+		hangar.selected_slot = "weapon_left"
+		hangar.part_list_panel.populate("weapon_left")
+		await get_tree().process_frame
+		var weapon_shown := false
+		for i in range(hangar.part_item_list.item_count):
+			if (hangar.part_item_list.get_item_text(i) as String).contains(_taken_weapon_name):
+				weapon_shown = true
+				break
+		_check(weapon_shown, "hangar part list shows the battle-dropped weapon '%s'" % _taken_weapon_name)
+	if _taken_armor_name != "" and _taken_armor_slot != "" and hangar.get("part_list_panel") != null:
+		hangar.current_mode = "armor"
+		hangar.selected_slot = _taken_armor_slot
+		hangar.part_list_panel.populate(_taken_armor_slot)
+		await get_tree().process_frame
+		var armor_shown := false
+		for i in range(hangar.part_item_list.item_count):
+			if (hangar.part_item_list.get_item_text(i) as String).contains(_taken_armor_name):
+				armor_shown = true
+				break
+		_check(armor_shown, "hangar part list shows the battle-dropped armor '%s' [%s]" % [_taken_armor_name, _taken_armor_slot])
+
 	# Back to the board so the standard teardown (music fade + quit) runs as usual.
 	GameManager.enter_board()
 	await _wait_for_board()

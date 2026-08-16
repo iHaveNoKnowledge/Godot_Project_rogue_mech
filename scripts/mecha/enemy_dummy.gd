@@ -550,23 +550,16 @@ func _on_destroyed() -> void:
 	if spawn_mgr and spawn_mgr.has_method("notify_enemy_killed"):
 		spawn_mgr.notify_enemy_killed()
 	else:
-		_check_fallback_victory()
+		const SpawnManagerScript := preload("res://scripts/systems/spawn_manager.gd")
+		SpawnManagerScript.check_all_enemies_defeated()
 
+	# Stay alive through the health system's core-breach warning + detonation
+	# (DESTROYED_NODE_LIFETIME = CORE_BREACH_DELAY + 1.0 ≈ 2.8s) so the downed
+	# machine is seen flashing before it blows. The health system hides the
+	# parts at the explosion; we only leave the scene after that.
 	var tween = create_tween()
-	tween.tween_interval(0.5)
+	tween.tween_interval(health_system.DESTROYED_NODE_LIFETIME)
 	tween.tween_callback(queue_free)
-
-
-func _check_fallback_victory() -> void:
-	var enemies = get_tree().get_nodes_in_group("enemy")
-	var alive = 0
-	for e in enemies:
-		if is_instance_valid(e) and e != self and e.get("health_system") != null:
-			var hs = e.health_system
-			if not hs.get("is_destroyed"):
-				alive += 1
-	if alive == 0:
-		EventBus.combat_ended.emit(true)
 
 
 

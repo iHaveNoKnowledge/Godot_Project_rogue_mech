@@ -296,51 +296,11 @@ func _mount_mech_weapon_visuals(loadout: Dictionary) -> void:
 
 # Builds the per-slot frame + armor loadout dict from the berth's snapshot so
 # PartMeshManager renders the mech EXACTLY as it appears in the hangar (same
-# catalog path the hangar garage + enemy bodies use).
+# catalog path the hangar garage + enemy bodies use). Shared helper lives in
+# SaveGameIO (also used by the reserve-mech spawner); the ally's plates are
+# painted with the BERTH's own hangar colors, falling back to its template.
 func _mech_catalog_loadout(mech: Dictionary) -> Dictionary:
-	var loadout: Dictionary = {}
-	var mech_frames: Dictionary = mech.get("frames", {})
-	var mech_parts: Dictionary = mech.get("parts", {})
-	for slot in ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]:
-		var frame_entry: Dictionary = {}
-		if mech_frames.has(slot):
-			var f = SaveGameIO.resolve_frame_value(mech_frames[slot])
-			if f is Dictionary:
-				frame_entry = f.duplicate(true)
-		var armor_entry: Dictionary = {}
-		if mech_parts.has(slot):
-			var p = SaveGameIO.resolve_equipped_part(mech_parts[slot])
-			if p != null:
-				if p is Dictionary:
-					armor_entry["name"] = str(p.get("name", p.get("part_name", "Armor")))
-					armor_entry["hp"] = float(GlobalData.part_stat(p, "max_hp", 100.0))
-					# Paint the plate with the BERTH's own color (the paint the player
-					# chose in the hangar) instead of forcing the template color —
-					# the battle ally must look EXACTLY like the mech in the hangar.
-					armor_entry["color"] = _resolve_armor_color(p)
-				elif p is ArmorPart:
-					armor_entry["name"] = p.part_name
-					armor_entry["hp"] = p.max_hp
-					armor_entry["color"] = p.color if "color" in p else template_color
-				armor_entry["equipped"] = true
-		loadout[slot] = {"frame": frame_entry, "armor": armor_entry}
-	return loadout
-
-
-# The paint color of a resolved armor instance: the instance's own color (what
-# the player chose in the hangar), then its catalog entry, falling back to the
-# friendly template blue.
-func _resolve_armor_color(p: Dictionary) -> Color:
-	if p.has("color") and p["color"] is Color:
-		return p["color"]
-	if p.has("part_color") and p["part_color"] is Color:
-		return p["part_color"]
-	var db_id := str(p.get("db_id", ""))
-	if db_id != "":
-		var cat_entry := GlobalData.get_armor_catalog_entry(db_id)
-		if not cat_entry.is_empty() and cat_entry.has("color"):
-			return cat_entry["color"]
-	return template_color
+	return SaveGameIO.build_mech_catalog_loadout(mech, template_color)
 
 
 # Assembles the ally's body from the berth's ACTUAL armor/frame plates (via the
@@ -780,10 +740,11 @@ func _on_destroyed() -> void:
 	_remove_from_convoy()
 	set_physics_process(false)
 	velocity = Vector3.ZERO
-	# Stay visible through the core-breach warning + detonation (~2.8s) so the
-	# squadmate is seen going down, then leave the scene.
+	# Stay visible through the core-breach warning + detonation (shared
+	# DESTROYED_NODE_LIFETIME from the health base ≈ 2.8s) so the squadmate is
+	# seen going down, then leave the scene.
 	var tween = create_tween()
-	tween.tween_interval(2.8)
+	tween.tween_interval(health_system.DESTROYED_NODE_LIFETIME)
 	tween.tween_callback(queue_free)
 
 

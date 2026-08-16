@@ -205,21 +205,10 @@ func _explode_and_destroy() -> void:
 	if spawn_mgr and spawn_mgr.has_method("notify_enemy_killed"):
 		spawn_mgr.notify_enemy_killed()
 	else:
-		_check_fallback_victory()
+		const SpawnManagerScript := preload("res://scripts/systems/spawn_manager.gd")
+		SpawnManagerScript.check_all_enemies_defeated()
 
 	queue_free()
-
-
-func _check_fallback_victory() -> void:
-	var enemies = get_tree().get_nodes_in_group("enemy")
-	var alive = 0
-	for e in enemies:
-		if is_instance_valid(e) and e != self and e.get("health_system") != null:
-			var hs = e.health_system
-			if not hs.get("is_destroyed"):
-				alive += 1
-	if alive == 0:
-		EventBus.combat_ended.emit(true)
 
 
 

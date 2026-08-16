@@ -160,35 +160,12 @@ func _spawn_reserve_mech(mech_id: String, spawn_pos: Vector3) -> void:
 
 # Builds the per-slot frame + armor loadout dict from a berth's snapshot so the
 # reserve mech renders exactly like that mech in the hangar (same catalog path
-# the ally bodies + enemy bodies use). Empty dict when the berth is unknown.
+# the ally bodies + enemy bodies use). Shared helper lives in SaveGameIO.
 func _mech_catalog_loadout(mech_id: String) -> Dictionary:
 	for mech in GlobalData.get_hangar_mechs():
 		if not (mech is Dictionary) or str(mech.get("id", "")) != mech_id:
 			continue
-		var loadout: Dictionary = {}
-		var mech_frames: Dictionary = mech.get("frames", {})
-		var mech_parts: Dictionary = mech.get("parts", {})
-		for slot in GlobalData.MECHA_SLOTS:
-			var frame_entry: Dictionary = {}
-			if mech_frames.has(slot):
-				var f = SaveGameIO.resolve_frame_value(mech_frames[slot])
-				if f is Dictionary:
-					frame_entry = (f as Dictionary).duplicate(true)
-			var armor_entry: Dictionary = {}
-			if mech_parts.has(slot):
-				var p = SaveGameIO.resolve_equipped_part(mech_parts[slot])
-				if p != null:
-					if p is Dictionary:
-						armor_entry["name"] = str(p.get("name", p.get("part_name", "Armor")))
-						armor_entry["hp"] = float(GlobalData.part_stat(p, "max_hp", 100.0))
-						armor_entry["color"] = p.get("color", p.get("part_color", Color(0.4, 0.6, 0.9)))
-					elif p is ArmorPart:
-						armor_entry["name"] = (p as ArmorPart).part_name
-						armor_entry["hp"] = (p as ArmorPart).max_hp
-						armor_entry["color"] = p.color
-					armor_entry["equipped"] = true
-			loadout[slot] = {"frame": frame_entry, "armor": armor_entry}
-		return loadout
+		return SaveGameIO.build_mech_catalog_loadout(mech)
 	return {}
 
 

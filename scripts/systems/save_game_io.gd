@@ -492,3 +492,52 @@ static func _parse_vec2i(raw: String, fallback: Vector2i = Vector2i(-1, -1)) -> 
 	if parts.size() >= 2:
 		return Vector2i(int(parts[0]), int(parts[1]))
 	return fallback
+
+
+# Builds the per-slot frame + armor loadout dict for a HANGAR MECH SNAPSHOT,
+# resolving each stored ref into a full entry the PartMeshManager can render
+# (same catalog path the hangar garage, ally bodies, enemy bodies and reserve
+# mechs use). `loadout` maps slot name to {"frame": {...}, "armor": {...}}.
+# This is the single source for dressing a mech body from a berth snapshot —
+# previously duplicated in ally_dummy.gd and backup_mech_spawner.gd.
+static func build_mech_catalog_loadout(mech: Dictionary, fallback_color: Color = Color(0.4, 0.6, 0.9)) -> Dictionary:
+	var loadout: Dictionary = {}
+	var mech_frames: Dictionary = mech.get("frames", {})
+	var mech_parts: Dictionary = mech.get("parts", {})
+	for slot in GlobalData.MECHA_SLOTS:
+		var frame_entry: Dictionary = {}
+		if mech_frames.has(slot):
+			var f = resolve_frame_value(mech_frames[slot])
+			if f is Dictionary:
+				frame_entry = (f as Dictionary).duplicate(true)
+		var armor_entry: Dictionary = {}
+		if mech_parts.has(slot):
+			var p = resolve_equipped_part(mech_parts[slot])
+			if p != null:
+				if p is Dictionary:
+					armor_entry["name"] = str(p.get("name", p.get("part_name", "Armor")))
+					armor_entry["hp"] = float(GlobalData.part_stat(p, "max_hp", 100.0))
+					armor_entry["color"] = _resolve_armor_paint(p, fallback_color)
+				elif p is ArmorPart:
+					armor_entry["name"] = (p as ArmorPart).part_name
+					armor_entry["hp"] = (p as ArmorPart).max_hp
+					armor_entry["color"] = (p as ArmorPart).color
+				armor_entry["equipped"] = true
+		loadout[slot] = {"frame": frame_entry, "armor": armor_entry}
+	return loadout
+
+
+# The paint color of a resolved armor instance: the instance's own color (what
+# the player chose in the hangar), then its catalog entry, falling back to the
+# caller's fallback (friendly blue for allies / generic steel otherwise).
+static func _resolve_armor_paint(p: Dictionary, fallback: Color) -> Color:
+	if p.has("color") and p["color"] is Color:
+		return p["color"]
+	if p.has("part_color") and p["part_color"] is Color:
+		return p["part_color"]
+	var db_id := str(p.get("db_id", ""))
+	if db_id != "":
+		var cat_entry := GlobalData.get_armor_catalog_entry(db_id)
+		if not cat_entry.is_empty() and cat_entry.has("color"):
+			return cat_entry["color"]
+	return fallback

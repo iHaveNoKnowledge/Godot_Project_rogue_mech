@@ -432,6 +432,12 @@ func _on_frame_destroyed(slot_name: String) -> void:
 # window so the pilot can eject / the player can see the mech is going down).
 const CORE_BREACH_DELAY := 1.8
 
+# How long the destroyed mech's NODE stays alive after death: the warning
+# window + the explosion + a short breather. The dummy scripts (enemy/ally)
+# free themselves after this long so the downed machine is seen collapsing,
+# flashing, and blowing up instead of vanishing early.
+const DESTROYED_NODE_LIFETIME := CORE_BREACH_DELAY + 1.0
+
 
 func _on_mecha_destroyed() -> void:
 	is_destroyed = true

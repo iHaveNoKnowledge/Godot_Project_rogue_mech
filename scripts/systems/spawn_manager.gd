@@ -1,3 +1,4 @@
+class_name SpawnManager
 extends Node3D
 
 ## Manages enemy spawning in waves during combat.
@@ -332,6 +333,22 @@ func notify_enemy_killed() -> void:
 			_spawn_next_wave()
 		else:
 			_check_combat_ended()
+
+
+# Shared fallback for enemy dummies that die OUTSIDE the normal SpawnManager
+# flow (e.g. SpawnManager node missing): when no enemy is left alive, declare
+# victory. Kept static so every enemy type uses the same rule (previously
+# duplicated in enemy_dummy.gd and enemy_tank.gd).
+static func check_all_enemies_defeated() -> void:
+	var enemies = Engine.get_main_loop().root.get_tree().get_nodes_in_group("enemy")
+	var alive := 0
+	for e in enemies:
+		if is_instance_valid(e) and e.get("health_system") != null:
+			var hs = e.health_system
+			if not hs.get("is_destroyed"):
+				alive += 1
+	if alive == 0:
+		EventBus.combat_ended.emit(true)
 
 
 func _check_combat_ended() -> void:

@@ -104,11 +104,9 @@ func populate(slot: String) -> void:
 			var other_user := other_mech_weapon_user(wpath)
 			if prefix.strip_edges() == "" and other_user != "":
 				prefix = "[E·%s] " % other_user
-			# Same-model copies are distinct items: show how many you own and, on
-			# the carry slot, how many are actually on the pack right now.
-			var count := int(inv.get("count", 1))
-			var count_str := " x%d" % count if count > 1 else ""
-			var label_str = "%s%s%s (DUR: %.0f%%)" % [prefix, wname, count_str, wdur * 100.0]
+			# Each inventory entry is one physical copy (same-model copies are
+			# separate instances, so duplicate rows appear naturally).
+			var label_str = "%s%s (DUR: %.0f%%)" % [prefix, wname, wdur * 100.0]
 			controller.part_item_list.add_item(label_str)
 			controller.visible_weapon_indices.append(index)
 		if controller.part_item_list.item_count > 0:
@@ -232,7 +230,7 @@ func on_item_selected(index: int) -> void:
 			if controller.selected_slot == "weapon_carry":
 				var eq = GlobalData.is_weapon_in_carry(wpath)
 				var carried := GlobalData.count_carry_weapon(wpath)
-				var owned := int(inv.get("count", 1))
+				var owned := GlobalData.count_owned_weapon(wpath)
 				var prefix = "[E] " if eq else ""
 				var copies := ""
 				if owned > 1:
@@ -410,11 +408,16 @@ func weapon_in_loadout(slot: String, path: String) -> bool:
 # ---------------------------------------------------------------------------
 
 # A weapon model counts as used by another mech when it sits in that berth's
-# weapon_loadout (left hand, right hand, or back carry).
+# weapon_loadout (left hand, right hand, or back carry). With separate
+# instances the mark only shows when there is NO spare copy left: if the
+# player owns more copies than the other berths are holding, the extra copy
+# is a free spare and the row reads as available.
 func other_mech_weapon_user(path: String) -> String:
 	if path == "":
 		return ""
 	var editing_id: String = controller.get_editing_mech_id()
+	var used_by_others := 0
+	var first_user := ""
 	for mech in GlobalData.hangar_mechs:
 		if not (mech is Dictionary):
 			continue
@@ -424,11 +427,22 @@ func other_mech_weapon_user(path: String) -> String:
 		var loadout = mech.get("weapon_loadout", {})
 		if not (loadout is Dictionary):
 			continue
-		if str(loadout.get("left", "")) == path or str(loadout.get("right", "")) == path:
-			return str(mech.get("name", "Mech"))
+		var slots := 0
+		if str(loadout.get("left", "")) == path:
+			slots += 1
+		if str(loadout.get("right", "")) == path:
+			slots += 1
 		var carry = loadout.get("carry", [])
-		if carry is Array and path in carry:
-			return str(mech.get("name", "Mech"))
+		if carry is Array:
+			for p in carry:
+				if str(p) == path:
+					slots += 1
+		if slots > 0:
+			used_by_others += slots
+			if first_user == "":
+				first_user = str(mech.get("name", "Mech"))
+	if used_by_others > 0 and used_by_others >= GlobalData.count_owned_weapon(path):
+		return first_user
 	return ""
 
 

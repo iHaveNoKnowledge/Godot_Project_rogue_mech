@@ -706,6 +706,21 @@ func count_carry_weapon(path: String) -> int:
 	return LoadoutSystem.count_carry_weapon(path)
 
 
+# How many physical copies of a weapon model the player owns in the stash.
+func count_owned_weapon(path: String) -> int:
+	return LoadoutSystem.count_owned_weapon(path)
+
+
+# How many loadout slots currently hold a copy of this weapon model.
+func count_equipped_weapon(path: String) -> int:
+	return LoadoutSystem.count_equipped_weapon(path)
+
+
+# True when the player owns a copy of the model that is not in a loadout slot.
+func has_spare_weapon(path: String) -> bool:
+	return LoadoutSystem.has_spare_weapon(path)
+
+
 # Returns how much ammo of the given type the player carries into the next battle.
 func get_loadout_ammo(ammo_type: String) -> int:
 	return LoadoutSystem.get_loadout_ammo(ammo_type)

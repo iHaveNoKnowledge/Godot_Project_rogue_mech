@@ -633,8 +633,9 @@ func add_weapon(weapon: WeaponPart) -> bool:
 	if weapon == null:
 		return false
 	var path := weapon.resource_path
-	# Registers the weapon in the central stash (same-ID pickups increment the
-	# count, so owning the same weapon twice enables equipping both hands with it).
+	# Registers the weapon in the central stash. Each pickup is its own instance
+	# (same-model copies are separate entries), so owning the same weapon twice
+	# enables equipping both hands with it.
 	GlobalData.register_weapon(path, weapon.weapon_name)
 	# The ammo the weapon carries is usable immediately in this battle.
 	add_battle_reserve(weapon.get_ammo_type(), weapon.max_ammo)

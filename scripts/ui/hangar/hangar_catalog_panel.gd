@@ -212,7 +212,8 @@ func build_window() -> void:
 	for inv in GlobalData.weapon_inventory:
 		var wpath := str(inv.get("path", ""))
 		var wname := str(inv.get("name", "Weapon"))
-		var count := int(inv.get("count", 1))
+		# Each inventory entry is one physical copy (no x2 count merging).
+		var owned := GlobalData.count_owned_weapon(wpath) if wpath != "" else 1
 		var type_str := "?"
 		var wt := 0.0
 		if wpath != "" and ResourceLoader.exists(wpath):
@@ -223,7 +224,10 @@ func build_window() -> void:
 		var wrow = HBoxContainer.new()
 		rows.add_child(wrow)
 		var wlbl = Label.new()
-		wlbl.text = "x%d  %s  (%s, %.1fkg)" % [count, wname, type_str, wt]
+		if owned > 1:
+			wlbl.text = "%s  (x%d owned)  (%s, %.1fkg)" % [wname, owned, type_str, wt]
+		else:
+			wlbl.text = "%s  (%s, %.1fkg)" % [wname, type_str, wt]
 		wlbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		wrow.add_child(wlbl)
 
@@ -317,7 +321,7 @@ func stats_text_for_index(index: int) -> String:
 				wwt = float(res.weight) if "weight" in res and res.weight != null else 0.0
 				wtype = HangarPartText.weapon_type_label(res.weapon_type) if "weapon_type" in res else "Unknown"
 				wcap = HangarPartText.weapon_capability_text(res)
-		var owned := int(inv.get("count", 1))
+		var owned := GlobalData.count_owned_weapon(wpath)
 		if controller.selected_slot == "weapon_carry":
 			var carried := GlobalData.count_carry_weapon(wpath)
 			return "BACK CARRY: %s\nDURABILITY: %.0f%%\n\n%s\nWEIGHT: %.1f kg\nOWNED: x%d | ON PACK: x%d\n\nFIELD PACK: %.1f / %.1f kg" % [

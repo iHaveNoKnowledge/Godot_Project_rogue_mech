@@ -201,18 +201,23 @@ func _perform_weapon_equip(slot: String, info: Dictionary, wpath: String) -> voi
 		return
 	if slot == "weapon_carry":
 		var equipped := GlobalData.weapon_equipped_slot(wpath)
-		if equipped == "carry":
-			controller.status_message_label.text = "This weapon is already on the back pack."
+		# With separate instances, another copy may already be on the pack while
+		# a spare instance is still available — only reject when there is no
+		# free copy left to add.
+		if equipped == "carry" and not GlobalData.has_spare_weapon(wpath):
+			controller.status_message_label.text = "This weapon is already on the back pack (no spare copies)."
 			return
-		# Moving off a hand frees that hand, so its weight leaves the pack too.
-		var freed_path: String = wpath if equipped != "" else ""
+		# Only a MOVED weapon (last free copy) frees its old slot's weight; a
+		# spare copy adds new weight instead.
+		var spare := GlobalData.has_spare_weapon(wpath)
+		var freed_path: String = wpath if (equipped != "" and not spare) else ""
 		if controller.garage_panel.would_exceed_field_pack(wpath, "", freed_path):
 			controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
 			return
 		var from_mech := _transfer_weapon_from_other_mechs(wpath)
 		if from_mech != "":
 			moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
-		elif equipped != "":
+		elif equipped != "" and not spare:
 			moved_note = " (moved from %s hand)" % equipped
 		GlobalData.add_carry_weapon(wpath)
 	else:
@@ -222,14 +227,16 @@ func _perform_weapon_equip(slot: String, info: Dictionary, wpath: String) -> voi
 			controller.status_message_label.text = "This weapon is already equipped in the %s hand." % hand
 			return
 		var replaced_path = str(GlobalData.weapon_loadout.get(hand, ""))
-		var freed_path: String = wpath if equipped != "" else ""
+		# Only a MOVED weapon (last free copy) frees its old slot's weight.
+		var spare := GlobalData.has_spare_weapon(wpath)
+		var freed_path: String = wpath if (equipped != "" and not spare) else ""
 		if controller.garage_panel.would_exceed_field_pack(wpath, replaced_path, freed_path):
 			controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
 			return
 		var from_mech := _transfer_weapon_from_other_mechs(wpath)
 		if from_mech != "":
 			moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
-		elif equipped != "":
+		elif equipped != "" and not spare:
 			moved_note = " (moved from %s)" % ("back carry" if equipped == "carry" else ("right hand" if equipped == "right" else "left hand"))
 		GlobalData.set_hand_weapon(hand, wpath)
 	if moved_note != "":
@@ -294,23 +301,24 @@ func _perform_selected_weapon_equip(res: Resource) -> void:
 	var equipped := GlobalData.weapon_equipped_slot(wpath)
 	var moved_note := ""
 	var hand := "left" if controller.selected_slot == "weapon_left" else "right"
+	var spare := GlobalData.has_spare_weapon(wpath)
 	if controller.selected_slot == "weapon_carry":
-		if equipped == "carry":
-			controller.status_message_label.text = "This weapon is already on the back pack."
+		if equipped == "carry" and not spare:
+			controller.status_message_label.text = "This weapon is already on the back pack (no spare copies)."
 			return
 	elif _arm_destroyed(hand):
 		# A destroyed arm cannot hold a weapon (same rule as combat: a broken
 		# arm cannot fire or wield). Block the equip before the transfer logic.
 		controller.status_message_label.text = "Cannot equip: that arm is destroyed! Repair or replace it first."
 		return
-		var freed_path: String = wpath if equipped != "" else ""
+		var freed_path: String = wpath if (equipped != "" and not spare) else ""
 		if controller.garage_panel.would_exceed_field_pack(wpath, "", freed_path):
 			controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
 			return
 		var from_mech := _transfer_weapon_from_other_mechs(wpath)
 		if from_mech != "":
 			moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
-		elif equipped != "":
+		elif equipped != "" and not spare:
 			moved_note = " (moved from %s hand)" % equipped
 		GlobalData.add_carry_weapon(wpath)
 		controller.status_message_label.text = "Added to Back Carry: %s!%s" % [(res.weapon_name if "weapon_name" in res else "Weapon"), moved_note]
@@ -319,14 +327,14 @@ func _perform_selected_weapon_equip(res: Resource) -> void:
 			controller.status_message_label.text = "This weapon is already equipped in the %s hand." % hand
 			return
 		var replaced_path = str(GlobalData.weapon_loadout.get(hand, ""))
-		var freed_path: String = wpath if equipped != "" else ""
+		var freed_path: String = wpath if (equipped != "" and not spare) else ""
 		if controller.garage_panel.would_exceed_field_pack(wpath, replaced_path, freed_path):
 			controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
 			return
 		var from_mech := _transfer_weapon_from_other_mechs(wpath)
 		if from_mech != "":
 			moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
-		elif equipped != "":
+		elif equipped != "" and not spare:
 			moved_note = " (moved from %s)" % ("back carry" if equipped == "carry" else ("right hand" if equipped == "right" else "left hand"))
 		GlobalData.set_hand_weapon(hand, wpath)
 		controller.status_message_label.text = "Equipped %s on %s hand!%s" % [(res.weapon_name if "weapon_name" in res else "Weapon"), hand, moved_note]

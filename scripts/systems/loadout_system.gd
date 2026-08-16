@@ -124,9 +124,12 @@ static func weapon_slot_in_loadout(loadout: Dictionary, path: String) -> String:
 
 
 # Assigns a weapon resource path to a hand. Empty path = unarmed hand.
-# A weapon model only exists ONCE, so equipping a model that is already held by
-# the other hand or the back pack MOVES it there (the old slot is freed) instead
-# of duplicating it or rejecting the request.
+# Each owned copy is a separate instance: equipping a model into a hand uses
+# one copy. When the player owns MORE copies than are already equipped, the
+# new hand simply takes another instance (the old slot keeps its copy — e.g.
+# two pile bunkers = one in each hand). Only when this is the LAST free copy
+# does equipping MOVE the model (the old slot is freed), matching the old
+# single-instance behavior.
 static func set_hand_weapon(side: String, path: String) -> bool:
 	if path == "":
 		if side == "left":
@@ -135,11 +138,11 @@ static func set_hand_weapon(side: String, path: String) -> bool:
 			GlobalData.weapon_loadout["right"] = ""
 		return true
 	var equipped_slot := weapon_equipped_slot(path)
-	if equipped_slot != "" and equipped_slot != side:
+	if equipped_slot != "" and equipped_slot != side and not has_spare_weapon(path):
 		if equipped_slot == "carry":
 			remove_carry_weapon(path)
 		else:
-			# The other hand holds the model: free it so the weapon transfers.
+			# The other hand holds the only copy: free it so the weapon transfers.
 			GlobalData.weapon_loadout[equipped_slot] = ""
 	if side == "left":
 		GlobalData.weapon_loadout["left"] = path
@@ -154,15 +157,19 @@ static func is_weapon_in_carry(path: String) -> bool:
 
 
 static func add_carry_weapon(path: String) -> bool:
-	# One physical copy per model: a weapon already in a hand is moved onto the
-	# pack (the hand is freed). Adding a model that is already on the pack is a
-	# no-op and returns false.
+	# Each owned copy is a separate instance: putting a model on the pack uses
+	# one copy. When the player owns MORE copies than are already equipped, the
+	# pack simply takes another instance (a hand keeps its copy). Only when this
+	# is the LAST free copy is the model moved from a hand onto the pack.
 	if path == "":
 		return false
 	var equipped_slot := weapon_equipped_slot(path)
 	if equipped_slot == "carry":
-		return false
-	if equipped_slot != "":
+		# Another copy is already on the pack. If we still own spares, allow a
+		# second copy on the pack (multi-carry); otherwise it's a no-op.
+		if not has_spare_weapon(path):
+			return false
+	if equipped_slot != "" and equipped_slot != "carry" and not has_spare_weapon(path):
 		GlobalData.weapon_loadout[equipped_slot] = ""
 	var carry_paths = GlobalData.weapon_loadout.get("carry", [])
 	if not (carry_paths is Array):
@@ -182,6 +189,39 @@ static func count_carry_weapon(path: String) -> int:
 		if str(p) == path:
 			count += 1
 	return count
+
+
+# How many physical copies of a weapon model the player owns in the stash
+# (one inventory entry per instance). Two pile bunkers = two entries = 2.
+static func count_owned_weapon(path: String) -> int:
+	var owned := 0
+	for entry in GlobalData.weapon_inventory:
+		if str(entry.get("path", "")) == path:
+			owned += 1
+	return owned
+
+
+# How many loadout slots (left hand + right hand + back pack) currently hold a
+# copy of this weapon model. With separate instances, a model can fill several
+# slots at once as long as the player owns enough copies.
+static func count_equipped_weapon(path: String) -> int:
+	var n := 0
+	if str(GlobalData.weapon_loadout.get("left", "")) == path:
+		n += 1
+	if str(GlobalData.weapon_loadout.get("right", "")) == path:
+		n += 1
+	var carry = GlobalData.weapon_loadout.get("carry", [])
+	if carry is Array:
+		for p in carry:
+			if str(p) == path:
+				n += 1
+	return n
+
+
+# True when the player owns at least one copy of the model that is NOT in a
+# loadout slot (i.e. equipping it again should not move the slot's copy).
+static func has_spare_weapon(path: String) -> bool:
+	return count_owned_weapon(path) > count_equipped_weapon(path)
 
 
 static func remove_carry_weapon(path: String) -> void:
@@ -302,20 +342,14 @@ static func register_weapon(path: String, weapon_name: String = "") -> void:
 			display_name = str(res.weapon_name)
 	if display_name == "":
 		display_name = "Weapon"
-	# One inventory entry per weapon MODEL (same id/path), with a count. Picking
-	# up or crafting another copy of the same model increments the count instead
-	# of appending duplicate rows (which made one carried weapon show "[E]" on
-	# several list entries).
-	for entry in GlobalData.weapon_inventory:
-		if str(entry.get("path", "")) == path:
-			entry["count"] = int(entry.get("count", 1)) + 1
-			entry["name"] = display_name
-			return
+	# Each copy of a weapon model is its OWN inventory instance (fresh uid /
+	# durability / upgrade level) — same as armor. Picking up or crafting
+	# another pile bunker appends a second "Pile Bunker" entry; the stash never
+	# merges same-model copies into a x2 count.
 	GlobalData.weapon_inventory.append({
 		"uid": GlobalData._new_uid("w"),
 		"path": path,
 		"name": display_name,
 		"durability": 1.0,
-		"upgrade_level": 1,
-		"count": 1
+		"upgrade_level": 1
 	})

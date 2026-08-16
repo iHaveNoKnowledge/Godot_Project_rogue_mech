@@ -377,11 +377,31 @@ func _apply_frame_damage(slot_name: String, amount: float, damage_type: String) 
 func _on_armor_broken(slot_name: String) -> void:
 	parts[slot_name]["armor_broken"] = true
 	parts[slot_name]["armor_hp"] = 0.0
+	# An EMERGENCY SCRAP PATCH behaves exactly like normal armor: when its HP
+	# hits zero it shatters and is GONE. Remove the patch from the persistent
+	# stash so the crude plates fall off the mech, the hangar stops showing it,
+	# and the next battle doesn't re-apply its weak scrap stats.
+	if is_player and GlobalData.scrap_patches.has(slot_name):
+		GlobalData.scrap_patches.erase(slot_name)
+		_refresh_patch_visuals(slot_name)
 	_show_frame(slot_name)
 	armor_broken.emit(slot_name)
 	_calculate_totals()
 	if AudioManager:
 		AudioManager.play_armor_break(global_position + Vector3(0, 1.5, 0))
+
+
+# After a scrap patch shatters, refresh the mech's visuals so the crude patch
+# primitives disappear (the slot reverts to its inner frame / armor state).
+# refresh_scrap_patches() rebuilds every patched slot from the stash, so with
+# the slot erased above it removes the container and drops the patch meshes.
+func _refresh_patch_visuals(_slot_name: String) -> void:
+	var mecha = get_parent()
+	if mecha == null:
+		return
+	var pmm = mecha.get_node_or_null("CatalogBody")
+	if pmm and pmm.has_method("refresh_scrap_patches"):
+		pmm.refresh_scrap_patches()
 
 
 func _on_frame_destroyed(slot_name: String) -> void:

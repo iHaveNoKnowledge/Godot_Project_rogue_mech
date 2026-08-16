@@ -9,11 +9,33 @@ var strafe_mode: bool = false
 var input_dir: Vector2 = Vector2.ZERO
 
 const GRAVITY := 20.0
-const JUMP_FORCE := 12.0
+
+# --- Variable-height jump ---
+# Jumping launches with the mech's current momentum: the faster it is moving
+# (run, roller, dash carryover) the higher it flings upward, and horizontal
+# control keeps working in the air. A quick tap is a low hop; HOLDING space
+# drives the mech up to its full jump power, which scales with the power of
+# the equipped leg frames. Launching also costs energy that scales with the
+# mech's carried mass — heavy mechs spend more per jump.
+const JUMP_CHARGE_TIME := 0.32        # seconds of holding for full power
+const JUMP_RAMP_RATE := 50.0          # how fast the ascent builds while held
+const JUMP_CUT_VELOCITY := 4.0        # upward velocity after an early release
+const JUMP_MIN_VELOCITY := 6.0        # tap velocity (low hop)
+const JUMP_MAX_BASE := 6.0            # full-power velocity before leg/speed scaling
+const LEG_POWER_JUMP_BONUS := 0.5     # per leg-power point added to full velocity
+const SPEED_JUMP_BONUS := 0.12        # current horizontal speed feeds the launch
+const JUMP_BASE_ENERGY_COST := 6.0
+const JUMP_WEIGHT_ENERGY := 0.06      # extra energy per kg of carried mass
+
+var is_jumping: bool = false
+var jump_charge: float = 0.0
 
 var dash_speed: float = 25.0
 var dash_duration: float = 0.2
-var dash_cooldown: float = 1.0
+# Dash recharges fast (half the old cooldown) and works mid-air too: the mech
+# shifts its arms/legs and body mass to steer its center of gravity, so it can
+# redirect momentum even with no ground underfoot.
+var dash_cooldown: float = 0.5
 var dash_timer: float = 0.0
 var dash_cooldown_timer: float = 0.0
 var is_dashing: bool = false
@@ -139,6 +161,7 @@ func apply_heavy_recoil_impulse(backward: Vector3) -> void:
 func _physics_process(delta: float) -> void:
 	dash_cooldown_timer -= delta
 	_process_energy(delta)
+	_process_jump(delta)
 
 	if is_dashing:
 		dash_timer -= delta
@@ -184,6 +207,57 @@ func _handle_movement_input() -> void:
 	if Input.is_action_just_pressed("dash") and dash_cooldown_timer <= 0.0:
 		if energy >= DASH_ENERGY_COST:
 			_start_dash()
+
+	# Jump only starts on the ground; the launch itself is handled by
+	# _start_jump/_process_jump (variable height + momentum + energy cost).
+	if is_on_floor() and Input.is_action_just_pressed("jump"):
+		_start_jump()
+
+
+# --- Jump helpers -----------------------------------------------------------
+
+# Kicks off a jump. The launch costs energy scaled by carried mass, and the
+# initial hop is small — holding the button (see _process_jump) drives the mech
+# up to its full jump power set by leg frames + current momentum.
+func _start_jump() -> void:
+	var cost := JUMP_BASE_ENERGY_COST + total_weight * JUMP_WEIGHT_ENERGY
+	if energy < cost:
+		return
+	energy = maxf(energy - cost, 0.0)
+	jump_charge = 0.0
+	is_jumping = true
+	velocity.y = _jump_velocity(0.0)
+	if AudioManager:
+		AudioManager.play_jump(global_position)
+
+
+# While the button is held the ascent keeps building toward the full jump
+# velocity; releasing early cuts the rise so a tap stays a low hop. The state
+# also clears the moment the mech touches back down.
+func _process_jump(delta: float) -> void:
+	if is_jumping:
+		if Input.is_action_pressed("jump"):
+			jump_charge = minf(jump_charge + delta, JUMP_CHARGE_TIME)
+			var target := _jump_velocity(jump_charge / JUMP_CHARGE_TIME)
+			if velocity.y < target:
+				velocity.y = move_toward(velocity.y, target, JUMP_RAMP_RATE * delta)
+		else:
+			if velocity.y > JUMP_CUT_VELOCITY:
+				velocity.y = JUMP_CUT_VELOCITY
+			is_jumping = false
+	if is_on_floor():
+		is_jumping = false
+		jump_charge = 0.0
+
+
+# Full jump power = base + leg-frame power + current horizontal momentum. The
+# charge fraction lerps between a low tap hop and that full power, so holding
+# space longer (up to JUMP_CHARGE_TIME) always buys a higher jump.
+func _jump_velocity(charge_frac: float) -> float:
+	var leg_power := GlobalData.get_leg_power()
+	var speed_bonus := Vector3(velocity.x, 0.0, velocity.z).length() * SPEED_JUMP_BONUS
+	var full := JUMP_MAX_BASE + leg_power * LEG_POWER_JUMP_BONUS + speed_bonus
+	return lerp(JUMP_MIN_VELOCITY, full, charge_frac)
 
 
 # Regenerates or burns the energy pool every frame. The roller's drain ramps up
@@ -258,11 +332,6 @@ func _apply_movement(delta: float) -> void:
 	elif was_in_air and is_on_floor():
 		was_in_air = false
 		_trigger_landing_impact()
-
-	if is_on_floor() and Input.is_action_just_pressed("jump"):
-		velocity.y = 15.0
-		if AudioManager:
-			AudioManager.play_jump(global_position)
 
 	# Blend in any weapon recoil push then decay it. The railgun's heavy kick
 	# decays slower while the stance recovers; strong legs and a light mech

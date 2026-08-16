@@ -8,6 +8,7 @@ var continue_button: Button
 var loot_picker: HBoxContainer = null
 var loot_left_list: VBoxContainer = null
 var loot_right_list: VBoxContainer = null
+var take_all_button: Button = null
 
 var rewards: Dictionary = {}
 
@@ -101,7 +102,7 @@ func _create_ui() -> void:
 
 	loot_left_list = _new_loot_list()
 	loot_right_list = _new_loot_list()
-	loot_picker.add_child(_column_frame("BATTLE DROPS — click to take", loot_left_list))
+	loot_picker.add_child(_column_frame("BATTLE DROPS — click to take", loot_left_list, true))
 	loot_picker.add_child(_column_frame("TAKE BACK — click to return", loot_right_list))
 
 	rewards_label = Label.new()
@@ -127,7 +128,7 @@ func _new_loot_list() -> VBoxContainer:
 	return list
 
 
-func _column_frame(header: String, list: VBoxContainer) -> PanelContainer:
+func _column_frame(header: String, list: VBoxContainer, with_take_all: bool = false) -> PanelContainer:
 	var frame := PanelContainer.new()
 	frame.custom_minimum_size = Vector2(310, 0)
 	frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -158,6 +159,17 @@ func _column_frame(header: String, list: VBoxContainer) -> PanelContainer:
 	column_vbox.add_child(scroll)
 
 	scroll.add_child(list)
+
+	# One-click "take every drop" — moves the whole BATTLE DROPS column to
+	# TAKE BACK instead of clicking each row. Lives under the left column.
+	if with_take_all:
+		take_all_button = Button.new()
+		take_all_button.process_mode = Node.PROCESS_MODE_ALWAYS
+		take_all_button.mouse_filter = Control.MOUSE_FILTER_STOP
+		take_all_button.text = "Take All ▸"
+		take_all_button.custom_minimum_size = Vector2(0, 34)
+		take_all_button.pressed.connect(_on_take_all_pressed)
+		column_vbox.add_child(take_all_button)
 	return frame
 
 
@@ -172,6 +184,8 @@ func _populate_loot_picker() -> void:
 		_add_loot_row(loot_left_list, entry, false)
 	for entry in _right_items:
 		_add_loot_row(loot_right_list, entry, true)
+	if take_all_button:
+		take_all_button.disabled = _left_items.is_empty()
 
 
 func _add_loot_row(list: VBoxContainer, entry: Dictionary, in_right: bool) -> void:
@@ -209,6 +223,18 @@ func _toggle_loot_entry(entry: Dictionary) -> void:
 	elif _right_items.has(entry):
 		_right_items.erase(entry)
 		_left_items.append(entry)
+	_populate_loot_picker()
+	_refresh_loot_summary()
+	AudioManager.play_ui_confirm()
+
+
+# "Take All ▸" moves every remaining BATTLE DROPS item to TAKE BACK at once.
+func _on_take_all_pressed() -> void:
+	if _left_items.is_empty():
+		return
+	for entry in _left_items:
+		_right_items.append(entry)
+	_left_items.clear()
 	_populate_loot_picker()
 	_refresh_loot_summary()
 	AudioManager.play_ui_confirm()

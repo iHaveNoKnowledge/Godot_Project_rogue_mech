@@ -122,15 +122,15 @@ func _verify_picker_and_grant() -> void:
 			_check(rewards_ui._right_items.is_empty(), "clicking a taken item returns it to BATTLE DROPS")
 			_check(rewards_ui._left_items.size() == 2, "both drops are back on the left")
 
-		# Move both to TAKE BACK and verify the grant path grants exactly them.
-		# Re-query the list after each click: repopulating frees the old buttons.
-		for i in range(2):
-			var current := _loot_buttons(rewards_ui.loot_left_list)
-			if current.is_empty():
-				break
-			current[0].pressed.emit()
+		# --- Take All ▸ moves every remaining drop to TAKE BACK in one click ---
+		_check(rewards_ui.take_all_button != null, "Take All button exists under BATTLE DROPS")
+		_check(rewards_ui.take_all_button != null and not rewards_ui.take_all_button.disabled, "Take All enabled while drops remain")
+		if rewards_ui.take_all_button:
+			rewards_ui.take_all_button.pressed.emit()
 			await get_tree().process_frame
-		_check(rewards_ui._right_items.size() == 2, "both items moved to TAKE BACK")
+			_check(rewards_ui._left_items.is_empty(), "Take All empties BATTLE DROPS")
+			_check(rewards_ui._right_items.size() == 2, "Take All moves both drops to TAKE BACK")
+			_check(rewards_ui.take_all_button.disabled, "Take All disables once nothing is left")
 
 		var stash_before: int = GlobalData.weapon_inventory.size()
 		var armor_before: int = GlobalData.armor_inventory.size()

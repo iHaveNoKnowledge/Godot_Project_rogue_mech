@@ -399,8 +399,9 @@ func _on_frame_destroyed(slot_name: String) -> void:
 			_drop_hand_weapon_pickup("right", slot_name)
 	part_destroyed.emit(slot_name)
 	_calculate_totals()
-	# The head is gone: the status light dies with it.
-	if slot_name == "head":
+	# Any destroyed frame can kill the status light: the head (light is on the
+	# head) or the BODY (the engine core is gone — no power for any light).
+	if slot_name == "head" or slot_name == "body":
 		_update_pilot_light()
 
 	if total_frame_hp <= 0.0:
@@ -735,13 +736,20 @@ func _setup_pilot_light() -> void:
 func _update_pilot_light() -> void:
 	if _pilot_light == null:
 		return
-	_pilot_light.visible = _piloted and not is_destroyed and not is_part_destroyed("head")
+	# The head light dies with the machine: no pilot, wrecked mech, lost head,
+	# OR a destroyed BODY — the torso carries the engine core, so when it is
+	# gone there is no power left for any light.
+	_pilot_light.visible = _piloted and not is_destroyed \
+		and not is_part_destroyed("head") and not is_part_destroyed("body")
 
 
 # Damaged parts throw electrical sparks at their joints — but only while a
 # pilot is running the machine.
 func _process(delta: float) -> void:
-	if not _piloted or is_destroyed:
+	# No pilot, a wrecked mech, OR a destroyed BODY: the torso holds the engine
+	# core, so when it is gone nothing on the mech is powered — no electrical
+	# sparks anywhere, even from other destroyed limbs.
+	if not _piloted or is_destroyed or is_part_destroyed("body"):
 		return
 	_spark_timer -= delta
 	if _spark_timer > 0.0:

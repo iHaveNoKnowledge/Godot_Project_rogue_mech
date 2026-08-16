@@ -1250,6 +1250,31 @@ func _verify_garage_panel() -> void:
 	gp.handle_input(InputEventMouseMotion.new())
 	_check(true, "3D previews, process and input helpers run without error")
 
+	# A destroyed arm (inner frame gone) hides ONLY that arm in the hangar:
+	# no ghost frame floats where the broken limb used to be.
+	var pmm = gp.get_part_mesh_manager()
+	GlobalData.part_damage["arm_left_frame"] = 1.0
+	gp.update_all_slots_preview()
+	var arm_left_entry = pmm.slot_meshes.get("arm_left")
+	_check(arm_left_entry != null and (arm_left_entry["frame"] == null or not arm_left_entry["frame"].visible),
+		"destroyed arm slot renders no frame in the hangar")
+	_check(arm_left_entry != null and (arm_left_entry["armor"] == null or not arm_left_entry["armor"].visible),
+		"destroyed arm slot renders no armor in the hangar")
+	var body_entry = pmm.slot_meshes.get("body")
+	_check(body_entry != null and body_entry["frame"] != null and body_entry["frame"].visible,
+		"healthy body still renders when only an arm is destroyed")
+	GlobalData.part_damage.erase("arm_left_frame")
+
+	# A destroyed BODY = the engine core is gone: the WHOLE mech disappears
+	# from the hangar (every slot empty), not a torso-less ghost on its legs.
+	GlobalData.part_damage["body_frame"] = 1.0
+	gp.update_all_slots_preview()
+	for slot_name in ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]:
+		var entry = pmm.slot_meshes.get(slot_name)
+		var hidden: bool = entry == null or (entry["frame"] == null or not entry["frame"].visible)
+		_check(hidden, "destroyed body hides the %s slot too (no mech left)" % slot_name)
+	GlobalData.part_damage.erase("body_frame")
+
 	ctrl.queue_free()
 	await get_tree().process_frame
 

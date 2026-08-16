@@ -245,7 +245,41 @@ func _verify_pilot_light_and_sparks() -> void:
 	await get_tree().process_frame
 	if light:
 		_check(not light.visible, "destroyed head kills the status light")
+
+	# A destroyed BODY = the engine core is gone: no power anywhere, so no
+	# sparks even from other destroyed limbs and the pilot light dies too.
+	hs.set_piloted(true)
+	# Rebuild a fresh enemy: previous damage destroyed head/arms and the body
+	# may already be flagged, so start clean for the body-core rule.
 	enemy.queue_free()
+	await get_tree().process_frame
+	var body_enemy := _spawn_enemy(0)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var bhs = body_enemy.health_system
+	var blight = body_enemy.get_node_or_null("Head/PilotLight")
+	var b_sparks_before := _count_sparks(self)
+	_destroy(bhs, "arm_left")
+	_destroy(bhs, "leg_right")
+	await get_tree().process_frame
+	var b_saw_spark := false
+	for i in range(300):
+		if _count_sparks(self) > b_sparks_before:
+			b_saw_spark = true
+			break
+		await get_tree().process_frame
+	_check(b_saw_spark, "arms+legs damaged with a live body still spark")
+	var b_quiet_before := _count_sparks(self)
+	_destroy(bhs, "body")
+	await get_tree().process_frame
+	if blight:
+		_check(not blight.visible, "destroyed body kills the pilot light")
+	var b_quiet_max := b_quiet_before
+	for i in range(120):
+		await get_tree().process_frame
+		b_quiet_max = maxi(b_quiet_max, _count_sparks(self))
+	_check(b_quiet_max <= b_quiet_before, "destroyed body stops all sparks (no engine core)")
+	body_enemy.queue_free()
 	await get_tree().process_frame
 
 

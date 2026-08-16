@@ -171,7 +171,20 @@ func build_part_for_slot(equipped: Variant) -> ArmorPart:
 # renders the equipped armor otherwise. Shared by the hangar and the mecha.
 func refresh_slots() -> void:
 	_hide_all_legacy_models()
+	# A destroyed BODY means the engine core is gone — there is no mech left to
+	# stand. The whole machine disappears from the hangar (empty slot) instead of
+	# showing a torso-less ghost standing on its legs.
+	if float(GlobalData.part_damage.get("body_frame", 0.0)) >= 1.0:
+		for slot in GlobalData.MECHA_SLOTS:
+			hide_slot_completely(slot)
+		return
 	for slot in GlobalData.MECHA_SLOTS:
+		# A destroyed limb (inner frame gone) is gone for good: the slot renders
+		# nothing rather than a floating ghost frame, matching combat where the
+		# broken part is removed from the mech.
+		if float(GlobalData.part_damage.get(slot + "_frame", 0.0)) >= 1.0:
+			hide_slot_completely(slot)
+			continue
 		_rebuild_slot(slot, GlobalData.equipped_frames.get(slot), GlobalData.equipped_parts.get(slot), true)
 
 

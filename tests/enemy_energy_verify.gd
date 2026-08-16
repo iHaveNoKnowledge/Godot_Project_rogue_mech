@@ -20,6 +20,7 @@ func _ready() -> void:
 	await _verify_low_energy_flees()
 	await _verify_archetype_tuning()
 	await _verify_heavy_charge_drain()
+	await _verify_retreat_feedback()
 	print("ENEMY_ENERGY_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	await get_tree().process_frame
 	get_tree().quit(1 if _fails > 0 else 0)
@@ -162,6 +163,81 @@ func _verify_low_energy_flees() -> void:
 		_check(returned, "recharged enemy returns to combat")
 	else:
 		_check(false, "flee state node exists for reassessment")
+
+	target.queue_free()
+	enemy.queue_free()
+	await get_tree().process_frame
+
+
+func _verify_retreat_feedback() -> void:
+	# An energy-drained withdrawal must be telegraphed: a positional retreat
+	# klaxon exists in the SFX cache, and set_retreating() shows/hides the
+	# pulsing "RETREATING" plate + amber signal flash cleanly.
+	_check(AudioManager != null, "AudioManager autoload is available")
+	_check(AudioManager._sound_cache.has("enemy_retreat"), "AudioManager generates the enemy retreat klaxon")
+	var retreat_stream = AudioManager._sound_cache["enemy_retreat"]
+	_check(retreat_stream is AudioStreamWAV and retreat_stream.data.size() > 0, "retreat klaxon is a non-empty generated stream")
+	_check(AudioManager.has_method("play_enemy_retreat"), "AudioManager exposes play_enemy_retreat()")
+
+	var enemy = _spawn_enemy(0)  # RUSHER
+	await get_tree().process_frame
+	var body_mesh: MeshInstance3D = enemy.get_node_or_null("BodyMesh")
+	var original_override = body_mesh.material_override if body_mesh else null
+
+	_check(not enemy.is_retreating, "enemy starts with no retreat feedback")
+	enemy.set_retreating(true)
+	_check(enemy.is_retreating, "set_retreating(true) flags the enemy as retreating")
+	var label: Label3D = enemy.get_node_or_null("RetreatLabel")
+	_check(label != null, "retreating enemy gains a RETREATING label")
+	if label:
+		_check(label.text == "RETREATING", "retreat label reads RETREATING")
+		_check(label.billboard == BaseMaterial3D.BILLBOARD_ENABLED, "retreat label is billboarded")
+		_check(label.no_depth_test, "retreat label ignores depth so it stays visible")
+	if body_mesh:
+		_check(body_mesh.material_override == enemy._flash_material, "amber signal flash applied to the body")
+		var amber: Color = enemy._retreat_flash_color()
+		_check(enemy._flash_material.emission.is_equal_approx(amber), "signal flash is amber (emission=%s)" % str(enemy._flash_material.emission))
+
+	# Toggling off restores the original materials and removes the plate
+	# (queue_free defers the actual deletion to end of frame).
+	enemy.set_retreating(false)
+	_check(not enemy.is_retreating, "set_retreating(false) clears the flag")
+	await get_tree().process_frame
+	_check(enemy.get_node_or_null("RetreatLabel") == null, "RETREATING label is removed when the enemy returns")
+	if body_mesh:
+		_check(body_mesh.material_override == original_override, "original body material restored after retreat ends")
+
+	# End-to-end: a drained enemy that enters StateFlee (energy reason) shows the
+	# feedback, and returning to chase clears it.
+	var target := CharacterBody3D.new()
+	target.name = "FakePlayer"
+	target.add_to_group("mecha")
+	target.position = Vector3(8.0, 0.0, 0.0)
+	add_child(target)
+	await get_tree().physics_frame
+	enemy.target = target
+	enemy.energy = 5.0
+	var fled := false
+	for i in range(30):
+		await get_tree().physics_frame
+		if enemy.state_machine and enemy.state_machine.current_state and enemy.state_machine.current_state.name == "StateFlee":
+			fled = true
+			break
+	_check(fled, "drained enemy enters StateFlee")
+	_check(enemy.is_retreating, "fleeing on energy shows the retreat feedback")
+
+	enemy.energy = enemy.recharged_energy + 10.0
+	var flee_state = enemy.state_machine.get_node_or_null("StateFlee") if enemy.state_machine else null
+	var returned := false
+	if flee_state:
+		flee_state.flee_timer = 4.0
+		for i in range(20):
+			await get_tree().physics_frame
+			if enemy.state_machine and enemy.state_machine.current_state and enemy.state_machine.current_state.name == "StateChase":
+				returned = true
+				break
+	_check(returned, "recharged enemy returns to combat")
+	_check(not enemy.is_retreating, "retreat feedback cleared once back in combat")
 
 	target.queue_free()
 	enemy.queue_free()

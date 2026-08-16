@@ -16,7 +16,18 @@ func enter() -> void:
 		enemy.target = null
 		state_machine.transition_to("StateIdle")
 		return
+	# An energy-drained withdrawal is telegraphed to the player: amber signal
+	# flash, pulsing "RETREATING" plate and a one-shot klaxon (set_retreating).
+	if enemy.flee_reason == "energy":
+		enemy.set_retreating(true)
 	_update_flee_path()
+
+
+func exit() -> void:
+	# Clear the retreat feedback the moment the enemy re-engages (or dies) so
+	# the plate and amber flash never linger on a mech that's back in the fight.
+	if enemy != null and is_instance_valid(enemy):
+		enemy.set_retreating(false)
 
 
 func physics_process(delta: float) -> void:

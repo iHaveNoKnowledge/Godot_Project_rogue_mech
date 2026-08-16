@@ -152,6 +152,10 @@ func _generate_sounds() -> void:
 	_sound_cache["pile_bunker_fire"] = _gen_pile_bunker_fire()
 	_sound_cache["pile_bunker_hit"] = _gen_pile_bunker_hit()
 
+	# Enemy retreat alert: a descending three-pulse klaxon played when a hostile's
+	# energy pool runs dry and it breaks off to recharge — the opposite of the
+	# rising attack warning, so the pilot reads "that one's falling back".
+	_sound_cache["enemy_retreat"] = _gen_retreat_alert()
 	# Enemy attack telegraph warning (rising alert) — tells the pilot a hostile
 	# mech is about to open fire so they can react before the shot lands.
 	_sound_cache["enemy_warning"] = [
@@ -526,6 +530,44 @@ func _gen_blade_ring() -> AudioStreamWAV:
 	return stream
 
 
+# Enemy retreat klaxon: three descending alarm pulses (a falling "whoop-whoop")
+# — clearly different from the rising attack telegraph so the pilot can tell a
+# drained hostile is backing off to recharge rather than winding up a shot.
+func _gen_retreat_alert() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 0.6
+	var num_samples = int(duration * sample_rate)
+	var data = PackedByteArray()
+	data.resize(num_samples * 2)
+
+	var pulse_freqs := [980.0, 720.0, 480.0]
+	var pulse_len := 0.14
+	var gap_len := 0.05
+	var cycle_len := pulse_len + gap_len
+	for i in range(num_samples):
+		var t = float(i) / sample_rate
+		var sample = 0.0
+		var pulse_idx := int(t / cycle_len)
+		if pulse_idx < pulse_freqs.size():
+			var local = t - pulse_idx * cycle_len
+			if local < pulse_len:
+				var attack = minf(local / 0.01, 1.0)
+				var env = attack * exp(-local * 14.0)
+				sample += sin(TAU * pulse_freqs[pulse_idx] * local) * 0.45 * env
+				sample += sin(TAU * pulse_freqs[pulse_idx] * 2.0 * local) * 0.12 * env
+				sample += (randf() * 2.0 - 1.0) * 0.06 * env
+		var val = int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+
+	var stream = AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream
+
+
 # Enemy melee swing: a low, gritty brute whoosh — clearly heavier than the
 # player's voices so an enemy RUSHER reads as a big swipe.
 func _gen_enemy_melee_swing() -> AudioStreamWAV:
@@ -841,6 +883,13 @@ func play_ui_click() -> void:
 # the pilot hears the hostile charging up before the shot.
 func play_enemy_warning(pos: Vector3) -> void:
 	play_sfx("enemy_warning", pos, -2.0)
+
+
+# Descending klaxon played where an enemy's energy pool runs dry and it breaks
+# off to recharge — reads as "that one's falling back", the opposite of the
+# rising attack warning.
+func play_enemy_retreat(pos: Vector3) -> void:
+	play_sfx("enemy_retreat", pos, -1.0)
 
 
 # Loud, unmistakable cue when the player's mech takes a hit.

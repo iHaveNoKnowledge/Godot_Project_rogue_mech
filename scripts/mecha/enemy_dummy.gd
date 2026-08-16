@@ -87,9 +87,18 @@ var is_reloading: bool:
 
 # Red telegraph flash: the state machine toggles this just before attacking so
 # the player can read that a shot is coming. Original material overrides are
-# cached on first flash and restored afterwards.
+# cached on first flash and restored afterwards. The color is parameterized so
+# the same machinery renders the amber "drained" flash while retreating.
 var _flash_original_materials: Dictionary = {}
 var _flash_material: StandardMaterial3D = null
+
+# Energy-retreat feedback: while a drained enemy withdraws to recharge it wears
+# an amber emissive flash (signal lights) and a pulsing "RETREATING" plate above
+# its head, and fires a descending klaxon when the withdrawal starts. Toggled by
+# StateFlee via set_retreating(); the label is a child so it follows the enemy.
+var is_retreating: bool = false
+var _retreat_label: Label3D = null
+var _retreat_tween: Tween = null
 
 
 func _ready() -> void:
@@ -499,19 +508,20 @@ func set_concealed(on: bool) -> void:
 		status.set_concealed(on)
 
 
-# Toggles a red emissive flash across every rendered mesh of the enemy. Used as
-# the pre-attack telegraph so the player can tell which hostile is about to fire.
-# The first call caches each mesh's original material_override so the flash can
-# be removed cleanly (the original never gets overwritten).
-func set_attack_flash(on: bool) -> void:
+# Toggles an emissive flash across every rendered mesh of the enemy. Used as
+# the red pre-attack telegraph and, with an amber tint, as the energy-retreat
+# signal (see set_retreating). The first call caches each mesh's original
+# material_override so the flash can be removed cleanly (the original never gets
+# overwritten).
+func set_attack_flash(on: bool, flash_color: Color = Color(1.0, 0.12, 0.05)) -> void:
 	if _flash_material == null:
 		_flash_material = StandardMaterial3D.new()
-		_flash_material.albedo_color = Color(1.0, 0.12, 0.05)
-		_flash_material.emission_enabled = true
-		_flash_material.emission = Color(1.0, 0.15, 0.06)
-		_flash_material.emission_energy_multiplier = 4.0
 		_flash_material.metallic = 0.3
 		_flash_material.roughness = 0.4
+	_flash_material.albedo_color = flash_color
+	_flash_material.emission_enabled = true
+	_flash_material.emission = flash_color
+	_flash_material.emission_energy_multiplier = 4.0
 
 	var meshes := _flash_meshes()
 	if on:
@@ -543,6 +553,61 @@ func _collect_flash_meshes(node: Node, into: Array) -> void:
 		return
 	for child in node.get_children():
 		_collect_flash_meshes(child, into)
+
+
+# Shows/hides the energy-retreat feedback: an amber emissive flash across the
+# body (signal lights), a pulsing "RETREATING" plate above the head, and a
+# one-shot positional klaxon when the withdrawal begins. Called by StateFlee
+# when an energy-drained enemy breaks off; everything is cleaned up when the
+# enemy returns to combat or dies.
+func set_retreating(on: bool) -> void:
+	if is_retreating == on:
+		return
+	is_retreating = on
+
+	if on:
+		set_attack_flash(true, _retreat_flash_color())
+		if AudioManager:
+			AudioManager.play_enemy_retreat(global_position + Vector3(0, 2, 0))
+		_show_retreat_label()
+	else:
+		set_attack_flash(false)
+		_hide_retreat_label()
+
+
+func _retreat_flash_color() -> Color:
+	return Color(1.0, 0.55, 0.05)
+
+
+func _show_retreat_label() -> void:
+	if _retreat_label != null:
+		return
+	_retreat_label = Label3D.new()
+	_retreat_label.name = "RetreatLabel"
+	_retreat_label.text = "RETREATING"
+	_retreat_label.font_size = 22
+	_retreat_label.outline_size = 12
+	_retreat_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_retreat_label.no_depth_test = true
+	_retreat_label.modulate = Color(1.0, 0.8, 0.25, 1.0)
+	_retreat_label.position = Vector3(0, 4.8, 0)
+	add_child(_retreat_label)
+
+	# Pulse the plate so it draws the eye without hiding the enemy behind it.
+	if _retreat_tween and _retreat_tween.is_valid():
+		_retreat_tween.kill()
+	_retreat_tween = create_tween().set_loops()
+	_retreat_tween.tween_property(_retreat_label, "modulate:a", 0.35, 0.4)
+	_retreat_tween.tween_property(_retreat_label, "modulate:a", 1.0, 0.4)
+
+
+func _hide_retreat_label() -> void:
+	if _retreat_tween and _retreat_tween.is_valid():
+		_retreat_tween.kill()
+	_retreat_tween = null
+	if _retreat_label != null:
+		_retreat_label.queue_free()
+		_retreat_label = null
 
 
 func _physics_process(delta: float) -> void:

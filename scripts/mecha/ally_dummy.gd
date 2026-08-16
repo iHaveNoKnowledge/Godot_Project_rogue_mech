@@ -35,9 +35,27 @@ var max_ammo: int = 0
 var reload_time: float = 3.0
 var fire_core: WeaponCore = null
 
+# PartMeshManager that renders this ally from the berth's ACTUAL armor/frame
+# loadout (same path as the hangar garage + enemy bodies) instead of the
+# placeholder scene mesh. Fed by apply_mech_loadout() -> _build_catalog_body().
+var catalog_body: Node = null
+
+# The berth's real weapons, split by range type so the combat AI can pick per
+# situation: the gun for range, the blade for close quarters or when the
+# magazine runs dry. Both may be set (gun + melee loadout) or one may be null.
+var _ranged_weapon: WeaponPart = null
+var _melee_weapon: WeaponPart = null
+
 var is_reloading: bool:
 	get:
 		return fire_core != null and fire_core.reloading
+
+# Weapon-situation AI state: whether the current engagement is melee (blade) or
+# ranged (gun), decided each frame from weapon loadout + distance + ammo, plus
+# a cached pointer to the nearest ground ammo pickup when scavenging.
+var _use_melee: bool = false
+var _ammo_scan_timer: float = 0.0
+var _ammo_target: Node3D = null
 
 
 func _ready() -> void:
@@ -45,6 +63,12 @@ func _ready() -> void:
 	floor_snap_length = 0.3
 	floor_max_angle = deg_to_rad(60)
 	health_system = $HealthSystem
+	# Allies are OUR side: their head light must be friendly blue, not hostile
+	# red. The health system's own _ready() runs before this mech joins the
+	# "ally" group (children ready first), so it can't detect the group yet and
+	# would paint red — correct the color explicitly here.
+	if health_system and health_system.has_method("set_friendly_light"):
+		health_system.set_friendly_light(true)
 	if template_id != "":
 		_apply_template(GlobalData.get_ally_template(template_id))
 	_init_ammo()
@@ -84,12 +108,14 @@ func apply_mech_override(archetype_override: int, name_override: String) -> void
 # Applied by the spawner AFTER apply_mech_override: replaces the template stats
 # with the hangar mech's ACTUAL loadout — the armor/frame plates it wears (with
 # their persistent combat damage) and the weapons it carries. The ally then
-# fights with the berth's real gear instead of generic template numbers.
+# fights with the berth's real gear instead of generic template numbers, and
+# its BODY is rebuilt from the berth's armor/frame plates too.
 func apply_mech_loadout(mech: Dictionary) -> void:
 	if mech.is_empty():
 		return
 	_apply_mech_armor(mech)
 	_apply_mech_weapons(mech)
+	_build_catalog_body(mech)
 
 
 # Writes the mech's equipped armor + inner frame HP (and any persistent damage)
@@ -158,21 +184,54 @@ func _apply_mech_armor(mech: Dictionary) -> void:
 		health_system._calculate_totals()
 
 
-# Builds attack stats + the WeaponCore from the mech's ACTUAL equipped weapon
-# (right hand, then left, then back carry) instead of the template numbers:
-# damage, range, fire rate, ammo and damage type all come from the weapon the
-# berth really carries. Falls back to template stats when nothing is equipped.
+# Builds attack stats + the WeaponCore from the mech's ACTUAL equipped weapons
+# instead of the template numbers. The loadout is scanned for BOTH a gun and a
+# blade (right hand, left hand, then back carry): the ranged weapon drives the
+# attack range + fire core, the melee weapon is kept for close quarters / when
+# the magazine runs dry. Falls back to template stats when nothing is equipped.
 func _apply_mech_weapons(mech: Dictionary) -> void:
-	var weapon := _primary_mech_weapon(mech.get("weapon_loadout", {}))
-	if weapon == null:
+	var loadout: Dictionary = mech.get("weapon_loadout", {})
+	_collect_mech_weapons(loadout)
+	var primary: WeaponPart = _ranged_weapon if _ranged_weapon != null else _melee_weapon
+	if primary == null:
 		return
-	attack_damage = weapon.damage
-	attack_range = maxf(weapon.range_distance, 8.0)
-	attack_cooldown = maxf(weapon.get_fire_interval(), 0.25)
-	max_ammo = weapon.max_ammo
-	reload_time = maxf(2.0, weapon.max_ammo * 0.04)
-	_build_fire_core_from_weapon(weapon)
-	_mount_mech_weapon_visual(weapon, mech.get("weapon_loadout", {}))
+	attack_damage = primary.damage
+	attack_range = maxf(primary.range_distance, 8.0)
+	attack_cooldown = maxf(primary.get_fire_interval(), 0.25)
+	max_ammo = primary.max_ammo
+	reload_time = maxf(2.0, primary.max_ammo * 0.04)
+	if _ranged_weapon != null:
+		_build_fire_core_from_weapon(_ranged_weapon)
+	_mount_mech_weapon_visuals(loadout)
+
+
+# Scans the berth's whole loadout (hands + back carry) and remembers the first
+# gun and the first blade separately, so the combat AI can pick per situation:
+# the gun for range, the blade for close quarters or when out of ammo.
+func _collect_mech_weapons(loadout: Dictionary) -> void:
+	_ranged_weapon = null
+	_melee_weapon = null
+	var paths: Array = []
+	for key in ["right", "left"]:
+		var p := str(loadout.get(key, ""))
+		if p != "":
+			paths.append(p)
+	var carry = loadout.get("carry", [])
+	if carry is Array:
+		for p in carry:
+			if p is String and p != "":
+				paths.append(p)
+	for path in paths:
+		if not ResourceLoader.exists(path):
+			continue
+		var w = load(path)
+		if not (w is WeaponPart):
+			continue
+		if w.weapon_type == WeaponPart.WeaponType.MELEE:
+			if _melee_weapon == null:
+				_melee_weapon = w
+		elif _ranged_weapon == null:
+			_ranged_weapon = w
 
 
 # Picks the weapon the ally fights with. Preference order matches the hangar
@@ -218,13 +277,103 @@ func _build_fire_core_from_weapon(weapon: WeaponPart) -> void:
 	fire_core.auto_reload = not fire_core.unlimited_ammo
 
 
-# Mounts the equipped weapon's model on the ally's hand so the squad visibly
-# carries the mech's actual gun (same factory the hangar + player mech use).
-func _mount_mech_weapon_visual(weapon: WeaponPart, loadout: Dictionary) -> void:
-	var hand := "right"
-	if str(loadout.get("right", "")) != weapon.resource_path and str(loadout.get("left", "")) == weapon.resource_path:
-		hand = "left"
-	WeaponVisualFactory.mount_hand(self, hand, weapon, "AllyWeaponVisual")
+# Mounts the berth's actual hand weapons (right + left) so the squadmate
+# visibly carries the same guns as the hangar mech (same factory as battle).
+func _mount_mech_weapon_visuals(loadout: Dictionary) -> void:
+	for hand in ["right", "left"]:
+		var path := str(loadout.get(hand, ""))
+		if path == "" or not ResourceLoader.exists(path):
+			continue
+		var w = load(path)
+		if w is WeaponPart:
+			WeaponVisualFactory.mount_hand(self, hand, w, "AllyWeaponVisual" + hand.capitalize())
+
+
+# Builds the per-slot frame + armor loadout dict from the berth's snapshot so
+# PartMeshManager renders the mech EXACTLY as it appears in the hangar (same
+# catalog path the hangar garage + enemy bodies use).
+func _mech_catalog_loadout(mech: Dictionary) -> Dictionary:
+	var loadout: Dictionary = {}
+	var mech_frames: Dictionary = mech.get("frames", {})
+	var mech_parts: Dictionary = mech.get("parts", {})
+	for slot in ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]:
+		var frame_entry: Dictionary = {}
+		if mech_frames.has(slot):
+			var f = SaveGameIO.resolve_frame_value(mech_frames[slot])
+			if f is Dictionary:
+				frame_entry = f.duplicate(true)
+		var armor_entry: Dictionary = {}
+		if mech_parts.has(slot):
+			var p = SaveGameIO.resolve_equipped_part(mech_parts[slot])
+			if p != null:
+				if p is Dictionary:
+					armor_entry["name"] = str(p.get("name", p.get("part_name", "Armor")))
+					armor_entry["hp"] = float(GlobalData.part_stat(p, "max_hp", 100.0))
+				elif p is ArmorPart:
+					armor_entry["name"] = p.part_name
+					armor_entry["hp"] = p.max_hp
+				armor_entry["equipped"] = true
+				armor_entry["color"] = template_color
+		loadout[slot] = {"frame": frame_entry, "armor": armor_entry}
+	return loadout
+
+
+# Assembles the ally's body from the berth's ACTUAL armor/frame plates (via the
+# same PartMeshManager the hangar + enemy bodies use), then hides the scene's
+# placeholder meshes. The squadmate thus looks exactly like the mech parked in
+# the hangar instead of a hardcoded dummy model.
+func _build_catalog_body(mech: Dictionary) -> void:
+	if get_node_or_null("CatalogBody") != null:
+		return
+	_ensure_slot_nodes()
+	var pmm := Node3D.new()
+	pmm.name = "CatalogBody"
+	pmm.set_script(preload("res://scripts/mecha/part_mesh_manager.gd"))
+	catalog_body = pmm
+	add_child(pmm)
+	pmm.refresh_from_loadout(_mech_catalog_loadout(mech))
+
+
+# The PartMeshManager assembles meshes inside Head/Body/ArmLeft/... nodes.
+# The ally scene ships those, but NOT the lower-joint containers (Forearm/
+# Shin), so create them (same offsets as the enemy scenes) if missing.
+func _ensure_slot_nodes() -> void:
+	var slot_positions := {
+		"Head": Vector3(0, 2.2, 0),
+		"Body": Vector3(0, 1.3, 0),
+		"ArmLeft": Vector3(-0.75, 1.3, 0),
+		"ArmRight": Vector3(0.75, 1.3, 0),
+		"LegLeft": Vector3(-0.35, 0.6, 0),
+		"LegRight": Vector3(0.35, 0.6, 0),
+	}
+	for name in slot_positions:
+		if get_node_or_null(name) != null:
+			continue
+		var slot_node := Node3D.new()
+		slot_node.name = name
+		slot_node.position = slot_positions[name]
+		add_child(slot_node)
+
+	var lower_parent_names: Array[String] = [
+		"ArmLeft/ForearmLeft",
+		"ArmRight/ForearmRight",
+		"LegLeft/ShinLeft",
+		"LegRight/ShinRight",
+	]
+	var lower_offsets := {
+		"ArmLeft/ForearmLeft": Vector3(0, -0.38, 0),
+		"ArmRight/ForearmRight": Vector3(0, -0.38, 0),
+		"LegLeft/ShinLeft": Vector3(0, -0.55, 0),
+		"LegRight/ShinRight": Vector3(0, -0.55, 0),
+	}
+	for node_path in lower_parent_names:
+		if get_node_or_null(node_path) != null:
+			continue
+		var parts_path: PackedStringArray = node_path.split("/")
+		var lower := Node3D.new()
+		lower.name = parts_path[1]
+		lower.position = lower_offsets[node_path]
+		get_node(parts_path[0]).add_child(lower)
 
 
 func _apply_template(template: Dictionary) -> void:
@@ -315,12 +464,26 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		return
 
+	# When the magazine runs dry (and there is no blade to fall back on), go
+	# scavenge ammo from ground pickups instead of standing still reloading.
+	if _wants_ammo_pickup() and _go_to_ammo_pickup(delta):
+		return
+
 	var distance = global_position.distance_to(target.global_position)
 
-	if distance > attack_range:
-		_move_toward_target(delta)
+	# Weapon-situation AI: melee when the enemy is close or the gun is dry,
+	# ranged at distance. Falls back to template archetype when no loadout.
+	_use_melee = _prefers_melee(distance)
+	if _use_melee:
+		if distance > _melee_attack_range():
+			_move_toward_target(delta)
+		else:
+			_strafe_and_attack(delta, true)
 	else:
-		_strafe_and_attack(delta)
+		if distance > attack_range:
+			_move_toward_target(delta)
+		else:
+			_strafe_and_attack(delta, false)
 
 
 func _acquire_target() -> void:
@@ -356,7 +519,7 @@ func _move_toward_target(delta: float) -> void:
 		rotation.y = lerp_angle(rotation.y, atan2(direction.x, direction.z), 5.0 * delta)
 
 
-func _strafe_and_attack(delta: float) -> void:
+func _strafe_and_attack(delta: float, use_melee: bool) -> void:
 	var direction = (target.global_position - global_position).normalized()
 	direction.y = 0.0
 	if direction.length() > 0.1:
@@ -375,18 +538,49 @@ func _strafe_and_attack(delta: float) -> void:
 	attack_timer -= delta
 	if attack_timer <= 0.0:
 		attack_timer = attack_cooldown
-		_perform_attack()
+		_perform_attack(use_melee)
 
 
-func _perform_attack() -> void:
-	match archetype:
-		0:  # RUSHER - melee swing (collision-based, see _perform_melee)
-			_perform_melee()
-		1, 2:  # RANGED / HEAVY - projectile
-			if has_ammo():
-				_fire_ranged()
-		3:  # SUPPORT - heal nearest ally
-			_heal_nearest_ally()
+# Decides whether this frame the ally swings the blade (true) or fires the gun
+# (false), based on the ACTUAL equipped weapons:
+#   - Melee-only berth           -> always melee
+#   - Enemy within blade reach   -> melee first (blade up close, gun at range)
+#   - Gun dry                    -> fall back to the blade
+#   - No loadout                 -> template archetype (rusher = melee)
+func _prefers_melee(distance: float) -> bool:
+	if _melee_weapon != null or _ranged_weapon != null:
+		if _melee_weapon == null:
+			return false  # gun-only loadout: always ranged
+		if _ranged_weapon == null:
+			return true  # blade-only loadout: always melee
+		if distance <= _melee_weapon.range_distance * 1.6:
+			return true  # enemy in reach -> blade
+		return not has_ammo()  # gun dry -> blade
+	return archetype == 0  # template fallback (rusher melee, others ranged)
+
+
+# Blade reach used by the AI: the melee weapon's own range, or the template
+# attack_range when the ally fights without an equipped melee weapon.
+func _melee_attack_range() -> float:
+	if _melee_weapon != null:
+		return maxf(_melee_weapon.range_distance, 2.0)
+	return maxf(attack_range, 2.0)
+
+
+func _perform_attack(use_melee: bool) -> void:
+	if use_melee:
+		_perform_melee()
+		return
+	# Template SUPPORT (no loadout weapons) heals; a support berth with real
+	# weapons fights like everyone else.
+	if archetype == 3 and _ranged_weapon == null and _melee_weapon == null:
+		_heal_nearest_ally()
+		return
+	if has_ammo():
+		_fire_ranged()
+		return
+	if _melee_weapon != null:
+		_perform_melee()
 
 
 func _perform_melee() -> void:
@@ -403,7 +597,7 @@ func _perform_melee() -> void:
 		AudioManager.play_ally_melee_swing(global_position)
 	# Shared melee FX + collision hit check (same rules as enemies and the player).
 	EffectManager.spawn_melee_trail(global_position, dir, Color(0.5, 0.9, 1.0), Color(0.3, 0.7, 1.0))
-	var hit := EffectManager.melee_hit_ray(self, dir, attack_range, 8 | 2, attack_damage)
+	var hit := EffectManager.melee_hit_ray(self, dir, _melee_attack_range(), 8 | 2, attack_damage)
 	if hit and AudioManager:
 		AudioManager.play_npc_melee_hit(global_position)
 
@@ -428,6 +622,78 @@ func _heal_nearest_ally() -> void:
 
 func has_ammo() -> bool:
 	return fire_core != null and (fire_core.unlimited_ammo or fire_core.ammo > 0)
+
+
+# True when the ally's gun is out (or nearly out) of ammo AND there is no blade
+# to fall back on — the only situation worth abandoning the fight to scavenge.
+func _wants_ammo_pickup() -> bool:
+	if fire_core == null or fire_core.unlimited_ammo or _melee_weapon != null:
+		return false
+	if fire_core.max_ammo <= 0:
+		return false
+	return float(fire_core.ammo) / float(fire_core.max_ammo) < 0.25
+
+
+# Walks to the nearest ammo pickup and collects it on contact. Returns true
+# while the ally is busy scavenging (AI should not shoot that frame). Only
+# chases pickups that are reasonably close — never abandons the battle for a
+# pickup on the far side of the arena.
+func _go_to_ammo_pickup(delta: float) -> bool:
+	var pickup := _find_ammo_pickup()
+	if pickup == null:
+		return false
+	var dist := global_position.distance_to(pickup.global_position)
+	if dist < 1.8:
+		_collect_ammo_pickup(pickup)
+		return true
+	if dist > 60.0:
+		return false
+	var direction := (pickup.global_position - global_position).normalized()
+	direction.y = 0.0
+	velocity = direction * move_speed
+	velocity.y = -10.0
+	move_and_slide()
+	if direction.length() > 0.1:
+		rotation.y = lerp_angle(rotation.y, atan2(direction.x, direction.z), 5.0 * delta)
+	return true
+
+
+# Finds the closest ground ammo pickup (loot boxes with loot_data type "ammo",
+# same drops the player collects). Cached briefly to avoid a tree scan per frame.
+func _find_ammo_pickup() -> Node3D:
+	_ammo_scan_timer -= get_physics_process_delta_time()
+	if _ammo_scan_timer > 0.0 and is_instance_valid(_ammo_target):
+		return _ammo_target
+	_ammo_scan_timer = 0.5
+	_ammo_target = null
+	var nearest: Node3D = null
+	var nearest_dist := 999.0
+	for pickup in get_tree().get_nodes_in_group("loot_pickup"):
+		if not is_instance_valid(pickup):
+			continue
+		var data: Dictionary = pickup.get_meta("loot_data", {})
+		if str(data.get("type", "ammo")) != "ammo":
+			continue
+		var dist := global_position.distance_to(pickup.global_position)
+		if dist < nearest_dist:
+			nearest = pickup
+			nearest_dist = dist
+	_ammo_target = nearest
+	return nearest
+
+
+# Ally grabbed a ground ammo box: refills the magazine directly (no HUD prompt,
+# no field-pack weight) and cancels an in-progress reload.
+func _collect_ammo_pickup(pickup: Node3D) -> void:
+	if fire_core != null:
+		var data: Dictionary = pickup.get_meta("loot_data", {})
+		var amount := int(data.get("amount", 10))
+		fire_core.ammo = mini(fire_core.max_ammo, fire_core.ammo + amount)
+		if fire_core.reloading and fire_core.ammo > 0:
+			fire_core.reloading = false
+			fire_core.reload_timer = 0.0
+	_ammo_target = null
+	pickup.queue_free()
 
 
 # Builds the shared WeaponCore from the ally's template stats. Fire rate is

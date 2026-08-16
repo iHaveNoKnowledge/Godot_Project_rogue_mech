@@ -30,6 +30,12 @@ var _piloted: bool = true
 var _pilot_light: OmniLight3D = null
 var _spark_timer: float = 0.0
 
+# Friendly-side override: the health system's _ready() runs BEFORE its parent
+# mech joins the "ally" group (children ready first), so the auto-detection in
+# _is_friendly() can't see an ally yet and paints its head light red. Allies
+# call set_friendly_light(true) from their own _ready() to correct the color.
+var _friendly_light_override: int = -1  # -1 = auto, 0 = hostile, 1 = friendly
+
 
 func _ready() -> void:
 	_init_parts()
@@ -648,8 +654,12 @@ func _on_damage_received(_slot: String, _amount: float, _type: String) -> void:
 	pass
 
 
-# A friendly unit is the player mech or a fielded ally (group "ally").
+# A friendly unit is the player mech or a fielded ally (group "ally"). An
+# explicit set_friendly_light() override wins over the group check (allies set
+# it because their group join happens after this system's _ready).
 func _is_friendly() -> bool:
+	if _friendly_light_override >= 0:
+		return _friendly_light_override == 1
 	if is_player:
 		return true
 	var parent = get_parent()
@@ -688,6 +698,15 @@ func is_part_destroyed(slot_name: String) -> bool:
 func set_piloted(value: bool) -> void:
 	_piloted = value
 	_update_pilot_light()
+
+
+# Overrides the head-light color (blue = friendly, red = hostile). Allies call
+# this from their own _ready() because their health system initializes before
+# they join the "ally" group, which would otherwise misread them as hostiles.
+func set_friendly_light(friendly: bool) -> void:
+	_friendly_light_override = 1 if friendly else 0
+	if _pilot_light:
+		_pilot_light.light_color = Color(0.3, 0.6, 1.0) if friendly else Color(1.0, 0.25, 0.2)
 
 
 func _on_mecha_occupancy_changed(occupied: bool) -> void:

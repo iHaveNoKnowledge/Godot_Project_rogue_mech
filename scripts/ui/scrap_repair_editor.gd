@@ -39,6 +39,13 @@ var selected_attach: String = ""
 
 var _dragging: bool = false
 
+# When the editor opens over the hangar, the hangar's own garage SubViewport is
+# still rendering the SAME mech model behind this full-screen overlay — the two
+# mechs (one dimmed, one live) stacked visually as a doubled model. While open
+# the editor hides the hangar garage viewport and restores it on close.
+var _saved_garage_viewport: Node = null
+var _saved_garage_visible: bool = true
+
 # 3D move/scale gizmo state.
 var cam: Camera3D
 var gizmo_root: Node3D
@@ -90,6 +97,7 @@ func open(initial_slot: String = "") -> void:
 		_build_garage()
 	visible = true
 	_silence_combat_actions()
+	_hide_hangar_garage()
 	if pmm and pmm.has_method("refresh_slots"):
 		pmm.refresh_slots()
 	_refresh_slot_list()
@@ -108,8 +116,32 @@ func open(initial_slot: String = "") -> void:
 func close() -> void:
 	_clear_live_primitives()
 	_restore_combat_actions()
+	_restore_hangar_garage()
 	visible = false
 	closed.emit()
+
+
+# The editor is a child of the hangar controller (a Node3D). The hangar's
+# garage panel owns the live 3D SubViewport that shows the mech; when this
+# full-screen overlay opens, that viewport must stop rendering or its mech
+# doubles up with the editor's own mech. Saves the original visible state so
+# close() restores it exactly (the garage may already be hidden on some pages).
+func _hide_hangar_garage() -> void:
+	var hangar := get_parent()
+	if hangar == null or hangar.get("garage_panel") == null:
+		return
+	var garage = hangar.garage_panel
+	if garage == null or garage.get("viewport_container") == null:
+		return
+	_saved_garage_viewport = garage.viewport_container
+	_saved_garage_visible = bool(garage.viewport_container.visible)
+	garage.viewport_container.visible = false
+
+
+func _restore_hangar_garage() -> void:
+	if _saved_garage_viewport != null and is_instance_valid(_saved_garage_viewport):
+		_saved_garage_viewport.visible = _saved_garage_visible
+	_saved_garage_viewport = null
 
 
 # While the repair editor is open it is a modal: silence every gameplay input

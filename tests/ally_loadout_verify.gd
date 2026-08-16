@@ -15,6 +15,10 @@ func _ready() -> void:
 	await _verify_armor_loadout()
 	await _verify_weapon_loadout()
 	await _verify_empty_loadout_falls_back()
+	await _verify_friendly_light()
+	await _verify_catalog_body()
+	await _verify_weapon_ai_decisions()
+	await _verify_ammo_scavenging()
 	print("ALLY_LOADOUT_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	await get_tree().process_frame
 	get_tree().quit(1 if _fails > 0 else 0)
@@ -77,7 +81,7 @@ func _verify_weapon_loadout() -> void:
 	_check(is_equal_approx(ally.attack_range, 55.0), "ally attack range comes from the weapon range")
 	_check(ally.fire_core != null and ally.fire_core.max_ammo == 40, "ally fire core carries the weapon magazine")
 	_check(ally.fire_core != null and is_equal_approx(ally.fire_core.damage, 25.0), "ally fire core damage matches the weapon")
-	_check(ally.get_node_or_null("AllyWeaponVisual") != null, "ally mounts the equipped weapon model")
+	_check(ally.get_node_or_null("AllyWeaponVisualRight") != null, "ally mounts the equipped weapon model")
 	ally.queue_free()
 	await get_tree().process_frame
 
@@ -97,6 +101,94 @@ func _verify_empty_loadout_falls_back() -> void:
 	ally.apply_mech_loadout(mech)
 	_check(ally.attack_damage > 0.0, "empty loadout keeps template attack damage")
 	_check(ally.fire_core != null and ally.fire_core.damage == ally.attack_damage, "empty loadout keeps template fire core")
+	ally.queue_free()
+	await get_tree().process_frame
+
+
+# Allies are OUR side: the head light must read friendly blue (not hostile red)
+# even though the health system's _ready runs before the ally joins the group.
+func _verify_friendly_light() -> void:
+	var ally = _spawn_ally()
+	var hs = ally.health_system
+	_check(hs.get("_friendly_light_override") == 1, "ally health system is flagged friendly")
+	var light = hs.get("_pilot_light") as OmniLight3D
+	_check(light != null, "ally has a pilot head light")
+	if light:
+		_check(light.light_color.b > 0.7 and light.light_color.r < 0.5, "ally head light is blue (friendly)")
+		_check(light.visible, "ally pilot light is on")
+	ally.queue_free()
+	await get_tree().process_frame
+
+
+# The ally's body must be rebuilt from the berth's armor/frame plates via
+# PartMeshManager (same path as the hangar), not the scene's placeholder meshes.
+func _verify_catalog_body() -> void:
+	var ally = _spawn_ally()
+	var mech := {
+		"id": "mech_test",
+		"parts": {"body": {"id": "body_002"}},
+		"frames": {"body": {"id": "frame_body_03"}},
+		"damage": {},
+		"scrap_patches": {},
+		"weapon_loadout": {"left": "", "right": "", "carry": []},
+	}
+	ally.apply_mech_loadout(mech)
+	_check(ally.get_node_or_null("CatalogBody") != null, "ally builds a CatalogBody PartMeshManager")
+	_check(ally.catalog_body != null and ally.catalog_body.slot_meshes is Dictionary, "catalog body has per-slot mesh entries")
+	_check(not ally.get_node_or_null("Body/BodyMesh").visible, "placeholder body mesh hidden behind catalog plates")
+	_check(ally.catalog_body.slot_meshes.has("body"), "catalog body assembled the body slot")
+	ally.queue_free()
+	await get_tree().process_frame
+
+
+# Weapon-situation AI: blade-only berth always melee, gun-only always ranged,
+# both weapons -> blade in reach, gun at range, blade when the gun is dry.
+func _verify_weapon_ai_decisions() -> void:
+	var ally = _spawn_ally()
+	ally.apply_mech_override(1, "Decider")
+	var blade := {"left": "", "right": "res://resources/mech/stock/weapon_heat_blade.tres", "carry": []}
+	var gun := {"left": "", "right": "res://resources/mech/stock/weapon_beam_rifle.tres", "carry": []}
+	var both := {"left": "res://resources/mech/stock/weapon_heat_blade.tres", "right": "res://resources/mech/stock/weapon_beam_rifle.tres", "carry": []}
+
+	ally.apply_mech_loadout({"weapon_loadout": blade})
+	_check(ally._prefers_melee(999.0), "blade-only loadout always melee even far away")
+
+	ally.apply_mech_loadout({"weapon_loadout": gun})
+	_check(not ally._prefers_melee(3.0), "gun-only loadout always ranged even up close")
+
+	ally.apply_mech_loadout({"weapon_loadout": both})
+	_check(ally._prefers_melee(2.0), "gun+blade loadout uses the blade when the enemy is in reach")
+	_check(not ally._prefers_melee(30.0), "gun+blade loadout uses the gun at range")
+	ally.fire_core.ammo = 0
+	_check(ally._prefers_melee(30.0), "gun+blade loadout falls back to the blade when out of ammo")
+	ally.queue_free()
+	await get_tree().process_frame
+
+
+# Ammo scavenging: the ally notices a dry magazine, walks to the nearest ground
+# ammo box and refills the magazine from it.
+func _verify_ammo_scavenging() -> void:
+	var ally = _spawn_ally()
+	ally.apply_mech_override(1, "Scavenger")
+	var gun := {"left": "", "right": "res://resources/mech/stock/weapon_beam_rifle.tres", "carry": []}
+	ally.apply_mech_loadout({"weapon_loadout": gun})
+	ally.global_position = Vector3.ZERO
+	var pickup := Area3D.new()
+	pickup.add_to_group("loot_pickup")
+	pickup.set_meta("loot_data", {"type": "ammo", "amount": 15})
+	add_child(pickup)
+	pickup.global_position = Vector3(4, 0, 0)
+
+	_check(not ally._wants_ammo_pickup(), "full magazine does not trigger scavenging")
+	ally.fire_core.ammo = 0
+	_check(ally._wants_ammo_pickup(), "dry magazine triggers scavenging")
+	var found = ally._find_ammo_pickup()
+	_check(found == pickup, "ally finds the nearest ground ammo box")
+	# Simulate reaching the box: collect refills the magazine and frees the box.
+	ally._collect_ammo_pickup(pickup)
+	_check(ally.fire_core.ammo == 15, "collecting ammo refills the magazine")
+	await get_tree().process_frame
+	_check(not is_instance_valid(pickup), "collected ammo box is freed")
 	ally.queue_free()
 	await get_tree().process_frame
 

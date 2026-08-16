@@ -17,10 +17,16 @@ var controller  # hangar_controller.gd
 
 # Called by the roster panel after the edited berth changes: repaints the 3D
 # preview + total stats, and (optionally) the current slot's part list — the
-# same refresh set the old in-controller cycle/switch logic ran.
+# same refresh set the old in-controller cycle/switch logic ran. The ammo
+# panel must repaint too: the ammo-to-carry loadout is stored PER MECH (each
+# berth snapshots its own weapon_loadout.ammo), so switching mechs shows a
+# different carry loadout — without this refresh the panel kept the previous
+# mech's numbers, making ammo look shared across all mechs.
 func after_mech_change(repopulate_parts: bool) -> void:
 	controller.garage_panel.update_all_slots_preview()
 	controller.stats_panel.update()
+	if controller.ammo_panel:
+		controller.ammo_panel.refresh()
 	if repopulate_parts:
 		controller.part_list_panel.populate(controller.selected_slot)
 

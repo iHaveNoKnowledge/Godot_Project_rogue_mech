@@ -51,6 +51,7 @@ func _create_loot_pickup(pos: Vector3, loot_data: Dictionary) -> void:
 	mesh.set_surface_override_material(0, material)
 
 	pickup.set_meta("loot_data", loot_data)
+	pickup.add_to_group("loot_pickup")
 	pickup.body_entered.connect(_on_pickup_body_entered.bind(pickup))
 	get_parent().add_child(pickup)
 	pickup.global_position = pos

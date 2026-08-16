@@ -83,6 +83,21 @@ func _verify_right_column() -> void:
 	_check(hud._ceasefire_panel != null and hud._reserved_panel != null,
 		"right column has a ceasefire countdown slot + reserved slot")
 
+	# The slots STACK in a VBox: the ceasefire card sits BELOW the objective
+	# card, never overlapping it, even after a long objective text reflows.
+	# Force a tall objective (long autowrapped text) so the cards must reflow,
+	# then verify the ceasefire's top edge stays below the objective's bottom.
+	hud._objective_label.text = "OBJECTIVE\n" + ("SECTOR PRIORITY TARGET WITH A VERY LONG NAME ".repeat(6))
+	hud._objective_label.reset_size()
+	hud._ceasefire_panel.reset_size()
+	hud._objective_panel.reset_size()
+	await get_tree().process_frame
+	var obj_bottom: float = float(hud._objective_panel.global_position.y) + float(hud._objective_panel.size.y)
+	var cf_top: float = float(hud._ceasefire_panel.global_position.y)
+	_check(cf_top >= obj_bottom, "ceasefire slot sits below the objective card (no overlap)")
+	_check(float(hud._objective_panel.size.y) > 0.0 and float(hud._ceasefire_panel.size.y) > 0.0,
+		"objective and ceasefire cards both have size")
+
 	# No ceasefire -> the countdown slot stays an empty reserved cell.
 	GlobalData.ceasefire_turns = 0
 	hud._refresh()

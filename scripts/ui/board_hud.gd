@@ -99,30 +99,40 @@ func _build_ui() -> void:
 	mp_row.add_child(_mp_bar)
 
 	# --- Right column: objective / ceasefire countdown / reserved ---
-	_objective_panel = _make_side_panel(20, 130)
+	# One VBoxContainer so the three slots STACK: the ceasefire countdown always
+	# sits under the objective card no matter how tall the objective text grows
+	# (the objective autowraps and can be long; hardcoded offsets let the text
+	# overflow into the countdown slot). The reserved slot is the bottom cell.
+	var side := VBoxContainer.new()
+	side.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	side.offset_left = -270
+	side.offset_right = -20
+	side.offset_top = 20
+	side.add_theme_constant_override("separation", 10)
+	add_child(side)
+
+	_objective_panel = _make_side_panel(false)
 	_objective_label = Label.new()
 	_objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_objective_panel.add_child(_objective_label)
+	side.add_child(_objective_panel)
 
-	_ceasefire_panel = _make_side_panel(140, 210, true)
+	_ceasefire_panel = _make_side_panel(true)
 	_ceasefire_label = Label.new()
 	_ceasefire_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_ceasefire_label.add_theme_color_override("font_color", Color(1.0, 0.75, 0.3))
 	_ceasefire_panel.add_child(_ceasefire_label)
+	side.add_child(_ceasefire_panel)
 
-	_reserved_panel = _make_side_panel(220, 290, true)
+	_reserved_panel = _make_side_panel(true)
+	side.add_child(_reserved_panel)
 
 
 # A stacked slot in the right column. `dim` renders the slot as an empty
 # reserved cell (subtle outline) instead of a filled card.
-func _make_side_panel(offset_top: int, offset_bottom: int, dim: bool = false) -> PanelContainer:
+func _make_side_panel(dim: bool = false) -> PanelContainer:
 	var panel := PanelContainer.new()
-	panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	panel.offset_left = -270
-	panel.offset_right = -20
-	panel.offset_top = offset_top
-	panel.offset_bottom = offset_bottom
-	add_child(panel)
+	panel.custom_minimum_size = Vector2(0, 72)
 
 	var s := StyleBoxFlat.new()
 	s.bg_color = Color(0.05, 0.07, 0.12, 0.85) if not dim else Color(0.05, 0.07, 0.12, 0.5)

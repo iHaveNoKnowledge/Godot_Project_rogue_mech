@@ -735,12 +735,46 @@ func _fire_ranged() -> void:
 
 
 func _on_destroyed() -> void:
+	# The squadmate is gone for good: flag the fleet unit as destroyed and pull
+	# the berth they piloted out of the convoy (same rule as the player mech
+	# being destroyed — a wrecked mech and its pilot leave the team). The HUD
+	# squad panel rebuilds itself from the alive allies, so the row disappears
+	# on its own; this removes them from every future sortie too.
+	_remove_from_convoy()
 	set_physics_process(false)
 	velocity = Vector3.ZERO
 	visible = false
 	var tween = create_tween()
 	tween.tween_interval(0.5)
 	tween.tween_callback(queue_free)
+
+
+# Marks the destroyed ally's fleet roster entry as destroyed (permanently out
+# of every future sortie) and removes the hangar mech they piloted from the
+# convoy. Guarded so a double emit of mecha_destroyed (body-break + frame-loss)
+# only runs the removal once.
+var _convoy_removed: bool = false
+
+
+func _remove_from_convoy() -> void:
+	if _convoy_removed:
+		return
+	_convoy_removed = true
+	# Mark the fleet unit dead so it never fields again this run.
+	var unit = FleetSystem.get_fleet_unit(template_id)
+	if not unit.is_empty():
+		unit["destroyed"] = true
+		unit["fielded"] = false
+	# Pull the berth they piloted out of the hangar (its pilot is this unit).
+	var pilot_id := "fleet_" + template_id
+	for mech in GlobalData.get_hangar_mechs():
+		if not (mech is Dictionary):
+			continue
+		if str(mech.get("pilot", "")) != pilot_id:
+			continue
+		GlobalData.remove_hangar_mech(str(mech.get("id", "")))
+		GlobalData.run_notice = "%s was destroyed in combat and is lost from the convoy." % display_name
+		break
 
 
 func _on_armor_broken(slot_name: String) -> void:

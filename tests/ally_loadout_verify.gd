@@ -19,6 +19,7 @@ func _ready() -> void:
 	await _verify_catalog_body()
 	await _verify_weapon_ai_decisions()
 	await _verify_ammo_scavenging()
+	await _verify_destroyed_ally_leaves_team()
 	print("ALLY_LOADOUT_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	await get_tree().process_frame
 	get_tree().quit(1 if _fails > 0 else 0)
@@ -199,3 +200,37 @@ func _spawn_ally() -> Node:
 	ally.template_id = "ally_gm"
 	add_child(ally)
 	return ally
+
+
+# A destroyed squadmate is GONE for the rest of the run: the fleet roster entry
+# is flagged destroyed (so they never field again) and the berth they piloted
+# is pulled from the hangar (a wrecked mech doesn't stay in the convoy).
+func _verify_destroyed_ally_leaves_team() -> void:
+	var template_id := "ally_gm"
+	var pilot_id := "fleet_" + template_id
+	# Make sure this template is registered, then park a berth assigned to it.
+	FleetSystem.add_ally_unit(template_id)
+	var parked := HangarManager.park_ally_mech("Wing Mech", pilot_id, 1)
+	_check(not parked.is_empty(), "test parked an ally berth")
+	var mech_id := str(parked.get("id", ""))
+	var before := GlobalData.get_hangar_mechs().size()
+
+	var ally = _spawn_ally()
+	var unit = FleetSystem.get_fleet_unit(template_id)
+	_check(not unit.is_empty() and not bool(unit.get("destroyed", false)), "ally unit starts alive")
+	ally._on_destroyed()
+	_check(bool(unit.get("destroyed", false)), "destroyed ally unit is flagged dead in the fleet roster")
+	_check(GlobalData.get_hangar_mechs().size() == before - 1, "destroyed ally's berth is removed from the hangar")
+	_check(GlobalData.get_hangar_mechs().size() == before - 1 and not _hangar_has_mech(mech_id), "the piloted mech id is gone from the convoy")
+	# A second destroy emit (body-break + frame-loss double fire) must not double-remove.
+	ally._on_destroyed()
+	_check(GlobalData.get_hangar_mechs().size() == before - 1, "double destroy emit does not remove twice")
+	ally.queue_free()
+	await get_tree().process_frame
+
+
+func _hangar_has_mech(mech_id: String) -> bool:
+	for mech in GlobalData.get_hangar_mechs():
+		if mech is Dictionary and str(mech.get("id", "")) == mech_id:
+			return true
+	return false

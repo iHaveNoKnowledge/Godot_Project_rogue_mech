@@ -207,8 +207,9 @@ func _toggle_loot_entry(entry: Dictionary) -> void:
 
 
 # Grants every item on the TAKE BACK side: weapons are registered into the depot
-# stash, armor instances appended to the convoy inventory. Left-side items are
-# discarded (left on the battlefield). Clears the battle pool either way.
+# stash, armor instances appended to the convoy inventory. Items the player left
+# in BATTLE DROPS are NOT wasted — they are auto-salvaged into scrap (the convoy
+# mechanics strip whatever the player didn't pick). Clears the battle pool either way.
 func _grant_take_back_loot() -> void:
 	for entry in _right_items:
 		match str(entry.get("type", "")):
@@ -222,9 +223,34 @@ func _grant_take_back_loot() -> void:
 					var uid := str(inst.get("uid", ""))
 					if uid == "" or GlobalData.get_armor_instance(uid).is_empty():
 						GlobalData.armor_inventory.append(inst)
+	# Unclaimed drops are stripped for scrap instead of being left behind.
+	var salvaged_scrap := 0
+	for entry in _left_items:
+		salvaged_scrap += _salvage_value(entry)
+	if salvaged_scrap > 0:
+		GlobalData.gain_scrap(salvaged_scrap)
+		GlobalData.run_notice = "Unclaimed drops salvaged for +%d scrap." % salvaged_scrap
 	GlobalData.battle_loot.clear()
 	_left_items.clear()
 	_right_items.clear()
+
+
+# Scrap value of a loot entry the player did not take back: the convoy strips
+# armor plates with the same formula the craftery uses to price them, and
+# weapons by their combat weight + damage tier. 0 for anything not strippable.
+func _salvage_value(entry: Dictionary) -> int:
+	match str(entry.get("type", "")):
+		"weapon":
+			var w: WeaponPart = entry.get("weapon")
+			if w == null:
+				return 0
+			return maxi(2, int(round(w.weight * 1.5 + w.damage * 0.2 + w.rarity * 2.0)))
+		"armor":
+			var inst: Dictionary = entry.get("instance", {})
+			if inst.is_empty():
+				return 0
+			return GlobalData.get_armor_scrap_cost(inst)
+	return 0
 
 
 func _on_combat_ended(victory: bool) -> void:
@@ -322,7 +348,12 @@ func _show_victory_rewards() -> void:
 		if _left_items.is_empty():
 			loot_summary = "No salvage dropped in this battle.\n"
 		else:
+			var unclaimed_scrap := 0
+			for entry in _left_items:
+				unclaimed_scrap += _salvage_value(entry)
 			loot_summary = "Click items in BATTLE DROPS to take them back.\n"
+			if unclaimed_scrap > 0:
+				loot_summary += "Unclaimed drops are stripped for +%d Scrap.\n" % unclaimed_scrap
 		rewards_label.text = loot_summary
 		if not is_boss or not is_final_sector:
 			rewards_label.text += "Rewards:\n"

@@ -30,6 +30,7 @@ func _ready() -> void:
 
 	await _verify_drops_route_to_pool()
 	await _verify_picker_and_grant()
+	await _verify_unclaimed_salvage()
 
 	print("BATTLE_LOOT_SUMMARY_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	get_tree().paused = false
@@ -138,6 +139,58 @@ func _verify_picker_and_grant() -> void:
 		_check(GlobalData.armor_inventory.size() == armor_before + 1, "armor part granted into the armor inventory")
 		_check(GlobalData.battle_loot.is_empty(), "battle loot pool cleared after granting")
 		_check(rewards_ui._left_items.is_empty() and rewards_ui._right_items.is_empty(), "picker state cleared after grant")
+
+	rewards_ui.queue_free()
+	await get_tree().process_frame
+
+
+# Items the player does NOT take back must not be wasted: they are auto-
+# salvaged into scrap (armor priced with the same formula the craftery uses,
+# weapons by weight/damage/rarity), and a run notice tells the player.
+func _verify_unclaimed_salvage() -> void:
+	GlobalData.battle_loot.clear()
+	var weapon_res: WeaponPart = load("res://resources/mech/stock/weapon_pile_bunker.tres")
+	var armor_inst := {
+		"uid": "loot_test_salvage_1",
+		"db_id": "zaku_plate",
+		"name": "Zaku Plate",
+		"slot": "body",
+		"type": "armor",
+		"hp": 40.0, "armor": 25.0, "weight": 6.0,
+		"color": Color(0.2, 0.6, 0.3),
+		"durability": 0.8, "upgrade_level": 1, "equipped": false,
+	}
+	# Weapon is taken back; armor is left unclaimed.
+	GlobalData.battle_loot.append({"type": "weapon", "weapon": weapon_res})
+	GlobalData.battle_loot.append({"type": "armor", "instance": armor_inst})
+
+	var rewards_ui = load("res://scenes/ui/combat_rewards_ui.tscn").instantiate()
+	add_child(rewards_ui)
+	await get_tree().process_frame
+	rewards_ui._show_victory_rewards()
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	# The summary must tell the player unclaimed drops are stripped for scrap.
+	_check(rewards_ui.rewards_label.text.contains("stripped for +"), "victory summary announces unclaimed salvage")
+	# Baseline AFTER the victory screen (it grants its own credit/scrap rewards).
+	var scrap_before: int = GlobalData.scrap
+	# Take back only the weapon (first row).
+	var left := _loot_buttons(rewards_ui.loot_left_list)
+	if left.size() >= 1:
+		left[0].pressed.emit()
+		await get_tree().process_frame
+	_check(rewards_ui._right_items.size() == 1, "weapon moved to TAKE BACK, armor stays unclaimed")
+
+	var expected_scrap: int = int(rewards_ui._salvage_value(rewards_ui._left_items[0]))
+	_check(expected_scrap > 0, "unclaimed armor has a positive scrap value (%d)" % expected_scrap)
+	var stash_before: int = GlobalData.weapon_inventory.size()
+	rewards_ui._grant_take_back_loot()
+	await get_tree().process_frame
+	_check(GlobalData.weapon_inventory.size() == stash_before + 1, "taken weapon still granted to the depot stash")
+	_check(GlobalData.scrap == scrap_before + expected_scrap, "unclaimed armor stripped into scrap (+%d)" % expected_scrap)
+	_check(GlobalData.run_notice.contains("salvaged for +%d" % expected_scrap), "board run-notice reports the salvaged scrap")
+	_check(GlobalData.battle_loot.is_empty(), "battle pool cleared after salvage")
 
 	rewards_ui.queue_free()
 	await get_tree().process_frame

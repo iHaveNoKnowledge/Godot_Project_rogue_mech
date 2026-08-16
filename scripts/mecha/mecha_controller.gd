@@ -10,20 +10,22 @@ var input_dir: Vector2 = Vector2.ZERO
 
 const GRAVITY := 20.0
 
-# --- Variable-height jump ---
-# Jumping launches with the mech's current momentum: the faster it is moving
-# (run, roller, dash carryover) the higher it flings upward, and horizontal
-# control keeps working in the air. A quick tap is a low hop; HOLDING space
-# drives the mech up to its full jump power, which scales with the power of
-# the equipped leg frames. Launching also costs energy that scales with the
-# mech's carried mass — heavy mechs spend more per jump.
+# --- Bounded variable-height jump ---
+# A tap is a low hop; HOLDING space charges the launch up to the frame's full
+# jump power over JUMP_CHARGE_TIME. The launch is a single impulse — once the
+# charge is spent the mech arcs under gravity, so holding forever never floats.
+# Full power = chassis base + leg-frame power (a special gundam-class frame can
+# declare its own `jump_power` to leap beyond the standard curve; normal frames
+# fall back to their carry_bonus strength) + current momentum, minus a weight
+# penalty: heavy mechs don't launch as high. Launching also costs energy scaled
+# by carried mass.
 const JUMP_CHARGE_TIME := 0.32        # seconds of holding for full power
 const JUMP_RAMP_RATE := 50.0          # how fast the ascent builds while held
-const JUMP_CUT_VELOCITY := 4.0        # upward velocity after an early release
 const JUMP_MIN_VELOCITY := 6.0        # tap velocity (low hop)
 const JUMP_MAX_BASE := 6.0            # full-power velocity before leg/speed scaling
 const LEG_POWER_JUMP_BONUS := 0.5     # per leg-power point added to full velocity
 const SPEED_JUMP_BONUS := 0.12        # current horizontal speed feeds the launch
+const WEIGHT_JUMP_PENALTY := 4.0      # a fully-loaded mech loses up to 4 m/s of launch
 const JUMP_BASE_ENERGY_COST := 6.0
 const JUMP_WEIGHT_ENERGY := 0.06      # extra energy per kg of carried mass
 
@@ -160,6 +162,11 @@ func apply_heavy_recoil_impulse(backward: Vector3) -> void:
 
 func _physics_process(delta: float) -> void:
 	dash_cooldown_timer -= delta
+	# Roller wheels need ground under them: leaving the floor (a jump) cuts the
+	# roller out immediately, so it can never boost air speed.
+	if is_roller_dashing and not is_on_floor():
+		is_roller_dashing = false
+		roller_drain_ramp = 0.0
 	_process_energy(delta)
 	_process_jump(delta)
 
@@ -190,7 +197,12 @@ func _handle_movement_input() -> void:
 	strafe_mode = Input.is_action_pressed("strafe")
 
 	if Input.is_action_just_pressed("roller_dash"):
-		if energy > 1.0:
+		if not is_on_floor():
+			# Roller dash is a GROUND-wheel mode — pressing it mid-air does
+			# nothing (it can't add or cut air speed).
+			is_roller_dashing = false
+			roller_drain_ramp = 0.0
+		elif energy > 1.0:
 			# Re-engaging the roller restarts the burn ramp from zero.
 			if not is_roller_dashing:
 				roller_drain_ramp = 0.0
@@ -231,40 +243,61 @@ func _start_jump() -> void:
 		AudioManager.play_jump(global_position)
 
 
-# While the button is held the ascent keeps building toward the full jump
-# velocity; releasing early cuts the rise so a tap stays a low hop. The state
-# also clears the moment the mech touches back down.
+# While the button is held the ascent builds toward the full jump velocity;
+# releasing early simply LOCKS IN whatever launch power was built up so far — a
+# tap stays a low hop and holding longer buys a higher arc, monotonically up to
+# the frame's max. The launch is a single impulse: once the charge window is
+# spent (or the button is released) thrust stops and gravity arcs the mech back
+# down — holding the button forever never lets the mech float or climb without
+# limit. The state also clears the moment the mech touches back down.
 func _process_jump(delta: float) -> void:
 	if is_jumping:
-		if Input.is_action_pressed("jump"):
+		if Input.is_action_pressed("jump") and jump_charge < JUMP_CHARGE_TIME:
 			jump_charge = minf(jump_charge + delta, JUMP_CHARGE_TIME)
 			var target := _jump_velocity(jump_charge / JUMP_CHARGE_TIME)
 			if velocity.y < target:
 				velocity.y = move_toward(velocity.y, target, JUMP_RAMP_RATE * delta)
 		else:
-			if velocity.y > JUMP_CUT_VELOCITY:
-				velocity.y = JUMP_CUT_VELOCITY
+			# Charge complete or released: the launch is set, no more thrust.
 			is_jumping = false
 	if is_on_floor():
 		is_jumping = false
 		jump_charge = 0.0
 
 
-# Full jump power = base + leg-frame power + current horizontal momentum. The
-# charge fraction lerps between a low tap hop and that full power, so holding
-# space longer (up to JUMP_CHARGE_TIME) always buys a higher jump.
+# Full jump power = base + leg-frame power + current horizontal momentum, minus
+# a weight penalty (heavy mechs launch lower). The charge fraction lerps between
+# a low tap hop and that full power, so holding space longer (up to
+# JUMP_CHARGE_TIME) buys a higher jump — but never higher than the frame's max.
 func _jump_velocity(charge_frac: float) -> float:
-	var leg_power := GlobalData.get_leg_power()
+	var leg_power := _leg_jump_power()
 	var speed_bonus := Vector3(velocity.x, 0.0, velocity.z).length() * SPEED_JUMP_BONUS
-	var full := JUMP_MAX_BASE + leg_power * LEG_POWER_JUMP_BONUS + speed_bonus
+	var weight_ratio := clampf(total_weight / maxf(_chassis_weight_capacity_override, 1.0), 0.0, 1.0)
+	var full := JUMP_MAX_BASE + leg_power * LEG_POWER_JUMP_BONUS \
+			- weight_ratio * WEIGHT_JUMP_PENALTY + speed_bonus
 	return lerp(JUMP_MIN_VELOCITY, full, charge_frac)
+
+
+# Leg thrust for jumping: chassis base + both leg frames. A special gundam-class
+# leg frame can declare its own `jump_power` stat to leap beyond the standard
+# curve; normal frames fall back to their carry_bonus strength.
+func _leg_jump_power() -> float:
+	var power := float(GlobalData.get_chassis_stats().get("power", 12.0))
+	for leg in ["leg_left", "leg_right"]:
+		var f = GlobalData.equipped_frames.get(leg, {})
+		if f is Dictionary:
+			power += float(f.get("jump_power", f.get("carry_bonus", 0.0)))
+	return power
 
 
 # Regenerates or burns the energy pool every frame. The roller's drain ramps up
 # the longer it is held, so marathon roller dashing exhausts the tank quickly
 # while short bursts stay cheap; releasing it restarts regen immediately.
 func _process_energy(delta: float) -> void:
-	if is_roller_dashing:
+	# The roller only burns fuel while the mech is actually ROLLING (moving on
+	# the ground) — engaging it and standing still costs nothing, and the burn
+	# ramp only grows while rolling.
+	if is_roller_dashing and is_on_floor() and input_dir.length() > 0.0:
 		roller_drain_ramp = minf(roller_drain_ramp + ROLLER_RAMP_DRAIN * delta, ROLLER_MAX_DRAIN)
 		energy = maxf(energy - (ROLLER_BASE_DRAIN + roller_drain_ramp) * delta, 0.0)
 		if energy <= 0.0:

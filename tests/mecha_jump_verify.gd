@@ -1,13 +1,14 @@
 extends Node
 
-## Verifies the reworked mech jump + dash tuning:
-##   - jump launches with current momentum: horizontal speed raises the launch
-##     velocity (faster = higher fling), horizontal control unaffected
-##   - variable height: a quick tap is a low hop; holding space drives the
-##     ascent up to full power, which scales with the equipped leg frames
-##   - launching costs energy scaled by carried mass (heavier = more energy)
-##     and refuses when the tank is too low
+## Verifies the mech jump + dash + roller tuning:
+##   - jump launches with current momentum; a tap is a low hop, holding charges
+##     up to the frame's full jump power (leg power + special jump_power stat)
+##   - the launch is BOUNDED: once charged the mech arcs down under gravity, so
+##     holding forever never floats; heavier mechs launch lower
+##   - launching costs energy scaled by carried mass and refuses when drained
 ##   - dash cooldown is halved (0.5s) and dash still fires mid-air
+##   - roller dash is a GROUND mode: no energy drain while standing still, no
+##     air speed boost mid-air, and jumping cuts the roller out
 ## Run: godot --headless --path . res://tests/mecha_jump_verify.tscn
 
 var _fails := 0
@@ -44,8 +45,11 @@ func _ready() -> void:
 	_verify_jump_energy_cost()
 	_verify_momentum_launch()
 	_verify_leg_power_scaling()
+	_verify_weight_penalty()
 	await _verify_variable_height()
 	await _verify_midair_dash()
+	await _verify_roller_energy()
+	await _verify_midair_roller()
 
 	print("MECHA_JUMP_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	Input.action_release("jump")
@@ -135,6 +139,28 @@ func _verify_leg_power_scaling() -> void:
 	_check(is_equal_approx(weak_tap, strong_tap), "tap is a low hop regardless of leg power")
 	_check(strong_full > weak_full, "stronger leg frames jump higher at full power (%.1f > %.1f)" % [strong_full, weak_full])
 
+	# A special gundam-class leg frame declaring its own jump_power leaps beyond
+	# the standard carry_bonus curve — the hook for exotic frames.
+	var normal_full: float = mech._jump_velocity(1.0)
+	GlobalData.equipped_frames["leg_left"] = {"carry_bonus": 3.0, "jump_power": 25.0, "weight": 3.0}
+	GlobalData.equipped_frames["leg_right"] = {"carry_bonus": 3.0, "jump_power": 25.0, "weight": 3.0}
+	var gundam_full: float = mech._jump_velocity(1.0)
+	_check(gundam_full > normal_full + 5.0, "a special frame's jump_power leaps higher than normal legs (%.1f > %.1f)" % [gundam_full, normal_full])
+	# Restore the strong standard legs for the physics tests.
+	GlobalData.equipped_frames["leg_left"] = {"carry_bonus": 6.0, "weight": 3.0}
+	GlobalData.equipped_frames["leg_right"] = {"carry_bonus": 6.0, "weight": 3.0}
+
+
+func _verify_weight_penalty() -> void:
+	# Same legs, same speed: carried mass eats into the launch velocity.
+	mech.velocity = Vector3.ZERO
+	mech.total_weight = 30.0
+	var light: float = mech._jump_velocity(1.0)
+	mech.total_weight = 120.0
+	var heavy: float = mech._jump_velocity(1.0)
+	_check(heavy < light, "heavier mechs launch lower (%.1f < %.1f)" % [heavy, light])
+	mech.total_weight = 50.0
+
 
 # --- Physics integration: tap vs hold height ---------------------------------
 
@@ -176,13 +202,27 @@ func _verify_variable_height() -> void:
 	await _reset_mech()
 	var hold_start: float = mech.global_position.y
 	Input.action_press("jump")
-	for i in range(20):
+	# Hold comfortably past the 0.32s charge window so the launch is FULL.
+	for i in range(25):
 		await get_tree().physics_frame
 	Input.action_release("jump")
 	var hold_peak := await _peak_height(hold_start)
 
 	_check(tap_peak < 1.5, "a quick tap is a low hop (%.2f m)" % tap_peak)
 	_check(hold_peak > tap_peak + 0.5, "holding the button jumps clearly higher (%.2f m vs %.2f m)" % [hold_peak, tap_peak])
+
+	# Holding PAST the charge window must not climb any higher — the launch is a
+	# bounded impulse, so an extra-long hold peaks at the same height and the
+	# mech comes back down instead of floating forever.
+	await _reset_mech()
+	var long_start: float = mech.global_position.y
+	Input.action_press("jump")
+	for i in range(60):
+		await get_tree().physics_frame
+	Input.action_release("jump")
+	var long_peak := await _peak_height(long_start)
+	_check(absf(long_peak - hold_peak) < 0.35, "holding past full charge climbs no higher (%.2f vs %.2f)" % [long_peak, hold_peak])
+	_check(mech.is_on_floor(), "the mech lands again after a full-charge jump (no infinite float)")
 
 
 func _verify_midair_dash() -> void:
@@ -195,3 +235,70 @@ func _verify_midair_dash() -> void:
 	mech._start_dash()
 	_check(mech.is_dashing, "dash fires mid-air to steer momentum")
 	mech.is_dashing = false
+
+
+func _settle_on_floor() -> void:
+	mech.global_position = Vector3(0, 3, 0)
+	mech.velocity = Vector3.ZERO
+	mech.is_jumping = false
+	mech.jump_charge = 0.0
+	mech.is_roller_dashing = false
+	mech.energy = 100.0
+	Input.action_release("jump")
+	Input.action_release("roller_dash")
+	Input.action_release("move_forward")
+	Input.action_release("move_back")
+	Input.action_release("move_left")
+	Input.action_release("move_right")
+	for i in range(90):
+		await get_tree().physics_frame
+		if mech.is_on_floor():
+			return
+
+
+func _verify_roller_energy() -> void:
+	await _settle_on_floor()
+
+	# With the roller engaged but NO movement input, the pool must not drain
+	# (headless Input lingers, so the roller state is set directly here — the
+	# drain gate is what this check exercises).
+	mech.energy = 100.0
+	mech.is_roller_dashing = true
+	for i in range(30):
+		await get_tree().physics_frame
+	_check(is_equal_approx(mech.energy, 100.0), "standing still with the roller on costs no energy")
+
+	# Rolling while actually moving drains the pool.
+	mech.energy = 100.0
+	mech.is_roller_dashing = true
+	Input.action_press("move_forward")
+	for i in range(30):
+		await get_tree().physics_frame
+	Input.action_release("move_forward")
+	_check(mech.energy < 99.0, "rolling while moving drains energy")
+	mech.is_roller_dashing = false
+	mech.velocity = Vector3.ZERO
+
+
+func _verify_midair_roller() -> void:
+	# Roller wheels are a GROUND mode: pressing it mid-air must not engage.
+	mech.global_position = Vector3(0, 8, 0)
+	mech.velocity = Vector3(0, 2, 0)
+	mech.is_roller_dashing = false
+	mech.energy = 100.0
+	await get_tree().physics_frame
+	_check(not mech.is_on_floor(), "mech is airborne for the mid-air roller check")
+	Input.action_press("roller_dash")
+	await get_tree().physics_frame
+	Input.action_release("roller_dash")
+	_check(not mech.is_roller_dashing, "pressing roller dash mid-air does not engage")
+
+	# A roller running on the ground cuts out the moment the mech leaves it.
+	await _settle_on_floor()
+	mech.is_roller_dashing = true
+	Input.action_press("jump")
+	for i in range(10):
+		await get_tree().physics_frame
+	Input.action_release("jump")
+	_check(not mech.is_roller_dashing, "jumping cuts the roller out (no air speed boost)")
+	mech.is_roller_dashing = false

@@ -172,8 +172,10 @@ func _handle_movement_input() -> void:
 			if not is_roller_dashing:
 				roller_drain_ramp = 0.0
 			is_roller_dashing = not is_roller_dashing
+			# Engaging/disengaging the roller legs is the mech's joints moving —
+			# a hydraulic actuator sound, never a UI click.
 			if AudioManager:
-				AudioManager.play_ui_click()
+				AudioManager.play_mecha_actuator(global_position)
 		else:
 			# Empty tank: the roller refuses to engage until it recharges.
 			is_roller_dashing = false
@@ -196,7 +198,7 @@ func _process_energy(delta: float) -> void:
 			is_roller_dashing = false
 			roller_drain_ramp = 0.0
 			if AudioManager:
-				AudioManager.play_ui_click()
+				AudioManager.play_mecha_actuator(global_position)
 	else:
 		roller_drain_ramp = 0.0
 		energy = minf(energy + ENERGY_REGEN_RATE * delta, max_energy)

@@ -103,7 +103,13 @@ func _generate_sounds() -> void:
 	# confirm chime), so it reads as an event, not just another button confirm.
 	_sound_cache["mech_register"] = _gen_mech_register()
 	_sound_cache["footstep"] = _gen_noise_burst(0.04, 0.08)
-	_sound_cache["dash"] = _gen_sine_sweep(300.0, 600.0, 0.1, 0.2)
+	# Dash and roller-leg actuation share ONE mechanical voice: a hydraulic
+	# joint/piston slam (falling thump + pneumatic hiss + metal clink). It
+	# replaces the old short sine blip so engaging boost/roller reads as heavy
+	# machinery moving, never as a UI click.
+	var actuator := _gen_actuator()
+	_sound_cache["dash"] = actuator
+	_sound_cache["mecha_actuator"] = actuator
 	# New movement & impact SFX
 	_sound_cache["jump"] = _gen_sine_sweep(150.0, 450.0, 0.15, 0.25)
 	_sound_cache["land"] = _gen_sine_tone(70.0, 0.18, 0.4)
@@ -568,6 +574,40 @@ func _gen_retreat_alert() -> AudioStreamWAV:
 	return stream
 
 
+# Hydraulic actuator: the mechanical voice of the mech's joints moving — a
+# piston slam (falling low thump) with pneumatic hiss and a short metal clink.
+# Played when the mech engages its dash or toggles its roller legs, so those
+# actions sound like machinery instead of the UI click they used to make.
+func _gen_actuator() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 0.2
+	var num_samples = int(duration * sample_rate)
+	var data = PackedByteArray()
+	data.resize(num_samples * 2)
+
+	for i in range(num_samples):
+		var t = float(i) / sample_rate
+		var attack = minf(t / 0.004, 1.0)
+		var env = attack * exp(-t * 18.0)
+		# Piston slam: a falling low thump as the joint locks into place.
+		var thump_freq = lerp(160.0, 42.0, t / duration)
+		var sample = sin(TAU * thump_freq * t) * 0.5 * env
+		# Pneumatic hiss: pressurized gas escaping the actuator.
+		sample += (randf() * 2.0 - 1.0) * 0.2 * attack * exp(-t * 28.0)
+		# Short metal clink from the actuator housing.
+		sample += sin(TAU * 480.0 * t) * 0.12 * attack * exp(-t * 32.0)
+		var val = int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+
+	var stream = AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream
+
+
 # Enemy melee swing: a low, gritty brute whoosh — clearly heavier than the
 # player's voices so an enemy RUSHER reads as a big swipe.
 func _gen_enemy_melee_swing() -> AudioStreamWAV:
@@ -849,6 +889,13 @@ func play_footstep(pos: Vector3) -> void:
 
 func play_dash(pos: Vector3) -> void:
 	play_sfx("dash", pos, -3.0, "Movement")
+
+
+# Mechanical joint/piston movement voice — used when the mech engages its
+# roller legs (previously a plain UI click). Positional like the other mech
+# body sounds, so it lands where the machine is.
+func play_mecha_actuator(pos: Vector3) -> void:
+	play_sfx("mecha_actuator", pos, -3.0, "Movement")
 
 
 func play_jump(pos: Vector3) -> void:

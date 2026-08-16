@@ -193,6 +193,12 @@ func equip_part(slot: String, info: Dictionary) -> void:
 # no other mech holds the weapon, or as the SWAP confirmation continuation.
 func _perform_weapon_equip(slot: String, info: Dictionary, wpath: String) -> void:
 	var moved_note := ""
+	if slot != "weapon_carry" and _arm_destroyed("left" if slot == "weapon_left" else "right"):
+		# A destroyed arm cannot hold a weapon: the arm is gone (frame HP 0), so
+		# there is no hand to grip the gun. Same rule as combat — a broken arm
+		# cannot fire or wield anything.
+		controller.status_message_label.text = "Cannot equip: that arm is destroyed! Repair or replace it first."
+		return
 	if slot == "weapon_carry":
 		var equipped := GlobalData.weapon_equipped_slot(wpath)
 		if equipped == "carry":
@@ -238,6 +244,14 @@ func _perform_weapon_equip(slot: String, info: Dictionary, wpath: String) -> voi
 
 # Performs the armor equip (including a cross-mech transfer). Runs directly when
 # no other mech wears the plate, or as the SWAP confirmation continuation.
+# True when the mech's arm on the given side is destroyed (its inner frame
+# HP is gone — part_damage["arm_*_frame"] >= 1.0). A destroyed arm cannot hold
+# a weapon, so equipping a hand weapon to it is blocked.
+func _arm_destroyed(hand: String) -> bool:
+	var slot := "arm_left" if hand == "left" else "arm_right"
+	return float(GlobalData.part_damage.get(slot + "_frame", 0.0)) >= 1.0
+
+
 func _perform_armor_equip(slot: String, inst: Dictionary) -> void:
 	var swap_note := ""
 	if inst.has("uid"):
@@ -284,6 +298,11 @@ func _perform_selected_weapon_equip(res: Resource) -> void:
 		if equipped == "carry":
 			controller.status_message_label.text = "This weapon is already on the back pack."
 			return
+	elif _arm_destroyed(hand):
+		# A destroyed arm cannot hold a weapon (same rule as combat: a broken
+		# arm cannot fire or wield). Block the equip before the transfer logic.
+		controller.status_message_label.text = "Cannot equip: that arm is destroyed! Repair or replace it first."
+		return
 		var freed_path: String = wpath if equipped != "" else ""
 		if controller.garage_panel.would_exceed_field_pack(wpath, "", freed_path):
 			controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"

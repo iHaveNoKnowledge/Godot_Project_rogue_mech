@@ -78,6 +78,17 @@ func populate(slot: String) -> void:
 			_last_selected_item_index = 0
 			on_item_selected(0)
 	elif slot.begins_with("weapon"):
+		# A destroyed arm cannot hold a weapon: the hand is gone, so hide the
+		# weapon list for that hand and show why instead (mirrors the combat rule
+		# that a broken arm cannot fire or wield anything).
+		if slot == "weapon_left" or slot == "weapon_right":
+			var hand := "left" if slot == "weapon_left" else "right"
+			var arm_slot := "arm_left" if hand == "left" else "arm_right"
+			if float(GlobalData.part_damage.get(arm_slot + "_frame", 0.0)) >= 1.0:
+				controller.visible_weapon_indices.clear()
+				controller.part_item_list.add_item("ARM DESTROYED — cannot equip a weapon to this hand. Repair or replace the arm.")
+				_is_populating = false
+				return
 		# Weapons come from the central inventory stash (GlobalData.weapon_inventory),
 		# NOT from armor_catalog — the stash is the single source of owned weapons.
 		controller.visible_weapon_indices.clear()

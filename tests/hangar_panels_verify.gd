@@ -1353,6 +1353,27 @@ func _verify_equip_panel() -> void:
 	ep.unequip_part("weapon_left")
 	_check(str(GlobalData.weapon_loadout.get("left", "x")) == "", "unequip_part clears the left-hand loadout")
 
+	# A DESTROYED arm cannot hold a weapon: equipping to that hand is blocked
+	# (the loadout stays empty), the other hand still works, and the weapon list
+	# UI explains why instead of offering weapons.
+	GlobalData.part_damage["arm_left_frame"] = 1.0
+	var blade2 := {"path": "res://resources/mech/stock/weapon_heat_blade.tres", "count": 1}
+	ep.equip_part("weapon_left", blade2)
+	_check(str(GlobalData.weapon_loadout.get("left", "x")) == "", "destroyed left arm blocks weapon equip to the left hand")
+	_check(ctrl.status_message_label.text.contains("destroyed"), "blocked equip tells the player the arm is destroyed")
+	ep.equip_part("weapon_right", blade2)
+	_check(str(GlobalData.weapon_loadout.get("right", "")) == blade2["path"], "destroyed left arm does not block the healthy right hand")
+	ep.unequip_part("weapon_right")
+	# The weapon list UI for the destroyed hand shows the reason instead of items.
+	ctrl.selected_slot = "weapon_left"
+	ctrl.part_list_panel.populate("weapon_left")
+	var first_item := ""
+	if ctrl.part_item_list.item_count > 0:
+		first_item = str(ctrl.part_item_list.get_item_text(0))
+	_check(first_item.begins_with("ARM DESTROYED"), "weapon list for a destroyed arm shows the blocked reason")
+	_check(ctrl.part_item_list.item_count == 1, "weapon list for a destroyed arm offers no weapons")
+	GlobalData.part_damage.erase("arm_left_frame")
+
 	# Armor craft-and-equip: a catalog entry becomes an owned equipped instance.
 	ctrl.selected_slot = "body"
 	var body_entry: Dictionary = GlobalData.armor_catalog["body"][0]

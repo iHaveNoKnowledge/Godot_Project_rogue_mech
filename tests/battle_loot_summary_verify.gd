@@ -31,6 +31,7 @@ func _ready() -> void:
 	await _verify_drops_route_to_pool()
 	await _verify_picker_and_grant()
 	await _verify_unclaimed_salvage()
+	await _verify_rarity_tier_pricing()
 
 	print("BATTLE_LOOT_SUMMARY_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	get_tree().paused = false
@@ -219,6 +220,51 @@ func _verify_unclaimed_salvage() -> void:
 	_check(GlobalData.scrap == scrap_before + expected_scrap, "unclaimed armor stripped into scrap (+%d)" % expected_scrap)
 	_check(GlobalData.run_notice.contains("salvaged for +%d" % expected_scrap), "board run-notice reports the salvaged scrap")
 	_check(GlobalData.battle_loot.is_empty(), "battle pool cleared after salvage")
+
+	rewards_ui.queue_free()
+	await get_tree().process_frame
+
+
+# Rarity tier must drive salvage pricing: legendary/rare loot is worth several
+# times a common piece, and the per-row label shows the scrap value.
+func _verify_rarity_tier_pricing() -> void:
+	GlobalData.battle_loot.clear()
+	var knife: WeaponPart = load("res://resources/mech/stock/weapon_combat_knife.tres")  # rarity 0
+	var railgun: WeaponPart = load("res://resources/mech/stock/weapon_railgun.tres")      # rarity 3
+	var standard_armor := {
+		"uid": "loot_test_tier_std", "db_id": "std_plate", "name": "Standard Plate",
+		"slot": "body", "type": "Standard Armor",
+		"hp": 25.0, "armor": 15.0, "weight": 6.0,
+		"color": Color(0.9, 0.9, 0.95), "durability": 1.0, "upgrade_level": 1, "equipped": false,
+	}
+	var gundam_armor := {
+		"uid": "loot_test_tier_gundam", "db_id": "gundam_plate", "name": "Gundam Plate",
+		"slot": "body", "type": "Gundam Armor",
+		"hp": 40.0, "armor": 30.0, "weight": 5.0,
+		"color": Color(0.9, 0.2, 0.25), "durability": 1.0, "upgrade_level": 1, "equipped": false,
+	}
+
+	var rewards_ui = load("res://scenes/ui/combat_rewards_ui.tscn").instantiate()
+	add_child(rewards_ui)
+	await get_tree().process_frame
+
+	# Weapons: rarity 3 must salvage for clearly more than rarity 0.
+	var common_val := int(rewards_ui._salvage_value({"type": "weapon", "weapon": knife}))
+	var legendary_val := int(rewards_ui._salvage_value({"type": "weapon", "weapon": railgun}))
+	_check(common_val >= 2, "common weapon has a base scrap value (%d)" % common_val)
+	_check(legendary_val > common_val * 2, "legendary weapon sells for >2x a common weapon (%d vs %d)" % [legendary_val, common_val])
+
+	# Armor: gundam-tier must sell for clearly more than standard armor.
+	var std_val := int(rewards_ui._salvage_value({"type": "armor", "instance": standard_armor}))
+	var gundam_val := int(rewards_ui._salvage_value({"type": "armor", "instance": gundam_armor}))
+	_check(std_val >= 1, "standard armor has a base scrap value (%d)" % std_val)
+	_check(gundam_val > std_val * 2, "gundam armor sells for >2x standard armor (%d vs %d)" % [gundam_val, std_val])
+
+	# The per-row label advertises the scrap value so tier pricing is visible.
+	var label: String = rewards_ui._loot_entry_label({"type": "weapon", "weapon": railgun})
+	_check(label.contains("(%d scrap)" % legendary_val), "weapon row shows its scrap value (%s)" % label)
+	var armor_label: String = rewards_ui._loot_entry_label({"type": "armor", "instance": gundam_armor})
+	_check(armor_label.contains("(%d scrap)" % gundam_val), "armor row shows its scrap value (%s)" % armor_label)
 
 	rewards_ui.queue_free()
 	await get_tree().process_frame

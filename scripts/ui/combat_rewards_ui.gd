@@ -191,14 +191,14 @@ func _loot_entry_label(entry: Dictionary) -> String:
 		"weapon":
 			var w: WeaponPart = entry.get("weapon")
 			if w:
-				return "[W] %s" % w.weapon_name
+				return "[W] %s (%d scrap)" % [w.weapon_name, _salvage_value(entry)]
 			return "[W] Weapon"
 		"armor":
 			var inst: Dictionary = entry.get("instance", {})
 			var name := str(inst.get("name", "Plate"))
 			var slot := str(inst.get("slot", ""))
 			var dur := int(float(inst.get("durability", 1.0)) * 100.0)
-			return "[A] %s [%s] %d%%" % [name, slot, dur]
+			return "[A] %s [%s] %d%% (%d scrap)" % [name, slot, dur, _salvage_value(entry)]
 	return str(entry.get("type", "Item"))
 
 
@@ -244,20 +244,45 @@ func _grant_take_back_loot() -> void:
 
 
 # Scrap value of a loot entry the player did not take back: the convoy strips
-# armor plates with the same formula the craftery uses to price them, and
-# weapons by their combat weight + damage tier. 0 for anything not strippable.
+# armor plates with the same base formula the craftery uses to price them, and
+# weapons by their combat weight + damage tier — then multiplies by the part's
+# RARITY TIER so higher-tier loot sells for noticeably more. 0 for anything
+# not strippable.
 func _salvage_value(entry: Dictionary) -> int:
 	match str(entry.get("type", "")):
 		"weapon":
 			var w: WeaponPart = entry.get("weapon")
 			if w == null:
 				return 0
-			return maxi(2, int(round(w.weight * 1.5 + w.damage * 0.2 + w.rarity * 2.0)))
+			var base := w.weight * 1.5 + w.damage * 0.2
+			return maxi(2, int(round(base * RARITY_SCRAP_MULTIPLIERS[clampi(w.rarity, 0, 3)])))
 		"armor":
 			var inst: Dictionary = entry.get("instance", {})
 			if inst.is_empty():
 				return 0
-			return GlobalData.get_armor_scrap_cost(inst)
+			var base_cost := GlobalData.get_armor_scrap_cost(inst)
+			return maxi(1, int(round(base_cost * RARITY_SCRAP_MULTIPLIERS[_armor_rarity_tier(inst)])))
+	return 0
+
+
+# Scrap multiplier per rarity tier (indexed by tier 0..3): common parts strip
+# for their base value, while rare/legendary loot is worth several times more.
+# Weapons carry an explicit rarity 0-3; armor has no rarity field, so its tier
+# is derived from the catalog type label below.
+const RARITY_SCRAP_MULTIPLIERS: Array[float] = [1.0, 1.6, 2.5, 4.0]
+
+
+# Armor rarity tier derived from the catalog type label: standard / light
+# plating are common (0), heavy armor uncommon (1), high-mobility rare (2),
+# and gundam-tier armor legendary (3).
+func _armor_rarity_tier(inst: Dictionary) -> int:
+	var atype := str(inst.get("type", ""))
+	if atype.contains("Gundam"):
+		return 3
+	if atype.contains("High-Mobility"):
+		return 2
+	if atype.contains("Heavy"):
+		return 1
 	return 0
 
 

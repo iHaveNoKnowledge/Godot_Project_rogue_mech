@@ -17,6 +17,11 @@ const ARENA_SIZES: Dictionary = {
 	"enemy_base": 400.0,
 }
 
+# How far the walkable ground extends past the arena edge, so the player can
+# walk THROUGH the retreat light wall and stand behind it (the retreat hold
+# keeps charging out there). The void barrier sits just past this apron.
+const ESCAPE_APRON_DEPTH := 5.0
+
 var current_theme: BiomeTheme = BiomeTheme.DESERT
 var tile_container: Node3D
 var escape_zone_container: Node3D
@@ -150,6 +155,7 @@ func generate_arena() -> void:
 	_add_ground_tiles()
 	_add_ground_collision()
 	_create_escape_zones()
+	_add_escape_apron()
 	_create_void_barrier()
 	_create_theme_structures()
 	EventBus.arena_generated.emit({
@@ -495,18 +501,27 @@ func _add_forest_bank_collision(z0: float, z1: float) -> void:
 
 func _create_escape_zones() -> void:
 	var half := arena_size / 2.0
-	var len := arena_size
+	# Zone frame spans the full square INCLUDING the apron corners so the
+	# retreat hold keeps charging anywhere behind the wall, even out at the
+	# corners of the outside strip.
+	var len := arena_size + ESCAPE_APRON_DEPTH * 2.0
 
 	# Escape zones form a square frame of tall light walls around the arena's
 	# outer edge — OUTSIDE the combat field (beyond the spawn ring and dunes,
 	# just inside the void barrier) — so retreating never happens mid-fight.
-	# The trigger box now extends WELL PAST the visible wall into the outside
-	# strip (up to and beyond the void barrier): the wall itself is a slim,
-	# purely-visual light wall the player walks straight through, and the
-	# retreat hold keeps charging even out in the dead zone behind it.
+	# The trigger box extends WELL PAST the visible wall into the outside
+	# strip, all the way to the void barrier's inner face: the wall itself is
+	# a slim, purely-visual light wall the player walks straight through, and
+	# the retreat hold keeps charging even out in the dead zone behind it.
 	var wall_height := 8.0
-	var trigger_thickness := 7.0
-	var trigger_center := half - 0.5
+	# Trigger spans from 4m inside the field (the hold starts charging as the
+	# player approaches the wall) through the whole apron to the barrier's
+	# inner face (half + apron depth + 0.5), so standing anywhere behind the
+	# wall still counts toward the escape.
+	var trigger_inner := half - 4.0
+	var trigger_outer := half + ESCAPE_APRON_DEPTH + 0.5
+	var trigger_thickness := trigger_outer - trigger_inner
+	var trigger_center := (trigger_inner + trigger_outer) * 0.5
 	var zone_defs = [
 		{"pos": Vector3(0, wall_height * 0.5, -trigger_center), "size": Vector3(len, wall_height, trigger_thickness)},
 		{"pos": Vector3(0, wall_height * 0.5, trigger_center), "size": Vector3(len, wall_height, trigger_thickness)},
@@ -532,19 +547,22 @@ func _create_escape_zones() -> void:
 		escape_zone_container.add_child(zone)
 
 
-# Invisible safety frame just past the escape zones so the player (and enemies)
-# can't walk off the edge of the ground plane and fall into the void.
+# Invisible safety frame just past the escape apron so the player (and enemies)
+# can't walk off the edge of the ground and fall into the void. It sits BEYOND
+# the apron (inner face = half + apron depth + 0.5), leaving a real strip of
+# solid ground behind the retreat wall to stand on.
 func _create_void_barrier() -> void:
 	var half := arena_size / 2.0
-	var barrier_pos := half + 2.0
+	var len := arena_size + (ESCAPE_APRON_DEPTH + 2.0) * 2.0
+	var barrier_pos := half + ESCAPE_APRON_DEPTH + 1.5
 	var thickness := 2.0
 	var height := 6.0
 
 	var barrier_defs = [
-		{"pos": Vector3(0, height * 0.5, -barrier_pos), "size": Vector3(arena_size + thickness * 2, height, thickness)},
-		{"pos": Vector3(0, height * 0.5, barrier_pos), "size": Vector3(arena_size + thickness * 2, height, thickness)},
-		{"pos": Vector3(-barrier_pos, height * 0.5, 0), "size": Vector3(thickness, height, arena_size + thickness * 2)},
-		{"pos": Vector3(barrier_pos, height * 0.5, 0), "size": Vector3(thickness, height, arena_size + thickness * 2)},
+		{"pos": Vector3(0, height * 0.5, -barrier_pos), "size": Vector3(len, height, thickness)},
+		{"pos": Vector3(0, height * 0.5, barrier_pos), "size": Vector3(len, height, thickness)},
+		{"pos": Vector3(-barrier_pos, height * 0.5, 0), "size": Vector3(thickness, height, len)},
+		{"pos": Vector3(barrier_pos, height * 0.5, 0), "size": Vector3(thickness, height, len)},
 	]
 
 	for def in barrier_defs:
@@ -561,6 +579,68 @@ func _create_void_barrier() -> void:
 
 		barrier.position = def["pos"]
 		escape_zone_container.add_child(barrier)
+
+
+# Walkable ground OUTSIDE the arena edge — the strip between the battlefield
+# and the void barrier. Without it the retreat light wall sat at the edge of
+# the floor: the player's feet ran out of ground right at the wall and the
+# void barrier (only ~1m behind it) blocked the rest, so walking into the
+# retreat behaved exactly like hitting a solid wall. Now the ground continues
+# past the wall, so the player walks straight through it and stands behind it
+# while the escape hold charges.
+func _add_escape_apron() -> void:
+	var half := arena_size / 2.0
+	var depth := ESCAPE_APRON_DEPTH
+	var top_y := _apron_top_y()
+
+	var body := StaticBody3D.new()
+	body.name = "EscapeApron"
+	body.collision_layer = 2
+	body.collision_mask = 1
+
+	# Dark packed-dirt look: reads as "outside the battlefield", distinct
+	# from the themed ground inside the walls.
+	var apron_mat := StandardMaterial3D.new()
+	apron_mat.albedo_color = Color(0.16, 0.15, 0.13)
+	apron_mat.roughness = 0.95
+
+	# North/south slabs run the FULL width (covering the corners); east/west
+	# slabs cover the edge strips between the corners.
+	var defs = [
+		{"pos": Vector3(0, 0, half + depth * 0.5), "size": Vector3(arena_size + depth * 2.0, 0.8, depth)},
+		{"pos": Vector3(0, 0, -half - depth * 0.5), "size": Vector3(arena_size + depth * 2.0, 0.8, depth)},
+		{"pos": Vector3(half + depth * 0.5, 0, 0), "size": Vector3(depth, 0.8, arena_size)},
+		{"pos": Vector3(-half - depth * 0.5, 0, 0), "size": Vector3(depth, 0.8, arena_size)},
+	]
+	for def in defs:
+		var col := CollisionShape3D.new()
+		var shape := BoxShape3D.new()
+		shape.size = def["size"]
+		col.shape = shape
+		col.position = def["pos"] + Vector3(0, top_y - 0.4, 0)
+		body.add_child(col)
+
+		var mesh := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = def["size"]
+		mesh.mesh = box
+		mesh.material_override = apron_mat
+		mesh.position = def["pos"] + Vector3(0, top_y - 0.4, 0)
+		body.add_child(mesh)
+
+	structures_container.add_child(body)
+
+
+# Height of the walkable apron beyond the arena edge, matched to each theme's
+# ground surface so stepping out of the field is flush (no invisible step).
+func _apron_top_y() -> float:
+	match current_theme:
+		BiomeTheme.RIVER_BRIDGE:
+			return 0.35
+		BiomeTheme.FOREST, BiomeTheme.FOREST_ROAD:
+			return 0.0
+		_:
+			return -0.39
 
 
 # ====================================================================

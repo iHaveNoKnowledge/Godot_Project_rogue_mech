@@ -87,6 +87,28 @@ const MELEE_HIT_REACH: float = 1.6
 # catches any enemy within this distance of the aim line, up to the weapon's
 # forward reach.
 const MELEE_AUTO_AIM_WIDTH: float = 1.2
+
+# Shoulder bash: the fallback melee a mech still has when its arm frame is
+# destroyed (the arm is gone, but the shoulder can still ram the enemy). Press
+# fire on a broken side to bash with that shoulder.
+const SHOULDER_DAMAGE: float = 12.0
+
+# A dual melee charge: pressing BOTH fire buttons together (within the window)
+# when both sides fight melee (weapon, fist or shoulder) lunges the mech deep
+# toward the target for a heavy combined hit instead of two separate swings.
+const DUAL_PRESS_WINDOW_MS: int = 120
+
+var _shoulder_weapon: WeaponPart = null
+var _charge_weapon: WeaponPart = null
+var _last_left_press_ms: int = 0
+var _last_right_press_ms: int = 0
+
+# A melee fire press held back while watching for the second button of a dual
+# charge (see _fire_press / _commit_normal_fire). Cleared when the window
+# expires (normal fire) or the other button arrives (charge).
+var _pending_fire: String = ""
+var _pending_fire_ms: int = 0
+
 var _fist_weapon: WeaponPart = null
 
 
@@ -254,6 +276,16 @@ func _physics_process(delta: float) -> void:
 	if holding_right:
 		_hold_time_right += delta
 
+	# A deferred melee press: when the other fire button lands within the
+	# window the pair becomes a dual charge (handled by _fire_press on that
+	# second press); when the window expires alone, commit as a normal fire.
+	if _pending_fire != "":
+		var now := Time.get_ticks_msec()
+		if now - _pending_fire_ms > DUAL_PRESS_WINDOW_MS:
+			var hand := _pending_fire
+			_pending_fire = ""
+			_commit_normal_fire(hand)
+
 	if fire_left_holding:
 		if left_hand:
 			if left_hand.weapon_type != WeaponPart.WeaponType.SHIELD:
@@ -290,13 +322,17 @@ func _input(event: InputEvent) -> void:
 			return
 	# --- LEFT HAND SWAP (key 1) ---
 	if event.is_action_pressed("weapon_left"):
-		_start_selection("left")
+		if _hand_usable("left"):
+			_start_selection("left")
+		# A destroyed arm cannot swap/drop weapons — there is no hand to grip.
 	if event.is_action_released("weapon_left"):
 		_commit_selection("left")
 
 	# --- RIGHT HAND SWAP (key 3) ---
 	if event.is_action_pressed("weapon_right"):
-		_start_selection("right")
+		if _hand_usable("right"):
+			_start_selection("right")
+		# A destroyed arm cannot swap/drop weapons — there is no hand to grip.
 	if event.is_action_released("weapon_right"):
 		_commit_selection("right")
 
@@ -328,39 +364,17 @@ func _input(event: InputEvent) -> void:
 
 	# --- FIRE / RELOAD LEFT ---
 	if event.is_action_pressed("fire_left"):
-		if not _hand_usable("left"):
-			return
-		if holding_reload or Input.is_action_pressed("reload"):
-			reload_weapon("left")
-		else:
-			fire_left_holding = true
-			if left_hand:
-				if left_hand.weapon_type == WeaponPart.WeaponType.SHIELD:
-					_toggle_shield("left")
-				else:
-					_try_fire("left", left_hand)
-			else:
-				# Unarmed: bare-fist punch.
-				_try_fire("left", null)
+		if _fire_press("left"):
+			return  # deferred for a possible dual charge, or consumed
+		_commit_normal_fire("left")
 	if event.is_action_released("fire_left"):
 		fire_left_holding = false
 
 	# --- FIRE / RELOAD RIGHT ---
 	if event.is_action_pressed("fire_right"):
-		if not _hand_usable("right"):
-			return
-		if holding_reload or Input.is_action_pressed("reload"):
-			reload_weapon("right")
-		else:
-			fire_right_holding = true
-			if right_hand:
-				if right_hand.weapon_type == WeaponPart.WeaponType.SHIELD:
-					_toggle_shield("right")
-				else:
-					_try_fire("right", right_hand)
-			else:
-				# Unarmed: bare-fist punch.
-				_try_fire("right", null)
+		if _fire_press("right"):
+			return  # deferred for a possible dual charge, or consumed
+		_commit_normal_fire("right")
 	if event.is_action_released("fire_right"):
 		fire_right_holding = false
 
@@ -430,6 +444,10 @@ func reload_weapon(hand: String) -> void:
 # ====================================================================
 
 func _start_selection(hand: String) -> void:
+	# A destroyed arm cannot swap weapons — there is no hand to grip the next
+	# one. Blocked here (not just in _input) so every caller is covered.
+	if not _hand_usable(hand):
+		return
 	var is_left = (hand == "left")
 
 	if is_left:
@@ -791,6 +809,139 @@ func _melee_attack(hand: String, weapon: WeaponPart) -> void:
 		# Per-weapon melee swing voice (fist whoosh / knife slash / blade ring).
 		AudioManager.play_melee_swing(weapon, mecha.global_position)
 
+# --- SHOULDER BASH / DUAL CHARGE (destroyed arms still fight) ---
+
+# Synthetic melee weapon for a shoulder ram. A destroyed arm cannot hold a gun,
+# but the mech still fights back with the shoulder on that side — a short blunt
+# melee hit that flows through the same lunge/hit pipeline as every other swing.
+func _shoulder_weapon_resource() -> WeaponPart:
+	if _shoulder_weapon == null:
+		_shoulder_weapon = WeaponPart.new()
+		_shoulder_weapon.weapon_name = "Shoulder Bash"
+		_shoulder_weapon.weapon_type = WeaponPart.WeaponType.MELEE
+		_shoulder_weapon.damage = SHOULDER_DAMAGE
+		_shoulder_weapon.fire_rate = FIST_FIRE_INTERVAL
+		_shoulder_weapon.impact = FIST_IMPACT
+		_shoulder_weapon.max_ammo = 0
+		_shoulder_weapon.ammo_per_shot = 0
+		_shoulder_weapon.range_distance = 2.2
+	return _shoulder_weapon
+
+
+# Synthetic melee weapon for the dual-press charge: a long, heavy ram that
+# drives the mech deep at the target (bigger lunge than any single swing) and
+# hits harder than either side alone.
+func _charge_weapon_resource() -> WeaponPart:
+	if _charge_weapon == null:
+		_charge_weapon = WeaponPart.new()
+		_charge_weapon.weapon_name = "Dual Charge"
+		_charge_weapon.weapon_type = WeaponPart.WeaponType.MELEE
+		_charge_weapon.damage = SHOULDER_DAMAGE * 2.2
+		_charge_weapon.fire_rate = FIST_FIRE_INTERVAL
+		_charge_weapon.impact = FIST_IMPACT * 2.0
+		_charge_weapon.max_ammo = 0
+		_charge_weapon.ammo_per_shot = 0
+		_charge_weapon.range_distance = 5.0
+	return _charge_weapon
+
+
+# The player pressed fire on a hand whose arm is destroyed: ram with that
+# shoulder. Short lunge + blunt hit, driven by the shared melee pipeline so
+# cooldown, hit ray, trail and shake all behave like a real swing.
+func _shoulder_bash(hand: String) -> void:
+	var shoulder := _shoulder_weapon_resource()
+	var core := _core_for_weapon(shoulder)
+	if core == null or not core.consume_shot():
+		return
+	_melee_attack(hand, shoulder)
+
+
+# A fire press arrived. When BOTH sides fight melee (melee weapon, bare fist,
+# or a destroyed-arm shoulder), the press is DEFERRED briefly: if the other fire
+# button lands within DUAL_PRESS_WINDOW_MS, the two presses merge into one
+# straight charge instead of two separate swings; otherwise the press commits
+# as a normal fire when the window expires. Ranged hands never defer (a gun
+# press is always an immediate shot). Returns true when the press was consumed
+# by the deferral/charge path.
+func _fire_press(hand: String) -> bool:
+	var now := Time.get_ticks_msec()
+	if hand == "left":
+		_last_left_press_ms = now
+	else:
+		_last_right_press_ms = now
+	# Not both melee -> no charge is possible, fire immediately.
+	if not _hand_is_melee_capable("left") or not _hand_is_melee_capable("right"):
+		return false
+	# The other button ALREADY landed within the window -> this press completes
+	# a dual charge (the deferred first press is resolved in _physics_process).
+	var other_ms := _last_right_press_ms if hand == "left" else _last_left_press_ms
+	if now - other_ms <= DUAL_PRESS_WINDOW_MS and other_ms > 0:
+		_do_dual_charge()
+		return true
+	# This is (potentially) the first button of a pair: hold the press back and
+	# watch for the second button for a brief window.
+	_pending_fire = hand
+	_pending_fire_ms = now
+	return true
+
+
+# Commits the deferred first press as a NORMAL fire once the dual-press window
+# expires without the second button arriving: reload / shield / shoot / shoulder
+# bash exactly as an immediate press would have.
+func _commit_normal_fire(hand: String) -> void:
+	if not _hand_usable(hand):
+		_shoulder_bash(hand)
+		return
+	if hand == "left":
+		if holding_reload or Input.is_action_pressed("reload"):
+			reload_weapon("left")
+		else:
+			fire_left_holding = true
+			if left_hand:
+				if left_hand.weapon_type == WeaponPart.WeaponType.SHIELD:
+					_toggle_shield("left")
+				else:
+					_try_fire("left", left_hand)
+			else:
+				# Unarmed: bare-fist punch.
+				_try_fire("left", null)
+	else:
+		if holding_reload or Input.is_action_pressed("reload"):
+			reload_weapon("right")
+		else:
+			fire_right_holding = true
+			if right_hand:
+				if right_hand.weapon_type == WeaponPart.WeaponType.SHIELD:
+					_toggle_shield("right")
+				else:
+					_try_fire("right", right_hand)
+			else:
+				# Unarmed: bare-fist punch.
+				_try_fire("right", null)
+
+
+# Fires the straight dual charge: one heavy combined ram (both shoulders / both
+# melee weapons) straight at the target, driven by the shared melee pipeline.
+func _do_dual_charge() -> void:
+	_pending_fire = ""
+	var charge := _charge_weapon_resource()
+	var core := _core_for_weapon(charge)
+	if core == null or not core.consume_shot():
+		return
+	_melee_attack("left", charge)
+
+
+# True when the given side can fight as melee: it holds a melee weapon, is
+# empty-handed (bare fist), or its arm is destroyed (shoulder bash).
+func _hand_is_melee_capable(hand: String) -> bool:
+	if not _hand_usable(hand):
+		return true  # destroyed arm -> shoulder bash
+	var weapon := left_hand if hand == "left" else right_hand
+	if weapon == null:
+		return true  # empty hand -> bare fist
+	return weapon.weapon_type == WeaponPart.WeaponType.MELEE
+
+
 func _perform_pile_bunker_lunge_anim(mecha: Node3D, dir: Vector3, weapon: WeaponPart) -> void:
 	if not mecha:
 		return
@@ -859,6 +1010,18 @@ func _spawn_melee_trail(mecha: Node3D, direction: Vector3, weapon: WeaponPart = 
 		emission = Color(0.55, 0.6, 0.7)
 		forward_start = 1.0
 		forward_step = 0.7
+	elif weapon == _shoulder_weapon:
+		# Shoulder bash: a short, heavy amber-orange slam (blunt shoulder ram).
+		color = Color(1.0, 0.72, 0.35)
+		emission = Color(0.95, 0.55, 0.2)
+		forward_start = 0.8
+		forward_step = 0.7
+	elif weapon == _charge_weapon:
+		# Dual charge: a long, wide hot-amber streak (deep combined ram).
+		color = Color(1.0, 0.65, 0.25)
+		emission = Color(1.0, 0.45, 0.15)
+		forward_start = 2.6
+		forward_step = 1.8
 	elif weapon != null:
 		var wname := weapon.weapon_name.to_lower()
 		if wname.contains("knife"):

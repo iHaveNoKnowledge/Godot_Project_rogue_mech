@@ -105,6 +105,53 @@ func _verify_player_arm_gate() -> void:
 	_check(wm._core_for_weapon(fist).cooldown > 0.0, "intact hand punches normally (cooldown consumed)")
 	wm._core_for_weapon(fist).tick(1.0)
 
+	# A destroyed arm can't SELECT weapons (key 1/3 swap is blocked), but it
+	# still fights with a SHOULDER BASH that consumes its own cooldown.
+	wm._start_selection("left")
+	_check(not wm.holding_left, "destroyed arm cannot open the weapon-swap selection")
+	wm._start_selection("right")
+	_check(wm.holding_right, "intact arm still opens the weapon-swap selection")
+	wm._commit_selection("right")
+	wm._shoulder_bash("left")
+	_check(wm._core_for_weapon(wm._shoulder_weapon_resource()).cooldown > 0.0,
+		"shoulder bash consumes the shoulder weapon cooldown")
+	wm._core_for_weapon(wm._shoulder_weapon_resource()).tick(1.0)
+
+	# Melee capability: an empty hand and a destroyed arm both count as melee
+	# (fist / shoulder), a gun does not.
+	wm.right_hand = null
+	wm.left_hand = null
+	_check(wm._hand_is_melee_capable("left"), "destroyed arm counts as melee (shoulder bash)")
+	_check(wm._hand_is_melee_capable("right"), "empty hand counts as melee (bare fist)")
+	wm.right_hand = load("res://resources/mech/stock/weapon_beam_rifle.tres")
+	_check(not wm._hand_is_melee_capable("right"), "ranged weapon does not count as melee")
+	wm.right_hand = null
+
+	# Dual melee charge: with both sides melee (left shoulder + right fist), a
+	# fire press DEFERS; when the second button lands inside the window the pair
+	# becomes ONE straight charge (the charge core consumes a shot).
+	wm._last_left_press_ms = Time.get_ticks_msec() - 5000  # stale, not a pair
+	wm._pending_fire = ""
+	_check(wm._fire_press("left"), "first melee press is deferred for the dual window")
+	_check(wm._pending_fire == "left", "deferred press remembers the waiting side")
+	wm._last_right_press_ms = Time.get_ticks_msec()
+	_check(wm._fire_press("right"), "second melee press completes the dual charge")
+	_check(wm._pending_fire == "", "dual charge clears the pending press")
+	_check(wm._core_for_weapon(wm._charge_weapon_resource()).cooldown > 0.0,
+		"dual charge consumes the charge weapon cooldown")
+	wm._core_for_weapon(wm._charge_weapon_resource()).tick(1.0)
+
+	# When the window expires alone, the deferred press commits as a normal fire.
+	# The left arm is destroyed, so the expired press becomes a SHOULDER BASH
+	# (consuming the shoulder core), not a fist punch.
+	wm._last_left_press_ms = Time.get_ticks_msec() - 5000
+	wm._pending_fire = "left"
+	wm._pending_fire_ms = Time.get_ticks_msec() - 1000
+	wm._commit_normal_fire("left")
+	_check(wm._core_for_weapon(wm._shoulder_weapon_resource()).cooldown > 0.0,
+		"expired deferral on a destroyed arm commits as a shoulder bash")
+	wm._core_for_weapon(wm._shoulder_weapon_resource()).tick(1.0)
+
 	# Player side wears a BLUE status light.
 	_check(hs._pilot_light != null, "player mech wears a pilot status light")
 	if hs._pilot_light != null:

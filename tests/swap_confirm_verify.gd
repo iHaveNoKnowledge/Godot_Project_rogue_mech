@@ -56,7 +56,7 @@ func _verify_weapon_swap() -> void:
 	await get_tree().process_frame
 	_check(ep.swap_confirm_modal != null and is_instance_valid(ep.swap_confirm_modal), "swap dialog opens before a cross-mech weapon transfer")
 	_check(_spare_loadout_slot(spare_id, "right") == GlobalData.DEFAULT_LEFT_WEAPON_PATH, "spare still carries the rifle while the dialog is open")
-	_check(str(GlobalData.weapon_loadout.get("right", "")) != GlobalData.DEFAULT_LEFT_WEAPON_PATH, "edited mech does not take the rifle before confirming")
+	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("right", "")) != GlobalData.DEFAULT_LEFT_WEAPON_PATH, "edited mech does not take the rifle before confirming")
 
 	# Confirm → the transfer actually happens (spare frees it, edited mech holds it).
 	var ok := _find_button_by_text(ep.swap_confirm_modal, "SWAP & EQUIP")
@@ -65,7 +65,7 @@ func _verify_weapon_swap() -> void:
 		ok.pressed.emit()
 	await get_tree().process_frame
 	_check(ep.swap_confirm_modal == null or not is_instance_valid(ep.swap_confirm_modal), "swap dialog closes after confirming")
-	_check(str(GlobalData.weapon_loadout.get("right", "")) == GlobalData.DEFAULT_LEFT_WEAPON_PATH, "edited mech now carries the rifle after confirming")
+	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("right", "")) == GlobalData.DEFAULT_LEFT_WEAPON_PATH, "edited mech now carries the rifle after confirming")
 	_check(_spare_loadout_slot(spare_id, "right") == "", "spare no longer carries the rifle after the swap")
 
 	ctrl.queue_free()
@@ -98,7 +98,7 @@ func _verify_weapon_cancel() -> void:
 		cancel.pressed.emit()
 	await get_tree().process_frame
 	_check(ep.swap_confirm_modal == null or not is_instance_valid(ep.swap_confirm_modal), "cancel path: dialog closes on cancel")
-	_check(str(GlobalData.weapon_loadout.get("left", "")) != GlobalData.DEFAULT_CARRY_WEAPON_PATH, "cancel path: edited mech takes nothing")
+	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("left", "")) != GlobalData.DEFAULT_CARRY_WEAPON_PATH, "cancel path: edited mech takes nothing")
 	_check(_spare_carry_has(spare_id, GlobalData.DEFAULT_CARRY_WEAPON_PATH), "cancel path: spare keeps its weapon")
 
 	ctrl.queue_free()
@@ -154,7 +154,7 @@ func _spare_loadout_slot(mech_id: String, slot: String) -> String:
 	for m in GlobalData.hangar_mechs:
 		if str(m.get("id", "")) == mech_id:
 			var loadout: Dictionary = m.get("weapon_loadout", {})
-			return str(loadout.get(slot, ""))
+			return GlobalData.ref_to_path(loadout.get(slot, ""))
 	return ""
 
 

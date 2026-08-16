@@ -146,8 +146,8 @@ func _verify_weapon_instances() -> void:
 	# Hangar equip path: left hand takes one copy, right hand takes the other.
 	GlobalData.set_hand_weapon("left", pile_bunker)
 	GlobalData.set_hand_weapon("right", pile_bunker)
-	_check(str(GlobalData.weapon_loadout.get("left", "")) == pile_bunker, "left hand holds a gun copy")
-	_check(str(GlobalData.weapon_loadout.get("right", "")) == pile_bunker, "right hand holds the second gun copy")
+	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("left", "")) == pile_bunker, "left hand holds a gun copy")
+	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("right", "")) == pile_bunker, "right hand holds the second gun copy")
 	_check(GlobalData.count_owned_weapon(pile_bunker) == 2, "both gun copies stay in the stash after dual-wield equip")
 
 

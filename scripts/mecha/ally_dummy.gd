@@ -213,14 +213,14 @@ func _collect_mech_weapons(loadout: Dictionary) -> void:
 	_melee_weapon = null
 	var paths: Array = []
 	for key in ["right", "left"]:
-		var p := str(loadout.get(key, ""))
+		var p := LoadoutSystem.ref_to_path(loadout.get(key, ""))
 		if p != "":
 			paths.append(p)
 	var carry = loadout.get("carry", [])
 	if carry is Array:
 		for p in carry:
 			if p is String and p != "":
-				paths.append(p)
+				paths.append(LoadoutSystem.ref_to_path(p))
 	for path in paths:
 		if not ResourceLoader.exists(path):
 			continue
@@ -240,14 +240,14 @@ func _collect_mech_weapons(loadout: Dictionary) -> void:
 func _primary_mech_weapon(loadout: Dictionary) -> WeaponPart:
 	var paths: Array = []
 	for key in ["right", "left"]:
-		var p := str(loadout.get(key, ""))
+		var p := LoadoutSystem.ref_to_path(loadout.get(key, ""))
 		if p != "":
 			paths.append(p)
 	var carry = loadout.get("carry", [])
 	if carry is Array:
 		for p in carry:
 			if p is String and p != "":
-				paths.append(p)
+				paths.append(LoadoutSystem.ref_to_path(p))
 	var prefer_melee: bool = archetype == 0
 	var fallback: WeaponPart = null
 	for path in paths:

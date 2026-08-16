@@ -620,16 +620,18 @@ func grant_recovery_hangar_mech() -> Dictionary:
 
 # -----------------------------------------------------------------------------
 # WEAPON LOADOUT — central state for what the mech carries into battle.
-# "left"/"right" are the hand weapons (resource path, "" = unarmed hand).
-# "carry" is the array of weapon paths the mech carries on its back.
+# "left"/"right" hold the INSTANCE UID of the hand weapon ("" = unarmed hand);
+# "carry" holds the uids of the weapons on the back. Each uid points at one
+# physical copy in weapon_inventory, so equipping a specific instance marks
+# exactly that copy as equipped — same-model copies never share the [E] badge.
 # "ammo" is how much ammo of each type the player allocates to bring into battle.
 # Configured in the Hangar, read by WeaponManager at battle start.
 # Logic lives in LoadoutSystem; GlobalData keeps thin facades for its callers.
 # -----------------------------------------------------------------------------
 var weapon_loadout: Dictionary = {
-	"left": DEFAULT_LEFT_WEAPON_PATH,
-	"right": DEFAULT_RIGHT_WEAPON_PATH,
-	"carry": [DEFAULT_CARRY_WEAPON_PATH],
+	"left": "w_starter_left",
+	"right": "w_starter_right",
+	"carry": ["w_starter_carry"],
 	"ammo": {
 		"kinetic": 300,
 		"energy": 150,
@@ -685,14 +687,24 @@ func get_loadout_weapon_weight() -> float:
 	return LoadoutSystem.get_loadout_weapon_weight()
 
 
-# Assigns a weapon resource path to a hand. Empty path = unarmed hand.
-# Returns false if the weapon model is already equipped in another slot.
-func set_hand_weapon(side: String, path: String) -> bool:
-	return LoadoutSystem.set_hand_weapon(side, path)
+# Assigns a weapon to a hand. `ref` is the clicked instance's uid or a
+# resource path (resolved to a spare instance); "" clears the hand.
+func set_hand_weapon(side: String, ref) -> bool:
+	return LoadoutSystem.set_hand_weapon(side, ref)
 
 
 func is_weapon_in_carry(path: String) -> bool:
 	return LoadoutSystem.is_weapon_in_carry(path)
+
+
+# Whether this exact instance (by uid) is on the back pack.
+func is_weapon_in_carry_by_uid(uid: String) -> bool:
+	return LoadoutSystem.is_weapon_in_carry_by_uid(uid)
+
+
+# The instance uid currently held in a hand ("" = unarmed).
+func get_equipped_weapon_uid(side: String) -> String:
+	return LoadoutSystem.get_equipped_weapon_uid(side)
 
 
 # Returns the slot ("left"/"right"/"carry") currently holding a weapon model,
@@ -701,12 +713,38 @@ func weapon_equipped_slot(path: String) -> String:
 	return LoadoutSystem.weapon_equipped_slot(path)
 
 
-func add_carry_weapon(path: String) -> bool:
-	return LoadoutSystem.add_carry_weapon(path)
+# Slot lookup accepting a uid OR a path ref (hangar passes the clicked uid).
+func weapon_equipped_slot_ref(ref) -> String:
+	return LoadoutSystem.weapon_equipped_slot_ref(ref)
 
 
-func remove_carry_weapon(path: String) -> void:
-	LoadoutSystem.remove_carry_weapon(path)
+func add_carry_weapon(ref) -> bool:
+	return LoadoutSystem.add_carry_weapon(ref)
+
+
+func remove_carry_weapon(ref) -> void:
+	LoadoutSystem.remove_carry_weapon(ref)
+
+
+# Resolves a loadout ref (uid or path) to the weapon resource path.
+func ref_to_path(ref) -> String:
+	return LoadoutSystem.ref_to_path(ref)
+
+
+func get_weapon_instance(uid: String) -> Dictionary:
+	return LoadoutSystem.get_weapon_instance(uid)
+
+
+func migrate_ref_to_uid(ref) -> String:
+	return LoadoutSystem.migrate_ref_to_uid(ref)
+
+
+func resolve_hand_uid_for_sync(side: String, path: String) -> String:
+	return LoadoutSystem.resolve_hand_uid_for_sync(side, path)
+
+
+func resolve_carry_uids_for_sync(paths: Array) -> Array:
+	return LoadoutSystem.resolve_carry_uids_for_sync(paths)
 
 
 # How many physical copies of a weapon model are currently on the back pack.
@@ -727,6 +765,51 @@ func count_equipped_weapon(path: String) -> int:
 # True when the player owns a copy of the model that is not in a loadout slot.
 func has_spare_weapon(path: String) -> bool:
 	return LoadoutSystem.has_spare_weapon(path)
+
+
+# -----------------------------------------------------------------------------
+# PART UPGRADE TIER LADDER — every part's upgrade_level (1 = base) maps to a
+# display tier on the 1 -> 1.1 -> 1.2 -> 1.3 -> 1.4 -> 2 -> 2.1 ... ladder:
+# four sub-steps per whole tier; the fifth upgrade rolls into the next tier.
+# Shared by armor, inner frames and weapons (the hangar right panel shows it).
+# -----------------------------------------------------------------------------
+const PART_TIER_SUBSTEPS: int = 4
+
+
+func part_tier_major(upgrade_level: int) -> int:
+	return 1 + maxi(upgrade_level - 1, 0) / (PART_TIER_SUBSTEPS + 1)
+
+
+func part_tier_substep(upgrade_level: int) -> int:
+	return maxi(upgrade_level - 1, 0) % (PART_TIER_SUBSTEPS + 1)
+
+
+# "1" / "1.1" / ... / "1.4" / "2" / "2.1" ...
+func part_tier_text(upgrade_level: int) -> String:
+	var major := part_tier_major(upgrade_level)
+	var sub := part_tier_substep(upgrade_level)
+	if sub == 0:
+		return str(major)
+	return "%d.%d" % [major, sub]
+
+
+# Pips filled toward the next whole tier (0..4).
+func part_tier_pips_filled(upgrade_level: int) -> int:
+	return part_tier_substep(upgrade_level)
+
+
+# Four progress pips: filled (●) vs empty (○).
+func part_tier_pips_text(upgrade_level: int) -> String:
+	var filled := part_tier_pips_filled(upgrade_level)
+	var s := ""
+	for i in range(PART_TIER_SUBSTEPS):
+		s += "●" if i < filled else "○"
+	return s
+
+
+# Credit cost for one part upgrade (armor / frame / weapon share the ladder).
+func get_part_upgrade_cost(upgrade_level: int) -> int:
+	return 50 + (maxi(upgrade_level, 1) - 1) * 25
 
 
 # Returns how much ammo of the given type the player carries into the next battle.
@@ -1591,9 +1674,9 @@ func reset_run_data() -> void:
 		{"uid": "w_starter_carry", "path": "res://resources/mech/stock/weapon_combat_shotgun.tres", "name": "Combat Shotgun", "durability": 1.0, "upgrade_level": 1}
 	]
 	weapon_loadout = {
-		"left": DEFAULT_LEFT_WEAPON_PATH,
-		"right": DEFAULT_RIGHT_WEAPON_PATH,
-		"carry": [DEFAULT_CARRY_WEAPON_PATH],
+		"left": "w_starter_left",
+		"right": "w_starter_right",
+		"carry": ["w_starter_carry"],
 		"ammo": {
 			"kinetic": 300,
 			"energy": 150,

@@ -91,21 +91,34 @@ func populate(slot: String) -> void:
 				return
 		# Weapons come from the central inventory stash (GlobalData.weapon_inventory),
 		# NOT from armor_catalog — the stash is the single source of owned weapons.
+		# Each inventory entry is one physical copy; the equipped copy is matched
+		# by INSTANCE uid so only that row ever shows "[E]" (same-model copies are
+		# separate rows). Equipped / other-mech-taken rows sort to the BOTTOM so
+		# the free spares read first.
 		controller.visible_weapon_indices.clear()
+		var wrows: Array = []
 		for index in range(GlobalData.weapon_inventory.size()):
 			var inv = GlobalData.weapon_inventory[index]
-			var wpath = inv.get("path", "")
+			var other_user := other_mech_weapon_user(str(inv.get("path", "")))
+			wrows.append({"idx": index, "eq": weapon_in_loadout(slot, inv), "other": other_user})
+		wrows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+			var ea := 1 if (a["eq"] or a["other"] != "") else 0
+			var eb := 1 if (b["eq"] or b["other"] != "") else 0
+			if ea != eb:
+				return ea < eb
+			return int(a["idx"]) < int(b["idx"]))
+		for row in wrows:
+			var index: int = row["idx"]
+			var inv = GlobalData.weapon_inventory[index]
 			var wname = inv.get("name", "Weapon")
 			var wdur = GlobalData.get_durability_ratio(inv)
-			var is_eq = weapon_in_loadout(slot, wpath)
+			var is_eq = weapon_in_loadout(slot, inv)
 			var prefix = "[E] " if is_eq else "    "
 			# A weapon model already carried by ANOTHER parked mech is marked so
 			# it never reads as an unclaimed spare (equipping it transfers it).
-			var other_user := other_mech_weapon_user(wpath)
+			var other_user := str(row["other"])
 			if prefix.strip_edges() == "" and other_user != "":
 				prefix = "[E·%s] " % other_user
-			# Each inventory entry is one physical copy (same-model copies are
-			# separate instances, so duplicate rows appear naturally).
 			var label_str = "%s%s (DUR: %.0f%%)" % [prefix, wname, wdur * 100.0]
 			controller.part_item_list.add_item(label_str)
 			controller.visible_weapon_indices.append(index)
@@ -125,6 +138,7 @@ func populate(slot: String) -> void:
 		var eq_part = GlobalData.equipped_parts.get(slot)
 		if eq_part is Dictionary:
 			equipped_uid = str(eq_part.get("uid", ""))
+		var arows: Array = []
 		for inst_index in range(GlobalData.armor_inventory.size()):
 			var inst = GlobalData.armor_inventory[inst_index]
 			var uid = str(inst.get("uid", ""))
@@ -134,22 +148,33 @@ func populate(slot: String) -> void:
 				continue
 			if uid != "":
 				shown_uids[uid] = true
-			controller.visible_salvage_indices.append(inst_index)
 			var is_eq = is_item_equipped(slot, inst)
 			# Roguelike: a destroyed part is gone. Hide the equipped broken armor
 			# so it can no longer be selected, repaired, or re-equipped.
 			if is_eq and (GlobalData.part_damage.get(slot, 0.0) >= 1.0 or GlobalData.part_damage.get(slot + "_frame", 0.0) >= 1.0):
 				continue
-			var prefix = "[E] " if is_eq else "    "
-			# An armor INSTANCE already worn by another parked mech is marked so it
-			# never reads as a free plate (equipping it here strips it from there).
 			var other_user := other_mech_armor_user(uid) if not is_eq else ""
+			arows.append({"idx": inst_index, "eq": is_eq, "other": other_user})
+		# Free plates first; equipped / other-mech-taken plates sort to the bottom.
+		arows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+			var ea := 1 if (a["eq"] or a["other"] != "") else 0
+			var eb := 1 if (b["eq"] or b["other"] != "") else 0
+			if ea != eb:
+				return ea < eb
+			return int(a["idx"]) < int(b["idx"]))
+		for row in arows:
+			var inst = GlobalData.armor_inventory[int(row["idx"])]
+			var uid = str(inst.get("uid", ""))
+			var is_eq = is_item_equipped(slot, inst)
+			var prefix = "[E] " if is_eq else "    "
+			var other_user := str(row["other"])
 			if prefix.strip_edges() == "" and other_user != "":
 				prefix = "[E·%s] " % other_user
 			var state_tag = " [DESTROYED]" if (is_eq and is_destroyed) else ""
 			var dur_pct = instance_durability(slot, inst)
 			var inst_label = "%s%s [%s] (%.0f%%)%s" % [prefix, inst.get("name", "Armor"), inst.get("type", "Instance"), dur_pct * 100.0, state_tag]
 			controller.part_item_list.add_item(inst_label)
+			controller.visible_salvage_indices.append(int(row["idx"]))
 		if controller.part_item_list.item_count > 0:
 			controller.part_item_list.select(0)
 			_last_selected_item_index = 0
@@ -165,6 +190,7 @@ func on_item_selected(index: int) -> void:
 			GlobalData.frame_upgrade_level, GlobalData.frame_upgrade_level + 1, cost
 		]
 		controller.selected_salvage_info = {}
+		controller.update_tier_display({"upgrade_level": GlobalData.frame_upgrade_level}, "")
 		return
 
 	if controller.current_mode == "attachment":
@@ -201,6 +227,7 @@ func on_item_selected(index: int) -> void:
 			# Only change 3D model when user explicitly picks a part, not on section switch
 			if not _is_populating:
 				controller.garage_panel.apply_frame_preview(controller.selected_slot, controller.selected_frame_info)
+		controller.update_tier_display(controller.selected_frame_info, controller.selected_slot)
 		controller.stats_panel.update()
 		return
 
@@ -211,6 +238,7 @@ func on_item_selected(index: int) -> void:
 			var wpath = inv.get("path", "")
 			controller.selected_part_path = wpath
 			controller.selected_part_id = wpath
+			controller.selected_weapon_uid = str(inv.get("uid", ""))
 			controller.selected_frame_info = {}
 			controller.selected_salvage_info = {}
 
@@ -242,7 +270,7 @@ func on_item_selected(index: int) -> void:
 				]
 			else:
 				var hand = "left" if controller.selected_slot == "weapon_left" else "right"
-				var eq = str(GlobalData.weapon_loadout.get(hand, "")) == wpath
+				var eq = GlobalData.get_equipped_weapon_uid(hand) == str(inv.get("uid", ""))
 				var prefix = "[E] " if eq else ""
 				controller.stats_label.text = "%s HAND WEAPON: %s%s\nDURABILITY: %.0f%%\n\n%s\nWEIGHT: %.1f kg\n\nEquip this weapon to the %s hand.\nFIELD PACK: %.1f / %.1f kg" % [
 					hand.to_upper(), prefix, wname, wdur * 100.0, wcap if not wcap.is_empty() else "TYPE: %s" % wtype,
@@ -252,6 +280,7 @@ func on_item_selected(index: int) -> void:
 			# Only change 3D model when user explicitly picks a part, not on section switch
 			if not _is_populating:
 				controller.garage_panel.preview_weapon_on_hand(controller.selected_slot, inv)
+			controller.update_tier_display(inv, controller.selected_slot)
 		controller.stats_panel.update()
 		return
 
@@ -279,6 +308,7 @@ func on_item_selected(index: int) -> void:
 			# Only change 3D model when user explicitly picks a part, not on section switch
 			if not _is_populating:
 				controller.garage_panel.apply_salvage_preview(controller.selected_slot, controller.selected_salvage_info)
+	controller.update_tier_display(controller.selected_salvage_info, controller.selected_slot)
 	controller.stats_panel.update()
 
 
@@ -323,7 +353,7 @@ func is_item_equipped(slot: String, info: Dictionary) -> bool:
 		return false
 
 	if slot.begins_with("weapon"):
-		return weapon_in_loadout(slot, info.get("path", ""))
+		return weapon_in_loadout(slot, info)
 
 	if controller.current_mode == "frame":
 		var cur_frame = GlobalData.equipped_frames.get(slot, {})
@@ -388,14 +418,17 @@ func instance_durability(slot: String, inst: Dictionary) -> float:
 	return GlobalData.get_durability_ratio(inst)
 
 
-# Whether a weapon path is part of the current loadout for this weapon slot.
-func weapon_in_loadout(slot: String, path: String) -> bool:
-	if path == "":
+# Whether this weapon INSTANCE (matched by uid) is part of the current loadout
+# for this weapon slot. Only the equipped copy's uid matches, so same-model
+# copies never share the "[E]" badge.
+func weapon_in_loadout(slot: String, inv: Dictionary) -> bool:
+	var uid := str(inv.get("uid", ""))
+	if uid == "":
 		return false
 	if slot == "weapon_carry":
-		return GlobalData.is_weapon_in_carry(path)
+		return GlobalData.is_weapon_in_carry_by_uid(uid)
 	var hand = "left" if slot == "weapon_left" else "right"
-	return str(GlobalData.weapon_loadout.get(hand, "")) == path
+	return GlobalData.get_equipped_weapon_uid(hand) == uid
 
 
 # ---------------------------------------------------------------------------
@@ -428,14 +461,14 @@ func other_mech_weapon_user(path: String) -> String:
 		if not (loadout is Dictionary):
 			continue
 		var slots := 0
-		if str(loadout.get("left", "")) == path:
+		if LoadoutSystem.ref_to_path(loadout.get("left", "")) == path:
 			slots += 1
-		if str(loadout.get("right", "")) == path:
+		if LoadoutSystem.ref_to_path(loadout.get("right", "")) == path:
 			slots += 1
 		var carry = loadout.get("carry", [])
 		if carry is Array:
 			for p in carry:
-				if str(p) == path:
+				if LoadoutSystem.ref_to_path(p) == path:
 					slots += 1
 		if slots > 0:
 			used_by_others += slots

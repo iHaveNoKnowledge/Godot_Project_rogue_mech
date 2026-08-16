@@ -75,6 +75,12 @@ const FIST_DAMAGE: float = 8.0
 const FIST_FIRE_INTERVAL: float = 0.5
 const FIST_IMPACT: float = 2.0
 
+# Per-model damage multiplier from the loadout instances' upgrade levels
+# (1.0 + 10% per tier step). Built at battle start from the loadout refs so an
+# upgraded weapon hits harder; picked-up / swapped weapons default to 1.0.
+var _damage_mult_by_name: Dictionary = {}
+
+
 # A melee swing's arm/weapon extension at the thrust peak (the mech body
 # occupies ~1.5m and the fist/blade reaches out the rest). The lunge carries the
 # mech the remainder, so lunge + reach == the weapon's range_distance exactly:
@@ -149,6 +155,13 @@ func _ready() -> void:
 	# Deduct that from the persistent stash now (what you fire is spent); any
 	# leftover returns to the stash when combat ends.
 	battle_reserve = GlobalData.get_loadout_ammo_dict()
+	# Per-model upgrade multipliers from the loadout instances (hands + pack).
+	_register_damage_mult(GlobalData.weapon_loadout.get("left", ""))
+	_register_damage_mult(GlobalData.weapon_loadout.get("right", ""))
+	var carry_refs = GlobalData.weapon_loadout.get("carry", [])
+	if carry_refs is Array:
+		for ref in carry_refs:
+			_register_damage_mult(ref)
 	for ammo_type in battle_reserve:
 		var amount: int = battle_reserve[ammo_type]
 		if amount > 0:
@@ -176,16 +189,42 @@ func _on_combat_ended(_victory: bool) -> void:
 # (and after each commit/drop) since return_to_board() -> save_run() only saves
 # the state GlobalData holds at that moment.
 func sync_loadout_to_global() -> void:
-	GlobalData.set_hand_weapon("left", left_hand.resource_path if left_hand else "")
-	GlobalData.set_hand_weapon("right", right_hand.resource_path if right_hand else "")
+	# Hands/back are written back by INSTANCE uid (the copy that entered the
+	# battle keeps its identity) so the hangar [E] badge stays per-instance.
+	GlobalData.set_hand_weapon("left", GlobalData.resolve_hand_uid_for_sync("left", left_hand.resource_path if left_hand else ""))
+	GlobalData.set_hand_weapon("right", GlobalData.resolve_hand_uid_for_sync("right", right_hand.resource_path if right_hand else ""))
 	var carry_paths: Array = []
 	for weapon in carry:
 		if weapon:
 			carry_paths.append(weapon.resource_path)
-	GlobalData.weapon_loadout["carry"] = carry_paths
+	GlobalData.weapon_loadout["carry"] = GlobalData.resolve_carry_uids_for_sync(carry_paths)
 	# The mech's total weight now includes the loadout weapons, so a pickup/drop
 	# must re-trigger the live weight calculation (speed/turn) right away.
 	EventBus.weight_changed.emit(0.0)
+
+
+# Records the upgrade-based damage multiplier for one loadout ref (uid).
+func _register_damage_mult(ref) -> void:
+	var inst := GlobalData.get_weapon_instance(str(ref))
+	if inst.is_empty():
+		return
+	var path := str(inst.get("path", ""))
+	if path == "" or not ResourceLoader.exists(path):
+		return
+	var res = load(path)
+	if res == null or not ("weapon_name" in res):
+		return
+	var upg := int(inst.get("upgrade_level", 1))
+	_damage_mult_by_name[str(res.weapon_name)] = 1.0 + 0.10 * float(maxi(upg - 1, 0))
+
+
+# Damage multiplier for the weapon currently held in a hand (1.0 when unarmed
+# or the model has no upgrade bonus).
+func _hand_damage_mult(hand: String) -> float:
+	var weapon := left_hand if hand == "left" else right_hand
+	if weapon == null:
+		return 1.0
+	return float(_damage_mult_by_name.get(weapon.weapon_name, 1.0))
 
 
 func get_battle_reserve(ammo_type: String) -> int:
@@ -761,7 +800,9 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 	var aim_dir = (target_point - spawn_pos).normalized()
 
 	# Fire through the shared core: it consumes cooldown/ammo/heat and spawns the
-	# projectile (bullet/missile/shotgun visuals handled by weapon_type).
+	# projectile (bullet/missile/shotgun visuals handled by weapon_type). The
+	# core applies this hand's upgrade multiplier to the projectile damage.
+	core.damage_multiplier = _hand_damage_mult(hand)
 	if core.try_fire(spawn_pos, aim_dir, false, mecha):
 		_apply_recoil(weapon)
 		AudioManager.play_weapon_sfx_with_override(weapon, spawn_pos)
@@ -807,7 +848,7 @@ func _melee_attack(hand: String, weapon: WeaponPart) -> void:
 	_perform_pile_bunker_lunge_anim(mecha, dir, weapon)
 
 	_spawn_melee_trail(mecha, dir, weapon)
-	_check_melee_hit(mecha, dir, weapon.damage, weapon)
+	_check_melee_hit(mecha, dir, weapon.damage * _hand_damage_mult(hand), weapon)
 	if weapon and weapon.weapon_name.to_lower().contains("pile"):
 		AudioManager.play_pile_bunker_fire(mecha.global_position)
 	else:

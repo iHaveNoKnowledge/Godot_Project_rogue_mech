@@ -124,21 +124,27 @@ func equip_part(slot: String, info: Dictionary) -> void:
 		if wpath == "" or not ResourceLoader.exists(wpath):
 			controller.status_message_label.text = "Weapon not found in stash."
 			return
-		# A weapon model only exists once. Equipping one that is already carried
-		# somewhere MOVES it to the new slot (or a new mech) instead of creating
-		# a duplicate copy. If another parked mech holds it, ask first.
+		# Equip the CLICKED copy: pass its instance uid so only that copy becomes
+		# the equipped one (same-model copies never share the [E] badge). Falls
+		# back to the path when the entry predates per-instance tracking.
+		var wref := str(info.get("uid", wpath))
+		# A weapon model only exists once per copy. Equipping a copy another
+		# parked mech carries MOVES it to the new slot instead of duplicating it.
 		var swap_owner := _weapon_swap_owner(wpath)
 		if swap_owner != "":
 			_request_swap_confirm("Weapon", info.get("name", "Weapon"), swap_owner,
-				func(): _perform_weapon_equip(slot, info, wpath))
+				func(): _perform_weapon_equip(slot, info, wref))
 			return
-		_perform_weapon_equip(slot, info, wpath)
+		_perform_weapon_equip(slot, info, wref)
 		return
 
 	# Inner frames: only reachable for non-weapon slots, so a leftover frame
 	# mode never hijacks weapon equips (see the weapon branch above).
 	if controller.current_mode == "frame":
-		GlobalData.equipped_frames[slot] = info.duplicate()
+		var fdata: Dictionary = info.duplicate()
+		# A fresh install starts at base tier (upgrades apply to this copy).
+		fdata["upgrade_level"] = 1
+		GlobalData.equipped_frames[slot] = fdata
 		# A brand-new frame is installed: it starts at full HP, so wipe any
 		# frame damage that belonged to the PREVIOUS frame in this slot.
 		GlobalData.part_damage.erase(slot + "_frame")
@@ -191,7 +197,9 @@ func equip_part(slot: String, info: Dictionary) -> void:
 
 # Performs the weapon equip (including a cross-mech transfer). Runs directly when
 # no other mech holds the weapon, or as the SWAP confirmation continuation.
-func _perform_weapon_equip(slot: String, info: Dictionary, wpath: String) -> void:
+# `wref` is the clicked instance's uid (preferred) or the weapon path fallback.
+func _perform_weapon_equip(slot: String, info: Dictionary, wref: String) -> void:
+	var wpath := str(info.get("path", ""))
 	var moved_note := ""
 	if slot != "weapon_carry" and _arm_destroyed("left" if slot == "weapon_left" else "right"):
 		# A destroyed arm cannot hold a weapon: the arm is gone (frame HP 0), so
@@ -200,7 +208,7 @@ func _perform_weapon_equip(slot: String, info: Dictionary, wpath: String) -> voi
 		controller.status_message_label.text = "Cannot equip: that arm is destroyed! Repair or replace it first."
 		return
 	if slot == "weapon_carry":
-		var equipped := GlobalData.weapon_equipped_slot(wpath)
+		var equipped := GlobalData.weapon_equipped_slot_ref(wref)
 		# With separate instances, another copy may already be on the pack while
 		# a spare instance is still available — only reject when there is no
 		# free copy left to add.
@@ -219,10 +227,10 @@ func _perform_weapon_equip(slot: String, info: Dictionary, wpath: String) -> voi
 			moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
 		elif equipped != "" and not spare:
 			moved_note = " (moved from %s hand)" % equipped
-		GlobalData.add_carry_weapon(wpath)
+		GlobalData.add_carry_weapon(wref)
 	else:
 		var hand = "left" if slot == "weapon_left" else "right"
-		var equipped := GlobalData.weapon_equipped_slot(wpath)
+		var equipped := GlobalData.weapon_equipped_slot_ref(wref)
 		if equipped == hand:
 			controller.status_message_label.text = "This weapon is already equipped in the %s hand." % hand
 			return
@@ -238,7 +246,7 @@ func _perform_weapon_equip(slot: String, info: Dictionary, wpath: String) -> voi
 			moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
 		elif equipped != "" and not spare:
 			moved_note = " (moved from %s)" % ("back carry" if equipped == "carry" else ("right hand" if equipped == "right" else "left hand"))
-		GlobalData.set_hand_weapon(hand, wpath)
+		GlobalData.set_hand_weapon(hand, wref)
 	if moved_note != "":
 		controller.status_message_label.text = "Equipped %s%s" % [info.get("name", "Weapon"), moved_note]
 	controller.persist_panel.commit_and_save()
@@ -298,7 +306,9 @@ func _perform_salvage_armor_equip() -> void:
 # directly when the model is free, or as the SWAP confirmation continuation.
 func _perform_selected_weapon_equip(res: Resource) -> void:
 	var wpath = controller.selected_part_path
-	var equipped := GlobalData.weapon_equipped_slot(wpath)
+	# Prefer the SELECTED instance's uid so exactly that copy becomes equipped.
+	var wref := str(controller.selected_weapon_uid if controller.selected_weapon_uid != "" else wpath)
+	var equipped := GlobalData.weapon_equipped_slot_ref(wref)
 	var moved_note := ""
 	var hand := "left" if controller.selected_slot == "weapon_left" else "right"
 	var spare := GlobalData.has_spare_weapon(wpath)
@@ -320,7 +330,7 @@ func _perform_selected_weapon_equip(res: Resource) -> void:
 			moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
 		elif equipped != "" and not spare:
 			moved_note = " (moved from %s hand)" % equipped
-		GlobalData.add_carry_weapon(wpath)
+		GlobalData.add_carry_weapon(wref)
 		controller.status_message_label.text = "Added to Back Carry: %s!%s" % [(res.weapon_name if "weapon_name" in res else "Weapon"), moved_note]
 	else:
 		if equipped == hand:
@@ -336,7 +346,7 @@ func _perform_selected_weapon_equip(res: Resource) -> void:
 			moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
 		elif equipped != "" and not spare:
 			moved_note = " (moved from %s)" % ("back carry" if equipped == "carry" else ("right hand" if equipped == "right" else "left hand"))
-		GlobalData.set_hand_weapon(hand, wpath)
+		GlobalData.set_hand_weapon(hand, wref)
 		controller.status_message_label.text = "Equipped %s on %s hand!%s" % [(res.weapon_name if "weapon_name" in res else "Weapon"), hand, moved_note]
 	GlobalData.save_run()
 	controller.stats_panel.update()
@@ -557,7 +567,10 @@ func on_equip_pressed() -> void:
 		return
 
 	if controller.current_mode == "frame" and not controller.selected_frame_info.is_empty():
-		GlobalData.equipped_frames[controller.selected_slot] = controller.selected_frame_info.duplicate()
+		var fdata: Dictionary = controller.selected_frame_info.duplicate()
+		# A fresh install starts at base tier (upgrades apply to this copy).
+		fdata["upgrade_level"] = 1
+		GlobalData.equipped_frames[controller.selected_slot] = fdata
 		# A brand-new frame is installed: it starts at full HP, so wipe any
 		# frame damage that belonged to the PREVIOUS frame in this slot.
 		GlobalData.part_damage.erase(controller.selected_slot + "_frame")

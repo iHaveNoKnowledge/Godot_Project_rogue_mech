@@ -102,13 +102,25 @@ static func roll_random_start() -> void:
 			left_pool.append(p)
 	if left_pool.is_empty():
 		left_pool = valid
-	GlobalData.weapon_loadout["left"] = left_pool[randi() % left_pool.size()] if not left_pool.is_empty() else GlobalData.DEFAULT_LEFT_WEAPON_PATH
-	GlobalData.weapon_loadout["right"] = right_path
-	GlobalData.weapon_loadout["carry"] = [carry_path]
+	var left_path: String = left_pool[randi() % left_pool.size()] if not left_pool.is_empty() else GlobalData.DEFAULT_LEFT_WEAPON_PATH
+	# Each copy is a stash INSTANCE; the loadout references the copies by uid so
+	# equipping one copy never marks its same-model siblings as equipped.
 	GlobalData.weapon_inventory.clear()
-	for path in [GlobalData.weapon_loadout["left"], GlobalData.weapon_loadout["right"], GlobalData.weapon_loadout["carry"][0]]:
+	var left_uid := ""
+	var right_uid := ""
+	var carry_uid := ""
+	for path in [left_path, right_path, carry_path]:
 		if path is String and path != "":
-			LoadoutSystem.register_weapon(path, "Starter")
+			var uid := LoadoutSystem.register_weapon(path, "Starter")
+			if left_uid == "" and str(path) == left_path:
+				left_uid = uid
+			elif right_uid == "" and str(path) == right_path:
+				right_uid = uid
+			elif carry_uid == "" and str(path) == carry_path:
+				carry_uid = uid
+	GlobalData.weapon_loadout["left"] = left_uid
+	GlobalData.weapon_loadout["right"] = right_uid
+	GlobalData.weapon_loadout["carry"] = [carry_uid]
 
 	# Allies.
 	GlobalData.fleet_roster.clear()

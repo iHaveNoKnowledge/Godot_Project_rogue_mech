@@ -154,13 +154,42 @@ func show(info: Dictionary) -> void:
 		)
 		grid.add_child(repair_btn)
 
-		# 3. UPGRADE — raises this instance's own Max HP (its upgrade_level)
-		if is_instance:
-			var upgrade_btn = Button.new()
-			upgrade_btn.text = "UPGRADE (+15 HP)"
-			upgrade_btn.custom_minimum_size = Vector2(180, 36)
-			upgrade_btn.pressed.connect(func():
-				if GlobalData.try_spend_credits(50):
+	# 3. UPGRADE — raises the part's upgrade tier (armor +15 HP, weapon +10%
+	#    damage, frame +15 HP on the equipped copy). Shared 1 -> 1.1 -> ... -> 2
+	#    ladder; the cost scales with the current tier.
+	if is_instance or controller.current_mode == "frame":
+		var cur_upg := int(info.get("upgrade_level", 1))
+		if controller.current_mode == "frame":
+			var fdict = GlobalData.equipped_frames.get(controller.selected_slot, {})
+			if fdict is Dictionary:
+				cur_upg = int(fdict.get("upgrade_level", 1))
+		var cost := GlobalData.get_part_upgrade_cost(cur_upg)
+		var upgrade_btn = Button.new()
+		if is_weapon_slot:
+			upgrade_btn.text = "UPGRADE (+10%% DMG → Tier %s, %d cr)" % [GlobalData.part_tier_text(cur_upg + 1), cost]
+		else:
+			upgrade_btn.text = "UPGRADE (+15 HP → Tier %s, %d cr)" % [GlobalData.part_tier_text(cur_upg + 1), cost]
+		upgrade_btn.custom_minimum_size = Vector2(180, 36)
+		upgrade_btn.pressed.connect(func():
+			if GlobalData.try_spend_credits(cost):
+				if is_weapon_slot:
+					info["upgrade_level"] = int(info.get("upgrade_level", 1)) + 1
+					info["durability"] = 1.0
+					controller.status_message_label.text = "Weapon upgraded to Tier %s (+10%% damage)!" % GlobalData.part_tier_text(int(info["upgrade_level"]))
+				elif controller.current_mode == "frame":
+					# Frames: the upgrade applies to the EQUIPPED copy (the catalog
+					# template is never mutated); requires the frame to be installed.
+					var frame_dict = GlobalData.equipped_frames.get(controller.selected_slot)
+					if frame_dict is Dictionary:
+						var fhp := float(frame_dict.get("hp", frame_dict.get("max_hp", 20.0)))
+						frame_dict["hp"] = fhp + 15.0
+						frame_dict["max_hp"] = frame_dict["hp"]
+						frame_dict["upgrade_level"] = int(frame_dict.get("upgrade_level", 1)) + 1
+						GlobalData.part_damage.erase(controller.selected_slot + "_frame")
+						controller.status_message_label.text = "Frame upgraded to Tier %s! Max HP increased to %.0f" % [GlobalData.part_tier_text(int(frame_dict["upgrade_level"])), frame_dict["hp"]]
+					else:
+						controller.status_message_label.text = "Equip this frame before upgrading it."
+				else:
 					var old_hp = float(info.get("hp", info.get("max_hp", 30.0)))
 					info["hp"] = old_hp + 15.0
 					info["max_hp"] = info["hp"]
@@ -168,17 +197,18 @@ func show(info: Dictionary) -> void:
 					info["durability"] = 1.0
 					if GlobalData.equipped_parts.get(controller.selected_slot) == info:
 						GlobalData.part_damage.erase(controller.selected_slot)
-					controller.status_message_label.text = "Part Upgraded! Max HP increased to %.0f" % info["hp"]
-					GlobalData.save_run()
-					controller.stats_panel.update()
-				else:
-					controller.status_message_label.text = "Insufficient Credits for upgrade (50 cr needed)!"
-				close()
-			)
-			grid.add_child(upgrade_btn)
+					controller.status_message_label.text = "Part upgraded to Tier %s! Max HP increased to %.0f" % [GlobalData.part_tier_text(int(info["upgrade_level"])), info["hp"]]
+				GlobalData.save_run()
+				controller.stats_panel.update()
+				controller.update_tier_display(info, controller.selected_slot)
+			else:
+				controller.status_message_label.text = "Insufficient Credits for upgrade (%d cr needed)!" % cost
+			close()
+		)
+		grid.add_child(upgrade_btn)
 
-		# 4. PAINT — recolors this instance (the catalog template is never touched)
-		if is_instance:
+	# 4. PAINT — recolors this instance (the catalog template is never touched)
+	if is_instance and not is_weapon_slot:
 			var paint_btn = Button.new()
 			paint_btn.text = "PAINT COLOR"
 			paint_btn.custom_minimum_size = Vector2(180, 36)

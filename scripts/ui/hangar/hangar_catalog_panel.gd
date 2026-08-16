@@ -330,7 +330,7 @@ func stats_text_for_index(index: int) -> String:
 				GlobalData.get_field_pack_weight(), GlobalData.get_field_pack_capacity()
 			]
 		var hand = "left" if controller.selected_slot == "weapon_left" else "right"
-		var eq = str(GlobalData.weapon_loadout.get(hand, "")) == wpath
+		var eq = GlobalData.get_equipped_weapon_uid(hand) == str(inv.get("uid", ""))
 		return "%s HAND WEAPON: %s%s\nDURABILITY: %.0f%%\n\n%s\nWEIGHT: %.1f kg\nOWNED: x%d\n\nFIELD PACK: %.1f / %.1f kg" % [
 			hand.to_upper(), "[E] " if eq else "", wname, wdur * 100.0,
 			wcap if not wcap.is_empty() else "TYPE: %s" % wtype,

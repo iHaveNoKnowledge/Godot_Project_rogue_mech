@@ -1349,7 +1349,7 @@ func _verify_equip_panel() -> void:
 	var heat_blade := {"path": "res://resources/mech/stock/weapon_heat_blade.tres", "count": 1}
 	ep.unequip_part("weapon_right")
 	ep.equip_part("weapon_right", heat_blade)
-	_check(str(GlobalData.weapon_loadout.get("right", "")) == "res://resources/mech/stock/weapon_heat_blade.tres", "equip_part sets the right-hand loadout")
+	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("right", "")) == "res://resources/mech/stock/weapon_heat_blade.tres", "equip_part sets the right-hand loadout")
 	ep.unequip_part("weapon_right")
 	_check(str(GlobalData.weapon_loadout.get("right", "x")) == "", "unequip_part clears the right-hand loadout")
 
@@ -1372,7 +1372,7 @@ func _verify_equip_panel() -> void:
 	# The move is reversible: equipping the rifle back onto the left hand pulls
 	# it off the pack, then unequipping clears the hand again.
 	ep.equip_part("weapon_left", beam_rifle)
-	_check(str(GlobalData.weapon_loadout.get("left", "")) == beam_rifle["path"], "equipping onto a hand moves the rifle off the pack")
+	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("left", "")) == beam_rifle["path"], "equipping onto a hand moves the rifle off the pack")
 	_check(GlobalData.count_carry_weapon(beam_rifle["path"]) == carry_before, "moving to the hand frees the pack slot")
 	ctrl.selected_part_path = beam_rifle["path"]
 	ep.unequip_part("weapon_left")
@@ -1387,7 +1387,7 @@ func _verify_equip_panel() -> void:
 	_check(str(GlobalData.weapon_loadout.get("left", "x")) == "", "destroyed left arm blocks weapon equip to the left hand")
 	_check(ctrl.status_message_label.text.contains("destroyed"), "blocked equip tells the player the arm is destroyed")
 	ep.equip_part("weapon_right", blade2)
-	_check(str(GlobalData.weapon_loadout.get("right", "")) == blade2["path"], "destroyed left arm does not block the healthy right hand")
+	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("right", "")) == blade2["path"], "destroyed left arm does not block the healthy right hand")
 	ep.unequip_part("weapon_right")
 	# The weapon list UI for the destroyed hand shows the reason instead of items.
 	ctrl.selected_slot = "weapon_left"
@@ -1509,8 +1509,13 @@ func _verify_part_list_panel() -> void:
 
 	# Helper queries.
 	_check(plp.is_item_equipped("body", {}) == false, "is_item_equipped rejects an empty dict")
-	_check(plp.weapon_in_loadout("weapon_left", "") == false, "weapon_in_loadout rejects an empty path")
-	_check(plp.weapon_in_loadout("weapon_left", "res://resources/mech/stock/weapon_beam_rifle.tres"), "default left-hand weapon is in the loadout")
+	_check(plp.weapon_in_loadout("weapon_left", {}) == false, "weapon_in_loadout rejects an empty instance")
+	var left_entry: Dictionary = {}
+	for entry in GlobalData.weapon_inventory:
+		if str(entry.get("path", "")) == GlobalData.DEFAULT_LEFT_WEAPON_PATH:
+			left_entry = entry
+			break
+	_check(not left_entry.is_empty() and plp.weapon_in_loadout("weapon_left", left_entry), "default left-hand weapon is in the loadout")
 
 	# on_item_clicked closes any open action modal; on_item_activated opens one.
 	ctrl.action_panel.show({"name": "Probe"})

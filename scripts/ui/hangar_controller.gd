@@ -16,6 +16,9 @@ var current_mode: String = "armor" # "armor", "frame", "attachment", "chassis", 
 var selected_slot: String = "head"
 var selected_part_path: String = ""
 var selected_part_id: String = ""
+# The selected weapon INSTANCE's uid (per-instance equip: exactly that copy
+# becomes the equipped one, so same-model copies never share the [E] badge).
+var selected_weapon_uid: String = ""
 var selected_salvage_info: Dictionary = {}
 var visible_salvage_indices: Array[int] = []
 var selected_frame_info: Dictionary = {}
@@ -63,6 +66,10 @@ var part_item_list: ItemList
 var stats_label: Label
 var total_stats_label: Label
 var weight_bar: ProgressBar
+# Right-side TIER box (part upgrade tier 1 -> 1.1 -> ... -> 2 + progress pips).
+var tier_label: Label = null
+var tier_pips_label: Label = null
+var tier_effect_label: Label = null
 var equip_button: Button
 var craft_button: Button
 var frame_upgrade_button: Button
@@ -128,6 +135,33 @@ func _ready() -> void:
 # Single source of truth — use this instead of inline calculations.
 func _get_upgrade_cost() -> int:
 	return GlobalData.get_frame_upgrade_cost()
+
+
+# Refreshes the right-side TIER box for the selected part. Frames read the
+# EQUIPPED copy's upgrade_level (the catalog template is static); armor and
+# weapon instances carry their own upgrade_level.
+func update_tier_display(info: Dictionary, slot: String = "") -> void:
+	if tier_label == null or tier_pips_label == null:
+		return
+	if info.is_empty():
+		tier_label.text = "—"
+		tier_pips_label.text = ""
+		tier_effect_label.text = ""
+		return
+	var upg := int(info.get("upgrade_level", 1))
+	var effect := ""
+	if current_mode == "frame":
+		var fdict = GlobalData.equipped_frames.get(slot, {})
+		if fdict is Dictionary:
+			upg = int(fdict.get("upgrade_level", 1))
+		effect = "Each upgrade: +15 HP"
+	elif slot.begins_with("weapon"):
+		effect = "Each upgrade: +10%% damage"
+	else:
+		effect = "Each upgrade: +15 HP"
+	tier_label.text = GlobalData.part_tier_text(upg)
+	tier_pips_label.text = GlobalData.part_tier_pips_text(upg)
+	tier_effect_label.text = effect
 
 
 # --- 2D OVERLAY UI ---

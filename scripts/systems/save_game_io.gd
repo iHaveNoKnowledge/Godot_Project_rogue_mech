@@ -297,6 +297,17 @@ static func restore_from_dict(data: Dictionary) -> void:
 				"explosive": GlobalData.get_reserve_ammo("explosive"),
 				"missile": GlobalData.get_reserve_ammo("missile")
 			}
+		# Older saves stored resource PATHS in the loadout; current saves store
+		# instance uids so the [E] badge stays per-instance. Migrate any path
+		# refs to the matching stash instance's uid when one exists.
+		for key in ["left", "right"]:
+			GlobalData.weapon_loadout[key] = GlobalData.migrate_ref_to_uid(GlobalData.weapon_loadout.get(key, ""))
+		var migrated_carry: Array = []
+		var carry = GlobalData.weapon_loadout.get("carry", [])
+		if carry is Array:
+			for ref in carry:
+				migrated_carry.append(GlobalData.migrate_ref_to_uid(ref))
+			GlobalData.weapon_loadout["carry"] = migrated_carry
 
 
 static func serialize_parts() -> Dictionary:

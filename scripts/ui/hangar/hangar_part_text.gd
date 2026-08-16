@@ -112,8 +112,9 @@ static func armor_capability_text(inst: Dictionary, durability: float) -> String
 		lines.append("WEIGHT: %.1f kg" % weight)
 
 	var upg := int(inst.get("upgrade_level", 1))
+	lines.append("TIER: %s" % GlobalData.part_tier_text(upg))
 	if upg > 1:
-		lines.append("UPGRADE LEVEL: %d (+%d HP)" % [upg, (upg - 1) * 15])
+		lines.append("UPGRADES: %d (+%d HP)" % [upg - 1, (upg - 1) * 15])
 
 	return "\n".join(lines)
 

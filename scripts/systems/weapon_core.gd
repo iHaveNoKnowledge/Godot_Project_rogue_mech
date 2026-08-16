@@ -33,6 +33,9 @@ var sonic_boom: bool = false
 # --- Firing config ---
 var fire_interval: float = 0.2
 var damage: float = 25.0
+# Per-instance upgrade bonus applied to spawned projectiles (hangar weapon
+# upgrades raise this; enemies / fresh pickups stay at 1.0).
+var damage_multiplier: float = 1.0
 var projectile_speed: float = 50.0
 var damage_type: String = "kinetic"
 var impact: float = 0.0
@@ -290,7 +293,7 @@ func _spawn_projectile(from_pos: Vector3, aim_dir: Vector3, fired_by_enemy: bool
 		mesh.rotate_object_local(Vector3.RIGHT, deg_to_rad(90))
 
 	projectile.speed = projectile_speed
-	projectile.damage = damage
+	projectile.damage = damage * damage_multiplier
 	projectile.damage_type = damage_type
 	projectile.impact = impact
 	projectile.direction = aim_dir

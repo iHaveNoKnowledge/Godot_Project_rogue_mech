@@ -76,12 +76,12 @@ func _verify_dual_wield_with_two_copies() -> void:
 
 	# Equip one copy in each hand — both must stick (no move/swap).
 	GlobalData.set_hand_weapon("left", blade)
-	_check(str(GlobalData.weapon_loadout.get("left", "")) == blade, "left hand holds the first copy")
+	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("left", "")) == blade, "left hand holds the first copy")
 	_check(GlobalData.has_spare_weapon(blade), "a spare copy remains after equipping the left hand")
 
 	GlobalData.set_hand_weapon("right", blade)
-	_check(str(GlobalData.weapon_loadout.get("right", "")) == blade, "right hand holds the second copy (dual wield)")
-	_check(str(GlobalData.weapon_loadout.get("left", "")) == blade, "left hand KEEPS its copy when dual-wielding")
+	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("right", "")) == blade, "right hand holds the second copy (dual wield)")
+	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("left", "")) == blade, "left hand KEEPS its copy when dual-wielding")
 	_check(not GlobalData.has_spare_weapon(blade), "no spare remains after both hands are filled")
 
 
@@ -106,13 +106,13 @@ func _verify_single_copy_still_moves() -> void:
 	_check(GlobalData.count_owned_weapon(rifle) == 1, "setup: exactly one rifle copy remains")
 
 	GlobalData.set_hand_weapon("left", rifle)
-	_check(str(GlobalData.weapon_loadout.get("left", "")) == rifle, "left hand holds the only rifle")
+	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("left", "")) == rifle, "left hand holds the only rifle")
 	_check(not GlobalData.has_spare_weapon(rifle), "no spare with a single copy equipped")
 
 	# Equipping the RIGHT hand must MOVE the rifle (left frees).
 	GlobalData.set_hand_weapon("right", rifle)
-	_check(str(GlobalData.weapon_loadout.get("right", "")) == rifle, "right hand now holds the rifle")
-	_check(str(GlobalData.weapon_loadout.get("left", "")) == "", "single copy MOVES — left hand is freed")
+	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("right", "")) == rifle, "right hand now holds the rifle")
+	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("left", "")) == "", "single copy MOVES — left hand is freed")
 
 
 func _verify_spare_not_marked_taken() -> void:

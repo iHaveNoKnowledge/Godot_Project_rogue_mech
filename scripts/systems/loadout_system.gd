@@ -11,6 +11,13 @@ extends RefCounted
 # - FIELD PACK: what the mech physically carries into battle (hand weapons,
 #   back-carry weapons, and the ammo loadout). Weight capacity comes from the
 #   equipped Inner Frames (each frame adds a "carry_bonus").
+#
+# - Loadout refs: weapon_loadout["left"] / ["right"] / ["carry"] hold the
+#   INSTANCE UID of each physical weapon ("" = unarmed / empty). Every stash
+#   entry is one physical copy, so equipping a specific instance marks exactly
+#   that copy as [E] in the hangar — same-model copies never share the badge.
+#   All path-based read queries (weapon_equipped_slot, is_weapon_in_carry, ...)
+#   resolve refs through the stash, so legacy callers keep working unchanged.
 # -----------------------------------------------------------------------------
 
 
@@ -50,12 +57,105 @@ static func get_field_pack_ammo_weight() -> float:
 	return total
 
 
+# -----------------------------------------------------------------------------
+# LOADOUT REF RESOLUTION
+# A slot ref is either an instance uid (current saves) or a legacy resource
+# path (old saves / direct callers). These helpers translate between the two.
+# -----------------------------------------------------------------------------
+
+# The stash instance with the given uid ("" when unknown).
+static func get_weapon_instance(uid: String) -> Dictionary:
+	return _instance_by_uid(uid)
+
+
+static func _instance_by_uid(uid: String) -> Dictionary:
+	if uid == "":
+		return {}
+	for inst in GlobalData.weapon_inventory:
+		if str(inst.get("uid", "")) == uid:
+			return inst
+	return {}
+
+
+# Resolves any slot ref to the weapon resource path: uid -> instance path,
+# path -> itself. Unknown uids fall back to the raw string so legacy paths
+# keep working even when no stash instance matches.
+static func ref_to_path(ref) -> String:
+	var s := str(ref)
+	if s == "":
+		return ""
+	if s.begins_with("res://"):
+		return s
+	var inst := _instance_by_uid(s)
+	if not inst.is_empty():
+		return str(inst.get("path", ""))
+	return s
+
+
+# True when the uid currently sits in any loadout slot (left / right / carry).
+static func _is_uid_in_loadout(uid: String) -> bool:
+	if uid == "":
+		return false
+	if str(GlobalData.weapon_loadout.get("left", "")) == uid:
+		return true
+	if str(GlobalData.weapon_loadout.get("right", "")) == uid:
+		return true
+	var carry = GlobalData.weapon_loadout.get("carry", [])
+	return carry is Array and uid in carry
+
+
+# Chooses the instance a path-based equip should use: a SPARE copy first (so
+# equipping a second pile bunker takes a fresh instance and the first stays
+# in its slot), falling back to an already-equipped copy (the weapon MOVES to
+# the new slot — the caller frees the old one). "" when the model isn't owned.
+static func _uid_for_equip(path: String) -> String:
+	if path == "":
+		return ""
+	for inst in GlobalData.weapon_inventory:
+		var uid := str(inst.get("uid", ""))
+		if uid != "" and str(inst.get("path", "")) == path and not _is_uid_in_loadout(uid):
+			return uid
+	for inst in GlobalData.weapon_inventory:
+		var uid := str(inst.get("uid", ""))
+		if uid != "" and str(inst.get("path", "")) == path:
+			return uid
+	return ""
+
+
+# Normalizes an equip ref (uid or path) to a uid. Paths resolve through
+# _uid_for_equip (spare-first); unknown uids return "".
+static func _ref_to_uid(ref) -> String:
+	var s := str(ref)
+	if s == "":
+		return ""
+	if s.begins_with("res://"):
+		return _uid_for_equip(s)
+	if not _instance_by_uid(s).is_empty():
+		return s
+	return ""
+
+
+# Legacy-save migration: converts a path ref to the uid of the matching stash
+# instance when one exists, keeping the path otherwise (reads still resolve it).
+static func migrate_ref_to_uid(ref) -> String:
+	var s := str(ref)
+	if s == "" or not s.begins_with("res://"):
+		return s
+	var uid := _uid_for_equip(s)
+	return uid if uid != "" else s
+
+
+# -----------------------------------------------------------------------------
+# READING THE LOADOUT
+# -----------------------------------------------------------------------------
+
 # Returns the equipped WeaponPart for the given hand ("left"/"right").
 # Reads the central weapon_loadout so the Hangar and battle share one source.
 # An explicitly-unarmed hand ("") returns null; only a missing/blank slot falls
 # back to the default stock weapon for that hand.
 static func get_equipped_weapon(side: String) -> WeaponPart:
-	var path := str(GlobalData.weapon_loadout.get("left", "") if side == "left" else GlobalData.weapon_loadout.get("right", ""))
+	var key := "left" if side == "left" else "right"
+	var path := ref_to_path(GlobalData.weapon_loadout.get(key, ""))
 	if path == "":
 		return null
 	if not ResourceLoader.exists(path):
@@ -65,14 +165,20 @@ static func get_equipped_weapon(side: String) -> WeaponPart:
 	return null
 
 
+# The instance uid currently held in a hand ("" = unarmed).
+static func get_equipped_weapon_uid(side: String) -> String:
+	return str(GlobalData.weapon_loadout.get("left", "") if side == "left" else GlobalData.weapon_loadout.get("right", ""))
+
+
 # Returns the WeaponParts the mech carries on its back into battle (from loadout).
 static func get_carry_weapons() -> Array[WeaponPart]:
 	var result: Array[WeaponPart] = []
-	var carry_paths = GlobalData.weapon_loadout.get("carry", [])
-	if not (carry_paths is Array):
+	var carry_refs = GlobalData.weapon_loadout.get("carry", [])
+	if not (carry_refs is Array):
 		return result
-	for path in carry_paths:
-		if path is String and path != "" and ResourceLoader.exists(path):
+	for ref in carry_refs:
+		var path := ref_to_path(ref)
+		if path != "" and ResourceLoader.exists(path):
 			result.append(load(path))
 	return result
 
@@ -97,84 +203,121 @@ static func get_loadout_weapon_weight() -> float:
 
 
 # A weapon model may only be equipped in ONE slot at a time (left hand, right
-# hand, or back carry). Returns the slot currently holding the model, or ""
-# when it isn't equipped anywhere. Enforced by set_hand_weapon/add_carry_weapon
-# so a shotgun can't be in both hands (or a hand + the back) at once.
+# hand, or back carry) per physical copy. Returns the slot holding the model,
+# or "" when it isn't equipped anywhere. Enforced by set_hand_weapon /
+# add_carry_weapon so a shotgun can't be in both hands at once.
 static func weapon_equipped_slot(path: String) -> String:
-	if str(GlobalData.weapon_loadout.get("left", "")) == path:
+	if ref_to_path(GlobalData.weapon_loadout.get("left", "")) == path:
 		return "left"
-	if str(GlobalData.weapon_loadout.get("right", "")) == path:
+	if ref_to_path(GlobalData.weapon_loadout.get("right", "")) == path:
 		return "right"
 	if is_weapon_in_carry(path):
 		return "carry"
 	return ""
 
 
-# Returns the slot ("left"/"right"/"carry") holding `path` inside an arbitrary
-# loadout dictionary (e.g. a parked mech's roster snapshot), or "" when absent.
-static func weapon_slot_in_loadout(loadout: Dictionary, path: String) -> String:
-	if str(loadout.get("left", "")) == path:
+# Like weapon_equipped_slot but matches the exact INSTANCE by uid — the slot
+# holding this specific physical copy ("" when it isn't equipped).
+static func weapon_equipped_slot_by_uid(uid: String) -> String:
+	if uid == "":
+		return ""
+	if str(GlobalData.weapon_loadout.get("left", "")) == uid:
 		return "left"
-	if str(loadout.get("right", "")) == path:
+	if str(GlobalData.weapon_loadout.get("right", "")) == uid:
 		return "right"
-	var carry = loadout.get("carry", [])
-	if carry is Array and path in carry:
+	var carry = GlobalData.weapon_loadout.get("carry", [])
+	if carry is Array and uid in carry:
 		return "carry"
 	return ""
 
 
-# Assigns a weapon resource path to a hand. Empty path = unarmed hand.
-# Each owned copy is a separate instance: equipping a model into a hand uses
-# one copy. When the player owns MORE copies than are already equipped, the
-# new hand simply takes another instance (the old slot keeps its copy — e.g.
-# two pile bunkers = one in each hand). Only when this is the LAST free copy
-# does equipping MOVE the model (the old slot is freed), matching the old
-# single-instance behavior.
-static func set_hand_weapon(side: String, path: String) -> bool:
-	if path == "":
-		if side == "left":
-			GlobalData.weapon_loadout["left"] = ""
-		else:
-			GlobalData.weapon_loadout["right"] = ""
+# Slot lookup that accepts a uid OR a path ref (the hangar equip flow passes
+# the clicked instance's uid; combat sync and legacy callers pass paths).
+static func weapon_equipped_slot_ref(ref) -> String:
+	var s := str(ref)
+	if s.begins_with("res://"):
+		return weapon_equipped_slot(s)
+	return weapon_equipped_slot_by_uid(s)
+
+
+# Returns the slot ("left"/"right"/"carry") holding `path` inside an arbitrary
+# loadout dictionary (e.g. a parked mech's roster snapshot), or "" when absent.
+# Refs are resolved through the stash, so uid-based snapshots match paths too.
+static func weapon_slot_in_loadout(loadout: Dictionary, path: String) -> String:
+	if ref_to_path(loadout.get("left", "")) == path:
+		return "left"
+	if ref_to_path(loadout.get("right", "")) == path:
+		return "right"
+	var carry = loadout.get("carry", [])
+	if carry is Array:
+		for ref in carry:
+			if ref_to_path(ref) == path:
+				return "carry"
+	return ""
+
+
+# -----------------------------------------------------------------------------
+# WRITING THE LOADOUT (equip semantics — spare copies first)
+# -----------------------------------------------------------------------------
+
+# Assigns a weapon to a hand. `ref` is the instance uid of the clicked copy or
+# a resource path (resolved to a spare instance; "" clears the hand). Equipping
+# an instance already held in ANOTHER slot moves it there (frees the old slot);
+# a fresh spare instance simply takes the hand alongside existing copies.
+static func set_hand_weapon(side: String, ref) -> bool:
+	var key := "left" if side == "left" else "right"
+	var uid := _ref_to_uid(ref)
+	if uid == "":
+		GlobalData.weapon_loadout[key] = ""
 		return true
-	var equipped_slot := weapon_equipped_slot(path)
-	if equipped_slot != "" and equipped_slot != side and not has_spare_weapon(path):
-		if equipped_slot == "carry":
-			remove_carry_weapon(path)
+	# One physical copy lives in one slot: free the slot holding this instance.
+	var slot := weapon_equipped_slot_by_uid(uid)
+	if slot != "" and slot != key:
+		if slot == "carry":
+			remove_carry_weapon(uid)
 		else:
-			# The other hand holds the only copy: free it so the weapon transfers.
-			GlobalData.weapon_loadout[equipped_slot] = ""
-	if side == "left":
-		GlobalData.weapon_loadout["left"] = path
-	else:
-		GlobalData.weapon_loadout["right"] = path
+			GlobalData.weapon_loadout[slot] = ""
+	GlobalData.weapon_loadout[key] = uid
 	return true
 
 
 static func is_weapon_in_carry(path: String) -> bool:
 	var carry_paths = GlobalData.weapon_loadout.get("carry", [])
-	return carry_paths is Array and path in carry_paths
-
-
-static func add_carry_weapon(path: String) -> bool:
-	# Each owned copy is a separate instance: putting a model on the pack uses
-	# one copy. When the player owns MORE copies than are already equipped, the
-	# pack simply takes another instance (a hand keeps its copy). Only when this
-	# is the LAST free copy is the model moved from a hand onto the pack.
-	if path == "":
+	if not (carry_paths is Array):
 		return false
-	var equipped_slot := weapon_equipped_slot(path)
-	if equipped_slot == "carry":
-		# Another copy is already on the pack. If we still own spares, allow a
-		# second copy on the pack (multi-carry); otherwise it's a no-op.
-		if not has_spare_weapon(path):
-			return false
-	if equipped_slot != "" and equipped_slot != "carry" and not has_spare_weapon(path):
-		GlobalData.weapon_loadout[equipped_slot] = ""
+	for ref in carry_paths:
+		if ref_to_path(ref) == path:
+			return true
+	return false
+
+
+# Whether this exact instance (by uid) is on the back pack.
+static func is_weapon_in_carry_by_uid(uid: String) -> bool:
+	if uid == "":
+		return false
+	var carry_paths = GlobalData.weapon_loadout.get("carry", [])
+	return carry_paths is Array and uid in carry_paths
+
+
+# Puts a weapon copy on the back pack. Each owned copy is a separate instance:
+# putting a model on the pack uses one copy; with spare copies the pack simply
+# takes another instance (a hand keeps its copy). Only when this is the LAST
+# free copy is the model moved from a hand onto the pack.
+static func add_carry_weapon(ref) -> bool:
+	var uid := _ref_to_uid(ref)
+	if uid == "":
+		return false
+	var path := ref_to_path(uid)
 	var carry_paths = GlobalData.weapon_loadout.get("carry", [])
 	if not (carry_paths is Array):
 		carry_paths = []
-	carry_paths.append(path)
+	# This exact copy is already on the pack and no spare exists: no-op.
+	if uid in carry_paths and not has_spare_weapon(path):
+		return false
+	var slot := weapon_equipped_slot_by_uid(uid)
+	if slot != "" and slot != "carry" and not has_spare_weapon(path):
+		GlobalData.weapon_loadout[slot] = ""
+	carry_paths.append(uid)
 	GlobalData.weapon_loadout["carry"] = carry_paths
 	return true
 
@@ -185,8 +328,8 @@ static func count_carry_weapon(path: String) -> int:
 	if not (carry_paths is Array):
 		return 0
 	var count := 0
-	for p in carry_paths:
-		if str(p) == path:
+	for ref in carry_paths:
+		if ref_to_path(ref) == path:
 			count += 1
 	return count
 
@@ -206,14 +349,14 @@ static func count_owned_weapon(path: String) -> int:
 # slots at once as long as the player owns enough copies.
 static func count_equipped_weapon(path: String) -> int:
 	var n := 0
-	if str(GlobalData.weapon_loadout.get("left", "")) == path:
+	if ref_to_path(GlobalData.weapon_loadout.get("left", "")) == path:
 		n += 1
-	if str(GlobalData.weapon_loadout.get("right", "")) == path:
+	if ref_to_path(GlobalData.weapon_loadout.get("right", "")) == path:
 		n += 1
 	var carry = GlobalData.weapon_loadout.get("carry", [])
 	if carry is Array:
-		for p in carry:
-			if str(p) == path:
+		for ref in carry:
+			if ref_to_path(ref) == path:
 				n += 1
 	return n
 
@@ -224,11 +367,69 @@ static func has_spare_weapon(path: String) -> bool:
 	return count_owned_weapon(path) > count_equipped_weapon(path)
 
 
-static func remove_carry_weapon(path: String) -> void:
+static func remove_carry_weapon(ref) -> void:
+	var target := str(ref)
 	var carry_paths = GlobalData.weapon_loadout.get("carry", [])
-	if carry_paths is Array:
-		carry_paths.erase(path)
-	GlobalData.weapon_loadout["carry"] = carry_paths
+	if not (carry_paths is Array):
+		return
+	var erase_idx := -1
+	for i in range(carry_paths.size()):
+		var r := str(carry_paths[i])
+		if target.begins_with("res://"):
+			if ref_to_path(r) == target:
+				erase_idx = i
+				break
+		elif r == target:
+			erase_idx = i
+			break
+	if erase_idx >= 0:
+		carry_paths.remove_at(erase_idx)
+		GlobalData.weapon_loadout["carry"] = carry_paths
+
+
+# -----------------------------------------------------------------------------
+# COMBAT SYNC — writes the battle's actual hands/back back into the loadout.
+# The slot's CURRENT uid is preferred (that instance entered the battle), so
+# unchanged weapons keep their identity; only genuinely new pickups resolve to
+# a spare/fresh instance.
+# -----------------------------------------------------------------------------
+
+static func resolve_hand_uid_for_sync(side: String, path: String) -> String:
+	if path == "":
+		return ""
+	var key := "left" if side == "left" else "right"
+	var cur := str(GlobalData.weapon_loadout.get(key, ""))
+	var inst := _instance_by_uid(cur)
+	if not inst.is_empty() and str(inst.get("path", "")) == path:
+		return cur
+	return _uid_for_equip(path)
+
+
+static func resolve_carry_uids_for_sync(paths: Array) -> Array:
+	var current = GlobalData.weapon_loadout.get("carry", [])
+	if not (current is Array):
+		current = []
+	var used := {}
+	var result: Array = []
+	for p in paths:
+		var path := str(p)
+		if path == "":
+			continue
+		var found := ""
+		for ref in current:
+			var rs := str(ref)
+			if rs in used:
+				continue
+			var inst := _instance_by_uid(rs)
+			if not inst.is_empty() and str(inst.get("path", "")) == path:
+				found = rs
+				break
+		if found == "":
+			found = _uid_for_equip(path)
+		if found != "":
+			used[found] = true
+			result.append(found)
+	return result
 
 
 # Returns how much ammo of the given type the player carries into the next battle.
@@ -331,7 +532,7 @@ static func consume_reserve_ammo(ammo_type: String, amount: int) -> int:
 	return taken
 
 
-static func register_weapon(path: String, weapon_name: String = "") -> void:
+static func register_weapon(path: String, weapon_name: String = "") -> String:
 	# The real weapon model name wins over any caller-provided label (e.g. the
 	# run-start code once registered everything as "Starter"). Keeps the stash
 	# listing readable no matter who called in.
@@ -345,11 +546,14 @@ static func register_weapon(path: String, weapon_name: String = "") -> void:
 	# Each copy of a weapon model is its OWN inventory instance (fresh uid /
 	# durability / upgrade level) — same as armor. Picking up or crafting
 	# another pile bunker appends a second "Pile Bunker" entry; the stash never
-	# merges same-model copies into a x2 count.
+	# merges same-model copies into a x2 count. The new uid is returned so the
+	# caller can reference this exact copy in a loadout slot.
+	var uid := GlobalData._new_uid("w")
 	GlobalData.weapon_inventory.append({
-		"uid": GlobalData._new_uid("w"),
+		"uid": uid,
 		"path": path,
 		"name": display_name,
 		"durability": 1.0,
 		"upgrade_level": 1
 	})
+	return uid

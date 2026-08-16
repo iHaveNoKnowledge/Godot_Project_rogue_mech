@@ -52,6 +52,61 @@ func build(root: Control) -> void:
 	controller.stats_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	right_box.add_child(controller.stats_label)
 
+	# TIER box — the selected part's upgrade tier on the 1 -> 1.1 -> ... -> 2
+	# ladder with four progress pips (filled toward the next whole tier).
+	var tier_panel = PanelContainer.new()
+	var tier_style = StyleBoxFlat.new()
+	tier_style.bg_color = Color(0.05, 0.07, 0.11, 0.9)
+	tier_style.border_width_left = 1
+	tier_style.border_width_top = 1
+	tier_style.border_width_right = 1
+	tier_style.border_width_bottom = 1
+	tier_style.border_color = Color(0.4, 0.55, 0.75, 0.8)
+	tier_style.corner_radius_top_left = 6
+	tier_style.corner_radius_top_right = 6
+	tier_style.corner_radius_bottom_left = 6
+	tier_style.corner_radius_bottom_right = 6
+	tier_style.content_margin_left = 10
+	tier_style.content_margin_right = 10
+	tier_style.content_margin_top = 8
+	tier_style.content_margin_bottom = 8
+	tier_panel.add_theme_stylebox_override("panel", tier_style)
+	right_box.add_child(tier_panel)
+
+	var tier_row = HBoxContainer.new()
+	tier_row.add_theme_constant_override("separation", 14)
+	tier_panel.add_child(tier_row)
+
+	var tier_left = VBoxContainer.new()
+	tier_row.add_child(tier_left)
+
+	var tier_caption = Label.new()
+	tier_caption.text = "TIER"
+	tier_caption.add_theme_font_size_override("font_size", 10)
+	tier_caption.add_theme_color_override("font_color", Color(0.6, 0.7, 0.85))
+	tier_left.add_child(tier_caption)
+
+	controller.tier_label = Label.new()
+	controller.tier_label.text = "—"
+	controller.tier_label.add_theme_font_size_override("font_size", 24)
+	controller.tier_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+	tier_left.add_child(controller.tier_label)
+
+	controller.tier_pips_label = Label.new()
+	controller.tier_pips_label.text = "○○○○"
+	controller.tier_pips_label.add_theme_font_size_override("font_size", 15)
+	controller.tier_pips_label.add_theme_color_override("font_color", Color(0.75, 0.82, 0.95))
+	tier_left.add_child(controller.tier_pips_label)
+
+	controller.tier_effect_label = Label.new()
+	controller.tier_effect_label.text = ""
+	controller.tier_effect_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	controller.tier_effect_label.custom_minimum_size = Vector2(90, 0)
+	controller.tier_effect_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	controller.tier_effect_label.add_theme_color_override("font_color", Color(0.75, 0.8, 0.9))
+	controller.tier_effect_label.add_theme_font_size_override("font_size", 11)
+	tier_row.add_child(controller.tier_effect_label)
+
 	# Hover preview (title + stat card) lives in the catalog panel.
 	controller.catalog_panel.build_hover_stats_label(right_box)
 

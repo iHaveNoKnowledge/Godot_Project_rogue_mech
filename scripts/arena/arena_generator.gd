@@ -544,6 +544,30 @@ func _create_escape_zones() -> void:
 		collision.shape = shape
 		zone.add_child(collision)
 
+		# Physical barrier for ENEMIES only: the glow wall itself is a purely
+		# visual slab the player walks straight through (so the retreat hold is
+		# reachable), but chasing enemies must not be able to follow the player
+		# out of the arena through it. The barrier sits exactly where the glow
+		# wall is drawn (the zone's center) on layer 32 — the player's mask
+		# (1+2) ignores it, while enemies (mask 3|32) are stopped by it.
+		var barrier := StaticBody3D.new()
+		barrier.name = "RetreatWallBarrier"
+		barrier.collision_layer = 32
+		barrier.collision_mask = 0
+		barrier.position = def["pos"]
+
+		var bcol := CollisionShape3D.new()
+		var bshape := BoxShape3D.new()
+		var dsize: Vector3 = def["size"]
+		# Slim slab matching the visible glow wall (thin axis capped at 1.5m).
+		if dsize.z < dsize.x:
+			bshape.size = Vector3(dsize.x, dsize.y, 1.5)
+		else:
+			bshape.size = Vector3(1.5, dsize.y, dsize.z)
+		bcol.shape = bshape
+		barrier.add_child(bcol)
+		escape_zone_container.add_child(barrier)
+
 		escape_zone_container.add_child(zone)
 
 

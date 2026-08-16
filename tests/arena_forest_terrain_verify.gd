@@ -148,7 +148,31 @@ func _ready() -> void:
 	_check(heightmap_bodies == 2, "forest terrain collision = 2 heightmap banks (got %d)" % heightmap_bodies)
 	_check(not flat_box, "forest arena has no flat box ground collision")
 
-	# --- 5. River strip still has full-width walkable collision (no gap between
+	# --- 5. River strip mesh faces UP (winding not inverted) ---
+	# The strip is an ArrayMesh quad; its front face must point at the sky so
+	# the ground never renders see-through from above / inside-out from below.
+	var strip_faces_up := true
+	if tiles:
+		for child in tiles.get_children():
+			var m := child as MeshInstance3D
+			if m == null or not (m.mesh is ArrayMesh) or m.name != "ForestRiverStrip":
+				continue
+			var mesh: ArrayMesh = m.mesh
+			var arrays := mesh.surface_get_arrays(0)
+			var verts_arr: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var idx_arr: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+			# First triangle's geometric normal must point up (+Y) — a downward
+			# winding would cross to -Y and flip the visible side of the ground.
+			for t in range(0, min(idx_arr.size(), 6), 3):
+				var a := verts_arr[idx_arr[t]]
+				var b := verts_arr[idx_arr[t + 1]]
+				var c := verts_arr[idx_arr[t + 2]]
+				var n := (b - a).cross(c - a)
+				if n.y <= 0.0:
+					strip_faces_up = false
+	_check(strip_faces_up, "river strip mesh winding faces up (+Y), not inverted")
+
+	# --- 6. River strip still has full-width walkable collision (no gap between
 	# the band and the bank heightmaps at |z| = 24) ---
 	var has_wide_riverband := false
 	if structures:

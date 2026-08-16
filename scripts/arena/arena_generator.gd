@@ -286,7 +286,12 @@ func _add_forest_strip_plane(texture: Texture2D) -> void:
 		Vector2(1.0, (z1 + half) / arena_size),
 	])
 	var normals := PackedVector3Array([Vector3.UP, Vector3.UP, Vector3.UP, Vector3.UP])
-	var indices := PackedInt32Array([0, 1, 2, 2, 1, 3])
+	# Counter-clockwise winding when viewed from ABOVE: (0,2,1) and (1,2,3)
+	# both cross to +Y, so the front face points up at the camera. The old
+	# (0,1,2)/(2,1,3) order crossed to -Y — the strip's front faced the ground,
+	# so from above it was backface-culled (see-through) and only appeared when
+	# tilting the camera up from underneath.
+	var indices := PackedInt32Array([0, 2, 1, 1, 2, 3])
 
 	var mesh := ArrayMesh.new()
 	var arrays := []

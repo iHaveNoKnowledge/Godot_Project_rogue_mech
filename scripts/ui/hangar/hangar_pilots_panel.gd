@@ -156,6 +156,17 @@ func _build_row(pilot: Dictionary, active_id: String, driver_id: String) -> void
 			heal_btn.pressed.connect(func(): _heal(template_id))
 			row.add_child(heal_btn)
 
+	# LOADOUT: opens this pilot's personal-gear editor (weapons / ammo / items
+	# they carry on foot). Destroyed pilots are gated — they're gone for good.
+	if not is_destroyed:
+		var loadout_btn := Button.new()
+		loadout_btn.text = "LOADOUT"
+		loadout_btn.custom_minimum_size = Vector2(84, 28)
+		loadout_btn.focus_mode = Control.FOCUS_NONE
+		loadout_btn.tooltip_text = "Manage %s's personal weapons, ammo and items (what they carry when out of the mech)." % name
+		loadout_btn.pressed.connect(_open_loadout_editor.bind(pilot_id, name))
+		row.add_child(loadout_btn)
+
 	# MAIN DRIVER: seats this pilot in the main (active) mech, the machine the
 	# player pilots into combat. The current driver gets a read-only star badge;
 	# everyone else gets the action button (destroyed pilots are gated, mirroring
@@ -181,6 +192,12 @@ func _build_row(pilot: Dictionary, active_id: String, driver_id: String) -> void
 			driver_btn.tooltip_text = "Seat this pilot in the main mech (the machine you pilot into combat)."
 		driver_btn.pressed.connect(_set_main_driver.bind(pilot_id))
 	row.add_child(driver_btn)
+
+
+# Opens the personal-gear editor for this pilot (weapons / ammo / items).
+func _open_loadout_editor(pilot_id: String, pilot_name: String) -> void:
+	if controller and controller.has_method("open_pilot_loadout_editor"):
+		controller.open_pilot_loadout_editor(pilot_id, pilot_name)
 
 
 # Seats a pilot in the main (active) mech. Same single source as the roster

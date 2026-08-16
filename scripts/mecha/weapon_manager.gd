@@ -320,6 +320,10 @@ func _input(event: InputEvent) -> void:
 		var hud = get_tree().current_scene.get_node_or_null("WeaponHUD")
 		if hud and hud.get("pickup_menu_open"):
 			return
+	# The pilot has LEFT the mech: fire buttons belong to the pilot's own body
+	# weapons, not the parked mech's loadout.
+	if GameManager.current_state == GameManager.State.EJECT:
+		return
 	# --- LEFT HAND SWAP (key 1) ---
 	if event.is_action_pressed("weapon_left"):
 		if _hand_usable("left"):

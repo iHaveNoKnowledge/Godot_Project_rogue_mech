@@ -5,9 +5,128 @@ extends CharacterBody3D
 
 var gravity := 20.0
 
+# The pilot fights with their OWN body weapons (PilotSystem), completely
+# separate from the parked mech's loadout. One shared WeaponCore drives ammo /
+# cooldown / projectiles for whichever weapon is in hand; firing consumes the
+# pilot's personal ammo reserves.
+var _weapons: Array = []
+var _weapon_index: int = 0
+var _fire_core: WeaponCore = null
+var _fire_timer: float = 0.0
+var _weapon_mesh: Node3D = null
+
 
 func _ready() -> void:
 	add_to_group("pilot")
+	_weapons = PilotSystem.get_weapons()
+	if not _weapons.is_empty():
+		_equip_weapon(0)
+	_rebuild_weapon_mesh()
+
+
+func _equip_weapon(index: int) -> void:
+	if _weapons.is_empty():
+		_weapon_index = 0
+		_fire_core = null
+		return
+	_weapon_index = posmod(index, _weapons.size())
+	var weapon: WeaponPart = _weapons[_weapon_index]
+	_fire_core = WeaponCore.from_weapon(weapon)
+	_fire_core.fire_interval = 0.0
+	_fire_core.auto_reload = false
+	_fire_core.manual_reload = true
+	_fire_core.unlimited_ammo = weapon.max_ammo <= 0
+	_rebuild_weapon_mesh()
+
+
+# Rebuilds the pilot's carried-weapon model from the current personal loadout
+# (first weapon in hand). Null clears it.
+func _rebuild_weapon_mesh() -> void:
+	if _weapon_mesh and is_instance_valid(_weapon_mesh):
+		_weapon_mesh.queue_free()
+	_weapon_mesh = null
+	if _weapons.is_empty():
+		return
+	var weapon: WeaponPart = _weapons[0]
+	_weapon_mesh = Node3D.new()
+	_weapon_mesh.add_child(WeaponVisualFactory.build(weapon))
+	# Held at the pilot's side, like a carried rifle.
+	_weapon_mesh.position = Vector3(0.45, 1.05, -0.15)
+	_weapon_mesh.rotation = Vector3(0, 0, -0.35)
+	add_child(_weapon_mesh)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if GameManager.current_state != GameManager.State.EJECT:
+		return
+	if event.is_action_pressed("fire_left"):
+		_try_fire()
+	elif event.is_action_pressed("fire_right"):
+		_try_fire()
+	elif event.is_action_pressed("weapon_left") or event.is_action_pressed("weapon_right"):
+		# Cycle personal weapons (key 1 / 3) — the pilot swaps their own sidearm.
+		if _weapons.size() > 1:
+			_equip_weapon(_weapon_index + 1)
+
+
+func _try_fire() -> void:
+	if _fire_core == null or _weapons.is_empty():
+		return
+	var weapon: WeaponPart = _weapons[_weapon_index]
+	if weapon.weapon_type == WeaponPart.WeaponType.MELEE:
+		# On-foot melee: a short lunging swing with the sidearm's blade.
+		_melee_swing(weapon)
+		return
+
+	# Personal ammo: the pilot's own reserve (not the mech's). Melee / infinite
+	# weapons ignore it.
+	var ammo_type := weapon.get_ammo_type()
+	if ammo_type != "none" and not _fire_core.unlimited_ammo:
+		if PilotSystem.get_ammo(ammo_type) <= 0:
+			return
+		PilotSystem.consume_ammo(ammo_type, weapon.ammo_per_shot)
+
+	var cam := get_viewport().get_camera_3d()
+	if cam == null:
+		return
+	var center := get_viewport().get_visible_rect().size / 2.0
+	var ray_origin := cam.project_ray_origin(center)
+	var ray_dir := cam.project_ray_normal(center)
+
+	var space_state := get_viewport().get_world_3d().direct_space_state
+	var query := PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 500.0)
+	query.collision_mask = 10
+	var result := space_state.intersect_ray(query)
+
+	var muzzle := global_position + Vector3(0, 1.4, 0)
+	var aim_dir: Vector3
+	if result:
+		aim_dir = (result["position"] - muzzle).normalized()
+	else:
+		aim_dir = (ray_origin + ray_dir * 500.0 - muzzle).normalized()
+
+	if _fire_core.try_fire(muzzle, aim_dir, false, self):
+		if AudioManager:
+			AudioManager.play_sfx("machine_gun", muzzle, -8.0)
+		# Pilot weapons recoil the pilot's own aim slightly (no mech to absorb it).
+		velocity.x += -aim_dir.x * 0.8
+		velocity.z += -aim_dir.z * 0.8
+
+
+func _melee_swing(weapon: WeaponPart) -> void:
+	var cam := get_viewport().get_camera_3d()
+	if cam == null:
+		return
+	var center := get_viewport().get_visible_rect().size / 2.0
+	var ray_origin := cam.project_ray_origin(center)
+	var ray_dir := cam.project_ray_normal(center)
+	var dir := Vector3(ray_dir.x, 0.0, ray_dir.z).normalized()
+	rotation.y = atan2(dir.x, dir.z)
+	EffectManager.spawn_melee_trail(global_position + Vector3(0, 1.2, 0), dir,
+		Color(0.9, 0.95, 1.0), Color(0.5, 0.7, 1.0), 1.0, 0.8)
+	var hit := EffectManager.melee_hit_ray(self, dir, weapon.range_distance, 8 | 2, weapon.damage)
+	if hit and AudioManager:
+		AudioManager.play_npc_melee_hit(global_position)
 
 
 func _physics_process(delta: float) -> void:

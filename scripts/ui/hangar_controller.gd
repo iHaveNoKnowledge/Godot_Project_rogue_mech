@@ -1,5 +1,7 @@
 extends Node3D
 
+const PilotLoadoutEditorScript = preload("res://scripts/ui/hangar/hangar_pilot_loadout_editor.gd")
+
 ## 3D Hangar Garage Controller (Gundam Barbatos / Vidar Style)
 ## - Core Power comes from the Inner Frame (Alaya-Vijnana Skeleton) which can be upgraded with Reactor Levels.
 ## - Outer Armor Plating allows visual freedom & scavenged enemy armor patching (Zaku Green, Tank Grey, Crimson Ace).
@@ -42,6 +44,7 @@ var slot_tab_buttons: Dictionary = {}
 # UPGRADE | CRAFT | CATALOG]. It is the FIRST thing shown after entering the
 # hangar as a long vertical list on the left; each choice opens its own page.
 var scrap_editor: CanvasLayer = null
+var pilot_loadout_editor: CanvasLayer = null
 # Landing sub-menu rail + the page widgets it toggles.
 var submenu_rail: PanelContainer = null
 var back_to_menu_button: Button = null
@@ -112,6 +115,11 @@ func _ready() -> void:
 	garage_panel.build_garage()
 	_build_ui_layout()
 	nav_panel.show_hangar()
+	pilot_loadout_editor = PilotLoadoutEditorScript.new()
+	pilot_loadout_editor.controller = self
+	pilot_loadout_editor.layer = 20
+	add_child(pilot_loadout_editor)
+	pilot_loadout_editor.visible = false
 	if AudioManager:
 		AudioManager.play_hangar_music()
 
@@ -235,6 +243,15 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _is_scrap_editor_open() -> bool:
 	return scrap_editor != null and is_instance_valid(scrap_editor) and scrap_editor.visible
+
+
+# Opens the pilot personal-loadout editor for the given pilot (weapons / ammo /
+# items they carry on foot). Hidden behind the scrap-editor gate: while any
+# full-screen editor is open the hangar's 3D garage keeps rendering underneath.
+func open_pilot_loadout_editor(pilot_id: String, pilot_name: String) -> void:
+	if pilot_loadout_editor == null:
+		return
+	pilot_loadout_editor.open(pilot_id, pilot_name)
 
 
 func _input(event: InputEvent) -> void:

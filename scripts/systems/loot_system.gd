@@ -45,6 +45,9 @@ func _create_loot_pickup(pos: Vector3, loot_data: Dictionary) -> void:
 		"scrap":
 			material.albedo_color = Color(0.75, 0.55, 0.25)
 			box.size = Vector3(0.4, 0.4, 0.4)
+		"armor":
+			material.albedo_color = Color(0.85, 0.35, 0.85)
+			box.size = Vector3(0.5, 0.5, 0.5)
 	mesh.set_surface_override_material(0, material)
 
 	pickup.set_meta("loot_data", loot_data)
@@ -95,6 +98,13 @@ func _on_pickup_body_entered(body: Node3D, pickup: Area3D) -> void:
 				EventBus.weight_changed.emit(0.0)
 		"scrap":
 			GlobalData.gain_scrap(loot_data.get("amount", 1))
+		"armor":
+			# Salvaged plate from a destroyed enemy: grants a real armor instance
+		# (slot picked at drop time) into the convoy's armor inventory.
+			var inst: Dictionary = loot_data.get("instance", {})
+			if not inst.is_empty() and GlobalData.get_armor_instance(str(inst.get("uid", ""))).is_empty():
+				GlobalData.armor_inventory.append(inst)
+				GlobalData.run_notice = "Salvaged armor: %s" % str(inst.get("name", "plate"))
 	pickup.queue_free()
 
 
@@ -151,6 +161,7 @@ func spawn_enemy_loot(enemy_position: Vector3, archetype: int = -1) -> void:
 		{"type": "scrap", "amount": 3, "drop_chance": 0.35},
 		{"type": "scrap", "amount": 5, "drop_chance": 0.2},
 		{"type": "repair", "slot": "body", "drop_chance": 0.15},
+		{"type": "armor", "instance": _roll_salvaged_armor(), "drop_chance": 0.14},
 	]
 
 	# Occasionally drop the same kind of weapon the enemy used in combat. A
@@ -162,3 +173,29 @@ func spawn_enemy_loot(enemy_position: Vector3, archetype: int = -1) -> void:
 			loot_table.append({"type": "weapon", "weapon": weapon, "drop_chance": BASE_WEAPON_DROP_CHANCE})
 
 	spawn_loot(enemy_position, loot_table)
+
+
+# A random non-blueprint armor plate off the enemy's wreck, as a real armor
+# instance the hangar can equip. Occasional (not every kill) by design.
+func _roll_salvaged_armor() -> Dictionary:
+	var slots: Array[String] = ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]
+	var slot: String = slots[randi() % slots.size()]
+	var catalog: Array = GlobalData.armor_catalog.get(slot, [])
+	var eligible: Array = []
+	for entry in catalog:
+		if entry is Dictionary and not entry.get("blueprint_only", false):
+			eligible.append(entry)
+	if eligible.is_empty():
+		return {}
+	var picked: Dictionary = eligible[randi() % eligible.size()]
+	# Build the instance WITHOUT adding it to the inventory — the pickup grants
+	# it when the player actually walks over the wreck (make_armor_instance_from_catalog
+	# appends immediately, which would hand out the plate even if never picked up).
+	var instance := picked.duplicate(true)
+	instance["uid"] = GlobalData._new_uid("a")
+	instance["db_id"] = picked.get("id", "")
+	instance["slot"] = slot
+	instance["durability"] = 1.0
+	instance["upgrade_level"] = 1
+	instance["equipped"] = false
+	return instance

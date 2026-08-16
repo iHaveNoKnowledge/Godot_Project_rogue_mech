@@ -35,11 +35,13 @@ func physics_process(delta: float) -> void:
 		sin(strafe_angle) * circle_radius
 	)
 
-	var move_dir = (strafe_pos - enemy.global_position).normalized()
-	move_dir.y = 0.0
-	enemy.velocity = move_dir * enemy.move_speed
-	enemy.velocity.y = -10.0
-	enemy.move_and_slide()
+	# No legs (ragdolled): the ranged mech holds position and just keeps firing.
+	if enemy.get("ragdolled") != true:
+		var move_dir = (strafe_pos - enemy.global_position).normalized()
+		move_dir.y = 0.0
+		enemy.velocity = move_dir * enemy.move_speed
+		enemy.velocity.y = -10.0
+		enemy.move_and_slide()
 
 	# Face target
 	var face_dir = (target_pos - enemy.global_position).normalized()

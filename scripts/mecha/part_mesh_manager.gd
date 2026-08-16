@@ -145,10 +145,10 @@ func initialize_slot(slot_name: String, part: ArmorPart, apply_player_damage: bo
 func _hide_legacy_slot_meshes(parent_node: Node3D) -> void:
 	if not parent_node: return
 	for child in parent_node.get_children():
-		if child.name != "FrameMesh" and child.name != "ArmorMesh" and child.name != "ForearmLeft" and child.name != "ForearmRight" and child.name != "ShinLeft" and child.name != "ShinRight":
+		if child.name != "FrameMesh" and child.name != "ArmorMesh" and child.name != "ForearmLeft" and child.name != "ForearmRight" and child.name != "ShinLeft" and child.name != "ShinRight" and not child is Light3D:
 			child.visible = false
 			for grand in child.get_children():
-				if grand is VisualInstance3D or grand is Node3D:
+				if (grand is VisualInstance3D or grand is Node3D) and not grand is Light3D:
 					grand.visible = false
 
 

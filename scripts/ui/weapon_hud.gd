@@ -669,6 +669,22 @@ func _update_carry_display(hand: String) -> void:
 		ammo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		row.add_child(ammo_label)
 
+		# The "press X to drop" hint rides on the HIGHLIGHTED row so it follows
+		# the selection as the player scrolls. It points toward the screen
+		# center: a left-hand list shows it on the row's right end, a right-hand
+		# list on the row's left end.
+		if is_highlighted:
+			var hint := Label.new()
+			hint.text = "[X] DROP"
+			hint.add_theme_font_size_override("font_size", 10)
+			hint.add_theme_color_override("font_color", Color(1.0, 0.75, 0.25))
+			hint.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
+			hint.add_theme_constant_override("shadow_offset_x", 1)
+			hint.add_theme_constant_override("shadow_offset_y", 1)
+			row.add_child(hint)
+			if hand != "left":
+				row.move_child(hint, 0)
+
 		var color: Color = _highlight_color if is_highlighted else _dim_color
 		indicator.add_theme_color_override("font_color", color)
 		icon_label.add_theme_color_override("font_color", color)

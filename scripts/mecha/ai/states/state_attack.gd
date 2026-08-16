@@ -68,6 +68,12 @@ func physics_process(delta: float) -> void:
 		state_machine.transition_to("StateFlee")
 		return
 
+	# Both arms destroyed: nothing left to attack with — withdraw instead.
+	if enemy.has_method("can_attack") and not enemy.can_attack():
+		enemy.flee_reason = "disabled"
+		state_machine.transition_to("StateFlee")
+		return
+
 	# Face target
 	var direction = (enemy.target.global_position - enemy.global_position).normalized()
 	direction.y = 0.0
@@ -80,10 +86,13 @@ func physics_process(delta: float) -> void:
 		strafe_timer = 0.0
 		strafe_direction *= -1.0
 
-	var strafe = enemy.global_transform.basis.x * strafe_direction * enemy.move_speed * 0.3
-	enemy.velocity = strafe
-	enemy.velocity.y = -10.0
-	enemy.move_and_slide()
+	# No legs: the torso stays planted (still fires ranged weapons from the
+	# ground, but it can't strafe).
+	if enemy.get("ragdolled") != true:
+		var strafe = enemy.global_transform.basis.x * strafe_direction * enemy.move_speed * 0.3
+		enemy.velocity = strafe
+		enemy.velocity.y = -10.0
+		enemy.move_and_slide()
 
 	# Attack
 	attack_timer -= delta

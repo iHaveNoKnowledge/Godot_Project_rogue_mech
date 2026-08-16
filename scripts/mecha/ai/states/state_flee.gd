@@ -77,7 +77,8 @@ func physics_process(delta: float) -> void:
 		direction = (waypoint - enemy.global_position)
 		direction.y = 0.0
 
-	if direction.length() > 0.1:
+	# Frozen while ragdolled — a mech with no legs can't retreat either.
+	if direction.length() > 0.1 and enemy.get("ragdolled") != true:
 		enemy.velocity = direction.normalized() * enemy.move_speed * enemy.flee_speed_mult
 		enemy.velocity.y = gravity
 		enemy.move_and_slide()

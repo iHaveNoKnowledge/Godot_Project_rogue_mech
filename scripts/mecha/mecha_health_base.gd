@@ -21,12 +21,34 @@ var _frame_color: Color = Color(0.4, 0.4, 0.45, 1)
 var _damage_color: Color = Color(0.8, 0.2, 0.2, 1)
 var _broken_color: Color = Color(0.2, 0.2, 0.2, 1)
 
+# --- Pilot status light + damage sparks ---------------------------------------
+# A mech with a pilot on board wears a status light at its head (blue for the
+# player's side, red for hostiles) and throws electrical sparks from destroyed
+# part joints. An EMPTY mech shows no light and throws no sparks — nothing is
+# running the machine.
+var _piloted: bool = true
+var _pilot_light: OmniLight3D = null
+var _spark_timer: float = 0.0
+
 
 func _ready() -> void:
 	_init_parts()
 	_find_meshes()
 	_calculate_totals()
 	EventBus.damage_received.connect(_on_damage_received)
+	_setup_pilot_light()
+	# Only the PLAYER's health system follows the occupancy signal — enemy /
+	# ally mechs manage their own pilot state via set_piloted().
+	if is_player:
+		EventBus.mecha_occupancy_changed.connect(_on_mecha_occupancy_changed)
+	# A MANUAL drop (hold 1/3 + scroll + X) must leave the weapon as a
+	# recoverable pickup at the mech's feet — the signal used to fire into
+	# nothing, so the weapon simply vanished.
+	var mecha := get_parent()
+	if mecha != null:
+		var wm := mecha.get_node_or_null("WeaponManager")
+		if wm != null and wm.has_signal("weapon_dropped"):
+			wm.weapon_dropped.connect(_on_weapon_dropped)
 
 
 func _init_parts() -> void:
@@ -371,6 +393,9 @@ func _on_frame_destroyed(slot_name: String) -> void:
 			_drop_hand_weapon_pickup("right", slot_name)
 	part_destroyed.emit(slot_name)
 	_calculate_totals()
+	# The head is gone: the status light dies with it.
+	if slot_name == "head":
+		_update_pilot_light()
 
 	if total_frame_hp <= 0.0:
 		_on_mecha_destroyed()
@@ -579,14 +604,28 @@ func _drop_hand_weapon_pickup(hand: String, arm_slot: String) -> void:
 	if weapon == null:
 		return
 
-	var world = get_tree().current_scene
-	if world == null:
-		return
-
 	var section = _get_section_node(arm_slot)
 	var drop_pos: Vector3 = global_position + Vector3(0, 1.0, 0)
 	if section:
 		drop_pos = section.global_position + Vector3(0, 0.5, 0)
+	_spawn_weapon_pickup(drop_pos, weapon)
+
+
+# Pressing X while selecting a weapon drops it as a recoverable pickup.
+func _on_weapon_dropped(hand: String, weapon: WeaponPart) -> void:
+	if weapon == null:
+		return
+	var drop_pos: Vector3 = global_position + Vector3(0, 1.0, 0)
+	var section = _get_section_node("arm_left" if hand == "left" else "arm_right")
+	if section:
+		drop_pos = section.global_position + Vector3(0, 0.5, 0)
+	_spawn_weapon_pickup(drop_pos, weapon)
+
+
+func _spawn_weapon_pickup(drop_pos: Vector3, weapon: WeaponPart) -> void:
+	var world = get_tree().current_scene
+	if world == null:
+		return
 
 	var pickup := Area3D.new()
 	pickup.collision_layer = 0
@@ -638,6 +677,90 @@ func get_frame_percent() -> float:
 
 func is_part_destroyed(slot_name: String) -> bool:
 	return parts.get(slot_name, {}).get("destroyed", false)
+
+
+# ---------------------------------------------------------------------------
+# PILOT LIGHT + SPARKS
+# ---------------------------------------------------------------------------
+
+# Sets whether a pilot is on board. False turns the head light off and stops
+# the damage sparks (an empty mech isn't being run by anyone).
+func set_piloted(value: bool) -> void:
+	_piloted = value
+	_update_pilot_light()
+
+
+func _on_mecha_occupancy_changed(occupied: bool) -> void:
+	set_piloted(occupied)
+
+
+func _setup_pilot_light() -> void:
+	var mecha := get_parent()
+	if mecha == null:
+		return
+	_pilot_light = OmniLight3D.new()
+	_pilot_light.name = "PilotLight"
+	_pilot_light.light_color = Color(0.3, 0.6, 1.0) if _is_friendly() else Color(1.0, 0.25, 0.2)
+	_pilot_light.light_energy = 2.5
+	_pilot_light.omni_range = 4.0
+	var head := mecha.get_node_or_null("Head")
+	if head != null:
+		_pilot_light.position = Vector3(0, 0.15, 0)
+		head.add_child(_pilot_light)
+	else:
+		_pilot_light.position = Vector3(0, 2.4, 0)
+		add_child(_pilot_light)
+	_update_pilot_light()
+
+
+func _update_pilot_light() -> void:
+	if _pilot_light == null:
+		return
+	_pilot_light.visible = _piloted and not is_destroyed and not is_part_destroyed("head")
+
+
+# Damaged parts throw electrical sparks at their joints — but only while a
+# pilot is running the machine.
+func _process(delta: float) -> void:
+	if not _piloted or is_destroyed:
+		return
+	_spark_timer -= delta
+	if _spark_timer > 0.0:
+		return
+	_spark_timer = 0.35
+	for slot in parts:
+		if parts[slot].get("destroyed", false):
+			_spawn_part_spark(slot)
+
+
+# A brief electric-arc flash at a destroyed part's joint (shoulder for arms,
+# hip for legs, head position for a lost head).
+func _spawn_part_spark(slot: String) -> void:
+	var section := _get_section_node(slot)
+	if section == null:
+		return
+	var world = get_tree().current_scene
+	if world == null:
+		return
+	var spark := MeshInstance3D.new()
+	spark.name = "PartSpark"
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(0.06, 0.06, 0.5)
+	spark.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(1.0, 0.85, 0.4, 1.0)
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.7, 0.2)
+	mat.emission_energy_multiplier = 3.0
+	spark.material_override = mat
+	world.add_child(spark)
+	spark.global_position = section.global_position + Vector3(randf_range(-0.2, 0.2), randf_range(0.1, 0.4), randf_range(-0.2, 0.2))
+	spark.rotation.z = randf_range(-1.0, 1.0)
+	var tween := create_tween()
+	tween.tween_property(spark, "scale", Vector3(0.2, 0.2, 0.2), 0.15)
+	tween.tween_property(mat, "albedo_color:a", 0.0, 0.1)
+	tween.tween_callback(spark.queue_free)
 
 
 func is_armor_broken(slot_name: String) -> bool:

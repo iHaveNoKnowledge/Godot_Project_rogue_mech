@@ -100,6 +100,14 @@ var is_retreating: bool = false
 var _retreat_label: Label3D = null
 var _retreat_tween: Tween = null
 
+# --- Part destruction: blown-off legs force a ragdoll, broken arms disarm ---
+# With both legs gone the torso drops to the ground and can't move: ranged /
+# support mechs keep firing from the dirt, melee brawlers eject their pilot to
+# flee. Both arms gone means nothing left to attack with — the mech withdraws.
+var ragdolled: bool = false
+var piloted: bool = true
+var _ragdoll_tween: Tween = null
+
 
 func _ready() -> void:
 	add_to_group("enemy")
@@ -110,6 +118,8 @@ func _ready() -> void:
 	_setup_enemy_status()
 	health_system.mecha_destroyed.connect(_on_destroyed)
 	health_system.armor_broken.connect(_on_armor_broken)
+	if health_system.has_signal("part_destroyed"):
+		health_system.part_destroyed.connect(_on_part_destroyed)
 	_apply_catalog_health()
 	_scale_by_wanted_level()
 	_apply_archetype_stats()
@@ -436,6 +446,90 @@ func _process(delta: float) -> void:
 		energy = minf(energy + energy_regen_rate * delta, max_energy)
 
 
+# True while the mech still has at least one arm to hold a weapon.
+func can_attack() -> bool:
+	if health_system == null or not health_system.has_method("is_part_destroyed"):
+		return true
+	return not (health_system.is_part_destroyed("arm_left") and health_system.is_part_destroyed("arm_right"))
+
+
+func _both_arms_destroyed() -> bool:
+	if health_system == null or not health_system.has_method("is_part_destroyed"):
+		return false
+	return health_system.is_part_destroyed("arm_left") and health_system.is_part_destroyed("arm_right")
+
+
+func _both_legs_destroyed() -> bool:
+	if health_system == null or not health_system.has_method("is_part_destroyed"):
+		return false
+	return health_system.is_part_destroyed("leg_left") and health_system.is_part_destroyed("leg_right")
+
+
+func _on_part_destroyed(_slot: String) -> void:
+	var arms_gone := _both_arms_destroyed()
+	var legs_gone := _both_legs_destroyed()
+	if arms_gone and legs_gone:
+		# Nothing left to fight or flee with — the pilot bails out.
+		_ragdoll()
+		_eject_pilot()
+		return
+	if arms_gone:
+		# Disarmed: the mech withdraws instead of standing there helplessly.
+		flee_reason = "disabled"
+		if state_machine and state_machine.has_node("StateFlee"):
+			state_machine.transition_to("StateFlee")
+		return
+	if legs_gone:
+		_ragdoll()
+
+
+# Only long-range archetypes keep fighting after losing both legs — a melee
+# brawler has nothing it can do from the ground.
+func _can_fight_from_ground() -> bool:
+	return archetype == 1 or archetype == 3
+
+
+func _ragdoll() -> void:
+	if ragdolled:
+		return
+	ragdolled = true
+	if _can_fight_from_ground():
+		# Keep firing from the ground (states still attack; movement is frozen).
+		return
+	_eject_pilot()
+
+
+# The pilot bails out of the crippled mech and flees the field on foot.
+func _eject_pilot() -> void:
+	if not piloted:
+		return
+	piloted = false
+	if health_system and health_system.has_method("set_piloted"):
+		health_system.set_piloted(false)
+	if state_machine:
+		state_machine.transition_to("StateIdle")
+
+	var pilot := CharacterBody3D.new()
+	pilot.set_script(preload("res://scripts/mecha/enemy_pilot.gd"))
+	var color: Color = Color(0.75, 0.2, 0.2)
+	if not faction_paint.is_empty():
+		color = faction_paint.get("base", color)
+	pilot.setup(target, color)
+	get_parent().add_child(pilot)
+	pilot.global_position = global_position + Vector3(0, 1.2, 0)
+
+	_tilt_over()
+
+
+# The wreck falls over onto the ground and stays there.
+func _tilt_over() -> void:
+	if _ragdoll_tween and _ragdoll_tween.is_valid():
+		_ragdoll_tween.kill()
+	_ragdoll_tween = create_tween().set_parallel(true)
+	_ragdoll_tween.tween_property(self, "rotation:x", deg_to_rad(-82.0), 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	_ragdoll_tween.tween_property(self, "position:y", 0.55, 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+
+
 func _on_destroyed() -> void:
 	set_physics_process(false)
 	velocity = Vector3.ZERO
@@ -613,6 +707,18 @@ func _hide_retreat_label() -> void:
 func _physics_process(delta: float) -> void:
 	if health_system == null or health_system.get("is_destroyed"):
 		velocity = Vector3.ZERO
+		return
+
+	# Both legs blown off: the torso lies on the ground. Ranged units may still
+	# fire from the dirt (states run their attack logic with movement frozen in
+	# the state scripts); an ejected wreck just sits there inert.
+	if ragdolled:
+		if state_machine and piloted:
+			state_machine._physics_process(delta)
+		velocity.x = 0.0
+		velocity.z = 0.0
+		velocity.y -= 20.0 * delta
+		move_and_slide()
 		return
 
 	# Staggered: freeze AI actions while the stumble plays out.

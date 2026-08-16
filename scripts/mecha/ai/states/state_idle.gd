@@ -90,6 +90,9 @@ func _pick_search_target_if_needed() -> void:
 
 
 func _move_to_search_target(delta: float) -> void:
+	# Frozen while ragdolled — a mech with no legs can't hunt.
+	if enemy.get("ragdolled") == true:
+		return
 	if not has_search_target:
 		return
 

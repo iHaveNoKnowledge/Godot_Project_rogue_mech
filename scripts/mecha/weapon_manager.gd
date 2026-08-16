@@ -328,6 +328,8 @@ func _input(event: InputEvent) -> void:
 
 	# --- FIRE / RELOAD LEFT ---
 	if event.is_action_pressed("fire_left"):
+		if not _hand_usable("left"):
+			return
 		if holding_reload or Input.is_action_pressed("reload"):
 			reload_weapon("left")
 		else:
@@ -345,6 +347,8 @@ func _input(event: InputEvent) -> void:
 
 	# --- FIRE / RELOAD RIGHT ---
 	if event.is_action_pressed("fire_right"):
+		if not _hand_usable("right"):
+			return
 		if holding_reload or Input.is_action_pressed("reload"):
 			reload_weapon("right")
 		else:
@@ -663,7 +667,23 @@ func add_ammo(amount: int, hand: String = "", ammo_type: String = "") -> void:
 # FIRING
 # ====================================================================
 
+# True when the arm frame on this hand is still intact. A destroyed arm means
+# that hand can't fire, reload, or raise its shield — same rule the enemies
+# follow.
+func _hand_usable(hand: String) -> bool:
+	var mecha = get_parent()
+	if mecha == null:
+		return true
+	var hs = mecha.get_node_or_null("HealthSystem")
+	if hs == null or not hs.has_method("is_part_destroyed"):
+		return true
+	return not hs.is_part_destroyed("arm_left" if hand == "left" else "arm_right")
+
 func _try_fire(hand: String, weapon: WeaponPart) -> void:
+	# A destroyed arm frame cannot hold or fire anything on that hand — not the
+	# weapon and not even a bare-fist punch (the arm is gone).
+	if not _hand_usable(hand):
+		return
 	if weapon == null:
 		# Empty hand: fall back to a bare-fist punch (unarmed melee). It obeys
 		# the shared cooldown core so punches can't exceed the fist cadence.

@@ -102,8 +102,8 @@ func _follow_path(delta: float) -> void:
 		direction = (waypoint - enemy.global_position)
 		direction.y = 0.0
 
-	# Move toward waypoint
-	if direction.length() > 0.1:
+	# Move toward waypoint (frozen while ragdolled — no legs to walk with).
+	if direction.length() > 0.1 and enemy.get("ragdolled") != true:
 		enemy.velocity = direction.normalized() * enemy.move_speed
 		enemy.velocity.y = gravity
 		enemy.move_and_slide()
@@ -112,12 +112,14 @@ func _follow_path(delta: float) -> void:
 
 
 func _direct_move(delta: float) -> void:
-	# Fallback: direct movement toward target (no pathfinding)
+	# Fallback: direct movement toward target (no pathfinding). Frozen while
+	# ragdolled — a mech with no legs can't walk.
 	var direction = (enemy.target.global_position - enemy.global_position).normalized()
 	direction.y = 0.0
-	enemy.velocity = direction * enemy.move_speed
-	enemy.velocity.y = gravity
-	enemy.move_and_slide()
+	if enemy.get("ragdolled") != true:
+		enemy.velocity = direction * enemy.move_speed
+		enemy.velocity.y = gravity
+		enemy.move_and_slide()
 
 	if direction.length() > 0.1:
 		enemy.rotation.y = lerp_angle(enemy.rotation.y, atan2(direction.x, direction.z), 5.0 * delta)

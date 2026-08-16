@@ -114,5 +114,32 @@ func _ready() -> void:
 	_check(fallback.position == WeaponVisualFactory.hand_mount_position("left"),
 		"fallback rig uses the legacy fixed hand offset")
 
+	# 7. Back-carry: weapons mount on the mech ROOT (not a hand), and the mount
+	#    offset sits BEHIND the torso. The mech faces -Z, so the chest plate
+	#    ends around Z -0.4 and the backpack rear at Z +0.55 — a positive
+	#    BACK_Z parks them on the back; the old negative value buried them in
+	#    the chest and they poked straight through the body.
+	var carry_mount := WeaponVisualFactory.mount_carry(mech, [weapon, weapon], "CarryWeapons")
+	_check(carry_mount.get_parent() == mech, "carry mount is parented to the mech root")
+	_check(carry_mount.get_child_count() == 2, "carry mount renders one wmount per carried weapon")
+	_check(WeaponVisualFactory.BACK_Z > 0.4,
+		"BACK_Z is positive (behind the torso, clear of the backpack)")
+	_check(WeaponVisualFactory.BACK_Z > WeaponVisualFactory.HAND_RIGHT_POS.z + 0.2,
+		"carry weapons sit further back than the hand-mounted weapons")
+	var z_ok := true
+	var x_spread := true
+	var prev_x: float = -INF
+	for wmount in carry_mount.get_children():
+		if wmount.position.z < 0.4:
+			z_ok = false
+		if wmount.position.x <= prev_x:
+			x_spread = false
+		prev_x = wmount.position.x
+	_check(z_ok, "every carried weapon is mounted behind the torso (z > 0.4)")
+	_check(x_spread, "multiple carried weapons spread horizontally across the back")
+	var single_mount := WeaponVisualFactory.mount_carry(plain, [weapon], "CarryWeapons")
+	_check(single_mount.position.is_zero_approx() and single_mount.get_child_count() == 1,
+		"carry mount node itself stays at the origin; weapons ride on wmounts")
+
 	print("HAND_MOUNT_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	get_tree().quit(1 if _fails > 0 else 0)

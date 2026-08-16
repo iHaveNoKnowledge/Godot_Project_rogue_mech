@@ -4,8 +4,13 @@ extends RefCounted
 # Shared mount transforms (hangar preview and battle use the same placements).
 const HAND_LEFT_POS := Vector3(-0.85, 1.4, 0.4)
 const HAND_RIGHT_POS := Vector3(0.85, 1.4, 0.4)
-const BACK_Y := 1.65
-const BACK_Z := -0.55
+# Back-carry mount sits BEHIND the torso: the mech faces -Z, so the chest
+# plate ends at roughly Z -0.4 and the backpack's rear surface at Z +0.55.
+# The old -0.55 value put the "back" weapons inside the chest — they poked
+# straight through the body. +0.62 parks them just clear of the backpack so
+# they read as strapped on, not buried in the torso.
+const BACK_Y := 1.75
+const BACK_Z := 0.62
 const BACK_ROT_DEG := Vector3(-15, 0, 0)
 const CARRY_SPREAD := 0.44
 const CARRY_OFFSET_STEP := 0.22

@@ -6,23 +6,18 @@ extends Node3D
 ## gate the exit, and terrains slow or block movement.
 
 @onready var tile_container: Node3D = $TileContainer
-@onready var player_token: MeshInstance3D = $PlayerToken
+@onready var player_token: Node3D = $PlayerToken
 
 const DIRS := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
-# WASD moves the token (camera pans with the arrow keys). Physical-key checks so
-# the two never fight over the same input.
-const DIR_KEYS := {
-	KEY_D: Vector2i(1, 0),
-	KEY_A: Vector2i(-1, 0),
-	KEY_S: Vector2i(0, 1),
-	KEY_W: Vector2i(0, -1),
-}
 
 var current_pos: Vector2i = Vector2i.ZERO
 var nodes_dict: Dictionary = {}
 var _tooltip: Node
 var _reveal_log: Dictionary = {}
 var _patrol_marker_container: Node3D = null
+# Last movement heading, used to rotate the player's arrow token. Defaults to
+# east so the token faces into the board on spawn.
+var _last_dir: Vector2i = Vector2i(1, 0)
 
 
 func _ready() -> void:
@@ -113,14 +108,12 @@ func move_to_tile(target: Vector2i) -> bool:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# The token moves by CLICKING a reachable tile (board_tile._on_input_event);
+	# WASD/Q/E now belong to the camera (pan + rotate). Only board-wide keys
+	# (end day) are handled here.
 	if get_tree().paused or not visible or _intermission_open():
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
-		for keycode in DIR_KEYS:
-			if event.keycode == keycode:
-				var dir: Vector2i = DIR_KEYS[keycode]
-				_try_step(current_pos + dir)
-				return
 		if event.is_action_pressed("pause"):
 			return
 		if event.keycode == KEY_END or event.keycode == KEY_ENTER:
@@ -148,6 +141,7 @@ func _try_step(target: Vector2i) -> bool:
 		return false
 
 	GlobalData.board_mp = maxi(GlobalData.board_mp - cost, 0)
+	_last_dir = target - current_pos
 	current_pos = target
 	GlobalData.current_tile = target
 	_update_token_position()
@@ -344,6 +338,8 @@ func _update_token_position() -> void:
 	if nodes_dict.has(current_pos):
 		var tile = nodes_dict[current_pos]
 		player_token.global_position = tile.global_position + Vector3(0, 0.9, 0)
+		# Point the arrow at the last heading (east = (1,0), south = (0,1), ...).
+		player_token.face_heading(_last_dir)
 
 
 # ---------------------------------------------------------------------------
@@ -368,6 +364,21 @@ func _refresh_patrol_markers() -> void:
 		_patrol_marker_container.add_child(marker)
 		marker.global_position = nodes_dict[pos].global_position + Vector3(0, 1.0, 0)
 		marker.setup(p)
+	_add_boss_marker()
+
+
+# The exit tile holds the sector boss: a large purple arrow that marks the
+# extraction point so its location is obvious at a glance.
+func _add_boss_marker() -> void:
+	for key in nodes_dict:
+		if str(nodes_dict[key].get_meta("tile_type", "empty")) != "exit":
+			continue
+		var marker := Node3D.new()
+		marker.set_script(preload("res://scripts/board/board_arrow.gd"))
+		marker.setup(BoardArrow.BOSS_PURPLE, false, 1.7, true)
+		_patrol_marker_container.add_child(marker)
+		marker.global_position = nodes_dict[key].global_position + Vector3(0, 1.1, 0)
+		return
 
 
 # True when `character_id` is a recruitable pilot who hasn't been met yet.

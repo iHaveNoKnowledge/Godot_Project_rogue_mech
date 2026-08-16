@@ -106,6 +106,7 @@ static func spawn_patrols() -> void:
 			"aggro": false,
 			"faction": faction,
 			"character_id": character_id,
+			"dir": Vector2i(1, 0),
 		})
 		id += 1
 
@@ -176,6 +177,8 @@ static func advance_day(player_pos: Vector2i) -> Vector2i:
 			occupied.erase(cur)
 			occupied[next] = true
 			p["pos"] = next
+			# Remember the heading so the board's arrow marker can face it.
+			p["dir"] = next - cur
 			if next == player_pos:
 				ambush = next
 	return ambush

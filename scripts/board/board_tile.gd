@@ -7,6 +7,9 @@ var is_highlighted: bool = false
 var is_revealed: bool = false
 var connections: Array = []
 
+var _reachable_glow: MeshInstance3D = null
+var _event_beacon: Node = null
+
 
 func _ready() -> void:
 	add_to_group("board_tile")
@@ -18,6 +21,11 @@ func _ready() -> void:
 	if tile_type in ["start", "exit", "safehouse", "data_node", "enemy_base", "city"]:
 		is_revealed = true
 	_add_terrain_props()
+	# Event / data-node tiles are marked by a glowing 3D beacon (a transparent
+	# cylinder), not by coloring the floor — the tile itself keeps its terrain
+	# color and the beacon hides until the tile is revealed.
+	if tile_type in ["event", "data_node"]:
+		_event_beacon = _make_beacon()
 	_update_visual()
 
 
@@ -55,8 +63,6 @@ func _update_visual() -> void:
 				color = Color(0.2, 0.8, 0.2) # Green Safehouse
 			"city":
 				color = Color(0.95, 0.6, 0.2) # Orange Trading City
-			"data_node":
-				color = Color(0.9, 0.8, 0.1) # Gold Data Terminal
 	else:
 		color = color.darkened(0.35)
 		color.a = 0.9
@@ -64,6 +70,11 @@ func _update_visual() -> void:
 	material.albedo_color = color
 	material.roughness = 0.85
 	mesh_instance.set_surface_override_material(0, material)
+
+	# Content beacons (event / data-node) stay hidden under fog of war and only
+	# glow once their tile is explored.
+	if _event_beacon != null:
+		_event_beacon.visible = is_revealed
 
 
 func _terrain_color(t: String) -> Color:
@@ -214,14 +225,53 @@ func _add_bush(parent: Node3D, rng: RandomNumberGenerator) -> void:
 
 func highlight(active: bool) -> void:
 	is_highlighted = active
-	var mesh_instance = get_node_or_null("MeshInstance3D")
-	if mesh_instance == null:
-		return
 	if active:
-		mesh_instance.position.y = 0.04
+		# Reachable tiles get a faint light disc on the ground so the player can
+		# see where they may step — dim on purpose, the scene must stay readable.
+		_ensure_reachable_glow()
+		if _reachable_glow != null:
+			_reachable_glow.visible = true
 		reveal()
 	else:
-		mesh_instance.position.y = 0.0
+		if _reachable_glow != null:
+			_reachable_glow.visible = false
+
+
+# Builds the reachable-tile glow disc once, lazily (only tiles that actually get
+# highlighted ever allocate one).
+func _ensure_reachable_glow() -> void:
+	if _reachable_glow != null:
+		return
+	var glow := MeshInstance3D.new()
+	glow.name = "ReachableGlow"
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 1.5
+	mesh.bottom_radius = 1.5
+	mesh.height = 0.05
+	glow.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = Color(0.45, 0.8, 1.0, 0.16)
+	mat.emission_enabled = true
+	mat.emission = Color(0.45, 0.8, 1.0)
+	mat.emission_energy_multiplier = 0.7
+	glow.material_override = mat
+	glow.position.y = 0.05
+	glow.visible = false
+	add_child(glow)
+	_reachable_glow = glow
+
+
+# Event / data-node tiles get a transparent glowing cylinder beacon (TileGlow)
+# so interactable content reads as a 3D model on the board, not a floor color.
+func _make_beacon() -> Node:
+	var beacon := Node3D.new()
+	beacon.set_script(preload("res://scripts/board/tile_glow.gd"))
+	# Events glow cyan, data terminals glow gold to keep their old identity.
+	beacon.setup(Color(0.35, 0.85, 1.0) if tile_type == "event" else Color(1.0, 0.75, 0.2))
+	add_child(beacon)
+	return beacon
 
 
 func set_hover(hovered: bool) -> void:

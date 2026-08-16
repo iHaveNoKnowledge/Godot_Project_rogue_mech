@@ -2,10 +2,11 @@ extends Node
 
 ## Headless verification of the board HUD / intermission interplay and the
 ## intermission music resume behavior:
-##   - the compact MP card hides while the intermission menu is open (so it
-##     never overlaps the menu buttons) and reappears when it closes
-##   - the board card carries day + MP only; the sector objective text lives
-##     exclusively in the intermission's top-right panel
+##   - the top-center MP card is ALWAYS visible on the board — even while the
+##     intermission menu is open (it never overlaps the left menu buttons)
+##   - the board HUD's right column carries the sector objective, a ceasefire
+##     countdown slot and a reserved empty slot (the intermission no longer
+##     draws its own objective panel)
 ##   - AudioManager remembers the intermission track when combat music takes
 ##     over and resumes the SAME track (not a fresh random song) when the
 ##     player returns to the board, then forgets it when leaving to the menu
@@ -17,8 +18,8 @@ var _checks: int = 0
 
 func _ready() -> void:
 	await get_tree().process_frame
-	await _verify_board_hud_hiding()
-	await _verify_no_objective_in_board_hud()
+	await _verify_board_hud_always_visible()
+	await _verify_right_column()
 	await _verify_music_resume()
 	print("BOARD_HUD_INTERMISSION_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	await get_tree().process_frame
@@ -39,9 +40,9 @@ func _find_labels(node: Node, found: Array) -> void:
 		_find_labels(child, found)
 
 
-func _verify_board_hud_hiding() -> void:
+func _verify_board_hud_always_visible() -> void:
 	# Mirror the board scene layout: GameBoard hosts both IntermissionUI and
-	# BoardHUD as siblings, and board_hud looks up "IntermissionUI" on its parent.
+	# BoardHUD as siblings.
 	var host := Node3D.new()
 	host.name = "GameBoard"
 	add_child(host)
@@ -54,36 +55,48 @@ func _verify_board_hud_hiding() -> void:
 	host.add_child(hud)
 	await get_tree().process_frame
 
-	# Intermission menu open (the default state when the board loads) -> hidden.
-	_check(not hud._panel.visible, "MP card hides while the intermission menu is open")
+	# Intermission menu open (the default state when the board loads) -> the
+	# MP card stays visible at top-center.
+	_check(hud._panel.visible, "MP card is visible while the intermission menu is open")
 
-	# Player pressed "Move on Board" -> the card reappears for map traversal.
+	# Player pressed "Move on Board" -> still visible.
 	intermission.visible = false
 	await get_tree().process_frame
-	_check(hud._panel.visible, "MP card shows again once the intermission closes")
+	_check(hud._panel.visible, "MP card stays visible once the intermission closes")
 
-	# Reopening the intermission hides it again.
+	# Reopening the intermission keeps it visible.
 	intermission.visible = true
 	await get_tree().process_frame
-	_check(not hud._panel.visible, "MP card hides again when the intermission reopens")
+	_check(hud._panel.visible, "MP card stays visible when the intermission reopens")
 
 	host.queue_free()
 
 
-func _verify_no_objective_in_board_hud() -> void:
+func _verify_right_column() -> void:
 	var hud = load("res://scenes/ui/board_hud.tscn").instantiate()
 	add_child(hud)
 	await get_tree().process_frame
 
-	var labels: Array = []
-	_find_labels(hud._panel, labels)
-	var has_objective := false
-	for label in labels:
-		if str(label.text).contains("OBJECTIVE"):
-			has_objective = true
-	_check(not has_objective, "board card shows day + MP only, no objective text")
+	# The right column is a 3-slot stack: objective / countdown / reserved.
+	_check(hud._objective_label != null and str(hud._objective_label.text).begins_with("OBJECTIVE"),
+		"right column shows the sector objective")
+	_check(hud._ceasefire_panel != null and hud._reserved_panel != null,
+		"right column has a ceasefire countdown slot + reserved slot")
+
+	# No ceasefire -> the countdown slot stays an empty reserved cell.
+	GlobalData.ceasefire_turns = 0
+	hud._refresh()
+	_check(str(hud._ceasefire_label.text) == "", "ceasefire slot empty when no ceasefire is active")
+
+	# Active ceasefire -> the slot shows how many turns remain.
+	GlobalData.ceasefire_turns = 3
+	hud._refresh()
+	_check(str(hud._ceasefire_label.text).contains("3 TURNS LEFT"), "ceasefire slot shows remaining turns when active")
+	GlobalData.ceasefire_turns = 0
 
 	# MP readout still works (the whole point of the card).
+	var labels: Array = []
+	_find_labels(hud._panel, labels)
 	var mp_found := false
 	for label in labels:
 		if str(label.text).begins_with("MP "):

@@ -1,17 +1,23 @@
 extends CanvasLayer
 
-## Board HUD: a compact overlay on the map screen showing the current day and
-## how many movement points remain out of the daily pool. The MP readout
-## answers "how many more actions can I take today" at a glance, so the player
-## never walks blind into an early end-of-day. The card hides entirely while
-## the intermission is open (the intermission owns the objective display and
-## its menu must not be overlapped), and the sector objective itself lives only
-## in the intermission's top-right panel.
+## Board HUD: a persistent overlay on the map screen.
+##   - Top-center: compact day + MP card, always visible (even while the
+##     intermission menu is open) so the player never walks blind into an
+##     early end-of-day.
+##   - Right column of three stacked slots: the sector objective on top, a
+##     ceasefire countdown under it (visible while a political ceasefire is
+##     active), and an empty reserved slot below for future status widgets.
 
 var _panel: PanelContainer
 var _day_label: Label
 var _mp_label: Label
 var _mp_bar: ProgressBar
+
+var _objective_panel: PanelContainer
+var _objective_label: Label
+var _ceasefire_panel: PanelContainer
+var _ceasefire_label: Label
+var _reserved_panel: PanelContainer
 
 
 func _ready() -> void:
@@ -21,15 +27,14 @@ func _ready() -> void:
 
 
 func _build_ui() -> void:
+	# --- Top-center MP card ---
 	_panel = PanelContainer.new()
-	_panel.anchor_left = 0.0
-	_panel.anchor_top = 0.0
-	_panel.anchor_right = 0.0
-	_panel.anchor_bottom = 0.0
-	_panel.offset_left = 16
-	_panel.offset_top = 16
-	_panel.offset_right = 300
-	_panel.offset_bottom = 120
+	_panel.anchor_left = 0.5
+	_panel.anchor_right = 0.5
+	_panel.offset_left = -170
+	_panel.offset_right = 170
+	_panel.offset_top = 12
+	_panel.offset_bottom = 88
 	add_child(_panel)
 
 	var style := StyleBoxFlat.new()
@@ -54,18 +59,20 @@ func _build_ui() -> void:
 	_panel.add_child(vbox)
 
 	_day_label = Label.new()
+	_day_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_day_label.add_theme_font_size_override("font_size", 15)
 	_day_label.add_theme_color_override("font_color", Color(1.0, 0.8, 0.3))
 	vbox.add_child(_day_label)
 
 	var mp_row := HBoxContainer.new()
 	mp_row.add_theme_constant_override("separation", 10)
+	mp_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	vbox.add_child(mp_row)
 
 	_mp_label = Label.new()
 	_mp_label.add_theme_font_size_override("font_size", 18)
 	_mp_label.add_theme_color_override("font_color", Color(0.55, 0.9, 1.0))
-	_mp_label.custom_minimum_size = Vector2(120, 0)
+	_mp_label.custom_minimum_size = Vector2(110, 0)
 	mp_row.add_child(_mp_label)
 
 	_mp_bar = ProgressBar.new()
@@ -91,16 +98,54 @@ func _build_ui() -> void:
 	_mp_bar.add_theme_stylebox_override("background", bg)
 	mp_row.add_child(_mp_bar)
 
+	# --- Right column: objective / ceasefire countdown / reserved ---
+	_objective_panel = _make_side_panel(20, 130)
+	_objective_label = Label.new()
+	_objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_objective_panel.add_child(_objective_label)
+
+	_ceasefire_panel = _make_side_panel(140, 210, true)
+	_ceasefire_label = Label.new()
+	_ceasefire_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_ceasefire_label.add_theme_color_override("font_color", Color(1.0, 0.75, 0.3))
+	_ceasefire_panel.add_child(_ceasefire_label)
+
+	_reserved_panel = _make_side_panel(220, 290, true)
+
+
+# A stacked slot in the right column. `dim` renders the slot as an empty
+# reserved cell (subtle outline) instead of a filled card.
+func _make_side_panel(offset_top: int, offset_bottom: int, dim: bool = false) -> PanelContainer:
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	panel.offset_left = -270
+	panel.offset_right = -20
+	panel.offset_top = offset_top
+	panel.offset_bottom = offset_bottom
+	add_child(panel)
+
+	var s := StyleBoxFlat.new()
+	s.bg_color = Color(0.05, 0.07, 0.12, 0.85) if not dim else Color(0.05, 0.07, 0.12, 0.5)
+	s.corner_radius_top_left = 8
+	s.corner_radius_top_right = 8
+	s.corner_radius_bottom_left = 8
+	s.corner_radius_bottom_right = 8
+	s.content_margin_left = 14
+	s.content_margin_right = 14
+	s.content_margin_top = 10
+	s.content_margin_bottom = 10
+	s.border_width_left = 1
+	s.border_width_right = 1
+	s.border_width_top = 1
+	s.border_width_bottom = 1
+	s.border_color = Color(0.3, 0.45, 0.7, 0.35)
+	panel.add_theme_stylebox_override("panel", s)
+	return panel
 
 
 func _process(_delta: float) -> void:
-	if _day_label == null:
+	if _mp_label == null:
 		return
-	# The intermission menu has its own full objective panel (top-right) and
-	# status bar, so the compact board card hides entirely while it is open —
-	# the MP readout must never overlap the intermission menu buttons.
-	var intermission := get_parent().get_node_or_null("IntermissionUI") if get_parent() else null
-	_panel.visible = intermission == null or not intermission.visible
 	_refresh()
 
 
@@ -116,3 +161,32 @@ func _refresh() -> void:
 	_mp_bar.value = float(mp)
 	# Red bar as the pool empties so "out of moves" is unmistakable.
 	_mp_bar.modulate = Color(1.0, 0.45, 0.35) if mp <= 0 else Color.WHITE
+	_update_objective_panel()
+	_update_ceasefire_panel()
+
+
+func _update_objective_panel() -> void:
+	if _objective_label == null:
+		return
+	var obj := BoardSystem.get_objective()
+	var progress := GlobalData.board_objective_progress
+	var required := GlobalData.board_objective_required
+	var pct := int(float(progress) / maxi(required, 1) * 100.0)
+	_objective_label.text = "OBJECTIVE\n%s\n\nProgress: %d / %d  (%d%%)\n%s" % [
+		obj.get("name", "Objective"),
+		progress, required, pct,
+		BoardSystem.objective_desc(),
+	]
+
+
+func _update_ceasefire_panel() -> void:
+	if _ceasefire_label == null:
+		return
+	var turns := maxi(GlobalData.ceasefire_turns, 0)
+	if turns > 0:
+		_ceasefire_label.text = "CEASEFIRE\n%d TURN%s LEFT — no combat on the front." % [
+			turns, "S" if turns != 1 else ""
+		]
+	else:
+		# Reserved slot: keep the panel as a dim empty cell.
+		_ceasefire_label.text = ""

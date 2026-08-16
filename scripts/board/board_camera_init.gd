@@ -1,6 +1,9 @@
 extends Camera3D
 
-## Board camera: follows player token, supports mouse drag + arrow keys to pan.
+## Board camera: follows the player token and pans with WASD (W north, S south,
+## A west, D east — world directions). Q / E rotate the view around the player
+## (Q counter-clockwise, E clockwise). Middle-drag pans, wheel zooms, R
+## re-centers on the player. The player token itself moves by clicking tiles.
 
 @export var camera_height: float = 30.0
 @export var camera_height_min: float = 12.0
@@ -8,11 +11,13 @@ extends Camera3D
 @export var follow_speed: float = 8.0
 @export var drag_speed: float = 0.3
 @export var key_pan_speed: float = 40.0
+@export var rotate_speed: float = 1.2
 
 var player_token: Node3D
 var is_dragging: bool = false
 var drag_offset: Vector3 = Vector3.ZERO
 var follow_enabled: bool = true
+var yaw: float = 0.0
 
 
 func _ready() -> void:
@@ -53,29 +58,25 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
-	# Arrow keys pan the camera continuously while on board (WASD is reserved
-	# for moving the player token on the open grid). Moved into _process so
-	# holding a key pans smoothly instead of only on keypress events.
 	if GameManager.current_state == GameManager.State.BOARD:
-		var pan_dir = Vector3.ZERO
-		if Input.is_key_pressed(KEY_DOWN):
-			pan_dir.z += 1.0
-		if Input.is_key_pressed(KEY_UP):
-			pan_dir.z -= 1.0
-		if Input.is_key_pressed(KEY_LEFT):
-			pan_dir.x -= 1.0
-		if Input.is_key_pressed(KEY_RIGHT):
-			pan_dir.x += 1.0
+		# WASD pans the camera in world space (W = north, S = south, A = west,
+		# D = east), independent of the current view rotation.
+		var pan := Vector3.ZERO
+		if Input.is_key_pressed(KEY_W):
+			pan.z -= 1.0
+		if Input.is_key_pressed(KEY_S):
+			pan.z += 1.0
+		if Input.is_key_pressed(KEY_A):
+			pan.x -= 1.0
+		if Input.is_key_pressed(KEY_D):
+			pan.x += 1.0
+		drag_offset += pan * key_pan_speed * delta
 
-		if pan_dir.length() > 0.01:
-			# Move in world XZ plane based on camera orientation
-			var forward = -global_transform.basis.z
-			var right = global_transform.basis.x
-			forward.y = 0.0
-			forward = forward.normalized()
-			right.y = 0.0
-			right = right.normalized()
-			drag_offset += (right * pan_dir.x + forward * pan_dir.z) * key_pan_speed * delta
+		# Q / E rotate the orbit around the player (Q counter-clockwise).
+		if Input.is_key_pressed(KEY_E):
+			rotate_yaw(rotate_speed * delta)
+		if Input.is_key_pressed(KEY_Q):
+			rotate_yaw(-rotate_speed * delta)
 
 	if player_token == null or not is_instance_valid(player_token):
 		return
@@ -86,8 +87,16 @@ func _process(delta: float) -> void:
 	look_at(look_target, Vector3.UP)
 
 
+# Rotates the camera's orbit around the player. Positive = clockwise when seen
+# from above (the board's top-down view), negative = counter-clockwise.
+func rotate_yaw(amount: float) -> void:
+	yaw += amount
+
+
 # Slight isometric tilt: the camera sits diagonal to the player (offset in both
 # X and Z) instead of straight above, so the board reads with depth — tiles and
-# props get a 3/4 view instead of a flat top-down look.
+# props get a 3/4 view instead of a flat top-down look. The orbit yaw (Q/E)
+# rotates this offset around the player.
 func _get_offset() -> Vector3:
-	return Vector3(camera_height * 0.45, camera_height, camera_height * 0.6)
+	var base := Vector3(camera_height * 0.45, camera_height, camera_height * 0.6)
+	return base.rotated(Vector3.UP, yaw)

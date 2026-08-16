@@ -213,14 +213,16 @@ func _seeded_shuffle(items: Array, rng: RandomNumberGenerator) -> void:
 
 
 func _roll_content(rng: RandomNumberGenerator) -> String:
+	# Combat NEVER rolls onto plain tiles — battles only happen when the player
+	# steps onto a hostile patrol arrow (or a special tile like the enemy
+	# research base). Random fights belong to the red ">" fleets you can see
+	# moving on the map, not to invisible ground tiles.
 	var roll := rng.randf()
 	if roll < 0.22:
 		return "event"
 	elif roll < 0.34:
 		return "data_node"
-	elif roll < 0.52:
-		return "combat"
-	elif roll < 0.60:
+	elif roll < 0.44:
 		return "dead_end"
 	return "empty"
 

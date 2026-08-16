@@ -40,6 +40,14 @@ func _ready() -> void:
 	_check(nodes.has(start) and nodes[start].get_meta("tile_type", "") == "start", "start tile at (0,0)")
 	_check(nodes.has(exit) and nodes[exit].get_meta("tile_type", "") == "exit", "exit tile at far corner")
 
+	# Combat must NEVER come from plain ground tiles — battles only happen when
+	# the player steps onto a hostile patrol arrow (red ">") or the enemy base.
+	var combat_tiles := 0
+	for k in nodes:
+		if nodes[k].get_meta("tile_type", "") == "combat":
+			combat_tiles += 1
+	_check(combat_tiles == 0, "no plain tile rolls a combat encounter (battles come from patrol arrows)")
+
 	# --- connectivity: BFS over walkable terrain must reach every walkable cell ---
 	var walkable: Dictionary = {}
 	for k in terrain:

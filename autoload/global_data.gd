@@ -858,7 +858,8 @@ var blocked_intermission: bool = false
 # PILOT-ONLY MODE — true while the convoy owns no mech (the player fights on
 # foot). Set when the last parked mech is destroyed in battle; cleared when a
 # recovery event or reward grants a fresh chassis. While true the hangar roster
-# stays empty and board "combat" tiles become recovery events.
+# stays empty and hostile patrol encounters become recovery events instead of
+# battles (the player can't fight on foot).
 var mech_less: bool = false
 
 # Text shown to the player on the next screen after an event's effect lands

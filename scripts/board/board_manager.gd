@@ -175,6 +175,12 @@ func _try_step(target: Vector2i) -> bool:
 		if str(patrol.get("faction", "hostile")) == "unknown" and _has_available_recruit(str(patrol.get("character_id", ""))):
 			_trigger_patrol_talk_event(patrol)
 			return true
+		# Pilot-only convoys can't fight on foot: the encounter becomes a
+		# recovery event (same behavior the old combat tiles had).
+		if GlobalData.mech_less:
+			GlobalData.board_patrol_engagement = -1
+			_trigger_recovery_event()
+			return true
 		_request_combat("grunt" if int(patrol.get("aces", 0)) == 0 else "ace")
 		return true
 
@@ -244,6 +250,12 @@ func _end_day() -> void:
 			GlobalData.board_patrol_engagement = int(patrol.get("id", -1))
 			if str(patrol.get("faction", "hostile")) == "unknown" and _has_available_recruit(str(patrol.get("character_id", ""))):
 				_trigger_patrol_talk_event(patrol)
+				return
+			# Pilot-only convoys can't fight on foot: the ambush becomes a
+			# recovery event instead of a battle.
+			if GlobalData.mech_less:
+				GlobalData.board_patrol_engagement = -1
+				_trigger_recovery_event()
 				return
 			_request_combat("grunt" if int(patrol.get("aces", 0)) == 0 else "ace")
 			return
@@ -492,7 +504,9 @@ func _clear_enemy_base_tile() -> void:
 	if not nodes_dict.has(reset_pos):
 		return
 	var tile = nodes_dict[reset_pos]
-	tile.set_meta("tile_type", "combat")
+	# New boards never roll "combat" tiles (battles come from patrol arrows), so
+	# the former research node reverts to ordinary ground.
+	tile.set_meta("tile_type", "empty")
 	if tile.has_method("_update_visual"):
 		tile._update_visual()
 
@@ -520,6 +534,8 @@ func accumulate_stalker_chance() -> void:
 func _process_tile_effect(tile_type: String) -> void:
 	match tile_type:
 		"combat":
+			# Legacy — new boards never roll combat tiles (battles come from
+			# hostile patrol arrows); kept only as a safety net.
 			if GlobalData.mech_less:
 				_trigger_recovery_event()
 			elif GlobalData.ceasefire_turns > 0:

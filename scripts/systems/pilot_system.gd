@@ -81,8 +81,20 @@ static func is_injured() -> bool:
 	return get_hp() < get_max_hp()
 
 
+# PERMANENT DEATH: a pilot whose HP reaches 0 is dead, not merely wounded.
+# Dead pilots cannot be healed and never fight again. This is the SAME rule
+# for both sides — the player pilot (GlobalData.pilot_hp) and every ejected
+# enemy pilot (their own HP pool) — so getting shot can end a pilot for good
+# instead of the player always ejecting and fleeing.
+static func is_dead() -> bool:
+	return get_hp() <= 0.0
+
+
 # Restores HP up to max. `amount <= 0` (or a "full restore" item) heals all.
+# A dead pilot stays dead: healing does nothing.
 static func heal(amount: float) -> float:
+	if is_dead():
+		return 0.0
 	var restored: float
 	if amount <= 0.0:
 		restored = get_max_hp() - get_hp()
@@ -100,9 +112,14 @@ static func take_damage(amount: float) -> float:
 	return before - get_hp()
 
 
-# The pilot ejects from a destroyed mech: they take eject damage but survive
-# (wounded pilots fight again once healed — the run only ends when the convoy
-# is gone, not on a single wound).
+# Instantly kills the pilot (HP to 0).
+static func kill() -> void:
+	GlobalData.pilot_hp = 0.0
+
+
+# The pilot ejects from a destroyed mech: they take eject damage. Wounded
+# pilots survive (healable), but a pilot already badly hurt can be killed by
+# the eject itself — HP hitting 0 is permanent death, exactly like being shot.
 static func on_mecha_destroyed() -> void:
 	take_damage(EJECT_DAMAGE)
 

@@ -451,6 +451,14 @@ func _on_mecha_destroyed() -> void:
 		# the pilot's own HP drops (separate from the mech's). Wounded pilots
 		# heal with items bought at city nodes / rest before the next sortie.
 		PilotSystem.on_mecha_destroyed()
+		# PERMANENT DEATH: if the eject drops the pilot's HP to 0 (they were
+		# already badly hurt, e.g. shot earlier in the battle) the pilot is dead
+		# for good — same rule as being shot on foot. The run ends right here.
+		if PilotSystem.is_dead():
+			GlobalData.run_notice = "Your pilot was killed when the mech went down. The run ends here."
+			EventBus.combat_ended.emit(false)
+			GameManager.game_over()
+			return
 		await get_tree().create_timer(2.0).timeout
 		if GameManager.is_escaping:
 			return

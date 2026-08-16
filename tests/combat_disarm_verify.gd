@@ -189,6 +189,18 @@ func _verify_enemy_ragdoll() -> void:
 	_check(rusher.ragdolled, "rusher ragdolls once both legs are gone")
 	_check(not rusher.piloted, "melee rusher ejects its pilot")
 	_check(get_tree().get_nodes_in_group("enemy_pilot").size() >= 1, "an enemy pilot spawns and flees")
+	# The ejected pilot is a REAL target with its own HP pool: player fire can
+	# shoot it down and HP 0 is permanent death (same rule as the player pilot).
+	var e_pilots = get_tree().get_nodes_in_group("enemy_pilot")
+	if not e_pilots.is_empty():
+		var e_pilot: Node = e_pilots[0]
+		_check(e_pilot.is_in_group("enemy"), "ejected pilot is targetable (enemy group)")
+		_check(e_pilot.has_method("take_damage"), "ejected pilot is shootable on foot")
+		_check(float(e_pilot.hp) == 40.0, "ejected pilot carries its own HP pool")
+		e_pilot.take_damage(9999.0)
+		await get_tree().process_frame
+		await get_tree().process_frame
+		_check(not is_instance_valid(e_pilot), "ejected pilot shot to 0 HP dies permanently")
 	rusher.queue_free()
 	await get_tree().process_frame
 

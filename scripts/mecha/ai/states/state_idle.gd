@@ -51,11 +51,14 @@ func physics_process(delta: float) -> void:
 # range. Unspotted enemies keep hunting otherwise.
 func _find_target() -> bool:
 	# Enemies prioritize the player mecha, but will also engage fielded allies.
+	# A dismounted player pilot on foot (EJECT state) is a valid target too —
+	# pilots are shootable, so an ejecting pilot can't just run forever.
 	var mechas = enemy.get_tree().get_nodes_in_group("mecha")
 	var allies = enemy.get_tree().get_nodes_in_group("ally")
+	var pilots = enemy.get_tree().get_nodes_in_group("pilot")
 	var nearest: Node3D = null
 	var nearest_dist: float = 50.0
-	for candidate in mechas + allies:
+	for candidate in mechas + allies + pilots:
 		if not is_instance_valid(candidate):
 			continue
 		var dist = enemy.global_position.distance_to(candidate.global_position)

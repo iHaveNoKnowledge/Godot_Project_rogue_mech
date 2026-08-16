@@ -24,6 +24,31 @@ func _ready() -> void:
 	_rebuild_weapon_mesh()
 
 
+# The pilot on foot is a real target: enemy fire (projectiles + melee) hits
+# them and drains the SAME PilotSystem HP pool that the mech-eject wounding
+# uses. A pilot whose HP reaches 0 is dead permanently — the run ends. This
+# is the same permanent-death rule enemy pilots use, so getting shot can end
+# a pilot for good instead of the player always ejecting and fleeing.
+func take_damage(amount: float, damage_type: String = "kinetic") -> void:
+	if amount <= 0.0 or PilotSystem.is_dead():
+		return
+	PilotSystem.take_damage(amount)
+	EffectManager.spawn_damage_number(global_position + Vector3(0, 1.6, 0), amount, Color(1.0, 0.4, 0.3))
+	if AudioManager:
+		AudioManager.play_impact_by_type(damage_type, global_position)
+	if PilotSystem.is_dead():
+		_die()
+
+
+# Permanent death on foot: the pilot collapses and the run is over. The same
+# death rule applies to every pilot (player and enemy) — HP 0 is gone for good.
+func _die() -> void:
+	if GameManager.current_state == GameManager.State.EJECT:
+		EventBus.combat_ended.emit(false)
+		GlobalData.run_notice = "Your pilot was shot and killed. The run ends here."
+		GameManager.game_over()
+
+
 func _equip_weapon(index: int) -> void:
 	if _weapons.is_empty():
 		_weapon_index = 0

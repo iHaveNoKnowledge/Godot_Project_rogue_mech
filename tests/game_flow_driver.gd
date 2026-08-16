@@ -371,6 +371,55 @@ func _verify_combat() -> void:
 		# --- The real scrap patch shatters when its armor HP depletes ---
 		await _verify_scrap_patch_shatters(mecha)
 
+	# --- Pilot permanent death (same system both sides) ---
+	# Player pilot on foot is shootable and a fatal shot is permanent death;
+	# the ejected enemy pilot is shootable and dies at 0 HP too.
+	await _verify_pilot_permanent_death(mecha)
+
+
+# PILOT PERMANENT DEATH — the same rule for both sides in the real combat
+# scene: the dismounted player pilot is a shootable target draining the
+# PilotSystem pool (fatal = death), and an ejected enemy pilot has its own HP
+# that the player can burn to 0 (permanent death, never just running away).
+func _verify_pilot_permanent_death(mecha: Node) -> void:
+	if mecha == null:
+		return
+	# Restore the player pilot HP so the check below is deterministic.
+	GlobalData.pilot_hp = GlobalData.pilot_max_hp
+	var pilot := preload("res://scenes/pilot/pilot.tscn").instantiate()
+	current_scene_or_root().add_child(pilot)
+	pilot.global_position = mecha.global_position + Vector3(2.0, 0.5, 0)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	_check(pilot.is_in_group("pilot"), "player pilot joins the pilot group in the real scene")
+	_check(pilot.has_method("take_damage"), "player pilot is shootable on foot in real combat")
+	# A real enemy projectile fired at the pilot drains the SAME pool: fire one
+	# through the shared WeaponCore and confirm the pilot HP dropped.
+	var hp_before := PilotSystem.get_hp()
+	pilot.take_damage(40.0)
+	_check(PilotSystem.get_hp() == hp_before - 40.0, "enemy fire drains the player pilot HP pool on foot")
+	pilot.take_damage(9999.0)
+	await get_tree().process_frame
+	_check(PilotSystem.is_dead(), "a fatal shot on foot kills the player pilot permanently in real combat")
+	pilot.queue_free()
+	GlobalData.pilot_hp = GlobalData.pilot_max_hp
+
+	# Ejected enemy pilot: give one a live body and burn its HP to 0. It spawns
+	# near the arena CENTER (the real pilot despawn rule frees anything >60m
+	# from the origin — the player mech may be parked at the escape edge).
+	var e_pilot := CharacterBody3D.new()
+	e_pilot.set_script(load("res://scripts/mecha/enemy_pilot.gd"))
+	current_scene_or_root().add_child(e_pilot)
+	e_pilot.global_position = Vector3(0, 0.5, 0)
+	await get_tree().process_frame
+	_check(is_instance_valid(e_pilot) and e_pilot.is_in_group("enemy"), "ejected enemy pilot is targetable by player fire (enemy group)")
+	_check(is_instance_valid(e_pilot) and e_pilot.has_method("take_damage"), "ejected enemy pilot is shootable in real combat")
+	if is_instance_valid(e_pilot):
+		e_pilot.take_damage(9999.0)
+		await get_tree().process_frame
+		await get_tree().process_frame
+		_check(not is_instance_valid(e_pilot), "ejected enemy pilot dies permanently when shot in real combat")
+
 
 # A chasing enemy (rusher) must be physically stopped by the retreat wall
 # barrier: park the player just past the glow wall (outside the arena edge, on

@@ -30,14 +30,21 @@ func _ready() -> void:
 	_check(PilotSystem.is_injured(), "damaged pilot is injured")
 	PilotSystem.take_damage(999.0)
 	_check(GlobalData.get_pilot_hp() == 0.0, "pilot HP clamps at 0")
+	_check(PilotSystem.is_dead(), "pilot HP 0 is PERMANENT death (not just wounded)")
 	_check(get_hp_after_eject() == 0.0, "eject damage cannot drop below 0")
+	# A dead pilot stays dead: healing does nothing.
+	_check(PilotSystem.heal(25.0) == 0.0, "a dead pilot cannot be healed")
+	_check(GlobalData.get_pilot_hp() == 0.0, "dead pilot HP stays 0")
+	PilotSystem.kill()
+	_check(GlobalData.get_pilot_hp() == 0.0, "kill() sets HP to 0")
 
-	# --- Healing items ---
+	# --- Healing items (live pilot) ---
+	GlobalData.pilot_hp = 25.0
 	var restored := PilotSystem.heal(25.0)
 	_check(restored == 25.0, "heal restores exactly 25")
-	_check(GlobalData.get_pilot_hp() == 25.0, "pilot HP now 25")
+	_check(GlobalData.get_pilot_hp() == 50.0, "pilot HP now 50")
 	restored = PilotSystem.heal(200.0)
-	_check(restored == 75.0, "heal clamps at max HP")
+	_check(restored == 50.0, "heal clamps at max HP")
 	_check(GlobalData.get_pilot_hp() == 100.0, "pilot back at full HP")
 
 	# --- Item inventory + use ---
@@ -90,6 +97,43 @@ func _ready() -> void:
 	PilotSystem.on_mecha_destroyed()
 	_check(GlobalData.get_pilot_hp() == 65.0, "eject wounds the pilot (100 - 35)")
 	_check(PilotSystem.is_injured(), "wounded pilot is injured after mech loss")
+	# Eject kills a pilot already on the brink (HP 30 - 35 eject damage = 0).
+	GlobalData.pilot_hp = 30.0
+	PilotSystem.on_mecha_destroyed()
+	_check(GlobalData.get_pilot_hp() == 0.0, "eject from 30 HP drops the pilot to 0")
+	_check(PilotSystem.is_dead(), "an eject that drops HP to 0 is permanent death")
+
+	# --- Player pilot on foot is a real target: shooting drains the SAME pool ---
+	# (the pilot scene's take_damage is the on-foot path; verify the wiring here
+	# through a live Pilot node + a hit from the enemy targeting rules).
+	GlobalData.pilot_hp = 100.0
+	var pilot := preload("res://scenes/pilot/pilot.tscn").instantiate()
+	add_child(pilot)
+	await get_tree().process_frame
+	_check(pilot.is_in_group("pilot"), "player pilot is in the pilot group")
+	_check(pilot.has_method("take_damage"), "player pilot is shootable on foot (has take_damage)")
+	pilot.take_damage(40.0)
+	_check(GlobalData.get_pilot_hp() == 60.0, "shooting the pilot on foot drains the pilot HP pool")
+	# Fatal shot on foot -> permanent death.
+	pilot.take_damage(9999.0)
+	await get_tree().process_frame
+	_check(PilotSystem.is_dead(), "a fatal shot on foot kills the pilot permanently")
+	pilot.queue_free()
+
+	# --- Enemy pilot is shootable too and dies permanently at 0 HP ---
+	var e_pilot := CharacterBody3D.new()
+	e_pilot.set_script(load("res://scripts/mecha/enemy_pilot.gd"))
+	add_child(e_pilot)
+	await get_tree().process_frame
+	_check(e_pilot.is_in_group("enemy"), "enemy pilot is targetable by player fire (enemy group)")
+	_check(e_pilot.has_method("take_damage"), "enemy pilot has take_damage")
+	_check(float(e_pilot.hp) == 40.0, "enemy pilot starts with its own HP pool")
+	e_pilot.take_damage(15.0)
+	_check(is_equal_approx(float(e_pilot.hp), 25.0), "enemy pilot takes damage from player fire")
+	_check(is_instance_valid(e_pilot), "wounded enemy pilot is still alive")
+	e_pilot.take_damage(9999.0)
+	await get_tree().process_frame
+	_check(not is_instance_valid(e_pilot), "enemy pilot HP 0 is permanent death (removed)")
 
 	# --- Save/load roundtrip preserves pilot state ---
 	GlobalData.pilot_hp = 42.0

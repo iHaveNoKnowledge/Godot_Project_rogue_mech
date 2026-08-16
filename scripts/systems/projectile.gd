@@ -56,10 +56,13 @@ func _physics_process(delta: float) -> void:
 	_check_obstacle_collision()
 
 	if fired_by_enemy:
-		# Enemy projectile -> check for player mecha and fielded allies
+		# Enemy projectile -> check for player mecha, fielded allies, and the
+		# player pilot on foot (dismounted pilots are shootable — same rule as
+		# the enemy pilots, so no pilot can hide forever on foot).
 		var targets: Array = []
 		targets.append_array(get_tree().get_nodes_in_group("mecha"))
 		targets.append_array(get_tree().get_nodes_in_group("ally"))
+		targets.append_array(get_tree().get_nodes_in_group("pilot"))
 		for mecha in targets:
 			if not is_instance_valid(mecha):
 				continue
@@ -68,7 +71,9 @@ func _physics_process(delta: float) -> void:
 				_hit_target(mecha)
 				return
 	else:
-		# Player projectile -> check for enemies
+		# Player projectile -> check for enemies (mechs AND ejected enemy pilots:
+		# the pilot is in the "enemy" group and has take_damage, so a fleeing
+		# pilot can be shot down instead of always getting away).
 		var enemies = get_tree().get_nodes_in_group("enemy")
 		for enemy in enemies:
 			if not is_instance_valid(enemy):

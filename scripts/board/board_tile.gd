@@ -9,6 +9,7 @@ var connections: Array = []
 
 var _reachable_glow: MeshInstance3D = null
 var _event_beacon: Node = null
+var _enemy_base_model: Node = null
 
 
 func _ready() -> void:
@@ -272,6 +273,86 @@ func _make_beacon() -> Node:
 	beacon.setup(Color(0.35, 0.85, 1.0) if tile_type == "event" else Color(1.0, 0.75, 0.2))
 	add_child(beacon)
 	return beacon
+
+
+# ---------------------------------------------------------------------------
+# ENEMY BASE 3D MODEL — a red structure sitting on the research base tile. A
+# freshly planted base is a temporary CAMP (triangular A-frame tent); once its
+# research has rooted in (>= half done) it becomes a TALL fortified building.
+# Both are built ONLY from angular primitives (prisms / boxes) — never
+# cylinders, so the base reads as a solid man-made structure on the map.
+# ---------------------------------------------------------------------------
+
+# Replaces the current model with one for the given kind: "camp" (tent) or
+# anything else = "rooted" (tall building).
+func set_enemy_base_model(kind: String) -> void:
+	_clear_enemy_base_model()
+	_enemy_base_model = Node3D.new()
+	_enemy_base_model.name = "EnemyBaseModel"
+	add_child(_enemy_base_model)
+	if kind == "camp":
+		_build_camp_model(_enemy_base_model)
+	else:
+		_build_rooted_model(_enemy_base_model)
+
+
+func clear_enemy_base_model() -> void:
+	_clear_enemy_base_model()
+
+
+func _clear_enemy_base_model() -> void:
+	if _enemy_base_model != null:
+		_enemy_base_model.queue_free()
+		_enemy_base_model = null
+
+
+func _enemy_base_mat(color: Color) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.roughness = 0.75
+	return mat
+
+
+# Triangular A-frame tent: a prism body + a dark entrance flap.
+func _build_camp_model(root: Node3D) -> void:
+	var body := MeshInstance3D.new()
+	var prism := PrismMesh.new()
+	prism.size = Vector3(2.6, 1.5, 2.2)
+	prism.left_to_right = 1.0
+	body.mesh = prism
+	body.material_override = _enemy_base_mat(Color(0.72, 0.17, 0.10))
+	body.position = Vector3(0, 0.75, 0)
+	root.add_child(body)
+
+	var entrance := MeshInstance3D.new()
+	var flap := BoxMesh.new()
+	flap.size = Vector3(0.8, 0.95, 0.12)
+	entrance.mesh = flap
+	entrance.material_override = _enemy_base_mat(Color(0.22, 0.05, 0.05))
+	entrance.position = Vector3(0, 0.48, 1.08)
+	root.add_child(entrance)
+
+
+# Tall fortified tower: stacked box floors shrinking upward + roof + antenna.
+func _build_rooted_model(root: Node3D) -> void:
+	var red := Color(0.8, 0.18, 0.10)
+	var dark := Color(0.45, 0.09, 0.07)
+	var roof_c := Color(0.55, 0.11, 0.09)
+	_add_box(root, Vector3(2.8, 1.5, 2.8), red, 0.75)
+	_add_box(root, Vector3(2.2, 1.5, 2.2), red, 2.25)
+	_add_box(root, Vector3(1.6, 1.6, 1.6), red, 3.8)
+	_add_box(root, Vector3(1.9, 0.2, 1.9), roof_c, 4.65)
+	_add_box(root, Vector3(0.12, 1.0, 0.12), dark, 5.25)
+
+
+func _add_box(root: Node3D, size: Vector3, color: Color, y: float) -> void:
+	var box := MeshInstance3D.new()
+	var m := BoxMesh.new()
+	m.size = size
+	box.mesh = m
+	box.material_override = _enemy_base_mat(color)
+	box.position = Vector3(0, y, 0)
+	root.add_child(box)
 
 
 func set_hover(hovered: bool) -> void:

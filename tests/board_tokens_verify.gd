@@ -22,6 +22,7 @@ func _ready() -> void:
 	await _verify_camera_yaw()
 	await _verify_tile_beacon()
 	await _verify_tile_highlight()
+	await _verify_enemy_base_model()
 	_verify_patrol_dir()
 	print("BOARD_TOKENS_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	await get_tree().process_frame
@@ -162,6 +163,52 @@ func _verify_tile_highlight() -> void:
 	tile.highlight(false)
 	_check(not tile._reachable_glow.visible, "glow disc hides when unhighlighted")
 
+	tile.queue_free()
+	await get_tree().process_frame
+
+
+func _collect_meshes(node: Node, found: Array) -> void:
+	if node is MeshInstance3D:
+		found.append(node)
+	for child in node.get_children():
+		_collect_meshes(child, found)
+
+
+func _verify_enemy_base_model() -> void:
+	var tile := _make_tile("enemy_base", Vector2i(5, 5))
+	await get_tree().process_frame
+
+	# Temporary camp: a triangular tent — polygonal (prism/box) only.
+	tile.set_enemy_base_model("camp")
+	_check(tile._enemy_base_model != null, "enemy base tile spawns a 3D model")
+	var camp_meshes: Array = []
+	_collect_meshes(tile._enemy_base_model, camp_meshes)
+	_check(camp_meshes.size() >= 2, "camp model builds a tent body + entrance")
+	var camp_angular := true
+	for m in camp_meshes:
+		if m.mesh is CylinderMesh or m.mesh is CapsuleMesh or m.mesh is SphereMesh:
+			camp_angular = false
+	_check(camp_angular, "camp model is built from angular primitives only (no cylinders)")
+
+	# Rooted base: a tall fortified tower of stacked boxes.
+	tile.set_enemy_base_model("rooted")
+	var rooted_meshes: Array = []
+	_collect_meshes(tile._enemy_base_model, rooted_meshes)
+	_check(rooted_meshes.size() >= 5, "rooted model builds a multi-storey tower")
+	var rooted_angular := true
+	for m in rooted_meshes:
+		if not (m.mesh is BoxMesh or m.mesh is PrismMesh):
+			rooted_angular = false
+	_check(rooted_angular, "rooted model is boxes/prisms only (no cylinders)")
+	var tallest := 0.0
+	for m in rooted_meshes:
+		var box := m.mesh as BoxMesh
+		if box:
+			tallest = maxf(tallest, m.global_position.y + box.size.y * 0.5)
+	_check(tallest > 4.5, "rooted tower is a tall building (> 4.5m high)")
+
+	tile.clear_enemy_base_model()
+	_check(tile._enemy_base_model == null, "clearing the base removes its model")
 	tile.queue_free()
 	await get_tree().process_frame
 

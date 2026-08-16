@@ -52,6 +52,10 @@ func _ready() -> void:
 	# Revert any stale enemy_base tile, then surface pending events (same flow as
 	# the old graph board).
 	_clear_enemy_base_tile()
+	# An ACTIVE enemy research base keeps its tile + 3D model across board
+	# reloads (returning from a battle must not erase it).
+	_restore_enemy_base_tile()
+	_refresh_enemy_base_model()
 
 	if GlobalData.consume_pending_escalation_event():
 		EventBus.event_triggered.emit(_build_tech_copy_event())
@@ -239,6 +243,9 @@ func _end_day() -> void:
 
 	if GlobalData.tick_enemy_base_progress(1.0):
 		EventBus.event_triggered.emit(_build_enemy_base_completed_event())
+	# The base's research moved forward today — upgrade its model from a
+	# temporary camp to a rooted tower once it has dug in (>= half done).
+	_refresh_enemy_base_model()
 
 	EventBus.board_day_ended.emit()
 
@@ -504,6 +511,8 @@ func _clear_enemy_base_tile() -> void:
 	if not nodes_dict.has(reset_pos):
 		return
 	var tile = nodes_dict[reset_pos]
+	if tile.has_method("clear_enemy_base_model"):
+		tile.clear_enemy_base_model()
 	# New boards never roll "combat" tiles (battles come from patrol arrows), so
 	# the former research node reverts to ordinary ground.
 	tile.set_meta("tile_type", "empty")
@@ -816,6 +825,8 @@ func _place_enemy_base_node() -> void:
 	tile.reveal()
 	if tile.has_method("_update_visual"):
 		tile._update_visual()
+	# A freshly planted base starts as a temporary camp.
+	_refresh_enemy_base_model()
 
 
 func _build_enemy_base_spawn_event() -> Dictionary:
@@ -865,3 +876,36 @@ func get_tile_type(pos: Vector2i) -> String:
 	if nodes_dict.has(pos):
 		return nodes_dict[pos].get_meta("tile_type", "empty")
 	return "empty"
+
+
+# Marks the active enemy base's tile back onto the freshly regenerated board
+# (returning from a battle rebuilds the grid; the base must survive the trip).
+func _restore_enemy_base_tile() -> void:
+	if not GlobalData.enemy_base_active:
+		return
+	var pos := GlobalData.enemy_base_tile_pos
+	if pos == Vector2i(-1, -1) or not nodes_dict.has(pos):
+		return
+	var tile = nodes_dict[pos]
+	tile.set_meta("tile_type", "enemy_base")
+	tile.reveal()
+	if tile.has_method("_update_visual"):
+		tile._update_visual()
+
+
+# Keeps the enemy base's 3D model in sync with how far its research has
+# progressed: a freshly planted base is a temporary camp (tent), one that has
+# rooted in (>= half its research done) becomes a tall fortified building.
+func _refresh_enemy_base_model() -> void:
+	if not GlobalData.enemy_base_active:
+		return
+	var pos := GlobalData.enemy_base_tile_pos
+	if pos == Vector2i(-1, -1) or not nodes_dict.has(pos):
+		return
+	var ratio := 0.0
+	if GlobalData.enemy_base_required > 0.0:
+		ratio = GlobalData.enemy_base_progress / GlobalData.enemy_base_required
+	var kind := "rooted" if ratio >= 0.5 else "camp"
+	var tile = nodes_dict[pos]
+	if tile.has_method("set_enemy_base_model"):
+		tile.set_enemy_base_model(kind)

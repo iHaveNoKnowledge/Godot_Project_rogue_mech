@@ -644,14 +644,14 @@ func _rebuild_status_bars() -> void:
 
 		var a_dmg = clampf(GlobalData.part_damage.get(slot, 0.0), 0.0, 1.0)
 		var f_dmg = clampf(GlobalData.part_damage.get(slot + "_frame", 0.0), 0.0, 1.0)
-		var armor_cur := armor_max * (1.0 - a_dmg)
-		var frame_cur := frame_max * (1.0 - f_dmg)
+		var armor_cur: float = armor_max * (1.0 - a_dmg)
+		var frame_cur: float = frame_max * (1.0 - f_dmg)
 
 		var cell := VBoxContainer.new()
 		cell.add_theme_constant_override("separation", 2)
 
 		var header := Label.new()
-		var part_name := part.part_name if part is ArmorPart else str(part.get("name", part.get("part_name", "Part")))
+		var part_name: String = part.part_name if part is ArmorPart else str(part.get("name", part.get("part_name", "Part")))
 		header.text = "%s — %s" % [slot.capitalize(), part_name]
 		header.add_theme_font_size_override("font_size", 12)
 		header.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))

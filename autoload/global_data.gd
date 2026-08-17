@@ -945,6 +945,22 @@ var wanted_level: int = 0
 # Sector-progression floor for wanted_level, raised by HeatWantedSystem.escalate_wanted().
 var wanted_escalation: int = 0
 var safehouse_upgrades: Array = []
+# -----------------------------------------------------------------------------
+# TACTICAL PRESSURE STATE (enemies hunt the convoy, not static routes)
+# - patrol_last_seen: tile where the player was last detected; reactive patrols
+#   drift toward it instead of random-wandering, so the player is the target.
+# - patrol_alert:     how "stirred up" the local forces are. Rises while the
+#   player lingers near a hostile patrol and decays after relocating. Higher
+#   alert widens the patrols' detection radius and raises movement costs.
+# - ambush_pincer:    a chokepoint ambush just triggered — the next combat
+#   spawns enemies in a pincer (two opposing arcs) around the player.
+# - consumed_bait:    bait-trap tiles already sprung (Vector2i). Kept so a
+#   sprung decoy stays cleared across board reloads (same rule as dead ends).
+# -----------------------------------------------------------------------------
+var patrol_last_seen: Vector2i = Vector2i(-1, -1)
+var patrol_alert: int = 0
+var ambush_pincer: bool = false
+var consumed_bait: Array = []
 
 # -----------------------------------------------------------------------------
 # RUN THEME — the identity of the current run (see run_theme_catalogs.tres).
@@ -1598,6 +1614,10 @@ func reset_run_data() -> void:
 	wanted_level = 0
 	wanted_escalation = 0
 	safehouse_upgrades.clear()
+	patrol_last_seen = Vector2i(-1, -1)
+	patrol_alert = 0
+	ambush_pincer = false
+	consumed_bait.clear()
 	credits = 110
 	data_cores = 0
 	scrap = 0

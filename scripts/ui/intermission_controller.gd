@@ -182,6 +182,8 @@ func _get_status_text() -> String:
 	var base_info := ""
 	if GlobalData.mech_less:
 		base_info = " | ON FOOT — no mech"
+	if GlobalData.patrol_alert > 0:
+		base_info += " | HUNT ALERT %d" % GlobalData.patrol_alert
 	if GlobalData.enemy_base_active:
 		base_info += " | Enemy Base: %d%%" % int((GlobalData.enemy_base_progress / GlobalData.enemy_base_required) * 100.0)
 	if not GlobalData.stalking_aces.is_empty():

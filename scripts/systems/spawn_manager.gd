@@ -207,8 +207,19 @@ func _generate_spawn_points() -> void:
 	if arena_gen != null and arena_gen.get("arena_size") != null:
 		half = float(arena_gen.arena_size) * 0.46
 	var is_river_bridge: bool = arena_gen != null and arena_gen.current_theme == 3
+	# A chokepoint/bait ambush closes in from two opposing arcs (a pincer)
+	# instead of the full ring, so the player is caught between flanks.
+	var is_pincer := GlobalData.ambush_pincer
+	GlobalData.ambush_pincer = false
 	for i in range(12):
-		var angle = (i / 12.0) * TAU
+		var angle := (i / 12.0) * TAU
+		if is_pincer:
+			# Two arcs: front (east) and rear (west), each ~90 degrees wide, so
+			# enemies surround the player from the front and behind in a pincer.
+			if i < 6:
+				angle = deg_to_rad(-45.0 + (i / 5.0) * 90.0)
+			else:
+				angle = deg_to_rad(135.0 + ((i - 6) / 5.0) * 90.0)
 		var pos = Vector3(cos(angle) * half, 0.05, sin(angle) * half)
 		# On RIVER_BRIDGE the riverbanks are raised (top ~ +0.5) and the water
 		# trench (|z| < 22) is below the banks, so keep spawns on dry land and

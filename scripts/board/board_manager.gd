@@ -135,6 +135,10 @@ func _try_step(target: Vector2i) -> bool:
 	if not _is_adjacent(current_pos, target):
 		return false
 	var cost := BoardConfig.move_cost(str(tile.get_meta("terrain", "plain")))
+	# A hostile fleet between the convoy and the sector objective blocks the
+	# route: crossing its firing line costs extra MP (fight it, or pay to slip
+	# past and reroute around it).
+	cost += PatrolSystem.interception_surcharge(current_pos, target)
 	if GlobalData.board_mp < cost:
 		# The player cannot move at all: whatever ambush aftermath was blocking the
 		# intermission menu (blocked_intermission) must not soft-lock them. Clear it
@@ -159,6 +163,10 @@ func _try_step(target: Vector2i) -> bool:
 	if revealed > 0:
 		_refresh_patrol_markers()
 
+	# If any hostile fleet can see the convoy on this tile, remember exactly where
+	# it was — fleets that lose sight keep converging on that last position.
+	PatrolSystem.record_spotting(current_pos)
+
 	GlobalData.blocked_intermission = false
 
 	# Objective progress triggers.
@@ -178,6 +186,14 @@ func _try_step(target: Vector2i) -> bool:
 
 	EventBus.tile_entered.emit(target, tile)
 	if not engaged_patrol:
+		# A chokepoint (bridge / one-wide passage) is ambush ground: hostile
+		# forces spring a pincer on the convoy there. Once it fires the combat
+		# spawns enemies in two opposing arcs instead of a ring.
+		if _roll_chokepoint_ambush(tile):
+			GlobalData.ambush_pincer = true
+			GlobalData.blocked_intermission = true
+			_request_combat("grunt")
+			return true
 		_process_tile_effect(str(tile.get_meta("tile_type", "empty")))
 	elif GameManager.current_state == GameManager.State.BOARD:
 		if str(patrol.get("faction", "hostile")) == "unknown" and _has_available_recruit(str(patrol.get("character_id", ""))):
@@ -472,6 +488,10 @@ func _process(_delta: float) -> void:
 	]
 	if not BoardConfig.is_passable(terrain):
 		text += "\nIMPassable!"
+	if PatrolSystem.interception_surcharge(current_pos, pos) > 0:
+		text += "\n[INTERCEPTION — +1 MP to cross]"
+	if GlobalData.patrol_alert > 0:
+		text += "\n[HUNT ALERT %d]" % GlobalData.patrol_alert
 	if not patrol.is_empty():
 		var is_unknown := str(patrol.get("faction", "hostile")) == "unknown"
 		text += "\nPATROL: %s — %d grunt(s)" % [patrol.get("name", "fleet"), int(patrol.get("grunts", 1))]
@@ -583,12 +603,75 @@ func _process_tile_effect(tile_type: String) -> void:
 			_trigger_data_node_event()
 		"dead_end":
 			_trigger_dead_end_event()
+		"bait":
+			# A decoy cache: it looks like loot but springs a pincer ambush.
+			# Sprung traps are recorded so the decoy stays cleared on reload.
+			_trigger_bait_trap()
 		"start":
 			print("Entering Hangar Practice Ground.")
 		"exit":
 			_trigger_exit_event()
 		_:
 			pass
+
+
+# A "bait" tile reads as an abandoned supply cache but is a decoy: stepping on
+# it springs a hostile pincer ambush (same no-menu aftermath as a patrol fight).
+func _trigger_bait_trap() -> void:
+	if current_pos in GlobalData.consumed_bait:
+		return
+	GlobalData.consumed_bait.append(current_pos)
+	if GlobalData.mech_less:
+		_trigger_recovery_event()
+		return
+	if GlobalData.ceasefire_turns > 0:
+		GlobalData.ceasefire_turns -= 1
+		_trigger_ceasefire_skip()
+		return
+	GlobalData.ambush_pincer = true
+	GlobalData.blocked_intermission = true
+	EventBus.event_triggered.emit({
+		"name": "BAIT CACHE — TRAP",
+		"effect": "none",
+		"amount": 0,
+		"desc": "The supply cache was a decoy! Hostile forces close in from all sides.",
+	})
+	_request_combat("grunt")
+
+
+# True when the tile is ambush ground: a bridge crossing or a one-wide passage
+# (at most two walkable neighbors). The convoy has nowhere to maneuver there.
+func _is_chokepoint_tile(tile: Node) -> bool:
+	if tile == null:
+		return false
+	var terrain := str(tile.get_meta("terrain", "plain"))
+	if terrain == "bridge":
+		return true
+	var pos: Vector2i = tile.get_meta("grid_pos", Vector2i(-1, -1))
+	var walkable := 0
+	for d: Vector2i in DIRS:
+		var n: Vector2i = pos + d
+		if nodes_dict.has(n) and BoardConfig.is_passable(str(nodes_dict[n].get_meta("terrain", "plain"))):
+			walkable += 1
+	return walkable <= 2
+
+
+# Weighted chokepoint ambush roll. The convoy is more likely to be jumped the
+# higher the local alert and wanted level are (the enemy is actively hunting).
+# On-foot convoys and ceasefire grace always hold.
+func _roll_chokepoint_ambush(tile: Node) -> bool:
+	if not _is_chokepoint_tile(tile):
+		return false
+	if GlobalData.mech_less:
+		return false
+	if GlobalData.ceasefire_turns > 0:
+		return false
+	var ttype := str(tile.get_meta("tile_type", "empty"))
+	if ttype in ["start", "exit", "safehouse", "city", "enemy_base", "bait"]:
+		return false
+	var chance := 0.14 + float(GlobalData.patrol_alert) * 0.04 \
+			+ minf(GlobalData.wanted_level, 5) * 0.03
+	return randf() < chance
 
 
 # Routes a board-initiated combat through the DEPLOY SQUAD screen when the

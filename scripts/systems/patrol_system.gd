@@ -18,6 +18,11 @@ const NAMES := ["Ravens", "Vultures", "Jackals", "Hawks", "Coyotes", "Strykers"]
 const GRUNT_MIN: int = 1
 const GRUNT_MAX: int = 3
 
+# How close a hostile fleet must be to smell the convoy (base). Grows as
+# patrol_alert climbs, so lingering near patrols widens their hunt.
+const DETECT_BASE := 4
+const ALERT_MAX := 4
+
 
 # Patrol entries carry their heading (and pos/home) as Vector2i at runtime, but
 # a save file flattens Vector2i into a String like "(1, 0)" or stores {x, y}
@@ -191,6 +196,8 @@ static func advance_day(player_pos: Vector2i) -> Vector2i:
 	for p in GlobalData.board_patrols:
 		occupied[p.get("pos")] = true
 
+	var detect := DETECT_BASE + clampi(GlobalData.patrol_alert, 0, ALERT_MAX)
+	var saw_player := false
 	var ambush := Vector2i(-1, -1)
 	for p in GlobalData.board_patrols:
 		# Heal entries loaded from older saves before reading their fields.
@@ -202,14 +209,23 @@ static func advance_day(player_pos: Vector2i) -> Vector2i:
 		# encountered when the player steps onto them.
 		var is_unknown := str(p.get("faction", "hostile")) == "unknown"
 
-		if not is_unknown and dist <= 4:
+		if not is_unknown and dist <= detect:
 			p["aggro"] = true
-		elif p.get("aggro", false) and dist > 7:
+			# Remember exactly where the convoy was spotted so fleets out of
+			# sight still converge on that tile (reactive pursuit).
+			GlobalData.patrol_last_seen = player_pos
+			saw_player = true
+		elif p.get("aggro", false) and dist > detect + 3:
 			p["aggro"] = false
 
 		var next := cur
 		if p.get("aggro", false):
 			next = _step_toward(cur, player_pos, nodes, occupied, rng)
+		elif not is_unknown and GlobalData.patrol_last_seen != Vector2i(-1, -1) \
+				and rng.randf() < 0.7:
+			# A fleet that lost visual still has the convoy's last heading: step
+			# toward the trail instead of wandering back to its anchor.
+			next = _step_toward(cur, GlobalData.patrol_last_seen, nodes, occupied, rng)
 		elif rng.randf() < 0.6:
 			next = _wander(cur, home, nodes, occupied, rng)
 		if next != cur:
@@ -220,11 +236,65 @@ static func advance_day(player_pos: Vector2i) -> Vector2i:
 			p["dir"] = next - cur
 			if next == player_pos:
 				ambush = next
+
+	# The convoy is a moving target: force escalation climbs while a hostile
+	# fleet keeps visual and cools back down once the player relocates.
+	if saw_player:
+		GlobalData.patrol_alert = mini(GlobalData.patrol_alert + 1, ALERT_MAX)
+	else:
+		GlobalData.patrol_alert = maxi(GlobalData.patrol_alert - 1, 0)
 	return ambush
 
 
 static func _manhattan(a: Vector2i, b: Vector2i) -> int:
 	return absi(a.x - b.x) + absi(a.y - b.y)
+
+
+# The player stepped onto `pos`. Any hostile fleet close enough to see the
+# convoy marks it as the last-known position (reactive pursuit keeps converging
+# on that tile even after the player moves on).
+static func record_spotting(pos: Vector2i) -> void:
+	var detect := DETECT_BASE + clampi(GlobalData.patrol_alert, 0, ALERT_MAX)
+	for p in GlobalData.board_patrols:
+		if str(p.get("faction", "hostile")) == "unknown":
+			continue
+		if _manhattan(p.get("pos", Vector2i(-1, -1)), pos) <= detect:
+			GlobalData.patrol_last_seen = pos
+			return
+
+
+# The sector objective's anchor tile: the exit for most maps, or the enemy
+# research base when the HQ-strike objective is live. Interception blocks and
+# ambushes are evaluated against this goal.
+static func _objective_anchor() -> Vector2i:
+	var obj := BoardSystem.get_objective()
+	if str(obj.get("id", "")) == "hq_strike" and GlobalData.enemy_base_active:
+		return GlobalData.enemy_base_tile_pos
+	var g := BoardConfig.GRID_SIZE
+	return Vector2i(g - 1, g - 1)
+
+
+# Interception block: a hostile fleet sitting between the convoy and the sector
+# objective forces the player to either fight it or pay extra MP to slip past.
+# Returns the MP surcharge for stepping onto `target` (0 = unblocked).
+static func interception_surcharge(player_pos: Vector2i, target: Vector2i) -> int:
+	var anchor := _objective_anchor()
+	if anchor == Vector2i(-1, -1):
+		return 0
+	for p in GlobalData.board_patrols:
+		if str(p.get("faction", "hostile")) == "unknown":
+			continue
+		var patrol_pos: Vector2i = p.get("pos")
+		# Only fleets strictly BETWEEN the convoy and the goal count; fleets
+		# behind the player or already past the objective don't block the way.
+		if _manhattan(patrol_pos, anchor) >= _manhattan(player_pos, anchor):
+			continue
+		# Stepping from the patrol's cell one tile closer to the goal crosses
+		# its firing line — that crossing costs extra movement.
+		if _manhattan(target, patrol_pos) == 1 \
+				and _manhattan(target, anchor) < _manhattan(patrol_pos, anchor):
+			return 1
+	return 0
 
 
 static func _step_toward(cur: Vector2i, target: Vector2i, nodes: Dictionary, occupied: Dictionary, rng: RandomNumberGenerator) -> Vector2i:

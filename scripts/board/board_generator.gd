@@ -217,12 +217,16 @@ func _roll_content(rng: RandomNumberGenerator) -> String:
 	# steps onto a hostile patrol arrow (or a special tile like the enemy
 	# research base). Random fights belong to the red ">" fleets you can see
 	# moving on the map, not to invisible ground tiles.
+	# Bait tiles are decoy supply caches: they look like loot but spring a
+	# pincer ambush (see board_manager._trigger_bait_trap).
 	var roll := rng.randf()
-	if roll < 0.22:
+	if roll < 0.20:
 		return "event"
-	elif roll < 0.34:
+	elif roll < 0.32:
 		return "data_node"
-	elif roll < 0.44:
+	elif roll < 0.42:
+		return "bait"
+	elif roll < 0.52:
 		return "dead_end"
 	return "empty"
 

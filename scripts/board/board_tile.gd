@@ -19,13 +19,14 @@ func _ready() -> void:
 	terrain = get_meta("terrain", "plain")
 	connections = get_meta("connections", [])
 
-	if tile_type in ["start", "exit", "safehouse", "data_node", "enemy_base", "city"]:
+	if tile_type in ["start", "exit", "safehouse", "data_node", "enemy_base", "city", "bait"]:
 		is_revealed = true
 	_add_terrain_props()
 	# Event / data-node tiles are marked by a glowing 3D beacon (a transparent
 	# cylinder), not by coloring the floor — the tile itself keeps its terrain
-	# color and the beacon hides until the tile is revealed.
-	if tile_type in ["event", "data_node"]:
+	# color and the beacon hides until the tile is revealed. Bait caches share
+	# the beacon so they read as interactable loot (they are decoys).
+	if tile_type in ["event", "data_node", "bait"]:
 		_event_beacon = _make_beacon()
 	_update_visual()
 
@@ -269,8 +270,14 @@ func _ensure_reachable_glow() -> void:
 func _make_beacon() -> Node:
 	var beacon := Node3D.new()
 	beacon.set_script(preload("res://scripts/board/tile_glow.gd"))
-	# Events glow cyan, data terminals glow gold to keep their old identity.
-	beacon.setup(Color(0.35, 0.85, 1.0) if tile_type == "event" else Color(1.0, 0.75, 0.2))
+	# Events glow cyan, data terminals glow gold, bait caches glow a warning
+	# orange-red so a sprung decoy still reads as a (hostile) landmark.
+	if tile_type == "event":
+		beacon.setup(Color(0.35, 0.85, 1.0))
+	elif tile_type == "bait":
+		beacon.setup(Color(1.0, 0.45, 0.15))
+	else:
+		beacon.setup(Color(1.0, 0.75, 0.2))
 	add_child(beacon)
 	return beacon
 

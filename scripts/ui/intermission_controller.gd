@@ -7,6 +7,9 @@ var info_label: Label
 var status_panel: PanelContainer
 var status_label: Label
 var action_container: VBoxContainer
+# Visual armor+frame HP bars for the Mech Status view (mirrors the combat
+# CoreHUD so the intermission shows the mech's real condition at a glance).
+var status_bars_container: VBoxContainer
 var current_view: String = "menu"
 
 
@@ -133,6 +136,14 @@ func _create_ui() -> void:
 	action_container.add_theme_constant_override("separation", 6)
 	info_vbox.add_child(action_container)
 
+	# Visual HP bars for the Mech Status view: two skewed bars per equipped
+	# part (armor on top, frame below) so the driver can read the mech's real
+	# condition at a glance and decide fight-vs-repair before leaving the menu.
+	status_bars_container = VBoxContainer.new()
+	status_bars_container.add_theme_constant_override("separation", 6)
+	status_bars_container.visible = false
+	info_vbox.add_child(status_bars_container)
+
 	# Status panel (bottom)
 	status_panel = PanelContainer.new()
 	status_panel.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
@@ -223,6 +234,7 @@ func _on_status_pressed() -> void:
 	info_panel.visible = true
 	_clear_actions()
 	info_label.text = _build_mech_status_text()
+	_rebuild_status_bars()
 
 
 func _on_inventory_pressed() -> void:
@@ -312,6 +324,8 @@ func _on_board_info_pressed() -> void:
 func _clear_actions() -> void:
 	for child in action_container.get_children():
 		child.queue_free()
+	if status_bars_container:
+		status_bars_container.visible = false
 
 
 func _on_research_pressed() -> void:
@@ -553,29 +567,125 @@ func _on_exit_pressed() -> void:
 
 func _build_mech_status_text() -> String:
 	var text = "=== MECH STATUS ===\n\n"
+	if GlobalData.mech_less:
+		text += "ON FOOT — no mech.\n"
+		text += "Find a replacement chassis before the next combat tile.\n"
+		return text
 	text += "Chassis: %s\n" % GlobalData.chassis_id
 	text += "Credits: %d\n" % GlobalData.credits
 	text += "Scrap: %d\n" % GlobalData.scrap
 	text += "Data Cores: %d\n\n" % GlobalData.data_cores
 
-	text += "--- Armor Parts ---\n"
+	var total_armor := 0.0
+	var total_max_armor := 0.0
+	var total_frame := 0.0
+	var total_max_frame := 0.0
 	for slot in GlobalData.equipped_parts:
 		var part = GlobalData.equipped_parts[slot]
 		if not part:
 			continue
-		var dmg = GlobalData.part_damage.get(slot, 0.0)
-		if part is ArmorPart:
-			var status = "OK" if dmg < part.break_threshold else "BROKEN"
-			text += "%s: %s (HP: %.0f, W: %.1f) [%s]\n" % [
-				part.part_name, slot, part.max_hp, part.weight, status
-			]
-		elif part is Dictionary:
-			var status = "OK" if dmg < 0.9 else "BROKEN"
-			text += "%s: %s (HP: %.0f, W: %.1f) [%s]\n" % [
-				part.get("name", part.get("part_name", "Part")), slot,
-				part.get("hp", part.get("max_hp", 0.0)), part.get("weight", 0.0), status
-			]
+		var a_hp: float = _slot_armor_max(part)
+		var f_hp: float = _slot_frame_max(slot)
+		var a_dmg = clampf(GlobalData.part_damage.get(slot, 0.0), 0.0, 1.0)
+		var f_dmg = clampf(GlobalData.part_damage.get(slot + "_frame", 0.0), 0.0, 1.0)
+		total_armor += a_hp * (1.0 - a_dmg)
+		total_max_armor += a_hp
+		total_frame += f_hp * (1.0 - f_dmg)
+		total_max_frame += f_hp
+
+	var armor_pct := int((total_armor / maxf(total_max_armor, 1.0)) * 100.0)
+	var frame_pct := int((total_frame / maxf(total_max_frame, 1.0)) * 100.0)
+	text += "ARMOR: %d%% (%.0f/%.0f)\n" % [armor_pct, total_armor, total_max_armor]
+	text += "FRAME: %d%% (%.0f/%.0f)\n\n" % [frame_pct, total_frame, total_max_frame]
+	text += "(HP bars for each part are below — armor on top, frame underneath.)\n"
 	return text
+
+
+# Max armor HP for a part (ArmorPart resource or Dictionary instance).
+func _slot_armor_max(part: Variant) -> float:
+	if part is ArmorPart:
+		return part.max_hp
+	return float(part.get("hp", part.get("max_hp", 0.0)))
+
+
+# Max frame HP for a slot: comes from the equipped inner frame (matching how the
+# combat mech builds its frame_hp in mecha_health.gd).
+func _slot_frame_max(slot: String) -> float:
+	var f = GlobalData.equipped_frames.get(slot)
+	if f is Dictionary:
+		return float(f.get("hp", 0.0)) + GlobalData.get_frame_upgrade_hp_bonus()
+	return 0.0
+
+
+# Rebuilds the visual armor/frame HP bars shown under the Mech Status text.
+# Mirrors the combat CoreHUD so the driver reads the mech's real condition at a
+# glance and can decide fight-vs-repair before leaving the menu.
+func _rebuild_status_bars() -> void:
+	for child in status_bars_container.get_children():
+		child.queue_free()
+	status_bars_container.visible = true
+
+	if GlobalData.mech_less:
+		var note = Label.new()
+		note.text = "(No mech — inspecting the pilot instead.)"
+		status_bars_container.add_child(note)
+		return
+
+	for slot in ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]:
+		var part = GlobalData.equipped_parts.get(slot)
+		if not part:
+			continue
+		var armor_max := _slot_armor_max(part)
+		var frame_max := _slot_frame_max(slot)
+		if armor_max <= 0.0 and frame_max <= 0.0:
+			continue
+
+		var a_dmg = clampf(GlobalData.part_damage.get(slot, 0.0), 0.0, 1.0)
+		var f_dmg = clampf(GlobalData.part_damage.get(slot + "_frame", 0.0), 0.0, 1.0)
+		var armor_cur := armor_max * (1.0 - a_dmg)
+		var frame_cur := frame_max * (1.0 - f_dmg)
+
+		var cell := VBoxContainer.new()
+		cell.add_theme_constant_override("separation", 2)
+
+		var header := Label.new()
+		var part_name := part.part_name if part is ArmorPart else str(part.get("name", part.get("part_name", "Part")))
+		header.text = "%s — %s" % [slot.capitalize(), part_name]
+		header.add_theme_font_size_override("font_size", 12)
+		header.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
+		cell.add_child(header)
+
+		cell.add_child(_make_status_bar("Armor", armor_cur, armor_max, Color(0.77, 0.76, 0.75), Color(0.6, 0.6, 0.6)))
+		cell.add_child(_make_status_bar("Frame", frame_cur, frame_max, Color(0.376, 0.82, 0.43), Color(0.537, 1.0, 0.53)))
+
+		status_bars_container.add_child(cell)
+
+
+# One skewed HP bar row (label + bar + value) for the Mech Status view.
+func _make_status_bar(label_text: String, current: float, max_value: float, fill_a: Color, fill_b: Color) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+
+	var name := Label.new()
+	name.text = label_text
+	name.custom_minimum_size = Vector2(44, 0)
+	name.add_theme_font_size_override("font_size", 9)
+	name.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	row.add_child(name)
+
+	var bar := Control.new()
+	bar.set_script(preload("res://scripts/ui/hp_part_bar.gd"))
+	bar.custom_minimum_size = Vector2(180, 8)
+	bar.fill_color_a = fill_a
+	bar.fill_color_b = fill_b
+	bar.setup(current, max_value, current <= 0.001 and max_value > 0.0)
+	row.add_child(bar)
+
+	var value := Label.new()
+	value.text = "%d / %d" % [int(round(current)), int(round(max_value))]
+	value.add_theme_font_size_override("font_size", 9)
+	row.add_child(value)
+	return row
 
 
 func _build_inventory_text() -> String:

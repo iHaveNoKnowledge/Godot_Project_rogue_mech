@@ -164,7 +164,7 @@ func _verify_roster_panel() -> void:
 	_check(rp.roster_page_title != null and rp.roster_status_label != null, "roster panel builds title + status labels")
 	_check(rp.mech_slot_label != null and rp.mech_prev_button != null and rp.mech_next_button != null, "roster panel builds badge + prev/next")
 	_check(rp.roster_panel.visible == false, "roster panel starts hidden")
-	_check(rp.mech_slot_label.visible == false, "badge starts hidden")
+	_check(rp.mech_slot_label.visible, "badge shows on the landing page")
 
 	ctrl.nav_panel.select_submenu("roster")
 	await get_tree().process_frame
@@ -753,7 +753,7 @@ func _verify_roster_panel() -> void:
 	ctrl.nav_panel.show_hangar_menu()
 	await get_tree().process_frame
 	_check(not rp.roster_panel.visible, "hangar menu hides the roster page")
-	_check(not rp.mech_slot_label.visible, "hangar menu hides the badge")
+	_check(rp.mech_slot_label.visible, "hangar menu keeps the mech switcher badge")
 	_check(rp.pending_register_banner == null or not is_instance_valid(rp.pending_register_banner), "hangar menu drops the pending banner")
 
 	ctrl.queue_free()
@@ -1722,6 +1722,26 @@ func _verify_nav_panel() -> void:
 	_check(ctrl.submenu_rail != null and ctrl.submenu_rail.visible, "landing shows the sub-menu rail")
 	_check(ctrl.back_to_menu_button != null and not ctrl.back_to_menu_button.visible, "landing hides the back button")
 	_check(ctrl.left_panel != null and not ctrl.left_panel.visible, "landing hides the customize left panel")
+	# The landing page also carries the hangar mech switcher (badge + prev/next):
+	# the driver can page between parked mechs and preview them on the 3D
+	# turntable without entering the roster or customize pages.
+	_check(ctrl.roster_panel_ui.mech_slot_label != null and ctrl.roster_panel_ui.mech_slot_label.visible, "landing shows the mech-slot badge")
+	_check(ctrl.roster_panel_ui.mech_prev_button != null and ctrl.roster_panel_ui.mech_prev_button.visible, "landing shows the prev-mech button")
+	_check(ctrl.roster_panel_ui.mech_next_button != null and ctrl.roster_panel_ui.mech_next_button.visible, "landing shows the next-mech button")
+	# Parking a second mech lets the landing switcher page the editing target
+	# (and the garage preview) between berths.
+	var landing_spare := GlobalData.build_hangar_mech("Spare 02", 2)
+	_check(not landing_spare.is_empty(), "a spare mech can be parked for the landing switcher")
+	if not landing_spare.is_empty():
+		GlobalData.save_run()
+		var landing_spare_id := str(landing_spare.get("id", ""))
+		ctrl.roster_panel_ui.mech_next_button.pressed.emit()
+		await get_tree().process_frame
+		_check(ctrl.get_editing_mech_id() == landing_spare_id, "landing prev/next pages the editing target to the parked mech")
+		_check(ctrl.roster_panel_ui.mech_slot_label.text.contains("Spare 02"), "landing badge follows the paged mech")
+		ctrl.roster_panel_ui.mech_prev_button.pressed.emit()
+		await get_tree().process_frame
+		_check(ctrl.get_editing_mech_id() == GlobalData.active_hangar_mech_id, "landing prev/next wraps back to the piloted mech")
 
 	# Customize submenu restores the editing page.
 	np.select_submenu("customize")

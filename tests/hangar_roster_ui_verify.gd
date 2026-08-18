@@ -39,7 +39,7 @@ func _ready() -> void:
 
 	ctrl.nav_panel.show_hangar_menu()
 	await get_tree().process_frame
-	_check(not rp.mech_slot_label.visible, "hangar menu hides the slot badge")
+	_check(rp.mech_slot_label != null and rp.mech_slot_label.visible, "hangar menu keeps the mech switcher badge")
 
 	# Switching to an active slot with only one parked mech is a no-op (safe).
 	var before: String = rp.mech_slot_label.text

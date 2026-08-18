@@ -174,6 +174,11 @@ func show_hangar_menu() -> void:
 		controller.roster_panel_ui.hide_page()
 		# Leaving the hangar menu drops any in-progress frame assembly.
 		controller.roster_panel_ui.close_pending_register()
+		# The main hangar menu also offers the hangar mech switcher: the badge
+		# + prev/next page between parked mechs (and preview them on the 3D
+		# turntable) straight from the landing screen.
+		controller.roster_panel_ui.set_badge_visible(true)
+		controller.roster_panel_ui.refresh_badge()
 	if controller.pilots_panel_ui:
 		controller.pilots_panel_ui.hide_page()
 	if controller.sortie_panel_ui:

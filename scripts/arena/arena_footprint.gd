@@ -28,6 +28,13 @@ var bounds := Rect2()
 # (normal points OUTWARD from the footprint). Form a closed loop.
 var segments: Array = []
 var perimeter: float = 0.0
+# Only the boundary runs that sit on the footprint's EXTREME supporting lines
+# (the outer edges of the bounding box). Interior notch/slot walls of L/T/cross
+# silhouettes reach deep into the map — retreat zones/apron/void frames and the
+# spawn ring must hug the OUTER hull instead, or they'd sit in the middle of the
+# battlefield.
+var outer_segments: Array = []
+var outer_perimeter: float = 0.0
 
 
 static func create(seed: int, arena_size: float) -> ArenaFootprint:
@@ -165,6 +172,36 @@ func _compute_derived() -> void:
 	for s in segments:
 		perimeter += (s["a"] as Vector2).distance_to(s["b"])
 
+	# Keep only the boundary runs on the extreme supporting lines (the outer
+	# edges of the cell bounding box). Interior notch/slot walls are excluded so
+	# retreat frames and spawns stay at the battlefield's true outer edge.
+	var min_gx := n
+	var max_gx := -1
+	var min_gy := n
+	var max_gy := -1
+	for c: Vector2i in cells:
+		min_gx = mini(min_gx, c.x)
+		max_gx = maxi(max_gx, c.x)
+		min_gy = mini(min_gy, c.y)
+		max_gy = maxi(max_gy, c.y)
+	var min_x_edge: float = origin.x + float(min_gx) * CELL_SIZE
+	var max_x_edge: float = origin.x + float(max_gx + 1) * CELL_SIZE
+	var min_y_edge: float = origin.y + float(min_gy) * CELL_SIZE
+	var max_y_edge: float = origin.y + float(max_gy + 1) * CELL_SIZE
+	outer_segments = []
+	outer_perimeter = 0.0
+	for s in segments:
+		var a: Vector2 = s["a"]
+		var b: Vector2 = s["b"]
+		var on_extreme := false
+		if absf(a.x - b.x) < 0.01:
+			on_extreme = absf(a.x - min_x_edge) < 0.01 or absf(a.x - max_x_edge) < 0.01
+		else:
+			on_extreme = absf(a.y - min_y_edge) < 0.01 or absf(a.y - max_y_edge) < 0.01
+		if on_extreme:
+			outer_segments.append(s)
+			outer_perimeter += a.distance_to(b)
+
 
 # Merges axis-aligned raw boundary edges into long runs so the escape frame,
 # apron and void barrier stay low-node (one box per run, not per cell edge).
@@ -230,27 +267,31 @@ func _merge_runs(runs: Array, result: Array, is_vertical: bool) -> void:
 		i = j
 
 
-# Evenly-spaced points just inside the boundary, sampled by arc-length so an
-# L/T/cross shape gets spawns hugging its real outline instead of a circle.
+# Evenly-spaced points just inside the OUTER boundary, sampled by arc-length so
+# an L/T/cross shape gets spawns hugging its real hull instead of a circle. The
+# outer hull is used (not the full outline) so spawns never sit deep inside the
+# map along an interior notch wall.
 func ring_points(count: int, inward: float = 10.0) -> Array:
 	var points := []
-	if segments.is_empty() or count <= 0:
+	var loop := outer_segments if not outer_segments.is_empty() else segments
+	var loop_perimeter := outer_perimeter if not outer_segments.is_empty() else perimeter
+	if loop.is_empty() or count <= 0:
 		return points
-	var step := perimeter / float(count)
+	var step := loop_perimeter / float(count)
 	var seg_idx := 0
 	var seg_dist := 0.0
-	var seg_len := (segments[0]["a"] as Vector2).distance_to(segments[0]["b"])
+	var seg_len := (loop[0]["a"] as Vector2).distance_to(loop[0]["b"])
 	var t := 0.0
 	for k in range(count):
-		while t > seg_dist + seg_len and seg_idx < segments.size() - 1:
+		while t > seg_dist + seg_len and seg_idx < loop.size() - 1:
 			seg_dist += seg_len
 			seg_idx += 1
-			seg_len = (segments[seg_idx]["a"] as Vector2).distance_to(segments[seg_idx]["b"])
+			seg_len = (loop[seg_idx]["a"] as Vector2).distance_to(loop[seg_idx]["b"])
 		# Keep samples interior to the segment: a sample sitting exactly on a
 		# segment end (a corner of the outline) can land right on a grid line,
 		# making its inside/outside classification ambiguous.
 		var frac: float = clampf((t - seg_dist) / maxf(seg_len, 0.001), 0.05, 0.95)
-		var seg: Dictionary = segments[seg_idx]
+		var seg: Dictionary = loop[seg_idx]
 		var a: Vector2 = seg["a"]
 		var b: Vector2 = seg["b"]
 		var normal: Vector2 = seg["normal"]

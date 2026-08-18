@@ -705,7 +705,7 @@ func _create_boundary_escape_zones() -> void:
 	var wall_off := wall_pos_local - trigger_mid_local
 	var zone_script := preload("res://scripts/arena/escape_zone.gd")
 
-	for seg in footprint.segments:
+	for seg in footprint.outer_segments:
 		var a: Vector2 = seg["a"]
 		var b: Vector2 = seg["b"]
 		var normal: Vector2 = seg["normal"]
@@ -798,7 +798,7 @@ func _create_void_barrier() -> void:
 func _create_boundary_void_barrier() -> void:
 	var height := 6.0
 	var thickness := 2.0
-	for seg in footprint.segments:
+	for seg in footprint.outer_segments:
 		var a: Vector2 = seg["a"]
 		var b: Vector2 = seg["b"]
 		var normal: Vector2 = seg["normal"]
@@ -894,7 +894,7 @@ func _add_boundary_escape_apron() -> void:
 	apron_mat.albedo_color = Color(0.16, 0.15, 0.13)
 	apron_mat.roughness = 0.95
 
-	for seg in footprint.segments:
+	for seg in footprint.outer_segments:
 		var a: Vector2 = seg["a"]
 		var b: Vector2 = seg["b"]
 		var normal: Vector2 = seg["normal"]

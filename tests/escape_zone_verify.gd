@@ -43,7 +43,7 @@ func _ready() -> void:
 
 	var zones := get_tree().get_nodes_in_group("escape_zone")
 	_check(zones.size() >= 4, "escape zones frame the outline (got %d)" % zones.size())
-	_check(zones.size() == fp.segments.size(), "one escape zone per boundary run (zones=%d segments=%d)" % [zones.size(), fp.segments.size()])
+	_check(zones.size() == fp.outer_segments.size(), "one escape zone per outer boundary run (zones=%d segments=%d)" % [zones.size(), fp.outer_segments.size()])
 
 	for z in zones:
 		var p: Vector3 = z.global_position
@@ -101,10 +101,10 @@ func _ready() -> void:
 	_check(apron != null, "walkable EscapeApron ring generated")
 	if apron != null:
 		# One slab per boundary run (2 nodes each: collision + mesh).
-		_check(apron.get_child_count() >= fp.segments.size() * 2, "apron has a slab per boundary run (nodes=%d segments=%d)" % [apron.get_child_count(), fp.segments.size()])
-		# Every boundary run gets an apron slab straddling its outline.
+		_check(apron.get_child_count() >= fp.outer_segments.size() * 2, "apron has a slab per outer boundary run (nodes=%d segments=%d)" % [apron.get_child_count(), fp.outer_segments.size()])
+		# Every outer boundary run gets an apron slab straddling its outline.
 		var covered := 0
-		for seg in fp.segments:
+		for seg in fp.outer_segments:
 			var mid: Vector2 = (seg["a"] as Vector2 + seg["b"] as Vector2) * 0.5
 			var normal: Vector2 = seg["normal"]
 			var target: Vector2 = mid + normal * 2.5  # middle of the 5m apron
@@ -121,7 +121,7 @@ func _ready() -> void:
 						break
 			if hit:
 				covered += 1
-		_check(covered == fp.segments.size(), "every boundary run has an apron slab (%d/%d)" % [covered, fp.segments.size()])
+		_check(covered == fp.outer_segments.size(), "every outer boundary run has an apron slab (%d/%d)" % [covered, fp.outer_segments.size()])
 
 	# The void barrier sits BEYOND the apron: one box per boundary run, with its
 	# inner face past the apron (outline + apron + 0.5). Godot renames duplicate
@@ -138,7 +138,7 @@ func _ready() -> void:
 					# Radial distance from center to the inner face along the
 					# outward normal (thin dimension is the radial one).
 					barrier_inner = minf(barrier_inner, c2.length() - minf(s2.x, s2.z) * 0.5)
-	_check(void_barriers == fp.segments.size(), "void barrier per boundary run (got %d)" % void_barriers)
+	_check(void_barriers == fp.outer_segments.size(), "void barrier per outer boundary run (got %d)" % void_barriers)
 	_check(barrier_inner < INF, "void barrier generated")
 
 	# --- Physical walk-through -------------------------------------------------

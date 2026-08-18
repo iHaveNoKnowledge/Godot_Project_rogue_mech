@@ -109,8 +109,8 @@ func _ready() -> void:
 		for z in arena.escape_zone_container.get_children():
 			if z.is_in_group("escape_zone"):
 				zones.append(z)
-		_check(zones.size() == arena.footprint.segments.size(),
-			"escape zones hug the outline (zones=%d segments=%d)" % [zones.size(), arena.footprint.segments.size()])
+		_check(zones.size() == arena.footprint.outer_segments.size(),
+			"escape zones hug the outer hull (zones=%d segments=%d)" % [zones.size(), arena.footprint.outer_segments.size()])
 		var all_inside := true
 		for body in arena.structures_container.get_children():
 			if body.is_in_group("solid_obstacle") and body is Node3D \

@@ -21,6 +21,7 @@ func _ready() -> void:
 	await _verify_board_hud_always_visible()
 	await _verify_right_column()
 	await _verify_music_resume()
+	await _verify_hangar_return_stops_music()
 	print("BOARD_HUD_INTERMISSION_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	await get_tree().process_frame
 	get_tree().quit(1 if _fails > 0 else 0)
@@ -152,3 +153,37 @@ func _verify_music_resume() -> void:
 	await get_tree().process_frame
 	_check(AudioManager._saved_intermission_track == null,
 		"leaving to the menu forgets the saved intermission track")
+
+
+func _verify_hangar_return_stops_music() -> void:
+	# Reproduces the hangar -> board bug: the hangar BGM followed the player back
+	# into the intermission and never ended. return_to_board() calls
+	# stop_music() and then play_intermission_music() back-to-back; the second
+	# call's _crossfade_to_stream() used to kill stop_music()'s fade tween
+	# (shared _music_tween), aborting the fade-to-stop of the hangar player.
+	AudioManager.play_intermission_music(0.1)
+	await get_tree().process_frame
+	_check(AudioManager.current_music_category == "intermission",
+		"hangar flow starts from intermission music")
+
+	AudioManager.play_hangar_music(0.1)
+	await get_tree().process_frame
+	_check(AudioManager.current_music_category == "hangar",
+		"entering the hangar switches to hangar BGM")
+	var hangar_player: AudioStreamPlayer = AudioManager.current_music
+	_check(hangar_player != null and hangar_player.playing,
+		"the hangar track is the one playing")
+
+	# Leaving the hangar: stop_music() then the board re-enters intermission
+	# music — the exact back-to-back sequence that used to strand the track.
+	AudioManager.stop_music(0.2)
+	AudioManager.play_intermission_music(0.1)
+	await get_tree().process_frame
+	_check(AudioManager.current_music_category == "intermission",
+		"returning to the board plays intermission music")
+
+	# Let the stop fade (0.2s) + callback run to completion.
+	for i in range(10):
+		await get_tree().create_timer(0.1).timeout
+	_check(hangar_player != null and not hangar_player.playing,
+		"the hangar track fades out and STOPS (does not follow into intermission)")

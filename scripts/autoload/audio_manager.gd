@@ -33,6 +33,13 @@ var current_track: AudioStream = null
 var combat_muted: bool = false
 
 var _music_tween: Tween = null
+# Dedicated fade-out/stop tween for stop_music(). Kept SEPARATE from
+# _music_tween so a following _crossfade_to_stream() (e.g. return_to_board()
+# calls stop_music() then play_intermission_music()) cannot kill the pending
+# fade and leave the outgoing track playing forever — the hangar BGM "followed"
+# the player back into the intermission because exactly that kill aborted its
+# fade-to-stop.
+var _stop_tween: Tween = null
 var _procedural_music_cache: Dictionary = {}
 
 # Remembers the intermission track (and its playback position) when combat
@@ -1398,14 +1405,16 @@ func stop_music(fade_time: float = 1.0) -> void:
 		return
 	if _music_tween and _music_tween.is_valid():
 		_music_tween.kill()
+	if _stop_tween and _stop_tween.is_valid():
+		_stop_tween.kill()
 	# Capture the playing player BEFORE clearing the reference: the fade + stop
 	# tween must target the actual player, or the music keeps decoding forever
 	# (a live MP3 stream at engine teardown crashes the audio thread on exit).
 	var player := current_music
 	current_music = null
-	_music_tween = create_tween()
-	_music_tween.tween_property(player, "volume_db", -80.0, fade_time)
-	_music_tween.tween_callback(func(): player.stop())
+	_stop_tween = create_tween()
+	_stop_tween.tween_property(player, "volume_db", -80.0, fade_time)
+	_stop_tween.tween_callback(func(): player.stop())
 
 
 # Mutes/unmutes every battle-related sound while the combat intro overlay is up.

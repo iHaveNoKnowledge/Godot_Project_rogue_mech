@@ -36,6 +36,10 @@ var _spark_timer: float = 0.0
 # call set_friendly_light(true) from their own _ready() to correct the color.
 var _friendly_light_override: int = -1  # -1 = auto, 0 = hostile, 1 = friendly
 
+# Core-breach heat glow: an OmniLight3D on the body that ramps up while the
+# machine warns before detonation — reads as the heat building up to blow.
+var _breach_glow: OmniLight3D = null
+
 
 func _ready() -> void:
 	_init_parts()
@@ -524,6 +528,7 @@ func _on_mecha_destroyed() -> void:
 func _start_core_breach_sequence() -> void:
 	_collapse_mech()
 	_play_core_breach_warning()
+	_spawn_breach_glow()
 	var elapsed := 0.0
 	var flash_on := false
 	while elapsed < CORE_BREACH_DELAY:
@@ -533,6 +538,7 @@ func _start_core_breach_sequence() -> void:
 		elapsed += 0.15
 		flash_on = not flash_on
 		_core_breach_flash(flash_on)
+		_update_breach_glow(elapsed / CORE_BREACH_DELAY, flash_on)
 	if not is_instance_valid(self):
 		return
 	_core_breach_flash(false)
@@ -540,7 +546,9 @@ func _start_core_breach_sequence() -> void:
 
 
 # The mech goes limp: the shared mech animation (if attached) switches into its
-# death-collapse pose; the machine stops responding and reads as "down".
+# death-collapse pose AND the whole machine RAGDOLLS over onto the ground right
+# away (rotation.x -> -82°, drop to y 0.55) — the same collapse downed enemies
+# use. Everything but the eject seat is dead: no movement, no weapons, no HUD.
 func _collapse_mech() -> void:
 	var mecha = get_parent()
 	if mecha == null or not is_instance_valid(mecha):
@@ -548,6 +556,36 @@ func _collapse_mech() -> void:
 	for child in mecha.get_children():
 		if child.has_method("set_core_breach"):
 			child.set_core_breach(true)
+	var tween = mecha.create_tween().set_parallel(true)
+	tween.tween_property(mecha, "rotation:x", deg_to_rad(-82.0), 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.tween_property(mecha, "position:y", 0.55, 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+
+
+# The heat-glow core light: a small orange OmniLight on the body that swells and
+# brightens over the warning window like the reactor heating up to blow.
+func _spawn_breach_glow() -> void:
+	var mecha = get_parent()
+	if mecha == null:
+		return
+	_breach_glow = OmniLight3D.new()
+	_breach_glow.name = "BreachGlow"
+	_breach_glow.light_color = Color(1.0, 0.45, 0.15)
+	_breach_glow.light_energy = 0.0
+	_breach_glow.omni_range = 2.5
+	_breach_glow.shadow_enabled = false
+	_breach_glow.position = Vector3(0, 1.3, 0)  # body core
+	mecha.add_child(_breach_glow)
+
+
+# Ramps the breach glow toward white-hot as the countdown nears its end; the
+# existing red/white emissive flash adds an extra pulse so the heat visibly
+# throbs out of the machine.
+func _update_breach_glow(progress: float, flash_on: bool) -> void:
+	if _breach_glow == null or not is_instance_valid(_breach_glow):
+		return
+	_breach_glow.light_energy = lerpf(1.5, 6.0, progress) + (1.2 if flash_on else 0.0)
+	_breach_glow.omni_range = lerpf(3.0, 8.0, progress)
+	_breach_glow.light_color = Color(1.0, 0.45, 0.15).lerp(Color(1.0, 0.9, 0.65), progress)
 
 
 # Alternating red/white emissive flash across the whole machine during the
@@ -574,13 +612,22 @@ func _play_core_breach_warning() -> void:
 
 
 # The actual detonation (delayed by the core-breach window): explosion effect +
-# sound, then the wrecked parts drop away.
+# sound, a white-hot light flash, then the wrecked parts drop away.
 func _detonate_mech() -> void:
 	if not is_instance_valid(self):
 		return
 	EffectManager.spawn_explosion(global_position + Vector3(0, 1.5, 0))
 	if AudioManager:
 		AudioManager.play_explosion(global_position + Vector3(0, 1.5, 0))
+	# Detonation flash: the breach glow slams white-hot and wide for a beat, then
+	# dies with the blast. Freed via the timer's own signal (no coroutine on this
+	# node, so a scene swap mid-flash can't leave a dangling await behind).
+	if _breach_glow != null and is_instance_valid(_breach_glow):
+		_breach_glow.light_energy = 14.0
+		_breach_glow.omni_range = 12.0
+		_breach_glow.light_color = Color.WHITE
+		var glow := _breach_glow
+		get_tree().create_timer(0.35).timeout.connect(glow.queue_free)
 	for slot in parts:
 		_hide_part(slot)
 

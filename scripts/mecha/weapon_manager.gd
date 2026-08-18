@@ -351,6 +351,13 @@ func _physics_process(delta: float) -> void:
 # ====================================================================
 
 func _input(event: InputEvent) -> void:
+	# The mech is ragdolled in its core-breach death window: the weapons are
+	# dead (only the eject seat still works), so ignore every weapon input.
+	var mecha = get_parent()
+	if mecha != null:
+		var hs = mecha.get_node_or_null("HealthSystem")
+		if hs != null and bool(hs.get("is_destroyed")):
+			return
 	# While the F pickup-decision menu is open (real-time mode) the hands must not
 	# fire/swap/drop — mouse clicks belong to the menu buttons, not the weapons.
 	if get_tree() and get_tree().current_scene:

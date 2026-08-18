@@ -21,6 +21,11 @@ func _on_lock_off() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	# The mech is ragdolled in its core-breach death window: no aiming either.
+	var mecha_hs = mecha.get_node_or_null("HealthSystem")
+	if mecha_hs != null and bool(mecha_hs.get("is_destroyed")):
+		is_aiming = false
+		return
 	is_aiming = Input.is_action_pressed("aim")
 	if is_aiming:
 		mecha.strafe_mode = true

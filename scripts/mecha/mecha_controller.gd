@@ -122,6 +122,15 @@ func _health_system() -> Node:
 	return get_node_or_null("HealthSystem")
 
 
+# True while the mech is in its core-breach death window (body HP depleted, the
+# machine is ragdolled and counting down to detonation). During that time every
+# function is dead except the eject seat — movement, dash, roller, jump and the
+# weapon inputs all refuse to respond so the mech reads as genuinely out.
+func _is_downed() -> bool:
+	var hs := _health_system()
+	return hs != null and bool(hs.get("is_destroyed"))
+
+
 func take_damage(amount: float, damage_type: String = "kinetic") -> void:
 	var hs := _health_system()
 	if hs and hs.has_method("take_damage"):
@@ -169,6 +178,13 @@ func apply_heavy_recoil_impulse(backward: Vector3) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if _is_downed():
+		# Core-breach window: the mech has ragdolled and no longer responds to
+		# any input except eject. Cut the roller hum too (the loop would keep
+		# playing on the autoload otherwise).
+		if AudioManager:
+			AudioManager.stop_roller_dash()
+		return
 	dash_cooldown_timer -= delta
 	# Roller wheels need ground under them: leaving the floor (a jump) cuts the
 	# roller out immediately, so it can never boost air speed.

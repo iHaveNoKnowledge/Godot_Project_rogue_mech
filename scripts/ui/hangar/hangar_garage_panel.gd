@@ -42,6 +42,10 @@ func build_garage() -> void:
 	sub_viewport = SubViewport.new()
 	sub_viewport.size = Vector2i(1280, 720)
 	sub_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	# Own physics world: SubViewports share the parent world by default. The
+	# garage mech's collision capsule must never interact with the main world
+	# (or the emergency repair editor's mech, which would climb on top of it).
+	sub_viewport.own_world_3d = true
 	viewport_container.add_child(sub_viewport)
 
 	hangar_env_node = Node3D.new()

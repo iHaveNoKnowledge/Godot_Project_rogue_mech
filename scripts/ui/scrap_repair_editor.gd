@@ -195,6 +195,10 @@ func _build_ui() -> void:
 	sub_viewport = SubViewport.new()
 	sub_viewport.size = Vector2i(1280, 720)
 	sub_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	# Own physics world: SubViewports share the parent world by default, so the
+	# editor's mech (a CharacterBody3D) would collide with the hangar garage
+	# mech's capsule and get pushed on top of it. Isolate the repair view.
+	sub_viewport.own_world_3d = true
 	viewport_container.add_child(sub_viewport)
 
 	# Left panel: damaged slot list.
@@ -417,15 +421,21 @@ func _build_garage() -> void:
 	# Disable the living mech (controller, animations, health) so it can't react to
 	# battle keybinds in this editor viewport — otherwise it skates off the display
 	# (the battle move actions are read directly via Input, not per-event, so marking
-	# editor key events as handled is not enough).
+	# editor key events as handled is not enough). The freeze MUST run AFTER
+	# add_child(): mecha scripts re-enable processing in their _ready, and a live
+	# physics process makes the editor mech run move_and_slide() every physics
+	# frame. The garage mech's collision capsule lives in the SAME physics world
+	# (SubViewports share the parent world by default), so the editor mech would
+	# collide with the hidden garage mech and be pushed UP to stand on top of it —
+	# a floating, doubled mech in the repair view.
+	_apply_neutral_pose(scene_base)
+	turntable_node.add_child(scene_base)
 	scene_base.set_process(false)
 	scene_base.set_physics_process(false)
 	scene_base.set_process_input(false)
 	for child in scene_base.get_children():
 		child.set_process(false)
 		child.set_physics_process(false)
-	_apply_neutral_pose(scene_base)
-	turntable_node.add_child(scene_base)
 	mecha_node = scene_base
 
 	pmm = scene_base.get_node_or_null("PartMeshManager")

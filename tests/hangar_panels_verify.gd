@@ -2079,8 +2079,26 @@ func _verify_scrap_panel() -> void:
 		await get_tree().process_frame
 		await get_tree().process_frame
 		_check(true, "editor signals fire through the scrap panel without error")
+		# The emergency editor overlays the hangar's own 3D garage preview: while
+		# open, the garage SubViewport must be hidden or the same mech model
+		# renders twice (a doubled/stacked model behind the live editor mech).
+		var garage_vc = ctrl.garage_panel.viewport_container
+		_check(garage_vc != null, "garage panel exposes its SubViewportContainer")
+		if garage_vc != null:
+			_check(not garage_vc.visible, "garage viewport hidden while the emergency editor is open")
+		# The editor's mech must sit on its own turntable: its physics is frozen
+		# AFTER _ready and its SubViewport has its own world, so it can no longer
+		# collide with the (hidden) garage mech and climb on top of it.
+		var _ed_m = ctrl.scrap_editor.turntable_node.get_node_or_null("MechaBase")
+		_check(_ed_m != null, "editor builds its own mech")
+		if _ed_m:
+			for _i in 6:
+				await get_tree().physics_frame
+			_check(absf(_ed_m.position.y) < 0.5, "editor mech stays grounded on the turntable (not stacked on the garage mech)")
 		ctrl.scrap_editor.close()
 		await get_tree().process_frame
+		if garage_vc != null:
+			_check(garage_vc.visible, "garage viewport restored after the emergency editor closes")
 
 	ctrl.queue_free()
 	await get_tree().process_frame

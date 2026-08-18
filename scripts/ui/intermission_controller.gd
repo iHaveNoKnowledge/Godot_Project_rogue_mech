@@ -102,9 +102,15 @@ func _create_ui() -> void:
 
 	# Info panel (right side)
 	info_panel = PanelContainer.new()
-	info_panel.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
+	# FULL_RECT anchors so offset_left=285 means "285px from the LEFT edge" —
+	# RIGHT_WIDE anchors pin the left edge to the viewport right edge, which
+	# pushed the whole panel off-screen (left edge at width+285).
+	info_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	info_panel.offset_left = 285
-	info_panel.offset_right = -20
+	# Ends short of the BoardHUD right column (objective/countdown/reserved
+	# cards at ~270px from the right edge), which stays visible over the
+	# intermission by design — content must never render underneath it.
+	info_panel.offset_right = -270
 	info_panel.offset_top = 160
 	info_panel.offset_bottom = -20
 	info_panel.visible = false

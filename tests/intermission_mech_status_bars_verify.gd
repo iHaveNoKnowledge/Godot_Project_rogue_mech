@@ -5,6 +5,9 @@ extends Node
 ##   2. Bar values reflect live part_damage ratios (armor at slot, frame at
 ##      slot+"_frame"), scaled against the equipped frame + upgrade bonus.
 ##   3. With no mech (mech_less), the status view shows a plain notice instead.
+##   4. The info panel actually renders ON-SCREEN and stays clear of the BoardHUD
+##      right column (regression: RIGHT_WIDE anchors pushed it off-screen, so the
+##      Mech Status view "opened" but was invisible).
 ## Run: godot --headless --path . res://tests/intermission_mech_status_bars_verify.tscn
 
 var _fails := 0
@@ -42,6 +45,18 @@ func _ready() -> void:
 	_check(bars_container != null and bars_container.visible, "status bars container is shown")
 	var full_ratio := _find_bar_ratio(bars_container, "head")
 	_check(absf(full_ratio - 1.0) < 0.02, "undamaged armor bar reads ~100%% (got %.2f)" % full_ratio)
+
+	# Regression: the info panel must render fully inside the viewport and must
+	# not slide underneath the BoardHUD right column (~270px from the right edge).
+	var info_panel: Control = intermission.get("info_panel")
+	var vp_rect: Rect2 = intermission.get_viewport().get_visible_rect()
+	if info_panel != null:
+		var info_rect := info_panel.get_global_rect()
+		_check(info_rect.position.x >= 0.0 and info_rect.position.y >= 0.0
+			and info_rect.end.x <= vp_rect.size.x + 0.5 and info_rect.end.y <= vp_rect.size.y + 0.5,
+			"info panel renders fully on-screen (got %s)" % str(info_rect))
+		_check(info_rect.end.x <= vp_rect.size.x - 250.0,
+			"info panel stays clear of the BoardHUD right column (right edge %.0f)" % info_rect.end.x)
 
 	# Apply live damage: armor at 50%, frame at 20% remaining.
 	GlobalData.part_damage["head"] = 0.5

@@ -529,6 +529,7 @@ func _start_core_breach_sequence() -> void:
 	_collapse_mech()
 	_play_core_breach_warning()
 	_spawn_breach_glow()
+	_spawn_breach_countdown()
 	var elapsed := 0.0
 	var flash_on := false
 	while elapsed < CORE_BREACH_DELAY:
@@ -539,9 +540,11 @@ func _start_core_breach_sequence() -> void:
 		flash_on = not flash_on
 		_core_breach_flash(flash_on)
 		_update_breach_glow(elapsed / CORE_BREACH_DELAY, flash_on)
+		_update_breach_countdown(elapsed)
 	if not is_instance_valid(self):
 		return
 	_core_breach_flash(false)
+	_hide_breach_countdown()
 	_detonate_mech()
 
 
@@ -609,6 +612,85 @@ func _play_core_breach_warning() -> void:
 	if AudioManager:
 		AudioManager.play_enemy_warning(global_position + Vector3(0, 2.0, 0))
 		AudioManager.play_sfx("enemy_retreat", global_position + Vector3(0, 2.0, 0), -1.0)
+
+
+# --- Core-breach countdown label (screen-space) ----------------------------
+# A big red "CORE BREACH" banner with a ticking countdown pinned to the center
+# of the screen so the player can't miss that the machine is about to blow.
+# The label pulses in and out to match the emissive flash rhythm.
+var _breach_countdown_layer: CanvasLayer = null
+var _breach_countdown_label: Label = null
+var _breach_countdown_tween: Tween = null
+
+
+func _spawn_breach_countdown() -> void:
+	var mecha = get_parent()
+	if mecha == null or not is_instance_valid(mecha):
+		return
+	_breach_countdown_layer = CanvasLayer.new()
+	_breach_countdown_layer.name = "BreachCountdown"
+	_breach_countdown_layer.layer = 10  # above combat HUD (layer 5)
+	mecha.add_child(_breach_countdown_layer)
+
+	var root := Control.new()
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_breach_countdown_layer.add_child(root)
+
+	_breach_countdown_label = Label.new()
+	_breach_countdown_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_breach_countdown_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_breach_countdown_label.set_anchors_preset(Control.PRESET_CENTER)
+	_breach_countdown_label.offset_left = -220
+	_breach_countdown_label.offset_right = 220
+	_breach_countdown_label.offset_top = -40
+	_breach_countdown_label.offset_bottom = 40
+	_breach_countdown_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.85, 0.08, 0.05, 0.88)
+	style.corner_radius_top_left = 8
+	style.corner_radius_top_right = 8
+	style.corner_radius_bottom_left = 8
+	style.corner_radius_bottom_right = 8
+	style.content_margin_left = 20
+	style.content_margin_right = 20
+	style.content_margin_top = 8
+	style.content_margin_bottom = 8
+	_breach_countdown_label.add_theme_stylebox_override("normal", style)
+	_breach_countdown_label.add_theme_font_size_override("font_size", 32)
+	_breach_countdown_label.add_theme_color_override("font_color", Color.WHITE)
+	_breach_countdown_label.text = "CORE BREACH %.1fs" % CORE_BREACH_DELAY
+	root.add_child(_breach_countdown_label)
+
+	# Pulse the alpha so the banner throbs like the emissive flash.
+	_breach_countdown_tween = create_tween().set_loops()
+	_breach_countdown_tween.tween_property(_breach_countdown_label, "modulate:a", 0.4, 0.3)
+	_breach_countdown_tween.tween_property(_breach_countdown_label, "modulate:a", 1.0, 0.3)
+
+
+func _update_breach_countdown(elapsed: float) -> void:
+	if _breach_countdown_label == null or not is_instance_valid(_breach_countdown_label):
+		return
+	var remaining := maxf(CORE_BREACH_DELAY - elapsed, 0.0)
+	_breach_countdown_label.text = "CORE BREACH %.1fs" % remaining
+	# Urgency ramp: the background shifts from red toward white-hot near the
+	# end, matching the breach glow's colour ramp.
+	var progress := clampf(elapsed / CORE_BREACH_DELAY, 0.0, 1.0)
+	var bg := Color(0.85, 0.08, 0.05, 0.88).lerp(Color(1.0, 0.75, 0.6, 0.95), progress)
+	var style: StyleBoxFlat = _breach_countdown_label.get_theme_stylebox("normal") as StyleBoxFlat
+	if style:
+		style.bg_color = bg
+
+
+func _hide_breach_countdown() -> void:
+	if _breach_countdown_tween and _breach_countdown_tween.is_valid():
+		_breach_countdown_tween.kill()
+		_breach_countdown_tween = null
+	if _breach_countdown_layer != null and is_instance_valid(_breach_countdown_layer):
+		_breach_countdown_layer.queue_free()
+		_breach_countdown_layer = null
+		_breach_countdown_label = null
 
 
 # The actual detonation (delayed by the core-breach window): explosion effect +

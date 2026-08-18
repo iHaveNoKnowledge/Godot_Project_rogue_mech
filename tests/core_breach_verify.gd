@@ -91,6 +91,22 @@ func _ready() -> void:
 		_check(late_avg > early_avg,
 			"breach glow intensifies as heat builds (avg %.2f -> %.2f)" % [early_avg, late_avg])
 
+	# --- 2b. Screen-space countdown label ---
+	var countdown_layer := mech.get_node_or_null("BreachCountdown")
+	_check(countdown_layer != null, "core breach spawns a countdown CanvasLayer")
+	if countdown_layer:
+		var cl: CanvasLayer = countdown_layer as CanvasLayer
+		_check(cl.visible, "countdown layer is visible for the player mech")
+		_check(cl.layer > 5, "countdown layer sits above the combat HUD (layer %d)" % cl.layer)
+		var lbl := _find_label(cl)
+		_check(lbl != null, "countdown layer contains a Label node")
+		if lbl:
+			_check(str(lbl.text).contains("CORE BREACH"), "label reads 'CORE BREACH ...' (%s)" % lbl.text)
+			_check(str(lbl.text).contains("."), "label shows a decimal countdown")
+	# The countdown label should also exist for enemies (though invisible).
+	# We verify the player path here; the enemy path is covered in the
+	# crawl/pilot verify test.
+
 	# --- 3. Everything off except the eject seat ---
 	var vel_before: Vector3 = mech.velocity
 	Input.action_press("move_forward")
@@ -121,6 +137,16 @@ func _ready() -> void:
 		"breach glow is gone after the blast")
 
 	_finish()
+
+
+func _find_label(node: Node) -> Label:
+	if node is Label:
+		return node as Label
+	for child in node.get_children():
+		var found := _find_label(child)
+		if found:
+			return found
+	return null
 
 
 func _mech_downed(mech: CharacterBody3D) -> bool:

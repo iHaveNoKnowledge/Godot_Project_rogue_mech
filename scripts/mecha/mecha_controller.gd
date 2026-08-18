@@ -88,6 +88,14 @@ func _ready() -> void:
 	EventBus.weight_changed.connect(_on_weight_changed)
 
 
+func _exit_tree() -> void:
+	# The roller loop lives on the AudioManager autoload (which outlives this
+	# mech): cut it when the mech is freed by a scene change, or the hum would
+	# keep looping after the battle/board is gone.
+	if AudioManager:
+		AudioManager.stop_roller_dash()
+
+
 # Apply chassis speed/weight from GlobalData.chassis_id.
 # Always writes to override vars — never mutates the shared @export ChassisData Resource.
 # _recalculate_weight() reads the override vars first, falling back to ChassisData only
@@ -186,6 +194,17 @@ func _physics_process(delta: float) -> void:
 	was_in_air = not currently_on_floor
 
 	move_and_slide()
+
+	# Roller-dash audio: a continuous loop whose pitch BENDS with actual speed —
+	# faster rolls whine higher, standing still stays quiet (the loop only whines
+	# while the wheels are really rolling on the ground).
+	var h_speed := Vector3(velocity.x, 0.0, velocity.z).length()
+	if is_roller_dashing and is_on_floor() and h_speed > 0.5:
+		var ratio := h_speed / maxf(current_speed * 2.0, 1.0)
+		if AudioManager:
+			AudioManager.update_roller_dash(global_position, ratio)
+	elif AudioManager:
+		AudioManager.stop_roller_dash()
 
 
 var is_roller_dashing: bool = false
@@ -348,11 +367,6 @@ func _apply_movement(delta: float) -> void:
 			if roller_spark_timer <= 0.0:
 				roller_spark_timer = 0.08
 				_spawn_roller_spark_effect()
-			roller_skate_timer -= delta
-			if roller_skate_timer <= 0.0:
-				roller_skate_timer = 0.12
-				if AudioManager:
-					AudioManager.play_roller_skate(global_position)
 		else:
 			footstep_timer -= delta
 			if footstep_timer <= 0.0:

@@ -49,6 +49,13 @@ var _sound_cache: Dictionary = {}
 const MECH_HIT_COOLDOWN := 0.06
 var _last_mech_hit_time := -1.0
 
+# Roller-dash loop: a dedicated continuous player whose pitch BENDS with speed
+# (slower rolls rumble low, faster rolls whine high). See update_roller_dash.
+const ROLLER_PITCH_MIN := 0.75
+const ROLLER_PITCH_MAX := 1.9
+var _roller_player: AudioStreamPlayer3D = null
+var _roller_pitch: float = ROLLER_PITCH_MIN
+
 
 func _ready() -> void:
 	_setup_pools()
@@ -119,6 +126,11 @@ func _generate_sounds() -> void:
 	_sound_cache["jump"] = _gen_sine_sweep(150.0, 450.0, 0.15, 0.25)
 	_sound_cache["land"] = _gen_sine_tone(70.0, 0.18, 0.4)
 	_sound_cache["roller_skate"] = _gen_sine_sweep(400.0, 250.0, 0.08, 0.15)
+	# Roller-dash engine loop. Drop roller_dash.wav / .ogg / .mp3 into
+	# res://resources/audio/sfx/ to override the generated hum; the loop is
+	# pitch-bent with speed by update_roller_dash while the mech rolls.
+	var roller_file := _load_sfx_file("roller_dash")
+	_sound_cache["roller_dash"] = roller_file if roller_file != null else _gen_roller_loop()
 	_sound_cache["reload_complete"] = _gen_sine_sweep(1400.0, 1800.0, 0.1, 0.3)
 
 	# Multiple variants per hit: random one is picked each play.
@@ -228,6 +240,30 @@ func _load_ui_sound(base_name: String) -> AudioStream:
 	return null
 
 
+## Loads a named sound file from res://resources/audio/sfx/ (any of wav/ogg/mp3),
+## matching by basename so a dropped roller_dash.wav overrides the generated hum.
+func _load_sfx_file(base_name: String) -> AudioStream:
+	var dir_path := "res://resources/audio/sfx"
+	if not DirAccess.dir_exists_absolute(dir_path):
+		return null
+	var dir := DirAccess.open(dir_path)
+	if dir == null:
+		return null
+	dir.list_dir_begin()
+	var file_name := dir.get_next()
+	while file_name != "":
+		if not dir.current_is_dir():
+			var base := file_name.get_basename()
+			if base.to_lower() == base_name.to_lower():
+				var ext := file_name.get_extension().to_lower()
+				if ext in ["wav", "ogg", "mp3"]:
+					var stream := load(dir_path.path_join(file_name)) as AudioStream
+					if stream != null:
+						return stream
+		file_name = dir.get_next()
+	return null
+
+
 func _gen_sine_sweep(freq_start: float, freq_end: float, duration: float, volume: float) -> AudioStreamWAV:
 	var sample_rate = 22050
 	var num_samples = int(duration * sample_rate)
@@ -248,6 +284,33 @@ func _gen_sine_sweep(freq_start: float, freq_end: float, duration: float, volume
 	stream.format = AudioStreamWAV.FORMAT_16_BITS
 	stream.mix_rate = sample_rate
 	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream
+
+
+## Seamless looping roller hum (fallback when no roller_dash.* file is dropped
+## into res://resources/audio/sfx/): an integer-frequency 150/300 Hz drone wraps
+## cleanly at the loop point, under a windowed noise hiss that fades to zero at
+## the edges so the loop never clicks when it repeats.
+func _gen_roller_loop() -> AudioStreamWAV:
+	var sample_rate := 22050
+	var num_samples := int(0.5 * sample_rate)  # 0.5s loop
+	var data := PackedByteArray()
+	data.resize(num_samples * 2)  # 16-bit mono
+	for i in range(num_samples):
+		var t := float(i) / sample_rate
+		var win := sin(PI * float(i) / num_samples)
+		var hum := sin(TAU * 150.0 * t) * 0.5 + sin(TAU * 300.0 * t) * 0.25
+		var hiss := (randf() * 2.0 - 1.0) * win * 0.35
+		var sample := (hum * 0.5 + hiss) * 0.5 * 32767
+		var val := int(clamp(sample, -32767, 32767))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+	var stream := AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	stream.loop_end = num_samples
 	return stream
 
 
@@ -1061,6 +1124,45 @@ func play_land(pos: Vector3) -> void:
 
 func play_roller_skate(pos: Vector3) -> void:
 	play_sfx("roller_skate", pos, -6.0, "Movement")
+
+
+func _ensure_roller_player() -> AudioStreamPlayer3D:
+	if _roller_player == null:
+		_roller_player = AudioStreamPlayer3D.new()
+		_roller_player.name = "RollerLoop"
+		_roller_player.bus = "Movement"
+		add_child(_roller_player)
+	return _roller_player
+
+
+## Roller-dash pitch bending: keeps a dedicated LOOP playing while the mech
+## rolls and bends its pitch_scale with speed — slower rolls rumble at
+## ROLLER_PITCH_MIN, the fastest ones whine up to ROLLER_PITCH_MAX. The pitch
+## glides toward the target every frame (no zipper snapping), and the loop is
+## positional so it lands where the machine actually is.
+func update_roller_dash(pos: Vector3, speed_ratio: float) -> void:
+	if combat_muted:
+		stop_roller_dash()
+		return
+	var player := _ensure_roller_player()
+	if player.stream == null:
+		player.stream = _pick_stream("roller_dash")
+	if player.stream == null:
+		return
+	player.global_position = pos
+	var target := lerpf(ROLLER_PITCH_MIN, ROLLER_PITCH_MAX, clampf(speed_ratio, 0.0, 1.0))
+	_roller_pitch = lerpf(_roller_pitch, target, 0.25)
+	player.pitch_scale = _roller_pitch
+	if not player.playing:
+		player.play()
+
+
+## Cuts the roller-dash loop (called when the mech stops rolling, jumps, runs
+## dry, or is freed — otherwise the hum would loop forever on the autoload).
+func stop_roller_dash() -> void:
+	_roller_pitch = ROLLER_PITCH_MIN
+	if _roller_player != null and _roller_player.playing:
+		_roller_player.stop()
 
 
 func play_impact_by_type(damage_type: String, pos: Vector3) -> void:

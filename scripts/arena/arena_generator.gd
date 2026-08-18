@@ -22,6 +22,18 @@ const ARENA_SIZES: Dictionary = {
 # keeps charging out there). The void barrier sits just past this apron.
 const ESCAPE_APRON_DEPTH := 5.0
 
+# Dark "dead space" tint painted outside the footprint on flat-theme arenas so
+# the irregular battlefield reads as a lit blob floating on the void instead of
+# a rectangle on a plain floor.
+const VOID_GROUND_COLOR := Color(0.025, 0.025, 0.045)
+
+# Irregular, deterministic battlefield outline for the flat themes (desert /
+# city / crossroads). Null on the special-terrain themes (river / forest) that
+# keep their square frame and rich interior geometry. Built once in _ready from
+# the board seed + sector + tile, so the same battle always fights on the same
+# shape while different battles get different silhouettes.
+var footprint: ArenaFootprint = null
+
 var current_theme: BiomeTheme = BiomeTheme.DESERT
 var tile_container: Node3D
 var escape_zone_container: Node3D
@@ -56,8 +68,31 @@ func _ready() -> void:
 	current_theme = _theme_from_board()
 	arena_size = _arena_size_for_combat()
 	GlobalData.current_arena_size = arena_size
+	footprint = _build_footprint()
 	generate_arena()
 	_place_player_at_arena_edge()
+
+
+# Builds the irregular footprint for the flat themes (or null for the
+# river/forest special-terrain themes that keep their square frame). Seeded
+# from the same values the obstacle seed system uses so the shape is stable for
+# a given battle.
+func _build_footprint() -> ArenaFootprint:
+	if not _uses_footprint():
+		return null
+	return ArenaFootprint.create(_footprint_seed(), arena_size)
+
+
+func _uses_footprint() -> bool:
+	return current_theme == BiomeTheme.DESERT \
+		or current_theme == BiomeTheme.CITY_HIGHRISE \
+		or current_theme == BiomeTheme.CROSSROADS
+
+
+func _footprint_seed() -> int:
+	var tile := GlobalData.current_tile
+	var base := GlobalData.current_sector * 1000 + tile.x * 100 + tile.y
+	return hash(base + int(GlobalData.board_seed) * 31)
 
 
 # Moves the player mech to a random EDGE spawn instead of the center of the
@@ -81,6 +116,26 @@ func _place_player_at_arena_edge() -> void:
 		seed_sys.set_seed(GlobalData.current_sector, GlobalData.current_tile)
 		cover_positions = seed_sys.get_obstacle_positions(current_theme, arena_size)
 	var attempts := 0
+	# On an irregular footprint the battlefield edge follows the outline, so
+	# spawn near the real boundary instead of a circular ring. Candidates are
+	# pushed far enough inward that they never land inside a retreat trigger
+	# (which reaches 12m into the field from the outline).
+	if footprint != null:
+		var ring := footprint.ring_points(24, 18.0)
+		while attempts < 48 and not ring.is_empty():
+			attempts += 1
+			var base: Vector3 = ring[randi() % ring.size()]
+			var candidate := base + Vector3(randf_range(-8, 8), 0.0, randf_range(-8, 8))
+			if footprint.distance_to_outline(Vector2(candidate.x, candidate.z)) < 13.0:
+				continue
+			if _spawn_point_clear(candidate, 8.0, cover_positions):
+				mecha.position = candidate
+				mecha.position.y = 5.0  # Drop-pod height; combat_intro waits for landing.
+				return
+		# No clear boundary spot — fall back to the footprint's middle, which
+		# every theme keeps clear of structures.
+		mecha.position = Vector3(footprint.centroid.x, 5.0, footprint.centroid.y)
+		return
 	while attempts < 24:
 		attempts += 1
 		# Pick a point on the outer ring (between 30% and 46% of the arena size
@@ -403,6 +458,10 @@ func _build_ground_texture() -> ImageTexture:
 
 
 func _get_theme_ground_color(pos_x: float, pos_z: float) -> Color:
+	# Outside the irregular footprint the floor reads as dead void (dark), so
+	# the battlefield silhouette is clearly non-rectangular.
+	if footprint != null and not footprint.is_inside(Vector2(pos_x, pos_z)):
+		return VOID_GROUND_COLOR
 	var v := ground_noise.get_noise_2d(pos_x * 0.03, pos_z * 0.03) * 0.05
 	match current_theme:
 		BiomeTheme.DESERT:
@@ -543,6 +602,9 @@ func _add_forest_bank_collision(z0: float, z1: float) -> void:
 
 
 func _create_escape_zones() -> void:
+	if footprint != null:
+		_create_boundary_escape_zones()
+		return
 	var half := arena_size / 2.0
 	# Zone frame spans the full square INCLUDING the apron corners so the
 	# retreat hold keeps charging anywhere behind the wall, even out at the
@@ -589,6 +651,7 @@ func _create_escape_zones() -> void:
 			0.0,
 			(wall_off if def["pos"].z != 0.0 else 0.0) * signf(def["pos"].z)
 		)
+		zone.edge_dist = half
 
 		var collision := CollisionShape3D.new()
 		var shape := BoxShape3D.new()
@@ -626,11 +689,79 @@ func _create_escape_zones() -> void:
 		escape_zone_container.add_child(zone)
 
 
+# Escape zones for an irregular footprint: one zone per merged boundary run,
+# each hugging its segment. The trigger spans from 12m inside the outline to the
+# apron behind the glow wall (same hold behavior as the square frame, but the
+# frame now follows the actual battlefield edge instead of the bounding square).
+func _create_boundary_escape_zones() -> void:
+	var wall_height := 8.0
+	var trigger_inner := 12.0
+	var trigger_outer := ESCAPE_APRON_DEPTH + 0.5
+	var trigger_thickness := trigger_inner + trigger_outer
+	# The trigger center sits (apron+0.5 - 12)/2 OUTWARD of the boundary (i.e.
+	# ~3.25m inward), keeping the hold start a real distance off the edge.
+	var trigger_mid_local := (trigger_outer - trigger_inner) * 0.5
+	var wall_pos_local := (ESCAPE_APRON_DEPTH - 3.5) * 0.5
+	var wall_off := wall_pos_local - trigger_mid_local
+	var zone_script := preload("res://scripts/arena/escape_zone.gd")
+
+	for seg in footprint.segments:
+		var a: Vector2 = seg["a"]
+		var b: Vector2 = seg["b"]
+		var normal: Vector2 = seg["normal"]
+		var mid := (a + b) * 0.5
+		var length := a.distance_to(b)
+		# Boundary runs are axis-aligned (from the cell grid), so the box is a
+		# plain axis-aligned box — no rotation needed.
+		var axis_x: bool = absf(a.y - b.y) < 0.01
+		var trigger_center := mid + normal * trigger_mid_local
+
+		var zone := Area3D.new()
+		zone.name = "EscapeZone"
+		zone.add_to_group("escape_zone")
+		zone.set_script(zone_script)
+		zone.position = Vector3(trigger_center.x, wall_height * 0.5, trigger_center.y)
+		zone.edge_dist = mid.length()
+		zone.wall_local = Vector3(normal.x * wall_off, 0.0, normal.y * wall_off)
+
+		var collision := CollisionShape3D.new()
+		var shape := BoxShape3D.new()
+		if axis_x:
+			shape.size = Vector3(length, wall_height, trigger_thickness)
+		else:
+			shape.size = Vector3(trigger_thickness, wall_height, length)
+		collision.shape = shape
+		zone.add_child(collision)
+
+		# Physical barrier for ENEMIES only, pinned at the visible wall (the
+		# player walks through it; chasing enemies are stopped at the outline).
+		var wall_pos := mid + normal * wall_pos_local
+		var barrier := StaticBody3D.new()
+		barrier.name = "RetreatWallBarrier"
+		barrier.collision_layer = 32
+		barrier.collision_mask = 0
+		barrier.position = Vector3(wall_pos.x, wall_height * 0.5, wall_pos.y)
+		var bcol := CollisionShape3D.new()
+		var bshape := BoxShape3D.new()
+		if axis_x:
+			bshape.size = Vector3(length, wall_height, 1.5)
+		else:
+			bshape.size = Vector3(1.5, wall_height, length)
+		bcol.shape = bshape
+		barrier.add_child(bcol)
+		escape_zone_container.add_child(barrier)
+
+		escape_zone_container.add_child(zone)
+
+
 # Invisible safety frame just past the escape apron so the player (and enemies)
 # can't walk off the edge of the ground and fall into the void. It sits BEYOND
 # the apron (inner face = half + apron depth + 0.5), leaving a real strip of
 # solid ground behind the retreat wall to stand on.
 func _create_void_barrier() -> void:
+	if footprint != null:
+		_create_boundary_void_barrier()
+		return
 	var half := arena_size / 2.0
 	var len := arena_size + (ESCAPE_APRON_DEPTH + 2.0) * 2.0
 	var barrier_pos := half + ESCAPE_APRON_DEPTH + 1.5
@@ -647,6 +778,7 @@ func _create_void_barrier() -> void:
 	for def in barrier_defs:
 		var barrier := StaticBody3D.new()
 		barrier.name = "VoidBarrier"
+		barrier.add_to_group("void_barrier")
 		barrier.collision_layer = 2
 		barrier.collision_mask = 0
 
@@ -660,6 +792,39 @@ func _create_void_barrier() -> void:
 		escape_zone_container.add_child(barrier)
 
 
+# Void barrier for an irregular footprint: one box per boundary run, sitting
+# past the apron (inner face = outline + apron + 0.5) so nothing can walk off
+# the ground and fall into the void outside the battlefield.
+func _create_boundary_void_barrier() -> void:
+	var height := 6.0
+	var thickness := 2.0
+	for seg in footprint.segments:
+		var a: Vector2 = seg["a"]
+		var b: Vector2 = seg["b"]
+		var normal: Vector2 = seg["normal"]
+		var mid := (a + b) * 0.5
+		var length := a.distance_to(b)
+		var axis_x: bool = absf(a.y - b.y) < 0.01
+		var center := mid + normal * (ESCAPE_APRON_DEPTH + 1.5)
+
+		var barrier := StaticBody3D.new()
+		barrier.name = "VoidBarrier"
+		barrier.add_to_group("void_barrier")
+		barrier.collision_layer = 2
+		barrier.collision_mask = 0
+		barrier.position = Vector3(center.x, height * 0.5, center.y)
+
+		var collision := CollisionShape3D.new()
+		var shape := BoxShape3D.new()
+		if axis_x:
+			shape.size = Vector3(length, height, thickness)
+		else:
+			shape.size = Vector3(thickness, height, length)
+		collision.shape = shape
+		barrier.add_child(collision)
+		escape_zone_container.add_child(barrier)
+
+
 # Walkable ground OUTSIDE the arena edge — the strip between the battlefield
 # and the void barrier. Without it the retreat light wall sat at the edge of
 # the floor: the player's feet ran out of ground right at the wall and the
@@ -668,6 +833,9 @@ func _create_void_barrier() -> void:
 # past the wall, so the player walks straight through it and stands behind it
 # while the escape hold charges.
 func _add_escape_apron() -> void:
+	if footprint != null:
+		_add_boundary_escape_apron()
+		return
 	var half := arena_size / 2.0
 	var depth := ESCAPE_APRON_DEPTH
 	var top_y := _apron_top_y()
@@ -710,6 +878,51 @@ func _add_escape_apron() -> void:
 	structures_container.add_child(body)
 
 
+# Walkable apron for an irregular footprint: one slab per boundary run, hugging
+# the outline so the player can walk through the light wall and stand behind it
+# (the retreat hold keeps charging out there).
+func _add_boundary_escape_apron() -> void:
+	var depth := ESCAPE_APRON_DEPTH
+	var top_y := _apron_top_y()
+
+	var body := StaticBody3D.new()
+	body.name = "EscapeApron"
+	body.collision_layer = 2
+	body.collision_mask = 1
+
+	var apron_mat := StandardMaterial3D.new()
+	apron_mat.albedo_color = Color(0.16, 0.15, 0.13)
+	apron_mat.roughness = 0.95
+
+	for seg in footprint.segments:
+		var a: Vector2 = seg["a"]
+		var b: Vector2 = seg["b"]
+		var normal: Vector2 = seg["normal"]
+		var mid := (a + b) * 0.5
+		var length := a.distance_to(b)
+		var axis_x: bool = absf(a.y - b.y) < 0.01
+		var center := mid + normal * (depth * 0.5)
+		var pos := Vector3(center.x, top_y - 0.4, center.y)
+		var size := Vector3(length, 0.8, depth) if axis_x else Vector3(depth, 0.8, length)
+
+		var col := CollisionShape3D.new()
+		var shape := BoxShape3D.new()
+		shape.size = size
+		col.shape = shape
+		col.position = pos
+		body.add_child(col)
+
+		var mesh := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = size
+		mesh.mesh = box
+		mesh.material_override = apron_mat
+		mesh.position = pos
+		body.add_child(mesh)
+
+	structures_container.add_child(body)
+
+
 # Height of the walkable apron beyond the arena edge, matched to each theme's
 # ground surface so stepping out of the field is flush (no invisible step).
 func _apron_top_y() -> float:
@@ -743,7 +956,6 @@ func _create_theme_structures() -> void:
 func _build_desert_structures() -> void:
 	_generate_randomized_desert_dunes()
 
-
 func _generate_randomized_desert_dunes() -> void:
 	var half = arena_size / 2.0 - 25.0
 	var dune_count = randi_range(12, 20)
@@ -756,19 +968,29 @@ func _generate_randomized_desert_dunes() -> void:
 	rock_mat.albedo_color = Color(0.45, 0.38, 0.30)
 	rock_mat.roughness = 0.9
 	
-	for i in range(dune_count):
+	# On an irregular footprint dunes must sit fully INSIDE the battlefield
+	# outline (a dune poking into the retreat strip would block the escape), so
+	# keep rolling candidate spots until the count lands on solid ground.
+	var placed := 0
+	var guard := 0
+	while placed < dune_count and guard < dune_count * 5:
+		guard += 1
 		# Random position away from center (keep central area 60% flat & open)
 		var angle = randf_range(0, TAU)
 		var dist = randf_range(35.0, half)
 		var pos_x = cos(angle) * dist
 		var pos_z = sin(angle) * dist
 		
+		var width = randf_range(20.0, 45.0)
+		var length = randf_range(14.0, 32.0)
+		if footprint != null and not _rect_inside_footprint(Vector2(pos_x, pos_z), Vector2(width * 0.5, length * 0.5)):
+			continue
+		placed += 1
+		
 		var dune = StaticBody3D.new()
 		dune.collision_layer = 2
 		dune.collision_mask = 1
 		
-		var width = randf_range(20.0, 45.0)
-		var length = randf_range(14.0, 32.0)
 		var height = randf_range(2.5, 5.5)
 		
 		var collision = CollisionShape3D.new()
@@ -777,6 +999,7 @@ func _generate_randomized_desert_dunes() -> void:
 		collision.shape = shape
 		dune.add_child(collision)
 		
+
 		var mesh_inst = MeshInstance3D.new()
 		var box = BoxMesh.new()
 		box.size = Vector3(width, height, length)
@@ -821,6 +1044,19 @@ func _spawn_desert_outcrop(pos: Vector3, rock_mat: StandardMaterial3D) -> void:
 	structures_container.add_child(rock)
 
 
+# True when the axis-aligned rect (center + half-extents) lies fully inside the
+# footprint — keeps structures from poking into the retreat strip around an
+# irregular outline. Always true when there is no footprint (square arena).
+func _rect_inside_footprint(center: Vector2, half_ext: Vector2) -> bool:
+	if footprint == null:
+		return true
+	for dx in [-1.0, 1.0]:
+		for dz in [-1.0, 1.0]:
+			if not footprint.is_inside(center + Vector2(dx * half_ext.x, dz * half_ext.y)):
+				return false
+	return true
+
+
 func _build_city_highrise_structures() -> void:
 	# Grid of skyscraper building blocks, but never the same city twice: a
 	# seeded roll decides which cells actually rise (and how tall), so two
@@ -830,6 +1066,11 @@ func _build_city_highrise_structures() -> void:
 		for bz in b_coords:
 			if absf(bx) < 20.0 and absf(bz) < 20.0:
 				continue # Clear spawn area
+			# On an irregular footprint the city only rises where the outline
+			# actually covers the block (a tower at a missing corner would float
+			# over the void).
+			if footprint != null and not _rect_inside_footprint(Vector2(bx, bz), Vector2(16.0, 16.0)):
+				continue
 			# ~78% fill: some cells stay as empty lots/parks.
 			if randf() < 0.22:
 				continue
@@ -838,17 +1079,17 @@ func _build_city_highrise_structures() -> void:
 			building.collision_layer = 2
 			building.collision_mask = 1
 
-			var footprint = randf_range(15.0, 24.0)
+			var b_size = randf_range(15.0, 24.0)
 			var collision = CollisionShape3D.new()
 			var shape = BoxShape3D.new()
-			shape.size = Vector3(footprint, b_height, footprint)
+			shape.size = Vector3(b_size, b_height, b_size)
 			collision.shape = shape
 			collision.position.y = b_height / 2.0
 			building.add_child(collision)
 
 			var mesh = MeshInstance3D.new()
 			var box = BoxMesh.new()
-			box.size = Vector3(footprint, b_height, footprint)
+			box.size = Vector3(b_size, b_height, b_size)
 			mesh.mesh = box
 			var mat = StandardMaterial3D.new()
 			mat.albedo_color = Color(randf_range(0.12, 0.18), randf_range(0.15, 0.22), randf_range(0.20, 0.28))
@@ -874,24 +1115,33 @@ func _build_crossroads_structures() -> void:
 	]
 	corners.shuffle()
 	var block_count := randi_range(2, 4)
-	for i in range(block_count):
+	for i in range(corners.size()):
+		if block_count <= 0:
+			break
 		var pos = corners[i]
 		var b_height = randf_range(28.0, 52.0)
-		var footprint = randf_range(38.0, 54.0)
+		var block_size = randf_range(38.0, 54.0)
+		# On an irregular footprint a corner block only frames the intersection
+		# when its full extent lands on solid ground (never dangling over void).
+		if footprint != null:
+			var half_ext: float = block_size * 0.5 + 8.0
+			if not _rect_inside_footprint(Vector2(pos.x, pos.z), Vector2(half_ext, half_ext)):
+				continue
+		block_count -= 1
 		var block = StaticBody3D.new()
 		block.collision_layer = 2
 		block.collision_mask = 1
 
 		var collision = CollisionShape3D.new()
 		var shape = BoxShape3D.new()
-		shape.size = Vector3(footprint, b_height, footprint)
+		shape.size = Vector3(block_size, b_height, block_size)
 		collision.shape = shape
 		collision.position.y = b_height / 2.0
 		block.add_child(collision)
 
 		var mesh = MeshInstance3D.new()
 		var box = BoxMesh.new()
-		box.size = Vector3(footprint, b_height, footprint)
+		box.size = Vector3(block_size, b_height, block_size)
 		mesh.mesh = box
 		var mat = StandardMaterial3D.new()
 		mat.albedo_color = Color(randf_range(0.10, 0.15), randf_range(0.12, 0.17), randf_range(0.18, 0.24))

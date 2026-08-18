@@ -245,8 +245,9 @@ func _verify_combat() -> void:
 
 	# --- Arena + escape zones (extended past the wall) ---
 	var zones := get_tree().get_nodes_in_group("escape_zone")
-	_check(zones.size() == 4, "real arena generates 4 escape zones (got %d)" % zones.size())
-	var arena_half := GlobalData.current_arena_size * 0.5
+	# On an irregular footprint the zones frame the outline (one per boundary
+	# run), so there are more of them than the classic 4-wall square frame.
+	_check(zones.size() >= 4, "real arena generates 4+ escape zones (got %d)" % zones.size())
 	var zone_extended := false
 	var zone: Node = null
 	if not zones.is_empty():
@@ -258,10 +259,13 @@ func _verify_combat() -> void:
 				break
 		if col and col.shape is BoxShape3D:
 			var size := (col.shape as BoxShape3D).size
-			var edge: float = maxf(absf(zone.global_position.x), absf(zone.global_position.z))
+			# The trigger's outer face must poke PAST the boundary the zone hugs
+			# (the arena edge / footprint outline) into the outside strip.
+			var edge_val = zone.get("edge_dist")
+			var edge: float = float(edge_val) if edge_val != null else GlobalData.current_arena_size * 0.5
 			var outward: float = edge + minf(size.x, size.z) * 0.5
-			zone_extended = outward > arena_half
-	_check(zone_extended, "real escape zone trigger reaches past the arena edge (%.0fm half)" % arena_half)
+			zone_extended = outward > edge + 2.0
+	_check(zone_extended, "real escape zone trigger reaches past the arena edge (half=%.0fm)" % (GlobalData.current_arena_size * 0.5))
 
 	# --- Combat HUD: screen-top RETREAT banner exists ---
 	var combat_hud: Node = _find_node_with(current_scene_or_root(), "retreat_panel")

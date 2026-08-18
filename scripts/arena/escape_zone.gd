@@ -37,6 +37,11 @@ var _beacon: OmniLight3D
 # at the edge while the trigger extends deeper into the field.
 var wall_local: Vector3 = Vector3.ZERO
 
+# Radial distance from the arena center to the boundary this zone hugs (the
+# square arena edge for the classic frame, the footprint outline for irregular
+# maps). Consumers/tests use it to confirm the trigger pokes past the wall.
+var edge_dist: float = 0.0
+
 
 func _ready() -> void:
 	# Detect the player mech (collision layer 1); never behave as a collidable body.
@@ -218,7 +223,12 @@ func _build_visuals() -> void:
 	var wall := BoxMesh.new()
 	# The trigger extends PAST this wall (the retreat hold keeps charging in the
 	# dead zone behind it), so the visible slab is capped at a slim thickness.
-	wall.size = Vector3(size.x, size.y, minf(size.z, 1.5))
+	# Zones can be oriented with their long axis along X or Z, so cap whichever
+	# axis is the thin (radial) one.
+	if size.z < size.x:
+		wall.size = Vector3(size.x, size.y, minf(size.z, 1.5))
+	else:
+		wall.size = Vector3(minf(size.x, 1.5), size.y, size.z)
 	_zone_mesh.mesh = wall
 	_zone_mesh.material_override = _zone_material
 	# Pinned at the arena edge (wall_local), not at the widened trigger center.

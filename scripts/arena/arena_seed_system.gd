@@ -6,6 +6,15 @@ var current_seed: int = 0
 var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 
+# The arena generator's irregular footprint (null on square arenas), resolved
+# lazily so cover filtering works regardless of node _ready ordering.
+func _arena_footprint() -> ArenaFootprint:
+	var arena_gen = get_node_or_null("../ArenaGenerator")
+	if arena_gen != null and arena_gen.get("footprint") != null:
+		return arena_gen.footprint
+	return null
+
+
 func set_seed(level: int, tile_pos: Vector2i) -> void:
 	current_seed = hash(level * 1000 + tile_pos.x * 100 + tile_pos.y)
 	rng.seed = current_seed
@@ -98,5 +107,13 @@ func get_obstacle_positions(theme: int = 0, arena_size: float = 240.0) -> Array:
 	positions = positions.filter(func(p):
 		return p["pos"].length() > 10.0
 	)
+
+	# On an irregular footprint, drop any cover that would land in the void
+	# outside the battlefield outline.
+	var fp := _arena_footprint()
+	if fp != null:
+		positions = positions.filter(func(p):
+			return fp.is_inside(Vector2(p["pos"].x, p["pos"].z))
+		)
 
 	return positions

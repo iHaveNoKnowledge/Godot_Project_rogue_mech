@@ -211,6 +211,13 @@ func _generate_spawn_points() -> void:
 	# instead of the full ring, so the player is caught between flanks.
 	var is_pincer := GlobalData.ambush_pincer
 	GlobalData.ambush_pincer = false
+
+	# On an irregular footprint the ring follows the real battlefield outline
+	# instead of a circular ring (a plain circle would land enemies in the void).
+	if arena_gen != null and arena_gen.get("footprint") != null:
+		_add_footprint_spawn_points(arena_gen.footprint, is_pincer)
+		return
+
 	for i in range(12):
 		var angle := (i / 12.0) * TAU
 		if is_pincer:
@@ -232,6 +239,44 @@ func _generate_spawn_points() -> void:
 		marker.position = pos
 		add_child(marker)
 		spawn_points.append(marker)
+
+
+# Enemy spawn ring for an irregular footprint: 12 points sampled along the
+# outline (by arc-length, so they hug the real shape), ordered by angle around
+# the centroid so pincer ambushes still come from two opposing sides.
+func _add_footprint_spawn_points(fp: ArenaFootprint, is_pincer: bool) -> void:
+	var ring := fp.ring_points(24, 10.0)
+	var by_angle: Array = []
+	for p in ring:
+		var ang := atan2(p.z - fp.centroid.y, p.x - fp.centroid.x)
+		by_angle.append({"angle": ang, "point": p})
+	by_angle.sort_custom(func(x, y): return x["angle"] < y["angle"])
+
+	var chosen: Array = []
+	if is_pincer:
+		chosen = _nearest_arc_points(by_angle, 0.0, 6)
+		chosen.append_array(_nearest_arc_points(by_angle, PI, 6))
+	else:
+		for i in range(12):
+			chosen.append(by_angle[(i * 2) % by_angle.size()]["point"])
+
+	for i in range(chosen.size()):
+		var marker = Marker3D.new()
+		marker.position = chosen[i]
+		add_child(marker)
+		spawn_points.append(marker)
+
+
+func _nearest_arc_points(by_angle: Array, target: float, count: int) -> Array:
+	var sorted := by_angle.duplicate()
+	sorted.sort_custom(func(x, y):
+		var dx := fposmod(x["angle"] - target + PI, TAU) - PI
+		var dy := fposmod(y["angle"] - target + PI, TAU) - PI
+		return absf(dx) < absf(dy))
+	var out := []
+	for i in range(mini(count, sorted.size())):
+		out.append(sorted[i]["point"])
+	return out
 
 
 # Spawn all fielded allied units so they fight alongside the player (GM vs Zaku

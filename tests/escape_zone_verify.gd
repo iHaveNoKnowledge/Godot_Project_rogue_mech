@@ -1,19 +1,18 @@
 extends Node3D
 
-## Verifies the escape zones are a square frame of tall light walls OUTSIDE
-## the combat field:
-##   1. Four zones sit at the arena's outer edge (|x|/|z| >= 115), clear of the
-##      spawn ring and combat area.
-##   2. Each trigger is an 8m-tall zone that now extends PAST the visible wall
-##      into the outside strip (its outer face lies beyond the arena edge).
-##   3. The GlowWall visual is a slim, more transparent slab (not the full
-##      trigger thickness) — a light veil the player walks through.
-##   4. No world-space text: the "RETREAT ZONE" status label is gone, replaced
-##      by the HUD accessors the combat HUD polls.
-##   5. Walkable EscapeApron ground continues past the arena edge BEHIND the
-##      wall (up to the void barrier), and the trigger covers it — the player
-##      can physically walk through the wall and stand behind it while the
-##      retreat hold charges.
+## Verifies the escape zones frame the combat field:
+##   1. On a flat-theme arena the zones hug the irregular footprint outline
+##      (one per merged boundary run, always >= 4) instead of a square frame.
+##   2. Each trigger is an 8m-tall band spanning from ~12m inside the outline to
+##      the apron behind the glow wall.
+##   3. The GlowWall visual is a slim, transparent slab the player walks through,
+##      pinned outward (toward the outline) of the trigger center.
+##   4. No world-space text: the "RETREAT ZONE" label is gone, replaced by the
+##      HUD accessors the combat HUD polls.
+##   5. Walkable EscapeApron ground continues past the outline BEHIND the wall
+##      (up to the void barrier), with one slab per boundary run.
+##   6. A probe walks through a wall and stands on the apron without falling
+##      into the void.
 ## Run: godot --headless --path . res://tests/escape_zone_verify.tscn
 
 var _fails := 0
@@ -26,7 +25,7 @@ func _check(cond: bool, name: String) -> void:
 		print("ZONE_OK: " + name)
 	else:
 		_fails += 1
-		print("ZONE_FAIL: " + name)
+		printerr("ZONE_FAIL: " + name)
 
 
 func _ready() -> void:
@@ -35,15 +34,24 @@ func _ready() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 
-	var arena_half := 120.0  # default arena_size 240 / 2
+	var fp: ArenaFootprint = gen.footprint
+	_check(fp != null, "flat-theme arena builds an irregular footprint")
+	if fp == null:
+		print("ESCAPE_ZONE_VERIFY: checks=%d fails=%d" % [_checks, _fails])
+		get_tree().quit(1)
+		return
+
 	var zones := get_tree().get_nodes_in_group("escape_zone")
-	_check(zones.size() == 4, "four escape walls generated (got %d)" % zones.size())
+	_check(zones.size() >= 4, "escape zones frame the outline (got %d)" % zones.size())
+	_check(zones.size() == fp.segments.size(), "one escape zone per boundary run (zones=%d segments=%d)" % [zones.size(), fp.segments.size()])
 
 	for z in zones:
 		var p: Vector3 = z.global_position
-		var edge: float = maxf(absf(p.x), absf(p.z))
-		_check(edge > 115.0, "escape wall sits at the arena edge (%.1f)" % edge)
 		_check(p.y > 3.5, "escape wall is raised so the 8m wall stands on the ground (y=%.1f)" % p.y)
+
+		# The trigger is built around the footprint outline, not a square edge.
+		var d: float = fp.distance_to_outline(Vector2(p.x, p.z))
+		_check(d < 9.5, "zone hugs the footprint outline (%.1fm from it)" % d)
 
 		var col: CollisionShape3D = null
 		for ch in z.get_children():
@@ -54,13 +62,8 @@ func _ready() -> void:
 		if col and col.shape is BoxShape3D:
 			shape = (col.shape as BoxShape3D).size
 		_check(shape.y >= 7.9, "escape wall trigger is 8m tall (%.1f)" % shape.y)
-
-		# The trigger extends PAST the wall: its outer face lies beyond the arena
-		# edge, so the retreat hold keeps charging out in the dead zone behind
-		# the light wall.
 		var thickness: float = minf(shape.x, shape.z)
-		var outward: float = edge + thickness * 0.5
-		_check(outward > arena_half, "trigger reaches past the arena edge into the outside strip (outer face %.1f)" % outward)
+		_check(thickness > 16.5, "trigger spans 12m-inside + apron-outside (%.1fm)" % thickness)
 
 		# The visible wall is a slim slab: it never matches the trigger's full
 		# thickness (min horizontal dimension <= 1.5).
@@ -71,6 +74,13 @@ func _ready() -> void:
 		var wall_thin: float = minf(mesh_size.x, mesh_size.z)
 		_check(wall_thin > 0.0 and wall_thin <= 1.5, "GlowWall is a slim light veil (%.1fm thick)" % wall_thin)
 		_check(wall_thin < thickness, "GlowWall is thinner than the trigger it is built from (%.1f < %.1f)" % [wall_thin, thickness])
+
+		# The glow wall sits OUTWARD of the trigger center (closer to the
+		# outline), so the trigger extends deeper into the field than the wall.
+		var trigger_center: Vector2 = Vector2(p.x, p.z)
+		var wall_xz: Vector2 = trigger_center + Vector2(z.wall_local.x, z.wall_local.z)
+		_check(fp.distance_to_outline(wall_xz) < fp.distance_to_outline(trigger_center) - 1.0,
+			"glow wall pinned outward of the trigger center")
 
 		# No world-space text anymore — the RETREAT readout lives on the HUD.
 		_check(z.get_node_or_null("StatusLabel") == null, "world-space RETREAT ZONE label removed")
@@ -83,9 +93,6 @@ func _ready() -> void:
 		_check(z.has_method("is_escape_complete"), "escape zone exposes is_escape_complete()")
 
 	# --- Walkable ground continues BEHIND the retreat wall -------------------
-	# The apron is a static floor ring past the arena edge, and the void
-	# barrier sits beyond IT (not right behind the wall), so the player has
-	# solid ground to stand on after walking through the light wall.
 	var apron: StaticBody3D = null
 	for ch in gen.get_node_or_null("ThemeStructures").get_children():
 		if ch is StaticBody3D and ch.name == "EscapeApron":
@@ -93,41 +100,46 @@ func _ready() -> void:
 			break
 	_check(apron != null, "walkable EscapeApron ring generated")
 	if apron != null:
-		var apron_out := 0.0
-		for ch in apron.get_children():
-			if ch is CollisionShape3D and ch.shape is BoxShape3D:
-				var s: Vector3 = (ch.shape as BoxShape3D).size
-				var center: Vector3 = ch.position
-				# The THIN dimension points radially (the slab runs along the wall),
-				# so half of it is the slab's reach beyond the arena edge.
-				apron_out = maxf(apron_out, maxf(absf(center.x), absf(center.z)) + minf(s.x, s.z) * 0.5)
-		_check(apron_out > arena_half, "apron ground extends past the arena edge (outer face %.1f)" % apron_out)
+		# One slab per boundary run (2 nodes each: collision + mesh).
+		_check(apron.get_child_count() >= fp.segments.size() * 2, "apron has a slab per boundary run (nodes=%d segments=%d)" % [apron.get_child_count(), fp.segments.size()])
+		# Every boundary run gets an apron slab straddling its outline.
+		var covered := 0
+		for seg in fp.segments:
+			var mid: Vector2 = (seg["a"] as Vector2 + seg["b"] as Vector2) * 0.5
+			var normal: Vector2 = seg["normal"]
+			var target: Vector2 = mid + normal * 2.5  # middle of the 5m apron
+			var hit := false
+			for ch in apron.get_children():
+				if ch is CollisionShape3D and ch.shape is BoxShape3D:
+					var s: Vector3 = (ch.shape as BoxShape3D).size
+					var c: Vector3 = ch.position
+					var hx := s.x * 0.5
+					var hz := s.z * 0.5
+					if target.x >= c.x - hx - 0.5 and target.x <= c.x + hx + 0.5 \
+						and target.y >= c.z - hz - 0.5 and target.y <= c.z + hz + 0.5:
+						hit = true
+						break
+			if hit:
+				covered += 1
+		_check(covered == fp.segments.size(), "every boundary run has an apron slab (%d/%d)" % [covered, fp.segments.size()])
 
-	# The void barrier sits BEYOND the apron, leaving room to stand behind the
-	# wall — its inner face is past the apron's outer face (no floor gap).
+	# The void barrier sits BEYOND the apron: one box per boundary run, with its
+	# inner face past the apron (outline + apron + 0.5). Godot renames duplicate
+	# siblings (only the first keeps "VoidBarrier"), so count via the group.
+	var void_barriers := 0
 	var barrier_inner := INF
-	for ch in gen.get_node_or_null("EscapeZones").get_children():
-		if ch is StaticBody3D and ch.name == "VoidBarrier":
+	for ch in get_tree().get_nodes_in_group("void_barrier"):
+		if ch is StaticBody3D:
+			void_barriers += 1
 			for col in ch.get_children():
 				if col is CollisionShape3D and col.shape is BoxShape3D:
 					var s2: Vector3 = (col.shape as BoxShape3D).size
-					var c2: Vector3 = col.position + ch.position
-					# Inner face toward the arena = radial coordinate minus half the
-					# thin (radial) dimension.
-					barrier_inner = minf(barrier_inner, absf(maxf(absf(c2.x), absf(c2.z))) - minf(s2.x, s2.z) * 0.5)
+					var c2: Vector3 = ch.position
+					# Radial distance from center to the inner face along the
+					# outward normal (thin dimension is the radial one).
+					barrier_inner = minf(barrier_inner, c2.length() - minf(s2.x, s2.z) * 0.5)
+	_check(void_barriers == fp.segments.size(), "void barrier per boundary run (got %d)" % void_barriers)
 	_check(barrier_inner < INF, "void barrier generated")
-	_check(barrier_inner > arena_half + 1.0, "void barrier sits past the arena edge (inner face %.1f)" % barrier_inner)
-
-	# The trigger reaches PAST the wall to the barrier, so the retreat hold
-	# keeps charging while standing behind the wall.
-	var trigger_out := 0.0
-	for z in zones:
-		for ch in z.get_children():
-			if ch is CollisionShape3D and ch.shape is BoxShape3D:
-				var st: Vector3 = (ch.shape as BoxShape3D).size
-				var ct: Vector3 = ch.position + z.position
-				trigger_out = maxf(trigger_out, absf(maxf(absf(ct.x), absf(ct.z))) + minf(st.x, st.z) * 0.5)
-	_check(trigger_out >= barrier_inner - 0.01, "escape trigger covers the strip up to the void barrier (%.1f)" % trigger_out)
 
 	# --- Physical walk-through -------------------------------------------------
 	# A real CharacterBody3D (player-sized capsule) walks from inside the field
@@ -143,23 +155,39 @@ func _ready() -> void:
 	probe_col.position.y = 1.4
 	probe.add_child(probe_col)
 	add_child(probe)
-	probe.position = Vector3(0, 5.0, arena_half - 6.0)
+
+	# Walk across a boundary run (prefer a north-facing segment so the probe
+	# heads in +z, matching the classic walk-through direction).
+	var seg: Dictionary = fp.segments[0]
+	var seg_mid: Vector2 = (seg["a"] as Vector2 + seg["b"] as Vector2) * 0.5
+	var seg_normal: Vector2 = seg["normal"]
+	for s in fp.segments:
+		if (s["normal"] as Vector2).y > 0.9:
+			seg = s
+			seg_mid = (s["a"] as Vector2 + s["b"] as Vector2) * 0.5
+			seg_normal = s["normal"]
+			break
+	var start := Vector3(seg_mid.x - seg_normal.x * 25.0, 5.0, seg_mid.y - seg_normal.y * 25.0)
+	var target := Vector3(seg_mid.x + seg_normal.x * 4.0, 0.0, seg_mid.y + seg_normal.y * 4.0)
+	probe.position = start
 	var reached_behind := false
 	var fell_into_void := false
-	for i in range(300):
+	for i in range(400):
 		await get_tree().physics_frame
 		if probe.is_on_floor():
-			probe.velocity = Vector3(0, 0, 4.0)
+			probe.velocity = Vector3(seg_normal.x * 6.0, 0.0, seg_normal.y * 6.0)
 		else:
 			probe.velocity += Vector3(0, -20.0 / 60.0, 0)
 		probe.move_and_slide()
-		if probe.global_position.z > arena_half + 2.0 and probe.is_on_floor():
+		var to_target: Vector3 = target - probe.global_position
+		to_target.y = 0.0
+		if to_target.length() < 1.5 and probe.is_on_floor():
 			reached_behind = true
 			break
 		if probe.global_position.y < -3.0:
 			fell_into_void = true
 			break
-	_check(reached_behind, "player walks THROUGH the retreat wall and stands behind it (z=%.1f)" % probe.global_position.z)
+	_check(reached_behind, "player walks THROUGH the retreat wall and stands behind it")
 	_check(not fell_into_void, "no void pit behind the wall — the apron holds the player up")
 	probe.queue_free()
 

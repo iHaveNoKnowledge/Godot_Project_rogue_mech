@@ -28,15 +28,32 @@ func _setup_navigation() -> void:
 	nav_mesh.agent_max_climb = 0.3
 	nav_mesh.agent_max_slope = 45.0
 
-	# Create a simple floor mesh for navigation
-	var floor_mesh = MeshInstance3D.new()
-	var box = BoxMesh.new()
-	var arena_size := GlobalData.current_arena_size
-	box.size = Vector3(arena_size * 0.49, 0.1, arena_size * 0.49)  # Slightly smaller than arena
-	floor_mesh.mesh = box
-	floor_mesh.position.y = 0.05
-	floor_mesh.visible = false
-	nav_region.add_child(floor_mesh)
+	# Source geometry for the bake: one invisible box per footprint cell on
+	# irregular maps (so navigation hugs the real battlefield outline), or the
+	# classic slightly-shrunk square floor otherwise.
+	var arena_gen := get_parent().get_node_or_null("ArenaGenerator")
+	var fp: ArenaFootprint = null
+	if arena_gen != null and arena_gen.get("footprint") != null:
+		fp = arena_gen.footprint
+	if fp != null:
+		for c: Vector2i in fp.cells:
+			var cell_mesh := MeshInstance3D.new()
+			var box := BoxMesh.new()
+			box.size = Vector3(fp.CELL_SIZE - 0.5, 0.1, fp.CELL_SIZE - 0.5)
+			cell_mesh.mesh = box
+			var center := fp.origin + (Vector2(c) + Vector2(0.5, 0.5)) * fp.CELL_SIZE
+			cell_mesh.position = Vector3(center.x, 0.05, center.y)
+			cell_mesh.visible = false
+			nav_region.add_child(cell_mesh)
+	else:
+		var floor_mesh = MeshInstance3D.new()
+		var box = BoxMesh.new()
+		var arena_size := GlobalData.current_arena_size
+		box.size = Vector3(arena_size * 0.49, 0.1, arena_size * 0.49)  # Slightly smaller than arena
+		floor_mesh.mesh = box
+		floor_mesh.position.y = 0.05
+		floor_mesh.visible = false
+		nav_region.add_child(floor_mesh)
 
 	# Set the nav mesh
 	nav_region.navigation_mesh = nav_mesh

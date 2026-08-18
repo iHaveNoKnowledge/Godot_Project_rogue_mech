@@ -81,6 +81,29 @@ func _ready() -> void:
 	_check(status_text.contains("ARMOR:"), "status text includes the ARMOR total line")
 	_check(status_text.contains("FRAME:"), "status text includes the FRAME total line")
 
+	# Fleet readout: EVERY parked mech's HP appears, not just the piloted one.
+	var spare := GlobalData.build_hangar_mech("Spare 02", 2)
+	_check(not spare.is_empty(), "a spare mech can be parked for the fleet readout")
+	var spare_id := str(spare.get("id", ""))
+	if spare_id != "":
+		# Wreck every slot inside the spare's OWN snapshot so its fleet totals
+		# read 0% (a clearly different line than the piloted mech's 84%).
+		for i in range(GlobalData.hangar_mechs.size()):
+			if str(GlobalData.hangar_mechs[i].get("id", "")) == spare_id:
+				var spare_damage: Dictionary = {}
+				for slot in GlobalData.MECHA_SLOTS:
+					spare_damage[slot] = 1.0
+					spare_damage[slot + "_frame"] = 1.0
+				GlobalData.hangar_mechs[i]["damage"] = spare_damage
+				break
+		GlobalData.save_run()
+	var fleet_text: String = intermission._build_mech_status_text()
+	_check(fleet_text.contains("HANGAR FLEET"), "status text includes the HANGAR FLEET section")
+	_check(fleet_text.contains("Spare 02"), "fleet readout names every parked mech")
+	_check(fleet_text.contains("SLOT 2"), "fleet readout shows the spare's slot")
+	_check(fleet_text.contains("ARMOR: 0% (0/"), "fleet readout reflects the wrecked spare's armor")
+	_check(fleet_text.contains("FRAME: 0% (0/"), "fleet readout reflects the wrecked spare's frame")
+
 	# Mechless: pressing status must NOT crash and shows a notice instead of bars.
 	GlobalData.mech_less = true
 	intermission._on_status_pressed()

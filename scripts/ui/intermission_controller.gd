@@ -605,8 +605,61 @@ func _build_mech_status_text() -> String:
 	var frame_pct := int((total_frame / maxf(total_max_frame, 1.0)) * 100.0)
 	text += "ARMOR: %d%% (%.0f/%.0f)\n" % [armor_pct, total_armor, total_max_armor]
 	text += "FRAME: %d%% (%.0f/%.0f)\n\n" % [frame_pct, total_frame, total_max_frame]
+
+	# Every parked mech's condition too, so the driver sees the whole fleet's HP
+	# at a glance — not just the piloted mech's live working set.
+	var mechs := GlobalData.get_hangar_mechs()
+	if mechs.size() > 0:
+		text += "--- HANGAR FLEET ---\n"
+		var sorted_mechs: Array = mechs.duplicate()
+		sorted_mechs.sort_custom(func(a, b): return int((a as Dictionary).get("slot", 0)) < int((b as Dictionary).get("slot", 0)))
+		for mech in sorted_mechs:
+			if not (mech is Dictionary):
+				continue
+			var totals := _mech_armor_frame_totals(mech)
+			var fleet_id := str((mech as Dictionary).get("id", ""))
+			var fleet_pilot := GlobalData.get_hangar_mech_pilot_name(fleet_id)
+			var fleet_mark := "★ " if fleet_id == GlobalData.active_hangar_mech_id else ""
+			var fleet_a_pct := int((totals.armor_cur / maxf(totals.armor_max, 1.0)) * 100.0)
+			var fleet_f_pct := int((totals.frame_cur / maxf(totals.frame_max, 1.0)) * 100.0)
+			text += "%s%s (SLOT %d) · %s\n" % [
+				fleet_mark, str((mech as Dictionary).get("name", "Mech")),
+				int((mech as Dictionary).get("slot", 0)), fleet_pilot]
+			text += "   ARMOR: %d%% (%.0f/%.0f)   FRAME: %d%% (%.0f/%.0f)\n" % [
+				fleet_a_pct, totals.armor_cur, totals.armor_max,
+				fleet_f_pct, totals.frame_cur, totals.frame_max]
+		text += "\n"
+
 	text += "(HP bars for each part are below — armor on top, frame underneath.)\n"
 	return text
+
+
+# Total armor/frame HP for a PARKED mech snapshot (not the live working set), so
+# the fleet readout can show every hangar mech's condition at a glance.
+func _mech_armor_frame_totals(mech: Dictionary) -> Dictionary:
+	var saved_parts: Dictionary = mech.get("parts", {})
+	var saved_frames: Dictionary = mech.get("frames", {})
+	var saved_damage: Dictionary = mech.get("damage", {})
+	var armor_cur := 0.0
+	var armor_max := 0.0
+	var frame_cur := 0.0
+	var frame_max := 0.0
+	for slot in GlobalData.MECHA_SLOTS:
+		var part = SaveGameIO.resolve_equipped_part(saved_parts.get(slot))
+		if part != null:
+			var a_hp := _slot_armor_max(part)
+			if a_hp > 0.0:
+				var a_dmg := clampf(float(saved_damage.get(slot, 0.0)), 0.0, 1.0)
+				armor_cur += a_hp * (1.0 - a_dmg)
+				armor_max += a_hp
+		var f = SaveGameIO.resolve_frame_value(saved_frames.get(slot))
+		if f is Dictionary:
+			var f_hp := float((f as Dictionary).get("hp", 0.0)) + GlobalData.get_frame_upgrade_hp_bonus()
+			if f_hp > 0.0:
+				var f_dmg := clampf(float(saved_damage.get(slot + "_frame", 0.0)), 0.0, 1.0)
+				frame_cur += f_hp * (1.0 - f_dmg)
+				frame_max += f_hp
+	return {"armor_cur": armor_cur, "armor_max": armor_max, "frame_cur": frame_cur, "frame_max": frame_max}
 
 
 # Max armor HP for a part (ArmorPart resource or Dictionary instance).

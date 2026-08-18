@@ -44,6 +44,11 @@ var _saved_intermission_pos: float = 0.0
 # Procedural sound buffers
 var _sound_cache: Dictionary = {}
 
+# Mecha armor-hit clank is rate-limited so a machine-gun burst reads as a
+# rhythmic staccato of pings instead of one blurry noise wash.
+const MECH_HIT_COOLDOWN := 0.06
+var _last_mech_hit_time := -1.0
+
 
 func _ready() -> void:
 	_setup_pools()
@@ -185,6 +190,15 @@ func _generate_sounds() -> void:
 		_gen_crack(0.07, 0.5),
 		_gen_crack(0.06, 0.45),
 		_gen_crack(0.08, 0.55),
+	]
+	# Metallic armor-plate clank played at the damaged MECH (not the bullet
+	# impact point): the "being shot at" voice layered on top of the per-bullet
+	# impact, so sustained fire sounds like rounds pinging off the hull.
+	var mech_hit := _gen_mech_armor_hit()
+	_sound_cache["mech_armor_hit"] = [
+		mech_hit,
+		_gen_pitch_variant(mech_hit, 0.82),
+		_gen_pitch_variant(mech_hit, 1.2),
 	]
 
 
@@ -801,6 +815,37 @@ func _gen_explosion(duration: float, volume: float) -> AudioStreamWAV:
 	return stream
 
 
+# Metallic armor-plate hit: a bright, fast-decaying clank (front-loaded noise
+# transient + ~1.9kHz fundamental with ringing overtones) that reads as "rounds
+# pinging off the hull". Kept SHORT so rapid-fire hits stay individually
+# audible even at 16 hits/sec.
+func _gen_mech_armor_hit() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 0.1
+	var num_samples = int(duration * sample_rate)
+	var data = PackedByteArray()
+	data.resize(num_samples * 2)
+
+	for i in range(num_samples):
+		var t = float(i) / sample_rate
+		var attack = minf(t / 0.0015, 1.0)
+		var env = attack * exp(-t * 40.0)
+		var sample = (randf() * 2.0 - 1.0) * 0.3 * env
+		sample += sin(TAU * 1900.0 * t) * 0.5 * env
+		sample += sin(TAU * 3800.0 * t) * 0.22 * env
+		sample += sin(TAU * 5700.0 * t) * 0.1 * env
+		var val = int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+
+	var stream = AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream
+
+
 # --- Public API ---
 
 func _pick_stream(sound_name: String) -> AudioStream:
@@ -883,6 +928,19 @@ func play_weapon_sfx_with_override(weapon: WeaponPart, pos: Vector3) -> void:
 
 func play_impact(pos: Vector3) -> void:
 	play_sfx("impact", pos, -5.0)
+
+
+# Fast metallic clank at the damaged mech's position (the "being shot" voice,
+# layered over the per-bullet impact). Rate-limited so a burst of bullets
+# produces a rhythmic staccato of pings, not one blurry wash.
+func play_mech_hit(pos: Vector3, volume_db: float = -1.0) -> void:
+	if combat_muted:
+		return
+	var now := Time.get_ticks_msec() / 1000.0
+	if now - _last_mech_hit_time < MECH_HIT_COOLDOWN:
+		return
+	_last_mech_hit_time = now
+	play_sfx("mech_armor_hit", pos, volume_db, "SFX", 0.06)
 
 
 func play_pile_bunker_fire(pos: Vector3) -> void:
@@ -1234,13 +1292,18 @@ func play_combat_music(category: String, fade_time: float = 1.5, force_restart: 
 
 func stop_music(fade_time: float = 1.0) -> void:
 	current_music_category = ""
-	current_track = null
+	if current_music == null:
+		return
 	if _music_tween and _music_tween.is_valid():
 		_music_tween.kill()
-
+	# Capture the playing player BEFORE clearing the reference: the fade + stop
+	# tween must target the actual player, or the music keeps decoding forever
+	# (a live MP3 stream at engine teardown crashes the audio thread on exit).
+	var player := current_music
+	current_music = null
 	_music_tween = create_tween()
-	_music_tween.tween_property(current_music, "volume_db", -80.0, fade_time)
-	_music_tween.tween_callback(func(): current_music.stop())
+	_music_tween.tween_property(player, "volume_db", -80.0, fade_time)
+	_music_tween.tween_callback(func(): player.stop())
 
 
 # Mutes/unmutes every battle-related sound while the combat intro overlay is up.
@@ -1281,16 +1344,22 @@ func _crossfade_to_stream(new_stream: AudioStream, fade_time: float) -> void:
 	if _music_tween and _music_tween.is_valid():
 		_music_tween.kill()
 
+	# Capture the outgoing player BEFORE current_music is reassigned. A null
+	# current_music (e.g. after stop_music() during return_to_board) must be
+	# tolerated: fading/stopping a Nil player only logs errors and can leave a
+	# dead tween that crashes the engine's audio teardown at exit.
+	var old_player := current_music
 	_music_tween = create_tween().set_parallel(true)
-	_music_tween.tween_property(current_music, "volume_db", -80.0, fade_time)
+	if old_player != null:
+		_music_tween.tween_property(old_player, "volume_db", -80.0, fade_time)
 	_music_tween.tween_property(next_player, "volume_db", target_volume_db, fade_time)
 
-	var old_player = current_music
 	current_music = next_player
 
-	var cleanup_tween = create_tween()
-	cleanup_tween.tween_interval(fade_time)
-	cleanup_tween.tween_callback(func(): old_player.stop())
+	if old_player != null:
+		var cleanup_tween = create_tween()
+		cleanup_tween.tween_interval(fade_time)
+		cleanup_tween.tween_callback(func(): old_player.stop())
 
 
 func _enable_looping(stream: AudioStream) -> void:

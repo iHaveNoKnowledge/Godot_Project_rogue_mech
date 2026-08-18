@@ -62,14 +62,45 @@ func run() -> void:
 	# exit (a live playback at exit segfaults the dummy renderer's teardown
 	# even though every check above passed).
 	AudioManager.stop_music()
-	for i in range(90):
+	for i in range(300):
 		await get_tree().process_frame
 
 	print("GAME_FLOW_VERIFY: checks=%d fails=%d" % [_checks, _fails])
+	_write_result_file()
 	await get_tree().process_frame
-	queue_free()
-	await get_tree().process_frame
+	# NOTE: never queue_free() the driver here — the driver IS the node running
+	# this coroutine, so freeing it would destroy the suspended await below and
+	# quit() would never run (the process idles forever, hanging the suite).
+	# Free the active scene explicitly and let the tree settle BEFORE quit so
+	# the engine's exit path tears down an already-empty tree (avoids a Windows
+	# dummy-renderer/audio teardown crash that leaves a nonzero exit code).
+	var scene := get_tree().current_scene
+	if scene != null:
+		scene.queue_free()
+	for i in range(60):
+		await get_tree().process_frame
 	get_tree().quit(1 if _fails > 0 else 0)
+
+
+# Writes PASS/FAIL to a result file the suite passes via "-- --result=<path>".
+# stdout can be lost when the engine crashes during teardown on Windows, so the
+# file (flushed after every check) is the authoritative outcome the runner reads.
+func _write_result_file() -> void:
+	var path := ""
+	for arg in OS.get_cmdline_user_args():
+		var a := str(arg)
+		if a.begins_with("--result="):
+			path = a.substr("--result=".length())
+			break
+		if a.begins_with("result="):
+			path = a.substr("result=".length())
+			break
+	if path == "":
+		return
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	if f != null:
+		f.store_string("PASS" if _fails == 0 else "FAIL")
+		f.close()
 
 
 func _check(cond: bool, label: String) -> void:

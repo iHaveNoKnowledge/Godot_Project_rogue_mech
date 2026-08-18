@@ -365,6 +365,9 @@ func _apply_armor_damage(slot_name: String, amount: float, damage_type: String) 
 
 	_update_part_visual(slot_name)
 	health_changed.emit(slot_name, "armor", part["armor_hp"], part["max_armor"])
+	# Metallic clank at the mech: rounds pinging off the armor plate.
+	if AudioManager:
+		AudioManager.play_mech_hit(global_position)
 
 	# Persist damage to GlobalData so Hangar shows correct state after combat.
 	# Key format: "slot_name" for armor damage ratio (0.0 = full, 1.0 = destroyed)
@@ -386,6 +389,9 @@ func _apply_frame_damage(slot_name: String, amount: float, damage_type: String) 
 
 	_update_part_visual(slot_name)
 	health_changed.emit(slot_name, "frame", part["frame_hp"], part["max_frame"])
+	# Duller clank for the exposed frame underneath the broken plate.
+	if AudioManager:
+		AudioManager.play_mech_hit(global_position, -3.5)
 
 	# Persist frame damage to GlobalData with "_frame" suffix to distinguish from armor.
 	# Key format: "slot_name_frame" for frame damage ratio (0.0 = full, 1.0 = destroyed)

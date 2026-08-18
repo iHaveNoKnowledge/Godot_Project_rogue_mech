@@ -21,8 +21,17 @@ var yaw: float = 0.0
 
 
 func _ready() -> void:
-	await get_tree().process_frame
-	var board = get_tree().current_scene
+	# Deferred (never await): a scene swap can free this camera a frame later,
+	# and an awaited coroutine on a freed node leaves a dangling function state
+	# that crashes the engine's cleanup at exit on Windows.
+	_initialize_late.call_deferred()
+
+
+func _initialize_late() -> void:
+	var tree := get_tree()
+	if tree == null or tree.current_scene == null:
+		return
+	var board = tree.current_scene
 	if board:
 		player_token = board.get_node_or_null("PlayerToken")
 	if player_token:

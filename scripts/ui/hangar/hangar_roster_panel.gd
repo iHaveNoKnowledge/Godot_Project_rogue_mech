@@ -1001,7 +1001,11 @@ func on_switch_mech_pressed(mech_id: String) -> void:
 		if roster_status_label:
 			roster_status_label.text = "Unable to load that hangar mech."
 		return
-	# The player is now piloting this berth, so the editor follows along.
+	# The player is now piloting this berth, so the editor follows along. The
+	# YOU seat moves over too: the piloted mech (what combat loads) and the
+	# roster's driver label must agree, or the badge/garage/sortie point at a
+	# different mech than the one actually fielded.
+	GlobalData.assign_hangar_pilot(mech_id, HangarManager.PLAYER_PILOT_ID)
 	controller.set_editing_mech_id(mech_id)
 	controller.selected_chassis_key = GlobalData.chassis_id
 	GlobalData.save_run()
@@ -1073,6 +1077,16 @@ func open_pilot_picker(mech_id: String, anchor_btn: Button) -> void:
 		var pilot_id := "" if id == 0 else str(pilots[id - 1].get("id", ""))
 		if GlobalData.assign_hangar_pilot(mech_id, pilot_id):
 			pop.queue_free()
+			# Seating the player in a berth means they pilot it: switch the
+			# active mech (what combat loads) to follow the YOU label, so the
+			# two can never disagree again.
+			if pilot_id == HangarManager.PLAYER_PILOT_ID and mech_id != GlobalData.active_hangar_mech_id:
+				GlobalData.switch_hangar_mech(mech_id)
+				controller.set_editing_mech_id(mech_id)
+				controller.selected_chassis_key = GlobalData.chassis_id
+				GlobalData.save_run()
+				refresh_badge()
+				controller.refresh_panel.after_mech_change(false)
 			refresh_page()
 	)
 	pop.popup_hide.connect(func():

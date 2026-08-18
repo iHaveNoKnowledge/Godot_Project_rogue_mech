@@ -37,6 +37,7 @@ func _ready() -> void:
 	_verify_text_helpers()
 	await _verify_ammo_panel()
 	await _verify_roster_panel()
+	await _verify_register_pilot_switch()
 	await _verify_catalog_panel()
 	await _verify_garage_panel()
 	await _verify_craft_panel()
@@ -754,6 +755,121 @@ func _verify_roster_panel() -> void:
 	_check(not rp.roster_panel.visible, "hangar menu hides the roster page")
 	_check(not rp.mech_slot_label.visible, "hangar menu hides the badge")
 	_check(rp.pending_register_banner == null or not is_instance_valid(rp.pending_register_banner), "hangar menu drops the pending banner")
+
+	ctrl.queue_free()
+	anchor.queue_free()
+	await get_tree().process_frame
+
+
+func _verify_register_pilot_switch() -> void:
+	# After REGISTER parks a freshly assembled (armor-less) frame as the player's
+	# active mech, the pilot label and the piloted mech must never drift apart:
+	# seating YOU back into the previous mech must also switch the active mech
+	# (the one combat loads), and the SWITCH button must carry the YOU seat too.
+	GlobalData.reset_run_data()
+	var ctrl: Node = load("res://scenes/ui/hangar_scene.tscn").instantiate()
+	add_child(ctrl)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var rp = ctrl.roster_panel_ui
+	var old_id := ""
+	var old_parts: Dictionary = {}
+	for m in GlobalData.get_hangar_mechs():
+		if int(m.get("slot", 0)) == 1:
+			old_id = str(m.get("id", ""))
+			old_parts = (m.get("parts", {}) as Dictionary).duplicate()
+			break
+	_check(old_id != "", "default hangar parks Mech 01")
+	_check(not old_parts.is_empty(), "Mech 01 fields armor")
+
+	# Assemble a walking-chassis frame with NO armor and register it into slot 2.
+	rp.register_mech(2)
+	await get_tree().process_frame
+	_equip_walking_chassis()
+	rp.refresh_pending_register()
+	if rp.pending_register_button and is_instance_valid(rp.pending_register_button):
+		rp.pending_register_button.pressed.emit()
+		await get_tree().process_frame
+	if rp.register_dialog_edit:
+		rp.register_dialog_edit.text = "New Frame"
+	if rp.register_dialog:
+		var ok_btn := _find_button_by_text(rp.register_dialog, "REGISTER FRAME")
+		if ok_btn:
+			ok_btn.pressed.emit()
+			await get_tree().process_frame
+	var new_id := ""
+	for m in GlobalData.get_hangar_mechs():
+		if int(m.get("slot", 0)) == 2:
+			new_id = str(m.get("id", ""))
+			break
+	_check(new_id != "", "REGISTER assembles the frame into slot 2")
+	var new_parts: Dictionary = {}
+	for m in GlobalData.get_hangar_mechs():
+		if str(m.get("id", "")) == new_id:
+			new_parts = (m.get("parts", {}) as Dictionary).duplicate()
+			break
+	_check(new_parts.is_empty(), "the newly assembled mech carries no armor")
+	_check(GlobalData.active_hangar_mech_id == new_id, "REGISTER makes the new frame the piloted mech")
+	var new_pilot := ""
+	var old_pilot := ""
+	for m in GlobalData.get_hangar_mechs():
+		if str(m.get("id", "")) == new_id:
+			new_pilot = str(m.get("pilot", ""))
+		elif str(m.get("id", "")) == old_id:
+			old_pilot = str(m.get("pilot", ""))
+	_check(new_pilot == "player", "the new frame takes the player seat")
+	_check(old_pilot == "", "the previous mech parks pilotless")
+	_check(GlobalData.equipped_parts.is_empty(), "working set holds no armor right after REGISTER")
+
+	# PILOT PICKER path: seating YOU in the previous mech switches the active
+	# mech back so combat loads the armored mech the roster now labels YOU.
+	var anchor := Button.new()
+	add_child(anchor)
+	rp.open_pilot_picker(old_id, anchor)
+	var pop := _find_popup(ctrl)
+	_check(pop != null, "pilot picker opens for the old mech")
+	var player_item := 0
+	var pilots := GlobalData.get_hangar_pilots()
+	for i in range(pilots.size()):
+		if str(pilots[i].get("id", "")) == HangarManager.PLAYER_PILOT_ID:
+			player_item = i + 1
+			break
+	_check(player_item > 0, "the convoy's first pilot is the player")
+	if pop and player_item > 0:
+		pop.id_pressed.emit(player_item)
+		await get_tree().process_frame
+	_check(GlobalData.active_hangar_mech_id == old_id, "seating YOU in the old mech switches the active mech back")
+	new_pilot = ""
+	old_pilot = ""
+	for m in GlobalData.get_hangar_mechs():
+		if str(m.get("id", "")) == new_id:
+			new_pilot = str(m.get("pilot", ""))
+		elif str(m.get("id", "")) == old_id:
+			old_pilot = str(m.get("pilot", ""))
+	_check(old_pilot == "player", "the old mech carries the YOU label again")
+	_check(new_pilot == "", "the new frame parks pilotless")
+	_check(not GlobalData.equipped_parts.is_empty(), "switching back loads the old mech's armor into the working set")
+	var restored := 0
+	for slot in old_parts:
+		if GlobalData.equipped_parts.has(slot):
+			restored += 1
+	_check(restored == old_parts.size(), "every armor piece the old mech fielded is restored")
+
+	# SWITCH path: pressing SWITCH on the new mech moves BOTH the active id and
+	# the YOU seat, so the badge and the fielded mech always agree.
+	rp.on_switch_mech_pressed(new_id)
+	await get_tree().process_frame
+	_check(GlobalData.active_hangar_mech_id == new_id, "SWITCH makes the new mech active again")
+	new_pilot = ""
+	old_pilot = ""
+	for m in GlobalData.get_hangar_mechs():
+		if str(m.get("id", "")) == new_id:
+			new_pilot = str(m.get("pilot", ""))
+		elif str(m.get("id", "")) == old_id:
+			old_pilot = str(m.get("pilot", ""))
+	_check(new_pilot == "player", "SWITCH carries the YOU seat to the new mech")
+	_check(old_pilot == "", "SWITCH clears the old mech's YOU seat")
+	_check(GlobalData.equipped_parts.is_empty(), "SWITCH loads the new mech's armor-less build")
 
 	ctrl.queue_free()
 	anchor.queue_free()

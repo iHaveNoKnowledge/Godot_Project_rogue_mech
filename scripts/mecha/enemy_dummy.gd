@@ -603,8 +603,35 @@ func _on_part_destroyed(slot_name: String) -> void:
 		_ragdoll()
 
 
+# True if both legs are lost but arms remain: the torso drags itself along.
+func _can_crawl() -> bool:
+	return ragdolled and piloted and _both_legs_destroyed() and not _both_arms_destroyed()
+
+
+func _process_crawl(delta: float) -> void:
+	var crawl_speed := move_speed * 0.25
+	var dir := Vector3.ZERO
+	if state_machine and state_machine.current_state and state_machine.current_state.name == "StateFlee":
+		if target and is_instance_valid(target):
+			dir = (global_position - target.global_position)
+	elif target and is_instance_valid(target):
+		dir = (target.global_position - global_position)
+
+	dir.y = 0.0
+	if dir.length() > 0.05:
+		dir = dir.normalized()
+		velocity.x = dir.x * crawl_speed
+		velocity.z = dir.z * crawl_speed
+		rotation.y = lerp_angle(rotation.y, atan2(dir.x, dir.z), 5.0 * delta)
+	else:
+		velocity.x = 0.0
+		velocity.z = 0.0
+	velocity.y -= 20.0 * delta
+	move_and_slide()
+
+
 # Only long-range archetypes keep fighting after losing both legs — a melee
-# brawler has nothing it can do from the ground.
+# brawler has nothing it can do from the ground unless it still has arms to crawl.
 func _can_fight_from_ground() -> bool:
 	return archetype == 1 or archetype == 3 or archetype == 5
 
@@ -613,8 +640,8 @@ func _ragdoll() -> void:
 	if ragdolled:
 		return
 	ragdolled = true
-	if _can_fight_from_ground():
-		# Keep firing from the ground (states still attack; movement is frozen).
+	if _can_fight_from_ground() or _can_crawl():
+		# Keep firing / crawling from the ground.
 		return
 	_eject_pilot()
 
@@ -634,7 +661,7 @@ func _eject_pilot() -> void:
 	var color: Color = Color(0.75, 0.2, 0.2)
 	if not faction_paint.is_empty():
 		color = faction_paint.get("base", color)
-	pilot.setup(target, color)
+	pilot.setup_fighting(target, color, archetype)
 	get_parent().add_child(pilot)
 	pilot.global_position = global_position + Vector3(0, 1.2, 0)
 
@@ -824,12 +851,15 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector3.ZERO
 		return
 
-	# Both legs blown off: the torso lies on the ground. Ranged units may still
-	# fire from the dirt (states run their attack logic with movement frozen in
-	# the state scripts); an ejected wreck just sits there inert.
+	# Both legs blown off: the torso lies on the ground. If arms remain, the
+	# enemy can drag itself along at a slow crawl (25% speed); if both arms and
+	# legs are destroyed, the mech cannot move at all and sits inert.
 	if ragdolled:
 		if state_machine and piloted:
 			state_machine._physics_process(delta)
+		if _can_crawl():
+			_process_crawl(delta)
+			return
 		velocity.x = 0.0
 		velocity.z = 0.0
 		velocity.y -= 20.0 * delta

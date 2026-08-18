@@ -13,14 +13,14 @@
 - **Inner Frame** — โครง/โครงกระดูกกลไกของชิ้นนั้น (เช่น แขนท่อนบน-ท่อนล่าง)
 - **Outer Armor** — เกราะที่หุ้มภายนอก (สิ่งที่ผู้เล่นสวม/เปลี่ยน)
 
-| slot | โหนดหลัก | โหนดท่อนล่าง (ข้อต่อ) |
-|------|-----------|----------------------|
-| `head` | `Head` | — |
-| `body` | `Body` | — |
-| `arm_left` | `ArmLeft` | `ArmLeft/ForearmLeft` (ข้อศอก) |
-| `arm_right` | `ArmRight` | `ArmRight/ForearmRight` (ข้อศอก) |
-| `leg_left` | `LegLeft` | `LegLeft/ShinLeft` (เข่า) |
-| `leg_right` | `LegRight` | `LegRight/ShinRight` (เข่า) |
+| slot          | โหนดหลัก | โหนดท่อนล่าง (ข้อต่อ)  |
+| ------------- | ---------------- | ---------------------------------------- |
+| `head`      | `Head`         | —                                       |
+| `body`      | `Body`         | —                                       |
+| `arm_left`  | `ArmLeft`      | `ArmLeft/ForearmLeft` (ข้อศอก)   |
+| `arm_right` | `ArmRight`     | `ArmRight/ForearmRight` (ข้อศอก) |
+| `leg_left`  | `LegLeft`      | `LegLeft/ShinLeft` (เข่า)          |
+| `leg_right` | `LegRight`     | `LegRight/ShinRight` (เข่า)        |
 
 โหลดมาจาก `scenes/mecha/mecha_base.tscn` และถูกประกอบที่ runtime โดย
 `PartMeshManager` (`scripts/mecha/part_mesh_manager.gd`):
@@ -38,18 +38,18 @@
 ทุกพาร์ตถูกนิยามด้วยไฟล์ Resource ชนิด `ArmorPart`
 (`resources/mech/armor_part.gd`) ซึ่งมี field ต่อไปนี้:
 
-| field | ความหมาย |
-|-------|-----------|
-| `part_name` | ชื่อพาร์ต |
-| `slot_id` | ช่อง slot (`arm_left`, `body`, ...) |
-| `mesh_scene` | `PackedScene` ของเกราะชั้นนอก |
-| `inner_frame_scene` | `PackedScene` ของโครง/ชั้นใน |
-| `max_hp` / `max_frame_hp` | HP ของเกราะ / โครง |
-| `weight` | น้ำหนัก |
-| `armor_class` | ค่าป้องกัน |
-| `break_threshold` | สัดส่วน HP ที่พาร์ตจะแตก |
-| `part_color` | สีที่ใช้แทน (ตอนยังไม่มี mesh) |
-| `icon` | ไอคอนใน UI |
+| field                         | ความหมาย                                     |
+| ----------------------------- | ---------------------------------------------------- |
+| `part_name`                 | ชื่อพาร์ต                                   |
+| `slot_id`                   | ช่อง slot (`arm_left`, `body`, ...)          |
+| `mesh_scene`                | `PackedScene` ของเกราะชั้นนอก       |
+| `inner_frame_scene`         | `PackedScene` ของโครง/ชั้นใน          |
+| `max_hp` / `max_frame_hp` | HP ของเกราะ / โครง                       |
+| `weight`                    | น้ำหนัก                                       |
+| `armor_class`               | ค่าป้องกัน                                 |
+| `break_threshold`           | สัดส่วน HP ที่พาร์ตจะแตก         |
+| `part_color`                | สีที่ใช้แทน (ตอนยังไม่มี mesh) |
+| `icon`                      | ไอคอนใน UI                                    |
 
 ตัวอย่าง `resources/mech/parts/arm_left/arm_left_001.tres`:
 
@@ -198,13 +198,13 @@ core_breach, shield_raise, roller_dash, recoil
 
 ## 7. ไฟล์/โค้ดที่เกี่ยวข้อง
 
-| ไฟล์ | หน้าที่ |
-|------|---------|
-| `resources/mech/armor_part.gd` | class `ArmorPart` (field ทั้งหมดของพาร์ต) |
-| `resources/mech/parts/{slot}/{id}.tres` | พาร์ตทีละ id — แก้ตรงนี้เพื่อผูก mesh |
-| `resources/data/mech_catalogs.tres` | catalog ของเกราะในเกม |
-| `scripts/mecha/part_mesh_manager.gd` | ประกอบพาร์ต + resolve `.tres` ตาม convention |
-| `scripts/mecha/mecha_rig.gd` | convention ชื่อกระดูก + ชื่อคลิป + โฟลเดอร์ assets |
-| `scripts/mecha/mecha_animation.gd` | procedural ปัจจุบัน + ตัวเปิดคลิป `use_clip_animation` |
-| `scenes/mecha/mecha_base.tscn` | โครงโหนด (`Head/Body/Arm*/Leg*`, `Rig`, `AnimationPlayer`) |
-| `scenes/mecha/parts/`, `scenes/mecha/animations/` | โฟลเดอร์วาง `.glb` |
+| ไฟล์                                              | หน้าที่                                                               |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `resources/mech/armor_part.gd`                      | class`ArmorPart` (field ทั้งหมดของพาร์ต)                    |
+| `resources/mech/parts/{slot}/{id}.tres`             | พาร์ตทีละ id — แก้ตรงนี้เพื่อผูก mesh             |
+| `resources/data/mech_catalogs.tres`                 | catalog ของเกราะในเกม                                           |
+| `scripts/mecha/part_mesh_manager.gd`                | ประกอบพาร์ต + resolve`.tres` ตาม convention                  |
+| `scripts/mecha/mecha_rig.gd`                        | convention ชื่อกระดูก + ชื่อคลิป + โฟลเดอร์ assets |
+| `scripts/mecha/mecha_animation.gd`                  | procedural ปัจจุบัน + ตัวเปิดคลิป`use_clip_animation`   |
+| `scenes/mecha/mecha_base.tscn`                      | โครงโหนด (`Head/Body/Arm*/Leg*`, `Rig`, `AnimationPlayer`)     |
+| `scenes/mecha/parts/`, `scenes/mecha/animations/` | โฟลเดอร์วาง`.glb`                                               |

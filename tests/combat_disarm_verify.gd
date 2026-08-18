@@ -179,16 +179,35 @@ func _verify_enemy_arm_disarm() -> void:
 
 
 func _verify_enemy_ragdoll() -> void:
-	# Melee rusher: both legs blown off → ragdoll + pilot ejects and flees.
+	# Melee rusher: both legs blown off → ragdoll. With arms intact the rusher
+	# now DRAGS itself along (crawl) instead of ejecting; the pilot bails only
+	# when ALL limbs are gone (see all-limbs eject test below).
 	var rusher := _spawn_enemy(0)
 	await get_tree().process_frame
 	await get_tree().process_frame
 	_destroy(rusher.health_system, "leg_left")
 	_destroy(rusher.health_system, "leg_right")
 	await get_tree().process_frame
+	await get_tree().process_frame
 	_check(rusher.ragdolled, "rusher ragdolls once both legs are gone")
-	_check(not rusher.piloted, "melee rusher ejects its pilot")
-	_check(get_tree().get_nodes_in_group("enemy_pilot").size() >= 1, "an enemy pilot spawns and flees")
+	_check(rusher.piloted, "melee rusher stays piloted (can crawl with arms)")
+	_check(rusher._can_crawl(), "melee rusher with intact arms can crawl")
+	rusher.queue_free()
+	await get_tree().process_frame
+
+	# All limbs gone → pilot ejects (melee cannot fight or crawl from the ground).
+	var emptyskel := _spawn_enemy(0)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_destroy(emptyskel.health_system, "leg_left")
+	_destroy(emptyskel.health_system, "leg_right")
+	_destroy(emptyskel.health_system, "arm_left")
+	_destroy(emptyskel.health_system, "arm_right")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_check(emptyskel.ragdolled, "all-limbs rusher ragdolls")
+	_check(not emptyskel.piloted, "all-limbs rusher ejects its pilot")
+	_check(get_tree().get_nodes_in_group("enemy_pilot").size() >= 1, "an enemy pilot spawns when all limbs are gone")
 	# The ejected pilot is a REAL target with its own HP pool: player fire can
 	# shoot it down and HP 0 is permanent death (same rule as the player pilot).
 	var e_pilots = get_tree().get_nodes_in_group("enemy_pilot")
@@ -201,7 +220,7 @@ func _verify_enemy_ragdoll() -> void:
 		await get_tree().process_frame
 		await get_tree().process_frame
 		_check(not is_instance_valid(e_pilot), "ejected pilot shot to 0 HP dies permanently")
-	rusher.queue_free()
+	emptyskel.queue_free()
 	await get_tree().process_frame
 
 	# Ranged: keeps its pilot and keeps fighting from the ground.

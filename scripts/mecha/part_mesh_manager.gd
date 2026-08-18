@@ -216,17 +216,27 @@ func refresh_slots() -> void:
 	_hide_all_legacy_models()
 	# A destroyed BODY means the engine core is gone — there is no mech left to
 	# stand. The whole machine disappears from the hangar (empty slot) instead of
-	# showing a torso-less ghost standing on its legs.
+	# showing a torso-less ghost standing on its legs. In ghost mode (emergency
+	# repair) every slot renders a faint skeleton so the driver can still see
+	# where each destroyed part goes and place scrap armor on it.
 	if float(GlobalData.part_damage.get("body_frame", 0.0)) >= 1.0:
 		for slot in GlobalData.MECHA_SLOTS:
-			hide_slot_completely(slot)
+			if ghost_mode:
+				_render_ghost_skeleton(slot)
+			else:
+				hide_slot_completely(slot)
 		return
 	for slot in GlobalData.MECHA_SLOTS:
 		# A destroyed limb (inner frame gone) is gone for good: the slot renders
 		# nothing rather than a floating ghost frame, matching combat where the
-		# broken part is removed from the mech.
+		# broken part is removed from the mech. In ghost mode (emergency repair /
+		# from-zero assembly) the skeleton stays visible so the player can see
+		# where the missing frame goes and place a scrap patch on it.
 		if float(GlobalData.part_damage.get(slot + "_frame", 0.0)) >= 1.0:
-			hide_slot_completely(slot)
+			if ghost_mode:
+				_render_ghost_skeleton(slot)
+			else:
+				hide_slot_completely(slot)
 			continue
 		_rebuild_slot(slot, GlobalData.equipped_frames.get(slot), GlobalData.equipped_parts.get(slot), true)
 
@@ -255,13 +265,12 @@ func _rebuild_slot(slot: String, frame_data: Variant, equipped: Variant, apply_p
 	if not has_frame:
 		if ghost_mode:
 			# GHOST ASSEMBLY PREVIEW: render a translucent skeleton so the player
-			# can see where the missing inner frame goes (REGISTER blank slate).
+			# can see where the missing inner frame goes (REGISTER blank slate /
+			# emergency repair of a destroyed frame).
 			# Note: initialize_slot clears children with queue_free(), so the old
 			# ghost meshes overlap the rebuilt frame for exactly one frame — a
 			# pre-existing pattern, invisible in practice; don't "fix" it.
-			initialize_slot(slot, null, false)
-			_show_inner_frame(slot)
-			_apply_ghost_material(slot)
+			_render_ghost_skeleton(slot)
 		else:
 			# NO INNER FRAME EQUIPPED: Hide slot completely
 			hide_slot_completely(slot)
@@ -425,6 +434,16 @@ func _clear_children(node: Node) -> void:
 func _on_part_destroyed(slot_name: String) -> void:
 	hide_slot_completely(slot_name)
 	_spawn_break_vfx(slot_name)
+
+
+# Rebuilds a slot's inner frame skeleton with the translucent ghost material.
+# Shared by the from-zero REGISTER assembly (blank slate) and the emergency
+# repair editor (a destroyed frame) so the player can see where the missing
+# frame goes and place scrap armor on it.
+func _render_ghost_skeleton(slot_name: String) -> void:
+	initialize_slot(slot_name, null, false)
+	_show_inner_frame(slot_name)
+	_apply_ghost_material(slot_name)
 
 
 func _show_inner_frame(slot_name: String) -> void:

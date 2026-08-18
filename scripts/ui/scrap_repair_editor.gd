@@ -98,6 +98,11 @@ func open(initial_slot: String = "") -> void:
 	visible = true
 	_silence_combat_actions()
 	_hide_hangar_garage()
+	# A slot whose frame was destroyed renders nothing by default (the limb is
+	# gone). Show the faint ghost skeleton instead so the driver can see exactly
+	# where the missing part goes and place the scrap patch over it.
+	if pmm and pmm.has_method("set_ghost_mode"):
+		pmm.set_ghost_mode(true)
 	if pmm and pmm.has_method("refresh_slots"):
 		pmm.refresh_slots()
 	_refresh_slot_list()
@@ -115,6 +120,10 @@ func open(initial_slot: String = "") -> void:
 
 func close() -> void:
 	_clear_live_primitives()
+	# Leave ghost mode: the editor's own mech stays hidden anyway, but keep its
+	# part mesh manager in the same default state as a normal mech.
+	if pmm and pmm.has_method("set_ghost_mode"):
+		pmm.set_ghost_mode(false)
 	_restore_combat_actions()
 	_restore_hangar_garage()
 	visible = false

@@ -51,6 +51,7 @@ func _ready() -> void:
 	await _verify_readiness_panel()
 	await _verify_persist_panel()
 	await _verify_scrap_panel()
+	await _verify_scrap_editor_destroyed_frame()
 	await _verify_exit_panel()
 	await _verify_refresh_panel()
 	await _verify_intermission_fleet()
@@ -2102,6 +2103,73 @@ func _verify_scrap_panel() -> void:
 
 	ctrl.queue_free()
 	await get_tree().process_frame
+
+
+func _verify_scrap_editor_destroyed_frame() -> void:
+	GlobalData.reset_run_data()
+	# A slot whose inner frame was destroyed in combat (e.g. the left arm blown
+	# off) still needs emergency repair. The editor must render a ghost skeleton
+	# for that limb so the driver can SEE where to place the scrap patch, and the
+	# patch primitive must attach to the limb root as usual.
+	GlobalData.part_damage["arm_left"] = 1.0
+	GlobalData.part_damage["arm_left_frame"] = 1.0
+	GlobalData.scrap = 9999
+
+	var ctrl: Node = load("res://scenes/ui/hangar_scene.tscn").instantiate()
+	add_child(ctrl)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	ctrl.nav_panel.select_submenu("emergency")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_check(ctrl.scrap_editor != null, "emergency submenu builds the scrap editor for a destroyed frame")
+	if ctrl.scrap_editor == null:
+		ctrl.queue_free()
+		await get_tree().process_frame
+		return
+
+	var ed = ctrl.scrap_editor
+	var mecha = ed.turntable_node.get_node_or_null("MechaBase")
+	var pmm = mecha.get_node_or_null("PartMeshManager") if mecha else null
+	_check(pmm != null, "editor mech exposes its part mesh manager")
+	_check(pmm != null and pmm.ghost_mode, "editor arms ghost mode for destroyed frames")
+
+	var arm = mecha.get_node_or_null("ArmLeft") if mecha else null
+	_check(arm != null, "destroyed arm keeps its attach root node")
+	if arm:
+		var visible_meshes := 0
+		for child in arm.get_children():
+			visible_meshes += _count_visible_meshes(child)
+		_check(visible_meshes > 0, "destroyed arm renders a ghost skeleton in the repair editor")
+
+	_check(pmm != null and pmm.is_ghost_frame_visible("arm_left"), "destroyed arm ghost skeleton is translucent")
+	_check(GlobalData.get_emergency_repair_scrap_cost("arm_left") > 0, "destroyed-frame slot is listed for emergency repair")
+
+	ed._select_slot("arm_left")
+	await get_tree().process_frame
+	ed._add_primitive("box")
+	await get_tree().process_frame
+	if arm:
+		var container = arm.get_node_or_null("EditorScrapPatch")
+		_check(container != null and container.visible and container.get_child_count() > 0, "patch primitive places on the destroyed limb's root")
+
+	ed.close()
+	await get_tree().process_frame
+	_check(pmm == null or not pmm.ghost_mode, "editor leaves ghost mode after closing")
+
+	ctrl.queue_free()
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+
+func _count_visible_meshes(node: Node) -> int:
+	var count := 0
+	if node is MeshInstance3D and node.visible:
+		count += 1
+	for child in node.get_children():
+		count += _count_visible_meshes(child)
+	return count
 
 
 func _verify_exit_panel() -> void:

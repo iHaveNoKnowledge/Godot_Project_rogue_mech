@@ -59,7 +59,7 @@
 
 | hash | ข้อความ |
 |------|---------|
-| `7fa1121` | docs: update PROGRESS.md — 17 items complete |
+| `6edc3dc` | docs: update PROGRESS.md — 17 items complete |
 | `df4f2ff` | feat(research): add 6 new blueprint projects |
 | `0752fa6` | feat(research): add Research Lab tile + UI |
 | `b576015` | feat(drop_tanks): add purchase/detach in City Shop |

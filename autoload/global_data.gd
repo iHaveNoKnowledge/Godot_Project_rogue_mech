@@ -144,12 +144,17 @@ func _on_combat_ended(victory: bool) -> void:
 		if victory:
 			destroy_enemy_base()
 		return
-	# Fuel depot seizure: victory grants a large fuel bonus from the depot.
+	# Fuel depot seizure: victory grants fuel bonus based on the chosen approach.
 	if GameManager.combat_node_type == "fuel_depot":
 		if victory:
-			var gained := minf(fuel_depot_bonus, mech_max_energy - mech_energy)
+			var bonus: float = FUEL_DEPOT_PRECISE_BONUS if fuel_depot_approach == "precise" else FUEL_DEPOT_HEAVY_BONUS
+			var gained := minf(bonus, mech_max_energy - mech_energy)
 			mech_energy = minf(mech_energy + gained, mech_max_energy)
-			run_notice = "Seized fuel depot! +%.0f energy." % gained
+			var approach_name := "Precise" if fuel_depot_approach == "precise" else "Heavy"
+			run_notice = "Fuel depot seized (%s approach)! +%.0f energy." % [approach_name, gained]
+		else:
+			run_notice = "The fuel depot was lost in the fighting."
+		fuel_depot_approach = ""
 		return
 	on_combat_ended_for_tech(victory)
 	if victory:
@@ -1131,6 +1136,9 @@ const CONVOY_TRANSFER_ALERT_GAIN: int = 2      # alert raised per transfer
 # Fuel depot seizure state.
 var fuel_depot_seized_today: bool = false       # one seizure per day
 var fuel_depot_bonus: float = 80.0              # fuel gained from a depot
+var fuel_depot_approach: String = ""            # "precise" or "heavy" — set by choice popup
+const FUEL_DEPOT_PRECISE_BONUS: float = 80.0    # full reward for precise approach
+const FUEL_DEPOT_HEAVY_BONUS: float = 40.0      # half reward for heavy (some tanks destroyed)
 
 # External drop tanks: bolt-on fuel canisters.
 # 0 = no tanks, 1 = one side tank, 2 = both sides, 3 = dorsal + both sides.
@@ -1804,6 +1812,7 @@ func reset_run_data() -> void:
 	convoy_fuel_reserve = 100.0
 	convoy_fuel_max = 200.0
 	fuel_depot_seized_today = false
+	fuel_depot_approach = ""
 	drop_tanks_attached = 0
 	drop_tank_fuel = 0.0
 	pilot_siphoning = false

@@ -204,6 +204,14 @@ static func apply_event_effect(event: Dictionary) -> bool:
 		"siphon_more":
 			# Pilot Siphon Protocol: siphon more fuel from wreckage.
 			BoardManager._trigger_wreckage_siphon()
+		"depot_precise":
+			# Fuel depot: precise approach — full fuel reward after combat.
+			GlobalData.fuel_depot_approach = "precise"
+			BoardManager._request_combat("fuel_depot")
+		"depot_heavy":
+			# Fuel depot: heavy approach — reduced fuel reward after combat.
+			GlobalData.fuel_depot_approach = "heavy"
+			BoardManager._request_combat("fuel_depot")
 		_:
 			push_warning("apply_event_effect: unknown effect '%s'" % effect)
 	return false

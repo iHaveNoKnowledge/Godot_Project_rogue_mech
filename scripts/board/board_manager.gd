@@ -1086,14 +1086,28 @@ func _trigger_fuel_depot_seizure() -> void:
 		return
 	GlobalData.fuel_depot_seized_today = true
 	GlobalData.blocked_intermission = true
+	# Choice popup: precise vs heavy approach affects fuel reward.
+	var choices: Array = [
+		{
+			"label": "Precise Assault",
+			"desc": "Use light weapons to surgicaly eliminate guards. Fuel tanks stay intact — full fuel reward (%.0f)." % GlobalData.FUEL_DEPOT_PRECISE_BONUS,
+			"effect": "depot_precise",
+			"amount": 0,
+		},
+		{
+			"label": "Heavy Assault",
+			"desc": "Bring the big guns. Overwhelming firepower but some fuel tanks get destroyed — reduced reward (%.0f)." % GlobalData.FUEL_DEPOT_HEAVY_BONUS,
+			"effect": "depot_heavy",
+			"amount": 0,
+		},
+	]
 	EventBus.event_triggered.emit({
 		"name": "FUEL DEPOT — SEIZURE",
-		"effect": "none",
+		"effect": "choice",
 		"amount": 0,
-		"desc": "An enemy fuel depot! Engage the defenders but avoid heavy weapons near the fuel tanks — detonating them wastes the prize.",
+		"desc": "An enemy fuel depot! Choose your approach — the method determines how much fuel you recover.",
+		"params": {"choices": choices},
 	})
-	# Grant fuel on combat end via the combat_ended signal (see _on_combat_ended).
-	_request_combat("fuel_depot")
 
 
 # ---------------------------------------------------------------------------

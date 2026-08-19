@@ -73,7 +73,7 @@
 
 | รายการ | หมายเหตุ |
 |--------|----------|
-| ❌ Fuel depot choice popup — เลือกอาวุธก่อนบุก (precise vs heavy) | gameplay depth |
+| ~~❌ Fuel depot choice popup~~ | ✅ ทำแล้ว (Precise vs Heavy approach + reward) |
 | ❌ Precision Dash — หลบถูกจังหวะคืนพลังงาน | gameplay depth |
 | ❌ Phase 4: Research & Blueprint | feature ใหญ่ถัดไป |
 

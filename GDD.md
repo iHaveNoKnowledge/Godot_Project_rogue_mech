@@ -47,7 +47,7 @@
 ### 2.4 Refueling & Supply Logistics (ระบบเติมเชื้อเพลิง)
 #### Board-Level Refueling (การเติมบนบอร์ด)
 * **Convoy Supply Transfer:** จอดประชิดรถบรรทุกเพื่อถ่ายโอนพลังงาน (กินค่า Supply Reserve ของรถ) — เสีย 1 Turn + Alert Level พุ่ง
-* **Depot Seizure:** บุกยึดคลังน้ำมันศัตรู (ต้องระวังไม่ใช้ปืนใหญ่ทำลายถังในฉากสู้) — ชนะ = ได้เชื้อเพลิงก้อนโต
+* **Depot Seizure:** บุกยึดคลังน้ำมันศัตรู — เลือก Precise (อาวุธเบา ได้ fuel เต็ม 80) หรือ Heavy (ปืนใหญ่ ได้ fuel ครึ่ง 40 เพราะถังบางส่วนโดนทำลาย)
 * **Time Trade-off:** การเติมพลังงานบนบอร์ดจะเสีย 1 Turn ซึ่งส่งผลให้ Alert Level ของศัตรูพุ่งสูงขึ้น
 
 #### In-Combat Emergency Refueling (การเติมกลางสนามรบ)

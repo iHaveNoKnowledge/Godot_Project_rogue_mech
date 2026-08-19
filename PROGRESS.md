@@ -5,7 +5,7 @@
 
 ---
 
-## Session: 2026-08-19 — GDD Section 2.4 + Phase 4 Research & Blueprint
+## Session: 2026-08-19 — GDD Section 2.4 + Phase 4A Research & Blueprint
 
 ### ✅ เสร็จแล้วทั้งหมด
 
@@ -19,7 +19,7 @@
 | 6 | Engine Dirt Penalty | ✅ | `mecha_controller.gd` |
 | 7 | Convoy fuel reserve overnight regen | ✅ | `board_manager.gd` |
 | 8 | Save/Load support | ✅ | `save_game_io.gd` |
-| 9 | GDD.md Section 2.4 | ✅ | `GDD.md` |
+| 9 | GDD.md Section 2.4 + 4A | ✅ | `GDD.md` |
 | 10 | Drop Tank 3D visual model | ✅ | `drop_tank_visuals.gd`, `mecha_base.tscn` |
 | 11 | Drop Tank HUD indicator | ✅ | `core_hud.gd` |
 | 12 | Body damage intercept — 30% absorbed by drop tanks | ✅ | `mecha_health_base.gd` |
@@ -59,7 +59,7 @@
 
 | hash | ข้อความ |
 |------|---------|
-| (pending) | feat(research): add Research Lab tile + UI for browsing/starting research |
+| `0752fa6` | feat(research): add Research Lab tile + UI for browsing/starting projects |
 | `b576015` | feat(drop_tanks): add purchase/detach in City Shop |
 | `ffb05cb` | feat(depot): add fuel depot choice popup |
 | `61f0bed` | feat(siphon): implement Pilot Siphon Protocol |

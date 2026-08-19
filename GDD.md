@@ -44,6 +44,24 @@
 * **Alert & Escalation Level:** ยิ่งผู้เล่นใช้เวลานานบนบอร์ด ศัตรูจะยิ่งเพิ่มระดับการตื่นตัว ส่งยูนิตเกรดสูงลงมาปิดล้อม
 * **Factory Nodes:** ฐานการผลิตศัตรูบนบอร์ดที่ผลิตกำลังพลเติมเข้ามาเรื่อยๆ บีบให้ผู้เล่นต้องเลือกว่าจะ "เสี่ยงบุกถล่มโรงงาน" หรือ "รีบตีแหกวงล้อมเพื่อไปต่อ"
 
+### 2.4 Refueling & Supply Logistics (ระบบเติมเชื้อเพลิง)
+#### Board-Level Refueling (การเติมบนบอร์ด)
+* **Convoy Supply Transfer:** จอดประชิดรถบรรทุกเพื่อถ่ายโอนพลังงาน (กินค่า Supply Reserve ของรถ) — เสีย 1 Turn + Alert Level พุ่ง
+* **Depot Seizure:** บุกยึดคลังน้ำมันศัตรู (ต้องระวังไม่ใช้ปืนใหญ่ทำลายถังในฉากสู้) — ชนะ = ได้เชื้อเพลิงก้อนโต
+* **Time Trade-off:** การเติมพลังงานบนบอร์ดจะเสีย 1 Turn ซึ่งส่งผลให้ Alert Level ของศัตรูพุ่งสูงขึ้น
+
+#### In-Combat Emergency Refueling (การเติมกลางสนามรบ)
+* **External Drop Tanks:** ถังพลังงานสำรองภายนอก เพิ่มความจุแต่เป็นจุดอ่อน 如果โดนยิงจะสปาร์คระเบิด ต้องกด Purge สลัดทิ้งก่อนระเบิด
+* **Pilot Siphon Protocol:** เมื่อหุ่นดับกลางฉากสู้ นักบินต้องลงเดินเท้าไปสูบเชื้อเพลิงจากซากหุ่นศัตรูนำกลับมารีบูตเครื่อง
+* **Impure Fuel Penalty:** การสูบเชื้อเพลิงเถื่อน/ซากหุ่น จะทำให้ Torso Frame สะสมความร้อนไวขึ้น (Engine Dirt Penalty) ฟื้นฟูช้าลงระหว่างวัน
+
+> 📌 **Current Implementation Status:**
+> - [x] Board-Level: Fuel Depot Seizure tile + Convoy Supply Transfer tile
+> - [x] Time Trade-off: refuel = end day + alert++
+> - [x] External Drop Tanks: bolt-on fuel + vulnerable + purge + detonation
+> - [x] Engine Dirt Penalty: impure fuel slows energy regen
+> - [x] Convoy fuel reserve: replenishes overnight
+
 ---
 
 ## 🤖 3. Combat Layer (3rd Person Action Phase)

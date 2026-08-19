@@ -54,6 +54,16 @@ const ROLLER_BASE_DRAIN := 2.0        # per second the roller is held (gentle)
 const ROLLER_RAMP_DRAIN := 3.0        # extra per second per second of continuous roller use
 const ROLLER_MAX_DRAIN := 20.0        # ceiling so a full tank lasts ~10s at max burn
 var roller_drain_ramp: float = 0.0    # grows while the roller is held, resets on release
+# --- External Drop Tanks (GDD §2.4) ----------------------------------------
+# Bolt-on fuel canisters that extend the mech's energy pool in combat. They
+# are fragile — enemy fire can detonate them. The player can Purge (jettison)
+# before they explode. Drop tank fuel is consumed FIRST from the pool.
+var _drop_tank_active: bool = false   # true when drop tanks are mounted this fight
+var _drop_tank_hp: float = 30.0       # HP before detonation (shared across all tanks)
+var _drop_tank_detonating: bool = false  # countdown to explosion after HP reaches 0
+var _drop_tank_timer: float = 0.0     # seconds until detonation
+const DROP_TANK_DET_DELAY := 1.5      # seconds between HP=0 and explosion
+const DROP_TANK_HP_PER_TANK := 30.0   # HP added per attached tank
 # Recoil kick applied by heavy weapons (see apply_recoil_impulse). Decays over
 # a short window so the mech staggers backwards instead of teleporting.
 var recoil_vector: Vector3 = Vector3.ZERO
@@ -87,6 +97,12 @@ func _ready() -> void:
 	# Load persisted energy from GlobalData (survives combat/board transitions).
 	max_energy = GlobalData.mech_max_energy
 	energy = clampf(GlobalData.mech_energy, 0.0, max_energy)
+	# Initialize external drop tanks from GlobalData.
+	if GlobalData.drop_tanks_attached > 0 and GlobalData.drop_tank_fuel > 0.0:
+		_drop_tank_active = true
+		_drop_tank_hp = GlobalData.drop_tanks_attached * DROP_TANK_HP_PER_TANK
+		max_energy += GlobalData.drop_tank_fuel
+		energy += GlobalData.drop_tank_fuel
 
 
 func _exit_tree() -> void:
@@ -195,6 +211,7 @@ func _physics_process(delta: float) -> void:
 		is_roller_dashing = false
 		roller_drain_ramp = 0.0
 	_process_energy(delta)
+	_process_drop_tanks(delta)
 	_process_jump(delta)
 
 	if is_dashing:
@@ -262,6 +279,10 @@ func _handle_movement_input() -> void:
 	# _start_jump/_process_jump (variable height + momentum + energy cost).
 	if is_on_floor() and Input.is_action_just_pressed("jump"):
 		_start_jump()
+
+	# Drop tank purge: jettison external fuel tanks to avoid detonation.
+	if _drop_tank_active and Input.is_action_just_pressed("eject"):
+		_purge_drop_tanks()
 
 
 # --- Jump helpers -----------------------------------------------------------
@@ -346,10 +367,129 @@ func _process_energy(delta: float) -> void:
 				AudioManager.play_mecha_actuator(global_position)
 	else:
 		roller_drain_ramp = 0.0
-		energy = minf(energy + ENERGY_REGEN_RATE * delta, max_energy)
+		# Engine dirt slows energy regen — dirty fuel burns less efficiently.
+		var dirt_penalty := lerpf(1.0, 1.0 / GlobalData.ENGINE_DIRT_HEAT_MULTIPLIER, GlobalData.engine_dirt)
+		energy = minf(energy + ENERGY_REGEN_RATE * dirt_penalty * delta, max_energy)
 
 
-func _apply_movement(delta: float) -> void:
+# --- External Drop Tank Processing (GDD §2.4) --------------------------------
+# Drop tanks add bonus energy capacity but are fragile. If their HP reaches
+# zero, a short detonation countdown starts — the player must Purge before
+# it expires or the explosion deals self-damage and destroys the tanks.
+func _process_drop_tanks(delta: float) -> void:
+	if not _drop_tank_active:
+		return
+	if _drop_tank_detonating:
+		_drop_tank_timer -= delta
+		if _drop_tank_timer <= 0.0:
+			_drop_tank_explode()
+		return
+	# Drop tanks have HP; enemy fire can hit them via the health system's
+	# part-damage routing. Once HP hits zero, the detonation countdown begins.
+	# The HP is tracked here, set by apply_drop_tank_damage().
+
+
+# Called by the health system when a projectile hits a drop tank hitbox.
+func apply_drop_tank_damage(amount: float) -> void:
+	if not _drop_tank_active or _drop_tank_detonating:
+		return
+	_drop_tank_hp -= amount
+	if _drop_tank_hp <= 0.0:
+		_drop_tank_detonating = true
+		_drop_tank_timer = DROP_TANK_DET_DELAY
+		if AudioManager:
+			AudioManager.play_mecha_actuator(global_position)
+
+
+# Purge: jettison the drop tanks to avoid detonation. Costs a small amount
+# of energy (the explosive bolts firing) but prevents the self-damage.
+func _purge_drop_tanks() -> void:
+	if not _drop_tank_active:
+		return
+	# Expel the tanks: lose all drop-tank fuel and the extra capacity.
+	var tank_fuel := GlobalData.drop_tank_fuel
+	var fuel_in_tanks := minf(tank_fuel, energy - (max_energy - tank_fuel))
+	energy = maxf(energy - tank_fuel, 0.0)
+	max_energy -= tank_fuel
+	# Reset drop tank state.
+	_drop_tank_active = false
+	_drop_tank_hp = 0.0
+	_drop_tank_detonating = false
+	_drop_tank_timer = 0.0
+	GlobalData.drop_tanks_attached = 0
+	GlobalData.drop_tank_fuel = 0.0
+	# Visual: spawn purge VFX.
+	_spawn_purge_effect()
+	if AudioManager:
+		AudioManager.play_mecha_actuator(global_position)
+
+
+# Detonation: drop tanks explode, dealing self-damage and destroying the tanks.
+func _drop_tank_explode() -> void:
+	_drop_tank_active = false
+	_drop_tank_detonating = false
+	_drop_tank_timer = 0.0
+	# Lose all drop tank fuel.
+	var tank_fuel := GlobalData.drop_tank_fuel
+	energy = maxf(energy - tank_fuel, 0.0)
+	max_energy -= tank_fuel
+	GlobalData.drop_tanks_attached = 0
+	GlobalData.drop_tank_fuel = 0.0
+	# Self-damage from the explosion.
+	var hs := _health_system()
+	if hs and hs.has_method("take_damage"):
+		hs.take_damage(GlobalData.DROP_TANK_PURGE_DAMAGE, "explosive")
+	if AudioManager:
+		AudioManager.play_mecha_hit(global_position)
+	# VFX.
+	_spawn_detonation_effect()
+
+
+func _spawn_purge_effect() -> void:
+	# Simple flash + expanding ring to sell the purge.
+	var flash := MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = 0.6
+	flash.mesh = sphere
+	var mat := StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(0.4, 0.7, 1.0, 0.9)
+	mat.emission_enabled = true
+	mat.emission = Color(0.3, 0.6, 1.0)
+	mat.emission_energy_multiplier = 4.0
+	flash.material_override = mat
+	get_tree().current_scene.add_child(flash)
+	flash.global_position = global_position + Vector3(0, 1.0, 0)
+	var tween := get_tree().create_tween().set_parallel(true)
+	tween.tween_property(flash, "scale", Vector3(3, 3, 3), 0.3)
+	tween.tween_property(mat, "albedo_color:a", 0.0, 0.3)
+	tween.chain().tween_callback(flash.queue_free)
+
+
+func _spawn_detonation_effect() -> void:
+	# Bigger, more violent explosion than the purge.
+	for i in range(4):
+		var spark := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(0.8, 0.3, 0.8)
+		spark.mesh = box
+		var smat := StandardMaterial3D.new()
+		smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		smat.albedo_color = Color(1.0, 0.6, 0.1, 0.9)
+		smat.emission_enabled = true
+		smat.emission = Color(1.0, 0.5, 0.0)
+		smat.emission_energy_multiplier = 6.0
+		spark.material_override = smat
+		get_tree().current_scene.add_child(spark)
+		var offset := Vector3(randf_range(-1.0, 1.0), randf_range(-0.5, 1.5), randf_range(-1.0, 1.0))
+		spark.global_position = global_position + offset
+		var tween := get_tree().create_tween().set_parallel(true)
+		tween.tween_property(spark, "scale", Vector3(2, 2, 2), 0.4)
+		tween.tween_property(smat, "albedo_color:a", 0.0, 0.4)
+		tween.chain().tween_callback(spark.queue_free)
+
+
+def _apply_movement(delta: float) -> void:
 	var cam = get_viewport().get_camera_3d()
 	if cam == null:
 		return

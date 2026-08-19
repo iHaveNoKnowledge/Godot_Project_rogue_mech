@@ -69,6 +69,12 @@ static func save_run() -> void:
 		"security_upgrade_level": GlobalData.security_upgrade_level,
 		"mech_energy": GlobalData.mech_energy,
 		"mech_max_energy": GlobalData.mech_max_energy,
+		"convoy_fuel_reserve": GlobalData.convoy_fuel_reserve,
+		"convoy_fuel_max": GlobalData.convoy_fuel_max,
+		"fuel_depot_seized_today": GlobalData.fuel_depot_seized_today,
+		"drop_tanks_attached": GlobalData.drop_tanks_attached,
+		"drop_tank_fuel": GlobalData.drop_tank_fuel,
+		"engine_dirt": GlobalData.engine_dirt,
 		"driver_repair_skill": GlobalData.driver_repair_skill,
 		"driver_repair_xp": GlobalData.driver_repair_xp,
 		"scrap_patches": GlobalData.scrap_patches.duplicate(true),
@@ -173,6 +179,12 @@ static func restore_from_dict(data: Dictionary) -> void:
 	GlobalData.security_upgrade_level = int(data.get("security_upgrade_level", 1))
 	GlobalData.mech_energy = float(data.get("mech_energy", 100.0))
 	GlobalData.mech_max_energy = float(data.get("mech_max_energy", 100.0))
+	GlobalData.convoy_fuel_reserve = float(data.get("convoy_fuel_reserve", 100.0))
+	GlobalData.convoy_fuel_max = float(data.get("convoy_fuel_max", 200.0))
+	GlobalData.fuel_depot_seized_today = bool(data.get("fuel_depot_seized_today", false))
+	GlobalData.drop_tanks_attached = int(data.get("drop_tanks_attached", 0))
+	GlobalData.drop_tank_fuel = float(data.get("drop_tank_fuel", 0.0))
+	GlobalData.engine_dirt = float(data.get("engine_dirt", 0.0))
 	GlobalData.driver_repair_skill = int(data.get("driver_repair_skill", 1))
 	GlobalData.driver_repair_xp = int(data.get("driver_repair_xp", 0))
 	var loaded_patches = data.get("scrap_patches", {})

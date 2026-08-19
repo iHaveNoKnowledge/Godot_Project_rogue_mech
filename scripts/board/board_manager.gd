@@ -266,6 +266,15 @@ func _end_day() -> void:
 		GlobalData.mech_energy + GlobalData.BOARD_ENERGY_REGEN_PER_DAY,
 		GlobalData.mech_max_energy
 	)
+	# Convoy fuel reserve replenishes overnight.
+	GlobalData.convoy_fuel_reserve = minf(
+		GlobalData.convoy_fuel_reserve + GlobalData.CONVOY_DAILY_FUEL_REGEN,
+		GlobalData.convoy_fuel_max
+	)
+	# Engine dirt slowly cleans up between days.
+	GlobalData.engine_dirt = maxf(GlobalData.engine_dirt - GlobalData.ENGINE_DIRT_CLEANUP_PER_DAY, 0.0)
+	# Reset daily depot seizure flag.
+	GlobalData.fuel_depot_seized_today = false
 
 	# Once-per-day systems.
 	process_turn_mobilization()
@@ -617,6 +626,24 @@ func _process_tile_effect(tile_type: String) -> void:
 			if safehouse:
 				safehouse.visible = true
 				get_tree().paused = true
+		"fuel_depot":
+			# Enemy fuel depot: seize it to gain fuel. Triggers a combat encounter;
+			# the player must avoid destroying fuel tanks with heavy weapons.
+			if GlobalData.mech_less:
+				_trigger_recovery_event()
+			elif GlobalData.fuel_depot_seized_today:
+				EventBus.event_triggered.emit({
+					"name": "FUEL DEPOT — DEPLETED",
+					"effect": "none",
+					"amount": 0,
+					"desc": "This depot has already been stripped today. Return tomorrow for a fresh supply.",
+				})
+			else:
+				_trigger_fuel_depot_seizure()
+		"supply_truck":
+			# Friendly convoy supply transfer: transfer fuel from the truck to the
+			# mech. Costs 1 full day turn and raises enemy alert level.
+			_trigger_convoy_supply_transfer()
 		"city":
 			var city = get_node_or_null("CityShopUI")
 			if city:
@@ -1019,3 +1046,69 @@ func _refresh_enemy_base_model() -> void:
 	var tile = nodes_dict[pos]
 	if tile.has_method("set_enemy_base_model"):
 		tile.set_enemy_base_model(kind)
+
+
+# ---------------------------------------------------------------------------
+# FUEL DEPOT SEIZURE (GDD §2.4)
+# A fuel_depot tile triggers a combat encounter where the player must avoid
+# destroying the fuel tanks with heavy weapons. Victory grants fuel bonus.
+# ---------------------------------------------------------------------------
+
+func _trigger_fuel_depot_seizure() -> void:
+	if GlobalData.ceasefire_turns > 0:
+		GlobalData.ceasefire_turns -= 1
+		_trigger_ceasefire_skip()
+		return
+	GlobalData.fuel_depot_seized_today = true
+	GlobalData.blocked_intermission = true
+	EventBus.event_triggered.emit({
+		"name": "FUEL DEPOT — SEIZURE",
+		"effect": "none",
+		"amount": 0,
+		"desc": "An enemy fuel depot! Engage the defenders but avoid heavy weapons near the fuel tanks — detonating them wastes the prize.",
+	})
+	# Grant fuel on combat end via the combat_ended signal (see _on_combat_ended).
+	_request_combat("fuel_depot")
+
+
+# ---------------------------------------------------------------------------
+# CONVOY SUPPLY TRANSFER (GDD §2.4)
+# Transfer fuel from the convoy truck into the mech. Costs 1 full day turn
+# and raises enemy alert level (the noise attracts patrols).
+# ---------------------------------------------------------------------------
+
+func _trigger_convoy_supply_transfer() -> void:
+	var available: float = minf(
+		GlobalData.convoy_fuel_reserve,
+		GlobalData.CONVOY_TRANSFER_AMOUNT
+	)
+	if available <= 0.0:
+		EventBus.event_triggered.emit({
+			"name": "CONVOY SUPPLY — EMPTY",
+			"effect": "none",
+			"amount": 0,
+			"desc": "The convoy truck has no fuel to spare. It will resupply overnight.",
+		})
+		return
+	var deficit: float = GlobalData.mech_max_energy - GlobalData.mech_energy
+	if deficit <= 0.0:
+		EventBus.event_triggered.emit({
+			"name": "CONVOY SUPPLY — FULL",
+			"effect": "none",
+			"amount": 0,
+			"desc": "The mech's fuel tanks are already full.",
+		})
+		return
+	var transferred: float = minf(available, deficit)
+	GlobalData.convoy_fuel_reserve -= transferred
+	GlobalData.mech_energy = minf(GlobalData.mech_energy + transferred, GlobalData.mech_max_energy)
+	# Time trade-off: costs 1 full day turn + raises alert level.
+	HeatWantedSystem.modify_heat(1)
+	EventBus.event_triggered.emit({
+		"name": "CONVOY SUPPLY TRANSFER",
+		"effect": "none",
+		"amount": 0,
+		"desc": "Transferred %.0f fuel from the convoy truck. A full day has passed and the noise raised alert." % transferred,
+	})
+	# End the day as the time trade-off.
+	_end_day()

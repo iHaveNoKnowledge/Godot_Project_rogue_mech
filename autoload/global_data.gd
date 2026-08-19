@@ -144,6 +144,13 @@ func _on_combat_ended(victory: bool) -> void:
 		if victory:
 			destroy_enemy_base()
 		return
+	# Fuel depot seizure: victory grants a large fuel bonus from the depot.
+	if GameManager.combat_node_type == "fuel_depot":
+		if victory:
+			var gained := minf(fuel_depot_bonus, mech_max_energy - mech_energy)
+			mech_energy = minf(mech_energy + gained, mech_max_energy)
+			run_notice = "Seized fuel depot! +%.0f energy." % gained
+		return
 	on_combat_ended_for_tech(victory)
 	if victory:
 		sync_equipped_armor_durability()
@@ -1088,6 +1095,64 @@ const BOARD_ENERGY_REGEN_PER_DAY: float = 25.0
 # Bonus regen at safehouses (faster refill).
 const SAFEHOUSE_ENERGY_REGEN: float = 50.0
 
+# -----------------------------------------------------------------------------
+# FUEL & SUPPLY LOGISTICS (GDD §2.4)
+# Board-level refueling, external drop tanks, pilot siphon, and impure fuel.
+#
+# CONVOY SUPPLY TRANSFER: the convoy truck carries its own fuel reserve.
+# Parking adjacent to a supply node lets the player transfer fuel from the
+# truck into the mech — but it costs 1 full day turn and raises enemy alert.
+#
+# FUEL DEPOT SEIZURE: enemy fuel depots sit on the board as combat tiles.
+# Seizing one triggers a battle where the player must avoid destroying the
+# fuel tanks with heavy weapons. Victory grants a large fuel bonus.
+#
+# EXTERNAL DROP TANKS: bolt-on fuel canisters that extend the mech's energy
+# pool in combat. They are fragile — enemy fire can detonate them, causing
+# spark damage and fuel loss. The player can Purge (jettison) them before
+# they explode to avoid the blast.
+#
+# PILOT SIPHON PROTOCOL: when the mech is destroyed mid-combat, the pilot
+# ejects and must walk to enemy wreckage to siphon fuel and bring it back
+# for a re-ignition reboot.
+#
+# ENGINE DIRT (impure fuel penalty): siphoning fuel from wreckage yields
+# dirty fuel that causes the Torso Frame to accumulate heat faster.
+# -----------------------------------------------------------------------------
+
+# Convoy fuel reserve: how much fuel the supply truck carries. Depleted by
+# transfers; replenished each day by a base amount.
+var convoy_fuel_reserve: float = 100.0
+var convoy_fuel_max: float = 200.0
+const CONVOY_DAILY_FUEL_REGEN: float = 30.0
+const CONVOY_TRANSFER_AMOUNT: float = 60.0    # fuel transferred per use
+const CONVOY_TRANSFER_ALERT_GAIN: int = 2      # alert raised per transfer
+
+# Fuel depot seizure state.
+var fuel_depot_seized_today: bool = false       # one seizure per day
+var fuel_depot_bonus: float = 80.0              # fuel gained from a depot
+
+# External drop tanks: bolt-on fuel canisters.
+# 0 = no tanks, 1 = one side tank, 2 = both sides, 3 = dorsal + both sides.
+var drop_tanks_attached: int = 0                # 0..3
+var drop_tank_fuel: float = 0.0                 # fuel stored in drop tanks
+const DROP_TANK_CAPACITY_PER: float = 40.0      # fuel per tank
+const DROP_TANK_MAX_ATTACHED: int = 3
+const DROP_TANK_PURGE_DAMAGE: float = 15.0      # self-damage if detonated
+
+# Pilot siphon state.
+var pilot_siphoning: bool = false               # true while siphon is active
+var pilot_siphoned_fuel: float = 0.0            # fuel carried back from wreckage
+const SIPHON_AMOUNT: float = 50.0               # fuel siphoned per attempt
+const SIPHON_WALK_TIME: float = 3.0             # seconds the pilot must walk
+
+# Engine dirt (impure fuel penalty). Accumulates when siphoning dirty fuel.
+# Range 0.0 (clean) to 1.0 (maximum grime). Affects heat accumulation rate.
+var engine_dirt: float = 0.0
+const ENGINE_DIRT_PER_SIPHON: float = 0.25      # dirt gained per siphon
+const ENGINE_DIRT_CLEANUP_PER_DAY: float = 0.1  # natural cleanup per day
+const ENGINE_DIRT_HEAT_MULTIPLIER: float = 1.5  # heat rate at max dirt
+
 
 # --- Currency API ---
 # All external code should mutate currency through these helpers so spending
@@ -1723,6 +1788,16 @@ func reset_run_data() -> void:
 	armor_inventory.clear()
 	ensure_default_equipped_parts()
 	_ensure_default_frames()
+	# Fuel & Supply Logistics reset.
+	convoy_fuel_reserve = 100.0
+	convoy_fuel_max = 200.0
+	fuel_depot_seized_today = false
+	drop_tanks_attached = 0
+	drop_tank_fuel = 0.0
+	pilot_siphoning = false
+	pilot_siphoned_fuel = 0.0
+	engine_dirt = 0.0
+
 	hangar_mechs.clear()
 	active_hangar_mech_id = ""
 	ensure_hangar_roster()

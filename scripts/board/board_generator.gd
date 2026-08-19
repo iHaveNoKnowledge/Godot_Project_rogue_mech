@@ -220,14 +220,18 @@ func _roll_content(rng: RandomNumberGenerator) -> String:
 	# Bait tiles are decoy supply caches: they look like loot but spring a
 	# pincer ambush (see board_manager._trigger_bait_trap).
 	var roll := rng.randf()
-	if roll < 0.20:
+	if roll < 0.18:
 		return "event"
-	elif roll < 0.32:
+	elif roll < 0.28:
 		return "data_node"
-	elif roll < 0.42:
+	elif roll < 0.36:
 		return "bait"
-	elif roll < 0.52:
+	elif roll < 0.44:
 		return "dead_end"
+	elif roll < 0.52:
+		return "fuel_depot"
+	elif roll < 0.58:
+		return "supply_truck"
 	return "empty"
 
 

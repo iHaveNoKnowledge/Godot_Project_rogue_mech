@@ -5,34 +5,39 @@
 
 ---
 
-## Session: 2026-08-19 — GDD Section 3.2 (Roller Dash + Energy Pool)
+## Session: 2026-08-19 — GDD Section 2.4 (Refueling & Supply Logistics)
 
 ### ✅ เสร็จแล้วทั้งหมด
 
 | # | รายการ | สถานะ | ไฟล์ |
 |---|--------|:------:|------|
-| 1 | เอา dash_cooldown ออก — Dash อิสระตาม Reflex | ✅ | `mecha_controller.gd` |
-| 2 | เพิ่ม `mech_energy` / `mech_max_energy` ใน GlobalData | ✅ | `global_data.gd` |
-| 3 | Energy ใน save_run() + restore_from_dict() | ✅ | `save_game_io.gd` |
-| 4 | mecha_controller โหลด/บันทึก energy จาก GlobalData | ✅ | `mecha_controller.gd` |
-| 5 | Board movement ดึงพลังงาน + depletion check | ✅ | `board_manager.gd` |
-| 6 | Energy regen ต่อวัน + Safehouse refuel | ✅ | `board_manager.gd` |
-| 7 | ปรับค่า Energy ให้ใช้ได้นานขึ้น | ✅ | ทั้ง 2 ไฟล์ |
+| 1 | Fuel system state ใน GlobalData (convoy_fuel, drop_tanks, engine_dirt, constants) | ✅ | `global_data.gd` |
+| 2 | Board tile "fuel_depot" — บุกยึดคลังน้ำมันศัตรู | ✅ | `board_tile.gd`, `board_manager.gd`, `board_generator.gd` |
+| 3 | Board tile "supply_truck" — Convoy Supply Transfer (เสีย 1 turn + alert++) | ✅ | `board_manager.gd` |
+| 4 | Fuel depot combat victory → grant fuel bonus | ✅ | `global_data.gd` |
+| 5 | External Drop Tank system (เพิ่ม capacity + vulnerable + purge + detonation) | ✅ | `mecha_controller.gd` |
+| 6 | Engine Dirt Penalty — impure fuel slows energy regen | ✅ | `mecha_controller.gd` |
+| 7 | Convoy fuel reserve overnight regen + engine dirt cleanup + depot reset | ✅ | `board_manager.gd` |
+| 8 | Save/Load support | ✅ | `save_game_io.gd` |
+| 9 | GDD.md Section 2.4 | ✅ | `GDD.md` |
 
 ---
 
 ### ค่าคงที่ — Final
 
-| ค่า | ค่าใหม่ | ผลลัพธ์ |
-|-----|---------|---------|
-| `mech_max_energy` | **200.0** | ถังใหญ่ขึ้น 2 เท่า |
-| `DASH_ENERGY_COST` | **6.0** | dash ได้ ~33 ครั้ง |
-| `ROLLER_BASE_DRAIN` | **2.0/วิ** | roller ได้ ~100 วิ |
-| `ROLLER_RAMP_DRAIN` | **3.0/วิ²** | ramp ช้าลง 2 เท่า |
-| `ROLLER_MAX_DRAIN` | **20.0** | ceiling ลดลง |
-| `BOARD_ENERGY_COST_PER_STEP` | **1.0** | เดินได้ ~200 ก้าว |
-| `BOARD_ENERGY_REGEN_PER_DAY` | **25.0** | regen เร็วขึ้น |
-| `SAFEHOUSE_ENERGY_REGEN` | **50.0** | เติมเร็วขึ้น |
+| ค่า | ค่า | ผลลัพธ์ |
+|-----|-----|---------|
+| `CONVOY_TRANSFER_AMOUNT` | **60.0** | เติมได้ 60 หน่วยต่อครั้ง |
+| `CONVOY_TRANSFER_ALERT_GAIN` | **2** | เติมที Alert++2 |
+| `CONVOY_DAILY_FUEL_REGEN` | **30.0** | ขบวนรถเติม 30/วัน |
+| `DROP_TANK_CAPACITY_PER` | **40.0** | ถังละ 40 หน่วย (สูงสุด 3 ถัง = 120) |
+| `DROP_TANK_HP_PER_TANK` | **30.0** | ถังละ 30 HP ก่อนระเบิด |
+| `DROP_TANK_DET_DELAY` | **1.5** | 1.5 วินาทีก่อนระเบิด |
+| `DROP_TANK_PURGE_DAMAGE` | **15.0** | ระเบิดทำ DMG ตัวเอง 15 |
+| `FUEL_DEPOT_BONUS` | **80.0** | ชนะ depot = +80 fuel |
+| `ENGINE_DIRT_PER_SIPHON` | **0.25** | dirt +0.25 ต่อ siphon |
+| `ENGINE_DIRT_CLEANUP_PER_DAY` | **0.1** | clean 0.1/วัน |
+| `ENGINE_DIRT_HEAT_MULTIPLIER` | **1.5** | heat rate x1.5 ที่ max dirt |
 
 ---
 
@@ -40,23 +45,16 @@
 
 | วันที่ | สิ่งที่ทำ | ไฟล์ที่แก้ |
 |--------|-----------|------------|
-| 2026-08-19 | ลบ dash_cooldown — pure energy-based dash | `mecha_controller.gd` |
-| 2026-08-19 | เพิ่ม mech_energy state ใน GlobalData | `global_data.gd` |
-| 2026-08-19 | เพิ่ม energy ใน save/load | `save_game_io.gd` |
-| 2026-08-19 | mecha_controller โหลด/บันทึก energy จาก GlobalData | `mecha_controller.gd` |
-| 2026-08-19 | Board movement ดึงพลังงาน + depletion check | `board_manager.gd` |
-| 2026-08-19 | Energy regen ต่อวัน + Safehouse refuel | `board_manager.gd` |
-| 2026-08-19 | ปรับค่า Energy ให้ใช้ได้นานขึ้น (ทุกค่า) | `global_data.gd` + `mecha_controller.gd` |
-
----
-
-### Commits
-
-| hash | ข้อความ |
-|------|---------|
-| `7e50238` | feat(combat): remove dash cooldown — energy is the only gate |
-| `a873657` | feat(energy): persist mech energy across combat/board + board fuel drain |
-| `e117d28` | tune(energy): increase pool size and reduce drain rates for longer gameplay |
+| 2026-08-19 | Fuel system state + constants + reset | `global_data.gd` |
+| 2026-08-19 | Board tile fuel_depot + supply_truck visual | `board_tile.gd` |
+| 2026-08-19 | Fuel depot seizure + convoy supply transfer | `board_manager.gd` |
+| 2026-08-19 | Fuel depot tile spawn in board generator | `board_generator.gd` |
+| 2026-08-19 | Fuel depot combat victory → fuel bonus | `global_data.gd` |
+| 2026-08-19 | External Drop Tank system + purge + detonation | `mecha_controller.gd` |
+| 2026-08-19 | Engine dirt penalty on energy regen | `mecha_controller.gd` |
+| 2026-08-19 | Convoy regen + dirt cleanup + depot reset on day end | `board_manager.gd` |
+| 2026-08-19 | Save/Load fuel state | `save_game_io.gd` |
+| 2026-08-19 | GDD.md Section 2.4 | `GDD.md` |
 
 ---
 
@@ -64,8 +62,10 @@
 
 | รายการ | หมายเหตุ |
 |--------|----------|
+| ❌ Pilot Siphon Protocol — นักบินเดินเท้าสูบเชื้อเพลิงจากซากศัตรู | ต่อจาก mech_death flow |
+| ❌ Drop Tank visual model บนหุ่น | ต้องทำ 3D mesh แสดงถัง |
+| ❌ Fuel depot choice popup — เลือกอาวุธก่อนบุก (precise vs heavy) | gameplay depth |
 | ❌ Precision Dash — หลบถูกจังหวะคืนพลังงาน | gameplay depth |
-| ❌ Energy depletion → board consequence จริงจัง | ตอนนี้แค่ popup |
 | ❌ Phase 4: Research & Blueprint | feature ใหญ่ถัดไป |
 
 ---

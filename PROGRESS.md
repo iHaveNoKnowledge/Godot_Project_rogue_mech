@@ -20,6 +20,9 @@
 | 7 | Convoy fuel reserve overnight regen + engine dirt cleanup + depot reset | ✅ | `board_manager.gd` |
 | 8 | Save/Load support | ✅ | `save_game_io.gd` |
 | 9 | GDD.md Section 2.4 | ✅ | `GDD.md` |
+| 10 | Drop Tank 3D visual model — procedural cylinders on backpack | ✅ | `drop_tank_visuals.gd`, `mecha_base.tscn` |
+| 11 | Drop Tank HUD indicator — HP bar + fuel + purge warning | ✅ | `core_hud.gd` |
+| 12 | Body damage intercept — 30% absorbed by drop tanks | ✅ | `mecha_health_base.gd` |
 
 ---
 
@@ -55,6 +58,8 @@
 | 2026-08-19 | Convoy regen + dirt cleanup + depot reset on day end | `board_manager.gd` |
 | 2026-08-19 | Save/Load fuel state | `save_game_io.gd` |
 | 2026-08-19 | GDD.md Section 2.4 | `GDD.md` |
+| 2026-08-19 | Drop Tank 3D visual model + body damage intercept | `drop_tank_visuals.gd`, `mecha_base.tscn`, `mecha_health_base.gd`, `mecha_controller.gd` |
+| 2026-08-19 | Drop Tank HUD indicator (HP + fuel + purge warning) | `core_hud.gd` |
 
 ---
 
@@ -63,10 +68,20 @@
 | รายการ | หมายเหตุ |
 |--------|----------|
 | ❌ Pilot Siphon Protocol — นักบินเดินเท้าสูบเชื้อเพลิงจากซากศัตรู | ต่อจาก mech_death flow |
-| ❌ Drop Tank visual model บนหุ่น | ต้องทำ 3D mesh แสดงถัง |
+| ~~❌ Drop Tank visual model บนหุ่น~~ | ✅ ทำแล้ว (`drop_tank_visuals.gd`) |
 | ❌ Fuel depot choice popup — เลือกอาวุธก่อนบุก (precise vs heavy) | gameplay depth |
 | ❌ Precision Dash — หลบถูกจังหวะคืนพลังงาน | gameplay depth |
 | ❌ Phase 4: Research & Blueprint | feature ใหญ่ถัดไป |
+
+---
+
+### Commits (Session 2026-08-19)
+
+| hash | ข้อความ |
+|------|---------|
+| `a3fe044` | feat(drop_tanks): add HUD indicator for drop tank HP, fuel, and purge warning |
+| `eb8687c` | feat(drop_tanks): add 3D visual model for external fuel canisters |
+| `e0486bf` | feat(fuel): implement Refueling & Supply Logistics system (GDD §2.4) |
 
 ---
 

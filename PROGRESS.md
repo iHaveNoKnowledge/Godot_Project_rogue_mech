@@ -29,6 +29,11 @@
 | 16 | Research Lab tile + UI | ✅ | `research_lab_ui.gd`, `research_lab_ui.tscn`, etc |
 | 17 | 6 new blueprint projects in catalog | ✅ | `research_catalogs.tres` |
 | 18 | Research completion notification popup | ✅ | `global_data.gd` |
+| 19 | Environmental Hazard: Dust Storm | ✅ | `global_data.gd`, `mecha_controller.gd`, `board_manager.gd`, `atmosphere_manager.gd` |
+| 20 | Environmental Hazard: Tactical Smog | ✅ | `global_data.gd`, `weapon_core.gd`, `board_manager.gd`, `atmosphere_manager.gd` |
+| 21 | Environmental Hazard: EMP & Jamming Zone | ✅ | `global_data.gd`, `camera_rig.gd`, `backup_mech_spawner.gd`, `board_manager.gd`, `atmosphere_manager.gd` |
+| 22 | Hazard board tiles + generator + visual | ✅ | `board_tile.gd`, `board_generator.gd` |
+| 23 | Hazard save/load + clear on combat end | ✅ | `save_game_io.gd`, `global_data.gd` |
 
 ---
 
@@ -51,9 +56,10 @@
 
 | รายการ | หมายเหตุ |
 |--------|----------|
-| ❌ Environmental Hazards — Dust Storm, Tactical Smog, EMP & Jamming Zone | Dynamic Event System §7.1 |
 | ❌ Strategic Dilemmas — Distress Signals, Scavenge Risk | Dynamic Event System §7.2 |
-| ❌ Environmental Hazards (Dust Storm, EMP, Tactical Smog) | Dynamic Event System §7.1 |
+| ❌ Mid-Battle Injections — Reinforcements + Countdown Extraction | Dynamic Event System §7.3 |
+| ❌ Convoy Escort & Defense Events | Dynamic Event System §7.4 |
+| ❌ Narrative Design — Bond, Sacrifice Event, Grand Entry | GDD §5 |
 
 ---
 

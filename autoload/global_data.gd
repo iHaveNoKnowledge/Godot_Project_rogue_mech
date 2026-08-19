@@ -124,6 +124,8 @@ func _on_board_day_ended() -> void:
 
 
 func _on_combat_ended(victory: bool) -> void:
+	# Clear environmental hazard after combat (one-shot per encounter).
+	current_hazard = ""
 	# Finalize combat damage stats before any tech/reputation logic reads them.
 	_compute_last_combat_damage_ratio()
 	# A patrol fleet engagement (open-grid board) resolves before any general
@@ -922,6 +924,22 @@ var board_seed: int = 0
 # biome: a forest board fought on a ROAD tile spawns the road-through-forest
 # arena instead of the plain woods. Set by the board before entering combat.
 var combat_tile_terrain: String = "plain"
+# --- Environmental Hazard (GDD §7.1) ----------------------------------------
+# Board tile type that triggers an environmental hazard in the next combat.
+# Set by the board_manager when the player steps on a hazard tile. Cleared
+# after combat ends (or when the player leaves the board).
+var current_hazard: String = ""   # "dust_storm" / "tactical_smog" / "emp_zone" / ""
+const HAZARD_DUST_STORM: String = "dust_storm"
+const HAZARD_TACTICAL_SMOG: String = "tactical_smog"
+const HAZARD_EMP_ZONE: String = "emp_zone"
+# Dust Storm penalties (applied in mecha_controller._process_energy)
+const DUST_STORM_ROLLER_DRAIN_MULT: float = 1.5   # roller drain x1.5
+const DUST_STORM_SPEED_MULT: float = 0.85          # movement speed x0.85
+# Tactical Smog penalties (applied in weapon_core._cool_heat)
+const SMOG_HEAT_COOL_PENALTY: float = 0.5          # heat cool rate x0.5
+# EMP penalties (applied in camera_rig + backup_mech_spawner)
+const EMP_LOCK_ON_DISABLED: bool = true
+const EMP_BACKUP_BLOCKED: bool = true
 # Current combat arena footprint (side length in meters). Set by the arena
 # generator when a battle loads; scales spawn ring / AI search radius / nav.
 var current_arena_size: float = 240.0
@@ -1737,6 +1755,7 @@ func reset_run_data() -> void:
 	patrol_alert = 0
 	ambush_pincer = false
 	consumed_bait.clear()
+	current_hazard = ""
 	credits = 110
 	data_cores = 0
 	scrap = 0

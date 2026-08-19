@@ -361,7 +361,9 @@ func _process_energy(delta: float) -> void:
 	# ramp only grows while rolling.
 	if is_roller_dashing and is_on_floor() and input_dir.length() > 0.0:
 		roller_drain_ramp = minf(roller_drain_ramp + ROLLER_RAMP_DRAIN * delta, ROLLER_MAX_DRAIN)
-		energy = maxf(energy - (ROLLER_BASE_DRAIN + roller_drain_ramp) * delta, 0.0)
+		# Dust Storm: roller drain x1.5 — sand clogs the wheels.
+		var drain_mult := GlobalData.DUST_STORM_ROLLER_DRAIN_MULT if GlobalData.current_hazard == GlobalData.HAZARD_DUST_STORM else 1.0
+		energy = maxf(energy - (ROLLER_BASE_DRAIN + roller_drain_ramp) * drain_mult * delta, 0.0)
 		if energy <= 0.0:
 			# Out of juice: the roller cuts out mid-run.
 			is_roller_dashing = false
@@ -524,6 +526,9 @@ def _apply_movement(delta: float) -> void:
 		move_speed *= 2.0
 	if _is_in_water() and not can_traverse_water:
 		move_speed *= 0.45
+	# Dust Storm: movement speed x0.85 — sand resistance slows the mech.
+	if GlobalData.current_hazard == GlobalData.HAZARD_DUST_STORM:
+		move_speed *= GlobalData.DUST_STORM_SPEED_MULT
 
 	var desired_velocity := Vector3.ZERO
 	desired_velocity = (forward * -input_dir.y + right * input_dir.x) * move_speed

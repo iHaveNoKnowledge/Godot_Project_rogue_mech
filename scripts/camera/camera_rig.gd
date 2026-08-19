@@ -89,6 +89,11 @@ func _check_lock_on() -> void:
 		EventBus.lock_on_target_lost.emit()
 		return
 
+	# EMP & Jamming Zone: lock-on disabled by electromagnetic interference.
+	if GlobalData.current_hazard == GlobalData.HAZARD_EMP_ZONE:
+		EventBus.lock_on_target_lost.emit()
+		return
+
 	# 1. เช็คสภาพพาร์ทหัวผู้เล่น
 	var head_destroyed: bool = false
 	if target and is_instance_valid(target):

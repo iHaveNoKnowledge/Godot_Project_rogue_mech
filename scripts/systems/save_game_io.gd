@@ -36,6 +36,7 @@ static func save_run() -> void:
 		"board_mp": GlobalData.board_mp,
 		"board_mp_max": GlobalData.board_mp_max,
 		"board_day": GlobalData.board_day,
+		"current_hazard": GlobalData.current_hazard,
 		"board_theme_id": GlobalData.board_theme_id,
 		"board_objective_id": GlobalData.board_objective_id,
 		"board_objective_progress": GlobalData.board_objective_progress,
@@ -127,6 +128,7 @@ static func restore_from_dict(data: Dictionary) -> void:
 	GlobalData.board_mp = int(data.get("board_mp", GlobalData.board_mp_max))
 	GlobalData.board_mp_max = maxi(int(data.get("board_mp_max", 8)), 1)
 	GlobalData.board_day = maxi(int(data.get("board_day", 1)), 1)
+	GlobalData.current_hazard = str(data.get("current_hazard", ""))
 	GlobalData.board_theme_id = str(data.get("board_theme_id", "suburb"))
 	GlobalData.board_objective_id = str(data.get("board_objective_id", ""))
 	GlobalData.board_objective_progress = int(data.get("board_objective_progress", 0))

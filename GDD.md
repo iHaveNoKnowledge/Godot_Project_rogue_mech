@@ -162,6 +162,15 @@
 * **หมอกควันสารเคมี/แก๊สพิษ (Tactical Smog):** รั่วไหลจากคลังแสงที่ถูกถล่ม ทำให้อุณหภูมิเครื่องสูงขึ้น เตาปฏิกรณ์ (Torso) Overheat ง่ายขึ้น
 * **EMP & Jamming Zone:** ช่องตัดสัญญาณเรดาร์ทางยุทธวิธีบนบอร์ด ทำให้ฉากสู้ล็อกเป้าไม่ได้ (บังคับ Free-aim) และห้ามเรียกหุ่นสำรองจาก Convoy
 
+> 📌 **Current Implementation Status:**
+> - [x] Board tile types: dust_storm / tactical_smog / emp_zone (spawn in generator)
+> - [x] Dust Storm: Roller Drain x1.5 + Movement Speed x0.85
+> - [x] Tactical Smog: Heat Cool Rate x0.5 (weapons overheat faster)
+> - [x] EMP & Jamming: Disable lock-on targeting + Block reserve mech call
+> - [x] Visual atmosphere overlay for all 3 hazard types
+> - [x] Hazard clears after combat ends (one-shot per encounter)
+> - [x] Save/Load hazard state
+
 ### 7.2 Strategic Dilemmas (เหตุการณ์ทางเลือกบนบอร์ด)
 * **Distress Signals:** ยอมอ้อมไปช่วยเพื่อลุ้นรับ Inner Frame / ทรัพยากร หรือเสี่ยงพลังงานหมด
 * **Scavenge Risk:** ส่ง Pilot ลงเดินเท้าสำรวจซากคลังแสง เสี่ยงเจอโดรนซุ่มโจมตี

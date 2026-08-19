@@ -673,6 +673,42 @@ func _process_tile_effect(tile_type: String) -> void:
 			print("Entering Hangar Practice Ground.")
 		"exit":
 			_trigger_exit_event()
+		"dust_storm":
+			# Environmental Hazard: Dust Storm — Roller drain x1.5 + speed x0.85.
+			GlobalData.current_hazard = GlobalData.HAZARD_DUST_STORM
+			if GlobalData.mech_less:
+				_trigger_recovery_event()
+			else:
+				EventBus.event_triggered.emit({
+					"name": "DUST STORM ZONE",
+					"effect": "hazard_dust_storm",
+					"amount": 0,
+					"desc": "Sand and debris whip through the air. Roller Dash drains 50%% more energy and movement speed reduced.",
+				})
+		"tactical_smog":
+			# Environmental Hazard: Tactical Smog — Heat cool rate x0.5.
+			GlobalData.current_hazard = GlobalData.HAZARD_TACTICAL_SMOG
+			if GlobalData.mech_less:
+				_trigger_recovery_event()
+			else:
+				EventBus.event_triggered.emit({
+					"name": "TACTICAL SMOG ZONE",
+					"effect": "hazard_tactical_smog",
+					"amount": 0,
+					"desc": "Chemical smoke fills the air. Weapons overheat twice as fast — manage your fire rate!",
+				})
+		"emp_zone":
+			# Environmental Hazard: EMP & Jamming — No lock-on, no backup call.
+			GlobalData.current_hazard = GlobalData.HAZARD_EMP_ZONE
+			if GlobalData.mech_less:
+				_trigger_recovery_event()
+			else:
+				EventBus.event_triggered.emit({
+					"name": "EMP JAMMING ZONE",
+					"effect": "hazard_emp_zone",
+					"amount": 0,
+					"desc": "Electromagnetic interference disables lock-on targeting. Reserve Mech call blocked.",
+				})
 		_:
 			pass
 

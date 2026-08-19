@@ -106,6 +106,48 @@ func _add_theme_ambient_lights(theme: int) -> void:
 		get_parent().add_child(light)
 
 
+func _apply_hazard_overlay() -> void:
+	var hazard := GlobalData.current_hazard
+	if hazard == "":
+		return
+	var world_env = get_node_or_null("../WorldEnvironment")
+	if world_env == null or world_env.environment == null:
+		return
+	var env = world_env.environment
+	match hazard:
+		"dust_storm":
+			# Thick sandy fog, reduced visibility, yellow-orange tint.
+			env.volumetric_fog_density = 0.06
+			env.volumetric_fog_albedo = Color(0.80, 0.60, 0.30, 1)
+			env.ambient_light_color = Color(0.70, 0.55, 0.30, 1)
+			env.fog_light_color = Color(0.85, 0.65, 0.30, 1)
+			env.fog_density = 0.04
+			var sun = get_node_or_null("../DirectionalLight3D")
+			if sun:
+				sun.light_color = Color(1.0, 0.80, 0.40, 1)
+				sun.light_energy = 0.9
+		"tactical_smog":
+			# Sickly green-gray haze, low visibility, dim lighting.
+			env.volumetric_fog_density = 0.05
+			env.volumetric_fog_albedo = Color(0.30, 0.45, 0.25, 1)
+			env.ambient_light_color = Color(0.35, 0.50, 0.30, 1)
+			env.fog_light_color = Color(0.40, 0.55, 0.30, 1)
+			env.fog_density = 0.035
+			var sun = get_node_or_null("../DirectionalLight3D")
+			if sun:
+				sun.light_color = Color(0.50, 0.70, 0.40, 1)
+				sun.light_energy = 0.6
+		"emp_zone":
+			# Electric purple flicker, high contrast, harsh shadows.
+			env.ambient_light_color = Color(0.40, 0.20, 0.70, 1)
+			env.fog_light_color = Color(0.50, 0.30, 0.80, 1)
+			env.fog_density = 0.015
+			var sun = get_node_or_null("../DirectionalLight3D")
+			if sun:
+				sun.light_color = Color(0.60, 0.30, 1.0, 1)
+				sun.light_energy = 1.2
+
+
 func _add_dust_particles(theme: int) -> void:
 	var particles = GPUParticles3D.new()
 	particles.name = "AtmosphereParticles"
@@ -144,3 +186,6 @@ func _add_dust_particles(theme: int) -> void:
 
 	particles.position.y = 4.0
 	get_parent().add_child(particles)
+
+	# Apply environmental hazard overlay after base atmosphere.
+	_apply_hazard_overlay()

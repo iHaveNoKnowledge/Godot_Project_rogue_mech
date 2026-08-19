@@ -42,6 +42,10 @@
 | 29 | Mid-Battle Injection system | ✅ | `mid_battle_injection.gd`, `spawn_manager.gd` |
 | 30 | Reinforcements — third-party spawn mid-battle | ✅ | `mid_battle_injection.gd`, `spawn_manager.gd` |
 | 31 | Countdown Extraction — bomb timer + escape | ✅ | `mid_battle_injection.gd`, `combat_hud.gd` |
+| 32 | Convoy Escort system | ✅ | `convoy_escort.gd` |
+| 33 | Convoy Ambush tile + 2-wave defense | ✅ | `board_tile.gd`, `board_manager.gd`, `board_generator.gd` |
+| 34 | Vehicle Breakdown tile + 3-wave defense | ✅ | `board_tile.gd`, `board_manager.gd`, `board_generator.gd` |
+| 35 | Convoy HP + damage spill + failure consequence | ✅ | `global_data.gd`, `mecha_health_base.gd` |
 
 ---
 
@@ -65,9 +69,6 @@
 | รายการ | หมายเหตุ |
 |--------|----------|
 
-| ❌ Convoy Escort & Defense Events | Dynamic Event System §7.4 |
-| ❌ Narrative Design — Bond, Sacrifice Event, Grand Entry | GDD §5 |
-| ❌ Convoy Escort & Defense Events | Dynamic Event System §7.4 |
 | ❌ Narrative Design — Bond, Sacrifice Event, Grand Entry | GDD §5 |
 
 ---

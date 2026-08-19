@@ -112,6 +112,12 @@ func take_damage(amount: float, damage_type: String = "kinetic") -> void:
 	else:
 		_apply_frame_damage(target_slot, amount, damage_type)
 
+	# Convoy Defense: during defense missions, player damage also damages the convoy.
+	if is_player and GlobalData.convoy_defense_active:
+		var convoy = get_node_or_null("../../ConvoyEscort")
+		if convoy and convoy.has_method("_damage_convoy"):
+			convoy._damage_convoy(amount * 0.1)  # 10% of damage spills to convoy
+
 
 # `layer` routes damage straight to a surface: "armor" hits armor first (only
 # while it is intact), "frame" always hits the frame. Empty means the classic

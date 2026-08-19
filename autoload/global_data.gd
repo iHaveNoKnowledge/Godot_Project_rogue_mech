@@ -953,6 +953,16 @@ var mid_battle_reinforcements_delay: float = 20.0  # seconds before third party 
 var mid_battle_countdown_active: bool = false
 var mid_battle_countdown_timer: float = 0.0
 var mid_battle_countdown_max: float = 45.0  # seconds to escape
+# --- Convoy Escort & Defense (GDD §7.4) -------------------------------------
+# Convoy HP: the truck can be damaged during ambush events.
+var convoy_hp: float = 100.0
+var convoy_hp_max: float = 100.0
+# Defense wave: number of waves the player must survive.
+var convoy_defense_waves: int = 0
+var convoy_defense_current_wave: int = 0
+var convoy_defense_active: bool = false
+# Convoy destroyed: all backup mechs lost, forced pilot mode.
+var convoy_destroyed: bool = false
 # --- Open-grid board state (see BoardConfig/Terrain in board scripts) ---
 # Each "day" the player gets board_mp_max movement points; cells cost their
 # terrain move_cost. Research / heat / spy / enemy research node / patrol fleets
@@ -1770,6 +1780,12 @@ func reset_run_data() -> void:
 	mid_battle_reinforcements_timer = 0.0
 	mid_battle_countdown_active = false
 	mid_battle_countdown_timer = 0.0
+	convoy_hp = 100.0
+	convoy_hp_max = 100.0
+	convoy_defense_waves = 0
+	convoy_defense_current_wave = 0
+	convoy_defense_active = false
+	convoy_destroyed = false
 	credits = 110
 	data_cores = 0
 	scrap = 0

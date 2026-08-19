@@ -747,9 +747,38 @@ func _process_tile_effect(tile_type: String) -> void:
 						}, {
 							"effect": "scavenge_leave",
 							"label": "Leave It Alone"
-						}]
-					}
+						}]						}
 				})
+		"convoy_ambush":
+			# Convoy Escort: ambush event — defense combat.
+			if GlobalData.mech_less:
+				_trigger_recovery_event()
+			elif GlobalData.convoy_destroyed:
+				EventBus.event_triggered.emit({
+					"name": "CONVOY AMBUSH — CONVOY LOST",
+					"effect": "none",
+					"amount": 0,
+					"desc": "The convoy has already been destroyed. There is nothing left to defend.",
+				})
+			else:
+				var convoy = get_node_or_null("../ConvoyEscort")
+				if convoy and convoy.has_method("trigger_convoy_ambush"):
+					convoy.trigger_convoy_ambush()
+		"convoy_breakdown":
+			# Convoy Escort: vehicle breakdown — wave defense.
+			if GlobalData.mech_less:
+				_trigger_recovery_event()
+			elif GlobalData.convoy_destroyed:
+				EventBus.event_triggered.emit({
+					"name": "BREAKDOWN — CONVOY LOST",
+					"effect": "none",
+					"amount": 0,
+					"desc": "The convoy is already destroyed. No vehicle to break down.",
+				})
+			else:
+				var convoy = get_node_or_null("../ConvoyEscort")
+				if convoy and convoy.has_method("trigger_vehicle_breakdown"):
+					convoy.trigger_vehicle_breakdown()
 		_:
 			pass
 

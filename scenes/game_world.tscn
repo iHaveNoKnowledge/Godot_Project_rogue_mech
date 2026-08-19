@@ -1,4 +1,4 @@
-[gd_scene load_steps=28 format=3]
+[gd_scene load_steps=29 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/camera/mecha_camera.tscn" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/mecha/mecha_base.tscn" id="2"]
@@ -27,6 +27,7 @@
 [ext_resource type="Script" path="res://scripts/ui/squad_hud.gd" id="28"]
 [ext_resource type="Script" path="res://scripts/ui/combat_tab_menu.gd" id="29"]
 [ext_resource type="Script" path="res://scripts/systems/mid_battle_injection.gd" id="30"]
+[ext_resource type="Script" path="res://scripts/systems/convoy_escort.gd" id="31"]
 [ext_resource type="Resource" path="res://resources/mech/stock/weapon_machine_gun.tres" id="10"]
 [ext_resource type="Resource" path="res://resources/mech/stock/weapon_shotgun.tres" id="11"]
 [ext_resource type="Resource" path="res://resources/mech/stock/weapon_pile_bunker.tres" id="12"]
@@ -102,6 +103,9 @@ script = ExtResource("13")
 
 [node name="MidBattleInjection" type="Node" parent="."]
 script = ExtResource("30")
+
+[node name="ConvoyEscort" type="Node" parent="."]
+script = ExtResource("31")
 
 [node name="ArenaSeedSystem" type="Node" parent="."]
 script = ExtResource("21")

@@ -205,6 +205,15 @@
 * **Vehicle Breakdown:** รถบรรทุกเสียกลางสมรภูมิ ต้องปักหลักคุ้มกันท่ามกลางคลื่นศัตรู (Wave Defense) ตามจำนวน Turn ที่กำหนด
 * **Failure Consequence:** หาก Convoy พัง ผู้เล่นจะสูญเสีย "หุ่นสำรอง" ทั้งหมด และบังคับเข้าสู่โหมดนักบินเดินเท้า (Pilot Survival) ทันที
 
+> 📌 **Current Implementation Status:**
+> - [x] Convoy Escort system (convoy_escort.gd)
+> - [x] Convoy Ambush tile (red, spawns in generator)
+> - [x] Convoy Ambush: 2-wave defense combat
+> - [x] Vehicle Breakdown tile (dark orange, spawns in generator)
+> - [x] Vehicle Breakdown: 3-wave defense combat
+> - [x] Convoy HP system (100 HP, 10% damage spill from player)
+> - [x] Failure Consequence: convoy destroyed → lose backups + pilot mode
+
 ---
 
 ## 🗺️ 8. Campaign Progression & Map Transition

@@ -244,6 +244,10 @@ func _roll_content(rng: RandomNumberGenerator) -> String:
 		return "distress_signal"
 	elif roll < 0.88:
 		return "scavenge_site"
+	elif roll < 0.92:
+		return "convoy_ambush"
+	elif roll < 0.95:
+		return "convoy_breakdown"
 	return "empty"
 
 

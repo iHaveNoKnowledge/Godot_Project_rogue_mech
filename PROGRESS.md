@@ -7,7 +7,7 @@
 
 ## Phase ที่กำลังทำ: GDD Section 3.2 — Roller Dash + Energy Pool
 
-### สถานะปัจจุบัน: ✅ เสร็จแล้ว — Energy Persistence + Board Integration
+### สถานะปัจจุบัน: ✅ เสร็จแล้ว — Energy Tuned
 
 ---
 
@@ -16,14 +16,12 @@
 | # | รายการ | สถานะ | หมายเหตุ |
 |---|--------|--------|----------|
 | 1 | เอา dash_cooldown ออก — ให้กด Dash ได้อิสระตาม Reflex | ✅ | `mecha_controller.gd` |
-| 2 | เพิ่ม `mech_energy` / `mech_max_energy` ใน GlobalData | ✅ | ค่าเริ่ม 100.0 |
+| 2 | เพิ่ม `mech_energy` / `mech_max_energy` ใน GlobalData | ✅ | ค่าเริ่ม 200.0 |
 | 3 | เพิ่ม energy ใน save_run() + restore_from_dict() | ✅ | `save_game_io.gd` |
-| 4 | mecha_controller.gd โหลด energy จาก GlobalData เมื่อ _ready | ✅ | ข้าม scene ได้ |
-| 5 | mecha_controller.gd บันทึก energy กลับ GlobalData เมื่อ _exit_tree | ✅ | ข้าม scene ได้ |
-| 6 | Board movement ดึงพลังงาน 2.0 ต่อก้าว | ✅ | `board_manager.gd` |
-| 7 | Energy regen ต่อวันบน board (+15.0) | ✅ | `_end_day()` |
-| 8 | Safehouse refuel (+30.0) | ✅ | `_process_tile_effect("safehouse")` |
-| 9 | Energy depletion → หุ่นเดินไม่ได้บน board | ✅ | FUEL EMERGENCY popup |
+| 4 | mecha_controller.gd โหลด/บันทึก energy จาก GlobalData | ✅ | `_ready()` + `_exit_tree()` |
+| 5 | Board movement ดึงพลังงาน + depletion check | ✅ | FUEL EMERGENCY popup |
+| 6 | Energy regen ต่อวัน + Safehouse refuel | ✅ | +25/day, +50 safehouse |
+| 7 | ปรับค่า Energy ให้ใช้ได้นานขึ้น | ✅ | ดูตารางด้านล่าง |
 
 ---
 
@@ -32,33 +30,27 @@
 | วันที่ | สิ่งที่ทำ | ไฟล์ที่แก้ | หมายเหตุ |
 |--------|-----------|------------|----------|
 | 2026-08-19 | ลบ dash_cooldown — เปลี่ยนเป็น pure energy-based dash | `mecha_controller.gd` | ลบ `dash_cooldown`, `dash_cooldown_timer` |
-| 2026-08-19 | เพิ่ม mech_energy state ใน GlobalData | `autoload/global_data.gd` | + `BOARD_ENERGY_COST_PER_STEP`, `BOARD_ENERGY_REGEN_PER_DAY`, `SAFEHOUSE_ENERGY_REGEN` |
-| 2026-08-19 | เพิ่ม energy ใน save/load | `scripts/systems/save_game_io.gd` | save + restore |
-| 2026-08-19 | mecha_controller โหลด/บันทึก energy จาก GlobalData | `scripts/mecha/mecha_controller.gd` | `_ready()` + `_exit_tree()` |
-| 2026-08-19 | Board movement ดึงพลังงาน + depletion check | `scripts/board/board_manager.gd` | FUEL EMERGENCY popup เมื่อ energy = 0 |
-| 2026-08-19 | Energy regen ต่อวัน + Safehouse refuel | `scripts/board/board_manager.gd` | +15/day, +30 at safehouse |
+| 2026-08-19 | เพิ่ม mech_energy state ใน GlobalData | `autoload/global_data.gd` | + constants |
+| 2026-08-19 | เพิ่ม energy ใน save/load | `save_game_io.gd` | save + restore |
+| 2026-08-19 | mecha_controller โหลด/บันทึก energy จาก GlobalData | `mecha_controller.gd` | `_ready()` + `_exit_tree()` |
+| 2026-08-19 | Board movement ดึงพลังงาน + depletion check | `board_manager.gd` | FUEL EMERGENCY popup |
+| 2026-08-19 | Energy regen ต่อวัน + Safehouse refuel | `board_manager.gd` | +25/day, +50 safehouse |
+| 2026-08-19 | ปรับค่า Energy ให้ใช้ได้นานขึ้น | `global_data.gd` + `mecha_controller.gd` | ทุกค่า |
 
 ---
 
-### Blockers / ปัญหา
+### ค่าคงที่ — หลังปรับ (Final)
 
-| ปัญหา | สถานะ | วิธีแก้ |
-|--------|--------|---------|
-| — | — | — |
-
----
-
-### ค่าคงที่ (Constants)
-
-| ค่า | ค่าเริ่ม | หมายเหตุ |
-|-----|---------|----------|
-| `mech_max_energy` | 100.0 | GlobalData |
-| `BOARD_ENERGY_COST_PER_STEP` | 2.0 | ดึงจาก GlobalData |
-| `BOARD_ENERGY_REGEN_PER_DAY` | 15.0 | ทุกครั้งที่ End Day |
-| `SAFEHOUSE_ENERGY_REGEN` | 30.0 | เมื่อเดินเข้า safehouse |
-| `DASH_ENERGY_COST` | 12.0 | ต่อ dash 1 ครั้ง (mecha_controller) |
-| `ROLLER_BASE_DRAIN` | 4.0/วินาที | ค้าง roller (mecha_controller) |
-| `ROLLER_RAMP_DRAIN` | 7.0/วินาที² | ramp ยิ่งกดนานยิ่งแรง |
+| ค่า | ค่าเดิม | ค่าใหม่ | ผลลัพธ์ |
+|-----|---------|---------|---------|
+| `mech_max_energy` | 100.0 | **200.0** | ถังใหญ่ขึ้น 2 เท่า |
+| `DASH_ENERGY_COST` | 12.0 | **6.0** | dash ได้ ~33 ครั้ง |
+| `ROLLER_BASE_DRAIN` | 4.0/วิ | **2.0/วิ** | roller ได้ ~100 วิ |
+| `ROLLER_RAMP_DRAIN` | 7.0/วิ² | **3.0/วิ²** | ramp ช้าลง 2 เท่า |
+| `ROLLER_MAX_DRAIN` | 40.0 | **20.0** | ceiling ลดลง |
+| `BOARD_ENERGY_COST_PER_STEP` | 2.0 | **1.0** | เดินได้ ~200 ก้าว |
+| `BOARD_ENERGY_REGEN_PER_DAY` | 15.0 | **25.0** | regen เร็วขึ้น |
+| `SAFEHOUSE_ENERGY_REGEN` | 30.0 | **50.0** | เติมเร็วขึ้น |
 
 ---
 

@@ -46,13 +46,13 @@ var dash_direction: Vector3 = Vector3.ZERO
 # every dash costs a chunk of energy and sustained roller dashing drains the
 # pool at an ever-increasing rate — so spamming dashes or holding the roller
 # burns through it fast. Releasing the throttle lets the pool recharge.
-var max_energy: float = 100.0
-var energy: float = 100.0
-const DASH_ENERGY_COST := 12.0        # energy per dash burst
+var max_energy: float = 200.0
+var energy: float = 200.0
+const DASH_ENERGY_COST := 6.0         # energy per dash burst (cheap =鼓励 precise dashes)
 const ENERGY_REGEN_RATE := 10.0       # per second while not boosting
-const ROLLER_BASE_DRAIN := 4.0        # per second the roller is held
-const ROLLER_RAMP_DRAIN := 7.0        # extra per second per second of continuous roller use
-const ROLLER_MAX_DRAIN := 40.0        # ceiling so a full tank lasts ~2.5s at max burn
+const ROLLER_BASE_DRAIN := 2.0        # per second the roller is held (gentle)
+const ROLLER_RAMP_DRAIN := 3.0        # extra per second per second of continuous roller use
+const ROLLER_MAX_DRAIN := 20.0        # ceiling so a full tank lasts ~10s at max burn
 var roller_drain_ramp: float = 0.0    # grows while the roller is held, resets on release
 # Recoil kick applied by heavy weapons (see apply_recoil_impulse). Decays over
 # a short window so the mech staggers backwards instead of teleporting.

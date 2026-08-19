@@ -37,6 +37,8 @@
 | 24 | Distress Signal tile + choice event | ✅ | `board_tile.gd`, `board_manager.gd`, `theme_system.gd`, `run_events.tres` |
 | 25 | Scavenge Site tile + choice event + drone ambush | ✅ | `board_tile.gd`, `board_manager.gd`, `theme_system.gd`, `run_events.tres` |
 | 26 | Distress + Scavenge in board generator | ✅ | `board_generator.gd` |
+| 27 | Precision Dash — near-miss detection + energy refund | ✅ | `mecha_controller.gd` |
+| 28 | Precision Dash HUD indicator | ✅ | `core_hud.gd` |
 
 ---
 
@@ -59,7 +61,7 @@
 
 | รายการ | หมายเหตุ |
 |--------|----------|
-| ❌ Precision Dash — หลบถูกจังหวะคืนพลังงาน | Combat Layer §3.2 |
+
 | ❌ Mid-Battle Injections — Reinforcements + Countdown Extraction | Dynamic Event System §7.3 |
 | ❌ Convoy Escort & Defense Events | Dynamic Event System §7.4 |
 | ❌ Narrative Design — Bond, Sacrifice Event, Grand Entry | GDD §5 |

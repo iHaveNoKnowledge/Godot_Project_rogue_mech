@@ -86,6 +86,12 @@
   * *Precision Dash:* หลบถูกจังหวะ = ประหยัดพลังงาน
   * *Spam Dash:* กดรัวด้วยความตกใจ = เผาพลังงานถังใหญ่ หมดหลอดแล้วส่งผลกระทบย้อนกลับไปบนบอร์ดเกม
 
+> 📌 **Current Implementation Status:**
+> - [x] Bipedal Movement Logic
+> - [x] Roller Dash Mechanics
+> - [x] Integration with Global Energy Pool
+> - [x] Precision Dash: near-miss detection + energy refund + HUD indicator
+
 ---
 
 ## 🦾 4. Maintenance & Wear Architecture (ระบบความสึกหรอ)

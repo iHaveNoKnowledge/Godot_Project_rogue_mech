@@ -62,11 +62,18 @@ var _dt_fuel_label: Label = null
 var _dt_purge_label: Label = null
 var _dt_purge_flash_tween: Tween = null
 
+# Precision Dash HUD indicator (GDD §3.2): flashes "PRECISION!" text when the
+# player dodges an attack at the last moment during a dash.
+var _precision_label: Label = null
+var _precision_flash_tween: Tween = null
+var _precision_was_dodged: bool = false
+
 
 func _ready() -> void:
 	_create_hit_flash()
 	_create_energy_row()
 	_create_drop_tank_row()
+	_create_precision_row()
 	EventBus.damage_received.connect(_on_player_damaged)
 	# Two frames so the container layout resolves bar/label minimum sizes.
 	await get_tree().process_frame
@@ -153,6 +160,7 @@ func _process(_delta: float) -> void:
 			return
 	_update_energy_bar()
 	_update_drop_tank_indicator()
+	_update_precision_indicator()
 
 
 func _update_energy_bar() -> void:
@@ -362,3 +370,51 @@ func _start_purge_flash() -> void:
 	_dt_purge_flash_tween = create_tween().set_loops()
 	_dt_purge_flash_tween.tween_property(_dt_purge_label, "modulate:a", 0.15, 0.25)
 	_dt_purge_flash_tween.tween_property(_dt_purge_label, "modulate:a", 1.0, 0.25)
+
+
+# --- Precision Dash HUD (GDD §3.2) ------------------------------------------
+# Shows a green "PRECISION!" flash when the player dodges an attack at the
+# last moment during a dash, confirming the energy refund.
+func _create_precision_row() -> void:
+	_precision_label = Label.new()
+	_precision_label.text = ""
+	_precision_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_precision_label.custom_minimum_size = Vector2(120, 12)
+	_precision_label.visible = false
+	_precision_label.add_theme_font_size_override("font_size", 11)
+	_precision_label.add_theme_color_override("font_color", Color(0.3, 1.0, 0.5))
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.1, 0.12, 0.18, 0.9)
+	style.corner_radius_top_left = 4
+	style.corner_radius_top_right = 4
+	style.corner_radius_bottom_left = 4
+	style.corner_radius_bottom_right = 4
+	style.content_margin_left = 6
+	style.content_margin_right = 6
+	style.content_margin_top = 2
+	style.content_margin_bottom = 2
+	_precision_label.add_theme_stylebox_override("normal", style)
+	# Insert after the energy row (index 1 in the VBox).
+	var vbox = panel.get_child(0) if panel.get_child_count() > 0 else null
+	if vbox and vbox is VBoxContainer:
+		vbox.add_child(_precision_label)
+
+
+func _update_precision_indicator() -> void:
+	if _precision_label == null or _player_mecha == null:
+		return
+	if not is_instance_valid(_player_mecha):
+		return
+	var dodged: bool = _player_mecha.get("_precision_dodged", false)
+	if dodged and not _precision_was_dodged:
+		# Just triggered — flash the indicator.
+		_precision_label.text = "+4 PRECISION!"
+		_precision_label.visible = true
+		_precision_label.modulate.a = 1.0
+		if _precision_flash_tween and _precision_flash_tween.is_valid():
+			_precision_flash_tween.kill()
+		_precision_flash_tween = create_tween()
+		_precision_flash_tween.tween_interval(0.8)
+		_precision_flash_tween.tween_property(_precision_label, "modulate:a", 0.0, 0.3)
+		_precision_flash_tween.tween_callback(func(): _precision_label.visible = false)
+	_precision_was_dodged = dodged

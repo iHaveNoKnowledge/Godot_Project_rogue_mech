@@ -50,6 +50,20 @@ var max_energy: float = 200.0
 var energy: float = 200.0
 const DASH_ENERGY_COST := 6.0         # energy per dash burst (cheap =鼓励 precise dashes)
 const ENERGY_REGEN_RATE := 10.0       # per second while not boosting
+# --- Precision Dash (GDD §3.2) ---------------------------------------------
+# Dashing at the right moment — just before an enemy attack lands — refunds
+# energy and plays a visual/audio cue. The window is short: 0.4s after dash
+# start, the system scans for enemy projectiles within 2.0 m of the dash start
+# position (meaning the attack would have hit if the player hadn't moved).
+var _dash_start_pos: Vector3 = Vector3.ZERO
+var _precision_window: float = 0.0    # counts down from PRECISION_WINDOW after dash start
+var _precision_armed: bool = false    # true while scanning for near-misses
+var _precision_dodged: bool = false   # true if a precision dodge was detected this dash
+var _precision_cooldown: float = 0.0  # prevents double-triggering on the same attack
+const PRECISION_WINDOW := 0.4         # seconds after dash start to detect near-misses
+const PRECISION_NEAR_MISS_DIST := 2.5 # meters: how close a projectile must pass to dash start
+const PRECISION_ENERGY_REFUND := 4.0  # energy refunded on a precision dodge (net gain = refund - cost)
+const PRECISION_COOLDOWN := 0.5       # seconds between precision dodge triggers
 const ROLLER_BASE_DRAIN := 2.0        # per second the roller is held (gentle)
 const ROLLER_RAMP_DRAIN := 3.0        # extra per second per second of continuous roller use
 const ROLLER_MAX_DRAIN := 20.0        # ceiling so a full tank lasts ~10s at max burn
@@ -227,6 +241,17 @@ func _physics_process(delta: float) -> void:
 		_handle_movement_input()
 		_apply_movement(delta)
 
+	# Precision Dash detection: during the window after dash start, scan for
+	# enemy projectiles that pass near the dash start position (near-miss).
+	if _precision_armed and not _precision_dodged:
+		_precision_window -= delta
+		if _precision_window <= 0.0:
+			_precision_armed = false
+		else:
+			_check_precision_dash_near_miss()
+	if _precision_cooldown > 0.0:
+		_precision_cooldown -= delta
+
 	var currently_on_floor = is_on_floor()
 	if currently_on_floor and was_in_air:
 		_trigger_landing_impact()
@@ -375,6 +400,63 @@ func _process_energy(delta: float) -> void:
 		# Engine dirt slows energy regen — dirty fuel burns less efficiently.
 		var dirt_penalty := lerpf(1.0, 1.0 / GlobalData.ENGINE_DIRT_HEAT_MULTIPLIER, GlobalData.engine_dirt)
 		energy = minf(energy + ENERGY_REGEN_RATE * dirt_penalty * delta, max_energy)
+
+
+# --- Precision Dash Detection (GDD §3.2) ------------------------------------
+# Scans for enemy projectiles that pass within PRECISION_NEAR_MISS_DIST of the
+# dash start position. If found, the player dodged an attack at the last moment
+# and is rewarded with an energy refund + visual feedback.
+func _check_precision_dash_near_miss() -> void:
+	if _precision_cooldown > 0.0:
+		return
+	var projectiles = get_tree().get_nodes_in_group("projectile")
+	for proj in projectiles:
+		if not is_instance_valid(proj):
+			continue
+		# Only enemy projectiles count for precision dodge.
+		if not proj.get("fired_by_enemy", false):
+			continue
+		var dist := proj.global_position.distance_to(_dash_start_pos)
+		if dist < PRECISION_NEAR_MISS_DIST:
+			_precision_dodged = true
+			_precision_armed = false
+			_precision_cooldown = PRECISION_COOLDOWN
+			_trigger_precision_dodge(proj.global_position)
+			return
+
+
+func _trigger_precision_dodge(hit_pos: Vector3) -> void:
+	# Refund energy — the dash cost 6.0, refund 4.0 = net cost only 2.0.
+	energy = minf(energy + PRECISION_ENERGY_REFUND, max_energy)
+	# Visual feedback: green flash + energy surge particles.
+	_spawn_precision_flash(hit_pos)
+	# Audio cue.
+	if AudioManager:
+		AudioManager.play_mecha_actuator(global_position)
+
+
+func _spawn_precision_flash(from_pos: Vector3) -> void:
+	# Green energy flash at the near-miss position.
+	var flash = MeshInstance3D.new()
+	var sphere = SphereMesh.new()
+	sphere.radius = 0.5
+	flash.mesh = sphere
+	var mat = StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(0.3, 1.0, 0.5, 0.8)
+	mat.emission_enabled = true
+	mat.emission = Color(0.3, 1.0, 0.5)
+	mat.emission_energy_multiplier = 5.0
+	mat.no_depth_test = true
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	flash.material_override = mat
+	get_tree().current_scene.add_child(flash)
+	flash.global_position = from_pos
+	var tween = get_tree().create_tween()
+	tween.tween_property(mat, "albedo_color:a", 0.0, 0.15)
+	tween.parallel().tween_property(mat, "emission_energy_multiplier", 0.0, 0.15)
+	tween.parallel().tween_property(flash, "scale", Vector3(2.0, 2.0, 2.0), 0.15)
+	tween.tween_callback(flash.queue_free)
 
 
 # --- External Drop Tank Processing (GDD §2.4) --------------------------------
@@ -713,6 +795,11 @@ func _start_dash() -> void:
 	is_dashing = true
 	dash_timer = dash_duration
 	energy = maxf(energy - DASH_ENERGY_COST, 0.0)
+	# Arm Precision Dash: record start position and open the detection window.
+	_dash_start_pos = global_position
+	_precision_window = PRECISION_WINDOW
+	_precision_armed = true
+	_precision_dodged = false
 
 	_spawn_dash_effect()
 	if AudioManager:

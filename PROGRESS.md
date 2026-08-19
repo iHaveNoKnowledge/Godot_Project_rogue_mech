@@ -40,7 +40,7 @@
 | `DROP_TANK_HP_PER_TANK` | **30.0** | ถังละ 30 HP ก่อนระเบิด |
 | `DROP_TANK_DET_DELAY` | **1.5** | 1.5 วินาทีก่อนระเบิด |
 | `DROP_TANK_PURGE_DAMAGE` | **15.0** | ระเบิดทำ DMG ตัวเอง 15 |
-| `DROP_TANK_COST_CREDITS` | **80** | ราคาถังละ 80 credits |
+| `DROP_TANK_COST_CREDITS` | **80** | ราคาซื้อถังละ 80 credits |
 | `FUEL_DEPOT_PRECISE_BONUS` | **80.0** | ชนะ depot precise = +80 fuel |
 | `FUEL_DEPOT_HEAVY_BONUS` | **40.0** | ชนะ depot heavy = +40 fuel |
 | `ENGINE_DIRT_PER_SIPHON` | **0.25** | dirt +0.25 ต่อ siphon |

@@ -51,7 +51,8 @@
 
 | รายการ | หมายเหตุ |
 |--------|----------|
-| ❌ Precision Dash — หลบถูกจังหวะคืนพลังงาน | gameplay depth |
+| ❌ Environmental Hazards — Dust Storm, Tactical Smog, EMP & Jamming Zone | Dynamic Event System §7.1 |
+| ❌ Strategic Dilemmas — Distress Signals, Scavenge Risk | Dynamic Event System §7.2 |
 | ❌ Environmental Hazards (Dust Storm, EMP, Tactical Smog) | Dynamic Event System §7.1 |
 
 ---
@@ -60,7 +61,7 @@
 
 | hash | ข้อความ |
 |------|---------|
-| `671c63b` | docs: update PROGRESS.md — 18 items complete |
+| `d370c5e` | docs: update PROGRESS.md — 18 items complete |
 | `79c8781` | feat(research): add completion notification popup |
 | `df4f2ff` | feat(research): add 6 new blueprint projects |
 | `0752fa6` | feat(research): add Research Lab tile + UI |

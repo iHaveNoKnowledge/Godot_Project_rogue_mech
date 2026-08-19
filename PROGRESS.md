@@ -24,6 +24,7 @@
 | 11 | Drop Tank HUD indicator — HP bar + fuel + purge warning | ✅ | `core_hud.gd` |
 | 12 | Body damage intercept — 30% absorbed by drop tanks | ✅ | `mecha_health_base.gd` |
 | 13 | Pilot Siphon Protocol — wreckage tile + siphon + re-ignition reboot | ✅ | `global_data.gd`, `board_manager.gd`, `board_tile.gd`, `mecha_health_base.gd`, `theme_system.gd`, `save_game_io.gd` |
+| 14 | Fuel depot choice popup — Precise vs Heavy approach | ✅ | `global_data.gd`, `board_manager.gd`, `theme_system.gd`, `GDD.md` |
 
 ---
 
@@ -38,7 +39,8 @@
 | `DROP_TANK_HP_PER_TANK` | **30.0** | ถังละ 30 HP ก่อนระเบิด |
 | `DROP_TANK_DET_DELAY` | **1.5** | 1.5 วินาทีก่อนระเบิด |
 | `DROP_TANK_PURGE_DAMAGE` | **15.0** | ระเบิดทำ DMG ตัวเอง 15 |
-| `FUEL_DEPOT_BONUS` | **80.0** | ชนะ depot = +80 fuel |
+| `FUEL_DEPOT_PRECISE_BONUS` | **80.0** | Precise = fuel เต็ม |
+| `FUEL_DEPOT_HEAVY_BONUS` | **40.0** | Heavy = fuel ครึ่ง |
 | `ENGINE_DIRT_PER_SIPHON` | **0.25** | dirt +0.25 ต่อ siphon |
 | `ENGINE_DIRT_CLEANUP_PER_DAY` | **0.1** | clean 0.1/วัน |
 | `ENGINE_DIRT_HEAT_MULTIPLIER` | **1.5** | heat rate x1.5 ที่ max dirt |
@@ -66,6 +68,7 @@
 | 2026-08-19 | Drop Tank 3D visual model + body damage intercept | `drop_tank_visuals.gd`, `mecha_base.tscn`, `mecha_health_base.gd`, `mecha_controller.gd` |
 | 2026-08-19 | Drop Tank HUD indicator (HP + fuel + purge warning) | `core_hud.gd` |
 | 2026-08-19 | Pilot Siphon Protocol — wreckage tile + siphon + re-ignition | `global_data.gd`, `board_manager.gd`, `board_tile.gd`, `mecha_health_base.gd`, `theme_system.gd`, `save_game_io.gd` |
+| 2026-08-19 | Fuel depot choice popup — Precise vs Heavy approach | `global_data.gd`, `board_manager.gd`, `theme_system.gd`, `GDD.md` |
 
 ---
 
@@ -73,7 +76,6 @@
 
 | รายการ | หมายเหตุ |
 |--------|----------|
-| ~~❌ Fuel depot choice popup~~ | ✅ ทำแล้ว (Precise vs Heavy approach + reward) |
 | ❌ Precision Dash — หลบถูกจังหวะคืนพลังงาน | gameplay depth |
 | ❌ Phase 4: Research & Blueprint | feature ใหญ่ถัดไป |
 
@@ -83,6 +85,7 @@
 
 | hash | ข้อความ |
 |------|---------|
+| `ffb05cb` | feat(depot): add fuel depot choice popup — precise vs heavy approach |
 | `61f0bed` | feat(siphon): implement Pilot Siphon Protocol — wreckage + re-ignition |
 | `a3fe044` | feat(drop_tanks): add HUD indicator for drop tank HP, fuel, and purge warning |
 | `eb8687c` | feat(drop_tanks): add 3D visual model for external fuel canisters |

@@ -60,7 +60,7 @@
 
 | hash | ข้อความ |
 |------|---------|
-| `1c5c30e` | docs: update PROGRESS.md — 18 items complete |
+| `f5714fd` | docs: update PROGRESS.md — 18 items complete |
 | `79c8781` | feat(research): add completion notification popup |
 | `df4f2ff` | feat(research): add 6 new blueprint projects |
 | `0752fa6` | feat(research): add Research Lab tile + UI |

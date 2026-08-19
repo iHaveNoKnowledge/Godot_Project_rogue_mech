@@ -119,7 +119,7 @@ func _on_tile_entered(_tile_pos: Vector2i, _tile_data: Node) -> void:
 
 
 func _on_board_day_ended() -> void:
-	tick_research(1)
+	_notify_research_completions(tick_research(1))
 	RecruitSystem.tick_recovery()
 
 
@@ -159,7 +159,7 @@ func _on_combat_ended(victory: bool) -> void:
 	on_combat_ended_for_tech(victory)
 	if victory:
 		sync_equipped_armor_durability()
-		tick_research(2)
+		_notify_research_completions(tick_research(2))
 
 
 func _on_friendly_damage_received(raw_damage: float) -> void:
@@ -1403,6 +1403,24 @@ func tick_research(points: int) -> Array:
 
 func _apply_research_reward(project_id: String) -> void:
 	FleetSystem._apply_research_reward(project_id)
+
+
+# Emits EventBus notifications for each newly completed research project.
+func _notify_research_completions(completed_ids: Array) -> void:
+	for pid in completed_ids:
+		var project := get_research_project(pid)
+		if project.is_empty():
+			continue
+		var pname: String = str(project.get("name", pid))
+		var reward_name: String = str(project.get("reward_name", project.get("reward_id", "")))
+		var reward_type: String = str(project.get("reward_type", ""))
+		EventBus.event_triggered.emit({
+			"name": "RESEARCH COMPLETE",
+			"effect": "none",
+			"amount": 0,
+			"desc": "%s finished! Unlocked: %s (%s)." % [pname, reward_name, reward_type.capitalize()],
+		})
+
 
 # -----------------------------------------------------------------------------
 # RUN THEME HELPERS — logic lives in ThemeSystem; GlobalData keeps thin facades.

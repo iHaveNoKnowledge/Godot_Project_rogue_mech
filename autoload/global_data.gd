@@ -1153,6 +1153,18 @@ const ENGINE_DIRT_PER_SIPHON: float = 0.25      # dirt gained per siphon
 const ENGINE_DIRT_CLEANUP_PER_DAY: float = 0.1  # natural cleanup per day
 const ENGINE_DIRT_HEAT_MULTIPLIER: float = 1.5  # heat rate at max dirt
 
+# Pilot Siphon Protocol (GDD §2.4 / §2.2)
+# When the mech is destroyed, a wreckage tile is placed on the board where
+# it fell. The pilot (on foot) can walk to the wreckage to siphon dirty fuel
+# from the enemy wreckage and bring it back for a re-ignition reboot.
+var wreckage_tile_pos: Vector2i = Vector2i(-1, -1)  # position of the wreckage
+var wreckage_fuel_remaining: float = 80.0           # fuel left in the wreckage
+var siphoned_fuel: float = 0.0                      # fuel carried by pilot on-foot
+const WRECKAGE_SIPHON_AMOUNT: float = 30.0          # fuel siphoned per visit
+const WRECKAGE_MAX_SIPHONS: int = 3                  # max siphons before empty
+const REIGNITION_FUEL_COST: float = 60.0             # fuel needed to reboot
+const REIGNITION_ENGINE_DIRT_COST: float = 0.15      # extra dirt from rebooting
+
 
 # --- Currency API ---
 # All external code should mutate currency through these helpers so spending
@@ -1797,6 +1809,9 @@ func reset_run_data() -> void:
 	pilot_siphoning = false
 	pilot_siphoned_fuel = 0.0
 	engine_dirt = 0.0
+	wreckage_tile_pos = Vector2i(-1, -1)
+	wreckage_fuel_remaining = 80.0
+	siphoned_fuel = 0.0
 
 	hangar_mechs.clear()
 	active_hangar_mech_id = ""

@@ -75,6 +75,9 @@ static func save_run() -> void:
 		"drop_tanks_attached": GlobalData.drop_tanks_attached,
 		"drop_tank_fuel": GlobalData.drop_tank_fuel,
 		"engine_dirt": GlobalData.engine_dirt,
+		"wreckage_tile_pos": {"x": GlobalData.wreckage_tile_pos.x, "y": GlobalData.wreckage_tile_pos.y},
+		"wreckage_fuel_remaining": GlobalData.wreckage_fuel_remaining,
+		"siphoned_fuel": GlobalData.siphoned_fuel,
 		"driver_repair_skill": GlobalData.driver_repair_skill,
 		"driver_repair_xp": GlobalData.driver_repair_xp,
 		"scrap_patches": GlobalData.scrap_patches.duplicate(true),
@@ -185,6 +188,10 @@ static func restore_from_dict(data: Dictionary) -> void:
 	GlobalData.drop_tanks_attached = int(data.get("drop_tanks_attached", 0))
 	GlobalData.drop_tank_fuel = float(data.get("drop_tank_fuel", 0.0))
 	GlobalData.engine_dirt = float(data.get("engine_dirt", 0.0))
+	var wreck_pos = data.get("wreckage_tile_pos", {})
+	GlobalData.wreckage_tile_pos = Vector2i(int(wreck_pos.get("x", -1)), int(wreck_pos.get("y", -1)))
+	GlobalData.wreckage_fuel_remaining = float(data.get("wreckage_fuel_remaining", 80.0))
+	GlobalData.siphoned_fuel = float(data.get("siphoned_fuel", 0.0))
 	GlobalData.driver_repair_skill = int(data.get("driver_repair_skill", 1))
 	GlobalData.driver_repair_xp = int(data.get("driver_repair_xp", 0))
 	var loaded_patches = data.get("scrap_patches", {})

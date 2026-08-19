@@ -23,6 +23,7 @@
 | 10 | Drop Tank 3D visual model — procedural cylinders on backpack | ✅ | `drop_tank_visuals.gd`, `mecha_base.tscn` |
 | 11 | Drop Tank HUD indicator — HP bar + fuel + purge warning | ✅ | `core_hud.gd` |
 | 12 | Body damage intercept — 30% absorbed by drop tanks | ✅ | `mecha_health_base.gd` |
+| 13 | Pilot Siphon Protocol — wreckage tile + siphon + re-ignition reboot | ✅ | `global_data.gd`, `board_manager.gd`, `board_tile.gd`, `mecha_health_base.gd`, `theme_system.gd`, `save_game_io.gd` |
 
 ---
 
@@ -67,7 +68,7 @@
 
 | รายการ | หมายเหตุ |
 |--------|----------|
-| ❌ Pilot Siphon Protocol — นักบินเดินเท้าสูบเชื้อเพลิงจากซากศัตรู | ต่อจาก mech_death flow |
+| ~~❌ Pilot Siphon Protocol~~ | ✅ ทำแล้ว (wreckage + siphon + re-ignition) |
 | ❌ Fuel depot choice popup — เลือกอาวุธก่อนบุก (precise vs heavy) | gameplay depth |
 | ❌ Precision Dash — หลบถูกจังหวะคืนพลังงาน | gameplay depth |
 | ❌ Phase 4: Research & Blueprint | feature ใหญ่ถัดไป |
@@ -85,3 +86,9 @@
 ---
 
 *Last updated: 2026-08-19*
+
+### Commits (Session 2026-08-19) — Update
+
+| hash | ข้อความ |
+|------|---------|
+| (pending) | feat(siphon): implement Pilot Siphon Protocol — wreckage + re-ignition |

@@ -59,8 +59,10 @@
 > - [x] Board-Level: Fuel Depot Seizure tile + Convoy Supply Transfer tile
 > - [x] Time Trade-off: refuel = end day + alert++
 > - [x] External Drop Tanks: bolt-on fuel + vulnerable + purge + detonation
+> - [x] External Drop Tank 3D visual model + HUD indicator + body damage intercept
 > - [x] Engine Dirt Penalty: impure fuel slows energy regen
 > - [x] Convoy fuel reserve: replenishes overnight
+> - [x] Pilot Siphon Protocol: wreckage tile + siphon + re-ignition reboot
 
 ---
 
@@ -75,7 +77,7 @@
 > 📌 **Current Implementation Status:**
 > - [x] Bipedal Movement Logic
 > - [x] Roller Dash Mechanics
-> - [ ] Integration with Global Energy Pool (กำลังทำ/รอ Merge)
+> - [x] Integration with Global Energy Pool
 
 ### 3.2 Energy & Skill-Based System
 * **No Cooldown & No Stamina:** ไม่มี Cooldown ในการ Dash ผู้เล่นสามารถกดหลบหลีกได้อิสระตาม Reflex

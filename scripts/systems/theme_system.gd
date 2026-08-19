@@ -198,6 +198,12 @@ static func apply_event_effect(event: Dictionary) -> bool:
 		"choice":
 			# Choices are resolved by the event UI; nothing to apply here.
 			pass
+		"reignition":
+			# Pilot Siphon Protocol: reboot the mech using siphoned fuel.
+			BoardManager._do_reignition()
+		"siphon_more":
+			# Pilot Siphon Protocol: siphon more fuel from wreckage.
+			BoardManager._trigger_wreckage_siphon()
 		_:
 			push_warning("apply_event_effect: unknown effect '%s'" % effect)
 	return false

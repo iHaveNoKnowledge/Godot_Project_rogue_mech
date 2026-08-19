@@ -56,6 +56,8 @@ func _ready() -> void:
 	# reloads (returning from a battle must not erase it).
 	_restore_enemy_base_tile()
 	_refresh_enemy_base_model()
+	# Restore wreckage tile from a previous mech destruction.
+	_restore_wreckage_tile()
 
 	if GlobalData.consume_pending_escalation_event():
 		EventBus.event_triggered.emit(_build_tech_copy_event())
@@ -644,6 +646,10 @@ func _process_tile_effect(tile_type: String) -> void:
 			# Friendly convoy supply transfer: transfer fuel from the truck to the
 			# mech. Costs 1 full day turn and raises enemy alert level.
 			_trigger_convoy_supply_transfer()
+		"wreckage":
+			# Pilot Siphon Protocol: the pilot walks to wreckage to siphon dirty
+			# fuel for a re-ignition reboot.
+			_trigger_wreckage_siphon()
 		"city":
 			var city = get_node_or_null("CityShopUI")
 			if city:
@@ -1049,6 +1055,25 @@ func _refresh_enemy_base_model() -> void:
 
 
 # ---------------------------------------------------------------------------
+# WRECKAGE TILE RESTORE — a wreckage tile persists across board reloads so
+# the pilot can return for fuel after a mech destruction.
+# ---------------------------------------------------------------------------
+
+func _restore_wreckage_tile() -> void:
+	var pos := GlobalData.wreckage_tile_pos
+	if pos == Vector2i(-1, -1) or not nodes_dict.has(pos):
+		return
+	if GlobalData.wreckage_fuel_remaining <= 0.0:
+		GlobalData.wreckage_tile_pos = Vector2i(-1, -1)
+		return
+	var tile = nodes_dict[pos]
+	tile.set_meta("tile_type", "wreckage")
+	tile.reveal()
+	if tile.has_method("_update_visual"):
+		tile._update_visual()
+
+
+# ---------------------------------------------------------------------------
 # FUEL DEPOT SEIZURE (GDD §2.4)
 # A fuel_depot tile triggers a combat encounter where the player must avoid
 # destroying the fuel tanks with heavy weapons. Victory grants fuel bonus.
@@ -1112,3 +1137,112 @@ func _trigger_convoy_supply_transfer() -> void:
 	})
 	# End the day as the time trade-off.
 	_end_day()
+
+
+# ---------------------------------------------------------------------------
+# PILOT SIPHON PROTOCOL (GDD §2.4 / §2.2)
+# When the mech is destroyed, a wreckage tile is placed on the board where
+# it fell. The pilot (on foot) can walk to the wreckage to siphon dirty fuel
+# from the enemy wreckage and bring it back for a re-ignition reboot.
+# ---------------------------------------------------------------------------
+
+# Called by the health system when the player's mech is destroyed. Places a
+# wreckage tile at the combat position so the pilot can return for fuel.
+func place_wreckage_tile(pos: Vector2i) -> void:
+	GlobalData.wreckage_tile_pos = pos
+	GlobalData.wreckage_fuel_remaining = 80.0
+	if not nodes_dict.has(pos):
+		return
+	var tile = nodes_dict[pos]
+	tile.set_meta("tile_type", "wreckage")
+	tile.reveal()
+	if tile.has_method("_update_visual"):
+		tile._update_visual()
+
+
+# Pilot reaches the wreckage and siphons dirty fuel from the wreck.
+func _trigger_wreckage_siphon() -> void:
+	if not GlobalData.mech_less:
+		EventBus.event_triggered.emit({
+			"name": "WRECKAGE",
+			"effect": "none",
+			"amount": 0,
+			"desc": "Your destroyed mech's wreckage. The fuel tanks are ruptured but some dirty fuel remains.",
+		})
+		return
+	if GlobalData.wreckage_fuel_remaining <= 0.0:
+		EventBus.event_triggered.emit({
+			"name": "WRECKAGE — DEPLETED",
+			"effect": "none",
+			"amount": 0,
+			"desc": "The wreckage has been stripped clean. No more fuel to siphon.",
+		})
+		return
+	var amount := minf(GlobalData.WRECKAGE_SIPHON_AMOUNT, GlobalData.wreckage_fuel_remaining)
+	GlobalData.wreckage_fuel_remaining -= amount
+	GlobalData.siphoned_fuel += amount
+	# Engine dirt: siphoning dirty fuel contaminates the fuel system.
+	GlobalData.engine_dirt = minf(GlobalData.engine_dirt + GlobalData.ENGINE_DIRT_PER_SIPHON, 1.0)
+	var choices: Array = []
+	if GlobalData.siphoned_fuel >= GlobalData.REIGNITION_FUEL_COST:
+		choices.append({
+			"label": "Re-ignition (%.0f fuel)" % GlobalData.REIGNITION_FUEL_COST,
+			"desc": "Burn the siphoned fuel to reboot the mech. Extra dirt from impure fuel.",
+			"effect": "reignition",
+			"amount": int(GlobalData.REIGNITION_FUEL_COST),
+		})
+	if GlobalData.wreckage_fuel_remaining > 0.0:
+		choices.append({
+			"label": "Siphon more (%.0f left)" % GlobalData.wreckage_fuel_remaining,
+			"desc": "Keep extracting fuel from the wreck. Each visit adds more engine dirt.",
+			"effect": "siphon_more",
+			"amount": 0,
+		})
+	choices.append({
+		"label": "Leave",
+		"desc": "Leave the wreckage and continue on foot.",
+		"effect": "none",
+		"amount": 0,
+	})
+	EventBus.event_triggered.emit({
+		"name": "PILOT SIPHON PROTOCOL",
+		"effect": "choice",
+		"amount": 0,
+		"desc": "Dirty fuel siphoned: +%.0f (total: %.0f / %.0f needed). Engine dirt: %d%%." % [
+			amount, GlobalData.siphoned_fuel, GlobalData.REIGNITION_FUEL_COST,
+			int(GlobalData.engine_dirt * 100)
+		],
+		"params": {"choices": choices},
+	})
+
+
+# Re-ignition: reboot the mech using siphoned fuel. Costs extra engine dirt.
+func _do_reignition() -> void:
+	if GlobalData.siphoned_fuel < GlobalData.REIGNITION_FUEL_COST:
+		return
+	GlobalData.siphoned_fuel -= GlobalData.REIGNITION_FUEL_COST
+	GlobalData.engine_dirt = minf(GlobalData.engine_dirt + GlobalData.REIGNITION_ENGINE_DIRT_COST, 1.0)
+	# Restore the mech: grant a recovery chassis via the hangar system.
+	GlobalData.grant_recovery_hangar_mech()
+	GlobalData.mech_energy = minf(GlobalData.mech_max_energy * 0.4, GlobalData.mech_max_energy)
+	# Clear wreckage if depleted.
+	if GlobalData.wreckage_fuel_remaining <= 0.0:
+		_clear_wreckage_tile()
+	EventBus.event_triggered.emit({
+		"name": "RE-IGNITION COMPLETE",
+		"effect": "none",
+		"amount": 0,
+		"desc": "The engine coughs to life on dirty fuel. The mech is operational again at 40%% capacity. Extra engine dirt: %d%%." % int(GlobalData.engine_dirt * 100),
+	})
+
+
+# Clear the wreckage tile from the board after all fuel is siphoned.
+func _clear_wreckage_tile() -> void:
+	var pos := GlobalData.wreckage_tile_pos
+	GlobalData.wreckage_tile_pos = Vector2i(-1, -1)
+	if pos == Vector2i(-1, -1) or not nodes_dict.has(pos):
+		return
+	var tile = nodes_dict[pos]
+	tile.set_meta("tile_type", "empty")
+	if tile.has_method("_update_visual"):
+		tile._update_visual()

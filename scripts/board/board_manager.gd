@@ -650,6 +650,12 @@ func _process_tile_effect(tile_type: String) -> void:
 			# Pilot Siphon Protocol: the pilot walks to wreckage to siphon dirty
 			# fuel for a re-ignition reboot.
 			_trigger_wreckage_siphon()
+		"research_lab":
+			# Research Lab: browse and start research projects using data cores.
+			var lab = get_node_or_null("ResearchLabUI")
+			if lab:
+				lab.visible = true
+				get_tree().paused = true
 		"city":
 			var city = get_node_or_null("CityShopUI")
 			if city:
@@ -723,7 +729,7 @@ func _roll_chokepoint_ambush(tile: Node) -> bool:
 	if GlobalData.ceasefire_turns > 0:
 		return false
 	var ttype := str(tile.get_meta("tile_type", "empty"))
-	if ttype in ["start", "exit", "safehouse", "city", "enemy_base", "bait"]:
+	if ttype in ["start", "exit", "safehouse", "city", "enemy_base", "bait", "research_lab"]:
 		return false
 	var chance := 0.14 + float(GlobalData.patrol_alert) * 0.04 \
 			+ minf(GlobalData.wanted_level, 5) * 0.03

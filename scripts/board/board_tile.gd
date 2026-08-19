@@ -19,7 +19,7 @@ func _ready() -> void:
 	terrain = get_meta("terrain", "plain")
 	connections = get_meta("connections", [])
 
-	if tile_type in ["start", "exit", "safehouse", "data_node", "enemy_base", "city", "bait", "fuel_depot", "supply_truck", "wreckage"]:
+	if tile_type in ["start", "exit", "safehouse", "data_node", "enemy_base", "city", "bait", "fuel_depot", "supply_truck", "wreckage", "research_lab"]:
 		is_revealed = true
 	_add_terrain_props()
 	# Event / data-node tiles are marked by a glowing 3D beacon (a transparent
@@ -71,6 +71,8 @@ func _update_visual() -> void:
 				color = Color(0.3, 0.75, 0.85) # Teal Supply Truck
 			"wreckage":
 				color = Color(0.55, 0.25, 0.15) # Burnt Orange Wreckage
+			"research_lab":
+				color = Color(0.3, 0.45, 0.9) # Blue Research Lab
 	else:
 		color = color.darkened(0.35)
 		color.a = 0.9

@@ -232,6 +232,8 @@ func _roll_content(rng: RandomNumberGenerator) -> String:
 		return "fuel_depot"
 	elif roll < 0.58:
 		return "supply_truck"
+	elif roll < 0.66:
+		return "research_lab"
 	return "empty"
 
 

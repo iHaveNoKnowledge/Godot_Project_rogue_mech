@@ -114,6 +114,28 @@
 
 ---
 
+## 🔬 4A. Research & Blueprint System (ระบบวิจัยและพิมพ์เขียว)
+
+### Board-Level Research (การวิจัยบนบอร์ด)
+* **Research Lab Tile:** พบได้บนบอร์ด (สีน้ำเงิน) — เปิด UI เลือกโปรเจควิจัย
+* **Data Cores:** ทรัพยากรสำหรับเริ่มวิจัย หาได้จาก data_node tiles, เอาชนะ enemy base, หรือซื้อใน city
+* **Research Time:** แต่ละ board move = 1 แต้ม, แต่ละ combat = 2 แต้ม — รอจนครบจะ unlock reward
+* **Rewards:** ปลดล็อก ally units (GM-II, Guncannon), gundam-tier armor/frames, หรือ special abilities
+
+### Blueprint Catalog
+* **Ally Unit Blueprints:** วิจัยเสร็จ = ได้ unit ใหม่เข้า fleet roster ลงสนามเป็น squadmate
+* **Gear Blueprints:** วิจัยเสร็จ = ปลดล็อก crafting ส่วนเกราะ/โครงระดับ gundam-tier
+* **Data Core Sink:** data_cores เป็น currency ที่ใช้ทั้งวิจัยและซื้อของ — ต้องเลือกว่าจะลงทุนด้านไหน
+
+> 📌 **Current Implementation Status:**
+> - [x] Research Lab tile on board (blue, spawns in generator)
+> - [x] Research Lab UI: browse projects, start research, view progress
+> - [x] Research progress: board move = 1pt, combat = 2pt
+> - [x] Research completion: unlocks ally units from blueprint catalog
+> - [x] Save/Load research state
+
+---
+
 ## 🎯 5. Narrative & Emotional Design (ความผูกพันและการเปลี่ยนหุ่น)
 
 * **Building Bond:** ผู้เล่นผูกพันกับหุ่นเครื่องเก่าผ่านรอยแผล การปะซ่อม และการฝ่าฟันอุปสรรค

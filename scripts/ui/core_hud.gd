@@ -51,10 +51,22 @@ var _player_mecha: Node = null
 var _energy_fill: StyleBoxFlat = null
 var _energy_bg: StyleBoxFlat = null
 
+# Drop tank HUD indicator (GDD §2.4): shows external fuel canister HP +
+# fuel level. Appears only when drop tanks are equipped. Flashes PURGE
+# warning text when the detonation countdown starts.
+var _dt_container: VBoxContainer = null
+var _dt_label: Label = null
+var _dt_hp_bar: ProgressBar = null
+var _dt_hp_fill: StyleBoxFlat = null
+var _dt_fuel_label: Label = null
+var _dt_purge_label: Label = null
+var _dt_purge_flash_tween: Tween = null
+
 
 func _ready() -> void:
 	_create_hit_flash()
 	_create_energy_row()
+	_create_drop_tank_row()
 	EventBus.damage_received.connect(_on_player_damaged)
 	# Two frames so the container layout resolves bar/label minimum sizes.
 	await get_tree().process_frame
@@ -140,6 +152,7 @@ func _process(_delta: float) -> void:
 		if _player_mecha == null:
 			return
 	_update_energy_bar()
+	_update_drop_tank_indicator()
 
 
 func _update_energy_bar() -> void:
@@ -221,3 +234,131 @@ func _refresh(slot_name: String) -> void:
 func _update_all_bars() -> void:
 	for slot_name in armor_bars:
 		_refresh(slot_name)
+
+
+# ---------------------------------------------------------------------------
+# DROP TANK HUD INDICATOR (GDD §2.4)
+# Shows external fuel canister HP + fuel level + purge warning. The whole
+# row is hidden when no drop tanks are equipped.
+# ---------------------------------------------------------------------------
+
+func _create_drop_tank_row() -> void:
+	var grid = get_node_or_null("Panel/Grid")
+	if grid == null:
+		return
+	_dt_container = VBoxContainer.new()
+	_dt_container.name = "DropTankCell"
+	_dt_container.add_theme_constant_override("separation", 1)
+	_dt_container.visible = false  # hidden until drop tanks are equipped
+	grid.add_child(_dt_container)
+
+	# Header label: "DROP TANK" in amber.
+	_dt_label = Label.new()
+	_dt_label.text = "DROP TANK"
+	_dt_label.add_theme_font_size_override("font_size", 9)
+	_dt_label.add_theme_color_override("font_color", Color(0.9, 0.6, 0.1))
+	_dt_container.add_child(_dt_label)
+
+	# HP bar: amber fill, shrinks as the tanks take damage.
+	_dt_hp_bar = ProgressBar.new()
+	_dt_hp_bar.custom_minimum_size = Vector2(120, 6)
+	_dt_hp_bar.max_value = 100.0
+	_dt_hp_bar.value = 100.0
+	_dt_hp_bar.show_percentage = false
+	_dt_hp_fill = StyleBoxFlat.new()
+	_dt_hp_fill.bg_color = Color(0.85, 0.55, 0.1)
+	_dt_hp_fill.corner_radius_top_left = 2
+	_dt_hp_fill.corner_radius_top_right = 2
+	_dt_hp_fill.corner_radius_bottom_left = 2
+	_dt_hp_fill.corner_radius_bottom_right = 2
+	_dt_hp_bar.add_theme_stylebox_override("fill", _dt_hp_fill)
+	var dt_bg := StyleBoxFlat.new()
+	dt_bg.bg_color = Color(0.1, 0.12, 0.18, 0.9)
+	dt_bg.corner_radius_top_left = 2
+	dt_bg.corner_radius_top_right = 2
+	dt_bg.corner_radius_bottom_left = 2
+	dt_bg.corner_radius_bottom_right = 2
+	_dt_hp_bar.add_theme_stylebox_override("background", dt_bg)
+	_dt_container.add_child(_dt_hp_bar)
+
+	# Fuel level label: how much fuel remains in the tanks.
+	_dt_fuel_label = Label.new()
+	_dt_fuel_label.text = "FUEL: 0"
+	_dt_fuel_label.add_theme_font_size_override("font_size", 9)
+	_dt_fuel_label.add_theme_color_override("font_color", Color(0.7, 0.85, 0.4))
+	_dt_container.add_child(_dt_fuel_label)
+
+	# Purge warning label: blinks red when detonation countdown starts.
+	_dt_purge_label = Label.new()
+	_dt_purge_label.text = ""
+	_dt_purge_label.add_theme_font_size_override("font_size", 10)
+	_dt_purge_label.add_theme_color_override("font_color", Color(1.0, 0.2, 0.1))
+	_dt_purge_label.visible = false
+	_dt_container.add_child(_dt_purge_label)
+
+
+func _update_drop_tank_indicator() -> void:
+	if _dt_container == null:
+		return
+	if _player_mecha == null or not is_instance_valid(_player_mecha):
+		return
+	# Read drop tank state from the mecha controller.
+	var active_raw = _player_mecha.get("_drop_tank_active")
+	var active: bool = active_raw if active_raw != null else false
+	if not active:
+		_dt_container.visible = false
+		return
+	_dt_container.visible = true
+
+	# HP bar.
+	var max_hp: float = 60.0  # 2 tanks * 30 HP default
+	var hp_raw = _player_mecha.get("_drop_tank_hp")
+	var hp: float = float(hp_raw) if hp_raw != null else 0.0
+	# Derive max HP from GlobalData.
+	var attached_raw = GlobalData.get("drop_tanks_attached")
+	var attached: int = int(attached_raw) if attached_raw != null else 0
+	max_hp = attached * 30.0  # DROP_TANK_HP_PER_TANK
+	if max_hp <= 0.0:
+		max_hp = 60.0
+	_dt_hp_bar.max_value = max_hp
+	_dt_hp_bar.value = maxf(hp, 0.0)
+	# Tint: green > orange > red as HP drops.
+	var hp_ratio := clampf(hp / max_hp, 0.0, 1.0)
+	if _dt_hp_fill:
+		if hp_ratio < 0.25:
+			_dt_hp_fill.bg_color = Color(0.9, 0.15, 0.1)
+		elif hp_ratio < 0.5:
+			_dt_hp_fill.bg_color = Color(0.9, 0.55, 0.1)
+		else:
+			_dt_hp_fill.bg_color = Color(0.4, 0.75, 0.2)
+	_dt_label.text = "DROP TANK: %d" % int(hp)
+
+	# Fuel level.
+	var fuel_raw = GlobalData.get("drop_tank_fuel")
+	var fuel: float = float(fuel_raw) if fuel_raw != null else 0.0
+	_dt_fuel_label.text = "FUEL: %d" % int(fuel)
+
+	# Purge warning: show and blink when detonation countdown is active.
+	var detonating_raw = _player_mecha.get("_drop_tank_detonating")
+	var detonating: bool = detonating_raw if detonating_raw != null else false
+	if detonating:
+		if not _dt_purge_label.visible:
+			_dt_purge_label.visible = true
+			_start_purge_flash()
+	else:
+		if _dt_purge_label.visible:
+			_dt_purge_label.visible = false
+			if _dt_purge_flash_tween and _dt_purge_flash_tween.is_valid():
+				_dt_purge_flash_tween.kill()
+				_dt_purge_label.modulate.a = 1.0
+
+
+func _start_purge_flash() -> void:
+	if _dt_purge_label == null:
+		return
+	_dt_purge_label.text = "⚠ PURGE [E]"
+	if _dt_purge_flash_tween and _dt_purge_flash_tween.is_valid():
+		_dt_purge_flash_tween.kill()
+	_dt_purge_flash_tween = create_tween().set_loops()
+	_dt_purge_flash_tween.tween_property(_dt_purge_label, "modulate:a", 0.15, 0.25)
+	_dt_purge_flash_tween.tween_property(_dt_purge_label, "modulate:a", 1.0, 0.25)

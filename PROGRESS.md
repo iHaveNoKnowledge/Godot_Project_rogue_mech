@@ -12,9 +12,9 @@
 | # | รายการ | สถานะ | ไฟล์ |
 |---|--------|:------:|------|
 | 1 | Fuel system state ใน GlobalData | ✅ | `global_data.gd` |
-| 2 | Board tile "fuel_depot" — บุกยึดคลังน้ำมันศัตรู | ✅ | `board_tile.gd`, `board_manager.gd`, `board_generator.gd` |
-| 3 | Board tile "supply_truck" — Convoy Supply Transfer | ✅ | `board_manager.gd` |
-| 4 | Fuel depot combat victory → grant fuel bonus | ✅ | `global_data.gd` |
+| 2 | Board tile "fuel_depot" | ✅ | `board_tile.gd`, `board_manager.gd`, `board_generator.gd` |
+| 3 | Board tile "supply_truck" | ✅ | `board_manager.gd` |
+| 4 | Fuel depot combat victory | ✅ | `global_data.gd` |
 | 5 | External Drop Tank system | ✅ | `mecha_controller.gd` |
 | 6 | Engine Dirt Penalty | ✅ | `mecha_controller.gd` |
 | 7 | Convoy fuel reserve overnight regen | ✅ | `board_manager.gd` |
@@ -22,11 +22,11 @@
 | 9 | GDD.md Section 2.4 + 4A | ✅ | `GDD.md` |
 | 10 | Drop Tank 3D visual model | ✅ | `drop_tank_visuals.gd`, `mecha_base.tscn` |
 | 11 | Drop Tank HUD indicator | ✅ | `core_hud.gd` |
-| 12 | Body damage intercept — 30% absorbed by drop tanks | ✅ | `mecha_health_base.gd` |
-| 13 | Pilot Siphon Protocol — wreckage + siphon + re-ignition | ✅ | `global_data.gd`, `board_manager.gd`, etc |
-| 14 | Fuel depot choice popup — Precise vs Heavy | ✅ | `global_data.gd`, `board_manager.gd`, `theme_system.gd` |
+| 12 | Body damage intercept | ✅ | `mecha_health_base.gd` |
+| 13 | Pilot Siphon Protocol | ✅ | `global_data.gd`, `board_manager.gd`, etc |
+| 14 | Fuel depot choice popup | ✅ | `global_data.gd`, `board_manager.gd`, `theme_system.gd` |
 | 15 | Drop Tank purchase/detach in City Shop | ✅ | `city_shop_ui.gd` |
-| 16 | Research Lab tile + UI — browse/start research projects | ✅ | `research_lab_ui.gd`, `research_lab_ui.tscn`, `board_tile.gd`, `board_manager.gd`, `board_generator.gd`, `game_board.tscn`, `GDD.md` |
+| 16 | Research Lab tile + UI | ✅ | `research_lab_ui.gd`, `research_lab_ui.tscn`, `board_tile.gd`, `board_manager.gd`, `board_generator.gd`, `game_board.tscn` |
 
 ---
 
@@ -59,7 +59,8 @@
 
 | hash | ข้อความ |
 |------|---------|
-| `0752fa6` | feat(research): add Research Lab tile + UI for browsing/starting projects |
+| `759f824` | docs: update PROGRESS.md — 16 items complete |
+| `0752fa6` | feat(research): add Research Lab tile + UI |
 | `b576015` | feat(drop_tanks): add purchase/detach in City Shop |
 | `ffb05cb` | feat(depot): add fuel depot choice popup |
 | `61f0bed` | feat(siphon): implement Pilot Siphon Protocol |

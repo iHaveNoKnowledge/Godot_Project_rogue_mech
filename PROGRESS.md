@@ -59,7 +59,7 @@
 
 | hash | ข้อความ |
 |------|---------|
-| `759f824` | docs: update PROGRESS.md — 16 items complete |
+| `78e3acf` | docs: update PROGRESS.md — 16 items complete |
 | `0752fa6` | feat(research): add Research Lab tile + UI |
 | `b576015` | feat(drop_tanks): add purchase/detach in City Shop |
 | `ffb05cb` | feat(depot): add fuel depot choice popup |

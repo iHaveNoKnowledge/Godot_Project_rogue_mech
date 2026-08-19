@@ -28,6 +28,7 @@
 | 15 | Drop Tank purchase/detach in City Shop | ✅ | `city_shop_ui.gd` |
 | 16 | Research Lab tile + UI | ✅ | `research_lab_ui.gd`, `research_lab_ui.tscn`, etc |
 | 17 | 6 new blueprint projects in catalog | ✅ | `research_catalogs.tres` |
+| 18 | Research completion notification popup | ✅ | `global_data.gd` |
 
 ---
 
@@ -51,7 +52,7 @@
 | รายการ | หมายเหตุ |
 |--------|----------|
 | ❌ Precision Dash — หลบถูกจังหวะคืนพลังงาน | gameplay depth |
-| ❌ Research completion popup notification on board | UX improvement |
+| ❌ Environmental Hazards (Dust Storm, EMP, Tactical Smog) | Dynamic Event System §7.1 |
 
 ---
 
@@ -59,7 +60,7 @@
 
 | hash | ข้อความ |
 |------|---------|
-| `6817c67` | docs: update PROGRESS.md — 17 items complete |
+| `79c8781` | feat(research): add completion notification popup |
 | `df4f2ff` | feat(research): add 6 new blueprint projects |
 | `0752fa6` | feat(research): add Research Lab tile + UI |
 | `b576015` | feat(drop_tanks): add purchase/detach in City Shop |

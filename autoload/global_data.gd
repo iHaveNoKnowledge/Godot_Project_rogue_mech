@@ -1073,6 +1073,21 @@ var credits: int = 0
 var data_cores: int = 0
 var scrap: int = 0
 
+# -----------------------------------------------------------------------------
+# MECH ENERGY — global fuel pool tied to the mech, persists across combat/board.
+# Used for dash, roller, jump in combat AND board movement. Running out on the
+# board means the mech can't move (fuel emergency). Refuel at safehouses or
+# via energy pickups on the board.
+# -----------------------------------------------------------------------------
+var mech_energy: float = 100.0
+var mech_max_energy: float = 100.0
+# Board movement energy cost per step (walking drains batteries).
+const BOARD_ENERGY_COST_PER_STEP: float = 2.0
+# Energy regen per day on the board (passive recharge while resting).
+const BOARD_ENERGY_REGEN_PER_DAY: float = 15.0
+# Bonus regen at safehouses (faster refill).
+const SAFEHOUSE_ENERGY_REGEN: float = 30.0
+
 
 # --- Currency API ---
 # All external code should mutate currency through these helpers so spending

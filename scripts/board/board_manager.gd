@@ -139,6 +139,17 @@ func _try_step(target: Vector2i) -> bool:
 	# route: crossing its firing line costs extra MP (fight it, or pay to slip
 	# past and reroute around it).
 	cost += PatrolSystem.interception_surcharge(current_pos, target)
+	# Energy check: walking on the board drains the mech's batteries.
+	if GlobalData.mech_energy <= 0.0:
+		GlobalData.blocked_intermission = false
+		EventBus.event_triggered.emit({
+			"name": "FUEL EMERGENCY",
+			"effect": "none",
+			"amount": 0,
+			"desc": "The mech's energy is depleted! Find a safehouse to refuel, or end the day to passively recharge.",
+		})
+		return false
+
 	if GlobalData.board_mp < cost:
 		# The player cannot move at all: whatever ambush aftermath was blocking the
 		# intermission menu (blocked_intermission) must not soft-lock them. Clear it
@@ -153,6 +164,8 @@ func _try_step(target: Vector2i) -> bool:
 		return false
 
 	GlobalData.board_mp = maxi(GlobalData.board_mp - cost, 0)
+	# Deduct energy for walking (each step drains the mech's batteries).
+	GlobalData.mech_energy = maxf(GlobalData.mech_energy - GlobalData.BOARD_ENERGY_COST_PER_STEP, 0.0)
 	_last_dir = target - current_pos
 	current_pos = target
 	GlobalData.current_tile = target
@@ -248,6 +261,11 @@ func _end_day() -> void:
 		return
 	GlobalData.board_day += 1
 	GlobalData.board_mp = GlobalData.board_mp_max
+	# Passive energy regen: the mech recharges while resting between days.
+	GlobalData.mech_energy = minf(
+		GlobalData.mech_energy + GlobalData.BOARD_ENERGY_REGEN_PER_DAY,
+		GlobalData.mech_max_energy
+	)
 
 	# Once-per-day systems.
 	process_turn_mobilization()
@@ -590,6 +608,11 @@ func _process_tile_effect(tile_type: String) -> void:
 			_trigger_random_event()
 		"safehouse":
 			HeatWantedSystem.modify_heat(-4)
+			# Refuel at the safehouse: energy refill bonus.
+			GlobalData.mech_energy = minf(
+				GlobalData.mech_energy + GlobalData.SAFEHOUSE_ENERGY_REGEN,
+				GlobalData.mech_max_energy
+			)
 			var safehouse = get_node_or_null("SafehouseUI")
 			if safehouse:
 				safehouse.visible = true

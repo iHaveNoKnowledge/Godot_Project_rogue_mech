@@ -84,9 +84,15 @@ func _ready() -> void:
 	if attachment_manager:
 		attachment_manager.rebuild_from_global_data()
 	EventBus.weight_changed.connect(_on_weight_changed)
+	# Load persisted energy from GlobalData (survives combat/board transitions).
+	max_energy = GlobalData.mech_max_energy
+	energy = clampf(GlobalData.mech_energy, 0.0, max_energy)
 
 
 func _exit_tree() -> void:
+	# Persist current energy back to GlobalData so it survives scene transitions.
+	GlobalData.mech_energy = energy
+	GlobalData.mech_max_energy = max_energy
 	# The roller loop lives on the AudioManager autoload (which outlives this
 	# mech): cut it when the mech is freed by a scene change, or the hum would
 	# keep looping after the battle/board is gone.

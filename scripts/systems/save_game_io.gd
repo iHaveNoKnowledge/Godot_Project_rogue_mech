@@ -67,6 +67,8 @@ static func save_run() -> void:
 		"enemy_special_units": GlobalData.enemy_special_units.duplicate(true),
 		"fleet_security": GlobalData.fleet_security,
 		"security_upgrade_level": GlobalData.security_upgrade_level,
+		"mech_energy": GlobalData.mech_energy,
+		"mech_max_energy": GlobalData.mech_max_energy,
 		"driver_repair_skill": GlobalData.driver_repair_skill,
 		"driver_repair_xp": GlobalData.driver_repair_xp,
 		"scrap_patches": GlobalData.scrap_patches.duplicate(true),
@@ -169,6 +171,8 @@ static func restore_from_dict(data: Dictionary) -> void:
 		GlobalData.enemy_special_units = special_units.duplicate(true)
 	GlobalData.fleet_security = float(data.get("fleet_security", 25.0))
 	GlobalData.security_upgrade_level = int(data.get("security_upgrade_level", 1))
+	GlobalData.mech_energy = float(data.get("mech_energy", 100.0))
+	GlobalData.mech_max_energy = float(data.get("mech_max_energy", 100.0))
 	GlobalData.driver_repair_skill = int(data.get("driver_repair_skill", 1))
 	GlobalData.driver_repair_xp = int(data.get("driver_repair_xp", 0))
 	var loaded_patches = data.get("scrap_patches", {})

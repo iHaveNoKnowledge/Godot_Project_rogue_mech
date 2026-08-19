@@ -103,6 +103,9 @@ func _ready() -> void:
 		_drop_tank_hp = GlobalData.drop_tanks_attached * DROP_TANK_HP_PER_TANK
 		max_energy += GlobalData.drop_tank_fuel
 		energy += GlobalData.drop_tank_fuel
+	var dtv = get_node_or_null("DropTankVisuals")
+	if dtv and dtv.has_method("_refresh"):
+		dtv._refresh()
 
 
 func _exit_tree() -> void:
@@ -394,6 +397,10 @@ func apply_drop_tank_damage(amount: float) -> void:
 	if not _drop_tank_active or _drop_tank_detonating:
 		return
 	_drop_tank_hp -= amount
+	# Notify the visual system to start sparking.
+	var dtv = get_node_or_null("DropTankVisuals")
+	if dtv and dtv.has_method("on_drop_tank_damaged"):
+		dtv.on_drop_tank_damaged()
 	if _drop_tank_hp <= 0.0:
 		_drop_tank_detonating = true
 		_drop_tank_timer = DROP_TANK_DET_DELAY
@@ -418,7 +425,11 @@ func _purge_drop_tanks() -> void:
 	_drop_tank_timer = 0.0
 	GlobalData.drop_tanks_attached = 0
 	GlobalData.drop_tank_fuel = 0.0
-	# Visual: spawn purge VFX.
+	# Visual: purge animation on the 3D model.
+	var dtv = get_node_or_null("DropTankVisuals")
+	if dtv and dtv.has_method("on_drop_tank_purged"):
+		dtv.on_drop_tank_purged()
+	# Additional scene-level VFX.
 	_spawn_purge_effect()
 	if AudioManager:
 		AudioManager.play_mecha_actuator(global_position)
@@ -435,6 +446,12 @@ func _drop_tank_explode() -> void:
 	max_energy -= tank_fuel
 	GlobalData.drop_tanks_attached = 0
 	GlobalData.drop_tank_fuel = 0.0
+	# Notify the visual system.
+	var dtv = get_node_or_null("DropTankVisuals")
+	if dtv and dtv.has_method("on_drop_tank_destroyed"):
+		dtv.on_drop_tank_destroyed()
+	if dtv and dtv.has_method("_clear_tanks"):
+		dtv._clear_tanks()
 	# Self-damage from the explosion.
 	var hs := _health_system()
 	if hs and hs.has_method("take_damage"):

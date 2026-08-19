@@ -10,6 +10,7 @@
 [ext_resource type="PackedScene" uid="uid://dms3f2k3mor6t" path="res://scenes/mecha/zenisrev/scene.gltf" id="8_8vx60"]
 [ext_resource type="Script" uid="uid://duoijt26josu5" path="res://scripts/mecha/part_mesh_manager.gd" id="9_partmesh"]
 [ext_resource type="Script" path="res://scripts/mecha/attachment_manager.gd" id="10_attachment"]
+[ext_resource type="Script" path="res://scripts/mecha/drop_tank_visuals.gd" id="drop_tank_visuals"]
 
 [sub_resource type="CapsuleShape3D" id="FullBodyShape"]
 radius = 0.625
@@ -137,6 +138,9 @@ mesh = SubResource("ThrusterNozzle")
 transform = Transform3D(1, 0, 0, 0, 0.866, 0.5, 0, -0.5, 0.866, 0.25, -0.2, 0.25)
 material_override = SubResource("FlameMat")
 mesh = SubResource("ThrusterNozzle")
+
+[node name="DropTankVisuals" type="Node3D" parent="Body/Backpack"]
+script = ExtResource("drop_tank_visuals")
 
 [node name="ArmLeft" type="Node3D" parent="." unique_id=163684479]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.75, 2.2, 0)

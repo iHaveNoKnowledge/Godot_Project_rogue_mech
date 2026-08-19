@@ -115,10 +115,14 @@ func take_damage(amount: float, damage_type: String = "kinetic") -> void:
 
 # `layer` routes damage straight to a surface: "armor" hits armor first (only
 # while it is intact), "frame" always hits the frame. Empty means the classic
-# armor-first behaviour (armor absorbs until it breaks, then frame takes over).
-func take_damage_to_part(slot_name: String, amount: float, damage_type: String = "kinetic", layer: String = "") -> void:
+# armor-first behaviour (armor absorbs until it breaks, then frame takes over).	func take_damage_to_part(slot_name: String, amount: float, damage_type: String = "kinetic", layer: String = "") -> void:
 	if is_destroyed:
 		return
+	# Drop tank intercept: body hits that land on the torso can damage external
+	# fuel tanks before the armor plate. A percentage of the damage is absorbed
+	# by the tanks (they are bolted to the back, so they catch some fire).
+	if slot_name == "body" and is_player and _intercept_drop_tank_damage(amount):
+		amount *= 0.7  # tanks absorbed 30% of the hit
 	if not parts.has(slot_name):
 		slot_name = _select_target()
 	if slot_name == "":
@@ -142,18 +146,28 @@ func take_damage_to_part(slot_name: String, amount: float, damage_type: String =
 	if not part["armor_broken"]:
 		_apply_armor_damage(slot_name, amount, damage_type)
 	else:
-		_apply_frame_damage(slot_name, amount, damage_type)
-
-
-# Location-based damage: the impact point decides which part AND which surface
-# (armor plate vs exposed frame) takes the hit. Projectiles already call this
-# with the projectile position, so where the bullet lands is what matters.
-func take_damage_at_point(amount: float, world_pos: Vector3, damage_type: String = "kinetic") -> void:
+		_apply_frame_damage(slot_name, amount, damage_type)	# Location-based damage: the impact point decides which part AND which surface
+	# (armor plate vs exposed frame) takes the hit. Projectiles already call this
+	# with the projectile position, so where the bullet lands is what matters.
+	func take_damage_at_point(amount: float, world_pos: Vector3, damage_type: String = "kinetic") -> void:
 	if is_destroyed:
 		return
 	var hit := _resolve_hit(world_pos)
 	if hit["slot"] != "":
 		take_damage_to_part(hit["slot"], amount, damage_type, hit["layer"])
+
+
+	# Drop tank damage intercept: routes a portion of body damage to external
+	# fuel canisters. Returns true when drop tanks absorbed some damage.
+	func _intercept_drop_tank_damage(amount: float) -> bool:
+		var mecha = get_parent()
+		if mecha == null or not mecha.has_method("apply_drop_tank_damage"):
+			return false
+		if not mecha._drop_tank_active:
+			return false
+		# 30% of body damage is deflected to the drop tanks.
+		mecha.apply_drop_tank_damage(amount * 0.3)
+		return true
 
 
 # Variant used by enemy mechas: they resolve the part themselves (their meshes

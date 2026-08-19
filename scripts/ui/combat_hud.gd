@@ -17,12 +17,20 @@ var announce_panel: PanelContainer
 var announce_label: Label
 var _announce_tween: Tween = null
 
+# Countdown Extraction HUD (GDD §7.3): red pulsing banner when area bombing
+# is imminent.
+var _countdown_panel: PanelContainer
+var _countdown_label: Label
+var _countdown_fill: StyleBoxFlat
+var _countdown_flash_tween: Tween = null
+
 
 func _ready() -> void:
 	layer = 5
 	_create_ui()
 	_create_retreat_indicator()
 	_create_announce_banner()
+	_create_countdown_indicator()
 
 
 func _create_ui() -> void:
@@ -210,3 +218,59 @@ func _update_retreat_indicator() -> void:
 			c = c.lerp(Color(1.0, 0.3, 0.25), (progress - 0.5) * 2.0)
 		retreat_label.add_theme_color_override("font_color", c)
 		_retreat_fill.border_color = Color(c.r, c.g, c.b, 0.9)
+
+
+# --- Countdown Extraction HUD (GDD §7.3) ------------------------------------
+func _create_countdown_indicator() -> void:
+	_countdown_panel = PanelContainer.new()
+	_countdown_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_countdown_panel.offset_left = -140
+	_countdown_panel.offset_right = 140
+	_countdown_panel.offset_top = 32
+	_countdown_panel.offset_bottom = 58
+	_countdown_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_countdown_panel.visible = false
+	var root = get_child(0) if get_child_count() > 0 else null
+	if root and root is Control:
+		root.add_child(_countdown_panel)
+	_countdown_fill = StyleBoxFlat.new()
+	_countdown_fill.bg_color = Color(0.8, 0.1, 0.1, 0.9)
+	_countdown_fill.corner_radius_top_left = 6
+	_countdown_fill.corner_radius_top_right = 6
+	_countdown_fill.corner_radius_bottom_left = 6
+	_countdown_fill.corner_radius_bottom_right = 6
+	_countdown_panel.add_theme_stylebox_override("panel", _countdown_fill)
+	_countdown_label = Label.new()
+	_countdown_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_countdown_label.add_theme_font_size_override("font_size", 14)
+	_countdown_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.3))
+	_countdown_panel.add_child(_countdown_label)
+
+
+func _process(_delta: float) -> void:
+	_update_countdown_indicator()
+
+
+func _update_countdown_indicator() -> void:
+	if _countdown_panel == null or _countdown_label == null:
+		return
+	if not GlobalData.mid_battle_countdown_active:
+		_countdown_panel.visible = false
+		if _countdown_flash_tween and _countdown_flash_tween.is_valid():
+			_countdown_flash_tween.kill()
+			_countdown_panel.modulate.a = 1.0
+		return
+	_countdown_panel.visible = true
+	var remaining = GlobalData.mid_battle_countdown_timer
+	var max_time = GlobalData.mid_battle_countdown_max
+	var progress = 1.0 - clampf(remaining / max_time, 0.0, 1.0)
+	_countdown_label.text = "☢ EXTRACTION — %.1fs" % maxf(remaining, 0.0)
+	# Color ramps from amber to red as time runs out.
+	var c := Color(1.0, 0.85, 0.25).lerp(Color(1.0, 0.15, 0.1), progress)
+	_countdown_label.add_theme_color_override("font_color", c)
+	_countdown_fill.border_color = Color(c.r, c.g, c.b, 0.9)
+	# Pulse when under 10 seconds.
+	if remaining < 10.0 and (_countdown_flash_tween == null or not _countdown_flash_tween.is_valid()):
+		_countdown_flash_tween = create_tween().set_loops()
+		_countdown_flash_tween.tween_property(_countdown_panel, "modulate:a", 0.5, 0.3)
+		_countdown_flash_tween.tween_property(_countdown_panel, "modulate:a", 1.0, 0.3)

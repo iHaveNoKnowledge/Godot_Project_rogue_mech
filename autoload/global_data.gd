@@ -943,6 +943,16 @@ const EMP_BACKUP_BLOCKED: bool = true
 # Current combat arena footprint (side length in meters). Set by the arena
 # generator when a battle loads; scales spawn ring / AI search radius / nav.
 var current_arena_size: float = 240.0
+# --- Mid-Battle Injection (GDD §7.3) ----------------------------------------
+# Reinforcements: third-party enemies spawn mid-battle after a delay.
+var mid_battle_reinforcements_active: bool = false
+var mid_battle_reinforcements_timer: float = 0.0
+var mid_battle_reinforcements_delay: float = 20.0  # seconds before third party arrives
+# Countdown Extraction: area is being bombed — kill all enemies or escape
+# before the timer runs out. 0 = inactive.
+var mid_battle_countdown_active: bool = false
+var mid_battle_countdown_timer: float = 0.0
+var mid_battle_countdown_max: float = 45.0  # seconds to escape
 # --- Open-grid board state (see BoardConfig/Terrain in board scripts) ---
 # Each "day" the player gets board_mp_max movement points; cells cost their
 # terrain move_cost. Research / heat / spy / enemy research node / patrol fleets
@@ -1756,6 +1766,10 @@ func reset_run_data() -> void:
 	ambush_pincer = false
 	consumed_bait.clear()
 	current_hazard = ""
+	mid_battle_reinforcements_active = false
+	mid_battle_reinforcements_timer = 0.0
+	mid_battle_countdown_active = false
+	mid_battle_countdown_timer = 0.0
 	credits = 110
 	data_cores = 0
 	scrap = 0

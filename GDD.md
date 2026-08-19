@@ -193,6 +193,13 @@
 * **Reinforcements / Third Party:** ศัตรูฝ่ายที่สามเข้าแทรกแซงกลางสมรภูมิ
 * **Countdown Extraction:** พื้นที่สู้รบโดนถล่ม ต้องเค้น Roller Dash สู้แข่งกับเวลา
 
+> 📌 **Current Implementation Status:**
+> - [x] Mid-Battle Injection system (mid_battle_injection.gd)
+> - [x] Reinforcements: third-party enemies spawn after 15-25s delay on ace/boss battles
+> - [x] Countdown Extraction: 45s escape timer + 80 damage on expiry
+> - [x] Countdown Extraction HUD: red pulsing banner with timer
+> - [x] Event triggers: 50% reinforcements, 30% countdown, 20% none
+
 ### 7.4 Convoy Escort & Defense Events (ภารกิจปกป้องขบวนส่งกำลังบำรุง)
 * **Convoy Ambush:** เมื่อรถบรรทุกโดนซุ่มโจมตีบนบอร์ด ฉากสู้ 3rd Person จะเปลี่ยนเป็นภารกิจตั้งรับ (Defense Mission) เพื่อป้องกันไม่ให้รถบรรทุกถูกทำลาย
 * **Vehicle Breakdown:** รถบรรทุกเสียกลางสมรภูมิ ต้องปักหลักคุ้มกันท่ามกลางคลื่นศัตรู (Wave Defense) ตามจำนวน Turn ที่กำหนด

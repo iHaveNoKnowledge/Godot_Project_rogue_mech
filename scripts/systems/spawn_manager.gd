@@ -335,6 +335,8 @@ func start_waves() -> void:
 	is_active = true
 	current_wave = 0
 	_spawn_next_wave()
+	# Schedule mid-battle injection events (GDD §7.3).
+	_schedule_mid_battle_events()
 
 
 func _spawn_next_wave() -> void:
@@ -426,6 +428,30 @@ func _check_combat_ended() -> void:
 			_trigger_stalking_ace_ambush()
 		else:
 			EventBus.combat_ended.emit(true)
+
+
+# --- Mid-Battle Injection Events (GDD §7.3) ---------------------------------
+# Randomly triggers Reinforcements or Countdown Extraction during combat to
+# add tactical variety and pressure.
+func _schedule_mid_battle_events() -> void:
+	# Don't trigger on duel or fuel_depot battles.
+	if GameManager.combat_node_type in ["duel", "fuel_depot"]:
+		return
+	# Only trigger on ace or boss battles (more dramatic encounters).
+	if GameManager.combat_node_type not in ["ace", "boss"]:
+		return
+	var mid = get_node_or_null("../MidBattleInjection")
+	if mid == null:
+		return
+	# Roll for event type: 50% reinforcements, 30% countdown, 20% none.
+	var roll = randf()
+	if roll < 0.50:
+		# Reinforcements after 15-25 seconds.
+		var delay = randf_range(15.0, 25.0)
+		mid.trigger_reinforcements(delay)
+	elif roll < 0.80:
+		# Countdown extraction: 45 second timer.
+		mid.trigger_countdown_extraction(45.0)
 
 
 func _trigger_stalking_ace_ambush() -> void:

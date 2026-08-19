@@ -39,6 +39,9 @@
 | 26 | Distress + Scavenge in board generator | ✅ | `board_generator.gd` |
 | 27 | Precision Dash — near-miss detection + energy refund | ✅ | `mecha_controller.gd` |
 | 28 | Precision Dash HUD indicator | ✅ | `core_hud.gd` |
+| 29 | Mid-Battle Injection system | ✅ | `mid_battle_injection.gd`, `spawn_manager.gd` |
+| 30 | Reinforcements — third-party spawn mid-battle | ✅ | `mid_battle_injection.gd`, `spawn_manager.gd` |
+| 31 | Countdown Extraction — bomb timer + escape | ✅ | `mid_battle_injection.gd`, `combat_hud.gd` |
 
 ---
 
@@ -62,7 +65,8 @@
 | รายการ | หมายเหตุ |
 |--------|----------|
 
-| ❌ Mid-Battle Injections — Reinforcements + Countdown Extraction | Dynamic Event System §7.3 |
+| ❌ Convoy Escort & Defense Events | Dynamic Event System §7.4 |
+| ❌ Narrative Design — Bond, Sacrifice Event, Grand Entry | GDD §5 |
 | ❌ Convoy Escort & Defense Events | Dynamic Event System §7.4 |
 | ❌ Narrative Design — Bond, Sacrifice Event, Grand Entry | GDD §5 |
 

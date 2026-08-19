@@ -42,6 +42,10 @@
 | `ENGINE_DIRT_PER_SIPHON` | **0.25** | dirt +0.25 ต่อ siphon |
 | `ENGINE_DIRT_CLEANUP_PER_DAY` | **0.1** | clean 0.1/วัน |
 | `ENGINE_DIRT_HEAT_MULTIPLIER` | **1.5** | heat rate x1.5 ที่ max dirt |
+| `WRECKAGE_SIPHON_AMOUNT` | **30.0** | siphon 30 หน่วยต่อครั้ง |
+| `WRECKAGE_MAX_SIPHONS` | **3** | siphon ได้สูงสุด 3 ครั้ง |
+| `REIGNITION_FUEL_COST` | **60.0** | เติม 60 fuel เพื่อ reboot |
+| `REIGNITION_ENGINE_DIRT_COST` | **0.15** | dirt +0.15 ตอน reboot |
 
 ---
 
@@ -61,6 +65,7 @@
 | 2026-08-19 | GDD.md Section 2.4 | `GDD.md` |
 | 2026-08-19 | Drop Tank 3D visual model + body damage intercept | `drop_tank_visuals.gd`, `mecha_base.tscn`, `mecha_health_base.gd`, `mecha_controller.gd` |
 | 2026-08-19 | Drop Tank HUD indicator (HP + fuel + purge warning) | `core_hud.gd` |
+| 2026-08-19 | Pilot Siphon Protocol — wreckage tile + siphon + re-ignition | `global_data.gd`, `board_manager.gd`, `board_tile.gd`, `mecha_health_base.gd`, `theme_system.gd`, `save_game_io.gd` |
 
 ---
 
@@ -68,7 +73,6 @@
 
 | รายการ | หมายเหตุ |
 |--------|----------|
-| ~~❌ Pilot Siphon Protocol~~ | ✅ ทำแล้ว (wreckage + siphon + re-ignition) |
 | ❌ Fuel depot choice popup — เลือกอาวุธก่อนบุก (precise vs heavy) | gameplay depth |
 | ❌ Precision Dash — หลบถูกจังหวะคืนพลังงาน | gameplay depth |
 | ❌ Phase 4: Research & Blueprint | feature ใหญ่ถัดไป |
@@ -79,6 +83,7 @@
 
 | hash | ข้อความ |
 |------|---------|
+| `61f0bed` | feat(siphon): implement Pilot Siphon Protocol — wreckage + re-ignition |
 | `a3fe044` | feat(drop_tanks): add HUD indicator for drop tank HP, fuel, and purge warning |
 | `eb8687c` | feat(drop_tanks): add 3D visual model for external fuel canisters |
 | `e0486bf` | feat(fuel): implement Refueling & Supply Logistics system (GDD §2.4) |
@@ -86,9 +91,3 @@
 ---
 
 *Last updated: 2026-08-19*
-
-### Commits (Session 2026-08-19) — Update
-
-| hash | ข้อความ |
-|------|---------|
-| (pending) | feat(siphon): implement Pilot Siphon Protocol — wreckage + re-ignition |

@@ -76,9 +76,9 @@ func trigger_countdown_extraction(time_limit: float = 45.0) -> void:
 
 
 func _spawn_reinforcements() -> void:
-	# Find the SpawnManager and add a bonus wave.
+	# Find the SpawnManager for scene paths and spawn points.
 	var spawn_mgr = get_tree().current_scene.get_node_or_null("SpawnManager")
-	if spawn_mgr == null or not spawn_mgr.has_method("_spawn_next_wave"):
+	if spawn_mgr == null:
 		return
 
 	# Pick a random reinforcement composition.
@@ -86,8 +86,8 @@ func _spawn_reinforcements() -> void:
 	rng.randomize()
 	var composition = REINFORCEMENT_TYPES[rng.randi_range(0, REINFORCEMENT_TYPES.size() - 1)]
 
-	# Spawn the enemies using the existing spawn system.
-	var scene_path = spawn_mgr.enemy_scene_paths.get(composition["type"], "")
+	# Load the enemy scene.
+	var scene_path = str(spawn_mgr.get("enemy_scene_paths", {}).get(composition["type"], ""))
 	if scene_path == "" or not ResourceLoader.exists(scene_path):
 		return
 
@@ -96,12 +96,17 @@ func _spawn_reinforcements() -> void:
 		return
 
 	# Spawn at the ring edges.
-	var spawn_points = spawn_mgr.spawn_points
+	var spawn_points = spawn_mgr.get("spawn_points", [])
+	if not spawn_points is Array or spawn_points.is_empty():
+		return
 	for i in range(composition["count"]):
 		if spawn_points.is_empty():
 			break
 		var point_idx = rng.randi_range(0, spawn_points.size() - 1)
-		var spawn_pos = spawn_points[point_idx].global_position
+		var point = spawn_points[point_idx]
+		if not is_instance_valid(point):
+			continue
+		var spawn_pos = point.global_position
 
 		var enemy = scene.instantiate()
 		enemy.add_to_group("enemy")

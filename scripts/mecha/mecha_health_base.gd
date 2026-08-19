@@ -14,6 +14,7 @@ var total_frame_hp: float = 0.0
 var max_total_armor: float = 0.0
 var max_total_frame: float = 0.0
 var is_destroyed: bool = false
+var _near_death_recorded: bool = false  # tracks if near-death bond was already awarded
 
 var _original_colors: Dictionary = {}
 var _armor_color: Color = Color(0.6, 0.65, 0.7, 1)
@@ -114,7 +115,8 @@ func take_damage(amount: float, damage_type: String = "kinetic") -> void:
 
 	# Convoy Defense: during defense missions, player damage also damages the convoy.
 	if is_player and GlobalData.convoy_defense_active:
-		var convoy = get_node_or_null("../../ConvoyEscort")
+		var scene = get_tree().current_scene if get_tree() else null
+		var convoy = scene.get_node_or_null("ConvoyEscort") if scene else null
 		if convoy and convoy.has_method("_damage_convoy"):
 			convoy._damage_convoy(amount * 0.1)  # 10% of damage spills to convoy
 
@@ -425,9 +427,13 @@ func _apply_frame_damage(slot_name: String, amount: float, damage_type: String) 
 	if is_player:
 		EventBus.damage_received.emit(slot_name, amount, damage_type)
 		# Near-death escape detection (GDD §5): bond increases when HP drops below 20%.
+		# Only fires once per near-death event (tracked by _near_death_recorded flag).
 		var hp_ratio := total_frame_hp / maxf(max_total_frame, 1.0)
-		if hp_ratio < 0.2 and total_frame_hp > 0.0:
+		if hp_ratio < 0.2 and total_frame_hp > 0.0 and not _near_death_recorded:
+			_near_death_recorded = true
 			GlobalData.record_near_death_escape()
+	elif not is_player:
+		_near_death_recorded = false
 	if _is_friendly():
 		EventBus.friendly_damage_received.emit(amount)
 

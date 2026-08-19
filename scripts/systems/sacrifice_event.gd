@@ -14,6 +14,19 @@ signal grand_entry_started(new_mech_name: String)
 signal grand_entry_completed()
 
 
+func _ready() -> void:
+	EventBus.combat_ended.connect(_on_combat_ended)
+
+
+func _on_combat_ended(victory: bool) -> void:
+	# If a sacrifice combat just ended, resolve the outcome.
+	if GameManager.combat_node_type == "sacrifice":
+		on_sacrifice_ended(victory)
+	# If grand entry is pending after the sacrifice, complete it.
+	if GlobalData.grand_entry_pending:
+		complete_grand_entry()
+
+
 ## Checks if the sacrifice event should be offered to the player.
 func is_sacrifice_available() -> bool:
 	return GlobalData.sacrifice_event_available and not GlobalData.sacrifice_event_triggered

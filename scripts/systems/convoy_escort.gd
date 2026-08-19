@@ -26,13 +26,14 @@ func _on_combat_ended(victory: bool) -> void:
 				GlobalData.convoy_defense_active = false
 				GlobalData.run_notice = "Convoy defense successful! The truck is safe."
 			else:
-				# More waves to go.
-				defense_wave_started.emit(
-					GlobalData.convoy_defense_current_wave + 1,
-					GlobalData.convoy_defense_waves
-				)
-				# Trigger next defense wave after a short delay.
-				await get_tree().create_timer(2.0).timeout
+			# More waves to go.
+			defense_wave_started.emit(
+				GlobalData.convoy_defense_current_wave + 1,
+				GlobalData.convoy_defense_waves
+			)
+			# Trigger next defense wave after a short delay.
+			await get_tree().create_timer(2.0).timeout
+			if is_inside_tree() and is_instance_valid(self):
 				_start_defense_combat()
 		else:
 			# Defense failed — convoy takes damage.

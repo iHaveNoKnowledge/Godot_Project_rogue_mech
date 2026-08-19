@@ -761,9 +761,17 @@ func _process_tile_effect(tile_type: String) -> void:
 					"desc": "The convoy has already been destroyed. There is nothing left to defend.",
 				})
 			else:
-				var convoy = get_node_or_null("../ConvoyEscort")
-				if convoy and convoy.has_method("trigger_convoy_ambush"):
-					convoy.trigger_convoy_ambush()
+				# Convoy ambush: announce and enter defense combat.
+				GlobalData.convoy_defense_waves = 2
+				GlobalData.convoy_defense_current_wave = 0
+				GlobalData.convoy_defense_active = true
+				EventBus.event_triggered.emit({
+					"name": "⚠ CONVOY AMBUSH",
+					"effect": "force_combat",
+					"amount": 0,
+					"desc": "Hostiles are attacking the supply truck! Defend the convoy!",
+					"params": {"combat_type": "grunt"},
+				})
 		"convoy_breakdown":
 			# Convoy Escort: vehicle breakdown — wave defense.
 			if GlobalData.mech_less:
@@ -776,9 +784,17 @@ func _process_tile_effect(tile_type: String) -> void:
 					"desc": "The convoy is already destroyed. No vehicle to break down.",
 				})
 			else:
-				var convoy = get_node_or_null("../ConvoyEscort")
-				if convoy and convoy.has_method("trigger_vehicle_breakdown"):
-					convoy.trigger_vehicle_breakdown()
+				# Vehicle breakdown: announce and enter defense combat.
+				GlobalData.convoy_defense_waves = 3
+				GlobalData.convoy_defense_current_wave = 0
+				GlobalData.convoy_defense_active = true
+				EventBus.event_triggered.emit({
+					"name": "🔧 VEHICLE BREAKDOWN",
+					"effect": "force_combat",
+					"amount": 0,
+					"desc": "The supply truck has broken down! Defend it from incoming hostiles!",
+					"params": {"combat_type": "grunt"},
+				})
 		_:
 			pass
 

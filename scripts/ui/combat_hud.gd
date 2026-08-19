@@ -91,6 +91,7 @@ func _process(_delta: float) -> void:
 			status_label.add_theme_color_override("font_color", Color(0.4, 0.85, 1.0))
 
 	_update_retreat_indicator()
+	_update_countdown_indicator()
 
 
 # Builds the temporary announcement banner pinned under the retreat indicator.
@@ -245,10 +246,6 @@ func _create_countdown_indicator() -> void:
 	_countdown_label.add_theme_font_size_override("font_size", 14)
 	_countdown_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.3))
 	_countdown_panel.add_child(_countdown_label)
-
-
-func _process(_delta: float) -> void:
-	_update_countdown_indicator()
 
 
 func _update_countdown_indicator() -> void:

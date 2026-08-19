@@ -40,6 +40,60 @@ research_projects = [{
 "reward_id": "gundam_armor_mk1",
 "reward_name": "Reactive Armor MK-I",
 "reward_type": "armor"
+}, {
+"data_cores": 4,
+"desc": "Alaya-Vijnana neural link frame. Lightweight gundam-tier skeleton that boosts carry capacity and agility.",
+"id": "bp_gundam_frame",
+"name": "Gundam Frame Blueprint",
+"research_time": 14,
+"reward_id": "gundam_frame_set",
+"reward_name": "Alaya-Vijnana Frame Set",
+"reward_type": "frame"
+}, {
+"data_cores": 6,
+"desc": "Heavy siege frame designed for sustained bombardment. Massive HP and carry capacity at the cost of speed.",
+"id": "bp_heavy_frame",
+"name": "Heavy Siege Frame Blueprint",
+"research_time": 18,
+"reward_id": "heavy_frame_set",
+"reward_name": "Reinforced Siege Frame Set",
+"reward_type": "frame"
+}, {
+"data_cores": 4,
+"desc": "Advanced helmet with enhanced sensors. Improves lock-on speed and HUD clarity.",
+"id": "bp_head_armor",
+"name": "Gundam Head Armor Blueprint",
+"research_time": 10,
+"reward_id": "gundam_head_set",
+"reward_name": "Gundam Duo-visor Plating",
+"reward_type": "armor"
+}, {
+"data_cores": 4,
+"desc": "Reactive leg guards with heat dissipation. Reduces terrain penalties and boosts roller dash efficiency.",
+"id": "bp_leg_armor",
+"name": "Gundam Leg Armor Blueprint",
+"research_time": 10,
+"reward_id": "gundam_leg_set",
+"reward_name": "Gundam Reactive Leg Guards",
+"reward_type": "armor"
+}, {
+"data_cores": 3,
+"desc": "Heavy artillery support unit. Lays down suppressive fire from the backline.",
+"id": "bp_ally_cannon",
+"name": "Guncannon Blueprint",
+"research_time": 10,
+"reward_id": "ally_cannon",
+"reward_name": "Guncannon",
+"reward_type": "unit"
+}, {
+"data_cores": 7,
+"desc": "Experimental beam shield technology. Absorbs energy weapon damage and can reflect weak beams.",
+"id": "bp_beam_shield",
+"name": "Beam Shield Blueprint",
+"research_time": 20,
+"reward_id": "beam_shield_mod",
+"reward_name": "Beam Shield Module",
+"reward_type": "armor"
 }]
 ally_unit_templates = [{
 "archetype": 1,
@@ -124,5 +178,19 @@ ally_unit_templates = [{
 "move_speed": 4.0,
 "name": "Jax 'Scrapdog' Molina",
 "role": "Mudhorn — Ranged Marksman",
+"scene_path": "res://scenes/mecha/ally_dummy.tscn"
+}, {
+"archetype": 2,
+"armor_hp": 80.0,
+"attack_cooldown": 2.0,
+"attack_damage": 35.0,
+"attack_range": 70.0,
+"color": Color(0.85, 0.3, 0.15, 1),
+"fielded": false,
+"frame_hp": 100.0,
+"id": "ally_cannon",
+"move_speed": 3.0,
+"name": "Guncannon",
+"role": "Artillery Support",
 "scene_path": "res://scenes/mecha/ally_dummy.tscn"
 }]

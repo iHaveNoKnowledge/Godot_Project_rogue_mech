@@ -59,6 +59,7 @@
 
 | รายการ | หมายเหตุ |
 |--------|----------|
+| ❌ Precision Dash — หลบถูกจังหวะคืนพลังงาน | Combat Layer §3.2 |
 | ❌ Mid-Battle Injections — Reinforcements + Countdown Extraction | Dynamic Event System §7.3 |
 | ❌ Convoy Escort & Defense Events | Dynamic Event System §7.4 |
 | ❌ Narrative Design — Bond, Sacrifice Event, Grand Entry | GDD §5 |

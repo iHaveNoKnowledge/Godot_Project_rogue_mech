@@ -25,6 +25,7 @@
 | 12 | Body damage intercept — 30% absorbed by drop tanks | ✅ | `mecha_health_base.gd` |
 | 13 | Pilot Siphon Protocol — wreckage tile + siphon + re-ignition reboot | ✅ | `global_data.gd`, `board_manager.gd`, `board_tile.gd`, `mecha_health_base.gd`, `theme_system.gd`, `save_game_io.gd` |
 | 14 | Fuel depot choice popup — Precise vs Heavy approach | ✅ | `global_data.gd`, `board_manager.gd`, `theme_system.gd`, `GDD.md` |
+| 15 | Drop Tank purchase/detach in City Shop | ✅ | `city_shop_ui.gd`, `global_data.gd`, `GDD.md` |
 
 ---
 
@@ -39,6 +40,7 @@
 | `DROP_TANK_HP_PER_TANK` | **30.0** | ถังละ 30 HP ก่อนระเบิด |
 | `DROP_TANK_DET_DELAY` | **1.5** | 1.5 วินาทีก่อนระเบิด |
 | `DROP_TANK_PURGE_DAMAGE` | **15.0** | ระเบิดทำ DMG ตัวเอง 15 |
+| `DROP_TANK_COST_CREDITS` | **80** | ราคาถังละ 80 credits |
 | `FUEL_DEPOT_PRECISE_BONUS` | **80.0** | ชนะ depot precise = +80 fuel |
 | `FUEL_DEPOT_HEAVY_BONUS` | **40.0** | ชนะ depot heavy = +40 fuel |
 | `ENGINE_DIRT_PER_SIPHON` | **0.25** | dirt +0.25 ต่อ siphon |
@@ -69,6 +71,7 @@
 | 2026-08-19 | Drop Tank HUD indicator (HP + fuel + purge warning) | `core_hud.gd` |
 | 2026-08-19 | Pilot Siphon Protocol — wreckage tile + siphon + re-ignition | `global_data.gd`, `board_manager.gd`, `board_tile.gd`, `mecha_health_base.gd`, `theme_system.gd`, `save_game_io.gd` |
 | 2026-08-19 | Fuel depot choice popup — Precise vs Heavy approach | `global_data.gd`, `board_manager.gd`, `theme_system.gd`, `GDD.md` |
+| 2026-08-19 | Drop Tank purchase/detach in City Shop | `city_shop_ui.gd`, `global_data.gd`, `GDD.md` |
 
 ---
 
@@ -85,7 +88,7 @@
 
 | hash | ข้อความ |
 |------|---------|
-| `98d80e6` | docs: update PROGRESS.md — 14 items complete |
+| `b576015` | feat(drop_tanks): add purchase/detach in City Shop |
 | `ffb05cb` | feat(depot): add fuel depot choice popup — precise vs heavy approach |
 | `61f0bed` | feat(siphon): implement Pilot Siphon Protocol — wreckage + re-ignition |
 | `a3fe044` | feat(drop_tanks): add HUD indicator for drop tank HP, fuel, and purge warning |

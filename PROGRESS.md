@@ -27,21 +27,24 @@
 | 14 | Fuel depot choice popup | ✅ | `global_data.gd`, `board_manager.gd`, `theme_system.gd` |
 | 15 | Drop Tank purchase/detach in City Shop | ✅ | `city_shop_ui.gd` |
 | 16 | Research Lab tile + UI | ✅ | `research_lab_ui.gd`, `research_lab_ui.tscn`, `board_tile.gd`, `board_manager.gd`, `board_generator.gd`, `game_board.tscn` |
+| 17 | 6 new blueprint projects (frames, armor, units, beam shield) | ✅ | `research_catalogs.tres` |
 
 ---
 
-### ค่าคงที่ — Final
+### Research Catalog — All Projects
 
-| ค่า | ค่า | ผลลัพธ์ |
-|-----|-----|---------|
-| `CONVOY_TRANSFER_AMOUNT` | **60.0** | เติมได้ 60 หน่วยต่อครั้ง |
-| `DROP_TANK_CAPACITY_PER` | **40.0** | ถังละ 40 หน่วย (สูงสุด 3 ถัง = 120) |
-| `DROP_TANK_COST_CREDITS` | **80** | ราคาซื้อถังละ 80 credits |
-| `FUEL_DEPOT_PRECISE_BONUS` | **80.0** | ชนะ depot precise = +80 fuel |
-| `FUEL_DEPOT_HEAVY_BONUS` | **40.0** | ชนะ depot heavy = +40 fuel |
-| `ENGINE_DIRT_PER_SIPHON` | **0.25** | dirt +0.25 ต่อ siphon |
-| `WRECKAGE_SIPHON_AMOUNT` | **30.0** | siphon 30 หน่วยต่อครั้ง |
-| `REIGNITION_FUEL_COST` | **60.0** | เติม 60 fuel เพื่อ reboot |
+| ID | Name | Cores | Time | Reward |
+|----|------|:-----:|:----:|--------|
+| `bp_ally_gm` | GM-II Blueprint | 1 | 6 | Ally unit: GM-II |
+| `bp_ally_gunner` | GM Sniper Blueprint | 2 | 9 | Ally unit: GM Sniper |
+| `bp_ally_blade` | GM Blade Blueprint | 3 | 12 | Ally unit: GM Blade |
+| `bp_ally_cannon` | Guncannon Blueprint | 3 | 10 | Ally unit: Guncannon |
+| `bp_head_armor` | Gundam Head Armor | 4 | 10 | Armor: Duo-visor Plating |
+| `bp_leg_armor` | Gundam Leg Armor | 4 | 10 | Armor: Reactive Leg Guards |
+| `bp_gundam_frame` | Gundam Frame Blueprint | 4 | 14 | Frame: Alaya-Vijnana Set |
+| `bp_gundam_armor` | Advanced Reactive Armor | 5 | 16 | Armor: Reactive Armor MK-I |
+| `bp_heavy_frame` | Heavy Siege Frame | 6 | 18 | Frame: Reinforced Siege Set |
+| `bp_beam_shield` | Beam Shield Blueprint | 7 | 20 | Armor: Beam Shield Module |
 
 ---
 
@@ -51,7 +54,6 @@
 |--------|----------|
 | ❌ Precision Dash — หลบถูกจังหวะคืนพลังงาน | gameplay depth |
 | ❌ Research completion popup notification on board | UX improvement |
-| ❌ More research projects in catalog (gear blueprints) | content |
 
 ---
 
@@ -59,7 +61,7 @@
 
 | hash | ข้อความ |
 |------|---------|
-| `52de158` | docs: update PROGRESS.md — 16 items complete |
+| `df4f2ff` | feat(research): add 6 new blueprint projects |
 | `0752fa6` | feat(research): add Research Lab tile + UI |
 | `b576015` | feat(drop_tanks): add purchase/detach in City Shop |
 | `ffb05cb` | feat(depot): add fuel depot choice popup |

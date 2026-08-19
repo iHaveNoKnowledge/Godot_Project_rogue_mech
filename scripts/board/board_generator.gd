@@ -240,6 +240,10 @@ func _roll_content(rng: RandomNumberGenerator) -> String:
 		return "tactical_smog"
 	elif roll < 0.78:
 		return "emp_zone"
+	elif roll < 0.83:
+		return "distress_signal"
+	elif roll < 0.88:
+		return "scavenge_site"
 	return "empty"
 
 

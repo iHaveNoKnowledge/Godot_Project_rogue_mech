@@ -175,6 +175,13 @@
 * **Distress Signals:** ยอมอ้อมไปช่วยเพื่อลุ้นรับ Inner Frame / ทรัพยากร หรือเสี่ยงพลังงานหมด
 * **Scavenge Risk:** ส่ง Pilot ลงเดินเท้าสำรวจซากคลังแสง เสี่ยงเจอโดรนซุ่มโจมตี
 
+> 📌 **Current Implementation Status:**
+> - [x] Distress Signal tile on board (red, spawns in generator)
+> - [x] Distress Signal choice: Respond (−30 energy, 60% loot reward) vs Ignore
+> - [x] Scavenge Site tile on board (rusty brown, spawns in generator)
+> - [x] Scavenge Site choice: Explore (50% loot, 30% drone ambush, 20% nothing) vs Leave
+> - [x] Drone ambush triggers forced combat
+
 ### 7.3 Mid-Battle Injections (เหตุการณ์พลิกผันกลางฉากสู้)
 * **Reinforcements / Third Party:** ศัตรูฝ่ายที่สามเข้าแทรกแซงกลางสมรภูมิ
 * **Countdown Extraction:** พื้นที่สู้รบโดนถล่ม ต้องเค้น Roller Dash สู้แข่งกับเวลา

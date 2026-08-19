@@ -34,6 +34,9 @@
 | 21 | Environmental Hazard: EMP & Jamming Zone | ✅ | `global_data.gd`, `camera_rig.gd`, `backup_mech_spawner.gd`, `board_manager.gd`, `atmosphere_manager.gd` |
 | 22 | Hazard board tiles + generator + visual | ✅ | `board_tile.gd`, `board_generator.gd` |
 | 23 | Hazard save/load + clear on combat end | ✅ | `save_game_io.gd`, `global_data.gd` |
+| 24 | Distress Signal tile + choice event | ✅ | `board_tile.gd`, `board_manager.gd`, `theme_system.gd`, `run_events.tres` |
+| 25 | Scavenge Site tile + choice event + drone ambush | ✅ | `board_tile.gd`, `board_manager.gd`, `theme_system.gd`, `run_events.tres` |
+| 26 | Distress + Scavenge in board generator | ✅ | `board_generator.gd` |
 
 ---
 
@@ -56,7 +59,6 @@
 
 | รายการ | หมายเหตุ |
 |--------|----------|
-| ❌ Strategic Dilemmas — Distress Signals, Scavenge Risk | Dynamic Event System §7.2 |
 | ❌ Mid-Battle Injections — Reinforcements + Countdown Extraction | Dynamic Event System §7.3 |
 | ❌ Convoy Escort & Defense Events | Dynamic Event System §7.4 |
 | ❌ Narrative Design — Bond, Sacrifice Event, Grand Entry | GDD §5 |

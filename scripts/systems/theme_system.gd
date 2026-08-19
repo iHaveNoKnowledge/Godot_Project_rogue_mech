@@ -212,6 +212,56 @@ static func apply_event_effect(event: Dictionary) -> bool:
 			# Fuel depot: heavy approach — reduced fuel reward after combat.
 			GlobalData.fuel_depot_approach = "heavy"
 			BoardManager._request_combat("fuel_depot")
+		"distress_help":
+			# Distress Signal: player chose to respond. Costs energy, may gain reward.
+			var cost := int(params.get("energy_cost", 30))
+			GlobalData.mech_energy = maxf(GlobalData.mech_energy - float(cost), 0.0)
+			# Roll for reward: 60% chance of scrap/credits, 40% nothing useful.
+			var roll := randf()
+			if roll < 0.35:
+				var scrap_gain := randi_range(15, 30)
+				GlobalData.scrap += scrap_gain
+				GlobalData.run_notice = "Responded to distress signal. Spent %d energy. Salvaged %d scrap." % [cost, scrap_gain]
+			elif roll < 0.55:
+				var cred_gain := randi_range(40, 80)
+				GlobalData.credits += cred_gain
+				GlobalData.run_notice = "Responded to distress signal. Spent %d energy. Found %d credits." % [cost, cred_gain]
+			elif roll < 0.65:
+				GlobalData.data_cores += 1
+				GlobalData.run_notice = "Responded to distress signal. Spent %d energy. Recovered 1 data core." % cost
+			else:
+				GlobalData.run_notice = "Responded to distress signal. Spent %d energy. Nothing useful found." % cost
+		"distress_ignore":
+			# Distress Signal: player chose to ignore. Safe, no reward.
+			GlobalData.run_notice = "Ignored the distress signal. The convoy presses on."
+		"scavenge_explore":
+			# Scavenge Risk: pilot explores wreckage on foot.
+			# Roll: 50% success (find loot), 30% drone ambush, 20% nothing.
+			var roll := randf()
+			if roll < 0.50:
+				# Success: find resources.
+				var loot_roll := randf()
+				if loot_roll < 0.40:
+					var scrap_gain := randi_range(20, 40)
+					GlobalData.scrap += scrap_gain
+					GlobalData.run_notice = "Scavenged the wreckage successfully! Found %d scrap." % scrap_gain
+				elif loot_roll < 0.70:
+					GlobalData.credits += 50
+					GlobalData.run_notice = "Scavenged the wreckage successfully! Found 50 credits."
+				else:
+					GlobalData.data_cores += 2
+					GlobalData.run_notice = "Scavenged the wreckage successfully! Found 2 data cores."
+			elif roll < 0.80:
+				# Drone ambush: force combat.
+				GlobalData.run_notice = "Scavenging triggered a drone ambush! Defend yourself!"
+				GlobalData.blocked_intermission = true
+				return true
+			else:
+				# Nothing found.
+				GlobalData.run_notice = "Searched the wreckage but found nothing useful."
+		"scavenge_leave":
+			# Scavenge Risk: player chose to leave. Safe.
+			GlobalData.run_notice = "Left the wreckage alone. Not worth the risk."
 		_:
 			push_warning("apply_event_effect: unknown effect '%s'" % effect)
 	return false

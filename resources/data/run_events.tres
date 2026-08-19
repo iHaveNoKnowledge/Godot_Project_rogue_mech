@@ -424,4 +424,41 @@ events = [{
 },
 "themes": ["scavenger"],
 "weight": 6
+}, {
+"amount": 0,
+"desc": "A distress signal crackles over the radio. Someone is stranded and calling for help. Responding costs energy but may yield salvage.",
+"effect": "choice",
+"id": "distress_signal",
+"name": "Distress Signal",
+"params": {
+"choices": [{
+"effect": "distress_help",
+"label": "Respond (−30 energy)",
+"params": {
+"energy_cost": 30
+}
+}, {
+"effect": "distress_ignore",
+"label": "Ignore Signal"
+}]
+},
+"themes": [],
+"weight": 7
+}, {
+"amount": 0,
+"desc": "Wreckage of a military transport lies ahead. It might hold usable parts — or drones guarding the salvage.",
+"effect": "choice",
+"id": "scavenge_risk",
+"name": "Scavenge Risk",
+"params": {
+"choices": [{
+"effect": "scavenge_explore",
+"label": "Explore Wreckage"
+}, {
+"effect": "scavenge_leave",
+"label": "Leave It Alone"
+}]
+},
+"themes": [],
+"weight": 7
 }]

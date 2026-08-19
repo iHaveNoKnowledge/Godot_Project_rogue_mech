@@ -709,6 +709,47 @@ func _process_tile_effect(tile_type: String) -> void:
 					"amount": 0,
 					"desc": "Electromagnetic interference disables lock-on targeting. Reserve Mech call blocked.",
 				})
+		"distress_signal":
+			# Strategic Dilemma: Distress Signal — choice to help or ignore.
+			if GlobalData.mech_less:
+				_trigger_recovery_event()
+			else:
+				EventBus.event_triggered.emit({
+					"name": "DISTRESS SIGNAL",
+					"effect": "choice",
+					"amount": 0,
+					"desc": "A distress signal crackles over the radio. Someone is stranded and calling for help. Responding costs energy but may yield salvage.",
+					"params": {
+						"choices": [{
+							"effect": "distress_help",
+							"label": "Respond (−30 energy)",
+							"params": {"energy_cost": 30}
+						}, {
+							"effect": "distress_ignore",
+							"label": "Ignore Signal"
+						}]
+					}
+				})
+		"scavenge_site":
+			# Strategic Dilemma: Scavenge Risk — explore or leave.
+			if GlobalData.mech_less:
+				_trigger_recovery_event()
+			else:
+				EventBus.event_triggered.emit({
+					"name": "SCAVENGE SITE",
+					"effect": "choice",
+					"amount": 0,
+					"desc": "Wreckage of a military transport lies ahead. It might hold usable parts — or drones guarding the salvage.",
+					"params": {
+						"choices": [{
+							"effect": "scavenge_explore",
+							"label": "Explore Wreckage"
+						}, {
+							"effect": "scavenge_leave",
+							"label": "Leave It Alone"
+						}]
+					}
+				})
 		_:
 			pass
 

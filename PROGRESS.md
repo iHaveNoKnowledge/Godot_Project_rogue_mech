@@ -68,7 +68,6 @@
 | รายการ | หมายเหตุ |
 |--------|----------|
 | ❌ Pilot Siphon Protocol — นักบินเดินเท้าสูบเชื้อเพลิงจากซากศัตรู | ต่อจาก mech_death flow |
-| ~~❌ Drop Tank visual model บนหุ่น~~ | ✅ ทำแล้ว (`drop_tank_visuals.gd`) |
 | ❌ Fuel depot choice popup — เลือกอาวุธก่อนบุก (precise vs heavy) | gameplay depth |
 | ❌ Precision Dash — หลบถูกจังหวะคืนพลังงาน | gameplay depth |
 | ❌ Phase 4: Research & Blueprint | feature ใหญ่ถัดไป |

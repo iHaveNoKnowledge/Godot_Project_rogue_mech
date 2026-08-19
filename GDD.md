@@ -149,6 +149,15 @@
 * **The Sacrifice Event:** ภารกิจวิกฤตที่ผู้เล่นต้องเค้นพลังหุ่นเก่าจนพังยับเยินเพื่อปกป้องเป้าหมาย
 * **The Grand Entry:** ตัดเข้าฉาก 3rd Person เปิดตัวหุ่นใหม่ mid-battle บินลงมาจากฟากฟ้าพร้อม BGM ใหม่ ปลดล็อกข้อจำกัดเดิมทันที (ให้ความรู้สึกทรงพลังแบบ Freedom หรือ 00 Gundam)
 
+> 📌 **Current Implementation Status:**
+> - [x] Bond system: tracks shared battles, repairs, near-death escapes
+> - [x] Bond increases through combat survival (5-20 per battle based on damage)
+> - [x] Bond increases through repairs (+3 per repair)
+> - [x] Bond increases through near-death escapes (+10 when HP < 20%)
+> - [x] Sacrifice Event: unlocks when bond >= 80 and mech heavily damaged
+> - [x] Grand Entry: replacement mech arrives after sacrifice (tier-based)
+> - [x] Bond HUD indicator: pink/red bar with heart icon
+
 ---
 
 ## ⏱️ 6. Pacing & Game Length Plan

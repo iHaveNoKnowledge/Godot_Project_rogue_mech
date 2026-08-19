@@ -424,6 +424,10 @@ func _apply_frame_damage(slot_name: String, amount: float, damage_type: String) 
 
 	if is_player:
 		EventBus.damage_received.emit(slot_name, amount, damage_type)
+		# Near-death escape detection (GDD §5): bond increases when HP drops below 20%.
+		var hp_ratio := total_frame_hp / maxf(max_total_frame, 1.0)
+		if hp_ratio < 0.2 and total_frame_hp > 0.0:
+			GlobalData.record_near_death_escape()
 	if _is_friendly():
 		EventBus.friendly_damage_received.emit(amount)
 

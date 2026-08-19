@@ -126,6 +126,9 @@ func _on_board_day_ended() -> void:
 func _on_combat_ended(victory: bool) -> void:
 	# Clear environmental hazard after combat (one-shot per encounter).
 	current_hazard = ""
+	# Record bond: surviving a battle increases the pilot-mech bond.
+	if victory:
+		record_battle_survived()
 	# Finalize combat damage stats before any tech/reputation logic reads them.
 	_compute_last_combat_damage_ratio()
 	# A patrol fleet engagement (open-grid board) resolves before any general
@@ -963,6 +966,19 @@ var convoy_defense_current_wave: int = 0
 var convoy_defense_active: bool = false
 # Convoy destroyed: all backup mechs lost, forced pilot mode.
 var convoy_destroyed: bool = false
+# --- Narrative Design (GDD §5) ----------------------------------------------
+# Bond: tracks the emotional connection between pilot and mech.
+# Increases through shared battles, repairs, and surviving near-death.
+var mech_bond: float = 0.0          # 0.0 to 100.0
+var mech_battles_survived: int = 0  # total battles fought in this mech
+var mech_repairs_done: int = 0      # times this mech was repaired
+var mech_near_death_escapes: int = 0 # times HP dropped below 20%
+# Sacrifice Event: triggers when bond >= 80 and mech is heavily damaged.
+var sacrifice_event_available: bool = false
+var sacrifice_event_triggered: bool = false
+# Grand Entry: new mech arrival after sacrifice.
+var grand_entry_mech_id: String = ""  # id of the replacement mech
+var grand_entry_pending: bool = false
 # --- Open-grid board state (see BoardConfig/Terrain in board scripts) ---
 # Each "day" the player gets board_mp_max movement points; cells cost their
 # terrain move_cost. Research / heat / spy / enemy research node / patrol fleets
@@ -1676,6 +1692,45 @@ func get_combat_friendly_damage() -> float:
 	return CombatStatsSystem.get_combat_friendly_damage()
 
 
+# --- Narrative Bond System (GDD §5) ----------------------------------------
+# Increases bond through shared battles, repairs, and near-death escapes.
+# When bond >= 80 and mech is heavily damaged, the Sacrifice Event unlocks.
+func increase_bond(amount: float) -> void:
+	mech_bond = minf(mech_bond + amount, 100.0)
+	_check_sacrifice_availability()
+
+func record_battle_survived() -> void:
+	mech_battles_survived += 1
+	# Each battle survived adds bond based on how damaged the mech was.
+	var damage_taken := 0.0
+	for slot in part_damage:
+		damage_taken += float(part_damage[slot])
+	var damage_bonus := clampf(damage_taken * 20.0, 0.0, 15.0)
+	increase_bond(5.0 + damage_bonus)
+
+func record_repair() -> void:
+	mech_repairs_done += 1
+	increase_bond(3.0)
+
+func record_near_death_escape() -> void:
+	mech_near_death_escapes += 1
+	increase_bond(10.0)
+
+func _check_sacrifice_availability() -> void:
+	if sacrifice_event_triggered:
+		return
+	# Sacrifice unlocks when bond is high AND the mech is badly damaged.
+	var total_damage := 0.0
+	for slot in part_damage:
+		total_damage += float(part_damage[slot])
+	sacrifice_event_available = (mech_bond >= 80.0 and total_damage >= 2.0)
+
+func trigger_sacrifice_event(new_mech_id: String) -> void:
+	sacrifice_event_triggered = true
+	grand_entry_mech_id = new_mech_id
+	grand_entry_pending = true
+	sacrifice_event_available = false
+
 # ratio = friendly damage taken / combined friendly HP. 0 if nothing fielded.
 func _compute_last_combat_damage_ratio() -> void:
 	CombatStatsSystem.compute_last_combat_damage_ratio()
@@ -1786,6 +1841,14 @@ func reset_run_data() -> void:
 	convoy_defense_current_wave = 0
 	convoy_defense_active = false
 	convoy_destroyed = false
+	mech_bond = 0.0
+	mech_battles_survived = 0
+	mech_repairs_done = 0
+	mech_near_death_escapes = 0
+	sacrifice_event_available = false
+	sacrifice_event_triggered = false
+	grand_entry_mech_id = ""
+	grand_entry_pending = false
 	credits = 110
 	data_cores = 0
 	scrap = 0

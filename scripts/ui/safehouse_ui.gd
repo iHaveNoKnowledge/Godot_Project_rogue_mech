@@ -192,6 +192,8 @@ func _on_repair_part_pressed(slot: String) -> void:
 
 	GlobalData.part_damage.erase(slot)
 	GlobalData.part_damage.erase(slot + "_frame")
+	# Repair bond (GDD §5): repairing the mech strengthens the pilot-mech bond.
+	GlobalData.record_repair()
 	status_label.text = "Repaired! Credits: %d" % GlobalData.credits
 	_refresh_parts_list()
 

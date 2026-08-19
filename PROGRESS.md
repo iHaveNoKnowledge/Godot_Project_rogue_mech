@@ -46,6 +46,10 @@
 | 33 | Convoy Ambush tile + 2-wave defense | ✅ | `board_tile.gd`, `board_manager.gd`, `board_generator.gd` |
 | 34 | Vehicle Breakdown tile + 3-wave defense | ✅ | `board_tile.gd`, `board_manager.gd`, `board_generator.gd` |
 | 35 | Convoy HP + damage spill + failure consequence | ✅ | `global_data.gd`, `mecha_health_base.gd` |
+| 36 | Bond system — shared battles + repairs + near-death | ✅ | `global_data.gd`, `mecha_health_base.gd`, `safehouse_ui.gd` |
+| 37 | Sacrifice Event — critical mission trigger | ✅ | `sacrifice_event.gd` |
+| 38 | Grand Entry — new mech arrival after sacrifice | ✅ | `sacrifice_event.gd` |
+| 39 | Bond HUD indicator | ✅ | `core_hud.gd` |
 
 ---
 
@@ -69,7 +73,7 @@
 | รายการ | หมายเหตุ |
 |--------|----------|
 
-| ❌ Narrative Design — Bond, Sacrifice Event, Grand Entry | GDD §5 |
+
 
 ---
 

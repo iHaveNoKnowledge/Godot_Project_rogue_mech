@@ -34,12 +34,10 @@ var jump_charge: float = 0.0
 
 var dash_speed: float = 25.0
 var dash_duration: float = 0.2
-# Dash recharges fast (half the old cooldown) and works mid-air too: the mech
-# shifts its arms/legs and body mass to steer its center of gravity, so it can
-# redirect momentum even with no ground underfoot.
-var dash_cooldown: float = 0.5
+# No cooldown — the dash is gated purely by energy. Spamming burns the tank
+# fast; precise, well-timed dashes conserve fuel. Works mid-air too: the mech
+# shifts its arms/legs and body mass to steer its center of gravity.
 var dash_timer: float = 0.0
-var dash_cooldown_timer: float = 0.0
 var is_dashing: bool = false
 var dash_direction: Vector3 = Vector3.ZERO
 
@@ -185,7 +183,6 @@ func _physics_process(delta: float) -> void:
 		if AudioManager:
 			AudioManager.stop_roller_dash()
 		return
-	dash_cooldown_timer -= delta
 	# Roller wheels need ground under them: leaving the floor (a jump) cuts the
 	# roller out immediately, so it can never boost air speed.
 	if is_roller_dashing and not is_on_floor():
@@ -251,7 +248,7 @@ func _handle_movement_input() -> void:
 			is_roller_dashing = false
 			roller_drain_ramp = 0.0
 
-	if Input.is_action_just_pressed("dash") and dash_cooldown_timer <= 0.0:
+	if Input.is_action_just_pressed("dash"):
 		if energy >= DASH_ENERGY_COST:
 			_start_dash()
 
@@ -547,7 +544,6 @@ func _start_dash() -> void:
 
 	is_dashing = true
 	dash_timer = dash_duration
-	dash_cooldown_timer = dash_cooldown
 	energy = maxf(energy - DASH_ENERGY_COST, 0.0)
 
 	_spawn_dash_effect()

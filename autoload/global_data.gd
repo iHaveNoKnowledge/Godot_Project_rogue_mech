@@ -1147,6 +1147,7 @@ var drop_tank_fuel: float = 0.0                 # fuel stored in drop tanks
 const DROP_TANK_CAPACITY_PER: float = 40.0      # fuel per tank
 const DROP_TANK_MAX_ATTACHED: int = 3
 const DROP_TANK_PURGE_DAMAGE: float = 15.0      # self-damage if detonated
+const DROP_TANK_COST_CREDITS: int = 80            # credit cost per drop tank
 
 # Pilot siphon state.
 var pilot_siphoning: bool = false               # true while siphon is active

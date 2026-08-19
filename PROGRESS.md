@@ -39,8 +39,8 @@
 | `DROP_TANK_HP_PER_TANK` | **30.0** | ถังละ 30 HP ก่อนระเบิด |
 | `DROP_TANK_DET_DELAY` | **1.5** | 1.5 วินาทีก่อนระเบิด |
 | `DROP_TANK_PURGE_DAMAGE` | **15.0** | ระเบิดทำ DMG ตัวเอง 15 |
-| `FUEL_DEPOT_PRECISE_BONUS` | **80.0** | Precise = fuel เต็ม |
-| `FUEL_DEPOT_HEAVY_BONUS` | **40.0** | Heavy = fuel ครึ่ง |
+| `FUEL_DEPOT_PRECISE_BONUS` | **80.0** | ชนะ depot precise = +80 fuel |
+| `FUEL_DEPOT_HEAVY_BONUS` | **40.0** | ชนะ depot heavy = +40 fuel |
 | `ENGINE_DIRT_PER_SIPHON` | **0.25** | dirt +0.25 ต่อ siphon |
 | `ENGINE_DIRT_CLEANUP_PER_DAY` | **0.1** | clean 0.1/วัน |
 | `ENGINE_DIRT_HEAT_MULTIPLIER` | **1.5** | heat rate x1.5 ที่ max dirt |
@@ -85,6 +85,7 @@
 
 | hash | ข้อความ |
 |------|---------|
+| `98d80e6` | docs: update PROGRESS.md — 14 items complete |
 | `ffb05cb` | feat(depot): add fuel depot choice popup — precise vs heavy approach |
 | `61f0bed` | feat(siphon): implement Pilot Siphon Protocol — wreckage + re-ignition |
 | `a3fe044` | feat(drop_tanks): add HUD indicator for drop tank HP, fuel, and purge warning |

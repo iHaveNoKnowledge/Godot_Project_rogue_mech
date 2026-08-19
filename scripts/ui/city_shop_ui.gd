@@ -145,6 +145,45 @@ func _refresh() -> void:
 		btn.pressed.connect(_on_buy_ammo.bind(ammo_type))
 		stock_container.add_child(btn)
 
+	# Drop Tanks (GDD §2.4)
+	var dt_sep = HSeparator.new()
+	stock_container.add_child(dt_sep)
+	var dt_label = Label.new()
+	dt_label.text = "EXTERNAL DROP TANKS (bolt-on fuel canisters)"
+	dt_label.add_theme_font_size_override("font_size", 12)
+	dt_label.add_theme_color_override("font_color", Color(0.9, 0.6, 0.1))
+	stock_container.add_child(dt_label)
+	var dt_desc = Label.new()
+	dt_desc.text = "Adds +40 fuel capacity per tank. Tanks are fragile — enemy fire can detonate them."
+	dt_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	dt_desc.add_theme_font_size_override("font_size", 10)
+	dt_desc.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	stock_container.add_child(dt_desc)
+	var current_tanks: int = GlobalData.drop_tanks_attached
+	var max_tanks: int = GlobalData.DROP_TANK_MAX_ATTACHED
+	if current_tanks < max_tanks:
+		var dt_price := GlobalData.DROP_TANK_COST_CREDITS
+		var dt_btn = Button.new()
+		dt_btn.custom_minimum_size = Vector2(560, 34)
+		dt_btn.text = "Attach Drop Tank (%d credits)  [%d/%d]" % [dt_price, current_tanks, max_tanks]
+		dt_btn.tooltip_text = "Bolt an external fuel canister to the backpack. +40 fuel capacity, +30 HP." 
+		dt_btn.disabled = GlobalData.credits < dt_price
+		dt_btn.pressed.connect(_on_buy_drop_tank)
+		stock_container.add_child(dt_btn)
+	else:
+		var maxed_label = Label.new()
+		maxed_label.text = "All %d drop tank slots filled." % max_tanks
+		maxed_label.add_theme_font_size_override("font_size", 11)
+		maxed_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+		stock_container.add_child(maxed_label)
+	if current_tanks > 0:
+		var detach_btn = Button.new()
+		detach_btn.custom_minimum_size = Vector2(560, 30)
+		detach_btn.text = "Detach ALL drop tanks (free)" 
+		detach_btn.tooltip_text = "Remove all external fuel canisters. Fuel in the tanks is lost."
+		detach_btn.pressed.connect(_on_detach_drop_tanks)
+		stock_container.add_child(detach_btn)
+
 	status_label.text = "Credits: %d" % GlobalData.credits
 
 
@@ -166,6 +205,31 @@ func _on_buy_ammo(ammo_type: String) -> void:
 		]
 	else:
 		status_label.text = "Not enough credits!"
+	_refresh()
+
+
+func _on_buy_drop_tank() -> void:
+	if GlobalData.drop_tanks_attached >= GlobalData.DROP_TANK_MAX_ATTACHED:
+		status_label.text = "All drop tank slots filled!"
+		return
+	if not GlobalData.try_spend_credits(GlobalData.DROP_TANK_COST_CREDITS):
+		status_label.text = "Not enough credits!"
+		return
+	GlobalData.drop_tanks_attached += 1
+	GlobalData.drop_tank_fuel += GlobalData.DROP_TANK_CAPACITY_PER
+	status_label.text = "Drop tank attached! [%d/%d] Credits: %d" % [
+		GlobalData.drop_tanks_attached, GlobalData.DROP_TANK_MAX_ATTACHED, GlobalData.credits
+	]
+	_refresh()
+
+
+func _on_detach_drop_tanks() -> void:
+	if GlobalData.drop_tanks_attached <= 0:
+		status_label.text = "No drop tanks to detach."
+		return
+	GlobalData.drop_tanks_attached = 0
+	GlobalData.drop_tank_fuel = 0.0
+	status_label.text = "All drop tanks detached."
 	_refresh()
 
 

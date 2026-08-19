@@ -60,6 +60,7 @@
 > - [x] Time Trade-off: refuel = end day + alert++
 > - [x] External Drop Tanks: bolt-on fuel + vulnerable + purge + detonation
 > - [x] External Drop Tank 3D visual model + HUD indicator + body damage intercept
+> - [x] Drop Tank purchase at City Shop (80 credits, max 3, detach free)
 > - [x] Engine Dirt Penalty: impure fuel slows energy regen
 > - [x] Convoy fuel reserve: replenishes overnight
 > - [x] Pilot Siphon Protocol: wreckage tile + siphon + re-ignition reboot

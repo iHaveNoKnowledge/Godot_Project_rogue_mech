@@ -6,12 +6,14 @@ var root_control: Control
 var left_panel: PanelContainer
 var left_name_label: Label
 var left_ammo_label: Label
+var left_reserve_label: Label
 var left_type_label: Label
 var left_heat_bar: ProgressBar
 
 var right_panel: PanelContainer
 var right_name_label: Label
 var right_ammo_label: Label
+var right_reserve_label: Label
 var right_type_label: Label
 var right_heat_bar: ProgressBar
 
@@ -248,6 +250,12 @@ func _create_left_panel() -> void:
 	left_ammo_label.add_theme_color_override("font_color", _highlight_color)
 	vbox.add_child(left_ammo_label)
 
+	left_reserve_label = Label.new()
+	left_reserve_label.text = ""
+	left_reserve_label.add_theme_font_size_override("font_size", 11)
+	left_reserve_label.add_theme_color_override("font_color", Color(0.6, 0.8, 0.6))
+	vbox.add_child(left_reserve_label)
+
 	left_heat_bar = ProgressBar.new()
 	left_heat_bar.min_value = 0.0
 	left_heat_bar.max_value = 100.0
@@ -312,6 +320,12 @@ func _create_right_panel() -> void:
 	right_ammo_label.add_theme_font_size_override("font_size", 22)
 	right_ammo_label.add_theme_color_override("font_color", _highlight_color)
 	vbox.add_child(right_ammo_label)
+
+	right_reserve_label = Label.new()
+	right_reserve_label.text = ""
+	right_reserve_label.add_theme_font_size_override("font_size", 11)
+	right_reserve_label.add_theme_color_override("font_color", Color(0.6, 0.8, 0.6))
+	vbox.add_child(right_reserve_label)
 
 	right_heat_bar = ProgressBar.new()
 	right_heat_bar.min_value = 0.0
@@ -701,12 +715,19 @@ func _update_carry_display(hand: String) -> void:
 
 
 func _on_reload_progress(hand: String, partial_text: String, reserve_ammo: int, _percent: float) -> void:
+	var max_ammo := 0
+	if weapon_manager:
+		var w = weapon_manager.left_hand if hand == "left" else weapon_manager.right_hand
+		if w:
+			max_ammo = w.max_ammo
 	if hand == "left":
 		left_ammo_label.modulate = Color(1.0, 0.3, 0.3)
-		left_ammo_label.text = "%s/%d" % [partial_text, reserve_ammo]
+		left_ammo_label.text = "%s / %d" % [partial_text, max_ammo]
+		left_reserve_label.text = "Reserve: %d" % reserve_ammo
 	elif hand == "right":
 		right_ammo_label.modulate = Color(1.0, 0.3, 0.3)
-		right_ammo_label.text = "%s/%d" % [partial_text, reserve_ammo]
+		right_ammo_label.text = "%s / %d" % [partial_text, max_ammo]
+		right_reserve_label.text = "Reserve: %d" % reserve_ammo
 
 
 var _reload_fail_tween_left: Tween = null
@@ -774,14 +795,17 @@ func _update_display() -> void:
 			left_ammo_label.modulate = Color.WHITE
 			if w.max_ammo >= 999:
 				left_ammo_label.text = "inf"
+				left_reserve_label.text = ""
 			else:
 				var res = weapon_manager.get_battle_reserve(w.get_ammo_type())
-				left_ammo_label.text = "%d / %d [Res: %d]" % [ammo, w.max_ammo, res]
+				left_ammo_label.text = "%d / %d" % [ammo, w.max_ammo]
+				left_reserve_label.text = "Reserve: %d" % res
 	else:
 		left_name_label.text = "BARE FIST — punch"
 		left_type_label.text = ""
 		left_ammo_label.text = ""
 		left_ammo_label.modulate = Color.WHITE
+		left_reserve_label.text = ""
 		left_heat_bar.visible = false
 
 	if weapon_manager.right_hand:
@@ -800,14 +824,17 @@ func _update_display() -> void:
 			right_ammo_label.modulate = Color.WHITE
 			if w.max_ammo >= 999:
 				right_ammo_label.text = "inf"
+				right_reserve_label.text = ""
 			else:
 				var res = weapon_manager.get_battle_reserve(w.get_ammo_type())
-				right_ammo_label.text = "%d / %d [Res: %d]" % [ammo, w.max_ammo, res]
+				right_ammo_label.text = "%d / %d" % [ammo, w.max_ammo]
+				right_reserve_label.text = "Reserve: %d" % res
 	else:
 		right_name_label.text = "BARE FIST — punch"
 		right_type_label.text = ""
 		right_ammo_label.text = ""
 		right_ammo_label.modulate = Color.WHITE
+		right_reserve_label.text = ""
 		right_heat_bar.visible = false
 
 

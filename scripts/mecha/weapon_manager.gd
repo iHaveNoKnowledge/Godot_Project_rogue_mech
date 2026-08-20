@@ -1232,6 +1232,10 @@ func _check_melee_hit(mecha: Node3D, direction: Vector3, damage: float, weapon: 
 		elif enemy.has_method("take_damage"):
 			enemy.take_damage(damage, melee_type)
 		melee_hit_landed.emit()
+		var rigs = get_tree().get_nodes_in_group("camera_rig")
+		if not rigs.is_empty() and rigs[0].has_method("add_shake"):
+			var impact_shake: float = clampf(0.12 + damage * 0.003, 0.15, 0.45)
+			rigs[0].add_shake(impact_shake)
 		if weapon != null and weapon.weapon_name.to_lower().contains("pile"):
 			_apply_pile_hitstop()
 		if weapon != null and weapon.impact > 0.0 and enemy.has_method("apply_impact"):
@@ -1353,35 +1357,48 @@ func is_overheated(hand: String) -> bool:
 # ====================================================================
 
 func _apply_recoil(weapon: WeaponPart) -> void:
-	if weapon == null or weapon.recoil_force <= 0.0:
+	if weapon == null:
 		return
 	var mecha = get_parent()
-	if mecha == null:
-		return
-	var cam = get_viewport().get_camera_3d()
-	if cam == null:
-		return
+	var cam = get_viewport().get_camera_3d() if get_viewport() else null
 
-	# Pull the mech backward along the camera aim direction.
-	var cam_basis = cam.global_transform.basis
-	var backward: Vector3 = cam_basis.z  # +Z faces AWAY from aim
-	backward.y = 0.0
-	if backward.length() > 0.01:
-		backward = backward.normalized()
-		var impulse: Vector3 = backward * weapon.recoil_force
-		# Railguns use the heavy kick: a stronger push plus a stance-recovery
-		# beat (decay slowed) so the mech visibly staggers and re-balances.
-		if weapon.weapon_type == WeaponPart.WeaponType.RAILGUN \
-				and mecha.has_method("apply_heavy_recoil_impulse"):
-			mecha.apply_heavy_recoil_impulse(impulse)
-		elif mecha.has_method("apply_recoil_impulse"):
-			mecha.apply_recoil_impulse(impulse)
+	# Pull the mech backward along the camera aim direction if recoil_force configured.
+	if mecha != null and cam != null and weapon.recoil_force > 0.0:
+		var cam_basis = cam.global_transform.basis
+		var backward: Vector3 = cam_basis.z  # +Z faces AWAY from aim
+		backward.y = 0.0
+		if backward.length() > 0.01:
+			backward = backward.normalized()
+			var impulse: Vector3 = backward * weapon.recoil_force
+			# Railguns use the heavy kick: a stronger push plus a stance-recovery
+			# beat (decay slowed) so the mech visibly staggers and re-balances.
+			if weapon.weapon_type == WeaponPart.WeaponType.RAILGUN \
+					and mecha.has_method("apply_heavy_recoil_impulse"):
+				mecha.apply_heavy_recoil_impulse(impulse)
+			elif mecha.has_method("apply_recoil_impulse"):
+				mecha.apply_recoil_impulse(impulse)
 
-	# Camera shake proportional to recoil.
-	if weapon.recoil_shake > 0.0:
+	# Camera shake proportional to recoil / weapon firepower.
+	var shake_val: float = weapon.recoil_shake
+	if shake_val <= 0.0:
+		match weapon.weapon_type:
+			WeaponPart.WeaponType.MISSILE:
+				shake_val = 0.35
+			WeaponPart.WeaponType.SHOTGUN:
+				shake_val = 0.22
+			WeaponPart.WeaponType.RAILGUN:
+				shake_val = 0.45
+			WeaponPart.WeaponType.BEAM_RIFLE:
+				shake_val = 0.14
+			WeaponPart.WeaponType.MACHINE_GUN, WeaponPart.WeaponType.MINIGUN:
+				shake_val = 0.07
+			_:
+				shake_val = clampf(weapon.damage * 0.005, 0.05, 0.4)
+
+	if shake_val > 0.0:
 		var rigs = get_tree().get_nodes_in_group("camera_rig")
 		if not rigs.is_empty() and rigs[0].has_method("add_shake"):
-			rigs[0].add_shake(weapon.recoil_shake)
+			rigs[0].add_shake(shake_val)
 
 
 # Applies a weapon's impact/stagger to a target enemy after a hit.

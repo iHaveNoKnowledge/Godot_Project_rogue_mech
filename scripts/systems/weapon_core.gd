@@ -306,4 +306,4 @@ func _spawn_projectile(from_pos: Vector3, aim_dir: Vector3, fired_by_enemy: bool
 		projectile.drop_gravity = 0.0
 		projectile.lifetime = 3.0
 
-	EffectManager.spawn_muzzle_flash(from_pos, aim_dir)
+	EffectManager.spawn_muzzle_flash(from_pos, aim_dir, projectile_color)

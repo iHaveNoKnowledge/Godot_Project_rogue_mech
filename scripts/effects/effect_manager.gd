@@ -8,44 +8,66 @@ func _ready() -> void:
 	instance = self
 
 
-static func spawn_muzzle_flash(position: Vector3, direction: Vector3) -> void:
+static func spawn_muzzle_flash(position: Vector3, direction: Vector3, color: Color = Color(1.0, 0.85, 0.4)) -> void:
 	if instance == null:
 		return
 
+	# 1. Dynamic Flash OmniLight3D (illuminates mecha, weapon barrel, and ground!)
+	var light := OmniLight3D.new()
+	light.light_color = color
+	light.light_energy = 5.0
+	light.omni_range = 10.0
+	light.omni_attenuation = 2.0
+	instance.add_child(light)
+	light.global_position = position
+
+	var light_tween := instance.create_tween()
+	light_tween.tween_property(light, "light_energy", 0.0, 0.09)
+	light_tween.tween_callback(light.queue_free)
+
+	# 2. Glowing Particle Burst
 	var flash = GPUParticles3D.new()
 	var mat = ParticleProcessMaterial.new()
 	mat.direction = direction
-	mat.spread = 30.0
+	mat.spread = 25.0
 	mat.initial_velocity_min = 15.0
-	mat.initial_velocity_max = 25.0
+	mat.initial_velocity_max = 28.0
 	mat.gravity = Vector3.ZERO
 	mat.scale_min = 0.2
-	mat.scale_max = 0.5
+	mat.scale_max = 0.55
 
 	flash.process_material = mat
-	flash.amount = 6
-	flash.lifetime = 0.15
+	flash.amount = 8
+	flash.lifetime = 0.12
 	flash.one_shot = true
 	flash.explosiveness = 1.0
 	flash.emitting = true
 
 	var mesh_instance = MeshInstance3D.new()
 	var sphere = SphereMesh.new()
-	sphere.radius = 0.1
+	sphere.radius = 0.12
 	mesh_instance.mesh = sphere
 	var particle_mat = StandardMaterial3D.new()
 	particle_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	particle_mat.albedo_color = Color(1, 0.9, 0.5, 0.8)
+	particle_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	particle_mat.albedo_color = Color(color.r, color.g, color.b, 0.95)
+	particle_mat.emission_enabled = true
+	particle_mat.emission = color
+	particle_mat.emission_energy_multiplier = 4.0
 	mesh_instance.material_override = particle_mat
 	flash.add_child(mesh_instance)
 
 	instance.add_child(flash)
 	flash.global_position = position
-	flash.look_at(position + direction)
+	if direction.length_squared() > 0.001:
+		flash.look_at(position + direction, Vector3.UP)
 
-	await instance.get_tree().create_timer(0.3).timeout
-	if is_instance_valid(flash):
-		flash.queue_free()
+	var flash_tween := instance.create_tween()
+	flash_tween.tween_interval(0.2)
+	flash_tween.tween_callback(func():
+		if is_instance_valid(flash):
+			flash.queue_free()
+	)
 
 
 static func spawn_impact(position: Vector3, normal: Vector3) -> void:
@@ -56,35 +78,42 @@ static func spawn_impact(position: Vector3, normal: Vector3) -> void:
 	var mat = ParticleProcessMaterial.new()
 	mat.direction = normal
 	mat.spread = 60.0
-	mat.initial_velocity_min = 3.0
-	mat.initial_velocity_max = 8.0
-	mat.gravity = Vector3(0, -5, 0)
-	mat.scale_min = 0.05
-	mat.scale_max = 0.15
+	mat.initial_velocity_min = 4.0
+	mat.initial_velocity_max = 10.0
+	mat.gravity = Vector3(0, -6, 0)
+	mat.scale_min = 0.06
+	mat.scale_max = 0.18
 
 	impact.process_material = mat
-	impact.amount = 10
-	impact.lifetime = 0.4
+	impact.amount = 12
+	impact.lifetime = 0.35
 	impact.one_shot = true
-	impact.explosiveness = 0.8
+	impact.explosiveness = 0.9
 	impact.emitting = true
 
 	var mesh_instance = MeshInstance3D.new()
 	var sphere = SphereMesh.new()
-	sphere.radius = 0.05
+	sphere.radius = 0.06
 	mesh_instance.mesh = sphere
 	var particle_mat = StandardMaterial3D.new()
 	particle_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	particle_mat.albedo_color = Color(1, 0.7, 0.3, 0.9)
+	particle_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	particle_mat.albedo_color = Color(1.0, 0.8, 0.3, 0.95)
+	particle_mat.emission_enabled = true
+	particle_mat.emission = Color(1.0, 0.7, 0.2)
+	particle_mat.emission_energy_multiplier = 3.5
 	mesh_instance.material_override = particle_mat
 	impact.add_child(mesh_instance)
 
 	instance.add_child(impact)
 	impact.global_position = position
 
-	await instance.get_tree().create_timer(0.5).timeout
-	if is_instance_valid(impact):
-		impact.queue_free()
+	var t := instance.create_tween()
+	t.tween_interval(0.4)
+	t.tween_callback(func():
+		if is_instance_valid(impact):
+			impact.queue_free()
+	)
 
 
 static func spawn_damage_number(position: Vector3, damage: float, color: Color = Color.WHITE) -> void:
@@ -112,39 +141,64 @@ static func spawn_explosion(position: Vector3) -> void:
 	if instance == null:
 		return
 
+	# Explosion dynamic light
+	var light := OmniLight3D.new()
+	light.light_color = Color(1.0, 0.6, 0.15)
+	light.light_energy = 8.0
+	light.omni_range = 18.0
+	light.omni_attenuation = 1.8
+	instance.add_child(light)
+	light.global_position = position
+
+	var lt := instance.create_tween()
+	lt.tween_property(light, "light_energy", 0.0, 0.25)
+	lt.tween_callback(light.queue_free)
+
+	# Explosion screen shake
+	var rigs = instance.get_tree().get_nodes_in_group("camera_rig")
+	if not rigs.is_empty() and rigs[0].has_method("add_shake"):
+		rigs[0].add_shake(0.35)
+
 	var explosion = GPUParticles3D.new()
 	var mat = ParticleProcessMaterial.new()
 	mat.direction = Vector3(0, 1, 0)
 	mat.spread = 180.0
 	mat.initial_velocity_min = 8.0
-	mat.initial_velocity_max = 15.0
+	mat.initial_velocity_max = 16.0
 	mat.gravity = Vector3(0, -3, 0)
-	mat.scale_min = 0.3
-	mat.scale_max = 0.8
+	mat.scale_min = 0.35
+	mat.scale_max = 0.9
 
 	explosion.process_material = mat
-	explosion.amount = 30
+	explosion.amount = 32
 	explosion.lifetime = 0.8
 	explosion.one_shot = true
-	explosion.explosiveness = 0.9
+	explosion.explosiveness = 0.95
 	explosion.emitting = true
 
 	var mesh_instance = MeshInstance3D.new()
 	var sphere = SphereMesh.new()
-	sphere.radius = 0.2
+	sphere.radius = 0.22
 	mesh_instance.mesh = sphere
 	var particle_mat = StandardMaterial3D.new()
 	particle_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	particle_mat.albedo_color = Color(1, 0.5, 0.1, 1)
+	particle_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	particle_mat.albedo_color = Color(1.0, 0.55, 0.15, 1.0)
+	particle_mat.emission_enabled = true
+	particle_mat.emission = Color(1.0, 0.5, 0.1)
+	particle_mat.emission_energy_multiplier = 4.0
 	mesh_instance.material_override = particle_mat
 	explosion.add_child(mesh_instance)
 
 	instance.add_child(explosion)
 	explosion.global_position = position
 
-	await instance.get_tree().create_timer(1.0).timeout
-	if is_instance_valid(explosion):
-		explosion.queue_free()
+	var et := instance.create_tween()
+	et.tween_interval(0.9)
+	et.tween_callback(func():
+		if is_instance_valid(explosion):
+			explosion.queue_free()
+	)
 
 
 ## Spawns a fading arc of box meshes tracing a melee swing. The arc sweeps from

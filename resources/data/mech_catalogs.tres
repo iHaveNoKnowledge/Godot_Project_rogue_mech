@@ -26,6 +26,16 @@ armor_catalog = {
 "path": "res://resources/mech/parts/arm_left/arm_left_002_gundam.tres",
 "type": "Gundam Armor",
 "weight": 5.0
+}, {
+"armor": 22.0,
+"color": Color(0.45, 0.4, 0.35, 1),
+"defense_type": "blunt",
+"hp": 32.0,
+"id": "arm_left_vagrant_01",
+"name": "Scrap Pilgrim Wrapped Forearm (L)",
+"path": "res://resources/mech/parts/arm_left/arm_left_001.tres",
+"type": "Vagrant Wrap",
+"weight": 4.0
 }],
 "arm_right": [{
 "armor": 15.0,
@@ -48,6 +58,16 @@ armor_catalog = {
 "path": "res://resources/mech/parts/arm_right/arm_right_002_gundam.tres",
 "type": "Gundam Armor",
 "weight": 5.0
+}, {
+"armor": 22.0,
+"color": Color(0.45, 0.4, 0.35, 1),
+"defense_type": "blunt",
+"hp": 32.0,
+"id": "arm_right_vagrant_01",
+"name": "Scrap Pilgrim Wrapped Forearm (R)",
+"path": "res://resources/mech/parts/arm_right/arm_right_001.tres",
+"type": "Vagrant Wrap",
+"weight": 4.0
 }],
 "body": [{
 "armor": 40.0,
@@ -80,6 +100,16 @@ armor_catalog = {
 "path": "res://resources/mech/parts/body/body_003_gundam.tres",
 "type": "Gundam Armor",
 "weight": 18.0
+}, {
+"armor": 50.0,
+"color": Color(0.45, 0.4, 0.35, 1),
+"defense_type": "heat",
+"hp": 80.0,
+"id": "body_vagrant_01",
+"name": "Scrap Pilgrim Layered Cloak Armor",
+"path": "res://resources/mech/parts/body/body_001.tres",
+"type": "Vagrant Cloak",
+"weight": 11.0
 }],
 "head": [{
 "armor": 20.0,
@@ -112,6 +142,16 @@ armor_catalog = {
 "path": "res://resources/mech/parts/head/head_003_gundam.tres",
 "type": "Gundam Armor",
 "weight": 3.0
+}, {
+"armor": 22.0,
+"color": Color(0.45, 0.4, 0.35, 1),
+"defense_type": "pierce",
+"hp": 35.0,
+"id": "head_vagrant_01",
+"name": "Scrap Pilgrim Cowl Visor",
+"path": "res://resources/mech/parts/head/head_001.tres",
+"type": "Vagrant Cloak",
+"weight": 2.2
 }],
 "leg_left": [{
 "armor": 20.0,
@@ -134,6 +174,16 @@ armor_catalog = {
 "path": "res://resources/mech/parts/leg_left/leg_left_002_gundam.tres",
 "type": "Gundam Armor",
 "weight": 7.0
+}, {
+"armor": 26.0,
+"color": Color(0.45, 0.4, 0.35, 1),
+"defense_type": "pierce",
+"hp": 40.0,
+"id": "leg_left_vagrant_01",
+"name": "Scrap Pilgrim Vector Leg Guard (L)",
+"path": "res://resources/mech/parts/leg_left/leg_left_001.tres",
+"type": "Vagrant Vector",
+"weight": 5.5
 }],
 "leg_right": [{
 "armor": 20.0,
@@ -156,6 +206,16 @@ armor_catalog = {
 "path": "res://resources/mech/parts/leg_right/leg_right_002_gundam.tres",
 "type": "Gundam Armor",
 "weight": 7.0
+}, {
+"armor": 26.0,
+"color": Color(0.45, 0.4, 0.35, 1),
+"defense_type": "pierce",
+"hp": 40.0,
+"id": "leg_right_vagrant_01",
+"name": "Scrap Pilgrim Vector Leg Guard (R)",
+"path": "res://resources/mech/parts/leg_right/leg_right_001.tres",
+"type": "Vagrant Vector",
+"weight": 5.5
 }],
 "weapon_left": [{
 "armor": 0.0,
@@ -173,6 +233,14 @@ armor_catalog = {
 "path": "res://resources/mech/stock/weapon_pile_bunker.tres",
 "type": "Melee Weapon",
 "weight": 11.0
+}, {
+"armor": 0.0,
+"hp": 0.0,
+"id": "wep_l_vagrant_blade",
+"name": "Scrap Pilgrim Kinematic Katana",
+"path": "res://resources/mech/stock/weapon_heat_blade.tres",
+"type": "Melee Weapon",
+"weight": 4.0
 }],
 "weapon_right": [{
 "armor": 0.0,
@@ -258,6 +326,13 @@ chassis_catalog = {
 "power": 18.0,
 "speed": 10.5
 },
+"pilgrim": {
+"color": Color(0.45, 0.4, 0.35, 1),
+"max_weight": 68.0,
+"name": "SCRAP PILGRIM-00 (Vagrant Flow Frame)",
+"power": 11.0,
+"speed": 16.5
+},
 "vanguard": {
 "color": Color(0.85, 0.85, 0.9, 1),
 "max_weight": 55.0,
@@ -295,6 +370,13 @@ frame_catalog = {
 "name": "Heavy Reinforced Siege Arm Frame (L)",
 "type": "Heavy Frame",
 "weight": 8.0
+}, {
+"carry_bonus": 6.0,
+"hp": 28.0,
+"id": "frame_arm_left_vagrant",
+"name": "Scrap Pilgrim Fluid Joint Arm Frame (L)",
+"type": "Pre-Cog Frame",
+"weight": 2.5
 }],
 "arm_right": [{
 "carry_bonus": 3.0,
@@ -324,6 +406,13 @@ frame_catalog = {
 "name": "Heavy Reinforced Siege Arm Frame (R)",
 "type": "Heavy Frame",
 "weight": 8.0
+}, {
+"carry_bonus": 6.0,
+"hp": 28.0,
+"id": "frame_arm_right_vagrant",
+"name": "Scrap Pilgrim Fluid Joint Arm Frame (R)",
+"type": "Pre-Cog Frame",
+"weight": 2.5
 }],
 "body": [{
 "carry_bonus": 8.0,
@@ -353,6 +442,13 @@ frame_catalog = {
 "name": "Fortress Heavy Structural Spine",
 "type": "Heavy Frame",
 "weight": 16.0
+}, {
+"carry_bonus": 14.0,
+"hp": 65.0,
+"id": "frame_body_vagrant",
+"name": "Scrap Pilgrim Resonant Torso Spine",
+"type": "Pre-Cog Frame",
+"weight": 5.0
 }],
 "head": [{
 "carry_bonus": 2.0,
@@ -382,6 +478,13 @@ frame_catalog = {
 "name": "Titan Heavy Structure Head Frame",
 "type": "Heavy Frame",
 "weight": 5.5
+}, {
+"carry_bonus": 5.0,
+"hp": 30.0,
+"id": "frame_head_vagrant",
+"name": "Scrap Pilgrim Sensor Visor Skeleton",
+"type": "Pre-Cog Frame",
+"weight": 1.8
 }],
 "leg_left": [{
 "carry_bonus": 4.0,
@@ -411,6 +514,13 @@ frame_catalog = {
 "name": "Heavy Hydraulic Titan Leg Frame (L)",
 "type": "Heavy Frame",
 "weight": 10.0
+}, {
+"carry_bonus": 7.0,
+"hp": 32.0,
+"id": "frame_leg_left_vagrant",
+"name": "Scrap Pilgrim Zero-Waste Leg Actuator (L)",
+"type": "Pre-Cog Frame",
+"weight": 3.5
 }],
 "leg_right": [{
 "carry_bonus": 4.0,
@@ -440,5 +550,12 @@ frame_catalog = {
 "name": "Heavy Hydraulic Titan Leg Frame (R)",
 "type": "Heavy Frame",
 "weight": 10.0
+}, {
+"carry_bonus": 7.0,
+"hp": 32.0,
+"id": "frame_leg_right_vagrant",
+"name": "Scrap Pilgrim Zero-Waste Leg Actuator (R)",
+"type": "Pre-Cog Frame",
+"weight": 3.5
 }]
 }

@@ -193,4 +193,18 @@ ally_unit_templates = [{
 "name": "Guncannon",
 "role": "Artillery Support",
 "scene_path": "res://scenes/mecha/ally_dummy.tscn"
+}, {
+"archetype": 0,
+"armor_hp": 55.0,
+"attack_cooldown": 0.8,
+"attack_damage": 38.0,
+"attack_range": 3.5,
+"color": Color(0.45, 0.4, 0.35, 1),
+"fielded": true,
+"frame_hp": 85.0,
+"id": "ally_vagrant",
+"move_speed": 5.8,
+"name": "Gale 'The Vagrant' Kurogane",
+"role": "Scrap Pilgrim — Vagrant Ace",
+"scene_path": "res://scenes/mecha/ally_dummy.tscn"
 }]

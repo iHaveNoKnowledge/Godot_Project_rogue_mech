@@ -1106,6 +1106,11 @@ var pilot_items: Dictionary = {}
 var hired_pilots: Array = []
 var fallen_pilots: Array = []
 
+# Dynamic Rival / Nemesis Enemy Pilot System
+var rival_pilots: Array = []
+var defeated_rivals: Array = []
+var active_combat_commander: Dictionary = {}
+
 # --- Pilot facades (logic in PilotSystem) ---
 
 func get_pilot_hp() -> float:
@@ -1866,6 +1871,9 @@ func reset_run_data() -> void:
 	scrap = 0
 	hired_pilots.clear()
 	fallen_pilots.clear()
+	rival_pilots.clear()
+	defeated_rivals.clear()
+	active_combat_commander.clear()
 	current_sector = 1
 	enemy_forces = {
 		"boss_current": 1, "boss_max": 1,

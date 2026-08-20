@@ -598,8 +598,20 @@ func _process(_delta: float) -> void:
 		var aces_cnt: int = int(patrol.get("aces", 0))
 		var fleet_name: String = str(patrol.get("name", "Patrol Fleet"))
 
-		patrol_desc = "FLEET INTEL: %s [%s]\n• Squad: %d Grunt%s%s\n• Loadout: %s\n• Speed: %d MP%s" % [
+		var commander: Dictionary = patrol.get("commander", {})
+		var commander_str := ""
+		if not commander.is_empty():
+			var rivalry_cnt := int(commander.get("rivalry_count", 0))
+			var rival_badge := " [RIVAL - %d CLASHES!]" % rivalry_cnt if rivalry_cnt > 0 else ""
+			commander_str = "• Commander: %s%s\n• Trait/Perk: %s (%s)\n• Bounty: %d Credits\n" % [
+				commander.get("name", "Ace Pilot"), rival_badge,
+				commander.get("trait", "Veteran"), commander.get("perk_name", "Standard"),
+				int(commander.get("bounty", 150))
+			]
+
+		patrol_desc = "FLEET INTEL: %s [%s]\n%s• Squad: %d Grunt%s%s | Loadout: %s\n• Speed: %d MP%s" % [
 			fleet_name, arch_name.to_upper(),
+			commander_str,
 			grunts_cnt, "s" if grunts_cnt != 1 else "",
 			(" + %d Ace" % aces_cnt) if aces_cnt > 0 else "",
 			tags_str, speed_mp,

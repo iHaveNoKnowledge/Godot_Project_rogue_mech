@@ -116,6 +116,41 @@ func _ready() -> void:
 	_check(GlobalData.fallen_pilots.size() == 1, "Fallen pilots memorial recorded casualty")
 	_check(replacement.has("name") and replacement["name"] != sample_pilot["name"], "Replacement pilot generated: %s" % replacement.get("name", ""))
 
+	# 8. Nemesis Rival Pilot & Faction Mobilization verification
+	var mock_tile_1 = Node.new()
+	mock_tile_1.set_meta("tile_type", "empty")
+	mock_tile_1.set_meta("terrain", "plain")
+	var mock_tile_2 = Node.new()
+	mock_tile_2.set_meta("tile_type", "empty")
+	mock_tile_2.set_meta("terrain", "plain")
+	GlobalData.board_grid = [{ Vector2i(5, 5): mock_tile_1, Vector2i(6, 6): mock_tile_2 }]
+	GlobalData.board_patrols.clear()
+	PatrolSystem.spawn_patrols()
+	_check(GlobalData.board_patrols.size() > 0, "patrols spawned successfully")
+	var patrol_lead = GlobalData.board_patrols[0]
+	_check(patrol_lead.has("commander") and patrol_lead["commander"].has("name"), "patrol fleet has assigned named commander: %s" % patrol_lead.get("commander", {}).get("name", ""))
+
+	var initial_bounty: int = int(patrol_lead["commander"].get("bounty", 150))
+	var initial_rivalry: int = int(patrol_lead["commander"].get("rivalry_count", 0))
+
+	# Test Escape/Retreat: Rival survives and rivalry escalates
+	GlobalData.board_patrol_engagement = int(patrol_lead.get("id"))
+	PatrolSystem.resolve_patrol_combat(false) # false = player escaped / retreated
+	_check(patrol_lead["commander"]["rivalry_count"] == initial_rivalry + 1, "rivalry count escalated after retreat (now %d)" % patrol_lead["commander"]["rivalry_count"])
+	_check(patrol_lead["commander"]["is_nemesis"] == true, "commander is now marked as Nemesis Rival")
+	_check(patrol_lead["commander"]["bounty"] > initial_bounty, "bounty increased for nemesis rival (now %d)" % patrol_lead["commander"]["bounty"])
+	_check(GlobalData.rival_pilots.size() > 0, "surviving rival recorded in GlobalData.rival_pilots")
+
+	# Test Victory: Rival is eliminated and bounty is collected
+	var prev_credits := GlobalData.credits
+	GlobalData.board_patrol_engagement = int(patrol_lead.get("id"))
+	PatrolSystem.resolve_patrol_combat(true) # true = player victory
+	_check(GlobalData.defeated_rivals.size() > 0, "defeated rival recorded in GlobalData.defeated_rivals")
+	_check(GlobalData.credits > prev_credits, "bounty reward credited on rival defeat (+%d Cr)" % (GlobalData.credits - prev_credits))
+
+	mock_tile_1.free()
+	mock_tile_2.free()
+
 	print("\nVerification Complete: %d checks, %d failures" % [_checks, _fails])
 	if _fails > 0:
 		get_tree().quit(1)

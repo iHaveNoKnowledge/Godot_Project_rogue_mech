@@ -1,6 +1,8 @@
 class_name PatrolSystem
 extends RefCounted
 
+const PilotGenerator = preload("res://scripts/systems/pilot_generator.gd")
+
 # -----------------------------------------------------------------------------
 # ENEMY PATROL FLEETS
 # Fleets roam the open board grid. They patrol near their home anchor, but the
@@ -59,6 +61,12 @@ static func normalize_patrol(p: Dictionary) -> void:
 	if p.get("home") is Dictionary or p.get("home") is String:
 		p["home"] = normalize_dir(p.get("home"))
 	p["dir"] = normalize_dir(p.get("dir"))
+	if not p.has("commander") or not p["commander"] is Dictionary or p["commander"].is_empty():
+		var arch_str: String = str(p.get("archetype", "armored"))
+		p["commander"] = PilotGenerator.generate_pilot({
+			"archetype": BoardConfig.FLEET_ARCHETYPES.get(arch_str, {}).get("mp", 1),
+			"level": GlobalData.current_sector,
+		})
 
 
 static func has_patrols() -> bool:
@@ -148,6 +156,16 @@ static func spawn_patrols() -> void:
 		if aces == 0 and rng.randf() < 0.25 and _has_recruitable_pilot():
 			faction = "unknown"
 			character_id = _pick_recruitable_pilot()
+
+		var commander: Dictionary = PilotGenerator.generate_pilot({
+			"archetype": BoardConfig.FLEET_ARCHETYPES.get(archetype, {}).get("mp", 1),
+			"level": GlobalData.current_sector,
+		})
+		commander["rivalry_count"] = 0
+		commander["escapes"] = 0
+		commander["is_nemesis"] = false
+		commander["bounty"] = 120 + (GlobalData.current_sector * 50) + (100 if aces > 0 else 0)
+
 		GlobalData.board_patrols.append({
 			"id": id,
 			"pos": home,
@@ -160,6 +178,7 @@ static func spawn_patrols() -> void:
 			"faction": faction,
 			"character_id": character_id,
 			"dir": Vector2i(1, 0),
+			"commander": commander,
 		})
 		id += 1
 
@@ -396,11 +415,34 @@ static func resolve_patrol_combat(victory: bool) -> void:
 	var id := GlobalData.board_patrol_engagement
 	if id < 0:
 		return
+	var p := get_patrol_by_id(id)
 	GlobalData.board_patrol_engagement = -1
+
+	if p.is_empty():
+		return
+
+	var commander: Dictionary = p.get("commander", {})
+
 	if victory:
-		var p := get_patrol_by_id(id)
-		if p.is_empty():
-			return
 		remove_patrol(id)
-		GlobalData.run_notice = "Patrol %s wiped out! The route ahead is safer." % p.get("name", "fleet")
+		if not commander.is_empty():
+			GlobalData.defeated_rivals.append(commander)
+			var bounty := int(commander.get("bounty", 150))
+			GlobalData.credits += bounty
+			GlobalData.run_notice = "RIVAL ELIMINATED: %s [%s] was defeated in battle!\nBounty Claimed: +%d Credits." % [
+				commander.get("name", "Enemy Commander"), str(p.get("archetype", "fleet")).to_upper(), bounty
+			]
+		else:
+			GlobalData.run_notice = "Patrol %s wiped out! The route ahead is safer." % p.get("name", "fleet")
 		BoardSystem.add_progress(1)
+	else:
+		# Player retreated / escaped: rival commander survived!
+		if not commander.is_empty():
+			commander["rivalry_count"] = int(commander.get("rivalry_count", 0)) + 1
+			commander["escapes"] = int(commander.get("escapes", 0)) + 1
+			commander["is_nemesis"] = true
+			commander["bounty"] = int(commander.get("bounty", 150)) + 100
+			GlobalData.rival_pilots.append(commander)
+			GlobalData.run_notice = "RIVAL SURVIVED: Commander %s remembers this retreat.\nRivalry escalated to Rank %d (Bounty: %d Cr)!" % [
+				commander.get("name", "Enemy Commander"), commander["rivalry_count"], commander["bounty"]
+			]

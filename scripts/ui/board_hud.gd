@@ -42,6 +42,7 @@ var _dirt_label: Label
 var _inspector_panel: PanelContainer
 var _inspector_title: Label
 var _inspector_costs: Label
+var _inspector_fleet: Label
 var _inspector_warnings: Label
 
 # ScreenFX Overlay
@@ -329,16 +330,16 @@ func _build_unit_status() -> void:
 # 5. BOTTOM RIGHT: TILE INSPECTOR
 # -----------------------------------------------------------------------------
 func _build_tile_inspector() -> void:
-	_inspector_panel = _make_panel(260, 110)
+	_inspector_panel = _make_panel(310, 160)
 	_inspector_panel.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	_inspector_panel.offset_left = -280
+	_inspector_panel.offset_left = -330
 	_inspector_panel.offset_right = -20
 	_inspector_panel.offset_bottom = -20
-	_inspector_panel.offset_top = -130
+	_inspector_panel.offset_top = -180
 	_root.add_child(_inspector_panel)
 
 	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 3)
+	vbox.add_theme_constant_override("separation", 2)
 	_inspector_panel.add_child(vbox)
 
 	_inspector_title = Label.new()
@@ -351,6 +352,13 @@ func _build_tile_inspector() -> void:
 	_inspector_costs.text = "Move Cost: 1 MP | -10 Energy\nTerrain: Plain"
 	_inspector_costs.add_theme_font_size_override("font_size", 10)
 	vbox.add_child(_inspector_costs)
+
+	_inspector_fleet = Label.new()
+	_inspector_fleet.text = ""
+	_inspector_fleet.add_theme_font_size_override("font_size", 10)
+	_inspector_fleet.add_theme_color_override("font_color", Color(0.4, 0.9, 1.0))
+	_inspector_fleet.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vbox.add_child(_inspector_fleet)
 
 	_inspector_warnings = Label.new()
 	_inspector_warnings.text = ""
@@ -541,11 +549,13 @@ func update_tile_inspector(tile_name: String, mp_cost: int, energy_cost: float, 
 	_inspector_costs.text = "Terrain: %s | Cost: %d MP (%s)" % [
 		terrain_type.capitalize() if terrain_type != "" else "Plain", mp_cost, mode_text
 	]
+	_inspector_fleet.text = patrol_info
+	_inspector_fleet.visible = patrol_info != ""
+
 	var warnings := ""
-	if patrol_info != "":
-		warnings += "CONTACT: %s\n" % patrol_info
 	if is_zoc:
-		warnings += "[ZONE OF CONTROL - MP WILL DEPLETE!]\n"
+		warnings += "[ZONE OF CONTROL - MP CUT TO 0!]\n"
 	if is_artillery_danger:
-		warnings += "[WARNING: IN ARTILLERY RANGE!]\n"
+		warnings += "[WARNING: IN ARTILLERY BOMBARD RANGE!]\n"
 	_inspector_warnings.text = warnings
+	_inspector_warnings.visible = warnings != ""

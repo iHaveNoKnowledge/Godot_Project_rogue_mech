@@ -586,12 +586,27 @@ func _process(_delta: float) -> void:
 	var patrol_desc := ""
 	if not patrol.is_empty():
 		var is_unknown := str(patrol.get("faction", "hostile")) == "unknown"
-		var arch := str(patrol.get("archetype", "armored")).to_upper()
-		patrol_desc = "%s [%s] (%d Grunt%s%s)" % [
-			patrol.get("name", "Fleet"), arch, int(patrol.get("grunts", 1)),
-			"s" if int(patrol.get("grunts", 1)) != 1 else "",
-			(" + %d Ace" % int(patrol.get("aces", 0))) if int(patrol.get("aces", 0)) > 0 else ""
+		var arch_key := str(patrol.get("archetype", "armored"))
+		var arch_data: Dictionary = BoardConfig.FLEET_ARCHETYPES.get(arch_key, {})
+		var arch_name: String = str(arch_data.get("name", arch_key.capitalize() + " Fleet"))
+		var tags: Array = arch_data.get("tags", [])
+		var tags_str: String = ", ".join(tags) if not tags.is_empty() else "Standard"
+		var speed_mp: int = int(arch_data.get("mp", 1))
+		var bombard_range: int = int(arch_data.get("bombard_range", 0))
+
+		var grunts_cnt: int = int(patrol.get("grunts", 1))
+		var aces_cnt: int = int(patrol.get("aces", 0))
+		var fleet_name: String = str(patrol.get("name", "Patrol Fleet"))
+
+		patrol_desc = "FLEET INTEL: %s [%s]\n• Squad: %d Grunt%s%s\n• Loadout: %s\n• Speed: %d MP%s" % [
+			fleet_name, arch_name.to_upper(),
+			grunts_cnt, "s" if grunts_cnt != 1 else "",
+			(" + %d Ace" % aces_cnt) if aces_cnt > 0 else "",
+			tags_str, speed_mp,
+			(" | Bombard: %d Tiles" % bombard_range) if bombard_range > 0 else ""
 		]
+		if is_unknown:
+			patrol_desc += "\n• Status: UNALIGNED MERCENARY"
 
 	var hud = get_node_or_null("BoardHUD")
 	if hud and hud.has_method("update_tile_inspector"):

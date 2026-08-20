@@ -25,6 +25,26 @@ static func ensure_default_equipped_parts() -> void:
 				equip_armor_instance(inst["uid"], slot)
 
 
+static func get_armor_catalog_entry(part_id: String) -> Dictionary:
+	return GlobalData.get_armor_catalog_entry(part_id)
+
+
+static func get_frame_catalog_entry(frame_id: String) -> Dictionary:
+	return GlobalData.get_frame_catalog_entry(frame_id)
+
+
+static func get_frame_catalog_entry_by_name(frame_name: String) -> Dictionary:
+	return GlobalData.get_frame_catalog_entry_by_name(frame_name)
+
+
+static func is_catalog_armor_id(part_id: String) -> bool:
+	return GlobalData.is_catalog_armor_id(part_id)
+
+
+static func is_catalog_frame_id(frame_id: String) -> bool:
+	return GlobalData.is_catalog_frame_id(frame_id)
+
+
 static func get_armor_catalog_slot(part_id: String) -> String:
 	for slot in GlobalData.armor_catalog:
 		for entry in GlobalData.armor_catalog[slot]:

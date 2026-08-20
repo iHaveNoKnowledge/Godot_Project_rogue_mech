@@ -110,7 +110,7 @@ func _on_tile_entered(_tile_pos: Vector2i, _tile_data: Node) -> void:
 	pass
 
 func _on_board_day_ended() -> void:
-	_notify_research_completions(tick_research(1))
+	_notify_research_completions(FleetSystem.tick_research(1))
 	RecruitSystem.tick_recovery()
 
 func _on_combat_ended(victory: bool) -> void:
@@ -120,7 +120,7 @@ func _on_combat_ended(victory: bool) -> void:
 	if victory:
 		record_battle_survived()
 	# Finalize combat damage stats before any tech/reputation logic reads them.
-	_compute_last_combat_damage_ratio()
+	CombatStatsSystem.compute_last_combat_damage_ratio()
 	# A patrol fleet engagement (open-grid board) resolves before any general
 	# escalation: winning destroys the fleet, losing leaves it on the board.
 	if GlobalData.board_patrol_engagement >= 0:
@@ -137,7 +137,7 @@ func _on_combat_ended(victory: bool) -> void:
 	# the enemy tech tier.
 	if GameManager.combat_node_type == "enemy_base":
 		if victory:
-			destroy_enemy_base()
+			EnemyFactionSystem.destroy_enemy_base()
 		return
 	# Fuel depot seizure: victory grants fuel bonus based on the chosen approach.
 	if GameManager.combat_node_type == "fuel_depot":
@@ -151,10 +151,10 @@ func _on_combat_ended(victory: bool) -> void:
 			run_notice = "The fuel depot was lost in the fighting."
 		fuel_depot_approach = ""
 		return
-	on_combat_ended_for_tech(victory)
+	EnemyFactionSystem.on_combat_ended_for_tech(victory)
 	if victory:
-		sync_equipped_armor_durability()
-		_notify_research_completions(tick_research(2))
+		ArmorSystem.sync_equipped_armor_durability()
+		_notify_research_completions(FleetSystem.tick_research(2))
 
 func _on_friendly_damage_received(raw_damage: float) -> void:
 	if raw_damage > 0.0:
@@ -493,7 +493,7 @@ func get_part_upgrade_cost(upgrade_level: int) -> int:
 # Total mech Power: chassis base + arm-frame strength that contributes to
 # supporting heavy weapons in a single hand.
 func get_mech_power() -> float:
-	var power := float(get_chassis_stats().get("power", 12.0))
+	var power := float(LoadoutSystem.get_chassis_stats().get("power", 12.0))
 	for arm in ["arm_left", "arm_right"]:
 		var f = equipped_frames.get(arm, {})
 		if f is Dictionary:
@@ -504,7 +504,7 @@ func get_mech_power() -> float:
 # check the arm that actually holds the weapon — a strong arm can one-hand a
 # railgun while a weak arm still needs the other hand to brace it.
 func get_arm_power(side: String) -> float:
-	var power := float(get_chassis_stats().get("power", 12.0))
+	var power := float(LoadoutSystem.get_chassis_stats().get("power", 12.0))
 	if side != "left" and side != "right":
 		return power
 	var f = equipped_frames.get("arm_%s" % side, {})
@@ -515,7 +515,7 @@ func get_arm_power(side: String) -> float:
 # Leg bracing strength: chassis base + both leg frames. Strong legs absorb the
 # railgun's recoil and re-stabilize the stance faster after a heavy shot.
 func get_leg_power() -> float:
-	var power := float(get_chassis_stats().get("power", 12.0))
+	var power := float(LoadoutSystem.get_chassis_stats().get("power", 12.0))
 	for leg in ["leg_left", "leg_right"]:
 		var f = equipped_frames.get(leg, {})
 		if f is Dictionary:
@@ -962,7 +962,7 @@ const REPAIR_XP_PER_LEVEL := 25
 # Emits EventBus notifications for each newly completed research project.
 func _notify_research_completions(completed_ids: Array) -> void:
 	for pid in completed_ids:
-		var project := get_research_project(pid)
+		var project: Dictionary = FleetSystem.get_research_project(pid)
 		if project.is_empty():
 			continue
 		var pname: String = str(project.get("name", pid))

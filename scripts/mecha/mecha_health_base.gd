@@ -1071,25 +1071,9 @@ func _spawn_part_spark(slot: String) -> void:
 	var world = get_tree().current_scene
 	if world == null:
 		return
-	var spark := MeshInstance3D.new()
-	spark.name = "PartSpark"
-	var mesh := BoxMesh.new()
-	mesh.size = Vector3(0.06, 0.06, 0.5)
-	spark.mesh = mesh
-	var mat := StandardMaterial3D.new()
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(1.0, 0.85, 0.4, 1.0)
-	mat.emission_enabled = true
-	mat.emission = Color(1.0, 0.7, 0.2)
-	mat.emission_energy_multiplier = 3.0
-	spark.material_override = mat
-	world.add_child(spark)
-	spark.global_position = section.global_position + Vector3(randf_range(-0.2, 0.2), randf_range(0.1, 0.4), randf_range(-0.2, 0.2))
-	spark.rotation.z = randf_range(-1.0, 1.0)
-	var tween := create_tween()
-	tween.tween_property(spark, "scale", Vector3(0.2, 0.2, 0.2), 0.15)
-	tween.tween_property(mat, "albedo_color:a", 0.0, 0.1)
-	tween.tween_callback(spark.queue_free)
+	var spark_pos := section.global_position + Vector3(randf_range(-0.2, 0.2), randf_range(0.1, 0.4), randf_range(-0.2, 0.2))
+	EffectFactory.spawn_box_spark(get_tree(), spark_pos,
+		Vector3(0.06, 0.06, 0.5), Color(1.0, 0.85, 0.4), 0.1, 3.0)
 
 
 func is_armor_broken(slot_name: String) -> bool:

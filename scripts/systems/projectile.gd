@@ -199,28 +199,9 @@ func _explode(blast_pos: Vector3) -> void:
 
 
 func _spawn_trail() -> void:
-	var trail = MeshInstance3D.new()
-	var box = BoxMesh.new()
-	box.size = Vector3(0.02, 0.02, 0.15)
-	trail.mesh = box
-
-	var mat = StandardMaterial3D.new()
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(1, 0.8, 0.3, 0.9)
-	mat.emission_enabled = true
-	mat.emission = Color(1, 0.7, 0.2)
-	mat.emission_energy_multiplier = 3.0
-	mat.no_depth_test = true
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	trail.material_override = mat
-
-	get_tree().current_scene.add_child(trail)
-	trail.global_position = global_position
-	trail.look_at(global_position + direction, Vector3.UP)
-
-	var tween = get_tree().create_tween()
-	tween.tween_property(mat, "albedo_color:a", 0.0, 0.2)
-	tween.tween_callback(trail.queue_free)
+	EffectFactory.spawn_trail_dir(get_tree(), global_position, direction,
+		Vector3(0.02, 0.02, 0.15), Color(1, 0.8, 0.3, 0.9),
+		Color(1, 0.7, 0.2), 0.2, 3.0)
 
 
 # A railgun round tears the air as it passes: a bright expanding shockwave ring

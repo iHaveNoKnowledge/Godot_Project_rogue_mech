@@ -451,27 +451,8 @@ func _trigger_precision_dodge(hit_pos: Vector3) -> void:
 
 
 func _spawn_precision_flash(from_pos: Vector3) -> void:
-	# Green energy flash at the near-miss position.
-	var flash = MeshInstance3D.new()
-	var sphere = SphereMesh.new()
-	sphere.radius = 0.5
-	flash.mesh = sphere
-	var mat = StandardMaterial3D.new()
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(0.3, 1.0, 0.5, 0.8)
-	mat.emission_enabled = true
-	mat.emission = Color(0.3, 1.0, 0.5)
-	mat.emission_energy_multiplier = 5.0
-	mat.no_depth_test = true
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	flash.material_override = mat
-	get_tree().current_scene.add_child(flash)
-	flash.global_position = from_pos
-	var tween = get_tree().create_tween()
-	tween.tween_property(mat, "albedo_color:a", 0.0, 0.15)
-	tween.parallel().tween_property(mat, "emission_energy_multiplier", 0.0, 0.15)
-	tween.parallel().tween_property(flash, "scale", Vector3(2.0, 2.0, 2.0), 0.15)
-	tween.tween_callback(flash.queue_free)
+	EffectFactory.spawn_flash(get_tree(), from_pos, Color(0.3, 1.0, 0.5),
+		0.5, 0.15, 5.0, true, 2.0)
 
 
 # --- External Drop Tank Processing (GDD §2.4) --------------------------------
@@ -562,47 +543,15 @@ func _drop_tank_explode() -> void:
 
 
 func _spawn_purge_effect() -> void:
-	# Simple flash + expanding ring to sell the purge.
-	var flash := MeshInstance3D.new()
-	var sphere := SphereMesh.new()
-	sphere.radius = 0.6
-	flash.mesh = sphere
-	var mat := StandardMaterial3D.new()
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(0.4, 0.7, 1.0, 0.9)
-	mat.emission_enabled = true
-	mat.emission = Color(0.3, 0.6, 1.0)
-	mat.emission_energy_multiplier = 4.0
-	flash.material_override = mat
-	get_tree().current_scene.add_child(flash)
-	flash.global_position = global_position + Vector3(0, 1.0, 0)
-	var tween := get_tree().create_tween().set_parallel(true)
-	tween.tween_property(flash, "scale", Vector3(3, 3, 3), 0.3)
-	tween.tween_property(mat, "albedo_color:a", 0.0, 0.3)
-	tween.chain().tween_callback(flash.queue_free)
+	EffectFactory.spawn_flash(get_tree(), global_position + Vector3(0, 1.0, 0),
+		Color(0.4, 0.7, 1.0), 0.6, 0.3, 4.0, false, 3.0)
 
 
 func _spawn_detonation_effect() -> void:
-	# Bigger, more violent explosion than the purge.
 	for i in range(4):
-		var spark := MeshInstance3D.new()
-		var box := BoxMesh.new()
-		box.size = Vector3(0.8, 0.3, 0.8)
-		spark.mesh = box
-		var smat := StandardMaterial3D.new()
-		smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		smat.albedo_color = Color(1.0, 0.6, 0.1, 0.9)
-		smat.emission_enabled = true
-		smat.emission = Color(1.0, 0.5, 0.0)
-		smat.emission_energy_multiplier = 6.0
-		spark.material_override = smat
-		get_tree().current_scene.add_child(spark)
 		var offset := Vector3(randf_range(-1.0, 1.0), randf_range(-0.5, 1.5), randf_range(-1.0, 1.0))
-		spark.global_position = global_position + offset
-		var tween := get_tree().create_tween().set_parallel(true)
-		tween.tween_property(spark, "scale", Vector3(2, 2, 2), 0.4)
-		tween.tween_property(smat, "albedo_color:a", 0.0, 0.4)
-		tween.chain().tween_callback(spark.queue_free)
+		EffectFactory.spawn_box_spark(get_tree(), global_position + offset,
+			Vector3(0.8, 0.3, 0.8), Color(1.0, 0.6, 0.1), 0.4, 6.0)
 
 
 def _apply_movement(delta: float) -> void:
@@ -720,74 +669,16 @@ func _is_in_water() -> bool:
 
 
 func _spawn_landing_impact_effect() -> void:
-	# Expanding Shockwave Ring
-	var shockwave = MeshInstance3D.new()
-	var cylinder = CylinderMesh.new()
-	cylinder.top_radius = 0.4
-	cylinder.bottom_radius = 0.5
-	cylinder.height = 0.04
-	shockwave.mesh = cylinder
-
-	var mat = StandardMaterial3D.new()
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(0.9, 0.85, 0.75, 0.85)
-	mat.emission_enabled = true
-	mat.emission = Color(1.0, 0.8, 0.4)
-	mat.emission_energy_multiplier = 2.5
-	shockwave.material_override = mat
-
-	get_tree().current_scene.add_child(shockwave)
-	shockwave.global_position = global_position + Vector3(0, 0.05, 0)
-
-	var tween = get_tree().create_tween().set_parallel(true)
-	tween.tween_property(shockwave, "scale", Vector3(5.5, 1.0, 5.5), 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tween.tween_property(mat, "albedo_color:a", 0.0, 0.35)
-	tween.chain().tween_callback(shockwave.queue_free)
-
-	# Dust Puffs Expanding Outward
-	for i in range(8):
-		var dust = MeshInstance3D.new()
-		var sphere = SphereMesh.new()
-		sphere.radius = randf_range(0.2, 0.4)
-		sphere.height = sphere.radius * 2.0
-		dust.mesh = sphere
-
-		var d_mat = StandardMaterial3D.new()
-		d_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		d_mat.albedo_color = Color(0.75, 0.70, 0.65, 0.7)
-		dust.material_override = d_mat
-
-		get_tree().current_scene.add_child(dust)
-		var angle = (i / 8.0) * TAU
-		var dir = Vector3(cos(angle), 0.1, sin(angle))
-		dust.global_position = global_position + dir * 0.3
-
-		var dtween = get_tree().create_tween().set_parallel(true)
-		dtween.tween_property(dust, "global_position", global_position + dir * randf_range(2.0, 3.5) + Vector3(0, randf_range(0.3, 0.7), 0), 0.4).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-		dtween.tween_property(d_mat, "albedo_color:a", 0.0, 0.4)
-		dtween.chain().tween_callback(dust.queue_free)
+	EffectFactory.spawn_expanding_ring(get_tree(),
+		global_position + Vector3(0, 0.05, 0),
+		Color(1.0, 0.8, 0.4), Vector3(1, 1, 1), Vector3(5.5, 1.0, 5.5), 0.35, 2.5)
+	EffectFactory.spawn_dust_puffs(get_tree(), global_position, 8)
 
 
 func _spawn_roller_spark_effect() -> void:
-	var spark = MeshInstance3D.new()
-	var box = BoxMesh.new()
-	box.size = Vector3(0.15, 0.05, 0.4)
-	spark.mesh = box
-
-	var mat = StandardMaterial3D.new()
-	mat.albedo_color = Color(1.0, 0.7, 0.2, 0.9)
-	mat.emission_enabled = true
-	mat.emission = Color(1.0, 0.8, 0.3)
-	mat.emission_energy_multiplier = 4.0
-	spark.material_override = mat
-
-	get_tree().current_scene.add_child(spark)
-	spark.global_position = global_position + Vector3(randf_range(-0.3, 0.3), 0.1, randf_range(-0.3, 0.3))
-	spark.global_rotation = global_rotation
-
-	var tween = get_tree().create_tween()
-	tween.tween_property(mat, "albedo_color:a", 0.0, 0.15)
-	tween.tween_callback(spark.queue_free)
+	var spark_pos := global_position + Vector3(randf_range(-0.3, 0.3), 0.1, randf_range(-0.3, 0.3))
+	EffectFactory.spawn_box_spark(get_tree(), spark_pos,
+		Vector3(0.15, 0.05, 0.4), Color(1.0, 0.7, 0.2), 0.15, 4.0)
 
 
 func _start_dash() -> void:
@@ -837,36 +728,18 @@ func _start_dash() -> void:
 
 func _spawn_dash_effect(is_flash_burn: bool = false) -> void:
 	for i in range(3):
-		var trail = MeshInstance3D.new()
-		var box = BoxMesh.new()
-		box.size = Vector3(0.8, 2.0, 1.5 - i * 0.3)
-		trail.mesh = box
-
-		var mat = StandardMaterial3D.new()
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		var trail_pos := global_position + Vector3(0, 1.5, 0) - dash_direction * (0.5 + i * 0.4)
+		var color: Color
+		var emission: Color
 		if is_flash_burn:
-			# Flash Burn: heated orange-red combustion trail
-			mat.albedo_color = Color(1.0, 0.35, 0.15, 0.7 - i * 0.15)
-			mat.emission_enabled = true
-			mat.emission = Color(1.0, 0.25, 0.05)
-			mat.emission_energy_multiplier = 4.0 - i
+			color = Color(1.0, 0.35, 0.15, 0.7 - i * 0.15)
+			emission = Color(1.0, 0.25, 0.05)
 		else:
-			# Standard short-pulse ignition: clean blue trail
-			mat.albedo_color = Color(0.5, 0.7, 1.0, 0.6 - i * 0.15)
-			mat.emission_enabled = true
-			mat.emission = Color(0.3, 0.5, 1.0)
-			mat.emission_energy_multiplier = 3.0 - i
-		mat.no_depth_test = true
-		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-		trail.material_override = mat
-
-		get_tree().current_scene.add_child(trail)
-		trail.global_position = global_position + Vector3(0, 1.5, 0) - dash_direction * (0.5 + i * 0.4)
-		trail.global_rotation = global_rotation
-
-		var tween = get_tree().create_tween()
-		tween.tween_property(mat, "albedo_color:a", 0.0, 0.2)
-		tween.tween_callback(trail.queue_free)
+			color = Color(0.5, 0.7, 1.0, 0.6 - i * 0.15)
+			emission = Color(0.3, 0.5, 1.0)
+		EffectFactory.spawn_trail(get_tree(), trail_pos, global_rotation,
+			Vector3(0.8, 2.0, 1.5 - i * 0.3), color, emission, 0.2,
+			4.0 - i if is_flash_burn else 3.0 - i)
 
 
 func _recalculate_weight() -> void:

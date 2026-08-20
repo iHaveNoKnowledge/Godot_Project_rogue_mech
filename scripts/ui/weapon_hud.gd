@@ -57,6 +57,11 @@ const WEAPON_ICONS: Dictionary = {
 	6: "[RAIL]", 7: "[MG2]",
 }
 
+# Reserve ammo warning: tint label amber when reserve < this fraction of max_ammo.
+const LOW_RESERVE_RATIO: float = 0.20
+const LOW_RESERVE_COLOR: Color = Color(1.0, 0.65, 0.2)  # amber/orange
+const NORMAL_RESERVE_COLOR: Color = Color(0.6, 0.8, 0.6) # muted green
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -278,7 +283,7 @@ func _create_left_panel() -> void:
 	left_reserve_label = Label.new()
 	left_reserve_label.text = ""
 	left_reserve_label.add_theme_font_size_override("font_size", 11)
-	left_reserve_label.add_theme_color_override("font_color", Color(0.6, 0.8, 0.6))
+	left_reserve_label.add_theme_color_override("font_color", NORMAL_RESERVE_COLOR)
 	vbox.add_child(left_reserve_label)
 
 	left_heat_bar = ProgressBar.new()
@@ -349,7 +354,7 @@ func _create_right_panel() -> void:
 	right_reserve_label = Label.new()
 	right_reserve_label.text = ""
 	right_reserve_label.add_theme_font_size_override("font_size", 11)
-	right_reserve_label.add_theme_color_override("font_color", Color(0.6, 0.8, 0.6))
+	right_reserve_label.add_theme_color_override("font_color", NORMAL_RESERVE_COLOR)
 	vbox.add_child(right_reserve_label)
 
 	right_heat_bar = ProgressBar.new()
@@ -749,10 +754,12 @@ func _on_reload_progress(hand: String, partial_text: String, reserve_ammo: int, 
 		left_ammo_label.modulate = Color(1.0, 0.3, 0.3)
 		left_ammo_label.text = "%s / %d" % [partial_text, max_ammo]
 		left_reserve_label.text = "Reserve: %d" % reserve_ammo
+		_apply_reserve_tint(left_reserve_label, reserve_ammo, max_ammo)
 	elif hand == "right":
 		right_ammo_label.modulate = Color(1.0, 0.3, 0.3)
 		right_ammo_label.text = "%s / %d" % [partial_text, max_ammo]
 		right_reserve_label.text = "Reserve: %d" % reserve_ammo
+		_apply_reserve_tint(right_reserve_label, reserve_ammo, max_ammo)
 
 
 var _reload_fail_tween_left: Tween = null
@@ -802,6 +809,14 @@ func _on_heat_changed(hand: String, current: float, _max_heat: float, overheated
 	bar.modulate = Color(1.0, 0.4, 0.4) if overheated else Color.WHITE
 
 
+func _apply_reserve_tint(label: Label, reserve: int, max_ammo: int) -> void:
+	if max_ammo <= 0 or max_ammo >= 999:
+		label.add_theme_color_override("font_color", NORMAL_RESERVE_COLOR)
+	else:
+		var color: Color = LOW_RESERVE_COLOR if reserve < int(max_ammo * LOW_RESERVE_RATIO) else NORMAL_RESERVE_COLOR
+		label.add_theme_color_override("font_color", color)
+
+
 func _update_display() -> void:
 	if weapon_manager == null:
 		return
@@ -827,6 +842,7 @@ func _update_display() -> void:
 				var res = weapon_manager.get_battle_reserve(w.get_ammo_type())
 				left_ammo_label.text = "%d / %d" % [ammo, w.max_ammo]
 				left_reserve_label.text = "Reserve: %d" % res
+				_apply_reserve_tint(left_reserve_label, res, w.max_ammo)
 	else:
 		left_name_label.text = "BARE FIST — punch"
 		left_type_label.text = ""
@@ -856,6 +872,7 @@ func _update_display() -> void:
 				var res = weapon_manager.get_battle_reserve(w.get_ammo_type())
 				right_ammo_label.text = "%d / %d" % [ammo, w.max_ammo]
 				right_reserve_label.text = "Reserve: %d" % res
+				_apply_reserve_tint(right_reserve_label, res, w.max_ammo)
 	else:
 		right_name_label.text = "BARE FIST — punch"
 		right_type_label.text = ""

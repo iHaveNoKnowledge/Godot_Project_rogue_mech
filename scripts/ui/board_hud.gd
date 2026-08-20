@@ -23,6 +23,10 @@ var _convoy_reserve_label: Label
 var _backup_count_label: Label
 var _quick_fuel_btn: Button
 
+var _panel: Control:
+	get:
+		return _root
+
 # TopRight Threat Radar
 var _threat_radar: VBoxContainer
 var _day_label: Label
@@ -30,7 +34,11 @@ var _mp_label: Label
 var _mp_bar: ProgressBar
 var _alert_label: Label
 var _alert_bar: ProgressBar
+var _objective_panel: PanelContainer
 var _objective_label: Label
+var _ceasefire_panel: PanelContainer
+var _ceasefire_label: Label
+var _reserved_panel: PanelContainer
 var _hazard_label: Label
 
 # BottomLeft Unit Status
@@ -266,12 +274,25 @@ func _build_threat_radar() -> void:
 	_threat_radar.add_child(alert_panel)
 
 	# Objective Card
-	var obj_panel = _make_panel(270, 75)
+	_objective_panel = _make_panel(270, 75)
 	_objective_label = Label.new()
 	_objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_objective_label.add_theme_font_size_override("font_size", 12)
-	obj_panel.add_child(_objective_label)
-	_threat_radar.add_child(obj_panel)
+	_objective_panel.add_child(_objective_label)
+	_threat_radar.add_child(_objective_panel)
+
+	# Ceasefire Card (Countdown slot)
+	_ceasefire_panel = _make_panel(270, 30)
+	_ceasefire_label = Label.new()
+	_ceasefire_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_ceasefire_label.add_theme_font_size_override("font_size", 11)
+	_ceasefire_label.add_theme_color_override("font_color", Color(0.4, 0.9, 0.5))
+	_ceasefire_panel.add_child(_ceasefire_label)
+	_threat_radar.add_child(_ceasefire_panel)
+
+	# Reserved Card (Third slot)
+	_reserved_panel = _make_panel(270, 30)
+	_threat_radar.add_child(_reserved_panel)
 
 	# Hazard Card
 	_hazard_label = Label.new()
@@ -470,6 +491,13 @@ func _refresh() -> void:
 	_objective_label.text = "OBJECTIVE: %s (%d%%)\n%d / %d — %s" % [
 		obj.get("name", "Objective"), pct, prog, req, _BoardSystem.objective_desc()
 	]
+
+	# Ceasefire Status
+	if _ceasefire_label:
+		if GlobalData.ceasefire_turns > 0:
+			_ceasefire_label.text = "CEASEFIRE: %d TURNS LEFT" % GlobalData.ceasefire_turns
+		else:
+			_ceasefire_label.text = ""
 
 	# Hazard Status
 	if GlobalData.current_hazard != "":

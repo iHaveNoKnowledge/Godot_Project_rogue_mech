@@ -135,6 +135,52 @@ static func theme_for_sector(sector: int) -> String:
 			return "urban"
 
 
+# Per-theme harmonious color palettes for terrain tiles so the board displays
+# a unified, eye-friendly landscape matching each sector biome.
+const THEME_PALETTES: Dictionary = {
+	"suburb": {
+		"road": Color(0.30, 0.32, 0.35),
+		"plain": Color(0.42, 0.54, 0.34),
+		"sand": Color(0.68, 0.60, 0.44),
+		"forest": Color(0.24, 0.42, 0.25),
+		"water": Color(0.18, 0.45, 0.70),
+		"bridge": Color(0.48, 0.40, 0.30),
+		"rock": Color(0.36, 0.35, 0.33),
+	},
+	"desert": {
+		"road": Color(0.45, 0.42, 0.38),
+		"plain": Color(0.64, 0.56, 0.38),
+		"sand": Color(0.80, 0.70, 0.46),
+		"forest": Color(0.35, 0.50, 0.30),
+		"water": Color(0.15, 0.52, 0.68),
+		"bridge": Color(0.50, 0.38, 0.28),
+		"rock": Color(0.55, 0.38, 0.30),
+	},
+	"forest": {
+		"road": Color(0.32, 0.30, 0.26),
+		"plain": Color(0.34, 0.52, 0.30),
+		"sand": Color(0.65, 0.60, 0.45),
+		"forest": Color(0.18, 0.38, 0.20),
+		"water": Color(0.14, 0.42, 0.65),
+		"bridge": Color(0.42, 0.32, 0.22),
+		"rock": Color(0.32, 0.34, 0.30),
+	},
+	"urban": {
+		"road": Color(0.25, 0.27, 0.30),
+		"plain": Color(0.38, 0.48, 0.32),
+		"sand": Color(0.62, 0.55, 0.42),
+		"forest": Color(0.22, 0.40, 0.24),
+		"water": Color(0.16, 0.40, 0.62),
+		"bridge": Color(0.38, 0.39, 0.42),
+		"rock": Color(0.30, 0.31, 0.33),
+	},
+}
+
+static func terrain_color(terrain: String, theme_id: String = "suburb") -> Color:
+	var palette: Dictionary = THEME_PALETTES.get(theme_id, THEME_PALETTES["suburb"])
+	return palette.get(terrain, Color(0.45, 0.48, 0.40))
+
+
 static func move_cost(terrain: String) -> int:
 	return int(TERRAIN.get(terrain, 1))
 
@@ -146,3 +192,4 @@ static func is_passable(terrain: String) -> bool:
 static func get_objective(theme_id: String) -> Dictionary:
 	var obj: Dictionary = OBJECTIVES.get(theme_id, OBJECTIVES["suburb"])
 	return obj.duplicate()
+

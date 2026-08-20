@@ -204,6 +204,13 @@ const PILOT_PERKS: Array[Dictionary] = [
 		"effect": "ammo_cap",
 		"val": 1.25,
 	},
+	{
+		"id": "precognitive_flow",
+		"name": "Pre-Cognitive Flow",
+		"desc": "Effortless movement reading: -50% Dash Energy Cost, +25% Evasion, Zero-Waste Momentum.",
+		"effect": "precog_flow",
+		"val": 0.50,
+	},
 ]
 
 

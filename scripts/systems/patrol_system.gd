@@ -252,10 +252,18 @@ static func advance_day(player_pos: Vector2i) -> Vector2i:
 			p["aggro"] = false
 
 		# Multi-step movement based on Fleet Archetype MP (Recon = 4, HK = 3, Armored = 1)
+		var is_vagrant := str(p.get("character_id", "")) == "vagrant_ace"
 		var steps_to_take: int = fleet_mp if p.get("aggro", false) else mini(fleet_mp, 2)
 		for step in range(steps_to_take):
 			var next := cur
-			if p.get("aggro", false):
+			if is_vagrant:
+				# The Leading Shadow: Predicts player trajectory and steps 1 tile ahead on player's heading
+				var p_dir: Vector2i = GlobalData.player_last_dir if GlobalData.player_last_dir != Vector2i.ZERO else Vector2i(1, 0)
+				var lead_target := player_pos + p_dir
+				if not nodes.has(lead_target) or not BoardConfig.is_passable(nodes[lead_target].get_meta("terrain", "plain")):
+					lead_target = player_pos + Vector2i(p_dir.y, p_dir.x)
+				next = _step_toward(cur, lead_target, nodes, occupied, rng)
+			elif p.get("aggro", false):
 				next = _step_toward(cur, player_pos, nodes, occupied, rng)
 			elif not is_unknown and GlobalData.patrol_last_seen != Vector2i(-1, -1) \
 					and rng.randf() < 0.7:

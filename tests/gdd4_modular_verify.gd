@@ -123,7 +123,10 @@ func _ready() -> void:
 	var mock_tile_2 = Node.new()
 	mock_tile_2.set_meta("tile_type", "empty")
 	mock_tile_2.set_meta("terrain", "plain")
-	GlobalData.board_grid = [{ Vector2i(5, 5): mock_tile_1, Vector2i(6, 6): mock_tile_2 }]
+	var mock_tile_3 = Node.new()
+	mock_tile_3.set_meta("tile_type", "empty")
+	mock_tile_3.set_meta("terrain", "plain")
+	GlobalData.board_grid = [{ Vector2i(5, 5): mock_tile_1, Vector2i(6, 6): mock_tile_2, Vector2i(5, 6): mock_tile_3 }]
 	GlobalData.board_patrols.clear()
 	PatrolSystem.spawn_patrols()
 	_check(GlobalData.board_patrols.size() > 0, "patrols spawned successfully")
@@ -148,8 +151,34 @@ func _ready() -> void:
 	_check(GlobalData.defeated_rivals.size() > 0, "defeated rival recorded in GlobalData.defeated_rivals")
 	_check(GlobalData.credits > prev_credits, "bounty reward credited on rival defeat (+%d Cr)" % (GlobalData.credits - prev_credits))
 
+	# 9. The Vagrant Ace & Pre-Cognitive Flow verification
+	var vagrant = RecruitSystem.get_character("vagrant_ace")
+	_check(not vagrant.is_empty(), "Vagrant Ace character is registered in RecruitSystem")
+	_check(str(vagrant.get("mech_name", "")) == "Scrap Pilgrim", "Vagrant signature mech is Scrap Pilgrim")
+	_check(str(vagrant.get("perk_id", "")) == "precognitive_flow", "Vagrant has Pre-Cognitive Flow perk")
+
+	# Test Pre-Cognitive Flow perk detection
+	GlobalData.recruited_characters.append("vagrant_ace")
+	_check(GlobalData.has_pilot_perk("precognitive_flow") == true, "GlobalData recognizes Pre-Cognitive Flow perk from recruited Vagrant Ace")
+
+	# Test Leading Shadow step prediction
+	GlobalData.player_last_dir = Vector2i(0, 1)
+	var v_patrol = {
+		"id": 99,
+		"pos": Vector2i(5, 5),
+		"home": Vector2i(5, 5),
+		"character_id": "vagrant_ace",
+		"faction": "unknown",
+		"archetype": "recon",
+		"dir": Vector2i(0, 1),
+	}
+	GlobalData.board_patrols = [v_patrol]
+	PatrolSystem.advance_day(Vector2i(5, 5))
+	_check(v_patrol.get("pos") == Vector2i(5, 6) or v_patrol.get("pos") == Vector2i(6, 6), "Vagrant Ace predicted player heading and stepped ahead to lead the convoy")
+
 	mock_tile_1.free()
 	mock_tile_2.free()
+	mock_tile_3.free()
 
 	print("\nVerification Complete: %d checks, %d failures" % [_checks, _fails])
 	if _fails > 0:

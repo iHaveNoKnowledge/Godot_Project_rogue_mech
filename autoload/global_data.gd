@@ -1110,8 +1110,19 @@ var fallen_pilots: Array = []
 var rival_pilots: Array = []
 var defeated_rivals: Array = []
 var active_combat_commander: Dictionary = {}
+var player_last_dir: Vector2i = Vector2i(1, 0)
 
 # --- Pilot facades (logic in PilotSystem) ---
+
+func has_pilot_perk(perk_id: String) -> bool:
+	for pilot in hired_pilots:
+		if pilot is Dictionary and str(pilot.get("perk_id", "")) == perk_id:
+			return true
+	# Also check recruited unique characters
+	for cid in recruited_characters:
+		if cid == "vagrant_ace" and perk_id == "precognitive_flow":
+			return true
+	return false
 
 func get_pilot_hp() -> float:
 	return PilotSystem.get_hp()

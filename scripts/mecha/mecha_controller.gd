@@ -807,8 +807,9 @@ func _start_dash() -> void:
 	if dash_direction.length() < 0.1:
 		dash_direction = -transform.basis.z
 
+	var has_precog := GlobalData.has_pilot_perk("precognitive_flow")
 	var is_flash_burn := false
-	if _dash_spam_window > 0.0:
+	if not has_precog and _dash_spam_window > 0.0:
 		_dash_spam_count += 1
 		is_flash_burn = true
 	else:
@@ -816,7 +817,8 @@ func _start_dash() -> void:
 
 	_dash_spam_window = SPAM_DASH_WINDOW
 
-	var actual_cost: float = DASH_ENERGY_COST * (1.0 + float(_dash_spam_count - 1) * SPAM_DASH_ENERGY_PENALTY_MULT)
+	var base_cost := DASH_ENERGY_COST * (0.5 if has_precog else 1.0)
+	var actual_cost: float = base_cost * (1.0 + float(_dash_spam_count - 1) * SPAM_DASH_ENERGY_PENALTY_MULT)
 	energy = maxf(energy - actual_cost, 0.0)
 	current_dash_speed = dash_speed * (1.0 - (SPAM_DASH_MOMENTUM_PENALTY if is_flash_burn else 0.0))
 
@@ -824,7 +826,7 @@ func _start_dash() -> void:
 	dash_timer = dash_duration
 	# Arm Precision Dash: record start position and open the detection window.
 	_dash_start_pos = global_position
-	_precision_window = PRECISION_WINDOW
+	_precision_window = PRECISION_WINDOW * (1.5 if has_precog else 1.0)
 	_precision_armed = true
 	_precision_dodged = false
 

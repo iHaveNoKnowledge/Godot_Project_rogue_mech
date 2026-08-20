@@ -191,6 +191,7 @@ func _try_step(target: Vector2i) -> bool:
 			})
 
 	_last_dir = target - current_pos
+	GlobalData.player_last_dir = _last_dir
 	current_pos = target
 	GlobalData.current_tile = target
 	_update_token_position()
@@ -617,7 +618,9 @@ func _process(_delta: float) -> void:
 			tags_str, speed_mp,
 			(" | Bombard: %d Tiles" % bombard_range) if bombard_range > 0 else ""
 		]
-		if is_unknown:
+		if str(patrol.get("character_id", "")) == "vagrant_ace":
+			patrol_desc = "SPECIAL CONTACT: THE VAGRANT ACE [SEEKER]\n• Pilot: Gale 'The Vagrant' Kurogane\n• Trait: Pre-Cognitive Flow (Zero-Waste Movement)\n• Behavior: THE LEADING SHADOW (Walks 1 step ahead)\n• Status: UNALIGNED LEGENDARY PILOT"
+		elif is_unknown:
 			patrol_desc += "\n• Status: UNALIGNED MERCENARY"
 
 	var hud = get_node_or_null("BoardHUD")

@@ -153,6 +153,28 @@ BoardUI (CanvasLayer)
   Escalation Factor: ยิ่งใช้เวลาบนแผนที่เดิมนาน ค่า Alert Level จะพุ่งสูง บีบให้ศัตรูส่ง Hunter-Killer Fleet ลงมาปิดล้อม
 ```
 
-Document Version: 4.0 (Master Modular Architecture)
+---
+
+## 👤 9. Unique Legendary Aces & Encounters
+
+### 9.1 "The Vagrant Ace" (เสือซ่อนเล็บแห่งซากสงคราม)
+* **Callsign / Name:** Gale 'The Vagrant' Kurogane
+* **Signature Machine:** *Scrap Pilgrim* (หุ่นซากเศษเหล็กคลุมผ้าใบเก่า แต่ขับเคลื่อนด้วยระบบ Joint & Thrust Vectoring ชั้นสูง)
+* **Lore Concept:** อดีตนักบินระดับตำนานที่ปลดประจำการและเร่ร่อนในเขตสงคราม มีความสามารถระดับ **Predictive Cognition (การอ่านการเคลื่อนไหวล่วงหน้า)** สามารถดักทางและเบี่ยงวิถีโจมตีได้ด้วยการก้าวขยับเพียงเสี้ยววินาที
+
+#### 🕹️ Gameplay Integration & Special Mechanics
+1. **Pilot Special Perk: "Pre-Cognitive Flow"**
+   * **Zero-Waste Momentum:** ลด Energy Cost ในการ Dash ลง $50\%$ และไม่เกิดอาการ Flash Burn เมื่อกด Dash ต่อเนื่อง
+   * **Predictive Precision:** ขยายจังหวะ Precision Dodge ขึ้น $+50\%$ และเพิ่มอัตราการหลบหลีกกระสุน
+2. **Tabletop Board Behavior: "The Leading Shadow"**
+   * **Predictive Movement:** เมื่อสิ้นสุดวันบนกระดานบอร์ด The Vagrant Ace จะก้าวเดินนำหน้าไปดักรอที่ช่องเส้นทางที่ขบวน Convoy ของผู้เล่นกำลังจะมุ่งหน้าไป 1 ก้าวเสมอ
+3. **Unique Encounters (การพบเจอและปฏิสัมพันธ์):**
+   * **Seek Guidance:** ผู้เล่นสามารถขอคำชี้แนะเพื่อเรียนรู้เคล็ดวิชาและปลดล็อกสกิล *Pre-Cognitive Flow*
+   * **Challenge the Master:** ท้าดวล 1v1 ในสนามประลอง หากชนะสามารถชวนเข้าร่วมกองยาน หรือได้รับชิ้นส่วนระดับ Legendary
+   * **Share Supplies:** มอบเชื้อเพลิงบริสุทธิ์เพื่อแลกกับเส้นทางลัดและข้อมูลสแกนแผนที่
+
+---
+
+Document Version: 4.1 (Vagrant Ace & Master Modular Architecture)
 
 Last Updated: August 2026

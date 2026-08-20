@@ -36,6 +36,8 @@ var depot_btn: Button
 var nearby_pickup = null
 var pickup_menu_open: bool = false
 var _pickup_prompt_tween: Tween = null
+var _reload_flash_rect: ColorRect = null
+var _reload_flash_tween: Tween = null
 
 var _bg_color: Color = Color(0.08, 0.08, 0.12, 0.85)
 var _accent_color: Color = Color(0.3, 0.6, 1.0, 1)
@@ -63,6 +65,7 @@ func _ready() -> void:
 	_create_right_panel()
 	_create_carry_ui()
 	_create_pickup_ui()
+	_create_reload_flash()
 	_try_connect_weapon_manager()
 	if EventBus:
 		EventBus.combat_ended.connect(_on_combat_ended)
@@ -121,6 +124,28 @@ func _set_fist_cd_ui(bar: ProgressBar, ammo_label: Label, core: WeaponCore) -> v
 	else:
 		ammo_label.text = "READY"
 		ammo_label.modulate = FIST_READY_COLOR
+
+
+# Screen-edge flash overlay shown when reload fails — a brief red vignette
+# that fades out so the player gets a strong peripheral visual cue.
+func _create_reload_flash() -> void:
+	_reload_flash_rect = ColorRect.new()
+	_reload_flash_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_reload_flash_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_reload_flash_rect.color = Color(0.0, 0.0, 0.0, 0.0)
+	_reload_flash_rect.z_index = 100  # above all HUD panels
+	root_control.add_child(_reload_flash_rect)
+
+
+func _flash_reload_error() -> void:
+	if _reload_flash_rect == null:
+		return
+	if _reload_flash_tween != null and _reload_flash_tween.is_valid():
+		_reload_flash_tween.kill()
+	# Instant red flash, then fade out
+	_reload_flash_rect.color = Color(0.9, 0.15, 0.1, 0.30)
+	_reload_flash_tween = create_tween()
+	_reload_flash_tween.tween_property(_reload_flash_rect, "color:a", 0.0, 0.45).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 
 
 func _try_connect_weapon_manager() -> void:
@@ -738,6 +763,8 @@ func _on_reload_failed(hand: String, reason: String) -> void:
 	# Audio: dry click so the player hears the failure
 	if AudioManager:
 		AudioManager.play_ui_click()
+	# Screen-edge red flash for strong peripheral feedback
+	_flash_reload_error()
 	# Visual: flash the ammo label red with the reason, then reset
 	var label: Label = left_ammo_label if hand == "left" else right_ammo_label
 	var tween_ref: String = "_reload_fail_tween_left" if hand == "left" else "_reload_fail_tween_right"

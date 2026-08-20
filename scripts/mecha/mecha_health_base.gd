@@ -741,9 +741,11 @@ func _hide_breach_countdown() -> void:
 func _detonate_mech() -> void:
 	if not is_instance_valid(self):
 		return
-	EffectManager.spawn_explosion(global_position + Vector3(0, 1.5, 0))
-	if AudioManager:
-		AudioManager.play_explosion(global_position + Vector3(0, 1.5, 0))
+	var blast_pos := global_position + Vector3(0, 1.5, 0)
+	EffectManager.spawn_explosion(blast_pos, 10.0)
+	var mecha := get_parent()
+	var is_enemy := mecha.is_in_group("enemy") if mecha else true
+	EffectManager.apply_area_explosion_damage(blast_pos, 60.0, 10.0, is_enemy, "explosive", mecha)
 	# Detonation flash: the breach glow slams white-hot and wide for a beat, then
 	# dies with the blast. Freed via the timer's own signal (no coroutine on this
 	# node, so a scene swap mid-flash can't leave a dangling await behind).

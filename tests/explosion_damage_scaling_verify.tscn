@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://cx6r0r1m5x8qa"]
+
+[ext_resource type="Script" path="res://tests/explosion_damage_scaling_verify.gd" id="1_test"]
+
+[node name="ExplosionDamageScalingVerify" type="Node"]
+script = ExtResource("1_test")

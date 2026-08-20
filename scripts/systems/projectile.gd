@@ -170,31 +170,8 @@ func _hit_target(target: Node3D) -> void:
 
 
 func _explode(blast_pos: Vector3) -> void:
-	EffectManager.spawn_explosion(blast_pos)
-	if AudioManager:
-		AudioManager.play_explosion(blast_pos)
-
-	var candidates: Array
-	if fired_by_enemy:
-		candidates.append_array(get_tree().get_nodes_in_group("mecha"))
-		candidates.append_array(get_tree().get_nodes_in_group("ally"))
-	else:
-		candidates.append_array(get_tree().get_nodes_in_group("enemy"))
-
-	for target in candidates:
-		if not is_instance_valid(target):
-			continue
-		var dist = blast_pos.distance_to(target.global_position + Vector3(0, 1.5, 0))
-		if dist > explosion_radius:
-			continue
-		# Falloff: full damage at center, 30% at edge
-		var falloff = 1.0 - 0.7 * (dist / explosion_radius)
-		var splash_damage = damage * falloff
-		if target.has_method("take_damage_at_point"):
-			target.take_damage_at_point(splash_damage, blast_pos, damage_type)
-		elif target.has_method("take_damage"):
-			target.take_damage(splash_damage, damage_type)
-		EffectManager.spawn_damage_number(target.global_position + Vector3(0, 1.5, 0), splash_damage, Color(1.0, 0.6, 0.1))
+	EffectManager.spawn_explosion(blast_pos, explosion_radius)
+	EffectManager.apply_area_explosion_damage(blast_pos, damage, explosion_radius, fired_by_enemy, damage_type)
 	queue_free()
 
 

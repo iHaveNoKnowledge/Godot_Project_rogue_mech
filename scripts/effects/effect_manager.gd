@@ -137,49 +137,102 @@ static func spawn_damage_number(position: Vector3, damage: float, color: Color =
 	tween.chain().tween_callback(label.queue_free)
 
 
-static func spawn_explosion(position: Vector3) -> void:
+static func spawn_explosion(position: Vector3, radius: float = 8.0) -> void:
 	if instance == null:
 		return
 
-	# Explosion dynamic light
+	# 1. High-intensity Dynamic Light Flash
 	var light := OmniLight3D.new()
-	light.light_color = Color(1.0, 0.6, 0.15)
-	light.light_energy = 8.0
-	light.omni_range = 18.0
-	light.omni_attenuation = 1.8
+	light.light_color = Color(1.0, 0.7, 0.2)
+	light.light_energy = 14.0
+	light.omni_range = maxf(radius * 3.0, 22.0)
+	light.omni_attenuation = 1.6
 	instance.add_child(light)
 	light.global_position = position
 
 	var lt := instance.create_tween()
-	lt.tween_property(light, "light_energy", 0.0, 0.25)
+	lt.tween_property(light, "light_energy", 0.0, 0.22)
 	lt.tween_callback(light.queue_free)
 
-	# Explosion screen shake
+	# 2. Expanding Fiery Shockwave Ring
+	var ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.8
+	torus.outer_radius = 1.0
+	ring.mesh = torus
+	var ring_mat := StandardMaterial3D.new()
+	ring_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	ring_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ring_mat.albedo_color = Color(1.0, 0.6, 0.15, 0.9)
+	ring_mat.emission_enabled = true
+	ring_mat.emission = Color(1.0, 0.5, 0.1)
+	ring_mat.emission_energy_multiplier = 4.0
+	ring.material_override = ring_mat
+	instance.add_child(ring)
+	ring.global_position = position + Vector3(0, 0.1, 0)
+	ring.scale = Vector3(0.3, 0.1, 0.3)
+
+	var ring_tween := instance.create_tween().set_parallel(true)
+	ring_tween.tween_property(ring, "scale", Vector3(radius * 1.5, 0.1, radius * 1.5), 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	ring_tween.tween_property(ring_mat, "albedo_color:a", 0.0, 0.25)
+	ring_tween.chain().tween_callback(ring.queue_free)
+
+	# 3. Fiery Core Fireball Mesh
+	var core_mesh := MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = 0.5
+	sphere.height = 1.0
+	core_mesh.mesh = sphere
+	var core_mat := StandardMaterial3D.new()
+	core_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	core_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	core_mat.albedo_color = Color(1.0, 0.8, 0.3, 0.95)
+	core_mat.emission_enabled = true
+	core_mat.emission = Color(1.0, 0.7, 0.2)
+	core_mat.emission_energy_multiplier = 4.5
+	core_mesh.material_override = core_mat
+	instance.add_child(core_mesh)
+	core_mesh.global_position = position
+	core_mesh.scale = Vector3(0.2, 0.2, 0.2)
+
+	var core_tween := instance.create_tween().set_parallel(true)
+	core_tween.tween_property(core_mesh, "scale", Vector3(2.5, 2.5, 2.5), 0.1).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
+	core_tween.chain().tween_property(core_mesh, "scale", Vector3(0.1, 0.1, 0.1), 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	core_tween.parallel().tween_property(core_mat, "albedo_color:a", 0.0, 0.18)
+	core_tween.chain().tween_callback(core_mesh.queue_free)
+
+	# 4. Explosion Screen Shake
 	var rigs = instance.get_tree().get_nodes_in_group("camera_rig")
 	if not rigs.is_empty() and rigs[0].has_method("add_shake"):
-		rigs[0].add_shake(0.35)
+		var shake_str: float = clampf(radius * 0.05, 0.35, 0.65)
+		rigs[0].add_shake(shake_str)
 
+	# 5. Sound
+	if AudioManager:
+		AudioManager.play_explosion(position)
+
+	# 6. Flying Fiery Sparks Particle Burst
 	var explosion = GPUParticles3D.new()
 	var mat = ParticleProcessMaterial.new()
 	mat.direction = Vector3(0, 1, 0)
 	mat.spread = 180.0
-	mat.initial_velocity_min = 8.0
-	mat.initial_velocity_max = 16.0
-	mat.gravity = Vector3(0, -3, 0)
-	mat.scale_min = 0.35
-	mat.scale_max = 0.9
+	mat.initial_velocity_min = 10.0
+	mat.initial_velocity_max = 22.0
+	mat.gravity = Vector3(0, -9.8, 0)
+	mat.scale_min = 0.25
+	mat.scale_max = 0.7
 
 	explosion.process_material = mat
-	explosion.amount = 32
-	explosion.lifetime = 0.8
+	explosion.amount = 36
+	explosion.lifetime = 0.55
 	explosion.one_shot = true
 	explosion.explosiveness = 0.95
 	explosion.emitting = true
 
-	var mesh_instance = MeshInstance3D.new()
-	var sphere = SphereMesh.new()
-	sphere.radius = 0.22
-	mesh_instance.mesh = sphere
+	var spark_inst = MeshInstance3D.new()
+	var spark_sphere = SphereMesh.new()
+	spark_sphere.radius = 0.15
+	spark_inst.mesh = spark_sphere
 	var particle_mat = StandardMaterial3D.new()
 	particle_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	particle_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -187,18 +240,118 @@ static func spawn_explosion(position: Vector3) -> void:
 	particle_mat.emission_enabled = true
 	particle_mat.emission = Color(1.0, 0.5, 0.1)
 	particle_mat.emission_energy_multiplier = 4.0
-	mesh_instance.material_override = particle_mat
-	explosion.add_child(mesh_instance)
+	spark_inst.material_override = particle_mat
+	explosion.add_child(spark_inst)
 
 	instance.add_child(explosion)
 	explosion.global_position = position
 
-	var et := instance.create_tween()
-	et.tween_interval(0.9)
-	et.tween_callback(func():
+	# 7. Billowing Smoke Puff
+	var smoke = GPUParticles3D.new()
+	var smoke_mat = ParticleProcessMaterial.new()
+	smoke_mat.direction = Vector3(0, 1, 0)
+	smoke_mat.spread = 80.0
+	smoke_mat.initial_velocity_min = 3.0
+	smoke_mat.initial_velocity_max = 7.0
+	smoke_mat.gravity = Vector3(0, 2.5, 0)
+	smoke_mat.scale_min = 0.5
+	smoke_mat.scale_max = 1.4
+
+	smoke.process_material = smoke_mat
+	smoke.amount = 20
+	smoke.lifetime = 0.9
+	smoke.one_shot = true
+	smoke.explosiveness = 0.8
+	smoke.emitting = true
+
+	var smoke_inst = MeshInstance3D.new()
+	var smoke_sphere = SphereMesh.new()
+	smoke_sphere.radius = 0.3
+	smoke_inst.mesh = smoke_sphere
+	var sm_mat = StandardMaterial3D.new()
+	sm_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	sm_mat.albedo_color = Color(0.2, 0.2, 0.22, 0.6)
+	smoke_inst.material_override = sm_mat
+	smoke.add_child(smoke_inst)
+
+	instance.add_child(smoke)
+	smoke.global_position = position
+
+	var cleanup_tween := instance.create_tween()
+	cleanup_tween.tween_interval(1.1)
+	cleanup_tween.tween_callback(func():
 		if is_instance_valid(explosion):
 			explosion.queue_free()
+		if is_instance_valid(smoke):
+			smoke.queue_free()
 	)
+
+
+## Deals area of effect explosion damage.
+## - Pilots on foot (unarmored humans) take DEVASTATING damage (2.2x multiplier, lethal).
+## - Armored Mechas with composite steel plating take moderated damage (0.75x multiplier, chipped armor).
+static func apply_area_explosion_damage(
+	blast_pos: Vector3,
+	base_damage: float,
+	radius: float = 8.0,
+	fired_by_enemy: bool = false,
+	damage_type: String = "explosive",
+	exclude_node: Node = null
+) -> void:
+	if instance == null or instance.get_tree() == null:
+		return
+
+	var candidates: Array = []
+	var tree := instance.get_tree()
+
+	if fired_by_enemy:
+		candidates.append_array(tree.get_nodes_in_group("mecha"))
+		candidates.append_array(tree.get_nodes_in_group("pilot"))
+		candidates.append_array(tree.get_nodes_in_group("ally"))
+	else:
+		candidates.append_array(tree.get_nodes_in_group("enemy"))
+		candidates.append_array(tree.get_nodes_in_group("enemy_pilot"))
+
+	for target in candidates:
+		if not is_instance_valid(target) or target == exclude_node:
+			continue
+
+		var target_pos: Vector3 = target.global_position
+		if target.is_in_group("mecha") or target.is_in_group("enemy") or target.is_in_group("ally"):
+			target_pos += Vector3(0, 1.5, 0)
+		else:
+			target_pos += Vector3(0, 0.8, 0)
+
+		var dist: float = blast_pos.distance_to(target_pos)
+		if dist > radius:
+			continue
+
+		# Linear distance falloff: 100% at center down to 35% at the edge
+		var falloff: float = clampf(1.0 - 0.65 * (dist / radius), 0.35, 1.0)
+		var is_pilot: bool = target.is_in_group("pilot") or target.is_in_group("enemy_pilot")
+
+		# Multiplier: Pilots (flesh/infantry) take 2.2x lethal explosion damage;
+		# Mechas (heavy composite plating) absorb/deflect blast pressure, taking 0.75x chip damage.
+		var type_mult: float = 2.2 if is_pilot else 0.75
+		var final_dmg: float = base_damage * falloff * type_mult
+
+		if target.has_method("take_damage_at_point"):
+			target.take_damage_at_point(final_dmg, blast_pos, damage_type)
+		elif target.has_method("take_damage"):
+			target.take_damage(final_dmg, damage_type)
+
+		# Knockback / impact push from blast center
+		var push_dir: Vector3 = (target.global_position - blast_pos)
+		push_dir.y = 0.0
+		if push_dir.length_squared() > 0.01:
+			push_dir = push_dir.normalized()
+			if target.has_method("apply_impact"):
+				target.apply_impact(15.0 * falloff, push_dir)
+			elif target is CharacterBody3D:
+				target.velocity += push_dir * (20.0 * falloff if is_pilot else 5.0 * falloff)
+
+		var num_color := Color(1.0, 0.3, 0.2) if is_pilot else Color(1.0, 0.65, 0.15)
+		spawn_damage_number(target.global_position + Vector3(0, 1.8 if is_pilot else 2.5, 0), final_dmg, num_color)
 
 
 ## Spawns a fading arc of box meshes tracing a melee swing. The arc sweeps from

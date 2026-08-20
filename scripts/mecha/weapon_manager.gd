@@ -1001,13 +1001,13 @@ func _shoulder_bash(hand: String) -> void:
 	_melee_attack(hand, shoulder)
 
 
-# A fire press arrived. When BOTH sides fight melee (melee weapon, bare fist,
-# or a destroyed-arm shoulder), the press is DEFERRED briefly: if the other fire
-# button lands within DUAL_PRESS_WINDOW_MS, the two presses merge into one
-# straight charge instead of two separate swings; otherwise the press commits
-# as a normal fire when the window expires. Ranged hands never defer (a gun
-# press is always an immediate shot). Returns true when the press was consumed
-# by the deferral/charge path.
+# A fire press arrived. When BOTH sides hold a real melee weapon (not a bare
+# fist), the press is DEFERRED briefly: if the other fire button lands within
+# DUAL_PRESS_WINDOW_MS, the two presses merge into one straight charge; otherwise
+# the press commits as a normal fire when the window expires.  Ranged hands and
+# bare fists always fire immediately — the dual charge only needs both actual
+# melee weapons or both destroyed-arm shoulders.  Returns true when the press
+# was consumed by the deferral/charge path.
 func _fire_press(hand: String) -> bool:
 	var now := Time.get_ticks_msec()
 	if hand == "left":
@@ -1016,6 +1016,10 @@ func _fire_press(hand: String) -> bool:
 		_last_right_press_ms = now
 	# Not both melee -> no charge is possible, fire immediately.
 	if not _hand_is_melee_capable("left") or not _hand_is_melee_capable("right"):
+		return false
+	# A bare fist (empty hand that isn't a destroyed arm) can't dual-charge —
+	# fire immediately so the punch lands on the click frame.
+	if left_hand == null or right_hand == null:
 		return false
 	# The other button ALREADY landed within the window -> this press completes
 	# a dual charge (the deferred first press is resolved in _physics_process).

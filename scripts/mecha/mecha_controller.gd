@@ -193,9 +193,10 @@ func _physics_process(delta: float) -> void:
 		_handle_movement_input()
 		_apply_movement(delta)
 
-	# Landing detection.
+	# Landing detection — restore floor snap so the mech sticks to slopes.
 	var currently_on_floor = is_on_floor()
 	if currently_on_floor and was_in_air:
+		floor_snap_length = 0.3
 		_trigger_landing_impact()
 	was_in_air = not currently_on_floor
 
@@ -238,11 +239,15 @@ func _handle_movement_input() -> void:
 			var cost: float = _dash.start_dash(_energy.energy, global_position, global_rotation)
 			_energy.energy = maxf(_energy.energy - cost, 0.0)
 
-	# Jump.
+	# Jump.  Disable floor_snap so the mech actually leaves the ground — with
+	# snap=0.3 the upward velocity (~6 m/s) only moves ~0.1 m/frame, which the
+	# snap pulls back before move_and_slide can lift the body.
 	if is_on_floor() and Input.is_action_just_pressed("jump"):
 		var cost: float = _jump.start_jump(_energy.energy, global_position)
-		_energy.energy = maxf(_energy.energy - cost, 0.0)
-		velocity.y = _jump.velocity_ref.y
+		if cost > 0.0:
+			_energy.energy = maxf(_energy.energy - cost, 0.0)
+			velocity.y = _jump.velocity_ref.y
+			floor_snap_length = 0.0  # let the mech rise above the floor
 
 	# Drop tank purge.
 	if _energy._drop_tank_active and Input.is_action_just_pressed("eject"):

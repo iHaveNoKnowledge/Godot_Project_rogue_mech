@@ -21,6 +21,17 @@
 [ Post-Battle & Garage Phase ]
 (ซ่อมเกราะ Wear System / เติมเชื้อเพลิงบริสุทธิ์ / อัปเกรด Frame Tiers / Scavenge Parts)
 
+### 1.1 Game Modes & Onboarding Flow
+
+#### Game Modes
+* **Campaign Mode (Main Loop):** โหมดวางแผนเอาชีวิตรอดทางยุทธวิธี เดินทางผ่านแผนที่บอร์ดเกม บริหารทรัพยากร Convoy ปะทะ Enemy Fleets และค้นหา Parts จาก Catalog
+* **Combat Simulator (Arena):** โหมดทดสอบการต่อสู้ 3rd Person Action อิสระ สำหรับทดลองประกอบชิ้นส่วนและซ้อมมือกับ AI นักบินรูปแบบต่างๆ
+
+#### Campaign Game Onboarding (ขั้นตอนการเริ่มเล่น)
+1. **Hangar Assembly:** เลือกหุ่นเริ่มต้น Tier 1, จัด Loadout อาวุธ และตั้งค่า Pilot
+2. **Board Spawn:** วางขบวน Convoy ลงบน Start Tile พร้อมสุ่มสร้าง Enemy Fleets และจุดสนใจ (POIs) บนแผนที่
+3. **First Tactical Turn:** เริ่มบริหารค่า MP และ Global Energy ในการเดินบอร์ดวันแรก
+
 ---
 
 ## ⚙️ 2. Modular Part Catalog & Assembly System (ระบบชิ้นส่วน)

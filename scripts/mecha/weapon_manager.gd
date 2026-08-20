@@ -468,11 +468,13 @@ func reload_weapon(hand: String) -> void:
 	var needed = weapon.max_ammo - current_mag
 	if needed <= 0:
 		reload_failed.emit(hand, "FULL")
+		_spawn_jam_effect(hand)
 		return
 
 	var reserve = get_battle_reserve(ammo_type)
 	if reserve <= 0:
 		reload_failed.emit(hand, "NO RESERVE")
+		_spawn_jam_effect(hand)
 		return
 
 	var reload_amount = mini(needed, reserve)
@@ -519,6 +521,17 @@ func reload_weapon(hand: String) -> void:
 
 	ammo_changed.emit(hand, _get_ammo(weapon), weapon.max_ammo)
 	EffectManager.spawn_damage_number(global_position + Vector3(0, 2.5, 0), refilled, Color(0.2, 1.0, 0.4))
+
+
+# Spawns a small spark + smoke burst at the weapon barrel when reload fails.
+# The offset mirrors the hand mount position used by _update_weapon_visuals.
+func _spawn_jam_effect(hand: String) -> void:
+	var mecha = get_parent()
+	if mecha == null:
+		return
+	var offset := Vector3(-0.6, 1.5, 0.5) if hand == "left" else Vector3(0.6, 1.5, 0.5)
+	var jam_pos := mecha.global_position + mecha.global_transform.basis * offset + Vector3(0, 0.3, 0)
+	EffectManager.spawn_jam_sparks(jam_pos)
 
 
 # ====================================================================

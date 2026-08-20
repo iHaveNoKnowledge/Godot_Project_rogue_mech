@@ -446,3 +446,97 @@ static func melee_hit_ray(
 	victim.take_damage(damage, damage_type)
 	spawn_damage_number(result["position"] + Vector3(0, 1, 0), damage, Color(1, 0.5, 0))
 	return true
+
+
+# Small burst of orange sparks + puff of grey smoke at a weapon barrel,
+# used for reload-fail / jam feedback. Much lighter than a muzzle flash.
+static func spawn_jam_sparks(position: Vector3) -> void:
+	if instance == null:
+		return
+
+	# 1. Tiny spark burst (orange sparks shooting outward)
+	var sparks := GPUParticles3D.new()
+	var mat := ParticleProcessMaterial.new()
+	mat.direction = Vector3(0, 1, 0)
+	mat.spread = 90.0
+	mat.initial_velocity_min = 3.0
+	mat.initial_velocity_max = 7.0
+	mat.gravity = Vector3(0, -8, 0)
+	mat.scale_min = 0.02
+	mat.scale_max = 0.06
+	sparks.process_material = mat
+	sparks.amount = 10
+	sparks.lifetime = 0.3
+	sparks.one_shot = true
+	sparks.explosiveness = 1.0
+	sparks.emitting = true
+	var spark_mesh := MeshInstance3D.new()
+	var spark_sphere := SphereMesh.new()
+	spark_sphere.radius = 0.03
+	spark_mesh.mesh = spark_sphere
+	var spark_mat := StandardMaterial3D.new()
+	spark_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	spark_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	spark_mat.albedo_color = Color(1.0, 0.7, 0.2, 0.95)
+	spark_mat.emission_enabled = true
+	spark_mat.emission = Color(1.0, 0.6, 0.1)
+	spark_mat.emission_energy_multiplier = 5.0
+	spark_mesh.material_override = spark_mat
+	sparks.add_child(spark_mesh)
+	instance.add_child(sparks)
+	sparks.global_position = position
+
+	var spark_tween := instance.create_tween()
+	spark_tween.tween_interval(0.35)
+	spark_tween.tween_callback(func():
+		if is_instance_valid(sparks):
+			sparks.queue_free()
+	)
+
+	# 2. Small grey smoke puff
+	var smoke := GPUParticles3D.new()
+	var smoke_mat := ParticleProcessMaterial.new()
+	smoke_mat.direction = Vector3(0, 1, 0)
+	smoke_mat.spread = 60.0
+	smoke_mat.initial_velocity_min = 1.0
+	smoke_mat.initial_velocity_max = 2.5
+	smoke_mat.gravity = Vector3(0, 0.5, 0)
+	smoke_mat.scale_min = 0.08
+	smoke_mat.scale_max = 0.18
+	smoke.process_material = smoke_mat
+	smoke.amount = 6
+	smoke.lifetime = 0.6
+	smoke.one_shot = true
+	smoke.explosiveness = 0.8
+	smoke.emitting = true
+	var smoke_mesh := MeshInstance3D.new()
+	var smoke_sphere := SphereMesh.new()
+	smoke_sphere.radius = 0.08
+	smoke_mesh.mesh = smoke_sphere
+	var smoke_std := StandardMaterial3D.new()
+	smoke_std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	smoke_std.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	smoke_std.albedo_color = Color(0.5, 0.5, 0.5, 0.6)
+	smoke_mesh.material_override = smoke_std
+	smoke.add_child(smoke_mesh)
+	instance.add_child(smoke)
+	smoke.global_position = position + Vector3(0, 0.1, 0)
+
+	var smoke_tween := instance.create_tween()
+	smoke_tween.tween_interval(0.7)
+	smoke_tween.tween_callback(func():
+		if is_instance_valid(smoke):
+			smoke.queue_free()
+	)
+
+	# 3. Tiny flash light (warm orange, short-lived)
+	var light := OmniLight3D.new()
+	light.light_color = Color(1.0, 0.6, 0.1)
+	light.light_energy = 2.0
+	light.omni_range = 3.0
+	light.omni_attenuation = 2.0
+	instance.add_child(light)
+	light.global_position = position
+	var light_tween := instance.create_tween()
+	light_tween.tween_property(light, "light_energy", 0.0, 0.15)
+	light_tween.tween_callback(light.queue_free)

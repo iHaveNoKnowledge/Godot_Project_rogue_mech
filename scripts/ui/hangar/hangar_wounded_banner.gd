@@ -80,13 +80,13 @@ func refresh() -> void:
 # e.g. "Serra Voss (in Vanguard) · 2 moves left · will not fight until healed".
 func _wounded_driver_lines() -> Array[String]:
 	var lines: Array[String] = []
-	for mech in GlobalData.get_hangar_mechs():
+	for mech in HangarManager.get_mechs():
 		if not (mech is Dictionary):
 			continue
 		var pilot_id := str(mech.get("pilot", ""))
 		if not pilot_id.begins_with("fleet_"):
 			continue
-		var unit := GlobalData.get_fleet_unit(pilot_id.trim_prefix("fleet_"))
+		var unit := FleetSystem.get_fleet_unit(pilot_id.trim_prefix("fleet_"))
 		if unit.is_empty() or not bool(unit.get("wounded", false)):
 			continue
 		var turns := maxi(int(unit.get("wound_turns", 1)), 1)

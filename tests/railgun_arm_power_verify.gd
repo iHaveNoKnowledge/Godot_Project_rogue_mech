@@ -45,7 +45,7 @@ func _verify_arm_power() -> void:
 
 	# Equip the heavy siege arm frame (carry_bonus 9) on the RIGHT arm.
 	var frames := GlobalData.equipped_frames.duplicate(true)
-	frames["arm_right"] = GlobalData.get_frame_catalog_entry("frame_arm_right_04")
+	frames["arm_right"] = ArmorSystem.get_frame_catalog_entry("frame_arm_right_04")
 	GlobalData.equipped_frames = frames
 	var right_power := GlobalData.get_arm_power("right")
 	_check(right_power == 21.0, "heavy right arm power = 21 (chassis 12 + frame 9)")
@@ -88,8 +88,8 @@ func _verify_recoil_recovery() -> void:
 	GlobalData.reset_run_data()
 	GlobalData.chassis_id = "standard"
 	var frames := GlobalData.equipped_frames.duplicate(true)
-	frames["leg_left"] = GlobalData.get_frame_catalog_entry("frame_leg_left_04")   # carry 10
-	frames["leg_right"] = GlobalData.get_frame_catalog_entry("frame_leg_right_04") # carry 10
+	frames["leg_left"] = ArmorSystem.get_frame_catalog_entry("frame_leg_left_04")   # carry 10
+	frames["leg_right"] = ArmorSystem.get_frame_catalog_entry("frame_leg_right_04") # carry 10
 	GlobalData.equipped_frames = frames
 	mech._recalculate_weight()
 	var light_rate := mech._recoil_decay_rate()
@@ -107,14 +107,14 @@ func _verify_recoil_recovery() -> void:
 
 	# Stronger legs (even on the same weight) recover faster.
 	var strong_frames := GlobalData.equipped_frames.duplicate(true)
-	strong_frames["leg_left"] = GlobalData.get_frame_catalog_entry("frame_leg_left_04")
-	strong_frames["leg_right"] = GlobalData.get_frame_catalog_entry("frame_leg_right_04")
+	strong_frames["leg_left"] = ArmorSystem.get_frame_catalog_entry("frame_leg_left_04")
+	strong_frames["leg_right"] = ArmorSystem.get_frame_catalog_entry("frame_leg_right_04")
 	GlobalData.equipped_frames = strong_frames
 	mech.total_weight = 60.0
 	var strong_rate := mech._recoil_decay_rate()
 	var weak_frames := GlobalData.equipped_frames.duplicate(true)
-	weak_frames["leg_left"] = GlobalData.get_frame_catalog_entry("frame_leg_left_01")
-	weak_frames["leg_right"] = GlobalData.get_frame_catalog_entry("frame_leg_right_01")
+	weak_frames["leg_left"] = ArmorSystem.get_frame_catalog_entry("frame_leg_left_01")
+	weak_frames["leg_right"] = ArmorSystem.get_frame_catalog_entry("frame_leg_right_01")
 	GlobalData.equipped_frames = weak_frames
 	mech.total_weight = 60.0
 	var weak_rate := mech._recoil_decay_rate()

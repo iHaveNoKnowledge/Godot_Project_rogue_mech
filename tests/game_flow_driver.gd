@@ -32,7 +32,7 @@ func _ready() -> void:
 
 func run() -> void:
 	GlobalData.reset_run_data()
-	GlobalData.ensure_hangar_roster()
+	HangarManager.ensure_roster()
 	GlobalData.save_run()
 
 	await _verify_board_walk_and_event()
@@ -168,18 +168,18 @@ func _verify_weapon_instances() -> void:
 	var stash_before: int = GlobalData.weapon_inventory.size()
 	var pile_bunker := "res://resources/mech/stock/weapon_pile_bunker.tres"
 	# Exactly what weapon_pickup.send_to_depot() does for each pickup.
-	GlobalData.register_weapon(pile_bunker, "Pile Bunker")
-	GlobalData.register_weapon(pile_bunker, "Pile Bunker")
+	LoadoutSystem.register_weapon(pile_bunker, "Pile Bunker")
+	LoadoutSystem.register_weapon(pile_bunker, "Pile Bunker")
 	var gained: int = GlobalData.weapon_inventory.size() - stash_before
 	_check(gained == 2, "picking up the same gun twice registers 2 separate stash instances (got %d)" % gained)
-	_check(GlobalData.count_owned_weapon(pile_bunker) == 2, "stash counts both gun copies separately")
+	_check(LoadoutSystem.count_owned_weapon(pile_bunker) == 2, "stash counts both gun copies separately")
 
 	# Hangar equip path: left hand takes one copy, right hand takes the other.
-	GlobalData.set_hand_weapon("left", pile_bunker)
-	GlobalData.set_hand_weapon("right", pile_bunker)
-	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("left", "")) == pile_bunker, "left hand holds a gun copy")
-	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("right", "")) == pile_bunker, "right hand holds the second gun copy")
-	_check(GlobalData.count_owned_weapon(pile_bunker) == 2, "both gun copies stay in the stash after dual-wield equip")
+	LoadoutSystem.set_hand_weapon("left", pile_bunker)
+	LoadoutSystem.set_hand_weapon("right", pile_bunker)
+	_check(LoadoutSystem.ref_to_path(GlobalData.weapon_loadout.get("left", "")) == pile_bunker, "left hand holds a gun copy")
+	_check(LoadoutSystem.ref_to_path(GlobalData.weapon_loadout.get("right", "")) == pile_bunker, "right hand holds the second gun copy")
+	_check(LoadoutSystem.count_owned_weapon(pile_bunker) == 2, "both gun copies stay in the stash after dual-wield equip")
 
 
 # Installs a REAL emergency scrap patch on the body slot (the same RepairSystem

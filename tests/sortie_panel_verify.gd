@@ -83,7 +83,7 @@ func _verify_sortie_page() -> void:
 
 	# An unpiloted spare berth does not appear as a sortie row.
 	var berths_before: int = sp.sortie_list.get_child_count()
-	var spare := GlobalData.build_hangar_mech("Spare 02", 2)
+	var spare := HangarManager.build("Spare 02", 2)
 	_check(not spare.is_empty(), "a spare berth can be parked for the sortie test")
 	if not spare.is_empty():
 		spare["pilot"] = ""
@@ -95,7 +95,7 @@ func _verify_sortie_page() -> void:
 	# A fleet pilot seated in the spare berth -> a toggleable row appears.
 	var spare_id := str(spare.get("id", ""))
 	if spare_id != "":
-		GlobalData.assign_hangar_pilot(spare_id, "fleet_t_sp")
+		HangarManager.assign_pilot(spare_id, "fleet_t_sp")
 		GlobalData.fleet_roster.append({"template_id": "t_sp", "name": "Sortie Sam", "hp": 60.0, "max_hp": 80.0, "destroyed": false, "fielded": true})
 		GlobalData.save_run()
 	sp.refresh()
@@ -130,9 +130,9 @@ func _verify_fielding() -> void:
 		{"template_id": "t_fx", "slot": 4},
 	]
 	for entry in seat_map:
-		var m := GlobalData.build_hangar_mech("Spare %02d" % entry["slot"], entry["slot"])
+		var m := HangarManager.build("Spare %02d" % entry["slot"], entry["slot"])
 		if not m.is_empty():
-			GlobalData.assign_hangar_pilot(str(m.get("id", "")), "fleet_%s" % entry["template_id"])
+			HangarManager.assign_pilot(str(m.get("id", "")), "fleet_%s" % entry["template_id"])
 	sp.refresh()
 	await get_tree().process_frame
 
@@ -144,7 +144,7 @@ func _verify_fielding() -> void:
 	if field_btn:
 		field_btn.pressed.emit()
 		await get_tree().process_frame
-	var unit := GlobalData.get_fleet_unit("t_fd")
+	var unit := FleetSystem.get_fleet_unit("t_fd")
 	_check(not bool(unit.get("fielded", true)), "pressing FIELDED stands the pilot down")
 	row = _row_with_text(sp.sortie_list, "Fielded Fran")
 	_check(_find_button_by_text(row, "STANDING DOWN") != null, "row shows STANDING DOWN after the toggle")
@@ -154,7 +154,7 @@ func _verify_fielding() -> void:
 	if stand_btn:
 		stand_btn.pressed.emit()
 		await get_tree().process_frame
-	unit = GlobalData.get_fleet_unit("t_fd")
+	unit = FleetSystem.get_fleet_unit("t_fd")
 	_check(bool(unit.get("fielded", true)), "pressing STANDING DOWN re-fields the pilot")
 
 	# Wounded pilot: toggle is locked (still seated, recovering).
@@ -164,7 +164,7 @@ func _verify_fielding() -> void:
 	if w_btn == null:
 		w_btn = _find_button_by_text(row, "STANDING DOWN") if row else null
 	_check(w_btn != null and w_btn.disabled, "wounded pilot's toggle is disabled")
-	_check(bool(GlobalData.get_fleet_unit("t_fw").get("wounded", false)), "wounded pilot stays wounded")
+	_check(bool(FleetSystem.get_fleet_unit("t_fw").get("wounded", false)), "wounded pilot stays wounded")
 
 	# Destroyed pilot: toggle is disabled.
 	row = _row_with_text(sp.sortie_list, "Dan Dead")

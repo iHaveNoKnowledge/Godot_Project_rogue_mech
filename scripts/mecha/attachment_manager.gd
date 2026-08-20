@@ -52,7 +52,7 @@ func update_attachment_transform(attachment_id: String, position: Vector3, rotat
 	return false
 
 func get_attachment_capacity(slot: String) -> float:
-	var info := GlobalData.get_chassis_stats()
+	var info := LoadoutSystem.get_chassis_stats()
 	var capacities: Dictionary = info.get("attachment_capacity", {})
 	return float(capacities.get(slot, 0.0))
 

@@ -203,14 +203,14 @@ func _show_reserve_list() -> void:
 # already fighting in this battle (sortie units). Driverless or piloted — any
 # parked machine not on the field can be called in.
 func _collect_free_mechs() -> Array:
-	var active_id := str(GlobalData.get_active_hangar_mech().get("id", ""))
+	var active_id := str(HangarManager.get_active_mech().get("id", ""))
 	var fielded_ids: Dictionary = {}
 	for entry in FleetSystem.get_sortie_units():
 		var mech: Dictionary = entry.get("mech", {})
 		fielded_ids[str(mech.get("id", ""))] = true
 
 	var result: Array = []
-	for mech in GlobalData.get_hangar_mechs():
+	for mech in HangarManager.get_mechs():
 		if not (mech is Dictionary):
 			continue
 		var mech_id := str(mech.get("id", ""))
@@ -222,7 +222,7 @@ func _collect_free_mechs() -> Array:
 		result.append({
 			"mech_id": mech_id,
 			"name": str(mech.get("name", "Mech")),
-			"pilot_name": GlobalData.get_hangar_mech_pilot_name(mech_id),
+			"pilot_name": HangarManager.get_mech_pilot_name(mech_id),
 		})
 	return result
 

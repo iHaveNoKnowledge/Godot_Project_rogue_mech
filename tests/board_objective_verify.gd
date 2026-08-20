@@ -99,7 +99,7 @@ func _ready() -> void:
 	_check(not BoardSystem.is_objective_complete(), "hq_strike not complete before base destroyed")
 	GlobalData.pending_enemy_base_destroyed = true
 	# The board manager consumes this flag in _ready; simulate the same effect.
-	var was_pending := GlobalData.consume_pending_enemy_base_destroyed()
+	var was_pending := EnemyFactionSystem.consume_pending_enemy_base_destroyed()
 	if was_pending:
 		BoardSystem.complete()
 	_check(BoardSystem.is_objective_complete(), "hq_strike complete after base destroyed flag")

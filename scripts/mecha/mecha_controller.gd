@@ -148,7 +148,7 @@ func _exit_tree() -> void:
 # _recalculate_weight() reads the override vars first, falling back to ChassisData only
 # for base_turn_rate (which is not stored in chassis_catalog).
 func _apply_chassis_from_global_data() -> void:
-	var info = GlobalData.get_chassis_stats()
+	var info = LoadoutSystem.get_chassis_stats()
 	_chassis_speed_override = info.get("speed", 7.0)
 	_chassis_weight_capacity_override = info.get("max_weight", 75.0)
 	can_traverse_water = info.get("water_traversal", false)
@@ -384,7 +384,7 @@ func _jump_velocity(charge_frac: float) -> float:
 # leg frame can declare its own `jump_power` stat to leap beyond the standard
 # curve; normal frames fall back to their carry_bonus strength.
 func _leg_jump_power() -> float:
-	var power := float(GlobalData.get_chassis_stats().get("power", 12.0))
+	var power := float(LoadoutSystem.get_chassis_stats().get("power", 12.0))
 	for leg in ["leg_left", "leg_right"]:
 		var f = GlobalData.equipped_frames.get(leg, {})
 		if f is Dictionary:
@@ -895,7 +895,7 @@ func _recalculate_weight() -> void:
 		total_weight += float(attachment.get("weight", 0.0))
 	# Weapons (hands + back-carry) are real carried mass: count them exactly like
 	# the Hangar TOTAL WEIGHT does, so mid-battle pickups/drops affect the mech.
-	total_weight += GlobalData.get_loadout_weapon_weight()
+	total_weight += LoadoutSystem.get_loadout_weapon_weight()
 
 	# Override vars are set from GlobalData.chassis_id by _apply_chassis_from_global_data().
 	# ChassisData resource is used for base_turn_rate if assigned.

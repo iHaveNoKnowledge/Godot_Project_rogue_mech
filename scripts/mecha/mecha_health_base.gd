@@ -541,14 +541,14 @@ func _on_mecha_destroyed() -> void:
 		if GameManager.is_escaping:
 			return
 		EventBus.combat_ended.emit(false)
-		GlobalData.remove_hangar_mech(GlobalData.active_hangar_mech_id)
+		HangarManager.remove_mech(GlobalData.active_hangar_mech_id)
 		GlobalData.mech_less = GlobalData.hangar_mechs.is_empty()
 		# Place wreckage tile at the combat position for the Siphon Protocol.
 		if GlobalData.mech_less and not GameManager.is_escaping:
 			GlobalData.wreckage_tile_pos = GlobalData.current_tile
 			GlobalData.wreckage_fuel_remaining = 80.0
 			GlobalData.siphoned_fuel = 0.0
-		if GlobalData.can_mechless_retreat():
+		if HangarManager.can_mechless_retreat():
 			GlobalData.run_notice = "Your mech is destroyed! The pilot siphons fuel from the wreckage to reboot. Walk to the wreckage tile (burnt orange) to siphon."
 			GameManager.return_to_board()
 		elif GlobalData.mech_less:

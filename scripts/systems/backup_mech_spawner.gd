@@ -60,7 +60,7 @@ func _deliver(mech_id: String) -> void:
 
 # True when a hangar berth with this id exists (the called mech must be real).
 func _roster_has(mech_id: String) -> bool:
-	for mech in GlobalData.get_hangar_mechs():
+	for mech in HangarManager.get_mechs():
 		if mech is Dictionary and str(mech.get("id", "")) == mech_id:
 			return true
 	return false
@@ -166,7 +166,7 @@ func _spawn_reserve_mech(mech_id: String, spawn_pos: Vector3) -> void:
 # reserve mech renders exactly like that mech in the hangar (same catalog path
 # the ally bodies + enemy bodies use). Shared helper lives in SaveGameIO.
 func _mech_catalog_loadout(mech_id: String) -> Dictionary:
-	for mech in GlobalData.get_hangar_mechs():
+	for mech in HangarManager.get_mechs():
 		if not (mech is Dictionary) or str(mech.get("id", "")) != mech_id:
 			continue
 		return SaveGameIO.build_mech_catalog_loadout(mech)

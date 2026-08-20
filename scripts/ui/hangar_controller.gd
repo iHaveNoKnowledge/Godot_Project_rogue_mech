@@ -134,7 +134,7 @@ func _ready() -> void:
 # Returns credits_cost for next frame upgrade level.
 # Single source of truth — use this instead of inline calculations.
 func _get_upgrade_cost() -> int:
-	return GlobalData.get_frame_upgrade_cost()
+	return LoadoutSystem.get_frame_upgrade_cost()
 
 
 # Refreshes the right-side TIER box for the selected part. Frames read the

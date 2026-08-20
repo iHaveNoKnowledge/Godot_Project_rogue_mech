@@ -8,7 +8,7 @@ extends Resource
 ## Event entry shape:
 ## {
 ##   "id": "ambush", "name": "Ambush", "desc": "...",
-##   "effect": "damage",            # effect type, see GlobalData.apply_event_effect
+##   "effect": "damage",            # effect type, see ThemeSystem.apply_event_effect
 ##   "amount": 20,                  # generic value (credits, damage %, turns, rep...)
 ##   "params": { ... },             # effect-specific extras (e.g. combat_type)
 ##   "themes": [],                  # empty = common to all themes

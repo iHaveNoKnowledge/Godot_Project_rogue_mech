@@ -447,7 +447,7 @@ func _create_pickup_ui() -> void:
 	cbox.add_child(pickup_choice_label)
 
 	pack_info_label = Label.new()
-	pack_info_label.text = "FIELD PACK: %.1f / %.1f kg" % [GlobalData.get_field_pack_weight(), GlobalData.get_field_pack_capacity()]
+	pack_info_label.text = "FIELD PACK: %.1f / %.1f kg" % [LoadoutSystem.get_field_pack_weight(), LoadoutSystem.get_field_pack_capacity()]
 	pack_info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	pack_info_label.add_theme_font_size_override("font_size", 11)
 	pack_info_label.add_theme_color_override("font_color", Color(0.6, 0.8, 0.6))
@@ -547,7 +547,7 @@ func _toggle_pickup_menu() -> void:
 		else:
 			take_weapon_btn.text = "ADD TO FIELD PACK (ใส่สนาม)"
 	if pack_info_label:
-		pack_info_label.text = "FIELD PACK: %.1f / %.1f kg" % [GlobalData.get_field_pack_weight(), GlobalData.get_field_pack_capacity()]
+		pack_info_label.text = "FIELD PACK: %.1f / %.1f kg" % [LoadoutSystem.get_field_pack_weight(), LoadoutSystem.get_field_pack_capacity()]
 		if not can_carry:
 			pack_info_label.text += "\nFIELD PACK FULL!"
 		elif already_carried:

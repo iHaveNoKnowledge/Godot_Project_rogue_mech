@@ -203,7 +203,7 @@ func _convention_part_path(equipped: Dictionary) -> String:
 		return ""
 	var slot := str(equipped.get("slot", ""))
 	if slot == "":
-		slot = GlobalData.get_armor_catalog_slot(part_id)
+		slot = ArmorSystem.get_armor_catalog_slot(part_id)
 	if slot == "":
 		return ""
 	return "res://resources/mech/parts/%s/%s.tres" % [slot, part_id]

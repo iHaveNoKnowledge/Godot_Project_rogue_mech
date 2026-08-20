@@ -98,10 +98,10 @@ func refresh() -> void:
 	for child in sortie_list.get_children():
 		child.queue_free()
 
-	var active_id := str(GlobalData.get_active_hangar_mech().get("id", ""))
+	var active_id := str(HangarManager.get_active_mech().get("id", ""))
 	var piloted_count := 0
 	var fielded_count := 0
-	for mech in GlobalData.get_hangar_mechs():
+	for mech in HangarManager.get_mechs():
 		if not (mech is Dictionary):
 			continue
 		var pilot_id := str(mech.get("pilot", ""))
@@ -111,7 +111,7 @@ func refresh() -> void:
 		piloted_count += 1
 		var fielded := is_active
 		if pilot_id.begins_with("fleet_"):
-			var unit := GlobalData.get_fleet_unit(pilot_id.trim_prefix("fleet_"))
+			var unit := FleetSystem.get_fleet_unit(pilot_id.trim_prefix("fleet_"))
 			fielded = is_active or bool(unit.get("fielded", true))
 			if is_active:
 				fielded_count += 1
@@ -123,7 +123,7 @@ func refresh() -> void:
 		_build_row(mech, pilot_id, is_active, fielded)
 
 	if sortie_status_label:
-		var capacity := GlobalData.get_hangar_capacity()
+		var capacity := HangarManager.get_capacity()
 		sortie_status_label.text = "%d/%d berths filled · %d mech%s on sortie\nAssign pilots via the ROSTER page, then toggle who fields here." % [
 			piloted_count, capacity,
 			fielded_count, "s" if fielded_count != 1 else "",
@@ -132,13 +132,13 @@ func refresh() -> void:
 
 func _build_row(mech: Dictionary, pilot_id: String, is_active: bool, fielded: bool) -> void:
 	var mech_id := str(mech.get("id", ""))
-	var archetype := GlobalData.get_hangar_archetype(mech_id)
+	var archetype := HangarManager.get_archetype(mech_id)
 	var archetype_name: String = _archetype_names[clampi(archetype, 0, 3)]
 	var destroyed := false
 	var wounded := false
 	var hp_text := ""
 	if pilot_id.begins_with("fleet_"):
-		var unit := GlobalData.get_fleet_unit(pilot_id.trim_prefix("fleet_"))
+		var unit := FleetSystem.get_fleet_unit(pilot_id.trim_prefix("fleet_"))
 		destroyed = bool(unit.get("destroyed", false))
 		wounded = bool(unit.get("wounded", false))
 		var hp := float(unit.get("hp", 0.0))
@@ -161,7 +161,7 @@ func _build_row(mech: Dictionary, pilot_id: String, is_active: bool, fielded: bo
 	name_lbl.text = "%s%s · %s [%s] %s" % [
 		marker,
 		str(mech.get("name", "Mech")),
-		GlobalData.get_hangar_pilot_name(pilot_id),
+		HangarManager.get_pilot_name(pilot_id),
 		archetype_name,
 		hp_text,
 	]
@@ -221,11 +221,11 @@ func _set_fielded(mech_id: String, pilot_id: String, fielded: bool) -> void:
 	if not pilot_id.begins_with("fleet_"):
 		return
 	var template_id := pilot_id.trim_prefix("fleet_")
-	GlobalData.set_unit_fielded(template_id, fielded)
+	FleetSystem.set_unit_fielded(template_id, fielded)
 	GlobalData.save_run()
 	if controller and controller.status_message_label:
-		var unit := GlobalData.get_fleet_unit(template_id)
-		var unit_name := str(unit.get("name", GlobalData.get_hangar_pilot_name(pilot_id)))
+		var unit := FleetSystem.get_fleet_unit(template_id)
+		var unit_name := str(unit.get("name", HangarManager.get_pilot_name(pilot_id)))
 		controller.status_message_label.text = "%s is %s." % [
 			unit_name,
 			"FIELDED (will fight alongside you)" if fielded else "STANDING DOWN (will stay parked)",

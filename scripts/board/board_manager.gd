@@ -59,10 +59,10 @@ func _ready() -> void:
 	# Restore wreckage tile from a previous mech destruction.
 	_restore_wreckage_tile()
 
-	if GlobalData.consume_pending_escalation_event():
+	if EnemyFactionSystem.consume_pending_escalation_event():
 		EventBus.event_triggered.emit(_build_tech_copy_event())
 
-	if GlobalData.consume_pending_enemy_base_destroyed():
+	if EnemyFactionSystem.consume_pending_enemy_base_destroyed():
 		EventBus.event_triggered.emit(_build_enemy_base_destroyed_event())
 		if BoardSystem.get_objective().get("id", "") == "hq_strike":
 			BoardSystem.complete()
@@ -305,15 +305,15 @@ func _end_day() -> void:
 	process_turn_mobilization()
 	accumulate_stalker_chance()
 
-	var spy_event := GlobalData.roll_spy_event()
+	var spy_event := EnemyFactionSystem.roll_spy_event()
 	if not spy_event.is_empty():
 		EventBus.event_triggered.emit(spy_event)
 
-	if GlobalData.consume_enemy_base_spawn_request():
+	if EnemyFactionSystem.consume_enemy_base_spawn_request():
 		_place_enemy_base_node()
 		EventBus.event_triggered.emit(_build_enemy_base_spawn_event())
 
-	if GlobalData.tick_enemy_base_progress(1.0):
+	if EnemyFactionSystem.tick_enemy_base_progress(1.0):
 		EventBus.event_triggered.emit(_build_enemy_base_completed_event())
 	# The base's research moved forward today — upgrade its model from a
 	# temporary camp to a rooted tower once it has dug in (>= half done).
@@ -658,7 +658,7 @@ func _mouse_screen_pos() -> Vector2:
 # ---------------------------------------------------------------------------
 
 func _clear_enemy_base_tile() -> void:
-	var reset_pos := GlobalData.consume_enemy_base_tile_reset()
+	var reset_pos := EnemyFactionSystem.consume_enemy_base_tile_reset()
 	if reset_pos == Vector2i(-1, -1):
 		return
 	if not nodes_dict.has(reset_pos):
@@ -1078,7 +1078,7 @@ func _trigger_exit_event() -> void:
 			"params": {"recovery": true},
 		}
 		EventBus.event_triggered.emit(event)
-		GlobalData.apply_event_effect(event)
+		ThemeSystem.apply_event_effect(event)
 		GameManager.enter_combat("boss")
 		return
 	print("Entering Extraction Zone / Final Boss Battle!")
@@ -1086,12 +1086,12 @@ func _trigger_exit_event() -> void:
 
 
 func _trigger_recovery_event() -> void:
-	var event := GlobalData.get_weighted_recovery_event()
+	var event := ThemeSystem.get_weighted_recovery_event()
 	if event.is_empty():
 		_trigger_default_event()
 		return
 	EventBus.event_triggered.emit(event)
-	GlobalData.apply_event_effect(event)
+	ThemeSystem.apply_event_effect(event)
 
 
 func _trigger_stalker_surprise_ambush() -> void:
@@ -1104,7 +1104,7 @@ func _trigger_stalker_surprise_ambush() -> void:
 
 
 func _trigger_random_event() -> void:
-	var pool := GlobalData.get_theme_event_pool()
+	var pool := ThemeSystem.get_theme_event_pool()
 	if pool.is_empty():
 		_trigger_default_event()
 		return
@@ -1135,7 +1135,7 @@ func _trigger_random_event() -> void:
 			chosen = event
 			break
 	EventBus.event_triggered.emit(chosen)
-	if GlobalData.apply_event_effect(chosen):
+	if ThemeSystem.apply_event_effect(chosen):
 		GameManager.enter_combat(str(chosen.get("params", {}).get("combat_type", "grunt")))
 
 
@@ -1147,7 +1147,7 @@ func _trigger_default_event() -> void:
 		"desc": "Found abandoned cache! +50 credits",
 	}
 	EventBus.event_triggered.emit(event)
-	GlobalData.apply_event_effect(event)
+	ThemeSystem.apply_event_effect(event)
 
 
 func _build_tech_copy_event() -> Dictionary:
@@ -1465,7 +1465,7 @@ func _do_reignition() -> void:
 	GlobalData.siphoned_fuel -= GlobalData.REIGNITION_FUEL_COST
 	GlobalData.engine_dirt = minf(GlobalData.engine_dirt + GlobalData.REIGNITION_ENGINE_DIRT_COST, 1.0)
 	# Restore the mech: grant a recovery chassis via the hangar system.
-	GlobalData.grant_recovery_hangar_mech()
+	HangarManager.grant_recovery_mech()
 	GlobalData.mech_energy = minf(GlobalData.mech_max_energy * 0.4, GlobalData.mech_max_energy)
 	# Clear wreckage if depleted.
 	if GlobalData.wreckage_fuel_remaining <= 0.0:

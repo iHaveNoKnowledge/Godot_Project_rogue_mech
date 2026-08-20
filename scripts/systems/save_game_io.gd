@@ -11,7 +11,7 @@ extends RefCounted
 
 
 static func save_run() -> void:
-	GlobalData.sync_equipped_armor_durability()
+	ArmorSystem.sync_equipped_armor_durability()
 	var data := {
 		"chassis": GlobalData.chassis_id,
 		"parts": serialize_parts(),
@@ -272,8 +272,8 @@ static func restore_from_dict(data: Dictionary) -> void:
 	# part_damage from the fresh instance durability (1.0), which would otherwise
 	# wipe the wear that was already restored above.
 	GlobalData.part_damage = data.get("damage", {})
-	GlobalData.sync_equipped_armor_durability()
-	GlobalData.ensure_hangar_roster()
+	ArmorSystem.sync_equipped_armor_durability()
+	HangarManager.ensure_roster()
 
 	GlobalData.enemy_forces = data.get("enemy_forces", {
 		"boss_current": 1, "boss_max": 1,
@@ -317,21 +317,21 @@ static func restore_from_dict(data: Dictionary) -> void:
 		# Older saves predate the "ammo" loadout key — default to the stash.
 		if not GlobalData.weapon_loadout.has("ammo"):
 			GlobalData.weapon_loadout["ammo"] = {
-				"kinetic": GlobalData.get_reserve_ammo("kinetic"),
-				"energy": GlobalData.get_reserve_ammo("energy"),
-				"explosive": GlobalData.get_reserve_ammo("explosive"),
-				"missile": GlobalData.get_reserve_ammo("missile")
+				"kinetic": LoadoutSystem.get_reserve_ammo("kinetic"),
+				"energy": LoadoutSystem.get_reserve_ammo("energy"),
+				"explosive": LoadoutSystem.get_reserve_ammo("explosive"),
+				"missile": LoadoutSystem.get_reserve_ammo("missile")
 			}
 		# Older saves stored resource PATHS in the loadout; current saves store
 		# instance uids so the [E] badge stays per-instance. Migrate any path
 		# refs to the matching stash instance's uid when one exists.
 		for key in ["left", "right"]:
-			GlobalData.weapon_loadout[key] = GlobalData.migrate_ref_to_uid(GlobalData.weapon_loadout.get(key, ""))
+			GlobalData.weapon_loadout[key] = LoadoutSystem.migrate_ref_to_uid(GlobalData.weapon_loadout.get(key, ""))
 		var migrated_carry: Array = []
 		var carry = GlobalData.weapon_loadout.get("carry", [])
 		if carry is Array:
 			for ref in carry:
-				migrated_carry.append(GlobalData.migrate_ref_to_uid(ref))
+				migrated_carry.append(LoadoutSystem.migrate_ref_to_uid(ref))
 			GlobalData.weapon_loadout["carry"] = migrated_carry
 
 
@@ -349,7 +349,7 @@ static func serialize_parts() -> Dictionary:
 			result[slot] = item.resource_path
 		elif item is Dictionary:
 			var pid = item.get("id", "")
-			if pid != "" and GlobalData.is_catalog_armor_id(pid):
+			if pid != "" and ArmorSystem.is_catalog_armor_id(pid):
 				# Legacy catalog part: persist only the id reference + equipped state.
 				# Static stats always come from the catalog (single source of truth).
 				result[slot] = {"id": pid, "equipped": item.get("equipped", true)}
@@ -389,7 +389,7 @@ static func serialize_frames() -> Dictionary:
 	var result := {}
 	for slot in GlobalData.equipped_frames:
 		var f = GlobalData.equipped_frames[slot]
-		if f is Dictionary and f.get("id", "") != "" and GlobalData.is_catalog_frame_id(f["id"]):
+		if f is Dictionary and f.get("id", "") != "" and ArmorSystem.is_catalog_frame_id(f["id"]):
 			# Catalog frame: persist only the id reference.
 			result[slot] = {"id": f["id"]}
 		else:
@@ -404,9 +404,9 @@ static func resolve_frame_value(v: Variant) -> Variant:
 		var entry: Dictionary = {}
 		var fid = v.get("id", "")
 		if fid != "":
-			entry = GlobalData.get_frame_catalog_entry(fid)
+			entry = ArmorSystem.get_frame_catalog_entry(fid)
 		if entry.is_empty():
-			entry = GlobalData.get_frame_catalog_entry_by_name(v.get("name", ""))
+			entry = ArmorSystem.get_frame_catalog_entry_by_name(v.get("name", ""))
 		if not entry.is_empty():
 			return entry.duplicate(true)
 		return v.duplicate(true)
@@ -424,7 +424,7 @@ static func resolve_armor_value(v: Variant) -> Variant:
 		var pid = v.get("id", "")
 		var entry: Dictionary = {}
 		if pid != "":
-			entry = GlobalData.get_armor_catalog_entry(pid)
+			entry = ArmorSystem.get_armor_catalog_entry(pid)
 		if not entry.is_empty():
 			var resolved = entry.duplicate()
 			resolved["equipped"] = v.get("equipped", true)
@@ -438,7 +438,7 @@ static func resolve_armor_value(v: Variant) -> Variant:
 # legacy resolver.
 static func resolve_equipped_part(v: Variant) -> Variant:
 	if v is Dictionary and v.has("uid"):
-		var inst := GlobalData.get_armor_instance(str(v["uid"]))
+		var inst := ArmorSystem.get_armor_instance(str(v["uid"]))
 		if not inst.is_empty():
 			inst["equipped"] = v.get("equipped", true)
 			return inst
@@ -456,8 +456,8 @@ static func ensure_equipped_parts_are_instances() -> void:
 			continue
 		var inst: Dictionary = {}
 		var pid = part.get("id", "") if part is Dictionary else ""
-		if pid != "" and GlobalData.is_catalog_armor_id(pid):
-			var created := GlobalData.make_armor_instance_from_catalog(pid)
+		if pid != "" and ArmorSystem.is_catalog_armor_id(pid):
+			var created := ArmorSystem.make_armor_instance_from_catalog(pid)
 			if not created.is_empty():
 				inst = created
 		else:
@@ -471,9 +471,9 @@ static func ensure_equipped_parts_are_instances() -> void:
 			# The legacy non-catalog instance is NOT part of armor_inventory yet —
 			# register it first, otherwise equip_armor_instance() can't find the uid
 			# and the freshly minted instance is silently orphaned.
-			if GlobalData.get_armor_instance(str(inst["uid"])).is_empty():
+			if ArmorSystem.get_armor_instance(str(inst["uid"])).is_empty():
 				GlobalData.armor_inventory.append(inst)
-			GlobalData.equip_armor_instance(inst["uid"], slot)
+			ArmorSystem.equip_armor_instance(inst["uid"], slot)
 
 
 static func serialize_attachments() -> Array:
@@ -567,7 +567,7 @@ static func _resolve_armor_paint(p: Dictionary, fallback: Color) -> Color:
 		return p["part_color"]
 	var db_id := str(p.get("db_id", ""))
 	if db_id != "":
-		var cat_entry := GlobalData.get_armor_catalog_entry(db_id)
+		var cat_entry := ArmorSystem.get_armor_catalog_entry(db_id)
 		if not cat_entry.is_empty() and cat_entry.has("color"):
 			return cat_entry["color"]
 	return fallback

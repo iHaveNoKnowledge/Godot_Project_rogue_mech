@@ -47,7 +47,7 @@ func _verify_spawner() -> void:
 	_check(not spawner.call_reserve_mech("ghost_id"), "unknown mech id is rejected")
 
 	# A known roster id is accepted and starts the delivery clock.
-	var mech := GlobalData.build_hangar_mech("Reserve Test")
+	var mech := HangarManager.build("Reserve Test")
 	var mech_id := str(mech.get("id", ""))
 	_check(spawner.call_reserve_mech(mech_id), "call reserve mech accepts a roster id")
 
@@ -97,7 +97,7 @@ func _verify_tab_menu_filtering() -> void:
 	await get_tree().process_frame
 
 	GlobalData.reset_run_data()
-	GlobalData.ensure_hangar_roster()
+	HangarManager.ensure_roster()
 	# Grow the fleet so the convoy has enough berths for multiple spares.
 	GlobalData.fleet_roster.append({
 		"template_id": "grunt_1", "name": "Grunt 1", "hp": 100.0, "max_hp": 100.0,
@@ -112,7 +112,7 @@ func _verify_tab_menu_filtering() -> void:
 	_check(free.is_empty(), "no free mechs when only the active mech exists")
 
 	# Build a second, non-active mech -> it becomes free.
-	var mech := GlobalData.build_hangar_mech("Spare Mech")
+	var mech := HangarManager.build("Spare Mech")
 	var mech_id := str(mech.get("id", ""))
 	free = menu._collect_free_mechs()
 	_check(free.size() == 1, "a spare (non-active) mech is free")
@@ -120,7 +120,7 @@ func _verify_tab_menu_filtering() -> void:
 		_check(str(free[0].get("mech_id", "")) == mech_id, "free list offers the spare mech id")
 
 	# A second spare is also offered.
-	var mech2 := GlobalData.build_hangar_mech("Spare Mech 2")
+	var mech2 := HangarManager.build("Spare Mech 2")
 	_check(not mech2.is_empty(), "second spare mech builds (fleet berths available)")
 	free = menu._collect_free_mechs()
 	_check(free.size() == 2, "two spare mechs are both free")

@@ -84,28 +84,28 @@ func _verify_driver_register_weapon_equip() -> void:
 		ok.pressed.emit()
 	await get_tree().process_frame
 
-	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("right", "")) == rifle_path, "working set holds the rifle on the right hand after confirming")
+	_check(LoadoutSystem.ref_to_path(GlobalData.weapon_loadout.get("right", "")) == rifle_path, "working set holds the rifle on the right hand after confirming")
 	var new_mech := _find_mech(new_id)
 	_check(not new_mech.is_empty(), "registered mech entry found in the roster")
 	if not new_mech.is_empty():
 		var snap_loadout: Dictionary = new_mech.get("weapon_loadout", {})
-		_check(GlobalData.ref_to_path(snap_loadout.get("right", "")) == rifle_path, "registered mech's roster snapshot holds the rifle after equipping")
+		_check(LoadoutSystem.ref_to_path(snap_loadout.get("right", "")) == rifle_path, "registered mech's roster snapshot holds the rifle after equipping")
 	var old_mech := _find_mech(old_active_id)
 	if not old_mech.is_empty():
 		var old_loadout: Dictionary = old_mech.get("weapon_loadout", {})
-		_check(GlobalData.ref_to_path(old_loadout.get("left", "")) != rifle_path, "old mech no longer carries the transferred rifle")
+		_check(LoadoutSystem.ref_to_path(old_loadout.get("left", "")) != rifle_path, "old mech no longer carries the transferred rifle")
 
 	# The working set must STILL match the registered mech after the transfer
 	# (persisting to the wrong berth would leave the rifle only on the snapshot).
-	GlobalData.load_hangar_mech_state(new_id)
-	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("right", "")) == rifle_path, "reloading the registered mech shows the rifle equipped")
+	HangarManager.load_mech_state(new_id)
+	_check(LoadoutSystem.ref_to_path(GlobalData.weapon_loadout.get("right", "")) == rifle_path, "reloading the registered mech shows the rifle equipped")
 
 	# UNEQUIP must work too while still in frame mode: the weapon leaves the
 	# loadout (it used to erase a frames-dict key and silently keep the weapon).
 	ep.unequip_part("weapon_right")
 	await get_tree().process_frame
 	_check(str(GlobalData.weapon_loadout.get("right", "")) == "", "unequip removes the rifle from the working set in frame mode")
-	GlobalData.load_hangar_mech_state(new_id)
+	HangarManager.load_mech_state(new_id)
 	_check(str(GlobalData.weapon_loadout.get("right", "")) == "", "unequip removes the rifle from the registered mech's snapshot")
 
 	ctrl.queue_free()
@@ -152,11 +152,11 @@ func _verify_fleet_register_weapon_equip() -> void:
 		if ok:
 			ok.pressed.emit()
 		await get_tree().process_frame
-	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("left", "")) == shotgun_path, "fleet build: working set holds the shotgun")
+	_check(LoadoutSystem.ref_to_path(GlobalData.weapon_loadout.get("left", "")) == shotgun_path, "fleet build: working set holds the shotgun")
 	var new_mech := _find_mech(new_id)
 	if not new_mech.is_empty():
 		var snap_loadout: Dictionary = new_mech.get("weapon_loadout", {})
-		_check(GlobalData.ref_to_path(snap_loadout.get("left", "")) == shotgun_path, "fleet build: registered mech's snapshot holds the shotgun")
+		_check(LoadoutSystem.ref_to_path(snap_loadout.get("left", "")) == shotgun_path, "fleet build: registered mech's snapshot holds the shotgun")
 
 	ctrl.queue_free()
 	await get_tree().process_frame

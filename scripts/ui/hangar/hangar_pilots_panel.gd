@@ -8,7 +8,7 @@ extends RefCounted
 ## active mech (the machine the player pilots into combat).
 ##
 ## It is the read-mostly counterpart of the roster page's per-berth PILOT
-## picker: both read the same pilot list (GlobalData.get_hangar_pilots) so the
+## picker: both read the same pilot list (HangarManager.get_pilots) so the
 ## page never drifts from the options offered when assigning a pilot (including
 ## the REGISTER dialog, which reuses the same list as its picker).
 
@@ -85,7 +85,7 @@ func hide_page() -> void:
 
 
 # Rebuilds the pilot rows from the single source of truth
-# (GlobalData.get_hangar_pilots) — the same list the roster page and the
+# (HangarManager.get_pilots) — the same list the roster page and the
 # REGISTER dialog use, so every surface always shows the same pilots.
 func refresh() -> void:
 	if pilot_list == null:
@@ -95,33 +95,33 @@ func refresh() -> void:
 
 	# The main mech (the one the player pilots into combat) and whoever drives
 	# it — the pilot rows' MAIN DRIVER buttons seat a pilot here.
-	var active := GlobalData.get_active_hangar_mech()
+	var active := HangarManager.get_active_mech()
 	var active_id := str(active.get("id", ""))
 	var driver_id := str(active.get("pilot", ""))
-	var pilots := GlobalData.get_hangar_pilots()
+	var pilots := HangarManager.get_pilots()
 	for pilot in pilots:
 		_build_row(pilot, active_id, driver_id)
 
 	if pilots_status_label:
-		var fleet := GlobalData.get_hangar_fleet_size()
-		var capacity := GlobalData.get_hangar_capacity()
+		var fleet := HangarManager.get_fleet_size()
+		var capacity := HangarManager.get_capacity()
 		var convoy := "SOLO CONVOY · 1 trailer · 2 berths" if fleet <= 1 else \
 			"FLEET CONVOY · %d pilots · %d trucks · %d berths" % [fleet, ceili(fleet / 2.0), capacity]
-		var affiliation := GlobalData.get_run_affiliation()
+		var affiliation := ThemeSystem.get_affiliation()
 		pilots_status_label.text = "MAIN DRIVER: %s · %s\n%s · %s\n%d pilot%s in the convoy · %d/%d berths filled" % [
-			GlobalData.get_hangar_pilot_name(driver_id),
+			HangarManager.get_pilot_name(driver_id),
 			str(active.get("name", "Mech")),
 			affiliation.get("name", "Mech Convoy"),
 			convoy,
 			pilots.size(), "s" if pilots.size() != 1 else "",
-			GlobalData.get_hangar_mechs().size(), capacity,
+			HangarManager.get_mechs().size(), capacity,
 		]
 
 
 func _build_row(pilot: Dictionary, active_id: String, driver_id: String) -> void:
 	var pilot_id := str(pilot.get("id", ""))
 	var name := str(pilot.get("name", "?"))
-	var status := GlobalData.get_hangar_pilot_status(pilot_id)
+	var status := HangarManager.get_pilot_status(pilot_id)
 	var is_wounded := status.contains("WOUNDED")
 	var is_destroyed := status.contains("DESTROYED")
 
@@ -143,10 +143,10 @@ func _build_row(pilot: Dictionary, active_id: String, driver_id: String) -> void
 	row.add_child(name_lbl)
 
 	# Wounded fleet pilots can be healed from here — same credit cost and rule
-	# as the roster page's HEAL (single source: GlobalData.heal_wounded_pilot).
+	# as the roster page's HEAL (single source: RecruitSystem.heal_wounded_pilot).
 	if pilot_id.begins_with("fleet_"):
 		var template_id := pilot_id.trim_prefix("fleet_")
-		var heal_cost := GlobalData.get_wound_heal_cost(template_id)
+		var heal_cost := RecruitSystem.get_wound_heal_cost(template_id)
 		if heal_cost > 0:
 			var heal_btn := Button.new()
 			heal_btn.text = "HEAL (%dcr)" % heal_cost
@@ -201,37 +201,37 @@ func _open_loadout_editor(pilot_id: String, pilot_name: String) -> void:
 
 
 # Seats a pilot in the main (active) mech. Same single source as the roster
-# page's PILOT picker (GlobalData.assign_hangar_pilot) so the swap rules never
+# page's PILOT picker (HangarManager.assign_pilot) so the swap rules never
 # drift; persists and refreshes the page so the star badge moves instantly.
 func _set_main_driver(pilot_id: String) -> void:
-	var active := GlobalData.get_active_hangar_mech()
+	var active := HangarManager.get_active_mech()
 	var active_id := str(active.get("id", ""))
 	if active_id == "":
 		return
-	if not GlobalData.assign_hangar_pilot(active_id, pilot_id):
+	if not HangarManager.assign_pilot(active_id, pilot_id):
 		return
 	GlobalData.save_run()
 	if controller and controller.status_message_label:
 		controller.status_message_label.text = "%s is now the main driver of %s." % [
-			GlobalData.get_hangar_pilot_name(pilot_id), str(active.get("name", "the main mech"))]
+			HangarManager.get_pilot_name(pilot_id), str(active.get("name", "the main mech"))]
 	refresh()
 
 
 # Which parked mech this pilot drives (" · Mech 01"), or " · (no mech)".
 func _mech_label(pilot_id: String) -> String:
-	for mech in GlobalData.get_hangar_mechs():
+	for mech in HangarManager.get_mechs():
 		if str(mech.get("pilot", "")) == pilot_id:
 			return " · %s" % str(mech.get("name", "Mech"))
 	return " · (no mech)"
 
 
 func _heal(template_id: String) -> void:
-	var cost := GlobalData.get_wound_heal_cost(template_id)
+	var cost := RecruitSystem.get_wound_heal_cost(template_id)
 	if cost <= 0:
 		if controller and controller.status_message_label:
 			controller.status_message_label.text = "That pilot is not wounded — nothing to heal."
 		return
-	if not GlobalData.heal_wounded_pilot(template_id):
+	if not RecruitSystem.heal_wounded_pilot(template_id):
 		# The heal spends the credits itself; a failure here means the price
 		# moved (or resources were drained while the page was open).
 		if controller and controller.status_message_label:
@@ -239,7 +239,7 @@ func _heal(template_id: String) -> void:
 				if GlobalData.credits < cost else "The pilot could not be healed."
 		return
 	GlobalData.save_run()
-	var unit := GlobalData.get_fleet_unit(template_id)
+	var unit := FleetSystem.get_fleet_unit(template_id)
 	if controller and controller.status_message_label:
 		controller.status_message_label.text = "%s is healed and ready to fight (-%d credits)." % [
 			str(unit.get("name", "The pilot")), cost]

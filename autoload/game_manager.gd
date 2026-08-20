@@ -50,10 +50,10 @@ func enter_combat(combat_type: String = "grunt") -> void:
 	# combat scene loads. Only on real board/event entries — eject re-boarding
 	# (the pilot climbing back into a specific machine) must never be overridden.
 	if current_state == State.BOARD:
-		var swapped_id := GlobalData.auto_park_wounded_active()
+		var swapped_id := HangarManager.auto_park_wounded_active()
 		if swapped_id != "":
 			GlobalData.save_run()
-			var name := str(GlobalData.get_active_hangar_mech().get("name", "the backup mech"))
+			var name := str(HangarManager.get_active_mech().get("name", "the backup mech"))
 			GlobalData.run_notice = "The piloted mech's driver was wounded, so it was parked. You're piloting %s instead." % name
 	get_tree().change_scene_to_file("res://scenes/game_world.tscn")
 	transition_to(State.COMBAT)

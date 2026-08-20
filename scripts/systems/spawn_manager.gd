@@ -196,7 +196,7 @@ func _ready() -> void:
 	_spawn_fielded_allies()
 	# Snapshot friendly combat HP after the player mech + allies are in the scene,
 	# so the decisive-victory check knows the combined HP of our fielded side.
-	GlobalData.begin_combat_stats()
+	CombatStatsSystem.begin_combat_stats()
 	await get_tree().create_timer(1.0).timeout
 	start_waves()
 
@@ -296,7 +296,7 @@ func _spawn_fielded_allies() -> void:
 		var mech: Dictionary = entry.get("mech", {})
 		var unit: Dictionary = entry.get("unit", {})
 		var template_id := str(unit.get("template_id", ""))
-		var template = GlobalData.get_ally_template(template_id)
+		var template = FleetSystem.get_ally_template(template_id)
 		if template.is_empty():
 			continue
 		var scene_path = str(template.get("scene_path", "res://scenes/mecha/ally_dummy.tscn"))
@@ -325,7 +325,7 @@ func _spawn_fielded_allies() -> void:
 		# loadout (armor plates + equipped weapons) replaces the template stats
 		# so the ally fights with the gear on its berth.
 		ally_unit.apply_mech_override(
-			GlobalData.get_hangar_archetype(str(mech.get("id", ""))),
+			HangarManager.get_archetype(str(mech.get("id", ""))),
 			str(unit.get("name", template.get("name", "ALLY"))),
 		)
 		ally_unit.apply_mech_loadout(mech)
@@ -355,7 +355,7 @@ func _spawn_next_wave() -> void:
 
 	var wanted = GlobalData.wanted_level
 	var hp_scale = 1.0 + min(wanted, 5) * 0.15
-	hp_scale *= GlobalData.get_enemy_grunt_multiplier()
+	hp_scale *= EnemyFactionSystem.get_enemy_grunt_multiplier()
 	var extra_count = mini(wanted, 2)
 	var org: Dictionary = _get_org_config()
 	var style := str(org.get("style", "ragtag"))

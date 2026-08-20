@@ -13,7 +13,7 @@ var controller  # hangar_controller.gd
 # Repair the currently selected slot: skip when undamaged, require credits,
 # then clear the slot's part/frame damage and repaint.
 func repair_part() -> void:
-	var repair_cost := GlobalData.get_repair_cost(controller.selected_slot)
+	var repair_cost := RepairSystem.get_repair_cost(controller.selected_slot)
 	if repair_cost <= 0:
 		controller.status_message_label.text = "%s is fully functional!" % controller.selected_slot.to_upper()
 		return
@@ -30,7 +30,7 @@ func repair_part() -> void:
 func full_repair() -> void:
 	var total_cost := 0
 	for slot in GlobalData.MECHA_SLOTS:
-		total_cost += GlobalData.get_repair_cost(slot)
+		total_cost += RepairSystem.get_repair_cost(slot)
 
 	if total_cost <= 0:
 		controller.status_message_label.text = "All parts OK!"

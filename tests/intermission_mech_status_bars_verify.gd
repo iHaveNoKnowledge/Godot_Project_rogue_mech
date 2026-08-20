@@ -82,7 +82,7 @@ func _ready() -> void:
 	_check(status_text.contains("FRAME:"), "status text includes the FRAME total line")
 
 	# Fleet readout: EVERY parked mech's HP appears, not just the piloted one.
-	var spare := GlobalData.build_hangar_mech("Spare 02", 2)
+	var spare := HangarManager.build("Spare 02", 2)
 	_check(not spare.is_empty(), "a spare mech can be parked for the fleet readout")
 	var spare_id := str(spare.get("id", ""))
 	if spare_id != "":

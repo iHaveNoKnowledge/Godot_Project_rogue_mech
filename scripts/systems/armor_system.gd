@@ -35,7 +35,7 @@ static func get_armor_catalog_slot(part_id: String) -> String:
 
 # Creates a fresh instance from a catalog template and adds it to armor_inventory.
 static func make_armor_instance_from_catalog(part_id: String) -> Dictionary:
-	var entry := GlobalData.get_armor_catalog_entry(part_id)
+	var entry := ArmorSystem.get_armor_catalog_entry(part_id)
 	if entry.is_empty():
 		return {}
 	var instance := entry.duplicate(true)
@@ -90,7 +90,7 @@ static func entry_is_blueprint_locked(entry: Dictionary) -> bool:
 # Returns the new instance on success, or an empty Dictionary on any failure
 # (unknown id / insufficient scrap / insufficient credits / blueprint not researched).
 static func try_craft_armor_from_catalog(part_id: String) -> Dictionary:
-	var entry := GlobalData.get_armor_catalog_entry(part_id)
+	var entry := ArmorSystem.get_armor_catalog_entry(part_id)
 	if entry.is_empty():
 		return {}
 	if entry_is_blueprint_locked(entry):

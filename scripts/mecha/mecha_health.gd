@@ -39,7 +39,7 @@ func _init_parts() -> void:
 		# Apply HP from equipped inner frame (matching Hangar display which adds the upgrade bonus)
 		if GlobalData.equipped_frames.has(slot):
 			var f = GlobalData.equipped_frames[slot]
-			var f_hp = f.get("hp", parts[slot]["max_frame"]) + GlobalData.get_frame_upgrade_hp_bonus()
+			var f_hp = f.get("hp", parts[slot]["max_frame"]) + LoadoutSystem.get_frame_upgrade_hp_bonus()
 			parts[slot]["frame_hp"] = f_hp
 			parts[slot]["max_frame"] = f_hp
 

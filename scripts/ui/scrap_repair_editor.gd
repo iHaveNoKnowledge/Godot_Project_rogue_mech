@@ -232,8 +232,8 @@ func _build_ui() -> void:
 
 	var sub := Label.new()
 	sub.text = "Patch damaged slots with scrap.\nTier %d scrap (%d%% of real stats)" % [
-		GlobalData.get_scrap_armor_tier(),
-		int(GlobalData.get_scrap_armor_stat_scale() * 100.0),
+		FleetSystem.get_scrap_armor_tier(),
+		int(FleetSystem.get_scrap_armor_stat_scale() * 100.0),
 	]
 	sub.add_theme_font_size_override("font_size", 12)
 	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -807,7 +807,7 @@ func _build_primitive_mesh(shape: String) -> Mesh:
 func _get_slot_node(slot: String) -> Node3D:
 	if mecha_node == null:
 		return null
-	var path: String = GlobalData.get_slot_node_path(slot)
+	var path: String = LoadoutSystem.get_slot_node_path(slot)
 	if path == "":
 		return null
 	return mecha_node.get_node_or_null(path)
@@ -838,7 +838,7 @@ func _rebuild_primitive_label() -> void:
 func _attach_display_name(slot: String, path: String) -> String:
 	var node_path := path
 	if node_path == "":
-		node_path = GlobalData.get_slot_node_path(slot)
+		node_path = LoadoutSystem.get_slot_node_path(slot)
 	for opt in GlobalData.SCRAP_ATTACH_OPTIONS.get(slot, []):
 		if opt is Dictionary and str(opt.get("node", "")) == node_path:
 			return str(opt.get("name", node_path))

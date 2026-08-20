@@ -40,7 +40,7 @@ func _verify_weapon_swap() -> void:
 	await get_tree().process_frame
 
 	var active_id := GlobalData.active_hangar_mech_id
-	var spare := GlobalData.build_hangar_mech("Spare", 0)
+	var spare := HangarManager.build("Spare", 0)
 	var spare_id := str(spare.get("id", ""))
 	_check(spare_id != "" and spare_id != active_id, "spare berth exists for the swap test")
 	# Give the spare a CLEAN loadout carrying only the rifle on its right hand
@@ -58,7 +58,7 @@ func _verify_weapon_swap() -> void:
 	await get_tree().process_frame
 	_check(ep.swap_confirm_modal != null and is_instance_valid(ep.swap_confirm_modal), "swap dialog opens before a cross-mech weapon transfer")
 	_check(_spare_loadout_slot(spare_id, "right") == GlobalData.DEFAULT_LEFT_WEAPON_PATH, "spare still carries the rifle while the dialog is open")
-	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("right", "")) != GlobalData.DEFAULT_LEFT_WEAPON_PATH, "edited mech does not take the rifle before confirming")
+	_check(LoadoutSystem.ref_to_path(GlobalData.weapon_loadout.get("right", "")) != GlobalData.DEFAULT_LEFT_WEAPON_PATH, "edited mech does not take the rifle before confirming")
 
 	# Confirm → the transfer actually happens (spare frees it, edited mech holds it).
 	var ok := _find_button_by_text(ep.swap_confirm_modal, "SWAP & EQUIP")
@@ -67,7 +67,7 @@ func _verify_weapon_swap() -> void:
 		ok.pressed.emit()
 	await get_tree().process_frame
 	_check(ep.swap_confirm_modal == null or not is_instance_valid(ep.swap_confirm_modal), "swap dialog closes after confirming")
-	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("right", "")) == GlobalData.DEFAULT_LEFT_WEAPON_PATH, "edited mech now carries the rifle after confirming")
+	_check(LoadoutSystem.ref_to_path(GlobalData.weapon_loadout.get("right", "")) == GlobalData.DEFAULT_LEFT_WEAPON_PATH, "edited mech now carries the rifle after confirming")
 	_check(_spare_loadout_slot(spare_id, "right") == "", "spare no longer carries the rifle after the swap")
 
 	ctrl.queue_free()
@@ -83,7 +83,7 @@ func _verify_weapon_cancel() -> void:
 	await get_tree().process_frame
 
 	var active_id := GlobalData.active_hangar_mech_id
-	var spare := GlobalData.build_hangar_mech("Spare", 0)
+	var spare := HangarManager.build("Spare", 0)
 	var spare_id := str(spare.get("id", ""))
 	# The spare carries the shotgun on its back pack; the edited mech does not.
 	_set_spare_loadout(spare_id, {"left": "", "right": "", "carry": [GlobalData.DEFAULT_CARRY_WEAPON_PATH]})
@@ -100,7 +100,7 @@ func _verify_weapon_cancel() -> void:
 		cancel.pressed.emit()
 	await get_tree().process_frame
 	_check(ep.swap_confirm_modal == null or not is_instance_valid(ep.swap_confirm_modal), "cancel path: dialog closes on cancel")
-	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("left", "")) != GlobalData.DEFAULT_CARRY_WEAPON_PATH, "cancel path: edited mech takes nothing")
+	_check(LoadoutSystem.ref_to_path(GlobalData.weapon_loadout.get("left", "")) != GlobalData.DEFAULT_CARRY_WEAPON_PATH, "cancel path: edited mech takes nothing")
 	_check(_spare_carry_has(spare_id, GlobalData.DEFAULT_CARRY_WEAPON_PATH), "cancel path: spare keeps its weapon")
 
 	ctrl.queue_free()
@@ -116,13 +116,13 @@ func _verify_armor_swap() -> void:
 	await get_tree().process_frame
 
 	var active_id := GlobalData.active_hangar_mech_id
-	var spare := GlobalData.build_hangar_mech("Spare", 0)
+	var spare := HangarManager.build("Spare", 0)
 	var spare_id := str(spare.get("id", ""))
 	# Mint an armor instance and park it on the spare's body slot only.
 	var body_entry: Dictionary = GlobalData.armor_catalog["body"][0]
 	GlobalData.scrap = 500
 	GlobalData.credits = 500
-	var inst := GlobalData.try_craft_armor_from_catalog(str(body_entry.get("id", "")))
+	var inst := ArmorSystem.try_craft_armor_from_catalog(str(body_entry.get("id", "")))
 	var uid := str(inst.get("uid", ""))
 	_check(uid != "", "armor instance created for the armor swap test")
 	_set_spare_parts(spare_id, {"body": {"uid": uid, "equipped": true}})
@@ -157,7 +157,7 @@ func _verify_spare_copy_no_swap() -> void:
 
 	var shotgun := GlobalData.DEFAULT_CARRY_WEAPON_PATH
 	# reset grants one shotgun; mint a second so two physical copies exist.
-	GlobalData.register_weapon(shotgun, "Shotgun")
+	LoadoutSystem.register_weapon(shotgun, "Shotgun")
 	var copy_a := ""
 	var copy_b := ""
 	for entry in GlobalData.weapon_inventory:
@@ -169,7 +169,7 @@ func _verify_spare_copy_no_swap() -> void:
 	_check(copy_a != "" and copy_b != "" and copy_a != copy_b, "two distinct shotgun copies exist")
 
 	var active_id := GlobalData.active_hangar_mech_id
-	var spare := GlobalData.build_hangar_mech("Spare", 0)
+	var spare := HangarManager.build("Spare", 0)
 	var spare_id := str(spare.get("id", ""))
 	# Park copy_a on the spare's pack; copy_b stays free in the stash.
 	_set_spare_loadout(spare_id, {"left": "", "right": "", "carry": [copy_a]})
@@ -181,7 +181,7 @@ func _verify_spare_copy_no_swap() -> void:
 	ep.equip_part("weapon_left", {"path": shotgun, "name": "Shotgun", "uid": copy_b})
 	await get_tree().process_frame
 	_check(ep.swap_confirm_modal == null or not is_instance_valid(ep.swap_confirm_modal), "free spare copy equips without a swap dialog")
-	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("left", "")) == shotgun, "free spare copy now fills the left hand")
+	_check(LoadoutSystem.ref_to_path(GlobalData.weapon_loadout.get("left", "")) == shotgun, "free spare copy now fills the left hand")
 	_check(_spare_carry_has(spare_id, copy_a), "spare keeps its own copy untouched")
 
 	# Equipping the EXACT copy parked on the spare (copy_a) still needs the
@@ -193,7 +193,7 @@ func _verify_spare_copy_no_swap() -> void:
 	if ok:
 		ok.pressed.emit()
 	await get_tree().process_frame
-	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("right", "")) == shotgun, "swapped copy moves to the edited mech's right hand")
+	_check(LoadoutSystem.ref_to_path(GlobalData.weapon_loadout.get("right", "")) == shotgun, "swapped copy moves to the edited mech's right hand")
 	_check(not _spare_carry_has(spare_id, copy_a), "spare's copy transferred off the spare after confirming")
 
 	ctrl.queue_free()
@@ -211,7 +211,7 @@ func _verify_frame_swap() -> void:
 	await get_tree().process_frame
 
 	var active_id := GlobalData.active_hangar_mech_id
-	var spare := GlobalData.build_hangar_mech("Spare", 0)
+	var spare := HangarManager.build("Spare", 0)
 	var spare_id := str(spare.get("id", ""))
 	var slot := "body"
 	var frames: Array = GlobalData.frame_catalog.get(slot, [])
@@ -269,7 +269,7 @@ func _spare_loadout_slot(mech_id: String, slot: String) -> String:
 	for m in GlobalData.hangar_mechs:
 		if str(m.get("id", "")) == mech_id:
 			var loadout: Dictionary = m.get("weapon_loadout", {})
-			return GlobalData.ref_to_path(loadout.get(slot, ""))
+			return LoadoutSystem.ref_to_path(loadout.get(slot, ""))
 	return ""
 
 

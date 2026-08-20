@@ -84,8 +84,8 @@ func show(info: Dictionary) -> void:
 	else:
 		var full_hp = GlobalData.part_stat(info, "max_hp", 100.0)
 		if controller.current_mode == "armor" and not is_instance:
-			var s_cost := GlobalData.get_armor_scrap_cost(info)
-			var c_cost := GlobalData.get_armor_credit_cost(info)
+			var s_cost := ArmorSystem.get_armor_scrap_cost(info)
+			var c_cost := ArmorSystem.get_armor_credit_cost(info)
 			details.text = "CRAFT COST: %d scrap + %d credits  |  WEIGHT: %.1f kg" % [s_cost, c_cost, wt_val]
 		else:
 			var dur_ratio = GlobalData.get_durability_ratio(info)
@@ -132,7 +132,7 @@ func show(info: Dictionary) -> void:
 	# 2. REPAIR — owned armor instances & inner frames only (never mutates the catalog)
 	if not is_weapon_slot and (is_instance or controller.current_mode == "frame"):
 		var repair_btn = Button.new()
-		var repair_cost := GlobalData.get_repair_cost(controller.selected_slot)
+		var repair_cost := RepairSystem.get_repair_cost(controller.selected_slot)
 		repair_btn.text = "REPAIR (%d cr)" % repair_cost
 		repair_btn.custom_minimum_size = Vector2(180, 36)
 		repair_btn.pressed.connect(func():

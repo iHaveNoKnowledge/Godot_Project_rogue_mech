@@ -20,10 +20,10 @@ func persist_edits() -> void:
 	var editing_id: String = controller.get_editing_mech_id()
 	if editing_id == "":
 		return
-	GlobalData.save_hangar_mech_state(editing_id)
+	HangarManager.save_mech_state(editing_id)
 	controller._customize_mech_id = editing_id
 	if editing_id != GlobalData.active_hangar_mech_id:
-		GlobalData.load_hangar_mech_state(GlobalData.active_hangar_mech_id)
+		HangarManager.load_mech_state(GlobalData.active_hangar_mech_id)
 
 
 # Persist the working set back onto the berth being edited (so its roster
@@ -31,7 +31,7 @@ func persist_edits() -> void:
 # a non-active mech on the customize page land on the right entry.
 func commit_and_save() -> void:
 	if controller._customize_mech_id != "":
-		GlobalData.save_hangar_mech_state(controller._customize_mech_id)
+		HangarManager.save_mech_state(controller._customize_mech_id)
 	GlobalData.save_run()
 	# A frame equip/unequip on the customize page may complete or break the
 	# walking chassis the pending-register banner is waiting on, so the banner

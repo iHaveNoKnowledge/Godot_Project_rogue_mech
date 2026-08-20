@@ -94,9 +94,9 @@ func build_window() -> void:
 	scroll.add_child(rows)
 
 	for info in controller.armor_catalog[controller.selected_slot]:
-		var s_cost := GlobalData.get_armor_scrap_cost(info)
-		var c_cost := GlobalData.get_armor_credit_cost(info)
-		var blueprint_locked := GlobalData.entry_is_blueprint_locked(info)
+		var s_cost := ArmorSystem.get_armor_scrap_cost(info)
+		var c_cost := ArmorSystem.get_armor_credit_cost(info)
+		var blueprint_locked := ArmorSystem.entry_is_blueprint_locked(info)
 		var can_afford := GlobalData.scrap >= s_cost and GlobalData.credits >= c_cost
 
 		var row = HBoxContainer.new()
@@ -148,17 +148,17 @@ func craft_armor(info: Dictionary) -> void:
 		if controller.status_message_label:
 			controller.status_message_label.text = "Cannot craft: unknown template."
 		return
-	if GlobalData.entry_is_blueprint_locked(info):
+	if ArmorSystem.entry_is_blueprint_locked(info):
 		if controller.status_message_label:
 			controller.status_message_label.text = "This gundam part requires its blueprint researched first."
 		return
-	var s_cost := GlobalData.get_armor_scrap_cost(info)
-	var c_cost := GlobalData.get_armor_credit_cost(info)
+	var s_cost := ArmorSystem.get_armor_scrap_cost(info)
+	var c_cost := ArmorSystem.get_armor_credit_cost(info)
 	if GlobalData.scrap < s_cost or GlobalData.credits < c_cost:
 		if controller.status_message_label:
 			controller.status_message_label.text = "Not enough scrap/credits to craft this armor."
 		return
-	var inst := GlobalData.try_craft_armor_from_catalog(pid)
+	var inst := ArmorSystem.try_craft_armor_from_catalog(pid)
 	if inst.is_empty():
 		if controller.status_message_label:
 			controller.status_message_label.text = "Failed to craft armor."

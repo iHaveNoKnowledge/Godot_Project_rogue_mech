@@ -52,8 +52,8 @@ func _ready() -> void:
 	_check(RecruitSystem.is_character_recruited("serra"), "serra marked recruited after talk")
 	_check(not RecruitSystem.is_character_available("serra"), "serra no longer available after recruit")
 	_check(not RecruitSystem.is_event_available(_event_with("serra")), "recruit event hidden after recruit")
-	_check(GlobalData.has_ally_unit("ally_serra"), "serra fleet unit added")
-	var berths := GlobalData.get_hangar_mechs()
+	_check(FleetSystem.has_ally_unit("ally_serra"), "serra fleet unit added")
+	var berths := HangarManager.get_mechs()
 	var found_pilot := false
 	for berth in berths:
 		if str(berth.get("pilot", "")) == "fleet_ally_serra":
@@ -70,7 +70,7 @@ func _ready() -> void:
 	RecruitSystem.resolve_duel(true)
 	_check(not RecruitSystem.has_pending_duel(), "pending duel cleared after resolve")
 	_check(RecruitSystem.is_character_recruited("ren"), "respect-duel win recruits ren")
-	_check(GlobalData.has_ally_unit("ally_ren"), "ren fleet unit added after duel win")
+	_check(FleetSystem.has_ally_unit("ally_ren"), "ren fleet unit added after duel win")
 	_check(GlobalData.duel_result_text != "", "duel result text set for respect win")
 
 	# --- Duel loss: nothing gained, character stays out ---
@@ -79,7 +79,7 @@ func _ready() -> void:
 	RecruitSystem.resolve_duel(false)
 	_check(GlobalData.duel_result_text != "", "duel defeat text set")
 	_check(not RecruitSystem.is_character_recruited("ren"), "defeat does not recruit")
-	_check(not GlobalData.has_ally_unit("ally_ren"), "defeat adds no ally")
+	_check(not FleetSystem.has_ally_unit("ally_ren"), "defeat adds no ally")
 
 	# --- Kill duel: win always resolves (wreck | parts) + pilot fate, and the
 	# --- character can never be met again this run.
@@ -90,22 +90,22 @@ func _ready() -> void:
 	RecruitSystem.resolve_duel(true)
 	_check(RecruitSystem.is_character_recruited("jax"), "kill-duel win marks jax resolved")
 	_check(GlobalData.duel_result_text != "", "kill-duel outcome text set")
-	_check(not GlobalData.has_ally_unit("ally_jax") or GlobalData.get_fleet_unit("ally_jax").get("fielded", true) == false, "salvaged ally never joins fielded")
+	_check(not FleetSystem.has_ally_unit("ally_jax") or FleetSystem.get_fleet_unit("ally_jax").get("fielded", true) == false, "salvaged ally never joins fielded")
 	var gained_something := GlobalData.credits > credits_before or GlobalData.scrap > scrap_before
 	var wreck_parked := false
-	for berth in GlobalData.get_hangar_mechs():
+	for berth in HangarManager.get_mechs():
 		if str(berth.get("name", "")).contains("Mudhorn"):
 			wreck_parked = true
 	# A kill-duel win ALWAYS yields something: the wreck parked in the hangar,
 	# recovered parts (scrap/credits), OR a wounded survivor joining the fleet
 	# (the pilot crawls out of the wreck — no berth, no parts). All three are
 	# valid outcomes; assert the OR so a lucky survivor roll doesn't fail.
-	var survivor_joined := GlobalData.has_ally_unit("ally_jax") and bool(GlobalData.get_fleet_unit("ally_jax").get("wounded", false))
+	var survivor_joined := FleetSystem.has_ally_unit("ally_jax") and bool(FleetSystem.get_fleet_unit("ally_jax").get("wounded", false))
 	_check(wreck_parked or gained_something or survivor_joined, "kill duel yields a wreck, parts, or a wounded survivor")
 	if wreck_parked:
 		var wreck_damaged := false
 		for slot in GlobalData.MECHA_SLOTS:
-			if float(GlobalData.get_hangar_mechs()[GlobalData.get_hangar_mechs().size() - 1].get("damage", {}).get(slot, 0.0)) > 0.5:
+			if float(HangarManager.get_mechs()[HangarManager.get_mechs().size() - 1].get("damage", {}).get(slot, 0.0)) > 0.5:
 				wreck_damaged = true
 		_check(wreck_damaged, "salvaged wreck arrives heavily damaged")
 
@@ -124,7 +124,7 @@ func _ready() -> void:
 	RecruitSystem.tick_recovery()
 	RecruitSystem.tick_recovery()
 	RecruitSystem.tick_recovery()
-	var jax_unit := GlobalData.get_fleet_unit("ally_jax")
+	var jax_unit := FleetSystem.get_fleet_unit("ally_jax")
 	_check(not bool(jax_unit.get("wounded", false)), "wounded pilot recovers after turns elapse")
 	_check(bool(jax_unit.get("fielded", false)), "recovered pilot is fielded again")
 

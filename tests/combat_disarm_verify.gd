@@ -323,7 +323,7 @@ func _verify_salvaged_armor() -> void:
 	var inst: Dictionary = loot._roll_salvaged_armor()
 	_check(not inst.is_empty() and inst.has("uid"), "salvaged armor roll produces a real instance")
 	if not inst.is_empty():
-		_check(GlobalData.get_armor_instance(str(inst["uid"])).is_empty(), "fresh instance isn't already in the inventory")
+		_check(ArmorSystem.get_armor_instance(str(inst["uid"])).is_empty(), "fresh instance isn't already in the inventory")
 	var body := CharacterBody3D.new()
 	body.add_to_group("mecha")
 	add_child(body)

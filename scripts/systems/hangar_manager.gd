@@ -106,7 +106,7 @@ static func get_mech_pilot_name(mech_id: String) -> String:
 static func get_pilot_status(pilot_id: String) -> String:
 	if not pilot_id.begins_with("fleet_"):
 		return ""
-	var unit := GlobalData.get_fleet_unit(pilot_id.trim_prefix("fleet_"))
+	var unit := FleetSystem.get_fleet_unit(pilot_id.trim_prefix("fleet_"))
 	if unit.is_empty():
 		return ""
 	if bool(unit.get("destroyed", false)):
@@ -258,7 +258,7 @@ static func is_driver_wounded(mech: Dictionary) -> bool:
 	var pilot_id := str(mech.get("pilot", ""))
 	if not pilot_id.begins_with("fleet_"):
 		return false
-	var unit := GlobalData.get_fleet_unit(pilot_id.trim_prefix("fleet_"))
+	var unit := FleetSystem.get_fleet_unit(pilot_id.trim_prefix("fleet_"))
 	if unit.is_empty():
 		return false
 	if bool(unit.get("destroyed", false)):
@@ -339,7 +339,7 @@ static func can_mechless_retreat() -> bool:
 		return false
 	if get_fleet_size() < 2:
 		return false
-	var affiliation: Dictionary = GlobalData.get_run_affiliation()
+	var affiliation: Dictionary = ThemeSystem.get_affiliation()
 	return bool(affiliation.get("mechless_retreat", true))
 
 
@@ -468,7 +468,7 @@ static func load_mech_state(mech_id: String) -> bool:
 	# Release the old armor instances before attaching the target references.
 	for old_part in GlobalData.equipped_parts.values():
 		if old_part is Dictionary and old_part.has("uid"):
-			var old_inst := GlobalData.get_armor_instance(str(old_part["uid"]))
+			var old_inst := ArmorSystem.get_armor_instance(str(old_part["uid"]))
 			if not old_inst.is_empty():
 				old_inst["equipped"] = false
 
@@ -534,7 +534,7 @@ static func restore_berth_loadout(mech_id: String, snapshot: Dictionary) -> bool
 
 
 static func _capture_snapshot(mech_id: String, mech_name: String, pilot_id: String, slot: int) -> Dictionary:
-	GlobalData.sync_equipped_armor_durability()
+	ArmorSystem.sync_equipped_armor_durability()
 	return {
 		"id": mech_id,
 		"name": mech_name,

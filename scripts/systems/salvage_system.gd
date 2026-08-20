@@ -22,7 +22,7 @@ func salvage_all() -> void:
 	# can be equipped from the Hangar (via the weapon tabs). Old save files may
 	# still reference equipped_parts["salvaged_weapons"]; that slot is obsolete.
 	for weapon in salvaged_weapons:
-		GlobalData.register_weapon(weapon.resource_path, weapon.weapon_name)
+		LoadoutSystem.register_weapon(weapon.resource_path, weapon.weapon_name)
 	GlobalData.save_run()
 	salvaged_weapons.clear()
 

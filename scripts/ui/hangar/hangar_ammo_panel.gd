@@ -58,7 +58,7 @@ func build(parent_box: VBoxContainer) -> void:
 		row.add_child(plus)
 
 		var stash_lbl = Label.new()
-		stash_lbl.text = "owned: %d" % GlobalData.get_reserve_ammo(ammo_type)
+		stash_lbl.text = "owned: %d" % LoadoutSystem.get_reserve_ammo(ammo_type)
 		stash_lbl.custom_minimum_size = Vector2(0, 0)
 		stash_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		stash_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -68,22 +68,22 @@ func build(parent_box: VBoxContainer) -> void:
 
 
 func adjust(ammo_type: String, delta: int) -> void:
-	var owned = GlobalData.get_reserve_ammo(ammo_type)
-	var current = GlobalData.get_loadout_ammo(ammo_type)
+	var owned = LoadoutSystem.get_reserve_ammo(ammo_type)
+	var current = LoadoutSystem.get_loadout_ammo(ammo_type)
 	var target = clampi(current + delta, 0, owned)
 	var ammo_weight_per_unit = GlobalData.AMMO_WEIGHT_PER_UNIT.get(ammo_type, 0.01)
-	var capacity = GlobalData.get_field_pack_capacity()
+	var capacity = LoadoutSystem.get_field_pack_capacity()
 
 	var i = current
 	if target < current:
 		i = target
 	else:
-		var base_weight = GlobalData.get_field_pack_ammo_weight() - current * ammo_weight_per_unit
+		var base_weight = LoadoutSystem.get_field_pack_ammo_weight() - current * ammo_weight_per_unit
 		while i < target:
 			if base_weight + (i + 1) * ammo_weight_per_unit > capacity:
 				break
 			i += 1
-	GlobalData.set_loadout_ammo(ammo_type, i)
+	LoadoutSystem.set_loadout_ammo(ammo_type, i)
 	refresh()
 	if status_label:
 		status_label.text = "%s ammo to carry: %d" % [ammo_type.capitalize(), i]
@@ -94,8 +94,8 @@ func refresh() -> void:
 	if ammo_loadout_box == null:
 		return
 	for ammo_type in ammo_value_labels:
-		var owned = GlobalData.get_reserve_ammo(ammo_type)
-		var carried = GlobalData.get_loadout_ammo(ammo_type)
+		var owned = LoadoutSystem.get_reserve_ammo(ammo_type)
+		var carried = LoadoutSystem.get_loadout_ammo(ammo_type)
 		var value_lbl: Label = ammo_value_labels[ammo_type]
 		value_lbl.text = "%d / %d" % [carried, owned]
 		var row: HBoxContainer = value_lbl.get_parent()

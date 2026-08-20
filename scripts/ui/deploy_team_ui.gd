@@ -103,7 +103,7 @@ func _build_ui() -> void:
 # True when at least one NON-active hangar mech has a seated pilot — i.e. there
 # is a decision to make about who fields. Solo convoys skip the deploy screen.
 func has_ally_candidates() -> bool:
-	for mech in GlobalData.get_hangar_mechs():
+	for mech in HangarManager.get_mechs():
 		if not (mech is Dictionary):
 			continue
 		if str(mech.get("id", "")) == GlobalData.active_hangar_mech_id:
@@ -131,7 +131,7 @@ func _repopulate_roster() -> void:
 
 	_title_label.text = "DEPLOY SQUAD — %s" % _pending_combat_type.to_upper()
 
-	var mechs := GlobalData.get_hangar_mechs()
+	var mechs := HangarManager.get_mechs()
 	mechs.sort_custom(func(a, b): return int(a.get("slot", 99)) < int(b.get("slot", 99)))
 
 	var active_id := str(GlobalData.active_hangar_mech_id)
@@ -164,11 +164,11 @@ func _repopulate_roster() -> void:
 			info_label.add_theme_color_override("font_color", Color(0.9, 0.9, 0.7))
 			continue
 
-		var pilot_name := GlobalData.get_hangar_pilot_name(pilot_id)
+		var pilot_name := HangarManager.get_pilot_name(pilot_id)
 		# Indexing an untyped array literal yields Variant, so `:=` can't infer
 		# the type — annotate explicitly.
-		var role_label: String = ["RUSHER", "RANGED", "HEAVY", "SUPPORT"][clampi(GlobalData.get_hangar_archetype(mech_id), 0, 3)]
-		var status := GlobalData.get_hangar_pilot_status(pilot_id)
+		var role_label: String = ["RUSHER", "RANGED", "HEAVY", "SUPPORT"][clampi(HangarManager.get_archetype(mech_id), 0, 3)]
+		var status := HangarManager.get_pilot_status(pilot_id)
 
 		if pilot_id == "":
 			name_label.text = mech_name
@@ -179,7 +179,7 @@ func _repopulate_roster() -> void:
 
 		# Fleet pilots map to a fleet unit (fielded/wounded/destroyed live there).
 		var template_id := pilot_id.trim_prefix("fleet_")
-		var unit := GlobalData.get_fleet_unit(template_id)
+		var unit := FleetSystem.get_fleet_unit(template_id)
 		var can_field := pilot_id == HangarManager.PLAYER_PILOT_ID or not unit.is_empty()
 		var fielded := true
 		if not unit.is_empty():

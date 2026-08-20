@@ -103,7 +103,7 @@ func _on_pickup_body_entered(body: Node3D, pickup: Area3D) -> void:
 			# Salvaged plate from a destroyed enemy: grants a real armor instance
 		# (slot picked at drop time) into the convoy's armor inventory.
 			var inst: Dictionary = loot_data.get("instance", {})
-			if not inst.is_empty() and GlobalData.get_armor_instance(str(inst.get("uid", ""))).is_empty():
+			if not inst.is_empty() and ArmorSystem.get_armor_instance(str(inst.get("uid", ""))).is_empty():
 				GlobalData.armor_inventory.append(inst)
 				GlobalData.run_notice = "Salvaged armor: %s" % str(inst.get("name", "plate"))
 	pickup.queue_free()

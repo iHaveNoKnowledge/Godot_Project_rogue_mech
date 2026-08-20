@@ -161,22 +161,22 @@ func equip_part(slot: String, info: Dictionary) -> void:
 		if pid == "":
 			controller.status_message_label.text = "Cannot acquire armor: unknown catalog entry."
 			return
-		var entry := GlobalData.get_armor_catalog_entry(pid)
+		var entry := ArmorSystem.get_armor_catalog_entry(pid)
 		if entry.is_empty():
 			controller.status_message_label.text = "Cannot acquire armor: unknown catalog entry."
 			return
-		if GlobalData.entry_is_blueprint_locked(entry):
+		if ArmorSystem.entry_is_blueprint_locked(entry):
 			controller.status_message_label.text = "Cannot equip: research this blueprint at the Research Base first."
 			return
-		var s_cost := GlobalData.get_armor_scrap_cost(entry)
-		var c_cost := GlobalData.get_armor_credit_cost(entry)
+		var s_cost := ArmorSystem.get_armor_scrap_cost(entry)
+		var c_cost := ArmorSystem.get_armor_credit_cost(entry)
 		if GlobalData.scrap < s_cost:
 			controller.status_message_label.text = "Not enough scrap to craft this armor! (%d scrap needed)" % s_cost
 			return
 		if GlobalData.credits < c_cost:
 			controller.status_message_label.text = "Not enough credits to craft this armor! (%d cr needed)" % c_cost
 			return
-		inst = GlobalData.try_craft_armor_from_catalog(pid)
+		inst = ArmorSystem.try_craft_armor_from_catalog(pid)
 		if inst.is_empty():
 			controller.status_message_label.text = "Failed to craft armor."
 			return
@@ -206,16 +206,16 @@ func _perform_weapon_equip(slot: String, info: Dictionary, wref: String) -> void
 		controller.status_message_label.text = "Cannot equip: that arm is destroyed! Repair or replace it first."
 		return
 	if slot == "weapon_carry":
-		var equipped := GlobalData.weapon_equipped_slot_ref(wref)
+		var equipped := LoadoutSystem.weapon_equipped_slot_ref(wref)
 		# With separate instances, another copy may already be on the pack while
 		# a spare instance is still available — only reject when there is no
 		# free copy left to add.
-		if equipped == "carry" and not GlobalData.has_spare_weapon(wpath):
+		if equipped == "carry" and not LoadoutSystem.has_spare_weapon(wpath):
 			controller.status_message_label.text = "This weapon is already on the back pack (no spare copies)."
 			return
 		# Only a MOVED weapon (last free copy) frees its old slot's weight; a
 		# spare copy adds new weight instead.
-		var spare := GlobalData.has_spare_weapon(wpath)
+		var spare := LoadoutSystem.has_spare_weapon(wpath)
 		var freed_path: String = wpath if (equipped != "" and not spare) else ""
 		if controller.garage_panel.would_exceed_field_pack(wpath, "", freed_path):
 			controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
@@ -225,16 +225,16 @@ func _perform_weapon_equip(slot: String, info: Dictionary, wref: String) -> void
 			moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
 		elif equipped != "" and not spare:
 			moved_note = " (moved from %s hand)" % equipped
-		GlobalData.add_carry_weapon(wref)
+		LoadoutSystem.add_carry_weapon(wref)
 	else:
 		var hand = "left" if slot == "weapon_left" else "right"
-		var equipped := GlobalData.weapon_equipped_slot_ref(wref)
+		var equipped := LoadoutSystem.weapon_equipped_slot_ref(wref)
 		if equipped == hand:
 			controller.status_message_label.text = "This weapon is already equipped in the %s hand." % hand
 			return
 		var replaced_path = str(GlobalData.weapon_loadout.get(hand, ""))
 		# Only a MOVED weapon (last free copy) frees its old slot's weight.
-		var spare := GlobalData.has_spare_weapon(wpath)
+		var spare := LoadoutSystem.has_spare_weapon(wpath)
 		var freed_path: String = wpath if (equipped != "" and not spare) else ""
 		if controller.garage_panel.would_exceed_field_pack(wpath, replaced_path, freed_path):
 			controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
@@ -244,7 +244,7 @@ func _perform_weapon_equip(slot: String, info: Dictionary, wref: String) -> void
 			moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
 		elif equipped != "" and not spare:
 			moved_note = " (moved from %s)" % ("back carry" if equipped == "carry" else ("right hand" if equipped == "right" else "left hand"))
-		GlobalData.set_hand_weapon(hand, wref)
+		LoadoutSystem.set_hand_weapon(hand, wref)
 	if moved_note != "":
 		controller.status_message_label.text = "Equipped %s%s" % [info.get("name", "Weapon"), moved_note]
 	controller.persist_panel.commit_and_save()
@@ -271,7 +271,7 @@ func _perform_armor_equip(slot: String, inst: Dictionary) -> void:
 		var from_mech := _transfer_armor_from_other_mechs(str(inst["uid"]))
 		if from_mech != "":
 			swap_note = " (SWAPPED from %s — that mech no longer wears it)" % from_mech
-	if not GlobalData.equip_armor_instance(inst["uid"], slot):
+	if not ArmorSystem.equip_armor_instance(inst["uid"], slot):
 		controller.status_message_label.text = "Failed to equip armor."
 		return
 	if swap_note != "":
@@ -291,7 +291,7 @@ func _perform_salvage_armor_equip() -> void:
 		var from_mech := _transfer_armor_from_other_mechs(str(controller.selected_salvage_info["uid"]))
 		if from_mech != "":
 			swap_note = " (SWAPPED from %s — that mech no longer wears it)" % from_mech
-	if not controller.selected_salvage_info.has("uid") or not GlobalData.equip_armor_instance(controller.selected_salvage_info["uid"], controller.selected_slot):
+	if not controller.selected_salvage_info.has("uid") or not ArmorSystem.equip_armor_instance(controller.selected_salvage_info["uid"], controller.selected_slot):
 		controller.status_message_label.text = "Failed to equip armor instance."
 		return
 	controller.status_message_label.text = "Equipped & Saved: %s!%s" % [controller.selected_salvage_info.get("name", "Armor Plate"), swap_note]
@@ -306,10 +306,10 @@ func _perform_selected_weapon_equip(res: Resource) -> void:
 	var wpath = controller.selected_part_path
 	# Prefer the SELECTED instance's uid so exactly that copy becomes equipped.
 	var wref := str(controller.selected_weapon_uid if controller.selected_weapon_uid != "" else wpath)
-	var equipped := GlobalData.weapon_equipped_slot_ref(wref)
+	var equipped := LoadoutSystem.weapon_equipped_slot_ref(wref)
 	var moved_note := ""
 	var hand := "left" if controller.selected_slot == "weapon_left" else "right"
-	var spare := GlobalData.has_spare_weapon(wpath)
+	var spare := LoadoutSystem.has_spare_weapon(wpath)
 	if controller.selected_slot == "weapon_carry":
 		if equipped == "carry" and not spare:
 			controller.status_message_label.text = "This weapon is already on the back pack (no spare copies)."
@@ -323,7 +323,7 @@ func _perform_selected_weapon_equip(res: Resource) -> void:
 			moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
 		elif equipped != "" and not spare:
 			moved_note = " (moved from %s hand)" % equipped
-		GlobalData.add_carry_weapon(wref)
+		LoadoutSystem.add_carry_weapon(wref)
 		controller.status_message_label.text = "Added to Back Carry: %s!%s" % [(res.weapon_name if "weapon_name" in res else "Weapon"), moved_note]
 	elif _arm_destroyed(hand):
 		# A destroyed arm cannot hold a weapon (same rule as combat: a broken
@@ -344,7 +344,7 @@ func _perform_selected_weapon_equip(res: Resource) -> void:
 			moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
 		elif equipped != "" and not spare:
 			moved_note = " (moved from %s)" % ("back carry" if equipped == "carry" else ("right hand" if equipped == "right" else "left hand"))
-		GlobalData.set_hand_weapon(hand, wref)
+		LoadoutSystem.set_hand_weapon(hand, wref)
 		controller.status_message_label.text = "Equipped %s on %s hand!%s" % [(res.weapon_name if "weapon_name" in res else "Weapon"), hand, moved_note]
 	GlobalData.save_run()
 	controller.stats_panel.update()
@@ -650,11 +650,11 @@ func unequip_part(slot: String) -> void:
 	if slot.begins_with("weapon"):
 		if slot == "weapon_carry":
 			var wpath = controller.selected_part_path
-			if wpath != "" and GlobalData.is_weapon_in_carry(wpath):
-				GlobalData.remove_carry_weapon(wpath)
+			if wpath != "" and LoadoutSystem.is_weapon_in_carry(wpath):
+				LoadoutSystem.remove_carry_weapon(wpath)
 		else:
 			var hand = "left" if slot == "weapon_left" else "right"
-			GlobalData.set_hand_weapon(hand, "")
+			LoadoutSystem.set_hand_weapon(hand, "")
 		controller.persist_panel.commit_and_save()
 		var mecha = controller.garage_panel.get_mecha_base()
 		if mecha:
@@ -685,7 +685,7 @@ func unequip_part(slot: String) -> void:
 		AudioManager.play_ui_click()
 		return
 
-	GlobalData.unequip_armor_instance(slot)
+	ArmorSystem.unequip_armor_instance(slot)
 	controller.persist_panel.commit_and_save()
 	var pmm = controller.garage_panel.get_part_mesh_manager()
 	if pmm:
@@ -716,7 +716,7 @@ func on_equip_pressed() -> void:
 		if controller.garage_panel.get_attachment_weight(controller.selected_slot, attachment["id"]) + float(attachment["weight"]) > controller.garage_panel.get_attachment_capacity(controller.selected_slot):
 			controller.status_message_label.text = "Attachment rejected: section capacity exceeded."
 			return
-		var total_capacity = float(GlobalData.get_chassis_stats().get("max_weight", 75.0)) + GlobalData.get_frame_upgrade_weight_bonus()
+		var total_capacity = float(LoadoutSystem.get_chassis_stats().get("max_weight", 75.0)) + LoadoutSystem.get_frame_upgrade_weight_bonus()
 		if controller.garage_panel.get_total_load(attachment["id"], controller.selected_slot) + float(attachment["weight"]) > total_capacity:
 			controller.status_message_label.text = "Attachment rejected: total Frame capacity exceeded."
 			return

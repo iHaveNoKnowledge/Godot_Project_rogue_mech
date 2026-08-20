@@ -14,7 +14,7 @@ func _ready() -> void:
 
 func run() -> void:
 	GlobalData.reset_run_data()
-	GlobalData.ensure_hangar_roster()
+	HangarManager.ensure_roster()
 	GlobalData.save_run()
 
 	GameManager.enter_board()

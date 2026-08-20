@@ -113,9 +113,9 @@ static func get_fielded_units() -> Array:
 #   [{mech, unit}] sorted by berth slot. Template-only units (researched
 # blueprints with no seated driver) are dropped from the field.
 static func get_sortie_units() -> Array:
-	var active_id := str(GlobalData.get_active_hangar_mech().get("id", ""))
+	var active_id := str(HangarManager.get_active_mech().get("id", ""))
 	var result: Array = []
-	for mech in GlobalData.get_hangar_mechs():
+	for mech in HangarManager.get_mechs():
 		if not (mech is Dictionary):
 			continue
 		var mech_id := str(mech.get("id", ""))
@@ -146,7 +146,7 @@ static func get_sortie_units() -> Array:
 # fleet panel so it never offers a toggle for a pilot-less template unit.
 static func get_seated_template_ids() -> Dictionary:
 	var seated: Dictionary = {}
-	for mech in GlobalData.get_hangar_mechs():
+	for mech in HangarManager.get_mechs():
 		var pilot := str(mech.get("pilot", ""))
 		if pilot.begins_with("fleet_"):
 			seated[pilot.trim_prefix("fleet_")] = true

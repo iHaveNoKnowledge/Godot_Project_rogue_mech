@@ -48,13 +48,13 @@ func _wounded_driver_warning() -> String:
 	# Shared boolean from the roster system: only fleet pilots can be wounded,
 	# so this is a single lookup for the driver's state (the message below adds
 	# the name + countdown the boolean can't carry).
-	if not GlobalData.is_active_driver_wounded():
+	if not HangarManager.is_active_driver_wounded():
 		return ""
-	var mech = GlobalData.get_active_hangar_mech()
+	var mech = HangarManager.get_active_mech()
 	if mech.is_empty():
 		return ""
 	var pilot_id := str(mech.get("pilot", ""))
-	var unit := GlobalData.get_fleet_unit(pilot_id.trim_prefix("fleet_"))
+	var unit := FleetSystem.get_fleet_unit(pilot_id.trim_prefix("fleet_"))
 	var turns := maxi(int(unit.get("wound_turns", 1)), 1)
 	# The combat-entry safety net parks this berth and auto-swaps a healthy
 	# backup, so the warning is informational — the driver never fights.

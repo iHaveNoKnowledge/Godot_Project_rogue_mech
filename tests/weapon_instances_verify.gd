@@ -36,13 +36,13 @@ func _ready() -> void:
 func _verify_register_appends_instances() -> void:
 	var stash_size_before: int = GlobalData.weapon_inventory.size()
 	var pile_bunker := "res://resources/mech/stock/weapon_pile_bunker.tres"
-	GlobalData.register_weapon(pile_bunker, "Pile Bunker")
-	GlobalData.register_weapon(pile_bunker, "Pile Bunker")
+	LoadoutSystem.register_weapon(pile_bunker, "Pile Bunker")
+	LoadoutSystem.register_weapon(pile_bunker, "Pile Bunker")
 	await get_tree().process_frame
 
 	_check(GlobalData.weapon_inventory.size() == stash_size_before + 2,
 		"registering the same model twice appends two entries (got %d new)" % (GlobalData.weapon_inventory.size() - stash_size_before))
-	_check(GlobalData.count_owned_weapon(pile_bunker) == 2,
+	_check(LoadoutSystem.count_owned_weapon(pile_bunker) == 2,
 		"count_owned_weapon counts both instances (2)")
 	# No entry carries a merged count > 1.
 	var merged := false
@@ -64,25 +64,25 @@ func _verify_dual_wield_with_two_copies() -> void:
 	var blade := "res://resources/mech/stock/weapon_heat_blade.tres"
 	# Two copies in the stash (the starter stash already has one heat blade, so
 	# register a second).
-	GlobalData.register_weapon(blade, "Heat Blade")
+	LoadoutSystem.register_weapon(blade, "Heat Blade")
 	await get_tree().process_frame
-	_check(GlobalData.count_owned_weapon(blade) == 2, "setup: two heat blade copies owned")
+	_check(LoadoutSystem.count_owned_weapon(blade) == 2, "setup: two heat blade copies owned")
 
 	# Empty the loadout hands so the test starts clean.
-	GlobalData.set_hand_weapon("left", "")
-	GlobalData.set_hand_weapon("right", "")
+	LoadoutSystem.set_hand_weapon("left", "")
+	LoadoutSystem.set_hand_weapon("right", "")
 	GlobalData.weapon_loadout["carry"] = []
-	_check(GlobalData.has_spare_weapon(blade), "both copies are free spares at start")
+	_check(LoadoutSystem.has_spare_weapon(blade), "both copies are free spares at start")
 
 	# Equip one copy in each hand — both must stick (no move/swap).
-	GlobalData.set_hand_weapon("left", blade)
-	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("left", "")) == blade, "left hand holds the first copy")
-	_check(GlobalData.has_spare_weapon(blade), "a spare copy remains after equipping the left hand")
+	LoadoutSystem.set_hand_weapon("left", blade)
+	_check(LoadoutSystem.ref_to_path(GlobalData.weapon_loadout.get("left", "")) == blade, "left hand holds the first copy")
+	_check(LoadoutSystem.has_spare_weapon(blade), "a spare copy remains after equipping the left hand")
 
-	GlobalData.set_hand_weapon("right", blade)
-	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("right", "")) == blade, "right hand holds the second copy (dual wield)")
-	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("left", "")) == blade, "left hand KEEPS its copy when dual-wielding")
-	_check(not GlobalData.has_spare_weapon(blade), "no spare remains after both hands are filled")
+	LoadoutSystem.set_hand_weapon("right", blade)
+	_check(LoadoutSystem.ref_to_path(GlobalData.weapon_loadout.get("right", "")) == blade, "right hand holds the second copy (dual wield)")
+	_check(LoadoutSystem.ref_to_path(GlobalData.weapon_loadout.get("left", "")) == blade, "left hand KEEPS its copy when dual-wielding")
+	_check(not LoadoutSystem.has_spare_weapon(blade), "no spare remains after both hands are filled")
 
 
 func _verify_single_copy_still_moves() -> void:
@@ -90,10 +90,10 @@ func _verify_single_copy_still_moves() -> void:
 	await get_tree().process_frame
 	# Starter stash holds exactly ONE beam rifle.
 	var rifle := GlobalData.DEFAULT_LEFT_WEAPON_PATH
-	GlobalData.set_hand_weapon("left", "")
-	GlobalData.set_hand_weapon("right", "")
+	LoadoutSystem.set_hand_weapon("left", "")
+	LoadoutSystem.set_hand_weapon("right", "")
 	GlobalData.weapon_loadout["carry"] = []
-	_check(GlobalData.count_owned_weapon(rifle) >= 1, "setup: at least one rifle owned")
+	_check(LoadoutSystem.count_owned_weapon(rifle) >= 1, "setup: at least one rifle owned")
 	# Force a single-copy scenario: keep only the first instance.
 	var kept := false
 	for i in range(GlobalData.weapon_inventory.size() - 1, -1, -1):
@@ -103,16 +103,16 @@ func _verify_single_copy_still_moves() -> void:
 				GlobalData.weapon_inventory.remove_at(i)
 			else:
 				kept = true
-	_check(GlobalData.count_owned_weapon(rifle) == 1, "setup: exactly one rifle copy remains")
+	_check(LoadoutSystem.count_owned_weapon(rifle) == 1, "setup: exactly one rifle copy remains")
 
-	GlobalData.set_hand_weapon("left", rifle)
-	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("left", "")) == rifle, "left hand holds the only rifle")
-	_check(not GlobalData.has_spare_weapon(rifle), "no spare with a single copy equipped")
+	LoadoutSystem.set_hand_weapon("left", rifle)
+	_check(LoadoutSystem.ref_to_path(GlobalData.weapon_loadout.get("left", "")) == rifle, "left hand holds the only rifle")
+	_check(not LoadoutSystem.has_spare_weapon(rifle), "no spare with a single copy equipped")
 
 	# Equipping the RIGHT hand must MOVE the rifle (left frees).
-	GlobalData.set_hand_weapon("right", rifle)
-	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("right", "")) == rifle, "right hand now holds the rifle")
-	_check(GlobalData.ref_to_path(GlobalData.weapon_loadout.get("left", "")) == "", "single copy MOVES — left hand is freed")
+	LoadoutSystem.set_hand_weapon("right", rifle)
+	_check(LoadoutSystem.ref_to_path(GlobalData.weapon_loadout.get("right", "")) == rifle, "right hand now holds the rifle")
+	_check(LoadoutSystem.ref_to_path(GlobalData.weapon_loadout.get("left", "")) == "", "single copy MOVES — left hand is freed")
 
 
 func _verify_spare_not_marked_taken() -> void:
@@ -120,12 +120,12 @@ func _verify_spare_not_marked_taken() -> void:
 	await get_tree().process_frame
 	var shotgun := GlobalData.DEFAULT_CARRY_WEAPON_PATH
 	# A parked mech already carries a shotgun in its snapshot; we own two.
-	GlobalData.register_weapon(shotgun, "Shotgun")
+	LoadoutSystem.register_weapon(shotgun, "Shotgun")
 	await get_tree().process_frame
-	_check(GlobalData.count_owned_weapon(shotgun) == 2, "setup: two shotgun copies owned")
+	_check(LoadoutSystem.count_owned_weapon(shotgun) == 2, "setup: two shotgun copies owned")
 
 	# Simulate the roster marking: count_owned (2) > copies used by other mechs
 	# (the parked berth holds 1) -> the spare is free, not marked taken.
 	var used_by_others := 1
-	_check(used_by_others < GlobalData.count_owned_weapon(shotgun),
+	_check(used_by_others < LoadoutSystem.count_owned_weapon(shotgun),
 		"a spare copy exists beyond what other mechs hold")

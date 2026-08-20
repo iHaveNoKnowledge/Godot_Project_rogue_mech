@@ -47,7 +47,7 @@ func _verify_armor_loadout() -> void:
 	}
 	ally.apply_mech_loadout(mech)
 	var body: Dictionary = ally.health_system.parts["body"]
-	var frame_hp: float = 75.0 + GlobalData.get_frame_upgrade_hp_bonus()
+	var frame_hp: float = 75.0 + LoadoutSystem.get_frame_upgrade_hp_bonus()
 	_check(is_equal_approx(body["max_armor"], 110.0), "ally body armor HP comes from the equipped plate")
 	_check(is_equal_approx(body["armor_hp"], 110.0), "ally body armor starts full")
 	_check(is_equal_approx(body["max_frame"], frame_hp), "ally body frame HP comes from the equipped inner frame")
@@ -213,24 +213,24 @@ func _verify_destroyed_ally_leaves_team() -> void:
 	var parked := HangarManager.park_ally_mech("Wing Mech", pilot_id, 1)
 	_check(not parked.is_empty(), "test parked an ally berth")
 	var mech_id := str(parked.get("id", ""))
-	var before := GlobalData.get_hangar_mechs().size()
+	var before := HangarManager.get_mechs().size()
 
 	var ally = _spawn_ally()
 	var unit = FleetSystem.get_fleet_unit(template_id)
 	_check(not unit.is_empty() and not bool(unit.get("destroyed", false)), "ally unit starts alive")
 	ally._on_destroyed()
 	_check(bool(unit.get("destroyed", false)), "destroyed ally unit is flagged dead in the fleet roster")
-	_check(GlobalData.get_hangar_mechs().size() == before - 1, "destroyed ally's berth is removed from the hangar")
-	_check(GlobalData.get_hangar_mechs().size() == before - 1 and not _hangar_has_mech(mech_id), "the piloted mech id is gone from the convoy")
+	_check(HangarManager.get_mechs().size() == before - 1, "destroyed ally's berth is removed from the hangar")
+	_check(HangarManager.get_mechs().size() == before - 1 and not _hangar_has_mech(mech_id), "the piloted mech id is gone from the convoy")
 	# A second destroy emit (body-break + frame-loss double fire) must not double-remove.
 	ally._on_destroyed()
-	_check(GlobalData.get_hangar_mechs().size() == before - 1, "double destroy emit does not remove twice")
+	_check(HangarManager.get_mechs().size() == before - 1, "double destroy emit does not remove twice")
 	ally.queue_free()
 	await get_tree().process_frame
 
 
 func _hangar_has_mech(mech_id: String) -> bool:
-	for mech in GlobalData.get_hangar_mechs():
+	for mech in HangarManager.get_mechs():
 		if mech is Dictionary and str(mech.get("id", "")) == mech_id:
 			return true
 	return false

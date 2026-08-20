@@ -83,7 +83,7 @@ func _verify_choice_event(board: Node) -> void:
 func _verify_effect() -> void:
 	GlobalData.board_mp = GlobalData.board_mp_max
 	GlobalData.pending_tile_clear = Vector2i(-1, -1)
-	var forced := GlobalData.apply_event_effect({
+	var forced := ThemeSystem.apply_event_effect({
 		"effect": "dead_end_clear",
 		"amount": 3,
 		"params": {"pos": {"x": 2, "y": 2}},

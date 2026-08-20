@@ -206,7 +206,7 @@ func _get_status_text() -> String:
 		GlobalData.credits,
 		GlobalData.scrap,
 		GlobalData.enemy_tech_tier,
-		int(GlobalData.get_fleet_security()),
+		int(FleetSystem.get_fleet_security()),
 		str(GlobalData.current_tile)
 	]
 
@@ -261,7 +261,7 @@ func _on_pilot_pressed() -> void:
 	_clear_actions()
 	info_label.text = _build_pilot_text()
 
-	for entry in GlobalData.get_pilot_items():
+	for entry in PilotSystem.get_items():
 		var item_id := str(entry.get("id", ""))
 		var item := PilotSystem.get_heal_item(item_id)
 		if item.is_empty():
@@ -271,14 +271,14 @@ func _on_pilot_pressed() -> void:
 		btn.text = "Use %s (heals %s) x%d" % [
 			item.get("name", item_id), heal_text, int(entry.get("count", 0))
 		]
-		btn.disabled = not GlobalData.get_pilot_hp() < GlobalData.get_pilot_max_hp()
+		btn.disabled = not PilotSystem.get_hp() < PilotSystem.get_max_hp()
 		btn.tooltip_text = str(item.get("desc", ""))
 		btn.pressed.connect(_use_pilot_item.bind(item_id))
 		action_container.add_child(btn)
 
 
 func _use_pilot_item(item_id: String) -> void:
-	var restored := GlobalData.use_pilot_heal_item(item_id)
+	var restored := PilotSystem.use_heal_item(item_id)
 	if restored > 0.0:
 		status_label.text = _get_status_text() + "  [Pilot healed +%d HP]" % int(restored)
 	else:
@@ -288,13 +288,13 @@ func _use_pilot_item(item_id: String) -> void:
 
 func _build_pilot_text() -> String:
 	var text := "=== PILOT STATUS (the pilot, not the mech) ===\n\n"
-	text += "HP: %d / %d\n" % [int(GlobalData.get_pilot_hp()), int(GlobalData.get_pilot_max_hp())]
-	if GlobalData.get_pilot_hp() < GlobalData.get_pilot_max_hp():
+	text += "HP: %d / %d\n" % [int(PilotSystem.get_hp()), int(PilotSystem.get_max_hp())]
+	if PilotSystem.get_hp() < PilotSystem.get_max_hp():
 		text += "STATUS: INJURED — use healing items (bought at City nodes).\n"
 	else:
 		text += "STATUS: HEALTHY\n"
 	text += "\n--- Personal Weapons ---\n"
-	var weapons := GlobalData.get_pilot_weapons()
+	var weapons := PilotSystem.get_weapons()
 	if weapons.is_empty():
 		text += "(None)\n"
 	else:
@@ -302,13 +302,13 @@ func _build_pilot_text() -> String:
 			text += "- %s\n" % (wp.weapon_name if wp else "?")
 	text += "\n--- Personal Ammo ---\n"
 	text += "Kinetic: %d | Energy: %d | Explosive: %d | Missile: %d\n" % [
-		GlobalData.get_pilot_ammo("kinetic"),
-		GlobalData.get_pilot_ammo("energy"),
-		GlobalData.get_pilot_ammo("explosive"),
-		GlobalData.get_pilot_ammo("missile"),
+		PilotSystem.get_ammo("kinetic"),
+		PilotSystem.get_ammo("energy"),
+		PilotSystem.get_ammo("explosive"),
+		PilotSystem.get_ammo("missile"),
 	]
 	text += "\n--- Items ---\n"
-	var items := GlobalData.get_pilot_items()
+	var items := PilotSystem.get_items()
 	if items.is_empty():
 		text += "(No items — visit a City trading node to buy medkits.)\n"
 	else:
@@ -345,7 +345,7 @@ func _on_research_pressed() -> void:
 	# Start buttons for available projects
 	for project in GlobalData.research_blueprints:
 		var project_id = project.get("id", "")
-		if GlobalData.is_research_active(project_id) or GlobalData.is_research_completed(project_id):
+		if FleetSystem.is_research_active(project_id) or FleetSystem.is_research_completed(project_id):
 			continue
 		var cost = int(project.get("data_cores", 1))
 		var has_cores = GlobalData.data_cores >= cost
@@ -359,8 +359,8 @@ func _on_research_pressed() -> void:
 
 
 func _start_research(project_id: String) -> void:
-	if GlobalData.start_research(project_id):
-		status_label.text = _get_status_text() + "  [Research started: %s]" % GlobalData.get_research_project(project_id).get("name", project_id)
+	if FleetSystem.start_research(project_id):
+		status_label.text = _get_status_text() + "  [Research started: %s]" % FleetSystem.get_research_project(project_id).get("name", project_id)
 		_on_research_pressed()  # refresh list
 	else:
 		status_label.text = _get_status_text() + "  [Not enough data cores / already active]"
@@ -377,7 +377,7 @@ func _build_research_text() -> String:
 	else:
 		for project_id in GlobalData.research_projects:
 			var state = GlobalData.research_projects[project_id]
-			var project = GlobalData.get_research_project(project_id)
+			var project = FleetSystem.get_research_project(project_id)
 			text += "%s: %d/%d\n" % [
 				project.get("name", project_id),
 				int(state.get("progress", 0)),
@@ -390,13 +390,13 @@ func _build_research_text() -> String:
 		text += "(Nothing researched yet)\n"
 	else:
 		for project_id in GlobalData.research_unlocked:
-			text += "- %s\n" % GlobalData.get_research_project(project_id).get("name", project_id)
+			text += "- %s\n" % FleetSystem.get_research_project(project_id).get("name", project_id)
 	text += "\n"
 
 	text += "--- Available Blueprints ---\n"
 	for project in GlobalData.research_blueprints:
 		var project_id = project.get("id", "")
-		if GlobalData.is_research_active(project_id) or GlobalData.is_research_completed(project_id):
+		if FleetSystem.is_research_active(project_id) or FleetSystem.is_research_completed(project_id):
 			continue
 		text += "%s — %d cores, %d turns\n" % [
 			project.get("name", project_id),
@@ -422,7 +422,7 @@ func _on_fleet_pressed() -> void:
 	# template-only units (researched blueprints with no berth) are dropped from
 	# the field and not offered here. The hangar SORTIE page is the primary
 	# control; this panel mirrors it for the same seated units.
-	var seated := GlobalData.get_seated_template_ids()
+	var seated := FleetSystem.get_seated_template_ids()
 	for unit in GlobalData.fleet_roster:
 		if not (unit is Dictionary):
 			continue
@@ -446,10 +446,10 @@ func _on_fleet_pressed() -> void:
 
 
 func _toggle_fielded(template_id: String) -> void:
-	var unit = GlobalData.get_fleet_unit(template_id)
+	var unit = FleetSystem.get_fleet_unit(template_id)
 	if unit.is_empty():
 		return
-	GlobalData.set_unit_fielded(template_id, not unit.get("fielded", true))
+	FleetSystem.set_unit_fielded(template_id, not unit.get("fielded", true))
 	_on_fleet_pressed()  # refresh
 
 
@@ -462,7 +462,7 @@ func _build_fleet_text() -> String:
 	# Feature 7: only units with a pilot seated in a hangar mech can field.
 	# Template-only units (no berth) are dropped from the field and hidden here
 	# — the hangar SORTIE page is where the lineup is chosen.
-	var seated := GlobalData.get_seated_template_ids()
+	var seated := FleetSystem.get_seated_template_ids()
 	var shown := 0
 	for unit in GlobalData.fleet_roster:
 		var template_id := str(unit.get("template_id", ""))
@@ -496,7 +496,7 @@ func _on_convoy_pressed() -> void:
 
 
 func _build_convoy_text() -> String:
-	var affiliation := GlobalData.get_run_affiliation()
+	var affiliation := ThemeSystem.get_affiliation()
 	var text = "=== CONVOY ===\n\n"
 	text += "Affiliation: %s\n" % affiliation.get("name", GlobalData.theme_id)
 	text += "Transport: %s\n\n" % affiliation.get("transport", "Truck convoy")
@@ -505,14 +505,14 @@ func _build_convoy_text() -> String:
 		text += "STATUS: ON FOOT — every mech is gone.\n"
 		text += "Board combat tiles become recovery missions until a replacement chassis is found.\n"
 	else:
-		text += "STATUS: %d/%d mech berths parked.\n" % [GlobalData.hangar_mechs.size(), GlobalData.get_hangar_capacity()]
+		text += "STATUS: %d/%d mech berths parked.\n" % [GlobalData.hangar_mechs.size(), HangarManager.get_capacity()]
 	text += "\n"
-	text += "Pilots in convoy: %d\n" % GlobalData.get_hangar_fleet_size()
+	text += "Pilots in convoy: %d\n" % HangarManager.get_fleet_size()
 	text += "Reserve ammo: Kin %d | En %d | Exp %d | Ms %d\n" % [
-		GlobalData.get_reserve_ammo("kinetic"),
-		GlobalData.get_reserve_ammo("energy"),
-		GlobalData.get_reserve_ammo("explosive"),
-		GlobalData.get_reserve_ammo("missile")
+		LoadoutSystem.get_reserve_ammo("kinetic"),
+		LoadoutSystem.get_reserve_ammo("energy"),
+		LoadoutSystem.get_reserve_ammo("explosive"),
+		LoadoutSystem.get_reserve_ammo("missile")
 	]
 	return text
 
@@ -526,9 +526,9 @@ func _on_security_pressed() -> void:
 
 
 func _upgrade_security_button() -> void:
-	if GlobalData.get_fleet_security() >= GlobalData.FLEET_SECURITY_MAX:
+	if FleetSystem.get_fleet_security() >= GlobalData.FLEET_SECURITY_MAX:
 		return
-	var cost := GlobalData.get_security_upgrade_cost()
+	var cost := FleetSystem.get_security_upgrade_cost()
 	var btn = Button.new()
 	btn.text = "Upgrade Security (%d credits)" % cost
 	btn.disabled = GlobalData.credits < cost
@@ -537,7 +537,7 @@ func _upgrade_security_button() -> void:
 
 
 func _on_upgrade_security_pressed() -> void:
-	if GlobalData.upgrade_fleet_security():
+	if FleetSystem.upgrade_fleet_security():
 		_on_security_pressed()  # refresh
 	else:
 		status_label.text = _get_status_text() + "  [Not enough credits / maxed out]"
@@ -546,9 +546,9 @@ func _on_upgrade_security_pressed() -> void:
 func _build_security_text() -> String:
 	var text = "=== FLEET SECURITY ===\n\n"
 	text += "Fleet security hardens our ships and facility against enemy spies.\n\n"
-	text += "Security: %d / %d\n" % [int(GlobalData.get_fleet_security()), int(GlobalData.FLEET_SECURITY_MAX)]
+	text += "Security: %d / %d\n" % [int(FleetSystem.get_fleet_security()), int(GlobalData.FLEET_SECURITY_MAX)]
 	text += "Hardening level: %d\n" % GlobalData.security_upgrade_level
-	text += "Spy counter chance: %d%%\n\n" % int(GlobalData.get_spy_counter_chance() * 100.0)
+	text += "Spy counter chance: %d%%\n\n" % int(FleetSystem.get_spy_counter_chance() * 100.0)
 	text += "Higher security makes enemy espionage against your mech data far more likely to be caught."
 	return text
 
@@ -608,7 +608,7 @@ func _build_mech_status_text() -> String:
 
 	# Every parked mech's condition too, so the driver sees the whole fleet's HP
 	# at a glance — not just the piloted mech's live working set.
-	var mechs := GlobalData.get_hangar_mechs()
+	var mechs := HangarManager.get_mechs()
 	if mechs.size() > 0:
 		text += "--- HANGAR FLEET ---\n"
 		var sorted_mechs: Array = mechs.duplicate()
@@ -618,7 +618,7 @@ func _build_mech_status_text() -> String:
 				continue
 			var totals := _mech_armor_frame_totals(mech)
 			var fleet_id := str((mech as Dictionary).get("id", ""))
-			var fleet_pilot := GlobalData.get_hangar_mech_pilot_name(fleet_id)
+			var fleet_pilot := HangarManager.get_mech_pilot_name(fleet_id)
 			var fleet_mark := "★ " if fleet_id == GlobalData.active_hangar_mech_id else ""
 			var fleet_a_pct := int((totals.armor_cur / maxf(totals.armor_max, 1.0)) * 100.0)
 			var fleet_f_pct := int((totals.frame_cur / maxf(totals.frame_max, 1.0)) * 100.0)
@@ -654,7 +654,7 @@ func _mech_armor_frame_totals(mech: Dictionary) -> Dictionary:
 				armor_max += a_hp
 		var f = SaveGameIO.resolve_frame_value(saved_frames.get(slot))
 		if f is Dictionary:
-			var f_hp := float((f as Dictionary).get("hp", 0.0)) + GlobalData.get_frame_upgrade_hp_bonus()
+			var f_hp := float((f as Dictionary).get("hp", 0.0)) + LoadoutSystem.get_frame_upgrade_hp_bonus()
 			if f_hp > 0.0:
 				var f_dmg := clampf(float(saved_damage.get(slot + "_frame", 0.0)), 0.0, 1.0)
 				frame_cur += f_hp * (1.0 - f_dmg)
@@ -674,7 +674,7 @@ func _slot_armor_max(part: Variant) -> float:
 func _slot_frame_max(slot: String) -> float:
 	var f = GlobalData.equipped_frames.get(slot)
 	if f is Dictionary:
-		return float(f.get("hp", 0.0)) + GlobalData.get_frame_upgrade_hp_bonus()
+		return float(f.get("hp", 0.0)) + LoadoutSystem.get_frame_upgrade_hp_bonus()
 	return 0.0
 
 
@@ -756,10 +756,10 @@ func _build_inventory_text() -> String:
 	text += "Data Cores (Research): %d\n\n" % GlobalData.data_cores
 
 	text += "--- Reserve Ammo Stock ---\n"
-	text += "Kinetic Ammo: %d\n" % GlobalData.get_reserve_ammo("kinetic")
-	text += "Energy Cells: %d\n" % GlobalData.get_reserve_ammo("energy")
-	text += "Explosive Shells: %d\n" % GlobalData.get_reserve_ammo("explosive")
-	text += "Missile Pods: %d\n\n" % GlobalData.get_reserve_ammo("missile")
+	text += "Kinetic Ammo: %d\n" % LoadoutSystem.get_reserve_ammo("kinetic")
+	text += "Energy Cells: %d\n" % LoadoutSystem.get_reserve_ammo("energy")
+	text += "Explosive Shells: %d\n" % LoadoutSystem.get_reserve_ammo("explosive")
+	text += "Missile Pods: %d\n\n" % LoadoutSystem.get_reserve_ammo("missile")
 
 	text += "--- Weapon Inventory ---\n"
 	if GlobalData.weapon_inventory.is_empty():

@@ -18,12 +18,12 @@ func _editing_pilot_name() -> String:
 	var editing_id: String = ""
 	if controller and controller.has_method("get_editing_mech_id"):
 		editing_id = controller.get_editing_mech_id()
-	return GlobalData.get_hangar_mech_pilot_name(editing_id)
+	return HangarManager.get_mech_pilot_name(editing_id)
 
 
 func update() -> void:
 	var chassis_info = GlobalData.chassis_catalog.get(GlobalData.chassis_id, GlobalData.chassis_catalog["standard"])
-	var max_weight = chassis_info["max_weight"] + GlobalData.get_frame_upgrade_weight_bonus()
+	var max_weight = chassis_info["max_weight"] + LoadoutSystem.get_frame_upgrade_weight_bonus()
 
 	var total_frame_weight = 0.0
 	var total_armor_weight = 0.0
@@ -33,7 +33,7 @@ func update() -> void:
 
 	for slot in GlobalData.equipped_frames:
 		var f = GlobalData.equipped_frames[slot]
-		var max_fhp = f.get("hp", 0.0) + GlobalData.get_frame_upgrade_hp_bonus()
+		var max_fhp = f.get("hp", 0.0) + LoadoutSystem.get_frame_upgrade_hp_bonus()
 		total_frame_weight += f.get("weight", 0.0)
 		total_frame_hp += max_fhp * (1.0 - clampf(GlobalData.part_damage.get(slot + "_frame", 0.0), 0.0, 1.0))
 
@@ -48,11 +48,11 @@ func update() -> void:
 	for attachment in GlobalData.attachments:
 		total_attachment_weight += float(attachment.get("weight", 0.0))
 
-	var total_weapon_weight = GlobalData.get_loadout_weapon_weight()
+	var total_weapon_weight = LoadoutSystem.get_loadout_weapon_weight()
 	var total_weight = total_frame_weight + total_armor_weight + total_attachment_weight + total_weapon_weight
 
-	var field_pack_weight = GlobalData.get_field_pack_weight()
-	var field_pack_capacity = GlobalData.get_field_pack_capacity()
+	var field_pack_weight = LoadoutSystem.get_field_pack_weight()
+	var field_pack_capacity = LoadoutSystem.get_field_pack_capacity()
 
 	if controller.weight_bar:
 		controller.weight_bar.max_value = max_weight

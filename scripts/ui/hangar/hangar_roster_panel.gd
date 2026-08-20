@@ -167,8 +167,8 @@ func refresh_badge() -> void:
 	if GlobalData.mech_less:
 		mech_slot_label.text = "ON FOOT — NO MECH PARKED"
 		return
-	var capacity := GlobalData.get_hangar_capacity()
-	var mechs := GlobalData.get_hangar_mechs()
+	var capacity := HangarManager.get_capacity()
+	var mechs := HangarManager.get_mechs()
 	var editing_id: String = controller.get_editing_mech_id()
 	var editing: Dictionary = {}
 	for m in mechs:
@@ -177,13 +177,13 @@ func refresh_badge() -> void:
 			break
 	var slot := int(editing.get("slot", 0))
 	if slot <= 0:
-		slot = GlobalData.get_hangar_slot_of(editing_id)
+		slot = HangarManager.get_slot_of(editing_id)
 	if slot <= 0:
 		slot = 1
 	var name_str := str(editing.get("name", "Mech")) if not editing.is_empty() else "Mech"
 	# Show who drives the berth being edited: the berth->pilot lookup is shared
 	# with the stats panel (resolves fleet pilots + the player driver).
-	var pilot_str := GlobalData.get_hangar_mech_pilot_name(editing_id)
+	var pilot_str := HangarManager.get_mech_pilot_name(editing_id)
 	var driver_note := ""
 	if editing_id == GlobalData.active_hangar_mech_id:
 		driver_note = " · PILOTING"
@@ -195,14 +195,14 @@ func refresh_badge() -> void:
 # active (piloting) mech, which stays untouched until the player assigns a
 # pilot or drives it into combat.
 func cycle_hangar_mech(direction: int) -> void:
-	var mechs := GlobalData.get_hangar_mechs()
+	var mechs := HangarManager.get_mechs()
 	if mechs.size() <= 1:
 		return
 	# Editing target defaults to the active mech on first open.
 	var current_id: String = controller.get_editing_mech_id()
 	# Persist edits made on the berth we're leaving before loading the next one.
 	if current_id != "":
-		GlobalData.save_hangar_mech_state(current_id)
+		HangarManager.save_mech_state(current_id)
 	var index := -1
 	for i in range(mechs.size()):
 		if str(mechs[i].get("id", "")) == current_id:
@@ -212,7 +212,7 @@ func cycle_hangar_mech(direction: int) -> void:
 		index = 0
 	var next := (index + direction + mechs.size()) % mechs.size()
 	var target_id := str(mechs[next].get("id", ""))
-	if not GlobalData.load_hangar_mech_state(target_id):
+	if not HangarManager.load_mech_state(target_id):
 		return
 	controller.set_editing_mech_id(target_id)
 	controller.selected_chassis_key = GlobalData.chassis_id
@@ -225,10 +225,10 @@ func cycle_hangar_mech(direction: int) -> void:
 func refresh_page() -> void:
 	if roster_slot_list == null:
 		return
-	GlobalData.ensure_hangar_roster()
-	var capacity := GlobalData.get_hangar_capacity()
-	var fleet := GlobalData.get_hangar_fleet_size()
-	var mechs := GlobalData.get_hangar_mechs()
+	HangarManager.ensure_roster()
+	var capacity := HangarManager.get_capacity()
+	var fleet := HangarManager.get_fleet_size()
+	var mechs := HangarManager.get_mechs()
 	var by_slot: Dictionary = {}
 	for mech in mechs:
 		if mech is Dictionary:
@@ -254,7 +254,7 @@ func refresh_page() -> void:
 		controller.wounded_banner.refresh()
 
 	if roster_status_label:
-		var affiliation := GlobalData.get_run_affiliation()
+		var affiliation := ThemeSystem.get_affiliation()
 		var aff_prefix := "%s · %s" % [
 			affiliation.get("name", "Mech Convoy"),
 			affiliation.get("transport", "Truck convoy"),
@@ -329,14 +329,14 @@ func build_slot_row(slot: int, mech: Dictionary, over_capacity: bool) -> void:
 	var pilot_id := str(mech.get("pilot", ""))
 	# Fleet pilots carry their live status (HP / wounded countdown / destroyed)
 	# on the row; hurt or dead drivers are tinted red for a quick read.
-	var pilot_status := GlobalData.get_hangar_pilot_status(pilot_id)
+	var pilot_status := HangarManager.get_pilot_status(pilot_id)
 	var is_wounded := pilot_status.contains("WOUNDED")
 	# A wounded pilot can be seated but is NOT fielded until healed: the mech
 	# stays parked (its ally never tags into combat), so mark the row clearly.
 	if is_wounded:
 		pilot_status += " · RECOVERING (not fielded)"
 	var pilot_lbl := Label.new()
-	pilot_lbl.text = "PILOT: %s%s" % [GlobalData.get_hangar_pilot_name(pilot_id), pilot_status]
+	pilot_lbl.text = "PILOT: %s%s" % [HangarManager.get_pilot_name(pilot_id), pilot_status]
 	pilot_lbl.add_theme_color_override("font_color",
 		Color(1.0, 0.5, 0.5) if is_wounded or pilot_status.contains("DESTROYED") else Color(0.55, 0.8, 1.0))
 	pilot_lbl.custom_minimum_size = Vector2(160, 0)
@@ -346,10 +346,10 @@ func build_slot_row(slot: int, mech: Dictionary, over_capacity: bool) -> void:
 	if pilot_id.begins_with("fleet_") and is_wounded:
 		var template_id := pilot_id.trim_prefix("fleet_")
 		var turns := 0
-		var unit := GlobalData.get_fleet_unit(template_id)
+		var unit := FleetSystem.get_fleet_unit(template_id)
 		if not unit.is_empty():
 			turns = maxi(int(unit.get("wound_turns", 1)), 1)
-		var heal_cost := GlobalData.get_wound_heal_cost(template_id)
+		var heal_cost := RecruitSystem.get_wound_heal_cost(template_id)
 		pilot_lbl.tooltip_text = "WOUNDED — recovering (%d board move%s left).\nReturns to the field at half HP when the timer ends,\nor press HEAL (%d cr) to recover now at full HP." % [
 			turns, "s" if turns != 1 else "", heal_cost]
 	row.add_child(pilot_lbl)
@@ -380,7 +380,7 @@ func build_slot_row(slot: int, mech: Dictionary, over_capacity: bool) -> void:
 	# clear their recovery countdown and return them to the field at full HP.
 	if pilot_id.begins_with("fleet_") and is_wounded:
 		var template_id := pilot_id.trim_prefix("fleet_")
-		var heal_cost := GlobalData.get_wound_heal_cost(template_id)
+		var heal_cost := RecruitSystem.get_wound_heal_cost(template_id)
 		var heal_btn := Button.new()
 		heal_btn.text = "HEAL (%dcr)" % heal_cost
 		heal_btn.custom_minimum_size = Vector2(88, 28)
@@ -459,7 +459,7 @@ func _capture_pending_originals() -> void:
 	_pending_original_active = {}
 	var editing_id: String = controller.get_editing_mech_id()
 	var active_id: String = GlobalData.active_hangar_mech_id
-	for m in GlobalData.get_hangar_mechs():
+	for m in HangarManager.get_mechs():
 		var mid := str(m.get("id", ""))
 		if mid == editing_id:
 			# Deep-copy: get_hangar_mechs() only shallow-duplicates the array, so
@@ -478,7 +478,7 @@ func _restore_pending_flow() -> void:
 	_restore_captured_berths()
 	var editing_id := str(_pending_original_editing.get("id", ""))
 	if editing_id != "":
-		GlobalData.load_hangar_mech_state(editing_id)
+		HangarManager.load_mech_state(editing_id)
 	if had_originals:
 		GlobalData.save_run()
 	_pending_original_editing = {}
@@ -498,9 +498,9 @@ func _restore_pending_roster_only() -> void:
 # captured berths (identity fields — id/name/slot/pilot/archetype — are kept).
 func _restore_captured_berths() -> void:
 	if not _pending_original_editing.is_empty():
-		GlobalData.restore_berth_loadout(str(_pending_original_editing.get("id", "")), _pending_original_editing)
+		HangarManager.restore_berth_loadout(str(_pending_original_editing.get("id", "")), _pending_original_editing)
 	if not _pending_original_active.is_empty():
-		GlobalData.restore_berth_loadout(str(_pending_original_active.get("id", "")), _pending_original_active)
+		HangarManager.restore_berth_loadout(str(_pending_original_active.get("id", "")), _pending_original_active)
 
 
 # Floating panel on the customize page: the required-frame checklist plus the
@@ -776,7 +776,7 @@ func _confirm_register(slot: int) -> void:
 	if register_dialog_edit and is_instance_valid(register_dialog_edit):
 		chosen = register_dialog_edit.text.strip_edges()
 	close_register_dialog()
-	var new_mech := GlobalData.build_hangar_mech(chosen, slot)
+	var new_mech := HangarManager.build(chosen, slot)
 	if new_mech.is_empty():
 		# Re-check the chassis gate for an accurate message (frames could have
 		# changed while the dialog was open).
@@ -789,9 +789,9 @@ func _confirm_register(slot: int) -> void:
 	# straight into the next fight. Registering just names it: no pilot pick.
 	var new_id := str(new_mech.get("id", ""))
 	controller.set_editing_mech_id(new_id)
-	if GlobalData.switch_hangar_mech(new_id):
+	if HangarManager.switch_mech(new_id):
 		controller.selected_chassis_key = GlobalData.chassis_id
-	GlobalData.assign_hangar_pilot(new_id, HangarManager.PLAYER_PILOT_ID)
+	HangarManager.assign_pilot(new_id, HangarManager.PLAYER_PILOT_ID)
 	# The assembled frames leaked onto the pre-flow berths via equip commits
 	# (commit_and_save) and build()/switch_mech()'s save_active() — the new mech
 	# is the only one that should carry the new build, so restore their loadouts
@@ -823,7 +823,7 @@ func close_register_dialog() -> void:
 # replaces it); a blank confirm falls back to the slot-based name.
 func open_rename_dialog(mech_id: String) -> void:
 	var mech: Dictionary = {}
-	for m in GlobalData.get_hangar_mechs():
+	for m in HangarManager.get_mechs():
 		if str(m.get("id", "")) == mech_id:
 			mech = m
 			break
@@ -915,14 +915,14 @@ func _confirm_rename(mech_id: String) -> void:
 	if rename_dialog_edit and is_instance_valid(rename_dialog_edit):
 		chosen = rename_dialog_edit.text
 	close_rename_dialog()
-	if not GlobalData.rename_hangar_mech(mech_id, chosen):
+	if not HangarManager.rename_mech(mech_id, chosen):
 		_set_status("Unable to rename that berth.")
 		return
 	GlobalData.save_run()
 	refresh_badge()
 	refresh_page()
 	var final_name := ""
-	for m in GlobalData.get_hangar_mechs():
+	for m in HangarManager.get_mechs():
 		if str(m.get("id", "")) == mech_id:
 			final_name = str(m.get("name", ""))
 			break
@@ -951,7 +951,7 @@ func open_role_picker(mech_id: String, anchor_btn: Button) -> void:
 		{"archetype": HangarManager.ARCHETYPE_HEAVY, "label": "Heavy  — slow, high-damage guns"},
 		{"archetype": HangarManager.ARCHETYPE_SUPPORT, "label": "Support — heal teammates"},
 	]
-	var current := GlobalData.get_hangar_archetype(mech_id)
+	var current := HangarManager.get_archetype(mech_id)
 	for i in range(roles.size()):
 		var role: Dictionary = roles[i]
 		var label := str(role["label"])
@@ -960,7 +960,7 @@ func open_role_picker(mech_id: String, anchor_btn: Button) -> void:
 		pop.add_item(label, i)
 	pop.id_pressed.connect(func(id):
 		var archetype: int = int(roles[id]["archetype"])
-		if GlobalData.set_hangar_archetype(mech_id, archetype):
+		if HangarManager.set_archetype(mech_id, archetype):
 			GlobalData.save_run()
 			pop.queue_free()
 			refresh_page()
@@ -976,11 +976,11 @@ func open_role_picker(mech_id: String, anchor_btn: Button) -> void:
 # recovery countdown immediately. Reports the result through the shared status
 # label and repaints the roster so the button disappears once healed.
 func heal_pilot(template_id: String) -> void:
-	var cost := GlobalData.get_wound_heal_cost(template_id)
+	var cost := RecruitSystem.get_wound_heal_cost(template_id)
 	if cost <= 0:
 		_set_status("That pilot is not wounded — nothing to heal.")
 		return
-	if not GlobalData.heal_wounded_pilot(template_id):
+	if not RecruitSystem.heal_wounded_pilot(template_id):
 		# The heal spends the credits itself; a failure here means the price
 		# moved (or resources were drained while the roster was open).
 		if GlobalData.credits < cost:
@@ -991,13 +991,13 @@ func heal_pilot(template_id: String) -> void:
 	GlobalData.save_run()
 	refresh_badge()
 	refresh_page()
-	var unit := GlobalData.get_fleet_unit(template_id)
+	var unit := FleetSystem.get_fleet_unit(template_id)
 	_set_status("%s is healed and ready to fight (-%d credits)." % [
 		str(unit.get("name", "The pilot")), cost])
 
 
 func on_switch_mech_pressed(mech_id: String) -> void:
-	if not GlobalData.switch_hangar_mech(mech_id):
+	if not HangarManager.switch_mech(mech_id):
 		if roster_status_label:
 			roster_status_label.text = "Unable to load that hangar mech."
 		return
@@ -1005,7 +1005,7 @@ func on_switch_mech_pressed(mech_id: String) -> void:
 	# YOU seat moves over too: the piloted mech (what combat loads) and the
 	# roster's driver label must agree, or the badge/garage/sortie point at a
 	# different mech than the one actually fielded.
-	GlobalData.assign_hangar_pilot(mech_id, HangarManager.PLAYER_PILOT_ID)
+	HangarManager.assign_pilot(mech_id, HangarManager.PLAYER_PILOT_ID)
 	controller.set_editing_mech_id(mech_id)
 	controller.selected_chassis_key = GlobalData.chassis_id
 	GlobalData.save_run()
@@ -1013,11 +1013,11 @@ func on_switch_mech_pressed(mech_id: String) -> void:
 	refresh_page()
 	controller.refresh_panel.after_mech_change(false)
 	if roster_status_label:
-		roster_status_label.text = "Loaded %s." % str(GlobalData.get_active_hangar_mech().get("name", "Mech"))
+		roster_status_label.text = "Loaded %s." % str(HangarManager.get_active_mech().get("name", "Mech"))
 
 
 func mech_label_for_pilot(pilot_id: String) -> String:
-	for mech in GlobalData.get_hangar_mechs():
+	for mech in HangarManager.get_mechs():
 		if str(mech.get("pilot", "")) == pilot_id:
 			return "· %s" % str(mech.get("name", "Mech"))
 	return ""
@@ -1033,14 +1033,14 @@ func open_pilot_picker(mech_id: String, anchor_btn: Button) -> void:
 	var pop := PopupMenu.new()
 	controller.add_child(pop)
 	pop.add_item("(no pilot)", 0)
-	var pilots := GlobalData.get_hangar_pilots()
+	var pilots := HangarManager.get_pilots()
 	for i in range(pilots.size()):
 		var pilot: Dictionary = pilots[i]
 		var pilot_id := str(pilot.get("id", ""))
 		# Fleet pilots carry their live status (HP / wounded countdown /
 		# destroyed) here too — same suffix the roster rows show, so a hurt or
 		# dead driver is readable before assigning them.
-		var status := GlobalData.get_hangar_pilot_status(pilot_id)
+		var status := HangarManager.get_pilot_status(pilot_id)
 		var marker := ""
 		if status.contains("WOUNDED"):
 			marker = "⚠ "
@@ -1064,10 +1064,10 @@ func open_pilot_picker(mech_id: String, anchor_btn: Button) -> void:
 			# ticks on every board move and HEAL skips the wait for credits.
 			var template_id := pilot_id.trim_prefix("fleet_") if pilot_id.begins_with("fleet_") else ""
 			var turns := 0
-			var unit := GlobalData.get_fleet_unit(template_id) if template_id != "" else {}
+			var unit := FleetSystem.get_fleet_unit(template_id) if template_id != "" else {}
 			if not unit.is_empty():
 				turns = maxi(int(unit.get("wound_turns", 1)), 1)
-			var heal_cost := GlobalData.get_wound_heal_cost(template_id)
+			var heal_cost := RecruitSystem.get_wound_heal_cost(template_id)
 			pop.set_item_tooltip(i + 1, "WOUNDED — recovering (%d board move%s left).\nCan be assigned to a mech, but they will NOT fight until healed.\nRecover at half HP when the timer ends, or heal from its roster row for %d cr." % [
 				turns, "s" if turns != 1 else "", heal_cost])
 		elif status.contains("DESTROYED"):
@@ -1075,13 +1075,13 @@ func open_pilot_picker(mech_id: String, anchor_btn: Button) -> void:
 			pop.set_item_disabled(i + 1, true)
 	pop.id_pressed.connect(func(id):
 		var pilot_id := "" if id == 0 else str(pilots[id - 1].get("id", ""))
-		if GlobalData.assign_hangar_pilot(mech_id, pilot_id):
+		if HangarManager.assign_pilot(mech_id, pilot_id):
 			pop.queue_free()
 			# Seating the player in a berth means they pilot it: switch the
 			# active mech (what combat loads) to follow the YOU label, so the
 			# two can never disagree again.
 			if pilot_id == HangarManager.PLAYER_PILOT_ID and mech_id != GlobalData.active_hangar_mech_id:
-				GlobalData.switch_hangar_mech(mech_id)
+				HangarManager.switch_mech(mech_id)
 				controller.set_editing_mech_id(mech_id)
 				controller.selected_chassis_key = GlobalData.chassis_id
 				GlobalData.save_run()

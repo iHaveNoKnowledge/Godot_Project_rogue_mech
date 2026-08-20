@@ -467,7 +467,7 @@ func update_weapon_preview(mecha: Node3D) -> void:
 	if mecha == null:
 		return
 	for hand in ["left", "right"]:
-		var weapon = GlobalData.get_equipped_weapon(hand)
+		var weapon = LoadoutSystem.get_equipped_weapon(hand)
 		# If the arm frame holding this hand's weapon is destroyed, the weapon
 		# is no longer mounted on the mech (it was dropped in battle).
 		var arm_slot = "arm_left" if hand == "left" else "arm_right"
@@ -476,11 +476,11 @@ func update_weapon_preview(mecha: Node3D) -> void:
 		WeaponVisualFactory.mount_hand(mecha, hand, weapon, "WeaponVisual_" + hand)
 
 	# Back carry weapons (spread horizontally across the back pack).
-	WeaponVisualFactory.mount_carry(mecha, GlobalData.get_carry_weapons(), "WeaponVisual_carry")
+	WeaponVisualFactory.mount_carry(mecha, LoadoutSystem.get_carry_weapons(), "WeaponVisual_carry")
 
 
 func get_attachment_capacity(slot: String) -> float:
-	var info = GlobalData.get_chassis_stats()
+	var info = LoadoutSystem.get_chassis_stats()
 	var capacities: Dictionary = info.get("attachment_capacity", {})
 	return float(capacities.get(slot, 0.0))
 
@@ -504,7 +504,7 @@ func get_total_load(excluding_attachment_id: String = "", excluding_slot: String
 	for attachment in GlobalData.attachments:
 		if attachment.get("id", "") != excluding_attachment_id or attachment.get("slot", "") != excluding_slot:
 			total += float(attachment.get("weight", 0.0))
-	total += GlobalData.get_loadout_weapon_weight()
+	total += LoadoutSystem.get_loadout_weapon_weight()
 	return total
 
 
@@ -515,7 +515,7 @@ func get_total_load(excluding_attachment_id: String = "", excluding_slot: String
 # an already-equipped model (it is leaving the other hand or the back pack), so
 # its weight no longer counts against the pack.
 func would_exceed_field_pack(new_weight_path: String, replaced_path: String = "", freed_path: String = "") -> bool:
-	var current_weapons := GlobalData.get_loadout_weapons_total()
+	var current_weapons := LoadoutSystem.get_loadout_weapons_total()
 	for subtract_path in [replaced_path, freed_path]:
 		if subtract_path != "" and ResourceLoader.exists(subtract_path):
 			var old = load(subtract_path)
@@ -523,7 +523,7 @@ func would_exceed_field_pack(new_weight_path: String, replaced_path: String = ""
 				current_weapons -= float(old.weight)
 	var new_w = load(new_weight_path)
 	var new_wt = float(new_w.weight) if new_w else 0.0
-	return current_weapons + new_wt + GlobalData.get_field_pack_ammo_weight() > GlobalData.get_field_pack_capacity()
+	return current_weapons + new_wt + LoadoutSystem.get_field_pack_ammo_weight() > LoadoutSystem.get_field_pack_capacity()
 
 
 func has_attachment(attachment_id: String, slot: String) -> bool:
@@ -575,7 +575,7 @@ func set_slot_material(slot: String, mat: Material) -> void:
 	var mecha = get_mecha_base()
 	if mecha == null:
 		return
-	var section := GlobalData.get_slot_node_path(slot)
+	var section := LoadoutSystem.get_slot_node_path(slot)
 	if slot == "leg_left" or slot == "leg_right":
 		for leg in ["LegLeft", "LegRight"]:
 			var node = mecha.get_node_or_null(leg + "/" + leg + "Mesh")

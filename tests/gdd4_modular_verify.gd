@@ -184,13 +184,13 @@ func _ready() -> void:
 
 	# 10. Scrap Pilgrim Catalogs & Ally Template verification
 	_check(GlobalData.chassis_catalog.has("pilgrim"), "chassis_catalog contains pilgrim chassis")
-	_check(not GlobalData.get_armor_catalog_entry("body_vagrant_01").is_empty(), "armor_catalog contains Scrap Pilgrim body armor")
-	_check(not GlobalData.get_armor_catalog_entry("head_vagrant_01").is_empty(), "armor_catalog contains Scrap Pilgrim head visor")
-	_check(not GlobalData.get_armor_catalog_entry("wep_l_vagrant_blade").is_empty(), "armor_catalog contains Scrap Pilgrim kinematic katana")
-	_check(not GlobalData.get_frame_catalog_entry("frame_body_vagrant").is_empty(), "frame_catalog contains Scrap Pilgrim resonant spine")
-	_check(not GlobalData.get_frame_catalog_entry("frame_leg_left_vagrant").is_empty(), "frame_catalog contains Scrap Pilgrim zero-waste leg frame")
+	_check(not ArmorSystem.get_armor_catalog_entry("body_vagrant_01").is_empty(), "armor_catalog contains Scrap Pilgrim body armor")
+	_check(not ArmorSystem.get_armor_catalog_entry("head_vagrant_01").is_empty(), "armor_catalog contains Scrap Pilgrim head visor")
+	_check(not ArmorSystem.get_armor_catalog_entry("wep_l_vagrant_blade").is_empty(), "armor_catalog contains Scrap Pilgrim kinematic katana")
+	_check(not ArmorSystem.get_frame_catalog_entry("frame_body_vagrant").is_empty(), "frame_catalog contains Scrap Pilgrim resonant spine")
+	_check(not ArmorSystem.get_frame_catalog_entry("frame_leg_left_vagrant").is_empty(), "frame_catalog contains Scrap Pilgrim zero-waste leg frame")
 
-	var vagrant_template = GlobalData.get_ally_template("ally_vagrant")
+	var vagrant_template = FleetSystem.get_ally_template("ally_vagrant")
 	_check(not vagrant_template.is_empty(), "research_catalogs ally_unit_templates contains ally_vagrant")
 	_check(str(vagrant_template.get("name", "")) == "Gale 'The Vagrant' Kurogane", "ally_vagrant template matches pilot name")
 

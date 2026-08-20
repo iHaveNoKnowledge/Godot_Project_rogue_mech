@@ -70,7 +70,7 @@ func _ready() -> void:
 	if health_system and health_system.has_method("set_friendly_light"):
 		health_system.set_friendly_light(true)
 	if template_id != "":
-		_apply_template(GlobalData.get_ally_template(template_id))
+		_apply_template(FleetSystem.get_ally_template(template_id))
 	_init_ammo()
 	_setup_enemy_status()
 	health_system.mecha_destroyed.connect(_on_destroyed)
@@ -140,7 +140,7 @@ func _apply_mech_armor(mech: Dictionary) -> void:
 		if mech_frames.has(slot):
 			var f = SaveGameIO.resolve_frame_value(mech_frames[slot])
 			if f is Dictionary:
-				var f_hp = float(f.get("hp", part["max_frame"])) + GlobalData.get_frame_upgrade_hp_bonus()
+				var f_hp = float(f.get("hp", part["max_frame"])) + LoadoutSystem.get_frame_upgrade_hp_bonus()
 				part["frame_hp"] = f_hp
 				part["max_frame"] = f_hp
 		# Outer armor HP + armor_class from the equipped plate (same rules as the
@@ -766,12 +766,12 @@ func _remove_from_convoy() -> void:
 		unit["fielded"] = false
 	# Pull the berth they piloted out of the hangar (its pilot is this unit).
 	var pilot_id := "fleet_" + template_id
-	for mech in GlobalData.get_hangar_mechs():
+	for mech in HangarManager.get_mechs():
 		if not (mech is Dictionary):
 			continue
 		if str(mech.get("pilot", "")) != pilot_id:
 			continue
-		GlobalData.remove_hangar_mech(str(mech.get("id", "")))
+		HangarManager.remove_mech(str(mech.get("id", "")))
 		GlobalData.run_notice = "%s was destroyed in combat and is lost from the convoy." % display_name
 		break
 

@@ -104,13 +104,13 @@ func _get_tile_type(pos: Vector2i) -> String:
 
 func _refresh() -> void:
 	pilot_label.text = "PILOT STATUS: HP %d / %d%s\nPERSONAL AMMO: Kin %d | En %d | Exp %d | Ms %d | Credits: %d" % [
-		int(GlobalData.get_pilot_hp()),
-		int(GlobalData.get_pilot_max_hp()),
-		"  (INJURED — buy medkits to heal)" if GlobalData.get_pilot_hp() < GlobalData.get_pilot_max_hp() else "",
-		GlobalData.get_pilot_ammo("kinetic"),
-		GlobalData.get_pilot_ammo("energy"),
-		GlobalData.get_pilot_ammo("explosive"),
-		GlobalData.get_pilot_ammo("missile"),
+		int(PilotSystem.get_hp()),
+		int(PilotSystem.get_max_hp()),
+		"  (INJURED — buy medkits to heal)" if PilotSystem.get_hp() < PilotSystem.get_max_hp() else "",
+		PilotSystem.get_ammo("kinetic"),
+		PilotSystem.get_ammo("energy"),
+		PilotSystem.get_ammo("explosive"),
+		PilotSystem.get_ammo("missile"),
 		GlobalData.credits,
 	]
 

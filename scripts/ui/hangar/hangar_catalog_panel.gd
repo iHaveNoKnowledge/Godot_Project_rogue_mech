@@ -168,9 +168,9 @@ func build_window() -> void:
 		rows.add_child(sec_title)
 
 		for info in controller.armor_catalog[slot]:
-			var s_cost := GlobalData.get_armor_scrap_cost(info)
-			var c_cost := GlobalData.get_armor_credit_cost(info)
-			var blueprint_locked := GlobalData.entry_is_blueprint_locked(info)
+			var s_cost := ArmorSystem.get_armor_scrap_cost(info)
+			var c_cost := ArmorSystem.get_armor_credit_cost(info)
+			var blueprint_locked := ArmorSystem.entry_is_blueprint_locked(info)
 
 			var row = HBoxContainer.new()
 			row.add_theme_constant_override("separation", 8)
@@ -213,7 +213,7 @@ func build_window() -> void:
 		var wpath := str(inv.get("path", ""))
 		var wname := str(inv.get("name", "Weapon"))
 		# Each inventory entry is one physical copy (no x2 count merging).
-		var owned := GlobalData.count_owned_weapon(wpath) if wpath != "" else 1
+		var owned := LoadoutSystem.count_owned_weapon(wpath) if wpath != "" else 1
 		var type_str := "?"
 		var wt := 0.0
 		if wpath != "" and ResourceLoader.exists(wpath):
@@ -321,21 +321,21 @@ func stats_text_for_index(index: int) -> String:
 				wwt = float(res.weight) if "weight" in res and res.weight != null else 0.0
 				wtype = HangarPartText.weapon_type_label(res.weapon_type) if "weapon_type" in res else "Unknown"
 				wcap = HangarPartText.weapon_capability_text(res)
-		var owned := GlobalData.count_owned_weapon(wpath)
+		var owned := LoadoutSystem.count_owned_weapon(wpath)
 		if controller.selected_slot == "weapon_carry":
-			var carried := GlobalData.count_carry_weapon(wpath)
+			var carried := LoadoutSystem.count_carry_weapon(wpath)
 			return "BACK CARRY: %s\nDURABILITY: %.0f%%\n\n%s\nWEIGHT: %.1f kg\nOWNED: x%d | ON PACK: x%d\n\nFIELD PACK: %.1f / %.1f kg" % [
 				wname, wdur * 100.0, wcap if not wcap.is_empty() else "TYPE: %s" % wtype,
 				wwt, owned, carried,
-				GlobalData.get_field_pack_weight(), GlobalData.get_field_pack_capacity()
+				LoadoutSystem.get_field_pack_weight(), LoadoutSystem.get_field_pack_capacity()
 			]
 		var hand = "left" if controller.selected_slot == "weapon_left" else "right"
-		var eq = GlobalData.get_equipped_weapon_uid(hand) == str(inv.get("uid", ""))
+		var eq = LoadoutSystem.get_equipped_weapon_uid(hand) == str(inv.get("uid", ""))
 		return "%s HAND WEAPON: %s%s\nDURABILITY: %.0f%%\n\n%s\nWEIGHT: %.1f kg\nOWNED: x%d\n\nFIELD PACK: %.1f / %.1f kg" % [
 			hand.to_upper(), "[E] " if eq else "", wname, wdur * 100.0,
 			wcap if not wcap.is_empty() else "TYPE: %s" % wtype,
 			wwt, owned,
-			GlobalData.get_field_pack_weight(), GlobalData.get_field_pack_capacity()
+			LoadoutSystem.get_field_pack_weight(), LoadoutSystem.get_field_pack_capacity()
 		]
 
 	if controller.armor_catalog.has(controller.selected_slot):

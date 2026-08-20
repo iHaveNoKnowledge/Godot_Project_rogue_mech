@@ -256,9 +256,9 @@ func on_item_selected(index: int) -> void:
 					wcap = HangarPartText.weapon_capability_text(res)
 
 			if controller.selected_slot == "weapon_carry":
-				var eq = GlobalData.is_weapon_in_carry(wpath)
-				var carried := GlobalData.count_carry_weapon(wpath)
-				var owned := GlobalData.count_owned_weapon(wpath)
+				var eq = LoadoutSystem.is_weapon_in_carry(wpath)
+				var carried := LoadoutSystem.count_carry_weapon(wpath)
+				var owned := LoadoutSystem.count_owned_weapon(wpath)
 				var prefix = "[E] " if eq else ""
 				var copies := ""
 				if owned > 1:
@@ -266,16 +266,16 @@ func on_item_selected(index: int) -> void:
 				controller.stats_label.text = "BACK CARRY: %s%s\nDURABILITY: %.0f%%%s\n\n%s\nWEIGHT: %.1f kg\n\nAssigns a copy to the mech's back pack (FIELD PACK).\nFIELD PACK: %.1f / %.1f kg\nPick weapons from the stash below." % [
 					prefix, wname, wdur * 100.0, copies, wcap if not wcap.is_empty() else "TYPE: %s" % wtype,
 					wwt,
-					GlobalData.get_field_pack_weight(), GlobalData.get_field_pack_capacity()
+					LoadoutSystem.get_field_pack_weight(), LoadoutSystem.get_field_pack_capacity()
 				]
 			else:
 				var hand = "left" if controller.selected_slot == "weapon_left" else "right"
-				var eq = GlobalData.get_equipped_weapon_uid(hand) == str(inv.get("uid", ""))
+				var eq = LoadoutSystem.get_equipped_weapon_uid(hand) == str(inv.get("uid", ""))
 				var prefix = "[E] " if eq else ""
 				controller.stats_label.text = "%s HAND WEAPON: %s%s\nDURABILITY: %.0f%%\n\n%s\nWEIGHT: %.1f kg\n\nEquip this weapon to the %s hand.\nFIELD PACK: %.1f / %.1f kg" % [
 					hand.to_upper(), prefix, wname, wdur * 100.0, wcap if not wcap.is_empty() else "TYPE: %s" % wtype,
 					wwt, hand,
-					GlobalData.get_field_pack_weight(), GlobalData.get_field_pack_capacity()
+					LoadoutSystem.get_field_pack_weight(), LoadoutSystem.get_field_pack_capacity()
 				]
 			# Only change 3D model when user explicitly picks a part, not on section switch
 			if not _is_populating:
@@ -426,9 +426,9 @@ func weapon_in_loadout(slot: String, inv: Dictionary) -> bool:
 	if uid == "":
 		return false
 	if slot == "weapon_carry":
-		return GlobalData.is_weapon_in_carry_by_uid(uid)
+		return LoadoutSystem.is_weapon_in_carry_by_uid(uid)
 	var hand = "left" if slot == "weapon_left" else "right"
-	return GlobalData.get_equipped_weapon_uid(hand) == uid
+	return LoadoutSystem.get_equipped_weapon_uid(hand) == uid
 
 
 # ---------------------------------------------------------------------------

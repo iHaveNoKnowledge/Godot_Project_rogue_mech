@@ -120,7 +120,7 @@ func _refresh_parts_list() -> void:
 	var has_damaged = false
 
 	for slot in GlobalData.MECHA_SLOTS:
-		var cost := GlobalData.get_repair_cost(slot)
+		var cost := RepairSystem.get_repair_cost(slot)
 		if cost <= 0:
 			continue
 
@@ -185,7 +185,7 @@ func _on_rebuild_catalog_pressed(slot: String) -> void:
 
 
 func _on_repair_part_pressed(slot: String) -> void:
-	var cost := GlobalData.get_repair_cost(slot)
+	var cost := RepairSystem.get_repair_cost(slot)
 	if not GlobalData.try_spend_credits(cost):
 		status_label.text = "Not enough credits!"
 		return
@@ -201,7 +201,7 @@ func _on_repair_part_pressed(slot: String) -> void:
 func _on_repair_all_pressed() -> void:
 	var total_cost := 0
 	for slot in GlobalData.MECHA_SLOTS:
-		total_cost += GlobalData.get_repair_cost(slot)
+		total_cost += RepairSystem.get_repair_cost(slot)
 
 	if not GlobalData.try_spend_credits(total_cost):
 		status_label.text = "Not enough credits! Need %d" % total_cost

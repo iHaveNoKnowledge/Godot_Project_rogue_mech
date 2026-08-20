@@ -178,7 +178,7 @@ func _on_theme_chosen(theme_id: String) -> void:
 		theme_select.queue_free()
 	GlobalData.reset_run_data()
 	GlobalData.theme_id = theme_id
-	GlobalData.roll_random_start()
+	RunStartSystem.roll_random_start()
 	GameManager.enter_board()
 
 

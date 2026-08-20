@@ -250,12 +250,12 @@ func _grant_take_back_loot() -> void:
 			"weapon":
 				var w: WeaponPart = entry.get("weapon")
 				if w:
-					GlobalData.register_weapon(w.resource_path, w.weapon_name)
+					LoadoutSystem.register_weapon(w.resource_path, w.weapon_name)
 			"armor":
 				var inst: Dictionary = entry.get("instance", {})
 				if not inst.is_empty():
 					var uid := str(inst.get("uid", ""))
-					if uid == "" or GlobalData.get_armor_instance(uid).is_empty():
+					if uid == "" or ArmorSystem.get_armor_instance(uid).is_empty():
 						GlobalData.armor_inventory.append(inst)
 	# Unclaimed drops are stripped for scrap instead of being left behind.
 	var salvaged_scrap := 0
@@ -286,7 +286,7 @@ func _salvage_value(entry: Dictionary) -> int:
 			var inst: Dictionary = entry.get("instance", {})
 			if inst.is_empty():
 				return 0
-			var base_cost := GlobalData.get_armor_scrap_cost(inst)
+			var base_cost := ArmorSystem.get_armor_scrap_cost(inst)
 			return maxi(1, int(round(base_cost * RARITY_SCRAP_MULTIPLIERS[_armor_rarity_tier(inst)])))
 	return 0
 
@@ -374,7 +374,7 @@ func _show_victory_rewards() -> void:
 		scrap_gained += 10
 
 	if is_boss:
-		var ending: Dictionary = GlobalData.get_theme_ending()
+		var ending: Dictionary = ThemeSystem.get_theme_ending()
 		title_label.text = "SECTOR %d CLEARED!" % GlobalData.current_sector
 		credits_gained += 105
 		scrap_gained += 15
@@ -466,7 +466,7 @@ func _show_escape_screen() -> void:
 func _show_defeat_screen() -> void:
 	visible = true
 	_loot_summary_active = false
-	var ending: Dictionary = GlobalData.get_theme_ending()
+	var ending: Dictionary = ThemeSystem.get_theme_ending()
 	title_label.text = "DEFEATED"
 	rewards_label.text = ending.get("defeat_text", "Your mech has been destroyed.\n\nReturning to main menu...")
 	continue_button.text = "Continue [Enter / Space / Click]"

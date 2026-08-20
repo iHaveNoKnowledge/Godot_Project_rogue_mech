@@ -126,7 +126,7 @@ func _clear_choices() -> void:
 func _on_choice_pressed(choice: Dictionary) -> void:
 	if not is_inside_tree():
 		return
-	var forced := GlobalData.apply_event_effect(choice)
+	var forced := ThemeSystem.apply_event_effect(choice)
 	if forced:
 		# The choice sprang a trap — jump straight into battle.
 		visible = false

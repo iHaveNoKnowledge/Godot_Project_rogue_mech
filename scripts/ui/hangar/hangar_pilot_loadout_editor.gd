@@ -212,7 +212,7 @@ func _refresh_ui() -> void:
 		info.text = "%s: %d" % [ammo_type.capitalize(), PilotSystem.get_ammo(ammo_type)]
 		info.add_theme_font_size_override("font_size", 11)
 		row.add_child(info)
-		var reserve := GlobalData.get_reserve_ammo(ammo_type)
+		var reserve := LoadoutSystem.get_reserve_ammo(ammo_type)
 		var topup := Button.new()
 		topup.text = "+20 (reserve: %d)" % reserve
 		topup.custom_minimum_size = Vector2(140, 24)
@@ -293,10 +293,10 @@ func _find_label_named(node: Node, label_name: String, out: Array) -> void:
 
 
 func _top_up_ammo(ammo_type: String) -> void:
-	var amount := mini(20, GlobalData.get_reserve_ammo(ammo_type))
+	var amount := mini(20, LoadoutSystem.get_reserve_ammo(ammo_type))
 	if amount <= 0:
 		return
-	GlobalData.consume_reserve_ammo(ammo_type, amount)
+	LoadoutSystem.consume_reserve_ammo(ammo_type, amount)
 	PilotSystem.add_ammo(ammo_type, amount)
 	if _status_label:
 		_status_label.text = "+%d %s ammo moved to the pilot's personal reserve." % [amount, ammo_type]

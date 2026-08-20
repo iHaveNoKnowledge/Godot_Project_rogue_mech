@@ -132,7 +132,7 @@ func _refresh() -> void:
 		has_active = true
 		var progress: int = int(state.get("progress", 0))
 		var required: int = int(state.get("required", 1))
-		var project := GlobalData.get_research_project(project_id)
+		var project := FleetSystem.get_research_project(project_id)
 		var name: String = str(project.get("name", project_id))
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
@@ -163,7 +163,7 @@ func _refresh() -> void:
 		if pid == "":
 			continue
 		# Skip already completed or active projects.
-		if GlobalData.is_research_completed(pid) or GlobalData.is_research_active(pid):
+		if FleetSystem.is_research_completed(pid) or FleetSystem.is_research_active(pid):
 			continue
 		available_count += 1
 		var pname: String = str(project.get("name", pid))
@@ -192,8 +192,8 @@ func _refresh() -> void:
 
 
 func _on_start_research(project_id: String) -> void:
-	if GlobalData.start_research(project_id):
-		var project := GlobalData.get_research_project(project_id)
+	if FleetSystem.start_research(project_id):
+		var project := FleetSystem.get_research_project(project_id)
 		status_label.text = "Research started: %s" % str(project.get("name", project_id))
 	else:
 		status_label.text = "Cannot start — not enough data cores or already active."

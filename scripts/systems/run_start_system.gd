@@ -80,7 +80,7 @@ static func roll_random_start() -> void:
 				ArmorSystem.equip_armor_instance(inst["uid"], slot)
 		var frame_id := roll_frame(slot, tier_weights)
 		if frame_id != "":
-			GlobalData.equipped_frames[slot] = GlobalData.get_frame_catalog_entry(frame_id)
+			GlobalData.equipped_frames[slot] = ArmorSystem.get_frame_catalog_entry(frame_id)
 	GlobalData._ensure_default_frames()
 
 	# Weapons.
@@ -142,5 +142,5 @@ static func roll_random_start() -> void:
 	GlobalData.credits = randi_range(int(credits_range[0]), int(credits_range[1]))
 	GlobalData.scrap = randi_range(int(scrap_range[0]), int(scrap_range[1]))
 	GlobalData.data_cores = randi_range(int(cores_range[0]), int(cores_range[1]))
-	GlobalData.ensure_hangar_roster()
-	GlobalData.save_active_hangar_mech()
+	HangarManager.ensure_roster()
+	HangarManager.save_active()

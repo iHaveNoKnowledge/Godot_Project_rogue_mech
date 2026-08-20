@@ -99,12 +99,12 @@ func _verify_pilots_page() -> void:
 
 	# Seating her in the active berth -> the row names the mech she drives.
 	var slot1_id := ""
-	for m in GlobalData.get_hangar_mechs():
+	for m in HangarManager.get_mechs():
 		if int(m.get("slot", 0)) == 1:
 			slot1_id = str(m.get("id", ""))
 			break
 	if slot1_id != "":
-		GlobalData.assign_hangar_pilot(slot1_id, "fleet_t_pp")
+		HangarManager.assign_pilot(slot1_id, "fleet_t_pp")
 	pp.refresh()
 	await get_tree().process_frame
 	text = _collect_text(pp.pilots_panel)
@@ -161,7 +161,7 @@ func _verify_register_pilot() -> void:
 	_check(rp.register_dialog != null, "REGISTER opens the name dialog")
 	_check(rp.register_dialog != null and not _collect_text(rp.register_dialog).contains("PILOT:"), "REGISTER dialog has no pilot picker")
 
-	var mechs_before := GlobalData.get_hangar_mechs().size()
+	var mechs_before := HangarManager.get_mechs().size()
 	if rp.register_dialog_edit:
 		rp.register_dialog_edit.text = "Reggie"
 	if rp.register_dialog:
@@ -169,15 +169,15 @@ func _verify_register_pilot() -> void:
 		if ok:
 			ok.pressed.emit()
 			await get_tree().process_frame
-	_check(GlobalData.get_hangar_mechs().size() == mechs_before + 1, "confirmed REGISTER parks the frame")
+	_check(HangarManager.get_mechs().size() == mechs_before + 1, "confirmed REGISTER parks the frame")
 	var new_id := ""
-	for m in GlobalData.get_hangar_mechs():
+	for m in HangarManager.get_mechs():
 		if str(m.get("name", "")) == "Reggie":
 			new_id = str(m.get("id", ""))
 	_check(new_id != "", "registered frame carries the custom name")
 	if new_id != "":
 		var pilot_of := ""
-		for m in GlobalData.get_hangar_mechs():
+		for m in HangarManager.get_mechs():
 			if str(m.get("id", "")) == new_id:
 				pilot_of = str(m.get("pilot", ""))
 		_check(pilot_of == HangarManager.PLAYER_PILOT_ID, "registered frame becomes the player's piloted mech")
@@ -197,7 +197,7 @@ func _verify_main_driver() -> void:
 	ctrl.nav_panel.select_submenu("pilots")
 	await get_tree().process_frame
 
-	var active := GlobalData.get_active_hangar_mech()
+	var active := HangarManager.get_active_mech()
 	var active_id := str(active.get("id", ""))
 	_check(active_id != "", "a main mech exists to seat drivers in")
 	_check(str(active.get("pilot", "")) == HangarManager.PLAYER_PILOT_ID, "the player starts as the main driver")
@@ -221,7 +221,7 @@ func _verify_main_driver() -> void:
 	if mia_btn:
 		mia_btn.pressed.emit()
 		await get_tree().process_frame
-	_check(str(GlobalData.get_active_hangar_mech().get("pilot", "")) == "fleet_t_md", "pressing MAIN DRIVER seats the pilot in the active mech")
+	_check(str(HangarManager.get_active_mech().get("pilot", "")) == "fleet_t_md", "pressing MAIN DRIVER seats the pilot in the active mech")
 	_check(_find_button_by_text(pp.pilot_list, "★ DRIVER") != null, "the star badge moves to the new driver")
 	# Rows were rebuilt by refresh(): re-capture the player row before poking it.
 	you_row = _row_with_text(pp.pilot_list, "YOU (driver)")
@@ -245,7 +245,7 @@ func _verify_main_driver() -> void:
 	if restore_btn:
 		restore_btn.pressed.emit()
 		await get_tree().process_frame
-	_check(str(GlobalData.get_active_hangar_mech().get("pilot", "")) == HangarManager.PLAYER_PILOT_ID, "the player can take the main driver seat back")
+	_check(str(HangarManager.get_active_mech().get("pilot", "")) == HangarManager.PLAYER_PILOT_ID, "the player can take the main driver seat back")
 
 	ctrl.queue_free()
 	await get_tree().process_frame

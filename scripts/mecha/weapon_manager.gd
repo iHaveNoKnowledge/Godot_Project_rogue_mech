@@ -153,13 +153,13 @@ func _ready() -> void:
 	# Load the equipped loadout from the Hangar (GlobalData.weapon_loadout) so the
 	# battle mech carries the SAME weapons (hands + back) that were configured in the garage.
 	# An empty hand slot in the loadout means "unarmed" — kept as null.
-	left_hand = GlobalData.get_equipped_weapon("left")
-	right_hand = GlobalData.get_equipped_weapon("right")
-	carry = GlobalData.get_carry_weapons()
+	left_hand = LoadoutSystem.get_equipped_weapon("left")
+	right_hand = LoadoutSystem.get_equipped_weapon("right")
+	carry = LoadoutSystem.get_carry_weapons()
 	# Battle reserve = the ammo the player chose to carry in the loadout.
 	# Deduct that from the persistent stash now (what you fire is spent); any
 	# leftover returns to the stash when combat ends.
-	battle_reserve = GlobalData.get_loadout_ammo_dict()
+	battle_reserve = LoadoutSystem.get_loadout_ammo_dict()
 	# Per-model upgrade multipliers from the loadout instances (hands + pack).
 	_register_damage_mult(GlobalData.weapon_loadout.get("left", ""))
 	_register_damage_mult(GlobalData.weapon_loadout.get("right", ""))
@@ -170,7 +170,7 @@ func _ready() -> void:
 	for ammo_type in battle_reserve:
 		var amount: int = battle_reserve[ammo_type]
 		if amount > 0:
-			GlobalData.consume_reserve_ammo(ammo_type, amount)
+			LoadoutSystem.consume_reserve_ammo(ammo_type, amount)
 	EventBus.combat_ended.connect(_on_combat_ended)
 	call_deferred("_emit_initial_state")
 
@@ -180,7 +180,7 @@ func _on_combat_ended(_victory: bool) -> void:
 	for ammo_type in battle_reserve:
 		var amount: int = battle_reserve[ammo_type]
 		if amount > 0:
-			GlobalData.add_reserve_ammo(ammo_type, amount)
+			LoadoutSystem.add_reserve_ammo(ammo_type, amount)
 	battle_reserve.clear()
 	# Persist whatever the mech is actually carrying so the next battle starts
 	# with the weapons picked up / swapped during this one. Skip while a hand is
@@ -196,13 +196,13 @@ func _on_combat_ended(_victory: bool) -> void:
 func sync_loadout_to_global() -> void:
 	# Hands/back are written back by INSTANCE uid (the copy that entered the
 	# battle keeps its identity) so the hangar [E] badge stays per-instance.
-	GlobalData.set_hand_weapon("left", GlobalData.resolve_hand_uid_for_sync("left", left_hand.resource_path if left_hand else ""))
-	GlobalData.set_hand_weapon("right", GlobalData.resolve_hand_uid_for_sync("right", right_hand.resource_path if right_hand else ""))
+	LoadoutSystem.set_hand_weapon("left", LoadoutSystem.resolve_hand_uid_for_sync("left", left_hand.resource_path if left_hand else ""))
+	LoadoutSystem.set_hand_weapon("right", LoadoutSystem.resolve_hand_uid_for_sync("right", right_hand.resource_path if right_hand else ""))
 	var carry_paths: Array = []
 	for weapon in carry:
 		if weapon:
 			carry_paths.append(weapon.resource_path)
-	GlobalData.weapon_loadout["carry"] = GlobalData.resolve_carry_uids_for_sync(carry_paths)
+	GlobalData.weapon_loadout["carry"] = LoadoutSystem.resolve_carry_uids_for_sync(carry_paths)
 	# The mech's total weight now includes the loadout weapons, so a pickup/drop
 	# must re-trigger the live weight calculation (speed/turn) right away.
 	EventBus.weight_changed.emit(0.0)
@@ -210,7 +210,7 @@ func sync_loadout_to_global() -> void:
 
 # Records the upgrade-based damage multiplier for one loadout ref (uid).
 func _register_damage_mult(ref) -> void:
-	var inst := GlobalData.get_weapon_instance(str(ref))
+	var inst := LoadoutSystem.get_weapon_instance(str(ref))
 	if inst.is_empty():
 		return
 	var path := str(inst.get("path", ""))
@@ -680,7 +680,7 @@ func add_weapon(weapon: WeaponPart) -> bool:
 	# Registers the weapon in the central stash. Each pickup is its own instance
 	# (same-model copies are separate entries), so owning the same weapon twice
 	# enables equipping both hands with it.
-	GlobalData.register_weapon(path, weapon.weapon_name)
+	LoadoutSystem.register_weapon(path, weapon.weapon_name)
 	# The ammo the weapon carries is usable immediately in this battle.
 	add_battle_reserve(weapon.get_ammo_type(), weapon.max_ammo)
 

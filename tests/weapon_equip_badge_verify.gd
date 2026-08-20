@@ -66,10 +66,10 @@ func _verify_weapon_badge_is_per_instance() -> void:
 	ctrl.selected_slot = "weapon_left"
 
 	var pile := "res://resources/mech/stock/weapon_pile_bunker.tres"
-	GlobalData.register_weapon(pile, "Pile Bunker")
-	GlobalData.register_weapon(pile, "Pile Bunker")
+	LoadoutSystem.register_weapon(pile, "Pile Bunker")
+	LoadoutSystem.register_weapon(pile, "Pile Bunker")
 	await get_tree().process_frame
-	_check(GlobalData.count_owned_weapon(pile) == 2, "setup: two pile bunker copies owned")
+	_check(LoadoutSystem.count_owned_weapon(pile) == 2, "setup: two pile bunker copies owned")
 
 	# Before equipping: no pile row shows [E] (the beam rifle on the left hand
 	# is the only equipped weapon in this slot).
@@ -134,8 +134,8 @@ func _verify_weapon_sort_equipped_last() -> void:
 	ctrl.current_mode = "armor"
 	ctrl.selected_slot = "weapon_left"
 	var pile := "res://resources/mech/stock/weapon_pile_bunker.tres"
-	GlobalData.register_weapon(pile, "Pile Bunker")
-	GlobalData.register_weapon(pile, "Pile Bunker")
+	LoadoutSystem.register_weapon(pile, "Pile Bunker")
+	LoadoutSystem.register_weapon(pile, "Pile Bunker")
 	await get_tree().process_frame
 
 	var inst_a: Dictionary = {}
@@ -178,8 +178,8 @@ func _verify_armor_sort_equipped_last() -> void:
 		ctrl.queue_free()
 		await get_tree().process_frame
 		return
-	var inst1: Dictionary = GlobalData.make_armor_instance_from_catalog(entries[0]["id"])
-	var inst2: Dictionary = GlobalData.make_armor_instance_from_catalog(entries[0]["id"])
+	var inst1: Dictionary = ArmorSystem.make_armor_instance_from_catalog(entries[0]["id"])
+	var inst2: Dictionary = ArmorSystem.make_armor_instance_from_catalog(entries[0]["id"])
 	GlobalData.armor_inventory.append(inst1)
 	GlobalData.armor_inventory.append(inst2)
 	await get_tree().process_frame
@@ -218,7 +218,7 @@ func _verify_tier_box_ui() -> void:
 	ctrl.selected_slot = "body"
 	var entries: Array = GlobalData.armor_catalog.get("body", [])
 	if not entries.is_empty():
-		var inst: Dictionary = GlobalData.make_armor_instance_from_catalog(entries[0]["id"])
+		var inst: Dictionary = ArmorSystem.make_armor_instance_from_catalog(entries[0]["id"])
 		inst["upgrade_level"] = 3
 		GlobalData.armor_inventory.append(inst)
 		await get_tree().process_frame

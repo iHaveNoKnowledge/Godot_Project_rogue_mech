@@ -79,7 +79,7 @@ func _ready() -> void:
 	_check(normal["attack_range"] == 3.5, "RUSHER normal template attack_range is melee (3.5)")
 	_check(full["attack_range"] < 10.0, "RUSHER no longer attacks from range")
 
-	var blade := GlobalData.get_ally_template("ally_blade")
+	var blade := FleetSystem.get_ally_template("ally_blade")
 	_check(blade.get("attack_range", -1.0) == 3.5, "ally_blade template attack_range is melee (3.5)")
 
 	# --- enemy RUSHER vs player dummy ---

@@ -206,7 +206,7 @@ static func _park_signature_mech(character: Dictionary, template_id: String) -> 
 	return "%s is parked in the hangar (%d/%d berths)." % [
 		str(mech.get("name", "Mech")),
 		GlobalData.hangar_mechs.size(),
-		GlobalData.get_hangar_capacity(),
+		HangarManager.get_capacity(),
 	]
 
 
@@ -282,7 +282,7 @@ static func _resolve_kill_outcome(character: Dictionary) -> void:
 		var pilot_survives := randf() < 0.5
 		if pilot_survives:
 			if FleetSystem.add_ally_unit(template_id):
-				var unit := GlobalData.get_fleet_unit(template_id)
+				var unit := FleetSystem.get_fleet_unit(template_id)
 				if not unit.is_empty():
 					unit["hp"] = float(unit.get("max_hp", 50.0)) * 0.15
 					unit["fielded"] = false
@@ -337,7 +337,7 @@ const HEAL_PER_TURN_CREDITS := 20
 
 # Credit price to heal `template_id`'s pilot right now (0 when not healable).
 static func get_wound_heal_cost(template_id: String) -> int:
-	var unit := GlobalData.get_fleet_unit(template_id)
+	var unit := FleetSystem.get_fleet_unit(template_id)
 	if unit.is_empty() or not bool(unit.get("wounded", false)):
 		return 0
 	if bool(unit.get("destroyed", false)):
@@ -350,7 +350,7 @@ static func get_wound_heal_cost(template_id: String) -> int:
 # field at full HP (the natural-recovery tick only restores half). Returns false
 # when the unit isn't wounded, is destroyed, or the credits can't be afforded.
 static func heal_wounded_pilot(template_id: String) -> bool:
-	var unit := GlobalData.get_fleet_unit(template_id)
+	var unit := FleetSystem.get_fleet_unit(template_id)
 	if unit.is_empty() or not bool(unit.get("wounded", false)):
 		return false
 	if bool(unit.get("destroyed", false)):

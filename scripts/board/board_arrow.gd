@@ -16,6 +16,10 @@ const PLAYER_BLUE := Color(0.25, 0.55, 1.0)
 const HOSTILE_RED := Color(0.9, 0.16, 0.12)
 const UNKNOWN_WHITE := Color(0.93, 0.94, 0.97)
 const BOSS_PURPLE := Color(0.72, 0.25, 0.95)
+const RECON_ORANGE := Color(1.0, 0.5, 0.1)
+const ARMORED_RED := Color(0.85, 0.12, 0.12)
+const ARTILLERY_AMBER := Color(0.95, 0.8, 0.15)
+const HUNTER_KILLER_PURPLE := Color(0.85, 0.1, 0.45)
 
 var arrow_color: Color = PLAYER_BLUE
 var is_double: bool = false

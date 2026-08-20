@@ -40,6 +40,16 @@ var dash_duration: float = 0.2
 var dash_timer: float = 0.0
 var is_dashing: bool = false
 var dash_direction: Vector3 = Vector3.ZERO
+var current_dash_speed: float = 25.0
+
+# --- Flash Burn & Spam Dash Dynamics (GDD §5.1) -----------------------------
+# Spamming dash bursts in rapid succession causes Flash Burn: short-pulse
+# ignition cannot maintain momentum, reactor heat spikes, and fuel burns +50% faster.
+var _dash_spam_window: float = 0.0
+var _dash_spam_count: int = 0
+const SPAM_DASH_WINDOW := 0.75
+const SPAM_DASH_ENERGY_PENALTY_MULT := 0.5
+const SPAM_DASH_MOMENTUM_PENALTY := 0.25
 
 # --- Energy system ----------------------------------------------------------
 # The mech runs on a finite energy pool. Normal walking is nearly free, but
@@ -231,10 +241,15 @@ func _physics_process(delta: float) -> void:
 	_process_drop_tanks(delta)
 	_process_jump(delta)
 
+	if _dash_spam_window > 0.0:
+		_dash_spam_window = maxf(_dash_spam_window - delta, 0.0)
+		if _dash_spam_window <= 0.0:
+			_dash_spam_count = 0
+
 	if is_dashing:
 		dash_timer -= delta
-		velocity.x = dash_direction.x * dash_speed
-		velocity.z = dash_direction.z * dash_speed
+		velocity.x = dash_direction.x * current_dash_speed
+		velocity.z = dash_direction.z * current_dash_speed
 		if dash_timer <= 0.0:
 			is_dashing = false
 	else:
@@ -792,21 +807,33 @@ func _start_dash() -> void:
 	if dash_direction.length() < 0.1:
 		dash_direction = -transform.basis.z
 
+	var is_flash_burn := false
+	if _dash_spam_window > 0.0:
+		_dash_spam_count += 1
+		is_flash_burn = true
+	else:
+		_dash_spam_count = 1
+
+	_dash_spam_window = SPAM_DASH_WINDOW
+
+	var actual_cost: float = DASH_ENERGY_COST * (1.0 + float(_dash_spam_count - 1) * SPAM_DASH_ENERGY_PENALTY_MULT)
+	energy = maxf(energy - actual_cost, 0.0)
+	current_dash_speed = dash_speed * (1.0 - (SPAM_DASH_MOMENTUM_PENALTY if is_flash_burn else 0.0))
+
 	is_dashing = true
 	dash_timer = dash_duration
-	energy = maxf(energy - DASH_ENERGY_COST, 0.0)
 	# Arm Precision Dash: record start position and open the detection window.
 	_dash_start_pos = global_position
 	_precision_window = PRECISION_WINDOW
 	_precision_armed = true
 	_precision_dodged = false
 
-	_spawn_dash_effect()
+	_spawn_dash_effect(is_flash_burn)
 	if AudioManager:
 		AudioManager.play_dash(global_position)
 
 
-func _spawn_dash_effect() -> void:
+func _spawn_dash_effect(is_flash_burn: bool = false) -> void:
 	for i in range(3):
 		var trail = MeshInstance3D.new()
 		var box = BoxMesh.new()
@@ -815,10 +842,18 @@ func _spawn_dash_effect() -> void:
 
 		var mat = StandardMaterial3D.new()
 		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		mat.albedo_color = Color(0.5, 0.7, 1.0, 0.6 - i * 0.15)
-		mat.emission_enabled = true
-		mat.emission = Color(0.3, 0.5, 1.0)
-		mat.emission_energy_multiplier = 3.0 - i
+		if is_flash_burn:
+			# Flash Burn: heated orange-red combustion trail
+			mat.albedo_color = Color(1.0, 0.35, 0.15, 0.7 - i * 0.15)
+			mat.emission_enabled = true
+			mat.emission = Color(1.0, 0.25, 0.05)
+			mat.emission_energy_multiplier = 4.0 - i
+		else:
+			# Standard short-pulse ignition: clean blue trail
+			mat.albedo_color = Color(0.5, 0.7, 1.0, 0.6 - i * 0.15)
+			mat.emission_enabled = true
+			mat.emission = Color(0.3, 0.5, 1.0)
+			mat.emission_energy_multiplier = 3.0 - i
 		mat.no_depth_test = true
 		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 		trail.material_override = mat

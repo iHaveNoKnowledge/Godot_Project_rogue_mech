@@ -1145,14 +1145,22 @@ var scrap: int = 0
 # board means the mech can't move (fuel emergency). Refuel at safehouses or
 # via energy pickups on the board.
 # -----------------------------------------------------------------------------
-var mech_energy: float = 200.0
-var mech_max_energy: float = 200.0
-# Board movement energy cost per step (walking drains batteries).
-const BOARD_ENERGY_COST_PER_STEP: float = 1.0
+var mech_energy: float = 1000.0
+var mech_max_energy: float = 1000.0
+# Board movement mode: true when the mech deploys its roller-dash wheels on the map.
+var board_roller_mode: bool = false
+# Energy costs per terrain cell (GDD §3.1) - Road: -10, Off-road: -25, Roller on Road: -5.
+const BOARD_ENERGY_ROAD: float = 10.0
+const BOARD_ENERGY_OFFROAD: float = 25.0
+const BOARD_ENERGY_ROLLER: float = 5.0
+const REFUEL_ACTION_ENERGY: float = 500.0
 # Energy regen per day on the board (passive recharge while resting).
-const BOARD_ENERGY_REGEN_PER_DAY: float = 25.0
+const BOARD_ENERGY_REGEN_PER_DAY: float = 50.0
 # Bonus regen at safehouses (faster refill).
-const SAFEHOUSE_ENERGY_REGEN: float = 50.0
+const SAFEHOUSE_ENERGY_REGEN: float = 150.0
+
+func get_tile_energy_cost(terrain: String) -> float:
+	return preload("res://scripts/board/board_config.gd").energy_cost(terrain, board_roller_mode)
 
 # -----------------------------------------------------------------------------
 # FUEL & SUPPLY LOGISTICS (GDD §2.4)
@@ -1949,9 +1957,11 @@ func reset_run_data() -> void:
 	pilot_siphoning = false
 	pilot_siphoned_fuel = 0.0
 	engine_dirt = 0.0
-	wreckage_tile_pos = Vector2i(-1, -1)
 	wreckage_fuel_remaining = 80.0
 	siphoned_fuel = 0.0
+	mech_energy = 1000.0
+	mech_max_energy = 1000.0
+	board_roller_mode = false
 
 	hangar_mechs.clear()
 	active_hangar_mech_id = ""

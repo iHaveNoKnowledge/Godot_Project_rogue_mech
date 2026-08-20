@@ -127,10 +127,20 @@ static func spawn_patrols() -> void:
 	candidate.shuffle()
 
 	var id := 1
+	var archetypes_pool := ["recon", "armored", "artillery"]
 	for i in range(mini(count, candidate.size())):
 		var home: Vector2i = candidate[i]
 		var grunts := rng.randi_range(GRUNT_MIN, GRUNT_MAX)
 		var aces := 1 if (rng.randf() < 0.30 and GlobalData.current_sector >= 2) else 0
+
+		# Pick Fleet Archetype (GDD §3.3)
+		var archetype := ""
+		if aces > 0 or (GlobalData.wanted_level >= 3 and rng.randf() < 0.4):
+			archetype = "hunter_killer"
+			aces = 1
+		else:
+			archetype = archetypes_pool[i % archetypes_pool.size()]
+
 		# Unknown fleets are mercenary convoys that fly a white arrow on the map.
 		# They only show up once recruitable pilots exist and never carry aces.
 		var faction := "hostile"
@@ -145,6 +155,7 @@ static func spawn_patrols() -> void:
 			"name": NAMES[rng.randi() % NAMES.size()],
 			"grunts": grunts,
 			"aces": aces,
+			"archetype": archetype,
 			"aggro": false,
 			"faction": faction,
 			"character_id": character_id,
@@ -182,8 +193,8 @@ static func _pick_recruitable_pilot() -> String:
 	return ""
 
 
-# Advances every fleet one cell at the end of a day. Returns the position of a
-# fleet that just moved onto the player (for an ambush), or (-1,-1).
+# Advances every fleet according to its Archetype MP at the end of a day. Returns
+# the position of a fleet that just moved onto the player (for an ambush), or (-1,-1).
 static func advance_day(player_pos: Vector2i) -> Vector2i:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = GlobalData.board_day * 101 + GlobalData.board_seed
@@ -205,6 +216,9 @@ static func advance_day(player_pos: Vector2i) -> Vector2i:
 		var cur: Vector2i = p.get("pos")
 		var home: Vector2i = p.get("home")
 		var dist := _manhattan(cur, player_pos)
+		var archetype: String = str(p.get("archetype", "armored"))
+		var fleet_mp: int = int(BoardConfig.FLEET_ARCHETYPES.get(archetype, {}).get("mp", 1))
+
 		# Unknown fleets never chase the player; they wander and can only be
 		# encountered when the player steps onto them.
 		var is_unknown := str(p.get("faction", "hostile")) == "unknown"
@@ -218,24 +232,31 @@ static func advance_day(player_pos: Vector2i) -> Vector2i:
 		elif p.get("aggro", false) and dist > detect + 3:
 			p["aggro"] = false
 
-		var next := cur
-		if p.get("aggro", false):
-			next = _step_toward(cur, player_pos, nodes, occupied, rng)
-		elif not is_unknown and GlobalData.patrol_last_seen != Vector2i(-1, -1) \
-				and rng.randf() < 0.7:
-			# A fleet that lost visual still has the convoy's last heading: step
-			# toward the trail instead of wandering back to its anchor.
-			next = _step_toward(cur, GlobalData.patrol_last_seen, nodes, occupied, rng)
-		elif rng.randf() < 0.6:
-			next = _wander(cur, home, nodes, occupied, rng)
-		if next != cur:
-			occupied.erase(cur)
-			occupied[next] = true
-			p["pos"] = next
-			# Remember the heading so the board's arrow marker can face it.
-			p["dir"] = next - cur
-			if next == player_pos:
-				ambush = next
+		# Multi-step movement based on Fleet Archetype MP (Recon = 4, HK = 3, Armored = 1)
+		var steps_to_take: int = fleet_mp if p.get("aggro", false) else mini(fleet_mp, 2)
+		for step in range(steps_to_take):
+			var next := cur
+			if p.get("aggro", false):
+				next = _step_toward(cur, player_pos, nodes, occupied, rng)
+			elif not is_unknown and GlobalData.patrol_last_seen != Vector2i(-1, -1) \
+					and rng.randf() < 0.7:
+				# A fleet that lost visual still has the convoy's last heading: step
+				# toward the trail instead of wandering back to its anchor.
+				next = _step_toward(cur, GlobalData.patrol_last_seen, nodes, occupied, rng)
+			elif rng.randf() < 0.6:
+				next = _wander(cur, home, nodes, occupied, rng)
+
+			if next != cur:
+				occupied.erase(cur)
+				occupied[next] = true
+				p["prev_pos"] = cur
+				p["pos"] = next
+				# Remember the heading so the board's arrow marker can face it.
+				p["dir"] = next - cur
+				cur = next
+				if next == player_pos:
+					ambush = next
+					break
 
 	# The convoy is a moving target: force escalation climbs while a hostile
 	# fleet keeps visual and cools back down once the player relocates.
@@ -244,6 +265,33 @@ static func advance_day(player_pos: Vector2i) -> Vector2i:
 	else:
 		GlobalData.patrol_alert = maxi(GlobalData.patrol_alert - 1, 0)
 	return ambush
+
+
+# Checks if any hostile Artillery fleet is within Bombardment Range of player_pos (GDD §3.3)
+static func check_artillery_bombardment(player_pos: Vector2i) -> Array[Dictionary]:
+	var bombarding_fleets: Array[Dictionary] = []
+	for p in GlobalData.board_patrols:
+		if str(p.get("faction", "hostile")) == "unknown":
+			continue
+		var archetype: String = str(p.get("archetype", ""))
+		if archetype != "artillery":
+			continue
+		var range_limit: int = int(BoardConfig.FLEET_ARCHETYPES.get("artillery", {}).get("bombard_range", 2))
+		var dist := _manhattan(p.get("pos", Vector2i(-1, -1)), player_pos)
+		if dist > 0 and dist <= range_limit:
+			bombarding_fleets.append(p)
+	return bombarding_fleets
+
+
+# Zone of Control (ZoC): true if player_pos is directly adjacent (distance 1) to any hostile fleet.
+static func is_in_zone_of_control(target_pos: Vector2i) -> bool:
+	for p in GlobalData.board_patrols:
+		if str(p.get("faction", "hostile")) == "unknown":
+			continue
+		var p_pos: Vector2i = p.get("pos", Vector2i(-1, -1))
+		if _manhattan(p_pos, target_pos) == 1:
+			return true
+	return false
 
 
 static func _manhattan(a: Vector2i, b: Vector2i) -> int:

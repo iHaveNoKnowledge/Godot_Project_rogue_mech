@@ -19,6 +19,62 @@ const TERRAIN: Dictionary = {
 	"rock": -1,
 }
 
+# Energy cost per terrain cell (GDD §3.1).
+# Road = 10, Off-road/Mud/Sand = 25, Roller on Road = 5.
+const TERRAIN_ENERGY: Dictionary = {
+	"road": 10.0,
+	"bridge": 10.0,
+	"plain": 20.0,
+	"sand": 25.0,
+	"forest": 25.0,
+	"water": 0.0,
+	"rock": 0.0,
+}
+
+# Enemy Fleet Archetypes (GDD §3.3)
+const FLEET_ARCHETYPES: Dictionary = {
+	"recon": {
+		"name": "Recon Fleet",
+		"mp": 4,
+		"aces": 0,
+		"tags": ["Roller-Dash", "Light-Armor"],
+		"bombard_range": 0,
+		"desc": "High-mobility scout fleet. Patrols fast with roller-dash legs.",
+	},
+	"armored": {
+		"name": "Armored Fleet",
+		"mp": 1,
+		"aces": 0,
+		"tags": ["Heavy-Armor", "Shield"],
+		"bombard_range": 0,
+		"desc": "Heavy frontline battle group. High armor and defensive shields.",
+	},
+	"artillery": {
+		"name": "Artillery Fleet",
+		"mp": 1,
+		"aces": 0,
+		"tags": ["Missile-Pod", "Railgun"],
+		"bombard_range": 2,
+		"desc": "Long-range fire support unit. Bombards nearby convoy positions on the board.",
+	},
+	"hunter_killer": {
+		"name": "Hunter-Killer Fleet",
+		"mp": 3,
+		"aces": 1,
+		"tags": ["High-Tech", "Tier-2-3"],
+		"bombard_range": 0,
+		"desc": "Elite assassination unit deployed at high threat levels. Heavy synergy loadouts.",
+	},
+}
+
+static func energy_cost(terrain: String, is_roller: bool = false) -> float:
+	if is_roller:
+		if terrain in ["road", "bridge"]:
+			return 5.0 # Roller Dash mode on paved road: -5 Energy
+		else:
+			return 35.0 # Roller Dash off-road penalty: -35 Energy
+	return float(TERRAIN_ENERGY.get(terrain, 20.0))
+
 # Default grid dimensions for a sector's open board.
 const GRID_SIZE: int = 15
 

@@ -200,18 +200,26 @@ static func apply_event_effect(event: Dictionary) -> bool:
 			pass
 		"reignition":
 			# Pilot Siphon Protocol: reboot the mech using siphoned fuel.
-			BoardManager._do_reignition()
+			var bm = Engine.get_main_loop().current_scene if Engine.get_main_loop() else null
+			if bm and bm.has_method("_do_reignition"):
+				bm._do_reignition()
 		"siphon_more":
 			# Pilot Siphon Protocol: siphon more fuel from wreckage.
-			BoardManager._trigger_wreckage_siphon()
+			var bm = Engine.get_main_loop().current_scene if Engine.get_main_loop() else null
+			if bm and bm.has_method("_trigger_wreckage_siphon"):
+				bm._trigger_wreckage_siphon()
 		"depot_precise":
 			# Fuel depot: precise approach — full fuel reward after combat.
 			GlobalData.fuel_depot_approach = "precise"
-			BoardManager._request_combat("fuel_depot")
+			var bm = Engine.get_main_loop().current_scene if Engine.get_main_loop() else null
+			if bm and bm.has_method("_request_combat"):
+				bm._request_combat("fuel_depot")
 		"depot_heavy":
 			# Fuel depot: heavy approach — reduced fuel reward after combat.
 			GlobalData.fuel_depot_approach = "heavy"
-			BoardManager._request_combat("fuel_depot")
+			var bm = Engine.get_main_loop().current_scene if Engine.get_main_loop() else null
+			if bm and bm.has_method("_request_combat"):
+				bm._request_combat("fuel_depot")
 		"distress_help":
 			# Distress Signal: player chose to respond. Costs energy, may gain reward.
 			var cost := int(params.get("energy_cost", 30))

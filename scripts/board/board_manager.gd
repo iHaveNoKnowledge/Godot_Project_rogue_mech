@@ -115,8 +115,8 @@ func move_to_tile(target: Vector2i) -> bool:
 
 func _unhandled_input(event: InputEvent) -> void:
 	# The token moves by CLICKING a reachable tile (board_tile._on_input_event);
-	# WASD/Q/E now belong to the camera (pan + rotate). Only board-wide keys
-	# (end day) are handled here.
+	# WASD/Q/E belong to the camera (pan + rotate). Board-wide keys (end day, roller toggle)
+	# are handled here.
 	if get_tree().paused or not visible or _intermission_open():
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -124,6 +124,16 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 		if event.keycode == KEY_END or event.keycode == KEY_ENTER:
 			_end_day()
+		elif event.keycode == KEY_SHIFT or event.keycode == KEY_R:
+			# Toggle Roller Dash Mode on board (GDD §3.1)
+			GlobalData.board_roller_mode = not GlobalData.board_roller_mode
+			var mode_name := "ROLLER DASH MODE (FAST ROAD: -5 Energy)" if GlobalData.board_roller_mode else "BIPEDAL MODE (STANDARD: -10..25 Energy)"
+			EventBus.event_triggered.emit({
+				"name": "MOVEMENT MODE",
+				"effect": "none",
+				"amount": 0,
+				"desc": "Switched to %s." % mode_name,
+			})
 
 
 func _try_step(target: Vector2i) -> bool:
@@ -132,30 +142,30 @@ func _try_step(target: Vector2i) -> bool:
 	if target == current_pos:
 		return false
 	var tile = nodes_dict[target]
-	if not BoardConfig.is_passable(str(tile.get_meta("terrain", "plain"))):
+	var terrain := str(tile.get_meta("terrain", "plain"))
+	if not BoardConfig.is_passable(terrain):
 		return false
 	if not _is_adjacent(current_pos, target):
 		return false
-	var cost := BoardConfig.move_cost(str(tile.get_meta("terrain", "plain")))
+	var cost := BoardConfig.move_cost(terrain)
 	# A hostile fleet between the convoy and the sector objective blocks the
 	# route: crossing its firing line costs extra MP (fight it, or pay to slip
 	# past and reroute around it).
 	cost += PatrolSystem.interception_surcharge(current_pos, target)
-	# Energy check: walking on the board drains the mech's batteries.
+	# Energy check: walking on the board drains the mech's batteries according to terrain (GDD §3.1).
+	var energy_cost := GlobalData.get_tile_energy_cost(terrain)
 	if GlobalData.mech_energy <= 0.0:
 		GlobalData.blocked_intermission = false
 		EventBus.event_triggered.emit({
 			"name": "FUEL EMERGENCY",
 			"effect": "none",
 			"amount": 0,
-			"desc": "The mech's energy is depleted! Find a safehouse to refuel, or end the day to passively recharge.",
+			"desc": "The mech's energy is depleted! Find a safehouse/depot to refuel, or end the day to passively recharge.",
 		})
 		return false
 
 	if GlobalData.board_mp < cost:
-		# The player cannot move at all: whatever ambush aftermath was blocking the
-		# intermission menu (blocked_intermission) must not soft-lock them. Clear it
-		# so ESC can open the menu and they can End the Day.
+		# The player cannot move at all: clear blocked_intermission so ESC can open menu.
 		GlobalData.blocked_intermission = false
 		EventBus.event_triggered.emit({
 			"name": "NO MOVEMENT LEFT",
@@ -166,8 +176,20 @@ func _try_step(target: Vector2i) -> bool:
 		return false
 
 	GlobalData.board_mp = maxi(GlobalData.board_mp - cost, 0)
-	# Deduct energy for walking (each step drains the mech's batteries).
-	GlobalData.mech_energy = maxf(GlobalData.mech_energy - GlobalData.BOARD_ENERGY_COST_PER_STEP, 0.0)
+	# Deduct energy for stepping (GDD §3.1: Road = -10, Off-road = -25, Roller on Road = -5).
+	GlobalData.mech_energy = maxf(GlobalData.mech_energy - energy_cost, 0.0)
+
+	# Zone of Control (ZoC) (GDD §3.3): stepping directly adjacent to any hostile fleet depletes remaining MP.
+	if PatrolSystem.is_in_zone_of_control(target) and PatrolSystem.get_patrol_at(target).is_empty():
+		if GlobalData.board_mp > 0:
+			GlobalData.board_mp = 0
+			EventBus.event_triggered.emit({
+				"name": "ZONE OF CONTROL",
+				"effect": "none",
+				"amount": 0,
+				"desc": "You entered a hostile fleet's Zone of Control! All remaining MP has been depleted.",
+			})
+
 	_last_dir = target - current_pos
 	current_pos = target
 	GlobalData.current_tile = target
@@ -319,11 +341,34 @@ func _end_day() -> void:
 	_update_token_position()
 	_refresh_patrol_markers()
 	_highlight_adjacent()
+
+	# Check Artillery Fleet Bombardment (GDD §3.3)
+	var artillery_strikes := PatrolSystem.check_artillery_bombardment(current_pos)
+	if not artillery_strikes.is_empty() and GameManager.current_state == GameManager.State.BOARD:
+		_trigger_artillery_bombardment(artillery_strikes)
+
 	EventBus.event_triggered.emit({
 		"name": "DAY %d" % GlobalData.board_day,
 		"effect": "none",
 		"amount": 0,
 		"desc": "Supplies refreshed — %d MP. %s" % [GlobalData.board_mp_max, BoardSystem.progress_text()],
+	})
+
+
+# Artillery Fleet strategic bombardment (GDD §3.3)
+func _trigger_artillery_bombardment(fleets: Array[Dictionary]) -> void:
+	var total_fleets := fleets.size()
+	# Inflict strategic damage: 12% torso armor wear per fleet and -30 Energy
+	if GlobalData.equipped_parts.has("body"):
+		var cur_dmg: float = float(GlobalData.part_damage.get("body", 0.0))
+		GlobalData.part_damage["body"] = minf(cur_dmg + 0.12 * float(total_fleets), 1.0)
+	GlobalData.mech_energy = maxf(GlobalData.mech_energy - 30.0 * float(total_fleets), 0.0)
+
+	EventBus.event_triggered.emit({
+		"name": "ARTILLERY BOMBARDMENT!",
+		"effect": "none",
+		"amount": 0,
+		"desc": "Warning! %d hostile Artillery Fleet(s) in range bombarded your position! Torso armor degraded and -%.0f Energy." % [total_fleets, 30.0 * float(total_fleets)],
 	})
 
 
@@ -416,7 +461,7 @@ func _update_token_position() -> void:
 # ---------------------------------------------------------------------------
 
 # Spawns one 3D arrow marker on every patrol fleet's tile so fleets read as
-# real units on the map (red = grunts, double red = aces, white = unknown).
+# real units on the map (styled according to fleet archetype).
 func _refresh_patrol_markers() -> void:
 	if _patrol_marker_container == null:
 		_patrol_marker_container = Node3D.new()
@@ -434,7 +479,16 @@ func _refresh_patrol_markers() -> void:
 		var marker := Node3D.new()
 		marker.set_script(preload("res://scripts/board/patrol_marker.gd"))
 		_patrol_marker_container.add_child(marker)
-		marker.global_position = nodes_dict[pos].global_position + Vector3(0, 1.0, 0)
+
+		var prev_pos: Vector2i = p.get("prev_pos", pos)
+		if prev_pos != pos and nodes_dict.has(prev_pos) and nodes_dict[pos].is_revealed:
+			# Smooth simultaneous movement animation (GDD §3.2)
+			marker.global_position = nodes_dict[prev_pos].global_position + Vector3(0, 1.0, 0)
+			var target_pos: Vector3 = nodes_dict[pos].global_position + Vector3(0, 1.0, 0)
+			var tween := create_tween()
+			tween.tween_property(marker, "global_position", target_pos, 0.8).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+		else:
+			marker.global_position = nodes_dict[pos].global_position + Vector3(0, 1.0, 0)
 		marker.setup(p)
 	_add_boss_marker()
 

@@ -390,6 +390,15 @@ func set_hover(hovered: bool) -> void:
 		return
 	if hovered:
 		mesh_instance.position.y = 0.08
+		var bm = get_tree().current_scene
+		if bm and bm.has_node("BoardHUD"):
+			var hud = bm.get_node("BoardHUD")
+			if hud and hud.has_method("update_tile_inspector"):
+				var e_cost := GlobalData.get_tile_energy_cost(terrain)
+				var mp_cost := BoardConfig.move_cost(terrain)
+				var is_zoc := PatrolSystem.is_in_zone_of_control(grid_pos)
+				var is_artillery := not PatrolSystem.check_artillery_bombardment(grid_pos).is_empty()
+				hud.update_tile_inspector(terrain, mp_cost, e_cost, is_zoc, is_artillery)
 	else:
 		mesh_instance.position.y = 0.02 if is_highlighted else 0.0
 

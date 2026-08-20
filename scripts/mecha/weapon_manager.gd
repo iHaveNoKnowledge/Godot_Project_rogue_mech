@@ -280,33 +280,33 @@ func _set_ammo(weapon: WeaponPart, amount: int) -> void:
 func _core_for_weapon(weapon: WeaponPart) -> WeaponCore:
 	if weapon == null:
 		return null
-	var name = weapon.weapon_name
-	if not _cores.has(name):
+	var key = str(weapon.get_instance_id())
+	if not _cores.has(key):
 		var core := WeaponCore.from_weapon(weapon)
 		core.auto_reload = false
 		core.manual_reload = true
-		core.ammo_changed.connect(_forward_ammo_changed.bind(name))
-		core.heat_changed.connect(_forward_heat_changed.bind(name))
-		_cores[name] = core
-	return _cores[name]
+		core.ammo_changed.connect(_forward_ammo_changed.bind(key))
+		core.heat_changed.connect(_forward_heat_changed.bind(key))
+		_cores[key] = core
+	return _cores[key]
 
 
-func _forward_ammo_changed(current: int, max_ammo: int, weapon_name: String) -> void:
-	var hand = _hand_of_weapon(weapon_name)
+func _forward_ammo_changed(current: int, max_ammo: int, key: String) -> void:
+	var hand = _hand_of_weapon(key)
 	if not hand.is_empty():
 		ammo_changed.emit(hand, current, max_ammo)
 
 
-func _forward_heat_changed(current: float, max_heat: float, overheated: bool, weapon_name: String) -> void:
-	var hand = _hand_of_weapon(weapon_name)
+func _forward_heat_changed(current: float, max_heat: float, overheated: bool, key: String) -> void:
+	var hand = _hand_of_weapon(key)
 	if not hand.is_empty():
 		heat_changed.emit(hand, current, max_heat, overheated)
 
 
-func _hand_of_weapon(weapon_name: String) -> String:
-	if left_hand and left_hand.weapon_name == weapon_name:
+func _hand_of_weapon(key: String) -> String:
+	if left_hand and str(left_hand.get_instance_id()) == key:
 		return "left"
-	if right_hand and right_hand.weapon_name == weapon_name:
+	if right_hand and str(right_hand.get_instance_id()) == key:
 		return "right"
 	return ""
 
@@ -552,6 +552,7 @@ func _start_selection(hand: String) -> void:
 		right_hand = null
 
 	carry_updated.emit(carry)
+	_update_weapon_visuals()
 
 
 func _scroll(hand: String, direction: int) -> void:

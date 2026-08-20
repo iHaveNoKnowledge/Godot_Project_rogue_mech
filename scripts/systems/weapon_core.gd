@@ -78,7 +78,7 @@ static func from_weapon(weapon: WeaponPart) -> WeaponCore:
 	core.spread = weapon.spread
 	core.ammo_per_shot = weapon.ammo_per_shot
 	core.max_ammo = weapon.max_ammo
-	core.reload_time = 1.0
+	core.reload_time = weapon.reload_time
 	core.heat_capacity = weapon.heat_capacity
 	core.heat_per_shot = weapon.heat_per_shot
 	core.heat_cool_rate = weapon.heat_cool_rate

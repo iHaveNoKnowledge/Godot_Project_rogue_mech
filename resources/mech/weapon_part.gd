@@ -25,6 +25,7 @@ enum DamageType { HEAT, PIERCE, BLUNT }
 @export var rarity: int = 0
 
 @export var ammo_type: String = "" # "kinetic", "energy", "explosive", "missile", "none" (if empty, auto-inferred)
+@export var reload_time: float = 2.0 # seconds to refill the magazine from reserve
 
 # ----
 # GRIP / TWO-HAND REQUIREMENT
@@ -58,6 +59,7 @@ enum DamageType { HEAT, PIERCE, BLUNT }
 
 # Sound override (null = use type default)
 @export var fire_sfx: AudioStream
+@export var sfx_reload: String = "" # reload sound name override (empty = default)
 
 # Damage type this weapon deals: "heat" / "pierce" / "blunt". Empty means
 # get_damage_type() derives it from the weapon category (beam/missile = heat,

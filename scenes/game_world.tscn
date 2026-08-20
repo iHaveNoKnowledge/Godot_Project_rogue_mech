@@ -154,45 +154,6 @@ script = ExtResource("28")
 [node name="EffectManager" type="Node" parent="."]
 script = ExtResource("8")
 
-[node name="WeaponPickupMG" type="Area3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 1, 5)
-collision_layer = 0
-collision_mask = 1
-script = ExtResource("9")
-weapon_resource = ExtResource("10")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="WeaponPickupMG"]
-shape = SubResource("BoxShape3D_pickup")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="WeaponPickupMG"]
-mesh = SubResource("BoxMesh_pickup")
-
-[node name="WeaponPickupSG" type="Area3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 1, 0)
-collision_layer = 0
-collision_mask = 1
-script = ExtResource("9")
-weapon_resource = ExtResource("11")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="WeaponPickupSG"]
-shape = SubResource("BoxShape3D_pickup")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="WeaponPickupSG"]
-mesh = SubResource("BoxMesh_pickup")
-
-[node name="WeaponPickupPB" type="Area3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 1, 5)
-collision_layer = 0
-collision_mask = 1
-script = ExtResource("9")
-weapon_resource = ExtResource("12")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="WeaponPickupPB"]
-shape = SubResource("BoxShape3D_pickup")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="WeaponPickupPB"]
-mesh = SubResource("BoxMesh_pickup")
-
 [node name="BackupSpawner" type="Node" parent="."]
 script = ExtResource("13")
 

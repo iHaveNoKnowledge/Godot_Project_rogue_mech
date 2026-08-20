@@ -102,15 +102,78 @@ func _build_objective_event() -> Dictionary:
 # MOVEMENT (free grid stepping)
 # ---------------------------------------------------------------------------
 
-# Legacy API kept for click-driven tiles + intermission. Steps the token to an
-# adjacent walkable cell if enough MP remains.
+# Steps the token towards the target cell. If adjacent, takes 1 step directly.
+# If further away, calculates a walkable path and steps cell-by-cell up to available MP / Energy.
 func move_to_tile(target: Vector2i) -> bool:
 	if get_tree().paused or _intermission_open():
 		return false
-	if not _try_step(target):
-		print("Cannot move there! (must be an adjacent walkable cell with enough MP)")
+	if target == current_pos:
 		return false
-	return true
+
+	if _is_adjacent(current_pos, target):
+		return _try_step(target)
+
+	var path := _find_path(current_pos, target)
+	if path.is_empty():
+		print("Cannot move there! (no walkable path)")
+		return false
+
+	var moved_any := false
+	for step in path:
+		if get_tree() == null or get_tree().paused or _intermission_open() or GameManager.current_state != GameManager.State.BOARD:
+			break
+		if GlobalData.board_mp <= 0 or GlobalData.mech_energy <= 0.0:
+			break
+		var ok := _try_step(step)
+		if not ok:
+			break
+		moved_any = true
+		if get_tree() == null or get_tree().paused or GameManager.current_state != GameManager.State.BOARD:
+			break
+
+	return moved_any
+
+
+func _find_path(start: Vector2i, goal: Vector2i) -> Array[Vector2i]:
+	if not nodes_dict.has(start) or not nodes_dict.has(goal):
+		var empty_res: Array[Vector2i] = []
+		return empty_res
+	var goal_tile = nodes_dict[goal]
+	var goal_terrain := str(goal_tile.get_meta("terrain", "plain"))
+	if not BoardConfig.is_passable(goal_terrain):
+		var empty_res: Array[Vector2i] = []
+		return empty_res
+
+	var queue: Array[Vector2i] = [start]
+	var came_from: Dictionary = {start: start}
+
+	while not queue.is_empty():
+		var curr: Vector2i = queue.pop_front()
+		if curr == goal:
+			break
+
+		for d: Vector2i in DIRS:
+			var nxt: Vector2i = curr + d
+			if not nodes_dict.has(nxt) or came_from.has(nxt):
+				continue
+			var tile = nodes_dict[nxt]
+			var terrain := str(tile.get_meta("terrain", "plain"))
+			if not BoardConfig.is_passable(terrain):
+				continue
+			came_from[nxt] = curr
+			queue.append(nxt)
+
+	if not came_from.has(goal):
+		var empty_res: Array[Vector2i] = []
+		return empty_res
+
+	var path: Array[Vector2i] = []
+	var trace: Vector2i = goal
+	while trace != start:
+		path.append(trace)
+		trace = came_from[trace]
+	path.reverse()
+	return path
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -454,7 +517,8 @@ func _update_token_position() -> void:
 		var tile = nodes_dict[current_pos]
 		player_token.global_position = tile.global_position + Vector3(0, 0.9, 0)
 		# Point the arrow at the last heading (east = (1,0), south = (0,1), ...).
-		player_token.face_heading(_last_dir)
+		if player_token.has_method("face_heading"):
+			player_token.face_heading(_last_dir)
 
 
 # ---------------------------------------------------------------------------

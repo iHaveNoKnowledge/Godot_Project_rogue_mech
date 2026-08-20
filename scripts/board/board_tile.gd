@@ -222,9 +222,10 @@ func _add_floating_badge(parent: Node3D, text: String, color: Color, height: flo
 	lbl.text = text
 	lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	lbl.no_depth_test = true
-	lbl.font_size = 18
-	lbl.outline_size = 6
-	lbl.outline_modulate = Color(0.06, 0.08, 0.12, 0.95)
+	lbl.pixel_size = 0.01
+	lbl.font_size = 32
+	lbl.outline_size = 10
+	lbl.outline_modulate = Color(0.02, 0.03, 0.06, 0.98)
 	lbl.modulate = color
 	lbl.position = Vector3(0, height, 0)
 	parent.add_child(lbl)

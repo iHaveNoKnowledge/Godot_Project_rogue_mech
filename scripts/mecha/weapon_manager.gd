@@ -3,6 +3,7 @@ extends Node3D
 signal weapon_switched(hand: String, weapon_name: String)
 signal ammo_changed(hand: String, current: int, max_ammo: int)
 signal reload_progress(hand: String, partial_text: String, reserve_ammo: int, percent: float)
+signal reload_failed(hand: String, reason: String)
 signal carry_updated(carry_list: Array)
 signal weapon_dropped(hand: String, weapon: WeaponPart)
 signal heat_changed(hand: String, current: float, max_heat: float, overheated: bool)
@@ -455,19 +456,23 @@ func reload_weapon(hand: String) -> void:
 
 	var weapon: WeaponPart = left_hand if is_left else right_hand
 	if weapon == null:
+		reload_failed.emit(hand, "NO WEAPON")
 		return
 
 	var ammo_type = weapon.get_ammo_type()
 	if ammo_type == "none":
+		reload_failed.emit(hand, "NO AMMO TYPE")
 		return
 
 	var current_mag = _get_ammo(weapon)
 	var needed = weapon.max_ammo - current_mag
 	if needed <= 0:
+		reload_failed.emit(hand, "FULL")
 		return
 
 	var reserve = get_battle_reserve(ammo_type)
 	if reserve <= 0:
+		reload_failed.emit(hand, "NO RESERVE")
 		return
 
 	var reload_amount = mini(needed, reserve)

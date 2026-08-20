@@ -137,6 +137,8 @@ func _try_connect_weapon_manager() -> void:
 		weapon_manager.heat_changed.connect(_on_heat_changed)
 	if weapon_manager.has_signal("reload_progress"):
 		weapon_manager.reload_progress.connect(_on_reload_progress)
+	if weapon_manager.has_signal("reload_failed"):
+		weapon_manager.reload_failed.connect(_on_reload_failed)
 	weapon_manager.carry_updated.connect(_on_carry_updated)
 	weapon_manager._emit_initial_state()
 	_update_display()
@@ -705,6 +707,29 @@ func _on_reload_progress(hand: String, partial_text: String, reserve_ammo: int, 
 	elif hand == "right":
 		right_ammo_label.modulate = Color(1.0, 0.3, 0.3)
 		right_ammo_label.text = "%s/%d" % [partial_text, reserve_ammo]
+
+
+var _reload_fail_tween_left: Tween = null
+var _reload_fail_tween_right: Tween = null
+
+
+func _on_reload_failed(hand: String, reason: String) -> void:
+	# Audio: dry click so the player hears the failure
+	if AudioManager:
+		AudioManager.play_ui_click()
+	# Visual: flash the ammo label red with the reason, then reset
+	var label: Label = left_ammo_label if hand == "left" else right_ammo_label
+	var tween_ref: String = "_reload_fail_tween_left" if hand == "left" else "_reload_fail_tween_right"
+	# Kill any in-flight failure tween so rapid presses don't stack
+	var old_tw: Tween = get(tween_ref)
+	if old_tw != null and old_tw.is_valid():
+		old_tw.kill()
+	label.modulate = Color(1.0, 0.3, 0.3)
+	label.text = reason
+	var tw := create_tween()
+	tw.tween_interval(0.6)
+	tw.tween_callback(_update_display)
+	set(tween_ref, tw)
 
 
 func _on_weapon_switched(_hand: String, _weapon_name: String) -> void:

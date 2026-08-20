@@ -69,10 +69,14 @@ func _unhandled_input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	if GameManager.current_state == GameManager.State.BOARD:
 		# WASD pans the camera aligned with screen space on the ground plane (XZ),
-		# taking into account the current isometric view angle and yaw rotation.
-		var offset := _get_offset()
-		var ground_forward := -Vector3(offset.x, 0.0, offset.z).normalized()
-		var ground_right := Vector3(-offset.z, 0.0, offset.x).normalized()
+		# taking into account the camera's current viewing orientation and yaw rotation.
+		var ground_forward := -global_transform.basis.z
+		ground_forward.y = 0.0
+		ground_forward = ground_forward.normalized()
+
+		var ground_right := global_transform.basis.x
+		ground_right.y = 0.0
+		ground_right = ground_right.normalized()
 
 		var pan := Vector3.ZERO
 		if Input.is_key_pressed(KEY_W):

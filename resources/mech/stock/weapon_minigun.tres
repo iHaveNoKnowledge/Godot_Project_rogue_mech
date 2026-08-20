@@ -27,3 +27,4 @@ heat_release_ratio = 0.4
 recoil_force = 4.0
 recoil_shake = 0.18
 impact = 0.6
+reload_time = 3.5

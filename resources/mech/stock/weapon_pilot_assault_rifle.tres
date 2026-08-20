@@ -17,3 +17,4 @@ weight = 3.5
 range_distance = 65.0
 description = "ไรเฟิลจู่โจมขนาดกลาง อเนกประสงค์ทั้งระยะใกล้-กลาง ใช้กระสุนปานกลาง"
 rarity = 1
+reload_time = 1.8

@@ -17,3 +17,4 @@ weight = 10.0
 range_distance = 25.0
 description = "ลูกซองสมดุล damage ดี ระยะปานกลาง"
 rarity = 1
+reload_time = 2.0

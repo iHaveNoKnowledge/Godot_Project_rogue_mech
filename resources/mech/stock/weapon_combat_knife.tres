@@ -17,3 +17,4 @@ weight = 2.0
 range_distance = 2.5
 description = "มีดต่อสู้ เba ยิงเร็วสุด แต่ damage น้อย"
 rarity = 0
+reload_time = 0.0

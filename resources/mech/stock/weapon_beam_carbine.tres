@@ -17,3 +17,4 @@ weight = 5.0
 range_distance = 40.0
 description = "ปืน beam ขนาดเล็ก ยิงเร็ว เบา แต่ damage น้อย"
 rarity = 0
+reload_time = 1.5

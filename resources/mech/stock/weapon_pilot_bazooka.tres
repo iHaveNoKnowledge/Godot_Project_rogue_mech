@@ -20,3 +20,4 @@ impact = 2.5
 description = "บาซูก้าทำลายยานเกราะ ระเบิดแรงทำลายล้างสูง กระสุนน้อย ยิงช้า"
 rarity = 2
 ammo_type = "explosive"
+reload_time = 3.5

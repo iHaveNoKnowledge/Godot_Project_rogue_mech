@@ -20,3 +20,4 @@ impact = 1.2
 description = "ไรเฟิลต่อต้านยานเกราะลำกล้องใหญ่ กระสุนขนาดใหญ่ทะลวงเกราะ mech ได้ หนักและยิงช้า"
 rarity = 2
 ammo_type = "kinetic"
+reload_time = 3.0

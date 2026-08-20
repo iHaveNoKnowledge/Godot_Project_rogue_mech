@@ -19,3 +19,4 @@ description = "โล่ป้องกัน กดคลิกเพื่อ�
 rarity = 1
 shield_hp = 300.0
 shield_recharge_rate = 20.0
+reload_time = 0.0

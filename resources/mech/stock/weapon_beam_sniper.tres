@@ -17,3 +17,4 @@ weight = 12.0
 range_distance = 100.0
 description = "ปืน beam ระยะไกล damage สูง ยิงช้า แม่นยำมาก"
 rarity = 2
+reload_time = 3.0

@@ -18,3 +18,4 @@ range_distance = 4.0
 description = "ทะลวงเกราะ แรงสุด ใช้ปลอกกระสุนอัดจุดระเบิดต่อตอก"
 rarity = 2
 ammo_type = "kinetic"
+reload_time = 3.0

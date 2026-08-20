@@ -17,3 +17,4 @@ weight = 4.0
 range_distance = 3.0
 description = "ดาบความร้อนสูง, ไม่ใช้กระสุน, ต้องเข้าใกล้มาก"
 rarity = 2
+reload_time = 0.0

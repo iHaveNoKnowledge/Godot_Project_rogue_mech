@@ -19,3 +19,4 @@ description = "โล่หนัก HP สูงสุด ช้า แต่�
 rarity = 2
 shield_hp = 500.0
 shield_recharge_rate = 10.0
+reload_time = 0.0

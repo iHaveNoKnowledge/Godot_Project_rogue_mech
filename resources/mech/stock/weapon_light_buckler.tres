@@ -19,3 +19,4 @@ description = "โล่เบา ยกเร็ว แต่ HP น้อย"
 rarity = 0
 shield_hp = 150.0
 shield_recharge_rate = 30.0
+reload_time = 0.0

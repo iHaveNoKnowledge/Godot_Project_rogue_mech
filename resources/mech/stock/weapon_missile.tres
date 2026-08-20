@@ -17,3 +17,4 @@ weight = 14.0
 range_distance = 80.0
 description = "จรวดนำวิถี, แรงมาก, ยิงช้า, กระสุนน้อย"
 rarity = 1
+reload_time = 3.0

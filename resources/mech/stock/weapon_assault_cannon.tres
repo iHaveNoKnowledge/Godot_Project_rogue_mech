@@ -17,3 +17,4 @@ weight = 16.0
 range_distance = 35.0
 description = "ปืนใหญ่ลูกซอง damage สูง ยิงช้า หนัก แต่แรง"
 rarity = 2
+reload_time = 3.0

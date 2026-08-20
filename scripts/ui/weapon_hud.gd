@@ -268,9 +268,8 @@ func _create_left_panel() -> void:
 	left_heat_bar.add_theme_stylebox_override("fill", _make_heat_style())
 	left_heat_bar.add_theme_stylebox_override("background", bg_style)
 	vbox.add_child(left_heat_bar)
-
 	var key_hint = Label.new()
-	key_hint.text = "[LMB] Fire  |  [1] Switch"
+	key_hint.text = "[LMB] Fire  |  [1] Switch  |  [X] Drop"
 	key_hint.add_theme_font_size_override("font_size", 9)
 	key_hint.add_theme_color_override("font_color", _dim_color)
 	vbox.add_child(key_hint)
@@ -336,7 +335,7 @@ func _create_right_panel() -> void:
 	vbox.add_child(right_heat_bar)
 
 	var key_hint = Label.new()
-	key_hint.text = "[RMB] Fire  |  [3] Switch"
+	key_hint.text = "[RMB] Fire  |  [3] Switch  |  [X] Drop"
 	key_hint.add_theme_font_size_override("font_size", 9)
 	key_hint.add_theme_color_override("font_color", _dim_color)
 	vbox.add_child(key_hint)
@@ -350,19 +349,19 @@ func _create_carry_ui() -> void:
 	carry_panel.anchor_bottom = 0.5
 	carry_panel.offset_left = 20
 	carry_panel.offset_right = 260
-	carry_panel.offset_top = -150
-	carry_panel.offset_bottom = 150
-	carry_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.05, 0.05, 0.1, 0.92)))
-	root_control.add_child(carry_panel)
+	carry_panel.offset_top = -120
+	carry_panel.offset_bottom = 120
+	carry_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.08, 0.08, 0.12, 0.92)))
 	carry_panel.visible = false
+	root_control.add_child(carry_panel)
 
 	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 2)
+	vbox.add_theme_constant_override("separation", 6)
 	carry_panel.add_child(vbox)
 
 	hand_label = Label.new()
-	hand_label.text = "LEFT HAND"
-	hand_label.add_theme_font_size_override("font_size", 14)
+	hand_label.text = "SELECT WEAPON"
+	hand_label.add_theme_font_size_override("font_size", 11)
 	hand_label.add_theme_color_override("font_color", _accent_color)
 	vbox.add_child(hand_label)
 
@@ -370,36 +369,19 @@ func _create_carry_ui() -> void:
 	vbox.add_child(sep)
 
 	carry_container = VBoxContainer.new()
-	carry_container.add_theme_constant_override("separation", 1)
+	carry_container.add_theme_constant_override("separation", 4)
 	vbox.add_child(carry_container)
 
 
 func _create_pickup_ui() -> void:
-	# Prominent center-screen prompt: "[F] Pickup: WeaponName" (F = interact
-	# action). It sits right below the crosshair dot — in the player's line of
-	# sight — with a bright border and a fade-in pop so it can't be missed.
+	# Bottom center prompt: "[F] Pickup <Weapon>"
 	pickup_prompt = PanelContainer.new()
-	pickup_prompt.set_anchors_preset(Control.PRESET_CENTER)
-	pickup_prompt.offset_left = -190
-	pickup_prompt.offset_right = 190
-	pickup_prompt.offset_top = 45
-	pickup_prompt.offset_bottom = 104
-	var prompt_style = StyleBoxFlat.new()
-	prompt_style.bg_color = Color(0.04, 0.1, 0.07, 0.94)
-	prompt_style.corner_radius_top_left = 10
-	prompt_style.corner_radius_top_right = 10
-	prompt_style.corner_radius_bottom_left = 10
-	prompt_style.corner_radius_bottom_right = 10
-	prompt_style.content_margin_left = 16
-	prompt_style.content_margin_right = 16
-	prompt_style.content_margin_top = 8
-	prompt_style.content_margin_bottom = 8
-	prompt_style.border_width_left = 2
-	prompt_style.border_width_right = 2
-	prompt_style.border_width_top = 2
-	prompt_style.border_width_bottom = 2
-	prompt_style.border_color = Color(0.6, 1.0, 0.4, 0.85)
-	pickup_prompt.add_theme_stylebox_override("panel", prompt_style)
+	pickup_prompt.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	pickup_prompt.offset_left = -160
+	pickup_prompt.offset_right = 160
+	pickup_prompt.offset_top = -130
+	pickup_prompt.offset_bottom = -75
+	pickup_prompt.add_theme_stylebox_override("panel", _make_panel_style(Color(0.08, 0.10, 0.16, 0.92)))
 	root_control.add_child(pickup_prompt)
 	pickup_prompt.visible = false
 
@@ -408,13 +390,10 @@ func _create_pickup_ui() -> void:
 	pickup_prompt.add_child(vbox)
 
 	pickup_prompt_label = Label.new()
-	pickup_prompt_label.text = "[F] Pickup: ???"
+	pickup_prompt_label.text = "[F] Pickup"
 	pickup_prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	pickup_prompt_label.add_theme_font_size_override("font_size", 18)
+	pickup_prompt_label.add_theme_font_size_override("font_size", 14)
 	pickup_prompt_label.add_theme_color_override("font_color", _highlight_color)
-	pickup_prompt_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.8))
-	pickup_prompt_label.add_theme_constant_override("shadow_offset_x", 1)
-	pickup_prompt_label.add_theme_constant_override("shadow_offset_y", 1)
 	vbox.add_child(pickup_prompt_label)
 
 	var hint = Label.new()
@@ -499,13 +478,10 @@ func _update_nearby_pickup() -> void:
 		if d < best_dist:
 			best_dist = d
 			best = pickup
-
-	if best != nearby_pickup:
-		nearby_pickup = best
-		if best:
-			var wname = best.weapon_resource.weapon_name if best.weapon_resource else "Weapon"
-			pickup_prompt_label.text = "[F] Pickup: %s" % wname
-			pickup_choice_label.text = "PICKUP: %s" % wname
+			if best:
+				var wname = best.weapon_resource.weapon_name if best.weapon_resource else "Weapon"
+				pickup_prompt_label.text = "[F] Pickup: %s" % wname
+				pickup_choice_label.text = "PICKUP: %s" % wname
 	_set_prompt_visible(best != null)
 
 
@@ -522,25 +498,27 @@ func _set_prompt_visible(show: bool) -> void:
 
 
 func _toggle_pickup_menu() -> void:
-	if pickup_menu_open:
-		_close_pickup_menu()
-		return
 	if nearby_pickup == null or not is_instance_valid(nearby_pickup):
 		return
-	if not nearby_pickup.is_near_mecha():
+	if pickup_menu_open:
+		_close_pickup_menu()
+	else:
+		_open_pickup_menu()
+
+
+func _open_pickup_menu() -> void:
+	if nearby_pickup == null:
 		return
 	pickup_menu_open = true
-	pickup_choice_panel.visible = true
 	_set_prompt_visible(false)
-	# The F-menu is a decision modal: real-time, so the battle keeps running, but
-	# the mouse must be freed from camera-look to click a choice (weapon_manager
-	# ignores firing while this menu is open).
+	pickup_choice_panel.visible = true
+	# Release the mouse so the player can click the decision buttons.
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+	# Update pack info & button state based on capacity and duplicates
 	var can_carry: bool = nearby_pickup.can_take_to_field_pack()
 	var already_carried: bool = nearby_pickup.is_already_carried()
 	if take_weapon_btn:
-		# A duplicate catalog model is a SEPARATE item: it stays pickable (only
-		# field-pack capacity blocks it). The note explains a copy is added.
 		take_weapon_btn.disabled = not can_carry
 		if already_carried:
 			take_weapon_btn.text = "ADD ANOTHER COPY (+1 ชิ้น)"
@@ -625,14 +603,6 @@ func _update_carry_display(hand: String) -> void:
 	var highlight_idx = weapon_manager._select_idx_left if hand == "left" else weapon_manager._select_idx_right
 	var is_selecting = weapon_manager._selecting_left if hand == "left" else weapon_manager._selecting_right
 
-	if list.is_empty():
-		var empty = Label.new()
-		empty.text = "(no extra weapons)"
-		empty.add_theme_font_size_override("font_size", 12)
-		empty.add_theme_color_override("font_color", _dim_color)
-		carry_container.add_child(empty)
-		return
-
 	for i in range(list.size()):
 		var weapon: WeaponPart = list[i]
 		var is_highlighted = is_selecting and (i == highlight_idx)
@@ -690,6 +660,42 @@ func _update_carry_display(hand: String) -> void:
 		icon_label.add_theme_color_override("font_color", color)
 		name_label.add_theme_color_override("font_color", color)
 		ammo_label.add_theme_color_override("font_color", color)
+
+	# --- Bare Fist / Unarmed Row (Index = list.size()) ---
+	var fist_highlighted = is_selecting and (highlight_idx == list.size())
+	var fist_row = HBoxContainer.new()
+	fist_row.add_theme_constant_override("separation", 6)
+	carry_container.add_child(fist_row)
+
+	var fist_ind = Label.new()
+	fist_ind.text = ">>" if fist_highlighted else "  "
+	fist_ind.add_theme_font_size_override("font_size", 12)
+	fist_row.add_child(fist_ind)
+
+	var fist_icon = Label.new()
+	fist_icon.text = "[FIST]"
+	fist_icon.add_theme_font_size_override("font_size", 10)
+	fist_icon.custom_minimum_size = Vector2(55, 0)
+	fist_row.add_child(fist_icon)
+
+	var fist_name = Label.new()
+	fist_name.text = "BARE FIST (Unarmed / Holster)"
+	fist_name.add_theme_font_size_override("font_size", 12)
+	fist_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	fist_row.add_child(fist_name)
+
+	var fist_ammo = Label.new()
+	fist_ammo.text = "melee"
+	fist_ammo.add_theme_font_size_override("font_size", 10)
+	fist_ammo.custom_minimum_size = Vector2(45, 0)
+	fist_ammo.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	fist_row.add_child(fist_ammo)
+
+	var fcolor: Color = _highlight_color if fist_highlighted else _dim_color
+	fist_ind.add_theme_color_override("font_color", fcolor)
+	fist_icon.add_theme_color_override("font_color", fcolor)
+	fist_name.add_theme_color_override("font_color", fcolor)
+	fist_ammo.add_theme_color_override("font_color", fcolor)
 
 
 func _on_reload_progress(hand: String, partial_text: String, reserve_ammo: int, _percent: float) -> void:

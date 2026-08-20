@@ -265,6 +265,14 @@ func _emit_initial_state() -> void:
 	carry_updated.emit(carry)
 
 
+func _set_ammo(weapon: WeaponPart, amount: int) -> void:
+	if weapon == null:
+		return
+	var core := _core_for_weapon(weapon)
+	if core:
+		core.ammo = amount
+
+
 # Returns the WeaponCore backing a weapon, creating it once per weapon name so a
 # swapped-out weapon keeps its ammo/heat/cooldown when re-equipped. The core
 # owns cooldown/ammo/heat/reload + projectile spawning; the manager keeps only
@@ -393,9 +401,14 @@ func _input(event: InputEvent) -> void:
 	# --- DROP (key X) ---
 	if event.is_action_pressed("weapon_drop"):
 		if holding_left:
-			_drop_weapon("left")
+			_drop_weapon_from_selection("left")
 		elif holding_right:
-			_drop_weapon("right")
+			_drop_weapon_from_selection("right")
+		else:
+			if right_hand:
+				_drop_equipped_weapon("right")
+			elif left_hand:
+				_drop_equipped_weapon("left")
 
 	# --- SCROLL while selecting ---
 	if event is InputEventMouseButton and event.pressed:
@@ -455,38 +468,48 @@ func reload_weapon(hand: String) -> void:
 
 	var reserve = get_battle_reserve(ammo_type)
 	if reserve <= 0:
-		EffectManager.spawn_damage_number(global_position + Vector3(0, 2.5, 0), 0, Color(1.0, 0.2, 0.2))
 		return
 
+	var reload_amount = mini(needed, reserve)
 	if is_left:
 		reloading_left = true
 	else:
 		reloading_right = true
 
-	var target_word: String = "RELOAD!"
-	var char_count = target_word.length()
-	var total_reload_time: float = 1.0
-	var time_per_char = total_reload_time / float(char_count + 1)
+	var reload_time = weapon.reload_time
+	var steps = int(reload_time * 10)
+	var step_delay = reload_time / float(maxi(steps, 1))
 
-	for i in range(1, char_count + 1):
-		var partial_text = target_word.substr(0, i)
-		reload_progress.emit(hand, partial_text, reserve, float(i) / float(char_count))
-		await get_tree().create_timer(time_per_char).timeout
-		var check_weapon = left_hand if is_left else right_hand
-		if check_weapon != weapon:
-			if is_left: reloading_left = false
-			else: reloading_right = false
+	AudioManager.play_reload_start()
+
+	for i in range(steps):
+		await get_tree().create_timer(step_delay).timeout
+		if not is_instance_valid(self):
 			return
+		# Abort reload if the weapon was swapped or dropped mid-reload.
+		var current_w = left_hand if is_left else right_hand
+		if current_w != weapon:
+			if is_left:
+				reloading_left = false
+			else:
+				reloading_right = false
+			return
+		var pct = float(i + 1) / float(steps)
+		var partial = int(current_mag + reload_amount * pct)
+		reload_progress.emit(hand, "%d" % partial, reserve, pct)
 
-	var refilled = consume_battle_reserve(ammo_type, needed)
-	_core_for_weapon(weapon).ammo = current_mag + refilled
+	var refilled = consume_battle_reserve(ammo_type, reload_amount)
+	_set_ammo(weapon, current_mag + refilled)
 
 	if is_left:
 		reloading_left = false
 	else:
 		reloading_right = false
 
-	if AudioManager:
+	# Play weapon-specific reload sound if available, otherwise default
+	if weapon.sfx_reload and weapon.sfx_reload != "":
+		AudioManager.play_sfx_by_name(weapon.sfx_reload, global_position)
+	else:
 		AudioManager.play_reload_complete()
 
 	ammo_changed.emit(hand, _get_ammo(weapon), weapon.max_ammo)
@@ -532,12 +555,10 @@ func _start_selection(hand: String) -> void:
 
 
 func _scroll(hand: String, direction: int) -> void:
-	if carry.is_empty():
-		return
-
 	var is_left = (hand == "left")
 	var idx = _select_idx_left if is_left else _select_idx_right
-	var new_idx = clampi(idx + direction, 0, carry.size() - 1)
+	var max_idx = carry.size() # Index carry.size() represents BARE FISTS (unarmed)
+	var new_idx = clampi(idx + direction, 0, max_idx)
 
 	if new_idx == idx:
 		return
@@ -549,15 +570,23 @@ func _scroll(hand: String, direction: int) -> void:
 		_select_idx_right = new_idx
 		_select_scrolled_right = true
 
-	# Preview: show highlighted weapon in hand (don't touch carry)
-	var preview = carry[new_idx]
-	if is_left:
-		left_hand = preview
+	# Preview: show highlighted weapon in hand, or bare fists at max_idx
+	if new_idx < carry.size():
+		var preview = carry[new_idx]
+		if is_left:
+			left_hand = preview
+		else:
+			right_hand = preview
+		weapon_switched.emit(hand, preview.weapon_name)
+		ammo_changed.emit(hand, _get_ammo(preview), preview.max_ammo)
 	else:
-		right_hand = preview
+		if is_left:
+			left_hand = null
+		else:
+			right_hand = null
+		weapon_switched.emit(hand, "BARE FIST — punch")
+		ammo_changed.emit(hand, 0, 0)
 
-	weapon_switched.emit(hand, preview.weapon_name)
-	ammo_changed.emit(hand, _get_ammo(preview), preview.max_ammo)
 	carry_updated.emit(carry)
 	_update_weapon_visuals()
 
@@ -579,21 +608,27 @@ func _commit_selection(hand: String) -> void:
 		holding_right = false
 		_selecting_right = false
 
-	# Quick tap without scroll → cycle to next weapon
-	if not did_scroll and hold_time < TAP_THRESHOLD and carry.size() > 1:
-		var old_weapon = carry[idx]
-		carry.remove_at(idx)
-		carry.append(old_weapon)
-		var new_weapon = carry[0]
-		if is_left:
-			left_hand = new_weapon
+	# Quick tap without scroll → cycle to next weapon (or bare fists)
+	if not did_scroll and hold_time < TAP_THRESHOLD:
+		if not carry.is_empty():
+			var old_weapon = carry[0]
+			carry.remove_at(0)
+			carry.append(old_weapon)
+			var new_weapon = carry[0]
+			if is_left:
+				left_hand = new_weapon
+			else:
+				right_hand = new_weapon
+			carry.remove_at(0)
 		else:
-			right_hand = new_weapon
-		carry.remove_at(0)
+			if is_left:
+				left_hand = null
+			else:
+				right_hand = null
+
 		_enforce_two_hand_grip()
-		# Grip enforcement may holster the cycled weapon — report the real state.
 		var w2 = left_hand if is_left else right_hand
-		weapon_switched.emit(hand, w2.weapon_name if w2 else "Empty")
+		weapon_switched.emit(hand, w2.weapon_name if w2 else "BARE FIST — punch")
 		if w2:
 			ammo_changed.emit(hand, _get_ammo(w2), w2.max_ammo)
 		carry_updated.emit(carry)
@@ -601,20 +636,24 @@ func _commit_selection(hand: String) -> void:
 		sync_loadout_to_global()
 		return
 
-	# Take the highlighted weapon out of carry into hand
+	# Held selection (with scroll or released on chosen index)
 	if idx < carry.size():
 		if is_left:
 			left_hand = carry[idx]
 		else:
 			right_hand = carry[idx]
 		carry.remove_at(idx)
+	else:
+		# Index carry.size() selected -> BARE FISTS (holster weapon to carry, hand empty)
+		if is_left:
+			left_hand = null
+		else:
+			right_hand = null
 
 	_enforce_two_hand_grip()
 
-	# The grip enforcement may have holstered the just-committed weapon when the
-	# other hand holds a two-hand weapon — guard against a null hand afterwards.
 	var w = left_hand if is_left else right_hand
-	weapon_switched.emit(hand, w.weapon_name if w else "Empty")
+	weapon_switched.emit(hand, w.weapon_name if w else "BARE FIST — punch")
 	if w:
 		ammo_changed.emit(hand, _get_ammo(w), w.max_ammo)
 	carry_updated.emit(carry)
@@ -626,7 +665,28 @@ func _commit_selection(hand: String) -> void:
 # DROP
 # ====================================================================
 
-func _drop_weapon(hand: String) -> void:
+func _drop_weapon_from_selection(hand: String) -> void:
+	var is_left = (hand == "left")
+	var idx = _select_idx_left if is_left else _select_idx_right
+	if idx < carry.size():
+		var weapon: WeaponPart = carry[idx]
+		carry.remove_at(idx)
+		if is_left:
+			left_hand = null
+			_select_idx_left = clampi(_select_idx_left, 0, carry.size())
+		else:
+			right_hand = null
+			_select_idx_right = clampi(_select_idx_right, 0, carry.size())
+
+		if weapon:
+			weapon_dropped.emit(hand, weapon)
+			weapon_switched.emit(hand, "BARE FIST — punch")
+			_update_weapon_visuals()
+			sync_loadout_to_global()
+			carry_updated.emit(carry)
+
+
+func _drop_equipped_weapon(hand: String) -> void:
 	var weapon: WeaponPart = null
 	if hand == "left":
 		weapon = left_hand
@@ -636,9 +696,18 @@ func _drop_weapon(hand: String) -> void:
 		right_hand = null
 	if weapon:
 		weapon_dropped.emit(hand, weapon)
-		weapon_switched.emit(hand, "Empty")
+		weapon_switched.emit(hand, "BARE FIST — punch")
 		_update_weapon_visuals()
 		sync_loadout_to_global()
+		carry_updated.emit(carry)
+
+
+func _drop_weapon(hand: String) -> void:
+	if (hand == "left" and holding_left) or (hand == "right" and holding_right):
+		_drop_weapon_from_selection(hand)
+	else:
+		_drop_equipped_weapon(hand)
+	sync_loadout_to_global()
 
 
 # Called by HealthSystem when the arm frame on this hand is destroyed.

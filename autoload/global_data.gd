@@ -1102,6 +1102,10 @@ var pilot_ammo: Dictionary = {
 # Pilot item inventory (healing items etc.): {item_id: count}.
 var pilot_items: Dictionary = {}
 
+# Active hired mercenary pilots and permadeath casualties history
+var hired_pilots: Array = []
+var fallen_pilots: Array = []
+
 # --- Pilot facades (logic in PilotSystem) ---
 
 func get_pilot_hp() -> float:
@@ -1860,6 +1864,8 @@ func reset_run_data() -> void:
 	credits = 110
 	data_cores = 0
 	scrap = 0
+	hired_pilots.clear()
+	fallen_pilots.clear()
 	current_sector = 1
 	enemy_forces = {
 		"boss_current": 1, "boss_max": 1,

@@ -3,6 +3,8 @@ extends Node
 const BoardConfig = preload("res://scripts/board/board_config.gd")
 const PatrolSystem = preload("res://scripts/systems/patrol_system.gd")
 const BoardSystem = preload("res://scripts/systems/board_system.gd")
+const PilotSystem = preload("res://scripts/systems/pilot_system.gd")
+const PilotGenerator = preload("res://scripts/systems/pilot_generator.gd")
 
 ## Headless verification of GDD v4.0 Master Modular Architecture features:
 ##   1. Dual-Cost Energy Movement (Road, Mud/Off-road, Roller Dash)
@@ -99,6 +101,20 @@ func _ready() -> void:
 	add_child(tooltip_ui)
 	_check(tooltip_ui.layer == 15, "BoardTooltipUI layer is 15 (below modals)")
 	tooltip_ui.queue_free()
+
+	# 7. Pilot Generator & Massive Name Pool verification
+	_check(PilotGenerator.FIRST_NAMES.size() >= 150, "First names pool has >= 150 entries (has %d)" % PilotGenerator.FIRST_NAMES.size())
+	_check(PilotGenerator.CALLSIGNS.size() >= 100, "Callsigns pool has >= 100 entries (has %d)" % PilotGenerator.CALLSIGNS.size())
+	_check(PilotGenerator.LAST_NAMES.size() >= 150, "Last names pool has >= 150 entries (has %d)" % PilotGenerator.LAST_NAMES.size())
+
+	var sample_pilot := PilotGenerator.generate_pilot()
+	_check(sample_pilot.has("name") and sample_pilot["name"] != "", "PilotGenerator generated valid full name: %s" % sample_pilot.get("name", ""))
+	_check(sample_pilot.has("perk_name") and sample_pilot["perk_name"] != "", "PilotGenerator generated valid perk: %s" % sample_pilot.get("perk_name", ""))
+	_check(sample_pilot.has("background") and sample_pilot["background"] != "", "PilotGenerator generated background: %s" % sample_pilot.get("background", ""))
+
+	var replacement := PilotSystem.record_pilot_permadeath(sample_pilot["name"], "Mech Core Overheat Breach")
+	_check(GlobalData.fallen_pilots.size() == 1, "Fallen pilots memorial recorded casualty")
+	_check(replacement.has("name") and replacement["name"] != sample_pilot["name"], "Replacement pilot generated: %s" % replacement.get("name", ""))
 
 	print("\nVerification Complete: %d checks, %d failures" % [_checks, _fails])
 	if _fails > 0:

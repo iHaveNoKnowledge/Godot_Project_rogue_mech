@@ -1,6 +1,8 @@
 class_name PilotSystem
 extends RefCounted
 
+const PilotGenerator = preload("res://scripts/systems/pilot_generator.gd")
+
 # -----------------------------------------------------------------------------
 # PILOT SYSTEM — the player pilot's own condition, kept separate from the mech.
 #
@@ -351,3 +353,31 @@ static func buy_ammo(ammo_type: String, amount: int) -> int:
 		return 0
 	add_ammo(ammo_type, bought)
 	return bought
+
+
+# --- Procedural Pilot Recruitment & Permadeath Roster -----------------------
+
+static func generate_hire_candidates(count: int = 3) -> Array[Dictionary]:
+	return PilotGenerator.generate_hire_pool(count)
+
+
+static func hire_candidate(pilot_data: Dictionary) -> bool:
+	var cost := int(pilot_data.get("hire_cost", 100))
+	if not GlobalData.try_spend_credits(cost):
+		return false
+	GlobalData.hired_pilots.append(pilot_data)
+	return true
+
+
+static func record_pilot_permadeath(pilot_name: String, cause: String = "Killed in action") -> Dictionary:
+	var entry := {
+		"name": pilot_name,
+		"cause": cause,
+		"day": GlobalData.board_day,
+		"sector": GlobalData.current_sector,
+		"time": Time.get_datetime_string_from_system(),
+	}
+	GlobalData.fallen_pilots.append(entry)
+	var replacement := PilotGenerator.generate_replacement_pilot(pilot_name)
+	return replacement
+

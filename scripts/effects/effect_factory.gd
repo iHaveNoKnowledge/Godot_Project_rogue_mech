@@ -46,7 +46,7 @@ static func spawn_flash(scene: SceneTree, pos: Vector3, color: Color,
 		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mesh_inst.material_override = mat
 
-	var container: Node3D = parent if parent else scene.root
+	var container: Node = parent if parent else (scene.current_scene if scene.current_scene else scene.root)
 	container.add_child(mesh_inst)
 	mesh_inst.global_position = pos
 
@@ -77,7 +77,7 @@ static func spawn_box_spark(scene: SceneTree, pos: Vector3, size: Vector3,
 	mat.emission_energy_multiplier = energy
 	mesh_inst.material_override = mat
 
-	var container: Node3D = parent if parent else scene.root
+	var container: Node = parent if parent else (scene.current_scene if scene.current_scene else scene.root)
 	container.add_child(mesh_inst)
 	mesh_inst.global_position = pos
 
@@ -108,7 +108,7 @@ static func spawn_expanding_ring(scene: SceneTree, pos: Vector3,
 	mat.emission_energy_multiplier = energy
 	mesh_inst.material_override = mat
 
-	var container: Node3D = parent if parent else scene.root
+	var container: Node = parent if parent else (scene.current_scene if scene.current_scene else scene.root)
 	container.add_child(mesh_inst)
 	mesh_inst.global_position = pos
 	mesh_inst.scale = start_scale
@@ -127,7 +127,7 @@ static func spawn_dust_puffs(scene: SceneTree, pos: Vector3,
 		push_min: float = 2.0, push_max: float = 3.5,
 		color: Color = Color(0.75, 0.70, 0.65, 0.7),
 		duration: float = 0.4, parent: Node3D = null) -> void:
-	var container: Node3D = parent if parent else scene.root
+	var container: Node = parent if parent else (scene.current_scene if scene.current_scene else scene.root)
 	for i in range(count):
 		var dust := MeshInstance3D.new()
 		var sphere := SphereMesh.new()
@@ -177,7 +177,7 @@ static func spawn_trail_dir(scene: SceneTree, pos: Vector3, dir: Vector3,
 		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mesh_inst.material_override = mat
 
-	var container: Node3D = parent if parent else scene.root
+	var container: Node = parent if parent else (scene.current_scene if scene.current_scene else scene.root)
 	container.add_child(mesh_inst)
 	mesh_inst.global_position = pos
 	if dir.length_squared() > 0.001:
@@ -211,7 +211,7 @@ static func spawn_trail(scene: SceneTree, pos: Vector3, rot: Basis,
 		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mesh_inst.material_override = mat
 
-	var container: Node3D = parent if parent else scene.root
+	var container: Node = parent if parent else (scene.current_scene if scene.current_scene else scene.root)
 	container.add_child(mesh_inst)
 	mesh_inst.global_position = pos
 	mesh_inst.global_rotation = rot.get_euler()

@@ -285,11 +285,43 @@ const EMERGENCY_REPAIR_BASE_SCRAP := 5
 const EMERGENCY_REPAIR_SCRAP_PER_ARMOR_HP := 0.04
 const EMERGENCY_REPAIR_SCRAP_PER_FRAME_HP := 0.03
 
-# Scrap cost to emergency-patch a slot, based on how much of it is damaged.
-# Builds and records a scrap patch on a slot: spends scrap, restores the slot to
-# a partial weaker state (stats scaled by the driver's repair-skill tier) and
-# clears its damage. Returns the patch, or {} when the slot is fine / unaffordable.
-# Converts a scrap primitive's Vector3/Color fields into JSON-safe arrays.
+func get_repair_cost(slot: String) -> int:
+	return RepairSystem.get_repair_cost(slot)
+
+func get_emergency_repair_scrap_cost(slot: String) -> int:
+	return RepairSystem.get_emergency_repair_scrap_cost(slot)
+
+func apply_emergency_repair(slot: String, primitives: Array = []) -> Dictionary:
+	return RepairSystem.apply_emergency_repair(slot, primitives)
+
+func has_scrap_patch(slot: String) -> bool:
+	return RepairSystem.has_scrap_patch(slot)
+
+func remove_scrap_patch(slot: String) -> void:
+	RepairSystem.remove_scrap_patch(slot)
+
+func get_professional_repair_cost(slot: String) -> int:
+	return RepairSystem.get_professional_repair_cost(slot)
+
+func apply_professional_repair(slot: String) -> bool:
+	return RepairSystem.apply_professional_repair(slot)
+
+func scrap_primitive_pos(primitive: Dictionary) -> Vector3:
+	return RepairSystem.scrap_primitive_pos(primitive)
+
+func scrap_primitive_rot(primitive: Dictionary) -> Vector3:
+	return RepairSystem.scrap_primitive_rot(primitive)
+
+func scrap_primitive_scale(primitive: Dictionary) -> Vector3:
+	return RepairSystem.scrap_primitive_scale(primitive)
+
+func scrap_primitive_color(primitive: Dictionary) -> Color:
+	return RepairSystem.scrap_primitive_color(primitive)
+
+func serialize_scrap_primitive(primitive: Dictionary) -> Dictionary:
+	return RepairSystem._scrap_primitive_to_json_safe(primitive)
+
+
 # -----------------------------------------------------------------------------
 # PROFESSIONAL REPAIR — a fleet mechanic / village workshop rebuilds a scrap-
 # patched (or damaged) slot into fresh catalog armor. Costs credits and consumes

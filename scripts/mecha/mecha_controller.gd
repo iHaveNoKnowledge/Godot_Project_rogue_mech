@@ -15,6 +15,35 @@ var _jump: Node  # MechaJumpSystem
 var _dash: Node  # MechaDashSystem
 var _energy: Node  # MechaEnergySystem
 
+var energy: float:
+	get:
+		return _energy.energy if _energy else 100.0
+	set(v):
+		if _energy:
+			_energy.energy = v
+
+var max_energy: float:
+	get:
+		return _energy.max_energy if _energy else 100.0
+	set(v):
+		if _energy:
+			_energy.max_energy = v
+
+var _precision_dodged: bool:
+	get:
+		return _dash._precision_dodged if _dash else false
+	set(v):
+		if _dash:
+			_dash._precision_dodged = v
+
+var _drop_tank_active: bool:
+	get:
+		return _energy._drop_tank_active if _energy else false
+
+var _drop_tank_detonating: bool:
+	get:
+		return _energy._drop_tank_detonating if _energy else false
+
 # Roller state (kept on controller — input + VFX are controller concerns).
 var is_roller_dashing: bool = false
 var roller_spark_timer: float = 0.0
@@ -205,12 +234,12 @@ func _handle_movement_input() -> void:
 	# Dash.
 	if Input.is_action_just_pressed("dash"):
 		if _dash.can_dash(_energy.energy):
-			var cost := _dash.start_dash(_energy.energy, global_position, global_rotation)
+			var cost: float = _dash.start_dash(_energy.energy, global_position, global_rotation)
 			_energy.energy = maxf(_energy.energy - cost, 0.0)
 
 	# Jump.
 	if is_on_floor() and Input.is_action_just_pressed("jump"):
-		var cost := _jump.start_jump(_energy.energy, global_position)
+		var cost: float = _jump.start_jump(_energy.energy, global_position)
 		_energy.energy = maxf(_energy.energy - cost, 0.0)
 		velocity.y = _jump.velocity_ref.y
 

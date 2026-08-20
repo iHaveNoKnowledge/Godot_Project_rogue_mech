@@ -87,7 +87,10 @@ func _spawn_reinforcements() -> void:
 	var composition = REINFORCEMENT_TYPES[rng.randi_range(0, REINFORCEMENT_TYPES.size() - 1)]
 
 	# Load the enemy scene.
-	var scene_path = str(spawn_mgr.get("enemy_scene_paths", {}).get(composition["type"], ""))
+	var paths_dict = spawn_mgr.get("enemy_scene_paths")
+	var scene_path: String = ""
+	if paths_dict is Dictionary:
+		scene_path = str(paths_dict.get(composition["type"], ""))
 	if scene_path == "" or not ResourceLoader.exists(scene_path):
 		return
 
@@ -96,8 +99,9 @@ func _spawn_reinforcements() -> void:
 		return
 
 	# Spawn at the ring edges.
-	var spawn_points = spawn_mgr.get("spawn_points", [])
-	if not spawn_points is Array or spawn_points.is_empty():
+	var spawn_points_raw = spawn_mgr.get("spawn_points")
+	var spawn_points: Array = spawn_points_raw if spawn_points_raw is Array else []
+	if spawn_points.is_empty():
 		return
 	for i in range(composition["count"]):
 		if spawn_points.is_empty():

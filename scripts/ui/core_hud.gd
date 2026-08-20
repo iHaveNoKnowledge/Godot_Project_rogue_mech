@@ -401,10 +401,10 @@ func _create_precision_row() -> void:
 	style.content_margin_top = 2
 	style.content_margin_bottom = 2
 	_precision_label.add_theme_stylebox_override("normal", style)
-	# Insert after the energy row (index 1 in the VBox).
-	var vbox = panel.get_child(0) if panel.get_child_count() > 0 else null
-	if vbox and vbox is VBoxContainer:
-		vbox.add_child(_precision_label)
+	# Insert after the energy row.
+	var grid = get_node_or_null("Panel/Grid")
+	if grid:
+		grid.add_child(_precision_label)
 
 
 func _update_precision_indicator() -> void:
@@ -412,7 +412,7 @@ func _update_precision_indicator() -> void:
 		return
 	if not is_instance_valid(_player_mecha):
 		return
-	var dodged: bool = _player_mecha.get("_precision_dodged", false)
+	var dodged: bool = bool(_player_mecha.get("_precision_dodged"))
 	if dodged and not _precision_was_dodged:
 		# Just triggered — flash the indicator.
 		_precision_label.text = "+4 PRECISION!"
@@ -423,6 +423,8 @@ func _update_precision_indicator() -> void:
 		_precision_flash_tween = create_tween()
 		_precision_flash_tween.tween_interval(0.8)
 		_precision_flash_tween.tween_property(_precision_label, "modulate:a", 0.0, 0.3)
+		_precision_flash_tween.tween_callback(func(): _precision_label.visible = false)
+	_precision_was_dodged = dodged
 
 
 # --- Bond HUD (GDD §5) -----------------------------------------------------
@@ -455,10 +457,10 @@ func _create_bond_row() -> void:
 	bg.corner_radius_bottom_right = 2
 	_bond_bar.add_theme_stylebox_override("background", bg)
 	row.add_child(_bond_bar)
-	# Insert after the energy row.
-	var vbox = panel.get_child(0) if panel.get_child_count() > 0 else null
-	if vbox and vbox is VBoxContainer:
-		vbox.add_child(row)
+	# Insert into the grid.
+	var grid = get_node_or_null("Panel/Grid")
+	if grid:
+		grid.add_child(row)
 
 
 func _update_bond_indicator() -> void:
@@ -469,5 +471,4 @@ func _update_bond_indicator() -> void:
 	if _bond_fill:
 		var ratio := GlobalData.mech_bond / 100.0
 		_bond_fill.bg_color = Color(1.0, 0.5, 0.6).lerp(Color(1.0, 0.15, 0.2), ratio)
-		_precision_flash_tween.tween_callback(func(): _precision_label.visible = false)
-	_precision_was_dodged = dodged
+

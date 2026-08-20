@@ -159,7 +159,7 @@ func _refresh_parts_list() -> void:
 		if not GlobalData.has_scrap_patch(slot):
 			continue
 		patched = true
-		var cost := GlobalData.get_professional_repair_cost(slot)
+		var cost: int = GlobalData.get_professional_repair_cost(slot)
 		var btn = Button.new()
 		btn.custom_minimum_size = Vector2(460, 32)
 		btn.text = "Rebuild Catalog Armor: %s (%d credits)" % [slot.to_upper(), cost]

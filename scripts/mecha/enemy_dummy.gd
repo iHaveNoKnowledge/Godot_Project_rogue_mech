@@ -533,7 +533,7 @@ func is_shield_active() -> bool:
 func absorb_damage_with_shield(amount: float, damage_type: String = "") -> float:
 	if not shield_active or shield_max_hp <= 0.0 or shield_current_hp <= 0.0:
 		return amount
-	var attack := MechaHealthBase.normalize_damage_type(damage_type)
+	var attack: String = MechaHealthBase.normalize_damage_type(damage_type)
 	var drain_mult := 0.4 if attack == shield_type else 1.0
 	shield_current_hp = maxf(shield_current_hp - amount * drain_mult, 0.0)
 	if shield_current_hp <= 0.0:

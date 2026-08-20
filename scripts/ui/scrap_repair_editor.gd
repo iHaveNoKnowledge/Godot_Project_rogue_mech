@@ -549,7 +549,7 @@ func _refresh_slot_list() -> void:
 
 	var any := false
 	for slot in GlobalData.MECHA_SLOTS:
-		var cost := GlobalData.get_emergency_repair_scrap_cost(slot)
+		var cost: int = GlobalData.get_emergency_repair_scrap_cost(slot)
 		if cost <= 0:
 			continue
 		any = true
@@ -859,7 +859,7 @@ func _on_apply_pressed() -> void:
 		_update_status("Select a damaged slot first.")
 		return
 	var primitives: Array = editing_primitives.get(selected_slot, [])
-	var patch := GlobalData.apply_emergency_repair(selected_slot, primitives)
+	var patch: Dictionary = GlobalData.apply_emergency_repair(selected_slot, primitives)
 	if patch.is_empty():
 		_update_status("Not enough scrap, or the slot is already fine.")
 		return
@@ -891,7 +891,7 @@ func _update_status(message: String = "") -> void:
 		apply_button.text = "Apply Repair"
 		apply_button.disabled = true
 		return
-	var cost := GlobalData.get_emergency_repair_scrap_cost(selected_slot)
+	var cost: int = GlobalData.get_emergency_repair_scrap_cost(selected_slot)
 	var name := str(SLOT_DISPLAY.get(selected_slot, selected_slot))
 	if GlobalData.has_scrap_patch(selected_slot):
 		name += " (patched)"

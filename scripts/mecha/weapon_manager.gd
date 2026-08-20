@@ -1354,7 +1354,7 @@ func absorb_damage_with_shield(amount: float, damage_type: String = "") -> float
 	if not shield_active or shield_current_hp <= 0.0:
 		return amount
 	var weapon := _active_shield_weapon()
-	var attack := MechaHealthBase.normalize_damage_type(damage_type)
+	var attack: String = MechaHealthBase.normalize_damage_type(damage_type)
 	var drain_mult := 1.0
 	if weapon != null and weapon.get_shield_type() == attack:
 		drain_mult = 0.4

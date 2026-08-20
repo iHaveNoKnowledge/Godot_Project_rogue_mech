@@ -143,14 +143,16 @@ func _check_precision_dash_near_miss() -> void:
 	for proj in projectiles:
 		if not is_instance_valid(proj):
 			continue
-		if not proj.get("fired_by_enemy", false):
+		if not bool(proj.get("fired_by_enemy")):
 			continue
-		var dist := proj.global_position.distance_to(_dash_start_pos)
+		if not proj is Node3D:
+			continue
+		var dist: float = (proj as Node3D).global_position.distance_to(_dash_start_pos)
 		if dist < PRECISION_NEAR_MISS_DIST:
 			_precision_dodged = true
 			_precision_armed = false
 			_precision_cooldown = PRECISION_COOLDOWN
-			_trigger_precision_dodge(proj.global_position)
+			_trigger_precision_dodge((proj as Node3D).global_position)
 			return
 
 
@@ -162,4 +164,5 @@ func _trigger_precision_dodge(hit_pos: Vector3) -> void:
 	EffectFactory.spawn_flash(get_tree(), hit_pos, Color(0.3, 1.0, 0.5),
 		0.5, 0.15, 5.0, true, 2.0)
 	if AudioManager:
-		AudioManager.play_mecha_actuator(global_position if parent == null else parent.global_position)
+		var pos := (parent as Node3D).global_position if parent is Node3D else Vector3.ZERO
+		AudioManager.play_mecha_actuator(pos)

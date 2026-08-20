@@ -66,8 +66,8 @@ func process_energy(delta: float) -> void:
 				AudioManager.play_mecha_actuator(pos)
 	else:
 		roller_drain_ramp = 0.0
-		var dirt_penalty := lerpf(1.0, 1.0 / GlobalData.ENGINE_DIRT_HEAT_MULTIPLIER, GlobalData.engine_dirt)
-		energy = minf(energy + ENERGY_REGEN_RATE * dirt_penalty * delta, max_energy)
+		# No passive energy regen in battle — the boost pool only refills from
+		# specific recharge sources (energy pickups, support allies, etc.).
 
 
 func process_drop_tanks(delta: float) -> void:

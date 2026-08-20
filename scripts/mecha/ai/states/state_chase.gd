@@ -24,6 +24,12 @@ func physics_process(delta: float) -> void:
 		enemy.target = null
 		state_machine.transition_to("StateIdle")
 		return
+	# A parked mech (pilot ejected) is no longer a threat — drop it and
+	# re-acquire a live target (the pilot on foot, an ally, etc.).
+	if enemy.target.has_meta("is_parked"):
+		enemy.target = null
+		state_machine.transition_to("StateIdle")
+		return
 
 	var distance = enemy.global_position.distance_to(enemy.target.global_position)
 

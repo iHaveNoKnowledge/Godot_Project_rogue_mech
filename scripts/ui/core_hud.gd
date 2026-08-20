@@ -156,16 +156,26 @@ func _create_energy_row() -> void:
 	row.add_child(energy_bar)
 
 
+# Pilot HP label — shown instead of mech HP when the pilot ejects.
+var _pilot_hp_label: Label = null
+var _pilot_hp_bar: ProgressBar = null
+var _pilot_hp_fill: StyleBoxFlat = null
+var _mech_panel: Control = null  # reference to the mech HP Panel node
+
+
 # Polls the mech's boost pool every frame (the mech can be re-created by
 # eject/backup spawns) and paints the energy bar, tinting it orange when the
 # tank runs low.
 func _process(_delta: float) -> void:
+	var is_eject := GameManager.current_state == GameManager.State.EJECT
+	_update_eject_hud(is_eject)
 	if _player_mecha == null or not is_instance_valid(_player_mecha):
 		_player_mecha = GameManager.get_player_mecha()
-		if _player_mecha == null:
+		if _player_mecha == null and not is_eject:
 			return
-	_update_energy_bar()
-	_update_drop_tank_indicator()
+	if not is_eject:
+		_update_energy_bar()
+		_update_drop_tank_indicator()
 	_update_precision_indicator()
 	_update_bond_indicator()
 
@@ -471,4 +481,83 @@ func _update_bond_indicator() -> void:
 	if _bond_fill:
 		var ratio := GlobalData.mech_bond / 100.0
 		_bond_fill.bg_color = Color(1.0, 0.5, 0.6).lerp(Color(1.0, 0.15, 0.2), ratio)
+
+
+# ---------------------------------------------------------------------------
+# EJECT HUD — pilot stats replace mech HUD when the pilot dismounts
+# ---------------------------------------------------------------------------
+
+func _update_eject_hud(is_eject: bool) -> void:
+	# Lazy-create the pilot HP UI on first eject.
+	if _pilot_hp_label == null and is_eject:
+		_create_pilot_hp_ui()
+	if _pilot_hp_label == null:
+		return
+	var panel = get_node_or_null("Panel")
+	if panel == null:
+		return
+	# Hide mech-specific rows (armor/frame/energy) when on foot.
+	var grid = panel.get_node_or_null("Grid")
+	if grid:
+		for child in grid.get_children():
+			if child.name in ["HeadCell", "BodyCell", "ArmLCell", "ArmRCell", "LegLCell", "LegRCell", "EnergyCell", "DropTankCell"]:
+				child.visible = not is_eject
+	# Pilot HP bar shows pilot health from PilotSystem.
+	_pilot_hp_label.visible = is_eject
+	_pilot_hp_bar.visible = is_eject
+	if is_eject:
+		var hp: float = PilotSystem.get_hp()
+		var max_hp: float = PilotSystem.get_max_hp()
+		if max_hp <= 0.0:
+			max_hp = 100.0
+			_hp = 100.0
+		_pilot_hp_bar.max_value = max_hp
+		_pilot_hp_bar.value = hp
+		var ratio := clampf(hp / max_hp, 0.0, 1.0)
+		if _pilot_hp_fill:
+			if ratio < 0.25:
+				_pilot_hp_fill.bg_color = Color(0.9, 0.15, 0.1)
+			elif ratio < 0.5:
+				_pilot_hp_fill.bg_color = Color(0.9, 0.55, 0.1)
+			else:
+				_pilot_hp_fill.bg_color = Color(0.2, 0.8, 0.3)
+		_pilot_hp_label.text = "PILOT: %d / %d" % [int(hp), int(max_hp)]
+
+
+func _create_pilot_hp_ui() -> void:
+	var panel = get_node_or_null("Panel")
+	if panel == null:
+		return
+	var grid = panel.get_node_or_null("Grid")
+	if grid == null:
+		return
+	# Pilot HP label.
+	_pilot_hp_label = Label.new()
+	_pilot_hp_label.text = "PILOT: 100 / 100"
+	_pilot_hp_label.add_theme_font_size_override("font_size", 11)
+	_pilot_hp_label.add_theme_color_override("font_color", Color(0.9, 0.9, 0.7))
+	_pilot_hp_label.visible = false
+	grid.add_child(_pilot_hp_label)
+	# Pilot HP bar.
+	_pilot_hp_bar = ProgressBar.new()
+	_pilot_hp_bar.custom_minimum_size = Vector2(140, 8)
+	_pilot_hp_bar.max_value = 100.0
+	_pilot_hp_bar.value = 100.0
+	_pilot_hp_bar.show_percentage = false
+	_pilot_hp_bar.visible = false
+	_pilot_hp_fill = StyleBoxFlat.new()
+	_pilot_hp_fill.bg_color = Color(0.2, 0.8, 0.3)
+	_pilot_hp_fill.corner_radius_top_left = 2
+	_pilot_hp_fill.corner_radius_top_right = 2
+	_pilot_hp_fill.corner_radius_bottom_left = 2
+	_pilot_hp_fill.corner_radius_bottom_right = 2
+	_pilot_hp_bar.add_theme_stylebox_override("fill", _pilot_hp_fill)
+	var bg = StyleBoxFlat.new()
+	bg.bg_color = Color(0.1, 0.12, 0.18, 0.9)
+	bg.corner_radius_top_left = 2
+	bg.corner_radius_top_right = 2
+	bg.corner_radius_bottom_left = 2
+	bg.corner_radius_bottom_right = 2
+	_pilot_hp_bar.add_theme_stylebox_override("background", bg)
+	grid.add_child(_pilot_hp_bar)
 

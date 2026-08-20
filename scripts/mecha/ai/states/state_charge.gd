@@ -24,6 +24,11 @@ func physics_process(delta: float) -> void:
 		enemy.target = null
 		state_machine.transition_to("StateIdle")
 		return
+	# A parked mech (pilot ejected) is no longer a combat threat.
+	if enemy.target.has_meta("is_parked"):
+		enemy.target = null
+		state_machine.transition_to("StateIdle")
+		return
 
 	# Drained pool: even a heavy breaks off to recharge instead of charging on
 	# empty (the pool recharges while it withdraws).

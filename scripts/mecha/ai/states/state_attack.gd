@@ -65,6 +65,11 @@ func physics_process(delta: float) -> void:
 		enemy.target = null
 		state_machine.transition_to("StateIdle")
 		return
+	# A parked mech (pilot ejected) is no longer a combat threat.
+	if enemy.target.has_meta("is_parked"):
+		enemy.target = null
+		state_machine.transition_to("StateIdle")
+		return
 
 	var distance = enemy.global_position.distance_to(enemy.target.global_position)
 

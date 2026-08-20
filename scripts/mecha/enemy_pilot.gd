@@ -162,7 +162,7 @@ func _try_fire_at_player() -> void:
 	aim_dir = aim_dir.normalized()
 
 	var muzzle := global_position + Vector3(0, 1.2, 0)
-	if _fire_core.try_fire(muzzle, aim_dir, false, self):
+	if _fire_core.try_fire(muzzle, aim_dir, true, self):
 		if AudioManager:
 			AudioManager.play_sfx("machine_gun", muzzle, -8.0)
 		# Recoil the pilot slightly.

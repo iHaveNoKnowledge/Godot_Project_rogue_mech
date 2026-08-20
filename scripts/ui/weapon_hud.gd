@@ -83,8 +83,15 @@ func _on_combat_ended(_victory: bool) -> void:
 
 
 func _process(_delta: float) -> void:
+	# Hide weapon HUD entirely when the pilot has ejected — only mech
+	# weapons are shown here; on foot the pilot uses pilot weapons.
+	var is_eject := GameManager.current_state == GameManager.State.EJECT
+	if root_control:
+		root_control.visible = not is_eject
 	if weapon_manager == null:
 		_try_connect_weapon_manager()
+	if is_eject:
+		return
 	_update_nearby_pickup()
 	_update_fist_cooldown()
 

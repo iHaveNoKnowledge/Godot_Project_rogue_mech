@@ -10,6 +10,7 @@ var label: Label
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	layer = 15
 	_create_ui()
 	show_tile("", Vector2(-1, -1), {})
 

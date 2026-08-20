@@ -52,6 +52,7 @@ var _vignette_time: float = 0.0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	layer = 10
 	_build_ui()
 	_refresh()
 
@@ -381,6 +382,38 @@ func _make_panel(w: int, h: int) -> PanelContainer:
 
 
 func _process(delta: float) -> void:
+	var bm = get_parent()
+	var intermission_open := false
+	var modal_open := false
+
+	if bm != null:
+		var intermission = bm.get_node_or_null("IntermissionUI")
+		if intermission != null and intermission.visible:
+			intermission_open = true
+		for modal_name in ["EventUI", "SafehouseUI", "CityShopUI", "ResearchLabUI", "DeployTeamUI"]:
+			var node = bm.get_node_or_null(modal_name)
+			if node != null and node.visible:
+				modal_open = true
+				break
+
+	if modal_open:
+		# During center event popup, safehouse, shop or lab: hide all HUD panels completely
+		_root.visible = false
+	elif intermission_open:
+		# During Intermission menu: show only Threat Radar in top right; hide left/bottom panels
+		_root.visible = true
+		_top_bar.visible = false
+		_unit_status_panel.visible = false
+		_inspector_panel.visible = false
+		_threat_radar.visible = true
+	else:
+		# Normal Board mode: all 4 HUD corners active
+		_root.visible = true
+		_top_bar.visible = true
+		_unit_status_panel.visible = true
+		_inspector_panel.visible = true
+		_threat_radar.visible = true
+
 	_refresh()
 	_update_screen_fx(delta)
 
@@ -500,14 +533,17 @@ func _on_quick_fuel_pressed() -> void:
 
 
 # Called by board_manager on tile hover/inspect
-func update_tile_inspector(tile_name: String, mp_cost: int, energy_cost: float, is_zoc: bool, is_artillery_danger: bool) -> void:
+func update_tile_inspector(tile_name: String, mp_cost: int, energy_cost: float, is_zoc: bool, is_artillery_danger: bool, terrain_type: String = "", patrol_info: String = "") -> void:
 	if _inspector_title == null:
 		return
 	_inspector_title.text = "TILE RECON: %s" % tile_name.to_upper()
-	_inspector_costs.text = "Move Cost: %d MP | Energy: -%.0f\nMode: %s" % [
-		mp_cost, energy_cost, "Roller Dash" if GlobalData.board_roller_mode else "Bipedal"
+	var mode_text := "Roller (-5)" if GlobalData.board_roller_mode else "Walk (-%d)" % int(energy_cost)
+	_inspector_costs.text = "Terrain: %s | Cost: %d MP (%s)" % [
+		terrain_type.capitalize() if terrain_type != "" else "Plain", mp_cost, mode_text
 	]
 	var warnings := ""
+	if patrol_info != "":
+		warnings += "CONTACT: %s\n" % patrol_info
 	if is_zoc:
 		warnings += "[ZONE OF CONTROL - MP WILL DEPLETE!]\n"
 	if is_artillery_danger:

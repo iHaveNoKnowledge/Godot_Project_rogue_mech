@@ -82,11 +82,23 @@ func _ready() -> void:
 	var hud = hud_scene.instantiate()
 	add_child(hud)
 	_check(hud != null, "board_hud instantiated successfully")
+	_check(hud.layer == 10, "board_hud layer is 10 (base board layer)")
 	_check(hud._energy_bar != null, "energy bar created in board hud")
 	_check(hud._convoy_hp_bar != null, "convoy hp bar created in board hud")
 	_check(hud._unit_status_panel != null, "unit status panel created in board hud")
 	_check(hud._inspector_panel != null, "tile inspector panel created in board hud")
 	hud.queue_free()
+
+	# 6. UI Layer Priority & Z-Index hierarchy verification
+	var event_ui = preload("res://scenes/ui/event_ui.tscn").instantiate()
+	add_child(event_ui)
+	_check(event_ui.layer == 100, "EventUI layer is 100 (highest priority modal)")
+	event_ui.queue_free()
+
+	var tooltip_ui = preload("res://scenes/ui/board_tooltip_ui.tscn").instantiate()
+	add_child(tooltip_ui)
+	_check(tooltip_ui.layer == 15, "BoardTooltipUI layer is 15 (below modals)")
+	tooltip_ui.queue_free()
 
 	print("\nVerification Complete: %d checks, %d failures" % [_checks, _fails])
 	if _fails > 0:

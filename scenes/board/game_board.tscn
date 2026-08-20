@@ -31,17 +31,25 @@ script = ExtResource("7")
 transform = Transform3D(1, 0, 0, 0, 0.866, 0.5, 0, -0.5, 0.866, 0, 30, 18)
 
 [node name="IntermissionUI" parent="." instance=ExtResource("3")]
+layer = 50
 
 [node name="SafehouseUI" parent="." instance=ExtResource("4")]
+layer = 70
 
 [node name="EventUI" parent="." instance=ExtResource("5")]
+layer = 100
 
 [node name="CityShopUI" parent="." instance=ExtResource("8")]
+layer = 70
 
 [node name="BoardTooltipUI" parent="." instance=ExtResource("9")]
+layer = 15
 
 [node name="BoardHUD" parent="." instance=ExtResource("10")]
+layer = 10
 
 [node name="DeployTeamUI" parent="." instance=ExtResource("11")]
+layer = 70
 
 [node name="ResearchLabUI" parent="." instance=ExtResource("13")]
+layer = 70

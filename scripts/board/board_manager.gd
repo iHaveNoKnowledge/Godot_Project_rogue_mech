@@ -547,47 +547,63 @@ func _trigger_patrol_talk_event(patrol: Dictionary) -> void:
 	})
 
 
+func is_any_modal_open() -> bool:
+	if _intermission_open():
+		return true
+	for modal_name in ["EventUI", "SafehouseUI", "CityShopUI", "ResearchLabUI", "DeployTeamUI"]:
+		var node := get_node_or_null(modal_name)
+		if node != null and node.visible:
+			return true
+	return false
+
+
 # ---------------------------------------------------------------------------
-# HOVER TOOLTIP (patrol fleet reconnaissance on hover)
+# HOVER RECONNAISSANCE (Updates BottomRight TileInspector in BoardHUD)
 # ---------------------------------------------------------------------------
 
 func _process(_delta: float) -> void:
-	if get_tree().paused or _tooltip == null:
-		if _tooltip and _tooltip.has_method("show_tile"):
-			_tooltip.show_tile("", Vector2(-1, -1), {})
+	# Hide floating tooltip completely during paused state, popups, or open menus
+	if _tooltip and _tooltip.has_method("show_tile"):
+		_tooltip.show_tile("", Vector2(-1, -1), {})
+
+	if get_tree().paused or is_any_modal_open():
 		return
+
 	var tile := _hovered_tile()
 	if tile == null:
-		if _tooltip.has_method("show_tile"):
-			_tooltip.show_tile("", Vector2(-1, -1), {})
 		return
+
 	var pos := tile.get_meta("grid_pos", Vector2i(-1, -1)) as Vector2i
 	var terrain := str(tile.get_meta("terrain", "plain"))
 	var tt: String = tile.get_meta("tile_type", "empty")
 	var patrol := PatrolSystem.get_patrol_at(pos)
-	var text := "%s (%d, %d)\nTerrain: %s — cost %d MP" % [
-		str(tt.to_upper()), pos.x, pos.y, terrain.capitalize(),
-		BoardConfig.move_cost(terrain)
-	]
-	if not BoardConfig.is_passable(terrain):
-		text += "\nIMPassable!"
-	if PatrolSystem.interception_surcharge(current_pos, pos) > 0:
-		text += "\n[INTERCEPTION — +1 MP to cross]"
-	if GlobalData.patrol_alert > 0:
-		text += "\n[HUNT ALERT %d]" % GlobalData.patrol_alert
+	var e_cost := GlobalData.get_tile_energy_cost(terrain)
+	var mp_cost := BoardConfig.move_cost(terrain)
+	var is_zoc := PatrolSystem.is_in_zone_of_control(pos)
+	var is_artillery := not PatrolSystem.check_artillery_bombardment(pos).is_empty()
+
+	# Build rich recon data for TileInspector docked at bottom right
+	var patrol_desc := ""
 	if not patrol.is_empty():
 		var is_unknown := str(patrol.get("faction", "hostile")) == "unknown"
-		text += "\nPATROL: %s — %d grunt(s)" % [patrol.get("name", "fleet"), int(patrol.get("grunts", 1))]
-		if int(patrol.get("aces", 0)) > 0:
-			text += " + %d ACE" % int(patrol.get("aces", 0))
-		if is_unknown:
-			text += "\nUNKNOWN — unaligned fleet (white arrow)."
-		text += "\n[hover reach = contact]"
-	if _tooltip.has_method("show_tile"):
-		_tooltip.show_tile(text, _mouse_screen_pos(), {})
+		var arch := str(patrol.get("archetype", "armored")).to_upper()
+		patrol_desc = "%s [%s] (%d Grunt%s%s)" % [
+			patrol.get("name", "Fleet"), arch, int(patrol.get("grunts", 1)),
+			"s" if int(patrol.get("grunts", 1)) != 1 else "",
+			(" + %d Ace" % int(patrol.get("aces", 0))) if int(patrol.get("aces", 0)) > 0 else ""
+		]
+
+	var hud = get_node_or_null("BoardHUD")
+	if hud and hud.has_method("update_tile_inspector"):
+		hud.update_tile_inspector(
+			"%s (%d,%d)" % [tt.to_upper(), pos.x, pos.y],
+			mp_cost, e_cost, is_zoc, is_artillery, terrain, patrol_desc
+		)
 
 
 func _hovered_tile() -> Node:
+	if is_any_modal_open():
+		return null
 	var camera := get_viewport().get_camera_3d()
 	if camera == null:
 		return null

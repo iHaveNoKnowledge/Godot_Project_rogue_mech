@@ -10,6 +10,7 @@ var choice_container: VBoxContainer
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	layer = 100
 	_create_ui()
 	visible = false
 	EventBus.event_triggered.connect(_on_event_triggered)

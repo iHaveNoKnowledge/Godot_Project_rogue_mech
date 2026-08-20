@@ -331,17 +331,23 @@ func _physics_process(delta: float) -> void:
 			_commit_normal_fire(hand)
 
 	if fire_left_holding:
-		if left_hand:
-			if left_hand.weapon_type != WeaponPart.WeaponType.SHIELD:
-				_try_fire("left", left_hand)
+		if not Input.is_action_pressed("fire_left"):
+			fire_left_holding = false
 		else:
-			_try_fire("left", null)
+			if left_hand:
+				if left_hand.weapon_type != WeaponPart.WeaponType.SHIELD:
+					_try_fire("left", left_hand)
+			else:
+				_try_fire("left", null)
 	if fire_right_holding:
-		if right_hand:
-			if right_hand.weapon_type != WeaponPart.WeaponType.SHIELD:
-				_try_fire("right", right_hand)
+		if not Input.is_action_pressed("fire_right"):
+			fire_right_holding = false
 		else:
-			_try_fire("right", null)
+			if right_hand:
+				if right_hand.weapon_type != WeaponPart.WeaponType.SHIELD:
+					_try_fire("right", right_hand)
+			else:
+				_try_fire("right", null)
 
 	# Physical shield plates never regenerate — a damaged plate stays damaged.
 
@@ -947,7 +953,7 @@ func _commit_normal_fire(hand: String) -> void:
 		if holding_reload or Input.is_action_pressed("reload"):
 			reload_weapon("left")
 		else:
-			fire_left_holding = true
+			fire_left_holding = Input.is_action_pressed("fire_left")
 			if left_hand:
 				if left_hand.weapon_type == WeaponPart.WeaponType.SHIELD:
 					_toggle_shield("left")
@@ -960,7 +966,7 @@ func _commit_normal_fire(hand: String) -> void:
 		if holding_reload or Input.is_action_pressed("reload"):
 			reload_weapon("right")
 		else:
-			fire_right_holding = true
+			fire_right_holding = Input.is_action_pressed("fire_right")
 			if right_hand:
 				if right_hand.weapon_type == WeaponPart.WeaponType.SHIELD:
 					_toggle_shield("right")

@@ -156,6 +156,12 @@ func _ready() -> void:
 	_check(not vagrant.is_empty(), "Vagrant Ace character is registered in RecruitSystem")
 	_check(str(vagrant.get("mech_name", "")) == "Scrap Pilgrim", "Vagrant signature mech is Scrap Pilgrim")
 	_check(str(vagrant.get("perk_id", "")) == "precognitive_flow", "Vagrant has Pre-Cognitive Flow perk")
+	_check(int(vagrant.get("weight", 0)) == 1, "Vagrant Ace has ultra-rare weight = 1")
+	_check(int(vagrant.get("min_sector", 0)) == 2, "Vagrant Ace requires min_sector = 2")
+
+	# Test Legendary Perk Rarity Isolation
+	var sampled_standard_perk = PilotGenerator.pick_random_perk(false)
+	_check(sampled_standard_perk.get("id") != "precognitive_flow", "standard pilots cannot roll Pre-Cognitive Flow (isolated to Legendary encounters)")
 
 	# Test Pre-Cognitive Flow perk detection
 	GlobalData.recruited_characters.append("vagrant_ace")

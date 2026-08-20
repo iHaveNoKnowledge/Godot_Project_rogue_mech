@@ -195,20 +195,22 @@ static func _has_recruitable_pilot() -> bool:
 # Picks a recruitable pilot for an unknown fleet (biased toward the current run
 # theme so the fleet feels like a story beat rather than a random hire).
 static func _pick_recruitable_pilot() -> String:
-	var themed: Array = []
-	var others: Array = []
+	var weighted_pool: Array[String] = []
 	for character in RecruitSystem.CHARACTERS:
 		var cid := str(character.get("id", ""))
 		if not RecruitSystem.is_character_available(cid):
 			continue
-		if str(character.get("theme", "")) == GlobalData.theme_id:
-			themed.append(cid)
-		else:
-			others.append(cid)
-	if not themed.is_empty():
-		return themed[randi() % themed.size()]
-	if not others.is_empty():
-		return others[randi() % others.size()]
+		var min_sector: int = int(character.get("min_sector", 1))
+		if GlobalData.current_sector < min_sector:
+			continue
+		var w: int = int(character.get("weight", 6))
+		var themes: Array = character.get("themes", [])
+		if GlobalData.board_theme_id in themes:
+			w = int(w * 1.5)
+		for i in range(w):
+			weighted_pool.append(cid)
+	if not weighted_pool.is_empty():
+		return weighted_pool.pick_random()
 	return ""
 
 

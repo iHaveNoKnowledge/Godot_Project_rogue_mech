@@ -154,6 +154,7 @@ const PILOT_PERKS: Array[Dictionary] = [
 		"desc": "+30% on-foot pilot HP (Higher survival rate upon ejection).",
 		"effect": "pilot_hp",
 		"val": 1.30,
+		"weight": 10,
 	},
 	{
 		"id": "overdrive_reflexes",
@@ -161,6 +162,7 @@ const PILOT_PERKS: Array[Dictionary] = [
 		"desc": "-15% Dash energy consumption and faster stamina recovery.",
 		"effect": "dash_eff",
 		"val": 0.85,
+		"weight": 10,
 	},
 	{
 		"id": "sharpshooter",
@@ -168,6 +170,7 @@ const PILOT_PERKS: Array[Dictionary] = [
 		"desc": "+15% Ballistic weapon precision and critical hit multiplier.",
 		"effect": "crit_boost",
 		"val": 1.15,
+		"weight": 10,
 	},
 	{
 		"id": "grease_monkey",
@@ -175,6 +178,7 @@ const PILOT_PERKS: Array[Dictionary] = [
 		"desc": "-20% Scrap and credit cost to repair mech parts at safehouses.",
 		"effect": "repair_discount",
 		"val": 0.80,
+		"weight": 10,
 	},
 	{
 		"id": "roller_maestro",
@@ -182,6 +186,7 @@ const PILOT_PERKS: Array[Dictionary] = [
 		"desc": "+15% Roller Dash top velocity on paved roads and in battle.",
 		"effect": "roller_speed",
 		"val": 1.15,
+		"weight": 10,
 	},
 	{
 		"id": "adrenaline_rush",
@@ -189,6 +194,7 @@ const PILOT_PERKS: Array[Dictionary] = [
 		"desc": "Grants 2.5s damage immunity window immediately after mech ejection.",
 		"effect": "eject_shield",
 		"val": 2.5,
+		"weight": 10,
 	},
 	{
 		"id": "heavy_metal",
@@ -196,6 +202,7 @@ const PILOT_PERKS: Array[Dictionary] = [
 		"desc": "+15% Armor kinetic and explosive damage resistance.",
 		"effect": "armor_res",
 		"val": 1.15,
+		"weight": 10,
 	},
 	{
 		"id": "ammo_hoarder",
@@ -203,6 +210,7 @@ const PILOT_PERKS: Array[Dictionary] = [
 		"desc": "+25% Personal pilot ammunition carrying capacity.",
 		"effect": "ammo_cap",
 		"val": 1.25,
+		"weight": 10,
 	},
 	{
 		"id": "precognitive_flow",
@@ -210,6 +218,8 @@ const PILOT_PERKS: Array[Dictionary] = [
 		"desc": "Effortless movement reading: -50% Dash Energy Cost, +25% Evasion, Zero-Waste Momentum.",
 		"effect": "precog_flow",
 		"val": 0.50,
+		"weight": 1,
+		"is_legendary": true,
 	},
 ]
 
@@ -217,6 +227,20 @@ const PILOT_PERKS: Array[Dictionary] = [
 # -----------------------------------------------------------------------------
 # PUBLIC API: GENERATION FUNCTIONS
 # -----------------------------------------------------------------------------
+
+## Selects a perk respecting rarity weights and legendary gating
+static func pick_random_perk(allow_legendary: bool = false) -> Dictionary:
+	var pool: Array[Dictionary] = []
+	for p in PILOT_PERKS:
+		if p.get("is_legendary", false) and not allow_legendary:
+			continue
+		var w: int = int(p.get("weight", 10))
+		for i in range(w):
+			pool.append(p)
+	if pool.is_empty():
+		return PILOT_PERKS[0]
+	return pool.pick_random()
+
 
 ## Generates a randomized full pilot name with optional callsign
 static func generate_pilot_name(include_callsign_prob: float = 0.70) -> Dictionary:
@@ -245,7 +269,8 @@ static func generate_pilot_name(include_callsign_prob: float = 0.70) -> Dictiona
 static func generate_pilot(opts: Dictionary = {}) -> Dictionary:
 	var name_info := generate_pilot_name(opts.get("callsign_prob", 0.75))
 	var bg: Dictionary = BACKGROUNDS.pick_random()
-	var perk: Dictionary = PILOT_PERKS.pick_random()
+	var allow_legendary: bool = opts.get("allow_legendary", false) or (randf() < 0.01 and GlobalData.current_sector >= 3)
+	var perk: Dictionary = pick_random_perk(allow_legendary)
 	var trait_str: String = PERSONALITY_TRAITS.pick_random()
 
 	var archetype: int = int(opts.get("archetype", bg.get("default_archetype", 0)))

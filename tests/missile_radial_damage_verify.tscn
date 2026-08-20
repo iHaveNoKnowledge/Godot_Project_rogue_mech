@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://cx6r0r1m5x8qb"]
+
+[ext_resource type="Script" path="res://tests/missile_radial_damage_verify.gd" id="1_test"]
+
+[node name="MissileRadialDamageVerify" type="Node"]
+script = ExtResource("1_test")

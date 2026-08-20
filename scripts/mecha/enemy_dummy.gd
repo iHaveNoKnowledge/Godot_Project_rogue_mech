@@ -1002,6 +1002,10 @@ func take_damage_at_point(amount: float, world_pos: Vector3, damage_type: String
 	if health_system == null:
 		return
 
+	if damage_type.to_lower() == "explosive":
+		_take_explosive_damage_at_point(amount, world_pos, damage_type)
+		return
+
 	var local_pos = to_local(world_pos)
 	var target_part = _determine_hit_part(local_pos)
 
@@ -1020,6 +1024,57 @@ func take_damage_at_point(amount: float, world_pos: Vector3, damage_type: String
 		health_system.take_damage_to_part_at(target_part, amount, world_pos, damage_type)
 	else:
 		health_system.take_damage_to_part(target_part, amount, damage_type)
+
+
+func _take_explosive_damage_at_point(amount: float, world_pos: Vector3, damage_type: String = "explosive") -> void:
+	var local_pos := to_local(world_pos)
+	var primary_part := _determine_hit_part(local_pos)
+	var blast_radius := 3.8
+
+	if not health_system.parts.has(primary_part) or health_system.parts[primary_part]["destroyed"]:
+		primary_part = _find_alive_part()
+
+	# 1. Primary hit part absorbs direct blast impact
+	if primary_part != "" and health_system.parts.has(primary_part):
+		var primary_dmg: float = amount * 0.65
+		if health_system.has_method("take_damage_to_part_at"):
+			health_system.take_damage_to_part_at(primary_part, primary_dmg, world_pos, damage_type)
+		else:
+			health_system.take_damage_to_part(primary_part, primary_dmg, damage_type)
+
+	# 2. Adjacent parts take lighter radial splash damage based on distance
+	for slot in health_system.parts:
+		if slot == primary_part:
+			continue
+		if health_system.parts[slot]["destroyed"]:
+			continue
+		var slot_pos := _get_part_world_pos(slot)
+		var dist: float = world_pos.distance_to(slot_pos)
+		if dist <= blast_radius:
+			var falloff: float = clampf(1.0 - 0.6 * (dist / blast_radius), 0.2, 1.0)
+			var splash_dmg: float = amount * 0.35 * falloff
+			if health_system.has_method("take_damage_to_part_at"):
+				health_system.take_damage_to_part_at(slot, splash_dmg, world_pos, damage_type)
+			else:
+				health_system.take_damage_to_part(slot, splash_dmg, damage_type)
+
+
+func _get_part_world_pos(slot: String) -> Vector3:
+	var local_offset := Vector3.ZERO
+	match slot:
+		"head":
+			local_offset = Vector3(0, 2.2, 0)
+		"body":
+			local_offset = Vector3(0, 1.3, 0)
+		"arm_left":
+			local_offset = Vector3(-0.9, 1.4, 0)
+		"arm_right":
+			local_offset = Vector3(0.9, 1.4, 0)
+		"leg_left":
+			local_offset = Vector3(-0.4, 0.5, 0)
+		"leg_right":
+			local_offset = Vector3(0.4, 0.5, 0)
+	return to_global(local_offset)
 
 
 func _find_alive_part() -> String:

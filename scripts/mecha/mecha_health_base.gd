@@ -159,14 +159,72 @@ func take_damage_to_part(slot_name: String, amount: float, damage_type: String =
 
 
 # Location-based damage: the impact point decides which part AND which surface
-# (armor plate vs exposed frame) takes the hit. Projectiles already call this
-# with the projectile position, so where the bullet lands is what matters.
+# (armor plate vs exposed frame) takes the hit.
+# When the attack is explosive (missiles, rockets, grenades, detonating barrels),
+# the blast also radiates splash damage across adjacent parts on the mech.
 func take_damage_at_point(amount: float, world_pos: Vector3, damage_type: String = "kinetic") -> void:
 	if is_destroyed:
 		return
+
+	if damage_type.to_lower() == "explosive":
+		_take_explosive_damage_at_point(amount, world_pos, damage_type)
+		return
+
 	var hit := _resolve_hit(world_pos)
 	if hit["slot"] != "":
 		take_damage_to_part(hit["slot"], amount, damage_type, hit["layer"])
+
+
+func _take_explosive_damage_at_point(amount: float, world_pos: Vector3, damage_type: String = "explosive") -> void:
+	var primary_hit := _resolve_hit(world_pos)
+	var primary_slot: String = primary_hit.get("slot", "")
+	var blast_radius := 3.8
+
+	# 1. Primary hit part absorbs direct blast impact (primary focus)
+	if primary_slot != "" and parts.has(primary_slot):
+		var primary_dmg: float = amount * 0.65
+		take_damage_to_part(primary_slot, primary_dmg, damage_type, primary_hit.get("layer", ""))
+
+	# 2. Adjacent parts take lighter radial splash damage based on distance
+	for slot in parts:
+		if slot == primary_slot:
+			continue
+		if parts[slot]["destroyed"]:
+			continue
+
+		var slot_pos := _get_slot_center(slot)
+		var dist: float = world_pos.distance_to(slot_pos)
+		if dist <= blast_radius:
+			var falloff: float = clampf(1.0 - 0.6 * (dist / blast_radius), 0.2, 1.0)
+			var splash_dmg: float = amount * 0.35 * falloff
+			var layer := _resolve_layer_for_slot(slot, world_pos)
+			take_damage_to_part(slot, splash_dmg, damage_type, layer)
+
+
+func _get_slot_center(slot_name: String) -> Vector3:
+	var section := _get_section_node(slot_name)
+	if section != null and is_instance_valid(section):
+		return section.global_position
+
+	var mecha = get_parent()
+	var base_pos: Vector3 = mecha.global_position if mecha else global_position
+	var fwd: Vector3 = -mecha.global_transform.basis.z if mecha else Vector3.FORWARD
+	var right: Vector3 = mecha.global_transform.basis.x if mecha else Vector3.RIGHT
+	var up: Vector3 = mecha.global_transform.basis.y if mecha else Vector3.UP
+	match slot_name:
+		"head":
+			return base_pos + up * 1.9 + fwd * 0.1
+		"body":
+			return base_pos + up * 1.2
+		"arm_left":
+			return base_pos + up * 1.4 - right * 0.9
+		"arm_right":
+			return base_pos + up * 1.4 + right * 0.9
+		"leg_left":
+			return base_pos + up * 0.5 - right * 0.5
+		"leg_right":
+			return base_pos + up * 0.5 + right * 0.5
+	return base_pos
 
 
 # Drop tank damage intercept: routes a portion of body damage to external
@@ -393,7 +451,7 @@ func _apply_armor_damage(slot_name: String, amount: float, damage_type: String) 
 	var defense := str(part.get("defense_type", "")).to_lower()
 	var resistance := 1.0
 	if defense == "" or defense == "balanced" or defense == attack:
-		resistance = float(part["armor_class"])
+		resistance = float(part.get("armor_class", 1.0))
 	var reduced = amount / maxf(resistance, 0.1)
 	part["armor_hp"] = maxf(part["armor_hp"] - reduced, 0.0)
 

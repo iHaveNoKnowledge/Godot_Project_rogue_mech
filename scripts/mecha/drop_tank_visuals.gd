@@ -30,9 +30,10 @@ func _process(delta: float) -> void:
 			_spark_timer = 0.12
 	# Flicker the damaged material when HP is low.
 	var mecha = _get_mecha()
-	if mecha and mecha.has_method("_drop_tank_hp"):
-		var hp_ratio: float = mecha._drop_tank_hp / maxf(mecha._drop_tank_hp + 1.0, 1.0)
-		if mecha._drop_tank_active and hp_ratio < 0.5:
+	var energy_sys = mecha.get_node_or_null("EnergySystem") if mecha else null
+	if energy_sys and "_drop_tank_hp" in energy_sys:
+		var hp_ratio: float = energy_sys._drop_tank_hp / maxf(energy_sys._drop_tank_hp + 1.0, 1.0)
+		if energy_sys._drop_tank_active and hp_ratio < 0.5:
 			_apply_flicker(hp_ratio)
 		elif _tank_damaged_mat != null:
 			_tank_damaged_mat.emission_energy_multiplier = 3.0

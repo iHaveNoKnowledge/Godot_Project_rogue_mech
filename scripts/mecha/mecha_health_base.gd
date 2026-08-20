@@ -169,12 +169,15 @@ func take_damage(amount: float, damage_type: String = "kinetic") -> void:
 	# fuel canisters. Returns true when drop tanks absorbed some damage.
 	func _intercept_drop_tank_damage(amount: float) -> bool:
 		var mecha = get_parent()
-		if mecha == null or not mecha.has_method("apply_drop_tank_damage"):
+		if mecha == null:
 			return false
-		if not mecha._drop_tank_active:
+		var energy_sys = mecha.get_node_or_null("EnergySystem")
+		if energy_sys == null or not energy_sys.has_method("apply_drop_tank_damage"):
+			return false
+		if not energy_sys._drop_tank_active:
 			return false
 		# 30% of body damage is deflected to the drop tanks.
-		mecha.apply_drop_tank_damage(amount * 0.3)
+		energy_sys.apply_drop_tank_damage(amount * 0.3)
 		return true
 
 

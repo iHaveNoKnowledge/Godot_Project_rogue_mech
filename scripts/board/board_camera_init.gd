@@ -18,13 +18,17 @@ var is_dragging: bool = false
 var drag_offset: Vector3 = Vector3.ZERO
 var follow_enabled: bool = true
 var yaw: float = 0.0
+var shake_amount: float = 0.0
+var shake_decay: float = 4.5
 
 
 func _ready() -> void:
-	# Deferred (never await): a scene swap can free this camera a frame later,
-	# and an awaited coroutine on a freed node leaves a dangling function state
-	# that crashes the engine's cleanup at exit on Windows.
+	add_to_group("camera_rig")
 	_initialize_late.call_deferred()
+
+
+func add_shake(amount: float) -> void:
+	shake_amount = clampf(shake_amount + amount, 0.0, 1.0)
 
 
 func _initialize_late() -> void:
@@ -103,6 +107,14 @@ func _process(delta: float) -> void:
 	# Move camera position and look target synchronously with 1:1 drag_offset.
 	# This eliminates the parallax/crane swing effect and provides crisp, snappy response.
 	var desired_pos = player_token.global_position + _get_offset() + drag_offset
+	if shake_amount > 0.0:
+		shake_amount = maxf(shake_amount - shake_decay * delta, 0.0)
+		var shake_offset := Vector3(
+			randf_range(-1.0, 1.0) * shake_amount * 0.8,
+			randf_range(-1.0, 1.0) * shake_amount * 0.6,
+			randf_range(-1.0, 1.0) * shake_amount * 0.8
+		)
+		desired_pos += shake_offset
 	global_position = desired_pos
 	var look_target = player_token.global_position + drag_offset
 	look_at(look_target, Vector3.UP)

@@ -428,12 +428,100 @@ func _trigger_artillery_bombardment(fleets: Array[Dictionary]) -> void:
 		GlobalData.part_damage["body"] = minf(cur_dmg + 0.12 * float(total_fleets), 1.0)
 	GlobalData.mech_energy = maxf(GlobalData.mech_energy - 30.0 * float(total_fleets), 0.0)
 
-	EventBus.event_triggered.emit({
-		"name": "ARTILLERY BOMBARDMENT!",
-		"effect": "none",
-		"amount": 0,
-		"desc": "Warning! %d hostile Artillery Fleet(s) in range bombarded your position! Torso armor degraded and -%.0f Energy." % [total_fleets, 30.0 * float(total_fleets)],
-	})
+	_play_artillery_bombardment_animation(fleets)
+
+
+func _play_artillery_bombardment_animation(fleets: Array[Dictionary]) -> void:
+	var target_pos := player_token.global_position if player_token and is_instance_valid(player_token) else Vector3.ZERO
+	if nodes_dict.has(current_pos) and is_instance_valid(nodes_dict[current_pos]):
+		target_pos = nodes_dict[current_pos].global_position + Vector3(0, 0.6, 0)
+
+	for fleet in fleets:
+		var fleet_grid: Vector2i = fleet.get("pos", Vector2i.ZERO)
+		var start_pos := target_pos + Vector3(6.0, 1.0, 6.0)
+		if nodes_dict.has(fleet_grid) and is_instance_valid(nodes_dict[fleet_grid]):
+			start_pos = nodes_dict[fleet_grid].global_position + Vector3(0, 1.0, 0)
+
+		# Muzzle flash at the firing artillery fleet marker
+		EffectManager.spawn_muzzle_flash(start_pos, (target_pos - start_pos).normalized(), Color(1.0, 0.65, 0.15))
+
+		# Launch salvo of 3 parabolic artillery shells
+		for s in range(3):
+			var delay := float(s) * 0.16
+			var spread := Vector3(randf_range(-0.4, 0.4), 0.0, randf_range(-0.4, 0.4))
+			var dest := target_pos + spread
+			_spawn_parabolic_shell(start_pos, dest, delay)
+
+	# Delayed event popup after barrage lands
+	var total_fleets := fleets.size()
+	var t := create_tween()
+	t.tween_interval(1.1)
+	t.tween_callback(func():
+		EventBus.event_triggered.emit({
+			"name": "ARTILLERY BOMBARDMENT!",
+			"effect": "none",
+			"amount": 0,
+			"desc": "Warning! %d hostile Artillery Fleet(s) in range bombarded your position! Torso armor degraded and -%.0f Energy." % [total_fleets, 30.0 * float(total_fleets)],
+		})
+	)
+
+
+func _spawn_parabolic_shell(start_pos: Vector3, dest_pos: Vector3, delay: float) -> void:
+	var shell := MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = 0.22
+	sphere.height = 0.44
+	shell.mesh = sphere
+
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = Color(1.0, 0.7, 0.15)
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.55, 0.1)
+	mat.emission_energy_multiplier = 4.5
+	shell.material_override = mat
+
+	add_child(shell)
+	shell.global_position = start_pos
+	shell.visible = false
+
+	var duration := 0.55
+	var arc_height := 8.0
+
+	var tween := create_tween()
+	tween.tween_interval(delay)
+	tween.tween_callback(func():
+		if is_instance_valid(shell):
+			shell.visible = true
+	)
+	tween.tween_method(func(progress: float):
+		if not is_instance_valid(shell):
+			return
+		var current_xz := start_pos.lerp(dest_pos, progress)
+		var height_offset := sin(progress * PI) * arc_height
+		shell.global_position = Vector3(current_xz.x, lerp(start_pos.y, dest_pos.y, progress) + height_offset, current_xz.z)
+	, 0.0, 1.0, duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+	tween.tween_callback(func():
+		if is_instance_valid(shell):
+			shell.queue_free()
+		# Detonate on impact
+		EffectManager.spawn_explosion(dest_pos, 4.0)
+		var rigs = get_tree().get_nodes_in_group("camera_rig")
+		if not rigs.is_empty() and rigs[0].has_method("add_shake"):
+			rigs[0].add_shake(0.4)
+		if player_token and is_instance_valid(player_token):
+			_flinch_player_token()
+	)
+
+
+func _flinch_player_token() -> void:
+	if player_token == null or not is_instance_valid(player_token):
+		return
+	var orig_scale: Vector3 = player_token.scale
+	var flinch := create_tween()
+	flinch.tween_property(player_token, "scale", orig_scale * Vector3(1.35, 0.65, 1.35), 0.06).set_trans(Tween.TRANS_QUAD)
+	flinch.tween_property(player_token, "scale", orig_scale, 0.14).set_trans(Tween.TRANS_BOUNCE)
 
 
 func _check_survey_objective(newly: int) -> void:
@@ -864,6 +952,8 @@ func _process_tile_effect(tile_type: String) -> void:
 		"emp_zone":
 			# Environmental Hazard: EMP & Jamming — No lock-on, no backup call.
 			GlobalData.current_hazard = GlobalData.HAZARD_EMP_ZONE
+			if player_token and is_instance_valid(player_token):
+				EffectFactory.spawn_electric_burst(get_tree(), player_token.global_position, Color(0.4, 0.85, 1.0), 8, 1.5)
 			if GlobalData.mech_less:
 				_trigger_recovery_event()
 			else:

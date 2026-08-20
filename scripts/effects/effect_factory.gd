@@ -219,3 +219,51 @@ static func spawn_trail(scene: SceneTree, pos: Vector3, rot: Basis,
 	var tween := scene.create_tween()
 	tween.tween_property(mat, "albedo_color:a", 0.0, duration)
 	tween.tween_callback(mesh_inst.queue_free)
+
+
+## Electric lightning arc / spark (EMP hazard discharge, shock status, electrified hits).
+static func spawn_electric_spark(scene: SceneTree, pos: Vector3,
+		color: Color = Color(0.35, 0.85, 1.0), length: float = 0.8,
+		duration: float = 0.1, energy: float = 5.0,
+		parent: Node3D = null) -> void:
+	if scene == null:
+		return
+	var mesh_inst := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.02
+	cyl.bottom_radius = 0.035
+	cyl.height = length
+	mesh_inst.mesh = cyl
+
+	var mat := StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = Color(color.r, color.g, color.b, 0.95)
+	mat.emission_enabled = true
+	mat.emission = color
+	mat.emission_energy_multiplier = energy
+	mat.no_depth_test = true
+	mesh_inst.material_override = mat
+
+	var container: Node = parent if parent else (scene.current_scene if scene.current_scene else scene.root)
+	container.add_child(mesh_inst)
+	mesh_inst.global_position = pos + Vector3(randf_range(-0.2, 0.2), randf_range(-0.2, 0.2), randf_range(-0.2, 0.2))
+	mesh_inst.rotation = Vector3(randf_range(-PI, PI), randf_range(-PI, PI), randf_range(-PI, PI))
+
+	var tween := scene.create_tween().set_parallel(true)
+	tween.tween_property(mat, "albedo_color:a", 0.0, duration)
+	tween.tween_property(mesh_inst, "scale", Vector3(1.5, 0.2, 1.5), duration)
+	tween.chain().tween_callback(mesh_inst.queue_free)
+
+
+## Spawns a burst of multiple crackling electric sparks and a mini flash light.
+static func spawn_electric_burst(scene: SceneTree, pos: Vector3,
+		color: Color = Color(0.4, 0.85, 1.0), count: int = 5,
+		radius: float = 1.0, parent: Node3D = null) -> void:
+	if scene == null:
+		return
+	for i in range(count):
+		var offset := Vector3(randf_range(-radius, radius), randf_range(0.2, radius * 1.5), randf_range(-radius, radius))
+		spawn_electric_spark(scene, pos + offset, color, randf_range(0.4, 0.9), randf_range(0.08, 0.16), 5.5, parent)
+
+	spawn_flash(scene, pos + Vector3(0, 0.8, 0), color, 0.4, 0.12, 4.0, true, 2.5, parent)

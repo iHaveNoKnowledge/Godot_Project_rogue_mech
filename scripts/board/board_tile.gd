@@ -614,9 +614,22 @@ func _build_emp_model(root: Node3D) -> void:
 		cm.bottom_radius = 0.35
 		cm.height = 0.1
 		coil.mesh = cm
-		coil.material_override = _poi_mat(Color(0.7, 0.35, 0.95), 0.2, Color(0.7, 0.35, 0.95), 3.0)
+		coil.material_override = _poi_mat(Color(0.7, 0.35, 0.95), 0.2, Color(0.4, 0.85, 1.0), 4.5)
 		coil.position = Vector3(0, yh, 0)
 		root.add_child(coil)
+
+	# Electric pulsing light at the spire top
+	var emp_light := OmniLight3D.new()
+	emp_light.light_color = Color(0.4, 0.85, 1.0)
+	emp_light.light_energy = 2.5
+	emp_light.omni_range = 3.5
+	emp_light.position = Vector3(0, 1.7, 0)
+	root.add_child(emp_light)
+
+	# Pulsing animation on the light
+	var lt := root.create_tween().set_loops()
+	lt.tween_property(emp_light, "light_energy", 0.6, 0.4).set_trans(Tween.TRANS_SINE)
+	lt.tween_property(emp_light, "light_energy", 3.2, 0.2).set_trans(Tween.TRANS_BOUNCE)
 
 	_add_floating_badge(root, "⚡ EMP FIELD", Color(0.85, 0.5, 1.0), 2.2)
 

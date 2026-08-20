@@ -47,6 +47,7 @@ var _drop_tank_detonating: bool:
 # Roller state (kept on controller — input + VFX are controller concerns).
 var is_roller_dashing: bool = false
 var roller_spark_timer: float = 0.0
+var _emp_spark_timer: float = 0.0
 
 # Recoil (weapon kick).
 var recoil_vector: Vector3 = Vector3.ZERO
@@ -306,6 +307,14 @@ func _apply_movement(delta: float) -> void:
 			_recoil_recovery -= delta
 			decay_rate *= 0.35
 		recoil_vector = recoil_vector.move_toward(Vector3.ZERO, decay_rate * delta)
+
+	# EMP Hazard Zone: electric spark discharges crackling across the mech chassis
+	if GlobalData.current_hazard == GlobalData.HAZARD_EMP_ZONE:
+		_emp_spark_timer -= delta
+		if _emp_spark_timer <= 0.0:
+			_emp_spark_timer = randf_range(0.3, 0.65)
+			var spark_offset := Vector3(randf_range(-0.8, 0.8), randf_range(0.4, 2.0), randf_range(-0.8, 0.8))
+			EffectFactory.spawn_electric_spark(get_tree(), global_position + spark_offset, Color(0.4, 0.85, 1.0), randf_range(0.5, 0.9), 0.12, 5.5)
 
 	velocity.y -= GRAVITY * delta
 

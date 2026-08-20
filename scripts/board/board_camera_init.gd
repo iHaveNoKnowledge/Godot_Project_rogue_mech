@@ -68,18 +68,24 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _process(delta: float) -> void:
 	if GameManager.current_state == GameManager.State.BOARD:
-		# WASD pans the camera in world space (W = north, S = south, A = west,
-		# D = east), independent of the current view rotation.
+		# WASD pans the camera aligned with screen space on the ground plane (XZ),
+		# taking into account the current isometric view angle and yaw rotation.
+		var offset := _get_offset()
+		var ground_forward := -Vector3(offset.x, 0.0, offset.z).normalized()
+		var ground_right := Vector3(-offset.z, 0.0, offset.x).normalized()
+
 		var pan := Vector3.ZERO
 		if Input.is_key_pressed(KEY_W):
-			pan.z -= 1.0
+			pan += ground_forward
 		if Input.is_key_pressed(KEY_S):
-			pan.z += 1.0
+			pan -= ground_forward
 		if Input.is_key_pressed(KEY_A):
-			pan.x -= 1.0
+			pan -= ground_right
 		if Input.is_key_pressed(KEY_D):
-			pan.x += 1.0
-		drag_offset += pan * key_pan_speed * delta
+			pan += ground_right
+
+		if pan.length_squared() > 0.0:
+			drag_offset += pan.normalized() * key_pan_speed * delta
 
 		# Q / E rotate the orbit around the player (Q counter-clockwise).
 		if Input.is_key_pressed(KEY_E):
@@ -90,9 +96,11 @@ func _process(delta: float) -> void:
 	if player_token == null or not is_instance_valid(player_token):
 		return
 
+	# Move camera position and look target synchronously with 1:1 drag_offset.
+	# This eliminates the parallax/crane swing effect and provides crisp, snappy response.
 	var desired_pos = player_token.global_position + _get_offset() + drag_offset
-	global_position = global_position.lerp(desired_pos, follow_speed * delta)
-	var look_target = player_token.global_position + drag_offset * 0.5
+	global_position = desired_pos
+	var look_target = player_token.global_position + drag_offset
 	look_at(look_target, Vector3.UP)
 
 

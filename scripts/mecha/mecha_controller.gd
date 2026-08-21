@@ -322,21 +322,14 @@ func _apply_movement(delta: float) -> void:
 	velocity.x = desired_velocity.x
 	velocity.z = desired_velocity.z
 
-	# Footstep / roller spark VFX.
-	if is_on_floor() and desired_velocity.length() > 0.5:
-		if is_roller_dashing:
-			roller_spark_timer -= delta
-			if roller_spark_timer <= 0.0:
-				roller_spark_timer = 0.08
-				var spark_pos := global_position + Vector3(randf_range(-0.3, 0.3), 0.1, randf_range(-0.3, 0.3))
-				EffectFactory.spawn_box_spark(get_tree(), spark_pos,
-					Vector3(0.15, 0.05, 0.4), Color(1.0, 0.7, 0.2), 0.15, 4.0)
-		else:
-			footstep_timer -= delta
-			if footstep_timer <= 0.0:
-				footstep_timer = 0.35
-				if AudioManager:
-					AudioManager.play_footstep(global_position)
+	# Roller spark VFX while grounded and skating.
+	if is_on_floor() and is_roller_dashing and desired_velocity.length() > 0.5:
+		roller_spark_timer -= delta
+		if roller_spark_timer <= 0.0:
+			roller_spark_timer = 0.08
+			var spark_pos := global_position + Vector3(randf_range(-0.3, 0.3), 0.1, randf_range(-0.3, 0.3))
+			EffectFactory.spawn_box_spark(get_tree(), spark_pos,
+				Vector3(0.15, 0.05, 0.4), Color(1.0, 0.7, 0.2), 0.15, 4.0)
 
 	# Recoil decay.
 	if recoil_vector.length() > 0.001:

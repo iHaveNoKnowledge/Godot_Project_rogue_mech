@@ -193,7 +193,7 @@ func _apply_pose(targets: Dictionary, speed: float) -> void:
 
 func _update_prejump_charge_posture(delta: float) -> void:
 	var js = mecha.get("jump_system")
-	var charge_time: float = float(js.get("prejump_charge_time", 0.0)) if js else 0.0
+	var charge_time: float = float(js.get("prejump_charge_time")) if (js and js.get("prejump_charge_time") != null) else 0.0
 	var ratio := clampf(charge_time / 0.35, 0.0, 1.0)
 	_apply_pose({"drop": -0.08 * ratio}, 12.0 * delta)
 # Jump Launch Specs (Thrusters firing, upward launch trajectory):

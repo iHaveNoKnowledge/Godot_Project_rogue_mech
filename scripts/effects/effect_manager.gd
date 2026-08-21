@@ -8,6 +8,68 @@ func _ready() -> void:
 	instance = self
 
 
+static var _muzzle_mesh_cache: Dictionary = {}
+
+
+static func _get_muzzle_star_mesh() -> ArrayMesh:
+	if _muzzle_mesh_cache.has("star"):
+		return _muzzle_mesh_cache["star"]
+
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+
+	var center := Vector3.ZERO
+	var white := Color(1.0, 1.0, 1.0, 1.0)
+	var edge := Color(1.0, 0.85, 0.4, 0.0)
+
+	# 1. Main Forward Flame Spike (pointed tongue along +Z)
+	var fwd_tip := Vector3(0, 0, 0.85)
+	var fwd_l := Vector3(-0.07, 0, 0.08)
+	var fwd_r := Vector3(0.07, 0, 0.08)
+	var fwd_u := Vector3(0, 0.07, 0.08)
+	var fwd_d := Vector3(0, -0.07, 0.08)
+
+	# Horizontal flame fin
+	st.set_color(white); st.add_vertex(center)
+	st.set_color(edge); st.add_vertex(fwd_l)
+	st.set_color(white); st.add_vertex(fwd_tip)
+
+	st.set_color(white); st.add_vertex(center)
+	st.set_color(white); st.add_vertex(fwd_tip)
+	st.set_color(edge); st.add_vertex(fwd_r)
+
+	# Vertical flame fin
+	st.set_color(white); st.add_vertex(center)
+	st.set_color(edge); st.add_vertex(fwd_u)
+	st.set_color(white); st.add_vertex(fwd_tip)
+
+	st.set_color(white); st.add_vertex(center)
+	st.set_color(white); st.add_vertex(fwd_tip)
+	st.set_color(edge); st.add_vertex(fwd_d)
+
+	# 2. Four Diagonal Muzzle Brake Vent Spikes (4-point Starburst Flare)
+	var ray_count := 4
+	var ray_len := 0.42
+	var ray_width := 0.05
+	for i in range(ray_count):
+		var angle := i * (TAU / ray_count) + (PI / 4.0)
+		var dir := Vector3(cos(angle), sin(angle), 0.2).normalized()
+		var perp := Vector3(-sin(angle), cos(angle), 0) * ray_width
+		var tip := dir * ray_len
+
+		st.set_color(white); st.add_vertex(center)
+		st.set_color(edge); st.add_vertex(center - perp)
+		st.set_color(white); st.add_vertex(tip)
+
+		st.set_color(white); st.add_vertex(center)
+		st.set_color(white); st.add_vertex(tip)
+		st.set_color(edge); st.add_vertex(center + perp)
+
+	var mesh := st.commit()
+	_muzzle_mesh_cache["star"] = mesh
+	return mesh
+
+
 static func spawn_muzzle_flash(position: Vector3, direction: Vector3, color: Color = Color(1.0, 0.85, 0.4)) -> void:
 	if instance == null:
 		return
@@ -15,56 +77,85 @@ static func spawn_muzzle_flash(position: Vector3, direction: Vector3, color: Col
 	# 1. Dynamic Flash OmniLight3D (illuminates mecha, weapon barrel, and ground!)
 	var light := OmniLight3D.new()
 	light.light_color = color
-	light.light_energy = 5.0
+	light.light_energy = 5.5
 	light.omni_range = 10.0
 	light.omni_attenuation = 2.0
 	instance.add_child(light)
 	light.global_position = position
 
 	var light_tween := instance.create_tween()
-	light_tween.tween_property(light, "light_energy", 0.0, 0.09)
+	light_tween.tween_property(light, "light_energy", 0.0, 0.06)
 	light_tween.tween_callback(light.queue_free)
 
-	# 2. Glowing Particle Burst
-	var flash = GPUParticles3D.new()
+	# 2. 3D Starburst Spike Flash Mesh
+	var flash_mesh := MeshInstance3D.new()
+	flash_mesh.mesh = _get_muzzle_star_mesh()
+	var flash_mat := StandardMaterial3D.new()
+	flash_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	flash_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	flash_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	flash_mat.vertex_color_use_as_albedo = true
+	flash_mat.albedo_color = Color(color.r, color.g, color.b, 1.0)
+	flash_mat.emission_enabled = true
+	flash_mat.emission = color
+	flash_mat.emission_energy_multiplier = 4.5
+	flash_mesh.material_override = flash_mat
+
+	instance.add_child(flash_mesh)
+	flash_mesh.global_position = position
+	if direction.length_squared() > 0.001:
+		flash_mesh.look_at(position + direction, Vector3.UP)
+	# Random roll angle + scale jitter per shot for organic explosive variance
+	flash_mesh.rotate_object_local(Vector3.FORWARD, randf_range(0.0, TAU))
+	var rand_scale := randf_range(0.85, 1.25)
+	flash_mesh.scale = Vector3.ONE * (rand_scale * 0.4)
+
+	var mesh_tween := flash_mesh.create_tween()
+	mesh_tween.tween_property(flash_mesh, "scale", Vector3.ONE * rand_scale, 0.02).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
+	mesh_tween.parallel().tween_property(flash_mat, "albedo_color:a", 0.0, 0.06).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	mesh_tween.tween_callback(flash_mesh.queue_free)
+
+	# 3. High-Velocity Needle Spark Vents
+	var flash_particles = GPUParticles3D.new()
 	var mat = ParticleProcessMaterial.new()
 	mat.direction = direction
-	mat.spread = 25.0
-	mat.initial_velocity_min = 15.0
-	mat.initial_velocity_max = 28.0
+	mat.spread = 35.0
+	mat.initial_velocity_min = 18.0
+	mat.initial_velocity_max = 35.0
 	mat.gravity = Vector3.ZERO
-	mat.scale_min = 0.2
-	mat.scale_max = 0.55
+	mat.scale_min = 0.15
+	mat.scale_max = 0.4
 
-	flash.process_material = mat
-	flash.amount = 8
-	flash.lifetime = 0.12
-	flash.one_shot = true
-	flash.explosiveness = 1.0
-	flash.emitting = true
+	flash_particles.process_material = mat
+	flash_particles.amount = 6
+	flash_particles.lifetime = 0.08
+	flash_particles.one_shot = true
+	flash_particles.explosiveness = 1.0
+	flash_particles.emitting = true
 
-	var mesh_instance = MeshInstance3D.new()
-	var sphere = SphereMesh.new()
-	sphere.radius = 0.12
-	mesh_instance.mesh = sphere
-	var particle_mat = StandardMaterial3D.new()
-	particle_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	particle_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	particle_mat.albedo_color = Color(color.r, color.g, color.b, 0.95)
-	particle_mat.emission_enabled = true
-	particle_mat.emission = color
-	particle_mat.emission_energy_multiplier = 4.0
-	mesh_instance.material_override = particle_mat
-	flash.add_child(mesh_instance)
+	var spark_mesh_inst = MeshInstance3D.new()
+	var spark_box = BoxMesh.new()
+	spark_box.size = Vector3(0.02, 0.02, 0.18)
+	spark_mesh_inst.mesh = spark_box
+	var spark_mat = StandardMaterial3D.new()
+	spark_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	spark_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	spark_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	spark_mat.albedo_color = Color(1.0, 0.95, 0.7, 0.95)
+	spark_mat.emission_enabled = true
+	spark_mat.emission = color
+	spark_mat.emission_energy_multiplier = 5.0
+	spark_mesh_inst.material_override = spark_mat
+	flash_particles.add_child(spark_mesh_inst)
 
-	instance.add_child(flash)
-	flash.global_position = position
+	instance.add_child(flash_particles)
+	flash_particles.global_position = position
 	if direction.length_squared() > 0.001:
-		flash.look_at(position + direction, Vector3.UP)
+		flash_particles.look_at(position + direction, Vector3.UP)
 
-	var flash_tween := flash.create_tween()
-	flash_tween.tween_interval(0.2)
-	flash_tween.tween_callback(flash.queue_free)
+	var p_tween := flash_particles.create_tween()
+	p_tween.tween_interval(0.12)
+	p_tween.tween_callback(flash_particles.queue_free)
 
 
 ## Spawns dynamic, brilliant directional hit sparks, ricochet ember streaks, and a micro-flash light

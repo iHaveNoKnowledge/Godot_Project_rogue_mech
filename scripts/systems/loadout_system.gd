@@ -24,14 +24,7 @@ extends RefCounted
 # Maps a mech slot name to the mecha-root-relative node path holding that
 # section's meshes. Single source of truth for all part visuals.
 static func get_slot_node_path(slot: String) -> String:
-	match slot:
-		"head": return "Head"
-		"body": return "Body"
-		"arm_left": return "ArmLeft"
-		"arm_right": return "ArmRight"
-		"leg_left": return "LegLeft"
-		"leg_right": return "LegRight"
-	return ""
+	return GlobalData.SLOT_TO_NODE.get(slot, "")
 
 
 # Total Field Pack weight capacity in kg = base + sum of equipped frames.

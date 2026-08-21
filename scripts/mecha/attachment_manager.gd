@@ -1,7 +1,8 @@
 extends Node3D
 
 ## Mounts modules in local space under one of the six Mecha body sections.
-const BODY_SLOTS := ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]
+# Re-export GlobalData.MECHA_SLOTS for local convenience.
+const BODY_SLOTS: Array[String] = GlobalData.MECHA_SLOTS
 var mounted_nodes: Dictionary = {}
 
 func _ready() -> void:
@@ -69,14 +70,10 @@ func can_mount(data: Dictionary) -> bool:
 	return get_slot_attachment_weight(slot, str(data.get("id", ""))) + float(data.get("weight", 0.0)) <= get_attachment_capacity(slot)
 
 func _get_slot_node(slot: String) -> Node3D:
-	match slot:
-		"head": return get_parent().get_node_or_null("Head")
-		"body": return get_parent().get_node_or_null("Body")
-		"arm_left": return get_parent().get_node_or_null("ArmLeft")
-		"arm_right": return get_parent().get_node_or_null("ArmRight")
-		"leg_left": return get_parent().get_node_or_null("LegLeft")
-		"leg_right": return get_parent().get_node_or_null("LegRight")
-	return null
+	var node_name: String = GlobalData.SLOT_TO_NODE.get(slot, "")
+	if node_name == "":
+		return null
+	return get_parent().get_node_or_null(node_name)
 
 func _vector_from_data(value) -> Vector3:
 	if value is Vector3: return value

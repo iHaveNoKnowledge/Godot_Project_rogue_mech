@@ -269,7 +269,7 @@ func _enemy_loadout() -> Dictionary:
 	var palette := _archetype_palette()
 	var wants_heavy := archetype == 2
 	var loadout: Dictionary = {}
-	for slot in ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]:
+	for slot in GlobalData.MECHA_SLOTS:
 		var frame_entry: Dictionary = {}
 		var frames = GlobalData.frame_catalog.get(slot, [])
 		var eligible_frames: Array = []
@@ -1042,21 +1042,7 @@ func take_damage_at_point(amount: float, world_pos: Vector3, damage_type: String
 
 
 func _get_part_world_pos(slot: String) -> Vector3:
-	var local_offset := Vector3.ZERO
-	match slot:
-		"head":
-			local_offset = Vector3(0, 2.2, 0)
-		"body":
-			local_offset = Vector3(0, 1.3, 0)
-		"arm_left":
-			local_offset = Vector3(-0.9, 1.4, 0)
-		"arm_right":
-			local_offset = Vector3(0.9, 1.4, 0)
-		"leg_left":
-			local_offset = Vector3(-0.4, 0.5, 0)
-		"leg_right":
-			local_offset = Vector3(0.4, 0.5, 0)
-	return to_global(local_offset)
+	return to_global(GlobalData.SLOT_OFFSETS.get(slot, Vector3.ZERO))
 
 
 func _scale_by_wanted_level() -> void:

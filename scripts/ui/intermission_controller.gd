@@ -692,7 +692,7 @@ func _rebuild_status_bars() -> void:
 		status_bars_container.add_child(note)
 		return
 
-	for slot in ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]:
+	for slot in GlobalData.MECHA_SLOTS:
 		var part = GlobalData.equipped_parts.get(slot)
 		if not part:
 			continue

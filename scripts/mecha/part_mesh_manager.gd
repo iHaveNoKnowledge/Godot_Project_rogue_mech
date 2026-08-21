@@ -31,7 +31,7 @@ func _hide_all_legacy_models() -> void:
 	if zenisrev:
 		zenisrev.visible = false
 
-	for slot in ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]:
+	for slot in GlobalData.MECHA_SLOTS:
 		var p_node = _get_slot_parent_node(slot)
 		if p_node:
 			_hide_legacy_slot_meshes(p_node)
@@ -406,26 +406,28 @@ func _get_slot_parent_node(slot_name: String) -> Node3D:
 	var mecha = get_parent()
 	if not mecha:
 		return null
-	match slot_name.to_lower():
-		"head": return mecha.get_node_or_null("Head")
-		"body": return mecha.get_node_or_null("Body")
-		"arm_left": return mecha.get_node_or_null("ArmLeft")
-		"arm_right": return mecha.get_node_or_null("ArmRight")
-		"leg_left": return mecha.get_node_or_null("LegLeft")
-		"leg_right": return mecha.get_node_or_null("LegRight")
-	return null
+	var node_name: String = GlobalData.SLOT_TO_NODE.get(slot_name.to_lower(), "")
+	if node_name == "":
+		return null
+	return mecha.get_node_or_null(node_name)
+
+
+const _LOWER_NODE_NAMES: Dictionary = {
+	"arm_left": "ArmLeft/ForearmLeft",
+	"arm_right": "ArmRight/ForearmRight",
+	"leg_left": "LegLeft/ShinLeft",
+	"leg_right": "LegRight/ShinRight",
+}
 
 
 func _get_slot_lower_parent_node(slot_name: String) -> Node3D:
 	var mecha = get_parent()
 	if not mecha:
 		return null
-	match slot_name.to_lower():
-		"arm_left": return mecha.get_node_or_null("ArmLeft/ForearmLeft")
-		"arm_right": return mecha.get_node_or_null("ArmRight/ForearmRight")
-		"leg_left": return mecha.get_node_or_null("LegLeft/ShinLeft")
-		"leg_right": return mecha.get_node_or_null("LegRight/ShinRight")
-	return null
+	var path: String = _LOWER_NODE_NAMES.get(slot_name.to_lower(), "")
+	if path == "":
+		return null
+	return mecha.get_node_or_null(path)
 
 
 func _clear_children(node: Node) -> void:

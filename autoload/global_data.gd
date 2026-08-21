@@ -32,6 +32,33 @@ const MECHA_SLOTS: Array[String] = [
 	"head", "body", "arm_left", "arm_right", "leg_left", "leg_right"
 ]
 
+## Maps slot name -> mecha-root-relative scene node name (Head, Body, etc.).
+const SLOT_TO_NODE: Dictionary = {
+	"head": "Head", "body": "Body",
+	"arm_left": "ArmLeft", "arm_right": "ArmRight",
+	"leg_left": "LegLeft", "leg_right": "LegRight",
+}
+
+## Maps slot name -> local-space offset used for hit detection on enemies.
+const SLOT_OFFSETS: Dictionary = {
+	"head": Vector3(0, 2.2, 0),
+	"body": Vector3(0, 1.3, 0),
+	"arm_left": Vector3(-0.9, 1.4, 0),
+	"arm_right": Vector3(0.9, 1.4, 0),
+	"leg_left": Vector3(-0.4, 0.5, 0),
+	"leg_right": Vector3(0.4, 0.5, 0),
+}
+
+## Maps slot name -> scrap wreckage box size.
+const SLOT_SCRAP_SIZE: Dictionary = {
+	"head": Vector3(0.5, 0.45, 0.55),
+	"body": Vector3(0.9, 1.1, 0.7),
+	"arm_left": Vector3(0.4, 0.8, 0.4),
+	"arm_right": Vector3(0.4, 0.8, 0.4),
+	"leg_left": Vector3(0.5, 0.9, 0.5),
+	"leg_right": Vector3(0.5, 0.9, 0.5),
+}
+
 const SAVE_PATH := "user://savegame.json"
 
 # Where a scrap primitive may be attached on the mech.

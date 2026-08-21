@@ -108,16 +108,11 @@ func _init_parts() -> void:
 
 
 func _find_meshes() -> void:
-	var mappings = {
-		"head": "../Head/HeadMesh",
-		"body": "../Body/BodyMesh",
-		"arm_left": "../ArmLeft/ArmLeftMesh",
-		"arm_right": "../ArmRight/ArmRightMesh",
-		"leg_left": "../LegLeft/LegLeftMesh",
-		"leg_right": "../LegRight/LegRightMesh",
-	}
-	for slot in mappings:
-		var node = get_node_or_null(mappings[slot])
+	for slot in GlobalData.MECHA_SLOTS:
+		var node_name: String = GlobalData.SLOT_TO_NODE.get(slot, "")
+		if node_name == "":
+			continue
+		var node = get_node_or_null("../" + node_name + "/" + node_name + "Mesh")
 		if node:
 			parts[slot]["mesh"] = node
 			_original_colors[slot] = node.material_override.albedo_color if node.material_override else _armor_color

@@ -15,7 +15,7 @@ extends RefCounted
 static func ensure_default_equipped_parts() -> void:
 	if not GlobalData.equipped_parts.is_empty():
 		return
-	for slot in ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]:
+	for slot in GlobalData.MECHA_SLOTS:
 		if GlobalData.armor_catalog.has(slot) and GlobalData.armor_catalog[slot].size() > 0:
 			var pid = GlobalData.armor_catalog[slot][0].get("id", "")
 			if pid == "":

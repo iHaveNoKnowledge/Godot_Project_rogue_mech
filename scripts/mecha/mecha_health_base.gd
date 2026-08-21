@@ -201,20 +201,9 @@ func _get_slot_center(slot_name: String) -> Vector3:
 	var fwd: Vector3 = -mecha.global_transform.basis.z if mecha else Vector3.FORWARD
 	var right: Vector3 = mecha.global_transform.basis.x if mecha else Vector3.RIGHT
 	var up: Vector3 = mecha.global_transform.basis.y if mecha else Vector3.UP
-	match slot_name:
-		"head":
-			return base_pos + up * 1.9 + fwd * 0.1
-		"body":
-			return base_pos + up * 1.2
-		"arm_left":
-			return base_pos + up * 1.4 - right * 0.9
-		"arm_right":
-			return base_pos + up * 1.4 + right * 0.9
-		"leg_left":
-			return base_pos + up * 0.5 - right * 0.5
-		"leg_right":
-			return base_pos + up * 0.5 + right * 0.5
-	return base_pos
+	# Use GlobalData.SLOT_OFFSETS for the fallback local-space offset.
+	var offset: Vector3 = GlobalData.SLOT_OFFSETS.get(slot_name, Vector3.ZERO)
+	return base_pos + up * offset.y + fwd * offset.z + right * offset.x
 
 
 # Drop tank damage intercept: routes a portion of body damage to external
@@ -881,20 +870,10 @@ func _get_section_node(slot_name: String) -> Node3D:
 	var mecha = get_parent()
 	if mecha == null:
 		return null
-	match slot_name:
-		"head":
-			return mecha.get_node_or_null("Head")
-		"body":
-			return mecha.get_node_or_null("Body")
-		"arm_left":
-			return mecha.get_node_or_null("ArmLeft")
-		"arm_right":
-			return mecha.get_node_or_null("ArmRight")
-		"leg_left":
-			return mecha.get_node_or_null("LegLeft")
-		"leg_right":
-			return mecha.get_node_or_null("LegRight")
-	return null
+	var node_name: String = GlobalData.SLOT_TO_NODE.get(slot_name, "")
+	if node_name == "":
+		return null
+	return mecha.get_node_or_null(node_name)
 
 
 func _get_visual_container(slot_name: String, container_name: String) -> Node3D:
@@ -996,16 +975,7 @@ func _spawn_scrap_wreckage(slot_name: String) -> void:
 
 
 func _get_scrap_size(slot_name: String) -> Vector3:
-	match slot_name:
-		"head":
-			return Vector3(0.5, 0.45, 0.55)
-		"body":
-			return Vector3(0.9, 1.1, 0.7)
-		"arm_left", "arm_right":
-			return Vector3(0.4, 0.8, 0.4)
-		"leg_left", "leg_right":
-			return Vector3(0.5, 0.9, 0.5)
-	return Vector3(0.5, 0.5, 0.5)
+	return GlobalData.SLOT_SCRAP_SIZE.get(slot_name, Vector3(0.5, 0.5, 0.5))
 
 
 # The destroyed player part leaves a collectible scrap-material pickup so the

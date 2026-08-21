@@ -21,7 +21,7 @@ func _create_ui() -> void:
 	vbox.offset_top = 20
 	add_child(vbox)
 
-	for slot in ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]:
+	for slot in GlobalData.MECHA_SLOTS:
 		var slot_vbox = VBoxContainer.new()
 		vbox.add_child(slot_vbox)
 

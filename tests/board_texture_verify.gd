@@ -62,10 +62,12 @@ func _ready() -> void:
 		_check(mat.albedo_texture != null, "revealed tile uses ground texture")
 		_check(mat.albedo_color.is_equal_approx(Color.WHITE), "revealed tile untinted")
 
-	# Fog of war: unrevealed tile dims via darkened palette color.
+	# Fog of war: unrevealed tile dims gently — visibly darker than the
+	# revealed white tint, but never near-black (ground stays readable).
 	var foggy := _spawn_tile(Vector2i(1, 1), "plain")
 	var fmat := _override_mat(foggy)
-	_check(fmat != null and fmat.albedo_color.v < 0.5, "unrevealed tile stays dimmed")
+	_check(fmat != null and fmat.albedo_color.v > 0.4 and fmat.albedo_color.v < 0.95,
+		"unrevealed tile dims gently (readable, not black)")
 
 	if _fails == 0:
 		print("TEX_ALL_OK: %d checks passed" % _checks)

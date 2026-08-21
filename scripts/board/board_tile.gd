@@ -65,8 +65,10 @@ func _update_visual() -> void:
 	if albedo_tex != null:
 		material.albedo_texture = albedo_tex
 		# Textures carry their own full-color look; tint white so they read
-		# naturally (the darkened palette color still dims unrevealed tiles).
-		material.albedo_color = Color.WHITE if is_revealed else color
+		# naturally. Unrevealed tiles get a GENTLE dim (lerp toward white)
+		# instead of the darkened palette color — multiplying a photo texture
+		# by a dark tint goes near-black and hides the ground entirely.
+		material.albedo_color = Color.WHITE if is_revealed else color.lerp(Color.WHITE, 0.55)
 		material.normal_enabled = true
 		material.normal_texture = _cached_texture(terrain, "normal")
 		var rough_tex := _cached_texture(terrain, "roughness")

@@ -170,6 +170,12 @@ func _physics_process(delta: float) -> void:
 	energy_system.process_drop_tanks(delta)
 	dash_system.tick(delta)
 
+	if dash_system.is_dashing:
+		velocity = dash_system.apply_velocity(velocity)
+	else:
+		_handle_movement_input()
+		_apply_movement(delta)
+
 	if not is_on_floor():
 		if jump_system and jump_system.is_gliding and energy_system.energy > 0.0:
 			# Apply thruster slow-fall glide and drain energy

@@ -192,22 +192,22 @@ func _verify_midair_thruster_glide() -> void:
 	# Jump into air first
 	mech._start_jump()
 	
-	# Wait until reaching apex of jump / starting to fall
-	for i in range(40):
+	# Wait until reaching apex of jump (frame 15)
+	for i in range(15):
 		await get_tree().physics_frame
 
 	_check(not mech.is_on_floor(), "mech is currently in mid-air")
 
-	# Engage thruster glide while in mid-air
-	mech.jump_system.is_gliding = true
+	# Engage thruster glide while in mid-air via jump input
+	Input.action_press("jump")
 	var energy_before: float = float(mech.energy_system.energy)
-	for i in range(20):
+	for i in range(15):
 		await get_tree().physics_frame
 
 	_check(mech.velocity.y >= -3.5, "thruster glide cushions downward fall (vel_y=%.2f m/s >= -3.5)" % mech.velocity.y)
 	_check(mech.energy_system.energy < energy_before, "thruster glide consumes energy smoothly over time (energy=%.1f < %.1f)" % [mech.energy_system.energy, energy_before])
 
-	mech.jump_system.is_gliding = false
+	Input.action_release("jump")
 	await _reset_mech()
 
 

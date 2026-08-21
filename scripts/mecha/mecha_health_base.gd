@@ -572,6 +572,15 @@ func _on_armor_broken(slot_name: String) -> void:
 	if AudioManager:
 		AudioManager.play_armor_break(global_position + Vector3(0, 1.5, 0))
 
+	# Spawn fiery sparks, smoke burst, and attach smoke emitter to the broken limb
+	var slot_pos := _get_slot_center(slot_name)
+	if get_tree():
+		EffectFactory.spawn_fire_burst(get_tree(), slot_pos, 0.6, 0.35, 4.5)
+		EffectFactory.spawn_smoke_plume(get_tree(), slot_pos, 4, 0.25, 0.45, 0.7)
+		var section := _get_section_node(slot_name)
+		if section:
+			EffectFactory.spawn_damaged_smoke_emitter(section, Vector3.ZERO)
+
 
 # After a scrap patch shatters, refresh the mech's visuals so the crude patch
 # primitives disappear (the slot reverts to its inner frame / armor state).
@@ -601,6 +610,14 @@ func _on_frame_destroyed(slot_name: String) -> void:
 			_drop_hand_weapon_pickup("right", slot_name)
 	part_destroyed.emit(slot_name)
 	_calculate_totals()
+
+	# Heavy structural explosion + dark smoke plume and scorch patch
+	var slot_pos := _get_slot_center(slot_name)
+	if get_tree():
+		EffectFactory.spawn_fire_burst(get_tree(), slot_pos, 0.9, 0.5, 6.0)
+		EffectFactory.spawn_smoke_plume(get_tree(), slot_pos, 7, 0.3, 0.65, 1.1)
+		EffectFactory.spawn_burning_ground(get_tree(), slot_pos, 1.2, 2.5)
+
 	# Any destroyed frame can kill the status light: the head (light is on the
 	# head) or the BODY (the engine core is gone — no power for any light).
 	if slot_name == "head" or slot_name == "body":
@@ -850,6 +867,10 @@ func _detonate_mech() -> void:
 		return
 	var blast_pos := global_position + Vector3(0, 1.5, 0)
 	EffectManager.spawn_explosion(blast_pos, 10.0)
+	if get_tree():
+		EffectFactory.spawn_fire_burst(get_tree(), blast_pos, 2.2, 0.7, 8.0)
+		EffectFactory.spawn_smoke_plume(get_tree(), blast_pos, 10, 0.45, 1.1, 1.8)
+		EffectFactory.spawn_burning_ground(get_tree(), blast_pos, 2.5, 3.5)
 	var mecha := get_parent()
 	var is_enemy := mecha.is_in_group("enemy") if mecha else true
 	EffectManager.apply_area_explosion_damage(blast_pos, 60.0, 10.0, is_enemy, "explosive", mecha)

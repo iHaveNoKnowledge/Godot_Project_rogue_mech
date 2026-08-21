@@ -173,6 +173,10 @@ func _hit_target(target: Node3D) -> void:
 
 func _explode(blast_pos: Vector3) -> void:
 	EffectManager.spawn_explosion(blast_pos, explosion_radius)
+	if get_tree():
+		EffectFactory.spawn_fire_burst(get_tree(), blast_pos, maxf(explosion_radius * 0.7, 0.8), 0.45, 6.0)
+		EffectFactory.spawn_smoke_plume(get_tree(), blast_pos, 6, 0.3, 0.6, 0.9)
+		EffectFactory.spawn_burning_ground(get_tree(), blast_pos, maxf(explosion_radius * 0.8, 1.0), 2.5)
 	EffectManager.apply_area_explosion_damage(blast_pos, damage, explosion_radius, fired_by_enemy, damage_type)
 	queue_free()
 

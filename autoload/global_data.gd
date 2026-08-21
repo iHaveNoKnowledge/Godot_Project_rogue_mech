@@ -728,34 +728,14 @@ const DEFAULT_CARRY_WEAPON_PATH := "res://resources/mech/stock/weapon_combat_sho
 # ===========================================================================
 
 func _ready() -> void:
-	# Create manager instances as child nodes.
+	# Create manager instances.
 	currency = CurrencyManager.new()
-	currency.name = "CurrencyManager"
-	add_child(currency)
-
 	fuel = FuelManager.new()
-	fuel.name = "FuelManager"
-	add_child(fuel)
-
 	board = BoardState.new()
-	board.name = "BoardState"
-	add_child(board)
-
 	narrative = NarrativeState.new()
-	narrative.name = "NarrativeState"
-	add_child(narrative)
-
 	pilot = PilotState.new()
-	pilot.name = "PilotState"
-	add_child(pilot)
-
 	hangar = HangarState.new()
-	hangar.name = "HangarState"
-	add_child(hangar)
-
 	weapons = WeaponInventoryState.new()
-	weapons.name = "WeaponInventoryState"
-	add_child(weapons)
 
 	_load_catalogs()
 	weapons._ensure_default_frames()

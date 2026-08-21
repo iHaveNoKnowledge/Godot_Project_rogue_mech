@@ -46,10 +46,18 @@ var is_dashing: bool:
 	set(v):
 		if dash_system: dash_system.is_dashing = v
 
-var dash_cooldown: float:
-	get: return dash_system.dash_cooldown if dash_system else 0.5
+var dash_cooldown: float = 0.5
+var dash_cooldown_timer: float = 0.0
+
+var is_charging_prejump: bool:
+	get: return jump_system.is_charging_prejump if jump_system else false
 	set(v):
-		if dash_system: dash_system.dash_cooldown = v
+		if jump_system: jump_system.is_charging_prejump = v
+
+var prejump_charge_time: float:
+	get: return jump_system.prejump_charge_time if jump_system else 0.0
+	set(v):
+		if jump_system: jump_system.prejump_charge_time = v
 
 var energy: float:
 	get: return energy_system.energy if energy_system else 100.0

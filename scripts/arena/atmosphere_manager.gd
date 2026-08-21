@@ -74,10 +74,26 @@ func _setup_atmosphere() -> void:
 	sky.sky_material = sky_mat
 	env.sky = sky
 	env.volumetric_fog_enabled = true
+	env.volumetric_fog_anisotropy = 0.35
+	env.volumetric_fog_temporal_reprojection_enabled = true
+	env.volumetric_fog_temporal_reprojection_amount = 0.9
 	env.tonemap_mode = 2
+
+	# HDR Bloom / Glow for vibrant lasers, sparks, thruster flames and reflections
+	env.glow_enabled = true
+	env.glow_intensity = 0.85
+	env.glow_bloom = 0.25
+	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
+	env.glow_hdr_threshold = 1.0
+	env.glow_hdr_scale = 1.8
+
+	if sun:
+		sun.shadow_enabled = true
+		sun.light_volumetric_fog_energy = 1.6
 
 	_add_theme_ambient_lights(theme)
 	_add_dust_particles(theme)
+	_spawn_arena_fog_volumes(theme)
 
 
 func _add_theme_ambient_lights(theme: int) -> void:
@@ -189,3 +205,32 @@ func _add_dust_particles(theme: int) -> void:
 
 	# Apply environmental hazard overlay after base atmosphere.
 	_apply_hazard_overlay()
+
+
+func _spawn_arena_fog_volumes(theme: int) -> void:
+	# Add localized low-lying fog banks for dramatic battlefield atmosphere
+	var fog_bank_positions = [
+		Vector3(-35, 1.5, -20),
+		Vector3(40, 1.5, 25),
+		Vector3(0, 1.0, 0)
+	]
+	for pos in fog_bank_positions:
+		var fv := FogVolume.new()
+		fv.name = "BattlefieldFogBank"
+		fv.size = Vector3(50.0, 4.0, 50.0)
+		fv.shape = RenderingServer.FOG_VOLUME_SHAPE_BOX
+		var fmat := FogMaterial.new()
+		fmat.density = 0.04
+		if theme == 0:
+			fmat.albedo = Color(0.70, 0.55, 0.35) # Sandy low fog
+		elif theme == 1:
+			fmat.albedo = Color(0.15, 0.25, 0.40) # Smoggy neon fog
+		elif theme == 2:
+			fmat.albedo = Color(0.30, 0.18, 0.35) # Dusk mist
+		elif theme == 3:
+			fmat.albedo = Color(0.40, 0.55, 0.70) # River morning fog
+		else:
+			fmat.albedo = Color(0.25, 0.45, 0.22) # Damp forest mist
+		fv.material = fmat
+		fv.position = pos
+		get_parent().add_child(fv)

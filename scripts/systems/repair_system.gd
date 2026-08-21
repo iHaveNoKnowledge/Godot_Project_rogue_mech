@@ -42,7 +42,7 @@ static func get_emergency_repair_scrap_cost(slot: String) -> int:
 		return 0
 	var armor_max_hp := GlobalData.part_stat(GlobalData.equipped_parts.get(slot), "max_hp", 50.0)
 	var frame_max_hp := GlobalData.part_stat(GlobalData.equipped_frames.get(slot), "max_hp", 50.0)
-	var cost := GlobalData.EMERGENCY_REPAIR_BASE_SCRAP
+	var cost: int = int(GlobalData.EMERGENCY_REPAIR_BASE_SCRAP)
 	cost += int(ceil(dmg * armor_max_hp * GlobalData.EMERGENCY_REPAIR_SCRAP_PER_ARMOR_HP))
 	cost += int(ceil(frame_dmg * frame_max_hp * GlobalData.EMERGENCY_REPAIR_SCRAP_PER_FRAME_HP))
 	return maxi(1, cost)
@@ -178,8 +178,8 @@ static func get_professional_repair_cost(slot: String) -> int:
 		return 0
 	var armor_max_hp := GlobalData.part_stat(GlobalData.equipped_parts.get(slot), "max_hp", 50.0)
 	var frame_max_hp := GlobalData.part_stat(GlobalData.equipped_frames.get(slot), "max_hp", 50.0)
-	var cost := armor_max_hp * GlobalData.PROFESSIONAL_REPAIR_CREDITS_PER_ARMOR_HP
-	cost += frame_max_hp * GlobalData.PROFESSIONAL_REPAIR_CREDITS_PER_FRAME_HP
+	var cost: float = float(armor_max_hp * GlobalData.PROFESSIONAL_REPAIR_CREDITS_PER_ARMOR_HP)
+	cost += float(frame_max_hp * GlobalData.PROFESSIONAL_REPAIR_CREDITS_PER_FRAME_HP)
 	return maxi(1, int(ceil(cost)))
 
 

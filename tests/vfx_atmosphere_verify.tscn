@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://b8yfk3lq2n4m5"]
+
+[ext_resource type="Script" path="res://tests/vfx_atmosphere_verify.gd" id="1_vfx"]
+
+[node name="VFXAtmosphereVerify" type="Node"]
+script = ExtResource("1_vfx")

@@ -66,7 +66,7 @@ func _setup_audio_buses() -> void:
 			break
 	if not has_compressor:
 		var comp := AudioEffectCompressor.new()
-		comp.threshold_db = -18.0
+		comp.threshold = -18.0
 		comp.ratio = 4.0
 		comp.attack_us = 500.0
 		comp.release_ms = 120.0

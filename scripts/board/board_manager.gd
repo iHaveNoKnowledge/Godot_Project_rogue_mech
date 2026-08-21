@@ -691,7 +691,11 @@ func _clear_highlights() -> void:
 func _update_token_position() -> void:
 	if nodes_dict.has(current_pos):
 		var tile = nodes_dict[current_pos]
-		player_token.global_position = tile.global_position + Vector3(0, 0.9, 0)
+		var patrol_on_tile := not PatrolSystem.get_patrol_at(current_pos).is_empty()
+		# Offset player token to the west (-0.55m) if sharing the tile with a patrol fleet,
+		# so the player pawn and enemy token stand side-by-side without clipping/overlapping.
+		var offset_x: float = -0.55 if patrol_on_tile else 0.0
+		player_token.global_position = tile.global_position + Vector3(offset_x, 0.9, 0.0)
 		# Point the arrow at the last heading (east = (1,0), south = (0,1), ...).
 		if player_token.has_method("face_heading"):
 			player_token.face_heading(_last_dir)
@@ -721,15 +725,18 @@ func _refresh_patrol_markers() -> void:
 		marker.set_script(preload("res://scripts/board/patrol_marker.gd"))
 		_patrol_marker_container.add_child(marker)
 
+		# Offset patrol token to the east (+0.55m) if on the player's tile,
+		# so player pawn and enemy fleet token stand side-by-side cleanly.
+		var offset_x: float = 0.55 if pos == current_pos else 0.0
 		var prev_pos: Vector2i = PatrolSystem.normalize_dir(p.get("prev_pos", pos))
 		if prev_pos != pos and nodes_dict.has(prev_pos) and nodes_dict[pos].is_revealed:
-			# Smooth simultaneous movement animation (GDD §3.2)
-			marker.global_position = nodes_dict[prev_pos].global_position + Vector3(0, 1.0, 0)
-			var target_pos: Vector3 = nodes_dict[pos].global_position + Vector3(0, 1.0, 0)
+			var start_offset: float = 0.55 if prev_pos == current_pos else 0.0
+			marker.global_position = nodes_dict[prev_pos].global_position + Vector3(start_offset, 1.0, 0.0)
+			var target_pos: Vector3 = nodes_dict[pos].global_position + Vector3(offset_x, 1.0, 0.0)
 			var tween := create_tween()
 			tween.tween_property(marker, "global_position", target_pos, 0.8).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
 		else:
-			marker.global_position = nodes_dict[pos].global_position + Vector3(0, 1.0, 0)
+			marker.global_position = nodes_dict[pos].global_position + Vector3(offset_x, 1.0, 0.0)
 		marker.setup(p)
 	_add_boss_marker()
 

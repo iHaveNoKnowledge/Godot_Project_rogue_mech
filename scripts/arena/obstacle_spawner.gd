@@ -1,5 +1,7 @@
 extends Node3D
 
+const MaterialFactory = preload("res://scripts/arena/material_factory.gd")
+
 ## Spawns procedural cover objects, street barricades, containers, and hazards tailored to the map theme.
 
 @export var arena_size: float = 240.0
@@ -218,7 +220,7 @@ func _create_cover(def: Dictionary) -> StaticBody3D:
 
 	cover.add_child(collision)
 	cover.add_child(mesh_inst)
-	mesh_inst.material_override = mat
+	mesh_inst.material_override = MaterialFactory.get_cover_material(cover.cover_type)
 
 	return cover
 

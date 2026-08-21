@@ -1,5 +1,7 @@
 extends Node3D
 
+const MaterialFactory = preload("res://scripts/arena/material_factory.gd")
+
 ## Generates procedural combat maps: Desert, Skyscraper City, Urban Crossroads, and River Bridge.
 
 @export var arena_size: float = 240.0
@@ -305,12 +307,7 @@ func _add_ground_plane(texture: Texture2D, y: float, z0: float, z1: float) -> vo
 	box.size = Vector3(arena_size, 0.1, size_z)
 	plane.mesh = box
 
-	var mat = StandardMaterial3D.new()
-	mat.albedo_texture = texture
-	mat.roughness = 0.85
-	# Stretch UVs so the generated texture spans the full field once (no tiling
-	# seams, roads keep their true metre-scale spacing).
-	mat.uv1_scale = Vector3(1.0, 1.0, 1.0)
+	var mat = MaterialFactory.get_ground_material(current_theme, texture)
 	plane.material_override = mat
 
 	plane.position = Vector3(0, y, center_z)
@@ -357,9 +354,7 @@ func _add_forest_strip_plane(texture: Texture2D) -> void:
 	arrays[Mesh.ARRAY_INDEX] = indices
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 
-	var mat := StandardMaterial3D.new()
-	mat.albedo_texture = texture
-	mat.roughness = 0.85
+	var mat := MaterialFactory.get_ground_material(current_theme, texture)
 	var surface := MeshInstance3D.new()
 	surface.name = "ForestRiverStrip"
 	surface.mesh = mesh
@@ -432,10 +427,9 @@ func _add_forest_bank_mesh(texture: Texture2D, z0: float, z1: float) -> void:
 	arrays[Mesh.ARRAY_INDEX] = indices
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 
-	var mat := StandardMaterial3D.new()
-	mat.albedo_texture = texture
-	mat.roughness = 0.85
+	var mat := MaterialFactory.get_ground_material(current_theme, texture)
 	var surface := MeshInstance3D.new()
+
 	surface.name = "ForestTerrain"
 	surface.mesh = mesh
 	surface.material_override = mat

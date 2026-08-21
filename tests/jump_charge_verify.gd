@@ -131,7 +131,7 @@ func _verify_charge_accumulates() -> void:
 	_check(mech.jump_system.is_jumping, "mech is jumping after pressing space")
 	_check(mech.jump_system.jump_charge > 0.0, "jump_charge > 0 after holding (%.4f)" % mech.jump_system.jump_charge)
 
-	var charge_before := mech.jump_system.jump_charge
+	var charge_before: float = float(mech.jump_system.jump_charge)
 	for i in range(10):
 		await get_tree().physics_frame
 	_check(mech.jump_system.jump_charge > charge_before,
@@ -156,7 +156,7 @@ func _verify_charge_bounded() -> void:
 
 	_check(mech.jump_system.jump_charge <= JUMP_CHARGE_TIME + 0.02,
 		"jump_charge capped near JUMP_CHARGE_TIME (%.4f <= %.4f)" % [mech.jump_system.jump_charge, JUMP_CHARGE_TIME])
-	_check(is_equal_approx(mech.jump_system.jump_charge, JUMP_CHARGE_TIME, 0.02),
+	_check(absf(float(mech.jump_system.jump_charge) - JUMP_CHARGE_TIME) <= 0.02,
 		"jump_charge equals JUMP_CHARGE_TIME after long hold (%.4f ~= %.4f)" % [mech.jump_system.jump_charge, JUMP_CHARGE_TIME])
 
 	Input.action_release("jump")
@@ -231,7 +231,7 @@ func _verify_velocity_ramps_with_charge() -> void:
 
 	_check(v_zero < v_half, "velocity at 50%% charge > velocity at 0%% (%.1f > %.1f)" % [v_half, v_zero])
 	_check(v_half < v_full, "velocity at 100%% charge > velocity at 50%% (%.1f > %.1f)" % [v_full, v_half])
-	_check(is_equal_approx(v_zero, 6.0, 0.5), "0%% charge ≈ JUMP_MIN_VELOCITY (6.0), got %.1f" % v_zero)
+	_check(absf(v_zero - 6.0) <= 0.5, "0%% charge ≈ JUMP_MIN_VELOCITY (6.0), got %.1f" % v_zero)
 
 	# The ramp should be roughly linear (lerp between min and full).
 	var expected_half: float = (v_zero + v_full) / 2.0
@@ -252,7 +252,7 @@ func _verify_energy_consumed_once() -> void:
 	var cost: float = mech._start_jump()
 	_check(cost > 0.0, "jump returned a cost (%.1f)" % cost)
 	var energy_after_launch: float = mech.energy_system.energy
-	_check(is_equal_approx(energy_after_launch, 100.0 - cost, 0.1),
+	_check(absf(energy_after_launch - (100.0 - cost)) <= 0.1,
 		"energy deducted once at launch (%.1f = 100 - %.1f)" % [energy_after_launch, cost])
 
 	# Hold the button to keep charging — energy must NOT decrease further.
@@ -260,7 +260,7 @@ func _verify_energy_consumed_once() -> void:
 	for i in range(25):
 		await get_tree().physics_frame
 
-	_check(is_equal_approx(mech.energy_system.energy, energy_after_launch, 0.1),
+	_check(absf(float(mech.energy_system.energy) - energy_after_launch) <= 0.1,
 		"energy unchanged after 25 frames of charging (%.1f == %.1f)" % [mech.energy_system.energy, energy_after_launch])
 
 	Input.action_release("jump")
@@ -270,7 +270,7 @@ func _verify_energy_consumed_once() -> void:
 		if mech.is_on_floor() and i > 10:
 			break
 
-	_check(is_equal_approx(mech.energy_system.energy, energy_after_launch, 0.1),
+	_check(absf(float(mech.energy_system.energy) - energy_after_launch) <= 0.1,
 		"energy unchanged after landing (%.1f == %.1f)" % [mech.energy_system.energy, energy_after_launch])
 
 

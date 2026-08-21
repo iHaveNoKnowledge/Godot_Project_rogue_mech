@@ -36,6 +36,10 @@ var ally_unit_templates: Dictionary = {}
 var run_themes: Array = []
 var run_events: Array = []
 
+const EMERGENCY_REPAIR_BASE_SCRAP: int = 5
+const EMERGENCY_REPAIR_SCRAP_PER_ARMOR_HP: float = 0.1
+const EMERGENCY_REPAIR_SCRAP_PER_FRAME_HP: float = 0.15
+
 const MECHA_SLOTS: Array[String] = [
 	"head", "body", "arm_left", "arm_right", "leg_left", "leg_right"
 ]

@@ -222,13 +222,16 @@ func _verify_shield_toggle() -> void:
 # a distinct shatter when the plate breaks, so blocking reads by ear.
 func _verify_shield_audio() -> void:
 	var am := AudioManager
-	_check(am != null, "AudioManager autoload is available")
+	var sfx := AudioManager.sfx if AudioManager else null
+	_check(am != null and sfx != null, "AudioManager & SFXManager autoload are available")
+	if sfx == null:
+		return
 
-	_check(am._sound_cache.has("shield_block"), "cache has the shield_block voice")
-	_check(am._sound_cache.has("shield_break"), "cache has the shield_break voice")
+	_check(sfx._sound_cache.has("shield_block"), "cache has the shield_block voice")
+	_check(sfx._sound_cache.has("shield_break"), "cache has the shield_break voice")
 
 	# Block: three pitch-varied clang variants, all valid non-empty 16-bit WAVs.
-	var block_arr: Array = am._sound_cache["shield_block"]
+	var block_arr: Array = sfx._sound_cache.get("shield_block", [])
 	_check(block_arr is Array and block_arr.size() == 3, "shield block has 3 pitch variants")
 	var blocks_ok := true
 	for stream in block_arr:
@@ -237,12 +240,12 @@ func _verify_shield_audio() -> void:
 	_check(blocks_ok, "shield block variants are non-empty 16-bit 22050Hz WAVs")
 
 	# Break: a single valid shatter.
-	var break_stream: AudioStreamWAV = am._sound_cache["shield_break"]
+	var break_stream: AudioStreamWAV = sfx._sound_cache.get("shield_break")
 	_check(break_stream != null and break_stream.data.size() > 500 and break_stream.format == AudioStreamWAV.FORMAT_16_BITS, "shield break is a non-empty 16-bit WAV")
 
 	# Distinct from each other and from the generic armor crack (so the player
 	# can tell shield combat apart from armor damage).
-	var armor_break: AudioStreamWAV = am._sound_cache["armor_break"]
+	var armor_break: AudioStreamWAV = sfx._sound_cache.get("armor_break")
 	var all_distinct := true
 	if armor_break != null and break_stream.data == armor_break.data:
 		all_distinct = false
@@ -252,25 +255,25 @@ func _verify_shield_audio() -> void:
 	_check(all_distinct, "shield break differs from the block clangs and the armor crack")
 
 	# The positional wrappers route to the right streams.
-	am.sfx_pool[0].stop()
+	sfx.sfx_pool[0].stop()
 	am.play_shield_block(Vector3.ZERO)
-	_check(block_arr.has(am.sfx_pool[0].stream), "play_shield_block plays a block clang variant")
-	_check(am.sfx_pool[0].pitch_scale >= 0.95 and am.sfx_pool[0].pitch_scale <= 1.05, "block clang jitters pitch (%.3f)" % am.sfx_pool[0].pitch_scale)
-	am.sfx_pool[0].stop()
+	_check(block_arr.has(sfx.sfx_pool[0].stream), "play_shield_block plays a block clang variant")
+	_check(sfx.sfx_pool[0].pitch_scale >= 0.95 and sfx.sfx_pool[0].pitch_scale <= 1.05, "block clang jitters pitch (%.3f)" % sfx.sfx_pool[0].pitch_scale)
+	sfx.sfx_pool[0].stop()
 	am.play_shield_break(Vector3.ZERO)
-	_check(am.sfx_pool[0].stream == break_stream, "play_shield_break plays the shatter voice")
-	am.sfx_pool[0].stop()
+	_check(sfx.sfx_pool[0].stream == break_stream, "play_shield_break plays the shatter voice")
+	sfx.sfx_pool[0].stop()
 
 	# End-to-end: a fully-blocked hit plays the clang, and draining the shield
 	# to zero plays the shatter.
 	var enemy = _spawn_enemy(5)
 	await get_tree().process_frame
-	am.sfx_pool[0].stop()
+	sfx.sfx_pool[0].stop()
 	enemy.health_system.take_damage(30.0, "heat")  # fully absorbed (100% drain)
-	_check(block_arr.has(am.sfx_pool[0].stream), "blocked hit plays the block clang")
-	am.sfx_pool[0].stop()
+	_check(block_arr.has(sfx.sfx_pool[0].stream), "blocked hit plays the block clang")
+	sfx.sfx_pool[0].stop()
 	enemy.health_system.take_damage(enemy.shield_max_hp, "heat")  # drains to 0
-	_check(am.sfx_pool[0].stream == break_stream, "shield depletion plays the shatter")
+	_check(sfx.sfx_pool[0].stream == break_stream, "shield depletion plays the shatter")
 	enemy.queue_free()
 	await get_tree().process_frame
 

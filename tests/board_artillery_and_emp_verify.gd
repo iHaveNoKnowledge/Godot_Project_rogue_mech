@@ -68,18 +68,9 @@ func _ready() -> void:
 
 	bm.current_pos = Vector2i(0, 0)
 
-	# Trigger artillery bombardment
-	var mock_fleets: Array[Dictionary] = [
-		{"id": "fleet_arty_1", "archetype": "artillery", "pos": Vector2i(2, 2)}
-	]
+	# Test parabolic shell spawning
+	bm._spawn_parabolic_shell(Vector3(6, 1, 6), Vector3(0, 0.6, 0), 0.0)
 
-	bm._trigger_artillery_bombardment(mock_fleets)
-
-	# Verify ArtilleryReportUI exists
-	var report_ui = bm.get_node_or_null("ArtilleryReportUI")
-	_check(report_ui != null, "ArtilleryReportUI instantiated in BoardManager")
-
-	# Check that parabolic shell nodes were spawned
 	var found_shells := 0
 	for child in bm.get_children():
 		if child is MeshInstance3D and child.mesh is SphereMesh:
@@ -88,6 +79,16 @@ func _ready() -> void:
 	_check(found_shells >= 1, "Artillery bombardment spawned parabolic shell meshes (got %d)" % found_shells)
 	_check(cam.has_method("pan_to_world_pos"), "Board camera supports pan_to_world_pos")
 	_check(cam.has_method("pan_to_player"), "Board camera supports pan_to_player")
+
+	# Trigger artillery bombardment
+	var mock_fleets: Array[Dictionary] = [
+		{"id": "fleet_arty_1", "archetype": "artillery", "pos": Vector2i(2, 2)}
+	]
+	bm._trigger_artillery_bombardment(mock_fleets)
+
+	# Verify ArtilleryReportUI exists
+	var report_ui = bm.get_node_or_null("ArtilleryReportUI")
+	_check(report_ui != null, "ArtilleryReportUI instantiated in BoardManager")
 
 	# Dismiss report UI if open to clean up
 	if report_ui and report_ui.has_method("_on_continue_pressed"):

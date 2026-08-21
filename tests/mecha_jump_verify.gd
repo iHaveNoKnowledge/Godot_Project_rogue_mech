@@ -73,6 +73,7 @@ func _build_world() -> void:
 	# A camera so _apply_movement doesn't bail early (headless has none by default).
 	var cam := Camera3D.new()
 	add_child(cam)
+	cam.current = true
 	cam.position = Vector3(0, 8, 8)
 	cam.look_at(Vector3.ZERO, Vector3.UP)
 
@@ -91,7 +92,8 @@ func _build_world() -> void:
 
 
 func _verify_dash_cooldown() -> void:
-	_check(is_equal_approx(mech.dash_cooldown, 0.5), "dash cooldown halved to 0.5s")
+	_check(mech.dash_system.can_dash(100.0), "dash available with energy")
+	_check(not mech.dash_system.can_dash(2.0), "dash refuses with low energy (< 6.0)")
 
 
 func _verify_jump_energy_cost() -> void:
@@ -172,7 +174,8 @@ func _reset_mech() -> void:
 	mech.jump_system.is_jumping = false
 	mech.jump_system.jump_charge = 0.0
 	mech.energy_system.energy = 100.0
-	mech.dash_cooldown_timer = 0.0
+	mech.jump_system.is_charging_prejump = false
+	mech.dash_system.is_dashing = false
 	Input.action_release("jump")
 	Input.action_release("move_forward")
 	for i in range(90):
@@ -194,8 +197,8 @@ func _peak_height(start_y: float) -> float:
 func _verify_prejump_mode() -> void:
 	# Base mode: no thruster module equipped
 	GlobalData.weapons.attachments.clear()
-	mech._jump.thruster_override = false
-	_check(mech._jump.get_active_jump_mode() == mech._jump.JumpMode.PRE_JUMP_CHARGE, "base mode active without thruster module")
+	mech.jump_system.thruster_override = false
+	_check(mech.jump_system.get_active_jump_mode() == mech.jump_system.JumpMode.PRE_JUMP_CHARGE, "base mode active without thruster module")
 
 	# 1. Tap: press and immediate release -> low hop
 	await _reset_mech()
@@ -212,7 +215,7 @@ func _verify_prejump_mode() -> void:
 	Input.action_press("move_forward")
 	for i in range(15):
 		await get_tree().physics_frame
-	_check(mech.is_charging_prejump, "pre-jump charge accumulates while moving")
+	_check(mech.jump_system.is_charging_prejump, "pre-jump charge accumulates while moving")
 	_check(Vector3(mech.velocity.x, 0.0, mech.velocity.z).length() > 1.0, "movement is NOT blocked while charging pre-jump")
 
 	# Release space to spring launch!
@@ -226,9 +229,9 @@ func _verify_prejump_mode() -> void:
 func _verify_thruster_jump_mode() -> void:
 	# Equip booster_mk1 attachment to activate Jetpack Thruster mode
 	GlobalData.weapons.attachments = [{"id": "booster_mk1", "name": "Thrust Booster MK-I", "type": "thruster"}]
-	mech._jump.thruster_override = true
-	_check(mech._jump.has_thruster_module(), "thruster module detected from loadout")
-	_check(mech._jump.get_active_jump_mode() == mech._jump.JumpMode.JETPACK_THRUSTER, "jetpack thruster mode active when module equipped")
+	mech.jump_system.thruster_override = true
+	_check(mech.jump_system.has_thruster_module(), "thruster module detected from loadout")
+	_check(mech.jump_system.get_active_jump_mode() == mech.jump_system.JumpMode.JETPACK_THRUSTER, "jetpack thruster mode active when module equipped")
 
 	# 1. Tap in thruster mode: launches immediately on press
 	await _reset_mech()
@@ -250,7 +253,7 @@ func _verify_thruster_jump_mode() -> void:
 	_check(thrust_hold_peak > thrust_tap_peak + 0.5, "holding space in thruster mode gives sustained boost (%.2f m vs %.2f m)" % [thrust_hold_peak, thrust_tap_peak])
 
 	# Reset override
-	mech._jump.thruster_override = null
+	mech.jump_system.thruster_override = null
 	GlobalData.weapons.attachments.clear()
 
 
@@ -262,8 +265,8 @@ func _verify_midair_dash() -> void:
 	await get_tree().physics_frame
 	_check(not mech.is_on_floor(), "mech is airborne for the mid-air dash check")
 	mech._start_dash()
-	_check(mech.is_dashing, "dash fires mid-air to steer momentum")
-	mech.is_dashing = false
+	_check(mech.dash_system.is_dashing, "dash fires mid-air to steer momentum")
+	mech.dash_system.is_dashing = false
 
 
 func _settle_on_floor() -> void:
@@ -271,7 +274,7 @@ func _settle_on_floor() -> void:
 	mech.velocity = Vector3.ZERO
 	mech.jump_system.is_jumping = false
 	mech.jump_system.jump_charge = 0.0
-	mech.is_charging_prejump = false
+	mech.jump_system.is_charging_prejump = false
 	mech.is_roller_dashing = false
 	mech.energy_system.energy = 100.0
 	Input.action_release("jump")

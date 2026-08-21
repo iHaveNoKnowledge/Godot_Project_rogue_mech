@@ -197,10 +197,10 @@ func _get_slot_center(slot_name: String) -> Vector3:
 		return section.global_position
 
 	var mecha = get_parent()
-	var base_pos: Vector3 = mecha.global_position if mecha else global_position
-	var fwd: Vector3 = -mecha.global_transform.basis.z if mecha else Vector3.FORWARD
-	var right: Vector3 = mecha.global_transform.basis.x if mecha else Vector3.RIGHT
-	var up: Vector3 = mecha.global_transform.basis.y if mecha else Vector3.UP
+	var base_pos: Vector3 = mecha.global_position if (mecha and mecha is Node3D) else (global_position if self is Node3D else Vector3.ZERO)
+	var fwd: Vector3 = -mecha.global_transform.basis.z if (mecha and mecha is Node3D) else Vector3.FORWARD
+	var right: Vector3 = mecha.global_transform.basis.x if (mecha and mecha is Node3D) else Vector3.RIGHT
+	var up: Vector3 = mecha.global_transform.basis.y if (mecha and mecha is Node3D) else Vector3.UP
 	# Use GlobalData.SLOT_OFFSETS for the fallback local-space offset.
 	var offset: Vector3 = GlobalData.SLOT_OFFSETS.get(slot_name, Vector3.ZERO)
 	return base_pos + up * offset.y + fwd * offset.z + right * offset.x

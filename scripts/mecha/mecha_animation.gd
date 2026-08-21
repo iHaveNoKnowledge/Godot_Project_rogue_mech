@@ -156,10 +156,21 @@ func _run_procedural(delta: float) -> void:
 		else:
 			_update_bob(delta)
 			_update_legs(delta)
+			if mecha.get("is_charging_prejump") == true:
+				_update_prejump_charge_posture(delta)
 
 	# Runs LAST so the raised shield arm overrides whatever the base postures
 	# (idle guard, sprint pumping, airborne) set for that arm this frame.
 	_update_shield_arm(delta)
+
+
+func _update_prejump_charge_posture(delta: float) -> void:
+	var charge_time: float = float(mecha.get("prejump_charge_time")) if "prejump_charge_time" in mecha else 0.0
+	var ratio := clampf(charge_time / 0.35, 0.0, 1.0)
+	var speed = 12.0 * delta
+	var compress_y = -0.08 * ratio
+	if body_mesh:
+		body_mesh.position.y = lerp(body_mesh.position.y, _original_body_pos.y + compress_y, speed)
 
 
 func _update_jump_posture(delta: float) -> void:

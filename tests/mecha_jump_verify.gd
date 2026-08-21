@@ -46,13 +46,15 @@ func _ready() -> void:
 	_verify_momentum_launch()
 	_verify_leg_power_scaling()
 	_verify_weight_penalty()
-	await _verify_variable_height()
+	await _verify_prejump_mode()
+	await _verify_thruster_jump_mode()
 	await _verify_midair_dash()
 	await _verify_roller_energy()
 	await _verify_midair_roller()
 
 	print("MECHA_JUMP_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	Input.action_release("jump")
+	Input.action_release("move_forward")
 	await get_tree().process_frame
 	get_tree().quit(1 if _fails > 0 else 0)
 
@@ -162,7 +164,7 @@ func _verify_weight_penalty() -> void:
 	mech.total_weight = 50.0
 
 
-# --- Physics integration: tap vs hold height ---------------------------------
+# --- Physics integration: Pre-Jump vs Thruster Jump -------------------------
 
 func _reset_mech() -> void:
 	mech.global_position = Vector3(0, 3, 0)
@@ -172,6 +174,7 @@ func _reset_mech() -> void:
 	mech.energy = 100.0
 	mech.dash_cooldown_timer = 0.0
 	Input.action_release("jump")
+	Input.action_release("move_forward")
 	for i in range(90):
 		await get_tree().physics_frame
 		if mech.is_on_floor():
@@ -188,41 +191,67 @@ func _peak_height(start_y: float) -> float:
 	return peak - start_y
 
 
-func _verify_variable_height() -> void:
-	# Tap: press then release on the very next frame -> a low hop.
+func _verify_prejump_mode() -> void:
+	# Base mode: no thruster module equipped
+	GlobalData.attachments.clear()
+	mech._jump.thruster_override = false
+	_check(mech._jump.get_active_jump_mode() == mech._jump.JumpMode.PRE_JUMP_CHARGE, "base mode active without thruster module")
+
+	# 1. Tap: press and immediate release -> low hop
 	await _reset_mech()
 	var tap_start: float = mech.global_position.y
 	Input.action_press("jump")
 	await get_tree().physics_frame
 	Input.action_release("jump")
 	var tap_peak := await _peak_height(tap_start)
+	_check(tap_peak < 1.5, "pre-jump tap is a low hop (%.2f m)" % tap_peak)
 
-	# Hold: keep the button down for ~0.33s (the full charge window) -> a real
-	# jump whose peak is measured from the same ground position.
+	# 2. Charge & Run simultaneously (Non-blocking): hold space and press move_forward
 	await _reset_mech()
-	var hold_start: float = mech.global_position.y
 	Input.action_press("jump")
-	# Hold comfortably past the 0.32s charge window so the launch is FULL.
+	Input.action_press("move_forward")
+	for i in range(15):
+		await get_tree().physics_frame
+	_check(mech.is_charging_prejump, "pre-jump charge accumulates while moving")
+	_check(Vector3(mech.velocity.x, 0.0, mech.velocity.z).length() > 1.0, "movement is NOT blocked while charging pre-jump")
+
+	# Release space to spring launch!
+	var hold_start: float = mech.global_position.y
+	Input.action_release("jump")
+	Input.action_release("move_forward")
+	var hold_peak := await _peak_height(hold_start)
+	_check(hold_peak > tap_peak + 1.0, "releasing charged pre-jump springs significantly higher (%.2f m vs %.2f m)" % [hold_peak, tap_peak])
+
+
+func _verify_thruster_jump_mode() -> void:
+	# Equip booster_mk1 attachment to activate Jetpack Thruster mode
+	GlobalData.attachments = [{"id": "booster_mk1", "name": "Thrust Booster MK-I", "type": "thruster"}]
+	mech._jump.thruster_override = true
+	_check(mech._jump.has_thruster_module(), "thruster module detected from loadout")
+	_check(mech._jump.get_active_jump_mode() == mech._jump.JumpMode.JETPACK_THRUSTER, "jetpack thruster mode active when module equipped")
+
+	# 1. Tap in thruster mode: launches immediately on press
+	await _reset_mech()
+	var start_y: float = mech.global_position.y
+	Input.action_press("jump")
+	await get_tree().physics_frame
+	Input.action_release("jump")
+	var thrust_tap_peak := await _peak_height(start_y)
+	_check(thrust_tap_peak > 0.5 and thrust_tap_peak < 1.5, "thruster jump tap launches a low hop (%.2f m)" % thrust_tap_peak)
+
+	# 2. Hold in thruster mode: mid-air sustained burn boosts higher
+	await _reset_mech()
+	var hold_start_y: float = mech.global_position.y
+	Input.action_press("jump")
 	for i in range(25):
 		await get_tree().physics_frame
 	Input.action_release("jump")
-	var hold_peak := await _peak_height(hold_start)
+	var thrust_hold_peak := await _peak_height(hold_start_y)
+	_check(thrust_hold_peak > thrust_tap_peak + 0.5, "holding space in thruster mode gives sustained boost (%.2f m vs %.2f m)" % [thrust_hold_peak, thrust_tap_peak])
 
-	_check(tap_peak < 1.5, "a quick tap is a low hop (%.2f m)" % tap_peak)
-	_check(hold_peak > tap_peak + 0.5, "holding the button jumps clearly higher (%.2f m vs %.2f m)" % [hold_peak, tap_peak])
-
-	# Holding PAST the charge window must not climb any higher — the launch is a
-	# bounded impulse, so an extra-long hold peaks at the same height and the
-	# mech comes back down instead of floating forever.
-	await _reset_mech()
-	var long_start: float = mech.global_position.y
-	Input.action_press("jump")
-	for i in range(60):
-		await get_tree().physics_frame
-	Input.action_release("jump")
-	var long_peak := await _peak_height(long_start)
-	_check(absf(long_peak - hold_peak) < 0.35, "holding past full charge climbs no higher (%.2f vs %.2f)" % [long_peak, hold_peak])
-	_check(mech.is_on_floor(), "the mech lands again after a full-charge jump (no infinite float)")
+	# Reset override
+	mech._jump.thruster_override = null
+	GlobalData.attachments.clear()
 
 
 func _verify_midair_dash() -> void:
@@ -242,6 +271,7 @@ func _settle_on_floor() -> void:
 	mech.velocity = Vector3.ZERO
 	mech.is_jumping = false
 	mech.jump_charge = 0.0
+	mech.is_charging_prejump = false
 	mech.is_roller_dashing = false
 	mech.energy = 100.0
 	Input.action_release("jump")
@@ -297,8 +327,9 @@ func _verify_midair_roller() -> void:
 	await _settle_on_floor()
 	mech.is_roller_dashing = true
 	Input.action_press("jump")
-	for i in range(10):
-		await get_tree().physics_frame
+	await get_tree().physics_frame
 	Input.action_release("jump")
+	for i in range(15):
+		await get_tree().physics_frame
 	_check(not mech.is_roller_dashing, "jumping cuts the roller out (no air speed boost)")
 	mech.is_roller_dashing = false

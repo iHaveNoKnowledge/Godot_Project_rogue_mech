@@ -52,6 +52,14 @@ var jump_charge: float:
 		if _jump:
 			_jump.jump_charge = v
 
+var is_charging_prejump: bool:
+	get:
+		return _jump.is_charging_prejump if _jump else false
+
+var prejump_charge_time: float:
+	get:
+		return _jump.prejump_charge_time if _jump else 0.0
+
 var is_dashing: bool:
 	get:
 		return _dash.is_dashing if _dash else false
@@ -221,6 +229,9 @@ func _physics_process(delta: float) -> void:
 	_energy.process_drop_tanks(delta)
 	_dash.tick(delta)
 
+	if _jump and _jump.is_charging_prejump:
+		_jump.tick_prejump_charge(delta, is_on_floor())
+
 	if _dash.is_dashing:
 		velocity = _dash.apply_velocity(velocity)
 	else:
@@ -269,6 +280,22 @@ func _start_jump() -> float:
 	return 0.0
 
 
+func _release_prejump() -> float:
+	if _jump:
+		_jump.total_weight = total_weight
+		_jump.chassis_weight_capacity = _chassis_weight_capacity_override
+		var cost: float = _jump.release_prejump(_energy.energy, global_position, velocity)
+		if cost > 0.0:
+			_energy.energy = maxf(_energy.energy - cost, 0.0)
+			velocity.y = _jump.velocity_ref.y
+			floor_snap_length = 0.0
+			if AudioManager:
+				AudioManager.play_jump(global_position)
+			EffectFactory.spawn_dust_puffs(get_tree(), global_position, 6)
+			return cost
+	return 0.0
+
+
 func _jump_velocity(charge_frac: float) -> float:
 	if _jump:
 		_jump.velocity_ref = velocity
@@ -310,11 +337,21 @@ func _handle_movement_input() -> void:
 	if Input.is_action_just_pressed("dash"):
 		_start_dash()
 
-	# Jump.  Disable floor_snap so the mech actually leaves the ground — with
-	# snap=0.3 the upward velocity (~6 m/s) only moves ~0.1 m/frame, which the
-	# snap pulls back before move_and_slide can lift the body.
-	if is_on_floor() and Input.is_action_just_pressed("jump"):
-		_start_jump()
+	# Jump handling: Dual-mode (Jetpack Thruster vs Base Pre-Jump Charge)
+	if _jump:
+		var active_mode = _jump.get_active_jump_mode()
+		if active_mode == _jump.JumpMode.JETPACK_THRUSTER:
+			if is_on_floor() and Input.is_action_just_pressed("jump"):
+				_start_jump()
+		else:
+			# Base Pre-Jump mode:
+			if is_on_floor() and Input.is_action_just_pressed("jump"):
+				_jump.start_prejump_charge()
+			elif Input.is_action_just_released("jump") and _jump.is_charging_prejump:
+				if is_on_floor():
+					_release_prejump()
+				else:
+					_jump.cancel_prejump_charge()
 
 	# Drop tank purge.
 	if _energy._drop_tank_active and Input.is_action_just_pressed("eject"):

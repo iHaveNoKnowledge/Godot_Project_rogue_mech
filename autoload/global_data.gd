@@ -147,6 +147,7 @@ const SECURITY_UPGRADE_BASE_COST := 35
 const REPAIR_SKILL_MAX := 5
 const REPAIR_XP_BASE := 30
 const REPAIR_XP_PER_LEVEL := 25
+const HANGAR_HARD_MAX := HangarState.HANGAR_HARD_MAX
 
 # --- Weapon constants ---
 const FRAME_UPGRADE_HP_BONUS: float = 25.0

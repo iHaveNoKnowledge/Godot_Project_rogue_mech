@@ -65,7 +65,7 @@ static func get_capacity() -> int:
 # Physical hard cap for the roster array. Kept above any fleet-derived capacity
 # so a save made under a bigger fleet never loses parked mechs.
 static func get_hard_max() -> int:
-	return GlobalData.HANGAR_HARD_MAX
+	return HangarState.HANGAR_HARD_MAX
 
 
 # Every pilot available in the convoy. Entries are {id, name}. Fleet units are

@@ -168,12 +168,22 @@ func try_fire(from_pos: Vector3, aim_dir: Vector3, fired_by_enemy: bool, owner: 
 	if not consume_shot():
 		return false
 
+	# Dynamic heat spread (barrel thermal blooming): higher heat causes higher bullet dispersion.
+	var current_spread := spread
+	if heat_capacity > 0.0 and heat > 0.0:
+		var heat_ratio := clampf(heat / heat_capacity, 0.0, 1.0)
+		# Spread increases progressively as barrel heats up (rewards burst-firing & cooling)
+		current_spread += heat_ratio * 0.075
+
 	for i in range(pellets):
 		var pellet_dir := aim_dir
-		if pellets > 1 and spread > 0.0:
-			var sx := randf_range(-spread, spread)
-			var sy := randf_range(-spread, spread)
-			pellet_dir = (aim_dir + Vector3(sx, sy, 0)).normalized()
+		if current_spread > 0.0:
+			var up_vec := Vector3.UP if absf(aim_dir.y) < 0.9 else Vector3.RIGHT
+			var right_vec := aim_dir.cross(up_vec).normalized()
+			var true_up := right_vec.cross(aim_dir).normalized()
+			var angle := randf_range(0.0, TAU)
+			var radius := randf_range(0.0, current_spread)
+			pellet_dir = (aim_dir + right_vec * (cos(angle) * radius) + true_up * (sin(angle) * radius)).normalized()
 		_spawn_projectile(from_pos, pellet_dir, fired_by_enemy, owner)
 	fired.emit()
 	return true

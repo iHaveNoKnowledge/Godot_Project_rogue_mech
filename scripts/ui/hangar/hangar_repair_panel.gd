@@ -48,7 +48,7 @@ func full_repair() -> void:
 # Try to spend `cost` credits; on shortfall report the need and return true so
 # the caller bails out before touching part damage.
 func _block_without_credits(cost: int) -> bool:
-	if GlobalData.try_spend_credits(cost):
+	if GlobalData.currency.try_spend_credits(cost):
 		return false
 	controller.status_message_label.text = "Need %d credits!" % cost
 	return true

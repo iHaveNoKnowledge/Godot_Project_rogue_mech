@@ -456,7 +456,7 @@ func _schedule_mid_battle_events() -> void:
 
 func _trigger_stalking_ace_ambush() -> void:
 	var ace_kind = GlobalData.narrative.stalking_aces.pop_front()
-	GlobalData.stalking_chance = 0.0
+	GlobalData.narrative.stalking_chance = 0.0
 	_consume_enemy_special_unit(str(ace_kind))
 	print("SIREN WARNING! STALKING ACE WARPING IN!")
 	AudioManager.play_combat_music("ace")
@@ -481,10 +481,10 @@ func _trigger_stalking_ace_ambush() -> void:
 func _consume_enemy_special_unit(kind: String) -> void:
 	if kind == "":
 		return
-	for i in range(GlobalData.enemy_special_units.size()):
-		var unit = GlobalData.enemy_special_units[i]
+	for i in range(GlobalData.narrative.enemy_special_units.size()):
+		var unit = GlobalData.narrative.enemy_special_units[i]
 		if unit is Dictionary and unit.get("kind", "") == kind:
-			GlobalData.enemy_special_units.remove_at(i)
+			GlobalData.narrative.enemy_special_units.remove_at(i)
 			return
 
 

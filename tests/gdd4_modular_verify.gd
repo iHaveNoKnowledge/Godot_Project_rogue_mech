@@ -38,9 +38,9 @@ func _ready() -> void:
 	_check(BoardConfig.energy_cost("plain", true) == 35.0, "roller dash off-road penalty is 35")
 
 	GlobalData.fuel.board_roller_mode = false
-	_check(GlobalData.get_tile_energy_cost("road") == 10.0, "GlobalData get_tile_energy_cost road standard")
+	_check(GlobalData.fuel.get_tile_energy_cost("road") == 10.0, "GlobalData get_tile_energy_cost road standard")
 	GlobalData.fuel.board_roller_mode = true
-	_check(GlobalData.get_tile_energy_cost("road") == 5.0, "GlobalData get_tile_energy_cost road roller")
+	_check(GlobalData.fuel.get_tile_energy_cost("road") == 5.0, "GlobalData get_tile_energy_cost road roller")
 
 	# 2. 4 Fleet Archetypes (GDD §3.3)
 	_check(BoardConfig.FLEET_ARCHETYPES.has("recon"), "has recon fleet archetype")
@@ -113,7 +113,7 @@ func _ready() -> void:
 	_check(sample_pilot.has("background") and sample_pilot["background"] != "", "PilotGenerator generated background: %s" % sample_pilot.get("background", ""))
 
 	var replacement := PilotSystem.record_pilot_permadeath(sample_pilot["name"], "Mech Core Overheat Breach")
-	_check(GlobalData.fallen_pilots.size() == 1, "Fallen pilots memorial recorded casualty")
+	_check(GlobalData.pilot.fallen_pilots.size() == 1, "Fallen pilots memorial recorded casualty")
 	_check(replacement.has("name") and replacement["name"] != sample_pilot["name"], "Replacement pilot generated: %s" % replacement.get("name", ""))
 
 	# 8. Nemesis Rival Pilot & Faction Mobilization verification
@@ -142,13 +142,13 @@ func _ready() -> void:
 	_check(patrol_lead["commander"]["rivalry_count"] == initial_rivalry + 1, "rivalry count escalated after retreat (now %d)" % patrol_lead["commander"]["rivalry_count"])
 	_check(patrol_lead["commander"]["is_nemesis"] == true, "commander is now marked as Nemesis Rival")
 	_check(patrol_lead["commander"]["bounty"] > initial_bounty, "bounty increased for nemesis rival (now %d)" % patrol_lead["commander"]["bounty"])
-	_check(GlobalData.rival_pilots.size() > 0, "surviving rival recorded in GlobalData.rival_pilots")
+	_check(GlobalData.pilot.rival_pilots.size() > 0, "surviving rival recorded in GlobalData.pilot.rival_pilots")
 
 	# Test Victory: Rival is eliminated and bounty is collected
 	var prev_credits := GlobalData.currency.credits
 	GlobalData.board.board_patrol_engagement = int(patrol_lead.get("id"))
 	PatrolSystem.resolve_patrol_combat(true) # true = player victory
-	_check(GlobalData.defeated_rivals.size() > 0, "defeated rival recorded in GlobalData.defeated_rivals")
+	_check(GlobalData.pilot.defeated_rivals.size() > 0, "defeated rival recorded in GlobalData.pilot.defeated_rivals")
 	_check(GlobalData.currency.credits > prev_credits, "bounty reward credited on rival defeat (+%d Cr)" % (GlobalData.currency.credits - prev_credits))
 
 	# 9. The Vagrant Ace & Pre-Cognitive Flow verification
@@ -164,8 +164,8 @@ func _ready() -> void:
 	_check(sampled_standard_perk.get("id") != "precognitive_flow", "standard pilots cannot roll Pre-Cognitive Flow (isolated to Legendary encounters)")
 
 	# Test Pre-Cognitive Flow perk detection
-	GlobalData.recruited_characters.append("vagrant_ace")
-	_check(GlobalData.has_pilot_perk("precognitive_flow") == true, "GlobalData recognizes Pre-Cognitive Flow perk from recruited Vagrant Ace")
+	GlobalData.hangar.recruited_characters.append("vagrant_ace")
+	_check(GlobalData.narrative.has_pilot_perk("precognitive_flow") == true, "GlobalData recognizes Pre-Cognitive Flow perk from recruited Vagrant Ace")
 
 	# Test Leading Shadow step prediction
 	GlobalData.board.player_last_dir = Vector2i(0, 1)

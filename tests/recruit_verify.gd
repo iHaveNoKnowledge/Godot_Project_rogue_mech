@@ -71,13 +71,13 @@ func _ready() -> void:
 	_check(not RecruitSystem.has_pending_duel(), "pending duel cleared after resolve")
 	_check(RecruitSystem.is_character_recruited("ren"), "respect-duel win recruits ren")
 	_check(FleetSystem.has_ally_unit("ally_ren"), "ren fleet unit added after duel win")
-	_check(GlobalData.duel_result_text != "", "duel result text set for respect win")
+	_check(GlobalData.hangar.duel_result_text != "", "duel result text set for respect win")
 
 	# --- Duel loss: nothing gained, character stays out ---
 	await _reset()
 	RecruitSystem.start_duel("ren", "test")
 	RecruitSystem.resolve_duel(false)
-	_check(GlobalData.duel_result_text != "", "duel defeat text set")
+	_check(GlobalData.hangar.duel_result_text != "", "duel defeat text set")
 	_check(not RecruitSystem.is_character_recruited("ren"), "defeat does not recruit")
 	_check(not FleetSystem.has_ally_unit("ally_ren"), "defeat adds no ally")
 
@@ -89,7 +89,7 @@ func _ready() -> void:
 	RecruitSystem.start_duel("jax", "kill")
 	RecruitSystem.resolve_duel(true)
 	_check(RecruitSystem.is_character_recruited("jax"), "kill-duel win marks jax resolved")
-	_check(GlobalData.duel_result_text != "", "kill-duel outcome text set")
+	_check(GlobalData.hangar.duel_result_text != "", "kill-duel outcome text set")
 	_check(not FleetSystem.has_ally_unit("ally_jax") or FleetSystem.get_fleet_unit("ally_jax").get("fielded", true) == false, "salvaged ally never joins fielded")
 	var gained_something := GlobalData.currency.credits > credits_before or GlobalData.currency.scrap > scrap_before
 	var wreck_parked := false
@@ -141,7 +141,7 @@ func _ready() -> void:
 			],
 		},
 	}
-	GlobalData.recruited_characters = []
+	GlobalData.hangar.recruited_characters = []
 	_check(not RecruitSystem.is_event_available(foot_event), "on foot: duel encounter hidden (cannot fight)")
 	var talk_only := foot_event.duplicate(true)
 	talk_only["params"]["choices"] = [{"effect": "recruit_ally", "params": {"character_id": "serra"}}]
@@ -156,7 +156,7 @@ func _ready() -> void:
 	_check(GlobalData.load_run(), "save/load: run file loads")
 	_check(RecruitSystem.is_character_recruited("serra"), "save/load: recruited list survives")
 	_check(RecruitSystem.has_pending_duel(), "save/load: pending duel survives")
-	_check(str(GlobalData.pending_duel.get("character_id", "")) == "ren", "save/load: duel character survives")
+	_check(str(GlobalData.hangar.pending_duel.get("character_id", "")) == "ren", "save/load: duel character survives")
 
 	print("RECRUIT_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	get_tree().quit(1 if _fails > 0 else 0)

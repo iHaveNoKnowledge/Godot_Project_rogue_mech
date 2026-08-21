@@ -97,7 +97,7 @@ func _ready() -> void:
 	_setup_objective_like_manager()
 	_check(GlobalData.board.board_objective_id == "hq_strike", "urban objective id = hq_strike")
 	_check(not BoardSystem.is_objective_complete(), "hq_strike not complete before base destroyed")
-	GlobalData.pending_enemy_base_destroyed = true
+	GlobalData.narrative.pending_enemy_base_destroyed = true
 	# The board manager consumes this flag in _ready; simulate the same effect.
 	var was_pending := EnemyFactionSystem.consume_pending_enemy_base_destroyed()
 	if was_pending:

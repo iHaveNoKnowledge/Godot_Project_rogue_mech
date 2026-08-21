@@ -215,7 +215,7 @@ func cycle_hangar_mech(direction: int) -> void:
 	if not HangarManager.load_mech_state(target_id):
 		return
 	controller.set_editing_mech_id(target_id)
-	controller.selected_chassis_key = GlobalData.chassis_id
+	controller.selected_chassis_key = GlobalData.weapons.chassis_id
 	refresh_badge()
 	controller.refresh_panel.after_mech_change(true)
 	if roster_panel and roster_panel.visible:
@@ -790,7 +790,7 @@ func _confirm_register(slot: int) -> void:
 	var new_id := str(new_mech.get("id", ""))
 	controller.set_editing_mech_id(new_id)
 	if HangarManager.switch_mech(new_id):
-		controller.selected_chassis_key = GlobalData.chassis_id
+		controller.selected_chassis_key = GlobalData.weapons.chassis_id
 	HangarManager.assign_pilot(new_id, HangarManager.PLAYER_PILOT_ID)
 	# The assembled frames leaked onto the pre-flow berths via equip commits
 	# (commit_and_save) and build()/switch_mech()'s save_active() — the new mech
@@ -1007,7 +1007,7 @@ func on_switch_mech_pressed(mech_id: String) -> void:
 	# different mech than the one actually fielded.
 	HangarManager.assign_pilot(mech_id, HangarManager.PLAYER_PILOT_ID)
 	controller.set_editing_mech_id(mech_id)
-	controller.selected_chassis_key = GlobalData.chassis_id
+	controller.selected_chassis_key = GlobalData.weapons.chassis_id
 	GlobalData.save_run()
 	refresh_badge()
 	refresh_page()
@@ -1083,7 +1083,7 @@ func open_pilot_picker(mech_id: String, anchor_btn: Button) -> void:
 			if pilot_id == HangarManager.PLAYER_PILOT_ID and mech_id != GlobalData.hangar.active_hangar_mech_id:
 				HangarManager.switch_mech(mech_id)
 				controller.set_editing_mech_id(mech_id)
-				controller.selected_chassis_key = GlobalData.chassis_id
+				controller.selected_chassis_key = GlobalData.weapons.chassis_id
 				GlobalData.save_run()
 				refresh_badge()
 				controller.refresh_panel.after_mech_change(false)

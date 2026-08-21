@@ -472,7 +472,7 @@ static func load_mech_state(mech_id: String) -> bool:
 			if not old_inst.is_empty():
 				old_inst["equipped"] = false
 
-	GlobalData.chassis_id = str(target.get("chassis_id", "standard"))
+	GlobalData.weapons.chassis_id = str(target.get("chassis_id", "standard"))
 	GlobalData.weapons.equipped_frames.clear()
 	var saved_frames: Dictionary = target.get("frames", {})
 	for slot in saved_frames:
@@ -540,7 +540,7 @@ static func _capture_snapshot(mech_id: String, mech_name: String, pilot_id: Stri
 		"name": mech_name,
 		"slot": slot,
 		"pilot": pilot_id,
-		"chassis_id": GlobalData.chassis_id,
+		"chassis_id": GlobalData.weapons.chassis_id,
 		"frames": SaveGameIO.serialize_frames(),
 		"parts": SaveGameIO.serialize_parts(),
 		"damage": GlobalData.weapons.part_damage.duplicate(true),

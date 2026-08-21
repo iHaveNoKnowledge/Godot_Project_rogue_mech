@@ -218,7 +218,7 @@ func _try_step(target: Vector2i) -> bool:
 	# past and reroute around it).
 	cost += PatrolSystem.interception_surcharge(current_pos, target)
 	# Energy check: walking on the board drains the mech's batteries according to terrain (GDD §3.1).
-	var energy_cost := GlobalData.get_tile_energy_cost(terrain)
+	var energy_cost := GlobalData.fuel.get_tile_energy_cost(terrain)
 	if GlobalData.fuel.mech_energy <= 0.0:
 		GlobalData.narrative.blocked_intermission = false
 		EventBus.event_triggered.emit({
@@ -732,7 +732,7 @@ func _process(_delta: float) -> void:
 	var terrain := str(tile.get_meta("terrain", "plain"))
 	var tt: String = tile.get_meta("tile_type", "empty")
 	var patrol := PatrolSystem.get_patrol_at(pos)
-	var e_cost := GlobalData.get_tile_energy_cost(terrain)
+	var e_cost := GlobalData.fuel.get_tile_energy_cost(terrain)
 	var mp_cost := BoardConfig.move_cost(terrain)
 	var is_zoc := PatrolSystem.is_in_zone_of_control(pos)
 	var is_artillery := not PatrolSystem.check_artillery_bombardment(pos).is_empty()
@@ -1307,7 +1307,7 @@ func _trigger_default_event() -> void:
 
 
 func _build_tech_copy_event() -> Dictionary:
-	var tier := GlobalData.enemy_tech_tier
+	var tier := GlobalData.narrative.enemy_tech_tier
 	return {
 		"name": "ENEMY TECH COPY",
 		"effect": "none",
@@ -1366,7 +1366,7 @@ func _build_enemy_base_spawn_event() -> Dictionary:
 
 
 func _build_enemy_base_completed_event() -> Dictionary:
-	match GlobalData.enemy_copy_outcome:
+	match GlobalData.narrative.enemy_copy_outcome:
 		"grunt_mk2":
 			return {
 				"name": "ENEMY GRUNT MKII DEPLOYED",

@@ -136,7 +136,7 @@ func show(info: Dictionary) -> void:
 		repair_btn.text = "REPAIR (%d cr)" % repair_cost
 		repair_btn.custom_minimum_size = Vector2(180, 36)
 		repair_btn.pressed.connect(func():
-			if GlobalData.try_spend_credits(repair_cost):
+			if GlobalData.currency.try_spend_credits(repair_cost):
 				if info.has("uid"):
 					info["durability"] = 1.0
 				GlobalData.weapons.part_damage.erase(controller.selected_slot)
@@ -171,7 +171,7 @@ func show(info: Dictionary) -> void:
 			upgrade_btn.text = "UPGRADE (+15 HP → Tier %s, %d cr)" % [GlobalData.part_tier_text(cur_upg + 1), cost]
 		upgrade_btn.custom_minimum_size = Vector2(180, 36)
 		upgrade_btn.pressed.connect(func():
-			if GlobalData.try_spend_credits(cost):
+			if GlobalData.currency.try_spend_credits(cost):
 				if is_weapon_slot:
 					info["upgrade_level"] = int(info.get("upgrade_level", 1)) + 1
 					info["durability"] = 1.0

@@ -886,7 +886,7 @@ func _update_status(message: String = "") -> void:
 		return
 	if selected_slot == "":
 		status_label.text = "Scrap: %d | Repair skill: %d (XP %d)" % [
-			GlobalData.currency.scrap, GlobalData.driver_repair_skill, GlobalData.driver_repair_xp,
+			GlobalData.currency.scrap, GlobalData.narrative.driver_repair_skill, GlobalData.narrative.driver_repair_xp,
 		]
 		apply_button.text = "Apply Repair"
 		apply_button.disabled = true
@@ -900,7 +900,7 @@ func _update_status(message: String = "") -> void:
 	apply_button.text = "Apply Repair (%d scrap)" % cost
 	apply_button.disabled = GlobalData.currency.scrap < cost or primitives.is_empty()
 	status_label.text = "Scrap: %d | Repair skill: %d (XP %d)" % [
-		GlobalData.currency.scrap, GlobalData.driver_repair_skill, GlobalData.driver_repair_xp,
+		GlobalData.currency.scrap, GlobalData.narrative.driver_repair_skill, GlobalData.narrative.driver_repair_xp,
 	]
 
 

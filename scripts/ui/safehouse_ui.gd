@@ -186,14 +186,14 @@ func _on_rebuild_catalog_pressed(slot: String) -> void:
 
 func _on_repair_part_pressed(slot: String) -> void:
 	var cost := RepairSystem.get_repair_cost(slot)
-	if not GlobalData.try_spend_credits(cost):
+	if not GlobalData.currency.try_spend_credits(cost):
 		status_label.text = "Not enough credits!"
 		return
 
 	GlobalData.weapons.part_damage.erase(slot)
 	GlobalData.weapons.part_damage.erase(slot + "_frame")
 	# Repair bond (GDD §5): repairing the mech strengthens the pilot-mech bond.
-	GlobalData.record_repair()
+	GlobalData.narrative.record_repair()
 	status_label.text = "Repaired! Credits: %d" % GlobalData.currency.credits
 	_refresh_parts_list()
 
@@ -203,7 +203,7 @@ func _on_repair_all_pressed() -> void:
 	for slot in GlobalData.MECHA_SLOTS:
 		total_cost += RepairSystem.get_repair_cost(slot)
 
-	if not GlobalData.try_spend_credits(total_cost):
+	if not GlobalData.currency.try_spend_credits(total_cost):
 		status_label.text = "Not enough credits! Need %d" % total_cost
 		return
 

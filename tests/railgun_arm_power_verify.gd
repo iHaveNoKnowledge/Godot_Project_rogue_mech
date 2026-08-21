@@ -36,7 +36,7 @@ func _verify_arm_power() -> void:
 	# Default equipped frames: standard arms (carry_bonus 3) on a standard
 	# chassis (power 12) -> arm power 15, below the railgun's 18 requirement.
 	GlobalData.reset_run_data()
-	GlobalData.chassis_id = "standard"
+	GlobalData.weapons.chassis_id = "standard"
 	var left_power := GlobalData.get_arm_power("left")
 	_check(left_power == 15.0, "standard left arm power = 15 (chassis 12 + frame 3)")
 
@@ -86,7 +86,7 @@ func _verify_recoil_recovery() -> void:
 
 	# Baseline: light mech with strong legs recovers fast.
 	GlobalData.reset_run_data()
-	GlobalData.chassis_id = "standard"
+	GlobalData.weapons.chassis_id = "standard"
 	var frames := GlobalData.weapons.equipped_frames.duplicate(true)
 	frames["leg_left"] = ArmorSystem.get_frame_catalog_entry("frame_leg_left_04")   # carry 10
 	frames["leg_right"] = ArmorSystem.get_frame_catalog_entry("frame_leg_right_04") # carry 10

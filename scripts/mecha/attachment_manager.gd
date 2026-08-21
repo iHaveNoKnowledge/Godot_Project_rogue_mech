@@ -12,7 +12,7 @@ func rebuild_from_global_data() -> void:
 	for node in mounted_nodes.values():
 		if is_instance_valid(node): node.queue_free()
 	mounted_nodes.clear()
-	for attachment in GlobalData.attachments: mount_attachment(attachment)
+	for attachment in GlobalData.weapons.attachments: mount_attachment(attachment)
 
 func mount_attachment(data: Dictionary) -> Node3D:
 	var slot := str(data.get("slot", ""))
@@ -41,7 +41,7 @@ func mount_attachment(data: Dictionary) -> Node3D:
 	return node
 
 func update_attachment_transform(attachment_id: String, position: Vector3, rotation: Vector3 = Vector3.ZERO) -> bool:
-	for data in GlobalData.attachments:
+	for data in GlobalData.weapons.attachments:
 		if str(data.get("id", "")) == attachment_id:
 			data["position"] = position
 			data["rotation"] = rotation
@@ -59,7 +59,7 @@ func get_attachment_capacity(slot: String) -> float:
 
 func get_slot_attachment_weight(slot: String, excluding_id: String = "") -> float:
 	var result := 0.0
-	for data in GlobalData.attachments:
+	for data in GlobalData.weapons.attachments:
 		if data.get("slot", "") == slot and data.get("id", "") != excluding_id:
 			result += float(data.get("weight", 0.0))
 	return result

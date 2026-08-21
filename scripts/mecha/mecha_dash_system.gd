@@ -94,7 +94,7 @@ func start_dash(energy: float, global_pos: Vector3, global_rot: Basis) -> float:
 	if dash_direction.length() < 0.1:
 		dash_direction = -Transform3D(Basis(Vector3.UP, global_rot.get_euler().y), Vector3.ZERO).basis.z
 
-	var has_precog := GlobalData.has_pilot_perk("precognitive_flow")
+	var has_precog := GlobalData.narrative.has_pilot_perk("precognitive_flow")
 	var is_flash_burn := false
 	if not has_precog and _dash_spam_window > 0.0:
 		_dash_spam_count += 1

@@ -74,7 +74,7 @@ func take_ammo_only() -> void:
 		wm.add_ammo(weapon_resource.max_ammo, "", weapon_resource.get_ammo_type())
 	if weapon_resource:
 		var scrap_value := maxi(2, int(round(float(weapon_resource.weight))) + int(weapon_resource.rarity) * 5)
-		GlobalData.gain_scrap(scrap_value)
+		GlobalData.currency.gain_scrap(scrap_value)
 	queue_free()
 
 

@@ -98,7 +98,7 @@ func _on_pickup_body_entered(body: Node3D, pickup: Area3D) -> void:
 				GlobalData.weapons.part_damage.erase(slot + "_frame")
 				EventBus.weight_changed.emit(0.0)
 		"scrap":
-			GlobalData.gain_scrap(loot_data.get("amount", 1))
+			GlobalData.currency.gain_scrap(loot_data.get("amount", 1))
 		"armor":
 			# Salvaged plate from a destroyed enemy: grants a real armor instance
 		# (slot picked at drop time) into the convoy's armor inventory.

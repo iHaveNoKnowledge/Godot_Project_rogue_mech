@@ -523,18 +523,18 @@ static func get_equipped_part_id(slot: String) -> String:
 # Used by mecha_controller at combat start so it doesn't rely on @export chassis resource.
 # Keys: "speed" (float), "max_weight" (float), "color" (Color), "name" (String)
 static func get_chassis_stats() -> Dictionary:
-	var result: Dictionary = GlobalData.chassis_catalog.get(GlobalData.chassis_id, GlobalData.chassis_catalog.get("standard", {
+	var result: Dictionary = GlobalData.chassis_catalog.get(GlobalData.weapons.chassis_id, GlobalData.chassis_catalog.get("standard", {
 		"name": "Standard", "speed": 14.0, "max_weight": 75.0, "color": Color(0.6, 0.65, 0.7)
 	})).duplicate(true)
 	if not result.has("attachment_capacity"):
 		var capacity := float(result.get("max_weight", 75.0))
 		result["attachment_capacity"] = {"head": capacity * 0.10, "body": capacity * 0.35, "arm_left": capacity * 0.14, "arm_right": capacity * 0.14, "leg_left": capacity * 0.16, "leg_right": capacity * 0.16}
-	result["movement_type"] = {"standard": "biped", "titan": "heavy", "vanguard": "light", "aegis": "hover", "brawler": "brawler"}.get(GlobalData.chassis_id, "biped")
+	result["movement_type"] = {"standard": "biped", "titan": "heavy", "vanguard": "light", "aegis": "hover", "brawler": "brawler"}.get(GlobalData.weapons.chassis_id, "biped")
 	result["water_traversal"] = result["movement_type"] == "hover"
 	# Power stat gates one-hand gripping of heavy two-hand weapons (rail/minigun).
 	# It comes from the chassis plus the strength of both arm frames.
 	if not result.has("power"):
-		result["power"] = {"standard": 12.0, "titan": 18.0, "vanguard": 8.0, "aegis": 14.0, "brawler": 13.0}.get(GlobalData.chassis_id, 12.0)
+		result["power"] = {"standard": 12.0, "titan": 18.0, "vanguard": 8.0, "aegis": 14.0, "brawler": 13.0}.get(GlobalData.weapons.chassis_id, 12.0)
 	return result
 
 
@@ -561,19 +561,19 @@ static func get_frame_upgrade_cost() -> int:
 
 
 static func get_reserve_ammo(ammo_type: String) -> int:
-	return GlobalData.ammo_inventory.get(ammo_type.to_lower(), 0)
+	return GlobalData.weapons.ammo_inventory.get(ammo_type.to_lower(), 0)
 
 
 static func add_reserve_ammo(ammo_type: String, amount: int) -> void:
 	var type = ammo_type.to_lower()
-	GlobalData.ammo_inventory[type] = GlobalData.ammo_inventory.get(type, 0) + amount
+	GlobalData.weapons.ammo_inventory[type] = GlobalData.weapons.ammo_inventory.get(type, 0) + amount
 
 
 static func consume_reserve_ammo(ammo_type: String, amount: int) -> int:
 	var type = ammo_type.to_lower()
 	var current = get_reserve_ammo(type)
 	var taken = mini(current, amount)
-	GlobalData.ammo_inventory[type] = current - taken
+	GlobalData.weapons.ammo_inventory[type] = current - taken
 	return taken
 
 

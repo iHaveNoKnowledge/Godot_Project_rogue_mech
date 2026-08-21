@@ -262,7 +262,7 @@ func _grant_take_back_loot() -> void:
 	for entry in _left_items:
 		salvaged_scrap += _salvage_value(entry)
 	if salvaged_scrap > 0:
-		GlobalData.gain_scrap(salvaged_scrap)
+		GlobalData.currency.gain_scrap(salvaged_scrap)
 		GlobalData.board.run_notice = "Unclaimed drops salvaged for +%d scrap." % salvaged_scrap
 	GlobalData.weapons.battle_loot.clear()
 	_left_items.clear()
@@ -379,7 +379,7 @@ func _show_victory_rewards() -> void:
 		credits_gained += 105
 		scrap_gained += 15
 		data_cores_gained = 1
-		GlobalData.gain_data_cores(data_cores_gained)
+		GlobalData.currency.gain_data_cores(data_cores_gained)
 
 		if is_final_sector:
 			title_label.text = "CAMPAIGN VICTORY!"
@@ -399,8 +399,8 @@ func _show_victory_rewards() -> void:
 			title_label.text = "COMBAT VICTORY"
 			continue_button.text = "Continue [Enter / Space / Click]"
 
-	GlobalData.gain_credits(credits_gained)
-	GlobalData.gain_scrap(scrap_gained)
+	GlobalData.currency.gain_credits(credits_gained)
+	GlobalData.currency.gain_scrap(scrap_gained)
 
 	rewards = {
 		"credits": credits_gained,
@@ -418,8 +418,8 @@ func _show_victory_rewards() -> void:
 
 	if is_duel:
 		_loot_summary_active = false
-		var duel_text := GlobalData.duel_result_text
-		GlobalData.duel_result_text = ""
+		var duel_text := GlobalData.hangar.duel_result_text
+		GlobalData.hangar.duel_result_text = ""
 		if duel_text != "":
 			rewards_label.text = "%s\n" % duel_text
 	else:

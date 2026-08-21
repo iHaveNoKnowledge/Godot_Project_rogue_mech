@@ -64,7 +64,7 @@ static func roll_random_start() -> void:
 	var start: Dictionary = theme.get("start", {})
 
 	# Chassis.
-	GlobalData.chassis_id = roll_weighted_chassis(theme)
+	GlobalData.weapons.chassis_id = roll_weighted_chassis(theme)
 
 	# Armor + frames per slot.
 	GlobalData.weapons.equipped_parts.clear()

@@ -14,7 +14,7 @@ extends RefCounted
 
 
 static func get_fleet_security() -> float:
-	return clampf(GlobalData.fleet_security, GlobalData.FLEET_SECURITY_MIN, GlobalData.FLEET_SECURITY_MAX)
+	return clampf(GlobalData.narrative.fleet_security, GlobalData.FLEET_SECURITY_MIN, GlobalData.FLEET_SECURITY_MAX)
 
 
 static func get_security_upgrade_cost() -> int:
@@ -30,7 +30,7 @@ static func upgrade_fleet_security() -> bool:
 		return false
 	GlobalData.currency.credits -= cost
 	GlobalData.hangar.security_upgrade_level += 1
-	GlobalData.fleet_security = minf(get_fleet_security() + GlobalData.SECURITY_PER_UPGRADE, GlobalData.FLEET_SECURITY_MAX)
+	GlobalData.narrative.fleet_security = minf(get_fleet_security() + GlobalData.SECURITY_PER_UPGRADE, GlobalData.FLEET_SECURITY_MAX)
 	return true
 
 
@@ -57,23 +57,23 @@ static func get_repair_skill_xp_for_next(level: int) -> int:
 
 # Returns true when the XP gain pushed the skill to a new tier.
 static func gain_repair_xp(amount: int) -> bool:
-	if amount <= 0 or GlobalData.driver_repair_skill >= GlobalData.REPAIR_SKILL_MAX:
+	if amount <= 0 or GlobalData.narrative.driver_repair_skill >= GlobalData.REPAIR_SKILL_MAX:
 		return false
-	GlobalData.driver_repair_xp += amount
+	GlobalData.narrative.driver_repair_xp += amount
 	var leveled_up := false
-	while GlobalData.driver_repair_skill < GlobalData.REPAIR_SKILL_MAX:
-		var needed := get_repair_skill_xp_for_next(GlobalData.driver_repair_skill)
-		if GlobalData.driver_repair_xp < needed:
+	while GlobalData.narrative.driver_repair_skill < GlobalData.REPAIR_SKILL_MAX:
+		var needed := get_repair_skill_xp_for_next(GlobalData.narrative.driver_repair_skill)
+		if GlobalData.narrative.driver_repair_xp < needed:
 			break
-		GlobalData.driver_repair_xp -= needed
-		GlobalData.driver_repair_skill += 1
+		GlobalData.narrative.driver_repair_xp -= needed
+		GlobalData.narrative.driver_repair_skill += 1
 		leveled_up = true
 	return leveled_up
 
 
 # The scrap armor tier the driver can build right now (1..5).
 static func get_scrap_armor_tier() -> int:
-	return clamp(GlobalData.driver_repair_skill, 1, GlobalData.REPAIR_SKILL_MAX)
+	return clamp(GlobalData.narrative.driver_repair_skill, 1, GlobalData.REPAIR_SKILL_MAX)
 
 
 # Stats multiplier for scrap-built armor vs the real catalog part. Tier 1 gives
@@ -208,11 +208,11 @@ static func get_research_project(project_id: String) -> Dictionary:
 
 
 static func is_research_active(project_id: String) -> bool:
-	return GlobalData.research_projects.has(project_id)
+	return GlobalData.hangar.research_projects.has(project_id)
 
 
 static func is_research_completed(project_id: String) -> bool:
-	return project_id in GlobalData.research_unlocked
+	return project_id in GlobalData.hangar.research_unlocked
 
 
 # Start a research project: consumes data_cores (the blueprint) and begins the
@@ -228,7 +228,7 @@ static func start_research(project_id: String) -> bool:
 	if GlobalData.currency.data_cores < cost:
 		return false
 	GlobalData.currency.data_cores -= cost
-	GlobalData.research_projects[project_id] = {
+	GlobalData.hangar.research_projects[project_id] = {
 		"progress": 0,
 		"required": int(project.get("research_time", 6)),
 		"started": true,
@@ -239,13 +239,13 @@ static func start_research(project_id: String) -> bool:
 # Advance all active research by `points`. Returns project ids completed now.
 static func tick_research(points: int) -> Array:
 	var completed: Array = []
-	for project_id in GlobalData.research_projects.keys():
-		var state = GlobalData.research_projects[project_id]
+	for project_id in GlobalData.hangar.research_projects.keys():
+		var state = GlobalData.hangar.research_projects[project_id]
 		if state is Dictionary:
 			state["progress"] = int(state.get("progress", 0)) + points
 			if int(state.get("progress", 0)) >= int(state.get("required", 1)) and not (project_id in completed):
-				GlobalData.research_unlocked.append(project_id)
-				GlobalData.research_projects.erase(project_id)
+				GlobalData.hangar.research_unlocked.append(project_id)
+				GlobalData.hangar.research_projects.erase(project_id)
 				_apply_research_reward(project_id)
 				completed.append(project_id)
 	return completed

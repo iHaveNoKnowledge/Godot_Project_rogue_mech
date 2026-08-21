@@ -346,7 +346,7 @@ static func record_spotting(pos: Vector2i) -> void:
 static func _objective_anchor() -> Vector2i:
 	var obj := BoardSystem.get_objective()
 	if str(obj.get("id", "")) == "hq_strike" and GlobalData.narrative.enemy_base_active:
-		return GlobalData.enemy_base_tile_pos
+		return GlobalData.narrative.enemy_base_tile_pos
 	var g := BoardConfig.GRID_SIZE
 	return Vector2i(g - 1, g - 1)
 
@@ -436,7 +436,7 @@ static func resolve_patrol_combat(victory: bool) -> void:
 	if victory:
 		remove_patrol(id)
 		if not commander.is_empty():
-			GlobalData.defeated_rivals.append(commander)
+			GlobalData.pilot.defeated_rivals.append(commander)
 			var bounty := int(commander.get("bounty", 150))
 			GlobalData.currency.credits += bounty
 			GlobalData.board.run_notice = "RIVAL ELIMINATED: %s [%s] was defeated in battle!\nBounty Claimed: +%d Credits." % [
@@ -452,7 +452,7 @@ static func resolve_patrol_combat(victory: bool) -> void:
 			commander["escapes"] = int(commander.get("escapes", 0)) + 1
 			commander["is_nemesis"] = true
 			commander["bounty"] = int(commander.get("bounty", 150)) + 100
-			GlobalData.rival_pilots.append(commander)
+			GlobalData.pilot.rival_pilots.append(commander)
 			GlobalData.board.run_notice = "RIVAL SURVIVED: Commander %s remembers this retreat.\nRivalry escalated to Rank %d (Bounty: %d Cr)!" % [
 				commander.get("name", "Enemy Commander"), commander["rivalry_count"], commander["bounty"]
 			]

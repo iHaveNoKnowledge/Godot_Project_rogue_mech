@@ -212,7 +212,7 @@ func _on_buy_drop_tank() -> void:
 	if GlobalData.fuel.drop_tanks_attached >= GlobalData.DROP_TANK_MAX_ATTACHED:
 		status_label.text = "All drop tank slots filled!"
 		return
-	if not GlobalData.try_spend_credits(GlobalData.DROP_TANK_COST_CREDITS):
+	if not GlobalData.currency.try_spend_credits(GlobalData.DROP_TANK_COST_CREDITS):
 		status_label.text = "Not enough credits!"
 		return
 	GlobalData.fuel.drop_tanks_attached += 1

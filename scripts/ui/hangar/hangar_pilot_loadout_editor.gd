@@ -165,7 +165,7 @@ func _refresh_ui() -> void:
 	# on foot (mech weapons are never equipable here). Each row shows its size
 	# and point cost; equipping is blocked when it would exceed the budget.
 	var equipped_paths: Array = []
-	for path in GlobalData.pilot_weapons:
+	for path in GlobalData.pilot.pilot_weapons:
 		equipped_paths.append(str(path))
 
 	var added_weapons := 0
@@ -255,7 +255,7 @@ func _refresh_ui() -> void:
 
 
 func _toggle_weapon(wpath: String) -> void:
-	var is_eq := GlobalData.pilot_weapons.has(wpath)
+	var is_eq := GlobalData.pilot.pilot_weapons.has(wpath)
 	if is_eq:
 		PilotSystem.remove_weapon(wpath)
 		if _status_label:

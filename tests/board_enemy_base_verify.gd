@@ -42,17 +42,17 @@ func _ready() -> void:
 	var tile = board.nodes_dict[pos]
 
 	# A freshly planted base (progress 0) is a temporary camp — a tent prism.
-	GlobalData.enemy_base_active = true
-	GlobalData.enemy_base_progress = 0.0
-	GlobalData.enemy_base_required = 8.0
-	GlobalData.enemy_base_tile_pos = pos
+	GlobalData.narrative.enemy_base_active = true
+	GlobalData.narrative.enemy_base_progress = 0.0
+	GlobalData.narrative.enemy_base_required = 8.0
+	GlobalData.narrative.enemy_base_tile_pos = pos
 	tile.set_meta("tile_type", "enemy_base")
 	board._refresh_enemy_base_model()
 	_check(tile._enemy_base_model != null, "active base gets a 3D model on its tile")
 	_check(_has_prism(tile._enemy_base_model), "a fresh base is a temporary camp (triangular tent)")
 
 	# Rooting in (>= half the research done) upgrades it to a tall building.
-	GlobalData.enemy_base_progress = 6.0
+	GlobalData.narrative.enemy_base_progress = 6.0
 	board._refresh_enemy_base_model()
 	_check(not _has_prism(tile._enemy_base_model), "rooted base upgrades from tent to fortified building")
 	var mesh_count := _mesh_count(tile._enemy_base_model)
@@ -69,9 +69,9 @@ func _ready() -> void:
 	_check(not _has_prism(tile._enemy_base_model), "restored base stays a fortified building, not a tent")
 
 	# Destroying/completing the base removes the model and reverts the tile.
-	GlobalData.enemy_base_active = false
-	GlobalData.enemy_base_tile_pos = pos
-	GlobalData.pending_enemy_base_tile_reset = pos
+	GlobalData.narrative.enemy_base_active = false
+	GlobalData.narrative.enemy_base_tile_pos = pos
+	GlobalData.narrative.pending_enemy_base_tile_reset = pos
 	board._clear_enemy_base_tile()
 	_check(tile._enemy_base_model == null, "destroyed base leaves no model behind")
 	_check(str(tile.get_meta("tile_type", "empty")) == "empty", "destroyed base tile reverts to ordinary ground")

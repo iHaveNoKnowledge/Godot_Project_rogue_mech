@@ -372,11 +372,11 @@ func _build_research_text() -> String:
 	text += "Research advances 1 point per day, +2 per combat won.\n\n"
 
 	text += "--- Active Projects ---\n"
-	if GlobalData.research_projects.is_empty():
+	if GlobalData.hangar.research_projects.is_empty():
 		text += "(None)\n"
 	else:
-		for project_id in GlobalData.research_projects:
-			var state = GlobalData.research_projects[project_id]
+		for project_id in GlobalData.hangar.research_projects:
+			var state = GlobalData.hangar.research_projects[project_id]
 			var project = FleetSystem.get_research_project(project_id)
 			text += "%s: %d/%d\n" % [
 				project.get("name", project_id),
@@ -386,10 +386,10 @@ func _build_research_text() -> String:
 	text += "\n"
 
 	text += "--- Unlocked ---\n"
-	if GlobalData.research_unlocked.is_empty():
+	if GlobalData.hangar.research_unlocked.is_empty():
 		text += "(Nothing researched yet)\n"
 	else:
-		for project_id in GlobalData.research_unlocked:
+		for project_id in GlobalData.hangar.research_unlocked:
 			text += "- %s\n" % FleetSystem.get_research_project(project_id).get("name", project_id)
 	text += "\n"
 
@@ -579,7 +579,7 @@ func _build_mech_status_text() -> String:
 		text += "ON FOOT — no mech.\n"
 		text += "Find a replacement chassis before the next combat tile.\n"
 		return text
-	text += "Chassis: %s\n" % GlobalData.chassis_id
+	text += "Chassis: %s\n" % GlobalData.weapons.chassis_id
 	text += "Credits: %d\n" % GlobalData.currency.credits
 	text += "Scrap: %d\n" % GlobalData.currency.scrap
 	text += "Data Cores: %d\n\n" % GlobalData.currency.data_cores

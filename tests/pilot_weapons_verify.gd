@@ -48,7 +48,7 @@ func _ready() -> void:
 	_check(ResourceLoader.exists(BAZOOKA) and load(BAZOOKA) is WeaponPart, "bazooka resource loads as WeaponPart")
 
 	# --- 2. Budget enforcement ---
-	GlobalData.pilot_weapons = []
+	GlobalData.pilot.pilot_weapons = []
 	_check(PilotSystem.get_pilot_carry_points() == 7, "base carry budget is 7 points")
 	_check(PilotSystem.get_pilot_carry_used() == 0, "empty loadout uses 0 points")
 	_check(PilotSystem.get_pilot_carry_remaining() == 7, "7 points remain empty")
@@ -64,7 +64,7 @@ func _ready() -> void:
 	# Adding a 4th (bazooka, 3pt) would exceed 7 -> rejected.
 	_check(not PilotSystem.add_weapon(BAZOOKA), "equipping bazooka over budget is rejected")
 	_check(not PilotSystem.add_weapon(MECH_GUN), "mech weapon equip is rejected entirely")
-	_check(GlobalData.pilot_weapons.size() == 3, "only 3 weapons equipped")
+	_check(GlobalData.pilot.pilot_weapons.size() == 3, "only 3 weapons equipped")
 	_check(not PilotSystem.add_weapon(PISTOL), "duplicate weapon equip is rejected")
 
 	# Unequip frees budget -> bazooka now fits.

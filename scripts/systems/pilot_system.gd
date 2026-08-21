@@ -126,7 +126,7 @@ static func get_pilot_carry_points() -> int:
 # Points currently spent by the equipped personal weapons.
 static func get_pilot_carry_used() -> int:
 	var used := 0
-	for path in GlobalData.pilot_weapons:
+	for path in GlobalData.pilot.pilot_weapons:
 		used += get_pilot_weapon_points(str(path))
 	return used
 
@@ -159,7 +159,7 @@ static func get_heal_item(item_id: String) -> Dictionary:
 # --- HP ----------------------------------------------------------------------
 
 static func get_max_hp() -> float:
-	return maxf(float(GlobalData.pilot_max_hp), 1.0)
+	return maxf(float(GlobalData.pilot.pilot_max_hp), 1.0)
 
 
 static func get_hp() -> float:
@@ -220,7 +220,7 @@ static func on_mecha_destroyed() -> void:
 # of the mech's weapon_loadout — this is what the pilot carries on their body.
 static func get_weapons() -> Array:
 	var result: Array = []
-	for path in GlobalData.pilot_weapons:
+	for path in GlobalData.pilot.pilot_weapons:
 		var wp := load(path) as WeaponPart
 		if wp != null:
 			result.append(wp)
@@ -232,42 +232,42 @@ static func get_weapons() -> Array:
 # (7 base points; big=3 / medium=2 / small=1). Mech weapons are never
 # equipable on foot — the pilot fights with their OWN gear.
 static func add_weapon(path: String) -> bool:
-	if path == "" or GlobalData.pilot_weapons.has(path):
+	if path == "" or GlobalData.pilot.pilot_weapons.has(path):
 		return false
 	if get_pilot_weapon_entry(path).is_empty():
 		return false
 	if not can_equip_pilot_weapon(path):
 		return false
 	if ResourceLoader.exists(path):
-		GlobalData.pilot_weapons.append(path)
+		GlobalData.pilot.pilot_weapons.append(path)
 		return true
 	return false
 
 
 static func remove_weapon(path: String) -> void:
-	GlobalData.pilot_weapons.erase(path)
+	GlobalData.pilot.pilot_weapons.erase(path)
 
 
 # --- Pilot ammo --------------------------------------------------------------
 
 static func get_ammo(ammo_type: String) -> int:
-	return int(GlobalData.pilot_ammo.get(ammo_type, 0))
+	return int(GlobalData.pilot.pilot_ammo.get(ammo_type, 0))
 
 
 static func get_ammo_dict() -> Dictionary:
-	return GlobalData.pilot_ammo.duplicate()
+	return GlobalData.pilot.pilot_ammo.duplicate()
 
 
 static func add_ammo(ammo_type: String, amount: int) -> void:
 	if amount <= 0:
 		return
-	GlobalData.pilot_ammo[ammo_type] = get_ammo(ammo_type) + amount
+	GlobalData.pilot.pilot_ammo[ammo_type] = get_ammo(ammo_type) + amount
 
 
 static func consume_ammo(ammo_type: String, amount: int) -> int:
 	var current := get_ammo(ammo_type)
 	var spent := mini(current, maxi(amount, 0))
-	GlobalData.pilot_ammo[ammo_type] = current - spent
+	GlobalData.pilot.pilot_ammo[ammo_type] = current - spent
 	return spent
 
 
@@ -276,22 +276,22 @@ static func consume_ammo(ammo_type: String, amount: int) -> int:
 # Returns the pilot's item inventory as an array of {id, count}.
 static func get_items() -> Array:
 	var result: Array = []
-	for item_id in GlobalData.pilot_items:
+	for item_id in GlobalData.pilot.pilot_items:
 		result.append({
 			"id": str(item_id),
-			"count": int(GlobalData.pilot_items[item_id]),
+			"count": int(GlobalData.pilot.pilot_items[item_id]),
 		})
 	return result
 
 
 static func get_item_count(item_id: String) -> int:
-	return int(GlobalData.pilot_items.get(item_id, 0))
+	return int(GlobalData.pilot.pilot_items.get(item_id, 0))
 
 
 static func add_item(item_id: String, amount: int = 1) -> void:
 	if amount <= 0 or get_heal_item(item_id).is_empty():
 		return
-	GlobalData.pilot_items[item_id] = get_item_count(item_id) + amount
+	GlobalData.pilot.pilot_items[item_id] = get_item_count(item_id) + amount
 
 
 # Uses a healing item if the pilot has one. Returns the HP restored (0 if the
@@ -307,9 +307,9 @@ static func use_heal_item(item_id: String) -> float:
 	var restored := heal(float(item.get("heal", 0.0)))
 	if restored <= 0.0:
 		return 0.0
-	GlobalData.pilot_items[item_id] = get_item_count(item_id) - 1
-	if GlobalData.pilot_items[item_id] <= 0:
-		GlobalData.pilot_items.erase(item_id)
+	GlobalData.pilot.pilot_items[item_id] = get_item_count(item_id) - 1
+	if GlobalData.pilot.pilot_items[item_id] <= 0:
+		GlobalData.pilot.pilot_items.erase(item_id)
 	return restored
 
 
@@ -333,7 +333,7 @@ static func buy_item(item_id: String) -> bool:
 	var price := get_item_price(item_id)
 	if price <= 0:
 		return false
-	if not GlobalData.try_spend_credits(price):
+	if not GlobalData.currency.try_spend_credits(price):
 		return false
 	add_item(item_id)
 	return true
@@ -349,7 +349,7 @@ static func buy_ammo(ammo_type: String, amount: int) -> int:
 	var bought := mini(amount, affordable)
 	if bought <= 0:
 		return 0
-	if not GlobalData.try_spend_credits(bought * price):
+	if not GlobalData.currency.try_spend_credits(bought * price):
 		return 0
 	add_ammo(ammo_type, bought)
 	return bought
@@ -363,9 +363,9 @@ static func generate_hire_candidates(count: int = 3) -> Array[Dictionary]:
 
 static func hire_candidate(pilot_data: Dictionary) -> bool:
 	var cost := int(pilot_data.get("hire_cost", 100))
-	if not GlobalData.try_spend_credits(cost):
+	if not GlobalData.currency.try_spend_credits(cost):
 		return false
-	GlobalData.hired_pilots.append(pilot_data)
+	GlobalData.pilot.hired_pilots.append(pilot_data)
 	return true
 
 
@@ -377,7 +377,7 @@ static func record_pilot_permadeath(pilot_name: String, cause: String = "Killed 
 		"sector": GlobalData.board.current_sector,
 		"time": Time.get_datetime_string_from_system(),
 	}
-	GlobalData.fallen_pilots.append(entry)
+	GlobalData.pilot.fallen_pilots.append(entry)
 	var replacement := PilotGenerator.generate_replacement_pilot(pilot_name)
 	return replacement
 

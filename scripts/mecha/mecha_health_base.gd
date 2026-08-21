@@ -546,7 +546,7 @@ func _apply_frame_damage(slot_name: String, amount: float, damage_type: String) 
 		var hp_ratio := total_frame_hp / maxf(max_total_frame, 1.0)
 		if hp_ratio < 0.2 and total_frame_hp > 0.0 and not _near_death_recorded:
 			_near_death_recorded = true
-			GlobalData.record_near_death_escape()
+			GlobalData.narrative.record_near_death_escape()
 	elif not is_player:
 		_near_death_recorded = false
 	if _is_friendly():

@@ -457,7 +457,7 @@ func _verify_pilot_permanent_death(mecha: Node) -> void:
 	if mecha == null:
 		return
 	# Restore the player pilot HP so the check below is deterministic.
-	GlobalData.pilot.pilot_hp = GlobalData.pilot_max_hp
+	GlobalData.pilot.pilot_hp = GlobalData.pilot.pilot_max_hp
 	var pilot := preload("res://scenes/pilot/pilot.tscn").instantiate()
 	current_scene_or_root().add_child(pilot)
 	pilot.global_position = mecha.global_position + Vector3(2.0, 0.5, 0)
@@ -474,7 +474,7 @@ func _verify_pilot_permanent_death(mecha: Node) -> void:
 	await get_tree().process_frame
 	_check(PilotSystem.is_dead(), "a fatal shot on foot kills the player pilot permanently in real combat")
 	pilot.queue_free()
-	GlobalData.pilot.pilot_hp = GlobalData.pilot_max_hp
+	GlobalData.pilot.pilot_hp = GlobalData.pilot.pilot_max_hp
 
 	# Ejected enemy pilot: give one a live body and burn its HP to 0. It spawns
 	# near the arena CENTER (the real pilot despawn rule frees anything >60m

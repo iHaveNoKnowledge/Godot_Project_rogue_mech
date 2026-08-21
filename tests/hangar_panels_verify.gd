@@ -1133,7 +1133,7 @@ func _verify_catalog_panel() -> void:
 		var key := str(chassis_keys[0])
 		cp.apply_chassis(key)
 		await get_tree().process_frame
-		_check(GlobalData.chassis_id == key, "apply_chassis sets the chassis id")
+		_check(GlobalData.weapons.chassis_id == key, "apply_chassis sets the chassis id")
 		_check(cp.catalog_window != null, "apply_chassis rebuilds the catalog window")
 		cp.close_window()
 		await get_tree().process_frame

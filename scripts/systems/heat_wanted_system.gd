@@ -33,7 +33,7 @@ func _on_combat_ended(victory: bool) -> void:
 # คำนวณเพิ่มค่า Heat โดยคำนวณจากขนาดทีมที่พากันไปรุมสู้ล่าสุด
 func calculate_combat_heat(victory: bool) -> void:
 	var base_gain = 1.0 if victory else 2.0
-	var squad_size = GlobalData.last_combat_squad_size
+	var squad_size = GlobalData.narrative.last_combat_squad_size
 	
 	# ยิ่งทีมเราใหญ่ (Squad size มาก) ความโด่งดังและค่า Heat จะยิ่งทวีคูณ
 	var squad_multiplier = 1.0 + (squad_size * 0.25)
@@ -42,14 +42,14 @@ func calculate_combat_heat(victory: bool) -> void:
 	modify_heat(int(final_heat_gain))
 	
 	# อัปเดต Notoriety Memory บันทึกความหวาดระแวงสูงสุดของศัตรู
-	GlobalData.max_notoriety_multiplier = maxf(GlobalData.max_notoriety_multiplier, squad_multiplier)
+	GlobalData.narrative.max_notoriety_multiplier = maxf(GlobalData.narrative.max_notoriety_multiplier, squad_multiplier)
 
 
 # ค่อยๆ สลายค่าสเกลความยากสะสม (Notoriety Decay) เผื่อเราเปลี่ยนมาลุยเดี่ยว ศัตรูจะไม่ลดสัดส่วนกองทัพทันที
 func decay_notoriety_memory() -> void:
-	if GlobalData.max_notoriety_multiplier > 1.0:
+	if GlobalData.narrative.max_notoriety_multiplier > 1.0:
 		# ค่อยๆ หายตื่นตระหนกตาละ 5% (0.05) จนกว่าจะคืนสู่ค่าปกติ 1.0
-		GlobalData.max_notoriety_multiplier = maxf(GlobalData.max_notoriety_multiplier - 0.05, 1.0)
+		GlobalData.narrative.max_notoriety_multiplier = maxf(GlobalData.narrative.max_notoriety_multiplier - 0.05, 1.0)
 
 
 func modify_heat(amount: int) -> void:
@@ -65,21 +65,21 @@ func update_enemy_mobilization_capacity() -> void:
 	
 	if heat < 3:
 		# ช่วงต้นเกม (Tutorial Zone): ล็อกกำลังพลศัตรูไว้ระดับต่ำสุดเพื่อฝึกซ้อมฝีมือ
-		GlobalData.enemy_forces["grunt_max"] = 20
-		GlobalData.enemy_forces["ace_max"] = 2
-		GlobalData.enemy_forces["boss_max"] = 1
+		GlobalData.narrative.enemy_forces["grunt_max"] = 20
+		GlobalData.narrative.enemy_forces["ace_max"] = 2
+		GlobalData.narrative.enemy_forces["boss_max"] = 1
 	elif heat >= 3 and heat < 7:
-		GlobalData.enemy_forces["grunt_max"] = 60
-		GlobalData.enemy_forces["ace_max"] = 4
-		GlobalData.enemy_forces["boss_max"] = 1
+		GlobalData.narrative.enemy_forces["grunt_max"] = 60
+		GlobalData.narrative.enemy_forces["ace_max"] = 4
+		GlobalData.narrative.enemy_forces["boss_max"] = 1
 	elif heat >= 7 and heat < 11:
-		GlobalData.enemy_forces["grunt_max"] = 110
-		GlobalData.enemy_forces["ace_max"] = 6
-		GlobalData.enemy_forces["boss_max"] = 1
+		GlobalData.narrative.enemy_forces["grunt_max"] = 110
+		GlobalData.narrative.enemy_forces["ace_max"] = 6
+		GlobalData.narrative.enemy_forces["boss_max"] = 1
 	else: # Heat 11+ (Late Game)
-		GlobalData.enemy_forces["grunt_max"] = 150
-		GlobalData.enemy_forces["ace_max"] = 8
-		GlobalData.enemy_forces["boss_max"] = 2
+		GlobalData.narrative.enemy_forces["grunt_max"] = 150
+		GlobalData.narrative.enemy_forces["ace_max"] = 8
+		GlobalData.narrative.enemy_forces["boss_max"] = 2
 
 
 func add_wave_heat() -> void:
@@ -111,4 +111,4 @@ func escalate_wanted(amount: int = 1, max_wanted: int = 5) -> void:
 # ดึงสัดส่วนตัวคูณความยากตามค่า Heat และ Notoriety Memory ผสมผสานกัน
 func get_enemy_force_multiplier() -> float:
 	# คำนวณความใหญ่จาก Notoriety Memory เป็นหลักเพื่อให้ศัตรูยังระแวงอยู่
-	return GlobalData.max_notoriety_multiplier * (1.0 + (GlobalData.board.wanted_level * 0.15))
+	return GlobalData.narrative.max_notoriety_multiplier * (1.0 + (GlobalData.board.wanted_level * 0.15))

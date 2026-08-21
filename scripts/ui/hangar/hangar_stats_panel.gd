@@ -22,7 +22,7 @@ func _editing_pilot_name() -> String:
 
 
 func update() -> void:
-	var chassis_info = GlobalData.chassis_catalog.get(GlobalData.chassis_id, GlobalData.chassis_catalog["standard"])
+	var chassis_info = GlobalData.chassis_catalog.get(GlobalData.weapons.chassis_id, GlobalData.chassis_catalog["standard"])
 	var max_weight = chassis_info["max_weight"] + LoadoutSystem.get_frame_upgrade_weight_bonus()
 
 	var total_frame_weight = 0.0

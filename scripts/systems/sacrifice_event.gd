@@ -36,7 +36,7 @@ func is_sacrifice_available() -> bool:
 func start_sacrifice_event() -> void:
 	if not is_sacrifice_available():
 		return
-	GlobalData.trigger_sacrifice_event("")  # Will be set when Grand Entry triggers
+	GlobalData.narrative.trigger_sacrifice_event("")  # Will be set when Grand Entry triggers
 	sacrifice_event_started.emit()
 	GlobalData.board.run_notice = "The Sacrifice Event begins! Push your mech to its limits!"
 	# Enter a special boss combat.
@@ -50,7 +50,7 @@ func on_sacrifice_ended(victory: bool) -> void:
 	if victory:
 		# Player won the sacrifice event — the mech survived!
 		# Grant a bonus: the mech gets a permanent bond boost.
-		GlobalData.increase_bond(20.0)
+		GlobalData.narrative.increase_bond(20.0)
 		GlobalData.board.run_notice = "Your mech survived the sacrifice! The bond deepens."
 	else:
 		# Player lost — the mech was destroyed during the sacrifice.

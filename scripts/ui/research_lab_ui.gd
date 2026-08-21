@@ -125,8 +125,8 @@ func _refresh() -> void:
 		child.queue_free()
 
 	var has_active := false
-	for project_id in GlobalData.research_projects:
-		var state = GlobalData.research_projects[project_id]
+	for project_id in GlobalData.hangar.research_projects:
+		var state = GlobalData.hangar.research_projects[project_id]
 		if not (state is Dictionary):
 			continue
 		has_active = true

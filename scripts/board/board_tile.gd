@@ -860,7 +860,7 @@ func set_hover(hovered: bool) -> void:
 		if bm and bm.has_node("BoardHUD"):
 			var hud = bm.get_node("BoardHUD")
 			if hud and hud.has_method("update_tile_inspector"):
-				var e_cost := GlobalData.get_tile_energy_cost(terrain)
+				var e_cost := GlobalData.fuel.get_tile_energy_cost(terrain)
 				var mp_cost := BoardConfig.move_cost(terrain)
 				var is_zoc := PatrolSystem.is_in_zone_of_control(grid_pos)
 				var is_artillery := not PatrolSystem.check_artillery_bombardment(grid_pos).is_empty()

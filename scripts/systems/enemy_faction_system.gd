@@ -110,7 +110,7 @@ static func roll_spy_event() -> Dictionary:
 		GlobalData.narrative.enemy_research_progress = 0.0
 		GlobalData.narrative.enemy_base_active = true
 		GlobalData.narrative.enemy_base_progress = 0.0
-		GlobalData.pending_enemy_base_spawn = true
+		GlobalData.narrative.pending_enemy_base_spawn = true
 		stolen["desc"] = "The enemy's stolen data has coalesced into a research base on the sector map! Destroy it before they finish a counter-unit."
 	return stolen
 
@@ -125,8 +125,8 @@ static func _get_enemy_research_cap() -> float:
 
 # Called by the board once it has physically placed the enemy_base tile.
 static func consume_enemy_base_spawn_request() -> bool:
-	var was_pending := GlobalData.pending_enemy_base_spawn
-	GlobalData.pending_enemy_base_spawn = false
+	var was_pending := GlobalData.narrative.pending_enemy_base_spawn
+	GlobalData.narrative.pending_enemy_base_spawn = false
 	return was_pending
 
 
@@ -144,11 +144,11 @@ static func tick_enemy_base_progress(points: float) -> bool:
 
 static func _enemy_base_completed() -> void:
 	GlobalData.narrative.enemy_base_active = false
-	GlobalData.pending_enemy_base_tile_reset = GlobalData.enemy_base_tile_pos
-	GlobalData.enemy_base_tile_pos = Vector2i(-1, -1)
+	GlobalData.narrative.pending_enemy_base_tile_reset = GlobalData.narrative.enemy_base_tile_pos
+	GlobalData.narrative.enemy_base_tile_pos = Vector2i(-1, -1)
 	GlobalData.narrative.enemy_copy_outcome = _roll_enemy_base_outcome()
 	_apply_enemy_base_outcome(GlobalData.narrative.enemy_copy_outcome)
-	GlobalData.pending_enemy_base_outcome = true
+	GlobalData.narrative.pending_enemy_base_outcome = true
 
 
 # The player reached and destroyed the node. The enemy only salvages a partial
@@ -156,29 +156,29 @@ static func _enemy_base_completed() -> void:
 static func destroy_enemy_base() -> void:
 	GlobalData.narrative.enemy_base_active = false
 	GlobalData.narrative.enemy_base_progress = 0.0
-	GlobalData.pending_enemy_base_tile_reset = GlobalData.enemy_base_tile_pos
-	GlobalData.enemy_base_tile_pos = Vector2i(-1, -1)
+	GlobalData.narrative.pending_enemy_base_tile_reset = GlobalData.narrative.enemy_base_tile_pos
+	GlobalData.narrative.enemy_base_tile_pos = Vector2i(-1, -1)
 	GlobalData.narrative.enemy_grunt_upgrade_level += 1
-	GlobalData.pending_enemy_base_destroyed = true
+	GlobalData.narrative.pending_enemy_base_destroyed = true
 
 
 # Returns the board tile position that must be reset (consumed once), or
 # Vector2i(-1, -1) when there is nothing to reset.
 static func consume_enemy_base_tile_reset() -> Vector2i:
-	var pos := GlobalData.pending_enemy_base_tile_reset
-	GlobalData.pending_enemy_base_tile_reset = Vector2i(-1, -1)
+	var pos := GlobalData.narrative.pending_enemy_base_tile_reset
+	GlobalData.narrative.pending_enemy_base_tile_reset = Vector2i(-1, -1)
 	return pos
 
 
 static func consume_pending_enemy_base_outcome() -> bool:
-	var was_pending := GlobalData.pending_enemy_base_outcome
-	GlobalData.pending_enemy_base_outcome = false
+	var was_pending := GlobalData.narrative.pending_enemy_base_outcome
+	GlobalData.narrative.pending_enemy_base_outcome = false
 	return was_pending
 
 
 static func consume_pending_enemy_base_destroyed() -> bool:
-	var was_pending := GlobalData.pending_enemy_base_destroyed
-	GlobalData.pending_enemy_base_destroyed = false
+	var was_pending := GlobalData.narrative.pending_enemy_base_destroyed
+	GlobalData.narrative.pending_enemy_base_destroyed = false
 	return was_pending
 
 

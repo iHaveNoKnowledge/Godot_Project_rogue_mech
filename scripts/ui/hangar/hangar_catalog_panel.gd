@@ -50,7 +50,7 @@ func apply_chassis(key: String) -> void:
 	if not GlobalData.chassis_catalog.has(key):
 		return
 	controller.selected_chassis_key = key
-	GlobalData.chassis_id = key
+	GlobalData.weapons.chassis_id = key
 	var info: Dictionary = GlobalData.chassis_catalog[key]
 	if controller.status_message_label:
 		controller.status_message_label.text = "Chassis model set to %s!" % info.get("name", key)
@@ -129,7 +129,7 @@ func build_window() -> void:
 
 	for key in GlobalData.chassis_catalog:
 		var cinfo: Dictionary = GlobalData.chassis_catalog[key]
-		var is_current: bool = key == GlobalData.chassis_id
+		var is_current: bool = key == GlobalData.weapons.chassis_id
 		var crow = HBoxContainer.new()
 		crow.add_theme_constant_override("separation", 8)
 		rows.add_child(crow)

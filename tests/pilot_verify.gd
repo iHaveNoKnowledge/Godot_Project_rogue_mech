@@ -39,7 +39,7 @@ func _ready() -> void:
 	_check(PilotSystem.get_hp() == 0.0, "kill() sets HP to 0")
 
 	# --- Healing items (live pilot) ---
-	GlobalData.pilot_hp = 25.0
+	GlobalData.pilot.pilot_hp = 25.0
 	var restored := PilotSystem.heal(25.0)
 	_check(restored == 25.0, "heal restores exactly 25")
 	_check(PilotSystem.get_hp() == 50.0, "pilot HP now 50")
@@ -79,7 +79,7 @@ func _ready() -> void:
 	var price := PilotSystem.get_item_price("medkit_small")
 	_check(price == 50, "small medkit price is 50 credits")
 	# Give the pilot enough credits to buy one medkit.
-	GlobalData.gain_credits(1000)
+	GlobalData.currency.gain_credits(1000)
 	_check(PilotSystem.buy_item("medkit_small"), "can buy a medkit at a city")
 	# One small medkit was already owned/consumed earlier, so buying one more
 	# brings the stack back up to 2 (1 leftover + 1 bought).
@@ -93,12 +93,12 @@ func _ready() -> void:
 	_check(not PilotSystem.buy_item("nonexistent"), "unknown item cannot be bought")
 
 	# --- On-mech-destroyed wounding ---
-	GlobalData.pilot_hp = 100.0
+	GlobalData.pilot.pilot_hp = 100.0
 	PilotSystem.on_mecha_destroyed()
 	_check(PilotSystem.get_hp() == 65.0, "eject wounds the pilot (100 - 35)")
 	_check(PilotSystem.is_injured(), "wounded pilot is injured after mech loss")
 	# Eject kills a pilot already on the brink (HP 30 - 35 eject damage = 0).
-	GlobalData.pilot_hp = 30.0
+	GlobalData.pilot.pilot_hp = 30.0
 	PilotSystem.on_mecha_destroyed()
 	_check(PilotSystem.get_hp() == 0.0, "eject from 30 HP drops the pilot to 0")
 	_check(PilotSystem.is_dead(), "an eject that drops HP to 0 is permanent death")
@@ -106,7 +106,7 @@ func _ready() -> void:
 	# --- Player pilot on foot is a real target: shooting drains the SAME pool ---
 	# (the pilot scene's take_damage is the on-foot path; verify the wiring here
 	# through a live Pilot node + a hit from the enemy targeting rules).
-	GlobalData.pilot_hp = 100.0
+	GlobalData.pilot.pilot_hp = 100.0
 	var pilot := preload("res://scenes/pilot/pilot.tscn").instantiate()
 	add_child(pilot)
 	await get_tree().process_frame
@@ -136,13 +136,13 @@ func _ready() -> void:
 	_check(not is_instance_valid(e_pilot), "enemy pilot HP 0 is permanent death (removed)")
 
 	# --- Save/load roundtrip preserves pilot state ---
-	GlobalData.pilot_hp = 42.0
-	GlobalData.pilot_items = {"medkit_medium": 2}
+	GlobalData.pilot.pilot_hp = 42.0
+	GlobalData.pilot.pilot_items = {"medkit_medium": 2}
 	PilotSystem.add_weapon("res://resources/mech/stock/weapon_pilot_assault_rifle.tres")
 	GlobalData.save_run()
-	GlobalData.pilot_hp = 100.0
-	GlobalData.pilot_items = {}
-	GlobalData.pilot_weapons = []
+	GlobalData.pilot.pilot_hp = 100.0
+	GlobalData.pilot.pilot_items = {}
+	GlobalData.pilot.pilot_weapons = []
 	_check(GlobalData.load_run(), "save loads back")
 	_check(PilotSystem.get_hp() == 42.0, "pilot HP survives save/load")
 	_check(PilotSystem.get_item_count("medkit_medium") == 2, "pilot items survive save/load")

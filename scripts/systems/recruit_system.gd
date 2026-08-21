@@ -15,9 +15,9 @@ extends RefCounted
 #                           need recovery time.
 #
 # A duel is a "duel" combat node that spawns exactly one full-rig enemy — the
-# character's signature mech. Duel state is stored in GlobalData.pending_duel
+# character's signature mech. Duel state is stored in GlobalData.hangar.pending_duel
 # and resolved when that combat ends. Outcome text is written to
-# GlobalData.duel_result_text for the combat rewards screen.
+# GlobalData.hangar.duel_result_text for the combat rewards screen.
 # -----------------------------------------------------------------------------
 
 const CHARACTERS: Array = [
@@ -145,7 +145,7 @@ static func get_character(character_id: String) -> Dictionary:
 
 
 static func is_character_recruited(character_id: String) -> bool:
-	return character_id in GlobalData.recruited_characters
+	return character_id in GlobalData.hangar.recruited_characters
 
 
 # True when the player can still meet this character this run (not recruited).
@@ -187,7 +187,7 @@ static func recruit(character_id: String) -> bool:
 	var berth := _park_signature_mech(character, template_id)
 	if berth != "":
 		text += "\n" + berth
-	GlobalData.recruited_characters.append(character_id)
+	GlobalData.hangar.recruited_characters.append(character_id)
 	GlobalData.board.run_notice = text
 	return true
 
@@ -218,7 +218,7 @@ static func start_duel(character_id: String, intent: String) -> bool:
 	var character := get_character(character_id)
 	if character.is_empty() or not is_character_available(character_id):
 		return false
-	GlobalData.pending_duel = {
+	GlobalData.hangar.pending_duel = {
 		"character_id": character_id,
 		"intent": intent,
 	}
@@ -226,18 +226,18 @@ static func start_duel(character_id: String, intent: String) -> bool:
 
 
 static func has_pending_duel() -> bool:
-	return not GlobalData.pending_duel.is_empty()
+	return not GlobalData.hangar.pending_duel.is_empty()
 
 
 static func get_pending_character() -> Dictionary:
-	var character_id := str(GlobalData.pending_duel.get("character_id", ""))
+	var character_id := str(GlobalData.hangar.pending_duel.get("character_id", ""))
 	return get_character(character_id)
 
 
 # Called from GlobalData._on_combat_ended when a duel battle finishes.
 static func resolve_duel(victory: bool) -> void:
-	var pending := GlobalData.pending_duel
-	GlobalData.pending_duel = {}
+	var pending := GlobalData.hangar.pending_duel
+	GlobalData.hangar.pending_duel = {}
 	if pending.is_empty():
 		return
 	var character_id := str(pending.get("character_id", ""))
@@ -247,7 +247,7 @@ static func resolve_duel(victory: bool) -> void:
 	var intent := str(pending.get("intent", "test"))
 
 	if not victory:
-		GlobalData.duel_result_text = str(character.get("defeat_notice", "You lost the duel."))
+		GlobalData.hangar.duel_result_text = str(character.get("defeat_notice", "You lost the duel."))
 		return
 
 	if intent == "kill":
@@ -258,7 +258,7 @@ static func resolve_duel(victory: bool) -> void:
 		var berth := _recruit_from_duel(character)
 		if berth != "":
 			text += "\n" + berth
-		GlobalData.duel_result_text = text
+		GlobalData.hangar.duel_result_text = text
 
 
 # Win a respect-duel -> the character joins the convoy. Returns berth text.
@@ -267,7 +267,7 @@ static func _recruit_from_duel(character: Dictionary) -> String:
 	if not FleetSystem.add_ally_unit(template_id):
 		return ""
 	var berth := _park_signature_mech(character, template_id)
-	GlobalData.recruited_characters.append(str(character.get("id", "")))
+	GlobalData.hangar.recruited_characters.append(str(character.get("id", "")))
 	return berth
 
 
@@ -288,26 +288,26 @@ static func _resolve_kill_outcome(character: Dictionary) -> void:
 					unit["fielded"] = false
 					unit["wounded"] = true
 					unit["wound_turns"] = 2
-				GlobalData.recruited_characters.append(character_id)
-				GlobalData.duel_result_text = str(character.get("wreck_notice", "")) + " " + str(character.get("wounded_notice", ""))
+				GlobalData.hangar.recruited_characters.append(character_id)
+				GlobalData.hangar.duel_result_text = str(character.get("wreck_notice", "")) + " " + str(character.get("wounded_notice", ""))
 		else:
 			# Pilot dies: the wreck is parked as a pilotless, repairable berth.
 			var mech := _park_salvage_wreck(character, template_id)
-			GlobalData.recruited_characters.append(character_id)
+			GlobalData.hangar.recruited_characters.append(character_id)
 			if not mech.is_empty():
-				GlobalData.duel_result_text = str(character.get("wreck_notice", "")) + " %s is parked in the hangar. " % str(mech.get("name", "The wreck")) + str(character.get("dead_notice", ""))
+				GlobalData.hangar.duel_result_text = str(character.get("wreck_notice", "")) + " %s is parked in the hangar. " % str(mech.get("name", "The wreck")) + str(character.get("dead_notice", ""))
 			else:
-				GlobalData.duel_result_text = str(character.get("parts_notice", "")) + " " + str(character.get("dead_notice", ""))
+				GlobalData.hangar.duel_result_text = str(character.get("parts_notice", "")) + " " + str(character.get("dead_notice", ""))
 		return
 
 	# Too damaged to salvage whole: only parts are recovered.
 	var scrap_gained := randi_range(18, 30)
 	var credits_gained := randi_range(40, 70)
-	GlobalData.gain_scrap(scrap_gained)
-	GlobalData.gain_credits(credits_gained)
-	GlobalData.recruited_characters.append(character_id)
+	GlobalData.currency.gain_scrap(scrap_gained)
+	GlobalData.currency.gain_credits(credits_gained)
+	GlobalData.hangar.recruited_characters.append(character_id)
 	var fate := str(character.get("dead_notice", "")) if randf() < 0.5 else str(character.get("wounded_notice", ""))
-	GlobalData.duel_result_text = str(character.get("parts_notice", "")) + " +%d scrap, +%d credits. " % [scrap_gained, credits_gained] + fate
+	GlobalData.hangar.duel_result_text = str(character.get("parts_notice", "")) + " +%d scrap, +%d credits. " % [scrap_gained, credits_gained] + fate
 
 
 # Parks the shattered signature mech as a pilotless hangar berth with heavy
@@ -356,7 +356,7 @@ static func heal_wounded_pilot(template_id: String) -> bool:
 	if bool(unit.get("destroyed", false)):
 		return false
 	var cost := get_wound_heal_cost(template_id)
-	if not GlobalData.try_spend_credits(cost):
+	if not GlobalData.currency.try_spend_credits(cost):
 		return false
 	unit["wounded"] = false
 	unit["wound_turns"] = 0

@@ -148,7 +148,7 @@ func _ricochet(hit_pos: Vector3, normal: Vector3) -> void:
 
 func _hit_target(target: Node3D) -> void:
 	var final_damage = damage
-	if damage_type.to_lower() == "melee" and GlobalData.chassis_id == "brawler":
+	if damage_type.to_lower() == "melee" and GlobalData.weapons.chassis_id == "brawler":
 		final_damage *= 1.4
 
 	if damage_type.to_lower() == "explosive":

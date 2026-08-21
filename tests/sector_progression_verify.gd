@@ -27,19 +27,19 @@ func _ready() -> void:
 	GlobalData.reset_run_data()
 
 	# --- frame_upgrade_level resets for a brand-new run ---
-	GlobalData.frame_upgrade_level = 7
+	GlobalData.weapons.frame_upgrade_level = 7
 	GlobalData.reset_run_data()
-	_check(GlobalData.frame_upgrade_level == 1, "new run resets frame_upgrade_level to 1")
+	_check(GlobalData.weapons.frame_upgrade_level == 1, "new run resets frame_upgrade_level to 1")
 
 	# --- frame_upgrade_level round-trips through save/load ---
-	GlobalData.frame_upgrade_level = 4
+	GlobalData.weapons.frame_upgrade_level = 4
 	GlobalData.board.current_sector = 3
 	GlobalData.currency.credits = 999
 	SaveGameIO.save_run()
 	GlobalData.reset_run_data()
-	_check(GlobalData.frame_upgrade_level == 1, "after reset, upgrade level back to 1")
+	_check(GlobalData.weapons.frame_upgrade_level == 1, "after reset, upgrade level back to 1")
 	SaveGameIO.load_run()
-	_check(GlobalData.frame_upgrade_level == 4, "upgrade level persists across save/load")
+	_check(GlobalData.weapons.frame_upgrade_level == 4, "upgrade level persists across save/load")
 	_check(GlobalData.board.current_sector == 3, "sector round-trips too")
 
 	# --- wanted_escalation resets on new run ---
@@ -70,7 +70,7 @@ func _ready() -> void:
 	# --- restore old saves without the new keys (backward compat) ---
 	GlobalData.reset_run_data()
 	SaveGameIO.restore_from_dict({})
-	_check(GlobalData.frame_upgrade_level == 1, "legacy save defaults frame_upgrade_level to 1")
+	_check(GlobalData.weapons.frame_upgrade_level == 1, "legacy save defaults frame_upgrade_level to 1")
 	_check(GlobalData.board.wanted_escalation == 0, "legacy save defaults wanted_escalation to 0")
 
 	# Restore the player's original save file (if any).

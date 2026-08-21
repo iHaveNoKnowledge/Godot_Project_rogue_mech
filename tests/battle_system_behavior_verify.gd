@@ -165,7 +165,7 @@ func _test_4_hp_and_damage_system() -> void:
 	_check(hs.parts["body"]["frame_hp"] < initial_frame, "Frame HP damaged after armor breaks")
 
 	# Pilot HP
-	GlobalData.pilot_hp = 100.0
+	GlobalData.pilot.pilot_hp = 100.0
 	PilotSystem.take_damage(35.0)
 	_check(PilotSystem.get_hp() == 65.0, "Pilot HP decreases when damaged (100 -> 65)")
 

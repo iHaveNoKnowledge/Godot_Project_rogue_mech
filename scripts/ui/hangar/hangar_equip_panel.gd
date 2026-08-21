@@ -698,7 +698,7 @@ func unequip_part(slot: String) -> void:
 func on_equip_pressed() -> void:
 	if controller.current_mode == "upgrade":
 		var cost = controller._get_upgrade_cost()
-		if GlobalData.try_spend_credits(cost):
+		if GlobalData.currency.try_spend_credits(cost):
 			GlobalData.weapons.frame_upgrade_level += 1
 			controller.status_message_label.text = "Frame Reactor Upgraded to Level %d!" % GlobalData.weapons.frame_upgrade_level
 			GlobalData.save_run()

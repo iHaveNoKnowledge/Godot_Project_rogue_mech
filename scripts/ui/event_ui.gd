@@ -83,7 +83,11 @@ func _create_ui() -> void:
 	vbox.add_child(choice_container)
 
 
+var _current_event: Dictionary = {}
+
+
 func _on_event_triggered(event: Dictionary) -> void:
+	_current_event = event
 	# The board scene can emit events during a scene swap (e.g. a forced combat
 	# entry frees the board before its end-of-day event fires). An EventUI that
 	# is no longer in the tree must ignore the popup instead of crashing on
@@ -127,7 +131,7 @@ func _on_choice_pressed(choice: Dictionary) -> void:
 	if not is_inside_tree():
 		return
 	var forced := ThemeSystem.apply_event_effect(choice)
-	if forced:
+	if forced or str(choice.get("effect", "")) == "force_combat":
 		# The choice sprang a trap — jump straight into battle.
 		visible = false
 		if get_tree():
@@ -139,6 +143,13 @@ func _on_choice_pressed(choice: Dictionary) -> void:
 
 func _on_continue_pressed() -> void:
 	if not is_inside_tree():
+		return
+	var forced := ThemeSystem.apply_event_effect(_current_event)
+	if forced or str(_current_event.get("effect", "")) == "force_combat":
+		visible = false
+		if get_tree():
+			get_tree().paused = false
+		GameManager.enter_combat(str(_current_event.get("params", {}).get("combat_type", "grunt")))
 		return
 	_resume_from_popup()
 

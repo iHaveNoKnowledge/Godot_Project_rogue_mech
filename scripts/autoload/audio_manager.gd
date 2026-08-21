@@ -67,20 +67,34 @@ func _setup_audio_buses() -> void:
 		AudioServer.set_bus_name(music_idx, "Music")
 		AudioServer.set_bus_send(music_idx, "Master")
 
-	# Attach dynamic compressor to SFX bus for punchy, heavy war sound without squashing peaks.
+	# Attach dynamic compressor + EQ to SFX bus for punchy, tight bass body and reduced harshness.
 	var has_compressor := false
+	var has_eq := false
 	for i in range(AudioServer.get_bus_effect_count(sfx_idx)):
-		if AudioServer.get_bus_effect(sfx_idx, i) is AudioEffectCompressor:
+		var eff = AudioServer.get_bus_effect(sfx_idx, i)
+		if eff is AudioEffectCompressor:
 			has_compressor = true
-			break
+		elif eff is AudioEffectEQ6:
+			has_eq = true
+
 	if not has_compressor:
 		var comp := AudioEffectCompressor.new()
-		comp.threshold = -6.0
-		comp.ratio = 2.0
-		comp.attack_us = 500.0
-		comp.release_ms = 80.0
-		comp.gain = 2.0
+		comp.threshold = -10.0
+		comp.ratio = 3.5
+		comp.attack_us = 150.0
+		comp.release_ms = 60.0
+		comp.gain = 0.0
 		AudioServer.add_bus_effect(sfx_idx, comp)
+
+	if not has_eq:
+		var eq := AudioEffectEQ6.new()
+		eq.set_band_gain_db(0, 2.5)  # 32 Hz sub-bass punch
+		eq.set_band_gain_db(1, 3.0)  # 100 Hz dense punchy body
+		eq.set_band_gain_db(2, 1.2)  # 320 Hz warmth
+		eq.set_band_gain_db(3, 0.0)  # 1000 Hz mid
+		eq.set_band_gain_db(4, -2.0) # 3200 Hz cut harshness
+		eq.set_band_gain_db(5, -4.0) # 10000 Hz cut piercing treble
+		AudioServer.add_bus_effect(sfx_idx, eq)
 
 	# Master limiter to prevent clipping on heavy layered explosions.
 	var has_limiter := false

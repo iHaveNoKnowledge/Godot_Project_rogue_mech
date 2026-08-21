@@ -180,27 +180,15 @@ func take_damage_at_point(amount: float, world_pos: Vector3, damage_type: String
 func _take_explosive_damage_at_point(amount: float, world_pos: Vector3, damage_type: String = "explosive") -> void:
 	var primary_hit := _resolve_hit(world_pos)
 	var primary_slot: String = primary_hit.get("slot", "")
-	var blast_radius := 3.8
 
-	# 1. Primary hit part absorbs direct blast impact (primary focus)
-	if primary_slot != "" and parts.has(primary_slot):
-		var primary_dmg: float = amount * 0.65
-		take_damage_to_part(primary_slot, primary_dmg, damage_type, primary_hit.get("layer", ""))
-
-	# 2. Adjacent parts take lighter radial splash damage based on distance
+	# Resolve slot centers for splash distance.
+	var slot_centers: Dictionary = {}
 	for slot in parts:
-		if slot == primary_slot:
-			continue
-		if parts[slot]["destroyed"]:
-			continue
+		slot_centers[slot] = _get_slot_center(slot)
 
-		var slot_pos := _get_slot_center(slot)
-		var dist: float = world_pos.distance_to(slot_pos)
-		if dist <= blast_radius:
-			var falloff: float = clampf(1.0 - 0.6 * (dist / blast_radius), 0.2, 1.0)
-			var splash_dmg: float = amount * 0.35 * falloff
-			var layer := _resolve_layer_for_slot(slot, world_pos)
-			take_damage_to_part(slot, splash_dmg, damage_type, layer)
+	apply_explosive_blast(amount, world_pos, damage_type, primary_slot, primary_hit.get("layer", ""), slot_centers, func(slot: String, dmg: float, pos: Vector3) -> void:
+		take_damage_to_part(slot, dmg, damage_type, _resolve_layer_for_slot(slot, pos))
+	)
 
 
 func _get_slot_center(slot_name: String) -> Vector3:
@@ -246,6 +234,36 @@ func _intercept_drop_tank_damage(amount: float) -> bool:
 
 
 
+## Shared explosive blast calculation used by both the player's health system
+## and enemy dummies.  Resolves the primary hit, applies 65% direct damage,
+## then radiates 35% splash across adjacent parts within the blast radius.
+##
+## `primary_slot`:  which part takes the direct hit ("" = none).
+## `primary_layer":  armor/frame surface for the primary hit.
+## `slot_centers":   Dictionary mapping slot name -> world position.
+## `apply_damage`:   Callable(slot_name, damage, world_pos) that applies the
+##                   damage to the correct surface on the correct health system.
+static func apply_explosive_blast(
+		amount: float, world_pos: Vector3, damage_type: String,
+		primary_slot: String, primary_layer: String,
+		slot_centers: Dictionary, apply_damage: Callable) -> void:
+	const BLAST_RADIUS := 3.8
+
+	# 1. Primary hit part absorbs direct blast impact (65%)
+	if primary_slot != "" and slot_centers.has(primary_slot):
+		apply_damage.call(primary_slot, amount * 0.65, world_pos)
+
+	# 2. Adjacent parts take lighter radial splash damage (35% x falloff)
+	for slot in slot_centers:
+		if slot == primary_slot:
+			continue
+		var slot_pos: Vector3 = slot_centers[slot]
+		var dist: float = world_pos.distance_to(slot_pos)
+		if dist <= BLAST_RADIUS:
+			var falloff: float = clampf(1.0 - 0.6 * (dist / BLAST_RADIUS), 0.2, 1.0)
+			apply_damage.call(slot, amount * 0.35 * falloff, world_pos)
+
+
 # Variant used by enemy mechas: they resolve the part themselves (their meshes
 # have no armor/frame split), we only need to resolve the surface layer here.
 func take_damage_to_part_at(slot_name: String, amount: float, world_pos: Vector3, damage_type: String = "kinetic") -> void:
@@ -256,6 +274,46 @@ func take_damage_to_part_at(slot_name: String, amount: float, world_pos: Vector3
 		return
 	var layer := _resolve_layer_for_slot(slot_name, world_pos)
 	take_damage_to_part(slot_name, amount, damage_type, layer)
+
+
+## Convenience overload that resolves parts from local-space coordinates
+## (used by enemy dummies whose meshes have no armor/frame split).
+func take_damage_at_local_point(amount: float, local_pos: Vector3, world_pos: Vector3, damage_type: String = "kinetic") -> void:
+	if is_destroyed:
+		return
+	var target_part := _determine_hit_from_local(local_pos)
+	if target_part == "" or not parts.has(target_part) or parts[target_part]["destroyed"]:
+		target_part = _find_alive_part()
+	if target_part == "":
+		return
+	var layer := _resolve_layer_for_slot(target_part, world_pos)
+	take_damage_to_part(target_part, amount, damage_type, layer)
+
+
+## Resolves which slot a local-space impact point hits (simple y/x heuristic).
+func _determine_hit_from_local(local_pos: Vector3) -> String:
+	if local_pos.y > 2.0:
+		return "head"
+	elif local_pos.y > 0.5:
+		if local_pos.x < -0.3:
+			return "arm_left"
+		elif local_pos.x > 0.3:
+			return "arm_right"
+		else:
+			return "body"
+	else:
+		if local_pos.x < 0.0:
+			return "leg_left"
+		else:
+			return "leg_right"
+
+
+## Returns the first non-destroyed slot name, or "" when all are destroyed.
+func _find_alive_part() -> String:
+	for slot in parts:
+		if not parts[slot]["destroyed"]:
+			return slot
+	return ""
 
 
 func _select_target() -> String:

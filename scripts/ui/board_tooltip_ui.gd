@@ -56,9 +56,9 @@ func show_tile(text: String, screen_pos: Vector2, _extra: Dictionary) -> void:
 	panel.visible = true
 	var offset := Vector2(18, 18)
 	var pos := screen_pos + offset
-	# Keep the panel on screen.
+	# Keep the panel comfortably on screen.
 	var vp := get_viewport().get_visible_rect().size
 	var size := panel.get_minimum_size()
-	pos.x = clampf(pos.x, 4, vp.x - size.x - 4)
-	pos.y = clampf(pos.y, 4, vp.y - size.y - 4)
+	pos.x = clampf(pos.x, 24.0, vp.x - size.x - 24.0)
+	pos.y = clampf(pos.y, 24.0, vp.y - size.y - 24.0)
 	panel.position = pos

@@ -101,10 +101,10 @@ func _build_screen_fx() -> void:
 func _build_top_bar() -> void:
 	_top_bar = HBoxContainer.new()
 	_top_bar.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	_top_bar.offset_left = 20
-	_top_bar.offset_right = -320 # Leave room for Threat Radar
-	_top_bar.offset_top = 12
-	_top_bar.offset_bottom = 76
+	_top_bar.offset_left = 32
+	_top_bar.offset_right = -350 # Leave room for Threat Radar
+	_top_bar.offset_top = 18
+	_top_bar.offset_bottom = 82
 	_top_bar.add_theme_constant_override("separation", 12)
 	_top_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(_top_bar)
@@ -209,9 +209,9 @@ func _build_top_bar() -> void:
 func _build_threat_radar() -> void:
 	_threat_radar = VBoxContainer.new()
 	_threat_radar.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	_threat_radar.offset_left = -290
-	_threat_radar.offset_right = -20
-	_threat_radar.offset_top = 12
+	_threat_radar.offset_left = -312
+	_threat_radar.offset_right = -32
+	_threat_radar.offset_top = 18
 	_threat_radar.add_theme_constant_override("separation", 8)
 	_threat_radar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(_threat_radar)
@@ -307,28 +307,28 @@ func _build_threat_radar() -> void:
 # 4. BOTTOM LEFT: UNIT STATUS (Armor HP & Frame Durability)
 # -----------------------------------------------------------------------------
 func _build_unit_status() -> void:
-	_unit_status_panel = _make_panel(240, 120)
+	_unit_status_panel = _make_panel(300, 160)
 	_unit_status_panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	_unit_status_panel.offset_left = 20
-	_unit_status_panel.offset_right = 260
-	_unit_status_panel.offset_bottom = -20
-	_unit_status_panel.offset_top = -140
+	_unit_status_panel.offset_left = 32
+	_unit_status_panel.offset_right = 332
+	_unit_status_panel.offset_bottom = -32
+	_unit_status_panel.offset_top = -192
 	_root.add_child(_unit_status_panel)
 
 	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 3)
+	vbox.add_theme_constant_override("separation", 6)
 	_unit_status_panel.add_child(vbox)
 
 	var title = Label.new()
 	title.text = "MECH SYSTEM INTEGRITY"
-	title.add_theme_font_size_override("font_size", 12)
-	title.add_theme_color_override("font_color", Color(0.4, 0.85, 1.0))
+	title.add_theme_font_size_override("font_size", 13)
+	title.add_theme_color_override("font_color", Color(0.4, 0.9, 1.0))
 	vbox.add_child(title)
 
 	var grid = GridContainer.new()
 	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 8)
-	grid.add_theme_constant_override("v_separation", 2)
+	grid.add_theme_constant_override("h_separation", 14)
+	grid.add_theme_constant_override("v_separation", 4)
 	vbox.add_child(grid)
 
 	var slots := ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]
@@ -336,14 +336,14 @@ func _build_unit_status() -> void:
 	for i in range(slots.size()):
 		var lbl = Label.new()
 		lbl.text = "%s: 100%%" % names[i]
-		lbl.add_theme_font_size_override("font_size", 10)
+		lbl.add_theme_font_size_override("font_size", 12)
 		grid.add_child(lbl)
 		_part_status_labels[slots[i]] = lbl
 
 	_dirt_label = Label.new()
 	_dirt_label.text = "Engine Dirt: 0%"
-	_dirt_label.add_theme_font_size_override("font_size", 10)
-	_dirt_label.add_theme_color_override("font_color", Color(0.8, 0.6, 0.3))
+	_dirt_label.add_theme_font_size_override("font_size", 12)
+	_dirt_label.add_theme_color_override("font_color", Color(0.9, 0.7, 0.35))
 	vbox.add_child(_dirt_label)
 
 
@@ -351,40 +351,42 @@ func _build_unit_status() -> void:
 # 5. BOTTOM RIGHT: TILE INSPECTOR
 # -----------------------------------------------------------------------------
 func _build_tile_inspector() -> void:
-	_inspector_panel = _make_panel(310, 160)
+	_inspector_panel = _make_panel(400, 240)
 	_inspector_panel.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	_inspector_panel.offset_left = -330
-	_inspector_panel.offset_right = -20
-	_inspector_panel.offset_bottom = -20
-	_inspector_panel.offset_top = -180
+	_inspector_panel.offset_left = -432
+	_inspector_panel.offset_right = -32
+	_inspector_panel.offset_bottom = -32
+	_inspector_panel.offset_top = -272
 	_root.add_child(_inspector_panel)
 
 	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 2)
+	vbox.add_theme_constant_override("separation", 5)
 	_inspector_panel.add_child(vbox)
 
 	_inspector_title = Label.new()
 	_inspector_title.text = "TILE RECON"
-	_inspector_title.add_theme_font_size_override("font_size", 12)
-	_inspector_title.add_theme_color_override("font_color", Color(1.0, 0.8, 0.3))
+	_inspector_title.add_theme_font_size_override("font_size", 14)
+	_inspector_title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35))
 	vbox.add_child(_inspector_title)
 
 	_inspector_costs = Label.new()
 	_inspector_costs.text = "Move Cost: 1 MP | -10 Energy\nTerrain: Plain"
-	_inspector_costs.add_theme_font_size_override("font_size", 10)
+	_inspector_costs.add_theme_font_size_override("font_size", 12)
+	_inspector_costs.add_theme_color_override("font_color", Color(0.85, 0.92, 1.0))
 	vbox.add_child(_inspector_costs)
 
 	_inspector_fleet = Label.new()
 	_inspector_fleet.text = ""
-	_inspector_fleet.add_theme_font_size_override("font_size", 10)
-	_inspector_fleet.add_theme_color_override("font_color", Color(0.4, 0.9, 1.0))
+	_inspector_fleet.add_theme_font_size_override("font_size", 12)
+	_inspector_fleet.add_theme_color_override("font_color", Color(0.45, 0.95, 1.0))
 	_inspector_fleet.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(_inspector_fleet)
 
 	_inspector_warnings = Label.new()
 	_inspector_warnings.text = ""
-	_inspector_warnings.add_theme_font_size_override("font_size", 10)
-	_inspector_warnings.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
+	_inspector_warnings.add_theme_font_size_override("font_size", 12)
+	_inspector_warnings.add_theme_color_override("font_color", Color(1.0, 0.35, 0.35))
+	_inspector_warnings.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(_inspector_warnings)
 
 
@@ -392,20 +394,20 @@ func _make_panel(w: int, h: int) -> PanelContainer:
 	var panel = PanelContainer.new()
 	panel.custom_minimum_size = Vector2(w, h)
 	var s := StyleBoxFlat.new()
-	s.bg_color = Color(0.06, 0.08, 0.14, 0.9)
-	s.corner_radius_top_left = 6
-	s.corner_radius_top_right = 6
-	s.corner_radius_bottom_left = 6
-	s.corner_radius_bottom_right = 6
-	s.content_margin_left = 10
-	s.content_margin_right = 10
-	s.content_margin_top = 8
-	s.content_margin_bottom = 8
+	s.bg_color = Color(0.05, 0.08, 0.15, 0.94)
+	s.corner_radius_top_left = 8
+	s.corner_radius_top_right = 8
+	s.corner_radius_bottom_left = 8
+	s.corner_radius_bottom_right = 8
+	s.content_margin_left = 14
+	s.content_margin_right = 14
+	s.content_margin_top = 10
+	s.content_margin_bottom = 10
 	s.border_width_left = 1
 	s.border_width_right = 1
 	s.border_width_top = 1
 	s.border_width_bottom = 1
-	s.border_color = Color(0.3, 0.45, 0.7, 0.4)
+	s.border_color = Color(0.28, 0.52, 0.82, 0.55)
 	panel.add_theme_stylebox_override("panel", s)
 	return panel
 

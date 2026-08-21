@@ -508,7 +508,7 @@ func _update_eject_hud(is_eject: bool) -> void:
 		var max_hp: float = PilotSystem.get_max_hp()
 		if max_hp <= 0.0:
 			max_hp = 100.0
-			_hp = 100.0
+			hp = 100.0
 		_pilot_hp_bar.max_value = max_hp
 		_pilot_hp_bar.value = hp
 		var ratio := clampf(hp / max_hp, 0.0, 1.0)

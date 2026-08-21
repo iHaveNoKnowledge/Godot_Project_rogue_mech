@@ -471,7 +471,7 @@ func _execute_single_artillery_strike(fleet: Dictionary, strike_idx: int, total_
 	EffectManager.spawn_muzzle_flash(shooter_pos, shoot_dir, Color(1.0, 0.65, 0.15))
 	EffectFactory.spawn_smoke_plume(get_tree(), shooter_pos, 5, 0.35, 0.6, 1.2)
 	if AudioManager:
-		AudioManager.play_weapon_sfx("missile", shooter_pos)
+		AudioManager.play_sfx_by_name("missile", shooter_pos)
 
 	# 3. Launch Salvo of 3 parabolic artillery shells & Pan camera back to target
 	for s in range(3):

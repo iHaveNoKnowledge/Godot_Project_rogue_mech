@@ -81,6 +81,8 @@ func _ready() -> void:
 	_create_precision_row()
 	_create_bond_row()
 	EventBus.damage_received.connect(_on_player_damaged)
+	if get_viewport():
+		get_viewport().size_changed.connect(_fit_panel_to_content)
 	# Two frames so the container layout resolves bar/label minimum sizes.
 	await get_tree().process_frame
 	await get_tree().process_frame
@@ -109,10 +111,10 @@ func _fit_panel_to_content() -> void:
 		return
 	var vp_h := get_viewport().get_visible_rect().size.y
 	var min_height: float = panel.get_combined_minimum_size().y
-	# Keep a safe margin off the top edge; the bottom offset is already a
-	# negative (padded) value so the panel stays inside the screen.
-	var max_height := maxf(vp_h - 80.0, 40.0)
+	var max_height := maxf(vp_h - 100.0, 40.0)
 	var fit_h := clampf(min_height, 40.0, max_height)
+	# Set a clean 36px bottom margin so the HP panel stays comfortably inside the screen.
+	panel.offset_bottom = -36.0
 	panel.offset_top = panel.offset_bottom - fit_h
 	panel.clip_contents = true
 

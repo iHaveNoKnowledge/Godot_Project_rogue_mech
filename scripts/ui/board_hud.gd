@@ -311,8 +311,8 @@ func _build_unit_status() -> void:
 	_unit_status_panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	_unit_status_panel.offset_left = 32
 	_unit_status_panel.offset_right = 332
-	_unit_status_panel.offset_bottom = -32
-	_unit_status_panel.offset_top = -192
+	_unit_status_panel.offset_bottom = -36
+	_unit_status_panel.offset_top = -196
 	_root.add_child(_unit_status_panel)
 
 	var vbox = VBoxContainer.new()
@@ -355,8 +355,8 @@ func _build_tile_inspector() -> void:
 	_inspector_panel.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	_inspector_panel.offset_left = -432
 	_inspector_panel.offset_right = -32
-	_inspector_panel.offset_bottom = -32
-	_inspector_panel.offset_top = -272
+	_inspector_panel.offset_bottom = -36
+	_inspector_panel.offset_top = -276
 	_root.add_child(_inspector_panel)
 
 	var vbox = VBoxContainer.new()

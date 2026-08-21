@@ -63,6 +63,7 @@ func _setup_pools() -> void:
 func _generate_sounds() -> void:
 	_sound_cache["beam_rifle"] = preload("res://resources/audio/sfx/beam_fire_01.wav")
 	_sound_cache["machine_gun"] = preload("res://resources/audio/sfx/machine_gun01.wav")
+	_sound_cache["machine_gun_light"] = preload("res://resources/audio/sfx/machine_gun02.wav")
 	_sound_cache["missile"] = preload("res://resources/audio/sfx/missile01.wav")
 	_sound_cache["shotgun"] = preload("res://resources/audio/sfx/Dense_heavy_combat_s_#1-1782744878871.wav")
 	_sound_cache["armor_break"] = _gen_armor_shatter()
@@ -72,7 +73,7 @@ func _generate_sounds() -> void:
 	var ui_confirm := _load_ui_sound("confirm")
 	_sound_cache["ui_confirm"] = ui_confirm if ui_confirm != null else _gen_tactical_ui_confirm()
 	_sound_cache["mech_register"] = _gen_mech_register()
-	var footstep_file := _load_sfx_file("footstep")
+	var footstep_file: Variant = _load_sfx_file("footstep")
 	_sound_cache["footstep"] = footstep_file if footstep_file != null else _gen_mech_footstep()
 	var actuator := _gen_actuator()
 	_sound_cache["dash"] = actuator
@@ -80,7 +81,7 @@ func _generate_sounds() -> void:
 	_sound_cache["jump"] = _gen_mech_jump()
 	_sound_cache["land"] = _gen_mech_land()
 	_sound_cache["roller_skate"] = _gen_roller_skate_grunt()
-	var roller_file := _load_sfx_file("roller_dash")
+	var roller_file: Variant = _load_sfx_file("roller_dash")
 	_sound_cache["roller_dash"] = roller_file if roller_file != null else _gen_roller_loop()
 	_sound_cache["reload_complete"] = _gen_heavy_reload_complete()
 	_sound_cache["impact"] = [
@@ -172,7 +173,7 @@ func _load_ui_sound(base_name: String) -> AudioStream:
 ## Variants follow the pattern "<name>.<ext>" plus optional numbered copies
 ## like "footstep_2.wav", "footstep03.ogg" — when several exist they are
 ## returned as an Array so playback randomly rotates through them.
-func _load_sfx_file(base_name: String) -> AudioStream:
+func _load_sfx_file(base_name: String) -> Variant:
 	var variants := _load_sfx_variants(base_name)
 	if variants.is_empty():
 		return null
@@ -309,7 +310,7 @@ func play_weapon_sfx(weapon_type: int, pos: Vector3) -> void:
 func play_weapon_sfx_with_override(weapon: WeaponPart, pos: Vector3) -> void:
 	if combat_muted:
 		return
-	if weapon.fire_sfx != null:
+	if weapon != null and weapon.fire_sfx != null:
 		var player = _get_free_3d_player()
 		if player == null:
 			return
@@ -318,7 +319,13 @@ func play_weapon_sfx_with_override(weapon: WeaponPart, pos: Vector3) -> void:
 		player.volume_db = -1.5
 		player.bus = "SFX"
 		player.play()
-	else:
+	elif weapon != null and weapon.weapon_type == WeaponPart.WeaponType.MACHINE_GUN:
+		var wname := weapon.weapon_name.to_lower()
+		if weapon.damage <= 4.5 or wname.contains("light") or wname.contains("gatling"):
+			play_sfx("machine_gun_light", pos, -2.0)
+		else:
+			play_sfx("machine_gun", pos, -2.5)
+	elif weapon != null:
 		play_weapon_sfx(weapon.weapon_type, pos)
 
 

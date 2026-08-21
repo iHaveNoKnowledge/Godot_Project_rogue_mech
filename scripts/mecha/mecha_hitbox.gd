@@ -43,7 +43,7 @@ func _damage_if_projectile(body: Node3D) -> void:
 	EffectManager.spawn_impact(body.global_position, Vector3.UP)
 
 	if health_system:
-		if health_system.has_method("take_damage_at_point"):
+		if health_system is Damageable:
 			health_system.take_damage_at_point(dmg, body.global_position, dmg_type)
 		else:
 			health_system.take_damage(dmg, dmg_type)

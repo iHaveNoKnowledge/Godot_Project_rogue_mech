@@ -111,13 +111,13 @@ func take_damage(amount: float, damage_type: String = "kinetic") -> void:
 
 func take_damage_at_point(amount: float, world_pos: Vector3, damage_type: String = "kinetic") -> void:
 	var hs := _health_system()
-	if hs and hs.has_method("take_damage_at_point"):
+	if hs and hs is Damageable:
 		hs.take_damage_at_point(amount, world_pos, damage_type)
 
 
 func take_damage_to_part(slot_name: String, amount: float, damage_type: String = "kinetic", layer: String = "") -> void:
 	var hs := _health_system()
-	if hs and hs.has_method("take_damage_to_part"):
+	if hs and hs is Damageable:
 		hs.take_damage_to_part(slot_name, amount, damage_type, layer)
 
 

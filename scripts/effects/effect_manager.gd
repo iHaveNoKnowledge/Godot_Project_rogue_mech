@@ -335,9 +335,9 @@ static func apply_area_explosion_damage(
 		var type_mult: float = 2.2 if is_pilot else 0.75
 		var final_dmg: float = base_damage * falloff * type_mult
 
-		if target.has_method("take_damage_at_point"):
+		if target is Damageable:
 			target.take_damage_at_point(final_dmg, blast_pos, damage_type)
-		elif target.has_method("take_damage"):
+		elif target is Damageable:
 			target.take_damage(final_dmg, damage_type)
 
 		# Knockback / impact push from blast center
@@ -436,9 +436,9 @@ static func melee_hit_ray(
 		return false
 
 	var victim: Node = collider
-	while victim and not victim.has_method("take_damage"):
+	while victim and not victim is Damageable:
 		victim = victim.get_parent()
-	if victim == null or not victim.has_method("take_damage"):
+	if victim == null or not victim is Damageable:
 		return false
 
 	# Melee hits carry their attack type (heat/pierce/blunt) so armor plates

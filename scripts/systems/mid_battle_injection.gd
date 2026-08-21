@@ -133,7 +133,7 @@ func _spawn_reinforcements() -> void:
 func _countdown_expired() -> void:
 	# Deal heavy damage to the player mech — the area is being bombarded.
 	var mecha = GameManager.get_player_mecha()
-	if mecha and mecha.has_method("take_damage"):
+	if mecha and mecha is Damageable:
 		mecha.take_damage(80.0, "explosive")
 		countdown_extraction_expired.emit()
 		EventBus.event_triggered.emit({

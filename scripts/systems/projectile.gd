@@ -117,7 +117,7 @@ func _check_obstacle_collision() -> void:
 		var hit_normal = result["normal"]
 
 		# Deal damage to cover
-		if collider.has_method("take_damage"):
+		if collider is Damageable:
 			collider.take_damage(damage, damage_type)
 
 		if damage_type.to_lower() == "explosive":
@@ -159,9 +159,9 @@ func _hit_target(target: Node3D) -> void:
 	if AudioManager:
 		AudioManager.play_impact_by_type(damage_type, position)
 
-	if target.has_method("take_damage_at_point"):
+	if target is Damageable:
 		target.take_damage_at_point(final_damage, position, damage_type)
-	elif target.has_method("take_damage"):
+	elif target is Damageable:
 		target.take_damage(final_damage, damage_type)
 
 	if target.has_method("apply_impact") and impact > 0.0:

@@ -223,7 +223,7 @@ func _heal_nearest_ally() -> void:
 			nearest = e
 			nearest_dist = dist
 
-	if nearest and nearest.health_system and nearest.health_system.has_method("take_heal"):
+	if nearest and nearest.health_system and nearest.health_system is Damageable:
 		nearest.health_system.take_heal(5.0)
 		# Visual feedback
 		EffectManager.spawn_damage_number(nearest.global_position + Vector3(0, 3, 0), 5.0, Color(0.2, 1.0, 0.2))

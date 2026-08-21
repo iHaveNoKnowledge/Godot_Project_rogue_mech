@@ -141,7 +141,7 @@ func announce(text: String, duration: float = 3.0) -> void:
 	_announce_tween = create_tween()
 	_announce_tween.tween_interval(maxf(duration, 0.1))
 	_announce_tween.tween_property(announce_panel, "modulate:a", 0.0, 0.6)
-	_announce_tween.tween_callback(func(): announce_panel.visible = false)
+	_announce_tween.tween_callback(announce_panel.hide)
 
 
 # Builds the slim RETREAT banner pinned to the top-center of the screen, above

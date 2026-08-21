@@ -62,12 +62,9 @@ static func spawn_muzzle_flash(position: Vector3, direction: Vector3, color: Col
 	if direction.length_squared() > 0.001:
 		flash.look_at(position + direction, Vector3.UP)
 
-	var flash_tween := instance.create_tween()
+	var flash_tween := flash.create_tween()
 	flash_tween.tween_interval(0.2)
-	flash_tween.tween_callback(func():
-		if is_instance_valid(flash):
-			flash.queue_free()
-	)
+	flash_tween.tween_callback(flash.queue_free)
 
 
 static func spawn_impact(position: Vector3, normal: Vector3) -> void:
@@ -108,12 +105,9 @@ static func spawn_impact(position: Vector3, normal: Vector3) -> void:
 	instance.add_child(impact)
 	impact.global_position = position
 
-	var t := instance.create_tween()
+	var t := impact.create_tween()
 	t.tween_interval(0.4)
-	t.tween_callback(func():
-		if is_instance_valid(impact):
-			impact.queue_free()
-	)
+	t.tween_callback(impact.queue_free)
 
 
 static func spawn_damage_number(position: Vector3, damage: float, color: Color = Color.WHITE) -> void:
@@ -277,14 +271,10 @@ static func spawn_explosion(position: Vector3, radius: float = 8.0) -> void:
 	instance.add_child(smoke)
 	smoke.global_position = position
 
-	var cleanup_tween := instance.create_tween()
+	var cleanup_tween := explosion.create_tween()
 	cleanup_tween.tween_interval(1.1)
-	cleanup_tween.tween_callback(func():
-		if is_instance_valid(explosion):
-			explosion.queue_free()
-		if is_instance_valid(smoke):
-			smoke.queue_free()
-	)
+	cleanup_tween.tween_callback(explosion.queue_free)
+	cleanup_tween.tween_callback(smoke.queue_free)
 
 
 ## Deals area of effect explosion damage.
@@ -486,12 +476,9 @@ static func spawn_jam_sparks(position: Vector3) -> void:
 	instance.add_child(sparks)
 	sparks.global_position = position
 
-	var spark_tween := instance.create_tween()
+	var spark_tween := sparks.create_tween()
 	spark_tween.tween_interval(0.35)
-	spark_tween.tween_callback(func():
-		if is_instance_valid(sparks):
-			sparks.queue_free()
-	)
+	spark_tween.tween_callback(sparks.queue_free)
 
 	# 2. Small grey smoke puff
 	var smoke := GPUParticles3D.new()
@@ -522,12 +509,9 @@ static func spawn_jam_sparks(position: Vector3) -> void:
 	instance.add_child(smoke)
 	smoke.global_position = position + Vector3(0, 0.1, 0)
 
-	var smoke_tween := instance.create_tween()
+	var smoke_tween := smoke.create_tween()
 	smoke_tween.tween_interval(0.7)
-	smoke_tween.tween_callback(func():
-		if is_instance_valid(smoke):
-			smoke.queue_free()
-	)
+	smoke_tween.tween_callback(smoke.queue_free)
 
 	# 3. Tiny flash light (warm orange, short-lived)
 	var light := OmniLight3D.new()

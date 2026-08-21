@@ -410,13 +410,14 @@ static func spawn_burning_ground(scene: SceneTree, pos: Vector3,
 	for i in range(4):
 		var delay := float(i) * (duration / 5.0)
 		var fl_pos := pos + Vector3(randf_range(-radius * 0.5, radius * 0.5), 0.1, randf_range(-radius * 0.5, radius * 0.5))
-		var timer_tween := scene.create_tween()
-		timer_tween.tween_interval(delay)
-		timer_tween.tween_callback(func():
-			if is_instance_valid(container):
-				spawn_fire_burst(scene, fl_pos, radius * 0.4, 0.4, 4.0, parent)
-				spawn_smoke_plume(scene, fl_pos, 3, 0.2, 0.4, 0.7, Color(0.15, 0.15, 0.15, 0.7), parent)
-		)
+		if is_instance_valid(container):
+			var timer_tween := container.create_tween()
+			timer_tween.tween_interval(delay)
+			timer_tween.tween_callback(func():
+				if is_instance_valid(container) and is_instance_valid(scene):
+					spawn_fire_burst(scene, fl_pos, radius * 0.4, 0.4, 4.0, parent)
+					spawn_smoke_plume(scene, fl_pos, 3, 0.2, 0.4, 0.7, Color(0.15, 0.15, 0.15, 0.7), parent)
+			)
 
 
 ## Attaches a smoke & spark emitter node to a damaged mech limb.

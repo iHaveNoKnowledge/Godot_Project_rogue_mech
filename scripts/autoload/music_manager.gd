@@ -218,7 +218,7 @@ func stop_music(fade_time: float = 1.0) -> void:
 	current_music = null
 	_stop_tween = create_tween()
 	_stop_tween.tween_property(player, "volume_db", -80.0, fade_time)
-	_stop_tween.tween_callback(func(): player.stop())
+	_stop_tween.tween_callback(player.stop)
 
 
 func set_combat_muted(muted: bool) -> void:
@@ -270,7 +270,7 @@ func _crossfade_to_stream(new_stream: AudioStream, fade_time: float) -> void:
 	if old_player != null:
 		var cleanup_tween = create_tween()
 		cleanup_tween.tween_interval(fade_time)
-		cleanup_tween.tween_callback(func(): old_player.stop())
+		cleanup_tween.tween_callback(old_player.stop)
 
 
 func _enable_looping(stream: AudioStream) -> void:

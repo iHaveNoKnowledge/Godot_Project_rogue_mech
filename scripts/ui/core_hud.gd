@@ -431,7 +431,7 @@ func _update_precision_indicator() -> void:
 		_precision_flash_tween = create_tween()
 		_precision_flash_tween.tween_interval(0.8)
 		_precision_flash_tween.tween_property(_precision_label, "modulate:a", 0.0, 0.3)
-		_precision_flash_tween.tween_callback(func(): _precision_label.visible = false)
+		_precision_flash_tween.tween_callback(_precision_label.hide)
 	_precision_was_dodged = dodged
 
 

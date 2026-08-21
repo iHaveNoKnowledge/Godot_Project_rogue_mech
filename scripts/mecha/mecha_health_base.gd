@@ -882,7 +882,9 @@ func _detonate_mech() -> void:
 		_breach_glow.omni_range = 12.0
 		_breach_glow.light_color = Color.WHITE
 		var glow := _breach_glow
-		get_tree().create_timer(0.35).timeout.connect(glow.queue_free)
+		var glow_tween := glow.create_tween()
+		glow_tween.tween_interval(0.35)
+		glow_tween.tween_callback(glow.queue_free)
 	for slot in parts:
 		_hide_part(slot)
 

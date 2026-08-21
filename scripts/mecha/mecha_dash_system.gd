@@ -1,5 +1,7 @@
 extends Node
 
+const EffectFactory = preload("res://scripts/effects/effect_factory.gd")
+
 ## ---------------------------------------------------------------------------
 ## MECHA DASH SYSTEM — short-pulse dash, Flash Burn (spam penalty), and
 ## Precision Dash (near-miss energy refund).  Extracted from mecha_controller.gd.
@@ -69,19 +71,26 @@ func can_dash(energy: float) -> bool:
 ## Starts a dash. Returns the energy cost (caller subtracts from its pool).
 ## Mutates dash_direction and current_dash_speed.
 func start_dash(energy: float, global_pos: Vector3, global_rot: Basis) -> float:
-	var cam = Engine.get_main_loop().get_viewport().get_camera_3d()
+	var cam: Camera3D = null
+	if is_inside_tree() and get_viewport():
+		cam = get_viewport().get_camera_3d()
 	if cam == null:
-		return 0.0
+		var loop = Engine.get_main_loop() as SceneTree
+		if loop and loop.root:
+			cam = loop.root.get_camera_3d()
 
-	var cam_basis = cam.global_transform.basis
-	var forward = -cam_basis.z
-	var right = cam_basis.x
-	forward.y = 0.0
-	forward = forward.normalized()
-	right.y = 0.0
-	right = right.normalized()
+	if cam != null:
+		var cam_basis = cam.global_transform.basis
+		var forward = -cam_basis.z
+		var right = cam_basis.x
+		forward.y = 0.0
+		forward = forward.normalized()
+		right.y = 0.0
+		right = right.normalized()
+		dash_direction = (forward * -input_dir.y + right * input_dir.x).normalized()
+	else:
+		dash_direction = Vector3.ZERO
 
-	dash_direction = (forward * -input_dir.y + right * input_dir.x).normalized()
 	if dash_direction.length() < 0.1:
 		dash_direction = -Transform3D(Basis(Vector3.UP, global_rot.get_euler().y), Vector3.ZERO).basis.z
 

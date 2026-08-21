@@ -530,7 +530,7 @@ func _spawn_jam_effect(hand: String) -> void:
 	if mecha == null:
 		return
 	var offset := Vector3(-0.6, 1.5, 0.5) if hand == "left" else Vector3(0.6, 1.5, 0.5)
-	var jam_pos := mecha.global_position + mecha.global_transform.basis * offset + Vector3(0, 0.3, 0)
+	var jam_pos: Vector3 = mecha.global_position + mecha.global_transform.basis * offset + Vector3(0, 0.3, 0)
 	EffectManager.spawn_jam_sparks(jam_pos)
 
 
@@ -1016,10 +1016,6 @@ func _fire_press(hand: String) -> bool:
 		_last_right_press_ms = now
 	# Not both melee -> no charge is possible, fire immediately.
 	if not _hand_is_melee_capable("left") or not _hand_is_melee_capable("right"):
-		return false
-	# A bare fist (empty hand that isn't a destroyed arm) can't dual-charge —
-	# fire immediately so the punch lands on the click frame.
-	if left_hand == null or right_hand == null:
 		return false
 	# The other button ALREADY landed within the window -> this press completes
 	# a dual charge (the deferred first press is resolved in _physics_process).

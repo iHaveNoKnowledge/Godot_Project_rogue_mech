@@ -79,6 +79,10 @@ func _refresh_node_refs() -> void:
 # Occupied mechs stand normally; an empty mech (pilot ejected, or a backup
 # machine waiting on the field) kneels until someone boards it.
 func _on_occupancy_changed(occupied: bool) -> void:
+	# Only the player's mech / backup mechs follow the global player occupancy signal.
+	# Allies and enemies manage their own pilots and must not kneel on player eject.
+	if mecha and (mecha.is_in_group("ally") or mecha.is_in_group("enemy")):
+		return
 	set_kneeling(not occupied)
 
 

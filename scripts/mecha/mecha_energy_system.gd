@@ -1,5 +1,7 @@
 extends Node
 
+const EffectFactory = preload("res://scripts/effects/effect_factory.gd")
+
 ## ---------------------------------------------------------------------------
 ## MECHA ENERGY SYSTEM — energy pool, roller drain, regen, and external drop
 ## tanks.  Extracted from mecha_controller.gd for single-responsibility.

@@ -153,7 +153,7 @@ func _create_ui() -> void:
 	# Status panel (bottom) - positioned cleanly with comfortable margins and proper padding
 	status_panel = PanelContainer.new()
 	status_panel.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	status_panel.offset_top = -62
+	status_panel.offset_top = -74
 	status_panel.offset_left = 285
 	status_panel.offset_right = -20
 	status_panel.offset_bottom = -16
@@ -167,8 +167,8 @@ func _create_ui() -> void:
 	status_style.corner_radius_bottom_right = 8
 	status_style.content_margin_left = 16
 	status_style.content_margin_right = 16
-	status_style.content_margin_top = 8
-	status_style.content_margin_bottom = 8
+	status_style.content_margin_top = 6
+	status_style.content_margin_bottom = 6
 	status_style.border_width_left = 1
 	status_style.border_width_right = 1
 	status_style.border_width_top = 1
@@ -177,6 +177,7 @@ func _create_ui() -> void:
 	status_panel.add_theme_stylebox_override("panel", status_style)
 
 	status_label = Label.new()
+	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	status_label.text = _get_status_text()
 	status_label.add_theme_font_size_override("font_size", 12)
 	status_label.add_theme_color_override("font_color", Color(0.85, 0.92, 1.0))
@@ -195,26 +196,26 @@ func _add_menu_button(text: String, callback: Callable) -> void:
 func _get_status_text() -> String:
 	var base_info := ""
 	if GlobalData.narrative.mech_less:
-		base_info = " | ON FOOT — no mech"
+		base_info = "  •  ON FOOT"
 	if GlobalData.board.patrol_alert > 0:
-		base_info += " | HUNT ALERT %d" % GlobalData.board.patrol_alert
+		base_info += "  •  HUNT ALERT %d" % GlobalData.board.patrol_alert
 	if GlobalData.narrative.enemy_base_active:
-		base_info += " | Enemy Base: %d%%" % int((GlobalData.narrative.enemy_base_progress / GlobalData.narrative.enemy_base_required) * 100.0)
+		base_info += "  •  Enemy Base: %d%%" % int((GlobalData.narrative.enemy_base_progress / GlobalData.narrative.enemy_base_required) * 100.0)
 	if not GlobalData.narrative.stalking_aces.is_empty():
-		base_info += " | HUNTED by %s" % ", ".join(GlobalData.narrative.stalking_aces)
-	return "Day %d | MP: %d/%d | %s%s | Rep: %d | Heat: %d | Wanted: %d | Credits: %d | Scrap: %d | Enemy Tier: %d | Security: %d | Pos: %s" % [
+		base_info += "  •  HUNTED by %s" % ", ".join(GlobalData.narrative.stalking_aces)
+	return "Day %d  •  MP: %d/%d  •  %s%s\nCredits: %d cr   Scrap: %d   Rep: %d   Heat: %d   Wanted: %d   Security: %d%%   Tier: %d   Pos: %s" % [
 		GlobalData.board.board_day,
 		GlobalData.board.board_mp,
 		GlobalData.board.board_mp_max,
 		BoardSystem.progress_text(),
 		base_info,
+		GlobalData.currency.credits,
+		GlobalData.currency.scrap,
 		GlobalData.narrative.reputation,
 		GlobalData.board.heat,
 		GlobalData.board.wanted_level,
-		GlobalData.currency.credits,
-		GlobalData.currency.scrap,
-		GlobalData.narrative.enemy_tech_tier,
 		int(FleetSystem.get_fleet_security()),
+		GlobalData.narrative.enemy_tech_tier,
 		str(GlobalData.board.current_tile)
 	]
 

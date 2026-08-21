@@ -34,16 +34,16 @@ func _ready() -> void:
 		for key in nodes_dict:
 			tile_container.add_child(nodes_dict[key])
 
-	current_pos = GlobalData.current_tile
+	current_pos = GlobalData.board.current_tile
 	if not nodes_dict.has(current_pos):
 		current_pos = Vector2i(0, 0)
-		GlobalData.current_tile = current_pos
+		GlobalData.board.current_tile = current_pos
 
 	# Objective + patrols for this sector (fresh on new sector, restored on
 	# reload after combat).
-	if GlobalData.board_objective_id == "":
+	if GlobalData.board.board_objective_id == "":
 		_setup_objective()
-	GlobalData.board_patrol_engagement = -1
+	GlobalData.board.board_patrol_engagement = -1
 	PatrolSystem.spawn_patrols()
 
 	_reveal_around(current_pos)
@@ -69,9 +69,9 @@ func _ready() -> void:
 		if BoardSystem.get_objective().get("id", "") == "hq_strike":
 			BoardSystem.complete()
 
-	if GlobalData.run_notice != "":
-		var notice := GlobalData.run_notice
-		GlobalData.run_notice = ""
+	if GlobalData.board.run_notice != "":
+		var notice := GlobalData.board.run_notice
+		GlobalData.board.run_notice = ""
 		EventBus.event_triggered.emit({
 			"name": "CONVOY REPORT",
 			"effect": "none",
@@ -79,16 +79,16 @@ func _ready() -> void:
 			"desc": notice,
 		})
 
-	if GlobalData.board_day == 1 and GlobalData.board_mp >= GlobalData.board_mp_max and not GlobalData.board_objective_intro_consumed:
-		GlobalData.board_objective_intro_consumed = true
+	if GlobalData.board.board_day == 1 and GlobalData.board.board_mp >= GlobalData.board.board_mp_max and not GlobalData.board.board_objective_intro_consumed:
+		GlobalData.board.board_objective_intro_consumed = true
 		EventBus.event_triggered.emit(_build_objective_event())
 
 
 func _setup_objective() -> void:
 	var obj := BoardSystem.get_objective()
-	GlobalData.board_objective_id = str(obj.get("id", ""))
-	GlobalData.board_objective_progress = 0
-	GlobalData.board_objective_required = int(obj.get("required", 1))
+	GlobalData.board.board_objective_id = str(obj.get("id", ""))
+	GlobalData.board.board_objective_progress = 0
+	GlobalData.board.board_objective_required = int(obj.get("required", 1))
 
 
 func _build_objective_event() -> Dictionary:
@@ -124,7 +124,7 @@ func move_to_tile(target: Vector2i) -> bool:
 	for step in path:
 		if get_tree() == null or get_tree().paused or _intermission_open() or GameManager.current_state != GameManager.State.BOARD:
 			break
-		if GlobalData.board_mp <= 0 or GlobalData.mech_energy <= 0.0:
+		if GlobalData.board.board_mp <= 0 or GlobalData.fuel.mech_energy <= 0.0:
 			break
 		var ok := _try_step(step)
 		if not ok:
@@ -191,8 +191,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_end_day()
 		elif event.keycode == KEY_SHIFT or event.keycode == KEY_R:
 			# Toggle Roller Dash Mode on board (GDD §3.1)
-			GlobalData.board_roller_mode = not GlobalData.board_roller_mode
-			var mode_name := "ROLLER DASH MODE (FAST ROAD: -5 Energy)" if GlobalData.board_roller_mode else "BIPEDAL MODE (STANDARD: -10..25 Energy)"
+			GlobalData.fuel.board_roller_mode = not GlobalData.fuel.board_roller_mode
+			var mode_name := "ROLLER DASH MODE (FAST ROAD: -5 Energy)" if GlobalData.fuel.board_roller_mode else "BIPEDAL MODE (STANDARD: -10..25 Energy)"
 			EventBus.event_triggered.emit({
 				"name": "MOVEMENT MODE",
 				"effect": "none",
@@ -219,8 +219,8 @@ func _try_step(target: Vector2i) -> bool:
 	cost += PatrolSystem.interception_surcharge(current_pos, target)
 	# Energy check: walking on the board drains the mech's batteries according to terrain (GDD §3.1).
 	var energy_cost := GlobalData.get_tile_energy_cost(terrain)
-	if GlobalData.mech_energy <= 0.0:
-		GlobalData.blocked_intermission = false
+	if GlobalData.fuel.mech_energy <= 0.0:
+		GlobalData.narrative.blocked_intermission = false
 		EventBus.event_triggered.emit({
 			"name": "FUEL EMERGENCY",
 			"effect": "none",
@@ -229,9 +229,9 @@ func _try_step(target: Vector2i) -> bool:
 		})
 		return false
 
-	if GlobalData.board_mp < cost:
+	if GlobalData.board.board_mp < cost:
 		# The player cannot move at all: clear blocked_intermission so ESC can open menu.
-		GlobalData.blocked_intermission = false
+		GlobalData.narrative.blocked_intermission = false
 		EventBus.event_triggered.emit({
 			"name": "NO MOVEMENT LEFT",
 			"effect": "none",
@@ -240,14 +240,14 @@ func _try_step(target: Vector2i) -> bool:
 		})
 		return false
 
-	GlobalData.board_mp = maxi(GlobalData.board_mp - cost, 0)
+	GlobalData.board.board_mp = maxi(GlobalData.board.board_mp - cost, 0)
 	# Deduct energy for stepping (GDD §3.1: Road = -10, Off-road = -25, Roller on Road = -5).
-	GlobalData.mech_energy = maxf(GlobalData.mech_energy - energy_cost, 0.0)
+	GlobalData.fuel.mech_energy = maxf(GlobalData.fuel.mech_energy - energy_cost, 0.0)
 
 	# Zone of Control (ZoC) (GDD §3.3): stepping directly adjacent to any hostile fleet depletes remaining MP.
 	if PatrolSystem.is_in_zone_of_control(target) and PatrolSystem.get_patrol_at(target).is_empty():
-		if GlobalData.board_mp > 0:
-			GlobalData.board_mp = 0
+		if GlobalData.board.board_mp > 0:
+			GlobalData.board.board_mp = 0
 			EventBus.event_triggered.emit({
 				"name": "ZONE OF CONTROL",
 				"effect": "none",
@@ -256,9 +256,9 @@ func _try_step(target: Vector2i) -> bool:
 			})
 
 	_last_dir = target - current_pos
-	GlobalData.player_last_dir = _last_dir
+	GlobalData.board.player_last_dir = _last_dir
 	current_pos = target
-	GlobalData.current_tile = target
+	GlobalData.board.current_tile = target
 	_update_token_position()
 	_clear_highlights()
 	_highlight_adjacent()
@@ -270,7 +270,7 @@ func _try_step(target: Vector2i) -> bool:
 	# it was — fleets that lose sight keep converging on that last position.
 	PatrolSystem.record_spotting(current_pos)
 
-	GlobalData.blocked_intermission = false
+	GlobalData.narrative.blocked_intermission = false
 
 	# Objective progress triggers.
 	_check_survey_objective(revealed)
@@ -285,7 +285,7 @@ func _try_step(target: Vector2i) -> bool:
 	var engaged_patrol := false
 	if not patrol.is_empty() and GameManager.current_state == GameManager.State.BOARD:
 		engaged_patrol = true
-		GlobalData.board_patrol_engagement = int(patrol.get("id", -1))
+		GlobalData.board.board_patrol_engagement = int(patrol.get("id", -1))
 
 	EventBus.tile_entered.emit(target, tile)
 	if not engaged_patrol:
@@ -293,8 +293,8 @@ func _try_step(target: Vector2i) -> bool:
 		# forces spring a pincer on the convoy there. Once it fires the combat
 		# spawns enemies in two opposing arcs instead of a ring.
 		if _roll_chokepoint_ambush(tile):
-			GlobalData.ambush_pincer = true
-			GlobalData.blocked_intermission = true
+			GlobalData.board.ambush_pincer = true
+			GlobalData.narrative.blocked_intermission = true
 			_request_combat("grunt")
 			return true
 		_process_tile_effect(str(tile.get_meta("tile_type", "empty")))
@@ -304,8 +304,8 @@ func _try_step(target: Vector2i) -> bool:
 			return true
 		# Pilot-only convoys can't fight on foot: the encounter becomes a
 		# recovery event (same behavior the old combat tiles had).
-		if GlobalData.mech_less:
-			GlobalData.board_patrol_engagement = -1
+		if GlobalData.narrative.mech_less:
+			GlobalData.board.board_patrol_engagement = -1
 			_trigger_recovery_event()
 			return true
 		_request_combat("grunt" if int(patrol.get("aces", 0)) == 0 else "ace")
@@ -315,7 +315,7 @@ func _try_step(target: Vector2i) -> bool:
 	# this scene immediately) or opened a pause overlay (safehouse/city shop).
 	# Never run the end-of-day flow on a scene that is no longer in the tree —
 	# its event popup would crash on get_tree() == null.
-	if GlobalData.board_mp <= 0 and get_tree() != null and not get_tree().paused \
+	if GlobalData.board.board_mp <= 0 and get_tree() != null and not get_tree().paused \
 			and GameManager.current_state == GameManager.State.BOARD:
 		_end_day()
 	return true
@@ -349,22 +349,22 @@ func _end_day() -> void:
 	# of the tree), so the end-of-day emit would hit an orphaned EventUI.
 	if get_tree() == null or GameManager.current_state != GameManager.State.BOARD:
 		return
-	GlobalData.board_day += 1
-	GlobalData.board_mp = GlobalData.board_mp_max
+	GlobalData.board.board_day += 1
+	GlobalData.board.board_mp = GlobalData.board.board_mp_max
 	# Passive energy regen: the mech recharges while resting between days.
-	GlobalData.mech_energy = minf(
-		GlobalData.mech_energy + GlobalData.BOARD_ENERGY_REGEN_PER_DAY,
-		GlobalData.mech_max_energy
+	GlobalData.fuel.mech_energy = minf(
+		GlobalData.fuel.mech_energy + GlobalData.BOARD_ENERGY_REGEN_PER_DAY,
+		GlobalData.fuel.mech_max_energy
 	)
 	# Convoy fuel reserve replenishes overnight.
-	GlobalData.convoy_fuel_reserve = minf(
-		GlobalData.convoy_fuel_reserve + GlobalData.CONVOY_DAILY_FUEL_REGEN,
-		GlobalData.convoy_fuel_max
+	GlobalData.fuel.convoy_fuel_reserve = minf(
+		GlobalData.fuel.convoy_fuel_reserve + GlobalData.CONVOY_DAILY_FUEL_REGEN,
+		GlobalData.fuel.convoy_fuel_max
 	)
 	# Engine dirt slowly cleans up between days.
-	GlobalData.engine_dirt = maxf(GlobalData.engine_dirt - GlobalData.ENGINE_DIRT_CLEANUP_PER_DAY, 0.0)
+	GlobalData.fuel.engine_dirt = maxf(GlobalData.fuel.engine_dirt - GlobalData.ENGINE_DIRT_CLEANUP_PER_DAY, 0.0)
 	# Reset daily depot seizure flag.
-	GlobalData.fuel_depot_seized_today = false
+	GlobalData.fuel.fuel_depot_seized_today = false
 
 	# Once-per-day systems.
 	process_turn_mobilization()
@@ -391,14 +391,14 @@ func _end_day() -> void:
 	if ambush != Vector2i(-1, -1) and GameManager.current_state == GameManager.State.BOARD:
 		var patrol := PatrolSystem.get_patrol_at(ambush)
 		if not patrol.is_empty():
-			GlobalData.board_patrol_engagement = int(patrol.get("id", -1))
+			GlobalData.board.board_patrol_engagement = int(patrol.get("id", -1))
 			if str(patrol.get("faction", "hostile")) == "unknown" and _has_available_recruit(str(patrol.get("character_id", ""))):
 				_trigger_patrol_talk_event(patrol)
 				return
 			# Pilot-only convoys can't fight on foot: the ambush becomes a
 			# recovery event instead of a battle.
-			if GlobalData.mech_less:
-				GlobalData.board_patrol_engagement = -1
+			if GlobalData.narrative.mech_less:
+				GlobalData.board.board_patrol_engagement = -1
 				_trigger_recovery_event()
 				return
 			_request_combat("grunt" if int(patrol.get("aces", 0)) == 0 else "ace")
@@ -414,10 +414,10 @@ func _end_day() -> void:
 		_trigger_artillery_bombardment(artillery_strikes)
 
 	EventBus.event_triggered.emit({
-		"name": "DAY %d" % GlobalData.board_day,
+		"name": "DAY %d" % GlobalData.board.board_day,
 		"effect": "none",
 		"amount": 0,
-		"desc": "Supplies refreshed — %d MP. %s" % [GlobalData.board_mp_max, BoardSystem.progress_text()],
+		"desc": "Supplies refreshed — %d MP. %s" % [GlobalData.board.board_mp_max, BoardSystem.progress_text()],
 	})
 
 
@@ -425,10 +425,10 @@ func _end_day() -> void:
 func _trigger_artillery_bombardment(fleets: Array[Dictionary]) -> void:
 	var total_fleets := fleets.size()
 	# Inflict strategic damage: 12% torso armor wear per fleet and -30 Energy
-	if GlobalData.equipped_parts.has("body"):
-		var cur_dmg: float = float(GlobalData.part_damage.get("body", 0.0))
-		GlobalData.part_damage["body"] = minf(cur_dmg + 0.12 * float(total_fleets), 1.0)
-	GlobalData.mech_energy = maxf(GlobalData.mech_energy - 30.0 * float(total_fleets), 0.0)
+	if GlobalData.weapons.equipped_parts.has("body"):
+		var cur_dmg: float = float(GlobalData.weapons.part_damage.get("body", 0.0))
+		GlobalData.weapons.part_damage["body"] = minf(cur_dmg + 0.12 * float(total_fleets), 1.0)
+	GlobalData.fuel.mech_energy = maxf(GlobalData.fuel.mech_energy - 30.0 * float(total_fleets), 0.0)
 
 	_play_artillery_bombardment_animation(fleets)
 
@@ -531,9 +531,9 @@ func _check_survey_objective(newly: int) -> void:
 		return
 	if newly <= 0:
 		return
-	var before := GlobalData.board_objective_progress
+	var before := GlobalData.board.board_objective_progress
 	BoardSystem.add_progress(newly)
-	if not BoardSystem.is_objective_complete() and GlobalData.board_objective_progress > before:
+	if not BoardSystem.is_objective_complete() and GlobalData.board.board_objective_progress > before:
 		EventBus.event_triggered.emit({
 			"name": "Terrain Mapped",
 			"effect": "none",
@@ -593,7 +593,7 @@ func _highlight_adjacent() -> void:
 		var tile = nodes_dict[target_key]
 		if not BoardConfig.is_passable(str(tile.get_meta("terrain", "plain"))):
 			continue
-		if GlobalData.board_mp >= BoardConfig.move_cost(str(tile.get_meta("terrain", "plain"))):
+		if GlobalData.board.board_mp >= BoardConfig.move_cost(str(tile.get_meta("terrain", "plain"))):
 			tile.highlight(true)
 
 
@@ -624,7 +624,7 @@ func _refresh_patrol_markers() -> void:
 		add_child(_patrol_marker_container)
 	for child in _patrol_marker_container.get_children():
 		child.queue_free()
-	for p in GlobalData.board_patrols:
+	for p in GlobalData.board.board_patrols:
 		# Old saves can carry pos/dir as JSON-flattened Strings — heal the
 		# entry so every fleet reliably draws its arrow marker.
 		PatrolSystem.normalize_patrol(p)
@@ -828,23 +828,23 @@ func _clear_enemy_base_tile() -> void:
 
 
 func process_turn_mobilization() -> void:
-	if GlobalData.heat < 3:
+	if GlobalData.board.heat < 3:
 		return
-	var grunt_recruit = int(GlobalData.enemy_forces["grunt_max"] * randf_range(0.10, 0.20))
-	GlobalData.enemy_forces["grunt_current"] = clampi(
-		GlobalData.enemy_forces["grunt_current"] + grunt_recruit,
-		0, GlobalData.enemy_forces["grunt_max"]
+	var grunt_recruit = int(GlobalData.narrative.enemy_forces["grunt_max"] * randf_range(0.10, 0.20))
+	GlobalData.narrative.enemy_forces["grunt_current"] = clampi(
+		GlobalData.narrative.enemy_forces["grunt_current"] + grunt_recruit,
+		0, GlobalData.narrative.enemy_forces["grunt_max"]
 	)
 	if randf() < 0.30:
-		GlobalData.enemy_forces["ace_current"] = clampi(
-			GlobalData.enemy_forces["ace_current"] + 1,
-			0, GlobalData.enemy_forces["ace_max"]
+		GlobalData.narrative.enemy_forces["ace_current"] = clampi(
+			GlobalData.narrative.enemy_forces["ace_current"] + 1,
+			0, GlobalData.narrative.enemy_forces["ace_max"]
 		)
 
 
 func accumulate_stalker_chance() -> void:
-	if not GlobalData.stalking_aces.is_empty():
-		GlobalData.stalking_chance = minf(GlobalData.stalking_chance + 0.20, 1.0)
+	if not GlobalData.narrative.stalking_aces.is_empty():
+		GlobalData.narrative.stalking_chance = minf(GlobalData.narrative.stalking_chance + 0.20, 1.0)
 
 
 func _process_tile_effect(tile_type: String) -> void:
@@ -852,20 +852,20 @@ func _process_tile_effect(tile_type: String) -> void:
 		"combat":
 			# Legacy — new boards never roll combat tiles (battles come from
 			# hostile patrol arrows); kept only as a safety net.
-			if GlobalData.mech_less:
+			if GlobalData.narrative.mech_less:
 				_trigger_recovery_event()
-			elif GlobalData.ceasefire_turns > 0:
-				GlobalData.ceasefire_turns -= 1
+			elif GlobalData.narrative.ceasefire_turns > 0:
+				GlobalData.narrative.ceasefire_turns -= 1
 				_trigger_ceasefire_skip()
-			elif not GlobalData.stalking_aces.is_empty() and randf() < GlobalData.stalking_chance:
+			elif not GlobalData.narrative.stalking_aces.is_empty() and randf() < GlobalData.narrative.stalking_chance:
 				_trigger_stalker_surprise_ambush()
 			else:
 				_request_combat("grunt")
 		"enemy_base":
-			if GlobalData.mech_less:
+			if GlobalData.narrative.mech_less:
 				_trigger_recovery_event()
 				return
-			if GlobalData.enemy_base_active and GlobalData.enemy_base_tile_pos == current_pos:
+			if GlobalData.narrative.enemy_base_active and GlobalData.narrative.enemy_base_tile_pos == current_pos:
 				_request_combat("enemy_base")
 			else:
 				_request_combat("grunt")
@@ -874,9 +874,9 @@ func _process_tile_effect(tile_type: String) -> void:
 		"safehouse":
 			HeatWantedSystem.modify_heat(-4)
 			# Refuel at the safehouse: energy refill bonus.
-			GlobalData.mech_energy = minf(
-				GlobalData.mech_energy + GlobalData.SAFEHOUSE_ENERGY_REGEN,
-				GlobalData.mech_max_energy
+			GlobalData.fuel.mech_energy = minf(
+				GlobalData.fuel.mech_energy + GlobalData.SAFEHOUSE_ENERGY_REGEN,
+				GlobalData.fuel.mech_max_energy
 			)
 			var safehouse = get_node_or_null("SafehouseUI")
 			if safehouse:
@@ -885,9 +885,9 @@ func _process_tile_effect(tile_type: String) -> void:
 		"fuel_depot":
 			# Enemy fuel depot: seize it to gain fuel. Triggers a combat encounter;
 			# the player must avoid destroying fuel tanks with heavy weapons.
-			if GlobalData.mech_less:
+			if GlobalData.narrative.mech_less:
 				_trigger_recovery_event()
-			elif GlobalData.fuel_depot_seized_today:
+			elif GlobalData.fuel.fuel_depot_seized_today:
 				EventBus.event_triggered.emit({
 					"name": "FUEL DEPOT — DEPLETED",
 					"effect": "none",
@@ -929,8 +929,8 @@ func _process_tile_effect(tile_type: String) -> void:
 			_trigger_exit_event()
 		"dust_storm":
 			# Environmental Hazard: Dust Storm — Roller drain x1.5 + speed x0.85.
-			GlobalData.current_hazard = GlobalData.HAZARD_DUST_STORM
-			if GlobalData.mech_less:
+			GlobalData.board.current_hazard = GlobalData.HAZARD_DUST_STORM
+			if GlobalData.narrative.mech_less:
 				_trigger_recovery_event()
 			else:
 				EventBus.event_triggered.emit({
@@ -941,8 +941,8 @@ func _process_tile_effect(tile_type: String) -> void:
 				})
 		"tactical_smog":
 			# Environmental Hazard: Tactical Smog — Heat cool rate x0.5.
-			GlobalData.current_hazard = GlobalData.HAZARD_TACTICAL_SMOG
-			if GlobalData.mech_less:
+			GlobalData.board.current_hazard = GlobalData.HAZARD_TACTICAL_SMOG
+			if GlobalData.narrative.mech_less:
 				_trigger_recovery_event()
 			else:
 				EventBus.event_triggered.emit({
@@ -953,10 +953,10 @@ func _process_tile_effect(tile_type: String) -> void:
 				})
 		"emp_zone":
 			# Environmental Hazard: EMP & Jamming — No lock-on, no backup call.
-			GlobalData.current_hazard = GlobalData.HAZARD_EMP_ZONE
+			GlobalData.board.current_hazard = GlobalData.HAZARD_EMP_ZONE
 			if player_token and is_instance_valid(player_token):
 				EffectFactory.spawn_electric_burst(get_tree(), player_token.global_position, Color(0.4, 0.85, 1.0), 8, 1.5)
-			if GlobalData.mech_less:
+			if GlobalData.narrative.mech_less:
 				_trigger_recovery_event()
 			else:
 				EventBus.event_triggered.emit({
@@ -967,7 +967,7 @@ func _process_tile_effect(tile_type: String) -> void:
 				})
 		"distress_signal":
 			# Strategic Dilemma: Distress Signal — choice to help or ignore.
-			if GlobalData.mech_less:
+			if GlobalData.narrative.mech_less:
 				_trigger_recovery_event()
 			else:
 				EventBus.event_triggered.emit({
@@ -988,7 +988,7 @@ func _process_tile_effect(tile_type: String) -> void:
 				})
 		"scavenge_site":
 			# Strategic Dilemma: Scavenge Risk — explore or leave.
-			if GlobalData.mech_less:
+			if GlobalData.narrative.mech_less:
 				_trigger_recovery_event()
 			else:
 				EventBus.event_triggered.emit({
@@ -1007,9 +1007,9 @@ func _process_tile_effect(tile_type: String) -> void:
 				})
 		"convoy_ambush":
 			# Convoy Escort: ambush event — defense combat.
-			if GlobalData.mech_less:
+			if GlobalData.narrative.mech_less:
 				_trigger_recovery_event()
-			elif GlobalData.convoy_destroyed:
+			elif GlobalData.board.convoy_destroyed:
 				EventBus.event_triggered.emit({
 					"name": "CONVOY AMBUSH — CONVOY LOST",
 					"effect": "none",
@@ -1018,9 +1018,9 @@ func _process_tile_effect(tile_type: String) -> void:
 				})
 			else:
 				# Convoy ambush: announce and enter defense combat.
-				GlobalData.convoy_defense_waves = 2
-				GlobalData.convoy_defense_current_wave = 0
-				GlobalData.convoy_defense_active = true
+				GlobalData.board.convoy_defense_waves = 2
+				GlobalData.board.convoy_defense_current_wave = 0
+				GlobalData.board.convoy_defense_active = true
 				EventBus.event_triggered.emit({
 					"name": "⚠ CONVOY AMBUSH",
 					"effect": "force_combat",
@@ -1030,9 +1030,9 @@ func _process_tile_effect(tile_type: String) -> void:
 				})
 		"convoy_breakdown":
 			# Convoy Escort: vehicle breakdown — wave defense.
-			if GlobalData.mech_less:
+			if GlobalData.narrative.mech_less:
 				_trigger_recovery_event()
-			elif GlobalData.convoy_destroyed:
+			elif GlobalData.board.convoy_destroyed:
 				EventBus.event_triggered.emit({
 					"name": "BREAKDOWN — CONVOY LOST",
 					"effect": "none",
@@ -1041,9 +1041,9 @@ func _process_tile_effect(tile_type: String) -> void:
 				})
 			else:
 				# Vehicle breakdown: announce and enter defense combat.
-				GlobalData.convoy_defense_waves = 3
-				GlobalData.convoy_defense_current_wave = 0
-				GlobalData.convoy_defense_active = true
+				GlobalData.board.convoy_defense_waves = 3
+				GlobalData.board.convoy_defense_current_wave = 0
+				GlobalData.board.convoy_defense_active = true
 				EventBus.event_triggered.emit({
 					"name": "🔧 VEHICLE BREAKDOWN",
 					"effect": "force_combat",
@@ -1058,18 +1058,18 @@ func _process_tile_effect(tile_type: String) -> void:
 # A "bait" tile reads as an abandoned supply cache but is a decoy: stepping on
 # it springs a hostile pincer ambush (same no-menu aftermath as a patrol fight).
 func _trigger_bait_trap() -> void:
-	if current_pos in GlobalData.consumed_bait:
+	if current_pos in GlobalData.board.consumed_bait:
 		return
-	GlobalData.consumed_bait.append(current_pos)
-	if GlobalData.mech_less:
+	GlobalData.board.consumed_bait.append(current_pos)
+	if GlobalData.narrative.mech_less:
 		_trigger_recovery_event()
 		return
-	if GlobalData.ceasefire_turns > 0:
-		GlobalData.ceasefire_turns -= 1
+	if GlobalData.narrative.ceasefire_turns > 0:
+		GlobalData.narrative.ceasefire_turns -= 1
 		_trigger_ceasefire_skip()
 		return
-	GlobalData.ambush_pincer = true
-	GlobalData.blocked_intermission = true
+	GlobalData.board.ambush_pincer = true
+	GlobalData.narrative.blocked_intermission = true
 	EventBus.event_triggered.emit({
 		"name": "BAIT CACHE — TRAP",
 		"effect": "none",
@@ -1102,15 +1102,15 @@ func _is_chokepoint_tile(tile: Node) -> bool:
 func _roll_chokepoint_ambush(tile: Node) -> bool:
 	if not _is_chokepoint_tile(tile):
 		return false
-	if GlobalData.mech_less:
+	if GlobalData.narrative.mech_less:
 		return false
-	if GlobalData.ceasefire_turns > 0:
+	if GlobalData.narrative.ceasefire_turns > 0:
 		return false
 	var ttype := str(tile.get_meta("tile_type", "empty"))
 	if ttype in ["start", "exit", "safehouse", "city", "enemy_base", "bait", "research_lab"]:
 		return false
-	var chance := 0.14 + float(GlobalData.patrol_alert) * 0.04 \
-			+ minf(GlobalData.wanted_level, 5) * 0.03
+	var chance := 0.14 + float(GlobalData.board.patrol_alert) * 0.04 \
+			+ minf(GlobalData.board.wanted_level, 5) * 0.03
 	return randf() < chance
 
 
@@ -1121,7 +1121,7 @@ func _request_combat(combat_type: String) -> void:
 	# Tell the arena generator what terrain this battle happens on: a forest
 	# board fought on a ROAD tile gets the road-through-forest arena.
 	var tile = nodes_dict.get(current_pos)
-	GlobalData.combat_tile_terrain = str(tile.get_meta("terrain", "plain")) if tile != null else "plain"
+	GlobalData.board.combat_tile_terrain = str(tile.get_meta("terrain", "plain")) if tile != null else "plain"
 	var deploy := get_node_or_null("DeployTeamUI")
 	if deploy and deploy.has_method("has_ally_candidates") and deploy.has_method("open_deploy") \
 			and deploy.has_ally_candidates():
@@ -1135,13 +1135,13 @@ func _trigger_ceasefire_skip() -> void:
 		"name": "Ceasefire Holds",
 		"effect": "none",
 		"amount": 0,
-		"desc": "The front is quiet. %d day(s) of ceasefire remain." % GlobalData.ceasefire_turns,
+		"desc": "The front is quiet. %d day(s) of ceasefire remain." % GlobalData.narrative.ceasefire_turns,
 	}
 	EventBus.event_triggered.emit(event)
 
 
 func _trigger_data_node_event() -> void:
-	GlobalData.gain_data_cores(2)
+	GlobalData.currency.gain_data_cores(2)
 	var event = {
 		"name": "Data Terminal Extraction",
 		"effect": "data_cores",
@@ -1157,7 +1157,7 @@ func _trigger_dead_end_event() -> void:
 	# the rest of the day) or turn back and find another route.
 	var cost := _dead_end_clear_cost()
 	var choices: Array = []
-	if GlobalData.board_mp >= cost:
+	if GlobalData.board.board_mp >= cost:
 		choices.append({
 			"label": "Clear the path (%d MP)" % cost,
 			"desc": "Spend %d MP demolishing the rubble. The work takes the rest of the day." % cost,
@@ -1185,17 +1185,17 @@ func _trigger_dead_end_event() -> void:
 
 # Demolishing a dead end's rubble costs roughly half a day of movement.
 func _dead_end_clear_cost() -> int:
-	return maxi(2, int(ceil(float(GlobalData.board_mp_max) * 0.5)))
+	return maxi(2, int(ceil(float(GlobalData.board.board_mp_max) * 0.5)))
 
 
 # The player chose to demolish a dead end's rubble (see refresh_after_event).
 # The tile becomes ordinary ground, blocked rock neighbors open up so a real
 # path exists past it, and the work consumes the rest of the day.
 func _apply_pending_tile_clear() -> void:
-	if GlobalData.pending_tile_clear == Vector2i(-1, -1):
+	if GlobalData.board.pending_tile_clear == Vector2i(-1, -1):
 		return
-	var pos: Vector2i = GlobalData.pending_tile_clear
-	GlobalData.pending_tile_clear = Vector2i(-1, -1)
+	var pos: Vector2i = GlobalData.board.pending_tile_clear
+	GlobalData.board.pending_tile_clear = Vector2i(-1, -1)
 	if not nodes_dict.has(pos):
 		return
 	var tile = nodes_dict[pos]
@@ -1225,7 +1225,7 @@ func _trigger_exit_event() -> void:
 			"desc": "The extraction zone is sealed. Complete the sector objective first: %s" % BoardSystem.progress_text(),
 		})
 		return
-	if GlobalData.mech_less:
+	if GlobalData.narrative.mech_less:
 		var event = {
 			"name": "The Wanderer",
 			"effect": "wanderer_join",
@@ -1251,8 +1251,8 @@ func _trigger_recovery_event() -> void:
 
 
 func _trigger_stalker_surprise_ambush() -> void:
-	var active_stalker = GlobalData.stalking_aces[0]
-	GlobalData.stalking_chance = 0.0
+	var active_stalker = GlobalData.narrative.stalking_aces[0]
+	GlobalData.narrative.stalking_chance = 0.0
 	var safehouse_ui = get_node_or_null("SafehouseUI")
 	if safehouse_ui:
 		safehouse_ui.status_label.text = "SIREN WARNING! Stalking Ace: " + active_stalker + " Ambushed!"
@@ -1264,7 +1264,7 @@ func _trigger_random_event() -> void:
 	if pool.is_empty():
 		_trigger_default_event()
 		return
-	if GlobalData.mech_less:
+	if GlobalData.narrative.mech_less:
 		pool = pool.filter(func(event):
 			return str(event.get("effect", "")) != "force_combat")
 	pool = pool.filter(func(event):
@@ -1348,7 +1348,7 @@ func _place_enemy_base_node() -> void:
 	var target_key: Vector2i = candidates[randi() % candidates.size()]
 	var tile = nodes_dict[target_key]
 	tile.set_meta("tile_type", "enemy_base")
-	GlobalData.enemy_base_tile_pos = target_key
+	GlobalData.narrative.enemy_base_tile_pos = target_key
 	tile.reveal()
 	if tile.has_method("_update_visual"):
 		tile._update_visual()
@@ -1408,9 +1408,9 @@ func get_tile_type(pos: Vector2i) -> String:
 # Marks the active enemy base's tile back onto the freshly regenerated board
 # (returning from a battle rebuilds the grid; the base must survive the trip).
 func _restore_enemy_base_tile() -> void:
-	if not GlobalData.enemy_base_active:
+	if not GlobalData.narrative.enemy_base_active:
 		return
-	var pos := GlobalData.enemy_base_tile_pos
+	var pos := GlobalData.narrative.enemy_base_tile_pos
 	if pos == Vector2i(-1, -1) or not nodes_dict.has(pos):
 		return
 	var tile = nodes_dict[pos]
@@ -1424,14 +1424,14 @@ func _restore_enemy_base_tile() -> void:
 # progressed: a freshly planted base is a temporary camp (tent), one that has
 # rooted in (>= half its research done) becomes a tall fortified building.
 func _refresh_enemy_base_model() -> void:
-	if not GlobalData.enemy_base_active:
+	if not GlobalData.narrative.enemy_base_active:
 		return
-	var pos := GlobalData.enemy_base_tile_pos
+	var pos := GlobalData.narrative.enemy_base_tile_pos
 	if pos == Vector2i(-1, -1) or not nodes_dict.has(pos):
 		return
 	var ratio := 0.0
-	if GlobalData.enemy_base_required > 0.0:
-		ratio = GlobalData.enemy_base_progress / GlobalData.enemy_base_required
+	if GlobalData.narrative.enemy_base_required > 0.0:
+		ratio = GlobalData.narrative.enemy_base_progress / GlobalData.narrative.enemy_base_required
 	var kind := "rooted" if ratio >= 0.5 else "camp"
 	var tile = nodes_dict[pos]
 	if tile.has_method("set_enemy_base_model"):
@@ -1444,11 +1444,11 @@ func _refresh_enemy_base_model() -> void:
 # ---------------------------------------------------------------------------
 
 func _restore_wreckage_tile() -> void:
-	var pos := GlobalData.wreckage_tile_pos
+	var pos := GlobalData.fuel.wreckage_tile_pos
 	if pos == Vector2i(-1, -1) or not nodes_dict.has(pos):
 		return
-	if GlobalData.wreckage_fuel_remaining <= 0.0:
-		GlobalData.wreckage_tile_pos = Vector2i(-1, -1)
+	if GlobalData.fuel.wreckage_fuel_remaining <= 0.0:
+		GlobalData.fuel.wreckage_tile_pos = Vector2i(-1, -1)
 		return
 	var tile = nodes_dict[pos]
 	tile.set_meta("tile_type", "wreckage")
@@ -1464,12 +1464,12 @@ func _restore_wreckage_tile() -> void:
 # ---------------------------------------------------------------------------
 
 func _trigger_fuel_depot_seizure() -> void:
-	if GlobalData.ceasefire_turns > 0:
-		GlobalData.ceasefire_turns -= 1
+	if GlobalData.narrative.ceasefire_turns > 0:
+		GlobalData.narrative.ceasefire_turns -= 1
 		_trigger_ceasefire_skip()
 		return
-	GlobalData.fuel_depot_seized_today = true
-	GlobalData.blocked_intermission = true
+	GlobalData.fuel.fuel_depot_seized_today = true
+	GlobalData.narrative.blocked_intermission = true
 	# Choice popup: precise vs heavy approach affects fuel reward.
 	var choices: Array = [
 		{
@@ -1502,7 +1502,7 @@ func _trigger_fuel_depot_seizure() -> void:
 
 func _trigger_convoy_supply_transfer() -> void:
 	var available: float = minf(
-		GlobalData.convoy_fuel_reserve,
+		GlobalData.fuel.convoy_fuel_reserve,
 		GlobalData.CONVOY_TRANSFER_AMOUNT
 	)
 	if available <= 0.0:
@@ -1513,7 +1513,7 @@ func _trigger_convoy_supply_transfer() -> void:
 			"desc": "The convoy truck has no fuel to spare. It will resupply overnight.",
 		})
 		return
-	var deficit: float = GlobalData.mech_max_energy - GlobalData.mech_energy
+	var deficit: float = GlobalData.fuel.mech_max_energy - GlobalData.fuel.mech_energy
 	if deficit <= 0.0:
 		EventBus.event_triggered.emit({
 			"name": "CONVOY SUPPLY — FULL",
@@ -1523,8 +1523,8 @@ func _trigger_convoy_supply_transfer() -> void:
 		})
 		return
 	var transferred: float = minf(available, deficit)
-	GlobalData.convoy_fuel_reserve -= transferred
-	GlobalData.mech_energy = minf(GlobalData.mech_energy + transferred, GlobalData.mech_max_energy)
+	GlobalData.fuel.convoy_fuel_reserve -= transferred
+	GlobalData.fuel.mech_energy = minf(GlobalData.fuel.mech_energy + transferred, GlobalData.fuel.mech_max_energy)
 	# Time trade-off: costs 1 full day turn + raises alert level.
 	HeatWantedSystem.modify_heat(1)
 	EventBus.event_triggered.emit({
@@ -1547,8 +1547,8 @@ func _trigger_convoy_supply_transfer() -> void:
 # Called by the health system when the player's mech is destroyed. Places a
 # wreckage tile at the combat position so the pilot can return for fuel.
 func place_wreckage_tile(pos: Vector2i) -> void:
-	GlobalData.wreckage_tile_pos = pos
-	GlobalData.wreckage_fuel_remaining = 80.0
+	GlobalData.fuel.wreckage_tile_pos = pos
+	GlobalData.fuel.wreckage_fuel_remaining = 80.0
 	if not nodes_dict.has(pos):
 		return
 	var tile = nodes_dict[pos]
@@ -1560,7 +1560,7 @@ func place_wreckage_tile(pos: Vector2i) -> void:
 
 # Pilot reaches the wreckage and siphons dirty fuel from the wreck.
 func _trigger_wreckage_siphon() -> void:
-	if not GlobalData.mech_less:
+	if not GlobalData.narrative.mech_less:
 		EventBus.event_triggered.emit({
 			"name": "WRECKAGE",
 			"effect": "none",
@@ -1568,7 +1568,7 @@ func _trigger_wreckage_siphon() -> void:
 			"desc": "Your destroyed mech's wreckage. The fuel tanks are ruptured but some dirty fuel remains.",
 		})
 		return
-	if GlobalData.wreckage_fuel_remaining <= 0.0:
+	if GlobalData.fuel.wreckage_fuel_remaining <= 0.0:
 		EventBus.event_triggered.emit({
 			"name": "WRECKAGE — DEPLETED",
 			"effect": "none",
@@ -1576,22 +1576,22 @@ func _trigger_wreckage_siphon() -> void:
 			"desc": "The wreckage has been stripped clean. No more fuel to siphon.",
 		})
 		return
-	var amount := minf(GlobalData.WRECKAGE_SIPHON_AMOUNT, GlobalData.wreckage_fuel_remaining)
-	GlobalData.wreckage_fuel_remaining -= amount
-	GlobalData.siphoned_fuel += amount
+	var amount := minf(GlobalData.WRECKAGE_SIPHON_AMOUNT, GlobalData.fuel.wreckage_fuel_remaining)
+	GlobalData.fuel.wreckage_fuel_remaining -= amount
+	GlobalData.fuel.siphoned_fuel += amount
 	# Engine dirt: siphoning dirty fuel contaminates the fuel system.
-	GlobalData.engine_dirt = minf(GlobalData.engine_dirt + GlobalData.ENGINE_DIRT_PER_SIPHON, 1.0)
+	GlobalData.fuel.engine_dirt = minf(GlobalData.fuel.engine_dirt + GlobalData.ENGINE_DIRT_PER_SIPHON, 1.0)
 	var choices: Array = []
-	if GlobalData.siphoned_fuel >= GlobalData.REIGNITION_FUEL_COST:
+	if GlobalData.fuel.siphoned_fuel >= GlobalData.REIGNITION_FUEL_COST:
 		choices.append({
 			"label": "Re-ignition (%.0f fuel)" % GlobalData.REIGNITION_FUEL_COST,
 			"desc": "Burn the siphoned fuel to reboot the mech. Extra dirt from impure fuel.",
 			"effect": "reignition",
 			"amount": int(GlobalData.REIGNITION_FUEL_COST),
 		})
-	if GlobalData.wreckage_fuel_remaining > 0.0:
+	if GlobalData.fuel.wreckage_fuel_remaining > 0.0:
 		choices.append({
-			"label": "Siphon more (%.0f left)" % GlobalData.wreckage_fuel_remaining,
+			"label": "Siphon more (%.0f left)" % GlobalData.fuel.wreckage_fuel_remaining,
 			"desc": "Keep extracting fuel from the wreck. Each visit adds more engine dirt.",
 			"effect": "siphon_more",
 			"amount": 0,
@@ -1607,8 +1607,8 @@ func _trigger_wreckage_siphon() -> void:
 		"effect": "choice",
 		"amount": 0,
 		"desc": "Dirty fuel siphoned: +%.0f (total: %.0f / %.0f needed). Engine dirt: %d%%." % [
-			amount, GlobalData.siphoned_fuel, GlobalData.REIGNITION_FUEL_COST,
-			int(GlobalData.engine_dirt * 100)
+			amount, GlobalData.fuel.siphoned_fuel, GlobalData.REIGNITION_FUEL_COST,
+			int(GlobalData.fuel.engine_dirt * 100)
 		],
 		"params": {"choices": choices},
 	})
@@ -1616,28 +1616,28 @@ func _trigger_wreckage_siphon() -> void:
 
 # Re-ignition: reboot the mech using siphoned fuel. Costs extra engine dirt.
 func _do_reignition() -> void:
-	if GlobalData.siphoned_fuel < GlobalData.REIGNITION_FUEL_COST:
+	if GlobalData.fuel.siphoned_fuel < GlobalData.REIGNITION_FUEL_COST:
 		return
-	GlobalData.siphoned_fuel -= GlobalData.REIGNITION_FUEL_COST
-	GlobalData.engine_dirt = minf(GlobalData.engine_dirt + GlobalData.REIGNITION_ENGINE_DIRT_COST, 1.0)
+	GlobalData.fuel.siphoned_fuel -= GlobalData.REIGNITION_FUEL_COST
+	GlobalData.fuel.engine_dirt = minf(GlobalData.fuel.engine_dirt + GlobalData.REIGNITION_ENGINE_DIRT_COST, 1.0)
 	# Restore the mech: grant a recovery chassis via the hangar system.
 	HangarManager.grant_recovery_mech()
-	GlobalData.mech_energy = minf(GlobalData.mech_max_energy * 0.4, GlobalData.mech_max_energy)
+	GlobalData.fuel.mech_energy = minf(GlobalData.fuel.mech_max_energy * 0.4, GlobalData.fuel.mech_max_energy)
 	# Clear wreckage if depleted.
-	if GlobalData.wreckage_fuel_remaining <= 0.0:
+	if GlobalData.fuel.wreckage_fuel_remaining <= 0.0:
 		_clear_wreckage_tile()
 	EventBus.event_triggered.emit({
 		"name": "RE-IGNITION COMPLETE",
 		"effect": "none",
 		"amount": 0,
-		"desc": "The engine coughs to life on dirty fuel. The mech is operational again at 40%% capacity. Extra engine dirt: %d%%." % int(GlobalData.engine_dirt * 100),
+		"desc": "The engine coughs to life on dirty fuel. The mech is operational again at 40%% capacity. Extra engine dirt: %d%%." % int(GlobalData.fuel.engine_dirt * 100),
 	})
 
 
 # Clear the wreckage tile from the board after all fuel is siphoned.
 func _clear_wreckage_tile() -> void:
-	var pos := GlobalData.wreckage_tile_pos
-	GlobalData.wreckage_tile_pos = Vector2i(-1, -1)
+	var pos := GlobalData.fuel.wreckage_tile_pos
+	GlobalData.fuel.wreckage_tile_pos = Vector2i(-1, -1)
 	if pos == Vector2i(-1, -1) or not nodes_dict.has(pos):
 		return
 	var tile = nodes_dict[pos]

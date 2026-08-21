@@ -13,83 +13,83 @@ extends RefCounted
 static func save_run() -> void:
 	ArmorSystem.sync_equipped_armor_durability()
 	var data := {
-		"chassis": GlobalData.chassis_id,
+		"chassis": GlobalData.weapons.chassis_id,
 		"parts": serialize_parts(),
 		"frames": serialize_frames(),
-		"damage": GlobalData.part_damage.duplicate(),
+		"damage": GlobalData.weapons.part_damage.duplicate(),
 		"attachments": serialize_attachments(),
 		"armor_inventory": serialize_armor_inventory(),
-		"position": {"x": GlobalData.current_tile.x, "y": GlobalData.current_tile.y},
-		"heat": GlobalData.heat,
-		"wanted": GlobalData.wanted_level,
-		"wanted_escalation": GlobalData.wanted_escalation,
-		"credits": GlobalData.credits,
-		"data_cores": GlobalData.data_cores,
-		"scrap": GlobalData.scrap,
-		"fleet_roster": GlobalData.fleet_roster.duplicate(true),
-		"recruited_characters": GlobalData.recruited_characters.duplicate(),
-		"pending_duel": GlobalData.pending_duel.duplicate(true),
-		"research_projects": GlobalData.research_projects.duplicate(true),
-		"research_unlocked": GlobalData.research_unlocked.duplicate(),
-		"sector": GlobalData.current_sector,
-		"board_seed": GlobalData.board_seed,
-		"board_mp": GlobalData.board_mp,
-		"board_mp_max": GlobalData.board_mp_max,
-		"board_day": GlobalData.board_day,
-		"current_hazard": GlobalData.current_hazard,
-		"board_theme_id": GlobalData.board_theme_id,
-		"board_objective_id": GlobalData.board_objective_id,
-		"board_objective_progress": GlobalData.board_objective_progress,
-		"board_objective_required": GlobalData.board_objective_required,
+		"position": {"x": GlobalData.board.current_tile.x, "y": GlobalData.board.current_tile.y},
+		"heat": GlobalData.board.heat,
+		"wanted": GlobalData.board.wanted_level,
+		"wanted_escalation": GlobalData.board.wanted_escalation,
+		"credits": GlobalData.currency.credits,
+		"data_cores": GlobalData.currency.data_cores,
+		"scrap": GlobalData.currency.scrap,
+		"fleet_roster": GlobalData.hangar.fleet_roster.duplicate(true),
+		"recruited_characters": GlobalData.hangar.recruited_characters.duplicate(),
+		"pending_duel": GlobalData.hangar.pending_duel.duplicate(true),
+		"research_projects": GlobalData.hangar.research_projects.duplicate(true),
+		"research_unlocked": GlobalData.hangar.research_unlocked.duplicate(),
+		"sector": GlobalData.board.current_sector,
+		"board_seed": GlobalData.board.board_seed,
+		"board_mp": GlobalData.board.board_mp,
+		"board_mp_max": GlobalData.board.board_mp_max,
+		"board_day": GlobalData.board.board_day,
+		"current_hazard": GlobalData.board.current_hazard,
+		"board_theme_id": GlobalData.board.board_theme_id,
+		"board_objective_id": GlobalData.board.board_objective_id,
+		"board_objective_progress": GlobalData.board.board_objective_progress,
+		"board_objective_required": GlobalData.board.board_objective_required,
 		"board_patrols": _serialize_patrols(),
-		"enemy_forces": GlobalData.enemy_forces.duplicate(),
-		"last_combat_squad_size": GlobalData.last_combat_squad_size,
-		"max_notoriety_multiplier": GlobalData.max_notoriety_multiplier,
-		"stalking_aces": GlobalData.stalking_aces,
-		"stalking_chance": GlobalData.stalking_chance,
-		"ammo_inventory": GlobalData.ammo_inventory.duplicate(),
-		"weapon_inventory": GlobalData.weapon_inventory.duplicate(),
-		"weapon_loadout": GlobalData.weapon_loadout.duplicate(true),
-		"theme_id": GlobalData.theme_id,
-		"reputation": GlobalData.reputation,
-		"theme_switched": GlobalData.theme_switched,
-		"ceasefire_turns": GlobalData.ceasefire_turns,
-		"blocked_intermission": GlobalData.blocked_intermission,
-		"mech_less": GlobalData.mech_less,
-		"enemy_tech_tier": GlobalData.enemy_tech_tier,
+		"enemy_forces": GlobalData.narrative.enemy_forces.duplicate(),
+		"last_combat_squad_size": GlobalData.narrative.last_combat_squad_size,
+		"max_notoriety_multiplier": GlobalData.narrative.max_notoriety_multiplier,
+		"stalking_aces": GlobalData.narrative.stalking_aces,
+		"stalking_chance": GlobalData.narrative.stalking_chance,
+		"ammo_inventory": GlobalData.weapons.ammo_inventory.duplicate(),
+		"weapon_inventory": GlobalData.weapons.weapon_inventory.duplicate(),
+		"weapon_loadout": GlobalData.weapons.weapon_loadout.duplicate(true),
+		"theme_id": GlobalData.narrative.theme_id,
+		"reputation": GlobalData.narrative.reputation,
+		"theme_switched": GlobalData.narrative.theme_switched,
+		"ceasefire_turns": GlobalData.narrative.ceasefire_turns,
+		"blocked_intermission": GlobalData.narrative.blocked_intermission,
+		"mech_less": GlobalData.narrative.mech_less,
+		"enemy_tech_tier": GlobalData.narrative.enemy_tech_tier,
 		"last_combat_damage_ratio": GlobalData.last_combat_damage_ratio,
-		"enemy_research_progress": GlobalData.enemy_research_progress,
-		"enemy_base_active": GlobalData.enemy_base_active,
-		"enemy_base_progress": GlobalData.enemy_base_progress,
-		"enemy_base_required": GlobalData.enemy_base_required,
-		"enemy_base_tile_pos": {"x": GlobalData.enemy_base_tile_pos.x, "y": GlobalData.enemy_base_tile_pos.y},
-		"enemy_grunt_upgrade_level": GlobalData.enemy_grunt_upgrade_level,
-		"enemy_copy_outcome": GlobalData.enemy_copy_outcome,
-		"enemy_special_units": GlobalData.enemy_special_units.duplicate(true),
-		"fleet_security": GlobalData.fleet_security,
-		"security_upgrade_level": GlobalData.security_upgrade_level,
-		"mech_energy": GlobalData.mech_energy,
-		"mech_max_energy": GlobalData.mech_max_energy,
-		"convoy_fuel_reserve": GlobalData.convoy_fuel_reserve,
-		"convoy_fuel_max": GlobalData.convoy_fuel_max,
-		"fuel_depot_seized_today": GlobalData.fuel_depot_seized_today,
-		"drop_tanks_attached": GlobalData.drop_tanks_attached,
-		"drop_tank_fuel": GlobalData.drop_tank_fuel,
-		"engine_dirt": GlobalData.engine_dirt,
-		"wreckage_tile_pos": {"x": GlobalData.wreckage_tile_pos.x, "y": GlobalData.wreckage_tile_pos.y},
-		"wreckage_fuel_remaining": GlobalData.wreckage_fuel_remaining,
-		"siphoned_fuel": GlobalData.siphoned_fuel,
-		"driver_repair_skill": GlobalData.driver_repair_skill,
-		"driver_repair_xp": GlobalData.driver_repair_xp,
-		"scrap_patches": GlobalData.scrap_patches.duplicate(true),
-		"hangar_mechs": GlobalData.hangar_mechs.duplicate(true),
-		"active_hangar_mech_id": GlobalData.active_hangar_mech_id,
-		"frame_upgrade_level": GlobalData.frame_upgrade_level,
-		"pilot_hp": GlobalData.pilot_hp,
-		"pilot_max_hp": GlobalData.pilot_max_hp,
-		"pilot_weapons": GlobalData.pilot_weapons.duplicate(),
-		"pilot_ammo": GlobalData.pilot_ammo.duplicate(),
-		"pilot_items": GlobalData.pilot_items.duplicate()
+		"enemy_research_progress": GlobalData.narrative.enemy_research_progress,
+		"enemy_base_active": GlobalData.narrative.enemy_base_active,
+		"enemy_base_progress": GlobalData.narrative.enemy_base_progress,
+		"enemy_base_required": GlobalData.narrative.enemy_base_required,
+		"enemy_base_tile_pos": {"x": GlobalData.narrative.enemy_base_tile_pos.x, "y": GlobalData.narrative.enemy_base_tile_pos.y},
+		"enemy_grunt_upgrade_level": GlobalData.narrative.enemy_grunt_upgrade_level,
+		"enemy_copy_outcome": GlobalData.narrative.enemy_copy_outcome,
+		"enemy_special_units": GlobalData.narrative.enemy_special_units.duplicate(true),
+		"fleet_security": GlobalData.narrative.fleet_security,
+		"security_upgrade_level": GlobalData.narrative.security_upgrade_level,
+		"mech_energy": GlobalData.fuel.mech_energy,
+		"mech_max_energy": GlobalData.fuel.mech_max_energy,
+		"convoy_fuel_reserve": GlobalData.fuel.convoy_fuel_reserve,
+		"convoy_fuel_max": GlobalData.fuel.convoy_fuel_max,
+		"fuel_depot_seized_today": GlobalData.fuel.fuel_depot_seized_today,
+		"drop_tanks_attached": GlobalData.fuel.drop_tanks_attached,
+		"drop_tank_fuel": GlobalData.fuel.drop_tank_fuel,
+		"engine_dirt": GlobalData.fuel.engine_dirt,
+		"wreckage_tile_pos": {"x": GlobalData.fuel.wreckage_tile_pos.x, "y": GlobalData.fuel.wreckage_tile_pos.y},
+		"wreckage_fuel_remaining": GlobalData.fuel.wreckage_fuel_remaining,
+		"siphoned_fuel": GlobalData.fuel.siphoned_fuel,
+		"driver_repair_skill": GlobalData.narrative.driver_repair_skill,
+		"driver_repair_xp": GlobalData.narrative.driver_repair_xp,
+		"scrap_patches": GlobalData.weapons.scrap_patches.duplicate(true),
+		"hangar_mechs": GlobalData.hangar.hangar_mechs.duplicate(true),
+		"active_hangar_mech_id": GlobalData.hangar.active_hangar_mech_id,
+		"frame_upgrade_level": GlobalData.weapons.frame_upgrade_level,
+		"pilot_hp": GlobalData.pilot.pilot_hp,
+		"pilot_max_hp": GlobalData.pilot.pilot_max_hp,
+		"pilot_weapons": GlobalData.pilot.pilot_weapons.duplicate(),
+		"pilot_ammo": GlobalData.pilot.pilot_ammo.duplicate(),
+		"pilot_items": GlobalData.pilot.pilot_items.duplicate()
 	}
 	var file := FileAccess.open(GlobalData.SAVE_PATH, FileAccess.WRITE)
 	if file:
@@ -110,31 +110,31 @@ static func load_run() -> bool:
 
 
 static func restore_from_dict(data: Dictionary) -> void:
-	GlobalData.chassis_id = data.get("chassis", "standard")
+	GlobalData.weapons.chassis_id = data.get("chassis", "standard")
 	var frames_data = data.get("frames", {})
 	if frames_data is Dictionary and not frames_data.is_empty():
 		for slot in frames_data:
-			GlobalData.equipped_frames[slot] = resolve_frame_value(frames_data[slot])
+			GlobalData.weapons.equipped_frames[slot] = resolve_frame_value(frames_data[slot])
 	GlobalData.weapons._ensure_default_frames()
-	GlobalData.attachments = data.get("attachments", []).duplicate(true)
-	GlobalData.heat = data.get("heat", 0)
-	GlobalData.wanted_level = data.get("wanted", 0)
-	GlobalData.wanted_escalation = int(data.get("wanted_escalation", 0))
-	GlobalData.credits = data.get("credits", 0) + int(data.get("spare_parts", 0))
-	GlobalData.data_cores = data.get("data_cores", 0)
-	GlobalData.scrap = data.get("scrap", 0)
-	GlobalData.current_sector = data.get("sector", 1)
-	GlobalData.board_seed = data.get("board_seed", randi())
-	GlobalData.board_mp = int(data.get("board_mp", GlobalData.board_mp_max))
-	GlobalData.board_mp_max = maxi(int(data.get("board_mp_max", 8)), 1)
-	GlobalData.board_day = maxi(int(data.get("board_day", 1)), 1)
-	GlobalData.current_hazard = str(data.get("current_hazard", ""))
-	GlobalData.board_theme_id = str(data.get("board_theme_id", "suburb"))
-	GlobalData.board_objective_id = str(data.get("board_objective_id", ""))
-	GlobalData.board_objective_progress = int(data.get("board_objective_progress", 0))
-	GlobalData.board_objective_required = int(data.get("board_objective_required", 0))
+	GlobalData.weapons.attachments = data.get("attachments", []).duplicate(true)
+	GlobalData.board.heat = data.get("heat", 0)
+	GlobalData.board.wanted_level = data.get("wanted", 0)
+	GlobalData.board.wanted_escalation = int(data.get("wanted_escalation", 0))
+	GlobalData.currency.credits = data.get("credits", 0) + int(data.get("spare_parts", 0))
+	GlobalData.currency.data_cores = data.get("data_cores", 0)
+	GlobalData.currency.scrap = data.get("scrap", 0)
+	GlobalData.board.current_sector = data.get("sector", 1)
+	GlobalData.board.board_seed = data.get("board_seed", randi())
+	GlobalData.board.board_mp = int(data.get("board_mp", GlobalData.board.board_mp_max))
+	GlobalData.board.board_mp_max = maxi(int(data.get("board_mp_max", 8)), 1)
+	GlobalData.board.board_day = maxi(int(data.get("board_day", 1)), 1)
+	GlobalData.board.current_hazard = str(data.get("current_hazard", ""))
+	GlobalData.board.board_theme_id = str(data.get("board_theme_id", "suburb"))
+	GlobalData.board.board_objective_id = str(data.get("board_objective_id", ""))
+	GlobalData.board.board_objective_progress = int(data.get("board_objective_progress", 0))
+	GlobalData.board.board_objective_required = int(data.get("board_objective_required", 0))
 	var loaded_patrols = data.get("board_patrols", [])
-	GlobalData.board_patrols.clear()
+	GlobalData.board.board_patrols.clear()
 	if loaded_patrols is Array:
 		for p in loaded_patrols:
 			if not (p is Dictionary):
@@ -158,98 +158,98 @@ static func restore_from_dict(data: Dictionary) -> void:
 				p_copy["dir"] = Vector2i(int(dd.get("x", 1)), int(dd.get("y", 0)))
 			elif p_copy.get("dir") is String:
 				p_copy["dir"] = _parse_vec2i(str(p_copy["dir"]), Vector2i(1, 0))
-			GlobalData.board_patrols.append(p_copy)
+			GlobalData.board.board_patrols.append(p_copy)
 
 	# Run theme fields (fallbacks keep older saves working).
-	GlobalData.theme_id = str(data.get("theme_id", "soldier"))
-	GlobalData.reputation = int(data.get("reputation", 0))
-	GlobalData.theme_switched = bool(data.get("theme_switched", false))
-	GlobalData.ceasefire_turns = int(data.get("ceasefire_turns", 0))
-	GlobalData.blocked_intermission = bool(data.get("blocked_intermission", false))
-	GlobalData.mech_less = bool(data.get("mech_less", false))
-	GlobalData.enemy_tech_tier = int(data.get("enemy_tech_tier", 1))
+	GlobalData.narrative.theme_id = str(data.get("theme_id", "soldier"))
+	GlobalData.narrative.reputation = int(data.get("reputation", 0))
+	GlobalData.narrative.theme_switched = bool(data.get("theme_switched", false))
+	GlobalData.narrative.ceasefire_turns = int(data.get("ceasefire_turns", 0))
+	GlobalData.narrative.blocked_intermission = bool(data.get("blocked_intermission", false))
+	GlobalData.narrative.mech_less = bool(data.get("mech_less", false))
+	GlobalData.narrative.enemy_tech_tier = int(data.get("enemy_tech_tier", 1))
 	GlobalData.last_combat_damage_ratio = float(data.get("last_combat_damage_ratio", 0.0))
-	GlobalData.enemy_research_progress = float(data.get("enemy_research_progress", 0.0))
-	GlobalData.enemy_base_active = bool(data.get("enemy_base_active", false))
-	GlobalData.enemy_base_progress = float(data.get("enemy_base_progress", 0.0))
-	GlobalData.enemy_base_required = float(data.get("enemy_base_required", 8.0))
+	GlobalData.narrative.enemy_research_progress = float(data.get("enemy_research_progress", 0.0))
+	GlobalData.narrative.enemy_base_active = bool(data.get("enemy_base_active", false))
+	GlobalData.narrative.enemy_base_progress = float(data.get("enemy_base_progress", 0.0))
+	GlobalData.narrative.enemy_base_required = float(data.get("enemy_base_required", 8.0))
 	var base_tile = data.get("enemy_base_tile_pos", {})
-	GlobalData.enemy_base_tile_pos = Vector2i(int(base_tile.get("x", -1)), int(base_tile.get("y", -1)))
-	GlobalData.enemy_grunt_upgrade_level = int(data.get("enemy_grunt_upgrade_level", 0))
-	GlobalData.enemy_copy_outcome = str(data.get("enemy_copy_outcome", ""))
+	GlobalData.narrative.enemy_base_tile_pos = Vector2i(int(base_tile.get("x", -1)), int(base_tile.get("y", -1)))
+	GlobalData.narrative.enemy_grunt_upgrade_level = int(data.get("enemy_grunt_upgrade_level", 0))
+	GlobalData.narrative.enemy_copy_outcome = str(data.get("enemy_copy_outcome", ""))
 	var special_units = data.get("enemy_special_units", [])
 	if special_units is Array:
-		GlobalData.enemy_special_units = special_units.duplicate(true)
-	GlobalData.fleet_security = float(data.get("fleet_security", 25.0))
-	GlobalData.security_upgrade_level = int(data.get("security_upgrade_level", 1))
-	GlobalData.mech_energy = float(data.get("mech_energy", 100.0))
-	GlobalData.mech_max_energy = float(data.get("mech_max_energy", 100.0))
-	GlobalData.convoy_fuel_reserve = float(data.get("convoy_fuel_reserve", 100.0))
-	GlobalData.convoy_fuel_max = float(data.get("convoy_fuel_max", 200.0))
-	GlobalData.fuel_depot_seized_today = bool(data.get("fuel_depot_seized_today", false))
-	GlobalData.drop_tanks_attached = int(data.get("drop_tanks_attached", 0))
-	GlobalData.drop_tank_fuel = float(data.get("drop_tank_fuel", 0.0))
-	GlobalData.engine_dirt = float(data.get("engine_dirt", 0.0))
+		GlobalData.narrative.enemy_special_units = special_units.duplicate(true)
+	GlobalData.narrative.fleet_security = float(data.get("fleet_security", 25.0))
+	GlobalData.narrative.security_upgrade_level = int(data.get("security_upgrade_level", 1))
+	GlobalData.fuel.mech_energy = float(data.get("mech_energy", 100.0))
+	GlobalData.fuel.mech_max_energy = float(data.get("mech_max_energy", 100.0))
+	GlobalData.fuel.convoy_fuel_reserve = float(data.get("convoy_fuel_reserve", 100.0))
+	GlobalData.fuel.convoy_fuel_max = float(data.get("convoy_fuel_max", 200.0))
+	GlobalData.fuel.fuel_depot_seized_today = bool(data.get("fuel_depot_seized_today", false))
+	GlobalData.fuel.drop_tanks_attached = int(data.get("drop_tanks_attached", 0))
+	GlobalData.fuel.drop_tank_fuel = float(data.get("drop_tank_fuel", 0.0))
+	GlobalData.fuel.engine_dirt = float(data.get("engine_dirt", 0.0))
 	var wreck_pos = data.get("wreckage_tile_pos", {})
-	GlobalData.wreckage_tile_pos = Vector2i(int(wreck_pos.get("x", -1)), int(wreck_pos.get("y", -1)))
-	GlobalData.wreckage_fuel_remaining = float(data.get("wreckage_fuel_remaining", 80.0))
-	GlobalData.siphoned_fuel = float(data.get("siphoned_fuel", 0.0))
-	GlobalData.driver_repair_skill = int(data.get("driver_repair_skill", 1))
-	GlobalData.driver_repair_xp = int(data.get("driver_repair_xp", 0))
+	GlobalData.fuel.wreckage_tile_pos = Vector2i(int(wreck_pos.get("x", -1)), int(wreck_pos.get("y", -1)))
+	GlobalData.fuel.wreckage_fuel_remaining = float(data.get("wreckage_fuel_remaining", 80.0))
+	GlobalData.fuel.siphoned_fuel = float(data.get("siphoned_fuel", 0.0))
+	GlobalData.narrative.driver_repair_skill = int(data.get("driver_repair_skill", 1))
+	GlobalData.narrative.driver_repair_xp = int(data.get("driver_repair_xp", 0))
 	var loaded_patches = data.get("scrap_patches", {})
 	if loaded_patches is Dictionary:
-		GlobalData.scrap_patches = loaded_patches.duplicate(true)
+		GlobalData.weapons.scrap_patches = loaded_patches.duplicate(true)
 	var loaded_hangar = data.get("hangar_mechs", [])
 	if loaded_hangar is Array:
-		GlobalData.hangar_mechs = loaded_hangar.duplicate(true)
-	GlobalData.active_hangar_mech_id = str(data.get("active_hangar_mech_id", ""))
+		GlobalData.hangar.hangar_mechs = loaded_hangar.duplicate(true)
+	GlobalData.hangar.active_hangar_mech_id = str(data.get("active_hangar_mech_id", ""))
 	# Clamp to >= 1 so a null/corrupt value can't produce a negative upgrade level.
-	GlobalData.frame_upgrade_level = maxi(int(data.get("frame_upgrade_level", 1)), 1)
+	GlobalData.weapons.frame_upgrade_level = maxi(int(data.get("frame_upgrade_level", 1)), 1)
 
 	# Pilot state (fallbacks keep older saves working).
-	GlobalData.pilot_max_hp = maxf(float(data.get("pilot_max_hp", PilotSystem.PILOT_MAX_HP_DEFAULT)), 1.0)
-	GlobalData.pilot_hp = clampf(float(data.get("pilot_hp", GlobalData.pilot_max_hp)), 0.0, GlobalData.pilot_max_hp)
+	GlobalData.pilot.pilot_max_hp = maxf(float(data.get("pilot_max_hp", PilotSystem.PILOT_MAX_HP_DEFAULT)), 1.0)
+	GlobalData.pilot.pilot_hp = clampf(float(data.get("pilot_hp", GlobalData.pilot.pilot_max_hp)), 0.0, GlobalData.pilot.pilot_max_hp)
 	var loaded_pilot_weapons = data.get("pilot_weapons", ["res://resources/mech/stock/weapon_beam_rifle.tres"])
-	GlobalData.pilot_weapons = []
+	GlobalData.pilot.pilot_weapons = []
 	if loaded_pilot_weapons is Array:
 		for path in loaded_pilot_weapons:
 			if str(path) != "":
-				GlobalData.pilot_weapons.append(str(path))
+				GlobalData.pilot.pilot_weapons.append(str(path))
 	var loaded_pilot_ammo = data.get("pilot_ammo", {})
-	GlobalData.pilot_ammo = {}
+	GlobalData.pilot.pilot_ammo = {}
 	if loaded_pilot_ammo is Dictionary:
-		GlobalData.pilot_ammo = loaded_pilot_ammo.duplicate()
+		GlobalData.pilot.pilot_ammo = loaded_pilot_ammo.duplicate()
 	var loaded_pilot_items = data.get("pilot_items", {})
-	GlobalData.pilot_items = {}
+	GlobalData.pilot.pilot_items = {}
 	if loaded_pilot_items is Dictionary:
-		GlobalData.pilot_items = loaded_pilot_items.duplicate()
+		GlobalData.pilot.pilot_items = loaded_pilot_items.duplicate()
 
 	var loaded_roster = data.get("fleet_roster", [])
 	if loaded_roster is Array:
-		GlobalData.fleet_roster = loaded_roster.duplicate(true)
+		GlobalData.hangar.fleet_roster = loaded_roster.duplicate(true)
 	var loaded_recruits = data.get("recruited_characters", [])
 	if loaded_recruits is Array:
-		GlobalData.recruited_characters = loaded_recruits.duplicate()
+		GlobalData.hangar.recruited_characters = loaded_recruits.duplicate()
 	var loaded_duel = data.get("pending_duel", {})
 	if loaded_duel is Dictionary:
-		GlobalData.pending_duel = loaded_duel.duplicate(true)
+		GlobalData.hangar.pending_duel = loaded_duel.duplicate(true)
 	var loaded_research = data.get("research_projects", {})
 	if loaded_research is Dictionary:
-		GlobalData.research_projects = loaded_research.duplicate(true)
+		GlobalData.hangar.research_projects = loaded_research.duplicate(true)
 	var loaded_unlocked = data.get("research_unlocked", [])
 	if loaded_unlocked is Array:
-		GlobalData.research_unlocked = loaded_unlocked.duplicate()
+		GlobalData.hangar.research_unlocked = loaded_unlocked.duplicate()
 
 	var pos = data.get("position", {"x": 0, "y": 0})
-	GlobalData.current_tile = Vector2i(pos.x, pos.y)
+	GlobalData.board.current_tile = Vector2i(pos.x, pos.y)
 
 	# --- Armor instance inventory (new schema) ---
-	GlobalData.armor_inventory = []
+	GlobalData.weapons.armor_inventory = []
 	var loaded_armor = data.get("armor_inventory", [])
 	if loaded_armor is Array:
 		for raw in loaded_armor:
 			if raw is Dictionary:
-				GlobalData.armor_inventory.append(restore_armor_instance(raw))
+				GlobalData.weapons.armor_inventory.append(restore_armor_instance(raw))
 	# Legacy migration: old "salvaged armor" drops become regular instances.
 	var legacy_salvage = data.get("salvaged_armor_inventory", [])
 	if legacy_salvage is Array:
@@ -261,45 +261,45 @@ static func restore_from_dict(data: Dictionary) -> void:
 				inst["durability"] = clampf(float(inst.get("durability", 1.0)), 0.0, 1.0)
 				inst["upgrade_level"] = 1
 				inst["equipped"] = false
-				GlobalData.armor_inventory.append(inst)
+				GlobalData.weapons.armor_inventory.append(inst)
 
 	var parts_dict: Dictionary = data.get("parts", {})
-	GlobalData.equipped_parts.clear()
+	GlobalData.weapons.equipped_parts.clear()
 	for slot in parts_dict:
-		GlobalData.equipped_parts[slot] = resolve_equipped_part(parts_dict[slot])
+		GlobalData.weapons.equipped_parts[slot] = resolve_equipped_part(parts_dict[slot])
 	ensure_equipped_parts_are_instances()
 	# Restore the saved damage AFTER migration — equip_armor_instance() rewrites
 	# part_damage from the fresh instance durability (1.0), which would otherwise
 	# wipe the wear that was already restored above.
-	GlobalData.part_damage = data.get("damage", {})
+	GlobalData.weapons.part_damage = data.get("damage", {})
 	ArmorSystem.sync_equipped_armor_durability()
 	HangarManager.ensure_roster()
 
-	GlobalData.enemy_forces = data.get("enemy_forces", {
+	GlobalData.narrative.enemy_forces = data.get("enemy_forces", {
 		"boss_current": 1, "boss_max": 1,
 		"ace_current": 1, "ace_max": 2,
 		"grunt_current": 10, "grunt_max": 20
 	}).duplicate()
-	GlobalData.last_combat_squad_size = data.get("last_combat_squad_size", 1)
-	GlobalData.max_notoriety_multiplier = data.get("max_notoriety_multiplier", 1.0)
+	GlobalData.narrative.last_combat_squad_size = data.get("last_combat_squad_size", 1)
+	GlobalData.narrative.max_notoriety_multiplier = data.get("max_notoriety_multiplier", 1.0)
 
-	GlobalData.stalking_aces.clear()
+	GlobalData.narrative.stalking_aces.clear()
 	var loaded_aces = data.get("stalking_aces", [])
 	if loaded_aces is Array:
-		GlobalData.stalking_aces.assign(loaded_aces)
+		GlobalData.narrative.stalking_aces.assign(loaded_aces)
 
-	GlobalData.stalking_chance = data.get("stalking_chance", 0.0)
+	GlobalData.narrative.stalking_chance = data.get("stalking_chance", 0.0)
 
 	var loaded_ammo = data.get("ammo_inventory", {})
 	if loaded_ammo is Dictionary and not loaded_ammo.is_empty():
-		GlobalData.ammo_inventory = loaded_ammo.duplicate()
+		GlobalData.weapons.ammo_inventory = loaded_ammo.duplicate()
 
 	var loaded_weapons = data.get("weapon_inventory", [])
-	GlobalData.weapon_inventory = []
+	GlobalData.weapons.weapon_inventory = []
 	if loaded_weapons is Array:
 		for entry in loaded_weapons:
 			if entry is Dictionary and entry.has("uid"):
-				GlobalData.weapon_inventory.append(entry.duplicate())
+				GlobalData.weapons.weapon_inventory.append(entry.duplicate())
 			elif entry is Dictionary:
 				# Legacy count-based stash: expand each copy into its own instance.
 				var count = int(entry.get("count", 1))
@@ -309,14 +309,14 @@ static func restore_from_dict(data: Dictionary) -> void:
 					inst["uid"] = GlobalData._new_uid("w")
 					inst["durability"] = 1.0
 					inst["upgrade_level"] = 1
-					GlobalData.weapon_inventory.append(inst)
+					GlobalData.weapons.weapon_inventory.append(inst)
 
 	var loaded_loadout = data.get("weapon_loadout", null)
 	if loaded_loadout is Dictionary and not loaded_loadout.is_empty():
-		GlobalData.weapon_loadout = loaded_loadout.duplicate(true)
+		GlobalData.weapons.weapon_loadout = loaded_loadout.duplicate(true)
 		# Older saves predate the "ammo" loadout key — default to the stash.
-		if not GlobalData.weapon_loadout.has("ammo"):
-			GlobalData.weapon_loadout["ammo"] = {
+		if not GlobalData.weapons.weapon_loadout.has("ammo"):
+			GlobalData.weapons.weapon_loadout["ammo"] = {
 				"kinetic": LoadoutSystem.get_reserve_ammo("kinetic"),
 				"energy": LoadoutSystem.get_reserve_ammo("energy"),
 				"explosive": LoadoutSystem.get_reserve_ammo("explosive"),
@@ -326,19 +326,19 @@ static func restore_from_dict(data: Dictionary) -> void:
 		# instance uids so the [E] badge stays per-instance. Migrate any path
 		# refs to the matching stash instance's uid when one exists.
 		for key in ["left", "right"]:
-			GlobalData.weapon_loadout[key] = LoadoutSystem.migrate_ref_to_uid(GlobalData.weapon_loadout.get(key, ""))
+			GlobalData.weapons.weapon_loadout[key] = LoadoutSystem.migrate_ref_to_uid(GlobalData.weapons.weapon_loadout.get(key, ""))
 		var migrated_carry: Array = []
-		var carry = GlobalData.weapon_loadout.get("carry", [])
+		var carry = GlobalData.weapons.weapon_loadout.get("carry", [])
 		if carry is Array:
 			for ref in carry:
 				migrated_carry.append(LoadoutSystem.migrate_ref_to_uid(ref))
-			GlobalData.weapon_loadout["carry"] = migrated_carry
+			GlobalData.weapons.weapon_loadout["carry"] = migrated_carry
 
 
 static func serialize_parts() -> Dictionary:
 	var result := {}
-	for slot in GlobalData.equipped_parts:
-		var item = GlobalData.equipped_parts[slot]
+	for slot in GlobalData.weapons.equipped_parts:
+		var item = GlobalData.weapons.equipped_parts[slot]
 		if item == null:
 			result[slot] = null
 		elif item is Dictionary and item.has("uid"):
@@ -363,7 +363,7 @@ static func serialize_parts() -> Dictionary:
 
 static func serialize_armor_inventory() -> Array:
 	var result: Array = []
-	for inst in GlobalData.armor_inventory:
+	for inst in GlobalData.weapons.armor_inventory:
 		var copy: Dictionary = inst.duplicate(true)
 		if copy.get("color") is Color:
 			var c: Color = copy["color"]
@@ -387,8 +387,8 @@ static func restore_armor_instance(raw: Dictionary) -> Dictionary:
 
 static func serialize_frames() -> Dictionary:
 	var result := {}
-	for slot in GlobalData.equipped_frames:
-		var f = GlobalData.equipped_frames[slot]
+	for slot in GlobalData.weapons.equipped_frames:
+		var f = GlobalData.weapons.equipped_frames[slot]
 		if f is Dictionary and f.get("id", "") != "" and ArmorSystem.is_catalog_frame_id(f["id"]):
 			# Catalog frame: persist only the id reference.
 			result[slot] = {"id": f["id"]}
@@ -448,8 +448,8 @@ static func resolve_equipped_part(v: Variant) -> Variant:
 # Migrates any legacy equipped part (catalog id / full dict without a uid) into a
 # proper instance so the whole loadout is instance-based after loading old saves.
 static func ensure_equipped_parts_are_instances() -> void:
-	for slot in GlobalData.equipped_parts.keys():
-		var part = GlobalData.equipped_parts[slot]
+	for slot in GlobalData.weapons.equipped_parts.keys():
+		var part = GlobalData.weapons.equipped_parts[slot]
 		if part == null or part is Resource:
 			continue
 		if part is Dictionary and part.has("uid"):
@@ -472,13 +472,13 @@ static func ensure_equipped_parts_are_instances() -> void:
 			# register it first, otherwise equip_armor_instance() can't find the uid
 			# and the freshly minted instance is silently orphaned.
 			if ArmorSystem.get_armor_instance(str(inst["uid"])).is_empty():
-				GlobalData.armor_inventory.append(inst)
+				GlobalData.weapons.armor_inventory.append(inst)
 			ArmorSystem.equip_armor_instance(inst["uid"], slot)
 
 
 static func serialize_attachments() -> Array:
 	var result: Array = []
-	for attachment in GlobalData.attachments:
+	for attachment in GlobalData.weapons.attachments:
 		var copy: Dictionary = attachment.duplicate(true)
 		for key in ["position", "rotation", "scale", "size"]:
 			if copy.get(key) is Vector3:
@@ -493,7 +493,7 @@ static func serialize_attachments() -> Array:
 # {x, y} dicts so loading round-trips them back to Vector2i cleanly.
 static func _serialize_patrols() -> Array:
 	var result: Array = []
-	for p in GlobalData.board_patrols:
+	for p in GlobalData.board.board_patrols:
 		if not (p is Dictionary):
 			continue
 		var copy: Dictionary = p.duplicate(true)

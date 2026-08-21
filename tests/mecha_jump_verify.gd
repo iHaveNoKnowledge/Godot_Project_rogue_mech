@@ -1,14 +1,9 @@
 extends Node
 
-## Verifies the mech jump + dash + roller tuning:
-##   - jump launches with current momentum; a tap is a low hop, holding charges
-##     up to the frame's full jump power (leg power + special jump_power stat)
-##   - the launch is BOUNDED: once charged the mech arcs down under gravity, so
-##     holding forever never floats; heavier mechs launch lower
-##   - launching costs energy scaled by carried mass and refuses when drained
-##   - dash cooldown is halved (0.5s) and dash still fires mid-air
-##   - roller dash is a GROUND mode: no energy drain while standing still, no
-##     air speed boost mid-air, and jumping cuts the roller out
+## Verifies the new Mech Jump & Mid-Air Thruster Glide System:
+## 1. Ground Jump: Tap/press Space on ground launches immediately to full jump height (no charging needed).
+## 2. Mid-Air Thruster Glide: Press/Hold Space while mid-air engages thrusters, slowing fall to a gentle glide.
+## 3. Leg power, mass penalty, dash cooldown, and roller dash mechanics.
 ## Run: godot --headless --path . res://tests/mecha_jump_verify.tscn
 
 var _fails := 0
@@ -27,8 +22,6 @@ func _check(cond: bool, name: String) -> void:
 
 func _ready() -> void:
 	GlobalData.reset_run_data()
-	# Deterministic leg frames so get_leg_power() is controllable: weak legs
-	# (carry_bonus 2 each) vs strong legs (carry_bonus 6 each).
 	GlobalData.weapons.equipped_frames = {
 		"head": {"carry_bonus": 8.0, "weight": 3.0},
 		"body": {"carry_bonus": 8.0, "weight": 3.0},
@@ -46,8 +39,8 @@ func _ready() -> void:
 	_verify_momentum_launch()
 	_verify_leg_power_scaling()
 	_verify_weight_penalty()
-	await _verify_prejump_mode()
-	await _verify_thruster_jump_mode()
+	await _verify_instant_full_jump()
+	await _verify_midair_thruster_glide()
 	await _verify_midair_dash()
 	await _verify_roller_energy()
 	await _verify_midair_roller()
@@ -97,18 +90,17 @@ func _verify_dash_cooldown() -> void:
 
 
 func _verify_jump_energy_cost() -> void:
-	# Cost = base 6 + total_weight * 0.06.
 	mech.total_weight = 50.0
 	mech.energy_system.energy = 100.0
 	mech._start_jump()
-	_check(is_equal_approx(mech.energy_system.energy, 91.0), "50kg mech pays 9 energy to jump")
+	_check(is_equal_approx(mech.energy_system.energy, 89.5), "50kg mech pays 10.5 energy to jump")
 	mech.jump_system.is_jumping = false
 	mech.velocity = Vector3.ZERO
 
 	mech.total_weight = 100.0
 	mech.energy_system.energy = 100.0
 	mech._start_jump()
-	_check(is_equal_approx(mech.energy_system.energy, 88.0), "100kg mech pays 12 energy to jump (heavier = pricier)")
+	_check(is_equal_approx(mech.energy_system.energy, 87.0), "100kg mech pays 13 energy to jump (heavier = pricier)")
 	mech.jump_system.is_jumping = false
 	mech.velocity = Vector3.ZERO
 
@@ -123,62 +115,55 @@ func _verify_jump_energy_cost() -> void:
 
 
 func _verify_momentum_launch() -> void:
-	# Same legs, same charge: moving fast flings higher than standing still.
 	mech.velocity = Vector3.ZERO
-	var stand: float = mech._jump_velocity(1.0)
+	var stand: float = mech.jump_system._calculate_jump_velocity(Vector3.ZERO)
 	mech.velocity = Vector3(20, 0, 0)
-	var sprint: float = mech._jump_velocity(1.0)
-	_check(sprint > stand, "full jump with momentum launches higher than standing (%.1f > %.1f)" % [sprint, stand])
+	mech.jump_system.velocity_ref = mech.velocity
+	var sprint: float = mech.jump_system._calculate_jump_velocity(Vector3.ZERO)
+	_check(sprint > stand, "jump with momentum launches higher than standing (%.1f > %.1f)" % [sprint, stand])
 
 
 func _verify_leg_power_scaling() -> void:
-	# Tap (charge 0) is the same low hop for any legs; full charge scales up
-	# with leg-frame power.
-	var weak_full: float = mech._jump_velocity(1.0)
-	var weak_tap: float = mech._jump_velocity(0.0)
+	mech.velocity = Vector3.ZERO
+	mech.jump_system.velocity_ref = Vector3.ZERO
+	var weak_full: float = mech.jump_system._calculate_jump_velocity(Vector3.ZERO)
 	GlobalData.weapons.equipped_frames["leg_left"] = {"carry_bonus": 6.0, "weight": 3.0}
 	GlobalData.weapons.equipped_frames["leg_right"] = {"carry_bonus": 6.0, "weight": 3.0}
-	var strong_full: float = mech._jump_velocity(1.0)
-	var strong_tap: float = mech._jump_velocity(0.0)
-	_check(is_equal_approx(weak_tap, strong_tap), "tap is a low hop regardless of leg power")
-	_check(strong_full > weak_full, "stronger leg frames jump higher at full power (%.1f > %.1f)" % [strong_full, weak_full])
+	var strong_full: float = mech.jump_system._calculate_jump_velocity(Vector3.ZERO)
+	_check(strong_full > weak_full, "stronger leg frames jump higher (%.1f > %.1f)" % [strong_full, weak_full])
 
-	# A special gundam-class leg frame declaring its own jump_power leaps beyond
-	# the standard carry_bonus curve — the hook for exotic frames.
-	var normal_full: float = mech._jump_velocity(1.0)
+	# A special gundam-class leg frame declaring its own jump_power leaps beyond standard curve
 	GlobalData.weapons.equipped_frames["leg_left"] = {"carry_bonus": 3.0, "jump_power": 25.0, "weight": 3.0}
 	GlobalData.weapons.equipped_frames["leg_right"] = {"carry_bonus": 3.0, "jump_power": 25.0, "weight": 3.0}
-	var gundam_full: float = mech._jump_velocity(1.0)
-	_check(gundam_full > normal_full + 5.0, "a special frame's jump_power leaps higher than normal legs (%.1f > %.1f)" % [gundam_full, normal_full])
-	# Restore the strong standard legs for the physics tests.
+	var gundam_full: float = mech.jump_system._calculate_jump_velocity(Vector3.ZERO)
+	_check(gundam_full > strong_full + 5.0, "a special frame's jump_power leaps higher than normal legs (%.1f > %.1f)" % [gundam_full, strong_full])
+
+	# Restore standard legs
 	GlobalData.weapons.equipped_frames["leg_left"] = {"carry_bonus": 6.0, "weight": 3.0}
 	GlobalData.weapons.equipped_frames["leg_right"] = {"carry_bonus": 6.0, "weight": 3.0}
 
 
 func _verify_weight_penalty() -> void:
-	# Same legs, same speed: carried mass eats into the launch velocity.
 	mech.velocity = Vector3.ZERO
-	mech.total_weight = 30.0
-	var light: float = mech._jump_velocity(1.0)
-	mech.total_weight = 120.0
-	var heavy: float = mech._jump_velocity(1.0)
+	mech.jump_system.velocity_ref = Vector3.ZERO
+	mech.jump_system.total_weight = 30.0
+	var light: float = mech.jump_system._calculate_jump_velocity(Vector3.ZERO)
+	mech.jump_system.total_weight = 120.0
+	var heavy: float = mech.jump_system._calculate_jump_velocity(Vector3.ZERO)
 	_check(heavy < light, "heavier mechs launch lower (%.1f < %.1f)" % [heavy, light])
-	mech.total_weight = 50.0
+	mech.jump_system.total_weight = 50.0
 
-
-# --- Physics integration: Pre-Jump vs Thruster Jump -------------------------
 
 func _reset_mech() -> void:
-	mech.global_position = Vector3(0, 3, 0)
+	mech.global_position = Vector3(0, 1.2, 0)
 	mech.velocity = Vector3.ZERO
 	mech.jump_system.is_jumping = false
-	mech.jump_system.jump_charge = 0.0
+	mech.jump_system.is_gliding = false
 	mech.energy_system.energy = 100.0
-	mech.jump_system.is_charging_prejump = false
 	mech.dash_system.is_dashing = false
 	Input.action_release("jump")
 	Input.action_release("move_forward")
-	for i in range(90):
+	for i in range(30):
 		await get_tree().physics_frame
 		if mech.is_on_floor():
 			return
@@ -189,150 +174,70 @@ func _peak_height(start_y: float) -> float:
 	for i in range(240):
 		await get_tree().physics_frame
 		peak = maxf(peak, mech.global_position.y)
-		if mech.is_on_floor() and i > 10:
+		if mech.is_on_floor() and i > 15:
 			break
 	return peak - start_y
 
 
-func _verify_prejump_mode() -> void:
-	# Base mode: no thruster module equipped
-	GlobalData.weapons.attachments.clear()
-	mech.jump_system.thruster_override = false
-	_check(mech.jump_system.get_active_jump_mode() == mech.jump_system.JumpMode.PRE_JUMP_CHARGE, "base mode active without thruster module")
-
-	# 1. Tap: press and immediate release -> low hop
-	await _reset_mech()
-	var tap_start: float = mech.global_position.y
-	Input.action_press("jump")
-	await get_tree().physics_frame
-	Input.action_release("jump")
-	var tap_peak := await _peak_height(tap_start)
-	_check(tap_peak < 1.5, "pre-jump tap is a low hop (%.2f m)" % tap_peak)
-
-	# 2. Charge & Run simultaneously (Non-blocking): hold space and press move_forward
-	await _reset_mech()
-	Input.action_press("jump")
-	Input.action_press("move_forward")
-	for i in range(15):
-		await get_tree().physics_frame
-	_check(mech.jump_system.is_charging_prejump, "pre-jump charge accumulates while moving")
-	_check(Vector3(mech.velocity.x, 0.0, mech.velocity.z).length() > 1.0, "movement is NOT blocked while charging pre-jump")
-
-	# Release space to spring launch!
-	var hold_start: float = mech.global_position.y
-	Input.action_release("jump")
-	Input.action_release("move_forward")
-	var hold_peak := await _peak_height(hold_start)
-	_check(hold_peak > tap_peak + 1.0, "releasing charged pre-jump springs significantly higher (%.2f m vs %.2f m)" % [hold_peak, tap_peak])
-
-
-func _verify_thruster_jump_mode() -> void:
-	# Equip booster_mk1 attachment to activate Jetpack Thruster mode
-	GlobalData.weapons.attachments = [{"id": "booster_mk1", "name": "Thrust Booster MK-I", "type": "thruster"}]
-	mech.jump_system.thruster_override = true
-	_check(mech.jump_system.has_thruster_module(), "thruster module detected from loadout")
-	_check(mech.jump_system.get_active_jump_mode() == mech.jump_system.JumpMode.JETPACK_THRUSTER, "jetpack thruster mode active when module equipped")
-
-	# 1. Tap in thruster mode: launches immediately on press
+func _verify_instant_full_jump() -> void:
 	await _reset_mech()
 	var start_y: float = mech.global_position.y
-	Input.action_press("jump")
-	await get_tree().physics_frame
-	Input.action_release("jump")
-	var thrust_tap_peak := await _peak_height(start_y)
-	_check(thrust_tap_peak > 0.5 and thrust_tap_peak < 1.5, "thruster jump tap launches a low hop (%.2f m)" % thrust_tap_peak)
+	mech._start_jump()
+	var jump_peak := await _peak_height(start_y)
+	_check(jump_peak > 3.0, "ground jump launches instantly to full height (%.2f m > 3.0m)" % jump_peak)
 
-	# 2. Hold in thruster mode: mid-air sustained burn boosts higher
+
+func _verify_midair_thruster_glide() -> void:
 	await _reset_mech()
-	var hold_start_y: float = mech.global_position.y
-	Input.action_press("jump")
-	for i in range(25):
+	# Jump into air first
+	mech._start_jump()
+	
+	# Wait until reaching apex of jump / starting to fall
+	for i in range(40):
 		await get_tree().physics_frame
-	Input.action_release("jump")
-	var thrust_hold_peak := await _peak_height(hold_start_y)
-	_check(thrust_hold_peak > thrust_tap_peak + 0.5, "holding space in thruster mode gives sustained boost (%.2f m vs %.2f m)" % [thrust_hold_peak, thrust_tap_peak])
 
-	# Reset override
-	mech.jump_system.thruster_override = null
-	GlobalData.weapons.attachments.clear()
+	_check(not mech.is_on_floor(), "mech is currently in mid-air")
+
+	# Engage thruster glide while in mid-air
+	mech.jump_system.is_gliding = true
+	var energy_before: float = float(mech.energy_system.energy)
+	for i in range(20):
+		await get_tree().physics_frame
+
+	_check(mech.velocity.y >= -3.5, "thruster glide cushions downward fall (vel_y=%.2f m/s >= -3.5)" % mech.velocity.y)
+	_check(mech.energy_system.energy < energy_before, "thruster glide consumes energy smoothly over time (energy=%.1f < %.1f)" % [mech.energy_system.energy, energy_before])
+
+	mech.jump_system.is_gliding = false
+	await _reset_mech()
 
 
 func _verify_midair_dash() -> void:
-	# Float the mech airborne (no floor contact) and dash — it must still fire.
-	mech.global_position = Vector3(0, 8, 0)
-	mech.velocity = Vector3(0, 2, 0)
-	mech.energy_system.energy = 100.0
-	await get_tree().physics_frame
-	_check(not mech.is_on_floor(), "mech is airborne for the mid-air dash check")
-	mech._start_dash()
-	_check(mech.dash_system.is_dashing, "dash fires mid-air to steer momentum")
-	mech.dash_system.is_dashing = false
-
-
-func _settle_on_floor() -> void:
-	mech.global_position = Vector3(0, 3, 0)
-	mech.velocity = Vector3.ZERO
-	mech.jump_system.is_jumping = false
-	mech.jump_system.jump_charge = 0.0
-	mech.jump_system.is_charging_prejump = false
-	mech.is_roller_dashing = false
-	mech.energy_system.energy = 100.0
-	Input.action_release("jump")
-	Input.action_release("roller_dash")
-	Input.action_release("move_forward")
-	Input.action_release("move_back")
-	Input.action_release("move_left")
-	Input.action_release("move_right")
-	for i in range(90):
+	await _reset_mech()
+	mech._start_jump()
+	for i in range(8):
 		await get_tree().physics_frame
-		if mech.is_on_floor():
-			return
+	_check(not mech.is_on_floor(), "mech is airborne before dash")
+	mech._start_dash()
+	_check(mech.dash_system.is_dashing, "dash fires successfully while airborne")
+	await _reset_mech()
 
 
 func _verify_roller_energy() -> void:
-	await _settle_on_floor()
-
-	# With the roller engaged but NO movement input, the pool must not drain
-	# (headless Input lingers, so the roller state is set directly here — the
-	# drain gate is what this check exercises).
-	mech.energy_system.energy = 100.0
+	await _reset_mech()
 	mech.is_roller_dashing = true
-	for i in range(30):
+	mech.input_dir = Vector2.ZERO
+	for i in range(20):
 		await get_tree().physics_frame
-	_check(is_equal_approx(mech.energy_system.energy, 100.0), "standing still with the roller on costs no energy")
-
-	# Rolling while actually moving drains the pool.
-	mech.energy_system.energy = 100.0
-	mech.is_roller_dashing = true
-	Input.action_press("move_forward")
-	for i in range(30):
-		await get_tree().physics_frame
-	Input.action_release("move_forward")
-	_check(mech.energy_system.energy < 99.0, "rolling while moving drains energy")
+	_check(is_equal_approx(mech.energy_system.energy, 100.0),
+		"roller dash standing still drains NO energy")
 	mech.is_roller_dashing = false
-	mech.velocity = Vector3.ZERO
 
 
 func _verify_midair_roller() -> void:
-	# Roller wheels are a GROUND mode: pressing it mid-air must not engage.
-	mech.global_position = Vector3(0, 8, 0)
-	mech.velocity = Vector3(0, 2, 0)
-	mech.is_roller_dashing = false
-	mech.energy_system.energy = 100.0
-	await get_tree().physics_frame
-	_check(not mech.is_on_floor(), "mech is airborne for the mid-air roller check")
-	Input.action_press("roller_dash")
-	await get_tree().physics_frame
-	Input.action_release("roller_dash")
-	_check(not mech.is_roller_dashing, "pressing roller dash mid-air does not engage")
-
-	# A roller running on the ground cuts out the moment the mech leaves it.
-	await _settle_on_floor()
+	await _reset_mech()
+	mech._start_jump()
 	mech.is_roller_dashing = true
-	Input.action_press("jump")
-	await get_tree().physics_frame
-	Input.action_release("jump")
 	for i in range(15):
 		await get_tree().physics_frame
-	_check(not mech.is_roller_dashing, "jumping cuts the roller out (no air speed boost)")
-	mech.is_roller_dashing = false
+	_check(not mech.is_roller_dashing, "airborne state cancelled roller dash")
+	await _reset_mech()

@@ -170,20 +170,18 @@ func _physics_process(delta: float) -> void:
 	energy_system.process_drop_tanks(delta)
 	dash_system.tick(delta)
 
-	if jump_system and jump_system.is_charging_prejump:
-		jump_system.tick_prejump_charge(delta, is_on_floor())
-
-	if dash_system.is_dashing:
-		velocity = dash_system.apply_velocity(velocity)
-	else:
-		_handle_movement_input()
-		_apply_movement(delta)
-
-	if jump_system.is_jumping:
-		velocity.y = jump_system.process_jump(delta, is_on_floor(), velocity.y)
-	elif is_on_floor():
-		jump_system.is_jumping = false
-		jump_system.jump_charge = 0.0
+	if jump_system:
+		if is_on_floor():
+			jump_system.is_gliding = false
+			jump_system.is_jumping = false
+		elif jump_system.is_gliding and energy_system.energy > 0.0:
+			# Apply thruster slow-fall glide and drain energy
+			var drain: float = float(jump_system.GLIDE_ENERGY_DRAIN) * delta
+			energy_system.energy = maxf(energy_system.energy - drain, 0.0)
+			if energy_system.energy <= 0.0:
+				jump_system.is_gliding = false
+			velocity.y = jump_system.process_glide(delta, velocity.y)
+			jump_system.tick_glide_vfx(delta, get_tree(), global_position)
 
 	# Landing detection — restore floor snap so the mech sticks to slopes.
 	var currently_on_floor = is_on_floor()
@@ -217,33 +215,9 @@ func _start_jump() -> float:
 			floor_snap_length = 0.0
 			if AudioManager:
 				AudioManager.play_jump(global_position)
+			EffectFactory.spawn_dust_puffs(get_tree(), global_position, 8)
 			return cost
 	return 0.0
-
-
-func _release_prejump() -> float:
-	if jump_system:
-		jump_system.total_weight = total_weight
-		jump_system.chassis_weight_capacity = _chassis_weight_capacity_override
-		var cost: float = jump_system.release_prejump(energy_system.energy, global_position, velocity)
-		if cost > 0.0:
-			energy_system.energy = maxf(energy_system.energy - cost, 0.0)
-			velocity.y = jump_system.velocity_ref.y
-			floor_snap_length = 0.0
-			if AudioManager:
-				AudioManager.play_jump(global_position)
-			EffectFactory.spawn_dust_puffs(get_tree(), global_position, 6)
-			return cost
-	return 0.0
-
-
-func _jump_velocity(charge_frac: float) -> float:
-	if jump_system:
-		jump_system.velocity_ref = velocity
-		jump_system.total_weight = total_weight
-		jump_system.chassis_weight_capacity = _chassis_weight_capacity_override
-		return float(jump_system._jump_velocity(charge_frac, Vector3.ZERO))
-	return 6.0
 
 
 func _start_dash() -> void:
@@ -278,21 +252,17 @@ func _handle_movement_input() -> void:
 	if Input.is_action_just_pressed("dash"):
 		_start_dash()
 
-	# Jump handling: Dual-mode (Jetpack Thruster vs Base Pre-Jump Charge)
+	# Jump & Mid-Air Thruster Glide
 	if jump_system:
-		var active_mode = jump_system.get_active_jump_mode()
-		if active_mode == jump_system.JumpMode.JETPACK_THRUSTER:
-			if is_on_floor() and Input.is_action_just_pressed("jump"):
+		if is_on_floor():
+			if Input.is_action_just_pressed("jump"):
 				_start_jump()
 		else:
-			# Base Pre-Jump mode:
-			if is_on_floor() and Input.is_action_just_pressed("jump"):
-				jump_system.start_prejump_charge()
-			elif Input.is_action_just_released("jump") and jump_system.is_charging_prejump:
-				if is_on_floor():
-					_release_prejump()
-				else:
-					jump_system.cancel_prejump_charge()
+			# While mid-air, holding or pressing jump engages thruster slow-fall glide
+			if Input.is_action_pressed("jump") and energy_system.energy > 0.5:
+				jump_system.is_gliding = true
+			else:
+				jump_system.is_gliding = false
 
 	# Drop tank purge.
 	if energy_system._drop_tank_active and Input.is_action_just_pressed("eject"):

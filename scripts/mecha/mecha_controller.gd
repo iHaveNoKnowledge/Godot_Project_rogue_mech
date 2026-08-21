@@ -38,6 +38,38 @@ var _precision_dodged: bool:
 		if _dash:
 			_dash._precision_dodged = v
 
+var is_jumping: bool:
+	get:
+		return _jump.is_jumping if _jump else false
+	set(v):
+		if _jump:
+			_jump.is_jumping = v
+
+var jump_charge: float:
+	get:
+		return _jump.jump_charge if _jump else 0.0
+	set(v):
+		if _jump:
+			_jump.jump_charge = v
+
+var is_dashing: bool:
+	get:
+		return _dash.is_dashing if _dash else false
+	set(v):
+		if _dash:
+			_dash.is_dashing = v
+
+var dash_cooldown: float:
+	get:
+		return 0.5
+
+var dash_cooldown_timer: float:
+	get:
+		return _dash._precision_cooldown if _dash else 0.0
+	set(v):
+		if _dash:
+			_dash._precision_cooldown = v
+
 var _drop_tank_active: bool:
 	get:
 		return _energy._drop_tank_active if _energy else false
@@ -183,10 +215,10 @@ func _physics_process(delta: float) -> void:
 	_dash.input_dir = input_dir
 	_jump.total_weight = total_weight
 	_jump.chassis_weight_capacity = _chassis_weight_capacity_override
+	_jump.velocity_ref = velocity
 
 	_energy.process_energy(delta)
 	_energy.process_drop_tanks(delta)
-	_jump.process_jump(delta, is_on_floor())
 	_dash.tick(delta)
 
 	if _dash.is_dashing:
@@ -194,6 +226,12 @@ func _physics_process(delta: float) -> void:
 	else:
 		_handle_movement_input()
 		_apply_movement(delta)
+
+	if _jump.is_jumping:
+		velocity.y = _jump.process_jump(delta, is_on_floor(), velocity.y)
+	elif is_on_floor():
+		_jump.is_jumping = false
+		_jump.jump_charge = 0.0
 
 	# Landing detection — restore floor snap so the mech sticks to slopes.
 	var currently_on_floor = is_on_floor()
@@ -212,6 +250,39 @@ func _physics_process(delta: float) -> void:
 			AudioManager.update_roller_dash(global_position, ratio)
 	elif AudioManager:
 		AudioManager.stop_roller_dash()
+
+
+# --- Jump / Dash helper bridges --------------------------------------------
+
+func _start_jump() -> float:
+	if _jump:
+		_jump.total_weight = total_weight
+		_jump.chassis_weight_capacity = _chassis_weight_capacity_override
+		var cost: float = _jump.start_jump(_energy.energy, global_position, velocity)
+		if cost > 0.0:
+			_energy.energy = maxf(_energy.energy - cost, 0.0)
+			velocity.y = _jump.velocity_ref.y
+			floor_snap_length = 0.0
+			if AudioManager:
+				AudioManager.play_jump(global_position)
+			return cost
+	return 0.0
+
+
+func _jump_velocity(charge_frac: float) -> float:
+	if _jump:
+		_jump.velocity_ref = velocity
+		_jump.total_weight = total_weight
+		_jump.chassis_weight_capacity = _chassis_weight_capacity_override
+		return float(_jump._jump_velocity(charge_frac, Vector3.ZERO))
+	return 6.0
+
+
+func _start_dash() -> void:
+	if _dash and _energy:
+		if _dash.can_dash(_energy.energy):
+			var cost: float = _dash.start_dash(_energy.energy, global_position, global_transform.basis)
+			_energy.energy = maxf(_energy.energy - cost, 0.0)
 
 
 # --- Movement input & application -------------------------------------------
@@ -237,19 +308,13 @@ func _handle_movement_input() -> void:
 
 	# Dash.
 	if Input.is_action_just_pressed("dash"):
-		if _dash.can_dash(_energy.energy):
-			var cost: float = _dash.start_dash(_energy.energy, global_position, global_rotation)
-			_energy.energy = maxf(_energy.energy - cost, 0.0)
+		_start_dash()
 
 	# Jump.  Disable floor_snap so the mech actually leaves the ground — with
 	# snap=0.3 the upward velocity (~6 m/s) only moves ~0.1 m/frame, which the
 	# snap pulls back before move_and_slide can lift the body.
 	if is_on_floor() and Input.is_action_just_pressed("jump"):
-		var cost: float = _jump.start_jump(_energy.energy, global_position)
-		if cost > 0.0:
-			_energy.energy = maxf(_energy.energy - cost, 0.0)
-			velocity.y = _jump.velocity_ref.y
-			floor_snap_length = 0.0  # let the mech rise above the floor
+		_start_jump()
 
 	# Drop tank purge.
 	if _energy._drop_tank_active and Input.is_action_just_pressed("eject"):

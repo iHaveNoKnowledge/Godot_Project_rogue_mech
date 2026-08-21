@@ -70,9 +70,9 @@ func _build_world() -> void:
 
 	# A camera so _apply_movement doesn't bail early (headless has none by default).
 	var cam := Camera3D.new()
+	add_child(cam)
 	cam.position = Vector3(0, 8, 8)
 	cam.look_at(Vector3.ZERO, Vector3.UP)
-	add_child(cam)
 
 	# Bare mech with the real controller script + a capsule body.
 	mech = CharacterBody3D.new()

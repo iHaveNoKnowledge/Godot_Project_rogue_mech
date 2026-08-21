@@ -30,7 +30,7 @@ var total_weight: float = 0.0
 var chassis_weight_capacity: float = 75.0
 
 
-func start_jump(energy: float, pos: Vector3) -> float:
+func start_jump(energy: float, pos: Vector3, current_vel: Vector3 = Vector3.ZERO) -> float:
 	## Returns the energy cost (caller subtracts from its pool).
 	## Mutates velocity_ref.y on launch.
 	var cost := JUMP_BASE_ENERGY_COST + total_weight * JUMP_WEIGHT_ENERGY
@@ -38,25 +38,28 @@ func start_jump(energy: float, pos: Vector3) -> float:
 		return 0.0
 	jump_charge = 0.0
 	is_jumping = true
+	velocity_ref = current_vel
 	velocity_ref.y = _jump_velocity(0.0, pos)
 	return cost
 
 
-func process_jump(delta: float, is_on_floor: bool) -> void:
+func process_jump(delta: float, is_on_floor: bool, current_vel_y: float) -> float:
 	if is_jumping:
 		if Input.is_action_pressed("jump") and jump_charge < JUMP_CHARGE_TIME:
 			jump_charge = minf(jump_charge + delta, JUMP_CHARGE_TIME)
 			var target := _jump_velocity(jump_charge / JUMP_CHARGE_TIME, Vector3.ZERO)
-			if velocity_ref.y < target:
-				velocity_ref.y = move_toward(velocity_ref.y, target, JUMP_RAMP_RATE * delta)
+			if current_vel_y < target:
+				current_vel_y = move_toward(current_vel_y, target, JUMP_RAMP_RATE * delta)
+				velocity_ref.y = current_vel_y
 		else:
 			is_jumping = false
-	if is_on_floor:
+	if is_on_floor and jump_charge > 0.08:
 		is_jumping = false
 		jump_charge = 0.0
+	return current_vel_y
 
 
-func _jump_velocity(charge_frac: float, pos: Vector3) -> float:
+func _jump_velocity(charge_frac: float, pos: Vector3 = Vector3.ZERO) -> float:
 	var leg_power := _leg_jump_power()
 	var speed_bonus := Vector3(velocity_ref.x, 0.0, velocity_ref.z).length() * SPEED_JUMP_BONUS
 	var weight_ratio := clampf(total_weight / maxf(chassis_weight_capacity, 1.0), 0.0, 1.0)

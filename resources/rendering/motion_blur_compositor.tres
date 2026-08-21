@@ -1,0 +1,45 @@
+[gd_resource type="Compositor" script_class="MotionBlurCompositor" load_steps=5 format=3 uid="uid://c_motion_blur_compositor"]
+
+[ext_resource type="Script" path="res://addons/SphynxMotionBlurToolkit/BaseClasses/mb_compositor.gd" id="1_mb_comp"]
+[ext_resource type="Script" path="res://addons/SphynxMotionBlurToolkit/PreBlurProcessing/pre_blur_processor.gd" id="2_pre_blur"]
+[ext_resource type="Script" path="res://addons/SphynxMotionBlurToolkit/Guertin/guertin_motion_blur.gd" id="3_guertin"]
+
+[sub_resource type="CompositorEffect" id="CompositorEffect_preblur"]
+resource_local_to_scene = false
+resource_name = ""
+enabled = true
+effect_callback_type = 4
+needs_motion_vectors = true
+needs_normal_roughness = false
+script = ExtResource("2_pre_blur")
+samples = 16
+intensity = 1.0
+center_fade = 0.0
+framerate_independent = true
+uncapped_independence = false
+target_constant_framerate = 30.0
+
+[sub_resource type="CompositorEffect" id="CompositorEffect_guertin"]
+resource_local_to_scene = false
+resource_name = ""
+enabled = true
+effect_callback_type = 4
+needs_motion_vectors = true
+needs_normal_roughness = false
+script = ExtResource("3_guertin")
+samples = 16
+intensity = 1.0
+center_fade = 0.0
+framerate_independent = true
+uncapped_independence = false
+target_constant_framerate = 30.0
+
+[resource]
+script = ExtResource("1_mb_comp")
+compositor_effects = Array[CompositorEffect]([SubResource("CompositorEffect_preblur"), SubResource("CompositorEffect_guertin")])
+samples = 16
+intensity = 0.4
+center_fade = 0.0
+framerate_independent = true
+uncapped_independence = false
+target_constant_framerate = 60.0

@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://motion_blur_verify_test"]
+
+[ext_resource type="Script" path="res://tests/motion_blur_verify.gd" id="1_test"]
+
+[node name="MotionBlurVerify" type="Node"]
+script = ExtResource("1_test")

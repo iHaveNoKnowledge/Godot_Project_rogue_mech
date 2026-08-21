@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/camera/camera_rig.gd" id="1"]
+[ext_resource type="Compositor" path="res://resources/rendering/motion_blur_compositor.tres" id="2_comp"]
 
 [node name="CameraRig" type="Node3D"]
 script = ExtResource("1")
@@ -17,6 +18,7 @@ collision_mask = 3
 
 [node name="Camera3D" type="Camera3D" parent="CameraPivot/CameraOffset/SpringArm3D"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+compositor = ExtResource("2_comp")
 fov = 72.0
 
 [node name="LockOnRay" type="RayCast3D" parent="."]

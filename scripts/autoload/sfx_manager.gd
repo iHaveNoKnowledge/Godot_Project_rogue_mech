@@ -399,27 +399,27 @@ func play_explosion(pos: Vector3) -> void:
 
 
 func play_footstep(pos: Vector3) -> void:
-	play_sfx("footstep", pos, -8.0, "Movement")
+	play_sfx("footstep", pos, -14.0, "Movement")
 
 
 func play_dash(pos: Vector3) -> void:
-	play_sfx("dash", pos, -3.0, "Movement")
+	play_sfx("dash", pos, -6.0, "Movement")
 
 
 func play_mecha_actuator(pos: Vector3) -> void:
-	play_sfx("mecha_actuator", pos, -3.0, "Movement")
+	play_sfx("mecha_actuator", pos, -6.0, "Movement")
 
 
 func play_jump(pos: Vector3) -> void:
-	play_sfx("jump", pos, -2.0, "Movement")
+	play_sfx("jump", pos, -4.0, "Movement")
 
 
 func play_land(pos: Vector3) -> void:
-	play_sfx("land", pos, -2.0, "Movement")
+	play_sfx("land", pos, -4.0, "Movement")
 
 
 func play_roller_skate(pos: Vector3) -> void:
-	play_sfx("roller_skate", pos, -6.0, "Movement")
+	play_sfx("roller_skate", pos, -10.0, "Movement")
 
 
 func play_impact_by_type(damage_type: String, pos: Vector3) -> void:
@@ -479,6 +479,7 @@ func _ensure_roller_player() -> AudioStreamPlayer3D:
 		_roller_player = AudioStreamPlayer3D.new()
 		_roller_player.name = "RollerLoop"
 		_roller_player.bus = "Movement"
+		_roller_player.volume_db = -8.0
 		add_child(_roller_player)
 	return _roller_player
 

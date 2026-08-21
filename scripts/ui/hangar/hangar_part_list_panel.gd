@@ -105,7 +105,7 @@ func populate(slot: String) -> void:
 		for index in range(GlobalData.weapons.weapon_inventory.size()):
 			var inv = GlobalData.weapons.weapon_inventory[index]
 			var is_eq = weapon_in_loadout(slot, inv)
-			var other_user := other_mech_weapon_user(str(inv.get("uid", "")), str(inv.get("path", ""))) if not is_eq else ""
+			var other_user := other_mech_weapon_user(slot, str(inv.get("uid", "")), str(inv.get("path", ""))) if not is_eq else ""
 			wrows.append({"idx": index, "eq": is_eq, "other": other_user})
 		# Sort order: [[Currently equipped: Rank 0] -> [Free spares: Rank 1] -> [Taken by other mechs: Rank 2]]
 		wrows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
@@ -181,6 +181,56 @@ func _update_currently_equipped_display(slot: String) -> void:
 	if controller.currently_equipped_box == null or controller.currently_equipped_label == null:
 		return
 
+	if slot.begins_with("weapon"):
+		if slot == "weapon_carry":
+			var carry_list := LoadoutSystem.get_carry_weapons()
+			if not carry_list.is_empty():
+				var names: Array[String] = []
+				for cw in carry_list:
+					var wname: String = cw.weapon_name if (cw and cw.weapon_name != "") else "Weapon"
+					var dur: float = 1.0
+					for inv in GlobalData.weapons.weapon_inventory:
+						if str(inv.get("path", "")) == cw.resource_path or str(inv.get("name", "")) == wname:
+							dur = GlobalData.get_durability_ratio(inv)
+							break
+					names.append("%s (%.0f%%)" % [wname, dur * 100.0])
+				controller.currently_equipped_label.text = ", ".join(names)
+				controller.currently_equipped_sublabel.text = "Back Carry: %d/%d items | Field Pack: %.1f / %.1f kg" % [
+					carry_list.size(), 3, LoadoutSystem.get_field_pack_weight(), LoadoutSystem.get_field_pack_capacity()
+				]
+			else:
+				controller.currently_equipped_label.text = "(No Back Carry Weapons)"
+				controller.currently_equipped_sublabel.text = "Select weapons from inventory below (Max 3)"
+		else:
+			var hand := "left" if slot == "weapon_left" else "right"
+			var hand_label := "Left Hand" if hand == "left" else "Right Hand"
+			var uid := LoadoutSystem.get_equipped_weapon_uid(hand)
+			var w_name := ""
+			var w_dur := 1.0
+			var w_wt := 0.0
+			var w_dmg_type := ""
+			for inv in GlobalData.weapons.weapon_inventory:
+				if str(inv.get("uid", "")) == uid:
+					w_name = str(inv.get("name", "Weapon"))
+					w_dur = GlobalData.get_durability_ratio(inv)
+					var wpath = str(inv.get("path", ""))
+					if wpath != "" and ResourceLoader.exists(wpath):
+						var res = load(wpath)
+						if res:
+							if "weight" in res and res.weight != null:
+								w_wt = float(res.weight)
+							if "damage_type" in res and res.damage_type != null:
+								w_dmg_type = str(res.damage_type)
+					break
+			if w_name != "":
+				controller.currently_equipped_label.text = w_name
+				var dmg_str := (" | %s" % w_dmg_type.capitalize()) if w_dmg_type != "" else ""
+				controller.currently_equipped_sublabel.text = "%s | DUR: %.0f%%%s | Wt: %.1fkg" % [hand_label, w_dur * 100.0, dmg_str, w_wt]
+			else:
+				controller.currently_equipped_label.text = "(No Weapon - %s)" % hand_label
+				controller.currently_equipped_sublabel.text = "Select a weapon from inventory below"
+		return
+
 	if controller.current_mode == "upgrade":
 		controller.currently_equipped_label.text = "Inner Frame Reactor: Level %d" % GlobalData.weapons.frame_upgrade_level
 		controller.currently_equipped_sublabel.text = "+%d HP/slot | Dash Speed: +%.1fm/s" % [
@@ -218,45 +268,6 @@ func _update_currently_equipped_display(slot: String) -> void:
 		else:
 			controller.currently_equipped_label.text = "(No Frame Installed)"
 			controller.currently_equipped_sublabel.text = "Select a frame from the list below"
-		return
-
-	if slot.begins_with("weapon"):
-		if slot == "weapon_carry":
-			var carry_list := LoadoutSystem.get_carry_weapons()
-			if not carry_list.is_empty():
-				var names: Array[String] = []
-				for cw in carry_list:
-					names.append(cw.weapon_name if (cw and cw.weapon_name != "") else "Weapon")
-				controller.currently_equipped_label.text = ", ".join(names)
-				controller.currently_equipped_sublabel.text = "Field Pack: %.1f / %.1f kg (%d carry)" % [
-					LoadoutSystem.get_field_pack_weight(), LoadoutSystem.get_field_pack_capacity(), carry_list.size()
-				]
-			else:
-				controller.currently_equipped_label.text = "(No Carry Weapon)"
-				controller.currently_equipped_sublabel.text = "Field Pack: 0.0 / %.1f kg" % LoadoutSystem.get_field_pack_capacity()
-		else:
-			var hand := "left" if slot == "weapon_left" else "right"
-			var hand_label := "Left Hand" if hand == "left" else "Right Hand"
-			var uid := LoadoutSystem.get_equipped_weapon_uid(hand)
-			var w_name := ""
-			var w_dur := 1.0
-			var w_wt := 0.0
-			for inv in GlobalData.weapons.weapon_inventory:
-				if str(inv.get("uid", "")) == uid:
-					w_name = str(inv.get("name", "Weapon"))
-					w_dur = GlobalData.get_durability_ratio(inv)
-					var wpath = str(inv.get("path", ""))
-					if wpath != "" and ResourceLoader.exists(wpath):
-						var res = load(wpath)
-						if res and "weight" in res and res.weight != null:
-							w_wt = float(res.weight)
-					break
-			if w_name != "":
-				controller.currently_equipped_label.text = w_name
-				controller.currently_equipped_sublabel.text = "%s | DUR: %.0f%% | Wt: %.1fkg" % [hand_label, w_dur * 100.0, w_wt]
-			else:
-				controller.currently_equipped_label.text = "(No Weapon - %s)" % hand_label
-				controller.currently_equipped_sublabel.text = "Select a weapon from inventory below"
 		return
 
 	if controller.armor_catalog.has(slot):
@@ -539,11 +550,30 @@ func weapon_in_loadout(slot: String, inv: Dictionary) -> bool:
 # ---------------------------------------------------------------------------
 
 # A weapon COPY (matched by instance uid) counts as used by another mech when
-# that EXACT copy sits in another berth's loadout. Same-model copies are
-# separate physical units, so a free spare is never marked as taken. Legacy
-# path rows fall back to a model-level check: the model only reads as taken
-# when every owned copy is already carried somewhere in the fleet.
-func other_mech_weapon_user(uid: String, path: String) -> String:
+# that EXACT copy sits in another berth's loadout (or another hand/carry on this mech).
+func other_mech_weapon_user(slot: String, uid: String, path: String) -> String:
+	# 1. Check current active mech's other weapon slots:
+	var cur_loadout = GlobalData.weapons.weapon_loadout
+	if cur_loadout is Dictionary and uid != "":
+		if slot == "weapon_left":
+			if str(cur_loadout.get("right", "")) == uid:
+				return "R.Hand"
+			var carry = cur_loadout.get("carry", [])
+			if carry is Array and uid in carry:
+				return "Back Carry"
+		elif slot == "weapon_right":
+			if str(cur_loadout.get("left", "")) == uid:
+				return "L.Hand"
+			var carry = cur_loadout.get("carry", [])
+			if carry is Array and uid in carry:
+				return "Back Carry"
+		elif slot == "weapon_carry":
+			if str(cur_loadout.get("left", "")) == uid:
+				return "L.Hand"
+			if str(cur_loadout.get("right", "")) == uid:
+				return "R.Hand"
+
+	# 2. Check other parked mechs in hangar:
 	var editing_id: String = controller.get_editing_mech_id()
 	if uid != "":
 		var by_uid := _other_mech_weapon_uid_user(uid, editing_id)

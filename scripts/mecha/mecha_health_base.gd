@@ -15,6 +15,15 @@ var total_armor_hp: float = 0.0
 var total_frame_hp: float = 0.0
 var max_total_armor: float = 0.0
 var max_total_frame: float = 0.0
+
+var current_health: float:
+	get:
+		return total_frame_hp + total_armor_hp
+
+var max_health: float:
+	get:
+		return max_total_frame + max_total_armor
+
 var is_destroyed: bool = false
 var _near_death_recorded: bool = false  # tracks if near-death bond was already awarded
 

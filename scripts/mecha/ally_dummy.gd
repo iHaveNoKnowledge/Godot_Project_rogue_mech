@@ -57,6 +57,19 @@ var _use_melee: bool = false
 var _ammo_scan_timer: float = 0.0
 var _ammo_target: Node3D = null
 
+# Behavior Tree AI Brain (Beehave)
+var beehave_tree: BeehaveTree = null
+var pilot_trait: String = "Balanced"
+
+
+## Attaches a Beehave Behavior Tree tailored to the pilot's personality trait.
+func setup_beehave_tree(trait_name: String = "Balanced") -> void:
+	if beehave_tree != null and is_instance_valid(beehave_tree):
+		beehave_tree.queue_free()
+	pilot_trait = trait_name
+	beehave_tree = MechaBehaviorTreeFactory.create_tree(self, trait_name)
+	add_child(beehave_tree)
+
 
 func _ready() -> void:
 	add_to_group("ally")
@@ -454,6 +467,13 @@ func _physics_process(delta: float) -> void:
 
 	if fire_core:
 		fire_core.tick(delta)
+
+	# When Behavior Tree (Beehave) is active, it drives decisions and movements
+	if beehave_tree != null and is_instance_valid(beehave_tree):
+		attack_timer -= delta
+		velocity.y -= 15.0 * delta
+		move_and_slide()
+		return
 
 	_acquire_target()
 	if target == null:

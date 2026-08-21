@@ -628,14 +628,14 @@ func _refresh_patrol_markers() -> void:
 		# Old saves can carry pos/dir as JSON-flattened Strings — heal the
 		# entry so every fleet reliably draws its arrow marker.
 		PatrolSystem.normalize_patrol(p)
-		var pos: Vector2i = p.get("pos")
+		var pos: Vector2i = PatrolSystem.normalize_dir(p.get("pos"))
 		if not nodes_dict.has(pos):
 			continue
 		var marker := Node3D.new()
 		marker.set_script(preload("res://scripts/board/patrol_marker.gd"))
 		_patrol_marker_container.add_child(marker)
 
-		var prev_pos: Vector2i = p.get("prev_pos", pos)
+		var prev_pos: Vector2i = PatrolSystem.normalize_dir(p.get("prev_pos", pos))
 		if prev_pos != pos and nodes_dict.has(prev_pos) and nodes_dict[pos].is_revealed:
 			# Smooth simultaneous movement animation (GDD §3.2)
 			marker.global_position = nodes_dict[prev_pos].global_position + Vector3(0, 1.0, 0)

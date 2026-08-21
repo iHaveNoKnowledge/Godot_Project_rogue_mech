@@ -1,4 +1,4 @@
-﻿class_name SaveGameIO
+class_name SaveGameIO
 extends RefCounted
 
 # -----------------------------------------------------------------------------
@@ -150,6 +150,11 @@ static func restore_from_dict(data: Dictionary) -> void:
 				p_copy["home"] = Vector2i(int(hd.get("x", 0)), int(hd.get("y", 0)))
 			elif p_copy.get("home") is String:
 				p_copy["home"] = _parse_vec2i(str(p_copy["home"]))
+			if p_copy.get("prev_pos") is Dictionary:
+				var ppd: Dictionary = p_copy["prev_pos"]
+				p_copy["prev_pos"] = Vector2i(int(ppd.get("x", 0)), int(ppd.get("y", 0)))
+			elif p_copy.get("prev_pos") is String:
+				p_copy["prev_pos"] = _parse_vec2i(str(p_copy["prev_pos"]))
 			# dir is the fleet's last movement heading — restore it to a real
 			# Vector2i (old saves flattened it to a String, which crashed the
 			# patrol arrow marker and left fleets invisible on the board).
@@ -503,6 +508,9 @@ static func _serialize_patrols() -> Array:
 		if copy.get("home") is Vector2i:
 			var home: Vector2i = copy["home"]
 			copy["home"] = {"x": home.x, "y": home.y}
+		if copy.get("prev_pos") is Vector2i:
+			var prev_pos: Vector2i = copy["prev_pos"]
+			copy["prev_pos"] = {"x": prev_pos.x, "y": prev_pos.y}
 		if copy.get("dir") is Vector2i:
 			var dir: Vector2i = copy["dir"]
 			copy["dir"] = {"x": dir.x, "y": dir.y}

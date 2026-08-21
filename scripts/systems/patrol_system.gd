@@ -56,11 +56,11 @@ static func _parse_dir_string(raw: String) -> Vector2i:
 # real Vector2i. Mutates the dictionary in place; the board heals every fleet
 # whenever it redraws the arrow markers.
 static func normalize_patrol(p: Dictionary) -> void:
-	if p.get("pos") is Dictionary or p.get("pos") is String:
-		p["pos"] = normalize_dir(p.get("pos"))
-	if p.get("home") is Dictionary or p.get("home") is String:
-		p["home"] = normalize_dir(p.get("home"))
+	p["pos"] = normalize_dir(p.get("pos"))
+	p["home"] = normalize_dir(p.get("home"))
 	p["dir"] = normalize_dir(p.get("dir"))
+	if p.has("prev_pos"):
+		p["prev_pos"] = normalize_dir(p.get("prev_pos"))
 	if not p.has("commander") or not p["commander"] is Dictionary or p["commander"].is_empty():
 		var arch_str: String = str(p.get("archetype", "armored"))
 		p["commander"] = PilotGenerator.generate_pilot({

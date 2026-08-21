@@ -44,6 +44,12 @@ func _ready() -> void:
 	if GlobalData.board.board_objective_id == "":
 		_setup_objective()
 	GlobalData.board.board_patrol_engagement = -1
+
+	# Artillery Impact Report UI (sequential cinematic strikes)
+	if get_node_or_null("ArtilleryReportUI") == null:
+		var art_ui := ArtilleryReportUI.new()
+		art_ui.name = "ArtilleryReportUI"
+		add_child(art_ui)
 	PatrolSystem.spawn_patrols()
 
 	_reveal_around(current_pos)
@@ -423,49 +429,127 @@ func _end_day() -> void:
 
 # Artillery Fleet strategic bombardment (GDD §3.3)
 func _trigger_artillery_bombardment(fleets: Array[Dictionary]) -> void:
+	if fleets.is_empty():
+		return
+
+	var report_ui = get_node_or_null("ArtilleryReportUI") as ArtilleryReportUI
+	if report_ui == null:
+		report_ui = ArtilleryReportUI.new()
+		report_ui.name = "ArtilleryReportUI"
+		add_child(report_ui)
+
 	var total_fleets := fleets.size()
-	# Inflict strategic damage: 12% torso armor wear per fleet and -30 Energy
-	if GlobalData.weapons.equipped_parts.has("body"):
-		var cur_dmg: float = float(GlobalData.weapons.part_damage.get("body", 0.0))
-		GlobalData.weapons.part_damage["body"] = minf(cur_dmg + 0.12 * float(total_fleets), 1.0)
-	GlobalData.fuel.mech_energy = maxf(GlobalData.fuel.mech_energy - 30.0 * float(total_fleets), 0.0)
-
-	_play_artillery_bombardment_animation(fleets)
+	for i in range(total_fleets):
+		var fleet = fleets[i]
+		await _execute_single_artillery_strike(fleet, i + 1, total_fleets, report_ui)
 
 
-func _play_artillery_bombardment_animation(fleets: Array[Dictionary]) -> void:
+func _execute_single_artillery_strike(fleet: Dictionary, strike_idx: int, total_strikes: int, report_ui: ArtilleryReportUI) -> void:
+	var fleet_grid: Vector2i = fleet.get("pos", Vector2i.ZERO)
+	var fleet_name: String = str(fleet.get("name", "Hostile Artillery Fleet"))
+
 	var target_pos := player_token.global_position if player_token and is_instance_valid(player_token) else Vector3.ZERO
 	if nodes_dict.has(current_pos) and is_instance_valid(nodes_dict[current_pos]):
 		target_pos = nodes_dict[current_pos].global_position + Vector3(0, 0.6, 0)
 
-	for fleet in fleets:
-		var fleet_grid: Vector2i = fleet.get("pos", Vector2i.ZERO)
-		var start_pos := target_pos + Vector3(6.0, 1.0, 6.0)
-		if nodes_dict.has(fleet_grid) and is_instance_valid(nodes_dict[fleet_grid]):
-			start_pos = nodes_dict[fleet_grid].global_position + Vector3(0, 1.0, 0)
+	var shooter_pos := target_pos + Vector3(8.0, 1.0, 8.0)
+	if nodes_dict.has(fleet_grid) and is_instance_valid(nodes_dict[fleet_grid]):
+		shooter_pos = nodes_dict[fleet_grid].global_position + Vector3(0, 1.0, 0)
 
-		# Muzzle flash at the firing artillery fleet marker
-		EffectManager.spawn_muzzle_flash(start_pos, (target_pos - start_pos).normalized(), Color(1.0, 0.65, 0.15))
+	# 1. Pan Camera to the shooter
+	var cam_rig = get_tree().get_first_node_in_group("camera_rig")
+	if cam_rig and cam_rig.has_method("pan_to_world_pos"):
+		var pan_tw = cam_rig.pan_to_world_pos(shooter_pos, 0.65)
+		if pan_tw:
+			await pan_tw.finished
+	await get_tree().create_timer(0.35).timeout
 
-		# Launch salvo of 3 parabolic artillery shells
-		for s in range(3):
-			var delay := float(s) * 0.16
-			var spread := Vector3(randf_range(-0.4, 0.4), 0.0, randf_range(-0.4, 0.4))
-			var dest := target_pos + spread
-			_spawn_parabolic_shell(start_pos, dest, delay)
+	# 2. Shooter fires with muzzle flash, smoke, and audio
+	var shoot_dir := (target_pos - shooter_pos).normalized()
+	shoot_dir.y = 0.45
+	shoot_dir = shoot_dir.normalized()
+	EffectManager.spawn_muzzle_flash(shooter_pos, shoot_dir, Color(1.0, 0.65, 0.15))
+	EffectFactory.spawn_smoke_plume(get_tree(), shooter_pos, 5, 0.35, 0.6, 1.2)
+	if AudioManager:
+		AudioManager.play_weapon_sfx("missile", shooter_pos)
 
-	# Delayed event popup after barrage lands
-	var total_fleets := fleets.size()
-	var t := create_tween()
-	t.tween_interval(1.1)
-	t.tween_callback(func():
-		EventBus.event_triggered.emit({
-			"name": "ARTILLERY BOMBARDMENT!",
-			"effect": "none",
-			"amount": 0,
-			"desc": "Warning! %d hostile Artillery Fleet(s) in range bombarded your position! Torso armor degraded and -%.0f Energy." % [total_fleets, 30.0 * float(total_fleets)],
+	# 3. Launch Salvo of 3 parabolic artillery shells & Pan camera back to target
+	for s in range(3):
+		var delay := float(s) * 0.18
+		var spread := Vector3(randf_range(-0.4, 0.4), 0.0, randf_range(-0.4, 0.4))
+		var dest := target_pos + spread
+		_spawn_parabolic_shell(shooter_pos, dest, delay)
+
+	# Pan camera back to the player token / convoy
+	if cam_rig and cam_rig.has_method("pan_to_player"):
+		cam_rig.pan_to_player(0.65)
+
+	# Wait for shells to land and detonate (~0.85s)
+	await get_tree().create_timer(0.85).timeout
+
+	# 4. Calculate Before / After Damage & Apply
+	# Player Active Mech:
+	var cur_torso_dmg: float = float(GlobalData.weapons.part_damage.get("body", 0.0))
+	var old_player_hp_pct := int(clampf(1.0 - cur_torso_dmg, 0.0, 1.0) * 100.0)
+	var new_torso_dmg := minf(cur_torso_dmg + 0.12, 1.0)
+	GlobalData.weapons.part_damage["body"] = new_torso_dmg
+	var new_player_hp_pct := int(clampf(1.0 - new_torso_dmg, 0.0, 1.0) * 100.0)
+
+	var cur_energy := GlobalData.fuel.mech_energy
+	GlobalData.fuel.mech_energy = maxf(cur_energy - 30.0, 0.0)
+
+	var active_name := "Active Mech"
+	for m in HangarManager.get_mechs():
+		if str(m.get("id", "")) == GlobalData.hangar.active_hangar_mech_id:
+			active_name = str(m.get("name", "Active Mech"))
+			break
+
+	var player_unit_data := {
+		"name": active_name,
+		"old_hp": float(old_player_hp_pct),
+		"new_hp": float(new_player_hp_pct),
+		"max_hp": 100.0,
+		"energy_loss": 30.0
+	}
+
+	# Squadmates / Hangar Allies:
+	var squad_units_data: Array[Dictionary] = []
+	for m in HangarManager.get_mechs():
+		var mid := str(m.get("id", ""))
+		if mid == GlobalData.hangar.active_hangar_mech_id:
+			continue
+		var pid := str(m.get("pilot", ""))
+		if pid == "":
+			continue
+		var mname := str(m.get("name", "Ally Mech"))
+		var pname := HangarManager.get_pilot_name(pid)
+		var prole: String = ["RUSHER", "RANGED", "HEAVY", "SUPPORT"][clampi(HangarManager.get_archetype(mid), 0, 3)]
+		squad_units_data.append({
+			"name": mname,
+			"pilot_name": pname,
+			"role": prole,
+			"old_hp": 100.0,
+			"new_hp": 90.0,
+			"max_hp": 100.0,
 		})
-	)
+
+	# Convoy Truck:
+	var cur_convoy_hp := GlobalData.board.convoy_hp
+	var old_convoy := cur_convoy_hp
+	var new_convoy := maxf(cur_convoy_hp - 10.0, 0.0)
+	GlobalData.board.convoy_hp = new_convoy
+
+	var convoy_unit_data := {
+		"old_hp": old_convoy,
+		"new_hp": new_convoy,
+		"max_hp": GlobalData.board.convoy_hp_max,
+		"hp_loss": 10.0
+	}
+
+	# 5. Show Impact Report and wait for player to continue
+	if report_ui:
+		report_ui.show_report(fleet_name, strike_idx, total_strikes, player_unit_data, squad_units_data, convoy_unit_data)
+		await report_ui.report_closed
 
 
 func _spawn_parabolic_shell(start_pos: Vector3, dest_pos: Vector3, delay: float) -> void:
@@ -705,7 +789,7 @@ func _trigger_patrol_talk_event(patrol: Dictionary) -> void:
 func is_any_modal_open() -> bool:
 	if _intermission_open():
 		return true
-	for modal_name in ["EventUI", "SafehouseUI", "CityShopUI", "ResearchLabUI", "DeployTeamUI"]:
+	for modal_name in ["EventUI", "SafehouseUI", "CityShopUI", "ResearchLabUI", "DeployTeamUI", "ArtilleryReportUI"]:
 		var node := get_node_or_null(modal_name)
 		if node != null and node.visible:
 			return true

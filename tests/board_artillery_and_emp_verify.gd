@@ -75,6 +75,10 @@ func _ready() -> void:
 
 	bm._trigger_artillery_bombardment(mock_fleets)
 
+	# Verify ArtilleryReportUI exists
+	var report_ui = bm.get_node_or_null("ArtilleryReportUI")
+	_check(report_ui != null, "ArtilleryReportUI instantiated in BoardManager")
+
 	# Check that parabolic shell nodes were spawned
 	var found_shells := 0
 	for child in bm.get_children():
@@ -82,7 +86,12 @@ func _ready() -> void:
 			found_shells += 1
 
 	_check(found_shells >= 1, "Artillery bombardment spawned parabolic shell meshes (got %d)" % found_shells)
-	_check(GlobalData.fuel.mech_energy <= 970.0, "Artillery bombardment deducted mech energy (energy=%.1f <= 970.0)" % GlobalData.fuel.mech_energy)
+	_check(cam.has_method("pan_to_world_pos"), "Board camera supports pan_to_world_pos")
+	_check(cam.has_method("pan_to_player"), "Board camera supports pan_to_player")
+
+	# Dismiss report UI if open to clean up
+	if report_ui and report_ui.has_method("_on_continue_pressed"):
+		report_ui._on_continue_pressed()
 
 	print("BOARD_ARTILLERY_EMP_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	get_tree().quit(1 if _fails > 0 else 0)

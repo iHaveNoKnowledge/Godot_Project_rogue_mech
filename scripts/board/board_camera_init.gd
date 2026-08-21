@@ -20,6 +20,7 @@ var follow_enabled: bool = true
 var yaw: float = 0.0
 var shake_amount: float = 0.0
 var shake_decay: float = 4.5
+var _pan_tween: Tween = null
 
 
 func _ready() -> void:
@@ -29,6 +30,27 @@ func _ready() -> void:
 
 func add_shake(amount: float) -> void:
 	shake_amount = clampf(shake_amount + amount, 0.0, 1.0)
+
+
+## Smoothly pans the camera to center on a target world position.
+func pan_to_world_pos(target_world_pos: Vector3, duration: float = 0.65) -> Tween:
+	if player_token == null or not is_instance_valid(player_token):
+		return null
+	var target_offset := target_world_pos - player_token.global_position
+	if _pan_tween and _pan_tween.is_valid():
+		_pan_tween.kill()
+	_pan_tween = create_tween()
+	_pan_tween.tween_property(self, "drag_offset", target_offset, duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+	return _pan_tween
+
+
+## Smoothly pans the camera back to the player token.
+func pan_to_player(duration: float = 0.65) -> Tween:
+	if _pan_tween and _pan_tween.is_valid():
+		_pan_tween.kill()
+	_pan_tween = create_tween()
+	_pan_tween.tween_property(self, "drag_offset", Vector3.ZERO, duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+	return _pan_tween
 
 
 func _initialize_late() -> void:

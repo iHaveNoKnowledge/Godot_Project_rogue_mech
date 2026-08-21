@@ -197,7 +197,7 @@ func _update_currently_equipped_display(slot: String) -> void:
 			if a is Dictionary and a.get("slot", "") == slot:
 				count += 1
 				used_wt += float(a.get("weight", 0.0))
-		var capacity := controller.garage_panel.get_attachment_capacity(slot) if controller.garage_panel else 20.0
+		var capacity: float = float(controller.garage_panel.get_attachment_capacity(slot)) if controller.garage_panel else 20.0
 		if count > 0:
 			controller.currently_equipped_label.text = "%d Attachment Module(s)" % count
 			controller.currently_equipped_sublabel.text = "Load: %.1f / %.1f kg capacity" % [used_wt, capacity]

@@ -44,6 +44,64 @@ func build(root: Control) -> void:
 	list_title.add_theme_color_override("font_color", Color(0.4, 0.85, 1.0))
 	left_box.add_child(list_title)
 
+	# --- CURRENTLY EQUIPPED SLOT BOX ---
+	var eq_box_panel = PanelContainer.new()
+	eq_box_panel.custom_minimum_size = Vector2(0, 68)
+	var eq_box_style = StyleBoxFlat.new()
+	eq_box_style.bg_color = Color(0.10, 0.14, 0.20, 0.95)
+	eq_box_style.border_width_left = 2
+	eq_box_style.border_width_right = 2
+	eq_box_style.border_width_top = 2
+	eq_box_style.border_width_bottom = 2
+	eq_box_style.border_color = Color(0.2, 0.85, 0.55, 0.9) # Cyber emerald highlight
+	eq_box_style.corner_radius_top_left = 6
+	eq_box_style.corner_radius_top_right = 6
+	eq_box_style.corner_radius_bottom_left = 6
+	eq_box_style.corner_radius_bottom_right = 6
+	eq_box_style.content_margin_left = 10
+	eq_box_style.content_margin_right = 10
+	eq_box_style.content_margin_top = 6
+	eq_box_style.content_margin_bottom = 6
+	eq_box_panel.add_theme_stylebox_override("panel", eq_box_style)
+	controller.currently_equipped_box = eq_box_panel
+	left_box.add_child(eq_box_panel)
+
+	var eq_vbox = VBoxContainer.new()
+	eq_vbox.add_theme_constant_override("separation", 2)
+	eq_box_panel.add_child(eq_vbox)
+
+	var eq_header_row = HBoxContainer.new()
+	eq_vbox.add_child(eq_header_row)
+
+	var eq_badge = Label.new()
+	eq_badge.text = "● CURRENTLY EQUIPPED"
+	eq_badge.add_theme_font_size_override("font_size", 11)
+	eq_badge.add_theme_color_override("font_color", Color(0.3, 0.95, 0.6))
+	eq_header_row.add_child(eq_badge)
+
+	var eq_name_label = Label.new()
+	eq_name_label.text = "(None Equipped)"
+	eq_name_label.add_theme_font_size_override("font_size", 13)
+	eq_name_label.add_theme_color_override("font_color", Color.WHITE)
+	eq_name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	controller.currently_equipped_label = eq_name_label
+	eq_vbox.add_child(eq_name_label)
+
+	var eq_sub_label = Label.new()
+	eq_sub_label.text = "-"
+	eq_sub_label.add_theme_font_size_override("font_size", 11)
+	eq_sub_label.add_theme_color_override("font_color", Color(0.7, 0.78, 0.88))
+	eq_sub_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	controller.currently_equipped_sublabel = eq_sub_label
+	eq_vbox.add_child(eq_sub_label)
+
+	# --- INVENTORY PARTS SUBHEADER ---
+	var inv_sub_title = Label.new()
+	inv_sub_title.text = "INVENTORY SPARES"
+	inv_sub_title.add_theme_font_size_override("font_size", 12)
+	inv_sub_title.add_theme_color_override("font_color", Color(0.55, 0.75, 0.95))
+	left_box.add_child(inv_sub_title)
+
 	controller.part_item_list = ItemList.new()
 	controller.part_item_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	controller.part_item_list.item_selected.connect(func(i: int): if controller.part_list_panel: controller.part_list_panel.on_item_selected(i))

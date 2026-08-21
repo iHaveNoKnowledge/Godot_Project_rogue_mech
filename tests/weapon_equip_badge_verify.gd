@@ -122,7 +122,7 @@ func _verify_weapon_badge_is_per_instance() -> void:
 	await get_tree().process_frame
 
 
-# With both copies free, equipping one must sort the equipped row to the BOTTOM.
+# With both copies in inventory, equipping one sorts the equipped row FIRST (Rank 0) and free spare next (Rank 1).
 func _verify_weapon_sort_equipped_last() -> void:
 	GlobalData.reset_run_data()
 	await get_tree().process_frame
@@ -155,13 +155,13 @@ func _verify_weapon_sort_equipped_last() -> void:
 			first_eq = i
 		else:
 			last_free = i
-	_check(first_eq > last_free, "the equipped pile copy sorts to the BOTTOM (free spare reads first)")
+	_check(first_eq < last_free, "the equipped pile copy sorts FIRST (free spare reads next)")
 
 	ctrl.queue_free()
 	await get_tree().process_frame
 
 
-# Armor: the equipped plate sorts to the bottom of its slot list.
+# Armor: the equipped plate sorts to the TOP of its slot list (Rank 0: equipped, Rank 1: free, Rank 2: other mech).
 func _verify_armor_sort_equipped_last() -> void:
 	GlobalData.reset_run_data()
 	await get_tree().process_frame
@@ -187,7 +187,7 @@ func _verify_armor_sort_equipped_last() -> void:
 	await get_tree().process_frame
 	ctrl.part_list_panel.populate("body")
 
-	# Both rows are the same model; the equipped one is [E] and comes LAST.
+	# Both rows are the same model; the equipped one is [E] and comes FIRST.
 	var eq_pos := -1
 	var free_pos := -1
 	for i in range(ctrl.part_item_list.item_count):
@@ -196,7 +196,7 @@ func _verify_armor_sort_equipped_last() -> void:
 			eq_pos = i
 		else:
 			free_pos = i
-	_check(eq_pos > free_pos, "the equipped armor plate sorts to the BOTTOM of its slot list")
+	_check(eq_pos < free_pos, "the equipped armor plate sorts FIRST in its slot list")
 
 	ctrl.queue_free()
 	await get_tree().process_frame

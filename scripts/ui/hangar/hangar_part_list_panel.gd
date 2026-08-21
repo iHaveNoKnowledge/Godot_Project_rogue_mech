@@ -22,7 +22,11 @@ func populate(slot: String) -> void:
 	controller.part_item_list.clear()
 	_last_selected_item_index = -1
 	controller.visible_salvage_indices.clear()
+	controller.visible_frame_indices.clear()
+	controller.visible_weapon_indices.clear()
 	_is_populating = true  # Block 3D preview during auto-populate
+
+	_update_currently_equipped_display(slot)
 
 	if controller.current_mode == "upgrade":
 		var cost = controller._get_upgrade_cost()
@@ -55,32 +59,39 @@ func populate(slot: String) -> void:
 
 	if controller.current_mode == "frame" and controller.frame_catalog.has(slot):
 		var items = controller.frame_catalog[slot]
-		# Roguelike: a destroyed frame is gone (same is_destroyed flag above). Hide
-		# the equipped broken frame so it can no longer be repaired or re-selected.
-		for info in items:
+		var frows: Array = []
+		for f_idx in range(items.size()):
+			var info = items[f_idx]
 			var is_eq = is_item_equipped(slot, info)
 			if is_eq and is_destroyed:
 				continue
-			var prefix = "[X] " if is_eq and is_destroyed else ("[E] " if is_eq else "     ")
-			# A frame already installed on ANOTHER parked mech is marked so the
-			# player sees it is taken (and equipping it here would remove it there).
-			var other_user := other_mech_frame_user(slot, info)
-			if prefix.strip_edges() == "" and other_user != "":
-				prefix = "[E·%s] " % other_user
+			var other_user := other_mech_frame_user(slot, info) if not is_eq else ""
+			frows.append({"idx": f_idx, "eq": is_eq, "other": other_user})
+		# Sort order: [[Currently equipped: Rank 0] -> [Free spares: Rank 1] -> [Taken by other mechs: Rank 2]]
+		frows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+			var rank_a: int = 0 if a["eq"] else (2 if a["other"] != "" else 1)
+			var rank_b: int = 0 if b["eq"] else (2 if b["other"] != "" else 1)
+			if rank_a != rank_b:
+				return rank_a < rank_b
+			return int(a["idx"]) < int(b["idx"]))
+		for row in frows:
+			var f_idx: int = row["idx"]
+			var info = items[f_idx]
+			var is_eq: bool = row["eq"]
+			var other_user: String = str(row["other"])
+			var prefix := "[E] " if is_eq else ("" if other_user == "" else "[E·%s] " % other_user)
 			var fname = info.get("name", "Frame Part")
 			var fhp = info.get("hp", 20.0)
 			var fwt = info.get("weight", 3.0)
 			var state_tag = " [DESTROYED]" if (is_eq and is_destroyed) else ""
 			var label_str = "%s%s (HP: %.0f, %.1fkg)%s" % [prefix, fname, fhp, fwt, state_tag]
 			controller.part_item_list.add_item(label_str)
-		if items.size() > 0:
+			controller.visible_frame_indices.append(f_idx)
+		if controller.part_item_list.item_count > 0:
 			controller.part_item_list.select(0)
 			_last_selected_item_index = 0
 			on_item_selected(0)
 	elif slot.begins_with("weapon"):
-		# A destroyed arm cannot hold a weapon: the hand is gone, so hide the
-		# weapon list for that hand and show why instead (mirrors the combat rule
-		# that a broken arm cannot fire or wield anything).
 		if slot == "weapon_left" or slot == "weapon_right":
 			var hand := "left" if slot == "weapon_left" else "right"
 			var arm_slot := "arm_left" if hand == "left" else "arm_right"
@@ -89,36 +100,28 @@ func populate(slot: String) -> void:
 				controller.part_item_list.add_item("ARM DESTROYED — cannot equip a weapon to this hand. Repair or replace the arm.")
 				_is_populating = false
 				return
-		# Weapons come from the central inventory stash (GlobalData.weapons.weapon_inventory),
-		# NOT from armor_catalog — the stash is the single source of owned weapons.
-		# Each inventory entry is one physical copy; the equipped copy is matched
-		# by INSTANCE uid so only that row ever shows "[E]" (same-model copies are
-		# separate rows). Equipped / other-mech-taken rows sort to the BOTTOM so
-		# the free spares read first.
 		controller.visible_weapon_indices.clear()
 		var wrows: Array = []
 		for index in range(GlobalData.weapons.weapon_inventory.size()):
 			var inv = GlobalData.weapons.weapon_inventory[index]
-			var other_user := other_mech_weapon_user(str(inv.get("uid", "")), str(inv.get("path", "")))
-			wrows.append({"idx": index, "eq": weapon_in_loadout(slot, inv), "other": other_user})
+			var is_eq = weapon_in_loadout(slot, inv)
+			var other_user := other_mech_weapon_user(str(inv.get("uid", "")), str(inv.get("path", ""))) if not is_eq else ""
+			wrows.append({"idx": index, "eq": is_eq, "other": other_user})
+		# Sort order: [[Currently equipped: Rank 0] -> [Free spares: Rank 1] -> [Taken by other mechs: Rank 2]]
 		wrows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-			var ea := 1 if (a["eq"] or a["other"] != "") else 0
-			var eb := 1 if (b["eq"] or b["other"] != "") else 0
-			if ea != eb:
-				return ea < eb
+			var rank_a: int = 0 if a["eq"] else (2 if a["other"] != "" else 1)
+			var rank_b: int = 0 if b["eq"] else (2 if b["other"] != "" else 1)
+			if rank_a != rank_b:
+				return rank_a < rank_b
 			return int(a["idx"]) < int(b["idx"]))
 		for row in wrows:
 			var index: int = row["idx"]
 			var inv = GlobalData.weapons.weapon_inventory[index]
+			var is_eq: bool = row["eq"]
+			var other_user: String = str(row["other"])
 			var wname = inv.get("name", "Weapon")
 			var wdur = GlobalData.get_durability_ratio(inv)
-			var is_eq = weapon_in_loadout(slot, inv)
-			var prefix = "[E] " if is_eq else "    "
-			# A weapon model already carried by ANOTHER parked mech is marked so
-			# it never reads as an unclaimed spare (equipping it transfers it).
-			var other_user := str(row["other"])
-			if prefix.strip_edges() == "" and other_user != "":
-				prefix = "[E·%s] " % other_user
+			var prefix := "[E] " if is_eq else ("" if other_user == "" else "[E·%s] " % other_user)
 			var label_str = "%s%s (DUR: %.0f%%)" % [prefix, wname, wdur * 100.0]
 			controller.part_item_list.add_item(label_str)
 			controller.visible_weapon_indices.append(index)
@@ -127,11 +130,6 @@ func populate(slot: String) -> void:
 			_last_selected_item_index = 0
 			on_item_selected(0)
 	elif controller.armor_catalog.has(slot):
-		# EQUIP list = owned armor instances only. The equipped slot is matched
-		# strictly by instance uid, so exactly one item ever shows "[E]". The
-		# currently equipped instance is always included by uid even if its stored
-		# slot tag is missing/stale (legacy saves). Crafting lives in the separate
-		# Craftery window and never alters what appears here.
 		controller.visible_salvage_indices.clear()
 		var shown_uids := {}
 		var equipped_uid := ""
@@ -149,38 +147,132 @@ func populate(slot: String) -> void:
 			if uid != "":
 				shown_uids[uid] = true
 			var is_eq = is_item_equipped(slot, inst)
-			# Roguelike: a destroyed part is gone. Hide the equipped broken armor
-			# so it can no longer be selected, repaired, or re-equipped.
 			if is_eq and (GlobalData.weapons.part_damage.get(slot, 0.0) >= 1.0 or GlobalData.weapons.part_damage.get(slot + "_frame", 0.0) >= 1.0):
 				continue
 			var other_user := other_mech_armor_user(uid) if not is_eq else ""
 			arows.append({"idx": inst_index, "eq": is_eq, "other": other_user})
-		# Free plates first; equipped / other-mech-taken plates sort to the bottom.
+		# Sort order: [[Currently equipped: Rank 0] -> [Free spares: Rank 1] -> [Taken by other mechs: Rank 2]]
 		arows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-			var ea := 1 if (a["eq"] or a["other"] != "") else 0
-			var eb := 1 if (b["eq"] or b["other"] != "") else 0
-			if ea != eb:
-				return ea < eb
+			var rank_a: int = 0 if a["eq"] else (2 if a["other"] != "" else 1)
+			var rank_b: int = 0 if b["eq"] else (2 if b["other"] != "" else 1)
+			if rank_a != rank_b:
+				return rank_a < rank_b
 			return int(a["idx"]) < int(b["idx"]))
 		for row in arows:
-			var inst = GlobalData.weapons.armor_inventory[int(row["idx"])]
-			var uid = str(inst.get("uid", ""))
-			var is_eq = is_item_equipped(slot, inst)
-			var prefix = "[E] " if is_eq else "    "
-			var other_user := str(row["other"])
-			if prefix.strip_edges() == "" and other_user != "":
-				prefix = "[E·%s] " % other_user
+			var inst_index: int = int(row["idx"])
+			var inst = GlobalData.weapons.armor_inventory[inst_index]
+			var is_eq: bool = row["eq"]
+			var other_user: String = str(row["other"])
+			var prefix := "[E] " if is_eq else ("" if other_user == "" else "[E·%s] " % other_user)
 			var state_tag = " [DESTROYED]" if (is_eq and is_destroyed) else ""
 			var dur_pct = instance_durability(slot, inst)
 			var inst_label = "%s%s [%s] (%.0f%%)%s" % [prefix, inst.get("name", "Armor"), inst.get("type", "Instance"), dur_pct * 100.0, state_tag]
 			controller.part_item_list.add_item(inst_label)
-			controller.visible_salvage_indices.append(int(row["idx"]))
+			controller.visible_salvage_indices.append(inst_index)
 		if controller.part_item_list.item_count > 0:
 			controller.part_item_list.select(0)
 			_last_selected_item_index = 0
 			on_item_selected(0)
 
 	_is_populating = false  # Restore flag
+
+
+func _update_currently_equipped_display(slot: String) -> void:
+	if controller.currently_equipped_box == null or controller.currently_equipped_label == null:
+		return
+
+	if controller.current_mode == "upgrade":
+		controller.currently_equipped_label.text = "Inner Frame Reactor: Level %d" % GlobalData.weapons.frame_upgrade_level
+		controller.currently_equipped_sublabel.text = "+%d HP/slot | Dash Speed: +%.1fm/s" % [
+			int(GlobalData.weapons.frame_upgrade_level * GlobalData.FRAME_UPGRADE_HP_BONUS),
+			GlobalData.weapons.frame_upgrade_level * 1.5
+		]
+		return
+
+	if controller.current_mode == "attachment":
+		var atts = GlobalData.weapons.attachments
+		var count := 0
+		var used_wt := 0.0
+		for a in atts:
+			if a is Dictionary and a.get("slot", "") == slot:
+				count += 1
+				used_wt += float(a.get("weight", 0.0))
+		var capacity := controller.garage_panel.get_attachment_capacity(slot) if controller.garage_panel else 20.0
+		if count > 0:
+			controller.currently_equipped_label.text = "%d Attachment Module(s)" % count
+			controller.currently_equipped_sublabel.text = "Load: %.1f / %.1f kg capacity" % [used_wt, capacity]
+		else:
+			controller.currently_equipped_label.text = "(No Attachments)"
+			controller.currently_equipped_sublabel.text = "Slot capacity: %.1f kg" % capacity
+		return
+
+	if controller.current_mode == "frame":
+		var f = GlobalData.weapons.equipped_frames.get(slot)
+		if f is Dictionary and not f.is_empty():
+			var fname = str(f.get("name", f.get("part_name", "Inner Frame")))
+			var fhp = float(f.get("hp", 20.0))
+			var fwt = float(f.get("weight", 3.0))
+			var is_destroyed = float(GlobalData.weapons.part_damage.get(slot + "_frame", 0.0)) >= 1.0
+			controller.currently_equipped_label.text = fname + (" [DESTROYED]" if is_destroyed else "")
+			controller.currently_equipped_sublabel.text = "HP: %.0f | Weight: %.1f kg" % [fhp, fwt]
+		else:
+			controller.currently_equipped_label.text = "(No Frame Installed)"
+			controller.currently_equipped_sublabel.text = "Select a frame from the list below"
+		return
+
+	if slot.begins_with("weapon"):
+		if slot == "weapon_carry":
+			var carry_list := LoadoutSystem.get_carry_weapons()
+			if not carry_list.is_empty():
+				var names: Array[String] = []
+				for cw in carry_list:
+					names.append(str(cw.get("name", "Weapon")))
+				controller.currently_equipped_label.text = ", ".join(names)
+				controller.currently_equipped_sublabel.text = "Field Pack: %.1f / %.1f kg (%d carry)" % [
+					LoadoutSystem.get_field_pack_weight(), LoadoutSystem.get_field_pack_capacity(), carry_list.size()
+				]
+			else:
+				controller.currently_equipped_label.text = "(No Carry Weapon)"
+				controller.currently_equipped_sublabel.text = "Field Pack: 0.0 / %.1f kg" % LoadoutSystem.get_field_pack_capacity()
+		else:
+			var hand := "left" if slot == "weapon_left" else "right"
+			var hand_label := "Left Hand" if hand == "left" else "Right Hand"
+			var uid := LoadoutSystem.get_equipped_weapon_uid(hand)
+			var w_name := ""
+			var w_dur := 1.0
+			var w_wt := 0.0
+			for inv in GlobalData.weapons.weapon_inventory:
+				if str(inv.get("uid", "")) == uid:
+					w_name = str(inv.get("name", "Weapon"))
+					w_dur = GlobalData.get_durability_ratio(inv)
+					var wpath = str(inv.get("path", ""))
+					if wpath != "" and ResourceLoader.exists(wpath):
+						var res = load(wpath)
+						if res and "weight" in res and res.weight != null:
+							w_wt = float(res.weight)
+					break
+			if w_name != "":
+				controller.currently_equipped_label.text = w_name
+				controller.currently_equipped_sublabel.text = "%s | DUR: %.0f%% | Wt: %.1fkg" % [hand_label, w_dur * 100.0, w_wt]
+			else:
+				controller.currently_equipped_label.text = "(No Weapon - %s)" % hand_label
+				controller.currently_equipped_sublabel.text = "Select a weapon from inventory below"
+		return
+
+	if controller.armor_catalog.has(slot):
+		var p = GlobalData.weapons.equipped_parts.get(slot)
+		if p is Dictionary and not p.is_empty():
+			var pname = str(p.get("name", p.get("part_name", "Armor Plate")))
+			var is_destroyed = float(GlobalData.weapons.part_damage.get(slot, 0.0)) >= 1.0 or float(GlobalData.weapons.part_damage.get(slot + "_frame", 0.0)) >= 1.0
+			var dur_pct = instance_durability(slot, p)
+			var ac = float(p.get("armor_class", p.get("armor", 1.0)))
+			var wt = float(p.get("weight", 4.0))
+			controller.currently_equipped_label.text = pname + (" [DESTROYED]" if is_destroyed else "")
+			controller.currently_equipped_sublabel.text = "DUR: %.0f%% | Armor: %.1f | Wt: %.1fkg" % [dur_pct * 100.0, ac, wt]
+		else:
+			controller.currently_equipped_label.text = "(No Armor Equipped)"
+			controller.currently_equipped_sublabel.text = "Select an armor plate from inventory below"
+		return
 
 
 func on_item_selected(index: int) -> void:
@@ -206,8 +298,11 @@ func on_item_selected(index: int) -> void:
 
 	if controller.current_mode == "frame" and controller.frame_catalog.has(controller.selected_slot):
 		var frame_items = controller.frame_catalog[controller.selected_slot]
-		if index >= 0 and index < frame_items.size():
-			controller.selected_frame_info = frame_items[index]
+		var f_idx = index
+		if index >= 0 and index < controller.visible_frame_indices.size():
+			f_idx = controller.visible_frame_indices[index]
+		if f_idx >= 0 and f_idx < frame_items.size():
+			controller.selected_frame_info = frame_items[f_idx]
 			controller.selected_part_path = ""
 			controller.selected_part_id = ""
 			controller.selected_salvage_info = {}
@@ -336,8 +431,11 @@ func resolve_info_for_index(index: int) -> Dictionary:
 		info_to_show = controller.selected_frame_info
 	elif controller.current_mode == "frame" and controller.frame_catalog.has(controller.selected_slot):
 		var items = controller.frame_catalog[controller.selected_slot]
-		if index >= 0 and index < items.size():
-			info_to_show = items[index]
+		var f_idx = index
+		if index >= 0 and index < controller.visible_frame_indices.size():
+			f_idx = controller.visible_frame_indices[index]
+		if f_idx >= 0 and f_idx < items.size():
+			info_to_show = items[f_idx]
 	elif controller.selected_slot.begins_with("weapon"):
 		if index >= 0 and index < controller.visible_weapon_indices.size():
 			var inv_idx = controller.visible_weapon_indices[index]

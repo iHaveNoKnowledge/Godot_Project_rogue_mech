@@ -558,4 +558,3 @@ func _create_pilot_hp_ui() -> void:
 	bg.corner_radius_bottom_right = 2
 	_pilot_hp_bar.add_theme_stylebox_override("background", bg)
 	grid.add_child(_pilot_hp_bar)
-

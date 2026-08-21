@@ -877,6 +877,13 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 	if cam == null:
 		return
 
+	# Align mech facing immediately towards camera aim direction so the mech faces
+	# where it shoots, even if backpedaling or moving in another direction.
+	var cam_fwd = -cam.global_transform.basis.z
+	cam_fwd.y = 0.0
+	if cam_fwd.length() > 0.01:
+		mecha.rotation.y = atan2(-cam_fwd.x, -cam_fwd.z)
+
 	var offset = Vector3(-0.6, 1.5, 0.5) if hand == "left" else Vector3(0.6, 1.5, 0.5)
 	var spawn_pos = mecha.global_position + mecha.global_transform.basis * offset
 
@@ -933,10 +940,13 @@ func _melee_attack(hand: String, weapon: WeaponPart) -> void:
 
 	var dir = (target_point - mecha.global_position).normalized()
 	dir.y = 0.0
+	if dir.length() < 0.01:
+		dir = -cam.global_transform.basis.z
+		dir.y = 0.0
 	dir = dir.normalized()
-	if dir.length() > 0.1:
+	if dir.length() > 0.01:
 		var target_angle = atan2(-dir.x, -dir.z)
-		mecha.rotation.y = lerp_angle(mecha.rotation.y, target_angle, 0.3)
+		mecha.rotation.y = target_angle
 
 	# Eject spent shell casing for Pile Bunker / kinetic melee
 	if weapon and (weapon.ammo_per_shot > 0 or weapon.weapon_name.to_lower().contains("pile") or weapon.get_ammo_type() != "none"):

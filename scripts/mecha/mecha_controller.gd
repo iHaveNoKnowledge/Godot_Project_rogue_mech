@@ -323,7 +323,18 @@ func _apply_movement(delta: float) -> void:
 	var desired_velocity := Vector3.ZERO
 	desired_velocity = (forward * -input_dir.y + right * input_dir.x) * move_speed
 
-	if not strafe_mode and desired_velocity.length() > 0.1:
+	var is_attacking: bool = Input.is_action_pressed("fire_left") or Input.is_action_pressed("fire_right")
+	var wm = get_node_or_null("WeaponManager")
+	if wm:
+		if wm.get("fire_left_holding") or wm.get("fire_right_holding") or (wm.get("_pending_fire") != null and str(wm.get("_pending_fire")) != ""):
+			is_attacking = true
+
+	if is_attacking or strafe_mode:
+		var target_angle = atan2(-forward.x, -forward.z)
+		var effective_turn = maxf(turn_rate * 2.5, 16.0)
+		var lerp_weight = clampf(effective_turn * delta, 0.0, 1.0)
+		rotation.y = lerp_angle(rotation.y, target_angle, lerp_weight)
+	elif desired_velocity.length() > 0.1:
 		var target_angle = atan2(-desired_velocity.x, -desired_velocity.z)
 		var effective_turn = turn_rate * (1.5 if is_roller_dashing else 1.0)
 		var lerp_weight = clampf(effective_turn * delta, 0.0, 1.0)

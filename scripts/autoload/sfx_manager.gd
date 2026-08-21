@@ -72,7 +72,8 @@ func _generate_sounds() -> void:
 	var ui_confirm := _load_ui_sound("confirm")
 	_sound_cache["ui_confirm"] = ui_confirm if ui_confirm != null else _gen_tactical_ui_confirm()
 	_sound_cache["mech_register"] = _gen_mech_register()
-	_sound_cache["footstep"] = _gen_mech_footstep()
+	var footstep_file := _load_sfx_file("footstep")
+	_sound_cache["footstep"] = footstep_file if footstep_file != null else _gen_mech_footstep()
 	var actuator := _gen_actuator()
 	_sound_cache["dash"] = actuator
 	_sound_cache["mecha_actuator"] = actuator

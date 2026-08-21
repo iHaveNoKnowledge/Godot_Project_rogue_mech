@@ -27,9 +27,9 @@ static func get_repair_cost(slot: String) -> int:
 	var frame_dmg := clampf(float(GlobalData.weapons.part_damage.get(slot + "_frame", 0.0)), 0.0, 1.0)
 	if dmg <= 0.0 and frame_dmg <= 0.0:
 		return 0
-	var armor_max_hp := GlobalData.weapons.part_stat(GlobalData.weapons.equipped_parts.get(slot), "max_hp", 50.0)
-	var frame_max_hp := GlobalData.weapons.part_stat(GlobalData.weapons.equipped_frames.get(slot), "max_hp", 50.0)
-	var cost := dmg * armor_max_hp * GlobalData.REPAIR_COST_PER_HP
+	var armor_max_hp: float = float(GlobalData.weapons.part_stat(GlobalData.weapons.equipped_parts.get(slot), "max_hp", 50.0))
+	var frame_max_hp: float = float(GlobalData.weapons.part_stat(GlobalData.weapons.equipped_frames.get(slot), "max_hp", 50.0))
+	var cost: float = dmg * armor_max_hp * GlobalData.REPAIR_COST_PER_HP
 	cost += frame_dmg * frame_max_hp * GlobalData.REPAIR_COST_PER_HP
 	return maxi(1, int(ceil(cost)))
 
@@ -40,8 +40,8 @@ static func get_emergency_repair_scrap_cost(slot: String) -> int:
 	var frame_dmg := clampf(float(GlobalData.weapons.part_damage.get(slot + "_frame", 0.0)), 0.0, 1.0)
 	if dmg <= 0.0 and frame_dmg <= 0.0:
 		return 0
-	var armor_max_hp := GlobalData.weapons.part_stat(GlobalData.weapons.equipped_parts.get(slot), "max_hp", 50.0)
-	var frame_max_hp := GlobalData.weapons.part_stat(GlobalData.weapons.equipped_frames.get(slot), "max_hp", 50.0)
+	var armor_max_hp: float = float(GlobalData.weapons.part_stat(GlobalData.weapons.equipped_parts.get(slot), "max_hp", 50.0))
+	var frame_max_hp: float = float(GlobalData.weapons.part_stat(GlobalData.weapons.equipped_frames.get(slot), "max_hp", 50.0))
 	var cost: int = int(GlobalData.EMERGENCY_REPAIR_BASE_SCRAP)
 	cost += int(ceil(dmg * armor_max_hp * GlobalData.EMERGENCY_REPAIR_SCRAP_PER_ARMOR_HP))
 	cost += int(ceil(frame_dmg * frame_max_hp * GlobalData.EMERGENCY_REPAIR_SCRAP_PER_FRAME_HP))
@@ -61,8 +61,8 @@ static func apply_emergency_repair(slot: String, primitives: Array = []) -> Dict
 
 	var tier := FleetSystem.get_scrap_armor_tier()
 	var scale := FleetSystem.get_scrap_armor_stat_scale()
-	var armor_max_hp := GlobalData.weapons.part_stat(GlobalData.weapons.equipped_parts.get(slot), "max_hp", 50.0)
-	var frame_max_hp := GlobalData.weapons.part_stat(GlobalData.weapons.equipped_frames.get(slot), "max_hp", 50.0)
+	var armor_max_hp: float = float(GlobalData.weapons.part_stat(GlobalData.weapons.equipped_parts.get(slot), "max_hp", 50.0))
+	var frame_max_hp: float = float(GlobalData.weapons.part_stat(GlobalData.weapons.equipped_frames.get(slot), "max_hp", 50.0))
 
 	var armor_class := 1.0
 	var p = GlobalData.weapons.equipped_parts.get(slot)
@@ -176,8 +176,8 @@ static func remove_scrap_patch(slot: String) -> void:
 static func get_professional_repair_cost(slot: String) -> int:
 	if slot not in GlobalData.MECHA_SLOTS:
 		return 0
-	var armor_max_hp := GlobalData.weapons.part_stat(GlobalData.weapons.equipped_parts.get(slot), "max_hp", 50.0)
-	var frame_max_hp := GlobalData.weapons.part_stat(GlobalData.weapons.equipped_frames.get(slot), "max_hp", 50.0)
+	var armor_max_hp: float = float(GlobalData.weapons.part_stat(GlobalData.weapons.equipped_parts.get(slot), "max_hp", 50.0))
+	var frame_max_hp: float = float(GlobalData.weapons.part_stat(GlobalData.weapons.equipped_frames.get(slot), "max_hp", 50.0))
 	var cost: float = float(armor_max_hp * GlobalData.PROFESSIONAL_REPAIR_CREDITS_PER_ARMOR_HP)
 	cost += float(frame_max_hp * GlobalData.PROFESSIONAL_REPAIR_CREDITS_PER_FRAME_HP)
 	return maxi(1, int(ceil(cost)))

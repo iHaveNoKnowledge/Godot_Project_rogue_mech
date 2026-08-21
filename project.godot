@@ -25,16 +25,17 @@ GlobalData="*res://autoload/global_data.gd"
 GameManager="*res://autoload/game_manager.gd"
 AudioManager="*res://scripts/autoload/audio_manager.tscn"
 HeatWantedSystem="*res://scripts/systems/heat_wanted_system.gd"
-
-[editor_plugins]
-
-enabled=PackedStringArray("res://addons/phantom_camera/plugin.cfg")
+PhantomCameraManager="*res://addons/phantom_camera/scripts/managers/phantom_camera_manager.gd"
 
 [display]
 
 window/size/viewport_width=1920
 window/size/viewport_height=1080
 window/stretch/mode="viewport"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/phantom_camera/plugin.cfg")
 
 [input]
 

@@ -122,3 +122,7 @@ func clear_working_set() -> void:
 	attachments.clear()
 	part_damage.clear()
 	chassis_id = "standard"
+
+
+func part_stat(part: Variant, key: String, default: float = 0.0) -> float:
+	return GlobalData.part_stat(part, key, default)

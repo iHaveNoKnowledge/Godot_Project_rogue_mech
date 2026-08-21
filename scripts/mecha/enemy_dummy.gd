@@ -1005,7 +1005,7 @@ func take_damage_at_point(amount: float, world_pos: Vector3, damage_type: String
 	if damage_type.to_lower() == "explosive":
 		# Delegate to the shared explosive blast helper on the health system.
 		var local_pos := to_local(world_pos)
-		var primary_slot := health_system._determine_hit_from_local(local_pos)
+		var primary_slot: String = str(health_system._determine_hit_from_local(local_pos))
 		if primary_slot == "" or not health_system.parts.has(primary_slot) or health_system.parts[primary_slot]["destroyed"]:
 			primary_slot = health_system._find_alive_part()
 

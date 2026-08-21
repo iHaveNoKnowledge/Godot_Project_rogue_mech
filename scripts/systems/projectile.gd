@@ -16,9 +16,9 @@ var sonic_boom: bool = false
 var ricochet_chance: float = 0.15
 var prev_position: Vector3
 var explosion_radius: float = 3.0
-# Gravity pull (m/s^2) applied to the projectile so shots arc and drop over
-# distance instead of flying perfectly straight forever.
-var drop_gravity: float = 3.0
+# Gravity pull (m/s^2) applied to the projectile (default 0.0 for straight direct-fire;
+# non-zero only for dedicated arcing weapons like mortars / grenade launchers).
+var drop_gravity: float = 0.0
 # Close-range shots stay laser-flat: gravity only starts pulling once the shot
 # has travelled this far, so point-blank hits never sag below the crosshair.
 var drop_start_distance: float = 15.0
@@ -46,11 +46,8 @@ func _physics_process(delta: float) -> void:
 	position += direction * step
 	_traveled += step
 
-	# Bullet drop: accumulate downward velocity each frame so long shots sag
-	# toward the ground (ground/cover is caught by the between-frame raycast).
-	# Gravity only engages after `drop_start_distance` so close-range shots fly
-	# flat; beyond that they arc gently with the reduced pull.
-	if _traveled > drop_start_distance:
+	# Bullet drop: only active when weapon explicitly specifies drop_gravity > 0.0 (e.g. Mortars/Grenades).
+	if drop_gravity > 0.0 and _traveled > drop_start_distance:
 		_drop_speed += drop_gravity * delta
 		position.y -= _drop_speed * delta
 

@@ -41,6 +41,7 @@ var damage_type: String = "kinetic"
 var impact: float = 0.0
 var spread: float = 0.0
 var pellets: int = 1
+var drop_gravity: float = 0.0
 
 # --- Ammo config ---
 var ammo_per_shot: int = 1
@@ -301,6 +302,7 @@ func _spawn_projectile(from_pos: Vector3, aim_dir: Vector3, fired_by_enemy: bool
 	projectile.direction = aim_dir
 	projectile.fired_by_enemy = fired_by_enemy
 	projectile.sonic_boom = sonic_boom
+	projectile.drop_gravity = drop_gravity
 	if sonic_boom:
 		# Hypervelocity round: no bullet drop sag, flat railgun trajectory.
 		projectile.drop_gravity = 0.0

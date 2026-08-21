@@ -65,6 +65,7 @@ var _roller_pitch: float = ROLLER_PITCH_MIN
 
 
 func _ready() -> void:
+	_setup_audio_buses()
 	_setup_pools()
 	_setup_music_players()
 	_generate_sounds()
@@ -72,11 +73,56 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 
 
+func _setup_audio_buses() -> void:
+	# Ensure SFX and Music audio buses exist
+	var master_idx := AudioServer.get_bus_index("Master")
+	var sfx_idx := AudioServer.get_bus_index("SFX")
+	if sfx_idx == -1:
+		AudioServer.add_bus()
+		sfx_idx = AudioServer.get_bus_count() - 1
+		AudioServer.set_bus_name(sfx_idx, "SFX")
+		AudioServer.set_bus_send(sfx_idx, "Master")
+
+	var music_idx := AudioServer.get_bus_index("Music")
+	if music_idx == -1:
+		AudioServer.add_bus()
+		music_idx = AudioServer.get_bus_count() - 1
+		AudioServer.set_bus_name(music_idx, "Music")
+		AudioServer.set_bus_send(music_idx, "Master")
+
+	# Attach dynamic compressor to SFX bus for punchy, heavy war sound
+	var has_compressor := false
+	for i in range(AudioServer.get_bus_effect_count(sfx_idx)):
+		if AudioServer.get_bus_effect(sfx_idx, i) is AudioEffectCompressor:
+			has_compressor = true
+			break
+	if not has_compressor:
+		var comp := AudioEffectCompressor.new()
+		comp.threshold = -12.0
+		comp.ratio = 4.0
+		comp.gain = 2.0
+		comp.attack_us = 15000.0  # 15ms
+		comp.release_ms = 180.0
+		AudioServer.add_bus_effect(sfx_idx, comp)
+
+	# Attach limiter to Master bus to prevent digital clipping
+	var has_limiter := false
+	for i in range(AudioServer.get_bus_effect_count(master_idx)):
+		if AudioServer.get_bus_effect(master_idx, i) is AudioEffectLimiter:
+			has_limiter = true
+			break
+	if not has_limiter:
+		var limiter := AudioEffectLimiter.new()
+		limiter.ceiling_db = -0.5
+		AudioServer.add_bus_effect(master_idx, limiter)
+
+
 func _setup_pools() -> void:
 	for i in SFX_POOL_SIZE:
 		var player_3d = AudioStreamPlayer3D.new()
 		player_3d.name = "SFX3D_%d" % i
 		player_3d.bus = "SFX"
+		player_3d.doppler_tracking = AudioStreamPlayer3D.DOPPLER_TRACKING_PHYSICS_STEP
 		add_child(player_3d)
 		sfx_pool.append(player_3d)
 
@@ -109,36 +155,31 @@ func _generate_sounds() -> void:
 	_sound_cache["machine_gun"] = preload("res://resources/audio/sfx/machine_gun01.wav")
 	_sound_cache["missile"] = preload("res://resources/audio/sfx/missile01.wav")
 	_sound_cache["shotgun"] = preload("res://resources/audio/sfx/Dense_heavy_combat_s_#1-1782744878871.wav")
-	_sound_cache["armor_break"] = _gen_crack(0.12, 0.4)
-	_sound_cache["explosion"] = _gen_explosion(0.4, 0.6)
+	_sound_cache["armor_break"] = _gen_armor_shatter()
+	_sound_cache["explosion"] = _gen_war_explosion(0.65, 0.9)
 	# UI sounds prefer real files dropped in res://resources/audio/ui/ and fall
-	# back to procedurally generated tones when no file exists.
+	# back to military tactical relay sounds when no file exists.
 	var ui_click := _load_ui_sound("click")
-	_sound_cache["ui_click"] = ui_click if ui_click != null else _gen_sine_tone(800.0, 0.05, 0.15)
+	_sound_cache["ui_click"] = ui_click if ui_click != null else _gen_tactical_ui_click()
 	var ui_confirm := _load_ui_sound("confirm")
-	_sound_cache["ui_confirm"] = ui_confirm if ui_confirm != null else _gen_sine_tone(1200.0, 0.08, 0.2)
+	_sound_cache["ui_confirm"] = ui_confirm if ui_confirm != null else _gen_tactical_ui_confirm()
 	# Distinct celebratory cue for REGISTER: a frame assembles and takes over as
 	# the player's piloted mech (assembly clunk -> power-up sweep -> two-note
-	# confirm chime), so it reads as an event, not just another button confirm.
+	# confirm chime).
 	_sound_cache["mech_register"] = _gen_mech_register()
-	_sound_cache["footstep"] = _gen_noise_burst(0.04, 0.08)
-	# Dash and roller-leg actuation share ONE mechanical voice: a hydraulic
-	# joint/piston slam (falling thump + pneumatic hiss + metal clink). It
-	# replaces the old short sine blip so engaging boost/roller reads as heavy
-	# machinery moving, never as a UI click.
+	_sound_cache["footstep"] = _gen_mech_footstep()
+	# Dash and roller-leg actuation: hydraulic joint/piston slam
 	var actuator := _gen_actuator()
 	_sound_cache["dash"] = actuator
 	_sound_cache["mecha_actuator"] = actuator
-	# New movement & impact SFX
-	_sound_cache["jump"] = _gen_sine_sweep(150.0, 450.0, 0.15, 0.25)
-	_sound_cache["land"] = _gen_sine_tone(70.0, 0.18, 0.4)
-	_sound_cache["roller_skate"] = _gen_sine_sweep(400.0, 250.0, 0.08, 0.15)
-	# Roller-dash engine loop. Drop roller_dash.wav / .ogg / .mp3 into
-	# res://resources/audio/sfx/ to override the generated hum; the loop is
-	# pitch-bent with speed by update_roller_dash while the mech rolls.
+	# Heavy movement & impact SFX
+	_sound_cache["jump"] = _gen_mech_jump()
+	_sound_cache["land"] = _gen_mech_land()
+	_sound_cache["roller_skate"] = _gen_roller_skate_grunt()
+	# Roller-dash engine loop
 	var roller_file := _load_sfx_file("roller_dash")
 	_sound_cache["roller_dash"] = roller_file if roller_file != null else _gen_roller_loop()
-	_sound_cache["reload_complete"] = _gen_sine_sweep(1400.0, 1800.0, 0.1, 0.3)
+	_sound_cache["reload_complete"] = _gen_heavy_reload_complete()
 
 	# Multiple variants per hit: random one is picked each play.
 	_sound_cache["impact"] = [
@@ -152,14 +193,14 @@ func _generate_sounds() -> void:
 		_gen_sine_sweep(1350.0, 340.0, 0.09, 0.28),
 	]
 	_sound_cache["kinetic_hit"] = [
-		_gen_crack(0.06, 0.35),
-		_gen_crack(0.05, 0.3),
-		_gen_crack(0.07, 0.38),
+		_gen_crack(0.08, 0.6),
+		_gen_crack(0.07, 0.55),
+		_gen_crack(0.09, 0.65),
 	]
 	_sound_cache["explosive_hit"] = [
-		_gen_explosion(0.25, 0.5),
-		_gen_explosion(0.3, 0.5),
-		_gen_explosion(0.22, 0.46),
+		_gen_war_explosion(0.45, 0.75),
+		_gen_war_explosion(0.5, 0.8),
+		_gen_war_explosion(0.42, 0.7),
 	]
 	_sound_cache["melee"] = [
 		_gen_sine_chop(400.0, 0.08, 0.3),
@@ -837,7 +878,109 @@ func _gen_pitch_variant(source: AudioStreamWAV, pitch_ratio: float) -> AudioStre
 	return stream
 
 
-func _gen_crack(duration: float, volume: float) -> AudioStreamWAV:
+# Heavy 50-ton mech footstep: sub-bass ground thump, metallic plate clash, and hydraulic puff
+func _gen_mech_footstep() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 0.22
+	var num_samples = int(duration * sample_rate)
+	var data = PackedByteArray()
+	data.resize(num_samples * 2)
+
+	for i in range(num_samples):
+		var t = float(i) / sample_rate
+		var attack = minf(t / 0.003, 1.0)
+		var env = attack * exp(-t * 18.0)
+		# 1. Earth-shaking sub-bass impact (48Hz -> 18Hz drop)
+		var thump_freq = lerp(48.0, 18.0, t / duration)
+		var sample = sin(TAU * thump_freq * t) * 0.75 * env
+		# 2. Heavy steel plate clash & structural resonance
+		sample += sin(TAU * 240.0 * t) * 0.35 * attack * exp(-t * 26.0)
+		sample += sin(TAU * 680.0 * t) * 0.18 * attack * exp(-t * 34.0)
+		# 3. Ground crunch & debris
+		sample += (randf() * 2.0 - 1.0) * 0.35 * attack * exp(-t * 38.0)
+		# 4. Pressurized hydraulic exhaust hiss
+		sample += (randf() * 2.0 - 1.0) * 0.18 * exp(-t * 14.0)
+		var val = int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+
+	var stream = AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream
+
+
+# Hydraulic spring compression + high-pressure rocket thruster ignition roar
+func _gen_mech_jump() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 0.28
+	var num_samples = int(duration * sample_rate)
+	var data = PackedByteArray()
+	data.resize(num_samples * 2)
+
+	for i in range(num_samples):
+		var t = float(i) / sample_rate
+		var attack = minf(t / 0.004, 1.0)
+		# 1. Hydraulic piston slam
+		var piston_env = attack * exp(-t * 14.0)
+		var piston_freq = lerp(180.0, 32.0, t / 0.12)
+		var sample = sin(TAU * piston_freq * t) * 0.65 * piston_env
+		# 2. Thruster roar & turbulence
+		var thrust_env = (1.0 - t / duration) * (1.0 - t / duration)
+		sample += sin(TAU * 95.0 * t) * 0.4 * thrust_env
+		sample += (randf() * 2.0 - 1.0) * 0.35 * exp(-t * 11.0)
+		# 3. Mechanical unclamp ring
+		sample += sin(TAU * 580.0 * t) * 0.2 * attack * exp(-t * 22.0)
+		var val = int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+
+	var stream = AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream
+
+
+# 50-Ton seismic landing impact + structural metal frame stress reverberation
+func _gen_mech_land() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 0.38
+	var num_samples = int(duration * sample_rate)
+	var data = PackedByteArray()
+	data.resize(num_samples * 2)
+
+	for i in range(num_samples):
+		var t = float(i) / sample_rate
+		var attack = minf(t / 0.002, 1.0)
+		# 1. Seismic sub-bass shockwave
+		var thump_env = attack * exp(-t * 8.5)
+		var thump_freq = lerp(60.0, 22.0, t / duration)
+		var sample = sin(TAU * thump_freq * t) * 0.85 * thump_env
+		# 2. Structural metal frame reverberation
+		sample += sin(TAU * 160.0 * t) * 0.45 * attack * exp(-t * 16.0)
+		sample += sin(TAU * 340.0 * t) * 0.25 * attack * exp(-t * 22.0)
+		# 3. Concrete / ground crushing crunch
+		sample += (randf() * 2.0 - 1.0) * 0.45 * attack * exp(-t * 26.0)
+		# 4. Damper gas vent hiss
+		sample += (randf() * 2.0 - 1.0) * 0.2 * exp(-t * 10.0)
+		var val = int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+
+	var stream = AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream
+
+
+# Brutal warzone detonation: supersonic initial shockwave, reactor sub-bass quake, metal distortion, decaying rumble
+func _gen_war_explosion(duration: float, volume: float) -> AudioStreamWAV:
 	var sample_rate = 22050
 	var num_samples = int(duration * sample_rate)
 	var data = PackedByteArray()
@@ -845,11 +988,19 @@ func _gen_crack(duration: float, volume: float) -> AudioStreamWAV:
 
 	for i in range(num_samples):
 		var t = float(i) / sample_rate
-		var envelope = exp(-t * 20.0)
-		var sample = (randf() * 2.0 - 1.0) * volume * envelope * 32767
-		# Add a sine component for metallic feel
-		sample += sin(TAU * 1200.0 * t) * volume * 0.3 * envelope * 32767
-		var val = int(clamp(sample, -32767, 32767))
+		var attack = minf(t / 0.003, 1.0)
+		# 1. Supersonic initial shockwave snap (<12ms)
+		var snap = (randf() * 2.0 - 1.0) * 0.85 * exp(-t * 55.0)
+		# 2. Earth-shattering 28Hz reactor sub-bass pressure wave
+		var sub_freq = lerp(85.0, 16.0, t / duration)
+		var sub_wave = sin(TAU * sub_freq * t) * 0.9 * exp(-t * 4.2)
+		# 3. Tearing steel & distorted shrapnel crackle
+		var shrapnel = (sin(TAU * 310.0 * t) * 0.35 + sin(TAU * 680.0 * t) * 0.2) * exp(-t * 10.0)
+		shrapnel += (randf() * 2.0 - 1.0) * 0.5 * exp(-t * 6.5)
+		# 4. Decaying low-end atmospheric rumble tail
+		var rumble = sin(TAU * 36.0 * t) * 0.4 * exp(-t * 3.0)
+		var sample = (snap + sub_wave + shrapnel + rumble) * volume
+		var val = int(clamp(sample * 32767.0, -32767.0, 32767.0))
 		data[i * 2] = val & 0xFF
 		data[i * 2 + 1] = (val >> 8) & 0xFF
 
@@ -862,6 +1013,168 @@ func _gen_crack(duration: float, volume: float) -> AudioStreamWAV:
 
 
 func _gen_explosion(duration: float, volume: float) -> AudioStreamWAV:
+	return _gen_war_explosion(duration, volume)
+
+
+# Violent armor break: ceramic plate fracture + screeching metal hull tear + shrapnel scatter
+func _gen_armor_shatter() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 0.45
+	var num_samples = int(duration * sample_rate)
+	var data = PackedByteArray()
+	data.resize(num_samples * 2)
+
+	for i in range(num_samples):
+		var t = float(i) / sample_rate
+		var attack = minf(t / 0.002, 1.0)
+		# 1. High-speed fracture snap
+		var snap = (randf() * 2.0 - 1.0) * 0.75 * exp(-t * 42.0)
+		# 2. Screeching metal hull tear (descending high-frequency harmonic screech)
+		var screech_freq = lerp(2600.0, 650.0, t / duration)
+		var screech = sin(TAU * screech_freq * t) * 0.45 * exp(-t * 11.0)
+		# 3. Heavy structural core thump
+		var thump = sin(TAU * 72.0 * t) * 0.6 * exp(-t * 8.0)
+		# 4. Metal shrapnel ring
+		var ring = sin(TAU * 1450.0 * t) * 0.28 * exp(-t * 15.0)
+		var sample = snap + screech + thump + ring
+		var val = int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+
+	var stream = AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream
+
+
+# Tactical military cockpit HUD mechanical relay switch click
+func _gen_tactical_ui_click() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 0.045
+	var num_samples = int(duration * sample_rate)
+	var data = PackedByteArray()
+	data.resize(num_samples * 2)
+
+	for i in range(num_samples):
+		var t = float(i) / sample_rate
+		var attack = minf(t / 0.001, 1.0)
+		var env = attack * exp(-t * 80.0)
+		# Tactical relay click: crisp transient + low damped switch knock
+		var sample = sin(TAU * 1450.0 * t) * 0.45 * env
+		sample += sin(TAU * 280.0 * t) * 0.55 * env
+		sample += (randf() * 2.0 - 1.0) * 0.25 * attack * exp(-t * 110.0)
+		var val = int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+
+	var stream = AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream
+
+
+# Tactical military high-tech electromagnetic solenoid engage lock
+func _gen_tactical_ui_confirm() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 0.09
+	var num_samples = int(duration * sample_rate)
+	var data = PackedByteArray()
+	data.resize(num_samples * 2)
+
+	for i in range(num_samples):
+		var t = float(i) / sample_rate
+		var sample = 0.0
+		if t < 0.035:
+			# Solenoid pre-strike
+			var env = exp(-t * 65.0)
+			sample += sin(TAU * 880.0 * t) * 0.4 * env
+			sample += sin(TAU * 1760.0 * t) * 0.25 * env
+		else:
+			# Heavy locking thud
+			var local = t - 0.035
+			var env = exp(-local * 45.0)
+			sample += sin(TAU * 440.0 * local) * 0.5 * env
+			sample += sin(TAU * 110.0 * local) * 0.5 * env
+			sample += (randf() * 2.0 - 1.0) * 0.15 * env
+		var val = int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+
+	var stream = AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream
+
+
+# Heavy mechanical breech slide rack + solid magnetic chamber locking clank
+func _gen_heavy_reload_complete() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 0.32
+	var num_samples = int(duration * sample_rate)
+	var data = PackedByteArray()
+	data.resize(num_samples * 2)
+
+	for i in range(num_samples):
+		var t = float(i) / sample_rate
+		var sample = 0.0
+		if t < 0.12:
+			# Heavy bolt slide rack
+			var env = exp(-t * 22.0)
+			sample += (randf() * 2.0 - 1.0) * 0.3 * env
+			sample += sin(TAU * 640.0 * t) * 0.3 * env
+		elif t >= 0.14:
+			# Solid magnetic chamber lock
+			var local = t - 0.14
+			var attack = minf(local / 0.002, 1.0)
+			var env = attack * exp(-local * 18.0)
+			sample += sin(TAU * 180.0 * local) * 0.7 * env
+			sample += sin(TAU * 860.0 * local) * 0.35 * env
+			sample += (randf() * 2.0 - 1.0) * 0.25 * attack * exp(-local * 35.0)
+		var val = int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+
+	var stream = AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream
+
+
+# Gritty steel ball-bearing grind + turbine whine
+func _gen_roller_skate_grunt() -> AudioStreamWAV:
+	var sample_rate = 22050
+	var duration = 0.12
+	var num_samples = int(duration * sample_rate)
+	var data = PackedByteArray()
+	data.resize(num_samples * 2)
+
+	for i in range(num_samples):
+		var t = float(i) / sample_rate
+		var env = exp(-t * 18.0)
+		var freq = lerp(320.0, 110.0, t / duration)
+		var sample = sin(TAU * freq * t) * 0.45 * env
+		sample += (randf() * 2.0 - 1.0) * 0.3 * env
+		var val = int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+
+	var stream = AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream
+
+
+func _gen_crack(duration: float, volume: float) -> AudioStreamWAV:
 	var sample_rate = 22050
 	var num_samples = int(duration * sample_rate)
 	var data = PackedByteArray()
@@ -869,10 +1182,10 @@ func _gen_explosion(duration: float, volume: float) -> AudioStreamWAV:
 
 	for i in range(num_samples):
 		var t = float(i) / sample_rate
-		# Swell then decay
-		var envelope = (t / duration) * exp(-t * 3.0)
+		var envelope = exp(-t * 20.0)
 		var sample = (randf() * 2.0 - 1.0) * volume * envelope * 32767
-		sample += sin(TAU * 80.0 * t) * volume * 0.5 * envelope * 32767
+		# Add a sine component for metallic feel
+		sample += sin(TAU * 1200.0 * t) * volume * 0.3 * envelope * 32767
 		var val = int(clamp(sample, -32767, 32767))
 		data[i * 2] = val & 0xFF
 		data[i * 2 + 1] = (val >> 8) & 0xFF

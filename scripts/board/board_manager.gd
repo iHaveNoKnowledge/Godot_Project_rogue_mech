@@ -303,6 +303,8 @@ func _try_step(target: Vector2i) -> bool:
 			GlobalData.narrative.blocked_intermission = true
 			_request_combat("grunt")
 			return true
+		if _roll_travel_breakdown(terrain):
+			return true
 		_process_tile_effect(str(tile.get_meta("tile_type", "empty")))
 	elif GameManager.current_state == GameManager.State.BOARD:
 		if str(patrol.get("faction", "hostile")) == "unknown" and _has_available_recruit(str(patrol.get("character_id", ""))):
@@ -1135,8 +1137,70 @@ func _process_tile_effect(tile_type: String) -> void:
 					"desc": "The supply truck has broken down! Defend it from incoming hostiles!",
 					"params": {"combat_type": "grunt"},
 				})
+		"unknown_signal":
+			# Mystery Transmission: investigate or ignore.
+			if GlobalData.narrative.mech_less:
+				_trigger_recovery_event()
+			else:
+				EventBus.event_triggered.emit({
+					"name": "❓ UNKNOWN TRANSMISSION",
+					"effect": "choice",
+					"amount": 0,
+					"desc": "Sensors pick up an encrypted emergency beacon nearby. It could be an abandoned military cache — or a hostile lure.",
+					"params": {
+						"choices": [{
+							"effect": "investigate_signal",
+							"label": "Investigate Signal"
+						}, {
+							"effect": "ignore_signal",
+							"label": "Ignore & Move On"
+						}]
+					}
+				})
 		_:
 			pass
+
+
+# Dynamic Travel Risk: moving across rough terrain causes mechanical wear and tear on the convoy.
+func _roll_travel_breakdown(terrain: String) -> bool:
+	if GlobalData.board.convoy_destroyed or GlobalData.narrative.mech_less:
+		return false
+	if GlobalData.narrative.ceasefire_turns > 0:
+		return false
+
+	var base_chance := 0.01
+	match terrain:
+		"road":
+			base_chance = 0.0 # Road is completely safe
+		"plain":
+			base_chance = 0.01
+		"desert", "canyon", "forest":
+			base_chance = 0.04
+		"mountain", "swamp", "ruins":
+			base_chance = 0.07
+		_:
+			base_chance = 0.02
+
+	# Convoy health penalty modifier:
+	if GlobalData.board.convoy_hp < GlobalData.board.convoy_hp_max * 0.25:
+		base_chance += 0.08
+	elif GlobalData.board.convoy_hp < GlobalData.board.convoy_hp_max * 0.5:
+		base_chance += 0.04
+
+	if randf() < base_chance:
+		GlobalData.board.convoy_defense_waves = 3
+		GlobalData.board.convoy_defense_current_wave = 0
+		GlobalData.board.convoy_defense_active = true
+		GlobalData.narrative.blocked_intermission = true
+		EventBus.event_triggered.emit({
+			"name": "🔧 VEHICLE BREAKDOWN",
+			"effect": "force_combat",
+			"amount": 0,
+			"desc": "The supply truck's drivetrain cracked while traversing harsh %s terrain! Hostiles are closing in — defend the convoy!" % terrain.capitalize(),
+			"params": {"combat_type": "grunt"},
+		})
+		return true
+	return false
 
 
 # A "bait" tile reads as an abandoned supply cache but is a decoy: stepping on

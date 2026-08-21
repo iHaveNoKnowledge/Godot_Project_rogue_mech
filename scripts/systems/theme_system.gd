@@ -270,6 +270,33 @@ static func apply_event_effect(event: Dictionary) -> bool:
 		"scavenge_leave":
 			# Scavenge Risk: player chose to leave. Safe.
 			GlobalData.board.run_notice = "Left the wreckage alone. Not worth the risk."
+		"investigate_signal":
+			# Mystery Transmission: scan beacon.
+			# 50% reward: scrap/fuel/credits; 50% decoy ambush trap (3-wave breakdown defense).
+			var roll := randf()
+			if roll < 0.50:
+				var loot_roll := randf()
+				if loot_roll < 0.40:
+					var scrap_gain := randi_range(60, 140)
+					GlobalData.currency.scrap += scrap_gain
+					GlobalData.board.run_notice = "Signal cracked! Salvaged a military cache with %d scrap." % scrap_gain
+				elif loot_roll < 0.70:
+					GlobalData.fuel.mech_energy = minf(GlobalData.fuel.mech_energy + 40.0, 100.0)
+					GlobalData.board.run_notice = "Found an intact fuel cell container! Recharged +40 energy."
+				else:
+					GlobalData.currency.credits += 120
+					GlobalData.currency.data_cores += 1
+					GlobalData.board.run_notice = "Recovered an encrypted black box (+120 credits, +1 Data Core)."
+			else:
+				# Decoy beacon trap: 3-wave defense!
+				GlobalData.board.convoy_defense_waves = 3
+				GlobalData.board.convoy_defense_current_wave = 0
+				GlobalData.board.convoy_defense_active = true
+				GlobalData.board.run_notice = "IT'S A TRAP! The beacon was an enemy decoy — defend the supply truck!"
+				GlobalData.narrative.blocked_intermission = true
+				return true
+		"ignore_signal":
+			GlobalData.board.run_notice = "Ignored the mystery signal. The convoy presses forward."
 		_:
 			push_warning("apply_event_effect: unknown effect '%s'" % effect)
 	return false

@@ -20,11 +20,11 @@ func _ready() -> void:
 	terrain = get_meta("terrain", "plain")
 	connections = get_meta("connections", [])
 
-	if tile_type in ["start", "exit", "safehouse", "data_node", "enemy_base", "city", "bait", "fuel_depot", "supply_truck", "wreckage", "research_lab", "dust_storm", "tactical_smog", "emp_zone", "distress_signal", "scavenge_site", "convoy_ambush", "convoy_breakdown"]:
+	if tile_type in ["start", "exit", "safehouse", "data_node", "enemy_base", "city", "bait", "fuel_depot", "supply_truck", "wreckage", "research_lab", "dust_storm", "tactical_smog", "emp_zone", "distress_signal", "scavenge_site", "convoy_ambush", "convoy_breakdown", "unknown_signal"]:
 		is_revealed = true
 	_add_terrain_props()
 	_add_poi_visual()
-	if tile_type in ["event", "data_node", "bait"]:
+	if tile_type in ["event", "data_node", "bait", "unknown_signal"]:
 		_event_beacon = _make_beacon()
 	_update_visual()
 
@@ -276,6 +276,8 @@ func _add_poi_visual() -> void:
 			_build_ambush_model(_poi_node)
 		"convoy_breakdown":
 			_build_breakdown_model(_poi_node)
+		"unknown_signal":
+			_build_unknown_signal_model(_poi_node)
 
 
 # Start Hangar / Forward Command Launchpad
@@ -717,6 +719,43 @@ func _build_breakdown_model(root: Node3D) -> void:
 	root.add_child(cone)
 
 	_add_floating_badge(root, "🔧 BREAKDOWN", Color(1.0, 0.6, 0.2), 1.9)
+
+
+# Unknown Signal / Emergency Beacon
+func _build_unknown_signal_model(root: Node3D) -> void:
+	# Base radar dish mast
+	var mast := MeshInstance3D.new()
+	var mm := CylinderMesh.new()
+	mm.top_radius = 0.08
+	mm.bottom_radius = 0.22
+	mm.height = 1.0
+	mast.mesh = mm
+	mast.material_override = _poi_mat(Color(0.25, 0.28, 0.35), 0.7)
+	mast.position = Vector3(0, 0.5, 0)
+	root.add_child(mast)
+
+	# Glowing antenna emitter
+	var emitter := MeshInstance3D.new()
+	var em := SphereMesh.new()
+	em.radius = 0.22
+	em.height = 0.44
+	emitter.mesh = em
+	emitter.material_override = _poi_mat(Color(0.25, 0.85, 1.0), 0.3, Color(0.2, 0.85, 1.0), 3.0)
+	emitter.position = Vector3(0, 1.1, 0)
+	root.add_child(emitter)
+
+	# Scanner ring
+	var ring := MeshInstance3D.new()
+	var rm := TorusMesh.new()
+	rm.inner_radius = 0.35
+	rm.outer_radius = 0.45
+	ring.mesh = rm
+	ring.material_override = _poi_mat(Color(0.25, 0.85, 1.0), 0.4, Color(0.2, 0.85, 1.0), 2.0)
+	ring.position = Vector3(0, 0.75, 0)
+	ring.rotation.x = 0.3
+	root.add_child(ring)
+
+	_add_floating_badge(root, "❓ UNKNOWN SIGNAL", Color(0.25, 0.85, 1.0), 1.9)
 
 
 # ---------------------------------------------------------------------------

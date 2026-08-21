@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://board_travel_risk_verify_test"]
+
+[ext_resource type="Script" path="res://tests/board_travel_risk_verify.gd" id="1_test"]
+
+[node name="BoardTravelRiskVerify" type="Node"]
+script = ExtResource("1_test")

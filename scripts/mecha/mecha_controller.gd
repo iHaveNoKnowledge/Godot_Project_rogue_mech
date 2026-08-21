@@ -170,11 +170,8 @@ func _physics_process(delta: float) -> void:
 	energy_system.process_drop_tanks(delta)
 	dash_system.tick(delta)
 
-	if jump_system:
-		if is_on_floor():
-			jump_system.is_gliding = false
-			jump_system.is_jumping = false
-		elif jump_system.is_gliding and energy_system.energy > 0.0:
+	if not is_on_floor():
+		if jump_system and jump_system.is_gliding and energy_system.energy > 0.0:
 			# Apply thruster slow-fall glide and drain energy
 			var drain: float = float(jump_system.GLIDE_ENERGY_DRAIN) * delta
 			energy_system.energy = maxf(energy_system.energy - drain, 0.0)
@@ -182,6 +179,12 @@ func _physics_process(delta: float) -> void:
 				jump_system.is_gliding = false
 			velocity.y = jump_system.process_glide(delta, velocity.y)
 			jump_system.tick_glide_vfx(delta, get_tree(), global_position)
+		else:
+			velocity.y -= GRAVITY * delta
+	else:
+		if jump_system:
+			jump_system.is_gliding = false
+			jump_system.is_jumping = false
 
 	# Landing detection — restore floor snap so the mech sticks to slopes.
 	var currently_on_floor = is_on_floor()

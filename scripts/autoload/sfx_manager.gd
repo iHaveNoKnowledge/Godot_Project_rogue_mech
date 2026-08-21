@@ -417,8 +417,16 @@ func play_mech_register() -> void:
 	play_sfx_2d("mech_register", 0.0, "UI")
 
 
+func play_reload_start(pos: Vector3 = Vector3.ZERO) -> void:
+	play_sfx_2d("ui_click", -3.0, "UI")
+
+
 func play_reload_complete() -> void:
 	play_sfx_2d("reload_complete", 2.0, "UI")
+
+
+func play_sfx_by_name(sound_name: String, pos: Vector3 = Vector3.ZERO, volume_db: float = 0.0) -> void:
+	play_sfx(sound_name, pos, volume_db)
 
 
 # ═══════════════════════════════════════════════════════════════════════

@@ -21,6 +21,15 @@ var sfx_volume: float = 0.8
 var music_volume: float = 0.6
 var ambient_volume: float = 0.5
 
+const ROLLER_PITCH_MIN := SfxManager.ROLLER_PITCH_MIN
+const ROLLER_PITCH_MAX := SfxManager.ROLLER_PITCH_MAX
+
+var current_music_category: String:
+	get: return music.current_music_category if music else ""
+
+var current_track: AudioStream:
+	get: return music.current_track if music else null
+
 
 func _ready() -> void:
 	_setup_audio_buses()
@@ -222,8 +231,14 @@ func play_ui_confirm() -> void:
 func play_mech_register() -> void:
 	sfx.play_mech_register()
 
+func play_reload_start(pos: Vector3 = Vector3.ZERO) -> void:
+	sfx.play_reload_start(pos)
+
 func play_reload_complete() -> void:
 	sfx.play_reload_complete()
+
+func play_sfx_by_name(sound_name: String, pos: Vector3 = Vector3.ZERO, volume_db: float = 0.0) -> void:
+	sfx.play_sfx_by_name(sound_name, pos, volume_db)
 
 func update_roller_dash(pos: Vector3, speed_ratio: float) -> void:
 	sfx.update_roller_dash(pos, speed_ratio)

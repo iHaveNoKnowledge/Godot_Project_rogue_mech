@@ -112,7 +112,7 @@ func _create_ui() -> void:
 	# intermission by design — content must never render underneath it.
 	info_panel.offset_right = -270
 	info_panel.offset_top = 160
-	info_panel.offset_bottom = -20
+	info_panel.offset_bottom = -75
 	info_panel.visible = false
 	root_control.add_child(info_panel)
 
@@ -150,29 +150,37 @@ func _create_ui() -> void:
 	status_bars_container.visible = false
 	info_vbox.add_child(status_bars_container)
 
-	# Status panel (bottom)
+	# Status panel (bottom) - positioned cleanly with comfortable margins and proper padding
 	status_panel = PanelContainer.new()
 	status_panel.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	status_panel.offset_top = -60
-	status_panel.offset_left = 20
+	status_panel.offset_top = -62
+	status_panel.offset_left = 285
 	status_panel.offset_right = -20
-	status_panel.offset_bottom = -20
+	status_panel.offset_bottom = -16
 	root_control.add_child(status_panel)
 
 	var status_style = StyleBoxFlat.new()
-	status_style.bg_color = Color(0.1, 0.15, 0.1, 0.9)
+	status_style.bg_color = Color(0.06, 0.09, 0.16, 0.94)
 	status_style.corner_radius_top_left = 8
 	status_style.corner_radius_top_right = 8
 	status_style.corner_radius_bottom_left = 8
 	status_style.corner_radius_bottom_right = 8
-	status_style.content_margin_left = 15
-	status_style.content_margin_right = 15
+	status_style.content_margin_left = 16
+	status_style.content_margin_right = 16
 	status_style.content_margin_top = 8
 	status_style.content_margin_bottom = 8
+	status_style.border_width_left = 1
+	status_style.border_width_right = 1
+	status_style.border_width_top = 1
+	status_style.border_width_bottom = 1
+	status_style.border_color = Color(0.28, 0.52, 0.82, 0.55)
 	status_panel.add_theme_stylebox_override("panel", status_style)
 
 	status_label = Label.new()
 	status_label.text = _get_status_text()
+	status_label.add_theme_font_size_override("font_size", 12)
+	status_label.add_theme_color_override("font_color", Color(0.85, 0.92, 1.0))
+	status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	status_panel.add_child(status_label)
 
 

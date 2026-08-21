@@ -96,7 +96,7 @@ func _verify_sortie_page() -> void:
 	var spare_id := str(spare.get("id", ""))
 	if spare_id != "":
 		HangarManager.assign_pilot(spare_id, "fleet_t_sp")
-		GlobalData.fleet_roster.append({"template_id": "t_sp", "name": "Sortie Sam", "hp": 60.0, "max_hp": 80.0, "destroyed": false, "fielded": true})
+		GlobalData.hangar.fleet_roster.append({"template_id": "t_sp", "name": "Sortie Sam", "hp": 60.0, "max_hp": 80.0, "destroyed": false, "fielded": true})
 		GlobalData.save_run()
 	sp.refresh()
 	await get_tree().process_frame
@@ -120,9 +120,9 @@ func _verify_fielding() -> void:
 
 	# Grow the convoy so there are berths for every test pilot (each added fleet
 	# unit expands capacity: 3 pilots -> 2 trucks -> 8 berths).
-	GlobalData.fleet_roster.append({"template_id": "t_fd", "name": "Fielded Fran", "hp": 50.0, "max_hp": 100.0, "destroyed": false, "fielded": true})
-	GlobalData.fleet_roster.append({"template_id": "t_fw", "name": "Wanda Wound", "hp": 20.0, "max_hp": 80.0, "destroyed": false, "fielded": true, "wounded": true, "wound_turns": 2})
-	GlobalData.fleet_roster.append({"template_id": "t_fx", "name": "Dan Dead", "hp": 0.0, "max_hp": 80.0, "destroyed": true, "fielded": true})
+	GlobalData.hangar.fleet_roster.append({"template_id": "t_fd", "name": "Fielded Fran", "hp": 50.0, "max_hp": 100.0, "destroyed": false, "fielded": true})
+	GlobalData.hangar.fleet_roster.append({"template_id": "t_fw", "name": "Wanda Wound", "hp": 20.0, "max_hp": 80.0, "destroyed": false, "fielded": true, "wounded": true, "wound_turns": 2})
+	GlobalData.hangar.fleet_roster.append({"template_id": "t_fx", "name": "Dan Dead", "hp": 0.0, "max_hp": 80.0, "destroyed": true, "fielded": true})
 	# Park one spare berth per pilot and seat each fleet pilot.
 	var seat_map := [
 		{"template_id": "t_fd", "slot": 2},
@@ -174,7 +174,7 @@ func _verify_fielding() -> void:
 	_check(d_btn != null and d_btn.disabled, "destroyed pilot's toggle is disabled")
 
 	# Feature 7: a template-only unit (no seated berth) is not offered at all.
-	GlobalData.fleet_roster.append({"template_id": "t_lone", "name": "Lonely Lou", "hp": 50.0, "max_hp": 80.0, "destroyed": false, "fielded": true})
+	GlobalData.hangar.fleet_roster.append({"template_id": "t_lone", "name": "Lonely Lou", "hp": 50.0, "max_hp": 80.0, "destroyed": false, "fielded": true})
 	sp.refresh()
 	await get_tree().process_frame
 	_check(_row_with_text(sp.sortie_list, "Lonely Lou") == null, "pilot-less template unit is not a sortie row")

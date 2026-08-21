@@ -44,31 +44,31 @@ static func on_combat_ended_for_tech(victory: bool) -> void:
 
 static func _try_escalate(cfg: Dictionary) -> void:
 	var max_tier := int(cfg.get("max_tier", 4))
-	if GlobalData.enemy_tech_tier >= max_tier:
+	if GlobalData.narrative.enemy_tech_tier >= max_tier:
 		return
-	GlobalData.enemy_tech_tier = mini(GlobalData.enemy_tech_tier + 1, max_tier)
-	GlobalData.pending_escalation_event = true
-	EventBus.enemy_tech_escalated.emit(GlobalData.enemy_tech_tier)
+	GlobalData.narrative.enemy_tech_tier = mini(GlobalData.narrative.enemy_tech_tier + 1, max_tier)
+	GlobalData.narrative.pending_escalation_event = true
+	EventBus.enemy_tech_escalated.emit(GlobalData.narrative.enemy_tech_tier)
 
 
 # Returns true once so the board can surface the "enemy upgraded" popup when
 # the player returns from combat.
 static func consume_pending_escalation_event() -> bool:
-	var had_pending := GlobalData.pending_escalation_event
-	GlobalData.pending_escalation_event = false
+	var had_pending := GlobalData.narrative.pending_escalation_event
+	GlobalData.narrative.pending_escalation_event = false
 	return had_pending
 
 
 # Multiplier applied to freshly spawned enemy HP/damage based on tech tier.
 static func get_enemy_tech_multiplier() -> float:
 	var cfg := get_escalation_config()
-	return 1.0 + float(GlobalData.enemy_tech_tier - 1) * float(cfg.get("hp_per_tier", 0.35))
+	return 1.0 + float(GlobalData.narrative.enemy_tech_tier - 1) * float(cfg.get("hp_per_tier", 0.35))
 
 
 # Combined spawn scaling including the partial grunt upgrades salvaged from
 # destroyed research nodes. Grunts get tougher even without a full tier-up.
 static func get_enemy_grunt_multiplier() -> float:
-	return get_enemy_tech_multiplier() + float(GlobalData.enemy_grunt_upgrade_level) * 0.10
+	return get_enemy_tech_multiplier() + float(GlobalData.narrative.enemy_grunt_upgrade_level) * 0.10
 
 
 # Probability that the enemy attempts a spy this move (0..1).
@@ -76,7 +76,7 @@ static func get_spy_attempt_chance() -> float:
 	var cfg := get_escalation_config()
 	return clampf(
 		float(cfg.get("spy_base_chance", 0.05))
-		+ float(GlobalData.enemy_tech_tier - 1) * float(cfg.get("spy_chance_per_tier", 0.06)),
+		+ float(GlobalData.narrative.enemy_tech_tier - 1) * float(cfg.get("spy_chance_per_tier", 0.06)),
 		0.0,
 		1.0
 	)
@@ -92,24 +92,24 @@ static func roll_spy_event() -> Dictionary:
 	var caught := randf() < counter
 	if caught:
 		var bounty := 20 + int(randf() * 30)
-		GlobalData.credits += bounty
+		GlobalData.currency.credits += bounty
 		return {
 			"name": "SPY CAUGHT",
 			"effect": "none",
 			"amount": 0,
 			"desc": "Your fleet security intercepted an enemy spy and captured its gear! +%d credits." % bounty,
 		}
-	GlobalData.enemy_research_progress = minf(GlobalData.enemy_research_progress + 1.0, _get_enemy_research_cap())
+	GlobalData.narrative.enemy_research_progress = minf(GlobalData.narrative.enemy_research_progress + 1.0, _get_enemy_research_cap())
 	var stolen = {
 		"name": "DATA STOLEN",
 		"effect": "none",
 		"amount": 0,
 		"desc": "An enemy spy slipped past your security and stole mech data! The enemy has started researching a counter-unit.",
 	}
-	if GlobalData.enemy_research_progress >= _get_enemy_research_cap():
-		GlobalData.enemy_research_progress = 0.0
-		GlobalData.enemy_base_active = true
-		GlobalData.enemy_base_progress = 0.0
+	if GlobalData.narrative.enemy_research_progress >= _get_enemy_research_cap():
+		GlobalData.narrative.enemy_research_progress = 0.0
+		GlobalData.narrative.enemy_base_active = true
+		GlobalData.narrative.enemy_base_progress = 0.0
 		GlobalData.pending_enemy_base_spawn = true
 		stolen["desc"] = "The enemy's stolen data has coalesced into a research base on the sector map! Destroy it before they finish a counter-unit."
 	return stolen
@@ -133,32 +133,32 @@ static func consume_enemy_base_spawn_request() -> bool:
 # Advance the research node's counter-unit progress (1 per board move).
 # Returns true when the enemy completes their counter-unit.
 static func tick_enemy_base_progress(points: float) -> bool:
-	if not GlobalData.enemy_base_active:
+	if not GlobalData.narrative.enemy_base_active:
 		return false
-	GlobalData.enemy_base_progress = minf(GlobalData.enemy_base_progress + points, GlobalData.enemy_base_required)
-	if GlobalData.enemy_base_progress >= GlobalData.enemy_base_required:
+	GlobalData.narrative.enemy_base_progress = minf(GlobalData.narrative.enemy_base_progress + points, GlobalData.narrative.enemy_base_required)
+	if GlobalData.narrative.enemy_base_progress >= GlobalData.narrative.enemy_base_required:
 		_enemy_base_completed()
 		return true
 	return false
 
 
 static func _enemy_base_completed() -> void:
-	GlobalData.enemy_base_active = false
+	GlobalData.narrative.enemy_base_active = false
 	GlobalData.pending_enemy_base_tile_reset = GlobalData.enemy_base_tile_pos
 	GlobalData.enemy_base_tile_pos = Vector2i(-1, -1)
-	GlobalData.enemy_copy_outcome = _roll_enemy_base_outcome()
-	_apply_enemy_base_outcome(GlobalData.enemy_copy_outcome)
+	GlobalData.narrative.enemy_copy_outcome = _roll_enemy_base_outcome()
+	_apply_enemy_base_outcome(GlobalData.narrative.enemy_copy_outcome)
 	GlobalData.pending_enemy_base_outcome = true
 
 
 # The player reached and destroyed the node. The enemy only salvages a partial
 # grunt upgrade instead of a full counter-unit.
 static func destroy_enemy_base() -> void:
-	GlobalData.enemy_base_active = false
-	GlobalData.enemy_base_progress = 0.0
+	GlobalData.narrative.enemy_base_active = false
+	GlobalData.narrative.enemy_base_progress = 0.0
 	GlobalData.pending_enemy_base_tile_reset = GlobalData.enemy_base_tile_pos
 	GlobalData.enemy_base_tile_pos = Vector2i(-1, -1)
-	GlobalData.enemy_grunt_upgrade_level += 1
+	GlobalData.narrative.enemy_grunt_upgrade_level += 1
 	GlobalData.pending_enemy_base_destroyed = true
 
 
@@ -186,7 +186,7 @@ static func consume_pending_enemy_base_destroyed() -> bool:
 static func _roll_enemy_base_outcome() -> String:
 	var cfg := get_escalation_config()
 	var max_tier := int(cfg.get("max_tier", 4))
-	var tier_factor := clampf(float(GlobalData.enemy_tech_tier) / float(maxf(max_tier, 1)), 0.0, 1.0)
+	var tier_factor := clampf(float(GlobalData.narrative.enemy_tech_tier) / float(maxf(max_tier, 1)), 0.0, 1.0)
 	var mk2_weight := int(lerpf(50.0, 25.0, tier_factor))
 	var special_weight := int(lerpf(35.0, 35.0, tier_factor))
 	var copy_weight := int(lerpf(15.0, 40.0, tier_factor))
@@ -202,12 +202,12 @@ static func _roll_enemy_base_outcome() -> String:
 static func _apply_enemy_base_outcome(outcome: String) -> void:
 	match outcome:
 		"grunt_mk2":
-			GlobalData.enemy_grunt_upgrade_level += 2
+			GlobalData.narrative.enemy_grunt_upgrade_level += 2
 		"special_ace":
-			GlobalData.enemy_special_units.append({"kind": "special_ace", "source": "research_node"})
+			GlobalData.narrative.enemy_special_units.append({"kind": "special_ace", "source": "research_node"})
 			_add_stalking_ace("special_ace")
 		"gundam_copy":
-			GlobalData.enemy_special_units.append({"kind": "gundam_copy", "source": "research_node"})
+			GlobalData.narrative.enemy_special_units.append({"kind": "gundam_copy", "source": "research_node"})
 			_add_stalking_ace("gundam_copy")
 
 
@@ -215,5 +215,5 @@ static func _apply_enemy_base_outcome(outcome: String) -> void:
 # hunts the player across the board. Once deployed it starts accumulating
 # ambush chance with every move and will force a fight.
 static func _add_stalking_ace(ace_kind: String) -> void:
-	if not GlobalData.stalking_aces.has(ace_kind):
-		GlobalData.stalking_aces.append(ace_kind)
+	if not GlobalData.narrative.stalking_aces.has(ace_kind):
+		GlobalData.narrative.stalking_aces.append(ace_kind)

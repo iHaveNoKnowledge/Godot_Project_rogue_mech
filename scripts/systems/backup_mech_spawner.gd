@@ -22,7 +22,7 @@ func call_reserve_mech(mech_id: String) -> bool:
 	if mech_id == "" or _pending.has(mech_id) or not _roster_has(mech_id):
 		return false
 	# EMP & Jamming Zone: electromagnetic interference blocks reserve delivery.
-	if GlobalData.current_hazard == GlobalData.HAZARD_EMP_ZONE:
+	if GlobalData.board.current_hazard == GlobalData.HAZARD_EMP_ZONE:
 		_announce("RESERVE BLOCKED — EMP JAMMING ACTIVE")
 		return false
 	var drop_pos := _pick_drop_point()

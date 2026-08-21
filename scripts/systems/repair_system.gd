@@ -23,12 +23,12 @@ extends RefCounted
 # Credit cost to fully repair a slot (armor + inner frame). One formula, used by
 # every repair UI so the same damage always costs the same credits.
 static func get_repair_cost(slot: String) -> int:
-	var dmg := clampf(float(GlobalData.part_damage.get(slot, 0.0)), 0.0, 1.0)
-	var frame_dmg := clampf(float(GlobalData.part_damage.get(slot + "_frame", 0.0)), 0.0, 1.0)
+	var dmg := clampf(float(GlobalData.weapons.part_damage.get(slot, 0.0)), 0.0, 1.0)
+	var frame_dmg := clampf(float(GlobalData.weapons.part_damage.get(slot + "_frame", 0.0)), 0.0, 1.0)
 	if dmg <= 0.0 and frame_dmg <= 0.0:
 		return 0
-	var armor_max_hp := GlobalData.part_stat(GlobalData.equipped_parts.get(slot), "max_hp", 50.0)
-	var frame_max_hp := GlobalData.part_stat(GlobalData.equipped_frames.get(slot), "max_hp", 50.0)
+	var armor_max_hp := GlobalData.weapons.part_stat(GlobalData.weapons.equipped_parts.get(slot), "max_hp", 50.0)
+	var frame_max_hp := GlobalData.weapons.part_stat(GlobalData.weapons.equipped_frames.get(slot), "max_hp", 50.0)
 	var cost := dmg * armor_max_hp * GlobalData.REPAIR_COST_PER_HP
 	cost += frame_dmg * frame_max_hp * GlobalData.REPAIR_COST_PER_HP
 	return maxi(1, int(ceil(cost)))
@@ -36,12 +36,12 @@ static func get_repair_cost(slot: String) -> int:
 
 # Scrap cost to emergency-patch a slot, based on how much of it is damaged.
 static func get_emergency_repair_scrap_cost(slot: String) -> int:
-	var dmg := clampf(float(GlobalData.part_damage.get(slot, 0.0)), 0.0, 1.0)
-	var frame_dmg := clampf(float(GlobalData.part_damage.get(slot + "_frame", 0.0)), 0.0, 1.0)
+	var dmg := clampf(float(GlobalData.weapons.part_damage.get(slot, 0.0)), 0.0, 1.0)
+	var frame_dmg := clampf(float(GlobalData.weapons.part_damage.get(slot + "_frame", 0.0)), 0.0, 1.0)
 	if dmg <= 0.0 and frame_dmg <= 0.0:
 		return 0
-	var armor_max_hp := GlobalData.part_stat(GlobalData.equipped_parts.get(slot), "max_hp", 50.0)
-	var frame_max_hp := GlobalData.part_stat(GlobalData.equipped_frames.get(slot), "max_hp", 50.0)
+	var armor_max_hp := GlobalData.weapons.part_stat(GlobalData.weapons.equipped_parts.get(slot), "max_hp", 50.0)
+	var frame_max_hp := GlobalData.weapons.part_stat(GlobalData.weapons.equipped_frames.get(slot), "max_hp", 50.0)
 	var cost: int = int(GlobalData.EMERGENCY_REPAIR_BASE_SCRAP)
 	cost += int(ceil(dmg * armor_max_hp * GlobalData.EMERGENCY_REPAIR_SCRAP_PER_ARMOR_HP))
 	cost += int(ceil(frame_dmg * frame_max_hp * GlobalData.EMERGENCY_REPAIR_SCRAP_PER_FRAME_HP))
@@ -55,17 +55,17 @@ static func apply_emergency_repair(slot: String, primitives: Array = []) -> Dict
 	if slot not in GlobalData.MECHA_SLOTS:
 		return {}
 	var cost := get_emergency_repair_scrap_cost(slot)
-	if cost <= 0 or GlobalData.scrap < cost:
+	if cost <= 0 or GlobalData.currency.scrap < cost:
 		return {}
-	GlobalData.scrap -= cost
+	GlobalData.currency.scrap -= cost
 
 	var tier := FleetSystem.get_scrap_armor_tier()
 	var scale := FleetSystem.get_scrap_armor_stat_scale()
-	var armor_max_hp := GlobalData.part_stat(GlobalData.equipped_parts.get(slot), "max_hp", 50.0)
-	var frame_max_hp := GlobalData.part_stat(GlobalData.equipped_frames.get(slot), "max_hp", 50.0)
+	var armor_max_hp := GlobalData.weapons.part_stat(GlobalData.weapons.equipped_parts.get(slot), "max_hp", 50.0)
+	var frame_max_hp := GlobalData.weapons.part_stat(GlobalData.weapons.equipped_frames.get(slot), "max_hp", 50.0)
 
 	var armor_class := 1.0
-	var p = GlobalData.equipped_parts.get(slot)
+	var p = GlobalData.weapons.equipped_parts.get(slot)
 	if p:
 		if p.get("armor_class") != null:
 			armor_class = float(p.armor_class)
@@ -88,9 +88,9 @@ static func apply_emergency_repair(slot: String, primitives: Array = []) -> Dict
 		"scrap_spent": cost,
 		"primitives": safe_primitives,
 	}
-	GlobalData.scrap_patches[slot] = patch
-	GlobalData.part_damage.erase(slot)
-	GlobalData.part_damage.erase(slot + "_frame")
+	GlobalData.weapons.scrap_patches[slot] = patch
+	GlobalData.weapons.part_damage.erase(slot)
+	GlobalData.weapons.part_damage.erase(slot + "_frame")
 
 	# Practice makes perfect — patching is how the driver's repair skill grows.
 	FleetSystem.gain_repair_xp(10 + cost)
@@ -159,11 +159,11 @@ static func scrap_primitive_color(primitive: Dictionary) -> Color:
 
 
 static func has_scrap_patch(slot: String) -> bool:
-	return GlobalData.scrap_patches.has(slot)
+	return GlobalData.weapons.scrap_patches.has(slot)
 
 
 static func remove_scrap_patch(slot: String) -> void:
-	GlobalData.scrap_patches.erase(slot)
+	GlobalData.weapons.scrap_patches.erase(slot)
 
 
 # -----------------------------------------------------------------------------
@@ -176,8 +176,8 @@ static func remove_scrap_patch(slot: String) -> void:
 static func get_professional_repair_cost(slot: String) -> int:
 	if slot not in GlobalData.MECHA_SLOTS:
 		return 0
-	var armor_max_hp := GlobalData.part_stat(GlobalData.equipped_parts.get(slot), "max_hp", 50.0)
-	var frame_max_hp := GlobalData.part_stat(GlobalData.equipped_frames.get(slot), "max_hp", 50.0)
+	var armor_max_hp := GlobalData.weapons.part_stat(GlobalData.weapons.equipped_parts.get(slot), "max_hp", 50.0)
+	var frame_max_hp := GlobalData.weapons.part_stat(GlobalData.weapons.equipped_frames.get(slot), "max_hp", 50.0)
 	var cost: float = float(armor_max_hp * GlobalData.PROFESSIONAL_REPAIR_CREDITS_PER_ARMOR_HP)
 	cost += float(frame_max_hp * GlobalData.PROFESSIONAL_REPAIR_CREDITS_PER_FRAME_HP)
 	return maxi(1, int(ceil(cost)))
@@ -189,10 +189,10 @@ static func apply_professional_repair(slot: String) -> bool:
 	if slot not in GlobalData.MECHA_SLOTS:
 		return false
 	var cost := get_professional_repair_cost(slot)
-	if GlobalData.credits < cost:
+	if GlobalData.currency.credits < cost:
 		return false
-	GlobalData.credits -= cost
-	GlobalData.scrap_patches.erase(slot)
-	GlobalData.part_damage.erase(slot)
-	GlobalData.part_damage.erase(slot + "_frame")
+	GlobalData.currency.credits -= cost
+	GlobalData.weapons.scrap_patches.erase(slot)
+	GlobalData.weapons.part_damage.erase(slot)
+	GlobalData.weapons.part_damage.erase(slot + "_frame")
 	return true

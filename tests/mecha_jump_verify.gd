@@ -29,7 +29,7 @@ func _ready() -> void:
 	GlobalData.reset_run_data()
 	# Deterministic leg frames so get_leg_power() is controllable: weak legs
 	# (carry_bonus 2 each) vs strong legs (carry_bonus 6 each).
-	GlobalData.equipped_frames = {
+	GlobalData.weapons.equipped_frames = {
 		"head": {"carry_bonus": 8.0, "weight": 3.0},
 		"body": {"carry_bonus": 8.0, "weight": 3.0},
 		"arm_left": {"carry_bonus": 3.0, "weight": 3.0},
@@ -134,8 +134,8 @@ func _verify_leg_power_scaling() -> void:
 	# with leg-frame power.
 	var weak_full: float = mech._jump_velocity(1.0)
 	var weak_tap: float = mech._jump_velocity(0.0)
-	GlobalData.equipped_frames["leg_left"] = {"carry_bonus": 6.0, "weight": 3.0}
-	GlobalData.equipped_frames["leg_right"] = {"carry_bonus": 6.0, "weight": 3.0}
+	GlobalData.weapons.equipped_frames["leg_left"] = {"carry_bonus": 6.0, "weight": 3.0}
+	GlobalData.weapons.equipped_frames["leg_right"] = {"carry_bonus": 6.0, "weight": 3.0}
 	var strong_full: float = mech._jump_velocity(1.0)
 	var strong_tap: float = mech._jump_velocity(0.0)
 	_check(is_equal_approx(weak_tap, strong_tap), "tap is a low hop regardless of leg power")
@@ -144,13 +144,13 @@ func _verify_leg_power_scaling() -> void:
 	# A special gundam-class leg frame declaring its own jump_power leaps beyond
 	# the standard carry_bonus curve — the hook for exotic frames.
 	var normal_full: float = mech._jump_velocity(1.0)
-	GlobalData.equipped_frames["leg_left"] = {"carry_bonus": 3.0, "jump_power": 25.0, "weight": 3.0}
-	GlobalData.equipped_frames["leg_right"] = {"carry_bonus": 3.0, "jump_power": 25.0, "weight": 3.0}
+	GlobalData.weapons.equipped_frames["leg_left"] = {"carry_bonus": 3.0, "jump_power": 25.0, "weight": 3.0}
+	GlobalData.weapons.equipped_frames["leg_right"] = {"carry_bonus": 3.0, "jump_power": 25.0, "weight": 3.0}
 	var gundam_full: float = mech._jump_velocity(1.0)
 	_check(gundam_full > normal_full + 5.0, "a special frame's jump_power leaps higher than normal legs (%.1f > %.1f)" % [gundam_full, normal_full])
 	# Restore the strong standard legs for the physics tests.
-	GlobalData.equipped_frames["leg_left"] = {"carry_bonus": 6.0, "weight": 3.0}
-	GlobalData.equipped_frames["leg_right"] = {"carry_bonus": 6.0, "weight": 3.0}
+	GlobalData.weapons.equipped_frames["leg_left"] = {"carry_bonus": 6.0, "weight": 3.0}
+	GlobalData.weapons.equipped_frames["leg_right"] = {"carry_bonus": 6.0, "weight": 3.0}
 
 
 func _verify_weight_penalty() -> void:
@@ -193,7 +193,7 @@ func _peak_height(start_y: float) -> float:
 
 func _verify_prejump_mode() -> void:
 	# Base mode: no thruster module equipped
-	GlobalData.attachments.clear()
+	GlobalData.weapons.attachments.clear()
 	mech._jump.thruster_override = false
 	_check(mech._jump.get_active_jump_mode() == mech._jump.JumpMode.PRE_JUMP_CHARGE, "base mode active without thruster module")
 
@@ -225,7 +225,7 @@ func _verify_prejump_mode() -> void:
 
 func _verify_thruster_jump_mode() -> void:
 	# Equip booster_mk1 attachment to activate Jetpack Thruster mode
-	GlobalData.attachments = [{"id": "booster_mk1", "name": "Thrust Booster MK-I", "type": "thruster"}]
+	GlobalData.weapons.attachments = [{"id": "booster_mk1", "name": "Thrust Booster MK-I", "type": "thruster"}]
 	mech._jump.thruster_override = true
 	_check(mech._jump.has_thruster_module(), "thruster module detected from loadout")
 	_check(mech._jump.get_active_jump_mode() == mech._jump.JumpMode.JETPACK_THRUSTER, "jetpack thruster mode active when module equipped")
@@ -251,7 +251,7 @@ func _verify_thruster_jump_mode() -> void:
 
 	# Reset override
 	mech._jump.thruster_override = null
-	GlobalData.attachments.clear()
+	GlobalData.weapons.attachments.clear()
 
 
 func _verify_midair_dash() -> void:

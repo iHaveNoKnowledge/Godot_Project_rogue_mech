@@ -100,15 +100,15 @@ func _verify_right_column() -> void:
 		"objective and ceasefire cards both have size")
 
 	# No ceasefire -> the countdown slot stays an empty reserved cell.
-	GlobalData.ceasefire_turns = 0
+	GlobalData.narrative.ceasefire_turns = 0
 	hud._refresh()
 	_check(str(hud._ceasefire_label.text) == "", "ceasefire slot empty when no ceasefire is active")
 
 	# Active ceasefire -> the slot shows how many turns remain.
-	GlobalData.ceasefire_turns = 3
+	GlobalData.narrative.ceasefire_turns = 3
 	hud._refresh()
 	_check(str(hud._ceasefire_label.text).contains("3 TURNS LEFT"), "ceasefire slot shows remaining turns when active")
-	GlobalData.ceasefire_turns = 0
+	GlobalData.narrative.ceasefire_turns = 0
 
 	# MP readout still works (the whole point of the card).
 	var labels: Array = []

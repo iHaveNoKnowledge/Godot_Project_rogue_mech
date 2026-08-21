@@ -236,7 +236,7 @@ func _heal(template_id: String) -> void:
 		# moved (or resources were drained while the page was open).
 		if controller and controller.status_message_label:
 			controller.status_message_label.text = "Need %d credits to heal this pilot." % cost \
-				if GlobalData.credits < cost else "The pilot could not be healed."
+				if GlobalData.currency.credits < cost else "The pilot could not be healed."
 		return
 	GlobalData.save_run()
 	var unit := FleetSystem.get_fleet_unit(template_id)

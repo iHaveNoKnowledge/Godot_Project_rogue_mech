@@ -37,15 +37,15 @@ func _init_parts() -> void:
 
 	for slot in parts:
 		# Apply HP from equipped inner frame (matching Hangar display which adds the upgrade bonus)
-		if GlobalData.equipped_frames.has(slot):
-			var f = GlobalData.equipped_frames[slot]
+		if GlobalData.weapons.equipped_frames.has(slot):
+			var f = GlobalData.weapons.equipped_frames[slot]
 			var f_hp = f.get("hp", parts[slot]["max_frame"]) + LoadoutSystem.get_frame_upgrade_hp_bonus()
 			parts[slot]["frame_hp"] = f_hp
 			parts[slot]["max_frame"] = f_hp
 
 		# Apply HP & armor_class from equipped outer armor
-		if GlobalData.equipped_parts.has(slot):
-			var p = GlobalData.equipped_parts[slot]
+		if GlobalData.weapons.equipped_parts.has(slot):
+			var p = GlobalData.weapons.equipped_parts[slot]
 			if p and p.get("max_hp") != null:
 				parts[slot]["armor_hp"] = p.max_hp
 				parts[slot]["max_armor"] = p.max_hp
@@ -68,19 +68,19 @@ func _init_parts() -> void:
 		# driver's repair-skill tier) instead of the real armor plate. If the
 		# real frame was destroyed, the scrap structure stands in for it.
 		# -----------------------------------------------------------------------
-		if GlobalData.scrap_patches.has(slot):
-			var patch = GlobalData.scrap_patches[slot]
+		if GlobalData.weapons.scrap_patches.has(slot):
+			var patch = GlobalData.weapons.scrap_patches[slot]
 			var scrap_armor: float = patch.get("scrap_armor_hp", parts[slot]["max_armor"])
 			parts[slot]["armor_hp"] = scrap_armor
 			parts[slot]["max_armor"] = scrap_armor
 			parts[slot]["armor_class"] = patch.get("armor_class", parts[slot]["armor_class"])
-			if GlobalData.part_damage.get(slot + "_frame", 0.0) >= 1.0:
+			if GlobalData.weapons.part_damage.get(slot + "_frame", 0.0) >= 1.0:
 				var scrap_frame: float = patch.get("scrap_frame_hp", parts[slot]["max_frame"])
 				parts[slot]["frame_hp"] = scrap_frame
 				parts[slot]["max_frame"] = scrap_frame
 			# The patch rebuilt the slot, so no persistent damage applies to it.
-			GlobalData.part_damage.erase(slot)
-			GlobalData.part_damage.erase(slot + "_frame")
+			GlobalData.weapons.part_damage.erase(slot)
+			GlobalData.weapons.part_damage.erase(slot + "_frame")
 			continue
 
 		# -----------------------------------------------------------------------
@@ -88,7 +88,7 @@ func _init_parts() -> void:
 		# Armor damage key: "slot_name"       (ratio 0.0 = full, 1.0 = destroyed)
 		# Frame damage key: "slot_name_frame" (ratio 0.0 = full, 1.0 = destroyed)
 		# -----------------------------------------------------------------------
-		var armor_dmg_ratio = GlobalData.part_damage.get(slot, 0.0)
+		var armor_dmg_ratio = GlobalData.weapons.part_damage.get(slot, 0.0)
 		if armor_dmg_ratio > 0.0:
 			var lost = parts[slot]["max_armor"] * clampf(armor_dmg_ratio, 0.0, 1.0)
 			parts[slot]["armor_hp"] = maxf(parts[slot]["max_armor"] - lost, 0.0)
@@ -96,7 +96,7 @@ func _init_parts() -> void:
 				parts[slot]["armor_broken"] = true
 				parts[slot]["armor_hp"] = 0.0
 
-		var frame_dmg_ratio = GlobalData.part_damage.get(slot + "_frame", 0.0)
+		var frame_dmg_ratio = GlobalData.weapons.part_damage.get(slot + "_frame", 0.0)
 		if frame_dmg_ratio > 0.0:
 			var lost_f = parts[slot]["max_frame"] * clampf(frame_dmg_ratio, 0.0, 1.0)
 			parts[slot]["frame_hp"] = maxf(parts[slot]["max_frame"] - lost_f, 0.0)

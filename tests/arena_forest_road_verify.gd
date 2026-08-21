@@ -27,8 +27,8 @@ func _ready() -> void:
 
 	# Real flow: forest board, player stepped onto a ROAD tile -> road arena.
 	GlobalData.reset_run_data()
-	GlobalData.board_theme_id = "forest"
-	GlobalData.combat_tile_terrain = "road"
+	GlobalData.board.board_theme_id = "forest"
+	GlobalData.board.combat_tile_terrain = "road"
 	var arena := arena_script.new()
 	arena.current_theme = arena._theme_from_board()
 	_check(arena.current_theme == forest_road, "forest board + road tile -> FOREST_ROAD biome")
@@ -77,7 +77,7 @@ func _ready() -> void:
 	_check(city_props == 0, "no city props in the road arena (got %d)" % city_props)
 
 	# A forest board fought on NON-road terrain still gets the plain FOREST.
-	GlobalData.combat_tile_terrain = "forest"
+	GlobalData.board.combat_tile_terrain = "forest"
 	var arena2 := arena_script.new()
 	arena2.current_theme = arena2._theme_from_board()
 	_check(arena2.current_theme == arena_script.BiomeTheme.FOREST,

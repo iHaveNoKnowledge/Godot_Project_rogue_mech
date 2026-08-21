@@ -21,10 +21,10 @@ func _check(cond: bool, name: String) -> void:
 
 func _ready() -> void:
 	GlobalData.reset_run_data()
-	GlobalData.board_theme_id = "desert"
-	GlobalData.combat_tile_terrain = "sand"
-	GlobalData.current_sector = 2
-	GlobalData.current_tile = Vector2i(7, 7)
+	GlobalData.board.board_theme_id = "desert"
+	GlobalData.board.combat_tile_terrain = "sand"
+	GlobalData.board.current_sector = 2
+	GlobalData.board.current_tile = Vector2i(7, 7)
 
 	# Mimic game_world layout: GameWorld hosts Mecha + ArenaGenerator + seed sys.
 	var host := Node3D.new()
@@ -70,7 +70,7 @@ func _ready() -> void:
 	_check(clear_of_objects, "spawn is clear of concealment objects")
 
 	# Clear of the upcoming cover spawns (same seed the obstacle spawner uses).
-	seed_sys.set_seed(GlobalData.current_sector, GlobalData.current_tile)
+	seed_sys.set_seed(GlobalData.board.current_sector, GlobalData.board.current_tile)
 	var cover := seed_sys.get_obstacle_positions(int(arena.current_theme), 240.0)
 	var clear_of_cover := true
 	for c in cover:

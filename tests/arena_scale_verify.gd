@@ -23,12 +23,12 @@ func _check(cond: bool, name: String) -> void:
 func _ready() -> void:
 	# --- 1. Arena scale follows the combat node type ---
 	GameManager.combat_node_type = "ace"
-	GlobalData.current_arena_size = 0.0
+	GlobalData.board.current_arena_size = 0.0
 	var arena_script = preload("res://scripts/arena/arena_generator.gd")
 	var arena := arena_script.new()
 	arena._ready()
 	_check(arena.arena_size == 320.0, "ace fight -> medium 320m arena (got %s)" % arena.arena_size)
-	_check(GlobalData.current_arena_size == 320.0, "GlobalData.current_arena_size synced")
+	_check(GlobalData.board.current_arena_size == 320.0, "GlobalData.board.current_arena_size synced")
 
 	GameManager.combat_node_type = "grunt"
 	var arena_small := arena_script.new()

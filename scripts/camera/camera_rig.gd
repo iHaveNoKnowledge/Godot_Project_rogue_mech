@@ -90,7 +90,7 @@ func _check_lock_on() -> void:
 		return
 
 	# EMP & Jamming Zone: lock-on disabled by electromagnetic interference.
-	if GlobalData.current_hazard == GlobalData.HAZARD_EMP_ZONE:
+	if GlobalData.board.current_hazard == GlobalData.HAZARD_EMP_ZONE:
 		EventBus.lock_on_target_lost.emit()
 		return
 

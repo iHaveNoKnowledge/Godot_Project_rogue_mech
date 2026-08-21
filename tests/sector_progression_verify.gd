@@ -33,45 +33,45 @@ func _ready() -> void:
 
 	# --- frame_upgrade_level round-trips through save/load ---
 	GlobalData.frame_upgrade_level = 4
-	GlobalData.current_sector = 3
-	GlobalData.credits = 999
+	GlobalData.board.current_sector = 3
+	GlobalData.currency.credits = 999
 	SaveGameIO.save_run()
 	GlobalData.reset_run_data()
 	_check(GlobalData.frame_upgrade_level == 1, "after reset, upgrade level back to 1")
 	SaveGameIO.load_run()
 	_check(GlobalData.frame_upgrade_level == 4, "upgrade level persists across save/load")
-	_check(GlobalData.current_sector == 3, "sector round-trips too")
+	_check(GlobalData.board.current_sector == 3, "sector round-trips too")
 
 	# --- wanted_escalation resets on new run ---
-	GlobalData.wanted_escalation = 5
+	GlobalData.board.wanted_escalation = 5
 	GlobalData.reset_run_data()
-	_check(GlobalData.wanted_escalation == 0 and GlobalData.wanted_level == 0, "new run clears wanted escalation")
+	_check(GlobalData.board.wanted_escalation == 0 and GlobalData.board.wanted_level == 0, "new run clears wanted escalation")
 
 	# --- wanted_escalation floor survives heat cool-downs ---
 	GlobalData.reset_run_data()
 	HeatWantedSystem.escalate_wanted(1, 5)
-	_check(GlobalData.wanted_level == 1, "escalate_wanted raises wanted_level to 1")
+	_check(GlobalData.board.wanted_level == 1, "escalate_wanted raises wanted_level to 1")
 	HeatWantedSystem.escalate_wanted(3, 5)
-	_check(GlobalData.wanted_level == 4, "escalate_wanted stacks to 4")
+	_check(GlobalData.board.wanted_level == 4, "escalate_wanted stacks to 4")
 	HeatWantedSystem.escalate_wanted(5, 5)
-	_check(GlobalData.wanted_level == 5, "escalate_wanted caps at 5")
+	_check(GlobalData.board.wanted_level == 5, "escalate_wanted caps at 5")
 	# Heat cools to 0 — the floor must keep wanted at 5 (not drop to heat-derived 0).
 	HeatWantedSystem.modify_heat(-HeatWantedSystem.max_heat)
-	_check(GlobalData.heat == 0, "heat cooled to zero")
-	_check(GlobalData.wanted_level == 5, "wanted stays 5 after full heat cool-down (floor holds)")
+	_check(GlobalData.board.heat == 0, "heat cooled to zero")
+	_check(GlobalData.board.wanted_level == 5, "wanted stays 5 after full heat cool-down (floor holds)")
 
 	# --- wanted_escalation round-trips through save/load ---
 	SaveGameIO.save_run()
 	GlobalData.reset_run_data()
 	SaveGameIO.load_run()
-	_check(GlobalData.wanted_escalation == 5, "escalation floor persists across save/load")
-	_check(GlobalData.wanted_level == 5, "wanted_level restored from escalation floor")
+	_check(GlobalData.board.wanted_escalation == 5, "escalation floor persists across save/load")
+	_check(GlobalData.board.wanted_level == 5, "wanted_level restored from escalation floor")
 
 	# --- restore old saves without the new keys (backward compat) ---
 	GlobalData.reset_run_data()
 	SaveGameIO.restore_from_dict({})
 	_check(GlobalData.frame_upgrade_level == 1, "legacy save defaults frame_upgrade_level to 1")
-	_check(GlobalData.wanted_escalation == 0, "legacy save defaults wanted_escalation to 0")
+	_check(GlobalData.board.wanted_escalation == 0, "legacy save defaults wanted_escalation to 0")
 
 	# Restore the player's original save file (if any).
 	if backup != "":

@@ -19,7 +19,7 @@ var path_index: int = 0
 # Arena radius the unspotted hunt is clamped to. Scales with the battle field
 # size so enemies still fan out properly on medium/large arenas.
 func _arena_radius() -> float:
-	return GlobalData.current_arena_size * 0.46
+	return GlobalData.board.current_arena_size * 0.46
 
 
 func enter() -> void:

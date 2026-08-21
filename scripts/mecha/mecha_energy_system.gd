@@ -36,21 +36,21 @@ var is_on_floor: bool = true
 
 func initialize_from_global() -> void:
 	## Load persisted energy from GlobalData (survives combat/board transitions).
-	max_energy = GlobalData.mech_max_energy
-	energy = clampf(GlobalData.mech_energy, 0.0, max_energy)
-	if GlobalData.drop_tanks_attached > 0 and GlobalData.drop_tank_fuel > 0.0:
+	max_energy = GlobalData.fuel.mech_max_energy
+	energy = clampf(GlobalData.fuel.mech_energy, 0.0, max_energy)
+	if GlobalData.fuel.drop_tanks_attached > 0 and GlobalData.fuel.drop_tank_fuel > 0.0:
 		_drop_tank_active = true
-		_drop_tank_hp = GlobalData.drop_tanks_attached * DROP_TANK_HP_PER_TANK
-		max_energy += GlobalData.drop_tank_fuel
-		energy += GlobalData.drop_tank_fuel
+		_drop_tank_hp = GlobalData.fuel.drop_tanks_attached * DROP_TANK_HP_PER_TANK
+		max_energy += GlobalData.fuel.drop_tank_fuel
+		energy += GlobalData.fuel.drop_tank_fuel
 	var dtv = get_parent().get_node_or_null("DropTankVisuals") if get_parent() else null
 	if dtv and dtv.has_method("_refresh"):
 		dtv._refresh()
 
 
 func persist_to_global() -> void:
-	GlobalData.mech_energy = energy
-	GlobalData.mech_max_energy = max_energy
+	GlobalData.fuel.mech_energy = energy
+	GlobalData.fuel.mech_max_energy = max_energy
 
 
 func process_energy(delta: float) -> void:
@@ -59,7 +59,7 @@ func process_energy(delta: float) -> void:
 
 	if is_roller_dashing and is_on_floor and input_dir.length() > 0.0:
 		roller_drain_ramp = minf(roller_drain_ramp + ROLLER_RAMP_DRAIN * delta, ROLLER_MAX_DRAIN)
-		var drain_mult := GlobalData.DUST_STORM_ROLLER_DRAIN_MULT if GlobalData.current_hazard == GlobalData.HAZARD_DUST_STORM else 1.0
+		var drain_mult := GlobalData.DUST_STORM_ROLLER_DRAIN_MULT if GlobalData.board.current_hazard == GlobalData.HAZARD_DUST_STORM else 1.0
 		energy = maxf(energy - (ROLLER_BASE_DRAIN + roller_drain_ramp) * drain_mult * delta, 0.0)
 		if energy <= 0.0:
 			is_roller_dashing = false
@@ -103,15 +103,15 @@ func purge_drop_tanks() -> void:
 		return
 	var parent = get_parent()
 	var pos: Vector3 = parent.global_position if parent else Vector3.ZERO
-	var tank_fuel := GlobalData.drop_tank_fuel
+	var tank_fuel := GlobalData.fuel.drop_tank_fuel
 	energy = maxf(energy - tank_fuel, 0.0)
 	max_energy -= tank_fuel
 	_drop_tank_active = false
 	_drop_tank_hp = 0.0
 	_drop_tank_detonating = false
 	_drop_tank_timer = 0.0
-	GlobalData.drop_tanks_attached = 0
-	GlobalData.drop_tank_fuel = 0.0
+	GlobalData.fuel.drop_tanks_attached = 0
+	GlobalData.fuel.drop_tank_fuel = 0.0
 	if parent:
 		var dtv = parent.get_node_or_null("DropTankVisuals")
 		if dtv and dtv.has_method("on_drop_tank_purged"):
@@ -128,11 +128,11 @@ func _drop_tank_explode() -> void:
 	_drop_tank_active = false
 	_drop_tank_detonating = false
 	_drop_tank_timer = 0.0
-	var tank_fuel := GlobalData.drop_tank_fuel
+	var tank_fuel := GlobalData.fuel.drop_tank_fuel
 	energy = maxf(energy - tank_fuel, 0.0)
 	max_energy -= tank_fuel
-	GlobalData.drop_tanks_attached = 0
-	GlobalData.drop_tank_fuel = 0.0
+	GlobalData.fuel.drop_tanks_attached = 0
+	GlobalData.fuel.drop_tank_fuel = 0.0
 	if parent:
 		var dtv = parent.get_node_or_null("DropTankVisuals")
 		if dtv and dtv.has_method("on_drop_tank_destroyed"):

@@ -28,7 +28,7 @@ func _check(cond: bool, label: String) -> void:
 
 func _ready() -> void:
 	GlobalData.reset_run_data()
-	GlobalData.equipped_frames = {
+	GlobalData.weapons.equipped_frames = {
 		"head": {"carry_bonus": 8.0, "weight": 3.0},
 		"body": {"carry_bonus": 8.0, "weight": 3.0},
 		"arm_left": {"carry_bonus": 3.0, "weight": 3.0},

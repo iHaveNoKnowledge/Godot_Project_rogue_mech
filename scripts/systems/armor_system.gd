@@ -5,7 +5,7 @@ extends RefCounted
 # ARMOR INSTANCE INVENTORY
 # Owned armor-piece inventory logic extracted from GlobalData. Each owned armor
 # piece is a unique instance (uid) with its own durability and upgrade level.
-# `GlobalData.part_damage[slot]` remains the live combat damage cache of the
+# `GlobalData.weapons.part_damage[slot]` remains the live combat damage cache of the
 # currently equipped instance; instance.durability is the persistent source for
 # everything sitting in the inventory (equipped included, kept in sync).
 # GlobalData keeps thin facades for all existing callers.
@@ -13,7 +13,7 @@ extends RefCounted
 
 
 static func ensure_default_equipped_parts() -> void:
-	if not GlobalData.equipped_parts.is_empty():
+	if not GlobalData.weapons.equipped_parts.is_empty():
 		return
 	for slot in GlobalData.MECHA_SLOTS:
 		if GlobalData.armor_catalog.has(slot) and GlobalData.armor_catalog[slot].size() > 0:
@@ -65,12 +65,12 @@ static func make_armor_instance_from_catalog(part_id: String) -> Dictionary:
 	instance["durability"] = 1.0
 	instance["upgrade_level"] = 1
 	instance["equipped"] = false
-	GlobalData.armor_inventory.append(instance)
+	GlobalData.weapons.armor_inventory.append(instance)
 	return instance
 
 
 static func get_armor_instance(uid: String) -> Dictionary:
-	for inst in GlobalData.armor_inventory:
+	for inst in GlobalData.weapons.armor_inventory:
 		if inst.get("uid", "") == uid:
 			return inst
 	return {}
@@ -79,9 +79,9 @@ static func get_armor_instance(uid: String) -> Dictionary:
 # Extracts hp/armor/weight floats from a catalog entry (shared by cost formulas).
 static func _get_armor_cost_stats(entry: Dictionary) -> Dictionary:
 	return {
-		"hp": GlobalData.part_stat(entry, "hp", 30.0),
-		"armor": GlobalData.part_stat(entry, "armor", 15.0),
-		"weight": GlobalData.part_stat(entry, "weight", 4.0)
+		"hp": GlobalData.weapons.part_stat(entry, "hp", 30.0),
+		"armor": GlobalData.weapons.part_stat(entry, "armor", 15.0),
+		"weight": GlobalData.weapons.part_stat(entry, "weight", 4.0)
 	}
 
 
@@ -115,10 +115,10 @@ static func try_craft_armor_from_catalog(part_id: String) -> Dictionary:
 		return {}
 	if entry_is_blueprint_locked(entry):
 		return {}
-	if GlobalData.scrap < get_armor_scrap_cost(entry) or GlobalData.credits < get_armor_credit_cost(entry):
+	if GlobalData.currency.scrap < get_armor_scrap_cost(entry) or GlobalData.currency.credits < get_armor_credit_cost(entry):
 		return {}
-	GlobalData.scrap -= get_armor_scrap_cost(entry)
-	GlobalData.credits -= get_armor_credit_cost(entry)
+	GlobalData.currency.scrap -= get_armor_scrap_cost(entry)
+	GlobalData.currency.credits -= get_armor_credit_cost(entry)
 	return make_armor_instance_from_catalog(part_id)
 
 
@@ -130,32 +130,32 @@ static func equip_armor_instance(uid: String, slot: String) -> bool:
 	unequip_armor_instance(slot)
 	inst["equipped"] = true
 	inst["slot"] = slot
-	GlobalData.equipped_parts[slot] = inst
+	GlobalData.weapons.equipped_parts[slot] = inst
 	var dmg := 1.0 - GlobalData.get_durability_ratio(inst)
 	if dmg <= 0.0:
-		GlobalData.part_damage.erase(slot)
+		GlobalData.weapons.part_damage.erase(slot)
 	else:
-		GlobalData.part_damage[slot] = dmg
+		GlobalData.weapons.part_damage[slot] = dmg
 	return true
 
 
 static func unequip_armor_instance(slot: String) -> void:
-	var current = GlobalData.equipped_parts.get(slot)
+	var current = GlobalData.weapons.equipped_parts.get(slot)
 	if current is Dictionary and current.has("uid"):
 		var inst := get_armor_instance(str(current["uid"]))
 		if not inst.is_empty():
 			inst["durability"] = GlobalData.get_part_durability(slot)
 			inst["equipped"] = false
-	GlobalData.equipped_parts[slot] = null
-	GlobalData.part_damage.erase(slot)
+	GlobalData.weapons.equipped_parts[slot] = null
+	GlobalData.weapons.part_damage.erase(slot)
 	# NOTE: frame damage (part_damage[slot + "_frame"]) belongs to the mech's
 	# frame, not the armor being swapped out — swapping armor must NOT heal it.
 
 
 # Writes the live combat damage cache back into the equipped instances' durability.
 static func sync_equipped_armor_durability() -> void:
-	for slot in GlobalData.equipped_parts:
-		var part = GlobalData.equipped_parts[slot]
+	for slot in GlobalData.weapons.equipped_parts:
+		var part = GlobalData.weapons.equipped_parts[slot]
 		if part is Dictionary and part.has("uid"):
 			var inst := get_armor_instance(str(part["uid"]))
 			if not inst.is_empty():

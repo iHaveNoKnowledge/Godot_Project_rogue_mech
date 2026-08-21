@@ -85,7 +85,7 @@ func _verify_weapon_badge_is_per_instance() -> void:
 	# Equip ONE copy through the real equip path (passes the clicked instance).
 	var inst_a: Dictionary = {}
 	var inst_b: Dictionary = {}
-	for entry in GlobalData.weapon_inventory:
+	for entry in GlobalData.weapons.weapon_inventory:
 		if str(entry.get("path", "")) == pile:
 			if inst_a.is_empty():
 				inst_a = entry
@@ -103,7 +103,7 @@ func _verify_weapon_badge_is_per_instance() -> void:
 			eq_idx = i
 	_check(eq_idx >= 0, "one pile copy shows [E] after equipping")
 	_check(eq_idx >= 0 and (rows.size() == 1 or rows[(eq_idx + 1) % rows.size()].begins_with("[E] ") == false), "the sibling copy does NOT show [E]")
-	var equipped_uid := str(GlobalData.weapon_loadout.get("left", ""))
+	var equipped_uid := str(GlobalData.weapons.weapon_loadout.get("left", ""))
 	_check(equipped_uid == str(inst_a.get("uid", "")), "the loadout holds the clicked copy's uid")
 	_check(equipped_uid != str(inst_b.get("uid", "")), "the other copy's uid is untouched")
 	# The [E] pile row (raw display index) must map to the equipped instance.
@@ -115,7 +115,7 @@ func _verify_weapon_badge_is_per_instance() -> void:
 	_check(eq_raw >= 0, "the equipped pile row exists in the raw list")
 	if eq_raw >= 0:
 		var inv_idx: int = ctrl.visible_weapon_indices[eq_raw]
-		var shown: Dictionary = GlobalData.weapon_inventory[inv_idx]
+		var shown: Dictionary = GlobalData.weapons.weapon_inventory[inv_idx]
 		_check(str(shown.get("uid", "")) == equipped_uid, "the [E] row maps to the equipped instance")
 
 	ctrl.queue_free()
@@ -139,7 +139,7 @@ func _verify_weapon_sort_equipped_last() -> void:
 	await get_tree().process_frame
 
 	var inst_a: Dictionary = {}
-	for entry in GlobalData.weapon_inventory:
+	for entry in GlobalData.weapons.weapon_inventory:
 		if str(entry.get("path", "")) == pile:
 			inst_a = entry
 			break
@@ -180,8 +180,8 @@ func _verify_armor_sort_equipped_last() -> void:
 		return
 	var inst1: Dictionary = ArmorSystem.make_armor_instance_from_catalog(entries[0]["id"])
 	var inst2: Dictionary = ArmorSystem.make_armor_instance_from_catalog(entries[0]["id"])
-	GlobalData.armor_inventory.append(inst1)
-	GlobalData.armor_inventory.append(inst2)
+	GlobalData.weapons.armor_inventory.append(inst1)
+	GlobalData.weapons.armor_inventory.append(inst2)
 	await get_tree().process_frame
 	ctrl.equip_panel.equip_part("body", inst1)
 	await get_tree().process_frame
@@ -220,7 +220,7 @@ func _verify_tier_box_ui() -> void:
 	if not entries.is_empty():
 		var inst: Dictionary = ArmorSystem.make_armor_instance_from_catalog(entries[0]["id"])
 		inst["upgrade_level"] = 3
-		GlobalData.armor_inventory.append(inst)
+		GlobalData.weapons.armor_inventory.append(inst)
 		await get_tree().process_frame
 		ctrl.part_list_panel.populate("body")
 		_check(ctrl.tier_label.text == "1.2", "armor tier box shows 1.2 for upgrade level 3 (got %s)" % ctrl.tier_label.text)
@@ -232,7 +232,7 @@ func _verify_tier_box_ui() -> void:
 	if ctrl.frame_catalog.has("body") and not (ctrl.frame_catalog["body"] as Array).is_empty():
 		var frame_info: Dictionary = (ctrl.frame_catalog["body"][0] as Dictionary).duplicate()
 		frame_info["upgrade_level"] = 5
-		GlobalData.equipped_frames["body"] = frame_info
+		GlobalData.weapons.equipped_frames["body"] = frame_info
 		ctrl.part_list_panel.populate("body")
 		_check(ctrl.tier_label.text == "1.4", "frame tier box shows 1.4 for an upgraded equipped frame (got %s)" % ctrl.tier_label.text)
 		_check(ctrl.tier_pips_label.text == "●●●●", "frame tier box fills all four pips")

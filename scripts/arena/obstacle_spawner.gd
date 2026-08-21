@@ -32,7 +32,7 @@ func _generate_positions() -> Array:
 
 	if seed_system:
 		if seed_system.has_method("set_seed"):
-			seed_system.set_seed(GlobalData.current_sector, GlobalData.current_tile)
+			seed_system.set_seed(GlobalData.board.current_sector, GlobalData.board.current_tile)
 		return seed_system.get_obstacle_positions(theme, arena_size)
 	else:
 		return _random_positions()

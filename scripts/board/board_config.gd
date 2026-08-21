@@ -130,7 +130,7 @@ static func theme_for_sector(sector: int) -> String:
 		1:
 			return "suburb"
 		2:
-			return "desert" if (GlobalData.board_seed % 2 == 0) else "forest"
+			return "desert" if (GlobalData.board.board_seed % 2 == 0) else "forest"
 		_:
 			return "urban"
 

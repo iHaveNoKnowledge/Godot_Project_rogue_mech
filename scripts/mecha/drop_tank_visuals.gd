@@ -79,7 +79,7 @@ func _refresh() -> void:
 	_clear_tanks()
 	var count: int = 0
 	if _parent_mecha:
-		count = GlobalData.drop_tanks_attached
+		count = GlobalData.fuel.drop_tanks_attached
 	if count <= 0:
 		return
 	# Mount positions relative to the backpack node (Body/Backpack).

@@ -23,11 +23,11 @@ func _ready() -> void:
 	# Real flow: generate a sector-2 board (odd seed -> forest theme), which is
 	# exactly how board_theme_id is set during gameplay, then build the arena.
 	GlobalData.reset_run_data()
-	GlobalData.current_sector = 2
-	GlobalData.board_seed = 1 # odd -> forest
+	GlobalData.board.current_sector = 2
+	GlobalData.board.board_seed = 1 # odd -> forest
 	var gen := preload("res://scripts/board/board_generator.gd").new()
 	gen.generate_board()
-	_check(GlobalData.board_theme_id == "forest", "board generation sets forest theme")
+	_check(GlobalData.board.board_theme_id == "forest", "board generation sets forest theme")
 
 	var arena_script = preload("res://scripts/arena/arena_generator.gd")
 	var biome = arena_script.BiomeTheme.FOREST

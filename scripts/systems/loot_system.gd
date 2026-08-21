@@ -94,8 +94,8 @@ func _on_pickup_body_entered(body: Node3D, pickup: Area3D) -> void:
 			if slot:
 				# Armor damage key is the bare slot name ("body"); frame damage
 				# uses the "_frame" suffix. (Do NOT use slot + "_armor".)
-				GlobalData.part_damage.erase(slot)
-				GlobalData.part_damage.erase(slot + "_frame")
+				GlobalData.weapons.part_damage.erase(slot)
+				GlobalData.weapons.part_damage.erase(slot + "_frame")
 				EventBus.weight_changed.emit(0.0)
 		"scrap":
 			GlobalData.gain_scrap(loot_data.get("amount", 1))
@@ -104,8 +104,8 @@ func _on_pickup_body_entered(body: Node3D, pickup: Area3D) -> void:
 		# (slot picked at drop time) into the convoy's armor inventory.
 			var inst: Dictionary = loot_data.get("instance", {})
 			if not inst.is_empty() and ArmorSystem.get_armor_instance(str(inst.get("uid", ""))).is_empty():
-				GlobalData.armor_inventory.append(inst)
-				GlobalData.run_notice = "Salvaged armor: %s" % str(inst.get("name", "plate"))
+				GlobalData.weapons.armor_inventory.append(inst)
+				GlobalData.board.run_notice = "Salvaged armor: %s" % str(inst.get("name", "plate"))
 	pickup.queue_free()
 
 
@@ -199,7 +199,7 @@ func spawn_enemy_loot(enemy_position: Vector3, archetype: int = -1) -> void:
 		var drop_type := str(item.get("type", "ammo"))
 		if drop_type == "weapon" or drop_type == "armor":
 			if randf() < item.get("drop_chance", 0.5):
-				GlobalData.battle_loot.append(item)
+				GlobalData.weapons.battle_loot.append(item)
 		else:
 			pickup_table.append(item)
 	spawn_loot(enemy_position, pickup_table)

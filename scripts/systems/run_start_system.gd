@@ -67,10 +67,10 @@ static func roll_random_start() -> void:
 	GlobalData.chassis_id = roll_weighted_chassis(theme)
 
 	# Armor + frames per slot.
-	GlobalData.equipped_parts.clear()
-	GlobalData.part_damage.clear()
-	GlobalData.armor_inventory.clear()
-	GlobalData.equipped_frames.clear()
+	GlobalData.weapons.equipped_parts.clear()
+	GlobalData.weapons.part_damage.clear()
+	GlobalData.weapons.armor_inventory.clear()
+	GlobalData.weapons.equipped_frames.clear()
 	var tier_weights: Dictionary = start.get("part_tier_weights", {})
 	for slot in GlobalData.MECHA_SLOTS:
 		var armor_id := roll_armor_part(slot)
@@ -80,7 +80,7 @@ static func roll_random_start() -> void:
 				ArmorSystem.equip_armor_instance(inst["uid"], slot)
 		var frame_id := roll_frame(slot, tier_weights)
 		if frame_id != "":
-			GlobalData.equipped_frames[slot] = ArmorSystem.get_frame_catalog_entry(frame_id)
+			GlobalData.weapons.equipped_frames[slot] = ArmorSystem.get_frame_catalog_entry(frame_id)
 	GlobalData.weapons._ensure_default_frames()
 
 	# Weapons.
@@ -105,7 +105,7 @@ static func roll_random_start() -> void:
 	var left_path: String = left_pool[randi() % left_pool.size()] if not left_pool.is_empty() else GlobalData.DEFAULT_LEFT_WEAPON_PATH
 	# Each copy is a stash INSTANCE; the loadout references the copies by uid so
 	# equipping one copy never marks its same-model siblings as equipped.
-	GlobalData.weapon_inventory.clear()
+	GlobalData.weapons.weapon_inventory.clear()
 	var left_uid := ""
 	var right_uid := ""
 	var carry_uid := ""
@@ -118,12 +118,12 @@ static func roll_random_start() -> void:
 				right_uid = uid
 			elif carry_uid == "" and str(path) == carry_path:
 				carry_uid = uid
-	GlobalData.weapon_loadout["left"] = left_uid
-	GlobalData.weapon_loadout["right"] = right_uid
-	GlobalData.weapon_loadout["carry"] = [carry_uid]
+	GlobalData.weapons.weapon_loadout["left"] = left_uid
+	GlobalData.weapons.weapon_loadout["right"] = right_uid
+	GlobalData.weapons.weapon_loadout["carry"] = [carry_uid]
 
 	# Allies.
-	GlobalData.fleet_roster.clear()
+	GlobalData.hangar.fleet_roster.clear()
 	var allies: Dictionary = start.get("allies", {})
 	var templates: Array = allies.get("templates", [])
 	var min_a := int(allies.get("min", 0))
@@ -139,8 +139,8 @@ static func roll_random_start() -> void:
 	var credits_range: Array = start.get("credits", [100, 150])
 	var scrap_range: Array = start.get("scrap", [0, 10])
 	var cores_range: Array = start.get("data_cores", [0, 0])
-	GlobalData.credits = randi_range(int(credits_range[0]), int(credits_range[1]))
-	GlobalData.scrap = randi_range(int(scrap_range[0]), int(scrap_range[1]))
-	GlobalData.data_cores = randi_range(int(cores_range[0]), int(cores_range[1]))
+	GlobalData.currency.credits = randi_range(int(credits_range[0]), int(credits_range[1]))
+	GlobalData.currency.scrap = randi_range(int(scrap_range[0]), int(scrap_range[1]))
+	GlobalData.currency.data_cores = randi_range(int(cores_range[0]), int(cores_range[1]))
 	HangarManager.ensure_roster()
 	HangarManager.save_active()

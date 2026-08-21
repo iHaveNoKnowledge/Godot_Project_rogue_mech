@@ -54,7 +54,7 @@ func enter_combat(combat_type: String = "grunt") -> void:
 		if swapped_id != "":
 			GlobalData.save_run()
 			var name := str(HangarManager.get_active_mech().get("name", "the backup mech"))
-			GlobalData.run_notice = "The piloted mech's driver was wounded, so it was parked. You're piloting %s instead." % name
+			GlobalData.board.run_notice = "The piloted mech's driver was wounded, so it was parked. You're piloting %s instead." % name
 	get_tree().change_scene_to_file("res://scenes/game_world.tscn")
 	transition_to(State.COMBAT)
 	EventBus.combat_intensity_changed.emit(1.0)
@@ -63,17 +63,17 @@ func enter_combat(combat_type: String = "grunt") -> void:
 
 func advance_to_next_sector() -> void:
 	is_boss_combat = false
-	GlobalData.current_sector += 1
-	GlobalData.current_tile = Vector2i.ZERO
-	GlobalData.board_seed = randi()
-	GlobalData.board_day = 1
-	GlobalData.board_mp = GlobalData.board_mp_max
-	GlobalData.board_objective_id = BoardConfig.get_objective(BoardConfig.theme_for_sector(GlobalData.current_sector))["id"]
-	GlobalData.board_objective_progress = 0
-	GlobalData.board_objective_required = BoardConfig.get_objective(BoardConfig.theme_for_sector(GlobalData.current_sector))["required"]
-	GlobalData.board_objective_intro_consumed = false
-	GlobalData.board_patrols.clear()
-	GlobalData.board_patrol_engagement = -1
+	GlobalData.board.current_sector += 1
+	GlobalData.board.current_tile = Vector2i.ZERO
+	GlobalData.board.board_seed = randi()
+	GlobalData.board.board_day = 1
+	GlobalData.board.board_mp = GlobalData.board.board_mp_max
+	GlobalData.board.board_objective_id = BoardConfig.get_objective(BoardConfig.theme_for_sector(GlobalData.board.current_sector))["id"]
+	GlobalData.board.board_objective_progress = 0
+	GlobalData.board.board_objective_required = BoardConfig.get_objective(BoardConfig.theme_for_sector(GlobalData.board.current_sector))["required"]
+	GlobalData.board.board_objective_intro_consumed = false
+	GlobalData.board.board_patrols.clear()
+	GlobalData.board.board_patrol_engagement = -1
 	# Route through HeatWantedSystem so the HUD signals, wanted escalation floor
 	# and enemy mobilization capacity all stay in sync (never mutate directly).
 	HeatWantedSystem.modify_heat(-2)

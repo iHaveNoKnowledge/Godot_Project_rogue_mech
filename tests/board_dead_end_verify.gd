@@ -16,9 +16,9 @@ var _last_event: Dictionary = {}
 func _ready() -> void:
 	await get_tree().process_frame
 	GlobalData.reset_run_data()
-	GlobalData.current_sector = 1
-	GlobalData.board_seed = 777
-	GlobalData.board_objective_intro_consumed = true
+	GlobalData.board.current_sector = 1
+	GlobalData.board.board_seed = 777
+	GlobalData.board.board_objective_intro_consumed = true
 	GameManager.current_state = GameManager.State.BOARD
 	EventBus.event_triggered.connect(_on_event)
 
@@ -53,7 +53,7 @@ func _verify_choice_event(board: Node) -> void:
 	_check(cost >= 2, "clear cost is at least 2 MP")
 
 	# With a full MP pool the dead end offers both choices.
-	GlobalData.board_mp = GlobalData.board_mp_max
+	GlobalData.board.board_mp = GlobalData.board.board_mp_max
 	board.current_pos = Vector2i(1, 0)
 	_last_event = {}
 	board._trigger_dead_end_event()
@@ -68,7 +68,7 @@ func _verify_choice_event(board: Node) -> void:
 	_check(clear_label.contains("%d MP" % cost), "clear choice shows the MP cost")
 
 	# With an empty MP pool the clear option disappears (can't afford it).
-	GlobalData.board_mp = 0
+	GlobalData.board.board_mp = 0
 	_last_event = {}
 	board._trigger_dead_end_event()
 	get_tree().paused = false
@@ -81,16 +81,16 @@ func _verify_choice_event(board: Node) -> void:
 
 
 func _verify_effect() -> void:
-	GlobalData.board_mp = GlobalData.board_mp_max
-	GlobalData.pending_tile_clear = Vector2i(-1, -1)
+	GlobalData.board.board_mp = GlobalData.board.board_mp_max
+	GlobalData.board.pending_tile_clear = Vector2i(-1, -1)
 	var forced := ThemeSystem.apply_event_effect({
 		"effect": "dead_end_clear",
 		"amount": 3,
 		"params": {"pos": {"x": 2, "y": 2}},
 	})
 	_check(not forced, "dead_end_clear does not force a scene transition")
-	_check(GlobalData.board_mp == GlobalData.board_mp_max - 3, "clear choice spends the MP up front")
-	_check(GlobalData.pending_tile_clear == Vector2i(2, 2), "clear choice records the tile to open")
+	_check(GlobalData.board.board_mp == GlobalData.board.board_mp_max - 3, "clear choice spends the MP up front")
+	_check(GlobalData.board.pending_tile_clear == Vector2i(2, 2), "clear choice records the tile to open")
 
 
 func _verify_clear_and_day_skip(board: Node) -> void:
@@ -111,11 +111,11 @@ func _verify_clear_and_day_skip(board: Node) -> void:
 	# The player stands on the start tile (patrols can never step there, so the
 	# skipped day cannot ambush the convoy mid-test).
 	board.current_pos = Vector2i(0, 0)
-	var day_before: int = GlobalData.board_day
-	GlobalData.board_mp = 0
-	GlobalData.pending_tile_clear = clear_pos
+	var day_before: int = GlobalData.board.board_day
+	GlobalData.board.board_mp = 0
+	GlobalData.board.pending_tile_clear = clear_pos
 	board._apply_pending_tile_clear()
 	get_tree().paused = false
 	_check(str(board.nodes_dict[clear_pos].get_meta("tile_type", "empty")) == "empty", "cleared dead-end tile becomes ordinary ground")
-	_check(GlobalData.board_day == day_before + 1, "clearing the path skips a day")
-	_check(GlobalData.board_mp == GlobalData.board_mp_max, "the skipped day refills MP")
+	_check(GlobalData.board.board_day == day_before + 1, "clearing the path skips a day")
+	_check(GlobalData.board.board_mp == GlobalData.board.board_mp_max, "the skipped day refills MP")

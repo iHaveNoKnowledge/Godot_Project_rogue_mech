@@ -5,7 +5,7 @@ extends RefCounted
 # HANGAR MECH ROSTER
 # Built-mech roster logic extracted from GlobalData so the run-state autoload
 # stays focused on state. Every function reads/writes the roster state
-# (GlobalData.hangar_mechs / GlobalData.active_hangar_mech_id) through the
+# (GlobalData.hangar.hangar_mechs / GlobalData.hangar.active_hangar_mech_id) through the
 # GlobalData singleton, and GlobalData keeps thin build_hangar_mech()/
 # switch_hangar_mech()/... facades for its existing callers.
 #
@@ -50,7 +50,7 @@ const REGISTER_CREDIT_COST := 60
 # Number of pilots in the convoy: the player driver plus every researched fleet
 # unit (regardless of fielded/destroyed status — they still occupy a berth).
 static func get_fleet_size() -> int:
-	return maxi(1, GlobalData.fleet_roster.size() + 1)
+	return maxi(1, GlobalData.hangar.fleet_roster.size() + 1)
 
 
 # Parking berths in the convoy. Solo driver: 1 trailer, 2 berths. Fleet:
@@ -72,7 +72,7 @@ static func get_hard_max() -> int:
 # keyed by their template so a pilot survives renames in the fleet roster.
 static func get_pilots() -> Array:
 	var pilots: Array = [{"id": PLAYER_PILOT_ID, "name": "YOU (driver)"}]
-	for unit in GlobalData.fleet_roster:
+	for unit in GlobalData.hangar.fleet_roster:
 		if unit is Dictionary:
 			pilots.append({
 				"id": "fleet_%s" % str(unit.get("template_id", "")),
@@ -121,15 +121,15 @@ static func get_pilot_status(pilot_id: String) -> String:
 
 
 static func ensure_roster() -> void:
-	if GlobalData.mech_less:
+	if GlobalData.narrative.mech_less:
 		return
-	if GlobalData.hangar_mechs.is_empty():
+	if GlobalData.hangar.hangar_mechs.is_empty():
 		var first_id := _new_id()
-		GlobalData.hangar_mechs.append(_capture_snapshot(first_id, "Mech 01", PLAYER_PILOT_ID, 1))
-		GlobalData.active_hangar_mech_id = first_id
+		GlobalData.hangar.hangar_mechs.append(_capture_snapshot(first_id, "Mech 01", PLAYER_PILOT_ID, 1))
+		GlobalData.hangar.active_hangar_mech_id = first_id
 	else:
-		if GlobalData.active_hangar_mech_id == "" or _find(GlobalData.active_hangar_mech_id).is_empty():
-			GlobalData.active_hangar_mech_id = str(GlobalData.hangar_mechs[0].get("id", ""))
+		if GlobalData.hangar.active_hangar_mech_id == "" or _find(GlobalData.hangar.active_hangar_mech_id).is_empty():
+			GlobalData.hangar.active_hangar_mech_id = str(GlobalData.hangar.hangar_mechs[0].get("id", ""))
 	if _migrate_old_saves():
 		GlobalData.save_run()
 
@@ -141,7 +141,7 @@ static func _migrate_old_saves() -> bool:
 	var dirty := false
 	var used_slots: Dictionary = {}
 	var used_pilots: Dictionary = {}
-	for mech in GlobalData.hangar_mechs:
+	for mech in GlobalData.hangar.hangar_mechs:
 		if not (mech is Dictionary):
 			continue
 		var slot := int(mech.get("slot", 0))
@@ -157,7 +157,7 @@ static func _migrate_old_saves() -> bool:
 		if not used_pilots.has(str(pilot.get("id", ""))):
 			free_pilots.append(str(pilot.get("id", "")))
 
-	for mech in GlobalData.hangar_mechs:
+	for mech in GlobalData.hangar.hangar_mechs:
 		if not (mech is Dictionary):
 			continue
 		if int(mech.get("slot", 0)) <= 0:
@@ -183,7 +183,7 @@ static func _migrate_old_saves() -> bool:
 
 static func get_mechs() -> Array:
 	ensure_roster()
-	var sorted := GlobalData.hangar_mechs.duplicate()
+	var sorted := GlobalData.hangar.hangar_mechs.duplicate()
 	sorted.sort_custom(func(a, b):
 		return int(a.get("slot", 0x7FFFFFFF)) < int(b.get("slot", 0x7FFFFFFF)))
 	return sorted
@@ -191,23 +191,23 @@ static func get_mechs() -> Array:
 
 static func get_active_mech() -> Dictionary:
 	ensure_roster()
-	return _find(GlobalData.active_hangar_mech_id)
+	return _find(GlobalData.hangar.active_hangar_mech_id)
 
 
 static func save_active() -> bool:
 	ensure_roster()
-	var active := _find(GlobalData.active_hangar_mech_id)
+	var active := _find(GlobalData.hangar.active_hangar_mech_id)
 	if active.is_empty():
 		return false
 	var updated := _capture_snapshot(
-		GlobalData.active_hangar_mech_id,
+		GlobalData.hangar.active_hangar_mech_id,
 		str(active.get("name", "Mech")),
 		str(active.get("pilot", "")),
-		int(active.get("slot", get_slot_of(GlobalData.active_hangar_mech_id))),
+		int(active.get("slot", get_slot_of(GlobalData.hangar.active_hangar_mech_id))),
 	)
-	for i in range(GlobalData.hangar_mechs.size()):
-		if str(GlobalData.hangar_mechs[i].get("id", "")) == GlobalData.active_hangar_mech_id:
-			GlobalData.hangar_mechs[i] = updated
+	for i in range(GlobalData.hangar.hangar_mechs.size()):
+		if str(GlobalData.hangar.hangar_mechs[i].get("id", "")) == GlobalData.hangar.active_hangar_mech_id:
+			GlobalData.hangar.hangar_mechs[i] = updated
 			return true
 	return false
 
@@ -218,14 +218,14 @@ static func save_active() -> bool:
 # in the normal hangar editor. The newly parked mech has no pilot until one is
 # assigned from the roster page.
 static func build(mech_name: String = "", requested_slot: int = 0) -> Dictionary:
-	if GlobalData.mech_less:
+	if GlobalData.narrative.mech_less:
 		return {}
 	for required in REQUIRED_WALKING_FRAMES:
-		if not GlobalData.equipped_frames.has(required) or GlobalData.equipped_frames[required] == null:
+		if not GlobalData.weapons.equipped_frames.has(required) or GlobalData.weapons.equipped_frames[required] == null:
 			return {}
-	if GlobalData.hangar_mechs.size() >= get_capacity():
+	if GlobalData.hangar.hangar_mechs.size() >= get_capacity():
 		return {}
-	if GlobalData.hangar_mechs.size() >= get_hard_max():
+	if GlobalData.hangar.hangar_mechs.size() >= get_hard_max():
 		return {}
 	if requested_slot <= 0:
 		requested_slot = _next_free_slot()
@@ -237,15 +237,15 @@ static func build(mech_name: String = "", requested_slot: int = 0) -> Dictionary
 	if display_name == "":
 		display_name = "Mech %02d" % requested_slot
 	var snapshot := _capture_snapshot(mech_id, display_name, "", requested_slot)
-	GlobalData.hangar_mechs.append(snapshot)
+	GlobalData.hangar.hangar_mechs.append(snapshot)
 	return snapshot
 
 
 static func get_backup_id() -> String:
 	ensure_roster()
-	for mech in GlobalData.hangar_mechs:
+	for mech in GlobalData.hangar.hangar_mechs:
 		var mech_id := str(mech.get("id", ""))
-		if mech_id != "" and mech_id != GlobalData.active_hangar_mech_id:
+		if mech_id != "" and mech_id != GlobalData.hangar.active_hangar_mech_id:
 			return mech_id
 	return ""
 
@@ -276,9 +276,9 @@ static func is_active_driver_wounded() -> bool:
 # whose pilot is healthy or empty. Returns "" when no healthy backup exists.
 static func get_healthy_backup_id() -> String:
 	ensure_roster()
-	var active_id := GlobalData.active_hangar_mech_id
+	var active_id := GlobalData.hangar.active_hangar_mech_id
 	var fallback := ""
-	for mech in GlobalData.hangar_mechs:
+	for mech in GlobalData.hangar.hangar_mechs:
 		if not (mech is Dictionary):
 			continue
 		var mech_id := str(mech.get("id", ""))
@@ -315,17 +315,17 @@ static func auto_park_wounded_active() -> String:
 static func remove_mech(mech_id: String) -> bool:
 	ensure_roster()
 	var removed := false
-	for i in range(GlobalData.hangar_mechs.size() - 1, -1, -1):
-		if str(GlobalData.hangar_mechs[i].get("id", "")) == mech_id:
-			GlobalData.hangar_mechs.remove_at(i)
+	for i in range(GlobalData.hangar.hangar_mechs.size() - 1, -1, -1):
+		if str(GlobalData.hangar.hangar_mechs[i].get("id", "")) == mech_id:
+			GlobalData.hangar.hangar_mechs.remove_at(i)
 			removed = true
 	if not removed:
 		return false
-	if GlobalData.active_hangar_mech_id == mech_id:
-		GlobalData.active_hangar_mech_id = ""
-		for mech in GlobalData.hangar_mechs:
+	if GlobalData.hangar.active_hangar_mech_id == mech_id:
+		GlobalData.hangar.active_hangar_mech_id = ""
+		for mech in GlobalData.hangar.hangar_mechs:
 			if mech is Dictionary and not str(mech.get("id", "")).is_empty():
-				GlobalData.active_hangar_mech_id = str(mech.get("id", ""))
+				GlobalData.hangar.active_hangar_mech_id = str(mech.get("id", ""))
 				break
 	return true
 
@@ -335,7 +335,7 @@ static func remove_mech(mech_id: String) -> bool:
 # that parks spare mechs (a solo Gundam Heir has no backup truck, so losing the
 # machine ends the run).
 static func can_mechless_retreat() -> bool:
-	if not GlobalData.mech_less:
+	if not GlobalData.narrative.mech_less:
 		return false
 	if get_fleet_size() < 2:
 		return false
@@ -346,18 +346,18 @@ static func can_mechless_retreat() -> bool:
 # Builds a fresh walking chassis from whatever parts the convoy still carries
 # and parks it in the roster, ending pilot-only mode. Returns the new mech.
 static func grant_recovery_mech() -> Dictionary:
-	if GlobalData.hangar_mechs.size() >= get_capacity():
+	if GlobalData.hangar.hangar_mechs.size() >= get_capacity():
 		return {}
-	if GlobalData.hangar_mechs.size() >= get_hard_max():
+	if GlobalData.hangar.hangar_mechs.size() >= get_hard_max():
 		return {}
 	save_active()
 	var mech_id := _new_id()
 	var slot := _next_free_slot()
 	var display_name := "Mech %02d" % slot
 	var snapshot := _capture_snapshot(mech_id, display_name, PLAYER_PILOT_ID, slot)
-	GlobalData.hangar_mechs.append(snapshot)
-	GlobalData.active_hangar_mech_id = mech_id
-	GlobalData.mech_less = false
+	GlobalData.hangar.hangar_mechs.append(snapshot)
+	GlobalData.hangar.active_hangar_mech_id = mech_id
+	GlobalData.narrative.mech_less = false
 	return snapshot
 
 
@@ -365,11 +365,11 @@ static func grant_recovery_mech() -> Dictionary:
 # to that pilot. `damage` optionally seeds heavy part damage (0..1 per slot) so
 # a salvaged wreck arrives near-broken and repairable. Returns {} on no berth.
 static func park_ally_mech(mech_name: String, pilot_id: String, archetype: int, damage: Dictionary = {}) -> Dictionary:
-	if GlobalData.mech_less:
+	if GlobalData.narrative.mech_less:
 		return {}
-	if GlobalData.hangar_mechs.size() >= get_capacity():
+	if GlobalData.hangar.hangar_mechs.size() >= get_capacity():
 		return {}
-	if GlobalData.hangar_mechs.size() >= get_hard_max():
+	if GlobalData.hangar.hangar_mechs.size() >= get_hard_max():
 		return {}
 	save_active()
 	var mech_id := _new_id()
@@ -379,12 +379,12 @@ static func park_ally_mech(mech_name: String, pilot_id: String, archetype: int, 
 	if not damage.is_empty():
 		for key in damage:
 			snapshot["damage"][key] = clampf(float(damage[key]), 0.0, 1.0)
-	GlobalData.hangar_mechs.append(snapshot)
+	GlobalData.hangar.hangar_mechs.append(snapshot)
 	return snapshot
 
 
 static func get_slot_of(mech_id: String) -> int:
-	for mech in GlobalData.hangar_mechs:
+	for mech in GlobalData.hangar.hangar_mechs:
 		if mech is Dictionary and str(mech.get("id", "")) == mech_id:
 			return int(mech.get("slot", 0))
 	return 0
@@ -447,11 +447,11 @@ static func set_archetype(mech_id: String, archetype: int) -> bool:
 static func switch_mech(mech_id: String) -> bool:
 	ensure_roster()
 	var target := _find(mech_id)
-	if target.is_empty() or mech_id == GlobalData.active_hangar_mech_id:
+	if target.is_empty() or mech_id == GlobalData.hangar.active_hangar_mech_id:
 		return not target.is_empty()
 	save_active()
 	load_mech_state(mech_id)
-	GlobalData.active_hangar_mech_id = mech_id
+	GlobalData.hangar.active_hangar_mech_id = mech_id
 	return true
 
 
@@ -466,31 +466,31 @@ static func load_mech_state(mech_id: String) -> bool:
 		return false
 
 	# Release the old armor instances before attaching the target references.
-	for old_part in GlobalData.equipped_parts.values():
+	for old_part in GlobalData.weapons.equipped_parts.values():
 		if old_part is Dictionary and old_part.has("uid"):
 			var old_inst := ArmorSystem.get_armor_instance(str(old_part["uid"]))
 			if not old_inst.is_empty():
 				old_inst["equipped"] = false
 
 	GlobalData.chassis_id = str(target.get("chassis_id", "standard"))
-	GlobalData.equipped_frames.clear()
+	GlobalData.weapons.equipped_frames.clear()
 	var saved_frames: Dictionary = target.get("frames", {})
 	for slot in saved_frames:
-		GlobalData.equipped_frames[slot] = SaveGameIO.resolve_frame_value(saved_frames[slot])
+		GlobalData.weapons.equipped_frames[slot] = SaveGameIO.resolve_frame_value(saved_frames[slot])
 	GlobalData.weapons._ensure_default_frames()
 
-	GlobalData.equipped_parts.clear()
+	GlobalData.weapons.equipped_parts.clear()
 	var saved_parts: Dictionary = target.get("parts", {})
 	for slot in saved_parts:
 		var part = SaveGameIO.resolve_equipped_part(saved_parts[slot])
-		GlobalData.equipped_parts[slot] = part
+		GlobalData.weapons.equipped_parts[slot] = part
 		if part is Dictionary and part.has("uid"):
 			part["equipped"] = true
 
-	GlobalData.part_damage = target.get("damage", {}).duplicate(true)
-	GlobalData.attachments = target.get("attachments", []).duplicate(true)
-	GlobalData.weapon_loadout = target.get("weapon_loadout", GlobalData.weapon_loadout).duplicate(true)
-	GlobalData.scrap_patches = target.get("scrap_patches", {}).duplicate(true)
+	GlobalData.weapons.part_damage = target.get("damage", {}).duplicate(true)
+	GlobalData.weapons.attachments = target.get("attachments", []).duplicate(true)
+	GlobalData.weapons.weapon_loadout = target.get("weapon_loadout", GlobalData.weapons.weapon_loadout).duplicate(true)
+	GlobalData.weapons.scrap_patches = target.get("scrap_patches", {}).duplicate(true)
 	return true
 
 
@@ -508,9 +508,9 @@ static func save_mech_state(mech_id: String) -> bool:
 		str(target.get("pilot", "")),
 		int(target.get("slot", get_slot_of(mech_id))),
 	)
-	for i in range(GlobalData.hangar_mechs.size()):
-		if str(GlobalData.hangar_mechs[i].get("id", "")) == mech_id:
-			GlobalData.hangar_mechs[i] = updated
+	for i in range(GlobalData.hangar.hangar_mechs.size()):
+		if str(GlobalData.hangar.hangar_mechs[i].get("id", "")) == mech_id:
+			GlobalData.hangar.hangar_mechs[i] = updated
 			return true
 	return false
 
@@ -520,15 +520,15 @@ static func save_mech_state(mech_id: String) -> bool:
 # edits that leaked onto a berth during the REGISTER assembly flow, so frames
 # equipped for a NEW mech never rewrite an existing one.
 static func restore_berth_loadout(mech_id: String, snapshot: Dictionary) -> bool:
-	for i in range(GlobalData.hangar_mechs.size()):
-		var entry = GlobalData.hangar_mechs[i]
+	for i in range(GlobalData.hangar.hangar_mechs.size()):
+		var entry = GlobalData.hangar.hangar_mechs[i]
 		if entry is Dictionary and str(entry.get("id", "")) == mech_id:
 			var updated: Dictionary = entry.duplicate(true)
 			for key in ["chassis_id", "frames", "parts", "damage", "attachments", "weapon_loadout", "scrap_patches"]:
 				if snapshot.has(key):
 					var value = snapshot[key]
 					updated[key] = value.duplicate(true) if value is Dictionary or value is Array else value
-			GlobalData.hangar_mechs[i] = updated
+			GlobalData.hangar.hangar_mechs[i] = updated
 			return true
 	return false
 
@@ -543,17 +543,17 @@ static func _capture_snapshot(mech_id: String, mech_name: String, pilot_id: Stri
 		"chassis_id": GlobalData.chassis_id,
 		"frames": SaveGameIO.serialize_frames(),
 		"parts": SaveGameIO.serialize_parts(),
-		"damage": GlobalData.part_damage.duplicate(true),
+		"damage": GlobalData.weapons.part_damage.duplicate(true),
 		"attachments": SaveGameIO.serialize_attachments(),
-		"weapon_loadout": GlobalData.weapon_loadout.duplicate(true),
-		"scrap_patches": GlobalData.scrap_patches.duplicate(true),
+		"weapon_loadout": GlobalData.weapons.weapon_loadout.duplicate(true),
+		"scrap_patches": GlobalData.weapons.scrap_patches.duplicate(true),
 		"archetype": int(_find(mech_id).get("archetype", ARCHETYPE_RANGED)),
 	}
 
 
 static func _used_slots() -> Dictionary:
 	var used: Dictionary = {}
-	for mech in GlobalData.hangar_mechs:
+	for mech in GlobalData.hangar.hangar_mechs:
 		if mech is Dictionary:
 			used[int(mech.get("slot", 0))] = true
 	return used
@@ -570,14 +570,14 @@ static func _next_free_slot() -> int:
 static func _mech_with_pilot(pilot_id: String) -> String:
 	if pilot_id == "":
 		return ""
-	for mech in GlobalData.hangar_mechs:
+	for mech in GlobalData.hangar.hangar_mechs:
 		if mech is Dictionary and str(mech.get("pilot", "")) == pilot_id:
 			return str(mech.get("id", ""))
 	return ""
 
 
 static func _find(mech_id: String) -> Dictionary:
-	for mech in GlobalData.hangar_mechs:
+	for mech in GlobalData.hangar.hangar_mechs:
 		if mech is Dictionary and str(mech.get("id", "")) == mech_id:
 			return mech
 	return {}

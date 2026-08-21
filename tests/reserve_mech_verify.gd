@@ -99,11 +99,11 @@ func _verify_tab_menu_filtering() -> void:
 	GlobalData.reset_run_data()
 	HangarManager.ensure_roster()
 	# Grow the fleet so the convoy has enough berths for multiple spares.
-	GlobalData.fleet_roster.append({
+	GlobalData.hangar.fleet_roster.append({
 		"template_id": "grunt_1", "name": "Grunt 1", "hp": 100.0, "max_hp": 100.0,
 		"destroyed": false, "fielded": false,
 	})
-	GlobalData.fleet_roster.append({
+	GlobalData.hangar.fleet_roster.append({
 		"template_id": "grunt_2", "name": "Grunt 2", "hp": 100.0, "max_hp": 100.0,
 		"destroyed": false, "fielded": false,
 	})

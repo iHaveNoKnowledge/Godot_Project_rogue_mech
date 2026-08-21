@@ -94,12 +94,12 @@ var craft_panel: HangarCraftPanel = null
 # assigned (recovering drivers never tag into combat until healed).
 var wounded_banner: HangarWoundedBanner = null
 # The mech berth currently open in the customize/roster editor. This is separate
-# from GlobalData.active_hangar_mech_id (the mech the player actually pilots in
+# from GlobalData.hangar.active_hangar_mech_id (the mech the player actually pilots in
 # combat): prev/next cycles this editing target without reassigning the driver.
 var _customize_mech_id: String = ""
 
 # Inner Frame Catalog
-# NOTE: First entry per slot must match GlobalData.equipped_frames default names so
+# NOTE: First entry per slot must match GlobalData.weapons.equipped_frames default names so
 # the starter frames show up as "[E]" equipped in the list.
 # "carry_bonus" = kg of Field Pack capacity this frame adds (frame = class system).
 # Data lives in GlobalData (loaded from resources/data/mech_catalogs.tres).
@@ -151,7 +151,7 @@ func update_tier_display(info: Dictionary, slot: String = "") -> void:
 	var upg := int(info.get("upgrade_level", 1))
 	var effect := ""
 	if current_mode == "frame":
-		var fdict = GlobalData.equipped_frames.get(slot, {})
+		var fdict = GlobalData.weapons.equipped_frames.get(slot, {})
 		if fdict is Dictionary:
 			upg = int(fdict.get("upgrade_level", 1))
 		effect = "Each upgrade: +15 HP"
@@ -239,7 +239,7 @@ func _build_ui_layout() -> void:
 # the customize page reads/writes the same berth. These accessors are the seam
 # the roster panel (HangarRosterPanel) uses; the default is the piloted mech.
 func get_editing_mech_id() -> String:
-	return _customize_mech_id if _customize_mech_id != "" else GlobalData.active_hangar_mech_id
+	return _customize_mech_id if _customize_mech_id != "" else GlobalData.hangar.active_hangar_mech_id
 
 
 func set_editing_mech_id(id: String) -> void:

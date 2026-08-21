@@ -173,13 +173,13 @@ var theme_ace_wave_defs: Dictionary = {
 func _get_active_defs() -> Array:
 	match GameManager.combat_node_type:
 		"boss":
-			return theme_boss_wave_defs.get(GlobalData.theme_id, boss_wave_defs)
+			return theme_boss_wave_defs.get(GlobalData.narrative.theme_id, boss_wave_defs)
 		"ace":
-			return theme_ace_wave_defs.get(GlobalData.theme_id, ace_wave_defs)
+			return theme_ace_wave_defs.get(GlobalData.narrative.theme_id, ace_wave_defs)
 		"duel":
 			return _duel_wave_defs()
 		_:
-			return theme_grunt_wave_defs.get(GlobalData.theme_id, grunt_wave_defs)
+			return theme_grunt_wave_defs.get(GlobalData.narrative.theme_id, grunt_wave_defs)
 
 
 # A duel battle fields exactly one full-rig enemy — the pending character's
@@ -209,8 +209,8 @@ func _generate_spawn_points() -> void:
 	var is_river_bridge: bool = arena_gen != null and arena_gen.current_theme == 3
 	# A chokepoint/bait ambush closes in from two opposing arcs (a pincer)
 	# instead of the full ring, so the player is caught between flanks.
-	var is_pincer := GlobalData.ambush_pincer
-	GlobalData.ambush_pincer = false
+	var is_pincer := GlobalData.board.ambush_pincer
+	GlobalData.board.ambush_pincer = false
 
 	# On an irregular footprint the ring follows the real battlefield outline
 	# instead of a circular ring (a plain circle would land enemies in the void).
@@ -353,7 +353,7 @@ func _spawn_next_wave() -> void:
 	if current_wave == active_defs.size():
 		AudioManager.play_combat_music(GameManager.combat_node_type)
 
-	var wanted = GlobalData.wanted_level
+	var wanted = GlobalData.board.wanted_level
 	var hp_scale = 1.0 + min(wanted, 5) * 0.15
 	hp_scale *= EnemyFactionSystem.get_enemy_grunt_multiplier()
 	var extra_count = mini(wanted, 2)
@@ -424,7 +424,7 @@ static func check_all_enemies_defeated() -> void:
 
 func _check_combat_ended() -> void:
 	if _get_alive_count() == 0:
-		if not GlobalData.stalking_aces.is_empty():
+		if not GlobalData.narrative.stalking_aces.is_empty():
 			_trigger_stalking_ace_ambush()
 		else:
 			EventBus.combat_ended.emit(true)
@@ -455,7 +455,7 @@ func _schedule_mid_battle_events() -> void:
 
 
 func _trigger_stalking_ace_ambush() -> void:
-	var ace_kind = GlobalData.stalking_aces.pop_front()
+	var ace_kind = GlobalData.narrative.stalking_aces.pop_front()
 	GlobalData.stalking_chance = 0.0
 	_consume_enemy_special_unit(str(ace_kind))
 	print("SIREN WARNING! STALKING ACE WARPING IN!")

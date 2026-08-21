@@ -20,7 +20,7 @@ func _unit(tid: String, name: String) -> Dictionary:
 func _reset() -> void:
 	# Fleet of 2 squadmates -> convoy capacity 8 berths, enough to park recruits.
 	GlobalData.reset_run_data()
-	GlobalData.fleet_roster = [_unit("grunt_squad", "Alpha"), _unit("ace_scout", "Bravo")]
+	GlobalData.hangar.fleet_roster = [_unit("grunt_squad", "Alpha"), _unit("ace_scout", "Bravo")]
 	await get_tree().process_frame
 
 
@@ -59,7 +59,7 @@ func _ready() -> void:
 		if str(berth.get("pilot", "")) == "fleet_ally_serra":
 			found_pilot = true
 	_check(found_pilot, "serra's mech parked and piloted by her")
-	_check(GlobalData.run_notice != "", "run notice describes the recruit")
+	_check(GlobalData.board.run_notice != "", "run notice describes the recruit")
 	_check(not RecruitSystem.recruit("serra"), "recruiting again is a no-op")
 
 	# --- Duel for respect: win -> joins ---
@@ -84,14 +84,14 @@ func _ready() -> void:
 	# --- Kill duel: win always resolves (wreck | parts) + pilot fate, and the
 	# --- character can never be met again this run.
 	await _reset()
-	var credits_before := GlobalData.credits
-	var scrap_before := GlobalData.scrap
+	var credits_before := GlobalData.currency.credits
+	var scrap_before := GlobalData.currency.scrap
 	RecruitSystem.start_duel("jax", "kill")
 	RecruitSystem.resolve_duel(true)
 	_check(RecruitSystem.is_character_recruited("jax"), "kill-duel win marks jax resolved")
 	_check(GlobalData.duel_result_text != "", "kill-duel outcome text set")
 	_check(not FleetSystem.has_ally_unit("ally_jax") or FleetSystem.get_fleet_unit("ally_jax").get("fielded", true) == false, "salvaged ally never joins fielded")
-	var gained_something := GlobalData.credits > credits_before or GlobalData.scrap > scrap_before
+	var gained_something := GlobalData.currency.credits > credits_before or GlobalData.currency.scrap > scrap_before
 	var wreck_parked := false
 	for berth in HangarManager.get_mechs():
 		if str(berth.get("name", "")).contains("Mudhorn"):
@@ -111,7 +111,7 @@ func _ready() -> void:
 
 	# --- Wounded recovery: fielded again after wound_turns elapse ---
 	await _reset()
-	GlobalData.fleet_roster.append({
+	GlobalData.hangar.fleet_roster.append({
 		"template_id": "ally_jax",
 		"name": "Jax",
 		"hp": 10.0,
@@ -129,7 +129,7 @@ func _ready() -> void:
 	_check(bool(jax_unit.get("fielded", false)), "recovered pilot is fielded again")
 
 	# --- On foot: the whole encounter is skipped (a duel can't be fought) ---
-	GlobalData.mech_less = true
+	GlobalData.narrative.mech_less = true
 	var foot_event := {
 		"id": "encounter_serra",
 		"effect": "choice",

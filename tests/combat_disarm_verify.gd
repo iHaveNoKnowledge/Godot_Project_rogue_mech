@@ -330,16 +330,16 @@ func _verify_salvaged_armor() -> void:
 	var pickup := Area3D.new()
 	pickup.set_meta("loot_data", {"type": "armor", "instance": inst})
 	add_child(pickup)
-	var inv_before: int = GlobalData.armor_inventory.size()
+	var inv_before: int = GlobalData.weapons.armor_inventory.size()
 	loot._on_pickup_body_entered(body, pickup)
-	_check(GlobalData.armor_inventory.size() == inv_before + 1, "picking up salvaged armor adds it to the inventory")
+	_check(GlobalData.weapons.armor_inventory.size() == inv_before + 1, "picking up salvaged armor adds it to the inventory")
 	body.queue_free()
 	loot.queue_free()
 	await get_tree().process_frame
 
 
 # An emergency scrap patch acts exactly like normal armor: when its armor HP
-# hits zero the patch SHATTERS — it is removed from GlobalData.scrap_patches
+# hits zero the patch SHATTERS — it is removed from GlobalData.weapons.scrap_patches
 # so the crude plates fall off, the hangar stops showing it, and the next
 # battle doesn't re-apply its weak scrap stats.
 func _verify_scrap_patch_shatters() -> void:
@@ -348,8 +348,8 @@ func _verify_scrap_patch_shatters() -> void:
 	add_child(mecha)
 
 	# Install a scrap patch on the body slot BEFORE the health system initializes
-	# (its _init_parts reads GlobalData.scrap_patches to apply the patch stats).
-	GlobalData.scrap_patches["body"] = {
+	# (its _init_parts reads GlobalData.weapons.scrap_patches to apply the patch stats).
+	GlobalData.weapons.scrap_patches["body"] = {
 		"scrap_armor_hp": 40.0,
 		"armor_class": 0.6,
 		"scrap_frame_hp": 30.0,
@@ -364,7 +364,7 @@ func _verify_scrap_patch_shatters() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 
-	_check(GlobalData.scrap_patches.has("body"), "setup: scrap patch is installed on the body")
+	_check(GlobalData.weapons.scrap_patches.has("body"), "setup: scrap patch is installed on the body")
 	_check(is_equal_approx(float(hs.parts["body"]["max_armor"]), 40.0), "patch stats replace the body armor HP")
 
 	# Destroy the patch's armor (no frame damage — the patch's armor breaks
@@ -373,7 +373,7 @@ func _verify_scrap_patch_shatters() -> void:
 	await get_tree().process_frame
 
 	_check(hs.is_armor_broken("body"), "patch armor breaks like normal armor")
-	_check(not GlobalData.scrap_patches.has("body"), "shattered scrap patch is removed from the persistent stash")
+	_check(not GlobalData.weapons.scrap_patches.has("body"), "shattered scrap patch is removed from the persistent stash")
 
 	mecha.queue_free()
 	await get_tree().process_frame

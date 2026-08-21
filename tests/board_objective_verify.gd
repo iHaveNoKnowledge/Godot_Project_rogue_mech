@@ -27,12 +27,12 @@ func _ready() -> void:
 	# --- cross_river (forest): the board must produce bridge tiles, and the
 	# manager's bridge-step trigger must complete the objective. ---
 	GlobalData.reset_run_data()
-	GlobalData.current_sector = 2
-	GlobalData.board_seed = 1 # odd -> forest theme
+	GlobalData.board.current_sector = 2
+	GlobalData.board.board_seed = 1 # odd -> forest theme
 	var gen := preload("res://scripts/board/board_generator.gd").new()
 	var data := gen.generate_board()
 	var nodes: Dictionary = data["nodes"]
-	_check(GlobalData.board_theme_id == "forest", "sector 2 odd seed -> forest theme")
+	_check(GlobalData.board.board_theme_id == "forest", "sector 2 odd seed -> forest theme")
 
 	var bridge_count := 0
 	var forest_count := 0
@@ -46,10 +46,10 @@ func _ready() -> void:
 	_check(forest_count > 0, "forest board has forest terrain tiles (got %d)" % forest_count)
 
 	# Simulate the manager's objective setup + bridge-step trigger.
-	GlobalData.board_objective_id = ""
-	GlobalData.board_objective_progress = 0
+	GlobalData.board.board_objective_id = ""
+	GlobalData.board.board_objective_progress = 0
 	_setup_objective_like_manager()
-	_check(GlobalData.board_objective_id == "cross_river", "forest objective id = cross_river")
+	_check(GlobalData.board.board_objective_id == "cross_river", "forest objective id = cross_river")
 	_check(not BoardSystem.is_objective_complete(), "cross_river not complete before crossing")
 
 	var step_bridge := _find_first(nodes, "bridge")
@@ -59,43 +59,43 @@ func _ready() -> void:
 
 	# --- patrol_hunt (suburb): killing 3 patrols completes. ---
 	GlobalData.reset_run_data()
-	GlobalData.current_sector = 1
-	GlobalData.board_seed = 999
+	GlobalData.board.current_sector = 1
+	GlobalData.board.board_seed = 999
 	var gen2 := preload("res://scripts/board/board_generator.gd").new()
 	gen2.generate_board()
-	GlobalData.board_objective_id = ""
+	GlobalData.board.board_objective_id = ""
 	_setup_objective_like_manager()
-	_check(GlobalData.board_objective_id == "patrol_hunt", "suburb objective id = patrol_hunt")
+	_check(GlobalData.board.board_objective_id == "patrol_hunt", "suburb objective id = patrol_hunt")
 	PatrolSystem.spawn_patrols()
 	_check(PatrolSystem.has_patrols(), "patrols spawned for suburb")
-	GlobalData.board_patrol_engagement = 1
+	GlobalData.board.board_patrol_engagement = 1
 	for i in range(3):
 		var pid := _any_patrol_id()
-		GlobalData.board_patrol_engagement = pid
+		GlobalData.board.board_patrol_engagement = pid
 		PatrolSystem.resolve_patrol_combat(true)
 	_check(BoardSystem.is_objective_complete(), "patrol_hunt complete after 3 destroys")
 
 	# --- survey (desert): revealing 6 tiles completes. ---
 	GlobalData.reset_run_data()
-	GlobalData.current_sector = 2
-	GlobalData.board_seed = 2 # even -> desert
+	GlobalData.board.current_sector = 2
+	GlobalData.board.board_seed = 2 # even -> desert
 	var gen3 := preload("res://scripts/board/board_generator.gd").new()
 	gen3.generate_board()
-	GlobalData.board_objective_id = ""
+	GlobalData.board.board_objective_id = ""
 	_setup_objective_like_manager()
-	_check(GlobalData.board_objective_id == "survey", "desert objective id = survey")
+	_check(GlobalData.board.board_objective_id == "survey", "desert objective id = survey")
 	BoardSystem.add_progress(6)
 	_check(BoardSystem.is_objective_complete(), "survey complete at 6 revealed tiles")
 
 	# --- hq_strike (urban): enemy base destroyed flag completes on board load. ---
 	GlobalData.reset_run_data()
-	GlobalData.current_sector = 3
-	GlobalData.board_seed = 7
+	GlobalData.board.current_sector = 3
+	GlobalData.board.board_seed = 7
 	var gen4 := preload("res://scripts/board/board_generator.gd").new()
 	gen4.generate_board()
-	GlobalData.board_objective_id = ""
+	GlobalData.board.board_objective_id = ""
 	_setup_objective_like_manager()
-	_check(GlobalData.board_objective_id == "hq_strike", "urban objective id = hq_strike")
+	_check(GlobalData.board.board_objective_id == "hq_strike", "urban objective id = hq_strike")
 	_check(not BoardSystem.is_objective_complete(), "hq_strike not complete before base destroyed")
 	GlobalData.pending_enemy_base_destroyed = true
 	# The board manager consumes this flag in _ready; simulate the same effect.
@@ -110,9 +110,9 @@ func _ready() -> void:
 
 func _setup_objective_like_manager() -> void:
 	var obj := BoardSystem.get_objective()
-	GlobalData.board_objective_id = str(obj.get("id", ""))
-	GlobalData.board_objective_progress = 0
-	GlobalData.board_objective_required = int(obj.get("required", 1))
+	GlobalData.board.board_objective_id = str(obj.get("id", ""))
+	GlobalData.board.board_objective_progress = 0
+	GlobalData.board.board_objective_required = int(obj.get("required", 1))
 
 
 func _find_first(nodes: Dictionary, terrain: String) -> Vector2i:
@@ -134,6 +134,6 @@ func _simulate_step(nodes: Dictionary, target: Vector2i) -> bool:
 
 
 func _any_patrol_id() -> int:
-	for p in GlobalData.board_patrols:
+	for p in GlobalData.board.board_patrols:
 		return int(p.get("id", -1))
 	return -1

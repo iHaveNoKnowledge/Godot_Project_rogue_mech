@@ -106,7 +106,7 @@ func has_ally_candidates() -> bool:
 	for mech in HangarManager.get_mechs():
 		if not (mech is Dictionary):
 			continue
-		if str(mech.get("id", "")) == GlobalData.active_hangar_mech_id:
+		if str(mech.get("id", "")) == GlobalData.hangar.active_hangar_mech_id:
 			continue
 		if str(mech.get("pilot", "")) != "":
 			return true
@@ -134,7 +134,7 @@ func _repopulate_roster() -> void:
 	var mechs := HangarManager.get_mechs()
 	mechs.sort_custom(func(a, b): return int(a.get("slot", 99)) < int(b.get("slot", 99)))
 
-	var active_id := str(GlobalData.active_hangar_mech_id)
+	var active_id := str(GlobalData.hangar.active_hangar_mech_id)
 	var fielded_count := 0
 	for mech in mechs:
 		if not (mech is Dictionary):
@@ -250,4 +250,4 @@ func _on_cancel() -> void:
 		get_tree().paused = false
 	# The patrol the player stepped onto is NOT consumed by cancelling — they
 	# can back away or re-engage by stepping on it again.
-	GlobalData.board_patrol_engagement = -1
+	GlobalData.board.board_patrol_engagement = -1

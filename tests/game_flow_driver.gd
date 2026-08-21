@@ -165,20 +165,20 @@ func _wait_for_enemies(max_frames: int = 1200) -> Array:
 # hands must work when the player owns 2+ copies — the real flow the pickup
 # (register_weapon) and the hangar (set_hand_weapon) use.
 func _verify_weapon_instances() -> void:
-	var stash_before: int = GlobalData.weapon_inventory.size()
+	var stash_before: int = GlobalData.weapons.weapon_inventory.size()
 	var pile_bunker := "res://resources/mech/stock/weapon_pile_bunker.tres"
 	# Exactly what weapon_pickup.send_to_depot() does for each pickup.
 	LoadoutSystem.register_weapon(pile_bunker, "Pile Bunker")
 	LoadoutSystem.register_weapon(pile_bunker, "Pile Bunker")
-	var gained: int = GlobalData.weapon_inventory.size() - stash_before
+	var gained: int = GlobalData.weapons.weapon_inventory.size() - stash_before
 	_check(gained == 2, "picking up the same gun twice registers 2 separate stash instances (got %d)" % gained)
 	_check(LoadoutSystem.count_owned_weapon(pile_bunker) == 2, "stash counts both gun copies separately")
 
 	# Hangar equip path: left hand takes one copy, right hand takes the other.
 	LoadoutSystem.set_hand_weapon("left", pile_bunker)
 	LoadoutSystem.set_hand_weapon("right", pile_bunker)
-	_check(LoadoutSystem.ref_to_path(GlobalData.weapon_loadout.get("left", "")) == pile_bunker, "left hand holds a gun copy")
-	_check(LoadoutSystem.ref_to_path(GlobalData.weapon_loadout.get("right", "")) == pile_bunker, "right hand holds the second gun copy")
+	_check(LoadoutSystem.ref_to_path(GlobalData.weapons.weapon_loadout.get("left", "")) == pile_bunker, "left hand holds a gun copy")
+	_check(LoadoutSystem.ref_to_path(GlobalData.weapons.weapon_loadout.get("right", "")) == pile_bunker, "right hand holds the second gun copy")
 	_check(LoadoutSystem.count_owned_weapon(pile_bunker) == 2, "both gun copies stay in the stash after dual-wield equip")
 
 
@@ -187,11 +187,11 @@ func _verify_weapon_instances() -> void:
 # scrap armor that must SHATTER when its HP depletes.
 func _install_test_scrap_patch() -> void:
 	# The patch needs a damaged slot (cost > 0) and scrap to spend.
-	GlobalData.part_damage["body"] = 0.9
-	GlobalData.scrap = 5000
+	GlobalData.weapons.part_damage["body"] = 0.9
+	GlobalData.currency.scrap = 5000
 	var patch: Dictionary = RepairSystem.apply_emergency_repair("body", [])
 	_check(not patch.is_empty(), "real RepairSystem installs a scrap patch on the body")
-	_check(GlobalData.scrap_patches.has("body"), "scrap patch is recorded in the persistent stash")
+	_check(GlobalData.weapons.scrap_patches.has("body"), "scrap patch is recorded in the persistent stash")
 
 
 func _verify_board_walk_and_event() -> void:
@@ -208,7 +208,7 @@ func _verify_board_walk_and_event() -> void:
 	# _try_step). IntermissionUI may be up, so bypass its gate; and we avoid
 	# scene-changing tiles (combat / safehouse / city) so the board stays up for
 	# the popup test below.
-	var mp_before: int = GlobalData.board_mp
+	var mp_before: int = GlobalData.board.board_mp
 	var stepped := false
 	for d: Vector2i in board.DIRS:
 		var target: Vector2i = board.current_pos + d
@@ -221,7 +221,7 @@ func _verify_board_walk_and_event() -> void:
 					stepped = true
 					break
 	_check(stepped, "player token walks to an adjacent board tile")
-	_check(GlobalData.board_mp < mp_before or GlobalData.current_tile != Vector2i.ZERO, "walking consumed board MP / moved the token")
+	_check(GlobalData.board.board_mp < mp_before or GlobalData.board.current_tile != Vector2i.ZERO, "walking consumed board MP / moved the token")
 	# An event/data tile step can open a popup on its own — close it so the
 	# manual popup test below starts from a clean, unpaused board.
 	var walk_popup: Node = board.get_node_or_null("EventUI")
@@ -293,10 +293,10 @@ func _verify_combat() -> void:
 			# The trigger's outer face must poke PAST the boundary the zone hugs
 			# (the arena edge / footprint outline) into the outside strip.
 			var edge_val = zone.get("edge_dist")
-			var edge: float = float(edge_val) if edge_val != null else GlobalData.current_arena_size * 0.5
+			var edge: float = float(edge_val) if edge_val != null else GlobalData.board.current_arena_size * 0.5
 			var outward: float = edge + minf(size.x, size.z) * 0.5
 			zone_extended = outward > edge + 2.0
-	_check(zone_extended, "real escape zone trigger reaches past the arena edge (half=%.0fm)" % (GlobalData.current_arena_size * 0.5))
+	_check(zone_extended, "real escape zone trigger reaches past the arena edge (half=%.0fm)" % (GlobalData.board.current_arena_size * 0.5))
 
 	# --- Combat HUD: screen-top RETREAT banner exists ---
 	var combat_hud: Node = _find_node_with(current_scene_or_root(), "retreat_panel")
@@ -457,7 +457,7 @@ func _verify_pilot_permanent_death(mecha: Node) -> void:
 	if mecha == null:
 		return
 	# Restore the player pilot HP so the check below is deterministic.
-	GlobalData.pilot_hp = GlobalData.pilot_max_hp
+	GlobalData.pilot.pilot_hp = GlobalData.pilot_max_hp
 	var pilot := preload("res://scenes/pilot/pilot.tscn").instantiate()
 	current_scene_or_root().add_child(pilot)
 	pilot.global_position = mecha.global_position + Vector3(2.0, 0.5, 0)
@@ -474,7 +474,7 @@ func _verify_pilot_permanent_death(mecha: Node) -> void:
 	await get_tree().process_frame
 	_check(PilotSystem.is_dead(), "a fatal shot on foot kills the player pilot permanently in real combat")
 	pilot.queue_free()
-	GlobalData.pilot_hp = GlobalData.pilot_max_hp
+	GlobalData.pilot.pilot_hp = GlobalData.pilot_max_hp
 
 	# Ejected enemy pilot: give one a live body and burn its HP to 0. It spawns
 	# near the arena CENTER (the real pilot despawn rule frees anything >60m
@@ -559,7 +559,7 @@ func _verify_enemy_blocked_by_retreat_wall(rusher: Node, mecha: Node) -> void:
 
 # The real scrap patch installed before combat must behave exactly like normal
 # armor: when its armor HP hits zero the patch is removed from the persistent
-# stash (GlobalData.scrap_patches), so the hangar stops showing it.
+# stash (GlobalData.weapons.scrap_patches), so the hangar stops showing it.
 func _verify_scrap_patch_shatters(mecha: Node) -> void:
 	if mecha == null:
 		return
@@ -567,19 +567,19 @@ func _verify_scrap_patch_shatters(mecha: Node) -> void:
 	_check(hs != null, "player mech carries a HealthSystem in real combat")
 	if hs == null:
 		return
-	_check(GlobalData.scrap_patches.has("body"), "scrap patch still present at the start of combat")
+	_check(GlobalData.weapons.scrap_patches.has("body"), "scrap patch still present at the start of combat")
 	_check(hs.has_method("is_armor_broken") and not hs.is_armor_broken("body"), "patched body armor is intact at the start of combat")
 	# Destroy the patch's armor exactly like a plate taking a big hit.
 	hs.take_damage_to_part("body", 9999.0, "kinetic", "armor")
 	await get_tree().physics_frame
 	_check(hs.is_armor_broken("body"), "patch armor breaks like normal armor in real combat")
-	_check(not GlobalData.scrap_patches.has("body"), "shattered scrap patch is removed from the persistent stash in real combat")
+	_check(not GlobalData.weapons.scrap_patches.has("body"), "shattered scrap patch is removed from the persistent stash in real combat")
 
 
 # After combat returns to the board, enter the REAL hangar and confirm the
 # garage mech no longer renders any scrap patch on the shattered slot.
 # Real-scene end-to-end loot check: an enemy drops parts via the REAL
-# LootSystem path into GlobalData.battle_loot, the REAL CombatRewardsUI grant
+# LootSystem path into GlobalData.weapons.battle_loot, the REAL CombatRewardsUI grant
 # moves them into the depot/armor inventories, and (after entering the hangar
 # in _verify_hangar_after_patch) the part list renders the taken parts.
 func _verify_loot_reaches_hangar() -> void:
@@ -596,14 +596,14 @@ func _verify_loot_reaches_hangar() -> void:
 	# Run the REAL enemy-drop path until it yields at least one weapon AND one
 	# armor part in the post-battle pool (drop chances are random per call, so
 	# a bounded loop makes the check deterministic in practice).
-	GlobalData.battle_loot.clear()
+	GlobalData.weapons.battle_loot.clear()
 	var seen_weapon := false
 	var seen_armor := false
 	for i in range(120):
 		if seen_weapon and seen_armor:
 			break
 		loot_sys.spawn_enemy_loot(Vector3.ZERO, 1)
-		for entry in GlobalData.battle_loot:
+		for entry in GlobalData.weapons.battle_loot:
 			if entry is Dictionary:
 				match str(entry.get("type", "")):
 					"weapon":
@@ -614,7 +614,7 @@ func _verify_loot_reaches_hangar() -> void:
 	if not (seen_weapon and seen_armor):
 		return
 	# Record what was dropped so the hangar check can look for the same names.
-	for entry in GlobalData.battle_loot:
+	for entry in GlobalData.weapons.battle_loot:
 		if entry is Dictionary:
 			match str(entry.get("type", "")):
 				"weapon":
@@ -629,19 +629,19 @@ func _verify_loot_reaches_hangar() -> void:
 	# Player takes everything back through the real grant path (the same function
 	# the Continue button calls): every pool item moves to the TAKE BACK side,
 	# then Continue grants them into the depot stash / armor inventory.
-	var stash_before: int = GlobalData.weapon_inventory.size()
-	var armor_before: int = GlobalData.armor_inventory.size()
-	rewards_ui._left_items = GlobalData.battle_loot.duplicate()
-	rewards_ui._right_items = GlobalData.battle_loot.duplicate()
+	var stash_before: int = GlobalData.weapons.weapon_inventory.size()
+	var armor_before: int = GlobalData.weapons.armor_inventory.size()
+	rewards_ui._left_items = GlobalData.weapons.battle_loot.duplicate()
+	rewards_ui._right_items = GlobalData.weapons.battle_loot.duplicate()
 	rewards_ui._grant_take_back_loot()
-	_check(GlobalData.weapon_inventory.size() > stash_before, "taken weapon registers into the depot stash (real grant path)")
-	_check(GlobalData.armor_inventory.size() > armor_before, "taken armor part lands in the armor inventory (real grant path)")
-	_check(GlobalData.battle_loot.is_empty(), "post-battle loot pool clears after taking items back")
+	_check(GlobalData.weapons.weapon_inventory.size() > stash_before, "taken weapon registers into the depot stash (real grant path)")
+	_check(GlobalData.weapons.armor_inventory.size() > armor_before, "taken armor part lands in the armor inventory (real grant path)")
+	_check(GlobalData.weapons.battle_loot.is_empty(), "post-battle loot pool clears after taking items back")
 
 
 func _verify_hangar_after_patch() -> void:
 	# The body patch shattered in combat, so the stash must be empty of it.
-	_check(not GlobalData.scrap_patches.has("body"), "stash has no body scrap patch when entering the hangar")
+	_check(not GlobalData.weapons.scrap_patches.has("body"), "stash has no body scrap patch when entering the hangar")
 	GameManager.enter_hangar()
 	var hangar: Node = await _wait_for_hangar()
 	_check(hangar != null, "hangar scene loads after combat")
@@ -703,7 +703,7 @@ func _verify_hangar_after_patch() -> void:
 
 
 # Scans a PartMeshManager's mech for any visible ScrapPatch primitive container
-# (rendered only while GlobalData.scrap_patches holds that slot).
+# (rendered only while GlobalData.weapons.scrap_patches holds that slot).
 func _mech_has_visible_scrap_patch(pmm: Node) -> bool:
 	if pmm == null:
 		return false

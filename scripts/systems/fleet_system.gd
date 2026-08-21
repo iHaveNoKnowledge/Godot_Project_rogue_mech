@@ -18,18 +18,18 @@ static func get_fleet_security() -> float:
 
 
 static func get_security_upgrade_cost() -> int:
-	return GlobalData.SECURITY_UPGRADE_BASE_COST + (GlobalData.security_upgrade_level - 1) * 40
+	return GlobalData.SECURITY_UPGRADE_BASE_COST + (GlobalData.hangar.security_upgrade_level - 1) * 40
 
 
 # Spend credits to raise fleet security. Returns false if unaffordable or maxed.
 static func upgrade_fleet_security() -> bool:
 	var cost := get_security_upgrade_cost()
-	if GlobalData.credits < cost:
+	if GlobalData.currency.credits < cost:
 		return false
 	if get_fleet_security() >= GlobalData.FLEET_SECURITY_MAX:
 		return false
-	GlobalData.credits -= cost
-	GlobalData.security_upgrade_level += 1
+	GlobalData.currency.credits -= cost
+	GlobalData.hangar.security_upgrade_level += 1
 	GlobalData.fleet_security = minf(get_fleet_security() + GlobalData.SECURITY_PER_UPGRADE, GlobalData.FLEET_SECURITY_MAX)
 	return true
 
@@ -94,7 +94,7 @@ static func get_ally_template(template_id: String) -> Dictionary:
 
 static func get_fielded_units() -> Array:
 	var result: Array = []
-	for unit in GlobalData.fleet_roster:
+	for unit in GlobalData.hangar.fleet_roster:
 		if unit is Dictionary and unit.get("fielded", true) and not unit.get("destroyed", false):
 			# A wounded pilot can still be ASSIGNED to a berth (so a mech waits for
 			# them), but they never tag into combat until the recovery countdown
@@ -154,7 +154,7 @@ static func get_seated_template_ids() -> Dictionary:
 
 
 static func get_fleet_unit(template_id: String) -> Dictionary:
-	for unit in GlobalData.fleet_roster:
+	for unit in GlobalData.hangar.fleet_roster:
 		if unit.get("template_id", "") == template_id:
 			return unit
 	return {}
@@ -171,7 +171,7 @@ static func add_ally_unit(template_id: String) -> bool:
 		return false
 	if has_ally_unit(template_id):
 		return false
-	GlobalData.fleet_roster.append({
+	GlobalData.hangar.fleet_roster.append({
 		"template_id": template_id,
 		"name": template.get("name", template_id),
 		"hp": float(template.get("frame_hp", 50.0)),
@@ -225,9 +225,9 @@ static func start_research(project_id: String) -> bool:
 	if project.is_empty():
 		return false
 	var cost = int(project.get("data_cores", 1))
-	if GlobalData.data_cores < cost:
+	if GlobalData.currency.data_cores < cost:
 		return false
-	GlobalData.data_cores -= cost
+	GlobalData.currency.data_cores -= cost
 	GlobalData.research_projects[project_id] = {
 		"progress": 0,
 		"required": int(project.get("research_time", 6)),

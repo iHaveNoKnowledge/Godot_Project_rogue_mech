@@ -23,9 +23,9 @@ func _check(cond: bool, name: String) -> void:
 
 func _ready() -> void:
 	GlobalData.reset_run_data()
-	GlobalData.current_sector = 1
-	GlobalData.board_seed = 999
-	GlobalData.board_objective_intro_consumed = true
+	GlobalData.board.current_sector = 1
+	GlobalData.board.board_seed = 999
+	GlobalData.board.board_objective_intro_consumed = true
 	GameManager.current_state = GameManager.State.BOARD
 
 	var board = load("res://scenes/board/game_board.tscn").instantiate()

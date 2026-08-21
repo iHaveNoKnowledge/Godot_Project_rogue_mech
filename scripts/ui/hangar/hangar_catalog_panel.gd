@@ -104,7 +104,7 @@ func build_window() -> void:
 	vbox.add_child(title)
 
 	var hint = Label.new()
-	hint.text = "Scrap: %d   Credits: %d   Data Cores: %d" % [GlobalData.scrap, GlobalData.credits, GlobalData.data_cores]
+	hint.text = "Scrap: %d   Credits: %d   Data Cores: %d" % [GlobalData.currency.scrap, GlobalData.currency.credits, GlobalData.currency.data_cores]
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.add_theme_color_override("font_color", Color(0.5, 0.9, 0.6))
 	vbox.add_child(hint)
@@ -180,9 +180,9 @@ func build_window() -> void:
 			var bp_tag = "  [BLUEPRINT]" if blueprint_locked else ""
 			info_lbl.text = "%s%s [%s]  %.1fkg   (%.0f HP / %.0f armor)" % [
 				info.get("name", "Armor"), bp_tag, info.get("type", "?"),
-				GlobalData.part_stat(info, "weight", 0.0),
-				GlobalData.part_stat(info, "max_hp", 0.0),
-				GlobalData.part_stat(info, "armor", 0.0)
+				GlobalData.weapons.part_stat(info, "weight", 0.0),
+				GlobalData.weapons.part_stat(info, "max_hp", 0.0),
+				GlobalData.weapons.part_stat(info, "armor", 0.0)
 			]
 			info_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			info_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -194,7 +194,7 @@ func build_window() -> void:
 				craft_btn.disabled = true
 			else:
 				craft_btn.text = "CRAFT  %d scrap / %d cr" % [s_cost, c_cost]
-				craft_btn.disabled = GlobalData.scrap < s_cost or GlobalData.credits < c_cost
+				craft_btn.disabled = GlobalData.currency.scrap < s_cost or GlobalData.currency.credits < c_cost
 				craft_btn.pressed.connect(func(): controller.craft_panel.craft_armor(info))
 			craft_btn.custom_minimum_size = Vector2(160, 30)
 			row.add_child(craft_btn)
@@ -205,11 +205,11 @@ func build_window() -> void:
 	wsec.add_theme_font_size_override("font_size", 13)
 	rows.add_child(wsec)
 
-	if GlobalData.weapon_inventory.is_empty():
+	if GlobalData.weapons.weapon_inventory.is_empty():
 		var none = Label.new()
 		none.text = "No weapons owned yet."
 		rows.add_child(none)
-	for inv in GlobalData.weapon_inventory:
+	for inv in GlobalData.weapons.weapon_inventory:
 		var wpath := str(inv.get("path", ""))
 		var wname := str(inv.get("name", "Weapon"))
 		# Each inventory entry is one physical copy (no x2 count merging).
@@ -278,7 +278,7 @@ func stats_text_for_index(index: int) -> String:
 	if controller.current_mode == "upgrade":
 		var cost = controller._get_upgrade_cost()
 		return "INNER FRAME REACTOR LEVEL: %d -> %d\n\nEFFECTS:\n+25 FRAME HP per slot\n+15.0 kg MAX WEIGHT CAPACITY\n+1.5 m/s DASH THRUST SPEED\n\nUPGRADE COST: %d Credits" % [
-			GlobalData.frame_upgrade_level, GlobalData.frame_upgrade_level + 1, cost
+			GlobalData.weapons.frame_upgrade_level, GlobalData.weapons.frame_upgrade_level + 1, cost
 		]
 
 	if controller.current_mode == "attachment":
@@ -299,7 +299,7 @@ func stats_text_for_index(index: int) -> String:
 		var fname = info.get("name", info.get("part_name", "Inner Frame"))
 		var fcap = HangarPartText.frame_capability_text(info)
 		if controller.part_list_panel.is_item_equipped(controller.selected_slot, info):
-			var frame_dmg = GlobalData.part_damage.get(controller.selected_slot + "_frame", 0.0)
+			var frame_dmg = GlobalData.weapons.part_damage.get(controller.selected_slot + "_frame", 0.0)
 			return "INNER FRAME PART: %s  [E]\nDURABILITY: %.0f%%\n\n%s\n\nCurrently equipped." % [
 				fname, (1.0 - clampf(frame_dmg, 0.0, 1.0)) * 100.0, fcap
 			]
@@ -308,7 +308,7 @@ func stats_text_for_index(index: int) -> String:
 	if controller.selected_slot.begins_with("weapon"):
 		if index < 0 or index >= controller.visible_weapon_indices.size():
 			return ""
-		var inv = GlobalData.weapon_inventory[controller.visible_weapon_indices[index]]
+		var inv = GlobalData.weapons.weapon_inventory[controller.visible_weapon_indices[index]]
 		var wpath = inv.get("path", "")
 		var wname = inv.get("name", "Weapon")
 		var wdur = GlobalData.get_durability_ratio(inv)
@@ -340,7 +340,7 @@ func stats_text_for_index(index: int) -> String:
 
 	if controller.armor_catalog.has(controller.selected_slot):
 		if index >= 0 and index < controller.visible_salvage_indices.size():
-			var inst = GlobalData.armor_inventory[controller.visible_salvage_indices[index]]
+			var inst = GlobalData.weapons.armor_inventory[controller.visible_salvage_indices[index]]
 			var item_name = inst.get("name", inst.get("part_name", "Armor Instance"))
 			var dur_pct = controller.part_list_panel.instance_durability(controller.selected_slot, inst)
 			var acap = HangarPartText.armor_capability_text(inst, dur_pct)

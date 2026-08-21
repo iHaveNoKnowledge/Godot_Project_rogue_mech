@@ -117,7 +117,7 @@ func _get_tile_type(pos: Vector2i) -> String:
 
 
 func _refresh() -> void:
-	var total_cores := GlobalData.data_cores
+	var total_cores := GlobalData.currency.data_cores
 	info_label.text = "Data Cores: %d  |  Start a project to unlock new units and gear." % total_cores
 
 	# --- Active research ---
@@ -177,7 +177,7 @@ func _refresh() -> void:
 		btn.custom_minimum_size = Vector2(600, 50)
 		btn.text = "%s  [%d cores, %d turns]  → %s: %s" % [pname, cost, time, reward_type.capitalize(), reward_name]
 		btn.tooltip_text = pdesc
-		btn.disabled = GlobalData.data_cores < cost
+		btn.disabled = GlobalData.currency.data_cores < cost
 		btn.pressed.connect(_on_start_research.bind(pid))
 		projects_container.add_child(btn)
 
@@ -188,7 +188,7 @@ func _refresh() -> void:
 		done_lbl.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
 		projects_container.add_child(done_lbl)
 
-	status_label.text = "Data Cores: %d | Credits: %d" % [GlobalData.data_cores, GlobalData.credits]
+	status_label.text = "Data Cores: %d | Credits: %d" % [GlobalData.currency.data_cores, GlobalData.currency.credits]
 
 
 func _on_start_research(project_id: String) -> void:

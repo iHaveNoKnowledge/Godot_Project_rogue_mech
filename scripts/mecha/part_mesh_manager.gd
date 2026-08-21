@@ -128,8 +128,8 @@ func initialize_slot(slot_name: String, part: ArmorPart, apply_player_damage: bo
 		var armor_dmg: float = 0.0
 		var frame_dmg: float = 0.0
 		if apply_player_damage:
-			armor_dmg = GlobalData.part_damage.get(slot_name, 0.0)
-			frame_dmg = GlobalData.part_damage.get(slot_name + "_frame", 0.0)
+			armor_dmg = GlobalData.weapons.part_damage.get(slot_name, 0.0)
+			frame_dmg = GlobalData.weapons.part_damage.get(slot_name + "_frame", 0.0)
 		if frame_dmg >= 1.0:
 			hide_slot_completely(slot_name)
 		elif armor_dmg >= 1.0:
@@ -171,7 +171,7 @@ func build_part_for_slot(equipped: Variant) -> ArmorPart:
 			part_obj.max_hp = authored.max_hp
 			part_obj.part_name = authored.part_name
 		part_obj.part_name = equipped.get("name", equipped.get("part_name", part_obj.part_name))
-		part_obj.max_hp = GlobalData.part_stat(equipped, "max_hp", part_obj.max_hp)
+		part_obj.max_hp = GlobalData.weapons.part_stat(equipped, "max_hp", part_obj.max_hp)
 		if equipped.has("color"):
 			part_obj.part_color = equipped.get("color")
 	return part_obj
@@ -219,7 +219,7 @@ func refresh_slots() -> void:
 	# showing a torso-less ghost standing on its legs. In ghost mode (emergency
 	# repair) every slot renders a faint skeleton so the driver can still see
 	# where each destroyed part goes and place scrap armor on it.
-	if float(GlobalData.part_damage.get("body_frame", 0.0)) >= 1.0:
+	if float(GlobalData.weapons.part_damage.get("body_frame", 0.0)) >= 1.0:
 		for slot in GlobalData.MECHA_SLOTS:
 			if ghost_mode:
 				_render_ghost_skeleton(slot)
@@ -232,13 +232,13 @@ func refresh_slots() -> void:
 		# broken part is removed from the mech. In ghost mode (emergency repair /
 		# from-zero assembly) the skeleton stays visible so the player can see
 		# where the missing frame goes and place a scrap patch on it.
-		if float(GlobalData.part_damage.get(slot + "_frame", 0.0)) >= 1.0:
+		if float(GlobalData.weapons.part_damage.get(slot + "_frame", 0.0)) >= 1.0:
 			if ghost_mode:
 				_render_ghost_skeleton(slot)
 			else:
 				hide_slot_completely(slot)
 			continue
-		_rebuild_slot(slot, GlobalData.equipped_frames.get(slot), GlobalData.equipped_parts.get(slot), true)
+		_rebuild_slot(slot, GlobalData.weapons.equipped_frames.get(slot), GlobalData.weapons.equipped_parts.get(slot), true)
 
 
 # Builds every armor slot from explicit per-slot frame + armor dictionaries —
@@ -274,7 +274,7 @@ func _rebuild_slot(slot: String, frame_data: Variant, equipped: Variant, apply_p
 		else:
 			# NO INNER FRAME EQUIPPED: Hide slot completely
 			hide_slot_completely(slot)
-	elif apply_player_scrap and GlobalData.scrap_patches.has(slot):
+	elif apply_player_scrap and GlobalData.weapons.scrap_patches.has(slot):
 		# EMERGENCY SCRAP PATCH: the slot was rebuilt from scrap, so show the
 		# bare inner frame (or scrap stand-in) plus the crude patch primitives
 		# the driver placed on it.
@@ -291,7 +291,7 @@ func _rebuild_slot(slot: String, frame_data: Variant, equipped: Variant, apply_p
 
 
 # Rebuilds (or removes) the ScrapPatch primitive visuals for a patched slot.
-# Primitive data is stored JSON-safe (arrays) in GlobalData.scrap_patches. Each
+# Primitive data is stored JSON-safe (arrays) in GlobalData.weapons.scrap_patches. Each
 # primitive renders under the skeleton node it is attached to (see the per-
 # primitive "attach" field and GlobalData.SCRAP_ATTACH_OPTIONS) so the crude
 # armor follows the limb it was placed on.
@@ -310,12 +310,12 @@ func refresh_scrap_patches() -> void:
 			if container:
 				_free_patch_children(container)
 				container.visible = false
-		if GlobalData.scrap_patches.has(slot):
+		if GlobalData.weapons.scrap_patches.has(slot):
 			_render_scrap_patch(slot)
 
 
 func _render_scrap_patch(slot: String) -> void:
-	var patch: Dictionary = GlobalData.scrap_patches.get(slot, {})
+	var patch: Dictionary = GlobalData.weapons.scrap_patches.get(slot, {})
 	if patch.is_empty():
 		return
 	var primitives: Array = patch.get("primitives", [])

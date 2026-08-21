@@ -471,7 +471,7 @@ func update_weapon_preview(mecha: Node3D) -> void:
 		# If the arm frame holding this hand's weapon is destroyed, the weapon
 		# is no longer mounted on the mech (it was dropped in battle).
 		var arm_slot = "arm_left" if hand == "left" else "arm_right"
-		if weapon == null or GlobalData.part_damage.get(arm_slot + "_frame", 0.0) >= 1.0:
+		if weapon == null or GlobalData.weapons.part_damage.get(arm_slot + "_frame", 0.0) >= 1.0:
 			weapon = null
 		WeaponVisualFactory.mount_hand(mecha, hand, weapon, "WeaponVisual_" + hand)
 
@@ -487,7 +487,7 @@ func get_attachment_capacity(slot: String) -> float:
 
 func get_attachment_weight(slot: String, excluding_id: String = "") -> float:
 	var total := 0.0
-	for attachment in GlobalData.attachments:
+	for attachment in GlobalData.weapons.attachments:
 		if attachment.get("slot", "") == slot and attachment.get("id", "") != excluding_id:
 			total += float(attachment.get("weight", 0.0))
 	return total
@@ -495,13 +495,13 @@ func get_attachment_weight(slot: String, excluding_id: String = "") -> float:
 
 func get_total_load(excluding_attachment_id: String = "", excluding_slot: String = "") -> float:
 	var total := 0.0
-	for frame in GlobalData.equipped_frames.values():
+	for frame in GlobalData.weapons.equipped_frames.values():
 		total += float(frame.get("weight", 0.0))
-	for slot in GlobalData.equipped_parts:
-		var part = GlobalData.equipped_parts[slot]
+	for slot in GlobalData.weapons.equipped_parts:
+		var part = GlobalData.weapons.equipped_parts[slot]
 		if part is Dictionary:
 			total += float(part.get("weight", 0.0))
-	for attachment in GlobalData.attachments:
+	for attachment in GlobalData.weapons.attachments:
 		if attachment.get("id", "") != excluding_attachment_id or attachment.get("slot", "") != excluding_slot:
 			total += float(attachment.get("weight", 0.0))
 	total += LoadoutSystem.get_loadout_weapon_weight()
@@ -527,7 +527,7 @@ func would_exceed_field_pack(new_weight_path: String, replaced_path: String = ""
 
 
 func has_attachment(attachment_id: String, slot: String) -> bool:
-	for attachment in GlobalData.attachments:
+	for attachment in GlobalData.weapons.attachments:
 		if attachment.get("id", "") == attachment_id and attachment.get("slot", "") == slot:
 			return true
 	return false
@@ -547,7 +547,7 @@ func get_default_attachment_position(slot: String) -> Vector3:
 func move_selected_attachment(mouse_delta: Vector2) -> void:
 	var id := str(controller.selected_attachment_info.get("id", ""))
 	if id.is_empty(): return
-	for attachment in GlobalData.attachments:
+	for attachment in GlobalData.weapons.attachments:
 		if attachment.get("id", "") == id and attachment.get("slot", "") == controller.selected_slot:
 			var raw_position = attachment.get("position", Vector3.ZERO)
 			var position: Vector3 = raw_position if raw_position is Vector3 else Vector3(raw_position.get("x", 0.0), raw_position.get("y", 0.0), raw_position.get("z", 0.0))

@@ -131,13 +131,13 @@ func _refresh_parts_list() -> void:
 		btn.custom_minimum_size = Vector2(460, 32)
 
 		var part_name = slot.to_upper()
-		var part = GlobalData.equipped_parts.get(slot)
+		var part = GlobalData.weapons.equipped_parts.get(slot)
 		if part is ArmorPart:
 			part_name = part.part_name
 		elif part is Dictionary:
 			part_name = part.get("name", part.get("part_name", part_name))
 
-		var frame_dmg = GlobalData.part_damage.get(slot + "_frame", 0.0)
+		var frame_dmg = GlobalData.weapons.part_damage.get(slot + "_frame", 0.0)
 		var status = "BROKEN" if frame_dmg >= 1.0 else "DAMAGED"
 		btn.text = "%s [%s] - Cost: %d credits" % [part_name, status, cost]
 		btn.pressed.connect(_on_repair_part_pressed.bind(slot))
@@ -151,7 +151,7 @@ func _refresh_parts_list() -> void:
 		repair_all_button.disabled = true
 	else:
 		repair_all_button.text = "Repair All Parts - %d credits" % total_cost
-		repair_all_button.disabled = GlobalData.credits < total_cost
+		repair_all_button.disabled = GlobalData.currency.credits < total_cost
 
 	# --- Professional rebuild of scrap patches (mechanic restores catalog armor) ---
 	var patched := false
@@ -163,7 +163,7 @@ func _refresh_parts_list() -> void:
 		var btn = Button.new()
 		btn.custom_minimum_size = Vector2(460, 32)
 		btn.text = "Rebuild Catalog Armor: %s (%d credits)" % [slot.to_upper(), cost]
-		btn.disabled = GlobalData.credits < cost
+		btn.disabled = GlobalData.currency.credits < cost
 		btn.pressed.connect(_on_rebuild_catalog_pressed.bind(slot))
 		parts_container.add_child(btn)
 	if patched:
@@ -173,12 +173,12 @@ func _refresh_parts_list() -> void:
 		note.add_theme_font_size_override("font_size", 11)
 		parts_container.add_child(note)
 
-	status_label.text = "Credits: %d" % GlobalData.credits
+	status_label.text = "Credits: %d" % GlobalData.currency.credits
 
 
 func _on_rebuild_catalog_pressed(slot: String) -> void:
 	if GlobalData.apply_professional_repair(slot):
-		status_label.text = "Mechanic rebuilt %s with fresh catalog armor! Credits: %d" % [slot.to_upper(), GlobalData.credits]
+		status_label.text = "Mechanic rebuilt %s with fresh catalog armor! Credits: %d" % [slot.to_upper(), GlobalData.currency.credits]
 	else:
 		status_label.text = "Not enough credits for a professional rebuild!"
 	_refresh_parts_list()
@@ -190,11 +190,11 @@ func _on_repair_part_pressed(slot: String) -> void:
 		status_label.text = "Not enough credits!"
 		return
 
-	GlobalData.part_damage.erase(slot)
-	GlobalData.part_damage.erase(slot + "_frame")
+	GlobalData.weapons.part_damage.erase(slot)
+	GlobalData.weapons.part_damage.erase(slot + "_frame")
 	# Repair bond (GDD §5): repairing the mech strengthens the pilot-mech bond.
 	GlobalData.record_repair()
-	status_label.text = "Repaired! Credits: %d" % GlobalData.credits
+	status_label.text = "Repaired! Credits: %d" % GlobalData.currency.credits
 	_refresh_parts_list()
 
 
@@ -207,8 +207,8 @@ func _on_repair_all_pressed() -> void:
 		status_label.text = "Not enough credits! Need %d" % total_cost
 		return
 
-	GlobalData.part_damage.clear()
-	status_label.text = "All repaired! Credits: %d" % GlobalData.credits
+	GlobalData.weapons.part_damage.clear()
+	status_label.text = "All repaired! Credits: %d" % GlobalData.currency.credits
 	_refresh_parts_list()
 
 

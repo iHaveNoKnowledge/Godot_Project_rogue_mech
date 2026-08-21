@@ -23,13 +23,13 @@ func _on_combat_ended(victory: bool) -> void:
 	if GameManager.combat_node_type == "sacrifice":
 		on_sacrifice_ended(victory)
 	# If grand entry is pending after the sacrifice, complete it.
-	if GlobalData.grand_entry_pending:
+	if GlobalData.narrative.grand_entry_pending:
 		complete_grand_entry()
 
 
 ## Checks if the sacrifice event should be offered to the player.
 func is_sacrifice_available() -> bool:
-	return GlobalData.sacrifice_event_available and not GlobalData.sacrifice_event_triggered
+	return GlobalData.narrative.sacrifice_event_available and not GlobalData.narrative.sacrifice_event_triggered
 
 
 ## Starts the sacrifice event — the critical mission begins.
@@ -38,7 +38,7 @@ func start_sacrifice_event() -> void:
 		return
 	GlobalData.trigger_sacrifice_event("")  # Will be set when Grand Entry triggers
 	sacrifice_event_started.emit()
-	GlobalData.run_notice = "The Sacrifice Event begins! Push your mech to its limits!"
+	GlobalData.board.run_notice = "The Sacrifice Event begins! Push your mech to its limits!"
 	# Enter a special boss combat.
 	GameManager.combat_node_type = "sacrifice"
 	GameManager.enter_combat("boss")
@@ -51,7 +51,7 @@ func on_sacrifice_ended(victory: bool) -> void:
 		# Player won the sacrifice event — the mech survived!
 		# Grant a bonus: the mech gets a permanent bond boost.
 		GlobalData.increase_bond(20.0)
-		GlobalData.run_notice = "Your mech survived the sacrifice! The bond deepens."
+		GlobalData.board.run_notice = "Your mech survived the sacrifice! The bond deepens."
 	else:
 		# Player lost — the mech was destroyed during the sacrifice.
 		# Trigger the Grand Entry.
@@ -62,37 +62,37 @@ func on_sacrifice_ended(victory: bool) -> void:
 func _trigger_grand_entry() -> void:
 	# Pick a replacement mech based on the current tier.
 	var new_mech_id := _select_replacement_mech()
-	GlobalData.grand_entry_mech_id = new_mech_id
-	GlobalData.grand_entry_pending = true
+	GlobalData.narrative.grand_entry_mech_id = new_mech_id
+	GlobalData.narrative.grand_entry_pending = true
 	grand_entry_started.emit(_get_mech_name(new_mech_id))
-	GlobalData.run_notice = "A new mech descends from the sky! The Grand Entry!"
+	GlobalData.board.run_notice = "A new mech descends from the sky! The Grand Entry!"
 	# The new mech will be granted after the combat ends.
 
 
 ## Completes the Grand Entry — the new mech is now the player's active mech.
 func complete_grand_entry() -> void:
-	if not GlobalData.grand_entry_pending:
+	if not GlobalData.narrative.grand_entry_pending:
 		return
-	var new_mech_id := GlobalData.grand_entry_mech_id
+	var new_mech_id := GlobalData.narrative.grand_entry_mech_id
 	# Build and equip the new mech.
 	var new_mech = HangarManager.build("Hero Unit", 0)
 	if not new_mech.is_empty():
 		# Apply a stronger chassis based on tier.
-		var chassis_id := "gundam" if GlobalData.current_sector >= 2 else "gm"
+		var chassis_id := "gundam" if GlobalData.board.current_sector >= 2 else "gm"
 		new_mech["chassis_id"] = chassis_id
 		new_mech["name"] = _get_mech_name(new_mech_id)
 		# Set as active mech.
-		GlobalData.active_hangar_mech_id = str(new_mech.get("id", ""))
-		GlobalData.mech_less = false
-	GlobalData.grand_entry_pending = false
+		GlobalData.hangar.active_hangar_mech_id = str(new_mech.get("id", ""))
+		GlobalData.narrative.mech_less = false
+	GlobalData.narrative.grand_entry_pending = false
 	grand_entry_completed.emit()
 
 
 func _select_replacement_mech() -> String:
 	# Return a mech id based on current progression.
-	if GlobalData.current_sector >= 3:
+	if GlobalData.board.current_sector >= 3:
 		return "freedom"
-	elif GlobalData.current_sector >= 2:
+	elif GlobalData.board.current_sector >= 2:
 		return "gundam"
 	else:
 		return "gm_custom"

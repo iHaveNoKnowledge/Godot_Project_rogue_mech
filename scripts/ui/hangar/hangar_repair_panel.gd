@@ -19,8 +19,8 @@ func repair_part() -> void:
 		return
 	if _block_without_credits(repair_cost):
 		return
-	GlobalData.part_damage.erase(controller.selected_slot)
-	GlobalData.part_damage.erase(controller.selected_slot + "_frame")
+	GlobalData.weapons.part_damage.erase(controller.selected_slot)
+	GlobalData.weapons.part_damage.erase(controller.selected_slot + "_frame")
 	controller.status_message_label.text = "Repaired %s!" % controller.selected_slot.to_upper()
 	controller.stats_panel.update()
 	controller.garage_panel.update_all_slots_preview()
@@ -39,7 +39,7 @@ func full_repair() -> void:
 	if _block_without_credits(total_cost):
 		return
 
-	GlobalData.part_damage.clear()
+	GlobalData.weapons.part_damage.clear()
 	controller.status_message_label.text = "Full Repair Complete!"
 	controller.stats_panel.update()
 	controller.garage_panel.update_all_slots_preview()

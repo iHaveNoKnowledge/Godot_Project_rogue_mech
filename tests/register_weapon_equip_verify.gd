@@ -36,15 +36,15 @@ func _verify_driver_register_weapon_equip() -> void:
 	await get_tree().process_frame
 
 	var rp = ctrl.roster_panel_ui
-	var old_active_id := GlobalData.active_hangar_mech_id
+	var old_active_id := GlobalData.hangar.active_hangar_mech_id
 	_check(old_active_id != "", "an active mech exists before REGISTER")
 
 	# Start the REGISTER assembly for the empty SLOT 02 and equip a walking chassis.
 	rp.register_mech(2)
 	await get_tree().process_frame
-	GlobalData.equipped_frames["body"] = (GlobalData.frame_catalog["body"][0] as Dictionary).duplicate()
-	GlobalData.equipped_frames["leg_left"] = (GlobalData.frame_catalog["leg_left"][0] as Dictionary).duplicate()
-	GlobalData.equipped_frames["leg_right"] = (GlobalData.frame_catalog["leg_right"][0] as Dictionary).duplicate()
+	GlobalData.weapons.equipped_frames["body"] = (GlobalData.frame_catalog["body"][0] as Dictionary).duplicate()
+	GlobalData.weapons.equipped_frames["leg_left"] = (GlobalData.frame_catalog["leg_left"][0] as Dictionary).duplicate()
+	GlobalData.weapons.equipped_frames["leg_right"] = (GlobalData.frame_catalog["leg_right"][0] as Dictionary).duplicate()
 	ctrl.persist_panel.commit_and_save()
 	rp.refresh_pending_register()
 	if rp.pending_register_button:
@@ -62,13 +62,13 @@ func _verify_driver_register_weapon_equip() -> void:
 
 	var new_id: String = ctrl.get_editing_mech_id()
 	_check(new_id != "" and new_id != old_active_id, "editing target is the freshly registered mech")
-	_check(GlobalData.active_hangar_mech_id == new_id, "driver build makes the registered mech active")
+	_check(GlobalData.hangar.active_hangar_mech_id == new_id, "driver build makes the registered mech active")
 	# REGISTER drops the player on the customize page still in FRAME mode — the
 	# exact state that used to hijack weapon equips.
 	_check(ctrl.current_mode == "frame", "hangar stays in frame mode after REGISTER (the bug trigger)")
 
 	# The registered mech starts unarmed (assembly began from a blank slate).
-	_check(str(GlobalData.weapon_loadout.get("left", "")) == "", "registered mech starts with an empty left hand")
+	_check(str(GlobalData.weapons.weapon_loadout.get("left", "")) == "", "registered mech starts with an empty left hand")
 
 	# Equip the beam rifle (which the OLD active mech still carries) on the new
 	# mech's right hand. It must transfer (with the swap confirm) and end up in
@@ -84,7 +84,7 @@ func _verify_driver_register_weapon_equip() -> void:
 		ok.pressed.emit()
 	await get_tree().process_frame
 
-	_check(LoadoutSystem.ref_to_path(GlobalData.weapon_loadout.get("right", "")) == rifle_path, "working set holds the rifle on the right hand after confirming")
+	_check(LoadoutSystem.ref_to_path(GlobalData.weapons.weapon_loadout.get("right", "")) == rifle_path, "working set holds the rifle on the right hand after confirming")
 	var new_mech := _find_mech(new_id)
 	_check(not new_mech.is_empty(), "registered mech entry found in the roster")
 	if not new_mech.is_empty():
@@ -98,15 +98,15 @@ func _verify_driver_register_weapon_equip() -> void:
 	# The working set must STILL match the registered mech after the transfer
 	# (persisting to the wrong berth would leave the rifle only on the snapshot).
 	HangarManager.load_mech_state(new_id)
-	_check(LoadoutSystem.ref_to_path(GlobalData.weapon_loadout.get("right", "")) == rifle_path, "reloading the registered mech shows the rifle equipped")
+	_check(LoadoutSystem.ref_to_path(GlobalData.weapons.weapon_loadout.get("right", "")) == rifle_path, "reloading the registered mech shows the rifle equipped")
 
 	# UNEQUIP must work too while still in frame mode: the weapon leaves the
 	# loadout (it used to erase a frames-dict key and silently keep the weapon).
 	ep.unequip_part("weapon_right")
 	await get_tree().process_frame
-	_check(str(GlobalData.weapon_loadout.get("right", "")) == "", "unequip removes the rifle from the working set in frame mode")
+	_check(str(GlobalData.weapons.weapon_loadout.get("right", "")) == "", "unequip removes the rifle from the working set in frame mode")
 	HangarManager.load_mech_state(new_id)
-	_check(str(GlobalData.weapon_loadout.get("right", "")) == "", "unequip removes the rifle from the registered mech's snapshot")
+	_check(str(GlobalData.weapons.weapon_loadout.get("right", "")) == "", "unequip removes the rifle from the registered mech's snapshot")
 
 	ctrl.queue_free()
 	await get_tree().process_frame
@@ -120,13 +120,13 @@ func _verify_fleet_register_weapon_equip() -> void:
 	await get_tree().process_frame
 
 	var rp = ctrl.roster_panel_ui
-	var old_active_id := GlobalData.active_hangar_mech_id
+	var old_active_id := GlobalData.hangar.active_hangar_mech_id
 
 	rp.register_mech(2)
 	await get_tree().process_frame
-	GlobalData.equipped_frames["body"] = (GlobalData.frame_catalog["body"][0] as Dictionary).duplicate()
-	GlobalData.equipped_frames["leg_left"] = (GlobalData.frame_catalog["leg_left"][0] as Dictionary).duplicate()
-	GlobalData.equipped_frames["leg_right"] = (GlobalData.frame_catalog["leg_right"][0] as Dictionary).duplicate()
+	GlobalData.weapons.equipped_frames["body"] = (GlobalData.frame_catalog["body"][0] as Dictionary).duplicate()
+	GlobalData.weapons.equipped_frames["leg_left"] = (GlobalData.frame_catalog["leg_left"][0] as Dictionary).duplicate()
+	GlobalData.weapons.equipped_frames["leg_right"] = (GlobalData.frame_catalog["leg_right"][0] as Dictionary).duplicate()
 	ctrl.persist_panel.commit_and_save()
 	rp.refresh_pending_register()
 	if rp.pending_register_button:
@@ -152,7 +152,7 @@ func _verify_fleet_register_weapon_equip() -> void:
 		if ok:
 			ok.pressed.emit()
 		await get_tree().process_frame
-	_check(LoadoutSystem.ref_to_path(GlobalData.weapon_loadout.get("left", "")) == shotgun_path, "fleet build: working set holds the shotgun")
+	_check(LoadoutSystem.ref_to_path(GlobalData.weapons.weapon_loadout.get("left", "")) == shotgun_path, "fleet build: working set holds the shotgun")
 	var new_mech := _find_mech(new_id)
 	if not new_mech.is_empty():
 		var snap_loadout: Dictionary = new_mech.get("weapon_loadout", {})
@@ -165,7 +165,7 @@ func _verify_fleet_register_weapon_equip() -> void:
 # --- helpers ---------------------------------------------------------------
 
 func _find_mech(mech_id: String) -> Dictionary:
-	for m in GlobalData.hangar_mechs:
+	for m in GlobalData.hangar.hangar_mechs:
 		if m is Dictionary and str(m.get("id", "")) == mech_id:
 			return m
 	return {}

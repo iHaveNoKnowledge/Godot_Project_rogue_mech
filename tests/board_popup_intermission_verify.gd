@@ -24,8 +24,8 @@ func _check(cond: bool, name: String) -> void:
 
 func _ready() -> void:
 	GlobalData.reset_run_data()
-	GlobalData.board_seed = 4242
-	GlobalData.board_objective_intro_consumed = true
+	GlobalData.board.board_seed = 4242
+	GlobalData.board.board_objective_intro_consumed = true
 	GameManager.current_state = GameManager.State.BOARD
 
 	var board = load("res://scenes/board/game_board.tscn").instantiate()
@@ -55,11 +55,11 @@ func _ready() -> void:
 # LEFT event AND must clear blocked_intermission — otherwise the menu stays
 # locked forever and the player soft-locks (the reported bug).
 func _verify_no_movement_clears_block(board: Node, event_ui: Node) -> void:
-	GlobalData.blocked_intermission = true
-	GlobalData.board_mp = 0
+	GlobalData.narrative.blocked_intermission = true
+	GlobalData.board.board_mp = 0
 	# Walk to a plain empty tile first so the player actually stands somewhere.
 	board.current_pos = Vector2i(0, 0)
-	GlobalData.current_tile = Vector2i(0, 0)
+	GlobalData.board.current_tile = Vector2i(0, 0)
 
 	# GDScript lambdas capture primitives by value — use a Dictionary so the
 	# listener can flag the event back out.
@@ -80,7 +80,7 @@ func _verify_no_movement_clears_block(board: Node, event_ui: Node) -> void:
 	board._try_step(target)
 	await get_tree().process_frame
 	_check(bool(flag["fired"]), "clicking with 0 MP fires the NO MOVEMENT LEFT event")
-	_check(GlobalData.blocked_intermission == false, "NO MOVEMENT LEFT clears blocked_intermission")
+	_check(GlobalData.narrative.blocked_intermission == false, "NO MOVEMENT LEFT clears blocked_intermission")
 	EventBus.event_triggered.disconnect(listener)
 	# The event popup may be open now (it pauses the tree) — close it.
 	if event_ui.visible:

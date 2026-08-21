@@ -27,7 +27,7 @@ func populate(slot: String) -> void:
 	if controller.current_mode == "upgrade":
 		var cost = controller._get_upgrade_cost()
 		controller.part_item_list.add_item("Upgrade Inner Frame to Level %d (%d cr)" % [
-			GlobalData.frame_upgrade_level + 1, cost
+			GlobalData.weapons.frame_upgrade_level + 1, cost
 		])
 		if controller.part_item_list.item_count > 0:
 			controller.part_item_list.select(0)
@@ -51,7 +51,7 @@ func populate(slot: String) -> void:
 		_is_populating = false
 		return
 
-	var is_destroyed = GlobalData.part_damage.get(slot + "_frame", 0.0) >= 1.0
+	var is_destroyed = GlobalData.weapons.part_damage.get(slot + "_frame", 0.0) >= 1.0
 
 	if controller.current_mode == "frame" and controller.frame_catalog.has(slot):
 		var items = controller.frame_catalog[slot]
@@ -84,12 +84,12 @@ func populate(slot: String) -> void:
 		if slot == "weapon_left" or slot == "weapon_right":
 			var hand := "left" if slot == "weapon_left" else "right"
 			var arm_slot := "arm_left" if hand == "left" else "arm_right"
-			if float(GlobalData.part_damage.get(arm_slot + "_frame", 0.0)) >= 1.0:
+			if float(GlobalData.weapons.part_damage.get(arm_slot + "_frame", 0.0)) >= 1.0:
 				controller.visible_weapon_indices.clear()
 				controller.part_item_list.add_item("ARM DESTROYED — cannot equip a weapon to this hand. Repair or replace the arm.")
 				_is_populating = false
 				return
-		# Weapons come from the central inventory stash (GlobalData.weapon_inventory),
+		# Weapons come from the central inventory stash (GlobalData.weapons.weapon_inventory),
 		# NOT from armor_catalog — the stash is the single source of owned weapons.
 		# Each inventory entry is one physical copy; the equipped copy is matched
 		# by INSTANCE uid so only that row ever shows "[E]" (same-model copies are
@@ -97,8 +97,8 @@ func populate(slot: String) -> void:
 		# the free spares read first.
 		controller.visible_weapon_indices.clear()
 		var wrows: Array = []
-		for index in range(GlobalData.weapon_inventory.size()):
-			var inv = GlobalData.weapon_inventory[index]
+		for index in range(GlobalData.weapons.weapon_inventory.size()):
+			var inv = GlobalData.weapons.weapon_inventory[index]
 			var other_user := other_mech_weapon_user(str(inv.get("uid", "")), str(inv.get("path", "")))
 			wrows.append({"idx": index, "eq": weapon_in_loadout(slot, inv), "other": other_user})
 		wrows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
@@ -109,7 +109,7 @@ func populate(slot: String) -> void:
 			return int(a["idx"]) < int(b["idx"]))
 		for row in wrows:
 			var index: int = row["idx"]
-			var inv = GlobalData.weapon_inventory[index]
+			var inv = GlobalData.weapons.weapon_inventory[index]
 			var wname = inv.get("name", "Weapon")
 			var wdur = GlobalData.get_durability_ratio(inv)
 			var is_eq = weapon_in_loadout(slot, inv)
@@ -135,12 +135,12 @@ func populate(slot: String) -> void:
 		controller.visible_salvage_indices.clear()
 		var shown_uids := {}
 		var equipped_uid := ""
-		var eq_part = GlobalData.equipped_parts.get(slot)
+		var eq_part = GlobalData.weapons.equipped_parts.get(slot)
 		if eq_part is Dictionary:
 			equipped_uid = str(eq_part.get("uid", ""))
 		var arows: Array = []
-		for inst_index in range(GlobalData.armor_inventory.size()):
-			var inst = GlobalData.armor_inventory[inst_index]
+		for inst_index in range(GlobalData.weapons.armor_inventory.size()):
+			var inst = GlobalData.weapons.armor_inventory[inst_index]
 			var uid = str(inst.get("uid", ""))
 			if str(inst.get("slot", "")) != slot and uid != equipped_uid:
 				continue
@@ -151,7 +151,7 @@ func populate(slot: String) -> void:
 			var is_eq = is_item_equipped(slot, inst)
 			# Roguelike: a destroyed part is gone. Hide the equipped broken armor
 			# so it can no longer be selected, repaired, or re-equipped.
-			if is_eq and (GlobalData.part_damage.get(slot, 0.0) >= 1.0 or GlobalData.part_damage.get(slot + "_frame", 0.0) >= 1.0):
+			if is_eq and (GlobalData.weapons.part_damage.get(slot, 0.0) >= 1.0 or GlobalData.weapons.part_damage.get(slot + "_frame", 0.0) >= 1.0):
 				continue
 			var other_user := other_mech_armor_user(uid) if not is_eq else ""
 			arows.append({"idx": inst_index, "eq": is_eq, "other": other_user})
@@ -163,7 +163,7 @@ func populate(slot: String) -> void:
 				return ea < eb
 			return int(a["idx"]) < int(b["idx"]))
 		for row in arows:
-			var inst = GlobalData.armor_inventory[int(row["idx"])]
+			var inst = GlobalData.weapons.armor_inventory[int(row["idx"])]
 			var uid = str(inst.get("uid", ""))
 			var is_eq = is_item_equipped(slot, inst)
 			var prefix = "[E] " if is_eq else "    "
@@ -187,10 +187,10 @@ func on_item_selected(index: int) -> void:
 	if controller.current_mode == "upgrade":
 		var cost = controller._get_upgrade_cost()
 		controller.stats_label.text = "INNER FRAME REACTOR LEVEL: %d -> %d\n\nEFFECTS:\n+25 FRAME HP per slot\n+15.0 kg MAX WEIGHT CAPACITY\n+1.5 m/s DASH THRUST SPEED\n\nUPGRADE COST: %d Credits" % [
-			GlobalData.frame_upgrade_level, GlobalData.frame_upgrade_level + 1, cost
+			GlobalData.weapons.frame_upgrade_level, GlobalData.weapons.frame_upgrade_level + 1, cost
 		]
 		controller.selected_salvage_info = {}
-		controller.update_tier_display({"upgrade_level": GlobalData.frame_upgrade_level}, "")
+		controller.update_tier_display({"upgrade_level": GlobalData.weapons.frame_upgrade_level}, "")
 		return
 
 	if controller.current_mode == "attachment":
@@ -216,7 +216,7 @@ func on_item_selected(index: int) -> void:
 			var fcap = HangarPartText.frame_capability_text(controller.selected_frame_info)
 			var is_eq = is_item_equipped(controller.selected_slot, controller.selected_frame_info)
 			if is_eq:
-				var frame_dmg = GlobalData.part_damage.get(controller.selected_slot + "_frame", 0.0)
+				var frame_dmg = GlobalData.weapons.part_damage.get(controller.selected_slot + "_frame", 0.0)
 				controller.stats_label.text = "INNER FRAME PART: %s  [E]\nDURABILITY: %.0f%%\n\n%s\n\nThis frame is currently equipped." % [
 					fname, (1.0 - clampf(frame_dmg, 0.0, 1.0)) * 100.0, fcap
 				]
@@ -234,7 +234,7 @@ func on_item_selected(index: int) -> void:
 	if controller.selected_slot.begins_with("weapon"):
 		if index >= 0 and index < controller.visible_weapon_indices.size():
 			var inv_idx = controller.visible_weapon_indices[index]
-			var inv = GlobalData.weapon_inventory[inv_idx]
+			var inv = GlobalData.weapons.weapon_inventory[inv_idx]
 			var wpath = inv.get("path", "")
 			controller.selected_part_path = wpath
 			controller.selected_part_id = wpath
@@ -287,7 +287,7 @@ func on_item_selected(index: int) -> void:
 	if controller.armor_catalog.has(controller.selected_slot):
 		if index >= 0 and index < controller.visible_salvage_indices.size():
 			var salvaged_idx = controller.visible_salvage_indices[index]
-			controller.selected_salvage_info = GlobalData.armor_inventory[salvaged_idx]
+			controller.selected_salvage_info = GlobalData.weapons.armor_inventory[salvaged_idx]
 			controller.selected_part_path = ""
 			controller.selected_part_id = ""
 			controller.selected_frame_info = {}
@@ -341,10 +341,10 @@ func resolve_info_for_index(index: int) -> Dictionary:
 	elif controller.selected_slot.begins_with("weapon"):
 		if index >= 0 and index < controller.visible_weapon_indices.size():
 			var inv_idx = controller.visible_weapon_indices[index]
-			info_to_show = GlobalData.weapon_inventory[inv_idx]
+			info_to_show = GlobalData.weapons.weapon_inventory[inv_idx]
 	elif controller.armor_catalog.has(controller.selected_slot):
 		if index >= 0 and index < controller.visible_salvage_indices.size():
-			info_to_show = GlobalData.armor_inventory[controller.visible_salvage_indices[index]]
+			info_to_show = GlobalData.weapons.armor_inventory[controller.visible_salvage_indices[index]]
 	return info_to_show
 
 
@@ -356,7 +356,7 @@ func is_item_equipped(slot: String, info: Dictionary) -> bool:
 		return weapon_in_loadout(slot, info)
 
 	if controller.current_mode == "frame":
-		var cur_frame = GlobalData.equipped_frames.get(slot, {})
+		var cur_frame = GlobalData.weapons.equipped_frames.get(slot, {})
 		if cur_frame is Dictionary and not cur_frame.is_empty():
 			var name_a = cur_frame.get("name", cur_frame.get("part_name", "")).to_lower()
 			var name_b = info.get("name", info.get("part_name", "")).to_lower()
@@ -364,7 +364,7 @@ func is_item_equipped(slot: String, info: Dictionary) -> bool:
 				return name_a == name_b
 		return false
 	else:
-		var cur = GlobalData.equipped_parts.get(slot)
+		var cur = GlobalData.weapons.equipped_parts.get(slot)
 		if cur == null:
 			return false
 
@@ -456,7 +456,7 @@ func other_mech_weapon_user(uid: String, path: String) -> String:
 	if LoadoutSystem.has_fleet_spare_weapon(path, editing_id):
 		return ""
 	var first_user := ""
-	for mech in GlobalData.hangar_mechs:
+	for mech in GlobalData.hangar.hangar_mechs:
 		if not (mech is Dictionary):
 			continue
 		var mid := str(mech.get("id", ""))
@@ -475,7 +475,7 @@ func other_mech_weapon_user(uid: String, path: String) -> String:
 func _other_mech_weapon_uid_user(uid: String, editing_id: String) -> String:
 	if uid == "":
 		return ""
-	for mech in GlobalData.hangar_mechs:
+	for mech in GlobalData.hangar.hangar_mechs:
 		if not (mech is Dictionary):
 			continue
 		var mid := str(mech.get("id", ""))
@@ -498,7 +498,7 @@ func other_mech_armor_user(uid: String) -> String:
 	if uid == "":
 		return ""
 	var editing_id: String = controller.get_editing_mech_id()
-	for mech in GlobalData.hangar_mechs:
+	for mech in GlobalData.hangar.hangar_mechs:
 		if not (mech is Dictionary):
 			continue
 		var mid := str(mech.get("id", ""))
@@ -522,7 +522,7 @@ func other_mech_frame_user(slot: String, info: Dictionary) -> String:
 	var editing_id: String = controller.get_editing_mech_id()
 	var info_id := str(info.get("id", ""))
 	var info_name := str(info.get("name", info.get("part_name", ""))).to_lower()
-	for mech in GlobalData.hangar_mechs:
+	for mech in GlobalData.hangar.hangar_mechs:
 		if not (mech is Dictionary):
 			continue
 		var mid := str(mech.get("id", ""))

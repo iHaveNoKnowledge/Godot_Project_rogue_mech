@@ -21,8 +21,8 @@ var _modal: Node = null
 # otherwise warn the driver first (incomplete assembly and/or a wounded
 # piloted driver who will not fight until healed).
 func check(on_confirm: Callable) -> void:
-	var has_legs = GlobalData.equipped_parts.has("leg_left") or GlobalData.equipped_parts.has("leg_right")
-	var has_body = GlobalData.equipped_parts.has("body")
+	var has_legs = GlobalData.weapons.equipped_parts.has("leg_left") or GlobalData.weapons.equipped_parts.has("leg_right")
+	var has_body = GlobalData.weapons.equipped_parts.has("body")
 	var warnings: Array[String] = []
 	if not (has_legs and has_body):
 		warnings.append("Mech assembly is incomplete (missing a body or legs).")

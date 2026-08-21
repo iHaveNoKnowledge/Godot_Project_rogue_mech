@@ -11,10 +11,10 @@ var grid_size: int = BoardConfig.GRID_SIZE
 
 func generate_board() -> Dictionary:
 	var rng := RandomNumberGenerator.new()
-	rng.seed = GlobalData.board_seed
+	rng.seed = GlobalData.board.board_seed
 
-	var theme_id := BoardConfig.theme_for_sector(GlobalData.current_sector)
-	GlobalData.board_theme_id = theme_id
+	var theme_id := BoardConfig.theme_for_sector(GlobalData.board.current_sector)
+	GlobalData.board.board_theme_id = theme_id
 
 	# Step 1: assign a terrain per cell from the theme's weighted pool.
 	var terrain_grid: Dictionary = {} # Vector2i -> String
@@ -55,7 +55,7 @@ func generate_board() -> Dictionary:
 
 			nodes_dict[key] = tile_instance
 
-	GlobalData.board_grid = [nodes_dict]
+	GlobalData.board.board_grid = [nodes_dict]
 	return {
 		"nodes": nodes_dict,
 		"terrain": terrain_grid,

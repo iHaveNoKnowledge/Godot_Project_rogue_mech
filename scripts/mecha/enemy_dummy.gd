@@ -1046,7 +1046,7 @@ func _get_part_world_pos(slot: String) -> Vector3:
 
 
 func _scale_by_wanted_level() -> void:
-	var wanted = GlobalData.wanted_level
+	var wanted = GlobalData.board.wanted_level
 	if wanted <= 0:
 		return
 

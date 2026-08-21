@@ -111,7 +111,7 @@ func _refresh() -> void:
 		PilotSystem.get_ammo("energy"),
 		PilotSystem.get_ammo("explosive"),
 		PilotSystem.get_ammo("missile"),
-		GlobalData.credits,
+		GlobalData.currency.credits,
 	]
 
 	for child in stock_container.get_children():
@@ -129,7 +129,7 @@ func _refresh() -> void:
 			item.get("name", item_id), heal_label, price, owned
 		]
 		btn.tooltip_text = str(item.get("desc", ""))
-		btn.disabled = GlobalData.credits < price
+		btn.disabled = GlobalData.currency.credits < price
 		btn.pressed.connect(_on_buy_item.bind(item_id))
 		stock_container.add_child(btn)
 
@@ -141,7 +141,7 @@ func _refresh() -> void:
 		var btn = Button.new()
 		btn.custom_minimum_size = Vector2(560, 30)
 		btn.text = "+20 %s ammo (%d credits)" % [ammo_type.capitalize(), price * 20]
-		btn.disabled = GlobalData.credits < price * 20
+		btn.disabled = GlobalData.currency.credits < price * 20
 		btn.pressed.connect(_on_buy_ammo.bind(ammo_type))
 		stock_container.add_child(btn)
 
@@ -159,7 +159,7 @@ func _refresh() -> void:
 	dt_desc.add_theme_font_size_override("font_size", 10)
 	dt_desc.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 	stock_container.add_child(dt_desc)
-	var current_tanks: int = GlobalData.drop_tanks_attached
+	var current_tanks: int = GlobalData.fuel.drop_tanks_attached
 	var max_tanks: int = GlobalData.DROP_TANK_MAX_ATTACHED
 	if current_tanks < max_tanks:
 		var dt_price := GlobalData.DROP_TANK_COST_CREDITS
@@ -167,7 +167,7 @@ func _refresh() -> void:
 		dt_btn.custom_minimum_size = Vector2(560, 34)
 		dt_btn.text = "Attach Drop Tank (%d credits)  [%d/%d]" % [dt_price, current_tanks, max_tanks]
 		dt_btn.tooltip_text = "Bolt an external fuel canister to the backpack. +40 fuel capacity, +30 HP." 
-		dt_btn.disabled = GlobalData.credits < dt_price
+		dt_btn.disabled = GlobalData.currency.credits < dt_price
 		dt_btn.pressed.connect(_on_buy_drop_tank)
 		stock_container.add_child(dt_btn)
 	else:
@@ -184,13 +184,13 @@ func _refresh() -> void:
 		detach_btn.pressed.connect(_on_detach_drop_tanks)
 		stock_container.add_child(detach_btn)
 
-	status_label.text = "Credits: %d" % GlobalData.credits
+	status_label.text = "Credits: %d" % GlobalData.currency.credits
 
 
 func _on_buy_item(item_id: String) -> void:
 	if PilotSystem.buy_item(item_id):
 		status_label.text = "Bought %s! Credits: %d" % [
-			PilotSystem.get_heal_item(item_id).get("name", item_id), GlobalData.credits
+			PilotSystem.get_heal_item(item_id).get("name", item_id), GlobalData.currency.credits
 		]
 	else:
 		status_label.text = "Not enough credits!"
@@ -201,7 +201,7 @@ func _on_buy_ammo(ammo_type: String) -> void:
 	var bought := PilotSystem.buy_ammo(ammo_type, 20)
 	if bought > 0:
 		status_label.text = "Bought %d %s ammo! Credits: %d" % [
-			bought, ammo_type, GlobalData.credits
+			bought, ammo_type, GlobalData.currency.credits
 		]
 	else:
 		status_label.text = "Not enough credits!"
@@ -209,26 +209,26 @@ func _on_buy_ammo(ammo_type: String) -> void:
 
 
 func _on_buy_drop_tank() -> void:
-	if GlobalData.drop_tanks_attached >= GlobalData.DROP_TANK_MAX_ATTACHED:
+	if GlobalData.fuel.drop_tanks_attached >= GlobalData.DROP_TANK_MAX_ATTACHED:
 		status_label.text = "All drop tank slots filled!"
 		return
 	if not GlobalData.try_spend_credits(GlobalData.DROP_TANK_COST_CREDITS):
 		status_label.text = "Not enough credits!"
 		return
-	GlobalData.drop_tanks_attached += 1
-	GlobalData.drop_tank_fuel += GlobalData.DROP_TANK_CAPACITY_PER
+	GlobalData.fuel.drop_tanks_attached += 1
+	GlobalData.fuel.drop_tank_fuel += GlobalData.DROP_TANK_CAPACITY_PER
 	status_label.text = "Drop tank attached! [%d/%d] Credits: %d" % [
-		GlobalData.drop_tanks_attached, GlobalData.DROP_TANK_MAX_ATTACHED, GlobalData.credits
+		GlobalData.fuel.drop_tanks_attached, GlobalData.DROP_TANK_MAX_ATTACHED, GlobalData.currency.credits
 	]
 	_refresh()
 
 
 func _on_detach_drop_tanks() -> void:
-	if GlobalData.drop_tanks_attached <= 0:
+	if GlobalData.fuel.drop_tanks_attached <= 0:
 		status_label.text = "No drop tanks to detach."
 		return
-	GlobalData.drop_tanks_attached = 0
-	GlobalData.drop_tank_fuel = 0.0
+	GlobalData.fuel.drop_tanks_attached = 0
+	GlobalData.fuel.drop_tank_fuel = 0.0
 	status_label.text = "All drop tanks detached."
 	_refresh()
 

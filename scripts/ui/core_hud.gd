@@ -474,10 +474,10 @@ func _create_bond_row() -> void:
 func _update_bond_indicator() -> void:
 	if _bond_bar == null:
 		return
-	_bond_bar.value = GlobalData.mech_bond
+	_bond_bar.value = GlobalData.narrative.mech_bond
 	# Tint: pink when low, red when high.
 	if _bond_fill:
-		var ratio := GlobalData.mech_bond / 100.0
+		var ratio := GlobalData.narrative.mech_bond / 100.0
 		_bond_fill.bg_color = Color(1.0, 0.5, 0.6).lerp(Color(1.0, 0.15, 0.2), ratio)
 
 

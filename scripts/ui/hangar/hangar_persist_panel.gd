@@ -22,8 +22,8 @@ func persist_edits() -> void:
 		return
 	HangarManager.save_mech_state(editing_id)
 	controller._customize_mech_id = editing_id
-	if editing_id != GlobalData.active_hangar_mech_id:
-		HangarManager.load_mech_state(GlobalData.active_hangar_mech_id)
+	if editing_id != GlobalData.hangar.active_hangar_mech_id:
+		HangarManager.load_mech_state(GlobalData.hangar.active_hangar_mech_id)
 
 
 # Persist the working set back onto the berth being edited (so its roster

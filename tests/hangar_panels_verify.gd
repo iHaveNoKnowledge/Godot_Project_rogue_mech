@@ -75,9 +75,9 @@ func _check(cond: bool, label: String) -> void:
 # keep a custom body (e.g. the fake "Scrap Frame") while still adding the legs.
 func _equip_walking_chassis(skip_body: bool = false) -> void:
 	if not skip_body:
-		GlobalData.equipped_frames["body"] = (GlobalData.frame_catalog["body"][0] as Dictionary).duplicate()
-	GlobalData.equipped_frames["leg_left"] = (GlobalData.frame_catalog["leg_left"][0] as Dictionary).duplicate()
-	GlobalData.equipped_frames["leg_right"] = (GlobalData.frame_catalog["leg_right"][0] as Dictionary).duplicate()
+		GlobalData.weapons.equipped_frames["body"] = (GlobalData.frame_catalog["body"][0] as Dictionary).duplicate()
+	GlobalData.weapons.equipped_frames["leg_left"] = (GlobalData.frame_catalog["leg_left"][0] as Dictionary).duplicate()
+	GlobalData.weapons.equipped_frames["leg_right"] = (GlobalData.frame_catalog["leg_right"][0] as Dictionary).duplicate()
 
 
 # Reads a pending-banner checklist row's mark (✓/✗) for a required frame slot.
@@ -288,14 +288,14 @@ func _verify_roster_panel() -> void:
 	_check(_collect_label_text(rp.roster_slot_list).contains("PILOT: YOU (driver)"), "player pilot row shows the driver name")
 	_check(not _collect_label_text(rp.roster_slot_list).contains("PILOT: YOU (driver) ·"), "player pilot row shows no status suffix")
 	# A fleet pilot's row shows current HP.
-	GlobalData.fleet_roster.append({"template_id": "t_verifier", "name": "Test Unit", "hp": 40.0, "max_hp": 80.0, "destroyed": false, "fielded": true})
+	GlobalData.hangar.fleet_roster.append({"template_id": "t_verifier", "name": "Test Unit", "hp": 40.0, "max_hp": 80.0, "destroyed": false, "fielded": true})
 	if slot1_id != "":
 		HangarManager.assign_pilot(slot1_id, "fleet_t_verifier")
 	rp.refresh_page()
 	await get_tree().process_frame
 	_check(_collect_label_text(rp.roster_slot_list).contains("PILOT: Test Unit · 40/80 HP"), "fleet pilot row shows current HP")
 	# A wounded fleet pilot shows the recovery countdown instead of HP.
-	for u in GlobalData.fleet_roster:
+	for u in GlobalData.hangar.fleet_roster:
 		if u.get("template_id", "") == "t_verifier":
 			u["wounded"] = true
 			u["wound_turns"] = 2
@@ -309,7 +309,7 @@ func _verify_roster_panel() -> void:
 	var wounded_in_fielded := fielded_units.any(func(u): return str(u.get("template_id", "")) == "t_verifier")
 	_check(not wounded_in_fielded, "wounded pilot is gated out of the fielded combat roster")
 	# A destroyed unit shows DESTROYED.
-	for u in GlobalData.fleet_roster:
+	for u in GlobalData.hangar.fleet_roster:
 		if u.get("template_id", "") == "t_verifier":
 			u["destroyed"] = true
 	rp.refresh_page()
@@ -319,7 +319,7 @@ func _verify_roster_panel() -> void:
 	# --- suffix + warning marker, so a hurt/dead driver is readable pre-assign. ---
 	# The row checks above left the unit destroyed; restore the healthy state so
 	# the picker's HP check sees a live driver.
-	for u in GlobalData.fleet_roster:
+	for u in GlobalData.hangar.fleet_roster:
 		if u.get("template_id", "") == "t_verifier":
 			u["destroyed"] = false
 			u["wounded"] = false
@@ -330,7 +330,7 @@ func _verify_roster_panel() -> void:
 		var picker_items := _popup_item_texts(pop)
 		_check(picker_items.any(func(t: String): return t.contains("Test Unit · 40/80 HP")), "pilot picker shows the fleet pilot's current HP")
 		# Wounded fleet pilot: the picker item carries the recovery countdown.
-		for u in GlobalData.fleet_roster:
+		for u in GlobalData.hangar.fleet_roster:
 			if u.get("template_id", "") == "t_verifier":
 				u["destroyed"] = false
 				u["wounded"] = true
@@ -364,12 +364,12 @@ func _verify_roster_panel() -> void:
 				_check(seated, "assigning a wounded pilot seats them on the mech")
 			# Restore the wounded state (the picker refresh above may have left the
 			# seat set) for the destroyed checks below.
-			for u in GlobalData.fleet_roster:
+			for u in GlobalData.hangar.fleet_roster:
 				if u.get("template_id", "") == "t_verifier":
 					u["wounded"] = true
 					u["wound_turns"] = 2
 		# Destroyed fleet pilot: disabled + red-tinted so it can't be assigned.
-		for u in GlobalData.fleet_roster:
+		for u in GlobalData.hangar.fleet_roster:
 			if u.get("template_id", "") == "t_verifier":
 				u["destroyed"] = true
 		rp.open_pilot_picker(slot1_id, anchor)
@@ -388,7 +388,7 @@ func _verify_roster_panel() -> void:
 	# --- EARLY HEAL: wounded fleet pilots get a HEAL button on their roster ---
 	# --- row; pressing it spends credits, clears the countdown and returns ---
 	# --- the pilot to the field at full HP. ---
-	for u in GlobalData.fleet_roster:
+	for u in GlobalData.hangar.fleet_roster:
 		if u.get("template_id", "") == "t_verifier":
 			u["destroyed"] = false
 			u["wounded"] = true
@@ -414,23 +414,23 @@ func _verify_roster_panel() -> void:
 	if heal_btn:
 		_check(heal_btn.text.contains("%d" % heal_cost), "HEAL button shows the credit price")
 		# Broke: the button refuses and spends nothing.
-		GlobalData.credits = 0
+		GlobalData.currency.credits = 0
 		heal_btn.pressed.emit()
 		await get_tree().process_frame
 		_check(rp.roster_status_label.text.contains("Need %d credits" % heal_cost), "broke HEAL reports the shortfall")
 		var still_wounded := false
-		for u in GlobalData.fleet_roster:
+		for u in GlobalData.hangar.fleet_roster:
 			if u.get("template_id", "") == "t_verifier" and bool(u.get("wounded", false)):
 				still_wounded = true
 		_check(still_wounded, "broke HEAL leaves the pilot wounded")
-		_check(GlobalData.credits == 0, "broke HEAL spends nothing")
+		_check(GlobalData.currency.credits == 0, "broke HEAL spends nothing")
 		# Funded: heals, spends the exact cost and refreshes the roster.
-		GlobalData.credits = heal_cost + 300
+		GlobalData.currency.credits = heal_cost + 300
 		heal_btn.pressed.emit()
 		await get_tree().process_frame
-		_check(GlobalData.credits == 300, "HEAL spends exactly the credit cost")
+		_check(GlobalData.currency.credits == 300, "HEAL spends exactly the credit cost")
 		var healed := false
-		for u in GlobalData.fleet_roster:
+		for u in GlobalData.hangar.fleet_roster:
 			if u.get("template_id", "") == "t_verifier":
 				healed = not bool(u.get("wounded", false)) and float(u.get("hp", 0.0)) == float(u.get("max_hp", 0.0))
 		_check(healed, "HEAL clears the countdown and restores full HP")
@@ -439,9 +439,9 @@ func _verify_roster_panel() -> void:
 	_check(RecruitSystem.get_wound_heal_cost("t_verifier") == 0, "healthy pilot has no heal price")
 	# Clean up: remove the test unit + clear the seat so later sections see the
 	# single-mech convoy again.
-	for i in range(GlobalData.fleet_roster.size() - 1, -1, -1):
-		if GlobalData.fleet_roster[i].get("template_id", "") == "t_verifier":
-			GlobalData.fleet_roster.remove_at(i)
+	for i in range(GlobalData.hangar.fleet_roster.size() - 1, -1, -1):
+		if GlobalData.hangar.fleet_roster[i].get("template_id", "") == "t_verifier":
+			GlobalData.hangar.fleet_roster.remove_at(i)
 	if slot1_id != "":
 		HangarManager.assign_pilot(slot1_id, "")
 	rp.refresh_page()
@@ -455,8 +455,8 @@ func _verify_roster_panel() -> void:
 	var register_btn := _find_register_button(rp)
 	_check(register_btn != null, "empty berth row offers a REGISTER button")
 	var mechs_before := HangarManager.get_mechs().size()
-	var scrap_before := GlobalData.scrap
-	var credits_before := GlobalData.credits
+	var scrap_before := GlobalData.currency.scrap
+	var credits_before := GlobalData.currency.credits
 
 	# Pressing REGISTER always jumps to customize (frame mode, BODY slot) and
 	# raises the pending banner — no price or chassis gate at press time.
@@ -479,9 +479,9 @@ func _verify_roster_panel() -> void:
 	# The assembly starts from a blank slate: REGISTER wipes the current mech's
 	# working set (frames, armor, attachments), so the customize page shows an
 	# empty build — no hand-me-down parts from the machine being edited.
-	_check(GlobalData.equipped_frames.is_empty(), "REGISTER wipes the working frames for a from-zero assembly")
-	_check(GlobalData.equipped_parts.is_empty(), "REGISTER wipes the working armor parts")
-	_check(GlobalData.attachments.is_empty(), "REGISTER wipes the working attachments")
+	_check(GlobalData.weapons.equipped_frames.is_empty(), "REGISTER wipes the working frames for a from-zero assembly")
+	_check(GlobalData.weapons.equipped_parts.is_empty(), "REGISTER wipes the working armor parts")
+	_check(GlobalData.weapons.attachments.is_empty(), "REGISTER wipes the working attachments")
 	_check(rp.pending_register_button != null and rp.pending_register_button.disabled, "REGISTER FRAME locked until a walking chassis is equipped")
 	# The garage preview renders the blank slate as faint ghost skeletons on
 	# every empty frame slot, so the player can see where each part goes.
@@ -493,7 +493,7 @@ func _verify_roster_panel() -> void:
 
 	# Equip the walking chassis (BODY + both legs) through the real commit path
 	# — the banner re-evaluates and unlocks REGISTER FRAME.
-	GlobalData.equipped_frames["body"] = (GlobalData.frame_catalog["body"][0] as Dictionary).duplicate()
+	GlobalData.weapons.equipped_frames["body"] = (GlobalData.frame_catalog["body"][0] as Dictionary).duplicate()
 	ctrl.persist_panel.commit_and_save()
 	_check(_checklist_mark(rp, "body") == "✓", "equipping BODY ticks its checklist row")
 	_check(_checklist_mark(rp, "leg_left") == "✗", "unequipped LEFT LEG stays unchecked")
@@ -520,7 +520,7 @@ func _verify_roster_panel() -> void:
 	_check(rp.register_dialog_edit != null, "name prompt builds the LineEdit")
 	_check(rp.register_dialog_edit.text == "Mech 02", "name prompt defaults to the slot-based name")
 	_check(not _collect_label_text(rp.register_dialog).contains("COST:"), "name prompt shows no assembly cost")
-	_check(GlobalData.scrap == scrap_before and GlobalData.credits == credits_before, "REGISTER spends nothing while waiting for the name")
+	_check(GlobalData.currency.scrap == scrap_before and GlobalData.currency.credits == credits_before, "REGISTER spends nothing while waiting for the name")
 	_check(HangarManager.get_mechs().size() == mechs_before, "nothing is parked until the name is confirmed")
 
 	# Cancelling aborts without parking or spending anything; the banner stays
@@ -533,7 +533,7 @@ func _verify_roster_panel() -> void:
 			await get_tree().process_frame
 	_check(rp.register_dialog == null or not is_instance_valid(rp.register_dialog), "CANCEL closes the name prompt")
 	_check(HangarManager.get_mechs().size() == mechs_before, "CANCEL parks nothing")
-	_check(GlobalData.scrap == scrap_before and GlobalData.credits == credits_before, "CANCEL spends nothing")
+	_check(GlobalData.currency.scrap == scrap_before and GlobalData.currency.credits == credits_before, "CANCEL spends nothing")
 
 	# The banner's abandon button drops the pending assembly without side
 	# effects (no park, no spend) AND reverts frames equipped mid-flow — they
@@ -543,7 +543,7 @@ func _verify_roster_panel() -> void:
 		if int(m.get("slot", 0)) == 1:
 			old_slot1_body = m.get("frames", {}).get("body", {})
 			break
-	GlobalData.equipped_frames["body"] = {"name": "Scrap Frame", "hp": 10.0}
+	GlobalData.weapons.equipped_frames["body"] = {"name": "Scrap Frame", "hp": 10.0}
 	ctrl.persist_panel.commit_and_save()  # real equip path writes the working set onto the edited berth
 	if pending_cancel and is_instance_valid(pending_cancel):
 		pending_cancel.pressed.emit()
@@ -551,14 +551,14 @@ func _verify_roster_panel() -> void:
 	_check(rp.pending_register_banner == null or not is_instance_valid(rp.pending_register_banner), "abandon button closes the pending banner")
 	_check(pmm.ghost_mode == false, "abandoning the assembly turns the ghost frames off")
 	_check(HangarManager.get_mechs().size() == mechs_before, "abandon parks nothing")
-	_check(GlobalData.scrap == scrap_before and GlobalData.credits == credits_before, "abandon spends nothing")
+	_check(GlobalData.currency.scrap == scrap_before and GlobalData.currency.credits == credits_before, "abandon spends nothing")
 	var slot1_body_after := {}
 	for m in HangarManager.get_mechs():
 		if int(m.get("slot", 0)) == 1:
 			slot1_body_after = m.get("frames", {}).get("body", {})
 			break
 	_check(slot1_body_after == old_slot1_body, "abandon restores the old berth's frame loadout")
-	_check(GlobalData.equipped_frames.get("body", {}).get("name", "") != "Scrap Frame", "abandon reverts the working set")
+	_check(GlobalData.weapons.equipped_frames.get("body", {}).get("name", "") != "Scrap Frame", "abandon reverts the working set")
 
 	# Re-arm it, then confirm with a custom name: parks the mech for free.
 	# Re-seat the player in the original berth first so the register pilot swap
@@ -573,7 +573,7 @@ func _verify_roster_panel() -> void:
 		if int(m.get("slot", 0)) == 1:
 			slot1_body_before = m.get("frames", {}).get("body", {})
 			break
-	GlobalData.equipped_frames["body"] = {"name": "Scrap Frame", "hp": 10.0}
+	GlobalData.weapons.equipped_frames["body"] = {"name": "Scrap Frame", "hp": 10.0}
 	_equip_walking_chassis(true)
 	ctrl.persist_panel.commit_and_save()
 	_check(rp.pending_register_button != null and not rp.pending_register_button.disabled, "equipped chassis unlocks REGISTER FRAME")
@@ -597,10 +597,10 @@ func _verify_roster_panel() -> void:
 			ok_btn.pressed.emit()
 			await get_tree().process_frame
 	_check(HangarManager.get_mechs().size() == mechs_before + 1, "confirmed REGISTER assembles a mech into the empty berth")
-	_check(GlobalData.scrap == scrap_before and GlobalData.credits == credits_before, "confirmed REGISTER spends no scrap or credits")
+	_check(GlobalData.currency.scrap == scrap_before and GlobalData.currency.credits == credits_before, "confirmed REGISTER spends no scrap or credits")
 	_check(ctrl.status_message_label.text.contains("Registered"), "REGISTER reports the assembled mech")
-	var scrap_after_first := GlobalData.scrap
-	var credits_after_first := GlobalData.credits
+	var scrap_after_first := GlobalData.currency.scrap
+	var credits_after_first := GlobalData.currency.credits
 	var registered_name := ""
 	var new_id := ""
 	for m in HangarManager.get_mechs():
@@ -621,7 +621,7 @@ func _verify_roster_panel() -> void:
 	_check(rp.mech_slot_label.text.contains("PILOT: YOU (driver)"), "badge pilot follows the newly registered mech")
 	# The frame also becomes the player's mech: active + pilot label move over,
 	# and the previous machine parks as a pilotless spare.
-	_check(GlobalData.active_hangar_mech_id == new_id, "freshly registered mech becomes the piloted mech")
+	_check(GlobalData.hangar.active_hangar_mech_id == new_id, "freshly registered mech becomes the piloted mech")
 	var pilot_of_new := ""
 	var pilot_of_old := ""
 	for m in HangarManager.get_mechs():
@@ -662,7 +662,7 @@ func _verify_roster_panel() -> void:
 			break
 	if parked_id != "":
 		HangarManager.remove_mech(parked_id)
-		GlobalData.equipped_frames.erase("body")
+		GlobalData.weapons.equipped_frames.erase("body")
 		rp.register_mech(2)
 		await get_tree().process_frame
 		_check(rp.pending_register_banner != null and is_instance_valid(rp.pending_register_banner), "REGISTER arms the banner without a walking chassis")
@@ -675,7 +675,7 @@ func _verify_roster_panel() -> void:
 		_check(rp.register_dialog == null, "locked REGISTER FRAME opens no prompt")
 		_check(rp.roster_status_label.text.contains("walking chassis"), "locked REGISTER FRAME reports the missing chassis")
 		_check(HangarManager.get_mechs().size() == mechs_before, "blocked REGISTER parks no mech")
-		_check(GlobalData.scrap == scrap_after_first and GlobalData.credits == credits_after_first, "blocked REGISTER spends nothing")
+		_check(GlobalData.currency.scrap == scrap_after_first and GlobalData.currency.credits == credits_after_first, "blocked REGISTER spends nothing")
 		# Restore the full walking chassis -> the banner re-evaluates and unlocks.
 		_equip_walking_chassis()
 		rp.refresh_pending_register()
@@ -696,12 +696,12 @@ func _verify_roster_panel() -> void:
 			if int(m.get("slot", 0)) == 2:
 				fallback_name = str(m.get("name", ""))
 		_check(fallback_name == "Mech 02", "blank name falls back to the slot-based name")
-		_check(GlobalData.scrap == scrap_after_first and GlobalData.credits == credits_after_first, "blank-name REGISTER spends nothing")
+		_check(GlobalData.currency.scrap == scrap_after_first and GlobalData.currency.credits == credits_after_first, "blank-name REGISTER spends nothing")
 
 	# Pilot-only mode: the button disappears and register_mech points at the
 	# recovery path instead of building.
-	GlobalData.mech_less = true
-	GlobalData.hangar_mechs.clear()
+	GlobalData.narrative.mech_less = true
+	GlobalData.hangar.hangar_mechs.clear()
 	rp.refresh_page()
 	await get_tree().process_frame
 	_check(_find_register_button(rp) == null, "on-foot mode hides the REGISTER button")
@@ -710,7 +710,7 @@ func _verify_roster_panel() -> void:
 	_check(rp.register_dialog == null, "on-foot register opens no name prompt")
 	_check(rp.pending_register_banner == null, "on-foot register raises no pending banner")
 	_check(HangarManager.get_mechs().size() == 0, "on-foot register parks no mech")
-	GlobalData.mech_less = false
+	GlobalData.narrative.mech_less = false
 
 	# Leaving the page closes any open name prompt.
 	rp.register_mech(2)
@@ -729,8 +729,8 @@ func _verify_roster_panel() -> void:
 	# Assembly is free even with zero resources: draining scrap/credits while
 	# the prompt is open must not block the confirm — the frame belongs to the
 	# player, so nothing is charged (no negative balances either).
-	GlobalData.scrap = 0
-	GlobalData.credits = 0
+	GlobalData.currency.scrap = 0
+	GlobalData.currency.credits = 0
 	rp.register_mech(2)
 	await get_tree().process_frame
 	_equip_walking_chassis()
@@ -748,7 +748,7 @@ func _verify_roster_panel() -> void:
 			await get_tree().process_frame
 	_check(rp.register_dialog == null or not is_instance_valid(rp.register_dialog), "confirm closes the prompt with zero resources")
 	_check(HangarManager.get_mechs().size() == mechs_before + 1, "zero-resource REGISTER still assembles the mech")
-	_check(GlobalData.scrap == 0 and GlobalData.credits == 0, "zero-resource REGISTER spends nothing")
+	_check(GlobalData.currency.scrap == 0 and GlobalData.currency.credits == 0, "zero-resource REGISTER spends nothing")
 
 	ctrl.nav_panel.show_hangar_menu()
 	await get_tree().process_frame
@@ -809,7 +809,7 @@ func _verify_register_pilot_switch() -> void:
 			new_parts = (m.get("parts", {}) as Dictionary).duplicate()
 			break
 	_check(new_parts.is_empty(), "the newly assembled mech carries no armor")
-	_check(GlobalData.active_hangar_mech_id == new_id, "REGISTER makes the new frame the piloted mech")
+	_check(GlobalData.hangar.active_hangar_mech_id == new_id, "REGISTER makes the new frame the piloted mech")
 	var new_pilot := ""
 	var old_pilot := ""
 	for m in HangarManager.get_mechs():
@@ -819,7 +819,7 @@ func _verify_register_pilot_switch() -> void:
 			old_pilot = str(m.get("pilot", ""))
 	_check(new_pilot == "player", "the new frame takes the player seat")
 	_check(old_pilot == "", "the previous mech parks pilotless")
-	_check(GlobalData.equipped_parts.is_empty(), "working set holds no armor right after REGISTER")
+	_check(GlobalData.weapons.equipped_parts.is_empty(), "working set holds no armor right after REGISTER")
 
 	# PILOT PICKER path: seating YOU in the previous mech switches the active
 	# mech back so combat loads the armored mech the roster now labels YOU.
@@ -838,7 +838,7 @@ func _verify_register_pilot_switch() -> void:
 	if pop and player_item > 0:
 		pop.id_pressed.emit(player_item)
 		await get_tree().process_frame
-	_check(GlobalData.active_hangar_mech_id == old_id, "seating YOU in the old mech switches the active mech back")
+	_check(GlobalData.hangar.active_hangar_mech_id == old_id, "seating YOU in the old mech switches the active mech back")
 	new_pilot = ""
 	old_pilot = ""
 	for m in HangarManager.get_mechs():
@@ -848,10 +848,10 @@ func _verify_register_pilot_switch() -> void:
 			old_pilot = str(m.get("pilot", ""))
 	_check(old_pilot == "player", "the old mech carries the YOU label again")
 	_check(new_pilot == "", "the new frame parks pilotless")
-	_check(not GlobalData.equipped_parts.is_empty(), "switching back loads the old mech's armor into the working set")
+	_check(not GlobalData.weapons.equipped_parts.is_empty(), "switching back loads the old mech's armor into the working set")
 	var restored := 0
 	for slot in old_parts:
-		if GlobalData.equipped_parts.has(slot):
+		if GlobalData.weapons.equipped_parts.has(slot):
 			restored += 1
 	_check(restored == old_parts.size(), "every armor piece the old mech fielded is restored")
 
@@ -859,7 +859,7 @@ func _verify_register_pilot_switch() -> void:
 	# the YOU seat, so the badge and the fielded mech always agree.
 	rp.on_switch_mech_pressed(new_id)
 	await get_tree().process_frame
-	_check(GlobalData.active_hangar_mech_id == new_id, "SWITCH makes the new mech active again")
+	_check(GlobalData.hangar.active_hangar_mech_id == new_id, "SWITCH makes the new mech active again")
 	new_pilot = ""
 	old_pilot = ""
 	for m in HangarManager.get_mechs():
@@ -869,7 +869,7 @@ func _verify_register_pilot_switch() -> void:
 			old_pilot = str(m.get("pilot", ""))
 	_check(new_pilot == "player", "SWITCH carries the YOU seat to the new mech")
 	_check(old_pilot == "", "SWITCH clears the old mech's YOU seat")
-	_check(GlobalData.equipped_parts.is_empty(), "SWITCH loads the new mech's armor-less build")
+	_check(GlobalData.weapons.equipped_parts.is_empty(), "SWITCH loads the new mech's armor-less build")
 
 	ctrl.queue_free()
 	anchor.queue_free()
@@ -927,7 +927,7 @@ func _popup_item_texts(pop: PopupMenu) -> Array[String]:
 # roster text must read them as WOUNDED instead of ACTIVE/STANDBY.
 func _verify_intermission_fleet() -> void:
 	GlobalData.reset_run_data()
-	GlobalData.fleet_roster = [
+	GlobalData.hangar.fleet_roster = [
 		{"template_id": "t_fit", "name": "Fit Unit", "hp": 50.0, "max_hp": 50.0, "destroyed": false, "fielded": true},
 		{"template_id": "t_wound", "name": "Wounded Unit", "hp": 10.0, "max_hp": 50.0, "destroyed": false, "fielded": false, "wounded": true, "wound_turns": 3},
 	]
@@ -1007,7 +1007,7 @@ func _verify_wounded_banner() -> void:
 	_check(wb.banner_panel.visible == false, "banner starts hidden with no wounded pilots")
 
 	# A healthy fleet pilot assigned to a berth keeps the banner hidden.
-	GlobalData.fleet_roster.append({"template_id": "t_fit2", "name": "Fit Ace", "hp": 50.0, "max_hp": 50.0, "destroyed": false, "fielded": true})
+	GlobalData.hangar.fleet_roster.append({"template_id": "t_fit2", "name": "Fit Ace", "hp": 50.0, "max_hp": 50.0, "destroyed": false, "fielded": true})
 	var slot1_id := ""
 	for m in HangarManager.get_mechs():
 		if int(m.get("slot", 0)) == 1:
@@ -1020,7 +1020,7 @@ func _verify_wounded_banner() -> void:
 
 	# Seat a wounded fleet pilot -> the banner appears naming them + the mech +
 	# the countdown, and survives an unrelated roster refresh.
-	GlobalData.fleet_roster.append({"template_id": "t_hurt2", "name": "Hurt Ace", "hp": 10.0, "max_hp": 50.0, "destroyed": false, "fielded": false, "wounded": true, "wound_turns": 3})
+	GlobalData.hangar.fleet_roster.append({"template_id": "t_hurt2", "name": "Hurt Ace", "hp": 10.0, "max_hp": 50.0, "destroyed": false, "fielded": false, "wounded": true, "wound_turns": 3})
 	if slot1_id != "":
 		HangarManager.assign_pilot(slot1_id, "fleet_t_hurt2")
 	ctrl.roster_panel_ui.refresh_page()
@@ -1035,7 +1035,7 @@ func _verify_wounded_banner() -> void:
 	_check(wb.banner_panel.visible, "banner stays visible on the landing menu")
 
 	# Healing the pilot (through the roster flow) hides the banner.
-	GlobalData.credits = 999
+	GlobalData.currency.credits = 999
 	if slot1_id != "":
 		ctrl.roster_panel_ui.heal_pilot("t_hurt2")
 	await get_tree().process_frame
@@ -1051,7 +1051,7 @@ func _verify_wounded_banner() -> void:
 # healthy backup becomes the mech the player pilots.
 func _verify_auto_park() -> void:
 	GlobalData.reset_run_data()
-	GlobalData.fleet_roster = [
+	GlobalData.hangar.fleet_roster = [
 		{"template_id": "t_bk", "name": "Backup Unit", "hp": 50.0, "max_hp": 50.0, "destroyed": false, "fielded": true},
 		{"template_id": "t_ap", "name": "Hurt Pilot", "hp": 10.0, "max_hp": 50.0, "destroyed": false, "fielded": false, "wounded": true, "wound_turns": 2},
 		{"template_id": "t_ap2", "name": "Hurt Pilot Two", "hp": 10.0, "max_hp": 50.0, "destroyed": false, "fielded": false, "wounded": true, "wound_turns": 1},
@@ -1060,7 +1060,7 @@ func _verify_auto_park() -> void:
 	var backup := HangarManager.build("Spare", 0)
 	var backup_id := str(backup.get("id", ""))
 	_check(backup_id != "", "auto-park test builds a spare berth")
-	var active_id := GlobalData.active_hangar_mech_id
+	var active_id := GlobalData.hangar.active_hangar_mech_id
 	_check(active_id != backup_id, "spare berth is not the active mech")
 
 	# Healthy active driver: no swap needed.
@@ -1074,7 +1074,7 @@ func _verify_auto_park() -> void:
 	_check(HangarManager.is_active_driver_wounded(), "active driver flagged wounded")
 	var swapped := HangarManager.auto_park_wounded_active()
 	_check(swapped == backup_id, "wounded active driver swaps to the healthy backup")
-	_check(GlobalData.active_hangar_mech_id == backup_id, "backup becomes the active mech")
+	_check(GlobalData.hangar.active_hangar_mech_id == backup_id, "backup becomes the active mech")
 	_check(not HangarManager.is_active_driver_wounded(), "swapped-in backup has a fit driver")
 	# The wounded berth stays parked with its pilot still seated (the seat waits
 	# for them) — only the active designation moved.
@@ -1093,11 +1093,11 @@ func _verify_auto_park() -> void:
 	HangarManager.assign_pilot(active_id, "fleet_t_ap2")
 	_check(HangarManager.is_active_driver_wounded(), "active driver wounded when every backup is wounded")
 	_check(HangarManager.auto_park_wounded_active() == "", "no swap when every backup is wounded")
-	_check(GlobalData.active_hangar_mech_id == backup_id, "active mech unchanged without a healthy backup")
+	_check(GlobalData.hangar.active_hangar_mech_id == backup_id, "active mech unchanged without a healthy backup")
 
 	# Cleanup: remove the spare berth + test units.
 	HangarManager.remove_mech(backup_id)
-	GlobalData.fleet_roster.clear()
+	GlobalData.hangar.fleet_roster.clear()
 	await get_tree().process_frame
 
 
@@ -1370,7 +1370,7 @@ func _verify_garage_panel() -> void:
 	# A destroyed arm (inner frame gone) hides ONLY that arm in the hangar:
 	# no ghost frame floats where the broken limb used to be.
 	var pmm = gp.get_part_mesh_manager()
-	GlobalData.part_damage["arm_left_frame"] = 1.0
+	GlobalData.weapons.part_damage["arm_left_frame"] = 1.0
 	gp.update_all_slots_preview()
 	var arm_left_entry = pmm.slot_meshes.get("arm_left")
 	_check(arm_left_entry != null and (arm_left_entry["frame"] == null or not arm_left_entry["frame"].visible),
@@ -1380,17 +1380,17 @@ func _verify_garage_panel() -> void:
 	var body_entry = pmm.slot_meshes.get("body")
 	_check(body_entry != null and body_entry["frame"] != null and body_entry["frame"].visible,
 		"healthy body still renders when only an arm is destroyed")
-	GlobalData.part_damage.erase("arm_left_frame")
+	GlobalData.weapons.part_damage.erase("arm_left_frame")
 
 	# A destroyed BODY = the engine core is gone: the WHOLE mech disappears
 	# from the hangar (every slot empty), not a torso-less ghost on its legs.
-	GlobalData.part_damage["body_frame"] = 1.0
+	GlobalData.weapons.part_damage["body_frame"] = 1.0
 	gp.update_all_slots_preview()
 	for slot_name in ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]:
 		var entry = pmm.slot_meshes.get(slot_name)
 		var hidden: bool = entry == null or (entry["frame"] == null or not entry["frame"].visible)
 		_check(hidden, "destroyed body hides the %s slot too (no mech left)" % slot_name)
-	GlobalData.part_damage.erase("body_frame")
+	GlobalData.weapons.part_damage.erase("body_frame")
 
 	ctrl.queue_free()
 	await get_tree().process_frame
@@ -1420,10 +1420,10 @@ func _verify_action_panel() -> void:
 	var shown := false
 	if not body_entries.is_empty():
 		var inst: Dictionary = ArmorSystem.make_armor_instance_from_catalog(body_entries[0]["id"])
-		GlobalData.armor_inventory.append(inst)
+		GlobalData.weapons.armor_inventory.append(inst)
 		ctrl.selected_salvage_info = inst
 		ctrl.visible_salvage_indices.clear()
-		ctrl.visible_salvage_indices.append(GlobalData.armor_inventory.size() - 1)
+		ctrl.visible_salvage_indices.append(GlobalData.weapons.armor_inventory.size() - 1)
 		ap.show(inst)
 		await get_tree().process_frame
 		_check(ap.part_action_modal != null, "action panel builds the modal for an owned armor instance")
@@ -1466,9 +1466,9 @@ func _verify_equip_panel() -> void:
 	var heat_blade := {"path": "res://resources/mech/stock/weapon_heat_blade.tres", "count": 1}
 	ep.unequip_part("weapon_right")
 	ep.equip_part("weapon_right", heat_blade)
-	_check(LoadoutSystem.ref_to_path(GlobalData.weapon_loadout.get("right", "")) == "res://resources/mech/stock/weapon_heat_blade.tres", "equip_part sets the right-hand loadout")
+	_check(LoadoutSystem.ref_to_path(GlobalData.weapons.weapon_loadout.get("right", "")) == "res://resources/mech/stock/weapon_heat_blade.tres", "equip_part sets the right-hand loadout")
 	ep.unequip_part("weapon_right")
-	_check(str(GlobalData.weapon_loadout.get("right", "x")) == "", "unequip_part clears the right-hand loadout")
+	_check(str(GlobalData.weapons.weapon_loadout.get("right", "x")) == "", "unequip_part clears the right-hand loadout")
 
 	# A weapon model may only be equipped in ONE slot: the default left hand
 	# holds the beam rifle, so equipping the same rifle onto the back pack MOVES
@@ -1479,7 +1479,7 @@ func _verify_equip_panel() -> void:
 	var carry_before := LoadoutSystem.count_carry_weapon(beam_rifle["path"])
 	ep.equip_part("weapon_carry", beam_rifle)
 	_check(LoadoutSystem.count_carry_weapon(beam_rifle["path"]) == carry_before + 1, "equipping an already-equipped model to carry moves it onto the pack")
-	_check(str(GlobalData.weapon_loadout.get("left", "x")) == "", "moving the rifle to the pack frees the left hand")
+	_check(str(GlobalData.weapons.weapon_loadout.get("left", "x")) == "", "moving the rifle to the pack frees the left hand")
 	_check(ctrl.status_message_label.text.contains("moved from left hand"), "moving between slots reports where the weapon came from")
 
 	# Re-equipping the same model into the same slot is a no-op (no duplicate).
@@ -1489,22 +1489,22 @@ func _verify_equip_panel() -> void:
 	# The move is reversible: equipping the rifle back onto the left hand pulls
 	# it off the pack, then unequipping clears the hand again.
 	ep.equip_part("weapon_left", beam_rifle)
-	_check(LoadoutSystem.ref_to_path(GlobalData.weapon_loadout.get("left", "")) == beam_rifle["path"], "equipping onto a hand moves the rifle off the pack")
+	_check(LoadoutSystem.ref_to_path(GlobalData.weapons.weapon_loadout.get("left", "")) == beam_rifle["path"], "equipping onto a hand moves the rifle off the pack")
 	_check(LoadoutSystem.count_carry_weapon(beam_rifle["path"]) == carry_before, "moving to the hand frees the pack slot")
 	ctrl.selected_part_path = beam_rifle["path"]
 	ep.unequip_part("weapon_left")
-	_check(str(GlobalData.weapon_loadout.get("left", "x")) == "", "unequip_part clears the left-hand loadout")
+	_check(str(GlobalData.weapons.weapon_loadout.get("left", "x")) == "", "unequip_part clears the left-hand loadout")
 
 	# A DESTROYED arm cannot hold a weapon: equipping to that hand is blocked
 	# (the loadout stays empty), the other hand still works, and the weapon list
 	# UI explains why instead of offering weapons.
-	GlobalData.part_damage["arm_left_frame"] = 1.0
+	GlobalData.weapons.part_damage["arm_left_frame"] = 1.0
 	var blade2 := {"path": "res://resources/mech/stock/weapon_heat_blade.tres", "count": 1}
 	ep.equip_part("weapon_left", blade2)
-	_check(str(GlobalData.weapon_loadout.get("left", "x")) == "", "destroyed left arm blocks weapon equip to the left hand")
+	_check(str(GlobalData.weapons.weapon_loadout.get("left", "x")) == "", "destroyed left arm blocks weapon equip to the left hand")
 	_check(ctrl.status_message_label.text.contains("destroyed"), "blocked equip tells the player the arm is destroyed")
 	ep.equip_part("weapon_right", blade2)
-	_check(LoadoutSystem.ref_to_path(GlobalData.weapon_loadout.get("right", "")) == blade2["path"], "destroyed left arm does not block the healthy right hand")
+	_check(LoadoutSystem.ref_to_path(GlobalData.weapons.weapon_loadout.get("right", "")) == blade2["path"], "destroyed left arm does not block the healthy right hand")
 	ep.unequip_part("weapon_right")
 	# The weapon list UI for the destroyed hand shows the reason instead of items.
 	ctrl.selected_slot = "weapon_left"
@@ -1514,37 +1514,37 @@ func _verify_equip_panel() -> void:
 		first_item = str(ctrl.part_item_list.get_item_text(0))
 	_check(first_item.begins_with("ARM DESTROYED"), "weapon list for a destroyed arm shows the blocked reason")
 	_check(ctrl.part_item_list.item_count == 1, "weapon list for a destroyed arm offers no weapons")
-	GlobalData.part_damage.erase("arm_left_frame")
+	GlobalData.weapons.part_damage.erase("arm_left_frame")
 
 	# Armor craft-and-equip: a catalog entry becomes an owned equipped instance.
 	ctrl.selected_slot = "body"
 	var body_entry: Dictionary = GlobalData.armor_catalog["body"][0]
-	GlobalData.scrap = 500
-	GlobalData.credits = 500
+	GlobalData.currency.scrap = 500
+	GlobalData.currency.credits = 500
 	ep.equip_part("body", body_entry)
-	var equipped_body = GlobalData.equipped_parts.get("body", {})
+	var equipped_body = GlobalData.weapons.equipped_parts.get("body", {})
 	_check(equipped_body is Dictionary and not equipped_body.is_empty(), "equip_part crafts and equips a body armor instance")
 	_check(ctrl.status_message_label.text.contains("crafted and equipped"), "craft-and-equip reports the status message")
 	ep.unequip_part("body")
-	var body_after = GlobalData.equipped_parts.get("body")
+	var body_after = GlobalData.weapons.equipped_parts.get("body")
 	_check(body_after == null or not (body_after is Dictionary and not body_after.is_empty()), "unequip_part removes the body armor")
 
 	# Frame equip/unequip path.
 	ctrl.current_mode = "frame"
 	var frame_info := {"name": "Test Frame", "hp": 50.0, "weight": 3.0}
 	ep.equip_part("body", frame_info)
-	var equipped_frame = GlobalData.equipped_frames.get("body", {})
+	var equipped_frame = GlobalData.weapons.equipped_frames.get("body", {})
 	_check(equipped_frame is Dictionary and not equipped_frame.is_empty(), "frame equip stores the frame")
 	ep.unequip_part("body")
-	_check(not GlobalData.equipped_frames.has("body"), "frame unequip removes the frame")
+	_check(not GlobalData.weapons.equipped_frames.has("body"), "frame unequip removes the frame")
 	ctrl.current_mode = "armor"
 
 	# on_equip_pressed: upgrade path spends credits and raises the reactor level.
 	ctrl.current_mode = "upgrade"
-	GlobalData.credits = 500
-	var level_before := GlobalData.frame_upgrade_level
+	GlobalData.currency.credits = 500
+	var level_before := GlobalData.weapons.frame_upgrade_level
 	ep.on_equip_pressed()
-	_check(GlobalData.frame_upgrade_level == level_before + 1, "on_equip_pressed upgrades the frame reactor")
+	_check(GlobalData.weapons.frame_upgrade_level == level_before + 1, "on_equip_pressed upgrades the frame reactor")
 	ctrl.current_mode = "armor"
 
 	# on_equip_pressed: attachment mount path adds to the attachment list.
@@ -1552,9 +1552,9 @@ func _verify_equip_panel() -> void:
 	ctrl.selected_slot = "head"
 	var attach := {"id": "test_opt", "name": "Test Optic", "weight": 1.0, "type": "Sensor"}
 	ctrl.selected_attachment_info = attach
-	var attach_before := GlobalData.attachments.size()
+	var attach_before := GlobalData.weapons.attachments.size()
 	ep.on_equip_pressed()
-	_check(GlobalData.attachments.size() > attach_before, "on_equip_pressed mounts the attachment")
+	_check(GlobalData.weapons.attachments.size() > attach_before, "on_equip_pressed mounts the attachment")
 	ctrl.current_mode = "armor"
 	ctrl.selected_attachment_info = {}
 
@@ -1593,7 +1593,7 @@ func _verify_part_list_panel() -> void:
 	ctrl.current_mode = "armor"
 	ctrl.selected_slot = "weapon_left"
 	plp.populate("weapon_left")
-	_check(ctrl.part_item_list.item_count == GlobalData.weapon_inventory.size(), "weapon slot lists the inventory stash")
+	_check(ctrl.part_item_list.item_count == GlobalData.weapons.weapon_inventory.size(), "weapon slot lists the inventory stash")
 	plp.on_item_selected(0)
 	_check(ctrl.selected_part_path != "", "weapon selection resolves the part path")
 	var resolved: Dictionary = plp.resolve_info_for_index(0)
@@ -1614,7 +1614,7 @@ func _verify_part_list_panel() -> void:
 	var armored := false
 	if not body_entries.is_empty():
 		var inst: Dictionary = ArmorSystem.make_armor_instance_from_catalog(body_entries[0]["id"])
-		GlobalData.armor_inventory.append(inst)
+		GlobalData.weapons.armor_inventory.append(inst)
 		plp.populate("body")
 		_check(ctrl.part_item_list.item_count >= 1, "armor slot lists owned instances")
 		_check(plp.is_item_equipped("body", inst) == false, "fresh instance is not equipped")
@@ -1628,7 +1628,7 @@ func _verify_part_list_panel() -> void:
 	_check(plp.is_item_equipped("body", {}) == false, "is_item_equipped rejects an empty dict")
 	_check(plp.weapon_in_loadout("weapon_left", {}) == false, "weapon_in_loadout rejects an empty instance")
 	var left_entry: Dictionary = {}
-	for entry in GlobalData.weapon_inventory:
+	for entry in GlobalData.weapons.weapon_inventory:
 		if str(entry.get("path", "")) == GlobalData.DEFAULT_LEFT_WEAPON_PATH:
 			left_entry = entry
 			break
@@ -1674,29 +1674,29 @@ func _verify_stats_panel() -> void:
 	# The shared berth->pilot helper: unknown ids resolve to "(no pilot)" and
 	# the active berth resolves the player driver.
 	_check(HangarManager.get_mech_pilot_name("") == "(no pilot)", "mech pilot helper handles unknown ids")
-	_check(HangarManager.get_mech_pilot_name(GlobalData.active_hangar_mech_id) == "YOU (driver)", "mech pilot helper resolves the active berth")
+	_check(HangarManager.get_mech_pilot_name(GlobalData.hangar.active_hangar_mech_id) == "YOU (driver)", "mech pilot helper resolves the active berth")
 
 	# Sums are deterministic: reset seeds 3 starter weapons + default frames.
 	# The label's TOTAL WEIGHT is unclamped (the bar clamps to capacity), so
 	# parse it from the label. Clear the default body armor first so the delta
 	# is exactly the new part's weight.
-	GlobalData.equipped_parts.erase("body")
+	GlobalData.weapons.equipped_parts.erase("body")
 	sp.update()
 	var weight_before := _parse_total_weight(ctrl.total_stats_label.text)
-	GlobalData.equipped_parts["body"] = {"uid": "t_armor", "name": "Test Plate", "hp": 50.0, "max_hp": 50.0, "weight": 5.0}
+	GlobalData.weapons.equipped_parts["body"] = {"uid": "t_armor", "name": "Test Plate", "hp": 50.0, "max_hp": 50.0, "weight": 5.0}
 	sp.update()
 	var weight_after := _parse_total_weight(ctrl.total_stats_label.text)
 	_check(weight_before >= 0.0 and is_equal_approx(weight_after, weight_before + 5.0), "stats sum adds the equipped armor weight")
-	GlobalData.equipped_parts.erase("body")
+	GlobalData.weapons.equipped_parts.erase("body")
 
 	# Damage on an equipped slot reduces the summed HP in the label.
 	var hp_before: String = ctrl.total_stats_label.text
-	GlobalData.equipped_parts["body"] = {"uid": "t_armor2", "name": "Test Plate", "hp": 50.0, "max_hp": 50.0, "weight": 5.0}
-	GlobalData.part_damage["body"] = 1.0
+	GlobalData.weapons.equipped_parts["body"] = {"uid": "t_armor2", "name": "Test Plate", "hp": 50.0, "max_hp": 50.0, "weight": 5.0}
+	GlobalData.weapons.part_damage["body"] = 1.0
 	sp.update()
 	_check(ctrl.total_stats_label.text != hp_before, "stats label reflects damage changes")
-	GlobalData.equipped_parts.erase("body")
-	GlobalData.part_damage.erase("body")
+	GlobalData.weapons.equipped_parts.erase("body")
+	GlobalData.weapons.part_damage.erase("body")
 
 	# update() is safe with no meaningful state (pure aggregation).
 	sp.update()
@@ -1741,7 +1741,7 @@ func _verify_nav_panel() -> void:
 		_check(ctrl.roster_panel_ui.mech_slot_label.text.contains("Spare 02"), "landing badge follows the paged mech")
 		ctrl.roster_panel_ui.mech_prev_button.pressed.emit()
 		await get_tree().process_frame
-		_check(ctrl.get_editing_mech_id() == GlobalData.active_hangar_mech_id, "landing prev/next wraps back to the piloted mech")
+		_check(ctrl.get_editing_mech_id() == GlobalData.hangar.active_hangar_mech_id, "landing prev/next wraps back to the piloted mech")
 
 	# Customize submenu restores the editing page.
 	np.select_submenu("customize")
@@ -1828,7 +1828,7 @@ func _verify_nav_panel() -> void:
 	np.show_hangar()
 	await get_tree().process_frame
 	_check(np.current_submenu == "", "show_hangar lands on the sub-menu again")
-	_check(ctrl._customize_mech_id == GlobalData.active_hangar_mech_id, "show_hangar re-targets the active mech")
+	_check(ctrl._customize_mech_id == GlobalData.hangar.active_hangar_mech_id, "show_hangar re-targets the active mech")
 	var sel_lbl2: Label = ctrl.root_control.find_child("SelectionLabel", true, false) as Label
 	_check(sel_lbl2 != null and sel_lbl2.text == "HANGAR MENU", "show_hangar restores the HANGAR MENU label")
 
@@ -1850,37 +1850,37 @@ func _verify_repair_panel() -> void:
 
 	# Undamaged slot: repair is a no-op with a status message.
 	ctrl.selected_slot = "body"
-	GlobalData.part_damage.clear()
+	GlobalData.weapons.part_damage.clear()
 	rp.repair_part()
 	_check(ctrl.status_message_label.text.contains("fully functional"), "repair_part skips an undamaged slot")
 
 	# Damaged slot without credits: blocked with the credit shortfall message.
-	GlobalData.part_damage["body"] = 0.5
-	GlobalData.credits = 0
+	GlobalData.weapons.part_damage["body"] = 0.5
+	GlobalData.currency.credits = 0
 	rp.repair_part()
 	_check(ctrl.status_message_label.text.begins_with("Need"), "repair_part blocks without credits")
-	_check(GlobalData.part_damage.has("body"), "blocked repair leaves the damage in place")
+	_check(GlobalData.weapons.part_damage.has("body"), "blocked repair leaves the damage in place")
 
 	# With credits: damage clears and the message confirms.
 	var cost := RepairSystem.get_repair_cost("body")
-	GlobalData.credits = cost + 100
+	GlobalData.currency.credits = cost + 100
 	rp.repair_part()
-	_check(not GlobalData.part_damage.has("body"), "repair_part clears the slot damage")
-	_check(not GlobalData.part_damage.has("body_frame"), "repair_part clears the slot frame damage")
+	_check(not GlobalData.weapons.part_damage.has("body"), "repair_part clears the slot damage")
+	_check(not GlobalData.weapons.part_damage.has("body_frame"), "repair_part clears the slot frame damage")
 	_check(ctrl.status_message_label.text.contains("Repaired"), "repair_part confirms the repair")
-	_check(GlobalData.credits == 100, "repair_part spends exactly the repair cost")
+	_check(GlobalData.currency.credits == 100, "repair_part spends exactly the repair cost")
 
 	# Full repair: clears every slot's damage and reports the total cost spend.
 	for slot in GlobalData.MECHA_SLOTS:
-		GlobalData.part_damage[slot] = 0.7
+		GlobalData.weapons.part_damage[slot] = 0.7
 	var total := 0
 	for slot in GlobalData.MECHA_SLOTS:
 		total += RepairSystem.get_repair_cost(slot)
-	GlobalData.credits = total + 500
+	GlobalData.currency.credits = total + 500
 	rp.full_repair()
-	_check(GlobalData.part_damage.is_empty(), "full_repair clears all part damage")
+	_check(GlobalData.weapons.part_damage.is_empty(), "full_repair clears all part damage")
 	_check(ctrl.status_message_label.text.contains("Full Repair Complete"), "full_repair confirms the repair")
-	_check(GlobalData.credits == 500, "full_repair spends exactly the summed cost")
+	_check(GlobalData.currency.credits == 500, "full_repair spends exactly the summed cost")
 
 	# Full repair with everything clean reports all-ok.
 	rp.full_repair()
@@ -2023,9 +2023,9 @@ func _verify_readiness_panel() -> void:
 	_check(rp.controller == ctrl, "readiness panel holds the controller back-ref")
 
 	# Ready mech: the confirm callback fires immediately, no modal.
-	GlobalData.equipped_parts["leg_left"] = {"uid": "leg"}
-	GlobalData.equipped_parts["leg_right"] = {"uid": "leg"}
-	GlobalData.equipped_parts["body"] = {"uid": "body"}
+	GlobalData.weapons.equipped_parts["leg_left"] = {"uid": "leg"}
+	GlobalData.weapons.equipped_parts["leg_right"] = {"uid": "leg"}
+	GlobalData.weapons.equipped_parts["body"] = {"uid": "body"}
 	_confirm_calls = 0
 	rp.check(func(): _confirm_calls += 1)
 	_check(_confirm_calls == 1, "ready mech calls on_confirm immediately")
@@ -2035,7 +2035,7 @@ func _verify_readiness_panel() -> void:
 	# mech's driver is recovering and will not fight until healed.
 	var active_mech = HangarManager.get_active_mech()
 	var active_id := str(active_mech.get("id", ""))
-	GlobalData.fleet_roster.append({"template_id": "t_driver", "name": "Wounded Ace", "hp": 10.0, "max_hp": 80.0, "destroyed": false, "fielded": true, "wounded": true, "wound_turns": 3})
+	GlobalData.hangar.fleet_roster.append({"template_id": "t_driver", "name": "Wounded Ace", "hp": 10.0, "max_hp": 80.0, "destroyed": false, "fielded": true, "wounded": true, "wound_turns": 3})
 	if active_id != "":
 		HangarManager.assign_pilot(active_id, "fleet_t_driver")
 	_confirm_calls = 0
@@ -2054,7 +2054,7 @@ func _verify_readiness_panel() -> void:
 			wback.pressed.emit()
 		await get_tree().process_frame
 	# A healthy fleet driver passes the readiness check.
-	for u in GlobalData.fleet_roster:
+	for u in GlobalData.hangar.fleet_roster:
 		if u.get("template_id", "") == "t_driver":
 			u["wounded"] = false
 	_confirm_calls = 0
@@ -2063,13 +2063,13 @@ func _verify_readiness_panel() -> void:
 	# Clean up the wounded driver + its seat.
 	if active_id != "":
 		HangarManager.assign_pilot(active_id, HangarManager.PLAYER_PILOT_ID)
-	for i in range(GlobalData.fleet_roster.size() - 1, -1, -1):
-		if GlobalData.fleet_roster[i].get("template_id", "") == "t_driver":
-			GlobalData.fleet_roster.remove_at(i)
+	for i in range(GlobalData.hangar.fleet_roster.size() - 1, -1, -1):
+		if GlobalData.hangar.fleet_roster[i].get("template_id", "") == "t_driver":
+			GlobalData.hangar.fleet_roster.remove_at(i)
 	_check(_find_modal(ctrl) == null or not is_instance_valid(_find_modal(ctrl)), "readiness modal cleaned up after the driver checks")
 
 	# Incomplete mech: the modal appears and on_confirm waits for LAUNCH ANYWAY.
-	GlobalData.equipped_parts.clear()
+	GlobalData.weapons.equipped_parts.clear()
 	_confirm_calls = 0
 	rp.check(func(): _confirm_calls += 1)
 	await get_tree().process_frame
@@ -2147,32 +2147,32 @@ func _verify_persist_panel() -> void:
 	# persist_edits saves the working set onto the editing berth and, when that
 	# berth is not the active mech, reloads the ACTIVE mech's parts back into
 	# the working set (so leaving the hangar pilots the right machine).
-	var active_id: String = str(GlobalData.active_hangar_mech_id)
+	var active_id: String = str(GlobalData.hangar.active_hangar_mech_id)
 	var other_id := active_id
 	for m in HangarManager.get_mechs():
 		if str(m.get("id", "")) != active_id:
 			other_id = str(m.get("id", ""))
 			break
 	ctrl._customize_mech_id = other_id
-	GlobalData.equipped_parts["body"] = {"uid": "persist_probe", "name": "Probe", "hp": 50.0, "max_hp": 50.0, "weight": 5.0}
+	GlobalData.weapons.equipped_parts["body"] = {"uid": "persist_probe", "name": "Probe", "hp": 50.0, "max_hp": 50.0, "weight": 5.0}
 	pp.persist_edits()
 	_check(ctrl._customize_mech_id == other_id, "persist_edits keeps the editing target")
 	if other_id != active_id:
 		# After persist, the ACTIVE mech's snapshot replaces the working set.
-		var restored: Dictionary = GlobalData.equipped_parts.get("body", {})
-		_check(str(restored.get("uid", "")) != "persist_probe" or GlobalData.equipped_parts.is_empty(), "persist_edits reloads the active mech's parts")
+		var restored: Dictionary = GlobalData.weapons.equipped_parts.get("body", {})
+		_check(str(restored.get("uid", "")) != "persist_probe" or GlobalData.weapons.equipped_parts.is_empty(), "persist_edits reloads the active mech's parts")
 
 	# commit_and_save pushes the working set onto the editing berth (roster
 	# snapshot) and saves the run.
 	ctrl._customize_mech_id = active_id
-	GlobalData.equipped_parts["body"] = {"uid": "commit_probe", "name": "Probe", "hp": 50.0, "max_hp": 50.0, "weight": 5.0}
+	GlobalData.weapons.equipped_parts["body"] = {"uid": "commit_probe", "name": "Probe", "hp": 50.0, "max_hp": 50.0, "weight": 5.0}
 	pp.commit_and_save()
 	# Loading the committed state back reproduces the probe body.
-	GlobalData.equipped_parts.clear()
+	GlobalData.weapons.equipped_parts.clear()
 	HangarManager.load_mech_state(active_id)
-	var probe: Dictionary = GlobalData.equipped_parts.get("body", {})
+	var probe: Dictionary = GlobalData.weapons.equipped_parts.get("body", {})
 	_check(str(probe.get("uid", "")) == "commit_probe", "commit_and_save persists the working set onto the berth")
-	GlobalData.equipped_parts.erase("body")
+	GlobalData.weapons.equipped_parts.erase("body")
 
 	# commit_and_save with no editing target still saves the run.
 	ctrl._customize_mech_id = ""
@@ -2247,9 +2247,9 @@ func _verify_scrap_editor_destroyed_frame() -> void:
 	# off) still needs emergency repair. The editor must render a ghost skeleton
 	# for that limb so the driver can SEE where to place the scrap patch, and the
 	# patch primitive must attach to the limb root as usual.
-	GlobalData.part_damage["arm_left"] = 1.0
-	GlobalData.part_damage["arm_left_frame"] = 1.0
-	GlobalData.scrap = 9999
+	GlobalData.weapons.part_damage["arm_left"] = 1.0
+	GlobalData.weapons.part_damage["arm_left_frame"] = 1.0
+	GlobalData.currency.scrap = 9999
 
 	var ctrl: Node = load("res://scenes/ui/hangar_scene.tscn").instantiate()
 	add_child(ctrl)
@@ -2321,7 +2321,7 @@ func _verify_exit_panel() -> void:
 
 	# An incomplete mech: close() persists but the readiness check blocks the
 	# actual exit (hangar stays visible + paused, warning modal appears).
-	GlobalData.equipped_parts.clear()
+	GlobalData.weapons.equipped_parts.clear()
 	ctrl.visible = true
 	get_tree().paused = true
 	ep.close()

@@ -31,21 +31,21 @@ func update() -> void:
 	var total_armor_hp = 0.0
 	var total_attachment_weight = 0.0
 
-	for slot in GlobalData.equipped_frames:
-		var f = GlobalData.equipped_frames[slot]
+	for slot in GlobalData.weapons.equipped_frames:
+		var f = GlobalData.weapons.equipped_frames[slot]
 		var max_fhp = f.get("hp", 0.0) + LoadoutSystem.get_frame_upgrade_hp_bonus()
 		total_frame_weight += f.get("weight", 0.0)
-		total_frame_hp += max_fhp * (1.0 - clampf(GlobalData.part_damage.get(slot + "_frame", 0.0), 0.0, 1.0))
+		total_frame_hp += max_fhp * (1.0 - clampf(GlobalData.weapons.part_damage.get(slot + "_frame", 0.0), 0.0, 1.0))
 
-	for slot in GlobalData.equipped_parts:
-		var p = GlobalData.equipped_parts[slot]
+	for slot in GlobalData.weapons.equipped_parts:
+		var p = GlobalData.weapons.equipped_parts[slot]
 		if p and p.get("weight") != null:
 			total_armor_weight += p.weight
 		if p and (p.get("hp") != null or p.get("max_hp") != null):
 			var max_ahp = float(p.get("hp", p.get("max_hp", 0.0)))
-			total_armor_hp += max_ahp * (1.0 - clampf(GlobalData.part_damage.get(slot, 0.0), 0.0, 1.0))
+			total_armor_hp += max_ahp * (1.0 - clampf(GlobalData.weapons.part_damage.get(slot, 0.0), 0.0, 1.0))
 
-	for attachment in GlobalData.attachments:
+	for attachment in GlobalData.weapons.attachments:
 		total_attachment_weight += float(attachment.get("weight", 0.0))
 
 	var total_weapon_weight = LoadoutSystem.get_loadout_weapon_weight()
@@ -62,9 +62,9 @@ func update() -> void:
 		# PILOT leads the block so who drives the mech being edited is visible at
 		# a glance on the customize page (the header badge carries it too).
 		controller.total_stats_label.text = "PILOT: %s\nFRAME LVL: %d | FRAME HP: %.0f | ARMOR HP: %.0f\nFRAME W: %.1fkg | ARMOR W: %.1fkg | ATTACH W: %.1fkg | WEAPON W: %.1fkg\nTOTAL WEIGHT: %.1f / %.1f kg\nFIELD PACK: %.1f / %.1f kg\nCREDITS: %d cr   |   SCRAP: %d" % [
-			_editing_pilot_name(), GlobalData.frame_upgrade_level, total_frame_hp, total_armor_hp,
+			_editing_pilot_name(), GlobalData.weapons.frame_upgrade_level, total_frame_hp, total_armor_hp,
 			total_frame_weight, total_armor_weight, total_attachment_weight, total_weapon_weight,
 			total_weight, max_weight,
 			field_pack_weight, field_pack_capacity,
-			GlobalData.credits, GlobalData.scrap
+			GlobalData.currency.credits, GlobalData.currency.scrap
 		]

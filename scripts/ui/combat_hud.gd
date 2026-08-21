@@ -251,15 +251,15 @@ func _create_countdown_indicator() -> void:
 func _update_countdown_indicator() -> void:
 	if _countdown_panel == null or _countdown_label == null:
 		return
-	if not GlobalData.mid_battle_countdown_active:
+	if not GlobalData.board.mid_battle_countdown_active:
 		_countdown_panel.visible = false
 		if _countdown_flash_tween and _countdown_flash_tween.is_valid():
 			_countdown_flash_tween.kill()
 			_countdown_panel.modulate.a = 1.0
 		return
 	_countdown_panel.visible = true
-	var remaining = GlobalData.mid_battle_countdown_timer
-	var max_time = GlobalData.mid_battle_countdown_max
+	var remaining = GlobalData.board.mid_battle_countdown_timer
+	var max_time = GlobalData.board.mid_battle_countdown_max
 	var progress = 1.0 - clampf(remaining / max_time, 0.0, 1.0)
 	_countdown_label.text = "☢ EXTRACTION — %.1fs" % maxf(remaining, 0.0)
 	# Color ramps from amber to red as time runs out.

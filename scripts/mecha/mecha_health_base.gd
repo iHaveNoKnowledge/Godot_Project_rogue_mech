@@ -116,7 +116,7 @@ func take_damage(amount: float, damage_type: String = "kinetic") -> void:
 		_apply_frame_damage(target_slot, amount, damage_type)
 
 	# Convoy Defense: during defense missions, player damage also damages the convoy.
-	if is_player and GlobalData.convoy_defense_active:
+	if is_player and GlobalData.board.convoy_defense_active:
 		var scene = get_tree().current_scene if get_tree() else null
 		var convoy = scene.get_node_or_null("ConvoyEscort") if scene else null
 		if convoy and convoy.has_method("_damage_convoy"):
@@ -513,7 +513,7 @@ func _apply_armor_damage(slot_name: String, amount: float, damage_type: String) 
 	# Persist damage to GlobalData so Hangar shows correct state after combat.
 	# Key format: "slot_name" for armor damage ratio (0.0 = full, 1.0 = destroyed)
 	if is_player and part["max_armor"] > 0.0:
-		GlobalData.part_damage[slot_name] = 1.0 - (part["armor_hp"] / part["max_armor"])
+		GlobalData.weapons.part_damage[slot_name] = 1.0 - (part["armor_hp"] / part["max_armor"])
 
 	if is_player:
 		EventBus.damage_received.emit(slot_name, reduced, damage_type)
@@ -537,7 +537,7 @@ func _apply_frame_damage(slot_name: String, amount: float, damage_type: String) 
 	# Persist frame damage to GlobalData with "_frame" suffix to distinguish from armor.
 	# Key format: "slot_name_frame" for frame damage ratio (0.0 = full, 1.0 = destroyed)
 	if is_player and part["max_frame"] > 0.0:
-		GlobalData.part_damage[slot_name + "_frame"] = 1.0 - (part["frame_hp"] / part["max_frame"])
+		GlobalData.weapons.part_damage[slot_name + "_frame"] = 1.0 - (part["frame_hp"] / part["max_frame"])
 
 	if is_player:
 		EventBus.damage_received.emit(slot_name, amount, damage_type)
@@ -563,8 +563,8 @@ func _on_armor_broken(slot_name: String) -> void:
 	# hits zero it shatters and is GONE. Remove the patch from the persistent
 	# stash so the crude plates fall off the mech, the hangar stops showing it,
 	# and the next battle doesn't re-apply its weak scrap stats.
-	if is_player and GlobalData.scrap_patches.has(slot_name):
-		GlobalData.scrap_patches.erase(slot_name)
+	if is_player and GlobalData.weapons.scrap_patches.has(slot_name):
+		GlobalData.weapons.scrap_patches.erase(slot_name)
 		_refresh_patch_visuals(slot_name)
 	_show_frame(slot_name)
 	armor_broken.emit(slot_name)
@@ -665,7 +665,7 @@ func _on_mecha_destroyed() -> void:
 		# already badly hurt, e.g. shot earlier in the battle) the pilot is dead
 		# for good — same rule as being shot on foot. The run ends right here.
 		if PilotSystem.is_dead():
-			GlobalData.run_notice = "Your pilot was killed when the mech went down. The run ends here."
+			GlobalData.board.run_notice = "Your pilot was killed when the mech went down. The run ends here."
 			EventBus.combat_ended.emit(false)
 			GameManager.game_over()
 			return
@@ -673,20 +673,20 @@ func _on_mecha_destroyed() -> void:
 		if GameManager.is_escaping:
 			return
 		EventBus.combat_ended.emit(false)
-		HangarManager.remove_mech(GlobalData.active_hangar_mech_id)
-		GlobalData.mech_less = GlobalData.hangar_mechs.is_empty()
+		HangarManager.remove_mech(GlobalData.hangar.active_hangar_mech_id)
+		GlobalData.narrative.mech_less = GlobalData.hangar.hangar_mechs.is_empty()
 		# Place wreckage tile at the combat position for the Siphon Protocol.
-		if GlobalData.mech_less and not GameManager.is_escaping:
-			GlobalData.wreckage_tile_pos = GlobalData.current_tile
-			GlobalData.wreckage_fuel_remaining = 80.0
-			GlobalData.siphoned_fuel = 0.0
+		if GlobalData.narrative.mech_less and not GameManager.is_escaping:
+			GlobalData.fuel.wreckage_tile_pos = GlobalData.board.current_tile
+			GlobalData.fuel.wreckage_fuel_remaining = 80.0
+			GlobalData.fuel.siphoned_fuel = 0.0
 		if HangarManager.can_mechless_retreat():
-			GlobalData.run_notice = "Your mech is destroyed! The pilot siphons fuel from the wreckage to reboot. Walk to the wreckage tile (burnt orange) to siphon."
+			GlobalData.board.run_notice = "Your mech is destroyed! The pilot siphons fuel from the wreckage to reboot. Walk to the wreckage tile (burnt orange) to siphon."
 			GameManager.return_to_board()
-		elif GlobalData.mech_less:
+		elif GlobalData.narrative.mech_less:
 			GameManager.game_over()
 		else:
-			GlobalData.run_notice = "Your mech was destroyed, but a reserve machine is still parked in the convoy."
+			GlobalData.board.run_notice = "Your mech was destroyed, but a reserve machine is still parked in the convoy."
 			GameManager.return_to_board()
 
 

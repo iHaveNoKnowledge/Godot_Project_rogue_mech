@@ -28,13 +28,13 @@ func _ready() -> void:
 	# One clean reset at the top; reset_run_data() re-seeds the roster AND clears
 	# the fleet, so the fleet is configured once right after.
 	GlobalData.reset_run_data()
-	GlobalData.fleet_roster = [_unit("grunt_squad", "Alpha"), _unit("ace_scout", "Bravo")]
+	GlobalData.hangar.fleet_roster = [_unit("grunt_squad", "Alpha"), _unit("ace_scout", "Bravo")]
 	await get_tree().process_frame
 
 	# --- Fleet-driven capacity ---
-	GlobalData.fleet_roster.clear()
+	GlobalData.hangar.fleet_roster.clear()
 	_check(HangarManager.get_capacity() == 2, "solo convoy parks 2 mechs")
-	GlobalData.fleet_roster = [_unit("grunt_squad", "Alpha"), _unit("ace_scout", "Bravo")]
+	GlobalData.hangar.fleet_roster = [_unit("grunt_squad", "Alpha"), _unit("ace_scout", "Bravo")]
 	_check(HangarManager.get_capacity() == 8, "fleet of 3 pilots -> 2 trucks -> 8 berths")
 
 	# --- Seed / roster basics ---
@@ -82,17 +82,17 @@ func _ready() -> void:
 
 	# --- Backup + switch by id ---
 	var backup := HangarManager.get_backup_id()
-	_check(backup != "" and backup != GlobalData.active_hangar_mech_id, "backup mech id differs from active")
+	_check(backup != "" and backup != GlobalData.hangar.active_hangar_mech_id, "backup mech id differs from active")
 	_check(HangarManager.switch_mech(id04), "switch to mech04")
-	_check(GlobalData.active_hangar_mech_id == id04, "active id updated after switch")
+	_check(GlobalData.hangar.active_hangar_mech_id == id04, "active id updated after switch")
 	_check(HangarManager.get_slot_of(id04) == 4, "slot lookup returns 4")
 
 	# --- Old-save migration: entries without slot/pilot get both ---
-	GlobalData.hangar_mechs = [
+	GlobalData.hangar.hangar_mechs = [
 		{"id": "old_1", "name": "Old One", "chassis_id": "standard", "frames": {}, "parts": {}, "damage": {}, "attachments": [], "weapon_loadout": {}, "scrap_patches": {}},
 		{"id": "old_2", "name": "Old Two", "chassis_id": "standard", "frames": {}, "parts": {}, "damage": {}, "attachments": [], "weapon_loadout": {}, "scrap_patches": {}},
 	]
-	GlobalData.active_hangar_mech_id = "old_1"
+	GlobalData.hangar.active_hangar_mech_id = "old_1"
 	HangarManager.ensure_roster()
 	mechs = HangarManager.get_mechs()
 	_check(int(mechs[0].get("slot", 0)) == 1 and int(mechs[1].get("slot", 0)) == 2, "old saves get stable slots")

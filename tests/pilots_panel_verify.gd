@@ -90,7 +90,7 @@ func _verify_pilots_page() -> void:
 	_check(text.contains("YOU (driver)"), "pilots page lists the player driver")
 
 	# A healthy fleet unit shows with its live HP and no mech when unseated.
-	GlobalData.fleet_roster.append({"template_id": "t_pp", "name": "Pilot Patty", "hp": 40.0, "max_hp": 80.0, "destroyed": false, "fielded": true})
+	GlobalData.hangar.fleet_roster.append({"template_id": "t_pp", "name": "Pilot Patty", "hp": 40.0, "max_hp": 80.0, "destroyed": false, "fielded": true})
 	pp.refresh()
 	await get_tree().process_frame
 	text = _collect_text(pp.pilots_panel)
@@ -111,7 +111,7 @@ func _verify_pilots_page() -> void:
 	_check(text.contains("Pilot Patty · 40/80 HP · Mech 01"), "seated fleet pilot shows the mech they drive")
 
 	# Wounded -> countdown marker + HEAL button; healing clears both.
-	for u in GlobalData.fleet_roster:
+	for u in GlobalData.hangar.fleet_roster:
 		if u.get("template_id", "") == "t_pp":
 			u["wounded"] = true
 			u["wound_turns"] = 2
@@ -121,12 +121,12 @@ func _verify_pilots_page() -> void:
 	_check(text.contains("Pilot Patty · WOUNDED (2T)"), "wounded pilot shows the recovery countdown")
 	var heal_btn := _find_heal_button(pp.pilot_list)
 	_check(heal_btn != null, "wounded pilot row offers a HEAL button")
-	GlobalData.credits = 1000
+	GlobalData.currency.credits = 1000
 	if heal_btn:
 		heal_btn.pressed.emit()
 		await get_tree().process_frame
 	var healed := false
-	for u in GlobalData.fleet_roster:
+	for u in GlobalData.hangar.fleet_roster:
 		if u.get("template_id", "") == "t_pp":
 			healed = not bool(u.get("wounded", false))
 	_check(healed, "HEAL clears the wound")
@@ -146,14 +146,14 @@ func _verify_register_pilot() -> void:
 
 	# Give the convoy a fleet pilot — the REGISTER dialog must NOT offer a pilot
 	# picker anymore: registering a frame just names it and makes it your mech.
-	GlobalData.fleet_roster.append({"template_id": "t_reg", "name": "Regina", "hp": 60.0, "max_hp": 60.0, "destroyed": false, "fielded": true})
+	GlobalData.hangar.fleet_roster.append({"template_id": "t_reg", "name": "Regina", "hp": 60.0, "max_hp": 60.0, "destroyed": false, "fielded": true})
 
 	# Start the REGISTER assembly for the empty berth and equip a walking chassis.
 	rp.register_mech(2)
 	await get_tree().process_frame
-	GlobalData.equipped_frames["body"] = (GlobalData.frame_catalog["body"][0] as Dictionary).duplicate()
-	GlobalData.equipped_frames["leg_left"] = (GlobalData.frame_catalog["leg_left"][0] as Dictionary).duplicate()
-	GlobalData.equipped_frames["leg_right"] = (GlobalData.frame_catalog["leg_right"][0] as Dictionary).duplicate()
+	GlobalData.weapons.equipped_frames["body"] = (GlobalData.frame_catalog["body"][0] as Dictionary).duplicate()
+	GlobalData.weapons.equipped_frames["leg_left"] = (GlobalData.frame_catalog["leg_left"][0] as Dictionary).duplicate()
+	GlobalData.weapons.equipped_frames["leg_right"] = (GlobalData.frame_catalog["leg_right"][0] as Dictionary).duplicate()
 	rp.refresh_pending_register()
 	if rp.pending_register_button:
 		rp.pending_register_button.pressed.emit()
@@ -181,7 +181,7 @@ func _verify_register_pilot() -> void:
 			if str(m.get("id", "")) == new_id:
 				pilot_of = str(m.get("pilot", ""))
 		_check(pilot_of == HangarManager.PLAYER_PILOT_ID, "registered frame becomes the player's piloted mech")
-		_check(GlobalData.active_hangar_mech_id == new_id, "registered frame takes over as the active mech")
+		_check(GlobalData.hangar.active_hangar_mech_id == new_id, "registered frame takes over as the active mech")
 
 	ctrl.queue_free()
 	await get_tree().process_frame
@@ -211,7 +211,7 @@ func _verify_main_driver() -> void:
 
 	# A healthy fleet pilot gets an enabled MAIN DRIVER button; pressing it
 	# seats them in the active mech (the same assign call the roster uses).
-	GlobalData.fleet_roster.append({"template_id": "t_md", "name": "Mia Driver", "hp": 70.0, "max_hp": 70.0, "destroyed": false, "fielded": true})
+	GlobalData.hangar.fleet_roster.append({"template_id": "t_md", "name": "Mia Driver", "hp": 70.0, "max_hp": 70.0, "destroyed": false, "fielded": true})
 	pp.refresh()
 	await get_tree().process_frame
 	var mia_row := _row_with_text(pp.pilot_list, "Mia Driver")
@@ -231,7 +231,7 @@ func _verify_main_driver() -> void:
 	_check(status_text.contains("MAIN DRIVER: Mia Driver"), "summary names the current main driver")
 
 	# Destroyed pilots are gated, mirroring the roster picker.
-	GlobalData.fleet_roster.append({"template_id": "t_dd", "name": "Dan Dead", "hp": 0.0, "max_hp": 70.0, "destroyed": true, "fielded": true})
+	GlobalData.hangar.fleet_roster.append({"template_id": "t_dd", "name": "Dan Dead", "hp": 0.0, "max_hp": 70.0, "destroyed": true, "fielded": true})
 	pp.refresh()
 	await get_tree().process_frame
 	var dan_row := _row_with_text(pp.pilot_list, "Dan Dead")

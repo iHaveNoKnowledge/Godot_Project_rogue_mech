@@ -170,10 +170,10 @@ func equip_part(slot: String, info: Dictionary) -> void:
 			return
 		var s_cost := ArmorSystem.get_armor_scrap_cost(entry)
 		var c_cost := ArmorSystem.get_armor_credit_cost(entry)
-		if GlobalData.scrap < s_cost:
+		if GlobalData.currency.scrap < s_cost:
 			controller.status_message_label.text = "Not enough scrap to craft this armor! (%d scrap needed)" % s_cost
 			return
-		if GlobalData.credits < c_cost:
+		if GlobalData.currency.credits < c_cost:
 			controller.status_message_label.text = "Not enough credits to craft this armor! (%d cr needed)" % c_cost
 			return
 		inst = ArmorSystem.try_craft_armor_from_catalog(pid)
@@ -232,7 +232,7 @@ func _perform_weapon_equip(slot: String, info: Dictionary, wref: String) -> void
 		if equipped == hand:
 			controller.status_message_label.text = "This weapon is already equipped in the %s hand." % hand
 			return
-		var replaced_path = str(GlobalData.weapon_loadout.get(hand, ""))
+		var replaced_path = str(GlobalData.weapons.weapon_loadout.get(hand, ""))
 		# Only a MOVED weapon (last free copy) frees its old slot's weight.
 		var spare := LoadoutSystem.has_spare_weapon(wpath)
 		var freed_path: String = wpath if (equipped != "" and not spare) else ""
@@ -262,7 +262,7 @@ func _perform_weapon_equip(slot: String, info: Dictionary, wref: String) -> void
 # a weapon, so equipping a hand weapon to it is blocked.
 func _arm_destroyed(hand: String) -> bool:
 	var slot := "arm_left" if hand == "left" else "arm_right"
-	return float(GlobalData.part_damage.get(slot + "_frame", 0.0)) >= 1.0
+	return float(GlobalData.weapons.part_damage.get(slot + "_frame", 0.0)) >= 1.0
 
 
 func _perform_armor_equip(slot: String, inst: Dictionary) -> void:
@@ -334,7 +334,7 @@ func _perform_selected_weapon_equip(res: Resource) -> void:
 		if equipped == hand:
 			controller.status_message_label.text = "This weapon is already equipped in the %s hand." % hand
 			return
-		var replaced_path = str(GlobalData.weapon_loadout.get(hand, ""))
+		var replaced_path = str(GlobalData.weapons.weapon_loadout.get(hand, ""))
 		var freed_path: String = wpath if (equipped != "" and not spare) else ""
 		if controller.garage_panel.would_exceed_field_pack(wpath, replaced_path, freed_path):
 			controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
@@ -360,10 +360,10 @@ func _perform_frame_equip(slot: String, info: Dictionary) -> void:
 	var fdata: Dictionary = info.duplicate()
 	# A fresh install starts at base tier (upgrades apply to this copy).
 	fdata["upgrade_level"] = 1
-	GlobalData.equipped_frames[slot] = fdata
+	GlobalData.weapons.equipped_frames[slot] = fdata
 	# A brand-new frame is installed: it starts at full HP, so wipe any frame
 	# damage that belonged to the PREVIOUS frame in this slot.
-	GlobalData.part_damage.erase(slot + "_frame")
+	GlobalData.weapons.part_damage.erase(slot + "_frame")
 	controller.persist_panel.commit_and_save()
 	controller.stats_panel.update()
 	controller.part_list_panel.populate(slot)
@@ -377,8 +377,8 @@ func _perform_selected_frame_equip() -> void:
 	_transfer_frame_from_other_mechs(controller.selected_slot, controller.selected_frame_info)
 	var fdata: Dictionary = controller.selected_frame_info.duplicate()
 	fdata["upgrade_level"] = 1
-	GlobalData.equipped_frames[controller.selected_slot] = fdata
-	GlobalData.part_damage.erase(controller.selected_slot + "_frame")
+	GlobalData.weapons.equipped_frames[controller.selected_slot] = fdata
+	GlobalData.weapons.part_damage.erase(controller.selected_slot + "_frame")
 	var fname = controller.selected_frame_info.get("name", "Frame")
 	controller.status_message_label.text = "Equipped Inner Frame: %s!" % fname
 	GlobalData.save_run()
@@ -407,7 +407,7 @@ func _weapon_swap_owner_by_uid(uid: String) -> String:
 	if uid == "":
 		return ""
 	var editing_id: String = controller.get_editing_mech_id()
-	for mech in GlobalData.hangar_mechs:
+	for mech in GlobalData.hangar.hangar_mechs:
 		if not (mech is Dictionary):
 			continue
 		var mech_id := str(mech.get("id", ""))
@@ -432,7 +432,7 @@ func _weapon_swap_owner_by_path(path: String) -> String:
 	if LoadoutSystem.has_fleet_spare_weapon(path, controller.get_editing_mech_id()):
 		return ""
 	var editing_id: String = controller.get_editing_mech_id()
-	for mech in GlobalData.hangar_mechs:
+	for mech in GlobalData.hangar.hangar_mechs:
 		if not (mech is Dictionary):
 			continue
 		var mech_id := str(mech.get("id", ""))
@@ -453,7 +453,7 @@ func _armor_swap_owner(uid: String) -> String:
 	if uid == "":
 		return ""
 	var editing_id: String = controller.get_editing_mech_id()
-	for mech in GlobalData.hangar_mechs:
+	for mech in GlobalData.hangar.hangar_mechs:
 		if not (mech is Dictionary):
 			continue
 		var mech_id := str(mech.get("id", ""))
@@ -486,7 +486,7 @@ func _transfer_weapon_from_other_mechs_by_uid(uid: String) -> String:
 	if uid == "":
 		return ""
 	var editing_id: String = controller.get_editing_mech_id()
-	for mech in GlobalData.hangar_mechs:
+	for mech in GlobalData.hangar.hangar_mechs:
 		if not (mech is Dictionary):
 			continue
 		var mech_id := str(mech.get("id", ""))
@@ -521,7 +521,7 @@ func _transfer_weapon_from_other_mechs_by_path(path: String) -> String:
 	if LoadoutSystem.has_fleet_spare_weapon(path, controller.get_editing_mech_id()):
 		return ""
 	var editing_id: String = controller.get_editing_mech_id()
-	for mech in GlobalData.hangar_mechs:
+	for mech in GlobalData.hangar.hangar_mechs:
 		if not (mech is Dictionary):
 			continue
 		var mech_id := str(mech.get("id", ""))
@@ -560,7 +560,7 @@ func _transfer_armor_from_other_mechs(uid: String) -> String:
 	if uid == "":
 		return ""
 	var editing_id: String = controller.get_editing_mech_id()
-	for mech in GlobalData.hangar_mechs:
+	for mech in GlobalData.hangar.hangar_mechs:
 		if not (mech is Dictionary):
 			continue
 		var mech_id := str(mech.get("id", ""))
@@ -593,7 +593,7 @@ func _frame_swap_owner(slot: String, info: Dictionary) -> String:
 	var editing_id: String = controller.get_editing_mech_id()
 	var info_id := str(info.get("id", ""))
 	var info_name := str(info.get("name", info.get("part_name", ""))).to_lower()
-	for mech in GlobalData.hangar_mechs:
+	for mech in GlobalData.hangar.hangar_mechs:
 		if not (mech is Dictionary):
 			continue
 		var mid := str(mech.get("id", ""))
@@ -621,7 +621,7 @@ func _transfer_frame_from_other_mechs(slot: String, info: Dictionary) -> void:
 	var editing_id: String = controller.get_editing_mech_id()
 	var info_id := str(info.get("id", ""))
 	var info_name := str(info.get("name", info.get("part_name", ""))).to_lower()
-	for mech in GlobalData.hangar_mechs:
+	for mech in GlobalData.hangar.hangar_mechs:
 		if not (mech is Dictionary):
 			continue
 		var mid := str(mech.get("id", ""))
@@ -675,9 +675,9 @@ func unequip_part(slot: String) -> void:
 	# Inner frames: only reachable for non-weapon slots (weapon slots are
 	# handled by the branch above regardless of the leftover mode).
 	if controller.current_mode == "frame":
-		GlobalData.equipped_frames.erase(slot)
-		GlobalData.part_damage.erase(slot)
-		GlobalData.part_damage.erase(slot + "_frame")
+		GlobalData.weapons.equipped_frames.erase(slot)
+		GlobalData.weapons.part_damage.erase(slot)
+		GlobalData.weapons.part_damage.erase(slot + "_frame")
 		controller.persist_panel.commit_and_save()
 		controller.stats_panel.update()
 		controller.part_list_panel.populate(slot)
@@ -699,8 +699,8 @@ func on_equip_pressed() -> void:
 	if controller.current_mode == "upgrade":
 		var cost = controller._get_upgrade_cost()
 		if GlobalData.try_spend_credits(cost):
-			GlobalData.frame_upgrade_level += 1
-			controller.status_message_label.text = "Frame Reactor Upgraded to Level %d!" % GlobalData.frame_upgrade_level
+			GlobalData.weapons.frame_upgrade_level += 1
+			controller.status_message_label.text = "Frame Reactor Upgraded to Level %d!" % GlobalData.weapons.frame_upgrade_level
 			GlobalData.save_run()
 			controller.stats_panel.update()
 		else:
@@ -721,13 +721,13 @@ func on_equip_pressed() -> void:
 			controller.status_message_label.text = "Attachment rejected: total Frame capacity exceeded."
 			return
 		var replaced := false
-		for i in range(GlobalData.attachments.size()):
-			if GlobalData.attachments[i].get("id", "") == attachment["id"] and GlobalData.attachments[i].get("slot", "") == controller.selected_slot:
-				GlobalData.attachments[i] = attachment
+		for i in range(GlobalData.weapons.attachments.size()):
+			if GlobalData.weapons.attachments[i].get("id", "") == attachment["id"] and GlobalData.weapons.attachments[i].get("slot", "") == controller.selected_slot:
+				GlobalData.weapons.attachments[i] = attachment
 				replaced = true
 				break
 		if not replaced:
-			GlobalData.attachments.append(attachment)
+			GlobalData.weapons.attachments.append(attachment)
 		controller.status_message_label.text = "Mounted %s on %s. Drag it in 3D to reposition." % [attachment["name"], controller.selected_slot.to_upper()]
 		GlobalData.save_run()
 		controller.garage_panel.update_all_slots_preview()
@@ -787,8 +787,8 @@ func on_equip_pressed() -> void:
 				"path": controller.selected_part_path,
 				"equipped": true
 			}
-			GlobalData.equipped_parts[controller.selected_slot] = part_data
-			GlobalData.part_damage.erase(controller.selected_slot)
+			GlobalData.weapons.equipped_parts[controller.selected_slot] = part_data
+			GlobalData.weapons.part_damage.erase(controller.selected_slot)
 			controller.status_message_label.text = "Equipped & Saved Armor: %s!" % part_data["name"]
 			GlobalData.save_run()
 			controller.stats_panel.update()

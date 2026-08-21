@@ -53,15 +53,15 @@ func has_thruster_module() -> bool:
 	if thruster_override != null:
 		return bool(thruster_override)
 	# 1. Check attachments for booster / thruster modules
-	for att in GlobalData.attachments:
+	for att in GlobalData.weapons.attachments:
 		if att is Dictionary:
 			var aid: String = str(att.get("id", "")).to_lower()
 			var atype: String = str(att.get("type", "")).to_lower()
 			if aid.contains("booster") or aid.contains("thruster") or atype == "thruster" or atype == "booster" or bool(att.get("has_thruster", false)):
 				return true
 	# 2. Check equipped frames
-	for slot in GlobalData.equipped_frames:
-		var f = GlobalData.equipped_frames[slot]
+	for slot in GlobalData.weapons.equipped_frames:
+		var f = GlobalData.weapons.equipped_frames[slot]
 		if f is Dictionary and (bool(f.get("has_thruster", false)) or str(f.get("jump_mode", "")) == "thruster"):
 			return true
 	# 3. Check chassis
@@ -162,7 +162,7 @@ func _jump_velocity(charge_frac: float, pos: Vector3 = Vector3.ZERO) -> float:
 func _leg_jump_power() -> float:
 	var power := float(LoadoutSystem.get_chassis_stats().get("power", 12.0))
 	for leg in ["leg_left", "leg_right"]:
-		var f = GlobalData.equipped_frames.get(leg, {})
+		var f = GlobalData.weapons.equipped_frames.get(leg, {})
 		if f is Dictionary:
 			power += float(f.get("jump_power", f.get("carry_bonus", 0.0)))
 	return power

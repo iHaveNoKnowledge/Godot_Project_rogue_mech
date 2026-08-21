@@ -68,7 +68,7 @@ func build_window() -> void:
 	vbox.add_child(title)
 
 	var hint = Label.new()
-	hint.text = "Scrap: %d   Credits: %d   Data Cores: %d" % [GlobalData.scrap, GlobalData.credits, GlobalData.data_cores]
+	hint.text = "Scrap: %d   Credits: %d   Data Cores: %d" % [GlobalData.currency.scrap, GlobalData.currency.credits, GlobalData.currency.data_cores]
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.add_theme_color_override("font_color", Color(0.5, 0.9, 0.6))
 	vbox.add_child(hint)
@@ -97,7 +97,7 @@ func build_window() -> void:
 		var s_cost := ArmorSystem.get_armor_scrap_cost(info)
 		var c_cost := ArmorSystem.get_armor_credit_cost(info)
 		var blueprint_locked := ArmorSystem.entry_is_blueprint_locked(info)
-		var can_afford := GlobalData.scrap >= s_cost and GlobalData.credits >= c_cost
+		var can_afford := GlobalData.currency.scrap >= s_cost and GlobalData.currency.credits >= c_cost
 
 		var row = HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
@@ -107,9 +107,9 @@ func build_window() -> void:
 		var bp_tag = "  [BLUEPRINT]" if blueprint_locked else ""
 		info_lbl.text = "%s%s [%s]  %.1fkg   (%.0f HP / %.0f armor)" % [
 			info.get("name", "Armor"), bp_tag, info.get("type", "?"),
-			GlobalData.part_stat(info, "weight", 0.0),
-			GlobalData.part_stat(info, "max_hp", 0.0),
-			GlobalData.part_stat(info, "armor", 0.0)
+			GlobalData.weapons.part_stat(info, "weight", 0.0),
+			GlobalData.weapons.part_stat(info, "max_hp", 0.0),
+			GlobalData.weapons.part_stat(info, "armor", 0.0)
 		]
 		info_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		info_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -154,7 +154,7 @@ func craft_armor(info: Dictionary) -> void:
 		return
 	var s_cost := ArmorSystem.get_armor_scrap_cost(info)
 	var c_cost := ArmorSystem.get_armor_credit_cost(info)
-	if GlobalData.scrap < s_cost or GlobalData.credits < c_cost:
+	if GlobalData.currency.scrap < s_cost or GlobalData.currency.credits < c_cost:
 		if controller.status_message_label:
 			controller.status_message_label.text = "Not enough scrap/credits to craft this armor."
 		return

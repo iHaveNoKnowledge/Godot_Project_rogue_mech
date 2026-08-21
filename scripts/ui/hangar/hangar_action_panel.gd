@@ -82,7 +82,7 @@ func show(info: Dictionary) -> void:
 		var wdur = GlobalData.get_durability_ratio(info)
 		details.text = "WEIGHT: %.1f kg   DURABILITY: %.0f%%" % [wt_val, wdur * 100.0]
 	else:
-		var full_hp = GlobalData.part_stat(info, "max_hp", 100.0)
+		var full_hp = GlobalData.weapons.part_stat(info, "max_hp", 100.0)
 		if controller.current_mode == "armor" and not is_instance:
 			var s_cost := ArmorSystem.get_armor_scrap_cost(info)
 			var c_cost := ArmorSystem.get_armor_credit_cost(info)
@@ -139,8 +139,8 @@ func show(info: Dictionary) -> void:
 			if GlobalData.try_spend_credits(repair_cost):
 				if info.has("uid"):
 					info["durability"] = 1.0
-				GlobalData.part_damage.erase(controller.selected_slot)
-				GlobalData.part_damage.erase(controller.selected_slot + "_frame")
+				GlobalData.weapons.part_damage.erase(controller.selected_slot)
+				GlobalData.weapons.part_damage.erase(controller.selected_slot + "_frame")
 				controller.status_message_label.text = "Part Repaired to 100% HP!"
 				GlobalData.save_run()
 				controller.stats_panel.update()
@@ -160,7 +160,7 @@ func show(info: Dictionary) -> void:
 	if is_instance or controller.current_mode == "frame":
 		var cur_upg := int(info.get("upgrade_level", 1))
 		if controller.current_mode == "frame":
-			var fdict = GlobalData.equipped_frames.get(controller.selected_slot, {})
+			var fdict = GlobalData.weapons.equipped_frames.get(controller.selected_slot, {})
 			if fdict is Dictionary:
 				cur_upg = int(fdict.get("upgrade_level", 1))
 		var cost := GlobalData.get_part_upgrade_cost(cur_upg)
@@ -179,13 +179,13 @@ func show(info: Dictionary) -> void:
 				elif controller.current_mode == "frame":
 					# Frames: the upgrade applies to the EQUIPPED copy (the catalog
 					# template is never mutated); requires the frame to be installed.
-					var frame_dict = GlobalData.equipped_frames.get(controller.selected_slot)
+					var frame_dict = GlobalData.weapons.equipped_frames.get(controller.selected_slot)
 					if frame_dict is Dictionary:
 						var fhp := float(frame_dict.get("hp", frame_dict.get("max_hp", 20.0)))
 						frame_dict["hp"] = fhp + 15.0
 						frame_dict["max_hp"] = frame_dict["hp"]
 						frame_dict["upgrade_level"] = int(frame_dict.get("upgrade_level", 1)) + 1
-						GlobalData.part_damage.erase(controller.selected_slot + "_frame")
+						GlobalData.weapons.part_damage.erase(controller.selected_slot + "_frame")
 						controller.status_message_label.text = "Frame upgraded to Tier %s! Max HP increased to %.0f" % [GlobalData.part_tier_text(int(frame_dict["upgrade_level"])), frame_dict["hp"]]
 					else:
 						controller.status_message_label.text = "Equip this frame before upgrading it."
@@ -195,8 +195,8 @@ func show(info: Dictionary) -> void:
 					info["max_hp"] = info["hp"]
 					info["upgrade_level"] = int(info.get("upgrade_level", 1)) + 1
 					info["durability"] = 1.0
-					if GlobalData.equipped_parts.get(controller.selected_slot) == info:
-						GlobalData.part_damage.erase(controller.selected_slot)
+					if GlobalData.weapons.equipped_parts.get(controller.selected_slot) == info:
+						GlobalData.weapons.part_damage.erase(controller.selected_slot)
 					controller.status_message_label.text = "Part upgraded to Tier %s! Max HP increased to %.0f" % [GlobalData.part_tier_text(int(info["upgrade_level"])), info["hp"]]
 				GlobalData.save_run()
 				controller.stats_panel.update()
@@ -235,7 +235,7 @@ func show(info: Dictionary) -> void:
 				# Only sync the equipped copy when the same instance is mounted;
 				# .has() is true even for null/other instances, and Dictionary ==
 				# compares by value (not reference) — match on the unique uid instead.
-				var equipped = GlobalData.equipped_parts.get(controller.selected_slot)
+				var equipped = GlobalData.weapons.equipped_parts.get(controller.selected_slot)
 				if equipped is Dictionary and info.has("uid") and equipped.get("uid", "") == str(info["uid"]):
 					equipped["color"] = new_color
 					equipped["part_color"] = new_color

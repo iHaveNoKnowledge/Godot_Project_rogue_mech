@@ -164,7 +164,7 @@ func hide_page() -> void:
 func refresh_badge() -> void:
 	if mech_slot_label == null:
 		return
-	if GlobalData.mech_less:
+	if GlobalData.narrative.mech_less:
 		mech_slot_label.text = "ON FOOT — NO MECH PARKED"
 		return
 	var capacity := HangarManager.get_capacity()
@@ -185,7 +185,7 @@ func refresh_badge() -> void:
 	# with the stats panel (resolves fleet pilots + the player driver).
 	var pilot_str := HangarManager.get_mech_pilot_name(editing_id)
 	var driver_note := ""
-	if editing_id == GlobalData.active_hangar_mech_id:
+	if editing_id == GlobalData.hangar.active_hangar_mech_id:
 		driver_note = " · PILOTING"
 	mech_slot_label.text = "MECH SLOT %d/%d · %s · PILOT: %s%s" % [slot, capacity, name_str, pilot_str, driver_note]
 
@@ -259,7 +259,7 @@ func refresh_page() -> void:
 			affiliation.get("name", "Mech Convoy"),
 			affiliation.get("transport", "Truck convoy"),
 		]
-		if GlobalData.mech_less:
+		if GlobalData.narrative.mech_less:
 			roster_status_label.text = "%s\nON FOOT — every mech is gone. Board combat tiles become recovery missions until you rebuild a chassis." \
 				% aff_prefix
 			return
@@ -295,7 +295,7 @@ func build_slot_row(slot: int, mech: Dictionary, over_capacity: bool) -> void:
 		# REGISTER assembles the currently built parts into this berth. While on
 		# foot (mech_less) the hangar has nothing to build from — a chassis has to
 		# come back through recovery missions, so the button is withheld.
-		if not GlobalData.mech_less:
+		if not GlobalData.narrative.mech_less:
 			var register_btn := Button.new()
 			register_btn.text = "REGISTER"
 			register_btn.tooltip_text = "Assemble a mech frame into this berth from the currently assembled parts (free; needs a body + both leg frames)."
@@ -306,7 +306,7 @@ func build_slot_row(slot: int, mech: Dictionary, over_capacity: bool) -> void:
 
 		var hint := Label.new()
 		hint.text = "Assemble a frame from the current build · free (needs a body + both leg frames)" \
-			if not GlobalData.mech_less else "On foot — rebuild a chassis through recovery missions"
+			if not GlobalData.narrative.mech_less else "On foot — rebuild a chassis through recovery missions"
 		hint.custom_minimum_size = Vector2(200, 0)
 		hint.add_theme_font_size_override("font_size", 10)
 		hint.add_theme_color_override("font_color", Color(0.5, 0.55, 0.65))
@@ -314,7 +314,7 @@ func build_slot_row(slot: int, mech: Dictionary, over_capacity: bool) -> void:
 		return
 
 	var mech_id := str(mech.get("id", ""))
-	var is_active := mech_id == GlobalData.active_hangar_mech_id
+	var is_active := mech_id == GlobalData.hangar.active_hangar_mech_id
 
 	var name_lbl := Label.new()
 	name_lbl.text = "%s%s" % [
@@ -407,7 +407,7 @@ func build_slot_row(slot: int, mech: Dictionary, over_capacity: bool) -> void:
 # becomes the player's mech (active + pilot) — assembly is free, the frame
 # belongs to the player.
 func register_mech(slot: int) -> void:
-	if GlobalData.mech_less:
+	if GlobalData.narrative.mech_less:
 		_set_status("You're on foot — rebuild a chassis through recovery missions.")
 		return
 	close_register_dialog()
@@ -424,7 +424,7 @@ func register_mech(slot: int) -> void:
 # body frame plus both leg frames (the same set build_hangar_mech requires).
 func _has_walking_chassis() -> bool:
 	for required in HangarManager.REQUIRED_WALKING_FRAMES:
-		if not GlobalData.equipped_frames.has(required) or GlobalData.equipped_frames[required] == null:
+		if not GlobalData.weapons.equipped_frames.has(required) or GlobalData.weapons.equipped_frames[required] == null:
 			return false
 	return true
 
@@ -445,7 +445,7 @@ func start_pending_register(slot: int) -> void:
 	# weapon loadout (so a mech whose frame was lost keeps its arms), but a
 	# brand-new build must not inherit the previous mech's weapons — that
 	# created duplicate copies of the same weapon model on two berths.
-	GlobalData.weapon_loadout = {"left": "", "right": "", "carry": [], "ammo": {}}
+	GlobalData.weapons.weapon_loadout = {"left": "", "right": "", "carry": [], "ammo": {}}
 	build_pending_register_banner(slot)
 	controller.refresh_panel.after_mech_change(true)
 	_set_status("Assembling SLOT %02d — equip a BODY + both legs (INNER SKELETON), then press REGISTER FRAME." % slot)
@@ -458,7 +458,7 @@ func _capture_pending_originals() -> void:
 	_pending_original_editing = {}
 	_pending_original_active = {}
 	var editing_id: String = controller.get_editing_mech_id()
-	var active_id: String = GlobalData.active_hangar_mech_id
+	var active_id: String = GlobalData.hangar.active_hangar_mech_id
 	for m in HangarManager.get_mechs():
 		var mid := str(m.get("id", ""))
 		if mid == editing_id:
@@ -622,7 +622,7 @@ func refresh_pending_register() -> void:
 	var missing_color := Color(0.95, 0.4, 0.4)
 	var dim_color := Color(0.6, 0.65, 0.75)
 	for required in HangarManager.REQUIRED_WALKING_FRAMES:
-		var ok := GlobalData.equipped_frames.has(required) and GlobalData.equipped_frames[required] != null
+		var ok := GlobalData.weapons.equipped_frames.has(required) and GlobalData.weapons.equipped_frames[required] != null
 		var row: Dictionary = pending_checklist_labels.get(required, {})
 		var mark: Label = row.get("mark")
 		var name_lbl: Label = row.get("name")
@@ -983,7 +983,7 @@ func heal_pilot(template_id: String) -> void:
 	if not RecruitSystem.heal_wounded_pilot(template_id):
 		# The heal spends the credits itself; a failure here means the price
 		# moved (or resources were drained while the roster was open).
-		if GlobalData.credits < cost:
+		if GlobalData.currency.credits < cost:
 			_set_status("Need %d credits to heal this pilot." % cost)
 		else:
 			_set_status("The pilot could not be healed.")
@@ -1080,7 +1080,7 @@ func open_pilot_picker(mech_id: String, anchor_btn: Button) -> void:
 			# Seating the player in a berth means they pilot it: switch the
 			# active mech (what combat loads) to follow the YOU label, so the
 			# two can never disagree again.
-			if pilot_id == HangarManager.PLAYER_PILOT_ID and mech_id != GlobalData.active_hangar_mech_id:
+			if pilot_id == HangarManager.PLAYER_PILOT_ID and mech_id != GlobalData.hangar.active_hangar_mech_id:
 				HangarManager.switch_mech(mech_id)
 				controller.set_editing_mech_id(mech_id)
 				controller.selected_chassis_key = GlobalData.chassis_id

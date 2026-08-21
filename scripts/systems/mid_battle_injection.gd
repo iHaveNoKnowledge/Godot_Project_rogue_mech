@@ -25,33 +25,33 @@ func _ready() -> void:
 
 func _on_combat_ended(_victory: bool) -> void:
 	# Clear mid-battle state when combat ends.
-	GlobalData.mid_battle_reinforcements_active = false
-	GlobalData.mid_battle_reinforcements_timer = 0.0
-	GlobalData.mid_battle_countdown_active = false
-	GlobalData.mid_battle_countdown_timer = 0.0
+	GlobalData.board.mid_battle_reinforcements_active = false
+	GlobalData.board.mid_battle_reinforcements_timer = 0.0
+	GlobalData.board.mid_battle_countdown_active = false
+	GlobalData.board.mid_battle_countdown_timer = 0.0
 
 
 func _process(delta: float) -> void:
 	# Process reinforcements timer.
-	if GlobalData.mid_battle_reinforcements_active:
-		GlobalData.mid_battle_reinforcements_timer -= delta
-		if GlobalData.mid_battle_reinforcements_timer <= 0.0:
+	if GlobalData.board.mid_battle_reinforcements_active:
+		GlobalData.board.mid_battle_reinforcements_timer -= delta
+		if GlobalData.board.mid_battle_reinforcements_timer <= 0.0:
 			_spawn_reinforcements()
-			GlobalData.mid_battle_reinforcements_active = false
+			GlobalData.board.mid_battle_reinforcements_active = false
 
 	# Process countdown extraction timer.
-	if GlobalData.mid_battle_countdown_active:
-		GlobalData.mid_battle_countdown_timer -= delta
-		if GlobalData.mid_battle_countdown_timer <= 0.0:
+	if GlobalData.board.mid_battle_countdown_active:
+		GlobalData.board.mid_battle_countdown_timer -= delta
+		if GlobalData.board.mid_battle_countdown_timer <= 0.0:
 			# Time's up — player failed to escape. Deal massive damage.
 			_countdown_expired()
-			GlobalData.mid_battle_countdown_active = false
+			GlobalData.board.mid_battle_countdown_active = false
 
 
 ## Starts a reinforcement event: third-party enemies will spawn after a delay.
 func trigger_reinforcements(delay: float = 20.0) -> void:
-	GlobalData.mid_battle_reinforcements_active = true
-	GlobalData.mid_battle_reinforcements_timer = delay
+	GlobalData.board.mid_battle_reinforcements_active = true
+	GlobalData.board.mid_battle_reinforcements_timer = delay
 	# Announce to the player.
 	EventBus.event_triggered.emit({
 		"name": "⚠ REINFORCEMENTS INBOUND",
@@ -63,9 +63,9 @@ func trigger_reinforcements(delay: float = 20.0) -> void:
 
 ## Starts a countdown extraction event: escape or die.
 func trigger_countdown_extraction(time_limit: float = 45.0) -> void:
-	GlobalData.mid_battle_countdown_active = true
-	GlobalData.mid_battle_countdown_timer = time_limit
-	GlobalData.mid_battle_countdown_max = time_limit
+	GlobalData.board.mid_battle_countdown_active = true
+	GlobalData.board.mid_battle_countdown_timer = time_limit
+	GlobalData.board.mid_battle_countdown_max = time_limit
 	countdown_extraction_started.emit(time_limit)
 	EventBus.event_triggered.emit({
 		"name": "☢ EXTRACTION COUNTDOWN",

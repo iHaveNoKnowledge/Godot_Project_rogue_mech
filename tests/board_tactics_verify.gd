@@ -23,25 +23,25 @@ func _check(cond: bool, name: String) -> void:
 
 func _ready() -> void:
 	GlobalData.reset_run_data()
-	GlobalData.board_seed = 7
-	GlobalData.board_grid = _build_grid()
+	GlobalData.board.board_seed = 7
+	GlobalData.board.board_grid = _build_grid()
 
 	# 1) Reactive pursuit: a hostile fleet just out of view follows the trail.
 	# Fleet is 10 cells from the player: outside the base detection radius (4),
 	# so it should pursue the patrol_last_seen trail rather than the player.
 	# The trail-follow branch rolls rng.randf() < 0.7 per day, so loop a few
 	# days to make the check deterministic.
-	GlobalData.patrol_last_seen = Vector2i(-1, -1)
-	GlobalData.board_patrols = [{
+	GlobalData.board.patrol_last_seen = Vector2i(-1, -1)
+	GlobalData.board.board_patrols = [{
 		"id": 1, "pos": Vector2i(3, 3), "home": Vector2i(3, 3),
 		"name": "Ravens", "grunts": 2, "aces": 0, "aggro": false,
 		"faction": "hostile", "character_id": "", "dir": Vector2i(1, 0),
 	}]
-	GlobalData.patrol_last_seen = Vector2i(8, 8)
-	GlobalData.board_day = 1
+	GlobalData.board.patrol_last_seen = Vector2i(8, 8)
+	GlobalData.board.board_day = 1
 	var moved := false
 	for _i in range(8):
-		GlobalData.board_day += 1
+		GlobalData.board.board_day += 1
 		PatrolSystem.advance_day(Vector2i(8, 8))
 		if PatrolSystem.get_patrol_by_id(1).get("pos") != Vector2i(3, 3):
 			moved = true
@@ -49,22 +49,22 @@ func _ready() -> void:
 	_check(moved, "reactive fleet moves toward the last-seen trail")
 
 	# 2) Alert escalation: player stands next to a hostile fleet -> alert climbs.
-	GlobalData.patrol_alert = 0
-	GlobalData.board_patrols = [{
+	GlobalData.board.patrol_alert = 0
+	GlobalData.board.board_patrols = [{
 		"id": 2, "pos": Vector2i(4, 4), "home": Vector2i(4, 4),
 		"name": "Hawks", "grunts": 1, "aces": 0, "aggro": false,
 		"faction": "hostile", "character_id": "", "dir": Vector2i(1, 0),
 	}]
-	GlobalData.patrol_last_seen = Vector2i(-1, -1)
+	GlobalData.board.patrol_last_seen = Vector2i(-1, -1)
 	PatrolSystem.advance_day(Vector2i(5, 5))
-	_check(GlobalData.patrol_alert >= 1, "alert climbs while a hostile fleet keeps visual")
-	_check(GlobalData.board_patrols[0].get("aggro", false), "a fleet that sees the convoy turns aggro")
+	_check(GlobalData.board.patrol_alert >= 1, "alert climbs while a hostile fleet keeps visual")
+	_check(GlobalData.board.board_patrols[0].get("aggro", false), "a fleet that sees the convoy turns aggro")
 	PatrolSystem.advance_day(Vector2i(12, 12))
-	_check(GlobalData.patrol_alert < 1, "alert decays after the convoy relocates")
+	_check(GlobalData.board.patrol_alert < 1, "alert decays after the convoy relocates")
 
 	# 3) Interception: fleet strictly between convoy and the exit (14,14) blocks.
-	GlobalData.patrol_alert = 0
-	GlobalData.board_patrols = [{
+	GlobalData.board.patrol_alert = 0
+	GlobalData.board.board_patrols = [{
 		"id": 3, "pos": Vector2i(10, 10), "home": Vector2i(10, 10),
 		"name": "Strykers", "grunts": 1, "aces": 0, "aggro": false,
 		"faction": "hostile", "character_id": "", "dir": Vector2i(1, 0),
@@ -92,8 +92,8 @@ func _ready() -> void:
 			saw_bait = true
 			break
 	_check(saw_bait, "board generator can roll bait decoy tiles")
-	GlobalData.consumed_bait.append(Vector2i(2, 2))
-	_check(Vector2i(2, 2) in GlobalData.consumed_bait, "sprung bait traps are tracked")
+	GlobalData.board.consumed_bait.append(Vector2i(2, 2))
+	_check(Vector2i(2, 2) in GlobalData.board.consumed_bait, "sprung bait traps are tracked")
 
 	print("BOARD_TACTICS_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	get_tree().paused = false

@@ -31,7 +31,7 @@ func _ready() -> void:
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("pause"):
 		if GameManager.current_state == GameManager.State.BOARD:
-			if GlobalData.blocked_intermission:
+			if GlobalData.narrative.blocked_intermission:
 				# Ambush aftermath: no time to reorganize at the menu.
 				return
 			# An event popup / pause overlay is up (tree paused): ESC belongs to
@@ -186,28 +186,28 @@ func _add_menu_button(text: String, callback: Callable) -> void:
 
 func _get_status_text() -> String:
 	var base_info := ""
-	if GlobalData.mech_less:
+	if GlobalData.narrative.mech_less:
 		base_info = " | ON FOOT — no mech"
-	if GlobalData.patrol_alert > 0:
-		base_info += " | HUNT ALERT %d" % GlobalData.patrol_alert
-	if GlobalData.enemy_base_active:
-		base_info += " | Enemy Base: %d%%" % int((GlobalData.enemy_base_progress / GlobalData.enemy_base_required) * 100.0)
-	if not GlobalData.stalking_aces.is_empty():
-		base_info += " | HUNTED by %s" % ", ".join(GlobalData.stalking_aces)
+	if GlobalData.board.patrol_alert > 0:
+		base_info += " | HUNT ALERT %d" % GlobalData.board.patrol_alert
+	if GlobalData.narrative.enemy_base_active:
+		base_info += " | Enemy Base: %d%%" % int((GlobalData.narrative.enemy_base_progress / GlobalData.narrative.enemy_base_required) * 100.0)
+	if not GlobalData.narrative.stalking_aces.is_empty():
+		base_info += " | HUNTED by %s" % ", ".join(GlobalData.narrative.stalking_aces)
 	return "Day %d | MP: %d/%d | %s%s | Rep: %d | Heat: %d | Wanted: %d | Credits: %d | Scrap: %d | Enemy Tier: %d | Security: %d | Pos: %s" % [
-		GlobalData.board_day,
-		GlobalData.board_mp,
-		GlobalData.board_mp_max,
+		GlobalData.board.board_day,
+		GlobalData.board.board_mp,
+		GlobalData.board.board_mp_max,
 		BoardSystem.progress_text(),
 		base_info,
-		GlobalData.reputation,
-		GlobalData.heat,
-		GlobalData.wanted_level,
-		GlobalData.credits,
-		GlobalData.scrap,
-		GlobalData.enemy_tech_tier,
+		GlobalData.narrative.reputation,
+		GlobalData.board.heat,
+		GlobalData.board.wanted_level,
+		GlobalData.currency.credits,
+		GlobalData.currency.scrap,
+		GlobalData.narrative.enemy_tech_tier,
 		int(FleetSystem.get_fleet_security()),
-		str(GlobalData.current_tile)
+		str(GlobalData.board.current_tile)
 	]
 
 
@@ -348,7 +348,7 @@ func _on_research_pressed() -> void:
 		if FleetSystem.is_research_active(project_id) or FleetSystem.is_research_completed(project_id):
 			continue
 		var cost = int(project.get("data_cores", 1))
-		var has_cores = GlobalData.data_cores >= cost
+		var has_cores = GlobalData.currency.data_cores >= cost
 		var btn = Button.new()
 		btn.text = "Start: %s (%d core%s)" % [
 			project.get("name", project_id), cost, "s" if cost != 1 else ""
@@ -368,7 +368,7 @@ func _start_research(project_id: String) -> void:
 
 func _build_research_text() -> String:
 	var text = "=== RESEARCH BASE ===\n\n"
-	text += "Data Cores (blueprints): %d\n\n" % GlobalData.data_cores
+	text += "Data Cores (blueprints): %d\n\n" % GlobalData.currency.data_cores
 	text += "Research advances 1 point per day, +2 per combat won.\n\n"
 
 	text += "--- Active Projects ---\n"
@@ -423,7 +423,7 @@ func _on_fleet_pressed() -> void:
 	# the field and not offered here. The hangar SORTIE page is the primary
 	# control; this panel mirrors it for the same seated units.
 	var seated := FleetSystem.get_seated_template_ids()
-	for unit in GlobalData.fleet_roster:
+	for unit in GlobalData.hangar.fleet_roster:
 		if not (unit is Dictionary):
 			continue
 		var template_id = unit.get("template_id", "")
@@ -456,7 +456,7 @@ func _toggle_fielded(template_id: String) -> void:
 func _build_fleet_text() -> String:
 	var text = "=== FLEET ROSTER ===\n\n"
 	text += "Fielded units fight alongside you in combat.\n\n"
-	if GlobalData.fleet_roster.is_empty():
+	if GlobalData.hangar.fleet_roster.is_empty():
 		text += "No units yet. Research blueprints at the Research Base to unlock squadmates."
 		return text
 	# Feature 7: only units with a pilot seated in a hangar mech can field.
@@ -464,7 +464,7 @@ func _build_fleet_text() -> String:
 	# — the hangar SORTIE page is where the lineup is chosen.
 	var seated := FleetSystem.get_seated_template_ids()
 	var shown := 0
-	for unit in GlobalData.fleet_roster:
+	for unit in GlobalData.hangar.fleet_roster:
 		var template_id := str(unit.get("template_id", ""))
 		if not seated.has(template_id):
 			continue
@@ -498,14 +498,14 @@ func _on_convoy_pressed() -> void:
 func _build_convoy_text() -> String:
 	var affiliation := ThemeSystem.get_affiliation()
 	var text = "=== CONVOY ===\n\n"
-	text += "Affiliation: %s\n" % affiliation.get("name", GlobalData.theme_id)
+	text += "Affiliation: %s\n" % affiliation.get("name", GlobalData.narrative.theme_id)
 	text += "Transport: %s\n\n" % affiliation.get("transport", "Truck convoy")
 	text += "%s\n\n" % affiliation.get("transport_desc", "")
-	if GlobalData.mech_less:
+	if GlobalData.narrative.mech_less:
 		text += "STATUS: ON FOOT — every mech is gone.\n"
 		text += "Board combat tiles become recovery missions until a replacement chassis is found.\n"
 	else:
-		text += "STATUS: %d/%d mech berths parked.\n" % [GlobalData.hangar_mechs.size(), HangarManager.get_capacity()]
+		text += "STATUS: %d/%d mech berths parked.\n" % [GlobalData.hangar.hangar_mechs.size(), HangarManager.get_capacity()]
 	text += "\n"
 	text += "Pilots in convoy: %d\n" % HangarManager.get_fleet_size()
 	text += "Reserve ammo: Kin %d | En %d | Exp %d | Ms %d\n" % [
@@ -531,7 +531,7 @@ func _upgrade_security_button() -> void:
 	var cost := FleetSystem.get_security_upgrade_cost()
 	var btn = Button.new()
 	btn.text = "Upgrade Security (%d credits)" % cost
-	btn.disabled = GlobalData.credits < cost
+	btn.disabled = GlobalData.currency.credits < cost
 	btn.pressed.connect(_on_upgrade_security_pressed)
 	action_container.add_child(btn)
 
@@ -547,7 +547,7 @@ func _build_security_text() -> String:
 	var text = "=== FLEET SECURITY ===\n\n"
 	text += "Fleet security hardens our ships and facility against enemy spies.\n\n"
 	text += "Security: %d / %d\n" % [int(FleetSystem.get_fleet_security()), int(GlobalData.FLEET_SECURITY_MAX)]
-	text += "Hardening level: %d\n" % GlobalData.security_upgrade_level
+	text += "Hardening level: %d\n" % GlobalData.hangar.security_upgrade_level
 	text += "Spy counter chance: %d%%\n\n" % int(FleetSystem.get_spy_counter_chance() * 100.0)
 	text += "Higher security makes enemy espionage against your mech data far more likely to be caught."
 	return text
@@ -575,27 +575,27 @@ func _on_exit_pressed() -> void:
 
 func _build_mech_status_text() -> String:
 	var text = "=== MECH STATUS ===\n\n"
-	if GlobalData.mech_less:
+	if GlobalData.narrative.mech_less:
 		text += "ON FOOT — no mech.\n"
 		text += "Find a replacement chassis before the next combat tile.\n"
 		return text
 	text += "Chassis: %s\n" % GlobalData.chassis_id
-	text += "Credits: %d\n" % GlobalData.credits
-	text += "Scrap: %d\n" % GlobalData.scrap
-	text += "Data Cores: %d\n\n" % GlobalData.data_cores
+	text += "Credits: %d\n" % GlobalData.currency.credits
+	text += "Scrap: %d\n" % GlobalData.currency.scrap
+	text += "Data Cores: %d\n\n" % GlobalData.currency.data_cores
 
 	var total_armor := 0.0
 	var total_max_armor := 0.0
 	var total_frame := 0.0
 	var total_max_frame := 0.0
-	for slot in GlobalData.equipped_parts:
-		var part = GlobalData.equipped_parts[slot]
+	for slot in GlobalData.weapons.equipped_parts:
+		var part = GlobalData.weapons.equipped_parts[slot]
 		if not part:
 			continue
 		var a_hp: float = _slot_armor_max(part)
 		var f_hp: float = _slot_frame_max(slot)
-		var a_dmg = clampf(GlobalData.part_damage.get(slot, 0.0), 0.0, 1.0)
-		var f_dmg = clampf(GlobalData.part_damage.get(slot + "_frame", 0.0), 0.0, 1.0)
+		var a_dmg = clampf(GlobalData.weapons.part_damage.get(slot, 0.0), 0.0, 1.0)
+		var f_dmg = clampf(GlobalData.weapons.part_damage.get(slot + "_frame", 0.0), 0.0, 1.0)
 		total_armor += a_hp * (1.0 - a_dmg)
 		total_max_armor += a_hp
 		total_frame += f_hp * (1.0 - f_dmg)
@@ -619,7 +619,7 @@ func _build_mech_status_text() -> String:
 			var totals := _mech_armor_frame_totals(mech)
 			var fleet_id := str((mech as Dictionary).get("id", ""))
 			var fleet_pilot := HangarManager.get_mech_pilot_name(fleet_id)
-			var fleet_mark := "★ " if fleet_id == GlobalData.active_hangar_mech_id else ""
+			var fleet_mark := "★ " if fleet_id == GlobalData.hangar.active_hangar_mech_id else ""
 			var fleet_a_pct := int((totals.armor_cur / maxf(totals.armor_max, 1.0)) * 100.0)
 			var fleet_f_pct := int((totals.frame_cur / maxf(totals.frame_max, 1.0)) * 100.0)
 			text += "%s%s (SLOT %d) · %s\n" % [
@@ -672,7 +672,7 @@ func _slot_armor_max(part: Variant) -> float:
 # Max frame HP for a slot: comes from the equipped inner frame (matching how the
 # combat mech builds its frame_hp in mecha_health.gd).
 func _slot_frame_max(slot: String) -> float:
-	var f = GlobalData.equipped_frames.get(slot)
+	var f = GlobalData.weapons.equipped_frames.get(slot)
 	if f is Dictionary:
 		return float(f.get("hp", 0.0)) + LoadoutSystem.get_frame_upgrade_hp_bonus()
 	return 0.0
@@ -686,14 +686,14 @@ func _rebuild_status_bars() -> void:
 		child.queue_free()
 	status_bars_container.visible = true
 
-	if GlobalData.mech_less:
+	if GlobalData.narrative.mech_less:
 		var note = Label.new()
 		note.text = "(No mech — inspecting the pilot instead.)"
 		status_bars_container.add_child(note)
 		return
 
 	for slot in GlobalData.MECHA_SLOTS:
-		var part = GlobalData.equipped_parts.get(slot)
+		var part = GlobalData.weapons.equipped_parts.get(slot)
 		if not part:
 			continue
 		var armor_max := _slot_armor_max(part)
@@ -701,8 +701,8 @@ func _rebuild_status_bars() -> void:
 		if armor_max <= 0.0 and frame_max <= 0.0:
 			continue
 
-		var a_dmg = clampf(GlobalData.part_damage.get(slot, 0.0), 0.0, 1.0)
-		var f_dmg = clampf(GlobalData.part_damage.get(slot + "_frame", 0.0), 0.0, 1.0)
+		var a_dmg = clampf(GlobalData.weapons.part_damage.get(slot, 0.0), 0.0, 1.0)
+		var f_dmg = clampf(GlobalData.weapons.part_damage.get(slot + "_frame", 0.0), 0.0, 1.0)
 		var armor_cur: float = armor_max * (1.0 - a_dmg)
 		var frame_cur: float = frame_max * (1.0 - f_dmg)
 
@@ -751,9 +751,9 @@ func _make_status_bar(label_text: String, current: float, max_value: float, fill
 
 func _build_inventory_text() -> String:
 	var text = "=== INVENTORY & RESERVES ===\n\n"
-	text += "Credits: %d\n" % GlobalData.credits
-	text += "Scrap (Material): %d\n" % GlobalData.scrap
-	text += "Data Cores (Research): %d\n\n" % GlobalData.data_cores
+	text += "Credits: %d\n" % GlobalData.currency.credits
+	text += "Scrap (Material): %d\n" % GlobalData.currency.scrap
+	text += "Data Cores (Research): %d\n\n" % GlobalData.currency.data_cores
 
 	text += "--- Reserve Ammo Stock ---\n"
 	text += "Kinetic Ammo: %d\n" % LoadoutSystem.get_reserve_ammo("kinetic")
@@ -762,19 +762,19 @@ func _build_inventory_text() -> String:
 	text += "Missile Pods: %d\n\n" % LoadoutSystem.get_reserve_ammo("missile")
 
 	text += "--- Weapon Inventory ---\n"
-	if GlobalData.weapon_inventory.is_empty():
+	if GlobalData.weapons.weapon_inventory.is_empty():
 		text += "(No weapons in stash)\n"
 	else:
-		for item in GlobalData.weapon_inventory:
+		for item in GlobalData.weapons.weapon_inventory:
 			var w_name = item.get("name", "Unknown Weapon")
 			text += "- %s (%.0f%%)\n" % [w_name, GlobalData.get_durability_ratio(item) * 100.0]
 	text += "\n"
 
 	text += "--- Armor Inventory ---\n"
-	if GlobalData.armor_inventory.is_empty():
+	if GlobalData.weapons.armor_inventory.is_empty():
 		text += "(No armor in inventory)\n"
 	else:
-		for item in GlobalData.armor_inventory:
+		for item in GlobalData.weapons.armor_inventory:
 			text += "- %s [%s] (HP: %.0f, Armor: %.0f, Weight: %.1f, Dur: %.0f%%)\n" % [
 				item.get("name", "Armor"),
 				item.get("slot", "body"),
@@ -788,9 +788,9 @@ func _build_inventory_text() -> String:
 
 func _build_board_info_text() -> String:
 	var text = "=== BOARD INFO ===\n\n"
-	text += "Map theme: %s\n" % GlobalData.board_theme_id.capitalize()
-	text += "Position: %s\n" % str(GlobalData.current_tile)
-	text += "Day: %d | MP: %d / %d\n" % [GlobalData.board_day, GlobalData.board_mp, GlobalData.board_mp_max]
+	text += "Map theme: %s\n" % GlobalData.board.board_theme_id.capitalize()
+	text += "Position: %s\n" % str(GlobalData.board.current_tile)
+	text += "Day: %d | MP: %d / %d\n" % [GlobalData.board.board_day, GlobalData.board.board_mp, GlobalData.board.board_mp_max]
 	text += "Objective: %s\n" % BoardSystem.objective_desc()
 	text += "Progress: %s\n\n" % BoardSystem.progress_text()
 

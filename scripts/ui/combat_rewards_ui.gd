@@ -13,7 +13,7 @@ var take_all_button: Button = null
 var rewards: Dictionary = {}
 
 # Items from this battle still waiting on the left ("dropped") / picked to take
-# back on the right. Populated from GlobalData.battle_loot on the victory screen;
+# back on the right. Populated from GlobalData.weapons.battle_loot on the victory screen;
 # Continue grants the right-side entries and discards the left.
 var _left_items: Array = []
 var _right_items: Array = []
@@ -256,15 +256,15 @@ func _grant_take_back_loot() -> void:
 				if not inst.is_empty():
 					var uid := str(inst.get("uid", ""))
 					if uid == "" or ArmorSystem.get_armor_instance(uid).is_empty():
-						GlobalData.armor_inventory.append(inst)
+						GlobalData.weapons.armor_inventory.append(inst)
 	# Unclaimed drops are stripped for scrap instead of being left behind.
 	var salvaged_scrap := 0
 	for entry in _left_items:
 		salvaged_scrap += _salvage_value(entry)
 	if salvaged_scrap > 0:
 		GlobalData.gain_scrap(salvaged_scrap)
-		GlobalData.run_notice = "Unclaimed drops salvaged for +%d scrap." % salvaged_scrap
-	GlobalData.battle_loot.clear()
+		GlobalData.board.run_notice = "Unclaimed drops salvaged for +%d scrap." % salvaged_scrap
+	GlobalData.weapons.battle_loot.clear()
 	_left_items.clear()
 	_right_items.clear()
 
@@ -354,7 +354,7 @@ func _show_victory_rewards() -> void:
 
 	var is_duel := (GameManager.combat_node_type == "duel")
 	var is_boss = GameManager.is_boss_combat
-	var is_final_sector = (GlobalData.current_sector >= GlobalData.max_sectors)
+	var is_final_sector = (GlobalData.board.current_sector >= GlobalData.board.max_sectors)
 	var is_raid = (GameManager.combat_node_type == "enemy_base")
 
 	var credits_gained = randi_range(30, 80) + randi_range(1, 5)
@@ -375,7 +375,7 @@ func _show_victory_rewards() -> void:
 
 	if is_boss:
 		var ending: Dictionary = ThemeSystem.get_theme_ending()
-		title_label.text = "SECTOR %d CLEARED!" % GlobalData.current_sector
+		title_label.text = "SECTOR %d CLEARED!" % GlobalData.board.current_sector
 		credits_gained += 105
 		scrap_gained += 15
 		data_cores_gained = 1
@@ -387,7 +387,7 @@ func _show_victory_rewards() -> void:
 			continue_button.text = "Finish Run [Enter / Space]"
 		else:
 			rewards_label.text = "%s\n\n" % ending.get("name", "Sector Battle")
-			continue_button.text = "Proceed to Sector %d [Enter / Space]" % (GlobalData.current_sector + 1)
+			continue_button.text = "Proceed to Sector %d [Enter / Space]" % (GlobalData.board.current_sector + 1)
 	else:
 		if is_raid:
 			title_label.text = "RESEARCH BASE DESTROYED!"
@@ -410,7 +410,7 @@ func _show_victory_rewards() -> void:
 	}
 
 	# Load the battle loot into the two-column picker (drops on the left).
-	_left_items = GlobalData.battle_loot.duplicate()
+	_left_items = GlobalData.weapons.battle_loot.duplicate()
 	_right_items.clear()
 	_populate_loot_picker()
 	if loot_picker:
@@ -434,7 +434,7 @@ func _show_victory_rewards() -> void:
 			if data_cores_gained > 0:
 				_rewards_tail += "+%d Data Cores (Research Item)\n" % data_cores_gained
 			_rewards_tail += "+%d Heat\n" % heat_gained
-			_rewards_tail += "\nTotal Credits: %d | Scrap: %d" % [GlobalData.credits, GlobalData.scrap]
+			_rewards_tail += "\nTotal Credits: %d | Scrap: %d" % [GlobalData.currency.credits, GlobalData.currency.scrap]
 		_refresh_loot_summary()
 
 	await get_tree().process_frame
@@ -449,7 +449,7 @@ func _show_escape_screen() -> void:
 	rewards_label.text = "You held position in the retreat zone and abandoned the battle.\n\nNo rewards are collected for a retreat.\n\n+%d Heat — enemy forces tighten their pursuit." % ESCAPE_HEAT_PENALTY
 	continue_button.text = "Return to Board [Enter / Space / Click]"
 	# Abandoned loot is left on the field.
-	GlobalData.battle_loot.clear()
+	GlobalData.weapons.battle_loot.clear()
 	_left_items.clear()
 	_right_items.clear()
 	_populate_loot_picker()
@@ -471,7 +471,7 @@ func _show_defeat_screen() -> void:
 	rewards_label.text = ending.get("defeat_text", "Your mech has been destroyed.\n\nReturning to main menu...")
 	continue_button.text = "Continue [Enter / Space / Click]"
 	# Lost loot is left on the field.
-	GlobalData.battle_loot.clear()
+	GlobalData.weapons.battle_loot.clear()
 	_left_items.clear()
 	_right_items.clear()
 	_populate_loot_picker()
@@ -496,7 +496,7 @@ func _on_continue_pressed() -> void:
 		GameManager.game_over()
 	elif GameManager.is_boss_combat:
 		_grant_take_back_loot()
-		if GlobalData.current_sector >= GlobalData.max_sectors:
+		if GlobalData.board.current_sector >= GlobalData.board.max_sectors:
 			GameManager.end_run(true)
 		else:
 			GameManager.advance_to_next_sector()

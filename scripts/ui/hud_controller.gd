@@ -69,11 +69,11 @@ func _create_ui() -> void:
 func _on_damage_received(slot_name: String, _raw_damage: float, _damage_type: String) -> void:
 	if armor_bars.has(slot_name):
 		# Key format matches mecha_health_base: "slot_name" = armor damage ratio
-		var armor_dmg = GlobalData.part_damage.get(slot_name, 0.0)
+		var armor_dmg = GlobalData.weapons.part_damage.get(slot_name, 0.0)
 		armor_bars[slot_name].value = (1.0 - armor_dmg) * 100.0
 	if frame_bars.has(slot_name):
 		# Key format matches mecha_health_base: "slot_name_frame" = frame damage ratio
-		var frame_dmg = GlobalData.part_damage.get(slot_name + "_frame", 0.0)
+		var frame_dmg = GlobalData.weapons.part_damage.get(slot_name + "_frame", 0.0)
 		frame_bars[slot_name].value = (1.0 - frame_dmg) * 100.0
 
 

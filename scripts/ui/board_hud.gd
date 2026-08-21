@@ -452,41 +452,41 @@ func _refresh() -> void:
 		return
 
 	# Energy Panel
-	var cur_e := GlobalData.mech_energy
-	var max_e := GlobalData.mech_max_energy
+	var cur_e := GlobalData.fuel.mech_energy
+	var max_e := GlobalData.fuel.mech_max_energy
 	_energy_label.text = "ENERGY: %d / %d" % [int(cur_e), int(max_e)]
 	_energy_bar.max_value = max_e
 	_energy_bar.value = cur_e
-	_roller_toggle_btn.text = "ROLLER: ON" if GlobalData.board_roller_mode else "ROLLER: OFF"
+	_roller_toggle_btn.text = "ROLLER: ON" if GlobalData.fuel.board_roller_mode else "ROLLER: OFF"
 
 	# Convoy Panel
-	var c_hp := GlobalData.convoy_hp
-	var c_max_hp := GlobalData.convoy_hp_max
+	var c_hp := GlobalData.board.convoy_hp
+	var c_max_hp := GlobalData.board.convoy_hp_max
 	_convoy_hp_label.text = "CONVOY: %d HP" % int(c_hp)
 	_convoy_hp_bar.max_value = c_max_hp
 	_convoy_hp_bar.value = c_hp
 	_convoy_reserve_label.text = "Supply Reserve: %.0f / %.0f" % [
-		GlobalData.convoy_fuel_reserve, GlobalData.convoy_fuel_max
+		GlobalData.fuel.convoy_fuel_reserve, GlobalData.fuel.convoy_fuel_max
 	]
-	var backups := GlobalData.hangar_mechs.size() - 1 if GlobalData.hangar_mechs.size() > 1 else 0
+	var backups := GlobalData.hangar.hangar_mechs.size() - 1 if GlobalData.hangar.hangar_mechs.size() > 1 else 0
 	_backup_count_label.text = "RESERVE: %d" % backups
 
 	# MP & Threat Radar
-	var mp := maxi(GlobalData.board_mp, 0)
-	var mp_max := maxi(GlobalData.board_mp_max, 1)
-	_day_label.text = "DAY %d — %s" % [GlobalData.board_day, str(GlobalData.board_theme_id).to_upper()]
+	var mp := maxi(GlobalData.board.board_mp, 0)
+	var mp_max := maxi(GlobalData.board.board_mp_max, 1)
+	_day_label.text = "DAY %d — %s" % [GlobalData.board.board_day, str(GlobalData.board.board_theme_id).to_upper()]
 	_mp_label.text = "MP %d/%d" % [mp, mp_max]
 	_mp_bar.max_value = float(mp_max)
 	_mp_bar.value = float(mp)
 	_mp_bar.modulate = Color(1.0, 0.4, 0.35) if mp <= 0 else Color.WHITE
 
-	var alert := GlobalData.patrol_alert
-	_alert_label.text = "ALERT LEVEL: %d (TIER %d)" % [alert, GlobalData.enemy_tech_tier]
+	var alert := GlobalData.board.patrol_alert
+	_alert_label.text = "ALERT LEVEL: %d (TIER %d)" % [alert, GlobalData.narrative.enemy_tech_tier]
 	_alert_bar.value = float(alert)
 
 	var obj: Dictionary = _BoardSystem.get_objective()
-	var prog := GlobalData.board_objective_progress
-	var req := GlobalData.board_objective_required
+	var prog := GlobalData.board.board_objective_progress
+	var req := GlobalData.board.board_objective_required
 	var pct := int(float(prog) / maxi(req, 1) * 100.0)
 	_objective_label.text = "OBJECTIVE: %s (%d%%)\n%d / %d — %s" % [
 		obj.get("name", "Objective"), pct, prog, req, _BoardSystem.objective_desc()
@@ -494,32 +494,32 @@ func _refresh() -> void:
 
 	# Ceasefire Status
 	if _ceasefire_label:
-		if GlobalData.ceasefire_turns > 0:
-			_ceasefire_label.text = "CEASEFIRE: %d TURNS LEFT" % GlobalData.ceasefire_turns
+		if GlobalData.narrative.ceasefire_turns > 0:
+			_ceasefire_label.text = "CEASEFIRE: %d TURNS LEFT" % GlobalData.narrative.ceasefire_turns
 		else:
 			_ceasefire_label.text = ""
 
 	# Hazard Status
-	if GlobalData.current_hazard != "":
+	if GlobalData.board.current_hazard != "":
 		_hazard_label.visible = true
-		_hazard_label.text = "HAZARD: %s IN EFFECT" % GlobalData.current_hazard.to_upper().replace("_", " ")
+		_hazard_label.text = "HAZARD: %s IN EFFECT" % GlobalData.board.current_hazard.to_upper().replace("_", " ")
 	else:
 		_hazard_label.visible = false
 
 	# Unit Status
 	var names := {"head": "Head", "body": "Torso", "arm_left": "L-Arm", "arm_right": "R-Arm", "leg_left": "L-Leg", "leg_right": "R-Leg"}
 	for slot in _part_status_labels:
-		var dmg: float = float(GlobalData.part_damage.get(slot, 0.0))
+		var dmg: float = float(GlobalData.weapons.part_damage.get(slot, 0.0))
 		var health_pct: int = int((1.0 - dmg) * 100.0)
 		var label: Label = _part_status_labels[slot]
 		label.text = "%s: %d%%" % [names.get(slot, slot), health_pct]
 		label.modulate = Color(1.0, 0.35, 0.35) if health_pct < 30 else (Color(1.0, 0.85, 0.4) if health_pct < 70 else Color.WHITE)
 
-	_dirt_label.text = "Engine Dirt: %d%%" % int(GlobalData.engine_dirt * 100.0)
+	_dirt_label.text = "Engine Dirt: %d%%" % int(GlobalData.fuel.engine_dirt * 100.0)
 
 
 func _update_screen_fx(delta: float) -> void:
-	var ratio := GlobalData.mech_energy / maxf(GlobalData.mech_max_energy, 1.0)
+	var ratio := GlobalData.fuel.mech_energy / maxf(GlobalData.fuel.mech_max_energy, 1.0)
 	if ratio < 0.2:
 		_vignette_time += delta * 3.5
 		var alpha := (sin(_vignette_time) * 0.5 + 0.5) * 0.35
@@ -529,8 +529,8 @@ func _update_screen_fx(delta: float) -> void:
 
 
 func _on_roller_toggle_pressed() -> void:
-	GlobalData.board_roller_mode = not GlobalData.board_roller_mode
-	var mode_name := "ROLLER DASH MODE (FAST ROAD: -5 Energy)" if GlobalData.board_roller_mode else "BIPEDAL MODE (STANDARD: -10..25 Energy)"
+	GlobalData.fuel.board_roller_mode = not GlobalData.fuel.board_roller_mode
+	var mode_name := "ROLLER DASH MODE (FAST ROAD: -5 Energy)" if GlobalData.fuel.board_roller_mode else "BIPEDAL MODE (STANDARD: -10..25 Energy)"
 	EventBus.event_triggered.emit({
 		"name": "MOVEMENT MODE",
 		"effect": "none",
@@ -540,7 +540,7 @@ func _on_roller_toggle_pressed() -> void:
 
 
 func _on_quick_fuel_pressed() -> void:
-	if GlobalData.convoy_fuel_reserve <= 0.0:
+	if GlobalData.fuel.convoy_fuel_reserve <= 0.0:
 		EventBus.event_triggered.emit({
 			"name": "CONVOY FUEL EMPTY",
 			"effect": "none",
@@ -548,7 +548,7 @@ func _on_quick_fuel_pressed() -> void:
 			"desc": "The convoy truck has no fuel reserve remaining.",
 		})
 		return
-	var deficit := GlobalData.mech_max_energy - GlobalData.mech_energy
+	var deficit := GlobalData.fuel.mech_max_energy - GlobalData.fuel.mech_energy
 	if deficit <= 0.0:
 		EventBus.event_triggered.emit({
 			"name": "ENERGY FULL",
@@ -557,9 +557,9 @@ func _on_quick_fuel_pressed() -> void:
 			"desc": "The mech's energy tank is already at full capacity.",
 		})
 		return
-	var transferred := minf(GlobalData.convoy_fuel_reserve, minf(60.0, deficit))
-	GlobalData.convoy_fuel_reserve -= transferred
-	GlobalData.mech_energy += transferred
+	var transferred := minf(GlobalData.fuel.convoy_fuel_reserve, minf(60.0, deficit))
+	GlobalData.fuel.convoy_fuel_reserve -= transferred
+	GlobalData.fuel.mech_energy += transferred
 	EventBus.event_triggered.emit({
 		"name": "QUICK FUEL TRANSFER",
 		"effect": "none",
@@ -573,7 +573,7 @@ func update_tile_inspector(tile_name: String, mp_cost: int, energy_cost: float, 
 	if _inspector_title == null:
 		return
 	_inspector_title.text = "TILE RECON: %s" % tile_name.to_upper()
-	var mode_text := "Roller (-5)" if GlobalData.board_roller_mode else "Walk (-%d)" % int(energy_cost)
+	var mode_text := "Roller (-5)" if GlobalData.fuel.board_roller_mode else "Walk (-%d)" % int(energy_cost)
 	_inspector_costs.text = "Terrain: %s | Cost: %d MP (%s)" % [
 		terrain_type.capitalize() if terrain_type != "" else "Plain", mp_cost, mode_text
 	]

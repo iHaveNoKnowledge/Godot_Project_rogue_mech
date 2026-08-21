@@ -19,26 +19,26 @@ func _unit(tid: String, name: String) -> Dictionary:
 
 func _ready() -> void:
 	GlobalData.reset_run_data()
-	GlobalData.fleet_roster = [_unit("grunt_squad", "Alpha"), _unit("ace_scout", "Bravo")]
+	GlobalData.hangar.fleet_roster = [_unit("grunt_squad", "Alpha"), _unit("ace_scout", "Bravo")]
 	await get_tree().process_frame
 
 	# --- Affiliation metadata ---
 	var aff := ThemeSystem.get_affiliation()
 	_check(aff.get("name", "") == "Fleet Soldier", "soldier affiliation name")
 	_check(bool(aff.get("mechless_retreat", false)), "soldier convoy can retreat pilot-only")
-	GlobalData.theme_id = "gundam_merc"
+	GlobalData.narrative.theme_id = "gundam_merc"
 	_check(not bool(ThemeSystem.get_affiliation().get("mechless_retreat", true)), "gundam heir has no transport to retreat with")
-	GlobalData.theme_id = "soldier"
+	GlobalData.narrative.theme_id = "soldier"
 
 	# --- Remove the seed mech -> pilot-only mode ---
-	_check(GlobalData.hangar_mechs.size() == 1, "roster seeded with one mech")
-	var destroyed_id := GlobalData.active_hangar_mech_id
+	_check(GlobalData.hangar.hangar_mechs.size() == 1, "roster seeded with one mech")
+	var destroyed_id := GlobalData.hangar.active_hangar_mech_id
 	_check(HangarManager.remove_mech(destroyed_id), "remove the destroyed mech from the roster")
-	_check(GlobalData.hangar_mechs.is_empty(), "roster is empty after removal")
-	GlobalData.mech_less = GlobalData.hangar_mechs.is_empty()
-	_check(GlobalData.mech_less, "mech_less flag set when roster empties")
+	_check(GlobalData.hangar.hangar_mechs.is_empty(), "roster is empty after removal")
+	GlobalData.narrative.mech_less = GlobalData.hangar.hangar_mechs.is_empty()
+	_check(GlobalData.narrative.mech_less, "mech_less flag set when roster empties")
 	_check(HangarManager.can_mechless_retreat(), "squadmates left -> retreat, run continues")
-	_check(GlobalData.active_hangar_mech_id == "", "no active mech while on foot")
+	_check(GlobalData.hangar.active_hangar_mech_id == "", "no active mech while on foot")
 	_check(HangarManager.get_mechs().is_empty(), "roster is NOT auto-reseeded while on foot")
 	_check(HangarManager.build("").is_empty(), "cannot assemble a new mech while on foot")
 
@@ -64,30 +64,30 @@ func _ready() -> void:
 	}
 	var forced := ThemeSystem.apply_event_effect(recover_choice)
 	_check(not forced, "recover_mech does not force a scene transition")
-	_check(GlobalData.hangar_mechs.size() == 1, "recovery rebuilt one mech")
-	_check(not GlobalData.mech_less, "mech_less cleared after recovery mech granted")
-	_check(GlobalData.active_hangar_mech_id == str(GlobalData.hangar_mechs[0].get("id", "")), "recovery mech is active")
-	_check(GlobalData.run_notice != "", "recovery sets a convoy report")
+	_check(GlobalData.hangar.hangar_mechs.size() == 1, "recovery rebuilt one mech")
+	_check(not GlobalData.narrative.mech_less, "mech_less cleared after recovery mech granted")
+	_check(GlobalData.hangar.active_hangar_mech_id == str(GlobalData.hangar.hangar_mechs[0].get("id", "")), "recovery mech is active")
+	_check(GlobalData.board.run_notice != "", "recovery sets a convoy report")
 
 	# --- Remove again; scrap choice on foot restores resources, stays on foot ---
-	HangarManager.remove_mech(GlobalData.active_hangar_mech_id)
-	GlobalData.mech_less = GlobalData.hangar_mechs.is_empty()
-	var scrap_before := GlobalData.scrap
-	GlobalData.part_damage["body"] = 0.8
+	HangarManager.remove_mech(GlobalData.hangar.active_hangar_mech_id)
+	GlobalData.narrative.mech_less = GlobalData.hangar.hangar_mechs.is_empty()
+	var scrap_before := GlobalData.currency.scrap
+	GlobalData.weapons.part_damage["body"] = 0.8
 	var scrap_choice := {
 		"effect": "scrap", "amount": 30, "params": {"repair": 15},
 	}
 	ThemeSystem.apply_event_effect(scrap_choice)
-	_check(GlobalData.scrap == scrap_before + 30, "scrap choice grants scrap")
-	_check(GlobalData.part_damage["body"] < 0.8, "scrap choice also repairs parts")
-	_check(GlobalData.mech_less, "scrap choice does not restore a mech")
+	_check(GlobalData.currency.scrap == scrap_before + 30, "scrap choice grants scrap")
+	_check(GlobalData.weapons.part_damage["body"] < 0.8, "scrap choice also repairs parts")
+	_check(GlobalData.narrative.mech_less, "scrap choice does not restore a mech")
 
 	# --- recover_escort adds the first unowned ally ---
-	var escort_before := GlobalData.fleet_roster.size()
+	var escort_before := GlobalData.hangar.fleet_roster.size()
 	var escort := {"effect": "recover_escort", "amount": 0}
 	ThemeSystem.apply_event_effect(escort)
-	_check(GlobalData.fleet_roster.size() == escort_before + 1, "recover_escort adds an escort unit")
-	_check(GlobalData.reputation == 1, "recover_escort grants reputation")
+	_check(GlobalData.hangar.fleet_roster.size() == escort_before + 1, "recover_escort adds an escort unit")
+	_check(GlobalData.narrative.reputation == 1, "recover_escort grants reputation")
 
 	# --- force_combat choice returns true (garage trap -> battle) ---
 	var trap := {
@@ -97,15 +97,15 @@ func _ready() -> void:
 	_check(ThemeSystem.apply_event_effect(trap), "force_combat choice forces a battle")
 
 	# --- Save/load roundtrip preserves mech_less ---
-	GlobalData.mech_less = true
+	GlobalData.narrative.mech_less = true
 	GlobalData.save_run()
-	GlobalData.mech_less = false
+	GlobalData.narrative.mech_less = false
 	_check(GlobalData.load_run(), "save loads back")
-	_check(GlobalData.mech_less, "mech_less flag survives save/load")
+	_check(GlobalData.narrative.mech_less, "mech_less flag survives save/load")
 
 	# --- No squadmates left -> no retreat possible ---
-	GlobalData.fleet_roster.clear()
-	GlobalData.mech_less = true
+	GlobalData.hangar.fleet_roster.clear()
+	GlobalData.narrative.mech_less = true
 	_check(not HangarManager.can_mechless_retreat(), "no squadmates -> pilot-only defeat ends the run")
 
 	print("MECHLESS_VERIFY: checks=%d fails=%d" % [_checks, _fails])

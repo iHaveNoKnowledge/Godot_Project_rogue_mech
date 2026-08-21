@@ -37,9 +37,9 @@ func _ready() -> void:
 	_check(BoardConfig.energy_cost("road", true) == 5.0, "roller dash mode on road is 5")
 	_check(BoardConfig.energy_cost("plain", true) == 35.0, "roller dash off-road penalty is 35")
 
-	GlobalData.board_roller_mode = false
+	GlobalData.fuel.board_roller_mode = false
 	_check(GlobalData.get_tile_energy_cost("road") == 10.0, "GlobalData get_tile_energy_cost road standard")
-	GlobalData.board_roller_mode = true
+	GlobalData.fuel.board_roller_mode = true
 	_check(GlobalData.get_tile_energy_cost("road") == 5.0, "GlobalData get_tile_energy_cost road roller")
 
 	# 2. 4 Fleet Archetypes (GDD §3.3)
@@ -55,7 +55,7 @@ func _ready() -> void:
 	_check(BoardConfig.FLEET_ARCHETYPES["hunter_killer"]["mp"] == 3, "hunter_killer MP is 3")
 
 	# 3. Zone of Control (ZoC) (GDD §3.3)
-	GlobalData.board_patrols = [
+	GlobalData.board.board_patrols = [
 		{
 			"id": 1, "pos": Vector2i(5, 5), "home": Vector2i(5, 5),
 			"name": "Armored Iron", "grunts": 2, "aces": 0, "aggro": false,
@@ -67,7 +67,7 @@ func _ready() -> void:
 	_check(not PatrolSystem.is_in_zone_of_control(Vector2i(7, 7)), "far tile (7,7) is not in Zone of Control")
 
 	# 4. Artillery Bombardment (GDD §3.3)
-	GlobalData.board_patrols = [
+	GlobalData.board.board_patrols = [
 		{
 			"id": 2, "pos": Vector2i(10, 10), "home": Vector2i(10, 10),
 			"name": "Artillery Battery", "grunts": 1, "aces": 0, "aggro": false,
@@ -126,18 +126,18 @@ func _ready() -> void:
 	var mock_tile_3 = Node.new()
 	mock_tile_3.set_meta("tile_type", "empty")
 	mock_tile_3.set_meta("terrain", "plain")
-	GlobalData.board_grid = [{ Vector2i(5, 5): mock_tile_1, Vector2i(6, 6): mock_tile_2, Vector2i(5, 6): mock_tile_3 }]
-	GlobalData.board_patrols.clear()
+	GlobalData.board.board_grid = [{ Vector2i(5, 5): mock_tile_1, Vector2i(6, 6): mock_tile_2, Vector2i(5, 6): mock_tile_3 }]
+	GlobalData.board.board_patrols.clear()
 	PatrolSystem.spawn_patrols()
-	_check(GlobalData.board_patrols.size() > 0, "patrols spawned successfully")
-	var patrol_lead = GlobalData.board_patrols[0]
+	_check(GlobalData.board.board_patrols.size() > 0, "patrols spawned successfully")
+	var patrol_lead = GlobalData.board.board_patrols[0]
 	_check(patrol_lead.has("commander") and patrol_lead["commander"].has("name"), "patrol fleet has assigned named commander: %s" % patrol_lead.get("commander", {}).get("name", ""))
 
 	var initial_bounty: int = int(patrol_lead["commander"].get("bounty", 150))
 	var initial_rivalry: int = int(patrol_lead["commander"].get("rivalry_count", 0))
 
 	# Test Escape/Retreat: Rival survives and rivalry escalates
-	GlobalData.board_patrol_engagement = int(patrol_lead.get("id"))
+	GlobalData.board.board_patrol_engagement = int(patrol_lead.get("id"))
 	PatrolSystem.resolve_patrol_combat(false) # false = player escaped / retreated
 	_check(patrol_lead["commander"]["rivalry_count"] == initial_rivalry + 1, "rivalry count escalated after retreat (now %d)" % patrol_lead["commander"]["rivalry_count"])
 	_check(patrol_lead["commander"]["is_nemesis"] == true, "commander is now marked as Nemesis Rival")
@@ -145,11 +145,11 @@ func _ready() -> void:
 	_check(GlobalData.rival_pilots.size() > 0, "surviving rival recorded in GlobalData.rival_pilots")
 
 	# Test Victory: Rival is eliminated and bounty is collected
-	var prev_credits := GlobalData.credits
-	GlobalData.board_patrol_engagement = int(patrol_lead.get("id"))
+	var prev_credits := GlobalData.currency.credits
+	GlobalData.board.board_patrol_engagement = int(patrol_lead.get("id"))
 	PatrolSystem.resolve_patrol_combat(true) # true = player victory
 	_check(GlobalData.defeated_rivals.size() > 0, "defeated rival recorded in GlobalData.defeated_rivals")
-	_check(GlobalData.credits > prev_credits, "bounty reward credited on rival defeat (+%d Cr)" % (GlobalData.credits - prev_credits))
+	_check(GlobalData.currency.credits > prev_credits, "bounty reward credited on rival defeat (+%d Cr)" % (GlobalData.currency.credits - prev_credits))
 
 	# 9. The Vagrant Ace & Pre-Cognitive Flow verification
 	var vagrant = RecruitSystem.get_character("vagrant_ace")
@@ -168,7 +168,7 @@ func _ready() -> void:
 	_check(GlobalData.has_pilot_perk("precognitive_flow") == true, "GlobalData recognizes Pre-Cognitive Flow perk from recruited Vagrant Ace")
 
 	# Test Leading Shadow step prediction
-	GlobalData.player_last_dir = Vector2i(0, 1)
+	GlobalData.board.player_last_dir = Vector2i(0, 1)
 	var v_patrol = {
 		"id": 99,
 		"pos": Vector2i(5, 5),
@@ -178,7 +178,7 @@ func _ready() -> void:
 		"archetype": "recon",
 		"dir": Vector2i(0, 1),
 	}
-	GlobalData.board_patrols = [v_patrol]
+	GlobalData.board.board_patrols = [v_patrol]
 	PatrolSystem.advance_day(Vector2i(5, 5))
 	_check(v_patrol.get("pos") == Vector2i(5, 6) or v_patrol.get("pos") == Vector2i(6, 6), "Vagrant Ace predicted player heading and stepped ahead to lead the convoy")
 

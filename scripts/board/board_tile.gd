@@ -68,7 +68,7 @@ func _update_visual() -> void:
 
 
 func _terrain_color(t: String) -> Color:
-	var theme_id := str(GlobalData.board_theme_id)
+	var theme_id := str(GlobalData.board.board_theme_id)
 	return BoardConfig.terrain_color(t, theme_id)
 
 
@@ -91,14 +91,14 @@ func _add_terrain_props() -> void:
 			# Deep woods (forest map) grow tall dense trees; a forest tile on a
 			# suburb map is just a park cluster, so keep those sparse + short so
 			# the suburb board never reads as a jungle.
-			var is_woods := GlobalData.board_theme_id == "forest"
+			var is_woods := GlobalData.board.board_theme_id == "forest"
 			var trunk_h := 1.8 if is_woods else 1.2
 			var canopy_r := 2.8 if is_woods else 1.8
 			_add_tree(prop_node, rng, trunk_h, canopy_r)
 			if rng.randf() < (0.45 if is_woods else 0.22):
 				_add_tree(prop_node, rng, 1.2 if is_woods else 0.9, 1.8 if is_woods else 1.3, Vector3(rng.randf_range(-1.3, 1.3), 0, rng.randf_range(-1.3, 1.3)))
 		"rock":
-			if GlobalData.board_theme_id in ["urban", "suburb"]:
+			if GlobalData.board.board_theme_id in ["urban", "suburb"]:
 				_add_building(prop_node, rng)
 			else:
 				_add_boulder(prop_node, rng)

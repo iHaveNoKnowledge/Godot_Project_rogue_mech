@@ -28,7 +28,7 @@ func _check(cond: bool, name: String) -> void:
 
 func _ready() -> void:
 	GlobalData.reset_run_data()
-	GlobalData.board_seed = 7  # deterministic field layout + hills
+	GlobalData.board.board_seed = 7  # deterministic field layout + hills
 	var arena_script = preload("res://scripts/arena/arena_generator.gd")
 	var arena := arena_script.new()
 	arena.current_theme = arena_script.BiomeTheme.FOREST

@@ -163,7 +163,7 @@ static func is_event_available(event: Dictionary) -> bool:
 	var character_id := str(params.get("character_id", ""))
 	if character_id != "" and not is_character_available(character_id):
 		return false
-	if GlobalData.mech_less:
+	if GlobalData.narrative.mech_less:
 		for choice in params.get("choices", []):
 			if choice is Dictionary and str(choice.get("effect", "")) == "duel":
 				return false
@@ -188,7 +188,7 @@ static func recruit(character_id: String) -> bool:
 	if berth != "":
 		text += "\n" + berth
 	GlobalData.recruited_characters.append(character_id)
-	GlobalData.run_notice = text
+	GlobalData.board.run_notice = text
 	return true
 
 
@@ -205,7 +205,7 @@ static func _park_signature_mech(character: Dictionary, template_id: String) -> 
 		return ""
 	return "%s is parked in the hangar (%d/%d berths)." % [
 		str(mech.get("name", "Mech")),
-		GlobalData.hangar_mechs.size(),
+		GlobalData.hangar.hangar_mechs.size(),
 		HangarManager.get_capacity(),
 	]
 
@@ -368,7 +368,7 @@ static func heal_wounded_pilot(template_id: String) -> bool:
 # Tick wounded pilots toward recovery (called on each board move).
 static func tick_recovery() -> void:
 	var recovered := false
-	for unit in GlobalData.fleet_roster:
+	for unit in GlobalData.hangar.fleet_roster:
 		if not (unit is Dictionary):
 			continue
 		if not unit.get("wounded", false):
@@ -382,4 +382,4 @@ static func tick_recovery() -> void:
 			unit["hp"] = float(unit.get("max_hp", 50.0)) * 0.5
 			recovered = true
 	if recovered:
-		GlobalData.run_notice = "A wounded pilot has recovered and is ready to fight again."
+		GlobalData.board.run_notice = "A wounded pilot has recovered and is ready to fight again."

@@ -317,7 +317,7 @@ func _apply_movement(delta: float) -> void:
 		move_speed *= 2.0
 	if _is_in_water() and not can_traverse_water:
 		move_speed *= 0.45
-	if GlobalData.current_hazard == GlobalData.HAZARD_DUST_STORM:
+	if GlobalData.board.current_hazard == GlobalData.HAZARD_DUST_STORM:
 		move_speed *= GlobalData.DUST_STORM_SPEED_MULT
 
 	var desired_velocity := Vector3.ZERO
@@ -359,7 +359,7 @@ func _apply_movement(delta: float) -> void:
 		recoil_vector = recoil_vector.move_toward(Vector3.ZERO, decay_rate * delta)
 
 	# EMP Hazard Zone: electric spark discharges crackling across the mech chassis
-	if GlobalData.current_hazard == GlobalData.HAZARD_EMP_ZONE:
+	if GlobalData.board.current_hazard == GlobalData.HAZARD_EMP_ZONE:
 		_emp_spark_timer -= delta
 		if _emp_spark_timer <= 0.0:
 			_emp_spark_timer = randf_range(0.3, 0.65)
@@ -415,21 +415,21 @@ func _recalculate_weight() -> void:
 		return
 	_recalculating = true
 	var base_frame_weight: float = 22.0
-	for slot in GlobalData.equipped_frames:
-		var f = GlobalData.equipped_frames[slot]
+	for slot in GlobalData.weapons.equipped_frames:
+		var f = GlobalData.weapons.equipped_frames[slot]
 		if f is Dictionary:
 			base_frame_weight += f.get("weight", 3.0)
 	total_weight = base_frame_weight
-	for slot in GlobalData.equipped_parts:
-		var part = GlobalData.equipped_parts[slot]
+	for slot in GlobalData.weapons.equipped_parts:
+		var part = GlobalData.weapons.equipped_parts[slot]
 		if part:
 			var break_thresh = part.break_threshold if "break_threshold" in part else 999.0
-			if not GlobalData.part_damage.get(slot, 0.0) >= break_thresh:
+			if not GlobalData.weapons.part_damage.get(slot, 0.0) >= break_thresh:
 				if part is ArmorPart:
 					total_weight += part.weight
 				elif part is Dictionary:
 					total_weight += part.get("weight", 0.0)
-	for attachment in GlobalData.attachments:
+	for attachment in GlobalData.weapons.attachments:
 		total_weight += float(attachment.get("weight", 0.0))
 	total_weight += LoadoutSystem.get_loadout_weapon_weight()
 	var base_speed: float = _chassis_speed_override

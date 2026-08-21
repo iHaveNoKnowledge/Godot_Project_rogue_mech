@@ -53,15 +53,15 @@ func decay_notoriety_memory() -> void:
 
 
 func modify_heat(amount: int) -> void:
-	GlobalData.heat = clampi(GlobalData.heat + amount, 0, max_heat)
-	EventBus.heat_changed.emit(GlobalData.heat)
+	GlobalData.board.heat = clampi(GlobalData.board.heat + amount, 0, max_heat)
+	EventBus.heat_changed.emit(GlobalData.board.heat)
 	_update_wanted()
 	update_enemy_mobilization_capacity() # ขยายหรือล็อกขนาดสัดส่วนทัพสูงสุด
 
 
 # ล็อกและปลดล็อกการระดมพลตามระบบ Heat (Early/Late Game Gates)
 func update_enemy_mobilization_capacity() -> void:
-	var heat = GlobalData.heat
+	var heat = GlobalData.board.heat
 	
 	if heat < 3:
 		# ช่วงต้นเกม (Tutorial Zone): ล็อกกำลังพลศัตรูไว้ระดับต่ำสุดเพื่อฝึกซ้อมฝีมือ
@@ -92,18 +92,18 @@ func _update_wanted() -> void:
 	# heat cool-down never undoes the run's progression.
 	var heat_derived = 0
 	for threshold in wanted_thresholds:
-		if GlobalData.heat >= threshold:
+		if GlobalData.board.heat >= threshold:
 			heat_derived += 1
-	var new_wanted = maxi(heat_derived, GlobalData.wanted_escalation)
-	if new_wanted != GlobalData.wanted_level:
-		GlobalData.wanted_level = new_wanted
+	var new_wanted = maxi(heat_derived, GlobalData.board.wanted_escalation)
+	if new_wanted != GlobalData.board.wanted_level:
+		GlobalData.board.wanted_level = new_wanted
 		EventBus.wanted_changed.emit(new_wanted)
 
 
 # Sector progression: the run gets hotter each sector even after heat cools
 # between sectors. Keeps signals and enemy mobilization in sync.
 func escalate_wanted(amount: int = 1, max_wanted: int = 5) -> void:
-	GlobalData.wanted_escalation = mini(GlobalData.wanted_escalation + amount, max_wanted)
+	GlobalData.board.wanted_escalation = mini(GlobalData.board.wanted_escalation + amount, max_wanted)
 	_update_wanted()
 	update_enemy_mobilization_capacity()
 
@@ -111,4 +111,4 @@ func escalate_wanted(amount: int = 1, max_wanted: int = 5) -> void:
 # ดึงสัดส่วนตัวคูณความยากตามค่า Heat และ Notoriety Memory ผสมผสานกัน
 func get_enemy_force_multiplier() -> float:
 	# คำนวณความใหญ่จาก Notoriety Memory เป็นหลักเพื่อให้ศัตรูยังระแวงอยู่
-	return GlobalData.max_notoriety_multiplier * (1.0 + (GlobalData.wanted_level * 0.15))
+	return GlobalData.max_notoriety_multiplier * (1.0 + (GlobalData.board.wanted_level * 0.15))

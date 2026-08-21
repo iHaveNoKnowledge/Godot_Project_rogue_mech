@@ -35,7 +35,7 @@ func _ready() -> void:
 	_check(gen.footprint == null, "generate_arena does not build a footprint")
 
 	GlobalData.reset_run_data()
-	GlobalData.board_theme_id = "urban"
+	GlobalData.board.board_theme_id = "urban"
 	var gen_flat := arena_script.new()
 	gen_flat.current_theme = arena_script.BiomeTheme.CITY_HIGHRISE
 	gen_flat.arena_size = 240.0
@@ -44,7 +44,7 @@ func _ready() -> void:
 	_check(fp != null, "CITY_HIGHRISE arena builds an irregular footprint")
 
 	GlobalData.reset_run_data()
-	GlobalData.board_theme_id = "forest"
+	GlobalData.board.board_theme_id = "forest"
 	var gen_forest := arena_script.new()
 	gen_forest.current_theme = arena_script.BiomeTheme.FOREST
 	gen_forest.arena_size = 240.0
@@ -98,7 +98,7 @@ func _ready() -> void:
 
 	# --- 5. Real arena integration ---
 	GlobalData.reset_run_data()
-	GlobalData.board_theme_id = "desert"
+	GlobalData.board.board_theme_id = "desert"
 	var arena := arena_script.new()
 	add_child(arena)
 	await get_tree().process_frame

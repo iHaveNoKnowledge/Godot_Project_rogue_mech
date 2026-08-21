@@ -67,7 +67,7 @@ const FOREST_RIVER_STRIP_Y := -0.35
 func _ready() -> void:
 	current_theme = _theme_from_board()
 	arena_size = _arena_size_for_combat()
-	GlobalData.current_arena_size = arena_size
+	GlobalData.board.current_arena_size = arena_size
 	footprint = _build_footprint()
 	generate_arena()
 	_place_player_at_arena_edge()
@@ -90,9 +90,9 @@ func _uses_footprint() -> bool:
 
 
 func _footprint_seed() -> int:
-	var tile := GlobalData.current_tile
-	var base := GlobalData.current_sector * 1000 + tile.x * 100 + tile.y
-	return hash(base + int(GlobalData.board_seed) * 31)
+	var tile := GlobalData.board.current_tile
+	var base := GlobalData.board.current_sector * 1000 + tile.x * 100 + tile.y
+	return hash(base + int(GlobalData.board.board_seed) * 31)
 
 
 # Moves the player mech to a random EDGE spawn instead of the center of the
@@ -113,7 +113,7 @@ func _place_player_at_arena_edge() -> void:
 	var cover_positions: Array = []
 	var seed_sys = host.get_node_or_null("ArenaSeedSystem")
 	if seed_sys and seed_sys.has_method("set_seed") and seed_sys.has_method("get_obstacle_positions"):
-		seed_sys.set_seed(GlobalData.current_sector, GlobalData.current_tile)
+		seed_sys.set_seed(GlobalData.board.current_sector, GlobalData.board.current_tile)
 		cover_positions = seed_sys.get_obstacle_positions(current_theme, arena_size)
 	var attempts := 0
 	# On an irregular footprint the battlefield edge follows the outline, so
@@ -229,9 +229,9 @@ func _theme_from_board() -> BiomeTheme:
 	# A forest board fought on a ROAD tile gets the road-through-forest arena:
 	# the enemy was caught on the forest road, so the battle map is a road
 	# cutting through the woods instead of the plain river forest.
-	if GlobalData.board_theme_id == "forest" and GlobalData.combat_tile_terrain == "road":
+	if GlobalData.board.board_theme_id == "forest" and GlobalData.board.combat_tile_terrain == "road":
 		return BiomeTheme.FOREST_ROAD
-	var arena_name: String = BoardConfig.THEME_ARENA.get(GlobalData.board_theme_id, "")
+	var arena_name: String = BoardConfig.THEME_ARENA.get(GlobalData.board.board_theme_id, "")
 	# Never fall back to a RANDOM biome: a random pick can drop a forest board
 	# into a street fight (and vice versa). Unknown/empty themes default to the
 	# suburb crossroads, matching the default board theme.
@@ -1406,7 +1406,7 @@ func _ensure_forest_fields() -> void:
 	if _forest_fields_ready:
 		return
 	_forest_fields_ready = true
-	var seed_base := 20260814 + maxi(int(GlobalData.board_seed), 0)
+	var seed_base := 20260814 + maxi(int(GlobalData.board.board_seed), 0)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_base
 	# ~33m wavelength so the hills actually roll across the field (the default

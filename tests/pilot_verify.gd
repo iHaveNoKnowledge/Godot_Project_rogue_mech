@@ -75,7 +75,7 @@ func _ready() -> void:
 	_check(PilotSystem.get_item_count("medkit_large") == 0, "surgical kit consumed")
 
 	# --- City trading ---
-	var credits_before := GlobalData.credits
+	var credits_before := GlobalData.currency.credits
 	var price := PilotSystem.get_item_price("medkit_small")
 	_check(price == 50, "small medkit price is 50 credits")
 	# Give the pilot enough credits to buy one medkit.
@@ -84,7 +84,7 @@ func _ready() -> void:
 	# One small medkit was already owned/consumed earlier, so buying one more
 	# brings the stack back up to 2 (1 leftover + 1 bought).
 	_check(PilotSystem.get_item_count("medkit_small") == 2, "bought medkit is in inventory")
-	_check(GlobalData.credits == credits_before + 1000 - 50, "buy spent exactly 50 credits")
+	_check(GlobalData.currency.credits == credits_before + 1000 - 50, "buy spent exactly 50 credits")
 	var before_ammo := PilotSystem.get_ammo("energy")
 	var bought := PilotSystem.buy_ammo("energy", 20)
 	_check(bought == 20, "bought 20 energy ammo")

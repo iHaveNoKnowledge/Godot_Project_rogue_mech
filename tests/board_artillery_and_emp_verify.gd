@@ -82,7 +82,7 @@ func _ready() -> void:
 			found_shells += 1
 
 	_check(found_shells >= 1, "Artillery bombardment spawned parabolic shell meshes (got %d)" % found_shells)
-	_check(GlobalData.mech_energy <= 970.0, "Artillery bombardment deducted mech energy (energy=%.1f <= 970.0)" % GlobalData.mech_energy)
+	_check(GlobalData.fuel.mech_energy <= 970.0, "Artillery bombardment deducted mech energy (energy=%.1f <= 970.0)" % GlobalData.fuel.mech_energy)
 
 	print("BOARD_ARTILLERY_EMP_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	get_tree().quit(1 if _fails > 0 else 0)

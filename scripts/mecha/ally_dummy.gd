@@ -772,7 +772,7 @@ func _remove_from_convoy() -> void:
 		if str(mech.get("pilot", "")) != pilot_id:
 			continue
 		HangarManager.remove_mech(str(mech.get("id", "")))
-		GlobalData.run_notice = "%s was destroyed in combat and is lost from the convoy." % display_name
+		GlobalData.board.run_notice = "%s was destroyed in combat and is lost from the convoy." % display_name
 		break
 
 

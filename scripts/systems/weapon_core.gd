@@ -221,7 +221,7 @@ func _cool_heat(delta: float) -> void:
 		return
 	# Tactical Smog: heat cool rate x0.5 — chemical smoke traps heat in the barrel.
 	var cool_rate := heat_cool_rate
-	if GlobalData.current_hazard == GlobalData.HAZARD_TACTICAL_SMOG:
+	if GlobalData.board.current_hazard == GlobalData.HAZARD_TACTICAL_SMOG:
 		cool_rate *= GlobalData.SMOG_HEAT_COOL_PENALTY
 	var cooled := maxf(heat - cool_rate * delta, 0.0)
 	if overheated and cooled <= heat_capacity * heat_release_ratio:

@@ -1,7 +1,7 @@
 extends Node
 
 ## Headless verification of the post-battle loot summary:
-##   1. Enemy weapon & armor drops go into GlobalData.battle_loot (the post-
+##   1. Enemy weapon & armor drops go into GlobalData.weapons.battle_loot (the post-
 ##      battle pool) instead of spawning walk-over pickups.
 ##   2. The victory rewards UI builds a two-column picker: BATTLE DROPS on the
 ##      left, TAKE BACK on the right.
@@ -43,7 +43,7 @@ func _ready() -> void:
 # keep ammo/scrap/repair as physical pickups. Force the archetype weapon pool so
 # a weapon entry is guaranteed on the table.
 func _verify_drops_route_to_pool() -> void:
-	GlobalData.battle_loot.clear()
+	GlobalData.weapons.battle_loot.clear()
 	var loot := Node3D.new()
 	loot.set_script(load("res://scripts/systems/loot_system.gd"))
 	loot.name = "LootSystem"
@@ -53,7 +53,7 @@ func _verify_drops_route_to_pool() -> void:
 
 	# Every pooled entry must be a weapon or armor part (no ammo/scrap/repair).
 	var only_parts := true
-	for entry in GlobalData.battle_loot:
+	for entry in GlobalData.weapons.battle_loot:
 		var t := str(entry.get("type", ""))
 		if t != "weapon" and t != "armor":
 			only_parts = false
@@ -74,7 +74,7 @@ func _verify_drops_route_to_pool() -> void:
 # The rewards UI shows the pool on the left, moving items to the right, and
 # Continue grants exactly the right side.
 func _verify_picker_and_grant() -> void:
-	GlobalData.battle_loot.clear()
+	GlobalData.weapons.battle_loot.clear()
 	var weapon_res: WeaponPart = load("res://resources/mech/stock/weapon_pile_bunker.tres")
 	var armor_inst := {
 		"uid": "loot_test_armor_1",
@@ -86,8 +86,8 @@ func _verify_picker_and_grant() -> void:
 		"color": Color(0.2, 0.6, 0.3),
 		"durability": 0.8, "upgrade_level": 1, "equipped": false,
 	}
-	GlobalData.battle_loot.append({"type": "weapon", "weapon": weapon_res})
-	GlobalData.battle_loot.append({"type": "armor", "instance": armor_inst})
+	GlobalData.weapons.battle_loot.append({"type": "weapon", "weapon": weapon_res})
+	GlobalData.weapons.battle_loot.append({"type": "armor", "instance": armor_inst})
 
 	var rewards_ui = load("res://scenes/ui/combat_rewards_ui.tscn").instantiate()
 	add_child(rewards_ui)
@@ -132,13 +132,13 @@ func _verify_picker_and_grant() -> void:
 			_check(rewards_ui._right_items.size() == 2, "Take All moves both drops to TAKE BACK")
 			_check(rewards_ui.take_all_button.disabled, "Take All disables once nothing is left")
 
-		var stash_before: int = GlobalData.weapon_inventory.size()
-		var armor_before: int = GlobalData.armor_inventory.size()
+		var stash_before: int = GlobalData.weapons.weapon_inventory.size()
+		var armor_before: int = GlobalData.weapons.armor_inventory.size()
 		rewards_ui._grant_take_back_loot()
 		await get_tree().process_frame
-		_check(GlobalData.weapon_inventory.size() == stash_before + 1, "weapon granted into the depot stash")
-		_check(GlobalData.armor_inventory.size() == armor_before + 1, "armor part granted into the armor inventory")
-		_check(GlobalData.battle_loot.is_empty(), "battle loot pool cleared after granting")
+		_check(GlobalData.weapons.weapon_inventory.size() == stash_before + 1, "weapon granted into the depot stash")
+		_check(GlobalData.weapons.armor_inventory.size() == armor_before + 1, "armor part granted into the armor inventory")
+		_check(GlobalData.weapons.battle_loot.is_empty(), "battle loot pool cleared after granting")
 		_check(rewards_ui._left_items.is_empty() and rewards_ui._right_items.is_empty(), "picker state cleared after grant")
 
 	rewards_ui.queue_free()
@@ -149,7 +149,7 @@ func _verify_picker_and_grant() -> void:
 # salvaged into scrap (armor priced with the same formula the craftery uses,
 # weapons by weight/damage/rarity), and a run notice tells the player.
 func _verify_unclaimed_salvage() -> void:
-	GlobalData.battle_loot.clear()
+	GlobalData.weapons.battle_loot.clear()
 	var weapon_res: WeaponPart = load("res://resources/mech/stock/weapon_pile_bunker.tres")
 	var armor_inst := {
 		"uid": "loot_test_salvage_1",
@@ -162,8 +162,8 @@ func _verify_unclaimed_salvage() -> void:
 		"durability": 0.8, "upgrade_level": 1, "equipped": false,
 	}
 	# Weapon is taken back; armor is left unclaimed.
-	GlobalData.battle_loot.append({"type": "weapon", "weapon": weapon_res})
-	GlobalData.battle_loot.append({"type": "armor", "instance": armor_inst})
+	GlobalData.weapons.battle_loot.append({"type": "weapon", "weapon": weapon_res})
+	GlobalData.weapons.battle_loot.append({"type": "armor", "instance": armor_inst})
 
 	var rewards_ui = load("res://scenes/ui/combat_rewards_ui.tscn").instantiate()
 	add_child(rewards_ui)
@@ -175,7 +175,7 @@ func _verify_unclaimed_salvage() -> void:
 	# The summary must tell the player unclaimed drops are stripped for scrap.
 	_check(rewards_ui.rewards_label.text.contains("stripped for +"), "victory summary announces unclaimed salvage")
 	# Baseline AFTER the victory screen (it grants its own credit/scrap rewards).
-	var scrap_before: int = GlobalData.scrap
+	var scrap_before: int = GlobalData.currency.scrap
 	# Both drops start unclaimed — the summary must show their COMBINED scrap.
 	var both_scrap := 0
 	for e in rewards_ui._left_items:
@@ -213,13 +213,13 @@ func _verify_unclaimed_salvage() -> void:
 		right_buttons[1].pressed.emit()
 		await get_tree().process_frame
 	_check(rewards_ui._right_items.size() == 1, "weapon stays on TAKE BACK, armor returned to BATTLE DROPS")
-	var stash_before: int = GlobalData.weapon_inventory.size()
+	var stash_before: int = GlobalData.weapons.weapon_inventory.size()
 	rewards_ui._grant_take_back_loot()
 	await get_tree().process_frame
-	_check(GlobalData.weapon_inventory.size() == stash_before + 1, "taken weapon still granted to the depot stash")
-	_check(GlobalData.scrap == scrap_before + expected_scrap, "unclaimed armor stripped into scrap (+%d)" % expected_scrap)
-	_check(GlobalData.run_notice.contains("salvaged for +%d" % expected_scrap), "board run-notice reports the salvaged scrap")
-	_check(GlobalData.battle_loot.is_empty(), "battle pool cleared after salvage")
+	_check(GlobalData.weapons.weapon_inventory.size() == stash_before + 1, "taken weapon still granted to the depot stash")
+	_check(GlobalData.currency.scrap == scrap_before + expected_scrap, "unclaimed armor stripped into scrap (+%d)" % expected_scrap)
+	_check(GlobalData.board.run_notice.contains("salvaged for +%d" % expected_scrap), "board run-notice reports the salvaged scrap")
+	_check(GlobalData.weapons.battle_loot.is_empty(), "battle pool cleared after salvage")
 
 	rewards_ui.queue_free()
 	await get_tree().process_frame
@@ -228,7 +228,7 @@ func _verify_unclaimed_salvage() -> void:
 # Rarity tier must drive salvage pricing: legendary/rare loot is worth several
 # times a common piece, and the per-row label shows the scrap value.
 func _verify_rarity_tier_pricing() -> void:
-	GlobalData.battle_loot.clear()
+	GlobalData.weapons.battle_loot.clear()
 	var knife: WeaponPart = load("res://resources/mech/stock/weapon_combat_knife.tres")  # rarity 0
 	var railgun: WeaponPart = load("res://resources/mech/stock/weapon_railgun.tres")      # rarity 3
 	var standard_armor := {

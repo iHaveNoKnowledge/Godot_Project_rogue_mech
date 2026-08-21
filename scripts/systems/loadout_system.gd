@@ -30,8 +30,8 @@ static func get_slot_node_path(slot: String) -> String:
 # Total Field Pack weight capacity in kg = base + sum of equipped frames.
 static func get_field_pack_capacity() -> float:
 	var capacity := GlobalData.FIELD_PACK_BASE_CAPACITY
-	for slot in GlobalData.equipped_frames:
-		var f = GlobalData.equipped_frames[slot]
+	for slot in GlobalData.weapons.equipped_frames:
+		var f = GlobalData.weapons.equipped_frames[slot]
 		if f is Dictionary:
 			capacity += float(f.get("carry_bonus", 0.0))
 	return capacity
@@ -45,7 +45,7 @@ static func get_field_pack_weight() -> float:
 # Weight of the ammo the player chose to carry (the "ammo" loadout).
 static func get_field_pack_ammo_weight() -> float:
 	var total := 0.0
-	for ammo_type in GlobalData.weapon_loadout.get("ammo", {}):
+	for ammo_type in GlobalData.weapons.weapon_loadout.get("ammo", {}):
 		total += GlobalData.AMMO_WEIGHT_PER_UNIT.get(ammo_type, 0.01) * float(get_loadout_ammo(ammo_type))
 	return total
 
@@ -64,7 +64,7 @@ static func get_weapon_instance(uid: String) -> Dictionary:
 static func _instance_by_uid(uid: String) -> Dictionary:
 	if uid == "":
 		return {}
-	for inst in GlobalData.weapon_inventory:
+	for inst in GlobalData.weapons.weapon_inventory:
 		if str(inst.get("uid", "")) == uid:
 			return inst
 	return {}
@@ -89,11 +89,11 @@ static func ref_to_path(ref) -> String:
 static func _is_uid_in_loadout(uid: String) -> bool:
 	if uid == "":
 		return false
-	if str(GlobalData.weapon_loadout.get("left", "")) == uid:
+	if str(GlobalData.weapons.weapon_loadout.get("left", "")) == uid:
 		return true
-	if str(GlobalData.weapon_loadout.get("right", "")) == uid:
+	if str(GlobalData.weapons.weapon_loadout.get("right", "")) == uid:
 		return true
-	var carry = GlobalData.weapon_loadout.get("carry", [])
+	var carry = GlobalData.weapons.weapon_loadout.get("carry", [])
 	return carry is Array and uid in carry
 
 
@@ -104,11 +104,11 @@ static func _is_uid_in_loadout(uid: String) -> bool:
 static func _uid_for_equip(path: String) -> String:
 	if path == "":
 		return ""
-	for inst in GlobalData.weapon_inventory:
+	for inst in GlobalData.weapons.weapon_inventory:
 		var uid := str(inst.get("uid", ""))
 		if uid != "" and str(inst.get("path", "")) == path and not _is_uid_in_loadout(uid):
 			return uid
-	for inst in GlobalData.weapon_inventory:
+	for inst in GlobalData.weapons.weapon_inventory:
 		var uid := str(inst.get("uid", ""))
 		if uid != "" and str(inst.get("path", "")) == path:
 			return uid
@@ -148,7 +148,7 @@ static func migrate_ref_to_uid(ref) -> String:
 # back to the default stock weapon for that hand.
 static func get_equipped_weapon(side: String) -> WeaponPart:
 	var key := "left" if side == "left" else "right"
-	var path := ref_to_path(GlobalData.weapon_loadout.get(key, ""))
+	var path := ref_to_path(GlobalData.weapons.weapon_loadout.get(key, ""))
 	if path == "":
 		return null
 	if not ResourceLoader.exists(path):
@@ -160,13 +160,13 @@ static func get_equipped_weapon(side: String) -> WeaponPart:
 
 # The instance uid currently held in a hand ("" = unarmed).
 static func get_equipped_weapon_uid(side: String) -> String:
-	return str(GlobalData.weapon_loadout.get("left", "") if side == "left" else GlobalData.weapon_loadout.get("right", ""))
+	return str(GlobalData.weapons.weapon_loadout.get("left", "") if side == "left" else GlobalData.weapons.weapon_loadout.get("right", ""))
 
 
 # Returns the WeaponParts the mech carries on its back into battle (from loadout).
 static func get_carry_weapons() -> Array[WeaponPart]:
 	var result: Array[WeaponPart] = []
-	var carry_refs = GlobalData.weapon_loadout.get("carry", [])
+	var carry_refs = GlobalData.weapons.weapon_loadout.get("carry", [])
 	if not (carry_refs is Array):
 		return result
 	for ref in carry_refs:
@@ -200,9 +200,9 @@ static func get_loadout_weapon_weight() -> float:
 # or "" when it isn't equipped anywhere. Enforced by set_hand_weapon /
 # add_carry_weapon so a shotgun can't be in both hands at once.
 static func weapon_equipped_slot(path: String) -> String:
-	if ref_to_path(GlobalData.weapon_loadout.get("left", "")) == path:
+	if ref_to_path(GlobalData.weapons.weapon_loadout.get("left", "")) == path:
 		return "left"
-	if ref_to_path(GlobalData.weapon_loadout.get("right", "")) == path:
+	if ref_to_path(GlobalData.weapons.weapon_loadout.get("right", "")) == path:
 		return "right"
 	if is_weapon_in_carry(path):
 		return "carry"
@@ -214,11 +214,11 @@ static func weapon_equipped_slot(path: String) -> String:
 static func weapon_equipped_slot_by_uid(uid: String) -> String:
 	if uid == "":
 		return ""
-	if str(GlobalData.weapon_loadout.get("left", "")) == uid:
+	if str(GlobalData.weapons.weapon_loadout.get("left", "")) == uid:
 		return "left"
-	if str(GlobalData.weapon_loadout.get("right", "")) == uid:
+	if str(GlobalData.weapons.weapon_loadout.get("right", "")) == uid:
 		return "right"
-	var carry = GlobalData.weapon_loadout.get("carry", [])
+	var carry = GlobalData.weapons.weapon_loadout.get("carry", [])
 	if carry is Array and uid in carry:
 		return "carry"
 	return ""
@@ -261,7 +261,7 @@ static func set_hand_weapon(side: String, ref) -> bool:
 	var key := "left" if side == "left" else "right"
 	var uid := _ref_to_uid(ref)
 	if uid == "":
-		GlobalData.weapon_loadout[key] = ""
+		GlobalData.weapons.weapon_loadout[key] = ""
 		return true
 	# One physical copy lives in one slot: free the slot holding this instance.
 	var slot := weapon_equipped_slot_by_uid(uid)
@@ -269,13 +269,13 @@ static func set_hand_weapon(side: String, ref) -> bool:
 		if slot == "carry":
 			remove_carry_weapon(uid)
 		else:
-			GlobalData.weapon_loadout[slot] = ""
-	GlobalData.weapon_loadout[key] = uid
+			GlobalData.weapons.weapon_loadout[slot] = ""
+	GlobalData.weapons.weapon_loadout[key] = uid
 	return true
 
 
 static func is_weapon_in_carry(path: String) -> bool:
-	var carry_paths = GlobalData.weapon_loadout.get("carry", [])
+	var carry_paths = GlobalData.weapons.weapon_loadout.get("carry", [])
 	if not (carry_paths is Array):
 		return false
 	for ref in carry_paths:
@@ -288,7 +288,7 @@ static func is_weapon_in_carry(path: String) -> bool:
 static func is_weapon_in_carry_by_uid(uid: String) -> bool:
 	if uid == "":
 		return false
-	var carry_paths = GlobalData.weapon_loadout.get("carry", [])
+	var carry_paths = GlobalData.weapons.weapon_loadout.get("carry", [])
 	return carry_paths is Array and uid in carry_paths
 
 
@@ -301,7 +301,7 @@ static func add_carry_weapon(ref) -> bool:
 	if uid == "":
 		return false
 	var path := ref_to_path(uid)
-	var carry_paths = GlobalData.weapon_loadout.get("carry", [])
+	var carry_paths = GlobalData.weapons.weapon_loadout.get("carry", [])
 	if not (carry_paths is Array):
 		carry_paths = []
 	# This exact copy is already on the pack and no spare exists: no-op.
@@ -309,15 +309,15 @@ static func add_carry_weapon(ref) -> bool:
 		return false
 	var slot := weapon_equipped_slot_by_uid(uid)
 	if slot != "" and slot != "carry" and not has_spare_weapon(path):
-		GlobalData.weapon_loadout[slot] = ""
+		GlobalData.weapons.weapon_loadout[slot] = ""
 	carry_paths.append(uid)
-	GlobalData.weapon_loadout["carry"] = carry_paths
+	GlobalData.weapons.weapon_loadout["carry"] = carry_paths
 	return true
 
 
 # How many physical copies of a weapon model are currently on the back pack.
 static func count_carry_weapon(path: String) -> int:
-	var carry_paths = GlobalData.weapon_loadout.get("carry", [])
+	var carry_paths = GlobalData.weapons.weapon_loadout.get("carry", [])
 	if not (carry_paths is Array):
 		return 0
 	var count := 0
@@ -331,7 +331,7 @@ static func count_carry_weapon(path: String) -> int:
 # (one inventory entry per instance). Two pile bunkers = two entries = 2.
 static func count_owned_weapon(path: String) -> int:
 	var owned := 0
-	for entry in GlobalData.weapon_inventory:
+	for entry in GlobalData.weapons.weapon_inventory:
 		if str(entry.get("path", "")) == path:
 			owned += 1
 	return owned
@@ -342,11 +342,11 @@ static func count_owned_weapon(path: String) -> int:
 # slots at once as long as the player owns enough copies.
 static func count_equipped_weapon(path: String) -> int:
 	var n := 0
-	if ref_to_path(GlobalData.weapon_loadout.get("left", "")) == path:
+	if ref_to_path(GlobalData.weapons.weapon_loadout.get("left", "")) == path:
 		n += 1
-	if ref_to_path(GlobalData.weapon_loadout.get("right", "")) == path:
+	if ref_to_path(GlobalData.weapons.weapon_loadout.get("right", "")) == path:
 		n += 1
-	var carry = GlobalData.weapon_loadout.get("carry", [])
+	var carry = GlobalData.weapons.weapon_loadout.get("carry", [])
 	if carry is Array:
 		for ref in carry:
 			if ref_to_path(ref) == path:
@@ -390,8 +390,8 @@ static func weapon_slots_in_loadout(loadout: Dictionary, path: String) -> int:
 static func fleet_weapon_slots_used(path: String, editing_id: String = "") -> int:
 	var n := 0
 	if editing_id != "":
-		n += weapon_slots_in_loadout(GlobalData.weapon_loadout, path)
-	for mech in GlobalData.hangar_mechs:
+		n += weapon_slots_in_loadout(GlobalData.weapons.weapon_loadout, path)
+	for mech in GlobalData.hangar.hangar_mechs:
 		if not (mech is Dictionary):
 			continue
 		var mid := str(mech.get("id", ""))
@@ -414,7 +414,7 @@ static func has_fleet_spare_weapon(path: String, editing_id: String = "") -> boo
 
 static func remove_carry_weapon(ref) -> void:
 	var target := str(ref)
-	var carry_paths = GlobalData.weapon_loadout.get("carry", [])
+	var carry_paths = GlobalData.weapons.weapon_loadout.get("carry", [])
 	if not (carry_paths is Array):
 		return
 	var erase_idx := -1
@@ -429,7 +429,7 @@ static func remove_carry_weapon(ref) -> void:
 			break
 	if erase_idx >= 0:
 		carry_paths.remove_at(erase_idx)
-		GlobalData.weapon_loadout["carry"] = carry_paths
+		GlobalData.weapons.weapon_loadout["carry"] = carry_paths
 
 
 # -----------------------------------------------------------------------------
@@ -443,7 +443,7 @@ static func resolve_hand_uid_for_sync(side: String, path: String) -> String:
 	if path == "":
 		return ""
 	var key := "left" if side == "left" else "right"
-	var cur := str(GlobalData.weapon_loadout.get(key, ""))
+	var cur := str(GlobalData.weapons.weapon_loadout.get(key, ""))
 	var inst := _instance_by_uid(cur)
 	if not inst.is_empty() and str(inst.get("path", "")) == path:
 		return cur
@@ -451,7 +451,7 @@ static func resolve_hand_uid_for_sync(side: String, path: String) -> String:
 
 
 static func resolve_carry_uids_for_sync(paths: Array) -> Array:
-	var current = GlobalData.weapon_loadout.get("carry", [])
+	var current = GlobalData.weapons.weapon_loadout.get("carry", [])
 	if not (current is Array):
 		current = []
 	var used := {}
@@ -479,7 +479,7 @@ static func resolve_carry_uids_for_sync(paths: Array) -> Array:
 
 # Returns how much ammo of the given type the player carries into the next battle.
 static func get_loadout_ammo(ammo_type: String) -> int:
-	var ammo = GlobalData.weapon_loadout.get("ammo", {})
+	var ammo = GlobalData.weapons.weapon_loadout.get("ammo", {})
 	if not (ammo is Dictionary):
 		return 0
 	return ammo.get(ammo_type.to_lower(), 0)
@@ -487,22 +487,22 @@ static func get_loadout_ammo(ammo_type: String) -> int:
 
 # Sets how much ammo of the given type the player carries into the next battle.
 static func set_loadout_ammo(ammo_type: String, amount: int) -> void:
-	var ammo = GlobalData.weapon_loadout.get("ammo", {})
+	var ammo = GlobalData.weapons.weapon_loadout.get("ammo", {})
 	if not (ammo is Dictionary):
 		ammo = {}
 	ammo[ammo_type.to_lower()] = max(0, amount)
-	GlobalData.weapon_loadout["ammo"] = ammo
+	GlobalData.weapons.weapon_loadout["ammo"] = ammo
 
 
 static func get_loadout_ammo_dict() -> Dictionary:
-	var ammo = GlobalData.weapon_loadout.get("ammo", {})
+	var ammo = GlobalData.weapons.weapon_loadout.get("ammo", {})
 	if not (ammo is Dictionary):
 		return {}
 	return ammo.duplicate()
 
 
 static func get_equipped_part_id(slot: String) -> String:
-	var part = GlobalData.equipped_parts.get(slot)
+	var part = GlobalData.weapons.equipped_parts.get(slot)
 	if part == null:
 		return ""
 	if part is Dictionary:
@@ -544,15 +544,15 @@ static func get_chassis_stats() -> Dictionary:
 
 
 static func get_frame_upgrade_hp_bonus() -> float:
-	return float(maxi(GlobalData.frame_upgrade_level - 1, 0)) * GlobalData.FRAME_UPGRADE_HP_BONUS
+	return float(maxi(GlobalData.weapons.frame_upgrade_level - 1, 0)) * GlobalData.FRAME_UPGRADE_HP_BONUS
 
 
 static func get_frame_upgrade_weight_bonus() -> float:
-	return float(maxi(GlobalData.frame_upgrade_level - 1, 0)) * GlobalData.FRAME_UPGRADE_WEIGHT_BONUS
+	return float(maxi(GlobalData.weapons.frame_upgrade_level - 1, 0)) * GlobalData.FRAME_UPGRADE_WEIGHT_BONUS
 
 
 static func get_frame_upgrade_cost() -> int:
-	return GlobalData.frame_upgrade_level * GlobalData.FRAME_UPGRADE_BASE_COST
+	return GlobalData.weapons.frame_upgrade_level * GlobalData.FRAME_UPGRADE_BASE_COST
 
 
 # -----------------------------------------------------------------------------
@@ -594,7 +594,7 @@ static func register_weapon(path: String, weapon_name: String = "") -> String:
 	# merges same-model copies into a x2 count. The new uid is returned so the
 	# caller can reference this exact copy in a loadout slot.
 	var uid := GlobalData._new_uid("w")
-	GlobalData.weapon_inventory.append({
+	GlobalData.weapons.weapon_inventory.append({
 		"uid": uid,
 		"path": path,
 		"name": display_name,

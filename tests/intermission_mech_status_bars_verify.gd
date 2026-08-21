@@ -25,10 +25,10 @@ func _check(cond: bool, name: String) -> void:
 
 func _ready() -> void:
 	GlobalData.reset_run_data()
-	GlobalData.mech_less = false
+	GlobalData.narrative.mech_less = false
 	GlobalData.weapons._ensure_default_frames()
 	var armor = load("res://resources/mech/stock/head_standard.tres")
-	GlobalData.equipped_parts["head"] = armor
+	GlobalData.weapons.equipped_parts["head"] = armor
 
 	var intermission = load("res://scenes/ui/intermission_ui.tscn").instantiate()
 	add_child(intermission)
@@ -59,8 +59,8 @@ func _ready() -> void:
 			"info panel stays clear of the BoardHUD right column (right edge %.0f)" % info_rect.end.x)
 
 	# Apply live damage: armor at 50%, frame at 20% remaining.
-	GlobalData.part_damage["head"] = 0.5
-	GlobalData.part_damage["head_frame"] = 0.8
+	GlobalData.weapons.part_damage["head"] = 0.5
+	GlobalData.weapons.part_damage["head_frame"] = 0.8
 	intermission._rebuild_status_bars()
 	await get_tree().process_frame
 	var armor_ratio := _find_bar_ratio(bars_container, "head", 1)
@@ -69,14 +69,14 @@ func _ready() -> void:
 	_check(absf(frame_ratio - 0.2) < 0.02, "frame bar follows slot_frame damage (got %.2f)" % frame_ratio)
 
 	# Destroyed part -> its HpPartBar should read destroyed (ratio 0).
-	GlobalData.part_damage["head"] = 1.0
+	GlobalData.weapons.part_damage["head"] = 1.0
 	intermission._rebuild_status_bars()
 	await get_tree().process_frame
 	var destroyed_ratio := _find_bar_ratio(bars_container, "head", 1)
 	_check(destroyed_ratio <= 0.01, "destroyed armor bar reads empty (got %.2f)" % destroyed_ratio)
 
 	# Text summary totals also mirror the damage.
-	GlobalData.part_damage["head"] = 0.5
+	GlobalData.weapons.part_damage["head"] = 0.5
 	var status_text: String = intermission._build_mech_status_text()
 	_check(status_text.contains("ARMOR:"), "status text includes the ARMOR total line")
 	_check(status_text.contains("FRAME:"), "status text includes the FRAME total line")
@@ -88,13 +88,13 @@ func _ready() -> void:
 	if spare_id != "":
 		# Wreck every slot inside the spare's OWN snapshot so its fleet totals
 		# read 0% (a clearly different line than the piloted mech's 84%).
-		for i in range(GlobalData.hangar_mechs.size()):
-			if str(GlobalData.hangar_mechs[i].get("id", "")) == spare_id:
+		for i in range(GlobalData.hangar.hangar_mechs.size()):
+			if str(GlobalData.hangar.hangar_mechs[i].get("id", "")) == spare_id:
 				var spare_damage: Dictionary = {}
 				for slot in GlobalData.MECHA_SLOTS:
 					spare_damage[slot] = 1.0
 					spare_damage[slot + "_frame"] = 1.0
-				GlobalData.hangar_mechs[i]["damage"] = spare_damage
+				GlobalData.hangar.hangar_mechs[i]["damage"] = spare_damage
 				break
 		GlobalData.save_run()
 	var fleet_text: String = intermission._build_mech_status_text()
@@ -105,7 +105,7 @@ func _ready() -> void:
 	_check(fleet_text.contains("FRAME: 0% (0/"), "fleet readout reflects the wrecked spare's frame")
 
 	# Mechless: pressing status must NOT crash and shows a notice instead of bars.
-	GlobalData.mech_less = true
+	GlobalData.narrative.mech_less = true
 	intermission._on_status_pressed()
 	await get_tree().process_frame
 	_check(intermission.current_view == "status", "Mech Status works while on foot")

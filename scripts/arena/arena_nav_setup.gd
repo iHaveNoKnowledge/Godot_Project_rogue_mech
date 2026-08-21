@@ -48,7 +48,7 @@ func _setup_navigation() -> void:
 	else:
 		var floor_mesh = MeshInstance3D.new()
 		var box = BoxMesh.new()
-		var arena_size := GlobalData.current_arena_size
+		var arena_size := GlobalData.board.current_arena_size
 		box.size = Vector3(arena_size * 0.49, 0.1, arena_size * 0.49)  # Slightly smaller than arena
 		floor_mesh.mesh = box
 		floor_mesh.position.y = 0.05

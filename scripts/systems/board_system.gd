@@ -10,33 +10,33 @@ extends RefCounted
 
 
 static func get_objective() -> Dictionary:
-	return BoardConfig.get_objective(GlobalData.board_theme_id)
+	return BoardConfig.get_objective(GlobalData.board.board_theme_id)
 
 
 static func is_objective_complete() -> bool:
 	var obj := get_objective()
-	return GlobalData.board_objective_progress >= int(obj.get("required", 1))
+	return GlobalData.board.board_objective_progress >= int(obj.get("required", 1))
 
 
 static func add_progress(amount: int) -> int:
-	GlobalData.board_objective_progress = clampi(
-		GlobalData.board_objective_progress + amount,
+	GlobalData.board.board_objective_progress = clampi(
+		GlobalData.board.board_objective_progress + amount,
 		0,
 		int(get_objective()["required"])
 	)
-	return GlobalData.board_objective_progress
+	return GlobalData.board.board_objective_progress
 
 
 static func complete() -> void:
-	GlobalData.board_objective_progress = int(get_objective()["required"])
+	GlobalData.board.board_objective_progress = int(get_objective()["required"])
 
 
 static func progress_text() -> String:
 	var obj := get_objective()
 	return "%s: %d / %d" % [
 		str(obj.get("name", "Objective")),
-		GlobalData.board_objective_progress,
-		GlobalData.board_objective_required
+		GlobalData.board.board_objective_progress,
+		GlobalData.board.board_objective_required
 	]
 
 

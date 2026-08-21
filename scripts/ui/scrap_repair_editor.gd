@@ -578,7 +578,7 @@ func _on_slot_button_pressed(slot: String) -> void:
 func _select_slot(slot: String) -> void:
 	selected_slot = slot
 	_clear_live_primitives()
-	var patch: Dictionary = GlobalData.scrap_patches.get(slot, {})
+	var patch: Dictionary = GlobalData.weapons.scrap_patches.get(slot, {})
 	if not patch.is_empty():
 		var existing: Array = patch.get("primitives", [])
 		if existing is Array:
@@ -873,7 +873,7 @@ func _on_apply_pressed() -> void:
 	])
 	_refresh_slot_list()
 	if selected_slot != "" and GlobalData.has_scrap_patch(selected_slot):
-		var patch_data: Dictionary = GlobalData.scrap_patches.get(selected_slot, {})
+		var patch_data: Dictionary = GlobalData.weapons.scrap_patches.get(selected_slot, {})
 		editing_primitives[selected_slot] = patch_data.get("primitives", [])
 		selected_primitive_index = 0 if not editing_primitives[selected_slot].is_empty() else -1
 	_rebuild_primitive_label()
@@ -886,7 +886,7 @@ func _update_status(message: String = "") -> void:
 		return
 	if selected_slot == "":
 		status_label.text = "Scrap: %d | Repair skill: %d (XP %d)" % [
-			GlobalData.scrap, GlobalData.driver_repair_skill, GlobalData.driver_repair_xp,
+			GlobalData.currency.scrap, GlobalData.driver_repair_skill, GlobalData.driver_repair_xp,
 		]
 		apply_button.text = "Apply Repair"
 		apply_button.disabled = true
@@ -898,9 +898,9 @@ func _update_status(message: String = "") -> void:
 	slot_info_label.text = "%s: %d scrap to patch" % [name, cost]
 	var primitives: Array = editing_primitives.get(selected_slot, [])
 	apply_button.text = "Apply Repair (%d scrap)" % cost
-	apply_button.disabled = GlobalData.scrap < cost or primitives.is_empty()
+	apply_button.disabled = GlobalData.currency.scrap < cost or primitives.is_empty()
 	status_label.text = "Scrap: %d | Repair skill: %d (XP %d)" % [
-		GlobalData.scrap, GlobalData.driver_repair_skill, GlobalData.driver_repair_xp,
+		GlobalData.currency.scrap, GlobalData.driver_repair_skill, GlobalData.driver_repair_xp,
 	]
 
 

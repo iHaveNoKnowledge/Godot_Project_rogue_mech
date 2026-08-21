@@ -10,7 +10,7 @@ const PilotGenerator = preload("res://scripts/systems/pilot_generator.gd")
 # day (EventBus.board_day_ended) they move one cell. Stepping onto a patrol
 # cell (or letting one step onto you) forces combat.
 #
-# State lives in GlobalData.board_patrols (Array of Dictionaries) so it survives
+# State lives in GlobalData.board.board_patrols (Array of Dictionaries) so it survives
 # scene changes and save/load. Each entry:
 #   {id, pos: Vector2i, home: Vector2i, name, grunts, aces, aggro: bool,
 #    faction: "hostile" | "unknown", character_id: String}
@@ -65,43 +65,43 @@ static func normalize_patrol(p: Dictionary) -> void:
 		var arch_str: String = str(p.get("archetype", "armored"))
 		p["commander"] = PilotGenerator.generate_pilot({
 			"archetype": BoardConfig.FLEET_ARCHETYPES.get(arch_str, {}).get("mp", 1),
-			"level": GlobalData.current_sector,
+			"level": GlobalData.board.current_sector,
 		})
 
 
 static func has_patrols() -> bool:
-	return not GlobalData.board_patrols.is_empty()
+	return not GlobalData.board.board_patrols.is_empty()
 
 
 static func get_patrol_at(pos: Vector2i) -> Dictionary:
-	for p in GlobalData.board_patrols:
+	for p in GlobalData.board.board_patrols:
 		if p.get("pos") == pos:
 			return p
 	return {}
 
 
 static func get_patrol_by_id(id: int) -> Dictionary:
-	for p in GlobalData.board_patrols:
+	for p in GlobalData.board.board_patrols:
 		if int(p.get("id", -1)) == id:
 			return p
 	return {}
 
 
 static func remove_patrol(id: int) -> void:
-	for i in range(GlobalData.board_patrols.size() - 1, -1, -1):
-		if int(GlobalData.board_patrols[i].get("id", -1)) == id:
-			GlobalData.board_patrols.remove_at(i)
+	for i in range(GlobalData.board.board_patrols.size() - 1, -1, -1):
+		if int(GlobalData.board.board_patrols[i].get("id", -1)) == id:
+			GlobalData.board.board_patrols.remove_at(i)
 			return
 
 
 # Spawns patrol fleets on the freshly generated board. Called by the board
 # manager after generation (only when no fleets exist yet for this sector).
 static func spawn_patrols() -> void:
-	if not GlobalData.board_patrols.is_empty():
+	if not GlobalData.board.board_patrols.is_empty():
 		return
 	var rng := RandomNumberGenerator.new()
-	rng.seed = GlobalData.board_seed + 7919
-	var theme := GlobalData.board_theme_id
+	rng.seed = GlobalData.board.board_seed + 7919
+	var theme := GlobalData.board.board_theme_id
 	var count: int
 	match theme:
 		"urban":
@@ -120,7 +120,7 @@ static func spawn_patrols() -> void:
 
 	var grid_size := BoardConfig.GRID_SIZE
 	var nodes: Dictionary = {}
-	var grid: Array = GlobalData.board_grid
+	var grid: Array = GlobalData.board.board_grid
 	if not grid.is_empty() and grid[0] is Dictionary:
 		nodes = grid[0]
 
@@ -139,11 +139,11 @@ static func spawn_patrols() -> void:
 	for i in range(mini(count, candidate.size())):
 		var home: Vector2i = candidate[i]
 		var grunts := rng.randi_range(GRUNT_MIN, GRUNT_MAX)
-		var aces := 1 if (rng.randf() < 0.30 and GlobalData.current_sector >= 2) else 0
+		var aces := 1 if (rng.randf() < 0.30 and GlobalData.board.current_sector >= 2) else 0
 
 		# Pick Fleet Archetype (GDD §3.3)
 		var archetype := ""
-		if aces > 0 or (GlobalData.wanted_level >= 3 and rng.randf() < 0.4):
+		if aces > 0 or (GlobalData.board.wanted_level >= 3 and rng.randf() < 0.4):
 			archetype = "hunter_killer"
 			aces = 1
 		else:
@@ -159,14 +159,14 @@ static func spawn_patrols() -> void:
 
 		var commander: Dictionary = PilotGenerator.generate_pilot({
 			"archetype": BoardConfig.FLEET_ARCHETYPES.get(archetype, {}).get("mp", 1),
-			"level": GlobalData.current_sector,
+			"level": GlobalData.board.current_sector,
 		})
 		commander["rivalry_count"] = 0
 		commander["escapes"] = 0
 		commander["is_nemesis"] = false
-		commander["bounty"] = 120 + (GlobalData.current_sector * 50) + (100 if aces > 0 else 0)
+		commander["bounty"] = 120 + (GlobalData.board.current_sector * 50) + (100 if aces > 0 else 0)
 
-		GlobalData.board_patrols.append({
+		GlobalData.board.board_patrols.append({
 			"id": id,
 			"pos": home,
 			"home": home,
@@ -201,11 +201,11 @@ static func _pick_recruitable_pilot() -> String:
 		if not RecruitSystem.is_character_available(cid):
 			continue
 		var min_sector: int = int(character.get("min_sector", 1))
-		if GlobalData.current_sector < min_sector:
+		if GlobalData.board.current_sector < min_sector:
 			continue
 		var w: int = int(character.get("weight", 6))
 		var themes: Array = character.get("themes", [])
-		if GlobalData.board_theme_id in themes:
+		if GlobalData.board.board_theme_id in themes:
 			w = int(w * 1.5)
 		for i in range(w):
 			weighted_pool.append(cid)
@@ -218,20 +218,20 @@ static func _pick_recruitable_pilot() -> String:
 # the position of a fleet that just moved onto the player (for an ambush), or (-1,-1).
 static func advance_day(player_pos: Vector2i) -> Vector2i:
 	var rng := RandomNumberGenerator.new()
-	rng.seed = GlobalData.board_day * 101 + GlobalData.board_seed
+	rng.seed = GlobalData.board.board_day * 101 + GlobalData.board.board_seed
 	var nodes: Dictionary = {}
-	var grid: Array = GlobalData.board_grid
+	var grid: Array = GlobalData.board.board_grid
 	if not grid.is_empty() and grid[0] is Dictionary:
 		nodes = grid[0]
 
 	var occupied: Dictionary = {}
-	for p in GlobalData.board_patrols:
+	for p in GlobalData.board.board_patrols:
 		occupied[p.get("pos")] = true
 
-	var detect := DETECT_BASE + clampi(GlobalData.patrol_alert, 0, ALERT_MAX)
+	var detect := DETECT_BASE + clampi(GlobalData.board.patrol_alert, 0, ALERT_MAX)
 	var saw_player := false
 	var ambush := Vector2i(-1, -1)
-	for p in GlobalData.board_patrols:
+	for p in GlobalData.board.board_patrols:
 		# Heal entries loaded from older saves before reading their fields.
 		normalize_patrol(p)
 		var cur: Vector2i = p.get("pos")
@@ -248,7 +248,7 @@ static func advance_day(player_pos: Vector2i) -> Vector2i:
 			p["aggro"] = true
 			# Remember exactly where the convoy was spotted so fleets out of
 			# sight still converge on that tile (reactive pursuit).
-			GlobalData.patrol_last_seen = player_pos
+			GlobalData.board.patrol_last_seen = player_pos
 			saw_player = true
 		elif p.get("aggro", false) and dist > detect + 3:
 			p["aggro"] = false
@@ -260,18 +260,18 @@ static func advance_day(player_pos: Vector2i) -> Vector2i:
 			var next := cur
 			if is_vagrant:
 				# The Leading Shadow: Predicts player trajectory and steps 1 tile ahead on player's heading
-				var p_dir: Vector2i = GlobalData.player_last_dir if GlobalData.player_last_dir != Vector2i.ZERO else Vector2i(1, 0)
+				var p_dir: Vector2i = GlobalData.board.player_last_dir if GlobalData.board.player_last_dir != Vector2i.ZERO else Vector2i(1, 0)
 				var lead_target := player_pos + p_dir
 				if not nodes.has(lead_target) or not BoardConfig.is_passable(nodes[lead_target].get_meta("terrain", "plain")):
 					lead_target = player_pos + Vector2i(p_dir.y, p_dir.x)
 				next = _step_toward(cur, lead_target, nodes, occupied, rng)
 			elif p.get("aggro", false):
 				next = _step_toward(cur, player_pos, nodes, occupied, rng)
-			elif not is_unknown and GlobalData.patrol_last_seen != Vector2i(-1, -1) \
+			elif not is_unknown and GlobalData.board.patrol_last_seen != Vector2i(-1, -1) \
 					and rng.randf() < 0.7:
 				# A fleet that lost visual still has the convoy's last heading: step
 				# toward the trail instead of wandering back to its anchor.
-				next = _step_toward(cur, GlobalData.patrol_last_seen, nodes, occupied, rng)
+				next = _step_toward(cur, GlobalData.board.patrol_last_seen, nodes, occupied, rng)
 			elif rng.randf() < 0.6:
 				next = _wander(cur, home, nodes, occupied, rng)
 
@@ -290,16 +290,16 @@ static func advance_day(player_pos: Vector2i) -> Vector2i:
 	# The convoy is a moving target: force escalation climbs while a hostile
 	# fleet keeps visual and cools back down once the player relocates.
 	if saw_player:
-		GlobalData.patrol_alert = mini(GlobalData.patrol_alert + 1, ALERT_MAX)
+		GlobalData.board.patrol_alert = mini(GlobalData.board.patrol_alert + 1, ALERT_MAX)
 	else:
-		GlobalData.patrol_alert = maxi(GlobalData.patrol_alert - 1, 0)
+		GlobalData.board.patrol_alert = maxi(GlobalData.board.patrol_alert - 1, 0)
 	return ambush
 
 
 # Checks if any hostile Artillery fleet is within Bombardment Range of player_pos (GDD §3.3)
 static func check_artillery_bombardment(player_pos: Vector2i) -> Array[Dictionary]:
 	var bombarding_fleets: Array[Dictionary] = []
-	for p in GlobalData.board_patrols:
+	for p in GlobalData.board.board_patrols:
 		if str(p.get("faction", "hostile")) == "unknown":
 			continue
 		var archetype: String = str(p.get("archetype", ""))
@@ -314,7 +314,7 @@ static func check_artillery_bombardment(player_pos: Vector2i) -> Array[Dictionar
 
 # Zone of Control (ZoC): true if player_pos is directly adjacent (distance 1) to any hostile fleet.
 static func is_in_zone_of_control(target_pos: Vector2i) -> bool:
-	for p in GlobalData.board_patrols:
+	for p in GlobalData.board.board_patrols:
 		if str(p.get("faction", "hostile")) == "unknown":
 			continue
 		var p_pos: Vector2i = p.get("pos", Vector2i(-1, -1))
@@ -331,12 +331,12 @@ static func _manhattan(a: Vector2i, b: Vector2i) -> int:
 # convoy marks it as the last-known position (reactive pursuit keeps converging
 # on that tile even after the player moves on).
 static func record_spotting(pos: Vector2i) -> void:
-	var detect := DETECT_BASE + clampi(GlobalData.patrol_alert, 0, ALERT_MAX)
-	for p in GlobalData.board_patrols:
+	var detect := DETECT_BASE + clampi(GlobalData.board.patrol_alert, 0, ALERT_MAX)
+	for p in GlobalData.board.board_patrols:
 		if str(p.get("faction", "hostile")) == "unknown":
 			continue
 		if _manhattan(p.get("pos", Vector2i(-1, -1)), pos) <= detect:
-			GlobalData.patrol_last_seen = pos
+			GlobalData.board.patrol_last_seen = pos
 			return
 
 
@@ -345,7 +345,7 @@ static func record_spotting(pos: Vector2i) -> void:
 # ambushes are evaluated against this goal.
 static func _objective_anchor() -> Vector2i:
 	var obj := BoardSystem.get_objective()
-	if str(obj.get("id", "")) == "hq_strike" and GlobalData.enemy_base_active:
+	if str(obj.get("id", "")) == "hq_strike" and GlobalData.narrative.enemy_base_active:
 		return GlobalData.enemy_base_tile_pos
 	var g := BoardConfig.GRID_SIZE
 	return Vector2i(g - 1, g - 1)
@@ -358,7 +358,7 @@ static func interception_surcharge(player_pos: Vector2i, target: Vector2i) -> in
 	var anchor := _objective_anchor()
 	if anchor == Vector2i(-1, -1):
 		return 0
-	for p in GlobalData.board_patrols:
+	for p in GlobalData.board.board_patrols:
 		if str(p.get("faction", "hostile")) == "unknown":
 			continue
 		var patrol_pos: Vector2i = p.get("pos")
@@ -422,11 +422,11 @@ static func _wander(cur: Vector2i, home: Vector2i, nodes: Dictionary, occupied: 
 
 # The active combat was a patrol encounter; resolve it.
 static func resolve_patrol_combat(victory: bool) -> void:
-	var id := GlobalData.board_patrol_engagement
+	var id := GlobalData.board.board_patrol_engagement
 	if id < 0:
 		return
 	var p := get_patrol_by_id(id)
-	GlobalData.board_patrol_engagement = -1
+	GlobalData.board.board_patrol_engagement = -1
 
 	if p.is_empty():
 		return
@@ -438,12 +438,12 @@ static func resolve_patrol_combat(victory: bool) -> void:
 		if not commander.is_empty():
 			GlobalData.defeated_rivals.append(commander)
 			var bounty := int(commander.get("bounty", 150))
-			GlobalData.credits += bounty
-			GlobalData.run_notice = "RIVAL ELIMINATED: %s [%s] was defeated in battle!\nBounty Claimed: +%d Credits." % [
+			GlobalData.currency.credits += bounty
+			GlobalData.board.run_notice = "RIVAL ELIMINATED: %s [%s] was defeated in battle!\nBounty Claimed: +%d Credits." % [
 				commander.get("name", "Enemy Commander"), str(p.get("archetype", "fleet")).to_upper(), bounty
 			]
 		else:
-			GlobalData.run_notice = "Patrol %s wiped out! The route ahead is safer." % p.get("name", "fleet")
+			GlobalData.board.run_notice = "Patrol %s wiped out! The route ahead is safer." % p.get("name", "fleet")
 		BoardSystem.add_progress(1)
 	else:
 		# Player retreated / escaped: rival commander survived!
@@ -453,6 +453,6 @@ static func resolve_patrol_combat(victory: bool) -> void:
 			commander["is_nemesis"] = true
 			commander["bounty"] = int(commander.get("bounty", 150)) + 100
 			GlobalData.rival_pilots.append(commander)
-			GlobalData.run_notice = "RIVAL SURVIVED: Commander %s remembers this retreat.\nRivalry escalated to Rank %d (Bounty: %d Cr)!" % [
+			GlobalData.board.run_notice = "RIVAL SURVIVED: Commander %s remembers this retreat.\nRivalry escalated to Rank %d (Bounty: %d Cr)!" % [
 				commander.get("name", "Enemy Commander"), commander["rivalry_count"], commander["bounty"]
 			]

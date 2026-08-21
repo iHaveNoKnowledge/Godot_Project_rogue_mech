@@ -38,7 +38,7 @@ func _ready() -> void:
 	var arena_script = preload("res://scripts/arena/arena_generator.gd")
 	var arena := arena_script.new()
 	for theme_id in ["suburb", "desert", "forest", "urban"]:
-		GlobalData.board_theme_id = theme_id
+		GlobalData.board.board_theme_id = theme_id
 		var biome = arena._theme_from_board()
 		var biome_name: String = arena_script.BiomeTheme.keys()[biome]
 		_check(biome_name == BoardConfig.THEME_ARENA[theme_id], "board %s -> arena %s" % [theme_id, biome_name])

@@ -215,25 +215,25 @@ func _verify_enemy_base_model() -> void:
 
 func _verify_patrol_dir() -> void:
 	GlobalData.reset_run_data()
-	GlobalData.current_sector = 1
-	GlobalData.board_seed = 4242
+	GlobalData.board.current_sector = 1
+	GlobalData.board.board_seed = 4242
 	var gen := preload("res://scripts/board/board_generator.gd").new()
 	gen.generate_board()
 	PatrolSystem.spawn_patrols()
 
 	var all_default := true
-	for p in GlobalData.board_patrols:
+	for p in GlobalData.board.board_patrols:
 		if p.get("dir", Vector2i.ZERO) != Vector2i(1, 0):
 			all_default = false
 	_check(all_default, "patrols spawn with a default east heading")
 
 	# Whatever a fleet moves this day, its heading must match the displacement.
 	var before: Dictionary = {}
-	for p in GlobalData.board_patrols:
+	for p in GlobalData.board.board_patrols:
 		before[p.get("id")] = p.get("pos")
 	PatrolSystem.advance_day(Vector2i(0, 0))
 	var in_sync := true
-	for p in GlobalData.board_patrols:
+	for p in GlobalData.board.board_patrols:
 		var old: Vector2i = before.get(p.get("id"), p.get("pos"))
 		if old != p.get("pos") and p.get("dir") != p.get("pos") - old:
 			in_sync = false
@@ -246,7 +246,7 @@ func _verify_patrol_dir() -> void:
 	var round_tripped = JSON.parse_string(JSON.stringify(raw_save))
 	SaveGameIO.restore_from_dict({"board_patrols": round_tripped})
 	var all_vec := true
-	for p in GlobalData.board_patrols:
+	for p in GlobalData.board.board_patrols:
 		if not (p.get("pos") is Vector2i) or not (p.get("home") is Vector2i) or not (p.get("dir") is Vector2i):
 			all_vec = false
 	_check(all_vec, "patrol pos/home/dir round-trip through JSON as real Vector2i")

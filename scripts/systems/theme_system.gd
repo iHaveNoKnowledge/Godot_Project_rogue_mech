@@ -18,7 +18,7 @@ extends RefCounted
 
 static func get_run_theme() -> Dictionary:
 	for theme in GlobalData.run_themes:
-		if theme.get("id", "") == GlobalData.theme_id:
+		if theme.get("id", "") == GlobalData.narrative.theme_id:
 			return theme
 	return {}
 
@@ -34,9 +34,9 @@ static func get_theme_event_pool() -> Array:
 		if event.get("recovery_only", false):
 			continue
 		var themes = event.get("themes", [])
-		if themes is Array and not themes.is_empty() and not (GlobalData.theme_id in themes):
+		if themes is Array and not themes.is_empty() and not (GlobalData.narrative.theme_id in themes):
 			continue
-		if int(event.get("min_reputation", 0)) > GlobalData.reputation:
+		if int(event.get("min_reputation", 0)) > GlobalData.narrative.reputation:
 			continue
 		if str(event.get("id", "")) in forced:
 			continue
@@ -46,7 +46,7 @@ static func get_theme_event_pool() -> Array:
 		if event.is_empty():
 			continue
 		# Theme-forced events still respect the reputation gate.
-		if int(event.get("min_reputation", 0)) > GlobalData.reputation:
+		if int(event.get("min_reputation", 0)) > GlobalData.narrative.reputation:
 			continue
 		result.append(event)
 	return result
@@ -63,9 +63,9 @@ static func get_recovery_event_pool() -> Array:
 		if not params.get("recovery", false):
 			continue
 		var themes = event.get("themes", [])
-		if themes is Array and not themes.is_empty() and not (GlobalData.theme_id in themes):
+		if themes is Array and not themes.is_empty() and not (GlobalData.narrative.theme_id in themes):
 			continue
-		if int(event.get("min_reputation", 0)) > GlobalData.reputation:
+		if int(event.get("min_reputation", 0)) > GlobalData.narrative.reputation:
 			continue
 		result.append(event)
 	return result
@@ -107,16 +107,16 @@ static func get_theme_ending() -> Dictionary:
 
 # Adds a run theme to the current run (used by theme_switch events).
 static func switch_theme(new_theme_id: String) -> bool:
-	if not GlobalData.theme_switched:
-		GlobalData.theme_id = new_theme_id
-		GlobalData.theme_switched = true
+	if not GlobalData.narrative.theme_switched:
+		GlobalData.narrative.theme_id = new_theme_id
+		GlobalData.narrative.theme_switched = true
 		return true
 	return false
 
 
 # Adjusts run reputation and clamps it to a sane range.
 static func add_reputation(amount: int) -> void:
-	GlobalData.reputation = clampi(GlobalData.reputation + amount, -20, 100)
+	GlobalData.narrative.reputation = clampi(GlobalData.narrative.reputation + amount, -20, 100)
 
 
 # Applies a board event's effect immediately. Returns true when the event forced
@@ -128,10 +128,10 @@ static func apply_event_effect(event: Dictionary) -> bool:
 
 	match effect:
 		"credits":
-			GlobalData.credits += amount
+			GlobalData.currency.credits += amount
 			_apply_repair_params(params)
 		"scrap":
-			GlobalData.scrap += amount
+			GlobalData.currency.scrap += amount
 			_apply_repair_params(params)
 		"repair":
 			_apply_repair_params({"repair": amount if amount != 0 else float(params.get("repair", 0))})
@@ -144,20 +144,20 @@ static func apply_event_effect(event: Dictionary) -> bool:
 		"none":
 			pass
 		"data_cores":
-			GlobalData.data_cores += amount
+			GlobalData.currency.data_cores += amount
 		"damage":
-			if not GlobalData.equipped_parts.is_empty():
-				var keys = GlobalData.equipped_parts.keys()
+			if not GlobalData.weapons.equipped_parts.is_empty():
+				var keys = GlobalData.weapons.equipped_parts.keys()
 				var rand_part = keys[randi() % keys.size()]
-				var cur_dmg = GlobalData.part_damage.get(rand_part, 0.0)
-				GlobalData.part_damage[rand_part] = minf(cur_dmg + float(amount) / 100.0, 1.0)
+				var cur_dmg = GlobalData.weapons.part_damage.get(rand_part, 0.0)
+				GlobalData.weapons.part_damage[rand_part] = minf(cur_dmg + float(amount) / 100.0, 1.0)
 		"reputation":
 			add_reputation(amount)
 		"supply_drop":
-			GlobalData.credits += amount
-			GlobalData.scrap += int(params.get("scrap", 0))
+			GlobalData.currency.credits += amount
+			GlobalData.currency.scrap += int(params.get("scrap", 0))
 		"ceasefire":
-			GlobalData.ceasefire_turns = maxi(GlobalData.ceasefire_turns, int(params.get("turns", amount)))
+			GlobalData.narrative.ceasefire_turns = maxi(GlobalData.narrative.ceasefire_turns, int(params.get("turns", amount)))
 		"add_ally":
 			FleetSystem.add_ally_unit(str(params.get("unit_id", "")))
 		"recruit_ally":
@@ -171,10 +171,10 @@ static func apply_event_effect(event: Dictionary) -> bool:
 			var cid := str(params.get("character_id", ""))
 			if RecruitSystem.is_character_available(cid):
 				RecruitSystem.recruit(cid)
-				PatrolSystem.remove_patrol(GlobalData.board_patrol_engagement)
+				PatrolSystem.remove_patrol(GlobalData.board.board_patrol_engagement)
 				if BoardSystem.get_objective().get("id", "") == "patrol_hunt":
 					BoardSystem.add_progress(1)
-			GlobalData.board_patrol_engagement = -1
+			GlobalData.board.board_patrol_engagement = -1
 		"duel":
 			# The player challenged a pilot: record the 1v1 duel and force the
 			# scene transition into the "duel" combat node.
@@ -182,19 +182,19 @@ static func apply_event_effect(event: Dictionary) -> bool:
 				return true
 			return false
 		"heat_bonus":
-			GlobalData.heat = maxi(0, GlobalData.heat + int(params.get("heat", amount)))
+			GlobalData.board.heat = maxi(0, GlobalData.board.heat + int(params.get("heat", amount)))
 		"theme_switch":
 			return switch_theme(str(params.get("theme_id", "")))
 		"force_combat":
-			GlobalData.blocked_intermission = true
+			GlobalData.narrative.blocked_intermission = true
 			return true
 		"dead_end_clear":
 			# The player pays MP up front to demolish a dead end's rubble; the
 			# board manager opens the path and advances the day when the popup
 			# closes (the work eats the rest of the day).
-			GlobalData.board_mp = maxi(GlobalData.board_mp - amount, 0)
+			GlobalData.board.board_mp = maxi(GlobalData.board.board_mp - amount, 0)
 			var clear_pos: Dictionary = params.get("pos", {})
-			GlobalData.pending_tile_clear = Vector2i(int(clear_pos.get("x", -1)), int(clear_pos.get("y", -1)))
+			GlobalData.board.pending_tile_clear = Vector2i(int(clear_pos.get("x", -1)), int(clear_pos.get("y", -1)))
 		"choice":
 			# Choices are resolved by the event UI; nothing to apply here.
 			pass
@@ -210,38 +210,38 @@ static func apply_event_effect(event: Dictionary) -> bool:
 				bm._trigger_wreckage_siphon()
 		"depot_precise":
 			# Fuel depot: precise approach — full fuel reward after combat.
-			GlobalData.fuel_depot_approach = "precise"
+			GlobalData.fuel.fuel_depot_approach = "precise"
 			var bm = Engine.get_main_loop().current_scene if Engine.get_main_loop() else null
 			if bm and bm.has_method("_request_combat"):
 				bm._request_combat("fuel_depot")
 		"depot_heavy":
 			# Fuel depot: heavy approach — reduced fuel reward after combat.
-			GlobalData.fuel_depot_approach = "heavy"
+			GlobalData.fuel.fuel_depot_approach = "heavy"
 			var bm = Engine.get_main_loop().current_scene if Engine.get_main_loop() else null
 			if bm and bm.has_method("_request_combat"):
 				bm._request_combat("fuel_depot")
 		"distress_help":
 			# Distress Signal: player chose to respond. Costs energy, may gain reward.
 			var cost := int(params.get("energy_cost", 30))
-			GlobalData.mech_energy = maxf(GlobalData.mech_energy - float(cost), 0.0)
+			GlobalData.fuel.mech_energy = maxf(GlobalData.fuel.mech_energy - float(cost), 0.0)
 			# Roll for reward: 60% chance of scrap/credits, 40% nothing useful.
 			var roll := randf()
 			if roll < 0.35:
 				var scrap_gain := randi_range(15, 30)
-				GlobalData.scrap += scrap_gain
-				GlobalData.run_notice = "Responded to distress signal. Spent %d energy. Salvaged %d scrap." % [cost, scrap_gain]
+				GlobalData.currency.scrap += scrap_gain
+				GlobalData.board.run_notice = "Responded to distress signal. Spent %d energy. Salvaged %d scrap." % [cost, scrap_gain]
 			elif roll < 0.55:
 				var cred_gain := randi_range(40, 80)
-				GlobalData.credits += cred_gain
-				GlobalData.run_notice = "Responded to distress signal. Spent %d energy. Found %d credits." % [cost, cred_gain]
+				GlobalData.currency.credits += cred_gain
+				GlobalData.board.run_notice = "Responded to distress signal. Spent %d energy. Found %d credits." % [cost, cred_gain]
 			elif roll < 0.65:
-				GlobalData.data_cores += 1
-				GlobalData.run_notice = "Responded to distress signal. Spent %d energy. Recovered 1 data core." % cost
+				GlobalData.currency.data_cores += 1
+				GlobalData.board.run_notice = "Responded to distress signal. Spent %d energy. Recovered 1 data core." % cost
 			else:
-				GlobalData.run_notice = "Responded to distress signal. Spent %d energy. Nothing useful found." % cost
+				GlobalData.board.run_notice = "Responded to distress signal. Spent %d energy. Nothing useful found." % cost
 		"distress_ignore":
 			# Distress Signal: player chose to ignore. Safe, no reward.
-			GlobalData.run_notice = "Ignored the distress signal. The convoy presses on."
+			GlobalData.board.run_notice = "Ignored the distress signal. The convoy presses on."
 		"scavenge_explore":
 			# Scavenge Risk: pilot explores wreckage on foot.
 			# Roll: 50% success (find loot), 30% drone ambush, 20% nothing.
@@ -251,25 +251,25 @@ static func apply_event_effect(event: Dictionary) -> bool:
 				var loot_roll := randf()
 				if loot_roll < 0.40:
 					var scrap_gain := randi_range(20, 40)
-					GlobalData.scrap += scrap_gain
-					GlobalData.run_notice = "Scavenged the wreckage successfully! Found %d scrap." % scrap_gain
+					GlobalData.currency.scrap += scrap_gain
+					GlobalData.board.run_notice = "Scavenged the wreckage successfully! Found %d scrap." % scrap_gain
 				elif loot_roll < 0.70:
-					GlobalData.credits += 50
-					GlobalData.run_notice = "Scavenged the wreckage successfully! Found 50 credits."
+					GlobalData.currency.credits += 50
+					GlobalData.board.run_notice = "Scavenged the wreckage successfully! Found 50 credits."
 				else:
-					GlobalData.data_cores += 2
-					GlobalData.run_notice = "Scavenged the wreckage successfully! Found 2 data cores."
+					GlobalData.currency.data_cores += 2
+					GlobalData.board.run_notice = "Scavenged the wreckage successfully! Found 2 data cores."
 			elif roll < 0.80:
 				# Drone ambush: force combat.
-				GlobalData.run_notice = "Scavenging triggered a drone ambush! Defend yourself!"
-				GlobalData.blocked_intermission = true
+				GlobalData.board.run_notice = "Scavenging triggered a drone ambush! Defend yourself!"
+				GlobalData.narrative.blocked_intermission = true
 				return true
 			else:
 				# Nothing found.
-				GlobalData.run_notice = "Searched the wreckage but found nothing useful."
+				GlobalData.board.run_notice = "Searched the wreckage but found nothing useful."
 		"scavenge_leave":
 			# Scavenge Risk: player chose to leave. Safe.
-			GlobalData.run_notice = "Left the wreckage alone. Not worth the risk."
+			GlobalData.board.run_notice = "Left the wreckage alone. Not worth the risk."
 		_:
 			push_warning("apply_event_effect: unknown effect '%s'" % effect)
 	return false
@@ -288,9 +288,9 @@ static func _apply_repair_params(params: Dictionary) -> void:
 	var repair := float(params.get("repair", 0))
 	if repair <= 0.0:
 		return
-	for key in GlobalData.part_damage:
-		var cur := float(GlobalData.part_damage[key])
-		GlobalData.part_damage[key] = maxf(cur - repair / 100.0, 0.0)
+	for key in GlobalData.weapons.part_damage:
+		var cur := float(GlobalData.weapons.part_damage[key])
+		GlobalData.weapons.part_damage[key] = maxf(cur - repair / 100.0, 0.0)
 
 
 # Rebuilds a walking chassis from convoy spares and ends pilot-only mode. If no
@@ -299,12 +299,12 @@ static func _apply_recover_mech(params: Dictionary) -> void:
 	var granted := HangarManager.grant_recovery_mech()
 	if granted.is_empty():
 		var fallback := int(params.get("fallback_scrap", 30))
-		GlobalData.scrap += fallback
-		GlobalData.run_notice = "The garage holds no usable chassis — your team strips it for %d scrap instead." % fallback
+		GlobalData.currency.scrap += fallback
+		GlobalData.board.run_notice = "The garage holds no usable chassis — your team strips it for %d scrap instead." % fallback
 		return
 	var heat := int(params.get("heat", 1))
-	GlobalData.heat = maxi(0, GlobalData.heat + heat)
-	GlobalData.run_notice = "Your mechanics rebuild a walking chassis from the convoy spares: %s is ready for combat." % str(granted.get("name", "Mech"))
+	GlobalData.board.heat = maxi(0, GlobalData.board.heat + heat)
+	GlobalData.board.run_notice = "Your mechanics rebuild a walking chassis from the convoy spares: %s is ready for combat." % str(granted.get("name", "Mech"))
 
 
 # A lone wanderer brings a spare chassis (ending pilot-only mode) and, when room
@@ -317,11 +317,11 @@ static func _apply_wanderer_join(_params: Dictionary) -> void:
 			escort = true
 			break
 	if granted.is_empty():
-		GlobalData.run_notice = "A lone wanderer offers an escort out of the sector — the convoy rides together."
+		GlobalData.board.run_notice = "A lone wanderer offers an escort out of the sector — the convoy rides together."
 	elif escort:
-		GlobalData.run_notice = "A lone wanderer joins the convoy, piloting a spare chassis and riding along as an escort."
+		GlobalData.board.run_notice = "A lone wanderer joins the convoy, piloting a spare chassis and riding along as an escort."
 	else:
-		GlobalData.run_notice = "A lone wanderer joins the convoy, piloting a spare chassis."
+		GlobalData.board.run_notice = "A lone wanderer joins the convoy, piloting a spare chassis."
 
 
 # A local crew offers to ride along: the first ally template the fleet does not
@@ -334,6 +334,6 @@ static func _apply_recover_escort(_params: Dictionary) -> void:
 			break
 	if joined:
 		add_reputation(1)
-		GlobalData.run_notice = "A local salvage crew rides along with the convoy. +1 reputation."
+		GlobalData.board.run_notice = "A local salvage crew rides along with the convoy. +1 reputation."
 	else:
-		GlobalData.run_notice = "The locals are already part of the convoy — they wish you luck."
+		GlobalData.board.run_notice = "The locals are already part of the convoy — they wish you luck."

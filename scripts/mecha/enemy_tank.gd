@@ -226,7 +226,7 @@ func disable_weapons() -> void:
 
 
 func _scale_by_wanted_level() -> void:
-	var wanted = GlobalData.wanted_level
+	var wanted = GlobalData.board.wanted_level
 	if wanted <= 0:
 		return
 	var scale_factor = 1.0 + (wanted * 0.15)

@@ -19,9 +19,9 @@ func _check(cond: bool, label: String) -> void:
 func _ready() -> void:
 	GlobalData.reset_run_data()
 	GameManager.current_state = GameManager.State.BOARD
-	GlobalData.board_mp = 5
-	GlobalData.mech_energy = 100.0
-	GlobalData.current_tile = Vector2i(0, 0)
+	GlobalData.board.board_mp = 5
+	GlobalData.fuel.mech_energy = 100.0
+	GlobalData.board.current_tile = Vector2i(0, 0)
 
 	var bm_script = preload("res://scripts/board/board_manager.gd")
 	var bm = Node3D.new()
@@ -62,7 +62,7 @@ func _ready() -> void:
 	var moved: bool = bm.move_to_tile(Vector2i(3, 0))
 	_check(moved, "move_to_tile succeeded for multi-tile movement")
 	_check(bm.current_pos == Vector2i(3, 0), "player token reached destination (3,0)")
-	_check(GlobalData.board_mp == 2, "MP correctly deducted from 5 to 2 (consumed 3 MP)")
+	_check(GlobalData.board.board_mp == 2, "MP correctly deducted from 5 to 2 (consumed 3 MP)")
 
 	# Test 3: Tactical badge readability on POI tile
 	var safehouse_tile = bm.nodes_dict[Vector2i(3, 0)]

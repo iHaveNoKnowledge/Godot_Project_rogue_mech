@@ -151,7 +151,7 @@ func _fist() -> WeaponPart:
 
 
 func _ready() -> void:
-	# Load the equipped loadout from the Hangar (GlobalData.weapon_loadout) so the
+	# Load the equipped loadout from the Hangar (GlobalData.weapons.weapon_loadout) so the
 	# battle mech carries the SAME weapons (hands + back) that were configured in the garage.
 	# An empty hand slot in the loadout means "unarmed" — kept as null.
 	left_hand = LoadoutSystem.get_equipped_weapon("left")
@@ -162,9 +162,9 @@ func _ready() -> void:
 	# leftover returns to the stash when combat ends.
 	battle_reserve = LoadoutSystem.get_loadout_ammo_dict()
 	# Per-model upgrade multipliers from the loadout instances (hands + pack).
-	_register_damage_mult(GlobalData.weapon_loadout.get("left", ""))
-	_register_damage_mult(GlobalData.weapon_loadout.get("right", ""))
-	var carry_refs = GlobalData.weapon_loadout.get("carry", [])
+	_register_damage_mult(GlobalData.weapons.weapon_loadout.get("left", ""))
+	_register_damage_mult(GlobalData.weapons.weapon_loadout.get("right", ""))
+	var carry_refs = GlobalData.weapons.weapon_loadout.get("carry", [])
 	if carry_refs is Array:
 		for ref in carry_refs:
 			_register_damage_mult(ref)
@@ -190,7 +190,7 @@ func _on_combat_ended(_victory: bool) -> void:
 		sync_loadout_to_global()
 
 
-# Writes the current hands + back-carry back into GlobalData.weapon_loadout so
+# Writes the current hands + back-carry back into GlobalData.weapons.weapon_loadout so
 # in-battle pickups and swaps survive into the next battle. Runs at combat end
 # (and after each commit/drop) since return_to_board() -> save_run() only saves
 # the state GlobalData holds at that moment.
@@ -203,7 +203,7 @@ func sync_loadout_to_global() -> void:
 	for weapon in carry:
 		if weapon:
 			carry_paths.append(weapon.resource_path)
-	GlobalData.weapon_loadout["carry"] = LoadoutSystem.resolve_carry_uids_for_sync(carry_paths)
+	GlobalData.weapons.weapon_loadout["carry"] = LoadoutSystem.resolve_carry_uids_for_sync(carry_paths)
 	# The mech's total weight now includes the loadout weapons, so a pickup/drop
 	# must re-trigger the live weight calculation (speed/turn) right away.
 	EventBus.weight_changed.emit(0.0)

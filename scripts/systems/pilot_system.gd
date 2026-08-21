@@ -163,7 +163,7 @@ static func get_max_hp() -> float:
 
 
 static func get_hp() -> float:
-	return clampf(float(GlobalData.pilot_hp), 0.0, get_max_hp())
+	return clampf(float(GlobalData.pilot.pilot_hp), 0.0, get_max_hp())
 
 
 # True while the pilot's HP is below full (needs healing).
@@ -173,7 +173,7 @@ static func is_injured() -> bool:
 
 # PERMANENT DEATH: a pilot whose HP reaches 0 is dead, not merely wounded.
 # Dead pilots cannot be healed and never fight again. This is the SAME rule
-# for both sides — the player pilot (GlobalData.pilot_hp) and every ejected
+# for both sides — the player pilot (GlobalData.pilot.pilot_hp) and every ejected
 # enemy pilot (their own HP pool) — so getting shot can end a pilot for good
 # instead of the player always ejecting and fleeing.
 static func is_dead() -> bool:
@@ -190,7 +190,7 @@ static func heal(amount: float) -> float:
 		restored = get_max_hp() - get_hp()
 	else:
 		restored = minf(amount, get_max_hp() - get_hp())
-	GlobalData.pilot_hp = get_hp() + restored
+	GlobalData.pilot.pilot_hp = get_hp() + restored
 	return restored
 
 
@@ -198,13 +198,13 @@ static func take_damage(amount: float) -> float:
 	if amount <= 0.0:
 		return 0.0
 	var before := get_hp()
-	GlobalData.pilot_hp = maxf(before - amount, 0.0)
+	GlobalData.pilot.pilot_hp = maxf(before - amount, 0.0)
 	return before - get_hp()
 
 
 # Instantly kills the pilot (HP to 0).
 static func kill() -> void:
-	GlobalData.pilot_hp = 0.0
+	GlobalData.pilot.pilot_hp = 0.0
 
 
 # The pilot ejects from a destroyed mech: they take eject damage. Wounded
@@ -345,7 +345,7 @@ static func buy_ammo(ammo_type: String, amount: int) -> int:
 	if amount <= 0 or not AMMO_PRICES.has(ammo_type):
 		return 0
 	var price := get_ammo_price(ammo_type)
-	var affordable := int(GlobalData.credits / price)
+	var affordable := int(GlobalData.currency.credits / price)
 	var bought := mini(amount, affordable)
 	if bought <= 0:
 		return 0
@@ -373,8 +373,8 @@ static func record_pilot_permadeath(pilot_name: String, cause: String = "Killed 
 	var entry := {
 		"name": pilot_name,
 		"cause": cause,
-		"day": GlobalData.board_day,
-		"sector": GlobalData.current_sector,
+		"day": GlobalData.board.board_day,
+		"sector": GlobalData.board.current_sector,
 		"time": Time.get_datetime_string_from_system(),
 	}
 	GlobalData.fallen_pilots.append(entry)

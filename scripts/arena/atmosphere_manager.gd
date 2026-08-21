@@ -123,7 +123,7 @@ func _add_theme_ambient_lights(theme: int) -> void:
 
 
 func _apply_hazard_overlay() -> void:
-	var hazard := GlobalData.current_hazard
+	var hazard := GlobalData.board.current_hazard
 	if hazard == "":
 		return
 	var world_env = get_node_or_null("../WorldEnvironment")

@@ -23,8 +23,8 @@ func _check(cond: bool, name: String) -> void:
 
 func _ready() -> void:
 	GlobalData.reset_run_data()
-	GlobalData.current_sector = 1
-	GlobalData.board_seed = 12345
+	GlobalData.board.current_sector = 1
+	GlobalData.board.board_seed = 12345
 
 	# --- generator produces a full connected grid ---
 	var gen := preload("res://scripts/board/board_generator.gd").new()
@@ -78,40 +78,40 @@ func _ready() -> void:
 
 	# --- objective wiring ---
 	# Simulate sector-1 objective directly.
-	GlobalData.board_theme_id = "suburb"
+	GlobalData.board.board_theme_id = "suburb"
 	var obj := BoardSystem.get_objective()
 	_check(obj.get("id", "") == "patrol_hunt", "suburb objective = patrol_hunt")
-	_check(GlobalData.board_objective_required == int(obj.get("required", 3)), "objective required synced")
+	_check(GlobalData.board.board_objective_required == int(obj.get("required", 3)), "objective required synced")
 	BoardSystem.add_progress(1)
 	BoardSystem.add_progress(1)
-	_check(GlobalData.board_objective_progress == 2, "progress accumulates")
+	_check(GlobalData.board.board_objective_progress == 2, "progress accumulates")
 	_check(not BoardSystem.is_objective_complete(), "not complete at 2/3")
 	BoardSystem.add_progress(1)
 	_check(BoardSystem.is_objective_complete(), "complete at 3/3")
 
 	# --- desert survey objective ---
-	GlobalData.board_theme_id = "desert"
-	GlobalData.current_sector = 2
-	GlobalData.board_objective_id = BoardSystem.get_objective()["id"]
-	GlobalData.board_objective_progress = 0
-	GlobalData.board_objective_required = BoardSystem.get_objective()["required"]
-	_check(GlobalData.board_objective_id == "survey", "desert objective = survey")
-	GlobalData.board_objective_progress = 6
+	GlobalData.board.board_theme_id = "desert"
+	GlobalData.board.current_sector = 2
+	GlobalData.board.board_objective_id = BoardSystem.get_objective()["id"]
+	GlobalData.board.board_objective_progress = 0
+	GlobalData.board.board_objective_required = BoardSystem.get_objective()["required"]
+	_check(GlobalData.board.board_objective_id == "survey", "desert objective = survey")
+	GlobalData.board.board_objective_progress = 6
 	_check(BoardSystem.is_objective_complete(), "survey complete at 6 tiles")
 
 	# --- patrol flow ---
 	GlobalData.reset_run_data()
-	GlobalData.current_sector = 1
-	GlobalData.board_seed = 999
+	GlobalData.board.current_sector = 1
+	GlobalData.board.board_seed = 999
 	var gen2 := preload("res://scripts/board/board_generator.gd").new()
 	gen2.generate_board()
 	PatrolSystem.spawn_patrols()
 	_check(PatrolSystem.has_patrols(), "patrols spawned for sector 1")
 
 	var first_id := -1
-	for p in GlobalData.board_patrols:
+	for p in GlobalData.board.board_patrols:
 		first_id = int(p.get("id", -1))
-		_check(BoardConfig.is_passable(GlobalData.board_grid[0][p.get("pos")].get_meta("terrain", "plain")), "patrol spawns on walkable cell")
+		_check(BoardConfig.is_passable(GlobalData.board.board_grid[0][p.get("pos")].get_meta("terrain", "plain")), "patrol spawns on walkable cell")
 		break
 	_check(first_id != -1, "a patrol was registered with an id")
 
@@ -119,19 +119,19 @@ func _ready() -> void:
 	# the player spawn).
 	var ambush := PatrolSystem.advance_day(Vector2i(0, 0))
 	_check(ambush != Vector2i(-1, -1) or PatrolSystem.has_patrols(), "advance_day ran safely")
-	for p in GlobalData.board_patrols:
-		_check(BoardConfig.is_passable(GlobalData.board_grid[0][p.get("pos")].get_meta("terrain", "plain")), "patrols stay on walkable cells")
+	for p in GlobalData.board.board_patrols:
+		_check(BoardConfig.is_passable(GlobalData.board.board_grid[0][p.get("pos")].get_meta("terrain", "plain")), "patrols stay on walkable cells")
 
 	# --- patrol resolve: winning removes the fleet + adds objective progress ---
-	GlobalData.board_theme_id = "suburb"
-	GlobalData.board_objective_id = "patrol_hunt"
-	GlobalData.board_objective_progress = 0
-	GlobalData.board_objective_required = 3
-	GlobalData.board_patrol_engagement = first_id
+	GlobalData.board.board_theme_id = "suburb"
+	GlobalData.board.board_objective_id = "patrol_hunt"
+	GlobalData.board.board_objective_progress = 0
+	GlobalData.board.board_objective_required = 3
+	GlobalData.board.board_patrol_engagement = first_id
 	PatrolSystem.resolve_patrol_combat(true)
 	_check(PatrolSystem.get_patrol_by_id(first_id).is_empty(), "winning removes the patrol fleet")
-	_check(GlobalData.board_patrol_engagement == -1, "engagement cleared after resolve")
-	_check(GlobalData.board_objective_progress == 1, "patrol destroy advances objective")
+	_check(GlobalData.board.board_patrol_engagement == -1, "engagement cleared after resolve")
+	_check(GlobalData.board.board_objective_progress == 1, "patrol destroy advances objective")
 
 	print("BOARD_GRID_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	get_tree().quit(1 if _fails > 0 else 0)

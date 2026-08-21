@@ -67,7 +67,7 @@ func _setup_audio_buses() -> void:
 		AudioServer.set_bus_name(music_idx, "Music")
 		AudioServer.set_bus_send(music_idx, "Master")
 
-	# Attach dynamic compressor to SFX bus for punchy, heavy war sound.
+	# Attach dynamic compressor to SFX bus for punchy, heavy war sound without squashing peaks.
 	var has_compressor := false
 	for i in range(AudioServer.get_bus_effect_count(sfx_idx)):
 		if AudioServer.get_bus_effect(sfx_idx, i) is AudioEffectCompressor:
@@ -75,11 +75,11 @@ func _setup_audio_buses() -> void:
 			break
 	if not has_compressor:
 		var comp := AudioEffectCompressor.new()
-		comp.threshold = -18.0
-		comp.ratio = 4.0
+		comp.threshold = -6.0
+		comp.ratio = 2.0
 		comp.attack_us = 500.0
-		comp.release_ms = 120.0
-		comp.gain = 3.0
+		comp.release_ms = 80.0
+		comp.gain = 2.0
 		AudioServer.add_bus_effect(sfx_idx, comp)
 
 	# Master limiter to prevent clipping on heavy layered explosions.
@@ -265,3 +265,23 @@ func play_combat_music(category: String, fade_time: float = 1.5, force_restart: 
 
 func stop_music(fade_time: float = 1.0) -> void:
 	music.stop_music(fade_time)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# TEST & COMPATIBILITY HELPERS
+# ═══════════════════════════════════════════════════════════════════════
+
+var sfx_pool: Array[AudioStreamPlayer3D]:
+	get: return sfx.sfx_pool if sfx else []
+
+var sfx_2d_pool: Array[AudioStreamPlayer]:
+	get: return sfx.sfx_2d_pool if sfx else []
+
+func _pick_stream(sound_name: String) -> AudioStream:
+	return sfx._pick_stream(sound_name) if sfx else null
+
+func _get_free_3d_player() -> AudioStreamPlayer3D:
+	return sfx._get_free_3d_player() if sfx else null
+
+func _get_free_2d_player() -> AudioStreamPlayer:
+	return sfx._get_free_2d_player() if sfx else null

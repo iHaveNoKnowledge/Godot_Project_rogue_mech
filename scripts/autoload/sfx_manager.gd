@@ -42,6 +42,8 @@ func _setup_pools() -> void:
 		var player = AudioStreamPlayer3D.new()
 		player.name = "SFX3D_%d" % i
 		player.bus = "SFX"
+		player.unit_size = 35.0
+		player.max_db = 6.0
 		player.doppler_tracking = AudioStreamPlayer3D.DOPPLER_TRACKING_PHYSICS_STEP
 		add_child(player)
 		sfx_pool.append(player)
@@ -265,11 +267,11 @@ func play_sfx_2d(sound_name: String, volume_db: float = 0.0, bus: String = "SFX"
 
 func play_weapon_sfx(weapon_type: int, pos: Vector3) -> void:
 	match weapon_type:
-		0: play_sfx("beam_rifle", pos)
-		1: play_sfx("machine_gun", pos, -8.0)
-		2: play_sfx("missile", pos)
-		3: play_sfx("shotgun", pos)
-		4: play_sfx("melee", pos)
+		0: play_sfx("beam_rifle", pos, 2.5)
+		1: play_sfx("machine_gun", pos, 1.5)
+		2: play_sfx("missile", pos, 2.5)
+		3: play_sfx("shotgun", pos, 3.5)
+		4: play_sfx("melee", pos, 1.0)
 
 
 func play_weapon_sfx_with_override(weapon: WeaponPart, pos: Vector3) -> void:
@@ -281,7 +283,7 @@ func play_weapon_sfx_with_override(weapon: WeaponPart, pos: Vector3) -> void:
 			return
 		player.stream = weapon.fire_sfx
 		player.global_position = pos
-		player.volume_db = 0.0
+		player.volume_db = 2.0
 		player.bus = "SFX"
 		player.play()
 	else:
@@ -289,10 +291,10 @@ func play_weapon_sfx_with_override(weapon: WeaponPart, pos: Vector3) -> void:
 
 
 func play_impact(pos: Vector3) -> void:
-	play_sfx("impact", pos, -5.0)
+	play_sfx("impact", pos, 0.0)
 
 
-func play_mech_hit(pos: Vector3, volume_db: float = -1.0) -> void:
+func play_mech_hit(pos: Vector3, volume_db: float = 1.0) -> void:
 	if combat_muted:
 		return
 	var now := Time.get_ticks_msec() / 1000.0
@@ -303,19 +305,19 @@ func play_mech_hit(pos: Vector3, volume_db: float = -1.0) -> void:
 
 
 func play_pile_bunker_fire(pos: Vector3) -> void:
-	play_sfx("pile_bunker_fire", pos, 2.0)
+	play_sfx("pile_bunker_fire", pos, 4.0)
 
 
 func play_pile_bunker_hit(pos: Vector3) -> void:
-	play_sfx("pile_bunker_hit", pos, 2.0)
+	play_sfx("pile_bunker_hit", pos, 4.0)
 
 
 func play_melee_swing(weapon: WeaponPart, pos: Vector3) -> void:
-	play_sfx(_melee_sfx_name(weapon, false), pos, 0.0)
+	play_sfx(_melee_sfx_name(weapon, false), pos, 1.0)
 
 
 func play_melee_hit(weapon: WeaponPart, pos: Vector3) -> void:
-	play_sfx(_melee_sfx_name(weapon, true), pos, 0.0)
+	play_sfx(_melee_sfx_name(weapon, true), pos, 1.0)
 
 
 func play_enemy_melee_swing(pos: Vector3) -> void:
@@ -384,13 +386,13 @@ func play_roller_skate(pos: Vector3) -> void:
 func play_impact_by_type(damage_type: String, pos: Vector3) -> void:
 	match damage_type.to_lower():
 		"beam", "energy":
-			play_sfx("beam_hit", pos, -2.0)
+			play_sfx("beam_hit", pos, 1.0)
 		"explosive":
-			play_sfx("explosive_hit", pos, 1.0)
+			play_sfx("explosive_hit", pos, 3.0)
 		"melee":
-			play_sfx("melee", pos, 0.0)
+			play_sfx("melee", pos, 1.5)
 		_:
-			play_sfx("kinetic_hit", pos, -3.0)
+			play_sfx("kinetic_hit", pos, 1.0)
 
 
 func play_ui_click() -> void:

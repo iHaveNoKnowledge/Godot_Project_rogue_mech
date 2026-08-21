@@ -89,6 +89,29 @@ func _ready() -> void:
 		GlobalData.board.board_objective_intro_consumed = true
 		EventBus.event_triggered.emit(_build_objective_event())
 
+	_check_current_tile_patrol_engagement()
+
+
+func _check_current_tile_patrol_engagement() -> bool:
+	if GameManager.current_state != GameManager.State.BOARD:
+		return false
+	var patrol := PatrolSystem.get_patrol_at(current_pos)
+	if patrol.is_empty():
+		return false
+
+	GlobalData.board.board_patrol_engagement = int(patrol.get("id", -1))
+	if str(patrol.get("faction", "hostile")) == "unknown" and _has_available_recruit(str(patrol.get("character_id", ""))):
+		_trigger_patrol_talk_event(patrol)
+		return true
+
+	if GlobalData.narrative.mech_less:
+		GlobalData.board.board_patrol_engagement = -1
+		_trigger_recovery_event()
+		return true
+
+	_request_combat("grunt" if int(patrol.get("aces", 0)) == 0 else "ace")
+	return true
+
 
 func _setup_objective() -> void:
 	var obj := BoardSystem.get_objective()
@@ -396,20 +419,8 @@ func _end_day() -> void:
 
 	# Patrols move after the day's systems resolve.
 	var ambush := PatrolSystem.advance_day(current_pos)
-	if ambush != Vector2i(-1, -1) and GameManager.current_state == GameManager.State.BOARD:
-		var patrol := PatrolSystem.get_patrol_at(ambush)
-		if not patrol.is_empty():
-			GlobalData.board.board_patrol_engagement = int(patrol.get("id", -1))
-			if str(patrol.get("faction", "hostile")) == "unknown" and _has_available_recruit(str(patrol.get("character_id", ""))):
-				_trigger_patrol_talk_event(patrol)
-				return
-			# Pilot-only convoys can't fight on foot: the ambush becomes a
-			# recovery event instead of a battle.
-			if GlobalData.narrative.mech_less:
-				GlobalData.board.board_patrol_engagement = -1
-				_trigger_recovery_event()
-				return
-			_request_combat("grunt" if int(patrol.get("aces", 0)) == 0 else "ace")
+	if (ambush != Vector2i(-1, -1) or not PatrolSystem.get_patrol_at(current_pos).is_empty()) and GameManager.current_state == GameManager.State.BOARD:
+		if _check_current_tile_patrol_engagement():
 			return
 
 	_update_token_position()

@@ -178,8 +178,8 @@ func _find_meshes() -> void:
 
 # TANK-only: a destroyed part permanently cripples the vehicle (mobility kill /
 # turret kill). Other layouts keep the base part-destroyed behavior untouched.
-func _on_frame_destroyed(slot_name: String) -> void:
-	super._on_frame_destroyed(slot_name)
+func _on_frame_destroyed(slot_name: String, damage_type: String = "") -> void:
+	super._on_frame_destroyed(slot_name, damage_type)
 	if layout != Layout.TANK:
 		return
 

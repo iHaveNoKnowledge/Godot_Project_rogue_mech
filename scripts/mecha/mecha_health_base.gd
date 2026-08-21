@@ -530,7 +530,7 @@ func _apply_armor_damage(slot_name: String, amount: float, damage_type: String) 
 		EventBus.friendly_damage_received.emit(reduced)
 
 	if part["armor_hp"] <= 0.0:
-		_on_armor_broken(slot_name)
+		_on_armor_broken(slot_name, damage_type)
 
 
 func _apply_frame_damage(slot_name: String, amount: float, damage_type: String) -> void:
@@ -562,10 +562,10 @@ func _apply_frame_damage(slot_name: String, amount: float, damage_type: String) 
 		EventBus.friendly_damage_received.emit(amount)
 
 	if part["frame_hp"] <= 0.0:
-		_on_frame_destroyed(slot_name)
+		_on_frame_destroyed(slot_name, damage_type)
 
 
-func _on_armor_broken(slot_name: String) -> void:
+func _on_armor_broken(slot_name: String, damage_type: String = "") -> void:
 	parts[slot_name]["armor_broken"] = true
 	parts[slot_name]["armor_hp"] = 0.0
 	# An EMERGENCY SCRAP PATCH behaves exactly like normal armor: when its HP
@@ -581,14 +581,55 @@ func _on_armor_broken(slot_name: String) -> void:
 	if AudioManager:
 		AudioManager.play_armor_break(global_position + Vector3(0, 1.5, 0))
 
-	# Spawn fiery sparks, smoke burst, and attach smoke emitter to the broken limb
+	# Multiple distinct break VFX (Armor shatter debris, fire explosion, EMP electric arc)
+	_play_part_break_vfx(slot_name, false, damage_type)
+
+
+# Plays dynamic part destruction VFX depending on damage type and layer (armor vs frame):
+# - Kinetic/Pierce/Melee -> Armor shattered into flying metal shards & rich sparks
+# - Heat/Explosive -> Fiery explosion blast ball + dark billowing smoke
+# - Electric/EMP -> Crackling high-voltage electrical arcs and spark bursts
+# - Frame Destroyed -> Catastrophic combined blast with shrapnel and heavy smoke
+func _play_part_break_vfx(slot_name: String, is_frame: bool, damage_type: String = "") -> void:
+	if not get_tree():
+		return
 	var slot_pos := _get_slot_center(slot_name)
-	if get_tree():
-		EffectFactory.spawn_fire_burst(get_tree(), slot_pos, 0.6, 0.35, 4.5)
-		EffectFactory.spawn_smoke_plume(get_tree(), slot_pos, 4, 0.25, 0.45, 0.7)
-		var section := _get_section_node(slot_name)
-		if section:
-			EffectFactory.spawn_damaged_smoke_emitter(section, Vector3.ZERO)
+	var norm_dmg := normalize_damage_type(damage_type)
+	var color := _armor_color if not is_frame else _frame_color
+
+	if is_frame:
+		# Catastrophic structural frame destruction: Big Fireball + flying metal fragments + heavy smoke
+		EffectFactory.spawn_fire_burst(get_tree(), slot_pos, 1.2, 0.6, 8.0)
+		EffectFactory.spawn_armor_shatter_debris(get_tree(), slot_pos, 14, 0.35, color)
+		EffectFactory.spawn_smoke_plume(get_tree(), slot_pos, 8, 0.35, 0.7, 1.2)
+		EffectFactory.spawn_burning_ground(get_tree(), slot_pos, 1.4, 2.5)
+	else:
+		match norm_dmg:
+			"heat":
+				# Fire explosion blast style
+				EffectFactory.spawn_fire_burst(get_tree(), slot_pos, 0.85, 0.45, 6.0)
+				EffectFactory.spawn_smoke_plume(get_tree(), slot_pos, 5, 0.25, 0.5, 0.8)
+				EffectFactory.spawn_armor_shatter_debris(get_tree(), slot_pos, 6, 0.2, Color(1.0, 0.5, 0.2))
+			"blunt":
+				# Heavy impact smash: heavy chunks flying + expanding shockwave
+				EffectFactory.spawn_armor_shatter_debris(get_tree(), slot_pos, 12, 0.3, color)
+				EffectFactory.spawn_expanding_ring(get_tree(), slot_pos, Color(1.0, 0.8, 0.5), Vector3(0.5, 0.5, 0.5), Vector3(3.0, 0.5, 3.0), 0.25, 3.0)
+				EffectFactory.spawn_smoke_plume(get_tree(), slot_pos, 4, 0.2, 0.4, 0.6)
+			"emp":
+				# Electric arc overload burst
+				EffectFactory.spawn_electrical_arc_burst(get_tree(), slot_pos, 10, 0.9, 0.4)
+				EffectFactory.spawn_armor_shatter_debris(get_tree(), slot_pos, 8, 0.22, color)
+			_: # "pierce" / kinetic / generic
+				# Armor shatter debris: multiple flying angular metal plates & sparks
+				EffectFactory.spawn_armor_shatter_debris(get_tree(), slot_pos, 12, 0.28, color)
+				EffectFactory.spawn_smoke_plume(get_tree(), slot_pos, 4, 0.2, 0.4, 0.6)
+				if randf() < 0.4:
+					EffectFactory.spawn_fire_burst(get_tree(), slot_pos, 0.5, 0.3, 3.5)
+
+	# Attach continuous smoke & ember emitter to the broken section
+	var section := _get_section_node(slot_name)
+	if section:
+		EffectFactory.spawn_damaged_smoke_emitter(section, Vector3.ZERO)
 
 
 # After a scrap patch shatters, refresh the mech's visuals so the crude patch
@@ -604,7 +645,7 @@ func _refresh_patch_visuals(_slot_name: String) -> void:
 		pmm.refresh_scrap_patches()
 
 
-func _on_frame_destroyed(slot_name: String) -> void:
+func _on_frame_destroyed(slot_name: String, damage_type: String = "") -> void:
 	parts[slot_name]["destroyed"] = true
 	parts[slot_name]["frame_hp"] = 0.0
 	_hide_part(slot_name)
@@ -620,12 +661,8 @@ func _on_frame_destroyed(slot_name: String) -> void:
 	part_destroyed.emit(slot_name)
 	_calculate_totals()
 
-	# Heavy structural explosion + dark smoke plume and scorch patch
-	var slot_pos := _get_slot_center(slot_name)
-	if get_tree():
-		EffectFactory.spawn_fire_burst(get_tree(), slot_pos, 0.9, 0.5, 6.0)
-		EffectFactory.spawn_smoke_plume(get_tree(), slot_pos, 7, 0.3, 0.65, 1.1)
-		EffectFactory.spawn_burning_ground(get_tree(), slot_pos, 1.2, 2.5)
+	# Dynamic Part Break VFX for Frame Destruction
+	_play_part_break_vfx(slot_name, true, damage_type)
 
 	# Any destroyed frame can kill the status light: the head (light is on the
 	# head) or the BODY (the engine core is gone — no power for any light).

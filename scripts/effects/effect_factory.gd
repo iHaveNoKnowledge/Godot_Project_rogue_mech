@@ -464,3 +464,93 @@ static func spawn_damaged_smoke_emitter(parent: Node3D, local_pos: Vector3 = Vec
 
 	emitter.add_child(particles)
 	return emitter
+
+
+## Spawns dynamic angular armor shards and metal plating fragments that scatter outward
+## with velocity and gravity, accompanied by hot spark bursts and ricochet effects.
+static func spawn_armor_shatter_debris(scene: SceneTree, pos: Vector3,
+		count: int = 12, piece_size: float = 0.25, base_color: Color = Color(0.65, 0.68, 0.72),
+		parent: Node3D = null) -> void:
+	if scene == null:
+		return
+	var container: Node = parent if parent else (scene.current_scene if scene.current_scene else scene.root)
+
+	# 1. Flying armor plate shards
+	for i in range(count):
+		var shard := MeshInstance3D.new()
+		# Alternate between triangular prism shards and angular plate boxes
+		if i % 2 == 0:
+			var prism := PrismMesh.new()
+			prism.size = Vector3(randf_range(piece_size * 0.7, piece_size * 1.4), randf_range(piece_size * 0.6, piece_size * 1.2), 0.05)
+			shard.mesh = prism
+		else:
+			var box := BoxMesh.new()
+			box.size = Vector3(randf_range(piece_size * 0.8, piece_size * 1.3), randf_range(piece_size * 0.5, piece_size * 1.1), 0.04)
+			shard.mesh = box
+
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(clampf(base_color.r + randf_range(-0.08, 0.08), 0.05, 1.0),
+				clampf(base_color.g + randf_range(-0.08, 0.08), 0.05, 1.0),
+				clampf(base_color.b + randf_range(-0.08, 0.08), 0.05, 1.0))
+		mat.metallic = 0.75
+		mat.roughness = 0.4
+		mat.emission_enabled = true
+		mat.emission = Color(1.0, 0.5, 0.1) # Glowing hot sheared metal edges
+		mat.emission_energy_multiplier = randf_range(0.8, 2.5)
+		shard.material_override = mat
+
+		container.add_child(shard)
+		shard.global_position = pos + Vector3(randf_range(-0.15, 0.15), randf_range(-0.15, 0.15), randf_range(-0.15, 0.15))
+
+		# Random outward trajectory
+		var dir := Vector3(randf_range(-1.0, 1.0), randf_range(0.4, 1.4), randf_range(-1.0, 1.0)).normalized()
+		var speed := randf_range(4.5, 9.5)
+		var rot_speed := Vector3(randf_range(-10, 10), randf_range(-10, 10), randf_range(-10, 10))
+		var duration := randf_range(0.7, 1.1)
+
+		var tween := scene.create_tween().set_parallel(true)
+		var end_pos := shard.global_position + dir * speed + Vector3(0, -2.5, 0)
+		tween.tween_property(shard, "global_position", end_pos, duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tween.tween_property(shard, "rotation", rot_speed, duration)
+		tween.tween_property(mat, "albedo_color:a", 0.0, duration * 0.3).set_delay(duration * 0.7)
+		tween.tween_property(mat, "emission_energy_multiplier", 0.0, duration * 0.6)
+		tween.chain().tween_callback(shard.queue_free)
+
+	# 2. Burst of bright ricochet sparks
+	spawn_dust_puffs(scene, pos, 6, 0.15, 0.3, 1.5, 2.5, Color(0.8, 0.75, 0.7, 0.6), 0.35, parent)
+	for s in range(8):
+		var spark_pos := pos + Vector3(randf_range(-0.2, 0.2), randf_range(-0.2, 0.2), randf_range(-0.2, 0.2))
+		spawn_box_spark(scene, spark_pos, Vector3(0.06, 0.06, 0.25), Color(1.0, 0.85, 0.3), 0.2, 6.0, parent)
+
+
+## Spawns crackling electric arcs and high-voltage short-circuit sparks.
+static func spawn_electrical_arc_burst(scene: SceneTree, pos: Vector3,
+		count: int = 8, radius: float = 0.8, duration: float = 0.35,
+		parent: Node3D = null) -> void:
+	if scene == null:
+		return
+	var container: Node = parent if parent else (scene.current_scene if scene.current_scene else scene.root)
+
+	for i in range(count):
+		var arc := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(randf_range(0.04, 0.08), randf_range(0.2, 0.5), randf_range(0.04, 0.08))
+		arc.mesh = box
+
+		var mat := StandardMaterial3D.new()
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.albedo_color = Color(0.4, 0.85, 1.0, 0.95)
+		mat.emission_enabled = true
+		mat.emission = Color(0.3, 0.8, 1.0)
+		mat.emission_energy_multiplier = 7.0
+		arc.material_override = mat
+
+		container.add_child(arc)
+		var offset := Vector3(randf_range(-radius, radius), randf_range(-radius, radius), randf_range(-radius, radius))
+		arc.global_position = pos + offset
+		arc.rotation = Vector3(randf_range(0, TAU), randf_range(0, TAU), randf_range(0, TAU))
+
+		var tween := scene.create_tween().set_parallel(true)
+		tween.tween_property(mat, "albedo_color:a", 0.0, duration)
+		tween.tween_property(mat, "emission_energy_multiplier", 0.0, duration)
+		tween.chain().tween_callback(arc.queue_free)

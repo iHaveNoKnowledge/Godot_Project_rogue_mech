@@ -226,7 +226,7 @@ func _update_currently_equipped_display(slot: String) -> void:
 			if not carry_list.is_empty():
 				var names: Array[String] = []
 				for cw in carry_list:
-					names.append(str(cw.get("name", "Weapon")))
+					names.append(cw.weapon_name if (cw and cw.weapon_name != "") else "Weapon")
 				controller.currently_equipped_label.text = ", ".join(names)
 				controller.currently_equipped_sublabel.text = "Field Pack: %.1f / %.1f kg (%d carry)" % [
 					LoadoutSystem.get_field_pack_weight(), LoadoutSystem.get_field_pack_capacity(), carry_list.size()

@@ -165,177 +165,193 @@ func _run_procedural(delta: float) -> void:
 	_update_shield_arm(delta)
 
 
+# ─── Shared pose helper ────────────────────────────────────────────────────
+# Interpolates every mech joint toward the target values in `targets`. Only
+# supply the keys you need — all others default to 0.0 (neutral rotation,
+# original position). Dictionary keys:
+#   body_tilt, head_tilt  (float) — rotation.x targets
+#   drop                  (float) — vertical offset applied to body & head
+#   arm_left, arm_right   (float) — upper-arm rotation.x
+#   forearm_left, forearm_right (float) — forearm rotation.x
+#   thigh_left, thigh_right     (float) — thigh rotation.x
+#   shin_left, shin_right       (float) — shin rotation.x
+#   leg_left_drop, leg_right_drop (float) — extra vertical offset for leg roots
+#   head_position        (Vector3) — override head target position (skips drop)
+func _apply_pose(targets: Dictionary, speed: float) -> void:
+	var drop: float = targets.get("drop", 0.0)
+	if body_mesh:
+		body_mesh.rotation.x = lerp_angle(body_mesh.rotation.x, targets.get("body_tilt", 0.0), speed)
+		body_mesh.position.y = lerp(body_mesh.position.y, _original_body_pos.y + drop, speed)
+	if head_mesh:
+		var head_pos: Vector3 = targets.get("head_position", _original_head_pos + Vector3(0, drop, 0))
+		head_mesh.position = head_mesh.position.lerp(head_pos, speed)
+		head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, targets.get("head_tilt", 0.0), speed)
+	if arm_left:
+		arm_left.rotation.x = lerp_angle(arm_left.rotation.x, targets.get("arm_left", 0.0), speed)
+	if arm_right:
+		arm_right.rotation.x = lerp_angle(arm_right.rotation.x, targets.get("arm_right", 0.0), speed)
+	if forearm_left:
+		forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, targets.get("forearm_left", 0.0), speed)
+	if forearm_right:
+		forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, targets.get("forearm_right", 0.0), speed)
+	if leg_left:
+		leg_left.rotation.x = lerp_angle(leg_left.rotation.x, targets.get("thigh_left", 0.0), speed)
+		if targets.has("leg_left_drop"):
+			leg_left.position.y = lerp(leg_left.position.y, _original_leg_left_pos.y + targets["leg_left_drop"], speed)
+	if leg_right:
+		leg_right.rotation.x = lerp_angle(leg_right.rotation.x, targets.get("thigh_right", 0.0), speed)
+		if targets.has("leg_right_drop"):
+			leg_right.position.y = lerp(leg_right.position.y, _original_leg_right_pos.y + targets["leg_right_drop"], speed)
+	if shin_left:
+		shin_left.rotation.x = lerp_angle(shin_left.rotation.x, targets.get("shin_left", 0.0), speed)
+	if shin_right:
+		shin_right.rotation.x = lerp_angle(shin_right.rotation.x, targets.get("shin_right", 0.0), speed)
+
+
+# ─── Posture functions ─────────────────────────────────────────────────────
+
 func _update_prejump_charge_posture(delta: float) -> void:
 	var js = mecha.jump_system
 	var charge_time: float = js.prejump_charge_time if js else 0.0
 	var ratio := clampf(charge_time / 0.35, 0.0, 1.0)
-	var speed = 12.0 * delta
-	var compress_y = -0.08 * ratio
-	if body_mesh:
-		body_mesh.position.y = lerp(body_mesh.position.y, _original_body_pos.y + compress_y, speed)
+	_apply_pose({"drop": -0.08 * ratio}, 12.0 * delta)
 
 
+# Jump Launch Specs (Thrusters firing, upward launch trajectory):
+# 1. Torso pitches slightly back/up (+12 deg) with chest raised
+# 2. Head counter-tilts (-12 deg) to lock eyes forward
+# 3. Legs thrust backward and extend (thighs -38 deg to -45 deg, knees extended -18 deg to -22 deg)
+# 4. Arms trail backward (-20 deg) with forearms bent (+40 deg)
 func _update_jump_posture(delta: float) -> void:
-	var speed = 12.0 * delta
-
-	# Jump Launch Specs (Thrusters firing, upward launch trajectory):
-	# 1. Torso pitches slightly back/up (+12 deg) with chest raised
-	# 2. Head counter-tilts (-12 deg) to lock eyes forward
-	# 3. Legs thrust backward and extend (thighs -38 deg to -45 deg, knees extended -18 deg to -22 deg)
-	# 4. Arms trail backward (-20 deg) with forearms bent (+40 deg)
-	var target_body_tilt = deg_to_rad(12.0)
-	var target_head_tilt = -deg_to_rad(12.0)
-	var target_drop = 0.1
-
-	var target_thigh_left = -deg_to_rad(38.0)
-	var target_shin_left = -deg_to_rad(18.0)
-	var target_thigh_right = -deg_to_rad(45.0)
-	var target_shin_right = -deg_to_rad(22.0)
-
-	var target_arm = -deg_to_rad(20.0)
-	var target_forearm = deg_to_rad(40.0)
-
-	if body_mesh:
-		body_mesh.rotation.x = lerp_angle(body_mesh.rotation.x, target_body_tilt, speed)
-		body_mesh.position.y = lerp(body_mesh.position.y, _original_body_pos.y + target_drop, speed)
-	if head_mesh:
-		head_mesh.position = head_mesh.position.lerp(_original_head_pos + Vector3(0, target_drop, 0), speed)
-		head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, target_head_tilt, speed)
-
-	if arm_left: arm_left.rotation.x = lerp_angle(arm_left.rotation.x, target_arm, speed)
-	if arm_right: arm_right.rotation.x = lerp_angle(arm_right.rotation.x, target_arm, speed)
-
-	if forearm_left: forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, target_forearm, speed)
-	if forearm_right: forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, target_forearm, speed)
-
-	if leg_left: leg_left.rotation.x = lerp_angle(leg_left.rotation.x, target_thigh_left, speed)
-	if leg_right: leg_right.rotation.x = lerp_angle(leg_right.rotation.x, target_thigh_right, speed)
-
-	if shin_left: shin_left.rotation.x = lerp_angle(shin_left.rotation.x, target_shin_left, speed)
-	if shin_right: shin_right.rotation.x = lerp_angle(shin_right.rotation.x, target_shin_right, speed)
+	_apply_pose({
+		"body_tilt": deg_to_rad(12.0),
+		"head_tilt": -deg_to_rad(12.0),
+		"drop": 0.1,
+		"arm_left": -deg_to_rad(20.0),
+		"arm_right": -deg_to_rad(20.0),
+		"forearm_left": deg_to_rad(40.0),
+		"forearm_right": deg_to_rad(40.0),
+		"thigh_left": -deg_to_rad(38.0),
+		"thigh_right": -deg_to_rad(45.0),
+		"shin_left": -deg_to_rad(18.0),
+		"shin_right": -deg_to_rad(22.0),
+	}, 12.0 * delta)
 
 
+# Airborne Fall Specs (Freefall / Descent / Gliding from height):
+# 1. Torso pitches forward down (-24 deg) ready for landing impact
+# 2. Head counter-tilts (-10 deg net) looking down/ahead at landing zone
+# 3. Left Leg flexed forward (+32 deg thigh, -55 deg shin knee flex under hip)
+# 4. Right Leg trailing back (-22 deg thigh, -30 deg shin knee flex)
+# 5. Organic floating hover sway applied to body position
 func _update_airborne_fall_posture(delta: float) -> void:
-	var speed = 8.0 * delta
 	var float_sway = sin(air_timer * 4.0) * 0.05
-
-	# Airborne Fall Specs (Freefall / Descent / Gliding from height):
-	# 1. Torso pitches forward down (-24 deg) ready for landing impact
-	# 2. Head counter-tilts (-10 deg net) looking down/ahead at landing zone
-	# 3. Left Leg flexed forward (+32 deg thigh, -55 deg shin knee flex under hip)
-	# 4. Right Leg trailing back (-22 deg thigh, -30 deg shin knee flex)
-	# 5. Organic floating hover sway applied to body position
-	var target_body_tilt = -deg_to_rad(24.0)
-	var target_head_tilt = -deg_to_rad(10.0)
-	var target_drop = -0.15 + float_sway
-
-	var target_thigh_left = deg_to_rad(32.0)
-	var target_shin_left = -deg_to_rad(55.0)
-	var target_thigh_right = -deg_to_rad(22.0)
-	var target_shin_right = -deg_to_rad(30.0)
-
-	var target_arm_left = -deg_to_rad(15.0)
-	var target_arm_right = deg_to_rad(15.0)
-	var target_forearm = deg_to_rad(50.0)
-
-	if body_mesh:
-		body_mesh.rotation.x = lerp_angle(body_mesh.rotation.x, target_body_tilt, speed)
-		body_mesh.position.y = lerp(body_mesh.position.y, _original_body_pos.y + target_drop, speed)
-	if head_mesh:
-		head_mesh.position = head_mesh.position.lerp(_original_head_pos + Vector3(0, target_drop, 0), speed)
-		head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, target_head_tilt, speed)
-
-	if arm_left: arm_left.rotation.x = lerp_angle(arm_left.rotation.x, target_arm_left, speed)
-	if arm_right: arm_right.rotation.x = lerp_angle(arm_right.rotation.x, target_arm_right, speed)
-
-	if forearm_left: forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, target_forearm, speed)
-	if forearm_right: forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, target_forearm, speed)
-
-	if leg_left: leg_left.rotation.x = lerp_angle(leg_left.rotation.x, target_thigh_left, speed)
-	if leg_right: leg_right.rotation.x = lerp_angle(leg_right.rotation.x, target_thigh_right, speed)
-
-	if shin_left: shin_left.rotation.x = lerp_angle(shin_left.rotation.x, target_shin_left, speed)
-	if shin_right: shin_right.rotation.x = lerp_angle(shin_right.rotation.x, target_shin_right, speed)
+	_apply_pose({
+		"body_tilt": -deg_to_rad(24.0),
+		"head_tilt": -deg_to_rad(10.0),
+		"drop": -0.15 + float_sway,
+		"arm_left": -deg_to_rad(15.0),
+		"arm_right": deg_to_rad(15.0),
+		"forearm_left": deg_to_rad(50.0),
+		"forearm_right": deg_to_rad(50.0),
+		"thigh_left": deg_to_rad(32.0),
+		"thigh_right": -deg_to_rad(22.0),
+		"shin_left": -deg_to_rad(55.0),
+		"shin_right": -deg_to_rad(30.0),
+	}, 8.0 * delta)
 
 
 # Idle combat stance (standing still, ready to fight): knees slightly bent,
 # torso leaning forward, head level and both arms raised in a guard with bent
-# elbows. Replaces the stiff straight-up idle so the mech reads as poised to
-# throw a punch instead of standing at attention.
+# elbows.
 func _update_combat_idle_posture(delta: float) -> void:
-	var speed = 6.0 * delta
-	var target_drop = -0.05
-	var target_body_tilt = -deg_to_rad(10.0)
-	var target_head_tilt = -deg_to_rad(5.0)
-	var target_thigh = deg_to_rad(12.0)
-	var target_shin = -deg_to_rad(18.0)
-	var target_arm = deg_to_rad(25.0)
-	var target_forearm = deg_to_rad(55.0)
-
-	if body_mesh:
-		body_mesh.position.y = lerp(body_mesh.position.y, _original_body_pos.y + target_drop, speed)
-		body_mesh.rotation.x = lerp_angle(body_mesh.rotation.x, target_body_tilt, speed)
-	if head_mesh:
-		head_mesh.position = head_mesh.position.lerp(_original_head_pos + Vector3(0, target_drop, 0), speed)
-		head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, target_head_tilt, speed)
-
-	if arm_left: arm_left.rotation.x = lerp_angle(arm_left.rotation.x, target_arm, speed)
-	if arm_right: arm_right.rotation.x = lerp_angle(arm_right.rotation.x, target_arm, speed)
-
-	if forearm_left: forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, target_forearm, speed)
-	if forearm_right: forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, target_forearm, speed)
-
-	# Leg roots only move for the kneel pose; ease them back up whenever the
-	# mech is active again so a re-board never leaves it squatting.
-	if leg_left:
-		leg_left.position.y = lerp(leg_left.position.y, _original_leg_left_pos.y, speed)
-		leg_left.rotation.x = lerp_angle(leg_left.rotation.x, target_thigh, speed)
-	if leg_right:
-		leg_right.position.y = lerp(leg_right.position.y, _original_leg_right_pos.y, speed)
-		leg_right.rotation.x = lerp_angle(leg_right.rotation.x, target_thigh, speed)
-
-	if shin_left: shin_left.rotation.x = lerp_angle(shin_left.rotation.x, target_shin, speed)
-	if shin_right: shin_right.rotation.x = lerp_angle(shin_right.rotation.x, target_shin, speed)
+	_apply_pose({
+		"body_tilt": -deg_to_rad(10.0),
+		"head_tilt": -deg_to_rad(5.0),
+		"drop": -0.05,
+		"arm_left": deg_to_rad(25.0),
+		"arm_right": deg_to_rad(25.0),
+		"forearm_left": deg_to_rad(55.0),
+		"forearm_right": deg_to_rad(55.0),
+		"thigh_left": deg_to_rad(12.0),
+		"thigh_right": deg_to_rad(12.0),
+		"shin_left": -deg_to_rad(18.0),
+		"shin_right": -deg_to_rad(18.0),
+		"leg_left_drop": 0.0,
+		"leg_right_drop": 0.0,
+	}, 6.0 * delta)
 
 
 # Kneel pose (pilot out / backup waiting): both thighs fold forward so the
 # knees come down, shins fold back under, and the torso drops and bows while
-# the head stays level and the arms hang relaxed — reads as the mech kneeling
-# to wait for its pilot. Standing resumes through the normal idle/sprint lerps.
+# the head stays level and the arms hang relaxed.
 func _update_kneel_posture(delta: float) -> void:
-	var speed = 10.0 * delta
-	var target_drop = -0.5
-	var target_thigh = deg_to_rad(75.0)
-	var target_shin = -deg_to_rad(120.0)
-	var target_body_tilt = -deg_to_rad(12.0)
-	var target_head_tilt = -deg_to_rad(8.0)
-	var target_arm = deg_to_rad(10.0)
-	var target_forearm = deg_to_rad(65.0)
+	_apply_pose({
+		"body_tilt": -deg_to_rad(12.0),
+		"head_tilt": -deg_to_rad(8.0),
+		"drop": -0.5,
+		"arm_left": deg_to_rad(10.0),
+		"arm_right": deg_to_rad(10.0),
+		"forearm_left": deg_to_rad(65.0),
+		"forearm_right": deg_to_rad(65.0),
+		"thigh_left": deg_to_rad(75.0),
+		"thigh_right": deg_to_rad(75.0),
+		"shin_left": -deg_to_rad(120.0),
+		"shin_right": -deg_to_rad(120.0),
+		"leg_left_drop": -0.5,
+		"leg_right_drop": -0.5,
+	}, 10.0 * delta)
 
-	if body_mesh:
-		body_mesh.rotation.x = lerp_angle(body_mesh.rotation.x, target_body_tilt, speed)
-		body_mesh.position.y = lerp(body_mesh.position.y, _original_body_pos.y + target_drop, speed)
-	if head_mesh:
-		head_mesh.position = head_mesh.position.lerp(_original_head_pos + Vector3(0, target_drop, 0), speed)
-		head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, target_head_tilt, speed)
 
-	if arm_left: arm_left.rotation.x = lerp_angle(arm_left.rotation.x, target_arm, speed)
-	if arm_right: arm_right.rotation.x = lerp_angle(arm_right.rotation.x, target_arm, speed)
+# Gundam AGE Symmetrical Forward-Pitched Roller Skating Dash Stance
+func _update_roller_dash_posture(delta: float) -> void:
+	if mecha and mecha.get("is_roller_dashing") != null:
+		var speed = 12.0 * delta
+		var is_skating = mecha.is_roller_dashing
 
-	if forearm_left: forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, target_forearm, speed)
-	if forearm_right: forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, target_forearm, speed)
+		if is_skating:
+			var target_drop = -0.40
+			var target_body_tilt = -deg_to_rad(40.0)
+			var target_head_tilt = -deg_to_rad(18.0)
+			_apply_pose({
+				"body_tilt": target_body_tilt,
+				"head_tilt": target_head_tilt,
+				"drop": target_drop,
+				# Head snaps to target instead of lerping (skating needs instant lock)
+				"head_position": _original_head_pos + Vector3(0, target_drop, 0),
+				"arm_left": -deg_to_rad(20.0),
+				"arm_right": deg_to_rad(20.0),
+				"forearm_left": deg_to_rad(80.0),
+				"forearm_right": deg_to_rad(75.0),
+				"thigh_left": deg_to_rad(24.0),
+				"thigh_right": deg_to_rad(24.0),
+				"shin_left": -deg_to_rad(24.0),
+				"shin_right": -deg_to_rad(24.0),
+			}, speed)
 
-	# The leg roots sit at the hip height; drop them with the torso so the
-	# folded thighs actually reach toward the ground instead of hovering.
-	if leg_left:
-		leg_left.position.y = lerp(leg_left.position.y, _original_leg_left_pos.y + target_drop, speed)
-		leg_left.rotation.x = lerp_angle(leg_left.rotation.x, target_thigh, speed)
-	if leg_right:
-		leg_right.position.y = lerp(leg_right.position.y, _original_leg_right_pos.y + target_drop, speed)
-		leg_right.rotation.x = lerp_angle(leg_right.rotation.x, target_thigh, speed)
+			var model = mecha.get_node_or_null("Zenisrev")
+			if model:
+				model.rotation.x = lerp_angle(model.rotation.x, target_body_tilt, speed)
 
-	if shin_left: shin_left.rotation.x = lerp_angle(shin_left.rotation.x, target_shin, speed)
-	if shin_right: shin_right.rotation.x = lerp_angle(shin_right.rotation.x, target_shin, speed)
+
+# Death collapse: the mech goes limp before detonating — torso slumps back and
+# drops, head tilts down, arms hang splayed, legs fold under.
+func _update_core_breach_posture(delta: float) -> void:
+	_apply_pose({
+		"body_tilt": deg_to_rad(22.0),
+		"head_tilt": -deg_to_rad(35.0),
+		"drop": -0.65,
+		"arm_left": deg_to_rad(55.0),
+		"arm_right": deg_to_rad(55.0),
+		"forearm_left": deg_to_rad(25.0),
+		"forearm_right": deg_to_rad(25.0),
+		"thigh_left": deg_to_rad(60.0),
+		"thigh_right": -deg_to_rad(55.0),
+		"shin_left": -deg_to_rad(90.0),
+		"shin_right": -deg_to_rad(70.0),
+		"leg_left_drop": -0.65,
+		"leg_right_drop": -0.65,
+	}, 7.0 * delta)
 
 
 func play_landing_impact() -> void:
@@ -360,13 +376,7 @@ func _update_recoil(delta: float) -> void:
 # Raised-shield guard pose. When a hand is actively holding its shield plate
 # up, that arm lifts in front of the torso (upper arm swung forward, elbow
 # bent hard) so the plate reads as being interposed between the mech and the
-# attacker. Works for BOTH the player mech (shield state lives on the
-# WeaponManager child, which also reports which hand holds it) and enemy
-# shield mechs (state lives on the body itself, plate always on the left arm).
-#
-# The pose is blended by _shield_raise (eased 0..1) and applied AFTER the
-# normal idle/sprint postures, so the shield arm smoothly lifts from whatever
-# the base pose left it at and eases back down when the plate lowers.
+# attacker.
 var _shield_raise: float = 0.0
 const SHIELD_RAISE_SPEED: float = 9.0
 
@@ -379,7 +389,7 @@ func _update_shield_arm(delta: float) -> void:
 		shield_up = wm.is_shield_active()
 		shield_hand = wm.get_shield_hand()
 	elif mecha.has_method("is_shield_active"):
-		# Enemy shield mechs: state is on the body, plate mounted on the left.
+		# Enemy shield mechs: state is on the body, plate always on the left.
 		shield_up = mecha.is_shield_active()
 		shield_hand = "left"
 
@@ -401,55 +411,6 @@ func _update_shield_arm(delta: float) -> void:
 			arm_right.rotation.x = lerp_angle(arm_right.rotation.x, target_arm, blend)
 		if forearm_right:
 			forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, target_forearm, blend)
-
-
-func _update_roller_dash_posture(delta: float) -> void:
-	if mecha and mecha.get("is_roller_dashing") != null:
-		var speed = 12.0 * delta
-		var is_skating = mecha.is_roller_dashing
-
-		if is_skating:
-			# Gundam AGE Symmetrical Forward-Pitched Roller Skating Dash Stance:
-			# 1. Torso pitched forward aggressively (-40 deg) shifting weight center forward over toes
-			# 2. Both upper thighs crouched (+24 deg) & lower shins perpendicular to floor (-24 deg)
-			# 3. Center of gravity dropped (-0.40)
-			# 4. Head locked looking straight ahead (-18 deg net)
-			# 5. Arms holding weapon and shield in aggressive forward posture
-			var target_body_tilt = -deg_to_rad(40.0)
-			var target_head_tilt = -deg_to_rad(18.0)
-			var target_drop = -0.40
-
-			var target_thigh_crouch = deg_to_rad(24.0)
-			var target_shin_vertical = -deg_to_rad(24.0)
-
-			var target_arm_right = deg_to_rad(20.0)
-			var target_forearm_right = deg_to_rad(75.0)
-
-			var target_arm_left = -deg_to_rad(20.0)
-			var target_forearm_left = deg_to_rad(80.0)
-
-			if body_mesh:
-				body_mesh.rotation.x = lerp_angle(body_mesh.rotation.x, target_body_tilt, speed)
-				body_mesh.position.y = lerp(body_mesh.position.y, _original_body_pos.y + target_drop, speed)
-			if head_mesh:
-				head_mesh.position = _original_head_pos + Vector3(0, target_drop, 0)
-				head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, target_head_tilt, speed)
-
-			if arm_left: arm_left.rotation.x = lerp_angle(arm_left.rotation.x, target_arm_left, speed)
-			if arm_right: arm_right.rotation.x = lerp_angle(arm_right.rotation.x, target_arm_right, speed)
-
-			if forearm_left: forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, target_forearm_left, speed)
-			if forearm_right: forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, target_forearm_right, speed)
-
-			if leg_left: leg_left.rotation.x = lerp_angle(leg_left.rotation.x, target_thigh_crouch, speed)
-			if leg_right: leg_right.rotation.x = lerp_angle(leg_right.rotation.x, target_thigh_crouch, speed)
-
-			if shin_left: shin_left.rotation.x = lerp_angle(shin_left.rotation.x, target_shin_vertical, speed)
-			if shin_right: shin_right.rotation.x = lerp_angle(shin_right.rotation.x, target_shin_vertical, speed)
-
-			var model = mecha.get_node_or_null("Zenisrev")
-			if model:
-				model.rotation.x = lerp_angle(model.rotation.x, target_body_tilt, speed)
 
 
 func _update_bob(delta: float) -> void:
@@ -606,42 +567,3 @@ func _lerp_to_original(delta: float) -> void:
 
 func play_recoil() -> void:
 	current_recoil = recoil_amount
-
-
-# Death collapse: the mech goes limp before detonating — torso slumps back and
-# drops, head tilts down, arms hang splayed, legs fold under. Driven for the
-# ~2s core-breach warning window so the player sees the machine is down (and
-# the pilot can still eject) before the explosion.
-func _update_core_breach_posture(delta: float) -> void:
-	var speed = 7.0 * delta
-	var target_drop = -0.65
-	var target_body_tilt = deg_to_rad(22.0)
-	var target_head_tilt = -deg_to_rad(35.0)
-	var target_arm = deg_to_rad(55.0)
-	var target_forearm = deg_to_rad(25.0)
-	var target_thigh_left = deg_to_rad(60.0)
-	var target_shin_left = -deg_to_rad(90.0)
-	var target_thigh_right = -deg_to_rad(55.0)
-	var target_shin_right = -deg_to_rad(70.0)
-
-	if body_mesh:
-		body_mesh.rotation.x = lerp_angle(body_mesh.rotation.x, target_body_tilt, speed)
-		body_mesh.position.y = lerp(body_mesh.position.y, _original_body_pos.y + target_drop, speed)
-	if head_mesh:
-		head_mesh.position = head_mesh.position.lerp(_original_head_pos + Vector3(0, target_drop, 0), speed)
-		head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, target_head_tilt, speed)
-
-	if arm_left: arm_left.rotation.x = lerp_angle(arm_left.rotation.x, target_arm, speed)
-	if arm_right: arm_right.rotation.x = lerp_angle(arm_right.rotation.x, target_arm, speed)
-	if forearm_left: forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, target_forearm, speed)
-	if forearm_right: forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, target_forearm, speed)
-
-	if leg_left:
-		leg_left.position.y = lerp(leg_left.position.y, _original_leg_left_pos.y + target_drop, speed)
-		leg_left.rotation.x = lerp_angle(leg_left.rotation.x, target_thigh_left, speed)
-	if leg_right:
-		leg_right.position.y = lerp(leg_right.position.y, _original_leg_right_pos.y + target_drop, speed)
-		leg_right.rotation.x = lerp_angle(leg_right.rotation.x, target_thigh_right, speed)
-
-	if shin_left: shin_left.rotation.x = lerp_angle(shin_left.rotation.x, target_shin_left, speed)
-	if shin_right: shin_right.rotation.x = lerp_angle(shin_right.rotation.x, target_shin_right, speed)

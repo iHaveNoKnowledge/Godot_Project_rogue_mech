@@ -85,7 +85,8 @@ func _setup_audio_buses() -> void:
 			var lim := AudioEffectLimiter.new()
 			lim.threshold_db = -1.0
 			lim.ceiling_db = 0.0
-			lim.release_ms = 50.0
+			lim.soft_clip_db = 2.0
+			lim.soft_clip_ratio = 10.0
 			AudioServer.add_bus_effect(master_idx, lim)
 
 	# Movement bus for footsteps, roller, dash — routed to SFX.

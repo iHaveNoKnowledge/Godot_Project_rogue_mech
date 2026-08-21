@@ -204,27 +204,37 @@ func get_sampler_uniform(image: RID, binding: int, linear: bool = true) -> RDUni
 	return uniform
 
 func dispatch_stage(stage: ShaderStageResource, uniforms: Array[RDUniform], push_constants: PackedByteArray, dispatch_size: Vector3i, label: String = "DefaultLabel", view: int = 0, color: Color = Color(1, 1, 1, 1)):
-	rd.draw_command_begin_label(label + " " + str(view), color)
-	
-	if debug:
-		for i in 8:
-			var debug_image_index = i + view * 8;
-			uniforms.append(get_image_uniform(all_debug_images[debug_image_index], 10 + i))
+	if stage == null:
+		return
 
 	if (!stage.shader.is_valid()):
 		subscirbe_shader_stage(stage)
-	
+
+	if (!stage.shader.is_valid() or !stage.pipeline.is_valid()):
+		return
+
+	rd.draw_command_begin_label(label + " " + str(view), color)
+
+	if debug:
+		for i in 8:
+			var debug_image_index = i + view * 8
+			if debug_image_index < all_debug_images.size():
+				uniforms.append(get_image_uniform(all_debug_images[debug_image_index], 10 + i))
+
 	var tex_uniform_set = UniformSetCacheRD.get_cache(stage.shader, 0, uniforms)
-	
+	if not tex_uniform_set.is_valid():
+		rd.draw_command_end_label()
+		return
+
 	var compute_list = rd.compute_list_begin()
 	rd.compute_list_bind_compute_pipeline(compute_list, stage.pipeline)
 	rd.compute_list_bind_uniform_set(compute_list, tex_uniform_set, 0)
-	
+
 	if !push_constants.is_empty():
 		rd.compute_list_set_push_constant(compute_list, push_constants, push_constants.size())
-		
+
 	rd.compute_list_dispatch(compute_list, dispatch_size.x, dispatch_size.y, dispatch_size.z)
-	
+
 	rd.compute_list_end()
-	
+
 	rd.draw_command_end_label()

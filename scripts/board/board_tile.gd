@@ -12,6 +12,12 @@ var _event_beacon: Node = null
 var _enemy_base_model: Node = null
 var _poi_node: Node3D = null
 
+## Per-terrain ground texture packs (CC0 from ambientCG), keyed by terrain name.
+## Each folder holds albedo.jpg / normal.jpg / roughness.jpg; terrains without a
+## folder fall back to the flat palette color.
+const TEXTURE_ROOT := "res://resources/textures/"
+static var _texture_cache: Dictionary = {}
+
 
 func _ready() -> void:
 	add_to_group("board_tile")
@@ -45,17 +51,35 @@ func _update_visual() -> void:
 		return
 	var material = StandardMaterial3D.new()
 
-	# The floor tile always shows its natural terrain color matching the sector
-	# theme (desert, forest, suburb, urban), so the board reads as a cohesive,
-	# comfortable landscape ("สบายตา") instead of a noisy rainbow grid.
+	# The floor tile shows its natural terrain look matching the sector theme
+	# (desert, forest, suburb, urban). When a PBR texture pack exists for the
+	# terrain (resources/textures/<terrain>/) it is applied on top; otherwise
+	# the tile falls back to the flat harmonious palette color.
 	var color := _terrain_color(terrain)
 	if not is_revealed:
 		# Fog of war: dimmed terrain for unexplored cells.
 		color = color.darkened(0.35)
 		color.a = 0.9
 
-	material.albedo_color = color
-	material.roughness = 0.85
+	var albedo_tex := _cached_texture(terrain, "albedo")
+	if albedo_tex != null:
+		material.albedo_texture = albedo_tex
+		# Textures carry their own full-color look; tint white so they read
+		# naturally (the darkened palette color still dims unrevealed tiles).
+		material.albedo_color = Color.WHITE if is_revealed else color
+		material.normal_enabled = true
+		material.normal_texture = _cached_texture(terrain, "normal")
+		var rough_tex := _cached_texture(terrain, "roughness")
+		if rough_tex != null:
+			material.roughness_texture = rough_tex
+			material.roughness = 1.0
+		else:
+			material.roughness = 0.85
+		# Tiles are 4x4 units; two repeats keep texture density believable.
+		material.uv1_scale = Vector3(2.0, 2.0, 2.0)
+	else:
+		material.albedo_color = color
+		material.roughness = 0.85
 	mesh_instance.set_surface_override_material(0, material)
 
 	# Content POI models and beacons stay hidden under fog of war until revealed.
@@ -70,6 +94,18 @@ func _update_visual() -> void:
 func _terrain_color(t: String) -> Color:
 	var theme_id := str(GlobalData.board.board_theme_id)
 	return BoardConfig.terrain_color(t, theme_id)
+
+
+static func _cached_texture(terrain_name: String, kind: String) -> Texture2D:
+	var key := "%s/%s" % [terrain_name, kind]
+	if _texture_cache.has(key):
+		return _texture_cache[key]
+	var path := TEXTURE_ROOT + terrain_name + "/" + kind + ".jpg"
+	var tex: Texture2D = null
+	if ResourceLoader.exists(path, "Texture2D"):
+		tex = load(path)
+	_texture_cache[key] = tex
+	return tex
 
 
 # ---------------------------------------------------------------------------

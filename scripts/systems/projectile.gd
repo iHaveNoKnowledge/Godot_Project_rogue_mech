@@ -92,7 +92,7 @@ func _physics_process(delta: float) -> void:
 		if damage_type.to_lower() == "explosive":
 			_explode(global_position)
 		else:
-			EffectManager.spawn_impact(global_position, Vector3.UP)
+			EffectManager.spawn_hit_spark(global_position, Vector3.UP, damage_type)
 		queue_free()
 		return
 
@@ -125,7 +125,7 @@ func _check_obstacle_collision() -> void:
 			queue_free()
 			return
 
-		EffectManager.spawn_impact(hit_pos, hit_normal)
+		EffectManager.spawn_hit_spark(hit_pos, hit_normal, damage_type)
 
 		# Ricochet check: some bullets bounce off
 		if randf() < ricochet_chance:
@@ -155,7 +155,7 @@ func _hit_target(target: Node3D) -> void:
 		_explode(position)
 		return
 
-	EffectManager.spawn_impact(position, Vector3.UP)
+	EffectManager.spawn_hit_spark(position, -direction if direction.length_squared() > 0.001 else Vector3.UP, damage_type)
 	if AudioManager:
 		AudioManager.play_impact_by_type(damage_type, position)
 

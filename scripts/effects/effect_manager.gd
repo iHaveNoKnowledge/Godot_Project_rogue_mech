@@ -67,47 +67,110 @@ static func spawn_muzzle_flash(position: Vector3, direction: Vector3, color: Col
 	flash_tween.tween_callback(flash.queue_free)
 
 
-static func spawn_impact(position: Vector3, normal: Vector3) -> void:
+## Spawns dynamic, brilliant directional hit sparks, ricochet ember streaks, and a micro-flash light
+## at the point of impact.
+static func spawn_hit_spark(position: Vector3, normal: Vector3 = Vector3.UP, damage_type: String = "kinetic") -> void:
 	if instance == null:
 		return
 
-	var impact = GPUParticles3D.new()
-	var mat = ParticleProcessMaterial.new()
-	mat.direction = normal
-	mat.spread = 60.0
-	mat.initial_velocity_min = 4.0
-	mat.initial_velocity_max = 10.0
-	mat.gravity = Vector3(0, -6, 0)
-	mat.scale_min = 0.06
-	mat.scale_max = 0.18
+	var norm := normal.normalized() if normal.length_squared() > 0.001 else Vector3.UP
+	var dmg_type := damage_type.to_lower()
+	var spark_color := Color(1.0, 0.85, 0.35) # Bright yellow-gold
+	var emission_color := Color(1.0, 0.75, 0.2)
+	var flash_color := Color(1.0, 0.9, 0.5)
 
-	impact.process_material = mat
-	impact.amount = 12
-	impact.lifetime = 0.35
-	impact.one_shot = true
-	impact.explosiveness = 0.9
-	impact.emitting = true
+	if dmg_type == "heat" or dmg_type == "explosive":
+		spark_color = Color(1.0, 0.45, 0.1) # Fire orange-red
+		emission_color = Color(1.0, 0.3, 0.05)
+		flash_color = Color(1.0, 0.6, 0.2)
+	elif dmg_type == "emp" or dmg_type == "electric":
+		spark_color = Color(0.4, 0.85, 1.0) # Electric cyan
+		emission_color = Color(0.25, 0.8, 1.0)
+		flash_color = Color(0.6, 0.95, 1.0)
+	elif dmg_type == "pierce":
+		spark_color = Color(1.0, 0.95, 0.8) # White-hot piercing spark
+		emission_color = Color(1.0, 0.9, 0.6)
+		flash_color = Color(1.0, 0.95, 0.85)
 
-	var mesh_instance = MeshInstance3D.new()
-	var sphere = SphereMesh.new()
-	sphere.radius = 0.06
-	mesh_instance.mesh = sphere
-	var particle_mat = StandardMaterial3D.new()
-	particle_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	particle_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	particle_mat.albedo_color = Color(1.0, 0.8, 0.3, 0.95)
-	particle_mat.emission_enabled = true
-	particle_mat.emission = Color(1.0, 0.7, 0.2)
-	particle_mat.emission_energy_multiplier = 3.5
-	mesh_instance.material_override = particle_mat
-	impact.add_child(mesh_instance)
+	# 1. Micro Point Light Flash at impact (illuminates local armor for 0.06s)
+	var light := OmniLight3D.new()
+	light.light_color = flash_color
+	light.light_energy = 4.5
+	light.omni_range = 4.0
+	light.omni_attenuation = 2.0
+	instance.add_child(light)
+	light.global_position = position + norm * 0.1
 
-	instance.add_child(impact)
-	impact.global_position = position
+	var lt := instance.create_tween()
+	lt.tween_property(light, "light_energy", 0.0, 0.06)
+	lt.tween_callback(light.queue_free)
 
-	var t := impact.create_tween()
-	t.tween_interval(0.4)
-	t.tween_callback(impact.queue_free)
+	# 2. Expanding Core Impact Star / Flash Ring
+	var core_mesh := MeshInstance3D.new()
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.2, 0.2)
+	core_mesh.mesh = quad
+	var core_mat := StandardMaterial3D.new()
+	core_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	core_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	core_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	core_mat.albedo_color = Color(1.0, 1.0, 1.0, 0.95)
+	core_mat.emission_enabled = true
+	core_mat.emission = flash_color
+	core_mat.emission_energy_multiplier = 6.0
+	core_mesh.material_override = core_mat
+	instance.add_child(core_mesh)
+	core_mesh.global_position = position + norm * 0.05
+
+	var ct := instance.create_tween().set_parallel(true)
+	ct.tween_property(core_mesh, "scale", Vector3(2.5, 2.5, 2.5), 0.08)
+	ct.tween_property(core_mat, "albedo_color:a", 0.0, 0.08)
+	ct.chain().tween_callback(core_mesh.queue_free)
+
+	# 3. High-Velocity Elongated Ricochet Sparks (GPUParticles3D with velocity-aligned spark streaks)
+	var sparks := GPUParticles3D.new()
+	var pmat := ParticleProcessMaterial.new()
+	pmat.direction = norm
+	pmat.spread = 55.0
+	pmat.initial_velocity_min = 6.0
+	pmat.initial_velocity_max = 14.0
+	pmat.gravity = Vector3(0, -9.8, 0)
+	pmat.damping_min = 2.0
+	pmat.damping_max = 5.0
+	pmat.scale_min = 0.08
+	pmat.scale_max = 0.22
+
+	sparks.process_material = pmat
+	sparks.amount = 16
+	sparks.lifetime = 0.25
+	sparks.one_shot = true
+	sparks.explosiveness = 0.95
+	sparks.emitting = true
+
+	var spark_mesh := BoxMesh.new()
+	spark_mesh.size = Vector3(0.04, 0.04, 0.18) # Elongated spark streak
+	var smat := StandardMaterial3D.new()
+	smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	smat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	smat.albedo_color = spark_color
+	smat.emission_enabled = true
+	smat.emission = emission_color
+	smat.emission_energy_multiplier = 5.0
+	spark_mesh.material = smat
+	sparks.draw_pass_1 = spark_mesh
+
+	instance.add_child(sparks)
+	sparks.global_position = position
+	if norm.length_squared() > 0.001:
+		sparks.look_at(position + norm, Vector3.UP if absf(norm.y) < 0.9 else Vector3.FORWARD)
+
+	var st := sparks.create_tween()
+	st.tween_interval(0.3)
+	st.tween_callback(sparks.queue_free)
+
+
+static func spawn_impact(position: Vector3, normal: Vector3) -> void:
+	spawn_hit_spark(position, normal, "kinetic")
 
 
 static func spawn_damage_number(position: Vector3, damage: float, color: Color = Color.WHITE) -> void:

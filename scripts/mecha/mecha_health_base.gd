@@ -181,6 +181,9 @@ func take_damage_at_point(amount: float, world_pos: Vector3, damage_type: String
 		_take_explosive_damage_at_point(amount, world_pos, damage_type)
 		return
 
+	if world_pos != Vector3.ZERO:
+		EffectManager.spawn_hit_spark(world_pos, Vector3.UP, damage_type)
+
 	var hit := _resolve_hit(world_pos)
 	if hit["slot"] != "":
 		take_damage_to_part(hit["slot"], amount, damage_type, hit["layer"])

@@ -156,7 +156,8 @@ func _run_procedural(delta: float) -> void:
 		else:
 			_update_bob(delta)
 			_update_legs(delta)
-			if mecha.get("is_charging_prejump") == true:
+			var js = mecha.jump_system
+			if js and js.is_charging_prejump:
 				_update_prejump_charge_posture(delta)
 
 	# Runs LAST so the raised shield arm overrides whatever the base postures
@@ -165,7 +166,8 @@ func _run_procedural(delta: float) -> void:
 
 
 func _update_prejump_charge_posture(delta: float) -> void:
-	var charge_time: float = float(mecha.get("prejump_charge_time")) if "prejump_charge_time" in mecha else 0.0
+	var js = mecha.jump_system
+	var charge_time: float = js.prejump_charge_time if js else 0.0
 	var ratio := clampf(charge_time / 0.35, 0.0, 1.0)
 	var speed = 12.0 * delta
 	var compress_y = -0.08 * ratio

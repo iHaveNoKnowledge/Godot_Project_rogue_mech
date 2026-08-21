@@ -185,14 +185,13 @@ func _update_energy_bar() -> void:
 		return
 	if _player_mecha == null or not is_instance_valid(_player_mecha) or not ("energy" in _player_mecha):
 		return
-	# _player_mecha is a plain Node, so read the mech's energy fields through
-	# the 1-arg Object.get() (missing -> null) and fall back to defaults.
+	# Read energy state from the mecha's energy_system subsystem.
+	var es = _player_mecha.get("energy_system")
 	var max_e: float = 100.0
-	var max_raw = _player_mecha.get("max_energy")
-	if max_raw != null:
-		max_e = maxf(float(max_raw), 1.0)
-	var cur_raw = _player_mecha.get("energy")
-	var cur_e: float = clampf(float(cur_raw) if cur_raw != null else max_e, 0.0, max_e)
+	var cur_e: float = max_e
+	if es:
+		max_e = maxf(es.max_energy, 1.0)
+		cur_e = clampf(es.energy, 0.0, max_e)
 	energy_bar.max_value = max_e
 	energy_bar.value = cur_e
 	energy_label.text = "ENERGY: %d%%" % int(cur_e / max_e * 100.0)
@@ -327,9 +326,9 @@ func _update_drop_tank_indicator() -> void:
 		return
 	if _player_mecha == null or not is_instance_valid(_player_mecha):
 		return
-	# Read drop tank state from the mecha controller.
-	var active_raw = _player_mecha.get("_drop_tank_active")
-	var active: bool = active_raw if active_raw != null else false
+	# Read drop tank state from the mecha controller's energy system.
+	var es = _player_mecha.get("energy_system")
+	var active: bool = es._drop_tank_active if es else false
 	if not active:
 		_dt_container.visible = false
 		return
@@ -337,8 +336,7 @@ func _update_drop_tank_indicator() -> void:
 
 	# HP bar.
 	var max_hp: float = 60.0  # 2 tanks * 30 HP default
-	var hp_raw = _player_mecha.get("_drop_tank_hp")
-	var hp: float = float(hp_raw) if hp_raw != null else 0.0
+	var hp: float = es._drop_tank_hp if es else 0.0
 	# Derive max HP from GlobalData.
 	var attached_raw = GlobalData.get("drop_tanks_attached")
 	var attached: int = int(attached_raw) if attached_raw != null else 0
@@ -364,8 +362,7 @@ func _update_drop_tank_indicator() -> void:
 	_dt_fuel_label.text = "FUEL: %d" % int(fuel)
 
 	# Purge warning: show and blink when detonation countdown is active.
-	var detonating_raw = _player_mecha.get("_drop_tank_detonating")
-	var detonating: bool = detonating_raw if detonating_raw != null else false
+	var detonating: bool = es._drop_tank_detonating if es else false
 	if detonating:
 		if not _dt_purge_label.visible:
 			_dt_purge_label.visible = true
@@ -422,7 +419,8 @@ func _update_precision_indicator() -> void:
 		return
 	if not is_instance_valid(_player_mecha):
 		return
-	var dodged: bool = bool(_player_mecha.get("_precision_dodged"))
+	var ds = _player_mecha.get("dash_system")
+	var dodged: bool = ds._precision_dodged if ds else false
 	if dodged and not _precision_was_dodged:
 		# Just triggered — flash the indicator.
 		_precision_label.text = "+4 PRECISION!"

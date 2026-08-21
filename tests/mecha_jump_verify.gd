@@ -97,27 +97,27 @@ func _verify_dash_cooldown() -> void:
 func _verify_jump_energy_cost() -> void:
 	# Cost = base 6 + total_weight * 0.06.
 	mech.total_weight = 50.0
-	mech.energy = 100.0
+	mech.energy_system.energy = 100.0
 	mech._start_jump()
-	_check(is_equal_approx(mech.energy, 91.0), "50kg mech pays 9 energy to jump")
-	mech.is_jumping = false
+	_check(is_equal_approx(mech.energy_system.energy, 91.0), "50kg mech pays 9 energy to jump")
+	mech.jump_system.is_jumping = false
 	mech.velocity = Vector3.ZERO
 
 	mech.total_weight = 100.0
-	mech.energy = 100.0
+	mech.energy_system.energy = 100.0
 	mech._start_jump()
-	_check(is_equal_approx(mech.energy, 88.0), "100kg mech pays 12 energy to jump (heavier = pricier)")
-	mech.is_jumping = false
+	_check(is_equal_approx(mech.energy_system.energy, 88.0), "100kg mech pays 12 energy to jump (heavier = pricier)")
+	mech.jump_system.is_jumping = false
 	mech.velocity = Vector3.ZERO
 
 	# Too drained to launch: the jump is refused and no energy is spent.
-	mech.energy = 5.0
+	mech.energy_system.energy = 5.0
 	mech._start_jump()
-	_check(mech.velocity.y == 0.0 and is_equal_approx(mech.energy, 5.0),
+	_check(mech.velocity.y == 0.0 and is_equal_approx(mech.energy_system.energy, 5.0),
 		"jump refuses when the tank is too low")
 
-	mech.is_jumping = false
-	mech.energy = 100.0
+	mech.jump_system.is_jumping = false
+	mech.energy_system.energy = 100.0
 
 
 func _verify_momentum_launch() -> void:
@@ -169,9 +169,9 @@ func _verify_weight_penalty() -> void:
 func _reset_mech() -> void:
 	mech.global_position = Vector3(0, 3, 0)
 	mech.velocity = Vector3.ZERO
-	mech.is_jumping = false
-	mech.jump_charge = 0.0
-	mech.energy = 100.0
+	mech.jump_system.is_jumping = false
+	mech.jump_system.jump_charge = 0.0
+	mech.energy_system.energy = 100.0
 	mech.dash_cooldown_timer = 0.0
 	Input.action_release("jump")
 	Input.action_release("move_forward")
@@ -258,7 +258,7 @@ func _verify_midair_dash() -> void:
 	# Float the mech airborne (no floor contact) and dash — it must still fire.
 	mech.global_position = Vector3(0, 8, 0)
 	mech.velocity = Vector3(0, 2, 0)
-	mech.energy = 100.0
+	mech.energy_system.energy = 100.0
 	await get_tree().physics_frame
 	_check(not mech.is_on_floor(), "mech is airborne for the mid-air dash check")
 	mech._start_dash()
@@ -269,11 +269,11 @@ func _verify_midair_dash() -> void:
 func _settle_on_floor() -> void:
 	mech.global_position = Vector3(0, 3, 0)
 	mech.velocity = Vector3.ZERO
-	mech.is_jumping = false
-	mech.jump_charge = 0.0
+	mech.jump_system.is_jumping = false
+	mech.jump_system.jump_charge = 0.0
 	mech.is_charging_prejump = false
 	mech.is_roller_dashing = false
-	mech.energy = 100.0
+	mech.energy_system.energy = 100.0
 	Input.action_release("jump")
 	Input.action_release("roller_dash")
 	Input.action_release("move_forward")
@@ -292,20 +292,20 @@ func _verify_roller_energy() -> void:
 	# With the roller engaged but NO movement input, the pool must not drain
 	# (headless Input lingers, so the roller state is set directly here — the
 	# drain gate is what this check exercises).
-	mech.energy = 100.0
+	mech.energy_system.energy = 100.0
 	mech.is_roller_dashing = true
 	for i in range(30):
 		await get_tree().physics_frame
-	_check(is_equal_approx(mech.energy, 100.0), "standing still with the roller on costs no energy")
+	_check(is_equal_approx(mech.energy_system.energy, 100.0), "standing still with the roller on costs no energy")
 
 	# Rolling while actually moving drains the pool.
-	mech.energy = 100.0
+	mech.energy_system.energy = 100.0
 	mech.is_roller_dashing = true
 	Input.action_press("move_forward")
 	for i in range(30):
 		await get_tree().physics_frame
 	Input.action_release("move_forward")
-	_check(mech.energy < 99.0, "rolling while moving drains energy")
+	_check(mech.energy_system.energy < 99.0, "rolling while moving drains energy")
 	mech.is_roller_dashing = false
 	mech.velocity = Vector3.ZERO
 
@@ -315,7 +315,7 @@ func _verify_midair_roller() -> void:
 	mech.global_position = Vector3(0, 8, 0)
 	mech.velocity = Vector3(0, 2, 0)
 	mech.is_roller_dashing = false
-	mech.energy = 100.0
+	mech.energy_system.energy = 100.0
 	await get_tree().physics_frame
 	_check(not mech.is_on_floor(), "mech is airborne for the mid-air roller check")
 	Input.action_press("roller_dash")

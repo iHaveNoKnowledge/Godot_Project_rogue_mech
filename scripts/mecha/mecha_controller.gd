@@ -12,79 +12,11 @@ var input_dir: Vector2 = Vector2.ZERO
 
 const GRAVITY := 20.0
 
-# Subsystems (created in _ready, attached as child nodes).
-var _jump: Node  # MechaJumpSystem
-var _dash: Node  # MechaDashSystem
-var _energy: Node  # MechaEnergySystem
-
-var energy: float:
-	get:
-		return _energy.energy if _energy else 100.0
-	set(v):
-		if _energy:
-			_energy.energy = v
-
-var max_energy: float:
-	get:
-		return _energy.max_energy if _energy else 100.0
-	set(v):
-		if _energy:
-			_energy.max_energy = v
-
-var _precision_dodged: bool:
-	get:
-		return _dash._precision_dodged if _dash else false
-	set(v):
-		if _dash:
-			_dash._precision_dodged = v
-
-var is_jumping: bool:
-	get:
-		return _jump.is_jumping if _jump else false
-	set(v):
-		if _jump:
-			_jump.is_jumping = v
-
-var jump_charge: float:
-	get:
-		return _jump.jump_charge if _jump else 0.0
-	set(v):
-		if _jump:
-			_jump.jump_charge = v
-
-var is_charging_prejump: bool:
-	get:
-		return _jump.is_charging_prejump if _jump else false
-
-var prejump_charge_time: float:
-	get:
-		return _jump.prejump_charge_time if _jump else 0.0
-
-var is_dashing: bool:
-	get:
-		return _dash.is_dashing if _dash else false
-	set(v):
-		if _dash:
-			_dash.is_dashing = v
-
-var dash_cooldown: float:
-	get:
-		return 0.5
-
-var dash_cooldown_timer: float:
-	get:
-		return _dash._precision_cooldown if _dash else 0.0
-	set(v):
-		if _dash:
-			_dash._precision_cooldown = v
-
-var _drop_tank_active: bool:
-	get:
-		return _energy._drop_tank_active if _energy else false
-
-var _drop_tank_detonating: bool:
-	get:
-		return _energy._drop_tank_detonating if _energy else false
+# Subsystems — public references so callers access state directly
+# (e.g. mecha.jump_system.is_jumping instead of mecha.is_jumping).
+var jump_system: Node = null
+var dash_system: Node = null
+var energy_system: Node = null
 
 # Roller state (kept on controller — input + VFX are controller concerns).
 var is_roller_dashing: bool = false
@@ -103,6 +35,47 @@ var _chassis_speed_override: float = 14.0
 var _chassis_weight_capacity_override: float = 75.0
 var can_traverse_water: bool = false
 
+# Backward-compatibility proxies
+var is_jumping: bool:
+	get: return jump_system.is_jumping if jump_system else false
+	set(v):
+		if jump_system: jump_system.is_jumping = v
+
+var is_dashing: bool:
+	get: return dash_system.is_dashing if dash_system else false
+	set(v):
+		if dash_system: dash_system.is_dashing = v
+
+var dash_cooldown: float:
+	get: return dash_system.dash_cooldown if dash_system else 0.5
+	set(v):
+		if dash_system: dash_system.dash_cooldown = v
+
+var energy: float:
+	get: return energy_system.energy if energy_system else 100.0
+	set(v):
+		if energy_system: energy_system.energy = v
+
+var max_energy: float:
+	get: return energy_system.max_energy if energy_system else 100.0
+	set(v):
+		if energy_system: energy_system.max_energy = v
+
+var _jump: Node:
+	get: return jump_system
+
+var _dash: Node:
+	get: return dash_system
+
+var _energy: Node:
+	get: return energy_system
+
+
+func _init() -> void:
+	jump_system = preload("res://scripts/mecha/mecha_jump_system.gd").new()
+	dash_system = preload("res://scripts/mecha/mecha_dash_system.gd").new()
+	energy_system = preload("res://scripts/mecha/mecha_energy_system.gd").new()
+
 
 func _ready() -> void:
 	add_to_group("mecha")
@@ -116,23 +89,23 @@ func _ready() -> void:
 		attachment_manager.rebuild_from_global_data()
 	EventBus.weight_changed.connect(_on_weight_changed)
 
-	# Create subsystems.
-	_jump = preload("res://scripts/mecha/mecha_jump_system.gd").new()
-	_jump.name = "JumpSystem"
-	add_child(_jump)
+	# Register subsystems in tree if not already added.
+	if jump_system.get_parent() == null:
+		jump_system.name = "JumpSystem"
+		add_child(jump_system)
 
-	_dash = preload("res://scripts/mecha/mecha_dash_system.gd").new()
-	_dash.name = "DashSystem"
-	add_child(_dash)
+	if dash_system.get_parent() == null:
+		dash_system.name = "DashSystem"
+		add_child(dash_system)
 
-	_energy = preload("res://scripts/mecha/mecha_energy_system.gd").new()
-	_energy.name = "EnergySystem"
-	add_child(_energy)
-	_energy.initialize_from_global()
+	if energy_system.get_parent() == null:
+		energy_system.name = "EnergySystem"
+		add_child(energy_system)
+		energy_system.initialize_from_global()
 
 
 func _exit_tree() -> void:
-	_energy.persist_to_global()
+	energy_system.persist_to_global()
 	if AudioManager:
 		AudioManager.stop_roller_dash()
 
@@ -214,35 +187,35 @@ func _physics_process(delta: float) -> void:
 	# Roller wheels need ground: leaving floor cuts roller immediately.
 	if is_roller_dashing and not is_on_floor():
 		is_roller_dashing = false
-		_energy.roller_drain_ramp = 0.0
+		energy_system.roller_drain_ramp = 0.0
 
 	# Sync subsystem state.
-	_energy.is_roller_dashing = is_roller_dashing
-	_energy.input_dir = input_dir
-	_energy.is_on_floor = is_on_floor()
-	_dash.input_dir = input_dir
-	_jump.total_weight = total_weight
-	_jump.chassis_weight_capacity = _chassis_weight_capacity_override
-	_jump.velocity_ref = velocity
+	energy_system.is_roller_dashing = is_roller_dashing
+	energy_system.input_dir = input_dir
+	energy_system.is_on_floor = is_on_floor()
+	dash_system.input_dir = input_dir
+	jump_system.total_weight = total_weight
+	jump_system.chassis_weight_capacity = _chassis_weight_capacity_override
+	jump_system.velocity_ref = velocity
 
-	_energy.process_energy(delta)
-	_energy.process_drop_tanks(delta)
-	_dash.tick(delta)
+	energy_system.process_energy(delta)
+	energy_system.process_drop_tanks(delta)
+	dash_system.tick(delta)
 
-	if _jump and _jump.is_charging_prejump:
-		_jump.tick_prejump_charge(delta, is_on_floor())
+	if jump_system and jump_system.is_charging_prejump:
+		jump_system.tick_prejump_charge(delta, is_on_floor())
 
-	if _dash.is_dashing:
-		velocity = _dash.apply_velocity(velocity)
+	if dash_system.is_dashing:
+		velocity = dash_system.apply_velocity(velocity)
 	else:
 		_handle_movement_input()
 		_apply_movement(delta)
 
-	if _jump.is_jumping:
-		velocity.y = _jump.process_jump(delta, is_on_floor(), velocity.y)
+	if jump_system.is_jumping:
+		velocity.y = jump_system.process_jump(delta, is_on_floor(), velocity.y)
 	elif is_on_floor():
-		_jump.is_jumping = false
-		_jump.jump_charge = 0.0
+		jump_system.is_jumping = false
+		jump_system.jump_charge = 0.0
 
 	# Landing detection — restore floor snap so the mech sticks to slopes.
 	var currently_on_floor = is_on_floor()
@@ -266,13 +239,13 @@ func _physics_process(delta: float) -> void:
 # --- Jump / Dash helper bridges --------------------------------------------
 
 func _start_jump() -> float:
-	if _jump:
-		_jump.total_weight = total_weight
-		_jump.chassis_weight_capacity = _chassis_weight_capacity_override
-		var cost: float = _jump.start_jump(_energy.energy, global_position, velocity)
+	if jump_system:
+		jump_system.total_weight = total_weight
+		jump_system.chassis_weight_capacity = _chassis_weight_capacity_override
+		var cost: float = jump_system.start_jump(energy_system.energy, global_position, velocity)
 		if cost > 0.0:
-			_energy.energy = maxf(_energy.energy - cost, 0.0)
-			velocity.y = _jump.velocity_ref.y
+			energy_system.energy = maxf(energy_system.energy - cost, 0.0)
+			velocity.y = jump_system.velocity_ref.y
 			floor_snap_length = 0.0
 			if AudioManager:
 				AudioManager.play_jump(global_position)
@@ -281,13 +254,13 @@ func _start_jump() -> float:
 
 
 func _release_prejump() -> float:
-	if _jump:
-		_jump.total_weight = total_weight
-		_jump.chassis_weight_capacity = _chassis_weight_capacity_override
-		var cost: float = _jump.release_prejump(_energy.energy, global_position, velocity)
+	if jump_system:
+		jump_system.total_weight = total_weight
+		jump_system.chassis_weight_capacity = _chassis_weight_capacity_override
+		var cost: float = jump_system.release_prejump(energy_system.energy, global_position, velocity)
 		if cost > 0.0:
-			_energy.energy = maxf(_energy.energy - cost, 0.0)
-			velocity.y = _jump.velocity_ref.y
+			energy_system.energy = maxf(energy_system.energy - cost, 0.0)
+			velocity.y = jump_system.velocity_ref.y
 			floor_snap_length = 0.0
 			if AudioManager:
 				AudioManager.play_jump(global_position)
@@ -297,19 +270,19 @@ func _release_prejump() -> float:
 
 
 func _jump_velocity(charge_frac: float) -> float:
-	if _jump:
-		_jump.velocity_ref = velocity
-		_jump.total_weight = total_weight
-		_jump.chassis_weight_capacity = _chassis_weight_capacity_override
-		return float(_jump._jump_velocity(charge_frac, Vector3.ZERO))
+	if jump_system:
+		jump_system.velocity_ref = velocity
+		jump_system.total_weight = total_weight
+		jump_system.chassis_weight_capacity = _chassis_weight_capacity_override
+		return float(jump_system._jump_velocity(charge_frac, Vector3.ZERO))
 	return 6.0
 
 
 func _start_dash() -> void:
-	if _dash and _energy:
-		if _dash.can_dash(_energy.energy):
-			var cost: float = _dash.start_dash(_energy.energy, global_position, global_transform.basis)
-			_energy.energy = maxf(_energy.energy - cost, 0.0)
+	if dash_system and energy_system:
+		if dash_system.can_dash(energy_system.energy):
+			var cost: float = dash_system.start_dash(energy_system.energy, global_position, global_transform.basis)
+			energy_system.energy = maxf(energy_system.energy - cost, 0.0)
 
 
 # --- Movement input & application -------------------------------------------
@@ -322,40 +295,40 @@ func _handle_movement_input() -> void:
 	if Input.is_action_just_pressed("roller_dash"):
 		if not is_on_floor():
 			is_roller_dashing = false
-			_energy.roller_drain_ramp = 0.0
-		elif _energy.energy > 1.0:
+			energy_system.roller_drain_ramp = 0.0
+		elif energy_system.energy > 1.0:
 			if not is_roller_dashing:
-				_energy.roller_drain_ramp = 0.0
+				energy_system.roller_drain_ramp = 0.0
 			is_roller_dashing = not is_roller_dashing
 			if AudioManager:
 				AudioManager.play_mecha_actuator(global_position)
 		else:
 			is_roller_dashing = false
-			_energy.roller_drain_ramp = 0.0
+			energy_system.roller_drain_ramp = 0.0
 
 	# Dash.
 	if Input.is_action_just_pressed("dash"):
 		_start_dash()
 
 	# Jump handling: Dual-mode (Jetpack Thruster vs Base Pre-Jump Charge)
-	if _jump:
-		var active_mode = _jump.get_active_jump_mode()
-		if active_mode == _jump.JumpMode.JETPACK_THRUSTER:
+	if jump_system:
+		var active_mode = jump_system.get_active_jump_mode()
+		if active_mode == jump_system.JumpMode.JETPACK_THRUSTER:
 			if is_on_floor() and Input.is_action_just_pressed("jump"):
 				_start_jump()
 		else:
 			# Base Pre-Jump mode:
 			if is_on_floor() and Input.is_action_just_pressed("jump"):
-				_jump.start_prejump_charge()
-			elif Input.is_action_just_released("jump") and _jump.is_charging_prejump:
+				jump_system.start_prejump_charge()
+			elif Input.is_action_just_released("jump") and jump_system.is_charging_prejump:
 				if is_on_floor():
 					_release_prejump()
 				else:
-					_jump.cancel_prejump_charge()
+					jump_system.cancel_prejump_charge()
 
 	# Drop tank purge.
-	if _energy._drop_tank_active and Input.is_action_just_pressed("eject"):
-		_energy.purge_drop_tanks()
+	if energy_system._drop_tank_active and Input.is_action_just_pressed("eject"):
+		energy_system.purge_drop_tanks()
 
 
 func _apply_movement(delta: float) -> void:

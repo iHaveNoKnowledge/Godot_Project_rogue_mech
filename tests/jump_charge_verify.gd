@@ -92,9 +92,9 @@ func _build_world() -> void:
 func _reset_mech() -> void:
 	mech.global_position = Vector3(0, 3, 0)
 	mech.velocity = Vector3.ZERO
-	mech.is_jumping = false
-	mech.jump_charge = 0.0
-	mech.energy = 100.0
+	mech.jump_system.is_jumping = false
+	mech.jump_system.jump_charge = 0.0
+	mech.energy_system.energy = 100.0
 	mech.is_roller_dashing = false
 	Input.action_release("jump")
 	for i in range(90):
@@ -120,7 +120,7 @@ func _peak_height(start_y: float) -> float:
 func _verify_charge_accumulates() -> void:
 	print("--- 1. Charge Accumulation ---")
 	await _reset_mech()
-	_check(not mech.is_jumping, "mech starts not jumping")
+	_check(not mech.jump_system.is_jumping, "mech starts not jumping")
 
 	# Press and hold — charge should increase each physics frame.
 	Input.action_press("jump")
@@ -128,14 +128,14 @@ func _verify_charge_accumulates() -> void:
 	for i in range(5):
 		await get_tree().physics_frame
 
-	_check(mech.is_jumping, "mech is jumping after pressing space")
-	_check(mech.jump_charge > 0.0, "jump_charge > 0 after holding (%.4f)" % mech.jump_charge)
+	_check(mech.jump_system.is_jumping, "mech is jumping after pressing space")
+	_check(mech.jump_system.jump_charge > 0.0, "jump_charge > 0 after holding (%.4f)" % mech.jump_system.jump_charge)
 
-	var charge_before := mech.jump_charge
+	var charge_before := mech.jump_system.jump_charge
 	for i in range(10):
 		await get_tree().physics_frame
-	_check(mech.jump_charge > charge_before,
-		"jump_charge increases while held (%.4f -> %.4f)" % [charge_before, mech.jump_charge])
+	_check(mech.jump_system.jump_charge > charge_before,
+		"jump_charge increases while held (%.4f -> %.4f)" % [charge_before, mech.jump_system.jump_charge])
 
 	Input.action_release("jump")
 	await get_tree().physics_frame
@@ -154,10 +154,10 @@ func _verify_charge_bounded() -> void:
 	for i in range(65):
 		await get_tree().physics_frame
 
-	_check(mech.jump_charge <= JUMP_CHARGE_TIME + 0.02,
-		"jump_charge capped near JUMP_CHARGE_TIME (%.4f <= %.4f)" % [mech.jump_charge, JUMP_CHARGE_TIME])
-	_check(is_equal_approx(mech.jump_charge, JUMP_CHARGE_TIME, 0.02),
-		"jump_charge equals JUMP_CHARGE_TIME after long hold (%.4f ~= %.4f)" % [mech.jump_charge, JUMP_CHARGE_TIME])
+	_check(mech.jump_system.jump_charge <= JUMP_CHARGE_TIME + 0.02,
+		"jump_charge capped near JUMP_CHARGE_TIME (%.4f <= %.4f)" % [mech.jump_system.jump_charge, JUMP_CHARGE_TIME])
+	_check(is_equal_approx(mech.jump_system.jump_charge, JUMP_CHARGE_TIME, 0.02),
+		"jump_charge equals JUMP_CHARGE_TIME after long hold (%.4f ~= %.4f)" % [mech.jump_system.jump_charge, JUMP_CHARGE_TIME])
 
 	Input.action_release("jump")
 	await get_tree().physics_frame
@@ -174,18 +174,18 @@ func _verify_charge_resets_on_release() -> void:
 	Input.action_press("jump")
 	for i in range(15):
 		await get_tree().physics_frame
-	_check(mech.jump_charge > 0.0, "charge built up before release (%.4f)" % mech.jump_charge)
+	_check(mech.jump_system.jump_charge > 0.0, "charge built up before release (%.4f)" % mech.jump_system.jump_charge)
 
 	Input.action_release("jump")
 	# After release, process_jump sets is_jumping = false.
 	# The charge should be 0 once the mech lands or the jump ends.
 	for i in range(5):
 		await get_tree().physics_frame
-	_check(not mech.is_jumping or mech.jump_charge == 0.0,
-		"jump ends on release (is_jumping=%s, charge=%.4f)" % [mech.is_jumping, mech.jump_charge])
+	_check(not mech.jump_system.is_jumping or mech.jump_system.jump_charge == 0.0,
+		"jump ends on release (is_jumping=%s, charge=%.4f)" % [mech.jump_system.is_jumping, mech.jump_system.jump_charge])
 
 	await _reset_mech()
-	_check(mech.jump_charge == 0.0, "charge is 0 after reset (%.4f)" % mech.jump_charge)
+	_check(mech.jump_system.jump_charge == 0.0, "charge is 0 after reset (%.4f)" % mech.jump_system.jump_charge)
 
 
 # ---------------------------------------------------------------------------
@@ -211,8 +211,8 @@ func _verify_charge_resets_on_landing() -> void:
 			break
 
 	_check(landed, "mech landed after full jump")
-	_check(mech.jump_charge == 0.0, "charge is 0 after landing (%.4f)" % mech.jump_charge)
-	_check(not mech.is_jumping, "is_jumping is false after landing")
+	_check(mech.jump_system.jump_charge == 0.0, "charge is 0 after landing (%.4f)" % mech.jump_system.jump_charge)
+	_check(not mech.jump_system.is_jumping, "is_jumping is false after landing")
 
 
 # ---------------------------------------------------------------------------
@@ -246,12 +246,12 @@ func _verify_velocity_ramps_with_charge() -> void:
 func _verify_energy_consumed_once() -> void:
 	print("--- 6. Energy Consumed Once ---")
 	await _reset_mech()
-	mech.energy = 100.0
+	mech.energy_system.energy = 100.0
 
 	# Trigger a jump via the bridge (this deducts energy).
 	var cost: float = mech._start_jump()
 	_check(cost > 0.0, "jump returned a cost (%.1f)" % cost)
-	var energy_after_launch: float = mech.energy
+	var energy_after_launch: float = mech.energy_system.energy
 	_check(is_equal_approx(energy_after_launch, 100.0 - cost, 0.1),
 		"energy deducted once at launch (%.1f = 100 - %.1f)" % [energy_after_launch, cost])
 
@@ -260,8 +260,8 @@ func _verify_energy_consumed_once() -> void:
 	for i in range(25):
 		await get_tree().physics_frame
 
-	_check(is_equal_approx(mech.energy, energy_after_launch, 0.1),
-		"energy unchanged after 25 frames of charging (%.1f == %.1f)" % [mech.energy, energy_after_launch])
+	_check(is_equal_approx(mech.energy_system.energy, energy_after_launch, 0.1),
+		"energy unchanged after 25 frames of charging (%.1f == %.1f)" % [mech.energy_system.energy, energy_after_launch])
 
 	Input.action_release("jump")
 	# Wait for landing.
@@ -270,8 +270,8 @@ func _verify_energy_consumed_once() -> void:
 		if mech.is_on_floor() and i > 10:
 			break
 
-	_check(is_equal_approx(mech.energy, energy_after_launch, 0.1),
-		"energy unchanged after landing (%.1f == %.1f)" % [mech.energy, energy_after_launch])
+	_check(is_equal_approx(mech.energy_system.energy, energy_after_launch, 0.1),
+		"energy unchanged after landing (%.1f == %.1f)" % [mech.energy_system.energy, energy_after_launch])
 
 
 # ---------------------------------------------------------------------------

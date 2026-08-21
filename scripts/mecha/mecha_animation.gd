@@ -17,9 +17,8 @@ var leg_right: Node3D = null
 var shin_left: Node3D = null
 var shin_right: Node3D = null
 
-var bob_timer: float = 0.0
+var _walk: MechaWalkingSystem = null
 var air_timer: float = 0.0
-var is_moving: bool = false
 var current_recoil: float = 0.0
 var landing_impact: float = 0.0
 # True while the mech is empty (pilot out): it kneels and waits instead of
@@ -38,14 +37,13 @@ var _original_arm_left_pos: Vector3
 var _original_arm_right_pos: Vector3
 var _original_leg_left_pos: Vector3
 var _original_leg_right_pos: Vector3
-
-
 func _ready() -> void:
 	mecha = get_parent()
+	_walk = MechaWalkingSystem.new()
+	_walk.name = "WalkingSystem"
+	add_child(_walk)
 	_refresh_node_refs()
 	EventBus.mecha_occupancy_changed.connect(_on_occupancy_changed)
-
-
 # Resolves the mech's part-slot nodes. Called on _ready AND lazily whenever a
 # reference is still null, so machines whose bodies are assembled AFTER this
 # node's _ready (allies built from a berth loadout, late-spawned bodies) pick
@@ -74,8 +72,6 @@ func _refresh_node_refs() -> void:
 		_original_leg_left_pos = leg_left.position
 	if leg_right and _original_leg_right_pos == Vector3.ZERO:
 		_original_leg_right_pos = leg_right.position
-
-
 # Occupied mechs stand normally; an empty mech (pilot ejected, or a backup
 # machine waiting on the field) kneels until someone boards it.
 func _on_occupancy_changed(occupied: bool) -> void:
@@ -84,16 +80,10 @@ func _on_occupancy_changed(occupied: bool) -> void:
 	if mecha and (mecha.is_in_group("ally") or mecha.is_in_group("enemy")):
 		return
 	set_kneeling(not occupied)
-
-
 func set_kneeling(kneel: bool) -> void:
 	is_kneeling = kneel
-
-
 func set_core_breach(breach: bool) -> void:
 	is_core_breach = breach
-
-
 # When true the AnimationPlayer (MechaRig.ANIM_PLAYER_NODE) drives the mech
 # from external clips instead of the procedural pose. Stays false until skinned
 # parts + animation assets exist; flipping it early safely falls back to
@@ -110,8 +100,6 @@ func _physics_process(delta: float) -> void:
 		return
 
 	_run_procedural(delta)
-
-
 # Clip-driven entry point. Once external animation lands, this becomes the
 # state machine that plays/queues the MechaRig.CLIP_* clips (idle, run, jump,
 # kneel, core breach, shield, recoil...). Until clips exist it hands the frame
@@ -120,8 +108,6 @@ func _update_clip_animation(delta: float) -> void:
 	var anim_player = mecha.get_node_or_null(MechaRig.ANIM_PLAYER_NODE) as AnimationPlayer
 	if anim_player == null or anim_player.get_animation_list().is_empty():
 		_run_procedural(delta)
-
-
 func _run_procedural(delta: float) -> void:
 	# The death (core-breach) collapse takes precedence over every other pose:
 	# the machine is down and no longer responding to pilot/movement input.
@@ -139,8 +125,7 @@ func _run_procedural(delta: float) -> void:
 
 	var is_on_ground = mecha.is_on_floor()
 	var vert_vel = mecha.velocity.y
-
-	is_moving = is_on_ground and mecha.velocity.length() > 0.8
+	_walk.is_moving = is_on_ground and mecha.velocity.length() > 0.8
 
 	if not is_on_ground:
 		air_timer += delta
@@ -163,8 +148,6 @@ func _run_procedural(delta: float) -> void:
 	# Runs LAST so the raised shield arm overrides whatever the base postures
 	# (idle guard, sprint pumping, airborne) set for that arm this frame.
 	_update_shield_arm(delta)
-
-
 # ─── Shared pose helper ────────────────────────────────────────────────────
 # Interpolates every mech joint toward the target values in `targets`. Only
 # supply the keys you need — all others default to 0.0 (neutral rotation,
@@ -206,8 +189,6 @@ func _apply_pose(targets: Dictionary, speed: float) -> void:
 		shin_left.rotation.x = lerp_angle(shin_left.rotation.x, targets.get("shin_left", 0.0), speed)
 	if shin_right:
 		shin_right.rotation.x = lerp_angle(shin_right.rotation.x, targets.get("shin_right", 0.0), speed)
-
-
 # ─── Posture functions ─────────────────────────────────────────────────────
 
 func _update_prejump_charge_posture(delta: float) -> void:
@@ -215,8 +196,6 @@ func _update_prejump_charge_posture(delta: float) -> void:
 	var charge_time: float = js.prejump_charge_time if js else 0.0
 	var ratio := clampf(charge_time / 0.35, 0.0, 1.0)
 	_apply_pose({"drop": -0.08 * ratio}, 12.0 * delta)
-
-
 # Jump Launch Specs (Thrusters firing, upward launch trajectory):
 # 1. Torso pitches slightly back/up (+12 deg) with chest raised
 # 2. Head counter-tilts (-12 deg) to lock eyes forward
@@ -236,8 +215,6 @@ func _update_jump_posture(delta: float) -> void:
 		"shin_left": -deg_to_rad(18.0),
 		"shin_right": -deg_to_rad(22.0),
 	}, 12.0 * delta)
-
-
 # Airborne Fall Specs (Freefall / Descent / Gliding from height):
 # 1. Torso pitches forward down (-24 deg) ready for landing impact
 # 2. Head counter-tilts (-10 deg net) looking down/ahead at landing zone
@@ -259,8 +236,6 @@ func _update_airborne_fall_posture(delta: float) -> void:
 		"shin_left": -deg_to_rad(55.0),
 		"shin_right": -deg_to_rad(30.0),
 	}, 8.0 * delta)
-
-
 # Idle combat stance (standing still, ready to fight): knees slightly bent,
 # torso leaning forward, head level and both arms raised in a guard with bent
 # elbows.
@@ -280,8 +255,6 @@ func _update_combat_idle_posture(delta: float) -> void:
 		"leg_left_drop": 0.0,
 		"leg_right_drop": 0.0,
 	}, 6.0 * delta)
-
-
 # Kneel pose (pilot out / backup waiting): both thighs fold forward so the
 # knees come down, shins fold back under, and the torso drops and bows while
 # the head stays level and the arms hang relaxed.
@@ -301,8 +274,6 @@ func _update_kneel_posture(delta: float) -> void:
 		"leg_left_drop": -0.5,
 		"leg_right_drop": -0.5,
 	}, 10.0 * delta)
-
-
 # Gundam AGE Symmetrical Forward-Pitched Roller Skating Dash Stance
 func _update_roller_dash_posture(delta: float) -> void:
 	if mecha and mecha.get("is_roller_dashing") != null:
@@ -332,8 +303,6 @@ func _update_roller_dash_posture(delta: float) -> void:
 			var model = mecha.get_node_or_null("Zenisrev")
 			if model:
 				model.rotation.x = lerp_angle(model.rotation.x, target_body_tilt, speed)
-
-
 # Death collapse: the mech goes limp before detonating — torso slumps back and
 # drops, head tilts down, arms hang splayed, legs fold under.
 func _update_core_breach_posture(delta: float) -> void:
@@ -352,12 +321,8 @@ func _update_core_breach_posture(delta: float) -> void:
 		"leg_left_drop": -0.65,
 		"leg_right_drop": -0.65,
 	}, 7.0 * delta)
-
-
 func play_landing_impact() -> void:
 	landing_impact = 1.0
-
-
 func _update_recoil(delta: float) -> void:
 	if current_recoil > 0.0:
 		current_recoil = move_toward(current_recoil, 0.0, recoil_recovery * delta)
@@ -371,8 +336,6 @@ func _update_recoil(delta: float) -> void:
 		if leg_left and leg_right:
 			leg_left.rotation.x = lerp_angle(leg_left.rotation.x, deg_to_rad(22.0) * landing_impact, 12.0 * delta)
 			leg_right.rotation.x = lerp_angle(leg_right.rotation.x, deg_to_rad(22.0) * landing_impact, 12.0 * delta)
-
-
 # Raised-shield guard pose. When a hand is actively holding its shield plate
 # up, that arm lifts in front of the torso (upper arm swung forward, elbow
 # bent hard) so the plate reads as being interposed between the mech and the
@@ -411,131 +374,36 @@ func _update_shield_arm(delta: float) -> void:
 			arm_right.rotation.x = lerp_angle(arm_right.rotation.x, target_arm, blend)
 		if forearm_right:
 			forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, target_forearm, blend)
-
-
+# Builds a joints dictionary from the cached node refs for passing to
+# MechaWalkingSystem helpers.
+func _build_joints_dict() -> Dictionary:
+	var j: Dictionary = {}
+	j["body_mesh"] = body_mesh
+	j["head_mesh"] = head_mesh
+	j["arm_left"] = arm_left
+	j["arm_right"] = arm_right
+	j["forearm_left"] = forearm_left
+	j["forearm_right"] = forearm_right
+	j["leg_left"] = leg_left
+	j["leg_right"] = leg_right
+	j["shin_left"] = shin_left
+	j["shin_right"] = shin_right
+	j["original_body_pos"] = _original_body_pos
+	j["original_head_pos"] = _original_head_pos
+	j["original_leg_left_pos"] = _original_leg_left_pos
+	j["original_leg_right_pos"] = _original_leg_right_pos
+	return j
 func _update_bob(delta: float) -> void:
+	var joints := _build_joints_dict()
+	var bob := _walk.update_bob(delta, mecha, joints, bob_amount)
 	var is_skating = mecha.get("is_roller_dashing") == true
-	if is_moving and not is_skating:
-		var run_speed = mecha.velocity.length() * 1.4
-		bob_timer += delta * clamp(run_speed, 7.0, 14.0)
-		var bob = sin(bob_timer) * bob_amount
-
-		# Forward Torso Athletic Sprint Lean (-18 degrees forward lean)
-		var sprint_lean = -deg_to_rad(18.0)
-		if body_mesh:
-			body_mesh.position.y = _original_body_pos.y + abs(bob) * 0.35
-			body_mesh.rotation.x = lerp_angle(body_mesh.rotation.x, sprint_lean, 10.0 * delta)
-		if head_mesh:
-			head_mesh.position = _original_head_pos + Vector3(0, abs(bob) * 0.35, 0)
-			head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, sprint_lean, 10.0 * delta)
-	elif not is_skating:
-		bob_timer = 0.0
+	if not _walk.is_moving and not is_skating:
 		# Standing still: settle into the ready-to-fight idle stance (bent knees,
 		# forward lean, raised guard arms) instead of a stiff straight pose.
 		_update_combat_idle_posture(delta)
-
-
 func _update_legs(delta: float) -> void:
-	var is_skating = mecha.get("is_roller_dashing") == true
-	if is_skating:
-		return
-
-	# Leg roots only ever move for the kneel pose; ease them back up whenever
-	# the mech is active again so a re-board never leaves it squatting.
-	if leg_left:
-		leg_left.position.y = lerp(leg_left.position.y, _original_leg_left_pos.y, 6.0 * delta)
-	if leg_right:
-		leg_right.position.y = lerp(leg_right.position.y, _original_leg_right_pos.y, 6.0 * delta)
-
-	if is_moving and leg_left and leg_right:
-		var fwd_vel = -mecha.global_transform.basis.z.dot(mecha.velocity)
-		var dir_sign = 1.0 if fwd_vel >= -0.2 else -1.0
-
-		var phase_left = fmod(bob_timer * 0.5, TAU)
-		var phase_right = fmod(bob_timer * 0.5 + PI, TAU)
-
-		# Clean 3D Mecha Long-Stride Sprint Calculations
-		var left_leg_data = _calc_mecha_sprint_leg(phase_left)
-		var right_leg_data = _calc_mecha_sprint_leg(phase_right)
-
-		var thigh_l = left_leg_data["thigh"]
-		var shin_l = left_leg_data["shin"]
-		var thigh_r = right_leg_data["thigh"]
-		var shin_r = right_leg_data["shin"]
-
-		leg_left.rotation.x = thigh_l * dir_sign
-		leg_right.rotation.x = thigh_r * dir_sign
-
-		if shin_left: shin_left.rotation.x = shin_l
-		if shin_right: shin_right.rotation.x = shin_r
-
-		# Athletic Arm Pumping (Bent elbows swinging opposite to legs)
-		if arm_left:
-			arm_left.rotation.x = -thigh_l * 0.75 * dir_sign
-			if forearm_left:
-				forearm_left.rotation.x = deg_to_rad(55.0) + abs(sin(phase_left)) * deg_to_rad(20.0)
-		if arm_right:
-			arm_right.rotation.x = -thigh_r * 0.75 * dir_sign
-			if forearm_right:
-				forearm_right.rotation.x = deg_to_rad(55.0) + abs(sin(phase_right)) * deg_to_rad(20.0)
-	else:
-		# Idle: _update_bob already eased every limb into the combat idle stance
-		# this frame, so leave the limbs alone (no fighting the pose).
-		return
-
-
-func _calc_mecha_sprint_leg(phase: float) -> Dictionary:
-	var thigh = 0.0
-	var shin = 0.0
-
-	var norm_phase = fmod(phase, TAU)
-	if norm_phase < 0.0:
-		norm_phase += TAU
-
-	if norm_phase < PI:
-		# Swing Phase (Leg airborne, swinging from BACK to FRONT)
-		var t = norm_phase / PI
-
-		# 1. Thigh Motion (Wide Powerful Stride: -58 deg to +64 deg):
-		# - t in [0.0, 0.8]: Swings forward rapidly from back extension (-58°) to peak forward swing (+64°)
-		# - t in [0.8, 1.0]: Pulls back slightly (+64° to +46°) to match ground speed at contact
-		if t <= 0.8:
-			var s = 0.5 - 0.5 * cos((t / 0.8) * PI)
-			thigh = lerp(-deg_to_rad(58.0), deg_to_rad(64.0), s)
-		else:
-			var s = 0.5 - 0.5 * cos(((t - 0.8) / 0.2) * PI)
-			thigh = lerp(deg_to_rad(64.0), deg_to_rad(46.0), s)
-
-		# 2. Shin/Knee Motion:
-		# - t in [0.0, 0.4]: High recovery fold! Knee flexes sharply (-10° to -85°) to lift foot over wide stride
-		# - t in [0.4, 1.0]: Knee unfolds (-85° to -26°) extending forward to prepare for ground contact
-		if t <= 0.4:
-			var s = 0.5 - 0.5 * cos((t / 0.4) * PI)
-			shin = lerp(-deg_to_rad(10.0), -deg_to_rad(85.0), s)
-		else:
-			var s = 0.5 - 0.5 * cos(((t - 0.4) / 0.6) * PI)
-			shin = lerp(-deg_to_rad(85.0), -deg_to_rad(26.0), s)
-
-	else:
-		# Stance / Power Push-Off Phase (Foot on ground, driving body forward by moving leg FRONT to BACK)
-		var t = (norm_phase - PI) / PI
-
-		# 1. Thigh Motion: Drives smoothly backward from contact (+46°) to push-off (-58°)
-		var s_thigh = 0.5 - 0.5 * cos(t * PI)
-		thigh = lerp(deg_to_rad(46.0), -deg_to_rad(58.0), s_thigh)
-
-		# 2. Shin/Knee Motion:
-		# - t in [0.0, 0.4]: Load absorption. Knee flexes slightly under body weight (-26° to -36° at mid-stance)
-		# - t in [0.4, 1.0]: Propulsive extension. Knee straightens out (-36° to -6°) to push off into flight
-		if t <= 0.4:
-			var s = 0.5 - 0.5 * cos((t / 0.4) * PI)
-			shin = lerp(-deg_to_rad(26.0), -deg_to_rad(36.0), s)
-		else:
-			var s = 0.5 - 0.5 * cos(((t - 0.4) / 0.6) * PI)
-			shin = lerp(-deg_to_rad(36.0), -deg_to_rad(6.0), s)
-
-	return {"thigh": thigh, "shin": shin}
-
+	var joints := _build_joints_dict()
+	_walk.update_legs(delta, mecha, joints)
 
 func _lerp_to_original(delta: float) -> void:
 	var speed = 5.0 * delta
@@ -563,7 +431,5 @@ func _lerp_to_original(delta: float) -> void:
 		shin_left.rotation = shin_left.rotation.lerp(Vector3.ZERO, speed)
 	if shin_right:
 		shin_right.rotation = shin_right.rotation.lerp(Vector3.ZERO, speed)
-
-
 func play_recoil() -> void:
 	current_recoil = recoil_amount

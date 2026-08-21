@@ -351,6 +351,9 @@ func _render_scrap_patch(slot: String) -> void:
 		mi.scale = scale
 		mi.mesh = _build_scrap_primitive_mesh(shape)
 		var mat := StandardMaterial3D.new()
+		mat.render_priority = 2
+		mat.grow = true
+		mat.grow_amount = 0.002
 		mat.albedo_color = color
 		mat.metallic = 0.1
 		mat.roughness = 0.85
@@ -562,6 +565,7 @@ func _spawn_break_vfx(slot_name: String) -> void:
 # Helper materials for inner frame & armor
 func _get_dark_frame_material() -> StandardMaterial3D:
 	var mat = StandardMaterial3D.new()
+	mat.render_priority = 0
 	mat.albedo_color = Color(0.14, 0.16, 0.20)
 	mat.metallic = 0.92
 	mat.roughness = 0.25
@@ -569,6 +573,7 @@ func _get_dark_frame_material() -> StandardMaterial3D:
 
 func _get_chrome_material() -> StandardMaterial3D:
 	var mat = StandardMaterial3D.new()
+	mat.render_priority = 0
 	mat.albedo_color = Color(0.85, 0.88, 0.92)
 	mat.metallic = 0.98
 	mat.roughness = 0.10
@@ -576,6 +581,7 @@ func _get_chrome_material() -> StandardMaterial3D:
 
 func _get_eye_sensor_material() -> StandardMaterial3D:
 	var mat = StandardMaterial3D.new()
+	mat.render_priority = 0
 	mat.albedo_color = Color(1.0, 0.12, 0.20)
 	mat.emission_enabled = true
 	mat.emission = Color(1.0, 0.15, 0.25)
@@ -749,7 +755,7 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 
 			var thigh_frame = MeshInstance3D.new()
 			var t_box = BoxMesh.new()
-			t_box.size = Vector3(0.20, 0.48, 0.20)
+			t_box.size = Vector3(0.18, 0.44, 0.18)
 			thigh_frame.mesh = t_box
 			thigh_frame.position = Vector3(0, -0.275, 0)
 			thigh_frame.material_override = frame_mat
@@ -759,9 +765,9 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 			if lower_container:
 				var knee_disc = MeshInstance3D.new()
 				var k_cyl = CylinderMesh.new()
-				k_cyl.top_radius = 0.14
-				k_cyl.bottom_radius = 0.14
-				k_cyl.height = 0.14
+				k_cyl.top_radius = 0.12
+				k_cyl.bottom_radius = 0.12
+				k_cyl.height = 0.12
 				knee_disc.mesh = k_cyl
 				knee_disc.rotation_degrees.z = 90
 				knee_disc.position = Vector3(0, 0, 0)
@@ -770,7 +776,7 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 
 				var shin_frame = MeshInstance3D.new()
 				var s_box = BoxMesh.new()
-				s_box.size = Vector3(0.22, 0.50, 0.22)
+				s_box.size = Vector3(0.18, 0.44, 0.18)
 				shin_frame.mesh = s_box
 				shin_frame.position = Vector3(0, -0.275, 0)
 				shin_frame.material_override = frame_mat
@@ -778,19 +784,19 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 
 				var damper = MeshInstance3D.new()
 				var d_cyl = CylinderMesh.new()
-				d_cyl.top_radius = 0.03
-				d_cyl.bottom_radius = 0.03
-				d_cyl.height = 0.44
+				d_cyl.top_radius = 0.022
+				d_cyl.bottom_radius = 0.022
+				d_cyl.height = 0.40
 				damper.mesh = d_cyl
-				damper.position = Vector3(0, -0.275, 0.13)
+				damper.position = Vector3(0, -0.275, 0.10)
 				damper.material_override = chrome_mat
 				lower_container.add_child(damper)
 
 				var ankle = MeshInstance3D.new()
 				var a_cyl = CylinderMesh.new()
-				a_cyl.top_radius = 0.11
-				a_cyl.bottom_radius = 0.11
-				a_cyl.height = 0.10
+				a_cyl.top_radius = 0.09
+				a_cyl.bottom_radius = 0.09
+				a_cyl.height = 0.08
 				ankle.mesh = a_cyl
 				ankle.position = Vector3(0, -0.53, 0)
 				ankle.material_override = chrome_mat
@@ -798,7 +804,7 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 
 				var foot_block = MeshInstance3D.new()
 				var ft_box = BoxMesh.new()
-				ft_box.size = Vector3(0.22, 0.08, 0.24)
+				ft_box.size = Vector3(0.16, 0.05, 0.18)
 				foot_block.mesh = ft_box
 				foot_block.position = Vector3(0, -0.58, 0)
 				foot_block.material_override = frame_mat
@@ -807,18 +813,18 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 				for claw_x in [-0.08, 0.08]:
 					var claw = MeshInstance3D.new()
 					var c_box = BoxMesh.new()
-					c_box.size = Vector3(0.06, 0.06, 0.26)
+					c_box.size = Vector3(0.05, 0.05, 0.22)
 					claw.mesh = c_box
-					claw.position = Vector3(claw_x, -0.59, -0.16)
+					claw.position = Vector3(claw_x, -0.59, -0.14)
 					claw.rotation_degrees.x = -15
 					claw.material_override = frame_mat
 					lower_container.add_child(claw)
 
 				var heel = MeshInstance3D.new()
 				var h_box = BoxMesh.new()
-				h_box.size = Vector3(0.14, 0.06, 0.18)
+				h_box.size = Vector3(0.12, 0.05, 0.15)
 				heel.mesh = h_box
-				heel.position = Vector3(0, -0.59, 0.14)
+				heel.position = Vector3(0, -0.59, 0.12)
 				heel.rotation_degrees.x = 15
 				heel.material_override = frame_mat
 				lower_container.add_child(heel)
@@ -841,11 +847,17 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 		col = part.part_color
 
 	var armor_mat = StandardMaterial3D.new()
+	armor_mat.render_priority = 1
+	armor_mat.grow = true
+	armor_mat.grow_amount = 0.003
 	armor_mat.albedo_color = col
 	armor_mat.metallic = 0.80
 	armor_mat.roughness = 0.30
 
 	var dark_trim_mat = StandardMaterial3D.new()
+	dark_trim_mat.render_priority = 1
+	dark_trim_mat.grow = true
+	dark_trim_mat.grow_amount = 0.0035
 	dark_trim_mat.albedo_color = Color(0.15, 0.18, 0.22)
 	dark_trim_mat.metallic = 0.90
 	dark_trim_mat.roughness = 0.25
@@ -958,7 +970,7 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 			# --- UPPER LEG ARMOR (Thigh Guard attached to LegLeft/LegRight) ---
 			var thigh_armor = MeshInstance3D.new()
 			var ta_box = BoxMesh.new()
-			ta_box.size = Vector3(0.32, 0.40, 0.32)
+			ta_box.size = Vector3(0.32, 0.42, 0.32)
 			thigh_armor.mesh = ta_box
 			thigh_armor.position = Vector3(0, -0.275, 0)
 			thigh_armor.material_override = armor_mat
@@ -985,7 +997,7 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 
 				var foot_cap = MeshInstance3D.new()
 				var fc_box = BoxMesh.new()
-				fc_box.size = Vector3(0.24, 0.08, 0.26)
+				fc_box.size = Vector3(0.26, 0.09, 0.28)
 				foot_cap.mesh = fc_box
 				foot_cap.position = Vector3(0, -0.58, -0.04)
 				foot_cap.material_override = armor_mat

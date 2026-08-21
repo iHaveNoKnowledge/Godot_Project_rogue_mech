@@ -23,9 +23,9 @@ func _check(cond: bool, name: String) -> void:
 # Counts pooled 3D SFX players currently playing one of the mech_armor_hit
 # variants (so rate-limiting is measurable without audio hardware).
 func _count_mech_hit_players() -> int:
-	var variants: Array = AudioManager._sound_cache.get("mech_armor_hit", [])
+	var variants: Array = AudioManager.sfx._sound_cache.get("mech_armor_hit", [])
 	var count := 0
-	for player in AudioManager.sfx_pool:
+	for player in AudioManager.sfx.sfx_pool:
 		if player.playing:
 			for v in variants:
 				if player.stream == v:
@@ -37,7 +37,7 @@ func _count_mech_hit_players() -> int:
 func _ready() -> void:
 	await get_tree().process_frame
 
-	var cache_entry: Variant = AudioManager._sound_cache.get("mech_armor_hit")
+	var cache_entry: Variant = AudioManager.sfx._sound_cache.get("mech_armor_hit")
 	_check(cache_entry is Array and cache_entry.size() >= 3,
 		"mech_armor_hit cache holds %d variants" % (cache_entry.size() if cache_entry is Array else 0))
 	var variants: Array = cache_entry if cache_entry is Array else []
@@ -46,7 +46,7 @@ func _ready() -> void:
 	_check(AudioManager.has_method("play_mech_hit"), "AudioManager exposes play_mech_hit()")
 
 	# Fresh cooldown so the first call always fires.
-	AudioManager._last_mech_hit_time = -1.0
+	AudioManager.sfx._last_mech_hit_time = -1.0
 	AudioManager.play_mech_hit(Vector3.ZERO)
 	var playing_after_one := _count_mech_hit_players()
 	_check(playing_after_one >= 1, "play_mech_hit routes onto a pooled 3D player (%d)" % playing_after_one)
@@ -60,7 +60,7 @@ func _ready() -> void:
 
 	# Let the cooldown expire, then a new hit fires again.
 	await get_tree().create_timer(0.12).timeout
-	AudioManager._last_mech_hit_time = -1.0
+	AudioManager.sfx._last_mech_hit_time = -1.0
 	AudioManager.play_mech_hit(Vector3.ZERO, 0.0)
 	_check(_count_mech_hit_players() > 0, "a fresh hit after the cooldown fires again")
 
@@ -88,7 +88,7 @@ func _verify_mech_damage_hook() -> void:
 	_check(health.has_method("take_damage"), "HealthSystem exposes take_damage()")
 
 	# Wipe the cooldown so the hit is not swallowed by the rate limiter.
-	AudioManager._last_mech_hit_time = -1.0
+	AudioManager.sfx._last_mech_hit_time = -1.0
 	health.take_damage(15.0, "kinetic")
 	await get_tree().process_frame
 	_check(_count_mech_hit_players() >= 1, "a damaged mech fires the armor-clank SFX")

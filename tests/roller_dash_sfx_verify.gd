@@ -26,7 +26,7 @@ func _check(cond: bool, name: String) -> void:
 func _ready() -> void:
 	await get_tree().process_frame
 
-	var loop: Variant = AudioManager._sound_cache.get("roller_dash")
+	var loop: Variant = AudioManager.sfx._sound_cache.get("roller_dash")
 	_check(loop is AudioStream, "roller_dash cache entry is an AudioStream")
 	if loop is AudioStreamWAV:
 		_check(loop.loop_mode == AudioStreamWAV.LOOP_FORWARD, "generated roller loop wraps (LOOP_FORWARD)")
@@ -35,7 +35,7 @@ func _ready() -> void:
 
 	AudioManager.stop_roller_dash()
 	AudioManager.update_roller_dash(Vector3.ZERO, 0.0)
-	var p: AudioStreamPlayer3D = AudioManager._roller_player
+	var p: AudioStreamPlayer3D = AudioManager.sfx._roller_player
 	_check(p != null and p.playing, "update_roller_dash starts the dedicated roller loop")
 	_check(p != null and p.stream == loop, "roller player uses the roller_dash stream")
 
@@ -70,7 +70,7 @@ func _verify_mech_exit_stops_loop() -> void:
 	add_child(mech)
 	await get_tree().process_frame
 	AudioManager.update_roller_dash(mech.global_position, 0.5)
-	var p: AudioStreamPlayer3D = AudioManager._roller_player
+	var p: AudioStreamPlayer3D = AudioManager.sfx._roller_player
 	_check(p != null and p.playing, "roller loop plays while the mech rolls")
 	mech.queue_free()
 	await get_tree().process_frame

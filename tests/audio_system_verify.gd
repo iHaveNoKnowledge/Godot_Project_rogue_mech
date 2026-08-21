@@ -87,7 +87,7 @@ func _test_procedural_sounds() -> void:
 
 
 func _test_sfx_playback() -> void:
-	_check(AudioManager.sfx_pool.size() >= 16, "SFX 3D pool contains at least 16 players")
+	_check(AudioManager.sfx.sfx_pool.size() >= 16, "SFX 3D pool contains at least 16 players")
 	_check(AudioManager.sfx_2d_pool.size() >= 8, "SFX 2D pool contains at least 8 players")
 
 	# Test 3D play

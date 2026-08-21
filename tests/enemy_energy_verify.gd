@@ -174,8 +174,8 @@ func _verify_retreat_feedback() -> void:
 	# klaxon exists in the SFX cache, and set_retreating() shows/hides the
 	# pulsing "RETREATING" plate + amber signal flash cleanly.
 	_check(AudioManager != null, "AudioManager autoload is available")
-	_check(AudioManager._sound_cache.has("enemy_retreat"), "AudioManager generates the enemy retreat klaxon")
-	var retreat_stream = AudioManager._sound_cache["enemy_retreat"]
+	_check(AudioManager.sfx._sound_cache.has("enemy_retreat"), "AudioManager generates the enemy retreat klaxon")
+	var retreat_stream = AudioManager.sfx._sound_cache["enemy_retreat"]
 	_check(retreat_stream is AudioStreamWAV and retreat_stream.data.size() > 0, "retreat klaxon is a non-empty generated stream")
 	_check(AudioManager.has_method("play_enemy_retreat"), "AudioManager exposes play_enemy_retreat()")
 

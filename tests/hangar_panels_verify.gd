@@ -648,7 +648,7 @@ func _verify_roster_panel() -> void:
 	# beep): the AudioManager must expose the API, generate the stream and play
 	# it without error (headless playback is silent but validates the wiring).
 	_check(AudioManager.has_method("play_mech_register"), "AudioManager exposes the mech-register cue")
-	_check(AudioManager._sound_cache.has("mech_register"), "AudioManager generates the mech-register sound")
+	_check(AudioManager.sfx._sound_cache.has("mech_register"), "AudioManager generates the mech-register sound")
 	AudioManager.play_mech_register()
 	_check(true, "mech-register cue plays without error")
 

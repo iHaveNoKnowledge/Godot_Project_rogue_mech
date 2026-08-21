@@ -124,8 +124,8 @@ func _verify_right_column() -> void:
 
 func _verify_music_resume() -> void:
 	# Fresh board session: nothing to resume yet.
-	AudioManager._saved_intermission_track = null
-	AudioManager._saved_intermission_pos = 0.0
+	AudioManager.music._saved_intermission_track = null
+	AudioManager.music._saved_intermission_pos = 0.0
 	AudioManager.play_intermission_music(0.1)
 	await get_tree().process_frame
 	_check(AudioManager.current_music_category == "intermission",
@@ -137,7 +137,7 @@ func _verify_music_resume() -> void:
 	AudioManager.play_combat_music("grunt", 0.1)
 	await get_tree().process_frame
 	_check(AudioManager.current_music_category == "grunt", "combat music takes over")
-	_check(AudioManager._saved_intermission_track == board_track,
+	_check(AudioManager.music._saved_intermission_track == board_track,
 		"the intermission track is remembered when combat starts")
 
 	# Returning to the board resumes the SAME track, and the memory is consumed.
@@ -145,13 +145,13 @@ func _verify_music_resume() -> void:
 	await get_tree().process_frame
 	_check(AudioManager.current_track == board_track,
 		"returning to the board resumes the same intermission track")
-	_check(AudioManager._saved_intermission_track == null,
+	_check(AudioManager.music._saved_intermission_track == null,
 		"the saved track is consumed after resuming")
 
 	# Leaving for the menu clears the memory so the next run starts fresh.
 	AudioManager.play_menu_music(0.1)
 	await get_tree().process_frame
-	_check(AudioManager._saved_intermission_track == null,
+	_check(AudioManager.music._saved_intermission_track == null,
 		"leaving to the menu forgets the saved intermission track")
 
 

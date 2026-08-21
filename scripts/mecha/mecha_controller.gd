@@ -35,48 +35,8 @@ var _chassis_speed_override: float = 14.0
 var _chassis_weight_capacity_override: float = 75.0
 var can_traverse_water: bool = false
 
-# Backward-compatibility proxies
-var is_jumping: bool:
-	get: return jump_system.is_jumping if jump_system else false
-	set(v):
-		if jump_system: jump_system.is_jumping = v
-
-var is_dashing: bool:
-	get: return dash_system.is_dashing if dash_system else false
-	set(v):
-		if dash_system: dash_system.is_dashing = v
-
-var dash_cooldown: float = 0.5
-var dash_cooldown_timer: float = 0.0
-
-var is_charging_prejump: bool:
-	get: return jump_system.is_charging_prejump if jump_system else false
-	set(v):
-		if jump_system: jump_system.is_charging_prejump = v
-
-var prejump_charge_time: float:
-	get: return jump_system.prejump_charge_time if jump_system else 0.0
-	set(v):
-		if jump_system: jump_system.prejump_charge_time = v
-
-var energy: float:
-	get: return energy_system.energy if energy_system else 100.0
-	set(v):
-		if energy_system: energy_system.energy = v
-
-var max_energy: float:
-	get: return energy_system.max_energy if energy_system else 100.0
-	set(v):
-		if energy_system: energy_system.max_energy = v
-
-var _jump: Node:
-	get: return jump_system
-
-var _dash: Node:
-	get: return dash_system
-
-var _energy: Node:
-	get: return energy_system
+# No proxy properties — callers access subsystems directly:
+# mecha.jump_system.is_jumping, mecha.energy_system.energy, etc.
 
 
 func _init() -> void:

@@ -168,26 +168,57 @@ func _load_ui_sound(base_name: String) -> AudioStream:
 	return null
 
 
+## Loads a sound (or all its numbered variants) from resources/audio/sfx.
+## Variants follow the pattern "<name>.<ext>" plus optional numbered copies
+## like "footstep_2.wav", "footstep03.ogg" — when several exist they are
+## returned as an Array so playback randomly rotates through them.
 func _load_sfx_file(base_name: String) -> AudioStream:
-	var dir_path := "res://resources/audio/sfx"
-	if not DirAccess.dir_exists_absolute(dir_path):
+	var variants := _load_sfx_variants(base_name)
+	if variants.is_empty():
 		return null
+	return variants[0] if variants.size() == 1 else variants
+
+
+func _load_sfx_variants(base_name: String) -> Array:
+	var dir_path := "res://resources/audio/sfx"
+	var found: Dictionary = {}
+	if not DirAccess.dir_exists_absolute(dir_path):
+		return []
 	var dir := DirAccess.open(dir_path)
 	if dir == null:
-		return null
+		return []
 	dir.list_dir_begin()
 	var file_name := dir.get_next()
 	while file_name != "":
 		if not dir.current_is_dir():
-			var base := file_name.get_basename()
-			if base.to_lower() == base_name.to_lower():
-				var ext := file_name.get_extension().to_lower()
-				if ext in ["wav", "ogg", "mp3"]:
-					var stream := load(dir_path.path_join(file_name)) as AudioStream
-					if stream != null:
-						return stream
+			var ext := file_name.get_extension().to_lower()
+			var index := _variant_index(file_name.get_basename(), base_name)
+			if index >= 0 and ext in ["wav", "ogg", "mp3"] and not found.has(index):
+				var stream := load(dir_path.path_join(file_name)) as AudioStream
+				if stream != null:
+					found[index] = stream
 		file_name = dir.get_next()
-	return null
+	var streams: Array = []
+	var indexes := found.keys()
+	indexes.sort()
+	for index in indexes:
+		streams.append(found[index])
+	return streams
+
+
+static func _variant_index(file_base: String, base_name: String) -> int:
+	var f := file_base.to_lower()
+	var b := base_name.to_lower()
+	if f == b:
+		return 0
+	if not f.begins_with(b):
+		return -1
+	var suffix := f.substr(b.length())
+	if not suffix.is_empty() and suffix[0] in ["_", "-"]:
+		suffix = suffix.substr(1)
+	if suffix.is_valid_int():
+		return maxi(1, int(suffix))
+	return -1
 
 
 # ═══════════════════════════════════════════════════════════════════════

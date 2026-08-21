@@ -14,6 +14,9 @@ func _ready() -> void:
 	print("--- 3. Testing SFX Player Pool & Playback ---")
 	_test_sfx_playback()
 
+	print("--- 4. Testing Footstep File Variants ---")
+	_test_footstep_variants()
+
 	print("\n==================================================")
 	print("AUDIO_SYSTEM_VERIFY COMPLETED:")
 	print("Checks: %d | Fails: %d" % [checks, fails])
@@ -104,3 +107,23 @@ func _test_sfx_playback() -> void:
 	AudioManager.play_armor_break(Vector3.ZERO)
 	AudioManager.play_mech_hit(Vector3.ZERO)
 	_check(true, "Armor break and mech hit playback functions invoked successfully")
+
+
+func _test_footstep_variants() -> void:
+	var sfx_script = load("res://scripts/autoload/sfx_manager.gd")
+
+	# Variant filename matching: exact, _N, N, -N, padded digits.
+	_check(sfx_script._variant_index("footstep", "footstep") == 0, "exact name matches as base variant")
+	_check(sfx_script._variant_index("footstep_2", "footstep") == 2, "footstep_2 matches variant 2")
+	_check(sfx_script._variant_index("footstep03", "footstep") == 3, "footstep03 matches variant 3")
+	_check(sfx_script._variant_index("footstep-1", "footstep") == 1, "footstep-1 matches variant 1")
+	_check(sfx_script._variant_index("FOOTSTEP_2", "footstep") == 2, "matching is case-insensitive")
+	_check(sfx_script._variant_index("footstepped", "footstep") == -1, "non-numeric suffix rejected")
+	_check(sfx_script._variant_index("jump", "footstep") == -1, "unrelated sound rejected")
+
+	# Without any footstep files in resources/audio/sfx the loader must
+	# gracefully report "no file" so the procedural fallback stays in charge.
+	_check(AudioManager.sfx._load_sfx_file("no_such_sound_xyz") == null,
+		"missing sound file returns null (procedural fallback)")
+	var entry = AudioManager.sfx._sound_cache.get("footstep")
+	_check(entry != null, "footstep cache always populated (file or procedural)")

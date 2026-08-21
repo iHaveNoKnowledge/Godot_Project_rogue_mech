@@ -23,6 +23,12 @@ var _flash_strength: float = 0.0
 const FLASH_DECAY_PER_SEC: float = 4.0
 const FLASH_COLOR: Color = Color(1.0, 1.0, 1.0)
 
+# --- Jump Charge Radial Gauge ---
+var _jump_charge_ratio: float = 0.0
+var _jump_gauge_alpha: float = 0.0
+const JUMP_ARC_RADIUS: float = 30.0
+const JUMP_ARC_SPAN_DEG: float = 130.0
+
 
 func _ready() -> void:
 	await get_tree().process_frame
@@ -82,10 +88,30 @@ func _setup_overlay_control() -> void:
 func _process(delta: float) -> void:
 	_check_head_status()
 	_update_crosshair_position()
+	_update_jump_charge_status(delta)
 	if _flash_strength > 0.0:
 		_flash_strength = maxf(_flash_strength - delta * FLASH_DECAY_PER_SEC, 0.0)
 	if overlay_control:
 		overlay_control.queue_redraw()
+
+
+func _update_jump_charge_status(delta: float) -> void:
+	var mecha = GameManager.get_player_mecha()
+	if mecha:
+		var js = mecha.get("jump_system")
+		if js:
+			if js.get("is_charging_prejump") == true:
+				var ctime: float = float(js.get("prejump_charge_time")) if js.get("prejump_charge_time") != null else 0.0
+				_jump_charge_ratio = clampf(ctime / 0.35, 0.0, 1.0)
+				_jump_gauge_alpha = move_toward(_jump_gauge_alpha, 1.0, delta * 12.0)
+				return
+			elif js.get("is_jumping") == true and float(js.get("jump_charge")) > 0.0:
+				var jc: float = float(js.get("jump_charge"))
+				_jump_charge_ratio = clampf(jc / 0.35, 0.0, 1.0)
+				_jump_gauge_alpha = move_toward(_jump_gauge_alpha, 1.0, delta * 12.0)
+				return
+	_jump_charge_ratio = 0.0
+	_jump_gauge_alpha = move_toward(_jump_gauge_alpha, 0.0, delta * 6.0)
 
 
 func _check_head_status() -> void:
@@ -209,6 +235,8 @@ func _on_overlay_draw() -> void:
 	_draw_melee_range()
 	# Impact flash on the screen edges from a connected melee swing.
 	_draw_impact_flash()
+	# Jump charge radial arc gauge beside reticle.
+	_draw_jump_charge_gauge(center)
 
 	if is_head_destroyed:
 		# Sensors offline: a full + through the center signals manual aim only.
@@ -224,3 +252,54 @@ func _on_overlay_draw() -> void:
 		overlay_control.draw_line(center + Vector2(gap, 0), center + Vector2(gap + len, 0), col, 2.0)
 		overlay_control.draw_line(center + Vector2(0, -gap - len), center + Vector2(0, -gap), col, 2.0)
 		overlay_control.draw_line(center + Vector2(0, gap), center + Vector2(0, gap + len), col, 2.0)
+
+
+## Draws a sleek radial arc gauge beside the crosshair indicating pre-jump / thruster charge.
+func _draw_jump_charge_gauge(center: Vector2) -> void:
+	if _jump_gauge_alpha <= 0.01:
+		return
+
+	var radius := JUMP_ARC_RADIUS
+	var arc_span := deg_to_rad(JUMP_ARC_SPAN_DEG)
+	var start_angle := -arc_span * 0.5
+	var end_angle := arc_span * 0.5
+
+	# 1. Background Arc Track
+	var bg_color := Color(0.1, 0.22, 0.32, 0.45 * _jump_gauge_alpha)
+	overlay_control.draw_arc(center, radius, start_angle, end_angle, 24, bg_color, 4.0, true)
+
+	# 2. Min & Max Notch Ticks
+	var tick_start_in := center + Vector2(cos(start_angle), sin(start_angle)) * (radius - 3.5)
+	var tick_start_out := center + Vector2(cos(start_angle), sin(start_angle)) * (radius + 3.5)
+	overlay_control.draw_line(tick_start_in, tick_start_out, Color(0.3, 0.75, 0.95, 0.65 * _jump_gauge_alpha), 1.5)
+
+	var tick_end_in := center + Vector2(cos(end_angle), sin(end_angle)) * (radius - 3.5)
+	var tick_end_out := center + Vector2(cos(end_angle), sin(end_angle)) * (radius + 3.5)
+	overlay_control.draw_line(tick_end_in, tick_end_out, Color(0.3, 0.75, 0.95, 0.65 * _jump_gauge_alpha), 1.5)
+
+	# 3. Active Fill Arc
+	if _jump_charge_ratio > 0.01:
+		var fill_end := start_angle + arc_span * _jump_charge_ratio
+		var fill_color: Color
+		if _jump_charge_ratio >= 0.99:
+			# Fully charged (ง้างสุด): High-voltage electric neon amber / gold
+			fill_color = Color(1.0, 0.9, 0.25, 0.98 * _jump_gauge_alpha)
+		elif _jump_charge_ratio >= 0.5:
+			# Halfway charged: Vibrant cyan-green
+			fill_color = Color(0.3, 0.95, 0.65, 0.92 * _jump_gauge_alpha)
+		else:
+			# Initial charge: Cool tech blue
+			fill_color = Color(0.25, 0.8, 1.0, 0.85 * _jump_gauge_alpha)
+
+		overlay_control.draw_arc(center, radius, start_angle, fill_end, 24, fill_color, 3.5, true)
+
+		# Tip Head Pip (bright glowing dot tracking charge)
+		var tip_pos := center + Vector2(cos(fill_end), sin(fill_end)) * radius
+		overlay_control.draw_circle(tip_pos, 2.5, fill_color)
+
+	# 4. "MAX" Indicator when fully charged (ง้างสุด)
+	if _jump_charge_ratio >= 0.99:
+		var font: Font = overlay_control.get_theme_default_font()
+		if font:
+			var text_pos := center + Vector2(radius + 7.0, 4.0)
+			overlay_control.draw_string(font, text_pos, "MAX", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1.0, 0.9, 0.3, 0.95 * _jump_gauge_alpha))

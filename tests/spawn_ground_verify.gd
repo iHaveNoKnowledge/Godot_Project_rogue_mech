@@ -95,14 +95,14 @@ func _ready() -> void:
 	# units, so scaled roots like the boss's 1.5x rig are accounted for) ---
 	var expected_bottoms := {
 		"enemy_dummy": -0.6,
-		"enemy_dummy_full": -0.6,
-		"enemy_ranged": -0.7,
-		"enemy_heavy": -0.45,
-		"enemy_support": -0.824,
+		"enemy_dummy_full": -0.58,
+		"enemy_ranged": -0.58,
+		"enemy_heavy": -0.58,
+		"enemy_support": -0.58,
 		"enemy_tank": 0.0,
 		"enemy_boss": -0.126,
-		"enemy_shield_melee": -0.45,
-		"enemy_shield_ranged": -0.7,
+		"enemy_shield_melee": -0.58,
+		"enemy_shield_ranged": -0.58,
 	}
 	for t in TYPES:
 		var probe := (load(t[1]) as PackedScene).instantiate()

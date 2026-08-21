@@ -196,12 +196,13 @@ func _build_catalog_body() -> void:
 	add_child(pmm)
 
 	# Extra bulk for heavy grunts so the silhouette reads at a glance.
+	# Scale the root so collision, hitboxes, and visuals scale uniformly.
 	if archetype == 2:
-		pmm.scale = Vector3(1.6, 1.6, 1.6)
+		scale = Vector3(1.6, 1.6, 1.6)
 	elif archetype == 3:
-		pmm.scale = Vector3(1.05, 1.05, 1.05)
+		scale = Vector3(1.05, 1.05, 1.05)
 	elif archetype == 0:
-		pmm.scale = Vector3(0.95, 0.95, 0.95)
+		scale = Vector3(0.95, 0.95, 0.95)
 
 	var loadout := _enemy_loadout()
 	pmm.refresh_from_loadout(loadout)

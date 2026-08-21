@@ -69,7 +69,7 @@ func physics_process(delta: float) -> void:
 				var dist = enemy.global_position.distance_to(mecha.global_position)
 				if dist < 3.0:
 					# Deal AoE damage
-					if mecha is Damageable:
+					if mecha.has_method("take_damage"):
 						mecha.take_damage(enemy.attack_damage * 2.0, "charge")
 					# Stun self
 					_end_charge()

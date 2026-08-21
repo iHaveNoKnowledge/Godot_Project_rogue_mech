@@ -50,7 +50,7 @@ func _setup_health_system() -> void:
 
 
 func take_damage_at_point(amount: float, world_pos: Vector3, damage_type: String = "kinetic") -> void:
-	if health_system and health_system is Damageable:
+	if health_system and health_system.has_method("take_damage_to_part"):
 		var local_pos = to_local(world_pos)
 		var target_part = "hull"
 		if local_pos.y > 1.2:
@@ -60,7 +60,7 @@ func take_damage_at_point(amount: float, world_pos: Vector3, damage_type: String
 
 		if health_system.has_method("take_damage_to_part_at"):
 			health_system.take_damage_to_part_at(target_part, amount, world_pos, damage_type)
-		elif health_system is Damageable:
+		elif health_system.has_method("take_damage_to_part"):
 			health_system.take_damage_to_part(target_part, amount, damage_type)
 		else:
 			take_damage(amount, damage_type)
@@ -79,7 +79,7 @@ func set_concealed(on: bool) -> void:
 
 
 func take_damage_to_part(slot_name: String, amount: float, damage_type: String = "kinetic") -> void:
-	if health_system and health_system is Damageable:
+	if health_system and health_system.has_method("take_damage_to_part"):
 		health_system.take_damage_to_part(slot_name, amount, damage_type)
 
 

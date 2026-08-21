@@ -1246,9 +1246,9 @@ func _check_melee_hit(mecha: Node3D, direction: Vector3, damage: float, weapon: 
 		# heat blade = heat, mace/fist/shoulder = blunt) so armor + shields can
 		# match on it like any other attack.
 		var melee_type := weapon.get_damage_type() if weapon != null else "blunt"
-		if enemy is Damageable:
+		if enemy.has_method("take_damage_at_point"):
 			enemy.take_damage_at_point(damage, aim_point, melee_type)
-		elif enemy is Damageable:
+		elif enemy.has_method("take_damage"):
 			enemy.take_damage(damage, melee_type)
 		melee_hit_landed.emit()
 		var rigs = get_tree().get_nodes_in_group("camera_rig")

@@ -1,40 +1,747 @@
 extends Node
 
-var chassis_id: String = "standard"
-var equipped_parts: Dictionary = {}
-var attachments: Array = []
+## ---------------------------------------------------------------------------
+## GLOBAL DATA — run-state singleton.
+##
+## Refactored: heavy state has been extracted into focused managers.  GlobalData
+## now instantiates each manager as a child node and exposes backward-compatible
+## proxy properties so the ~2200 existing `GlobalData.X` callers keep working
+## without modification.  New code should reference the managers directly.
+## ---------------------------------------------------------------------------
 
-# Built mech roster. A hangar entry is a saved loadout, not a generated enemy
-# capsule: it references the owned armor instances and frame catalog entries
-# used to assemble that mech. The active entry mirrors the live loadout above.
-# Each entry carries a stable `slot` (its parking berth in the truck convoy),
-# a `pilot` (who drives it) and the loadout snapshot.
-# The usable number of berths comes from HangarManager.get_capacity() (fleet
-# size); HANGAR_HARD_MAX is only a physical safety cap for the stored array.
-const HANGAR_HARD_MAX := 12
-var hangar_mechs: Array = []
-var active_hangar_mech_id: String = ""
+# --- Managers (created as children in _ready) ---
+var currency: CurrencyManager
+var fuel: FuelManager
+var board: BoardState
+var narrative: NarrativeState
+var pilot: PilotState
+var hangar: HangarState
+var weapons: WeaponInventoryState
 
-# ==============================================================================
-# CATALOG DATABASE — static item definitions, loaded from resources/data/mech_catalogs.tres
-# Single source of truth for all stock items (armor, chassis, frames, attachments).
-# Inventory (equipped parts/frames) persists only id references + instance state
-# and resolves the static stats back through these catalogs at load time.
-# ==============================================================================
+# --- Catalog databases (loaded once at startup) ---
 var armor_catalog: Dictionary = {}
 var chassis_catalog: Dictionary = {}
 var frame_catalog: Dictionary = {}
 var attachment_catalog: Array = []
-
-# Fleet / research catalog (blueprints for allied units and high-tier gear).
 var research_blueprints: Array = []
 var ally_unit_templates: Dictionary = {}
-
-# Run theme / event catalogs (single source of truth for theme starts, event
-# pools and per-theme endings). Loaded from run_theme_catalogs.tres and
-# run_events.tres.
 var run_themes: Array = []
 var run_events: Array = []
+
+const MECHA_SLOTS: Array[String] = [
+	"head", "body", "arm_left", "arm_right", "leg_left", "leg_right"
+]
+
+const SAVE_PATH := "user://savegame.json"
+
+# Where a scrap primitive may be attached on the mech.
+const SCRAP_ATTACH_OPTIONS := {
+	"head": [{"name": "Head", "node": "Head"}],
+	"body": [
+		{"name": "Body", "node": "Body"},
+		{"name": "Chest Plate", "node": "Body/ChestPlate"},
+		{"name": "Backpack", "node": "Body/Backpack"},
+	],
+	"arm_left": [
+		{"name": "Upper Arm", "node": "ArmLeft"},
+		{"name": "Forearm", "node": "ArmLeft/ForearmLeft"},
+	],
+	"arm_right": [
+		{"name": "Upper Arm", "node": "ArmRight"},
+		{"name": "Forearm", "node": "ArmRight/ForearmRight"},
+	],
+	"leg_left": [
+		{"name": "Thigh", "node": "LegLeft"},
+		{"name": "Shin", "node": "LegLeft/ShinLeft"},
+	],
+	"leg_right": [
+		{"name": "Thigh", "node": "LegRight"},
+		{"name": "Shin", "node": "LegRight/ShinRight"},
+	],
+}
+
+const FIELD_PACK_BASE_CAPACITY := 40.0
+const AMMO_WEIGHT_PER_UNIT := {
+	"kinetic": 0.01, "energy": 0.02, "explosive": 0.20, "missile": 0.50,
+}
+const PART_TIER_SUBSTEPS: int = 4
+const REPAIR_COST_PER_HP := 0.5
+const DECISIVE_VICTORY_RATIO := 0.5
+
+# --- Last combat damage tracking (not delegated — tightly coupled to events) ---
+var _combat_friendly_total_hp: float = 0.0
+var _combat_friendly_damage: float = 0.0
+var last_combat_damage_ratio: float = 0.0
+
+# --- Combat damage snapshot helper ---
+func snapshot_friendly_hp(hp: float) -> void:
+	_combat_friendly_total_hp = hp
+	_combat_friendly_damage = 0.0
+
+func set_friendly_damage_ratio(ratio: float) -> void:
+	last_combat_damage_ratio = ratio
+
+
+# ===========================================================================
+# BACKWARD-COMPATIBLE PROXY PROPERTIES
+# ===========================================================================
+
+# --- Currency proxies ---
+var credits: int:
+	get: return currency.credits
+	set(v): currency.credits = v
+
+var scrap: int:
+	get: return currency.scrap
+	set(v): currency.scrap = v
+
+var data_cores: int:
+	get: return currency.data_cores
+	set(v): currency.data_cores = v
+
+func try_spend_credits(amount: int) -> bool:
+	return currency.try_spend_credits(amount)
+
+func gain_credits(amount: int) -> void:
+	currency.gain_credits(amount)
+
+func try_spend_scrap(amount: int) -> bool:
+	return currency.try_spend_scrap(amount)
+
+func gain_scrap(amount: int) -> void:
+	currency.gain_scrap(amount)
+
+func try_spend_data_cores(amount: int) -> bool:
+	return currency.try_spend_data_cores(amount)
+
+func gain_data_cores(amount: int) -> void:
+	currency.gain_data_cores(amount)
+
+# --- Fuel proxies ---
+var mech_energy: float:
+	get: return fuel.mech_energy
+	set(v): fuel.mech_energy = v
+
+var mech_max_energy: float:
+	get: return fuel.mech_max_energy
+	set(v): fuel.mech_max_energy = v
+
+var board_roller_mode: bool:
+	get: return fuel.board_roller_mode
+	set(v): fuel.board_roller_mode = v
+
+var convoy_fuel_reserve: float:
+	get: return fuel.convoy_fuel_reserve
+	set(v): fuel.convoy_fuel_reserve = v
+
+var convoy_fuel_max: float:
+	get: return fuel.convoy_fuel_max
+	set(v): fuel.convoy_fuel_max = v
+
+var fuel_depot_seized_today: bool:
+	get: return fuel.fuel_depot_seized_today
+	set(v): fuel.fuel_depot_seized_today = v
+
+var fuel_depot_bonus: float:
+	get: return fuel.fuel_depot_bonus
+	set(v): fuel.fuel_depot_bonus = v
+
+var fuel_depot_approach: String:
+	get: return fuel.fuel_depot_approach
+	set(v): fuel.fuel_depot_approach = v
+
+var drop_tanks_attached: int:
+	get: return fuel.drop_tanks_attached
+	set(v): fuel.drop_tanks_attached = v
+
+var drop_tank_fuel: float:
+	get: return fuel.drop_tank_fuel
+	set(v): fuel.drop_tank_fuel = v
+
+var pilot_siphoning: bool:
+	get: return fuel.pilot_siphoning
+	set(v): fuel.pilot_siphoning = v
+
+var pilot_siphoned_fuel: float:
+	get: return fuel.pilot_siphoned_fuel
+	set(v): fuel.pilot_siphoned_fuel = v
+
+var engine_dirt: float:
+	get: return fuel.engine_dirt
+	set(v): fuel.engine_dirt = v
+
+var wreckage_tile_pos: Vector2i:
+	get: return fuel.wreckage_tile_pos
+	set(v): fuel.wreckage_tile_pos = v
+
+var wreckage_fuel_remaining: float:
+	get: return fuel.wreckage_fuel_remaining
+	set(v): fuel.wreckage_fuel_remaining = v
+
+var siphoned_fuel: float:
+	get: return fuel.siphoned_fuel
+	set(v): fuel.siphoned_fuel = v
+
+func get_tile_energy_cost(terrain: String) -> float:
+	return fuel.get_tile_energy_cost(terrain)
+
+# Fuel constants proxied to fuel manager
+const BOARD_ENERGY_ROAD: float = 10.0
+const BOARD_ENERGY_OFFROAD: float = 25.0
+const BOARD_ENERGY_ROLLER: float = 5.0
+const REFUEL_ACTION_ENERGY: float = 500.0
+const BOARD_ENERGY_REGEN_PER_DAY: float = 50.0
+const SAFEHOUSE_ENERGY_REGEN: float = 150.0
+const CONVOY_DAILY_FUEL_REGEN: float = 30.0
+const CONVOY_TRANSFER_AMOUNT: float = 60.0
+const CONVOY_TRANSFER_ALERT_GAIN: int = 2
+const FUEL_DEPOT_PRECISE_BONUS: float = 80.0
+const FUEL_DEPOT_HEAVY_BONUS: float = 40.0
+const DROP_TANK_CAPACITY_PER: float = 40.0
+const DROP_TANK_MAX_ATTACHED: int = 3
+const DROP_TANK_PURGE_DAMAGE: float = 15.0
+const DROP_TANK_COST_CREDITS: int = 80
+const SIPHON_AMOUNT: float = 50.0
+const SIPHON_WALK_TIME: float = 3.0
+const ENGINE_DIRT_PER_SIPHON: float = 0.25
+const ENGINE_DIRT_CLEANUP_PER_DAY: float = 0.1
+const ENGINE_DIRT_HEAT_MULTIPLIER: float = 1.5
+const WRECKAGE_SIPHON_AMOUNT: float = 30.0
+const WRECKAGE_MAX_SIPHONS: int = 3
+const REIGNITION_FUEL_COST: float = 60.0
+const REIGNITION_ENGINE_DIRT_COST: float = 0.15
+
+# --- Board proxies ---
+var board_grid: Array:
+	get: return board.board_grid
+	set(v): board.board_grid = v
+
+var current_tile: Vector2i:
+	get: return board.current_tile
+	set(v): board.current_tile = v
+
+var board_seed: int:
+	get: return board.board_seed
+	set(v): board.board_seed = v
+
+var player_last_dir: Vector2i:
+	get: return board.player_last_dir
+	set(v): board.player_last_dir = v
+
+var board_mp_max: int:
+	get: return board.board_mp_max
+	set(v): board.board_mp_max = v
+
+var board_mp: int:
+	get: return board.board_mp
+	set(v): board.board_mp = v
+
+var board_day: int:
+	get: return board.board_day
+	set(v): board.board_day = v
+
+var board_theme_id: String:
+	get: return board.board_theme_id
+	set(v): board.board_theme_id = v
+
+var board_objective_id: String:
+	get: return board.board_objective_id
+	set(v): board.board_objective_id = v
+
+var board_objective_progress: int:
+	get: return board.board_objective_progress
+	set(v): board.board_objective_progress = v
+
+var board_objective_required: int:
+	get: return board.board_objective_required
+	set(v): board.board_objective_required = v
+
+var board_objective_intro_consumed: bool:
+	get: return board.board_objective_intro_consumed
+	set(v): board.board_objective_intro_consumed = v
+
+var board_patrols: Array:
+	get: return board.board_patrols
+	set(v): board.board_patrols = v
+
+var board_patrol_engagement: int:
+	get: return board.board_patrol_engagement
+	set(v): board.board_patrol_engagement = v
+
+var pending_tile_clear: Vector2i:
+	get: return board.pending_tile_clear
+	set(v): board.pending_tile_clear = v
+
+var heat: int:
+	get: return board.heat
+	set(v): board.heat = v
+
+var wanted_level: int:
+	get: return board.wanted_level
+	set(v): board.wanted_level = v
+
+var wanted_escalation: int:
+	get: return board.wanted_escalation
+	set(v): board.wanted_escalation = v
+
+var current_sector: int:
+	get: return board.current_sector
+	set(v): board.current_sector = v
+
+var max_sectors: int:
+	get: return board.max_sectors
+	set(v): board.max_sectors = v
+
+var current_hazard: String:
+	get: return board.current_hazard
+	set(v): board.current_hazard = v
+
+var combat_tile_terrain: String:
+	get: return board.combat_tile_terrain
+	set(v): board.combat_tile_terrain = v
+
+var current_arena_size: float:
+	get: return board.current_arena_size
+	set(v): board.current_arena_size = v
+
+var patrol_last_seen: Vector2i:
+	get: return board.patrol_last_seen
+	set(v): board.patrol_last_seen = v
+
+var patrol_alert: int:
+	get: return board.patrol_alert
+	set(v): board.patrol_alert = v
+
+var ambush_pincer: bool:
+	get: return board.ambush_pincer
+	set(v): board.ambush_pincer = v
+
+var consumed_bait: Array:
+	get: return board.consumed_bait
+	set(v): board.consumed_bait = v
+
+var mid_battle_reinforcements_active: bool:
+	get: return board.mid_battle_reinforcements_active
+	set(v): board.mid_battle_reinforcements_active = v
+
+var mid_battle_reinforcements_timer: float:
+	get: return board.mid_battle_reinforcements_timer
+	set(v): board.mid_battle_reinforcements_timer = v
+
+var mid_battle_reinforcements_delay: float:
+	get: return board.mid_battle_reinforcements_delay
+	set(v): board.mid_battle_reinforcements_delay = v
+
+var mid_battle_countdown_active: bool:
+	get: return board.mid_battle_countdown_active
+	set(v): board.mid_battle_countdown_active = v
+
+var mid_battle_countdown_timer: float:
+	get: return board.mid_battle_countdown_timer
+	set(v): board.mid_battle_countdown_timer = v
+
+var mid_battle_countdown_max: float:
+	get: return board.mid_battle_countdown_max
+	set(v): board.mid_battle_countdown_max = v
+
+var convoy_hp: float:
+	get: return board.convoy_hp
+	set(v): board.convoy_hp = v
+
+var convoy_hp_max: float:
+	get: return board.convoy_hp_max
+	set(v): board.convoy_hp_max = v
+
+var convoy_defense_waves: int:
+	get: return board.convoy_defense_waves
+	set(v): board.convoy_defense_waves = v
+
+var convoy_defense_current_wave: int:
+	get: return board.convoy_defense_current_wave
+	set(v): board.convoy_defense_current_wave = v
+
+var convoy_defense_active: bool:
+	get: return board.convoy_defense_active
+	set(v): board.convoy_defense_active = v
+
+var convoy_destroyed: bool:
+	get: return board.convoy_destroyed
+	set(v): board.convoy_destroyed = v
+
+var run_notice: String:
+	get: return board.run_notice
+	set(v): board.run_notice = v
+
+var safehouse_upgrades: Array:
+	get: return board.safehouse_upgrades
+	set(v): board.safehouse_upgrades = v
+
+# Board constants
+const HAZARD_DUST_STORM: String = "dust_storm"
+const HAZARD_TACTICAL_SMOG: String = "tactical_smog"
+const HAZARD_EMP_ZONE: String = "emp_zone"
+const DUST_STORM_ROLLER_DRAIN_MULT: float = 1.5
+const DUST_STORM_SPEED_MULT: float = 0.85
+const SMOG_HEAT_COOL_PENALTY: float = 0.5
+const EMP_LOCK_ON_DISABLED: bool = true
+const EMP_BACKUP_BLOCKED: bool = true
+
+# --- Narrative proxies ---
+var theme_id: String:
+	get: return narrative.theme_id
+	set(v): narrative.theme_id = v
+
+var reputation: int:
+	get: return narrative.reputation
+	set(v): narrative.reputation = v
+
+var theme_switched: bool:
+	get: return narrative.theme_switched
+	set(v): narrative.theme_switched = v
+
+var ceasefire_turns: int:
+	get: return narrative.ceasefire_turns
+	set(v): narrative.ceasefire_turns = v
+
+var blocked_intermission: bool:
+	get: return narrative.blocked_intermission
+	set(v): narrative.blocked_intermission = v
+
+var mech_less: bool:
+	get: return narrative.mech_less
+	set(v): narrative.mech_less = v
+
+var mech_bond: float:
+	get: return narrative.mech_bond
+	set(v): narrative.mech_bond = v
+
+var mech_battles_survived: int:
+	get: return narrative.mech_battles_survived
+	set(v): narrative.mech_battles_survived = v
+
+var mech_repairs_done: int:
+	get: return narrative.mech_repairs_done
+	set(v): narrative.mech_repairs_done = v
+
+var mech_near_death_escapes: int:
+	get: return narrative.mech_near_death_escapes
+	set(v): narrative.mech_near_death_escapes = v
+
+var sacrifice_event_available: bool:
+	get: return narrative.sacrifice_event_available
+	set(v): narrative.sacrifice_event_available = v
+
+var sacrifice_event_triggered: bool:
+	get: return narrative.sacrifice_event_triggered
+	set(v): narrative.sacrifice_event_triggered = v
+
+var grand_entry_mech_id: String:
+	get: return narrative.grand_entry_mech_id
+	set(v): narrative.grand_entry_mech_id = v
+
+var grand_entry_pending: bool:
+	get: return narrative.grand_entry_pending
+	set(v): narrative.grand_entry_pending = v
+
+var enemy_tech_tier: int:
+	get: return narrative.enemy_tech_tier
+	set(v): narrative.enemy_tech_tier = v
+
+var pending_escalation_event: bool:
+	get: return narrative.pending_escalation_event
+	set(v): narrative.pending_escalation_event = v
+
+var enemy_research_progress: float:
+	get: return narrative.enemy_research_progress
+	set(v): narrative.enemy_research_progress = v
+
+var enemy_base_active: bool:
+	get: return narrative.enemy_base_active
+	set(v): narrative.enemy_base_active = v
+
+var enemy_base_progress: float:
+	get: return narrative.enemy_base_progress
+	set(v): narrative.enemy_base_progress = v
+
+var enemy_base_required: float:
+	get: return narrative.enemy_base_required
+	set(v): narrative.enemy_base_required = v
+
+var enemy_base_tile_pos: Vector2i:
+	get: return narrative.enemy_base_tile_pos
+	set(v): narrative.enemy_base_tile_pos = v
+
+var enemy_grunt_upgrade_level: int:
+	get: return narrative.enemy_grunt_upgrade_level
+	set(v): narrative.enemy_grunt_upgrade_level = v
+
+var enemy_copy_outcome: String:
+	get: return narrative.enemy_copy_outcome
+	set(v): narrative.enemy_copy_outcome = v
+
+var enemy_special_units: Array:
+	get: return narrative.enemy_special_units
+	set(v): narrative.enemy_special_units = v
+
+var pending_enemy_base_spawn: bool:
+	get: return narrative.pending_enemy_base_spawn
+	set(v): narrative.pending_enemy_base_spawn = v
+
+var pending_enemy_base_outcome: bool:
+	get: return narrative.pending_enemy_base_outcome
+	set(v): narrative.pending_enemy_base_outcome = v
+
+var pending_enemy_base_destroyed: bool:
+	get: return narrative.pending_enemy_base_destroyed
+	set(v): narrative.pending_enemy_base_destroyed = v
+
+var pending_enemy_base_tile_reset: Vector2i:
+	get: return narrative.pending_enemy_base_tile_reset
+	set(v): narrative.pending_enemy_base_tile_reset = v
+
+var enemy_forces: Dictionary:
+	get: return narrative.enemy_forces
+	set(v): narrative.enemy_forces = v
+
+var last_combat_squad_size: int:
+	get: return narrative.last_combat_squad_size
+	set(v): narrative.last_combat_squad_size = v
+
+var max_notoriety_multiplier: float:
+	get: return narrative.max_notoriety_multiplier
+	set(v): narrative.max_notoriety_multiplier = v
+
+var stalking_aces: Array[String]:
+	get: return narrative.stalking_aces
+	set(v): narrative.stalking_aces = v
+
+var stalking_chance: float:
+	get: return narrative.stalking_chance
+	set(v): narrative.stalking_chance = v
+
+var fleet_security: float:
+	get: return narrative.fleet_security
+	set(v): narrative.fleet_security = v
+
+var security_upgrade_level: int:
+	get: return narrative.security_upgrade_level
+	set(v): narrative.security_upgrade_level = v
+
+var driver_repair_skill: int:
+	get: return narrative.driver_repair_skill
+	set(v): narrative.driver_repair_skill = v
+
+var driver_repair_xp: int:
+	get: return narrative.driver_repair_xp
+	set(v): narrative.driver_repair_xp = v
+
+# Narrative constants
+const FLEET_SECURITY_MIN := 0.0
+const FLEET_SECURITY_MAX := 100.0
+const SECURITY_PER_UPGRADE := 14.0
+const SECURITY_UPGRADE_BASE_COST := 35
+const REPAIR_SKILL_MAX := 5
+const REPAIR_XP_BASE := 30
+const REPAIR_XP_PER_LEVEL := 25
+
+func increase_bond(amount: float) -> void:
+	narrative.increase_bond(amount)
+
+func record_battle_survived() -> void:
+	narrative.record_battle_survived(part_damage)
+
+func record_repair() -> void:
+	narrative.record_repair()
+
+func record_near_death_escape() -> void:
+	narrative.record_near_death_escape()
+
+func _check_sacrifice_availability() -> void:
+	narrative.check_sacrifice_availability(part_damage)
+
+func trigger_sacrifice_event(new_mech_id: String) -> void:
+	narrative.trigger_sacrifice_event(new_mech_id)
+
+func has_pilot_perk(perk_id: String) -> bool:
+	return narrative.has_pilot_perk(perk_id, pilot.hired_pilots, hangar.recruited_characters)
+
+# --- Pilot proxies ---
+var pilot_hp: float:
+	get: return pilot.pilot_hp
+	set(v): pilot.pilot_hp = v
+
+var pilot_max_hp: float:
+	get: return pilot.pilot_max_hp
+	set(v): pilot.pilot_max_hp = v
+
+var pilot_weapons: Array:
+	get: return pilot.pilot_weapons
+	set(v): pilot.pilot_weapons = v
+
+var pilot_ammo: Dictionary:
+	get: return pilot.pilot_ammo
+	set(v): pilot.pilot_ammo = v
+
+var pilot_items: Dictionary:
+	get: return pilot.pilot_items
+	set(v): pilot.pilot_items = v
+
+var hired_pilots: Array:
+	get: return pilot.hired_pilots
+	set(v): pilot.hired_pilots = v
+
+var fallen_pilots: Array:
+	get: return pilot.fallen_pilots
+	set(v): pilot.fallen_pilots = v
+
+var rival_pilots: Array:
+	get: return pilot.rival_pilots
+	set(v): pilot.rival_pilots = v
+
+var defeated_rivals: Array:
+	get: return pilot.defeated_rivals
+	set(v): pilot.defeated_rivals = v
+
+var active_combat_commander: Dictionary:
+	get: return pilot.active_combat_commander
+	set(v): pilot.active_combat_commander = v
+
+# --- Hangar proxies ---
+var hangar_mechs: Array:
+	get: return hangar.hangar_mechs
+	set(v): hangar.hangar_mechs = v
+
+var active_hangar_mech_id: String:
+	get: return hangar.active_hangar_mech_id
+	set(v): hangar.active_hangar_mech_id = v
+
+var fleet_roster: Array:
+	get: return hangar.fleet_roster
+	set(v): hangar.fleet_roster = v
+
+var recruited_characters: Array:
+	get: return hangar.recruited_characters
+	set(v): hangar.recruited_characters = v
+
+var pending_duel: Dictionary:
+	get: return hangar.pending_duel
+	set(v): hangar.pending_duel = v
+
+var duel_result_text: String:
+	get: return hangar.duel_result_text
+	set(v): hangar.duel_result_text = v
+
+var research_projects: Dictionary:
+	get: return hangar.research_projects
+	set(v): hangar.research_projects = v
+
+var research_unlocked: Array:
+	get: return hangar.research_unlocked
+	set(v): hangar.research_unlocked = v
+
+# --- Weapon inventory proxies ---
+var weapon_loadout: Dictionary:
+	get: return weapons.weapon_loadout
+	set(v): weapons.weapon_loadout = v
+
+var weapon_inventory: Array:
+	get: return weapons.weapon_inventory
+	set(v): weapons.weapon_inventory = v
+
+var ammo_inventory: Dictionary:
+	get: return weapons.ammo_inventory
+	set(v): weapons.ammo_inventory = v
+
+var battle_loot: Array:
+	get: return weapons.battle_loot
+	set(v): weapons.battle_loot = v
+
+var armor_inventory: Array:
+	get: return weapons.armor_inventory
+	set(v): weapons.armor_inventory = v
+
+var chassis_id: String:
+	get: return weapons.chassis_id
+	set(v): weapons.chassis_id = v
+
+var equipped_parts: Dictionary:
+	get: return weapons.equipped_parts
+	set(v): weapons.equipped_parts = v
+
+var equipped_frames: Dictionary:
+	get: return weapons.equipped_frames
+	set(v): weapons.equipped_frames = v
+
+var attachments: Array:
+	get: return weapons.attachments
+	set(v): weapons.attachments = v
+
+var part_damage: Dictionary:
+	get: return weapons.part_damage
+	set(v): weapons.part_damage = v
+
+var frame_upgrade_level: int:
+	get: return weapons.frame_upgrade_level
+	set(v): weapons.frame_upgrade_level = v
+
+var scrap_patches: Dictionary:
+	get: return weapons.scrap_patches
+	set(v): weapons.scrap_patches = v
+
+const FRAME_UPGRADE_HP_BONUS: float = 25.0
+const FRAME_UPGRADE_WEIGHT_BONUS: float = 15.0
+const FRAME_UPGRADE_BASE_COST: int = 150
+const DEFAULT_LEFT_WEAPON_PATH := "res://resources/mech/stock/weapon_beam_rifle.tres"
+const DEFAULT_RIGHT_WEAPON_PATH := "res://resources/mech/stock/weapon_heat_blade.tres"
+const DEFAULT_CARRY_WEAPON_PATH := "res://resources/mech/stock/weapon_combat_shotgun.tres"
+
+
+# ===========================================================================
+# INIT
+# ===========================================================================
+
+func _ready() -> void:
+	# Create manager instances as child nodes.
+	currency = CurrencyManager.new()
+	currency.name = "CurrencyManager"
+	add_child(currency)
+
+	fuel = FuelManager.new()
+	fuel.name = "FuelManager"
+	add_child(fuel)
+
+	board = BoardState.new()
+	board.name = "BoardState"
+	add_child(board)
+
+	narrative = NarrativeState.new()
+	narrative.name = "NarrativeState"
+	add_child(narrative)
+
+	pilot = PilotState.new()
+	pilot.name = "PilotState"
+	add_child(pilot)
+
+	hangar = HangarState.new()
+	hangar.name = "HangarState"
+	add_child(hangar)
+
+	weapons = WeaponInventoryState.new()
+	weapons.name = "WeaponInventoryState"
+	add_child(weapons)
+
+	_load_catalogs()
+	weapons._ensure_default_frames()
+	ArmorSystem.ensure_default_equipped_parts()
+	EventBus.tile_entered.connect(_on_tile_entered)
+	EventBus.board_day_ended.connect(_on_board_day_ended)
+	EventBus.combat_ended.connect(_on_combat_ended)
+	EventBus.friendly_damage_received.connect(_on_friendly_damage_received)
+
+
+# ===========================================================================
+# CATALOG LOADING
+# ===========================================================================
 
 func _load_catalogs() -> void:
 	var db = load("res://resources/data/mech_catalogs.tres") as CatalogData
@@ -66,7 +773,6 @@ func _load_catalogs() -> void:
 	else:
 		run_events = re.events
 
-# --- Catalog lookups (by id) ---
 
 func get_armor_catalog_entry(part_id: String) -> Dictionary:
 	for slot in armor_catalog:
@@ -75,12 +781,14 @@ func get_armor_catalog_entry(part_id: String) -> Dictionary:
 				return entry
 	return {}
 
+
 func get_frame_catalog_entry(frame_id: String) -> Dictionary:
 	for slot in frame_catalog:
 		for entry in frame_catalog[slot]:
 			if entry.get("id", "") == frame_id:
 				return entry
 	return {}
+
 
 func get_frame_catalog_entry_by_name(frame_name: String) -> Dictionary:
 	for slot in frame_catalog:
@@ -89,60 +797,55 @@ func get_frame_catalog_entry_by_name(frame_name: String) -> Dictionary:
 				return entry
 	return {}
 
+
 func is_catalog_armor_id(part_id: String) -> bool:
 	return not get_armor_catalog_entry(part_id).is_empty()
+
 
 func is_catalog_frame_id(frame_id: String) -> bool:
 	return not get_frame_catalog_entry(frame_id).is_empty()
 
-func _ready() -> void:
-	_load_catalogs()
-	_ensure_default_frames()
-	ArmorSystem.ensure_default_equipped_parts()
-	EventBus.tile_entered.connect(_on_tile_entered)
-	EventBus.board_day_ended.connect(_on_board_day_ended)
-	EventBus.combat_ended.connect(_on_combat_ended)
-	EventBus.friendly_damage_received.connect(_on_friendly_damage_received)
 
-# Research timers advance with run progress: each completed day = 1 point,
-# each completed combat = 2 points. Wounded pilots also recover over days.
+# ===========================================================================
+# EVENT HANDLERS
+# ===========================================================================
+
 func _on_tile_entered(_tile_pos: Vector2i, _tile_data: Node) -> void:
 	pass
 
+
 func _on_board_day_ended() -> void:
+	# Delegate day-end ticks to subsystems.
+	fuel.day_end_tick()
 	_notify_research_completions(FleetSystem.tick_research(1))
 	RecruitSystem.tick_recovery()
+
 
 func _on_combat_ended(victory: bool) -> void:
 	# Clear environmental hazard after combat (one-shot per encounter).
 	current_hazard = ""
-	# Record bond: surviving a battle increases the pilot-mech bond.
+	# Record bond.
 	if victory:
 		record_battle_survived()
-	# Finalize combat damage stats before any tech/reputation logic reads them.
+	# Finalize combat damage stats.
 	CombatStatsSystem.compute_last_combat_damage_ratio()
-	# A patrol fleet engagement (open-grid board) resolves before any general
-	# escalation: winning destroys the fleet, losing leaves it on the board.
-	if GlobalData.board_patrol_engagement >= 0:
+	# Patrol fleet engagement resolves first.
+	if board_patrol_engagement >= 0:
 		PatrolSystem.resolve_patrol_combat(victory)
 		return
-	# A duel (recruitment fight) resolves here: win/lose decides whether the
-	# rival joins, is salvaged, or simply beats the player. Duel combats never
-	# touch enemy tech escalation / research tick.
+	# Duel resolves.
 	if RecruitSystem.has_pending_duel():
 		RecruitSystem.resolve_duel(victory)
 		return
-	# A raid on the enemy research node is not a normal battle: winning destroys
-	# the node (only a partial grunt upgrade for them), and it never escalates
-	# the enemy tech tier.
+	# Enemy base raid.
 	if GameManager.combat_node_type == "enemy_base":
 		if victory:
 			EnemyFactionSystem.destroy_enemy_base()
 		return
-	# Fuel depot seizure: victory grants fuel bonus based on the chosen approach.
+	# Fuel depot seizure.
 	if GameManager.combat_node_type == "fuel_depot":
 		if victory:
-			var bonus: float = FUEL_DEPOT_PRECISE_BONUS if fuel_depot_approach == "precise" else FUEL_DEPOT_HEAVY_BONUS
+			var bonus: float = FuelManager.FUEL_DEPOT_PRECISE_BONUS if fuel_depot_approach == "precise" else FuelManager.FUEL_DEPOT_HEAVY_BONUS
 			var gained := minf(bonus, mech_max_energy - mech_energy)
 			mech_energy = minf(mech_energy + gained, mech_max_energy)
 			var approach_name := "Precise" if fuel_depot_approach == "precise" else "Heavy"
@@ -156,41 +859,36 @@ func _on_combat_ended(victory: bool) -> void:
 		ArmorSystem.sync_equipped_armor_durability()
 		_notify_research_completions(FleetSystem.tick_research(2))
 
+
 func _on_friendly_damage_received(raw_damage: float) -> void:
 	if raw_damage > 0.0:
 		_combat_friendly_damage += raw_damage
 
-# Initialise equipped_parts from armor_catalog[slot][0] (first/default entry per slot).
-# Uses armor_catalog as single source of truth — no duplicated data.
-# -----------------------------------------------------------------------------
-# ARMOR INSTANCE INVENTORY
-# Each owned armor piece is a unique instance (uid) with its own durability and
-# upgrade level. `part_damage[slot]` remains the live combat damage cache of the
-# currently equipped instance; instance.durability is the persistent source for
-# everything sitting in the inventory (equipped included, kept in sync).
-# -----------------------------------------------------------------------------
+
+func _notify_research_completions(completed_ids: Array) -> void:
+	for pid in completed_ids:
+		var project: Dictionary = FleetSystem.get_research_project(pid)
+		if project.is_empty():
+			continue
+		var pname: String = str(project.get("name", pid))
+		var reward_name: String = str(project.get("reward_name", project.get("reward_id", "")))
+		var reward_type: String = str(project.get("reward_type", ""))
+		EventBus.event_triggered.emit({
+			"name": "RESEARCH COMPLETE",
+			"effect": "none",
+			"amount": 0,
+			"desc": "%s finished! Unlocked: %s (%s)." % [pname, reward_name, reward_type.capitalize()],
+		})
+
+
+# ===========================================================================
+# UTILITY HELPERS
+# ===========================================================================
 
 func _new_uid(prefix: String) -> String:
 	return "%s_%d_%d" % [prefix, Time.get_ticks_usec(), randi() % 0xFFFFF]
 
-# Creates a fresh instance from a catalog template and adds it to armor_inventory.
-# Extracts hp/armor/weight floats from a catalog entry (shared by cost formulas).
-# Scrap material cost to craft a catalog armor entry (derived from its stats).
-# Credit cost to craft a catalog armor entry (derived from its stats).
-# True when a catalog armor entry is a gundam-tier part that must first be
-# researched (its matching research project completed) before it can be crafted.
-# Attempts to craft a fresh armor instance from the catalog, spending scrap + credits.
-# Returns the new instance on success, or an empty Dictionary on any failure
-# (unknown id / insufficient scrap / insufficient credits / blueprint not researched).
-# Equips an owned instance into a slot, carrying its wear into the combat cache.
-# Writes the live combat damage cache back into the equipped instances' durability.
-# -----------------------------------------------------------------------------
-# SHARED PART HELPERS — single source for stat/durability/cost reads so the
-# hangar, safehouse, intermission and mecha UIs can never disagree.
-# -----------------------------------------------------------------------------
 
-# Reads a numeric stat from either an ArmorPart resource or a Dictionary
-# instance, normalizing key aliases (max_hp/hp, armor_class/armor).
 func part_stat(part: Variant, key: String, default: float = 0.0) -> float:
 	var v: Variant = default
 	if part is ArmorPart:
@@ -210,68 +908,15 @@ func part_stat(part: Variant, key: String, default: float = 0.0) -> float:
 			v = d.get("weight", default)
 	return float(v)
 
-# Normalizes an armor instance's stored durability to a 0..1 fraction.
+
 func get_durability_ratio(inst: Dictionary) -> float:
 	return clampf(float(inst.get("durability", 1.0)), 0.0, 1.0)
 
-# Live durability fraction (0..1) of the currently equipped part in a slot,
-# derived from the combat damage cache.
+
 func get_part_durability(slot: String) -> float:
 	return 1.0 - clampf(float(part_damage.get(slot, 0.0)), 0.0, 1.0)
 
-# Credit cost to fully repair a slot (armor + inner frame). One formula, used by
-# every repair UI so the same damage always costs the same credits.
-# -----------------------------------------------------------------------------
-# SCRAP PATCHES — emergency self-repair done in the intermission screen when the
-# driver has no fleet mechanic available. Scrap is used to build crude armor out
-# of basic primitives (boxes / spheres / wedges) placed on the mech like a Mass
-# Builder frame editor. A patched slot uses WEAKER scrap stats derived from the
-# driver's repair-skill tier and stays patched until a professional mechanic
-# rebuilds the real armor. Repair/state logic lives in RepairSystem.
-#   key: slot name
-#   value: {
-#     "tier": 1..5, "stat_scale": 0.40..0.80,
-#     "scrap_armor_hp": float, "scrap_frame_hp": float,
-#     "armor_class": float, "scrap_spent": int,
-#     "primitives": [ {shape, pos, rot, scale, color, attach} ]
-#   }
-# -----------------------------------------------------------------------------
-var scrap_patches: Dictionary = {}
 
-# Where a scrap primitive may be attached on the mech. `node` is a
-# mecha-root-relative path to the skeleton node the primitive should follow
-# (so a patch on the arm can ride the upper arm, forearm, ...). The slot's
-# first option is always its root skeleton node. Single source of truth shared
-# by the repair editor and the combat/hangar scrap-patch renderer.
-const SCRAP_ATTACH_OPTIONS := {
-	"head": [
-		{"name": "Head", "node": "Head"},
-	],
-	"body": [
-		{"name": "Body", "node": "Body"},
-		{"name": "Chest Plate", "node": "Body/ChestPlate"},
-		{"name": "Backpack", "node": "Body/Backpack"},
-	],
-	"arm_left": [
-		{"name": "Upper Arm", "node": "ArmLeft"},
-		{"name": "Forearm", "node": "ArmLeft/ForearmLeft"},
-	],
-	"arm_right": [
-		{"name": "Upper Arm", "node": "ArmRight"},
-		{"name": "Forearm", "node": "ArmRight/ForearmRight"},
-	],
-	"leg_left": [
-		{"name": "Thigh", "node": "LegLeft"},
-		{"name": "Shin", "node": "LegLeft/ShinLeft"},
-	],
-	"leg_right": [
-		{"name": "Thigh", "node": "LegRight"},
-		{"name": "Shin", "node": "LegRight/ShinRight"},
-	],
-}
-
-# Mecha-root-relative skeleton node paths a scrap patch on `slot` can attach to.
-# Includes the slot's own root node as the first entry.
 func scrap_attach_node_paths(slot: String) -> Array[String]:
 	var paths: Array[String] = []
 	for opt in SCRAP_ATTACH_OPTIONS.get(slot, []):
@@ -281,9 +926,70 @@ func scrap_attach_node_paths(slot: String) -> Array[String]:
 				paths.append(p)
 	return paths
 
-const EMERGENCY_REPAIR_BASE_SCRAP := 5
-const EMERGENCY_REPAIR_SCRAP_PER_ARMOR_HP := 0.04
-const EMERGENCY_REPAIR_SCRAP_PER_FRAME_HP := 0.03
+
+func part_tier_major(upgrade_level: int) -> int:
+	return 1 + maxi(upgrade_level - 1, 0) / (PART_TIER_SUBSTEPS + 1)
+
+
+func part_tier_substep(upgrade_level: int) -> int:
+	return maxi(upgrade_level - 1, 0) % (PART_TIER_SUBSTEPS + 1)
+
+
+func part_tier_text(upgrade_level: int) -> String:
+	var major := part_tier_major(upgrade_level)
+	var sub := part_tier_substep(upgrade_level)
+	if sub == 0:
+		return str(major)
+	return "%d.%d" % [major, sub]
+
+
+func part_tier_pips_filled(upgrade_level: int) -> int:
+	return part_tier_substep(upgrade_level)
+
+
+func part_tier_pips_text(upgrade_level: int) -> String:
+	var filled := part_tier_pips_filled(upgrade_level)
+	var s := ""
+	for i in range(PART_TIER_SUBSTEPS):
+		s += "●" if i < filled else "○"
+	return s
+
+
+func get_part_upgrade_cost(upgrade_level: int) -> int:
+	return 50 + (maxi(upgrade_level, 1) - 1) * 25
+
+
+func get_mech_power() -> float:
+	var power := float(LoadoutSystem.get_chassis_stats().get("power", 12.0))
+	for arm in ["arm_left", "arm_right"]:
+		var f = equipped_frames.get(arm, {})
+		if f is Dictionary:
+			power += float(f.get("carry_bonus", 0.0)) * 0.5
+	return power
+
+
+func get_arm_power(side: String) -> float:
+	var power := float(LoadoutSystem.get_chassis_stats().get("power", 12.0))
+	if side != "left" and side != "right":
+		return power
+	var f = equipped_frames.get("arm_%s" % side, {})
+	if f is Dictionary:
+		power += float(f.get("carry_bonus", 0.0))
+	return power
+
+
+func get_leg_power() -> float:
+	var power := float(LoadoutSystem.get_chassis_stats().get("power", 12.0))
+	for leg in ["leg_left", "leg_right"]:
+		var f = equipped_frames.get(leg, {})
+		if f is Dictionary:
+			power += float(f.get("carry_bonus", 0.0))
+	return power
+
+
+# ===========================================================================
+# REPAIR FACADES (delegate to RepairSystem)
+# ===========================================================================
 
 func get_repair_cost(slot: String) -> int:
 	return RepairSystem.get_repair_cost(slot)
@@ -322,1025 +1028,40 @@ func serialize_scrap_primitive(primitive: Dictionary) -> Dictionary:
 	return RepairSystem._scrap_primitive_to_json_safe(primitive)
 
 
-# -----------------------------------------------------------------------------
-# PROFESSIONAL REPAIR — a fleet mechanic / village workshop rebuilds a scrap-
-# patched (or damaged) slot into fresh catalog armor. Costs credits and consumes
-# the node you're standing on. Returns the credit price for the slot.
-# -----------------------------------------------------------------------------
-const PROFESSIONAL_REPAIR_CREDITS_PER_ARMOR_HP := 1.0
-const PROFESSIONAL_REPAIR_CREDITS_PER_FRAME_HP := 0.75
-
-# The mechanic rebuilds the slot: removes any scrap patch, clears all damage and
-# restores the real catalog armor at full HP. Returns false if unaffordable.
-# Maps a mech slot name to the mecha-root-relative node path holding that
-# section's meshes. Single source of truth for all part visuals.
-# Default stock weapons that the player starts with on each hand / on the back.
-const DEFAULT_LEFT_WEAPON_PATH := "res://resources/mech/stock/weapon_beam_rifle.tres"
-const DEFAULT_RIGHT_WEAPON_PATH := "res://resources/mech/stock/weapon_heat_blade.tres"
-const DEFAULT_CARRY_WEAPON_PATH := "res://resources/mech/stock/weapon_combat_shotgun.tres"
-
-# The six armor/frame slots of the mech, in a stable order.
-const MECHA_SLOTS: Array[String] = [
-	"head", "body", "arm_left", "arm_right", "leg_left", "leg_right"
-]
-
-# Credits charged per point of HP repaired.
-const REPAIR_COST_PER_HP := 0.5
-
-# -----------------------------------------------------------------------------
-# FIELD PACK vs DEPOT
-# - DEPOT: permanent storage (weapon_inventory, ammo_inventory, salvaged armor).
-# - FIELD PACK: what the mech physically carries into battle (hand weapons,
-#   back-carry weapons, and the ammo loadout). Weight capacity comes from the
-#   equipped Inner Frames (each frame adds a "carry_bonus").
-# -----------------------------------------------------------------------------
-const FIELD_PACK_BASE_CAPACITY := 40.0
-# Weight of one round of ammo (kg), used to weigh the ammo loadout.
-const AMMO_WEIGHT_PER_UNIT := {
-	"kinetic": 0.01,
-	"energy": 0.02,
-	"explosive": 0.20,
-	"missile": 0.50,
-}
-
-# Total Field Pack weight capacity in kg = base + sum of equipped frames.
-# Current Field Pack load weight in kg (hand weapons + carry weapons + ammo).
-# Weight of the ammo the player chose to carry (the "ammo" loadout).
-# Older saves predate frame ids. Resolve a saved frame value into a full catalog
-# entry so the Field Pack capacity and stats stay consistent across old save files.
-
-func _ensure_default_frames() -> void:
-	if not equipped_frames.is_empty():
-		return
-	for slot in ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]:
-		if frame_catalog.has(slot) and frame_catalog[slot].size() > 0:
-			equipped_frames[slot] = frame_catalog[slot][0].duplicate()
-
-# -----------------------------------------------------------------------------
-# HANGAR MECH ROSTER
-# A roster entry is a built machine that can be selected in the hangar. It is
-# deliberately a loadout snapshot, so entering a different mech never mutates
-# the catalog or invents a placeholder backup body. Logic lives in HangarManager;
-# GlobalData keeps these thin facades so all existing callers stay untouched.
-# -----------------------------------------------------------------------------
-# Resource cost to assemble a new frame into an empty berth (roster REGISTER).
-# Single source of truth so every UI shows the same price.
-# True when the piloted (active) mech's driver is a recovering fleet pilot.
-# Combat-entry safety net: parks the active mech when its driver is wounded and
-# switches to a healthy backup. Returns the new active mech id ("" = no swap).
-# Loads a parked mech's parts into the working set for editing WITHOUT changing
-# which mech the player actually pilots (active). Used by the customize page so
-# you can tune any berth while keeping the combat mech as-is.
-# Persists the current working set back onto a specific parked mech. Unlike
-# save_active_hangar_mech(), this targets any berth, so edits to a non-active
-# mech on the customize page are saved to the right entry.
-# Replaces a parked mech's loadout with the given snapshot while preserving its
-# identity (id/name/slot/pilot/archetype). Used to undo working-set edits that
-# leaked onto a berth during the REGISTER assembly flow.
-# Fleet-driven convoy capacity: number of parking berths the hangar has.
-# Number of pilots in the convoy (the player driver + every fleet unit).
-# Physical hard cap of the stored roster array.
-# All assignable pilots: {"id": "...", "name": "..."}.
-# Pilot display name for a specific berth ("YOU (driver)" / fleet name /
-# "(no pilot)"). Shared by the roster badge and the customize stats panel.
-# Short status suffix for a fleet pilot (" · DESTROYED" / " · WOUNDED (nT)" /
-# " · hp/max HP"); empty for the player driver.
-# Reassigns the pilot driving a parked mech (swaps when the pilot already has a
-# mech). Caller persists with save_run().
-# Renames a parked mech (identity field only; blank name falls back to the
-# slot-based name). Caller persists with save_run().
-# Combat archetype a parked mech fights as when fielded as an ally (see
-# HangarManager.ARCHETYPE_*). Caller persists with save_run().
-# Parking berth (slot number) of a stored mech, 0 when unknown.
-# Removes a destroyed mech from the roster (switches the active mech away first).
-# True when the player is pilot-only but the convoy has squadmates left, so a
-# defeat retreats instead of ending the run.
-# Builds a fresh walking chassis from convoy spares and ends pilot-only mode.
-# -----------------------------------------------------------------------------
-# WEAPON LOADOUT — central state for what the mech carries into battle.
-# "left"/"right" hold the INSTANCE UID of the hand weapon ("" = unarmed hand);
-# "carry" holds the uids of the weapons on the back. Each uid points at one
-# physical copy in weapon_inventory, so equipping a specific instance marks
-# exactly that copy as equipped — same-model copies never share the [E] badge.
-# "ammo" is how much ammo of each type the player allocates to bring into battle.
-# Configured in the Hangar, read by WeaponManager at battle start.
-# -----------------------------------------------------------------------------
-var weapon_loadout: Dictionary = {
-	"left": "w_starter_left",
-	"right": "w_starter_right",
-	"carry": ["w_starter_carry"],
-	"ammo": {
-		"kinetic": 300,
-		"energy": 150,
-		"explosive": 30,
-		"missile": 12
-	}
-}
-
-# Owned reserve ammo (replenished between battles, spent by the hangar/board).
-var ammo_inventory: Dictionary = {
-	"kinetic": 300,
-	"energy": 150,
-	"explosive": 30,
-	"missile": 12
-}
-
-# Items that dropped during THIS battle (weapons / salvaged armor parts). Enemy
-# weapon & armor drops land here instead of auto-granting; the post-battle
-# summary (combat_rewards_ui) shows them on the left and lets the player drag the
-# ones they want into the TAKE BACK column, which are granted on continue.
-# Entries: {"type": "weapon", "weapon": WeaponPart} or
-#          {"type": "armor", "instance": {...armor instance...}}
-var battle_loot: Array = []
-
-# Owned weapon collection (each entry: uid/path/name/durability/upgrade_level).
-var weapon_inventory: Array = [
-	{"uid": "w_starter_left", "path": "res://resources/mech/stock/weapon_beam_rifle.tres", "name": "Beam Rifle", "durability": 1.0, "upgrade_level": 1},
-	{"uid": "w_starter_right", "path": "res://resources/mech/stock/weapon_heat_blade.tres", "name": "Heat Blade", "durability": 1.0, "upgrade_level": 1},
-	{"uid": "w_starter_carry", "path": "res://resources/mech/stock/weapon_combat_shotgun.tres", "name": "Combat Shotgun", "durability": 1.0, "upgrade_level": 1}
-]
-
-# Returns the equipped WeaponPart for the given hand ("left"/"right").
-# Reads the central weapon_loadout so the Hangar and battle share one source.
-# An explicitly-unarmed hand ("") returns null; only a missing/blank slot falls
-# back to the default stock weapon for that hand.
-# Returns the WeaponParts the mech carries on its back into battle (from loadout).
-# Total weight of all loadout weapons (both hands + back).
-# Total weight of all loadout weapons (both hands + back).
-# Assigns a weapon to a hand. `ref` is the clicked instance's uid or a
-# resource path (resolved to a spare instance); "" clears the hand.
-# Whether this exact instance (by uid) is on the back pack.
-# The instance uid currently held in a hand ("" = unarmed).
-# Returns the slot ("left"/"right"/"carry") currently holding a weapon model,
-# or "" when it isn't equipped anywhere.
-# Slot lookup accepting a uid OR a path ref (hangar passes the clicked uid).
-# Resolves a loadout ref (uid or path) to the weapon resource path.
-# How many physical copies of a weapon model are currently on the back pack.
-# How many physical copies of a weapon model the player owns in the stash.
-# How many loadout slots currently hold a copy of this weapon model.
-# True when the player owns a copy of the model that is not in a loadout slot.
-# -----------------------------------------------------------------------------
-# PART UPGRADE TIER LADDER — every part's upgrade_level (1 = base) maps to a
-# display tier on the 1 -> 1.1 -> 1.2 -> 1.3 -> 1.4 -> 2 -> 2.1 ... ladder:
-# four sub-steps per whole tier; the fifth upgrade rolls into the next tier.
-# Shared by armor, inner frames and weapons (the hangar right panel shows it).
-# -----------------------------------------------------------------------------
-const PART_TIER_SUBSTEPS: int = 4
-
-func part_tier_major(upgrade_level: int) -> int:
-	return 1 + maxi(upgrade_level - 1, 0) / (PART_TIER_SUBSTEPS + 1)
-
-func part_tier_substep(upgrade_level: int) -> int:
-	return maxi(upgrade_level - 1, 0) % (PART_TIER_SUBSTEPS + 1)
-
-# "1" / "1.1" / ... / "1.4" / "2" / "2.1" ...
-func part_tier_text(upgrade_level: int) -> String:
-	var major := part_tier_major(upgrade_level)
-	var sub := part_tier_substep(upgrade_level)
-	if sub == 0:
-		return str(major)
-	return "%d.%d" % [major, sub]
-
-# Pips filled toward the next whole tier (0..4).
-func part_tier_pips_filled(upgrade_level: int) -> int:
-	return part_tier_substep(upgrade_level)
-
-# Four progress pips: filled (●) vs empty (○).
-func part_tier_pips_text(upgrade_level: int) -> String:
-	var filled := part_tier_pips_filled(upgrade_level)
-	var s := ""
-	for i in range(PART_TIER_SUBSTEPS):
-		s += "●" if i < filled else "○"
-	return s
-
-# Credit cost for one part upgrade (armor / frame / weapon share the ladder).
-func get_part_upgrade_cost(upgrade_level: int) -> int:
-	return 50 + (maxi(upgrade_level, 1) - 1) * 25
-
-# Returns how much ammo of the given type the player carries into the next battle.
-# Sets how much ammo of the given type the player carries into the next battle.
-# Returns the chassis stats dict for the currently selected chassis_id.
-# Used by mecha_controller at combat start so it doesn't rely on @export chassis resource.
-# Keys: "speed" (float), "max_weight" (float), "color" (Color), "name" (String)
-# Total mech Power: chassis base + arm-frame strength that contributes to
-# supporting heavy weapons in a single hand.
-func get_mech_power() -> float:
-	var power := float(LoadoutSystem.get_chassis_stats().get("power", 12.0))
-	for arm in ["arm_left", "arm_right"]:
-		var f = equipped_frames.get(arm, {})
-		if f is Dictionary:
-			power += float(f.get("carry_bonus", 0.0)) * 0.5
-	return power
-
-# Power of ONE arm: chassis base + that arm's frame strength. Two-hand weapons
-# check the arm that actually holds the weapon — a strong arm can one-hand a
-# railgun while a weak arm still needs the other hand to brace it.
-func get_arm_power(side: String) -> float:
-	var power := float(LoadoutSystem.get_chassis_stats().get("power", 12.0))
-	if side != "left" and side != "right":
-		return power
-	var f = equipped_frames.get("arm_%s" % side, {})
-	if f is Dictionary:
-		power += float(f.get("carry_bonus", 0.0))
-	return power
-
-# Leg bracing strength: chassis base + both leg frames. Strong legs absorb the
-# railgun's recoil and re-stabilize the stance faster after a heavy shot.
-func get_leg_power() -> float:
-	var power := float(LoadoutSystem.get_chassis_stats().get("power", 12.0))
-	for leg in ["leg_left", "leg_right"]:
-		var f = equipped_frames.get(leg, {})
-		if f is Dictionary:
-			power += float(f.get("carry_bonus", 0.0))
-	return power
-
-# Equipped inner frames. Values are full catalog-entry dicts at runtime; the
-# save file persists only {"id": ...} references (see _serialize_frames).
-var equipped_frames: Dictionary = {}
-var frame_upgrade_level: int = 1
-
-const FRAME_UPGRADE_HP_BONUS: float = 25.0
-const FRAME_UPGRADE_WEIGHT_BONUS: float = 15.0
-const FRAME_UPGRADE_BASE_COST: int = 150
-
-# Owned armor instances. Every acquired part is a distinct instance with its own
-# durability (0..1) and upgrade_level. Catalog entries are templates only; the
-# stats are duplicated into the instance at creation and never mutate the catalog.
-# Entry: {"uid", "db_id", "name", "slot", "type", "hp", "armor", "weight", "color",
-#         "durability", "upgrade_level", "equipped"}
-var armor_inventory: Array = []
-var part_damage: Dictionary = {}
-
-var board_grid: Array = []
-var current_tile: Vector2i = Vector2i.ZERO
-var board_seed: int = 0
-# Terrain of the board tile the player stepped onto when a battle started
-# ("road", "forest", "sand"...). The arena generator uses it to pick the battle
-# biome: a forest board fought on a ROAD tile spawns the road-through-forest
-# arena instead of the plain woods. Set by the board before entering combat.
-var combat_tile_terrain: String = "plain"
-# --- Environmental Hazard (GDD §7.1) ----------------------------------------
-# Board tile type that triggers an environmental hazard in the next combat.
-# Set by the board_manager when the player steps on a hazard tile. Cleared
-# after combat ends (or when the player leaves the board).
-var current_hazard: String = ""   # "dust_storm" / "tactical_smog" / "emp_zone" / ""
-const HAZARD_DUST_STORM: String = "dust_storm"
-const HAZARD_TACTICAL_SMOG: String = "tactical_smog"
-const HAZARD_EMP_ZONE: String = "emp_zone"
-# Dust Storm penalties (applied in mecha_controller._process_energy)
-const DUST_STORM_ROLLER_DRAIN_MULT: float = 1.5   # roller drain x1.5
-const DUST_STORM_SPEED_MULT: float = 0.85          # movement speed x0.85
-# Tactical Smog penalties (applied in weapon_core._cool_heat)
-const SMOG_HEAT_COOL_PENALTY: float = 0.5          # heat cool rate x0.5
-# EMP penalties (applied in camera_rig + backup_mech_spawner)
-const EMP_LOCK_ON_DISABLED: bool = true
-const EMP_BACKUP_BLOCKED: bool = true
-# Current combat arena footprint (side length in meters). Set by the arena
-# generator when a battle loads; scales spawn ring / AI search radius / nav.
-var current_arena_size: float = 240.0
-# --- Mid-Battle Injection (GDD §7.3) ----------------------------------------
-# Reinforcements: third-party enemies spawn mid-battle after a delay.
-var mid_battle_reinforcements_active: bool = false
-var mid_battle_reinforcements_timer: float = 0.0
-var mid_battle_reinforcements_delay: float = 20.0  # seconds before third party arrives
-# Countdown Extraction: area is being bombed — kill all enemies or escape
-# before the timer runs out. 0 = inactive.
-var mid_battle_countdown_active: bool = false
-var mid_battle_countdown_timer: float = 0.0
-var mid_battle_countdown_max: float = 45.0  # seconds to escape
-# --- Convoy Escort & Defense (GDD §7.4) -------------------------------------
-# Convoy HP: the truck can be damaged during ambush events.
-var convoy_hp: float = 100.0
-var convoy_hp_max: float = 100.0
-# Defense wave: number of waves the player must survive.
-var convoy_defense_waves: int = 0
-var convoy_defense_current_wave: int = 0
-var convoy_defense_active: bool = false
-# Convoy destroyed: all backup mechs lost, forced pilot mode.
-var convoy_destroyed: bool = false
-# --- Narrative Design (GDD §5) ----------------------------------------------
-# Bond: tracks the emotional connection between pilot and mech.
-# Increases through shared battles, repairs, and surviving near-death.
-var mech_bond: float = 0.0          # 0.0 to 100.0
-var mech_battles_survived: int = 0  # total battles fought in this mech
-var mech_repairs_done: int = 0      # times this mech was repaired
-var mech_near_death_escapes: int = 0 # times HP dropped below 20%
-# Sacrifice Event: triggers when bond >= 80 and mech is heavily damaged.
-var sacrifice_event_available: bool = false
-var sacrifice_event_triggered: bool = false
-# Grand Entry: new mech arrival after sacrifice.
-var grand_entry_mech_id: String = ""  # id of the replacement mech
-var grand_entry_pending: bool = false
-# --- Open-grid board state (see BoardConfig/Terrain in board scripts) ---
-# Each "day" the player gets board_mp_max movement points; cells cost their
-# terrain move_cost. Research / heat / spy / enemy research node / patrol fleets
-# all advance once per day via EventBus.board_day_ended.
-var board_mp_max: int = 8
-var board_mp: int = 8
-var board_day: int = 1
-# Which map theme this sector is: suburb / desert / forest / urban.
-var board_theme_id: String = "suburb"
-# Per-map objective: id + progress (see BoardConfig.OBJECTIVES).
-var board_objective_id: String = ""
-var board_objective_progress: int = 0
-var board_objective_required: int = 0
-# Day-1 objective intro popup fires only once per sector. Without this the
-# popup reappears every time the board scene reloads (return_to_board), which
-# loops forever and locks the player at the popup.
-var board_objective_intro_consumed: bool = false
-# Enemy patrol fleets patrolling the grid. Entry: {pos: Vector2i, name, size,
-# grunts, aces, home: Vector2i, aggro: int}.
-var board_patrols: Array = []
-# Id of the patrol currently engaged in combat (-1 = none). Set by the board
-# before entering a patrol fight; resolved by PatrolSystem on combat end.
-var board_patrol_engagement: int = -1
-# Tile the player chose to demolish via the dead-end "clear the path" choice
-# (-1 = none). The board manager opens the path and advances the day when the
-# choice popup closes.
-var pending_tile_clear: Vector2i = Vector2i(-1, -1)
-var heat: int = 0
-var wanted_level: int = 0
-# Sector-progression floor for wanted_level, raised by HeatWantedSystem.escalate_wanted().
-var wanted_escalation: int = 0
-var safehouse_upgrades: Array = []
-# -----------------------------------------------------------------------------
-# TACTICAL PRESSURE STATE (enemies hunt the convoy, not static routes)
-# - patrol_last_seen: tile where the player was last detected; reactive patrols
-#   drift toward it instead of random-wandering, so the player is the target.
-# - patrol_alert:     how "stirred up" the local forces are. Rises while the
-#   player lingers near a hostile patrol and decays after relocating. Higher
-#   alert widens the patrols' detection radius and raises movement costs.
-# - ambush_pincer:    a chokepoint ambush just triggered — the next combat
-#   spawns enemies in a pincer (two opposing arcs) around the player.
-# - consumed_bait:    bait-trap tiles already sprung (Vector2i). Kept so a
-#   sprung decoy stays cleared across board reloads (same rule as dead ends).
-# -----------------------------------------------------------------------------
-var patrol_last_seen: Vector2i = Vector2i(-1, -1)
-var patrol_alert: int = 0
-var ambush_pincer: bool = false
-var consumed_bait: Array = []
-
-# -----------------------------------------------------------------------------
-# RUN THEME — the identity of the current run (see run_theme_catalogs.tres).
-# - theme_id:       which story this run is (soldier / gundam_merc / scavenger).
-# - reputation:     accrued deeds that gate high-tier choice events.
-# - theme_switched: allows a theme_switch event to fire at most once per run.
-# - ceasefire_turns: board moves left with no combat (political ceasefire).
-# - blocked_intermission: set when a force_combat event denies the intermission
-#   between battles.
-# -----------------------------------------------------------------------------
-var theme_id: String = "soldier"
-var reputation: int = 0
-var theme_switched: bool = false
-var ceasefire_turns: int = 0
-var blocked_intermission: bool = false
-
-# PILOT-ONLY MODE — true while the convoy owns no mech (the player fights on
-# foot). Set when the last parked mech is destroyed in battle; cleared when a
-# recovery event or reward grants a fresh chassis. While true the hangar roster
-# stays empty and hostile patrol encounters become recovery events instead of
-# battles (the player can't fight on foot).
-var mech_less: bool = false
-
-# Text shown to the player on the next screen after an event's effect lands
-# (e.g. "Scrap truck driver joins your convoy"). Cleared on read.
-var run_notice: String = ""
-
-# -----------------------------------------------------------------------------
-# ENEMY TECH ESCALATION — enemies reverse-engineer our mech over time.
-# - enemy_tech_tier:     the enemy's current standard (new unit tier).
-#   It rises one step at a time whenever we win a battle DECISIVELY (we took
-#   at most 50% of our combined fielded HP in damage). Decisive wins prove
-#   our gear works; the enemy copies it for the next deployment.
-# -----------------------------------------------------------------------------
-var enemy_tech_tier: int = 1
-var pending_escalation_event: bool = false
-
-# -----------------------------------------------------------------------------
-# COMBAT DAMAGE TRACKING — measures how "decisive" our victory was.
-# - _combat_friendly_total_hp: snapshot of combined max HP of every friendly
-#   unit fielded (player mech + allies) taken at combat start.
-# - _combat_friendly_damage:   accumulated raw HP lost by friendly units.
-# - last_combat_damage_ratio:  damage / total_hp, finalized at combat end.
-#   A decisive victory keeps this <= 0.5 (we took <= 50% combined damage).
-# -----------------------------------------------------------------------------
-var _combat_friendly_total_hp: float = 0.0
-var _combat_friendly_damage: float = 0.0
-var last_combat_damage_ratio: float = 0.0
-
-const DECISIVE_VICTORY_RATIO := 0.5
-
-# -----------------------------------------------------------------------------
-# PILOT STATE — the player pilot's own condition, kept separate from the mech.
-# The mech has its armor/frame HP; the pilot has their own body, personal
-# weapons, personal ammo and healing items. Logic lives in PilotSystem; GlobalData
-# keeps the raw state + thin facades for its callers (save/load / reset).
-# -----------------------------------------------------------------------------
-var pilot_hp: float = PilotSystem.PILOT_MAX_HP_DEFAULT
-var pilot_max_hp: float = PilotSystem.PILOT_MAX_HP_DEFAULT
-
-# Personal weapons carried on the pilot's body (WeaponPart resource paths,
-# from the PILOT weapon DB — mech weapons are never equipable on foot).
-var pilot_weapons: Array = ["res://resources/mech/stock/weapon_pilot_pistol.tres"]
-
-# Personal ammo reserves for the pilot's own weapons (type -> count).
-var pilot_ammo: Dictionary = {
-	"kinetic": 120,
-	"energy": 40,
-	"explosive": 8,
-	"missile": 3,
-}
-
-# Pilot item inventory (healing items etc.): {item_id: count}.
-var pilot_items: Dictionary = {}
-
-# Active hired mercenary pilots and permadeath casualties history
-var hired_pilots: Array = []
-var fallen_pilots: Array = []
-
-# Dynamic Rival / Nemesis Enemy Pilot System
-var rival_pilots: Array = []
-var defeated_rivals: Array = []
-var active_combat_commander: Dictionary = {}
-var player_last_dir: Vector2i = Vector2i(1, 0)
-
-# --- Pilot facades (logic in PilotSystem) ---
-
-func has_pilot_perk(perk_id: String) -> bool:
-	for pilot in hired_pilots:
-		if pilot is Dictionary and str(pilot.get("perk_id", "")) == perk_id:
-			return true
-	# Also check recruited unique characters
-	for cid in recruited_characters:
-		if cid == "vagrant_ace" and perk_id == "precognitive_flow":
-			return true
-	return false
-
-var credits: int = 0
-var data_cores: int = 0
-var scrap: int = 0
-
-# -----------------------------------------------------------------------------
-# MECH ENERGY — global fuel pool tied to the mech, persists across combat/board.
-# Used for dash, roller, jump in combat AND board movement. Running out on the
-# board means the mech can't move (fuel emergency). Refuel at safehouses or
-# via energy pickups on the board.
-# -----------------------------------------------------------------------------
-var mech_energy: float = 1000.0
-var mech_max_energy: float = 1000.0
-# Board movement mode: true when the mech deploys its roller-dash wheels on the map.
-var board_roller_mode: bool = false
-# Energy costs per terrain cell (GDD §3.1) - Road: -10, Off-road: -25, Roller on Road: -5.
-const BOARD_ENERGY_ROAD: float = 10.0
-const BOARD_ENERGY_OFFROAD: float = 25.0
-const BOARD_ENERGY_ROLLER: float = 5.0
-const REFUEL_ACTION_ENERGY: float = 500.0
-# Energy regen per day on the board (passive recharge while resting).
-const BOARD_ENERGY_REGEN_PER_DAY: float = 50.0
-# Bonus regen at safehouses (faster refill).
-const SAFEHOUSE_ENERGY_REGEN: float = 150.0
-
-func get_tile_energy_cost(terrain: String) -> float:
-	return preload("res://scripts/board/board_config.gd").energy_cost(terrain, board_roller_mode)
-
-# -----------------------------------------------------------------------------
-# FUEL & SUPPLY LOGISTICS (GDD §2.4)
-# Board-level refueling, external drop tanks, pilot siphon, and impure fuel.
-#
-# CONVOY SUPPLY TRANSFER: the convoy truck carries its own fuel reserve.
-# Parking adjacent to a supply node lets the player transfer fuel from the
-# truck into the mech — but it costs 1 full day turn and raises enemy alert.
-#
-# FUEL DEPOT SEIZURE: enemy fuel depots sit on the board as combat tiles.
-# Seizing one triggers a battle where the player must avoid destroying the
-# fuel tanks with heavy weapons. Victory grants a large fuel bonus.
-#
-# EXTERNAL DROP TANKS: bolt-on fuel canisters that extend the mech's energy
-# pool in combat. They are fragile — enemy fire can detonate them, causing
-# spark damage and fuel loss. The player can Purge (jettison) them before
-# they explode to avoid the blast.
-#
-# PILOT SIPHON PROTOCOL: when the mech is destroyed mid-combat, the pilot
-# ejects and must walk to enemy wreckage to siphon fuel and bring it back
-# for a re-ignition reboot.
-#
-# ENGINE DIRT (impure fuel penalty): siphoning fuel from wreckage yields
-# dirty fuel that causes the Torso Frame to accumulate heat faster.
-# -----------------------------------------------------------------------------
-
-# Convoy fuel reserve: how much fuel the supply truck carries. Depleted by
-# transfers; replenished each day by a base amount.
-var convoy_fuel_reserve: float = 100.0
-var convoy_fuel_max: float = 200.0
-const CONVOY_DAILY_FUEL_REGEN: float = 30.0
-const CONVOY_TRANSFER_AMOUNT: float = 60.0    # fuel transferred per use
-const CONVOY_TRANSFER_ALERT_GAIN: int = 2      # alert raised per transfer
-
-# Fuel depot seizure state.
-var fuel_depot_seized_today: bool = false       # one seizure per day
-var fuel_depot_bonus: float = 80.0              # fuel gained from a depot
-var fuel_depot_approach: String = ""            # "precise" or "heavy" — set by choice popup
-const FUEL_DEPOT_PRECISE_BONUS: float = 80.0    # full reward for precise approach
-const FUEL_DEPOT_HEAVY_BONUS: float = 40.0      # half reward for heavy (some tanks destroyed)
-
-# External drop tanks: bolt-on fuel canisters.
-# 0 = no tanks, 1 = one side tank, 2 = both sides, 3 = dorsal + both sides.
-var drop_tanks_attached: int = 0                # 0..3
-var drop_tank_fuel: float = 0.0                 # fuel stored in drop tanks
-const DROP_TANK_CAPACITY_PER: float = 40.0      # fuel per tank
-const DROP_TANK_MAX_ATTACHED: int = 3
-const DROP_TANK_PURGE_DAMAGE: float = 15.0      # self-damage if detonated
-const DROP_TANK_COST_CREDITS: int = 80            # credit cost per drop tank
-
-# Pilot siphon state.
-var pilot_siphoning: bool = false               # true while siphon is active
-var pilot_siphoned_fuel: float = 0.0            # fuel carried back from wreckage
-const SIPHON_AMOUNT: float = 50.0               # fuel siphoned per attempt
-const SIPHON_WALK_TIME: float = 3.0             # seconds the pilot must walk
-
-# Engine dirt (impure fuel penalty). Accumulates when siphoning dirty fuel.
-# Range 0.0 (clean) to 1.0 (maximum grime). Affects heat accumulation rate.
-var engine_dirt: float = 0.0
-const ENGINE_DIRT_PER_SIPHON: float = 0.25      # dirt gained per siphon
-const ENGINE_DIRT_CLEANUP_PER_DAY: float = 0.1  # natural cleanup per day
-const ENGINE_DIRT_HEAT_MULTIPLIER: float = 1.5  # heat rate at max dirt
-
-# Pilot Siphon Protocol (GDD §2.4 / §2.2)
-# When the mech is destroyed, a wreckage tile is placed on the board where
-# it fell. The pilot (on foot) can walk to the wreckage to siphon dirty fuel
-# from the enemy wreckage and bring it back for a re-ignition reboot.
-var wreckage_tile_pos: Vector2i = Vector2i(-1, -1)  # position of the wreckage
-var wreckage_fuel_remaining: float = 80.0           # fuel left in the wreckage
-var siphoned_fuel: float = 0.0                      # fuel carried by pilot on-foot
-const WRECKAGE_SIPHON_AMOUNT: float = 30.0          # fuel siphoned per visit
-const WRECKAGE_MAX_SIPHONS: int = 3                  # max siphons before empty
-const REIGNITION_FUEL_COST: float = 60.0             # fuel needed to reboot
-const REIGNITION_ENGINE_DIRT_COST: float = 0.15      # extra dirt from rebooting
-
-# --- Currency API ---
-# All external code should mutate currency through these helpers so spending
-# rules stay in one place (single source of truth for the economy).
-func try_spend_credits(amount: int) -> bool:
-	if amount <= 0 or credits < amount:
-		return false
-	credits -= amount
-	return true
-
-func gain_credits(amount: int) -> void:
-	if amount > 0:
-		credits += amount
-
-func try_spend_scrap(amount: int) -> bool:
-	if amount <= 0 or scrap < amount:
-		return false
-	scrap -= amount
-	return true
-
-func gain_scrap(amount: int) -> void:
-	if amount > 0:
-		scrap += amount
-
-func try_spend_data_cores(amount: int) -> bool:
-	if amount <= 0 or data_cores < amount:
-		return false
-	data_cores -= amount
-	return true
-
-func gain_data_cores(amount: int) -> void:
-	if amount > 0:
-		data_cores += amount
-
-# -----------------------------------------------------------------------------
-# FLEET (กองยาน) — roster of allied mech units the player owns.
-# Each entry is a per-unit record: {"template_id", "name", "hp", "max_hp",
-# "destroyed", "fielded"}. Units are researched from blueprints (data_cores)
-# at the research base; fielded units tag along into combat as AI squadmates.
-# -----------------------------------------------------------------------------
-var fleet_roster: Array = []
-
-# -----------------------------------------------------------------------------
-# RECRUITABLE CHARACTERS — named pilots met on the board (see RecruitSystem).
-# - recruited_characters: character ids already met/resolved this run, so the
-#   same pilot can't be recruited or duelled twice.
-# - pending_duel: {"character_id", "intent"} while a duel battle is live;
-#   consumed by RecruitSystem when that combat ends.
-# - duel_result_text: outcome text for the combat rewards screen after a duel.
-# -----------------------------------------------------------------------------
-var recruited_characters: Array = []
-var pending_duel: Dictionary = {}
-var duel_result_text: String = ""
-
-# Active research: {project_id: {"progress": int, "required": int, "started": bool}}
-var research_projects: Dictionary = {}
-
-# Blueprint projects fully researched and unlocked (ids), e.g. units/gear.
-var research_unlocked: Array = []
-
-# -----------------------------------------------------------------------------
-# FLEET SECURITY — how well our ships/facility fend off enemy espionage.
-# - fleet_security:      0-100. Higher value = enemy spies more likely to be
-#   caught before stealing mech data.
-# - security_upgrade_level: the fleet's defensive-hardening branch level. Each
-#   upgrade costs credits and raises fleet_security (separate from research).
-# -----------------------------------------------------------------------------
-var fleet_security: float = 25.0
-var security_upgrade_level: int = 1
-
-const FLEET_SECURITY_MIN := 0.0
-const FLEET_SECURITY_MAX := 100.0
-const SECURITY_PER_UPGRADE := 14.0
-const SECURITY_UPGRADE_BASE_COST := 35
-
-# Spend credits to raise fleet security. Returns false if unaffordable or maxed.
-# Chance (0..1) that an enemy spy attempt on our mech data FAILS before stealing
-# anything. 25 = starting security, 50 = one strong investment, 90+ = fortress.
-# -----------------------------------------------------------------------------
-# DRIVER REPAIR SKILL — how skilled the pilot is at field repairs.
-# - driver_repair_skill: 1..5. Determines the tier of scrap armor a driver can
-#   build from emergency patches. Higher skill = stronger (but never equal to
-#   proper catalog armor) scrap armor.
-# - driver_repair_xp:    earned by doing emergency scrap repairs (practice makes
-#   perfect); leveling up raises the skill tier.
-# -----------------------------------------------------------------------------
-var driver_repair_skill: int = 1
-var driver_repair_xp: int = 0
-
-const REPAIR_SKILL_MAX := 5
-const REPAIR_XP_BASE := 30
-const REPAIR_XP_PER_LEVEL := 25
-
-# XP required to advance from `level` to `level + 1`.
-# Returns true when the XP gain pushed the skill to a new tier.
-# The scrap armor tier the driver can build right now (1..5).
-# Stats multiplier for scrap-built armor vs the real catalog part. Tier 1 gives
-# 40% of the real stats, each tier +10% up to 80% — scrap can never match a
-# properly-crafted armor plate.
-# Feature 7: the hangar mechs whose pilots tag along into combat (see
-# FleetSystem.get_sortie_units) — [{mech, unit}] for every seated, fielded,
-# healthy fleet pilot.
-# Template ids of every fleet pilot currently seated in a hangar mech — the
-# only units that can field under the Feature 7 rule.
-# Credit price to instantly heal a wounded fleet pilot (0 when not healable).
-# Spend credits to clear a wounded pilot's recovery countdown (full HP, fielded
-# again). Returns false when unhealable or unaffordable. Caller persists.
-# --- Recruitable characters (see RecruitSystem) -----------------------------
-
-# --- Research base ----------------------------------------------------------
-
-# Start a research project: consumes data_cores (the blueprint) and begins the
-# clock. Research time progresses via board moves (tick_research(1)) and
-# completed combats (tick_research(2)).
-# Advance all active research by `points`. Returns project ids completed now.
-# Emits EventBus notifications for each newly completed research project.
-func _notify_research_completions(completed_ids: Array) -> void:
-	for pid in completed_ids:
-		var project: Dictionary = FleetSystem.get_research_project(pid)
-		if project.is_empty():
-			continue
-		var pname: String = str(project.get("name", pid))
-		var reward_name: String = str(project.get("reward_name", project.get("reward_id", "")))
-		var reward_type: String = str(project.get("reward_type", ""))
-		EventBus.event_triggered.emit({
-			"name": "RESEARCH COMPLETE",
-			"effect": "none",
-			"amount": 0,
-			"desc": "%s finished! Unlocked: %s (%s)." % [pname, reward_name, reward_type.capitalize()],
-		})
-
-# -----------------------------------------------------------------------------
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-# ENEMY TECH ESCALATION — see state block near the theme fields. Logic lives in
-# -----------------------------------------------------------------------------
-
-# Per-theme escalation tuning; falls back to sensible defaults.
-# Called when a battle ends. The enemy tiers up one step when we win a battle
-# DECISIVELY — i.e. we took at most 50% of our combined fielded HP in damage.
-# Decisive wins prove our gear works, so the enemy copies it. Non-decisive
-# wins or losses don't escalate (our build barely worked / we failed).
-# Returns true once so the board can surface the "enemy upgraded" popup when
-# the player returns from combat.
-# Multiplier applied to freshly spawned enemy HP/damage based on tech tier.
-# Combined spawn scaling including the partial grunt upgrades salvaged from
-# destroyed research nodes. Grunts get tougher even without a full tier-up.
-# -----------------------------------------------------------------------------
-# ENEMY SPY / DATA THEFT — the enemy tries to steal our mech data out of combat.
-# - Rolled on board moves. Attempt chance rises with the enemy tier (the higher
-#   their tech interest, the more they probe us).
-# - If a spy attempts, our fleet security decides whether it gets caught. A
-#   successful theft starts the enemy's mech-copy research, which later spawns
-#   a research node the player must destroy (see Phase 5).
-# -----------------------------------------------------------------------------
-var enemy_research_progress: float = 0.0
-
-# --- Enemy research node (Phase 5) ---
-# When enough mech data is stolen, the enemy spins up a research base node on
-# the board. The player must reach it and destroy it before the enemy's
-# counter-unit research completes. If it completes, the enemy fields one of
-# three upgraded unit types (grunt MKII / special ace / gundam copy).
-var enemy_base_active: bool = false
-var enemy_base_progress: float = 0.0
-var enemy_base_required: float = 6.0
-var enemy_base_tile_pos: Vector2i = Vector2i(-1, -1)
-
-# Partial upgrade granted when the player destroys the base before completion.
-var enemy_grunt_upgrade_level: int = 0
-
-# The outcome of a completed (NOT destroyed) research node.
-var enemy_copy_outcome: String = ""  # "", "grunt_mk2", "special_ace", "gundam_copy"
-
-# Units the enemy fields as a result of completed research (real mechs later).
-var enemy_special_units: Array = []
-
-var pending_enemy_base_spawn: bool = false
-var pending_enemy_base_outcome: bool = false
-var pending_enemy_base_destroyed: bool = false
-
-# Position of the node tile that must be reverted back to a normal combat tile
-# once the node is destroyed or finishes its counter-unit. Set before
-# enemy_base_tile_pos is cleared so the board can reset the stale tile's meta.
-var pending_enemy_base_tile_reset: Vector2i = Vector2i(-1, -1)
-
-# -----------------------------------------------------------------------------
-# RUN PROGRESSION + ENEMY STALKING
-# - current_sector / max_sectors: board sector the run is on.
-# - enemy_forces: pool of enemy unit budgets used by spawn logic.
-# - stalking_aces: counter-units from completed research nodes that hunt the
-#   player across the board (see EnemyFactionSystem._add_stalking_ace).
-# -----------------------------------------------------------------------------
-var current_sector: int = 1
-var max_sectors: int = 3
-
-var enemy_forces: Dictionary = {
-	"boss_current": 1, "boss_max": 1,
-	"ace_current": 1, "ace_max": 2,
-	"grunt_current": 10, "grunt_max": 20
-}
-
-var last_combat_squad_size: int = 1
-var max_notoriety_multiplier: float = 1.0
-var stalking_aces: Array[String] = []
-var stalking_chance: float = 0.0
-
-# Probability that the enemy attempts a spy this move (0..1).
-# Rolls a full spy event for the current board move. Returns a Dictionary the
-# board can surface. On success, enemy_research_progress is bumped.
-# -----------------------------------------------------------------------------
-# ENEMY RESEARCH NODE LIFECYCLE — the spawned board node and its outcome.
-# -----------------------------------------------------------------------------
-
-# Called by the board once it has physically placed the enemy_base tile.
-# Advance the research node's counter-unit progress (1 per board move).
-# Returns true when the enemy completes their counter-unit.
-# The player reached and destroyed the node. The enemy only salvages a partial
-# grunt upgrade instead of a full counter-unit.
-# Returns the board tile position that must be reset (consumed once), or
-# Vector2i(-1, -1) when there is nothing to reset.
-# Outcome probabilities shift toward stronger copies as the enemy tier rises.
-# A completed research node deploys its counter-unit as a stalking ace that
-# hunts the player across the board. Once deployed it starts accumulating
-# ambush chance with every move and will force a fight.
-# Snapshot the combined max HP of every friendly unit in the current scene:
-# the player mech + all fielded allies. Also resets the damage accumulator.
-# Allow tests / callers to supply the snapshot directly without a live scene.
-# --- Narrative Bond System (GDD §5) ----------------------------------------
-# Increases bond through shared battles, repairs, and near-death escapes.
-# When bond >= 80 and mech is heavily damaged, the Sacrifice Event unlocks.
-func increase_bond(amount: float) -> void:
-	mech_bond = minf(mech_bond + amount, 100.0)
-	_check_sacrifice_availability()
-
-func record_battle_survived() -> void:
-	mech_battles_survived += 1
-	# Each battle survived adds bond based on how damaged the mech was.
-	var damage_taken := 0.0
-	for slot in part_damage:
-		damage_taken += float(part_damage[slot])
-	var damage_bonus := clampf(damage_taken * 20.0, 0.0, 15.0)
-	increase_bond(5.0 + damage_bonus)
-
-func record_repair() -> void:
-	mech_repairs_done += 1
-	increase_bond(3.0)
-
-func record_near_death_escape() -> void:
-	mech_near_death_escapes += 1
-	increase_bond(10.0)
-
-func _check_sacrifice_availability() -> void:
-	if sacrifice_event_triggered:
-		return
-	# Sacrifice unlocks when bond is high AND the mech is badly damaged.
-	var total_damage := 0.0
-	for slot in part_damage:
-		total_damage += float(part_damage[slot])
-	sacrifice_event_available = (mech_bond >= 80.0 and total_damage >= 2.0)
-
-func trigger_sacrifice_event(new_mech_id: String) -> void:
-	sacrifice_event_triggered = true
-	grand_entry_mech_id = new_mech_id
-	grand_entry_pending = true
-	sacrifice_event_available = false
-
-# ratio = friendly damage taken / combined friendly HP. 0 if nothing fielded.
-# A victory is "decisive" when we took at most 50% of our combined HP in damage.
-# Picks a weighted-random chassis key from a theme's chassis_weights.
-# Picks a random catalog part id for an armor slot (lowest tier always exists).
-# Picks a frame id for a slot weighted by part_tier_weights.
-# frame_catalog[slot] is ordered: [standard, gundam, medium, heavy] per slot.
-# Rolls and installs a random starting loadout for the current theme.
-# Adds a run theme to the current run (used by theme_switch events).
-# Adjusts run reputation and clamps it to a sane range.
-# Applies a board event's effect immediately. Returns true when the event forced
-# a scene transition (e.g. force_combat) — the caller should stop afterwards.
-# Called when a battle ends: applies reputation from the outcome.
-# -----------------------------------------------------------------------------
-# RESERVE AMMO / WEAPON INVENTORY — logic lives in LoadoutSystem; GlobalData
-# keeps thin facades for its callers.
-# -----------------------------------------------------------------------------
-
-func reset_run_data() -> void:
-	equipped_parts.clear()
-	part_damage.clear()
-	attachments.clear()
-	board_grid.clear()
-	current_tile = Vector2i.ZERO
-	board_seed = randi()
-	board_mp_max = 8
-	board_mp = 8
-	board_day = 1
-	board_theme_id = "suburb"
-	board_objective_id = BoardConfig.get_objective("suburb")["id"]
-	board_objective_progress = 0
-	board_objective_required = BoardConfig.get_objective("suburb")["required"]
-	board_objective_intro_consumed = false
-	board_patrols.clear()
-	board_patrol_engagement = -1
-	pending_tile_clear = Vector2i(-1, -1)
-	heat = 0
-	wanted_level = 0
-	wanted_escalation = 0
-	safehouse_upgrades.clear()
-	patrol_last_seen = Vector2i(-1, -1)
-	patrol_alert = 0
-	ambush_pincer = false
-	consumed_bait.clear()
-	current_hazard = ""
-	mid_battle_reinforcements_active = false
-	mid_battle_reinforcements_timer = 0.0
-	mid_battle_countdown_active = false
-	mid_battle_countdown_timer = 0.0
-	convoy_hp = 100.0
-	convoy_hp_max = 100.0
-	convoy_defense_waves = 0
-	convoy_defense_current_wave = 0
-	convoy_defense_active = false
-	convoy_destroyed = false
-	mech_bond = 0.0
-	mech_battles_survived = 0
-	mech_repairs_done = 0
-	mech_near_death_escapes = 0
-	sacrifice_event_available = false
-	sacrifice_event_triggered = false
-	grand_entry_mech_id = ""
-	grand_entry_pending = false
-	credits = 110
-	data_cores = 0
-	scrap = 0
-	hired_pilots.clear()
-	fallen_pilots.clear()
-	rival_pilots.clear()
-	defeated_rivals.clear()
-	active_combat_commander.clear()
-	current_sector = 1
-	enemy_forces = {
-		"boss_current": 1, "boss_max": 1,
-		"ace_current": 1, "ace_max": 2,
-		"grunt_current": 10, "grunt_max": 20
-	}
-	last_combat_squad_size = 1
-	max_notoriety_multiplier = 1.0
-	stalking_aces.clear()
-	stalking_chance = 0.0
-	battle_loot.clear()
-
-	# Run identity — a new run is a brand-new story: nothing carries over.
-	theme_id = "soldier"
-	reputation = 0
-	theme_switched = false
-	ceasefire_turns = 0
-	blocked_intermission = false
-	mech_less = false
-	run_notice = ""
-	enemy_tech_tier = 1
-	pending_escalation_event = false
-	enemy_research_progress = 0.0
-	enemy_base_active = false
-	enemy_base_progress = 0.0
-	enemy_base_required = 8.0
-	enemy_base_tile_pos = Vector2i(-1, -1)
-	enemy_grunt_upgrade_level = 0
-	enemy_copy_outcome = ""
-	enemy_special_units.clear()
-	pending_enemy_base_spawn = false
-	pending_enemy_base_outcome = false
-	pending_enemy_base_destroyed = false
-	pending_enemy_base_tile_reset = Vector2i(-1, -1)
-	fleet_security = 25.0
-	security_upgrade_level = 1
-	driver_repair_skill = 1
-	driver_repair_xp = 0
-	scrap_patches.clear()
-	_combat_friendly_total_hp = 0.0
-	_combat_friendly_damage = 0.0
-	last_combat_damage_ratio = 0.0
-	pilot_hp = PilotSystem.PILOT_MAX_HP_DEFAULT
-	pilot_max_hp = PilotSystem.PILOT_MAX_HP_DEFAULT
-	pilot_weapons = ["res://resources/mech/stock/weapon_pilot_pistol.tres"]
-	pilot_ammo = {
-		"kinetic": 120,
-		"energy": 40,
-		"explosive": 8,
-		"missile": 3,
-	}
-	pilot_items = {}
-	fleet_roster.clear()
-	recruited_characters.clear()
-	pending_duel.clear()
-	duel_result_text = ""
-	research_projects.clear()
-	research_unlocked.clear()
-	chassis_id = "standard"
-	equipped_frames.clear()
-	frame_upgrade_level = 1
-
-	ammo_inventory = {
-		"kinetic": 300,
-		"energy": 150,
-		"explosive": 30,
-		"missile": 12
-	}
-	weapon_inventory = [
-		{"uid": "w_starter_left", "path": "res://resources/mech/stock/weapon_beam_rifle.tres", "name": "Beam Rifle", "durability": 1.0, "upgrade_level": 1},
-		{"uid": "w_starter_right", "path": "res://resources/mech/stock/weapon_heat_blade.tres", "name": "Heat Blade", "durability": 1.0, "upgrade_level": 1},
-		{"uid": "w_starter_carry", "path": "res://resources/mech/stock/weapon_combat_shotgun.tres", "name": "Combat Shotgun", "durability": 1.0, "upgrade_level": 1}
-	]
-	weapon_loadout = {
-		"left": "w_starter_left",
-		"right": "w_starter_right",
-		"carry": ["w_starter_carry"],
-		"ammo": {
-			"kinetic": 300,
-			"energy": 150,
-			"explosive": 30,
-			"missile": 12
-		}
-	}
-	armor_inventory.clear()
-	ArmorSystem.ensure_default_equipped_parts()
-	_ensure_default_frames()
-	# Fuel & Supply Logistics reset.
-	convoy_fuel_reserve = 100.0
-	convoy_fuel_max = 200.0
-	fuel_depot_seized_today = false
-	fuel_depot_approach = ""
-	drop_tanks_attached = 0
-	drop_tank_fuel = 0.0
-	pilot_siphoning = false
-	pilot_siphoned_fuel = 0.0
-	engine_dirt = 0.0
-	wreckage_fuel_remaining = 80.0
-	siphoned_fuel = 0.0
-	mech_energy = 1000.0
-	mech_max_energy = 1000.0
-	board_roller_mode = false
-
-	hangar_mechs.clear()
-	active_hangar_mech_id = ""
-	HangarManager.ensure_roster()
-
-# Blanks the live working set so a fresh assembly (e.g. the roster REGISTER
-# flow) starts from an empty build instead of inheriting the current mech's
-# gear. Frames, armor, attachments and combat damage are wiped; equipped armor
-# instances are marked unequipped in the inventory so the part list stays
-# consistent. The chassis falls back to the default platform and the weapon
-# loadout is left untouched (the convoy's arms don't vanish with the frame).
-func clear_working_set() -> void:
-	for slot in equipped_parts:
-		var part = equipped_parts[slot]
-		if part is Dictionary:
-			part["equipped"] = false
-	equipped_parts.clear()
-	equipped_frames.clear()
-	attachments.clear()
-	part_damage.clear()
-	chassis_id = "standard"
-
-const SAVE_PATH := "user://savegame.json"
+# ===========================================================================
+# SAVE / LOAD
+# ===========================================================================
 
 func save_run() -> void:
 	SaveGameIO.save_run()
 
 func load_run() -> bool:
 	return SaveGameIO.load_run()
+
+
+# ===========================================================================
+# RESET
+# ===========================================================================
+
+func reset_run_data() -> void:
+	currency.reset(110)
+	fuel.reset()
+	board.reset()
+	narrative.reset()
+	pilot.reset()
+	hangar.reset()
+	weapons.reset()
+
+	# Non-delegated state.
+	_combat_friendly_total_hp = 0.0
+	_combat_friendly_damage = 0.0
+	last_combat_damage_ratio = 0.0
+
+	# Restore defaults after weapons.reset() (it calls ensure_default_equipped_parts).
+	ArmorSystem.ensure_default_equipped_parts()
+	weapons._ensure_default_frames()
+	HangarManager.ensure_roster()
+
+
+func clear_working_set() -> void:
+	weapons.clear_working_set()

@@ -26,7 +26,7 @@ func _check(cond: bool, name: String) -> void:
 func _ready() -> void:
 	GlobalData.reset_run_data()
 	GlobalData.mech_less = false
-	GlobalData._ensure_default_frames()
+	GlobalData.weapons._ensure_default_frames()
 	var armor = load("res://resources/mech/stock/head_standard.tres")
 	GlobalData.equipped_parts["head"] = armor
 

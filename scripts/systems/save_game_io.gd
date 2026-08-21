@@ -115,7 +115,7 @@ static func restore_from_dict(data: Dictionary) -> void:
 	if frames_data is Dictionary and not frames_data.is_empty():
 		for slot in frames_data:
 			GlobalData.equipped_frames[slot] = resolve_frame_value(frames_data[slot])
-	GlobalData._ensure_default_frames()
+	GlobalData.weapons._ensure_default_frames()
 	GlobalData.attachments = data.get("attachments", []).duplicate(true)
 	GlobalData.heat = data.get("heat", 0)
 	GlobalData.wanted_level = data.get("wanted", 0)

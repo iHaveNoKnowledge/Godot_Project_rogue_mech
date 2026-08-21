@@ -81,7 +81,7 @@ static func roll_random_start() -> void:
 		var frame_id := roll_frame(slot, tier_weights)
 		if frame_id != "":
 			GlobalData.equipped_frames[slot] = ArmorSystem.get_frame_catalog_entry(frame_id)
-	GlobalData._ensure_default_frames()
+	GlobalData.weapons._ensure_default_frames()
 
 	# Weapons.
 	var pool: Array = start.get("weapon_pool", [])

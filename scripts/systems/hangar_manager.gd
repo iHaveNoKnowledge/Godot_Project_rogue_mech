@@ -477,7 +477,7 @@ static func load_mech_state(mech_id: String) -> bool:
 	var saved_frames: Dictionary = target.get("frames", {})
 	for slot in saved_frames:
 		GlobalData.equipped_frames[slot] = SaveGameIO.resolve_frame_value(saved_frames[slot])
-	GlobalData._ensure_default_frames()
+	GlobalData.weapons._ensure_default_frames()
 
 	GlobalData.equipped_parts.clear()
 	var saved_parts: Dictionary = target.get("parts", {})

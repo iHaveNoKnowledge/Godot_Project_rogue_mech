@@ -176,12 +176,34 @@ func _render_callback(p_effect_callback_type, p_render_data):
 func _render_callback_2(render_size: Vector2i, render_scene_buffers: RenderSceneBuffersRD, render_scene_data: RenderSceneDataRD):
 	pass
 
+func _ensure_samplers() -> void:
+	if !rd:
+		rd = RenderingServer.get_rendering_device()
+	if !rd:
+		return
+	if !linear_sampler.is_valid():
+		var sampler_state := RDSamplerState.new()
+		sampler_state.min_filter = RenderingDevice.SAMPLER_FILTER_LINEAR
+		sampler_state.mag_filter = RenderingDevice.SAMPLER_FILTER_LINEAR
+		sampler_state.repeat_u = RenderingDevice.SAMPLER_REPEAT_MODE_CLAMP_TO_EDGE
+		sampler_state.repeat_v = RenderingDevice.SAMPLER_REPEAT_MODE_CLAMP_TO_EDGE
+		linear_sampler = rd.sampler_create(sampler_state)
+	if !nearest_sampler.is_valid():
+		var sampler_state := RDSamplerState.new()
+		sampler_state.min_filter = RenderingDevice.SAMPLER_FILTER_NEAREST
+		sampler_state.mag_filter = RenderingDevice.SAMPLER_FILTER_NEAREST
+		sampler_state.repeat_u = RenderingDevice.SAMPLER_REPEAT_MODE_CLAMP_TO_EDGE
+		sampler_state.repeat_v = RenderingDevice.SAMPLER_REPEAT_MODE_CLAMP_TO_EDGE
+		nearest_sampler = rd.sampler_create(sampler_state)
+
 func ensure_texture(texture_name: StringName, render_scene_buffers: RenderSceneBuffersRD, texture_format: RenderingDevice.DataFormat = RenderingDevice.DATA_FORMAT_R16G16B16A16_SFLOAT, render_size_multiplier: Vector2 = Vector2(1, 1)):
 	var render_size: Vector2i = Vector2(render_scene_buffers.get_internal_size()) * render_size_multiplier
+	if render_size.x <= 0 or render_size.y <= 0:
+		return
 	
 	if render_scene_buffers.has_texture(context, texture_name):
 		var tf: RDTextureFormat = render_scene_buffers.get_texture_format(context, texture_name)
-		if tf.width != render_size.x or tf.height != render_size.y:
+		if tf == null or tf.width != render_size.x or tf.height != render_size.y:
 			render_scene_buffers.clear_context(context)
 
 	if !render_scene_buffers.has_texture(context, texture_name):
@@ -192,19 +214,24 @@ func get_image_uniform(image: RID, binding: int) -> RDUniform:
 	var uniform: RDUniform = RDUniform.new()
 	uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
 	uniform.binding = binding
-	uniform.add_id(image)
+	if image.is_valid():
+		uniform.add_id(image)
 	return uniform
 
 func get_sampler_uniform(image: RID, binding: int, linear: bool = true) -> RDUniform:
+	_ensure_samplers()
 	var uniform: RDUniform = RDUniform.new()
 	uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_SAMPLER_WITH_TEXTURE
 	uniform.binding = binding
-	uniform.add_id(linear_sampler if linear else nearest_sampler)
-	uniform.add_id(image)
+	var sampler: RID = linear_sampler if linear else nearest_sampler
+	if sampler.is_valid():
+		uniform.add_id(sampler)
+	if image.is_valid():
+		uniform.add_id(image)
 	return uniform
 
 func dispatch_stage(stage: ShaderStageResource, uniforms: Array[RDUniform], push_constants: PackedByteArray, dispatch_size: Vector3i, label: String = "DefaultLabel", view: int = 0, color: Color = Color(1, 1, 1, 1)):
-	if stage == null:
+	if stage == null or rd == null:
 		return
 
 	if (!stage.shader.is_valid()):
@@ -213,13 +240,26 @@ func dispatch_stage(stage: ShaderStageResource, uniforms: Array[RDUniform], push
 	if (!stage.shader.is_valid() or !stage.pipeline.is_valid()):
 		return
 
+	# Validate all uniform RIDs to prevent C++ null RID assertion in UniformSetCacheRD!
+	for u in uniforms:
+		if u == null:
+			return
+		var ids := u.get_ids()
+		if ids.is_empty():
+			return
+		for id in ids:
+			if not id.is_valid():
+				return
+
 	rd.draw_command_begin_label(label + " " + str(view), color)
 
 	if debug:
 		for i in 8:
 			var debug_image_index = i + view * 8
 			if debug_image_index < all_debug_images.size():
-				uniforms.append(get_image_uniform(all_debug_images[debug_image_index], 10 + i))
+				var dbg_img: RID = all_debug_images[debug_image_index]
+				if dbg_img.is_valid():
+					uniforms.append(get_image_uniform(dbg_img, 10 + i))
 
 	var tex_uniform_set = UniformSetCacheRD.get_cache(stage.shader, 0, uniforms)
 	if not tex_uniform_set.is_valid():

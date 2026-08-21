@@ -760,11 +760,14 @@ func _on_destroyed() -> void:
 	_remove_from_convoy()
 	set_physics_process(false)
 	velocity = Vector3.ZERO
-	# Stay visible through the core-breach warning + detonation (shared
-	# DESTROYED_NODE_LIFETIME from the health base ≈ 2.8s) so the squadmate is
-	# seen going down, then leave the scene.
+	if beehave_tree != null and is_instance_valid(beehave_tree):
+		beehave_tree.set_physics_process(false)
+
+	# Stay visible through core-breach warning + detonation + charred smoke wreckage display
+	var delay: float = float(health_system.CORE_BREACH_DELAY) + 2.5 if health_system else 3.5
 	var tween = create_tween()
-	tween.tween_interval(health_system.DESTROYED_NODE_LIFETIME)
+	tween.tween_interval(delay)
+	tween.tween_property(self, "position:y", position.y - 1.2, 0.8)
 	tween.tween_callback(queue_free)
 
 

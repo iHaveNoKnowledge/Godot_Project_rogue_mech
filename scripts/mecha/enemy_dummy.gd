@@ -60,6 +60,21 @@ var dash_cooldown_timer: float = 0.0
 var dash_timer: float = 0.0
 var dash_direction: Vector3 = Vector3.ZERO
 
+# Behavior Tree AI Brain (Beehave)
+var beehave_tree: BeehaveTree = null
+var pilot_trait: String = "Balanced"
+
+
+## Attaches a Beehave Behavior Tree tailored to the enemy pilot's personality trait.
+func setup_beehave_tree(trait_name: String = "Balanced") -> void:
+	if beehave_tree != null and is_instance_valid(beehave_tree):
+		beehave_tree.queue_free()
+	if state_machine:
+		state_machine.set_physics_process(false)
+	pilot_trait = trait_name
+	beehave_tree = MechaBehaviorTreeFactory.create_tree(self, trait_name)
+	add_child(beehave_tree)
+
 # PartMeshManager that renders this enemy from the mech armor catalog.
 var catalog_body: Node = null
 
@@ -681,9 +696,11 @@ func _tilt_over() -> void:
 func _on_destroyed() -> void:
 	set_physics_process(false)
 	velocity = Vector3.ZERO
-	# Stay VISIBLE through the core-breach warning + detonation (~1.8s) so the
-	# downed machine is seen collapsing and flashing before it blows; the health
-	# system hides the parts at the explosion. (Loot still drops immediately.)
+	if state_machine:
+		state_machine.set_physics_process(false)
+	if beehave_tree != null and is_instance_valid(beehave_tree):
+		beehave_tree.set_physics_process(false)
+	_eject_pilot()
 
 	# Spawn loot
 	var loot = get_node_or_null("/root/GameWorld/LootSystem")
@@ -701,12 +718,11 @@ func _on_destroyed() -> void:
 		const SpawnManagerScript := preload("res://scripts/systems/spawn_manager.gd")
 		SpawnManagerScript.check_all_enemies_defeated()
 
-	# Stay alive through the health system's core-breach warning + detonation
-	# (DESTROYED_NODE_LIFETIME = CORE_BREACH_DELAY + 1.0 ≈ 2.8s) so the downed
-	# machine is seen flashing before it blows. The health system hides the
-	# parts at the explosion; we only leave the scene after that.
+	# Stay alive through core-breach warning + detonation + charred smoke wreckage display
+	var delay: float = float(health_system.CORE_BREACH_DELAY) + 2.5 if health_system else 3.5
 	var tween = create_tween()
-	tween.tween_interval(health_system.DESTROYED_NODE_LIFETIME)
+	tween.tween_interval(delay)
+	tween.tween_property(self, "position:y", position.y - 1.2, 0.8)
 	tween.tween_callback(queue_free)
 
 

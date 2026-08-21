@@ -34,10 +34,10 @@ func initiate_eject() -> void:
 	mecha.set_meta("is_parked", true)
 	mecha.set_physics_process(false)
 	mecha.visible = true
-	# The parked mech becomes the boarding target: the pilot's interact area
-	# only tracks bodies in the "backup_mech" group, so without this the pilot
-	# could never climb back in (boarding was unreachable after eject).
-	mecha.add_to_group("backup_mech")
+	var hs = mecha.get_node_or_null("HealthSystem")
+	var is_dead := hs != null and bool(hs.get("is_destroyed"))
+	if not is_dead:
+		mecha.add_to_group("backup_mech")
 
 	EventBus.camera_mode_changed.emit("eject")
 	EventBus.pilot_spawned.emit(pilot)

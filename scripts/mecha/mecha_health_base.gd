@@ -632,8 +632,9 @@ func _on_frame_destroyed(slot_name: String) -> void:
 	if slot_name == "head" or slot_name == "body":
 		_update_pilot_light()
 
-	if total_frame_hp <= 0.0:
-		_on_mecha_destroyed()
+	if total_frame_hp <= 0.0 or slot_name == "body":
+		if not is_destroyed:
+			_on_mecha_destroyed()
 
 
 # How long the core-breach warning lasts before the machine detonates (safety
@@ -724,20 +725,43 @@ func _start_core_breach_sequence() -> void:
 	_detonate_mech()
 
 
+func _get_all_meshes(node: Node) -> Array[MeshInstance3D]:
+	var result: Array[MeshInstance3D] = []
+	if node == null:
+		return result
+	if node is MeshInstance3D:
+		result.append(node)
+	for child in node.get_children():
+		result.append_array(_get_all_meshes(child))
+	return result
+
+
 # The mech goes limp: the shared mech animation (if attached) switches into its
 # death-collapse pose AND the whole machine RAGDOLLS over onto the ground right
-# away (rotation.x -> -82°, drop to y 0.55) — the same collapse downed enemies
+# away (rotation.x -> -82°, drop to y 0.40) — the same collapse downed enemies
 # use. Everything but the eject seat is dead: no movement, no weapons, no HUD.
 func _collapse_mech() -> void:
 	var mecha = get_parent()
 	if mecha == null or not is_instance_valid(mecha):
 		return
+	if mecha is CharacterBody3D:
+		mecha.velocity = Vector3.ZERO
+		mecha.set_physics_process(false)
 	for child in mecha.get_children():
 		if child.has_method("set_core_breach"):
 			child.set_core_breach(true)
+	
+	# Trigger pilot ejection
+	if is_player:
+		var eject = mecha.get_node_or_null("MechaEject")
+		if eject and eject.has_method("initiate_eject"):
+			eject.initiate_eject()
+	elif mecha.has_method("_eject_pilot"):
+		mecha.call("_eject_pilot")
+
 	var tween = mecha.create_tween().set_parallel(true)
-	tween.tween_property(mecha, "rotation:x", deg_to_rad(-82.0), 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	tween.tween_property(mecha, "position:y", 0.55, 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.tween_property(mecha, "rotation:x", deg_to_rad(-82.0), 0.55).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.tween_property(mecha, "position:y", 0.40, 0.55).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 
 
 # The heat-glow core light: a small orange OmniLight on the body that swells and
@@ -749,8 +773,8 @@ func _spawn_breach_glow() -> void:
 	_breach_glow = OmniLight3D.new()
 	_breach_glow.name = "BreachGlow"
 	_breach_glow.light_color = Color(1.0, 0.45, 0.15)
-	_breach_glow.light_energy = 0.0
-	_breach_glow.omni_range = 2.5
+	_breach_glow.light_energy = 2.0
+	_breach_glow.omni_range = 3.5
 	_breach_glow.shadow_enabled = false
 	_breach_glow.position = Vector3(0, 1.3, 0)  # body core
 	mecha.add_child(_breach_glow)
@@ -762,23 +786,58 @@ func _spawn_breach_glow() -> void:
 func _update_breach_glow(progress: float, flash_on: bool) -> void:
 	if _breach_glow == null or not is_instance_valid(_breach_glow):
 		return
-	_breach_glow.light_energy = lerpf(1.5, 6.0, progress) + (1.2 if flash_on else 0.0)
-	_breach_glow.omni_range = lerpf(3.0, 8.0, progress)
-	_breach_glow.light_color = Color(1.0, 0.45, 0.15).lerp(Color(1.0, 0.9, 0.65), progress)
+	_breach_glow.light_energy = lerpf(2.0, 10.0, progress) + (2.5 if flash_on else 0.0)
+	_breach_glow.omni_range = lerpf(4.0, 12.0, progress)
+	_breach_glow.light_color = Color(1.0, 0.45, 0.15).lerp(Color(1.0, 0.95, 0.8), progress)
 
 
-# Alternating red/white emissive flash across the whole machine during the
+# Alternating red/white emissive flash across ALL meshes in the machine during the
 # warning window — unmistakable from across the battlefield.
 func _core_breach_flash(on: bool) -> void:
 	var mecha = get_parent()
 	if mecha == null or not is_instance_valid(mecha):
 		return
-	var color := Color(1.0, 0.15, 0.1) if on else Color(0.95, 0.9, 0.85)
-	for child in mecha.get_children():
-		if child is MeshInstance3D and child.material_override:
-			child.material_override.emission_enabled = on
-			child.material_override.emission = color
-			child.material_override.emission_energy_multiplier = 3.0 if on else 0.0
+	var color := Color(1.0, 0.25, 0.05) if on else Color(1.0, 0.95, 0.8)
+	var all_meshes := _get_all_meshes(mecha)
+	for mesh_inst in all_meshes:
+		if not is_instance_valid(mesh_inst):
+			continue
+		if mesh_inst.material_override == null:
+			var default_mat := StandardMaterial3D.new()
+			default_mat.albedo_color = Color(0.65, 0.65, 0.65)
+			mesh_inst.material_override = default_mat
+		if mesh_inst.material_override is StandardMaterial3D:
+			mesh_inst.material_override.emission_enabled = on
+			mesh_inst.material_override.emission = color
+			mesh_inst.material_override.emission_energy_multiplier = 4.5 if on else 0.0
+
+	if on and get_tree():
+		var spark_pos := global_position + Vector3(randf_range(-0.8, 0.8), randf_range(0.5, 1.8), randf_range(-0.8, 0.8))
+		EffectFactory.spawn_box_spark(get_tree(), spark_pos, Vector3(0.08, 0.08, 0.2), Color(1.0, 0.8, 0.2), 0.18, 5.0)
+
+
+# Converts all mech body meshes to charred, smoking blackened wreckage.
+func _apply_scorched_wreck() -> void:
+	var mecha = get_parent()
+	if mecha == null or not is_instance_valid(mecha):
+		return
+	var all_meshes := _get_all_meshes(mecha)
+	for mesh_inst in all_meshes:
+		if not is_instance_valid(mesh_inst):
+			continue
+		mesh_inst.visible = true
+		var scorch_mat := StandardMaterial3D.new()
+		scorch_mat.albedo_color = Color(0.06, 0.06, 0.06) # Charred black metal
+		scorch_mat.metallic = 0.05
+		scorch_mat.roughness = 0.95
+		scorch_mat.emission_enabled = true
+		scorch_mat.emission = Color(0.95, 0.25, 0.05) # Glowing ember cracks
+		scorch_mat.emission_energy_multiplier = 1.0
+		mesh_inst.material_override = scorch_mat
+		
+		if get_tree():
+			var cool_tween := mesh_inst.create_tween()
+			cool_tween.tween_property(scorch_mat, "emission_energy_multiplier", 0.0, 2.5)
 
 
 # Warning klaxon for the breach window: the rising attack-alert tone plus the
@@ -870,32 +929,38 @@ func _hide_breach_countdown() -> void:
 
 
 # The actual detonation (delayed by the core-breach window): explosion effect +
-# sound, a white-hot light flash, then the wrecked parts drop away.
+# sound, a white-hot light flash, then transforms into charred black wreckage.
 func _detonate_mech() -> void:
 	if not is_instance_valid(self):
 		return
 	var blast_pos := global_position + Vector3(0, 1.5, 0)
-	EffectManager.spawn_explosion(blast_pos, 10.0)
+	EffectManager.spawn_explosion(blast_pos, 16.0)
 	if get_tree():
-		EffectFactory.spawn_fire_burst(get_tree(), blast_pos, 2.2, 0.7, 8.0)
-		EffectFactory.spawn_smoke_plume(get_tree(), blast_pos, 10, 0.45, 1.1, 1.8)
-		EffectFactory.spawn_burning_ground(get_tree(), blast_pos, 2.5, 3.5)
+		EffectFactory.spawn_fire_burst(get_tree(), blast_pos, 4.5, 0.85, 14.0)
+		EffectFactory.spawn_smoke_plume(get_tree(), blast_pos, 24, 0.6, 1.6, 3.2)
+		EffectFactory.spawn_burning_ground(get_tree(), blast_pos, 4.0, 5.0)
+		EffectFactory.spawn_expanding_ring(get_tree(), blast_pos + Vector3(0, 0.2, 0), Color(1.0, 0.6, 0.1), Vector3(1, 1, 1), Vector3(12, 1, 12), 0.45, 4.0)
+	
+	if AudioManager:
+		AudioManager.play_explosion(blast_pos)
+
 	var mecha := get_parent()
 	var is_enemy := mecha.is_in_group("enemy") if mecha else true
-	EffectManager.apply_area_explosion_damage(blast_pos, 60.0, 10.0, is_enemy, "explosive", mecha)
+	EffectManager.apply_area_explosion_damage(blast_pos, 80.0, 12.0, is_enemy, "explosive", mecha)
+	
 	# Detonation flash: the breach glow slams white-hot and wide for a beat, then
-	# dies with the blast. Freed via the timer's own signal (no coroutine on this
-	# node, so a scene swap mid-flash can't leave a dangling await behind).
+	# dies with the blast.
 	if _breach_glow != null and is_instance_valid(_breach_glow):
-		_breach_glow.light_energy = 14.0
-		_breach_glow.omni_range = 12.0
+		_breach_glow.light_energy = 18.0
+		_breach_glow.omni_range = 16.0
 		_breach_glow.light_color = Color.WHITE
 		var glow := _breach_glow
 		var glow_tween := glow.create_tween()
 		glow_tween.tween_interval(0.35)
 		glow_tween.tween_callback(glow.queue_free)
-	for slot in parts:
-		_hide_part(slot)
+	
+	# Convert model into scorched charred black wreck with smoldering embers!
+	_apply_scorched_wreck()
 
 
 func _get_section_node(slot_name: String) -> Node3D:

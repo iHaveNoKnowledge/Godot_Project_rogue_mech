@@ -141,8 +141,8 @@ func _run_procedural(delta: float) -> void:
 		else:
 			_update_bob(delta)
 			_update_legs(delta)
-			var js = mecha.jump_system
-			if js and js.is_charging_prejump:
+			var js = mecha.get("jump_system")
+			if js and js.get("is_charging_prejump") == true:
 				_update_prejump_charge_posture(delta)
 
 	# Runs LAST so the raised shield arm overrides whatever the base postures
@@ -192,8 +192,8 @@ func _apply_pose(targets: Dictionary, speed: float) -> void:
 # ─── Posture functions ─────────────────────────────────────────────────────
 
 func _update_prejump_charge_posture(delta: float) -> void:
-	var js = mecha.jump_system
-	var charge_time: float = js.prejump_charge_time if js else 0.0
+	var js = mecha.get("jump_system")
+	var charge_time: float = float(js.get("prejump_charge_time", 0.0)) if js else 0.0
 	var ratio := clampf(charge_time / 0.35, 0.0, 1.0)
 	_apply_pose({"drop": -0.08 * ratio}, 12.0 * delta)
 # Jump Launch Specs (Thrusters firing, upward launch trajectory):
@@ -278,7 +278,7 @@ func _update_kneel_posture(delta: float) -> void:
 func _update_roller_dash_posture(delta: float) -> void:
 	if mecha and mecha.get("is_roller_dashing") != null:
 		var speed = 12.0 * delta
-		var is_skating = mecha.is_roller_dashing
+		var is_skating = mecha.get("is_roller_dashing") == true
 
 		if is_skating:
 			var target_drop = -0.40

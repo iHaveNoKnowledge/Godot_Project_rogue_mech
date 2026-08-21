@@ -156,7 +156,7 @@ script = ExtResource("29")
 [node name="SquadHUD" type="CanvasLayer" parent="."]
 script = ExtResource("28")
 
-[node name="EffectManager" type="Node" parent="."]
+[node name="EffectManager" type="Node3D" parent="."]
 script = ExtResource("8")
 
 [node name="BackupSpawner" type="Node" parent="."]

@@ -884,7 +884,7 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 	if cam_fwd.length() > 0.01:
 		mecha.rotation.y = atan2(-cam_fwd.x, -cam_fwd.z)
 
-	var offset = Vector3(-0.6, 1.5, 0.5) if hand == "left" else Vector3(0.6, 1.5, 0.5)
+	var offset = Vector3(-0.65, 1.4, -1.1) if hand == "left" else Vector3(0.65, 1.4, -1.1)
 	var spawn_pos = mecha.global_position + mecha.global_transform.basis * offset
 
 	var viewport_size = get_viewport().get_visible_rect().size

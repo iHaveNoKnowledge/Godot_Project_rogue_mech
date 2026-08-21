@@ -122,11 +122,13 @@ func trigger_sacrifice_event(new_mech_id: String) -> void:
 	sacrifice_event_available = false
 
 
-func has_pilot_perk(perk_id: String, hired_pilots: Array, recruited_characters: Array) -> bool:
-	for pilot in hired_pilots:
+func has_pilot_perk(perk_id: String, hired_pilots: Array = [], recruited_characters: Array = []) -> bool:
+	var pilots: Array = hired_pilots if not hired_pilots.is_empty() else (GlobalData.pilot.hired_pilots if (GlobalData != null and GlobalData.pilot != null) else [])
+	var recruits: Array = recruited_characters if not recruited_characters.is_empty() else (GlobalData.hangar.recruited_characters if (GlobalData != null and GlobalData.hangar != null) else [])
+	for pilot in pilots:
 		if pilot is Dictionary and str(pilot.get("perk_id", "")) == perk_id:
 			return true
-	for cid in recruited_characters:
+	for cid in recruits:
 		if cid == "vagrant_ace" and perk_id == "precognitive_flow":
 			return true
 	return false

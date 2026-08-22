@@ -1,0 +1,8 @@
+[gd_resource type="FontVariation" format=3 uid="uid://aveynk79v7aq3"]
+
+[ext_resource type="FontFile" uid="uid://bg0anstdhbb68" path="res://resources/fonts/ChakraPetch-Bold.ttf" id="1_bold"]
+
+[resource]
+base_font = ExtResource("1_bold")
+variation_embolden = 0.8
+; ค่ามากขึ้น = หนาขึ้น (0.4-1.2 ลองได้) , -0.5 จะบางลง

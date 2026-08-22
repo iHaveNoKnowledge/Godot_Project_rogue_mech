@@ -151,7 +151,7 @@ reload={
 [gui]
 
 theme/custom="res://resources/theme/main_theme.tres"
-theme/custom_font="res://resources/fonts/ChakraPetch-Regular.ttf"
+theme/custom_font="res://resources/fonts/ChakraPetch-SemiBold.ttf"
 
 [rendering]
 

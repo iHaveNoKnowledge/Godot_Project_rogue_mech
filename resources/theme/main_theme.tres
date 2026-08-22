@@ -12,7 +12,7 @@
 [ext_resource type="FontFile" uid="uid://cggvtp3f5530p" path="res://resources/fonts/ChakraPetch-SemiBoldItalic.ttf" id="10_semibolditalic"]
 
 [resource]
-default_font = ExtResource("1_regular")
+default_font = ExtResource("3_semibold")
 default_font_size = 16
 ; Convenience aliases - access via preload("res://resources/theme/main_theme.tres")
 ChakraPetch/fonts/regular = ExtResource("1_regular")
@@ -25,6 +25,6 @@ ChakraPetch/fonts/bold_italic = ExtResource("7_bolditalic")
 ChakraPetch/fonts/medium_italic = ExtResource("8_mediumitalic")
 ChakraPetch/fonts/light_italic = ExtResource("9_lightitalic")
 ChakraPetch/fonts/semibold_italic = ExtResource("10_semibolditalic")
-; Standard Control overrides (minimal - colors not overridden)
-Button/fonts/font = ExtResource("3_semibold")
-Label/fonts/font = ExtResource("1_regular")
+; Standard Control overrides - หนาขึ้นจากเดิม: default= SemiBold, Button = Bold
+Button/fonts/font = ExtResource("2_bold")
+Label/fonts/font = ExtResource("3_semibold")

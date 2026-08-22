@@ -183,19 +183,82 @@ static func spawn_muzzle_flash(position: Vector3, direction: Vector3, color: Col
 static var _active_hit_lights: int = 0
 static var _cached_quad_mesh: QuadMesh = null
 static var _cached_spark_mesh: BoxMesh = null
+static var _cached_needle_mesh: BoxMesh = null
+static var _cached_micro_arc_mesh: BoxMesh = null
+static var _cached_starburst_mesh: ArrayMesh = null
 static var _cached_hit_mats: Dictionary = {}
+static var _cached_spark_mats: Dictionary = {}
 
 static func _get_cached_quad() -> QuadMesh:
 	if _cached_quad_mesh == null:
 		_cached_quad_mesh = QuadMesh.new()
-		_cached_quad_mesh.size = Vector2(0.2, 0.2)
+		_cached_quad_mesh.size = Vector2(0.4, 0.4)
 	return _cached_quad_mesh
 
 static func _get_cached_spark_box() -> BoxMesh:
 	if _cached_spark_mesh == null:
 		_cached_spark_mesh = BoxMesh.new()
-		_cached_spark_mesh.size = Vector3(0.04, 0.04, 0.18)
+		_cached_spark_mesh.size = Vector3(0.03, 0.03, 0.25)
 	return _cached_spark_mesh
+
+static func _get_cached_needle_spark_box() -> BoxMesh:
+	if _cached_needle_mesh == null:
+		_cached_needle_mesh = BoxMesh.new()
+		_cached_needle_mesh.size = Vector3(0.016, 0.016, 0.45)
+	return _cached_needle_mesh
+
+static func _get_cached_micro_arc_box() -> BoxMesh:
+	if _cached_micro_arc_mesh == null:
+		_cached_micro_arc_mesh = BoxMesh.new()
+		_cached_micro_arc_mesh.size = Vector3(0.03, 0.03, 0.09)
+	return _cached_micro_arc_mesh
+
+static func _get_cached_impact_starburst() -> ArrayMesh:
+	if _cached_starburst_mesh != null:
+		return _cached_starburst_mesh
+
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var center := Vector3.ZERO
+	var white := Color(1.0, 1.0, 1.0, 1.0)
+	var edge := Color(1.0, 0.9, 0.5, 0.0)
+
+	var ray_count := 8
+	var ray_len := 0.75
+	var ray_width := 0.06
+	for i in range(ray_count):
+		var angle := i * (TAU / ray_count)
+		var dir := Vector3(cos(angle), sin(angle), 0.1).normalized()
+		var perp := Vector3(-sin(angle), cos(angle), 0) * ray_width
+		var tip := dir * ray_len
+
+		st.set_color(white); st.add_vertex(center)
+		st.set_color(edge); st.add_vertex(center - perp)
+		st.set_color(white); st.add_vertex(tip)
+
+		st.set_color(white); st.add_vertex(center)
+		st.set_color(white); st.add_vertex(tip)
+		st.set_color(edge); st.add_vertex(center + perp)
+
+	var core_rad := 0.22
+	st.set_color(white); st.add_vertex(center)
+	st.set_color(white); st.add_vertex(Vector3(-core_rad, 0, 0.05))
+	st.set_color(white); st.add_vertex(Vector3(0, core_rad, 0.05))
+
+	st.set_color(white); st.add_vertex(center)
+	st.set_color(white); st.add_vertex(Vector3(0, core_rad, 0.05))
+	st.set_color(white); st.add_vertex(Vector3(core_rad, 0, 0.05))
+
+	st.set_color(white); st.add_vertex(center)
+	st.set_color(white); st.add_vertex(Vector3(core_rad, 0, 0.05))
+	st.set_color(white); st.add_vertex(Vector3(0, -core_rad, 0.05))
+
+	st.set_color(white); st.add_vertex(center)
+	st.set_color(white); st.add_vertex(Vector3(0, -core_rad, 0.05))
+	st.set_color(white); st.add_vertex(Vector3(-core_rad, 0, 0.05))
+
+	_cached_starburst_mesh = st.commit()
+	return _cached_starburst_mesh
 
 static func _get_cached_hit_material(flash_color: Color) -> StandardMaterial3D:
 	var key := flash_color.to_rgba32()
@@ -203,13 +266,31 @@ static func _get_cached_hit_material(flash_color: Color) -> StandardMaterial3D:
 		return _cached_hit_mats[key]
 	var mat := StandardMaterial3D.new()
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	mat.albedo_color = Color(1.0, 1.0, 1.0, 0.95)
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.vertex_color_use_as_albedo = true
+	mat.albedo_color = Color(1.0, 1.0, 1.0, 0.98)
 	mat.emission_enabled = true
 	mat.emission = flash_color
-	mat.emission_energy_multiplier = 6.0
+	mat.emission_energy_multiplier = 8.0
 	_cached_hit_mats[key] = mat
+	return mat
+
+static func _get_cached_spark_material(color: Color) -> StandardMaterial3D:
+	var key := color.to_rgba32()
+	if _cached_spark_mats.has(key):
+		return _cached_spark_mats[key]
+	var mat := StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.albedo_color = Color(1.0, 1.0, 1.0, 0.95)
+	mat.emission_enabled = true
+	mat.emission = color
+	mat.emission_energy_multiplier = 7.0
+	_cached_spark_mats[key] = mat
 	return mat
 
 
@@ -221,78 +302,104 @@ static func spawn_hit_spark(position: Vector3, normal: Vector3 = Vector3.UP, dam
 
 	var norm := normal.normalized() if normal.length_squared() > 0.001 else Vector3.UP
 	var dmg_type := damage_type.to_lower()
-	var spark_color := Color(1.0, 0.85, 0.35) # Bright yellow-gold
-	var emission_color := Color(1.0, 0.75, 0.2)
-	var flash_color := Color(1.0, 0.9, 0.5)
+	var spark_color := Color(1.0, 0.88, 0.4) # Bright golden electric spark
+	var flash_color := Color(1.0, 0.95, 0.6)
 
 	if dmg_type == "heat" or dmg_type == "explosive":
-		spark_color = Color(1.0, 0.45, 0.1) # Fire orange-red
-		emission_color = Color(1.0, 0.3, 0.05)
-		flash_color = Color(1.0, 0.6, 0.2)
+		spark_color = Color(1.0, 0.5, 0.15) # Fire orange
+		flash_color = Color(1.0, 0.7, 0.3)
 	elif dmg_type == "emp" or dmg_type == "electric":
-		spark_color = Color(0.4, 0.85, 1.0) # Electric cyan
-		emission_color = Color(0.25, 0.8, 1.0)
-		flash_color = Color(0.6, 0.95, 1.0)
+		spark_color = Color(0.35, 0.85, 1.0) # Plasma cyan
+		flash_color = Color(0.65, 0.95, 1.0)
 	elif dmg_type == "pierce":
-		spark_color = Color(1.0, 0.95, 0.8) # White-hot piercing spark
-		emission_color = Color(1.0, 0.9, 0.6)
-		flash_color = Color(1.0, 0.95, 0.85)
+		spark_color = Color(1.0, 0.98, 0.85) # White-hot piercing spark
+		flash_color = Color(1.0, 1.0, 0.9)
 
-	# 1. Micro Point Light Flash at impact (Throttled to max 2 concurrent lights to eliminate GPU hitching)
-	if _active_hit_lights < 2:
+	# 1. Micro Point Light Flash at impact (Throttled to max 4 concurrent lights)
+	if _active_hit_lights < 4:
 		_active_hit_lights += 1
 		var light := OmniLight3D.new()
 		light.light_color = flash_color
-		light.light_energy = 3.5
-		light.omni_range = 3.5
+		light.light_energy = 8.5
+		light.omni_range = 6.5
 		light.omni_attenuation = 2.0
 		instance.add_child(light)
-		light.global_position = position + norm * 0.1
+		light.global_position = position + norm * 0.15
 
 		var lt := instance.create_tween()
-		lt.tween_property(light, "light_energy", 0.0, 0.05)
+		lt.tween_property(light, "light_energy", 0.0, 0.06)
 		lt.tween_callback(func():
 			_active_hit_lights = maxi(0, _active_hit_lights - 1)
 			light.queue_free()
 		)
 
-	# 2. Expanding Core Impact Star / Flash Ring (uses cached quad mesh & material)
-	var core_mesh := MeshInstance3D.new()
-	core_mesh.mesh = _get_cached_quad()
-	core_mesh.material_override = _get_cached_hit_material(flash_color)
-	instance.add_child(core_mesh)
-	core_mesh.global_position = position + norm * 0.05
+	# 2. Expanding High-Intensity 8-Point Starburst Flash Mesh
+	var starburst := MeshInstance3D.new()
+	starburst.mesh = _get_cached_impact_starburst()
+	starburst.material_override = _get_cached_hit_material(flash_color)
+	instance.add_child(starburst)
+	starburst.global_position = position + norm * 0.06
+	if norm.length_squared() > 0.001:
+		starburst.look_at(position + norm, Vector3.UP if absf(norm.y) < 0.9 else Vector3.FORWARD)
+	starburst.rotate_object_local(Vector3.FORWARD, randf_range(0.0, TAU))
+	var base_scale := randf_range(1.1, 1.6)
+	starburst.scale = Vector3.ONE * (base_scale * 0.4)
 
 	var ct := instance.create_tween().set_parallel(true)
-	ct.tween_property(core_mesh, "scale", Vector3(2.5, 2.5, 2.5), 0.08)
-	ct.chain().tween_callback(core_mesh.queue_free)
+	ct.tween_property(starburst, "scale", Vector3.ONE * base_scale, 0.02).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
+	ct.tween_property(starburst, "scale", Vector3.ZERO, 0.05).set_delay(0.02)
+	ct.chain().tween_callback(starburst.queue_free)
 
-	# 3. High-Velocity Elongated Ricochet Sparks (CPUParticles3D with 0ms compute pipeline overhead)
-	var sparks := CPUParticles3D.new()
-	sparks.direction = norm
-	sparks.spread = 55.0
-	sparks.initial_velocity_min = 6.0
-	sparks.initial_velocity_max = 14.0
-	sparks.gravity = Vector3(0, -9.8, 0)
-	sparks.damping_min = 2.0
-	sparks.damping_max = 5.0
-	sparks.scale_amount_min = 0.08
-	sparks.scale_amount_max = 0.22
-	sparks.amount = 12
-	sparks.lifetime = 0.2
-	sparks.one_shot = true
-	sparks.explosiveness = 0.95
-	sparks.mesh = _get_cached_spark_box()
-	sparks.emitting = true
+	# 3. High-Velocity Needle Streak Sparks (Long thin glowing sparks spraying outward)
+	var needle_sparks := CPUParticles3D.new()
+	needle_sparks.direction = norm
+	needle_sparks.spread = 70.0
+	needle_sparks.initial_velocity_min = 20.0
+	needle_sparks.initial_velocity_max = 45.0
+	needle_sparks.gravity = Vector3(0, -12.0, 0)
+	needle_sparks.damping_min = 6.0
+	needle_sparks.damping_max = 14.0
+	needle_sparks.scale_amount_min = 0.5
+	needle_sparks.scale_amount_max = 1.3
+	needle_sparks.amount = 22
+	needle_sparks.lifetime = 0.22
+	needle_sparks.one_shot = true
+	needle_sparks.explosiveness = 0.98
+	needle_sparks.mesh = _get_cached_needle_spark_box()
+	needle_sparks.material_override = _get_cached_spark_material(spark_color)
+	needle_sparks.emitting = true
 
-	instance.add_child(sparks)
-	sparks.global_position = position
+	instance.add_child(needle_sparks)
+	needle_sparks.global_position = position
 	if norm.length_squared() > 0.001:
-		sparks.look_at(position + norm, Vector3.UP if absf(norm.y) < 0.9 else Vector3.FORWARD)
+		needle_sparks.look_at(position + norm, Vector3.UP if absf(norm.y) < 0.9 else Vector3.FORWARD)
 
-	var st := sparks.create_tween()
-	st.tween_interval(0.25)
-	st.tween_callback(sparks.queue_free)
+	var n_tween := needle_sparks.create_tween()
+	n_tween.tween_interval(0.28)
+	n_tween.tween_callback(needle_sparks.queue_free)
+
+	# 4. Snapping Armor Micro-Arcs & Molten Debris (Secondary bouncy sparks)
+	var arc_sparks := CPUParticles3D.new()
+	arc_sparks.direction = norm + Vector3(randf_range(-0.4, 0.4), randf_range(-0.2, 0.4), randf_range(-0.4, 0.4))
+	arc_sparks.spread = 85.0
+	arc_sparks.initial_velocity_min = 6.0
+	arc_sparks.initial_velocity_max = 16.0
+	arc_sparks.gravity = Vector3(0, -16.0, 0)
+	arc_sparks.scale_amount_min = 0.4
+	arc_sparks.scale_amount_max = 1.0
+	arc_sparks.amount = 12
+	arc_sparks.lifetime = 0.32
+	arc_sparks.one_shot = true
+	arc_sparks.explosiveness = 0.92
+	arc_sparks.mesh = _get_cached_micro_arc_box()
+	arc_sparks.material_override = _get_cached_spark_material(Color(1.0, 0.95, 0.7))
+	arc_sparks.emitting = true
+
+	instance.add_child(arc_sparks)
+	arc_sparks.global_position = position
+	var a_tween := arc_sparks.create_tween()
+	a_tween.tween_interval(0.38)
+	a_tween.tween_callback(arc_sparks.queue_free)
 
 
 static func spawn_impact(position: Vector3, normal: Vector3) -> void:

@@ -103,9 +103,8 @@ func initialize_slot(slot_name: String, part: ArmorPart, apply_player_damage: bo
 	_clear_children(frame_mesh)
 	if frame_mesh_lower: _clear_children(frame_mesh_lower)
 
-	if part and part.inner_frame_scene:
-		var instance = part.inner_frame_scene.instantiate()
-		frame_mesh.add_child(instance)
+	if part and (part.inner_frame_scene != null or part.inner_frame_scene_lower != null):
+		_attach_custom_mesh_scene(frame_mesh, frame_mesh_lower, part.inner_frame_scene, part.inner_frame_scene_lower)
 	else:
 		_build_procedural_inner_frame(slot_name, frame_mesh, frame_mesh_lower)
 	frame_mesh.visible = true
@@ -116,9 +115,8 @@ func initialize_slot(slot_name: String, part: ArmorPart, apply_player_damage: bo
 	if armor_mesh_lower: _clear_children(armor_mesh_lower)
 
 	if part != null:
-		if part.mesh_scene:
-			var instance = part.mesh_scene.instantiate()
-			armor_mesh.add_child(instance)
+		if part.mesh_scene != null or part.mesh_scene_lower != null:
+			_attach_custom_mesh_scene(armor_mesh, armor_mesh_lower, part.mesh_scene, part.mesh_scene_lower)
 		else:
 			_build_procedural_outer_armor(slot_name, armor_mesh, armor_mesh_lower, part)
 
@@ -140,6 +138,35 @@ func initialize_slot(slot_name: String, part: ArmorPart, apply_player_damage: bo
 	else:
 		armor_mesh.visible = false
 		if armor_mesh_lower: armor_mesh_lower.visible = false
+
+
+func _attach_custom_mesh_scene(upper_container: Node3D, lower_container: Node3D, upper_scene: PackedScene, lower_scene: PackedScene) -> void:
+	if upper_container == null:
+		return
+
+	# Explicit lower scene specified
+	if lower_scene != null and lower_container != null:
+		if upper_scene != null:
+			upper_container.add_child(upper_scene.instantiate())
+		lower_container.add_child(lower_scene.instantiate())
+		return
+
+	# Single scene provided -> auto-split if lower nodes exist
+	if upper_scene != null:
+		var instance = upper_scene.instantiate()
+		if lower_container != null:
+			var lower_nodes: Array[Node] = []
+			for child in instance.get_children():
+				var cname := child.name.to_lower()
+				if cname.contains("lower") or cname.contains("forearm") or cname.contains("shin") or cname.contains("knee") or cname.contains("calf") or cname.contains("foot"):
+					lower_nodes.append(child)
+
+			if not lower_nodes.is_empty():
+				for lnode in lower_nodes:
+					instance.remove_child(lnode)
+					lower_container.add_child(lnode)
+
+		upper_container.add_child(instance)
 
 
 func _hide_legacy_slot_meshes(parent_node: Node3D) -> void:
@@ -165,7 +192,9 @@ func build_part_for_slot(equipped: Variant) -> ArmorPart:
 		var authored := _load_authored_part(equipped)
 		if authored != null:
 			part_obj.mesh_scene = authored.mesh_scene
+			part_obj.mesh_scene_lower = authored.mesh_scene_lower
 			part_obj.inner_frame_scene = authored.inner_frame_scene
+			part_obj.inner_frame_scene_lower = authored.inner_frame_scene_lower
 			part_obj.slot_id = authored.slot_id
 			part_obj.part_color = authored.part_color
 			part_obj.max_hp = authored.max_hp
@@ -174,6 +203,12 @@ func build_part_for_slot(equipped: Variant) -> ArmorPart:
 		part_obj.max_hp = GlobalData.weapons.part_stat(equipped, "max_hp", part_obj.max_hp)
 		if equipped.has("color"):
 			part_obj.part_color = equipped.get("color")
+		if equipped.has("mesh_scene_lower") and equipped["mesh_scene_lower"] != null:
+			var sc = equipped["mesh_scene_lower"]
+			part_obj.mesh_scene_lower = sc if sc is PackedScene else (load(str(sc)) if ResourceLoader.exists(str(sc)) else null)
+		if equipped.has("inner_frame_scene_lower") and equipped["inner_frame_scene_lower"] != null:
+			var sc = equipped["inner_frame_scene_lower"]
+			part_obj.inner_frame_scene_lower = sc if sc is PackedScene else (load(str(sc)) if ResourceLoader.exists(str(sc)) else null)
 	return part_obj
 
 

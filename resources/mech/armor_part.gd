@@ -4,7 +4,9 @@ class_name ArmorPart
 @export var part_name: String = ""
 @export var slot_id: String = ""
 @export var mesh_scene: PackedScene
+@export var mesh_scene_lower: PackedScene
 @export var inner_frame_scene: PackedScene
+@export var inner_frame_scene_lower: PackedScene
 @export var max_hp: float = 100.0
 @export var max_frame_hp: float = 50.0
 @export var weight: float = 10.0

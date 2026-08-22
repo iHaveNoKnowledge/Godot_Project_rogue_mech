@@ -218,7 +218,6 @@ func _collect_free_mechs() -> Array:
 			continue
 		if fielded_ids.has(mech_id):
 			continue
-		var pilot_id := str(mech.get("pilot", ""))
 		result.append({
 			"mech_id": mech_id,
 			"name": str(mech.get("name", "Mech")),

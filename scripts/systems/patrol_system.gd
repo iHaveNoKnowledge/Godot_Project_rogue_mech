@@ -57,6 +57,9 @@ static func normalize_patrol(p: Dictionary) -> void:
 	p["pos"] = normalize_dir(p.get("pos"))
 	p["home"] = normalize_dir(p.get("home"))
 	p["dir"] = normalize_dir(p.get("dir"))
+	p["fleet_count"] = maxi(int(p.get("fleet_count", 1)), 1)
+	if not p.has("merged_fleets") or not p["merged_fleets"] is Array:
+		p["merged_fleets"] = []
 	if p.has("prev_pos"):
 		p["prev_pos"] = normalize_dir(p.get("prev_pos"))
 	if not p.has("commander") or not p["commander"] is Dictionary or p["commander"].is_empty():
@@ -65,6 +68,124 @@ static func normalize_patrol(p: Dictionary) -> void:
 			"archetype": BoardConfig.FLEET_ARCHETYPES.get(arch_str, {}).get("mp", 1),
 			"level": GlobalData.board.current_sector,
 		})
+
+
+## Merges source fleet into target fleet on the board.
+static func merge_fleets(target_id: int, source_id: int) -> bool:
+	if target_id == source_id:
+		return false
+	var target := get_patrol_by_id(target_id)
+	var source := get_patrol_by_id(source_id)
+	if target.is_empty() or source.is_empty():
+		return false
+
+	normalize_patrol(target)
+	normalize_patrol(source)
+	var add_count: int = int(source.get("fleet_count", 1))
+	target["fleet_count"] += add_count
+	var sub_fleets: Array = target.get("merged_fleets", [])
+	sub_fleets.append(source.duplicate(true))
+	target["merged_fleets"] = sub_fleets
+
+	remove_patrol(source_id)
+	return true
+
+
+## Splits 1 sub-fleet from a multi-fleet token (fleet_count > 1) to an adjacent tile.
+static func split_fleet(patrol_id: int, target_pos: Vector2i = Vector2i(-1, -1)) -> Dictionary:
+	var p := get_patrol_by_id(patrol_id)
+	if p.is_empty() or int(p.get("fleet_count", 1)) <= 1:
+		return {}
+
+	normalize_patrol(p)
+	p["fleet_count"] -= 1
+	var sub_fleets: Array = p.get("merged_fleets", [])
+	var detached_template: Dictionary = {}
+	if not sub_fleets.is_empty():
+		detached_template = sub_fleets.pop_back()
+	p["merged_fleets"] = sub_fleets
+
+	var max_id := 0
+	for item in GlobalData.board.board_patrols:
+		max_id = maxi(max_id, int(item.get("id", 0)))
+	var new_id := max_id + 1
+
+	var cur_pos: Vector2i = p.get("pos")
+	var split_pos := target_pos if target_pos != Vector2i(-1, -1) else cur_pos
+
+	var detached_fleet := {
+		"id": new_id,
+		"pos": split_pos,
+		"home": cur_pos,
+		"prev_pos": cur_pos,
+		"dir": p.get("dir", Vector2i(1, 0)),
+		"name": detached_template.get("name", p.get("name", "Vanguard Strike")),
+		"grunts": detached_template.get("grunts", p.get("grunts", 2)),
+		"aces": detached_template.get("aces", p.get("aces", 0)),
+		"aggro": p.get("aggro", true),
+		"faction": p.get("faction", "hostile"),
+		"archetype": detached_template.get("archetype", p.get("archetype", "recon")),
+		"character_id": detached_template.get("character_id", ""),
+		"fleet_count": 1,
+		"merged_fleets": [],
+		"commander": detached_template.get("commander", {}),
+	}
+	normalize_patrol(detached_fleet)
+	GlobalData.board.board_patrols.append(detached_fleet)
+	return detached_fleet
+
+
+static func _merge_coincident_fleets() -> void:
+	var pos_map: Dictionary = {} # Vector2i -> Array[Dictionary]
+	for p in GlobalData.board.board_patrols:
+		if str(p.get("faction", "hostile")) == "unknown":
+			continue
+		var pos: Vector2i = PatrolSystem.normalize_dir(p.get("pos"))
+		if not pos_map.has(pos):
+			pos_map[pos] = []
+		pos_map[pos].append(p)
+
+	for pos in pos_map:
+		var list: Array = pos_map[pos]
+		if list.size() <= 1:
+			continue
+		var primary: Dictionary = list[0]
+		normalize_patrol(primary)
+		for i in range(1, list.size()):
+			var sec: Dictionary = list[i]
+			normalize_patrol(sec)
+			primary["fleet_count"] += int(sec.get("fleet_count", 1))
+			primary["merged_fleets"].append(sec.duplicate(true))
+			remove_patrol(int(sec.get("id", -1)))
+
+
+static func _check_tactical_fleet_splits(nodes: Dictionary, occupied: Dictionary, rng: RandomNumberGenerator, player_pos: Vector2i) -> void:
+	var snapshot := GlobalData.board.board_patrols.duplicate()
+	for p in snapshot:
+		if int(p.get("fleet_count", 1)) <= 1:
+			continue
+		if not p.get("aggro", false):
+			continue
+		# 40% tactical split chance when pursuing from a distance
+		var cur: Vector2i = p.get("pos")
+		if _manhattan(cur, player_pos) <= 1 or rng.randf() > 0.4:
+			continue
+
+		# Find a free adjacent passable tile to pincer
+		var best_tile := Vector2i(-1, -1)
+		var best_dist := 999
+		for offset in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var cand: Vector2i = cur + offset
+			if nodes.has(cand) and not occupied.has(cand) and BoardConfig.is_passable(nodes[cand].get_meta("terrain", "plain")):
+				var d := _manhattan(cand, player_pos)
+				if d < best_dist:
+					best_dist = d
+					best_tile = cand
+
+		if best_tile != Vector2i(-1, -1):
+			var new_fleet := split_fleet(int(p.get("id", -1)), best_tile)
+			if not new_fleet.is_empty():
+				occupied[best_tile] = true
 
 
 static func has_patrols() -> bool:
@@ -229,6 +350,10 @@ static func advance_day(player_pos: Vector2i) -> Vector2i:
 	var detect := DETECT_BASE + clampi(GlobalData.board.patrol_alert, 0, ALERT_MAX)
 	var saw_player := false
 	var ambush := Vector2i(-1, -1)
+
+	# Tactical fleet splitting: multi-fleet strike groups can split off flanking units
+	_check_tactical_fleet_splits(nodes, occupied, rng, player_pos)
+
 	for p in GlobalData.board.board_patrols:
 		# Heal entries loaded from older saves before reading their fields.
 		normalize_patrol(p)
@@ -284,6 +409,9 @@ static func advance_day(player_pos: Vector2i) -> Vector2i:
 				if next == player_pos:
 					ambush = next
 					break
+
+	# Tactical fleet merging: allied fleets converging on the same tile stack together into 1 token
+	_merge_coincident_fleets()
 
 	# The convoy is a moving target: force escalation climbs while a hostile
 	# fleet keeps visual and cools back down once the player relocates.

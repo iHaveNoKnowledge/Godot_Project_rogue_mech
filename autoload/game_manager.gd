@@ -39,12 +39,23 @@ func enter_board() -> void:
 
 
 var combat_node_type: String = "grunt"
+var combat_fleet_count: int = 1
 
 
 func enter_combat(combat_type: String = "grunt") -> void:
 	combat_node_type = combat_type
 	is_boss_combat = (combat_type == "boss")
 	is_escaping = false
+
+	# Resolve how many fleets are engaged from the board token
+	if GlobalData.board.board_patrol_engagement >= 0:
+		var p: Dictionary = PatrolSystem.get_patrol_by_id(GlobalData.board.board_patrol_engagement)
+		if not p.is_empty():
+			combat_fleet_count = maxi(int(p.get("fleet_count", 1)), 1)
+		else:
+			combat_fleet_count = 1
+	else:
+		combat_fleet_count = 1
 	# A wounded driver never pilots into battle: if the active mech's pilot is
 	# recovering, park that berth and switch to a healthy backup before the
 	# combat scene loads. Only on real board/event entries — eject re-boarding

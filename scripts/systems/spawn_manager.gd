@@ -175,11 +175,36 @@ func _get_active_defs() -> Array:
 		"boss":
 			return theme_boss_wave_defs.get(GlobalData.narrative.theme_id, boss_wave_defs)
 		"ace":
-			return theme_ace_wave_defs.get(GlobalData.narrative.theme_id, ace_wave_defs)
+			return _get_fleet_scaled_wave_defs("ace")
 		"duel":
 			return _duel_wave_defs()
 		_:
-			return theme_grunt_wave_defs.get(GlobalData.narrative.theme_id, grunt_wave_defs)
+			return _get_fleet_scaled_wave_defs("grunt")
+
+
+func _get_fleet_scaled_wave_defs(combat_type: String) -> Array:
+	var fleet_count := GameManager.combat_fleet_count
+	if GlobalData.board.board_patrol_engagement >= 0:
+		var p: Dictionary = PatrolSystem.get_patrol_by_id(GlobalData.board.board_patrol_engagement)
+		if not p.is_empty():
+			fleet_count = maxi(int(p.get("fleet_count", 1)), 1)
+	fleet_count = maxi(fleet_count, 1)
+
+	var pool: Array = []
+	if combat_type == "ace":
+		pool = theme_ace_wave_defs.get(GlobalData.narrative.theme_id, ace_wave_defs)
+	else:
+		pool = theme_grunt_wave_defs.get(GlobalData.narrative.theme_id, grunt_wave_defs)
+
+	if pool.is_empty():
+		pool = grunt_wave_defs
+
+	var active_waves: Array = []
+	for i in range(fleet_count):
+		var template: Array = pool[i % pool.size()]
+		active_waves.append(template.duplicate(true))
+
+	return active_waves
 
 
 # A duel battle fields exactly one full-rig enemy — the pending character's

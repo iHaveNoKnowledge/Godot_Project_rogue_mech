@@ -919,16 +919,15 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 	var ray_origin = cam.project_ray_origin(center)
 	var ray_dir = cam.project_ray_normal(center)
 
-	var space_state = get_viewport().get_world_3d().direct_space_state
-	var query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 500.0)
-	query.collision_mask = 10
-	var result = space_state.intersect_ray(query)
-
-	var target_point: Vector3
-	if result:
-		target_point = result["position"]
-	else:
-		target_point = ray_origin + ray_dir * 500.0
+	var target_point: Vector3 = ray_origin + ray_dir * 500.0
+	var vp := get_viewport()
+	if vp and vp.get_world_3d() and vp.get_world_3d().direct_space_state:
+		var space_state := vp.get_world_3d().direct_space_state
+		var query := PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 500.0)
+		query.collision_mask = 10
+		var result := space_state.intersect_ray(query)
+		if result:
+			target_point = result["position"]
 
 	var aim_dir = (target_point - spawn_pos).normalized()
 
@@ -954,14 +953,15 @@ func _melee_attack(hand: String, weapon: WeaponPart) -> void:
 	var ray_origin = cam.project_ray_origin(center)
 	var ray_dir = cam.project_ray_normal(center)
 
-	var space_state = get_viewport().get_world_3d().direct_space_state
-	var query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 500.0)
-	query.collision_mask = 10
-	var result = space_state.intersect_ray(query)
-
-	var target_point: Vector3
-	if result:
-		target_point = result["position"]
+	var target_point: Vector3 = ray_origin + ray_dir * 500.0
+	var vp := get_viewport()
+	if vp and vp.get_world_3d() and vp.get_world_3d().direct_space_state:
+		var space_state := vp.get_world_3d().direct_space_state
+		var query := PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 500.0)
+		query.collision_mask = 10
+		var result := space_state.intersect_ray(query)
+		if result:
+			target_point = result["position"]
 	else:
 		target_point = ray_origin + ray_dir * 500.0
 
@@ -1245,16 +1245,15 @@ func _check_melee_hit(mecha: Node3D, direction: Vector3, damage: float, weapon: 
 	var ray_origin = cam.project_ray_origin(center)
 	var ray_dir = cam.project_ray_normal(center)
 
-	var space_state = get_viewport().get_world_3d().direct_space_state
-	var query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 10.0)
-	query.collision_mask = 8
-	var result = space_state.intersect_ray(query)
-
-	var aim_point: Vector3
-	if result:
-		aim_point = result["position"]
-	else:
-		aim_point = ray_origin + ray_dir * 10.0
+	var aim_point: Vector3 = ray_origin + ray_dir * 10.0
+	var vp := get_viewport()
+	if vp and vp.get_world_3d() and vp.get_world_3d().direct_space_state:
+		var space_state := vp.get_world_3d().direct_space_state
+		var query := PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 10.0)
+		query.collision_mask = 8
+		var result := space_state.intersect_ray(query)
+		if result:
+			aim_point = result["position"]
 
 	var enemies = get_tree().get_nodes_in_group("enemy")
 	# Forward auto-aim box: the swing connects to any enemy within the weapon's

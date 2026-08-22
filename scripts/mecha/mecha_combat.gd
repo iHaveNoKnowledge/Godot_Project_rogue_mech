@@ -57,16 +57,27 @@ func _aim_from_camera() -> Vector3:
 func resolve_aim_point() -> Vector3:
 	if lock_on_target and is_instance_valid(lock_on_target):
 		return lock_on_target.global_position + Vector3(0, 1.0, 0)
-	var cam = get_viewport().get_camera_3d()
+	if not is_inside_tree():
+		return Vector3.ZERO if mecha == null else mecha.global_position
+	var vp := get_viewport()
+	if vp == null:
+		return mecha.global_position + (-mecha.global_transform.basis.z * 50.0) if mecha else Vector3.ZERO
+	var cam := vp.get_camera_3d()
 	if cam == null:
-		return mecha.global_position + (-mecha.global_transform.basis.z * 50.0)
-	var ray_origin = cam.project_ray_origin(get_viewport().get_visible_rect().size / 2.0)
-	var ray_dir = cam.project_ray_normal(get_viewport().get_visible_rect().size / 2.0)
+		return mecha.global_position + (-mecha.global_transform.basis.z * 50.0) if mecha else Vector3.ZERO
+	var ray_origin := cam.project_ray_origin(vp.get_visible_rect().size / 2.0)
+	var ray_dir := cam.project_ray_normal(vp.get_visible_rect().size / 2.0)
 
-	var space_state = get_viewport().get_world_3d().direct_space_state
-	var query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 500.0)
+	var world_3d := vp.get_world_3d()
+	if world_3d == null:
+		return ray_origin + ray_dir * 500.0
+	var space_state := world_3d.direct_space_state
+	if space_state == null:
+		return ray_origin + ray_dir * 500.0
+
+	var query := PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 500.0)
 	query.collision_mask = 10
-	var result = space_state.intersect_ray(query)
+	var result := space_state.intersect_ray(query)
 	if result:
 		return result["position"]
 	return ray_origin + ray_dir * 500.0

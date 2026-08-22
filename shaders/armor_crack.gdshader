@@ -16,6 +16,7 @@ uniform float scratch_scale : hint_range(5.0, 60.0) = 24.0;
 
 uniform vec4 crack_color : source_color = vec4(0.08, 0.08, 0.10, 1.0);
 uniform vec4 exposed_metal_color : source_color = vec4(0.38, 0.40, 0.44, 1.0);
+uniform vec4 glow_color : source_color = vec4(1.0, 0.38, 0.08, 1.0);
 uniform float glow_intensity : hint_range(0.0, 10.0) = 4.5;
 
 

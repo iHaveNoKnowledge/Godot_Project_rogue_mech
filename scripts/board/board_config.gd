@@ -75,8 +75,8 @@ static func energy_cost(terrain: String, is_roller: bool = false) -> float:
 			return 35.0 # Roller Dash off-road penalty: -35 Energy
 	return float(TERRAIN_ENERGY.get(terrain, 20.0))
 
-# Default grid dimensions for a sector's open board.
-const GRID_SIZE: int = 15
+# Default grid dimensions for a sector's open board (expanded for strategic breath and open spaces).
+const GRID_SIZE: int = 25
 
 # Per-theme weighted terrain pools used by the generator's seeded RNG.
 const THEME_TERRAIN: Dictionary = {

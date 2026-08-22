@@ -5,12 +5,12 @@ extends Camera3D
 ## (Q counter-clockwise, E clockwise). Middle-drag pans, wheel zooms, R
 ## re-centers on the player. The player token itself moves by clicking tiles.
 
-@export var camera_height: float = 30.0
+@export var camera_height: float = 40.0
 @export var camera_height_min: float = 12.0
-@export var camera_height_max: float = 55.0
+@export var camera_height_max: float = 95.0
 @export var follow_speed: float = 8.0
 @export var drag_speed: float = 0.3
-@export var key_pan_speed: float = 40.0
+@export var key_pan_speed: float = 55.0
 @export var rotate_speed: float = 1.2
 
 var player_token: Node3D

@@ -220,33 +220,33 @@ func _roll_content(rng: RandomNumberGenerator) -> String:
 	# Bait tiles are decoy supply caches: they look like loot but spring a
 	# pincer ambush (see board_manager._trigger_bait_trap).
 	var roll := rng.randf()
-	if roll < 0.16:
+	if roll < 0.05:
 		return "event"
-	elif roll < 0.26:
+	elif roll < 0.09:
 		return "data_node"
-	elif roll < 0.33:
+	elif roll < 0.12:
 		return "bait"
-	elif roll < 0.40:
-		return "dead_end"
-	elif roll < 0.47:
+	elif roll < 0.16:
 		return "fuel_depot"
-	elif roll < 0.53:
+	elif roll < 0.20:
 		return "supply_truck"
-	elif roll < 0.60:
+	elif roll < 0.23:
 		return "research_lab"
-	elif roll < 0.66:
+	elif roll < 0.25:
 		return "dust_storm"
-	elif roll < 0.72:
+	elif roll < 0.27:
 		return "tactical_smog"
-	elif roll < 0.78:
+	elif roll < 0.29:
 		return "emp_zone"
-	elif roll < 0.83:
+	elif roll < 0.33:
 		return "distress_signal"
-	elif roll < 0.89:
+	elif roll < 0.38:
 		return "scavenge_site"
-	elif roll < 0.95:
+	elif roll < 0.42:
 		return "unknown_signal"
-	return "empty"
+	elif roll < 0.45:
+		return "dead_end"
+	return "empty" # 55% open wilderness, scenic roads, and uncrowded terrain
 
 
 func _neighbor_keys(key: Vector2i) -> Array:

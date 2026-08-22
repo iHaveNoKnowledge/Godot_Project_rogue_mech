@@ -185,15 +185,22 @@ func _process(_delta: float) -> void:
 func _update_energy_bar() -> void:
 	if energy_bar == null or energy_label == null:
 		return
-	if _player_mecha == null or not is_instance_valid(_player_mecha) or not ("energy" in _player_mecha):
+	if _player_mecha == null or not is_instance_valid(_player_mecha):
 		return
-	# Read energy state from the mecha's energy_system subsystem.
+	# Read energy state from the mecha's energy_system subsystem or properties.
 	var es = _player_mecha.get("energy_system")
 	var max_e: float = 100.0
 	var cur_e: float = max_e
 	if es:
 		max_e = maxf(es.max_energy, 1.0)
 		cur_e = clampf(es.energy, 0.0, max_e)
+	elif "energy" in _player_mecha:
+		max_e = maxf(float(_player_mecha.get("max_energy", 100.0)), 1.0)
+		cur_e = clampf(float(_player_mecha.get("energy", max_e)), 0.0, max_e)
+	elif GlobalData.fuel:
+		max_e = maxf(GlobalData.fuel.mech_max_energy, 1.0)
+		cur_e = clampf(GlobalData.fuel.mech_energy, 0.0, max_e)
+
 	energy_bar.max_value = max_e
 	energy_bar.value = cur_e
 	energy_label.text = "ENERGY: %d%%" % int(cur_e / max_e * 100.0)

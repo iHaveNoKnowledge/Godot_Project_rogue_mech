@@ -33,8 +33,23 @@ var _chassis_speed_override: float = 14.0
 var _chassis_weight_capacity_override: float = 75.0
 var can_traverse_water: bool = false
 
-# No proxy properties — callers access subsystems directly:
-# mecha.jump_system.is_jumping, mecha.energy_system.energy, etc.
+var energy: float:
+	get:
+		return energy_system.energy if energy_system else (GlobalData.fuel.mech_energy if GlobalData.fuel else 100.0)
+	set(val):
+		if energy_system:
+			energy_system.energy = val
+		elif GlobalData.fuel:
+			GlobalData.fuel.mech_energy = val
+
+var max_energy: float:
+	get:
+		return energy_system.max_energy if energy_system else (GlobalData.fuel.mech_max_energy if GlobalData.fuel else 100.0)
+	set(val):
+		if energy_system:
+			energy_system.max_energy = val
+		elif GlobalData.fuel:
+			GlobalData.fuel.mech_max_energy = val
 
 
 func _init() -> void:

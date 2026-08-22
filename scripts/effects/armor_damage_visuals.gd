@@ -38,17 +38,16 @@ func _setup_mesh_overlays() -> void:
 	if mecha_root == null:
 		return
 
-	# 1. Connect to PartMeshManager if present
+	# 1. Connect to PartMeshManager if present (armor AND inner frame: the
+	# frame is exposed once the armor plate breaks, so it needs cracks too)
 	var pmm = mecha_root.get_node_or_null("PartMeshManager")
 	if pmm and "slot_meshes" in pmm:
 		for slot in pmm.slot_meshes:
 			var data: Dictionary = pmm.slot_meshes[slot]
-			var upper_armor: Node3D = data.get("armor")
-			var lower_armor: Node3D = data.get("armor_lower")
-			if upper_armor:
-				register_slot_container(slot, upper_armor)
-			if lower_armor:
-				register_slot_container(slot, lower_armor)
+			for key in ["armor", "armor_lower", "frame", "frame_lower"]:
+				var container: Node3D = data.get(key)
+				if container:
+					register_slot_container(slot, container)
 
 	# 2. Collect and bind for standard mecha_base.tscn nodes as well
 	var slot_node_map := {

@@ -38,15 +38,15 @@ func _ready() -> void:
 
 	# Degrade 15% on armor break
 	var d1 = ArmorSystem.degrade_equipped_armor("body", 0.15)
-	_check(absf(d1 - 0.85) < 0.001, "Armor break degrades durability by 15% (1.0 -> %.2f)" % d1)
+	_check(absf(d1 - 0.85) < 0.001, "Armor break degrades durability by 15%% (1.0 -> %.2f)" % d1)
 
 	# Degrade 10% on emergency scrap patch
 	var d2 = ArmorSystem.degrade_equipped_armor("body", 0.10)
-	_check(absf(d2 - 0.75) < 0.001, "Emergency patch degrades durability by 10% (0.85 -> %.2f)" % d2)
+	_check(absf(d2 - 0.75) < 0.001, "Emergency patch degrades durability by 10%% (0.85 -> %.2f)" % d2)
 
 	# Minimum floor test
 	var d_floor = ArmorSystem.degrade_equipped_armor("body", 0.90)
-	_check(d_floor >= 0.10, "Durability has minimum safety floor of 10% (was %.2f)" % d_floor)
+	_check(d_floor >= 0.10, "Durability has minimum safety floor of 10%% (was %.2f)" % d_floor)
 
 	# 3. Test Scrap Primitive & Cloth Wrap Mesh Generation
 	var pmm_script = preload("res://scripts/mecha/part_mesh_manager.gd")

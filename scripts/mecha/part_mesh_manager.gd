@@ -142,20 +142,26 @@ func initialize_slot(slot_name: String, part: ArmorPart, apply_player_damage: bo
 		else:
 			armor_mesh.visible = true
 			if armor_mesh_lower: armor_mesh_lower.visible = true
-
-		# Register with ArmorDamageVisuals if health system exists on mecha
-		var mecha = get_parent()
-		if mecha:
-			var hs = mecha.get_node_or_null("HealthSystem")
-			if hs and hs.get("damage_visuals"):
-				var dmg_vis = hs.damage_visuals
-				if dmg_vis != null and dmg_vis.has_method("register_slot_container"):
-					dmg_vis.register_slot_container(slot_name, armor_mesh)
-					if armor_mesh_lower:
-						dmg_vis.register_slot_container(slot_name, armor_mesh_lower)
 	else:
 		armor_mesh.visible = false
 		if armor_mesh_lower: armor_mesh_lower.visible = false
+
+	# Register with ArmorDamageVisuals if health system exists on mecha.
+	# Runs for EVERY slot (armored or bare frame): the exposed inner skeleton
+	# needs crack overlays just as much as the armor plates do.
+	var mecha = get_parent()
+	if mecha:
+		var hs = mecha.get_node_or_null("HealthSystem")
+		if hs and hs.get("damage_visuals"):
+			var dmg_vis = hs.damage_visuals
+			if dmg_vis != null and dmg_vis.has_method("register_slot_container"):
+				dmg_vis.register_slot_container(slot_name, armor_mesh)
+				if armor_mesh_lower:
+					dmg_vis.register_slot_container(slot_name, armor_mesh_lower)
+				if frame_mesh:
+					dmg_vis.register_slot_container(slot_name, frame_mesh)
+				if frame_mesh_lower:
+					dmg_vis.register_slot_container(slot_name, frame_mesh_lower)
 
 
 func _attach_custom_mesh_scene(upper_container: Node3D, lower_container: Node3D, upper_scene: PackedScene, lower_scene: PackedScene) -> void:

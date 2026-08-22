@@ -46,8 +46,19 @@ func _ready() -> void:
 			break
 	_check(found_overlay, "Body armor MeshInstance3D has material_overlay assigned")
 
+	# Inner FRAME meshes carry the crack overlay too (the skeleton is exposed
+	# once the armor plate breaks, so it needs the same damage material)
+	var body_frame: Node3D = body_entry.get("frame")
+	var frame_found := false
+	if body_frame != null:
+		for child in body_frame.get_children():
+			if child is MeshInstance3D and child.material_overlay != null:
+				frame_found = true
+				break
+	_check(frame_found, "Body inner-frame MeshInstance3D has material_overlay assigned")
+
 	# Simulate 50% damage to body
-	hs.apply_damage_to_slot("body", 50.0, "kinetic")
+	hs.take_damage_to_part("body", 50.0, "kinetic")
 	await get_tree().process_frame
 
 	var slot_data: Dictionary = dmg_vis._slot_overlays.get("body", {})

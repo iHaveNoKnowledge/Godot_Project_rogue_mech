@@ -45,7 +45,7 @@ func _ready() -> void:
 	part.mesh_scene = upper_packed
 	part.mesh_scene_lower = lower_packed
 
-	pmm.initialize_slot("arm_left", part, false, false)
+	pmm.initialize_slot("arm_left", part, false)
 
 	var left_arm_meshes = pmm.slot_meshes.get("arm_left", {})
 	var armor_upper: Node3D = left_arm_meshes.get("armor")
@@ -74,7 +74,7 @@ func _ready() -> void:
 	split_part.slot_id = "arm_right"
 	split_part.mesh_scene = combined_packed
 
-	pmm.initialize_slot("arm_right", split_part, false, false)
+	pmm.initialize_slot("arm_right", split_part, false)
 
 	var right_arm_meshes = pmm.slot_meshes.get("arm_right", {})
 	var r_armor_upper: Node3D = right_arm_meshes.get("armor")

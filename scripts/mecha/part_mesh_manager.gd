@@ -349,15 +349,23 @@ func _render_scrap_patch(slot: String) -> void:
 		mi.position = pos
 		mi.rotation = rot
 		mi.scale = scale
+		var is_cloth := shape.to_lower() in ["wrap", "bandage", "cloth", "ribbon", "scarf"]
 		mi.mesh = _build_scrap_primitive_mesh(shape)
-		var mat := StandardMaterial3D.new()
-		mat.render_priority = 2
-		mat.grow = true
-		mat.grow_amount = 0.002
-		mat.albedo_color = color
-		mat.metallic = 0.1
-		mat.roughness = 0.85
-		mi.material_override = mat
+
+		if is_cloth:
+			var cloth_mat := ShaderMaterial.new()
+			cloth_mat.shader = preload("res://shaders/cloth_wrap.gdshader")
+			cloth_mat.set_shader_parameter("cloth_color", color)
+			mi.material_override = cloth_mat
+		else:
+			var scrap_mat := ShaderMaterial.new()
+			scrap_mat.shader = preload("res://shaders/scrap_metal.gdshader")
+			scrap_mat.set_shader_parameter("plate_color", color)
+			scrap_mat.set_shader_parameter("rust_intensity", 0.45)
+			scrap_mat.set_shader_parameter("metalness", 0.75)
+			scrap_mat.set_shader_parameter("roughness_base", 0.45)
+			mi.material_override = scrap_mat
+
 		container.add_child(mi)
 
 
@@ -396,6 +404,13 @@ func _build_scrap_primitive_mesh(shape: String) -> Mesh:
 			c.bottom_radius = 0.5
 			c.height = 1.0
 			return c
+		"wrap", "bandage", "cloth", "ribbon":
+			var t := TorusMesh.new()
+			t.inner_radius = 0.38
+			t.outer_radius = 0.52
+			t.rings = 16
+			t.ring_segments = 12
+			return t
 		_:
 			var b := BoxMesh.new()
 			b.size = Vector3.ONE

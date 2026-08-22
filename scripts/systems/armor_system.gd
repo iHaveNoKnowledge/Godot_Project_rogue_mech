@@ -160,3 +160,23 @@ static func sync_equipped_armor_durability() -> void:
 			var inst := get_armor_instance(str(part["uid"]))
 			if not inst.is_empty():
 				inst["durability"] = GlobalData.get_part_durability(slot)
+
+
+# Degrades an armor instance's max durability (e.g. 0.15 on armor break, 0.10 on scrap patch, 0.02 on hangar repair).
+# Minimum durability floor is 0.10 (10% HP) so a part never completely vanishes unless dismantled/scrapped.
+static func degrade_armor_durability(uid: String, amount: float) -> float:
+	var inst := get_armor_instance(uid)
+	if inst.is_empty():
+		return 1.0
+	var cur: float = float(inst.get("durability", 1.0))
+	var new_dur: float = clampf(cur - amount, 0.10, 1.0)
+	inst["durability"] = new_dur
+	return new_dur
+
+
+static func degrade_equipped_armor(slot: String, amount: float) -> float:
+	var part = GlobalData.weapons.equipped_parts.get(slot)
+	if part is Dictionary and part.has("uid"):
+		return degrade_armor_durability(str(part["uid"]), amount)
+	return 1.0
+

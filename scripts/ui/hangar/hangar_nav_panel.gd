@@ -83,7 +83,7 @@ func build_landing_rail(root: Control) -> void:
 
 	var submenu_items = [
 		{"id": "customize", "label": "Customize"},
-		{"id": "roster", "label": "Register"},
+		{"id": "roster", "label": "Roster"},
 		{"id": "pilots", "label": "Pilots"},
 		{"id": "sortie", "label": "Sortie"},
 		{"id": "upgrade", "label": "Upgrade"},

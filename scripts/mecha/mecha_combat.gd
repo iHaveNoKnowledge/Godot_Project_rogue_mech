@@ -5,6 +5,10 @@ extends Node
 
 var lock_on_target: Node3D = null
 var is_aiming: bool = false
+# World-space point the weapons are currently aimed at (lock-on target or the
+# crosshair ray). Refreshed every physics frame; the arm-aiming pose in
+# AnimationSystem reads this so the gun arms physically point at it.
+var current_aim_point: Vector3 = Vector3.ZERO
 
 
 func _ready() -> void:
@@ -25,8 +29,10 @@ func _physics_process(delta: float) -> void:
 	var mecha_hs = mecha.get_node_or_null("HealthSystem")
 	if mecha_hs != null and bool(mecha_hs.get("is_destroyed")):
 		is_aiming = false
+		current_aim_point = Vector3.ZERO
 		return
 	is_aiming = Input.is_action_pressed("aim")
+	current_aim_point = resolve_aim_point()
 	if is_aiming:
 		mecha.strafe_mode = true
 		var aim_dir = _aim_from_camera()
@@ -45,16 +51,28 @@ func _aim_from_camera() -> Vector3:
 	return ray_dir
 
 
-func fire_weapon() -> void:
-	var target_pos: Vector3
+## Resolves where the guns are pointed this frame: a locked target directly,
+## otherwise the crosshair ray against the world (same collision mask the fire
+## path uses), falling back 50 m along the camera when nothing is hit.
+func resolve_aim_point() -> Vector3:
 	if lock_on_target and is_instance_valid(lock_on_target):
-		# เล็งกระสุนเข้าเป้าที่ระบบเซนเซอร์ส่วนหัวล็อคไว้ให้โดยตรง (ลั่นยังไงก็โดน)
-		target_pos = lock_on_target.global_position + Vector3(0, 1.0, 0)
-	else:
-		# เล็ง Manual ยิงตามเป้าศูนย์กลางจอตรงๆ ไปด้านหน้า 50 เมตร
-		var cam = get_viewport().get_camera_3d()
-		if cam:
-			target_pos = cam.global_position + (-cam.global_transform.basis.z * 50.0)
-		else:
-			target_pos = mecha.global_position + (-mecha.global_transform.basis.z * 50.0)
+		return lock_on_target.global_position + Vector3(0, 1.0, 0)
+	var cam = get_viewport().get_camera_3d()
+	if cam == null:
+		return mecha.global_position + (-mecha.global_transform.basis.z * 50.0)
+	var ray_origin = cam.project_ray_origin(get_viewport().get_visible_rect().size / 2.0)
+	var ray_dir = cam.project_ray_normal(get_viewport().get_visible_rect().size / 2.0)
+
+	var space_state = get_viewport().get_world_3d().direct_space_state
+	var query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 500.0)
+	query.collision_mask = 10
+	var result = space_state.intersect_ray(query)
+	if result:
+		return result["position"]
+	return ray_origin + ray_dir * 500.0
+
+
+func fire_weapon() -> void:
+	# เล็งกระสุนเข้าจุดเดียวกับที่แขนชี้: lock-on โดยตรง หรือเป้า crosshair
+	var target_pos: Vector3 = resolve_aim_point()
 	EventBus.weapon_fired.emit(target_pos)

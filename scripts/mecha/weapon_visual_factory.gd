@@ -138,13 +138,24 @@ static func mount_carry(mecha: Node3D, weapons: Array, node_name: String) -> Nod
 ## Builds a shared weapon model (Node3D) for a WeaponPart resource.
 ## Used by BOTH the Hangar preview and the battle WeaponManager so the weapon
 ## shown in the garage is the exact same model that appears on the mech's hands.
+## Every built model carries a "Muzzle" child marker at its barrel tip, placed
+## per weapon type — projectile spawn points, muzzle flashes and jam sparks all
+## anchor there instead of a fixed hip offset.
 static func build(weapon: WeaponPart) -> Node3D:
 	var mount := Node3D.new()
 	if weapon == null:
 		return mount
 
 	if weapon.mesh_scene:
-		mount.add_child(weapon.mesh_scene.instantiate())
+		var inst: Node3D = weapon.mesh_scene.instantiate()
+		mount.add_child(inst)
+		# Authored models may ship their own Muzzle node; anything else gets a
+		# sensible generic barrel-tip fallback so effects never fire from the hip.
+		if find_muzzle_node(inst) == null:
+			var fallback := Node3D.new()
+			fallback.name = "Muzzle"
+			fallback.position = Vector3(0, 0, -1.3)
+			inst.add_child(fallback)
 		return mount
 
 	var mesh_instance := MeshInstance3D.new()
@@ -154,6 +165,8 @@ static func build(weapon: WeaponPart) -> Node3D:
 
 	var w_type = weapon.weapon_type
 	var name_lower = weapon.weapon_name.to_lower()
+	# Local-space barrel tip of this specific model (drives the Muzzle marker).
+	var muzzle_local := Vector3(0, 0, -1.27)
 
 	# --- 1. PILE BUNKER (Reverse Grip or Under-arm Piston Block) ---
 	if name_lower.contains("pile") or (w_type == WeaponPart.WeaponType.MELEE and name_lower.contains("bunker")):
@@ -188,6 +201,8 @@ static func build(weapon: WeaponPart) -> Node3D:
 		spike_mat.albedo_color = Color(0.85, 0.9, 0.95)
 		spike.material_override = spike_mat
 		mount.add_child(spike)
+		# Tip of the forward kinetic spike.
+		muzzle_local = Vector3(0, -0.18, -1.72)
 
 	# --- 2. MELEE BLADES & MACES (Upright Combat Guard Stance) ---
 	elif name_lower.contains("mace"):
@@ -212,6 +227,8 @@ static func build(weapon: WeaponPart) -> Node3D:
 		shaft_mat.albedo_color = Color(0.18, 0.18, 0.2)
 		shaft.material_override = shaft_mat
 		mount.add_child(shaft)
+		# Front face of the mace head.
+		muzzle_local = Vector3(0, 0, -1.09)
 
 	elif w_type == WeaponPart.WeaponType.MELEE or name_lower.contains("blade") or name_lower.contains("sword") or name_lower.contains("katana") or name_lower.contains("knife"):
 		# Heat Blade / Katana with crossguard and glowing thermal edge
@@ -234,6 +251,8 @@ static func build(weapon: WeaponPart) -> Node3D:
 		gmat.albedo_color = Color(0.2, 0.2, 0.22)
 		guard.material_override = gmat
 		mount.add_child(guard)
+		# Point of the blade.
+		muzzle_local = Vector3(0, 0, -1.42)
 
 	# --- 3. RANGED GUNS & RIFLES (Tucked Stock, Forward Barrel) ---
 	elif w_type == WeaponPart.WeaponType.BEAM_RIFLE:
@@ -244,6 +263,8 @@ static func build(weapon: WeaponPart) -> Node3D:
 		mat.albedo_color = Color(0.15, 0.4, 0.7)
 		mat.emission_enabled = true
 		mat.emission = Color(0.2, 0.6, 1.0)
+		# Longest barrel of the rifle family.
+		muzzle_local = Vector3(0, 0.08, -1.56)
 
 	elif w_type == WeaponPart.WeaponType.MACHINE_GUN:
 		var box = BoxMesh.new()
@@ -251,6 +272,7 @@ static func build(weapon: WeaponPart) -> Node3D:
 		mesh_instance.mesh = box
 		mesh_instance.position = Vector3(0.0, 0.08, -0.45)
 		mat.albedo_color = Color(0.3, 0.3, 0.32)
+		muzzle_local = Vector3(0, 0.08, -1.12)
 
 	elif w_type == WeaponPart.WeaponType.SHOTGUN:
 		var box = BoxMesh.new()
@@ -258,6 +280,7 @@ static func build(weapon: WeaponPart) -> Node3D:
 		mesh_instance.mesh = box
 		mesh_instance.position = Vector3(0.0, 0.08, -0.4)
 		mat.albedo_color = Color(0.45, 0.3, 0.15)
+		muzzle_local = Vector3(0, 0.08, -1.02)
 
 	elif w_type == WeaponPart.WeaponType.MISSILE:
 		var box = BoxMesh.new()
@@ -265,6 +288,8 @@ static func build(weapon: WeaponPart) -> Node3D:
 		mesh_instance.mesh = box
 		mesh_instance.position = Vector3(0.0, 0.12, -0.3)
 		mat.albedo_color = Color(0.6, 0.2, 0.1)
+		# Front face of the launcher pod.
+		muzzle_local = Vector3(0, 0.12, -0.79)
 
 	# --- 4. SHIELD (Outer Forearm Guard) ---
 	elif w_type == WeaponPart.WeaponType.SHIELD:
@@ -273,6 +298,7 @@ static func build(weapon: WeaponPart) -> Node3D:
 		mesh_instance.mesh = box
 		mesh_instance.position = Vector3(0.0, 0.15, 0.0)
 		mat.albedo_color = Color(0.2, 0.35, 0.5)
+		muzzle_local = Vector3(0, 0.15, -0.34)
 
 	else:
 		var box = BoxMesh.new()
@@ -280,7 +306,28 @@ static func build(weapon: WeaponPart) -> Node3D:
 		mesh_instance.mesh = box
 		mesh_instance.position = Vector3(0.0, 0.0, -0.55)
 		mat.albedo_color = Color(0.7, 0.7, 0.7)
+		muzzle_local = Vector3(0, 0, -1.27)
 
 	mesh_instance.material_override = mat
 	mount.add_child(mesh_instance)
+
+	# Barrel-tip marker: projectiles, muzzle flashes and jam sparks anchor here.
+	var muzzle := Node3D.new()
+	muzzle.name = "Muzzle"
+	muzzle.position = muzzle_local
+	mount.add_child(muzzle)
 	return mount
+
+
+## Finds the barrel-tip "Muzzle" marker under a mounted weapon model (checks
+## authored custom scenes too). Returns null when the model has none.
+static func find_muzzle_node(root: Node) -> Node3D:
+	if root == null or not is_instance_valid(root):
+		return null
+	if String(root.name).to_lower() == "muzzle":
+		return root as Node3D
+	for child in root.get_children():
+		var found := find_muzzle_node(child)
+		if found != null:
+			return found
+	return null

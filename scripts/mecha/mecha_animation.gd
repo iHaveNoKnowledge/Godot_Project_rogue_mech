@@ -150,6 +150,7 @@ func _run_procedural(delta: float) -> void:
 
 	# Runs LAST so the raised shield arm overrides whatever the base postures
 	# (idle guard, sprint pumping, airborne) set for that arm this frame.
+	_update_aim_arms(delta)
 	_update_shield_arm(delta)
 
 	if foot_ik:
@@ -342,6 +343,95 @@ func _update_recoil(delta: float) -> void:
 		if leg_left and leg_right:
 			leg_left.rotation.x = lerp_angle(leg_left.rotation.x, deg_to_rad(22.0) * landing_impact, 12.0 * delta)
 			leg_right.rotation.x = lerp_angle(leg_right.rotation.x, deg_to_rad(22.0) * landing_impact, 12.0 * delta)
+# ─── Gun-arm aiming pose ───────────────────────────────────────────────────
+# While a hand is FIRING a ranged weapon (or the mech holds the aim stance),
+# that arm straightens and pitches so the gun physically points at
+# MechaCombat.current_aim_point — the same point projectiles are aimed at.
+#
+# The weapon mounts sit rotated -80° about X inside the forearm, so a LEVEL
+# barrel needs arm + forearm rotations summing to 80° (the idle guard's
+# 25° + 55° hits exactly that). Aiming adds the pitch to the target on top:
+#   total = 80° + aim_pitch   (split 72% upper arm / 28% forearm)
+var _aim_raise: float = 0.0
+const AIM_RAISE_SPEED: float = 9.0
+const AIM_LEVEL_TOTAL_DEG: float = 80.0
+const AIM_ARM_SHARE: float = 0.72
+
+func _update_aim_arms(delta: float) -> void:
+	var wm = mecha.get_node_or_null("WeaponManager")
+	if wm == null:
+		_aim_raise = move_toward(_aim_raise, 0.0, AIM_RAISE_SPEED * delta)
+		return
+
+	var left_ranged := _hand_is_ranged_gun(wm, "left")
+	var right_ranged := _hand_is_ranged_gun(wm, "right")
+	var firing_left := bool(wm.get("fire_left_holding"))
+	var firing_right := bool(wm.get("fire_right_holding"))
+	var aiming_stance := false
+	var combat = mecha.get_node_or_null("MechaCombat")
+	if combat:
+		aiming_stance = bool(combat.get("is_aiming"))
+
+	# A two-hand gripped weapon raises BOTH arms as one braced unit.
+	var grip_left := false
+	var grip_right := false
+	if wm.has_method("is_two_hand_gripped_hand"):
+		grip_left = left_ranged and wm.is_two_hand_gripped_hand("left")
+		grip_right = right_ranged and wm.is_two_hand_gripped_hand("right")
+
+	var want_left := left_ranged and (firing_left or grip_right or aiming_stance or grip_left)
+	var want_right := right_ranged and (firing_right or grip_left or aiming_stance or grip_right)
+
+	_aim_raise = move_toward(_aim_raise, 1.0 if (want_left or want_right) else 0.0,
+		AIM_RAISE_SPEED * delta)
+	if _aim_raise <= 0.001:
+		return
+
+	var pitch_deg := _current_aim_pitch_deg()
+	var total_deg := clampf(AIM_LEVEL_TOTAL_DEG + pitch_deg, 15.0, 150.0)
+	var arm_target := deg_to_rad(total_deg * AIM_ARM_SHARE)
+	var forearm_target := deg_to_rad(total_deg * (1.0 - AIM_ARM_SHARE))
+	var blend := _aim_raise
+
+	if want_left and arm_left and forearm_left:
+		arm_left.rotation.x = lerp_angle(arm_left.rotation.x, arm_target, blend)
+		forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, forearm_target, blend)
+	if want_right and arm_right and forearm_right:
+		arm_right.rotation.x = lerp_angle(arm_right.rotation.x, arm_target, blend)
+		forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, forearm_target, blend)
+
+
+# True when the given hand holds a RANGED weapon on an intact arm — melee
+# weapons keep their swing poses, shields keep the guard raise.
+func _hand_is_ranged_gun(wm: Node, hand: String) -> bool:
+	if wm.has_method("_hand_usable") and not wm._hand_usable(hand):
+		return false
+	var w = wm.get("left_hand" if hand == "left" else "right_hand")
+	if w == null:
+		return false
+	return w.weapon_type != WeaponPart.WeaponType.MELEE \
+		and w.weapon_type != WeaponPart.WeaponType.SHIELD
+
+
+# Vertical angle (deg, +up) from the raised shoulder toward the aim point.
+func _current_aim_pitch_deg() -> float:
+	var combat = mecha.get_node_or_null("MechaCombat")
+	if combat == null or not ("current_aim_point" in combat):
+		return 0.0
+	var aim_point: Vector3 = combat.current_aim_point
+	if aim_point == Vector3.ZERO:
+		return 0.0
+	var origin_ref := arm_right if arm_right != null else arm_left
+	var origin: Vector3
+	if origin_ref != null and origin_ref.is_inside_tree():
+		origin = origin_ref.global_position
+	else:
+		origin = mecha.global_position + Vector3(0, 1.4, 0)
+	var to := aim_point - origin
+	var horizontal := sqrt(to.x * to.x + to.z * to.z)
+	return rad_to_deg(atan2(to.y, maxf(horizontal, 0.05)))
+
+
 # Raised-shield guard pose. When a hand is actively holding its shield plate
 # up, that arm lifts in front of the torso (upper arm swung forward, elbow
 # bent hard) so the plate reads as being interposed between the mech and the

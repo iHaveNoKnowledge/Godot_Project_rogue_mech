@@ -524,14 +524,37 @@ func reload_weapon(hand: String) -> void:
 
 
 # Spawns a small spark + smoke burst at the weapon barrel when reload fails.
-# The offset mirrors the hand mount position used by _update_weapon_visuals.
+# Anchored at the mounted model's Muzzle marker when available (mirrors the
+# fire path), falling back to the legacy hand mount offset.
 func _spawn_jam_effect(hand: String) -> void:
 	var mecha = get_parent()
 	if mecha == null:
 		return
-	var offset := Vector3(-0.6, 1.5, 0.5) if hand == "left" else Vector3(0.6, 1.5, 0.5)
-	var jam_pos: Vector3 = mecha.global_position + mecha.global_transform.basis * offset + Vector3(0, 0.3, 0)
+	var jam_pos := _get_muzzle_world_pos(hand)
+	if jam_pos == Vector3.INF:
+		var offset := Vector3(-0.6, 1.5, 0.5) if hand == "left" else Vector3(0.6, 1.5, 0.5)
+		jam_pos = mecha.global_position + mecha.global_transform.basis * offset + Vector3(0, 0.3, 0)
 	EffectManager.spawn_jam_sparks(jam_pos)
+
+
+# World-space position of the weapon model's barrel-tip Muzzle marker for a
+# hand. The marker is placed per weapon type by WeaponVisualFactory.build(), so
+# every model fires from its own muzzle. Returns Vector3.INF when nothing is
+# mounted there (bare fist / destroyed arm) and callers fall back to hip offsets.
+func _get_muzzle_world_pos(hand: String) -> Vector3:
+	var mecha = get_parent() as Node3D
+	if mecha == null or not mecha.is_inside_tree():
+		return Vector3.INF
+	var side := "Left" if hand == "left" else "Right"
+	var mount := mecha.get_node_or_null("Arm%s/Forearm%s/WeaponMesh_%s" % [side, side, hand])
+	if mount == null or not is_instance_valid(mount):
+		mount = mecha.get_node_or_null("WeaponMesh_" + hand)  # legacy root mount
+	if mount == null or not is_instance_valid(mount):
+		return Vector3.INF
+	var muzzle := WeaponVisualFactory.find_muzzle_node(mount)
+	if muzzle == null or not is_instance_valid(muzzle):
+		return Vector3.INF
+	return muzzle.global_position
 
 
 # ====================================================================
@@ -885,7 +908,11 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 		mecha.rotation.y = atan2(-cam_fwd.x, -cam_fwd.z)
 
 	var offset = Vector3(-0.65, 1.4, -1.1) if hand == "left" else Vector3(0.65, 1.4, -1.1)
-	var spawn_pos = mecha.global_position + mecha.global_transform.basis * offset
+	# Fire from the mounted weapon model's actual barrel tip (per-model Muzzle
+	# marker); the legacy hip offset is only a fallback when nothing is mounted.
+	var spawn_pos = _get_muzzle_world_pos(hand)
+	if spawn_pos == Vector3.INF:
+		spawn_pos = mecha.global_position + mecha.global_transform.basis * offset
 
 	var viewport_size = get_viewport().get_visible_rect().size
 	var center = viewport_size / 2.0

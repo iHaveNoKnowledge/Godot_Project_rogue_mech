@@ -11,12 +11,13 @@ var _reachable_glow: MeshInstance3D = null
 var _event_beacon: Node = null
 var _enemy_base_model: Node = null
 var _poi_node: Node3D = null
+var _fog_mesh: MeshInstance3D = null
 
 ## Per-terrain ground texture packs (CC0 from ambientCG), keyed by terrain name.
-## Each folder holds albedo.jpg / normal.jpg / roughness.jpg; terrains without a
-## folder fall back to the flat palette color.
 const TEXTURE_ROOT := "res://resources/textures/"
 static var _texture_cache: Dictionary = {}
+static var _terrain_shader: Shader = preload("res://shaders/board_terrain_tile.gdshader")
+static var _fog_shader: Shader = preload("res://shaders/board_fog_of_war.gdshader")
 
 
 func _ready() -> void:
@@ -26,12 +27,20 @@ func _ready() -> void:
 	terrain = get_meta("terrain", "plain")
 	connections = get_meta("connections", [])
 
-	if tile_type in ["start", "exit", "safehouse", "data_node", "enemy_base", "city", "bait", "fuel_depot", "supply_truck", "wreckage", "research_lab", "dust_storm", "tactical_smog", "emp_zone", "distress_signal", "scavenge_site", "convoy_ambush", "convoy_breakdown", "unknown_signal"]:
+	# Start and exit tiles are always revealed; all other tiles start shrouded in Fog of War.
+	if tile_type in ["start", "exit"]:
 		is_revealed = true
+	else:
+		is_revealed = false
+
 	_add_terrain_props()
 	_add_poi_visual()
 	if tile_type in ["event", "data_node", "bait", "unknown_signal"]:
 		_event_beacon = _make_beacon()
+
+	if not is_revealed:
+		_create_fog_mesh()
+
 	_update_visual()
 
 
@@ -40,49 +49,90 @@ func create_path_visuals(_nodes_dict: Dictionary) -> void:
 	pass
 
 
-func reveal() -> void:
+func reveal(animated: bool = true) -> void:
+	if is_revealed:
+		return
 	is_revealed = true
+	if _fog_mesh != null and is_instance_valid(_fog_mesh):
+		if animated:
+			var mat = _fog_mesh.get_surface_override_material(0)
+			if mat is ShaderMaterial:
+				var tween := create_tween()
+				tween.tween_property(mat, "shader_parameter/dissolve_progress", 1.0, 0.65).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+				tween.tween_callback(func():
+					if _fog_mesh and is_instance_valid(_fog_mesh):
+						_fog_mesh.queue_free()
+						_fog_mesh = null
+				)
+			else:
+				_fog_mesh.queue_free()
+				_fog_mesh = null
+		else:
+			_fog_mesh.queue_free()
+			_fog_mesh = null
+
 	_update_visual()
+
+	# Pop-in revealed POI/beacons
+	if animated:
+		if _poi_node:
+			_poi_node.scale = Vector3.ZERO
+			_poi_node.visible = true
+			var t := create_tween()
+			t.tween_property(_poi_node, "scale", Vector3.ONE, 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		if _event_beacon:
+			_event_beacon.scale = Vector3.ZERO
+			_event_beacon.visible = true
+			var t := create_tween()
+			t.tween_property(_event_beacon, "scale", Vector3.ONE, 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+func _create_fog_mesh() -> void:
+	if _fog_mesh != null:
+		return
+	_fog_mesh = MeshInstance3D.new()
+	_fog_mesh.name = "FogOfWarMesh"
+	var box := BoxMesh.new()
+	box.size = Vector3(4.0, 1.4, 4.0)
+	_fog_mesh.mesh = box
+	var smat := ShaderMaterial.new()
+	smat.shader = _fog_shader
+	smat.set_shader_parameter("fog_color", Color(0.06, 0.08, 0.12, 0.95))
+	smat.set_shader_parameter("fog_edge_color", Color(0.14, 0.20, 0.30, 0.98))
+	smat.set_shader_parameter("dissolve_burn_color", Color(0.3, 0.85, 1.0, 1.0))
+	smat.set_shader_parameter("dissolve_progress", 0.0)
+	smat.set_shader_parameter("animation_speed", 0.4)
+	smat.set_shader_parameter("noise_scale", 5.5)
+	_fog_mesh.set_surface_override_material(0, smat)
+	_fog_mesh.position = Vector3(0, 0.7, 0)
+	add_child(_fog_mesh)
 
 
 func _update_visual() -> void:
 	var mesh_instance = get_node_or_null("MeshInstance3D")
 	if mesh_instance == null:
 		return
-	var material = StandardMaterial3D.new()
 
-	# The floor tile shows its natural terrain look matching the sector theme
-	# (desert, forest, suburb, urban). When a PBR texture pack exists for the
-	# terrain (resources/textures/<terrain>/) it is applied on top; otherwise
-	# the tile falls back to the flat harmonious palette color.
+	# Apply the custom organic terrain blending shader (no more sharp square cut lines)
+	var smat := ShaderMaterial.new()
+	smat.shader = _terrain_shader
+
 	var color := _terrain_color(terrain)
-	if not is_revealed:
-		# Fog of war: dimmed terrain for unexplored cells.
-		color = color.darkened(0.35)
-		color.a = 0.9
+	smat.set_shader_parameter("base_color", color)
+	smat.set_shader_parameter("edge_feather", 0.22)
+	smat.set_shader_parameter("noise_blend_strength", 0.48)
+	smat.set_shader_parameter("highlight_intensity", 1.0 if is_highlighted else 0.0)
+	smat.set_shader_parameter("highlight_color", Color(0.25, 0.75, 1.0, 1.0))
 
 	var albedo_tex := _cached_texture(terrain, "albedo")
 	if albedo_tex != null:
-		material.albedo_texture = albedo_tex
-		# Textures carry their own full-color look; tint white so they read
-		# naturally. Unrevealed tiles get a GENTLE dim (lerp toward white)
-		# instead of the darkened palette color — multiplying a photo texture
-		# by a dark tint goes near-black and hides the ground entirely.
-		material.albedo_color = Color.WHITE if is_revealed else color.lerp(Color.WHITE, 0.55)
-		material.normal_enabled = true
-		material.normal_texture = _cached_texture(terrain, "normal")
-		var rough_tex := _cached_texture(terrain, "roughness")
-		if rough_tex != null:
-			material.roughness_texture = rough_tex
-			material.roughness = 1.0
-		else:
-			material.roughness = 0.85
-		# Tiles are 4x4 units; two repeats keep texture density believable.
-		material.uv1_scale = Vector3(2.0, 2.0, 2.0)
-	else:
-		material.albedo_color = color
-		material.roughness = 0.85
-	mesh_instance.set_surface_override_material(0, material)
+		smat.set_shader_parameter("albedo_tex", albedo_tex)
+		smat.set_shader_parameter("normal_tex", _cached_texture(terrain, "normal"))
+		smat.set_shader_parameter("roughness_tex", _cached_texture(terrain, "roughness"))
+		smat.set_shader_parameter("roughness_scale", 0.85)
+		smat.set_shader_parameter("uv_scale", 2.0)
+
+	mesh_instance.set_surface_override_material(0, smat)
 
 	# Content POI models and beacons stay hidden under fog of war until revealed.
 	if _poi_node != null:

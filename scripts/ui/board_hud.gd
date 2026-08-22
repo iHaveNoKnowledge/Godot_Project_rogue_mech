@@ -22,6 +22,9 @@ var _convoy_hp_bar: ProgressBar
 var _convoy_reserve_label: Label
 var _backup_count_label: Label
 var _quick_fuel_btn: Button
+var _credits_label: Label
+var _scrap_label: Label
+var _cores_label: Label
 
 var _panel: Control:
 	get:
@@ -188,6 +191,34 @@ func _build_top_bar() -> void:
 	_convoy_reserve_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 	c_vbox.add_child(_convoy_reserve_label)
 	_top_bar.add_child(convoy_panel)
+
+	# --- Resources / Finances Panel ---
+	var res_panel = _make_panel(210, 60)
+	var r_vbox = VBoxContainer.new()
+	r_vbox.add_theme_constant_override("separation", 2)
+	res_panel.add_child(r_vbox)
+
+	var r_header = HBoxContainer.new()
+	_credits_label = Label.new()
+	_credits_label.text = "¢ 0"
+	_credits_label.add_theme_font_size_override("font_size", 13)
+	_credits_label.add_theme_color_override("font_color", Color(1.0, 0.86, 0.2))
+	_credits_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	r_header.add_child(_credits_label)
+
+	_scrap_label = Label.new()
+	_scrap_label.text = "⚙ 0"
+	_scrap_label.add_theme_font_size_override("font_size", 13)
+	_scrap_label.add_theme_color_override("font_color", Color(0.35, 0.9, 0.8))
+	r_header.add_child(_scrap_label)
+	r_vbox.add_child(r_header)
+
+	_cores_label = Label.new()
+	_cores_label.text = "💾 DATA CORES: 0"
+	_cores_label.add_theme_font_size_override("font_size", 10)
+	_cores_label.add_theme_color_override("font_color", Color(0.85, 0.45, 1.0))
+	r_vbox.add_child(_cores_label)
+	_top_bar.add_child(res_panel)
 
 	# --- Quick Actions ---
 	var actions_panel = _make_panel(140, 60)
@@ -492,6 +523,14 @@ func _refresh() -> void:
 	]
 	var backups := GlobalData.hangar.hangar_mechs.size() - 1 if GlobalData.hangar.hangar_mechs.size() > 1 else 0
 	_backup_count_label.text = "RESERVE: %d" % backups
+
+	# Resources / Finances
+	if _credits_label:
+		_credits_label.text = "¢ %s CREDITS" % str(GlobalData.currency.credits)
+	if _scrap_label:
+		_scrap_label.text = "⚙ %s SCRAP" % str(GlobalData.currency.scrap)
+	if _cores_label:
+		_cores_label.text = "💾 DATA CORES: %s" % str(GlobalData.currency.data_cores)
 
 	# MP & Threat Radar
 	var mp := maxi(GlobalData.board.board_mp, 0)

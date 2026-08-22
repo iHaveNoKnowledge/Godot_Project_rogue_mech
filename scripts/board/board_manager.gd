@@ -727,14 +727,16 @@ func _announce_objective_done() -> void:
 # ---------------------------------------------------------------------------
 
 func _reveal_around(center: Vector2i) -> int:
+	var mode: String = GlobalData.fuel.traversal_mode
+	var radius: int = 3 if mode == "pilot" else 2
 	var newly := 0
-	for k in _tiles_in_radius(center, 1):
+	for k in _tiles_in_radius(center, radius):
 		var tile = nodes_dict.get(k)
 		if tile == null or tile.is_revealed:
 			continue
 		if _reveal_log.has(k):
 			continue
-		tile.reveal()
+		tile.reveal(true)
 		_reveal_log[k] = true
 		newly += 1
 	return newly

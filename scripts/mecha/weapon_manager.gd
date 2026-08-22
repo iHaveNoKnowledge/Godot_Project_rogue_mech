@@ -1288,10 +1288,11 @@ func _check_melee_hit(mecha: Node3D, direction: Vector3, damage: float, weapon: 
 		elif enemy.has_method("take_damage"):
 			enemy.take_damage(damage, melee_type)
 		melee_hit_landed.emit()
-		var rigs = get_tree().get_nodes_in_group("camera_rig")
-		if not rigs.is_empty() and rigs[0].has_method("add_shake"):
-			var impact_shake: float = clampf(0.12 + damage * 0.003, 0.15, 0.45)
-			rigs[0].add_shake(impact_shake)
+		# NOTE: the camera kick for a melee swing lives ONCE in
+		# _perform_pile_bunker_lunge_anim (punch-scaled per weapon: fist 0.11,
+		# knife 0.15, blade 0.20, pile 0.35). Do NOT add a second impact shake
+		# here — the old double-dip made every connected hit shake twice as
+		# hard as tuned (a bare fist landed a heavy 0.26 instead of a light tap).
 		if weapon != null and weapon.weapon_name.to_lower().contains("pile"):
 			_apply_pile_hitstop()
 		if weapon != null and weapon.impact > 0.0 and enemy.has_method("apply_impact"):

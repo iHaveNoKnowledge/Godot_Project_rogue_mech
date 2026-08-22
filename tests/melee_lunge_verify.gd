@@ -263,6 +263,13 @@ func _process(_delta: float) -> void:
 
 
 func _build_scene() -> void:
+	# The EffectManager singleton must be live for melee trails (and hit
+	# damage numbers) to spawn at all — spawn_melee_trail() early-returns
+	# without it, which silently left every trail-color check reading WHITE.
+	var fx := EffectManager.new()
+	fx.name = "EffectManager"
+	add_child(fx)
+
 	_mecha = CharacterBody3D.new()
 	_mecha.name = "Mecha"
 	_mecha.collision_layer = 1
@@ -279,8 +286,8 @@ func _build_scene() -> void:
 	_cam = Camera3D.new()
 	_cam.current = true
 	_cam.position = Vector3(0, 1.8, 6.0)
+	add_child(_cam)  # must be in the tree before look_at() is legal
 	_cam.look_at(Vector3(0, 1.5, -3.0))
-	add_child(_cam)
 
 	_enemy = CharacterBody3D.new()
 	_enemy.set_script(preload("res://tests/melee_dummy_target.gd"))

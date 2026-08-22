@@ -60,12 +60,10 @@ func generate_shaders():
 
 
 func subscirbe_shader_stage(shader_stage: ShaderStageResource):
-	if all_shader_stages.has(shader_stage):
+	if shader_stage == null:
 		return
-	
 	all_shader_stages[shader_stage] = 1
-	
-	if rd:
+	if rd and (!shader_stage.shader.is_valid() or !shader_stage.pipeline.is_valid()):
 		generate_shader_stage(shader_stage)
 
 func unsubscribe_shader_stage(shader_stage: ShaderStageResource):
@@ -105,12 +103,18 @@ func _initialize_compute():
 
 
 func generate_shader_stage(shader_stage: ShaderStageResource):
+	if shader_stage == null or shader_stage.shader_file == null or rd == null:
+		return
 	var shader_spirv: RDShaderSPIRV
 	if debug:
 		var file = FileAccess.open(shader_stage.shader_file.resource_path, FileAccess.READ)
+		if file == null:
+			return
 		var split_shader: PackedStringArray = file.get_as_text().split("#[compute]", true, 1)
 		var content: String = split_shader[min(1, split_shader.size() - 1)]
 		var all_split_parts: PackedStringArray = content.split("#version 450", true, 1)
+		if all_split_parts.size() < 2:
+			return
 		content = str(all_split_parts[0],
 		"#version 450
 #define DEBUG
@@ -126,12 +130,14 @@ layout(rgba16f, set = 0, binding = 17) uniform image2D debug_8_image;",
 		var shader_source: RDShaderSource = RDShaderSource.new()
 		shader_source.set_stage_source(RenderingDevice.SHADER_STAGE_COMPUTE, content)
 		shader_spirv = rd.shader_compile_spirv_from_source(shader_source, false)
-		print(content)
 	else:
 		shader_spirv = shader_stage.shader_file.get_spirv()
 	
+	if shader_spirv == null:
+		return
 	shader_stage.shader = rd.shader_create_from_spirv(shader_spirv)
-	shader_stage.pipeline = rd.compute_pipeline_create(shader_stage.shader)
+	if shader_stage.shader.is_valid():
+		shader_stage.pipeline = rd.compute_pipeline_create(shader_stage.shader)
 
 func _render_callback(p_effect_callback_type, p_render_data):
 	if !rd:
@@ -234,10 +240,10 @@ func dispatch_stage(stage: ShaderStageResource, uniforms: Array[RDUniform], push
 	if stage == null or rd == null:
 		return
 
-	if (!stage.shader.is_valid()):
+	if not stage.shader.is_valid() or not stage.pipeline.is_valid():
 		subscirbe_shader_stage(stage)
 
-	if (!stage.shader.is_valid() or !stage.pipeline.is_valid()):
+	if not stage.shader.is_valid() or not stage.pipeline.is_valid():
 		return
 
 	# Validate all uniform RIDs to prevent C++ null RID assertion in UniformSetCacheRD!

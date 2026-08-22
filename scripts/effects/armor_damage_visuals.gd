@@ -38,33 +38,38 @@ func _setup_mesh_overlays() -> void:
 	if mecha_root == null:
 		return
 
-	# Collect and bind for standard slots
+	# 1. Connect to PartMeshManager if present
+	var pmm = mecha_root.get_node_or_null("PartMeshManager")
+	if pmm and "slot_meshes" in pmm:
+		for slot in pmm.slot_meshes:
+			var data: Dictionary = pmm.slot_meshes[slot]
+			var upper_armor: Node3D = data.get("armor")
+			var lower_armor: Node3D = data.get("armor_lower")
+			if upper_armor:
+				register_slot_container(slot, upper_armor)
+			if lower_armor:
+				register_slot_container(slot, lower_armor)
+
+	# 2. Collect and bind for standard mecha_base.tscn nodes as well
 	var slot_node_map := {
-		"head": ["Head", "Head/HeadMesh", "Head/Visor"],
-		"body": ["Body", "Body/BodyMesh", "Body/ChestPlate", "Body/Backpack"],
-		"arm_left": ["ArmLeft", "ArmLeft/ShoulderLeft", "ArmLeft/UpperArmLeft", "ArmLeft/ForearmLeft", "ArmLeft/ForearmLeft/ArmLeftMesh"],
-		"arm_right": ["ArmRight", "ArmRight/ShoulderRight", "ArmRight/UpperArmRight", "ArmRight/ForearmRight", "ArmRight/ForearmRight/ArmRightMesh"],
-		"leg_left": ["LegLeft", "LegLeft/ThighLeft", "LegLeft/ShinLeft", "LegLeft/ShinLeft/LegLeftMesh", "LegLeft/ShinLeft/KneeLeft", "LegLeft/ShinLeft/FootLeft"],
-		"leg_right": ["LegRight", "LegRight/ThighRight", "LegRight/ShinRight", "LegRight/ShinRight/LegRightMesh", "LegRight/ShinRight/KneeRight", "LegRight/ShinRight/FootRight"],
+		"head": ["Head"],
+		"body": ["Body"],
+		"arm_left": ["ArmLeft"],
+		"arm_right": ["ArmRight"],
+		"leg_left": ["LegLeft"],
+		"leg_right": ["LegRight"],
 	}
 
 	for slot in slot_node_map:
-		var meshes: Array[MeshInstance3D] = []
 		for path in slot_node_map[slot]:
 			var node = mecha_root.get_node_or_null(path)
-			if node is MeshInstance3D:
-				meshes.append(node)
-			elif node is Node3D:
-				for child in node.get_children():
-					if child is MeshInstance3D and not meshes.has(child):
-						meshes.append(child)
-
-		if not meshes.is_empty():
-			_register_slot_meshes(slot, meshes)
+			if node:
+				register_slot_container(slot, node)
 
 
-func _register_slot_meshes(slot: String, meshes: Array[MeshInstance3D]) -> void:
-	# Create a dedicated ShaderMaterial instance with a randomized noise seed
+func _get_or_create_slot_mat(slot: String) -> ShaderMaterial:
+	if _slot_overlays.has(slot):
+		return _slot_overlays[slot].get("material")
 	var mat := ShaderMaterial.new()
 	mat.shader = DAMAGE_SHADER
 	var random_seed := Vector3(
@@ -74,15 +79,35 @@ func _register_slot_meshes(slot: String, meshes: Array[MeshInstance3D]) -> void:
 	)
 	mat.set_shader_parameter("noise_offset", random_seed)
 	mat.set_shader_parameter("damage_amount", 0.0)
+	_slot_overlays[slot] = {
+		"material": mat,
+		"meshes": [] as Array[MeshInstance3D],
+	}
+	return mat
 
+
+func register_slot_container(slot: String, container: Node) -> void:
+	if container == null or not is_instance_valid(container):
+		return
+	var mat := _get_or_create_slot_mat(slot)
+	var entry: Dictionary = _slot_overlays[slot]
+	var mesh_list: Array = entry.get("meshes", [])
+
+	var meshes: Array[MeshInstance3D] = []
+	_gather_meshes_recursive(container, meshes)
 	for mesh in meshes:
 		if is_instance_valid(mesh):
 			mesh.material_overlay = mat
+			if not mesh_list.has(mesh):
+				mesh_list.append(mesh)
 
-	_slot_overlays[slot] = {
-		"material": mat,
-		"meshes": meshes,
-	}
+
+func _gather_meshes_recursive(node: Node, out_meshes: Array[MeshInstance3D]) -> void:
+	if node is MeshInstance3D:
+		if not out_meshes.has(node):
+			out_meshes.append(node)
+	for child in node.get_children():
+		_gather_meshes_recursive(child, out_meshes)
 
 
 func update_slot_damage(slot: String, damage_ratio: float) -> void:
@@ -103,11 +128,8 @@ func _on_health_changed(slot_name: String, _layer: String, current_hp: float, ma
 func bind_custom_mesh(slot: String, mesh_node: MeshInstance3D) -> void:
 	if mesh_node == null:
 		return
-	if not _slot_overlays.has(slot):
-		_register_slot_meshes(slot, [mesh_node])
-	else:
-		var mat: ShaderMaterial = _slot_overlays[slot].get("material")
-		mesh_node.material_overlay = mat
-		var mesh_list: Array = _slot_overlays[slot].get("meshes", [])
-		if not mesh_list.has(mesh_node):
-			mesh_list.append(mesh_node)
+	var mat := _get_or_create_slot_mat(slot)
+	mesh_node.material_overlay = mat
+	var mesh_list: Array = _slot_overlays[slot].get("meshes", [])
+	if not mesh_list.has(mesh_node):
+		mesh_list.append(mesh_node)

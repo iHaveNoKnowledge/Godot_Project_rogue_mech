@@ -148,6 +148,11 @@ reload={
 3d_physics/layer_4="Projectile"
 3d_physics/layer_5="Pilot"
 
+[gui]
+
+theme/custom="res://resources/theme/main_theme.tres"
+theme/custom_font="res://resources/fonts/ChakraPetch-Regular.ttf"
+
 [rendering]
 
 anti_aliasing/quality/msaa_3d=2

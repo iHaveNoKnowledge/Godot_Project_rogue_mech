@@ -1,0 +1,30 @@
+[gd_resource type="Theme" format=3 uid="uid://jwpfh180kcmre"]
+
+[ext_resource type="FontFile" uid="uid://qh3s38a73qhu" path="res://resources/fonts/ChakraPetch-Regular.ttf" id="1_regular"]
+[ext_resource type="FontFile" uid="uid://bg0anstdhbb68" path="res://resources/fonts/ChakraPetch-Bold.ttf" id="2_bold"]
+[ext_resource type="FontFile" uid="uid://dxwnm8qdp0tmv" path="res://resources/fonts/ChakraPetch-SemiBold.ttf" id="3_semibold"]
+[ext_resource type="FontFile" uid="uid://c12qncewlpe2v" path="res://resources/fonts/ChakraPetch-Medium.ttf" id="4_medium"]
+[ext_resource type="FontFile" uid="uid://cdgouqy1dek4c" path="res://resources/fonts/ChakraPetch-Light.ttf" id="5_light"]
+[ext_resource type="FontFile" uid="uid://bltxr6crceyo8" path="res://resources/fonts/ChakraPetch-Italic.ttf" id="6_italic"]
+[ext_resource type="FontFile" uid="uid://vc3seigu7gwv" path="res://resources/fonts/ChakraPetch-BoldItalic.ttf" id="7_bolditalic"]
+[ext_resource type="FontFile" uid="uid://bv8soykgtnoxy" path="res://resources/fonts/ChakraPetch-MediumItalic.ttf" id="8_mediumitalic"]
+[ext_resource type="FontFile" uid="uid://c16u3s0e7pgti" path="res://resources/fonts/ChakraPetch-LightItalic.ttf" id="9_lightitalic"]
+[ext_resource type="FontFile" uid="uid://cggvtp3f5530p" path="res://resources/fonts/ChakraPetch-SemiBoldItalic.ttf" id="10_semibolditalic"]
+
+[resource]
+default_font = ExtResource("1_regular")
+default_font_size = 16
+; Convenience aliases - access via preload("res://resources/theme/main_theme.tres")
+ChakraPetch/fonts/regular = ExtResource("1_regular")
+ChakraPetch/fonts/bold = ExtResource("2_bold")
+ChakraPetch/fonts/semibold = ExtResource("3_semibold")
+ChakraPetch/fonts/medium = ExtResource("4_medium")
+ChakraPetch/fonts/light = ExtResource("5_light")
+ChakraPetch/fonts/italic = ExtResource("6_italic")
+ChakraPetch/fonts/bold_italic = ExtResource("7_bolditalic")
+ChakraPetch/fonts/medium_italic = ExtResource("8_mediumitalic")
+ChakraPetch/fonts/light_italic = ExtResource("9_lightitalic")
+ChakraPetch/fonts/semibold_italic = ExtResource("10_semibolditalic")
+; Standard Control overrides (minimal - colors not overridden)
+Button/fonts/font = ExtResource("3_semibold")
+Label/fonts/font = ExtResource("1_regular")

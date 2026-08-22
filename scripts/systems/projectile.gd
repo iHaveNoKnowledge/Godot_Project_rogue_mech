@@ -33,6 +33,25 @@ func get_damage() -> float:
 	return damage
 
 
+static var _cached_targets_enemy_shots: Array = []
+static var _cached_targets_player_shots: Array = []
+static var _last_target_cache_frame: int = -1
+
+static func _refresh_target_cache(tree: SceneTree) -> void:
+	var cur_frame := Engine.get_physics_frames()
+	if cur_frame == _last_target_cache_frame:
+		return
+	_last_target_cache_frame = cur_frame
+
+	_cached_targets_enemy_shots.clear()
+	_cached_targets_enemy_shots.append_array(tree.get_nodes_in_group("mecha"))
+	_cached_targets_enemy_shots.append_array(tree.get_nodes_in_group("ally"))
+	_cached_targets_enemy_shots.append_array(tree.get_nodes_in_group("pilot"))
+
+	_cached_targets_player_shots.clear()
+	_cached_targets_player_shots.append_array(tree.get_nodes_in_group("enemy"))
+
+
 func _physics_process(delta: float) -> void:
 	timer += delta
 	if timer >= lifetime:
@@ -52,15 +71,13 @@ func _physics_process(delta: float) -> void:
 	# Check for obstacle (cover) collision using raycast between frames
 	_check_obstacle_collision()
 
+	var tree := get_tree()
+	if tree == null:
+		return
+	_refresh_target_cache(tree)
+
 	if fired_by_enemy:
-		# Enemy projectile -> check for player mecha, fielded allies, and the
-		# player pilot on foot (dismounted pilots are shootable — same rule as
-		# the enemy pilots, so no pilot can hide forever on foot).
-		var targets: Array = []
-		targets.append_array(get_tree().get_nodes_in_group("mecha"))
-		targets.append_array(get_tree().get_nodes_in_group("ally"))
-		targets.append_array(get_tree().get_nodes_in_group("pilot"))
-		for mecha in targets:
+		for mecha in _cached_targets_enemy_shots:
 			if not is_instance_valid(mecha):
 				continue
 			var dist = global_position.distance_to(mecha.global_position + Vector3(0, 1.5, 0))
@@ -68,11 +85,7 @@ func _physics_process(delta: float) -> void:
 				_hit_target(mecha)
 				return
 	else:
-		# Player projectile -> check for enemies (mechs AND ejected enemy pilots:
-		# the pilot is in the "enemy" group and has take_damage, so a fleeing
-		# pilot can be shot down instead of always getting away).
-		var enemies = get_tree().get_nodes_in_group("enemy")
-		for enemy in enemies:
+		for enemy in _cached_targets_player_shots:
 			if not is_instance_valid(enemy):
 				continue
 			var dist = global_position.distance_to(enemy.global_position + Vector3(0, 1.5, 0))
@@ -92,7 +105,7 @@ func _physics_process(delta: float) -> void:
 		return
 
 	trail_timer += delta
-	if trail_timer >= 0.03:
+	if trail_timer >= 0.07:
 		trail_timer = 0.0
 		_spawn_trail()
 		if sonic_boom:

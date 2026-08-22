@@ -251,51 +251,76 @@ func is_overheated() -> bool:
 	return overheated
 
 
+const PROJ_SCRIPT = preload("res://scripts/systems/projectile.gd")
+
+static var _cached_shapes: Dictionary = {}
+static var _cached_meshes: Dictionary = {}
+static var _cached_materials: Dictionary = {}
+
+static func _get_cached_shape() -> SphereShape3D:
+	if not _cached_shapes.has("sphere"):
+		var shape := SphereShape3D.new()
+		shape.radius = 0.1
+		_cached_shapes["sphere"] = shape
+	return _cached_shapes["sphere"]
+
+static func _get_cached_mesh(style: int) -> Mesh:
+	if _cached_meshes.has(style):
+		return _cached_meshes[style]
+	var m: Mesh
+	match style:
+		Style.MISSILE:
+			var box := BoxMesh.new()
+			box.size = Vector3(0.1, 0.1, 0.4)
+			m = box
+		Style.SHOTGUN:
+			var pellet := CapsuleMesh.new()
+			pellet.radius = 0.02
+			pellet.height = 0.15
+			m = pellet
+		Style.ORB:
+			var orb := SphereMesh.new()
+			orb.radius = 0.15
+			orb.height = 0.3
+			m = orb
+		_:  # BULLET
+			var capsule := CapsuleMesh.new()
+			capsule.radius = 0.03
+			capsule.height = 0.25
+			m = capsule
+	_cached_meshes[style] = m
+	return m
+
+static func _get_cached_material(color: Color) -> StandardMaterial3D:
+	var key: int = color.to_rgba32()
+	if _cached_materials.has(key):
+		return _cached_materials[key]
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.emission_enabled = true
+	mat.emission = color
+	mat.emission_energy_multiplier = 2.0
+	_cached_materials[key] = mat
+	return mat
+
+
 # --- Projectile spawning (shared with the player's WeaponManager) ---
 func _spawn_projectile(from_pos: Vector3, aim_dir: Vector3, fired_by_enemy: bool, owner: Node) -> void:
 	if owner == null or not owner.is_inside_tree() or owner.get_tree().current_scene == null:
 		return
 
-	var proj_script := load("res://scripts/systems/projectile.gd")
 	var projectile := CharacterBody3D.new()
-	projectile.set_script(proj_script)
+	projectile.set_script(PROJ_SCRIPT)
 	projectile.collision_layer = 0
 	projectile.collision_mask = 0
 
 	var collision := CollisionShape3D.new()
-	var shape := SphereShape3D.new()
-	shape.radius = 0.1
-	collision.shape = shape
+	collision.shape = _get_cached_shape()
 	projectile.add_child(collision)
 
 	var mesh := MeshInstance3D.new()
-	match projectile_style:
-		Style.MISSILE:
-			var box := BoxMesh.new()
-			box.size = Vector3(0.1, 0.1, 0.4)
-			mesh.mesh = box
-		Style.SHOTGUN:
-			var pellet := CapsuleMesh.new()
-			pellet.radius = 0.02
-			pellet.height = 0.15
-			mesh.mesh = pellet
-		Style.ORB:
-			var orb := SphereMesh.new()
-			orb.radius = 0.15
-			orb.height = 0.3
-			mesh.mesh = orb
-		_:  # BULLET
-			var capsule := CapsuleMesh.new()
-			capsule.radius = 0.03
-			capsule.height = 0.25
-			mesh.mesh = capsule
-
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = projectile_color
-	mat.emission_enabled = true
-	mat.emission = projectile_color
-	mat.emission_energy_multiplier = 2.0
-	mesh.material_override = mat
+	mesh.mesh = _get_cached_mesh(projectile_style)
+	mesh.material_override = _get_cached_material(projectile_color)
 	projectile.add_child(mesh)
 
 	owner.get_tree().current_scene.add_child(projectile)

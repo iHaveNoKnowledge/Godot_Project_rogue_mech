@@ -180,6 +180,39 @@ static func spawn_muzzle_flash(position: Vector3, direction: Vector3, color: Col
 	p_tween.tween_callback(flash_particles.queue_free)
 
 
+static var _active_hit_lights: int = 0
+static var _cached_quad_mesh: QuadMesh = null
+static var _cached_spark_mesh: BoxMesh = null
+static var _cached_hit_mats: Dictionary = {}
+
+static func _get_cached_quad() -> QuadMesh:
+	if _cached_quad_mesh == null:
+		_cached_quad_mesh = QuadMesh.new()
+		_cached_quad_mesh.size = Vector2(0.2, 0.2)
+	return _cached_quad_mesh
+
+static func _get_cached_spark_box() -> BoxMesh:
+	if _cached_spark_mesh == null:
+		_cached_spark_mesh = BoxMesh.new()
+		_cached_spark_mesh.size = Vector3(0.04, 0.04, 0.18)
+	return _cached_spark_mesh
+
+static func _get_cached_hit_material(flash_color: Color) -> StandardMaterial3D:
+	var key := flash_color.to_rgba32()
+	if _cached_hit_mats.has(key):
+		return _cached_hit_mats[key]
+	var mat := StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mat.albedo_color = Color(1.0, 1.0, 1.0, 0.95)
+	mat.emission_enabled = true
+	mat.emission = flash_color
+	mat.emission_energy_multiplier = 6.0
+	_cached_hit_mats[key] = mat
+	return mat
+
+
 ## Spawns dynamic, brilliant directional hit sparks, ricochet ember streaks, and a micro-flash light
 ## at the point of impact.
 static func spawn_hit_spark(position: Vector3, normal: Vector3 = Vector3.UP, damage_type: String = "kinetic") -> void:
@@ -205,72 +238,52 @@ static func spawn_hit_spark(position: Vector3, normal: Vector3 = Vector3.UP, dam
 		emission_color = Color(1.0, 0.9, 0.6)
 		flash_color = Color(1.0, 0.95, 0.85)
 
-	# 1. Micro Point Light Flash at impact (illuminates local armor for 0.06s)
-	var light := OmniLight3D.new()
-	light.light_color = flash_color
-	light.light_energy = 4.5
-	light.omni_range = 4.0
-	light.omni_attenuation = 2.0
-	instance.add_child(light)
-	light.global_position = position + norm * 0.1
+	# 1. Micro Point Light Flash at impact (Throttled to max 2 concurrent lights to eliminate GPU hitching)
+	if _active_hit_lights < 2:
+		_active_hit_lights += 1
+		var light := OmniLight3D.new()
+		light.light_color = flash_color
+		light.light_energy = 3.5
+		light.omni_range = 3.5
+		light.omni_attenuation = 2.0
+		instance.add_child(light)
+		light.global_position = position + norm * 0.1
 
-	var lt := instance.create_tween()
-	lt.tween_property(light, "light_energy", 0.0, 0.06)
-	lt.tween_callback(light.queue_free)
+		var lt := instance.create_tween()
+		lt.tween_property(light, "light_energy", 0.0, 0.05)
+		lt.tween_callback(func():
+			_active_hit_lights = maxi(0, _active_hit_lights - 1)
+			light.queue_free()
+		)
 
-	# 2. Expanding Core Impact Star / Flash Ring
+	# 2. Expanding Core Impact Star / Flash Ring (uses cached quad mesh & material)
 	var core_mesh := MeshInstance3D.new()
-	var quad := QuadMesh.new()
-	quad.size = Vector2(0.2, 0.2)
-	core_mesh.mesh = quad
-	var core_mat := StandardMaterial3D.new()
-	core_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	core_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	core_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	core_mat.albedo_color = Color(1.0, 1.0, 1.0, 0.95)
-	core_mat.emission_enabled = true
-	core_mat.emission = flash_color
-	core_mat.emission_energy_multiplier = 6.0
-	core_mesh.material_override = core_mat
+	core_mesh.mesh = _get_cached_quad()
+	core_mesh.material_override = _get_cached_hit_material(flash_color)
 	instance.add_child(core_mesh)
 	core_mesh.global_position = position + norm * 0.05
 
 	var ct := instance.create_tween().set_parallel(true)
 	ct.tween_property(core_mesh, "scale", Vector3(2.5, 2.5, 2.5), 0.08)
-	ct.tween_property(core_mat, "albedo_color:a", 0.0, 0.08)
 	ct.chain().tween_callback(core_mesh.queue_free)
 
-	# 3. High-Velocity Elongated Ricochet Sparks (GPUParticles3D with velocity-aligned spark streaks)
-	var sparks := GPUParticles3D.new()
-	var pmat := ParticleProcessMaterial.new()
-	pmat.direction = norm
-	pmat.spread = 55.0
-	pmat.initial_velocity_min = 6.0
-	pmat.initial_velocity_max = 14.0
-	pmat.gravity = Vector3(0, -9.8, 0)
-	pmat.damping_min = 2.0
-	pmat.damping_max = 5.0
-	pmat.scale_min = 0.08
-	pmat.scale_max = 0.22
-
-	sparks.process_material = pmat
-	sparks.amount = 16
-	sparks.lifetime = 0.25
+	# 3. High-Velocity Elongated Ricochet Sparks (CPUParticles3D with 0ms compute pipeline overhead)
+	var sparks := CPUParticles3D.new()
+	sparks.direction = norm
+	sparks.spread = 55.0
+	sparks.initial_velocity_min = 6.0
+	sparks.initial_velocity_max = 14.0
+	sparks.gravity = Vector3(0, -9.8, 0)
+	sparks.damping_min = 2.0
+	sparks.damping_max = 5.0
+	sparks.scale_amount_min = 0.08
+	sparks.scale_amount_max = 0.22
+	sparks.amount = 12
+	sparks.lifetime = 0.2
 	sparks.one_shot = true
 	sparks.explosiveness = 0.95
+	sparks.mesh = _get_cached_spark_box()
 	sparks.emitting = true
-
-	var spark_mesh := BoxMesh.new()
-	spark_mesh.size = Vector3(0.04, 0.04, 0.18) # Elongated spark streak
-	var smat := StandardMaterial3D.new()
-	smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	smat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	smat.albedo_color = spark_color
-	smat.emission_enabled = true
-	smat.emission = emission_color
-	smat.emission_energy_multiplier = 5.0
-	spark_mesh.material = smat
-	sparks.draw_pass_1 = spark_mesh
 
 	instance.add_child(sparks)
 	sparks.global_position = position
@@ -278,7 +291,7 @@ static func spawn_hit_spark(position: Vector3, normal: Vector3 = Vector3.UP, dam
 		sparks.look_at(position + norm, Vector3.UP if absf(norm.y) < 0.9 else Vector3.FORWARD)
 
 	var st := sparks.create_tween()
-	st.tween_interval(0.3)
+	st.tween_interval(0.25)
 	st.tween_callback(sparks.queue_free)
 
 

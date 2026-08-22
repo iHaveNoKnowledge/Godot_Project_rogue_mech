@@ -75,7 +75,6 @@ func set_concealed(on: bool) -> void:
 	if concealed == on:
 		return
 	concealed = on
-	visible = not on
 
 
 func take_damage_to_part(slot_name: String, amount: float, damage_type: String = "kinetic") -> void:

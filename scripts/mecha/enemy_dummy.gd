@@ -748,14 +748,12 @@ func _setup_enemy_status() -> void:
 		status.setup_target(self)
 
 
-# Hides/shows the whole enemy from the player. Concealed enemies (standing in a
-# cover footprint) are visually removed along with their name plate and health
-# billboard, so the player can't tell a hostile is lurking there.
+# Hides/shows the enemy HUD status billboard from the player.
+# Physical 3D mesh remains visible in physical space so enemies don't glitch or vanish next to cover.
 func set_concealed(on: bool) -> void:
 	if concealed == on:
 		return
 	concealed = on
-	visible = not on
 	var status = get_node_or_null("EnemyStatus")
 	if status and status.has_method("set_concealed"):
 		status.set_concealed(on)

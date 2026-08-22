@@ -18,9 +18,8 @@ extends Node
 ##   concealment  -> tall cover bodies (trees, buildings, tree-trunk covers)
 ##   enemy        -> enemy mechs to conceal
 
-# How far beyond a cover's collision shape an enemy is still treated as "in
-# cover" (so an enemy standing right beside a tree/building counts as hidden).
-const COVER_MARGIN: float = 2.5
+# Footprint margin for cover bounds (0.0 so standing beside cover does not count as inside).
+const COVER_MARGIN: float = 0.0
 
 # Terrain physics layer: ground, hills, dunes, banks, rocks, bridges.
 const TERRAIN_LAYER := 2

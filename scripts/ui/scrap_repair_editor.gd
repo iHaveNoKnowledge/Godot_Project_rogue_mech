@@ -59,6 +59,7 @@ var _gizmo_drag_axis: String = ""
 var _gizmo_drag_comp: String = "x"
 var _gizmo_drag_origin: Vector3 = Vector3.ZERO
 var _gizmo_drag_axis_dir: Vector3 = Vector3.ZERO
+var _gizmo_drag_start_pos: Vector3 = Vector3.ZERO
 var _gizmo_drag_start_scale: Vector3 = Vector3.ONE
 var _gizmo_drag_parent: Node3D
 
@@ -1068,6 +1069,7 @@ func _start_gizmo_drag(mouse: Vector2) -> void:
 		"z": _gizmo_drag_axis_dir = parent.global_transform.basis.z
 		_: return
 	_gizmo_drag_comp = _gizmo_drag_axis
+	_gizmo_drag_start_pos = GlobalData.scrap_primitive_pos(prim)
 	_gizmo_drag_start_scale = GlobalData.scrap_primitive_scale(prim)
 	_sync_gizmo_hover()
 	get_viewport().set_input_as_handled()
@@ -1095,11 +1097,8 @@ func _apply_gizmo_drag(mouse: Vector2) -> void:
 		prim["scale"] = s
 	else:
 		var local_delta := _gizmo_drag_parent.global_transform.basis.inverse() * (_gizmo_drag_axis_dir * along)
-		var pos: Array = (prim.get("pos") as Array).duplicate()
-		pos[0] = float(pos[0]) + local_delta.x
-		pos[1] = float(pos[1]) + local_delta.y
-		pos[2] = float(pos[2]) + local_delta.z
-		prim["pos"] = pos
+		var new_pos := _gizmo_drag_start_pos + local_delta
+		prim["pos"] = [new_pos.x, new_pos.y, new_pos.z]
 
 	_render_live_primitives()
 	_update_gizmo()

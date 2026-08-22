@@ -324,47 +324,54 @@ func _get_terrain_height(wx: float, wz: float) -> float:
 			return -0.38 + h * rim
 
 
+var _current_terrain_mesh: ArrayMesh = null
+
+
 func _add_terrain_mesh(texture: Texture2D) -> void:
 	var half := arena_size / 2.0
-	var res := 48
+	var step := 4.0
+	var cols := int(ceil(arena_size / step))
+	var rows := int(ceil(arena_size / step))
+
 	var verts := PackedVector3Array()
-	var normals := PackedVector3Array()
 	var uvs := PackedVector2Array()
+	var normals := PackedVector3Array()
+
+	for row in range(rows + 1):
+		var wz := -half + float(row) * arena_size / float(rows)
+		for col in range(cols + 1):
+			var wx := -half + float(col) * arena_size / float(cols)
+			verts.append(Vector3(wx, _get_terrain_height(wx, wz), wz))
+			uvs.append(Vector2((wx + half) / arena_size, (wz + half) / arena_size))
+			normals.append(Vector3.ZERO)
+
 	var indices := PackedInt32Array()
+	for row in range(rows):
+		for col in range(cols):
+			var i00 := row * (cols + 1) + col
+			var i10 := i00 + 1
+			var i01 := i00 + (cols + 1)
+			var i11 := i01 + 1
+			# CCW winding when viewed from above so normals point upward (+Y)
+			indices.append(i00)
+			indices.append(i01)
+			indices.append(i10)
+			indices.append(i10)
+			indices.append(i01)
+			indices.append(i11)
 
-	var vert_count := (res + 1) * (res + 1)
-	verts.resize(vert_count)
-	normals.resize(vert_count)
-	uvs.resize(vert_count)
+	# Calculate smooth upward normals
+	for i in range(0, indices.size(), 3):
+		var a := verts[indices[i]]
+		var b := verts[indices[i + 1]]
+		var c := verts[indices[i + 2]]
+		var n := (b - a).cross(c - a)
+		normals[indices[i]] = normals[indices[i]] + n
+		normals[indices[i + 1]] = normals[indices[i + 1]] + n
+		normals[indices[i + 2]] = normals[indices[i + 2]] + n
 
-	for r in range(res + 1):
-		var v_frac := float(r) / float(res)
-		var wz := -half + v_frac * arena_size
-		for c in range(res + 1):
-			var u_frac := float(c) / float(res)
-			var wx := -half + u_frac * arena_size
-			var wy := _get_terrain_height(wx, wz)
-			var idx := r * (res + 1) + c
-			verts[idx] = Vector3(wx, wy, wz)
-			uvs[idx] = Vector2(u_frac, v_frac)
-			var h_l := _get_terrain_height(wx - 0.5, wz)
-			var h_r := _get_terrain_height(wx + 0.5, wz)
-			var h_d := _get_terrain_height(wx, wz - 0.5)
-			var h_u := _get_terrain_height(wx, wz + 0.5)
-			normals[idx] = Vector3(h_l - h_r, 1.0, h_d - h_u).normalized()
-
-	for r in range(res):
-		for c in range(res):
-			var i0 := r * (res + 1) + c
-			var i1 := i0 + 1
-			var i2 := (r + 1) * (res + 1) + c
-			var i3 := i2 + 1
-			indices.append(i0)
-			indices.append(i2)
-			indices.append(i1)
-			indices.append(i1)
-			indices.append(i2)
-			indices.append(i3)
+	for i in range(normals.size()):
+		normals[i] = normals[i].normalized()
 
 	var mesh := ArrayMesh.new()
 	var arrays := []
@@ -374,6 +381,7 @@ func _add_terrain_mesh(texture: Texture2D) -> void:
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
 	arrays[Mesh.ARRAY_INDEX] = indices
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	_current_terrain_mesh = mesh
 
 	var surface := MeshInstance3D.new()
 	surface.name = "TerrainSurface"
@@ -599,20 +607,18 @@ func _add_ground_collision() -> void:
 		_add_forest_terrain_collision()
 		return
 
-	var half := arena_size / 2.0
-	var samples := 49
-	var data := PackedFloat32Array()
-	data.resize(samples * samples)
-	for r in range(samples):
-		var wz := -half + float(r) * arena_size / float(samples - 1)
-		for c in range(samples):
-			var wx := -half + float(c) * arena_size / float(samples - 1)
-			data[r * samples + c] = _get_terrain_height(wx, wz)
+	if _current_terrain_mesh != null:
+		var col_shape := _current_terrain_mesh.create_trimesh_shape()
+		var ground := StaticBody3D.new()
+		ground.name = "GroundCollision"
+		ground.collision_layer = 2
+		ground.collision_mask = 1
 
-	var shape := HeightMapShape3D.new()
-	shape.map_width = samples
-	shape.map_depth = samples
-	shape.map_data = data
+		var col := CollisionShape3D.new()
+		col.shape = col_shape
+		ground.add_child(col)
+		structures_container.add_child(ground)
+		return
 
 	var ground := StaticBody3D.new()
 	ground.name = "GroundCollision"
@@ -620,8 +626,11 @@ func _add_ground_collision() -> void:
 	ground.collision_mask = 1
 
 	var col := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(arena_size, 0.8, arena_size)
 	col.shape = shape
 	ground.add_child(col)
+	ground.position = Vector3(0, -0.4, 0)
 	structures_container.add_child(ground)
 
 

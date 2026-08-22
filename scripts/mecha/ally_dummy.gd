@@ -75,21 +75,17 @@ func _ready() -> void:
 	add_to_group("ally")
 	floor_snap_length = 0.3
 	floor_max_angle = deg_to_rad(60)
-	health_system = $HealthSystem
-	# Allies are OUR side: their head light must be friendly blue, not hostile
-	# red. The health system's own _ready() runs before this mech joins the
-	# "ally" group (children ready first), so it can't detect the group yet and
-	# would paint red — correct the color explicitly here.
+	health_system = get_node_or_null("HealthSystem")
 	if health_system and health_system.has_method("set_friendly_light"):
 		health_system.set_friendly_light(true)
 	if template_id != "":
 		_apply_template(FleetSystem.get_ally_template(template_id))
 	_init_ammo()
 	_setup_enemy_status()
-	health_system.mecha_destroyed.connect(_on_destroyed)
-	health_system.armor_broken.connect(_on_armor_broken)
-	# The HUD squad panel shows the pilot's live HP; keep it in sync.
-	health_system.health_changed.connect(func(_s, _l, _c, _m): if is_instance_valid(self): _emit_squad_hp())
+	if health_system:
+		health_system.mecha_destroyed.connect(_on_destroyed)
+		health_system.armor_broken.connect(_on_armor_broken)
+		health_system.health_changed.connect(func(_s, _l, _c, _m): if is_instance_valid(self): _emit_squad_hp())
 
 
 # Broadcasts this ally's live HP for the squad panel (and any other HUD that
@@ -504,7 +500,7 @@ func _physics_process(delta: float) -> void:
 
 
 func _acquire_target() -> void:
-	if target and is_instance_valid(target) and target.health_system and not target.health_system.is_destroyed:
+	if target and is_instance_valid(target) and target.get("health_system") != null and not target.health_system.is_destroyed:
 		return
 	target = null
 	scan_timer -= get_physics_process_delta_time()

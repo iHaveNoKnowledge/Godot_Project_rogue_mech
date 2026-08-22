@@ -19,6 +19,37 @@ var _dead: bool = false
 var hp: float = 40.0
 var max_hp: float = 40.0
 
+# Compatibility interface so systems querying .health_system on any "enemy" node work seamlessly
+class PilotHealthAdapter:
+	var _p: CharacterBody3D
+	var is_destroyed: bool:
+		get:
+			return _p == null or not is_instance_valid(_p) or _p._dead
+	var parts: Dictionary = {}
+	var max_total_armor: float = 0.0
+	var max_total_frame: float:
+		get:
+			return _p.max_hp if (_p and is_instance_valid(_p)) else 40.0
+	var current_total_frame: float:
+		get:
+			return _p.hp if (_p and is_instance_valid(_p)) else 0.0
+
+	func _init(pilot: CharacterBody3D) -> void:
+		_p = pilot
+
+	func take_damage(amount: float, _slot: String = "") -> void:
+		if _p and is_instance_valid(_p):
+			_p.take_damage(amount)
+
+	func take_heal(amount: float) -> void:
+		if _p and is_instance_valid(_p):
+			_p.hp = minf(_p.hp + amount, _p.max_hp)
+
+var health_system: PilotHealthAdapter = null
+
+func _init() -> void:
+	health_system = PilotHealthAdapter.new(self)
+
 # --- Fight-on-foot ----------------------------------------------------------
 # When ejected, there's a probability the pilot stands and fights instead of
 # fleeing. A fighting pilot uses a personal weapon (pistol by default) and

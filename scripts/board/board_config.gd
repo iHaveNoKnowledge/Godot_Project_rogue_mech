@@ -65,6 +65,14 @@ const FLEET_ARCHETYPES: Dictionary = {
 		"bombard_range": 0,
 		"desc": "Elite assassination unit deployed at high threat levels. Heavy synergy loadouts.",
 	},
+	"boss": {
+		"name": "Sector Supreme Commander",
+		"mp": 2,
+		"aces": 2,
+		"tags": ["Boss", "Prototype-Chassis", "Overclocked-Core"],
+		"bombard_range": 3,
+		"desc": "Apex Sector Commander. Roams inside the fog with prototype heavy ordnance and escorts.",
+	},
 }
 
 static func energy_cost(terrain: String, is_roller: bool = false) -> float:

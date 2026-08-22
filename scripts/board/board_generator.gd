@@ -22,20 +22,24 @@ func generate_board() -> Dictionary:
 		for x in range(grid_size):
 			terrain_grid[Vector2i(x, y)] = _weighted_terrain(rng, theme_id)
 
-	# Step 2: carve a guaranteed main road from start (0,0) to exit (last,last).
-	_main_road(terrain_grid, rng)
+	# Step 2: pick dynamic start and exit locations (not fixed to corners)
+	var start_key := Vector2i(rng.randi_range(1, 3), rng.randi_range(1, 3))
+	var exit_key := Vector2i(grid_size - 1 - rng.randi_range(0, 3), grid_size - 1 - rng.randi_range(0, 3))
 
-	# Step 3: forest/urban get a river band; bridges keep the road passable.
+	# Step 3: carve a guaranteed main road from start to exit.
+	_main_road(terrain_grid, start_key, exit_key, rng)
+
+	# Step 4: forest/urban get a river band; bridges keep the road passable.
 	_carve_water(terrain_grid, theme_id, rng)
 
-	# Step 4: keep only cells reachable from start walkable (flood fill). Cells
+	# Step 5: keep only cells reachable from start walkable (flood fill). Cells
 	# the player could never reach become rock so the map reads as solid.
-	_trim_unreachable(terrain_grid)
+	_trim_unreachable(terrain_grid, start_key)
 
-	# Step 5: pick content tiles on walkable cells.
-	var tile_types := _assign_content(terrain_grid, rng)
+	# Step 6: pick content tiles on walkable cells.
+	var tile_types := _assign_content(terrain_grid, start_key, exit_key, rng)
 
-	# Step 6: instantiate tiles + compute 4-dir walkable connections.
+	# Step 7: instantiate tiles + compute 4-dir walkable connections.
 	var nodes_dict: Dictionary = {}
 	for y in range(grid_size):
 		for x in range(grid_size):
@@ -60,7 +64,38 @@ func generate_board() -> Dictionary:
 		"nodes": nodes_dict,
 		"terrain": terrain_grid,
 		"tile_types": tile_types,
+		"start_pos": start_key,
+		"exit_pos": exit_key,
 	}
+
+
+## Builds vibrant sunlight and ambient lighting so the entire tabletop map
+## is bright, crisp, and beautifully illuminated.
+func build_environment_and_light() -> Node3D:
+	var root := Node3D.new()
+	root.name = "BoardLighting"
+
+	var sun := DirectionalLight3D.new()
+	sun.name = "SunLight"
+	sun.light_color = Color(1.0, 0.98, 0.94)
+	sun.light_energy = 1.35
+	sun.shadow_enabled = true
+	sun.rotation_degrees = Vector3(-55.0, 35.0, 0.0)
+	root.add_child(sun)
+
+	var world_env := WorldEnvironment.new()
+	world_env.name = "BoardWorldEnv"
+	var env := Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = Color(0.08, 0.10, 0.14)
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.65, 0.70, 0.80)
+	env.ambient_light_energy = 1.15
+	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	world_env.environment = env
+	root.add_child(world_env)
+
+	return root
 
 
 ## Builds a single large ground plane under the whole grid so the board reads
@@ -92,9 +127,9 @@ func _weighted_terrain(rng: RandomNumberGenerator, theme_id: String) -> String:
 	return "plain"
 
 
-func _main_road(terrain_grid: Dictionary, rng: RandomNumberGenerator) -> void:
-	var cur := Vector2i(0, 0)
-	var goal := Vector2i(grid_size - 1, grid_size - 1)
+func _main_road(terrain_grid: Dictionary, start_k: Vector2i, goal_k: Vector2i, rng: RandomNumberGenerator) -> void:
+	var cur := start_k
+	var goal := goal_k
 	terrain_grid[cur] = "road"
 	var guard := 0
 	while cur != goal and guard < grid_size * grid_size * 2:
@@ -121,7 +156,7 @@ func _main_road(terrain_grid: Dictionary, rng: RandomNumberGenerator) -> void:
 func _carve_water(terrain_grid: Dictionary, theme_id: String, rng: RandomNumberGenerator) -> void:
 	if theme_id not in ["forest", "urban"]:
 		return
-	var river_row := rng.randi_range(3, grid_size - 4)
+	var river_row := rng.randi_range(4, grid_size - 5)
 	for x in range(grid_size):
 		var key := Vector2i(x, river_row)
 		if terrain_grid.get(key, "road") == "road":
@@ -131,9 +166,9 @@ func _carve_water(terrain_grid: Dictionary, theme_id: String, rng: RandomNumberG
 			terrain_grid[key] = "water"
 
 
-func _trim_unreachable(terrain_grid: Dictionary) -> void:
+func _trim_unreachable(terrain_grid: Dictionary, start_k: Vector2i) -> void:
 	var visited: Dictionary = {}
-	var frontier: Array = [Vector2i(0, 0)]
+	var frontier: Array = [start_k]
 	while not frontier.is_empty():
 		var cur: Vector2i = frontier.pop_back()
 		if visited.has(cur):
@@ -149,10 +184,8 @@ func _trim_unreachable(terrain_grid: Dictionary) -> void:
 			terrain_grid[key] = "rock"
 
 
-func _assign_content(terrain_grid: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
+func _assign_content(terrain_grid: Dictionary, start_key: Vector2i, exit_key: Vector2i, rng: RandomNumberGenerator) -> Dictionary:
 	var grid_size_i := grid_size
-	var start_key := Vector2i(0, 0)
-	var exit_key := Vector2i(grid_size_i - 1, grid_size_i - 1)
 
 	# All non-start/exit walkable cells, in distance-from-start order.
 	var walkable: Array = []
@@ -162,7 +195,7 @@ func _assign_content(terrain_grid: Dictionary, rng: RandomNumberGenerator) -> Di
 		if BoardConfig.is_passable(terrain_grid[key]):
 			walkable.append(key)
 	walkable.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
-		return (a.x + a.y) < (b.x + b.y))
+		return (abs(a.x - start_key.x) + abs(a.y - start_key.y)) < (abs(b.x - start_key.x) + abs(b.y - start_key.y)))
 
 	var result: Dictionary = {}
 	result[start_key] = "start"

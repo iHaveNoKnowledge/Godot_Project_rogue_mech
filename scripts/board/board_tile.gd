@@ -125,12 +125,23 @@ func _update_visual() -> void:
 	smat.set_shader_parameter("highlight_color", Color(0.25, 0.75, 1.0, 1.0))
 
 	var albedo_tex := _cached_texture(terrain, "albedo")
+	var normal_tex := _cached_texture(terrain, "normal")
+	var roughness_tex := _cached_texture(terrain, "roughness")
+
+	smat.set_shader_parameter("has_albedo_tex", albedo_tex != null)
 	if albedo_tex != null:
 		smat.set_shader_parameter("albedo_tex", albedo_tex)
-		smat.set_shader_parameter("normal_tex", _cached_texture(terrain, "normal"))
-		smat.set_shader_parameter("roughness_tex", _cached_texture(terrain, "roughness"))
-		smat.set_shader_parameter("roughness_scale", 0.85)
-		smat.set_shader_parameter("uv_scale", 2.0)
+
+	smat.set_shader_parameter("has_normal_tex", normal_tex != null)
+	if normal_tex != null:
+		smat.set_shader_parameter("normal_tex", normal_tex)
+
+	smat.set_shader_parameter("has_roughness_tex", roughness_tex != null)
+	if roughness_tex != null:
+		smat.set_shader_parameter("roughness_tex", roughness_tex)
+
+	smat.set_shader_parameter("roughness_scale", 0.85)
+	smat.set_shader_parameter("uv_scale", 2.0)
 
 	mesh_instance.set_surface_override_material(0, smat)
 

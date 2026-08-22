@@ -301,6 +301,34 @@ static func spawn_patrols() -> void:
 		})
 		id += 1
 
+	# Always deploy 1 Roaming Sector Supreme Commander (Boss) in the Fog of War
+	if not candidate.is_empty():
+		var boss_home: Vector2i = candidate[candidate.size() - 1]
+		var boss_commander: Dictionary = PilotGenerator.generate_pilot({
+			"archetype": 2,
+			"level": GlobalData.board.current_sector + 2,
+		})
+		boss_commander["name"] = "OVERLORD " + NAMES[rng.randi() % NAMES.size()].to_upper()
+		boss_commander["bounty"] = 650 + (GlobalData.board.current_sector * 200)
+		boss_commander["is_boss"] = true
+
+		GlobalData.board.board_patrols.append({
+			"id": id,
+			"pos": boss_home,
+			"home": boss_home,
+			"name": "👑 [BOSS] " + boss_commander["name"],
+			"grunts": GRUNT_MAX + 1,
+			"aces": 2,
+			"archetype": "boss",
+			"aggro": false,
+			"faction": "hostile",
+			"character_id": "",
+			"dir": Vector2i(1, 0),
+			"commander": boss_commander,
+			"is_boss": true,
+		})
+		id += 1
+
 
 # True when at least one recruitable pilot can still be met this run (so an
 # unknown fleet's talk encounter has someone worth talking to).

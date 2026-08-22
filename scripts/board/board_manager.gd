@@ -28,14 +28,18 @@ func _ready() -> void:
 		var data = generator.generate_board()
 		nodes_dict = data["nodes"]
 
+		tile_container.add_child(generator.build_environment_and_light())
 		tile_container.add_child(generator.build_ground())
 		for key in nodes_dict:
 			tile_container.add_child(nodes_dict[key])
 
-	current_pos = GlobalData.board.current_tile
-	if not nodes_dict.has(current_pos):
-		current_pos = Vector2i(0, 0)
-		GlobalData.board.current_tile = current_pos
+		if (GlobalData.board.current_tile == Vector2i.ZERO or not nodes_dict.has(GlobalData.board.current_tile)) and data.has("start_pos"):
+			current_pos = data["start_pos"]
+			GlobalData.board.current_tile = current_pos
+		else:
+			current_pos = GlobalData.board.current_tile
+	else:
+		current_pos = GlobalData.board.current_tile
 
 	# Objective + patrols for this sector (fresh on new sector, restored on
 	# reload after combat).

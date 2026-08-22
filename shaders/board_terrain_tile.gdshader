@@ -2,8 +2,13 @@ shader_type spatial;
 render_mode blend_mix, depth_draw_opaque, cull_disabled, diffuse_burley, specular_schlick_ggx;
 
 // Textures and PBR parameters
+uniform bool has_albedo_tex = false;
 uniform sampler2D albedo_tex : source_color, filter_linear_mipmap, repeat_enable;
+
+uniform bool has_normal_tex = false;
 uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap, repeat_enable;
+
+uniform bool has_roughness_tex = false;
 uniform sampler2D roughness_tex : hint_default_white, filter_linear_mipmap, repeat_enable;
 
 uniform vec4 base_color : source_color = vec4(0.5, 0.5, 0.5, 1.0);
@@ -11,11 +16,11 @@ uniform float roughness_scale : hint_range(0.0, 1.0) = 0.85;
 uniform float uv_scale : hint_range(0.5, 8.0) = 2.0;
 
 // Edge feathering & Organic Blending
-uniform float edge_feather : hint_range(0.01, 0.45) = 0.18;
-uniform float noise_blend_strength : hint_range(0.0, 1.0) = 0.45;
+uniform float edge_feather : hint_range(0.01, 0.45) = 0.22;
+uniform float noise_blend_strength : hint_range(0.0, 1.0) = 0.48;
 
 // Interactive Highlights
-uniform vec4 highlight_color : source_color = vec4(0.2, 0.7, 1.0, 1.0);
+uniform vec4 highlight_color : source_color = vec4(0.25, 0.75, 1.0, 1.0);
 uniform float highlight_intensity : hint_range(0.0, 2.0) = 0.0;
 uniform float pulse_speed : hint_range(0.0, 10.0) = 3.0;
 
@@ -50,9 +55,9 @@ float fbm(vec2 uv) {
 
 void fragment() {
 	vec2 uv = UV * uv_scale;
-	vec4 tex_color = texture(albedo_tex, uv);
-	vec3 norm = texture(normal_tex, uv).rgb * 2.0 - 1.0;
-	float rough = texture(roughness_tex, uv).r * roughness_scale;
+	vec4 tex_color = has_albedo_tex ? texture(albedo_tex, uv) : vec4(1.0);
+	vec3 norm = has_normal_tex ? (texture(normal_tex, uv).rgb * 2.0 - 1.0) : vec3(0.0, 0.0, 1.0);
+	float rough = has_roughness_tex ? (texture(roughness_tex, uv).r * roughness_scale) : roughness_scale;
 
 	// Calculate distance to tile borders [0..1]
 	vec2 border_dist = min(UV, vec2(1.0) - UV);
@@ -78,5 +83,5 @@ void fragment() {
 	NORMAL_MAP_DEPTH = 0.75;
 	ROUGHNESS = rough;
 	METALLIC = 0.05;
-	ALPHA = mix(0.82, 1.0, blend_factor);
+	ALPHA = mix(0.85, 1.0, blend_factor);
 }

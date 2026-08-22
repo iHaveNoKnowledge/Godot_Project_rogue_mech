@@ -1,3 +1,4 @@
+class_name HPPartBar
 extends Control
 
 ## Single skewed health bar (CSS skewX(-30deg) style). Dark track + configurable
@@ -8,6 +9,16 @@ const TRACK_COLOR := Color("#333333")
 const DESTROY_COLOR := Color(0.12, 0.12, 0.12, 1)
 
 const SKEW_DEGREES := -30.0
+
+# Shared fill palettes matching battle HUD & intermission:
+const ARMOR_FILL_A := Color(0.77, 0.76, 0.75)
+const ARMOR_FILL_B := Color(0.60, 0.60, 0.60)
+
+const FRAME_FILL_A := Color(0.376, 0.82, 0.43)
+const FRAME_FILL_B := Color(0.537, 1.0, 0.53)
+
+const SHIELD_FILL_A := Color(0.2, 0.7, 1.0)
+const SHIELD_FILL_B := Color(0.1, 0.5, 0.85)
 
 @export var fill_color_a: Color = Color("#c4c3c0")
 @export var fill_color_b: Color = Color("#9a9a9a")
@@ -64,3 +75,53 @@ func _draw_skew(fill_w: float, h: float, skew: float, color_left: Color, color_r
 	])
 	var colors := PackedColorArray([color_left, color_right, color_right, color_left])
 	draw_polygon(pts, colors)
+
+
+## Helper to build a complete slanted HP bar row (Label + HPPartBar + Value label)
+## used in Battle, Intermission, and Hangar views.
+static func create_row(
+	label_text: String,
+	current: float,
+	max_value: float,
+	is_frame: bool = false,
+	is_shield: bool = false,
+	bar_width: float = 180.0,
+	bar_height: float = 8.0,
+	font_size: int = 11
+) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	row.alignment = BoxContainer.ALIGNMENT_BEGIN
+
+	if label_text != "":
+		var name := Label.new()
+		name.text = label_text
+		name.custom_minimum_size = Vector2(44, 0)
+		name.add_theme_font_size_override("font_size", font_size)
+		name.add_theme_color_override("font_color", Color(0.75, 0.8, 0.9))
+		row.add_child(name)
+
+	var bar: HPPartBar = HPPartBar.new()
+	bar.custom_minimum_size = Vector2(bar_width, bar_height)
+	if bar_width <= 0:
+		bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	if is_frame:
+		bar.fill_color_a = FRAME_FILL_A
+		bar.fill_color_b = FRAME_FILL_B
+	elif is_shield:
+		bar.fill_color_a = SHIELD_FILL_A
+		bar.fill_color_b = SHIELD_FILL_B
+	else:
+		bar.fill_color_a = ARMOR_FILL_A
+		bar.fill_color_b = ARMOR_FILL_B
+	bar.setup(current, max_value, current <= 0.001 and max_value > 0.0)
+	row.add_child(bar)
+
+	var value := Label.new()
+	value.name = "ValueLabel"
+	value.text = "%d / %d" % [int(round(current)), int(round(max_value))]
+	value.add_theme_font_size_override("font_size", font_size)
+	value.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
+	row.add_child(value)
+
+	return row

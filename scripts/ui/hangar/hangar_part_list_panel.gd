@@ -184,6 +184,10 @@ func _update_currently_equipped_display(slot: String) -> void:
 	if controller.currently_equipped_box == null or controller.currently_equipped_label == null:
 		return
 
+	if controller.currently_equipped_bar_box:
+		for child in controller.currently_equipped_bar_box.get_children():
+			child.queue_free()
+
 	if slot.begins_with("weapon"):
 		if slot == "weapon_carry":
 			var carry_list := LoadoutSystem.get_carry_weapons()
@@ -212,6 +216,8 @@ func _update_currently_equipped_display(slot: String) -> void:
 			var w_dur := 1.0
 			var w_wt := 0.0
 			var w_dmg_type := ""
+			var is_shield_wp := false
+			var shield_max_hp := 0.0
 			for inv in GlobalData.weapons.weapon_inventory:
 				if str(inv.get("uid", "")) == uid:
 					w_name = str(inv.get("name", "Weapon"))
@@ -224,11 +230,16 @@ func _update_currently_equipped_display(slot: String) -> void:
 								w_wt = float(res.weight)
 							if "damage_type" in res and res.damage_type != null:
 								w_dmg_type = str(res.damage_type)
+							if int(res.weapon_type) == 5:
+								is_shield_wp = true
+								shield_max_hp = float(res.shield_hp)
 					break
 			if w_name != "":
 				controller.currently_equipped_label.text = w_name
 				var dmg_str := (" | %s" % w_dmg_type.capitalize()) if w_dmg_type != "" else ""
 				controller.currently_equipped_sublabel.text = "%s | DUR: %.0f%%%s | Wt: %.1fkg" % [hand_label, w_dur * 100.0, dmg_str, w_wt]
+				if is_shield_wp and shield_max_hp > 0.0 and controller.currently_equipped_bar_box:
+					controller.currently_equipped_bar_box.add_child(HPPartBar.create_row("Shield", shield_max_hp * w_dur, shield_max_hp, false, true, 200, 8, 10))
 			else:
 				controller.currently_equipped_label.text = "(No Weapon - %s)" % hand_label
 				controller.currently_equipped_sublabel.text = "Select a weapon from inventory below"
@@ -271,6 +282,8 @@ func _update_currently_equipped_display(slot: String) -> void:
 			var hp_text = "HP: %.0f / %.0f (%.0f%%)" % [cur_fhp, fhp, (1.0 - frame_dmg) * 100.0] if frame_dmg > 0.001 else "HP: %.0f / %.0f" % [fhp, fhp]
 			controller.currently_equipped_label.text = fname + (" [DESTROYED]" if is_destroyed else "")
 			controller.currently_equipped_sublabel.text = "%s | Weight: %.1f kg" % [hp_text, fwt]
+			if controller.currently_equipped_bar_box:
+				controller.currently_equipped_bar_box.add_child(HPPartBar.create_row("Frame", cur_fhp, fhp, true, false, 200, 8, 10))
 		else:
 			controller.currently_equipped_label.text = "(No Frame Installed)"
 			controller.currently_equipped_sublabel.text = "Select a frame from the list below"
@@ -284,8 +297,12 @@ func _update_currently_equipped_display(slot: String) -> void:
 			var dur_pct = instance_durability(slot, p)
 			var ac = float(p.get("armor_class", p.get("armor", 1.0)))
 			var wt = float(p.get("weight", 4.0))
+			var full_hp = float(GlobalData.part_stat(p, "max_hp", 30.0))
+			var cur_hp = full_hp * dur_pct
 			controller.currently_equipped_label.text = pname + (" [DESTROYED]" if is_destroyed else "")
 			controller.currently_equipped_sublabel.text = "DUR: %.0f%% | Armor: %.1f | Wt: %.1fkg" % [dur_pct * 100.0, ac, wt]
+			if controller.currently_equipped_bar_box:
+				controller.currently_equipped_bar_box.add_child(HPPartBar.create_row("Armor", cur_hp, full_hp, false, false, 200, 8, 10))
 		else:
 			controller.currently_equipped_label.text = "(No Armor Equipped)"
 			controller.currently_equipped_sublabel.text = "Select an armor plate from inventory below"
@@ -293,6 +310,10 @@ func _update_currently_equipped_display(slot: String) -> void:
 
 
 func on_item_selected(index: int) -> void:
+	if controller.stats_hp_bar_box:
+		for child in controller.stats_hp_bar_box.get_children():
+			child.queue_free()
+
 	if controller.current_mode == "upgrade":
 		var cost = controller._get_upgrade_cost()
 		controller.stats_label.text = "INNER FRAME REACTOR LEVEL: %d -> %d\n\nEFFECTS:\n+25 FRAME HP per slot\n+15.0 kg MAX WEIGHT CAPACITY\n+1.5 m/s DASH THRUST SPEED\n\nUPGRADE COST: %d Credits" % [
@@ -330,9 +351,9 @@ func on_item_selected(index: int) -> void:
 			if is_eq:
 				dur_ratio = GlobalData.get_frame_durability(controller.selected_slot)
 			var fcap = HangarPartText.frame_capability_text(controller.selected_frame_info, dur_ratio)
+			var fhp = float(controller.selected_frame_info.get("hp", controller.selected_frame_info.get("max_hp", 20.0)))
+			var cur_fhp = fhp * dur_ratio
 			if is_eq:
-				var fhp = float(controller.selected_frame_info.get("hp", controller.selected_frame_info.get("max_hp", 20.0)))
-				var cur_fhp = fhp * dur_ratio
 				controller.stats_label.text = "INNER FRAME PART: %s  [E]\nDURABILITY: %.0f%% (%.0f / %.0f HP)\n\n%s\n\nThis frame is currently equipped." % [
 					fname, dur_ratio * 100.0, cur_fhp, fhp, fcap
 				]
@@ -340,6 +361,8 @@ func on_item_selected(index: int) -> void:
 				controller.stats_label.text = "INNER FRAME PART: %s\nDURABILITY: 100%%\n\n%s\n\nEquip this frame to install it fresh at 100%% HP." % [
 					fname, fcap
 				]
+			if controller.stats_hp_bar_box:
+				controller.stats_hp_bar_box.add_child(HPPartBar.create_row("Frame", cur_fhp, fhp, true, false, 240, 10, 11))
 			# Only change 3D model when user explicitly picks a part, not on section switch
 			if not _is_populating:
 				controller.garage_panel.apply_frame_preview(controller.selected_slot, controller.selected_frame_info)
@@ -370,6 +393,9 @@ func on_item_selected(index: int) -> void:
 					wwt = float(res.weight) if "weight" in res and res.weight != null else 0.0
 					wtype = HangarPartText.weapon_type_label(res.weapon_type) if "weapon_type" in res else "Unknown"
 					wcap = HangarPartText.weapon_capability_text(res)
+					if int(res.weapon_type) == 5 and controller.stats_hp_bar_box:
+						var shp = float(res.shield_hp)
+						controller.stats_hp_bar_box.add_child(HPPartBar.create_row("Shield", shp * wdur, shp, false, true, 240, 10, 11))
 
 			if controller.selected_slot == "weapon_carry":
 				var eq = LoadoutSystem.is_weapon_in_carry(wpath)
@@ -409,18 +435,22 @@ func on_item_selected(index: int) -> void:
 			controller.selected_frame_info = {}
 
 			var item_name = controller.selected_salvage_info.get("name", controller.selected_salvage_info.get("part_name", "Armor Instance"))
-			var acap = HangarPartText.armor_capability_text(controller.selected_salvage_info, instance_durability(controller.selected_slot, controller.selected_salvage_info))
+			var dur_pct = instance_durability(controller.selected_slot, controller.selected_salvage_info)
+			var acap = HangarPartText.armor_capability_text(controller.selected_salvage_info, dur_pct)
+			var full_hp = float(GlobalData.part_stat(controller.selected_salvage_info, "max_hp", 30.0))
+			var cur_hp = full_hp * dur_pct
 
 			var is_eq = is_item_equipped(controller.selected_slot, controller.selected_salvage_info)
 			if is_eq:
-				controller.stats_label.text = "OWNED ARMOR: %s  [E]\nDURABILITY: %.0f%%\n\n%s\n\nThis plate is currently equipped." % [
-					item_name, instance_durability(controller.selected_slot, controller.selected_salvage_info) * 100.0, acap
+				controller.stats_label.text = "OWNED ARMOR: %s  [E]\nDURABILITY: %.0f%% (%.0f / %.0f HP)\n\n%s\n\nThis plate is currently equipped." % [
+					item_name, dur_pct * 100.0, cur_hp, full_hp, acap
 				]
 			else:
-				var dur_pct = instance_durability(controller.selected_slot, controller.selected_salvage_info)
-				controller.stats_label.text = "OWNED ARMOR: %s\nDURABILITY: %.0f%%\n\n%s\n\nEquip this plate to install it." % [
-					item_name, dur_pct * 100.0, acap
+				controller.stats_label.text = "OWNED ARMOR: %s\nDURABILITY: %.0f%% (%.0f / %.0f HP)\n\n%s\n\nEquip this plate to install it." % [
+					item_name, dur_pct * 100.0, cur_hp, full_hp, acap
 				]
+			if controller.stats_hp_bar_box:
+				controller.stats_hp_bar_box.add_child(HPPartBar.create_row("Armor", cur_hp, full_hp, false, false, 240, 10, 11))
 			# Only change 3D model when user explicitly picks a part, not on section switch
 			if not _is_populating:
 				controller.garage_panel.apply_salvage_preview(controller.selected_slot, controller.selected_salvage_info)

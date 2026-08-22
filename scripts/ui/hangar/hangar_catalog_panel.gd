@@ -19,6 +19,7 @@ var controller: Node
 
 var catalog_window: Control = null
 var hover_stats_label: Label = null
+var hover_hp_bar_box: VBoxContainer = null
 var _last_hover_index: int = -1
 
 
@@ -36,6 +37,10 @@ func build_hover_stats_label(right_box: VBoxContainer) -> void:
 	hover_stats_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hover_stats_label.add_theme_font_size_override("font_size", 11)
 	right_box.add_child(hover_stats_label)
+
+	hover_hp_bar_box = VBoxContainer.new()
+	hover_hp_bar_box.add_theme_constant_override("separation", 3)
+	right_box.add_child(hover_hp_bar_box)
 
 
 func close_window() -> void:
@@ -256,10 +261,44 @@ func refresh_hover_stats() -> void:
 	if idx == _last_hover_index:
 		return
 	_last_hover_index = idx
+	if hover_hp_bar_box:
+		for child in hover_hp_bar_box.get_children():
+			child.queue_free()
 	if idx < 0:
 		hover_stats_label.text = "Point at an item in the list to preview its stats."
 		return
 	hover_stats_label.text = stats_text_for_index(idx)
+	_update_hover_hp_bar(idx)
+
+
+func _update_hover_hp_bar(index: int) -> void:
+	if hover_hp_bar_box == null:
+		return
+	if controller.current_mode == "frame" and controller.frame_catalog.has(controller.selected_slot):
+		var frame_items = controller.frame_catalog[controller.selected_slot]
+		if index >= 0 and index < frame_items.size():
+			var info = frame_items[index]
+			var is_eq = controller.part_list_panel.is_item_equipped(controller.selected_slot, info)
+			var dur_ratio: float = GlobalData.get_frame_durability(controller.selected_slot) if is_eq else 1.0
+			var fhp = float(info.get("hp", info.get("max_hp", 20.0)))
+			hover_hp_bar_box.add_child(HPPartBar.create_row("Frame", fhp * dur_ratio, fhp, true, false, 200, 8, 11))
+	elif controller.armor_catalog.has(controller.selected_slot):
+		if index >= 0 and index < controller.visible_salvage_indices.size():
+			var salvaged_idx = controller.visible_salvage_indices[index]
+			var info = GlobalData.weapons.armor_inventory[salvaged_idx]
+			var dur_pct = controller.part_list_panel.instance_durability(controller.selected_slot, info)
+			var full_hp = float(GlobalData.part_stat(info, "max_hp", 30.0))
+			hover_hp_bar_box.add_child(HPPartBar.create_row("Armor", full_hp * dur_pct, full_hp, false, false, 200, 8, 11))
+	elif controller.selected_slot.begins_with("weapon"):
+		if index >= 0 and index < controller.visible_weapon_indices.size():
+			var inv = GlobalData.weapons.weapon_inventory[controller.visible_weapon_indices[index]]
+			var wpath = inv.get("path", "")
+			if wpath != "" and ResourceLoader.exists(wpath):
+				var res = load(wpath)
+				if res and int(res.weapon_type) == 5:
+					var shp = float(res.shield_hp)
+					var wdur = GlobalData.get_durability_ratio(inv)
+					hover_hp_bar_box.add_child(HPPartBar.create_row("Shield", shp * wdur, shp, false, true, 200, 8, 11))
 
 
 func hovered_list_index() -> int:

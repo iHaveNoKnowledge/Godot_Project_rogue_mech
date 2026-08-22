@@ -52,6 +52,11 @@ func build(root: Control) -> void:
 	controller.stats_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	right_box.add_child(controller.stats_label)
 
+	var hp_bar_box = VBoxContainer.new()
+	hp_bar_box.add_theme_constant_override("separation", 3)
+	controller.stats_hp_bar_box = hp_bar_box
+	right_box.add_child(hp_bar_box)
+
 	# TIER box — the selected part's upgrade tier on the 1 -> 1.1 -> ... -> 2
 	# ladder with four progress pips (filled toward the next whole tier).
 	var tier_panel = PanelContainer.new()

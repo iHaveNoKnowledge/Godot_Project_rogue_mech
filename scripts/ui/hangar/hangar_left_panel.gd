@@ -95,6 +95,11 @@ func build(root: Control) -> void:
 	controller.currently_equipped_sublabel = eq_sub_label
 	eq_vbox.add_child(eq_sub_label)
 
+	var eq_bar_box = VBoxContainer.new()
+	eq_bar_box.add_theme_constant_override("separation", 2)
+	controller.currently_equipped_bar_box = eq_bar_box
+	eq_vbox.add_child(eq_bar_box)
+
 	# --- INVENTORY PARTS SUBHEADER ---
 	var inv_sub_title = Label.new()
 	inv_sub_title.text = "INVENTORY SPARES"

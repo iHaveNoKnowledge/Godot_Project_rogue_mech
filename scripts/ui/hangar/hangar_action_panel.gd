@@ -99,6 +99,35 @@ func show(info: Dictionary) -> void:
 	details.add_theme_color_override("font_color", Color(0.8, 0.85, 0.9))
 	vbox.add_child(details)
 
+	# 1. EQUIP / UNEQUIP CONTEXT BUTTON BASED ON BULLETPROOF EQUIPPED MATCH
+	var is_eq = controller.part_list_panel.is_item_equipped(controller.selected_slot, info)
+
+	# Slanted HP Bar for parts with HP (Frame, Armor, Shield)
+	if not is_weapon_slot and (is_instance or controller.current_mode == "frame" or (controller.current_mode == "armor" and is_eq)):
+		var full_hp = GlobalData.weapons.part_stat(info, "max_hp", 100.0)
+		var dur_ratio = GlobalData.get_durability_ratio(info)
+		if is_eq:
+			if controller.current_mode == "frame":
+				dur_ratio = GlobalData.get_frame_durability(controller.selected_slot)
+			else:
+				dur_ratio = GlobalData.get_part_durability(controller.selected_slot)
+		var cur_hp = full_hp * dur_ratio
+		var is_frame = controller.current_mode == "frame"
+		var label_tag = "Frame" if is_frame else "Armor"
+		var bar_row = HPPartBar.create_row(label_tag, cur_hp, full_hp, is_frame, false, 240, 10, 11)
+		bar_row.alignment = BoxContainer.ALIGNMENT_CENTER
+		vbox.add_child(bar_row)
+	elif is_weapon_slot:
+		var wp = info.get("path", "")
+		if wp != "" and ResourceLoader.exists(wp):
+			var res = load(wp)
+			if res and int(res.weapon_type) == 5:
+				var shp = float(res.shield_hp)
+				var wdur = GlobalData.get_durability_ratio(info)
+				var bar_row = HPPartBar.create_row("Shield", shp * wdur, shp, false, true, 240, 10, 11)
+				bar_row.alignment = BoxContainer.ALIGNMENT_CENTER
+				vbox.add_child(bar_row)
+
 	var sep = HSeparator.new()
 	vbox.add_child(sep)
 
@@ -107,9 +136,6 @@ func show(info: Dictionary) -> void:
 	grid.add_theme_constant_override("h_separation", 10)
 	grid.add_theme_constant_override("v_separation", 8)
 	vbox.add_child(grid)
-
-	# 1. EQUIP / UNEQUIP CONTEXT BUTTON BASED ON BULLETPROOF EQUIPPED MATCH
-	var is_eq = controller.part_list_panel.is_item_equipped(controller.selected_slot, info)
 
 	var toggle_btn = Button.new()
 	if is_eq:

@@ -93,18 +93,18 @@ func _create_fog_mesh() -> void:
 	_fog_mesh = MeshInstance3D.new()
 	_fog_mesh.name = "FogOfWarMesh"
 	var box := BoxMesh.new()
-	box.size = Vector3(4.0, 1.4, 4.0)
+	box.size = Vector3(4.1, 2.5, 4.1)
 	_fog_mesh.mesh = box
 	var smat := ShaderMaterial.new()
 	smat.shader = _fog_shader
-	smat.set_shader_parameter("fog_color", Color(0.06, 0.08, 0.12, 0.95))
-	smat.set_shader_parameter("fog_edge_color", Color(0.14, 0.20, 0.30, 0.98))
-	smat.set_shader_parameter("dissolve_burn_color", Color(0.3, 0.85, 1.0, 1.0))
+	smat.set_shader_parameter("fog_color", Color(0.06, 0.08, 0.12, 0.98))
+	smat.set_shader_parameter("fog_edge_color", Color(0.14, 0.20, 0.30, 1.0))
+	smat.set_shader_parameter("dissolve_burn_color", Color(0.35, 0.85, 1.0, 1.0))
 	smat.set_shader_parameter("dissolve_progress", 0.0)
 	smat.set_shader_parameter("animation_speed", 0.4)
-	smat.set_shader_parameter("noise_scale", 5.5)
+	smat.set_shader_parameter("noise_scale", 5.0)
 	_fog_mesh.set_surface_override_material(0, smat)
-	_fog_mesh.position = Vector3(0, 0.7, 0)
+	_fog_mesh.position = Vector3(0, 1.25, 0)
 	add_child(_fog_mesh)
 
 

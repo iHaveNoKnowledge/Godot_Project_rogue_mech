@@ -18,6 +18,7 @@ const CARRY_OFFSET_STEP := 0.22
 
 # Hand position in the forearm node's local space (bottom of the forearm mesh).
 const HAND_FOREARM_POS := Vector3(0.0, -0.72, 0.0)
+const HAND_MOUNT_ROT_DEG := Vector3(-80.0, 0.0, 0.0)
 
 
 # Returns the mount position for a hand ("left"/"right").
@@ -49,7 +50,7 @@ static func mount_hand(mecha: Node3D, hand: String, weapon: WeaponPart, node_nam
 			mount.name = node_name
 			forearm.add_child(mount)
 		mount.position = HAND_FOREARM_POS
-		mount.rotation = Vector3.ZERO
+		mount.rotation_degrees = HAND_MOUNT_ROT_DEG
 	else:
 		mount = mecha.get_node_or_null(node_name)
 		if mount == null or not mount.is_inside_tree() or mount.is_queued_for_deletion():
@@ -59,6 +60,7 @@ static func mount_hand(mecha: Node3D, hand: String, weapon: WeaponPart, node_nam
 			mount.name = node_name
 			mecha.add_child(mount)
 		mount.position = hand_mount_position(hand)
+		mount.rotation_degrees = Vector3.ZERO
 	for child in mount.get_children():
 		child.queue_free()
 	if weapon == null:
@@ -119,8 +121,9 @@ static func build(weapon: WeaponPart) -> Node3D:
 
 	if name_lower.contains("pile") or (w_type == WeaponPart.WeaponType.MELEE and name_lower.contains("bunker")):
 		var box = BoxMesh.new()
-		box.size = Vector3(0.45, 0.45, 1.5)
+		box.size = Vector3(0.42, 0.42, 1.4)
 		mesh_instance.mesh = box
+		mesh_instance.position = Vector3(0.0, 0.05, -0.45)
 		mat.albedo_color = Color(0.2, 0.25, 0.22)
 
 		var spike = MeshInstance3D.new()
@@ -129,8 +132,8 @@ static func build(weapon: WeaponPart) -> Node3D:
 		cyl.bottom_radius = 0.12
 		cyl.height = 1.3
 		spike.mesh = cyl
-		spike.rotation_degrees.x = -90
-		spike.position = Vector3(0, 0, 0.9)
+		spike.rotation_degrees.x = 90
+		spike.position = Vector3(0, 0.05, -1.25)
 		var spike_mat = StandardMaterial3D.new()
 		spike_mat.metallic = 0.95
 		spike_mat.albedo_color = Color(0.8, 0.85, 0.9)
@@ -141,38 +144,44 @@ static func build(weapon: WeaponPart) -> Node3D:
 		var box = BoxMesh.new()
 		box.size = Vector3(0.25, 0.35, 1.8)
 		mesh_instance.mesh = box
+		mesh_instance.position = Vector3(0.0, 0.08, -0.65)
 		mat.albedo_color = Color(0.15, 0.4, 0.7)
 		mat.emission_enabled = true
 		mat.emission = Color(0.2, 0.6, 1.0)
 
 	elif w_type == WeaponPart.WeaponType.MACHINE_GUN:
 		var box = BoxMesh.new()
-		box.size = Vector3(0.3, 0.3, 1.2)
+		box.size = Vector3(0.28, 0.3, 1.3)
 		mesh_instance.mesh = box
+		mesh_instance.position = Vector3(0.0, 0.08, -0.45)
 		mat.albedo_color = Color(0.3, 0.3, 0.32)
 
 	elif w_type == WeaponPart.WeaponType.SHOTGUN:
 		var box = BoxMesh.new()
-		box.size = Vector3(0.35, 0.35, 1.1)
+		box.size = Vector3(0.32, 0.32, 1.2)
 		mesh_instance.mesh = box
+		mesh_instance.position = Vector3(0.0, 0.08, -0.4)
 		mat.albedo_color = Color(0.45, 0.3, 0.15)
 
 	elif w_type == WeaponPart.WeaponType.MISSILE:
 		var box = BoxMesh.new()
-		box.size = Vector3(0.5, 0.5, 1.0)
+		box.size = Vector3(0.48, 0.48, 0.95)
 		mesh_instance.mesh = box
+		mesh_instance.position = Vector3(0.0, 0.12, -0.3)
 		mat.albedo_color = Color(0.6, 0.2, 0.1)
 
 	elif w_type == WeaponPart.WeaponType.SHIELD:
 		var box = BoxMesh.new()
-		box.size = Vector3(0.2, 1.6, 1.0)
+		box.size = Vector3(0.16, 1.25, 0.65)
 		mesh_instance.mesh = box
+		mesh_instance.position = Vector3(-0.16, 0.2, -0.1)
 		mat.albedo_color = Color(0.2, 0.35, 0.5)
 
 	else:
 		var box = BoxMesh.new()
-		box.size = Vector3(0.15, 0.15, 1.4)
+		box.size = Vector3(0.12, 0.18, 1.4)
 		mesh_instance.mesh = box
+		mesh_instance.position = Vector3(0.0, 0.0, -0.55)
 		mat.albedo_color = Color(0.7, 0.7, 0.7)
 
 	mesh_instance.material_override = mat

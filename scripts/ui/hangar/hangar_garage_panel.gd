@@ -358,30 +358,12 @@ func apply_chassis_preview(info: Dictionary) -> void:
 			if leg_left: leg_left.scale = Vector3(1.3, 0.95, 1.3)
 			if leg_right: leg_right.scale = Vector3(1.3, 0.95, 1.3)
 
-	var armor_paths = [
-		"MechaBase/Head/HeadMesh", "MechaBase/Body/ChestPlate",
-		"MechaBase/ArmLeft/ShoulderLeft", "MechaBase/ArmRight/ShoulderRight",
-		"MechaBase/LegLeft/KneeLeft", "MechaBase/LegLeft/FootLeft",
-		"MechaBase/LegRight/KneeRight", "MechaBase/LegRight/FootRight"
-	]
-	for mesh_path in armor_paths:
-		var node = mecha_3d_root.get_node_or_null(mesh_path)
-		if node:
-			node.material_override = mat
-
-	var dark_paths = [
-		"MechaBase/Body/BodyMesh", "MechaBase/Body/Backpack",
-		"MechaBase/ArmLeft/ArmLeftMesh", "MechaBase/ArmRight/ArmRightMesh",
-		"MechaBase/LegLeft/LegLeftMesh", "MechaBase/LegRight/LegRightMesh"
-	]
-	for mesh_path in dark_paths:
-		var node = mecha_3d_root.get_node_or_null(mesh_path)
-		if node:
-			node.material_override = mat_dark
-
-	var visor_node = mecha_3d_root.get_node_or_null("MechaBase/Head/Visor")
-	if visor_node:
-		visor_node.material_override = mat_visor
+	var mecha = mecha_3d_root.get_node_or_null("MechaBase")
+	if mecha:
+		var pmm = mecha.get_node_or_null("PartMeshManager")
+		if pmm and pmm.has_method("set_slot_material"):
+			for s in GlobalData.MECHA_SLOTS:
+				pmm.set_slot_material(s, mat)
 
 
 func apply_frame_preview(slot: String, info: Dictionary) -> void:

@@ -189,11 +189,6 @@ func _update_status() -> void:
 	var is_destroyed = health_system.get("is_destroyed") == true or (health_system.has_method("is_part_destroyed") and health_system.is_part_destroyed("body"))
 	if is_destroyed:
 		_is_fading = true
-		for part_name in part_blocks:
-			var block_data = part_blocks[part_name]
-			block_data["armor"].color = _color_black
-			block_data["frame"].color = _color_black
-		return
 
 	for part_name in part_blocks:
 		if not health_system.parts.has(part_name):

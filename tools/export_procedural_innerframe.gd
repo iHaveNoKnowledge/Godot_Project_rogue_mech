@@ -2,19 +2,29 @@ extends SceneTree
 
 ## Headless exporter: assembles the PROCEDURAL inner frame for every mecha slot
 ## (exactly what PartMeshManager._build_procedural_inner_frame() builds in game)
-## and writes it to exports/procedural_innerframe.glb for use as a modeling
-## reference in Blender / any DCC.
+## and writes GLB modeling references for Blender / any DCC.
 ##
 ## Run:
 ##   Godot_console.exe --headless --path <project> --script res://tools/export_procedural_innerframe.gd
 ##
-## The output is baked at GAME_SCALE so 1 unit = 1 world meter, matching the
-## on-screen size of the mech (root scale 1.6 from mecha_base.tscn). Every
-## exported node carries no rotation/scale — vertices are pre-transformed —
-## and JNT_* empties mark the joint pivots.
+## Two files are written per run:
+##   exports/procedural_innerframe_local.glb — LOCAL units (the AUTHORING
+##       target). Authored part scenes attach inside mecha_base whose ROOT node
+##       carries scale 1.6, so replacement meshes must be modeled at this size;
+##       import into Godot with scale 1.0 and they render correct in-game size.
+##   exports/procedural_innerframe.glb — WORLD scale (x1.6): true on-screen
+##       meters, for checking overall proportions only.
+##
+## Every exported mesh node carries no rotation/scale — vertices are
+## pre-transformed — and JNT_* empties mark the joint pivots a replacement
+## part's origin must sit on.
 
-const OUT_PATH := "res://exports/procedural_innerframe.glb"
 const GAME_SCALE := 1.6
+
+const EXPORT_CONFIGS := [
+	{"path": "res://exports/procedural_innerframe_local.glb", "scale": 1.0, "tag": "LOCAL  (author at this scale)"},
+	{"path": "res://exports/procedural_innerframe.glb", "scale": GAME_SCALE, "tag": "WORLD  (true in-game meters)"},
+]
 
 ## slot -> [node name, local position] — mirrors mecha_base.tscn upper pivots.
 const UPPER_PIVOTS := {
@@ -70,10 +80,19 @@ func _process(_delta: float) -> bool:
 
 
 func _run() -> bool:
+	var all_ok := true
+	for cfg in EXPORT_CONFIGS:
+		if not _export_one(cfg["path"], cfg["scale"], cfg["tag"]):
+			all_ok = false
+	return all_ok
+
+
+func _export_one(out_path: String, scale: float, tag: String) -> bool:
+	print("[EXPORT] === %s ===" % tag)
 	# --- 1. Rebuild the pivot hierarchy of mecha_base.tscn -------------------
 	var build_root := Node3D.new()
 	build_root.name = "InnerFrameBuild"
-	build_root.scale = Vector3.ONE * GAME_SCALE
+	build_root.scale = Vector3.ONE * scale
 	root.add_child(build_root)
 
 	var joint_markers := {}
@@ -131,7 +150,7 @@ func _run() -> bool:
 				merged_aabb = ab if merged_aabb.size == Vector3.ZERO else merged_aabb.merge(ab)
 
 	print("[EXPORT] meshes=%d tris=%d" % [total_meshes, total_tris])
-	print("[EXPORT] aabb min=%s max=%s height=%.3f m width=%.3f m depth=%.3f m" % [
+	print("[EXPORT] aabb min=%s max=%s height=%.3f width=%.3f depth=%.3f" % [
 		merged_aabb.position, merged_aabb.end,
 		merged_aabb.size.y, merged_aabb.size.x, merged_aabb.size.z])
 
@@ -146,7 +165,7 @@ func _run() -> bool:
 		push_error("GLTF generate_buffer produced no data")
 		return false
 
-	var abs_out := ProjectSettings.globalize_path(OUT_PATH)
+	var abs_out := ProjectSettings.globalize_path(out_path)
 	DirAccess.make_dir_recursive_absolute(abs_out.get_base_dir())
 	var f := FileAccess.open(abs_out, FileAccess.WRITE)
 	if f == null:
@@ -155,6 +174,12 @@ func _run() -> bool:
 	f.store_buffer(bytes)
 	f.close()
 	print("[EXPORT] wrote %s (%d bytes)" % [abs_out, bytes.size()])
+
+	# Free this pass's nodes before rebuilding at the next scale.
+	root.remove_child(build_root)
+	build_root.free()
+	root.remove_child(out_root)
+	out_root.free()
 	return true
 
 

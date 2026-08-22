@@ -22,6 +22,11 @@ var drop_gravity: float = 0.0
 var drop_start_distance: float = 15.0
 var _traveled: float = 0.0
 var _drop_speed: float = 0.0
+# Missile-style visuals: the model node gets re-aimed every physics frame to
+# the LIVE flight vector (launch direction plus gravity sag), and impacts
+# always detonate with fire/smoke even when damage_type isn't "explosive".
+var visual_node: Node3D = null
+var explosive_visual: bool = false
 
 
 func _ready() -> void:
@@ -68,6 +73,17 @@ func _physics_process(delta: float) -> void:
 		_drop_speed += drop_gravity * delta
 		position.y -= _drop_speed * delta
 
+	# Keep missile-style models pointed along the ACTUAL velocity (launch dir
+	# + gravity sag), so arcing rounds visibly pitch their nose downward.
+	if visual_node != null and is_instance_valid(visual_node):
+		var vel := direction * speed
+		if drop_gravity > 0.0 and _traveled > drop_start_distance:
+			vel.y -= _drop_speed
+		if vel.length_squared() > 0.01:
+			var vdir := vel.normalized()
+			if absf(vdir.dot(Vector3.UP)) < 0.995:  # look_at needs a non-colinear up
+				visual_node.look_at(global_position + vdir, Vector3.UP)
+
 	# Check for obstacle (cover) collision using raycast between frames
 	_check_obstacle_collision()
 
@@ -97,6 +113,10 @@ func _physics_process(delta: float) -> void:
 	# top ~ -2.5). Real terrain (banks, bridges, riverbed) is already caught by
 	# the raycast above.
 	if global_position.y <= -2.5:
+		if explosive_visual and damage_type.to_lower() != "explosive":
+			_spawn_missile_impact_fx(global_position)
+			queue_free()
+			return
 		if damage_type.to_lower() == "explosive":
 			_explode(global_position)
 		else:
@@ -133,7 +153,12 @@ func _check_obstacle_collision() -> void:
 			queue_free()
 			return
 
-		EffectManager.spawn_hit_spark(hit_pos, hit_normal, damage_type)
+		if explosive_visual:
+			# Missiles detonate against cover even though their damage type
+			# is heat — fireball + smoke, no gameplay area damage.
+			_spawn_missile_impact_fx(hit_pos)
+		else:
+			EffectManager.spawn_hit_spark(hit_pos, hit_normal, damage_type)
 
 		# Ricochet check: some bullets bounce off
 		if randf() < ricochet_chance:
@@ -163,6 +188,11 @@ func _hit_target(target: Node3D) -> void:
 		_explode(position)
 		return
 
+	if explosive_visual:
+		# Missiles always go out with a bang: fireball + smoke on the hit even
+		# though their damage type is heat (gameplay numbers unchanged).
+		_spawn_missile_impact_fx(position)
+
 	EffectManager.spawn_hit_spark(position, -direction if direction.length_squared() > 0.001 else Vector3.UP, damage_type)
 	if AudioManager:
 		AudioManager.play_impact_by_type(damage_type, position)
@@ -187,6 +217,18 @@ func _explode(blast_pos: Vector3) -> void:
 		EffectFactory.spawn_burning_ground(get_tree(), blast_pos, maxf(explosion_radius * 0.8, 1.0), 2.5)
 	EffectManager.apply_area_explosion_damage(blast_pos, damage, explosion_radius, fired_by_enemy, damage_type)
 	queue_free()
+
+
+# Missile-style detonation visuals for impacts whose damage_type is NOT
+# "explosive" (missiles ship as heat): a compact fireball + smoke puff and the
+# explosion voice. Gameplay numbers stay exactly as tuned.
+func _spawn_missile_impact_fx(pos: Vector3) -> void:
+	var tree := get_tree()
+	if tree != null:
+		EffectFactory.spawn_fire_burst(tree, pos, 0.9, 0.35, 5.0)
+		EffectFactory.spawn_smoke_plume(tree, pos, 4, 0.22, 0.4, 0.65)
+	if AudioManager:
+		AudioManager.play_explosion(pos)
 
 
 func _spawn_trail() -> void:

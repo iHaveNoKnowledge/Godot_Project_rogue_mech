@@ -304,6 +304,77 @@ static func _get_cached_material(color: Color) -> StandardMaterial3D:
 	return mat
 
 
+static var _cached_flame_material: StandardMaterial3D = null
+
+
+## Builds a real missile model with its NOSE pointing down local -Z (Godot's
+## forward), so a single look_at() down the flight line aims it correctly.
+## Hull cylinder + cone warhead + cross tail fins + exhaust flame glow.
+static func _build_missile_model(hull_mat: StandardMaterial3D) -> Node3D:
+	var root := Node3D.new()
+
+	var body := MeshInstance3D.new()
+	var hull := CylinderMesh.new()
+	hull.top_radius = 0.05
+	hull.bottom_radius = 0.05
+	hull.height = 0.30
+	body.mesh = hull
+	body.material_override = hull_mat
+	body.rotation_degrees.x = -90.0  # lay the cylinder axis along Z, top toward -Z
+	body.position = Vector3(0, 0, -0.02)
+	root.add_child(body)
+
+	var nose := MeshInstance3D.new()
+	var cone := CylinderMesh.new()
+	cone.top_radius = 0.004
+	cone.bottom_radius = 0.05
+	cone.height = 0.16
+	nose.mesh = cone
+	nose.material_override = hull_mat
+	nose.rotation_degrees.x = -90.0
+	nose.position = Vector3(0, 0, -0.25)  # tip reaches z -0.33, ahead of the hull
+	root.add_child(nose)
+
+	var fin_v := MeshInstance3D.new()
+	var fv := BoxMesh.new()
+	fv.size = Vector3(0.015, 0.16, 0.12)
+	fin_v.mesh = fv
+	fin_v.material_override = hull_mat
+	fin_v.position = Vector3(0, 0, 0.07)
+	root.add_child(fin_v)
+
+	var fin_h := MeshInstance3D.new()
+	var fh := BoxMesh.new()
+	fh.size = Vector3(0.16, 0.015, 0.12)
+	fin_h.mesh = fh
+	fin_h.material_override = hull_mat
+	fin_h.position = Vector3(0, 0, 0.07)
+	root.add_child(fin_h)
+
+	var flame := MeshInstance3D.new()
+	var fl := SphereMesh.new()
+	fl.radius = 0.035
+	fl.height = 0.09
+	flame.mesh = fl
+	flame.material_override = _get_flame_material()
+	flame.position = Vector3(0, 0, 0.20)  # burning exhaust behind the tail fins
+	root.add_child(flame)
+
+	return root
+
+
+static func _get_flame_material() -> StandardMaterial3D:
+	if _cached_flame_material == null:
+		var m := StandardMaterial3D.new()
+		m.albedo_color = Color(1.0, 0.55, 0.15)
+		m.emission_enabled = true
+		m.emission = Color(1.0, 0.6, 0.2)
+		m.emission_energy_multiplier = 6.0
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_cached_flame_material = m
+	return _cached_flame_material
+
+
 # --- Projectile spawning (shared with the player's WeaponManager) ---
 func _spawn_projectile(from_pos: Vector3, aim_dir: Vector3, fired_by_enemy: bool, owner: Node) -> void:
 	if owner == null or not owner.is_inside_tree() or owner.get_tree().current_scene == null:
@@ -318,17 +389,33 @@ func _spawn_projectile(from_pos: Vector3, aim_dir: Vector3, fired_by_enemy: bool
 	collision.shape = _get_cached_shape()
 	projectile.add_child(collision)
 
-	var mesh := MeshInstance3D.new()
-	mesh.mesh = _get_cached_mesh(projectile_style)
-	mesh.material_override = _get_cached_material(projectile_color)
-	projectile.add_child(mesh)
+	var visual: Node3D
+	if projectile_style == Style.MISSILE:
+		# Real missile silhouette aimed by its own nose (-Z): NO extra roll,
+		# which used to stand the old box mesh on end pointing at the sky.
+		visual = _build_missile_model(_get_cached_material(projectile_color))
+	else:
+		var mesh := MeshInstance3D.new()
+		mesh.mesh = _get_cached_mesh(projectile_style)
+		mesh.material_override = _get_cached_material(projectile_color)
+		visual = mesh
+	projectile.add_child(visual)
 
 	owner.get_tree().current_scene.add_child(projectile)
 	projectile.global_position = from_pos
-	mesh.global_position = from_pos
-	mesh.look_at(from_pos + aim_dir, Vector3.UP)
-	if projectile_style != Style.ORB:
-		mesh.rotate_object_local(Vector3.RIGHT, deg_to_rad(90))
+	visual.global_position = from_pos
+	# look_at() orients -Z toward the aim line; pick an up vector that never
+	# runs colinear with the direction (straight-up shots included).
+	var up := Vector3.UP
+	if absf(aim_dir.normalized().dot(up)) > 0.99:
+		up = Vector3.RIGHT
+	visual.look_at(from_pos + aim_dir, up)
+	if projectile_style != Style.MISSILE and projectile_style != Style.ORB:
+		visual.rotate_object_local(Vector3.RIGHT, deg_to_rad(90))
+
+	if projectile_style == Style.MISSILE:
+		projectile.visual_node = visual       # re-aimed every frame to the live flight vector
+		projectile.explosive_visual = true    # missiles always detonate visibly on impact
 
 	projectile.speed = projectile_speed
 	projectile.damage = damage * damage_multiplier

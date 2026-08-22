@@ -136,7 +136,7 @@ func _build_objective_event() -> Dictionary:
 # Steps the token towards the target cell. If adjacent, takes 1 step directly.
 # If further away, calculates a walkable path and steps cell-by-cell up to available MP / Energy.
 func move_to_tile(target: Vector2i) -> bool:
-	if get_tree().paused or _intermission_open():
+	if not is_inside_tree() or get_tree().paused or _intermission_open():
 		return false
 	if target == current_pos:
 		return false
@@ -151,7 +151,7 @@ func move_to_tile(target: Vector2i) -> bool:
 
 	var moved_any := false
 	for step in path:
-		if get_tree() == null or get_tree().paused or _intermission_open() or GameManager.current_state != GameManager.State.BOARD:
+		if not is_inside_tree() or get_tree().paused or _intermission_open() or GameManager.current_state != GameManager.State.BOARD:
 			break
 		if GlobalData.board.board_mp <= 0 or GlobalData.fuel.mech_energy <= 0.0:
 			break
@@ -159,7 +159,7 @@ func move_to_tile(target: Vector2i) -> bool:
 		if not ok:
 			break
 		moved_any = true
-		if get_tree() == null or get_tree().paused or GameManager.current_state != GameManager.State.BOARD:
+		if not is_inside_tree() or get_tree().paused or GameManager.current_state != GameManager.State.BOARD:
 			break
 
 	return moved_any
@@ -211,7 +211,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	# The token moves by CLICKING a reachable tile (board_tile._on_input_event);
 	# WASD/Q/E belong to the camera (pan + rotate). Board-wide keys (end day, roller toggle)
 	# are handled here.
-	if get_tree().paused or not visible or _intermission_open():
+	if not is_inside_tree() or get_tree().paused or not visible or _intermission_open():
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.is_action_pressed("pause"):
@@ -346,7 +346,7 @@ func _try_step(target: Vector2i) -> bool:
 	# this scene immediately) or opened a pause overlay (safehouse/city shop).
 	# Never run the end-of-day flow on a scene that is no longer in the tree —
 	# its event popup would crash on get_tree() == null.
-	if GlobalData.board.board_mp <= 0 and get_tree() != null and not get_tree().paused \
+	if GlobalData.board.board_mp <= 0 and is_inside_tree() and not get_tree().paused \
 			and GameManager.current_state == GameManager.State.BOARD:
 		_end_day()
 	return true
@@ -368,9 +368,11 @@ func _intermission_open() -> bool:
 # the scene (see event_ui._resume_from_popup). Event effects like patrol_recruit
 # remove fleets or move tokens, so the arrow markers and walkable highlights
 # must be redrawn in place instead of waiting for a scene reload.
-func refresh_after_event() -> void:
-	_apply_pending_tile_clear()
+func _refresh_after_event_closed() -> void:
+	if not is_inside_tree():
+		return
 	_refresh_patrol_markers()
+	_clear_highlights()
 	_highlight_adjacent()
 	_update_token_position()
 
@@ -378,7 +380,7 @@ func refresh_after_event() -> void:
 func _end_day() -> void:
 	# Safety net: combat was entered this frame (the board scene is already out
 	# of the tree), so the end-of-day emit would hit an orphaned EventUI.
-	if get_tree() == null or GameManager.current_state != GameManager.State.BOARD:
+	if not is_inside_tree() or GameManager.current_state != GameManager.State.BOARD:
 		return
 	GlobalData.board.board_day += 1
 	GlobalData.board.board_mp = GlobalData.board.board_mp_max
@@ -825,7 +827,7 @@ func _process(_delta: float) -> void:
 	if _tooltip and _tooltip.has_method("show_tile"):
 		_tooltip.show_tile("", Vector2(-1, -1), {})
 
-	if get_tree().paused or is_any_modal_open():
+	if not is_inside_tree() or get_tree().paused or is_any_modal_open():
 		return
 
 	var tile := _hovered_tile()

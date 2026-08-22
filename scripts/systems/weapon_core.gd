@@ -253,7 +253,7 @@ func is_overheated() -> bool:
 
 # --- Projectile spawning (shared with the player's WeaponManager) ---
 func _spawn_projectile(from_pos: Vector3, aim_dir: Vector3, fired_by_enemy: bool, owner: Node) -> void:
-	if owner == null or owner.get_tree() == null or owner.get_tree().current_scene == null:
+	if owner == null or not owner.is_inside_tree() or owner.get_tree().current_scene == null:
 		return
 
 	var proj_script := load("res://scripts/systems/projectile.gd")

@@ -933,6 +933,8 @@ func set_hover(hovered: bool) -> void:
 		return
 	if hovered:
 		mesh_instance.position.y = 0.08
+		if not is_inside_tree():
+			return
 		var bm = get_tree().current_scene
 		if bm and bm.has_node("BoardHUD"):
 			var hud = bm.get_node("BoardHUD")
@@ -948,6 +950,8 @@ func set_hover(hovered: bool) -> void:
 
 func _on_input_event(_camera: Node, event: InputEvent, _position: Vector3, _normal: Vector3, _shape_idx: int) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		if not is_inside_tree():
+			return
 		var board_manager = get_tree().current_scene
 		if board_manager and board_manager.has_method("move_to_tile"):
 			board_manager.move_to_tile(grid_pos)

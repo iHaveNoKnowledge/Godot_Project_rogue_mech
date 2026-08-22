@@ -464,7 +464,7 @@ static func apply_area_explosion_damage(
 	damage_type: String = "explosive",
 	exclude_node: Node = null
 ) -> void:
-	if instance == null or instance.get_tree() == null:
+	if instance == null or not instance.is_inside_tree():
 		return
 
 	var candidates: Array = []

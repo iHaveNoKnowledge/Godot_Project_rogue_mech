@@ -8,6 +8,7 @@ var title_label: Label
 var info_label: Label
 var parts_container: VBoxContainer
 var repair_all_button: Button
+var sacrifice_button: Button
 var leave_button: Button
 var status_label: Label
 
@@ -84,6 +85,17 @@ func _create_ui() -> void:
 	repair_all_button.pressed.connect(_on_repair_all_pressed)
 	vbox.add_child(repair_all_button)
 
+	# SACRIFICE MISSION (GDD §5): only offered when the pilot-mech bond has
+	# peaked AND the machine is wrecked — push the old warhorse to its limits.
+	sacrifice_button = Button.new()
+	sacrifice_button.name = "SacrificeMissionButton"
+	sacrifice_button.text = "SACRIFICE MISSION - Push the old warhorse to its limits"
+	sacrifice_button.custom_minimum_size = Vector2(460, 40)
+	sacrifice_button.add_theme_color_override("font_color", Color(1.0, 0.45, 0.4))
+	sacrifice_button.visible = false
+	sacrifice_button.pressed.connect(_on_sacrifice_pressed)
+	vbox.add_child(sacrifice_button)
+
 	leave_button = Button.new()
 	leave_button.text = "Leave Safehouse"
 	leave_button.custom_minimum_size = Vector2(460, 36)
@@ -115,6 +127,11 @@ func _refresh_parts_list() -> void:
 	# Clear old buttons
 	for child in parts_container.get_children():
 		child.queue_free()
+
+	# Sacrifice mission offer: visible only while the narrative flag is armed
+	# (bond >= 80 + wrecked machine) and not yet triggered.
+	sacrifice_button.visible = GlobalData.narrative.sacrifice_event_available \
+		and not GlobalData.narrative.sacrifice_event_triggered
 
 	var total_cost = 0
 	var has_damaged = false
@@ -210,6 +227,16 @@ func _on_repair_all_pressed() -> void:
 	GlobalData.weapons.part_damage.clear()
 	status_label.text = "All repaired! Credits: %d" % GlobalData.currency.credits
 	_refresh_parts_list()
+
+
+func _on_sacrifice_pressed() -> void:
+	var se := get_tree().get_first_node_in_group("sacrifice_event")
+	if se == null or not se.has_method("start_sacrifice_event"):
+		status_label.text = "The sacrifice mission cannot begin here."
+		return
+	visible = false
+	get_tree().paused = false
+	se.start_sacrifice_event()
 
 
 func _on_leave_pressed() -> void:

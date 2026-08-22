@@ -15,6 +15,10 @@ signal grand_entry_completed()
 
 
 func _ready() -> void:
+	# Discoverable by UIs (Safehouse) via group — the node lives in both the
+	# board scene (to START the mission) and the combat scene (to RESOLVE it);
+	# a scene swap frees one before the other loads, so only one is ever alive.
+	add_to_group("sacrifice_event")
 	EventBus.combat_ended.connect(_on_combat_ended)
 
 
@@ -28,8 +32,11 @@ func _on_combat_ended(victory: bool) -> void:
 
 
 ## Checks if the sacrifice event should be offered to the player.
+## A mech-less pilot has no machine to sacrifice.
 func is_sacrifice_available() -> bool:
-	return GlobalData.narrative.sacrifice_event_available and not GlobalData.narrative.sacrifice_event_triggered
+	return GlobalData.narrative.sacrifice_event_available \
+		and not GlobalData.narrative.sacrifice_event_triggered \
+		and not GlobalData.narrative.mech_less
 
 
 ## Starts the sacrifice event — the critical mission begins.

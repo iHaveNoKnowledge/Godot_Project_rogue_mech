@@ -106,20 +106,30 @@ func record_near_death_escape() -> void:
 	increase_bond(10.0)
 
 
-func check_sacrifice_availability(part_damage: Dictionary) -> void:
+## Re-evaluates whether the Sacrifice Event can be offered: requires a strong
+## pilot-mech bond (>= 80) AND a heavily damaged machine (total damage >= 200%).
+## Returns true only when availability JUST flipped on this call, so callers
+## can announce the unlock exactly once.
+func check_sacrifice_availability(part_damage: Dictionary) -> bool:
 	if sacrifice_event_triggered:
-		return
+		return false
 	var total_damage := 0.0
 	for slot in part_damage:
 		total_damage += float(part_damage[slot])
-	sacrifice_event_available = (mech_bond >= 80.0 and total_damage >= 2.0)
+	var now_available := (mech_bond >= 80.0 and total_damage >= 2.0)
+	var newly_available := now_available and not sacrifice_event_available
+	sacrifice_event_available = now_available
+	return newly_available
 
 
 func trigger_sacrifice_event(new_mech_id: String) -> void:
 	sacrifice_event_triggered = true
-	grand_entry_mech_id = new_mech_id
-	grand_entry_pending = true
 	sacrifice_event_available = false
+	# NOTE: grand_entry_pending is deliberately NOT armed here. It is set only
+	# when the mech actually falls during the sacrifice mission — otherwise a
+	# VICTORY would also complete the Grand Entry and hand over the reward mech.
+	if str(new_mech_id) != "":
+		grand_entry_mech_id = new_mech_id
 
 
 func has_pilot_perk(perk_id: String, hired_pilots: Array = [], recruited_characters: Array = []) -> bool:

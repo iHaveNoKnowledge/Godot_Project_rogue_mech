@@ -284,6 +284,11 @@ func _on_combat_ended(victory: bool) -> void:
 	# Record bond.
 	if victory:
 		narrative.record_battle_survived(weapons.part_damage)
+	# GDD §5 Sacrifice Event: re-evaluate after EVERY battle. When the
+	# pilot-mech bond is at its peak AND the machine is wrecked, the mission
+	# becomes accept-able from the Safehouse (announced exactly once).
+	if narrative.check_sacrifice_availability(weapons.part_damage):
+		board.run_notice = "Bond is at its peak and the old machine is wrecked. A SACRIFICE MISSION awaits at the Safehouse."
 	# Finalize combat damage stats.
 	CombatStatsSystem.compute_last_combat_damage_ratio()
 	# Patrol fleet engagement resolves first.

@@ -68,18 +68,12 @@ var _precision_label: Label = null
 var _precision_flash_tween: Tween = null
 var _precision_was_dodged: bool = false
 
-# Bond indicator (GDD §5): shows the pilot-mech bond level.
-var _bond_label: Label = null
-var _bond_bar: ProgressBar = null
-var _bond_fill: StyleBoxFlat = null
-
 
 func _ready() -> void:
 	_create_hit_flash()
 	_create_energy_row()
 	_create_drop_tank_row()
 	_create_precision_row()
-	_create_bond_row()
 	EventBus.damage_received.connect(_on_player_damaged)
 	if get_viewport():
 		get_viewport().size_changed.connect(_fit_panel_to_content)
@@ -179,7 +173,6 @@ func _process(_delta: float) -> void:
 		_update_energy_bar()
 		_update_drop_tank_indicator()
 	_update_precision_indicator()
-	_update_bond_indicator()
 
 
 func _update_energy_bar() -> void:
@@ -442,52 +435,6 @@ func _update_precision_indicator() -> void:
 		_precision_flash_tween.tween_property(_precision_label, "modulate:a", 0.0, 0.3)
 		_precision_flash_tween.tween_callback(_precision_label.hide)
 	_precision_was_dodged = dodged
-
-
-# --- Bond HUD (GDD §5) -----------------------------------------------------
-# Shows the pilot-mech bond level as a slim bar with a heart icon.
-func _create_bond_row() -> void:
-	var row = HBoxContainer.new()
-	row.add_theme_constant_override("separation", 6)
-	_bond_label = Label.new()
-	_bond_label.text = "♥ BOND"
-	_bond_label.add_theme_font_size_override("font_size", 9)
-	_bond_label.add_theme_color_override("font_color", Color(1.0, 0.5, 0.6))
-	row.add_child(_bond_label)
-	_bond_bar = ProgressBar.new()
-	_bond_bar.custom_minimum_size = Vector2(80, 6)
-	_bond_bar.max_value = 100.0
-	_bond_bar.value = 0.0
-	_bond_bar.show_percentage = false
-	_bond_fill = StyleBoxFlat.new()
-	_bond_fill.bg_color = Color(1.0, 0.4, 0.5)
-	_bond_fill.corner_radius_top_left = 2
-	_bond_fill.corner_radius_top_right = 2
-	_bond_fill.corner_radius_bottom_left = 2
-	_bond_fill.corner_radius_bottom_right = 2
-	_bond_bar.add_theme_stylebox_override("fill", _bond_fill)
-	var bg = StyleBoxFlat.new()
-	bg.bg_color = Color(0.1, 0.12, 0.18, 0.9)
-	bg.corner_radius_top_left = 2
-	bg.corner_radius_top_right = 2
-	bg.corner_radius_bottom_left = 2
-	bg.corner_radius_bottom_right = 2
-	_bond_bar.add_theme_stylebox_override("background", bg)
-	row.add_child(_bond_bar)
-	# Insert into the grid.
-	var grid = get_node_or_null("Panel/Grid")
-	if grid:
-		grid.add_child(row)
-
-
-func _update_bond_indicator() -> void:
-	if _bond_bar == null:
-		return
-	_bond_bar.value = GlobalData.narrative.mech_bond
-	# Tint: pink when low, red when high.
-	if _bond_fill:
-		var ratio := GlobalData.narrative.mech_bond / 100.0
-		_bond_fill.bg_color = Color(1.0, 0.5, 0.6).lerp(Color(1.0, 0.15, 0.2), ratio)
 
 
 # ---------------------------------------------------------------------------

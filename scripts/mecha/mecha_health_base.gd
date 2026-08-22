@@ -49,12 +49,21 @@ var _friendly_light_override: int = -1  # -1 = auto, 0 = hostile, 1 = friendly
 # Core-breach heat glow: an OmniLight3D on the body that ramps up while the
 # machine warns before detonation — reads as the heat building up to blow.
 var _breach_glow: OmniLight3D = null
+var damage_visuals: ArmorDamageVisuals = null
 
 
 func _ready() -> void:
 	_init_parts()
 	_find_meshes()
 	_calculate_totals()
+	damage_visuals = ArmorDamageVisuals.new(self)
+	for slot in parts:
+		var p = parts[slot]
+		var max_a: float = float(p.get("max_armor", 0.0))
+		var cur_a: float = float(p.get("armor_hp", max_a))
+		if max_a > 0.0:
+			damage_visuals.update_slot_damage(slot, 1.0 - (cur_a / max_a))
+
 	EventBus.damage_received.connect(_on_damage_received)
 	_setup_pilot_light()
 	# Only the PLAYER's health system follows the occupancy signal — enemy /

@@ -1,11 +1,126 @@
 shader_type spatial;
+render_mode blend_mix, depth_draw_never, cull_back;
+
+## ---------------------------------------------------------------------------
+## PROCEDURAL DYNAMIC ARMOR DAMAGE SHADER
+##
+## Projects 3D procedural cracks, scratches, scorches, and glowing breach heat
+## onto any mesh in local space without requiring custom UV coordinates.
+## Compatible with both built-in mecha meshes and custom imported 3D models.
+## ---------------------------------------------------------------------------
 
 uniform float damage_amount : hint_range(0.0, 1.0) = 0.0;
-uniform vec4 damage_color : source_color = vec4(0.8, 0.1, 0.1, 1.0);
+uniform vec3 noise_offset = vec3(0.0);
+uniform float crack_scale : hint_range(1.0, 25.0) = 6.0;
+uniform float scratch_scale : hint_range(5.0, 60.0) = 24.0;
+
+uniform vec4 crack_color : source_color = vec4(0.08, 0.08, 0.10, 1.0);
+uniform vec4 exposed_metal_color : source_color = vec4(0.38, 0.40, 0.44, 1.0);
+uniform vec4 glow_color : source_color = vec4(1.0, 0.38, 0.08, 1.0);
+uniform float glow_intensity : hint_range(0.0, 10.0) = 4.5;
+
+
+// Fast 3D hash
+vec3 hash3(vec3 p) {
+	p = vec3(
+		dot(p, vec3(127.1, 311.7, 74.7)),
+		dot(p, vec3(269.5, 183.3, 246.1)),
+		dot(p, vec3(113.5, 271.9, 124.6))
+	);
+	return fract(sin(p) * 43758.5453123);
+}
+
+
+// 3D Voronoi returning distance to cell boundary (F2 - F1)
+float voronoi_cracks(vec3 x) {
+	vec3 p = floor(x);
+	vec3 f = fract(x);
+
+	float d1 = 8.0;
+	float d2 = 8.0;
+
+	for (int k = -1; k <= 1; k++) {
+		for (int j = -1; j <= 1; j++) {
+			for (int i = -1; i <= 1; i++) {
+				vec3 b = vec3(float(i), float(j), float(k));
+				vec3 r = b - f + hash3(p + b);
+				float d = dot(r, r);
+
+				if (d < d1) {
+					d2 = d1;
+					d1 = d;
+				} else if (d < d2) {
+					d2 = d;
+				}
+			}
+		}
+	}
+	return sqrt(d2) - sqrt(d1);
+}
+
+
+// 3D value noise for scratch abrasions
+float value_noise(vec3 x) {
+	vec3 i = floor(x);
+	vec3 f = fract(x);
+	f = f * f * (3.0 - 2.0 * f);
+
+	float n000 = hash3(i + vec3(0, 0, 0)).x;
+	float n100 = hash3(i + vec3(1, 0, 0)).x;
+	float n010 = hash3(i + vec3(0, 1, 0)).x;
+	float n110 = hash3(i + vec3(1, 1, 0)).x;
+	float n001 = hash3(i + vec3(0, 0, 1)).x;
+	float n101 = hash3(i + vec3(1, 0, 1)).x;
+	float n011 = hash3(i + vec3(0, 1, 1)).x;
+	float n111 = hash3(i + vec3(1, 1, 1)).x;
+
+	return mix(
+		mix(mix(n000, n100, f.x), mix(n010, n110, f.x), f.y),
+		mix(mix(n001, n101, f.x), mix(n011, n111, f.x), f.y),
+		f.z
+	);
+}
+
 
 void fragment() {
-	vec3 albedo = ALBEDO;
-	albedo = mix(albedo, damage_color.rgb, damage_amount * 0.3);
-	ALBEDO = albedo;
-	SPECULAR = mix(SPECULAR, 0.1, damage_amount);
+	if (damage_amount <= 0.001) {
+		ALPHA = 0.0;
+		discard;
+	}
+
+	vec3 pos = VERTEX + noise_offset;
+
+	// 1. Calculate Voronoi Cracks (fractures expand as damage_amount increases)
+	float crack_dist = voronoi_cracks(pos * crack_scale);
+	float crack_width = damage_amount * 0.16;
+	float crack_factor = smoothstep(crack_width, 0.0, crack_dist);
+
+	// 2. Calculate Scratches / Surface abrasions
+	float scratch_noise = value_noise(pos * scratch_scale);
+	float scratch_threshold = 1.0 - (damage_amount * 0.42);
+	float scratch_factor = smoothstep(scratch_threshold, 1.0, scratch_noise) * (damage_amount * 0.75);
+
+	// 3. Combined damage visibility mask
+	float total_alpha = clamp(crack_factor * 1.6 + scratch_factor, 0.0, 1.0);
+
+	if (total_alpha < 0.03) {
+		ALPHA = 0.0;
+		discard;
+	}
+
+	// 4. Color blending
+	vec3 base_color = mix(exposed_metal_color.rgb, crack_color.rgb, crack_factor);
+
+	// 5. Glowing internal heat on severe damage (>65% damaged)
+	float glow_mask = 0.0;
+	if (damage_amount > 0.65) {
+		float glow_width = crack_width * 0.45;
+		glow_mask = smoothstep(glow_width, 0.0, crack_dist) * ((damage_amount - 0.65) / 0.35);
+	}
+
+	ALBEDO = base_color;
+	EMISSION = glow_color.rgb * (glow_mask * glow_intensity);
+	METALLIC = mix(0.75, 0.2, crack_factor);
+	ROUGHNESS = mix(0.25, 0.85, crack_factor);
+	ALPHA = total_alpha;
 }

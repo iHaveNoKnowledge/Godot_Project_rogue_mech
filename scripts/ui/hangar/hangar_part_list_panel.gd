@@ -63,8 +63,6 @@ func populate(slot: String) -> void:
 		for f_idx in range(items.size()):
 			var info = items[f_idx]
 			var is_eq = is_item_equipped(slot, info)
-			if is_eq and is_destroyed:
-				continue
 			var other_user := other_mech_frame_user(slot, info) if not is_eq else ""
 			frows.append({"idx": f_idx, "eq": is_eq, "other": other_user})
 		# Sort order: [[Currently equipped: Rank 0] -> [Free spares: Rank 1] -> [Taken by other mechs: Rank 2]]
@@ -150,8 +148,6 @@ func populate(slot: String) -> void:
 			if uid != "":
 				shown_uids[uid] = true
 			var is_eq = is_item_equipped(slot, inst)
-			if is_eq and (GlobalData.weapons.part_damage.get(slot, 0.0) >= 1.0 or GlobalData.weapons.part_damage.get(slot + "_frame", 0.0) >= 1.0):
-				continue
 			var other_user := other_mech_armor_user(uid) if not is_eq else ""
 			arows.append({"idx": inst_index, "eq": is_eq, "other": other_user})
 		# Sort order: [[Currently equipped: Rank 0] -> [Free spares: Rank 1] -> [Taken by other mechs: Rank 2]]

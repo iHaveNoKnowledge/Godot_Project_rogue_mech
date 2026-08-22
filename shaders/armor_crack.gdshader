@@ -1,13 +1,13 @@
 shader_type spatial;
 render_mode blend_mix, depth_draw_never, cull_back;
 
-## ---------------------------------------------------------------------------
-## PROCEDURAL DYNAMIC ARMOR DAMAGE SHADER
-##
-## Projects 3D procedural cracks, scratches, scorches, and glowing breach heat
-## onto any mesh in local space without requiring custom UV coordinates.
-## Compatible with both built-in mecha meshes and custom imported 3D models.
-## ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// PROCEDURAL DYNAMIC ARMOR DAMAGE SHADER
+//
+// Projects 3D procedural cracks, scratches, scorches, and glowing breach heat
+// onto any mesh in local space without requiring custom UV coordinates.
+// Compatible with both built-in mecha meshes and custom imported 3D models.
+// ---------------------------------------------------------------------------
 
 uniform float damage_amount : hint_range(0.0, 1.0) = 0.0;
 uniform vec3 noise_offset = vec3(0.0);

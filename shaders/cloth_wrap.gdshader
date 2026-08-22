@@ -1,12 +1,12 @@
 shader_type spatial;
 render_mode blend_mix, depth_draw_opaque, cull_disabled;
 
-## ---------------------------------------------------------------------------
-## PROCEDURAL CLOTH / ARMOR BANDAGE WRAP SHADER
-##
-## Renders woven cloth bandages, wraps, and cloaks with fabric texture,
-## frayed fiber noise, dirt/oil stains, and realistic cloth micro-roughness.
-## ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// PROCEDURAL CLOTH / ARMOR BANDAGE WRAP SHADER
+//
+// Renders woven cloth bandages, wraps, and cloaks with fabric texture,
+// frayed fiber noise, dirt/oil stains, and realistic cloth micro-roughness.
+// ---------------------------------------------------------------------------
 
 uniform vec4 cloth_color : source_color = vec4(0.72, 0.68, 0.60, 1.0);
 uniform vec4 stain_color : source_color = vec4(0.18, 0.16, 0.14, 1.0);

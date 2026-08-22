@@ -1,12 +1,12 @@
 shader_type spatial;
 render_mode blend_mix, depth_draw_opaque, cull_back;
 
-## ---------------------------------------------------------------------------
-## PROCEDURAL SCRAP METAL PLATE SHADER
-##
-## Renders authentic scavenged scrap plates with welded seam edges, surface rust,
-## micro-scratches, carbon scorches, and bolt/rivet accents.
-## ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// PROCEDURAL SCRAP METAL PLATE SHADER
+//
+// Renders authentic scavenged scrap plates with welded seam edges, surface rust,
+// micro-scratches, carbon scorches, and bolt/rivet accents.
+// ---------------------------------------------------------------------------
 
 uniform vec4 plate_color : source_color = vec4(0.32, 0.35, 0.38, 1.0);
 uniform vec4 rust_color : source_color = vec4(0.48, 0.22, 0.08, 1.0);

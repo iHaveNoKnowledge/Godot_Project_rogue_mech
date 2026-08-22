@@ -1,7 +1,5 @@
 extends Node3D
 
-const EffectFactory = preload("res://scripts/effects/effect_factory.gd")
-
 ## Open-grid board controller. Replaces the old layered node graph with a free-
 ## movement grid: the player steps cell-by-cell (WASD or click), each cell costs
 ## movement points from a per-day pool. Patrol fleets roam the grid, objectives

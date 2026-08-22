@@ -1,8 +1,6 @@
 class_name MechaHealthBase
 extends Node3D
 
-const EffectFactory = preload("res://scripts/effects/effect_factory.gd")
-
 signal health_changed(slot_name: String, layer: String, current_hp: float, max_hp: float)
 signal armor_broken(slot_name: String)
 signal part_destroyed(slot_name: String)

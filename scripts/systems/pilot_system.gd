@@ -1,8 +1,6 @@
 class_name PilotSystem
 extends RefCounted
 
-const PilotGenerator = preload("res://scripts/systems/pilot_generator.gd")
-
 # -----------------------------------------------------------------------------
 # PILOT SYSTEM — the player pilot's own condition, kept separate from the mech.
 #

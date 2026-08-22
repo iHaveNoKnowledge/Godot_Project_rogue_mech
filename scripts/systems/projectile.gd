@@ -1,7 +1,5 @@
 extends CharacterBody3D
 
-const EffectFactory = preload("res://scripts/effects/effect_factory.gd")
-
 var speed: float = 50.0
 var damage: float = 25.0
 var damage_type: String = "kinetic"

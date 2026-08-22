@@ -1,7 +1,5 @@
 extends CharacterBody3D
 
-const EffectFactory = preload("res://scripts/effects/effect_factory.gd")
-
 @export var chassis: ChassisData
 
 var total_weight: float = 0.0

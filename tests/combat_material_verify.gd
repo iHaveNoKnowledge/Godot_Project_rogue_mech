@@ -29,9 +29,6 @@ func _ready() -> void:
 	get_tree().quit(1 if _fails > 0 else 0)
 
 
-const MaterialFactory = preload("res://scripts/arena/material_factory.gd")
-
-
 func _test_ground_materials() -> void:
 	var themes := [0, 1, 2, 3, 4, 5]
 	for t in themes:

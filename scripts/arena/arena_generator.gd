@@ -1,7 +1,5 @@
 extends Node3D
 
-const MaterialFactory = preload("res://scripts/arena/material_factory.gd")
-
 ## Generates procedural combat maps: Desert, Skyscraper City, Urban Crossroads, and River Bridge.
 
 @export var arena_size: float = 240.0

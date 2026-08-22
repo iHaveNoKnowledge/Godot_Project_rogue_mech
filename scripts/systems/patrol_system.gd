@@ -1,8 +1,6 @@
 class_name PatrolSystem
 extends RefCounted
 
-const PilotGenerator = preload("res://scripts/systems/pilot_generator.gd")
-
 # -----------------------------------------------------------------------------
 # ENEMY PATROL FLEETS
 # Fleets roam the open board grid. They patrol near their home anchor, but the

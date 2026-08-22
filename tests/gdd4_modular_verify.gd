@@ -1,11 +1,5 @@
 extends Node
 
-const BoardConfig = preload("res://scripts/board/board_config.gd")
-const PatrolSystem = preload("res://scripts/systems/patrol_system.gd")
-const BoardSystem = preload("res://scripts/systems/board_system.gd")
-const PilotSystem = preload("res://scripts/systems/pilot_system.gd")
-const PilotGenerator = preload("res://scripts/systems/pilot_generator.gd")
-
 ## Headless verification of GDD v4.0 Master Modular Architecture features:
 ##   1. Dual-Cost Energy Movement (Road, Mud/Off-road, Roller Dash)
 ##   2. 4 Fleet Archetypes & Properties (Recon, Armored, Artillery, Hunter-Killer)

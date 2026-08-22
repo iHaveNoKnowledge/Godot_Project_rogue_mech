@@ -1,7 +1,5 @@
 extends Node
 
-const EffectFactory = preload("res://scripts/effects/effect_factory.gd")
-
 ## Verifies all new VFX and Atmospheric lighting systems:
 ## 1. Fire Bursts with dynamic lighting
 ## 2. Billowing Smoke Plumes

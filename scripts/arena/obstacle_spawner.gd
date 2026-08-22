@@ -1,7 +1,5 @@
 extends Node3D
 
-const MaterialFactory = preload("res://scripts/arena/material_factory.gd")
-
 ## Spawns procedural cover objects, street barricades, containers, and hazards tailored to the map theme.
 
 @export var arena_size: float = 240.0

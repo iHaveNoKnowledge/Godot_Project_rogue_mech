@@ -1,7 +1,5 @@
 extends Node
 
-const EffectFactory = preload("res://scripts/effects/effect_factory.gd")
-
 ## ---------------------------------------------------------------------------
 ## MECHA JUMP & THRUSTER GLIDE SYSTEM:
 ## 1. Ground Jump:

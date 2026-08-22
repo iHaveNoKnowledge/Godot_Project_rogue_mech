@@ -1,7 +1,5 @@
 extends Node
 
-const EffectFactory = preload("res://scripts/effects/effect_factory.gd")
-
 ## ---------------------------------------------------------------------------
 ## MECHA DASH SYSTEM — short-pulse dash, Flash Burn (spam penalty), and
 ## Precision Dash (near-miss energy refund).  Extracted from mecha_controller.gd.

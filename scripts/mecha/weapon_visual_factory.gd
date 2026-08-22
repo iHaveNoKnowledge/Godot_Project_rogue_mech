@@ -18,12 +18,30 @@ const CARRY_OFFSET_STEP := 0.22
 
 # Hand position in the forearm node's local space (bottom of the forearm mesh).
 const HAND_FOREARM_POS := Vector3(0.0, -0.72, 0.0)
-const HAND_MOUNT_ROT_DEG := Vector3(-80.0, 0.0, 0.0)
 
 
 # Returns the mount position for a hand ("left"/"right").
 static func hand_mount_position(hand: String) -> Vector3:
 	return HAND_LEFT_POS if hand == "left" else HAND_RIGHT_POS
+
+
+## Determines the effective hold stance for a weapon part
+static func get_effective_hold_stance(weapon: WeaponPart) -> WeaponPart.HoldStance:
+	if weapon == null:
+		return WeaponPart.HoldStance.AUTO
+	if "hold_stance" in weapon and weapon.hold_stance != WeaponPart.HoldStance.AUTO:
+		return weapon.hold_stance
+
+	var w_type = weapon.weapon_type
+	var name_lower = weapon.weapon_name.to_lower()
+
+	if w_type == WeaponPart.WeaponType.SHIELD or name_lower.contains("shield") or name_lower.contains("buckler"):
+		return WeaponPart.HoldStance.SHIELD_SIDE
+	if name_lower.contains("pile") or name_lower.contains("bunker"):
+		return WeaponPart.HoldStance.PILE_BUNKER_GRIP
+	if w_type == WeaponPart.WeaponType.MELEE or name_lower.contains("blade") or name_lower.contains("sword") or name_lower.contains("mace") or name_lower.contains("knife") or name_lower.contains("axe") or name_lower.contains("katana") or name_lower.contains("saber"):
+		return WeaponPart.HoldStance.MELEE_UPRIGHT
+	return WeaponPart.HoldStance.RANGED_RIFLE
 
 
 # Mounts a weapon onto a hand of the mecha. Reuses the existing node (if the
@@ -34,6 +52,8 @@ static func mount_hand(mecha: Node3D, hand: String, weapon: WeaponPart, node_nam
 	var side := "Left" if hand == "left" else "Right"
 	var forearm := mecha.get_node_or_null("Arm" + side + "/Forearm" + side) as Node3D
 	var mount: Node3D = null
+	var stance := get_effective_hold_stance(weapon)
+
 	if forearm != null:
 		# Free any stale root-anchored mount from a previous version.
 		var stale := mecha.get_node_or_null(node_name)
@@ -49,8 +69,23 @@ static func mount_hand(mecha: Node3D, hand: String, weapon: WeaponPart, node_nam
 			mount = Node3D.new()
 			mount.name = node_name
 			forearm.add_child(mount)
-		mount.position = HAND_FOREARM_POS
-		mount.rotation_degrees = HAND_MOUNT_ROT_DEG
+
+		match stance:
+			WeaponPart.HoldStance.MELEE_UPRIGHT:
+				mount.position = HAND_FOREARM_POS
+				mount.rotation_degrees = Vector3(0.0, 0.0, 0.0) # Upright combat guard pose
+			WeaponPart.HoldStance.PILE_BUNKER_GRIP:
+				mount.position = HAND_FOREARM_POS
+				mount.rotation_degrees = Vector3(-80.0, 0.0, 0.0) # Horizontal underarm thrust
+			WeaponPart.HoldStance.FOREARM_MOUNTED:
+				mount.position = Vector3(0.0, -0.45, -0.06) # Direct chassis hardpoint on forearm
+				mount.rotation_degrees = Vector3(-80.0, 0.0, 0.0)
+			WeaponPart.HoldStance.SHIELD_SIDE:
+				mount.position = Vector3(-0.20 if hand == "left" else 0.20, -0.45, 0.0)
+				mount.rotation_degrees = Vector3(0.0, 0.0, 0.0)
+			_: # RANGED_RIFLE
+				mount.position = HAND_FOREARM_POS
+				mount.rotation_degrees = Vector3(-80.0, 0.0, 0.0)
 	else:
 		mount = mecha.get_node_or_null(node_name)
 		if mount == null or not mount.is_inside_tree() or mount.is_queued_for_deletion():
@@ -61,6 +96,7 @@ static func mount_hand(mecha: Node3D, hand: String, weapon: WeaponPart, node_nam
 			mecha.add_child(mount)
 		mount.position = hand_mount_position(hand)
 		mount.rotation_degrees = Vector3.ZERO
+
 	for child in mount.get_children():
 		child.queue_free()
 	if weapon == null:
@@ -119,13 +155,26 @@ static func build(weapon: WeaponPart) -> Node3D:
 	var w_type = weapon.weapon_type
 	var name_lower = weapon.weapon_name.to_lower()
 
+	# --- 1. PILE BUNKER (Reverse Grip or Under-arm Piston Block) ---
 	if name_lower.contains("pile") or (w_type == WeaponPart.WeaponType.MELEE and name_lower.contains("bunker")):
-		var box = BoxMesh.new()
-		box.size = Vector3(0.42, 0.42, 1.4)
-		mesh_instance.mesh = box
-		mesh_instance.position = Vector3(0.0, 0.05, -0.45)
-		mat.albedo_color = Color(0.2, 0.25, 0.22)
+		# Handle connector rising up to hand
+		var handle := MeshInstance3D.new()
+		var cyl_h := CylinderMesh.new()
+		cyl_h.top_radius = 0.05
+		cyl_h.bottom_radius = 0.05
+		cyl_h.height = 0.22
+		handle.mesh = cyl_h
+		handle.position = Vector3(0.0, -0.09, 0.0)
+		mount.add_child(handle)
 
+		# Main piston chamber block (hangs under forearm)
+		var box = BoxMesh.new()
+		box.size = Vector3(0.38, 0.36, 1.45)
+		mesh_instance.mesh = box
+		mesh_instance.position = Vector3(0.0, -0.18, -0.15)
+		mat.albedo_color = Color(0.22, 0.26, 0.24)
+
+		# Forward thrusting kinetic spike
 		var spike = MeshInstance3D.new()
 		var cyl = CylinderMesh.new()
 		cyl.top_radius = 0.04
@@ -133,13 +182,60 @@ static func build(weapon: WeaponPart) -> Node3D:
 		cyl.height = 1.3
 		spike.mesh = cyl
 		spike.rotation_degrees.x = 90
-		spike.position = Vector3(0, 0.05, -1.25)
+		spike.position = Vector3(0, -0.18, -1.05)
 		var spike_mat = StandardMaterial3D.new()
 		spike_mat.metallic = 0.95
-		spike_mat.albedo_color = Color(0.8, 0.85, 0.9)
+		spike_mat.albedo_color = Color(0.85, 0.9, 0.95)
 		spike.material_override = spike_mat
 		mount.add_child(spike)
 
+	# --- 2. MELEE BLADES & MACES (Upright Combat Guard Stance) ---
+	elif name_lower.contains("mace"):
+		# Heavy Flanged / Spiked Mace
+		var box = BoxMesh.new()
+		box.size = Vector3(0.42, 0.42, 0.65)
+		mesh_instance.mesh = box
+		mesh_instance.position = Vector3(0.0, 0.0, -0.75)
+		mat.albedo_color = Color(0.28, 0.28, 0.32)
+		mat.metallic = 0.9
+
+		var shaft := MeshInstance3D.new()
+		var cyl := CylinderMesh.new()
+		cyl.top_radius = 0.06
+		cyl.bottom_radius = 0.06
+		cyl.height = 1.3
+		shaft.mesh = cyl
+		shaft.rotation_degrees.x = 90
+		shaft.position = Vector3(0.0, 0.0, -0.35)
+		var shaft_mat := StandardMaterial3D.new()
+		shaft_mat.metallic = 0.7
+		shaft_mat.albedo_color = Color(0.18, 0.18, 0.2)
+		shaft.material_override = shaft_mat
+		mount.add_child(shaft)
+
+	elif w_type == WeaponPart.WeaponType.MELEE or name_lower.contains("blade") or name_lower.contains("sword") or name_lower.contains("katana") or name_lower.contains("knife"):
+		# Heat Blade / Katana with crossguard and glowing thermal edge
+		var box = BoxMesh.new()
+		box.size = Vector3(0.08, 0.22, 1.45)
+		mesh_instance.mesh = box
+		mesh_instance.position = Vector3(0.0, 0.0, -0.68)
+		mat.albedo_color = Color(0.85, 0.35, 0.1)
+		mat.emission_enabled = true
+		mat.emission = Color(1.0, 0.45, 0.1)
+		mat.emission_energy_multiplier = 2.0
+
+		var guard := MeshInstance3D.new()
+		var gbox := BoxMesh.new()
+		gbox.size = Vector3(0.22, 0.35, 0.08)
+		guard.mesh = gbox
+		guard.position = Vector3(0.0, 0.0, -0.05)
+		var gmat := StandardMaterial3D.new()
+		gmat.metallic = 0.95
+		gmat.albedo_color = Color(0.2, 0.2, 0.22)
+		guard.material_override = gmat
+		mount.add_child(guard)
+
+	# --- 3. RANGED GUNS & RIFLES (Tucked Stock, Forward Barrel) ---
 	elif w_type == WeaponPart.WeaponType.BEAM_RIFLE:
 		var box = BoxMesh.new()
 		box.size = Vector3(0.25, 0.35, 1.8)
@@ -170,11 +266,12 @@ static func build(weapon: WeaponPart) -> Node3D:
 		mesh_instance.position = Vector3(0.0, 0.12, -0.3)
 		mat.albedo_color = Color(0.6, 0.2, 0.1)
 
+	# --- 4. SHIELD (Outer Forearm Guard) ---
 	elif w_type == WeaponPart.WeaponType.SHIELD:
 		var box = BoxMesh.new()
 		box.size = Vector3(0.16, 1.25, 0.65)
 		mesh_instance.mesh = box
-		mesh_instance.position = Vector3(-0.16, 0.2, -0.1)
+		mesh_instance.position = Vector3(0.0, 0.15, 0.0)
 		mat.albedo_color = Color(0.2, 0.35, 0.5)
 
 	else:

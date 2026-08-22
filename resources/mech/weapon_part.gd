@@ -2,6 +2,7 @@ extends Resource
 class_name WeaponPart
 
 enum WeaponType { BEAM_RIFLE, MACHINE_GUN, MISSILE, SHOTGUN, MELEE, SHIELD, RAILGUN, MINIGUN }
+enum HoldStance { AUTO, RANGED_RIFLE, MELEE_UPRIGHT, PILE_BUNKER_GRIP, FOREARM_MOUNTED, SHIELD_SIDE }
 
 ## The three attack types. Every weapon deals one of these, every armor plate
 ## defends against one of them, and every shield's plating resists one of them
@@ -11,6 +12,7 @@ enum DamageType { HEAT, PIERCE, BLUNT }
 
 @export var weapon_name: String = ""
 @export var weapon_type: WeaponType = WeaponType.BEAM_RIFLE
+@export var hold_stance: HoldStance = HoldStance.AUTO
 @export var damage: float = 25.0
 @export var fire_rate: float = 0.2
 @export var max_ammo: int = 100

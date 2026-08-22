@@ -17,9 +17,16 @@ func _ready() -> void:
 	var mecha = get_parent()
 	if mecha:
 		var health = mecha.get_node_or_null("HealthSystem")
-		if health and health.has_signal("part_destroyed"):
-			health.part_destroyed.connect(_on_part_destroyed)
+		if health:
+			if health.has_signal("part_destroyed"):
+				health.part_destroyed.connect(_on_part_destroyed)
+			if health.has_signal("armor_broken"):
+				health.armor_broken.connect(_on_armor_broken)
 	_hide_all_legacy_models()
+
+
+func _on_armor_broken(slot_name: String) -> void:
+	_show_inner_frame(slot_name)
 
 
 # Hides legacy glTF model (Zenisrev) and default primitive meshes in mecha_base.tscn

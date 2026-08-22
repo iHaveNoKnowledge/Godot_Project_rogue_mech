@@ -1099,6 +1099,9 @@ func _apron_top_y() -> float:
 # ====================================================================
 
 func _create_theme_structures() -> void:
+	if GameManager.combat_node_type == "recovery":
+		_build_recovery_dense_compound()
+
 	match current_theme:
 		BiomeTheme.DESERT:
 			_generate_randomized_desert_dunes()
@@ -1110,6 +1113,68 @@ func _create_theme_structures() -> void:
 			_build_river_bridge_structures()
 		BiomeTheme.FOREST, BiomeTheme.FOREST_ROAD:
 			_build_forest_structures()
+
+
+func _build_recovery_dense_compound() -> void:
+	var compound := Node3D.new()
+	compound.name = "RecoveryCompound"
+	structures_container.add_child(compound)
+
+	# 1. Parked Convoy/Mecha asset representation at the center
+	var parked_asset := Node3D.new()
+	parked_asset.name = "ParkedAssetTarget"
+	var truck_mesh := BoxMesh.new()
+	truck_mesh.size = Vector3(4.5, 3.2, 9.0)
+	var mi := MeshInstance3D.new()
+	mi.mesh = truck_mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.2, 0.5, 0.8)
+	mat.metallic = 0.7
+	mat.roughness = 0.4
+	mi.material_override = mat
+	parked_asset.add_child(mi)
+
+	var prompt := Label3D.new()
+	prompt.name = "MountPrompt"
+	prompt.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	prompt.no_depth_test = true
+	prompt.font_size = 44
+	prompt.text = "[E] MOUNT & IGNITE REACTOR!"
+	prompt.modulate = Color(1.0, 0.88, 0.2)
+	prompt.position = Vector3(0, 4.0, 0)
+	parked_asset.add_child(prompt)
+	parked_asset.position = Vector3(0, 1.6, 0)
+	compound.add_child(parked_asset)
+
+	# 2. Dense Ring of Shipping Containers & Ruin Barricades surrounding the asset (Dense Cover)
+	var container_mat := StandardMaterial3D.new()
+	container_mat.albedo_color = Color(0.65, 0.25, 0.2)
+	container_mat.roughness = 0.7
+	var num_crates := 14
+	for i in range(num_crates):
+		var angle := (float(i) / float(num_crates)) * TAU + randf_range(-0.15, 0.15)
+		var rad := randf_range(11.0, 22.0)
+		var cx := cos(angle) * rad
+		var cz := sin(angle) * rad
+		var c_body := StaticBody3D.new()
+		c_body.collision_layer = 2
+		c_body.collision_mask = 1
+		var c_col := CollisionShape3D.new()
+		var c_box := BoxShape3D.new()
+		c_box.size = Vector3(randf_range(3.0, 6.0), randf_range(3.0, 5.5), randf_range(3.0, 7.0))
+		c_col.shape = c_box
+		c_body.add_child(c_col)
+
+		var c_mi := MeshInstance3D.new()
+		var c_bmesh := BoxMesh.new()
+		c_bmesh.size = c_box.size
+		c_mi.mesh = c_bmesh
+		c_mi.material_override = container_mat
+		c_body.add_child(c_mi)
+
+		c_body.position = Vector3(cx, c_box.size.y * 0.5, cz)
+		c_body.rotation.y = angle + randf_range(-0.4, 0.4)
+		compound.add_child(c_body)
 
 
 func _build_desert_structures() -> void:

@@ -413,6 +413,9 @@ static func advance_day(player_pos: Vector2i) -> Vector2i:
 	# Tactical fleet merging: allied fleets converging on the same tile stack together into 1 token
 	_merge_coincident_fleets()
 
+	# Parked Convoy Camouflage & 3-Stage Seizure System
+	_process_parked_convoy_seizure(nodes, rng, player_pos)
+
 	# The convoy is a moving target: force escalation climbs while a hostile
 	# fleet keeps visual and cools back down once the player relocates.
 	if saw_player:
@@ -420,6 +423,44 @@ static func advance_day(player_pos: Vector2i) -> Vector2i:
 	else:
 		GlobalData.board.patrol_alert = maxi(GlobalData.board.patrol_alert - 1, 0)
 	return ambush
+
+
+static func _process_parked_convoy_seizure(nodes: Dictionary, rng: RandomNumberGenerator, player_pos: Vector2i) -> void:
+	# 1. Check if an enemy patrol stumbled upon the parked Convoy Base Camp while player is deployed elsewhere
+	if GlobalData.fuel.convoy_is_deployed and player_pos != GlobalData.fuel.convoy_pos:
+		var c_pos: Vector2i = GlobalData.fuel.convoy_pos
+		var patrol_at_camp := get_patrol_at(c_pos)
+		if not patrol_at_camp.is_empty() and str(patrol_at_camp.get("faction", "hostile")) != "unknown":
+			if GlobalData.fuel.seizure_stage == 0:
+				var terrain_str: String = "plain"
+				if nodes.has(c_pos) and nodes[c_pos].has_meta("terrain"):
+					terrain_str = str(nodes[c_pos].get_meta("terrain"))
+				var camo_rate := GlobalData.fuel.get_camouflage_rate(terrain_str)
+				if rng.randf() < camo_rate:
+					GlobalData.board.run_notice = "🌿 PATROL EVADED: Enemy scouts passed by our camouflaged base camp without noticing."
+				else:
+					GlobalData.fuel.seizure_stage = 1
+					GlobalData.fuel.seizure_turns_left = 2
+					GlobalData.board.run_notice = "🚨 BASE COMPROMISED: Enemy scouts discovered our parked Base Camp! [Stage 1: Investigation - 2 turns remaining]"
+
+	# 2. Advance 3-Stage Seizure Countdown if compromised
+	if GlobalData.fuel.seizure_stage > 0:
+		GlobalData.fuel.seizure_turns_left -= 1
+		if GlobalData.fuel.seizure_turns_left <= 0:
+			if GlobalData.fuel.seizure_stage == 1:
+				GlobalData.fuel.seizure_stage = 2
+				GlobalData.fuel.seizure_turns_left = 2
+				GlobalData.board.run_notice = "⚠️ SALVAGE TEAM ARRIVED: Enemy technicians are breaching our base camp! [Stage 2: Breaching - 2 turns remaining]"
+			elif GlobalData.fuel.seizure_stage == 2:
+				GlobalData.fuel.seizure_stage = 3
+				GlobalData.fuel.seizure_turns_left = 1
+				GlobalData.board.run_notice = "🚛 EXTRACTION UNDERWAY: Enemy recovery vehicles are towing our assets! [Stage 3: Extraction - 1 turn remaining]"
+			elif GlobalData.fuel.seizure_stage == 3:
+				GlobalData.fuel.convoy_fuel = 0.0
+				GlobalData.currency.scrap = maxi(GlobalData.currency.scrap - 30, 0)
+				GlobalData.fuel.seizure_stage = 0
+				GlobalData.fuel.seizure_turns_left = 0
+				GlobalData.board.run_notice = "❌ ASSETS LOOTED: The enemy recovery team stripped our base camp and hauled away our fuel and scrap!"
 
 
 # Checks if any hostile Artillery fleet is within Bombardment Range of player_pos (GDD §3.3)

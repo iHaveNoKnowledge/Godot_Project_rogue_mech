@@ -239,25 +239,51 @@ func _try_step(target: Vector2i) -> bool:
 		return false
 	if not _is_adjacent(current_pos, target):
 		return false
-	var cost := BoardConfig.move_cost(terrain)
-	# A hostile fleet between the convoy and the sector objective blocks the
-	# route: crossing its firing line costs extra MP (fight it, or pay to slip
-	# past and reroute around it).
+
+	var mode: String = GlobalData.fuel.traversal_mode
+	var step_costs: Dictionary = GlobalData.fuel.get_mode_step_cost(terrain)
+	var cost: int = int(step_costs["mp"])
 	cost += PatrolSystem.interception_surcharge(current_pos, target)
-	# Energy check: walking on the board drains the mech's batteries according to terrain (GDD §3.1).
-	var energy_cost := GlobalData.fuel.get_tile_energy_cost(terrain)
-	if GlobalData.fuel.mech_energy <= 0.0:
-		GlobalData.narrative.blocked_intermission = false
-		EventBus.event_triggered.emit({
-			"name": "FUEL EMERGENCY",
-			"effect": "none",
-			"amount": 0,
-			"desc": "The mech's energy is depleted! Find a safehouse/depot to refuel, or end the day to passively recharge.",
-		})
-		return false
+
+	# Multi-tier energy resource check
+	if mode == "convoy":
+		var f_cost: float = float(step_costs["fuel"])
+		if GlobalData.fuel.convoy_fuel < f_cost:
+			GlobalData.narrative.blocked_intermission = false
+			EventBus.event_triggered.emit({
+				"name": "CONVOY OUT OF FUEL",
+				"effect": "none",
+				"amount": 0,
+				"desc": "The convoy truck is out of diesel! Park as Base Camp and deploy Mecha or Pilot on foot.",
+			})
+			return false
+		GlobalData.fuel.convoy_fuel = maxf(GlobalData.fuel.convoy_fuel - f_cost, 0.0)
+	elif mode == "mecha":
+		var e_cost: float = float(step_costs["energy"])
+		if GlobalData.fuel.mech_energy < e_cost:
+			GlobalData.narrative.blocked_intermission = false
+			EventBus.event_triggered.emit({
+				"name": "MECHA BATTERY DEPLETED",
+				"effect": "none",
+				"amount": 0,
+				"desc": "The mech's battery is depleted! Deploy a pilot on foot or end the day to recharge.",
+			})
+			return false
+		GlobalData.fuel.mech_energy = maxf(GlobalData.fuel.mech_energy - e_cost, 0.0)
+	elif mode == "pilot":
+		var s_cost: float = float(step_costs["stamina"])
+		if GlobalData.fuel.pilot_stamina < s_cost:
+			GlobalData.narrative.blocked_intermission = false
+			EventBus.event_triggered.emit({
+				"name": "PILOT EXHAUSTED",
+				"effect": "none",
+				"amount": 0,
+				"desc": "The pilot is too exhausted to march further today. End the day to rest.",
+			})
+			return false
+		GlobalData.fuel.pilot_stamina = maxf(GlobalData.fuel.pilot_stamina - s_cost, 0.0)
 
 	if GlobalData.board.board_mp < cost:
-		# The player cannot move at all: clear blocked_intermission so ESC can open menu.
 		GlobalData.narrative.blocked_intermission = false
 		EventBus.event_triggered.emit({
 			"name": "NO MOVEMENT LEFT",
@@ -268,11 +294,19 @@ func _try_step(target: Vector2i) -> bool:
 		return false
 
 	GlobalData.board.board_mp = maxi(GlobalData.board.board_mp - cost, 0)
-	# Deduct energy for stepping (GDD §3.1: Road = -10, Off-road = -25, Roller on Road = -5).
-	GlobalData.fuel.mech_energy = maxf(GlobalData.fuel.mech_energy - energy_cost, 0.0)
 
-	# Zone of Control (ZoC) (GDD §3.3): stepping directly adjacent to any hostile fleet depletes remaining MP.
-	if PatrolSystem.is_in_zone_of_control(target) and PatrolSystem.get_patrol_at(target).is_empty():
+	# Re-embarkation check: if returning to the parked convoy base camp
+	if GlobalData.fuel.convoy_is_deployed and target == GlobalData.fuel.convoy_pos:
+		GlobalData.fuel.reembark_convoy()
+		EventBus.event_triggered.emit({
+			"name": "CONVOY REGROUPED",
+			"effect": "none",
+			"amount": 0,
+			"desc": "Returned to base! Re-embarked onto the Convoy truck. Carried supplies transferred.",
+		})
+
+	# Zone of Control (ZoC) (GDD §3.3): on-foot pilots can slip past ZoC with stealth
+	if mode != "pilot" and PatrolSystem.is_in_zone_of_control(target) and PatrolSystem.get_patrol_at(target).is_empty():
 		if GlobalData.board.board_mp > 0:
 			GlobalData.board.board_mp = 0
 			EventBus.event_triggered.emit({
@@ -699,6 +733,9 @@ func _clear_highlights() -> void:
 		nodes_dict[key].highlight(false)
 
 
+var _base_camp_token: Node3D = null
+
+
 func _update_token_position() -> void:
 	if nodes_dict.has(current_pos):
 		var tile = nodes_dict[current_pos]
@@ -710,6 +747,76 @@ func _update_token_position() -> void:
 		# Point the arrow at the last heading (east = (1,0), south = (0,1), ...).
 		if player_token.has_method("face_heading"):
 			player_token.face_heading(_last_dir)
+
+		# Attach / update mode billboard tag on player token
+		var tag: Label3D = player_token.get_node_or_null("ModeTag")
+		if tag == null:
+			tag = Label3D.new()
+			tag.name = "ModeTag"
+			tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			tag.no_depth_test = true
+			tag.font_size = 38
+			tag.position = Vector3(0.0, 0.9, 0.0)
+			tag.outline_size = 8
+			tag.outline_modulate = Color.BLACK
+			player_token.add_child(tag)
+
+		var mode: String = GlobalData.fuel.traversal_mode
+		match mode:
+			"mecha":
+				tag.text = "🤖 MECHA MARCH\nBattery: %.0f" % GlobalData.fuel.mech_energy
+				tag.modulate = Color(0.3, 0.8, 1.0)
+			"pilot":
+				tag.text = "🏃 PILOT SCOUT (STEALTH)\nStamina: %.0f" % GlobalData.fuel.pilot_stamina
+				tag.modulate = Color(0.4, 1.0, 0.4)
+			_:
+				tag.text = "🚚 CONVOY TRUCK\nFuel: %.0f/%.0f" % [GlobalData.fuel.convoy_fuel, GlobalData.fuel.convoy_max_fuel]
+				tag.modulate = Color(1.0, 0.88, 0.2)
+
+	# 2. Manage Parked Convoy Base Camp Token
+	if GlobalData.fuel.convoy_is_deployed:
+		var c_pos: Vector2i = GlobalData.fuel.convoy_pos
+		if nodes_dict.has(c_pos):
+			if _base_camp_token == null:
+				_base_camp_token = Node3D.new()
+				_base_camp_token.name = "ConvoyBaseCampToken"
+				# Add a small base depot marker mesh
+				var mi := MeshInstance3D.new()
+				var box := BoxMesh.new()
+				box.size = Vector3(1.2, 0.4, 0.8)
+				mi.mesh = box
+				var mat := StandardMaterial3D.new()
+				mat.albedo_color = Color(0.2, 0.6, 0.9)
+				mat.emission_enabled = true
+				mat.emission = Color(0.1, 0.4, 0.8)
+				mi.material_override = mat
+				_base_camp_token.add_child(mi)
+
+				var camp_tag := Label3D.new()
+				camp_tag.name = "CampTag"
+				camp_tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+				camp_tag.no_depth_test = true
+				camp_tag.font_size = 40
+				camp_tag.position = Vector3(0.0, 0.9, 0.0)
+				camp_tag.outline_size = 8
+				camp_tag.outline_modulate = Color.BLACK
+				_base_camp_token.add_child(camp_tag)
+				add_child(_base_camp_token)
+
+			var c_tile = nodes_dict[c_pos]
+			_base_camp_token.global_position = c_tile.global_position + Vector3(0, 0.7, 0)
+			var camp_tag: Label3D = _base_camp_token.get_node_or_null("CampTag")
+			if camp_tag:
+				if GlobalData.fuel.seizure_stage > 0:
+					camp_tag.text = "🚨 UNDER SEIZURE (STAGE %d)\nTurns Left: %d" % [GlobalData.fuel.seizure_stage, GlobalData.fuel.seizure_turns_left]
+					camp_tag.modulate = Color(1.0, 0.2, 0.2)
+				else:
+					camp_tag.text = "🚚 CONVOY BASE\nFuel: %.0f/%.0f" % [GlobalData.fuel.convoy_fuel, GlobalData.fuel.convoy_max_fuel]
+					camp_tag.modulate = Color(0.2, 0.8, 1.0)
+	else:
+		if _base_camp_token != null:
+			_base_camp_token.queue_free()
+			_base_camp_token = null
 
 
 # ---------------------------------------------------------------------------

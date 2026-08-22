@@ -76,13 +76,114 @@ const REIGNITION_FUEL_COST: float = 60.0
 const REIGNITION_ENGINE_DIRT_COST: float = 0.15
 
 
+# --- Multi-Tier Traversal Mode ---
+var traversal_mode: String = "convoy" # "convoy", "mecha", "pilot"
+var convoy_pos: Vector2i = Vector2i.ZERO
+var convoy_is_deployed: bool = false
+
+# --- Convoy Truck Primary Fuel Tank ---
+var convoy_fuel: float = 350.0
+var convoy_max_fuel: float = 500.0
+
+# --- Pilot Stamina Pool ---
+var pilot_stamina: float = 50.0
+var pilot_max_stamina: float = 50.0
+
+# --- Parked Asset 3-Stage Seizure State ---
+var seizure_stage: int = 0 # 0: Safe/Hidden, 1: Investigation, 2: Breaching, 3: Extraction
+var seizure_turns_left: int = 0
+
+# --- Carried Fuel Canisters (when walking/scouting) ---
+var carried_fuel: float = 0.0
+var max_carried_fuel: float = 100.0
+
+
+func deploy_mecha() -> void:
+	if traversal_mode == "convoy":
+		convoy_pos = GlobalData.board.current_tile
+		convoy_is_deployed = true
+	traversal_mode = "mecha"
+
+
+func deploy_pilot() -> void:
+	if traversal_mode == "convoy":
+		convoy_pos = GlobalData.board.current_tile
+		convoy_is_deployed = true
+	traversal_mode = "pilot"
+
+
+func reembark_convoy() -> void:
+	traversal_mode = "convoy"
+	convoy_is_deployed = false
+	if carried_fuel > 0.0:
+		refuel_convoy_from_carried(carried_fuel)
+	# Re-embarking clears active seizure if we returned and resolved it
+	seizure_stage = 0
+	seizure_turns_left = 0
+
+
+func refuel_convoy_from_carried(amount: float) -> float:
+	var needed := convoy_max_fuel - convoy_fuel
+	var transfer := minf(amount, needed)
+	convoy_fuel += transfer
+	carried_fuel = maxf(carried_fuel - transfer, 0.0)
+	return transfer
+
+
+func get_camouflage_rate(terrain: String) -> float:
+	match terrain:
+		"forest":
+			return 0.75
+		"urban", "city":
+			return 0.65
+		"sand", "plain":
+			return 0.40
+		"road", "bridge":
+			return 0.15
+		_:
+			return 0.35
+
+
+func get_mode_step_cost(terrain: String) -> Dictionary:
+	match traversal_mode:
+		"mecha":
+			var e_cost: float = 10.0 if (terrain == "road" or terrain == "bridge") else 20.0
+			var mp_cost: int = 1
+			return {"mp": mp_cost, "fuel": 0.0, "energy": e_cost, "stamina": 0.0}
+		"pilot":
+			var s_cost: float = 10.0 if (terrain == "road" or terrain == "bridge" or terrain == "plain") else 15.0
+			var mp_cost: int = 1 if (terrain == "road" or terrain == "plain") else 2
+			return {"mp": mp_cost, "fuel": 0.0, "energy": 0.0, "stamina": s_cost}
+		_: # "convoy"
+			var f_cost: float = 5.0 if (terrain == "road" or terrain == "bridge") else (15.0 if terrain == "plain" else 30.0)
+			var mp_cost: int = 1 if (terrain == "road" or terrain == "bridge" or terrain == "plain") else 2
+			return {"mp": mp_cost, "fuel": f_cost, "energy": 0.0, "stamina": 0.0}
+
+
 func get_tile_energy_cost(terrain: String) -> float:
-	return preload("res://scripts/board/board_config.gd").energy_cost(terrain, board_roller_mode)
+	var costs := get_mode_step_cost(terrain)
+	match traversal_mode:
+		"mecha":
+			return float(costs["energy"])
+		"pilot":
+			return float(costs["stamina"])
+		_:
+			return float(costs["fuel"])
 
 
 func reset() -> void:
+	traversal_mode = "convoy"
+	convoy_pos = Vector2i.ZERO
+	convoy_is_deployed = false
+	convoy_fuel = 350.0
+	convoy_max_fuel = 500.0
 	mech_energy = 1000.0
 	mech_max_energy = 1000.0
+	pilot_stamina = 50.0
+	pilot_max_stamina = 50.0
+	carried_fuel = 0.0
+	seizure_stage = 0
+	seizure_turns_left = 0
 	board_roller_mode = false
 	convoy_fuel_reserve = 100.0
 	convoy_fuel_max = 200.0
@@ -99,11 +200,9 @@ func reset() -> void:
 
 
 func day_end_tick() -> void:
-	# Passive energy regen per day.
+	# Passive energy and stamina regen per day.
 	mech_energy = minf(mech_energy + BOARD_ENERGY_REGEN_PER_DAY, mech_max_energy)
-	# Convoy fuel reserve regen.
+	pilot_stamina = minf(pilot_stamina + 25.0, pilot_max_stamina)
 	convoy_fuel_reserve = minf(convoy_fuel_reserve + CONVOY_DAILY_FUEL_REGEN, convoy_fuel_max)
-	# Natural engine dirt cleanup.
 	engine_dirt = maxf(engine_dirt - ENGINE_DIRT_CLEANUP_PER_DAY, 0.0)
-	# Reset one-shot seizure flag.
 	fuel_depot_seized_today = false

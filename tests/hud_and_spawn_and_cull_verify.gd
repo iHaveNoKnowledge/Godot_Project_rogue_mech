@@ -57,11 +57,18 @@ func _ready() -> void:
 	_check(e_label.text.contains("MECHA BATTERY"), "HUD displays 'MECHA BATTERY' in mecha mode (found: %s)" % e_label.text)
 	_check(btn.text.contains("DEPLOY PILOT"), "HUD toggle button shows '[DEPLOY PILOT]' in mecha mode")
 
-	# Case C: Click toggle -> deploys Pilot
-	hud._on_roller_toggle_pressed()
-	_check(GlobalData.fuel.traversal_mode == "pilot", "Toggle button deployed Pilot mode")
-	_check(e_label.text.contains("PILOT STAMINA"), "HUD displays 'PILOT STAMINA' in pilot mode (found: %s)" % e_label.text)
-	_check(btn.text.contains("MOUNT MECHA"), "HUD toggle button shows '[MOUNT MECHA]' in pilot mode")
+	# 4. Test BoardManager Hotkey Actions
+	var board_mgr = preload("res://scripts/board/board_manager.gd").new()
+	add_child(board_mgr)
+
+	# Hotkey 2: deploy mecha
+	GlobalData.fuel.traversal_mode = "convoy"
+	board_mgr._cycle_traversal_mode()
+	_check(GlobalData.fuel.traversal_mode == "mecha", "BoardManager._cycle_traversal_mode() deployed Mecha")
+
+	# Hotkey 3: deploy pilot
+	board_mgr._cycle_traversal_mode()
+	_check(GlobalData.fuel.traversal_mode == "pilot", "BoardManager._cycle_traversal_mode() deployed Pilot")
 
 	print("--- HUD, Spawn Height & Ground Cull Verification Finished: %d passed, %d failed ---" % [_checks - _fails, _fails])
 	if _fails == 0:

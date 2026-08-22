@@ -216,16 +216,56 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 		if event.keycode == KEY_END or event.keycode == KEY_ENTER:
 			_end_day()
-		elif event.keycode == KEY_SHIFT or event.keycode == KEY_R:
-			# Toggle Roller Dash Mode on board (GDD §3.1)
-			GlobalData.fuel.board_roller_mode = not GlobalData.fuel.board_roller_mode
-			var mode_name := "ROLLER DASH MODE (FAST ROAD: -5 Energy)" if GlobalData.fuel.board_roller_mode else "BIPEDAL MODE (STANDARD: -10..25 Energy)"
-			EventBus.event_triggered.emit({
-				"name": "MOVEMENT MODE",
-				"effect": "none",
-				"amount": 0,
-				"desc": "Switched to %s." % mode_name,
-			})
+		elif event.keycode == KEY_R or event.keycode == KEY_TAB:
+			_cycle_traversal_mode()
+		elif event.keycode == KEY_1:
+			_switch_to_convoy_mode()
+		elif event.keycode == KEY_2:
+			GlobalData.fuel.deploy_mecha()
+			_on_mode_switched("DEPLOYED MECHA", "Deployed Mecha from the Convoy! Base truck remains parked. Operating on mech battery.")
+		elif event.keycode == KEY_3:
+			GlobalData.fuel.deploy_pilot()
+			_on_mode_switched("DEPLOYED PILOT", "Pilot dismounted on foot! Ultra-stealth profile active. Operating on stamina.")
+
+
+func _cycle_traversal_mode() -> void:
+	var cur_mode: String = GlobalData.fuel.traversal_mode
+	if cur_mode == "convoy":
+		GlobalData.fuel.deploy_mecha()
+		_on_mode_switched("DEPLOYED MECHA", "Deployed Mecha from the Convoy! Base truck remains parked. Operating on mech battery.")
+	elif cur_mode == "mecha":
+		GlobalData.fuel.deploy_pilot()
+		_on_mode_switched("DEPLOYED PILOT", "Pilot dismounted on foot! Ultra-stealth profile active. Operating on stamina.")
+	elif cur_mode == "pilot":
+		if current_pos == GlobalData.fuel.convoy_pos and GlobalData.fuel.convoy_is_deployed:
+			GlobalData.fuel.reembark_convoy()
+			_on_mode_switched("RE-EMBARKED CONVOY", "Re-embarked onto the Convoy truck! Base camp restored to mobile mode.")
+		else:
+			GlobalData.fuel.traversal_mode = "mecha"
+			_on_mode_switched("MOUNTED MECHA", "Pilot entered the active Mecha! Operating on mech battery.")
+
+
+func _switch_to_convoy_mode() -> void:
+	if current_pos == GlobalData.fuel.convoy_pos or not GlobalData.fuel.convoy_is_deployed:
+		GlobalData.fuel.reembark_convoy()
+		_on_mode_switched("CONVOY MODE", "Active unit is the Convoy Truck.")
+	else:
+		EventBus.event_triggered.emit({
+			"name": "CONVOY FAR AWAY",
+			"effect": "none",
+			"amount": 0,
+			"desc": "The Convoy truck is parked at tile %s. Return to that tile to re-embark." % str(GlobalData.fuel.convoy_pos),
+		})
+
+
+func _on_mode_switched(title: String, desc_text: String) -> void:
+	_update_token_position()
+	EventBus.event_triggered.emit({
+		"name": title,
+		"effect": "none",
+		"amount": 0,
+		"desc": desc_text,
+	})
 
 
 func _try_step(target: Vector2i) -> bool:

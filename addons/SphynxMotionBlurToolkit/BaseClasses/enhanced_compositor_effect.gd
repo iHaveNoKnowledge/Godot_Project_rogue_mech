@@ -217,33 +217,36 @@ func ensure_texture(texture_name: StringName, render_scene_buffers: RenderSceneB
 		render_scene_buffers.create_texture(context, texture_name, texture_format, usage_bits, RenderingDevice.TEXTURE_SAMPLES_1, render_size, 1, 1, true, false)
 
 func get_image_uniform(image: RID, binding: int) -> RDUniform:
+	if not image.is_valid() or image == RID() or image.get_id() == 0:
+		return null
 	var uniform: RDUniform = RDUniform.new()
 	uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
 	uniform.binding = binding
-	if image.is_valid() and image != RID():
-		uniform.add_id(image)
+	uniform.add_id(image)
 	return uniform
 
 func get_sampler_uniform(image: RID, binding: int, linear: bool = true) -> RDUniform:
 	_ensure_samplers()
+	if not image.is_valid() or image == RID() or image.get_id() == 0:
+		return null
+	var sampler: RID = linear_sampler if linear else nearest_sampler
+	if not sampler.is_valid() or sampler == RID() or sampler.get_id() == 0:
+		return null
 	var uniform: RDUniform = RDUniform.new()
 	uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_SAMPLER_WITH_TEXTURE
 	uniform.binding = binding
-	var sampler: RID = linear_sampler if linear else nearest_sampler
-	if sampler.is_valid() and sampler != RID():
-		uniform.add_id(sampler)
-	if image.is_valid() and image != RID():
-		uniform.add_id(image)
+	uniform.add_id(sampler)
+	uniform.add_id(image)
 	return uniform
 
 func dispatch_stage(stage: ShaderStageResource, uniforms: Array[RDUniform], push_constants: PackedByteArray, dispatch_size: Vector3i, label: String = "DefaultLabel", view: int = 0, color: Color = Color(1, 1, 1, 1)):
 	if stage == null or rd == null:
 		return
 
-	if not stage.shader.is_valid() or not stage.pipeline.is_valid():
+	if not stage.shader.is_valid() or not stage.pipeline.is_valid() or stage.shader == RID() or stage.pipeline == RID() or stage.shader.get_id() == 0 or stage.pipeline.get_id() == 0:
 		subscirbe_shader_stage(stage)
 
-	if not stage.shader.is_valid() or not stage.pipeline.is_valid() or stage.shader == RID() or stage.pipeline == RID():
+	if not stage.shader.is_valid() or not stage.pipeline.is_valid() or stage.shader == RID() or stage.pipeline == RID() or stage.shader.get_id() == 0 or stage.pipeline.get_id() == 0:
 		return
 
 	if debug:
@@ -251,26 +254,35 @@ func dispatch_stage(stage: ShaderStageResource, uniforms: Array[RDUniform], push
 			var debug_image_index = i + view * 8
 			if debug_image_index < all_debug_images.size():
 				var dbg_img: RID = all_debug_images[debug_image_index]
-				if dbg_img.is_valid() and dbg_img != RID():
-					uniforms.append(get_image_uniform(dbg_img, 10 + i))
+				if dbg_img.is_valid() and dbg_img != RID() and dbg_img.get_id() != 0:
+					var dbg_u := get_image_uniform(dbg_img, 10 + i)
+					if dbg_u != null:
+						uniforms.append(dbg_u)
 
-	# Validate all uniform RIDs to prevent C++ null RID assertion in UniformSetCacheRD!
+	# Validate all uniforms and their internal RIDs to prevent C++ null RID assertion in UniformSetCacheRD!
+	var valid_uniforms: Array[RDUniform] = []
 	for u in uniforms:
 		if u == null:
 			return
 		var ids := u.get_ids()
 		if ids.is_empty():
 			return
-		if u.uniform_type == RenderingDevice.UNIFORM_TYPE_SAMPLER_WITH_TEXTURE and ids.size() < 2:
+		if u.uniform_type == RenderingDevice.UNIFORM_TYPE_SAMPLER_WITH_TEXTURE and ids.size() != 2:
+			return
+		if u.uniform_type == RenderingDevice.UNIFORM_TYPE_IMAGE and ids.size() != 1:
 			return
 		for id in ids:
-			if not id.is_valid() or id == RID():
+			if not id.is_valid() or id == RID() or id.get_id() == 0:
 				return
+		valid_uniforms.append(u)
+
+	if valid_uniforms.is_empty():
+		return
 
 	rd.draw_command_begin_label(label + " " + str(view), color)
 
-	var tex_uniform_set = UniformSetCacheRD.get_cache(stage.shader, 0, uniforms)
-	if not tex_uniform_set.is_valid() or tex_uniform_set == RID():
+	var tex_uniform_set = UniformSetCacheRD.get_cache(stage.shader, 0, valid_uniforms)
+	if not tex_uniform_set.is_valid() or tex_uniform_set == RID() or tex_uniform_set.get_id() == 0:
 		rd.draw_command_end_label()
 		return
 

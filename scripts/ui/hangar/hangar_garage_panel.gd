@@ -389,6 +389,8 @@ func apply_armor_preview(slot: String, info: Dictionary) -> void:
 		if info.has("color"):
 			part.part_color = info.get("color")
 		pmm.initialize_slot(slot, part)
+		if mecha:
+			update_weapon_preview(mecha)
 
 
 # Returns the mech's root Node3D (MechaBase if present, else the whole scene).

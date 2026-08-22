@@ -183,7 +183,12 @@ func _attach_custom_mesh_scene(upper_container: Node3D, lower_container: Node3D,
 func _hide_legacy_slot_meshes(parent_node: Node3D) -> void:
 	if not parent_node: return
 	for child in parent_node.get_children():
-		if child.name != "FrameMesh" and child.name != "ArmorMesh" and child.name != "ForearmLeft" and child.name != "ForearmRight" and child.name != "ShinLeft" and child.name != "ShinRight" and not child is Light3D:
+		if child.name != "FrameMesh" and child.name != "ArmorMesh" \
+			and child.name != "ForearmLeft" and child.name != "ForearmRight" \
+			and child.name != "ShinLeft" and child.name != "ShinRight" \
+			and not child.name.begins_with("WeaponVisual_") \
+			and not child.name.begins_with("Attachment_") \
+			and not child is Light3D:
 			child.visible = false
 			for grand in child.get_children():
 				if (grand is VisualInstance3D or grand is Node3D) and not grand is Light3D:

@@ -130,11 +130,11 @@ func _place_player_at_arena_edge() -> void:
 				continue
 			if _spawn_point_clear(candidate, 8.0, cover_positions):
 				mecha.position = candidate
-				mecha.position.y = 5.0  # Drop-pod height; combat_intro waits for landing.
+				mecha.position.y = _get_terrain_height(candidate.x, candidate.z) + 1.2
 				return
 		# No clear boundary spot — fall back to the footprint's middle, which
 		# every theme keeps clear of structures.
-		mecha.position = Vector3(footprint.centroid.x, 5.0, footprint.centroid.y)
+		mecha.position = Vector3(footprint.centroid.x, _get_terrain_height(footprint.centroid.x, footprint.centroid.y) + 1.2, footprint.centroid.y)
 		return
 	while attempts < 24:
 		attempts += 1
@@ -147,12 +147,12 @@ func _place_player_at_arena_edge() -> void:
 		# Keep clear of every solid obstacle + upcoming cover spawn.
 		if _spawn_point_clear(candidate, 8.0, cover_positions):
 			mecha.position = candidate
-			mecha.position.y = 5.0  # Drop-pod height; combat_intro waits for landing.
+			mecha.position.y = _get_terrain_height(candidate.x, candidate.z) + 1.2
 			return
 	# No clear ring spot (dense dune/buildings) — fall back to the arena center,
 	# which every theme keeps clear of structures (center pockets stay empty).
 	mecha.position = Vector3.ZERO
-	mecha.position.y = 5.0
+	mecha.position.y = _get_terrain_height(0.0, 0.0) + 1.2
 
 
 # True when no solid obstacle (dune, rock, building, tree, log, cover) occupies

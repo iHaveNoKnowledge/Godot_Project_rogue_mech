@@ -18,6 +18,7 @@ static func get_ground_material(theme: int, base_texture: Texture2D = null) -> S
 	var mat = StandardMaterial3D.new()
 	mat.roughness = 0.85
 	mat.metallic = 0.05
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 
 	if base_texture != null:
 		mat.albedo_texture = base_texture

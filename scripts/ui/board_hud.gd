@@ -453,13 +453,33 @@ func _refresh() -> void:
 	if _energy_bar == null:
 		return
 
-	# Energy Panel
-	var cur_e := GlobalData.fuel.mech_energy
-	var max_e := GlobalData.fuel.mech_max_energy
-	_energy_label.text = "ENERGY: %d / %d" % [int(cur_e), int(max_e)]
-	_energy_bar.max_value = max_e
-	_energy_bar.value = cur_e
-	_roller_toggle_btn.text = "ROLLER: ON" if GlobalData.fuel.board_roller_mode else "ROLLER: OFF"
+	# Multi-Tier Traversal Energy Panel
+	var mode: String = GlobalData.fuel.traversal_mode
+	match mode:
+		"mecha":
+			var cur_e := GlobalData.fuel.mech_energy
+			var max_e := GlobalData.fuel.mech_max_energy
+			_energy_label.text = "🤖 MECHA BATTERY: %d / %d" % [int(cur_e), int(max_e)]
+			_energy_bar.max_value = max_e
+			_energy_bar.value = cur_e
+			_energy_bar.modulate = Color(0.3, 0.85, 1.0)
+			_roller_toggle_btn.text = "MODE: [DEPLOY PILOT]"
+		"pilot":
+			var cur_s := GlobalData.fuel.pilot_stamina
+			var max_s := GlobalData.fuel.pilot_max_stamina
+			_energy_label.text = "🏃 PILOT STAMINA: %d / %d" % [int(cur_s), int(max_s)]
+			_energy_bar.max_value = max_s
+			_energy_bar.value = cur_s
+			_energy_bar.modulate = Color(0.4, 1.0, 0.4)
+			_roller_toggle_btn.text = "MODE: [MOUNT MECHA]"
+		_: # "convoy"
+			var cur_f := GlobalData.fuel.convoy_fuel
+			var max_f := GlobalData.fuel.convoy_max_fuel
+			_energy_label.text = "🚚 CONVOY FUEL: %d / %d" % [int(cur_f), int(max_f)]
+			_energy_bar.max_value = max_f
+			_energy_bar.value = cur_f
+			_energy_bar.modulate = Color(1.0, 0.88, 0.2)
+			_roller_toggle_btn.text = "MODE: [DEPLOY MECHA]"
 
 	# Convoy Panel
 	var c_hp := GlobalData.board.convoy_hp
@@ -531,14 +551,41 @@ func _update_screen_fx(delta: float) -> void:
 
 
 func _on_roller_toggle_pressed() -> void:
-	GlobalData.fuel.board_roller_mode = not GlobalData.fuel.board_roller_mode
-	var mode_name := "ROLLER DASH MODE (FAST ROAD: -5 Energy)" if GlobalData.fuel.board_roller_mode else "BIPEDAL MODE (STANDARD: -10..25 Energy)"
-	EventBus.event_triggered.emit({
-		"name": "MOVEMENT MODE",
-		"effect": "none",
-		"amount": 0,
-		"desc": "Switched to %s." % mode_name,
-	})
+	var cur_mode: String = GlobalData.fuel.traversal_mode
+	if cur_mode == "convoy":
+		GlobalData.fuel.deploy_mecha()
+		EventBus.event_triggered.emit({
+			"name": "DEPLOYED MECHA",
+			"effect": "none",
+			"amount": 0,
+			"desc": "Deployed Mecha from the Convoy! Base truck remains parked. Operating on mech battery.",
+		})
+	elif cur_mode == "mecha":
+		GlobalData.fuel.deploy_pilot()
+		EventBus.event_triggered.emit({
+			"name": "DEPLOYED PILOT",
+			"effect": "none",
+			"amount": 0,
+			"desc": "Pilot dismounted on foot! Ultra-stealth profile active. Operating on stamina.",
+		})
+	elif cur_mode == "pilot":
+		if GlobalData.board.current_tile == GlobalData.fuel.convoy_pos and GlobalData.fuel.convoy_is_deployed:
+			GlobalData.fuel.reembark_convoy()
+			EventBus.event_triggered.emit({
+				"name": "RE-EMBARKED CONVOY",
+				"effect": "none",
+				"amount": 0,
+				"desc": "Re-embarked onto the Convoy truck! Base camp restored to mobile mode.",
+			})
+		else:
+			GlobalData.fuel.traversal_mode = "mecha"
+			EventBus.event_triggered.emit({
+				"name": "MOUNTED MECHA",
+				"effect": "none",
+				"amount": 0,
+				"desc": "Pilot entered the active Mecha! Operating on mech battery.",
+			})
+	_refresh()
 
 
 func _on_quick_fuel_pressed() -> void:

@@ -144,8 +144,8 @@ func _get_frame_color(percent: float) -> Color:
 	if percent <= 0.0:
 		return _color_black
 	elif percent < 0.3:
-		return _color_red
+		return _color_frame_red
 	elif percent < 0.7:
-		return _color_yellow
+		return _color_frame_yellow
 	else:
 		return _color_frame_green

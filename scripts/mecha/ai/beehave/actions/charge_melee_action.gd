@@ -27,8 +27,16 @@ func tick(actor: Node, blackboard: Blackboard) -> int:
 		var target_yaw: float = atan2(-diff.x, -diff.z)
 		(actor as Node3D).rotation.y = lerp_angle((actor as Node3D).rotation.y, target_yaw, 0.20)
 	
-	# Close distance rapidly
-	var dir: Vector3 = diff.normalized()
+	# Close distance rapidly with separation
+	var coordinator: EnemySquadCoordinator = blackboard.get_value("squad_coordinator")
+	if coordinator == null and actor.get("squad_coordinator") != null:
+		coordinator = actor.squad_coordinator
+
+	var separation := Vector3.ZERO
+	if coordinator != null and is_instance_valid(coordinator):
+		separation = coordinator.get_separation_vector(actor as Node3D, 5.0)
+
+	var dir: Vector3 = (diff.normalized() + separation * 1.2).normalized()
 	var speed: float = move_speed * 1.3 # Sprint into melee
 	
 	# Dash surge if aggressive

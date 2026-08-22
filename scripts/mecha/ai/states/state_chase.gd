@@ -83,6 +83,8 @@ func _update_path() -> void:
 
 	var start_pos = enemy.global_position
 	var target_pos = enemy.target.global_position
+	if enemy.get("squad_coordinator") != null and is_instance_valid(enemy.squad_coordinator):
+		target_pos = enemy.squad_coordinator.get_tactical_waypoint(enemy, enemy.target, enemy.attack_range * 0.7)
 
 	path = NavigationServer3D.map_get_path(maps[0], start_pos, target_pos, true)
 	path_index = 0
@@ -112,9 +114,14 @@ func _follow_path(delta: float) -> void:
 		direction = (waypoint - enemy.global_position)
 		direction.y = 0.0
 
-	# Move toward waypoint (frozen while ragdolled — no legs to walk with).
+	# Move toward waypoint with mutual separation
 	if direction.length() > 0.1 and enemy.get("ragdolled") != true:
-		enemy.velocity = direction.normalized() * enemy.move_speed
+		var separation := Vector3.ZERO
+		if enemy.get("squad_coordinator") != null and is_instance_valid(enemy.squad_coordinator):
+			separation = enemy.squad_coordinator.get_separation_vector(enemy, 6.0)
+
+		var move_dir := (direction.normalized() + separation * 1.3).normalized()
+		enemy.velocity = move_dir * enemy.move_speed
 		enemy.velocity.y = gravity
 		enemy.move_and_slide()
 
@@ -122,12 +129,21 @@ func _follow_path(delta: float) -> void:
 
 
 func _direct_move(delta: float) -> void:
-	# Fallback: direct movement toward target (no pathfinding). Frozen while
-	# ragdolled — a mech with no legs can't walk.
-	var direction = (enemy.target.global_position - enemy.global_position).normalized()
+	# Fallback: tactical movement toward target slot + separation
+	var target_pos: Vector3 = enemy.target.global_position
+	if enemy.get("squad_coordinator") != null and is_instance_valid(enemy.squad_coordinator):
+		target_pos = enemy.squad_coordinator.get_tactical_waypoint(enemy, enemy.target, enemy.attack_range * 0.7)
+
+	var direction = (target_pos - enemy.global_position)
 	direction.y = 0.0
+
+	var separation := Vector3.ZERO
+	if enemy.get("squad_coordinator") != null and is_instance_valid(enemy.squad_coordinator):
+		separation = enemy.squad_coordinator.get_separation_vector(enemy, 6.0)
+
+	var move_dir = (direction.normalized() + separation * 1.3).normalized()
 	if enemy.get("ragdolled") != true:
-		enemy.velocity = direction * enemy.move_speed
+		enemy.velocity = move_dir * enemy.move_speed
 		enemy.velocity.y = gravity
 		enemy.move_and_slide()
 

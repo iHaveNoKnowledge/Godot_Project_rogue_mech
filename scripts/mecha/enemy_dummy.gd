@@ -71,12 +71,24 @@ func setup_beehave_tree(trait_name: String = "Balanced") -> void:
 		beehave_tree.queue_free()
 	if state_machine:
 		state_machine.set_physics_process(false)
+	
+	if trait_name == "Balanced" and pilot_data.has("trait") and str(pilot_data["trait"]).strip_edges() != "":
+		trait_name = str(pilot_data["trait"])
 	pilot_trait = trait_name
 	beehave_tree = MechaBehaviorTreeFactory.create_tree(self, trait_name)
+	if beehave_tree and beehave_tree.blackboard:
+		beehave_tree.blackboard.set_value("pilot_data", pilot_data)
+		beehave_tree.blackboard.set_value("squad_coordinator", squad_coordinator)
+		beehave_tree.blackboard.set_value("tactical_role", tactical_role)
 	add_child(beehave_tree)
 
 # PartMeshManager that renders this enemy from the mech armor catalog.
 var catalog_body: Node = null
+
+# Procedural Enemy Pilot & Tactical Squad Assignment
+var pilot_data: Dictionary = {}
+var squad_coordinator: Node = null
+var tactical_role: String = ""
 
 # Faction paint assigned by SpawnManager before ready (see run theme enemy_org).
 # Overrides the archetype palette so military squads share a uniform color while

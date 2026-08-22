@@ -38,13 +38,19 @@ func set_concealed(on: bool) -> void:
 		visible = false
 
 
-func setup_target(enemy: Node3D, pilot_name: String = "") -> void:
+func setup_target(enemy: Node3D) -> void:
 	target = enemy
 	health_system = enemy.get_node_or_null("HealthSystem")
-	_create_ui()
-	if pilot_name.strip_edges() != "":
-		_add_name_label(pilot_name)
-	visible = true
+	if health_system:
+		_create_ui()
+		var p_name := ""
+		if enemy.get("pilot_data") != null and not (enemy.pilot_data as Dictionary).is_empty():
+			p_name = str(enemy.pilot_data.get("display_name", enemy.pilot_data.get("name", "")))
+		elif enemy.get("pilot_name") != null and enemy.pilot_name != "":
+			p_name = enemy.pilot_name
+		if p_name != "":
+			_add_name_label(p_name)
+		visible = true
 
 
 # Name plate above the part blocks, tinted friendly blue to match the ally

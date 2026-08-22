@@ -489,9 +489,22 @@ func _consume_enemy_special_unit(kind: String) -> void:
 
 
 func _spawn_enemy(type: String, archetype: int, pos: Vector3, hp_scale: float, squad_role: String = "", paint: Dictionary = {}) -> void:
+	var pilot: Dictionary = PilotGenerator.generate_pilot({
+		"archetype": archetype,
+		"level": GlobalData.board.wanted_level
+	})
+	if squad_role != "":
+		pilot["squad_role"] = squad_role
+		pilot["rank_title"] = "[CMDR]" if squad_role == "commander" else "[PVT]"
+		pilot["display_name"] = "%s %s" % [pilot["rank_title"], pilot["name"]]
+
+	_spawn_enemy_with_pilot(type, archetype, pos, hp_scale, pilot, null, paint)
+
+
+func _spawn_enemy_with_pilot(type: String, archetype: int, pos: Vector3, hp_scale: float, pilot: Dictionary, coordinator: Node = null, paint: Dictionary = {}) -> Node3D:
 	var scene = _get_enemy_scene(type)
 	if scene == null:
-		return
+		return null
 
 	var enemy = scene.instantiate()
 	enemy.archetype = archetype
@@ -500,16 +513,23 @@ func _spawn_enemy(type: String, archetype: int, pos: Vector3, hp_scale: float, s
 	# ON the surface immediately (no half-buried spawn, no pop-up).
 	spawn_pos.y -= body_bottom_offset(enemy)
 	enemy.position = spawn_pos
-	# Only squads/full-rig enemies declare these — tanks (enemy_tank.gd) don't,
-	# so guard the assignment or Godot prints "Invalid set index" on every tank spawn.
-	# enemy.get() returns null only when the property does not exist.
+
+	if enemy.get("pilot_data") != null:
+		enemy.pilot_data = pilot
 	if enemy.get("squad_role") != null:
-		enemy.squad_role = squad_role
+		enemy.squad_role = str(pilot.get("squad_role", ""))
+	if enemy.get("tactical_role") != null:
+		enemy.tactical_role = str(pilot.get("tactical_role", ""))
+	if enemy.get("squad_coordinator") != null:
+		enemy.squad_coordinator = coordinator
 	if enemy.get("faction_paint") != null:
 		enemy.faction_paint = paint
 
 	add_child(enemy)
 	await enemy.ready
+
+	if coordinator != null:
+		coordinator.register_member(enemy, pilot)
 
 	if enemy.get("health_system") != null:
 		for slot in enemy.health_system.parts:
@@ -520,7 +540,13 @@ func _spawn_enemy(type: String, archetype: int, pos: Vector3, hp_scale: float, s
 		if enemy.health_system.has_method("_calculate_totals"):
 			enemy.health_system._calculate_totals()
 
+	# Attach pilot behavior tree if available
+	if enemy.has_method("setup_beehave_tree"):
+		var p_trait: String = str(pilot.get("trait", "Balanced"))
+		enemy.setup_beehave_tree(p_trait)
+
 	enemies_alive += 1
+	return enemy
 
 
 # The run theme's enemy organization config (style/paint/variance), see
@@ -600,20 +626,38 @@ static func body_bottom_offset(enemy: Node) -> float:
 func _spawn_squad(entry: Dictionary, count: int, hp_scale: float, org: Dictionary) -> void:
 	if count <= 0:
 		return
+
+	var faction_name: String = str(org.get("name", ""))
+	var fleet_data: Dictionary = PilotGenerator.generate_enemy_fleet(count, faction_name, GlobalData.board.wanted_level)
+	var coordinator := EnemySquadCoordinator.new()
+	coordinator.name = "SquadCoordinator_%s" % fleet_data["squad_id"]
+	coordinator.setup_squad(fleet_data["squad_id"], fleet_data["squad_name"])
+	add_child(coordinator)
+
 	var center: Vector3 = _get_spawn_position()
 	var leader_type: String = _squad_leader_type(entry["type"])
-	_spawn_enemy(leader_type, entry["archetype"], center, hp_scale, "commander", _paint_for_enemy(org, "commander"))
+	var commander_pilot: Dictionary = fleet_data["commander"]
+
+	_spawn_enemy_with_pilot(
+		leader_type, entry["archetype"], center, hp_scale,
+		commander_pilot, coordinator, _paint_for_enemy(org, "commander")
+	)
+
 	var slot := 0
 	for i in range(1, count):
-		# Step through formation slots, skipping any that land inside cover so
-		# squad members don't spawn embedded in obstacles.
 		var offset: Vector3 = SQUAD_FORMATION[slot % SQUAD_FORMATION.size()]
 		var guard := 0
 		while guard < SQUAD_FORMATION.size() and _spawn_blocked_by_cover(center + offset):
 			slot += 1
 			offset = SQUAD_FORMATION[slot % SQUAD_FORMATION.size()]
 			guard += 1
-		_spawn_enemy(entry["type"], entry["archetype"], center + offset, hp_scale, "member", _paint_for_enemy(org, "member"))
+
+		var wingman_pilot: Dictionary = fleet_data["pilots"][i]
+		var wingman_arch: int = int(wingman_pilot.get("archetype", entry["archetype"]))
+		_spawn_enemy_with_pilot(
+			entry["type"], wingman_arch, center + offset, hp_scale,
+			wingman_pilot, coordinator, _paint_for_enemy(org, "member")
+		)
 		slot += 1
 
 

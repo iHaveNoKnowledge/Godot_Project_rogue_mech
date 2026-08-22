@@ -319,3 +319,93 @@ static func generate_replacement_pilot(dead_pilot_name: String = "") -> Dictiona
 	if dead_pilot_name != "":
 		pilot["recruit_reason"] = "Hired as replacement for fallen pilot %s." % dead_pilot_name
 	return pilot
+
+
+const SQUAD_NAME_PREFIXES: Array[String] = [
+	"Iron", "Viper", "Ghost", "Shadow", "Steel", "Obsidian", "Blood", "Storm",
+	"Apex", "Crimson", "Thunder", "Titan", "Night", "Wolf", "Dire", "Gargoyle"
+]
+
+const SQUAD_NAME_SUFFIXES: Array[String] = [
+	"Squadron", "Fireteam", "Strike Fleet", "Vanguard", "Claw", "Lance",
+	"Battalion", "Cohort", "Brigade", "Division", "Platoon"
+]
+
+const TACTICAL_ROLES: Array[String] = [
+	"vanguard", "flanker_left", "flanker_right", "fire_support", "guardian"
+]
+
+
+## Generates a complete Enemy Fleet / Squad of procedural pilots with assigned tactical roles
+static func generate_enemy_fleet(squad_size: int = 3, faction_name: String = "", difficulty: int = 1) -> Dictionary:
+	var squad_id := "fleet_%d_%d" % [Time.get_ticks_msec(), randi() % 99999]
+	var prefix: String = SQUAD_NAME_PREFIXES.pick_random()
+	var suffix: String = SQUAD_NAME_SUFFIXES.pick_random()
+	var squad_name: String = "%s %s" % [prefix, suffix]
+	if faction_name != "":
+		squad_name = "%s - %s %s" % [faction_name, prefix, suffix]
+
+	var pilots: Array[Dictionary] = []
+	var count := maxi(1, squad_size)
+
+	# 1. Generate Commander Pilot (Leader)
+	var commander_opts := {
+		"callsign_prob": 1.0,
+		"allow_legendary": difficulty >= 3,
+		"level": difficulty + 1,
+	}
+	var commander := generate_pilot(commander_opts)
+	commander["squad_id"] = squad_id
+	commander["squad_name"] = squad_name
+	commander["squad_role"] = "commander"
+	commander["tactical_role"] = "commander"
+	commander["rank_title"] = "[CMDR]"
+	commander["display_name"] = "%s %s" % [commander["rank_title"], commander["name"]]
+	# Commander personality leans tactical/aggressive leadership
+	if commander["trait"] not in ["Tactical", "Aggressive", "Cold & Calculating"]:
+		commander["trait"] = ["Tactical", "Aggressive", "Cold & Calculating"].pick_random()
+	pilots.append(commander)
+
+	# 2. Generate Wingmen Pilots with tactical distribution
+	var role_pool := TACTICAL_ROLES.duplicate()
+	role_pool.shuffle()
+
+	for i in range(1, count):
+		var role: String = role_pool[(i - 1) % role_pool.size()]
+		var wingman_opts := {
+			"callsign_prob": 0.85,
+			"allow_legendary": false,
+			"level": difficulty,
+		}
+		var wingman := generate_pilot(wingman_opts)
+		wingman["squad_id"] = squad_id
+		wingman["squad_name"] = squad_name
+		wingman["squad_role"] = "member"
+		wingman["tactical_role"] = role
+		wingman["rank_title"] = "[SGT]" if i == 1 else "[PVT]"
+		wingman["display_name"] = "%s %s" % [wingman["rank_title"], wingman["name"]]
+
+		# Adjust personality trait according to role for natural tactical synergy
+		match role:
+			"vanguard":
+				wingman["trait"] = "Aggressive"
+				wingman["archetype"] = 0 # Rusher / Melee
+			"flanker_left", "flanker_right":
+				wingman["trait"] = "Tactical"
+				wingman["archetype"] = 1 # Ranged / Rifle
+			"fire_support":
+				wingman["trait"] = "Cautious"
+				wingman["archetype"] = 3 # Support / Sniper / Mortar
+			"guardian":
+				wingman["trait"] = "Balanced"
+				wingman["archetype"] = 4 # Shield / Heavy
+		pilots.append(wingman)
+
+	return {
+		"squad_id": squad_id,
+		"squad_name": squad_name,
+		"commander": commander,
+		"pilots": pilots,
+		"squad_size": pilots.size(),
+		"formation": "wedge" if count <= 4 else "line_abreast"
+	}

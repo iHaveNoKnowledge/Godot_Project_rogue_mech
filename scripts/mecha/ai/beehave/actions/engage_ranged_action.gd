@@ -28,22 +28,29 @@ func tick(actor: Node, blackboard: Blackboard) -> int:
 		var target_yaw: float = atan2(-diff.x, -diff.z)
 		(actor as Node3D).rotation.y = lerp_angle((actor as Node3D).rotation.y, target_yaw, 0.15)
 	
-	# Movement positioning (Kiting / Closing in)
+	# Movement positioning (Tactical Flanking & Boid Separation)
 	var move_speed: float = float(actor.get("move_speed")) if actor.get("move_speed") != null else 4.0
 	var delta: float = actor.get_physics_process_delta_time() if actor.has_method("get_physics_process_delta_time") else 0.016
 	
-	if dist > ideal_dist + 4.0:
-		# Move forward toward target
-		var dir: Vector3 = diff.normalized()
-		(actor as CharacterBody3D).velocity.x = dir.x * move_speed
-		(actor as CharacterBody3D).velocity.z = dir.z * move_speed
-	elif dist < ideal_dist - 4.0:
-		# Back up away from target
-		var dir: Vector3 = -diff.normalized()
-		(actor as CharacterBody3D).velocity.x = dir.x * move_speed * 0.7
-		(actor as CharacterBody3D).velocity.z = dir.z * move_speed * 0.7
+	var coordinator: EnemySquadCoordinator = blackboard.get_value("squad_coordinator")
+	if coordinator == null and actor.get("squad_coordinator") != null:
+		coordinator = actor.squad_coordinator
+	
+	var target_waypoint: Vector3
+	if coordinator != null and is_instance_valid(coordinator):
+		target_waypoint = coordinator.get_tactical_waypoint(actor as Node3D, target, ideal_dist)
 	else:
-		# Strafe left/right around target
+		target_waypoint = target_pos - diff.normalized() * ideal_dist
+
+	var to_waypoint := target_waypoint - actor_pos
+	to_waypoint.y = 0.0
+	var waypoint_dist := to_waypoint.length()
+
+	var move_dir := Vector3.ZERO
+	if waypoint_dist > 2.5:
+		move_dir = to_waypoint.normalized()
+	else:
+		# Small lateral strafing when holding flanking slot
 		var strafe_dir: float = blackboard.get_value("strafe_dir", 1.0)
 		var strafe_timer: float = blackboard.get_value("strafe_timer", 0.0) - delta
 		if strafe_timer <= 0.0:
@@ -53,8 +60,16 @@ func tick(actor: Node, blackboard: Blackboard) -> int:
 		blackboard.set_value("strafe_timer", strafe_timer)
 		
 		var perp: Vector3 = Vector3(-diff.z, 0, diff.x).normalized() * strafe_dir
-		(actor as CharacterBody3D).velocity.x = perp.x * move_speed * 0.6
-		(actor as CharacterBody3D).velocity.z = perp.z * move_speed * 0.6
+		move_dir = perp * 0.5
+
+	# Add Mutual Boids Separation Force to prevent blobbing
+	var separation := Vector3.ZERO
+	if coordinator != null and is_instance_valid(coordinator):
+		separation = coordinator.get_separation_vector(actor as Node3D, 7.0)
+
+	var final_velocity := (move_dir + separation * 1.5).normalized() * move_speed
+	(actor as CharacterBody3D).velocity.x = final_velocity.x
+	(actor as CharacterBody3D).velocity.z = final_velocity.z
 	
 	# Trigger weapon fire
 	if actor.has_method("_fire_ranged") and dist <= max_range:

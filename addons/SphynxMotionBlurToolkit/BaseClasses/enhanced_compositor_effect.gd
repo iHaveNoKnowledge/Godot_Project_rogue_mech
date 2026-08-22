@@ -274,6 +274,19 @@ func dispatch_stage(stage: ShaderStageResource, uniforms: Array[RDUniform], push
 		for id in ids:
 			if not id.is_valid() or id == RID() or id.get_id() == 0:
 				return
+		# A FREED texture keeps its numeric RID, so the plain is_valid()/id!=0
+		# checks above pass even though the resource is gone (scene swaps and
+		# viewport resizes free these buffers mid-flight). uniform_set_create()
+		# then rejects the whole set and UniformSetCacheRD raises
+		# "Condition 'rid.is_null()'". Ask the device whether every referenced
+		# texture still exists and skip this dispatch if any died.
+		if u.uniform_type == RenderingDevice.UNIFORM_TYPE_IMAGE:
+			if not rd.texture_is_valid(ids[0]):
+				return
+		elif u.uniform_type == RenderingDevice.UNIFORM_TYPE_SAMPLER_WITH_TEXTURE:
+			# ids[0] is the sampler, ids[1] the texture.
+			if not rd.texture_is_valid(ids[1]):
+				return
 		valid_uniforms.append(u)
 
 	if valid_uniforms.is_empty():

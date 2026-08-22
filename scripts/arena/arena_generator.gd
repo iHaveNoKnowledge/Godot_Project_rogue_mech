@@ -280,21 +280,106 @@ func _add_ground_tiles() -> void:
 
 	match current_theme:
 		BiomeTheme.RIVER_BRIDGE:
-			# Raised banks on each side of the water trench (|z| < 22 is the
-			# sunken riverbed handled by the river structures).
 			_add_ground_plane(texture, 0.45, -22.0, arena_size / 2.0)
 			_add_ground_plane(texture, 0.45, 22.0, arena_size / 2.0)
 		BiomeTheme.FOREST, BiomeTheme.FOREST_ROAD:
-			# Rolling banks + a flat central band: the river strip stays a plain
-			# quad (the water sheet sits under it) while the banks are displaced
-			# into gentle hills and open meadow clearings. FOREST_ROAD reuses the
-			# same geometry but the central band is a level road (see
-			# _forest_terrain_height / _get_theme_ground_color), so the battle
-			# reads as a road cutting through the woods.
 			_add_forest_terrain_banks(texture)
 			_add_forest_strip_plane(texture)
 		_:
-			_add_ground_plane(texture, -0.39, -arena_size / 2.0, arena_size / 2.0)
+			_add_terrain_mesh(texture)
+
+
+func _get_terrain_height(wx: float, wz: float) -> float:
+	var nx := absf(wx)
+	var nz := absf(wz)
+	var half := arena_size / 2.0
+	var rim := clampf((half - maxf(nx, nz)) / 22.0, 0.0, 1.0)
+	if rim <= 0.0:
+		return 0.0
+
+	match current_theme:
+		BiomeTheme.FOREST, BiomeTheme.FOREST_ROAD:
+			return _forest_terrain_height(wx, wz)
+		BiomeTheme.DESERT:
+			var pocket_ramp := clampf((maxf(nx, nz) - 15.0) / 20.0, 0.0, 1.0)
+			var dune_noise := terrain_noise.get_noise_2d(wx * 0.75, wz * 0.75) * 3.2
+			var ripple := sin(wx * 0.05 + wz * 0.035) * 1.3
+			return -0.35 + (dune_noise + ripple) * pocket_ramp * rim
+		BiomeTheme.CITY_HIGHRISE, BiomeTheme.CROSSROADS:
+			var road_mask := 1.0
+			if current_theme == BiomeTheme.CROSSROADS:
+				var on_road_x := clampf((nx - 12.0) / 6.0, 0.0, 1.0)
+				var on_road_z := clampf((nz - 12.0) / 6.0, 0.0, 1.0)
+				road_mask = minf(on_road_x, on_road_z)
+			var city_elevation := (terrain_noise.get_noise_2d(wx * 0.6, wz * 0.6) * 1.8 + 1.2) * 0.85
+			return -0.38 + city_elevation * road_mask * rim
+		BiomeTheme.RIVER_BRIDGE:
+			if nz <= 22.0:
+				return -0.45
+			var bank_ramp := clampf((nz - 22.0) / 8.0, 0.0, 1.0)
+			var bank_height := 0.45 + (terrain_noise.get_noise_2d(wx * 0.8, wz * 0.8) * 1.6) * bank_ramp * rim
+			return bank_height
+		_:
+			var h := terrain_noise.get_noise_2d(wx, wz) * 1.5
+			return -0.38 + h * rim
+
+
+func _add_terrain_mesh(texture: Texture2D) -> void:
+	var half := arena_size / 2.0
+	var res := 48
+	var verts := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var indices := PackedInt32Array()
+
+	var vert_count := (res + 1) * (res + 1)
+	verts.resize(vert_count)
+	normals.resize(vert_count)
+	uvs.resize(vert_count)
+
+	for r in range(res + 1):
+		var v_frac := float(r) / float(res)
+		var wz := -half + v_frac * arena_size
+		for c in range(res + 1):
+			var u_frac := float(c) / float(res)
+			var wx := -half + u_frac * arena_size
+			var wy := _get_terrain_height(wx, wz)
+			var idx := r * (res + 1) + c
+			verts[idx] = Vector3(wx, wy, wz)
+			uvs[idx] = Vector2(u_frac, v_frac)
+			var h_l := _get_terrain_height(wx - 0.5, wz)
+			var h_r := _get_terrain_height(wx + 0.5, wz)
+			var h_d := _get_terrain_height(wx, wz - 0.5)
+			var h_u := _get_terrain_height(wx, wz + 0.5)
+			normals[idx] = Vector3(h_l - h_r, 1.0, h_d - h_u).normalized()
+
+	for r in range(res):
+		for c in range(res):
+			var i0 := r * (res + 1) + c
+			var i1 := i0 + 1
+			var i2 := (r + 1) * (res + 1) + c
+			var i3 := i2 + 1
+			indices.append(i0)
+			indices.append(i2)
+			indices.append(i1)
+			indices.append(i1)
+			indices.append(i2)
+			indices.append(i3)
+
+	var mesh := ArrayMesh.new()
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_INDEX] = indices
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+
+	var surface := MeshInstance3D.new()
+	surface.name = "TerrainSurface"
+	surface.mesh = mesh
+	surface.material_override = MaterialFactory.get_ground_material(current_theme, texture)
+	tile_container.add_child(surface)
 
 
 func _add_ground_plane(texture: Texture2D, y: float, z0: float, z1: float) -> void:
@@ -514,18 +599,29 @@ func _add_ground_collision() -> void:
 		_add_forest_terrain_collision()
 		return
 
-	var ground = StaticBody3D.new()
+	var half := arena_size / 2.0
+	var samples := 49
+	var data := PackedFloat32Array()
+	data.resize(samples * samples)
+	for r in range(samples):
+		var wz := -half + float(r) * arena_size / float(samples - 1)
+		for c in range(samples):
+			var wx := -half + float(c) * arena_size / float(samples - 1)
+			data[r * samples + c] = _get_terrain_height(wx, wz)
+
+	var shape := HeightMapShape3D.new()
+	shape.map_width = samples
+	shape.map_depth = samples
+	shape.map_data = data
+
+	var ground := StaticBody3D.new()
 	ground.name = "GroundCollision"
 	ground.collision_layer = 2
 	ground.collision_mask = 1
 
-	var col = CollisionShape3D.new()
-	var shape = BoxShape3D.new()
-	shape.size = Vector3(arena_size, 0.8, arena_size)
+	var col := CollisionShape3D.new()
 	col.shape = shape
 	ground.add_child(col)
-
-	ground.position = Vector3(0, -0.8, 0)
 	structures_container.add_child(ground)
 
 
@@ -594,82 +690,105 @@ func _add_forest_bank_collision(z0: float, z1: float) -> void:
 
 
 func _create_escape_zones() -> void:
-	if footprint != null:
-		_create_boundary_escape_zones()
-		return
 	var half := arena_size / 2.0
-	# Zone frame spans the full square INCLUDING the apron corners so the
-	# retreat hold keeps charging anywhere behind the wall, even out at the
-	# corners of the outside strip.
 	var len := arena_size + ESCAPE_APRON_DEPTH * 2.0
-
-	# Escape zones form a square frame of tall light walls around the arena's
-	# outer edge — OUTSIDE the combat field (beyond the spawn ring and dunes,
-	# just inside the void barrier) — so retreating never happens mid-fight.
-	# The trigger box extends WELL PAST the visible wall into the outside
-	# strip, all the way to the void barrier's inner face: the wall itself is
-	# a slim, purely-visual light wall the player walks straight through, and
-	# the retreat hold keeps charging even out in the dead zone behind it.
-	var wall_height := 8.0
-	# The retreat TRIGGER is 3x deeper than before: it spans from 12m inside the
-	# field (the hold starts charging well before the player reaches the edge)
-	# through the whole apron to the barrier's inner face. The visible wall and
-	# the enemy barrier stay pinned at the arena edge (wall_pos).
+	var wall_height := 2.5
 	var wall_pos := half + (ESCAPE_APRON_DEPTH - 3.5) * 0.5
 	var trigger_inner := half - 12.0
 	var trigger_outer := half + ESCAPE_APRON_DEPTH + 0.5
 	var trigger_thickness := trigger_outer - trigger_inner
 	var trigger_mid := (trigger_inner + trigger_outer) * 0.5
-	var zone_defs = [
-		{"pos": Vector3(0, wall_height * 0.5, -trigger_mid), "size": Vector3(len, wall_height, trigger_thickness)},
-		{"pos": Vector3(0, wall_height * 0.5, trigger_mid), "size": Vector3(len, wall_height, trigger_thickness)},
-		{"pos": Vector3(-trigger_mid, wall_height * 0.5, 0), "size": Vector3(trigger_thickness, wall_height, len)},
-		{"pos": Vector3(trigger_mid, wall_height * 0.5, 0), "size": Vector3(trigger_thickness, wall_height, len)},
+
+	var cur_tile: Vector2i = GlobalData.board.current_tile
+	var p_dir: Vector2i = GlobalData.board.player_last_dir
+	if p_dir == Vector2i.ZERO:
+		p_dir = Vector2i(1, 0)
+	var forward_dir := p_dir
+	var back_dir := -p_dir
+	var left_dir := Vector2i(p_dir.y, -p_dir.x)
+	var right_dir := Vector2i(-p_dir.y, p_dir.x)
+
+	# 4 Cardinal directions: North (-Z), South (+Z), West (-X), East (+X)
+	var zone_configs = [
+		{
+			"name": "North",
+			"delta": Vector2i(0, -1),
+			"pos": Vector3(0, wall_height * 0.5, -trigger_mid),
+			"size": Vector3(len, wall_height, trigger_thickness),
+		},
+		{
+			"name": "South",
+			"delta": Vector2i(0, 1),
+			"pos": Vector3(0, wall_height * 0.5, trigger_mid),
+			"size": Vector3(len, wall_height, trigger_thickness),
+		},
+		{
+			"name": "West",
+			"delta": Vector2i(-1, 0),
+			"pos": Vector3(-trigger_mid, wall_height * 0.5, 0),
+			"size": Vector3(trigger_thickness, wall_height, len),
+		},
+		{
+			"name": "East",
+			"delta": Vector2i(1, 0),
+			"pos": Vector3(trigger_mid, wall_height * 0.5, 0),
+			"size": Vector3(trigger_thickness, wall_height, len),
+		}
 	]
 
 	var zone_script := preload("res://scripts/arena/escape_zone.gd")
 
-	for def in zone_defs:
+	for cfg in zone_configs:
+		var delta: Vector2i = cfg["delta"]
+		var target_tile: Vector2i = cur_tile + delta
+		var is_locked: bool = false
+		if target_tile.x < 0 or target_tile.x >= BoardConfig.GRID_SIZE or target_tile.y < 0 or target_tile.y >= BoardConfig.GRID_SIZE:
+			is_locked = true
+
+		var esc_type := "flank"
+		if delta == forward_dir:
+			esc_type = "breakthrough"
+		elif delta == back_dir:
+			esc_type = "retreat"
+		elif delta == left_dir:
+			esc_type = "flank_left"
+		elif delta == right_dir:
+			esc_type = "flank_right"
+
 		var zone := Area3D.new()
-		zone.name = "EscapeZone"
+		zone.name = "EscapeZone_%s" % cfg["name"]
 		zone.add_to_group("escape_zone")
 		zone.set_script(zone_script)
-		zone.position = def["pos"]
-		# Keep the visible glow wall at the ARENA EDGE (not the widened trigger
-		# center): the wall sits wall_off meters outward along the zone's axis.
+		zone.position = cfg["pos"]
+		zone.direction_name = cfg["name"].to_upper()
+		zone.escape_type = esc_type
+		zone.delta_tile = delta
+		zone.is_locked = is_locked
+
 		var wall_off := wall_pos - trigger_mid
 		zone.wall_local = Vector3(
-			(wall_off if def["pos"].x != 0.0 else 0.0) * signf(def["pos"].x),
+			(wall_off if cfg["pos"].x != 0.0 else 0.0) * signf(cfg["pos"].x),
 			0.0,
-			(wall_off if def["pos"].z != 0.0 else 0.0) * signf(def["pos"].z)
+			(wall_off if cfg["pos"].z != 0.0 else 0.0) * signf(cfg["pos"].z)
 		)
 		zone.edge_dist = half
 
 		var collision := CollisionShape3D.new()
 		var shape := BoxShape3D.new()
-		shape.size = def["size"]
+		shape.size = cfg["size"]
 		collision.shape = shape
 		zone.add_child(collision)
 
-		# Physical barrier for ENEMIES only: the glow wall itself is a purely
-		# visual slab the player walks straight through (so the retreat hold is
-		# reachable), but chasing enemies must not be able to follow the player
-		# out of the arena through it. The barrier sits exactly where the glow
-		# wall is drawn (the zone's center) on layer 32 — the player's mask
-		# (1+2) ignores it, while enemies (mask 3|32) are stopped by it.
+		# Enemy barrier on layer 32
 		var barrier := StaticBody3D.new()
-		barrier.name = "RetreatWallBarrier"
+		barrier.name = "RetreatWallBarrier_%s" % cfg["name"]
 		barrier.collision_layer = 32
 		barrier.collision_mask = 0
-		# The barrier sits at the ARENA EDGE (the visible wall), not at the
-		# widened trigger's center, so chasing enemies are stopped at the wall
-		# while the player keeps charging the retreat well before it.
-		barrier.position = Vector3(wall_pos if def["pos"].x != 0.0 else 0.0, wall_height * 0.5, wall_pos if def["pos"].z != 0.0 else 0.0)
+		barrier.position = Vector3(wall_pos if cfg["pos"].x != 0.0 else 0.0, wall_height * 0.5, wall_pos if cfg["pos"].z != 0.0 else 0.0)
 
 		var bcol := CollisionShape3D.new()
 		var bshape := BoxShape3D.new()
-		var dsize: Vector3 = def["size"]
-		# Slim slab matching the visible glow wall (thin axis capped at 1.5m).
+		var dsize: Vector3 = cfg["size"]
 		if dsize.z < dsize.x:
 			bshape.size = Vector3(dsize.x, dsize.y, 1.5)
 		else:
@@ -686,16 +805,23 @@ func _create_escape_zones() -> void:
 # apron behind the glow wall (same hold behavior as the square frame, but the
 # frame now follows the actual battlefield edge instead of the bounding square).
 func _create_boundary_escape_zones() -> void:
-	var wall_height := 8.0
+	var wall_height := 2.5
 	var trigger_inner := 12.0
 	var trigger_outer := ESCAPE_APRON_DEPTH + 0.5
 	var trigger_thickness := trigger_inner + trigger_outer
-	# The trigger center sits (apron+0.5 - 12)/2 OUTWARD of the boundary (i.e.
-	# ~3.25m inward), keeping the hold start a real distance off the edge.
 	var trigger_mid_local := (trigger_outer - trigger_inner) * 0.5
 	var wall_pos_local := (ESCAPE_APRON_DEPTH - 3.5) * 0.5
 	var wall_off := wall_pos_local - trigger_mid_local
 	var zone_script := preload("res://scripts/arena/escape_zone.gd")
+
+	var cur_tile: Vector2i = GlobalData.board.current_tile
+	var p_dir: Vector2i = GlobalData.board.player_last_dir
+	if p_dir == Vector2i.ZERO:
+		p_dir = Vector2i(1, 0)
+	var forward_dir := p_dir
+	var back_dir := -p_dir
+	var left_dir := Vector2i(p_dir.y, -p_dir.x)
+	var right_dir := Vector2i(-p_dir.y, p_dir.x)
 
 	for seg in footprint.outer_segments:
 		var a: Vector2 = seg["a"]
@@ -703,10 +829,38 @@ func _create_boundary_escape_zones() -> void:
 		var normal: Vector2 = seg["normal"]
 		var mid := (a + b) * 0.5
 		var length := a.distance_to(b)
-		# Boundary runs are axis-aligned (from the cell grid), so the box is a
-		# plain axis-aligned box — no rotation needed.
 		var axis_x: bool = absf(a.y - b.y) < 0.01
 		var trigger_center := mid + normal * trigger_mid_local
+
+		var delta := Vector2i.ZERO
+		var dir_name := "BORDER"
+		if normal.y < -0.5:
+			delta = Vector2i(0, -1)
+			dir_name = "NORTH"
+		elif normal.y > 0.5:
+			delta = Vector2i(0, 1)
+			dir_name = "SOUTH"
+		elif normal.x < -0.5:
+			delta = Vector2i(-1, 0)
+			dir_name = "WEST"
+		elif normal.x > 0.5:
+			delta = Vector2i(1, 0)
+			dir_name = "EAST"
+
+		var target_tile: Vector2i = cur_tile + delta
+		var is_locked: bool = false
+		if target_tile.x < 0 or target_tile.x >= BoardConfig.GRID_SIZE or target_tile.y < 0 or target_tile.y >= BoardConfig.GRID_SIZE:
+			is_locked = true
+
+		var esc_type := "flank"
+		if delta == forward_dir:
+			esc_type = "breakthrough"
+		elif delta == back_dir:
+			esc_type = "retreat"
+		elif delta == left_dir:
+			esc_type = "flank_left"
+		elif delta == right_dir:
+			esc_type = "flank_right"
 
 		var zone := Area3D.new()
 		zone.name = "EscapeZone"
@@ -715,6 +869,10 @@ func _create_boundary_escape_zones() -> void:
 		zone.position = Vector3(trigger_center.x, wall_height * 0.5, trigger_center.y)
 		zone.edge_dist = mid.length()
 		zone.wall_local = Vector3(normal.x * wall_off, 0.0, normal.y * wall_off)
+		zone.direction_name = dir_name
+		zone.escape_type = esc_type
+		zone.delta_tile = delta
+		zone.is_locked = is_locked
 
 		var collision := CollisionShape3D.new()
 		var shape := BoxShape3D.new()

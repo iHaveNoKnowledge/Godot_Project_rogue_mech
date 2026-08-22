@@ -37,6 +37,7 @@ func _ready() -> void:
 	_create_ui()
 	visible = false
 	EventBus.combat_ended.connect(_on_combat_ended)
+	EventBus.combat_escaped_directional.connect(_on_combat_escaped_directional)
 	EventBus.combat_escaped.connect(_on_combat_escaped)
 
 
@@ -338,6 +339,15 @@ func _on_combat_ended(victory: bool) -> void:
 		_show_defeat_screen()
 
 
+var _last_escape_type: String = "retreat"
+var _last_delta_tile: Vector2i = Vector2i.ZERO
+
+
+func _on_combat_escaped_directional(esc_type: String, delta: Vector2i) -> void:
+	_last_escape_type = esc_type
+	_last_delta_tile = delta
+
+
 func _on_combat_escaped() -> void:
 	if is_escaped:
 		return
@@ -445,8 +455,16 @@ func _show_victory_rewards() -> void:
 func _show_escape_screen() -> void:
 	visible = true
 	_loot_summary_active = false
-	title_label.text = "WITHDREW FROM COMBAT"
-	rewards_label.text = "You held position in the retreat zone and abandoned the battle.\n\nNo rewards are collected for a retreat.\n\n+%d Heat — enemy forces tighten their pursuit." % ESCAPE_HEAT_PENALTY
+	if _last_escape_type == "breakthrough":
+		title_label.text = "BREAKTHROUGH SUCCESSFUL!"
+		rewards_label.text = "You smashed through the enemy blockade and forced a path forward!\n\n+1 Free Tile Advance across the sector grid.\n+%d Heat — enemy reinforcements alert to your push." % ESCAPE_HEAT_PENALTY
+	elif _last_escape_type == "retreat":
+		title_label.text = "TACTICAL RETREAT"
+		rewards_label.text = "You fell back through the rear corridor to previous lines.\n\n-1 Tile fallback across the sector grid.\n+%d Heat — enemy forces tighten their pursuit." % ESCAPE_HEAT_PENALTY
+	else:
+		title_label.text = "FLANK DISENGAGEMENT"
+		rewards_label.text = "You broke out laterally through the flank.\n\nRepositioned to adjacent sector tile.\n+%d Heat." % ESCAPE_HEAT_PENALTY
+
 	continue_button.text = "Return to Board [Enter / Space / Click]"
 	# Abandoned loot is left on the field.
 	GlobalData.weapons.battle_loot.clear()
@@ -491,6 +509,18 @@ func _on_continue_pressed() -> void:
 	if is_escaped:
 		is_escaped = false
 		GameManager.is_escaping = false
+		if _last_delta_tile != Vector2i.ZERO:
+			var old_tile: Vector2i = GlobalData.board.current_tile
+			var new_tile: Vector2i = old_tile + _last_delta_tile
+			new_tile.x = clampi(new_tile.x, 0, BoardConfig.GRID_SIZE - 1)
+			new_tile.y = clampi(new_tile.y, 0, BoardConfig.GRID_SIZE - 1)
+			GlobalData.board.current_tile = new_tile
+			if _last_escape_type == "breakthrough":
+				GlobalData.board.run_notice = "BREAKTHROUGH: Smashed through enemy lines! Advanced forward to sector tile (%d, %d)." % [new_tile.x, new_tile.y]
+			elif _last_escape_type == "retreat":
+				GlobalData.board.run_notice = "TACTICAL RETREAT: Withdrew to sector tile (%d, %d)." % [new_tile.x, new_tile.y]
+			else:
+				GlobalData.board.run_notice = "FLANK ESCAPE: Disengaged laterally to sector tile (%d, %d)." % [new_tile.x, new_tile.y]
 		GameManager.return_to_board()
 	elif title_label.text == "DEFEATED":
 		GameManager.game_over()

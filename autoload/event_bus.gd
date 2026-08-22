@@ -48,6 +48,7 @@ signal combat_ended(victory: bool)
 ## Fired when the player completes a retreat: held position inside an escape
 ## zone long enough to abandon the battle without destroying every enemy.
 signal combat_escaped()
+signal combat_escaped_directional(escape_type: String, delta_tile: Vector2i)
 signal enemy_tech_escalated(new_tier: int)
 
 # --- Game State ---

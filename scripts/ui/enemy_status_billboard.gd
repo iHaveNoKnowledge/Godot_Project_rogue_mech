@@ -38,16 +38,17 @@ func set_concealed(on: bool) -> void:
 		visible = false
 
 
-func setup_target(enemy: Node3D) -> void:
+func setup_target(enemy: Node3D, pilot_name: String = "") -> void:
 	target = enemy
 	health_system = enemy.get_node_or_null("HealthSystem")
 	if health_system:
 		_create_ui()
-		var p_name := ""
-		if enemy.get("pilot_data") != null and not (enemy.pilot_data as Dictionary).is_empty():
-			p_name = str(enemy.pilot_data.get("display_name", enemy.pilot_data.get("name", "")))
-		elif enemy.get("pilot_name") != null and enemy.pilot_name != "":
-			p_name = enemy.pilot_name
+		var p_name := pilot_name.strip_edges()
+		if p_name == "":
+			if enemy.get("pilot_data") != null and not (enemy.pilot_data as Dictionary).is_empty():
+				p_name = str(enemy.pilot_data.get("display_name", enemy.pilot_data.get("name", "")))
+			elif enemy.get("pilot_name") != null and enemy.pilot_name != "":
+				p_name = enemy.pilot_name
 		if p_name != "":
 			_add_name_label(p_name)
 		visible = true

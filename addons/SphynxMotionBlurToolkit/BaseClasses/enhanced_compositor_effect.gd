@@ -220,7 +220,7 @@ func get_image_uniform(image: RID, binding: int) -> RDUniform:
 	var uniform: RDUniform = RDUniform.new()
 	uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
 	uniform.binding = binding
-	if image.is_valid():
+	if image.is_valid() and image != RID():
 		uniform.add_id(image)
 	return uniform
 
@@ -230,9 +230,9 @@ func get_sampler_uniform(image: RID, binding: int, linear: bool = true) -> RDUni
 	uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_SAMPLER_WITH_TEXTURE
 	uniform.binding = binding
 	var sampler: RID = linear_sampler if linear else nearest_sampler
-	if sampler.is_valid():
+	if sampler.is_valid() and sampler != RID():
 		uniform.add_id(sampler)
-	if image.is_valid():
+	if image.is_valid() and image != RID():
 		uniform.add_id(image)
 	return uniform
 
@@ -243,8 +243,16 @@ func dispatch_stage(stage: ShaderStageResource, uniforms: Array[RDUniform], push
 	if not stage.shader.is_valid() or not stage.pipeline.is_valid():
 		subscirbe_shader_stage(stage)
 
-	if not stage.shader.is_valid() or not stage.pipeline.is_valid():
+	if not stage.shader.is_valid() or not stage.pipeline.is_valid() or stage.shader == RID() or stage.pipeline == RID():
 		return
+
+	if debug:
+		for i in 8:
+			var debug_image_index = i + view * 8
+			if debug_image_index < all_debug_images.size():
+				var dbg_img: RID = all_debug_images[debug_image_index]
+				if dbg_img.is_valid() and dbg_img != RID():
+					uniforms.append(get_image_uniform(dbg_img, 10 + i))
 
 	# Validate all uniform RIDs to prevent C++ null RID assertion in UniformSetCacheRD!
 	for u in uniforms:
@@ -253,22 +261,16 @@ func dispatch_stage(stage: ShaderStageResource, uniforms: Array[RDUniform], push
 		var ids := u.get_ids()
 		if ids.is_empty():
 			return
+		if u.uniform_type == RenderingDevice.UNIFORM_TYPE_SAMPLER_WITH_TEXTURE and ids.size() < 2:
+			return
 		for id in ids:
-			if not id.is_valid():
+			if not id.is_valid() or id == RID():
 				return
 
 	rd.draw_command_begin_label(label + " " + str(view), color)
 
-	if debug:
-		for i in 8:
-			var debug_image_index = i + view * 8
-			if debug_image_index < all_debug_images.size():
-				var dbg_img: RID = all_debug_images[debug_image_index]
-				if dbg_img.is_valid():
-					uniforms.append(get_image_uniform(dbg_img, 10 + i))
-
 	var tex_uniform_set = UniformSetCacheRD.get_cache(stage.shader, 0, uniforms)
-	if not tex_uniform_set.is_valid():
+	if not tex_uniform_set.is_valid() or tex_uniform_set == RID():
 		rd.draw_command_end_label()
 		return
 

@@ -195,8 +195,8 @@ func _update_energy_bar() -> void:
 		max_e = maxf(es.max_energy, 1.0)
 		cur_e = clampf(es.energy, 0.0, max_e)
 	elif "energy" in _player_mecha:
-		max_e = maxf(float(_player_mecha.get("max_energy", 100.0)), 1.0)
-		cur_e = clampf(float(_player_mecha.get("energy", max_e)), 0.0, max_e)
+		max_e = maxf(float(_player_mecha.get("max_energy")), 1.0)
+		cur_e = clampf(float(_player_mecha.get("energy")), 0.0, max_e)
 	elif GlobalData.fuel:
 		max_e = maxf(GlobalData.fuel.mech_max_energy, 1.0)
 		cur_e = clampf(GlobalData.fuel.mech_energy, 0.0, max_e)

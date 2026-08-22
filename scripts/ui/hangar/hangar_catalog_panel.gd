@@ -297,11 +297,16 @@ func stats_text_for_index(index: int) -> String:
 			return ""
 		var info = frame_items[index]
 		var fname = info.get("name", info.get("part_name", "Inner Frame"))
-		var fcap = HangarPartText.frame_capability_text(info)
-		if controller.part_list_panel.is_item_equipped(controller.selected_slot, info):
-			var frame_dmg = GlobalData.weapons.part_damage.get(controller.selected_slot + "_frame", 0.0)
-			return "INNER FRAME PART: %s  [E]\nDURABILITY: %.0f%%\n\n%s\n\nCurrently equipped." % [
-				fname, (1.0 - clampf(frame_dmg, 0.0, 1.0)) * 100.0, fcap
+		var is_eq = controller.part_list_panel.is_item_equipped(controller.selected_slot, info)
+		var dur_ratio: float = 1.0
+		if is_eq:
+			dur_ratio = GlobalData.get_frame_durability(controller.selected_slot)
+		var fcap = HangarPartText.frame_capability_text(info, dur_ratio)
+		if is_eq:
+			var fhp = float(info.get("hp", info.get("max_hp", 20.0)))
+			var cur_fhp = fhp * dur_ratio
+			return "INNER FRAME PART: %s  [E]\nDURABILITY: %.0f%% (%.0f / %.0f HP)\n\n%s\n\nCurrently equipped." % [
+				fname, dur_ratio * 100.0, cur_fhp, fhp, fcap
 			]
 		return "INNER FRAME PART: %s\nDURABILITY: 100%%\n\n%s\n\nEquip to install fresh at 100%% HP." % [fname, fcap]
 

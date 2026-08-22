@@ -150,7 +150,7 @@ static func armor_capability_text(inst: Dictionary, durability: float) -> String
 # Builds a frame stat block for an inner frame catalog entry (type, frame HP,
 # weight, field-pack carry bonus). Mirrors weapon_capability_text so frames
 # get the same rich stat cards as weapons and armor.
-static func frame_capability_text(info: Dictionary) -> String:
+static func frame_capability_text(info: Dictionary, durability: float = 1.0) -> String:
 	if info.is_empty():
 		return ""
 	var lines: Array[String] = []
@@ -158,7 +158,10 @@ static func frame_capability_text(info: Dictionary) -> String:
 	lines.append("TYPE: %s" % info.get("type", "Inner Frame"))
 
 	var fhp := float(info.get("hp", info.get("max_hp", 20.0)))
-	lines.append("FRAME HP: %.0f" % fhp)
+	if durability < 0.999:
+		lines.append("FRAME HP: %.0f / %.0f" % [fhp * durability, fhp])
+	else:
+		lines.append("FRAME HP: %.0f" % fhp)
 
 	var fwt := float(info.get("weight", 0.0))
 	if fwt > 0.0:

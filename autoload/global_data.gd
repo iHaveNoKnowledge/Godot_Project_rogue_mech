@@ -374,6 +374,11 @@ func get_part_durability(slot: String) -> float:
 	return 1.0 - clampf(float(weapons.part_damage.get(slot, 0.0)), 0.0, 1.0)
 
 
+func get_frame_durability(slot: String) -> float:
+	var key := slot if slot.ends_with("_frame") else (slot + "_frame")
+	return 1.0 - clampf(float(weapons.part_damage.get(key, 0.0)), 0.0, 1.0)
+
+
 func scrap_attach_node_paths(slot: String) -> Array[String]:
 	var paths: Array[String] = []
 	for opt in SCRAP_ATTACH_OPTIONS.get(slot, []):

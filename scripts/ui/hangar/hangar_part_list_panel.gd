@@ -81,10 +81,13 @@ func populate(slot: String) -> void:
 			var other_user: String = str(row["other"])
 			var prefix := "[E] " if is_eq else ("" if other_user == "" else "[E·%s] " % other_user)
 			var fname = info.get("name", "Frame Part")
-			var fhp = info.get("hp", 20.0)
-			var fwt = info.get("weight", 3.0)
+			var fhp = float(info.get("hp", 20.0))
+			var fwt = float(info.get("weight", 3.0))
 			var state_tag = " [DESTROYED]" if (is_eq and is_destroyed) else ""
-			var label_str = "%s%s (HP: %.0f, %.1fkg)%s" % [prefix, fname, fhp, fwt, state_tag]
+			var dur_pct = instance_durability(slot, info)
+			var cur_fhp = fhp * dur_pct
+			var hp_str = "HP: %.0f/%.0f" % [cur_fhp, fhp] if is_eq and dur_pct < 0.999 else "HP: %.0f" % fhp
+			var label_str = "%s%s (%s, %.1fkg)%s" % [prefix, fname, hp_str, fwt, state_tag]
 			controller.part_item_list.add_item(label_str)
 			controller.visible_frame_indices.append(f_idx)
 		if controller.part_item_list.item_count > 0:
@@ -262,9 +265,12 @@ func _update_currently_equipped_display(slot: String) -> void:
 			var fname = str(f.get("name", f.get("part_name", "Inner Frame")))
 			var fhp = float(f.get("hp", 20.0))
 			var fwt = float(f.get("weight", 3.0))
-			var is_destroyed = float(GlobalData.weapons.part_damage.get(slot + "_frame", 0.0)) >= 1.0
+			var frame_dmg = clampf(float(GlobalData.weapons.part_damage.get(slot + "_frame", 0.0)), 0.0, 1.0)
+			var is_destroyed = frame_dmg >= 1.0
+			var cur_fhp = fhp * (1.0 - frame_dmg)
+			var hp_text = "HP: %.0f / %.0f (%.0f%%)" % [cur_fhp, fhp, (1.0 - frame_dmg) * 100.0] if frame_dmg > 0.001 else "HP: %.0f / %.0f" % [fhp, fhp]
 			controller.currently_equipped_label.text = fname + (" [DESTROYED]" if is_destroyed else "")
-			controller.currently_equipped_sublabel.text = "HP: %.0f | Weight: %.1f kg" % [fhp, fwt]
+			controller.currently_equipped_sublabel.text = "%s | Weight: %.1f kg" % [hp_text, fwt]
 		else:
 			controller.currently_equipped_label.text = "(No Frame Installed)"
 			controller.currently_equipped_sublabel.text = "Select a frame from the list below"
@@ -319,12 +325,16 @@ func on_item_selected(index: int) -> void:
 			controller.selected_salvage_info = {}
 
 			var fname = controller.selected_frame_info.get("name", controller.selected_frame_info.get("part_name", "Inner Frame"))
-			var fcap = HangarPartText.frame_capability_text(controller.selected_frame_info)
 			var is_eq = is_item_equipped(controller.selected_slot, controller.selected_frame_info)
+			var dur_ratio: float = 1.0
 			if is_eq:
-				var frame_dmg = GlobalData.weapons.part_damage.get(controller.selected_slot + "_frame", 0.0)
-				controller.stats_label.text = "INNER FRAME PART: %s  [E]\nDURABILITY: %.0f%%\n\n%s\n\nThis frame is currently equipped." % [
-					fname, (1.0 - clampf(frame_dmg, 0.0, 1.0)) * 100.0, fcap
+				dur_ratio = GlobalData.get_frame_durability(controller.selected_slot)
+			var fcap = HangarPartText.frame_capability_text(controller.selected_frame_info, dur_ratio)
+			if is_eq:
+				var fhp = float(controller.selected_frame_info.get("hp", controller.selected_frame_info.get("max_hp", 20.0)))
+				var cur_fhp = fhp * dur_ratio
+				controller.stats_label.text = "INNER FRAME PART: %s  [E]\nDURABILITY: %.0f%% (%.0f / %.0f HP)\n\n%s\n\nThis frame is currently equipped." % [
+					fname, dur_ratio * 100.0, cur_fhp, fhp, fcap
 				]
 			else:
 				controller.stats_label.text = "INNER FRAME PART: %s\nDURABILITY: 100%%\n\n%s\n\nEquip this frame to install it fresh at 100%% HP." % [
@@ -523,6 +533,8 @@ func is_item_equipped(slot: String, info: Dictionary) -> bool:
 # durability.
 func instance_durability(slot: String, inst: Dictionary) -> float:
 	if is_item_equipped(slot, inst):
+		if controller.current_mode == "frame":
+			return GlobalData.get_frame_durability(slot)
 		return GlobalData.get_part_durability(slot)
 	return GlobalData.get_durability_ratio(inst)
 

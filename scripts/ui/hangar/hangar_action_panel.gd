@@ -90,7 +90,10 @@ func show(info: Dictionary) -> void:
 		else:
 			var dur_ratio = GlobalData.get_durability_ratio(info)
 			if controller.part_list_panel.is_item_equipped(controller.selected_slot, info):
-				dur_ratio = GlobalData.get_part_durability(controller.selected_slot)
+				if controller.current_mode == "frame":
+					dur_ratio = GlobalData.get_frame_durability(controller.selected_slot)
+				else:
+					dur_ratio = GlobalData.get_part_durability(controller.selected_slot)
 			details.text = "DURABILITY: %.0f / %.0f HP  |  WEIGHT: %.1f kg" % [full_hp * dur_ratio, full_hp, wt_val]
 	details.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	details.add_theme_color_override("font_color", Color(0.8, 0.85, 0.9))

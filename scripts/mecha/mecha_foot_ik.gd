@@ -55,7 +55,7 @@ func _setup_raycasts() -> void:
 		ray_left.name = "FootRayLeft"
 		ray_left.position = Vector3(-foot_spacing_x, ray_height, 0.0)
 		ray_left.target_position = Vector3(0, -ray_length, 0)
-		ray_left.collision_mask = 1 # Environment / Terrain
+		ray_left.collision_mask = 2 # Environment / Ground Terrain
 		ray_left.hit_from_inside = true
 		add_child(ray_left)
 
@@ -64,7 +64,7 @@ func _setup_raycasts() -> void:
 		ray_right.name = "FootRayRight"
 		ray_right.position = Vector3(foot_spacing_x, ray_height, 0.0)
 		ray_right.target_position = Vector3(0, -ray_length, 0)
-		ray_right.collision_mask = 1
+		ray_right.collision_mask = 2 # Environment / Ground Terrain
 		ray_right.hit_from_inside = true
 		add_child(ray_right)
 

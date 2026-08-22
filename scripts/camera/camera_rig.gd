@@ -28,10 +28,14 @@ func _ready() -> void:
 	EventBus.combat_ended.connect(_on_combat_ended)
 	await get_tree().process_frame
 	target = GameManager.get_player_mecha()
+	if target and spring_arm:
+		spring_arm.add_excluded_object(target.get_rid())
 
 
 func _on_pilot_spawned(pilot_node: Node3D) -> void:
 	target = pilot_node
+	if target and spring_arm:
+		spring_arm.add_excluded_object(target.get_rid())
 
 
 func add_shake(amount: float) -> void:

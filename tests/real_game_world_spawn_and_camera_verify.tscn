@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://tests/real_game_world_spawn_and_camera_verify.gd" id="1"]
+
+[node name="RealGameWorldSpawnAndCameraVerify" type="Node3D"]
+script = ExtResource("1")

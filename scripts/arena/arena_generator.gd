@@ -609,6 +609,8 @@ func _add_ground_collision() -> void:
 
 	if _current_terrain_mesh != null:
 		var col_shape := _current_terrain_mesh.create_trimesh_shape()
+		if col_shape is ConcavePolygonShape3D:
+			col_shape.backface_collision = true
 		var ground := StaticBody3D.new()
 		ground.name = "GroundCollision"
 		ground.collision_layer = 2

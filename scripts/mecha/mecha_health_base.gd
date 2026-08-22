@@ -60,9 +60,13 @@ func _ready() -> void:
 	for slot in parts:
 		var p = parts[slot]
 		var max_a: float = float(p.get("max_armor", 0.0))
-		var cur_a: float = float(p.get("armor_hp", max_a))
+		var max_f: float = float(p.get("max_frame", 0.0))
 		if max_a > 0.0:
-			damage_visuals.update_slot_damage(slot, 1.0 - (cur_a / max_a))
+			damage_visuals.update_slot_layer_damage(slot, ArmorDamageVisuals.LAYER_ARMOR,
+				1.0 - (float(p.get("armor_hp", max_a)) / max_a))
+		if max_f > 0.0:
+			damage_visuals.update_slot_layer_damage(slot, ArmorDamageVisuals.LAYER_FRAME,
+				1.0 - (float(p.get("frame_hp", max_f)) / max_f))
 
 	EventBus.damage_received.connect(_on_damage_received)
 	_setup_pilot_light()

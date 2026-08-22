@@ -4,11 +4,11 @@ render_mode blend_mix, depth_draw_never, cull_back;
 // ---------------------------------------------------------------------------
 // PROCEDURAL DYNAMIC ARMOR DAMAGE SHADER
 //
-// Projects 3D procedural cracks, branch fractures, scratches, scorch grime and
-// glowing breach heat onto any mesh in MODEL space so the damage pattern is
-// anchored to the geometry itself — it never swims when the camera or the mech
-// moves. No custom UV coordinates required; works on built-in mecha meshes and
-// custom imported 3D models alike.
+// Projects 3D procedural cracks, branch fractures, scratches and scorch grime
+// onto any mesh in MODEL space so the damage pattern is anchored to the
+// geometry itself — it never swims when the camera or the mech moves. No custom
+// UV coordinates required; works on built-in mecha meshes and custom imported
+// 3D models alike.
 // ---------------------------------------------------------------------------
 
 uniform float damage_amount : hint_range(0.0, 1.0) = 0.0;
@@ -19,8 +19,6 @@ uniform float scratch_scale : hint_range(5.0, 60.0) = 24.0;
 uniform vec4 crack_color : source_color = vec4(0.05, 0.05, 0.07, 1.0);
 uniform vec4 exposed_metal_color : source_color = vec4(0.42, 0.44, 0.48, 1.0);
 uniform vec4 scorch_color : source_color = vec4(0.16, 0.13, 0.11, 1.0);
-uniform vec4 glow_color : source_color = vec4(1.0, 0.38, 0.08, 1.0);
-uniform float glow_intensity : hint_range(0.0, 10.0) = 4.5;
 
 varying vec3 model_pos; // mesh-local surface position captured in vertex()
 
@@ -142,17 +140,7 @@ void fragment() {
 	vec3 col = mix(scorch_color.rgb, exposed_metal_color.rgb, smoothstep(0.1, 0.85, rim));
 	col = mix(col, crack_color.rgb, fracture);
 
-	// 6. Glowing internal heat on severe damage (>65% damaged)
-	float glow_mask = 0.0;
-	if (dmg > 0.65) {
-		float heat = (dmg - 0.65) / 0.35;
-		glow_mask = 1.0 - smoothstep(0.0, crack_width * 0.55, crack_dist);
-		glow_mask += (1.0 - smoothstep(0.0, (dmg - 0.35) * 0.28 * 0.55, branch_dist)) * 0.6;
-		glow_mask = clamp(glow_mask * heat, 0.0, 1.0);
-	}
-
 	ALBEDO = col;
-	EMISSION = glow_color.rgb * (glow_mask * glow_intensity);
 	METALLIC = mix(0.75, 0.25, fracture);
 	ROUGHNESS = mix(0.28, 0.88, fracture);
 	ALPHA = total_alpha;

@@ -55,9 +55,18 @@ func _ready() -> void:
 	var arm_overlay = hs.damage_visuals._slot_overlays.get("arm_left")
 	_check(arm_overlay != null, "arm_left has an active damage overlay")
 	if arm_overlay:
-		var arm_mat: ShaderMaterial = arm_overlay.get("material")
+		var arm_mat: ShaderMaterial = arm_overlay.get("armor")
 		var dmg_val: float = float(arm_mat.get_shader_parameter("damage_amount"))
 		_check(absf(dmg_val - 0.6) < 0.01, "arm_left damage_amount updated to 0.60 (was %.2f)" % dmg_val)
+
+	# 5. Test Armor/Frame layer separation: frame material untouched by armor hits
+	hs.health_changed.emit("arm_left", "frame", 40.0, 50.0)
+	if arm_overlay:
+		var frame_mat: ShaderMaterial = arm_overlay.get("frame")
+		_check(frame_mat != null and frame_mat != arm_overlay.get("armor"), "arm_left frame has its own independent crack material")
+		if frame_mat:
+			var f_val: float = float(frame_mat.get_shader_parameter("damage_amount"))
+			_check(absf(f_val - 0.2) < 0.01, "arm_left frame damage_amount updated to 0.20 independently (was %.2f)" % f_val)
 
 	# 5. Test Custom User Model Mesh Binding
 	var custom_mesh := MeshInstance3D.new()

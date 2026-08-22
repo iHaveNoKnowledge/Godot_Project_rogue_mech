@@ -11,7 +11,7 @@ extends RefCounted
 # All scene nodes stay owned by the controller; this panel only reads/writes
 # them through `controller.` so the seam matches the other Hangar*Panel scripts.
 
-var controller  # hangar_controller.gd
+var controller # hangar_controller.gd
 
 
 # "" = landing menu, otherwise the id of the active submenu page.
@@ -73,7 +73,7 @@ func build_landing_rail(root: Control) -> void:
 
 	var rail_title = Label.new()
 	rail_title.text = "HANGAR MENU"
-	rail_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# rail_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	rail_title.add_theme_font_size_override("font_size", 18)
 	rail_title.add_theme_color_override("font_color", Color(1.0, 0.8, 0.2))
 	rail_box.add_child(rail_title)
@@ -82,14 +82,14 @@ func build_landing_rail(root: Control) -> void:
 	rail_box.add_child(rail_sep)
 
 	var submenu_items = [
-		{"id": "roster", "label": "ROSTER (จัดเก็บหุ่น)"},
-		{"id": "pilots", "label": "PILOTS (นักบินในกองยาน)"},
-		{"id": "sortie", "label": "SORTIE (เลือกคนลงสนาม)"},
-		{"id": "customize", "label": "CUSTOMIZE (แต่งหุ่น)"},
-		{"id": "emergency", "label": "EMERGENCY REPAIR (ซ่อมแซม)"},
-		{"id": "upgrade", "label": "UPGRADE (อัพเกรด)"},
-		{"id": "craft", "label": "CRAFT (คราฟ)"},
-		{"id": "catalog", "label": "CATALOG (แคตตาล็อก)"},
+		{"id": "customize", "label": "Customize"},
+		{"id": "roster", "label": "Register"},
+		{"id": "pilots", "label": "Pilots"},
+		{"id": "sortie", "label": "Sortie"},
+		{"id": "upgrade", "label": "Upgrade"},
+		{"id": "emergency", "label": "Emergency Repair"},
+		{"id": "craft", "label": "Craft"},
+		{"id": "catalog", "label": "Catalog"},
 	]
 	for item in submenu_items:
 		var sbtn = Button.new()
@@ -122,7 +122,7 @@ func build_mode_toggles(root: Control) -> void:
 	root.add_child(controller.sub_toggle_container)
 
 	var btn_armor = Button.new()
-	btn_armor.text = "🛡️ OUTER ARMOR (SCAVENGER)"
+	btn_armor.text = "🛡️ OUTER ARMOR"
 	btn_armor.custom_minimum_size = Vector2(170, 32)
 	btn_armor.pressed.connect(func(): switch_custom_mode("armor"))
 	controller.sub_toggle_container.add_child(btn_armor)

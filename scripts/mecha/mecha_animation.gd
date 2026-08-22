@@ -16,6 +16,7 @@ var leg_left: Node3D = null
 var leg_right: Node3D = null
 var shin_left: Node3D = null
 var shin_right: Node3D = null
+var foot_ik: MechaFootIK = null
 
 var _walk: MechaWalkingSystem = null
 var air_timer: float = 0.0
@@ -59,6 +60,8 @@ func _refresh_node_refs() -> void:
 	leg_right = get_node_or_null("../LegRight") if leg_right == null else leg_right
 	shin_left = get_node_or_null("../LegLeft/ShinLeft") if shin_left == null else shin_left
 	shin_right = get_node_or_null("../LegRight/ShinRight") if shin_right == null else shin_right
+	if foot_ik == null and mecha:
+		foot_ik = mecha.get_node_or_null("FootIKSystem") as MechaFootIK
 
 	if head_mesh and _original_head_pos == Vector3.ZERO:
 		_original_head_pos = head_mesh.position
@@ -148,6 +151,9 @@ func _run_procedural(delta: float) -> void:
 	# Runs LAST so the raised shield arm overrides whatever the base postures
 	# (idle guard, sprint pumping, airborne) set for that arm this frame.
 	_update_shield_arm(delta)
+
+	if foot_ik:
+		foot_ik.update_ik(delta)
 # ─── Shared pose helper ────────────────────────────────────────────────────
 # Interpolates every mech joint toward the target values in `targets`. Only
 # supply the keys you need — all others default to 0.0 (neutral rotation,

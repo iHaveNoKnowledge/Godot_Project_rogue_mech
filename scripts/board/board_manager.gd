@@ -1221,7 +1221,16 @@ func _process_tile_effect(tile_type: String) -> void:
 		"supply_truck":
 			# Friendly convoy supply transfer: transfer fuel from the truck to the
 			# mech. Costs 1 full day turn and raises enemy alert level.
-			_trigger_convoy_supply_transfer()
+			if GlobalData.narrative.mech_less:
+				_trigger_recovery_event()
+			else:
+				_trigger_convoy_supply_transfer()
+		"fuel_choice":
+			# GDD §3.3: Fuel tile encounter — choose between refueling mech or hauling back.
+			if GlobalData.narrative.mech_less:
+				_trigger_recovery_event()
+			else:
+				_trigger_fuel_choice()
 		"wreckage":
 			# Pilot Siphon Protocol: the pilot walks to wreckage to siphon dirty
 			# fuel for a re-ignition reboot.
@@ -1919,6 +1928,49 @@ func _trigger_convoy_supply_transfer() -> void:
 	})
 	# End the day as the time trade-off.
 	_end_day()
+
+
+# ---------------------------------------------------------------------------
+# FUEL CHOICE (GDD §3.3)
+# When the mech encounters a fuel source on the board, the player chooses:
+#   1. Refuel Mecha Only — add fuel to mech containers, convoy stays parked.
+#   2. Haul Fuel Back — add fuel to mech, then drive back to convoy to transfer.
+func _trigger_fuel_choice() -> void:
+	var fuel_amount := randf_range(20.0, 60.0)
+	var fuel_type := 0  # Crude Oil
+	# Roll for fuel type: 60% crude, 25% refined, 15% bio
+	var type_roll := randf()
+	if type_roll < 0.60:
+		fuel_type = 0  # Crude Oil
+	elif type_roll < 0.85:
+		fuel_type = 1  # Refined Cell
+	else:
+		fuel_type = 2  # Bio-Fuel
+	var fuel_names := {0: "Crude Oil", 1: "Refined Cell", 2: "Bio-Fuel"}
+	var fuel_name: String = str(fuel_names[fuel_type]) if fuel_names.has(fuel_type) else "Fuel"
+
+	EventBus.event_triggered.emit({
+		"name": "FUEL SOURCE DISCOVERED",
+		"effect": "choice",
+		"amount": 0,
+		"desc": "You found %.0f units of %s. How do you want to use it?" % [fuel_amount, fuel_name],
+		"params": {
+			"choices": [
+				{
+					"label": "REFUEL MECHA ONLY (+%.0f %s)" % [fuel_amount, fuel_name],
+					"effect": "refuel_mecha_only",
+					"amount": int(fuel_amount),
+					"params": {"fuel_type": fuel_type, "amount": fuel_amount},
+				},
+				{
+					"label": "HAUL FUEL BACK TO CONVOY (+%.0f %s, costs 1 day)" % [fuel_amount, fuel_name],
+					"effect": "haul_fuel_back",
+					"amount": int(fuel_amount),
+					"params": {"fuel_type": fuel_type, "amount": fuel_amount},
+				},
+			],
+		},
+	})
 
 
 # ---------------------------------------------------------------------------

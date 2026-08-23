@@ -259,27 +259,29 @@ func _roll_content(rng: RandomNumberGenerator) -> String:
 		return "data_node"
 	elif roll < 0.12:
 		return "bait"
-	elif roll < 0.16:
+	elif roll < 0.15:
 		return "fuel_depot"
-	elif roll < 0.20:
+	elif roll < 0.18:
 		return "supply_truck"
-	elif roll < 0.23:
-		return "research_lab"
+	elif roll < 0.22:
+		return "fuel_choice"
 	elif roll < 0.25:
+		return "research_lab"
+	elif roll < 0.28:
 		return "dust_storm"
-	elif roll < 0.27:
+	elif roll < 0.31:
 		return "tactical_smog"
-	elif roll < 0.29:
+	elif roll < 0.34:
 		return "emp_zone"
-	elif roll < 0.33:
-		return "distress_signal"
 	elif roll < 0.38:
+		return "distress_signal"
+	elif roll < 0.43:
 		return "scavenge_site"
-	elif roll < 0.42:
+	elif roll < 0.47:
 		return "unknown_signal"
-	elif roll < 0.45:
+	elif roll < 0.50:
 		return "dead_end"
-	return "empty" # 55% open wilderness, scenic roads, and uncrowded terrain
+	return "empty" # 50% open wilderness, scenic roads, and uncrowded terrain
 
 
 func _neighbor_keys(key: Vector2i) -> Array:

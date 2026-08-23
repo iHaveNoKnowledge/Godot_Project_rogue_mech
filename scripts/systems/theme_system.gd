@@ -338,6 +338,28 @@ static func apply_event_effect(event: Dictionary) -> bool:
 				return true
 		"ignore_signal":
 			GlobalData.board.run_notice = "Ignored the mystery signal. The convoy presses forward."
+		"refuel_mecha_only":
+			# GDD §3.3: Refuel mecha only — add fuel directly to mech containers.
+			var ftype: int = int(params.get("fuel_type", 0))
+			var famt: float = float(params.get("amount", float(amount)))
+			var gained := GlobalData.fuel.add_mech_fuel(ftype, famt)
+			GlobalData.board.run_notice = "Refueled mech directly: +%.0f fuel. The convoy stays parked." % gained
+		"haul_fuel_back":
+			# GDD §3.3: Haul fuel back — add to mech, then transfer to convoy.
+			var ftype: int = int(params.get("fuel_type", 0))
+			var famt: float = float(params.get("amount", float(amount)))
+			var gained := GlobalData.fuel.add_mech_fuel(ftype, famt)
+			# Transfer mech fuel to convoy
+			var transfer: float = minf(gained, GlobalData.fuel.convoy_max_fuel - GlobalData.fuel.convoy_fuel)
+			if transfer > 0.0:
+				GlobalData.fuel.mech_energy = maxf(GlobalData.fuel.mech_energy - transfer, 0.0)
+				GlobalData.fuel.convoy_fuel = minf(GlobalData.fuel.convoy_fuel + transfer, GlobalData.fuel.convoy_max_fuel)
+			# Time trade-off: hauling costs a full day turn + raises alert.
+			HeatWantedSystem.modify_heat(1)
+			GlobalData.board.run_notice = "Hauled %.0f fuel back to the convoy. A full day passed and alert rose." % transfer
+			var bm = Engine.get_main_loop().current_scene if Engine.get_main_loop() else null
+			if bm and bm.has_method("_end_day"):
+				bm._end_day()
 		_:
 			push_warning("apply_event_effect: unknown effect '%s'" % effect)
 	return false

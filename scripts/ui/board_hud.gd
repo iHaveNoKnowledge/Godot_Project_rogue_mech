@@ -580,7 +580,10 @@ func _refresh() -> void:
 		GlobalData.fuel.convoy_fuel_reserve, GlobalData.fuel.convoy_fuel_max
 	]
 	var backups := GlobalData.hangar.hangar_mechs.size() - 1 if GlobalData.hangar.hangar_mechs.size() > 1 else 0
-	_backup_count_label.text = "RESERVE: %d" % backups
+	var trucks := 1
+	if HangarManager:
+		trucks = clampi(int(ceil(float(HangarManager.get_fleet_size()) / 2.0)), 1, 3)
+	_backup_count_label.text = "RESERVE: %d | TRUCKS: %d" % [backups, trucks]
 
 	# Resources / Finances
 	if _credits_label:

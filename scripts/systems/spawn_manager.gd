@@ -224,11 +224,83 @@ func _duel_wave_defs() -> Array:
 func _ready() -> void:
 	_generate_spawn_points()
 	_spawn_fielded_allies()
+	_spawn_convoy_trucks_if_needed()
+	_spawn_forward_base_if_needed()
 	# Snapshot friendly combat HP after the player mech + allies are in the scene,
 	# so the decisive-victory check knows the combined HP of our fielded side.
 	CombatStatsSystem.begin_combat_stats()
 	await get_tree().create_timer(1.0).timeout
 	start_waves()
+
+func _spawn_convoy_trucks_if_needed() -> void:
+	var is_defense := GlobalData.board.convoy_defense_active or GameManager.combat_node_type in ["defense", "convoy_ambush", "convoy_breakdown"]
+	if not is_defense:
+		# Also check if board_tile type was convoy breakdown/ambush
+		if not (str(GlobalData.board.combat_tile_terrain) in ["plain", "road"] and GlobalData.board.convoy_defense_waves > 0):
+			# Fallback: check if any defense wave active
+			if GlobalData.board.convoy_defense_waves == 0:
+				return
+			if not GlobalData.board.convoy_defense_active:
+				return
+	var mecha = GameManager.get_player_mecha()
+	var anchor: Vector3 = mecha.global_position if mecha and is_instance_valid(mecha) and mecha.is_inside_tree() else Vector3.ZERO
+	# Truck count scales with fleet capacity: ceil(fleet/2) trucks (matches HangarManager.get_capacity)
+	var truck_count: int = 1
+	if HangarManager:
+		var fleet := HangarManager.get_fleet_size()
+		truck_count = clampi(int(ceil(float(fleet) / 2.0)), 1, 3)
+	else:
+		var mechs := GlobalData.hangar.hangar_mechs.size() if GlobalData.hangar else 1
+		truck_count = clampi(int(ceil(float(maxi(mechs,1)) / 2.0)), 1, 3)
+	var is_breakdown := GameManager.combat_node_type == "convoy_breakdown" or GlobalData.board.convoy_defense_waves == 3
+	for i in range(truck_count):
+		var truck := preload("res://scripts/arena/convoy_truck.gd").new()
+		# Use StaticBody instantiation via script on Node3D; need to create StaticBody3D with script
+		var truck_node := StaticBody3D.new()
+		truck_node.set_script(load("res://scripts/arena/convoy_truck.gd"))
+		truck_node.truck_index = i
+		truck_node.is_breakdown = is_breakdown
+		# Position convoy line behind player (south)
+		var offset := Vector3((i - (truck_count-1)*0.5) * 3.2, 0, -6.0 - float(i)*0.3)
+		var pos: Vector3 = anchor + offset
+		pos = snap_to_ground(pos, get_world_3d().direct_space_state) if get_world_3d() else pos
+		truck_node.position = pos
+		# Slight yaw to look convoy-like
+		truck_node.rotation.y = deg_to_rad(randf_range(-6, 6))
+		add_child(truck_node)
+
+func _spawn_forward_base_if_needed() -> void:
+	var is_base := GameManager.combat_node_type in ["enemy_base", "camp", "forward_base"]
+	if not is_base:
+		# Also check if enemy_base_active and combat is boss-like
+		if not GlobalData.narrative.enemy_base_active:
+			return
+		if GameManager.combat_node_type not in ["boss", "ace", "grunt"]:
+			return
+		# Only spawn base for enemy_base fights; skip random
+		if GameManager.combat_node_type != "enemy_base":
+			return
+	var kind := "camp"
+	if GlobalData.narrative.enemy_base_progress / maxf(GlobalData.narrative.enemy_base_required,1.0) >= 0.5:
+		kind = "fortified"
+	var base := Node3D.new()
+	base.set_script(load("res://scripts/arena/forward_base.gd"))
+	add_child(base)
+	(base as ForwardBase).spawn_base(kind, Vector3(0, 0, 28))
+	# Move player start a bit south to face base
+	var mecha = GameManager.get_player_mecha()
+	if mecha and is_instance_valid(mecha) and mecha.is_inside_tree():
+		var ppos: Vector3 = Vector3(0, 0, -32)
+		ppos = snap_to_ground(ppos, get_world_3d().direct_space_state) if get_world_3d() else ppos
+		mecha.position = ppos
+	# Hook base destruction to victory
+	if base.has_signal("base_destroyed"):
+		base.base_destroyed.connect(func(): 
+			# Base HQ down counts as victory if enemies are still alive, delay then check
+			await get_tree().create_timer(0.6).timeout
+			if is_inside_tree():
+				EventBus.combat_ended.emit(true)
+		)
 
 
 func _generate_spawn_points() -> void:

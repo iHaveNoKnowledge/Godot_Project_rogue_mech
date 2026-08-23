@@ -1134,6 +1134,12 @@ var _binding_templates: Dictionary = {
 }
 
 
+## Tracking for flutter animation on frame bindings.
+var _binding_meshes: Dictionary = {}  # slot -> Array[MeshInstance3D]
+var _binding_base_rotations: Dictionary = {}  # slot -> Array[Vector3]
+var _binding_time: float = 0.0
+
+
 ## Spawns composite cloth bindings around the exposed inner frame for a slot.
 ## Called after emergency repair when the frame is damaged but not destroyed.
 func spawn_frame_binding(slot: String) -> void:
@@ -1175,6 +1181,12 @@ func spawn_frame_binding(slot: String) -> void:
 		mi.material_override = cloth_mat
 
 		container.add_child(mi)
+		# Track mesh for flutter animation
+		if not _binding_meshes.has(slot):
+			_binding_meshes[slot] = []
+			_binding_base_rotations[slot] = []
+		_binding_meshes[slot].append(mi)
+		_binding_base_rotations[slot].append(tmpl.get("rot", Vector3.ZERO))
 
 	# Record binding in GlobalData for persistence
 	if not GlobalData.weapons.frame_bindings.has(slot):
@@ -1192,6 +1204,8 @@ func _remove_frame_binding(slot: String) -> void:
 	var container = parent.get_node_or_null("FrameBinding")
 	if container:
 		container.queue_free()
+	_binding_meshes.erase(slot)
+	_binding_base_rotations.erase(slot)
 	GlobalData.weapons.frame_bindings.erase(slot)
 
 
@@ -1212,6 +1226,36 @@ func clear_all_frame_bindings() -> void:
 ## Removes a specific frame binding (e.g. after professional repair of one slot).
 func remove_frame_binding(slot: String) -> void:
 	_remove_frame_binding(slot)
+
+
+## Updates frame binding flutter animation each frame.
+## Bindings sway gently with movement and vibrate on impact.
+## Called from mecha controller _physics_process.
+func update_frame_bindings(delta: float, velocity: Vector3) -> void:
+	if _binding_meshes.is_empty():
+		return
+
+	_binding_time += delta
+	var speed := velocity.length()
+	var flutter := clampf(speed / 12.0, 0.05, 0.8)  # Gentle even at rest
+
+	for slot in _binding_meshes:
+		var meshes: Array = _binding_meshes[slot]
+		var bases: Array = _binding_base_rotations[slot]
+		for i in meshes.size():
+			var mi: MeshInstance3D = meshes[i]
+			if not is_instance_valid(mi):
+				continue
+			var base_rot: Vector3 = bases[i]
+			# Each ring gets a unique phase offset based on slot + index
+			var phase := hash(slot) * 0.001 + float(i) * 1.2
+			# Primary sway: slow Z oscillation (wrapping looseness)
+			var sway_z := sin(_binding_time * 2.5 + phase) * 2.5 * flutter
+			# Secondary breathe: subtle X rotation pulse
+			var breathe_x := cos(_binding_time * 1.8 + phase * 0.7) * 1.5 * flutter
+			# Micro-jitter: high-frequency vibrate when moving fast
+			var jitter := sin(_binding_time * 18.0 + phase * 3.0) * 0.8 * clampf(speed / 20.0, 0.0, 1.0)
+			mi.rotation_degrees = base_rot + Vector3(breathe_x + jitter, 0, sway_z)
 
 
 # ---------------------------------------------------------------------------

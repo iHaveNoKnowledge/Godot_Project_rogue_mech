@@ -220,6 +220,9 @@ func _physics_process(delta: float) -> void:
 	var pmm = get_node_or_null("PartMeshManager")
 	if pmm and pmm.has_method("update_cloak_visual"):
 		pmm.update_cloak_visual(delta, velocity)
+	# GDD §6.1: Update frame binding flutter animation
+	if pmm and pmm.has_method("update_frame_bindings"):
+		pmm.update_frame_bindings(delta, velocity)
 
 	# Roller audio.
 	var h_speed := Vector3(velocity.x, 0.0, velocity.z).length()

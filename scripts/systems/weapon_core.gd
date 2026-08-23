@@ -221,7 +221,10 @@ func _accumulate_heat() -> void:
 	if heat_capacity <= 0.0:
 		return
 	# GDD §4.3: Power Core class modifies heat accumulation
-	var effective_heat = heat_per_shot * _PCS.heat_accumulation_multiplier()
+	var using_bio := false
+	if GlobalData.has_method("fuel"):
+		using_bio = GlobalData.fuel.is_mech_using_bio_fuel()
+	var effective_heat = heat_per_shot * _PCS.heat_accumulation_multiplier("", using_bio)
 	heat = minf(heat + effective_heat, heat_capacity)
 	overheated = heat >= heat_capacity
 	heat_changed.emit(heat, heat_capacity, overheated)

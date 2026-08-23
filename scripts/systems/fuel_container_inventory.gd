@@ -124,7 +124,7 @@ func _find_partial_container(fuel_type: int) -> Dictionary:
 		if int(c.get("type", -1)) == fuel_type:
 			var cur: float = float(c.get("current", 0.0))
 			var cap: float = float(c.get("capacity", 1.0))
-			if cur < cap:
+			if cur > 0.001 and cur < cap:
 				return c
 	return {}
 

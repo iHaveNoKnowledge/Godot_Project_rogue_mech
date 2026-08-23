@@ -213,10 +213,33 @@ static func apply_event_effect(event: Dictionary) -> bool:
 			var ftype: int = int(params.get("fuel_type", 0))  # 0 = FuelType.CRUDE_OIL
 			var famt: float = float(params.get("amount", float(amount)))
 			var target: String = str(params.get("target", "mech"))
+			var fuel_names := {0: "Crude Oil", 1: "Refined Cell", 2: "Bio-Fuel"}
 			if target == "convoy":
-				GlobalData.fuel.add_convoy_fuel(ftype, famt)
+				var gained = GlobalData.fuel.add_convoy_fuel(ftype, famt)
+				var type_name: String = "Fuel"
+				if fuel_names.has(ftype):
+					type_name = str(fuel_names[ftype])
+				GlobalData.board.run_notice = "Added %.0f %s to Convoy inventory." % [gained, type_name]
 			else:
-				GlobalData.fuel.add_mech_fuel(ftype, famt)
+				var gained = GlobalData.fuel.add_mech_fuel(ftype, famt)
+				var type_name: String = "Fuel"
+				if fuel_names.has(ftype):
+					type_name = str(fuel_names[ftype])
+				GlobalData.board.run_notice = "Added %.0f %s to Mech inventory." % [gained, type_name]
+		"refine_fuel":
+			# Convoy Refinery (GDD §4.2): convert Crude Oil → Refined Cell at camp.
+			var crude_to_refine: float = float(params.get("amount", float(amount)))
+			var result := GlobalData.fuel.refine_crude_to_refined(crude_to_refine)
+			var rc := 0.0
+			var rp := 0.0
+			if result.has("crude_consumed"):
+				rc = float(result["crude_consumed"])
+			if result.has("refined_produced"):
+				rp = float(result["refined_produced"])
+			if rp > 0.0:
+				GlobalData.board.run_notice = "Refinery ran: consumed %.0f Crude → produced %.0f Refined Cell." % [rc, rp]
+			else:
+				GlobalData.board.run_notice = "Refinery idle — not enough Crude Oil to refine (need %d minimum)." % int(GlobalData.fuel.REFINERY_MIN_BATCH)
 		"depot_precise":
 			# Fuel depot: precise approach — full fuel reward after combat.
 			GlobalData.fuel.fuel_depot_approach = "precise"
@@ -233,19 +256,23 @@ static func apply_event_effect(event: Dictionary) -> bool:
 			# Distress Signal: player chose to respond. Costs energy, may gain reward.
 			var cost := int(params.get("energy_cost", 30))
 			GlobalData.fuel.mech_energy = maxf(GlobalData.fuel.mech_energy - float(cost), 0.0)
-			# Roll for reward: 60% chance of scrap/credits, 40% nothing useful.
-			var roll := randf()
-			if roll < 0.35:
+			# Roll for reward: 60% chance of scrap/credits/fuel, 40% nothing useful.
+			var roll := randf()			if roll < 0.30:
 				var scrap_gain := randi_range(15, 30)
 				GlobalData.currency.scrap += scrap_gain
 				GlobalData.board.run_notice = "Responded to distress signal. Spent %d energy. Salvaged %d scrap." % [cost, scrap_gain]
-			elif roll < 0.55:
+			elif roll < 0.48:
 				var cred_gain := randi_range(40, 80)
 				GlobalData.currency.credits += cred_gain
 				GlobalData.board.run_notice = "Responded to distress signal. Spent %d energy. Found %d credits." % [cost, cred_gain]
-			elif roll < 0.65:
+			elif roll < 0.58:
 				GlobalData.currency.data_cores += 1
 				GlobalData.board.run_notice = "Responded to distress signal. Spent %d energy. Recovered 1 data core." % cost
+			elif roll < 0.70:
+				# GDD §4.2: distress yield Refined Cell (type 1) — rare but valuable
+				var refined_amount := randf_range(10.0, 30.0)
+				var gained := GlobalData.fuel.add_mech_fuel(1, refined_amount)
+				GlobalData.board.run_notice = "Responded to distress signal. Spent %d energy. Found Refined Energy Cell (+%.0f)." % [cost, gained]
 			else:
 				GlobalData.board.run_notice = "Responded to distress signal. Spent %d energy. Nothing useful found." % cost
 		"distress_ignore":
@@ -258,16 +285,21 @@ static func apply_event_effect(event: Dictionary) -> bool:
 			if roll < 0.50:
 				# Success: find resources.
 				var loot_roll := randf()
-				if loot_roll < 0.40:
+				if loot_roll < 0.30:
 					var scrap_gain := randi_range(20, 40)
 					GlobalData.currency.scrap += scrap_gain
 					GlobalData.board.run_notice = "Scavenged the wreckage successfully! Found %d scrap." % scrap_gain
-				elif loot_roll < 0.70:
+				elif loot_roll < 0.50:
 					GlobalData.currency.credits += 50
 					GlobalData.board.run_notice = "Scavenged the wreckage successfully! Found 50 credits."
-				else:
+				elif loot_roll < 0.65:
 					GlobalData.currency.data_cores += 2
 					GlobalData.board.run_notice = "Scavenged the wreckage successfully! Found 2 data cores."
+				else:
+					# GDD §4.2: wreckage yields Crude Oil (type 0)
+					var crude_amount := randf_range(6.0, 20.0)
+					var gained := GlobalData.fuel.add_mech_fuel(0, crude_amount)
+					GlobalData.board.run_notice = "Scavenged the wreckage! Extracted %.0f Crude Oil from the tank." % gained
 			elif roll < 0.80:
 				# Drone ambush: force combat.
 				GlobalData.board.run_notice = "Scavenging triggered a drone ambush! Defend yourself!"
@@ -288,7 +320,8 @@ static func apply_event_effect(event: Dictionary) -> bool:
 				if loot_roll < 0.40:
 					var scrap_gain := randi_range(60, 140)
 					GlobalData.currency.scrap += scrap_gain
-					GlobalData.board.run_notice = "Signal cracked! Salvaged a military cache with %d scrap." % scrap_gain					elif loot_roll < 0.70:
+					GlobalData.board.run_notice = "Signal cracked! Salvaged a military cache with %d scrap." % scrap_gain
+				elif loot_roll < 0.70:
 						var gained := GlobalData.fuel.add_mech_fuel(0, 40.0)  # FuelType.CRUDE_OIL = 0
 						GlobalData.board.run_notice = "Found an intact fuel cell container! Recharged +%.0f energy." % gained
 				else:

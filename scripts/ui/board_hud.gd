@@ -56,6 +56,9 @@ var _inspector_costs: Label
 var _inspector_fleet: Label
 var _inspector_warnings: Label
 
+# Fuel type inventory label (GDD §4.2)
+var _fuel_inv_label: Label
+
 # ScreenFX Overlay
 var _screen_fx: Control
 var _low_energy_vignette: ColorRect
@@ -156,6 +159,15 @@ func _build_top_bar() -> void:
 	e_bg.corner_radius_bottom_right = 0
 	_energy_bar.add_theme_stylebox_override("background", e_bg)
 	e_vbox.add_child(_energy_bar)
+
+	# GDD §4.2: Fuel type inventory breakdown
+	_fuel_inv_label = Label.new()
+	_fuel_inv_label.text = ""
+	_fuel_inv_label.add_theme_font_size_override("font_size", 10)
+	_fuel_inv_label.add_theme_color_override("font_color", Color(0.70, 0.78, 0.60, 1.0))
+	_fuel_inv_label.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Regular.ttf"))
+	e_vbox.add_child(_fuel_inv_label)
+
 	_top_bar.add_child(energy_panel)
 
 	# --- Convoy Panel ---
@@ -569,6 +581,22 @@ func _refresh() -> void:
 			_energy_bar.value = cur_f
 			_energy_bar.modulate = Color(1.0, 0.88, 0.2)
 			_roller_toggle_btn.text = "MODE: [DEPLOY MECHA]"
+
+	# GDD §4.2: Show fuel type inventory breakdown
+	if _fuel_inv_label:
+		var inv_display := ""
+		match mode:
+			"mecha":
+				inv_display = GlobalData.fuel.mech_fuel_display()
+			"convoy":
+				inv_display = GlobalData.fuel.convoy_fuel_display()
+			_:
+				inv_display = ""
+			if inv_display != "" and inv_display != "EMPTY":
+				_fuel_inv_label.text = "📦 %s" % inv_display
+				_fuel_inv_label.visible = true
+			else:
+				_fuel_inv_label.visible = false
 
 	# Convoy Panel
 	var c_hp := GlobalData.board.convoy_hp

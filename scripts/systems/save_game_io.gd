@@ -74,6 +74,7 @@ static func save_run() -> void:
 		"mech_max_energy": GlobalData.fuel.mech_max_energy,
 		"mech_fuel_containers": GlobalData.fuel.mech_fuel_inventory.serialize(),
 		"convoy_fuel_containers": GlobalData.fuel.convoy_fuel_inventory.serialize(),
+		"last_mech_fuel_type": GlobalData.fuel.last_mech_fuel_type,
 		"convoy_fuel_reserve": GlobalData.fuel.convoy_fuel_reserve,
 		"convoy_fuel_max": GlobalData.fuel.convoy_fuel_max,
 		"fuel_depot_seized_today": GlobalData.fuel.fuel_depot_seized_today,
@@ -225,6 +226,7 @@ static func restore_from_dict(data: Dictionary) -> void:
 	var convoy_fc = data.get("convoy_fuel_containers", [])
 	if convoy_fc is Array and not convoy_fc.is_empty():
 		GlobalData.fuel.convoy_fuel_inventory.deserialize(convoy_fc)
+	GlobalData.fuel.last_mech_fuel_type = int(data.get("last_mech_fuel_type", -1))
 	GlobalData.fuel.convoy_fuel_reserve = float(data.get("convoy_fuel_reserve", 100.0))
 	GlobalData.fuel.convoy_fuel_max = float(data.get("convoy_fuel_max", 200.0))
 	GlobalData.fuel.fuel_depot_seized_today = bool(data.get("fuel_depot_seized_today", false))

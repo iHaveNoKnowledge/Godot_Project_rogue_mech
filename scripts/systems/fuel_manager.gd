@@ -106,6 +106,21 @@ var convoy_fuel_inventory  # FuelContainerInventory instance
 # --- Power Core System (GDD §4.3) ---
 var _pcs_script: Script = preload("res://scripts/systems/power_core_system.gd")
 
+# --- Fuel Type Tracking (GDD §4.2) ---
+# Tracks whether the mech's most recently consumed fuel was Bio-Fuel,
+# so the WeaponCore can apply the +30% heat penalty for Hybrid cores.
+var last_mech_fuel_type: int = -1  # -1 = unknown, 0/1/2 = FuelType enum
+
+# Convoy Refinery (GDD §4.2): crude → refined at camp.
+# Efficiency: 1.0 crude → 0.6 refined (40% loss during conversion).
+const REFINERY_EFFICIENCY: float = 0.6
+# Time cost to run the refinery (hours at camp).
+const REFINERY_TIME_COST: float = 2.0
+# Minimum crude fuel required to start a batch.
+const REFINERY_MIN_BATCH: float = 10.0
+# Maximum crude per batch.
+const REFINERY_MAX_BATCH: float = 50.0
+
 
 func _init() -> void:
 	mech_fuel_inventory = _fci_script.new()
@@ -134,11 +149,26 @@ func add_convoy_fuel(fuel_type: int, amount: float) -> float:
 	return absorbed
 
 
-## Consumes fuel from mech containers. Returns actual amount consumed.
+## Consumes fuel from mech containers. Tracks fuel type for heat penalty.
+## Returns actual amount consumed.
 func consume_mech_fuel(amount: float) -> float:
 	var consumed = mech_fuel_inventory.consume_fuel(amount)
 	if consumed > 0.0:
 		mech_energy = maxf(mech_energy - consumed, 0.0)
+		# Determine which fuel type was consumed (most abundant type left after drain)
+		var dominated_type := _dominant_fuel_type(mech_fuel_inventory)
+		if dominated_type >= 0:
+			last_mech_fuel_type = dominated_type
+	return consumed
+
+
+## Consumes fuel of a specific type from mech containers.
+## Used by power core compatibility checks.
+func consume_mech_fuel_typed(fuel_type: int, amount: float) -> float:
+	var consumed = mech_fuel_inventory.consume_fuel_by_type(fuel_type, amount)
+	if consumed > 0.0:
+		mech_energy = maxf(mech_energy - consumed, 0.0)
+		last_mech_fuel_type = fuel_type
 	return consumed
 
 
@@ -148,6 +178,29 @@ func consume_convoy_fuel(amount: float) -> float:
 	if consumed > 0.0:
 		convoy_fuel = maxf(convoy_fuel - consumed, 0.0)
 	return consumed
+
+
+# --- Convoy Refinery (GDD §4.2) ---
+
+## Converts crude oil from convoy inventory into refined cells.
+## `crude_amount`: how much crude to consume (clamped to REFINERY_MAX_BATCH).
+## Returns {"crude_consumed": float, "refined_produced": float}.
+func refine_crude_to_refined(crude_amount: float) -> Dictionary:
+	var batch := clampf(crude_amount, REFINERY_MIN_BATCH, REFINERY_MAX_BATCH)
+	var actual_consumed: float = float(convoy_fuel_inventory.consume_fuel_by_type(0, batch))  # CRUDE_OIL = 0
+	if actual_consumed < REFINERY_MIN_BATCH:
+		# Not enough crude; refund and return empty.
+		if actual_consumed > 0.0:
+			convoy_fuel_inventory.add_fuel(0, actual_consumed)
+			return {"crude_consumed": 0.0, "refined_produced": 0.0}
+	var refined: float = actual_consumed * REFINERY_EFFICIENCY
+	var produced: float = float(convoy_fuel_inventory.add_fuel(1, refined))  # REFINED_CELL = 1
+	return {"crude_consumed": actual_consumed, "refined_produced": produced}
+
+
+## Checks whether the convoy has enough crude to refine.
+func can_refine() -> bool:
+	return convoy_fuel_inventory.total_fuel_by_type(0) >= REFINERY_MIN_BATCH
 
 
 ## Convenience: add a pre-filled container directly to mech inventory.
@@ -251,6 +304,26 @@ func get_tile_energy_cost(terrain: String) -> float:
 			return float(costs["fuel"])
 
 
+# --- Fuel Type Helpers ---
+
+## Determines the dominant fuel type in an inventory (most total fuel).
+## Returns the FuelType int, or -1 if inventory is empty.
+func _dominant_fuel_type(inv) -> int:
+	var best_type := -1
+	var best_total := 0.0
+	for ft in [0, 1, 2]:  # CRUDE_OIL, REFINED_CELL, BIO_FUEL
+		var total: float = float(inv.total_fuel_by_type(ft))
+		if total > best_total:
+			best_total = total
+			best_type = ft
+	return best_type
+
+
+## Returns true if the mech's current dominant fuel is Bio-Fuel.
+func is_mech_using_bio_fuel() -> bool:
+	return last_mech_fuel_type == 2  # BIO_FUEL = 2
+
+
 func reset() -> void:
 	traversal_mode = "convoy"
 	convoy_pos = Vector2i.ZERO
@@ -277,6 +350,7 @@ func reset() -> void:
 	wreckage_tile_pos = Vector2i(-1, -1)
 	wreckage_fuel_remaining = 80.0
 	siphoned_fuel = 0.0
+	last_mech_fuel_type = -1
 	# Reset container inventories with starting loadout (GDD §4.1)
 	mech_fuel_inventory.reset([
 		_fci_script.create_filled_container(0, 20.0),  # FuelType.CRUDE_OIL

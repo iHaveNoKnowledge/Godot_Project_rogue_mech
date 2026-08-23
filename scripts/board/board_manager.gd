@@ -87,6 +87,13 @@ func _ready() -> void:
 		wtc.name = "WeatherTileColoring"
 		wtc.set_script(wtc_script)
 		add_child(wtc)
+	# Weather transition flash overlay
+	if get_node_or_null("WeatherTransitionFlash") == null:
+		var wtf_script = preload("res://scripts/board/weather_transition_flash.gd")
+		var wtf := CanvasLayer.new()
+		wtf.name = "WeatherTransitionFlash"
+		wtf.set_script(wtf_script)
+		add_child(wtf)
 	PatrolSystem.spawn_patrols()
 
 	_reveal_around(current_pos)

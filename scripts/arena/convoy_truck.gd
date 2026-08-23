@@ -319,12 +319,13 @@ func _update_visual() -> void:
 func take_damage(amount: float) -> void:
 	GlobalData.board.convoy_hp = maxf(GlobalData.board.convoy_hp - amount, 0.0)
 	truck_damaged.emit(truck_index, GlobalData.board.convoy_hp, GlobalData.board.convoy_hp_max)
-	EventBus.emit_signal("convoy_damaged", GlobalData.board.convoy_hp, GlobalData.board.convoy_hp_max) if EventBus.has_signal("convoy_damaged") else null
-	# Flash
-	var orig := modulate
-	modulate = Color(1, 0.4, 0.3, 1)
-	var tw := create_tween()
-	tw.tween_property(self, "modulate", orig, 0.18)
+	if EventBus.has_signal("convoy_damaged"):
+		EventBus.emit_signal("convoy_damaged", GlobalData.board.convoy_hp, GlobalData.board.convoy_hp_max)
+	# Hit flash — scale punch (Node3D has no modulate)
+	if is_inside_tree():
+		var tw := create_tween()
+		tw.tween_property(self, "scale", Vector3(1.05, 0.97, 1.05), 0.07).set_trans(Tween.TRANS_QUAD)
+		tw.tween_property(self, "scale", Vector3.ONE, 0.14).set_trans(Tween.TRANS_QUAD)
 	if GlobalData.board.convoy_hp <= 0.0:
 		_destroy()
 

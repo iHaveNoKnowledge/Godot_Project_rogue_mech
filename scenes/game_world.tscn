@@ -34,8 +34,11 @@
 [ext_resource type="Resource" path="res://resources/mech/stock/weapon_pile_bunker.tres" id="12"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMat"]
-sky_top_color = Color(0.2, 0.3, 0.5, 1)
-sky_horizon_color = Color(0.6, 0.7, 0.8, 1)
+sky_top_color = Color(0.12, 0.16, 0.28, 1)
+sky_horizon_color = Color(0.32, 0.36, 0.45, 1)
+sky_curve = 0.08
+ground_horizon_color = Color(0.18, 0.19, 0.20, 1)
+ground_bottom_color = Color(0.12, 0.13, 0.15, 1)
 
 [sub_resource type="Sky" id="Sky_main"]
 sky_material = SubResource("SkyMat")
@@ -82,20 +85,17 @@ ssil_radius = 4.5
 ssil_intensity = 0.85
 ssil_sharpness = 0.98
 ssil_normal_rejection = 1.0
-volumetric_fog_enabled = true
-volumetric_fog_density = 0.0022
-volumetric_fog_albedo = Color(0.62, 0.66, 0.72, 1)
-volumetric_fog_emission = Color(0.30, 0.33, 0.38, 1)
-volumetric_fog_emission_energy = 0.07
-volumetric_fog_gi_inject = 0.32
-volumetric_fog_anisotropy = 0.14
-volumetric_fog_length = 64.0
-volumetric_fog_detail_spread = 2.0
+volumetric_fog_enabled = false
+volumetric_fog_density = 0.0008
+volumetric_fog_albedo = Color(0.58, 0.60, 0.65, 1)
+volumetric_fog_emission = Color(0.0, 0.0, 0.0, 1)
+volumetric_fog_emission_energy = 0.0
+volumetric_fog_gi_inject = 0.0
+volumetric_fog_anisotropy = 0.2
+volumetric_fog_length = 32.0
+volumetric_fog_detail_spread = 8.0
 fog_enabled = false
-adjustment_enabled = true
-adjustment_brightness = 1.0
-adjustment_contrast = 1.02
-adjustment_saturation = 1.0
+adjustment_enabled = false
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_ground"]
 size = Vector3(300, 0.2, 300)
@@ -133,29 +133,13 @@ light_angular_distance = 0.06
 
 [node name="ReflectionProbe" type="ReflectionProbe" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0)
-update_mode = 0
+update_mode = 1
 cull_mask = 1048575
-size = Vector3(80, 20, 80)
-origin_offset = Vector3(0, 8, 0)
-max_distance = 60
-mesh_lod_threshold = 0.01
-
-[node name="FogVolume" type="FogVolume" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, 0)
-size = Vector3(120, 18, 120)
-material = null
-extents = Vector3(60, 9, 60)
-
-[node name="DecalProjector" type="Decal" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, -8)
-size = Vector3(12, 12, 12)
-texture_albedo = null
-texture_normal = null
-texture_orm = null
-cull_mask = 1048575
-distance_fade_enabled = true
-distance_fade_begin = 10.0
-distance_fade_length = 20.0
+size = Vector3(40, 12, 40)
+origin_offset = Vector3(0, 6, 0)
+max_distance = 40
+mesh_lod_threshold = 0.5
+intensity = 0.6
 
 [node name="MechaCamera" parent="." instance=ExtResource("1")]
 

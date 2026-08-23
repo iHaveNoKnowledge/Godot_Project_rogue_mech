@@ -176,6 +176,134 @@ func get_detection_modifier() -> float:
 	return base * transition_progress
 
 
+# ==========================================================================
+# DAY / NIGHT + WEATHER INTERACTIONS (GDD extended)
+# ==========================================================================
+# Weather effects vary based on time of day:
+#   • Rain at NIGHT = harder stealth (wet surfaces reflect light, thermal
+#     signatures amplify in cold air, radar penetration improves)
+#   • Fog at NIGHT = super stealth (thick + dark = near-invisible)
+#   • Sandstorm at NIGHT = extreme stealth (dark + zero visibility)
+#   • Dust storm at NIGHT = moderate stealth gain
+#   • Day weather effects remain as-is (no night synergy)
+
+# --- Stealth bonus modifiers from weather (added to base night stealth) ---
+# Positive = harder to detect (stealthier), Negative = easier to detect
+const NIGHT_STEALTH_BASE: float = 0.35  # Base night stealth bonus from DayNightSystem
+
+# Weather stealth modifiers: { weather_id: { "day": modifier, "night": modifier } }
+# Modifier is applied to the stealth bonus (positive = stealthier)
+const WEATHER_STEALTH_MODIFIERS: Dictionary = {
+	RAIN: { "day": 0.0, "night": -0.20 },       # Rain at night REDUCES stealth by 20%
+	SANDSTORM: { "day": 0.10, "night": 0.30 },   # Sandstorm + night = extreme stealth
+	FOG: { "day": 0.15, "night": 0.40 },         # Fog + night = super stealth
+	DUST_STORM: { "day": 0.05, "night": 0.15 },  # Dust storm + night = moderate stealth
+}
+
+# Weather alert modifiers (affect passive alert gain)
+# Negative = less alert gain (stealthier)
+const WEATHER_ALERT_MODIFIERS: Dictionary = {
+	RAIN: { "day": 0, "night": 1 },       # Rain at night increases alert slightly
+	SANDSTORM: { "day": -1, "night": -2 }, # Sandstorm suppresses alerts
+	FOG: { "day": -1, "night": -2 },      # Fog suppresses alerts strongly
+	DUST_STORM: { "day": 0, "night": -1 }, # Dust storm moderate alert suppression
+}
+
+
+## Returns the combined stealth bonus from day/night + weather.
+## This should be used instead of DayNightSystem.stealth_bonus() when
+## weather is active to get the full stealth picture.
+func get_combined_stealth_bonus() -> float:
+	# Start with base day/night stealth
+	var base_stealth: float = _night_stealth_base()
+	if current_weather == CLEAR:
+		return base_stealth * transition_progress if transition_progress > 0.0 else base_stealth
+	# Get weather modifier for current time of day
+	var is_night := _is_nighttime()
+	var time_key := "night" if is_night else "day"
+	var weather_mods: Dictionary = WEATHER_STEALTH_MODIFIERS.get(current_weather, {})
+	var weather_mod: float = float(weather_mods.get(time_key, 0.0))
+	# Apply transition blending
+	weather_mod *= transition_progress
+	return base_stealth + weather_mod
+
+
+## Returns the modified alert per step based on day/night + weather.
+## Used by board_manager to adjust passive alert gain.
+func get_combined_alert_per_step() -> int:
+	var base_alert: int = 1 if _is_daytime() else 0
+	if current_weather == CLEAR:
+		return base_alert
+	var is_night := _is_nighttime()
+	var time_key := "night" if is_night else "day"
+	var weather_alerts: Dictionary = WEATHER_ALERT_MODIFIERS.get(current_weather, {})
+	var weather_mod: int = int(weather_alerts.get(time_key, 0))
+	return maxi(base_alert + weather_mod, 0)
+
+
+## Returns the combined patrol detection modifier accounting for both
+## weather visibility effects AND day/night stealth modifiers.
+## More negative = patrols detect you from shorter range (good for player).
+func get_combined_detection_modifier() -> float:
+	var base_mod := get_detection_modifier()
+	# Night stealth bonus converts to detection reduction
+	var stealth := get_combined_stealth_bonus()
+	# stealth_bonus of 0.35 means patrols detect 35% less effective range
+	var stealth_detection_mod: float = -stealth * 3.0  # Scale stealth to detection range
+	return base_mod + (stealth_detection_mod * transition_progress if transition_progress > 0.0 else stealth_detection_mod)
+
+
+## Returns true if the current day/night + weather combo creates a
+## special interaction that should display a unique event notification.
+func has_special_interaction() -> bool:
+	if current_weather == CLEAR:
+		return false
+	var is_night := _is_nighttime()
+	# Rain at night = special interaction (harder stealth)
+	if current_weather == RAIN and is_night:
+		return true
+	# Fog at night = special interaction (super stealth)
+	if current_weather == FOG and is_night:
+		return true
+	# Sandstorm at night = special interaction (extreme stealth)
+	if current_weather == SANDSTORM and is_night:
+		return true
+	return false
+
+
+## Returns the special interaction description for HUD display.
+func get_special_interaction_text() -> String:
+	if not has_special_interaction():
+		return ""
+	var is_night := _is_nighttime()
+	match current_weather:
+		RAIN:
+			if is_night:
+				return "⚠ RAIN + NIGHT: Wet surfaces reflect light — stealth reduced by 20%%"
+			return ""
+		FOG:
+			if is_night:
+				return "✓ FOG + NIGHT: Thick darkness — super stealth (+40%%)"
+			return ""
+		SANDSTORM:
+			if is_night:
+				return "✓ SANDSTORM + NIGHT: Zero visibility — extreme stealth (+30%%)"
+			return ""
+	return ""
+
+
+## Returns the color for the special interaction indicator.
+func get_special_interaction_color() -> Color:
+	if current_weather == RAIN and _is_nighttime():
+		return Color(1.0, 0.5, 0.2)  # Orange warning (harder stealth)
+	return Color(0.3, 0.9, 0.5)    # Green (stealth bonus)
+
+
+## Helper: returns the base night stealth bonus.
+func _night_stealth_base() -> float:
+	return 0.0 if _is_daytime() else NIGHT_STEALTH_BASE
+
+
 ## Returns the forecast string for HUD display.
 func get_forecast_text() -> String:
 	if forecast.is_empty():
@@ -335,3 +463,25 @@ func _weather_icon(id: String) -> String:
 		FOG: return "🌫️"
 		DUST_STORM: return "💨"
 		_: return "☀️"
+
+
+# --- Day / Night helpers (inline to avoid DayNightSystem class_name cascade) ---
+const DAWN_HOUR := 6.0
+const DUSK_HOUR := 18.0
+const DAY_ALERT_PER_STEP := 1
+const NIGHT_ALERT_PER_STEP := 0
+
+
+func _current_hour() -> float:
+	if GlobalData.board != null:
+		return GlobalData.board.time_hour
+	return 8.0
+
+
+func _is_daytime() -> bool:
+	var h := _current_hour()
+	return h >= DAWN_HOUR and h < DUSK_HOUR
+
+
+func _is_nighttime() -> bool:
+	return not _is_daytime()

@@ -49,6 +49,7 @@ var _cloak_warn_label: Label
 var _cloak_toggle_btn: Button
 var _ewar_label: Label
 var _weather_forecast_label: Label
+var _weather_interaction_label: Label
 
 # BottomLeft Unit Status
 var _unit_status_panel: PanelContainer
@@ -603,6 +604,14 @@ func _build_threat_radar() -> void:
 	_weather_forecast_label.visible = false
 	_threat_radar.add_child(_weather_forecast_label)
 
+	# Weather + Day/Night Interaction Label
+	_weather_interaction_label = Label.new()
+	_weather_interaction_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_weather_interaction_label.add_theme_font_size_override("font_size", 11)
+	_weather_interaction_label.add_theme_color_override("font_color", Color(0.9, 0.6, 0.2))
+	_weather_interaction_label.visible = false
+	_threat_radar.add_child(_weather_interaction_label)
+
 
 # -----------------------------------------------------------------------------
 # 4. BOTTOM LEFT: UNIT STATUS (Armor HP & Frame Durability)
@@ -904,6 +913,18 @@ func _refresh() -> void:
 			_weather_forecast_label.visible = false
 	else:
 		_weather_forecast_label.visible = false
+
+	# Weather + Day/Night Interaction
+	if GlobalData.weather_transition != null and GlobalData.weather_transition.has_special_interaction():
+		var interaction_text := GlobalData.weather_transition.get_special_interaction_text()
+		if interaction_text != "":
+			_weather_interaction_label.visible = true
+			_weather_interaction_label.text = interaction_text
+			_weather_interaction_label.add_theme_color_override("font_color", GlobalData.weather_transition.get_special_interaction_color())
+		else:
+			_weather_interaction_label.visible = false
+	else:
+		_weather_interaction_label.visible = false
 
 	# Cloak Charge Warning
 	if GlobalData.thermal_cloak != null and GlobalData.thermal_cloak.is_cloak_active():

@@ -591,7 +591,11 @@ static func advance_day(player_pos: Vector2i) -> Vector2i:
 	# The convoy is a moving target: force escalation climbs while a hostile
 	# fleet keeps visual and cools back down once the player relocates.
 	if saw_player:
-		GlobalData.board.patrol_alert = mini(GlobalData.board.patrol_alert + 1, ALERT_MAX)
+		# Weather + Day/Night combined alert modifier
+		var alert_gain := 1
+		if GlobalData.weather_transition != null and GlobalData.weather_transition.current_weather != "":
+			alert_gain = GlobalData.weather_transition.get_combined_alert_per_step()
+		GlobalData.board.patrol_alert = mini(GlobalData.board.patrol_alert + alert_gain, ALERT_MAX)
 	else:
 		GlobalData.board.patrol_alert = maxi(GlobalData.board.patrol_alert - 1, 0)
 	return ambush
@@ -677,14 +681,20 @@ static func record_spotting(pos: Vector2i) -> void:
 	# GDD §7: EWar JAM reduces patrol detection radius
 	if GlobalData.ewar != null:
 		detect = maxi(detect - GlobalData.ewar.jam_detection_reduction(), 0)
-	# Weather: visibility modifiers
-	var hazard := GlobalData.board.current_hazard
-	if hazard == GlobalData.HAZARD_SANDSTORM:
-		detect = maxi(detect / 2, 0)   # Sandstorm halves patrol visibility
-	elif hazard == GlobalData.HAZARD_FOG:
-		detect = maxi(int(float(detect) * GlobalData.FOG_VISIBILITY_MULT), 0)  # Fog drastically reduces
-	elif hazard == GlobalData.HAZARD_RAIN:
-		detect = maxi(detect - 1, 0)   # Rain slightly dampens sensors
+	# Weather + Day/Night combined modifiers
+	if GlobalData.weather_transition != null and GlobalData.weather_transition.current_weather != "":
+		# Use the new combined detection modifier that accounts for day/night + weather
+		var combined_mod: float = GlobalData.weather_transition.get_combined_detection_modifier()
+		detect = maxi(int(float(detect) * (1.0 + combined_mod)), 0)
+	else:
+		# Fallback to legacy static weather modifiers
+		var hazard := GlobalData.board.current_hazard
+		if hazard == GlobalData.HAZARD_SANDSTORM:
+			detect = maxi(detect / 2, 0)   # Sandstorm halves patrol visibility
+		elif hazard == GlobalData.HAZARD_FOG:
+			detect = maxi(int(float(detect) * GlobalData.FOG_VISIBILITY_MULT), 0)  # Fog drastically reduces
+		elif hazard == GlobalData.HAZARD_RAIN:
+			detect = maxi(detect - 1, 0)   # Rain slightly dampens sensors
 	for p in GlobalData.board.board_patrols:
 		if str(p.get("faction", "hostile")) == "unknown":
 			continue

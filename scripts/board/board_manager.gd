@@ -80,6 +80,13 @@ func _ready() -> void:
 		wt.name = "WeatherThunder"
 		wt.set_script(wt_script)
 		add_child(wt)
+	# Weather tile coloring (tint tiles based on weather)
+	if get_node_or_null("WeatherTileColoring") == null:
+		var wtc_script = preload("res://scripts/board/weather_tile_coloring.gd")
+		var wtc := Node.new()
+		wtc.name = "WeatherTileColoring"
+		wtc.set_script(wtc_script)
+		add_child(wtc)
 	PatrolSystem.spawn_patrols()
 
 	_reveal_around(current_pos)

@@ -24,6 +24,11 @@ uniform vec4 highlight_color : source_color = vec4(0.25, 0.75, 1.0, 1.0);
 uniform float highlight_intensity : hint_range(0.0, 2.0) = 0.0;
 uniform float pulse_speed : hint_range(0.0, 10.0) = 3.0;
 
+// Weather Tinting
+uniform vec4 weather_tint_color : source_color = vec4(0.0, 0.0, 0.0, 0.0);
+uniform float weather_tint_strength : hint_range(0.0, 1.0) = 0.0;
+uniform float weather_roughness_mod : hint_range(-1.0, 1.0) = 0.0;
+
 // Simple procedural hash noise for organic border distortion
 float hash2d(vec2 p) {
 	p = fract(p * vec2(123.34, 456.21));
@@ -75,6 +80,12 @@ void fragment() {
 		float pulse = sin(TIME * pulse_speed) * 0.25 + 0.75;
 		final_color = mix(final_color, highlight_color.rgb * 1.3, highlight_intensity * pulse);
 		rough = mix(rough, 0.3, highlight_intensity * 0.5);
+	}
+
+	// Weather tinting (fog=blue, rain=wet sheen, sandstorm=amber, dust=warm haze)
+	if (weather_tint_strength > 0.01) {
+		final_color = mix(final_color, weather_tint_color.rgb, weather_tint_strength * 0.35);
+		rough = clamp(rough + weather_roughness_mod * weather_tint_strength, 0.0, 1.0);
 	}
 
 	// Soft edge transition to avoid sharp square tile seams

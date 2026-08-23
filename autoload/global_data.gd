@@ -147,6 +147,13 @@ const DUST_STORM_SPEED_MULT: float = 0.85
 const SMOG_HEAT_COOL_PENALTY: float = 0.5
 const EMP_LOCK_ON_DISABLED: bool = true
 const EMP_BACKUP_BLOCKED: bool = true
+const RAIN_SPEED_MULT: float = 0.80
+const RAIN_FUEL_DRAIN_MULT: float = 1.3
+const SANDSTORM_SPEED_MULT: float = 0.65
+const SANDSTORM_FUEL_DRAIN_MULT: float = 1.6
+const SANDSTORM_VISIBILITY_MULT: float = 0.5
+const FOG_SPEED_MULT: float = 0.90
+const FOG_VISIBILITY_MULT: float = 0.35
 
 # --- Narrative constants ---
 const FLEET_SECURITY_MIN := 0.0

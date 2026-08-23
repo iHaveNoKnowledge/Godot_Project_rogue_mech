@@ -1213,39 +1213,39 @@ func _gen_fog_ambience() -> AudioStreamWAV:
 
 ## pitch_mult varies the crack tone for variety (0.85–1.15).
 func _gen_thunder_crack(pitch_mult: float = 1.0) -> AudioStreamWAV:
-	var sample_rate := 22050
-	var duration := 1.8
-	var num_samples := int(duration * sample_rate)
-	var data := PackedByteArray()
+	var sample_rate: int = 22050
+	var duration: float = 1.8
+	var num_samples: int = int(duration * sample_rate)
+	var data: PackedByteArray = PackedByteArray()
 	data.resize(num_samples * 2)
 	for i in range(num_samples):
-		var t := float(i) / sample_rate
-		var sample := 0.0
+		var t: float = float(i) / sample_rate
+		var sample: float = 0.0
 		# Phase 1: Sharp crack (0–0.08s) — high-frequency snap
 		if t < 0.08:
-			var crack_env := exp(-t * 60.0)
+			var crack_env: float = exp(-t * 60.0)
 			sample += sin(TAU * 1800.0 * pitch_mult * t) * 0.5 * crack_env
 			sample += (randf() * 2.0 - 1.0) * 0.6 * crack_env
 		# Phase 2: Low boom (0.02–0.5s) — deep impact
 		elif t < 0.5:
-			var boom_env := exp(-(t - 0.02) * 8.0)
+			var boom_env: float = exp(-(t - 0.02) * 8.0)
 			sample += sin(TAU * 45.0 * pitch_mult * t) * 0.55 * boom_env
 			sample += sin(TAU * 70.0 * pitch_mult * t) * 0.3 * boom_env
 			sample += (randf() * 2.0 - 1.0) * 0.15 * boom_env
 		# Phase 3: Rumble tail (0.4–1.8s) — rolling echo
 		elif t < 1.8:
-			var rumble_env := exp(-(t - 0.4) * 3.0)
+			var rumble_env: float = exp(-(t - 0.4) * 3.0)
 			sample += sin(TAU * 30.0 * pitch_mult * t) * 0.3 * rumble_env
 			sample += sin(TAU * 55.0 * pitch_mult * t) * 0.15 * rumble_env
 			sample += (randf() * 2.0 - 1.0) * 0.1 * rumble_env
 		# Occasional secondary crack (at ~0.15s)
 		if t > 0.12 and t < 0.20:
-			var sc_env := exp(-(t - 0.12) * 40.0)
+			var sc_env: float = exp(-(t - 0.12) * 40.0)
 			sample += sin(TAU * 1200.0 * pitch_mult * t) * 0.25 * sc_env
-	var val := int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		var val: int = int(clamp(sample * 32767.0, -32767.0, 32767.0))
 		data[i * 2] = val & 0xFF
 		data[i * 2 + 1] = (val >> 8) & 0xFF
-	var stream := AudioStreamWAV.new()
+	var stream: AudioStreamWAV = AudioStreamWAV.new()
 	stream.data = data
 	stream.format = AudioStreamWAV.FORMAT_16_BITS
 	stream.mix_rate = sample_rate

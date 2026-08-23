@@ -222,7 +222,7 @@ func _verify_shield_toggle() -> void:
 # a distinct shatter when the plate breaks, so blocking reads by ear.
 func _verify_shield_audio() -> void:
 	var am := AudioManager
-	var sfx := AudioManager.sfx if AudioManager else null
+	var sfx: SfxManager = AudioManager.sfx if AudioManager else null
 	_check(am != null and sfx != null, "AudioManager & SFXManager autoload are available")
 	if sfx == null:
 		return

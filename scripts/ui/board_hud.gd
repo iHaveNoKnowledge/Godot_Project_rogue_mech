@@ -75,6 +75,13 @@ var _glitch_static: ColorRect
 var _glitch_active: bool = false
 var _glitch_time: float = 0.0
 
+# GDD §8: DynamicPathLine — Line2D projection showing predicted path + costs
+var _path_layer: CanvasLayer
+var _path_line: Line2D
+var _path_time_label: Label
+var _path_energy_label: Label
+var _path_hovered_pos: Vector2i = Vector2i(-1, -1)
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -90,6 +97,7 @@ func _build_ui() -> void:
 	add_child(_root)
 
 	_build_screen_fx()
+	_build_path_line()
 	_build_top_bar()
 	_build_threat_radar()
 	_build_unit_status()
@@ -126,6 +134,122 @@ func _build_screen_fx() -> void:
 	_glitch_static.color = Color(1.0, 1.0, 1.0, 0.0)
 	_glitch_static.visible = false
 	_screen_fx.add_child(_glitch_static)
+
+
+# -----------------------------------------------------------------------------
+# 1b. DYNAMIC PATH LINE (GDD §8) — projected path with time + energy costs
+# -----------------------------------------------------------------------------
+func _build_path_line() -> void:
+	_path_layer = CanvasLayer.new()
+	_path_layer.layer = 8  # Between 3D board (0) and HUD (10)
+	add_child(_path_layer)
+
+	var path_root := Control.new()
+	path_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	path_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_path_layer.add_child(path_root)
+
+	# Line2D for the predicted path
+	_path_line = Line2D.new()
+	_path_line.width = 3.0
+	_path_line.default_color = Color(0.3, 0.85, 1.0, 0.7)
+	_path_line.antialiased = true
+	_path_line.visible = false
+	path_root.add_child(_path_line)
+
+	# Time cost label (centered on path midpoint)
+	_path_time_label = Label.new()
+	_path_time_label.text = ""
+	_path_time_label.add_theme_font_size_override("font_size", 12)
+	_path_time_label.add_theme_color_override("font_color", Color(0.95, 0.85, 0.3, 0.9))
+	_path_time_label.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Medium.ttf"))
+	_path_time_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_path_time_label.visible = false
+	path_root.add_child(_path_time_label)
+
+	# Energy cost label
+	_path_energy_label = Label.new()
+	_path_energy_label.text = ""
+	_path_energy_label.add_theme_font_size_override("font_size", 12)
+	_path_energy_label.add_theme_color_override("font_color", Color(0.3, 0.85, 1.0, 0.9))
+	_path_energy_label.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Medium.ttf"))
+	_path_energy_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_path_energy_label.visible = false
+	path_root.add_child(_path_energy_label)
+
+
+## Converts a 3D world position to screen-space Vector2 for the Line2D.
+func _world_to_screen(world_pos: Vector3) -> Vector2:
+	var cam := get_viewport().get_camera_3d()
+	if cam == null:
+		return Vector2(-100, -100)
+	var screen := cam.unproject_position(world_pos)
+	return screen
+
+
+## Updates the dynamic path line from convoy pos to hovered tile.
+func _update_path_line() -> void:
+	var tile := _get_hovered_tile_node()
+	if tile == null:
+		_path_line.visible = false
+		_path_time_label.visible = false
+		_path_energy_label.visible = false
+		return
+
+	var target_pos: Vector2i = tile.get_meta("grid_pos", Vector2i(-1, -1))
+	var convoy_pos: Vector2i = GlobalData.fuel.convoy_pos
+
+	# Don't draw path if hovering over the convoy itself or invalid pos
+	if target_pos == convoy_pos or target_pos == Vector2i(-1, -1):
+		_path_line.visible = false
+		_path_time_label.visible = false
+		_path_energy_label.visible = false
+		return
+
+	# Only draw when in convoy mode (the convoy moves on the board)
+	if GlobalData.fuel.traversal_mode != "convoy":
+		_path_line.visible = false
+		_path_time_label.visible = false
+		_path_energy_label.visible = false
+		return
+
+	# Build simple straight-line path from convoy to target
+	var path_points: Array[Vector2] = []
+	var start_3d := Vector3(convoy_pos.x * 4.0, 0.5, convoy_pos.y * 4.0)
+	var end_3d := Vector3(target_pos.x * 4.0, 0.5, target_pos.y * 4.0)
+	path_points.append(_world_to_screen(start_3d))
+	path_points.append(_world_to_screen(end_3d))
+
+	_path_line.points = path_points
+	_path_line.visible = true
+
+	# Calculate costs
+	var dx := absi(target_pos.x - convoy_pos.x)
+	var dy := absi(target_pos.y - convoy_pos.y)
+	var manhattan := dx + dy
+	var terrain := str(tile.get_meta("terrain", "plain"))
+	var costs := GlobalData.fuel.get_mode_step_cost(terrain)
+	var total_time: float = float(costs.get("mp", 1)) * float(manhattan)
+	var total_energy: float = float(costs.get("energy", 0)) + float(costs.get("fuel", 0)) + float(costs.get("stamina", 0))
+	total_energy *= float(manhattan)
+
+	# Position labels at midpoint of path
+	var mid_screen := (path_points[0] + path_points[1]) * 0.5
+	_path_time_label.text = "⏱ %.0f hours" % total_time
+	_path_time_label.position = mid_screen + Vector2(-50, -25)
+	_path_time_label.visible = true
+
+	_path_energy_label.text = "⛽ %.0f" % total_energy
+	_path_energy_label.position = mid_screen + Vector2(-50, 5)
+	_path_energy_label.visible = true
+
+
+## Helper to get the hovered tile node (same raycast as board_manager).
+func _get_hovered_tile_node() -> Node:
+	var board = get_parent()
+	if board == null or not board.has_method("_hovered_tile"):
+		return null
+	return board._hovered_tile()
 
 
 # -----------------------------------------------------------------------------
@@ -584,6 +708,7 @@ func _process(delta: float) -> void:
 
 	_refresh()
 	_update_screen_fx(delta)
+	_update_path_line()
 
 
 func _refresh() -> void:

@@ -242,11 +242,25 @@ func get_sampler_uniform(image: RID, binding: int, linear: bool = true) -> RDUni
 func dispatch_stage(stage: ShaderStageResource, uniforms: Array[RDUniform], push_constants: PackedByteArray, dispatch_size: Vector3i, label: String = "DefaultLabel", view: int = 0, color: Color = Color(1, 1, 1, 1)):
 	if stage == null or rd == null:
 		return
+	# Extra guard: rendering device may have been recreated (window resize / scene change) —
+	# the cached shader/pipeline RID can appear valid but be freed on the device.
+	if rd.has_method("shader_is_valid") and not rd.shader_is_valid(stage.shader):
+		subscirbe_shader_stage(stage)
+		if not stage.shader.is_valid() or stage.shader == RID() or stage.shader.get_id() == 0:
+			return
+		if rd.has_method("shader_is_valid") and not rd.shader_is_valid(stage.shader):
+			return
 
 	if not stage.shader.is_valid() or not stage.pipeline.is_valid() or stage.shader == RID() or stage.pipeline == RID() or stage.shader.get_id() == 0 or stage.pipeline.get_id() == 0:
 		subscirbe_shader_stage(stage)
 
 	if not stage.shader.is_valid() or not stage.pipeline.is_valid() or stage.shader == RID() or stage.pipeline == RID() or stage.shader.get_id() == 0 or stage.pipeline.get_id() == 0:
+		return
+	if rd.has_method("shader_is_valid") and not rd.shader_is_valid(stage.shader):
+		return
+	if rd.has_method("compute_pipeline_is_valid") and not rd.compute_pipeline_is_valid(stage.pipeline):
+		return
+	if dispatch_size.x <= 0 or dispatch_size.y <= 0 or dispatch_size.z <= 0:
 		return
 
 	if debug:

@@ -21,9 +21,13 @@ func _ready() -> void:
 	test_forecast_generation(WTS)
 	test_serialize_deserialize(WTS)
 	test_visibility_radius_modifier(WTS)
+	test_weather_shake_intensity(WTS)
 
 	print("\n=== RESULTS: %d/%d passed (%d failed) ===" % [_pass, _checks, _fail])
 	_quit(1 if _fail > 0 else 0)
+
+
+
 
 
 func _quit(code: int) -> void:
@@ -214,6 +218,39 @@ func test_visibility_radius_modifier(WTS: GDScript) -> void:
 	wts.transition_progress = 0.3
 	var vis: float = wts.get_visibility_radius_modifier()
 	_check(vis > 0.5 and vis < 1.0, "Sandstorm 30%% → blended between 1.0 and 0.5")
+
+
+func test_weather_shake_intensity(WTS: GDScript) -> void:
+	print("\n[8] Weather Shake Intensity")
+	var wts = WTS.new()
+
+	# Clear weather → 0.0
+	wts.current_weather = ""
+	_check(absf(wts.get_weather_shake_intensity()) < 0.01, "Clear → 0.0")
+
+	# Sandstorm at full → 0.35
+	wts.current_weather = "sandstorm"
+	wts.transition_progress = 1.0
+	_check(absf(wts.get_weather_shake_intensity() - 0.35) < 0.01, "Sandstorm full → 0.35")
+
+	# Sandstorm at 50% → 0.175
+	wts.transition_progress = 0.5
+	_check(absf(wts.get_weather_shake_intensity() - 0.175) < 0.01, "Sandstorm 50%% → 0.175")
+
+	# Dust storm at full → 0.20
+	wts.current_weather = "dust_storm"
+	wts.transition_progress = 1.0
+	_check(absf(wts.get_weather_shake_intensity() - 0.20) < 0.01, "Dust storm full → 0.20")
+
+	# Rain at full → 0.05
+	wts.current_weather = "rain"
+	wts.transition_progress = 1.0
+	_check(absf(wts.get_weather_shake_intensity() - 0.05) < 0.01, "Rain full → 0.05")
+
+	# Fog at full → 0.0
+	wts.current_weather = "fog"
+	wts.transition_progress = 1.0
+	_check(absf(wts.get_weather_shake_intensity()) < 0.01, "Fog full → 0.0")
 
 
 func _check(condition: bool, desc: String) -> void:

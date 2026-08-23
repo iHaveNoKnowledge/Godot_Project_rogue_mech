@@ -178,6 +178,21 @@ func get_visibility_radius_modifier() -> float:
 	return lerpf(1.0, base, transition_progress)
 
 
+## Returns camera shake intensity for the current weather.
+## 0.0 = no shake, higher = stronger continuous shake.
+## Sandstorm causes heavy rumble; dust storm moderate; rain轻微; fog none.
+func get_weather_shake_intensity() -> float:
+	if current_weather == CLEAR:
+		return 0.0
+	var base := 0.0
+	match current_weather:
+		RAIN: base = 0.05       # Very light — rain patter
+		SANDSTORM: base = 0.35  # Heavy — sand particles hitting, wind gusts
+		FOG: base = 0.0         # No shake — fog is silent/still
+		DUST_STORM: base = 0.20 # Moderate — dust particles, lighter wind
+	return base * transition_progress
+
+
 ## Returns patrol detection modifier (subtract from base range).
 func get_detection_modifier() -> float:
 	if current_weather == CLEAR:

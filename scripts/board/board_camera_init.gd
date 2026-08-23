@@ -129,6 +129,10 @@ func _process(delta: float) -> void:
 	# Move camera position and look target synchronously with 1:1 drag_offset.
 	# This eliminates the parallax/crane swing effect and provides crisp, snappy response.
 	var desired_pos = player_token.global_position + _get_offset() + drag_offset
+	# Weather-based continuous shake (sandstorm rumble, etc.)
+	var weather_shake := _get_weather_shake(delta)
+	if weather_shake.length_squared() > 0.0:
+		desired_pos += weather_shake
 	if shake_amount > 0.0:
 		shake_amount = maxf(shake_amount - shake_decay * delta, 0.0)
 		var shake_offset := Vector3(
@@ -155,3 +159,24 @@ func rotate_yaw(amount: float) -> void:
 func _get_offset() -> Vector3:
 	var base := Vector3(camera_height * 0.45, camera_height, camera_height * 0.6)
 	return base.rotated(Vector3.UP, yaw)
+
+
+# Weather-based continuous camera shake.
+# Returns an offset vector based on current weather intensity.
+# Uses layered sin waves for organic, non-repeating rumble.
+var _weather_shake_time: float = 0.0
+
+func _get_weather_shake(delta: float) -> Vector3:
+	if GlobalData.weather_transition == null:
+		return Vector3.ZERO
+	var intensity: float = GlobalData.weather_transition.get_weather_shake_intensity()
+	if intensity < 0.01:
+		return Vector3.ZERO
+	# Accumulate time for continuous oscillation
+	_weather_shake_time += delta
+	var t := _weather_shake_time
+	# Layered sin waves at different frequencies for organic rumble
+	var x := sin(t * 7.3) * 0.4 + sin(t * 13.1) * 0.25 + sin(t * 23.7) * 0.15
+	var y := sin(t * 5.9) * 0.3 + sin(t * 11.2) * 0.2  # Vertical jitter
+	var z := sin(t * 8.1) * 0.35 + sin(t * 15.4) * 0.2 + sin(t * 21.3) * 0.1
+	return Vector3(x, y, z) * intensity

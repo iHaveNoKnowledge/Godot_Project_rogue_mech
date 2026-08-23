@@ -295,12 +295,12 @@ func _spawn_forward_base_if_needed() -> void:
 		mecha.position = ppos
 	# Hook base destruction to victory
 	if base.has_signal("base_destroyed"):
-		base.base_destroyed.connect(func(): 
-			# Base HQ down counts as victory if enemies are still alive, delay then check
-			await get_tree().create_timer(0.6).timeout
-			if is_inside_tree():
-				EventBus.combat_ended.emit(true)
-		)
+		base.base_destroyed.connect(_on_forward_base_destroyed)
+
+func _on_forward_base_destroyed() -> void:
+	await get_tree().create_timer(0.6).timeout
+	if is_inside_tree() and is_instance_valid(self):
+		EventBus.combat_ended.emit(true)
 
 
 func _generate_spawn_points() -> void:

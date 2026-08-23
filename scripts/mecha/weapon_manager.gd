@@ -1623,9 +1623,13 @@ func _spawn_shell_casing(spawn_pos: Vector3, hand: String) -> void:
 	t.tween_property(mesh, "transparency", 0.2, 0.3)
 	t.tween_callback(shell_body.queue_free)
 
-	# Safety: free even if stuck forever
-	var timer := shell_body.get_tree().create_timer(5.0)
-	timer.timeout.connect(func(): if is_instance_valid(shell_body): shell_body.queue_free(), CONNECT_ONE_SHOT)
+	# Safety: free even if stuck forever — capture ID not Node to avoid freed lambda capture
+	var shell_id := shell_body.get_instance_id()
+	get_tree().create_timer(5.0).timeout.connect(func():
+		var node = instance_from_id(shell_id)
+		if is_instance_valid(node):
+			node.queue_free()
+	, CONNECT_ONE_SHOT)
 
 func _update_weapon_visuals() -> void:
 	var mecha = get_parent() as Node3D

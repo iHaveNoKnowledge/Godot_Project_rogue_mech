@@ -68,6 +68,7 @@ func _test_audio_buses() -> void:
 func _test_procedural_sounds() -> void:
 	var required_sounds := [
 		"footstep",
+		"step_lift",
 		"jump",
 		"land",
 		"explosion",
@@ -95,6 +96,7 @@ func _test_sfx_playback() -> void:
 
 	# Test 3D play
 	AudioManager.play_sfx("footstep", Vector3(10, 0, 5))
+	AudioManager.play_step_lift(Vector3(10, 0, 5))
 	var free_player = AudioManager._get_free_3d_player()
 	_check(free_player != null and free_player.bus == "SFX", "3D SFX Player correctly routed to SFX bus")
 
@@ -121,9 +123,16 @@ func _test_footstep_variants() -> void:
 	_check(sfx_script._variant_index("footstepped", "footstep") == -1, "non-numeric suffix rejected")
 	_check(sfx_script._variant_index("jump", "footstep") == -1, "unrelated sound rejected")
 
+	# Step lift variants matching
+	_check(sfx_script._variant_index("step_lift", "step_lift") == 0, "step_lift exact name matches")
+	_check(sfx_script._variant_index("step_lift_2", "step_lift") == 2, "step_lift_2 matches variant 2")
+
 	# Without any footstep files in resources/audio/sfx the loader must
 	# gracefully report "no file" so the procedural fallback stays in charge.
 	_check(AudioManager.sfx._load_sfx_file("no_such_sound_xyz") == null,
 		"missing sound file returns null (procedural fallback)")
 	var entry = AudioManager.sfx._sound_cache.get("footstep")
 	_check(entry != null, "footstep cache always populated (file or procedural)")
+	var lift_entry = AudioManager.sfx._sound_cache.get("step_lift")
+	_check(lift_entry != null, "step_lift cache always populated (file or procedural)")
+

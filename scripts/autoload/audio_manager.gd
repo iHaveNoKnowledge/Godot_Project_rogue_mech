@@ -212,6 +212,9 @@ func play_explosion(pos: Vector3) -> void:
 func play_footstep(pos: Vector3) -> void:
 	sfx.play_footstep(pos)
 
+func play_step_lift(pos: Vector3) -> void:
+	sfx.play_step_lift(pos)
+
 func play_dash(pos: Vector3) -> void:
 	sfx.play_dash(pos)
 

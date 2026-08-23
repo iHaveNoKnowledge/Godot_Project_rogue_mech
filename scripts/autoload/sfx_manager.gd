@@ -75,6 +75,8 @@ func _generate_sounds() -> void:
 	_sound_cache["mech_register"] = _gen_mech_register()
 	var footstep_file: Variant = _load_sfx_file("footstep")
 	_sound_cache["footstep"] = footstep_file if footstep_file != null else _gen_mech_footstep()
+	var step_lift_file: Variant = _load_sfx_file("step_lift")
+	_sound_cache["step_lift"] = step_lift_file if step_lift_file != null else _gen_mech_step_lift()
 	var actuator := _gen_actuator()
 	_sound_cache["dash"] = actuator
 	_sound_cache["mecha_actuator"] = actuator
@@ -410,6 +412,10 @@ func play_explosion(pos: Vector3) -> void:
 
 func play_footstep(pos: Vector3) -> void:
 	play_sfx("footstep", pos, -14.0, "Movement")
+
+
+func play_step_lift(pos: Vector3) -> void:
+	play_sfx("step_lift", pos, -16.0, "Movement")
 
 
 func play_dash(pos: Vector3) -> void:
@@ -837,6 +843,30 @@ func _gen_mech_footstep() -> AudioStreamWAV:
 		data[i * 2] = val & 0xFF
 		data[i * 2 + 1] = (val >> 8) & 0xFF
 	var stream = AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream
+
+
+func _gen_mech_step_lift() -> AudioStreamWAV:
+	var sample_rate: int = 22050
+	var duration: float = 0.15
+	var num_samples: int = int(duration * sample_rate)
+	var data: PackedByteArray = PackedByteArray()
+	data.resize(num_samples * 2)
+	for i in range(num_samples):
+		var t: float = float(i) / sample_rate
+		var envelope: float = exp(-t * 24.0)
+		var freq: float = float(lerp(180.0, 380.0, t / duration))
+		var sample: float = sin(TAU * freq * t) * 0.35 * envelope
+		sample += sin(TAU * (freq * 2.0) * t) * 0.15 * envelope
+		sample += (randf() * 2.0 - 1.0) * 0.1 * envelope
+		var val: int = int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+	var stream: AudioStreamWAV = AudioStreamWAV.new()
 	stream.data = data
 	stream.format = AudioStreamWAV.FORMAT_16_BITS
 	stream.mix_rate = sample_rate

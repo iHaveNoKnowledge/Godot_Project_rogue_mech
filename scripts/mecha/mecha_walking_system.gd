@@ -94,9 +94,11 @@ func update_bob(delta: float, mecha: CharacterBody3D, joints: Dictionary,
 		bob_amount: float) -> float:
 	var is_skating: bool = mecha.get("is_roller_dashing") == true
 	if is_moving and not is_skating:
-		var run_speed: float = mecha.velocity.length() * 1.4
+		var speed: float = mecha.velocity.length()
+		# Dynamic stride frequency: scales smoothly with velocity to prevent foot sliding / moonwalking
+		var run_speed: float = clamp(speed * 1.35, 3.0, 16.0)
 		_prev_bob_timer = bob_timer
-		bob_timer += delta * clamp(run_speed, 7.0, 14.0)
+		bob_timer += delta * run_speed
 		var bob: float = sin(bob_timer) * bob_amount
 
 		var sprint_lean := -deg_to_rad(18.0)
@@ -163,17 +165,22 @@ func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary) -> vo
 	leg_left.rotation.x = thigh_l * dir_sign
 	leg_right.rotation.x = thigh_r * dir_sign
 
-	# ── 100% Exact Animation-Driven Footstep Audio Trigger ──
-	# Left foot enters ground stance at odd multiples of PI.
-	# Right foot enters ground stance at even multiples of PI.
+	# ── 100% Exact Animation-Driven Footstep & Lift Audio Triggers ──
+	# Left foot enters ground stance at odd multiples of PI (Right foot enters swing lift).
+	# Right foot enters ground stance at even multiples of PI (Left foot enters swing lift).
 	var prev_step_idx := int((_prev_bob_timer * 0.5) / PI)
 	var cur_step_idx := int((bob_timer * 0.5) / PI)
 	if cur_step_idx > prev_step_idx and mecha.is_on_floor():
-		var is_left_step: bool = (cur_step_idx % 2 == 1)
-		var foot_offset_x := -0.45 if is_left_step else 0.45
-		var foot_pos: Vector3 = mecha.global_position + mecha.global_transform.basis * Vector3(foot_offset_x, 0.0, 0.2)
+		var is_left_land: bool = (cur_step_idx % 2 == 1)
+		var land_offset_x := -0.45 if is_left_land else 0.45
+		var lift_offset_x := 0.45 if is_left_land else -0.45
+		var land_pos: Vector3 = mecha.global_position + mecha.global_transform.basis * Vector3(land_offset_x, 0.0, 0.2)
+		var lift_pos: Vector3 = mecha.global_position + mecha.global_transform.basis * Vector3(lift_offset_x, 0.0, -0.2)
 		if AudioManager:
-			AudioManager.play_footstep(foot_pos)
+			# Foot touchdown sound (Footstep / Ground contact)
+			AudioManager.play_footstep(land_pos)
+			# Foot lift sound (Step Lift / Servo joint swing)
+			AudioManager.play_step_lift(lift_pos)
 
 	var shin_left: Node3D = joints.get("shin_left")
 	var shin_right: Node3D = joints.get("shin_right")

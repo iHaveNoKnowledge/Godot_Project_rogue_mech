@@ -46,6 +46,7 @@ var _ceasefire_label: Label
 var _reserved_panel: PanelContainer
 var _hazard_label: Label
 var _cloak_warn_label: Label
+var _cloak_toggle_btn: Button
 
 # BottomLeft Unit Status
 var _unit_status_panel: PanelContainer
@@ -570,6 +571,20 @@ func _build_threat_radar() -> void:
 	_cloak_warn_label.visible = false
 	_threat_radar.add_child(_cloak_warn_label)
 
+	# Thermal Cloak Toggle Button
+	_cloak_toggle_btn = Button.new()
+	_cloak_toggle_btn.text = "◈ CLOAK: OFF"
+	_cloak_toggle_btn.add_theme_font_size_override("font_size", 11)
+	_cloak_toggle_btn.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+	_cloak_toggle_btn.add_theme_color_override("font_hover_color", Color(0.8, 0.8, 0.8))
+	_cloak_toggle_btn.add_theme_stylebox_override("normal", _make_transparent_style(Color(0.15, 0.2, 0.25, 0.6)))
+	_cloak_toggle_btn.add_theme_stylebox_override("hover", _make_transparent_style(Color(0.2, 0.3, 0.35, 0.8)))
+	_cloak_toggle_btn.add_theme_stylebox_override("pressed", _make_transparent_style(Color(0.1, 0.15, 0.2, 0.7)))
+	_cloak_toggle_btn.toggle_mode = true
+	_cloak_toggle_btn.pressed.connect(_on_cloak_toggle)
+	_cloak_toggle_btn.visible = false
+	_threat_radar.add_child(_cloak_toggle_btn)
+
 
 # -----------------------------------------------------------------------------
 # 4. BOTTOM LEFT: UNIT STATUS (Armor HP & Frame Durability)
@@ -693,6 +708,12 @@ func _make_panel(w: int, h: int) -> PanelContainer:
 	s.border_color = Color(0.22, 0.22, 0.22, 1.0)
 	panel.add_theme_stylebox_override("panel", s)
 	return panel
+
+
+func _make_transparent_style(bg: Color) -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.bg_color = bg
+	return s
 
 
 func _process(delta: float) -> void:
@@ -865,6 +886,27 @@ func _refresh() -> void:
 	else:
 		_cloak_warn_label.visible = false
 
+	# Cloak Toggle Button
+	if GlobalData.thermal_cloak != null:
+		_cloak_toggle_btn.visible = true
+		var is_on := GlobalData.thermal_cloak.is_cloak_active()
+		var chg: float = GlobalData.thermal_cloak.charge
+		if is_on:
+			_cloak_toggle_btn.button_pressed = true
+			_cloak_toggle_btn.text = "◈ CLOAK: ON (%d%%)" % int(chg)
+			if chg <= 10.0:
+				_cloak_toggle_btn.add_theme_color_override("font_color", Color(1.0, 0.25, 0.2))
+			elif chg <= 30.0:
+				_cloak_toggle_btn.add_theme_color_override("font_color", Color(1.0, 0.65, 0.15))
+			else:
+				_cloak_toggle_btn.add_theme_color_override("font_color", Color(0.4, 0.85, 1.0))
+		else:
+			_cloak_toggle_btn.button_pressed = false
+			_cloak_toggle_btn.text = "◈ CLOAK: OFF (%d%%)" % int(chg)
+			_cloak_toggle_btn.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+	else:
+		_cloak_toggle_btn.visible = false
+
 	# Unit Status
 	var names := {"head": "Head", "body": "Torso", "arm_left": "L-Arm", "arm_right": "R-Arm", "leg_left": "L-Leg", "leg_right": "R-Leg"}
 	for slot in _part_status_labels:
@@ -993,6 +1035,20 @@ func _on_quick_fuel_pressed() -> void:
 		"amount": 0,
 		"desc": "Transferred +%.0f fuel from convoy truck." % transferred,
 	})
+
+
+func _on_cloak_toggle() -> void:
+	if GlobalData.thermal_cloak == null:
+		return
+	var was_active := GlobalData.thermal_cloak.is_cloak_active()
+	GlobalData.thermal_cloak.toggle()
+	var now_active := GlobalData.thermal_cloak.is_cloak_active()
+	if now_active and not was_active:
+		_cloak_toggle_btn.text = "◈ CLOAK: ON"
+		_cloak_toggle_btn.add_theme_color_override("font_color", Color(0.4, 0.85, 1.0))
+	elif not now_active:
+		_cloak_toggle_btn.text = "◈ CLOAK: OFF"
+		_cloak_toggle_btn.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
 
 
 # Called by board_manager on tile hover/inspect

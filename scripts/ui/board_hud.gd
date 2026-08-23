@@ -48,6 +48,7 @@ var _hazard_label: Label
 var _cloak_warn_label: Label
 var _cloak_toggle_btn: Button
 var _ewar_label: Label
+var _weather_forecast_label: Label
 
 # BottomLeft Unit Status
 var _unit_status_panel: PanelContainer
@@ -594,6 +595,14 @@ func _build_threat_radar() -> void:
 	_ewar_label.visible = false
 	_threat_radar.add_child(_ewar_label)
 
+	# Weather Forecast Label
+	_weather_forecast_label = Label.new()
+	_weather_forecast_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_weather_forecast_label.add_theme_font_size_override("font_size", 11)
+	_weather_forecast_label.add_theme_color_override("font_color", Color(0.6, 0.8, 0.9))
+	_weather_forecast_label.visible = false
+	_threat_radar.add_child(_weather_forecast_label)
+
 
 # -----------------------------------------------------------------------------
 # 4. BOTTOM LEFT: UNIT STATUS (Armor HP & Frame Durability)
@@ -871,12 +880,30 @@ func _refresh() -> void:
 		else:
 			_ceasefire_label.text = ""
 
-	# Hazard Status
+	# Hazard Status with Weather Transition Progress
 	if GlobalData.board.current_hazard != "":
 		_hazard_label.visible = true
-		_hazard_label.text = "HAZARD: %s IN EFFECT" % GlobalData.board.current_hazard.to_upper().replace("_", " ")
+		var hazard_name := GlobalData.board.current_hazard.to_upper().replace("_", " ")
+		if GlobalData.weather_transition != null and GlobalData.weather_transition.weather_duration > 0:
+			var remaining := GlobalData.weather_transition.weather_duration
+			var total := GlobalData.weather_transition.weather_max_duration
+			var pct := int(float(remaining) / float(maxi(total, 1)) * 100.0)
+			_hazard_label.text = "HAZARD: %s (%d steps left)" % [hazard_name, remaining]
+		else:
+			_hazard_label.text = "HAZARD: %s IN EFFECT" % hazard_name
 	else:
 		_hazard_label.visible = false
+
+	# Weather Forecast
+	if GlobalData.weather_transition != null and GlobalData.weather_transition.weather_duration > 0:
+		var forecast_text := GlobalData.weather_transition.get_forecast_text()
+		if forecast_text != "":
+			_weather_forecast_label.visible = true
+			_weather_forecast_label.text = forecast_text
+		else:
+			_weather_forecast_label.visible = false
+	else:
+		_weather_forecast_label.visible = false
 
 	# Cloak Charge Warning
 	if GlobalData.thermal_cloak != null and GlobalData.thermal_cloak.is_cloak_active():

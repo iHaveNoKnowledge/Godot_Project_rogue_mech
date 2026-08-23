@@ -90,6 +90,7 @@ static func save_run() -> void:
 		"frame_bindings": GlobalData.weapons.frame_bindings.duplicate(true),
 		"thermal_cloak": GlobalData.thermal_cloak.serialize() if GlobalData.thermal_cloak else {},
 		"ewar": GlobalData.ewar.serialize() if GlobalData.ewar else {},
+		"weather_transition": GlobalData.weather_transition.serialize() if GlobalData.weather_transition else {},
 		"hangar_mechs": GlobalData.hangar.hangar_mechs.duplicate(true),
 		"active_hangar_mech_id": GlobalData.hangar.active_hangar_mech_id,
 		"frame_upgrade_level": GlobalData.weapons.frame_upgrade_level,
@@ -254,6 +255,9 @@ static func restore_from_dict(data: Dictionary) -> void:
 	var loaded_ewar = data.get("ewar", {})
 	if loaded_ewar is Dictionary and GlobalData.ewar:
 		GlobalData.ewar.deserialize(loaded_ewar)
+	var loaded_weather = data.get("weather_transition", {})
+	if loaded_weather is Dictionary and GlobalData.weather_transition:
+		GlobalData.weather_transition.deserialize(loaded_weather)
 	var loaded_hangar = data.get("hangar_mechs", [])
 	if loaded_hangar is Array:
 		GlobalData.hangar.hangar_mechs = loaded_hangar.duplicate(true)

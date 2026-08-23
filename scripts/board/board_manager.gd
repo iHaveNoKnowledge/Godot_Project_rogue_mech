@@ -451,6 +451,14 @@ func _try_step(target: Vector2i) -> bool:
 	# GDD §6.2: Drain thermal cloak charge on each step
 	if GlobalData.thermal_cloak != null and GlobalData.thermal_cloak.is_active:
 		GlobalData.thermal_cloak.drain_step()
+	# Dynamic weather transitions: tick weather every step
+	if GlobalData.weather_transition != null:
+		var hour := GlobalData.board.time_hour
+		var w_event := GlobalData.weather_transition.tick_step(hour)
+		if not w_event.is_empty():
+			EventBus.event_triggered.emit(w_event)
+		# Sync current_hazard with transition system
+		GlobalData.board.current_hazard = GlobalData.weather_transition.current_weather
 	return true
 
 
@@ -1313,22 +1321,33 @@ func _process_tile_effect(tile_type: String) -> void:
 					"effect": "hazard_emp_zone",
 					"amount": 0,
 					"desc": "Electromagnetic interference disables lock-on targeting. Reserve Mech call blocked.",
-				})
-		"rain":
-			# Weather: Rain — speed x0.80, fuel drain x1.3, dampens EWar signals.
-			GlobalData.board.current_hazard = GlobalData.HAZARD_RAIN
+				})		"rain":
+			# Weather: Rain — triggers dynamic weather transition system.
+			if GlobalData.weather_transition != null:
+				GlobalData.weather_transition.current_weather = GlobalData.HAZARD_RAIN
+				GlobalData.weather_transition.weather_duration = randi_range(6, 12)
+				GlobalData.weather_transition.weather_max_duration = GlobalData.weather_transition.weather_duration
+				GlobalData.weather_transition.transition_progress = 0.0
+				GlobalData.weather_transition.is_transitioning = true
+				GlobalData.board.current_hazard = GlobalData.HAZARD_RAIN
 			if GlobalData.narrative.mech_less:
 				_trigger_recovery_event()
 			else:
 				EventBus.event_triggered.emit({
 					"name": "HEAVY RAIN",
 					"effect": "hazard_rain",
-						"amount": 0,
-					"desc": "Rain hammers the ground. Movement speed -20%%, fuel drain +30%%, EWar signal range halved.",
+					"amount": 0,
+					"desc": "Rain hammers the ground. Movement speed -20%%, fuel drain +30%%, EWar signal range halved.\nWeather will persist for several steps.",
 				})
 		"sandstorm":
-			# Weather: Sandstorm — speed x0.65, fuel drain x1.6, visibility halved.
-			GlobalData.board.current_hazard = GlobalData.HAZARD_SANDSTORM
+			# Weather: Sandstorm — triggers dynamic weather transition system.
+			if GlobalData.weather_transition != null:
+				GlobalData.weather_transition.current_weather = GlobalData.HAZARD_SANDSTORM
+				GlobalData.weather_transition.weather_duration = randi_range(6, 12)
+				GlobalData.weather_transition.weather_max_duration = GlobalData.weather_transition.weather_duration
+				GlobalData.weather_transition.transition_progress = 0.0
+				GlobalData.weather_transition.is_transitioning = true
+				GlobalData.board.current_hazard = GlobalData.HAZARD_SANDSTORM
 			if GlobalData.narrative.mech_less:
 				_trigger_recovery_event()
 			else:
@@ -1336,11 +1355,17 @@ func _process_tile_effect(tile_type: String) -> void:
 					"name": "SANDSTORM",
 					"effect": "hazard_sandstorm",
 					"amount": 0,
-					"desc": "Choking sand reduces visibility to near-zero. Speed -35%%, fuel drain +60%%, patrol detection halved.",
+					"desc": "Choking sand reduces visibility to near-zero. Speed -35%%, fuel drain +60%%, patrol detection halved.\nWeather will persist for several steps.",
 				})
 		"fog":
-			# Weather: Fog — speed x0.90, visibility x0.35, stealth bonus.
-			GlobalData.board.current_hazard = GlobalData.HAZARD_FOG
+			# Weather: Fog — triggers dynamic weather transition system.
+			if GlobalData.weather_transition != null:
+				GlobalData.weather_transition.current_weather = GlobalData.HAZARD_FOG
+				GlobalData.weather_transition.weather_duration = randi_range(6, 12)
+				GlobalData.weather_transition.weather_max_duration = GlobalData.weather_transition.weather_duration
+				GlobalData.weather_transition.transition_progress = 0.0
+				GlobalData.weather_transition.is_transitioning = true
+				GlobalData.board.current_hazard = GlobalData.HAZARD_FOG
 			if GlobalData.narrative.mech_less:
 				_trigger_recovery_event()
 			else:
@@ -1348,7 +1373,7 @@ func _process_tile_effect(tile_type: String) -> void:
 					"name": "DENSE FOG",
 					"effect": "hazard_fog",
 					"amount": 0,
-					"desc": "Thick fog blankets the area. Speed -10%%, visibility severely reduced, but patrols struggle to detect you.",
+					"desc": "Thick fog blankets the area. Speed -10%%, visibility severely reduced, but patrols struggle to detect you.\nWeather will persist for several steps.",
 				})
 		"distress_signal":
 			# Strategic Dilemma: Distress Signal — choice to help or ignore.

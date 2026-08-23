@@ -50,6 +50,7 @@ var armor_inventory: Array = []
 
 # --- Loadout Accessories ---
 var chassis_id: String = "standard"
+var power_core_id: String = "combustion"  # GDD §4.3: combustion / hybrid / ancient
 var equipped_parts: Dictionary = {}
 var equipped_frames: Dictionary = {}
 var attachments: Array = []
@@ -70,6 +71,7 @@ const DEFAULT_CARRY_WEAPON_PATH := "res://resources/mech/stock/weapon_combat_sho
 
 func reset() -> void:
 	chassis_id = "standard"
+	power_core_id = "combustion"
 	equipped_parts.clear()
 	equipped_frames.clear()
 	attachments.clear()

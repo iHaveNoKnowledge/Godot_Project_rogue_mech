@@ -220,7 +220,9 @@ func complete_reload() -> int:
 func _accumulate_heat() -> void:
 	if heat_capacity <= 0.0:
 		return
-	heat = minf(heat + heat_per_shot, heat_capacity)
+	# GDD §4.3: Power Core class modifies heat accumulation
+	var effective_heat = heat_per_shot * _PCS.heat_accumulation_multiplier()
+	heat = minf(heat + effective_heat, heat_capacity)
 	overheated = heat >= heat_capacity
 	heat_changed.emit(heat, heat_capacity, overheated)
 
@@ -228,8 +230,10 @@ func _accumulate_heat() -> void:
 func _cool_heat(delta: float) -> void:
 	if heat_capacity <= 0.0:
 		return
-	if heat <= 0.0:
-		return
+	# GDD §4.3: Combustion core adds passive heat accumulation
+	var passive = _PCS.passive_heat_rate()
+	if passive > 0.0:
+		heat = minf(heat + passive * delta, heat_capacity)
 	# Tactical Smog: heat cool rate x0.5 — chemical smoke traps heat in the barrel.
 	var cool_rate := heat_cool_rate
 	if GlobalData.board.current_hazard == GlobalData.HAZARD_TACTICAL_SMOG:
@@ -252,6 +256,7 @@ func is_overheated() -> bool:
 
 
 const PROJ_SCRIPT = preload("res://scripts/systems/projectile.gd")
+const _PCS = preload("res://scripts/systems/power_core_system.gd")
 
 static var _cached_shapes: Dictionary = {}
 static var _cached_meshes: Dictionary = {}

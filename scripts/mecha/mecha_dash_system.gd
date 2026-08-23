@@ -1,5 +1,7 @@
 extends Node
 
+const _PCS = preload("res://scripts/systems/power_core_system.gd")
+
 ## ---------------------------------------------------------------------------
 ## MECHA DASH SYSTEM — short-pulse dash, Flash Burn (spam penalty), and
 ## Precision Dash (near-miss energy refund).  Extracted from mecha_controller.gd.
@@ -104,7 +106,9 @@ func start_dash(energy: float, global_pos: Vector3, global_rot: Basis) -> float:
 
 	var base_cost := DASH_ENERGY_COST * (0.5 if has_precog else 1.0)
 	var actual_cost: float = base_cost * (1.0 + float(_dash_spam_count - 1) * SPAM_DASH_ENERGY_PENALTY_MULT)
-	current_dash_speed = dash_speed * (1.0 - (SPAM_DASH_MOMENTUM_PENALTY if is_flash_burn else 0.0))
+	# GDD §4.3: Power Core class modifies dash speed
+	var core_dash_mult = _PCS.dash_speed_multiplier()
+	current_dash_speed = dash_speed * core_dash_mult * (1.0 - (SPAM_DASH_MOMENTUM_PENALTY if is_flash_burn else 0.0))
 
 	is_dashing = true
 	dash_timer = dash_duration

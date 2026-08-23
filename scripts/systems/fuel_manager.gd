@@ -103,6 +103,9 @@ var _fci_script: Script = preload("res://scripts/systems/fuel_container_inventor
 var mech_fuel_inventory  # FuelContainerInventory instance
 var convoy_fuel_inventory  # FuelContainerInventory instance
 
+# --- Power Core System (GDD §4.3) ---
+var _pcs_script: Script = preload("res://scripts/systems/power_core_system.gd")
+
 
 func _init() -> void:
 	mech_fuel_inventory = _fci_script.new()
@@ -222,6 +225,9 @@ func get_mode_step_cost(terrain: String) -> Dictionary:
 	match traversal_mode:
 		"mecha":
 			var e_cost: float = 10.0 if (terrain == "road" or terrain == "bridge") else 20.0
+			# GDD §4.3: Power Core class modifies board energy cost
+			var core_mult = _pcs_script.board_cost_multiplier()
+			e_cost *= core_mult
 			var mp_cost: int = 1
 			return {"mp": mp_cost, "fuel": 0.0, "energy": e_cost, "stamina": 0.0}
 		"pilot":

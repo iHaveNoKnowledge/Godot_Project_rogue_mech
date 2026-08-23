@@ -14,6 +14,7 @@ static func save_run() -> void:
 	ArmorSystem.sync_equipped_armor_durability()
 	var data := {
 		"chassis": GlobalData.weapons.chassis_id,
+		"power_core": GlobalData.weapons.power_core_id,
 		"parts": serialize_parts(),
 		"frames": serialize_frames(),
 		"damage": GlobalData.weapons.part_damage.duplicate(),
@@ -113,6 +114,7 @@ static func load_run() -> bool:
 
 static func restore_from_dict(data: Dictionary) -> void:
 	GlobalData.weapons.chassis_id = data.get("chassis", "standard")
+	GlobalData.weapons.power_core_id = data.get("power_core", "combustion")
 	var frames_data = data.get("frames", {})
 	if frames_data is Dictionary and not frames_data.is_empty():
 		for slot in frames_data:

@@ -141,6 +141,12 @@ func _generate_sounds() -> void:
 		_gen_pitch_variant(mech_hit, 0.82),
 		_gen_pitch_variant(mech_hit, 1.2),
 	]
+	# Frame binding cloth tear — high-frequency rip + fiber snap
+	_sound_cache["cloth_tear"] = [
+		_gen_cloth_tear(1.0),
+		_gen_cloth_tear(0.85),
+		_gen_cloth_tear(1.15),
+	]
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -384,6 +390,10 @@ func _melee_sfx_name(weapon: WeaponPart, is_hit: bool) -> String:
 
 func play_armor_break(pos: Vector3) -> void:
 	play_sfx("armor_break", pos, 2.0)
+
+
+func play_cloth_tear(pos: Vector3) -> void:
+	play_sfx("cloth_tear", pos, -1.0, "SFX", 0.15)
 
 
 func play_shield_block(pos: Vector3) -> void:
@@ -973,3 +983,36 @@ func _gen_actuator() -> AudioStreamWAV:
 
 func _gen_retreat_alert() -> AudioStreamWAV:
 	return _gen_sine_sweep(1100.0, 400.0, 0.3, 0.3)
+
+
+## Procedural cloth tear — high-frequency rip with fiber snaps.
+## pitch_mult scales frequency for variation (1.0 = default).
+func _gen_cloth_tear(pitch_mult: float = 1.0) -> AudioStreamWAV:
+	var sample_rate := 22050
+	var duration := 0.15
+	var num_samples := int(duration * sample_rate)
+	var data := PackedByteArray()
+	data.resize(num_samples * 2)
+	for i in range(num_samples):
+		var t := float(i) / sample_rate
+		var progress := t / duration
+		# Fast-decay envelope for ripping sound
+		var envelope := exp(-t * 18.0) * (1.0 - progress * 0.3)
+		# Base: filtered noise (fabric fibers tearing)
+		var noise := (randf() * 2.0 - 1.0)
+		# Add tonal component (high-pitch fiber snap)
+		var snap := sin(TAU * 3200.0 * pitch_mult * t) * 0.15
+		# Occasional crackle (fiber popping)
+		var crackle := 0.0
+		if randf() < 0.08:
+			crackle = (randf() * 2.0 - 1.0) * 0.4
+		var sample := (noise * 0.5 + snap + crackle) * envelope * 0.35
+		var val := int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+	var stream := AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream

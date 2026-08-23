@@ -517,6 +517,11 @@ func _clear_children(node: Node) -> void:
 
 
 func _on_part_destroyed(slot_name: String) -> void:
+	# Play cloth tear SFX if this slot had frame bindings
+	if GlobalData.weapons.frame_bindings.has(slot_name) and GlobalData.weapons.frame_bindings[slot_name]:
+		var entry = slot_meshes.get(slot_name)
+		if entry != null and entry["frame"] != null and AudioManager:
+			AudioManager.play_cloth_tear(entry["frame"].global_position)
 	hide_slot_completely(slot_name)
 	_spawn_break_vfx(slot_name)
 

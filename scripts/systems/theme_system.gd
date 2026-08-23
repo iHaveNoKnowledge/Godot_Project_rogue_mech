@@ -208,6 +208,15 @@ static func apply_event_effect(event: Dictionary) -> bool:
 			var bm = Engine.get_main_loop().current_scene if Engine.get_main_loop() else null
 			if bm and bm.has_method("_trigger_wreckage_siphon"):
 				bm._trigger_wreckage_siphon()
+		"add_fuel":
+			# Generic fuel reward from events — adds a container of the specified type.
+			var ftype: int = int(params.get("fuel_type", 0))  # 0 = FuelType.CRUDE_OIL
+			var famt: float = float(params.get("amount", float(amount)))
+			var target: String = str(params.get("target", "mech"))
+			if target == "convoy":
+				GlobalData.fuel.add_convoy_fuel(ftype, famt)
+			else:
+				GlobalData.fuel.add_mech_fuel(ftype, famt)
 		"depot_precise":
 			# Fuel depot: precise approach — full fuel reward after combat.
 			GlobalData.fuel.fuel_depot_approach = "precise"
@@ -279,10 +288,9 @@ static func apply_event_effect(event: Dictionary) -> bool:
 				if loot_roll < 0.40:
 					var scrap_gain := randi_range(60, 140)
 					GlobalData.currency.scrap += scrap_gain
-					GlobalData.board.run_notice = "Signal cracked! Salvaged a military cache with %d scrap." % scrap_gain
-				elif loot_roll < 0.70:
-					GlobalData.fuel.mech_energy = minf(GlobalData.fuel.mech_energy + 40.0, 100.0)
-					GlobalData.board.run_notice = "Found an intact fuel cell container! Recharged +40 energy."
+					GlobalData.board.run_notice = "Signal cracked! Salvaged a military cache with %d scrap." % scrap_gain					elif loot_roll < 0.70:
+						var gained := GlobalData.fuel.add_mech_fuel(0, 40.0)  # FuelType.CRUDE_OIL = 0
+						GlobalData.board.run_notice = "Found an intact fuel cell container! Recharged +%.0f energy." % gained
 				else:
 					GlobalData.currency.credits += 120
 					GlobalData.currency.data_cores += 1

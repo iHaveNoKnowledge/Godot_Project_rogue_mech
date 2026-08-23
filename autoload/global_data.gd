@@ -308,8 +308,7 @@ func _on_combat_ended(victory: bool) -> void:
 	if GameManager.combat_node_type == "fuel_depot":
 		if victory:
 			var bonus: float = FuelManager.FUEL_DEPOT_PRECISE_BONUS if fuel.fuel_depot_approach == "precise" else FuelManager.FUEL_DEPOT_HEAVY_BONUS
-			var gained := minf(bonus, fuel.mech_max_energy - fuel.mech_energy)
-			fuel.mech_energy = minf(fuel.mech_energy + gained, fuel.mech_max_energy)
+			var gained := fuel.add_mech_fuel(0, bonus)  # FuelType.CRUDE_OIL = 0
 			var approach_name := "Precise" if fuel.fuel_depot_approach == "precise" else "Heavy"
 			board.run_notice = "Fuel depot seized (%s approach)! +%.0f energy." % [approach_name, gained]
 		else:

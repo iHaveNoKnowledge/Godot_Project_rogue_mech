@@ -2,7 +2,7 @@ class_name FuelManager
 extends RefCounted
 
 ## ---------------------------------------------------------------------------
-## FUEL MANAGER — global fuel pool + supply logistics (GDD §2.4).
+## FUEL MANAGER — global fuel pool + supply logistics (GDD §2.4, §4.1).
 ##
 ## Extracted from GlobalData.  Owns:
 ##   • Mech energy pool (combat + board movement)
@@ -11,6 +11,7 @@ extends RefCounted
 ##   • Pilot siphon / wreckage protocol
 ##   • Engine dirt (impure fuel penalty)
 ##   • Board energy costs
+##   • Fuel Container Inventory (GDD §4.1) — container-based fuel storage
 ## ---------------------------------------------------------------------------
 
 # --- Mech Energy Pool ---
@@ -96,6 +97,79 @@ var seizure_turns_left: int = 0
 # --- Carried Fuel Canisters (when walking/scouting) ---
 var carried_fuel: float = 0.0
 var max_carried_fuel: float = 100.0
+
+# --- Fuel Container Inventory (GDD §4.1) ---
+var _fci_script: Script = preload("res://scripts/systems/fuel_container_inventory.gd")
+var mech_fuel_inventory  # FuelContainerInventory instance
+var convoy_fuel_inventory  # FuelContainerInventory instance
+
+
+func _init() -> void:
+	mech_fuel_inventory = _fci_script.new()
+	convoy_fuel_inventory = _fci_script.new()
+
+
+# ==========================================================================
+# FUEL CONTAINER INVENTORY FACADES (GDD §4.1)
+# ==========================================================================
+
+## Adds fuel to the mech's container inventory using auto-stacking.
+## Returns the amount actually absorbed.
+func add_mech_fuel(fuel_type: int, amount: float) -> float:
+	var absorbed = mech_fuel_inventory.add_fuel(fuel_type, amount)
+	if absorbed > 0.0:
+		mech_energy = minf(mech_energy + absorbed, mech_max_energy)
+	return absorbed
+
+
+## Adds fuel to the convoy's container inventory using auto-stacking.
+## Returns the amount actually absorbed.
+func add_convoy_fuel(fuel_type: int, amount: float) -> float:
+	var absorbed = convoy_fuel_inventory.add_fuel(fuel_type, amount)
+	if absorbed > 0.0:
+		convoy_fuel = minf(convoy_fuel + absorbed, convoy_max_fuel)
+	return absorbed
+
+
+## Consumes fuel from mech containers. Returns actual amount consumed.
+func consume_mech_fuel(amount: float) -> float:
+	var consumed = mech_fuel_inventory.consume_fuel(amount)
+	if consumed > 0.0:
+		mech_energy = maxf(mech_energy - consumed, 0.0)
+	return consumed
+
+
+## Consumes fuel from convoy containers. Returns actual amount consumed.
+func consume_convoy_fuel(amount: float) -> float:
+	var consumed = convoy_fuel_inventory.consume_fuel(amount)
+	if consumed > 0.0:
+		convoy_fuel = maxf(convoy_fuel - consumed, 0.0)
+	return consumed
+
+
+## Convenience: add a pre-filled container directly to mech inventory.
+func add_mech_container(fuel_type: int, size_pct: float, fill_pct: float = -1.0) -> bool:
+	var added = mech_fuel_inventory.add_container(fuel_type, size_pct, fill_pct)
+	if added and fill_pct >= 0.0:
+		mech_energy = minf(mech_energy + fill_pct, mech_max_energy)
+	return added
+
+
+## Convenience: add a pre-filled container directly to convoy inventory.
+func add_convoy_container(fuel_type: int, size_pct: float, fill_pct: float = -1.0) -> bool:
+	var added = convoy_fuel_inventory.add_container(fuel_type, size_pct, fill_pct)
+	if added and fill_pct >= 0.0:
+		convoy_fuel = minf(convoy_fuel + fill_pct, convoy_max_fuel)
+	return added
+
+
+## Display summary for HUD.
+func mech_fuel_display() -> String:
+	return mech_fuel_inventory.inventory_display()
+
+
+func convoy_fuel_display() -> String:
+	return convoy_fuel_inventory.inventory_display()
 
 
 func deploy_mecha() -> void:
@@ -197,6 +271,15 @@ func reset() -> void:
 	wreckage_tile_pos = Vector2i(-1, -1)
 	wreckage_fuel_remaining = 80.0
 	siphoned_fuel = 0.0
+	# Reset container inventories with starting loadout (GDD §4.1)
+	mech_fuel_inventory.reset([
+		_fci_script.create_filled_container(0, 20.0),  # FuelType.CRUDE_OIL
+		_fci_script.create_filled_container(0, 10.0),  # FuelType.CRUDE_OIL
+	])
+	convoy_fuel_inventory.reset([
+		_fci_script.create_filled_container(0, 100.0),  # FuelType.CRUDE_OIL
+		_fci_script.create_filled_container(0, 20.0),   # FuelType.CRUDE_OIL
+	])
 
 
 func day_end_tick() -> void:

@@ -441,6 +441,9 @@ static func check_all_enemies_defeated() -> void:
 	var enemies = Engine.get_main_loop().root.get_tree().get_nodes_in_group("enemy")
 	var alive := 0
 	for e in enemies:
+		# Ejected enemy pilots should not block victory.
+		if e.is_in_group("enemy_pilot"):
+			continue
 		if is_instance_valid(e) and e.get("health_system") != null:
 			var hs = e.health_system
 			if not hs.get("is_destroyed"):
@@ -795,6 +798,10 @@ func _get_alive_count() -> int:
 	var count = 0
 	var enemies = get_tree().get_nodes_in_group("enemy")
 	for e in enemies:
+		# Ejected enemy pilots are in the "enemy" group but should not
+		# block victory — only actual mechs count toward the alive total.
+		if e.is_in_group("enemy_pilot"):
+			continue
 		if is_instance_valid(e) and e.get("health_system") != null:
 			var hs = e.health_system
 			if not hs.get("is_destroyed"):

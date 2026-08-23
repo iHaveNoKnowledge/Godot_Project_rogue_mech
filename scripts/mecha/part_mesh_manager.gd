@@ -1212,3 +1212,150 @@ func clear_all_frame_bindings() -> void:
 ## Removes a specific frame binding (e.g. after professional repair of one slot).
 func remove_frame_binding(slot: String) -> void:
 	_remove_frame_binding(slot)
+
+
+# ---------------------------------------------------------------------------
+# THERMAL CLOAK VISUAL (GDD §6.2)
+# Physics-enabled cloth cape that flutters with movement.
+# Attaches to the body section and flaps based on velocity.
+# ---------------------------------------------------------------------------
+
+var _cloak_visual: Node3D = null
+var _cloak_meshes: Array[MeshInstance3D] = []
+var _cloak_time: float = 0.0
+var _cloak_was_active: bool = false
+
+## Cloak cloth material — military green with slight transparency.
+func _get_cloak_material() -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = preload("res://shaders/cloth_wrap.gdshader")
+	mat.set_shader_parameter("cloth_color", Color(0.32, 0.38, 0.28, 0.85))
+	return mat
+
+
+## Spawns the thermal cloak visual on the mecha's body.
+func spawn_cloak_visual() -> void:
+	if _cloak_visual != null and is_instance_valid(_cloak_visual):
+		return
+	var mecha = get_parent()
+	if mecha == null:
+		return
+	var body_node = mecha.get_node_or_null("Body")
+	if body_node == null:
+		body_node = mecha
+
+	_cloak_visual = Node3D.new()
+	_cloak_visual.name = "ThermalCloak"
+	body_node.add_child(_cloak_visual)
+	_cloak_visual.position = Vector3(0, 0.3, 0.15)  # Back of torso
+
+	var mat := _get_cloak_material()
+	_cloak_meshes.clear()
+
+	# Main cape panel (large quad behind the back)
+	var main_cape := MeshInstance3D.new()
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.7, 1.0)
+	main_cape.mesh = quad
+	main_cape.material_override = mat
+	main_cape.position = Vector3(0, -0.2, 0)
+	main_cape.rotation_degrees.x = 15.0  # Slight backward lean
+	_cloak_visual.add_child(main_cape)
+	_cloak_meshes.append(main_cape)
+
+	# Left shoulder drape
+	var left_drape := MeshInstance3D.new()
+	var lquad := QuadMesh.new()
+	lquad.size = Vector2(0.35, 0.6)
+	left_drape.mesh = lquad
+	left_drape.material_override = mat
+	left_drape.position = Vector3(-0.35, 0.1, 0.05)
+	left_drape.rotation_degrees.x = 25.0
+	left_drape.rotation_degrees.z = 10.0
+	_cloak_visual.add_child(left_drape)
+	_cloak_meshes.append(left_drape)
+
+	# Right shoulder drape
+	var right_drape := MeshInstance3D.new()
+	var rquad := QuadMesh.new()
+	rquad.size = Vector2(0.35, 0.6)
+	right_drape.mesh = rquad
+	right_drape.material_override = mat
+	right_drape.position = Vector3(0.35, 0.1, 0.05)
+	right_drape.rotation_degrees.x = 25.0
+	right_drape.rotation_degrees.z = -10.0
+	_cloak_visual.add_child(right_drape)
+	_cloak_meshes.append(right_drape)
+
+	# Lower trailing edge
+	var trail := MeshInstance3D.new()
+	var tquad := QuadMesh.new()
+	tquad.size = Vector2(0.5, 0.4)
+	trail.mesh = tquad
+	trail.material_override = mat
+	trail.position = Vector3(0, -0.6, 0.2)
+	trail.rotation_degrees.x = 35.0
+	_cloak_visual.add_child(trail)
+	_cloak_meshes.append(trail)
+
+	_cloak_visual.visible = false
+
+
+## Removes the cloak visual.
+func remove_cloak_visual() -> void:
+	if _cloak_visual != null and is_instance_valid(_cloak_visual):
+		_cloak_visual.queue_free()
+		_cloak_visual = null
+	_cloak_meshes.clear()
+
+
+## Updates cloak visibility and flutter animation each frame.
+## Called from the mecha controller's _process or _physics_process.
+func update_cloak_visual(delta: float, velocity: Vector3) -> void:
+	var should_show := false
+	if GlobalData.thermal_cloak != null and GlobalData.thermal_cloak.is_cloak_active():
+		should_show = true
+
+	# Spawn/remove as needed
+	if should_show and (_cloak_visual == null or not is_instance_valid(_cloak_visual)):
+		spawn_cloak_visual()
+	elif not should_show and _cloak_visual != null and is_instance_valid(_cloak_visual):
+		remove_cloak_visual()
+		return
+
+	if _cloak_visual == null or not is_instance_valid(_cloak_visual):
+		return
+
+	_cloak_visual.visible = should_show
+	if not should_show:
+		return
+
+	# Physics-based flutter animation
+	_cloak_time += delta
+	var speed := velocity.length()
+	var flutter_intensity := clampf(speed / 15.0, 0.1, 1.0)  # More flutter at higher speed
+
+	# Main cape: sway side to side + wave up/down
+	if _cloak_meshes.size() > 0:
+		var cape := _cloak_meshes[0]
+		cape.rotation_degrees.z = sin(_cloak_time * 3.0) * 8.0 * flutter_intensity
+		cape.rotation_degrees.x = 15.0 + cos(_cloak_time * 2.5) * 5.0 * flutter_intensity
+
+	# Left drape: opposite phase
+	if _cloak_meshes.size() > 1:
+		var ld := _cloak_meshes[1]
+		ld.rotation_degrees.z = 10.0 + sin(_cloak_time * 3.5 + 1.0) * 6.0 * flutter_intensity
+		ld.rotation_degrees.x = 25.0 + cos(_cloak_time * 2.0) * 4.0 * flutter_intensity
+
+	# Right drape: opposite phase
+	if _cloak_meshes.size() > 2:
+		var rd := _cloak_meshes[2]
+		rd.rotation_degrees.z = -10.0 + sin(_cloak_time * 3.5 + 2.0) * 6.0 * flutter_intensity
+		rd.rotation_degrees.x = 25.0 + cos(_cloak_time * 2.0 + 1.0) * 4.0 * flutter_intensity
+
+	# Trail: strong wave at the bottom
+	if _cloak_meshes.size() > 3:
+		var tr := _cloak_meshes[3]
+		tr.rotation_degrees.z = sin(_cloak_time * 4.0) * 12.0 * flutter_intensity
+		tr.rotation_degrees.x = 35.0 + cos(_cloak_time * 3.0) * 8.0 * flutter_intensity
+		tr.position.y = -0.6 + sin(_cloak_time * 2.0) * 0.05 * flutter_intensity

@@ -216,6 +216,11 @@ func _physics_process(delta: float) -> void:
 
 	move_and_slide()
 
+	# GDD §6.2: Update thermal cloak visual (flutter with movement)
+	var pmm = get_node_or_null("PartMeshManager")
+	if pmm and pmm.has_method("update_cloak_visual"):
+		pmm.update_cloak_visual(delta, velocity)
+
 	# Roller audio.
 	var h_speed := Vector3(velocity.x, 0.0, velocity.z).length()
 	if is_roller_dashing and is_on_floor() and h_speed > 0.5:

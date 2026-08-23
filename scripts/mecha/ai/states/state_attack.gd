@@ -297,6 +297,15 @@ func _fire_ranged() -> void:
 		var wobble = Vector3(randf_range(-0.6, 0.6), randf_range(-0.3, 0.3), randf_range(-0.6, 0.6))
 		dir = (dir + wobble).normalized()
 
+	# GDD §7: EWar JAM accuracy penalty — additional wobble on enemy shots
+	if GlobalData.ewar != null and GlobalData.ewar.is_active(GlobalData.ewar.Ability.JAM):
+		var jam_wobble := GlobalData.ewar.jam_accuracy_penalty()
+		var jw := Vector3(
+			randf_range(-jam_wobble, jam_wobble),
+			randf_range(-jam_wobble * 0.5, jam_wobble * 0.5),
+			randf_range(-jam_wobble, jam_wobble))
+		dir = (dir + jw).normalized()
+
 	# Spawn through the shared WeaponCore (cooldown/ammo/heat all owned there).
 	if enemy.fire_core:
 		enemy.fire_core.try_fire(from_pos, dir, true, enemy)

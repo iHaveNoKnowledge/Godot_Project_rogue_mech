@@ -47,6 +47,7 @@ var _reserved_panel: PanelContainer
 var _hazard_label: Label
 var _cloak_warn_label: Label
 var _cloak_toggle_btn: Button
+var _ewar_label: Label
 
 # BottomLeft Unit Status
 var _unit_status_panel: PanelContainer
@@ -585,6 +586,14 @@ func _build_threat_radar() -> void:
 	_cloak_toggle_btn.visible = false
 	_threat_radar.add_child(_cloak_toggle_btn)
 
+	# GDD §7: EWar Active Effects Label
+	_ewar_label = Label.new()
+	_ewar_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_ewar_label.add_theme_font_size_override("font_size", 11)
+	_ewar_label.add_theme_color_override("font_color", Color(0.3, 0.9, 1.0))
+	_ewar_label.visible = false
+	_threat_radar.add_child(_ewar_label)
+
 
 # -----------------------------------------------------------------------------
 # 4. BOTTOM LEFT: UNIT STATUS (Armor HP & Frame Durability)
@@ -906,6 +915,22 @@ func _refresh() -> void:
 			_cloak_toggle_btn.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
 	else:
 		_cloak_toggle_btn.visible = false
+
+	# GDD §7: EWar Active Effects Display
+	if GlobalData.ewar != null:
+		var ewar_active := false
+		for ab in [GlobalData.ewar.Ability.JAM, GlobalData.ewar.Ability.SPOOF, GlobalData.ewar.Ability.EMP, GlobalData.ewar.Ability.SCRAMBLE]:
+			if GlobalData.ewar.is_active(ab):
+				if not ewar_active:
+					_ewar_label.visible = true
+					ewar_active = true
+				_ewar_label.text = "⚡ EWAR: " + GlobalData.ewar.ability_name(ab) + " (%.0fs)" % GlobalData.ewar.get_active_duration(ab)
+				_ewar_label.modulate = Color(0.3, 0.9, 1.0)
+				break
+		if not ewar_active:
+			_ewar_label.visible = false
+	else:
+		_ewar_label.visible = false
 
 	# Unit Status
 	var names := {"head": "Head", "body": "Torso", "arm_left": "L-Arm", "arm_right": "R-Arm", "leg_left": "L-Leg", "leg_right": "R-Leg"}

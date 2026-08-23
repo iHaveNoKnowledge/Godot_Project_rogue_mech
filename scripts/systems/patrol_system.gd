@@ -674,6 +674,9 @@ static func record_spotting(pos: Vector2i) -> void:
 	# GDD §6.2: Thermal Cloak reduces patrol detection radius
 	if GlobalData.thermal_cloak != null and GlobalData.thermal_cloak.is_cloak_active():
 		detect = maxi(detect - 3, 0)
+	# GDD §7: EWar JAM reduces patrol detection radius
+	if GlobalData.ewar != null:
+		detect = maxi(detect - GlobalData.ewar.jam_detection_reduction(), 0)
 	for p in GlobalData.board.board_patrols:
 		if str(p.get("faction", "hostile")) == "unknown":
 			continue

@@ -56,11 +56,25 @@ var combat_tile_terrain: String = "plain"
 const HAZARD_DUST_STORM: String = "dust_storm"
 const HAZARD_TACTICAL_SMOG: String = "tactical_smog"
 const HAZARD_EMP_ZONE: String = "emp_zone"
+# Weather hazards (GDD extended)
+const HAZARD_RAIN: String = "rain"
+const HAZARD_SANDSTORM: String = "sandstorm"
+const HAZARD_FOG: String = "fog"
 const DUST_STORM_ROLLER_DRAIN_MULT: float = 1.5
 const DUST_STORM_SPEED_MULT: float = 0.85
 const SMOG_HEAT_COOL_PENALTY: float = 0.5
 const EMP_LOCK_ON_DISABLED: bool = true
 const EMP_BACKUP_BLOCKED: bool = true
+# Weather movement penalties
+const RAIN_SPEED_MULT: float = 0.80          # Wet ground, reduced traction
+const RAIN_FUEL_DRAIN_MULT: float = 1.3       # Engine works harder in rain
+const RAIN_EWAR_JAM_PENALTY: float = 0.5      # Rain dampens EWar signal range
+const SANDSTORM_SPEED_MULT: float = 0.65      # Heavy sand resistance
+const SANDSTORM_FUEL_DRAIN_MULT: float = 1.6   # Extreme engine strain
+const SANDSTORM_VISIBILITY_MULT: float = 0.5   # Half visibility range
+const FOG_SPEED_MULT: float = 0.90            # Slight slowdown from caution
+const FOG_VISIBILITY_MULT: float = 0.35       # Very low visibility
+const FOG_STEALTH_BONUS: float = 0.4          # Patrols harder to detect you
 
 # --- Arena ---
 var current_arena_size: float = 240.0

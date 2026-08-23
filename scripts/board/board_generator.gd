@@ -271,7 +271,13 @@ func _roll_content(rng: RandomNumberGenerator) -> String:
 		return "dust_storm"
 	elif roll < 0.31:
 		return "tactical_smog"
-	elif roll < 0.34:
+	elif roll < 0.33:
+		return "rain"
+	elif roll < 0.35:
+		return "sandstorm"
+	elif roll < 0.37:
+		return "fog"
+	elif roll < 0.40:
 		return "emp_zone"
 	elif roll < 0.38:
 		return "distress_signal"

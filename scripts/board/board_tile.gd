@@ -367,6 +367,12 @@ func _add_poi_visual() -> void:
 			_build_smog_model(_poi_node)
 		"emp_zone":
 			_build_emp_model(_poi_node)
+		"rain":
+			_build_rain_model(_poi_node)
+		"sandstorm":
+			_build_sandstorm_model(_poi_node)
+		"fog":
+			_build_fog_model(_poi_node)
 		"distress_signal":
 			_build_distress_model(_poi_node)
 		"scavenge_site":
@@ -675,6 +681,90 @@ func _build_dust_storm_model(root: Node3D) -> void:
 		root.add_child(ring)
 
 	_add_floating_badge(root, "🌪️ DUST STORM", Color(0.9, 0.8, 0.5), 2.0)
+
+
+# Rain Zone — translucent blue columns with ripple rings
+func _build_rain_model(root: Node3D) -> void:
+	# Rain curtain pillars
+	for i in range(5):
+		var pillar := MeshInstance3D.new()
+		var pm := CylinderMesh.new()
+		pm.top_radius = 0.02
+		pm.bottom_radius = 0.02
+		pm.height = 2.5
+		pillar.mesh = pm
+		var mat := StandardMaterial3D.new()
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.albedo_color = Color(0.45, 0.6, 0.9, 0.3)
+		mat.roughness = 1.0
+		pillar.material_override = mat
+		pillar.position = Vector3(randf_range(-1.0, 1.0), 1.2, randf_range(-1.0, 1.0))
+		root.add_child(pillar)
+	# Ripple rings on ground
+	for j in range(3):
+		var ripple := MeshInstance3D.new()
+		var rm := TorusMesh.new()
+		rm.inner_radius = 0.3 + j * 0.2
+		rm.outer_radius = 0.35 + j * 0.2
+		ripple.mesh = rm
+		var rmat := StandardMaterial3D.new()
+		rmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		rmat.albedo_color = Color(0.5, 0.7, 1.0, 0.25)
+		ripple.material_override = rmat
+		ripple.position = Vector3(randf_range(-0.8, 0.8), 0.05, randf_range(-0.8, 0.8))
+		root.add_child(ripple)
+	_add_floating_badge(root, "🌧️ RAIN", Color(0.5, 0.7, 1.0), 2.0)
+
+
+# Sandstorm — swirling amber particles with low-lying sand cloud
+func _build_sandstorm_model(root: Node3D) -> void:
+	# Sand cloud spheres
+	for i in range(4):
+		var cloud := MeshInstance3D.new()
+		var cm := SphereMesh.new()
+		cm.radius = 0.6 + randf() * 0.4
+		cm.height = 0.8
+		cloud.mesh = cm
+		var mat := StandardMaterial3D.new()
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.albedo_color = Color(0.85, 0.70, 0.35, 0.45)
+		mat.roughness = 1.0
+		cloud.material_override = mat
+		cloud.position = Vector3(randf_range(-1.0, 1.0), 0.3 + randf() * 0.4, randf_range(-1.0, 1.0))
+		root.add_child(cloud)
+	# Swirl ring
+	var ring := MeshInstance3D.new()
+	var rm := TorusMesh.new()
+	rm.inner_radius = 0.8
+	rm.outer_radius = 1.1
+	ring.mesh = rm
+	var rmat := StandardMaterial3D.new()
+	rmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	rmat.albedo_color = Color(0.9, 0.75, 0.4, 0.35)
+	ring.material_override = rmat
+	ring.position = Vector3(0, 0.8, 0)
+	ring.rotation_degrees.x = 15.0
+	root.add_child(ring)
+	_add_floating_badge(root, "🏜️ SANDSTORM", Color(0.9, 0.8, 0.4), 2.0)
+
+
+# Fog Zone — low-lying translucent white blanket
+func _build_fog_model(root: Node3D) -> void:
+	# Fog blanket panels
+	for i in range(6):
+		var fog := MeshInstance3D.new()
+		var fm := QuadMesh.new()
+		fm.size = Vector2(1.2, 0.6)
+		fog.mesh = fm
+		var mat := StandardMaterial3D.new()
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.albedo_color = Color(0.8, 0.82, 0.85, 0.35)
+		mat.roughness = 1.0
+		fog.material_override = mat
+		fog.position = Vector3(randf_range(-1.2, 1.2), 0.3, randf_range(-1.2, 1.2))
+		fog.rotation_degrees.y = randf() * 360.0
+		root.add_child(fog)
+	_add_floating_badge(root, "🌫️ FOG", Color(0.8, 0.82, 0.85), 2.0)
 
 
 # Tactical Toxic Smog

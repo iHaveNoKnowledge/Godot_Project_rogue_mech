@@ -189,7 +189,7 @@ func _ready() -> void:
 	hangar = HangarState.new()
 	weapons = WeaponInventoryState.new()
 	thermal_cloak = preload("res://scripts/systems/thermal_cloak_system.gd").new()
-	hewar = preload("res://scripts/systems/ewar_system.gd").new()
+	ewar = preload("res://scripts/systems/ewar_system.gd").new()
 
 	_load_catalogs()
 	weapons._ensure_default_frames()

@@ -323,6 +323,13 @@ func _apply_movement(delta: float) -> void:
 		move_speed *= 0.45
 	if GlobalData.board.current_hazard == GlobalData.HAZARD_DUST_STORM:
 		move_speed *= GlobalData.DUST_STORM_SPEED_MULT
+	# GDD Extended: Weather speed multipliers
+	elif GlobalData.board.current_hazard == GlobalData.HAZARD_RAIN:
+		move_speed *= GlobalData.RAIN_SPEED_MULT
+	elif GlobalData.board.current_hazard == GlobalData.HAZARD_SANDSTORM:
+		move_speed *= GlobalData.SANDSTORM_SPEED_MULT
+	elif GlobalData.board.current_hazard == GlobalData.HAZARD_FOG:
+		move_speed *= GlobalData.FOG_SPEED_MULT
 
 	var desired_velocity := Vector3.ZERO
 	desired_velocity = (forward * -input_dir.y + right * input_dir.x) * move_speed

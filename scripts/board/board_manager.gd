@@ -296,6 +296,18 @@ func _try_step(target: Vector2i) -> bool:
 	var cost: int = int(step_costs["mp"])
 	cost += PatrolSystem.interception_surcharge(current_pos, target)
 
+	# GDD Extended: Weather multipliers on fuel/energy drain
+	var hazard := GlobalData.board.current_hazard
+	if hazard == GlobalData.HAZARD_RAIN:
+		step_costs["fuel"] *= GlobalData.RAIN_FUEL_DRAIN_MULT
+		step_costs["energy"] *= GlobalData.RAIN_FUEL_DRAIN_MULT
+	elif hazard == GlobalData.HAZARD_SANDSTORM:
+		step_costs["fuel"] *= GlobalData.SANDSTORM_FUEL_DRAIN_MULT
+		step_costs["energy"] *= GlobalData.SANDSTORM_FUEL_DRAIN_MULT
+	elif hazard == GlobalData.HAZARD_FOG:
+		step_costs["fuel"] *= 1.1   # Slight fuel increase from cautious driving
+		step_costs["energy"] *= 1.1
+
 	# Multi-tier energy resource check
 	if mode == "convoy":
 		var f_cost: float = float(step_costs["fuel"])
@@ -1301,6 +1313,42 @@ func _process_tile_effect(tile_type: String) -> void:
 					"effect": "hazard_emp_zone",
 					"amount": 0,
 					"desc": "Electromagnetic interference disables lock-on targeting. Reserve Mech call blocked.",
+				})
+		"rain":
+			# Weather: Rain — speed x0.80, fuel drain x1.3, dampens EWar signals.
+			GlobalData.board.current_hazard = GlobalData.HAZARD_RAIN
+			if GlobalData.narrative.mech_less:
+				_trigger_recovery_event()
+			else:
+				EventBus.event_triggered.emit({
+					"name": "HEAVY RAIN",
+					"effect": "hazard_rain",
+						"amount": 0,
+					"desc": "Rain hammers the ground. Movement speed -20%%, fuel drain +30%%, EWar signal range halved.",
+				})
+		"sandstorm":
+			# Weather: Sandstorm — speed x0.65, fuel drain x1.6, visibility halved.
+			GlobalData.board.current_hazard = GlobalData.HAZARD_SANDSTORM
+			if GlobalData.narrative.mech_less:
+				_trigger_recovery_event()
+			else:
+				EventBus.event_triggered.emit({
+					"name": "SANDSTORM",
+					"effect": "hazard_sandstorm",
+					"amount": 0,
+					"desc": "Choking sand reduces visibility to near-zero. Speed -35%%, fuel drain +60%%, patrol detection halved.",
+				})
+		"fog":
+			# Weather: Fog — speed x0.90, visibility x0.35, stealth bonus.
+			GlobalData.board.current_hazard = GlobalData.HAZARD_FOG
+			if GlobalData.narrative.mech_less:
+				_trigger_recovery_event()
+			else:
+				EventBus.event_triggered.emit({
+					"name": "DENSE FOG",
+					"effect": "hazard_fog",
+					"amount": 0,
+					"desc": "Thick fog blankets the area. Speed -10%%, visibility severely reduced, but patrols struggle to detect you.",
 				})
 		"distress_signal":
 			# Strategic Dilemma: Distress Signal — choice to help or ignore.

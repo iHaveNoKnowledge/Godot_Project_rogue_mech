@@ -677,6 +677,14 @@ static func record_spotting(pos: Vector2i) -> void:
 	# GDD §7: EWar JAM reduces patrol detection radius
 	if GlobalData.ewar != null:
 		detect = maxi(detect - GlobalData.ewar.jam_detection_reduction(), 0)
+	# Weather: visibility modifiers
+	var hazard := GlobalData.board.current_hazard
+	if hazard == GlobalData.HAZARD_SANDSTORM:
+		detect = maxi(detect / 2, 0)   # Sandstorm halves patrol visibility
+	elif hazard == GlobalData.HAZARD_FOG:
+		detect = maxi(int(float(detect) * GlobalData.FOG_VISIBILITY_MULT), 0)  # Fog drastically reduces
+	elif hazard == GlobalData.HAZARD_RAIN:
+		detect = maxi(detect - 1, 0)   # Rain slightly dampens sensors
 	for p in GlobalData.board.board_patrols:
 		if str(p.get("faction", "hostile")) == "unknown":
 			continue

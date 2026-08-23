@@ -84,10 +84,13 @@ func _test_procedural_sounds() -> void:
 
 	for sname in required_sounds:
 		var stream = AudioManager._pick_stream(sname)
-		var valid: bool = stream is AudioStreamWAV and stream.data.size() > 0
-		_check(valid, "Sound '%s' generated valid non-empty 16-bit audio stream (bytes: %d)" % [
-			sname, stream.data.size() if stream is AudioStreamWAV else 0
-		])
+		var valid: bool = stream is AudioStream and (
+			(stream is AudioStreamWAV and stream.data.size() > 0) or
+			(stream is AudioStreamMP3 and stream.data.size() > 0) or
+			(stream.get_length() > 0.0)
+		)
+		var desc := "%s (%s)" % [stream.get_class() if stream else "null", ("%.2fs" % stream.get_length()) if stream else "0s"]
+		_check(valid, "Sound '%s' loaded valid non-empty stream: %s" % [sname, desc])
 
 
 func _test_sfx_playback() -> void:

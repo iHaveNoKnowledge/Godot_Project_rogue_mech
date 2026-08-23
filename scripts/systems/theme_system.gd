@@ -257,7 +257,8 @@ static func apply_event_effect(event: Dictionary) -> bool:
 			var cost := int(params.get("energy_cost", 30))
 			GlobalData.fuel.mech_energy = maxf(GlobalData.fuel.mech_energy - float(cost), 0.0)
 			# Roll for reward: 60% chance of scrap/credits/fuel, 40% nothing useful.
-			var roll := randf()			if roll < 0.30:
+			var roll := randf()
+			if roll < 0.30:
 				var scrap_gain := randi_range(15, 30)
 				GlobalData.currency.scrap += scrap_gain
 				GlobalData.board.run_notice = "Responded to distress signal. Spent %d energy. Salvaged %d scrap." % [cost, scrap_gain]

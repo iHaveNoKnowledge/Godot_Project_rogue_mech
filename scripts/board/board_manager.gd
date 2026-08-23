@@ -59,6 +59,13 @@ func _ready() -> void:
 		overlay.name = "BoardNightOverlay"
 		overlay.set_script(night_overlay_script)
 		add_child(overlay)
+	# Weather particle effects (rain, sand, fog, dust)
+	if get_node_or_null("WeatherParticles") == null:
+		var wp_script = preload("res://scripts/board/weather_particle_effects.gd")
+		var wp := Node3D.new()
+		wp.name = "WeatherParticles"
+		wp.set_script(wp_script)
+		add_child(wp)
 	PatrolSystem.spawn_patrols()
 
 	_reveal_around(current_pos)

@@ -1,6 +1,7 @@
 extends CanvasLayer
 
 const _BoardSystem = preload("res://scripts/systems/board_system.gd")
+const _DNS = preload("res://scripts/systems/day_night_system.gd")
 
 ## Board HUD (GDD v4.0 §7 Master Scene Tree):
 ##   - TopBar_GlobalResources: Energy (bar, rate, roller toggle), Convoy (HP, reserve, backups), Consumables (Quick Fuel)
@@ -58,6 +59,9 @@ var _inspector_warnings: Label
 
 # Fuel type inventory label (GDD §4.2)
 var _fuel_inv_label: Label
+
+# Clock / Time display (GDD §3.1 Day/Night Cycle)
+var _clock_label: Label
 
 # ScreenFX Overlay
 var _screen_fx: Control
@@ -326,6 +330,15 @@ func _build_threat_radar() -> void:
 	mp_bg.corner_radius_bottom_right = 0
 	_mp_bar.add_theme_stylebox_override("background", mp_bg)
 	mp_vbox.add_child(_mp_bar)
+
+	# GDD §3.1: Clock / Time display with day/night phase
+	_clock_label = Label.new()
+	_clock_label.text = "08:00 — DAY 1 ☀"
+	_clock_label.add_theme_font_size_override("font_size", 12)
+	_clock_label.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85, 1.0))
+	_clock_label.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Regular.ttf"))
+	mp_vbox.add_child(_clock_label)
+
 	_threat_radar.add_child(mp_panel)
 
 	# Threat / Alert Card
@@ -625,6 +638,15 @@ func _refresh() -> void:
 	var mp := maxi(GlobalData.board.board_mp, 0)
 	var mp_max := maxi(GlobalData.board.board_mp_max, 1)
 	_day_label.text = "DAY %d — %s" % [GlobalData.board.board_day, str(GlobalData.board.board_theme_id).to_upper()]
+	# GDD §3.1: Clock with time, day, and day/night phase
+	var dns_time := _DNS.time_string()
+	var dns_day := _DNS.current_day()
+	var dns_phase := _DNS.phase_name()
+	var phase_icon := "☀" if _DNS.is_daytime() else "☽"
+	var phase_color := Color(0.95, 0.85, 0.3) if _DNS.is_daytime() else Color(0.45, 0.55, 0.85)
+	if _clock_label:
+		_clock_label.text = "%s — Day %d %s (%s)" % [dns_time, dns_day, phase_icon, dns_phase]
+		_clock_label.modulate = phase_color
 	_mp_label.text = "MP %d/%d" % [mp, mp_max]
 	_mp_bar.max_value = float(mp_max)
 	_mp_bar.value = float(mp)

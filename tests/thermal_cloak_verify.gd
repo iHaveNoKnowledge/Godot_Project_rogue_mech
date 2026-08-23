@@ -117,12 +117,15 @@ func test_recharge() -> void:
 # ===========================================================================
 
 func test_detection_reduction() -> void:
-	print("[4] Detection Reduction")
+	print("[4] Detection Constants")
 	var cloak = CLOAK_SCRIPT.new()
-	_check(CLOAK_SCRIPT.detection_reduction() == 0, "no reduction when inactive")
-	_check(CLOAK_SCRIPT.artillery_multiplier() == 1.0, "artillery mult 1.0 when inactive")
-	_check(CLOAK_SCRIPT.alert_reduction() == 0, "no alert reduction when inactive")
-	_check(absf(CLOAK_SCRIPT.thermal_signature() - 1.0) < 0.001, "full signature when inactive")
+	_check(cloak.CLOAK_DETECTION_REDUCTION == 3, "detection reduction constant = 3")
+	_check(absf(cloak.CLOAK_ARTILLERY_REDUCTION - 0.4) < 0.001, "artillery reduction constant = 0.4")
+	_check(cloak.CLOAK_ALERT_REDUCTION == 1, "alert reduction constant = 1")
+	_check(absf(cloak.SIGNATURE_CLOAKED - 0.25) < 0.001, "cloaked signature = 0.25")
+	_check(absf(cloak.SIGNATURE_FULL - 1.0) < 0.001, "full signature = 1.0")
+	_check(cloak.CLOAK_MIN_ACTIVATION == 10.0, "min activation = 10")
+	_check(cloak.CLOAK_MAX_CHARGE == 100.0, "max charge = 100")
 
 
 # ===========================================================================

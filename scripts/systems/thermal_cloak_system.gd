@@ -45,35 +45,6 @@ var charge: float = CLOAK_MAX_CHARGE
 # QUERIES
 # ==========================================================================
 
-## Returns the effective patrol detection radius reduction when cloaked.
-## Used by PatrolSystem.record_spotting() and board movement.
-static func detection_reduction() -> int:
-	if not _is_cloaked():
-		return 0
-	return CLOAK_DETECTION_REDUCTION
-
-
-## Returns the artillery targeting multiplier when cloaked.
-static func artillery_multiplier() -> float:
-	if not _is_cloaked():
-		return 1.0
-	return CLOAK_ARTILLERY_REDUCTION
-
-
-## Returns the alert level gain reduction per step when cloaked.
-static func alert_reduction() -> int:
-	if not _is_cloaked():
-		return 0
-	return CLOAK_ALERT_REDUCTION
-
-
-## Returns the thermal signature level (0.0 = invisible, 1.0 = full).
-static func thermal_signature() -> float:
-	if not _is_cloaked():
-		return SIGNATURE_FULL
-	return SIGNATURE_CLOAKED
-
-
 ## Returns charge percentage (0.0 - 100.0).
 func charge_percent() -> float:
 	return clampf(charge / CLOAK_MAX_CHARGE * 100.0, 0.0, 100.0)
@@ -145,28 +116,6 @@ func serialize() -> Dictionary:
 func deserialize(data: Dictionary) -> void:
 	is_active = bool(data.get("active", false))
 	charge = float(data.get("charge", CLOAK_MAX_CHARGE))
-
-
-# ==========================================================================
-# INTERNAL
-# ==========================================================================
-
-## Checks if the cloak is active via GlobalData (static helper).
-static func _is_cloaked() -> bool:
-	if not GlobalData.has_method("fuel"):
-		return false
-	# Check if the player has a cloak equipped (stored on hangar mech)
-	var cloak = _get_active_cloak()
-	return cloak != null and cloak.is_cloak_active()
-
-
-## Gets the active cloak instance from GlobalData.
-static func _get_active_cloak():
-	# The cloak instance is stored on the current hangar mech's loadout.
-	# For now, use a simple global reference.
-	if GlobalData.has_method("get") and GlobalData.get("thermal_cloak") != null:
-		return GlobalData.thermal_cloak
-	return null
 
 
 # ==========================================================================

@@ -45,6 +45,7 @@ var _ceasefire_panel: PanelContainer
 var _ceasefire_label: Label
 var _reserved_panel: PanelContainer
 var _hazard_label: Label
+var _cloak_warn_label: Label
 
 # BottomLeft Unit Status
 var _unit_status_panel: PanelContainer
@@ -64,6 +65,10 @@ var _fuel_inv_label: Label
 
 # Clock / Time display (GDD §3.1 Day/Night Cycle)
 var _clock_label: Label
+
+# GDD §6.2: Thermal Cloak charge warning
+var _cloak_warn_label: Label
+var _cloak_warn_time: float = 0.0
 
 # ScreenFX Overlay
 var _screen_fx: Control
@@ -557,6 +562,14 @@ func _build_threat_radar() -> void:
 	_hazard_label.visible = false
 	_threat_radar.add_child(_hazard_label)
 
+	# Cloak Charge Warning Label
+	_cloak_warn_label = Label.new()
+	_cloak_warn_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_cloak_warn_label.add_theme_font_size_override("font_size", 11)
+	_cloak_warn_label.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0))
+	_cloak_warn_label.visible = false
+	_threat_radar.add_child(_cloak_warn_label)
+
 
 # -----------------------------------------------------------------------------
 # 4. BOTTOM LEFT: UNIT STATUS (Armor HP & Frame Durability)
@@ -834,6 +847,23 @@ func _refresh() -> void:
 		_hazard_label.text = "HAZARD: %s IN EFFECT" % GlobalData.board.current_hazard.to_upper().replace("_", " ")
 	else:
 		_hazard_label.visible = false
+
+	# Cloak Charge Warning
+	if GlobalData.thermal_cloak != null and GlobalData.thermal_cloak.is_cloak_active():
+		_cloak_warn_label.visible = true
+		var charge: float = GlobalData.thermal_cloak.charge
+		var pct: int = int(charge)
+		if charge <= 10.0:
+			_cloak_warn_label.text = "◈ CLOAK CRITICAL: %d%%" % pct
+			_cloak_warn_label.modulate = Color(1.0, 0.2, 0.2)
+		elif charge <= 30.0:
+			_cloak_warn_label.text = "◈ CLOAK LOW: %d%%" % pct
+			_cloak_warn_label.modulate = Color(1.0, 0.65, 0.15)
+		else:
+			_cloak_warn_label.text = "◈ CLOAK: %d%%" % pct
+			_cloak_warn_label.modulate = Color(0.4, 0.8, 1.0)
+	else:
+		_cloak_warn_label.visible = false
 
 	# Unit Status
 	var names := {"head": "Head", "body": "Torso", "arm_left": "L-Arm", "arm_right": "R-Arm", "leg_left": "L-Leg", "leg_right": "R-Leg"}

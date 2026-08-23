@@ -49,6 +49,7 @@ var _hazard_label: Label
 # BottomLeft Unit Status
 var _unit_status_panel: PanelContainer
 var _part_status_labels: Dictionary = {}
+var _part_penalty_icons: Dictionary = {}
 var _dirt_label: Label
 
 # BottomRight Tile Inspector
@@ -595,6 +596,14 @@ func _build_unit_status() -> void:
 		lbl.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Regular.ttf"))
 		grid.add_child(lbl)
 		_part_status_labels[slots[i]] = lbl
+		# GDD §6.1: Part penalty warning icon
+		var icon = Label.new()
+		icon.text = ""
+		icon.add_theme_font_size_override("font_size", 14)
+		icon.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Regular.ttf"))
+		icon.custom_minimum_size = Vector2(50, 0)
+		grid.add_child(icon)
+		_part_penalty_icons[slots[i]] = icon
 
 	_dirt_label = Label.new()
 	_dirt_label.text = "Engine Dirt: 0%"
@@ -834,6 +843,21 @@ func _refresh() -> void:
 		var label: Label = _part_status_labels[slot]
 		label.text = "%s: %d%%" % [names.get(slot, slot), health_pct]
 		label.modulate = Color(1.0, 0.35, 0.35) if health_pct < 30 else (Color(1.0, 0.85, 0.4) if health_pct < 70 else Color.WHITE)
+		# GDD §6.1: Part penalty warning icons
+		var icon: Label = _part_penalty_icons.get(slot)
+		if icon:
+			if dmg >= 0.80:
+				icon.text = "⚠⚠⚠"
+				icon.modulate = Color(1.0, 0.25, 0.2)
+			elif dmg >= 0.60:
+				icon.text = "⚠⚠"
+				icon.modulate = Color(1.0, 0.55, 0.2)
+			elif dmg >= 0.40:
+				icon.text = "⚠"
+				icon.modulate = Color(1.0, 0.85, 0.4)
+			else:
+				icon.text = ""
+				icon.modulate = Color.WHITE
 
 	_dirt_label.text = "Engine Dirt: %d%%" % int(GlobalData.fuel.engine_dirt * 100.0)
 

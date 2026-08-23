@@ -33,7 +33,7 @@ func _ready() -> void:
 	GameManager.combat_node_type = "grunt"
 	GameManager.is_boss_combat = false
 	GameManager.is_escaping = false
-	ThemeSystem.theme_id = "soldier"  # default theme with mechless_retreat=true
+	GlobalData.narrative.theme_id = "soldier"  # default theme with mechless_retreat=true
 
 	await _verify_defeat_screen_appears()
 	await _verify_continue_with_backup_mech()

@@ -461,7 +461,7 @@ func _try_step(target: Vector2i) -> bool:
 	# Dynamic weather transitions: tick weather every step
 	if GlobalData.weather_transition != null:
 		var hour := GlobalData.board.time_hour
-		var w_event := GlobalData.weather_transition.tick_step(hour)
+		var w_event: Dictionary = GlobalData.weather_transition.tick_step(hour)
 		if not w_event.is_empty():
 			EventBus.event_triggered.emit(w_event)
 		# Sync current_hazard with transition system
@@ -1328,7 +1328,8 @@ func _process_tile_effect(tile_type: String) -> void:
 					"effect": "hazard_emp_zone",
 					"amount": 0,
 					"desc": "Electromagnetic interference disables lock-on targeting. Reserve Mech call blocked.",
-				})		"rain":
+				})
+		"rain":
 			# Weather: Rain — triggers dynamic weather transition system.
 			if GlobalData.weather_transition != null:
 				GlobalData.weather_transition.current_weather = GlobalData.HAZARD_RAIN

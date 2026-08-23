@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://project_syntax_verify_test"]
+
+[ext_resource type="Script" path="res://tests/project_syntax_verify.gd" id="1_test"]
+
+[node name="ProjectSyntaxVerify" type="Node"]
+script = ExtResource("1_test")

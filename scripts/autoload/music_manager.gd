@@ -136,6 +136,7 @@ func play_intermission_music(fade_time: float = 1.5, force_restart: bool = false
 	var stream_to_play: AudioStream = null
 	if _saved_intermission_track != null:
 		stream_to_play = _saved_intermission_track
+		_saved_intermission_track = null
 	elif not intermission_tracks.is_empty():
 		var available = intermission_tracks.duplicate()
 		available.shuffle()

@@ -92,8 +92,8 @@ func _verify_recoil_recovery() -> void:
 	frames["leg_right"] = ArmorSystem.get_frame_catalog_entry("frame_leg_right_04") # carry 10
 	GlobalData.weapons.equipped_frames = frames
 	mech._recalculate_weight()
-	var light_rate := mech._recoil_decay_rate()
-	var light_recovery := mech._recoil_recovery
+	var light_rate: float = mech._recoil_decay_rate()
+	var light_recovery: float = mech._recoil_recovery
 	mech.apply_heavy_recoil_impulse(Vector3.FORWARD * 22.0)
 	_check(mech._recoil_recovery > 0.5, "heavy kick opens a stance-recovery window")
 	_check(mech.recoil_vector.length() > 12.0, "heavy kick pushes harder than normal recoil")
@@ -102,7 +102,7 @@ func _verify_recoil_recovery() -> void:
 	# Heavy mech (much more weight) recovers slower than the light one.
 	GlobalData.reset_run_data()
 	mech.total_weight = 180.0
-	var heavy_rate := mech._recoil_decay_rate()
+	var heavy_rate: float = mech._recoil_decay_rate()
 	_check(heavy_rate < light_rate, "heavier mech recovers from recoil slower (%.1f < %.1f)" % [heavy_rate, light_rate])
 
 	# Stronger legs (even on the same weight) recover faster.
@@ -111,11 +111,11 @@ func _verify_recoil_recovery() -> void:
 	strong_frames["leg_right"] = ArmorSystem.get_frame_catalog_entry("frame_leg_right_04")
 	GlobalData.weapons.equipped_frames = strong_frames
 	mech.total_weight = 60.0
-	var strong_rate := mech._recoil_decay_rate()
+	var strong_rate: float = mech._recoil_decay_rate()
 	var weak_frames := GlobalData.weapons.equipped_frames.duplicate(true)
 	weak_frames["leg_left"] = ArmorSystem.get_frame_catalog_entry("frame_leg_left_01")
 	weak_frames["leg_right"] = ArmorSystem.get_frame_catalog_entry("frame_leg_right_01")
 	GlobalData.weapons.equipped_frames = weak_frames
 	mech.total_weight = 60.0
-	var weak_rate := mech._recoil_decay_rate()
+	var weak_rate: float = mech._recoil_decay_rate()
 	_check(strong_rate > weak_rate, "stronger legs re-balance faster (%.1f > %.1f)" % [strong_rate, weak_rate])

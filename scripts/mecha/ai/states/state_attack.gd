@@ -299,7 +299,7 @@ func _fire_ranged() -> void:
 
 	# GDD §7: EWar JAM accuracy penalty — additional wobble on enemy shots
 	if GlobalData.ewar != null and GlobalData.ewar.is_active(GlobalData.ewar.Ability.JAM):
-		var jam_wobble := GlobalData.ewar.jam_accuracy_penalty()
+		var jam_wobble: float = GlobalData.ewar.jam_accuracy_penalty()
 		var jw := Vector3(
 			randf_range(-jam_wobble, jam_wobble),
 			randf_range(-jam_wobble * 0.5, jam_wobble * 0.5),

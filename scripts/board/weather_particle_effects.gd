@@ -139,7 +139,6 @@ func _create_rain_particles() -> GPUParticles3D:
 	# Thin droplet scale
 	mat.scale_min = 0.03
 	mat.scale_max = 0.08
-	mat.scale_over_velocity = 0.0
 
 	# Blue-white rain drops
 	mat.color = Color(0.6, 0.75, 0.95, 0.55)

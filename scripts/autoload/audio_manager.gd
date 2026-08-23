@@ -291,6 +291,9 @@ func stop_music(fade_time: float = 1.0) -> void:
 # TEST & COMPATIBILITY HELPERS
 # ═══════════════════════════════════════════════════════════════════════
 
+var current_music: AudioStreamPlayer:
+	get: return music.current_music if music else null
+
 var sfx_pool: Array[AudioStreamPlayer3D]:
 	get: return sfx.sfx_pool if sfx else []
 

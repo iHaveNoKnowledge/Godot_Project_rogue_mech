@@ -71,7 +71,6 @@ var _fuel_inv_label: Label
 var _clock_label: Label
 
 # GDD §6.2: Thermal Cloak charge warning
-var _cloak_warn_label: Label
 var _cloak_warn_time: float = 0.0
 
 # ScreenFX Overlay
@@ -823,11 +822,11 @@ func _refresh() -> void:
 				inv_display = GlobalData.fuel.convoy_fuel_display()
 			_:
 				inv_display = ""
-			if inv_display != "" and inv_display != "EMPTY":
-				_fuel_inv_label.text = "📦 %s" % inv_display
-				_fuel_inv_label.visible = true
-			else:
-				_fuel_inv_label.visible = false
+		if inv_display != "" and inv_display != "EMPTY":
+			_fuel_inv_label.text = "📦 %s" % inv_display
+			_fuel_inv_label.visible = true
+		else:
+			_fuel_inv_label.visible = false
 
 	# Convoy Panel
 	var c_hp := GlobalData.board.convoy_hp
@@ -894,9 +893,7 @@ func _refresh() -> void:
 		_hazard_label.visible = true
 		var hazard_name := GlobalData.board.current_hazard.to_upper().replace("_", " ")
 		if GlobalData.weather_transition != null and GlobalData.weather_transition.weather_duration > 0:
-			var remaining := GlobalData.weather_transition.weather_duration
-			var total := GlobalData.weather_transition.weather_max_duration
-			var pct := int(float(remaining) / float(maxi(total, 1)) * 100.0)
+			var remaining: int = int(GlobalData.weather_transition.weather_duration)
 			_hazard_label.text = "HAZARD: %s (%d steps left)" % [hazard_name, remaining]
 		else:
 			_hazard_label.text = "HAZARD: %s IN EFFECT" % hazard_name
@@ -905,7 +902,7 @@ func _refresh() -> void:
 
 	# Weather Forecast
 	if GlobalData.weather_transition != null and GlobalData.weather_transition.weather_duration > 0:
-		var forecast_text := GlobalData.weather_transition.get_forecast_text()
+		var forecast_text: String = GlobalData.weather_transition.get_forecast_text()
 		if forecast_text != "":
 			_weather_forecast_label.visible = true
 			_weather_forecast_label.text = forecast_text
@@ -916,7 +913,7 @@ func _refresh() -> void:
 
 	# Weather + Day/Night Interaction
 	if GlobalData.weather_transition != null and GlobalData.weather_transition.has_special_interaction():
-		var interaction_text := GlobalData.weather_transition.get_special_interaction_text()
+		var interaction_text: String = GlobalData.weather_transition.get_special_interaction_text()
 		if interaction_text != "":
 			_weather_interaction_label.visible = true
 			_weather_interaction_label.text = interaction_text
@@ -930,15 +927,15 @@ func _refresh() -> void:
 	if GlobalData.thermal_cloak != null and GlobalData.thermal_cloak.is_cloak_active():
 		_cloak_warn_label.visible = true
 		var charge: float = GlobalData.thermal_cloak.charge
-		var pct: int = int(charge)
+		var cloak_pct: int = int(charge)
 		if charge <= 10.0:
-			_cloak_warn_label.text = "◈ CLOAK CRITICAL: %d%%" % pct
+			_cloak_warn_label.text = "◈ CLOAK CRITICAL: %d%%" % cloak_pct
 			_cloak_warn_label.modulate = Color(1.0, 0.2, 0.2)
 		elif charge <= 30.0:
-			_cloak_warn_label.text = "◈ CLOAK LOW: %d%%" % pct
+			_cloak_warn_label.text = "◈ CLOAK LOW: %d%%" % cloak_pct
 			_cloak_warn_label.modulate = Color(1.0, 0.65, 0.15)
 		else:
-			_cloak_warn_label.text = "◈ CLOAK: %d%%" % pct
+			_cloak_warn_label.text = "◈ CLOAK: %d%%" % cloak_pct
 			_cloak_warn_label.modulate = Color(0.4, 0.8, 1.0)
 	else:
 		_cloak_warn_label.visible = false
@@ -946,7 +943,7 @@ func _refresh() -> void:
 	# Cloak Toggle Button
 	if GlobalData.thermal_cloak != null:
 		_cloak_toggle_btn.visible = true
-		var is_on := GlobalData.thermal_cloak.is_cloak_active()
+		var is_on: bool = GlobalData.thermal_cloak.is_cloak_active()
 		var chg: float = GlobalData.thermal_cloak.charge
 		if is_on:
 			_cloak_toggle_btn.button_pressed = true
@@ -1113,9 +1110,9 @@ func _on_quick_fuel_pressed() -> void:
 func _on_cloak_toggle() -> void:
 	if GlobalData.thermal_cloak == null:
 		return
-	var was_active := GlobalData.thermal_cloak.is_cloak_active()
+	var was_active: bool = GlobalData.thermal_cloak.is_cloak_active()
 	GlobalData.thermal_cloak.toggle()
-	var now_active := GlobalData.thermal_cloak.is_cloak_active()
+	var now_active: bool = GlobalData.thermal_cloak.is_cloak_active()
 	if now_active and not was_active:
 		_cloak_toggle_btn.text = "◈ CLOAK: ON"
 		_cloak_toggle_btn.add_theme_color_override("font_color", Color(0.4, 0.85, 1.0))

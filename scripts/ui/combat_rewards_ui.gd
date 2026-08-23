@@ -333,6 +333,7 @@ func _refresh_loot_summary() -> void:
 
 
 func _on_combat_ended(victory: bool) -> void:
+	print("COMBAT_REWARDS: _on_combat_ended(victory=%s) visible=%s" % [victory, visible])
 	if victory:
 		_show_victory_rewards()
 	else:

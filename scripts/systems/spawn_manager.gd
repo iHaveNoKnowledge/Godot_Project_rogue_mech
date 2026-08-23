@@ -423,8 +423,10 @@ func _spawn_next_wave() -> void:
 
 func notify_enemy_killed() -> void:
 	await get_tree().create_timer(0.4).timeout
+	var alive := _get_alive_count()
 	var active_defs = _get_active_defs()
-	if _get_alive_count() == 0:
+	print("SPAWN_MGR: notify_enemy_killed — alive=%d wave=%d/%d stalking=%d" % [alive, current_wave, active_defs.size(), GlobalData.narrative.stalking_aces.size()])
+	if alive == 0:
 		if current_wave < active_defs.size():
 			_spawn_next_wave()
 		else:
@@ -443,6 +445,7 @@ static func check_all_enemies_defeated() -> void:
 			var hs = e.health_system
 			if not hs.get("is_destroyed"):
 				alive += 1
+	print("SPAWN_MGR: check_all_enemies_defeated (static) — alive=%d" % alive)
 	if alive == 0:
 		EventBus.combat_ended.emit(true)
 
@@ -450,9 +453,13 @@ static func check_all_enemies_defeated() -> void:
 func _check_combat_ended() -> void:
 	if _get_alive_count() == 0:
 		if not GlobalData.narrative.stalking_aces.is_empty():
+			print("SPAWN_MGR: _check_combat_ended — stalking aces remain, spawning one")
 			_trigger_stalking_ace_ambush()
 		else:
+			print("SPAWN_MGR: _check_combat_ended — emitting combat_ended(true)")
 			EventBus.combat_ended.emit(true)
+	else:
+		print("SPAWN_MGR: _check_combat_ended — alive=%d, not ending" % _get_alive_count())
 
 
 # --- Mid-Battle Injection Events (GDD §7.3) ---------------------------------

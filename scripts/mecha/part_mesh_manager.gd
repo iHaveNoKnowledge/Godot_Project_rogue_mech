@@ -1092,3 +1092,123 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 			base_mesh.mesh = box
 			base_mesh.material_override = armor_mat
 			upper_container.add_child(base_mesh)
+
+
+# ---------------------------------------------------------------------------
+# INNER FRAME BINDING (GDD §6.2)
+# Composite cloth wraps around exposed inner frame to reinforce cracks.
+# Visual: thick bandages tightly wrapped along the frame skeleton.
+# ---------------------------------------------------------------------------
+
+## Cloth wrap colors for frame bindings.
+const BINDING_COLOR_LIGHT := Color(0.72, 0.70, 0.65, 0.92)   # Off-white composite cloth
+const BINDING_COLOR_DARK := Color(0.45, 0.42, 0.38, 0.88)    # Dirty grey wrap
+const BINDING_COLOR_ACCENT := Color(0.55, 0.60, 0.50, 0.85)  # Military green tint
+
+## Default binding layout per slot: position, rotation, scale for each wrap ring.
+## Each entry = one cloth torus around the frame at that offset.
+var _binding_templates: Dictionary = {
+	"head": [
+		{"pos": Vector3(0, 0.15, 0), "rot": Vector3(0, 0, 0), "scale": Vector3(0.28, 0.06, 0.28), "color": BINDING_COLOR_LIGHT},
+	],
+	"body": [
+		{"pos": Vector3(0, 0.2, 0), "rot": Vector3(0, 0, 0), "scale": Vector3(0.38, 0.08, 0.35), "color": BINDING_COLOR_LIGHT},
+		{"pos": Vector3(0, -0.1, 0), "rot": Vector3(0, 0, 0), "scale": Vector3(0.35, 0.06, 0.32), "color": BINDING_COLOR_DARK},
+	],
+	"arm_left": [
+		{"pos": Vector3(0, 0.1, 0), "rot": Vector3(0, 0, 0.15), "scale": Vector3(0.14, 0.05, 0.14), "color": BINDING_COLOR_LIGHT},
+		{"pos": Vector3(0, -0.15, 0), "rot": Vector3(0, 0, -0.1), "scale": Vector3(0.12, 0.04, 0.12), "color": BINDING_COLOR_ACCENT},
+	],
+	"arm_right": [
+		{"pos": Vector3(0, 0.1, 0), "rot": Vector3(0, 0, -0.15), "scale": Vector3(0.14, 0.05, 0.14), "color": BINDING_COLOR_LIGHT},
+		{"pos": Vector3(0, -0.15, 0), "rot": Vector3(0, 0, 0.1), "scale": Vector3(0.12, 0.04, 0.12), "color": BINDING_COLOR_ACCENT},
+	],
+	"leg_left": [
+		{"pos": Vector3(0, 0.15, 0), "rot": Vector3(0, 0, 0), "scale": Vector3(0.16, 0.05, 0.16), "color": BINDING_COLOR_DARK},
+		{"pos": Vector3(0, -0.2, 0), "rot": Vector3(0, 0, 0), "scale": Vector3(0.14, 0.04, 0.14), "color": BINDING_COLOR_LIGHT},
+	],
+	"leg_right": [
+		{"pos": Vector3(0, 0.15, 0), "rot": Vector3(0, 0, 0), "scale": Vector3(0.16, 0.05, 0.16), "color": BINDING_COLOR_DARK},
+		{"pos": Vector3(0, -0.2, 0), "rot": Vector3(0, 0, 0), "scale": Vector3(0.14, 0.04, 0.14), "color": BINDING_COLOR_LIGHT},
+],
+}
+
+
+## Spawns composite cloth bindings around the exposed inner frame for a slot.
+## Called after emergency repair when the frame is damaged but not destroyed.
+func spawn_frame_binding(slot: String) -> void:
+	var mecha = get_parent()
+	if mecha == null:
+		return
+	var parent := _get_slot_parent_node(slot)
+	if parent == null:
+		return
+
+	# Remove existing bindings for this slot first
+	_remove_frame_binding(slot)
+
+	var container := Node3D.new()
+	container.name = "FrameBinding"
+	parent.add_child(container)
+
+	var templates: Array = _binding_templates.get(slot, [])
+	for tmpl in templates:
+		if not (tmpl is Dictionary):
+			continue
+		var mi := MeshInstance3D.new()
+		mi.position = tmpl.get("pos", Vector3.ZERO)
+		mi.rotation = tmpl.get("rot", Vector3.ZERO)
+		mi.scale = tmpl.get("scale", Vector3.ONE)
+
+		# Torus mesh for the cloth wrap ring
+		var torus := TorusMesh.new()
+		torus.inner_radius = 0.38
+		torus.outer_radius = 0.52
+		torus.rings = 16
+		torus.ring_segments = 12
+		mi.mesh = torus
+
+		# Cloth wrap shader material
+		var cloth_mat := ShaderMaterial.new()
+		cloth_mat.shader = preload("res://shaders/cloth_wrap.gdshader")
+		cloth_mat.set_shader_parameter("cloth_color", tmpl.get("color", BINDING_COLOR_LIGHT))
+		mi.material_override = cloth_mat
+
+		container.add_child(mi)
+
+	# Record binding in GlobalData for persistence
+	if not GlobalData.weapons.frame_bindings.has(slot):
+		GlobalData.weapons.frame_bindings[slot] = true
+
+
+## Removes the frame binding visual for a slot.
+func _remove_frame_binding(slot: String) -> void:
+	var mecha = get_parent()
+	if mecha == null:
+		return
+	var parent := _get_slot_parent_node(slot)
+	if parent == null:
+		return
+	var container = parent.get_node_or_null("FrameBinding")
+	if container:
+		container.queue_free()
+	GlobalData.weapons.frame_bindings.erase(slot)
+
+
+## Rebuilds all frame binding visuals from saved data.
+## Called on combat entry / board spawn to restore bindings from a previous run.
+func refresh_frame_bindings() -> void:
+	for slot in GlobalData.weapons.frame_bindings:
+		if GlobalData.weapons.frame_bindings[slot]:
+			spawn_frame_binding(slot)
+
+
+## Removes all frame bindings (e.g. after professional repair).
+func clear_all_frame_bindings() -> void:
+	for slot in GlobalData.MECHA_SLOTS:
+		_remove_frame_binding(slot)
+
+
+## Removes a specific frame binding (e.g. after professional repair of one slot).
+func remove_frame_binding(slot: String) -> void:
+	_remove_frame_binding(slot)

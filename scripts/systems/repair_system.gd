@@ -89,8 +89,12 @@ static func apply_emergency_repair(slot: String, primitives: Array = []) -> Dict
 		"primitives": safe_primitives,
 	}
 	GlobalData.weapons.scrap_patches[slot] = patch
+	# GDD §6.2: If the frame was damaged, spawn composite cloth binding visual.
+	var had_frame_damage := float(GlobalData.weapons.part_damage.get(slot + "_frame", 0.0)) > 0.0
 	GlobalData.weapons.part_damage.erase(slot)
 	GlobalData.weapons.part_damage.erase(slot + "_frame")
+	if had_frame_damage:
+		GlobalData.weapons.frame_bindings[slot] = true
 
 	# Quick scrap repair taxes max durability by 10% (wear and tear on crude patching)
 	ArmorSystem.degrade_equipped_armor(slot, 0.10)
@@ -198,4 +202,6 @@ static func apply_professional_repair(slot: String) -> bool:
 	GlobalData.weapons.scrap_patches.erase(slot)
 	GlobalData.weapons.part_damage.erase(slot)
 	GlobalData.weapons.part_damage.erase(slot + "_frame")
+	# GDD §6.2: Professional repair removes frame bindings (real armor restored)
+	GlobalData.weapons.frame_bindings.erase(slot)
 	return true

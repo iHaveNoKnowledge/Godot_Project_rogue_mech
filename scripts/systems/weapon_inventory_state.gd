@@ -64,6 +64,10 @@ const FRAME_UPGRADE_BASE_COST: int = 150
 # --- Scrap Patches ---
 var scrap_patches: Dictionary = {}
 
+# --- Frame Bindings (GDD §6.2) ---
+# Composite cloth wraps around exposed inner frame after repair.
+var frame_bindings: Dictionary = {}
+
 const DEFAULT_LEFT_WEAPON_PATH := "res://resources/mech/stock/weapon_beam_rifle.tres"
 const DEFAULT_RIGHT_WEAPON_PATH := "res://resources/mech/stock/weapon_heat_blade.tres"
 const DEFAULT_CARRY_WEAPON_PATH := "res://resources/mech/stock/weapon_combat_shotgun.tres"
@@ -78,6 +82,7 @@ func reset() -> void:
 	part_damage.clear()
 	frame_upgrade_level = 1
 	scrap_patches.clear()
+	frame_bindings.clear()
 	weapon_loadout = {
 		"left": "w_starter_left",
 		"right": "w_starter_right",

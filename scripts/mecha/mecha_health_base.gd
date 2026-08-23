@@ -659,6 +659,8 @@ func _refresh_patch_visuals(_slot_name: String) -> void:
 	var pmm = mecha.get_node_or_null("CatalogBody")
 	if pmm and pmm.has_method("refresh_scrap_patches"):
 		pmm.refresh_scrap_patches()
+	if pmm and pmm.has_method("refresh_frame_bindings"):
+		pmm.refresh_frame_bindings()
 
 
 func _on_frame_destroyed(slot_name: String, damage_type: String = "") -> void:

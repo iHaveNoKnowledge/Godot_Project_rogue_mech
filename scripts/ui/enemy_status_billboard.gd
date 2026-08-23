@@ -146,7 +146,7 @@ func _add_block(parent: Control, part_name: String) -> void:
 
 
 func _process(delta: float) -> void:
-	if target == null or not is_instance_valid(target):
+	if target == null or not is_instance_valid(target) or not target.is_inside_tree():
 		queue_free()
 		return
 
@@ -163,9 +163,14 @@ func _update_position() -> void:
 	if concealed:
 		visible = false
 		return
+	if target == null or not is_instance_valid(target) or not target.is_inside_tree():
+		visible = false
+		return
 
 	var cam = get_viewport().get_camera_3d()
 	if cam == null:
+		return
+	if not cam.is_inside_tree():
 		return
 
 	var world_pos = target.global_position + Vector3(0, 4.5, 0)

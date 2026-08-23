@@ -783,8 +783,12 @@ var _base_camp_token: Node3D = null
 
 
 func _update_token_position() -> void:
+	if not is_inside_tree():
+		return
 	if nodes_dict.has(current_pos):
 		var tile = nodes_dict[current_pos]
+		if not is_instance_valid(tile) or not tile.is_inside_tree() or not player_token or not is_instance_valid(player_token) or not player_token.is_inside_tree():
+			return
 		var patrol_on_tile := not PatrolSystem.get_patrol_at(current_pos).is_empty()
 		# Offset player token to the west (-0.55m) if sharing the tile with a patrol fleet,
 		# so the player pawn and enemy token stand side-by-side without clipping/overlapping.

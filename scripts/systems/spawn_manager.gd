@@ -770,25 +770,29 @@ func _get_spawn_position() -> Vector3:
 	# Prefer a marker this wave hasn't used yet and that sits clear of cover
 	# objects. Reusing a marker is what stacks enemies on top of each other.
 	for marker in candidates:
+		if not is_instance_valid(marker) or not (marker is Node3D) or not (marker as Node3D).is_inside_tree():
+			continue
 		if _used_spawn_indices.has(marker.get_instance_id()):
 			continue
-		if _spawn_blocked_by_cover(marker.global_position):
+		if _spawn_blocked_by_cover((marker as Node3D).global_position):
 			continue
 		_used_spawn_indices.append(marker.get_instance_id())
-		return marker.global_position
+		return (marker as Node3D).global_position
 
 	# Every marker used (oversized wave): still avoid cover and pick the
 	# least-crowded marker (farthest from living enemies).
 	var best: Marker3D = candidates[0]
 	var best_dist := -1.0
 	for marker in candidates:
-		if _spawn_blocked_by_cover(marker.global_position):
+		if not is_instance_valid(marker) or not (marker is Node3D) or not (marker as Node3D).is_inside_tree():
 			continue
-		var d := _distance_to_nearest_enemy(marker.global_position)
+		if _spawn_blocked_by_cover((marker as Node3D).global_position):
+			continue
+		var d := _distance_to_nearest_enemy((marker as Node3D).global_position)
 		if d > best_dist:
 			best_dist = d
 			best = marker
-	return best.global_position
+	return (best as Node3D).global_position if is_instance_valid(best) and best is Node3D and (best as Node3D).is_inside_tree() else Vector3.ZERO
 
 
 # True when a spawn position sits inside a cover object's footprint (plus a
@@ -812,8 +816,12 @@ static func is_pos_blocked_by_covers(pos: Vector3, covers: Array) -> bool:
 # World-space AABB of a cover's collision shape (box or cylinder), so rotated
 # covers are still detected via their true footprint.
 static func _cover_world_aabb(cover: Node3D) -> AABB:
+	if not is_instance_valid(cover) or not cover.is_inside_tree():
+		return AABB()
 	for child in cover.get_children():
 		if child is CollisionShape3D and child.shape != null:
+			if not child.is_inside_tree():
+				continue
 			var s: Shape3D = child.shape
 			var half: Vector3
 			if s is BoxShape3D:
@@ -835,12 +843,12 @@ static func _cover_world_aabb(cover: Node3D) -> AABB:
 func _distance_to_nearest_enemy(pos: Vector3) -> float:
 	var nearest := INF
 	for e in get_tree().get_nodes_in_group("enemy"):
-		if not is_instance_valid(e):
+		if not is_instance_valid(e) or not e is Node3D or not (e as Node3D).is_inside_tree():
 			continue
 		var hs = e.get("health_system")
 		if hs == null or hs.get("is_destroyed"):
 			continue
-		nearest = minf(nearest, Vector2(e.global_position.x - pos.x, e.global_position.z - pos.z).length())
+		nearest = minf(nearest, Vector2((e as Node3D).global_position.x - pos.x, (e as Node3D).global_position.z - pos.z).length())
 	return nearest
 
 

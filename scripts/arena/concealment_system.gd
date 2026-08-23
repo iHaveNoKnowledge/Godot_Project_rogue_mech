@@ -80,16 +80,17 @@ func _update_all() -> void:
 		cover_rids = _cover_rids()
 
 	for enemy in get_tree().get_nodes_in_group("enemy"):
-		if not is_instance_valid(enemy):
+		if not is_instance_valid(enemy) or not enemy is Node3D or not (enemy as Node3D).is_inside_tree():
 			continue
 		var hs = enemy.get("health_system")
 		if hs == null:
 			continue
 		if hs.get("is_destroyed"):
 			continue
-		var concealed := _is_in_cover(enemy.global_position, aabbs)
+		var e_pos: Vector3 = (enemy as Node3D).global_position
+		var concealed := _is_in_cover(e_pos, aabbs)
 		if not concealed and space != null:
-			concealed = _is_crest_hidden(enemy.global_position, camera_pos, space, cover_rids)
+			concealed = _is_crest_hidden(e_pos, camera_pos, space, cover_rids)
 		if enemy.has_method("set_concealed"):
 			enemy.set_concealed(concealed)
 
@@ -98,7 +99,7 @@ func _update_all() -> void:
 # (headless tests / board screens) so the crest check is skipped.
 func _camera_position() -> Vector3:
 	var cam := get_viewport().get_camera_3d()
-	if cam == null:
+	if cam == null or not cam.is_inside_tree():
 		return Vector3.INF
 	return cam.global_position
 
@@ -153,8 +154,12 @@ func _is_in_cover(pos: Vector3, aabbs: Array) -> bool:
 # World-space AABB of a concealment body's collision shape (box or cylinder),
 # so rotated covers are still detected via their true footprint.
 func _cover_world_aabb(cover: Node3D) -> AABB:
+	if not is_instance_valid(cover) or not cover.is_inside_tree():
+		return AABB()
 	for child in cover.get_children():
 		if child is CollisionShape3D and child.shape != null:
+			if not child.is_inside_tree():
+				continue
 			var s: Shape3D = child.shape
 			var half: Vector3
 			if s is BoxShape3D:

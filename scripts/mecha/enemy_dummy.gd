@@ -1073,7 +1073,7 @@ func take_damage(amount: float, damage_type: String = "kinetic") -> void:
 
 
 func take_damage_at_point(amount: float, world_pos: Vector3, damage_type: String = "kinetic") -> void:
-	if health_system == null:
+	if health_system == null or not is_inside_tree():
 		return
 
 	if damage_type.to_lower() == "explosive":
@@ -1116,6 +1116,8 @@ func take_damage_at_point(amount: float, world_pos: Vector3, damage_type: String
 
 
 func _get_part_world_pos(slot: String) -> Vector3:
+	if not is_inside_tree():
+		return position + GlobalData.SLOT_OFFSETS.get(slot, Vector3.ZERO)
 	return to_global(GlobalData.SLOT_OFFSETS.get(slot, Vector3.ZERO))
 
 
@@ -1160,6 +1162,8 @@ func _apply_archetype_color() -> void:
 
 
 func get_attack_aim_direction(player_pos: Vector3) -> Vector3:
+	if not is_inside_tree():
+		return (player_pos - position).normalized()
 	var base_dir = (player_pos - global_position).normalized()
 	
 	# ตรวจหาว่าหัวศัตรูโดนทำลายไปแล้วหรือยัง

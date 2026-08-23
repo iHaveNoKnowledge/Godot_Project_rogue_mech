@@ -2,6 +2,7 @@ extends CanvasLayer
 
 const _BoardSystem = preload("res://scripts/systems/board_system.gd")
 const _DNS = preload("res://scripts/systems/day_night_system.gd")
+const _PPS = preload("res://scripts/systems/part_penalty_system.gd")
 
 ## Board HUD (GDD v4.0 §7 Master Scene Tree):
 ##   - TopBar_GlobalResources: Energy (bar, rate, roller toggle), Convoy (HP, reserve, backups), Consumables (Quick Fuel)
@@ -68,6 +69,12 @@ var _screen_fx: Control
 var _low_energy_vignette: ColorRect
 var _vignette_time: float = 0.0
 
+# GDD §6.1: HUD Glitch (scanlines + static) when head durability < 50%
+var _glitch_scanlines: ColorRect
+var _glitch_static: ColorRect
+var _glitch_active: bool = false
+var _glitch_time: float = 0.0
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -103,6 +110,22 @@ func _build_screen_fx() -> void:
 	_low_energy_vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_low_energy_vignette.color = Color(0.9, 0.1, 0.1, 0.0)
 	_screen_fx.add_child(_low_energy_vignette)
+
+	# GDD §6.1: HUD Glitch — scanlines (horizontal green lines)
+	_glitch_scanlines = ColorRect.new()
+	_glitch_scanlines.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_glitch_scanlines.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_glitch_scanlines.color = Color(0.0, 1.0, 0.3, 0.0)
+	_glitch_scanlines.visible = false
+	_screen_fx.add_child(_glitch_scanlines)
+
+	# GDD §6.1: HUD Glitch — static noise (white flash overlay)
+	_glitch_static = ColorRect.new()
+	_glitch_static.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_glitch_static.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_glitch_static.color = Color(1.0, 1.0, 1.0, 0.0)
+	_glitch_static.visible = false
+	_screen_fx.add_child(_glitch_static)
 
 
 # -----------------------------------------------------------------------------
@@ -691,6 +714,7 @@ func _refresh() -> void:
 
 
 func _update_screen_fx(delta: float) -> void:
+	# Low energy vignette (< 20%)
 	var ratio := GlobalData.fuel.mech_energy / maxf(GlobalData.fuel.mech_max_energy, 1.0)
 	if ratio < 0.2:
 		_vignette_time += delta * 3.5
@@ -698,6 +722,31 @@ func _update_screen_fx(delta: float) -> void:
 		_low_energy_vignette.color = Color(0.9, 0.1, 0.1, alpha)
 	else:
 		_low_energy_vignette.color = Color(0.9, 0.1, 0.1, 0.0)
+
+	# GDD §6.1: HUD Glitch when head durability < 50%
+	var should_glitch := _PPS.head_hud_glitching()
+	if should_glitch != _glitch_active:
+		_glitch_active = should_glitch
+		_glitch_scanlines.visible = should_glitch
+		_glitch_static.visible = should_glitch
+		if should_glitch:
+			_glitch_time = 0.0
+
+	if _glitch_active:
+		_glitch_time += delta
+		# Scanlines: horizontal green lines that scroll and flicker
+		var scan_alpha := 0.06 + 0.04 * sin(_glitch_time * 18.0)
+		_glitch_scanlines.color = Color(0.0, 1.0, 0.3, scan_alpha)
+		# Static noise: random white flashes that pulse
+		var static_roll := randf()
+		if static_roll < 0.15:
+			# Brief bright flash
+			_glitch_static.color = Color(1.0, 1.0, 1.0, 0.12)
+		elif static_roll < 0.25:
+			# Dim green tint
+			_glitch_static.color = Color(0.2, 0.8, 0.3, 0.06)
+		else:
+			_glitch_static.color = Color(1.0, 1.0, 1.0, 0.0)
 
 
 func _on_roller_toggle_pressed() -> void:

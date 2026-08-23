@@ -52,6 +52,13 @@ func _ready() -> void:
 		var art_ui := ArtilleryReportUI.new()
 		art_ui.name = "ArtilleryReportUI"
 		add_child(art_ui)
+	# GDD §3.1: Day/Night visual overlay
+	if get_node_or_null("BoardNightOverlay") == null:
+		var night_overlay_script = preload("res://scripts/board/board_night_overlay.gd")
+		var overlay := CanvasLayer.new()
+		overlay.name = "BoardNightOverlay"
+		overlay.set_script(night_overlay_script)
+		add_child(overlay)
 	PatrolSystem.spawn_patrols()
 
 	_reveal_around(current_pos)

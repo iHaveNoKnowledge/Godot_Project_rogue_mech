@@ -21,6 +21,7 @@ func _ready() -> void:
 	test_serialization()
 	test_stop_all()
 	test_api()
+	test_wind_pitch_constants()
 
 	print("")
 	print("=== RESULTS: %d/%d passed (%d failed) ===" % [_pass, _checks, _fail])
@@ -178,6 +179,18 @@ func test_api() -> void:
 	_check(not wa.is_any_playing(), "is_any_playing false initially")
 
 	wa.queue_free()
+
+
+# ===========================================================================
+# 8. Wind Pitch Constants
+# ===========================================================================
+
+func test_wind_pitch_constants() -> void:
+	print("\n[8] Wind Pitch Constants")
+	_check(absf(WA_SCRIPT.WIND_PITCH_BASE - 0.85) < 0.01, "WIND_PITCH_BASE = 0.85")
+	_check(absf(WA_SCRIPT.WIND_PITCH_MAX - 1.35) < 0.01, "WIND_PITCH_MAX = 1.35")
+	_check(absf(WA_SCRIPT.WIND_PITCH_LFO_SPEED - 0.4) < 0.01, "WIND_PITCH_LFO_SPEED = 0.4")
+	_check(absf(WA_SCRIPT.WIND_PITCH_LFO_DEPTH - 0.12) < 0.01, "WIND_PITCH_LFO_DEPTH = 0.12")
 
 
 # ===========================================================================

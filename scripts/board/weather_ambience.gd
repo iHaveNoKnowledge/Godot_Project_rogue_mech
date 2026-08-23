@@ -28,9 +28,17 @@ const WEATHER_VOLUMES := {
 ## Crossfade speed (linear units per second). Higher = faster transitions.
 const CROSSFADE_SPEED := 1.2
 
+## Wind pitch modulation based on weather shake intensity.
+## Higher shake = stronger winds = higher/more varied pitch.
+const WIND_PITCH_BASE := 0.85       # Base pitch when calm
+const WIND_PITCH_MAX := 1.35        # Max pitch at full shake
+const WIND_PITCH_LFO_SPEED := 0.4   # LFO oscillation speed (Hz)
+const WIND_PITCH_LFO_DEPTH := 0.12  # LFO pitch variation depth
+
 # --- Internal state ---
 var _players: Dictionary = {}  # weather_type → AudioStreamPlayer
 var _current_weather: String = ""
+var _wind_pitch_time: float = 0.0
 var _target_volumes: Dictionary = {}  # weather_type → target linear volume
 var _active_weather: String = ""
 
@@ -63,6 +71,9 @@ func _process(delta: float) -> void:
 
 	# Smooth crossfade each player toward its target
 	_crossfade(delta)
+
+	# Dynamic wind pitch based on weather shake intensity
+	_update_wind_pitch(delta)
 
 	_active_weather = new_weather
 
@@ -119,6 +130,25 @@ func _crossfade(delta: float) -> void:
 			player.play()
 		elif current_linear < 0.005 and player.playing:
 			player.stop()
+
+
+## Modulates wind player pitch based on weather shake intensity.
+## Higher shake (sandstorm) = higher base pitch + faster LFO wobble.
+func _update_wind_pitch(delta: float) -> void:
+	var wind_player: AudioStreamPlayer = _players.get("wind", null)
+	if wind_player == null or not wind_player.playing:
+		return
+	if GlobalData.weather_transition == null:
+		wind_player.pitch_scale = WIND_PITCH_BASE
+		return
+	var shake: float = GlobalData.weather_transition.get_weather_shake_intensity()
+	# Map shake intensity [0..0.35] to pitch range [BASE..MAX]
+	var shake_norm: float = clampf(shake / 0.35, 0.0, 1.0)
+	var base_pitch: float = lerpf(WIND_PITCH_BASE, WIND_PITCH_MAX, shake_norm)
+	# Add LFO wobble that scales with shake intensity
+	_wind_pitch_time += delta
+	var lfo: float = sin(TAU * WIND_PITCH_LFO_SPEED * _wind_pitch_time) * WIND_PITCH_LFO_DEPTH * shake_norm
+	wind_player.pitch_scale = base_pitch + lfo
 
 
 func _return_to_silence(delta: float) -> void:

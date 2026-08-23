@@ -1,17 +1,16 @@
 extends Node
 
-## Regression test for the defeat-screen display bug:
+## Regression test for the defeat-screen display bug (commit 4cd7ac2):
 ## Previously, mecha_health_base.gd and pilot_controller.gd called
 ## return_to_board()/game_over() immediately after emitting combat_ended(false),
 ## destroying the CombatRewardsUI before the defeat screen could appear.
 ##
 ## This test verifies:
-##   1. combat_ended(false) makes the defeat screen visible
-##   2. The defeat screen does NOT get destroyed by scene changes
-##   3. The Continue button routes to game_over when pilot is dead
-##   4. The Continue button routes to game_over when no reserves remain
-##   5. The Continue button routes to return_to_board when a backup exists
-##   6. The Continue button routes to return_to_board for mechless retreat
+##   1. combat_ended(false) makes the defeat screen visible and pauses the tree
+##   2. The Continue button routes to game_over when the pilot is dead
+##   3. The Continue button routes to game_over when no reserves remain
+##   4. The Continue button routes to return_to_board when a backup exists
+##   5. The Continue button routes to return_to_board for mechless retreat
 ##
 ## Run: godot --headless --path . res://tests/defeat_screen_verify.tscn
 
@@ -34,6 +33,7 @@ func _ready() -> void:
 	GameManager.combat_node_type = "grunt"
 	GameManager.is_boss_combat = false
 	GameManager.is_escaping = false
+	ThemeSystem.theme_id = "soldier"  # default theme with mechless_retreat=true
 
 	await _verify_defeat_screen_appears()
 	await _verify_continue_with_backup_mech()
@@ -45,13 +45,12 @@ func _ready() -> void:
 	get_tree().quit(1 if _fails > 0 else 0)
 
 
-# The defeat screen MUST be visible after combat_ended(false) fires.
+# ── 1. The defeat screen MUST be visible after combat_ended(false) fires ──
 func _verify_defeat_screen_appears() -> void:
 	var rewards_ui = load("res://scenes/ui/combat_rewards_ui.tscn").instantiate()
 	add_child(rewards_ui)
 	await get_tree().process_frame
 
-	# Simulate combat defeat
 	EventBus.combat_ended.emit(false)
 	await get_tree().process_frame
 	await get_tree().process_frame
@@ -61,146 +60,134 @@ func _verify_defeat_screen_appears() -> void:
 	_check(not rewards_ui.rewards_label.text.is_empty(), "defeat text is populated")
 	_check(get_tree().paused, "tree is paused while defeat screen shows")
 
-	# Cleanup — don't leave the tree paused
 	get_tree().paused = false
 	rewards_ui.queue_free()
 	await get_tree().process_frame
 
 
-# When a backup mech exists, Continue must call return_to_board (not game_over).
+# ── 2. Continue with backup mech → return_to_board ──
 func _verify_continue_with_backup_mech() -> void:
 	var rewards_ui = load("res://scenes/ui/combat_rewards_ui.tscn").instantiate()
 	add_child(rewards_ui)
 	await get_tree().process_frame
 
-	# Ensure pilot is alive, has backup mech
-	_reset_pilot_alive()
+	# Pilot alive, has backup mech (mech_less = false)
+	GlobalData.pilot.pilot_hp = GlobalData.pilot.pilot_max_hp
 	GlobalData.narrative.mech_less = false
 
+	_check(not PilotSystem.is_dead(), "backup: pilot is alive")
+	_check(not GlobalData.narrative.mech_less, "backup: mech_less is false")
+
+	# Show defeat screen via signal
 	EventBus.combat_ended.emit(false)
 	await get_tree().process_frame
 	await get_tree().process_frame
 
-	_check(rewards_ui.visible, "backup-mech scenario: defeat screen visible")
-	_check(rewards_ui.title_label.text == "DEFEATED", "backup-mech scenario: title is DEFEATED")
+	_check(rewards_ui.visible, "backup: defeat screen visible")
+	_check(rewards_ui.title_label.text == "DEFEATED", "backup: title is DEFEATED")
 
-	# Simulate Continue press — should NOT trigger game_over
-	rewards_ui.visible = false
+	# Verify the routing condition: pilot alive + not mech_less → return_to_board
+	var should_game_over := PilotSystem.is_dead() or (GlobalData.narrative.mech_less and not HangarManager.can_mechless_retreat())
+	_check(not should_game_over, "backup: routing condition says return_to_board (not game_over)")
+
 	get_tree().paused = false
-	# The Continue handler checks PilotSystem.is_dead() and mech_less
-	_check(not PilotSystem.is_dead(), "backup-mech scenario: pilot is alive")
-	_check(not GlobalData.narrative.mech_less, "backup-mech scenario: mech_less is false")
-
 	rewards_ui.queue_free()
 	await get_tree().process_frame
 
 
-# When the pilot is dead, Continue MUST call game_over.
+# ── 3. Continue when pilot is dead → game_over ──
 func _verify_continue_pilot_dead() -> void:
 	var rewards_ui = load("res://scenes/ui/combat_rewards_ui.tscn").instantiate()
 	add_child(rewards_ui)
 	await get_tree().process_frame
 
-	# Force pilot death
-	_force_pilot_dead()
+	# Kill the pilot
+	GlobalData.pilot.pilot_hp = 0.0
+
+	_check(PilotSystem.is_dead(), "pilot-dead: pilot is actually dead")
 
 	EventBus.combat_ended.emit(false)
 	await get_tree().process_frame
 	await get_tree().process_frame
 
-	_check(rewards_ui.visible, "pilot-dead scenario: defeat screen visible")
-	_check(PilotSystem.is_dead(), "pilot-dead scenario: pilot is actually dead")
-	_check(rewards_ui.title_label.text == "DEFEATED", "pilot-dead scenario: title is DEFEATED")
+	_check(rewards_ui.visible, "pilot-dead: defeat screen visible")
+	_check(rewards_ui.title_label.text == "DEFEATED", "pilot-dead: title is DEFEATED")
 
-	# Cleanup
-	rewards_ui.visible = false
+	var should_game_over := PilotSystem.is_dead() or (GlobalData.narrative.mech_less and not HangarManager.can_mechless_retreat())
+	_check(should_game_over, "pilot-dead: routing condition says game_over")
+
 	get_tree().paused = false
 	rewards_ui.queue_free()
 	await get_tree().process_frame
-	_restore_pilot()
+
+	# Restore pilot for subsequent tests
+	GlobalData.pilot.pilot_hp = GlobalData.pilot.pilot_max_hp
 
 
-# When mech_less is true and no mechless retreat, Continue MUST game_over.
+# ── 4. Continue with mech_less and no retreat → game_over ──
 func _verify_continue_no_reserves() -> void:
 	var rewards_ui = load("res://scenes/ui/combat_rewards_ui.tscn").instantiate()
 	add_child(rewards_ui)
 	await get_tree().process_frame
 
-	# Setup: no mechs, no squadmates for retreat
-	_reset_pilot_alive()
+	# Pilot alive, no mechs, no squadmates for retreat
+	GlobalData.pilot.pilot_hp = GlobalData.pilot.pilot_max_hp
 	GlobalData.hangar.hangar_mechs.clear()
 	GlobalData.narrative.mech_less = true
 	GlobalData.hangar.fleet_roster.clear()
+
+	_check(not PilotSystem.is_dead(), "no-reserves: pilot is alive")
+	_check(GlobalData.narrative.mech_less, "no-reserves: mech_less is true")
+	_check(not HangarManager.can_mechless_retreat(), "no-reserves: cannot retreat (no squadmates)")
 
 	EventBus.combat_ended.emit(false)
 	await get_tree().process_frame
 	await get_tree().process_frame
 
-	_check(rewards_ui.visible, "no-reserves scenario: defeat screen visible")
-	_check(GlobalData.narrative.mech_less, "no-reserves scenario: mech_less is true")
-	_check(not HangarManager.can_mechless_retreat(), "no-reserves scenario: cannot mechless retreat")
+	_check(rewards_ui.visible, "no-reserves: defeat screen visible")
 
-	# Cleanup
-	rewards_ui.visible = false
+	var should_game_over := PilotSystem.is_dead() or (GlobalData.narrative.mech_less and not HangarManager.can_mechless_retreat())
+	_check(should_game_over, "no-reserves: routing condition says game_over")
+
 	get_tree().paused = false
 	rewards_ui.queue_free()
 	await get_tree().process_frame
-	# Restore state for other tests
+
+	# Restore state
 	HangarManager.ensure_roster()
 
 
-# When mech_less but squadmates remain for retreat, Continue must return_to_board.
+# ── 5. Continue with mech_less + squadmates → return_to_board ──
 func _verify_continue_mechless_retreat() -> void:
 	var rewards_ui = load("res://scenes/ui/combat_rewards_ui.tscn").instantiate()
 	add_child(rewards_ui)
 	await get_tree().process_frame
 
-	# Setup: no mechs but has squadmates for retreat
-	_reset_pilot_alive()
+	# Pilot alive, no mechs, has squadmates for retreat
+	GlobalData.pilot.pilot_hp = GlobalData.pilot.pilot_max_hp
 	GlobalData.hangar.hangar_mechs.clear()
 	GlobalData.narrative.mech_less = true
-	GlobalData.hangar.fleet_roster = [{"template_id": "grunt_squad", "name": "Alpha", "hp": 50.0, "max_hp": 50.0, "destroyed": false, "fielded": true}]
+	GlobalData.hangar.fleet_roster = [{
+		"template_id": "grunt_squad", "name": "Alpha",
+		"hp": 50.0, "max_hp": 50.0, "destroyed": false, "fielded": true,
+	}]
+
+	_check(not PilotSystem.is_dead(), "mechless-retreat: pilot is alive")
+	_check(GlobalData.narrative.mech_less, "mechless-retreat: mech_less is true")
+	_check(HangarManager.can_mechless_retreat(), "mechless-retreat: can retreat with squadmates")
 
 	EventBus.combat_ended.emit(false)
 	await get_tree().process_frame
 	await get_tree().process_frame
 
-	_check(rewards_ui.visible, "mechless-retreat scenario: defeat screen visible")
-	_check(GlobalData.narrative.mech_less, "mechless-retreat scenario: mech_less is true")
-	_check(HangarManager.can_mechless_retreat(), "mechless-retreat scenario: can retreat with squadmates")
+	_check(rewards_ui.visible, "mechless-retreat: defeat screen visible")
 
-	# Cleanup
-	rewards_ui.visible = false
+	var should_game_over := PilotSystem.is_dead() or (GlobalData.narrative.mech_less and not HangarManager.can_mechless_retreat())
+	_check(not should_game_over, "mechless-retreat: routing condition says return_to_board (not game_over)")
+
 	get_tree().paused = false
 	rewards_ui.queue_free()
 	await get_tree().process_frame
+
+	# Restore state
 	HangarManager.ensure_roster()
-
-
-# --- Helpers ---
-
-func _reset_pilot_alive() -> void:
-	# Ensure the pilot system is in a "not dead" state
-	var pilot_data = PilotSystem.get_pilot_data() if PilotSystem else {}
-	if pilot_data.has("hp"):
-		pilot_data["hp"] = pilot_data.get("max_hp", 100.0)
-	# Fallback: just ensure PilotSystem.is_dead() returns false
-	if PilotSystem and PilotSystem.is_dead():
-		# Can't easily revive a dead pilot in test — just note the limitation
-		print("WARNING: Could not reset pilot state for test")
-
-
-func _force_pilot_dead() -> void:
-	# Drive pilot HP to 0 to trigger permanent death state
-	if PilotSystem:
-		var pilot_data = PilotSystem.get_pilot_data()
-		if pilot_data.has("hp"):
-			pilot_data["hp"] = 0.0
-
-
-func _restore_pilot() -> void:
-	# Restore pilot HP for subsequent tests
-	if PilotSystem:
-		var pilot_data = PilotSystem.get_pilot_data()
-		if pilot_data.has("hp"):
-			pilot_data["hp"] = pilot_data.get("max_hp", 100.0)

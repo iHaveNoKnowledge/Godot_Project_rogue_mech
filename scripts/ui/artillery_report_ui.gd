@@ -40,18 +40,18 @@ func _build_ui() -> void:
 
 	var panel_style := StyleBoxFlat.new()
 	panel_style.bg_color = Color(0.05, 0.07, 0.13, 0.96)
-	panel_style.corner_radius_top_left = 10
-	panel_style.corner_radius_top_right = 10
-	panel_style.corner_radius_bottom_left = 10
-	panel_style.corner_radius_bottom_right = 10
+	panel_style.corner_radius_top_left = 0
+	panel_style.corner_radius_top_right = 0
+	panel_style.corner_radius_bottom_left = 0
+	panel_style.corner_radius_bottom_right = 0
 	panel_style.content_margin_left = 18
 	panel_style.content_margin_right = 18
 	panel_style.content_margin_top = 14
 	panel_style.content_margin_bottom = 14
-	panel_style.border_width_left = 2
-	panel_style.border_width_right = 2
-	panel_style.border_width_top = 2
-	panel_style.border_width_bottom = 2
+	panel_style.border_width_left = 1
+	panel_style.border_width_right = 1
+	panel_style.border_width_top = 1
+	panel_style.border_width_bottom = 1
 	panel_style.border_color = Color(0.95, 0.3, 0.2, 0.9)
 	_panel.add_theme_stylebox_override("panel", panel_style)
 
@@ -184,10 +184,10 @@ func _build_unit_card(
 
 	var card_style := StyleBoxFlat.new()
 	card_style.bg_color = Color(0.08, 0.11, 0.18, 0.95)
-	card_style.corner_radius_top_left = 6
-	card_style.corner_radius_top_right = 6
-	card_style.corner_radius_bottom_left = 6
-	card_style.corner_radius_bottom_right = 6
+	card_style.corner_radius_top_left = 0
+	card_style.corner_radius_top_right = 0
+	card_style.corner_radius_bottom_left = 0
+	card_style.corner_radius_bottom_right = 0
 	card_style.content_margin_left = 10
 	card_style.content_margin_right = 10
 	card_style.content_margin_top = 8
@@ -230,10 +230,10 @@ func _build_unit_card(
 	bar.custom_minimum_size = Vector2(0, 8)
 	var fill_style := StyleBoxFlat.new()
 	fill_style.bg_color = Color(0.25, 0.85, 0.45, 0.95) if (new_hp / max_hp) > 0.4 else Color(0.9, 0.25, 0.2, 0.95)
-	fill_style.corner_radius_top_left = 2
-	fill_style.corner_radius_top_right = 2
-	fill_style.corner_radius_bottom_left = 2
-	fill_style.corner_radius_bottom_right = 2
+	fill_style.corner_radius_top_left = 0
+	fill_style.corner_radius_top_right = 0
+	fill_style.corner_radius_bottom_left = 0
+	fill_style.corner_radius_bottom_right = 0
 	bar.add_theme_stylebox_override("fill", fill_style)
 	cvbox.add_child(bar)
 

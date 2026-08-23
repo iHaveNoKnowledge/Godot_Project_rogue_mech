@@ -34,18 +34,18 @@ func _build_ui() -> void:
 
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.06, 0.08, 0.13, 0.97)
-	style.corner_radius_top_left = 10
-	style.corner_radius_top_right = 10
-	style.corner_radius_bottom_left = 10
-	style.corner_radius_bottom_right = 10
+	style.corner_radius_top_left = 0
+	style.corner_radius_top_right = 0
+	style.corner_radius_bottom_left = 0
+	style.corner_radius_bottom_right = 0
 	style.content_margin_left = 18
 	style.content_margin_right = 18
 	style.content_margin_top = 16
 	style.content_margin_bottom = 16
-	style.border_width_left = 2
-	style.border_width_right = 2
-	style.border_width_top = 2
-	style.border_width_bottom = 2
+	style.border_width_left = 1
+	style.border_width_right = 1
+	style.border_width_top = 1
+	style.border_width_bottom = 1
 	style.border_color = Color(0.8, 0.3, 0.2, 0.9)
 	_panel.add_theme_stylebox_override("panel", style)
 

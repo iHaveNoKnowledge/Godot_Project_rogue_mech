@@ -137,17 +137,17 @@ func _create_energy_row() -> void:
 	energy_bar.show_percentage = false
 	_energy_fill = StyleBoxFlat.new()
 	_energy_fill.bg_color = Color(0.2, 0.75, 1.0)
-	_energy_fill.corner_radius_top_left = 2
-	_energy_fill.corner_radius_top_right = 2
-	_energy_fill.corner_radius_bottom_left = 2
-	_energy_fill.corner_radius_bottom_right = 2
+	_energy_fill.corner_radius_top_left = 0
+	_energy_fill.corner_radius_top_right = 0
+	_energy_fill.corner_radius_bottom_left = 0
+	_energy_fill.corner_radius_bottom_right = 0
 	energy_bar.add_theme_stylebox_override("fill", _energy_fill)
 	_energy_bg = StyleBoxFlat.new()
 	_energy_bg.bg_color = Color(0.1, 0.12, 0.18, 0.9)
-	_energy_bg.corner_radius_top_left = 2
-	_energy_bg.corner_radius_top_right = 2
-	_energy_bg.corner_radius_bottom_left = 2
-	_energy_bg.corner_radius_bottom_right = 2
+	_energy_bg.corner_radius_top_left = 0
+	_energy_bg.corner_radius_top_right = 0
+	_energy_bg.corner_radius_bottom_left = 0
+	_energy_bg.corner_radius_bottom_right = 0
 	energy_bar.add_theme_stylebox_override("background", _energy_bg)
 	row.add_child(energy_bar)
 
@@ -293,17 +293,17 @@ func _create_drop_tank_row() -> void:
 	_dt_hp_bar.show_percentage = false
 	_dt_hp_fill = StyleBoxFlat.new()
 	_dt_hp_fill.bg_color = Color(0.85, 0.55, 0.1)
-	_dt_hp_fill.corner_radius_top_left = 2
-	_dt_hp_fill.corner_radius_top_right = 2
-	_dt_hp_fill.corner_radius_bottom_left = 2
-	_dt_hp_fill.corner_radius_bottom_right = 2
+	_dt_hp_fill.corner_radius_top_left = 0
+	_dt_hp_fill.corner_radius_top_right = 0
+	_dt_hp_fill.corner_radius_bottom_left = 0
+	_dt_hp_fill.corner_radius_bottom_right = 0
 	_dt_hp_bar.add_theme_stylebox_override("fill", _dt_hp_fill)
 	var dt_bg := StyleBoxFlat.new()
 	dt_bg.bg_color = Color(0.1, 0.12, 0.18, 0.9)
-	dt_bg.corner_radius_top_left = 2
-	dt_bg.corner_radius_top_right = 2
-	dt_bg.corner_radius_bottom_left = 2
-	dt_bg.corner_radius_bottom_right = 2
+	dt_bg.corner_radius_top_left = 0
+	dt_bg.corner_radius_top_right = 0
+	dt_bg.corner_radius_bottom_left = 0
+	dt_bg.corner_radius_bottom_right = 0
 	_dt_hp_bar.add_theme_stylebox_override("background", dt_bg)
 	_dt_container.add_child(_dt_hp_bar)
 
@@ -401,10 +401,10 @@ func _create_precision_row() -> void:
 	_precision_label.add_theme_color_override("font_color", Color(0.3, 1.0, 0.5))
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(0.1, 0.12, 0.18, 0.9)
-	style.corner_radius_top_left = 4
-	style.corner_radius_top_right = 4
-	style.corner_radius_bottom_left = 4
-	style.corner_radius_bottom_right = 4
+	style.corner_radius_top_left = 0
+	style.corner_radius_top_right = 0
+	style.corner_radius_bottom_left = 0
+	style.corner_radius_bottom_right = 0
 	style.content_margin_left = 6
 	style.content_margin_right = 6
 	style.content_margin_top = 2
@@ -501,16 +501,16 @@ func _create_pilot_hp_ui() -> void:
 	_pilot_hp_bar.visible = false
 	_pilot_hp_fill = StyleBoxFlat.new()
 	_pilot_hp_fill.bg_color = Color(0.2, 0.8, 0.3)
-	_pilot_hp_fill.corner_radius_top_left = 2
-	_pilot_hp_fill.corner_radius_top_right = 2
-	_pilot_hp_fill.corner_radius_bottom_left = 2
-	_pilot_hp_fill.corner_radius_bottom_right = 2
+	_pilot_hp_fill.corner_radius_top_left = 0
+	_pilot_hp_fill.corner_radius_top_right = 0
+	_pilot_hp_fill.corner_radius_bottom_left = 0
+	_pilot_hp_fill.corner_radius_bottom_right = 0
 	_pilot_hp_bar.add_theme_stylebox_override("fill", _pilot_hp_fill)
 	var bg = StyleBoxFlat.new()
 	bg.bg_color = Color(0.1, 0.12, 0.18, 0.9)
-	bg.corner_radius_top_left = 2
-	bg.corner_radius_top_right = 2
-	bg.corner_radius_bottom_left = 2
-	bg.corner_radius_bottom_right = 2
+	bg.corner_radius_top_left = 0
+	bg.corner_radius_top_right = 0
+	bg.corner_radius_bottom_left = 0
+	bg.corner_radius_bottom_right = 0
 	_pilot_hp_bar.add_theme_stylebox_override("background", bg)
 	grid.add_child(_pilot_hp_bar)

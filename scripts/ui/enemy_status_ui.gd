@@ -8,13 +8,13 @@ var panel: PanelContainer = null
 
 var part_blocks: Dictionary = {}
 
-var _color_armor_ok: Color = Color(0.7, 0.82, 0.92, 1.0)
-var _color_armor_broken: Color = Color(0.12, 0.14, 0.18, 0.45)
+var _color_armor_ok: Color = Color(0.68, 0.70, 0.72, 1.0)
+var _color_armor_broken: Color = Color(0.16, 0.16, 0.16, 0.45)
 
-var _color_frame_green: Color = Color(0.22, 0.92, 0.35, 1.0)
-var _color_frame_yellow: Color = Color(0.95, 0.72, 0.12, 1.0)
-var _color_frame_red: Color = Color(0.95, 0.20, 0.18, 1.0)
-var _color_black: Color = Color(0.08, 0.08, 0.10, 0.8)
+var _color_frame_green: Color = Color(0.38, 0.58, 0.34, 1.0)
+var _color_frame_yellow: Color = Color(0.68, 0.62, 0.32, 1.0)
+var _color_frame_red: Color = Color(0.68, 0.32, 0.30, 1.0)
+var _color_black: Color = Color(0.12, 0.12, 0.12, 0.85)
 
 
 func _ready() -> void:
@@ -32,20 +32,20 @@ func setup_target(enemy: Node3D) -> void:
 func _create_ui() -> void:
 	panel = PanelContainer.new()
 	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.06, 0.08, 0.10, 0.85)
+	style.bg_color = Color(0.09, 0.09, 0.09, 0.96)
 	style.border_width_left = 1
 	style.border_width_top = 1
 	style.border_width_right = 1
 	style.border_width_bottom = 1
-	style.border_color = Color(0.2, 0.3, 0.4, 0.6)
-	style.corner_radius_top_left = 3
-	style.corner_radius_top_right = 3
-	style.corner_radius_bottom_left = 3
-	style.corner_radius_bottom_right = 3
-	style.content_margin_left = 4
-	style.content_margin_right = 4
-	style.content_margin_top = 3
-	style.content_margin_bottom = 3
+	style.border_color = Color(0.22, 0.22, 0.22, 1.0)
+	style.corner_radius_top_left = 0
+	style.corner_radius_top_right = 0
+	style.corner_radius_bottom_left = 0
+	style.corner_radius_bottom_right = 0
+	style.content_margin_left = 6
+	style.content_margin_right = 6
+	style.content_margin_top = 4
+	style.content_margin_bottom = 4
 	panel.add_theme_stylebox_override("panel", style)
 	add_child(panel)
 

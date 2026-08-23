@@ -53,15 +53,15 @@ func _create_ui() -> void:
 
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(0.08, 0.1, 0.16, 0.85)
-	style.corner_radius_top_left = 6
-	style.corner_radius_top_right = 6
-	style.corner_radius_bottom_left = 6
-	style.corner_radius_bottom_right = 6
-	style.border_width_left = 2
-	style.border_width_right = 2
-	style.border_width_top = 2
-	style.border_width_bottom = 2
-	style.border_color = Color(0.3, 0.6, 0.9, 0.6)
+	style.corner_radius_top_left = 0
+	style.corner_radius_top_right = 0
+	style.corner_radius_bottom_left = 0
+	style.corner_radius_bottom_right = 0
+	style.border_width_left = 1
+	style.border_width_right = 1
+	style.border_width_top = 1
+	style.border_width_bottom = 1
+	style.border_color = Color(0.22, 0.22, 0.22, 1.0)
 	style.content_margin_left = 15
 	style.content_margin_right = 15
 	style.content_margin_top = 6
@@ -110,15 +110,15 @@ func _create_announce_banner() -> void:
 
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.05, 0.09, 0.14, 0.92)
-	style.border_width_left = 2
-	style.border_width_right = 2
-	style.border_width_top = 2
-	style.border_width_bottom = 2
+	style.border_width_left = 1
+	style.border_width_right = 1
+	style.border_width_top = 1
+	style.border_width_bottom = 1
 	style.border_color = Color(0.5, 0.85, 1.0, 0.9)
-	style.corner_radius_top_left = 6
-	style.corner_radius_top_right = 6
-	style.corner_radius_bottom_left = 6
-	style.corner_radius_bottom_right = 6
+	style.corner_radius_top_left = 0
+	style.corner_radius_top_right = 0
+	style.corner_radius_bottom_left = 0
+	style.corner_radius_bottom_right = 0
 	announce_panel.add_theme_stylebox_override("panel", style)
 
 	announce_label = Label.new()
@@ -160,15 +160,15 @@ func _create_retreat_indicator() -> void:
 
 	_retreat_fill = StyleBoxFlat.new()
 	_retreat_fill.bg_color = Color(0.08, 0.12, 0.2, 0.9)
-	_retreat_fill.border_width_left = 2
-	_retreat_fill.border_width_right = 2
-	_retreat_fill.border_width_top = 2
-	_retreat_fill.border_width_bottom = 2
+	_retreat_fill.border_width_left = 1
+	_retreat_fill.border_width_right = 1
+	_retreat_fill.border_width_top = 1
+	_retreat_fill.border_width_bottom = 1
 	_retreat_fill.border_color = Color(0.3, 0.7, 1.0, 0.9)
-	_retreat_fill.corner_radius_top_left = 6
-	_retreat_fill.corner_radius_top_right = 6
-	_retreat_fill.corner_radius_bottom_left = 6
-	_retreat_fill.corner_radius_bottom_right = 6
+	_retreat_fill.corner_radius_top_left = 0
+	_retreat_fill.corner_radius_top_right = 0
+	_retreat_fill.corner_radius_bottom_left = 0
+	_retreat_fill.corner_radius_bottom_right = 0
 	retreat_panel.add_theme_stylebox_override("panel", _retreat_fill)
 
 	retreat_label = Label.new()
@@ -236,10 +236,10 @@ func _create_countdown_indicator() -> void:
 		root.add_child(_countdown_panel)
 	_countdown_fill = StyleBoxFlat.new()
 	_countdown_fill.bg_color = Color(0.8, 0.1, 0.1, 0.9)
-	_countdown_fill.corner_radius_top_left = 6
-	_countdown_fill.corner_radius_top_right = 6
-	_countdown_fill.corner_radius_bottom_left = 6
-	_countdown_fill.corner_radius_bottom_right = 6
+	_countdown_fill.corner_radius_top_left = 0
+	_countdown_fill.corner_radius_top_right = 0
+	_countdown_fill.corner_radius_bottom_left = 0
+	_countdown_fill.corner_radius_bottom_right = 0
 	_countdown_panel.add_theme_stylebox_override("panel", _countdown_fill)
 	_countdown_label = Label.new()
 	_countdown_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

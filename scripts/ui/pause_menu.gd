@@ -83,18 +83,18 @@ func _create_ui() -> void:
 
 	var style = StyleBoxFlat.new()
 	style.bg_color = _panel_color
-	style.corner_radius_top_left = 12
-	style.corner_radius_top_right = 12
-	style.corner_radius_bottom_left = 12
-	style.corner_radius_bottom_right = 12
+	style.corner_radius_top_left = 0
+	style.corner_radius_top_right = 0
+	style.corner_radius_bottom_left = 0
+	style.corner_radius_bottom_right = 0
 	style.content_margin_left = 30
 	style.content_margin_right = 30
 	style.content_margin_top = 26
 	style.content_margin_bottom = 26
-	style.border_width_left = 2
-	style.border_width_right = 2
-	style.border_width_top = 2
-	style.border_width_bottom = 2
+	style.border_width_left = 1
+	style.border_width_right = 1
+	style.border_width_top = 1
+	style.border_width_bottom = 1
 	style.border_color = Color(0.3, 0.4, 0.6, 0.6)
 	panel.add_theme_stylebox_override("panel", style)
 	root_control.add_child(panel)
@@ -183,10 +183,10 @@ func _create_button(text: String, accent: Color) -> Button:
 
 	var normal_style = StyleBoxFlat.new()
 	normal_style.bg_color = Color(0.15, 0.18, 0.25, 0.9)
-	normal_style.corner_radius_top_left = 6
-	normal_style.corner_radius_top_right = 6
-	normal_style.corner_radius_bottom_left = 6
-	normal_style.corner_radius_bottom_right = 6
+	normal_style.corner_radius_top_left = 0
+	normal_style.corner_radius_top_right = 0
+	normal_style.corner_radius_bottom_left = 0
+	normal_style.corner_radius_bottom_right = 0
 	normal_style.border_width_left = 1
 	normal_style.border_width_right = 1
 	normal_style.border_width_top = 1
@@ -196,14 +196,14 @@ func _create_button(text: String, accent: Color) -> Button:
 
 	var hover_style = StyleBoxFlat.new()
 	hover_style.bg_color = accent.darkened(0.6)
-	hover_style.corner_radius_top_left = 6
-	hover_style.corner_radius_top_right = 6
-	hover_style.corner_radius_bottom_left = 6
-	hover_style.corner_radius_bottom_right = 6
-	hover_style.border_width_left = 2
-	hover_style.border_width_right = 2
-	hover_style.border_width_top = 2
-	hover_style.border_width_bottom = 2
+	hover_style.corner_radius_top_left = 0
+	hover_style.corner_radius_top_right = 0
+	hover_style.corner_radius_bottom_left = 0
+	hover_style.corner_radius_bottom_right = 0
+	hover_style.border_width_left = 1
+	hover_style.border_width_right = 1
+	hover_style.border_width_top = 1
+	hover_style.border_width_bottom = 1
 	hover_style.border_color = accent
 	btn.add_theme_stylebox_override("hover", hover_style)
 

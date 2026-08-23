@@ -23,7 +23,7 @@ func build(root: Control) -> void:
 	header.mouse_filter = Control.MOUSE_FILTER_PASS
 
 	var style_hdr = StyleBoxFlat.new()
-	style_hdr.bg_color = Color(0.06, 0.08, 0.12, 0.92)
+	style_hdr.bg_color = Color(0.09, 0.09, 0.09, 0.96)
 	header.add_theme_stylebox_override("panel", style_hdr)
 
 	var header_vbox = VBoxContainer.new()

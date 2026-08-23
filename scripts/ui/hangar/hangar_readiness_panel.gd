@@ -79,16 +79,16 @@ func _show_warning_modal(warnings: Array[String], on_confirm: Callable) -> void:
 	modal.offset_bottom = 150
 
 	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.12, 0.08, 0.08, 0.95)
-	style.border_width_left = 2
-	style.border_width_top = 2
-	style.border_width_right = 2
-	style.border_width_bottom = 2
+	style.bg_color = Color(0.09, 0.09, 0.09, 0.96)
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
 	style.border_color = Color(1.0, 0.4, 0.2)
-	style.corner_radius_top_left = 6
-	style.corner_radius_top_right = 6
-	style.corner_radius_bottom_left = 6
-	style.corner_radius_bottom_right = 6
+	style.corner_radius_top_left = 0
+	style.corner_radius_top_right = 0
+	style.corner_radius_bottom_left = 0
+	style.corner_radius_bottom_right = 0
 	modal.add_theme_stylebox_override("panel", style)
 
 	var vbox = VBoxContainer.new()

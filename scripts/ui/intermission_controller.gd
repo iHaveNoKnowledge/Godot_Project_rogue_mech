@@ -60,10 +60,10 @@ func _create_ui() -> void:
 
 	var menu_style = StyleBoxFlat.new()
 	menu_style.bg_color = Color(0.1, 0.1, 0.15, 0.9)
-	menu_style.corner_radius_top_left = 8
-	menu_style.corner_radius_top_right = 8
-	menu_style.corner_radius_bottom_left = 8
-	menu_style.corner_radius_bottom_right = 8
+	menu_style.corner_radius_top_left = 0
+	menu_style.corner_radius_top_right = 0
+	menu_style.corner_radius_bottom_left = 0
+	menu_style.corner_radius_bottom_right = 0
 	menu_style.content_margin_left = 15
 	menu_style.content_margin_right = 15
 	menu_style.content_margin_top = 15
@@ -118,10 +118,10 @@ func _create_ui() -> void:
 
 	var info_style = StyleBoxFlat.new()
 	info_style.bg_color = Color(0.1, 0.1, 0.15, 0.9)
-	info_style.corner_radius_top_left = 8
-	info_style.corner_radius_top_right = 8
-	info_style.corner_radius_bottom_left = 8
-	info_style.corner_radius_bottom_right = 8
+	info_style.corner_radius_top_left = 0
+	info_style.corner_radius_top_right = 0
+	info_style.corner_radius_bottom_left = 0
+	info_style.corner_radius_bottom_right = 0
 	info_style.content_margin_left = 15
 	info_style.content_margin_right = 15
 	info_style.content_margin_top = 15
@@ -161,10 +161,10 @@ func _create_ui() -> void:
 
 	var status_style = StyleBoxFlat.new()
 	status_style.bg_color = Color(0.06, 0.09, 0.16, 0.94)
-	status_style.corner_radius_top_left = 8
-	status_style.corner_radius_top_right = 8
-	status_style.corner_radius_bottom_left = 8
-	status_style.corner_radius_bottom_right = 8
+	status_style.corner_radius_top_left = 0
+	status_style.corner_radius_top_right = 0
+	status_style.corner_radius_bottom_left = 0
+	status_style.corner_radius_bottom_right = 0
 	status_style.content_margin_left = 16
 	status_style.content_margin_right = 16
 	status_style.content_margin_top = 6
@@ -173,7 +173,7 @@ func _create_ui() -> void:
 	status_style.border_width_right = 1
 	status_style.border_width_top = 1
 	status_style.border_width_bottom = 1
-	status_style.border_color = Color(0.28, 0.52, 0.82, 0.55)
+	status_style.border_color = Color(0.22, 0.22, 0.22, 1.0)
 	status_panel.add_theme_stylebox_override("panel", status_style)
 
 	status_label = Label.new()

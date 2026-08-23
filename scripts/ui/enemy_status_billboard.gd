@@ -13,13 +13,13 @@ var part_blocks: Dictionary = {}
 ## label is skipped entirely (their name plate stays the 3D Label3D only).
 var name_label: Label = null
 
-var _color_armor_ok: Color = Color(0.7, 0.82, 0.92, 1.0)
-var _color_armor_broken: Color = Color(0.12, 0.14, 0.18, 0.45)
+var _color_armor_ok: Color = Color(0.68, 0.70, 0.72, 1.0)
+var _color_armor_broken: Color = Color(0.16, 0.16, 0.16, 0.45)
 
-var _color_frame_green: Color = Color(0.22, 0.92, 0.35, 1.0)
-var _color_frame_yellow: Color = Color(0.95, 0.72, 0.12, 1.0)
-var _color_frame_red: Color = Color(0.95, 0.20, 0.18, 1.0)
-var _color_black: Color = Color(0.08, 0.08, 0.10, 0.8)
+var _color_frame_green: Color = Color(0.38, 0.58, 0.34, 1.0)
+var _color_frame_yellow: Color = Color(0.68, 0.62, 0.32, 1.0)
+var _color_frame_red: Color = Color(0.68, 0.32, 0.30, 1.0)
+var _color_black: Color = Color(0.12, 0.12, 0.12, 0.85)
 
 # Set by the owning enemy when it is concealed inside cover — hides the whole
 # billboard (part blocks + name plate) so no UI betrays the hidden unit.
@@ -54,17 +54,17 @@ func setup_target(enemy: Node3D, pilot_name: String = "") -> void:
 		visible = true
 
 
-# Name plate above the part blocks, tinted friendly blue to match the ally
-# theme (enemies never set it, so they keep the compact blocks-only billboard).
+# Name plate above the part blocks — mono tactical, readable Medium
 func _add_name_label(pilot_name: String) -> void:
 	name_label = Label.new()
 	name_label.text = pilot_name
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.add_theme_font_size_override("font_size", 11)
-	name_label.add_theme_color_override("font_color", Color(0.45, 0.85, 1.0))
-	name_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.8))
+	name_label.add_theme_font_size_override("font_size", 13)
+	name_label.add_theme_color_override("font_color", Color(0.92, 0.92, 0.92, 1.0))
+	name_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.85))
 	name_label.add_theme_constant_override("shadow_offset_x", 1)
 	name_label.add_theme_constant_override("shadow_offset_y", 1)
+	name_label.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Medium.ttf"))
 	add_child(name_label)
 
 
@@ -72,20 +72,20 @@ func _create_ui() -> void:
 	panel = PanelContainer.new()
 
 	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.06, 0.08, 0.10, 0.85)
+	style.bg_color = Color(0.09, 0.09, 0.09, 0.96)
 	style.border_width_left = 1
 	style.border_width_top = 1
 	style.border_width_right = 1
 	style.border_width_bottom = 1
-	style.border_color = Color(0.2, 0.3, 0.4, 0.6)
-	style.corner_radius_top_left = 3
-	style.corner_radius_top_right = 3
-	style.corner_radius_bottom_left = 3
-	style.corner_radius_bottom_right = 3
-	style.content_margin_left = 4
-	style.content_margin_right = 4
-	style.content_margin_top = 3
-	style.content_margin_bottom = 3
+	style.border_color = Color(0.22, 0.22, 0.22, 1.0)
+	style.corner_radius_top_left = 0
+	style.corner_radius_top_right = 0
+	style.corner_radius_bottom_left = 0
+	style.corner_radius_bottom_right = 0
+	style.content_margin_left = 6
+	style.content_margin_right = 6
+	style.content_margin_top = 4
+	style.content_margin_bottom = 4
 	panel.add_theme_stylebox_override("panel", style)
 	add_child(panel)
 

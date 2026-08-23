@@ -56,11 +56,11 @@ func build_landing_rail(root: Control) -> void:
 	root.add_child(submenu_panel)
 
 	var style_rail = StyleBoxFlat.new()
-	style_rail.bg_color = Color(0.08, 0.1, 0.15, 0.92)
-	style_rail.corner_radius_top_left = 8
-	style_rail.corner_radius_top_right = 8
-	style_rail.corner_radius_bottom_left = 8
-	style_rail.corner_radius_bottom_right = 8
+	style_rail.bg_color = Color(0.09, 0.09, 0.09, 0.96)
+	style_rail.corner_radius_top_left = 0
+	style_rail.corner_radius_top_right = 0
+	style_rail.corner_radius_bottom_left = 0
+	style_rail.corner_radius_bottom_right = 0
 	style_rail.content_margin_left = 14
 	style_rail.content_margin_right = 14
 	style_rail.content_margin_top = 14

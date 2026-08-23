@@ -30,10 +30,10 @@ func _create_ui() -> void:
 
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(0.08, 0.1, 0.14, 0.95)
-	style.corner_radius_top_left = 6
-	style.corner_radius_top_right = 6
-	style.corner_radius_bottom_left = 6
-	style.corner_radius_bottom_right = 6
+	style.corner_radius_top_left = 0
+	style.corner_radius_top_right = 0
+	style.corner_radius_bottom_left = 0
+	style.corner_radius_bottom_right = 0
 	style.content_margin_left = 10
 	style.content_margin_right = 10
 	style.content_margin_top = 6

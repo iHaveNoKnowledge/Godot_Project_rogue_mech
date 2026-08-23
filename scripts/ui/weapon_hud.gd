@@ -100,10 +100,10 @@ func _get_fist_cd_style() -> StyleBoxFlat:
 	if _fist_cd_style == null:
 		_fist_cd_style = StyleBoxFlat.new()
 		_fist_cd_style.bg_color = Color(0.95, 0.75, 0.2, 0.95)
-		_fist_cd_style.corner_radius_top_left = 3
-		_fist_cd_style.corner_radius_top_right = 3
-		_fist_cd_style.corner_radius_bottom_left = 3
-		_fist_cd_style.corner_radius_bottom_right = 3
+		_fist_cd_style.corner_radius_top_left = 0
+		_fist_cd_style.corner_radius_top_right = 0
+		_fist_cd_style.corner_radius_bottom_left = 0
+		_fist_cd_style.corner_radius_bottom_right = 0
 	return _fist_cd_style
 
 
@@ -244,10 +244,10 @@ func _make_panel_style(bg_color: Color = _bg_color, corner: int = 8) -> StyleBox
 func _make_heat_style() -> StyleBoxFlat:
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(0.6, 0.1, 0.05, 0.9)
-	style.corner_radius_top_left = 3
-	style.corner_radius_top_right = 3
-	style.corner_radius_bottom_left = 3
-	style.corner_radius_bottom_right = 3
+	style.corner_radius_top_left = 0
+	style.corner_radius_top_right = 0
+	style.corner_radius_bottom_left = 0
+	style.corner_radius_bottom_right = 0
 	return style
 
 
@@ -302,16 +302,16 @@ func _create_left_panel() -> void:
 	left_heat_bar.visible = false
 	var heat_style = StyleBoxFlat.new()
 	heat_style.bg_color = Color(0.6, 0.1, 0.05, 0.9)
-	heat_style.corner_radius_top_left = 3
-	heat_style.corner_radius_top_right = 3
-	heat_style.corner_radius_bottom_left = 3
-	heat_style.corner_radius_bottom_right = 3
+	heat_style.corner_radius_top_left = 0
+	heat_style.corner_radius_top_right = 0
+	heat_style.corner_radius_bottom_left = 0
+	heat_style.corner_radius_bottom_right = 0
 	var bg_style = StyleBoxFlat.new()
 	bg_style.bg_color = Color(0.15, 0.15, 0.2, 0.8)
-	bg_style.corner_radius_top_left = 3
-	bg_style.corner_radius_top_right = 3
-	bg_style.corner_radius_bottom_left = 3
-	bg_style.corner_radius_bottom_right = 3
+	bg_style.corner_radius_top_left = 0
+	bg_style.corner_radius_top_right = 0
+	bg_style.corner_radius_bottom_left = 0
+	bg_style.corner_radius_bottom_right = 0
 	left_heat_bar.add_theme_stylebox_override("fill", _make_heat_style())
 	left_heat_bar.add_theme_stylebox_override("background", bg_style)
 	vbox.add_child(left_heat_bar)
@@ -373,16 +373,16 @@ func _create_right_panel() -> void:
 	right_heat_bar.visible = false
 	var rheat_style = StyleBoxFlat.new()
 	rheat_style.bg_color = Color(0.6, 0.1, 0.05, 0.9)
-	rheat_style.corner_radius_top_left = 3
-	rheat_style.corner_radius_top_right = 3
-	rheat_style.corner_radius_bottom_left = 3
-	rheat_style.corner_radius_bottom_right = 3
+	rheat_style.corner_radius_top_left = 0
+	rheat_style.corner_radius_top_right = 0
+	rheat_style.corner_radius_bottom_left = 0
+	rheat_style.corner_radius_bottom_right = 0
 	var rbg_style = StyleBoxFlat.new()
 	rbg_style.bg_color = Color(0.15, 0.15, 0.2, 0.8)
-	rbg_style.corner_radius_top_left = 3
-	rbg_style.corner_radius_top_right = 3
-	rbg_style.corner_radius_bottom_left = 3
-	rbg_style.corner_radius_bottom_right = 3
+	rbg_style.corner_radius_top_left = 0
+	rbg_style.corner_radius_top_right = 0
+	rbg_style.corner_radius_bottom_left = 0
+	rbg_style.corner_radius_bottom_right = 0
 	right_heat_bar.add_theme_stylebox_override("fill", _make_heat_style())
 	right_heat_bar.add_theme_stylebox_override("background", rbg_style)
 	vbox.add_child(right_heat_bar)

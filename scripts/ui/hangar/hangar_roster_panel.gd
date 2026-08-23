@@ -88,9 +88,9 @@ func build(root: Control) -> void:
 	root.add_child(roster_panel)
 
 	var style_roster = StyleBoxFlat.new()
-	style_roster.bg_color = Color(0.07, 0.09, 0.14, 0.94)
-	style_roster.corner_radius_top_left = 8
-	style_roster.corner_radius_bottom_left = 8
+	style_roster.bg_color = Color(0.09, 0.09, 0.09, 0.96)
+	style_roster.corner_radius_top_left = 0
+	style_roster.corner_radius_bottom_left = 0
 	style_roster.content_margin_left = 14
 	style_roster.content_margin_right = 14
 	style_roster.content_margin_top = 14
@@ -528,16 +528,16 @@ func build_pending_register_banner(slot: int) -> void:
 	modal.offset_bottom = banner_top + 168
 
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.10, 0.12, 0.18, 0.97)
-	style.border_width_left = 2
-	style.border_width_top = 2
-	style.border_width_right = 2
-	style.border_width_bottom = 2
+	style.bg_color = Color(0.09, 0.09, 0.09, 0.96)
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
 	style.border_color = controller._highlight_color
-	style.corner_radius_top_left = 8
-	style.corner_radius_top_right = 8
-	style.corner_radius_bottom_left = 8
-	style.corner_radius_bottom_right = 8
+	style.corner_radius_top_left = 0
+	style.corner_radius_top_right = 0
+	style.corner_radius_bottom_left = 0
+	style.corner_radius_bottom_right = 0
 	modal.add_theme_stylebox_override("panel", style)
 
 	var vbox := VBoxContainer.new()
@@ -693,16 +693,16 @@ func build_register_dialog(slot: int) -> void:
 	modal.offset_bottom = 125
 
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.10, 0.10, 0.16, 0.97)
-	style.border_width_left = 2
-	style.border_width_top = 2
-	style.border_width_right = 2
-	style.border_width_bottom = 2
+	style.bg_color = Color(0.09, 0.09, 0.09, 0.96)
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
 	style.border_color = controller._highlight_color
-	style.corner_radius_top_left = 8
-	style.corner_radius_top_right = 8
-	style.corner_radius_bottom_left = 8
-	style.corner_radius_bottom_right = 8
+	style.corner_radius_top_left = 0
+	style.corner_radius_top_right = 0
+	style.corner_radius_bottom_left = 0
+	style.corner_radius_bottom_right = 0
 	modal.add_theme_stylebox_override("panel", style)
 
 	var vbox := VBoxContainer.new()
@@ -846,16 +846,16 @@ func build_rename_dialog(mech: Dictionary) -> void:
 	modal.offset_bottom = 110
 
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.10, 0.10, 0.16, 0.97)
-	style.border_width_left = 2
-	style.border_width_top = 2
-	style.border_width_right = 2
-	style.border_width_bottom = 2
+	style.bg_color = Color(0.09, 0.09, 0.09, 0.96)
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
 	style.border_color = controller._highlight_color
-	style.corner_radius_top_left = 8
-	style.corner_radius_top_right = 8
-	style.corner_radius_bottom_left = 8
-	style.corner_radius_bottom_right = 8
+	style.corner_radius_top_left = 0
+	style.corner_radius_top_right = 0
+	style.corner_radius_bottom_left = 0
+	style.corner_radius_bottom_right = 0
 	modal.add_theme_stylebox_override("panel", style)
 
 	var vbox := VBoxContainer.new()

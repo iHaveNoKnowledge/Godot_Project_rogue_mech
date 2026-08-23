@@ -250,15 +250,15 @@ func apply_tab_blink(on: bool) -> void:
 	btn.modulate = Color.WHITE
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.25, 0.55, 1.0, 0.95 if on else 0.35)
-	style.border_width_left = 2
-	style.border_width_top = 2
-	style.border_width_right = 2
-	style.border_width_bottom = 2
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
 	style.border_color = Color(1.0, 0.9, 0.4, 1.0)
-	style.corner_radius_top_left = 4
-	style.corner_radius_top_right = 4
-	style.corner_radius_bottom_left = 4
-	style.corner_radius_bottom_right = 4
+	style.corner_radius_top_left = 0
+	style.corner_radius_top_right = 0
+	style.corner_radius_bottom_left = 0
+	style.corner_radius_bottom_right = 0
 	for state in ["normal", "hover", "pressed", "focus"]:
 		btn.add_theme_stylebox_override(state, style)
 	btn.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 1.0))

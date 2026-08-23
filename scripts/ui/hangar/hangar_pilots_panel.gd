@@ -31,9 +31,9 @@ func build(root: Control) -> void:
 	root.add_child(panel)
 
 	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.07, 0.09, 0.14, 0.94)
-	style.corner_radius_top_left = 8
-	style.corner_radius_bottom_left = 8
+	style.bg_color = Color(0.09, 0.09, 0.09, 0.96)
+	style.corner_radius_top_left = 0
+	style.corner_radius_bottom_left = 0
 	style.content_margin_left = 14
 	style.content_margin_right = 14
 	style.content_margin_top = 14

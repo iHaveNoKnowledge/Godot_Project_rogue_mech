@@ -85,16 +85,16 @@ func build_window() -> void:
 	modal.offset_bottom = 330
 
 	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.10, 0.10, 0.16, 0.97)
-	style.border_width_left = 2
-	style.border_width_top = 2
-	style.border_width_right = 2
-	style.border_width_bottom = 2
+	style.bg_color = Color(0.09, 0.09, 0.09, 0.96)
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
 	style.border_color = controller._highlight_color
-	style.corner_radius_top_left = 8
-	style.corner_radius_top_right = 8
-	style.corner_radius_bottom_left = 8
-	style.corner_radius_bottom_right = 8
+	style.corner_radius_top_left = 0
+	style.corner_radius_top_right = 0
+	style.corner_radius_bottom_left = 0
+	style.corner_radius_bottom_right = 0
 	modal.add_theme_stylebox_override("panel", style)
 
 	var vbox = VBoxContainer.new()

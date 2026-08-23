@@ -357,10 +357,10 @@ func _build_ui() -> void:
 func _make_panel_style(bg: Color) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = bg
-	style.corner_radius_top_left = 8
-	style.corner_radius_top_right = 8
-	style.corner_radius_bottom_left = 8
-	style.corner_radius_bottom_right = 8
+	style.corner_radius_top_left = 0
+	style.corner_radius_top_right = 0
+	style.corner_radius_bottom_left = 0
+	style.corner_radius_bottom_right = 0
 	style.content_margin_left = 12
 	style.content_margin_right = 12
 	style.content_margin_top = 12

@@ -35,15 +35,15 @@ func build(root: Control) -> void:
 
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(0.16, 0.07, 0.06, 0.94)
-	style.border_width_left = 2
-	style.border_width_top = 2
-	style.border_width_right = 2
-	style.border_width_bottom = 2
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
 	style.border_color = Color(1.0, 0.4, 0.2)
-	style.corner_radius_top_left = 6
-	style.corner_radius_top_right = 6
-	style.corner_radius_bottom_left = 6
-	style.corner_radius_bottom_right = 6
+	style.corner_radius_top_left = 0
+	style.corner_radius_top_right = 0
+	style.corner_radius_bottom_left = 0
+	style.corner_radius_bottom_right = 0
 	style.content_margin_left = 12
 	style.content_margin_right = 12
 	style.content_margin_top = 6

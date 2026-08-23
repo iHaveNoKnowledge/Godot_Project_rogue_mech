@@ -69,11 +69,11 @@ func _build_ui() -> void:
 	_root.add_child(panel)
 
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.07, 0.09, 0.14, 0.97)
-	style.corner_radius_top_left = 10
-	style.corner_radius_top_right = 10
-	style.corner_radius_bottom_left = 10
-	style.corner_radius_bottom_right = 10
+	style.bg_color = Color(0.09, 0.09, 0.09, 0.96)
+	style.corner_radius_top_left = 0
+	style.corner_radius_top_right = 0
+	style.corner_radius_bottom_left = 0
+	style.corner_radius_bottom_right = 0
 	style.border_width_left = 1
 	style.border_width_right = 1
 	style.border_width_top = 1

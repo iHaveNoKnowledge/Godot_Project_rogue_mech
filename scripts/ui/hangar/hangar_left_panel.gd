@@ -25,9 +25,9 @@ func build(root: Control) -> void:
 	root.add_child(left_panel)
 
 	var style_left = StyleBoxFlat.new()
-	style_left.bg_color = Color(0.08, 0.1, 0.15, 0.88)
-	style_left.corner_radius_top_left = 8
-	style_left.corner_radius_bottom_left = 8
+	style_left.bg_color = Color(0.09, 0.09, 0.09, 0.96)
+	style_left.corner_radius_top_left = 0
+	style_left.corner_radius_bottom_left = 0
 	style_left.content_margin_left = 12
 	style_left.content_margin_right = 12
 	style_left.content_margin_top = 12
@@ -48,16 +48,16 @@ func build(root: Control) -> void:
 	var eq_box_panel = PanelContainer.new()
 	eq_box_panel.custom_minimum_size = Vector2(0, 68)
 	var eq_box_style = StyleBoxFlat.new()
-	eq_box_style.bg_color = Color(0.10, 0.14, 0.20, 0.95)
-	eq_box_style.border_width_left = 2
-	eq_box_style.border_width_right = 2
-	eq_box_style.border_width_top = 2
-	eq_box_style.border_width_bottom = 2
+	eq_box_style.bg_color = Color(0.09, 0.09, 0.09, 0.96)
+	eq_box_style.border_width_left = 1
+	eq_box_style.border_width_right = 1
+	eq_box_style.border_width_top = 1
+	eq_box_style.border_width_bottom = 1
 	eq_box_style.border_color = Color(0.2, 0.85, 0.55, 0.9) # Cyber emerald highlight
-	eq_box_style.corner_radius_top_left = 6
-	eq_box_style.corner_radius_top_right = 6
-	eq_box_style.corner_radius_bottom_left = 6
-	eq_box_style.corner_radius_bottom_right = 6
+	eq_box_style.corner_radius_top_left = 0
+	eq_box_style.corner_radius_top_right = 0
+	eq_box_style.corner_radius_bottom_left = 0
+	eq_box_style.corner_radius_bottom_right = 0
 	eq_box_style.content_margin_left = 10
 	eq_box_style.content_margin_right = 10
 	eq_box_style.content_margin_top = 6

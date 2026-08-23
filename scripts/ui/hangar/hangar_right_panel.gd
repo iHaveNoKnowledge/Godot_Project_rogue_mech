@@ -28,9 +28,9 @@ func build(root: Control) -> void:
 	root.add_child(right_panel)
 
 	var style_right = StyleBoxFlat.new()
-	style_right.bg_color = Color(0.08, 0.1, 0.15, 0.88)
-	style_right.corner_radius_top_right = 8
-	style_right.corner_radius_bottom_right = 8
+	style_right.bg_color = Color(0.09, 0.09, 0.09, 0.96)
+	style_right.corner_radius_top_right = 0
+	style_right.corner_radius_bottom_right = 0
 	style_right.content_margin_left = 14
 	style_right.content_margin_right = 14
 	style_right.content_margin_top = 14
@@ -61,16 +61,16 @@ func build(root: Control) -> void:
 	# ladder with four progress pips (filled toward the next whole tier).
 	var tier_panel = PanelContainer.new()
 	var tier_style = StyleBoxFlat.new()
-	tier_style.bg_color = Color(0.05, 0.07, 0.11, 0.9)
+	tier_style.bg_color = Color(0.09, 0.09, 0.09, 0.96)
 	tier_style.border_width_left = 1
 	tier_style.border_width_top = 1
 	tier_style.border_width_right = 1
 	tier_style.border_width_bottom = 1
 	tier_style.border_color = Color(0.4, 0.55, 0.75, 0.8)
-	tier_style.corner_radius_top_left = 6
-	tier_style.corner_radius_top_right = 6
-	tier_style.corner_radius_bottom_left = 6
-	tier_style.corner_radius_bottom_right = 6
+	tier_style.corner_radius_top_left = 0
+	tier_style.corner_radius_top_right = 0
+	tier_style.corner_radius_bottom_left = 0
+	tier_style.corner_radius_bottom_right = 0
 	tier_style.content_margin_left = 10
 	tier_style.content_margin_right = 10
 	tier_style.content_margin_top = 8

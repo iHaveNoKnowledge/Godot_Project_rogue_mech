@@ -1,191 +1,221 @@
-# 📑 Master Game Design Document (GDD)
 
-**Project Title:** (Working Title)  
-**Genre:** Single-Player Hybrid (Tabletop Board + 3rd Person Action Mecha)  
-**Engine Target:** Godot Engine  
-**Core Theme:** Military Science Fiction / Tactical Mecha (Grounded, High-Stakes, Strategic Mechanics)  
-**Core Architecture:** Procedural Modular Assembly System (Catalog-Driven Parts & Enemies)  
-**Core Concept:** เกมวางแผนยุทธศาสตร์ทางทหารสไตล์บอร์ดเกม ผสมผสานฉากต่อสู้ 3rd Person Action ที่เน้นความสมจริง การบริหารเชื้อเพลิง ความสึกหรอของชิ้นส่วน และการเอาชีวิตรอดของนักบิน
+# Master Game Design Document (GDD)
 
----
+**Project Title:** (Working Title)
+
+**Genre:** Single-Player Hybrid (Tabletop Board + 3rd Person Action Mecha)
+
+**Engine Target:** Godot Engine (Godot 4.x)
+
+**Core Theme:** Military Science Fiction / Tactical Mecha (Grounded, High-Stakes, Strategic Mechanics)
+
+**Core Architecture:** Procedural Modular Assembly System (Catalog-Driven Parts, Enemies & Pilots)
+
+**Core Concept:** เกมวางแผนยุทธศาสตร์ทางทหารสไตล์บอร์ดเกม ผสมผสานฉากต่อสู้ 3rd Person Action ที่เน้นความสมจริง การบริหารเวลา เชื้อเพลิงในรูปแบบ Container Inventory ความสึกหรอของชิ้นส่วน และการเอาชีวิตรอดของนักบิน
 
 ## 🛠️ 1. Core Gameplay Loop
-[ Strategic Board Phase ]
-(บริหาร MP / จัดการ Convoy / วางแผนเส้นทาง / รับมือ Simultaneous Enemy Turns)
-│
-▼  (โดนซุ่มโจมตี / ปะทะ Fleet ศัตรู / บุกยึด Depot)
+
+```
+[ Strategic Board Phase (24-Hour Operational Cycle) ]
+ (บริหาร Time Cost / สลับขับ Convoy หรือ Mecha / บริการจัดการ Fuel Inventory / Simultaneous Enemy Turns)
+          │
+          ▼  (โดนซุ่มโจมตี / ปะทะ Fleet ศัตรู / บุกยึด Fuel Depot)
 [ 3rd Person Action Combat Phase ]
-(สู้แบบอิสระ / Precision Dash vs Spam / ปรับตาม Fleet Archetype / ปกป้อง Convoy)
-│
-▼  (จบการรบ / ถอยทัพ / Re-ignition / สูบน้ำมัน)
+ (สู้แบบอิสระ / Precision Dash vs Spam / ปรับตาม Fleet Archetype / ปกป้อง Convoy)
+          │
+          ▼  (จบการรบ / ถอยทัพ / Re-ignition / ลากถังน้ำมัน)
 [ Post-Battle & Garage Phase ]
-(ซ่อมเกราะ Wear System / เติมเชื้อเพลิงบริสุทธิ์ / อัปเกรด Frame Tiers / Scavenge Parts)
+ (ซ่อมเกราะ Frame Binding / เติมเชื้อเพลิงบริสุทธิ์ / อัปเกรด Core Tiers / Scavenge Parts)
+```
 
 ### 1.1 Game Modes & Onboarding Flow
 
 #### Game Modes
-* **Campaign Mode (Main Loop):** โหมดวางแผนเอาชีวิตรอดทางยุทธวิธี เดินทางผ่านแผนที่บอร์ดเกม บริหารทรัพยากร Convoy ปะทะ Enemy Fleets และค้นหา Parts จาก Catalog
-* **Combat Simulator (Arena):** โหมดทดสอบการต่อสู้ 3rd Person Action อิสระ สำหรับทดลองประกอบชิ้นส่วนและซ้อมมือกับ AI นักบินรูปแบบต่างๆ
 
-#### Campaign Game Onboarding (ขั้นตอนการเริ่มเล่น)
-1. **Hangar Assembly:** เลือกหุ่นเริ่มต้น Tier 1, จัด Loadout อาวุธ และตั้งค่า Pilot
-2. **Board Spawn:** วางขบวน Convoy ลงบน Start Tile พร้อมสุ่มสร้าง Enemy Fleets และจุดสนใจ (POIs) บนแผนที่
-3. **First Tactical Turn:** เริ่มบริหารค่า MP และ Global Energy ในการเดินบอร์ดวันแรก
+* **Campaign Mode (Main Loop):** โหมดวางแผนเอาชีวิตรอดทางยุทธวิธี เดินทางผ่านแผนที่บอร์ดเกม บริหารทรัพยากร Convoy ปะทะ Enemy Fleets และค้นหา Parts จาก Catalog^^
+* **Combat Simulator (Arena):** โหมดทดสอบการต่อสู้ 3rd Person Action อิสระ สำหรับทดลองประกอบชิ้นส่วนและซ้อมมือกับ AI นักบินรูปแบบต่างๆ^^
 
----
+#### Campaign Game Onboarding
 
-## ⚙️ 2. Modular Part Catalog & Assembly System (ระบบชิ้นส่วน)
+1. **Hangar Assembly:** เลือกหุ่นเริ่มต้น Tier 1, จัด Loadout อาวุธ และตั้งค่า Pilot^^
+2. **Board Spawn:** วางขบวน Convoy ลงบน Start Tile พร้อมสุ่มสร้าง Enemy Fleets และจุดสนใจ (POIs) บนแผนที่^^
+3. **First Tactical Turn:** เริ่มบริหาร Time Cost (ชั่วโมง) และ Global Fuel Inventory ในการเดินบอร์ดวันแรก
 
-เกมจะไม่ Hardcode ศัตรูเป็นตัวๆ แต่ใช้ระบบ **Procedural Dynamic Assembly** โดยดึงชิ้นส่วนจาก Catalog มาประกอบตามกฎของแต่ละ Fleet
+## ⚙️ 2. Modular Catalog & Procedural Generation Architecture
 
 ### 2.1 Global Part Catalogs
-ชิ้นส่วนทั้งหมดในเกม (ทั้งฝั่งผู้เล่นและศัตรู) ถูกเก็บเป็น Data Resources แบ่งเป็น 5 หมวดหลัก:
-* **Head Catalog:** ค่าระบบเซนเซอร์, ความเร็วในการล็อกเป้า, และ HUD Utility
-* **Torso Catalog:** เตาปฏิกรณ์หลัก (Core Energy), อัตราการสะสมความร้อน (Heat Generation), และโครงสร้างเกราะหลัก
-* **Arm Catalog:** ค่ากำลังแบกน้ำหนัก (Load Capacity), แรงดีดปืน (Recoil Control), และการสวิงอาวุธประชิด
-* **Leg Catalog:** โหมดการเคลื่อนที่ (Bipedal Walk / Roller Dash Mechanism), สปีดการพุ่ง, และ MP/Energy Cost
-* **Weapon Catalog:** ค่าความเสียหาย, ประเภทกระสุน, อัตราสิ้นเปลืองพลังงาน, และแรงดีด
+
+ชิ้นส่วนทั้งหมดในเกมถูกเก็บเป็น Data Resources แบ่งเป็น 5 หมวดหลัก:^^
+
+* **Head Catalog:** ค่าระบบเซนเซอร์, ความเร็วในการล็อกเป้า, และ HUD Utility^^
+* **Torso Catalog:** เตาปฏิกรณ์หลัก (Power Core Classes), อัตราการสะสมความร้อน (Heat Generation), และโครงสร้างเกราะหลัก
+* **Arm Catalog:** ค่ากำลังแบกน้ำหนัก (Load Capacity), แรงดีดปืน (Recoil Control), และการสวิงอาวุธประชิด^^
+* **Leg Catalog:** โหมดการเคลื่อนที่ (Bipedal Walk / Roller Dash Mechanism), สปีดการพุ่ง, และ MP/Energy Cost^^
+* **Weapon Catalog:** ค่าความเสียหาย, ประเภทกระสุน, อัตราสิ้นเปลืองพลังงาน, และแรงดีด^^
 
 ### 2.2 Dynamic Enemy Generation Logic
-* **No Hardcoded Enemies:** ศัตรูทุกตัวถูกสุ่มสร้างขณะสปอว์นบนบอร์ดตาม **Fleet Rules & Tag Constraints**
-* **Consistent Looting System (WYSIWYG):** เมื่อยิงศัตรูพัง ชิ้นส่วน อะไหล่ หรือ Inner Frame ที่สแกน/ถอดออกมาได้ จะเป็นชิ้นส่วนเดียวกับที่ศัตรูตัวนั้นติดตั้งและใช้งานอยู่จริง 100%
 
----
+* **No Hardcoded Enemies:** ศัตรูทุกตัวถูกสุ่มสร้างขณะสปอว์นบนบอร์ดตาม **Fleet Rules & Tag Constraints**
+  ^^
+* **Consistent Looting System (WYSIWYG):** ชิ้นส่วน อะไหล่ หรือ Inner Frame ที่สแกน/ถอดออกมาได้ จะเป็นชิ้นส่วนเดียวกับที่ศัตรูตัวนั้นติดตั้งและใช้งานอยู่จริง 100%^^
+
+### 2.3 Procedural Pilot Generation System
+
+* **Living Sandbox Pilots:** สุ่มสร้างนักบิน (Pilot Pool) สังกัด Factions ต่างๆ, กองกำลังทหารรับจ้าง (Mercenaries), และ Scavenger ขยะสงคราม
+* **Pilot Profile Data Structure:**
+  * **Identity:** ชื่อ, ฉายา, สังกัด (Faction), และค่าหัว (Bounty)
+  * **Stats & Skills:** ความชำนาญการยิง (Gunnery), การขับเคลื่อน (Evasion/Dash Control), และการบริหารความร้อน
+  * **AI Personality Traits:** Aggressive (บุกแหลก), Cautious (Eject ทันทีเมื่อ HP < 20%), Scavenger (มุ่งเก็บซากหุ่นและสูบน้ำมัน)
+* **Synergy with Catalog Assembly:** จับคู่ Pilot Profile เข้ากับ Assembly Mecha Unit เพื่อสร้าง AI ที่มีสไตล์เฉพาะตัว
 
 ## 🚛 3. Strategic Layer (Tabletop Board Phase)
 
-### 3.1 MP vs Energy Dual-Cost Movement
-* **MP (Movement Points):** ตัวแทนของ "เวลา/ระยะทาง" ในแต่ละวัน
-* **Energy Cost (เชื้อเพลิงถังหลัก):** หักพลังงานตามประเภทภูมิประเทศ (Terrain)
-  * *Road Tile:* $1\text{ MP}$ | $-10\text{ Energy}$ (ทำสปีด ประหยัดน้ำมัน)
-  * *Off-Road / Mud:* $1\text{ MP}$ | $-25\text{ Energy}$ (เครื่องยนต์ทำงานหนัก ผลาญน้ำมัน 2.5 เท่า)
-  * *Roller Dash Mode:* $1\text{ MP}$ | $-5\text{ Energy}$ (ใช้ล้อทำสปีดบนทางเรียบ)
-  * *Refuel Action:* $0\text{ MP}$ (บังคับจบทันที 1 วัน) | $+500\text{ Energy}$
+### 3.1 Dynamic Time Architecture (24-Hour Operational Cycle)
 
-### 3.2 Simultaneous Execution & Turn Logic
-* **Player Phase:** ผู้เล่นใช้ Movement Points (MP) เดินและทำ Action บนบอร์ดได้อย่างอิสระ
-* **World Execution Phase:** เมื่อกด End Phase / Execute ทุก Faction และทุก Fleet ศัตรูจะประมวลผลและเคลื่อนที่พร้อมกัน (Simultaneous Movement) ภายใน 2-3 วินาที
-* **Fog of War Optimization:** ศัตรูที่อยู่นอกระยะเรดาร์จะคำนวณตำแหน่งใหม่เบื้องหลังทันทีโดยไม่แสดง Animation
+* **Time Cost System:** ใช้หน่วยเวลาบนบอร์ดเป็น **"ชั่วโมง (Hours)"** (1 วัน = 24 Hours)
+* **Day / Night Environmental Modifiers:**
+  * **Daytime (06:00 - 18:00):** ระยะสแกน Radar สูงสุด แต่เพิ่มค่า Alert Level และถูก Artillery Fleet เล็งเป้าได้ง่าย
+  * **Nighttime (18:00 - 06:00):** ระยะสแกนลดลง 50% แต่ลดอัตราการถูกตรวจจับ เหมาะแก่การทำ Stealth Movement และลักลอบขนส่งน้ำมัน
 
-### 3.3 Enemy Fleet Archetypes & Assembly Rules
+### 3.2 Dual-Cost Terrain Movement & Time Costs
 
-| รูปแบบ Fleet | คุณสมบัติบนบอร์ด | Assembly Rules (การดึงชิ้นส่วนจาก Catalog) |
-| :--- | :--- | :--- |
-| **Recon Fleet** | MP 4-5 (เดินไวมาก) | **Legs:** บังคับ Tag `Roller-Dash` / **Weapons:** อาวุธเบา SMG / **Armor:** Thin |
-| **Armored Fleet** | MP 1-2 (เดินช้า ถึก) | **Torso/Legs:** บังคับ Tag `Heavy-Armor` / **Weapons:** Heavy Cannon, โล่ |
-| **Artillery Fleet** | ยิงข้ามช่องบนบอร์ดได้ | **Weapons:** บังคับ Tag `Missile-Pod` หรือ `Railgun` ระยะไกล |
-| **Hunter-Killer** | สปอว์นตาม Alert Level | **Frame:** Tier 2-3 High-Tech / สุ่มชิ้นส่วน Synergy ระดับสูง |
+* **Road Tile:** 1 Hour | **$-10\text{ Fuel}$** (ทำสปีด ประหยัดน้ำมัน)
+* **Off-Road / Mud:** 3 Hours | **$-25\text{ Fuel}$** (เครื่องยนต์ทำงานหนัก ผลาญน้ำมัน 2.5 เท่า)
+* **Roller Dash Mode:** 1 Hour | **$-5\text{ Fuel}$** (ใช้ล้อทำสปีดบนทางเรียบ)
+* **Camp / Full Overhaul:** 6 Hours (พักขบวน Convoy ซ่อมใหญ่ และเติมพลังงานบริสุทธิ์)
 
-* **Zone of Control (ZoC):** ช่องรอบตัว Fleet ศัตรู 1 ช่องถือเป็นเขตอิทธิพล หากผู้เล่นเดินก้าวเข้า ZoC ค่า MP ที่เหลือทั้งหมดจะถูกตัดเหลือ 0 ทันที
+### 3.3 Vehicle Switching & Emergency Logic
 
-### 3.4 Convoy & Logistics System
-* **Supply Reserve:** รถบรรทุกมีปริมาณน้ำมัน/อะไหล่สำรองจำกัด หากใช้จนหมดต้องพา Convoy ไปเติมที่ Logistics Hub
-* **Convoy Breakdown/Ambush:** หากถูกซุ่มโจมตี ฉากสู้ 3rd Person จะกลายเป็น Defense Mission หาก Convoy พัง หุ่นสำรองทั้งหมดจะสูญหาย
+* **Seamless Vehicle Switching:** ผู้เล่นสามารถเลือกสลับระหว่างการควบคุม **Convoy** หรือ **Mecha** บนบอร์ดกระดานได้ตลอดเวลา
+* **Convoy Energy Depleted State:** เมื่อ Convoy น้ำมันหมด (0 Energy) ขบวนรถจะหยุดนิ่งบน Tile นั้น แต่ระบบจะบังคับสลับให้ผู้เล่นออกมาควบคุม **Mecha** เพื่อออกเดินทางต่อบนบอร์ดทันที
+* **Progression Choices:** เมื่อขับหุ่นออกไปเจอ Tile ที่มีพลังงาน ผู้เล่นเลือกได้ว่า:
+  1. **Refuel Mecha Only:** เติมให้หุ่นตัวเองแล้วลุยต่อ (ทิ้ง Convoy ไว้ที่เดิม)
+  2. **Haul Fuel Back:** ขับหุ่นนำน้ำมันกลับมาเติม Convoy เพื่อเดินหน้าขบวนใหญ่ร่วมกันต่อ
+* **Pilot Emergency Disembark:** หากทั้ง Convoy และหุ่นพลังงานหมด 0% นักบินต้องสลัดออกจากหุ่นเพื่อใช้ระบบ Stealth ลักลอบวิ่งไปสูบน้ำมันเถื่อน (Siphon Fuel) ใส่ถังพกพา นำกลับมารีบูตเครื่องยนต์ (Re-ignition)
 
-### 3.5 Pilot Survival Phase (โหมดนักบินเดินเท้า)
-* **Emergency State:** เมื่อหุ่นพลังงานหมดหรือเกราะพังยับ นักบินจะสลัดออกจากหุ่น (Disembark)
-* **Objective:** ย่อขนาดตัวใช้ Stealth วิ่งไปหาสากหุ่นศัตรูหรือคลังน้ำมันเพื่อกด "Siphon Fuel" นำกลับมารีบูตเครื่องยนต์ (Re-ignition)
+### 3.4 Enemy Fleet Archetypes & Board Hazards
 
----
+| **รูปแบบ Fleet** | **คุณสมบัติบนบอร์ด (Board Mechanics)**                                                                                                                       | **3rd Person Action & Assembly Rules**                                                                                                                                                             |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Recon Fleet**        | เดินไวมาก                                                                                                                                                                 | **Legs:**บังคับ Tag`Roller-Dash`/**Weapons:**SMG เบา / หุ่นสปีดสูง^^                                                                                                               |
+| **Armored Fleet**      | เดินช้า ถึก                                                                                                                                                              | **Torso/Legs:**บังคับ Tag`Heavy-Armor`/**Weapons:**Heavy Cannon, โล่^^                                                                                                                        |
+| **Artillery Fleet**    | **Board Hazard Only:**รัศมียิงปูพรม 2-3 ช่อง (โดนยิงตัดกำลัง/Debuff บนบอร์ดเมื่อเวลาเดินโดยยังไม่เข้าฉากสู้) | **Weapons:**บังคับ Tag`Missile-Pod`หรือ`Railgun`ระยะไกล (บีบให้ผู้เล่นกด Roller Dash ชาร์จเข้าประชิดเมื่อเดินเข้าชนช่องศัตรู) |
+| **Hunter-Killer**      | สปอว์นตาม Alert Level                                                                                                                                                     | **Frame:**Tier 2-3 High-Tech / สุ่มชิ้นส่วน Synergy ระดับสูง สู้เป็นทีม                                                                                                    |
 
-## ⛽ 4. Energy Architecture & Refueling System
+* **Zone of Control (ZoC):** ช่องรอบตัว Fleet ศัตรู 1 ช่องถือเป็นเขตอิทธิพล หากผู้เล่นเดินก้าวเข้า ZoC เวลาและเชื้อเพลิงขาก้าวถัดไปจะถูกคิดเพิ่มขึ้นทันที
 
-### 4.1 Real-World Tank Energy Mechanics
-* **Cruising Power (เดินบอร์ด):** หักพลังงานตามสภาพภูมิประเทศ
-* **High-Burn Combat Rate (ฉากสู้ 3rd Person):** เร่งรอบเครื่องยนต์เต็มกำลัง พลังงานจะหมดภายใน 2-3 นาทีหากกดใช้งานไม่ระมัดระวัง
-* **Emergency Idle State:** เมื่อพลังงานหมด หุ่นจะหยุดนิ่ง แต่ระบบเรดาร์และปืนกักกันตัวยังทำงานได้สั้นๆ รอ Pilot ลงมาเติมน้ำมัน
+## ⛽ 4. Inventory-Based Fuel Architecture & Power Core Classes
 
-### 4.2 Refueling & Drop Tanks
-* **Board Refueling:** จอดประชิด Convoy เพื่อถ่ายโอนพลังงาน (เสีย 1 Turn / Alert Level เพิ่มขึ้น)
-* **External Drop Tanks:** ถังพลังงานสำรองภายนอกแขวนหลังหุ่น เพิ่มความจุแต่เป็นจุดอ่อน หากโดนยิงจะระเบิด ต้องกด Purge สลัดทิ้ง
-* **Impure Fuel Penalty:** การสูบเชื้อเพลิงเถื่อนหรือจากซากหุ่น จะทำให้ Torso Frame สะสมความร้อน (Overheat) ไวขึ้น
+### 4.1 Fuel Container Inventory System
 
----
+* **Container Item Mechanics:** พลังงานทุกประเภทเก็บเป็น **Item Slot ใน Inventory**
+* **Container Capacity:** ถังบรรจุมีขนาดแตกต่างกัน (เช่น 1%, 6%, 10%, 20%, 100%) แต่ละถังถือเป็น 1 Inventory Slot
+* **Automatic Stacking Logic:** เมื่อเดินบน Tile หรือเจอ Event แล้วได้พลังงาน ระบบจะนำไปเติมใส่ถังประเภทเดียวกันที่ยังไม่เต็ม **$100\%$** ให้เต็มก่อนโดยอัตโนมัติ
+  * *Example:* มี `[100%, 10%]` ใน Inventory ➔ เดินบน Tile เจอถังพลังงาน `6%` ➔ รวมเป็น `[100%, 16%]` (ใช้พื้นที่ 2 Inventory Slots)
+
+### 4.2 Fuel Types & Power Core Compatibility
+
+| **Fuel Item Tag**                                            | **พาหนะ/เครื่องยนต์ที่เติมได้** | **คุณสมบัติ & การนำไปใช้**                                                                                                               |
+| ------------------------------------------------------------------ | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Crude Oil Container (น้ำมันดิบ)**                 | **Convoy** ,**Direct Combustion Core**              | หาได้ง่ายทั่วไป เติมใส่ Convoy หรือหุ่นเครื่องยนต์ดีเซล/สันดาปได้ทันที 100% ไร้ Penalty            |
+| **Refined Energy Cell (เซลล์พลังงานกลั่น)** | **All Mecha Cores**(หุ่นทุกประเภท)           | ต้องผ่านการกลั่นจาก Convoy หรือหาจากซากบอส เติมให้หุ่นสังเคราะห์/ไฮเทคได้โดยไม่ติด Debuff |
+| **Bio-Fuel / Impure Container**                              | **Convoy** ,**Combustion Core**                     | เติมแก้ขัดได้ แต่ถ้านำไปใส่หุ่นเตาสังเคราะห์จะทำให้เกิด Heat สะสมไวขึ้น 30%                       |
+
+### 4.3 Torso Power Core Classes
+
+| **ประเภทเตาพลังงาน**                                | **การใช้พลังงานบนบอร์ด**                                          | **สมรรถนะในฉากสู้ 3D Action**                     | **ข้อเสีย / Trade-off**                                                                                                         |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Direct Combustion Core (เครื่องยนต์สันดาปรถ)** | ใช้น้ำมันดิบชนิดเดียวกับ Convoy 100% เติมตรงได้ทันที | แรงบิดสูง แบกอาวุธหนักได้ดี                  | เครื่องยนต์หนัก, สะสม Heat ปานกลางตลอดเวลา, สปีดพุ่งต่ำกว่าเตาไฮเทค                 |
+| **Overclocked Hybrid Core**                                         | ประหยัดน้ำมัน 20%                                                              | Roller Dash แรงขึ้น แต่สะสม Heat สูง                  | หากสะสมความร้อนสูงเกินไป จะกิน Durability ของ Frame                                                          |
+| **Ancient / Legendary Core (GN Drive Style)**                       | **ไม่กินน้ำมันเลย (**$0\text{ Energy Cost}$**บนบอร์ด)** | Roller Dash / อาวุธลำแสงใช้งานได้ต่อเนื่อง | **ไม่ดร็อปอะไหล่** , ต้องการชิ้นส่วนซ่อมระดับ Legendary, และดึงดูด Hunter-Killer Fleets |
 
 ## 🤖 5. Combat Layer (3rd Person Action Phase)
 
 ### 5.1 Mobility & Precision Dash Dynamics
-* **Bipedal Walk / Jump:** สำหรับข้ามสิ่งกีดขวาง ทางชัน และพื้นที่ขรุขระ
-* **Roller Dash:** กางล้อจุดไอพ่นพุ่งตัวความเร็วสูงบนพื้นเรียบ
+
+* **Bipedal Walk / Jump:** สำหรับข้ามสิ่งกีดขวาง ทางชัน และพื้นที่ขรุขระ^^
+* **Roller Dash:** กางล้อจุดไอพ่นพุ่งตัวความเร็วสูงบนพื้นเรียบ^^
 * **Precision Dash vs Spam Dash:**
-  * *Precision Dash (หลบถูกจังหวะ):* ใช้ Short-Pulse Ignition รักษา Momentum เดิม ใช้พลังงานน้อยลง 60%
-  * *Spam Dash (กดหลบรัวๆ):* เกิด Flash Burn ทำลาย Momentum เครื่องยนต์เค้นรอบสูงสุด ผลาญพลังงานและเกิด Overheat ไว
+  * *Precision Dash (หลบถูกจังหวะ):* ใช้ Short-Pulse Ignition รักษา Momentum เดิม ใช้พลังงานน้อยลง 60%^^
+  * *Spam Dash (กดหลบรัวๆ):* เกิด Flash Burn ทำลาย Momentum เครื่องยนต์เค้นรอบสูงสุด ผลาญพลังงานและเกิด Overheat ไว^^
 
----
+## 🦾 6. Maintenance & Repair Architecture
 
-## 🦾 6. Maintenance & Wear Architecture (ระบบความสึกหรอ)
+### 6.1 Armor vs Inner Frame Tiers
 
-### 6.1 Armor vs Inner Frame
-* **Armor System:** รับแรงปะทะก่อน เมื่อ HP = 0 เกราะจะแตก (Armor Purge) การซ่อมด่วนบนบอร์ดจะลด Max Durability ลงเรื่อยๆ
-* **Inner Frame Tiers:** กระดูกสันหลังของหุ่น (Tier 1 ถึง Tier 3) กำหนดจำนวน Socket และการรองรับ High-Tech Properties
+* **Armor System:** รับแรงปะทะก่อน เมื่อ HP = 0 เกราะจะแตก (Armor Purge)^^
+* **Inner Frame Tiers:** กระดูกสันหลังของหุ่น (Tier 1 ถึง Tier 3) กำหนดจำนวน Socket และการรองรับ High-Tech Properties^^
 
-#### Part Penalties เมื่อ Durability ต่ำ (ชำรุดหนัก)
+#### Part Penalties เมื่อ Durability ต่ำ
 
-| ชิ้นส่วน Inner Frame | หน้าที่หลัก | Penalty เมื่อ Durability ต่ำ / เสื่อมสภาพ |
-| :--- | :--- | :--- |
-| **หัว (Head)** | เซนเซอร์ / ล็อกเป้า | ล็อกเป้าช้า, HUD เกิด Glitch, ต้อง Free-aim เล็งเอง 100% |
-| **แขน (Arms)** | คุมปืน / แบกน้ำหนัก | แรงดีดปืนสูง, ฟันดาบช้า, ไม่สามารถถืออาวุธหนักได้ |
-| **ขา (Legs)** | การเคลื่อนที่ / ล้อ Roller | MP เดินบนบอร์ดลดลง, Speed ตก, Roller Dash ล้อติดขัด |
-| **ลำตัว (Torso)** | เตาปฏิกรณ์ / Core | Max Energy รวมลดลง, สะสมความร้อนไว, Overheat ง่าย |
+* **Head:** ล็อกเป้าช้า, HUD เกิด Glitch, ต้อง Free-aim เล็งเอง 100%^^
+* **Arms:** แรงดีดปืนสูง, ฟันดาบช้า, ไม่สามารถถืออาวุธหนักได้^^
+* **Legs:** MP/Speed เดินลดลง, Roller Dash ล้อติดขัด^^
+* **Torso:** Max Energy รวมลดลง, สะสมความร้อนไว, Overheat ง่าย^^
 
----
+### 6.2 Multi-Tier Repair System & Visual Damage
 
-## 🖥️ 7. Board UI Scene Tree Structure (Godot Engine)
+1. **Field Emergency Repair (Scrap Patching):** ซ่อมเกราะฉุกเฉินบนบอร์ด ใช้ Scrap Metal คืน HP บางส่วน^^
+   * *Visual:* ปรากฏแผ่นเหล็กเชื่อมติดหยาบๆ (Patchwork Armor) บริเวณที่เกราะพัง^^
+2. **Field Structural Preservation (Inner Frame Binding):** ใช้ผ้าทนแรงดึงสูง (Composite Cloth) พันดามโครงกระดูก Inner Frame ที่เปลือยออก เพื่อมัดกระชับรอยร้าวบนเฟรมและปกป้องสายไฟ (เว้นช่วงข้อต่อ Actuators ไว้เพื่อให้ขยับได้ 100%)
+   * *Visual:* ผ้าพันแผลหนาๆ พันกระชับแนบไปกับโครงกระดูกท่อนแขน ท่อนขา หรือลำตัวหุ่น
+3. **Thermal / Camouflage Cloak:** สวมผ้าคลุมเพื่อลดค่า Thermal Signature และซ่อนตำแหน่งจาก Radar ปืนใหญ่ศัตรู
+   * *Visual:* ผ้าคลุมผืนใหญ่ (Physics-enabled Cloak) สะบัดตามการเคลื่อนที่
+4. **Full Overhaul:** ซ่อมแซมใหญ่ที่ Base/Convoy เคลียร์ร่องรอยบาดแผลทั้งหมด ดึงประสิทธิภาพคืน 100%^^
 
-```text
+## 👤 7. Unique Legendary Aces & Encounters
+
+### 7.1 "The Vagrant Ace" (เสือซ่อนเล็บแห่งซากสงคราม)
+
+^^* **Callsign / Name:** Gale 'The Vagrant' Kurogane^^
+
+* **Signature Machine:** *Scrap Pilgrim* (หุ่นซากเศษเหล็กคลุมผ้าใบเก่า ขับเคลื่อนด้วยระบบ Joint & Thrust Vectoring ชั้นสูง)^^
+* **Lore Concept:** อดีตนักบินระดับตำนานที่ปลดประจำการ มีความสามารถระดับ **Predictive Cognition (การอ่านการเคลื่อนไหวล่วงหน้า)** เบี่ยงวิถีโจมตีได้ด้วยการก้าวขยับเพียงเสี้ยววินาที^^
+
+#### 🕹️ Gameplay Integration
+
+1. **Pilot Special Perk: "Pre-Cognitive Flow"**
+   ^^
+   * **Zero-Waste Momentum:** ลด Energy Cost ในการ Dash ลง **$50\%$** และไม่เกิดอาการ Flash Burn เมื่อกด Dash ต่อเนื่อง^^
+   * **Predictive Precision:** ขยายจังหวะ Precision Dodge ขึ้น **$+50\%$** และเพิ่มอัตราการหลบหลีกกระสุน^^
+2. **Tabletop Board Behavior:** สิ้นสุดเวลาประมวลผลบนบอร์ด AI จะก้าวเดินนำหน้าไปดักรอที่ช่องเส้นทางที่ขบวน Convoy กำลังจะมุ่งหน้าไป 1 ก้าวเสมอ^^
+3. **Encounters:** ผู้เล่นสามารถขอคำชี้แนะเรียนรู้สกิล, ท้าดวล 1v1 เพื่อชวนเข้าร่วมทีม, หรือมอบเชื้อเพลิงบริสุทธิ์เพื่อแลกกับเส้นทางลัด^^
+
+## 🖥️ 8. Board UI Scene Tree Structure (Godot Engine)
+
+^^**Plaintext**
+
+```
 BoardUI (CanvasLayer)
 ├── RootContainer (Control) [Anchors: Full Rect]
 │   ├── TopBar_GlobalResources (HBoxContainer) [Anchors: Top Wide]
-│   │   ├── EnergyPanel (ProgressBar & Label) ["750/1000 (-15/Turn)"]
-│   │   ├── ConvoyPanel (HP Bar, Supply Reserve Label, Backup Units Count)
-│   │   └── ConsumablesPanel (Quick Fuel, Repair Kit Buttons)
+│   │   ├── TimePanel (Clock Display: "14:00 - Day 3")
+│   │   ├── FuelInventoryPanel (Grid Display: [100%][16%])
+│   │   └── ConvoyPanel (HP Bar, Supply Reserve Label)
 │   │
 │   ├── TopRight_ThreatRadar (VBoxContainer) [Anchors: Top Right]
 │   │   ├── AlertPanel (Alert Level Bar & Tier Status)
-│   │   ├── ObjectivePanel (Turn Counter & Main Mission)
-│   │   └── WeatherHazard (Environmental Hazard Status)
+│   │   └── EnvironmentHazard (Day/Night Weather Status)
 │   │
 │   ├── BottomLeft_UnitStatus (PanelContainer) [Anchors: Bottom Left]
 │   │   └── VBox (Armor HP, Frame Durability, Part Grid: Head/Torso/Arms/Legs)
 │   │
 │   └── BottomRight_TileInspector (PanelContainer) [Anchors: Bottom Right]
-│       └── VBox (Tile Name, MP Cost, Energy Cost, Terrain Features, Move Button)
+│       └── VBox (Tile Name, Time Cost, Fuel Cost, Move Button)
 │
 └── ScreenFX_Overlay (Control) [Anchors: Full Rect / Mouse Filter: Ignore]
     ├── LowEnergyWarning (Red Flashing Vignette < 20% Energy)
-    └── DynamicPathLine (Line2D Projection วาดเส้นทางคาดการณ์พลังงาน)
+    └── DynamicPathLine (Line2D Projection วาดเส้นทางคาดการณ์เวลาและพลังงาน)
 ```
 
-## 8. Campaign Progression & Strategic Dilemmas
-### 8.1 Map Transition Dilemma
-```text
-  Strategic Choice: ผู้เล่นต้องเลือกระหว่าง "เสี่ยงเสียเวลาและพลังงานบุกถล่มโรงงานศัตรู" เพื่อตัดกำลังผลิต หรือ "รีบข้ามไปแผนที่ถัดไป" เพื่อถนอม Durability และประหยัด Global Energy
+## 🛠️ 9. Engine Plugins & Technical Extensions (Godot 4)
 
-  Escalation Factor: ยิ่งใช้เวลาบนแผนที่เดิมนาน ค่า Alert Level จะพุ่งสูง บีบให้ศัตรูส่ง Hunter-Killer Fleet ลงมาปิดล้อม
-```
+* **Physics & Combat:** `Godot-Jolt` (3D Physics Engine), `Jigglebones` (ผ้าคลุม/ผ้าพันแผลพริ้วไหว)
+* **IK & Foot Placement:** `SkeletonIK3D` (Built-in) ร่วมกับ RayCast3D เพื่อให้ฝ่าเท้าและล้อ Roller Dash ปรับมุมเกาะแนบสนิทกับพื้นเอียง (Slope Alignment) โดยเท้าไม่จมหรือลอย
+* **Board Mechanics & AI:** `AStar3D` Native / Grid Calculation Utilities
+* **Catalog Architecture:** `Resource Database Viewer` (จัดการ Data Resources ใน Catalog)
+* **AI Logic Structure:** `Beehave` หรือ Behavior Tree Engine (ควบคุม AI Traits และการสลับโหมดนักบิน)
 
----
+*Document Version: 6.0 (Clean Architecture & Hour/Inventory Fuel Engine)*
 
-## 👤 9. Unique Legendary Aces & Encounters
-
-### 9.1 "The Vagrant Ace" (เสือซ่อนเล็บแห่งซากสงคราม)
-* **Callsign / Name:** Gale 'The Vagrant' Kurogane
-* **Signature Machine:** *Scrap Pilgrim* (หุ่นซากเศษเหล็กคลุมผ้าใบเก่า แต่ขับเคลื่อนด้วยระบบ Joint & Thrust Vectoring ชั้นสูง)
-* **Lore Concept:** อดีตนักบินระดับตำนานที่ปลดประจำการและเร่ร่อนในเขตสงคราม มีความสามารถระดับ **Predictive Cognition (การอ่านการเคลื่อนไหวล่วงหน้า)** สามารถดักทางและเบี่ยงวิถีโจมตีได้ด้วยการก้าวขยับเพียงเสี้ยววินาที
-
-#### 🕹️ Gameplay Integration & Special Mechanics
-1. **Pilot Special Perk: "Pre-Cognitive Flow"**
-   * **Zero-Waste Momentum:** ลด Energy Cost ในการ Dash ลง $50\%$ และไม่เกิดอาการ Flash Burn เมื่อกด Dash ต่อเนื่อง
-   * **Predictive Precision:** ขยายจังหวะ Precision Dodge ขึ้น $+50\%$ และเพิ่มอัตราการหลบหลีกกระสุน
-2. **Tabletop Board Behavior: "The Leading Shadow"**
-   * **Predictive Movement:** เมื่อสิ้นสุดวันบนกระดานบอร์ด The Vagrant Ace จะก้าวเดินนำหน้าไปดักรอที่ช่องเส้นทางที่ขบวน Convoy ของผู้เล่นกำลังจะมุ่งหน้าไป 1 ก้าวเสมอ
-3. **Unique Encounters (การพบเจอและปฏิสัมพันธ์):**
-   * **Seek Guidance:** ผู้เล่นสามารถขอคำชี้แนะเพื่อเรียนรู้เคล็ดวิชาและปลดล็อกสกิล *Pre-Cognitive Flow*
-   * **Challenge the Master:** ท้าดวล 1v1 ในสนามประลอง หากชนะสามารถชวนเข้าร่วมกองยาน หรือได้รับชิ้นส่วนระดับ Legendary
-   * **Share Supplies:** มอบเชื้อเพลิงบริสุทธิ์เพื่อแลกกับเส้นทางลัดและข้อมูลสแกนแผนที่
-
----
-
-Document Version: 4.1 (Vagrant Ace & Master Modular Architecture)
-
-Last Updated: August 2026
+*Last Updated: August 2026*

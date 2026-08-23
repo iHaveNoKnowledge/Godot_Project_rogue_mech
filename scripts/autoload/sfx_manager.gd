@@ -149,9 +149,11 @@ func _generate_sounds() -> void:
 		_gen_cloth_tear(0.85),
 		_gen_cloth_tear(1.15),
 	]
-
-
-# ═══════════════════════════════════════════════════════════════════════
+	# Weather ambience loops (seamless looping ambient textures)
+	_sound_cache["rain_ambience"] = _gen_rain_ambience()
+	_sound_cache["wind_ambience"] = _gen_wind_ambience()
+	_sound_cache["sandstorm_ambience"] = _gen_sandstorm_ambience()
+	_sound_cache["fog_ambience"] = _gen_fog_ambience()
 # FILE LOADING HELPERS
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -396,6 +398,14 @@ func play_armor_break(pos: Vector3) -> void:
 
 func play_cloth_tear(pos: Vector3) -> void:
 	play_sfx("cloth_tear", pos, -1.0, "SFX", 0.15)
+
+
+# Weather ambience — returns the looping AudioStreamWAV for the given type.
+func get_weather_stream(weather_type: String) -> AudioStream:
+	var key := weather_type + "_ambience"
+	if _sound_cache.has(key):
+		return _sound_cache[key]
+	return null
 
 
 func play_shield_block(pos: Vector3) -> void:
@@ -1045,4 +1055,129 @@ func _gen_cloth_tear(pitch_mult: float = 1.0) -> AudioStreamWAV:
 	stream.format = AudioStreamWAV.FORMAT_16_BITS
 	stream.mix_rate = sample_rate
 	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# WEATHER AMBIENCE LOOP GENERATORS (seamless looping ambient sounds)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+func _gen_rain_ambience() -> AudioStreamWAV:
+	var sample_rate := 22050
+	var duration := 1.5
+	var num_samples := int(duration * sample_rate)
+	var data := PackedByteArray()
+	data.resize(num_samples * 2)
+	for i in range(num_samples):
+		var t := float(i) / sample_rate
+		# Filtered noise (rain bed)
+		var noise := (randf() * 2.0 - 1.0)
+		# Tonal bed — soft mid-range hum
+		var tonal := sin(TAU * 400.0 * t) * 0.3 + sin(TAU * 800.0 * t) * 0.15
+		# Random drip pops every ~80ms
+		var drip := 0.0
+		if fmod(t, 0.08) < 0.008 and randf() < 0.4:
+			drip = sin(TAU * 2400.0 * t) * exp(-fmod(t, 0.08) * 500.0) * 0.5
+		# Soft low rumble (distant thunder base)
+		var rumble := sin(TAU * 35.0 * t) * 0.12
+		var sample := (noise * 0.3 + tonal + drip + rumble) * 0.25
+		var val := int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+	var stream := AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	stream.loop_end = num_samples
+	return stream
+
+
+func _gen_wind_ambience() -> AudioStreamWAV:
+	var sample_rate := 22050
+	var duration := 2.0
+	var num_samples := int(duration * sample_rate)
+	var data := PackedByteArray()
+	data.resize(num_samples * 2)
+	for i in range(num_samples):
+		var t := float(i) / sample_rate
+		# Slow sine sweeps (wind gusts)
+		var gust := sin(TAU * 0.3 * t) * 0.4 + sin(TAU * 0.7 * t) * 0.2
+		# Filtered noise bed
+		var noise := (randf() * 2.0 - 1.0) * 0.3
+		# Mid-frequency whistling
+		var whistle := sin(TAU * lerp(300.0, 600.0, sin(TAU * 0.15 * t) * 0.5 + 0.5) * t) * 0.15
+		var sample := (gust + noise + whistle) * 0.35
+		var val := int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+	var stream := AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	stream.loop_end = num_samples
+	return stream
+
+
+func _gen_sandstorm_ambience() -> AudioStreamWAV:
+	var sample_rate := 22050
+	var duration := 1.5
+	var num_samples := int(duration * sample_rate)
+	var data := PackedByteArray()
+	data.resize(num_samples * 2)
+	for i in range(num_samples):
+		var t := float(i) / sample_rate
+		# Gritty noise bed (sand particles)
+		var grit := (randf() * 2.0 - 1.0)
+		# Mid-frequency whine (wind through dunes)
+		var whine := sin(TAU * lerp(200.0, 500.0, sin(TAU * 0.4 * t) * 0.5 + 0.5) * t) * 0.2
+		# Low rumble (sandstorm bass)
+		var rumble := sin(TAU * 55.0 * t) * 0.25
+		# Occasional grit pop
+		var pop := 0.0
+		if randf() < 0.03:
+			pop = (randf() * 2.0 - 1.0) * 0.3
+		var sample := (grit * 0.35 + whine + rumble + pop) * 0.3
+		var val := int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+	var stream := AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	stream.loop_end = num_samples
+	return stream
+
+
+func _gen_fog_ambience() -> AudioStreamWAV:
+	var sample_rate := 22050
+	var duration := 2.5
+	var num_samples := int(duration * sample_rate)
+	var data := PackedByteArray()
+	data.resize(num_samples * 2)
+	for i in range(num_samples):
+		var t := float(i) / sample_rate
+		# Very low-frequency hum (heavy fog)
+		var hum := sin(TAU * 25.0 * t) * 0.2 + sin(TAU * 45.0 * t) * 0.1
+		# Soft filtered noise
+		var noise := (randf() * 2.0 - 1.0) * 0.15
+		# Occasional soft whoosh
+		var whoosh := 0.0
+		var whoosh_t := fmod(t, 2.5)
+		if whoosh_t > 1.8 and whoosh_t < 2.3:
+			var wp := (whoosh_t - 1.8) / 0.5
+			whoosh = sin(TAU * 180.0 * t) * 0.2 * sin(PI * wp)
+		var sample := (hum + noise + whoosh) * 0.28
+		var val := int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+	var stream := AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	stream.loop_end = num_samples
 	return stream

@@ -66,6 +66,13 @@ func _ready() -> void:
 		wp.name = "WeatherParticles"
 		wp.set_script(wp_script)
 		add_child(wp)
+	# Weather ambience audio (rain, wind, sandstorm, fog loops)
+	if get_node_or_null("WeatherAmbience") == null:
+		var wa_script = preload("res://scripts/board/weather_ambience.gd")
+		var wa := Node.new()
+		wa.name = "WeatherAmbience"
+		wa.set_script(wa_script)
+		add_child(wa)
 	PatrolSystem.spawn_patrols()
 
 	_reveal_around(current_pos)

@@ -73,6 +73,13 @@ func _ready() -> void:
 		wa.name = "WeatherAmbience"
 		wa.set_script(wa_script)
 		add_child(wa)
+	# Weather thunder SFX (random thunder cracks during rain)
+	if get_node_or_null("WeatherThunder") == null:
+		var wt_script = preload("res://scripts/board/weather_thunder_sfx.gd")
+		var wt := Node.new()
+		wt.name = "WeatherThunder"
+		wt.set_script(wt_script)
+		add_child(wt)
 	PatrolSystem.spawn_patrols()
 
 	_reveal_around(current_pos)

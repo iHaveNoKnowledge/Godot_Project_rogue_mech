@@ -154,6 +154,12 @@ func _generate_sounds() -> void:
 	_sound_cache["wind_ambience"] = _gen_wind_ambience()
 	_sound_cache["sandstorm_ambience"] = _gen_sandstorm_ambience()
 	_sound_cache["fog_ambience"] = _gen_fog_ambience()
+	# Thunder crack variations (3 pitch variants for natural variety)
+	_sound_cache["thunder_crack"] = [
+		_gen_thunder_crack(1.0),
+		_gen_thunder_crack(0.88),
+		_gen_thunder_crack(1.12),
+	]
 # FILE LOADING HELPERS
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -406,6 +412,23 @@ func get_weather_stream(weather_type: String) -> AudioStream:
 	if _sound_cache.has(key):
 		return _sound_cache[key]
 	return null
+
+
+## Play a thunder crack with random pitch variation.
+func play_thunder_crack(pos: Vector3 = Vector3.ZERO, volume_db: float = 2.0) -> void:
+	if combat_muted:
+		return
+	var entries = _sound_cache.get("thunder_crack", [])
+	if entries is Array and entries.size() > 0:
+		var player = _get_free_3d_player()
+		if player == null:
+			return
+		player.stream = entries[randi() % entries.size()]
+		player.global_position = pos
+		player.volume_db = volume_db
+		player.bus = "SFX"
+		player.pitch_scale = randf_range(0.92, 1.08)
+		player.play()
 
 
 func play_shield_block(pos: Vector3) -> void:
@@ -1180,4 +1203,51 @@ func _gen_fog_ambience() -> AudioStreamWAV:
 	stream.mix_rate = sample_rate
 	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
 	stream.loop_end = num_samples
+	return stream
+
+
+# ════════════════════════════════════════════════════════════════════════
+# THUNDER CRACK — procedural thunder for rain weather
+# ════════════════════════════════════════════════════════════════════════
+
+
+## pitch_mult varies the crack tone for variety (0.85–1.15).
+func _gen_thunder_crack(pitch_mult: float = 1.0) -> AudioStreamWAV:
+	var sample_rate := 22050
+	var duration := 1.8
+	var num_samples := int(duration * sample_rate)
+	var data := PackedByteArray()
+	data.resize(num_samples * 2)
+	for i in range(num_samples):
+		var t := float(i) / sample_rate
+		var sample := 0.0
+		# Phase 1: Sharp crack (0–0.08s) — high-frequency snap
+		if t < 0.08:
+			var crack_env := exp(-t * 60.0)
+			sample += sin(TAU * 1800.0 * pitch_mult * t) * 0.5 * crack_env
+			sample += (randf() * 2.0 - 1.0) * 0.6 * crack_env
+		# Phase 2: Low boom (0.02–0.5s) — deep impact
+		elif t < 0.5:
+			var boom_env := exp(-(t - 0.02) * 8.0)
+			sample += sin(TAU * 45.0 * pitch_mult * t) * 0.55 * boom_env
+			sample += sin(TAU * 70.0 * pitch_mult * t) * 0.3 * boom_env
+			sample += (randf() * 2.0 - 1.0) * 0.15 * boom_env
+		# Phase 3: Rumble tail (0.4–1.8s) — rolling echo
+		elif t < 1.8:
+			var rumble_env := exp(-(t - 0.4) * 3.0)
+			sample += sin(TAU * 30.0 * pitch_mult * t) * 0.3 * rumble_env
+			sample += sin(TAU * 55.0 * pitch_mult * t) * 0.15 * rumble_env
+			sample += (randf() * 2.0 - 1.0) * 0.1 * rumble_env
+		# Occasional secondary crack (at ~0.15s)
+		if t > 0.12 and t < 0.20:
+			var sc_env := exp(-(t - 0.12) * 40.0)
+			sample += sin(TAU * 1200.0 * pitch_mult * t) * 0.25 * sc_env
+	var val := int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+	var stream := AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
 	return stream

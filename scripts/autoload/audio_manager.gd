@@ -200,6 +200,9 @@ func play_armor_break(pos: Vector3) -> void:
 func play_cloth_tear(pos: Vector3) -> void:
 	sfx.play_cloth_tear(pos)
 
+func play_thunder_crack(pos: Vector3 = Vector3.ZERO, volume_db: float = 2.0) -> void:
+	sfx.play_thunder_crack(pos, volume_db)
+
 func play_shield_block(pos: Vector3) -> void:
 	sfx.play_shield_block(pos)
 

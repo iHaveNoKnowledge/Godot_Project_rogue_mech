@@ -336,8 +336,110 @@ const TACTICAL_ROLES: Array[String] = [
 ]
 
 
+# ---------------------------------------------------------------------------
+# CATALOG MECH LOADOUT — each pilot's mech is assembled from the same
+# armor_catalog / frame_catalog the player uses (GDD §2 WYSIWYG).
+# ---------------------------------------------------------------------------
+
+static func _is_blueprint_frame(entry: Dictionary) -> bool:
+	return str(entry.get("type", "")).contains("Gundam")
+
+static func _archetype_frame_index(archetype: int) -> int:
+	match archetype:
+		1: return 1  # Ranged: medium
+		2: return 2  # Heavy: heaviest
+		3: return 1  # Support: medium
+		4, 5: return 1 # Shield: medium
+		_: return 0  # Rusher: lightest
+
+static func _pick_armor_by_tier(eligible: Array, heaviest: bool) -> Dictionary:
+	var best := eligible[0] as Dictionary
+	for entry in eligible:
+		var hp: float = float(entry.get("hp", 0.0))
+		var best_hp: float = float(best.get("hp", 0.0))
+		if heaviest and hp > best_hp:
+			best = entry
+		elif not heaviest and hp < best_hp:
+			best = entry
+	return best
+
+static func _archetype_palette_for(archetype: int, faction_paint: Dictionary = {}, squad_role: String = "") -> Dictionary:
+	if not faction_paint.is_empty():
+		var base: Color = faction_paint.get("base", Color(0.6, 0.6, 0.6))
+		var accent: Color = faction_paint.get("accent", base)
+		var trim: Color = faction_paint.get("trim", base)
+		var is_commander := squad_role == "commander"
+		return {
+			"default": base,
+			"head": accent if is_commander else trim,
+			"arm_left": accent if is_commander else base,
+			"arm_right": accent if is_commander else base,
+		}
+	match archetype:
+		1: return {"default": Color(0.25, 0.55, 0.8), "head": Color(0.2, 0.5, 0.75)}
+		2: return {"default": Color(0.65, 0.15, 0.2), "head": Color(0.75, 0.2, 0.15)}
+		3: return {"default": Color(0.75, 0.65, 0.2), "head": Color(0.8, 0.7, 0.25)}
+		4: return {"default": Color(0.25, 0.35, 0.55), "head": Color(0.3, 0.5, 0.8)}
+		5: return {"default": Color(0.6, 0.4, 0.2), "head": Color(0.85, 0.6, 0.25)}
+		_: return {"default": Color(0.75, 0.2, 0.2), "head": Color(0.85, 0.25, 0.25)}
+
+static func _scene_type_for_archetype(archetype: int, is_commander: bool) -> String:
+	# Map pilot archetype -> enemy scene type. Commanders field full-rig variant.
+	match archetype:
+		0: return "rusher_full" if is_commander else "rusher_simple"
+		1: return "ranged_full" if is_commander else "ranged_simple"
+		2: return "heavy_full" # always full
+		3: return "support_full" if is_commander else "support_simple"
+		4: return "shieldmelee_full"
+		5: return "shieldranged_full"
+		_: return "rusher_simple"
+
+## Generates a per-pilot mech loadout from GlobalData catalogs.
+## Returns { slot: {"frame":{}, "armor":{}} } mirroring enemy_dummy._enemy_loadout()
+static func generate_mech_loadout(archetype: int, faction_paint: Dictionary = {}, squad_role: String = "") -> Dictionary:
+	var has_global := false
+	var armor_cat: Dictionary = {}
+	var frame_cat: Dictionary = {}
+	if is_instance_valid(GlobalData) and GlobalData.armor_catalog.size() > 0:
+		armor_cat = GlobalData.armor_catalog
+		frame_cat = GlobalData.frame_catalog
+		has_global = true
+	if not has_global:
+		return {}
+	var palette := _archetype_palette_for(archetype, faction_paint, squad_role)
+	var wants_heavy := archetype == 2
+	var loadout: Dictionary = {}
+	var slots: Array = ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]
+	# Use GlobalData.MECHA_SLOTS if catalog loop needs it, but hardcode above for safety.
+	for slot in slots:
+		var frame_entry: Dictionary = {}
+		var frames = frame_cat.get(slot, [])
+		var eligible_frames: Array = []
+		if frames is Array:
+			for entry in frames:
+				if entry is Dictionary and not _is_blueprint_frame(entry):
+					eligible_frames.append(entry)
+		if eligible_frames.size() > 0:
+			var f_idx: int = clampi(_archetype_frame_index(archetype), 0, eligible_frames.size() - 1)
+			frame_entry = (eligible_frames[f_idx] as Dictionary).duplicate(true)
+		var armor_entry: Dictionary = {}
+		var eligible: Array = []
+		var armors = armor_cat.get(slot, [])
+		if armors is Array:
+			for entry in armors:
+				if not entry.get("blueprint_only", false):
+					eligible.append(entry as Dictionary)
+		if eligible.size() > 0:
+			armor_entry = _pick_armor_by_tier(eligible, wants_heavy).duplicate(true)
+		if not armor_entry.is_empty():
+			armor_entry["equipped"] = true
+			armor_entry["color"] = palette.get(slot, palette.get("default", Color(0.7, 0.15, 0.15)))
+		loadout[slot] = {"frame": frame_entry, "armor": armor_entry}
+	return loadout
+
 ## Generates a complete Enemy Fleet / Squad of procedural pilots with assigned tactical roles
-static func generate_enemy_fleet(squad_size: int = 3, faction_name: String = "", difficulty: int = 1) -> Dictionary:
+## Each pilot now also carries a catalog-based mech_loadout and scene_type.
+static func generate_enemy_fleet(squad_size: int = 3, faction_name: String = "", difficulty: int = 1, faction_paint: Dictionary = {}) -> Dictionary:
 	var squad_id := "fleet_%d_%d" % [Time.get_ticks_msec(), randi() % 99999]
 	var prefix: String = SQUAD_NAME_PREFIXES.pick_random()
 	var suffix: String = SQUAD_NAME_SUFFIXES.pick_random()
@@ -364,6 +466,8 @@ static func generate_enemy_fleet(squad_size: int = 3, faction_name: String = "",
 	# Commander personality leans tactical/aggressive leadership
 	if commander["trait"] not in ["Tactical", "Aggressive", "Cold & Calculating"]:
 		commander["trait"] = ["Tactical", "Aggressive", "Cold & Calculating"].pick_random()
+	commander["scene_type"] = _scene_type_for_archetype(int(commander.get("archetype", 0)), true)
+	commander["mech_loadout"] = generate_mech_loadout(int(commander.get("archetype", 0)), faction_paint, "commander")
 	pilots.append(commander)
 
 	# 2. Generate Wingmen Pilots with tactical distribution
@@ -399,6 +503,8 @@ static func generate_enemy_fleet(squad_size: int = 3, faction_name: String = "",
 			"guardian":
 				wingman["trait"] = "Balanced"
 				wingman["archetype"] = 4 # Shield / Heavy
+		wingman["scene_type"] = _scene_type_for_archetype(int(wingman.get("archetype", 0)), false)
+		wingman["mech_loadout"] = generate_mech_loadout(int(wingman.get("archetype", 0)), faction_paint, "member")
 		pilots.append(wingman)
 
 	return {

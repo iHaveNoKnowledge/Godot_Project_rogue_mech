@@ -171,6 +171,11 @@ var theme_ace_wave_defs: Dictionary = {
 
 
 func _get_active_defs() -> Array:
+	# Patrol engagement with canonical roster is always a single wave that mirrors the board fleet.
+	if GlobalData.board.board_patrol_engagement >= 0:
+		var patrol: Dictionary = PatrolSystem.get_patrol_by_id(GlobalData.board.board_patrol_engagement)
+		if not patrol.is_empty() and patrol.get("pilots") is Array and not (patrol["pilots"] as Array).is_empty():
+			return [[{"type": "patrol_roster", "count": int((patrol["pilots"] as Array).size())}]]
 	match GameManager.combat_node_type:
 		"boss":
 			return theme_boss_wave_defs.get(GlobalData.narrative.theme_id, boss_wave_defs)
@@ -364,6 +369,47 @@ func start_waves() -> void:
 	_schedule_mid_battle_events()
 
 
+func _spawn_patrol_roster(hp_scale: float, org: Dictionary) -> bool:
+	# Single source of truth: spawn the EXACT pilots stored on the board fleet.
+	# Returns true if roster was used (caller should return).
+	if GlobalData.board.board_patrol_engagement < 0:
+		return false
+	var patrol: Dictionary = PatrolSystem.get_patrol_by_id(GlobalData.board.board_patrol_engagement)
+	if patrol.is_empty():
+		return false
+	var pilots: Array = patrol.get("pilots", [])
+	if pilots.is_empty():
+		return false
+	# Fleet stored on board — use its squad_id / name / formation.
+	var squad_id: String = str(patrol.get("squad_id", patrol.get("name", "fleet")))
+	var squad_name: String = str(patrol.get("squad_name", patrol.get("name", "Fleet")))
+	var coordinator := EnemySquadCoordinator.new()
+	coordinator.name = "SquadCoordinator_%s" % squad_id
+	coordinator.setup_squad(squad_id, squad_name)
+	add_child(coordinator)
+	var center: Vector3 = _get_spawn_position()
+	# Commander at center, wingmen fanned around via SQUAD_FORMATION.
+	for i in range(pilots.size()):
+		var pilot: Dictionary = pilots[i] as Dictionary
+		var archetype: int = int(pilot.get("archetype", 0))
+		var scene_type: String = str(pilot.get("scene_type", PilotGenerator._scene_type_for_archetype(archetype, i == 0)))
+		var role: String = str(pilot.get("squad_role", "member" if i > 0 else "commander"))
+		var pos: Vector3 = center
+		if i > 0:
+			var slot: int = (i - 1) % SQUAD_FORMATION.size()
+			var offset: Vector3 = SQUAD_FORMATION[slot]
+			var guard := 0
+			while guard < SQUAD_FORMATION.size() and _spawn_blocked_by_cover(center + offset):
+				slot = (slot + 1) % SQUAD_FORMATION.size()
+				offset = SQUAD_FORMATION[slot]
+				guard += 1
+			pos = center + offset
+		var final_hp: float = hp_scale
+		if scene_type == "boss_overlord":
+			final_hp *= 3.5
+		_spawn_enemy_with_pilot(scene_type, archetype, pos, final_hp, pilot, coordinator, _paint_for_enemy(org, role))
+	return true
+
 func _spawn_next_wave() -> void:
 	_used_spawn_indices.clear()
 	var active_defs = _get_active_defs()
@@ -399,6 +445,10 @@ func _spawn_next_wave() -> void:
 			"commander",
 			_paint_for_enemy(org, "commander")
 		)
+		return
+
+	# Patrol engagement with canonical roster overrides wave defs — single wave spawns whole fleet.
+	if _spawn_patrol_roster(hp_scale, org):
 		return
 
 	for entry in wave_def:

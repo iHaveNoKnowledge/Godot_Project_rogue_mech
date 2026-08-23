@@ -293,7 +293,30 @@ func _ensure_slot_nodes() -> void:
 # Durability tiers follow the archetype: Heavy gets the bulkiest non-blueprint
 # plates/frames (so its HP matches its 1.6x silhouette), faster archetypes stay
 # light. Blueprint-only tiers (Gundam etc.) are never worn by grunts.
+# If pilot_data carries a canonical mech_loadout (from the board fleet roster),
+# that loadout is the single source of truth (WYSIWYG) and is returned directly.
 func _enemy_loadout() -> Dictionary:
+	if not pilot_data.is_empty() and pilot_data.has("mech_loadout") and pilot_data["mech_loadout"] is Dictionary and not (pilot_data["mech_loadout"] as Dictionary).is_empty():
+		var stored: Dictionary = pilot_data["mech_loadout"] as Dictionary
+		# Heal Colors that were JSON-serialized as {r,g,b,a} dicts during save.
+		var healed: Dictionary = {}
+		for slot in stored:
+			var entry = stored[slot]
+			if not (entry is Dictionary):
+				healed[slot] = entry
+				continue
+			var dup: Dictionary = (entry as Dictionary).duplicate(true)
+			for sub in ["frame", "armor"]:
+				var part = dup.get(sub, null)
+				if part is Dictionary and part.get("color") is Dictionary:
+					var cd: Dictionary = part["color"]
+					part["color"] = Color(float(cd.get("r", 0.5)), float(cd.get("g", 0.5)), float(cd.get("b", 0.5)), float(cd.get("a", 1.0)))
+			healed[slot] = dup
+		# Ensure every expected slot exists (heal missing slots for older saves)
+		for slot in GlobalData.MECHA_SLOTS:
+			if not healed.has(slot):
+				healed[slot] = {"frame": {}, "armor": {}}
+		return healed
 	var palette := _archetype_palette()
 	var wants_heavy := archetype == 2
 	var loadout: Dictionary = {}
@@ -758,6 +781,30 @@ func _setup_enemy_status() -> void:
 	var status = get_node_or_null("EnemyStatus")
 	if status and status.has_method("setup_target"):
 		status.setup_target(self)
+	# Update 3D name plate from pilot_data (canonical roster) so every grunt shows its name.
+	var label: Label3D = get_node_or_null("NameLabel3D")
+	if label:
+		var pname: String = ""
+		if not pilot_data.is_empty():
+			pname = str(pilot_data.get("display_name", pilot_data.get("name", ""))).strip_edges()
+		if pname == "":
+			pname = "ENEMY"
+		label.text = pname
+		# Color by rank: commander gold, sergeant silver, grunt white
+		var rank: String = str(pilot_data.get("rank_title", "")) if not pilot_data.is_empty() else ""
+		if rank == "[CMDR]":
+			label.modulate = Color(1.0, 0.88, 0.2)
+			label.outline_modulate = Color(0.3, 0.2, 0.0)
+		elif rank == "[SGT]":
+			label.modulate = Color(0.75, 0.85, 0.95)
+			label.outline_modulate = Color(0.15, 0.2, 0.3)
+		else:
+			label.modulate = Color(0.9, 0.9, 0.9)
+			label.outline_modulate = Color(0.1, 0.1, 0.1)
+		label.outline_size = 8
+		label.font_size = 24 if rank == "[CMDR]" else 20
+		# Ensure visibility (old scenes may have it hidden for SIMPLE layout)
+		label.visible = true
 
 
 # Hides/shows the enemy HUD status billboard from the player.

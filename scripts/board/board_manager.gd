@@ -1029,6 +1029,51 @@ func _process(_delta: float) -> void:
 			tags_str, speed_mp,
 			(" | Bombard: %d Tiles" % bombard_range) if bombard_range > 0 else ""
 		]
+		var pilots = patrol.get("pilots", [])
+		if pilots is Array and not pilots.is_empty():
+			patrol_desc += "\n* ROSTER (%d MECHS - from catalog):\n" % pilots.size()
+			var arch_names = {0: "Rusher", 1: "Ranged", 2: "Heavy", 3: "Support", 4: "Shield-Me", 5: "Shield-Ra"}
+			for i in range(pilots.size()):
+				var pp = pilots[i]
+				if not (pp is Dictionary):
+					continue
+				var rank = str(pp.get("rank_title", "[PVT]"))
+				var pname = str(pp.get("display_name", pp.get("name", "Pilot")))
+				var p_trait = str(pp.get("trait", "Balanced"))
+				var p_perk = str(pp.get("perk_name", "Standard"))
+				var p_arch = int(pp.get("archetype", 0))
+				var arch_n = str(arch_names.get(p_arch, "Rusher"))
+				var tac = str(pp.get("tactical_role", ""))
+				var tac_s = ""
+				if tac != "" and tac != "commander":
+					tac_s = " (%s)" % tac
+				var mech_preview = ""
+				var loadout = pp.get("mech_loadout", null)
+				if loadout is Dictionary:
+					var ldict = loadout as Dictionary
+					if not ldict.is_empty():
+						var body_dict = ldict.get("body", {})
+						if not (body_dict is Dictionary):
+							body_dict = {}
+						var head_dict = ldict.get("head", {})
+						if not (head_dict is Dictionary):
+							head_dict = {}
+						var body_armor = body_dict.get("armor", {})
+						if not (body_armor is Dictionary):
+							body_armor = {}
+						var head_armor = head_dict.get("armor", {})
+						if not (head_armor is Dictionary):
+							head_armor = {}
+						var body_name = str(body_armor.get("name", "Std Chest"))
+						var head_name = str(head_armor.get("name", "Std Head"))
+						if body_name.length() > 18:
+							body_name = body_name.substr(0, 16) + ".."
+						if head_name.length() > 18:
+							head_name = head_name.substr(0, 16) + ".."
+						mech_preview = " | Mech: %s / %s" % [head_name, body_name]
+				patrol_desc += "  %d. %s %s%s [%s]%s\n" % [i + 1, rank, pname, tac_s, arch_n, mech_preview]
+				if i == 0:
+					patrol_desc += "     - %s / %s\n" % [p_trait, p_perk]
 		if str(patrol.get("character_id", "")) == "vagrant_ace":
 			patrol_desc = "SPECIAL CONTACT: THE VAGRANT ACE [SEEKER]\n• Pilot: Gale 'The Vagrant' Kurogane\n• Trait: Pre-Cognitive Flow (Zero-Waste Movement)\n• Behavior: THE LEADING SHADOW (Walks 1 step ahead)\n• Status: UNALIGNED LEGENDARY PILOT"
 		elif is_unknown:

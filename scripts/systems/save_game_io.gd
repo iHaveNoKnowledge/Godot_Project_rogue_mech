@@ -163,6 +163,30 @@ static func restore_from_dict(data: Dictionary) -> void:
 				p_copy["dir"] = Vector2i(int(dd.get("x", 1)), int(dd.get("y", 0)))
 			elif p_copy.get("dir") is String:
 				p_copy["dir"] = _parse_vec2i(str(p_copy["dir"]), Vector2i(1, 0))
+			# Heal nested Colors inside pilots[].mech_loadout (saved as {r,g,b,a})
+			if p_copy.get("pilots") is Array:
+				for pilot in p_copy["pilots"]:
+					if not (pilot is Dictionary):
+						continue
+					var loadout2 = pilot.get("mech_loadout", null)
+					if loadout2 is Dictionary:
+						for slot2 in loadout2:
+							var entry2 = loadout2[slot2]
+							if entry2 is Dictionary:
+								for sub2 in ["frame", "armor"]:
+									var part2 = entry2.get(sub2, null)
+									if part2 is Dictionary and part2.get("color") is Dictionary:
+										var cd2: Dictionary = part2["color"]
+										part2["color"] = Color(float(cd2.get("r", 0.5)), float(cd2.get("g", 0.5)), float(cd2.get("b", 0.5)), float(cd2.get("a", 1.0)))
+			if p_copy.get("commander") is Dictionary and p_copy["commander"].get("mech_loadout") is Dictionary:
+				for slot2 in p_copy["commander"]["mech_loadout"]:
+					var entry2 = p_copy["commander"]["mech_loadout"][slot2]
+					if entry2 is Dictionary:
+						for sub2 in ["frame", "armor"]:
+							var part2 = entry2.get(sub2, null)
+							if part2 is Dictionary and part2.get("color") is Dictionary:
+								var cd2: Dictionary = part2["color"]
+								part2["color"] = Color(float(cd2.get("r", 0.5)), float(cd2.get("g", 0.5)), float(cd2.get("b", 0.5)), float(cd2.get("a", 1.0)))
 			GlobalData.board.board_patrols.append(p_copy)
 
 	# Run theme fields (fallbacks keep older saves working).
@@ -496,6 +520,7 @@ static func serialize_attachments() -> Array:
 # Patrol fleets carry their positions as Vector2i, which JSON.stringify() would
 # flatten into a String like "(3, 7)" (losing the int pair). Serialize as plain
 # {x, y} dicts so loading round-trips them back to Vector2i cleanly.
+# Also converts nested Colors inside pilots[].mech_loadout (armor color) to {r,g,b,a}.
 static func _serialize_patrols() -> Array:
 	var result: Array = []
 	for p in GlobalData.board.board_patrols:
@@ -514,6 +539,40 @@ static func _serialize_patrols() -> Array:
 		if copy.get("dir") is Vector2i:
 			var dir: Vector2i = copy["dir"]
 			copy["dir"] = {"x": dir.x, "y": dir.y}
+		# Deep-convert Colors inside pilots[].mech_loadout
+		if copy.get("pilots") is Array:
+			for pilot in copy["pilots"]:
+				if not (pilot is Dictionary):
+					continue
+				var loadout = pilot.get("mech_loadout", null)
+				if loadout is Dictionary:
+					for slot in loadout:
+						var entry = loadout[slot]
+						if entry is Dictionary:
+							for sub in ["frame", "armor"]:
+								var part = entry.get(sub, null)
+								if part is Dictionary and part.get("color") is Color:
+									var c: Color = part["color"]
+									part["color"] = {"r": c.r, "g": c.g, "b": c.b, "a": c.a}
+				# faction_paint inside pilot if present
+				if pilot.get("faction_paint") is Dictionary:
+					var fp: Dictionary = pilot["faction_paint"]
+					for k in fp.keys():
+						if fp[k] is Color:
+							var c: Color = fp[k]
+							fp[k] = {"r": c.r, "g": c.g, "b": c.b, "a": c.a}
+		# Top-level commander color
+		if copy.get("commander") is Dictionary:
+			var cmd: Dictionary = copy["commander"]
+			if cmd.get("mech_loadout") is Dictionary:
+				for slot in cmd["mech_loadout"]:
+					var entry2 = cmd["mech_loadout"][slot]
+					if entry2 is Dictionary:
+						for sub in ["frame", "armor"]:
+							var part2 = entry2.get(sub, null)
+							if part2 is Dictionary and part2.get("color") is Color:
+								var c2: Color = part2["color"]
+								part2["color"] = {"r": c2.r, "g": c2.g, "b": c2.b, "a": c2.a}
 		result.append(copy)
 	return result
 

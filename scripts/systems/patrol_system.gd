@@ -53,6 +53,76 @@ static func _parse_dir_string(raw: String) -> Vector2i:
 # Repairs a patrol entry (old saves / JSON round-trips) so pos/home/dir are all
 # real Vector2i. Mutates the dictionary in place; the board heals every fleet
 # whenever it redraws the arrow markers.
+static func _build_faction_paint(archetype: String) -> Dictionary:
+	var org: Dictionary = {}
+	# ThemeSystem may not be loaded in headless tests — guard.
+	if Engine.has_singleton("GlobalData") or is_instance_valid(GlobalData):
+		var theme = ThemeSystem.get_run_theme() if ThemeSystem != null else {}
+		org = theme.get("enemy_org", {}) if theme is Dictionary else {}
+	var paint: Dictionary = (org.get("paint", {}) as Dictionary).duplicate(true) if org.has("paint") else {}
+	if paint.is_empty():
+		# Fallback palette per archetype (mirrors enemy_dummy._archetype_palette)
+		match archetype:
+			"recon": paint = {"base": Color(0.85, 0.45, 0.1), "accent": Color(1.0, 0.55, 0.15), "trim": Color(0.7, 0.35, 0.08)}
+			"armored": paint = {"base": Color(0.65, 0.15, 0.2), "accent": Color(0.9, 0.25, 0.2), "trim": Color(0.5, 0.12, 0.15)}
+			"artillery": paint = {"base": Color(0.75, 0.65, 0.2), "accent": Color(0.9, 0.8, 0.2), "trim": Color(0.6, 0.5, 0.1)}
+			"hunter_killer": paint = {"base": Color(0.45, 0.2, 0.6), "accent": Color(0.7, 0.3, 0.9), "trim": Color(0.35, 0.15, 0.5)}
+			"boss": paint = {"base": Color(0.3, 0.15, 0.45), "accent": Color(0.6, 0.2, 0.9), "trim": Color(0.4, 0.18, 0.55)}
+			_: paint = {"base": Color(0.6, 0.6, 0.6), "accent": Color(0.9, 0.9, 0.9), "trim": Color(0.5, 0.5, 0.5)}
+	return paint
+
+static func _ensure_patrol_roster(p: Dictionary, force: bool = false) -> void:
+	# Ensure p has a canonical pilots[] roster that is the SINGLE source of truth
+	# for both board hover and combat. Each pilot already carries mech_loadout + scene_type.
+	if not force and p.has("pilots") and p["pilots"] is Array and not (p["pilots"] as Array).is_empty():
+		# Heal embedded Colors that were JSON-flattened on save (Color -> {r,g,b,a})
+		for pilot in p["pilots"]:
+			if not (pilot is Dictionary):
+				continue
+			var loadout = pilot.get("mech_loadout", {})
+			if loadout is Dictionary:
+				for slot in loadout:
+					var entry = loadout[slot]
+					if entry is Dictionary:
+						for sub in ["frame", "armor"]:
+							var part = entry.get(sub, {})
+							if part is Dictionary and part.get("color") is Dictionary:
+								var cd: Dictionary = part["color"]
+								part["color"] = Color(float(cd.get("r", 0.5)), float(cd.get("g", 0.5)), float(cd.get("b", 0.5)), float(cd.get("a", 1.0)))
+		if p.has("commander") and p["commander"] is Dictionary and not p["commander"].is_empty():
+			return
+	# (Re)generate roster from grunts/aces counts
+	var arch_str: String = str(p.get("archetype", "armored"))
+	var grunts: int = int(p.get("grunts", 1))
+	var aces: int = int(p.get("aces", 0))
+	var is_boss: bool = bool(p.get("is_boss", false))
+	var squad_size: int = 1
+	if is_boss:
+		squad_size = grunts + aces + 1 # boss grunts/aces already include escorts
+	else:
+		squad_size = grunts + aces + 1 # commander + grunts + ace wingmen
+	squad_size = clampi(squad_size, 1, 6)
+	var faction_paint := _build_faction_paint(arch_str)
+	var difficulty: int = int(GlobalData.board.current_sector) if is_instance_valid(GlobalData) else 1
+	var fleet_data: Dictionary = PilotGenerator.generate_enemy_fleet(squad_size, str(p.get("name", "")), difficulty, faction_paint)
+	var pilots: Array = fleet_data.get("pilots", [])
+	# Tag rivalry/bounty on commander for pursuit system
+	if not pilots.is_empty():
+		var cmdr: Dictionary = pilots[0]
+		cmdr["rivalry_count"] = int(p.get("commander", {}).get("rivalry_count", 0))
+		cmdr["escapes"] = int(p.get("commander", {}).get("escapes", 0))
+		cmdr["is_nemesis"] = bool(p.get("commander", {}).get("is_nemesis", false))
+		if not cmdr.has("bounty") or int(cmdr.get("bounty", 0)) == 0:
+			cmdr["bounty"] = 120 + (difficulty * 50) + (100 if aces > 0 else 0)
+		if is_boss:
+			cmdr["is_boss"] = true
+		p["commander"] = cmdr
+	p["pilots"] = pilots
+	p["squad_id"] = fleet_data.get("squad_id", p.get("squad_id", ""))
+	p["squad_name"] = fleet_data.get("squad_name", p.get("squad_name", ""))
+	p["formation"] = fleet_data.get("formation", "wedge")
+	p["fleet_count"] = maxi(int(p.get("fleet_count", 1)), 1)
+
 static func normalize_patrol(p: Dictionary) -> void:
 	p["pos"] = normalize_dir(p.get("pos"))
 	p["home"] = normalize_dir(p.get("home"))
@@ -68,6 +138,7 @@ static func normalize_patrol(p: Dictionary) -> void:
 			"archetype": BoardConfig.FLEET_ARCHETYPES.get(arch_str, {}).get("mp", 1),
 			"level": GlobalData.board.current_sector,
 		})
+	_ensure_patrol_roster(p, false)
 
 
 ## Merges source fleet into target fleet on the board.
@@ -83,6 +154,15 @@ static func merge_fleets(target_id: int, source_id: int) -> bool:
 	normalize_patrol(source)
 	var add_count: int = int(source.get("fleet_count", 1))
 	target["fleet_count"] += add_count
+	# Unified roster: merge pilots so board hover + combat see combined force.
+	var t_pilots: Array = target.get("pilots", [])
+	var s_pilots: Array = source.get("pilots", [])
+	t_pilots.append_array(s_pilots)
+	target["pilots"] = t_pilots
+	# Recompute grunts/aces from roster size for UI consistency.
+	var total: int = t_pilots.size()
+	target["grunts"] = maxi(total - 1, 0)
+	# keep aces as before but ensure at least hunter_killer retains ace flag
 	var sub_fleets: Array = target.get("merged_fleets", [])
 	sub_fleets.append(source.duplicate(true))
 	target["merged_fleets"] = sub_fleets
@@ -129,7 +209,31 @@ static func split_fleet(patrol_id: int, target_pos: Vector2i = Vector2i(-1, -1))
 		"fleet_count": 1,
 		"merged_fleets": [],
 		"commander": detached_template.get("commander", {}),
+		"pilots": detached_template.get("pilots", []),
+		"squad_id": detached_template.get("squad_id", ""),
+		"squad_name": detached_template.get("squad_name", detached_template.get("name", "")),
+		"formation": detached_template.get("formation", "wedge"),
 	}
+	# Remove detached pilots from parent roster
+	if detached_fleet["pilots"] is Array and not (detached_fleet["pilots"] as Array).is_empty():
+		var parent_pilots: Array = p.get("pilots", [])
+		var detached_ids: Dictionary = {}
+		for dp in detached_fleet["pilots"]:
+			if dp is Dictionary:
+				detached_ids[str(dp.get("id", ""))] = true
+		var remaining: Array = []
+		for pp in parent_pilots:
+			if pp is Dictionary and detached_ids.has(str(pp.get("id", ""))):
+				continue
+			remaining.append(pp)
+		p["pilots"] = remaining
+		# Recompute grunts for parent
+		p["grunts"] = maxi(remaining.size() - 1, 0)
+		# Ensure parent still has a commander (promote next pilot if needed)
+		if p["pilots"].is_empty():
+			_ensure_patrol_roster(p, true)
+		else:
+			p["commander"] = p["pilots"][0]
 	normalize_patrol(detached_fleet)
 	GlobalData.board.board_patrols.append(detached_fleet)
 	return detached_fleet
@@ -155,6 +259,11 @@ static func _merge_coincident_fleets() -> void:
 			var sec: Dictionary = list[i]
 			normalize_patrol(sec)
 			primary["fleet_count"] += int(sec.get("fleet_count", 1))
+			var sec_pilots: Array = sec.get("pilots", [])
+			var prim_pilots: Array = primary.get("pilots", [])
+			prim_pilots.append_array(sec_pilots)
+			primary["pilots"] = prim_pilots
+			primary["grunts"] = maxi(prim_pilots.size() - 1, 0)
 			primary["merged_fleets"].append(sec.duplicate(true))
 			remove_patrol(int(sec.get("id", -1)))
 
@@ -276,20 +385,27 @@ static func spawn_patrols() -> void:
 			faction = "unknown"
 			character_id = _pick_recruitable_pilot()
 
-		var commander: Dictionary = PilotGenerator.generate_pilot({
-			"archetype": BoardConfig.FLEET_ARCHETYPES.get(archetype, {}).get("mp", 1),
-			"level": GlobalData.board.current_sector,
-		})
-		commander["rivalry_count"] = 0
-		commander["escapes"] = 0
-		commander["is_nemesis"] = false
-		commander["bounty"] = 120 + (GlobalData.board.current_sector * 50) + (100 if aces > 0 else 0)
+		var faction_paint := _build_faction_paint(archetype)
+		var fleet_data: Dictionary = PilotGenerator.generate_enemy_fleet(grunts + aces + 1, NAMES[rng.randi() % NAMES.size()], GlobalData.board.current_sector, faction_paint)
+		# Override squad name to match patrol name style
+		var patrol_name: String = NAMES[rng.randi() % NAMES.size()]
+		fleet_data["squad_name"] = patrol_name
+		var pilots: Array = fleet_data.get("pilots", [])
+		var commander: Dictionary = fleet_data.get("commander", {}) if not pilots.is_empty() else {}
+		if not commander.is_empty():
+			commander["rivalry_count"] = 0
+			commander["escapes"] = 0
+			commander["is_nemesis"] = false
+			commander["bounty"] = 120 + (GlobalData.board.current_sector * 50) + (100 if aces > 0 else 0)
+			# Keep pilots[0] in sync
+			if not pilots.is_empty():
+				pilots[0] = commander
 
 		GlobalData.board.board_patrols.append({
 			"id": id,
 			"pos": home,
 			"home": home,
-			"name": NAMES[rng.randi() % NAMES.size()],
+			"name": patrol_name,
 			"grunts": grunts,
 			"aces": aces,
 			"archetype": archetype,
@@ -298,19 +414,41 @@ static func spawn_patrols() -> void:
 			"character_id": character_id,
 			"dir": Vector2i(1, 0),
 			"commander": commander,
+			"pilots": pilots,
+			"squad_id": fleet_data.get("squad_id", ""),
+			"squad_name": patrol_name,
+			"formation": fleet_data.get("formation", "wedge"),
+			"fleet_count": 1,
+			"merged_fleets": [],
 		})
 		id += 1
 
 	# Always deploy 1 Roaming Sector Supreme Commander (Boss) in the Fog of War
 	if not candidate.is_empty():
 		var boss_home: Vector2i = candidate[candidate.size() - 1]
-		var boss_commander: Dictionary = PilotGenerator.generate_pilot({
-			"archetype": 2,
-			"level": GlobalData.board.current_sector + 2,
-		})
+		var boss_paint := _build_faction_paint("boss")
+		var boss_fleet: Dictionary = PilotGenerator.generate_enemy_fleet(GRUNT_MAX + 1 + 2 + 1, "OVERLORD", GlobalData.board.current_sector + 2, boss_paint)
+		var boss_pilots: Array = boss_fleet.get("pilots", [])
+		var boss_commander: Dictionary = boss_fleet.get("commander", {}) if not boss_pilots.is_empty() else PilotGenerator.generate_pilot({"archetype": 2, "level": GlobalData.board.current_sector + 2})
 		boss_commander["name"] = "OVERLORD " + NAMES[rng.randi() % NAMES.size()].to_upper()
+		boss_commander["display_name"] = "[CMDR] %s" % boss_commander["name"]
 		boss_commander["bounty"] = 650 + (GlobalData.board.current_sector * 200)
 		boss_commander["is_boss"] = true
+		boss_commander["rank_title"] = "[CMDR]"
+		boss_commander["squad_role"] = "commander"
+		# Refresh loadout with boss paint and ensure commander is pilots[0]
+		boss_commander["scene_type"] = PilotGenerator._scene_type_for_archetype(2, true)
+		boss_commander["mech_loadout"] = PilotGenerator.generate_mech_loadout(2, boss_paint, "commander")
+		if not boss_pilots.is_empty():
+			boss_pilots[0] = boss_commander
+		else:
+			boss_pilots = [boss_commander]
+		# Boss wingmen: make them heavy escorts
+		for i in range(1, boss_pilots.size()):
+			var wp: Dictionary = boss_pilots[i]
+			wp["archetype"] = 2 if i % 2 == 0 else 1
+			wp["scene_type"] = PilotGenerator._scene_type_for_archetype(int(wp.get("archetype", 2)), false)
+			wp["mech_loadout"] = PilotGenerator.generate_mech_loadout(int(wp.get("archetype", 2)), boss_paint, "member")
 
 		GlobalData.board.board_patrols.append({
 			"id": id,
@@ -325,6 +463,12 @@ static func spawn_patrols() -> void:
 			"character_id": "",
 			"dir": Vector2i(1, 0),
 			"commander": boss_commander,
+			"pilots": boss_pilots,
+			"squad_id": boss_fleet.get("squad_id", ""),
+			"squad_name": boss_commander["name"],
+			"formation": boss_fleet.get("formation", "wedge"),
+			"fleet_count": 1,
+			"merged_fleets": [],
 			"is_boss": true,
 		})
 		id += 1

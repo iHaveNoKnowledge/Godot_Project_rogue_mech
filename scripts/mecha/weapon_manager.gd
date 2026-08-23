@@ -1544,38 +1544,88 @@ func _active_shield_weapon() -> WeaponPart:
 # ====================================================================
 
 func _spawn_shell_casing(spawn_pos: Vector3, hand: String) -> void:
-	var mecha = get_parent()
-	if mecha == null:
+	var mecha = get_parent() as Node3D
+	if mecha == null or not mecha.is_inside_tree() or get_tree().current_scene == null:
 		return
 
-	var side = -1.0 if hand == "left" else 1.0
-	var right = mecha.global_transform.basis.x * side
-	var shell_dir = (right + Vector3(0, 0.5, 0)).normalized()
+	# Realistic ejection: right + up + slight forward/back, with mech velocity influence
+	var side: float = -1.0 if hand == "left" else 1.0
+	var basis: Basis = mecha.global_transform.basis
+	var right: Vector3 = basis.x * side
+	var up: Vector3 = basis.y
+	var fwd: Vector3 = -basis.z
+	# Ejector port is on the side of the breech: strong sideways, up, slight rearward
+	var eject_dir: Vector3 = (right * randf_range(0.85, 1.15) + up * randf_range(0.45, 0.75) + fwd * randf_range(-0.25, 0.15)).normalized()
+	var speed: float = randf_range(4.2, 6.8) # m/s — brisk brass, not floating
 
-	var shell = MeshInstance3D.new()
-	var box = BoxMesh.new()
-	box.size = Vector3(0.06, 0.04, 0.12)
-	shell.mesh = box
+	var shell_body := RigidBody3D.new()
+	shell_body.name = "ShellCasing"
+	shell_body.collision_layer = 0
+	shell_body.collision_mask = 1 << 1 # Environment (2) — bounce on ground, not on mecha
+	shell_body.mass = 0.02
+	shell_body.gravity_scale = 1.0
+	shell_body.linear_damp = 0.06
+	shell_body.angular_damp = 0.18
+	shell_body.contact_monitor = true
+	shell_body.max_contacts_reported = 2
+	shell_body.continuous_cd = true
 
-	var mat = StandardMaterial3D.new()
-	mat.albedo_color = Color(0.8, 0.7, 0.2, 1)
-	mat.metallic = 0.8
-	mat.roughness = 0.3
-	shell.material_override = mat
+	var phys_mat := PhysicsMaterial.new()
+	phys_mat.friction = 0.62
+	phys_mat.bounce = 0.32
+	shell_body.physics_material_override = phys_mat
 
-	get_tree().current_scene.add_child(shell)
-	shell.global_position = spawn_pos + right * 0.3 + Vector3(0, 0.2, 0)
+	var col := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(0.06, 0.04, 0.10)
+	col.shape = shape
+	shell_body.add_child(col)
 
-	var tween = get_tree().create_tween()
-	tween.set_parallel(true)
-	tween.tween_property(shell, "position",
-		shell.position + shell_dir * randf_range(1.5, 3.0) + Vector3(0, randf_range(0.5, 1.5), 0),
-		0.3).set_ease(Tween.EASE_OUT)
-	tween.tween_property(shell, "rotation",
-		Vector3(randf_range(-5, 5), randf_range(-5, 5), randf_range(-5, 5)),
-		0.4)
-	tween.chain().tween_property(shell, "position:y", -0.5, 0.4).set_ease(Tween.EASE_IN)
-	tween.tween_callback(shell.queue_free).set_delay(0.6)
+	var mesh := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(0.06, 0.04, 0.10)
+	mesh.mesh = box
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.82, 0.68, 0.22, 1.0)
+	mat.metallic = 0.85
+	mat.roughness = 0.28
+	mesh.material_override = mat
+	shell_body.add_child(mesh)
+
+	# Add a tiny brass glint
+	var glint := OmniLight3D.new()
+	glint.light_color = Color(1.0, 0.85, 0.4)
+	glint.light_energy = 0.7
+	glint.omni_range = 0.6
+	glint.position = Vector3.ZERO
+	shell_body.add_child(glint)
+	var glint_tw := shell_body.create_tween()
+	glint_tw.tween_property(glint, "light_energy", 0.0, 0.35).set_delay(0.25)
+
+	get_tree().current_scene.add_child(shell_body)
+	shell_body.global_position = spawn_pos + right * 0.28 + up * 0.18 + fwd * randf_range(-0.05, 0.10)
+
+	# Inherit a bit of mech velocity so it doesn't look detached when dashing
+	var inherit_vel: Vector3 = Vector3.ZERO
+	if mecha is CharacterBody3D:
+		inherit_vel = (mecha as CharacterBody3D).velocity * 0.28
+	shell_body.linear_velocity = eject_dir * speed + inherit_vel + Vector3(randf_range(-0.4, 0.4), randf_range(-0.2, 0.35), randf_range(-0.5, 0.5))
+	shell_body.angular_velocity = Vector3(
+		randf_range(-18, 18),
+		randf_range(-22, 22) + side * 12.0, # bias spin outward
+		randf_range(-20, 20)
+	)
+
+	# Auto-fade and free after 2.5-3.5s (or on rest)
+	var life := randf_range(2.6, 3.4)
+	var t := shell_body.create_tween()
+	t.tween_interval(life)
+	t.tween_property(mesh, "transparency", 0.2, 0.3)
+	t.tween_callback(shell_body.queue_free)
+
+	# Safety: free even if stuck forever
+	var timer := shell_body.get_tree().create_timer(5.0)
+	timer.timeout.connect(func(): if is_instance_valid(shell_body): shell_body.queue_free(), CONNECT_ONE_SHOT)
 
 func _update_weapon_visuals() -> void:
 	var mecha = get_parent() as Node3D

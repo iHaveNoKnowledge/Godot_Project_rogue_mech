@@ -55,9 +55,8 @@ func take_damage(amount: float, damage_type: String = "kinetic") -> void:
 # death rule applies to every pilot (player and enemy) — HP 0 is gone for good.
 func _die() -> void:
 	if GameManager.current_state == GameManager.State.EJECT:
-		EventBus.combat_ended.emit(false)
 		GlobalData.board.run_notice = "Your pilot was shot and killed. The run ends here."
-		GameManager.game_over()
+		EventBus.combat_ended.emit(false)
 
 
 func _equip_weapon(index: int) -> void:

@@ -730,7 +730,6 @@ func _on_mecha_destroyed() -> void:
 		if PilotSystem.is_dead():
 			GlobalData.board.run_notice = "Your pilot was killed when the mech went down. The run ends here."
 			EventBus.combat_ended.emit(false)
-			GameManager.game_over()
 			return
 		await get_tree().create_timer(2.0).timeout
 		if GameManager.is_escaping:
@@ -745,12 +744,10 @@ func _on_mecha_destroyed() -> void:
 			GlobalData.fuel.siphoned_fuel = 0.0
 		if HangarManager.can_mechless_retreat():
 			GlobalData.board.run_notice = "Your mech is destroyed! The pilot siphons fuel from the wreckage to reboot. Walk to the wreckage tile (burnt orange) to siphon."
-			GameManager.return_to_board()
 		elif GlobalData.narrative.mech_less:
-			GameManager.game_over()
+			GlobalData.board.run_notice = "Your mech has been destroyed and no reserves remain."
 		else:
 			GlobalData.board.run_notice = "Your mech was destroyed, but a reserve machine is still parked in the convoy."
-			GameManager.return_to_board()
 
 
 # --- Core-breach death sequence (fall -> warning -> detonate) -------------

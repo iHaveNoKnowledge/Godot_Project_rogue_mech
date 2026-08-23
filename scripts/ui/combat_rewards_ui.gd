@@ -523,7 +523,10 @@ func _on_continue_pressed() -> void:
 				GlobalData.board.run_notice = "FLANK ESCAPE: Disengaged laterally to sector tile (%d, %d)." % [new_tile.x, new_tile.y]
 		GameManager.return_to_board()
 	elif title_label.text == "DEFEATED":
-		GameManager.game_over()
+		if PilotSystem.is_dead() or (GlobalData.narrative.mech_less and not HangarManager.can_mechless_retreat()):
+			GameManager.game_over()
+		else:
+			GameManager.return_to_board()
 	elif GameManager.is_boss_combat:
 		_grant_take_back_loot()
 		if GlobalData.board.current_sector >= GlobalData.board.max_sectors:

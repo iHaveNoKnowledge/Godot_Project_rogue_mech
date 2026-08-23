@@ -1,5 +1,7 @@
 extends CharacterBody3D
 
+const PartPenaltySystem = preload("res://scripts/systems/part_penalty_system.gd")
+
 @export var chassis: ChassisData
 
 var total_weight: float = 0.0
@@ -305,8 +307,10 @@ func _apply_movement(delta: float) -> void:
 	right = right.normalized()
 
 	var move_speed = current_speed
+	# GDD §6.1: Leg damage reduces walk and dash speed
+	move_speed *= PartPenaltySystem.total_board_speed_multiplier()
 	if is_roller_dashing:
-		move_speed *= 2.0
+		move_speed *= 2.0 * PartPenaltySystem.total_dash_speed_multiplier()
 	if _is_in_water() and not can_traverse_water:
 		move_speed *= 0.45
 	if GlobalData.board.current_hazard == GlobalData.HAZARD_DUST_STORM:

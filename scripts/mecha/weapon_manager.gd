@@ -1,5 +1,7 @@
 extends Node3D
 
+const PartPenaltySystem = preload("res://scripts/systems/part_penalty_system.gd")
+
 signal weapon_switched(hand: String, weapon_name: String)
 signal ammo_changed(hand: String, current: int, max_ammo: int)
 signal reload_progress(hand: String, partial_text: String, reserve_ammo: int, percent: float)
@@ -1425,7 +1427,9 @@ func _apply_recoil(weapon: WeaponPart) -> void:
 		backward.y = 0.0
 		if backward.length() > 0.01:
 			backward = backward.normalized()
-			var impulse: Vector3 = backward * weapon.recoil_force
+			# GDD §6.1: Arm damage increases recoil
+			var recoil_mult: float = PartPenaltySystem.total_recoil_multiplier()
+			var impulse: Vector3 = backward * weapon.recoil_force * recoil_mult
 			# Railguns use the heavy kick: a stronger push plus a stance-recovery
 			# beat (decay slowed) so the mech visibly staggers and re-balances.
 			if weapon.weapon_type == WeaponPart.WeaponType.RAILGUN \

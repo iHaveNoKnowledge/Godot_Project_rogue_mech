@@ -32,9 +32,13 @@ var input_dir: Vector2 = Vector2.ZERO
 var is_on_floor: bool = true
 
 
+const PartPenaltySystem = preload("res://scripts/systems/part_penalty_system.gd")
+
 func initialize_from_global() -> void:
 	## Load persisted energy from GlobalData (survives combat/board transitions).
 	max_energy = GlobalData.fuel.mech_max_energy
+	# GDD §6.1: Torso damage reduces max energy capacity
+	max_energy *= PartPenaltySystem.total_energy_multiplier()
 	energy = clampf(GlobalData.fuel.mech_energy, 0.0, max_energy)
 	if GlobalData.fuel.drop_tanks_attached > 0 and GlobalData.fuel.drop_tank_fuel > 0.0:
 		_drop_tank_active = true

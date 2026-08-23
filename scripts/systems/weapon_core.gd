@@ -170,6 +170,9 @@ func try_fire(from_pos: Vector3, aim_dir: Vector3, fired_by_enemy: bool, owner: 
 
 	# Dynamic heat spread (barrel thermal blooming): higher heat causes higher bullet dispersion.
 	var current_spread := spread
+	# GDD §6.1: Head damage increases weapon spread (HUD glitch / optics degraded)
+	if not fired_by_enemy:
+		current_spread += _PPS.head_spread_penalty()
 	if heat_capacity > 0.0 and heat > 0.0:
 		var heat_ratio := clampf(heat / heat_capacity, 0.0, 1.0)
 		# Spread increases progressively as barrel heats up (rewards burst-firing & cooling)
@@ -225,6 +228,8 @@ func _accumulate_heat() -> void:
 	if GlobalData.has_method("fuel"):
 		using_bio = GlobalData.fuel.is_mech_using_bio_fuel()
 	var effective_heat = heat_per_shot * _PCS.heat_accumulation_multiplier("", using_bio)
+	# GDD §6.1: Torso damage increases heat accumulation (easier overheat)
+	effective_heat *= _PPS.total_heat_multiplier()
 	heat = minf(heat + effective_heat, heat_capacity)
 	overheated = heat >= heat_capacity
 	heat_changed.emit(heat, heat_capacity, overheated)
@@ -260,6 +265,7 @@ func is_overheated() -> bool:
 
 const PROJ_SCRIPT = preload("res://scripts/systems/projectile.gd")
 const _PCS = preload("res://scripts/systems/power_core_system.gd")
+const _PPS = preload("res://scripts/systems/part_penalty_system.gd")
 
 static var _cached_shapes: Dictionary = {}
 static var _cached_meshes: Dictionary = {}

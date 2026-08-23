@@ -121,14 +121,16 @@ func _build_top_bar() -> void:
 	var e_header = HBoxContainer.new()
 	_energy_label = Label.new()
 	_energy_label.text = "ENERGY: 1000/1000"
-	_energy_label.add_theme_font_size_override("font_size", 13)
-	_energy_label.add_theme_color_override("font_color", Color(0.3, 0.85, 1.0))
+	_energy_label.add_theme_font_size_override("font_size", 14)
+	_energy_label.add_theme_color_override("font_color", Color(0.92, 0.92, 0.92, 1.0))
+	_energy_label.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Medium.ttf"))
 	_energy_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	e_header.add_child(_energy_label)
 
 	_roller_toggle_btn = Button.new()
 	_roller_toggle_btn.text = "ROLLER: OFF"
-	_roller_toggle_btn.add_theme_font_size_override("font_size", 11)
+	_roller_toggle_btn.add_theme_font_size_override("font_size", 12)
+	_roller_toggle_btn.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Medium.ttf"))
 	_roller_toggle_btn.pressed.connect(_on_roller_toggle_pressed)
 	e_header.add_child(_roller_toggle_btn)
 	e_vbox.add_child(e_header)
@@ -138,14 +140,21 @@ func _build_top_bar() -> void:
 	_energy_bar.max_value = 1000.0
 	_energy_bar.value = 1000.0
 	_energy_bar.show_percentage = false
-	_energy_bar.custom_minimum_size = Vector2(0, 8)
+	_energy_bar.custom_minimum_size = Vector2(0, 6)
 	var e_fill := StyleBoxFlat.new()
-	e_fill.bg_color = Color(0.2, 0.7, 1.0, 0.95)
-	e_fill.corner_radius_top_left = 3
-	e_fill.corner_radius_top_right = 3
-	e_fill.corner_radius_bottom_left = 3
-	e_fill.corner_radius_bottom_right = 3
+	e_fill.bg_color = Color(0.88, 0.88, 0.88, 1.0)
+	e_fill.corner_radius_top_left = 0
+	e_fill.corner_radius_top_right = 0
+	e_fill.corner_radius_bottom_left = 0
+	e_fill.corner_radius_bottom_right = 0
 	_energy_bar.add_theme_stylebox_override("fill", e_fill)
+	var e_bg := StyleBoxFlat.new()
+	e_bg.bg_color = Color(0.18, 0.18, 0.18, 1.0)
+	e_bg.corner_radius_top_left = 0
+	e_bg.corner_radius_top_right = 0
+	e_bg.corner_radius_bottom_left = 0
+	e_bg.corner_radius_bottom_right = 0
+	_energy_bar.add_theme_stylebox_override("background", e_bg)
 	e_vbox.add_child(_energy_bar)
 	_top_bar.add_child(energy_panel)
 
@@ -158,15 +167,17 @@ func _build_top_bar() -> void:
 	var c_header = HBoxContainer.new()
 	_convoy_hp_label = Label.new()
 	_convoy_hp_label.text = "CONVOY: 100 HP"
-	_convoy_hp_label.add_theme_font_size_override("font_size", 13)
-	_convoy_hp_label.add_theme_color_override("font_color", Color(0.9, 0.75, 0.3))
+	_convoy_hp_label.add_theme_font_size_override("font_size", 14)
+	_convoy_hp_label.add_theme_color_override("font_color", Color(0.92, 0.92, 0.92, 1.0))
+	_convoy_hp_label.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Medium.ttf"))
 	_convoy_hp_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	c_header.add_child(_convoy_hp_label)
 
 	_backup_count_label = Label.new()
 	_backup_count_label.text = "RESERVE: 1"
-	_backup_count_label.add_theme_font_size_override("font_size", 11)
-	_backup_count_label.add_theme_color_override("font_color", Color(0.7, 0.9, 0.7))
+	_backup_count_label.add_theme_font_size_override("font_size", 12)
+	_backup_count_label.add_theme_color_override("font_color", Color(0.65, 0.65, 0.65, 1.0))
+	_backup_count_label.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Regular.ttf"))
 	c_header.add_child(_backup_count_label)
 	c_vbox.add_child(c_header)
 
@@ -175,20 +186,28 @@ func _build_top_bar() -> void:
 	_convoy_hp_bar.max_value = 100.0
 	_convoy_hp_bar.value = 100.0
 	_convoy_hp_bar.show_percentage = false
-	_convoy_hp_bar.custom_minimum_size = Vector2(0, 8)
+	_convoy_hp_bar.custom_minimum_size = Vector2(0, 6)
 	var c_fill := StyleBoxFlat.new()
-	c_fill.bg_color = Color(0.85, 0.65, 0.2, 0.95)
-	c_fill.corner_radius_top_left = 3
-	c_fill.corner_radius_top_right = 3
-	c_fill.corner_radius_bottom_left = 3
-	c_fill.corner_radius_bottom_right = 3
+	c_fill.bg_color = Color(0.78, 0.78, 0.78, 1.0)
+	c_fill.corner_radius_top_left = 0
+	c_fill.corner_radius_top_right = 0
+	c_fill.corner_radius_bottom_left = 0
+	c_fill.corner_radius_bottom_right = 0
 	_convoy_hp_bar.add_theme_stylebox_override("fill", c_fill)
+	var c_bg := StyleBoxFlat.new()
+	c_bg.bg_color = Color(0.18, 0.18, 0.18, 1.0)
+	c_bg.corner_radius_top_left = 0
+	c_bg.corner_radius_top_right = 0
+	c_bg.corner_radius_bottom_left = 0
+	c_bg.corner_radius_bottom_right = 0
+	_convoy_hp_bar.add_theme_stylebox_override("background", c_bg)
 	c_vbox.add_child(_convoy_hp_bar)
 
 	_convoy_reserve_label = Label.new()
 	_convoy_reserve_label.text = "Fuel Reserve: 100 / 200"
-	_convoy_reserve_label.add_theme_font_size_override("font_size", 10)
-	_convoy_reserve_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	_convoy_reserve_label.add_theme_font_size_override("font_size", 11)
+	_convoy_reserve_label.add_theme_color_override("font_color", Color(0.60, 0.60, 0.60, 1.0))
+	_convoy_reserve_label.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Regular.ttf"))
 	c_vbox.add_child(_convoy_reserve_label)
 	_top_bar.add_child(convoy_panel)
 
@@ -201,22 +220,25 @@ func _build_top_bar() -> void:
 	var r_header = HBoxContainer.new()
 	_credits_label = Label.new()
 	_credits_label.text = "¢ 0"
-	_credits_label.add_theme_font_size_override("font_size", 13)
-	_credits_label.add_theme_color_override("font_color", Color(1.0, 0.86, 0.2))
+	_credits_label.add_theme_font_size_override("font_size", 14)
+	_credits_label.add_theme_color_override("font_color", Color(0.88, 0.88, 0.88, 1.0))
+	_credits_label.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Medium.ttf"))
 	_credits_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	r_header.add_child(_credits_label)
 
 	_scrap_label = Label.new()
 	_scrap_label.text = "⚙ 0"
-	_scrap_label.add_theme_font_size_override("font_size", 13)
-	_scrap_label.add_theme_color_override("font_color", Color(0.35, 0.9, 0.8))
+	_scrap_label.add_theme_font_size_override("font_size", 14)
+	_scrap_label.add_theme_color_override("font_color", Color(0.70, 0.70, 0.70, 1.0))
+	_scrap_label.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Medium.ttf"))
 	r_header.add_child(_scrap_label)
 	r_vbox.add_child(r_header)
 
 	_cores_label = Label.new()
-	_cores_label.text = "💾 DATA CORES: 0"
-	_cores_label.add_theme_font_size_override("font_size", 10)
-	_cores_label.add_theme_color_override("font_color", Color(0.85, 0.45, 1.0))
+	_cores_label.text = "DATA CORES: 0"
+	_cores_label.add_theme_font_size_override("font_size", 11)
+	_cores_label.add_theme_color_override("font_color", Color(0.60, 0.60, 0.60, 1.0))
+	_cores_label.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Regular.ttf"))
 	r_vbox.add_child(_cores_label)
 	_top_bar.add_child(res_panel)
 
@@ -228,7 +250,8 @@ func _build_top_bar() -> void:
 
 	_quick_fuel_btn = Button.new()
 	_quick_fuel_btn.text = "TRANSFER FUEL"
-	_quick_fuel_btn.add_theme_font_size_override("font_size", 11)
+	_quick_fuel_btn.add_theme_font_size_override("font_size", 12)
+	_quick_fuel_btn.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Medium.ttf"))
 	_quick_fuel_btn.pressed.connect(_on_quick_fuel_pressed)
 	a_vbox.add_child(_quick_fuel_btn)
 	_top_bar.add_child(actions_panel)
@@ -256,15 +279,17 @@ func _build_threat_radar() -> void:
 	var mp_header = HBoxContainer.new()
 	_day_label = Label.new()
 	_day_label.text = "DAY 1 — SUBURB"
-	_day_label.add_theme_font_size_override("font_size", 13)
-	_day_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+	_day_label.add_theme_font_size_override("font_size", 14)
+	_day_label.add_theme_color_override("font_color", Color(0.92, 0.92, 0.92, 1.0))
+	_day_label.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Medium.ttf"))
 	_day_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	mp_header.add_child(_day_label)
 
 	_mp_label = Label.new()
 	_mp_label.text = "MP 8/8"
-	_mp_label.add_theme_font_size_override("font_size", 13)
-	_mp_label.add_theme_color_override("font_color", Color(0.4, 0.9, 1.0))
+	_mp_label.add_theme_font_size_override("font_size", 14)
+	_mp_label.add_theme_color_override("font_color", Color(0.92, 0.92, 0.92, 1.0))
+	_mp_label.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Medium.ttf"))
 	mp_header.add_child(_mp_label)
 	mp_vbox.add_child(mp_header)
 
@@ -275,8 +300,19 @@ func _build_threat_radar() -> void:
 	_mp_bar.show_percentage = false
 	_mp_bar.custom_minimum_size = Vector2(0, 6)
 	var mp_fill := StyleBoxFlat.new()
-	mp_fill.bg_color = Color(0.3, 0.7, 1.0, 0.95)
+	mp_fill.bg_color = Color(0.88, 0.88, 0.88, 1.0)
+	mp_fill.corner_radius_top_left = 0
+	mp_fill.corner_radius_top_right = 0
+	mp_fill.corner_radius_bottom_left = 0
+	mp_fill.corner_radius_bottom_right = 0
 	_mp_bar.add_theme_stylebox_override("fill", mp_fill)
+	var mp_bg := StyleBoxFlat.new()
+	mp_bg.bg_color = Color(0.18, 0.18, 0.18, 1.0)
+	mp_bg.corner_radius_top_left = 0
+	mp_bg.corner_radius_top_right = 0
+	mp_bg.corner_radius_bottom_left = 0
+	mp_bg.corner_radius_bottom_right = 0
+	_mp_bar.add_theme_stylebox_override("background", mp_bg)
 	mp_vbox.add_child(_mp_bar)
 	_threat_radar.add_child(mp_panel)
 
@@ -288,8 +324,9 @@ func _build_threat_radar() -> void:
 
 	_alert_label = Label.new()
 	_alert_label.text = "ALERT LEVEL: 0 (TIER 1)"
-	_alert_label.add_theme_font_size_override("font_size", 12)
-	_alert_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.35))
+	_alert_label.add_theme_font_size_override("font_size", 13)
+	_alert_label.add_theme_color_override("font_color", Color(0.92, 0.92, 0.92, 1.0))
+	_alert_label.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Medium.ttf"))
 	a_vbox.add_child(_alert_label)
 
 	_alert_bar = ProgressBar.new()
@@ -299,8 +336,19 @@ func _build_threat_radar() -> void:
 	_alert_bar.show_percentage = false
 	_alert_bar.custom_minimum_size = Vector2(0, 6)
 	var a_fill := StyleBoxFlat.new()
-	a_fill.bg_color = Color(0.9, 0.25, 0.2, 0.95)
+	a_fill.bg_color = Color(0.75, 0.25, 0.20, 1.0)
+	a_fill.corner_radius_top_left = 0
+	a_fill.corner_radius_top_right = 0
+	a_fill.corner_radius_bottom_left = 0
+	a_fill.corner_radius_bottom_right = 0
 	_alert_bar.add_theme_stylebox_override("fill", a_fill)
+	var a_bg := StyleBoxFlat.new()
+	a_bg.bg_color = Color(0.18, 0.18, 0.18, 1.0)
+	a_bg.corner_radius_top_left = 0
+	a_bg.corner_radius_top_right = 0
+	a_bg.corner_radius_bottom_left = 0
+	a_bg.corner_radius_bottom_right = 0
+	_alert_bar.add_theme_stylebox_override("background", a_bg)
 	a_vbox.add_child(_alert_bar)
 	_threat_radar.add_child(alert_panel)
 
@@ -308,7 +356,9 @@ func _build_threat_radar() -> void:
 	_objective_panel = _make_panel(270, 75)
 	_objective_label = Label.new()
 	_objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_objective_label.add_theme_font_size_override("font_size", 12)
+	_objective_label.add_theme_font_size_override("font_size", 13)
+	_objective_label.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Regular.ttf"))
+	_objective_label.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85, 1.0))
 	_objective_panel.add_child(_objective_label)
 	_threat_radar.add_child(_objective_panel)
 
@@ -316,8 +366,9 @@ func _build_threat_radar() -> void:
 	_ceasefire_panel = _make_panel(270, 30)
 	_ceasefire_label = Label.new()
 	_ceasefire_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_ceasefire_label.add_theme_font_size_override("font_size", 11)
-	_ceasefire_label.add_theme_color_override("font_color", Color(0.4, 0.9, 0.5))
+	_ceasefire_label.add_theme_font_size_override("font_size", 12)
+	_ceasefire_label.add_theme_color_override("font_color", Color(0.65, 0.65, 0.65, 1.0))
+	_ceasefire_label.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Regular.ttf"))
 	_ceasefire_panel.add_child(_ceasefire_label)
 	_threat_radar.add_child(_ceasefire_panel)
 
@@ -352,8 +403,9 @@ func _build_unit_status() -> void:
 
 	var title = Label.new()
 	title.text = "MECH SYSTEM INTEGRITY"
-	title.add_theme_font_size_override("font_size", 13)
-	title.add_theme_color_override("font_color", Color(0.4, 0.9, 1.0))
+	title.add_theme_font_size_override("font_size", 14)
+	title.add_theme_color_override("font_color", Color(0.92, 0.92, 0.92, 1.0))
+	title.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Medium.ttf"))
 	vbox.add_child(title)
 
 	var grid = GridContainer.new()
@@ -367,14 +419,16 @@ func _build_unit_status() -> void:
 	for i in range(slots.size()):
 		var lbl = Label.new()
 		lbl.text = "%s: 100%%" % names[i]
-		lbl.add_theme_font_size_override("font_size", 12)
+		lbl.add_theme_font_size_override("font_size", 13)
+		lbl.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Regular.ttf"))
 		grid.add_child(lbl)
 		_part_status_labels[slots[i]] = lbl
 
 	_dirt_label = Label.new()
 	_dirt_label.text = "Engine Dirt: 0%"
-	_dirt_label.add_theme_font_size_override("font_size", 12)
-	_dirt_label.add_theme_color_override("font_color", Color(0.9, 0.7, 0.35))
+	_dirt_label.add_theme_font_size_override("font_size", 13)
+	_dirt_label.add_theme_color_override("font_color", Color(0.68, 0.68, 0.68, 1.0))
+	_dirt_label.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Regular.ttf"))
 	vbox.add_child(_dirt_label)
 
 
@@ -396,27 +450,31 @@ func _build_tile_inspector() -> void:
 
 	_inspector_title = Label.new()
 	_inspector_title.text = "TILE RECON"
-	_inspector_title.add_theme_font_size_override("font_size", 14)
-	_inspector_title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35))
+	_inspector_title.add_theme_font_size_override("font_size", 15)
+	_inspector_title.add_theme_color_override("font_color", Color(0.92, 0.92, 0.92, 1.0))
+	_inspector_title.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Medium.ttf"))
 	vbox.add_child(_inspector_title)
 
 	_inspector_costs = Label.new()
 	_inspector_costs.text = "Move Cost: 1 MP | -10 Energy\nTerrain: Plain"
-	_inspector_costs.add_theme_font_size_override("font_size", 12)
-	_inspector_costs.add_theme_color_override("font_color", Color(0.85, 0.92, 1.0))
+	_inspector_costs.add_theme_font_size_override("font_size", 13)
+	_inspector_costs.add_theme_color_override("font_color", Color(0.78, 0.78, 0.78, 1.0))
+	_inspector_costs.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Regular.ttf"))
 	vbox.add_child(_inspector_costs)
 
 	_inspector_fleet = Label.new()
 	_inspector_fleet.text = ""
-	_inspector_fleet.add_theme_font_size_override("font_size", 12)
-	_inspector_fleet.add_theme_color_override("font_color", Color(0.45, 0.95, 1.0))
+	_inspector_fleet.add_theme_font_size_override("font_size", 13)
+	_inspector_fleet.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85, 1.0))
+	_inspector_fleet.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Regular.ttf"))
 	_inspector_fleet.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(_inspector_fleet)
 
 	_inspector_warnings = Label.new()
 	_inspector_warnings.text = ""
-	_inspector_warnings.add_theme_font_size_override("font_size", 12)
-	_inspector_warnings.add_theme_color_override("font_color", Color(1.0, 0.35, 0.35))
+	_inspector_warnings.add_theme_font_size_override("font_size", 13)
+	_inspector_warnings.add_theme_color_override("font_color", Color(0.85, 0.35, 0.30, 1.0))
+	_inspector_warnings.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Medium.ttf"))
 	_inspector_warnings.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(_inspector_warnings)
 
@@ -425,11 +483,11 @@ func _make_panel(w: int, h: int) -> PanelContainer:
 	var panel = PanelContainer.new()
 	panel.custom_minimum_size = Vector2(w, h)
 	var s := StyleBoxFlat.new()
-	s.bg_color = Color(0.05, 0.08, 0.15, 0.94)
-	s.corner_radius_top_left = 8
-	s.corner_radius_top_right = 8
-	s.corner_radius_bottom_left = 8
-	s.corner_radius_bottom_right = 8
+	s.bg_color = Color(0.09, 0.09, 0.09, 0.96)
+	s.corner_radius_top_left = 0
+	s.corner_radius_top_right = 0
+	s.corner_radius_bottom_left = 0
+	s.corner_radius_bottom_right = 0
 	s.content_margin_left = 14
 	s.content_margin_right = 14
 	s.content_margin_top = 10
@@ -438,7 +496,7 @@ func _make_panel(w: int, h: int) -> PanelContainer:
 	s.border_width_right = 1
 	s.border_width_top = 1
 	s.border_width_bottom = 1
-	s.border_color = Color(0.28, 0.52, 0.82, 0.55)
+	s.border_color = Color(0.22, 0.22, 0.22, 1.0)
 	panel.add_theme_stylebox_override("panel", s)
 	return panel
 

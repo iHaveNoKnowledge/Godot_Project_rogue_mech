@@ -52,34 +52,33 @@ func _create_ui() -> void:
 	vbox.add_theme_constant_override("separation", 10)
 	panel.add_child(vbox)
 
-	# Header block: stencil-like title + dim subtitle + 1px rule
+	# Header block: readable mono-tactical (Medium/SemiBold, higher contrast)
 	var title = Label.new()
 	title.text = "MECHA  ROGUELIKE"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 26)
-	title.add_theme_color_override("font_color", Color(0.93, 0.93, 0.93, 1.0))
-	# Use Light for ultra-minimal airiness; keep ChakraPetch family
-	title.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Light.ttf"))
+	title.add_theme_font_size_override("font_size", 28)
+	title.add_theme_color_override("font_color", Color(0.96, 0.96, 0.96, 1.0))
+	title.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-SemiBold.ttf"))
 	vbox.add_child(title)
 
 	var subtitle = Label.new()
 	subtitle.text = "TACTICAL  //  SECTOR 01  //  CONVOY OPS"
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	subtitle.add_theme_font_size_override("font_size", 9)
-	subtitle.add_theme_color_override("font_color", Color(0.55, 0.55, 0.55, 1.0))
-	subtitle.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Regular.ttf"))
+	subtitle.add_theme_font_size_override("font_size", 10)
+	subtitle.add_theme_color_override("font_color", Color(0.68, 0.68, 0.68, 1.0))
+	subtitle.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Medium.ttf"))
 	vbox.add_child(subtitle)
 
 	var sep = HSeparator.new()
-	sep.add_theme_stylebox_override("separator", _hairline_style(Color(0.18, 0.18, 0.18, 1.0)))
+	sep.add_theme_stylebox_override("separator", _hairline_style(Color(0.20, 0.20, 0.20, 1.0)))
 	vbox.add_child(sep)
 
 	var hint = Label.new()
 	hint.text = "SELECT  OPERATION"
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.add_theme_font_size_override("font_size", 10)
-	hint.add_theme_color_override("font_color", Color(0.60, 0.60, 0.60, 1.0))
-	hint.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Regular.ttf"))
+	hint.add_theme_font_size_override("font_size", 11)
+	hint.add_theme_color_override("font_color", Color(0.72, 0.72, 0.72, 1.0))
+	hint.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Medium.ttf"))
 	vbox.add_child(hint)
 
 	# New Game — primary (inverted on hover)
@@ -101,8 +100,9 @@ func _create_ui() -> void:
 	var footer = Label.new()
 	footer.text = "v0.6  //  GODOT 4.6  //  MONO TACTICAL"
 	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	footer.add_theme_font_size_override("font_size", 8)
-	footer.add_theme_color_override("font_color", Color(0.38, 0.38, 0.38, 1.0))
+	footer.add_theme_font_size_override("font_size", 9)
+	footer.add_theme_color_override("font_color", Color(0.52, 0.52, 0.52, 1.0))
+	footer.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Regular.ttf"))
 	vbox.add_child(footer)
 
 
@@ -183,10 +183,9 @@ func _make_button(text: String, is_primary: bool = false, is_ghost: bool = false
 	btn.add_theme_stylebox_override("disabled", disabled)
 	btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 
-	btn.add_theme_font_size_override("font_size", 12)
+	btn.add_theme_font_size_override("font_size", 13)
 	btn.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0))
-	# ChakraPetch Regular for mono-tactical airiness (Light would be too thin at small sizes)
-	btn.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Regular.ttf"))
+	btn.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Medium.ttf"))
 
 	return btn
 

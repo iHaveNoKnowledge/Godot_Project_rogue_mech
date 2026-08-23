@@ -37,10 +37,14 @@ const WIND_PITCH_LFO_DEPTH := 0.12  # LFO pitch variation depth
 
 # --- Internal state ---
 var _players: Dictionary = {}  # weather_type → AudioStreamPlayer
+var _rumble_player: AudioStreamPlayer = null  # Distant thunder rumble
 var _current_weather: String = ""
 var _wind_pitch_time: float = 0.0
 var _target_volumes: Dictionary = {}  # weather_type → target linear volume
 var _active_weather: String = ""
+
+## Rumble volume (linear) at full rain intensity.
+const RUMBLE_VOLUME := 0.25
 
 
 func _ready() -> void:
@@ -53,6 +57,13 @@ func _ready() -> void:
 		add_child(player)
 		_players[wt] = player
 		_target_volumes[wt] = 0.0
+
+	# Distant thunder rumble player
+	_rumble_player = AudioStreamPlayer.new()
+	_rumble_player.name = "Weather_DistantThunder"
+	_rumble_player.bus = "SFX"
+	_rumble_player.volume_db = -60.0
+	add_child(_rumble_player)
 
 	# Try to load streams from SFX manager
 	_load_streams()
@@ -75,6 +86,9 @@ func _process(delta: float) -> void:
 	# Dynamic wind pitch based on weather shake intensity
 	_update_wind_pitch(delta)
 
+	# Distant thunder rumble (continuous low hum during rain)
+	_update_rumble(delta, new_weather, progress)
+
 	_active_weather = new_weather
 
 
@@ -86,6 +100,10 @@ func _load_streams() -> void:
 		var stream = AudioManager.sfx.get_weather_stream(wt)
 		if stream != null:
 			_players[wt].stream = stream
+	# Load distant thunder rumble
+	var rumble = AudioManager.sfx.get_distant_thunder_rumble()
+	if rumble != null and _rumble_player != null:
+		_rumble_player.stream = rumble
 
 
 func _update_target_volumes(weather: String, progress: float) -> void:
@@ -149,6 +167,29 @@ func _update_wind_pitch(delta: float) -> void:
 	_wind_pitch_time += delta
 	var lfo: float = sin(TAU * WIND_PITCH_LFO_SPEED * _wind_pitch_time) * WIND_PITCH_LFO_DEPTH * shake_norm
 	wind_player.pitch_scale = base_pitch + lfo
+
+
+## Updates the distant thunder rumble player based on rain intensity.
+## Rumble is only active during rain weather with sufficient progress.
+func _update_rumble(_delta: float, weather: String, progress: float) -> void:
+	if _rumble_player == null or _rumble_player.stream == null:
+		return
+	var target_vol: float = 0.0
+	if weather == "rain" and progress > 0.2:
+		target_vol = RUMBLE_VOLUME * progress
+	var current_db: float = _rumble_player.volume_db
+	var current_linear: float = db_to_linear(current_db)
+	var diff: float = target_vol - current_linear
+	var step: float = CROSSFADE_SPEED * _delta
+	if absf(diff) < step:
+		current_linear = target_vol
+	else:
+		current_linear += sign(diff) * step
+	_rumble_player.volume_db = linear_to_db(maxf(current_linear, 0.001))
+	if current_linear < 0.005 and _rumble_player.playing:
+		_rumble_player.stop()
+	elif current_linear >= 0.005 and not _rumble_player.playing:
+		_rumble_player.play()
 
 
 func _return_to_silence(delta: float) -> void:

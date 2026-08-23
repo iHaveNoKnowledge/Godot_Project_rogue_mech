@@ -160,6 +160,8 @@ func _generate_sounds() -> void:
 		_gen_thunder_crack(0.88),
 		_gen_thunder_crack(1.12),
 	]
+	# Distant thunder rumble (continuous low-frequency atmosphere)
+	_sound_cache["distant_thunder_rumble"] = _gen_distant_thunder_rumble()
 # FILE LOADING HELPERS
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -412,6 +414,11 @@ func get_weather_stream(weather_type: String) -> AudioStream:
 	if _sound_cache.has(key):
 		return _sound_cache[key]
 	return null
+
+
+## Returns the distant thunder rumble loop stream.
+func get_distant_thunder_rumble() -> AudioStream:
+	return _sound_cache.get("distant_thunder_rumble", null)
 
 
 ## Play a thunder crack with random pitch variation.
@@ -1250,4 +1257,42 @@ func _gen_thunder_crack(pitch_mult: float = 1.0) -> AudioStreamWAV:
 	stream.format = AudioStreamWAV.FORMAT_16_BITS
 	stream.mix_rate = sample_rate
 	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream
+
+
+# ════════════════════════════════════════════════════════════════════════
+# DISTANT THUNDER RUMBLE — continuous low hum during heavy rain
+# ════════════════════════════════════════════════════════════════════════
+
+
+## Low-frequency rumble loop for distant thunder atmosphere.
+## Seamless 4-second loop with rolling low-frequency waves.
+func _gen_distant_thunder_rumble() -> AudioStreamWAV:
+	var sample_rate := 22050
+	var duration := 4.0
+	var num_samples := int(duration * sample_rate)
+	var data := PackedByteArray()
+	data.resize(num_samples * 2)
+	for i in range(num_samples):
+		var t := float(i) / sample_rate
+		# Multiple low-frequency sine waves for rolling rumble
+		var rumble := 0.0
+		rumble += sin(TAU * 18.0 * t) * 0.35   # Very deep base
+		rumble += sin(TAU * 28.0 * t) * 0.25   # Mid-low body
+		rumble += sin(TAU * 42.0 * t) * 0.15   # Upper-low presence
+		# Slow amplitude modulation (rolling effect)
+		var roll := sin(TAU * 0.15 * t) * 0.5 + 0.5
+		roll *= sin(TAU * 0.23 * t) * 0.4 + 0.6
+		# Soft filtered noise bed (rain atmosphere underneath)
+		var noise := (randf() * 2.0 - 1.0) * 0.08
+		var sample := (rumble * roll + noise) * 0.3
+		var val := int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+	var stream := AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	stream.loop_end = num_samples
 	return stream

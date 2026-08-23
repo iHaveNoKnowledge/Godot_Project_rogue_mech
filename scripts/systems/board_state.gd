@@ -27,6 +27,7 @@ var player_last_dir: Vector2i = Vector2i(1, 0)
 var board_mp_max: int = 8
 var board_mp: int = 8
 var board_day: int = 1
+var time_hour: float = 8.0  # GDD §3.1: 24-hour clock (0-23)
 
 # --- Theme & Objective ---
 var board_theme_id: String = "suburb"
@@ -101,6 +102,7 @@ func reset() -> void:
 	board_mp_max = 8
 	board_mp = 8
 	board_day = 1
+	time_hour = 8.0
 	board_theme_id = "suburb"
 	var default_obj = BoardConfig.get_objective("suburb")
 	board_objective_id = default_obj["id"]

@@ -37,6 +37,7 @@ static func save_run() -> void:
 		"board_mp": GlobalData.board.board_mp,
 		"board_mp_max": GlobalData.board.board_mp_max,
 		"board_day": GlobalData.board.board_day,
+		"time_hour": GlobalData.board.time_hour,
 		"current_hazard": GlobalData.board.current_hazard,
 		"board_theme_id": GlobalData.board.board_theme_id,
 		"board_objective_id": GlobalData.board.board_objective_id,
@@ -132,6 +133,7 @@ static func restore_from_dict(data: Dictionary) -> void:
 	GlobalData.board.board_mp = int(data.get("board_mp", GlobalData.board.board_mp_max))
 	GlobalData.board.board_mp_max = maxi(int(data.get("board_mp_max", 8)), 1)
 	GlobalData.board.board_day = maxi(int(data.get("board_day", 1)), 1)
+	GlobalData.board.time_hour = float(data.get("time_hour", 8.0))
 	GlobalData.board.current_hazard = str(data.get("current_hazard", ""))
 	GlobalData.board.board_theme_id = str(data.get("board_theme_id", "suburb"))
 	GlobalData.board.board_objective_id = str(data.get("board_objective_id", ""))

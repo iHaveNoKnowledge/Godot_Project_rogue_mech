@@ -339,6 +339,10 @@ func _try_step(target: Vector2i) -> bool:
 
 	GlobalData.board.board_mp = maxi(GlobalData.board.board_mp - cost, 0)
 
+	# GDD §3.1: Advance clock by step time cost
+	var step_terrain := str(tile.get_meta("terrain", "plain"))
+	DayNightSystem.advance_step(step_terrain)
+
 	# Re-embarkation check: if returning to the parked convoy base camp
 	if GlobalData.fuel.convoy_is_deployed and target == GlobalData.fuel.convoy_pos:
 		GlobalData.fuel.reembark_convoy()
@@ -460,6 +464,8 @@ func _end_day() -> void:
 		return
 	GlobalData.board.board_day += 1
 	GlobalData.board.board_mp = GlobalData.board.board_mp_max
+	# GDD §3.1: Advance clock to dawn of new day
+	DayNightSystem.advance_to_next_dawn()
 	# Passive energy regen: the mech recharges while resting between days.
 	GlobalData.fuel.mech_energy = minf(
 		GlobalData.fuel.mech_energy + GlobalData.BOARD_ENERGY_REGEN_PER_DAY,
@@ -732,7 +738,10 @@ func _announce_objective_done() -> void:
 
 func _reveal_around(center: Vector2i) -> int:
 	var mode: String = GlobalData.fuel.traversal_mode
-	var radius: int = 3 if mode == "pilot" else 2
+	var base_radius: int = 3 if mode == "pilot" else 2
+	# GDD §3.1: Night reduces radar range by 50%
+	var radar_mult := DayNightSystem.radar_range_multiplier()
+	var radius: int = maxi(1, int(base_radius * radar_mult))
 	var newly := 0
 	for k in _tiles_in_radius(center, radius):
 		var tile = nodes_dict.get(k)

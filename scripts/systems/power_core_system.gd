@@ -71,7 +71,7 @@ static func _dict_val(dict: Dictionary, key: String, default) -> Variant:
 
 
 static func get_current_core() -> String:
-	return str(GlobalData.weapons.get("power_core_id")) if GlobalData.weapons.get("power_core_id") != null else COMBUSTION
+	return GlobalData.weapons.power_core_id if GlobalData.weapons.power_core_id else COMBUSTION
 
 
 static func set_core(core_id: String) -> void:

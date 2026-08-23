@@ -50,6 +50,7 @@ var _cloak_toggle_btn: Button
 var _ewar_label: Label
 var _weather_forecast_label: Label
 var _weather_interaction_label: Label
+var _visibility_label: Label
 
 # BottomLeft Unit Status
 var _unit_status_panel: PanelContainer
@@ -611,6 +612,14 @@ func _build_threat_radar() -> void:
 	_weather_interaction_label.visible = false
 	_threat_radar.add_child(_weather_interaction_label)
 
+	# Visibility Range Indicator
+	_visibility_label = Label.new()
+	_visibility_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_visibility_label.add_theme_font_size_override("font_size", 11)
+	_visibility_label.add_theme_color_override("font_color", Color(0.5, 0.7, 0.9))
+	_visibility_label.visible = false
+	_threat_radar.add_child(_visibility_label)
+
 
 # -----------------------------------------------------------------------------
 # 4. BOTTOM LEFT: UNIT STATUS (Armor HP & Frame Durability)
@@ -922,6 +931,26 @@ func _refresh() -> void:
 			_weather_interaction_label.visible = false
 	else:
 		_weather_interaction_label.visible = false
+
+	# Visibility Range Indicator
+	if GlobalData.weather_transition != null:
+		var vis_mod: float = GlobalData.weather_transition.get_visibility_radius_modifier()
+		if vis_mod < 0.95:  # Only show when visibility is noticeably reduced
+			var vis_pct: int = int(vis_mod * 100)
+			_visibility_label.visible = true
+			if vis_mod <= 0.45:
+				_visibility_label.text = "👁 VISIBILITY: %d%% — SEVERELY REDUCED" % vis_pct
+				_visibility_label.add_theme_color_override("font_color", Color(0.9, 0.2, 0.2))
+			elif vis_mod <= 0.70:
+				_visibility_label.text = "👁 VISIBILITY: %d%% — REDUCED" % vis_pct
+				_visibility_label.add_theme_color_override("font_color", Color(0.9, 0.6, 0.2))
+			else:
+				_visibility_label.text = "👁 VISIBILITY: %d%% — SLIGHTLY REDUCED" % vis_pct
+				_visibility_label.add_theme_color_override("font_color", Color(0.7, 0.8, 0.5))
+		else:
+			_visibility_label.visible = false
+	else:
+		_visibility_label.visible = false
 
 	# Cloak Charge Warning
 	if GlobalData.thermal_cloak != null and GlobalData.thermal_cloak.is_cloak_active():

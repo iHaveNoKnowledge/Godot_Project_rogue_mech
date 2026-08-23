@@ -163,6 +163,21 @@ func get_fuel_drain_multiplier() -> float:
 	return lerpf(1.0, base, transition_progress)
 
 
+## Returns a visibility radius multiplier for fog-of-war reveal.
+## 1.0 = normal visibility, lower = reduced tile reveal radius.
+## Fog severely reduces visibility; sandstorm moderately; others normal.
+func get_visibility_radius_modifier() -> float:
+	if current_weather == CLEAR:
+		return 1.0
+	var base := 1.0
+	match current_weather:
+		RAIN: base = 0.85       # Slight reduction (rain drops obscure)
+		SANDSTORM: base = 0.50  # 50% reduction (dense particles)
+		FOG: base = 0.40        # 60% reduction (heavy fog blanket)
+		DUST_STORM: base = 0.55 # 45% reduction (dust haze)
+	return lerpf(1.0, base, transition_progress)
+
+
 ## Returns patrol detection modifier (subtract from base range).
 func get_detection_modifier() -> float:
 	if current_weather == CLEAR:

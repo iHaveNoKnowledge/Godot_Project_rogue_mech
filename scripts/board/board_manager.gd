@@ -788,7 +788,11 @@ func _reveal_around(center: Vector2i) -> int:
 	var base_radius: int = 3 if mode == "pilot" else 2
 	# GDD §3.1: Night reduces radar range by 50%
 	var radar_mult := DayNightSystem.radar_range_multiplier()
-	var radius: int = maxi(1, int(base_radius * radar_mult))
+	# Weather visibility modifier (fog/sandstorm reduce reveal radius)
+	var weather_vis_mult := 1.0
+	if GlobalData.weather_transition != null:
+		weather_vis_mult = GlobalData.weather_transition.get_visibility_radius_modifier()
+	var radius: int = maxi(1, int(base_radius * radar_mult * weather_vis_mult))
 	var newly := 0
 	for k in _tiles_in_radius(center, radius):
 		var tile = nodes_dict.get(k)

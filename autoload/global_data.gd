@@ -25,6 +25,7 @@ var narrative: NarrativeState
 var pilot: PilotState
 var hangar: HangarState
 var weapons: WeaponInventoryState
+var thermal_cloak  # ThermalCloakSystem instance (GDD §6.2)
 
 # --- Catalog databases (loaded once at startup) ---
 var armor_catalog: Dictionary = {}
@@ -186,6 +187,7 @@ func _ready() -> void:
 	pilot = PilotState.new()
 	hangar = HangarState.new()
 	weapons = WeaponInventoryState.new()
+	thermal_cloak = preload("res://scripts/systems/thermal_cloak_system.gd").new()
 
 	_load_catalogs()
 	weapons._ensure_default_frames()

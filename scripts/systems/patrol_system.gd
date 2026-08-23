@@ -671,6 +671,9 @@ static func _manhattan(a: Vector2i, b: Vector2i) -> int:
 # on that tile even after the player moves on).
 static func record_spotting(pos: Vector2i) -> void:
 	var detect := DETECT_BASE + clampi(GlobalData.board.patrol_alert, 0, ALERT_MAX)
+	# GDD §6.2: Thermal Cloak reduces patrol detection radius
+	if GlobalData.thermal_cloak != null and GlobalData.thermal_cloak.is_cloak_active():
+		detect = maxi(detect - 3, 0)
 	for p in GlobalData.board.board_patrols:
 		if str(p.get("faction", "hostile")) == "unknown":
 			continue

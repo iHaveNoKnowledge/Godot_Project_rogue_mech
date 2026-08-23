@@ -436,6 +436,9 @@ func _try_step(target: Vector2i) -> bool:
 	if GlobalData.board.board_mp <= 0 and is_inside_tree() and not get_tree().paused \
 			and GameManager.current_state == GameManager.State.BOARD:
 		_end_day()
+	# GDD §6.2: Drain thermal cloak charge on each step
+	if GlobalData.thermal_cloak != null and GlobalData.thermal_cloak.is_active:
+		GlobalData.thermal_cloak.drain_step()
 	return true
 
 
@@ -485,6 +488,9 @@ func _end_day() -> void:
 	)
 	# Engine dirt slowly cleans up between days.
 	GlobalData.fuel.engine_dirt = maxf(GlobalData.fuel.engine_dirt - GlobalData.ENGINE_DIRT_CLEANUP_PER_DAY, 0.0)
+	# GDD §6.2: Recharge thermal cloak at end of day
+	if GlobalData.thermal_cloak != null:
+		GlobalData.thermal_cloak.recharge_day()
 	# Reset daily depot seizure flag.
 	GlobalData.fuel.fuel_depot_seized_today = false
 

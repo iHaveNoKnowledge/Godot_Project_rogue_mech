@@ -88,6 +88,7 @@ static func save_run() -> void:
 		"driver_repair_xp": GlobalData.narrative.driver_repair_xp,
 		"scrap_patches": GlobalData.weapons.scrap_patches.duplicate(true),
 		"frame_bindings": GlobalData.weapons.frame_bindings.duplicate(true),
+		"thermal_cloak": GlobalData.thermal_cloak.serialize() if GlobalData.thermal_cloak else {},
 		"hangar_mechs": GlobalData.hangar.hangar_mechs.duplicate(true),
 		"active_hangar_mech_id": GlobalData.hangar.active_hangar_mech_id,
 		"frame_upgrade_level": GlobalData.weapons.frame_upgrade_level,
@@ -246,6 +247,9 @@ static func restore_from_dict(data: Dictionary) -> void:
 	var loaded_bindings = data.get("frame_bindings", {})
 	if loaded_bindings is Dictionary:
 		GlobalData.weapons.frame_bindings = loaded_bindings.duplicate(true)
+	var loaded_cloak = data.get("thermal_cloak", {})
+	if loaded_cloak is Dictionary and GlobalData.thermal_cloak:
+		GlobalData.thermal_cloak.deserialize(loaded_cloak)
 	var loaded_hangar = data.get("hangar_mechs", [])
 	if loaded_hangar is Array:
 		GlobalData.hangar.hangar_mechs = loaded_hangar.duplicate(true)

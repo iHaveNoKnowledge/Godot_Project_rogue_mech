@@ -80,8 +80,10 @@ func _generate_sounds() -> void:
 	var actuator := _gen_actuator()
 	_sound_cache["dash"] = actuator
 	_sound_cache["mecha_actuator"] = actuator
-	_sound_cache["jump"] = _gen_mech_jump()
-	_sound_cache["land"] = _gen_mech_land()
+	var jump_file: Variant = _load_sfx_file("jump")
+	_sound_cache["jump"] = jump_file if jump_file != null else _gen_mech_jump()
+	var land_file: Variant = _load_sfx_file("land")
+	_sound_cache["land"] = land_file if land_file != null else _gen_mech_land()
 	_sound_cache["roller_skate"] = _gen_roller_skate_grunt()
 	var roller_file: Variant = _load_sfx_file("roller_dash")
 	_sound_cache["roller_dash"] = roller_file if roller_file != null else _gen_roller_loop()

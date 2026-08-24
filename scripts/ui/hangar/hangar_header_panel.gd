@@ -176,4 +176,3 @@ func update_header() -> void:
 	if controller and "roster_panel_ui" in controller and controller.roster_panel_ui and controller.roster_panel_ui.has_method("refresh_badge_header"):
 		controller.roster_panel_ui.refresh_badge_header()
 	update_mode_highlights(controller.current_mode if ("current_mode" in controller) else "armor")
-

@@ -1,5 +1,7 @@
 extends CanvasLayer
 
+const PartPenaltySystem = preload("res://scripts/systems/part_penalty_system.gd")
+
 var root_control: Control
 var menu_container: VBoxContainer
 var info_panel: PanelContainer

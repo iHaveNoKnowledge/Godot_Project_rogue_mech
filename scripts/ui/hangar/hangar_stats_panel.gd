@@ -1,6 +1,8 @@
 class_name HangarStatsPanel
 extends RefCounted
 
+const PartPenaltySystem = preload("res://scripts/systems/part_penalty_system.gd")
+
 ## Total mech stats aggregation for the hangar right sidebar: sums frame/armor/
 ## attachment/weapon weights and HP, then repaints the weight bar and the
 ## total-stats label. Extracted from hangar_controller.gd.

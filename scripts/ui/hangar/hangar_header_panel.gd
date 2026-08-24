@@ -130,9 +130,9 @@ func update_mode_highlights(active_mode: String) -> void:
 		"upgrade": {"border": Color(0.85, 0.45, 1.0), "bg": Color(0.24, 0.10, 0.30, 0.95)}
 	}
 
-	for m_id in controller.mode_buttons:
+	for m_id: String in controller.mode_buttons:
 		var btn: Button = controller.mode_buttons[m_id]
-		var is_active := (m_id == active_mode)
+		var is_active: bool = (m_id == active_mode)
 		var style := StyleBoxFlat.new()
 		style.corner_radius_top_left = 3
 		style.corner_radius_top_right = 3

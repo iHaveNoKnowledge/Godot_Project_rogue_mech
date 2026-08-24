@@ -597,11 +597,9 @@ func _build_mech_status_text() -> String:
 	var total_max_armor := 0.0
 	var total_frame := 0.0
 	var total_max_frame := 0.0
-	for slot in GlobalData.weapons.equipped_parts:
-		var part = GlobalData.weapons.equipped_parts[slot]
-		if not part:
-			continue
-		var a_hp: float = _slot_armor_max(part)
+	for slot in GlobalData.MECHA_SLOTS:
+		var part = GlobalData.weapons.equipped_parts.get(slot)
+		var a_hp: float = _slot_armor_max(slot, part)
 		var f_hp: float = _slot_frame_max(slot)
 		var a_dmg = clampf(GlobalData.weapons.part_damage.get(slot, 0.0), 0.0, 1.0)
 		var f_dmg = clampf(GlobalData.weapons.part_damage.get(slot + "_frame", 0.0), 0.0, 1.0)
@@ -614,6 +612,11 @@ func _build_mech_status_text() -> String:
 	var frame_pct := int((total_frame / maxf(total_max_frame, 1.0)) * 100.0)
 	text += "ARMOR: %d%% (%.0f/%.0f)\n" % [armor_pct, total_armor, total_max_armor]
 	text += "FRAME: %d%% (%.0f/%.0f)\n\n" % [frame_pct, total_frame, total_max_frame]
+
+	# Active Part Penalties Report (shows strikethrough base values and debuff reasons)
+	var penalty_report := PartPenaltySystem.get_detailed_penalty_report()
+	if penalty_report != "":
+		text += penalty_report + "\n\n"
 
 	# Every parked mech's condition too, so the driver sees the whole fleet's HP
 	# at a glance — not just the piloted mech's live working set.
@@ -639,7 +642,7 @@ func _build_mech_status_text() -> String:
 				fleet_f_pct, totals.frame_cur, totals.frame_max]
 		text += "\n"
 
-	text += "(HP bars for each part are below — armor on top, frame underneath.)\n"
+	text += "(All 6 limb HP bars below — Armor on top, Frame underneath.)\n"
 	return text
 
 
@@ -655,41 +658,64 @@ func _mech_armor_frame_totals(mech: Dictionary) -> Dictionary:
 	var frame_max := 0.0
 	for slot in GlobalData.MECHA_SLOTS:
 		var part = SaveGameIO.resolve_equipped_part(saved_parts.get(slot))
-		if part != null:
-			var a_hp := _slot_armor_max(part)
-			if a_hp > 0.0:
-				var a_dmg := clampf(float(saved_damage.get(slot, 0.0)), 0.0, 1.0)
-				armor_cur += a_hp * (1.0 - a_dmg)
-				armor_max += a_hp
-		var f = SaveGameIO.resolve_frame_value(saved_frames.get(slot))
-		if f is Dictionary:
-			var f_hp := float((f as Dictionary).get("hp", 0.0)) + LoadoutSystem.get_frame_upgrade_hp_bonus()
-			if f_hp > 0.0:
-				var f_dmg := clampf(float(saved_damage.get(slot + "_frame", 0.0)), 0.0, 1.0)
-				frame_cur += f_hp * (1.0 - f_dmg)
-				frame_max += f_hp
+		var a_hp := _slot_armor_max(slot, part)
+		if a_hp > 0.0:
+			var a_dmg := clampf(float(saved_damage.get(slot, 0.0)), 0.0, 1.0)
+			armor_cur += a_hp * (1.0 - a_dmg)
+			armor_max += a_hp
+		var f_hp := _slot_frame_max(slot)
+		if f_hp > 0.0:
+			var f_dmg := clampf(float(saved_damage.get(slot + "_frame", 0.0)), 0.0, 1.0)
+			frame_cur += f_hp * (1.0 - f_dmg)
+			frame_max += f_hp
 	return {"armor_cur": armor_cur, "armor_max": armor_max, "frame_cur": frame_cur, "frame_max": frame_max}
 
 
-# Max armor HP for a part (ArmorPart resource or Dictionary instance).
-func _slot_armor_max(part: Variant) -> float:
+# Max armor HP for a part (ArmorPart resource or Dictionary instance with durability scaling).
+func _slot_armor_max(slot: String, part: Variant) -> float:
+	var base_hp := 0.0
 	if part is ArmorPart:
-		return part.max_hp
-	return float(part.get("hp", part.get("max_hp", 0.0)))
+		base_hp = part.max_hp
+	elif part is Dictionary:
+		base_hp = float((part as Dictionary).get("hp", (part as Dictionary).get("max_hp", 0.0)))
+	if base_hp <= 0.0:
+		base_hp = _default_slot_armor(slot)
+	var dur := GlobalData.get_part_durability(slot)
+	return base_hp * dur
 
 
-# Max frame HP for a slot: comes from the equipped inner frame (matching how the
-# combat mech builds its frame_hp in mecha_health.gd).
+# Max frame HP for a slot (equipped inner frame with durability scaling).
 func _slot_frame_max(slot: String) -> float:
 	var f = GlobalData.weapons.equipped_frames.get(slot)
+	var base_hp := 0.0
 	if f is Dictionary:
-		return float(f.get("hp", 0.0)) + LoadoutSystem.get_frame_upgrade_hp_bonus()
-	return 0.0
+		base_hp = float(f.get("hp", 0.0)) + LoadoutSystem.get_frame_upgrade_hp_bonus()
+	if base_hp <= 0.0:
+		base_hp = _default_slot_frame(slot) + LoadoutSystem.get_frame_upgrade_hp_bonus()
+	var dur := GlobalData.get_frame_durability(slot)
+	return base_hp * dur
+
+
+func _default_slot_armor(slot: String) -> float:
+	match slot:
+		"head": return 30.0
+		"body": return 60.0
+		"arm_left", "arm_right": return 25.0
+		"leg_left", "leg_right": return 30.0
+		_: return 25.0
+
+
+func _default_slot_frame(slot: String) -> float:
+	match slot:
+		"head": return 20.0
+		"body": return 40.0
+		"arm_left", "arm_right": return 15.0
+		"leg_left", "leg_right": return 20.0
+		_: return 15.0
 
 
 # Rebuilds the visual armor/frame HP bars shown under the Mech Status text.
-# Mirrors the combat CoreHUD so the driver reads the mech's real condition at a
-# glance and can decide fight-vs-repair before leaving the menu.
+# Shows all 6 limbs in a clean 2-column grid.
 func _rebuild_status_bars() -> void:
 	for child in status_bars_container.get_children():
 		child.queue_free()
@@ -701,14 +727,16 @@ func _rebuild_status_bars() -> void:
 		status_bars_container.add_child(note)
 		return
 
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 16)
+	grid.add_theme_constant_override("v_separation", 8)
+	status_bars_container.add_child(grid)
+
 	for slot in GlobalData.MECHA_SLOTS:
 		var part = GlobalData.weapons.equipped_parts.get(slot)
-		if not part:
-			continue
-		var armor_max := _slot_armor_max(part)
+		var armor_max := _slot_armor_max(slot, part)
 		var frame_max := _slot_frame_max(slot)
-		if armor_max <= 0.0 and frame_max <= 0.0:
-			continue
 
 		var a_dmg = clampf(GlobalData.weapons.part_damage.get(slot, 0.0), 0.0, 1.0)
 		var f_dmg = clampf(GlobalData.weapons.part_damage.get(slot + "_frame", 0.0), 0.0, 1.0)
@@ -717,18 +745,34 @@ func _rebuild_status_bars() -> void:
 
 		var cell := VBoxContainer.new()
 		cell.add_theme_constant_override("separation", 2)
+		cell.custom_minimum_size = Vector2(250, 0)
 
 		var header := Label.new()
-		var part_name: String = part.part_name if part is ArmorPart else str(part.get("name", part.get("part_name", "Part")))
-		header.text = "%s — %s" % [slot.capitalize(), part_name]
+		var part_name: String = ""
+		if part is ArmorPart:
+			part_name = part.part_name
+		elif part is Dictionary:
+			part_name = str(part.get("name", part.get("part_name", "Standard Armor")))
+		else:
+			part_name = "Standard Armor"
+
+		var dur_ratio := GlobalData.get_part_durability(slot)
+		var dur_text := ""
+		if dur_ratio < 0.99:
+			dur_text = " [DUR: %.0f%%]" % [dur_ratio * 100.0]
+
+		header.text = "%s: %s%s" % [slot.replace("_", " ").capitalize(), part_name, dur_text]
 		header.add_theme_font_size_override("font_size", 12)
-		header.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
+		if a_dmg >= 0.40 or f_dmg >= 0.40 or dur_ratio < 0.70:
+			header.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35))
+		else:
+			header.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
 		cell.add_child(header)
 
 		cell.add_child(_make_status_bar("Armor", armor_cur, armor_max, Color(0.77, 0.76, 0.75), Color(0.6, 0.6, 0.6)))
 		cell.add_child(_make_status_bar("Frame", frame_cur, frame_max, Color(0.376, 0.82, 0.43), Color(0.537, 1.0, 0.53)))
 
-		status_bars_container.add_child(cell)
+		grid.add_child(cell)
 
 
 # One skewed HP bar row (label + bar + value) for the Mech Status view.

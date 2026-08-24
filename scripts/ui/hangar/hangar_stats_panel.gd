@@ -59,12 +59,16 @@ func update() -> void:
 		controller.weight_bar.value = total_weight
 
 	if controller.total_stats_label:
-		# PILOT leads the block so who drives the mech being edited is visible at
-		# a glance on the customize page (the header badge carries it too).
-		controller.total_stats_label.text = "PILOT: %s\nFRAME LVL: %d | FRAME HP: %.0f | ARMOR HP: %.0f\nFRAME W: %.1fkg | ARMOR W: %.1fkg | ATTACH W: %.1fkg | WEAPON W: %.1fkg\nTOTAL WEIGHT: %.1f / %.1f kg\nFIELD PACK: %.1f / %.1f kg\nCREDITS: %d cr   |   SCRAP: %d" % [
+		var penalty_text := ""
+		var active_penalties := PartPenaltySystem.active_penalties()
+		if not active_penalties.is_empty():
+			penalty_text = "\n" + "\n".join(active_penalties)
+
+		controller.total_stats_label.text = "PILOT: %s\nFRAME LVL: %d | FRAME HP: %.0f | ARMOR HP: %.0f\nFRAME W: %.1fkg | ARMOR W: %.1fkg | ATTACH W: %.1fkg | WEAPON W: %.1fkg\nTOTAL WEIGHT: %.1f / %.1f kg\nFIELD PACK: %.1f / %.1f kg\nCREDITS: %d cr   |   SCRAP: %d%s" % [
 			_editing_pilot_name(), GlobalData.weapons.frame_upgrade_level, total_frame_hp, total_armor_hp,
 			total_frame_weight, total_armor_weight, total_attachment_weight, total_weapon_weight,
 			total_weight, max_weight,
 			field_pack_weight, field_pack_capacity,
-			GlobalData.currency.credits, GlobalData.currency.scrap
+			GlobalData.currency.credits, GlobalData.currency.scrap,
+			penalty_text
 		]

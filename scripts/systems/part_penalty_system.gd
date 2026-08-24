@@ -271,3 +271,62 @@ static func worst_penalty_summary() -> String:
 	if penalties.is_empty():
 		return ""
 	return penalties[0]
+
+
+## Formats a base value with strikethrough and penalty value if degraded:
+## e.g. base 100 with mult 0.75 -> "[s]100[/s] 75 (-25%)"
+static func format_stat_with_penalty(base_val: float, penalty_mult: float, unit: String = "") -> String:
+	if absf(penalty_mult - 1.0) < 0.01:
+		return "%.0f%s" % [base_val, unit]
+	var eff := base_val * penalty_mult
+	var diff_pct := int(round((1.0 - penalty_mult) * 100.0))
+	var sign_str := "-" if diff_pct > 0 else "+"
+	return "[s]%.0f%s[/s] %.0f%s (%s%d%%)" % [base_val, unit, eff, unit, sign_str, abs(diff_pct)]
+
+
+## Returns a comprehensive formatted report of all active penalties with strikethrough base numbers.
+static func get_detailed_penalty_report() -> String:
+	var lines: Array[String] = []
+	
+	var leg_spd := leg_speed_multiplier()
+	if leg_spd < 0.99:
+		var pct := int(round(leg_spd * 100.0))
+		lines.append("• LEGS (Walk Speed): [s]100%%[/s] -> %d%% (-%d%% Speed Penalty)" % [pct, 100 - pct])
+
+	var leg_dsh := leg_dash_multiplier()
+	if leg_dsh < 0.99:
+		var pct := int(round(leg_dsh * 100.0))
+		lines.append("• LEGS (Dash Speed): [s]100%%[/s] -> %d%% (-%d%% Roller Dash)" % [pct, 100 - pct])
+
+	var torso_e := torso_energy_multiplier()
+	if torso_e < 0.99:
+		var pct := int(round(torso_e * 100.0))
+		lines.append("• TORSO (Max Energy): [s]100%%[/s] -> %d%% (-%d%% Max Energy)" % [pct, 100 - pct])
+
+	var torso_h := torso_heat_multiplier()
+	if torso_h > 1.01:
+		var pct := int(round(torso_h * 100.0))
+		lines.append("• TORSO (Heat Stress): [s]100%%[/s] -> %d%% (+%d%% Faster Overheat)" % [pct, pct - 100])
+
+	var arm_rec := arm_recoil_multiplier()
+	if arm_rec > 1.01:
+		var pct := int(round(arm_rec * 100.0))
+		lines.append("• ARMS (Recoil): [s]100%%[/s] -> %d%% (+%d%% Weapon Kick)" % [pct, pct - 100])
+
+	var arm_mel := arm_melee_speed_multiplier()
+	if arm_mel < 0.99:
+		var pct := int(round(arm_mel * 100.0))
+		lines.append("• ARMS (Melee Speed): [s]100%%[/s] -> %d%% (-%d%% Attack Cadence)" % [pct, 100 - pct])
+
+	var head_sp := head_spread_penalty()
+	if head_sp > 0.001:
+		lines.append("• HEAD (Optics Spread): [s]+0%%[/s] -> +%.0f%% Spread (Sensor Glitch)" % [head_sp * 100.0])
+
+	var head_lck := head_lock_on_multiplier()
+	if head_lck < 0.99:
+		var pct := int(round(head_lck * 100.0))
+		lines.append("• HEAD (Lock-On Rate): [s]100%%[/s] -> %d%% (-%d%% Target Track)" % [pct, 100 - pct])
+
+	if lines.is_empty():
+		return ""
+	return "⚠ ACTIVE PART PENALTIES & DEGRADATION:\n" + "\n".join(lines)

@@ -117,16 +117,16 @@ func _ready() -> void:
 
 
 # Walks the status_bars_container looking for a HpPartBar whose header matches
-# the given slot. bar_index picks which HpPartBar in that cell to return ratio
-# of (1 = armor, 2 = frame). Returns -1.0 when nothing matches.
 func _find_bar_ratio(container: Node, slot_name: String, bar_index: int = 1) -> float:
 	if container == null:
 		return -1.0
-	for cell in container.get_children():
+	var cells: Array = []
+	_gather_cells(container, cells)
+	for cell in cells:
 		var header: Label = cell.get_child(0) if cell.get_child_count() > 0 else null
 		if header == null or not (header is Label):
 			continue
-		if not str(header.text).begins_with(slot_name.capitalize()):
+		if not str(header.text).to_lower().begins_with(slot_name.to_lower().replace("_", " ")):
 			continue
 		var found := 0
 		for row in cell.get_children():
@@ -138,3 +138,11 @@ func _find_bar_ratio(container: Node, slot_name: String, bar_index: int = 1) -> 
 							if str(child.get_script().resource_path).ends_with("hp_part_bar.gd"):
 								return float(child.get("ratio"))
 	return -1.0
+
+
+func _gather_cells(node: Node, out_cells: Array) -> void:
+	if node is VBoxContainer and node.get_child_count() >= 3 and node.get_child(0) is Label:
+		out_cells.append(node)
+		return
+	for child in node.get_children():
+		_gather_cells(child, out_cells)

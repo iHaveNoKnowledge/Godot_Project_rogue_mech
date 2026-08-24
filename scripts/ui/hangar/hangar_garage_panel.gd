@@ -449,34 +449,34 @@ func apply_tab_blink(on: bool) -> void:
 func update_camera_focus(slot: String) -> void:
 	match slot:
 		"head":
-			cam_target_pos = Vector3(1.2, 2.7, 2.8)
-			cam_look_target = Vector3(0, 2.55, 0)
+			cam_target_pos = Vector3(1.8, 3.4, 4.8)
+			cam_look_target = Vector3(0, 2.8, 0)
 		"body":
-			cam_target_pos = Vector3(1.4, 2.0, 3.4)
-			cam_look_target = Vector3(0, 1.85, 0)
+			cam_target_pos = Vector3(2.4, 2.5, 5.5)
+			cam_look_target = Vector3(0, 2.0, 0)
 		"arm_left", "weapon_left":
-			# Camera smoothly orbits to the left side to focus on the Left Arm & Weapon
-			cam_target_pos = Vector3(-2.8, 2.1, 2.6)
-			cam_look_target = Vector3(-1.0, 1.9, 0.0)
+			# Wide left-side angle framing the entire arm, weapon, and shoulder armor
+			cam_target_pos = Vector3(-4.8, 2.6, 4.8)
+			cam_look_target = Vector3(-1.2, 1.9, 0.0)
 		"arm_right", "weapon_right":
-			# Camera smoothly orbits to the right side to focus on the Right Arm & Weapon
-			cam_target_pos = Vector3(2.8, 2.1, 2.6)
-			cam_look_target = Vector3(1.0, 1.9, 0.0)
+			# Wide right-side angle framing the entire arm, weapon, and shoulder armor
+			cam_target_pos = Vector3(4.8, 2.6, 4.8)
+			cam_look_target = Vector3(1.2, 1.9, 0.0)
 		"weapon_carry":
 			# Camera swings around to the back to inspect carry weapons & backpack
-			cam_target_pos = Vector3(1.8, 2.6, -3.2)
-			cam_look_target = Vector3(0, 2.0, 0)
+			cam_target_pos = Vector3(2.8, 3.2, -5.5)
+			cam_look_target = Vector3(0, 2.2, 0)
 		"leg_left":
-			# Camera zooms in low on the Left Leg
-			cam_target_pos = Vector3(-2.2, 1.1, 2.6)
-			cam_look_target = Vector3(-0.6, 0.8, 0.0)
+			# Camera frames the entire left leg from hip to foot
+			cam_target_pos = Vector3(-3.8, 1.8, 4.8)
+			cam_look_target = Vector3(-0.6, 1.0, 0.0)
 		"leg_right":
-			# Camera zooms in low on the Right Leg
-			cam_target_pos = Vector3(2.2, 1.1, 2.6)
-			cam_look_target = Vector3(0.6, 0.8, 0.0)
+			# Camera frames the entire right leg from hip to foot
+			cam_target_pos = Vector3(3.8, 1.8, 4.8)
+			cam_look_target = Vector3(0.6, 1.0, 0.0)
 		_:
-			cam_target_pos = Vector3(4.2, 2.2, 5.2)
-			cam_look_target = Vector3(0, 1.7, 0)
+			cam_target_pos = Vector3(5.2, 3.2, 7.5)
+			cam_look_target = Vector3(0, 2.2, 0)
 
 
 # --- REAL-TIME 3D PREVIEWS IN GARAGE ---

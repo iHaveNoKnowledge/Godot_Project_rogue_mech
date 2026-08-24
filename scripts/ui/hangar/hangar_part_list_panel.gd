@@ -331,6 +331,10 @@ func on_item_selected(index: int) -> void:
 	if _is_populating: return
 	_last_selected_item_index = index
 
+	if controller.stats_hp_bar_box:
+		for child in controller.stats_hp_bar_box.get_children():
+			child.queue_free()
+
 	if controller.current_mode == "upgrade":
 		controller.stats_label.text = "REACTOR POWER UPGRADE\n\nCURRENT LEVEL: %d\nENERGY REGEN: +%.1f/s\n\nUPGRADE COST: %d CR\n(Press Upgrade to boost power core)" % [
 			GlobalData.weapons.frame_upgrade_level,

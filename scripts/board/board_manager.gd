@@ -1630,6 +1630,11 @@ func _roll_chokepoint_ambush(tile: Node) -> bool:
 # convoy has parked mechs with seated pilots to choose from; solo convoys and
 # surprise ambushes skip straight into the battle.
 func _request_combat(combat_type: String) -> void:
+	# Guard: ignore duplicate requests while already leaving the board (e.g. rapid
+	# double-click on a tile) — otherwise two deferred change_scene calls race
+	# and Vulkan can fail with swap_chain_resize ERR_CANT_CREATE.
+	if GameManager.current_state != GameManager.State.BOARD:
+		return
 	# Tell the arena generator what terrain this battle happens on: a forest
 	# board fought on a ROAD tile gets the road-through-forest arena.
 	var tile = nodes_dict.get(current_pos)

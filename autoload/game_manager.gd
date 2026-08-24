@@ -30,7 +30,11 @@ func transition_to(new_state: State) -> void:
 
 
 func enter_board() -> void:
-	get_tree().change_scene_to_file("res://scenes/board/game_board.tscn")
+	# Deferred to avoid Vulkan swap_chain_resize ERR_CANT_CREATE when called
+	# from input_event (_on_input_event → move_to_tile → _request_combat) or
+	# physics. Immediate change_scene during input can tear down the viewport
+	# while the driver is still presenting.
+	get_tree().call_deferred("change_scene_to_file", "res://scenes/board/game_board.tscn")
 	transition_to(State.BOARD)
 	# The intermission music is bound to the board state, not to the UI panel:
 	# it plays (or resumes the saved track) every time the board becomes the
@@ -66,7 +70,7 @@ func enter_combat(combat_type: String = "grunt") -> void:
 			GlobalData.save_run()
 			var name := str(HangarManager.get_active_mech().get("name", "the backup mech"))
 			GlobalData.board.run_notice = "The piloted mech's driver was wounded, so it was parked. You're piloting %s instead." % name
-	get_tree().change_scene_to_file("res://scenes/game_world.tscn")
+	get_tree().call_deferred("change_scene_to_file", "res://scenes/game_world.tscn")
 	transition_to(State.COMBAT)
 	EventBus.combat_intensity_changed.emit(1.0)
 	AudioManager.play_combat_music(combat_type)
@@ -92,7 +96,7 @@ func advance_to_next_sector() -> void:
 	GlobalData.save_run()
 	EventBus.combat_intensity_changed.emit(0.0)
 	AudioManager.stop_music()
-	get_tree().change_scene_to_file("res://scenes/board/game_board.tscn")
+	get_tree().call_deferred("change_scene_to_file", "res://scenes/board/game_board.tscn")
 	transition_to(State.BOARD)
 	AudioManager.play_intermission_music()
 
@@ -102,7 +106,7 @@ func return_to_board() -> void:
 	GlobalData.save_run()
 	EventBus.combat_intensity_changed.emit(0.0)
 	AudioManager.stop_music()
-	get_tree().change_scene_to_file("res://scenes/board/game_board.tscn")
+	get_tree().call_deferred("change_scene_to_file", "res://scenes/board/game_board.tscn")
 	transition_to(State.BOARD)
 	AudioManager.play_intermission_music()
 
@@ -112,7 +116,7 @@ func enter_safehouse() -> void:
 
 
 func enter_hangar() -> void:
-	get_tree().change_scene_to_file("res://scenes/ui/hangar_scene.tscn")
+	get_tree().call_deferred("change_scene_to_file", "res://scenes/ui/hangar_scene.tscn")
 	transition_to(State.HANGAR)
 
 
@@ -129,11 +133,11 @@ func resume_combat() -> void:
 
 
 func game_over() -> void:
-	get_tree().change_scene_to_file("res://scenes/main_menu/main_menu.tscn")
+	get_tree().call_deferred("change_scene_to_file", "res://scenes/main_menu/main_menu.tscn")
 	transition_to(State.MENU)
 
 
 func end_run(victory: bool) -> void:
 	EventBus.run_ended.emit(victory)
-	get_tree().change_scene_to_file("res://scenes/main_menu/main_menu.tscn")
+	get_tree().call_deferred("change_scene_to_file", "res://scenes/main_menu/main_menu.tscn")
 	transition_to(State.MENU)

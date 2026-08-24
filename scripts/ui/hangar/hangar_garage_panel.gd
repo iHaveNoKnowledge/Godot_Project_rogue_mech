@@ -449,34 +449,34 @@ func apply_tab_blink(on: bool) -> void:
 func update_camera_focus(slot: String) -> void:
 	match slot:
 		"head":
-			cam_target_pos = Vector3(1.8, 3.4, 4.8)
-			cam_look_target = Vector3(0, 2.8, 0)
+			cam_target_pos = Vector3(0.8, 2.7, 4.5)
+			cam_look_target = Vector3(0, 2.5, 0)
 		"body":
-			cam_target_pos = Vector3(2.4, 2.5, 5.5)
-			cam_look_target = Vector3(0, 2.0, 0)
+			cam_target_pos = Vector3(0.8, 2.0, 4.8)
+			cam_look_target = Vector3(0, 1.8, 0)
 		"arm_left", "weapon_left":
-			# Wide left-side angle framing the entire arm, weapon, and shoulder armor
-			cam_target_pos = Vector3(-4.8, 2.6, 4.8)
-			cam_look_target = Vector3(-1.2, 1.9, 0.0)
+			# Focuses directly on the Left Arm (-0.9 X) with centered viewport framing
+			cam_target_pos = Vector3(1.2, 2.4, 5.2)
+			cam_look_target = Vector3(-0.9, 1.9, 0.0)
 		"arm_right", "weapon_right":
-			# Wide right-side angle framing the entire arm, weapon, and shoulder armor
-			cam_target_pos = Vector3(4.8, 2.6, 4.8)
-			cam_look_target = Vector3(1.2, 1.9, 0.0)
+			# Focuses directly on the Right Arm (+0.9 X) with centered viewport framing
+			cam_target_pos = Vector3(-1.2, 2.4, 5.2)
+			cam_look_target = Vector3(0.9, 1.9, 0.0)
 		"weapon_carry":
-			# Camera swings around to the back to inspect carry weapons & backpack
-			cam_target_pos = Vector3(2.8, 3.2, -5.5)
-			cam_look_target = Vector3(0, 2.2, 0)
+			# Swings around to the back to inspect carry weapons & backpack
+			cam_target_pos = Vector3(1.2, 2.6, -5.0)
+			cam_look_target = Vector3(0, 2.0, 0)
 		"leg_left":
-			# Camera frames the entire left leg from hip to foot
-			cam_target_pos = Vector3(-3.8, 1.8, 4.8)
-			cam_look_target = Vector3(-0.6, 1.0, 0.0)
+			# Frames the left leg centered in the visible viewport
+			cam_target_pos = Vector3(0.8, 1.6, 5.0)
+			cam_look_target = Vector3(-0.5, 1.0, 0.0)
 		"leg_right":
-			# Camera frames the entire right leg from hip to foot
-			cam_target_pos = Vector3(3.8, 1.8, 4.8)
-			cam_look_target = Vector3(0.6, 1.0, 0.0)
+			# Frames the right leg centered in the visible viewport
+			cam_target_pos = Vector3(-0.8, 1.6, 5.0)
+			cam_look_target = Vector3(0.5, 1.0, 0.0)
 		_:
-			cam_target_pos = Vector3(5.2, 3.2, 7.5)
-			cam_look_target = Vector3(0, 2.2, 0)
+			cam_target_pos = Vector3(1.8, 2.4, 6.0)
+			cam_look_target = Vector3(0, 1.8, 0)
 
 
 # --- REAL-TIME 3D PREVIEWS IN GARAGE ---

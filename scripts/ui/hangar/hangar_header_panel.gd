@@ -166,3 +166,14 @@ func update_mode_highlights(active_mode: String) -> void:
 
 		for st in ["normal", "hover", "pressed", "focus", "disabled"]:
 			btn.add_theme_stylebox_override(st, style)
+
+
+func update_header() -> void:
+	if controller and controller.has_node("RootControl/PanelContainer/VBoxContainer/HBoxContainer/SelectionLabel"):
+		var lbl = controller.get_node_or_null("RootControl/PanelContainer/VBoxContainer/HBoxContainer/SelectionLabel") as Label
+		if lbl and "selected_slot" in controller:
+			lbl.text = "EDITING: %s" % str(controller.selected_slot).to_upper()
+	if controller and "roster_panel_ui" in controller and controller.roster_panel_ui and controller.roster_panel_ui.has_method("refresh_badge_header"):
+		controller.roster_panel_ui.refresh_badge_header()
+	update_mode_highlights(controller.current_mode if ("current_mode" in controller) else "armor")
+

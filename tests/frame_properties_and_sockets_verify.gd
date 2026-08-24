@@ -16,18 +16,18 @@ func _ready() -> void:
 	# 1. Verify Dynamic Camera Orbits in HangarGaragePanel
 	var garage := HangarGaragePanel.new()
 	garage.update_camera_focus("arm_left")
-	_check(garage.cam_target_pos.x < -2.0, "arm_left orbits camera to the LEFT side (x < -2.0)")
-	_check(garage.cam_look_target.x < -0.5, "arm_left looks toward left arm")
+	_check(garage.cam_look_target.x < -0.5, "arm_left looks toward left arm (-X)")
+	_check(garage.cam_target_pos.x > 0.0, "arm_left frames from positive angle (+X) toward left arm")
 
 	garage.update_camera_focus("arm_right")
-	_check(garage.cam_target_pos.x > 2.0, "arm_right orbits camera to the RIGHT side (x > 2.0)")
-	_check(garage.cam_look_target.x > 0.5, "arm_right looks toward right arm")
+	_check(garage.cam_look_target.x > 0.5, "arm_right looks toward right arm (+X)")
+	_check(garage.cam_target_pos.x < 0.0, "arm_right frames from negative angle (-X) toward right arm")
 
 	garage.update_camera_focus("leg_left")
-	_check(garage.cam_target_pos.x < -1.5 and garage.cam_target_pos.y < 1.5, "leg_left orbits low-left")
+	_check(garage.cam_look_target.x < -0.2 and garage.cam_look_target.y < 1.5, "leg_left looks toward lower left leg")
 
 	garage.update_camera_focus("leg_right")
-	_check(garage.cam_target_pos.x > 1.5 and garage.cam_target_pos.y < 1.5, "leg_right orbits low-right")
+	_check(garage.cam_look_target.x > 0.2 and garage.cam_look_target.y < 1.5, "leg_right looks toward lower right leg")
 
 	garage.update_camera_focus("weapon_carry")
 	_check(garage.cam_target_pos.z < -2.0, "weapon_carry orbits behind mecha backpack")

@@ -278,6 +278,170 @@ func is_catalog_frame_id(frame_id: String) -> bool:
 	return not get_frame_catalog_entry(frame_id).is_empty()
 
 
+# --- FRAME PROPERTIES & RPG SOCKETED MODS CATALOG ---
+var frame_property_catalog: Array = [
+	# Body Core & Propulsion Modules
+	{
+		"id": "mod_reactor_fission",
+		"name": "Fission Power Core",
+		"slot": "body",
+		"type": "reactor",
+		"desc": "Primary power reactor. +1000 Energy, +80/s Recharge rate.",
+		"energy_bonus": 1000.0,
+		"recharge_bonus": 80.0,
+		"weight": 18.0,
+		"color": Color(0.2, 0.7, 1.0)
+	},
+	{
+		"id": "mod_flight_booster",
+		"name": "High-Output Vector Thruster",
+		"slot": "body",
+		"type": "propulsion",
+		"desc": "Aerial thruster glide system. +25% Dash Speed.",
+		"dash_speed_bonus": 0.25,
+		"flight_glide": true,
+		"weight": 14.0,
+		"color": Color(1.0, 0.5, 0.1)
+	},
+	{
+		"id": "mod_cryo_heatsink",
+		"name": "Cryogenic Heat Dissipator",
+		"slot": "body",
+		"type": "thermal",
+		"desc": "Liquid coolant circulation. -30% Heat accumulation.",
+		"heat_reduction": 0.30,
+		"weight": 8.0,
+		"color": Color(0.3, 0.85, 1.0)
+	},
+	# Head Sensor & FCS Modules
+	{
+		"id": "mod_targeting_fcs",
+		"name": "Tactical FCS Sensor",
+		"slot": "head",
+		"type": "sensor",
+		"desc": "+40% Lock-On tracking speed, -15% weapon spread.",
+		"lock_on_bonus": 0.40,
+		"spread_reduction": 0.15,
+		"weight": 4.0,
+		"color": Color(0.2, 1.0, 0.4)
+	},
+	{
+		"id": "mod_threat_analyzer",
+		"name": "Weakpoint Scanner",
+		"slot": "head",
+		"type": "sensor",
+		"desc": "Analyzes armor fault lines. +15% Critical hit chance.",
+		"crit_bonus": 0.15,
+		"weight": 5.0,
+		"color": Color(1.0, 0.3, 0.3)
+	},
+	# Arm Weapon Stabilizers
+	{
+		"id": "mod_recoil_gyro_l",
+		"name": "Gyro Recoil Compensator",
+		"slot": "arm_left",
+		"type": "actuator",
+		"desc": "Torque dampeners. -35% weapon recoil kick.",
+		"recoil_reduction": 0.35,
+		"weight": 6.0,
+		"color": Color(0.8, 0.8, 0.3)
+	},
+	{
+		"id": "mod_recoil_gyro_r",
+		"name": "Gyro Recoil Compensator",
+		"slot": "arm_right",
+		"type": "actuator",
+		"desc": "Torque dampeners. -35% weapon recoil kick.",
+		"recoil_reduction": 0.35,
+		"weight": 6.0,
+		"color": Color(0.8, 0.8, 0.3)
+	},
+	{
+		"id": "mod_melee_hydraulic_l",
+		"name": "High-Torque Melee Actuator",
+		"slot": "arm_left",
+		"type": "actuator",
+		"desc": "Reinforced arm servos. +30% Melee attack speed & damage.",
+		"melee_speed_bonus": 0.30,
+		"weight": 10.0,
+		"color": Color(1.0, 0.4, 0.1)
+	},
+	{
+		"id": "mod_melee_hydraulic_r",
+		"name": "High-Torque Melee Actuator",
+		"slot": "arm_right",
+		"type": "actuator",
+		"desc": "Reinforced arm servos. +30% Melee attack speed & damage.",
+		"melee_speed_bonus": 0.30,
+		"weight": 10.0,
+		"color": Color(1.0, 0.4, 0.1)
+	},
+	# Leg Mobility Mods
+	{
+		"id": "mod_roller_overdrive_l",
+		"name": "Roller Overdrive Bearings",
+		"slot": "leg_left",
+		"type": "mobility",
+		"desc": "+30% Roller Dash speed, -20% roller energy cost.",
+		"roller_speed_bonus": 0.30,
+		"weight": 8.0,
+		"color": Color(0.4, 0.9, 1.0)
+	},
+	{
+		"id": "mod_roller_overdrive_r",
+		"name": "Roller Overdrive Bearings",
+		"slot": "leg_right",
+		"type": "mobility",
+		"desc": "+30% Roller Dash speed, -20% roller energy cost.",
+		"roller_speed_bonus": 0.30,
+		"weight": 8.0,
+		"color": Color(0.4, 0.9, 1.0)
+	},
+	{
+		"id": "mod_shock_absorbers_l",
+		"name": "Hydraulic Impact Dampeners",
+		"slot": "leg_left",
+		"type": "mobility",
+		"desc": "Zero landing stun, +20% jump height.",
+		"jump_bonus": 0.20,
+		"weight": 7.0,
+		"color": Color(0.9, 0.7, 0.2)
+	},
+	{
+		"id": "mod_shock_absorbers_r",
+		"name": "Hydraulic Impact Dampeners",
+		"slot": "leg_right",
+		"type": "mobility",
+		"desc": "Zero landing stun, +20% jump height.",
+		"jump_bonus": 0.20,
+		"weight": 7.0,
+		"color": Color(0.9, 0.7, 0.2)
+	}
+]
+
+
+func get_slot_frame_sockets(slot: String) -> int:
+	var fdict = weapons.equipped_frames.get(slot)
+	if fdict is Dictionary:
+		return int(fdict.get("sockets", 2))
+	return 2
+
+
+func get_frame_property_entry(mod_id: String) -> Dictionary:
+	for entry in frame_property_catalog:
+		if entry.get("id", "") == mod_id:
+			return entry
+	return {}
+
+
+func get_equipped_frame_mods_for_slot(slot: String) -> Array:
+	var result: Array = []
+	for att in weapons.attachments:
+		if att.get("slot", "") == slot:
+			result.append(att)
+	return result
+
+
 # ===========================================================================
 # EVENT HANDLERS
 # ===========================================================================

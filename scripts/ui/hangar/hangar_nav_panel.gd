@@ -38,7 +38,15 @@ func show_hangar() -> void:
 
 func switch_custom_mode(mode: String) -> void:
 	controller.current_mode = mode
+	if controller.header_panel and controller.header_panel.has_method("update_mode_highlights"):
+		controller.header_panel.update_mode_highlights(mode)
 	controller.part_list_panel.populate(controller.selected_slot)
+
+
+# Build the sub-toggle bar: now managed directly by HangarHeaderPanel at the top of the screen.
+func build_mode_toggles(_root: Control) -> void:
+	if controller.header_panel and controller.header_panel.has_method("update_mode_highlights"):
+		controller.header_panel.update_mode_highlights(controller.current_mode if "current_mode" in controller else "armor")
 
 
 # Build the landing sub-menu rail (the long vertical list shown first after
@@ -109,41 +117,6 @@ func build_landing_rail(root: Control) -> void:
 	rail_exit.focus_mode = Control.FOCUS_NONE
 	rail_exit.pressed.connect(func(): if controller.exit_panel: controller.exit_panel.close())
 	rail_box.add_child(rail_exit)
-
-
-# Build the sub-toggle bar (Armor Plating vs Inner Skeleton Frame vs Power
-# Upgrade) into `root`. Each button swaps the part-list mode via
-# switch_custom_mode().
-func build_mode_toggles(root: Control) -> void:
-	controller.sub_toggle_container = HBoxContainer.new()
-	controller.sub_toggle_container.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	controller.sub_toggle_container.offset_top = 86
-	controller.sub_toggle_container.add_theme_constant_override("separation", 8)
-	root.add_child(controller.sub_toggle_container)
-
-	var btn_armor = Button.new()
-	btn_armor.text = "🛡️ OUTER ARMOR"
-	btn_armor.custom_minimum_size = Vector2(170, 32)
-	btn_armor.pressed.connect(func(): switch_custom_mode("armor"))
-	controller.sub_toggle_container.add_child(btn_armor)
-
-	var btn_frame = Button.new()
-	btn_frame.text = "⚙️ INNER SKELETON FRAME"
-	btn_frame.custom_minimum_size = Vector2(170, 32)
-	btn_frame.pressed.connect(func(): switch_custom_mode("frame"))
-	controller.sub_toggle_container.add_child(btn_frame)
-
-	var btn_attachment = Button.new()
-	btn_attachment.text = "🔩 FREE ATTACHMENT"
-	btn_attachment.custom_minimum_size = Vector2(170, 32)
-	btn_attachment.pressed.connect(func(): switch_custom_mode("attachment"))
-	controller.sub_toggle_container.add_child(btn_attachment)
-
-	controller.frame_upgrade_button = Button.new()
-	controller.frame_upgrade_button.text = "⚡ REACTOR POWER UPGRADE"
-	controller.frame_upgrade_button.custom_minimum_size = Vector2(180, 32)
-	controller.frame_upgrade_button.pressed.connect(func(): switch_custom_mode("upgrade"))
-	controller.sub_toggle_container.add_child(controller.frame_upgrade_button)
 
 
 # --- HANGAR SUB-MENU (landing list: CUSTOMIZE / EMERGENCY REPAIR / UPGRADE / CRAFT / CATALOG) ---

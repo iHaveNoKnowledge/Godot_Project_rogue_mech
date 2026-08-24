@@ -44,10 +44,22 @@ func populate(slot: String) -> void:
 		if slot not in ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]:
 			controller.part_item_list.add_item("Select a body section first")
 		else:
-			var capacity = controller.garage_panel.get_attachment_capacity(slot)
-			for info in controller.attachment_catalog:
-				var prefix = "[E] " if controller.garage_panel.has_attachment(info["id"], slot) else "    "
-				controller.part_item_list.add_item("%s%s (%.1fkg / %.1fkg capacity)" % [prefix, info["name"], info["weight"], capacity])
+			var max_sockets: int = GlobalData.get_slot_frame_sockets(slot)
+			var equipped_mods: Array = GlobalData.get_equipped_frame_mods_for_slot(slot)
+			var catalog: Array = GlobalData.frame_property_catalog
+			controller.visible_attachment_indices = []
+			for i in range(catalog.size()):
+				var info = catalog[i]
+				if info.get("slot", "") == slot or info.get("slot", "") == "":
+					var is_eq := false
+					for eq_mod in equipped_mods:
+						if eq_mod.get("id", "") == info["id"]:
+							is_eq = true
+							break
+					var prefix := "[E] " if is_eq else "    "
+					var label_text := "%s%s [Mod] (%s)" % [prefix, info["name"], str(info.get("type", "mod")).to_upper()]
+					controller.part_item_list.add_item(label_text)
+					controller.visible_attachment_indices.append(i)
 			if controller.part_item_list.item_count > 0:
 				controller.part_item_list.select(0)
 				_last_selected_item_index = 0
@@ -250,20 +262,17 @@ func _update_currently_equipped_display(slot: String) -> void:
 		return
 
 	if controller.current_mode == "attachment":
-		var atts = GlobalData.weapons.attachments
-		var count := 0
-		var used_wt := 0.0
-		for a in atts:
-			if a is Dictionary and a.get("slot", "") == slot:
-				count += 1
-				used_wt += float(a.get("weight", 0.0))
-		var capacity: float = float(controller.garage_panel.get_attachment_capacity(slot)) if controller.garage_panel else 20.0
-		if count > 0:
-			controller.currently_equipped_label.text = "%d Attachment Module(s)" % count
-			controller.currently_equipped_sublabel.text = "Load: %.1f / %.1f kg capacity" % [used_wt, capacity]
+		var max_sockets := GlobalData.get_slot_frame_sockets(slot)
+		var equipped_mods := GlobalData.get_equipped_frame_mods_for_slot(slot)
+		if equipped_mods.size() > 0:
+			var mod_names: Array = []
+			for m in equipped_mods:
+				mod_names.append(str(m.get("name", "Mod")))
+			controller.currently_equipped_label.text = "SOCKETS (%d/%d): %s" % [equipped_mods.size(), max_sockets, ", ".join(mod_names)]
+			controller.currently_equipped_sublabel.text = "Click an item in list to Equip / Unequip"
 		else:
-			controller.currently_equipped_label.text = "(No Attachments)"
-			controller.currently_equipped_sublabel.text = "Slot capacity: %.1f kg" % capacity
+			controller.currently_equipped_label.text = "FRAME SOCKETS: 0 / %d Installed" % max_sockets
+			controller.currently_equipped_sublabel.text = "(No properties installed - Frame at stock spec)"
 		return
 
 	if controller.current_mode == "frame":
@@ -278,55 +287,87 @@ func _update_currently_equipped_display(slot: String) -> void:
 			var hp_text = "HP: %.0f / %.0f (%.0f%%)" % [cur_fhp, fhp, (1.0 - frame_dmg) * 100.0] if frame_dmg > 0.001 else "HP: %.0f / %.0f" % [fhp, fhp]
 			controller.currently_equipped_label.text = fname + (" [DESTROYED]" if is_destroyed else "")
 			controller.currently_equipped_sublabel.text = "%s | Weight: %.1f kg" % [hp_text, fwt]
-			if controller.currently_equipped_bar_box:
-				controller.currently_equipped_bar_box.add_child(HPPartBar.create_row("Frame", cur_fhp, fhp, true, false, 200, 8, 10))
 		else:
 			controller.currently_equipped_label.text = "(No Frame Installed)"
-			controller.currently_equipped_sublabel.text = "Select a frame from the list below"
+			controller.currently_equipped_sublabel.text = "Slot is empty"
 		return
 
+	# Weapons / Armor:
 	if controller.armor_catalog.has(slot):
-		var p = GlobalData.weapons.equipped_parts.get(slot)
-		if p is Dictionary and not p.is_empty():
-			var pname = str(p.get("name", p.get("part_name", "Armor Plate")))
-			var is_destroyed = float(GlobalData.weapons.part_damage.get(slot, 0.0)) >= 1.0 or float(GlobalData.weapons.part_damage.get(slot + "_frame", 0.0)) >= 1.0
-			var dur_pct = instance_durability(slot, p)
-			var ac = float(p.get("armor_class", p.get("armor", 1.0)))
-			var wt = float(p.get("weight", 4.0))
-			var full_hp = float(GlobalData.part_stat(p, "max_hp", 30.0))
-			var cur_hp = full_hp * dur_pct
-			controller.currently_equipped_label.text = pname + (" [DESTROYED]" if is_destroyed else "")
-			controller.currently_equipped_sublabel.text = "DUR: %.0f%% | Armor: %.1f | Wt: %.1fkg" % [dur_pct * 100.0, ac, wt]
-			if controller.currently_equipped_bar_box:
-				controller.currently_equipped_bar_box.add_child(HPPartBar.create_row("Armor", cur_hp, full_hp, false, false, 200, 8, 10))
+		var eq = GlobalData.weapons.equipped_parts.get(slot)
+		if eq is Dictionary and not eq.is_empty():
+			var eq_name = str(eq.get("name", eq.get("part_name", "Unknown Armor")))
+			var eq_hp = float(eq.get("durability", eq.get("max_hp", 100.0)))
+			var eq_armor = float(eq.get("armor", 10.0))
+			var eq_dmg = clampf(float(GlobalData.weapons.part_damage.get(slot, 0.0)), 0.0, 1.0)
+			var is_destroyed = eq_dmg >= 1.0
+			var cur_hp = eq_hp * (1.0 - eq_dmg)
+			var hp_text = "HP: %.0f / %.0f (%.0f%%)" % [cur_hp, eq_hp, (1.0 - eq_dmg) * 100.0] if eq_dmg > 0.001 else "HP: %.0f / %.0f" % [eq_hp, eq_hp]
+			controller.currently_equipped_label.text = eq_name + (" [DESTROYED]" if is_destroyed else "")
+			controller.currently_equipped_sublabel.text = "%s | Armor: %.0f" % [hp_text, eq_armor]
 		else:
-			controller.currently_equipped_label.text = "(No Armor Equipped)"
-			controller.currently_equipped_sublabel.text = "Select an armor plate from inventory below"
+			controller.currently_equipped_label.text = "(No Armor Plate)"
+			controller.currently_equipped_sublabel.text = "Exposed Inner Frame"
+		return
+
+	if slot.begins_with("weapon"):
+		var hand = "left" if slot == "weapon_left" else ("right" if slot == "weapon_right" else "carry")
+		var wpath = GlobalData.weapons.weapon_loadout.get(hand, "")
+		var w = GlobalData.weapons.get_weapon_by_path(wpath)
+		if w is Dictionary and not w.is_empty():
+			var wname = str(w.get("name", "Unknown Weapon"))
+			var wdur = GlobalData.get_durability_ratio(w)
+			var is_destroyed = wdur <= 0.0
+			var dur_text = "DUR: %.0f%%" % [wdur * 100.0]
+			controller.currently_equipped_label.text = wname + (" [BROKEN]" if is_destroyed else "")
+			controller.currently_equipped_sublabel.text = "%s | Type: %s" % [dur_text, str(w.get("type", "Weapon")).to_upper()]
+		else:
+			controller.currently_equipped_label.text = "(No Weapon)"
+			controller.currently_equipped_sublabel.text = "Empty Hand / Mount"
 		return
 
 
 func on_item_selected(index: int) -> void:
-	if controller.stats_hp_bar_box:
-		for child in controller.stats_hp_bar_box.get_children():
-			child.queue_free()
+	if _is_populating: return
+	_last_selected_item_index = index
 
 	if controller.current_mode == "upgrade":
-		var cost = controller._get_upgrade_cost()
-		controller.stats_label.text = "INNER FRAME REACTOR LEVEL: %d -> %d\n\nEFFECTS:\n+25 FRAME HP per slot\n+15.0 kg MAX WEIGHT CAPACITY\n+1.5 m/s DASH THRUST SPEED\n\nUPGRADE COST: %d Credits" % [
-			GlobalData.weapons.frame_upgrade_level, GlobalData.weapons.frame_upgrade_level + 1, cost
+		controller.stats_label.text = "REACTOR POWER UPGRADE\n\nCURRENT LEVEL: %d\nENERGY REGEN: +%.1f/s\n\nUPGRADE COST: %d CR\n(Press Upgrade to boost power core)" % [
+			GlobalData.weapons.frame_upgrade_level,
+			GlobalData.weapons.frame_upgrade_level * 1.5,
+			controller._get_upgrade_cost()
 		]
+		controller.selected_frame_info = {}
+		controller.selected_part_path = ""
+		controller.selected_part_id = ""
 		controller.selected_salvage_info = {}
 		controller.update_tier_display({"upgrade_level": GlobalData.weapons.frame_upgrade_level}, "")
 		return
 
 	if controller.current_mode == "attachment":
-		if index < 0 or index >= controller.attachment_catalog.size(): return
-		controller.selected_attachment_info = controller.attachment_catalog[index].duplicate(true)
+		var cat_idx := index
+		if "visible_attachment_indices" in controller and index >= 0 and index < controller.visible_attachment_indices.size():
+			cat_idx = controller.visible_attachment_indices[index]
+		if cat_idx < 0 or cat_idx >= GlobalData.frame_property_catalog.size(): return
+		controller.selected_attachment_info = GlobalData.frame_property_catalog[cat_idx].duplicate(true)
 		controller.selected_attachment_info["slot"] = controller.selected_slot
-		var capacity = controller.garage_panel.get_attachment_capacity(controller.selected_slot)
-		var used = controller.garage_panel.get_attachment_weight(controller.selected_slot, controller.selected_attachment_info["id"])
-		controller.stats_label.text = "ATTACHMENT: %s\n\nTARGET SECTION: %s\nWEIGHT: %.1f kg\nSECTION CAPACITY: %.1f kg\nCURRENT LOAD: %.1f kg\nPOWER COST: %.1f\n\nDrag on the 3D Mecha to place this module." % [
-			controller.selected_attachment_info["name"], controller.selected_slot.to_upper(), controller.selected_attachment_info["weight"], capacity, used, controller.selected_attachment_info["power_cost"]
+		var max_sockets := GlobalData.get_slot_frame_sockets(controller.selected_slot)
+		var equipped_mods := GlobalData.get_equipped_frame_mods_for_slot(controller.selected_slot)
+		var is_eq := false
+		for eq_mod in equipped_mods:
+			if eq_mod.get("id", "") == controller.selected_attachment_info["id"]:
+				is_eq = true
+				break
+		var status_str := "[EQUIPPED - ACTIVE]" if is_eq else "[AVAILABLE IN CATALOG]"
+		controller.stats_label.text = "FRAME PROPERTY MOD: %s\n%s\n\nTARGET SECTION: %s\nTYPE: %s\nSOCKET USAGE: %d / %d Sockets\nWEIGHT: %.1f kg\n\nDESCRIPTION:\n%s" % [
+			controller.selected_attachment_info["name"],
+			status_str,
+			controller.selected_slot.to_upper(),
+			str(controller.selected_attachment_info.get("type", "General")).to_upper(),
+			equipped_mods.size(),
+			max_sockets,
+			float(controller.selected_attachment_info.get("weight", 5.0)),
+			str(controller.selected_attachment_info.get("desc", "Enhances frame capabilities."))
 		]
 		return
 

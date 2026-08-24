@@ -86,3 +86,76 @@ func build(root: Control) -> void:
 	controller.back_to_menu_button.pressed.connect(func(): if controller.nav_panel: controller.nav_panel.on_back_to_menu_pressed())
 	controller.back_to_menu_button.visible = false
 	hdr_box.add_child(controller.back_to_menu_button)
+
+	# Row 2: Sub-Mode Toggle Bar directly beneath part selector
+	controller.sub_toggle_container = HBoxContainer.new()
+	controller.sub_toggle_container.add_theme_constant_override("separation", 8)
+	header_vbox.add_child(controller.sub_toggle_container)
+
+	_build_mode_buttons()
+
+
+func _build_mode_buttons() -> void:
+	var mode_items = [
+		{"id": "armor", "label": "🛡️ OUTER ARMOR", "color": Color(0.25, 0.90, 1.0), "bg": Color(0.12, 0.22, 0.35, 0.95)},
+		{"id": "frame", "label": "⚙️ INNER FRAME", "color": Color(0.25, 0.95, 0.60), "bg": Color(0.10, 0.25, 0.18, 0.95)},
+		{"id": "attachment", "label": "🔩 FRAME PROPERTIES & MODS", "color": Color(1.0, 0.85, 0.30), "bg": Color(0.28, 0.22, 0.08, 0.95)},
+		{"id": "upgrade", "label": "⚡ REACTOR UPGRADE", "color": Color(0.85, 0.45, 1.0), "bg": Color(0.24, 0.10, 0.30, 0.95)}
+	]
+
+	controller.mode_buttons = {}
+	for item in mode_items:
+		var btn := Button.new()
+		btn.text = item["label"]
+		btn.custom_minimum_size = Vector2(175, 30)
+		btn.focus_mode = Control.FOCUS_NONE
+		var m_id: String = item["id"]
+		btn.pressed.connect(func(): if controller.nav_panel: controller.nav_panel.switch_custom_mode(m_id))
+		controller.mode_buttons[m_id] = btn
+		controller.sub_toggle_container.add_child(btn)
+		if m_id == "upgrade":
+			controller.frame_upgrade_button = btn
+
+	update_mode_highlights(controller.current_mode if "current_mode" in controller else "armor")
+
+
+func update_mode_highlights(active_mode: String) -> void:
+	if not ("mode_buttons" in controller) or controller.mode_buttons == null:
+		return
+
+	var mode_configs = {
+		"armor": {"border": Color(0.25, 0.90, 1.0), "bg": Color(0.12, 0.22, 0.35, 0.95)},
+		"frame": {"border": Color(0.25, 0.95, 0.60), "bg": Color(0.10, 0.25, 0.18, 0.95)},
+		"attachment": {"border": Color(1.0, 0.85, 0.30), "bg": Color(0.28, 0.22, 0.08, 0.95)},
+		"upgrade": {"border": Color(0.85, 0.45, 1.0), "bg": Color(0.24, 0.10, 0.30, 0.95)}
+	}
+
+	for m_id in controller.mode_buttons:
+		var btn: Button = controller.mode_buttons[m_id]
+		var is_active := (m_id == active_mode)
+		var style := StyleBoxFlat.new()
+		style.corner_radius_top_left = 3
+		style.corner_radius_top_right = 3
+		style.corner_radius_bottom_left = 3
+		style.corner_radius_bottom_right = 3
+
+		if is_active:
+			var cfg = mode_configs.get(m_id, {"border": Color(0.4, 0.8, 1.0), "bg": Color(0.15, 0.2, 0.3)})
+			style.bg_color = cfg["bg"]
+			style.border_width_left = 2
+			style.border_width_right = 2
+			style.border_width_top = 2
+			style.border_width_bottom = 2
+			style.border_color = cfg["border"]
+			btn.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))
+		else:
+			style.bg_color = Color(0.14, 0.15, 0.18, 0.9)
+			style.border_width_left = 1
+			style.border_width_right = 1
+			style.border_width_top = 1
+			style.border_width_bottom = 1
+			style.border_color = Color(0.3, 0.35, 0.42, 0.6)
+			btn.add_theme_color_override("font_color", Color(0.72, 0.76, 0.82))
+
+		for st in ["normal", "hover", "pressed", "focus", "disabled"]:
+			btn.add_theme_stylebox_override(st, style)

@@ -59,24 +59,24 @@ func build_garage() -> void:
 	hangar_env_node.add_child(turntable_node)
 	_build_turntable_platform()
 
-	# 3. Studio WorldEnvironment (SSAO, SSR, ACES Tonemapping & Balanced Ambient)
+	# 3. Studio WorldEnvironment (SSAO, SSR, ACES Tonemapping & Bright Showroom Ambient)
 	var hangar_world_env := WorldEnvironment.new()
 	var h_env := Environment.new()
 	h_env.background_mode = Environment.BG_COLOR
-	h_env.background_color = Color(0.09, 0.11, 0.15)
+	h_env.background_color = Color(0.12, 0.14, 0.18)
 	h_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	h_env.ambient_light_color = Color(0.48, 0.55, 0.68)
-	h_env.ambient_light_energy = 1.25
+	h_env.ambient_light_color = Color(0.60, 0.68, 0.80)
+	h_env.ambient_light_energy = 1.70
 
 	h_env.tonemap_mode = Environment.TONE_MAPPER_ACES
-	h_env.tonemap_exposure = 1.15
+	h_env.tonemap_exposure = 1.22
 	h_env.adjustment_enabled = true
-	h_env.adjustment_contrast = 1.12
+	h_env.adjustment_contrast = 1.10
 	h_env.adjustment_saturation = 1.18
 
 	h_env.ssao_enabled = true
 	h_env.ssao_radius = 1.8
-	h_env.ssao_intensity = 2.2
+	h_env.ssao_intensity = 2.0
 	h_env.ssao_power = 1.5
 
 	h_env.ssr_enabled = true
@@ -85,20 +85,20 @@ func build_garage() -> void:
 	h_env.ssr_fade_out = 1.8
 
 	h_env.glow_enabled = true
-	h_env.glow_intensity = 0.65
-	h_env.glow_bloom = 0.15
+	h_env.glow_intensity = 0.60
+	h_env.glow_bloom = 0.12
 	h_env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
 	h_env.glow_hdr_threshold = 0.95
 	hangar_world_env.environment = h_env
 	hangar_env_node.add_child(hangar_world_env)
 
-	# 4. Professional 3-Point Studio Lighting (Key, Fill, Softbox, Rim, Gantry Accents)
+	# 4. Professional High-Luminance Studio Lighting
 	# Key Light (Warm Front-Right)
 	var key_spot := SpotLight3D.new()
 	key_spot.position = Vector3(4.5, 7.5, 6.0)
 	hangar_env_node.add_child(key_spot)
 	key_spot.look_at(Vector3(0, 2.5, 0), Vector3.UP)
-	key_spot.light_energy = 4.2
+	key_spot.light_energy = 6.2
 	key_spot.spot_range = 25.0
 	key_spot.spot_angle = 50.0
 	key_spot.light_color = Color(1.0, 0.98, 0.94)
@@ -110,29 +110,37 @@ func build_garage() -> void:
 	fill_spot.position = Vector3(-5.0, 6.0, 5.0)
 	hangar_env_node.add_child(fill_spot)
 	fill_spot.look_at(Vector3(0, 2.2, 0), Vector3.UP)
-	fill_spot.light_energy = 2.4
+	fill_spot.light_energy = 3.8
 	fill_spot.spot_range = 22.0
 	fill_spot.spot_angle = 55.0
-	fill_spot.light_color = Color(0.72, 0.84, 1.0)
+	fill_spot.light_color = Color(0.75, 0.88, 1.0)
 	fill_spot.shadow_enabled = false
 
 	# Overhead Softbox Downlight (Illuminates head, weapons, shoulders)
 	var top_softbox := OmniLight3D.new()
 	top_softbox.position = Vector3(0.0, 6.8, 1.2)
 	hangar_env_node.add_child(top_softbox)
-	top_softbox.light_energy = 2.2
+	top_softbox.light_energy = 3.2
 	top_softbox.omni_range = 14.0
-	top_softbox.light_color = Color(0.92, 0.96, 1.0)
+	top_softbox.light_color = Color(0.94, 0.97, 1.0)
+
+	# Front Showroom Fill (Eliminates harsh shadows on chest & waist)
+	var front_fill := OmniLight3D.new()
+	front_fill.position = Vector3(0.0, 2.4, 4.2)
+	hangar_env_node.add_child(front_fill)
+	front_fill.light_energy = 2.0
+	front_fill.omni_range = 10.0
+	front_fill.light_color = Color(0.96, 0.96, 1.0)
 
 	# Rim Backlight (Crisp Mecha Silhouette Highlight)
 	var rim_spot := SpotLight3D.new()
 	rim_spot.position = Vector3(0.0, 4.8, -4.5)
 	hangar_env_node.add_child(rim_spot)
 	rim_spot.look_at(Vector3(0, 2.2, 0), Vector3.UP)
-	rim_spot.light_energy = 3.2
+	rim_spot.light_energy = 4.2
 	rim_spot.spot_range = 18.0
 	rim_spot.spot_angle = 60.0
-	rim_spot.light_color = Color(0.35, 0.78, 1.0)
+	rim_spot.light_color = Color(0.40, 0.82, 1.0)
 	rim_spot.shadow_enabled = true
 
 	# Gantry Warm Amber Accent Lights (Background Atmosphere)
@@ -140,8 +148,8 @@ func build_garage() -> void:
 		var gantry_accent := OmniLight3D.new()
 		gantry_accent.position = Vector3(x_pos, 3.8, -7.0)
 		hangar_env_node.add_child(gantry_accent)
-		gantry_accent.light_energy = 1.2
-		gantry_accent.omni_range = 8.0
+		gantry_accent.light_energy = 1.6
+		gantry_accent.omni_range = 9.0
 		gantry_accent.light_color = Color(1.0, 0.65, 0.25)
 
 	# 3D Mecha Model in Garage
@@ -441,20 +449,34 @@ func apply_tab_blink(on: bool) -> void:
 func update_camera_focus(slot: String) -> void:
 	match slot:
 		"head":
-			cam_target_pos = Vector3(2.6, 3.0, 3.2)
-			cam_look_target = Vector3(0, 3.0, 0)
+			cam_target_pos = Vector3(1.2, 2.7, 2.8)
+			cam_look_target = Vector3(0, 2.55, 0)
 		"body":
-			cam_target_pos = Vector3(3.4, 2.5, 4.0)
-			cam_look_target = Vector3(0, 2.5, 0)
-		"arm_left", "arm_right", "weapon_left", "weapon_right", "weapon_carry":
-			cam_target_pos = Vector3(3.4, 2.3, 3.2)
-			cam_look_target = Vector3(0, 2.3, 0)
-		"leg_left", "leg_right":
-			cam_target_pos = Vector3(3.8, 1.6, 3.8)
-			cam_look_target = Vector3(0, 1.2, 0)
+			cam_target_pos = Vector3(1.4, 2.0, 3.4)
+			cam_look_target = Vector3(0, 1.85, 0)
+		"arm_left", "weapon_left":
+			# Camera smoothly orbits to the left side to focus on the Left Arm & Weapon
+			cam_target_pos = Vector3(-2.8, 2.1, 2.6)
+			cam_look_target = Vector3(-1.0, 1.9, 0.0)
+		"arm_right", "weapon_right":
+			# Camera smoothly orbits to the right side to focus on the Right Arm & Weapon
+			cam_target_pos = Vector3(2.8, 2.1, 2.6)
+			cam_look_target = Vector3(1.0, 1.9, 0.0)
+		"weapon_carry":
+			# Camera swings around to the back to inspect carry weapons & backpack
+			cam_target_pos = Vector3(1.8, 2.6, -3.2)
+			cam_look_target = Vector3(0, 2.0, 0)
+		"leg_left":
+			# Camera zooms in low on the Left Leg
+			cam_target_pos = Vector3(-2.2, 1.1, 2.6)
+			cam_look_target = Vector3(-0.6, 0.8, 0.0)
+		"leg_right":
+			# Camera zooms in low on the Right Leg
+			cam_target_pos = Vector3(2.2, 1.1, 2.6)
+			cam_look_target = Vector3(0.6, 0.8, 0.0)
 		_:
-			cam_target_pos = Vector3(4.2, 2.4, 5.0)
-			cam_look_target = Vector3(0, 2.2, 0)
+			cam_target_pos = Vector3(4.2, 2.2, 5.2)
+			cam_look_target = Vector3(0, 1.7, 0)
 
 
 # --- REAL-TIME 3D PREVIEWS IN GARAGE ---

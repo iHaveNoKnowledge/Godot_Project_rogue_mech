@@ -122,7 +122,8 @@ func physics_process(delta: float) -> void:
 	# machine-gun (1,5) fires without the rising warning and without the red flash,
 	# so only a melee swing (0,4) telegraphs. This removes the noisy “red + beep”
 	# on every ranged burst while keeping the dodge cue for melee.
-	var is_melee_arch := int(enemy.get("archetype", 0)) in [0, 4]
+	var arch_val = enemy.get("archetype")
+	var is_melee_arch := int(arch_val) in [0, 4] if arch_val != null else false
 	# Start the warning telegraph as soon as we enter the pre-fire window, so the
 	# player sees the red blink and hears the rising tone BEFORE the swing lands.
 	# The swing direction is committed exactly once per cycle: once _melee_swing_dir
@@ -243,7 +244,8 @@ func _heal_nearest_ally() -> void:
 # Freeze the melee swing direction the moment the telegraph starts, so the
 # player can sidestep or boost out of the arc before the swing connects.
 func _snapshot_melee_swing_dir() -> void:
-	if int(enemy.get("archetype", 0)) not in [0, 4] or not enemy.target or not is_instance_valid(enemy.target):
+	var arch2 = enemy.get("archetype")
+	if (arch2 == null or int(arch2) not in [0, 4]) or not enemy.target or not is_instance_valid(enemy.target):
 		return
 	var dir: Vector3 = enemy.target.global_position - enemy.global_position
 	dir.y = 0.0

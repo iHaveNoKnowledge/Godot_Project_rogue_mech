@@ -133,13 +133,14 @@ light_angular_distance = 0.06
 
 [node name="ReflectionProbe" type="ReflectionProbe" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0)
-update_mode = 1
+update_mode = 0
 cull_mask = 1048575
 size = Vector3(40, 12, 40)
 origin_offset = Vector3(0, 6, 0)
 max_distance = 40
 mesh_lod_threshold = 0.5
-intensity = 0.6
+intensity = 0.45
+enable_shadows = false
 
 [node name="MechaCamera" parent="." instance=ExtResource("1")]
 

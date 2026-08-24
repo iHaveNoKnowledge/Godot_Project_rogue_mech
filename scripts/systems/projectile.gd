@@ -57,6 +57,18 @@ static func _refresh_target_cache(tree: SceneTree) -> void:
 	_cached_targets_player_shots.append_array(tree.get_nodes_in_group("enemy"))
 
 
+# Distance from point to line segment (prev→cur) — prevents tunneling at high speed
+static func _segment_distance_to_point(a: Vector3, b: Vector3, p: Vector3) -> float:
+	var ab: Vector3 = b - a
+	var ap: Vector3 = p - a
+	var ab_len2: float = ab.length_squared()
+	if ab_len2 < 0.0001:
+		return ap.length()
+	var t: float = clampf(ap.dot(ab) / ab_len2, 0.0, 1.0)
+	var closest: Vector3 = a + ab * t
+	return p.distance_to(closest)
+
+
 func _physics_process(delta: float) -> void:
 	timer += delta
 	if timer >= lifetime:
@@ -96,16 +108,17 @@ func _physics_process(delta: float) -> void:
 		for mecha in _cached_targets_enemy_shots:
 			if not is_instance_valid(mecha):
 				continue
-			var dist = global_position.distance_to(mecha.global_position + Vector3(0, 1.5, 0))
-			if dist < 1.5:
+			var target_pos: Vector3 = mecha.global_position + Vector3(0, 1.5, 0)
+			# Use segment distance (prev→cur) so fast projectiles don't tunnel
+			if _segment_distance_to_point(prev_position, global_position, target_pos) < 2.2:
 				_hit_target(mecha)
 				return
 	else:
 		for enemy in _cached_targets_player_shots:
 			if not is_instance_valid(enemy):
 				continue
-			var dist = global_position.distance_to(enemy.global_position + Vector3(0, 1.5, 0))
-			if dist < 1.5:
+			var target_pos: Vector3 = enemy.global_position + Vector3(0, 1.5, 0)
+			if _segment_distance_to_point(prev_position, global_position, target_pos) < 2.4:
 				_hit_target(enemy)
 				return
 

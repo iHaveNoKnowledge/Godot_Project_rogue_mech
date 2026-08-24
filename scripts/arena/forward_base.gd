@@ -325,8 +325,10 @@ func take_damage(building: Node3D, amount: float) -> void:
 			lbl.modulate = Color(1,0.3,0.25)
 		elif hp / max_hp < 0.6:
 			lbl.modulate = Color(0.9,0.7,0.25)
-	# Flash
-	var mi: MeshInstance3D = building.get_meta("mesh_instance") as MeshInstance3D
+	# Flash — some types (fence/mini) store no single mesh_instance; guard the meta
+	var mi: MeshInstance3D = null
+	if building.has_meta("mesh_instance"):
+		mi = building.get_meta("mesh_instance") as MeshInstance3D
 	if mi and is_instance_valid(mi):
 		var tw := create_tween()
 		tw.tween_property(mi, "scale", Vector3(1.06,0.96,1.06), 0.06)

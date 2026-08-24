@@ -179,6 +179,11 @@ func try_fire(from_pos: Vector3, aim_dir: Vector3, fired_by_enemy: bool, owner: 
 		# Reduced from 0.075 → 0.032 so sustained fire stays tighter (user report: bullets wild)
 		current_spread += heat_ratio * 0.032
 
+	# Player aim stabilization: tighten spread by 30% so bullets feel laser-straight.
+	# Combined with chest-stable aim_dir (weapon_manager) this fixes “ยิงแล้วกระสุนมั่วเพราะแขนแกว่ง”.
+	if not fired_by_enemy:
+		current_spread *= 0.70
+
 	for i in range(pellets):
 		var pellet_dir := aim_dir
 		if current_spread > 0.0:

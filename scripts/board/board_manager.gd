@@ -1164,10 +1164,15 @@ func _process(_delta: float) -> void:
 		elif is_unknown:
 			patrol_desc += "\n• Status: UNALIGNED MERCENARY"
 
+	var sub_zone_id := str(tile.get_meta("sub_zone", ""))
+	var sub_zone_info := BoardConfig.get_sub_zone_info(sub_zone_id)
+	var sub_zone_label: String = str(sub_zone_info.get("name", ""))
+	var tile_title := "%s [%s] (%d,%d)" % [tt.to_upper(), sub_zone_label, pos.x, pos.y] if sub_zone_label != "" else "%s (%d,%d)" % [tt.to_upper(), pos.x, pos.y]
+
 	var hud = get_node_or_null("BoardHUD")
 	if hud and hud.has_method("update_tile_inspector"):
 		hud.update_tile_inspector(
-			"%s (%d,%d)" % [tt.to_upper(), pos.x, pos.y],
+			tile_title,
 			mp_cost, e_cost, is_zoc, is_artillery, terrain, patrol_desc
 		)
 
@@ -1639,6 +1644,7 @@ func _request_combat(combat_type: String) -> void:
 	# board fought on a ROAD tile gets the road-through-forest arena.
 	var tile = nodes_dict.get(current_pos)
 	GlobalData.board.combat_tile_terrain = str(tile.get_meta("terrain", "plain")) if tile != null else "plain"
+	GlobalData.board.combat_tile_sub_zone = str(tile.get_meta("sub_zone", "")) if tile != null else ""
 	var deploy := get_node_or_null("DeployTeamUI")
 	if deploy and deploy.has_method("has_ally_candidates") and deploy.has_method("open_deploy") \
 			and deploy.has_ally_candidates():

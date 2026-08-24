@@ -86,27 +86,174 @@ static func energy_cost(terrain: String, is_roller: bool = false) -> float:
 # Default grid dimensions for a sector's open board (expanded for strategic breath and open spaces).
 const GRID_SIZE: int = 25
 
-# Per-theme weighted terrain pools used by the generator's seeded RNG.
+# -----------------------------------------------------------------------------
+# SUB-ZONES (Micro-Biomes)
+# Each sector theme is partitioned into organic sub-zones (districts/micro-biomes)
+# that provide varied terrain generation on the board and drive matching 3D combat arenas.
+# -----------------------------------------------------------------------------
+const SUB_ZONES: Dictionary = {
+	# --- Suburb Sub-Zones ---
+	"suburb_village": {
+		"id": "suburb_village",
+		"theme": "suburb",
+		"name": "Residential Village",
+		"name_th": "หมู่บ้านชานเมือง",
+		"desc": "Dense suburban neighborhoods with paved street grids, housing estates, and alley cover.",
+		"terrain_weights": [["road", 5], ["rock", 4], ["plain", 3], ["forest", 1]],
+		"arena_preset": "SUBURB_VILLAGE",
+	},
+	"suburb_meadow": {
+		"id": "suburb_meadow",
+		"theme": "suburb",
+		"name": "Open Meadow",
+		"name_th": "ทุ่งหญ้าชานเมือง",
+		"desc": "Expansive green grasslands with gentle rolling knolls and wide sightlines.",
+		"terrain_weights": [["plain", 7], ["forest", 2], ["rock", 1], ["road", 1]],
+		"arena_preset": "SUBURB_MEADOW",
+	},
+	"suburb_water": {
+		"id": "suburb_water",
+		"theme": "suburb",
+		"name": "Wetland & Lakefront",
+		"name_th": "ริมน้ำและหนองน้ำชานเมือง",
+		"desc": "Waterside lowlands with streams, drainage basins, reed banks, and crossing bridges.",
+		"terrain_weights": [["water", 4], ["plain", 4], ["bridge", 2], ["sand", 1]],
+		"arena_preset": "SUBURB_WETLAND",
+	},
+
+	# --- Urban Sub-Zones ---
+	"urban_downtown": {
+		"id": "urban_downtown",
+		"theme": "urban",
+		"name": "Downtown Highrise",
+		"name_th": "ใจกลางเมืองตึกระฟ้า",
+		"desc": "Towering skyscrapers, high urban density, and tight concrete street canyons.",
+		"terrain_weights": [["road", 5], ["rock", 5], ["plain", 2]],
+		"arena_preset": "URBAN_DOWNTOWN",
+	},
+	"urban_industrial": {
+		"id": "urban_industrial",
+		"theme": "urban",
+		"name": "Industrial Logistics Zone",
+		"name_th": "เขตอุตสาหกรรมและคลังสินค้า",
+		"desc": "Heavy warehouses, storage silos, container stacks, and cargo truck routes.",
+		"terrain_weights": [["road", 4], ["rock", 4], ["plain", 2], ["sand", 1]],
+		"arena_preset": "URBAN_INDUSTRIAL",
+	},
+	"urban_park": {
+		"id": "urban_park",
+		"theme": "urban",
+		"name": "Central Metro Park",
+		"name_th": "สวนสาธารณะเมืองหลวง",
+		"desc": "Open public plazas, manicured lawns, decorative ponds, and memorial statues.",
+		"terrain_weights": [["plain", 6], ["forest", 2], ["road", 2], ["water", 1]],
+		"arena_preset": "URBAN_PARK",
+	},
+
+	# --- Desert Sub-Zones ---
+	"desert_dunes": {
+		"id": "desert_dunes",
+		"theme": "desert",
+		"name": "Endless Sand Dunes",
+		"name_th": "ทะเลทรายลึก",
+		"desc": "Vast ocean of shifting sand dunes with steep crests and low vehicle traction.",
+		"terrain_weights": [["sand", 8], ["rock", 2], ["plain", 1]],
+		"arena_preset": "DESERT_DUNES",
+	},
+	"desert_canyon": {
+		"id": "desert_canyon",
+		"theme": "desert",
+		"name": "Rocky Canyon & Badlands",
+		"name_th": "หุบเขาหินผา",
+		"desc": "Precipitous sandstone bluffs, natural choke points, and rocky ambush terraces.",
+		"terrain_weights": [["rock", 6], ["sand", 4], ["road", 1]],
+		"arena_preset": "DESERT_CANYON",
+	},
+	"desert_oasis": {
+		"id": "desert_oasis",
+		"theme": "desert",
+		"name": "Oasis Outpost",
+		"name_th": "โอเอซิสและแคมป์เหมือง",
+		"desc": "Natural water basin surrounded by date palms, salvaged outposts, and trade tracks.",
+		"terrain_weights": [["plain", 4], ["sand", 3], ["water", 2], ["road", 2]],
+		"arena_preset": "DESERT_OASIS",
+	},
+
+	# --- Forest Sub-Zones ---
+	"forest_deep": {
+		"id": "forest_deep",
+		"theme": "forest",
+		"name": "Dense Canopy Forest",
+		"name_th": "ป่าทึบ",
+		"desc": "Ancient towering trees, thick foliage cover, and restricted long-range ballistic lines.",
+		"terrain_weights": [["forest", 7], ["plain", 2], ["rock", 1]],
+		"arena_preset": "FOREST_DEEP",
+	},
+	"forest_river": {
+		"id": "forest_river",
+		"theme": "forest",
+		"name": "River Crossing",
+		"name_th": "ลำน้ำแบ่งฟาก",
+		"desc": "Wide river dividing the forest banks with vital bridge bottlenecks.",
+		"terrain_weights": [["water", 4], ["forest", 3], ["bridge", 2], ["plain", 2]],
+		"arena_preset": "FOREST_RIVER",
+	},
+	"forest_ruins": {
+		"id": "forest_ruins",
+		"theme": "forest",
+		"name": "Logging Camp & Ruins",
+		"name_th": "ค่ายตัดไม้และซากปรักหักพัง",
+		"desc": "Forested clearings with lumber mills, log yards, and mossy stone ruins.",
+		"terrain_weights": [["plain", 4], ["forest", 3], ["rock", 3], ["road", 2]],
+		"arena_preset": "FOREST_RUINS",
+	},
+}
+
+# Per-theme fallback weighted terrain pools used when no sub-zone is active.
 const THEME_TERRAIN: Dictionary = {
-	# Suburb (chánmeuang): paved streets + houses with patches of lawn, only a
-	# FEW trees — kept visually distinct from the FOREST map so a suburb board
-	# never reads as a jungle (its arena is the crossroads city, not the woods).
 	"suburb": [
 		["plain", 5], ["road", 4], ["rock", 2], ["forest", 1],
 	],
-	# Desert: sand everywhere, rocks, oasis plains.
 	"desert": [
 		["sand", 7], ["rock", 2], ["plain", 2],
 	],
-	# Forest: heavy trees, river crossing with bridges.
 	"forest": [
 		["forest", 5], ["plain", 3], ["sand", 1],
 	],
-	# Urban: asphalt grid of roads + building blocks, some parks.
 	"urban": [
 		["plain", 3], ["road", 4], ["rock", 3],
 	],
 }
+
+# Returns all sub-zone IDs available for a given theme.
+static func sub_zones_for_theme(theme_id: String) -> Array[String]:
+	var list: Array[String] = []
+	for sz_id in SUB_ZONES:
+		if SUB_ZONES[sz_id].get("theme", "") == theme_id:
+			list.append(sz_id)
+	if list.is_empty():
+		list.append(theme_id + "_default")
+	return list
+
+# Returns sub-zone data dict or a default fallback.
+static func get_sub_zone_info(sub_zone_id: String) -> Dictionary:
+	if SUB_ZONES.has(sub_zone_id):
+		return SUB_ZONES[sub_zone_id]
+	return {
+		"id": sub_zone_id,
+		"theme": "suburb",
+		"name": sub_zone_id.capitalize(),
+		"name_th": sub_zone_id,
+		"desc": "Standard sector terrain.",
+		"terrain_weights": THEME_TERRAIN.get("suburb", []),
+		"arena_preset": "CROSSROADS",
+	}
+
+# Returns weighted terrain array for a specific sub-zone and theme.
+static func terrain_pool_for_sub_zone(sub_zone_id: String, theme_id: String) -> Array:
+	if SUB_ZONES.has(sub_zone_id):
+		return SUB_ZONES[sub_zone_id].get("terrain_weights", THEME_TERRAIN.get(theme_id, [["plain", 1]]))
+	return THEME_TERRAIN.get(theme_id, [["plain", 1]])
 
 # Which arena BiomeTheme (see arena_generator.gd) matches each board map theme.
 const THEME_ARENA: Dictionary = {

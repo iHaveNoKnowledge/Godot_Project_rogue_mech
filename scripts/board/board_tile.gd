@@ -3,6 +3,7 @@ extends StaticBody3D
 var grid_pos: Vector2i = Vector2i.ZERO
 var tile_type: String = "empty"
 var terrain: String = "plain"
+var sub_zone: String = ""
 var is_highlighted: bool = false
 var is_revealed: bool = false
 var connections: Array = []
@@ -25,6 +26,7 @@ func _ready() -> void:
 	tile_type = get_meta("tile_type", "empty")
 	grid_pos = get_meta("grid_pos", Vector2i.ZERO)
 	terrain = get_meta("terrain", "plain")
+	sub_zone = get_meta("sub_zone", "")
 	connections = get_meta("connections", [])
 
 	# Start and exit tiles are always revealed; all other tiles start shrouded in Fog of War.
@@ -195,11 +197,52 @@ func _add_terrain_props() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(grid_pos.x * 73856093) ^ int(grid_pos.y * 19349663)
 
+	# --- Sub-Zone Special Prop Overrides ---
+	if sub_zone == "suburb_village":
+		if terrain == "rock" or (terrain == "plain" and rng.randf() < 0.45):
+			_add_suburban_house(prop_node, rng)
+			return
+		elif terrain == "road" and rng.randf() < 0.3:
+			_add_streetlight(prop_node, rng)
+	elif sub_zone == "suburb_meadow":
+		if terrain == "plain":
+			if rng.randf() < 0.6:
+				_add_flower_cluster(prop_node, rng)
+			elif rng.randf() < 0.3:
+				_add_bush(prop_node, rng)
+			return
+	elif sub_zone == "suburb_water":
+		if terrain == "water" or terrain == "plain":
+			if rng.randf() < 0.5:
+				_add_reeds(prop_node, rng)
+				return
+	elif sub_zone == "urban_industrial":
+		if terrain == "rock" or (terrain == "plain" and rng.randf() < 0.4):
+			_add_industrial_silo(prop_node, rng)
+			return
+	elif sub_zone == "urban_park":
+		if terrain == "plain":
+			if rng.randf() < 0.5:
+				_add_tree(prop_node, rng, 1.4, 2.0)
+				return
+	elif sub_zone == "desert_oasis":
+		if terrain == "plain" or terrain == "water":
+			if rng.randf() < 0.5:
+				_add_palm_tree(prop_node, rng)
+				return
+	elif sub_zone == "desert_canyon":
+		if terrain == "rock" or terrain == "sand":
+			if rng.randf() < 0.5:
+				_add_canyon_spire(prop_node, rng)
+				return
+	elif sub_zone == "forest_ruins":
+		if terrain == "rock" or (terrain == "plain" and rng.randf() < 0.4):
+			_add_ruin_pillar(prop_node, rng)
+			return
+
+	# --- Default Theme / Terrain Props ---
 	match terrain:
 		"forest":
-			# Deep woods (forest map) grow tall dense trees; a forest tile on a
-			# suburb map is just a park cluster, so keep those sparse + short so
-			# the suburb board never reads as a jungle.
 			var is_woods := GlobalData.board.board_theme_id == "forest"
 			var trunk_h := 1.8 if is_woods else 1.2
 			var canopy_r := 2.8 if is_woods else 1.8
@@ -306,6 +349,166 @@ func _add_bush(parent: Node3D, rng: RandomNumberGenerator) -> void:
 	bush.material_override = mat
 	bush.position = Vector3(rng.randf_range(-1.5, 1.5), size * 0.55, rng.randf_range(-1.5, 1.5))
 	parent.add_child(bush)
+
+
+func _add_suburban_house(parent: Node3D, rng: RandomNumberGenerator) -> void:
+	var house := Node3D.new()
+	var hw := rng.randf_range(1.2, 1.6)
+	var hh := rng.randf_range(1.0, 1.4)
+	var hd := rng.randf_range(1.4, 1.8)
+
+	var base_mesh := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(hw, hh, hd)
+	base_mesh.mesh = box
+	var b_mat := StandardMaterial3D.new()
+	b_mat.albedo_color = Color(0.72 + rng.randf_range(-0.05, 0.05), 0.70, 0.64)
+	b_mat.roughness = 0.8
+	base_mesh.material_override = b_mat
+	base_mesh.position = Vector3(0, hh * 0.5, 0)
+	house.add_child(base_mesh)
+
+	# Gabled roof
+	var roof := MeshInstance3D.new()
+	var r_mesh := PrismMesh.new()
+	r_mesh.size = Vector3(hw + 0.3, 0.7, hd + 0.2)
+	roof.mesh = r_mesh
+	var r_mat := StandardMaterial3D.new()
+	r_mat.albedo_color = Color(0.55 + rng.randf_range(-0.1, 0.1), 0.22, 0.18)
+	r_mat.roughness = 0.7
+	roof.material_override = r_mat
+	roof.position = Vector3(0, hh + 0.35, 0)
+	house.add_child(roof)
+
+	house.position = Vector3(rng.randf_range(-0.8, 0.8), 0, rng.randf_range(-0.8, 0.8))
+	house.rotation.y = rng.randf_range(0.0, TAU)
+	parent.add_child(house)
+
+
+func _add_streetlight(parent: Node3D, rng: RandomNumberGenerator) -> void:
+	var pole := MeshInstance3D.new()
+	var p_mesh := CylinderMesh.new()
+	p_mesh.top_radius = 0.04
+	p_mesh.bottom_radius = 0.05
+	p_mesh.height = 1.8
+	pole.mesh = p_mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.2, 0.22, 0.25)
+	mat.metallic = 0.8
+	mat.roughness = 0.3
+	pole.material_override = mat
+	pole.position = Vector3(rng.randf_range(-1.2, 1.2), 0.9, rng.randf_range(-1.2, 1.2))
+	parent.add_child(pole)
+
+
+func _add_flower_cluster(parent: Node3D, rng: RandomNumberGenerator) -> void:
+	for i in range(rng.randi_range(2, 4)):
+		var flower := MeshInstance3D.new()
+		var mesh := SphereMesh.new()
+		mesh.radius = rng.randf_range(0.12, 0.22)
+		mesh.height = mesh.radius * 1.5
+		flower.mesh = mesh
+		var mat := StandardMaterial3D.new()
+		var flower_colors := [Color(0.85, 0.75, 0.2), Color(0.8, 0.3, 0.3), Color(0.7, 0.4, 0.8), Color(0.9, 0.9, 0.95)]
+		mat.albedo_color = flower_colors[rng.randi() % flower_colors.size()]
+		mat.roughness = 0.8
+		flower.material_override = mat
+		flower.position = Vector3(rng.randf_range(-1.4, 1.4), mesh.height * 0.5, rng.randf_range(-1.4, 1.4))
+		parent.add_child(flower)
+
+
+func _add_reeds(parent: Node3D, rng: RandomNumberGenerator) -> void:
+	for i in range(rng.randi_range(3, 5)):
+		var reed := MeshInstance3D.new()
+		var mesh := CylinderMesh.new()
+		mesh.top_radius = 0.02
+		mesh.bottom_radius = 0.04
+		mesh.height = rng.randf_range(0.8, 1.4)
+		reed.mesh = mesh
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(0.32, 0.45, 0.20)
+		mat.roughness = 0.9
+		reed.material_override = mat
+		reed.position = Vector3(rng.randf_range(-1.4, 1.4), mesh.height * 0.5, rng.randf_range(-1.4, 1.4))
+		reed.rotation.z = deg_to_rad(rng.randf_range(-8.0, 8.0))
+		parent.add_child(reed)
+
+
+func _add_industrial_silo(parent: Node3D, rng: RandomNumberGenerator) -> void:
+	var silo := MeshInstance3D.new()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.6
+	mesh.bottom_radius = 0.6
+	mesh.height = rng.randf_range(1.8, 2.6)
+	silo.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.5, 0.52, 0.55)
+	mat.metallic = 0.6
+	mat.roughness = 0.4
+	silo.material_override = mat
+	silo.position = Vector3(rng.randf_range(-0.8, 0.8), mesh.height * 0.5, rng.randf_range(-0.8, 0.8))
+	parent.add_child(silo)
+
+
+func _add_palm_tree(parent: Node3D, rng: RandomNumberGenerator) -> void:
+	var palm := Node3D.new()
+	var trunk := MeshInstance3D.new()
+	var t_mesh := CylinderMesh.new()
+	t_mesh.top_radius = 0.08
+	t_mesh.bottom_radius = 0.14
+	t_mesh.height = 1.6
+	trunk.mesh = t_mesh
+	var t_mat := StandardMaterial3D.new()
+	t_mat.albedo_color = Color(0.42, 0.32, 0.20)
+	t_mat.roughness = 0.9
+	trunk.material_override = t_mat
+	trunk.position = Vector3(0, 0.8, 0)
+	palm.add_child(trunk)
+
+	var fronds := MeshInstance3D.new()
+	var f_mesh := SphereMesh.new()
+	f_mesh.radius = 1.1
+	f_mesh.height = 0.4
+	fronds.mesh = f_mesh
+	var f_mat := StandardMaterial3D.new()
+	f_mat.albedo_color = Color(0.22, 0.48, 0.18)
+	f_mat.roughness = 0.8
+	fronds.material_override = f_mat
+	fronds.position = Vector3(0, 1.6, 0)
+	palm.add_child(fronds)
+
+	palm.position = Vector3(rng.randf_range(-1.0, 1.0), 0, rng.randf_range(-1.0, 1.0))
+	parent.add_child(palm)
+
+
+func _add_canyon_spire(parent: Node3D, rng: RandomNumberGenerator) -> void:
+	var spire := MeshInstance3D.new()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = rng.randf_range(0.2, 0.4)
+	mesh.bottom_radius = rng.randf_range(0.6, 1.0)
+	mesh.height = rng.randf_range(1.8, 3.2)
+	spire.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.60, 0.42, 0.28)
+	mat.roughness = 0.95
+	spire.material_override = mat
+	spire.position = Vector3(rng.randf_range(-0.8, 0.8), mesh.height * 0.5, rng.randf_range(-0.8, 0.8))
+	spire.rotation.y = rng.randf_range(0.0, TAU)
+	parent.add_child(spire)
+
+
+func _add_ruin_pillar(parent: Node3D, rng: RandomNumberGenerator) -> void:
+	var pillar := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(0.6, rng.randf_range(1.4, 2.2), 0.6)
+	pillar.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.38, 0.40, 0.36)
+	mat.roughness = 0.9
+	pillar.material_override = mat
+	pillar.position = Vector3(rng.randf_range(-1.0, 1.0), mesh.size.y * 0.5, rng.randf_range(-1.0, 1.0))
+	pillar.rotation.z = deg_to_rad(rng.randf_range(-12.0, 12.0))
+	parent.add_child(pillar)
 
 
 # ---------------------------------------------------------------------------

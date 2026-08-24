@@ -16,40 +16,47 @@ func generate_board() -> Dictionary:
 	var theme_id := BoardConfig.theme_for_sector(GlobalData.board.current_sector)
 	GlobalData.board.board_theme_id = theme_id
 
-	# Step 1: assign a terrain per cell from the theme's weighted pool.
+	# Step 1: partition the 2D grid into organic sub-zones (micro-biomes).
+	var sub_zone_grid := _generate_sub_zones(theme_id, rng)
+
+	# Step 2: assign terrain per cell based on each cell's sub-zone weighted pool.
 	var terrain_grid: Dictionary = {} # Vector2i -> String
 	for y in range(grid_size):
 		for x in range(grid_size):
-			terrain_grid[Vector2i(x, y)] = _weighted_terrain(rng, theme_id)
+			var cell := Vector2i(x, y)
+			var sz: String = sub_zone_grid.get(cell, "")
+			terrain_grid[cell] = _weighted_terrain_for_sub_zone(rng, sz, theme_id)
 
-	# Step 2: pick dynamic start and exit locations (not fixed to corners)
+	# Step 3: pick dynamic start and exit locations (not fixed to corners)
 	var start_key := Vector2i(rng.randi_range(1, 3), rng.randi_range(1, 3))
 	var exit_key := Vector2i(grid_size - 1 - rng.randi_range(0, 3), grid_size - 1 - rng.randi_range(0, 3))
 
-	# Step 3: carve a guaranteed main road from start to exit.
+	# Step 4: carve a guaranteed main road from start to exit.
 	_main_road(terrain_grid, start_key, exit_key, rng)
 
-	# Step 4: forest/urban get a river band; bridges keep the road passable.
+	# Step 5: forest/urban/water sub-zones get river/water features; bridges keep road passable.
 	_carve_water(terrain_grid, theme_id, rng)
 
-	# Step 5: keep only cells reachable from start walkable (flood fill). Cells
+	# Step 6: keep only cells reachable from start walkable (flood fill). Cells
 	# the player could never reach become rock so the map reads as solid.
 	_trim_unreachable(terrain_grid, start_key)
 
-	# Step 6: pick content tiles on walkable cells.
+	# Step 7: pick content tiles on walkable cells.
 	var tile_types := _assign_content(terrain_grid, start_key, exit_key, rng)
 
-	# Step 7: instantiate tiles + compute 4-dir walkable connections.
+	# Step 8: instantiate tiles + compute 4-dir walkable connections.
 	var nodes_dict: Dictionary = {}
 	for y in range(grid_size):
 		for x in range(grid_size):
 			var key := Vector2i(x, y)
 			var type := str(tile_types.get(key, "empty"))
 			var terrain := str(terrain_grid[key])
+			var sub_zone_id := str(sub_zone_grid.get(key, ""))
 			var tile_instance := tile_scene.instantiate()
 			tile_instance.set_meta("tile_type", type)
 			tile_instance.set_meta("grid_pos", key)
 			tile_instance.set_meta("terrain", terrain)
+			tile_instance.set_meta("sub_zone", sub_zone_id)
 			tile_instance.position = Vector3(key.x * 4.0, 0, key.y * 4.0)
 
 			var connects := _neighbor_keys(key)
@@ -63,6 +70,7 @@ func generate_board() -> Dictionary:
 	return {
 		"nodes": nodes_dict,
 		"terrain": terrain_grid,
+		"sub_zones": sub_zone_grid,
 		"tile_types": tile_types,
 		"start_pos": start_key,
 		"exit_pos": exit_key,
@@ -131,6 +139,64 @@ func build_ground() -> MeshInstance3D:
 	plane.subdivide_width = 32
 	ground.position = Vector3(grid_size * 2.0, -0.04, grid_size * 2.0)
 	return ground
+
+
+## Partitions the 25x25 grid into organic sub-zone clusters using seeded Voronoi centroids.
+func _generate_sub_zones(theme_id: String, rng: RandomNumberGenerator) -> Dictionary:
+	var available_sub_zones := BoardConfig.sub_zones_for_theme(theme_id)
+	var sub_zone_grid: Dictionary = {} # Vector2i -> String
+
+	if available_sub_zones.is_empty():
+		for y in range(grid_size):
+			for x in range(grid_size):
+				sub_zone_grid[Vector2i(x, y)] = theme_id + "_default"
+		return sub_zone_grid
+
+	# Generate 3 to 4 cluster centroids across the map
+	var num_centroids := mini(maxi(available_sub_zones.size(), 3), 4)
+	var centroids: Array = []
+	var shuffled_zones := available_sub_zones.duplicate()
+	_seeded_shuffle(shuffled_zones, rng)
+
+	for i in range(num_centroids):
+		var sz_id: String = shuffled_zones[i % shuffled_zones.size()]
+		var cx := rng.randf_range(3.0, float(grid_size) - 4.0)
+		var cy := rng.randf_range(3.0, float(grid_size) - 4.0)
+		centroids.append({"pos": Vector2(cx, cy), "sub_zone": sz_id})
+
+	# Assign each grid cell to the nearest centroid with a slight perturbation for natural organic borders
+	for y in range(grid_size):
+		for x in range(grid_size):
+			var cell := Vector2i(x, y)
+			var cell_v := Vector2(float(x), float(y))
+			var best_dist := 999999.0
+			var best_sz: String = available_sub_zones[0]
+
+			for c in centroids:
+				var c_pos: Vector2 = c["pos"]
+				# Simple deterministic jitter based on cell coord and seed
+				var jitter := sin(float(x) * 1.7 + float(y) * 2.3 + float(GlobalData.board.board_seed % 100)) * 2.2
+				var d := cell_v.distance_squared_to(c_pos) + jitter
+				if d < best_dist:
+					best_dist = d
+					best_sz = str(c["sub_zone"])
+
+			sub_zone_grid[cell] = best_sz
+
+	return sub_zone_grid
+
+
+func _weighted_terrain_for_sub_zone(rng: RandomNumberGenerator, sub_zone_id: String, theme_id: String) -> String:
+	var pool: Array = BoardConfig.terrain_pool_for_sub_zone(sub_zone_id, theme_id)
+	var total := 0
+	for entry in pool:
+		total += int(entry[1])
+	var roll := rng.randi_range(1, maxi(total, 1))
+	for entry in pool:
+		roll -= int(entry[1])
+		if roll <= 0:
+			return str(entry[0])
+	return "plain"
 
 
 func _weighted_terrain(rng: RandomNumberGenerator, theme_id: String) -> String:

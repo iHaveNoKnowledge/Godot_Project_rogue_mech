@@ -53,6 +53,7 @@ var max_sectors: int = 3
 # --- Hazard ---
 var current_hazard: String = ""
 var combat_tile_terrain: String = "plain"
+var combat_tile_sub_zone: String = ""
 const HAZARD_DUST_STORM: String = "dust_storm"
 const HAZARD_TACTICAL_SMOG: String = "tactical_smog"
 const HAZARD_EMP_ZONE: String = "emp_zone"
@@ -132,6 +133,7 @@ func reset() -> void:
 	current_sector = 1
 	current_hazard = ""
 	combat_tile_terrain = "plain"
+	combat_tile_sub_zone = ""
 	current_arena_size = 240.0
 	patrol_last_seen = Vector2i(-1, -1)
 	patrol_alert = 0

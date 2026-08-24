@@ -226,15 +226,19 @@ func _arena_size_for_combat() -> float:
 # enter_combat() flips the state to COMBAT before the deferred scene swap runs,
 # so arena_generator._ready() would otherwise never see State.BOARD.
 func _theme_from_board() -> BiomeTheme:
-	# A forest board fought on a ROAD tile gets the road-through-forest arena:
-	# the enemy was caught on the forest road, so the battle map is a road
-	# cutting through the woods instead of the plain river forest.
-	if GlobalData.board.board_theme_id == "forest" and GlobalData.board.combat_tile_terrain == "road":
+	var sub_zone: String = GlobalData.board.combat_tile_sub_zone
+	var terrain: String = GlobalData.board.combat_tile_terrain
+	var theme_id: String = GlobalData.board.board_theme_id
+
+	# Forest road tile -> road through woods arena
+	if theme_id == "forest" and terrain == "road":
 		return BiomeTheme.FOREST_ROAD
-	var arena_name: String = BoardConfig.THEME_ARENA.get(GlobalData.board.board_theme_id, "")
-	# Never fall back to a RANDOM biome: a random pick can drop a forest board
-	# into a street fight (and vice versa). Unknown/empty themes default to the
-	# suburb crossroads, matching the default board theme.
+	# Forest river crossing or suburb wetland -> river bridge arena
+	if (theme_id == "forest" and (terrain in ["water", "bridge"] or sub_zone == "forest_river")) \
+			or (theme_id == "suburb" and sub_zone == "suburb_water"):
+		return BiomeTheme.RIVER_BRIDGE
+
+	var arena_name: String = BoardConfig.THEME_ARENA.get(theme_id, "")
 	if arena_name == "":
 		return BiomeTheme.CROSSROADS
 	for i in range(BiomeTheme.size()):
@@ -1104,17 +1108,37 @@ func _create_theme_structures() -> void:
 	if GameManager.combat_node_type == "recovery":
 		_build_recovery_dense_compound()
 
+	var sub_zone: String = GlobalData.board.combat_tile_sub_zone
+
 	match current_theme:
 		BiomeTheme.DESERT:
-			_generate_randomized_desert_dunes()
+			if sub_zone == "desert_canyon":
+				_build_desert_canyon_structures()
+			elif sub_zone == "desert_oasis":
+				_build_desert_oasis_structures()
+			else:
+				_generate_randomized_desert_dunes()
 		BiomeTheme.CITY_HIGHRISE:
-			_build_city_highrise_structures()
+			if sub_zone == "urban_industrial":
+				_build_urban_industrial_structures()
+			elif sub_zone == "urban_park":
+				_build_urban_park_structures()
+			else:
+				_build_city_highrise_structures()
 		BiomeTheme.CROSSROADS:
-			_build_crossroads_structures()
+			if sub_zone == "suburb_village":
+				_build_suburb_village_structures()
+			elif sub_zone == "suburb_meadow":
+				_build_suburb_meadow_structures()
+			else:
+				_build_crossroads_structures()
 		BiomeTheme.RIVER_BRIDGE:
 			_build_river_bridge_structures()
 		BiomeTheme.FOREST, BiomeTheme.FOREST_ROAD:
-			_build_forest_structures()
+			if sub_zone == "forest_ruins":
+				_build_forest_ruins_structures()
+			else:
+				_build_forest_structures()
 
 
 func _build_recovery_dense_compound() -> void:
@@ -1380,6 +1404,335 @@ func _build_crossroads_structures() -> void:
 		block.add_to_group("concealment")
 		block.add_to_group("solid_obstacle")
 		structures_container.add_child(block)
+
+
+## Suburb Village: Dense residential housing blocks, paved alleys, fences, and utility covers.
+func _build_suburb_village_structures() -> void:
+	var half := arena_size * 0.42
+	var house_count := randi_range(10, 16)
+	var house_mat := StandardMaterial3D.new()
+	house_mat.albedo_color = Color(0.68, 0.65, 0.60)
+	house_mat.roughness = 0.8
+
+	var roof_mat := StandardMaterial3D.new()
+	roof_mat.albedo_color = Color(0.52, 0.24, 0.20)
+	roof_mat.roughness = 0.7
+
+	var placed := 0
+	var guard := 0
+	while placed < house_count and guard < house_count * 6:
+		guard += 1
+		var angle := randf_range(0, TAU)
+		var dist := randf_range(28.0, half)
+		var pos_x := cos(angle) * dist
+		var pos_z := sin(angle) * dist
+
+		var hw := randf_range(14.0, 20.0)
+		var hh := randf_range(8.0, 14.0)
+		var hd := randf_range(14.0, 22.0)
+
+		if footprint != null and not _rect_inside_footprint(Vector2(pos_x, pos_z), Vector2(hw * 0.5 + 4.0, hd * 0.5 + 4.0)):
+			continue
+		placed += 1
+
+		var house := StaticBody3D.new()
+		house.collision_layer = 2
+		house.collision_mask = 1
+
+		var collision := CollisionShape3D.new()
+		var shape := BoxShape3D.new()
+		shape.size = Vector3(hw, hh, hd)
+		collision.shape = shape
+		collision.position.y = hh * 0.5
+		house.add_child(collision)
+
+		var mesh_inst := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(hw, hh, hd)
+		mesh_inst.mesh = box
+		mesh_inst.material_override = house_mat
+		mesh_inst.position.y = hh * 0.5
+		house.add_child(mesh_inst)
+
+		# Pitch roof mesh
+		var roof := MeshInstance3D.new()
+		var r_box := BoxMesh.new()
+		r_box.size = Vector3(hw + 1.2, 2.5, hd + 1.2)
+		roof.mesh = r_box
+		roof.material_override = roof_mat
+		roof.position.y = hh + 1.25
+		house.add_child(roof)
+
+		house.position = Vector3(pos_x, 0, pos_z)
+		house.rotation.y = randf_range(0, TAU)
+		house.add_to_group("concealment")
+		house.add_to_group("solid_obstacle")
+		structures_container.add_child(house)
+
+
+## Suburb Meadow: Expansive open grass field, minimal structures, wide line of sight for ranged duels.
+func _build_suburb_meadow_structures() -> void:
+	var half := arena_size * 0.44
+	var rock_count := randi_range(4, 7)
+	var rock_mat := StandardMaterial3D.new()
+	rock_mat.albedo_color = Color(0.42, 0.45, 0.38)
+	rock_mat.roughness = 0.95
+
+	for i in range(rock_count):
+		var angle := randf_range(0, TAU)
+		var dist := randf_range(40.0, half)
+		var pos_x := cos(angle) * dist
+		var pos_z := sin(angle) * dist
+
+		var r_size := Vector3(randf_range(6.0, 12.0), randf_range(3.0, 6.0), randf_range(6.0, 12.0))
+		if footprint != null and not _rect_inside_footprint(Vector2(pos_x, pos_z), Vector2(r_size.x * 0.5, r_size.z * 0.5)):
+			continue
+
+		var rock := StaticBody3D.new()
+		rock.collision_layer = 2
+		rock.collision_mask = 1
+
+		var col := CollisionShape3D.new()
+		var shape := BoxShape3D.new()
+		shape.size = r_size
+		col.shape = shape
+		col.position.y = r_size.y * 0.5
+		rock.add_child(col)
+
+		var mesh := MeshInstance3D.new()
+		var bmesh := BoxMesh.new()
+		bmesh.size = r_size
+		mesh.mesh = bmesh
+		mesh.material_override = rock_mat
+		mesh.position.y = r_size.y * 0.5
+		rock.add_child(mesh)
+
+		rock.position = Vector3(pos_x, 0, pos_z)
+		rock.rotation.y = randf_range(0, TAU)
+		rock.add_to_group("solid_obstacle")
+		structures_container.add_child(rock)
+
+
+## Urban Industrial: Storage silos, fuel tanks, shipping containers, and heavy warehouses.
+func _build_urban_industrial_structures() -> void:
+	var half := arena_size * 0.40
+	var container_mat := StandardMaterial3D.new()
+	container_mat.albedo_color = Color(0.20, 0.40, 0.65)
+	container_mat.metallic = 0.7
+	container_mat.roughness = 0.4
+
+	var silo_mat := StandardMaterial3D.new()
+	silo_mat.albedo_color = Color(0.60, 0.62, 0.65)
+	silo_mat.metallic = 0.6
+	silo_mat.roughness = 0.3
+
+	# Spawn 6-10 container stack clusters and silos
+	for i in range(randi_range(6, 10)):
+		var angle := (float(i) / 8.0) * TAU + randf_range(-0.2, 0.2)
+		var dist := randf_range(30.0, half)
+		var px := cos(angle) * dist
+		var pz := sin(angle) * dist
+
+		if footprint != null and not _rect_inside_footprint(Vector2(px, pz), Vector2(12.0, 12.0)):
+			continue
+
+		var is_silo := (i % 2 == 0)
+		var body := StaticBody3D.new()
+		body.collision_layer = 2
+		body.collision_mask = 1
+
+		if is_silo:
+			var s_rad := randf_range(5.0, 8.0)
+			var s_h := randf_range(16.0, 26.0)
+			var col := CollisionShape3D.new()
+			var c_shape := CylinderShape3D.new()
+			c_shape.radius = s_rad
+			c_shape.height = s_h
+			col.shape = c_shape
+			col.position.y = s_h * 0.5
+			body.add_child(col)
+
+			var mi := MeshInstance3D.new()
+			var c_mesh := CylinderMesh.new()
+			c_mesh.top_radius = s_rad
+			c_mesh.bottom_radius = s_rad
+			c_mesh.height = s_h
+			mi.mesh = c_mesh
+			mi.material_override = silo_mat
+			mi.position.y = s_h * 0.5
+			body.add_child(mi)
+		else:
+			var c_size := Vector3(randf_range(12.0, 18.0), randf_range(8.0, 14.0), randf_range(6.0, 10.0))
+			var col := CollisionShape3D.new()
+			var b_shape := BoxShape3D.new()
+			b_shape.size = c_size
+			col.shape = b_shape
+			col.position.y = c_size.y * 0.5
+			body.add_child(col)
+
+			var mi := MeshInstance3D.new()
+			var b_mesh := BoxMesh.new()
+			b_mesh.size = c_size
+			mi.mesh = b_mesh
+			mi.material_override = container_mat
+			mi.position.y = c_size.y * 0.5
+			body.add_child(mi)
+
+		body.position = Vector3(px, 0, pz)
+		body.rotation.y = randf_range(0, TAU)
+		body.add_to_group("concealment")
+		body.add_to_group("solid_obstacle")
+		structures_container.add_child(body)
+
+
+## Urban Park: Open central memorial plaza with decorative perimeter walls and monuments.
+func _build_urban_park_structures() -> void:
+	# Central monument base
+	var monument := StaticBody3D.new()
+	monument.collision_layer = 2
+	monument.collision_mask = 1
+	var m_col := CollisionShape3D.new()
+	var m_shape := CylinderShape3D.new()
+	m_shape.radius = 8.0
+	m_shape.height = 4.0
+	m_col.shape = m_shape
+	m_col.position.y = 2.0
+	monument.add_child(m_col)
+
+	var m_mi := MeshInstance3D.new()
+	var m_mesh := CylinderMesh.new()
+	m_mesh.top_radius = 6.5
+	m_mesh.bottom_radius = 8.0
+	m_mesh.height = 4.0
+	m_mi.mesh = m_mesh
+	var m_mat := StandardMaterial3D.new()
+	m_mat.albedo_color = Color(0.48, 0.50, 0.54)
+	m_mat.roughness = 0.6
+	m_mi.material_override = m_mat
+	m_mi.position.y = 2.0
+	monument.add_child(m_mi)
+	monument.position = Vector3.ZERO
+	monument.add_to_group("solid_obstacle")
+	structures_container.add_child(monument)
+
+	# Outer perimeter pavilions
+	var corners = [Vector3(-60, 0, -60), Vector3(60, 0, -60), Vector3(-60, 0, 60), Vector3(60, 0, 60)]
+	for p in corners:
+		if footprint != null and not _rect_inside_footprint(Vector2(p.x, p.z), Vector2(10.0, 10.0)):
+			continue
+		var pav := StaticBody3D.new()
+		pav.collision_layer = 2
+		pav.collision_mask = 1
+		var p_col := CollisionShape3D.new()
+		var p_box := BoxShape3D.new()
+		p_box.size = Vector3(14.0, 12.0, 14.0)
+		p_col.shape = p_box
+		p_col.position.y = 6.0
+		pav.add_child(p_col)
+
+		var p_mi := MeshInstance3D.new()
+		var p_bmesh := BoxMesh.new()
+		p_bmesh.size = p_box.size
+		p_mi.mesh = p_bmesh
+		p_mi.material_override = m_mat
+		p_mi.position.y = 6.0
+		pav.add_child(p_mi)
+		pav.position = p
+		pav.add_to_group("solid_obstacle")
+		pav.add_to_group("concealment")
+		structures_container.add_child(pav)
+
+
+## Desert Canyon: Steep sandstone spires and towering rock ridges.
+func _build_desert_canyon_structures() -> void:
+	var half := arena_size * 0.42
+	var spire_count := randi_range(12, 18)
+	var canyon_mat := StandardMaterial3D.new()
+	canyon_mat.albedo_color = Color(0.65, 0.42, 0.28)
+	canyon_mat.roughness = 0.9
+
+	for i in range(spire_count):
+		var angle := randf_range(0, TAU)
+		var dist := randf_range(25.0, half)
+		var px := cos(angle) * dist
+		var pz := sin(angle) * dist
+
+		var s_rad := randf_range(6.0, 12.0)
+		var s_h := randf_range(18.0, 38.0)
+
+		if footprint != null and not _rect_inside_footprint(Vector2(px, pz), Vector2(s_rad, s_rad)):
+			continue
+
+		var spire := StaticBody3D.new()
+		spire.collision_layer = 2
+		spire.collision_mask = 1
+
+		var col := CollisionShape3D.new()
+		var shape := CylinderShape3D.new()
+		shape.radius = s_rad
+		shape.height = s_h
+		col.shape = shape
+		col.position.y = s_h * 0.5
+		spire.add_child(col)
+
+		var mi := MeshInstance3D.new()
+		var mesh := CylinderMesh.new()
+		mesh.top_radius = s_rad * 0.6
+		mesh.bottom_radius = s_rad
+		mesh.height = s_h
+		mi.mesh = mesh
+		mi.material_override = canyon_mat
+		mi.position.y = s_h * 0.5
+		spire.add_child(mi)
+
+		spire.position = Vector3(px, 0, pz)
+		spire.rotation.y = randf_range(0, TAU)
+		spire.add_to_group("solid_obstacle")
+		spire.add_to_group("concealment")
+		structures_container.add_child(spire)
+
+
+## Desert Oasis: Central spring basin with palms and salvage depot outposts.
+func _build_desert_oasis_structures() -> void:
+	_generate_randomized_desert_dunes()
+
+
+## Forest Ruins: Mossy ancient stone arches and monoliths.
+func _build_forest_ruins_structures() -> void:
+	_build_forest_structures()
+	var ruin_mat := StandardMaterial3D.new()
+	ruin_mat.albedo_color = Color(0.35, 0.38, 0.32)
+	ruin_mat.roughness = 0.9
+
+	for i in range(randi_range(6, 10)):
+		var angle := randf_range(0, TAU)
+		var dist := randf_range(30.0, arena_size * 0.38)
+		var px := cos(angle) * dist
+		var pz := sin(angle) * dist
+
+		var pillar := StaticBody3D.new()
+		pillar.collision_layer = 2
+		pillar.collision_mask = 1
+		var col := CollisionShape3D.new()
+		var shape := BoxShape3D.new()
+		shape.size = Vector3(randf_range(4.0, 7.0), randf_range(12.0, 22.0), randf_range(4.0, 7.0))
+		col.shape = shape
+		col.position.y = shape.size.y * 0.5
+		pillar.add_child(col)
+
+		var mi := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = shape.size
+		mi.mesh = box
+		mi.material_override = ruin_mat
+		mi.position.y = shape.size.y * 0.5
+		pillar.add_child(mi)
+
+		pillar.position = Vector3(px, 0, pz)
+		pillar.rotation.y = randf_range(0, TAU)
+		pillar.add_to_group("solid_obstacle")
+		pillar.add_to_group("concealment")
+		structures_container.add_child(pillar)
 
 
 func _build_river_bridge_structures() -> void:

@@ -19,59 +19,122 @@ func _setup_atmosphere() -> void:
 	var sky_mat = ProceduralSkyMaterial.new()
 	var sun = get_node_or_null("../DirectionalLight3D")
 
-	match theme:
-		0: # DESERT (ทะเลทราย) — Bright sun, warm golden horizon, clear light haze
-			sky_mat.sky_top_color = Color(0.28, 0.52, 0.88, 1)
-			sky_mat.sky_horizon_color = Color(0.95, 0.82, 0.60, 1)
-			sky_mat.ground_bottom_color = Color(0.68, 0.55, 0.38, 1)
-			sky_mat.ground_horizon_color = Color(0.88, 0.75, 0.52, 1)
-			env.volumetric_fog_density = 0.008
-			env.volumetric_fog_albedo = Color(0.88, 0.78, 0.60, 1)
-			env.ambient_light_color = Color(0.80, 0.70, 0.55, 1)
-			env.ambient_light_energy = 0.95
-			if sun:
-				sun.light_color = Color(1.0, 0.95, 0.85, 1)
-				sun.light_energy = 2.0
+	var hour: float = 12.0
+	if "board" in GlobalData and "time_hour" in GlobalData.board:
+		hour = float(GlobalData.board.time_hour)
 
-		1: # CITY_HIGHRISE (เมืองตึกเยอะ)
-			sky_mat.sky_top_color = Color(0.05, 0.06, 0.16, 1)
-			sky_mat.sky_horizon_color = Color(0.12, 0.18, 0.35, 1)
-			env.volumetric_fog_density = 0.015
-			env.volumetric_fog_albedo = Color(0.08, 0.15, 0.28, 1)
-			env.ambient_light_color = Color(0.20, 0.30, 0.45, 1)
-			if sun:
-				sun.light_color = Color(0.5, 0.7, 1.0, 1)
-				sun.light_energy = 0.8
+	# --- TIME-OF-DAY ATMOSPHERE LIGHTING ---
+	# Phase breakdown:
+	#   05:00 - 07:30 : DAWN (Morning glow, low peach sun, soft horizon mist)
+	#   07:30 - 16:30 : DAY (Brilliant high sun, clear azure/golden sky, full daylight)
+	#   16:30 - 19:30 : DUSK (Amber-red sunset, long dramatic shadows, twilight horizon)
+	#   19:30 - 05:00 : NIGHT (Cool moonlight, cosmic indigo sky, nocturnal atmosphere)
 
-		2: # CROSSROADS (สี่แยก)
-			sky_mat.sky_top_color = Color(0.12, 0.08, 0.22, 1)
-			sky_mat.sky_horizon_color = Color(0.35, 0.22, 0.38, 1) # Purple twilight
-			env.volumetric_fog_density = 0.018
-			env.volumetric_fog_albedo = Color(0.20, 0.12, 0.25, 1)
-			env.ambient_light_color = Color(0.35, 0.25, 0.40, 1)
-			if sun:
-				sun.light_color = Color(1.0, 0.70, 0.50, 1) # Sunset orange
-				sun.light_energy = 1.1
+	var is_dawn := (hour >= 5.0 and hour < 7.5)
+	var is_day := (hour >= 7.5 and hour < 16.5)
+	var is_dusk := (hour >= 16.5 and hour < 19.5)
 
-		3: # RIVER_BRIDGE (สะพานแม่น้ำ)
-			sky_mat.sky_top_color = Color(0.15, 0.25, 0.38, 1)
-			sky_mat.sky_horizon_color = Color(0.40, 0.55, 0.70, 1) # Cool morning mist
-			env.volumetric_fog_density = 0.022
-			env.volumetric_fog_albedo = Color(0.35, 0.48, 0.60, 1)
-			env.ambient_light_color = Color(0.30, 0.42, 0.55, 1)
-			if sun:
-				sun.light_color = Color(0.85, 0.92, 1.0, 1)
-				sun.light_energy = 1.2
+	# Dynamic Sun / Moon position & trajectory based on game hour
+	if sun:
+		if is_dawn:
+			var t := (hour - 5.0) / 2.5
+			sun.rotation_degrees = Vector3(lerpf(-8.0, -35.0, t), lerpf(75.0, 45.0, t), 0.0)
+		elif is_day:
+			var t := (hour - 7.5) / 9.0
+			sun.rotation_degrees = Vector3(lerpf(-35.0, -70.0, sin(t * PI)), lerpf(45.0, -60.0, t), 0.0)
+		elif is_dusk:
+			var t := (hour - 16.5) / 3.0
+			sun.rotation_degrees = Vector3(lerpf(-35.0, -8.0, t), lerpf(-60.0, -110.0, t), 0.0)
+		else: # Night Moon
+			sun.rotation_degrees = Vector3(-48.0, 135.0, 0.0)
 
-		4, 5: # FOREST (ป่า) / FOREST_ROAD (ถนนตัดผ่านป่า)
-			sky_mat.sky_top_color = Color(0.12, 0.22, 0.10, 1)
-			sky_mat.sky_horizon_color = Color(0.35, 0.52, 0.28, 1) # Sunlit forest canopy
-			env.volumetric_fog_density = 0.030
-			env.volumetric_fog_albedo = Color(0.22, 0.40, 0.18, 1)
-			env.ambient_light_color = Color(0.30, 0.45, 0.25, 1)
-			if sun:
-				sun.light_color = Color(0.90, 1.0, 0.80, 1)
-				sun.light_energy = 1.3
+	# Base Lighting Colors tailored per Time-of-Day phase and themed by biome
+	if is_dawn:
+		sky_mat.sky_top_color = Color(0.20, 0.28, 0.50, 1)
+		sky_mat.sky_horizon_color = Color(0.96, 0.72, 0.52, 1)
+		sky_mat.ground_bottom_color = Color(0.40, 0.30, 0.22, 1)
+		sky_mat.ground_horizon_color = Color(0.75, 0.55, 0.40, 1)
+		env.volumetric_fog_density = 0.012
+		env.volumetric_fog_albedo = Color(0.90, 0.75, 0.58, 1)
+		env.ambient_light_color = Color(0.65, 0.55, 0.45, 1)
+		env.ambient_light_energy = 0.85
+		if sun:
+			sun.light_color = Color(1.0, 0.85, 0.68, 1)
+			sun.light_energy = 1.45
+	elif is_day:
+		match theme:
+			0: # DESERT (ทะเลทราย)
+				sky_mat.sky_top_color = Color(0.28, 0.52, 0.88, 1)
+				sky_mat.sky_horizon_color = Color(0.95, 0.82, 0.60, 1)
+				sky_mat.ground_bottom_color = Color(0.68, 0.55, 0.38, 1)
+				sky_mat.ground_horizon_color = Color(0.88, 0.75, 0.52, 1)
+				env.volumetric_fog_density = 0.008
+				env.volumetric_fog_albedo = Color(0.88, 0.78, 0.60, 1)
+				env.ambient_light_color = Color(0.80, 0.70, 0.55, 1)
+				env.ambient_light_energy = 0.95
+				if sun:
+					sun.light_color = Color(1.0, 0.95, 0.85, 1)
+					sun.light_energy = 2.0
+			1: # CITY_HIGHRISE
+				sky_mat.sky_top_color = Color(0.18, 0.32, 0.58, 1)
+				sky_mat.sky_horizon_color = Color(0.60, 0.72, 0.85, 1)
+				env.volumetric_fog_density = 0.012
+				env.volumetric_fog_albedo = Color(0.40, 0.50, 0.65, 1)
+				env.ambient_light_color = Color(0.45, 0.55, 0.65, 1)
+				if sun:
+					sun.light_color = Color(0.95, 0.95, 1.0, 1)
+					sun.light_energy = 1.6
+			2: # CROSSROADS
+				sky_mat.sky_top_color = Color(0.22, 0.40, 0.70, 1)
+				sky_mat.sky_horizon_color = Color(0.75, 0.80, 0.85, 1)
+				env.volumetric_fog_density = 0.010
+				env.volumetric_fog_albedo = Color(0.55, 0.60, 0.70, 1)
+				env.ambient_light_color = Color(0.50, 0.55, 0.60, 1)
+				if sun:
+					sun.light_color = Color(1.0, 0.92, 0.80, 1)
+					sun.light_energy = 1.8
+			3: # RIVER_BRIDGE
+				sky_mat.sky_top_color = Color(0.20, 0.45, 0.75, 1)
+				sky_mat.sky_horizon_color = Color(0.65, 0.80, 0.90, 1)
+				env.volumetric_fog_density = 0.014
+				env.volumetric_fog_albedo = Color(0.50, 0.68, 0.80, 1)
+				env.ambient_light_color = Color(0.45, 0.60, 0.70, 1)
+				if sun:
+					sun.light_color = Color(0.90, 0.96, 1.0, 1)
+					sun.light_energy = 1.7
+			_: # FOREST / FOREST_ROAD
+				sky_mat.sky_top_color = Color(0.22, 0.48, 0.78, 1)
+				sky_mat.sky_horizon_color = Color(0.65, 0.85, 0.60, 1)
+				env.volumetric_fog_density = 0.016
+				env.volumetric_fog_albedo = Color(0.40, 0.65, 0.38, 1)
+				env.ambient_light_color = Color(0.40, 0.58, 0.38, 1)
+				if sun:
+					sun.light_color = Color(0.95, 1.0, 0.88, 1)
+					sun.light_energy = 1.85
+	elif is_dusk:
+		sky_mat.sky_top_color = Color(0.14, 0.10, 0.30, 1)
+		sky_mat.sky_horizon_color = Color(0.96, 0.48, 0.22, 1)
+		sky_mat.ground_bottom_color = Color(0.35, 0.20, 0.15, 1)
+		sky_mat.ground_horizon_color = Color(0.70, 0.35, 0.20, 1)
+		env.volumetric_fog_density = 0.014
+		env.volumetric_fog_albedo = Color(0.85, 0.40, 0.25, 1)
+		env.ambient_light_color = Color(0.55, 0.35, 0.30, 1)
+		env.ambient_light_energy = 0.80
+		if sun:
+			sun.light_color = Color(1.0, 0.55, 0.28, 1)
+			sun.light_energy = 1.4
+	else: # NIGHT
+		sky_mat.sky_top_color = Color(0.02, 0.03, 0.08, 1)
+		sky_mat.sky_horizon_color = Color(0.08, 0.12, 0.22, 1)
+		sky_mat.ground_bottom_color = Color(0.04, 0.05, 0.09, 1)
+		sky_mat.ground_horizon_color = Color(0.07, 0.10, 0.18, 1)
+		env.volumetric_fog_density = 0.010
+		env.volumetric_fog_albedo = Color(0.12, 0.18, 0.32, 1)
+		env.ambient_light_color = Color(0.22, 0.28, 0.42, 1)
+		env.ambient_light_energy = 0.65
+		if sun:
+			sun.light_color = Color(0.50, 0.70, 0.98, 1) # Moonlight
+			sun.light_energy = 0.45
 
 	var sky = Sky.new()
 	sky.sky_material = sky_mat

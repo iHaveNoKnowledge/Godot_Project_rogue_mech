@@ -80,22 +80,58 @@ func build_garage() -> void:
 	ring.material_override = mat_ring
 	turntable_node.add_child(ring)
 
+	# Studio WorldEnvironment (SSAO, SSR, ACES Tonemapping for Mech Showroom)
+	var hangar_world_env := WorldEnvironment.new()
+	var h_env := Environment.new()
+	h_env.background_mode = Environment.BG_COLOR
+	h_env.background_color = Color(0.05, 0.06, 0.09)
+	h_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	h_env.ambient_light_color = Color(0.20, 0.24, 0.32)
+	h_env.ambient_light_energy = 1.0
+
+	h_env.tonemap_mode = Environment.TONE_MAPPER_ACES
+	h_env.tonemap_exposure = 1.15
+	h_env.adjustment_enabled = true
+	h_env.adjustment_contrast = 1.12
+	h_env.adjustment_saturation = 1.20
+
+	h_env.ssao_enabled = true
+	h_env.ssao_radius = 1.8
+	h_env.ssao_intensity = 2.2
+	h_env.ssao_power = 1.5
+
+	h_env.ssr_enabled = true
+	h_env.ssr_max_steps = 64
+	h_env.ssr_fade_in = 0.15
+	h_env.ssr_fade_out = 1.8
+
+	h_env.glow_enabled = true
+	h_env.glow_intensity = 0.75
+	h_env.glow_bloom = 0.20
+	h_env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
+	h_env.glow_hdr_threshold = 0.95
+	hangar_world_env.environment = h_env
+	hangar_env_node.add_child(hangar_world_env)
+
 	# Spotlights
 	var spot = SpotLight3D.new()
 	spot.position = Vector3(3, 8, 5)
 	hangar_env_node.add_child(spot)
 	spot.look_at(Vector3(0, 2.9, 0), Vector3.UP)
-	spot.light_energy = 4.0
-	spot.spot_range = 20.0
+	spot.light_energy = 4.5
+	spot.spot_range = 22.0
 	spot.spot_angle = 45.0
-	spot.light_color = Color(0.9, 0.95, 1.0)
+	spot.light_color = Color(0.95, 0.98, 1.0)
+	spot.shadow_enabled = true
+	spot.shadow_blur = 1.2
 
 	var rim = SpotLight3D.new()
 	rim.position = Vector3(-4, 5, -4)
 	hangar_env_node.add_child(rim)
 	rim.look_at(Vector3(0, 2.5, 0), Vector3.UP)
-	rim.light_energy = 2.5
-	rim.light_color = Color(0.3, 0.7, 1.0)
+	rim.light_energy = 3.0
+	rim.light_color = Color(0.35, 0.75, 1.0)
+	rim.shadow_enabled = true
 
 	# 3D Mecha Model in Garage
 	mecha_3d_root = Node3D.new()

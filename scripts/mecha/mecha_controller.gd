@@ -257,6 +257,8 @@ func _start_dash() -> void:
 		if dash_system.can_dash(energy_system.energy):
 			var cost: float = dash_system.start_dash(energy_system.energy, global_position, global_transform.basis)
 			energy_system.energy = maxf(energy_system.energy - cost, 0.0)
+			EffectManager.spawn_ground_dust(global_position, Vector3.UP)
+			EffectManager.spawn_thruster_burst(global_position + Vector3(0, 1.5, 0), -global_transform.basis.z)
 
 
 # --- Movement input & application -------------------------------------------

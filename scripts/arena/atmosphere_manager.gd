@@ -73,23 +73,59 @@ func _setup_atmosphere() -> void:
 	var sky = Sky.new()
 	sky.sky_material = sky_mat
 	env.sky = sky
+	
+	# Volumetric atmospheric fog with high-fidelity temporal reprojection
 	env.volumetric_fog_enabled = true
 	env.volumetric_fog_anisotropy = 0.35
 	env.volumetric_fog_temporal_reprojection_enabled = true
-	env.volumetric_fog_temporal_reprojection_amount = 0.9
-	env.tonemap_mode = 2
+	env.volumetric_fog_temporal_reprojection_amount = 0.92
+
+	# Cinematic ACES Tonemapping & Color Grading (rich contrast & punchy saturation)
+	env.tonemap_mode = Environment.TONE_MAPPER_ACES
+	env.tonemap_exposure = 1.18
+	env.tonemap_white = 1.0
+	env.adjustment_enabled = true
+	env.adjustment_contrast = 1.14
+	env.adjustment_saturation = 1.22
 
 	# HDR Bloom / Glow for vibrant lasers, sparks, thruster flames and reflections
 	env.glow_enabled = true
-	env.glow_intensity = 0.85
-	env.glow_bloom = 0.25
+	env.glow_intensity = 0.90
+	env.glow_bloom = 0.28
 	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
-	env.glow_hdr_threshold = 1.0
-	env.glow_hdr_scale = 1.8
+	env.glow_hdr_threshold = 0.95
+	env.glow_hdr_scale = 1.85
+
+	# SSAO (Screen-Space Ambient Occlusion) — grounds mechas, joints, rocks, and buildings
+	env.ssao_enabled = true
+	env.ssao_radius = 2.2
+	env.ssao_intensity = 2.4
+	env.ssao_power = 1.6
+	env.ssao_detail = 0.65
+	env.ssao_horizon = 0.08
+
+	# SSIL (Screen-Space Indirect Lighting) — bounces neon, laser, and thruster light
+	env.ssil_enabled = true
+	env.ssil_radius = 5.5
+	env.ssil_intensity = 1.4
+	env.ssil_sharpness = 0.85
+
+	# SSR (Screen-Space Reflections) — sleek reflections on metal, pavement, and water
+	env.ssr_enabled = true
+	env.ssr_max_steps = 64
+	env.ssr_fade_in = 0.15
+	env.ssr_fade_out = 1.8
+	env.ssr_depth_tolerance = 0.25
 
 	if sun:
 		sun.shadow_enabled = true
-		sun.light_volumetric_fog_energy = 1.6
+		sun.shadow_blur = 1.35
+		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+		sun.directional_shadow_max_distance = 150.0
+		sun.directional_shadow_split_1 = 0.08
+		sun.directional_shadow_split_2 = 0.22
+		sun.directional_shadow_split_3 = 0.52
+		sun.light_volumetric_fog_energy = 2.0
 
 	_add_theme_ambient_lights(theme)
 	_add_dust_particles(theme)

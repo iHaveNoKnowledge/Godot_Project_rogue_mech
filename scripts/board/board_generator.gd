@@ -88,6 +88,12 @@ func build_environment_and_light() -> Node3D:
 	sun.light_color = Color(1.0, 0.98, 0.94)
 	sun.light_energy = 2.1
 	sun.shadow_enabled = true
+	sun.shadow_blur = 1.35
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+	sun.directional_shadow_max_distance = 180.0
+	sun.directional_shadow_split_1 = 0.10
+	sun.directional_shadow_split_2 = 0.25
+	sun.directional_shadow_split_3 = 0.55
 	sun.rotation_degrees = Vector3(-55.0, 35.0, 0.0)
 	root.add_child(sun)
 
@@ -95,16 +101,32 @@ func build_environment_and_light() -> Node3D:
 	world_env.name = "BoardWorldEnv"
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.12, 0.14, 0.18)
+	env.background_color = Color(0.08, 0.10, 0.14)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.78, 0.82, 0.90)
-	env.ambient_light_energy = 1.55
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.tonemap_exposure = 1.08
+	env.ambient_light_color = Color(0.70, 0.78, 0.88)
+	env.ambient_light_energy = 1.45
+
+	# ACES Tonemapping & Contrast / Saturation adjustment for rich holographic tabletop feel
+	env.tonemap_mode = Environment.TONE_MAPPER_ACES
+	env.tonemap_exposure = 1.15
 	env.tonemap_white = 1.0
+	env.adjustment_enabled = true
+	env.adjustment_contrast = 1.12
+	env.adjustment_saturation = 1.20
+
+	# SSAO adds deep contact depth to board tiles, terrain hills, props, and mech tokens
+	env.ssao_enabled = true
+	env.ssao_radius = 1.8
+	env.ssao_intensity = 2.0
+	env.ssao_power = 1.5
+	env.ssao_detail = 0.5
+
+	# Glow for neon objective beacons, recon radars, and holographic tile paths
 	env.glow_enabled = true
-	env.glow_intensity = 0.35
-	env.glow_bloom = 0.08
+	env.glow_intensity = 0.65
+	env.glow_bloom = 0.18
+	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
+	env.glow_hdr_threshold = 0.95
 	world_env.environment = env
 	root.add_child(world_env)
 

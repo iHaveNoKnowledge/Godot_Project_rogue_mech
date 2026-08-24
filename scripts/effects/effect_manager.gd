@@ -820,3 +820,60 @@ static func spawn_jam_sparks(position: Vector3) -> void:
 	var light_tween := instance.create_tween()
 	light_tween.tween_property(light, "light_energy", 0.0, 0.15)
 	light_tween.tween_callback(light.queue_free)
+
+
+static func spawn_ground_dust(position: Vector3, direction: Vector3 = Vector3.UP, color: Color = Color(0.7, 0.65, 0.55, 0.55)) -> void:
+	var target_parent: Node = instance if instance != null and is_instance_valid(instance) and instance.is_inside_tree() else Engine.get_main_loop().root
+	if target_parent == null:
+		return
+
+	var dust := GPUParticles3D.new()
+	var mat := ParticleProcessMaterial.new()
+	mat.direction = direction + Vector3(randf_range(-0.4, 0.4), 0.2, randf_range(-0.4, 0.4))
+	mat.spread = 45.0
+	mat.initial_velocity_min = 2.5
+	mat.initial_velocity_max = 6.0
+	mat.gravity = Vector3(0, 1.2, 0)
+	mat.scale_min = 0.25
+	mat.scale_max = 0.65
+	dust.process_material = mat
+	dust.amount = 10
+	dust.lifetime = 0.45
+	dust.one_shot = true
+	dust.explosiveness = 0.85
+	dust.emitting = true
+
+	var mesh_inst := MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = 0.2
+	mesh_inst.mesh = sphere
+	var std_mat := StandardMaterial3D.new()
+	std_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	std_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	std_mat.albedo_color = color
+	mesh_inst.material_override = std_mat
+	dust.add_child(mesh_inst)
+
+	target_parent.add_child(dust)
+	dust.global_position = position
+
+	var tween := target_parent.create_tween()
+	tween.tween_interval(0.5)
+	tween.tween_callback(dust.queue_free)
+
+
+static func spawn_thruster_burst(position: Vector3, direction: Vector3 = Vector3.BACK, color: Color = Color(0.3, 0.75, 1.0)) -> void:
+	var target_parent: Node = instance if instance != null and is_instance_valid(instance) and instance.is_inside_tree() else Engine.get_main_loop().root
+	if target_parent == null:
+		return
+
+	var light := OmniLight3D.new()
+	light.light_color = color
+	light.light_energy = 5.0
+	light.omni_range = 8.0
+	target_parent.add_child(light)
+	light.global_position = position
+
+	var tween := target_parent.create_tween()
+	tween.tween_property(light, "light_energy", 0.0, 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.tween_callback(light.queue_free)

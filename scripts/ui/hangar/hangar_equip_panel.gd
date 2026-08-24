@@ -364,6 +364,7 @@ func _perform_frame_equip(slot: String, info: Dictionary) -> void:
 	# A brand-new frame is installed: it starts at full HP, so wipe any frame
 	# damage that belonged to the PREVIOUS frame in this slot.
 	GlobalData.weapons.part_damage.erase(slot + "_frame")
+	GlobalData.weapons.part_hit_meta.erase(slot)
 	controller.persist_panel.commit_and_save()
 	controller.stats_panel.update()
 	controller.part_list_panel.populate(slot)
@@ -379,6 +380,7 @@ func _perform_selected_frame_equip() -> void:
 	fdata["upgrade_level"] = 1
 	GlobalData.weapons.equipped_frames[controller.selected_slot] = fdata
 	GlobalData.weapons.part_damage.erase(controller.selected_slot + "_frame")
+	GlobalData.weapons.part_hit_meta.erase(controller.selected_slot)
 	var fname = controller.selected_frame_info.get("name", "Frame")
 	controller.status_message_label.text = "Equipped Inner Frame: %s!" % fname
 	GlobalData.save_run()
@@ -678,6 +680,7 @@ func unequip_part(slot: String) -> void:
 		GlobalData.weapons.equipped_frames.erase(slot)
 		GlobalData.weapons.part_damage.erase(slot)
 		GlobalData.weapons.part_damage.erase(slot + "_frame")
+		GlobalData.weapons.part_hit_meta.erase(slot)
 		controller.persist_panel.commit_and_save()
 		controller.stats_panel.update()
 		controller.part_list_panel.populate(slot)
@@ -789,6 +792,7 @@ func on_equip_pressed() -> void:
 			}
 			GlobalData.weapons.equipped_parts[controller.selected_slot] = part_data
 			GlobalData.weapons.part_damage.erase(controller.selected_slot)
+			GlobalData.weapons.part_hit_meta.erase(controller.selected_slot)
 			controller.status_message_label.text = "Equipped & Saved Armor: %s!" % part_data["name"]
 			GlobalData.save_run()
 			controller.stats_panel.update()

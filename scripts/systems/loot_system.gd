@@ -96,6 +96,7 @@ func _on_pickup_body_entered(body: Node3D, pickup: Area3D) -> void:
 				# uses the "_frame" suffix. (Do NOT use slot + "_armor".)
 				GlobalData.weapons.part_damage.erase(slot)
 				GlobalData.weapons.part_damage.erase(slot + "_frame")
+				GlobalData.weapons.part_hit_meta.erase(slot)
 				EventBus.weight_changed.emit(0.0)
 		"scrap":
 			GlobalData.currency.gain_scrap(loot_data.get("amount", 1))

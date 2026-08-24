@@ -134,6 +134,7 @@ static func equip_armor_instance(uid: String, slot: String) -> bool:
 	var dmg := 1.0 - GlobalData.get_durability_ratio(inst)
 	if dmg <= 0.0:
 		GlobalData.weapons.part_damage.erase(slot)
+		GlobalData.weapons.part_hit_meta.erase(slot)
 	else:
 		GlobalData.weapons.part_damage[slot] = dmg
 	return true
@@ -148,6 +149,7 @@ static func unequip_armor_instance(slot: String) -> void:
 			inst["equipped"] = false
 	GlobalData.weapons.equipped_parts[slot] = null
 	GlobalData.weapons.part_damage.erase(slot)
+	GlobalData.weapons.part_hit_meta.erase(slot)
 	# NOTE: frame damage (part_damage[slot + "_frame"]) belongs to the mech's
 	# frame, not the armor being swapped out — swapping armor must NOT heal it.
 

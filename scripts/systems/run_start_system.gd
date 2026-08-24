@@ -69,6 +69,7 @@ static func roll_random_start() -> void:
 	# Armor + frames per slot.
 	GlobalData.weapons.equipped_parts.clear()
 	GlobalData.weapons.part_damage.clear()
+	GlobalData.weapons.part_hit_meta.clear()
 	GlobalData.weapons.armor_inventory.clear()
 	GlobalData.weapons.equipped_frames.clear()
 	var tier_weights: Dictionary = start.get("part_tier_weights", {})

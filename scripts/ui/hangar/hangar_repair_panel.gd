@@ -21,6 +21,7 @@ func repair_part() -> void:
 		return
 	GlobalData.weapons.part_damage.erase(controller.selected_slot)
 	GlobalData.weapons.part_damage.erase(controller.selected_slot + "_frame")
+	GlobalData.weapons.part_hit_meta.erase(controller.selected_slot)
 	controller.status_message_label.text = "Repaired %s!" % controller.selected_slot.to_upper()
 	controller.stats_panel.update()
 	controller.garage_panel.update_all_slots_preview()
@@ -40,6 +41,7 @@ func full_repair() -> void:
 		return
 
 	GlobalData.weapons.part_damage.clear()
+	GlobalData.weapons.part_hit_meta.clear()
 	controller.status_message_label.text = "Full Repair Complete!"
 	controller.stats_panel.update()
 	controller.garage_panel.update_all_slots_preview()

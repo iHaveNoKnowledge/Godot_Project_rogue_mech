@@ -88,6 +88,7 @@ static func save_run() -> void:
 		"driver_repair_xp": GlobalData.narrative.driver_repair_xp,
 		"scrap_patches": GlobalData.weapons.scrap_patches.duplicate(true),
 		"frame_bindings": GlobalData.weapons.frame_bindings.duplicate(true),
+		"part_hit_meta": _serialize_hit_meta(),
 		"thermal_cloak": GlobalData.thermal_cloak.serialize() if GlobalData.thermal_cloak else {},
 		"ewar": GlobalData.ewar.serialize() if GlobalData.ewar else {},
 		"weather_transition": GlobalData.weather_transition.serialize() if GlobalData.weather_transition else {},
@@ -249,6 +250,9 @@ static func restore_from_dict(data: Dictionary) -> void:
 	var loaded_bindings = data.get("frame_bindings", {})
 	if loaded_bindings is Dictionary:
 		GlobalData.weapons.frame_bindings = loaded_bindings.duplicate(true)
+	var loaded_hit = data.get("part_hit_meta", {})
+	if loaded_hit is Dictionary:
+		GlobalData.weapons.part_hit_meta = _deserialize_hit_meta(loaded_hit)
 	var loaded_cloak = data.get("thermal_cloak", {})
 	if loaded_cloak is Dictionary and GlobalData.thermal_cloak:
 		GlobalData.thermal_cloak.deserialize(loaded_cloak)
@@ -605,6 +609,31 @@ static func _serialize_patrols() -> Array:
 								part2["color"] = {"r": c2.r, "g": c2.g, "b": c2.b, "a": c2.a}
 		result.append(copy)
 	return result
+
+
+static func _serialize_hit_meta() -> Dictionary:
+	var out := {}
+	for slot in GlobalData.weapons.part_hit_meta:
+		var v = GlobalData.weapons.part_hit_meta[slot]
+		if v is Dictionary and v.get("pos") is Vector3:
+			var p: Vector3 = v["pos"]
+			out[slot] = {"pos": {"x": p.x, "y": p.y, "z": p.z}, "radius": float(v.get("radius", 0.0)), "layer": str(v.get("layer", "armor"))}
+	return out
+
+
+static func _deserialize_hit_meta(raw: Dictionary) -> Dictionary:
+	var out := {}
+	for slot in raw:
+		var entry = raw[slot]
+		if entry is Dictionary:
+			var pos_d = entry.get("pos", {})
+			var pos := Vector3.ZERO
+			if pos_d is Dictionary:
+				pos = Vector3(float(pos_d.get("x", 0.0)), float(pos_d.get("y", 0.0)), float(pos_d.get("z", 0.0)))
+			elif pos_d is Vector3:
+				pos = pos_d
+			out[slot] = {"pos": pos, "radius": float(entry.get("radius", 0.7)), "layer": str(entry.get("layer", "armor"))}
+	return out
 
 
 # Parses a Vector2i stored as a String (JSON-flattened Vector2i or "(x, y)").

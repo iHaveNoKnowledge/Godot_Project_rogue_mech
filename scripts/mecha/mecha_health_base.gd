@@ -146,7 +146,8 @@ func take_damage(amount: float, damage_type: String = "kinetic") -> void:
 # `layer` routes damage straight to a surface: "armor" hits armor first (only
 # while it is intact), "frame" always hits the frame. Empty means the classic
 # armor-first behaviour (armor absorbs until it breaks, then frame takes over).
-func take_damage_to_part(slot_name: String, amount: float, damage_type: String = "kinetic", layer: String = "") -> void:
+# `hit_pos` is the world-space impact point when known (for hit-localized cracks).
+func take_damage_to_part(slot_name: String, amount: float, damage_type: String = "kinetic", layer: String = "", hit_pos: Vector3 = Vector3.ZERO) -> void:
 	if is_destroyed:
 		return
 	# Drop tank intercept: body hits that land on the torso can damage external
@@ -166,18 +167,18 @@ func take_damage_to_part(slot_name: String, amount: float, damage_type: String =
 	match layer.to_lower():
 		"armor":
 			if not part["armor_broken"]:
-				_apply_armor_damage(slot_name, amount, damage_type)
+				_apply_armor_damage(slot_name, amount, damage_type, hit_pos)
 			else:
-				_apply_frame_damage(slot_name, amount, damage_type)
+				_apply_frame_damage(slot_name, amount, damage_type, hit_pos)
 			return
 		"frame":
-			_apply_frame_damage(slot_name, amount, damage_type)
+			_apply_frame_damage(slot_name, amount, damage_type, hit_pos)
 			return
 
 	if not part["armor_broken"]:
-		_apply_armor_damage(slot_name, amount, damage_type)
+		_apply_armor_damage(slot_name, amount, damage_type, hit_pos)
 	else:
-		_apply_frame_damage(slot_name, amount, damage_type)
+		_apply_frame_damage(slot_name, amount, damage_type, hit_pos)
 
 
 # Location-based damage: the impact point decides which part AND which surface
@@ -197,7 +198,7 @@ func take_damage_at_point(amount: float, world_pos: Vector3, damage_type: String
 
 	var hit := _resolve_hit(world_pos)
 	if hit["slot"] != "":
-		take_damage_to_part(hit["slot"], amount, damage_type, hit["layer"])
+		take_damage_to_part(hit["slot"], amount, damage_type, hit["layer"], world_pos)
 
 
 func _take_explosive_damage_at_point(amount: float, world_pos: Vector3, damage_type: String = "explosive") -> void:
@@ -210,7 +211,7 @@ func _take_explosive_damage_at_point(amount: float, world_pos: Vector3, damage_t
 		slot_centers[slot] = _get_slot_center(slot)
 
 	apply_explosive_blast(amount, world_pos, damage_type, primary_slot, primary_hit.get("layer", ""), slot_centers, func(slot: String, dmg: float, pos: Vector3) -> void:
-		take_damage_to_part(slot, dmg, damage_type, _resolve_layer_for_slot(slot, pos))
+		take_damage_to_part(slot, dmg, damage_type, _resolve_layer_for_slot(slot, pos), pos)
 	)
 
 
@@ -285,7 +286,7 @@ func take_damage_to_part_at(slot_name: String, amount: float, world_pos: Vector3
 		take_damage_at_point(amount, world_pos, damage_type)
 		return
 	var layer := _resolve_layer_for_slot(slot_name, world_pos)
-	take_damage_to_part(slot_name, amount, damage_type, layer)
+	take_damage_to_part(slot_name, amount, damage_type, layer, world_pos)
 
 
 ## Convenience overload that resolves parts from local-space coordinates
@@ -511,7 +512,7 @@ func _collect_mesh_descendants(node: Node, into: Array) -> void:
 		_collect_mesh_descendants(child, into)
 
 
-func _apply_armor_damage(slot_name: String, amount: float, damage_type: String) -> void:
+func _apply_armor_damage(slot_name: String, amount: float, damage_type: String, hit_pos: Vector3 = Vector3.ZERO) -> void:
 	var part = parts[slot_name]
 	# Armor only dampens attacks of its OWN defense type. A plate defends
 	# against one of heat/pierce/blunt; when the incoming attack type matches
@@ -538,6 +539,9 @@ func _apply_armor_damage(slot_name: String, amount: float, damage_type: String) 
 	if is_player and part["max_armor"] > 0.0:
 		GlobalData.weapons.part_damage[slot_name] = 1.0 - (part["armor_hp"] / part["max_armor"])
 
+	# Hit-localized cracks: record impact origin so next battle's shader radiates from hit point.
+	_push_hit_visual(slot_name, "armor", hit_pos, damage_type)
+
 	if is_player:
 		EventBus.damage_received.emit(slot_name, reduced, damage_type)
 	if _is_friendly():
@@ -547,7 +551,7 @@ func _apply_armor_damage(slot_name: String, amount: float, damage_type: String) 
 		_on_armor_broken(slot_name, damage_type)
 
 
-func _apply_frame_damage(slot_name: String, amount: float, damage_type: String) -> void:
+func _apply_frame_damage(slot_name: String, amount: float, damage_type: String, hit_pos: Vector3 = Vector3.ZERO) -> void:
 	var part = parts[slot_name]
 	part["frame_hp"] = maxf(part["frame_hp"] - amount, 0.0)
 
@@ -561,6 +565,8 @@ func _apply_frame_damage(slot_name: String, amount: float, damage_type: String) 
 	# Key format: "slot_name_frame" for frame damage ratio (0.0 = full, 1.0 = destroyed)
 	if is_player and part["max_frame"] > 0.0:
 		GlobalData.weapons.part_damage[slot_name + "_frame"] = 1.0 - (part["frame_hp"] / part["max_frame"])
+
+	_push_hit_visual(slot_name, "frame", hit_pos, damage_type)
 
 	if is_player:
 		EventBus.damage_received.emit(slot_name, amount, damage_type)
@@ -577,6 +583,34 @@ func _apply_frame_damage(slot_name: String, amount: float, damage_type: String) 
 
 	if part["frame_hp"] <= 0.0:
 		_on_frame_destroyed(slot_name, damage_type)
+
+
+func _push_hit_visual(slot_name: String, layer: String, hit_pos: Vector3, damage_type: String) -> void:
+	if damage_visuals == null:
+		return
+	var radius := 0.55
+	match normalize_damage_type(damage_type):
+		"heat":
+			radius = 0.85
+		"blunt":
+			radius = 0.68
+		"pierce":
+			radius = 0.42
+		"explosive":
+			radius = 1.25
+		"emp":
+			radius = 0.95
+		_:
+			radius = 0.55
+	# If we have a world impact point, use it; otherwise pick a random local point so
+	# non-positional damage (e.g. generic take_damage) still gets a localized origin
+	# instead of a uniform full-body crack.
+	if hit_pos != Vector3.ZERO and hit_pos.length() > 0.01:
+		damage_visuals.update_slot_hit_from_world(slot_name, layer, hit_pos, radius)
+	else:
+		# Random fallback: roughly on the plate surface, varies per hit
+		var fallback := Vector3(randf_range(-0.22, 0.22), randf_range(-0.18, 0.18), randf_range(-0.12, 0.12))
+		damage_visuals.update_slot_hit(slot_name, layer, fallback, radius)
 
 
 func _on_armor_broken(slot_name: String, damage_type: String = "") -> void:

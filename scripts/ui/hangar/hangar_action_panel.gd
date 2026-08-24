@@ -170,6 +170,7 @@ func show(info: Dictionary) -> void:
 					info["durability"] = 1.0
 				GlobalData.weapons.part_damage.erase(controller.selected_slot)
 				GlobalData.weapons.part_damage.erase(controller.selected_slot + "_frame")
+				GlobalData.weapons.part_hit_meta.erase(controller.selected_slot)
 				controller.status_message_label.text = "Part Repaired to 100% HP!"
 				GlobalData.save_run()
 				controller.stats_panel.update()
@@ -215,6 +216,7 @@ func show(info: Dictionary) -> void:
 						frame_dict["max_hp"] = frame_dict["hp"]
 						frame_dict["upgrade_level"] = int(frame_dict.get("upgrade_level", 1)) + 1
 						GlobalData.weapons.part_damage.erase(controller.selected_slot + "_frame")
+						GlobalData.weapons.part_hit_meta.erase(controller.selected_slot)
 						controller.status_message_label.text = "Frame upgraded to Tier %s! Max HP increased to %.0f" % [GlobalData.part_tier_text(int(frame_dict["upgrade_level"])), frame_dict["hp"]]
 					else:
 						controller.status_message_label.text = "Equip this frame before upgrading it."
@@ -226,6 +228,7 @@ func show(info: Dictionary) -> void:
 					info["durability"] = 1.0
 					if GlobalData.weapons.equipped_parts.get(controller.selected_slot) == info:
 						GlobalData.weapons.part_damage.erase(controller.selected_slot)
+						GlobalData.weapons.part_hit_meta.erase(controller.selected_slot)
 					controller.status_message_label.text = "Part upgraded to Tier %s! Max HP increased to %.0f" % [GlobalData.part_tier_text(int(info["upgrade_level"])), info["hp"]]
 				GlobalData.save_run()
 				controller.stats_panel.update()

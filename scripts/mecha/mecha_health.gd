@@ -81,6 +81,7 @@ func _init_parts() -> void:
 			# The patch rebuilt the slot, so no persistent damage applies to it.
 			GlobalData.weapons.part_damage.erase(slot)
 			GlobalData.weapons.part_damage.erase(slot + "_frame")
+			GlobalData.weapons.part_hit_meta.erase(slot)
 			continue
 
 		# -----------------------------------------------------------------------
@@ -131,7 +132,7 @@ func take_damage(amount: float, damage_type: String = "kinetic") -> void:
 	super.take_damage(amount, damage_type)
 
 
-func take_damage_to_part(slot_name: String, amount: float, damage_type: String = "kinetic", layer: String = "") -> void:
+func take_damage_to_part(slot_name: String, amount: float, damage_type: String = "kinetic", layer: String = "", hit_pos: Vector3 = Vector3.ZERO) -> void:
 	if is_destroyed:
 		return
 	# Shield absorption
@@ -140,7 +141,7 @@ func take_damage_to_part(slot_name: String, amount: float, damage_type: String =
 		amount = wm.absorb_damage_with_shield(amount, damage_type)
 		if amount <= 0.0:
 			return
-	super.take_damage_to_part(slot_name, amount, damage_type, layer)
+	super.take_damage_to_part(slot_name, amount, damage_type, layer, hit_pos)
 
 
 func take_damage_at_point(amount: float, world_pos: Vector3, damage_type: String = "kinetic") -> void:

@@ -9,16 +9,26 @@ render_mode blend_mix, depth_draw_never, cull_back;
 // geometry itself — it never swims when the camera or the mech moves. No custom
 // UV coordinates required; works on built-in mecha meshes and custom imported
 // 3D models alike.
+//
+// Hit-localized: cracks radiate from `hit_pos` and spread outward as damage
+// grows. When `hit_radius` == 0 the shader falls back to uniform global cracks
+// (used for restored save damage where no hit origin was recorded).
 // ---------------------------------------------------------------------------
 
 uniform float damage_amount : hint_range(0.0, 1.0) = 0.0;
 uniform vec3 noise_offset = vec3(0.0);
-uniform float crack_scale : hint_range(1.0, 25.0) = 6.5;
-uniform float scratch_scale : hint_range(5.0, 60.0) = 24.0;
+uniform float crack_scale : hint_range(1.0, 25.0) = 11.0;
+uniform float scratch_scale : hint_range(5.0, 60.0) = 36.0;
 
 uniform vec4 crack_color : source_color = vec4(0.05, 0.05, 0.07, 1.0);
 uniform vec4 exposed_metal_color : source_color = vec4(0.42, 0.44, 0.48, 1.0);
 uniform vec4 scorch_color : source_color = vec4(0.16, 0.13, 0.11, 1.0);
+
+// Impact origin in mesh-local space (set per-slot by ArmorDamageVisuals).
+// hit_radius == 0 → uniform global cracks (save-restore, no origin).
+uniform vec3 hit_pos = vec3(0.0);
+uniform float hit_radius : hint_range(0.0, 6.0) = 0.0;
+uniform float hit_spread : hint_range(0.0, 8.0) = 3.2;
 
 varying vec3 model_pos; // mesh-local surface position captured in vertex()
 
@@ -103,41 +113,61 @@ void fragment() {
 	float dmg = clamp(damage_amount, 0.0, 1.0);
 	vec3 pos = model_pos + noise_offset;
 
-	// 1. Main fracture network (Voronoi borders widen as damage grows)
-	float crack_dist = voronoi_cracks(pos * crack_scale);
-	float crack_width = mix(0.02, 0.22, dmg);
-	float crack_mask = 1.0 - smoothstep(crack_width * 0.3, crack_width, crack_dist);
-
-	// 2. Branch hairline fractures spread past 35% damage
-	// (computed only when active — a zero-width ramp would divide by zero)
-	float branch_dist = 1.0;
-	float branch_mask = 0.0;
-	if (dmg > 0.35) {
-		branch_dist = voronoi_cracks(pos * crack_scale * 1.85 + vec3(17.31));
-		float branch_width = (dmg - 0.35) * 0.28;
-		branch_mask = 1.0 - smoothstep(branch_width * 0.3, branch_width, branch_dist);
+	// 0. Hit-localization factor: cracks strongest near the impact and fade
+	// outward. As damage grows the effective radius widens, so cracks "spread"
+	// from the hit into pristine areas. When hit_radius == 0 → uniform = 1.
+	float hit_factor = 1.0;
+	if (hit_radius > 0.001) {
+		float d = length(model_pos - hit_pos);
+		float effective = hit_radius + dmg * hit_spread;
+		effective = max(effective, 0.18);
+		float core = 1.0 - smoothstep(effective * 0.55, effective, d);
+		float ambient = 0.06 + dmg * 0.18; // faint global at high dmg
+		// Low damage → almost no distant cracks; high damage → distant cracks creep in
+		hit_factor = mix(ambient, 1.0, core);
+		// Add a subtle ring bias so a faint circle reads as impact epicentre
+		float ring = 1.0 - smoothstep(0.02, 0.12, abs(d - hit_radius * 0.55));
+		hit_factor = clamp(hit_factor + ring * 0.18 * dmg, 0.0, 1.0);
 	}
 
-	// 3. Scratches / surface abrasions
+	// 1. Main fracture network (Voronoi borders — thinner than before)
+	float crack_dist = voronoi_cracks(pos * crack_scale);
+	float crack_width = mix(0.012, 0.085, dmg);
+	// Thinner core + sharper edge: cracks are hairline, not fat chasms
+	float crack_mask = 1.0 - smoothstep(crack_width * 0.25, crack_width, crack_dist);
+	crack_mask *= hit_factor;
+
+	// 2. Branch hairline fractures spread past 45% damage (pushed higher + thinner)
+	float branch_dist = 1.0;
+	float branch_mask = 0.0;
+	if (dmg > 0.45) {
+		branch_dist = voronoi_cracks(pos * crack_scale * 1.85 + vec3(17.31));
+		float branch_width = (dmg - 0.45) * 0.16;
+		branch_mask = 1.0 - smoothstep(branch_width * 0.28, branch_width, branch_dist);
+		branch_mask *= hit_factor;
+	}
+
+	// 3. Scratches / surface abrasions (finer, less aggressive)
 	float scratch_noise = value_noise(pos * scratch_scale);
-	float scratch_threshold = max(1.0 - dmg * 0.45, 0.05);
-	float scratch_factor = smoothstep(scratch_threshold, 1.0, scratch_noise) * (dmg * 0.8);
+	float scratch_threshold = max(1.0 - dmg * 0.35, 0.15);
+	float scratch_factor = smoothstep(scratch_threshold, 1.0, scratch_noise) * (dmg * 0.55);
+	scratch_factor *= mix(0.35, 1.0, hit_factor);
 
-	// 4. Scorch halo darkening around every fracture
+	// 4. Scorch halo darkening around every fracture (narrower, softer)
 	float halo_dist = min(crack_dist, branch_dist);
-	float halo_mask = 1.0 - smoothstep(crack_width, crack_width * 3.5, halo_dist);
+	float halo_mask = 1.0 - smoothstep(crack_width, crack_width * 2.2, halo_dist);
 
-	float fracture = clamp(crack_mask * 1.5 + branch_mask * 0.85, 0.0, 1.0);
-	float total_alpha = clamp(fracture + scratch_factor * 0.7 + halo_mask * dmg * 0.35, 0.0, 1.0);
+	float fracture = clamp(crack_mask * 1.2 + branch_mask * 0.55, 0.0, 1.0);
+	float total_alpha = clamp(fracture + scratch_factor * 0.5 + halo_mask * dmg * 0.22 * hit_factor, 0.0, 1.0);
 
-	if (total_alpha < 0.02) {
+	if (total_alpha < 0.018) {
 		ALPHA = 0.0;
 		discard;
 	}
 
 	// 5. Color blending: scorched plate -> bright exposed metal rim -> black crack core
-	float rim = 1.0 - smoothstep(crack_width * 0.6, crack_width * 2.6, crack_dist);
-	vec3 col = mix(scorch_color.rgb, exposed_metal_color.rgb, smoothstep(0.1, 0.85, rim));
+	float rim = 1.0 - smoothstep(crack_width * 0.55, crack_width * 1.9, crack_dist);
+	vec3 col = mix(scorch_color.rgb, exposed_metal_color.rgb, smoothstep(0.15, 0.82, rim));
 	col = mix(col, crack_color.rgb, fracture);
 
 	ALBEDO = col;

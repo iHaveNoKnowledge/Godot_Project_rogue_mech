@@ -68,6 +68,10 @@ var scrap_patches: Dictionary = {}
 # Composite cloth wraps around exposed inner frame after repair.
 var frame_bindings: Dictionary = {}
 
+# --- Impact-localized damage (per-slot hit origin for crack shader) ---
+# slot -> {"pos": Vector3, "radius": float}  radius 0 = no hit (uniform fallback)
+var part_hit_meta: Dictionary = {}
+
 const DEFAULT_LEFT_WEAPON_PATH := "res://resources/mech/stock/weapon_beam_rifle.tres"
 const DEFAULT_RIGHT_WEAPON_PATH := "res://resources/mech/stock/weapon_heat_blade.tres"
 const DEFAULT_CARRY_WEAPON_PATH := "res://resources/mech/stock/weapon_combat_shotgun.tres"
@@ -83,6 +87,7 @@ func reset() -> void:
 	frame_upgrade_level = 1
 	scrap_patches.clear()
 	frame_bindings.clear()
+	part_hit_meta.clear()
 	weapon_loadout = {
 		"left": "w_starter_left",
 		"right": "w_starter_right",
@@ -128,6 +133,7 @@ func clear_working_set() -> void:
 	equipped_frames.clear()
 	attachments.clear()
 	part_damage.clear()
+	part_hit_meta.clear()
 	chassis_id = "standard"
 
 

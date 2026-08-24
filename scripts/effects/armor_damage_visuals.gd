@@ -11,6 +11,12 @@ extends RefCounted
 ##     itself starts taking hits.
 ## Each material generates a unique random noise seed so crack patterns never
 ## repeat, and damage_amount tracks real-time health loss of that layer.
+##
+## FIX 2026-08: Persistence bug — update_slot_layer_damage was a no-op when
+## called BEFORE PartMeshManager created its meshes (HealthSystem._ready runs
+## before controller's refresh_slots). Now it eagerly creates the material so
+## damage set from save data survives into the next battle. Hit localization
+## added: cracks radiate from the impact point and spread as dmg grows.
 ## ---------------------------------------------------------------------------
 
 const DAMAGE_SHADER := preload("res://shaders/armor_crack.gdshader")
@@ -65,6 +71,9 @@ func _setup_mesh_overlays() -> void:
 				var container: Node3D = data.get(key)
 				if container:
 					register_slot_container(slot, container, LAYER_FRAME)
+		# Also sync already-persisted damage/hit so early HealthSystem values
+		# that were set before meshes existed are not lost.
+		_sync_all_from_persist()
 		return
 
 	# 2. Fallback for mechs WITHOUT a PartMeshManager (primitive-built dummies):
@@ -83,6 +92,7 @@ func _setup_mesh_overlays() -> void:
 			var node = mecha_root.get_node_or_null(path)
 			if node:
 				register_slot_container(slot, node, LAYER_ARMOR)
+	_sync_all_from_persist()
 
 
 func _get_or_create_layer_entry(slot: String) -> Dictionary:
@@ -112,8 +122,37 @@ func _get_or_create_slot_mat(slot: String, layer: String) -> ShaderMaterial:
 	)
 	mat.set_shader_parameter("noise_offset", random_seed)
 	mat.set_shader_parameter("damage_amount", 0.0)
+	mat.set_shader_parameter("hit_pos", Vector3.ZERO)
+	mat.set_shader_parameter("hit_radius", 0.0)
+	mat.set_shader_parameter("hit_spread", 3.2)
 	entry[layer] = mat
+	# Apply persisted damage/hit if any (covers HealthSystem._ready -> early set
+	# before meshes existed, and save-restore across battles).
+	_apply_persist_to_mat(slot, layer, mat)
 	return mat
+
+
+func _apply_persist_to_mat(slot: String, layer: String, mat: ShaderMaterial) -> void:
+	# Restore damage from GlobalData if this is the player mech.
+	if GlobalData and GlobalData.weapons:
+		var dmg_key := slot if layer == LAYER_ARMOR else slot + "_frame"
+		# GlobalData uses "slot" for armor, "slot_frame" for frame
+		var dmg: float = float(GlobalData.weapons.part_damage.get(dmg_key, 0.0)) if layer == LAYER_ARMOR else float(GlobalData.weapons.part_damage.get(slot + "_frame", 0.0))
+		if dmg > 0.001:
+			# If HealthSystem parts already hold the HP, the HealthSystem loop
+			# will also call update_slot_layer_damage; this just ensures the mat
+			# isn't left at 0 when that call happened before the mat existed.
+			var cur: float = float(mat.get_shader_parameter("damage_amount"))
+			if cur < dmg:
+				mat.set_shader_parameter("damage_amount", clampf(dmg, 0.0, 1.0))
+		# Restore hit
+		var hit_meta = GlobalData.weapons.part_hit_meta.get(slot) if GlobalData.weapons.part_hit_meta.has(slot) else null
+		if hit_meta is Dictionary and str(hit_meta.get("layer", layer)) == layer:
+			var pos = hit_meta.get("pos", Vector3.ZERO)
+			if pos is Vector3:
+				mat.set_shader_parameter("hit_pos", pos)
+				mat.set_shader_parameter("hit_radius", float(hit_meta.get("radius", 0.65)))
+				mat.set_shader_parameter("hit_spread", 3.2)
 
 
 ## Binds every MeshInstance3D under `container` to the slot's crack material
@@ -134,6 +173,9 @@ func register_slot_container(slot: String, container: Node, layer: String = LAYE
 			mesh.material_overlay = mat
 			if not mesh_list.has(mesh):
 				mesh_list.append(mesh)
+	# Ensure persisted values are on the mat after bind (covers the case where
+	# update_slot_layer_damage happened before the mat existed).
+	_apply_persist_to_mat(slot, layer, mat)
 
 
 func _gather_meshes_recursive(node: Node, out_meshes: Array[MeshInstance3D]) -> void:
@@ -150,12 +192,12 @@ func update_slot_damage(slot: String, damage_ratio: float) -> void:
 
 
 ## Sets the crack intensity of one surface layer (0.0 = pristine, 1.0 = wrecked).
+## Now eagerly creates the material if it does not yet exist (fix for cross-battle
+## persistence where HealthSystem set damage before PartMeshManager bound meshes).
 func update_slot_layer_damage(slot: String, layer: String, damage_ratio: float) -> void:
 	layer = LAYER_FRAME if str(layer).to_lower() == LAYER_FRAME else LAYER_ARMOR
-	if _slot_overlays.has(slot):
-		var mat = _slot_overlays[slot].get(layer)
-		if mat != null:
-			mat.set_shader_parameter("damage_amount", clampf(damage_ratio, 0.0, 1.0))
+	var mat := _get_or_create_slot_mat(slot, layer)
+	mat.set_shader_parameter("damage_amount", clampf(damage_ratio, 0.0, 1.0))
 
 
 func _on_health_changed(slot_name: String, layer: String, current_hp: float, max_hp: float) -> void:
@@ -165,6 +207,72 @@ func _on_health_changed(slot_name: String, layer: String, current_hp: float, max
 	# Route by surface layer: armor HP drives the plate's cracks, frame HP the
 	# skeleton's — so the frame only scars up AFTER the armor has broken.
 	update_slot_layer_damage(slot_name, layer, damage_ratio)
+
+
+# --- Hit localization ------------------------------------------------------
+
+## Records an impact origin for a slot/layer so cracks radiate from there.
+## `local_pos` is in that MeshInstance's MODEL space (approx slot-local).
+## `radius` ~0.4-0.9 for small arms, up to 1.8 for heavy/explosive hits.
+func update_slot_hit(slot: String, layer: String, local_pos: Vector3, radius: float = 0.65) -> void:
+	layer = LAYER_FRAME if str(layer).to_lower() == LAYER_FRAME else LAYER_ARMOR
+	var mat := _get_or_create_slot_mat(slot, layer)
+	mat.set_shader_parameter("hit_pos", local_pos)
+	mat.set_shader_parameter("hit_radius", clampf(radius, 0.0, 6.0))
+	# Persist for cross-battle restore (player only, per-slot last hit wins).
+	if GlobalData and GlobalData.weapons and health_system and health_system.get("is_player") and bool(health_system.is_player):
+		GlobalData.weapons.part_hit_meta[slot] = {"pos": local_pos, "radius": clampf(radius, 0.0, 6.0), "layer": layer}
+
+
+## Convenience: world_pos → slot-local for the given slot, then update.
+func update_slot_hit_from_world(slot: String, layer: String, world_pos: Vector3, radius: float = 0.65) -> void:
+	if mecha_root == null:
+		update_slot_hit(slot, layer, Vector3.ZERO, radius)
+		return
+	var section := _get_section_node(slot)
+	var local := Vector3.ZERO
+	if section != null and is_instance_valid(section):
+		local = section.to_local(world_pos)
+	else:
+		local = mecha_root.to_local(world_pos)
+	# Small random jitter so identical hits don't produce identical perfect circles
+	local += Vector3(randf_range(-0.06, 0.06), randf_range(-0.06, 0.06), randf_range(-0.06, 0.06))
+	update_slot_hit(slot, layer, local, radius)
+
+
+func _get_section_node(slot_name: String) -> Node3D:
+	if mecha_root == null:
+		return null
+	var node_name: String = GlobalData.SLOT_TO_NODE.get(slot_name, "")
+	if node_name == "":
+		return null
+	return mecha_root.get_node_or_null(node_name)
+
+
+func _sync_all_from_persist() -> void:
+	if GlobalData == null or GlobalData.weapons == null:
+		return
+	for slot in GlobalData.weapons.part_damage.keys():
+		var base_slot := str(slot).replace("_frame", "")
+		var layer := LAYER_FRAME if str(slot).ends_with("_frame") else LAYER_ARMOR
+		var dmg: float = float(GlobalData.weapons.part_damage.get(slot, 0.0))
+		if dmg > 0.001 and _slot_overlays.has(base_slot):
+			var mat = _slot_overlays[base_slot].get(layer)
+			if mat != null:
+				var cur: float = float(mat.get_shader_parameter("damage_amount"))
+				if cur < dmg:
+					mat.set_shader_parameter("damage_amount", dmg)
+	# Also apply hit metas where mats already exist
+	for slot in GlobalData.weapons.part_hit_meta.keys():
+		if not _slot_overlays.has(slot):
+			continue
+		var meta = GlobalData.weapons.part_hit_meta[slot]
+		if meta is Dictionary:
+			var m_layer: String = str(meta.get("layer", LAYER_ARMOR))
+			var mat2 = _slot_overlays[slot].get(m_layer)
+			if mat2 != null:
+				mat2.set_shader_parameter("hit_pos", meta.get("pos", Vector3.ZERO))
+				mat2.set_shader_parameter("hit_radius", float(meta.get("radius", 0.65)))
 
 
 ## Helper to apply damage overlays to custom models / dynamic meshes

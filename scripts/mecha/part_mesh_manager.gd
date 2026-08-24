@@ -163,6 +163,23 @@ func initialize_slot(slot_name: String, part: ArmorPart, apply_player_damage: bo
 					dmg_vis.register_slot_container(slot_name, frame_mesh, "frame")
 				if frame_mesh_lower:
 					dmg_vis.register_slot_container(slot_name, frame_mesh_lower, "frame")
+				# Cross-battle persistence: ensure material already holds the saved damage/hit
+				# (HealthSystem set damage before meshes existed — see ArmorDamageVisuals fix,
+				# but also explicitly sync here so PartMeshManager is the source of truth).
+				if apply_player_damage and dmg_vis.has_method("update_slot_layer_damage"):
+					var a_dmg := float(GlobalData.weapons.part_damage.get(slot_name, 0.0))
+					var f_dmg := float(GlobalData.weapons.part_damage.get(slot_name + "_frame", 0.0))
+					dmg_vis.update_slot_layer_damage(slot_name, "armor", clampf(a_dmg, 0.0, 1.0))
+					dmg_vis.update_slot_layer_damage(slot_name, "frame", clampf(f_dmg, 0.0, 1.0))
+					# Restore last impact origin so the crack pattern still radiates from the hit
+					if GlobalData.weapons.part_hit_meta.has(slot_name) and dmg_vis.has_method("_apply_persist_to_mat"):
+						var meta = GlobalData.weapons.part_hit_meta[slot_name]
+						if meta is Dictionary:
+							var m_layer := str(meta.get("layer", "armor"))
+							var m_pos = meta.get("pos", Vector3.ZERO)
+							var m_rad := float(meta.get("radius", 0.65))
+							if m_pos is Vector3:
+								dmg_vis.update_slot_hit(slot_name, m_layer, m_pos as Vector3, m_rad)
 
 
 func _attach_custom_mesh_scene(upper_container: Node3D, lower_container: Node3D, upper_scene: PackedScene, lower_scene: PackedScene) -> void:

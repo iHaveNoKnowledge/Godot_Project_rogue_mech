@@ -92,6 +92,11 @@ func _test_procedural_sounds() -> void:
 		var desc := "%s (%s)" % [stream.get_class() if stream else "null", ("%.2fs" % stream.get_length()) if stream else "0s"]
 		_check(valid, "Sound '%s' loaded valid non-empty stream: %s" % [sname, desc])
 
+	var jump_st = AudioManager._pick_stream("jump")
+	_check(jump_st is AudioStreamMP3, "Jump sound is loaded from jump01.mp3 file (AudioStreamMP3)")
+	var land_st = AudioManager._pick_stream("land")
+	_check(land_st is AudioStreamMP3, "Land sound is loaded from land01.mp3 file (AudioStreamMP3)")
+
 
 func _test_sfx_playback() -> void:
 	_check(AudioManager.sfx.sfx_pool.size() >= 16, "SFX 3D pool contains at least 16 players")

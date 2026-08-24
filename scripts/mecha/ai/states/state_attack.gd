@@ -118,13 +118,18 @@ func physics_process(delta: float) -> void:
 
 	# Attack
 	attack_timer -= delta
+	# Telegraph (red blink + warning tone) is MELEE-ONLY per user request:
+	# machine-gun (1,5) fires without the rising warning and without the red flash,
+	# so only a melee swing (0,4) telegraphs. This removes the noisy “red + beep”
+	# on every ranged burst while keeping the dodge cue for melee.
+	var is_melee_arch := int(enemy.get("archetype", 0)) in [0, 4]
 	# Start the warning telegraph as soon as we enter the pre-fire window, so the
-	# player sees the red blink and hears the rising tone BEFORE the shot lands.
+	# player sees the red blink and hears the rising tone BEFORE the swing lands.
 	# The swing direction is committed exactly once per cycle: once _melee_swing_dir
 	# is set, never re-snapshot it (the telegraph flag is cleared right before the
 	# swing fires, which would otherwise overwrite the aimed arc with the target's
 	# current position and make dodging impossible).
-	if not _telegraph_active and _melee_swing_dir == Vector3.ZERO and attack_timer <= _telegraph_duration():
+	if is_melee_arch and not _telegraph_active and _melee_swing_dir == Vector3.ZERO and attack_timer <= _telegraph_duration():
 		_telegraph_active = true
 		_telegraph_remaining = attack_timer
 		_blink_timer = 0.0
@@ -138,7 +143,13 @@ func physics_process(delta: float) -> void:
 			_shield_down_timer = _telegraph_duration() + SHIELD_MELEE_EXPOSED
 		if enemy.get_tree() and enemy.get_tree().root.has_node("AudioManager"):
 			AudioManager.play_enemy_warning(enemy.global_position + Vector3(0, 2, 0))
-	_update_telegraph(delta)
+	if is_melee_arch:
+		_update_telegraph(delta)
+	else:
+		# Ensure ranged never leaves a lingering red flash from a previous melee cycle
+		if enemy and enemy.has_method("set_attack_flash"):
+			enemy.set_attack_flash(false)
+		_telegraph_active = false
 	# Count down the shield's exposed window; when it closes the barrier comes
 	# back up (shield archetypes only).
 	if _shield_down_timer > 0.0:
@@ -232,7 +243,7 @@ func _heal_nearest_ally() -> void:
 # Freeze the melee swing direction the moment the telegraph starts, so the
 # player can sidestep or boost out of the arc before the swing connects.
 func _snapshot_melee_swing_dir() -> void:
-	if enemy.archetype != 0 or not enemy.target or not is_instance_valid(enemy.target):
+	if int(enemy.get("archetype", 0)) not in [0, 4] or not enemy.target or not is_instance_valid(enemy.target):
 		return
 	var dir: Vector3 = enemy.target.global_position - enemy.global_position
 	dir.y = 0.0

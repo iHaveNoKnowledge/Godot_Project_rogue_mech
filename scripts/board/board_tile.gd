@@ -145,6 +145,14 @@ func _update_visual() -> void:
 	smat.set_shader_parameter("roughness_scale", 0.85)
 	smat.set_shader_parameter("uv_scale", 2.0)
 
+	# Outer table fade — make the 25×25 grid read as an irregular island, not a hard square.
+	var grid_s: int = BoardConfig.GRID_SIZE
+	var board_center := Vector3(grid_s * 2.0, 0.0, grid_s * 2.0)
+	smat.set_shader_parameter("use_board_fade", true)
+	smat.set_shader_parameter("board_center", board_center)
+	smat.set_shader_parameter("board_half_size", grid_s * 2.0)
+	smat.set_shader_parameter("board_fade_width", 6.0)
+
 	mesh_instance.set_surface_override_material(0, smat)
 
 	# Content POI models and beacons stay hidden under fog of war until revealed.

@@ -22,18 +22,18 @@ signal turret_disabled()
 # exactly once per hit (the base call chain never re-enters these two).
 # -----------------------------------------------------------------------------
 
-func _apply_armor_damage(slot_name: String, amount: float, damage_type: String) -> void:
+func _apply_armor_damage(slot_name: String, amount: float, damage_type: String, hit_pos: Vector3 = Vector3.ZERO) -> void:
 	var remaining := _absorb_with_shield(amount, damage_type)
 	if remaining <= 0.0:
 		return
-	super._apply_armor_damage(slot_name, remaining, damage_type)
+	super._apply_armor_damage(slot_name, remaining, damage_type, hit_pos)
 
 
-func _apply_frame_damage(slot_name: String, amount: float, damage_type: String) -> void:
+func _apply_frame_damage(slot_name: String, amount: float, damage_type: String, hit_pos: Vector3 = Vector3.ZERO) -> void:
 	var remaining := _absorb_with_shield(amount, damage_type)
 	if remaining <= 0.0:
 		return
-	super._apply_frame_damage(slot_name, remaining, damage_type)
+	super._apply_frame_damage(slot_name, remaining, damage_type, hit_pos)
 
 
 # Asks the parent mech (enemy_dummy.gd) to absorb damage into its raised

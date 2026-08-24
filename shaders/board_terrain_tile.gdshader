@@ -1,5 +1,6 @@
 shader_type spatial;
-render_mode blend_mix, depth_draw_opaque, cull_disabled, diffuse_burley, specular_schlick_ggx;
+render_mode blend_mix, depth_draw_always, cull_disabled, diffuse_burley, specular_schlick_ggx;
+varying vec3 world_pos;
 
 // Textures and PBR parameters
 uniform bool has_albedo_tex = false;
@@ -29,6 +30,17 @@ uniform float pulse_speed : hint_range(0.0, 10.0) = 3.0;
 uniform vec4 weather_tint_color : source_color = vec4(0.0, 0.0, 0.0, 0.0);
 uniform float weather_tint_strength : hint_range(0.0, 1.0) = 0.0;
 uniform float weather_roughness_mod : hint_range(-1.0, 1.0) = 0.0;
+
+// Board outer fade — fades tiles at the perimeter of the whole 25×25 grid so the
+// map does not end in a hard square. Ground plane extends beyond and fades too.
+uniform bool use_board_fade = false;
+uniform vec3 board_center = vec3(50.0, 0.0, 50.0);
+uniform float board_half_size = 50.0;
+uniform float board_fade_width = 6.0;
+
+void vertex() {
+	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+}
 
 // Simple procedural hash noise for organic border distortion
 float hash2d(vec2 p) {
@@ -89,16 +101,34 @@ void fragment() {
 		rough = clamp(rough + weather_roughness_mod * weather_tint_strength, 0.0, 1.0);
 	}
 
-	// Seamless tabletop: keep fully opaque (ground shows only on fade-out, not on seams)
-	// `blend_factor` now only breaks the straight line via noise; alpha stays 1 so
-	// adjacent tiles of the same terrain fuse with no visible grid.
 	ALBEDO = final_color;
 	NORMAL_MAP = norm;
 	NORMAL_MAP_DEPTH = 0.75;
 	ROUGHNESS = rough;
 	METALLIC = 0.05;
-	// No alpha gap on seams — only the outer board fade (ground shader) fades.
-	ALPHA = 1.0;
+
+	// Base: opaque seams (no grid gap)
+	float out_alpha = 1.0;
+
+	// Outer board fade — tiles at the perimeter dissolve irregularly so the whole
+	// 25×25 grid reads as an island, not a hard square cut.
+	if (use_board_fade) {
+		float dx = abs(world_pos.x - board_center.x);
+		float dz = abs(world_pos.z - board_center.z);
+		float outer = max(dx, dz);
+		float n2 = fbm(vec2(world_pos.x, world_pos.z) * 0.07);
+		// Wobble radius by ~±3 units so the edge is not a perfect square
+		float wobbled = outer + (n2 - 0.5) * 6.0;
+		float fade = 1.0 - smoothstep(board_half_size - board_fade_width, board_half_size, wobbled);
+		out_alpha *= fade;
+		// Also darken slightly toward the faded rim for depth
+		ALBEDO *= mix(1.0, 0.78, (1.0 - fade) * 0.5);
+		if (out_alpha < 0.02) {
+			ALPHA = 0.0;
+			discard;
+		}
+	}
+	ALPHA = out_alpha;
 
 	// Optional micro-darken at the irregular seam for contact shadow (subtle)
 	// This is cheaper than sampling neighbours and still hides the straight cut.

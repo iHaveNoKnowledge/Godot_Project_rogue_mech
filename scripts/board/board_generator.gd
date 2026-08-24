@@ -101,12 +101,12 @@ func build_environment_and_light() -> Node3D:
 ## Builds a single large ground plane under the whole grid so the board reads
 ## as one seamless area instead of a grid of separate tile plates. The tiles
 ## themselves stay flush (flat PlaneMesh) so adjacent terrain merges visually.
-## The plane now OVERSHOOTS the tile grid by ~14 units and fades to transparent
-## at the outer edge (shader) — no hard square tile cutoff.
+## The plane now OVERSHOOTS the tile grid by ~20 units and fades to transparent
+## with a heavily wobbled irregular edge — the table is an island, not a hard square.
 func build_ground() -> MeshInstance3D:
 	var ground := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
-	var overshoot := 28.0 # 14 units beyond each side
+	var overshoot := 40.0 # 20 units beyond each side → 140×140 for 25 grid (100×100 tiles)
 	plane.size = Vector2(grid_size * 4.0 + overshoot, grid_size * 4.0 + overshoot)
 	ground.mesh = plane
 	# Use fade shader instead of flat StandardMaterial — edge fades to void.
@@ -114,11 +114,11 @@ func build_ground() -> MeshInstance3D:
 	mat.shader = preload("res://shaders/board_ground_fade.gdshader")
 	mat.set_shader_parameter("ground_color", Color(0.09, 0.11, 0.09, 1.0))
 	mat.set_shader_parameter("table_color", Color(0.06, 0.07, 0.08, 1.0))
-	# Grid 25 → tiles 100×100, plane 128×128 → inner ratio ~0.78; fade from edge
-	# so only the overshoot beyond the tile grid fades, with irregular noise edge.
-	mat.set_shader_parameter("fade_start", 0.76)
-	mat.set_shader_parameter("fade_softness", 0.22)
-	mat.set_shader_parameter("noise_strength", 0.22)
+	# Grid 25 → tiles 100×100, plane 140×140 → inner ratio 0.714; fade starts at
+	# tile edge so the 20-unit overshoot is the entire soft irregular border.
+	mat.set_shader_parameter("fade_start", 0.70)
+	mat.set_shader_parameter("fade_softness", 0.28)
+	mat.set_shader_parameter("noise_strength", 0.42)
 	mat.set_shader_parameter("roughness_val", 1.0)
 	ground.material_override = mat
 	# Slightly lower to avoid z-fighting; large plane needs more subdiv for smooth fade.

@@ -316,29 +316,28 @@ func _add_dust_particles(theme: int) -> void:
 
 
 func _spawn_arena_fog_volumes(theme: int) -> void:
-	# Add localized low-lying fog banks for dramatic battlefield atmosphere
+	# Add localized soft low-lying mist banks along the distant battlefield perimeters (feathered ellipsoids with no hard box edges)
 	var fog_bank_positions = [
-		Vector3(-35, 1.5, -20),
-		Vector3(40, 1.5, 25),
-		Vector3(0, 1.0, 0)
+		Vector3(-65, 2.0, -55),
+		Vector3(65, 2.0, 55)
 	]
 	for pos in fog_bank_positions:
 		var fv := FogVolume.new()
 		fv.name = "BattlefieldFogBank"
-		fv.size = Vector3(50.0, 4.0, 50.0)
-		fv.shape = RenderingServer.FOG_VOLUME_SHAPE_BOX
+		fv.size = Vector3(60.0, 6.0, 60.0)
+		fv.shape = RenderingServer.FOG_VOLUME_SHAPE_ELLIPSOID
 		var fmat := FogMaterial.new()
-		fmat.density = 0.04
+		fmat.density = 0.005
 		if theme == 0:
-			fmat.albedo = Color(0.70, 0.55, 0.35) # Sandy low fog
+			fmat.albedo = Color(0.85, 0.72, 0.50) # Sandy low mist
 		elif theme == 1:
-			fmat.albedo = Color(0.15, 0.25, 0.40) # Smoggy neon fog
+			fmat.albedo = Color(0.20, 0.35, 0.55) # City ambient mist
 		elif theme == 2:
-			fmat.albedo = Color(0.30, 0.18, 0.35) # Dusk mist
+			fmat.albedo = Color(0.40, 0.28, 0.45) # Dusk mist
 		elif theme == 3:
-			fmat.albedo = Color(0.40, 0.55, 0.70) # River morning fog
+			fmat.albedo = Color(0.50, 0.65, 0.80) # River morning mist
 		else:
-			fmat.albedo = Color(0.25, 0.45, 0.22) # Damp forest mist
+			fmat.albedo = Color(0.35, 0.55, 0.30) # Forest mist
 		fv.material = fmat
 		fv.position = pos
 		get_parent().add_child(fv)

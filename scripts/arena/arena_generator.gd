@@ -84,8 +84,7 @@ func _build_footprint() -> ArenaFootprint:
 
 
 func _uses_footprint() -> bool:
-	return current_theme == BiomeTheme.DESERT \
-		or current_theme == BiomeTheme.CITY_HIGHRISE \
+	return current_theme == BiomeTheme.CITY_HIGHRISE \
 		or current_theme == BiomeTheme.CROSSROADS
 
 
@@ -554,7 +553,9 @@ func _get_theme_ground_color(pos_x: float, pos_z: float) -> Color:
 	var v := ground_noise.get_noise_2d(pos_x * 0.03, pos_z * 0.03) * 0.05
 	match current_theme:
 		BiomeTheme.DESERT:
-			return Color(0.62 + v, 0.50 + v, 0.32 + v)
+			var dune_val := ground_noise.get_noise_2d(pos_x * 0.04, pos_z * 0.04) * 0.08
+			var ripple_val := sin(pos_x * 0.15 + pos_z * 0.08) * 0.03
+			return Color(0.85 + dune_val + ripple_val, 0.72 + dune_val + ripple_val, 0.50 + dune_val)
 
 		BiomeTheme.CITY_HIGHRISE:
 			if int(abs(pos_x)) % 40 < 12 or int(abs(pos_z)) % 40 < 12:

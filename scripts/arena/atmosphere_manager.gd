@@ -20,15 +20,18 @@ func _setup_atmosphere() -> void:
 	var sun = get_node_or_null("../DirectionalLight3D")
 
 	match theme:
-		0: # DESERT (ทะเลทราย)
-			sky_mat.sky_top_color = Color(0.48, 0.38, 0.25, 1)
-			sky_mat.sky_horizon_color = Color(0.80, 0.65, 0.42, 1)
-			env.volumetric_fog_density = 0.024
-			env.volumetric_fog_albedo = Color(0.60, 0.48, 0.32, 1)
-			env.ambient_light_color = Color(0.55, 0.45, 0.35, 1)
+		0: # DESERT (ทะเลทราย) — Bright sun, warm golden horizon, clear light haze
+			sky_mat.sky_top_color = Color(0.28, 0.52, 0.88, 1)
+			sky_mat.sky_horizon_color = Color(0.95, 0.82, 0.60, 1)
+			sky_mat.ground_bottom_color = Color(0.68, 0.55, 0.38, 1)
+			sky_mat.ground_horizon_color = Color(0.88, 0.75, 0.52, 1)
+			env.volumetric_fog_density = 0.008
+			env.volumetric_fog_albedo = Color(0.88, 0.78, 0.60, 1)
+			env.ambient_light_color = Color(0.80, 0.70, 0.55, 1)
+			env.ambient_light_energy = 0.95
 			if sun:
-				sun.light_color = Color(1.0, 0.88, 0.65, 1)
-				sun.light_energy = 1.5
+				sun.light_color = Color(1.0, 0.95, 0.85, 1)
+				sun.light_energy = 2.0
 
 		1: # CITY_HIGHRISE (เมืองตึกเยอะ)
 			sky_mat.sky_top_color = Color(0.05, 0.06, 0.16, 1)

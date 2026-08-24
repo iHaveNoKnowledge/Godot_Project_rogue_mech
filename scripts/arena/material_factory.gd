@@ -27,33 +27,47 @@ static func get_ground_material(theme: int, base_texture: Texture2D = null) -> S
 	var rough_path := ""
 
 	match theme:
-		0: # DESERT
+		0: # DESERT — Dry, diffuse golden sand with high roughness and zero mirror reflections
+			mat.roughness = 0.98
+			mat.metallic = 0.0
+			mat.specular = 0.04
+			mat.albedo_color = Color(1.0, 0.96, 0.90)
 			norm_path = "res://resources/textures/sand/normal.jpg"
-			rough_path = "res://resources/textures/sand/roughness.jpg"
+			rough_path = "" # Do not use dark glossy roughness map on sand
 		1: # CITY_HIGHRISE
+			mat.roughness = 0.80
+			mat.metallic = 0.05
 			norm_path = "res://resources/textures/road/normal.jpg"
 			rough_path = "res://resources/textures/road/roughness.jpg"
 		2: # CROSSROADS
+			mat.roughness = 0.82
+			mat.metallic = 0.05
 			norm_path = "res://resources/textures/road/normal.jpg"
 			rough_path = "res://resources/textures/road/roughness.jpg"
 		3: # RIVER_BRIDGE
+			mat.roughness = 0.85
+			mat.metallic = 0.05
 			norm_path = "res://resources/textures/bridge/normal.jpg"
 			rough_path = "res://resources/textures/bridge/roughness.jpg"
 		4, 5: # FOREST, FOREST_ROAD
+			mat.roughness = 0.88
+			mat.metallic = 0.02
 			norm_path = "res://resources/textures/forest/normal.jpg"
 			rough_path = "res://resources/textures/forest/roughness.jpg"
 		_:
+			mat.roughness = 0.85
+			mat.metallic = 0.05
 			norm_path = "res://resources/textures/plain/normal.jpg"
 			rough_path = "res://resources/textures/plain/roughness.jpg"
 
-	if ResourceLoader.exists(norm_path):
+	if norm_path != "" and ResourceLoader.exists(norm_path):
 		var ntex: Texture2D = load(norm_path)
 		if ntex:
 			mat.normal_enabled = true
 			mat.normal_texture = ntex
-			mat.normal_scale = 0.75
+			mat.normal_scale = 1.0
 
-	if ResourceLoader.exists(rough_path):
+	if rough_path != "" and ResourceLoader.exists(rough_path):
 		var rtex: Texture2D = load(rough_path)
 		if rtex:
 			mat.roughness_texture = rtex

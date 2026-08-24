@@ -27,12 +27,20 @@ var weapon_loadout: Dictionary = {
 	}
 }
 
+var equipped_weapon_instances: Dictionary:
+	get: return weapon_loadout
+	set(val): weapon_loadout = val
+
 # --- Weapon Inventory (owned stash) ---
 var weapon_inventory: Array = [
 	{"uid": "w_starter_left", "path": "res://resources/mech/stock/weapon_beam_rifle.tres", "name": "Beam Rifle", "durability": 1.0, "upgrade_level": 1},
 	{"uid": "w_starter_right", "path": "res://resources/mech/stock/weapon_heat_blade.tres", "name": "Heat Blade", "durability": 1.0, "upgrade_level": 1},
 	{"uid": "w_starter_carry", "path": "res://resources/mech/stock/weapon_combat_shotgun.tres", "name": "Combat Shotgun", "durability": 1.0, "upgrade_level": 1},
 ]
+
+var inventory: Array:
+	get: return weapon_inventory
+	set(val): weapon_inventory = val
 
 # --- Ammo Inventory (reserve, replenished between battles) ---
 var ammo_inventory: Dictionary = {

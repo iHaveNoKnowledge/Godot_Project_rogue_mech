@@ -593,12 +593,17 @@ func degrade_frame_durability(slot: String, amount: float) -> void:
 
 ## Degrades the lifetime durability of an equipped weapon
 func degrade_weapon_durability(hand: String, amount: float) -> void:
-	if amount <= 0.0:
+	if amount <= 0.0 or weapons == null:
 		return
-	var uid := str(weapons.equipped_weapon_instances.get(hand, ""))
+	var uid := ""
+	if "weapon_loadout" in weapons:
+		uid = str(weapons.weapon_loadout.get(hand, ""))
+	elif "equipped_weapon_instances" in weapons:
+		uid = str(weapons.equipped_weapon_instances.get(hand, ""))
 	if uid == "":
 		return
-	for w in weapons.inventory:
+	var inv_list: Array = weapons.weapon_inventory if "weapon_inventory" in weapons else (weapons.inventory if "inventory" in weapons else [])
+	for w in inv_list:
 		if w is Dictionary and str(w.get("uid", "")) == uid:
 			var cur := get_durability_ratio(w)
 			w["durability"] = clampf(cur - amount, 0.05, 1.0)

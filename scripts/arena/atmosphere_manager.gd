@@ -34,19 +34,19 @@ func _setup_atmosphere() -> void:
 	var is_day := (hour >= 7.5 and hour < 16.5)
 	var is_dusk := (hour >= 16.5 and hour < 19.5)
 
-	# Dynamic Sun / Moon position & trajectory based on game hour
+	# Dynamic Sun / Moon position & trajectory based on game hour (angles kept steep enough to prevent flat terrain self-shadowing)
 	if sun:
 		if is_dawn:
 			var t := (hour - 5.0) / 2.5
-			sun.rotation_degrees = Vector3(lerpf(-8.0, -35.0, t), lerpf(75.0, 45.0, t), 0.0)
+			sun.rotation_degrees = Vector3(lerpf(-28.0, -45.0, t), lerpf(75.0, 45.0, t), 0.0)
 		elif is_day:
 			var t := (hour - 7.5) / 9.0
-			sun.rotation_degrees = Vector3(lerpf(-35.0, -70.0, sin(t * PI)), lerpf(45.0, -60.0, t), 0.0)
+			sun.rotation_degrees = Vector3(lerpf(-45.0, -72.0, sin(t * PI)), lerpf(45.0, -60.0, t), 0.0)
 		elif is_dusk:
 			var t := (hour - 16.5) / 3.0
-			sun.rotation_degrees = Vector3(lerpf(-35.0, -8.0, t), lerpf(-60.0, -110.0, t), 0.0)
+			sun.rotation_degrees = Vector3(lerpf(-45.0, -28.0, t), lerpf(-60.0, -110.0, t), 0.0)
 		else: # Night Moon
-			sun.rotation_degrees = Vector3(-48.0, 135.0, 0.0)
+			sun.rotation_degrees = Vector3(-52.0, 135.0, 0.0)
 
 	# Base Lighting Colors tailored per Time-of-Day phase and themed by biome
 	if is_dawn:
@@ -186,12 +186,18 @@ func _setup_atmosphere() -> void:
 	if sun:
 		sun.shadow_enabled = true
 		sun.shadow_blur = 1.35
+		sun.shadow_bias = 0.06
+		sun.shadow_normal_bias = 2.0
+		sun.shadow_opacity = 0.85
 		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
-		sun.directional_shadow_max_distance = 150.0
-		sun.directional_shadow_split_1 = 0.08
-		sun.directional_shadow_split_2 = 0.22
-		sun.directional_shadow_split_3 = 0.52
-		sun.light_volumetric_fog_energy = 2.0
+		sun.directional_shadow_blend_splits = true
+		sun.directional_shadow_max_distance = 160.0
+		sun.directional_shadow_split_1 = 0.10
+		sun.directional_shadow_split_2 = 0.25
+		sun.directional_shadow_split_3 = 0.55
+		sun.light_volumetric_fog_energy = 1.0
+
+	env.ambient_light_sky_contribution = 0.80
 
 	_add_theme_ambient_lights(theme)
 	_add_dust_particles(theme)

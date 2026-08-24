@@ -53,6 +53,9 @@ var manual_reload: bool = false
 
 # --- Heat config (heat_capacity > 0 enables the system) ---
 var heat_capacity: float = 0.0
+var max_heat: float:
+	get: return heat_capacity
+	set(val): heat_capacity = val
 var heat_per_shot: float = 0.0
 var heat_cool_rate: float = 10.0
 var heat_release_ratio: float = 0.5

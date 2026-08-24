@@ -93,7 +93,9 @@ func _create_fog_mesh() -> void:
 	_fog_mesh = MeshInstance3D.new()
 	_fog_mesh.name = "FogOfWarMesh"
 	var box := BoxMesh.new()
-	box.size = Vector3(4.1, 2.5, 4.1)
+	# Overlap heavily (4.92 vs 4.0 spacing) so adjacent fog volumes merge with
+	# no visible grid — edge fade in shader is only at 0.88..1.0.
+	box.size = Vector3(4.92, 2.6, 4.92)
 	_fog_mesh.mesh = box
 	var smat := ShaderMaterial.new()
 	smat.shader = _fog_shader
@@ -101,8 +103,8 @@ func _create_fog_mesh() -> void:
 	smat.set_shader_parameter("fog_edge_color", Color(0.14, 0.20, 0.30, 1.0))
 	smat.set_shader_parameter("dissolve_burn_color", Color(0.35, 0.85, 1.0, 1.0))
 	smat.set_shader_parameter("dissolve_progress", 0.0)
-	smat.set_shader_parameter("animation_speed", 0.4)
-	smat.set_shader_parameter("noise_scale", 5.0)
+	smat.set_shader_parameter("animation_speed", 0.35)
+	smat.set_shader_parameter("noise_scale", 4.2)
 	_fog_mesh.set_surface_override_material(0, smat)
 	_fog_mesh.position = Vector3(0, 1.25, 0)
 	add_child(_fog_mesh)
@@ -119,8 +121,8 @@ func _update_visual() -> void:
 
 	var color := _terrain_color(terrain)
 	smat.set_shader_parameter("base_color", color)
-	smat.set_shader_parameter("edge_feather", 0.22)
-	smat.set_shader_parameter("noise_blend_strength", 0.48)
+	smat.set_shader_parameter("edge_feather", 0.38)
+	smat.set_shader_parameter("noise_blend_strength", 0.72)
 	smat.set_shader_parameter("highlight_intensity", 1.0 if is_highlighted else 0.0)
 	smat.set_shader_parameter("highlight_color", Color(0.25, 0.75, 1.0, 1.0))
 

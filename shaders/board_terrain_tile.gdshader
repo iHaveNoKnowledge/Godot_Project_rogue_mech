@@ -15,9 +15,10 @@ uniform vec4 base_color : source_color = vec4(0.5, 0.5, 0.5, 1.0);
 uniform float roughness_scale : hint_range(0.0, 1.0) = 0.85;
 uniform float uv_scale : hint_range(0.5, 8.0) = 2.0;
 
-// Edge feathering & Organic Blending
-uniform float edge_feather : hint_range(0.01, 0.45) = 0.22;
-uniform float noise_blend_strength : hint_range(0.0, 1.0) = 0.48;
+// Edge feathering & Organic Blending — widened + stronger noise so tile seams
+// become irregular and tiles read as one continuous tabletop landscape.
+uniform float edge_feather : hint_range(0.01, 0.65) = 0.38;
+uniform float noise_blend_strength : hint_range(0.0, 1.0) = 0.72;
 
 // Interactive Highlights
 uniform vec4 highlight_color : source_color = vec4(0.25, 0.75, 1.0, 1.0);
@@ -88,11 +89,19 @@ void fragment() {
 		rough = clamp(rough + weather_roughness_mod * weather_tint_strength, 0.0, 1.0);
 	}
 
-	// Soft edge transition to avoid sharp square tile seams
+	// Seamless tabletop: keep fully opaque (ground shows only on fade-out, not on seams)
+	// `blend_factor` now only breaks the straight line via noise; alpha stays 1 so
+	// adjacent tiles of the same terrain fuse with no visible grid.
 	ALBEDO = final_color;
 	NORMAL_MAP = norm;
 	NORMAL_MAP_DEPTH = 0.75;
 	ROUGHNESS = rough;
 	METALLIC = 0.05;
-	ALPHA = mix(0.85, 1.0, blend_factor);
+	// No alpha gap on seams — only the outer board fade (ground shader) fades.
+	ALPHA = 1.0;
+
+	// Optional micro-darken at the irregular seam for contact shadow (subtle)
+	// This is cheaper than sampling neighbours and still hides the straight cut.
+	// float seam_shadow = 1.0 - smoothstep(0.0, edge_feather * 0.6, min_dist) * 0.08;
+	// ALBEDO *= seam_shadow;
 }

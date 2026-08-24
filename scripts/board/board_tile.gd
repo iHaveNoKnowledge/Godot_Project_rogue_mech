@@ -94,21 +94,24 @@ func _create_fog_mesh() -> void:
 		return
 	_fog_mesh = MeshInstance3D.new()
 	_fog_mesh.name = "FogOfWarMesh"
-	var box := BoxMesh.new()
-	# Overlap heavily (4.92 vs 4.0 spacing) so adjacent fog volumes merge with
-	# no visible grid — edge fade in shader is only at 0.88..1.0.
-	box.size = Vector3(4.92, 2.6, 4.92)
-	_fog_mesh.mesh = box
+	
+	# Subdivided organic mist canopy that overlaps seamlessly with zero box seams
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(7.6, 7.6)
+	plane.subdivide_width = 16
+	plane.subdivide_depth = 16
+	_fog_mesh.mesh = plane
+
 	var smat := ShaderMaterial.new()
 	smat.shader = _fog_shader
-	smat.set_shader_parameter("fog_color", Color(0.06, 0.08, 0.12, 0.98))
-	smat.set_shader_parameter("fog_edge_color", Color(0.14, 0.20, 0.30, 1.0))
-	smat.set_shader_parameter("dissolve_burn_color", Color(0.35, 0.85, 1.0, 1.0))
+	smat.set_shader_parameter("fog_color", Color(0.08, 0.11, 0.17, 0.96))
+	smat.set_shader_parameter("fog_edge_color", Color(0.22, 0.32, 0.46, 0.85))
+	smat.set_shader_parameter("dissolve_burn_color", Color(0.30, 0.85, 1.0, 1.0))
 	smat.set_shader_parameter("dissolve_progress", 0.0)
 	smat.set_shader_parameter("animation_speed", 0.35)
-	smat.set_shader_parameter("noise_scale", 4.2)
+	smat.set_shader_parameter("noise_scale", 3.8)
 	_fog_mesh.set_surface_override_material(0, smat)
-	_fog_mesh.position = Vector3(0, 1.25, 0)
+	_fog_mesh.position = Vector3(0, 0.85, 0)
 	add_child(_fog_mesh)
 
 

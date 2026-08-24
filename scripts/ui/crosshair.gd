@@ -121,8 +121,12 @@ func _check_head_status() -> void:
 		if health:
 			if health.has_method("is_part_destroyed"):
 				is_head_destroyed = health.is_part_destroyed("head")
-			elif health.get("parts") != null and health.parts.has("head"):
-				is_head_destroyed = health.parts["head"].get("destroyed", false)
+			elif "parts" in health and health.parts is Dictionary and health.parts.has("head"):
+				var head_part = health.parts["head"]
+				if head_part is Dictionary:
+					is_head_destroyed = bool(head_part.get("destroyed", false))
+				elif head_part is Object and "destroyed" in head_part:
+					is_head_destroyed = bool(head_part.get("destroyed"))
 
 	if warning_label:
 		warning_label.visible = is_head_destroyed

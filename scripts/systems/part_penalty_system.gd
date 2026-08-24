@@ -21,10 +21,10 @@ const THRESHOLD_SEVERE: float = 0.80   # 80% damage — major penalties
 
 # --- Penalty constants (GDD §6.1) ---
 
-# Head penalties
+# Head penalties — tuned down: severe 0.15→0.10 was too punishing (wild bullets at 80% head dmg)
 const HEAD_SPREAD_MILD: float = 0.03       # +3% weapon spread
-const HEAD_SPREAD_MODERATE: float = 0.08   # +8% weapon spread
-const HEAD_SPREAD_SEVERE: float = 0.15     # +15% weapon spread
+const HEAD_SPREAD_MODERATE: float = 0.07   # +7% weapon spread
+const HEAD_SPREAD_SEVERE: float = 0.10     # +10% weapon spread
 const HEAD_LOCK_ON_MILD: float = 0.85      # lock-on speed 85%
 const HEAD_LOCK_ON_MODERATE: float = 0.65  # lock-on speed 65%
 const HEAD_LOCK_ON_SEVERE: float = 0.40    # lock-on speed 40%

@@ -176,7 +176,8 @@ func try_fire(from_pos: Vector3, aim_dir: Vector3, fired_by_enemy: bool, owner: 
 	if heat_capacity > 0.0 and heat > 0.0:
 		var heat_ratio := clampf(heat / heat_capacity, 0.0, 1.0)
 		# Spread increases progressively as barrel heats up (rewards burst-firing & cooling)
-		current_spread += heat_ratio * 0.075
+		# Reduced from 0.075 → 0.032 so sustained fire stays tighter (user report: bullets wild)
+		current_spread += heat_ratio * 0.032
 
 	for i in range(pellets):
 		var pellet_dir := aim_dir

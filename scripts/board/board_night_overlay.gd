@@ -11,9 +11,9 @@ const _DNS = preload("res://scripts/systems/day_night_system.gd")
 
 var _rect: ColorRect
 
-# Night overlay color (dark blue tint)
-const NIGHT_COLOR := Color(0.05, 0.08, 0.18, 0.0)
-const NIGHT_ALPHA := 0.45  # Max darkness at midnight
+# Night overlay color (dark blue tint) — lowered for less oppressive darkness
+const NIGHT_COLOR := Color(0.07, 0.10, 0.20, 0.0)
+const NIGHT_ALPHA := 0.28  # Max darkness at midnight (was 0.45 too dark)
 
 # Transition zone: overlay fades in/out over ±2 hours around dawn/dusk
 const FADE_HOURS := 2.0

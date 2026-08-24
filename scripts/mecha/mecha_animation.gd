@@ -353,7 +353,7 @@ func _update_recoil(delta: float) -> void:
 # 25° + 55° hits exactly that). Aiming adds the pitch to the target on top:
 #   total = 80° + aim_pitch   (split 72% upper arm / 28% forearm)
 var _aim_raise: float = 0.0
-const AIM_RAISE_SPEED: float = 9.0
+const AIM_RAISE_SPEED: float = 14.0
 const AIM_LEVEL_TOTAL_DEG: float = 80.0
 const AIM_ARM_SHARE: float = 0.72
 

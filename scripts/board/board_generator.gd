@@ -78,7 +78,7 @@ func build_environment_and_light() -> Node3D:
 	var sun := DirectionalLight3D.new()
 	sun.name = "SunLight"
 	sun.light_color = Color(1.0, 0.98, 0.94)
-	sun.light_energy = 1.35
+	sun.light_energy = 2.1
 	sun.shadow_enabled = true
 	sun.rotation_degrees = Vector3(-55.0, 35.0, 0.0)
 	root.add_child(sun)
@@ -87,11 +87,16 @@ func build_environment_and_light() -> Node3D:
 	world_env.name = "BoardWorldEnv"
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.08, 0.10, 0.14)
+	env.background_color = Color(0.12, 0.14, 0.18)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.65, 0.70, 0.80)
-	env.ambient_light_energy = 1.15
+	env.ambient_light_color = Color(0.78, 0.82, 0.90)
+	env.ambient_light_energy = 1.55
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env.tonemap_exposure = 1.08
+	env.tonemap_white = 1.0
+	env.glow_enabled = true
+	env.glow_intensity = 0.35
+	env.glow_bloom = 0.08
 	world_env.environment = env
 	root.add_child(world_env)
 

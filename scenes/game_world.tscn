@@ -34,11 +34,11 @@
 [ext_resource type="Resource" path="res://resources/mech/stock/weapon_pile_bunker.tres" id="12"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMat"]
-sky_top_color = Color(0.12, 0.16, 0.28, 1)
-sky_horizon_color = Color(0.32, 0.36, 0.45, 1)
-sky_curve = 0.08
-ground_horizon_color = Color(0.18, 0.19, 0.20, 1)
-ground_bottom_color = Color(0.12, 0.13, 0.15, 1)
+sky_top_color = Color(0.18, 0.24, 0.38, 1)
+sky_horizon_color = Color(0.45, 0.52, 0.64, 1)
+sky_curve = 0.12
+ground_horizon_color = Color(0.32, 0.34, 0.36, 1)
+ground_bottom_color = Color(0.22, 0.23, 0.26, 1)
 
 [sub_resource type="Sky" id="Sky_main"]
 sky_material = SubResource("SkyMat")
@@ -47,10 +47,10 @@ sky_material = SubResource("SkyMat")
 background_mode = 2
 sky = SubResource("Sky_main")
 ambient_light_source = 2
-ambient_light_color = Color(0.28, 0.30, 0.34, 1)
-ambient_light_energy = 0.82
+ambient_light_color = Color(0.42, 0.44, 0.48, 1)
+ambient_light_energy = 1.15
 tonemap_mode = 2
-tonemap_exposure = 0.92
+tonemap_exposure = 1.12
 tonemap_white = 1.0
 glow_enabled = true
 glow_intensity = 0.52
@@ -69,8 +69,8 @@ sdfgi_normal_bias = 1.2
 sdfgi_probe_bias = 1.1
 ssao_enabled = true
 ssao_radius = 0.9
-ssao_intensity = 1.05
-ssao_power = 1.4
+ssao_intensity = 0.68
+ssao_power = 1.15
 ssao_detail = 0.45
 ssao_horizon = 0.06
 ssao_sharpness = 0.98
@@ -122,7 +122,7 @@ environment = SubResource("Env_main")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
 transform = Transform3D(0.866, -0.354, 0.354, 0, 0.707, 0.707, -0.5, -0.612, 0.612, 0, 10, 0)
-light_energy = 1.08
+light_energy = 1.85
 shadow_enabled = true
 shadow_bias = 0.04
 shadow_normal_bias = 1.2

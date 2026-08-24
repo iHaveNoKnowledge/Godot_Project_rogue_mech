@@ -207,25 +207,25 @@ func _update_path_line() -> void:
 		return
 
 	var target_pos: Vector2i = tile.get_meta("grid_pos", Vector2i(-1, -1))
-	var convoy_pos: Vector2i = GlobalData.fuel.convoy_pos
-
-	# Don't draw path if hovering over the convoy itself or invalid pos
-	if target_pos == convoy_pos or target_pos == Vector2i(-1, -1):
+	# FIX: measure from the PLAYER token (current_pos), not the parked convoy.
+	# convoy_pos stays at the old base camp while the player (mecha/pilot/convoy)
+	# moves elsewhere — using it made the path/energy preview stuck at the start.
+	var board = get_parent()
+	var start_pos: Vector2i = GlobalData.board.current_tile
+	if board != null and board.get("current_pos") != null:
+		start_pos = board.get("current_pos")
+	# Also handle the case where the board's current_pos is Vector2i (int) vs convoy_pos
+	if target_pos == start_pos or target_pos == Vector2i(-1, -1):
 		_path_line.visible = false
 		_path_time_label.visible = false
 		_path_energy_label.visible = false
 		return
 
-	# Only draw when in convoy mode (the convoy moves on the board)
-	if GlobalData.fuel.traversal_mode != "convoy":
-		_path_line.visible = false
-		_path_time_label.visible = false
-		_path_energy_label.visible = false
-		return
-
-	# Build simple straight-line path from convoy to target
+	# Show path for ALL traversal modes (mecha / pilot / convoy). Previously only
+	# convoy mode showed the line, so walking as mecha/pilot had no preview.
+	# Build simple straight-line path from player to target
 	var path_points: Array[Vector2] = []
-	var start_3d := Vector3(convoy_pos.x * 4.0, 0.5, convoy_pos.y * 4.0)
+	var start_3d := Vector3(start_pos.x * 4.0, 0.5, start_pos.y * 4.0)
 	var end_3d := Vector3(target_pos.x * 4.0, 0.5, target_pos.y * 4.0)
 	path_points.append(_world_to_screen(start_3d))
 	path_points.append(_world_to_screen(end_3d))
@@ -233,9 +233,9 @@ func _update_path_line() -> void:
 	_path_line.points = path_points
 	_path_line.visible = true
 
-	# Calculate costs
-	var dx := absi(target_pos.x - convoy_pos.x)
-	var dy := absi(target_pos.y - convoy_pos.y)
+	# Calculate costs — use actual path length (Manhattan) from player
+	var dx := absi(target_pos.x - start_pos.x)
+	var dy := absi(target_pos.y - start_pos.y)
 	var manhattan := dx + dy
 	var terrain := str(tile.get_meta("terrain", "plain"))
 	var costs := GlobalData.fuel.get_mode_step_cost(terrain)

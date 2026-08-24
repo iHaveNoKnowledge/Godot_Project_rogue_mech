@@ -125,6 +125,10 @@ var _pending_fire_ms: int = 0
 
 var _fist_weapon: WeaponPart = null
 
+# Heat smoke timers — throttles 3D smoke puffs rising from hot barrels
+var _heat_smoke_timer_left: float = 0.0
+var _heat_smoke_timer_right: float = 0.0
+
 
 # How far a melee swing carries the mech toward the target, matched to the
 # weapon's range_distance (lunge = range - arm reach, floored at 0.8 so even a
@@ -326,6 +330,8 @@ func _physics_process(delta: float) -> void:
 	if not left_hand or not right_hand:
 		_core_for_weapon(_fist()).tick(delta)
 
+	_update_heat_smoke(delta)
+
 	if holding_left:
 		_hold_time_left += delta
 	if holding_right:
@@ -361,6 +367,50 @@ func _physics_process(delta: float) -> void:
 				_try_fire("right", null)
 
 	# Physical shield plates never regenerate — a damaged plate stays damaged.
+
+
+func _update_heat_smoke(delta: float) -> void:
+	for hand in ["left", "right"]:
+		var weapon: WeaponPart = left_hand if hand == "left" else right_hand
+		if weapon == null or not weapon.uses_heat():
+			continue
+		var core := _core_for_weapon(weapon)
+		if core == null or core.heat_capacity <= 0.0:
+			continue
+		var ratio: float = clampf(core.heat / core.heat_capacity, 0.0, 1.0)
+		if ratio < 0.35:
+			continue
+		var timer: float = _heat_smoke_timer_left if hand == "left" else _heat_smoke_timer_right
+		timer -= delta
+		# More frequent smoke as it gets hotter
+		var interval: float = lerp(0.45, 0.12, (ratio - 0.35) / 0.65)
+		if timer > 0.0:
+			if hand == "left":
+				_heat_smoke_timer_left = timer
+			else:
+				_heat_smoke_timer_right = timer
+			continue
+		if hand == "left":
+			_heat_smoke_timer_left = interval
+		else:
+			_heat_smoke_timer_right = interval
+		var muzzle: Vector3 = _get_muzzle_world_pos(hand)
+		if muzzle == Vector3.INF:
+			var mecha := get_parent() as Node3D
+			if mecha == null:
+				continue
+			var off: Vector3 = Vector3(-0.65, 1.4, -1.1) if hand == "left" else Vector3(0.65, 1.4, -1.1)
+			muzzle = mecha.global_position + mecha.global_transform.basis * off
+		# Smoke color: light grey at 35-60%heat, orange-grey when overheated
+		var is_overheated: bool = core.overheated
+		if is_overheated:
+			# Overheated: thick dark smoke + small ember
+			EffectFactory.spawn_smoke_plume(get_tree(), muzzle + Vector3(0,0.12,0), 3, 0.20, 0.40, 0.95)
+			EffectManager.spawn_hit_spark(muzzle + Vector3(0,0.10,0), Vector3.UP, "heat")
+		elif ratio > 0.65:
+			EffectFactory.spawn_smoke_plume(get_tree(), muzzle + Vector3(0,0.08,0), 1, 0.14, 0.28, 0.7)
+		else:
+			EffectFactory.spawn_smoke_plume(get_tree(), muzzle + Vector3(0,0.06,0), 1, 0.10, 0.22, 0.55)
 
 
 # ====================================================================

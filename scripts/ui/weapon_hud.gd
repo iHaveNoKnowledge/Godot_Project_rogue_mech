@@ -297,11 +297,11 @@ func _create_left_panel() -> void:
 	left_heat_bar.min_value = 0.0
 	left_heat_bar.max_value = 100.0
 	left_heat_bar.value = 0.0
-	left_heat_bar.custom_minimum_size = Vector2(0, 8)
+	left_heat_bar.custom_minimum_size = Vector2(0, 10)
 	left_heat_bar.show_percentage = false
-	left_heat_bar.visible = false
+	left_heat_bar.visible = true
 	var heat_style = StyleBoxFlat.new()
-	heat_style.bg_color = Color(0.6, 0.1, 0.05, 0.9)
+	heat_style.bg_color = Color(0.85, 0.28, 0.08, 0.95)
 	heat_style.corner_radius_top_left = 0
 	heat_style.corner_radius_top_right = 0
 	heat_style.corner_radius_bottom_left = 0
@@ -368,11 +368,11 @@ func _create_right_panel() -> void:
 	right_heat_bar.min_value = 0.0
 	right_heat_bar.max_value = 100.0
 	right_heat_bar.value = 0.0
-	right_heat_bar.custom_minimum_size = Vector2(0, 8)
+	right_heat_bar.custom_minimum_size = Vector2(0, 10)
 	right_heat_bar.show_percentage = false
-	right_heat_bar.visible = false
+	right_heat_bar.visible = true
 	var rheat_style = StyleBoxFlat.new()
-	rheat_style.bg_color = Color(0.6, 0.1, 0.05, 0.9)
+	rheat_style.bg_color = Color(0.85, 0.28, 0.08, 0.95)
 	rheat_style.corner_radius_top_left = 0
 	rheat_style.corner_radius_top_right = 0
 	rheat_style.corner_radius_bottom_left = 0
@@ -838,7 +838,11 @@ func _update_display() -> void:
 			left_heat_bar.value = weapon_manager._get_heat(w)
 			left_heat_bar.modulate = Color(1.0, 0.4, 0.4) if weapon_manager.is_overheated("left") else Color.WHITE
 		else:
-			left_heat_bar.visible = false
+			# Keep bar visible (dim) so player knows where heat appears for heat weapons
+			left_heat_bar.visible = true
+			left_heat_bar.max_value = 100.0
+			left_heat_bar.value = 0.0
+			left_heat_bar.modulate = Color(1,1,1,0.35)
 		var ammo = weapon_manager._get_ammo(w)
 		if not weapon_manager.get("reloading_left"):
 			left_ammo_label.modulate = Color.WHITE
@@ -868,7 +872,10 @@ func _update_display() -> void:
 			right_heat_bar.value = weapon_manager._get_heat(w)
 			right_heat_bar.modulate = Color(1.0, 0.4, 0.4) if weapon_manager.is_overheated("right") else Color.WHITE
 		else:
-			right_heat_bar.visible = false
+			right_heat_bar.visible = true
+			right_heat_bar.max_value = 100.0
+			right_heat_bar.value = 0.0
+			right_heat_bar.modulate = Color(1,1,1,0.35)
 		var ammo = weapon_manager._get_ammo(w)
 		if not weapon_manager.get("reloading_right"):
 			right_ammo_label.modulate = Color.WHITE

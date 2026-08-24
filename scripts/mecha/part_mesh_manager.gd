@@ -946,8 +946,8 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 # MODULAR OUTER ARMOR GENERATOR (UPPER + LOWER JOINT SPLIT)
 # ==============================================================================
 func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, lower_container: Node3D = null, part: ArmorPart = null) -> void:
-	var col = Color(0.25, 0.40, 0.60)
-	if part and "part_color" in part:
+	var col = Color(0.28, 0.32, 0.38) # Sleek Titanium Gunmetal
+	if part and "part_color" in part and part.part_color != Color.TRANSPARENT and part.part_color.a > 0.1:
 		col = part.part_color
 
 	var armor_mat = StandardMaterial3D.new()
@@ -955,16 +955,16 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 	armor_mat.grow = true
 	armor_mat.grow_amount = 0.003
 	armor_mat.albedo_color = col
-	armor_mat.metallic = 0.80
-	armor_mat.roughness = 0.30
+	armor_mat.metallic = 0.88
+	armor_mat.roughness = 0.32
 
 	var dark_trim_mat = StandardMaterial3D.new()
 	dark_trim_mat.render_priority = 1
 	dark_trim_mat.grow = true
 	dark_trim_mat.grow_amount = 0.0035
-	dark_trim_mat.albedo_color = Color(0.15, 0.18, 0.22)
-	dark_trim_mat.metallic = 0.90
-	dark_trim_mat.roughness = 0.25
+	dark_trim_mat.albedo_color = Color(0.12, 0.14, 0.18)
+	dark_trim_mat.metallic = 0.94
+	dark_trim_mat.roughness = 0.22
 
 	match slot_name.to_lower():
 		"head":

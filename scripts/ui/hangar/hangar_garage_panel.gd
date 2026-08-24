@@ -51,49 +51,28 @@ func build_garage() -> void:
 	hangar_env_node = Node3D.new()
 	sub_viewport.add_child(hangar_env_node)
 
-	# Floor & Base Ring
-	var floor_mesh = MeshInstance3D.new()
-	var plane = PlaneMesh.new()
-	plane.size = Vector2(30, 30)
-	floor_mesh.mesh = plane
-	var mat_floor = StandardMaterial3D.new()
-	mat_floor.albedo_color = Color(0.12, 0.14, 0.18)
-	mat_floor.metallic = 0.8
-	mat_floor.roughness = 0.4
-	floor_mesh.material_override = mat_floor
-	hangar_env_node.add_child(floor_mesh)
+	# 1. Industrial Hangar Bay Architecture
+	_build_hangar_bay_room()
 
+	# 2. Turntable Node (Heavy Brushed Steel with subtle LED accent ring)
 	turntable_node = Node3D.new()
 	hangar_env_node.add_child(turntable_node)
+	_build_turntable_platform()
 
-	var ring = MeshInstance3D.new()
-	var cyl = CylinderMesh.new()
-	cyl.top_radius = 4.0
-	cyl.bottom_radius = 4.3
-	cyl.height = 0.15
-	ring.mesh = cyl
-	var mat_ring = StandardMaterial3D.new()
-	mat_ring.albedo_color = Color(0.2, 0.25, 0.35)
-	mat_ring.emission_enabled = true
-	mat_ring.emission = Color(0.2, 0.6, 0.9)
-	mat_ring.emission_energy_multiplier = 1.2
-	ring.material_override = mat_ring
-	turntable_node.add_child(ring)
-
-	# Studio WorldEnvironment (SSAO, SSR, ACES Tonemapping for Mech Showroom)
+	# 3. Studio WorldEnvironment (SSAO, SSR, ACES Tonemapping & Balanced Ambient)
 	var hangar_world_env := WorldEnvironment.new()
 	var h_env := Environment.new()
 	h_env.background_mode = Environment.BG_COLOR
-	h_env.background_color = Color(0.05, 0.06, 0.09)
+	h_env.background_color = Color(0.09, 0.11, 0.15)
 	h_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	h_env.ambient_light_color = Color(0.20, 0.24, 0.32)
-	h_env.ambient_light_energy = 1.0
+	h_env.ambient_light_color = Color(0.48, 0.55, 0.68)
+	h_env.ambient_light_energy = 1.25
 
 	h_env.tonemap_mode = Environment.TONE_MAPPER_ACES
 	h_env.tonemap_exposure = 1.15
 	h_env.adjustment_enabled = true
 	h_env.adjustment_contrast = 1.12
-	h_env.adjustment_saturation = 1.20
+	h_env.adjustment_saturation = 1.18
 
 	h_env.ssao_enabled = true
 	h_env.ssao_radius = 1.8
@@ -106,32 +85,64 @@ func build_garage() -> void:
 	h_env.ssr_fade_out = 1.8
 
 	h_env.glow_enabled = true
-	h_env.glow_intensity = 0.75
-	h_env.glow_bloom = 0.20
+	h_env.glow_intensity = 0.65
+	h_env.glow_bloom = 0.15
 	h_env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
 	h_env.glow_hdr_threshold = 0.95
 	hangar_world_env.environment = h_env
 	hangar_env_node.add_child(hangar_world_env)
 
-	# Spotlights
-	var spot = SpotLight3D.new()
-	spot.position = Vector3(3, 8, 5)
-	hangar_env_node.add_child(spot)
-	spot.look_at(Vector3(0, 2.9, 0), Vector3.UP)
-	spot.light_energy = 4.5
-	spot.spot_range = 22.0
-	spot.spot_angle = 45.0
-	spot.light_color = Color(0.95, 0.98, 1.0)
-	spot.shadow_enabled = true
-	spot.shadow_blur = 1.2
+	# 4. Professional 3-Point Studio Lighting (Key, Fill, Softbox, Rim, Gantry Accents)
+	# Key Light (Warm Front-Right)
+	var key_spot := SpotLight3D.new()
+	key_spot.position = Vector3(4.5, 7.5, 6.0)
+	hangar_env_node.add_child(key_spot)
+	key_spot.look_at(Vector3(0, 2.5, 0), Vector3.UP)
+	key_spot.light_energy = 4.2
+	key_spot.spot_range = 25.0
+	key_spot.spot_angle = 50.0
+	key_spot.light_color = Color(1.0, 0.98, 0.94)
+	key_spot.shadow_enabled = true
+	key_spot.shadow_blur = 1.25
 
-	var rim = SpotLight3D.new()
-	rim.position = Vector3(-4, 5, -4)
-	hangar_env_node.add_child(rim)
-	rim.look_at(Vector3(0, 2.5, 0), Vector3.UP)
-	rim.light_energy = 3.0
-	rim.light_color = Color(0.35, 0.75, 1.0)
-	rim.shadow_enabled = true
+	# Fill Light (Cool Front-Left)
+	var fill_spot := SpotLight3D.new()
+	fill_spot.position = Vector3(-5.0, 6.0, 5.0)
+	hangar_env_node.add_child(fill_spot)
+	fill_spot.look_at(Vector3(0, 2.2, 0), Vector3.UP)
+	fill_spot.light_energy = 2.4
+	fill_spot.spot_range = 22.0
+	fill_spot.spot_angle = 55.0
+	fill_spot.light_color = Color(0.72, 0.84, 1.0)
+	fill_spot.shadow_enabled = false
+
+	# Overhead Softbox Downlight (Illuminates head, weapons, shoulders)
+	var top_softbox := OmniLight3D.new()
+	top_softbox.position = Vector3(0.0, 6.8, 1.2)
+	hangar_env_node.add_child(top_softbox)
+	top_softbox.light_energy = 2.2
+	top_softbox.omni_range = 14.0
+	top_softbox.light_color = Color(0.92, 0.96, 1.0)
+
+	# Rim Backlight (Crisp Mecha Silhouette Highlight)
+	var rim_spot := SpotLight3D.new()
+	rim_spot.position = Vector3(0.0, 4.8, -4.5)
+	hangar_env_node.add_child(rim_spot)
+	rim_spot.look_at(Vector3(0, 2.2, 0), Vector3.UP)
+	rim_spot.light_energy = 3.2
+	rim_spot.spot_range = 18.0
+	rim_spot.spot_angle = 60.0
+	rim_spot.light_color = Color(0.35, 0.78, 1.0)
+	rim_spot.shadow_enabled = true
+
+	# Gantry Warm Amber Accent Lights (Background Atmosphere)
+	for x_pos in [-4.0, 4.0]:
+		var gantry_accent := OmniLight3D.new()
+		gantry_accent.position = Vector3(x_pos, 3.8, -7.0)
+		hangar_env_node.add_child(gantry_accent)
+		gantry_accent.light_energy = 1.2
+		gantry_accent.omni_range = 8.0
+		gantry_accent.light_color = Color(1.0, 0.65, 0.25)
 
 	# 3D Mecha Model in Garage
 	mecha_3d_root = Node3D.new()
@@ -155,6 +166,131 @@ func build_garage() -> void:
 	hangar_env_node.add_child(garage_cam)
 	garage_cam.look_at(current_look_pos, Vector3.UP)
 	garage_cam.fov = 55.0
+
+
+func _build_hangar_bay_room() -> void:
+	# 1. Industrial Floor with brushed dark alloy
+	var floor_mesh := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(32, 32)
+	floor_mesh.mesh = plane
+	var mat_floor := StandardMaterial3D.new()
+	mat_floor.albedo_color = Color(0.14, 0.16, 0.20)
+	mat_floor.metallic = 0.88
+	mat_floor.roughness = 0.35
+	floor_mesh.material_override = mat_floor
+	hangar_env_node.add_child(floor_mesh)
+
+	# 2. Back Hangar Wall
+	var back_wall := MeshInstance3D.new()
+	var wall_mesh := BoxMesh.new()
+	wall_mesh.size = Vector3(32.0, 14.0, 0.6)
+	back_wall.mesh = wall_mesh
+	back_wall.position = Vector3(0, 6.5, -8.0)
+	var mat_wall := StandardMaterial3D.new()
+	mat_wall.albedo_color = Color(0.15, 0.17, 0.22)
+	mat_wall.metallic = 0.85
+	mat_wall.roughness = 0.42
+	back_wall.material_override = mat_wall
+	hangar_env_node.add_child(back_wall)
+
+	# 3. Vertical Structural Pillars & Conduits
+	var mat_pillar := StandardMaterial3D.new()
+	mat_pillar.albedo_color = Color(0.10, 0.12, 0.16)
+	mat_pillar.metallic = 0.92
+	mat_pillar.roughness = 0.28
+
+	var mat_hazard := StandardMaterial3D.new()
+	mat_hazard.albedo_color = Color(0.95, 0.75, 0.15)
+	mat_hazard.metallic = 0.3
+	mat_hazard.roughness = 0.5
+
+	for px in [-7.5, -2.5, 2.5, 7.5]:
+		var pillar := MeshInstance3D.new()
+		var p_box := BoxMesh.new()
+		p_box.size = Vector3(0.9, 14.0, 0.9)
+		pillar.mesh = p_box
+		pillar.position = Vector3(px, 6.5, -7.5)
+		pillar.material_override = mat_pillar
+		hangar_env_node.add_child(pillar)
+
+		# Yellow caution band on pillar
+		var band := MeshInstance3D.new()
+		var b_box := BoxMesh.new()
+		b_box.size = Vector3(0.95, 0.4, 0.95)
+		band.mesh = b_box
+		band.position = Vector3(px, 1.8, -7.5)
+		band.material_override = mat_hazard
+		hangar_env_node.add_child(band)
+
+	# 4. Background Gantry / Catwalk
+	var gantry := MeshInstance3D.new()
+	var g_box := BoxMesh.new()
+	g_box.size = Vector3(32.0, 0.35, 2.2)
+	gantry.mesh = g_box
+	gantry.position = Vector3(0, 3.8, -6.8)
+	gantry.material_override = mat_pillar
+	hangar_env_node.add_child(gantry)
+
+	# Gantry Safety Railing
+	var rail := MeshInstance3D.new()
+	var r_box := BoxMesh.new()
+	r_box.size = Vector3(32.0, 0.9, 0.08)
+	rail.mesh = r_box
+	rail.position = Vector3(0, 4.4, -5.7)
+	var mat_rail := StandardMaterial3D.new()
+	mat_rail.albedo_color = Color(0.85, 0.68, 0.15)
+	mat_rail.metallic = 0.7
+	mat_rail.roughness = 0.35
+	rail.material_override = mat_rail
+	hangar_env_node.add_child(rail)
+
+
+func _build_turntable_platform() -> void:
+	# 1. Beveled Outer Base Ring (Dark Industrial Metal)
+	var base_ring := MeshInstance3D.new()
+	var base_cyl := CylinderMesh.new()
+	base_cyl.top_radius = 4.2
+	base_cyl.bottom_radius = 4.45
+	base_cyl.height = 0.12
+	base_ring.mesh = base_cyl
+	var mat_base := StandardMaterial3D.new()
+	mat_base.albedo_color = Color(0.12, 0.14, 0.17)
+	mat_base.metallic = 0.92
+	mat_base.roughness = 0.30
+	base_ring.material_override = mat_base
+	turntable_node.add_child(base_ring)
+
+	# 2. Main Turntable Floor Disc (Brushed Titanium Plate)
+	var top_plate := MeshInstance3D.new()
+	var top_cyl := CylinderMesh.new()
+	top_cyl.top_radius = 3.95
+	top_cyl.bottom_radius = 4.05
+	top_cyl.height = 0.16
+	top_plate.mesh = top_cyl
+	var mat_top := StandardMaterial3D.new()
+	mat_top.albedo_color = Color(0.18, 0.20, 0.25)
+	mat_top.metallic = 0.90
+	mat_top.roughness = 0.34
+	top_plate.material_override = mat_top
+	turntable_node.add_child(top_plate)
+
+	# 3. Subtle Sleek LED Perimeter Ring (Thin accent, NOT solid blinding disc!)
+	var led_ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = 3.88
+	torus.outer_radius = 3.96
+	torus.rings = 32
+	torus.ring_segments = 8
+	led_ring.mesh = torus
+	led_ring.position.y = 0.085
+	var mat_led := StandardMaterial3D.new()
+	mat_led.albedo_color = Color(0.1, 0.5, 0.8)
+	mat_led.emission_enabled = true
+	mat_led.emission = Color(0.2, 0.75, 1.0)
+	mat_led.emission_energy_multiplier = 0.4
+	led_ring.material_override = mat_led
+	turntable_node.add_child(led_ring)
 
 
 # --- ARMORED CORE / 30MM TACTICAL COMBAT IDLE POSE ---

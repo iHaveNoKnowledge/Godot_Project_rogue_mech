@@ -935,8 +935,8 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 	# target, not from the swinging muzzle. The muzzle is still the spawn point
 	# (visual), but the bullet direction no longer wobbles with arm bob/walk.
 	# This fixes “กระสุนมั่วเพราะแขนแกว่ง ท่ายิงยังไม่ตั้ง”.
-	var stable_origin := mecha.global_position + Vector3(0, 1.5, 0)
-	var aim_dir = (target_point - stable_origin).normalized()
+	var stable_origin: Vector3 = (mecha as Node3D).global_position + Vector3(0, 1.5, 0)
+	var aim_dir: Vector3 = (target_point - stable_origin).normalized()
 
 	# Fire through the shared core: it consumes cooldown/ammo/heat and spawns the
 	# projectile (bullet/missile/shotgun visuals handled by weapon_type). The

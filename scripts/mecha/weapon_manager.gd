@@ -997,6 +997,12 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 		AudioManager.play_weapon_sfx_with_override(weapon, spawn_pos)
 		if weapon.weapon_type != WeaponPart.WeaponType.MISSILE:
 			_spawn_shell_casing(spawn_pos, hand)
+		
+		# Durability wear: firing wears weapon lifespan; firing at high heat accelerates wear
+		var wear := 0.0003
+		if core.heat > (core.max_heat * 0.75):
+			wear = 0.0025
+		GlobalData.degrade_weapon_durability(hand, wear)
 
 
 func _melee_attack(hand: String, weapon: WeaponPart) -> void:

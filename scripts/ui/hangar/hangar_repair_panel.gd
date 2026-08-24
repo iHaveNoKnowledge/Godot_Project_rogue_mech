@@ -19,12 +19,19 @@ func repair_part() -> void:
 		return
 	if _block_without_credits(repair_cost):
 		return
+	var a_dmg := float(GlobalData.weapons.part_damage.get(controller.selected_slot, 0.0))
+	var f_dmg := float(GlobalData.weapons.part_damage.get(controller.selected_slot + "_frame", 0.0))
+	
+	# Repair wear & tear (like battery degradation): each repair slightly reduces part durability
+	GlobalData.degrade_part_durability(controller.selected_slot, a_dmg * 0.04)
+	GlobalData.degrade_frame_durability(controller.selected_slot, f_dmg * 0.04)
+
 	GlobalData.weapons.part_damage.erase(controller.selected_slot)
 	GlobalData.weapons.part_damage.erase(controller.selected_slot + "_frame")
 	GlobalData.weapons.part_hit_meta.erase(controller.selected_slot)
 	controller.status_message_label.text = "Repaired %s!" % controller.selected_slot.to_upper()
-	controller.stats_panel.update()
-	controller.garage_panel.update_all_slots_preview()
+	GlobalData.save_run()
+	controller.refresh_after_part_mutation(controller.selected_slot)
 
 
 # Repair every mecha slot at once, clearing all part damage.
@@ -40,11 +47,17 @@ func full_repair() -> void:
 	if _block_without_credits(total_cost):
 		return
 
+	for slot in GlobalData.MECHA_SLOTS:
+		var a_dmg := float(GlobalData.weapons.part_damage.get(slot, 0.0))
+		var f_dmg := float(GlobalData.weapons.part_damage.get(slot + "_frame", 0.0))
+		GlobalData.degrade_part_durability(slot, a_dmg * 0.04)
+		GlobalData.degrade_frame_durability(slot, f_dmg * 0.04)
+
 	GlobalData.weapons.part_damage.clear()
 	GlobalData.weapons.part_hit_meta.clear()
 	controller.status_message_label.text = "Full Repair Complete!"
-	controller.stats_panel.update()
-	controller.garage_panel.update_all_slots_preview()
+	GlobalData.save_run()
+	controller.refresh_after_part_mutation()
 
 
 # Try to spend `cost` credits; on shortfall report the need and return true so

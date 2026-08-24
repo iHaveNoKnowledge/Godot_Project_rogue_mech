@@ -161,29 +161,56 @@
   * *Precision Dash (หลบถูกจังหวะ):* ใช้ Short-Pulse Ignition รักษา Momentum เดิม ใช้พลังงานน้อยลง 60%^^
   * *Spam Dash (กดหลบรัวๆ):* เกิด Flash Burn ทำลาย Momentum เครื่องยนต์เค้นรอบสูงสุด ผลาญพลังงานและเกิด Overheat ไว^^
 
-## 🦾 6. Maintenance & Repair Architecture
+## 🦾 6. Maintenance, Durability & Damage Architecture
 
-### 6.1 Armor vs Inner Frame Tiers
+### 6.1 Component Lifetime Durability vs Current HP (The Battery Health Model)
 
-* **Armor System:** รับแรงปะทะก่อน เมื่อ HP = 0 เกราะจะแตก (Armor Purge)^^
-* **Inner Frame Tiers:** กระดูกสันหลังของหุ่น (Tier 1 ถึง Tier 3) กำหนดจำนวน Socket และการรองรับ High-Tech Properties^^
+ระบบคำนวณสภาพหุ่นจำลองตามหลักการ **"พลังงานชาร์จ (HP) vs สุขภาพแบตเตอรี่ (Durability / Battery Health)"**:
 
-#### Part Penalties เมื่อ Durability ต่ำ
+* **Current HP (พลังชีวิตปัจจุบัน / ค่าชาร์จ 0% - 100%):**
+  * ลดลงเมื่อโดนโจมตีในฉากต่อสู้
+  * เมื่อ HP = 0 เกราะจะแตกหลุด (Armor Shatter) หรือโครงสร้างเฟรมหยุดทำงาน
+  * สามารถเติม/ซ่อมแซมให้เต็มได้ตลอดเวลาผ่านโรงเก็บหุ่น (Hangar) หรือการปะเศษเหล็กฉุกเฉิน (Emergency Scrap Patch)
+* **Lifetime Durability (ความสมบูรณ์/อายุการใช้งานของชิ้นส่วน 100% $\rightarrow$ 0%):**
+  * **ไม่ใช่ค่าเดียวกับ HP** แต่คืออายุการใช้งานและสภาพความล้าของโลหะ (Metal Fatigue & Wear)
+  * **ปัจจัยที่ทำให้ Durability ลดลง:**
+    1. **การซ่อมแซม (Repair Wear):** ทุกครั้งที่ทำการซ่อม HP (ทั้ง Field Repair และ Garage Repair) ชิ้นส่วนจะเกิดความสึกหรอสะสม ($-2\%$ ถึง $-10\%$ ต่อครั้ง)
+    2. **เกราะแตก / เสียหายวิกฤต (Armor Break / Frame Breach):** เมื่อ HP ลดเหลือ 0 เกราะแตกร้าวรุนแรงทำให้สูญเสีย Durability ถาวร
+    3. **ความร้อนสะสมและการยิงต่อเนื่อง (Overheat Stress):** อาวุธที่ยิงซ้ำๆ หรือถูกเค้นยิงในสภาวะความร้อนสูง (Overheat $>75\%$) จะสูญเสีย Durability รวดเร็วขึ้น
+  * **ผลกระทบของ Durability:**
+    * **Effective Max HP Capping:** $\text{Effective Max HP} = \text{Base Max HP} \times \text{Durability}$ (ชิ้นส่วนที่เสื่อมสภาพจะซ่อม HP กลับมาได้ไม่เต็มค่าเดิม)
+    * **Part Penalties เมื่อ Durability ต่ำ (Yellow / Red Zone):**
+      * **Head:** ล็อกเป้าช้า, HUD Glitch, ต้อง Free-aim เล็งเอง
+      * **Arms:** แรงดีดปืนสูง, อาวุธ Jam ง่าย, ฟันดาบช้า
+      * **Legs:** สปีดเดินลดลง, Roller Dash ติดขัด
+      * **Torso:** Max Energy รวมลดลง, Overheat ไวขึ้น
+    * **Decision to Overhaul / Replace:** เมื่อชิ้นส่วนเสื่อมสภาพจนถึงจุดวิกฤต ผู้เล่นต้องตัดสินใจยกเครื่องใหม่ เปลี่ยนเฟรมใหม่ หรือซื้อ/คราฟต์ชิ้นส่วนใหม่มาทดแทน
 
-* **Head:** ล็อกเป้าช้า, HUD เกิด Glitch, ต้อง Free-aim เล็งเอง 100%^^
-* **Arms:** แรงดีดปืนสูง, ฟันดาบช้า, ไม่สามารถถืออาวุธหนักได้^^
-* **Legs:** MP/Speed เดินลดลง, Roller Dash ล้อติดขัด^^
-* **Torso:** Max Energy รวมลดลง, สะสมความร้อนไว, Overheat ง่าย^^
+---
 
-### 6.2 Multi-Tier Repair System & Visual Damage
+### 6.2 Directional 3-Stage Damage Shader System
 
-1. **Field Emergency Repair (Scrap Patching):** ซ่อมเกราะฉุกเฉินบนบอร์ด ใช้ Scrap Metal คืน HP บางส่วน^^
-   * *Visual:* ปรากฏแผ่นเหล็กเชื่อมติดหยาบๆ (Patchwork Armor) บริเวณที่เกราะพัง^^
+รอยความเสียหายบนพื้นผิวโมเดล 3D คำนวณแบบ Model-Space Procedural Shader อ้างอิงตามทิศทางและจุดปะทะจริง (Hit-Localized & Directional Impact) แบ่งเป็น 3 ระดับ:
+
+1. **Stage 1: Surface Scratches & Paint Scuffs (รอยถลอก/สีลอก / Damage $0.01 - 0.35$):**
+   * เกิดเฉพาะรอบจุดปะทะ (`hit_pos`) เป็นรอยขูดขีด รอยกระสุนถาก และรอยไหม้ผิวนอก ไม่เกิดรอยแตกลึกทั้งตัว
+2. **Stage 2: Hairline Fractures (รอยแตกร้าวบาง / Damage $0.35 - 0.70$):**
+   * รอยแตกลายงาและเส้นใยรอยร้าวเริ่มแตกแขนงแผ่ออกมาจากจุดศูนย์กลางการปะทะ
+3. **Stage 3: Severe Structural Breaches (รอยแตกลึก/ฉีกขาด / Damage $0.70 - 1.00$):**
+   * รอยแยกกว้างลึก เผยให้เห็นเนื้อโลหะชั้นใน (Exposed Metal) พร้อมวงรอยไหม้เขม่าควัน (Scorch Halo) แผ่ขยายกว้าง
+   * เมื่อซ่อมแซมชิ้นส่วนในโรงเก็บหุ่น ระบบจะรีเซ็ต Shader Material Overlay และอัปเดตโมเดล 3D Preview ทันทีแบบ Real-Time
+
+---
+
+### 6.3 Multi-Tier Repair System & Field Maintenance
+
+1. **Field Emergency Repair (Scrap Patching):** ซ่อมเกราะฉุกเฉินบนบอร์ด ใช้ Scrap Metal คืน HP บางส่วน
+   * *Visual:* ปรากฏแผ่นเหล็กเชื่อมติดหยาบๆ (Patchwork Armor) บริเวณที่เกราะพัง
 2. **Field Structural Preservation (Inner Frame Binding):** ใช้ผ้าทนแรงดึงสูง (Composite Cloth) พันดามโครงกระดูก Inner Frame ที่เปลือยออก เพื่อมัดกระชับรอยร้าวบนเฟรมและปกป้องสายไฟ (เว้นช่วงข้อต่อ Actuators ไว้เพื่อให้ขยับได้ 100%)
    * *Visual:* ผ้าพันแผลหนาๆ พันกระชับแนบไปกับโครงกระดูกท่อนแขน ท่อนขา หรือลำตัวหุ่น
 3. **Thermal / Camouflage Cloak:** สวมผ้าคลุมเพื่อลดค่า Thermal Signature และซ่อนตำแหน่งจาก Radar ปืนใหญ่ศัตรู
    * *Visual:* ผ้าคลุมผืนใหญ่ (Physics-enabled Cloak) สะบัดตามการเคลื่อนที่
-4. **Full Overhaul:** ซ่อมแซมใหญ่ที่ Base/Convoy เคลียร์ร่องรอยบาดแผลทั้งหมด ดึงประสิทธิภาพคืน 100%^^
+4. **Full Overhaul:** ซ่อมแซมใหญ่ที่ Base/Convoy เคลียร์ร่องรอยบาดแผลทั้งหมด ดึงประสิทธิภาพคืน 100%
 
 ## 👤 7. Unique Legendary Aces & Encounters
 

@@ -389,13 +389,56 @@ func get_durability_ratio(inst: Dictionary) -> float:
 	return clampf(float(inst.get("durability", 1.0)), 0.0, 1.0)
 
 
+## Returns the lifetime/health durability of an equipped armor part (0.0 to 1.0)
 func get_part_durability(slot: String) -> float:
-	return 1.0 - clampf(float(weapons.part_damage.get(slot, 0.0)), 0.0, 1.0)
+	var p = weapons.equipped_parts.get(slot)
+	if p is Dictionary:
+		return get_durability_ratio(p)
+	return 1.0
 
 
+## Returns the lifetime/health durability of an equipped frame (0.0 to 1.0)
 func get_frame_durability(slot: String) -> float:
-	var key := slot if slot.ends_with("_frame") else (slot + "_frame")
-	return 1.0 - clampf(float(weapons.part_damage.get(key, 0.0)), 0.0, 1.0)
+	var base_slot := str(slot).replace("_frame", "")
+	var f = weapons.equipped_frames.get(base_slot)
+	if f is Dictionary:
+		return get_durability_ratio(f)
+	return 1.0
+
+
+## Degrades the lifetime durability of an equipped armor part (e.g. from repairs or armor shatter)
+func degrade_part_durability(slot: String, amount: float) -> void:
+	if amount <= 0.0:
+		return
+	var p = weapons.equipped_parts.get(slot)
+	if p is Dictionary:
+		var cur := get_durability_ratio(p)
+		p["durability"] = clampf(cur - amount, 0.10, 1.0)
+
+
+## Degrades the lifetime durability of an equipped frame
+func degrade_frame_durability(slot: String, amount: float) -> void:
+	if amount <= 0.0:
+		return
+	var base_slot := str(slot).replace("_frame", "")
+	var f = weapons.equipped_frames.get(base_slot)
+	if f is Dictionary:
+		var cur := get_durability_ratio(f)
+		f["durability"] = clampf(cur - amount, 0.10, 1.0)
+
+
+## Degrades the lifetime durability of an equipped weapon
+func degrade_weapon_durability(hand: String, amount: float) -> void:
+	if amount <= 0.0:
+		return
+	var uid := str(weapons.equipped_weapon_instances.get(hand, ""))
+	if uid == "":
+		return
+	for w in weapons.inventory:
+		if w is Dictionary and str(w.get("uid", "")) == uid:
+			var cur := get_durability_ratio(w)
+			w["durability"] = clampf(cur - amount, 0.05, 1.0)
+			break
 
 
 func scrap_attach_node_paths(slot: String) -> Array[String]:

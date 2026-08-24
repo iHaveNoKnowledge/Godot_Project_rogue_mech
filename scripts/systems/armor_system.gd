@@ -177,8 +177,11 @@ static func degrade_armor_durability(uid: String, amount: float) -> float:
 
 
 static func degrade_equipped_armor(slot: String, amount: float) -> float:
+	GlobalData.degrade_part_durability(slot, amount)
 	var part = GlobalData.weapons.equipped_parts.get(slot)
-	if part is Dictionary and part.has("uid"):
-		return degrade_armor_durability(str(part["uid"]), amount)
+	if part is Dictionary:
+		if part.has("uid"):
+			return degrade_armor_durability(str(part["uid"]), amount)
+		return float(part.get("durability", 1.0))
 	return 1.0
 

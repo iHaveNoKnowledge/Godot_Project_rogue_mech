@@ -166,18 +166,17 @@ func show(info: Dictionary) -> void:
 		repair_btn.custom_minimum_size = Vector2(180, 36)
 		repair_btn.pressed.connect(func():
 			if GlobalData.currency.try_spend_credits(repair_cost):
-				if info.has("uid"):
-					info["durability"] = 1.0
+				var a_dmg := float(GlobalData.weapons.part_damage.get(controller.selected_slot, 0.0))
+				var f_dmg := float(GlobalData.weapons.part_damage.get(controller.selected_slot + "_frame", 0.0))
+				GlobalData.degrade_part_durability(controller.selected_slot, a_dmg * 0.04)
+				GlobalData.degrade_frame_durability(controller.selected_slot, f_dmg * 0.04)
+
 				GlobalData.weapons.part_damage.erase(controller.selected_slot)
 				GlobalData.weapons.part_damage.erase(controller.selected_slot + "_frame")
 				GlobalData.weapons.part_hit_meta.erase(controller.selected_slot)
-				controller.status_message_label.text = "Part Repaired to 100% HP!"
+				controller.status_message_label.text = "Part Repaired to Full HP!"
 				GlobalData.save_run()
-				controller.stats_panel.update()
-				if controller.current_mode == "frame":
-					controller.garage_panel.update_all_slots_preview()
-				else:
-					controller.garage_panel.apply_armor_preview(controller.selected_slot, info)
+				controller.refresh_after_part_mutation(controller.selected_slot)
 			else:
 				controller.status_message_label.text = "Insufficient Credits for repair!"
 			close()
@@ -204,7 +203,6 @@ func show(info: Dictionary) -> void:
 			if GlobalData.currency.try_spend_credits(cost):
 				if is_weapon_slot:
 					info["upgrade_level"] = int(info.get("upgrade_level", 1)) + 1
-					info["durability"] = 1.0
 					controller.status_message_label.text = "Weapon upgraded to Tier %s (+10%% damage)!" % GlobalData.part_tier_text(int(info["upgrade_level"]))
 				elif controller.current_mode == "frame":
 					# Frames: the upgrade applies to the EQUIPPED copy (the catalog
@@ -225,13 +223,12 @@ func show(info: Dictionary) -> void:
 					info["hp"] = old_hp + 15.0
 					info["max_hp"] = info["hp"]
 					info["upgrade_level"] = int(info.get("upgrade_level", 1)) + 1
-					info["durability"] = 1.0
 					if GlobalData.weapons.equipped_parts.get(controller.selected_slot) == info:
 						GlobalData.weapons.part_damage.erase(controller.selected_slot)
 						GlobalData.weapons.part_hit_meta.erase(controller.selected_slot)
 					controller.status_message_label.text = "Part upgraded to Tier %s! Max HP increased to %.0f" % [GlobalData.part_tier_text(int(info["upgrade_level"])), info["hp"]]
 				GlobalData.save_run()
-				controller.stats_panel.update()
+				controller.refresh_after_part_mutation(controller.selected_slot)
 				controller.update_tier_display(info, controller.selected_slot)
 			else:
 				controller.status_message_label.text = "Insufficient Credits for upgrade (%d cr needed)!" % cost

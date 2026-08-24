@@ -252,16 +252,23 @@ func _get_section_node(slot_name: String) -> Node3D:
 func _sync_all_from_persist() -> void:
 	if GlobalData == null or GlobalData.weapons == null:
 		return
-	for slot in GlobalData.weapons.part_damage.keys():
-		var base_slot := str(slot).replace("_frame", "")
-		var layer := LAYER_FRAME if str(slot).ends_with("_frame") else LAYER_ARMOR
-		var dmg: float = float(GlobalData.weapons.part_damage.get(slot, 0.0))
-		if dmg > 0.001 and _slot_overlays.has(base_slot):
-			var mat = _slot_overlays[base_slot].get(layer)
-			if mat != null:
-				var cur: float = float(mat.get_shader_parameter("damage_amount"))
-				if cur < dmg:
-					mat.set_shader_parameter("damage_amount", dmg)
+	# Synchronize all active slot overlay materials with current persistent state
+	for base_slot in _slot_overlays.keys():
+		var a_dmg: float = float(GlobalData.weapons.part_damage.get(base_slot, 0.0))
+		var f_dmg: float = float(GlobalData.weapons.part_damage.get(base_slot + "_frame", 0.0))
+
+		var a_mat: ShaderMaterial = _slot_overlays[base_slot].get(LAYER_ARMOR)
+		if a_mat != null:
+			a_mat.set_shader_parameter("damage_amount", clampf(a_dmg, 0.0, 1.0))
+			if a_dmg <= 0.001:
+				a_mat.set_shader_parameter("hit_radius", 0.0)
+
+		var f_mat: ShaderMaterial = _slot_overlays[base_slot].get(LAYER_FRAME)
+		if f_mat != null:
+			f_mat.set_shader_parameter("damage_amount", clampf(f_dmg, 0.0, 1.0))
+			if f_dmg <= 0.001:
+				f_mat.set_shader_parameter("hit_radius", 0.0)
+
 	# Also apply hit metas where mats already exist
 	for slot in GlobalData.weapons.part_hit_meta.keys():
 		if not _slot_overlays.has(slot):
@@ -273,6 +280,23 @@ func _sync_all_from_persist() -> void:
 			if mat2 != null:
 				mat2.set_shader_parameter("hit_pos", meta.get("pos", Vector3.ZERO))
 				mat2.set_shader_parameter("hit_radius", float(meta.get("radius", 0.65)))
+
+
+func clear_slot_damage(slot: String) -> void:
+	if _slot_overlays.has(slot):
+		var a_mat: ShaderMaterial = _slot_overlays[slot].get(LAYER_ARMOR)
+		if a_mat != null:
+			a_mat.set_shader_parameter("damage_amount", 0.0)
+			a_mat.set_shader_parameter("hit_radius", 0.0)
+		var f_mat: ShaderMaterial = _slot_overlays[slot].get(LAYER_FRAME)
+		if f_mat != null:
+			f_mat.set_shader_parameter("damage_amount", 0.0)
+			f_mat.set_shader_parameter("hit_radius", 0.0)
+
+
+func clear_all_slot_damage() -> void:
+	for slot in _slot_overlays.keys():
+		clear_slot_damage(slot)
 
 
 ## Helper to apply damage overlays to custom models / dynamic meshes

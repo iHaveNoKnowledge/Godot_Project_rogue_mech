@@ -157,8 +157,10 @@ func _check_obstacle_collision() -> void:
 		var hit_pos = result["position"]
 		var hit_normal = result["normal"]
 
-		# Deal damage to cover
-		if collider.has_method("take_damage"):
+		# Deal damage to cover / entity
+		if collider.has_method("take_damage_at_point"):
+			collider.take_damage_at_point(damage, hit_pos, damage_type)
+		elif collider.has_method("take_damage"):
 			collider.take_damage(damage, damage_type)
 
 		if damage_type.to_lower() == "explosive":

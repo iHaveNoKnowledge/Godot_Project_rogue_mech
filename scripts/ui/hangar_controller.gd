@@ -270,6 +270,31 @@ func _process(delta: float) -> void:
 		catalog_panel.refresh_hover_stats()
 
 
+## Full reactive update across all UI panels, header currency, part lists, stats,
+## and the live 3D mech in the garage (including its damage overlay shader materials).
+func refresh_after_part_mutation(slot: String = "") -> void:
+	if stats_panel:
+		stats_panel.update()
+	if header_panel:
+		header_panel.update_header()
+	if equip_panel:
+		equip_panel.update_currently_equipped()
+	if part_list_panel:
+		var target_slot := slot if slot != "" else selected_slot
+		part_list_panel.populate(target_slot)
+	if garage_panel:
+		garage_panel.update_all_slots_preview()
+		var mecha = garage_panel.get_mecha_base()
+		if mecha:
+			var hs = mecha.get_node_or_null("HealthSystem")
+			if hs and hs.get("damage_visuals"):
+				var dmg_vis = hs.damage_visuals
+				if dmg_vis and dmg_vis.has_method("_sync_all_from_persist"):
+					dmg_vis._sync_all_from_persist()
+	if readiness_panel:
+		readiness_panel.refresh()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not visible:
 		return

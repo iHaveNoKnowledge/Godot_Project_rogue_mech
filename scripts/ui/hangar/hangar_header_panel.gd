@@ -95,6 +95,9 @@ func build(root: Control) -> void:
 	_build_mode_buttons()
 
 
+var mode_buttons: Dictionary = {}
+
+
 func _build_mode_buttons() -> void:
 	var mode_items = [
 		{"id": "armor", "label": "🛡️ OUTER ARMOR", "color": Color(0.25, 0.90, 1.0), "bg": Color(0.12, 0.22, 0.35, 0.95)},
@@ -103,7 +106,10 @@ func _build_mode_buttons() -> void:
 		{"id": "upgrade", "label": "⚡ REACTOR UPGRADE", "color": Color(0.85, 0.45, 1.0), "bg": Color(0.24, 0.10, 0.30, 0.95)}
 	]
 
-	controller.mode_buttons = {}
+	mode_buttons = {}
+	if controller:
+		controller.mode_buttons = mode_buttons
+
 	for item in mode_items:
 		var btn := Button.new()
 		btn.text = item["label"]
@@ -111,7 +117,7 @@ func _build_mode_buttons() -> void:
 		btn.focus_mode = Control.FOCUS_NONE
 		var m_id: String = item["id"]
 		btn.pressed.connect(func(): if controller.nav_panel: controller.nav_panel.switch_custom_mode(m_id))
-		controller.mode_buttons[m_id] = btn
+		mode_buttons[m_id] = btn
 		controller.sub_toggle_container.add_child(btn)
 		if m_id == "upgrade":
 			controller.frame_upgrade_button = btn
@@ -120,7 +126,8 @@ func _build_mode_buttons() -> void:
 
 
 func update_mode_highlights(active_mode: String) -> void:
-	if not ("mode_buttons" in controller) or controller.mode_buttons == null:
+	var target_buttons: Dictionary = controller.mode_buttons if ("mode_buttons" in controller and controller.mode_buttons != null and not controller.mode_buttons.is_empty()) else mode_buttons
+	if target_buttons.is_empty():
 		return
 
 	var mode_configs = {
@@ -130,8 +137,8 @@ func update_mode_highlights(active_mode: String) -> void:
 		"upgrade": {"border": Color(0.85, 0.45, 1.0), "bg": Color(0.24, 0.10, 0.30, 0.95)}
 	}
 
-	for m_id: String in controller.mode_buttons:
-		var btn: Button = controller.mode_buttons[m_id]
+	for m_id: String in target_buttons:
+		var btn: Button = target_buttons[m_id]
 		var is_active: bool = (m_id == active_mode)
 		var style := StyleBoxFlat.new()
 		style.corner_radius_top_left = 3

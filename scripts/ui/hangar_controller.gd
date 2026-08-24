@@ -48,6 +48,8 @@ var left_panel_ui: HangarLeftPanel = null
 var right_panel_ui: HangarRightPanel = null
 # Slot tab buttons keyed by slot id, reused for UI-only selection highlight.
 var slot_tab_buttons: Dictionary = {}
+var mode_buttons: Dictionary = {}
+var visible_attachment_indices: Array = []
 
 # Top-level hangar sub-menu (landing screen): [CUSTOMIZE | EMERGENCY REPAIR |
 # UPGRADE | CRAFT | CATALOG]. It is the FIRST thing shown after entering the

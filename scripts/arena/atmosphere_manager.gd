@@ -162,19 +162,32 @@ func _setup_atmosphere() -> void:
 	env.glow_hdr_threshold = 0.95
 	env.glow_hdr_scale = 1.85
 
-	# SSAO (Screen-Space Ambient Occlusion) — grounds mechas, joints, rocks, and buildings
+	# SSAO — softened to prevent the dark square halo that pooled directly under the mech
 	env.ssao_enabled = true
-	env.ssao_radius = 2.2
-	env.ssao_intensity = 2.4
-	env.ssao_power = 1.6
-	env.ssao_detail = 0.65
-	env.ssao_horizon = 0.08
+	env.ssao_radius = 1.35
+	env.ssao_intensity = 1.45
+	env.ssao_power = 1.25
+	env.ssao_detail = 0.45
+	env.ssao_horizon = 0.06
+	env.ssao_sharpness = 0.92
+	env.ssao_light_affect = 0.22
 
-	# SSIL (Screen-Space Indirect Lighting) — bounces neon, laser, and thruster light
+	# SSIL — reduced to avoid over-bright bounce that amplified the square artefact
 	env.ssil_enabled = true
-	env.ssil_radius = 5.5
-	env.ssil_intensity = 1.4
-	env.ssil_sharpness = 0.85
+	env.ssil_radius = 4.2
+	env.ssil_intensity = 0.85
+	env.ssil_sharpness = 0.90
+	env.ssil_normal_rejection = 1.0
+
+	# SDFGI — lowered energy and raised y_scale so the GI probe grid no longer
+	# projects a hard 40×40 square under the player (was y_scale 0.5 → stretched)
+	env.sdfgi_enabled = true
+	env.sdfgi_energy = 0.68
+	env.sdfgi_cascades = 4
+	env.sdfgi_min_cell_size = 0.25
+	env.sdfgi_max_to_cell_size = 1.2
+	env.sdfgi_y_scale = 0.92
+	env.sdfgi_use_occlusion = false
 
 	# SSR (Screen-Space Reflections) — sleek reflections on metal, pavement, and water
 	env.ssr_enabled = true
@@ -316,18 +329,22 @@ func _add_dust_particles(theme: int) -> void:
 
 
 func _spawn_arena_fog_volumes(theme: int) -> void:
-	# Add localized soft low-lying mist banks along the distant battlefield perimeters (feathered ellipsoids with no hard box edges)
+	# Soft low-lying mist at the far perimeters — ellipsoids already feathered,
+	# but keep them high (y 3.5) and light (density 0.0028) so they never
+	# project a hard square shadow directly under the player at the arena center.
 	var fog_bank_positions = [
-		Vector3(-65, 2.0, -55),
-		Vector3(65, 2.0, 55)
+		Vector3(-68, 3.5, -58),
+		Vector3(68, 3.5, 58)
 	]
 	for pos in fog_bank_positions:
 		var fv := FogVolume.new()
 		fv.name = "BattlefieldFogBank"
-		fv.size = Vector3(60.0, 6.0, 60.0)
+		fv.size = Vector3(72.0, 7.5, 72.0)
 		fv.shape = RenderingServer.FOG_VOLUME_SHAPE_ELLIPSOID
 		var fmat := FogMaterial.new()
-		fmat.density = 0.005
+		fmat.density = 0.0028
+		fmat.emission = Color(0.0, 0.0, 0.0)
+		fmat.height_falloff = 0.22
 		if theme == 0:
 			fmat.albedo = Color(0.85, 0.72, 0.50) # Sandy low mist
 		elif theme == 1:

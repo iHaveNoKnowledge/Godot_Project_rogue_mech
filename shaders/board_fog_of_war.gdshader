@@ -51,10 +51,12 @@ void vertex() {
 	float total_wave = (wave1 + wave2 + wave3) * (1.0 - dissolve_progress);
 
 	// Smooth radial dome shaping so fog peaks near center and tapers at perimeter
+	// FIX desert: half-size is now 4.2 (plane 8.4), so dome must match to avoid
+	// a low transparent rim that looked like missing fog on bright sand.
 	float r = length(VERTEX.xz);
-	float dome_profile = clamp(1.0 - (r / 3.8) * (r / 3.8), 0.0, 1.0);
+	float dome_profile = clamp(1.0 - (r / 4.2) * (r / 4.2), 0.0, 1.0);
 	
-	VERTEX.y = VERTEX.y * 0.4 + (total_wave + 0.9) * (dome_profile * 0.85 + 0.15);
+	VERTEX.y = VERTEX.y * 0.4 + (total_wave + 0.95) * (dome_profile * 0.85 + 0.15);
 	VERTEX.x += sin(t * 0.7 + world_p.z * 0.3) * 0.12 * (1.0 - dissolve_progress);
 	VERTEX.z += cos(t * 0.7 + world_p.x * 0.3) * 0.12 * (1.0 - dissolve_progress);
 }
@@ -70,8 +72,10 @@ void fragment() {
 	float cloud_density = clamp(mix(n1, n2, 0.45) * 1.6, 0.0, 1.0);
 
 	// Soft circular radial fade to ensure seamless blending between neighboring tiles
+	// FIX desert: opaque core enlarged to 2.6→4.2 so diagonal midpoints (2.83) stay
+	// opaque and bright sand no longer shows through as a gap.
 	float local_dist = length(VERTEX.xz);
-	float radial_fade = 1.0 - smoothstep(1.8, 3.8, local_dist);
+	float radial_fade = 1.0 - smoothstep(2.6, 4.2, local_dist);
 
 	// Dissolve logic driven by world noise and reveal progress
 	float dissolve_thresh = dissolve_progress * 1.35;
@@ -94,8 +98,9 @@ void fragment() {
 	ROUGHNESS = 0.9;
 	SPECULAR = 0.1;
 	
-	// Ultra-soft mist opacity with zero hard tile edges
+	// Slightly more opaque base so fog reads on bright desert sand.
+	// Raised minimum from 0.35→0.52 and clamp to 0.98 so unrevealed tiles are clearly shrouded.
 	float final_alpha = (1.0 - dissolve_progress) * radial_fade * dissolve_mask * 
-	                    (cloud_density * 0.65 + 0.35) * fog_color.a;
-	ALPHA = clamp(final_alpha, 0.0, 0.96);
+	                    (cloud_density * 0.48 + 0.52) * fog_color.a;
+	ALPHA = clamp(final_alpha, 0.0, 0.98);
 }

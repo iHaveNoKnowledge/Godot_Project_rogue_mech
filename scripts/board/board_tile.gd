@@ -95,23 +95,27 @@ func _create_fog_mesh() -> void:
 	_fog_mesh = MeshInstance3D.new()
 	_fog_mesh.name = "FogOfWarMesh"
 	
-	# Subdivided organic mist canopy that overlaps seamlessly with zero box seams
+	# Subdivided organic mist canopy that overlaps seamlessly with zero grid seams.
+	# FIX 2026-08 desert: previous 7.6 plane with radial fade 1.8→3.8 left a soft
+	# transparent gap at tile diagonals (2.83m from center → 0.49 alpha), which on
+	# bright desert sand (0.80,0.70,0.46) read as “fog missing”. Enlarged to 8.4
+	# (half 4.2) so even diagonal midpoint (2.83) stays inside the opaque core.
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(7.6, 7.6)
+	plane.size = Vector2(8.4, 8.4)
 	plane.subdivide_width = 16
 	plane.subdivide_depth = 16
 	_fog_mesh.mesh = plane
 
 	var smat := ShaderMaterial.new()
 	smat.shader = _fog_shader
-	smat.set_shader_parameter("fog_color", Color(0.08, 0.11, 0.17, 0.96))
-	smat.set_shader_parameter("fog_edge_color", Color(0.22, 0.32, 0.46, 0.85))
+	smat.set_shader_parameter("fog_color", Color(0.07, 0.10, 0.15, 0.98))
+	smat.set_shader_parameter("fog_edge_color", Color(0.20, 0.30, 0.44, 0.92))
 	smat.set_shader_parameter("dissolve_burn_color", Color(0.30, 0.85, 1.0, 1.0))
 	smat.set_shader_parameter("dissolve_progress", 0.0)
 	smat.set_shader_parameter("animation_speed", 0.35)
 	smat.set_shader_parameter("noise_scale", 3.8)
 	_fog_mesh.set_surface_override_material(0, smat)
-	_fog_mesh.position = Vector3(0, 0.85, 0)
+	_fog_mesh.position = Vector3(0, 0.92, 0)
 	add_child(_fog_mesh)
 
 

@@ -95,13 +95,28 @@ func apply_impact(amount: float, from_dir: Vector3) -> void:
 
 
 
+func _hide_turret_visual() -> void:
+	if turret_node and is_instance_valid(turret_node):
+		# Clear any procedural damage overlay before hiding so its ShaderMaterial
+		# does not stay alive on an invisible mesh and keep its variant resident.
+		if turret_node is MeshInstance3D:
+			(turret_node as MeshInstance3D).material_overlay = null
+		turret_node.visible = false
+	# Also tell the health system's damage visuals to drop the turret material
+	# so the ShaderMaterial RID can be freed cleanly.
+	if health_system and health_system.damage_visuals:
+		health_system.damage_visuals.clear_slot_damage("turret")
+	# Small disable puff so the turret kill reads visually
+	if is_inside_tree():
+		EffectManager.spawn_hit_spark(global_position + Vector3(0, 1.2, 0), Vector3.UP, "kinetic")
+
+
 func _on_part_destroyed(slot_name: String) -> void:
 	match slot_name:
 		"turret":
 			turret_destroyed = true
 			print("Tank Turret Destroyed! Weapons Offline.")
-			if turret_node:
-				turret_node.visible = false
+			_hide_turret_visual()
 		"treads":
 			treads_destroyed = true
 			move_speed = 0.0
@@ -212,16 +227,19 @@ func _explode_and_destroy() -> void:
 
 
 func disable_movement() -> void:
+	if treads_destroyed:
+		return
 	treads_destroyed = true
 	move_speed = 0.0
 	print("Tank Treads Destroyed! Mobility Kill.")
 
 
 func disable_weapons() -> void:
+	if turret_destroyed:
+		return
 	turret_destroyed = true
 	print("Tank Turret Destroyed! Weapons Offline.")
-	if turret_node:
-		turret_node.visible = false
+	_hide_turret_visual()
 
 
 func _scale_by_wanted_level() -> void:

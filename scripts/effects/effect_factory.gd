@@ -12,6 +12,27 @@ extends RefCounted
 ## ---------------------------------------------------------------------------
 
 
+static var _flash_base_mat_no_depth: StandardMaterial3D = null
+static var _flash_base_mat_default: StandardMaterial3D = null
+
+static func _get_flash_base_mat(no_depth: bool) -> StandardMaterial3D:
+	if no_depth and _flash_base_mat_no_depth != null:
+		return _flash_base_mat_no_depth
+	if not no_depth and _flash_base_mat_default != null:
+		return _flash_base_mat_default
+	var m := StandardMaterial3D.new()
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.emission_enabled = true
+	m.emission_energy_multiplier = 5.0
+	if no_depth:
+		m.no_depth_test = true
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	if no_depth:
+		_flash_base_mat_no_depth = m
+	else:
+		_flash_base_mat_default = m
+	return m
+
 ## Simple emissive sphere that fades out and frees itself.  The workhorse for
 ## flash effects, spark puffs, precision-dodge glows, roller sparks, and the
 ## breach-warning pulse.
@@ -35,15 +56,10 @@ static func spawn_flash(scene: SceneTree, pos: Vector3, color: Color,
 	sphere.radius = radius
 	mesh_inst.mesh = sphere
 
-	var mat := StandardMaterial3D.new()
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	var mat: StandardMaterial3D = (_get_flash_base_mat(no_depth).duplicate() as StandardMaterial3D)
 	mat.albedo_color = Color(color.r, color.g, color.b, 0.85)
-	mat.emission_enabled = true
 	mat.emission = color
 	mat.emission_energy_multiplier = energy
-	if no_depth:
-		mat.no_depth_test = true
-		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mesh_inst.material_override = mat
 
 	var container: Node = parent if parent else (scene.current_scene if scene.current_scene else scene.root)

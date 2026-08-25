@@ -30,7 +30,7 @@ static func get_ground_material(theme: int, base_texture: Texture2D = null) -> S
 		0: # DESERT — Dry, diffuse golden sand with high roughness and zero mirror reflections
 			mat.roughness = 0.98
 			mat.metallic = 0.0
-			mat.specular = 0.04
+			mat.metallic_specular = 0.04
 			mat.albedo_color = Color(1.0, 0.96, 0.90)
 			norm_path = "res://resources/textures/sand/normal.jpg"
 			rough_path = "" # Do not use dark glossy roughness map on sand

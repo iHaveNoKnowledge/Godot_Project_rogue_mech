@@ -6,6 +6,17 @@ static var instance: EffectManager = null
 
 func _ready() -> void:
 	instance = self
+	# Pre-warm expensive shader variants so the first explosion does not compile
+	# 5 new StandardMaterial shaders at the exact frame the turret dies (which
+	# caused `shader_rd.cpp:516 f.is_null()` cache-write races when 5 tanks
+	# burst at once). Creating the templates now compiles the variant once, and
+	# later bursts just duplicate it.
+	_get_cached_explosion_ring_mat()
+	_get_cached_explosion_core_mat()
+	_get_cached_explosion_particle_mat()
+	_get_cached_explosion_smoke_mat()
+	_get_cached_hit_material(Color(1.0, 0.95, 0.6))
+	_get_cached_spark_material(Color(1.0, 0.88, 0.4))
 
 
 static var _muzzle_mesh_cache: Dictionary = {}
@@ -188,6 +199,12 @@ static var _cached_micro_arc_mesh: BoxMesh = null
 static var _cached_starburst_mesh: ArrayMesh = null
 static var _cached_hit_mats: Dictionary = {}
 static var _cached_spark_mats: Dictionary = {}
+# Cached explosion materials — shared templates duplicated per burst so the
+# emission shader variant is compiled once instead of N times concurrently.
+static var _cached_explosion_ring_mat: StandardMaterial3D = null
+static var _cached_explosion_core_mat: StandardMaterial3D = null
+static var _cached_explosion_particle_mat: StandardMaterial3D = null
+static var _cached_explosion_smoke_mat: StandardMaterial3D = null
 
 static func _get_cached_quad() -> QuadMesh:
 	if _cached_quad_mesh == null:
@@ -292,6 +309,58 @@ static func _get_cached_spark_material(color: Color) -> StandardMaterial3D:
 	mat.emission_energy_multiplier = 7.0
 	_cached_spark_mats[key] = mat
 	return mat
+
+
+static func _get_cached_explosion_ring_mat() -> StandardMaterial3D:
+	if _cached_explosion_ring_mat != null:
+		return _cached_explosion_ring_mat
+	var m := StandardMaterial3D.new()
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.albedo_color = Color(1.0, 0.6, 0.15, 0.9)
+	m.emission_enabled = true
+	m.emission = Color(1.0, 0.5, 0.1)
+	m.emission_energy_multiplier = 4.0
+	_cached_explosion_ring_mat = m
+	return m
+
+
+static func _get_cached_explosion_core_mat() -> StandardMaterial3D:
+	if _cached_explosion_core_mat != null:
+		return _cached_explosion_core_mat
+	var m := StandardMaterial3D.new()
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.albedo_color = Color(1.0, 0.8, 0.3, 0.95)
+	m.emission_enabled = true
+	m.emission = Color(1.0, 0.7, 0.2)
+	m.emission_energy_multiplier = 4.5
+	_cached_explosion_core_mat = m
+	return m
+
+
+static func _get_cached_explosion_particle_mat() -> StandardMaterial3D:
+	if _cached_explosion_particle_mat != null:
+		return _cached_explosion_particle_mat
+	var m := StandardMaterial3D.new()
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.albedo_color = Color(1.0, 0.55, 0.15, 1.0)
+	m.emission_enabled = true
+	m.emission = Color(1.0, 0.5, 0.1)
+	m.emission_energy_multiplier = 4.0
+	_cached_explosion_particle_mat = m
+	return m
+
+
+static func _get_cached_explosion_smoke_mat() -> StandardMaterial3D:
+	if _cached_explosion_smoke_mat != null:
+		return _cached_explosion_smoke_mat
+	var m := StandardMaterial3D.new()
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_color = Color(0.2, 0.2, 0.22, 0.6)
+	_cached_explosion_smoke_mat = m
+	return m
 
 
 ## Spawns dynamic, brilliant directional hit sparks, ricochet ember streaks, and a micro-flash light
@@ -444,19 +513,13 @@ static func spawn_explosion(position: Vector3, radius: float = 8.0) -> void:
 	lt.tween_property(light, "light_energy", 0.0, 0.22)
 	lt.tween_callback(light.queue_free)
 
-	# 2. Expanding Fiery Shockwave Ring
+	# 2. Expanding Fiery Shockwave Ring (cached template duplicated so each ring can fade independently)
 	var ring := MeshInstance3D.new()
 	var torus := TorusMesh.new()
 	torus.inner_radius = 0.8
 	torus.outer_radius = 1.0
 	ring.mesh = torus
-	var ring_mat := StandardMaterial3D.new()
-	ring_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	ring_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	ring_mat.albedo_color = Color(1.0, 0.6, 0.15, 0.9)
-	ring_mat.emission_enabled = true
-	ring_mat.emission = Color(1.0, 0.5, 0.1)
-	ring_mat.emission_energy_multiplier = 4.0
+	var ring_mat: StandardMaterial3D = _get_cached_explosion_ring_mat().duplicate() as StandardMaterial3D
 	ring.material_override = ring_mat
 	instance.add_child(ring)
 	ring.global_position = position + Vector3(0, 0.1, 0)
@@ -467,19 +530,13 @@ static func spawn_explosion(position: Vector3, radius: float = 8.0) -> void:
 	ring_tween.tween_property(ring_mat, "albedo_color:a", 0.0, 0.25)
 	ring_tween.chain().tween_callback(ring.queue_free)
 
-	# 3. Fiery Core Fireball Mesh
+	# 3. Fiery Core Fireball Mesh (cached template duplicated so each core can fade independently)
 	var core_mesh := MeshInstance3D.new()
 	var sphere := SphereMesh.new()
 	sphere.radius = 0.5
 	sphere.height = 1.0
 	core_mesh.mesh = sphere
-	var core_mat := StandardMaterial3D.new()
-	core_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	core_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	core_mat.albedo_color = Color(1.0, 0.8, 0.3, 0.95)
-	core_mat.emission_enabled = true
-	core_mat.emission = Color(1.0, 0.7, 0.2)
-	core_mat.emission_energy_multiplier = 4.5
+	var core_mat: StandardMaterial3D = _get_cached_explosion_core_mat().duplicate() as StandardMaterial3D
 	core_mesh.material_override = core_mat
 	instance.add_child(core_mesh)
 	core_mesh.global_position = position
@@ -523,13 +580,7 @@ static func spawn_explosion(position: Vector3, radius: float = 8.0) -> void:
 	var spark_sphere = SphereMesh.new()
 	spark_sphere.radius = 0.15
 	spark_inst.mesh = spark_sphere
-	var particle_mat = StandardMaterial3D.new()
-	particle_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	particle_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	particle_mat.albedo_color = Color(1.0, 0.55, 0.15, 1.0)
-	particle_mat.emission_enabled = true
-	particle_mat.emission = Color(1.0, 0.5, 0.1)
-	particle_mat.emission_energy_multiplier = 4.0
+	var particle_mat: StandardMaterial3D = _get_cached_explosion_particle_mat().duplicate() as StandardMaterial3D
 	spark_inst.material_override = particle_mat
 	explosion.add_child(spark_inst)
 
@@ -558,9 +609,7 @@ static func spawn_explosion(position: Vector3, radius: float = 8.0) -> void:
 	var smoke_sphere = SphereMesh.new()
 	smoke_sphere.radius = 0.3
 	smoke_inst.mesh = smoke_sphere
-	var sm_mat = StandardMaterial3D.new()
-	sm_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	sm_mat.albedo_color = Color(0.2, 0.2, 0.22, 0.6)
+	var sm_mat: StandardMaterial3D = _get_cached_explosion_smoke_mat().duplicate() as StandardMaterial3D
 	smoke_inst.material_override = sm_mat
 	smoke.add_child(smoke_inst)
 

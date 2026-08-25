@@ -150,3 +150,4 @@ func _ready() -> void:
 	print("--- Aim Pose & Muzzle Verification Finished: checks=%d fails=%d ---" % [_checks, _fails])
 	if _fails == 0:
 		print("ALL_AIM_MUZZLE_TESTS_PASSED")
+	get_tree().quit(1 if _fails > 0 else 0)

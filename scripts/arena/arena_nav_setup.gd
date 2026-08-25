@@ -2,12 +2,26 @@ extends Node
 
 ## Sets up NavigationRegion3D after arena generation.
 ## Attach to game_world.tscn alongside ArenaGenerator.
+##
+## FIX 2026-08: Previous version never actually carved obstacles into the
+## NavigationMesh — it added invisible footprint boxes as source but never
+## configured PARSED_GEOMETRY_BOTH nor baked after covers spawned, so
+## NavigationServer3D.map_get_path() returned straight lines through barriers.
+## Enemies then drove straight into walls and stuck on move_and_slide().
+## This version:
+##  - configures the mesh to parse BOTH meshes + static colliders (layer 2)
+##  - waits for ArenaGenerator + ObstacleSpawner + structures to finish
+##  - bakes the region on the thread so holes are cut around every cover /
+##    building / dune / pillar / container
+##  - falls back to avoidance steering if the mesh is still empty
 
-@export var agent_radius: float = 2.0
-@export var agent_height: float = 6.0
-@export var cell_size: float = 0.5
+@export var agent_radius: float = 1.6
+@export var agent_height: float = 2.0
+@export var cell_size: float = 0.33
+@export var cell_height: float = 0.2
 
 var nav_region: NavigationRegion3D
+var _nav_mesh: NavigationMesh
 
 
 func _ready() -> void:
@@ -21,16 +35,29 @@ func _setup_navigation() -> void:
 	nav_region.name = "NavigationRegion"
 	get_parent().add_child(nav_region)
 
-	var nav_mesh = NavigationMesh.new()
-	nav_mesh.cell_size = cell_size
-	nav_mesh.agent_radius = agent_radius
-	nav_mesh.agent_height = agent_height
-	nav_mesh.agent_max_climb = 0.3
-	nav_mesh.agent_max_slope = 45.0
+	_nav_mesh = NavigationMesh.new()
+	_nav_mesh.cell_size = cell_size
+	_nav_mesh.cell_height = cell_height
+	_nav_mesh.agent_radius = agent_radius
+	_nav_mesh.agent_height = agent_height
+	_nav_mesh.agent_max_climb = 0.45
+	_nav_mesh.agent_max_slope = 45.0
+	_nav_mesh.edge_max_error = 1.3
+	_nav_mesh.region_min_size = 2.0
+	_nav_mesh.region_merge_size = 8.0
+	_nav_mesh.sample_partition_type = NavigationMesh.SAMPLE_PARTITION_WATERSHED
+	# Parse both visual meshes and static colliders (covers, dunes, buildings)
+	# so the baker cuts holes where cover actually sits.
+	_nav_mesh.geometry_parsed_geometry_type = NavigationMesh.PARSED_GEOMETRY_BOTH
+	_nav_mesh.geometry_parsed_collision_mask = 2  # Environment layer
+	_nav_mesh.filter_low_hanging_obstacles = true
+	_nav_mesh.filter_ledge_spans = true
+	_nav_mesh.filter_walkable_low_height_spans = true
 
 	# Source geometry for the bake: one invisible box per footprint cell on
 	# irregular maps (so navigation hugs the real battlefield outline), or the
-	# classic slightly-shrunk square floor otherwise.
+	# classic slightly-shrunk square floor otherwise. These MeshInstance3Ds are
+	# children of the region so the baker collects them as walkable source.
 	var arena_gen := get_parent().get_node_or_null("ArenaGenerator")
 	var fp: ArenaFootprint = null
 	if arena_gen != null and arena_gen.get("footprint") != null:
@@ -49,41 +76,42 @@ func _setup_navigation() -> void:
 		var floor_mesh = MeshInstance3D.new()
 		var box = BoxMesh.new()
 		var arena_size := GlobalData.board.current_arena_size
-		box.size = Vector3(arena_size * 0.49, 0.1, arena_size * 0.49)  # Slightly smaller than arena
+		# Slightly smaller than arena so edges stay clear of void walls
+		box.size = Vector3(arena_size * 0.49, 0.1, arena_size * 0.49)
 		floor_mesh.mesh = box
 		floor_mesh.position.y = 0.05
 		floor_mesh.visible = false
 		nav_region.add_child(floor_mesh)
 
-	# Set the nav mesh
-	nav_region.navigation_mesh = nav_mesh
+	# Assign mesh before baking — the region will collect source geometry
+	# from its children + static colliders in the scene.
+	nav_region.navigation_mesh = _nav_mesh
 
-	# Bake navigation — get the default world map
+	# Use default world map
 	var maps = NavigationServer3D.get_maps()
 	if maps.size() > 0:
 		NavigationServer3D.region_set_map(nav_region.get_rid(), maps[0])
 
-	# Mark obstacle positions as blocked
-	_mark_obstacles()
+	# Bake after obstacles/structures have spawned. ObstacleSpawner awaits one
+	# frame before spawning, and city/dune structures spawn immediately in
+	# generate_arena(), so 0.6s guarantees everything with collision_layer 2
+	# is in the tree for the baker to see.
+	_bake_after_obstacles()
 
 
-func _mark_obstacles() -> void:
-	# Wait for obstacles to spawn
-	await get_tree().create_timer(0.5).timeout
-
-	var obstacles = get_tree().get_nodes_in_group("cover")
-	for obstacle in obstacles:
-		if not is_instance_valid(obstacle):
-			continue
-		# Create a navigation link barrier around each obstacle
-		var pos = obstacle.global_position
-		var size = Vector3(3, 2, 3)  # Default size
-
-		# Get actual size from collision shape
-		for child in obstacle.get_children():
-			if child is CollisionShape3D and child.shape is BoxShape3D:
-				size = child.shape.size
-				break
-
-		# Add region exclusion (simple approach: lower nav mesh quality near obstacles)
-		# In practice, the nav mesh baker handles this if we bake after obstacles exist
+func _bake_after_obstacles() -> void:
+	await get_tree().create_timer(0.6).timeout
+	if not is_instance_valid(nav_region) or _nav_mesh == null:
+		return
+	# Re-ensure the region is on the correct map (scene may have recreated maps)
+	var maps = NavigationServer3D.get_maps()
+	if maps.size() > 0:
+		NavigationServer3D.region_set_map(nav_region.get_rid(), maps[0])
+	# Bake on thread — cuts holes around every StaticBody3D on layer 2
+	nav_region.bake_navigation_mesh(true)
+	# Debug: log bake stats a moment later so map_get_path can be verified
+	await get_tree().create_timer(0.4).timeout
+	if is_instance_valid(nav_region) and nav_region.navigation_mesh:
+		var verts: int = nav_region.navigation_mesh.get_vertices().size()
+		var polys: int = nav_region.navigation_mesh.get_polygon_count()
+		print("NAV_BAKE: vertices=%d polys=%d radius=%.1f covers=%d" % [verts, polys, agent_radius, get_tree().get_nodes_in_group("cover").size() + get_tree().get_nodes_in_group("solid_obstacle").size()])

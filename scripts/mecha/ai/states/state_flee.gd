@@ -1,4 +1,6 @@
 extends EnemyState
+const _NavAvoidance = preload("res://scripts/arena/nav_avoidance.gd")
+
 
 ## Flee state: move away from target using NavMesh pathfinding.
 
@@ -79,9 +81,14 @@ func physics_process(delta: float) -> void:
 
 	# Frozen while ragdolled — a mech with no legs can't retreat either.
 	if direction.length() > 0.1 and enemy.get("ragdolled") != true:
-		enemy.velocity = direction.normalized() * enemy.move_speed * enemy.flee_speed_mult
+		var raw_dir: Vector3 = direction.normalized()
+		var space := enemy.get_world_3d().direct_space_state if enemy.get_world_3d() else null
+		var move_dir: Vector3 = _NavAvoidance.steer_around(raw_dir, enemy.global_position, space, 3.0) if space else raw_dir
+		enemy.velocity = move_dir * enemy.move_speed * enemy.flee_speed_mult
 		enemy.velocity.y = gravity
 		enemy.move_and_slide()
+		if enemy.get_slide_collision_count() > 0:
+			enemy.velocity = _NavAvoidance.slide_along_wall(enemy.velocity, enemy)
 
 		enemy.rotation.y = lerp_angle(enemy.rotation.y, atan2(direction.x, direction.z), 5.0 * delta)
 
@@ -114,10 +121,13 @@ func _direct_flee(delta: float) -> void:
 	var away_dir = (enemy.global_position - enemy.target.global_position).normalized()
 	away_dir.y = 0.0
 	away_dir = away_dir.rotated(Vector3.UP, randf_range(-0.5, 0.5)).normalized()
-
-	enemy.velocity = away_dir * enemy.move_speed * enemy.flee_speed_mult
+	var space := enemy.get_world_3d().direct_space_state if enemy.get_world_3d() else null
+	var move_dir: Vector3 = _NavAvoidance.steer_around(away_dir, enemy.global_position, space, 3.0) if space else away_dir
+	enemy.velocity = move_dir * enemy.move_speed * enemy.flee_speed_mult
 	enemy.velocity.y = gravity
 	enemy.move_and_slide()
+	if enemy.get_slide_collision_count() > 0:
+		enemy.velocity = _NavAvoidance.slide_along_wall(enemy.velocity, enemy)
 
 	if away_dir.length() > 0.1:
 		enemy.rotation.y = lerp_angle(enemy.rotation.y, atan2(away_dir.x, away_dir.z), 5.0 * delta)

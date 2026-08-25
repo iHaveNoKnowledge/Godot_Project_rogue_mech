@@ -1,6 +1,8 @@
 @tool
 class_name ChargeMeleeAction
 extends ActionLeaf
+const _NavAvoidance = preload("res://scripts/arena/nav_avoidance.gd")
+
 
 ## Controls aggressive melee closing, dashing, and blade swinging.
 
@@ -36,7 +38,9 @@ func tick(actor: Node, blackboard: Blackboard) -> int:
 	if coordinator != null and is_instance_valid(coordinator):
 		separation = coordinator.get_separation_vector(actor as Node3D, 5.0)
 
-	var dir: Vector3 = (diff.normalized() + separation * 1.2).normalized()
+	var raw_dir: Vector3 = (diff.normalized() + separation * 1.2).normalized()
+	var space := (actor as Node3D).get_world_3d().direct_space_state if (actor as Node3D).get_world_3d() else null
+	var dir: Vector3 = _NavAvoidance.steer_around(raw_dir, actor_pos, space, 3.0) if space else raw_dir
 	var speed: float = move_speed * 1.3 # Sprint into melee
 	
 	# Dash surge if aggressive
@@ -45,6 +49,15 @@ func tick(actor: Node, blackboard: Blackboard) -> int:
 	
 	(actor as CharacterBody3D).velocity.x = dir.x * speed
 	(actor as CharacterBody3D).velocity.z = dir.z * speed
+	(actor as CharacterBody3D).velocity.y = -10.0
+	(actor as CharacterBody3D).move_and_slide()
+	if (actor as CharacterBody3D).get_slide_collision_count() > 0:
+		var flat := Vector3(dir.x * speed, 0, dir.z * speed)
+		flat = _NavAvoidance.slide_along_wall(flat, actor as CharacterBody3D)
+		(actor as CharacterBody3D).velocity.x = flat.x
+		(actor as CharacterBody3D).velocity.z = flat.z
+		(actor as CharacterBody3D).velocity.y = -10.0
+		(actor as CharacterBody3D).move_and_slide()
 	
 	# Execute melee strike when in close range (<= 4.0m)
 	if dist <= 4.0:

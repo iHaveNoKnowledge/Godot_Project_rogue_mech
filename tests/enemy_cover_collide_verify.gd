@@ -41,10 +41,13 @@ func _verify_arena_builds_barriers() -> void:
 
 	var zones := get_tree().get_nodes_in_group("escape_zone")
 	var barriers := 0
+	var seen := {}
 	for zone in zones:
 		for child in zone.get_parent().get_children():
-			if child.name == "RetreatWallBarrier" and child.collision_layer == 32:
-				barriers += 1
+			if String(child.name).begins_with("RetreatWallBarrier") and child.collision_layer == 32:
+				if not seen.has(child.get_instance_id()):
+					seen[child.get_instance_id()] = true
+					barriers += 1
 	print("DBG arena barriers: zones=", zones.size(), " barriers=", barriers)
 	_check(zones.size() >= 4, "arena builds 4+ escape zones (got %d)" % zones.size())
 	_check(barriers == zones.size(), "every escape zone has an enemy-only barrier on layer 32 (%d zones, %d barriers)" % [zones.size(), barriers])
@@ -89,15 +92,24 @@ func _verify_barrier_block() -> void:
 	await get_tree().physics_frame
 	enemy.target = target
 
-	var crossed := false
-	for i in range(180):
+	# With proper NavMesh + local avoidance the enemy should NAVIGATE AROUND
+	# the 6m barrier via its side instead of ramming it and sticking.
+	# Verify: never clipped through the interior, and did reach the east side.
+	var entered := false
+	var reached := false
+	for i in range(240):
 		await get_tree().physics_frame
-		if enemy.global_position.x > 1.5 and enemy.global_position.z > -4.0 and enemy.global_position.z < 4.0:
-			crossed = true
+		var p: Vector3 = enemy.global_position
+		# Exact barrier interior (6 x 1.2) — entering means clipping through the wall
+		if p.x > -3.0 and p.x < 3.0 and p.z > -0.6 and p.z < 0.6:
+			entered = true
+		if p.x > 5.0:
+			reached = true
 			break
 
-	print("DBG barrier: enemy_pos=", enemy.global_position, " crossed=", crossed, " cover_alive=", is_instance_valid(cover))
-	_check(not crossed, "chasing enemy is stopped by the concrete barrier")
+	print("DBG barrier: enemy_pos=", enemy.global_position, " entered=", entered, " reached=", reached, " cover_alive=", is_instance_valid(cover))
+	_check(not entered, "enemy never clipped through barrier interior (steered around)")
+	_check(reached, "enemy navigated around barrier to reach target side")
 	_check(is_instance_valid(cover), "barrier is still alive (enemy never destroyed it)")
 
 	enemy.queue_free()

@@ -1,6 +1,8 @@
 @tool
 class_name EngageRangedAction
 extends ActionLeaf
+const _NavAvoidance = preload("res://scripts/arena/nav_avoidance.gd")
+
 
 ## Controls ranged aiming, positioning, strafing, and firing on target.
 
@@ -67,9 +69,22 @@ func tick(actor: Node, blackboard: Blackboard) -> int:
 	if coordinator != null and is_instance_valid(coordinator):
 		separation = coordinator.get_separation_vector(actor as Node3D, 7.0)
 
-	var final_velocity := (move_dir + separation * 1.5).normalized() * move_speed
+	var raw_dir := (move_dir + separation * 1.5).normalized() if (move_dir + separation * 1.5).length() > 0.01 else Vector3.ZERO
+	if raw_dir.length() > 0.01:
+		var space := (actor as Node3D).get_world_3d().direct_space_state if (actor as Node3D).get_world_3d() else null
+		raw_dir = _NavAvoidance.steer_around(raw_dir, (actor as Node3D).global_position, space, 2.8) if space else raw_dir
+	var final_velocity := raw_dir * move_speed
 	(actor as CharacterBody3D).velocity.x = final_velocity.x
 	(actor as CharacterBody3D).velocity.z = final_velocity.z
+	(actor as CharacterBody3D).velocity.y = -10.0
+	(actor as CharacterBody3D).move_and_slide()
+	if (actor as CharacterBody3D).get_slide_collision_count() > 0:
+		var flat := Vector3(final_velocity.x, 0, final_velocity.z)
+		flat = _NavAvoidance.slide_along_wall(flat, actor as CharacterBody3D)
+		(actor as CharacterBody3D).velocity.x = flat.x
+		(actor as CharacterBody3D).velocity.z = flat.z
+		(actor as CharacterBody3D).velocity.y = -10.0
+		(actor as CharacterBody3D).move_and_slide()
 	
 	# Trigger weapon fire
 	if actor.has_method("_fire_ranged") and dist <= max_range:

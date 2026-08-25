@@ -1,4 +1,6 @@
 extends CharacterBody3D
+const _NavAvoidance = preload("res://scripts/arena/nav_avoidance.gd")
+
 
 var _loot_script = preload("res://scripts/systems/loot_system.gd")
 
@@ -29,6 +31,12 @@ var fire_core: WeaponCore = null
 @onready var turret_node: Node3D = get_node_or_null("TurretMesh")
 @onready var treads_node: Node3D = get_node_or_null("TreadsMesh")
 @onready var hull_node: Node3D = get_node_or_null("HullMesh")
+
+# Navigation for tanks (previously direct move, got stuck on cover)
+var _tank_path: PackedVector3Array = []
+var _tank_path_index: int = 0
+var _tank_path_timer: float = 0.0
+var _tank_stuck_time: float = 0.0
 
 
 func _ready() -> void:
@@ -154,15 +162,28 @@ func _physics_process(delta: float) -> void:
 
 	var dist = global_position.distance_to(target.global_position)
 
-	# Move if treads intact
+	# Move if treads intact — use NavigationMesh path so the 2.8m-wide hull
+	# drives around containers/barriers instead of ramming them and sticking.
 	if not treads_destroyed and dist > 8.0:
-		var dir = (target.global_position - global_position).normalized()
-		dir.y = 0.0
-		velocity = dir * move_speed
-		velocity.y = -10.0
-		move_and_slide()
-		if dir.length() > 0.1:
-			rotation.y = lerp_angle(rotation.y, atan2(dir.x, dir.z), 5.0 * delta)
+		_tank_path_timer -= delta
+		if _tank_path_timer <= 0.0 or _tank_path.is_empty():
+			_tank_path_timer = 0.5
+			_update_tank_path()
+		var moved := _follow_tank_path(delta)
+		if not moved:
+			# Fallback direct (should rarely happen) with local steer
+			var dir = (target.global_position - global_position).normalized()
+			dir.y = 0.0
+			var space := get_world_3d().direct_space_state if get_world_3d() else null
+			if space:
+				dir = _NavAvoidance.steer_around(dir, global_position, space, 3.5)
+			velocity = dir * move_speed
+			velocity.y = -10.0
+			move_and_slide()
+			if get_slide_collision_count() > 0:
+				velocity = _NavAvoidance.slide_along_wall(velocity, self)
+			if dir.length() > 0.1:
+				rotation.y = lerp_angle(rotation.y, atan2(dir.x, dir.z), 5.0 * delta)
 
 	# Rotate turret and shoot if turret intact
 	if not turret_destroyed and dist <= attack_range:
@@ -240,6 +261,51 @@ func disable_weapons() -> void:
 	turret_destroyed = true
 	print("Tank Turret Destroyed! Weapons Offline.")
 	_hide_turret_visual()
+
+
+func _update_tank_path() -> void:
+	var maps = NavigationServer3D.get_maps()
+	if maps.is_empty() or target == null or not is_instance_valid(target):
+		_tank_path = PackedVector3Array()
+		return
+	_tank_path = NavigationServer3D.map_get_path(maps[0], global_position, target.global_position, true)
+	_tank_path_index = 0
+
+
+func _follow_tank_path(delta: float) -> bool:
+	if _tank_path.is_empty():
+		return false
+	if _tank_path_index >= _tank_path.size():
+		_tank_path_index = _tank_path.size() - 1
+	var wp: Vector3 = _tank_path[_tank_path_index]
+	var to_wp: Vector3 = wp - global_position
+	to_wp.y = 0.0
+	if to_wp.length() < 1.8:
+		_tank_path_index += 1
+		if _tank_path_index >= _tank_path.size():
+			return false
+		wp = _tank_path[_tank_path_index]
+		to_wp = wp - global_position
+		to_wp.y = 0.0
+	if to_wp.length() < 0.15:
+		return false
+	var raw_dir: Vector3 = to_wp.normalized()
+	var space := get_world_3d().direct_space_state if get_world_3d() else null
+	var move_dir: Vector3 = _NavAvoidance.steer_around(raw_dir, global_position, space, 3.5) if space else raw_dir
+	velocity = move_dir * move_speed
+	velocity.y = -10.0
+	move_and_slide()
+	if get_slide_collision_count() > 0:
+		velocity = _NavAvoidance.slide_along_wall(velocity, self)
+		if velocity.length() < 1.2:
+			_tank_stuck_time += delta
+			if _tank_stuck_time > 0.7:
+				_tank_path_timer = 0.0
+				_tank_stuck_time = 0.0
+		else:
+			_tank_stuck_time = 0.0
+	rotation.y = lerp_angle(rotation.y, atan2(to_wp.x, to_wp.z), 5.0 * delta)
+	return true
 
 
 func _scale_by_wanted_level() -> void:

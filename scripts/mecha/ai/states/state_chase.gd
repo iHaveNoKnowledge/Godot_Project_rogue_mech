@@ -1,4 +1,6 @@
 extends EnemyState
+const _NavAvoidance = preload("res://scripts/arena/nav_avoidance.gd")
+
 
 ## Chase state: move toward target using NavMesh pathfinding.
 
@@ -7,12 +9,16 @@ var path: PackedVector3Array = []
 var path_index: int = 0
 var path_update_timer: float = 0.0
 const PATH_UPDATE_INTERVAL: float = 0.5
+var _stuck_time: float = 0.0
+var _last_pos: Vector3 = Vector3.ZERO
 
 
 func enter() -> void:
 	path = []
 	path_index = 0
 	path_update_timer = 0.0
+	_stuck_time = 0.0
+	_last_pos = enemy.global_position if enemy else Vector3.ZERO
 	# Shield archetypes advance with the barrier up so closing in doesn't cost
 	# them HP; it drops only when they commit to an attack (state_attack).
 	if enemy and enemy.has_method("set_shield_up"):
@@ -114,22 +120,51 @@ func _follow_path(delta: float) -> void:
 		direction = (waypoint - enemy.global_position)
 		direction.y = 0.0
 
-	# Move toward waypoint with mutual separation
+	# Move toward waypoint with mutual separation + local obstacle avoidance
 	if direction.length() > 0.1 and enemy.get("ragdolled") != true:
 		var separation := Vector3.ZERO
 		if enemy.get("squad_coordinator") != null and is_instance_valid(enemy.squad_coordinator):
 			separation = enemy.squad_coordinator.get_separation_vector(enemy, 6.0)
 
-		var move_dir := (direction.normalized() + separation * 1.3).normalized()
+		var raw_dir: Vector3 = (direction.normalized() + separation * 1.3).normalized()
+		# Raycast avoidance: steer around Environment (layer 2) blocking the way
+		var space := enemy.get_world_3d().direct_space_state if enemy.get_world_3d() else null
+		var move_dir: Vector3 = _NavAvoidance.steer_around(raw_dir, enemy.global_position, space, 3.5) if space else raw_dir
 		enemy.velocity = move_dir * enemy.move_speed
 		enemy.velocity.y = gravity
 		enemy.move_and_slide()
+		# If slid into a wall, nudge along the wall so we don't stick in corners
+		if enemy.get_slide_collision_count() > 0:
+			enemy.velocity = _NavAvoidance.slide_along_wall(enemy.velocity, enemy)
+			# If still barely moving, count as stuck and force a repath + wide steer
+			if enemy.velocity.length() < 1.0:
+				_stuck_time += delta
+				if _stuck_time > 0.6:
+					path_update_timer = 0.0
+					_stuck_time = 0.0
+					# Hard 90° escape
+					var escape := raw_dir.rotated(Vector3.UP, deg_to_rad(90.0 if randf() < 0.5 else -90.0))
+					enemy.velocity = escape * enemy.move_speed
+					enemy.velocity.y = gravity
+					enemy.move_and_slide()
+			else:
+				_stuck_time = 0.0
+		else:
+			# Reset stuck timer when making progress
+			if enemy.global_position.distance_to(_last_pos) > 0.4:
+				_stuck_time = 0.0
+			else:
+				_stuck_time += delta
+				if _stuck_time > 1.0:
+					path_update_timer = 0.0
+					_stuck_time = 0.0
+			_last_pos = enemy.global_position
 
 		enemy.rotation.y = lerp_angle(enemy.rotation.y, atan2(direction.x, direction.z), 5.0 * delta)
 
 
 func _direct_move(delta: float) -> void:
-	# Fallback: tactical movement toward target slot + separation
+	# Fallback: tactical movement toward target slot + separation + raycast steer
 	var target_pos: Vector3 = enemy.target.global_position
 	if enemy.get("squad_coordinator") != null and is_instance_valid(enemy.squad_coordinator):
 		target_pos = enemy.squad_coordinator.get_tactical_waypoint(enemy, enemy.target, enemy.attack_range * 0.7)
@@ -141,11 +176,15 @@ func _direct_move(delta: float) -> void:
 	if enemy.get("squad_coordinator") != null and is_instance_valid(enemy.squad_coordinator):
 		separation = enemy.squad_coordinator.get_separation_vector(enemy, 6.0)
 
-	var move_dir = (direction.normalized() + separation * 1.3).normalized()
+	var raw_dir = (direction.normalized() + separation * 1.3).normalized()
+	var space := enemy.get_world_3d().direct_space_state if enemy.get_world_3d() else null
+	var move_dir = _NavAvoidance.steer_around(raw_dir, enemy.global_position, space, 3.5) if space else raw_dir
 	if enemy.get("ragdolled") != true:
 		enemy.velocity = move_dir * enemy.move_speed
 		enemy.velocity.y = gravity
 		enemy.move_and_slide()
+		if enemy.get_slide_collision_count() > 0:
+			enemy.velocity = _NavAvoidance.slide_along_wall(enemy.velocity, enemy)
 
 	if direction.length() > 0.1:
 		enemy.rotation.y = lerp_angle(enemy.rotation.y, atan2(direction.x, direction.z), 5.0 * delta)

@@ -1,4 +1,6 @@
 extends EnemyState
+const _NavAvoidance = preload("res://scripts/arena/nav_avoidance.gd")
+
 
 ## Idle state: scan for targets. While unspotted the enemy actively hunts the
 ## battlefield instead of standing still — it patrols toward the arena center
@@ -129,10 +131,17 @@ func _move_to_search_target(delta: float) -> void:
 		direction.y = 0.0
 
 	if direction.length() > 0.1:
-		var dir := direction.normalized()
+		var raw_dir: Vector3 = direction.normalized()
+		var space := enemy.get_world_3d().direct_space_state if enemy.get_world_3d() else null
+		var dir: Vector3 = _NavAvoidance.steer_around(raw_dir, enemy.global_position, space, 3.0) if space else raw_dir
 		enemy.velocity.x = dir.x * enemy.move_speed
 		enemy.velocity.z = dir.z * enemy.move_speed
 		enemy.rotation.y = lerp_angle(enemy.rotation.y, atan2(direction.x, direction.z), 5.0 * delta)
+		if enemy.get_slide_collision_count() > 0:
+			var flat_vel := Vector3(enemy.velocity.x, 0, enemy.velocity.z)
+			flat_vel = _NavAvoidance.slide_along_wall(flat_vel, enemy)
+			enemy.velocity.x = flat_vel.x
+			enemy.velocity.z = flat_vel.z
 	else:
 		enemy.velocity.x = 0.0
 		enemy.velocity.z = 0.0
@@ -152,10 +161,17 @@ func _direct_search_move(delta: float) -> void:
 	var direction: Vector3 = search_target - enemy.global_position
 	direction.y = 0.0
 	if direction.length() > 0.1:
-		var dir := direction.normalized()
+		var raw_dir: Vector3 = direction.normalized()
+		var space := enemy.get_world_3d().direct_space_state if enemy.get_world_3d() else null
+		var dir: Vector3 = _NavAvoidance.steer_around(raw_dir, enemy.global_position, space, 3.0) if space else raw_dir
 		enemy.velocity.x = dir.x * enemy.move_speed
 		enemy.velocity.z = dir.z * enemy.move_speed
 		enemy.rotation.y = lerp_angle(enemy.rotation.y, atan2(direction.x, direction.z), 5.0 * delta)
+		if enemy.get_slide_collision_count() > 0:
+			var flat_vel := Vector3(enemy.velocity.x, 0, enemy.velocity.z)
+			flat_vel = _NavAvoidance.slide_along_wall(flat_vel, enemy)
+			enemy.velocity.x = flat_vel.x
+			enemy.velocity.z = flat_vel.z
 	else:
 		enemy.velocity.x = 0.0
 		enemy.velocity.z = 0.0

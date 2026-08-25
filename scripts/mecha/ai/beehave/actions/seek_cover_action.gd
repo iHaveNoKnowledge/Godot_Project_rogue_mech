@@ -1,6 +1,8 @@
 @tool
 class_name SeekCoverAction
 extends ActionLeaf
+const _NavAvoidance = preload("res://scripts/arena/nav_avoidance.gd")
+
 
 ## Moves actor to the nearest cover object or retreats away from heavy danger.
 
@@ -35,9 +37,20 @@ func tick(actor: Node, blackboard: Blackboard) -> int:
 		var dist := diff.length()
 		
 		if dist > 2.0:
-			var dir := diff.normalized()
+			var raw_dir := diff.normalized()
+			var space := (actor as Node3D).get_world_3d().direct_space_state if (actor as Node3D).get_world_3d() else null
+			var dir: Vector3 = _NavAvoidance.steer_around(raw_dir, actor_pos, space, 2.8) if space else raw_dir
 			(actor as CharacterBody3D).velocity.x = dir.x * move_speed * 1.1
 			(actor as CharacterBody3D).velocity.z = dir.z * move_speed * 1.1
+			(actor as CharacterBody3D).velocity.y = -10.0
+			(actor as CharacterBody3D).move_and_slide()
+			if (actor as CharacterBody3D).get_slide_collision_count() > 0:
+				var flat := Vector3(dir.x * move_speed * 1.1, 0, dir.z * move_speed * 1.1)
+				flat = _NavAvoidance.slide_along_wall(flat, actor as CharacterBody3D)
+				(actor as CharacterBody3D).velocity.x = flat.x
+				(actor as CharacterBody3D).velocity.z = flat.z
+				(actor as CharacterBody3D).velocity.y = -10.0
+				(actor as CharacterBody3D).move_and_slide()
 			return RUNNING
 		else:
 			# Reached cover
@@ -51,9 +64,13 @@ func tick(actor: Node, blackboard: Blackboard) -> int:
 		var diff: Vector3 = mecha.global_position - actor_pos
 		diff.y = 0.0
 		if diff.length() > 5.0:
-			var dir: Vector3 = diff.normalized()
-			(actor as CharacterBody3D).velocity.x = dir.x * move_speed
-			(actor as CharacterBody3D).velocity.z = dir.z * move_speed
+			var raw_dir: Vector3 = diff.normalized()
+			var space2 := (actor as Node3D).get_world_3d().direct_space_state if (actor as Node3D).get_world_3d() else null
+			var dir2: Vector3 = _NavAvoidance.steer_around(raw_dir, actor_pos, space2, 2.8) if space2 else raw_dir
+			(actor as CharacterBody3D).velocity.x = dir2.x * move_speed
+			(actor as CharacterBody3D).velocity.z = dir2.z * move_speed
+			(actor as CharacterBody3D).velocity.y = -10.0
+			(actor as CharacterBody3D).move_and_slide()
 			return RUNNING
 	
 	return FAILURE

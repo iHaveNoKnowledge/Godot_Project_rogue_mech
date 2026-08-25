@@ -1,4 +1,6 @@
 extends EnemyState
+const _NavAvoidance = preload("res://scripts/arena/nav_avoidance.gd")
+
 
 ## Strafe state: ranged enemies circle-strafe while firing.
 
@@ -42,11 +44,15 @@ func physics_process(delta: float) -> void:
 
 	# No legs (ragdolled): the ranged mech holds position and just keeps firing.
 	if enemy.get("ragdolled") != true:
-		var move_dir = (strafe_pos - enemy.global_position).normalized()
-		move_dir.y = 0.0
+		var raw_dir = (strafe_pos - enemy.global_position).normalized()
+		raw_dir.y = 0.0
+		var space := enemy.get_world_3d().direct_space_state if enemy.get_world_3d() else null
+		var move_dir: Vector3 = _NavAvoidance.steer_around(raw_dir, enemy.global_position, space, 2.8) if space else raw_dir
 		enemy.velocity = move_dir * enemy.move_speed
 		enemy.velocity.y = -10.0
 		enemy.move_and_slide()
+		if enemy.get_slide_collision_count() > 0:
+			enemy.velocity = _NavAvoidance.slide_along_wall(enemy.velocity, enemy)
 
 	# Face target
 	var face_dir = (target_pos - enemy.global_position).normalized()

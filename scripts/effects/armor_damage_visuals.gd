@@ -139,12 +139,19 @@ func _apply_persist_to_mat(slot: String, layer: String, mat: ShaderMaterial) -> 
 		# GlobalData uses "slot" for armor, "slot_frame" for frame
 		var dmg: float = float(GlobalData.weapons.part_damage.get(dmg_key, 0.0)) if layer == LAYER_ARMOR else float(GlobalData.weapons.part_damage.get(slot + "_frame", 0.0))
 		if dmg > 0.001:
-			# If HealthSystem parts already hold the HP, the HealthSystem loop
-			# will also call update_slot_layer_damage; this just ensures the mat
-			# isn't left at 0 when that call happened before the mat existed.
 			var cur: float = float(mat.get_shader_parameter("damage_amount"))
 			if cur < dmg:
 				mat.set_shader_parameter("damage_amount", clampf(dmg, 0.0, 1.0))
+
+		# Restore durability wear (torch welds, rust, field repairs)
+		var dur: float = 1.0
+		if layer == LAYER_ARMOR:
+			dur = GlobalData.get_part_durability(slot)
+		else:
+			dur = GlobalData.get_frame_durability(slot)
+		var wear: float = clampf(1.0 - dur, 0.0, 1.0)
+		mat.set_shader_parameter("wear_amount", wear)
+
 		# Restore hit
 		var hit_meta = GlobalData.weapons.part_hit_meta.get(slot) if GlobalData.weapons.part_hit_meta.has(slot) else null
 		if hit_meta is Dictionary and str(hit_meta.get("layer", layer)) == layer:
@@ -153,6 +160,13 @@ func _apply_persist_to_mat(slot: String, layer: String, mat: ShaderMaterial) -> 
 				mat.set_shader_parameter("hit_pos", pos)
 				mat.set_shader_parameter("hit_radius", float(hit_meta.get("radius", 0.65)))
 				mat.set_shader_parameter("hit_spread", 3.2)
+
+
+## Updates durability wear on a part slot (1.0 = pristine factory new, 0.2 = heavily repaired/battle-worn).
+func update_slot_durability(slot: String, layer: String, durability: float) -> void:
+	var mat := _get_or_create_slot_mat(slot, layer)
+	var wear := clampf(1.0 - durability, 0.0, 1.0)
+	mat.set_shader_parameter("wear_amount", wear)
 
 
 ## Binds every MeshInstance3D under `container` to the slot's crack material

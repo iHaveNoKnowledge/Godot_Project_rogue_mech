@@ -100,6 +100,8 @@ static func mount_hand(mecha: Node3D, hand: String, weapon: WeaponPart, node_nam
 	if weapon == null:
 		return mount
 	mount.add_child(build(weapon))
+	var dur_ratio: float = GlobalData.get_durability_ratio(weapon) if GlobalData else 1.0
+	apply_durability_wear_to_node(mount, dur_ratio)
 	return mount
 
 
@@ -129,9 +131,31 @@ static func mount_carry(mecha: Node3D, weapons: Array, node_name: String) -> Nod
 		wmount.position = Vector3(offset, BACK_Y, BACK_Z)
 		wmount.rotation_degrees = Vector3(BACK_ROT_DEG.x, 0.0, side_tilt)
 		wmount.add_child(build(weapon))
+		var dur_ratio: float = GlobalData.get_durability_ratio(weapon) if GlobalData else 1.0
+		apply_durability_wear_to_node(wmount, dur_ratio)
 		back_mount.add_child(wmount)
 		offset += CARRY_SPREAD
 	return back_mount
+
+
+## Applies procedural field-repair and battle wear overlay to weapon mesh instances.
+static func apply_durability_wear_to_node(node: Node3D, dur_ratio: float) -> void:
+	if node == null or dur_ratio >= 0.999:
+		return
+	var wear := clampf(1.0 - dur_ratio, 0.0, 1.0)
+	var mat := ShaderMaterial.new()
+	mat.shader = preload("res://shaders/armor_crack.gdshader")
+	mat.set_shader_parameter("wear_amount", wear)
+	mat.set_shader_parameter("damage_amount", 0.0)
+	mat.set_shader_parameter("noise_offset", Vector3(randf_range(-50.0, 50.0), randf_range(-50.0, 50.0), randf_range(-50.0, 50.0)))
+	_apply_material_overlay_recursive(node, mat)
+
+
+static func _apply_material_overlay_recursive(node: Node, mat: Material) -> void:
+	if node is MeshInstance3D:
+		node.material_overlay = mat
+	for child in node.get_children():
+		_apply_material_overlay_recursive(child, mat)
 
 
 # ---------------------------------------------------------------------------

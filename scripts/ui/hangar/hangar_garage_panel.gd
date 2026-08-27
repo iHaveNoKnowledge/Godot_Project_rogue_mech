@@ -321,42 +321,46 @@ func apply_tactical_idle_pose(mecha_node: Node3D) -> void:
 	var shin_left = mecha_node.get_node_or_null("LegLeft/ShinLeft")
 	var shin_right = mecha_node.get_node_or_null("LegRight/ShinRight")
 
-	# Clean Upright Neutral Standing Stance (Zero Joint Rotations & Aligned Positions)
+	# Armored Core Classic Heavy Hangar Stance (Wide A-Stance, Lowered Center of Gravity, Ready Rest Arms)
 	if body:
-		body.rotation = Vector3.ZERO
-		body.position = Vector3(0, 1.80, 0)
+		body.rotation = Vector3(-deg_to_rad(4.0), 0.0, 0.0) # Slight aggressive forward chest angle
+		body.position = Vector3(0, 1.70, 0) # Lowered COG
 
 	if head:
-		head.rotation = Vector3.ZERO
-		head.position = Vector3(0, 2.30, -0.04)
+		head.rotation = Vector3(-deg_to_rad(2.0), 0.0, 0.0)
+		head.position = Vector3(0, 2.22, -0.05) # Nestled low between shoulder armor
 
+	# Legs: Wide A-Stance (Toes out, thighs angled out, knees flexed)
 	if leg_left:
-		leg_left.rotation = Vector3.ZERO
-		leg_left.position = Vector3(-0.38, 1.30, 0)
+		leg_left.position = Vector3(-0.46, 1.25, 0.0)
+		leg_left.rotation = Vector3(deg_to_rad(6.0), deg_to_rad(-12.0), deg_to_rad(9.0))
 	if leg_right:
-		leg_right.rotation = Vector3.ZERO
-		leg_right.position = Vector3(0.38, 1.30, 0)
+		leg_right.position = Vector3(0.46, 1.25, 0.0)
+		leg_right.rotation = Vector3(deg_to_rad(6.0), deg_to_rad(12.0), deg_to_rad(-9.0))
 
+	# Shins / Knees: Shock absorption flexion
 	if shin_left:
-		shin_left.rotation = Vector3.ZERO
 		shin_left.position = Vector3(0, -0.55, 0)
+		shin_left.rotation = Vector3(-deg_to_rad(14.0), 0.0, -deg_to_rad(3.0))
 	if shin_right:
-		shin_right.rotation = Vector3.ZERO
 		shin_right.position = Vector3(0, -0.55, 0)
+		shin_right.rotation = Vector3(-deg_to_rad(14.0), 0.0, deg_to_rad(3.0))
 
+	# Left Arm: Relaxed ready guard stance (elbow bent ~36 deg, forearm angled naturally)
 	if arm_left:
-		arm_left.rotation = Vector3.ZERO
-		arm_left.position = Vector3(-0.68, 2.05, 0)
+		arm_left.position = Vector3(-0.68, 1.95, 0.0)
+		arm_left.rotation = Vector3(deg_to_rad(12.0), deg_to_rad(8.0), deg_to_rad(10.0))
 	if forearm_left:
-		forearm_left.rotation = Vector3.ZERO
 		forearm_left.position = Vector3(0, -0.38, 0)
+		forearm_left.rotation = Vector3(deg_to_rad(36.0), deg_to_rad(-6.0), 0.0)
 
+	# Right Arm: Main weapon low-ready rest stance (rifle pointed downward toward floor at ~32 deg)
 	if arm_right:
-		arm_right.rotation = Vector3.ZERO
-		arm_right.position = Vector3(0.68, 2.05, 0)
+		arm_right.position = Vector3(0.68, 1.95, 0.0)
+		arm_right.rotation = Vector3(deg_to_rad(16.0), deg_to_rad(-8.0), -deg_to_rad(10.0))
 	if forearm_right:
-		forearm_right.rotation = Vector3.ZERO
 		forearm_right.position = Vector3(0, -0.38, 0)
+		forearm_right.rotation = Vector3(deg_to_rad(32.0), deg_to_rad(6.0), 0.0)
 
 
 # --- 3D CAMERA & MOUSE DRAG PROCESS ---

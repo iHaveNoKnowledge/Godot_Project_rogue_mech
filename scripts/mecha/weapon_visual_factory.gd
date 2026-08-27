@@ -100,7 +100,7 @@ static func mount_hand(mecha: Node3D, hand: String, weapon: WeaponPart, node_nam
 	if weapon == null:
 		return mount
 	mount.add_child(build(weapon))
-	var dur_ratio: float = GlobalData.get_durability_ratio(weapon) if GlobalData else 1.0
+	var dur_ratio: float = _resolve_weapon_durability(weapon)
 	apply_durability_wear_to_node(mount, dur_ratio)
 	return mount
 
@@ -131,11 +131,23 @@ static func mount_carry(mecha: Node3D, weapons: Array, node_name: String) -> Nod
 		wmount.position = Vector3(offset, BACK_Y, BACK_Z)
 		wmount.rotation_degrees = Vector3(BACK_ROT_DEG.x, 0.0, side_tilt)
 		wmount.add_child(build(weapon))
-		var dur_ratio: float = GlobalData.get_durability_ratio(weapon) if GlobalData else 1.0
+		var dur_ratio: float = _resolve_weapon_durability(weapon)
 		apply_durability_wear_to_node(wmount, dur_ratio)
 		back_mount.add_child(wmount)
 		offset += CARRY_SPREAD
 	return back_mount
+
+
+static func _resolve_weapon_durability(weapon: Variant) -> float:
+	if weapon == null:
+		return 1.0
+	if weapon is Dictionary:
+		return GlobalData.get_durability_ratio(weapon) if GlobalData else float(weapon.get("durability", 1.0))
+	if (weapon is WeaponPart or weapon is Resource) and GlobalData and GlobalData.weapons:
+		for item in GlobalData.weapons.weapon_inventory:
+			if item is Dictionary and (item.get("path") == weapon.resource_path or item.get("name") == weapon.get("weapon_name")):
+				return GlobalData.get_durability_ratio(item)
+	return 1.0
 
 
 ## Applies procedural field-repair and battle wear overlay to weapon mesh instances.

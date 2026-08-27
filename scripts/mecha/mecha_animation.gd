@@ -186,10 +186,14 @@ func _apply_pose(targets: Dictionary, speed: float) -> void:
 		forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, targets.get("forearm_right", 0.0), speed)
 	if leg_left:
 		leg_left.rotation.x = lerp_angle(leg_left.rotation.x, targets.get("thigh_left", 0.0), speed)
+		leg_left.rotation.y = lerp_angle(leg_left.rotation.y, targets.get("thigh_left_yaw", 0.0), speed)
+		leg_left.rotation.z = lerp_angle(leg_left.rotation.z, targets.get("thigh_left_roll", 0.0), speed)
 		if targets.has("leg_left_drop"):
 			leg_left.position.y = lerp(leg_left.position.y, _original_leg_left_pos.y + targets["leg_left_drop"], speed)
 	if leg_right:
 		leg_right.rotation.x = lerp_angle(leg_right.rotation.x, targets.get("thigh_right", 0.0), speed)
+		leg_right.rotation.y = lerp_angle(leg_right.rotation.y, targets.get("thigh_right_yaw", 0.0), speed)
+		leg_right.rotation.z = lerp_angle(leg_right.rotation.z, targets.get("thigh_right_roll", 0.0), speed)
 		if targets.has("leg_right_drop"):
 			leg_right.position.y = lerp(leg_right.position.y, _original_leg_right_pos.y + targets["leg_right_drop"], speed)
 	if shin_left:

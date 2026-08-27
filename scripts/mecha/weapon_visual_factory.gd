@@ -268,26 +268,32 @@ static func build(weapon: WeaponPart) -> Node3D:
 	# -----------------------------------------------------------------------
 	elif w_type == WeaponPart.WeaponType.SHIELD:
 		if name_lower.contains("buckler") or name_lower.contains("light"):
-			# Compact round buckler: disc facing forward (Y-Z plane)
-			# Main disc
-			_add_cyl(mount, 0.36, 0.36, 0.06, Vector3(0.0, 0.10, 0.0), _mat(Color(0.22, 0.30, 0.45), 0.75, 0.40), Vector3(0, 0, 90))
-			# Outer rim ring (slightly larger, silver edge)
-			_add_cyl(mount, 0.38, 0.38, 0.03, Vector3(0.02, 0.10, 0.0), mat_silver, Vector3(0, 0, 90))
-			# Inner raised face
-			_add_cyl(mount, 0.26, 0.26, 0.04, Vector3(0.04, 0.10, 0.0), _mat(Color(0.28, 0.38, 0.55), 0.80, 0.30), Vector3(0, 0, 90))
-			# Central boss dome
-			_add_sphere(mount, 0.11, 0.11, Vector3(0.07, 0.10, 0.0), mat_silver)
-			# Rivets around rim (8 rivets)
-			for i in range(8):
-				var ang := float(i) / 8.0 * TAU
-				var rx := 0.31 * cos(ang)
-				var rz := 0.31 * sin(ang)
-				_add_sphere(mount, 0.018, 0.018, Vector3(0.04, 0.10 + rx, rz), mat_silver)
-			# Rear handle bar
-			_add_box(mount, Vector3(0.06, 0.22, 0.04), Vector3(-0.06, 0.10, 0.0), mat_black_polymer)
-			# Shield type indicator lamp
-			var lamp_col := Color(0.9, 0.45, 0.15) if weapon.get_shield_type() == "heat" else Color(0.35, 0.7, 1.0) if weapon.get_shield_type() == "pierce" else Color(0.45, 0.85, 0.35)
-			_add_sphere(mount, 0.025, 0.025, Vector3(0.05, 0.32, 0.0), _mat(lamp_col, 0.30, 0.40, lamp_col, 3.0))
+			# High-Tech Military Tactical Deflector Buckler:
+			# Angular composite reactive strike plate mounted to forearm hardpoint
+			var mat_composite := _mat(Color(0.18, 0.22, 0.28), 0.82, 0.32) # Matte naval graphite
+			var mat_ceramic_era := _mat(Color(0.24, 0.28, 0.35), 0.70, 0.45) # Reactive ceramic blocks
+
+			# Main angular deflection plate
+			_add_box(mount, Vector3(0.07, 0.68, 0.44), Vector3(0.0, 0.10, 0.0), mat_composite)
+			# Top deflection bevel (deflects rounds upward at 32 deg)
+			_add_box(mount, Vector3(0.065, 0.22, 0.42), Vector3(0.02, 0.42, 0.0), mat_dark_steel, Vector3(0, 0, 32))
+			# Bottom breaching / strike bezel (angled down for melee parry/ram)
+			_add_box(mount, Vector3(0.065, 0.22, 0.42), Vector3(0.02, -0.22, 0.0), mat_dark_steel, Vector3(0, 0, -32))
+			# Twin Modular ERA (Explosive Reactive Armor) Ceramic Tiles on front face
+			_add_box(mount, Vector3(0.035, 0.24, 0.16), Vector3(0.05, 0.18, -0.10), mat_ceramic_era)
+			_add_box(mount, Vector3(0.035, 0.24, 0.16), Vector3(0.05, 0.18, 0.10), mat_ceramic_era)
+			_add_box(mount, Vector3(0.035, 0.20, 0.34), Vector3(0.05, -0.06, 0.0), mat_ceramic_era)
+			# Titanium reinforcement spine
+			_add_box(mount, Vector3(0.045, 0.62, 0.05), Vector3(0.055, 0.10, 0.0), mat_silver)
+			# Hydraulic hardpoint mounting bracket (connects to forearm)
+			_add_box(mount, Vector3(0.09, 0.14, 0.18), Vector3(-0.06, 0.10, 0.0), mat_dark_steel)
+			_add_cyl(mount, 0.022, 0.022, 0.14, Vector3(-0.06, 0.18, 0.06), mat_silver, Vector3(90, 0, 0))
+			_add_cyl(mount, 0.022, 0.022, 0.14, Vector3(-0.06, 0.02, 0.06), mat_silver, Vector3(90, 0, 0))
+			# Active Deflector / Shield Type Emitter Strip (Tactical Glowing LED bar)
+			var lamp_col := Color(1.0, 0.45, 0.15) if weapon.get_shield_type() == "heat" else Color(0.25, 0.8, 1.0) if weapon.get_shield_type() == "pierce" else Color(0.35, 0.95, 0.45)
+			_add_box(mount, Vector3(0.015, 0.46, 0.025), Vector3(0.065, 0.10, 0.0), _mat(lamp_col, 0.20, 0.20, lamp_col, 3.5))
+			# Status sensor indicator dot
+			_add_sphere(mount, 0.018, 0.018, Vector3(0.06, 0.38, -0.14), _mat(lamp_col, 0.20, 0.20, lamp_col, 4.0))
 			muzzle_local = Vector3(0.06, 0.10, 0.0)
 		elif name_lower.contains("heavy"):
 			# Tower shield — tall with viewport slit

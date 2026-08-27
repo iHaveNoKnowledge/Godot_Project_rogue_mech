@@ -4,16 +4,14 @@ extends RefCounted
 # Shared mount transforms (hangar preview and battle use the same placements).
 const HAND_LEFT_POS := Vector3(-0.85, 1.4, 0.4)
 const HAND_RIGHT_POS := Vector3(0.85, 1.4, 0.4)
-# Back-carry mount sits BEHIND the torso: the mech faces -Z, so the chest
-# plate ends at roughly Z -0.4 and the backpack's rear surface at Z +0.55.
-# The old -0.55 value put the "back" weapons inside the chest — they poked
-# straight through the body. +0.62 parks them just clear of the backpack so
-# they read as strapped on, not buried in the torso.
-const BACK_Y := 1.75
-const BACK_Z := 0.62
-const BACK_ROT_DEG := Vector3(-15, 0, 0)
+# Back-carry mount sits BEHIND the torso: weapons are sheathed vertically/upright
+# over the shoulder (-105° on X points the blade/barrel upward along the back)
+# so they never pierce through the chest or torso.
+const BACK_Y := 1.85
+const BACK_Z := 0.65
+const BACK_ROT_DEG := Vector3(-105, 0, 0)
 const CARRY_SPREAD := 0.44
-const CARRY_OFFSET_STEP := 0.22
+const CARRY_OFFSET_STEP := 0.2222
 
 
 # Hand position in the forearm node's local space (bottom of the forearm mesh).
@@ -127,8 +125,9 @@ static func mount_carry(mecha: Node3D, weapons: Array, node_name: String) -> Nod
 		if weapon == null:
 			continue
 		var wmount := Node3D.new()
+		var side_tilt := clampf(-offset * 20.0, -12.0, 12.0)
 		wmount.position = Vector3(offset, BACK_Y, BACK_Z)
-		wmount.rotation_degrees = BACK_ROT_DEG
+		wmount.rotation_degrees = Vector3(BACK_ROT_DEG.x, 0.0, side_tilt)
 		wmount.add_child(build(weapon))
 		back_mount.add_child(wmount)
 		offset += CARRY_SPREAD

@@ -541,7 +541,7 @@ func _create_combat_mode_widget() -> void:
 	grid.add_child(row)
 
 	_mode_label = Label.new()
-	_mode_label.text = "[F] MODE: RANGED"
+	_mode_label.text = "[2] MODE: RANGED"
 	_mode_label.add_theme_font_size_override("font_size", 10)
 	_mode_label.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0))
 	row.add_child(_mode_label)
@@ -565,12 +565,12 @@ func _on_combat_mode_toggled(mode: String) -> void:
 	if _mode_label == null:
 		return
 	if mode == "close_combat":
-		_mode_label.text = "[F] MODE: CLOSE COMBAT"
+		_mode_label.text = "[2] MODE: CLOSE COMBAT"
 		_mode_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.15))
 		if _guard_badge:
 			_guard_badge.visible = true
 	else:
-		_mode_label.text = "[F] MODE: RANGED"
+		_mode_label.text = "[2] MODE: RANGED"
 		_mode_label.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0))
 		if _guard_badge:
 			_guard_badge.visible = false

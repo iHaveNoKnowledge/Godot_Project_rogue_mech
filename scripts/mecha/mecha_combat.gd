@@ -120,7 +120,8 @@ func _physics_process(delta: float) -> void:
 	is_aiming = Input.is_action_pressed("aim")
 	current_aim_point = resolve_aim_point()
 	if is_aiming or is_close_combat():
-		mecha.strafe_mode = true
+		if "strafe_mode" in mecha:
+			mecha.strafe_mode = true
 		var aim_dir = _aim_from_camera()
 		var target_angle = atan2(-aim_dir.x, -aim_dir.z)
 		mecha.rotation.y = lerp_angle(mecha.rotation.y, target_angle, 12.0 * delta)

@@ -49,7 +49,7 @@ func _setup_navigation() -> void:
 	# Parse both visual meshes and static colliders (covers, dunes, buildings)
 	# so the baker cuts holes where cover actually sits.
 	_nav_mesh.geometry_parsed_geometry_type = NavigationMesh.PARSED_GEOMETRY_BOTH
-	_nav_mesh.geometry_parsed_collision_mask = 2  # Environment layer
+	_nav_mesh.geometry_collision_mask = 2  # Environment layer
 	_nav_mesh.filter_low_hanging_obstacles = true
 	_nav_mesh.filter_ledge_spans = true
 	_nav_mesh.filter_walkable_low_height_spans = true

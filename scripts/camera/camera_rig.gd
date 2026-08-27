@@ -19,11 +19,11 @@ var target: Node3D = null
 var shake_amount: float = 0.0
 var shake_decay: float = 4.5
 
-# Combat Mode Camera Stances
-var _target_spring_length: float = 4.5
-var _target_offset_x: float = 1.0
-var _target_offset_y: float = 0.5
-var _target_fov: float = 75.0
+# Combat Mode Camera Stances (High Over-The-Shoulder TPS Framing)
+var _target_spring_length: float = 6.8
+var _target_offset_x: float = 1.8
+var _target_offset_y: float = 3.2
+var _target_fov: float = 72.0
 
 
 func _ready() -> void:
@@ -41,16 +41,16 @@ func _ready() -> void:
 
 func _on_combat_mode_toggled(mode: String) -> void:
 	if mode == "close_combat":
-		_target_spring_length = 3.0
-		_target_offset_x = 0.5
-		_target_offset_y = 0.3
-		_target_fov = 82.0
+		_target_spring_length = 4.8
+		_target_offset_x = 1.4
+		_target_offset_y = 2.8
+		_target_fov = 78.0
 		add_shake(0.25)
 	else:
-		_target_spring_length = 4.5
-		_target_offset_x = 1.0
-		_target_offset_y = 0.5
-		_target_fov = 75.0
+		_target_spring_length = 6.8
+		_target_offset_x = 1.8
+		_target_offset_y = 3.2
+		_target_fov = 72.0
 
 
 func _on_pilot_spawned(pilot_node: Node3D) -> void:

@@ -152,12 +152,16 @@ func build_garage() -> void:
 		gantry_accent.omni_range = 9.0
 		gantry_accent.light_color = Color(1.0, 0.65, 0.25)
 
-	# 3D Mecha Model in Garage
+	# 3D Mecha Model in Garage (Static Showroom Display Mannequin)
 	mecha_3d_root = Node3D.new()
 	turntable_node.add_child(mecha_3d_root)
 
 	var scene_base = preload("res://scenes/mecha/mecha_base.tscn").instantiate()
 	scene_base.set_script(null)
+	for system_node_name in ["AnimationSystem", "FootIKSystem", "MechaCombat", "MechaEject", "Hitbox", "AimRay"]:
+		var sys = scene_base.get_node_or_null(system_node_name)
+		if sys:
+			sys.queue_free()
 	for child in scene_base.get_children():
 		child.set_process(false)
 		child.set_physics_process(false)
@@ -317,34 +321,42 @@ func apply_tactical_idle_pose(mecha_node: Node3D) -> void:
 	var shin_left = mecha_node.get_node_or_null("LegLeft/ShinLeft")
 	var shin_right = mecha_node.get_node_or_null("LegRight/ShinRight")
 
-	# Clean Upright Neutral Standing Stance (Zero Joint Rotations)
+	# Clean Upright Neutral Standing Stance (Zero Joint Rotations & Aligned Positions)
 	if body:
 		body.rotation = Vector3.ZERO
-		body.position.y = 1.75
+		body.position = Vector3(0, 1.80, 0)
 
 	if head:
 		head.rotation = Vector3.ZERO
-		head.position.y = 2.45
+		head.position = Vector3(0, 2.30, -0.04)
 
 	if leg_left:
 		leg_left.rotation = Vector3.ZERO
+		leg_left.position = Vector3(-0.38, 1.30, 0)
 	if leg_right:
 		leg_right.rotation = Vector3.ZERO
+		leg_right.position = Vector3(0.38, 1.30, 0)
 
 	if shin_left:
 		shin_left.rotation = Vector3.ZERO
+		shin_left.position = Vector3(0, -0.55, 0)
 	if shin_right:
 		shin_right.rotation = Vector3.ZERO
+		shin_right.position = Vector3(0, -0.55, 0)
 
 	if arm_left:
 		arm_left.rotation = Vector3.ZERO
+		arm_left.position = Vector3(-0.68, 2.05, 0)
 	if forearm_left:
 		forearm_left.rotation = Vector3.ZERO
+		forearm_left.position = Vector3(0, -0.38, 0)
 
 	if arm_right:
 		arm_right.rotation = Vector3.ZERO
+		arm_right.position = Vector3(0.68, 2.05, 0)
 	if forearm_right:
 		forearm_right.rotation = Vector3.ZERO
+		forearm_right.position = Vector3(0, -0.38, 0)
 
 
 # --- 3D CAMERA & MOUSE DRAG PROCESS ---

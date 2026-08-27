@@ -363,6 +363,11 @@ static func _get_cached_explosion_smoke_mat() -> StandardMaterial3D:
 	return m
 
 
+## Convenience helper for spawning sparks at a world position.
+static func spawn_sparks(position: Vector3, count: int = 16) -> void:
+	spawn_hit_spark(position, Vector3.UP, "pierce")
+
+
 ## Spawns dynamic, brilliant directional hit sparks, ricochet ember streaks, and a micro-flash light
 ## at the point of impact.
 static func spawn_hit_spark(position: Vector3, normal: Vector3 = Vector3.UP, damage_type: String = "kinetic") -> void:

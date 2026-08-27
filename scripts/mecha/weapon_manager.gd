@@ -1404,13 +1404,13 @@ func _check_melee_hit(mecha: Node3D, direction: Vector3, damage: float, weapon: 
 		if is_pile and is_loaded_blast:
 			_apply_pile_hitstop()
 			if EffectManager:
-				EffectManager.spawn_sparks(enemy.global_position + Vector3(0, 1.5, 0), 24)
+				EffectManager.spawn_hit_spark(enemy.global_position + Vector3(0, 1.5, 0), Vector3.UP, "heat")
 			EffectManager.spawn_damage_number(enemy.global_position + Vector3(0, 2.5, 0), damage, Color(1, 0.2, 0))
 			AudioManager.play_pile_bunker_hit(enemy.global_position)
 		elif is_pile:
 			# Empty mechanical hammer hit
 			if EffectManager:
-				EffectManager.spawn_sparks(enemy.global_position + Vector3(0, 1.5, 0), 8)
+				EffectManager.spawn_hit_spark(enemy.global_position + Vector3(0, 1.5, 0), Vector3.UP, "pierce")
 			EffectManager.spawn_damage_number(enemy.global_position + Vector3(0, 2.5, 0), damage, Color(0.9, 0.9, 0.9))
 			AudioManager.play_melee_hit(weapon, enemy.global_position)
 		else:

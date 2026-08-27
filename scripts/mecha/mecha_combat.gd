@@ -74,7 +74,7 @@ func trigger_deflect(bullet_pos: Vector3 = Vector3.ZERO) -> void:
 	if AudioManager:
 		AudioManager.play_sfx("bullet_ricochet", spark_pos, 0.8)
 	if EffectManager:
-		EffectManager.spawn_sparks(spark_pos, 16)
+		EffectManager.spawn_hit_spark(spark_pos, Vector3.UP, "pierce")
 
 	# Forward lunge surge on successful deflect
 	if mecha and is_instance_valid(mecha):

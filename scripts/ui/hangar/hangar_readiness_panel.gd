@@ -13,8 +13,17 @@ extends RefCounted
 var controller  # hangar_controller.gd
 # The warning modal is stored by reference: a fresh add_child would rename a
 # same-name replacement while the stale one is still queued for deletion, so a
-# name lookup would silently miss it on the next check and stack modals.
 var _modal: Node = null
+
+
+## Refreshes or clears any active readiness warning state.
+func refresh() -> void:
+	if _modal and is_instance_valid(_modal) and not _modal.is_queued_for_deletion():
+		var has_legs = GlobalData.weapons.equipped_parts.has("leg_left") or GlobalData.weapons.equipped_parts.has("leg_right")
+		var has_body = GlobalData.weapons.equipped_parts.has("body")
+		if has_legs and has_body and _wounded_driver_warning() == "":
+			_modal.queue_free()
+			_modal = null
 
 
 # Run on_confirm when the mech is assembled and the driver is combat-ready;

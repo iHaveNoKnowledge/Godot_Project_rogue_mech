@@ -293,7 +293,7 @@ func refresh_after_part_mutation(slot: String = "") -> void:
 				var dmg_vis = hs.damage_visuals
 				if dmg_vis and dmg_vis.has_method("_sync_all_from_persist"):
 					dmg_vis._sync_all_from_persist()
-	if readiness_panel:
+	if readiness_panel and readiness_panel.has_method("refresh"):
 		readiness_panel.refresh()
 
 

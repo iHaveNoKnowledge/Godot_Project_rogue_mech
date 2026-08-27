@@ -34,12 +34,12 @@ static func initialize_run_lore(role: PlayerRole = PlayerRole.FEDERATION_SOLDIER
 	current_origin = TechOrigin.values()[randi() % TechOrigin.values().size()]
 	
 	# Generate rival commander and ace pilots from Day 1
-	rival_commander_pilot = PilotGenerator.generate_pilot(3)
+	rival_commander_pilot = PilotGenerator.generate_pilot({"allow_legendary": true, "callsign_prob": 1.0})
 	rival_commander_pilot["callsign"] = "Commander " + rival_commander_pilot.get("callsign", "Vanguard")
 	
 	rival_ace_squad.clear()
 	for i in range(2):
-		rival_ace_squad.append(PilotGenerator.generate_pilot(2))
+		rival_ace_squad.append(PilotGenerator.generate_pilot({"callsign_prob": 0.85}))
 
 	return {
 		"role": get_role_name(),

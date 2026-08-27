@@ -179,14 +179,13 @@ func _setup_atmosphere() -> void:
 	env.ssil_sharpness = 0.90
 	env.ssil_normal_rejection = 1.0
 
-	# SDFGI — lowered energy and raised y_scale so the GI probe grid no longer
-	# projects a hard 40×40 square under the player (was y_scale 0.5 → stretched)
+	# SDFGI – Cascaded Signed Distance Field Global Illumination
 	env.sdfgi_enabled = true
 	env.sdfgi_energy = 0.68
 	env.sdfgi_cascades = 4
 	env.sdfgi_min_cell_size = 0.25
-	env.sdfgi_max_to_cell_size = 1.2
-	env.sdfgi_y_scale = 0.92
+	env.sdfgi_max_distance = 160.0
+	env.sdfgi_y_scale = Environment.SDFGI_Y_SCALE_100_PERCENT
 	env.sdfgi_use_occlusion = false
 
 	# SSR (Screen-Space Reflections) — sleek reflections on metal, pavement, and water

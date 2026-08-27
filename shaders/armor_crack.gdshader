@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode blend_mix, depth_draw_never, cull_back;
+render_mode blend_mix, depth_draw_never, cull_back, diffuse_burley, specular_schlick_ggx;
 
 // ---------------------------------------------------------------------------
 // PROCEDURAL DYNAMIC ARMOR DAMAGE & DURABILITY WEAR SHADER
@@ -7,6 +7,7 @@ render_mode blend_mix, depth_draw_never, cull_back;
 // Dual-Layer Visual Pipeline:
 // 1. Durability Wear (1.0 - Durability): Shows field-repaired weld seams,
 //    scrap metal patches, oxidation rust, and paint abrasions from past battles.
+//    Rust is now NON-SHINY, pitted, and multi-tone — not flat chocolate.
 // 2. Real-time Combat Damage: Radiates structural cracks, deep breaches,
 //    and impact scorch halos from incoming hits.
 // ---------------------------------------------------------------------------
@@ -20,8 +21,9 @@ uniform float scratch_scale : hint_range(5.0, 60.0) = 36.0;
 uniform vec4 crack_color : source_color = vec4(0.05, 0.05, 0.07, 1.0);
 uniform vec4 exposed_metal_color : source_color = vec4(0.42, 0.44, 0.48, 1.0);
 uniform vec4 scorch_color : source_color = vec4(0.16, 0.13, 0.11, 1.0);
-uniform vec4 rust_color : source_color = vec4(0.55, 0.22, 0.10, 1.0);
-uniform vec4 weld_color : source_color = vec4(0.12, 0.13, 0.15, 1.0);
+// Base rust tone (mid). Shader blends dark / light variants internally.
+uniform vec4 rust_color : source_color = vec4(0.60, 0.28, 0.10, 1.0);
+uniform vec4 weld_color : source_color = vec4(0.10, 0.11, 0.13, 1.0);
 
 // Impact origin in mesh-local space (set per-slot by ArmorDamageVisuals).
 uniform vec3 hit_pos = vec3(0.0);
@@ -111,32 +113,64 @@ void fragment() {
 	vec3 pos = model_pos + noise_offset;
 
 	// -----------------------------------------------------------------------
-	// SECTION A: DURABILITY WEAR & FIELD REPAIR ARTIFACTS (Global Weathering)
-	// Shows that the part has survived numerous battles and scrap repairs.
+	// SECTION A: DURABILITY WEAR — MATTE, PITTED, NON-SHINY RUST
 	// -----------------------------------------------------------------------
 	float wear_alpha = 0.0;
 	vec3 wear_col = exposed_metal_color.rgb;
 
 	if (wear > 0.005) {
-		// 1. Torch-welded seam lines (scrap metal patch joints)
+		// 1. Torch-welded seam lines (scrap patch joints) — slightly sooty, not glossy
 		float weld_dist = voronoi_cracks(pos * 5.5);
-		float weld_mask = (1.0 - smoothstep(0.015, 0.055, weld_dist)) * wear * 0.90;
+		float weld_mask = (1.0 - smoothstep(0.015, 0.055, weld_dist)) * wear * 0.92;
 
-		// 2. Surface oxidation / Rust patches
-		float rust_n1 = value_noise(pos * 12.0);
-		float rust_n2 = value_noise(pos * 24.0 + vec3(7.3, 14.1, 2.9));
-		float rust_noise = mix(rust_n1, rust_n2, 0.45);
-		float rust_mask = smoothstep(1.05 - wear * 0.70, 1.0, rust_noise * 1.5) * wear * 0.85;
+		// 2. Multi-tone oxidation / Rust — 3 octaves + vertical streaks
+		float rust_n1 = value_noise(pos * 9.0 + noise_offset * 0.4);
+		float rust_n2 = value_noise(pos * 22.0 + vec3(7.3, 14.1, 2.9));
+		float rust_n3 = value_noise(pos * 44.0 + vec3(-8.5, 3.2, 11.0));
+		// Fine pitting detail
+		float rust_pit_n = value_noise(pos * 68.0);
+		// Streak noise: vertical gravity runs where rust bleeds down
+		float streak_n = value_noise(vec3(pos.x * 6.0, pos.y * 18.0 + rust_n1 * 2.0, pos.z * 5.0));
+		float streak_mask = smoothstep(0.70, 0.88, streak_n) * wear * 0.35;
 
-		// 3. Paint chipping & exposed raw metal primer
-		float chip_noise = value_noise(pos * scratch_scale * 0.65);
-		float chip_mask = smoothstep(0.70 - wear * 0.45, 1.0, chip_noise) * wear * 0.75;
+		float rust_noise = rust_n1 * 0.55 + rust_n2 * 0.32 + rust_n3 * 0.13;
+		// Broader coverage — wear 0.3 already shows patchy rust, 0.7 is heavily rusted
+		float rust_coverage = smoothstep(1.0 - wear * 0.88, 1.0, rust_noise * 1.18);
+		float rust_mask = rust_coverage * wear * 0.96;
+		rust_mask = clamp(rust_mask + streak_mask * 0.45, 0.0, 1.0);
 
-		wear_alpha = clamp(weld_mask * 1.1 + rust_mask * 0.95 + chip_mask * 0.70, 0.0, 0.95);
+		// 3. Paint chipping & exposed raw metal primer — flaky edges
+		float chip_noise = value_noise(pos * scratch_scale * 0.58 + noise_offset * 0.3);
+		float chip_mask = smoothstep(0.72 - wear * 0.52, 0.98, chip_noise) * wear * 0.62;
 
-		// Blend wear colors: raw steel base + rust spots + charred weld seams
-		wear_col = mix(exposed_metal_color.rgb, rust_color.rgb, rust_mask / max(wear_alpha, 0.001));
+		wear_alpha = clamp(weld_mask * 1.0 + rust_mask * 1.02 + chip_mask * 0.58, 0.0, 0.98);
+
+		// --- Multi-tone rust palette (not flat chocolate) ---
+		vec3 rust_light = vec3(0.72, 0.36, 0.12); // bright orange, fresh oxidation
+		vec3 rust_mid = rust_color.rgb;          // user-tunable mid (default 0.60,0.28,0.10)
+		vec3 rust_dark = vec3(0.36, 0.16, 0.06);  // deep brown, old scale
+		vec3 rust_pit_col = vec3(0.20, 0.10, 0.05); // near-black pit / cavity
+		vec3 rust_highlight = vec3(0.82, 0.48, 0.16); // sun-bleached flaky edge
+
+		// Vary rust tone per fragment from noise
+		vec3 rust_base = mix(rust_dark, rust_mid, clamp(rust_n1 * 1.35, 0.0, 1.0));
+		rust_base = mix(rust_base, rust_light, smoothstep(0.62, 0.88, rust_n2) * 0.45);
+		// Darken pits where fine noise is high
+		rust_base = mix(rust_base, rust_pit_col, smoothstep(0.72, 0.93, rust_pit_n) * 0.22);
+		// Streaks are darker, wetter-looking runs
+		rust_base = mix(rust_base, rust_dark * 0.75, streak_mask * 0.55);
+		// Flaky highlight on exposed edges of rust patches
+		float edge_highlight = smoothstep(0.35, 0.55, rust_mask) * (1.0 - smoothstep(0.55, 0.85, rust_mask));
+		rust_base = mix(rust_base, rust_highlight, edge_highlight * 0.25 * smoothstep(0.2, 0.7, wear));
+
+		// Steel base gets slightly desaturated where wear is heavy
+		vec3 steel_col = exposed_metal_color.rgb * (0.90 + value_noise(pos * 38.0) * 0.10);
+		steel_col = mix(steel_col, vec3(0.38, 0.40, 0.44) * 0.92, wear * 0.15); // dusty steel
+
+		wear_col = mix(steel_col, rust_base, rust_mask / max(wear_alpha, 0.001));
 		wear_col = mix(wear_col, weld_color.rgb, weld_mask / max(wear_alpha, 0.001));
+		// Micro-AO: pits are slightly darker, adds depth without gloss
+		wear_col *= 1.0 - smoothstep(0.68, 0.92, rust_pit_n) * 0.14 * rust_mask;
 	}
 
 	// -----------------------------------------------------------------------
@@ -202,7 +236,57 @@ void fragment() {
 	vec3 final_col = mix(wear_col, dmg_col, dmg_alpha / max(total_alpha, 0.001));
 
 	ALBEDO = final_col;
-	METALLIC = mix(0.65, 0.15, clamp(wear_alpha * 0.8 + dmg_alpha, 0.0, 1.0));
-	ROUGHNESS = mix(0.40, 0.92, clamp(wear_alpha * 0.9 + dmg_alpha, 0.0, 1.0));
+
+	// ----- MATTE, NON-SHINY RUST: metallic ~0 for rust, roughness ~0.97 -----
+	// Rust is dielectric (not metal) and powdery — must be DULL, not chocolate-gloss.
+	if (wear_alpha > 0.001) {
+		float rust_n1 = value_noise(pos * 9.0 + noise_offset * 0.4);
+		float rust_n3 = value_noise(pos * 44.0);
+		float weld_dist = voronoi_cracks(pos * 5.5);
+		float weld_mask_c = (1.0 - smoothstep(0.015, 0.055, weld_dist)) * wear;
+		float rust_noise_tmp = rust_n1 * 0.55 + value_noise(pos * 22.0 + vec3(7.3,14.1,2.9)) * 0.32 + rust_n3 * 0.13;
+		float rust_cov = smoothstep(1.0 - wear * 0.88, 1.0, rust_noise_tmp * 1.18);
+		float rust_m = rust_cov * wear;
+		float rust_factor = clamp(rust_m / max(wear_alpha, 0.001), 0.0, 1.0);
+		float weld_factor = clamp(weld_mask_c / max(wear_alpha, 0.001), 0.0, 1.0);
+		// chip factor is remainder
+		float chip_factor = clamp(1.0 - rust_factor - weld_factor, 0.0, 1.0);
+
+		// Per-type PBR: rust = dielectric matte, weld = slightly metallic soot, chip = bare steel
+		float rust_metal = 0.015; // almost non-metal
+		float rust_rough = 0.96 + rust_n3 * 0.03; // 0.96-0.99, splotchy but always rough
+		float weld_metal = 0.28;
+		float weld_rough = 0.88;
+		float chip_metal = 0.60;
+		float chip_rough = 0.48;
+
+		float wear_metal = rust_metal * rust_factor + weld_metal * weld_factor + chip_metal * chip_factor;
+		float wear_rough = rust_rough * rust_factor + weld_rough * weld_factor + chip_rough * chip_factor;
+		// Blend wear PBR into base, but rust must stay matte even when mixed with cracks
+		float wear_blend = clamp(wear_alpha * 0.98, 0.0, 1.0);
+		METALLIC = mix(0.62, wear_metal, wear_blend);
+		ROUGHNESS = mix(0.35, wear_rough, wear_blend);
+		// Durability 0.2 (wear 0.8) = heavily pitted, always rough — push to 1.0
+		ROUGHNESS = mix(ROUGHNESS, 0.98, smoothstep(0.5, 0.85, wear) * rust_factor * 0.85);
+		// Rust pits add micro-roughness variance (not uniform)
+		ROUGHNESS = clamp(ROUGHNESS + (rust_n3 - 0.5) * 0.04 * rust_factor, 0.0, 1.0);
+		// Mix cracks (cracks are dark crevices, also rough)
+		METALLIC = mix(METALLIC, 0.06, clamp(dmg_alpha * 0.9, 0.0, 1.0));
+		ROUGHNESS = mix(ROUGHNESS, 0.94, clamp(dmg_alpha * 0.7, 0.0, 1.0));
+	} else {
+		METALLIC = mix(0.62, 0.06, clamp(dmg_alpha * 0.9, 0.0, 1.0));
+		ROUGHNESS = mix(0.35, 0.94, clamp(dmg_alpha * 0.7, 0.0, 1.0));
+	}
+
+	// Subtle normal pitting for rust scale — breaks the flat "chocolate spread" look
+	if (wear > 0.08) {
+		vec3 h = hash3(pos * 41.0);
+		vec3 pitting = (h - 0.5) * 0.18 * wear * clamp(wear_alpha, 0.0, 1.0);
+		// Only perturb where rust exists, not on clean paint
+		float rust_n1p = value_noise(pos * 9.0 + noise_offset * 0.4);
+		float rust_presence = smoothstep(0.35, 0.75, rust_n1p) * wear;
+		NORMAL = normalize(NORMAL + pitting * rust_presence);
+	}
+
 	ALPHA = total_alpha;
 }

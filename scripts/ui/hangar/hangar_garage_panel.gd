@@ -321,7 +321,7 @@ func apply_tactical_idle_pose(mecha_node: Node3D) -> void:
 	var shin_left = mecha_node.get_node_or_null("LegLeft/ShinLeft")
 	var shin_right = mecha_node.get_node_or_null("LegRight/ShinRight")
 
-	# Armored Core Classic Heavy Hangar Stance (Wide A-Stance, Lowered Center of Gravity, Ready Rest Arms)
+	# Armored Core Classic Heavy Hangar Stance (Wide A-Stance, Lowered Center of Gravity, Flared Ready Arms)
 	if body:
 		body.rotation = Vector3(-deg_to_rad(4.0), 0.0, 0.0) # Slight aggressive forward chest angle
 		body.position = Vector3(0, 1.70, 0) # Lowered COG
@@ -330,37 +330,37 @@ func apply_tactical_idle_pose(mecha_node: Node3D) -> void:
 		head.rotation = Vector3(-deg_to_rad(2.0), 0.0, 0.0)
 		head.position = Vector3(0, 2.22, -0.05) # Nestled low between shoulder armor
 
-	# Legs: Wide A-Stance (Toes out, thighs angled out, knees flexed)
+	# Legs: Wide A-Stance (Thighs flared outward, knees flexed, feet planted wide)
 	if leg_left:
 		leg_left.position = Vector3(-0.46, 1.25, 0.0)
-		leg_left.rotation = Vector3(deg_to_rad(6.0), deg_to_rad(-12.0), deg_to_rad(9.0))
+		leg_left.rotation = Vector3(deg_to_rad(8.0), deg_to_rad(14.0), -deg_to_rad(14.0)) # Flared OUT to left
 	if leg_right:
 		leg_right.position = Vector3(0.46, 1.25, 0.0)
-		leg_right.rotation = Vector3(deg_to_rad(6.0), deg_to_rad(12.0), deg_to_rad(-9.0))
+		leg_right.rotation = Vector3(deg_to_rad(8.0), -deg_to_rad(14.0), deg_to_rad(14.0)) # Flared OUT to right
 
-	# Shins / Knees: Shock absorption flexion
+	# Shins / Knees: Bent forward with outward plant
 	if shin_left:
 		shin_left.position = Vector3(0, -0.55, 0)
-		shin_left.rotation = Vector3(-deg_to_rad(14.0), 0.0, -deg_to_rad(3.0))
+		shin_left.rotation = Vector3(-deg_to_rad(18.0), 0.0, deg_to_rad(8.0))
 	if shin_right:
 		shin_right.position = Vector3(0, -0.55, 0)
-		shin_right.rotation = Vector3(-deg_to_rad(14.0), 0.0, deg_to_rad(3.0))
+		shin_right.rotation = Vector3(-deg_to_rad(18.0), 0.0, -deg_to_rad(8.0))
 
-	# Left Arm: Relaxed ready guard stance (elbow bent ~36 deg, forearm angled naturally)
+	# Left Arm: Flared outward at shoulder (-Z), forearm angled naturally inward/forward
 	if arm_left:
 		arm_left.position = Vector3(-0.68, 1.95, 0.0)
-		arm_left.rotation = Vector3(deg_to_rad(12.0), deg_to_rad(8.0), deg_to_rad(10.0))
+		arm_left.rotation = Vector3(deg_to_rad(12.0), deg_to_rad(6.0), -deg_to_rad(28.0)) # Flared OUT to left
 	if forearm_left:
 		forearm_left.position = Vector3(0, -0.38, 0)
-		forearm_left.rotation = Vector3(deg_to_rad(36.0), deg_to_rad(-6.0), 0.0)
+		forearm_left.rotation = Vector3(deg_to_rad(28.0), 0.0, deg_to_rad(14.0))
 
-	# Right Arm: Main weapon low-ready rest stance (rifle pointed downward toward floor at ~32 deg)
+	# Right Arm: Flared outward at shoulder (+Z), rifle held pointing downward at floor (~35 deg)
 	if arm_right:
 		arm_right.position = Vector3(0.68, 1.95, 0.0)
-		arm_right.rotation = Vector3(deg_to_rad(16.0), deg_to_rad(-8.0), -deg_to_rad(10.0))
+		arm_right.rotation = Vector3(deg_to_rad(14.0), -deg_to_rad(6.0), deg_to_rad(28.0)) # Flared OUT to right
 	if forearm_right:
 		forearm_right.position = Vector3(0, -0.38, 0)
-		forearm_right.rotation = Vector3(deg_to_rad(32.0), deg_to_rad(6.0), 0.0)
+		forearm_right.rotation = Vector3(deg_to_rad(30.0), 0.0, -deg_to_rad(14.0))
 
 
 # --- 3D CAMERA & MOUSE DRAG PROCESS ---

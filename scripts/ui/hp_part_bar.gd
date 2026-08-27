@@ -2,8 +2,9 @@ class_name HPPartBar
 extends Control
 
 ## Single skewed health bar (CSS skewX(-30deg) style). Dark track + configurable
-## fill gradient. Armor bars use silver/gray, frame bars use green — each part
-## shows two of these stacked (armor on top, frame below).
+## fill gradient + Damage Ghost / Red Lag Bar (showing recent chunk damage).
+## Armor bars use silver/gray, frame bars use green - each part shows two of
+## these stacked (armor on top, frame below).
 
 const TRACK_COLOR := Color("#333333")
 const DESTROY_COLOR := Color(0.12, 0.12, 0.12, 1)
@@ -20,6 +21,13 @@ const FRAME_FILL_B := Color(0.537, 1.0, 0.53)
 const SHIELD_FILL_A := Color(0.2, 0.7, 1.0)
 const SHIELD_FILL_B := Color(0.1, 0.5, 0.85)
 
+# Damage ghost / Red catch-up lag bar:
+const DAMAGE_FILL_A := Color(0.96, 0.22, 0.18)
+const DAMAGE_FILL_B := Color(0.72, 0.08, 0.08)
+
+const GHOST_HOLD_DURATION: float = 0.55
+const GHOST_DRAIN_RATE: float = 0.45
+
 @export var fill_color_a: Color = Color("#c4c3c0")
 @export var fill_color_b: Color = Color("#9a9a9a")
 
@@ -27,23 +35,44 @@ var ratio: float = 1.0
 var destroyed: bool = false
 
 var _display: float = 1.0
+var _damage_ghost: float = 1.0
+var _ghost_delay_timer: float = 0.0
 var _wants_redraw: bool = true
 
 
 func _ready() -> void:
 	_display = ratio
+	_damage_ghost = ratio
 
 
 func setup(current_hp: float, max_hp: float, is_destroyed: bool) -> void:
-	ratio = clampf(current_hp / maxf(max_hp, 1.0), 0.0, 1.0) if max_hp > 0.0 else 0.0
+	var new_ratio := clampf(current_hp / maxf(max_hp, 1.0), 0.0, 1.0) if max_hp > 0.0 else 0.0
+	if new_ratio < ratio - 0.001:
+		# Took damage: hold the ghost bar at the previous higher HP mark
+		_damage_ghost = maxf(_damage_ghost, _display)
+		_ghost_delay_timer = GHOST_HOLD_DURATION
+	elif new_ratio > ratio + 0.001:
+		# Healed or repaired: instantly snap ghost up
+		_damage_ghost = new_ratio
+	ratio = new_ratio
 	destroyed = is_destroyed
 	_wants_redraw = true
 
 
 func _process(delta: float) -> void:
-	var smooth := 1.0 - exp(-12.0 * delta)
+	var smooth := 1.0 - exp(-18.0 * delta)
 	_display = lerpf(_display, ratio, smooth)
-	if _wants_redraw or absf(_display - ratio) > 0.0005:
+
+	# Damage ghost catch-up logic
+	if _ghost_delay_timer > 0.0:
+		_ghost_delay_timer -= delta
+	else:
+		if _damage_ghost > _display:
+			_damage_ghost = move_toward(_damage_ghost, _display, delta * GHOST_DRAIN_RATE)
+		else:
+			_damage_ghost = _display
+
+	if _wants_redraw or absf(_display - ratio) > 0.0005 or absf(_damage_ghost - _display) > 0.0005:
 		queue_redraw()
 		_wants_redraw = false
 
@@ -56,12 +85,18 @@ func _draw() -> void:
 
 	var skew := tan(deg_to_rad(SKEW_DEGREES)) * h
 
+	# 1. Dark Background Track
 	_draw_skew(w, h, skew, TRACK_COLOR, TRACK_COLOR)
 
 	if destroyed:
 		_draw_skew(w * _display, h, skew, DESTROY_COLOR, DESTROY_COLOR)
 		return
 
+	# 2. Damage Ghost / Red Lag Bar (reveals recent chunk damage taken)
+	if _damage_ghost > _display + 0.002:
+		_draw_skew(w * _damage_ghost, h, skew, DAMAGE_FILL_A, DAMAGE_FILL_B)
+
+	# 3. Main HP Bar (drawn on top of the red ghost bar)
 	if _display > 0.001:
 		_draw_skew(w * _display, h, skew, fill_color_a, fill_color_b)
 

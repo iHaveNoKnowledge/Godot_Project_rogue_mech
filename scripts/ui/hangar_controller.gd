@@ -279,7 +279,7 @@ func refresh_after_part_mutation(slot: String = "") -> void:
 		stats_panel.update()
 	if header_panel:
 		header_panel.update_header()
-	if equip_panel:
+	if equip_panel and equip_panel.has_method("update_currently_equipped"):
 		equip_panel.update_currently_equipped()
 	if part_list_panel:
 		var target_slot := slot if slot != "" else selected_slot

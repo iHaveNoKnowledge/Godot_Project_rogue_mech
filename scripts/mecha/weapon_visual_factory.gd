@@ -135,6 +135,59 @@ static func mount_carry(mecha: Node3D, weapons: Array, node_name: String) -> Nod
 	return back_mount
 
 
+# ---------------------------------------------------------------------------
+# Material helpers (PBR detail)
+# ---------------------------------------------------------------------------
+static func _mat(albedo: Color, metallic: float, roughness: float, emission: Color = Color.TRANSPARENT, emission_energy: float = 0.0) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = albedo
+	m.metallic = metallic
+	m.roughness = roughness
+	if emission != Color.TRANSPARENT and emission_energy > 0.0:
+		m.emission_enabled = true
+		m.emission = emission
+		m.emission_energy_multiplier = emission_energy
+	return m
+
+
+static func _add_box(parent: Node3D, size: Vector3, pos: Vector3, mat: StandardMaterial3D, rot_deg: Vector3 = Vector3.ZERO) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	mi.mesh = mesh
+	mi.material_override = mat
+	mi.position = pos
+	mi.rotation_degrees = rot_deg
+	parent.add_child(mi)
+	return mi
+
+
+static func _add_cyl(parent: Node3D, top_r: float, bottom_r: float, height: float, pos: Vector3, mat: StandardMaterial3D, rot_deg: Vector3 = Vector3.ZERO) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = top_r
+	mesh.bottom_radius = bottom_r
+	mesh.height = height
+	mi.mesh = mesh
+	mi.material_override = mat
+	mi.position = pos
+	mi.rotation_degrees = rot_deg
+	parent.add_child(mi)
+	return mi
+
+
+static func _add_sphere(parent: Node3D, radius: float, height: float, pos: Vector3, mat: StandardMaterial3D) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var mesh := SphereMesh.new()
+	mesh.radius = radius
+	mesh.height = height
+	mi.mesh = mesh
+	mi.material_override = mat
+	mi.position = pos
+	parent.add_child(mi)
+	return mi
+
+
 ## Builds a shared weapon model (Node3D) for a WeaponPart resource.
 ## Used by BOTH the Hangar preview and the battle WeaponManager so the weapon
 ## shown in the garage is the exact same model that appears on the mech's hands.
@@ -158,158 +211,575 @@ static func build(weapon: WeaponPart) -> Node3D:
 			inst.add_child(fallback)
 		return mount
 
-	var mesh_instance := MeshInstance3D.new()
-	var mat := StandardMaterial3D.new()
-	mat.metallic = 0.8
-	mat.roughness = 0.2
-
 	var w_type = weapon.weapon_type
 	var name_lower = weapon.weapon_name.to_lower()
-	# Local-space barrel tip of this specific model (drives the Muzzle marker).
 	var muzzle_local := Vector3(0, 0, -1.27)
 
-	# --- 1. PILE BUNKER (Reverse Grip or Under-arm Piston Block) ---
-	if name_lower.contains("pile") or (w_type == WeaponPart.WeaponType.MELEE and name_lower.contains("bunker")):
-		# Handle connector rising up to hand
-		var handle := MeshInstance3D.new()
-		var cyl_h := CylinderMesh.new()
-		cyl_h.top_radius = 0.05
-		cyl_h.bottom_radius = 0.05
-		cyl_h.height = 0.22
-		handle.mesh = cyl_h
-		handle.position = Vector3(0.0, -0.09, 0.0)
-		mount.add_child(handle)
+	# Common material palette ------------------------------------------------
+	var mat_gunmetal := _mat(Color(0.19, 0.20, 0.23), 0.85, 0.35)
+	var mat_dark_steel := _mat(Color(0.15, 0.16, 0.18), 0.88, 0.30)
+	var mat_silver := _mat(Color(0.78, 0.80, 0.84), 0.92, 0.22)
+	var mat_black_polymer := _mat(Color(0.09, 0.09, 0.10), 0.10, 0.75)
+	var mat_brown_stock := _mat(Color(0.38, 0.26, 0.16), 0.05, 0.65)
+	var mat_energy_blue := _mat(Color(0.16, 0.42, 0.78), 0.80, 0.25, Color(0.20, 0.60, 1.0), 2.2)
+	var mat_energy_cyan := _mat(Color(0.22, 0.55, 0.70), 0.75, 0.28, Color(0.30, 0.85, 1.0), 1.8)
+	var mat_heat_orange := _mat(Color(0.85, 0.38, 0.12), 0.75, 0.30, Color(1.0, 0.45, 0.10), 2.0)
+	var mat_copper := _mat(Color(0.72, 0.38, 0.20), 0.88, 0.32)
+	var mat_brass := _mat(Color(0.78, 0.66, 0.30), 0.90, 0.25)
+	var mat_olive := _mat(Color(0.31, 0.32, 0.28), 0.65, 0.45)
+	var mat_hazard_yellow := _mat(Color(0.92, 0.78, 0.12), 0.20, 0.60)
+	var mat_rubber := _mat(Color(0.08, 0.08, 0.08), 0.02, 0.85)
 
-		# Main piston chamber block (hangs under forearm)
-		var box = BoxMesh.new()
-		box.size = Vector3(0.38, 0.36, 1.45)
-		mesh_instance.mesh = box
-		mesh_instance.position = Vector3(0.0, -0.18, -0.15)
-		mat.albedo_color = Color(0.22, 0.26, 0.24)
+	# -----------------------------------------------------------------------
+	# 1) PILE BUNKER — pneumatic spike driver
+	# -----------------------------------------------------------------------
+	if name_lower.contains("pile") or name_lower.contains("bunker"):
+		# Main piston chamber block
+		_add_box(mount, Vector3(0.34, 0.30, 1.10), Vector3(0.0, -0.14, -0.02), _mat(Color(0.22, 0.24, 0.26), 0.82, 0.35))
+		# Top rail housing
+		_add_box(mount, Vector3(0.30, 0.08, 1.05), Vector3(0.0, 0.04, -0.04), mat_dark_steel)
+		# Side guide rails (gunmetal rails running full length)
+		_add_box(mount, Vector3(0.04, 0.06, 1.18), Vector3(0.17, -0.08, -0.04), mat_silver)
+		_add_box(mount, Vector3(0.04, 0.06, 1.18), Vector3(-0.17, -0.08, -0.04), mat_silver)
+		# Rear hydraulic accumulator (fat cylinder)
+		_add_cyl(mount, 0.11, 0.11, 0.26, Vector3(0.0, -0.14, 0.42), _mat(Color(0.18, 0.18, 0.20), 0.85, 0.30), Vector3(90, 0, 0))
+		_add_cyl(mount, 0.09, 0.09, 0.04, Vector3(0.0, -0.14, 0.56), mat_silver, Vector3(90, 0, 0))
+		# Side pneumatic cylinders
+		_add_cyl(mount, 0.045, 0.045, 0.55, Vector3(0.12, -0.14, 0.18), _mat(Color(0.55, 0.55, 0.58), 0.80, 0.30), Vector3(90, 0, 0))
+		_add_cyl(mount, 0.045, 0.045, 0.55, Vector3(-0.12, -0.14, 0.18), _mat(Color(0.55, 0.55, 0.58), 0.80, 0.30), Vector3(90, 0, 0))
+		# Handle connector rising to hand
+		_add_cyl(mount, 0.05, 0.05, 0.20, Vector3(0.0, -0.04, 0.22), mat_black_polymer, Vector3(0, 0, 0))
+		_add_box(mount, Vector3(0.10, 0.06, 0.12), Vector3(0.0, 0.04, 0.24), mat_black_polymer)
+		# Warning hazard stripes on sides (yellow/black)
+		_add_box(mount, Vector3(0.352, 0.04, 0.12), Vector3(0.0, 0.02, -0.22), mat_hazard_yellow)
+		_add_box(mount, Vector3(0.352, 0.04, 0.12), Vector3(0.0, 0.02, -0.42), mat_hazard_yellow)
+		# Exhaust vents (three slits on top)
+		for i in range(3):
+			_add_box(mount, Vector3(0.10, 0.015, 0.04), Vector3(0.0, 0.09, -0.08 - float(i) * 0.18), _mat(Color(0.02, 0.02, 0.02), 0.10, 0.90))
+		# Forward kinetic spike (tapered piston)
+		var spike_mat := _mat(Color(0.86, 0.90, 0.95), 0.95, 0.18)
+		_add_cyl(mount, 0.03, 0.11, 1.25, Vector3(0.0, -0.14, -0.92), spike_mat, Vector3(90, 0, 0))
+		_add_cyl(mount, 0.015, 0.03, 0.18, Vector3(0.0, -0.14, -1.64), spike_mat, Vector3(90, 0, 0))
+		# Muzzle collar
+		_add_cyl(mount, 0.13, 0.13, 0.08, Vector3(0.0, -0.14, -0.60), mat_silver, Vector3(90, 0, 0))
+		muzzle_local = Vector3(0, -0.14, -1.74)
 
-		# Forward thrusting kinetic spike
-		var spike = MeshInstance3D.new()
-		var cyl = CylinderMesh.new()
-		cyl.top_radius = 0.04
-		cyl.bottom_radius = 0.12
-		cyl.height = 1.3
-		spike.mesh = cyl
-		spike.rotation_degrees.x = 90
-		spike.position = Vector3(0, -0.18, -1.05)
-		var spike_mat = StandardMaterial3D.new()
-		spike_mat.metallic = 0.95
-		spike_mat.albedo_color = Color(0.85, 0.9, 0.95)
-		spike.material_override = spike_mat
-		mount.add_child(spike)
-		# Tip of the forward kinetic spike.
-		muzzle_local = Vector3(0, -0.18, -1.72)
-
-	# --- 2. MELEE BLADES & MACES (Upright Combat Guard Stance) ---
-	elif name_lower.contains("mace"):
-		# Heavy Flanged / Spiked Mace
-		var box = BoxMesh.new()
-		box.size = Vector3(0.42, 0.42, 0.65)
-		mesh_instance.mesh = box
-		mesh_instance.position = Vector3(0.0, 0.0, -0.75)
-		mat.albedo_color = Color(0.28, 0.28, 0.32)
-		mat.metallic = 0.9
-
-		var shaft := MeshInstance3D.new()
-		var cyl := CylinderMesh.new()
-		cyl.top_radius = 0.06
-		cyl.bottom_radius = 0.06
-		cyl.height = 1.3
-		shaft.mesh = cyl
-		shaft.rotation_degrees.x = 90
-		shaft.position = Vector3(0.0, 0.0, -0.35)
-		var shaft_mat := StandardMaterial3D.new()
-		shaft_mat.metallic = 0.7
-		shaft_mat.albedo_color = Color(0.18, 0.18, 0.2)
-		shaft.material_override = shaft_mat
-		mount.add_child(shaft)
-		# Front face of the mace head.
-		muzzle_local = Vector3(0, 0, -1.09)
-
-	elif w_type == WeaponPart.WeaponType.MELEE or name_lower.contains("blade") or name_lower.contains("sword") or name_lower.contains("katana") or name_lower.contains("knife"):
-		# Heat Blade / Katana with crossguard and glowing thermal edge
-		var box = BoxMesh.new()
-		box.size = Vector3(0.08, 0.22, 1.45)
-		mesh_instance.mesh = box
-		mesh_instance.position = Vector3(0.0, 0.0, -0.68)
-		mat.albedo_color = Color(0.85, 0.35, 0.1)
-		mat.emission_enabled = true
-		mat.emission = Color(1.0, 0.45, 0.1)
-		mat.emission_energy_multiplier = 2.0
-
-		var guard := MeshInstance3D.new()
-		var gbox := BoxMesh.new()
-		gbox.size = Vector3(0.22, 0.35, 0.08)
-		guard.mesh = gbox
-		guard.position = Vector3(0.0, 0.0, -0.05)
-		var gmat := StandardMaterial3D.new()
-		gmat.metallic = 0.95
-		gmat.albedo_color = Color(0.2, 0.2, 0.22)
-		guard.material_override = gmat
-		mount.add_child(guard)
-		# Point of the blade.
-		muzzle_local = Vector3(0, 0, -1.42)
-
-	# --- 3. RANGED GUNS & RIFLES (Tucked Stock, Forward Barrel) ---
-	elif w_type == WeaponPart.WeaponType.BEAM_RIFLE:
-		var box = BoxMesh.new()
-		box.size = Vector3(0.25, 0.35, 1.8)
-		mesh_instance.mesh = box
-		mesh_instance.position = Vector3(0.0, 0.08, -0.65)
-		mat.albedo_color = Color(0.15, 0.4, 0.7)
-		mat.emission_enabled = true
-		mat.emission = Color(0.2, 0.6, 1.0)
-		# Longest barrel of the rifle family.
-		muzzle_local = Vector3(0, 0.08, -1.56)
-
-	elif w_type == WeaponPart.WeaponType.MACHINE_GUN:
-		var box = BoxMesh.new()
-		box.size = Vector3(0.28, 0.3, 1.3)
-		mesh_instance.mesh = box
-		mesh_instance.position = Vector3(0.0, 0.08, -0.45)
-		mat.albedo_color = Color(0.3, 0.3, 0.32)
-		muzzle_local = Vector3(0, 0.08, -1.12)
-
-	elif w_type == WeaponPart.WeaponType.SHOTGUN:
-		var box = BoxMesh.new()
-		box.size = Vector3(0.32, 0.32, 1.2)
-		mesh_instance.mesh = box
-		mesh_instance.position = Vector3(0.0, 0.08, -0.4)
-		mat.albedo_color = Color(0.45, 0.3, 0.15)
-		muzzle_local = Vector3(0, 0.08, -1.02)
-
-	elif w_type == WeaponPart.WeaponType.MISSILE:
-		var box = BoxMesh.new()
-		box.size = Vector3(0.48, 0.48, 0.95)
-		mesh_instance.mesh = box
-		mesh_instance.position = Vector3(0.0, 0.12, -0.3)
-		mat.albedo_color = Color(0.6, 0.2, 0.1)
-		# Front face of the launcher pod.
-		muzzle_local = Vector3(0, 0.12, -0.79)
-
-	# --- 4. SHIELD (Outer Forearm Guard) ---
+	# -----------------------------------------------------------------------
+	# 2) SHIELD — physical plates
+	# -----------------------------------------------------------------------
 	elif w_type == WeaponPart.WeaponType.SHIELD:
-		var box = BoxMesh.new()
-		box.size = Vector3(0.16, 1.25, 0.65)
-		mesh_instance.mesh = box
-		mesh_instance.position = Vector3(0.0, 0.15, 0.0)
-		mat.albedo_color = Color(0.2, 0.35, 0.5)
-		muzzle_local = Vector3(0, 0.15, -0.34)
+		if name_lower.contains("buckler") or name_lower.contains("light"):
+			# Compact round buckler: disc facing forward (Y-Z plane)
+			# Main disc
+			_add_cyl(mount, 0.36, 0.36, 0.06, Vector3(0.0, 0.10, 0.0), _mat(Color(0.22, 0.30, 0.45), 0.75, 0.40), Vector3(0, 0, 90))
+			# Outer rim ring (slightly larger, silver edge)
+			_add_cyl(mount, 0.38, 0.38, 0.03, Vector3(0.02, 0.10, 0.0), mat_silver, Vector3(0, 0, 90))
+			# Inner raised face
+			_add_cyl(mount, 0.26, 0.26, 0.04, Vector3(0.04, 0.10, 0.0), _mat(Color(0.28, 0.38, 0.55), 0.80, 0.30), Vector3(0, 0, 90))
+			# Central boss dome
+			_add_sphere(mount, 0.11, 0.11, Vector3(0.07, 0.10, 0.0), mat_silver)
+			# Rivets around rim (8 rivets)
+			for i in range(8):
+				var ang := float(i) / 8.0 * TAU
+				var rx := 0.31 * cos(ang)
+				var rz := 0.31 * sin(ang)
+				_add_sphere(mount, 0.018, 0.018, Vector3(0.04, 0.10 + rx, rz), mat_silver)
+			# Rear handle bar
+			_add_box(mount, Vector3(0.06, 0.22, 0.04), Vector3(-0.06, 0.10, 0.0), mat_black_polymer)
+			# Shield type indicator lamp
+			var lamp_col := Color(0.9, 0.45, 0.15) if weapon.get_shield_type() == "heat" else Color(0.35, 0.7, 1.0) if weapon.get_shield_type() == "pierce" else Color(0.45, 0.85, 0.35)
+			_add_sphere(mount, 0.025, 0.025, Vector3(0.05, 0.32, 0.0), _mat(lamp_col, 0.30, 0.40, lamp_col, 3.0))
+			muzzle_local = Vector3(0.06, 0.10, 0.0)
+		elif name_lower.contains("heavy"):
+			# Tower shield — tall with viewport slit
+			_add_box(mount, Vector3(0.08, 1.45, 0.82), Vector3(0.0, 0.10, 0.0), _mat(Color(0.20, 0.32, 0.48), 0.78, 0.38))
+			# Reinforced frame rim (thickness)
+			_add_box(mount, Vector3(0.10, 1.47, 0.04), Vector3(0.0, 0.10, 0.40), mat_dark_steel)
+			_add_box(mount, Vector3(0.10, 1.47, 0.04), Vector3(0.0, 0.10, -0.40), mat_dark_steel)
+			_add_box(mount, Vector3(0.10, 0.04, 0.84), Vector3(0.0, 0.82, 0.0), mat_dark_steel)
+			_add_box(mount, Vector3(0.10, 0.04, 0.84), Vector3(0.0, -0.62, 0.0), mat_dark_steel)
+			# Vertical spine ridge
+			_add_box(mount, Vector3(0.04, 1.30, 0.06), Vector3(0.05, 0.10, 0.0), mat_silver)
+			# Viewport slit (dark horizontal)
+			_add_box(mount, Vector3(0.09, 0.08, 0.28), Vector3(0.05, 0.42, 0.0), _mat(Color(0.02, 0.04, 0.06), 0.10, 0.90, Color(0.10, 0.35, 0.55), 1.2))
+			# Rivet lines down spine
+			for i in range(5):
+				_add_sphere(mount, 0.02, 0.02, Vector3(0.06, 0.58 - float(i) * 0.32, 0.0), mat_silver)
+			# Rear handles (top grip + forearm strap)
+			_add_box(mount, Vector3(0.05, 0.26, 0.05), Vector3(-0.07, 0.30, 0.0), mat_black_polymer)
+			_add_box(mount, Vector3(0.04, 0.40, 0.06), Vector3(-0.07, -0.10, 0.0), mat_brown_stock)
+			muzzle_local = Vector3(0.06, 0.10, 0.0)
+		else:
+			# Standard medium shield
+			_add_box(mount, Vector3(0.08, 1.25, 0.68), Vector3(0.0, 0.14, 0.0), _mat(Color(0.21, 0.34, 0.50), 0.78, 0.36))
+			_add_box(mount, Vector3(0.10, 1.27, 0.03), Vector3(0.0, 0.14, 0.34), mat_dark_steel)
+			_add_box(mount, Vector3(0.10, 1.27, 0.03), Vector3(0.0, 0.14, -0.34), mat_dark_steel)
+			_add_box(mount, Vector3(0.10, 0.03, 0.70), Vector3(0.0, 0.77, 0.0), mat_dark_steel)
+			_add_box(mount, Vector3(0.10, 0.03, 0.70), Vector3(0.0, -0.49, 0.0), mat_dark_steel)
+			# Chevron emblem
+			_add_box(mount, Vector3(0.015, 0.18, 0.22), Vector3(0.05, 0.22, 0.0), _mat(Color(0.85, 0.85, 0.88), 0.90, 0.20), Vector3(0, 0, 28))
+			_add_box(mount, Vector3(0.015, 0.18, 0.22), Vector3(0.05, 0.22, 0.0), _mat(Color(0.85, 0.85, 0.88), 0.90, 0.20), Vector3(0, 0, -28))
+			# Central boss
+			_add_sphere(mount, 0.09, 0.09, Vector3(0.06, 0.16, 0.0), mat_silver)
+			_add_sphere(mount, 0.02, 0.02, Vector3(0.09, 0.16, 0.0), _mat(Color(0.9, 0.2, 0.15), 0.40, 0.30, Color(1.0, 0.25, 0.15), 2.5))
+			# Grip
+			_add_box(mount, Vector3(0.05, 0.24, 0.04), Vector3(-0.06, 0.18, 0.0), mat_black_polymer)
+			muzzle_local = Vector3(0.06, 0.14, 0.0)
+
+	# -----------------------------------------------------------------------
+	# 3) MELEE — blades, knives, maces
+	# -----------------------------------------------------------------------
+	elif w_type == WeaponPart.WeaponType.MELEE or name_lower.contains("blade") or name_lower.contains("knife") or name_lower.contains("mace") or name_lower.contains("sword") or name_lower.contains("katana") or name_lower.contains("saber"):
+		if name_lower.contains("mace"):
+			# Heavy spiked mace head
+			_add_box(mount, Vector3(0.34, 0.34, 0.38), Vector3(0.0, 0.0, -0.72), _mat(Color(0.28, 0.28, 0.32), 0.88, 0.28))
+			# Head spikes (6 radial)
+			for i in range(6):
+				var ang := float(i) / 6.0 * TAU
+				var sx := 0.16 * cos(ang)
+				var sy := 0.16 * sin(ang)
+				_add_cyl(mount, 0.015, 0.045, 0.16, Vector3(sx, sy, -0.72), mat_silver, Vector3(0, 0, 0) if i % 2 == 0 else Vector3(90, 0, 0))
+				# Spike tip cone as tiny cylinder
+				_add_cyl(mount, 0.005, 0.018, 0.06, Vector3(sx * 1.25, sy * 1.25, -0.72), mat_silver, Vector3(0, 0, 0))
+			# Shaft
+			_add_cyl(mount, 0.055, 0.055, 1.15, Vector3(0.0, 0.0, -0.18), _mat(Color(0.17, 0.17, 0.19), 0.70, 0.40), Vector3(90, 0, 0))
+			# Wrapped grip section
+			for i in range(4):
+				_add_cyl(mount, 0.062, 0.062, 0.025, Vector3(0.0, 0.0, 0.22 + float(i) * 0.04), mat_brown_stock, Vector3(90, 0, 0))
+			# Pommel ring
+			_add_cyl(mount, 0.07, 0.07, 0.03, Vector3(0.0, 0.0, 0.42), mat_silver, Vector3(90, 0, 0))
+			# Cross guard plate below head
+			_add_box(mount, Vector3(0.12, 0.12, 0.04), Vector3(0.0, 0.0, -0.50), mat_dark_steel)
+			muzzle_local = Vector3(0, 0, -0.98)
+		elif name_lower.contains("knife"):
+			# Combat knife — compact tactical blade
+			_add_box(mount, Vector3(0.06, 0.025, 0.38), Vector3(0.0, 0.0, -0.22), mat_silver)
+			# Fuller groove
+			_add_box(mount, Vector3(0.015, 0.008, 0.26), Vector3(0.0, 0.015, -0.22), _mat(Color(0.45, 0.48, 0.52), 0.88, 0.25))
+			# Blade edge bevel
+			_add_box(mount, Vector3(0.02, 0.018, 0.38), Vector3(0.0, -0.02, -0.22), _mat(Color(0.88, 0.88, 0.90), 0.92, 0.15))
+			# Crossguard
+			_add_box(mount, Vector3(0.14, 0.04, 0.03), Vector3(0.0, 0.0, -0.02), mat_dark_steel)
+			# Grip with finger grooves (polymer)
+			_add_cyl(mount, 0.045, 0.045, 0.22, Vector3(0.0, 0.0, 0.14), mat_black_polymer, Vector3(90, 0, 0))
+			_add_cyl(mount, 0.048, 0.048, 0.02, Vector3(0.0, 0.0, 0.08), mat_dark_steel, Vector3(90, 0, 0))
+			_add_cyl(mount, 0.048, 0.048, 0.02, Vector3(0.0, 0.0, 0.14), mat_dark_steel, Vector3(90, 0, 0))
+			_add_cyl(mount, 0.048, 0.048, 0.02, Vector3(0.0, 0.0, 0.20), mat_dark_steel, Vector3(90, 0, 0))
+			# Pommel
+			_add_cyl(mount, 0.04, 0.04, 0.02, Vector3(0.0, 0.0, 0.26), mat_silver, Vector3(90, 0, 0))
+			# Sheath clip detail
+			_add_box(mount, Vector3(0.04, 0.03, 0.08), Vector3(0.04, 0.0, 0.06), mat_dark_steel)
+			muzzle_local = Vector3(0, 0, -0.42)
+		else:
+			# Heat Blade / Katana — long thermo blade with crossguard and glowing edge
+			# Scabbard mount plate
+			# Blade spine (thick back)
+			_add_box(mount, Vector3(0.045, 0.10, 1.35), Vector3(0.0, 0.03, -0.64), _mat(Color(0.78, 0.80, 0.84), 0.92, 0.22))
+			# Glowing thermal edge (thin strip along the bottom edge, emissive)
+			_add_box(mount, Vector3(0.020, 0.16, 1.32), Vector3(0.0, -0.03, -0.64), mat_heat_orange)
+			# Fuller / blood groove down the center
+			_add_box(mount, Vector3(0.010, 0.04, 0.90), Vector3(0.0, 0.03, -0.62), _mat(Color(0.30, 0.32, 0.35), 0.80, 0.30))
+			# Blade tip chamfer (small wedge at tip)
+			_add_box(mount, Vector3(0.03, 0.08, 0.12), Vector3(0.0, 0.015, -1.38), _mat(Color(0.82, 0.84, 0.88), 0.90, 0.20), Vector3(0, 15, 0))
+			# Tsuba crossguard — ornate
+			_add_box(mount, Vector3(0.26, 0.10, 0.08), Vector3(0.0, 0.02, -0.04), mat_dark_steel)
+			_add_box(mount, Vector3(0.18, 0.04, 0.06), Vector3(0.0, 0.02, -0.04), mat_brass)
+			# Guard side vents (tiny slits)
+			_add_box(mount, Vector3(0.08, 0.015, 0.015), Vector3(0.07, 0.02, -0.04), _mat(Color(0.02, 0.02, 0.02), 0.10, 0.90))
+			_add_box(mount, Vector3(0.08, 0.015, 0.015), Vector3(-0.07, 0.02, -0.04), _mat(Color(0.02, 0.02, 0.02), 0.10, 0.90))
+			# Handle wrap (tsuka) — diamond pattern via alternating boxes
+			var handle_len := 0.32
+			_add_cyl(mount, 0.055, 0.055, handle_len, Vector3(0.0, 0.02, 0.18), mat_black_polymer, Vector3(90, 0, 0))
+			for i in range(5):
+				var z := 0.06 + float(i) * 0.05
+				_add_box(mount, Vector3(0.07, 0.015, 0.025), Vector3(0.0, 0.055, z), mat_brown_stock)
+			# Pommel cap (kashira)
+			_add_cyl(mount, 0.06, 0.06, 0.025, Vector3(0.0, 0.02, 0.36), mat_brass, Vector3(90, 0, 0))
+			# Emitter collar at blade base (heat vent)
+			_add_box(mount, Vector3(0.10, 0.06, 0.05), Vector3(0.0, 0.03, -0.09), _mat(Color(0.22, 0.24, 0.26), 0.85, 0.30, Color(1.0, 0.40, 0.10), 1.5))
+			muzzle_local = Vector3(0, 0.015, -1.44)
+
+	# -----------------------------------------------------------------------
+	# 4) RAILGUN — hypervelocity accelerator
+	# -----------------------------------------------------------------------
+	elif w_type == WeaponPart.WeaponType.RAILGUN:
+		# Receiver bulk
+		_add_box(mount, Vector3(0.32, 0.30, 0.70), Vector3(0.0, 0.10, -0.16), mat_dark_steel)
+		# Top rail housing spine
+		_add_box(mount, Vector3(0.08, 0.06, 0.68), Vector3(0.0, 0.27, -0.16), mat_silver)
+		# Accelerator rails (twin rails extending forward)
+		_add_box(mount, Vector3(0.045, 0.10, 1.45), Vector3(0.11, 0.10, -1.02), mat_silver)
+		_add_box(mount, Vector3(0.045, 0.10, 1.45), Vector3(-0.11, 0.10, -1.02), mat_silver)
+		# Rail inner glow channel (energy line between rails)
+		_add_box(mount, Vector3(0.04, 0.04, 1.42), Vector3(0.0, 0.10, -1.02), _mat(Color(0.12, 0.35, 0.85), 0.50, 0.30, Color(0.30, 0.70, 1.0), 3.0))
+		# Insulator rings (ceramic spacers every ~0.32m, 4 rings)
+		for i in range(4):
+			var z := -0.42 - float(i) * 0.32
+			_add_box(mount, Vector3(0.30, 0.26, 0.06), Vector3(0.0, 0.10, z), _mat(Color(0.88, 0.88, 0.86), 0.15, 0.55))
+			_add_cyl(mount, 0.155, 0.155, 0.04, Vector3(0.0, 0.10, z), mat_copper, Vector3(90, 0, 0))
+		# Copper charging coils around rear receiver
+		_add_cyl(mount, 0.17, 0.17, 0.08, Vector3(0.0, 0.10, -0.05), mat_copper, Vector3(90, 0, 0))
+		_add_cyl(mount, 0.17, 0.17, 0.08, Vector3(0.0, 0.10, 0.12), mat_copper, Vector3(90, 0, 0))
+		# Power capacitor bank under receiver (with blue vents)
+		_add_box(mount, Vector3(0.30, 0.14, 0.36), Vector3(0.0, -0.08, -0.12), _mat(Color(0.14, 0.16, 0.20), 0.80, 0.35))
+		for i in range(3):
+			_add_box(mount, Vector3(0.06, 0.015, 0.20), Vector3(-0.08 + float(i) * 0.08, -0.03, -0.12), _mat(Color(0.20, 0.60, 1.0), 0.30, 0.30, Color(0.20, 0.60, 1.0), 2.0))
+		# Stock — heavy recoil stock with pad
+		_add_box(mount, Vector3(0.22, 0.14, 0.38), Vector3(0.0, 0.04, 0.40), mat_dark_steel)
+		_add_box(mount, Vector3(0.20, 0.16, 0.04), Vector3(0.0, 0.04, 0.60), mat_rubber)
+		# Grip
+		_add_box(mount, Vector3(0.08, 0.18, 0.09), Vector3(0.0, -0.06, 0.18), mat_black_polymer, Vector3(-12, 0, 0))
+		# Forward grip / bipod mount under rails
+		_add_box(mount, Vector3(0.06, 0.08, 0.14), Vector3(0.0, -0.04, -0.38), mat_black_polymer)
+		# Muzzle brake — four-port compensator
+		_add_box(mount, Vector3(0.20, 0.20, 0.16), Vector3(0.0, 0.10, -1.78), mat_dark_steel)
+		_add_box(mount, Vector3(0.24, 0.04, 0.10), Vector3(0.0, 0.10, -1.78), _mat(Color(0.02, 0.02, 0.02), 0.10, 0.90))
+		muzzle_local = Vector3(0, 0.10, -1.88)
+
+	# -----------------------------------------------------------------------
+	# 5) MINIGUN / GATLING — rotary cannons
+	# -----------------------------------------------------------------------
+	elif w_type == WeaponPart.WeaponType.MINIGUN or name_lower.contains("minigun") or name_lower.contains("gatling"):
+		var is_minigun := name_lower.contains("minigun")
+		# Motor housing block behind barrels
+		_add_box(mount, Vector3(0.30, 0.28, 0.42), Vector3(0.0, 0.08, -0.08), mat_gunmetal)
+		# Motor detail — side motor cylinder
+		_add_cyl(mount, 0.10, 0.10, 0.12, Vector3(0.16, 0.08, -0.08), _mat(Color(0.25, 0.25, 0.28), 0.85, 0.30), Vector3(0, 0, 90))
+		# Top feed cover
+		_add_box(mount, Vector3(0.18, 0.06, 0.30), Vector3(0.0, 0.23, -0.10), mat_dark_steel)
+		# 6 rotating barrels in a circle (radius 0.09)
+		var barrel_len := 0.98 if is_minigun else 0.82
+		var barrel_r := 0.028 if is_minigun else 0.032
+		var barrel_z := -0.68 if is_minigun else -0.58
+		for i in range(6):
+			var ang := float(i) / 6.0 * TAU
+			var bx := 0.09 * cos(ang)
+			var by := 0.09 * sin(ang)
+			_add_cyl(mount, barrel_r, barrel_r, barrel_len, Vector3(bx, 0.08 + by, barrel_z), mat_silver, Vector3(90, 0, 0))
+		# Central hub / axle
+		_add_cyl(mount, 0.07, 0.07, 0.08, Vector3(0.0, 0.08, -0.28), mat_dark_steel, Vector3(90, 0, 0))
+		_add_cyl(mount, 0.09, 0.09, 0.04, Vector3(0.0, 0.08, -0.40), _mat(Color(0.18, 0.18, 0.20), 0.85, 0.30), Vector3(90, 0, 0))
+		# Ammo drum / belt box on side
+		if is_minigun:
+			_add_cyl(mount, 0.18, 0.18, 0.14, Vector3(0.0, -0.10, 0.02), _mat(Color(0.26, 0.26, 0.28), 0.80, 0.35), Vector3(0, 0, 90))
+			_add_box(mount, Vector3(0.08, 0.04, 0.22), Vector3(0.10, 0.00, -0.06), _mat(Color(0.45, 0.38, 0.18), 0.60, 0.40))
+		else:
+			_add_box(mount, Vector3(0.22, 0.16, 0.20), Vector3(0.18, -0.02, 0.02), _mat(Color(0.28, 0.28, 0.30), 0.80, 0.30))
+			_add_box(mount, Vector3(0.04, 0.04, 0.18), Vector3(0.08, 0.04, -0.08), _mat(Color(0.55, 0.48, 0.22), 0.60, 0.40))
+		# Feed chute
+		_add_box(mount, Vector3(0.06, 0.06, 0.22), Vector3(0.09, 0.04, -0.10), mat_dark_steel)
+		# Grip + trigger group
+		_add_box(mount, Vector3(0.08, 0.16, 0.09), Vector3(0.0, -0.06, 0.12), mat_black_polymer, Vector3(-10, 0, 0))
+		# Stock brace for minigun
+		if is_minigun:
+			_add_box(mount, Vector3(0.16, 0.08, 0.28), Vector3(0.0, 0.02, 0.32), mat_dark_steel)
+		muzzle_local = Vector3(0, 0.08, barrel_z - barrel_len * 0.5 - 0.05)
+
+	# -----------------------------------------------------------------------
+	# 6) BEAM RIFLE family — energy rifles
+	# -----------------------------------------------------------------------
+	elif w_type == WeaponPart.WeaponType.BEAM_RIFLE:
+		if name_lower.contains("sniper"):
+			# Long precision sniper
+			_add_box(mount, Vector3(0.20, 0.18, 0.62), Vector3(0.0, 0.09, -0.18), mat_gunmetal)
+			# Extended barrel with heat shroud (long slender)
+			_add_cyl(mount, 0.048, 0.052, 1.55, Vector3(0.0, 0.09, -1.08), mat_silver, Vector3(90, 0, 0))
+			# Barrel shroud with cooling vents (outer sleeve with cutouts)
+			_add_cyl(mount, 0.065, 0.065, 1.20, Vector3(0.0, 0.09, -1.00), _mat(Color(0.16, 0.18, 0.22), 0.75, 0.40), Vector3(90, 0, 0))
+			for i in range(5):
+				_add_box(mount, Vector3(0.08, 0.015, 0.045), Vector3(0.0, 0.14, -0.52 - float(i) * 0.18), _mat(Color(0.02, 0.02, 0.02), 0.10, 0.90))
+			# Large scope (3-9x) on top rail
+			_add_box(mount, Vector3(0.04, 0.03, 0.55), Vector3(0.0, 0.20, -0.14), mat_dark_steel)
+			_add_cyl(mount, 0.038, 0.038, 0.48, Vector3(0.0, 0.24, -0.16), mat_dark_steel, Vector3(90, 0, 0))
+			_add_cyl(mount, 0.028, 0.045, 0.08, Vector3(0.0, 0.24, -0.40), _mat(Color(0.10, 0.30, 0.55), 0.80, 0.20, Color(0.20, 0.55, 1.0), 1.5), Vector3(90, 0, 0))
+			_add_cyl(mount, 0.035, 0.035, 0.06, Vector3(0.0, 0.24, 0.08), _mat(Color(0.08, 0.08, 0.08), 0.10, 0.85), Vector3(90, 0, 0))
+			# Bipod folded under barrel
+			_add_box(mount, Vector3(0.03, 0.14, 0.03), Vector3(0.06, -0.04, -0.62), mat_dark_steel, Vector3(22, 0, 0))
+			_add_box(mount, Vector3(0.03, 0.14, 0.03), Vector3(-0.06, -0.04, -0.62), mat_dark_steel, Vector3(-22, 0, 0))
+			# Energy cell magazine (glowing)
+			_add_box(mount, Vector3(0.09, 0.14, 0.16), Vector3(0.0, -0.06, -0.18), mat_energy_blue)
+			_add_box(mount, Vector3(0.015, 0.10, 0.10), Vector3(0.05, -0.06, -0.18), _mat(Color(0.40, 0.80, 1.0), 0.30, 0.30, Color(0.40, 0.80, 1.0), 2.5))
+			# Stock — precision adjustable
+			_add_box(mount, Vector3(0.16, 0.10, 0.42), Vector3(0.0, 0.07, 0.38), mat_dark_steel)
+			_add_box(mount, Vector3(0.14, 0.12, 0.05), Vector3(0.0, 0.07, 0.60), mat_rubber)
+			_add_box(mount, Vector3(0.10, 0.06, 0.12), Vector3(0.0, 0.00, 0.34), mat_black_polymer)
+			# Grip
+			_add_box(mount, Vector3(0.07, 0.16, 0.08), Vector3(0.0, -0.06, 0.10), mat_black_polymer, Vector3(-10, 0, 0))
+			# Muzzle brake with side ports
+			_add_cyl(mount, 0.065, 0.065, 0.10, Vector3(0.0, 0.09, -1.88), mat_dark_steel, Vector3(90, 0, 0))
+			_add_box(mount, Vector3(0.09, 0.015, 0.06), Vector3(0.0, 0.09, -1.88), _mat(Color(0.02, 0.02, 0.02), 0.10, 0.90))
+			muzzle_local = Vector3(0, 0.09, -1.94)
+		elif name_lower.contains("carbine"):
+			# Compact carbine — short and handy
+			_add_box(mount, Vector3(0.20, 0.16, 0.42), Vector3(0.0, 0.08, -0.12), mat_gunmetal)
+			_add_cyl(mount, 0.055, 0.055, 0.72, Vector3(0.0, 0.08, -0.60), mat_silver, Vector3(90, 0, 0))
+			_add_cyl(mount, 0.068, 0.068, 0.50, Vector3(0.0, 0.08, -0.58), _mat(Color(0.16, 0.18, 0.22), 0.75, 0.40), Vector3(90, 0, 0))
+			# Red dot sight (small)
+			_add_box(mount, Vector3(0.05, 0.05, 0.10), Vector3(0.0, 0.17, -0.18), mat_dark_steel)
+			_add_box(mount, Vector3(0.02, 0.02, 0.02), Vector3(0.0, 0.185, -0.20), _mat(Color(1.0, 0.15, 0.15), 0.10, 0.30, Color(1.0, 0.20, 0.20), 3.0))
+			# Folding wire stock
+			_add_box(mount, Vector3(0.12, 0.04, 0.28), Vector3(0.0, 0.06, 0.28), mat_dark_steel)
+			_add_cyl(mount, 0.015, 0.015, 0.22, Vector3(0.05, 0.06, 0.36), mat_silver, Vector3(90, 0, 0))
+			_add_cyl(mount, 0.015, 0.015, 0.22, Vector3(-0.05, 0.06, 0.36), mat_silver, Vector3(90, 0, 0))
+			_add_box(mount, Vector3(0.06, 0.12, 0.12), Vector3(0.0, -0.05, 0.12), mat_black_polymer, Vector3(-12, 0, 0))
+			# Short energy mag
+			_add_box(mount, Vector3(0.08, 0.10, 0.12), Vector3(0.0, -0.04, -0.14), mat_energy_blue)
+			muzzle_local = Vector3(0, 0.08, -0.98)
+		elif name_lower.contains("mk2") or name_lower.contains("mk ii") or name_lower.contains("mk-2"):
+			# Upgraded Mark II — adds power cell and gold trim
+			_add_box(mount, Vector3(0.24, 0.20, 0.62), Vector3(0.0, 0.09, -0.22), mat_gunmetal)
+			_add_cyl(mount, 0.060, 0.060, 1.18, Vector3(0.0, 0.09, -0.90), mat_silver, Vector3(90, 0, 0))
+			_add_cyl(mount, 0.072, 0.072, 0.95, Vector3(0.0, 0.09, -0.88), _mat(Color(0.18, 0.20, 0.26), 0.80, 0.32), Vector3(90, 0, 0))
+			for i in range(4):
+				_add_box(mount, Vector3(0.09, 0.015, 0.04), Vector3(0.0, 0.145, -0.52 - float(i) * 0.18), _mat(Color(0.02, 0.02, 0.02), 0.10, 0.90))
+			# Gold trim rail along top
+			_add_box(mount, Vector3(0.03, 0.015, 0.58), Vector3(0.0, 0.20, -0.22), mat_brass)
+			# Scope — compact ACOG style
+			_add_box(mount, Vector3(0.06, 0.06, 0.24), Vector3(0.0, 0.20, -0.22), mat_dark_steel)
+			_add_cyl(mount, 0.032, 0.040, 0.06, Vector3(0.0, 0.20, -0.34), _mat(Color(0.15, 0.40, 0.65), 0.80, 0.20, Color(0.25, 0.60, 1.0), 1.8), Vector3(90, 0, 0))
+			# Side power cell — glowing bulge on left side
+			_add_box(mount, Vector3(0.10, 0.14, 0.20), Vector3(-0.17, 0.08, -0.18), _mat(Color(0.16, 0.35, 0.70), 0.75, 0.30, Color(0.20, 0.60, 1.0), 1.5))
+			_add_box(mount, Vector3(0.02, 0.08, 0.12), Vector3(-0.22, 0.08, -0.18), _mat(Color(0.40, 0.80, 1.0), 0.30, 0.30, Color(0.40, 0.80, 1.0), 2.5))
+			# Energy mag
+			_add_box(mount, Vector3(0.09, 0.13, 0.15), Vector3(0.0, -0.06, -0.20), mat_energy_cyan)
+			# Stock with cheek rest
+			_add_box(mount, Vector3(0.18, 0.11, 0.38), Vector3(0.0, 0.07, 0.34), mat_dark_steel)
+			_add_box(mount, Vector3(0.10, 0.04, 0.20), Vector3(0.0, 0.135, 0.32), mat_black_polymer)
+			_add_box(mount, Vector3(0.07, 0.15, 0.08), Vector3(0.0, -0.05, 0.12), mat_black_polymer, Vector3(-11, 0, 0))
+			# Muzzle compensator
+			_add_cyl(mount, 0.070, 0.055, 0.12, Vector3(0.0, 0.09, -1.52), mat_dark_steel, Vector3(90, 0, 0))
+			muzzle_local = Vector3(0, 0.09, -1.60)
+		else:
+			# Standard Beam Rifle — classic workhorse
+			_add_box(mount, Vector3(0.22, 0.18, 0.60), Vector3(0.0, 0.09, -0.20), mat_gunmetal)
+			# Barrel + shroud
+			_add_cyl(mount, 0.055, 0.055, 1.15, Vector3(0.0, 0.09, -0.88), mat_silver, Vector3(90, 0, 0))
+			_add_cyl(mount, 0.068, 0.068, 0.88, Vector3(0.0, 0.09, -0.86), _mat(Color(0.17, 0.19, 0.23), 0.78, 0.35), Vector3(90, 0, 0))
+			# Cooling fins along shroud (3 radial fins)
+			for i in range(3):
+				var z := -0.48 - float(i) * 0.22
+				_add_box(mount, Vector3(0.14, 0.015, 0.05), Vector3(0.0, 0.15, z), _mat(Color(0.12, 0.18, 0.28), 0.70, 0.35))
+			# Top carry handle / scope rail
+			_add_box(mount, Vector3(0.06, 0.04, 0.38), Vector3(0.0, 0.19, -0.20), mat_dark_steel)
+			_add_box(mount, Vector3(0.04, 0.03, 0.30), Vector3(0.0, 0.22, -0.20), mat_dark_steel)
+			# Iron sights
+			_add_box(mount, Vector3(0.02, 0.04, 0.02), Vector3(0.0, 0.23, -0.78), mat_dark_steel)
+			_add_box(mount, Vector3(0.03, 0.03, 0.04), Vector3(0.0, 0.21, -0.02), mat_dark_steel)
+			# Energy magazine (translucent glow)
+			_add_box(mount, Vector3(0.09, 0.13, 0.15), Vector3(0.0, -0.05, -0.18), mat_energy_blue)
+			_add_box(mount, Vector3(0.02, 0.08, 0.10), Vector3(0.055, -0.05, -0.18), _mat(Color(0.45, 0.85, 1.0), 0.30, 0.30, Color(0.45, 0.85, 1.0), 2.8))
+			# Stock — polymer tactical
+			_add_box(mount, Vector3(0.18, 0.11, 0.36), Vector3(0.0, 0.07, 0.32), mat_dark_steel)
+			_add_box(mount, Vector3(0.16, 0.12, 0.04), Vector3(0.0, 0.07, 0.51), mat_rubber)
+			# Grip
+			_add_box(mount, Vector3(0.07, 0.15, 0.08), Vector3(0.0, -0.05, 0.10), mat_black_polymer, Vector3(-12, 0, 0))
+			_add_box(mount, Vector3(0.05, 0.04, 0.06), Vector3(0.0, 0.01, 0.14), mat_dark_steel)
+			# Muzzle device
+			_add_cyl(mount, 0.062, 0.062, 0.09, Vector3(0.0, 0.09, -1.48), mat_dark_steel, Vector3(90, 0, 0))
+			_add_cyl(mount, 0.050, 0.062, 0.04, Vector3(0.0, 0.09, -1.54), _mat(Color(0.02, 0.02, 0.02), 0.10, 0.90), Vector3(90, 0, 0))
+			muzzle_local = Vector3(0, 0.09, -1.58)
+
+	# -----------------------------------------------------------------------
+	# 7) MACHINE GUN family — kinetic automatics
+	# -----------------------------------------------------------------------
+	elif w_type == WeaponPart.WeaponType.MACHINE_GUN:
+		if name_lower.contains("heavy"):
+			# Heavy Machine Gun — belt-fed beast with cooling jacket
+			_add_box(mount, Vector3(0.30, 0.26, 0.68), Vector3(0.0, 0.09, -0.18), _mat(Color(0.26, 0.26, 0.28), 0.82, 0.35))
+			# Thick barrel with perforated cooling jacket
+			_add_cyl(mount, 0.055, 0.055, 0.92, Vector3(0.0, 0.09, -0.72), mat_silver, Vector3(90, 0, 0))
+			_add_cyl(mount, 0.085, 0.085, 0.70, Vector3(0.0, 0.09, -0.68), _mat(Color(0.20, 0.20, 0.22), 0.78, 0.35), Vector3(90, 0, 0))
+			for i in range(6):
+				_add_box(mount, Vector3(0.10, 0.012, 0.035), Vector3(0.0, 0.155, -0.42 - float(i) * 0.08), _mat(Color(0.02, 0.02, 0.02), 0.10, 0.90))
+			# Belt box on left side (large square ammo can)
+			_add_box(mount, Vector3(0.18, 0.18, 0.22), Vector3(-0.22, 0.02, -0.08), _mat(Color(0.32, 0.30, 0.26), 0.70, 0.40))
+			_add_box(mount, Vector3(0.16, 0.015, 0.18), Vector3(-0.22, 0.12, -0.08), mat_dark_steel)
+			# Feed cover
+			_add_box(mount, Vector3(0.18, 0.05, 0.28), Vector3(0.0, 0.22, -0.14), mat_dark_steel)
+			# Carry handle
+			_add_box(mount, Vector3(0.04, 0.04, 0.26), Vector3(0.0, 0.24, -0.16), _mat(Color(0.18, 0.18, 0.18), 0.60, 0.40), Vector3(0, 0, 0))
+			_add_box(mount, Vector3(0.03, 0.06, 0.03), Vector3(0.0, 0.21, -0.28), mat_dark_steel)
+			_add_box(mount, Vector3(0.03, 0.06, 0.03), Vector3(0.0, 0.21, -0.04), mat_dark_steel)
+			# Bipod
+			_add_box(mount, Vector3(0.03, 0.16, 0.03), Vector3(0.07, -0.04, -0.42), mat_dark_steel, Vector3(20, 0, 0))
+			_add_box(mount, Vector3(0.03, 0.16, 0.03), Vector3(-0.07, -0.04, -0.42), mat_dark_steel, Vector3(-20, 0, 0))
+			# Grip + stock
+			_add_box(mount, Vector3(0.08, 0.16, 0.09), Vector3(0.0, -0.06, 0.16), mat_black_polymer, Vector3(-12, 0, 0))
+			_add_box(mount, Vector3(0.16, 0.10, 0.30), Vector3(0.0, 0.06, 0.38), mat_black_polymer)
+			# Muzzle brake
+			_add_cyl(mount, 0.075, 0.075, 0.10, Vector3(0.0, 0.09, -1.20), mat_dark_steel, Vector3(90, 0, 0))
+			muzzle_local = Vector3(0, 0.09, -1.26)
+		elif name_lower.contains("light"):
+			# Light Machine Gun — handy, smaller
+			_add_box(mount, Vector3(0.22, 0.18, 0.46), Vector3(0.0, 0.08, -0.14), mat_olive)
+			_add_cyl(mount, 0.045, 0.045, 0.72, Vector3(0.0, 0.08, -0.56), mat_silver, Vector3(90, 0, 0))
+			_add_cyl(mount, 0.062, 0.062, 0.48, Vector3(0.0, 0.08, -0.52), _mat(Color(0.19, 0.19, 0.21), 0.75, 0.35), Vector3(90, 0, 0))
+			# Small box mag on top
+			_add_box(mount, Vector3(0.10, 0.05, 0.16), Vector3(0.0, 0.18, -0.12), mat_dark_steel)
+			# Side charging handle
+			_add_box(mount, Vector3(0.05, 0.02, 0.02), Vector3(0.13, 0.08, -0.10), mat_silver)
+			# Handguard with vents
+			for i in range(3):
+				_add_box(mount, Vector3(0.08, 0.012, 0.03), Vector3(0.0, 0.135, -0.36 - float(i) * 0.09), _mat(Color(0.02, 0.02, 0.02), 0.10, 0.90))
+			# Folding stock (skeleton)
+			_add_box(mount, Vector3(0.10, 0.04, 0.24), Vector3(0.0, 0.06, 0.26), mat_dark_steel)
+			_add_cyl(mount, 0.012, 0.012, 0.18, Vector3(0.045, 0.06, 0.34), mat_silver, Vector3(90, 0, 0))
+			_add_cyl(mount, 0.012, 0.012, 0.18, Vector3(-0.045, 0.06, 0.34), mat_silver, Vector3(90, 0, 0))
+			_add_box(mount, Vector3(0.06, 0.10, 0.10), Vector3(0.0, -0.05, 0.14), mat_black_polymer, Vector3(-12, 0, 0))
+			_add_box(mount, Vector3(0.09, 0.08, 0.10), Vector3(0.0, 0.18, -0.12), _mat(Color(0.10, 0.10, 0.10), 0.60, 0.30))
+			muzzle_local = Vector3(0, 0.08, -0.94)
+		else:
+			# Standard Machine Gun — balanced
+			_add_box(mount, Vector3(0.26, 0.20, 0.54), Vector3(0.0, 0.09, -0.16), mat_olive)
+			_add_cyl(mount, 0.050, 0.050, 0.82, Vector3(0.0, 0.09, -0.64), mat_silver, Vector3(90, 0, 0))
+			_add_cyl(mount, 0.070, 0.070, 0.58, Vector3(0.0, 0.09, -0.60), _mat(Color(0.18, 0.18, 0.20), 0.75, 0.35), Vector3(90, 0, 0))
+			# Box magazine below
+			_add_box(mount, Vector3(0.12, 0.14, 0.16), Vector3(0.0, -0.06, -0.14), mat_dark_steel)
+			_add_box(mount, Vector3(0.10, 0.015, 0.12), Vector3(0.0, -0.13, -0.14), _mat(Color(0.12, 0.12, 0.14), 0.60, 0.45))
+			# Top cover + carry handle
+			_add_box(mount, Vector3(0.16, 0.04, 0.26), Vector3(0.0, 0.20, -0.14), mat_dark_steel)
+			# Iron sights
+			_add_box(mount, Vector3(0.02, 0.035, 0.02), Vector3(0.0, 0.215, -0.58), mat_dark_steel)
+			# Handguard
+			_add_box(mount, Vector3(0.18, 0.08, 0.22), Vector3(0.0, 0.02, -0.36), mat_black_polymer)
+			for i in range(3):
+				_add_box(mount, Vector3(0.07, 0.012, 0.03), Vector3(0.0, 0.065, -0.30 - float(i) * 0.07), _mat(Color(0.02, 0.02, 0.02), 0.10, 0.90))
+			# Stock
+			_add_box(mount, Vector3(0.16, 0.10, 0.32), Vector3(0.0, 0.06, 0.32), mat_black_polymer)
+			_add_box(mount, Vector3(0.07, 0.14, 0.08), Vector3(0.0, -0.04, 0.12), mat_black_polymer, Vector3(-11, 0, 0))
+			# Muzzle
+			_add_cyl(mount, 0.062, 0.062, 0.08, Vector3(0.0, 0.09, -1.08), mat_dark_steel, Vector3(90, 0, 0))
+			muzzle_local = Vector3(0, 0.09, -1.13)
+
+	# -----------------------------------------------------------------------
+	# 8) SHOTGUN family
+	# -----------------------------------------------------------------------
+	elif w_type == WeaponPart.WeaponType.SHOTGUN:
+		if name_lower.contains("sawed"):
+			# Sawed-off — short double barrel side-by-side, rustic
+			_add_cyl(mount, 0.055, 0.055, 0.46, Vector3(0.065, 0.08, -0.32), mat_silver, Vector3(90, 0, 0))
+			_add_cyl(mount, 0.055, 0.055, 0.46, Vector3(-0.065, 0.08, -0.32), mat_silver, Vector3(90, 0, 0))
+			_add_box(mount, Vector3(0.20, 0.08, 0.10), Vector3(0.0, 0.08, -0.08), mat_dark_steel)
+			# Receiver block
+			_add_box(mount, Vector3(0.20, 0.14, 0.28), Vector3(0.0, 0.08, 0.08), _mat(Color(0.22, 0.22, 0.24), 0.75, 0.35))
+			# Wooden pistol grip (no full stock)
+			_add_box(mount, Vector3(0.10, 0.14, 0.12), Vector3(0.0, -0.04, 0.22), mat_brown_stock, Vector3(-22, 0, 0))
+			# Trigger guard
+			_add_box(mount, Vector3(0.06, 0.02, 0.08), Vector3(0.0, -0.02, 0.12), mat_dark_steel)
+			# Break hinge
+			_add_cyl(mount, 0.02, 0.02, 0.16, Vector3(0.0, 0.08, -0.06), mat_silver, Vector3(0, 0, 90))
+			muzzle_local = Vector3(0, 0.08, -0.56)
+		elif name_lower.contains("combat") or name_lower.contains("assault"):
+			# Combat Shotgun / Assault Cannon — tactical pump with box mag
+			_add_box(mount, Vector3(0.26, 0.20, 0.52), Vector3(0.0, 0.09, -0.16), _mat(Color(0.20, 0.20, 0.22), 0.80, 0.35))
+			# Heavy barrel + compensator (bigger for assault cannon)
+			var is_cannon := name_lower.contains("cannon")
+			var barrel_r := 0.075 if is_cannon else 0.065
+			var barrel_len := 0.68 if is_cannon else 0.62
+			_add_cyl(mount, barrel_r, barrel_r, barrel_len, Vector3(0.0, 0.09, -0.56), mat_silver, Vector3(90, 0, 0))
+			_add_cyl(mount, barrel_r + 0.015, barrel_r + 0.015, 0.12, Vector3(0.0, 0.09, -0.84), mat_dark_steel, Vector3(90, 0, 0))
+			# Box magazine below (tactical)
+			_add_box(mount, Vector3(0.11, 0.16, 0.16), Vector3(0.0, -0.06, -0.12), mat_dark_steel)
+			_add_box(mount, Vector3(0.09, 0.015, 0.12), Vector3(0.0, -0.14, -0.12), mat_black_polymer)
+			# Vertical foregrip
+			_add_cyl(mount, 0.035, 0.035, 0.12, Vector3(0.0, -0.04, -0.32), mat_black_polymer, Vector3(0, 0, 0))
+			_add_box(mount, Vector3(0.06, 0.04, 0.08), Vector3(0.0, -0.04, -0.32), mat_black_polymer)
+			# Top rail + holo sight
+			_add_box(mount, Vector3(0.04, 0.02, 0.32), Vector3(0.0, 0.20, -0.16), mat_dark_steel)
+			_add_box(mount, Vector3(0.05, 0.04, 0.10), Vector3(0.0, 0.23, -0.16), _mat(Color(0.10, 0.10, 0.10), 0.60, 0.30))
+			_add_box(mount, Vector3(0.015, 0.02, 0.06), Vector3(0.0, 0.25, -0.16), _mat(Color(1.0, 0.15, 0.15), 0.10, 0.30, Color(1.0, 0.20, 0.20), 2.5))
+			# Stock — collapsible tactical
+			_add_box(mount, Vector3(0.14, 0.08, 0.28), Vector3(0.0, 0.06, 0.28), mat_dark_steel)
+			_add_box(mount, Vector3(0.12, 0.14, 0.04), Vector3(0.0, 0.06, 0.42), mat_rubber)
+			_add_box(mount, Vector3(0.07, 0.14, 0.08), Vector3(0.0, -0.03, 0.10), mat_black_polymer, Vector3(-11, 0, 0))
+			muzzle_local = Vector3(0, 0.09, -0.92) if not is_cannon else Vector3(0, 0.09, -0.94)
+		else:
+			# Standard Shotgun — pump action, tube mag
+			_add_box(mount, Vector3(0.24, 0.18, 0.48), Vector3(0.0, 0.08, -0.12), _mat(Color(0.24, 0.22, 0.20), 0.70, 0.40))
+			_add_cyl(mount, 0.060, 0.060, 0.78, Vector3(0.0, 0.10, -0.58), mat_silver, Vector3(90, 0, 0))
+			# Pump forend (wood/polymer slider)
+			_add_box(mount, Vector3(0.18, 0.10, 0.26), Vector3(0.0, 0.02, -0.36), mat_brown_stock)
+			_add_box(mount, Vector3(0.16, 0.015, 0.20), Vector3(0.0, 0.02, -0.36), _mat(Color(0.30, 0.22, 0.14), 0.05, 0.60))
+			# Under-barrel tube magazine
+			_add_cyl(mount, 0.038, 0.038, 0.62, Vector3(0.0, 0.02, -0.48), _mat(Color(0.32, 0.32, 0.34), 0.78, 0.30), Vector3(90, 0, 0))
+			# Receiver detail — ejection port
+			_add_box(mount, Vector3(0.04, 0.06, 0.14), Vector3(0.12, 0.12, -0.14), _mat(Color(0.05, 0.05, 0.05), 0.10, 0.90))
+			# Tubular stock
+			_add_box(mount, Vector3(0.14, 0.10, 0.34), Vector3(0.0, 0.07, 0.30), mat_brown_stock)
+			_add_box(mount, Vector3(0.12, 0.12, 0.05), Vector3(0.0, 0.07, 0.48), mat_rubber)
+			_add_box(mount, Vector3(0.07, 0.13, 0.08), Vector3(0.0, -0.03, 0.10), mat_brown_stock, Vector3(-12, 0, 0))
+			muzzle_local = Vector3(0, 0.10, -0.98)
+
+	# -----------------------------------------------------------------------
+	# 9) MISSILE family — launcher pods
+	# -----------------------------------------------------------------------
+	elif w_type == WeaponPart.WeaponType.MISSILE:
+		if name_lower.contains("swarm") or name_lower.contains("micro"):
+			# Swarm / Micro — many tiny tubes in a block
+			_add_box(mount, Vector3(0.42, 0.32, 0.72), Vector3(0.0, 0.10, -0.12), _mat(Color(0.32, 0.28, 0.26), 0.70, 0.40))
+			# Top sensor dome
+			_add_sphere(mount, 0.05, 0.05, Vector3(0.0, 0.27, -0.08), _mat(Color(0.18, 0.55, 0.35), 0.60, 0.30, Color(0.30, 0.85, 0.45), 2.0))
+			# 3x3 grid of micro tubes (9 tubes, 0.04 radius)
+			for x in range(3):
+				for y in range(3):
+					var px := (float(x) - 1.0) * 0.09
+					var py := (float(y) - 1.0) * 0.07 + 0.10
+					_add_cyl(mount, 0.032, 0.032, 0.68, Vector3(px, py, -0.22), _mat(Color(0.18, 0.18, 0.20), 0.80, 0.35), Vector3(90, 0, 0))
+					_add_cyl(mount, 0.025, 0.025, 0.02, Vector3(px, py, -0.56), _mat(Color(0.55, 0.20, 0.12), 0.60, 0.40), Vector3(90, 0, 0))
+			# Side mounting rails
+			_add_box(mount, Vector3(0.04, 0.06, 0.60), Vector3(0.23, 0.10, -0.14), mat_dark_steel)
+			_add_box(mount, Vector3(0.04, 0.06, 0.60), Vector3(-0.23, 0.10, -0.14), mat_dark_steel)
+			# Rear thruster plate
+			_add_box(mount, Vector3(0.36, 0.08, 0.04), Vector3(0.0, 0.06, 0.24), _mat(Color(0.16, 0.16, 0.18), 0.80, 0.30))
+			muzzle_local = Vector3(0, 0.10, -0.57)
+		elif name_lower.contains("heavy"):
+			# Heavy Missile — one huge tube
+			_add_box(mount, Vector3(0.48, 0.40, 0.85), Vector3(0.0, 0.12, -0.10), _mat(Color(0.38, 0.28, 0.20), 0.70, 0.40))
+			# Single large launch tube
+			_add_cyl(mount, 0.16, 0.16, 0.82, Vector3(0.0, 0.13, -0.28), _mat(Color(0.22, 0.22, 0.24), 0.82, 0.32), Vector3(90, 0, 0))
+			# Warhead tip visible at front (cone)
+			_add_cyl(mount, 0.02, 0.14, 0.16, Vector3(0.0, 0.13, -0.75), _mat(Color(0.60, 0.22, 0.14), 0.65, 0.35), Vector3(90, 0, 0))
+			# Guidance fins (4 small)
+			_add_box(mount, Vector3(0.02, 0.12, 0.10), Vector3(0.0, 0.26, -0.28), _mat(Color(0.30, 0.30, 0.32), 0.75, 0.35))
+			_add_box(mount, Vector3(0.12, 0.02, 0.10), Vector3(0.0, 0.13, -0.28), _mat(Color(0.30, 0.30, 0.32), 0.75, 0.35))
+			# Side rail + locking clamp
+			_add_box(mount, Vector3(0.05, 0.10, 0.60), Vector3(0.24, 0.12, -0.12), mat_dark_steel)
+			_add_box(mount, Vector3(0.05, 0.10, 0.60), Vector3(-0.24, 0.12, -0.12), mat_dark_steel)
+			# Control box on top
+			_add_box(mount, Vector3(0.14, 0.06, 0.18), Vector3(0.0, 0.34, -0.10), _mat(Color(0.20, 0.24, 0.28), 0.80, 0.30))
+			_add_box(mount, Vector3(0.06, 0.015, 0.10), Vector3(0.0, 0.375, -0.10), _mat(Color(0.20, 0.80, 0.35), 0.30, 0.30, Color(0.20, 0.80, 0.35), 2.0))
+			# Exhaust nozzle at rear
+			_add_cyl(mount, 0.10, 0.13, 0.08, Vector3(0.0, 0.13, 0.18), mat_dark_steel, Vector3(90, 0, 0))
+			muzzle_local = Vector3(0, 0.13, -0.84)
+		else:
+			# Standard Missile Launcher — 4-tube pod (2x2)
+			_add_box(mount, Vector3(0.44, 0.36, 0.78), Vector3(0.0, 0.11, -0.10), _mat(Color(0.42, 0.30, 0.22), 0.70, 0.40))
+			for x in range(2):
+				for y in range(2):
+					var px := (float(x) - 0.5) * 0.16
+					var py := (float(y) - 0.5) * 0.14 + 0.11
+					_add_cyl(mount, 0.075, 0.075, 0.72, Vector3(px, py, -0.20), _mat(Color(0.20, 0.20, 0.22), 0.82, 0.30), Vector3(90, 0, 0))
+					# Tube inner dark + warhead tip
+					_add_cyl(mount, 0.055, 0.055, 0.02, Vector3(px, py, -0.54), _mat(Color(0.08, 0.08, 0.08), 0.10, 0.90), Vector3(90, 0, 0))
+			# Targeting sensor pod on top
+			_add_box(mount, Vector3(0.12, 0.06, 0.16), Vector3(0.0, 0.31, -0.08), _mat(Color(0.22, 0.26, 0.30), 0.80, 0.30))
+			_add_sphere(mount, 0.035, 0.035, Vector3(0.0, 0.34, -0.14), _mat(Color(0.20, 0.80, 1.0), 0.30, 0.30, Color(0.20, 0.80, 1.0), 2.5))
+			# Side rails
+			_add_box(mount, Vector3(0.04, 0.06, 0.64), Vector3(0.24, 0.11, -0.12), mat_dark_steel)
+			_add_box(mount, Vector3(0.04, 0.06, 0.64), Vector3(-0.24, 0.11, -0.12), mat_dark_steel)
+			# Hazard stripes on front plate
+			_add_box(mount, Vector3(0.38, 0.025, 0.015), Vector3(0.0, 0.02, -0.49), mat_hazard_yellow)
+			_add_box(mount, Vector3(0.38, 0.025, 0.015), Vector3(0.0, 0.08, -0.49), mat_hazard_yellow)
+			muzzle_local = Vector3(0, 0.11, -0.58)
 
 	else:
-		var box = BoxMesh.new()
-		box.size = Vector3(0.12, 0.18, 1.4)
-		mesh_instance.mesh = box
-		mesh_instance.position = Vector3(0.0, 0.0, -0.55)
-		mat.albedo_color = Color(0.7, 0.7, 0.7)
-		muzzle_local = Vector3(0, 0, -1.27)
-
-	mesh_instance.material_override = mat
-	mount.add_child(mesh_instance)
+		# Fallback generic rifle — still detailed with basic furniture
+		_add_box(mount, Vector3(0.20, 0.16, 0.90), Vector3(0.0, 0.07, -0.32), mat_gunmetal)
+		_add_cyl(mount, 0.050, 0.050, 0.75, Vector3(0.0, 0.07, -0.82), mat_silver, Vector3(90, 0, 0))
+		_add_box(mount, Vector3(0.08, 0.08, 0.10), Vector3(0.0, 0.16, -0.20), mat_dark_steel)
+		_add_box(mount, Vector3(0.07, 0.12, 0.06), Vector3(0.0, -0.04, 0.08), mat_black_polymer, Vector3(-10, 0, 0))
+		_add_box(mount, Vector3(0.14, 0.09, 0.28), Vector3(0.0, 0.05, 0.28), mat_dark_steel)
+		muzzle_local = Vector3(0, 0.07, -1.22)
 
 	# Barrel-tip marker: projectiles, muzzle flashes and jam sparks anchor here.
 	var muzzle := Node3D.new()

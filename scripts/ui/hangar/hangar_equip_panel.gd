@@ -737,6 +737,11 @@ func unequip_part(slot: String) -> void:
 	AudioManager.play_ui_click()
 
 
+func update_currently_equipped() -> void:
+	if controller and controller.part_list_panel:
+		controller.part_list_panel._update_currently_equipped_display(controller.selected_slot)
+
+
 func on_equip_pressed() -> void:
 	if controller.current_mode == "upgrade":
 		var cost = controller._get_upgrade_cost()

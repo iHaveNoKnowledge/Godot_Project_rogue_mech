@@ -74,7 +74,12 @@ func _ready() -> void:
 	_create_energy_row()
 	_create_drop_tank_row()
 	_create_precision_row()
+	_create_combat_mode_widget()
 	EventBus.damage_received.connect(_on_player_damaged)
+	EventBus.combat_mode_toggled.connect(_on_combat_mode_toggled)
+	EventBus.guard_state_changed.connect(_on_guard_state_changed)
+	EventBus.deflect_triggered.connect(_on_deflect_triggered)
+	EventBus.pile_bunker_fired.connect(_on_pile_bunker_fired)
 	if get_viewport():
 		get_viewport().size_changed.connect(_fit_panel_to_content)
 	# Two frames so the container layout resolves bar/label minimum sizes.
@@ -514,3 +519,95 @@ func _create_pilot_hp_ui() -> void:
 	bg.corner_radius_bottom_right = 0
 	_pilot_hp_bar.add_theme_stylebox_override("background", bg)
 	grid.add_child(_pilot_hp_bar)
+
+
+# --- Combat Mode & Stance Widget -------------------------------------------
+var _mode_label: Label = null
+var _guard_badge: Label = null
+var _pile_badge: Label = null
+
+
+func _create_combat_mode_widget() -> void:
+	var panel = get_node_or_null("Panel")
+	if panel == null:
+		return
+	var grid = panel.get_node_or_null("Grid")
+	if grid == null:
+		return
+
+	var row := HBoxContainer.new()
+	row.name = "CombatModeRow"
+	row.add_theme_constant_override("separation", 6)
+	grid.add_child(row)
+
+	_mode_label = Label.new()
+	_mode_label.text = "[F] MODE: RANGED"
+	_mode_label.add_theme_font_size_override("font_size", 10)
+	_mode_label.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0))
+	row.add_child(_mode_label)
+
+	_guard_badge = Label.new()
+	_guard_badge.text = "[Q] GUARD"
+	_guard_badge.add_theme_font_size_override("font_size", 9)
+	_guard_badge.add_theme_color_override("font_color", Color(0.6, 0.7, 0.8))
+	_guard_badge.visible = false
+	row.add_child(_guard_badge)
+
+	_pile_badge = Label.new()
+	_pile_badge.text = "PILE: READY"
+	_pile_badge.add_theme_font_size_override("font_size", 9)
+	_pile_badge.add_theme_color_override("font_color", Color(1.0, 0.6, 0.2))
+	_pile_badge.visible = false
+	row.add_child(_pile_badge)
+
+
+func _on_combat_mode_toggled(mode: String) -> void:
+	if _mode_label == null:
+		return
+	if mode == "close_combat":
+		_mode_label.text = "[F] MODE: CLOSE COMBAT"
+		_mode_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.15))
+		if _guard_badge:
+			_guard_badge.visible = true
+	else:
+		_mode_label.text = "[F] MODE: RANGED"
+		_mode_label.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0))
+		if _guard_badge:
+			_guard_badge.visible = false
+
+
+func _on_guard_state_changed(is_guarding: bool) -> void:
+	if _guard_badge == null:
+		return
+	if is_guarding:
+		_guard_badge.text = "[Q] GUARDING"
+		_guard_badge.add_theme_color_override("font_color", Color(0.2, 1.0, 0.5))
+	else:
+		_guard_badge.text = "[Q] GUARD"
+		_guard_badge.add_theme_color_override("font_color", Color(0.6, 0.7, 0.8))
+
+
+func _on_deflect_triggered(_pos: Vector3, is_perfect: bool) -> void:
+	if _guard_badge == null:
+		return
+	_guard_badge.text = "DEFLECT PARRY!"
+	_guard_badge.add_theme_color_override("font_color", Color(1.0, 0.9, 0.1))
+	var tween = create_tween()
+	tween.tween_interval(0.6)
+	tween.tween_callback(func():
+		if _guard_badge:
+			_guard_badge.text = "[Q] GUARD"
+			_guard_badge.add_theme_color_override("font_color", Color(0.6, 0.7, 0.8))
+	)
+
+
+func _on_pile_bunker_fired(is_loaded_blast: bool, _target_pos: Vector3) -> void:
+	if _pile_badge == null:
+		return
+	_pile_badge.visible = true
+	if is_loaded_blast:
+		_pile_badge.text = "PILE: BLAST [FIRE]"
+		_pile_badge.add_theme_color_override("font_color", Color(1.0, 0.2, 0.0))
+	else:
+		_pile_badge.text = "PILE: COMBO [HAMMER]"
+		_pile_badge.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))

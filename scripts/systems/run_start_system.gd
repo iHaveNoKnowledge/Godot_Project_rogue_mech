@@ -145,3 +145,8 @@ static func roll_random_start() -> void:
 	GlobalData.currency.data_cores = randi_range(int(cores_range[0]), int(cores_range[1]))
 	HangarManager.ensure_roster()
 	HangarManager.save_active()
+
+	# Procedural Lore, Rival Behind-The-Scenes Progression & Era Progression
+	ProceduralLoreSystem.initialize_run_lore()
+	RivalProgressionSystem.reset()
+	EraProgressionSystem.reset()

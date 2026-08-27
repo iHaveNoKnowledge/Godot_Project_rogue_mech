@@ -613,6 +613,17 @@ func _get_muzzle_world_pos(hand: String) -> Vector3:
 # WEAPON SELECTION (1/3 + scroll)
 # ====================================================================
 
+func _is_close_combat_mode() -> bool:
+	var mecha = get_parent()
+	if mecha:
+		var combat = mecha.get_node_or_null("CombatSystem")
+		if combat == null:
+			combat = mecha.get_node_or_null("MechaCombat")
+		if combat and combat.has_method("is_close_combat"):
+			return bool(combat.is_close_combat())
+	return false
+
+
 func _start_selection(hand: String) -> void:
 	# A destroyed arm cannot swap weapons — there is no hand to grip the next
 	# one. Blocked here (not just in _input) so every caller is covered.
@@ -630,6 +641,25 @@ func _start_selection(hand: String) -> void:
 	var hw = left_hand if is_left else right_hand
 	if hw:
 		carry.insert(0, hw)
+
+	if _is_close_combat_mode():
+		# In Close Combat Mode, prioritize Melee weapons
+		carry.sort_custom(func(a: WeaponPart, b: WeaponPart):
+			var a_m = (a != null and a.weapon_type == WeaponPart.WeaponType.MELEE)
+			var b_m = (b != null and b.weapon_type == WeaponPart.WeaponType.MELEE)
+			if a_m and not b_m:
+				return true
+			return false
+		)
+	else:
+		# In Ranged Mode, prioritize Ranged firearms
+		carry.sort_custom(func(a: WeaponPart, b: WeaponPart):
+			var a_r = (a != null and a.weapon_type != WeaponPart.WeaponType.MELEE)
+			var b_r = (b != null and b.weapon_type != WeaponPart.WeaponType.MELEE)
+			if a_r and not b_r:
+				return true
+			return false
+		)
 
 	if is_left:
 		holding_left = true
@@ -941,8 +971,20 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 	# Melee keeps its custom lunge/hit animation but obeys the shared rules
 	# (cooldown, ammo, heat) through the core.
 	if weapon.weapon_type == WeaponPart.WeaponType.MELEE:
+		var is_pile := weapon.weapon_name.to_lower().contains("pile")
+		if is_pile:
+			var ammo_val := _get_ammo(weapon)
+			if ammo_val > 0 and core.can_fire():
+				if core.consume_shot():
+					_melee_attack(hand, weapon, true)
+				return
+			elif core.cooldown <= 0.0:
+				core.cooldown = 0.45 # Fast combo hammer cadence when empty/reloading
+				_melee_attack(hand, weapon, false)
+				return
+			return
 		if core.consume_shot():
-			_melee_attack(hand, weapon)
+			_melee_attack(hand, weapon, true)
 		return
 
 	var mecha = get_parent()
@@ -1005,7 +1047,7 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 		GlobalData.degrade_weapon_durability(hand, wear)
 
 
-func _melee_attack(hand: String, weapon: WeaponPart) -> void:
+func _melee_attack(hand: String, weapon: WeaponPart, is_loaded_blast: bool = true) -> void:
 	var mecha = get_parent()
 	var cam = get_viewport().get_camera_3d()
 	if cam == null or mecha == null:
@@ -1038,8 +1080,16 @@ func _melee_attack(hand: String, weapon: WeaponPart) -> void:
 		var target_angle = atan2(-dir.x, -dir.z)
 		mecha.rotation.y = target_angle
 
-	# Eject spent shell casing for Pile Bunker / kinetic melee
-	if weapon and (weapon.ammo_per_shot > 0 or weapon.weapon_name.to_lower().contains("pile") or weapon.get_ammo_type() != "none"):
+	var is_pile := weapon != null and weapon.weapon_name.to_lower().contains("pile")
+	var hit_damage := (weapon.damage if weapon else FIST_DAMAGE) * _hand_damage_mult(hand)
+	if is_pile:
+		if is_loaded_blast:
+			hit_damage = weapon.damage * 2.2 * _hand_damage_mult(hand)
+		else:
+			hit_damage = 45.0 * _hand_damage_mult(hand)
+
+	# Eject spent shell casing for loaded Pile Bunker / kinetic melee
+	if weapon and ((is_pile and is_loaded_blast) or (not is_pile and (weapon.ammo_per_shot > 0 or weapon.get_ammo_type() != "none"))):
 		var spawn_pos = mecha.global_position + (Vector3(-0.6, 1.5, 0.5) if hand == "left" else Vector3(0.6, 1.5, 0.5))
 		_spawn_shell_casing(spawn_pos, hand)
 		
@@ -1047,12 +1097,17 @@ func _melee_attack(hand: String, weapon: WeaponPart) -> void:
 	_perform_pile_bunker_lunge_anim(mecha, dir, weapon)
 
 	_spawn_melee_trail(mecha, dir, weapon)
-	_check_melee_hit(mecha, dir, weapon.damage * _hand_damage_mult(hand), weapon)
-	if weapon and weapon.weapon_name.to_lower().contains("pile"):
-		AudioManager.play_pile_bunker_fire(mecha.global_position)
+	_check_melee_hit(mecha, dir, hit_damage, weapon, is_loaded_blast)
+	if is_pile:
+		if is_loaded_blast:
+			AudioManager.play_pile_bunker_fire(mecha.global_position)
+		else:
+			AudioManager.play_sfx("bullet_ricochet", mecha.global_position, 0.5)
 	else:
-		# Per-weapon melee swing voice (fist whoosh / knife slash / blade ring).
 		AudioManager.play_melee_swing(weapon, mecha.global_position)
+
+	if is_pile:
+		EventBus.pile_bunker_fired.emit(is_loaded_blast, target_point)
 
 # --- SHOULDER BASH / DUAL CHARGE (destroyed arms still fight) ---
 
@@ -1298,7 +1353,7 @@ func _spawn_melee_trail(mecha: Node3D, direction: Vector3, weapon: WeaponPart = 
 	)
 
 
-func _check_melee_hit(mecha: Node3D, direction: Vector3, damage: float, weapon: WeaponPart = null) -> void:
+func _check_melee_hit(mecha: Node3D, direction: Vector3, damage: float, weapon: WeaponPart = null, is_loaded_blast: bool = true) -> void:
 	var cam = get_viewport().get_camera_3d()
 	if cam == null:
 		return
@@ -1319,52 +1374,50 @@ func _check_melee_hit(mecha: Node3D, direction: Vector3, damage: float, weapon: 
 			aim_point = result["position"]
 
 	var enemies = get_tree().get_nodes_in_group("enemy")
-	# Forward auto-aim box: the swing connects to any enemy within the weapon's
-	# forward reach (lunge + arm reach == range_distance) and within
-	# MELEE_AUTO_AIM_WIDTH of the aim line. Reach uses the FORWARD projection so
-	# an enemy at range but off to the side is still at range, and the lateral
-	# width covers a mech body so a target filling the crosshair connects even
-	# when its center is off the line.
 	var lunge_dist = _melee_lunge_dist(weapon)
 	var swing_range = lunge_dist + MELEE_HIT_REACH
 	var aim2 := Vector2(direction.x, direction.z).normalized()
+	var is_pile := weapon != null and weapon.weapon_name.to_lower().contains("pile")
+
 	for enemy in enemies:
 		if not is_instance_valid(enemy):
 			continue
 		var to_h := Vector2(enemy.global_position.x - mecha.global_position.x,
 			enemy.global_position.z - mecha.global_position.z)
 		var proj := to_h.dot(aim2)
-		# A hair of grace past swing_range so an enemy at EXACTLY the weapon's
-		# range isn't whiffed by float rounding.
 		if proj < 0.1 or proj > swing_range + 0.05:
 			continue
 		var perp := absf(to_h.cross(aim2))
 		if perp > MELEE_AUTO_AIM_WIDTH:
 			continue
-		# Melee hits carry the weapon's attack type (knife/pile bunker = pierce,
-		# heat blade = heat, mace/fist/shoulder = blunt) so armor + shields can
-		# match on it like any other attack.
+
 		var melee_type := weapon.get_damage_type() if weapon != null else "blunt"
+		if is_pile and is_loaded_blast:
+			melee_type = "heat" # Explosive heat burst on loaded shell ignition
+
 		if enemy.has_method("take_damage_at_point"):
 			enemy.take_damage_at_point(damage, aim_point, melee_type)
 		elif enemy.has_method("take_damage"):
 			enemy.take_damage(damage, melee_type)
 		melee_hit_landed.emit()
-		# NOTE: the camera kick for a melee swing lives ONCE in
-		# _perform_pile_bunker_lunge_anim (punch-scaled per weapon: fist 0.11,
-		# knife 0.15, blade 0.20, pile 0.35). Do NOT add a second impact shake
-		# here — the old double-dip made every connected hit shake twice as
-		# hard as tuned (a bare fist landed a heavy 0.26 instead of a light tap).
-		if weapon != null and weapon.weapon_name.to_lower().contains("pile"):
+
+		if is_pile and is_loaded_blast:
 			_apply_pile_hitstop()
-		if weapon != null and weapon.impact > 0.0 and enemy.has_method("apply_impact"):
-			enemy.apply_impact(weapon.impact, direction)
+			if EffectManager:
+				EffectManager.spawn_sparks(enemy.global_position + Vector3(0, 1.5, 0), 24)
+			EffectManager.spawn_damage_number(enemy.global_position + Vector3(0, 2.5, 0), damage, Color(1, 0.2, 0))
+			AudioManager.play_pile_bunker_hit(enemy.global_position)
+		elif is_pile:
+			# Empty mechanical hammer hit
+			if EffectManager:
+				EffectManager.spawn_sparks(enemy.global_position + Vector3(0, 1.5, 0), 8)
+			EffectManager.spawn_damage_number(enemy.global_position + Vector3(0, 2.5, 0), damage, Color(0.9, 0.9, 0.9))
+			AudioManager.play_melee_hit(weapon, enemy.global_position)
+		else:
+			if weapon != null and weapon.impact > 0.0 and enemy.has_method("apply_impact"):
+				enemy.apply_impact(weapon.impact, direction)
 			EffectManager.spawn_damage_number(enemy.global_position + Vector3(0, 2.5, 0), damage, Color(1, 0.5, 0))
-			if weapon and weapon.weapon_name.to_lower().contains("pile"):
-				AudioManager.play_pile_bunker_hit(enemy.global_position)
-			else:
-				# Per-weapon melee hit voice (fist thud / knife crack / blade ring).
-				AudioManager.play_melee_hit(weapon, enemy.global_position)
+			AudioManager.play_melee_hit(weapon, enemy.global_position)
 
 
 # ====================================================================

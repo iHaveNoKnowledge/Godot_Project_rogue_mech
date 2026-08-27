@@ -24,6 +24,15 @@ signal lock_on_target_lost()
 
 # --- Combat ---
 signal weapon_fired(target_position: Vector3)
+signal combat_mode_toggled(mode: String)
+signal deflect_triggered(position: Vector3, is_perfect: bool)
+signal guard_state_changed(is_guarding: bool)
+signal pile_bunker_fired(is_loaded_blast: bool, target_pos: Vector3)
+
+# --- Rival & Era Progression ---
+signal rival_progression_updated(rival_data: Dictionary)
+signal era_phase_advanced(new_era: String, phase_index: int)
+signal prototype_encounter_triggered(prototype_data: Dictionary)
 
 # --- Eject / Pilot ---
 signal eject_initiated()

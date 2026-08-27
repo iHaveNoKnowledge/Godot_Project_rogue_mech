@@ -19,17 +19,38 @@ var target: Node3D = null
 var shake_amount: float = 0.0
 var shake_decay: float = 4.5
 
+# Combat Mode Camera Stances
+var _target_spring_length: float = 4.5
+var _target_offset_x: float = 1.0
+var _target_offset_y: float = 0.5
+var _target_fov: float = 75.0
+
 
 func _ready() -> void:
 	add_to_group("camera_rig")
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	EventBus.camera_mode_changed.connect(_on_camera_mode_changed)
+	EventBus.combat_mode_toggled.connect(_on_combat_mode_toggled)
 	EventBus.pilot_spawned.connect(_on_pilot_spawned)
 	EventBus.combat_ended.connect(_on_combat_ended)
 	await get_tree().process_frame
 	target = GameManager.get_player_mecha()
 	if target and spring_arm:
 		spring_arm.add_excluded_object(target.get_rid())
+
+
+func _on_combat_mode_toggled(mode: String) -> void:
+	if mode == "close_combat":
+		_target_spring_length = 3.0
+		_target_offset_x = 0.5
+		_target_offset_y = 0.3
+		_target_fov = 82.0
+		add_shake(0.25)
+	else:
+		_target_spring_length = 4.5
+		_target_offset_x = 1.0
+		_target_offset_y = 0.5
+		_target_fov = 75.0
 
 
 func _on_pilot_spawned(pilot_node: Node3D) -> void:
@@ -52,6 +73,16 @@ func _physics_process(delta: float) -> void:
 	pivot.rotation.x = pitch
 	if target and is_instance_valid(target):
 		global_position = global_position.lerp(target.global_position, follow_speed * delta)
+	
+	# Smoothly interpolate spring arm length and camera framing based on combat mode
+	if spring_arm:
+		spring_arm.spring_length = lerpf(spring_arm.spring_length, _target_spring_length, 8.0 * delta)
+	if camera_offset:
+		camera_offset.position.x = lerpf(camera_offset.position.x, _target_offset_x, 8.0 * delta)
+		camera_offset.position.y = lerpf(camera_offset.position.y, _target_offset_y, 8.0 * delta)
+	if camera:
+		camera.fov = lerpf(camera.fov, _target_fov, 8.0 * delta)
+
 	_process_screen_shake(delta)
 	_check_lock_on()
 
@@ -87,18 +118,15 @@ func _toggle_mouse_capture() -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
-# ระบบล็อกเป้า Area แบบใหม่เช็คสภาพหัวแตก
 func _check_lock_on() -> void:
 	if not lock_on_ray.enabled:
 		EventBus.lock_on_target_lost.emit()
 		return
 
-	# EMP & Jamming Zone: lock-on disabled by electromagnetic interference.
 	if GlobalData.board.current_hazard == GlobalData.HAZARD_EMP_ZONE:
 		EventBus.lock_on_target_lost.emit()
 		return
 
-	# 1. เช็คสภาพพาร์ทหัวผู้เล่น
 	var head_destroyed: bool = false
 	if target and is_instance_valid(target):
 		var health = target.get_node_or_null("HealthSystem")
@@ -107,16 +135,14 @@ func _check_lock_on() -> void:
 		elif health and health.get("parts") != null and health.parts.has("head") and health.parts["head"].get("destroyed", false):
 			head_destroyed = true
 
-	# 2. หัวแตก (Sensors Off-Line) เล็ง Manual เท่านั้น
 	if head_destroyed:
 		EventBus.lock_on_target_lost.emit()
 		return
 
-	# 3. สแกนหาเป้าหมายศัตรูในวงเป้ากึ่งกลางหน้าจอ (Area รัศมี 200 พิกเซล)
 	var enemies = get_tree().get_nodes_in_group("enemy")
 	var viewport_size = get_viewport().get_visible_rect().size
 	var center = viewport_size / 2.0
-	var lock_radius: float = 200.0 # รัศมีกรอบเซนเซอร์สแกนล็อกเป้า
+	var lock_radius: float = 200.0
 	
 	var best_target: Node3D = null
 	var min_distance: float = lock_radius
@@ -125,21 +151,14 @@ func _check_lock_on() -> void:
 		if is_instance_valid(enemy) and enemy.get("health_system") != null:
 			var hs = enemy.health_system
 			if not hs.get("is_destroyed"):
-				# ใช้จุดกึ่งกลางลำตัวศัตรูเล็งยิง (บวกความสูงขึ้น 1 เมตรจากพื้นเท้า)
 				var enemy_aim_pos = enemy.global_position + Vector3(0, 1.0, 0)
-				
-				# ข้ามหากเป้าหมายอยู่นอกระยะวิสัยทัศน์ด้านหลังกล้อง
 				if camera.is_position_behind(enemy_aim_pos):
 					continue
-					
 				var screen_pos = camera.unproject_position(enemy_aim_pos)
 				var dist = screen_pos.distance_to(center)
-				
-				# หาศัตรูในวงที่อยู่ใกล้จุดศูนกลางจอมากที่สุด (Auto-Focus)
 				if dist < min_distance:
 					min_distance = dist
 					best_target = enemy
-
 				
 	if best_target:
 		EventBus.lock_on_target_acquired.emit(best_target)

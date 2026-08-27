@@ -37,6 +37,11 @@ window/stretch/mode="viewport"
 
 enabled=PackedStringArray("res://addons/phantom_camera/plugin.cfg", "res://addons/SphynxMotionBlurToolkit/plugin.cfg", "res://addons/beehave/plugin.cfg")
 
+[gui]
+
+theme/custom="res://resources/theme/main_theme.tres"
+theme/custom_font="res://resources/fonts/ChakraPetch-SemiBold.ttf"
+
 [input]
 
 move_forward={
@@ -119,6 +124,16 @@ weapon_drop={
 "events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":88,"key_label":0,"unicode":120,"location":0,"echo":false,"script":null)
 ]
 }
+toggle_combat_mode={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":70,"key_label":0,"unicode":102,"location":0,"echo":false,"script":null)
+]
+}
+guard={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":81,"key_label":0,"unicode":113,"location":0,"echo":false,"script":null)
+]
+}
 aim={
 "deadzone": 0.5,
 "events": [Object(InputEventMouseButton,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"button_mask":0,"position":Vector2(0, 0),"global_position":Vector2(0, 0),"factor":1.0,"button_index":3,"canceled":false,"pressed":false,"double_click":false,"script":null)
@@ -148,19 +163,10 @@ reload={
 3d_physics/layer_4="Projectile"
 3d_physics/layer_5="Pilot"
 
-[gui]
-
-theme/custom="res://resources/theme/main_theme.tres"
-theme/custom_font="res://resources/fonts/ChakraPetch-SemiBold.ttf"
-
 [rendering]
 
 anti_aliasing/quality/msaa_3d=2
-anti_aliasing/quality/fxaa=true
 anti_aliasing/quality/use_debanding=true
-anti_aliasing/quality/use_taa=false
+anti_aliasing/quality/fxaa=true
 environment/sdfgi/max_cascades=4
-environment/volumetric_fog/volume_size=64
 environment/volumetric_fog/filter_active=true
-scaling_3d/mode=0
-scaling_3d/scale=1.0

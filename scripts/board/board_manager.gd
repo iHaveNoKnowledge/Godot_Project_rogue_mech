@@ -569,6 +569,17 @@ func _end_day() -> void:
 
 	EventBus.board_day_ended.emit()
 
+	# Rival Behind-The-Scenes Simulation & War Era Progression
+	RivalProgressionSystem.advance_rival_turn(1)
+	var era_res: Dictionary = EraProgressionSystem.advance_war_turn(1)
+	if bool(era_res.get("phase_changed", false)):
+		EventBus.event_triggered.emit({
+			"name": "ERA EVOLUTION: %s" % str(era_res.get("era_name", "")),
+			"effect": "none",
+			"amount": 0,
+			"desc": "The prolonged planetary war has shifted the technological landscape into the %s!" % str(era_res.get("era_name", "")),
+		})
+
 	# Patrols move after the day's systems resolve.
 	var ambush := PatrolSystem.advance_day(current_pos)
 	if (ambush != Vector2i(-1, -1) or not PatrolSystem.get_patrol_at(current_pos).is_empty()) and GameManager.current_state == GameManager.State.BOARD:

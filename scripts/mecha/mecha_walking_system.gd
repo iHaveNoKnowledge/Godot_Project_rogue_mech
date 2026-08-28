@@ -5,9 +5,10 @@ extends Node
 ##
 ## Features full directional stepping:
 ##   - Local velocity decomposition for 8-way directional strides.
-##   - Hip swivel (yaw), forward/reverse pitch, and lateral hip abduction (roll).
-##   - Natural knee flexion and weight-shifting torso bank.
-##   - Footstep and lift audio placed along the exact movement vector.
+##   - Decoupled pelvis / hip swivel (yaw up to ±60°) and lateral hip abduction (roll).
+##   - Dedicated forward sprint and reverse backpedal gait cycles with natural knee flexion.
+##   - Dynamic side-step lift and weight-shifting torso banking/pitch.
+##   - Directional footstep and lift 3D audio positioned along the movement vector.
 ## -----------------------------------------------------------------------
 
 # --- Walk / sprint state ---
@@ -16,11 +17,12 @@ var _prev_bob_timer: float = 0.0
 var is_moving: bool = false
 
 
-## Given a gait phase in [0, TAU], returns { "thigh": float, "shin": float }
-## representing the angular targets (radians) for one leg at that phase.
+## Given a forward gait phase in [0, TAU], returns { "thigh": float, "shin": float, "lift": float }
+## representing the angular targets (radians) and step lift for one leg.
 static func calc_sprint_leg(phase: float) -> Dictionary:
 	var thigh := 0.0
 	var shin := 0.0
+	var lift := 0.0
 
 	var norm_phase := fmod(phase, TAU)
 	if norm_phase < 0.0:
@@ -42,6 +44,8 @@ static func calc_sprint_leg(phase: float) -> Dictionary:
 		else:
 			var s := 0.5 - 0.5 * cos(((t - 0.4) / 0.6) * PI)
 			shin = lerp(-deg_to_rad(85.0), -deg_to_rad(26.0), s)
+
+		lift = sin(t * PI) * 0.18
 	else:
 		# Stance / Push-Off Phase (foot on ground, FRONT -> BACK)
 		var t := (norm_phase - PI) / PI
@@ -55,7 +59,88 @@ static func calc_sprint_leg(phase: float) -> Dictionary:
 			var s := 0.5 - 0.5 * cos(((t - 0.4) / 0.6) * PI)
 			shin = lerp(-deg_to_rad(36.0), -deg_to_rad(6.0), s)
 
-	return { "thigh": thigh, "shin": shin }
+		lift = 0.0
+
+	return { "thigh": thigh, "shin": shin, "lift": lift }
+
+
+## Given a reverse gait phase in [0, TAU], returns { "thigh": float, "shin": float, "lift": float }
+## for backpedaling strides. Ensures knees naturally flex backwards without hyperextension.
+static func calc_reverse_leg(phase: float) -> Dictionary:
+	var thigh := 0.0
+	var shin := 0.0
+	var lift := 0.0
+
+	var norm_phase := fmod(phase, TAU)
+	if norm_phase < 0.0:
+		norm_phase += TAU
+
+	if norm_phase < PI:
+		# Swing Phase (leg airborne, FRONT -> BACK)
+		var t := norm_phase / PI
+		if t <= 0.7:
+			var s := 0.5 - 0.5 * cos((t / 0.7) * PI)
+			thigh = lerp(deg_to_rad(38.0), -deg_to_rad(52.0), s)
+		else:
+			var s := 0.5 - 0.5 * cos(((t - 0.7) / 0.3) * PI)
+			thigh = lerp(-deg_to_rad(52.0), -deg_to_rad(40.0), s)
+
+		# Knee flexes backwards to lift foot during rearward stride
+		if t <= 0.5:
+			var s := 0.5 - 0.5 * cos((t / 0.5) * PI)
+			shin = lerp(-deg_to_rad(12.0), -deg_to_rad(75.0), s)
+		else:
+			var s := 0.5 - 0.5 * cos(((t - 0.5) / 0.5) * PI)
+			shin = lerp(-deg_to_rad(75.0), -deg_to_rad(22.0), s)
+
+		lift = sin(t * PI) * 0.16
+	else:
+		# Stance / Push-Off Phase (foot on ground, BACK -> FRONT)
+		var t := (norm_phase - PI) / PI
+		var s_thigh := 0.5 - 0.5 * cos(t * PI)
+		thigh = lerp(-deg_to_rad(40.0), deg_to_rad(38.0), s_thigh)
+
+		if t <= 0.5:
+			var s := 0.5 - 0.5 * cos((t / 0.5) * PI)
+			shin = lerp(-deg_to_rad(22.0), -deg_to_rad(32.0), s)
+		else:
+			var s := 0.5 - 0.5 * cos(((t - 0.5) / 0.5) * PI)
+			shin = lerp(-deg_to_rad(32.0), -deg_to_rad(12.0), s)
+
+		lift = 0.0
+
+	return { "thigh": thigh, "shin": shin, "lift": lift }
+
+
+## Given a strafe gait phase in [0, TAU], returns { "roll": float, "shin": float, "lift": float }
+## for lateral side-stepping strides.
+static func calc_strafe_leg(phase: float, is_outward_leg: bool) -> Dictionary:
+	var roll := 0.0
+	var shin := 0.0
+	var lift := 0.0
+
+	var norm_phase := fmod(phase, TAU)
+	if norm_phase < 0.0:
+		norm_phase += TAU
+
+	if norm_phase < PI:
+		# Swing Phase (leg airborne, stepping out/in)
+		var t := norm_phase / PI
+		var s := 0.5 - 0.5 * cos(t * PI)
+		var max_roll := deg_to_rad(22.0) if is_outward_leg else deg_to_rad(12.0)
+		roll = s * max_roll
+		shin = lerp(-deg_to_rad(10.0), -deg_to_rad(45.0), s)
+		lift = sin(t * PI) * 0.20
+	else:
+		# Stance Phase (leg on ground supporting lateral shift)
+		var t := (norm_phase - PI) / PI
+		var s := 0.5 - 0.5 * cos(t * PI)
+		var max_roll := deg_to_rad(6.0) if is_outward_leg else deg_to_rad(2.0)
+		roll = lerp(max_roll, 0.0, s)
+		shin = lerp(-deg_to_rad(15.0), -deg_to_rad(6.0), s)
+		lift = 0.0
+
+	return { "roll": roll, "shin": shin, "lift": lift }
 
 
 ## Drives torso bob, forward sprint lean, and lateral banking based on movement direction.
@@ -74,8 +159,15 @@ func update_bob(delta: float, mecha: CharacterBody3D, joints: Dictionary,
 		var fwd_ratio: float = clampf(-local_vel.z / maxf(speed, 0.1), -1.0, 1.0)
 		var side_ratio: float = clampf(local_vel.x / maxf(speed, 0.1), -1.0, 1.0)
 
-		var target_pitch := -deg_to_rad(18.0) * fwd_ratio
-		var target_bank := -deg_to_rad(7.0) * side_ratio
+		# Forward lean when sprinting forward; slight counter-pitch when backpedaling
+		var target_pitch: float
+		if fwd_ratio >= 0.0:
+			target_pitch = -deg_to_rad(18.0) * fwd_ratio
+		else:
+			target_pitch = deg_to_rad(10.0) * (-fwd_ratio)
+
+		# Lateral banking: torso rolls into the strafe/slide
+		var target_bank := -deg_to_rad(8.5) * side_ratio
 
 		var body_mesh: Node3D = joints.get("body_mesh")
 		var head_mesh: Node3D = joints.get("head_mesh")
@@ -100,7 +192,7 @@ func update_bob(delta: float, mecha: CharacterBody3D, joints: Dictionary,
 	return 0.0
 
 
-## Applies 8-directional procedural leg stepping (hip swivel, lateral abduction, and knee flexion).
+## Applies 8-directional procedural leg stepping (hip swivel, lateral abduction, step lift, and knee flexion).
 func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary) -> void:
 	var is_skating: bool = mecha.get("is_roller_dashing") == true
 	if is_skating:
@@ -111,16 +203,13 @@ func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary) -> vo
 	var orig_leg_left: Vector3 = joints.get("original_leg_left_pos", Vector3.ZERO)
 	var orig_leg_right: Vector3 = joints.get("original_leg_right_pos", Vector3.ZERO)
 
-	if leg_left:
-		leg_left.position.y = lerp(leg_left.position.y, orig_leg_left.y, 6.0 * delta)
-	if leg_right:
-		leg_right.position.y = lerp(leg_right.position.y, orig_leg_right.y, 6.0 * delta)
-
 	if not (leg_left and leg_right):
 		return
 
 	if not is_moving:
 		# Ease legs back to neutral stance when stopped
+		leg_left.position.y = lerp(leg_left.position.y, orig_leg_left.y, 8.0 * delta)
+		leg_right.position.y = lerp(leg_right.position.y, orig_leg_right.y, 8.0 * delta)
 		leg_left.rotation.x = lerp_angle(leg_left.rotation.x, 0.0, 8.0 * delta)
 		leg_left.rotation.y = lerp_angle(leg_left.rotation.y, 0.0, 8.0 * delta)
 		leg_left.rotation.z = lerp_angle(leg_left.rotation.z, 0.0, 8.0 * delta)
@@ -144,41 +233,75 @@ func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary) -> vo
 	var phase_left: float = fmod(bob_timer * 0.5, TAU)
 	var phase_right: float = fmod(bob_timer * 0.5 + PI, TAU)
 
-	var left_data: Dictionary = calc_sprint_leg(phase_left)
-	var right_data: Dictionary = calc_sprint_leg(phase_right)
+	# 1. Forward or Reverse longitudinal stride
+	var fwd_weight := maxf(fwd_ratio, 0.0)
+	var rev_weight := maxf(-fwd_ratio, 0.0)
+	var side_weight := absf(side_ratio)
 
-	var thigh_l: float = left_data["thigh"]
-	var shin_l: float = left_data["shin"]
-	var thigh_r: float = right_data["thigh"]
-	var shin_r: float = right_data["shin"]
+	var fwd_left := calc_sprint_leg(phase_left)
+	var fwd_right := calc_sprint_leg(phase_right)
+	var rev_left := calc_reverse_leg(phase_left)
+	var rev_right := calc_reverse_leg(phase_right)
 
-	# 1. Hip Swivel (Yaw - aligns leg heading towards direction of movement)
-	var hip_swivel := clampf(move_angle * 0.65, -deg_to_rad(60.0), deg_to_rad(60.0))
+	# Calculate longitudinal pitch & longitudinal shin flexion
+	var pitch_l: float = float(fwd_left["thigh"]) * fwd_weight + float(rev_left["thigh"]) * rev_weight
+	var pitch_r: float = float(fwd_right["thigh"]) * fwd_weight + float(rev_right["thigh"]) * rev_weight
+	var long_shin_l: float = float(fwd_left["shin"]) * fwd_weight + float(rev_left["shin"]) * rev_weight
+	var long_shin_r: float = float(fwd_right["shin"]) * fwd_weight + float(rev_right["shin"]) * rev_weight
+	var long_lift_l: float = float(fwd_left["lift"]) * fwd_weight + float(rev_left["lift"]) * rev_weight
+	var long_lift_r: float = float(fwd_right["lift"]) * fwd_weight + float(rev_right["lift"]) * rev_weight
 
-	# 2. Forward/Reverse Pitch (X-axis)
-	var pitch_l := thigh_l * fwd_ratio
-	var pitch_r := thigh_r * fwd_ratio
+	# 2. Lateral strafe stride & side-step lift
+	var is_strafe_right := side_ratio > 0.0
+	var strafe_left := calc_strafe_leg(phase_left, not is_strafe_right)
+	var strafe_right := calc_strafe_leg(phase_right, is_strafe_right)
 
-	# 3. Lateral Hip Abduction / Side Stepping Roll (Z-axis)
-	var lateral_l := side_ratio * (thigh_l * 0.50)
-	var lateral_r := side_ratio * (thigh_r * 0.50)
+	var lateral_l: float = side_ratio * (float(strafe_left["roll"]) if is_strafe_right else -float(strafe_left["roll"]))
+	var lateral_r: float = side_ratio * (float(strafe_right["roll"]) if is_strafe_right else -float(strafe_right["roll"]))
+	var lat_shin_l: float = float(strafe_left["shin"])
+	var lat_shin_r: float = float(strafe_right["shin"])
+	var lat_lift_l: float = float(strafe_left["lift"])
+	var lat_lift_r: float = float(strafe_right["lift"])
+
+	# Blend longitudinal and lateral components
+	var total_weight := maxf(fwd_weight + rev_weight + side_weight, 0.001)
+	var long_norm := (fwd_weight + rev_weight) / total_weight
+	var side_norm := side_weight / total_weight
+
+	var target_pitch_l: float = pitch_l * long_norm
+	var target_pitch_r: float = pitch_r * long_norm
+	var target_shin_l: float = long_shin_l * long_norm + lat_shin_l * side_norm
+	var target_shin_r: float = long_shin_r * long_norm + lat_shin_r * side_norm
+	var total_lift_l: float = long_lift_l * long_norm + lat_lift_l * side_norm
+	var total_lift_r: float = long_lift_r * long_norm + lat_lift_r * side_norm
+
+	# 3. Decoupled Pelvis Hip Swivel (Yaw - aligns leg heading towards stride direction up to ±45°)
+	# For forward motion, align relative to forward; for backward motion, align relative to backward.
+	var move_heading: float
+	if fwd_ratio >= 0.0:
+		move_heading = atan2(local_vel.x, -local_vel.z)
+	else:
+		move_heading = atan2(local_vel.x, local_vel.z)
+	var hip_swivel := clampf(move_heading * 0.60, -deg_to_rad(45.0), deg_to_rad(45.0))
 
 	# Apply smoothly to leg joints
-	leg_left.rotation.x = pitch_l
+	leg_left.rotation.x = lerp_angle(leg_left.rotation.x, target_pitch_l, 14.0 * delta)
 	leg_left.rotation.y = lerp_angle(leg_left.rotation.y, hip_swivel, 12.0 * delta)
 	leg_left.rotation.z = lerp_angle(leg_left.rotation.z, lateral_l, 12.0 * delta)
+	leg_left.position.y = lerp(leg_left.position.y, orig_leg_left.y + total_lift_l, 14.0 * delta)
 
-	leg_right.rotation.x = pitch_r
+	leg_right.rotation.x = lerp_angle(leg_right.rotation.x, target_pitch_r, 14.0 * delta)
 	leg_right.rotation.y = lerp_angle(leg_right.rotation.y, hip_swivel, 12.0 * delta)
 	leg_right.rotation.z = lerp_angle(leg_right.rotation.z, lateral_r, 12.0 * delta)
+	leg_right.position.y = lerp(leg_right.position.y, orig_leg_right.y + total_lift_r, 14.0 * delta)
 
 	# Knee flexion (Shins)
 	var shin_left: Node3D = joints.get("shin_left")
 	var shin_right: Node3D = joints.get("shin_right")
 	if shin_left:
-		shin_left.rotation.x = shin_l
+		shin_left.rotation.x = lerp_angle(shin_left.rotation.x, target_shin_l, 16.0 * delta)
 	if shin_right:
-		shin_right.rotation.x = shin_r
+		shin_right.rotation.x = lerp_angle(shin_right.rotation.x, target_shin_r, 16.0 * delta)
 
 	# Footstep audio positioned in the actual direction of motion
 	var prev_step_idx := int((_prev_bob_timer * 0.5) / PI)
@@ -188,9 +311,12 @@ func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary) -> vo
 		var land_offset_x := -0.45 if is_left_land else 0.45
 		var step_dir := local_vel.normalized()
 		var land_pos: Vector3 = mecha.global_position + mecha.global_transform.basis * (Vector3(land_offset_x, 0.0, 0.0) + step_dir * 0.3)
-		if AudioManager:
-			AudioManager.play_footstep(land_pos)
-			AudioManager.play_step_lift(land_pos - mecha.global_transform.basis * (step_dir * 0.3))
+		var audio_mgr: Node = mecha.get_node_or_null("/root/AudioManager")
+		if audio_mgr:
+			if audio_mgr.has_method("play_footstep"):
+				audio_mgr.play_footstep(land_pos)
+			if audio_mgr.has_method("play_step_lift"):
+				audio_mgr.play_step_lift(land_pos - mecha.global_transform.basis * (step_dir * 0.3))
 
 	# Arm pumping (counter-balances directional stride)
 	var arm_left: Node3D = joints.get("arm_left")
@@ -199,11 +325,11 @@ func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary) -> vo
 	var forearm_right: Node3D = joints.get("forearm_right")
 
 	if arm_left:
-		arm_left.rotation.x = -pitch_l * 0.75
+		arm_left.rotation.x = -target_pitch_l * 0.75
 		if forearm_left:
 			forearm_left.rotation.x = deg_to_rad(55.0) + absf(sin(phase_left)) * deg_to_rad(20.0)
 	if arm_right:
-		arm_right.rotation.x = -pitch_r * 0.75
+		arm_right.rotation.x = -target_pitch_r * 0.75
 		if forearm_right:
 			forearm_right.rotation.x = deg_to_rad(55.0) + absf(sin(phase_right)) * deg_to_rad(20.0)
 

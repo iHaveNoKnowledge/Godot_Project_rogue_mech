@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://ct4g7b5kx8p3q"]
+
+[ext_resource type="Script" path="res://tests/hangar_stats_and_equip_verify.gd" id="1_test"]
+
+[node name="HangarStatsAndEquipVerify" type="Node"]
+script = ExtResource("1_test")

@@ -71,8 +71,8 @@ var attachment_catalog: Array:
 var tab_container: HBoxContainer
 var sub_toggle_container: HBoxContainer
 var part_item_list: ItemList
-var stats_label: Label
-var total_stats_label: Label
+var stats_label: Control
+var total_stats_label: Control
 var weight_bar: ProgressBar
 # Right-side TIER box (part upgrade tier 1 -> 1.1 -> ... -> 2 + progress pips).
 var tier_label: Label = null

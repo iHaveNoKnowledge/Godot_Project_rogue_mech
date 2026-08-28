@@ -47,10 +47,13 @@ func build(root: Control) -> void:
 	stats_title.add_theme_color_override("font_color", Color(1.0, 0.8, 0.2))
 	right_box.add_child(stats_title)
 
-	controller.stats_label = Label.new()
-	controller.stats_label.text = "Select a chassis, frame, or armor to view specifications"
-	controller.stats_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	right_box.add_child(controller.stats_label)
+	var rtl_stats := RichTextLabel.new()
+	rtl_stats.bbcode_enabled = true
+	rtl_stats.fit_content = true
+	rtl_stats.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	rtl_stats.text = "Select a chassis, frame, or armor to view specifications"
+	controller.stats_label = rtl_stats
+	right_box.add_child(rtl_stats)
 
 	var hp_bar_box = VBoxContainer.new()
 	hp_bar_box.add_theme_constant_override("separation", 3)
@@ -128,9 +131,13 @@ func build(root: Control) -> void:
 	controller.weight_bar.max_value = 85.0
 	right_box.add_child(controller.weight_bar)
 
-	controller.total_stats_label = Label.new()
-	controller.total_stats_label.text = "FRAME HP: 150 | ARMOR HP: 210\nTOTAL WEIGHT: 42.0 / 75.0 kg"
-	right_box.add_child(controller.total_stats_label)
+	var rtl_total := RichTextLabel.new()
+	rtl_total.bbcode_enabled = true
+	rtl_total.fit_content = true
+	rtl_total.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	rtl_total.text = "FRAME HP: 150 | ARMOR HP: 210\nTOTAL WEIGHT: 42.0 / 75.0 kg"
+	controller.total_stats_label = rtl_total
+	right_box.add_child(rtl_total)
 
 	var sep2 = HSeparator.new()
 	right_box.add_child(sep2)

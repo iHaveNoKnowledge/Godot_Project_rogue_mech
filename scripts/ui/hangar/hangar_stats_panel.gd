@@ -30,22 +30,28 @@ func update() -> void:
 	var total_frame_weight = 0.0
 	var total_armor_weight = 0.0
 	var total_frame_hp = 0.0
+	var total_max_frame_hp = 0.0
 	var total_armor_hp = 0.0
+	var total_max_armor_hp = 0.0
 	var total_attachment_weight = 0.0
 
 	for slot in GlobalData.weapons.equipped_frames:
 		var f = GlobalData.weapons.equipped_frames[slot]
-		var max_fhp = f.get("hp", 0.0) + LoadoutSystem.get_frame_upgrade_hp_bonus()
-		total_frame_weight += f.get("weight", 0.0)
-		total_frame_hp += max_fhp * (1.0 - clampf(GlobalData.weapons.part_damage.get(slot + "_frame", 0.0), 0.0, 1.0))
+		var max_fhp = float(f.get("hp", 0.0)) + LoadoutSystem.get_frame_upgrade_hp_bonus()
+		total_frame_weight += float(f.get("weight", 0.0))
+		total_max_frame_hp += max_fhp
+		var dur := 1.0 - clampf(GlobalData.weapons.part_damage.get(slot + "_frame", 0.0), 0.0, 1.0)
+		total_frame_hp += max_fhp * dur
 
 	for slot in GlobalData.weapons.equipped_parts:
 		var p = GlobalData.weapons.equipped_parts[slot]
 		if p and p.get("weight") != null:
-			total_armor_weight += p.weight
+			total_armor_weight += float(p.weight)
 		if p and (p.get("hp") != null or p.get("max_hp") != null):
 			var max_ahp = float(p.get("hp", p.get("max_hp", 0.0)))
-			total_armor_hp += max_ahp * (1.0 - clampf(GlobalData.weapons.part_damage.get(slot, 0.0), 0.0, 1.0))
+			total_max_armor_hp += max_ahp
+			var dur := 1.0 - clampf(GlobalData.weapons.part_damage.get(slot, 0.0), 0.0, 1.0)
+			total_armor_hp += max_ahp * dur
 
 	for attachment in GlobalData.weapons.attachments:
 		total_attachment_weight += float(attachment.get("weight", 0.0))
@@ -64,10 +70,30 @@ func update() -> void:
 		var penalty_text := ""
 		var active_penalties := PartPenaltySystem.active_penalties()
 		if not active_penalties.is_empty():
-			penalty_text = "\n" + "\n".join(active_penalties)
+			penalty_text = "\n[color=#ff5555]" + "\n".join(active_penalties) + "[/color]"
 
-		controller.total_stats_label.text = "PILOT: %s\nFRAME LVL: %d | FRAME HP: %.0f | ARMOR HP: %.0f\nFRAME W: %.1fkg | ARMOR W: %.1fkg | ATTACH W: %.1fkg | WEAPON W: %.1fkg\nTOTAL WEIGHT: %.1f / %.1f kg\nFIELD PACK: %.1f / %.1f kg\nCREDITS: %d cr   |   SCRAP: %d%s" % [
-			_editing_pilot_name(), GlobalData.weapons.frame_upgrade_level, total_frame_hp, total_armor_hp,
+		# Frame HP format
+		var fhp_str: String
+		var lost_fhp: float = total_max_frame_hp - total_frame_hp
+		if lost_fhp > 0.5:
+			var f_ratio: float = (total_frame_hp / total_max_frame_hp) if total_max_frame_hp > 0.0 else 0.0
+			var f_col := "#ff4444" if f_ratio <= 0.35 else "#ffaa33"
+			fhp_str = "[color=%s]%.0f / %.0f (-%.0f, %.0f%%)[/color]" % [f_col, total_frame_hp, total_max_frame_hp, lost_fhp, f_ratio * 100.0]
+		else:
+			fhp_str = "[color=#44ff77]%.0f / %.0f[/color]" % [total_frame_hp, total_max_frame_hp]
+
+		# Armor HP format
+		var ahp_str: String
+		var lost_ahp: float = total_max_armor_hp - total_armor_hp
+		if lost_ahp > 0.5:
+			var a_ratio: float = (total_armor_hp / total_max_armor_hp) if total_max_armor_hp > 0.0 else 0.0
+			var a_col := "#ff4444" if a_ratio <= 0.35 else "#ffaa33"
+			ahp_str = "[color=%s]%.0f / %.0f (-%.0f, %.0f%%)[/color]" % [a_col, total_armor_hp, total_max_armor_hp, lost_ahp, a_ratio * 100.0]
+		else:
+			ahp_str = "[color=#44ff77]%.0f / %.0f[/color]" % [total_armor_hp, total_max_armor_hp]
+
+		controller.total_stats_label.text = "PILOT: %s\nFRAME LVL: %d | FRAME HP: %s | ARMOR HP: %s\nFRAME W: %.1fkg | ARMOR W: %.1fkg | ATTACH W: %.1fkg | WEAPON W: %.1fkg\nTOTAL WEIGHT: %.1f / %.1f kg\nFIELD PACK: %.1f / %.1f kg\nCREDITS: %d cr   |   SCRAP: %d%s" % [
+			_editing_pilot_name(), GlobalData.weapons.frame_upgrade_level, fhp_str, ahp_str,
 			total_frame_weight, total_armor_weight, total_attachment_weight, total_weapon_weight,
 			total_weight, max_weight,
 			field_pack_weight, field_pack_capacity,

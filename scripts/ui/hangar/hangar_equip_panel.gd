@@ -157,41 +157,7 @@ func equip_part(slot: String, info: Dictionary) -> void:
 		_perform_frame_equip(slot, info)
 		return
 
-
-func _perform_attachment_mod_toggle(slot: String, info: Dictionary) -> void:
-	var mod_id := str(info.get("id", ""))
-	if mod_id == "":
-		return
-	var equipped_mods := GlobalData.get_equipped_frame_mods_for_slot(slot)
-	var found_idx := -1
-	for i in range(GlobalData.weapons.attachments.size()):
-		var att = GlobalData.weapons.attachments[i]
-		if str(att.get("slot", "")) == slot and str(att.get("id", "")) == mod_id:
-			found_idx = i
-			break
-
-	if found_idx >= 0:
-		# Unequip
-		GlobalData.weapons.attachments.remove_at(found_idx)
-		controller.status_message_label.text = "Unequipped %s from %s frame." % [info.get("name", "Mod"), slot.to_upper()]
-	else:
-		# Equip
-		var max_sockets := GlobalData.get_slot_frame_sockets(slot)
-		if equipped_mods.size() >= max_sockets:
-			controller.status_message_label.text = "Cannot equip: all %d sockets are full on %s frame!" % [max_sockets, slot.to_upper()]
-			return
-		var new_att := info.duplicate(true)
-		new_att["slot"] = slot
-		GlobalData.weapons.attachments.append(new_att)
-		controller.status_message_label.text = "Equipped %s on %s frame! (Sockets: %d/%d)" % [info.get("name", "Mod"), slot.to_upper(), equipped_mods.size() + 1, max_sockets]
-
-	if controller.garage_panel:
-		controller.garage_panel.update_all_slots_preview()
-	controller.part_list_panel.populate(slot)
-	controller.stats_panel.update()
-	if controller.persist_panel:
-		controller.persist_panel.save_custom_mecha_data()
-
+	# Armor equip flow
 	var inst := info
 	if not info.has("uid"):
 		# Catalog template: crafting it costs scrap + credits and produces a new
@@ -230,6 +196,41 @@ func _perform_attachment_mod_toggle(slot: String, info: Dictionary) -> void:
 				func(): _perform_armor_equip(slot, inst))
 			return
 	_perform_armor_equip(slot, inst)
+
+
+func _perform_attachment_mod_toggle(slot: String, info: Dictionary) -> void:
+	var mod_id := str(info.get("id", ""))
+	if mod_id == "":
+		return
+	var equipped_mods := GlobalData.get_equipped_frame_mods_for_slot(slot)
+	var found_idx := -1
+	for i in range(GlobalData.weapons.attachments.size()):
+		var att = GlobalData.weapons.attachments[i]
+		if str(att.get("slot", "")) == slot and str(att.get("id", "")) == mod_id:
+			found_idx = i
+			break
+
+	if found_idx >= 0:
+		# Unequip
+		GlobalData.weapons.attachments.remove_at(found_idx)
+		controller.status_message_label.text = "Unequipped %s from %s frame." % [info.get("name", "Mod"), slot.to_upper()]
+	else:
+		# Equip
+		var max_sockets := GlobalData.get_slot_frame_sockets(slot)
+		if equipped_mods.size() >= max_sockets:
+			controller.status_message_label.text = "Cannot equip: all %d sockets are full on %s frame!" % [max_sockets, slot.to_upper()]
+			return
+		var new_att := info.duplicate(true)
+		new_att["slot"] = slot
+		GlobalData.weapons.attachments.append(new_att)
+		controller.status_message_label.text = "Equipped %s on %s frame! (Sockets: %d/%d)" % [info.get("name", "Mod"), slot.to_upper(), equipped_mods.size() + 1, max_sockets]
+
+	if controller.garage_panel:
+		controller.garage_panel.update_all_slots_preview()
+	controller.part_list_panel.populate(slot)
+	controller.stats_panel.update()
+	if controller.persist_panel:
+		controller.persist_panel.save_custom_mecha_data()
 
 
 # Performs the weapon equip (including a cross-mech transfer). Runs directly when

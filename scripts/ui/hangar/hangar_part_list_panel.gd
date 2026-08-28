@@ -96,7 +96,8 @@ func populate(slot: String) -> void:
 			var state_tag = " [DESTROYED]" if (is_eq and is_destroyed) else ""
 			var dur_pct = instance_durability(slot, info)
 			var cur_fhp = fhp * dur_pct
-			var hp_str = "HP: %.0f/%.0f" % [cur_fhp, fhp] if is_eq and dur_pct < 0.999 else "HP: %.0f" % fhp
+			var lost_fhp = fhp - cur_fhp
+			var hp_str = "HP: %.0f/%.0f (-%.0f)" % [cur_fhp, fhp, lost_fhp] if dur_pct < 0.999 else "HP: %.0f" % fhp
 			var label_str = "%s%s (%s, %.1fkg)%s" % [prefix, fname, hp_str, fwt, state_tag]
 			controller.part_item_list.add_item(label_str)
 			controller.visible_frame_indices.append(f_idx)
@@ -176,8 +177,12 @@ func populate(slot: String) -> void:
 			var other_user: String = str(row["other"])
 			var prefix := "[E] " if is_eq else ("" if other_user == "" else "[E·%s] " % other_user)
 			var state_tag = " [DESTROYED]" if (is_eq and is_destroyed) else ""
+			var full_hp = float(GlobalData.part_stat(inst, "max_hp", 30.0))
 			var dur_pct = instance_durability(slot, inst)
-			var inst_label = "%s%s [%s] (%.0f%%)%s" % [prefix, inst.get("name", "Armor"), inst.get("type", "Instance"), dur_pct * 100.0, state_tag]
+			var cur_hp = full_hp * dur_pct
+			var lost_hp = full_hp - cur_hp
+			var hp_str = "HP: %.0f/%.0f (-%.0f, %.0f%%)" % [cur_hp, full_hp, lost_hp, dur_pct * 100.0] if dur_pct < 0.999 else "HP: %.0f" % full_hp
+			var inst_label = "%s%s [%s] (%s)%s" % [prefix, inst.get("name", "Armor"), inst.get("type", "Instance"), hp_str, state_tag]
 			controller.part_item_list.add_item(inst_label)
 			controller.visible_salvage_indices.append(inst_index)
 		if controller.part_item_list.item_count > 0:
@@ -394,13 +399,15 @@ func on_item_selected(index: int) -> void:
 			var fcap = HangarPartText.frame_capability_text(controller.selected_frame_info, dur_ratio)
 			var fhp = float(controller.selected_frame_info.get("hp", controller.selected_frame_info.get("max_hp", 20.0)))
 			var cur_fhp = fhp * dur_ratio
+			var lost_fhp = fhp - cur_fhp
+			var fhp_str := "[color=%s]%.0f / %.0f (-%.0f, %.0f%%)[/color]" % ["#ff4444" if dur_ratio <= 0.35 else "#ffaa33", cur_fhp, fhp, lost_fhp, dur_ratio * 100.0] if dur_ratio < 0.999 else "[color=#44ff77]%.0f / %.0f[/color]" % [fhp, fhp]
 			if is_eq:
-				controller.stats_label.text = "INNER FRAME PART: %s  [E]\nDURABILITY: %.0f%% (%.0f / %.0f HP)\n\n%s\n\nThis frame is currently equipped." % [
-					fname, dur_ratio * 100.0, cur_fhp, fhp, fcap
+				controller.stats_label.text = "INNER FRAME PART: %s  [E]\nFRAME HP: %s\nDURABILITY: %.0f%%\n\n%s\n\nThis frame is currently equipped." % [
+					fname, fhp_str, dur_ratio * 100.0, fcap
 				]
 			else:
-				controller.stats_label.text = "INNER FRAME PART: %s\nDURABILITY: 100%%\n\n%s\n\nEquip this frame to install it fresh at 100%% HP." % [
-					fname, fcap
+				controller.stats_label.text = "INNER FRAME PART: %s\nFRAME HP: %s\nDURABILITY: 100%%\n\n%s\n\nEquip this frame to install it fresh at 100%% HP." % [
+					fname, fhp_str, fcap
 				]
 			if controller.stats_hp_bar_box:
 				controller.stats_hp_bar_box.add_child(HPPartBar.create_row("Frame", cur_fhp, fhp, true, false, 240, 10, 11))
@@ -439,24 +446,26 @@ func on_item_selected(index: int) -> void:
 						controller.stats_hp_bar_box.add_child(HPPartBar.create_row("Shield", shp * wdur, shp, false, true, 240, 10, 11))
 
 			if controller.selected_slot == "weapon_carry":
-				var eq = LoadoutSystem.is_weapon_in_carry(wpath)
+				var eq = weapon_in_loadout(controller.selected_slot, inv)
 				var carried := LoadoutSystem.count_carry_weapon(wpath)
 				var owned := LoadoutSystem.count_owned_weapon(wpath)
 				var prefix = "[E] " if eq else ""
 				var copies := ""
 				if owned > 1:
 					copies = "\nOWNED: x%d | ON PACK: x%d" % [owned, carried]
-				controller.stats_label.text = "BACK CARRY: %s%s\nDURABILITY: %.0f%%%s\n\n%s\nWEIGHT: %.1f kg\n\nAssigns a copy to the mech's back pack (FIELD PACK).\nFIELD PACK: %.1f / %.1f kg\nPick weapons from the stash below." % [
-					prefix, wname, wdur * 100.0, copies, wcap if not wcap.is_empty() else "TYPE: %s" % wtype,
+				var dur_str := "[color=%s]%.0f%%[/color]" % ["#ff4444" if wdur <= 0.35 else "#ffaa33", wdur * 100.0] if wdur < 0.999 else "[color=#44ff77]100%%[/color]"
+				controller.stats_label.text = "BACK CARRY: %s%s\nDURABILITY: %s%s\n\n%s\nWEIGHT: %.1f kg\n\nAssigns a copy to the mech's back pack (FIELD PACK).\nFIELD PACK: %.1f / %.1f kg\nPick weapons from the stash below." % [
+					prefix, wname, dur_str, copies, wcap if not wcap.is_empty() else "TYPE: %s" % wtype,
 					wwt,
 					LoadoutSystem.get_field_pack_weight(), LoadoutSystem.get_field_pack_capacity()
 				]
 			else:
 				var hand = "left" if controller.selected_slot == "weapon_left" else "right"
-				var eq = LoadoutSystem.get_equipped_weapon_uid(hand) == str(inv.get("uid", ""))
+				var eq = weapon_in_loadout(controller.selected_slot, inv)
 				var prefix = "[E] " if eq else ""
-				controller.stats_label.text = "%s HAND WEAPON: %s%s\nDURABILITY: %.0f%%\n\n%s\nWEIGHT: %.1f kg\n\nEquip this weapon to the %s hand.\nFIELD PACK: %.1f / %.1f kg" % [
-					hand.to_upper(), prefix, wname, wdur * 100.0, wcap if not wcap.is_empty() else "TYPE: %s" % wtype,
+				var dur_str := "[color=%s]%.0f%%[/color]" % ["#ff4444" if wdur <= 0.35 else "#ffaa33", wdur * 100.0] if wdur < 0.999 else "[color=#44ff77]100%%[/color]"
+				controller.stats_label.text = "%s HAND WEAPON: %s%s\nDURABILITY: %s\n\n%s\nWEIGHT: %.1f kg\n\nEquip this weapon to the %s hand.\nFIELD PACK: %.1f / %.1f kg" % [
+					hand.to_upper(), prefix, wname, dur_str, wcap if not wcap.is_empty() else "TYPE: %s" % wtype,
 					wwt, hand,
 					LoadoutSystem.get_field_pack_weight(), LoadoutSystem.get_field_pack_capacity()
 				]
@@ -480,15 +489,17 @@ func on_item_selected(index: int) -> void:
 			var acap = HangarPartText.armor_capability_text(controller.selected_salvage_info, dur_pct)
 			var full_hp = float(GlobalData.part_stat(controller.selected_salvage_info, "max_hp", 30.0))
 			var cur_hp = full_hp * dur_pct
+			var lost_hp = full_hp - cur_hp
+			var hp_str := "[color=%s]%.0f / %.0f (-%.0f, %.0f%%)[/color]" % ["#ff4444" if dur_pct <= 0.35 else "#ffaa33", cur_hp, full_hp, lost_hp, dur_pct * 100.0] if dur_pct < 0.999 else "[color=#44ff77]%.0f / %.0f[/color]" % [full_hp, full_hp]
 
 			var is_eq = is_item_equipped(controller.selected_slot, controller.selected_salvage_info)
 			if is_eq:
-				controller.stats_label.text = "OWNED ARMOR: %s  [E]\nDURABILITY: %.0f%% (%.0f / %.0f HP)\n\n%s\n\nThis plate is currently equipped." % [
-					item_name, dur_pct * 100.0, cur_hp, full_hp, acap
+				controller.stats_label.text = "OWNED ARMOR: %s  [E]\nARMOR HP: %s\nDURABILITY: %.0f%%\n\n%s\n\nThis plate is currently equipped." % [
+					item_name, hp_str, dur_pct * 100.0, acap
 				]
 			else:
-				controller.stats_label.text = "OWNED ARMOR: %s\nDURABILITY: %.0f%% (%.0f / %.0f HP)\n\n%s\n\nEquip this plate to install it." % [
-					item_name, dur_pct * 100.0, cur_hp, full_hp, acap
+				controller.stats_label.text = "OWNED ARMOR: %s\nARMOR HP: %s\nDURABILITY: %.0f%%\n\n%s\n\nEquip this plate to install it." % [
+					item_name, hp_str, dur_pct * 100.0, acap
 				]
 			if controller.stats_hp_bar_box:
 				controller.stats_hp_bar_box.add_child(HPPartBar.create_row("Armor", cur_hp, full_hp, false, false, 240, 10, 11))
@@ -548,6 +559,10 @@ func is_item_equipped(slot: String, info: Dictionary) -> bool:
 	if controller.current_mode == "frame":
 		var cur_frame = GlobalData.weapons.equipped_frames.get(slot, {})
 		if cur_frame is Dictionary and not cur_frame.is_empty():
+			var uid_a := str(cur_frame.get("uid", ""))
+			var uid_b := str(info.get("uid", ""))
+			if uid_a != "" and uid_b != "":
+				return uid_a == uid_b
 			var name_a = cur_frame.get("name", cur_frame.get("part_name", "")).to_lower()
 			var name_b = info.get("name", info.get("part_name", "")).to_lower()
 			if name_a != "" and name_b != "":
@@ -559,40 +574,26 @@ func is_item_equipped(slot: String, info: Dictionary) -> bool:
 			return false
 
 		# 0. Match by instance uid (authoritative for owned instances)
-		if cur is Dictionary and cur.has("uid") and info.has("uid"):
-			return cur["uid"] == info["uid"]
+		var cur_uid = str(cur.get("uid", "")) if cur is Dictionary else ""
+		var info_uid = str(info.get("uid", ""))
+		if cur_uid != "" and info_uid != "":
+			return cur_uid == info_uid
 
 		# 1. Match by unique ID if available
-		var cur_id = ""
-		if cur is Dictionary:
-			cur_id = cur.get("id", "")
-		elif cur is Resource and "id" in cur:
-			cur_id = cur.id
-		var info_id = info.get("id", "")
-		# Catalog IDs are authoritative. Do not fall back to path/name when both
-		# entries share the same Resource path.
-		if info_id != "":
-			return cur_id != "" and cur_id == info_id
-		if cur_id != "":
-			return false
+		var cur_id = cur.get("id", "") if cur is Dictionary else (cur.id if cur is Resource and "id" in cur else "")
+		var info_id = str(info.get("id", ""))
+		if cur_id != "" and info_id != "":
+			return cur_id == info_id
 
 		# 2. Match by Resource file path
-		var cur_path = ""
-		if cur is Dictionary:
-			cur_path = cur.get("path", "")
-		elif cur is Resource:
-			cur_path = cur.resource_path
-		var info_path = info.get("path", "")
+		var cur_path = cur.get("path", "") if cur is Dictionary else (cur.resource_path if cur is Resource else "")
+		var info_path = str(info.get("path", ""))
 		if cur_path != "" and info_path != "" and cur_path == info_path:
 			return true
 
 		# 3. Match by Part Name
-		var cur_name = ""
-		if cur is Dictionary:
-			cur_name = cur.get("name", cur.get("part_name", "")).to_lower()
-		elif cur is Resource and "part_name" in cur:
-			cur_name = cur.part_name.to_lower()
-		var info_name = info.get("name", info.get("part_name", "")).to_lower()
+		var cur_name = cur.get("name", cur.get("part_name", "")).to_lower() if cur is Dictionary else (cur.part_name.to_lower() if cur is Resource and "part_name" in cur else "")
+		var info_name = str(info.get("name", info.get("part_name", ""))).to_lower()
 		if cur_name != "" and info_name != "":
 			return cur_name == info_name
 
@@ -610,17 +611,27 @@ func instance_durability(slot: String, inst: Dictionary) -> float:
 	return GlobalData.get_durability_ratio(inst)
 
 
-# Whether this weapon INSTANCE (matched by uid) is part of the current loadout
-# for this weapon slot. Only the equipped copy's uid matches, so same-model
-# copies never share the "[E]" badge.
+# Whether this weapon INSTANCE (matched by uid or path) is part of the current loadout
+# for this weapon slot.
 func weapon_in_loadout(slot: String, inv: Dictionary) -> bool:
 	var uid := str(inv.get("uid", ""))
-	if uid == "":
-		return false
+	var path := str(inv.get("path", ""))
 	if slot == "weapon_carry":
-		return LoadoutSystem.is_weapon_in_carry_by_uid(uid)
+		if uid != "" and LoadoutSystem.is_weapon_in_carry_by_uid(uid):
+			return true
+		if path != "" and LoadoutSystem.is_weapon_in_carry(path):
+			return true
+		return false
 	var hand = "left" if slot == "weapon_left" else "right"
-	return LoadoutSystem.get_equipped_weapon_uid(hand) == uid
+	var eq_uid := LoadoutSystem.get_equipped_weapon_uid(hand)
+	if uid != "" and eq_uid != "" and eq_uid == uid:
+		return true
+	var eq_w = LoadoutSystem.get_equipped_weapon(hand)
+	if eq_w and path != "" and (eq_w.resource_path == path or eq_uid == path):
+		return true
+	if eq_uid != "" and path != "" and eq_uid == path:
+		return true
+	return false
 
 
 # ---------------------------------------------------------------------------

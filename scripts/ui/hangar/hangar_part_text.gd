@@ -127,9 +127,15 @@ static func armor_capability_text(inst: Dictionary, durability: float) -> String
 	else:
 		lines.append("DEFENSE TYPE: BALANCED (all types at armor class)")
 
-	var full_hp := GlobalData.part_stat(inst, "max_hp", 30.0)
-	var dur := durability
-	lines.append("ARMOR HP: %.0f / %.0f" % [full_hp * dur, full_hp])
+	var full_hp := float(GlobalData.part_stat(inst, "max_hp", 30.0))
+	var dur := clampf(durability, 0.0, 1.0)
+	var cur_hp := full_hp * dur
+	var lost_hp := full_hp - cur_hp
+	if dur < 0.999:
+		var col_tag := "#ff4444" if dur <= 0.35 else "#ffaa33"
+		lines.append("ARMOR HP: [color=%s]%.0f / %.0f (-%.0f, %.0f%% Durability)[/color]" % [col_tag, cur_hp, full_hp, lost_hp, dur * 100.0])
+	else:
+		lines.append("ARMOR HP: [color=#44ff77]%.0f / %.0f (100%% Pristine)[/color]" % [cur_hp, full_hp])
 
 	var armor_class := GlobalData.part_stat(inst, "armor", 0.0)
 	if armor_class > 0.0:
@@ -158,10 +164,14 @@ static func frame_capability_text(info: Dictionary, durability: float = 1.0) -> 
 	lines.append("TYPE: %s" % info.get("type", "Inner Frame"))
 
 	var fhp := float(info.get("hp", info.get("max_hp", 20.0)))
-	if durability < 0.999:
-		lines.append("FRAME HP: %.0f / %.0f" % [fhp * durability, fhp])
+	var dur := clampf(durability, 0.0, 1.0)
+	var cur_fhp := fhp * dur
+	var lost_fhp := fhp - cur_fhp
+	if dur < 0.999:
+		var col_tag := "#ff4444" if dur <= 0.35 else "#ffaa33"
+		lines.append("FRAME HP: [color=%s]%.0f / %.0f (-%.0f, %.0f%% Durability)[/color]" % [col_tag, cur_fhp, fhp, lost_fhp, dur * 100.0])
 	else:
-		lines.append("FRAME HP: %.0f" % fhp)
+		lines.append("FRAME HP: [color=#44ff77]%.0f / %.0f (100%% Pristine)[/color]" % [cur_fhp, fhp])
 
 	var fwt := float(info.get("weight", 0.0))
 	if fwt > 0.0:

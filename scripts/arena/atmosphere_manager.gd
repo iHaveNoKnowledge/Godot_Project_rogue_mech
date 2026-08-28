@@ -13,6 +13,20 @@ func _setup_atmosphere() -> void:
 		return
 
 	var env = world_env.environment
+	# Enhanced PBR post-processing & tonemapping
+	env.tonemap_mode = Environment.TONE_MAPPER_ACES
+	env.glow_enabled = true
+	env.glow_bloom = 0.15
+	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
+	env.glow_hdr_threshold = 0.95
+	env.ssao_enabled = true
+	env.ssao_radius = 1.5
+	env.ssao_intensity = 1.8
+	env.ssao_power = 1.5
+	env.adjustment_enabled = true
+	env.adjustment_contrast = 1.08
+	env.adjustment_saturation = 1.12
+
 	var arena_gen = get_node_or_null("../ArenaGenerator")
 	var theme = arena_gen.current_theme if arena_gen else 0
 

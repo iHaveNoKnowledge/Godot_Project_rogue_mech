@@ -171,21 +171,27 @@ static func _apply_material_overlay_recursive(node: Node, mat: Material) -> void
 
 
 # ---------------------------------------------------------------------------
-# Material helpers (PBR detail)
+# Material helpers (Master PBR detail)
 # ---------------------------------------------------------------------------
-static func _mat(albedo: Color, metallic: float, roughness: float, emission: Color = Color.TRANSPARENT, emission_energy: float = 0.0) -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.albedo_color = albedo
-	m.metallic = metallic
-	m.roughness = roughness
+const MASTER_PBR_SHADER: Shader = preload("res://shaders/mecha_master_pbr.gdshader")
+
+static func _mat(albedo: Color, metallic: float, roughness: float, emission: Color = Color.TRANSPARENT, emission_energy: float = 0.0) -> Material:
+	var m := ShaderMaterial.new()
+	m.shader = MASTER_PBR_SHADER
+	m.set_shader_parameter("primary_color", albedo)
+	m.set_shader_parameter("trim_color", albedo.darkened(0.35))
+	m.set_shader_parameter("metallic", metallic)
+	m.set_shader_parameter("roughness", roughness)
+	m.set_shader_parameter("panel_grid_scale", 8.0 if metallic > 0.5 else 0.0)
+	m.set_shader_parameter("panel_line_depth", 0.45)
+	m.set_shader_parameter("edge_wear", 0.15 if metallic > 0.5 else 0.05)
 	if emission != Color.TRANSPARENT and emission_energy > 0.0:
-		m.emission_enabled = true
-		m.emission = emission
-		m.emission_energy_multiplier = emission_energy
+		m.set_shader_parameter("emission_color", emission)
+		m.set_shader_parameter("emission_energy", emission_energy)
 	return m
 
 
-static func _add_box(parent: Node3D, size: Vector3, pos: Vector3, mat: StandardMaterial3D, rot_deg: Vector3 = Vector3.ZERO) -> MeshInstance3D:
+static func _add_box(parent: Node3D, size: Vector3, pos: Vector3, mat: Material, rot_deg: Vector3 = Vector3.ZERO) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	var mesh := BoxMesh.new()
 	mesh.size = size
@@ -197,7 +203,7 @@ static func _add_box(parent: Node3D, size: Vector3, pos: Vector3, mat: StandardM
 	return mi
 
 
-static func _add_cyl(parent: Node3D, top_r: float, bottom_r: float, height: float, pos: Vector3, mat: StandardMaterial3D, rot_deg: Vector3 = Vector3.ZERO) -> MeshInstance3D:
+static func _add_cyl(parent: Node3D, top_r: float, bottom_r: float, height: float, pos: Vector3, mat: Material, rot_deg: Vector3 = Vector3.ZERO) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	var mesh := CylinderMesh.new()
 	mesh.top_radius = top_r
@@ -211,7 +217,7 @@ static func _add_cyl(parent: Node3D, top_r: float, bottom_r: float, height: floa
 	return mi
 
 
-static func _add_sphere(parent: Node3D, radius: float, height: float, pos: Vector3, mat: StandardMaterial3D) -> MeshInstance3D:
+static func _add_sphere(parent: Node3D, radius: float, height: float, pos: Vector3, mat: Material) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	var mesh := SphereMesh.new()
 	mesh.radius = radius

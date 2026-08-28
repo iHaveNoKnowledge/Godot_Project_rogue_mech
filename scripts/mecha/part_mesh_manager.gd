@@ -1,5 +1,7 @@
 extends Node3D
 
+const MASTER_PBR_SHADER: Shader = preload("res://shaders/mecha_master_pbr.gdshader")
+
 var slot_meshes: Dictionary = {}
 # When true, slots without an inner frame render a faint translucent skeleton
 # instead of hiding — used by the hangar's from-zero REGISTER assembly so the
@@ -667,29 +669,34 @@ func _spawn_break_vfx(slot_name: String) -> void:
 
 
 # Helper materials for inner frame & armor
-func _get_dark_frame_material() -> StandardMaterial3D:
-	var mat = StandardMaterial3D.new()
-	mat.render_priority = 0
-	mat.albedo_color = Color(0.14, 0.16, 0.20)
-	mat.metallic = 0.92
-	mat.roughness = 0.25
+func _get_dark_frame_material() -> ShaderMaterial:
+	var mat = ShaderMaterial.new()
+	mat.shader = MASTER_PBR_SHADER
+	mat.set_shader_parameter("primary_color", Color(0.14, 0.16, 0.20))
+	mat.set_shader_parameter("metallic", 0.94)
+	mat.set_shader_parameter("roughness", 0.22)
+	mat.set_shader_parameter("panel_grid_scale", 10.0)
+	mat.set_shader_parameter("panel_line_depth", 0.40)
+	mat.set_shader_parameter("edge_wear", 0.18)
 	return mat
 
-func _get_chrome_material() -> StandardMaterial3D:
-	var mat = StandardMaterial3D.new()
-	mat.render_priority = 0
-	mat.albedo_color = Color(0.85, 0.88, 0.92)
-	mat.metallic = 0.98
-	mat.roughness = 0.10
+func _get_chrome_material() -> ShaderMaterial:
+	var mat = ShaderMaterial.new()
+	mat.shader = MASTER_PBR_SHADER
+	mat.set_shader_parameter("primary_color", Color(0.85, 0.88, 0.92))
+	mat.set_shader_parameter("metallic", 0.98)
+	mat.set_shader_parameter("roughness", 0.08)
+	mat.set_shader_parameter("panel_grid_scale", 0.0)
+	mat.set_shader_parameter("edge_wear", 0.05)
 	return mat
 
-func _get_eye_sensor_material() -> StandardMaterial3D:
-	var mat = StandardMaterial3D.new()
-	mat.render_priority = 0
-	mat.albedo_color = Color(1.0, 0.12, 0.20)
-	mat.emission_enabled = true
-	mat.emission = Color(1.0, 0.15, 0.25)
-	mat.emission_energy_multiplier = 4.0
+func _get_eye_sensor_material() -> ShaderMaterial:
+	var mat = ShaderMaterial.new()
+	mat.shader = MASTER_PBR_SHADER
+	mat.set_shader_parameter("primary_color", Color(1.0, 0.12, 0.20))
+	mat.set_shader_parameter("emission_color", Color(1.0, 0.15, 0.25))
+	mat.set_shader_parameter("emission_energy", 5.0)
+	mat.set_shader_parameter("pulse_speed", 2.0)
 	return mat
 
 
@@ -950,21 +957,27 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 	if part and "part_color" in part and part.part_color != Color.TRANSPARENT and part.part_color.a > 0.1:
 		col = part.part_color
 
-	var armor_mat = StandardMaterial3D.new()
+	var armor_mat = ShaderMaterial.new()
+	armor_mat.shader = MASTER_PBR_SHADER
 	armor_mat.render_priority = 1
-	armor_mat.grow = true
-	armor_mat.grow_amount = 0.003
-	armor_mat.albedo_color = col
-	armor_mat.metallic = 0.88
-	armor_mat.roughness = 0.32
+	armor_mat.set_shader_parameter("primary_color", col)
+	armor_mat.set_shader_parameter("trim_color", Color(0.12, 0.14, 0.18))
+	armor_mat.set_shader_parameter("metallic", 0.86)
+	armor_mat.set_shader_parameter("roughness", 0.30)
+	armor_mat.set_shader_parameter("panel_grid_scale", 5.5)
+	armor_mat.set_shader_parameter("panel_line_depth", 0.60)
+	armor_mat.set_shader_parameter("edge_wear", 0.12)
 
-	var dark_trim_mat = StandardMaterial3D.new()
+	var dark_trim_mat = ShaderMaterial.new()
+	dark_trim_mat.shader = MASTER_PBR_SHADER
 	dark_trim_mat.render_priority = 1
-	dark_trim_mat.grow = true
-	dark_trim_mat.grow_amount = 0.0035
-	dark_trim_mat.albedo_color = Color(0.12, 0.14, 0.18)
-	dark_trim_mat.metallic = 0.94
-	dark_trim_mat.roughness = 0.22
+	dark_trim_mat.set_shader_parameter("primary_color", Color(0.12, 0.14, 0.18))
+	dark_trim_mat.set_shader_parameter("trim_color", Color(0.08, 0.09, 0.11))
+	dark_trim_mat.set_shader_parameter("metallic", 0.92)
+	dark_trim_mat.set_shader_parameter("roughness", 0.24)
+	dark_trim_mat.set_shader_parameter("panel_grid_scale", 8.0)
+	dark_trim_mat.set_shader_parameter("panel_line_depth", 0.40)
+	dark_trim_mat.set_shader_parameter("edge_wear", 0.20)
 
 	match slot_name.to_lower():
 		"head":

@@ -70,10 +70,16 @@ var attachment_catalog: Array:
 # UI Nodes
 var tab_container: HBoxContainer
 var sub_toggle_container: HBoxContainer
+var left_panel: PanelContainer
+var right_panel: PanelContainer
 var part_item_list: ItemList
 var stats_label: Control
 var total_stats_label: Control
+var currency_label: Control
+var header_mech_summary_label: Control
 var weight_bar: ProgressBar
+var stats_durability_bar_box: VBoxContainer
+var toast_container: Control
 # Right-side TIER box (part upgrade tier 1 -> 1.1 -> ... -> 2 + progress pips).
 var tier_label: Label = null
 var tier_pips_label: Label = null
@@ -83,6 +89,7 @@ var craft_button: Button
 var frame_upgrade_button: Button
 var repair_part_button: Button
 var full_repair_button: Button
+var overhaul_part_button: Button
 var close_button: Button
 var status_message_label: Label
 # Mech roster page lives in HangarRosterPanel (badge, slot rows, pilot/role
@@ -351,3 +358,68 @@ func _input(event: InputEvent) -> void:
 		return
 	# At the hangar menu root, exit to the board.
 	exit_panel.close()
+
+
+## Displays a floating Sci-Fi Toast Notification banner (e.g. Red for insufficient funds, Green for success)
+func show_toast(message: String, is_warning: bool = false, duration: float = 2.5) -> void:
+	if toast_container == null or not is_instance_valid(toast_container):
+		var tc := Control.new()
+		tc.name = "ToastContainer"
+		tc.set_anchors_preset(Control.PRESET_FULL_RECT)
+		tc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var root = get_node_or_null("RootControl")
+		if root:
+			root.add_child(tc)
+		else:
+			add_child(tc)
+		toast_container = tc
+
+	var toast := PanelContainer.new()
+	toast.custom_minimum_size = Vector2(400, 40)
+	toast.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	toast.anchor_left = 0.5
+	toast.anchor_right = 0.5
+	toast.offset_left = -210
+	toast.offset_right = 210
+	toast.offset_top = 125
+	toast.offset_bottom = 170
+
+	var style := StyleBoxFlat.new()
+	style.corner_radius_top_left = 4
+	style.corner_radius_top_right = 4
+	style.corner_radius_bottom_left = 4
+	style.corner_radius_bottom_right = 4
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.content_margin_left = 16
+	style.content_margin_right = 16
+	style.content_margin_top = 8
+	style.content_margin_bottom = 8
+
+	var icon_str := "⚠️ " if is_warning else "✅ "
+	if is_warning:
+		style.bg_color = Color(0.24, 0.05, 0.05, 0.96)
+		style.border_color = Color(1.0, 0.35, 0.35, 1.0)
+	else:
+		style.bg_color = Color(0.04, 0.22, 0.14, 0.96)
+		style.border_color = Color(0.3, 0.95, 0.6, 1.0)
+	toast.add_theme_stylebox_override("panel", style)
+
+	var lbl := Label.new()
+	lbl.text = icon_str + message
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.add_theme_font_size_override("font_size", 13)
+	lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.9) if is_warning else Color(0.9, 1.0, 0.9))
+	toast.add_child(lbl)
+	toast_container.add_child(toast)
+
+	# Animation fade-in and fade-out
+	toast.modulate.a = 0.0
+	var tween := create_tween()
+	tween.tween_property(toast, "modulate:a", 1.0, 0.15)
+	tween.tween_interval(duration)
+	tween.tween_property(toast, "modulate:a", 0.0, 0.25)
+	tween.tween_callback(toast.queue_free)

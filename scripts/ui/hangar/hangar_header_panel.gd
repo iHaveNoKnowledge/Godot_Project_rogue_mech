@@ -74,14 +74,43 @@ func build(root: Control) -> void:
 		controller.slot_tab_buttons[slot_info["id"]] = btn
 		controller.tab_container.add_child(btn)
 
-	# Spacer pushes the back-to-menu button to the far right of the header.
+	# Spacer pushes the currency badge and back-to-menu button to the far right of the header.
 	var hdr_spacer = Control.new()
 	hdr_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hdr_box.add_child(hdr_spacer)
 
+	# Currency Badge (Credits & Scrap)
+	var cur_panel := PanelContainer.new()
+	var cur_style := StyleBoxFlat.new()
+	cur_style.bg_color = Color(0.12, 0.13, 0.16, 0.95)
+	cur_style.border_width_left = 1
+	cur_style.border_width_top = 1
+	cur_style.border_width_right = 1
+	cur_style.border_width_bottom = 1
+	cur_style.border_color = Color(0.35, 0.45, 0.55, 0.8)
+	cur_style.corner_radius_top_left = 3
+	cur_style.corner_radius_top_right = 3
+	cur_style.corner_radius_bottom_left = 3
+	cur_style.corner_radius_bottom_right = 3
+	cur_style.content_margin_left = 12
+	cur_style.content_margin_right = 12
+	cur_style.content_margin_top = 4
+	cur_style.content_margin_bottom = 4
+	cur_panel.add_theme_stylebox_override("panel", cur_style)
+	hdr_box.add_child(cur_panel)
+
+	var cur_rtl := RichTextLabel.new()
+	cur_rtl.bbcode_enabled = true
+	cur_rtl.fit_content = true
+	cur_rtl.autowrap_mode = TextServer.AUTOWRAP_OFF
+	cur_rtl.custom_minimum_size = Vector2(180, 24)
+	cur_rtl.text = "[color=#ffd700]💰 0 CR[/color]  |  [color=#00e5ff]🔩 0 SCRAP[/color]"
+	controller.currency_label = cur_rtl
+	cur_panel.add_child(cur_rtl)
+
 	controller.back_to_menu_button = Button.new()
 	controller.back_to_menu_button.text = "◀ BACK TO MENU"
-	controller.back_to_menu_button.custom_minimum_size = Vector2(150, 32)
+	controller.back_to_menu_button.custom_minimum_size = Vector2(140, 32)
 	controller.back_to_menu_button.focus_mode = Control.FOCUS_NONE
 	controller.back_to_menu_button.pressed.connect(func(): if controller.nav_panel: controller.nav_panel.on_back_to_menu_pressed())
 	controller.back_to_menu_button.visible = false
@@ -93,6 +122,59 @@ func build(root: Control) -> void:
 	header_vbox.add_child(controller.sub_toggle_container)
 
 	_build_mode_buttons()
+
+	# Row 3: Mech Overview Bar (Pilot, Frame/Armor HP Summary, Weight Bar, Field Pack)
+	var overview_row := HBoxContainer.new()
+	overview_row.add_theme_constant_override("separation", 12)
+	header_vbox.add_child(overview_row)
+
+	var overview_panel := PanelContainer.new()
+	overview_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var ov_style := StyleBoxFlat.new()
+	ov_style.bg_color = Color(0.06, 0.07, 0.09, 0.9)
+	ov_style.border_width_left = 1
+	ov_style.border_width_top = 1
+	ov_style.border_width_right = 1
+	ov_style.border_width_bottom = 1
+	ov_style.border_color = Color(0.25, 0.35, 0.45, 0.6)
+	ov_style.corner_radius_top_left = 2
+	ov_style.corner_radius_top_right = 2
+	ov_style.corner_radius_bottom_left = 2
+	ov_style.corner_radius_bottom_right = 2
+	ov_style.content_margin_left = 10
+	ov_style.content_margin_right = 10
+	ov_style.content_margin_top = 3
+	ov_style.content_margin_bottom = 3
+	overview_panel.add_theme_stylebox_override("panel", ov_style)
+	overview_row.add_child(overview_panel)
+
+	var ov_hbox := HBoxContainer.new()
+	ov_hbox.add_theme_constant_override("separation", 12)
+	overview_panel.add_child(ov_hbox)
+
+	var summary_rtl := RichTextLabel.new()
+	summary_rtl.bbcode_enabled = true
+	summary_rtl.fit_content = true
+	summary_rtl.autowrap_mode = TextServer.AUTOWRAP_OFF
+	summary_rtl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	summary_rtl.text = "MECH SUMMARY: Loading..."
+	controller.header_mech_summary_label = summary_rtl
+	ov_hbox.add_child(summary_rtl)
+
+	var wt_box := HBoxContainer.new()
+	wt_box.add_theme_constant_override("separation", 6)
+	ov_hbox.add_child(wt_box)
+
+	var wt_lbl := Label.new()
+	wt_lbl.text = "WEIGHT:"
+	wt_lbl.add_theme_font_size_override("font_size", 11)
+	wt_lbl.add_theme_color_override("font_color", Color(0.7, 0.8, 0.9))
+	wt_box.add_child(wt_lbl)
+
+	controller.weight_bar = ProgressBar.new()
+	controller.weight_bar.custom_minimum_size = Vector2(120, 14)
+	controller.weight_bar.max_value = 85.0
+	wt_box.add_child(controller.weight_bar)
 
 
 var mode_buttons: Dictionary = {}

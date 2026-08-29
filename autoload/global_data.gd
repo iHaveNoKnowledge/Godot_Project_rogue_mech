@@ -549,8 +549,12 @@ func part_stat(part: Variant, key: String, default: float = 0.0) -> float:
 	return float(v)
 
 
-func get_durability_ratio(inst: Dictionary) -> float:
-	return clampf(float(inst.get("durability", 1.0)), 0.0, 1.0)
+func get_durability_ratio(inst: Variant) -> float:
+	if inst is Dictionary:
+		return clampf(float(inst.get("durability", 1.0)), 0.0, 1.0)
+	elif inst is Resource and "durability" in inst and inst.durability != null:
+		return clampf(float(inst.durability), 0.0, 1.0)
+	return 1.0
 
 
 ## Returns the lifetime/health durability of an equipped armor part (0.0 to 1.0)
@@ -558,6 +562,20 @@ func get_part_durability(slot: String) -> float:
 	var p = weapons.equipped_parts.get(slot)
 	if p is Dictionary:
 		return get_durability_ratio(p)
+	return 1.0
+
+
+## Returns the lifetime durability of an equipped weapon (0.0 to 1.0)
+func get_weapon_durability(hand: String) -> float:
+	if weapons == null:
+		return 1.0
+	var uid := str(weapons.weapon_loadout.get(hand, "")) if "weapon_loadout" in weapons else ""
+	if uid == "":
+		return 1.0
+	var inv_list: Array = weapons.weapon_inventory if "weapon_inventory" in weapons else []
+	for w in inv_list:
+		if w is Dictionary and (str(w.get("uid", "")) == uid or str(w.get("path", "")) == uid):
+			return get_durability_ratio(w)
 	return 1.0
 
 

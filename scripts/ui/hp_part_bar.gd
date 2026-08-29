@@ -21,6 +21,15 @@ const FRAME_FILL_B := Color(0.537, 1.0, 0.53)
 const SHIELD_FILL_A := Color(0.2, 0.7, 1.0)
 const SHIELD_FILL_B := Color(0.1, 0.5, 0.85)
 
+const DURABILITY_FILL_A := Color(0.2, 0.85, 1.0)
+const DURABILITY_FILL_B := Color(0.0, 0.55, 0.85)
+
+const DURABILITY_WARN_A := Color(1.0, 0.75, 0.2)
+const DURABILITY_WARN_B := Color(0.9, 0.45, 0.1)
+
+const DURABILITY_CRIT_A := Color(1.0, 0.3, 0.25)
+const DURABILITY_CRIT_B := Color(0.8, 0.1, 0.1)
+
 # Damage ghost / Red catch-up lag bar:
 const DAMAGE_FILL_A := Color(0.96, 0.22, 0.18)
 const DAMAGE_FILL_B := Color(0.72, 0.08, 0.08)
@@ -112,7 +121,7 @@ func _draw_skew(fill_w: float, h: float, skew: float, color_left: Color, color_r
 	draw_polygon(pts, colors)
 
 
-## Helper to build a complete slanted HP bar row (Label + HPPartBar + Value label)
+## Helper to build a complete slanted HP / Durability bar row (Label + HPPartBar + Value label)
 ## used in Battle, Intermission, and Hangar views.
 static func create_row(
 	label_text: String,
@@ -122,7 +131,8 @@ static func create_row(
 	is_shield: bool = false,
 	bar_width: float = 180.0,
 	bar_height: float = 8.0,
-	font_size: int = 11
+	font_size: int = 11,
+	is_durability: bool = false
 ) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
@@ -131,7 +141,7 @@ static func create_row(
 	if label_text != "":
 		var name := Label.new()
 		name.text = label_text
-		name.custom_minimum_size = Vector2(44, 0)
+		name.custom_minimum_size = Vector2(56, 0)
 		name.add_theme_font_size_override("font_size", font_size)
 		name.add_theme_color_override("font_color", Color(0.75, 0.8, 0.9))
 		row.add_child(name)
@@ -140,7 +150,19 @@ static func create_row(
 	bar.custom_minimum_size = Vector2(bar_width, bar_height)
 	if bar_width <= 0:
 		bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	if is_frame:
+
+	var cur_ratio := (current / max_value) if max_value > 0.0 else 0.0
+	if is_durability:
+		if cur_ratio <= 0.35:
+			bar.fill_color_a = DURABILITY_CRIT_A
+			bar.fill_color_b = DURABILITY_CRIT_B
+		elif cur_ratio <= 0.70:
+			bar.fill_color_a = DURABILITY_WARN_A
+			bar.fill_color_b = DURABILITY_WARN_B
+		else:
+			bar.fill_color_a = DURABILITY_FILL_A
+			bar.fill_color_b = DURABILITY_FILL_B
+	elif is_frame:
 		bar.fill_color_a = FRAME_FILL_A
 		bar.fill_color_b = FRAME_FILL_B
 	elif is_shield:
@@ -149,12 +171,16 @@ static func create_row(
 	else:
 		bar.fill_color_a = ARMOR_FILL_A
 		bar.fill_color_b = ARMOR_FILL_B
+
 	bar.setup(current, max_value, current <= 0.001 and max_value > 0.0)
 	row.add_child(bar)
 
 	var value := Label.new()
 	value.name = "ValueLabel"
-	value.text = "%d / %d" % [int(round(current)), int(round(max_value))]
+	if is_durability:
+		value.text = "%.0f%%" % [cur_ratio * 100.0]
+	else:
+		value.text = "%d / %d" % [int(round(current)), int(round(max_value))]
 	value.add_theme_font_size_override("font_size", font_size)
 	value.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
 	row.add_child(value)

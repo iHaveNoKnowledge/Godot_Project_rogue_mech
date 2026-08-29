@@ -410,7 +410,8 @@ func on_item_selected(index: int) -> void:
 					fname, fhp_str, fcap
 				]
 			if controller.stats_hp_bar_box:
-				controller.stats_hp_bar_box.add_child(HPPartBar.create_row("Frame", cur_fhp, fhp, true, false, 240, 10, 11))
+				controller.stats_hp_bar_box.add_child(HPPartBar.create_row("Frame HP", cur_fhp, fhp, true, false, 240, 10, 11))
+				controller.stats_hp_bar_box.add_child(HPPartBar.create_row("Durability", dur_ratio * 100.0, 100.0, false, false, 240, 10, 11, true))
 			# Only change 3D model when user explicitly picks a part, not on section switch
 			if not _is_populating:
 				controller.garage_panel.apply_frame_preview(controller.selected_slot, controller.selected_frame_info)
@@ -443,7 +444,10 @@ func on_item_selected(index: int) -> void:
 					wcap = HangarPartText.weapon_capability_text(res)
 					if int(res.weapon_type) == 5 and controller.stats_hp_bar_box:
 						var shp = float(res.shield_hp)
-						controller.stats_hp_bar_box.add_child(HPPartBar.create_row("Shield", shp * wdur, shp, false, true, 240, 10, 11))
+						controller.stats_hp_bar_box.add_child(HPPartBar.create_row("Shield HP", shp * wdur, shp, false, true, 240, 10, 11))
+
+			if controller.stats_hp_bar_box:
+				controller.stats_hp_bar_box.add_child(HPPartBar.create_row("Durability", wdur * 100.0, 100.0, false, false, 240, 10, 11, true))
 
 			if controller.selected_slot == "weapon_carry":
 				var eq = weapon_in_loadout(controller.selected_slot, inv)
@@ -502,7 +506,8 @@ func on_item_selected(index: int) -> void:
 					item_name, hp_str, dur_pct * 100.0, acap
 				]
 			if controller.stats_hp_bar_box:
-				controller.stats_hp_bar_box.add_child(HPPartBar.create_row("Armor", cur_hp, full_hp, false, false, 240, 10, 11))
+				controller.stats_hp_bar_box.add_child(HPPartBar.create_row("Armor HP", cur_hp, full_hp, false, false, 240, 10, 11))
+				controller.stats_hp_bar_box.add_child(HPPartBar.create_row("Durability", dur_pct * 100.0, 100.0, false, false, 240, 10, 11, true))
 			# Only change 3D model when user explicitly picks a part, not on section switch
 			if not _is_populating:
 				controller.garage_panel.apply_salvage_preview(controller.selected_slot, controller.selected_salvage_info)

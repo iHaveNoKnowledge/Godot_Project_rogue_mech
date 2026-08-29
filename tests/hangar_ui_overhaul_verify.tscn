@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://c64km71r20h9a"]
+
+[ext_resource type="Script" path="res://tests/hangar_ui_overhaul_verify.gd" id="1_test"]
+
+[node name="HangarUIOverhaulVerify" type="Node"]
+script = ExtResource("1_test")

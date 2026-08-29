@@ -169,11 +169,17 @@ func show(info: Dictionary) -> void:
 				GlobalData.weapons.part_damage.erase(controller.selected_slot)
 				GlobalData.weapons.part_damage.erase(controller.selected_slot + "_frame")
 				GlobalData.weapons.part_hit_meta.erase(controller.selected_slot)
-				controller.status_message_label.text = "Part Repaired to Full HP!"
+				var msg := "Part Repaired to Full HP!"
+				controller.status_message_label.text = msg
+				if controller.has_method("show_toast"):
+					controller.show_toast(msg, false)
 				GlobalData.save_run()
 				controller.refresh_after_part_mutation(controller.selected_slot)
 			else:
-				controller.status_message_label.text = "Insufficient Credits for repair!"
+				var err := "Insufficient Credits for repair (%d cr needed)!" % repair_cost
+				controller.status_message_label.text = err
+				if controller.has_method("show_toast"):
+					controller.show_toast(err, true)
 			close()
 		)
 		grid.add_child(repair_btn)
@@ -197,10 +203,16 @@ func show(info: Dictionary) -> void:
 		overhaul_btn.custom_minimum_size = Vector2(180, 36)
 		overhaul_btn.pressed.connect(func():
 			if GlobalData.currency.credits < oh_cr:
-				controller.status_message_label.text = "Need %d credits for overhaul!" % oh_cr
+				var err := "Need %d credits for overhaul!" % oh_cr
+				controller.status_message_label.text = err
+				if controller.has_method("show_toast"):
+					controller.show_toast(err, true)
 				return
 			if GlobalData.currency.scrap < oh_scrap:
-				controller.status_message_label.text = "Need %d scrap for overhaul!" % oh_scrap
+				var err := "Need %d scrap for overhaul!" % oh_scrap
+				controller.status_message_label.text = err
+				if controller.has_method("show_toast"):
+					controller.show_toast(err, true)
 				return
 			GlobalData.currency.try_spend_credits(oh_cr)
 			GlobalData.currency.try_spend_scrap(oh_scrap)
@@ -219,7 +231,10 @@ func show(info: Dictionary) -> void:
 			GlobalData.weapons.part_damage.erase(controller.selected_slot)
 			GlobalData.weapons.part_damage.erase(controller.selected_slot + "_frame")
 			GlobalData.weapons.part_hit_meta.erase(controller.selected_slot)
-			controller.status_message_label.text = "Part Overhauled to 100% Durability!"
+			var msg := "Part Overhauled to 100% Durability!"
+			controller.status_message_label.text = msg
+			if controller.has_method("show_toast"):
+				controller.show_toast(msg, false)
 			GlobalData.save_run()
 			controller.refresh_after_part_mutation(controller.selected_slot)
 			close()
@@ -244,9 +259,10 @@ func show(info: Dictionary) -> void:
 		upgrade_btn.custom_minimum_size = Vector2(180, 36)
 		upgrade_btn.pressed.connect(func():
 			if GlobalData.currency.try_spend_credits(cost):
+				var upg_msg := ""
 				if is_weapon_slot:
 					info["upgrade_level"] = int(info.get("upgrade_level", 1)) + 1
-					controller.status_message_label.text = "Weapon upgraded to Tier %s (+10%% damage)!" % GlobalData.part_tier_text(int(info["upgrade_level"]))
+					upg_msg = "Weapon upgraded to Tier %s (+10%% damage)!" % GlobalData.part_tier_text(int(info["upgrade_level"]))
 				elif controller.current_mode == "frame":
 					# Frames: the upgrade applies to the EQUIPPED copy (the catalog
 					# template is never mutated); requires the frame to be installed.
@@ -258,9 +274,14 @@ func show(info: Dictionary) -> void:
 						frame_dict["upgrade_level"] = int(frame_dict.get("upgrade_level", 1)) + 1
 						GlobalData.weapons.part_damage.erase(controller.selected_slot + "_frame")
 						GlobalData.weapons.part_hit_meta.erase(controller.selected_slot)
-						controller.status_message_label.text = "Frame upgraded to Tier %s! Max HP increased to %.0f" % [GlobalData.part_tier_text(int(frame_dict["upgrade_level"])), frame_dict["hp"]]
+						upg_msg = "Frame upgraded to Tier %s! Max HP increased to %.0f" % [GlobalData.part_tier_text(int(frame_dict["upgrade_level"])), frame_dict["hp"]]
 					else:
-						controller.status_message_label.text = "Equip this frame before upgrading it."
+						var err := "Equip this frame before upgrading it."
+						controller.status_message_label.text = err
+						if controller.has_method("show_toast"):
+							controller.show_toast(err, true)
+						close()
+						return
 				else:
 					var old_hp = float(info.get("hp", info.get("max_hp", 30.0)))
 					info["hp"] = old_hp + 15.0
@@ -269,12 +290,18 @@ func show(info: Dictionary) -> void:
 					if GlobalData.weapons.equipped_parts.get(controller.selected_slot) == info:
 						GlobalData.weapons.part_damage.erase(controller.selected_slot)
 						GlobalData.weapons.part_hit_meta.erase(controller.selected_slot)
-					controller.status_message_label.text = "Part upgraded to Tier %s! Max HP increased to %.0f" % [GlobalData.part_tier_text(int(info["upgrade_level"])), info["hp"]]
+					upg_msg = "Part upgraded to Tier %s! Max HP increased to %.0f" % [GlobalData.part_tier_text(int(info["upgrade_level"])), info["hp"]]
+				controller.status_message_label.text = upg_msg
+				if controller.has_method("show_toast"):
+					controller.show_toast(upg_msg, false)
 				GlobalData.save_run()
 				controller.refresh_after_part_mutation(controller.selected_slot)
 				controller.update_tier_display(info, controller.selected_slot)
 			else:
-				controller.status_message_label.text = "Insufficient Credits for upgrade (%d cr needed)!" % cost
+				var err := "Insufficient Credits for upgrade (%d cr needed)!" % cost
+				controller.status_message_label.text = err
+				if controller.has_method("show_toast"):
+					controller.show_toast(err, true)
 			close()
 		)
 		grid.add_child(upgrade_btn)

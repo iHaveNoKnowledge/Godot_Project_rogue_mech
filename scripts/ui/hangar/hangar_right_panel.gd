@@ -42,7 +42,7 @@ func build(root: Control) -> void:
 	right_panel.add_child(right_box)
 
 	var stats_title = Label.new()
-	stats_title.text = "GUNDAM FRAME CORE SPECIFICATIONS"
+	stats_title.text = "PART SPECIFICATIONS & INTEGRITY"
 	stats_title.add_theme_font_size_override("font_size", 14)
 	stats_title.add_theme_color_override("font_color", Color(1.0, 0.8, 0.2))
 	right_box.add_child(stats_title)
@@ -56,7 +56,7 @@ func build(root: Control) -> void:
 	right_box.add_child(rtl_stats)
 
 	var hp_bar_box = VBoxContainer.new()
-	hp_bar_box.add_theme_constant_override("separation", 3)
+	hp_bar_box.add_theme_constant_override("separation", 5)
 	controller.stats_hp_bar_box = hp_bar_box
 	right_box.add_child(hp_bar_box)
 
@@ -121,34 +121,78 @@ func build(root: Control) -> void:
 	var sep = HSeparator.new()
 	right_box.add_child(sep)
 
-	var total_title = Label.new()
-	total_title.text = "FRAME VS. ARMOR DUAL CAPACITY"
-	total_title.add_theme_font_size_override("font_size", 13)
-	right_box.add_child(total_title)
+	# Slot Actions Box (Repair Slot, Overhaul Slot, Full Repair)
+	var actions_title = Label.new()
+	actions_title.text = "SLOT MAINTENANCE & ACTIONS"
+	actions_title.add_theme_font_size_override("font_size", 12)
+	actions_title.add_theme_color_override("font_color", Color(0.6, 0.75, 0.9))
+	right_box.add_child(actions_title)
 
-	controller.weight_bar = ProgressBar.new()
-	controller.weight_bar.custom_minimum_size = Vector2(0, 22)
-	controller.weight_bar.max_value = 85.0
-	right_box.add_child(controller.weight_bar)
-
-	var rtl_total := RichTextLabel.new()
-	rtl_total.bbcode_enabled = true
-	rtl_total.fit_content = true
-	rtl_total.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	rtl_total.text = "FRAME HP: 150 | ARMOR HP: 210\nTOTAL WEIGHT: 42.0 / 75.0 kg"
-	controller.total_stats_label = rtl_total
-	right_box.add_child(rtl_total)
-
-	var sep2 = HSeparator.new()
-	right_box.add_child(sep2)
+	var actions_grid = GridContainer.new()
+	actions_grid.columns = 2
+	actions_grid.add_theme_constant_override("h_separation", 8)
+	actions_grid.add_theme_constant_override("v_separation", 6)
+	right_box.add_child(actions_grid)
 
 	controller.repair_part_button = Button.new()
-	controller.repair_part_button.text = "Repair Selected Slot"
+	controller.repair_part_button.text = "🔧 Repair Slot"
+	controller.repair_part_button.custom_minimum_size = Vector2(150, 32)
 	controller.repair_part_button.pressed.connect(func(): if controller.repair_panel: controller.repair_panel.repair_part())
-	right_box.add_child(controller.repair_part_button)
+	actions_grid.add_child(controller.repair_part_button)
+
+	controller.overhaul_part_button = Button.new()
+	controller.overhaul_part_button.text = "⚡ Overhaul Slot"
+	controller.overhaul_part_button.custom_minimum_size = Vector2(150, 32)
+	controller.overhaul_part_button.add_theme_color_override("font_color", Color(0.3, 0.85, 1.0))
+	controller.overhaul_part_button.pressed.connect(func():
+		var slot: String = controller.selected_slot
+		if slot != "":
+			var item_dur: float = 1.0
+			if slot.begins_with("weapon"):
+				var hand := "left" if slot == "weapon_left" else "right"
+				item_dur = GlobalData.get_durability_ratio(LoadoutSystem.get_equipped_weapon(hand)) if LoadoutSystem.get_equipped_weapon(hand) else 1.0
+			elif controller.current_mode == "frame":
+				item_dur = GlobalData.get_frame_durability(slot)
+			else:
+				item_dur = GlobalData.get_part_durability(slot)
+
+			if item_dur >= 0.999:
+				controller.show_toast("%s is already at 100%% Durability!" % slot.to_upper(), false)
+				return
+
+			var lost_pct := 1.0 - item_dur
+			var oh_cr: int = int(lost_pct * 80.0) + 20
+			var oh_scrap: int = int(lost_pct * 15.0) + 5
+			if GlobalData.currency.credits < oh_cr:
+				controller.show_toast("Need %d credits for overhaul!" % oh_cr, true)
+				return
+			if GlobalData.currency.scrap < oh_scrap:
+				controller.show_toast("Need %d scrap for overhaul!" % oh_scrap, true)
+				return
+
+			GlobalData.currency.try_spend_credits(oh_cr)
+			GlobalData.currency.try_spend_scrap(oh_scrap)
+			if slot.begins_with("weapon"):
+				var hand := "left" if slot == "weapon_left" else "right"
+				GlobalData.restore_weapon_durability(hand, 1.0)
+			elif controller.current_mode == "frame":
+				GlobalData.restore_frame_durability(slot, 1.0)
+			else:
+				GlobalData.restore_part_durability(slot, 1.0)
+
+			GlobalData.weapons.part_damage.erase(slot)
+			GlobalData.weapons.part_damage.erase(slot + "_frame")
+			GlobalData.weapons.part_hit_meta.erase(slot)
+			controller.show_toast("%s Overhauled to 100%% Durability!" % slot.to_upper(), false)
+			GlobalData.save_run()
+			controller.refresh_after_part_mutation(slot)
+	)
+	actions_grid.add_child(controller.overhaul_part_button)
 
 	controller.full_repair_button = Button.new()
-	controller.full_repair_button.text = "Full Field Repair"
+	controller.full_repair_button.text = "🛠️ Full Fleet Repair"
+	controller.full_repair_button.custom_minimum_size = Vector2(0, 32)
+	controller.full_repair_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	controller.full_repair_button.pressed.connect(func(): if controller.repair_panel: controller.repair_panel.full_repair())
 	right_box.add_child(controller.full_repair_button)
 
@@ -160,7 +204,7 @@ func build(root: Control) -> void:
 	controller.status_message_label.add_theme_color_override("font_color", Color(0.3, 0.9, 0.4))
 	right_box.add_child(controller.status_message_label)
 
-	if controller.ammo_panel:
+	if "ammo_panel" in controller and controller.ammo_panel:
 		controller.ammo_panel.status_label = controller.status_message_label
 
 	var spacer = Control.new()
@@ -170,5 +214,5 @@ func build(root: Control) -> void:
 	controller.close_button = Button.new()
 	controller.close_button.text = "EXIT HANGAR"
 	controller.close_button.custom_minimum_size = Vector2(0, 44)
-	controller.close_button.pressed.connect(func(): if controller.exit_panel: controller.exit_panel.close())
+	controller.close_button.pressed.connect(func(): if "exit_panel" in controller and controller.exit_panel: controller.exit_panel.close())
 	right_box.add_child(controller.close_button)

@@ -62,41 +62,51 @@ func update() -> void:
 	var field_pack_weight = LoadoutSystem.get_field_pack_weight()
 	var field_pack_capacity = LoadoutSystem.get_field_pack_capacity()
 
-	if controller.weight_bar:
+	if "weight_bar" in controller and controller.weight_bar:
 		controller.weight_bar.max_value = max_weight
 		controller.weight_bar.value = total_weight
 
-	if controller.total_stats_label:
-		var penalty_text := ""
-		var active_penalties := PartPenaltySystem.active_penalties()
+	if "currency_label" in controller and controller.currency_label:
+		controller.currency_label.text = "[color=#ffd700]💰 %d CR[/color]  |  [color=#00e5ff]🔩 %d SCRAP[/color]" % [GlobalData.currency.credits, GlobalData.currency.scrap]
+
+	var penalty_text := ""
+	var active_penalties := PartPenaltySystem.active_penalties()
+	if not active_penalties.is_empty():
+		penalty_text = " [color=#ff5555](" + ", ".join(active_penalties) + ")[/color]"
+
+	# Frame HP format
+	var fhp_str: String
+	var lost_fhp: float = total_max_frame_hp - total_frame_hp
+	if lost_fhp > 0.5:
+		var f_ratio: float = (total_frame_hp / total_max_frame_hp) if total_max_frame_hp > 0.0 else 0.0
+		var f_col := "#ff4444" if f_ratio <= 0.35 else "#ffaa33"
+		fhp_str = "[color=%s]%.0f/%.0f (-%.0f)[/color]" % [f_col, total_frame_hp, total_max_frame_hp, lost_fhp]
+	else:
+		fhp_str = "[color=#44ff77]%.0f/%.0f[/color]" % [total_frame_hp, total_max_frame_hp]
+
+	# Armor HP format
+	var ahp_str: String
+	var lost_ahp: float = total_max_armor_hp - total_armor_hp
+	if lost_ahp > 0.5:
+		var a_ratio: float = (total_armor_hp / total_max_armor_hp) if total_max_armor_hp > 0.0 else 0.0
+		var a_col := "#ff4444" if a_ratio <= 0.35 else "#ffaa33"
+		ahp_str = "[color=%s]%.0f/%.0f (-%.0f)[/color]" % [a_col, total_armor_hp, total_max_armor_hp, lost_ahp]
+	else:
+		ahp_str = "[color=#44ff77]%.0f/%.0f[/color]" % [total_armor_hp, total_max_armor_hp]
+
+	if "header_mech_summary_label" in controller and controller.header_mech_summary_label:
+		controller.header_mech_summary_label.text = "[b]PILOT:[/b] %s  |  [b]FRAME HP:[/b] %s  |  [b]ARMOR HP:[/b] %s  |  [b]WEIGHT:[/b] %.1f/%.1fkg  |  [b]PACK:[/b] %.1f/%.1fkg%s" % [
+			_editing_pilot_name(), fhp_str, ahp_str, total_weight, max_weight, field_pack_weight, field_pack_capacity, penalty_text
+		]
+
+	if "total_stats_label" in controller and controller.total_stats_label:
+		var total_penalties := ""
 		if not active_penalties.is_empty():
-			penalty_text = "\n[color=#ff5555]" + "\n".join(active_penalties) + "[/color]"
-
-		# Frame HP format
-		var fhp_str: String
-		var lost_fhp: float = total_max_frame_hp - total_frame_hp
-		if lost_fhp > 0.5:
-			var f_ratio: float = (total_frame_hp / total_max_frame_hp) if total_max_frame_hp > 0.0 else 0.0
-			var f_col := "#ff4444" if f_ratio <= 0.35 else "#ffaa33"
-			fhp_str = "[color=%s]%.0f / %.0f (-%.0f, %.0f%%)[/color]" % [f_col, total_frame_hp, total_max_frame_hp, lost_fhp, f_ratio * 100.0]
-		else:
-			fhp_str = "[color=#44ff77]%.0f / %.0f[/color]" % [total_frame_hp, total_max_frame_hp]
-
-		# Armor HP format
-		var ahp_str: String
-		var lost_ahp: float = total_max_armor_hp - total_armor_hp
-		if lost_ahp > 0.5:
-			var a_ratio: float = (total_armor_hp / total_max_armor_hp) if total_max_armor_hp > 0.0 else 0.0
-			var a_col := "#ff4444" if a_ratio <= 0.35 else "#ffaa33"
-			ahp_str = "[color=%s]%.0f / %.0f (-%.0f, %.0f%%)[/color]" % [a_col, total_armor_hp, total_max_armor_hp, lost_ahp, a_ratio * 100.0]
-		else:
-			ahp_str = "[color=#44ff77]%.0f / %.0f[/color]" % [total_armor_hp, total_max_armor_hp]
-
-		controller.total_stats_label.text = "PILOT: %s\nFRAME LVL: %d | FRAME HP: %s | ARMOR HP: %s\nFRAME W: %.1fkg | ARMOR W: %.1fkg | ATTACH W: %.1fkg | WEAPON W: %.1fkg\nTOTAL WEIGHT: %.1f / %.1f kg\nFIELD PACK: %.1f / %.1f kg\nCREDITS: %d cr   |   SCRAP: %d%s" % [
+			total_penalties = "\n[color=#ff5555]" + "\n".join(active_penalties) + "[/color]"
+		controller.total_stats_label.text = "PILOT: %s\nFRAME LVL: %d | FRAME HP: %s | ARMOR HP: %s\nTOTAL WEIGHT: %.1f / %.1f kg\nFIELD PACK: %.1f / %.1f kg\nCREDITS: %d cr   |   SCRAP: %d%s" % [
 			_editing_pilot_name(), GlobalData.weapons.frame_upgrade_level, fhp_str, ahp_str,
-			total_frame_weight, total_armor_weight, total_attachment_weight, total_weapon_weight,
 			total_weight, max_weight,
 			field_pack_weight, field_pack_capacity,
 			GlobalData.currency.credits, GlobalData.currency.scrap,
-			penalty_text
+			total_penalties
 		]

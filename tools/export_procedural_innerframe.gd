@@ -7,42 +7,40 @@ extends SceneTree
 ## Run:
 ##   Godot_console.exe --headless --path <project> --script res://tools/export_procedural_innerframe.gd
 ##
-## Two files are written per run:
-##   exports/procedural_innerframe_local.glb — LOCAL units (the AUTHORING
-##       target). Authored part scenes attach inside mecha_base whose ROOT node
-##       carries scale 1.68, so replacement meshes must be modeled at this size;
-##       import into Godot with scale 1.0 and they render correct in-game size.
-##   exports/procedural_innerframe.glb — WORLD scale (x1.68): true on-screen
-##       meters, for checking overall proportions only.
+## MechaBase now at scale 1.0 with true world meters (4.73m tall). Author new parts at TRUE SIZE:
+## model at 1 unit = 1 meter, import into Godot with scale 1.0, origin at joint pivot (JNT_*).
+## Two files are written (both now true scale, kept for compatibility):
+##   exports/procedural_innerframe_local.glb — author at this true scale
+##   exports/procedural_innerframe.glb — same true scale (legacy WORLD)
 ##
 ## Every exported mesh node carries no rotation/scale — vertices are
 ## pre-transformed — and JNT_* empties mark the joint pivots a replacement
 ## part's origin must sit on.
 
-const GAME_SCALE := 1.68
+const GAME_SCALE := 1.0
 
 const EXPORT_CONFIGS := [
-	{"path": "res://exports/procedural_innerframe_local.glb", "scale": 1.0, "tag": "LOCAL  (author at this scale)"},
-	{"path": "res://exports/procedural_innerframe.glb", "scale": GAME_SCALE, "tag": "WORLD  (true in-game meters)"},
+	{"path": "res://exports/procedural_innerframe_local.glb", "scale": 1.0, "tag": "TRUE  (author at this scale - 1 unit = 1m)"},
+	{"path": "res://exports/procedural_innerframe.glb", "scale": GAME_SCALE, "tag": "TRUE  (same)"},
 ]
 
-## slot -> [node name, local position] — mirrors mecha_base.tscn upper pivots.
+## slot -> [node name, local position] — mirrors mecha_base.tscn upper pivots (TRUE WORLD at scale 1.0).
 const UPPER_PIVOTS := {
-	"head": ["Head", Vector3(0, 2.55, 0)],
-	"body": ["Body", Vector3(0, 1.8, 0)],
-	"arm_left": ["ArmLeft", Vector3(-0.75, 2.2, 0)],
-	"arm_right": ["ArmRight", Vector3(0.75, 2.2, 0)],
-	"leg_left": ["LegLeft", Vector3(-0.38, 1.3, 0)],
-	"leg_right": ["LegRight", Vector3(0.38, 1.3, 0)],
+	"head": ["Head", Vector3(0, 3.864, -0.0672)],
+	"body": ["Body", Vector3(0, 3.024, 0)],
+	"arm_left": ["ArmLeft", Vector3(-1.1424, 3.444, 0)],
+	"arm_right": ["ArmRight", Vector3(1.1424, 3.444, 0)],
+	"leg_left": ["LegLeft", Vector3(-0.6384, 2.184, 0)],
+	"leg_right": ["LegRight", Vector3(0.6384, 2.184, 0)],
 }
 
 ## slot -> lower-joint pivot (null when the slot has none) — mirrors
-## part_mesh_manager._LOWER_NODE_NAMES plus the tscn transforms.
+## part_mesh_manager._LOWER_NODE_NAMES plus the tscn transforms (TRUE WORLD).
 const LOWER_PIVOTS := {
-	"arm_left": ["ForearmLeft", Vector3(0, -0.38, 0)],
-	"arm_right": ["ForearmRight", Vector3(0, -0.38, 0)],
-	"leg_left": ["ShinLeft", Vector3(0, -0.55, 0)],
-	"leg_right": ["ShinRight", Vector3(0, -0.55, 0)],
+	"arm_left": ["ForearmLeft", Vector3(0, -0.6384, 0)],
+	"arm_right": ["ForearmRight", Vector3(0, -0.6384, 0)],
+	"leg_left": ["ShinLeft", Vector3(0, -0.924, 0)],
+	"leg_right": ["ShinRight", Vector3(0, -0.924, 0)],
 }
 
 ## Piece names in the exact order _build_procedural_inner_frame adds them,

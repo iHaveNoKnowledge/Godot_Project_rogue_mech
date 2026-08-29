@@ -96,7 +96,8 @@ resources/mech/parts/{slot}/{id}.tres   ← ArmorPart ผูก mesh (แก้�
 
 - หน่วยเป็น **เมตร** และหันหน้าไปทาง **-Z** (ทิศที่ Godot ใช้เป็นหน้า)
 - **Orientation** ตั้ง `Forward: -Z, Up: +Y`
-- **Scale**: ใช้สเกล 1:1 กับขนาดเกม (ความสูงตัวเต็ม ~2.4–2.6 ม. ในสเกลของ mecha)
+- **Scale**: ใช้สเกล **1:1 True Meters** กับขนาดเกม — **MechaBase ตอนนี้ scale 1.0** ความสูงจริง **4.73m** (หุ่น 4.5-5m, คน 1.55-1.80m ratio 2.6x) ปั้นที่ 1 unit = 1 เมตรแล้ว import ที่ `scale 1.0` ได้เลย
+  - ต้นแบบอยู่ที่ `exports/procedural_innerframe_local.glb` (true scale) ให้ import แล้ว pivot อยู่ที่ `JNT_*` (Head/Body/ArmLeft ฯลฯ) ที่ `3.864m` สูง
 - แยกท่อนบน/ท่อนล่างให้ pivot อยู่ที่ข้อต่อ (ต้นแขน pivot ที่ไหล่, ท่อนปลาย pivot ที่ศอก ฯลฯ)
 - ถ้าเป็นเกราะชั้นเดียว (ไม่แยกโครง) ให้ระบุแค่ `mesh_scene` ก็พอ ส่วน `inner_frame_scene`
   จะยังใช้ตัวสร้าง procedural อัตโนมัติแทน

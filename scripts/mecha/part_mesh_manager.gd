@@ -1,6 +1,11 @@
 extends Node3D
 
 const MASTER_PBR_SHADER: Shader = preload("res://shaders/mecha_master_pbr.gdshader")
+# World scale: MechaBase now at scale 1.0 with true meters (4.73m tall). Procedural meshes were authored
+# for 1.6 scale, so they need 1.68x to reach true world size. Containers are scaled, imported GLBs are
+# counter-scaled to stay at authoring true size (model at 4.73m, import at 1.0 -> renders correct).
+const WORLD_SCALE: float = 1.68
+const INV_WORLD_SCALE: float = 1.0 / 1.68
 
 var slot_meshes: Dictionary = {}
 # When true, slots without an inner frame render a faint translucent skeleton
@@ -73,17 +78,24 @@ func initialize_slot(slot_name: String, part: ArmorPart, apply_player_damage: bo
 		_hide_legacy_slot_meshes(lower_parent_node)
 
 	# 1. Setup Frame & Armor containers for Upper Joint (Shoulder / Hip)
+	# Scale 1.0 world: containers scaled to WORLD_SCALE so procedural meshes (authored at 1.6) render at true 4.73m
 	var frame_mesh = parent_node.get_node_or_null("FrameMesh")
 	if frame_mesh == null:
 		frame_mesh = Node3D.new()
 		frame_mesh.name = "FrameMesh"
+		frame_mesh.scale = Vector3.ONE * WORLD_SCALE
 		parent_node.add_child(frame_mesh)
+	else:
+		frame_mesh.scale = Vector3.ONE * WORLD_SCALE
 
 	var armor_mesh = parent_node.get_node_or_null("ArmorMesh")
 	if armor_mesh == null:
 		armor_mesh = Node3D.new()
 		armor_mesh.name = "ArmorMesh"
+		armor_mesh.scale = Vector3.ONE * WORLD_SCALE
 		parent_node.add_child(armor_mesh)
+	else:
+		armor_mesh.scale = Vector3.ONE * WORLD_SCALE
 
 	# 2. Setup Frame & Armor containers for Lower Joint (Elbow / Knee)
 	var frame_mesh_lower: Node3D = null
@@ -93,13 +105,19 @@ func initialize_slot(slot_name: String, part: ArmorPart, apply_player_damage: bo
 		if frame_mesh_lower == null:
 			frame_mesh_lower = Node3D.new()
 			frame_mesh_lower.name = "FrameMesh"
+			frame_mesh_lower.scale = Vector3.ONE * WORLD_SCALE
 			lower_parent_node.add_child(frame_mesh_lower)
+		else:
+			frame_mesh_lower.scale = Vector3.ONE * WORLD_SCALE
 
 		armor_mesh_lower = lower_parent_node.get_node_or_null("ArmorMesh")
 		if armor_mesh_lower == null:
 			armor_mesh_lower = Node3D.new()
 			armor_mesh_lower.name = "ArmorMesh"
+			armor_mesh_lower.scale = Vector3.ONE * WORLD_SCALE
 			lower_parent_node.add_child(armor_mesh_lower)
+		else:
+			armor_mesh_lower.scale = Vector3.ONE * WORLD_SCALE
 
 	slot_meshes[slot_name] = {
 		"armor": armor_mesh,
@@ -188,13 +206,17 @@ func _attach_custom_mesh_scene(upper_container: Node3D, lower_container: Node3D,
 	if upper_container == null:
 		return
 
-	# Explicit lower scene specified
+	# Explicit lower scene specified - counter-scale so authoring at true meters (scale 1.0) renders correct in WORLD_SCALE container
 	if lower_scene != null and lower_container != null:
 		if upper_scene != null:
 			var up_inst = upper_scene.instantiate()
+			if up_inst is Node3D:
+				(up_inst as Node3D).scale *= INV_WORLD_SCALE
 			upper_container.add_child(up_inst)
 			_apply_realistic_fix_recursive(up_inst)
 		var low_inst = lower_scene.instantiate()
+		if low_inst is Node3D:
+			(low_inst as Node3D).scale *= INV_WORLD_SCALE
 		lower_container.add_child(low_inst)
 		_apply_realistic_fix_recursive(low_inst)
 		return
@@ -202,6 +224,8 @@ func _attach_custom_mesh_scene(upper_container: Node3D, lower_container: Node3D,
 	# Single scene provided -> auto-split if lower nodes exist
 	if upper_scene != null:
 		var instance = upper_scene.instantiate()
+		if instance is Node3D:
+			(instance as Node3D).scale *= INV_WORLD_SCALE
 		if lower_container != null:
 			var lower_nodes: Array[Node] = []
 			for child in instance.get_children():
@@ -212,6 +236,14 @@ func _attach_custom_mesh_scene(upper_container: Node3D, lower_container: Node3D,
 			if not lower_nodes.is_empty():
 				for lnode in lower_nodes:
 					instance.remove_child(lnode)
+					# lnode already part of instance's scaled hierarchy; when moved to WORLD_SCALE container, keep counter-scale
+					# Instance root was INV, so lnode world is already correct via container; no extra scale needed as it inherits from new container
+					# But if lnode itself has no extra scale, its world via lower_container (1.68) * INV (0.595) =1.0, same as instance root. Since we already scaled instance root, child inherits that INV, moving it without adjusting keeps INV.
+					# To keep consistent, ensure lnode scale remains as is (inherits INV from instance root via its own transform, but after reparent, it loses that). So we re-apply INV.
+					if lnode is Node3D:
+						var ln3d := lnode as Node3D
+						# Compensate: instance root INV no longer affects it, so apply INV directly
+						ln3d.scale *= INV_WORLD_SCALE
 					lower_container.add_child(lnode)
 					_apply_realistic_fix_recursive(lnode)
 
@@ -423,6 +455,7 @@ func _render_scrap_patch(slot: String) -> void:
 		if container == null:
 			container = Node3D.new()
 			container.name = "ScrapPatch"
+			container.scale = Vector3.ONE * WORLD_SCALE
 			parent.add_child(container)
 		if not containers_used.has(container):
 			_free_patch_children(container)
@@ -1275,14 +1308,14 @@ func spawn_frame_binding(slot: String) -> void:
 		if not (tmpl is Dictionary):
 			continue
 		var mi := MeshInstance3D.new()
-		mi.position = tmpl.get("pos", Vector3.ZERO)
+		mi.position = (tmpl.get("pos", Vector3.ZERO) as Vector3) * WORLD_SCALE
 		mi.rotation = tmpl.get("rot", Vector3.ZERO)
-		mi.scale = tmpl.get("scale", Vector3.ONE)
+		mi.scale = (tmpl.get("scale", Vector3.ONE) as Vector3) * WORLD_SCALE
 
-		# Torus mesh for the cloth wrap ring
+		# Torus mesh for the cloth wrap ring - scaled to world
 		var torus := TorusMesh.new()
-		torus.inner_radius = 0.38
-		torus.outer_radius = 0.52
+		torus.inner_radius = 0.38 * WORLD_SCALE
+		torus.outer_radius = 0.52 * WORLD_SCALE
 		torus.rings = 16
 		torus.ring_segments = 12
 		mi.mesh = torus
@@ -1403,8 +1436,9 @@ func spawn_cloak_visual() -> void:
 
 	_cloak_visual = Node3D.new()
 	_cloak_visual.name = "ThermalCloak"
+	_cloak_visual.scale = Vector3.ONE * WORLD_SCALE
 	body_node.add_child(_cloak_visual)
-	_cloak_visual.position = Vector3(0, 0.3, 0.15)  # Back of torso
+	_cloak_visual.position = Vector3(0, 0.3, 0.15) * WORLD_SCALE  # Back of torso
 
 	var mat := _get_cloak_material()
 	_cloak_meshes.clear()

@@ -532,10 +532,47 @@ static func build(weapon: WeaponPart) -> Node3D:
 		muzzle_local = Vector3(0, 0.08, barrel_z - barrel_len * 0.5 - 0.05)
 
 	# -----------------------------------------------------------------------
-	# 6) BEAM RIFLE family — energy rifles
+	# 6) BEAM RIFLE / HEAVY CANNON family — energy rifles & heavy kinetic cannons
 	# -----------------------------------------------------------------------
 	elif w_type == WeaponPart.WeaponType.BEAM_RIFLE:
-		if name_lower.contains("sniper"):
+		if name_lower.contains("cannon"):
+			# Heavy Assault Cannon / Autocannon — massive reinforced frame, heavy fluted barrel & huge multi-port muzzle brake
+			# Heavy reinforced receiver block
+			_add_box(mount, Vector3(0.36, 0.32, 0.78), Vector3(0.0, 0.12, -0.15), _mat(Color(0.18, 0.19, 0.22), 0.85, 0.30))
+			# Heavy upper housing & recoil buffer slide
+			_add_box(mount, Vector3(0.28, 0.12, 0.72), Vector3(0.0, 0.30, -0.15), _mat(Color(0.24, 0.25, 0.28), 0.75, 0.35))
+			# Massive hydraulic recoil cylinders on top (twin dampers)
+			_add_cyl(mount, 0.045, 0.045, 0.65, Vector3(0.10, 0.34, -0.12), mat_silver, Vector3(90, 0, 0))
+			_add_cyl(mount, 0.045, 0.045, 0.65, Vector3(-0.10, 0.34, -0.12), mat_silver, Vector3(90, 0, 0))
+			# Main Heavy Autocannon Barrel (massive 130mm bore)
+			_add_cyl(mount, 0.095, 0.095, 1.45, Vector3(0.0, 0.12, -1.05), mat_silver, Vector3(90, 0, 0))
+			# Reinforced heavy thermal barrel jacket with square heat vents
+			_add_cyl(mount, 0.125, 0.125, 1.05, Vector3(0.0, 0.12, -0.92), _mat(Color(0.14, 0.15, 0.17), 0.80, 0.32), Vector3(90, 0, 0))
+			for i in range(5):
+				var vz := -0.55 - float(i) * 0.18
+				_add_box(mount, Vector3(0.18, 0.025, 0.06), Vector3(0.0, 0.22, vz), _mat(Color(0.02, 0.02, 0.02), 0.10, 0.90))
+				_add_box(mount, Vector3(0.18, 0.025, 0.06), Vector3(0.0, 0.02, vz), _mat(Color(0.02, 0.02, 0.02), 0.10, 0.90))
+			# Huge armored drum magazine mounted on the side
+			_add_cyl(mount, 0.20, 0.20, 0.22, Vector3(0.24, 0.02, 0.02), _mat(Color(0.22, 0.22, 0.25), 0.82, 0.30), Vector3(0, 0, 90))
+			_add_cyl(mount, 0.08, 0.08, 0.24, Vector3(0.24, 0.02, 0.02), mat_copper, Vector3(0, 0, 90))
+			# Heavy ammunition feed chute into receiver
+			_add_box(mount, Vector3(0.16, 0.10, 0.24), Vector3(0.14, 0.12, -0.05), mat_dark_steel)
+			# Top armored rail with combat optic
+			_add_box(mount, Vector3(0.08, 0.05, 0.45), Vector3(0.0, 0.38, -0.15), mat_dark_steel)
+			_add_box(mount, Vector3(0.07, 0.06, 0.22), Vector3(0.0, 0.43, -0.15), _mat(Color(0.10, 0.10, 0.12), 0.60, 0.30))
+			_add_cyl(mount, 0.035, 0.045, 0.08, Vector3(0.0, 0.43, -0.27), _mat(Color(1.0, 0.45, 0.10), 0.80, 0.20, Color(1.0, 0.50, 0.10), 2.0), Vector3(90, 0, 0))
+			# Heavy counterweight rear stock with rubber pad
+			_add_box(mount, Vector3(0.24, 0.18, 0.46), Vector3(0.0, 0.10, 0.42), mat_dark_steel)
+			_add_box(mount, Vector3(0.22, 0.20, 0.06), Vector3(0.0, 0.10, 0.66), mat_rubber)
+			# Reinforced pistol grip + trigger guard
+			_add_box(mount, Vector3(0.10, 0.20, 0.12), Vector3(0.0, -0.08, 0.16), mat_black_polymer, Vector3(-12, 0, 0))
+			# Massive multi-baffle muzzle brake at barrel end
+			_add_box(mount, Vector3(0.20, 0.18, 0.24), Vector3(0.0, 0.12, -1.82), mat_dark_steel)
+			_add_box(mount, Vector3(0.24, 0.04, 0.08), Vector3(0.0, 0.12, -1.76), _mat(Color(0.02, 0.02, 0.02), 0.10, 0.90))
+			_add_box(mount, Vector3(0.24, 0.04, 0.08), Vector3(0.0, 0.12, -1.88), _mat(Color(0.02, 0.02, 0.02), 0.10, 0.90))
+			_add_cyl(mount, 0.085, 0.085, 0.04, Vector3(0.0, 0.12, -1.95), _mat(Color(0.02, 0.02, 0.02), 0.10, 0.90), Vector3(90, 0, 0))
+			muzzle_local = Vector3(0, 0.12, -2.00)
+		elif name_lower.contains("sniper"):
 			# Long precision sniper
 			_add_box(mount, Vector3(0.20, 0.18, 0.62), Vector3(0.0, 0.09, -0.18), mat_gunmetal)
 			# Extended barrel with heat shroud (long slender)
@@ -725,13 +762,11 @@ static func build(weapon: WeaponPart) -> Node3D:
 			# Break hinge
 			_add_cyl(mount, 0.02, 0.02, 0.16, Vector3(0.0, 0.08, -0.06), mat_silver, Vector3(0, 0, 90))
 			muzzle_local = Vector3(0, 0.08, -0.56)
-		elif name_lower.contains("combat") or name_lower.contains("assault"):
-			# Combat Shotgun / Assault Cannon — tactical pump with box mag
+		elif name_lower.contains("combat"):
+			# Combat Shotgun — tactical pump with box mag
 			_add_box(mount, Vector3(0.26, 0.20, 0.52), Vector3(0.0, 0.09, -0.16), _mat(Color(0.20, 0.20, 0.22), 0.80, 0.35))
-			# Heavy barrel + compensator (bigger for assault cannon)
-			var is_cannon := name_lower.contains("cannon")
-			var barrel_r := 0.075 if is_cannon else 0.065
-			var barrel_len := 0.68 if is_cannon else 0.62
+			var barrel_r := 0.065
+			var barrel_len := 0.62
 			_add_cyl(mount, barrel_r, barrel_r, barrel_len, Vector3(0.0, 0.09, -0.56), mat_silver, Vector3(90, 0, 0))
 			_add_cyl(mount, barrel_r + 0.015, barrel_r + 0.015, 0.12, Vector3(0.0, 0.09, -0.84), mat_dark_steel, Vector3(90, 0, 0))
 			# Box magazine below (tactical)
@@ -748,7 +783,7 @@ static func build(weapon: WeaponPart) -> Node3D:
 			_add_box(mount, Vector3(0.14, 0.08, 0.28), Vector3(0.0, 0.06, 0.28), mat_dark_steel)
 			_add_box(mount, Vector3(0.12, 0.14, 0.04), Vector3(0.0, 0.06, 0.42), mat_rubber)
 			_add_box(mount, Vector3(0.07, 0.14, 0.08), Vector3(0.0, -0.03, 0.10), mat_black_polymer, Vector3(-11, 0, 0))
-			muzzle_local = Vector3(0, 0.09, -0.92) if not is_cannon else Vector3(0, 0.09, -0.94)
+			muzzle_local = Vector3(0, 0.09, -0.92)
 		else:
 			# Standard Shotgun — pump action, tube mag
 			_add_box(mount, Vector3(0.24, 0.18, 0.48), Vector3(0.0, 0.08, -0.12), _mat(Color(0.24, 0.22, 0.20), 0.70, 0.40))

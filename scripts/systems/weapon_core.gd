@@ -23,14 +23,15 @@ signal ammo_changed(current: int, max_ammo: int)
 signal heat_changed(current: float, max_heat: float, overheated: bool)
 signal fired
 
-enum Style { BULLET, MISSILE, SHOTGUN, ORB }
+enum Style { BULLET, MISSILE, SHOTGUN, ORB, CANNON_SHELL }
 
-## Projectile mesh variety (player loadout uses BULLET/MISSILE/SHOTGUN; enemy
+## Projectile mesh variety (player loadout uses BULLET/MISSILE/SHOTGUN/CANNON_SHELL; enemy
 ## grunts and allied dummies use ORB to keep their silhouette readable).
 var projectile_style: int = Style.ORB
 var projectile_color: Color = Color(1, 0.8, 0.2)
 # Railgun rounds leave a sonic-boom shockwave ring along their flight path.
 var sonic_boom: bool = false
+var explosion_radius: float = 0.0
 
 # --- Firing config ---
 var fire_interval: float = 0.2
@@ -95,18 +96,25 @@ static func from_weapon(weapon: WeaponPart) -> WeaponCore:
 	# The attack type (heat/pierce/blunt) is data on the weapon — the core just
 	# carries it to the projectile so armor/shield defenses can match on it.
 	core.damage_type = weapon.get_damage_type()
-	match weapon.weapon_type:
-		WeaponPart.WeaponType.MISSILE:
-			core.projectile_style = Style.MISSILE
-		WeaponPart.WeaponType.SHOTGUN:
-			core.projectile_style = Style.SHOTGUN
-			core.pellets = 7
-		WeaponPart.WeaponType.RAILGUN:
-			# Railgun rounds are hypervelocity: electric-blue bolt, no bullet drop
-			# sag, and a sonic-boom shockwave ring along the flight path.
-			core.projectile_style = Style.BULLET
-			core.projectile_color = Color(0.45, 0.85, 1.0)
-			core.sonic_boom = true
+	var wname_lower := weapon.weapon_name.to_lower()
+	if wname_lower.contains("cannon") or core.damage_type == "explosive":
+		core.projectile_style = Style.CANNON_SHELL
+		core.projectile_color = Color(1.0, 0.55, 0.15)
+		core.explosion_radius = 4.2
+		core.damage_type = "explosive"
+	else:
+		match weapon.weapon_type:
+			WeaponPart.WeaponType.MISSILE:
+				core.projectile_style = Style.MISSILE
+			WeaponPart.WeaponType.SHOTGUN:
+				core.projectile_style = Style.SHOTGUN
+				core.pellets = 7
+			WeaponPart.WeaponType.RAILGUN:
+				# Railgun rounds are hypervelocity: electric-blue bolt, no bullet drop
+				# sag, and a sonic-boom shockwave ring along the flight path.
+				core.projectile_style = Style.BULLET
+				core.projectile_color = Color(0.45, 0.85, 1.0)
+				core.sonic_boom = true
 	return core
 
 
@@ -315,6 +323,12 @@ static func _get_cached_mesh(style: int) -> Mesh:
 			pellet.radius = 0.02
 			pellet.height = 0.15
 			m = pellet
+		Style.CANNON_SHELL:
+			# Heavy 120mm Tungsten-HE Autocannon Shell (large luminous round)
+			var shell := CapsuleMesh.new()
+			shell.radius = 0.08
+			shell.height = 0.45
+			m = shell
 		Style.ORB:
 			var orb := SphereMesh.new()
 			orb.radius = 0.15
@@ -462,9 +476,17 @@ func _spawn_projectile(from_pos: Vector3, aim_dir: Vector3, fired_by_enemy: bool
 	projectile.fired_by_enemy = fired_by_enemy
 	projectile.sonic_boom = sonic_boom
 	projectile.drop_gravity = drop_gravity
+	if explosion_radius > 0.0:
+		projectile.explosion_radius = explosion_radius
+		projectile.explosive_visual = true
 	if sonic_boom:
 		# Hypervelocity round: no bullet drop sag, flat railgun trajectory.
 		projectile.drop_gravity = 0.0
 		projectile.lifetime = 3.0
 
 	EffectManager.spawn_muzzle_flash(from_pos, aim_dir, projectile_color)
+	if projectile_style == Style.CANNON_SHELL:
+		var tree := owner.get_tree()
+		if tree:
+			EffectFactory.spawn_smoke_plume(tree, from_pos + aim_dir * 0.5, 7, 0.35, 0.7, 1.2)
+			EffectFactory.spawn_fire_burst(tree, from_pos + aim_dir * 0.4, 0.65, 0.25, 4.0)

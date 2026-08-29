@@ -66,7 +66,7 @@ func _verify_weapon_types() -> void:
 	_check(_wtype("res://resources/mech/stock/weapon_shotgun.tres") == "blunt", "shotgun = blunt")
 	_check(_wtype("res://resources/mech/stock/weapon_combat_shotgun.tres") == "blunt", "combat shotgun = blunt")
 	_check(_wtype("res://resources/mech/stock/weapon_sawed_off.tres") == "blunt", "sawed-off = blunt")
-	_check(_wtype("res://resources/mech/stock/weapon_assault_cannon.tres") == "blunt", "assault cannon = blunt")
+	_check(_wtype("res://resources/mech/stock/weapon_assault_cannon.tres") == "explosive", "assault cannon = explosive")
 	_check(_wtype("res://resources/mech/stock/weapon_gatling_gun.tres") == "blunt", "gatling gun = blunt")
 	_check(_wtype("res://resources/mech/stock/weapon_mace.tres") == "blunt", "mace = blunt")
 

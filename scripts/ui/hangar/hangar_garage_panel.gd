@@ -189,41 +189,57 @@ func build_garage() -> void:
 
 
 func _build_hangar_bay_room() -> void:
-	# 1. Industrial Floor with brushed dark alloy
+	# 1. Garage Floor - dirty concrete with oil stains, NOT showroom alloy
 	var floor_mesh := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(32, 32)
 	floor_mesh.mesh = plane
 	var mat_floor := StandardMaterial3D.new()
-	mat_floor.albedo_color = Color(0.14, 0.16, 0.20)
-	mat_floor.metallic = 0.88
-	mat_floor.roughness = 0.35
+	mat_floor.albedo_color = Color(0.18, 0.18, 0.19)
+	mat_floor.metallic = 0.02
+	mat_floor.metallic_specular = 0.32
+	mat_floor.roughness = 0.88
 	floor_mesh.material_override = mat_floor
 	hangar_env_node.add_child(floor_mesh)
+	# Oil stain patch under mech
+	var stain := MeshInstance3D.new()
+	var stain_plane := PlaneMesh.new()
+	stain_plane.size = Vector2(6, 4)
+	stain.mesh = stain_plane
+	var mat_stain := StandardMaterial3D.new()
+	mat_stain.albedo_color = Color(0.09, 0.09, 0.11, 0.55)
+	mat_stain.metallic = 0.0
+	mat_stain.roughness = 0.96
+	mat_stain.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	stain.material_override = mat_stain
+	stain.position = Vector3(0, 0.02, 0.5)
+	hangar_env_node.add_child(stain)
 
-	# 2. Back Hangar Wall
+	# 2. Back Hangar Wall - matte concrete, dusty
 	var back_wall := MeshInstance3D.new()
 	var wall_mesh := BoxMesh.new()
 	wall_mesh.size = Vector3(32.0, 14.0, 0.6)
 	back_wall.mesh = wall_mesh
 	back_wall.position = Vector3(0, 6.5, -8.0)
 	var mat_wall := StandardMaterial3D.new()
-	mat_wall.albedo_color = Color(0.15, 0.17, 0.22)
-	mat_wall.metallic = 0.85
-	mat_wall.roughness = 0.42
+	mat_wall.albedo_color = Color(0.22, 0.22, 0.24)
+	mat_wall.metallic = 0.02
+	mat_wall.metallic_specular = 0.32
+	mat_wall.roughness = 0.92
 	back_wall.material_override = mat_wall
 	hangar_env_node.add_child(back_wall)
 
-	# 3. Vertical Structural Pillars & Conduits
+	# 3. Vertical Structural Pillars - dirty brushed steel, not chrome
 	var mat_pillar := StandardMaterial3D.new()
-	mat_pillar.albedo_color = Color(0.10, 0.12, 0.16)
-	mat_pillar.metallic = 0.92
-	mat_pillar.roughness = 0.28
+	mat_pillar.albedo_color = Color(0.26, 0.27, 0.29)
+	mat_pillar.metallic = 0.35
+	mat_pillar.metallic_specular = 0.35
+	mat_pillar.roughness = 0.62
 
 	var mat_hazard := StandardMaterial3D.new()
-	mat_hazard.albedo_color = Color(0.95, 0.75, 0.15)
-	mat_hazard.metallic = 0.3
-	mat_hazard.roughness = 0.5
+	mat_hazard.albedo_color = Color(0.82, 0.68, 0.18)
+	mat_hazard.metallic = 0.06
+	mat_hazard.roughness = 0.72
 
 	for px in [-7.5, -2.5, 2.5, 7.5]:
 		var pillar := MeshInstance3D.new()
@@ -243,7 +259,7 @@ func _build_hangar_bay_room() -> void:
 		band.material_override = mat_hazard
 		hangar_env_node.add_child(band)
 
-	# 4. Background Gantry / Catwalk
+	# 4. Background Gantry / Catwalk - dirty steel
 	var gantry := MeshInstance3D.new()
 	var g_box := BoxMesh.new()
 	g_box.size = Vector3(32.0, 0.35, 2.2)
@@ -252,22 +268,22 @@ func _build_hangar_bay_room() -> void:
 	gantry.material_override = mat_pillar
 	hangar_env_node.add_child(gantry)
 
-	# Gantry Safety Railing
+	# Gantry Safety Railing - matte safety yellow, not glossy
 	var rail := MeshInstance3D.new()
 	var r_box := BoxMesh.new()
 	r_box.size = Vector3(32.0, 0.9, 0.08)
 	rail.mesh = r_box
 	rail.position = Vector3(0, 4.4, -5.7)
 	var mat_rail := StandardMaterial3D.new()
-	mat_rail.albedo_color = Color(0.85, 0.68, 0.15)
-	mat_rail.metallic = 0.7
-	mat_rail.roughness = 0.35
+	mat_rail.albedo_color = Color(0.78, 0.62, 0.18)
+	mat_rail.metallic = 0.08
+	mat_rail.roughness = 0.68
 	rail.material_override = mat_rail
 	hangar_env_node.add_child(rail)
 
 
 func _build_turntable_platform() -> void:
-	# 1. Beveled Outer Base Ring (Dark Industrial Metal)
+	# 1. Beveled Outer Base Ring - dirty steel, not chrome
 	var base_ring := MeshInstance3D.new()
 	var base_cyl := CylinderMesh.new()
 	base_cyl.top_radius = 4.2
@@ -275,13 +291,14 @@ func _build_turntable_platform() -> void:
 	base_cyl.height = 0.12
 	base_ring.mesh = base_cyl
 	var mat_base := StandardMaterial3D.new()
-	mat_base.albedo_color = Color(0.12, 0.14, 0.17)
-	mat_base.metallic = 0.92
-	mat_base.roughness = 0.30
+	mat_base.albedo_color = Color(0.20, 0.21, 0.23)
+	mat_base.metallic = 0.32
+	mat_base.roughness = 0.58
+	mat_base.metallic_specular = 0.35
 	base_ring.material_override = mat_base
 	turntable_node.add_child(base_ring)
 
-	# 2. Main Turntable Floor Disc (Brushed Titanium Plate)
+	# 2. Main Turntable Floor Disc - worn painted steel with oil, not titanium
 	var top_plate := MeshInstance3D.new()
 	var top_cyl := CylinderMesh.new()
 	top_cyl.top_radius = 3.95
@@ -289,9 +306,10 @@ func _build_turntable_platform() -> void:
 	top_cyl.height = 0.16
 	top_plate.mesh = top_cyl
 	var mat_top := StandardMaterial3D.new()
-	mat_top.albedo_color = Color(0.18, 0.20, 0.25)
-	mat_top.metallic = 0.90
-	mat_top.roughness = 0.34
+	mat_top.albedo_color = Color(0.24, 0.24, 0.26)
+	mat_top.metallic = 0.18
+	mat_top.metallic_specular = 0.35
+	mat_top.roughness = 0.68
 	top_plate.material_override = mat_top
 	turntable_node.add_child(top_plate)
 

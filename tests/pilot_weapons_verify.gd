@@ -89,6 +89,57 @@ func _ready() -> void:
 		_check(is_equal_approx(pilot.get_stamina_ratio(), 0.3), "stamina ratio reflects current pool")
 		pilot.stamina = 0.0
 		_check(is_equal_approx(pilot.get_stamina_ratio(), 0.0), "empty stamina clamps at 0")
+
+		# --- 4. Human Scale vs Mecha Scale Verification ---
+		var pilot_col = pilot.get_node_or_null("CollisionShape3D")
+		_check(pilot_col != null and pilot_col.shape is CapsuleShape3D, "pilot has capsule collision shape")
+		if pilot_col and pilot_col.shape is CapsuleShape3D:
+			_check(is_equal_approx(pilot_col.shape.height, 1.8), "pilot height is exactly 1.80m (realistic human adult height)")
+			_check(is_equal_approx(pilot_col.shape.radius, 0.3), "pilot radius is 0.30m (60cm width)")
+
+		var mecha_scene := load("res://scenes/mecha/mecha_base.tscn") as PackedScene
+		if mecha_scene:
+			var mecha = mecha_scene.instantiate()
+			add_child(mecha)
+			var mecha_col = mecha.get_node_or_null("CollisionShape3D")
+			if mecha_col and mecha_col.shape is CapsuleShape3D:
+				var effective_mech_height = mecha_col.shape.height * mecha.scale.y
+				_check(effective_mech_height >= 4.0 and effective_mech_height <= 5.2, "mecha effective height is 4.5m (approx 2.5x human height, realistic ratio)")
+			mecha.queue_free()
+
+		# --- 5. Human-Scale 3D Weapon Model Verification ---
+		var pistol_part = load(PISTOL) as WeaponPart
+		var pistol_mesh = WeaponVisualFactory.build_pilot_weapon(pistol_part)
+		_check(pistol_mesh != null, "built pilot pistol 3D model")
+		var pistol_muzzle = WeaponVisualFactory.find_muzzle_node(pistol_mesh)
+		_check(pistol_muzzle != null, "pilot pistol has Muzzle node at barrel tip")
+		_check(pistol_muzzle.position.z < 0.0 and absf(pistol_muzzle.position.z) <= 0.30, "pilot pistol muzzle length <= 0.30m (human pistol, not 1.5m mech cannon)")
+		pistol_mesh.queue_free()
+
+		var assault_part = load(ASSAULT) as WeaponPart
+		var assault_mesh = WeaponVisualFactory.build_pilot_weapon(assault_part)
+		_check(assault_mesh != null, "built pilot assault rifle 3D model")
+		var assault_muzzle = WeaponVisualFactory.find_muzzle_node(assault_mesh)
+		_check(assault_muzzle != null, "pilot assault rifle has Muzzle node")
+		_check(absf(assault_muzzle.position.z) <= 0.75, "pilot assault rifle length <= 0.75m (human carbine)")
+		assault_mesh.queue_free()
+
+		var antitank_part = load(ANTITANK) as WeaponPart
+		var antitank_mesh = WeaponVisualFactory.build_pilot_weapon(antitank_part)
+		_check(antitank_mesh != null, "built pilot anti-tank rifle 3D model")
+		var antitank_muzzle = WeaponVisualFactory.find_muzzle_node(antitank_mesh)
+		_check(antitank_muzzle != null, "pilot anti-tank rifle has Muzzle node")
+		_check(absf(antitank_muzzle.position.z) <= 1.20, "pilot anti-tank rifle length <= 1.20m (human anti-materiel sniper)")
+		antitank_mesh.queue_free()
+
+		var bazooka_part = load(BAZOOKA) as WeaponPart
+		var bazooka_mesh = WeaponVisualFactory.build_pilot_weapon(bazooka_part)
+		_check(bazooka_mesh != null, "built pilot bazooka 3D model")
+		var bazooka_muzzle = WeaponVisualFactory.find_muzzle_node(bazooka_mesh)
+		_check(bazooka_muzzle != null, "pilot bazooka has Muzzle node")
+		_check(absf(bazooka_muzzle.position.z) <= 1.00, "pilot bazooka length <= 1.00m (human shoulder rocket)")
+		bazooka_mesh.queue_free()
+
 		pilot.queue_free()
 
 	print("PILOTW_VERIFY: checks=%d fails=%d" % [_checks, _fails])

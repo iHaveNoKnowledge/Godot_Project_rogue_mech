@@ -240,6 +240,9 @@ static func build(weapon: WeaponPart) -> Node3D:
 	if weapon == null:
 		return mount
 
+	if weapon.weapon_name.to_lower().contains("pilot") or (weapon.resource_path != "" and weapon.resource_path.contains("pilot")):
+		return build_pilot_weapon(weapon)
+
 	if weapon.mesh_scene:
 		var inst: Node3D = weapon.mesh_scene.instantiate()
 		mount.add_child(inst)
@@ -848,3 +851,132 @@ static func find_muzzle_node(root: Node) -> Node3D:
 		if found != null:
 			return found
 	return null
+
+
+## Builds a dedicated HUMAN-SCALED weapon model (for pilots on foot).
+## Scale is realistically proportioned for human hands (~18-20cm pistol, ~65cm rifle, ~1.1m anti-tank, ~0.95m bazooka).
+static func build_pilot_weapon(weapon: WeaponPart) -> Node3D:
+	var mount := Node3D.new()
+	if weapon == null:
+		return mount
+
+	var name_lower := weapon.weapon_name.to_lower()
+	var w_type := weapon.weapon_type
+	var muzzle_local := Vector3(0, 0.038, -0.16)
+
+	var mat_gunmetal := _mat(Color(0.20, 0.22, 0.25), 0.85, 0.35)
+	var mat_dark_steel := _mat(Color(0.14, 0.15, 0.17), 0.88, 0.30)
+	var mat_silver := _mat(Color(0.75, 0.78, 0.82), 0.92, 0.22)
+	var mat_black_poly := _mat(Color(0.08, 0.08, 0.09), 0.10, 0.75)
+	var mat_brown_poly := _mat(Color(0.28, 0.22, 0.15), 0.15, 0.70)
+	var mat_olive_poly := _mat(Color(0.25, 0.30, 0.22), 0.35, 0.65)
+	var mat_tritium_green := _mat(Color(0.2, 0.95, 0.3), 0.10, 0.30, Color(0.2, 1.0, 0.3), 4.0)
+	var mat_scope_lens := _mat(Color(0.15, 0.45, 0.85), 0.80, 0.15, Color(0.2, 0.6, 1.0), 2.0)
+	var mat_hazard := _mat(Color(0.92, 0.75, 0.10), 0.20, 0.55)
+
+	# 1) BAZOOKA / ROCKET LAUNCHER (Human shoulder-fired)
+	if name_lower.contains("bazooka") or name_lower.contains("rocket"):
+		# Launch tube: 92cm long, 9cm diameter
+		_add_cyl(mount, 0.045, 0.045, 0.92, Vector3(0.0, 0.06, -0.15), mat_olive_poly, Vector3(90, 0, 0))
+		# Venturi exhaust bell at rear
+		_add_cyl(mount, 0.062, 0.045, 0.12, Vector3(0.0, 0.06, 0.35), mat_dark_steel, Vector3(90, 0, 0))
+		# Front muzzle reinforcement ring
+		_add_cyl(mount, 0.052, 0.052, 0.04, Vector3(0.0, 0.06, -0.60), mat_dark_steel, Vector3(90, 0, 0))
+		# Shoulder rest bracket
+		_add_box(mount, Vector3(0.08, 0.03, 0.18), Vector3(0.0, 0.01, 0.10), mat_black_poly)
+		# Dual grips (forward and rear trigger)
+		_add_box(mount, Vector3(0.03, 0.11, 0.04), Vector3(0.0, -0.04, -0.05), mat_black_poly, Vector3(-12, 0, 0))
+		_add_box(mount, Vector3(0.03, 0.10, 0.04), Vector3(0.0, -0.03, -0.32), mat_black_poly)
+		# Offset optical sight on left
+		_add_box(mount, Vector3(0.04, 0.06, 0.12), Vector3(-0.065, 0.10, -0.12), mat_dark_steel)
+		_add_cyl(mount, 0.018, 0.018, 0.10, Vector3(-0.065, 0.11, -0.12), mat_scope_lens, Vector3(90, 0, 0))
+		# Warhead rocket tip loaded inside front
+		_add_cyl(mount, 0.038, 0.010, 0.08, Vector3(0.0, 0.06, -0.62), mat_hazard, Vector3(90, 0, 0))
+		muzzle_local = Vector3(0.0, 0.06, -0.68)
+
+	# 2) ANTI-TANK / SNIPER RIFLE (Heavy Anti-Materiel)
+	elif name_lower.contains("anti_tank") or name_lower.contains("anti-tank") or name_lower.contains("sniper") or name_lower.contains("antitank"):
+		# Long receiver + stock: ~1.10m total
+		_add_box(mount, Vector3(0.055, 0.080, 0.42), Vector3(0.0, 0.04, 0.08), mat_gunmetal)
+		# Fluted long heavy barrel: 68cm
+		_add_cyl(mount, 0.016, 0.018, 0.68, Vector3(0.0, 0.05, -0.48), mat_silver, Vector3(90, 0, 0))
+		# Massive tank muzzle brake
+		_add_box(mount, Vector3(0.045, 0.036, 0.08), Vector3(0.0, 0.05, -0.83), mat_dark_steel)
+		_add_box(mount, Vector3(0.055, 0.012, 0.06), Vector3(0.0, 0.05, -0.83), mat_dark_steel)
+		# High-power tactical scope with sunshade
+		_add_cyl(mount, 0.022, 0.022, 0.28, Vector3(0.0, 0.12, -0.05), mat_dark_steel, Vector3(90, 0, 0))
+		_add_cyl(mount, 0.026, 0.020, 0.04, Vector3(0.0, 0.12, -0.19), mat_scope_lens, Vector3(90, 0, 0))
+		# Heavy box magazine (5 rounds) behind trigger
+		_add_box(mount, Vector3(0.035, 0.12, 0.07), Vector3(0.0, -0.05, 0.18), mat_dark_steel)
+		# Ergonomic pistol grip
+		_add_box(mount, Vector3(0.032, 0.11, 0.045), Vector3(0.0, -0.04, 0.02), mat_black_poly, Vector3(-15, 0, 0))
+		# Folded bipod
+		_add_cyl(mount, 0.007, 0.007, 0.22, Vector3(0.025, -0.02, -0.32), mat_dark_steel, Vector3(90, 0, 0))
+		_add_cyl(mount, 0.007, 0.007, 0.22, Vector3(-0.025, -0.02, -0.32), mat_dark_steel, Vector3(90, 0, 0))
+		muzzle_local = Vector3(0.0, 0.05, -0.88)
+
+	# 3) ASSAULT RIFLE / CARBINE / SUBMACHINE GUN
+	elif name_lower.contains("assault") or name_lower.contains("rifle") or name_lower.contains("smg") or name_lower.contains("submachine"):
+		# Upper and lower receiver: ~65cm total length
+		_add_box(mount, Vector3(0.042, 0.065, 0.26), Vector3(0.0, 0.03, -0.02), mat_gunmetal)
+		# Handguard with cooling slots
+		_add_box(mount, Vector3(0.038, 0.052, 0.20), Vector3(0.0, 0.03, -0.24), mat_dark_steel)
+		# Barrel & birdcage flash hider
+		_add_cyl(mount, 0.010, 0.010, 0.18, Vector3(0.0, 0.035, -0.38), mat_silver, Vector3(90, 0, 0))
+		_add_cyl(mount, 0.013, 0.013, 0.035, Vector3(0.0, 0.035, -0.47), mat_dark_steel, Vector3(90, 0, 0))
+		# Curved 30-round banana magazine
+		_add_box(mount, Vector3(0.022, 0.14, 0.055), Vector3(0.0, -0.06, -0.07), mat_dark_steel, Vector3(12, 0, 0))
+		# Pistol grip
+		_add_box(mount, Vector3(0.028, 0.10, 0.04), Vector3(0.0, -0.04, 0.07), mat_black_poly, Vector3(-16, 0, 0))
+		# Holographic red dot reflex sight
+		_add_box(mount, Vector3(0.028, 0.035, 0.07), Vector3(0.0, 0.085, -0.05), mat_black_poly)
+		_add_box(mount, Vector3(0.018, 0.018, 0.01), Vector3(0.0, 0.088, -0.05), _mat(Color(1.0, 0.2, 0.2), 0.1, 0.2, Color(1.0, 0.2, 0.2), 3.5))
+		# Retractable tactical buttstock
+		_add_box(mount, Vector3(0.035, 0.08, 0.16), Vector3(0.0, 0.03, 0.18), mat_black_poly)
+		muzzle_local = Vector3(0.0, 0.035, -0.50)
+
+	# 4) MELEE COMBAT BLADE / KNIFE
+	elif w_type == WeaponPart.WeaponType.MELEE or name_lower.contains("knife") or name_lower.contains("blade"):
+		# Tanto knife blade: 24cm
+		_add_box(mount, Vector3(0.006, 0.035, 0.22), Vector3(0.0, 0.0, -0.15), mat_silver)
+		# Beveled tip
+		_add_box(mount, Vector3(0.005, 0.025, 0.06), Vector3(0.0, 0.005, -0.28), mat_silver, Vector3(25, 0, 0))
+		# Crossguard
+		_add_box(mount, Vector3(0.018, 0.06, 0.012), Vector3(0.0, 0.0, -0.04), mat_dark_steel)
+		# Tactical textured handle
+		_add_box(mount, Vector3(0.022, 0.036, 0.12), Vector3(0.0, 0.0, 0.03), mat_black_poly)
+		# Pommel strike ring
+		_add_cyl(mount, 0.015, 0.015, 0.015, Vector3(0.0, 0.0, 0.10), mat_dark_steel, Vector3(0, 0, 90))
+		muzzle_local = Vector3(0.0, 0.0, -0.32)
+
+	# 5) PILOT PISTOL / SIDEARM (Default)
+	else:
+		# Slide: 18cm long, 2.8cm wide, 3.5cm high
+		_add_box(mount, Vector3(0.028, 0.035, 0.18), Vector3(0.0, 0.035, -0.04), mat_gunmetal)
+		# Serrations on rear slide
+		for i in range(4):
+			_add_box(mount, Vector3(0.030, 0.025, 0.005), Vector3(0.0, 0.035, 0.01 - float(i) * 0.012), mat_dark_steel)
+		# Barrel tip (stainless steel)
+		_add_cyl(mount, 0.007, 0.007, 0.05, Vector3(0.0, 0.038, -0.13), mat_silver, Vector3(90, 0, 0))
+		# Frame & underbarrel tactical rail
+		_add_box(mount, Vector3(0.026, 0.025, 0.15), Vector3(0.0, 0.010, -0.03), mat_black_poly)
+		_add_box(mount, Vector3(0.020, 0.015, 0.06), Vector3(0.0, -0.005, -0.08), mat_dark_steel)
+		# Ergonomic pistol grip
+		_add_box(mount, Vector3(0.025, 0.095, 0.036), Vector3(0.0, -0.035, 0.015), mat_black_poly, Vector3(-16, 0, 0))
+		# Textured grip side panels
+		_add_box(mount, Vector3(0.027, 0.075, 0.028), Vector3(0.0, -0.035, 0.015), mat_brown_poly, Vector3(-16, 0, 0))
+		# Trigger guard & trigger
+		_add_box(mount, Vector3(0.010, 0.035, 0.045), Vector3(0.0, -0.015, -0.03), mat_black_poly)
+		_add_box(mount, Vector3(0.006, 0.018, 0.008), Vector3(0.0, -0.012, -0.025), mat_silver, Vector3(15, 0, 0))
+		# Tritium glowing 3-dot night sights
+		_add_sphere(mount, 0.003, 0.003, Vector3(0.0, 0.055, -0.12), mat_tritium_green)
+		_add_sphere(mount, 0.0025, 0.0025, Vector3(0.008, 0.055, 0.04), mat_tritium_green)
+		_add_sphere(mount, 0.0025, 0.0025, Vector3(-0.008, 0.055, 0.04), mat_tritium_green)
+		muzzle_local = Vector3(0.0, 0.038, -0.16)
+
+	var muzzle := Node3D.new()
+	muzzle.name = "Muzzle"
+	muzzle.position = muzzle_local
+	mount.add_child(muzzle)
+	return mount
+

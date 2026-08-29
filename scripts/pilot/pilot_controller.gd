@@ -86,10 +86,15 @@ func _rebuild_weapon_mesh() -> void:
 		return
 	var weapon: WeaponPart = _weapons[_weapon_index % _weapons.size()]
 	_weapon_mesh = Node3D.new()
-	_weapon_mesh.add_child(WeaponVisualFactory.build(weapon))
-	# Held at the pilot's side, like a carried rifle.
-	_weapon_mesh.position = Vector3(0.45, 1.05, -0.15)
-	_weapon_mesh.rotation = Vector3(0, 0, -0.35)
+	_weapon_mesh.add_child(WeaponVisualFactory.build_pilot_weapon(weapon))
+	# Naturally held at the pilot's right hand
+	var is_pistol := weapon.weapon_name.to_lower().contains("pistol")
+	if is_pistol:
+		_weapon_mesh.position = Vector3(0.26, 1.05, -0.25)
+		_weapon_mesh.rotation = Vector3(0, 0, -0.08)
+	else:
+		_weapon_mesh.position = Vector3(0.28, 1.00, -0.20)
+		_weapon_mesh.rotation = Vector3(0, 0, -0.15)
 	add_child(_weapon_mesh)
 
 

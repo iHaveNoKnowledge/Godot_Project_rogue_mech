@@ -80,6 +80,7 @@ func _ready() -> void:
 	EventBus.guard_state_changed.connect(_on_guard_state_changed)
 	EventBus.deflect_triggered.connect(_on_deflect_triggered)
 	EventBus.pile_bunker_fired.connect(_on_pile_bunker_fired)
+	EventBus.interaction_prompt_updated.connect(_on_interaction_prompt_updated)
 	if get_viewport():
 		get_viewport().size_changed.connect(_fit_panel_to_content)
 	# Two frames so the container layout resolves bar/label minimum sizes.
@@ -611,3 +612,52 @@ func _on_pile_bunker_fired(is_loaded_blast: bool, _target_pos: Vector3) -> void:
 	else:
 		_pile_badge.text = "PILE: COMBO [HAMMER]"
 		_pile_badge.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
+
+
+# --- Interaction Prompt (Boarding / Dismount) ---
+var _interaction_panel: PanelContainer = null
+var _interaction_label: Label = null
+
+
+func _create_interaction_prompt_widget() -> void:
+	_interaction_panel = PanelContainer.new()
+	_interaction_panel.name = "InteractionPromptPanel"
+	_interaction_panel.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_interaction_panel.offset_left = -180
+	_interaction_panel.offset_right = 180
+	_interaction_panel.offset_top = -140
+	_interaction_panel.offset_bottom = -95
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.06, 0.08, 0.12, 0.92)
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.border_color = Color(0.2, 0.85, 1.0, 0.8)
+	style.corner_radius_top_left = 4
+	style.corner_radius_top_right = 4
+	style.corner_radius_bottom_left = 4
+	style.corner_radius_bottom_right = 4
+	style.content_margin_left = 12
+	style.content_margin_right = 12
+	style.content_margin_top = 6
+	style.content_margin_bottom = 6
+	_interaction_panel.add_theme_stylebox_override("panel", style)
+	_interaction_panel.visible = false
+	add_child(_interaction_panel)
+
+	_interaction_label = Label.new()
+	_interaction_label.text = "[ F ] Board Mecha"
+	_interaction_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_interaction_label.add_theme_font_size_override("font_size", 14)
+	_interaction_label.add_theme_color_override("font_color", Color(0.3, 0.95, 1.0))
+	_interaction_panel.add_child(_interaction_label)
+
+
+func _on_interaction_prompt_updated(prompt_text: String, is_visible: bool) -> void:
+	if _interaction_panel == null:
+		_create_interaction_prompt_widget()
+	if _interaction_panel:
+		_interaction_panel.visible = is_visible
+		if is_visible and _interaction_label:
+			_interaction_label.text = prompt_text

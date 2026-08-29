@@ -42,6 +42,8 @@ signal backup_mech_destroyed()
 ## Fired whenever a mech gains or loses its pilot so its pose can react:
 ## occupied = true -> standing idle, false -> kneel while waiting for its pilot.
 signal mecha_occupancy_changed(occupied: bool)
+## Fired when on-foot pilot or player moves in/out of range of an interactive entity (e.g. boardable mech)
+signal interaction_prompt_updated(prompt_text: String, is_visible: bool)
 
 # --- Board ---
 signal tile_entered(tile_pos: Vector2i, tile_data: Node)

@@ -1,4 +1,15 @@
+class_name MechaEject
 extends Node
+
+## -----------------------------------------------------------------------------
+## MECHA EJECT & BOARDING SYSTEM — GTA-Style Decoupled Pilot-Mech Transitions
+##
+## Supports:
+##   • Voluntary Dismount anytime via [F] key.
+##   • Emergency Eject upon catastrophic chassis destruction.
+##   • Dynamic Boarding into ANY unoccupied mech on the battlefield (original,
+##     backup, fleet units, or captured mechas).
+## -----------------------------------------------------------------------------
 
 @onready var mecha: CharacterBody3D = get_parent()
 
@@ -9,16 +20,28 @@ func _ready() -> void:
 	pass
 
 
-func initiate_eject() -> void:
-	# One pilot per cockpit: an already-parked mech has its pilot out on the
-	# field, so a repeat eject (e.g. pressing the key again) must not spawn a
-	# second pilot. Boarding clears the parked state, re-arming the eject.
-	if mecha.has_meta("is_parked"):
+## Voluntary or emergency pilot dismount from the mech cockpit
+func dismount_pilot(is_emergency: bool = false) -> void:
+	if mecha == null or not is_instance_valid(mecha):
 		return
-	EventBus.eject_initiated.emit()
-	# The cockpit is now empty: the mech kneels until its pilot boards again.
-	EventBus.mecha_occupancy_changed.emit(false)
-	var pilot = pilot_scene.instantiate()
+	if mecha.has_meta("is_parked") or mecha.has_meta("is_unoccupied"):
+		return
+
+	if is_emergency:
+		EventBus.eject_initiated.emit()
+
+	# Put current mecha into power-down / standby state
+	if mecha.has_method("power_down"):
+		mecha.power_down()
+	else:
+		mecha.set_meta("is_parked", true)
+		mecha.set_meta("is_unoccupied", true)
+		mecha.set_physics_process(false)
+		mecha.add_to_group("boardable_mech")
+		mecha.add_to_group("backup_mech")
+
+	# Spawn pilot on foot
+	var pilot: CharacterBody3D = pilot_scene.instantiate()
 	var parent_node = mecha.get_parent()
 	if parent_node == null:
 		parent_node = get_tree().current_scene
@@ -28,52 +51,55 @@ func initiate_eject() -> void:
 	if eject_point:
 		pilot.global_position = eject_point.global_position
 	else:
-		pilot.global_position = mecha.global_position + Vector3(0, 1.5, -2.0)
-
-	# Park the mech in place — keep it visible and solid, but suspend active movement.
-	mecha.set_meta("is_parked", true)
-	mecha.set_physics_process(false)
-	mecha.visible = true
-	var hs = mecha.get_node_or_null("HealthSystem")
-	var is_dead := hs != null and bool(hs.get("is_destroyed"))
-	if not is_dead:
-		mecha.add_to_group("backup_mech")
+		pilot.global_position = mecha.global_position + Vector3(0, 0.5, -2.5)
 
 	EventBus.camera_mode_changed.emit("eject")
+	EventBus.mecha_occupancy_changed.emit(false)
 	EventBus.pilot_spawned.emit(pilot)
 	GameManager.enter_eject()
 
 
-func board_parked_mecha(parked_mecha: CharacterBody3D) -> void:
-	var pilot = get_tree().current_scene.get_node_or_null("Pilot")
-	if pilot == null:
-		var pilots = get_tree().get_nodes_in_group("pilot")
-		if not pilots.is_empty():
-			pilot = pilots[0]
-	if pilot:
-		pilot.queue_free()
+## Emergency eject backwards compatibility alias
+func initiate_eject() -> void:
+	dismount_pilot(true)
 
-	if parked_mecha and parked_mecha.has_meta("is_parked"):
-		parked_mecha.remove_meta("is_parked")
 
-	# No longer a boarding target now that the pilot is seated again.
-	mecha.remove_from_group("backup_mech")
+## Boards any target mecha on the field, waking it up and transferring controls
+static func board_mecha(target_mecha: CharacterBody3D) -> void:
+	if target_mecha == null or not is_instance_valid(target_mecha):
+		return
 
-	mecha.set_physics_process(true)
-	mecha.visible = true
-	var col = mecha.get_node_or_null("CollisionShape3D")
-	if col:
-		col.set_deferred("disabled", false)
+	# Remove active on-foot pilot
+	var tree = target_mecha.get_tree()
+	if tree:
+		var pilots = tree.get_nodes_in_group("pilot")
+		for p in pilots:
+			if is_instance_valid(p):
+				p.queue_free()
+
+	# Wake up target mecha
+	if target_mecha.has_method("power_up"):
+		target_mecha.power_up()
+	else:
+		target_mecha.remove_meta("is_parked")
+		target_mecha.remove_meta("is_unoccupied")
+		target_mecha.remove_from_group("boardable_mech")
+		target_mecha.set_physics_process(true)
+		target_mecha.visible = true
+		var col = target_mecha.get_node_or_null("CollisionShape3D")
+		if col:
+			col.set_deferred("disabled", false)
 
 	EventBus.camera_mode_changed.emit("combat")
-	# A pilot is seated again: the mech stands back up.
 	EventBus.mecha_occupancy_changed.emit(true)
-	# Resume the SAME battle — never enter_combat(), which would reload the
-	# combat scene and restart the fight (new arena, respawned enemies).
 	GameManager.resume_combat()
 
 
+## Legacy alias for compatibility with existing callers
+func board_parked_mecha(parked_mecha: CharacterBody3D) -> void:
+	board_mecha(parked_mecha if parked_mecha else mecha)
+
+
+## Legacy alias for backup mech boarding
 func board_backup_mech(backup_mech: CharacterBody3D) -> void:
-	board_parked_mecha(mecha)
-	if backup_mech and is_instance_valid(backup_mech) and backup_mech != mecha:
-		backup_mech.queue_free()
+	board_mecha(backup_mech if backup_mech else mecha)

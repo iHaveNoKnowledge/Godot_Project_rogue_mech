@@ -467,3 +467,51 @@ func _initialize_mesh_from_global_data() -> void:
 
 func _on_weight_changed(_w: float) -> void:
 	_recalculate_weight()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if GameManager.current_state != GameManager.State.COMBAT:
+		return
+	if event.is_action_pressed("interact") or (event is InputEventKey and event.pressed and event.keycode == KEY_F and not event.echo):
+		dismount()
+
+
+## Voluntarily dismounts the pilot from this mech
+func dismount() -> void:
+	var me = get_node_or_null("MechaEject")
+	if me and me.has_method("dismount_pilot"):
+		me.dismount_pilot()
+	else:
+		var eject_script = preload("res://scripts/mecha/mecha_eject.gd").new()
+		add_child(eject_script)
+		eject_script.dismount_pilot()
+
+
+## Puts the vacated mech into a standby/power-down state
+func power_down() -> void:
+	set_meta("is_parked", true)
+	set_meta("is_unoccupied", true)
+	set_physics_process(false)
+	is_roller_dashing = false
+	current_speed = 0.0
+	velocity = Vector3.ZERO
+	# Zero out heat emission so thermal detection cannot spot the powered-down mech
+	var ws = get_node_or_null("WeaponManager")
+	if ws and "current_heat" in ws:
+		ws.current_heat = 0.0
+	add_to_group("boardable_mech")
+	add_to_group("backup_mech")
+	EventBus.mecha_occupancy_changed.emit(false)
+
+
+## Awakens and restores full movement physics when a pilot boards
+func power_up() -> void:
+	remove_meta("is_parked")
+	remove_meta("is_unoccupied")
+	remove_from_group("boardable_mech")
+	set_physics_process(true)
+	visible = true
+	var col = get_node_or_null("CollisionShape3D")
+	if col:
+		col.set_deferred("disabled", false)
+	EventBus.mecha_occupancy_changed.emit(true)

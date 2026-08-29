@@ -1,5 +1,7 @@
 extends CharacterBody3D
 
+const MechaEject = preload("res://scripts/mecha/mecha_eject.gd")
+
 @export var move_speed: float = 5.0
 @export var jump_force: float = 4.5
 
@@ -94,6 +96,11 @@ func _rebuild_weapon_mesh() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if GameManager.current_state != GameManager.State.EJECT:
 		return
+	if event.is_action_pressed("interact") or (event is InputEventKey and event.pressed and event.keycode == KEY_F and not event.echo):
+		var target_mech := find_nearest_boardable_mech()
+		if target_mech:
+			MechaEject.board_mecha(target_mech)
+			return
 	if event.is_action_pressed("fire_left"):
 		_try_fire()
 	elif event.is_action_pressed("fire_right"):
@@ -109,6 +116,33 @@ func _unhandled_input(event: InputEvent) -> void:
 			_equip_weapon(_weapon_index + 1)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed and _weapons.size() > 1:
 			_equip_weapon(_weapon_index - 1)
+
+
+## Finds the closest boardable/unoccupied mecha within interaction distance (< 4.5m)
+func find_nearest_boardable_mech() -> CharacterBody3D:
+	var tree := get_tree()
+	if tree == null:
+		return null
+	var candidates: Array = []
+	candidates.append_array(tree.get_nodes_in_group("boardable_mech"))
+	candidates.append_array(tree.get_nodes_in_group("backup_mech"))
+	candidates.append_array(tree.get_nodes_in_group("mecha"))
+
+	var best: CharacterBody3D = null
+	var best_dist: float = 4.5
+
+	for node in candidates:
+		if node is CharacterBody3D and is_instance_valid(node) and node != self:
+			var hs = node.get_node_or_null("HealthSystem")
+			if hs and bool(hs.get("is_destroyed")):
+				continue # Destroyed mechas cannot be boarded
+			# Must be unoccupied, parked, or without a live pilot
+			if node.has_meta("is_unoccupied") or node.has_meta("is_parked") or not node.has_meta("has_pilot"):
+				var d := global_position.distance_to(node.global_position)
+				if d < best_dist:
+					best_dist = d
+					best = node
+	return best
 
 
 func _try_fire() -> void:
@@ -202,6 +236,14 @@ func _physics_process(delta: float) -> void:
 		velocity.y = jump_force
 	velocity.y -= gravity * delta
 	move_and_slide()
+
+	# Update boardable mech HUD prompt
+	var nearby_mech := find_nearest_boardable_mech()
+	if nearby_mech:
+		var m_name: String = str(nearby_mech.get_meta("mech_name", nearby_mech.name))
+		EventBus.interaction_prompt_updated.emit("[ F ] Board Mecha: %s" % m_name, true)
+	else:
+		EventBus.interaction_prompt_updated.emit("", false)
 
 
 # Current stamina fraction 0..1 (for the pilot HUD).

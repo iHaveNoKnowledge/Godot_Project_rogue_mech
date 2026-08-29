@@ -24,6 +24,7 @@ class MockFullHangarController extends Control:
 	var repair_part_button: Button
 	var full_repair_button: Button
 	var overhaul_part_button: Button
+	var diagnostic_button: Button
 	var close_button: Button
 	var status_message_label: Label
 	var back_to_menu_button: Button

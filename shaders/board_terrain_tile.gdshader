@@ -74,8 +74,20 @@ float fbm(vec2 uv) {
 void fragment() {
 	vec2 uv = UV * uv_scale;
 	vec4 tex_color = has_albedo_tex ? texture(albedo_tex, uv) : vec4(1.0);
+	// Procedural micro-roughness when no texture: breaks plastic uniformity
+	float micro_hash = fract(sin(dot(floor(uv * 64.0), vec2(127.1, 311.7))) * 43758.5453);
 	vec3 norm = has_normal_tex ? (texture(normal_tex, uv).rgb * 2.0 - 1.0) : vec3(0.0, 0.0, 1.0);
 	float rough = has_roughness_tex ? (texture(roughness_tex, uv).r * roughness_scale) : roughness_scale;
+	// Micro variation: rough 0.88 +/- 0.08, matte not plastic
+	if (!has_roughness_tex) {
+		rough = clamp(rough + (micro_hash - 0.5) * 0.16, 0.75, 0.98);
+	}
+	// Subtle procedural normal wobble when no normal map (breaks flat clay)
+	if (!has_normal_tex) {
+		float n1 = fract(sin(dot(uv * 32.0, vec2(12.9898, 78.233))) * 43758.5);
+		float n2 = fract(sin(dot(uv * 64.0, vec2(93.9898, 67.345))) * 43758.5);
+		norm = normalize(vec3((n1 - 0.5) * 0.35, (n2 - 0.5) * 0.35, 1.0));
+	}
 
 	// Calculate distance to tile borders [0..1]
 	vec2 border_dist = min(UV, vec2(1.0) - UV);
@@ -88,11 +100,11 @@ void fragment() {
 	// Composite albedo with base tint
 	vec3 final_color = tex_color.rgb * base_color.rgb;
 
-	// Highlight pulse (for reachable / selected / hovered tiles)
+	// Highlight pulse - keep matte even when highlighted
 	if (highlight_intensity > 0.01) {
 		float pulse = sin(TIME * pulse_speed) * 0.25 + 0.75;
-		final_color = mix(final_color, highlight_color.rgb * 1.3, highlight_intensity * pulse);
-		rough = mix(rough, 0.3, highlight_intensity * 0.5);
+		final_color = mix(final_color, highlight_color.rgb * 1.12, highlight_intensity * pulse);
+		rough = mix(rough, 0.62, highlight_intensity * 0.35);
 	}
 
 	// Weather tinting (fog=blue, rain=wet sheen, sandstorm=amber, dust=warm haze)
@@ -101,11 +113,14 @@ void fragment() {
 		rough = clamp(rough + weather_roughness_mod * weather_tint_strength, 0.0, 1.0);
 	}
 
+	// Slight curvature darkening: dusty matte, not plastic clay
+	final_color *= 0.94 + micro_hash * 0.08;
 	ALBEDO = final_color;
 	NORMAL_MAP = norm;
-	NORMAL_MAP_DEPTH = 0.75;
+	NORMAL_MAP_DEPTH = 1.2;
 	ROUGHNESS = rough;
-	METALLIC = 0.05;
+	METALLIC = 0.02;
+	SPECULAR = 0.30;
 
 	// Base: opaque seams (no grid gap)
 	float out_alpha = 1.0;

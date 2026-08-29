@@ -13,19 +13,25 @@ func _setup_atmosphere() -> void:
 		return
 
 	var env = world_env.environment
-	# Enhanced PBR post-processing & tonemapping
+	# Matte PBR post-processing — low bloom, stronger AO for gritty realism
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
+	env.tonemap_white = 0.88
 	env.glow_enabled = true
-	env.glow_bloom = 0.15
+	env.glow_bloom = 0.08
 	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
-	env.glow_hdr_threshold = 0.95
+	env.glow_hdr_threshold = 1.35
+	env.glow_hdr_scale = 0.85
+	env.glow_intensity = 0.28
 	env.ssao_enabled = true
-	env.ssao_radius = 1.5
-	env.ssao_intensity = 1.8
-	env.ssao_power = 1.5
+	env.ssao_radius = 1.15
+	env.ssao_intensity = 1.75
+	env.ssao_power = 1.45
+	env.ssao_detail = 0.68
+	env.ssil_intensity = 0.35
 	env.adjustment_enabled = true
-	env.adjustment_contrast = 1.08
-	env.adjustment_saturation = 1.12
+	env.adjustment_contrast = 1.06
+	env.adjustment_saturation = 1.02
+	env.adjustment_brightness = 1.0
 
 	var arena_gen = get_node_or_null("../ArenaGenerator")
 	var theme = arena_gen.current_theme if arena_gen else 0
@@ -160,54 +166,55 @@ func _setup_atmosphere() -> void:
 	env.volumetric_fog_temporal_reprojection_enabled = true
 	env.volumetric_fog_temporal_reprojection_amount = 0.92
 
-	# Cinematic ACES Tonemapping & Color Grading (rich contrast & punchy saturation)
+	# Matte, grounded ACES Tonemapping — lower saturation/exposure so clay plastic doesn't pop
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
-	env.tonemap_exposure = 1.18
-	env.tonemap_white = 1.0
+	env.tonemap_exposure = 1.02
+	env.tonemap_white = 0.88
 	env.adjustment_enabled = true
-	env.adjustment_contrast = 1.14
-	env.adjustment_saturation = 1.22
+	env.adjustment_contrast = 1.06
+	env.adjustment_saturation = 1.02
+	env.adjustment_brightness = 1.0
 
-	# HDR Bloom / Glow for vibrant lasers, sparks, thruster flames and reflections
+	# HDR Bloom / Glow — CUT 60% so only lasers/thrusters glow, not whole ground (fixes plastic bloom)
 	env.glow_enabled = true
-	env.glow_intensity = 0.90
-	env.glow_bloom = 0.28
+	env.glow_intensity = 0.32
+	env.glow_bloom = 0.10
 	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
-	env.glow_hdr_threshold = 0.95
-	env.glow_hdr_scale = 1.85
+	env.glow_hdr_threshold = 1.45
+	env.glow_hdr_scale = 0.85
 
-	# SSAO — softened to prevent the dark square halo that pooled directly under the mech
+	# SSAO — stronger, more detailed for contact grit (matte crevices, not soft plastic)
 	env.ssao_enabled = true
-	env.ssao_radius = 1.35
-	env.ssao_intensity = 1.45
-	env.ssao_power = 1.25
-	env.ssao_detail = 0.45
-	env.ssao_horizon = 0.06
-	env.ssao_sharpness = 0.92
-	env.ssao_light_affect = 0.22
+	env.ssao_radius = 1.15
+	env.ssao_intensity = 1.75
+	env.ssao_power = 1.45
+	env.ssao_detail = 0.68
+	env.ssao_horizon = 0.08
+	env.ssao_sharpness = 0.90
+	env.ssao_light_affect = 0.38
 
-	# SSIL — reduced to avoid over-bright bounce that amplified the square artefact
+	# SSIL — cut bounce so ground doesn't look waxy from indirect light
 	env.ssil_enabled = true
-	env.ssil_radius = 4.2
-	env.ssil_intensity = 0.85
-	env.ssil_sharpness = 0.90
-	env.ssil_normal_rejection = 1.0
+	env.ssil_radius = 3.2
+	env.ssil_intensity = 0.35
+	env.ssil_sharpness = 0.82
+	env.ssil_normal_rejection = 1.2
 
-	# SDFGI – Cascaded Signed Distance Field Global Illumination
+	# SDFGI – lower energy so indirect is matte, not plastic fill
 	env.sdfgi_enabled = true
-	env.sdfgi_energy = 0.68
+	env.sdfgi_energy = 0.42
 	env.sdfgi_cascades = 4
-	env.sdfgi_min_cell_size = 0.25
-	env.sdfgi_max_distance = 160.0
+	env.sdfgi_min_cell_size = 0.30
+	env.sdfgi_max_distance = 140.0
 	env.sdfgi_y_scale = Environment.SDFGI_Y_SCALE_100_PERCENT
 	env.sdfgi_use_occlusion = false
 
-	# SSR (Screen-Space Reflections) — sleek reflections on metal, pavement, and water
-	env.ssr_enabled = true
-	env.ssr_max_steps = 64
-	env.ssr_fade_in = 0.15
-	env.ssr_fade_out = 1.8
-	env.ssr_depth_tolerance = 0.25
+	# SSR — OFF for matte ground (only metals should reflect). Keeps ground from looking wet plastic
+	env.ssr_enabled = false
+	env.ssr_max_steps = 16
+	env.ssr_fade_in = 0.30
+	env.ssr_fade_out = 2.0
+	env.ssr_depth_tolerance = 0.40
 
 	if sun:
 		sun.shadow_enabled = true

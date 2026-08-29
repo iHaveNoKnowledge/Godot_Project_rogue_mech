@@ -69,26 +69,34 @@ func build_garage() -> void:
 	h_env.ambient_light_energy = 1.70
 
 	h_env.tonemap_mode = Environment.TONE_MAPPER_ACES
-	h_env.tonemap_exposure = 1.22
+	h_env.tonemap_exposure = 1.08
+	h_env.tonemap_white = 0.88
 	h_env.adjustment_enabled = true
-	h_env.adjustment_contrast = 1.10
-	h_env.adjustment_saturation = 1.18
+	h_env.adjustment_contrast = 1.06
+	h_env.adjustment_saturation = 1.04
+	h_env.adjustment_brightness = 1.0
 
 	h_env.ssao_enabled = true
-	h_env.ssao_radius = 1.8
-	h_env.ssao_intensity = 2.0
-	h_env.ssao_power = 1.5
+	h_env.ssao_radius = 1.4
+	h_env.ssao_intensity = 1.85
+	h_env.ssao_power = 1.45
+	h_env.ssao_detail = 0.62
+	h_env.ssao_horizon = 0.08
+	h_env.ssil_enabled = true
+	h_env.ssil_intensity = 0.35
+	h_env.ssil_radius = 3.2
 
-	h_env.ssr_enabled = true
-	h_env.ssr_max_steps = 64
-	h_env.ssr_fade_in = 0.15
-	h_env.ssr_fade_out = 1.8
+	h_env.ssr_enabled = false
+	h_env.ssr_max_steps = 16
+	h_env.ssr_fade_in = 0.30
+	h_env.ssr_fade_out = 2.0
 
 	h_env.glow_enabled = true
-	h_env.glow_intensity = 0.60
-	h_env.glow_bloom = 0.12
+	h_env.glow_intensity = 0.30
+	h_env.glow_bloom = 0.08
 	h_env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
-	h_env.glow_hdr_threshold = 0.95
+	h_env.glow_hdr_threshold = 1.40
+	h_env.glow_hdr_scale = 0.85
 	hangar_world_env.environment = h_env
 	hangar_env_node.add_child(hangar_world_env)
 

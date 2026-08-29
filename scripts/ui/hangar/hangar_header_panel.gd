@@ -161,6 +161,18 @@ func build(root: Control) -> void:
 	controller.header_mech_summary_label = summary_rtl
 	ov_hbox.add_child(summary_rtl)
 
+	var diag_btn := Button.new()
+	diag_btn.text = "🔍 DIAGNOSE"
+	diag_btn.custom_minimum_size = Vector2(145, 26)
+	diag_btn.focus_mode = Control.FOCUS_NONE
+	diag_btn.pressed.connect(func():
+		if controller and controller.has_method("open_diagnostic_modal"):
+			controller.open_diagnostic_modal()
+	)
+	if "diagnostic_button" in controller:
+		controller.diagnostic_button = diag_btn
+	ov_hbox.add_child(diag_btn)
+
 	var wt_box := HBoxContainer.new()
 	wt_box.add_theme_constant_override("separation", 6)
 	ov_hbox.add_child(wt_box)
@@ -259,3 +271,37 @@ func update_header() -> void:
 	if controller and "roster_panel_ui" in controller and controller.roster_panel_ui and controller.roster_panel_ui.has_method("refresh_badge_header"):
 		controller.roster_panel_ui.refresh_badge_header()
 	update_mode_highlights(controller.current_mode if ("current_mode" in controller) else "armor")
+	update_slot_indicators()
+
+
+func update_slot_indicators() -> void:
+	if controller == null or not ("slot_tab_buttons" in controller):
+		return
+	var base_labels = {
+		"head": "HEAD", "body": "BODY", "arm_left": "L.ARM", "arm_right": "R.ARM",
+		"leg_left": "L.LEGS", "leg_right": "R.LEGS", "weapon_left": "L.HAND",
+		"weapon_right": "R.HAND", "weapon_carry": "BACK CARRY"
+	}
+	for slot_id: String in controller.slot_tab_buttons:
+		var btn: Button = controller.slot_tab_buttons[slot_id]
+		if btn == null or not is_instance_valid(btn):
+			continue
+		var base_text: String = base_labels.get(slot_id, slot_id.to_upper())
+		if slot_id.begins_with("weapon"):
+			btn.text = base_text
+			continue
+		var a_dmg := clampf(float(GlobalData.weapons.part_damage.get(slot_id, 0.0)), 0.0, 1.0)
+		var f_dmg := clampf(float(GlobalData.weapons.part_damage.get(slot_id + "_frame", 0.0)), 0.0, 1.0)
+		var max_dmg := maxf(a_dmg, f_dmg)
+		if max_dmg >= PartPenaltySystem.THRESHOLD_SEVERE: # 80%+
+			btn.text = "🔴 %s" % base_text
+			btn.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
+		elif max_dmg >= PartPenaltySystem.THRESHOLD_MILD: # 40%+
+			btn.text = "🟡 %s" % base_text
+			btn.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+		elif max_dmg > 0.05:
+			btn.text = "🟢 %s" % base_text
+			btn.add_theme_color_override("font_color", Color(0.7, 0.95, 0.7))
+		else:
+			btn.text = base_text
+			btn.remove_theme_color_override("font_color")

@@ -46,6 +46,7 @@ var refresh_panel: HangarRefreshPanel = null
 var header_panel: HangarHeaderPanel = null
 var left_panel_ui: HangarLeftPanel = null
 var right_panel_ui: HangarRightPanel = null
+var diagnostic_modal: HangarDiagnosticModal = null
 # Slot tab buttons keyed by slot id, reused for UI-only selection highlight.
 var slot_tab_buttons: Dictionary = {}
 var mode_buttons: Dictionary = {}
@@ -86,6 +87,7 @@ var tier_effect_label: Label = null
 var equip_button: Button
 var craft_button: Button
 var frame_upgrade_button: Button
+var diagnostic_button: Button = null
 var repair_part_button: Button
 var full_repair_button: Button
 var overhaul_part_button: Button
@@ -222,6 +224,8 @@ func _build_ui_layout() -> void:
 	right_panel_ui.controller = self
 	wounded_banner = HangarWoundedBanner.new()
 	wounded_banner.controller = self
+	diagnostic_modal = HangarDiagnosticModal.new()
+	diagnostic_modal.controller = self
 
 	var root = Control.new()
 	root.name = "RootControl"
@@ -276,6 +280,11 @@ func _process(delta: float) -> void:
 	# Live hover preview of the list row under the cursor (customize page).
 	if catalog_panel:
 		catalog_panel.refresh_hover_stats()
+
+
+func open_diagnostic_modal() -> void:
+	if diagnostic_modal:
+		diagnostic_modal.open()
 
 
 ## Full reactive update across all UI panels, header currency, part lists, stats,

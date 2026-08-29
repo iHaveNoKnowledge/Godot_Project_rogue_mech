@@ -95,9 +95,20 @@ func update() -> void:
 		ahp_str = "[color=#44ff77]%.0f/%.0f[/color]" % [total_armor_hp, total_max_armor_hp]
 
 	if "header_mech_summary_label" in controller and controller.header_mech_summary_label:
-		controller.header_mech_summary_label.text = "[b]PILOT:[/b] %s  |  [b]FRAME HP:[/b] %s  |  [b]ARMOR HP:[/b] %s  |  [b]PACK:[/b] %.1f/%.1fkg%s" % [
-			_editing_pilot_name(), fhp_str, ahp_str, field_pack_weight, field_pack_capacity, penalty_text
+		controller.header_mech_summary_label.text = "[b]PILOT:[/b] %s  |  [b]FRAME HP:[/b] %s  |  [b]ARMOR HP:[/b] %s  |  [b]PACK:[/b] %.1f/%.1fkg" % [
+			_editing_pilot_name(), fhp_str, ahp_str, field_pack_weight, field_pack_capacity
 		]
+
+	if "diagnostic_button" in controller and controller.diagnostic_button:
+		if not active_penalties.is_empty():
+			controller.diagnostic_button.text = "⚠️ %d DEBUFFS [DIAGNOSE]" % active_penalties.size()
+			controller.diagnostic_button.add_theme_color_override("font_color", Color(1.0, 0.35, 0.35))
+		else:
+			controller.diagnostic_button.text = "🔍 DIAGNOSE (OPTIMAL)"
+			controller.diagnostic_button.add_theme_color_override("font_color", Color(0.4, 0.9, 0.6))
+
+	if "header_panel" in controller and controller.header_panel and controller.header_panel.has_method("update_slot_indicators"):
+		controller.header_panel.update_slot_indicators()
 
 	if "weight_label" in controller and controller.weight_label:
 		controller.weight_label.text = "WEIGHT: %.1f/%.1fkg" % [total_weight, max_weight]

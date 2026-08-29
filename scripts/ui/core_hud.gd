@@ -87,6 +87,12 @@ var _mode_label: Label = null
 var _guard_badge: Label = null
 var _pile_badge: Label = null
 
+# Combat Part Penalty Telemetry Widget
+var _penalty_panel: PanelContainer = null
+var _penalty_label: RichTextLabel = null
+var _penalty_count: int = 0
+var _penalty_flash_tween: Tween = null
+
 
 func _ready() -> void:
 	_create_hit_flash()
@@ -96,6 +102,7 @@ func _ready() -> void:
 	_create_combat_mode_widget()
 	_create_pilot_hud_panel()
 	_create_interaction_prompt_widget()
+	_create_penalty_hud_widget()
 
 	EventBus.damage_received.connect(_on_player_damaged)
 	EventBus.combat_mode_toggled.connect(_on_combat_mode_toggled)
@@ -126,6 +133,7 @@ func _process(_delta: float) -> void:
 		_update_energy_bar()
 		_update_drop_tank_indicator()
 		_update_precision_indicator()
+		_update_combat_penalties()
 
 
 func _rebind_to_active_mecha() -> void:
@@ -726,3 +734,73 @@ func _on_interaction_prompt_updated(prompt_text: String, is_visible: bool) -> vo
 		_interaction_panel.visible = is_visible
 		if is_visible and _interaction_label:
 			_interaction_label.text = prompt_text
+
+
+func _create_penalty_hud_widget() -> void:
+	_penalty_panel = PanelContainer.new()
+	_penalty_panel.name = "CombatPenaltyPanel"
+	_penalty_panel.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_penalty_panel.offset_left = -260
+	_penalty_panel.offset_right = 260
+	_penalty_panel.offset_top = -195
+	_penalty_panel.offset_bottom = -155
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.12, 0.04, 0.04, 0.92)
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.border_color = Color(1.0, 0.35, 0.35, 0.85)
+	style.corner_radius_top_left = 3
+	style.corner_radius_top_right = 3
+	style.corner_radius_bottom_left = 3
+	style.corner_radius_bottom_right = 3
+	style.content_margin_left = 10
+	style.content_margin_right = 10
+	style.content_margin_top = 4
+	style.content_margin_bottom = 4
+	_penalty_panel.add_theme_stylebox_override("panel", style)
+	_penalty_panel.visible = false
+	add_child(_penalty_panel)
+
+	_penalty_label = RichTextLabel.new()
+	_penalty_label.bbcode_enabled = true
+	_penalty_label.fit_content = true
+	_penalty_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_penalty_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_penalty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_penalty_panel.add_child(_penalty_label)
+
+
+func _update_combat_penalties() -> void:
+	if _penalty_panel == null or _penalty_label == null:
+		return
+	var is_eject := GameManager.current_state == GameManager.State.EJECT
+	if is_eject:
+		_penalty_panel.visible = false
+		return
+
+	var active_penalties := PartPenaltySystem.active_penalties()
+	if active_penalties.is_empty():
+		_penalty_panel.visible = false
+		_penalty_count = 0
+		return
+
+	_penalty_panel.visible = true
+	var p_text = "[color=#ff5555][b]SYSTEM MALFUNCTIONS:[/b] " + " | ".join(active_penalties) + "[/color]"
+	_penalty_label.text = p_text
+
+	if active_penalties.size() > _penalty_count:
+		_flash_penalty_warning()
+
+	_penalty_count = active_penalties.size()
+
+
+func _flash_penalty_warning() -> void:
+	if _penalty_panel == null:
+		return
+	if _penalty_flash_tween and _penalty_flash_tween.is_valid():
+		_penalty_flash_tween.kill()
+	_penalty_flash_tween = create_tween()
+	_penalty_flash_tween.tween_property(_penalty_panel, "modulate", Color(1.8, 1.2, 1.2), 0.15)
+	_penalty_flash_tween.tween_property(_penalty_panel, "modulate", Color(1.0, 1.0, 1.0), 0.25)

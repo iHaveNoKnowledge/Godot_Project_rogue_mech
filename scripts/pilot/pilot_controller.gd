@@ -294,8 +294,8 @@ func _build_tactical_human_mesh() -> void:
 		arm_mesh.set_surface_override_material(0, suit_mat)
 		_human_visual.add_child(arm_mesh)
 
-	# Apply height scale so 1.55m pilot looks shorter than 1.80m pilot (reference 1.79m)
-	var h_scale := pilot_height / 1.79
+	# Apply height scale so 1.55m pilot looks shorter than 1.80m pilot (reference 1.75 unified with collision)
+	var h_scale := pilot_height / 1.75
 	_human_visual.scale = Vector3.ONE * h_scale
 	add_child(_human_visual)
 

@@ -25,6 +25,8 @@ func _ready() -> void:
 	add_to_group("defense_target")
 	collision_layer = 1 | 8 # also enemy targetable
 	collision_mask = 1
+	# Realistic semi truck scale: original 1.5m tall was shorter than pilot 1.75, scale 1.85 -> 2.78m tall 5.9m long (true semi ~3.5m*16m but stylized)
+	scale = Vector3.ONE * 1.85
 	_build_model()
 	_setup_hp()
 	_setup_smoke()

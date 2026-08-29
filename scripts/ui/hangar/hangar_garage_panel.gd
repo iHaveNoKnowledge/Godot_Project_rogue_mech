@@ -529,11 +529,11 @@ func apply_chassis_preview(info: Dictionary) -> void:
 			mat.albedo_color = Color(0.3, 0.15, 0.35) # Dark Purple
 			mat.metallic = 0.95
 			mat_visor.emission = Color(1.0, 0.1, 0.2) # Red Visor
-			if body_node: body_node.scale = Vector3(1.4, 1.25, 1.35)
-			if arm_left: arm_left.scale = Vector3(1.35, 1.2, 1.35)
-			if arm_right: arm_right.scale = Vector3(1.35, 1.2, 1.35)
-			if leg_left: leg_left.scale = Vector3(1.25, 1.1, 1.25)
-			if leg_right: leg_right.scale = Vector3(1.25, 1.1, 1.25)
+			if body_node: body_node.scale = Vector3(1.4, 1.10, 1.35) # Y 1.25->1.10 keeps height 5.20m within 5.5 (was 5.56)
+			if arm_left: arm_left.scale = Vector3(1.35, 1.15, 1.35)
+			if arm_right: arm_right.scale = Vector3(1.35, 1.15, 1.35)
+			if leg_left: leg_left.scale = Vector3(1.25, 1.05, 1.25)
+			if leg_right: leg_right.scale = Vector3(1.25, 1.05, 1.25)
 		"vanguard":
 			mat.albedo_color = Color(0.85, 0.88, 0.95) # Sleek White/Cyan
 			mat.metallic = 0.75

@@ -222,14 +222,14 @@ func _build_catalog_body() -> void:
 	catalog_body = pmm
 	add_child(pmm)
 
-	# Extra bulk for heavy grunts so the silhouette reads at a glance.
-	# Scale the root so collision, hitboxes, and visuals scale uniformly.
+	# Extra bulk for heavy grunts so the silhouette reads at a glance (true scale 4.73m base).
+	# Scale the root so collision, hitboxes, and visuals scale uniformly. Keep within realistic 4.5-5.5 band.
 	if archetype == 2:
-		scale = Vector3(1.6, 1.6, 1.6)
+		scale = Vector3(1.15, 1.15, 1.15) # Heavy: 4.73*1.15=5.44m ratio 3.11 (was 1.6=7.57m unrealistic kaiju)
 	elif archetype == 3:
-		scale = Vector3(1.05, 1.05, 1.05)
+		scale = Vector3(1.05, 1.05, 1.05) # Support: 4.97m
 	elif archetype == 0:
-		scale = Vector3(0.95, 0.95, 0.95)
+		scale = Vector3(0.95, 0.95, 0.95) # Rusher: 4.49m
 
 	var loadout := _enemy_loadout()
 	pmm.refresh_from_loadout(loadout)

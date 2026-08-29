@@ -42,13 +42,11 @@ func _ready() -> void:
 	# Randomize height 1.55-1.80m per pilot instance (deterministic per pilot name so same pilot keeps same height)
 	if height_randomize and not has_meta("test_mode"):
 		var seed_name: String = str(get_meta("pilot_name", ""))
-		if seed_name == "" and PilotSystem.has_method("get_pilot_name"):
-			seed_name = str(PilotSystem.call("get_pilot_name"))
 		if seed_name != "":
 			# Deterministic pseudo-random from name hash
 			var h := hash(seed_name) % 1000
 			if h < 0: h = -h
-			pilot_height = 1.55 + float(h % 251) / 1000.0 * 1.0  # 1.55-1.802 approx
+			pilot_height = 1.55 + float(h % 251) / 1000.0 * 1.0  # 1.55-1.80
 			pilot_height = clampf(pilot_height, 1.55, 1.80)
 		else:
 			pilot_height = randf_range(1.55, 1.80)

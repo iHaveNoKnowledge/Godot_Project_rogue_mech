@@ -101,18 +101,18 @@ static func _is_uid_in_loadout(uid: String) -> bool:
 # equipping a second pile bunker takes a fresh instance and the first stays
 # in its slot), falling back to an already-equipped copy (the weapon MOVES to
 # the new slot — the caller frees the old one). "" when the model isn't owned.
-static func _uid_for_equip(path: String) -> String:
+static func _uid_for_equip(path: String, exclude_uids: Array = []) -> String:
 	if path == "":
 		return ""
 	for inst in GlobalData.weapons.weapon_inventory:
 		var uid := str(inst.get("uid", ""))
-		if uid != "" and str(inst.get("path", "")) == path and not _is_uid_in_loadout(uid):
+		if uid != "" and str(inst.get("path", "")) == path and not _is_uid_in_loadout(uid) and not (uid in exclude_uids):
 			return uid
 	for inst in GlobalData.weapons.weapon_inventory:
 		var uid := str(inst.get("uid", ""))
-		if uid != "" and str(inst.get("path", "")) == path:
+		if uid != "" and str(inst.get("path", "")) == path and not (uid in exclude_uids):
 			return uid
-	# If this weapon was newly acquired during combat (e.g. looted from field) and doesn't have an instance yet, register it now
+	# If this weapon was newly acquired during combat (e.g. looted from field) or needed for a distinct slot, register a fresh instance
 	if ResourceLoader.exists(path):
 		var uid := register_weapon(path)
 		return uid
@@ -478,7 +478,7 @@ static func resolve_carry_uids_for_sync(paths: Array) -> Array:
 				found = rs
 				break
 		if found == "":
-			found = _uid_for_equip(path)
+			found = _uid_for_equip(path, used.keys())
 		if found != "":
 			used[found] = true
 			result.append(found)

@@ -162,6 +162,8 @@ func show_hangar_menu() -> void:
 			label.text = "HANGAR MENU"
 	if controller.garage_panel:
 		controller.garage_panel.clear_selection_blink()
+		controller.garage_panel.update_camera_focus("")
+		controller.garage_panel.update_selection_highlight("")
 
 
 # The customize page (mech center, part list left, stats right). Also the base

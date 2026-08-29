@@ -51,9 +51,7 @@ var _player_mecha: Node = null
 var _energy_fill: StyleBoxFlat = null
 var _energy_bg: StyleBoxFlat = null
 
-# Drop tank HUD indicator (GDD §2.4): shows external fuel canister HP +
-# fuel level. Appears only when drop tanks are equipped. Flashes PURGE
-# warning text when the detonation countdown starts.
+# Drop tank HUD indicator (GDD §2.4)
 var _dt_container: VBoxContainer = null
 var _dt_label: Label = null
 var _dt_hp_bar: ProgressBar = null
@@ -62,11 +60,29 @@ var _dt_fuel_label: Label = null
 var _dt_purge_label: Label = null
 var _dt_purge_flash_tween: Tween = null
 
-# Precision Dash HUD indicator (GDD §3.2): flashes "PRECISION!" text when the
-# player dodges an attack at the last moment during a dash.
+# Precision Dash HUD indicator (GDD §3.2)
 var _precision_label: Label = null
 var _precision_flash_tween: Tween = null
 var _precision_was_dodged: bool = false
+
+# Pilot Mode HUD
+var _pilot_panel: PanelContainer = null
+var _pilot_hp_label: Label = null
+var _pilot_hp_bar: ProgressBar = null
+var _pilot_hp_fill: StyleBoxFlat = null
+var _pilot_stamina_label: Label = null
+var _pilot_stamina_bar: ProgressBar = null
+var _pilot_stamina_fill: StyleBoxFlat = null
+var _pilot_weapon_label: Label = null
+
+# Interaction Prompt Banner
+var _interaction_panel: PanelContainer = null
+var _interaction_label: Label = null
+
+# Combat Mode / Guard & Pile Bunker Stance Widget
+var _mode_label: Label = null
+var _guard_badge: Label = null
+var _pile_badge: Label = null
 
 
 func _ready() -> void:
@@ -75,54 +91,215 @@ func _ready() -> void:
 	_create_drop_tank_row()
 	_create_precision_row()
 	_create_combat_mode_widget()
+	_create_pilot_hud_panel()
+	_create_interaction_prompt_widget()
+
 	EventBus.damage_received.connect(_on_player_damaged)
 	EventBus.combat_mode_toggled.connect(_on_combat_mode_toggled)
 	EventBus.guard_state_changed.connect(_on_guard_state_changed)
 	EventBus.deflect_triggered.connect(_on_deflect_triggered)
 	EventBus.pile_bunker_fired.connect(_on_pile_bunker_fired)
 	EventBus.interaction_prompt_updated.connect(_on_interaction_prompt_updated)
+
 	if get_viewport():
 		get_viewport().size_changed.connect(_fit_panel_to_content)
+
 	# Two frames so the container layout resolves bar/label minimum sizes.
 	await get_tree().process_frame
 	await get_tree().process_frame
 	_fit_panel_to_content()
-	var mecha = GameManager.get_player_mecha()
-	if mecha:
-		_player_mecha = mecha
-		health_system = mecha.get_node_or_null("HealthSystem")
-		if health_system:
-			health_system.health_changed.connect(_on_health_changed)
-			health_system.armor_broken.connect(_on_armor_broken)
-			health_system.part_destroyed.connect(_on_part_destroyed)
-			_update_all_bars()
+	_rebind_to_active_mecha()
 
 
-# The HP panel is bottom-anchored with a fixed height, but the per-slot
-# armor + frame bars can outgrow that height. Grow the panel upward from its
-# bottom anchor so every row (including the LEG HP bars) stays INSIDE the
-# panel frame instead of poking out of it — and off the bottom of the
-# viewport. The height is clamped to the viewport (never taller than the
-# screen allows) and the panel clips its children, so no bar can ever render
-# below the bottom edge no matter how short the window is.
+func _process(_delta: float) -> void:
+	var is_eject := GameManager.current_state == GameManager.State.EJECT
+	_update_eject_hud(is_eject)
+
+	if not is_eject:
+		var current_mecha := GameManager.get_player_mecha()
+		if current_mecha != _player_mecha:
+			_rebind_to_active_mecha()
+
+		_update_energy_bar()
+		_update_drop_tank_indicator()
+		_update_precision_indicator()
+
+
+func _rebind_to_active_mecha() -> void:
+	var mecha := GameManager.get_player_mecha()
+	if mecha == null or not is_instance_valid(mecha):
+		return
+
+	if health_system and is_instance_valid(health_system):
+		if health_system.health_changed.is_connected(_on_health_changed):
+			health_system.health_changed.disconnect(_on_health_changed)
+		if health_system.armor_broken.is_connected(_on_armor_broken):
+			health_system.armor_broken.disconnect(_on_armor_broken)
+		if health_system.part_destroyed.is_connected(_on_part_destroyed):
+			health_system.part_destroyed.disconnect(_on_part_destroyed)
+
+	_player_mecha = mecha
+	health_system = mecha.get_node_or_null("HealthSystem")
+	if health_system:
+		health_system.health_changed.connect(_on_health_changed)
+		health_system.armor_broken.connect(_on_armor_broken)
+		health_system.part_destroyed.connect(_on_part_destroyed)
+		_update_all_bars()
+
+
+func _update_eject_hud(is_eject: bool) -> void:
+	var mech_panel := get_node_or_null("Panel")
+	if mech_panel:
+		mech_panel.visible = not is_eject
+
+	if _pilot_panel:
+		_pilot_panel.visible = is_eject
+
+	if is_eject:
+		# Update Pilot Health
+		var hp: float = PilotSystem.get_hp()
+		var max_hp: float = PilotSystem.get_max_hp()
+		if max_hp <= 0.0:
+			max_hp = 100.0
+			hp = 100.0
+		if _pilot_hp_bar:
+			_pilot_hp_bar.max_value = max_hp
+			_pilot_hp_bar.value = hp
+			var ratio := clampf(hp / max_hp, 0.0, 1.0)
+			if _pilot_hp_fill:
+				if ratio < 0.25:
+					_pilot_hp_fill.bg_color = Color(0.9, 0.15, 0.1)
+				elif ratio < 0.5:
+					_pilot_hp_fill.bg_color = Color(0.9, 0.55, 0.1)
+				else:
+					_pilot_hp_fill.bg_color = Color(0.2, 0.8, 0.3)
+		if _pilot_hp_label:
+			_pilot_hp_label.text = "PILOT HEALTH: %d / %d" % [int(hp), int(max_hp)]
+
+		# Update Pilot Stamina
+		var pilots := get_tree().get_nodes_in_group("pilot")
+		if not pilots.is_empty() and is_instance_valid(pilots[0]):
+			var p = pilots[0]
+			var stam_ratio: float = p.get_stamina_ratio() if p.has_method("get_stamina_ratio") else 1.0
+			if _pilot_stamina_bar:
+				_pilot_stamina_bar.value = stam_ratio * 100.0
+			if _pilot_stamina_label:
+				_pilot_stamina_label.text = "STAMINA: %d%%" % int(stam_ratio * 100.0)
+			if _pilot_weapon_label and p.get("_weapons") != null:
+				var weaps: Array = p.get("_weapons")
+				var widx: int = int(p.get("_weapon_index")) if p.get("_weapon_index") != null else 0
+				if not weaps.is_empty() and widx < weaps.size():
+					var w = weaps[widx]
+					var wname: String = w.weapon_name if "weapon_name" in w else "Sidearm"
+					var atype: String = w.get_ammo_type() if w.has_method("get_ammo_type") else "none"
+					var ammo_cnt: int = PilotSystem.get_ammo(atype) if atype != "none" else 999
+					_pilot_weapon_label.text = "WEAPON: %s (Ammo: %d)" % [wname, ammo_cnt] if atype != "none" else "WEAPON: %s" % wname
+
+
+func _create_pilot_hud_panel() -> void:
+	_pilot_panel = PanelContainer.new()
+	_pilot_panel.name = "PilotHUDPanel"
+	_pilot_panel.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_pilot_panel.offset_left = -160
+	_pilot_panel.offset_right = 160
+	_pilot_panel.offset_top = -120
+	_pilot_panel.offset_bottom = -36
+	_pilot_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_pilot_panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
+
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.06, 0.08, 0.12, 0.92)
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.border_color = Color(0.3, 0.8, 1.0, 0.8)
+	style.corner_radius_top_left = 4
+	style.corner_radius_top_right = 4
+	style.corner_radius_bottom_left = 4
+	style.corner_radius_bottom_right = 4
+	style.content_margin_left = 14
+	style.content_margin_right = 14
+	style.content_margin_top = 8
+	style.content_margin_bottom = 8
+	_pilot_panel.add_theme_stylebox_override("panel", style)
+	_pilot_panel.visible = false
+	add_child(_pilot_panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 4)
+	_pilot_panel.add_child(vbox)
+
+	var title := Label.new()
+	title.text = "🧑‍✈️ PILOT ON FOOT"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 10)
+	title.add_theme_color_override("font_color", Color(0.4, 0.9, 1.0))
+	vbox.add_child(title)
+
+	# Health Bar
+	_pilot_hp_label = Label.new()
+	_pilot_hp_label.text = "PILOT HEALTH: 100 / 100"
+	_pilot_hp_label.add_theme_font_size_override("font_size", 10)
+	_pilot_hp_label.add_theme_color_override("font_color", Color(0.9, 0.95, 0.8))
+	vbox.add_child(_pilot_hp_label)
+
+	_pilot_hp_bar = ProgressBar.new()
+	_pilot_hp_bar.custom_minimum_size = Vector2(180, 8)
+	_pilot_hp_bar.max_value = 100.0
+	_pilot_hp_bar.value = 100.0
+	_pilot_hp_bar.show_percentage = false
+	_pilot_hp_fill = StyleBoxFlat.new()
+	_pilot_hp_fill.bg_color = Color(0.2, 0.8, 0.3)
+	_pilot_hp_bar.add_theme_stylebox_override("fill", _pilot_hp_fill)
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = Color(0.1, 0.12, 0.18, 0.9)
+	_pilot_hp_bar.add_theme_stylebox_override("background", bg)
+	vbox.add_child(_pilot_hp_bar)
+
+	# Stamina Bar
+	_pilot_stamina_label = Label.new()
+	_pilot_stamina_label.text = "STAMINA: 100%"
+	_pilot_stamina_label.add_theme_font_size_override("font_size", 9)
+	_pilot_stamina_label.add_theme_color_override("font_color", Color(0.45, 0.85, 1.0))
+	vbox.add_child(_pilot_stamina_label)
+
+	_pilot_stamina_bar = ProgressBar.new()
+	_pilot_stamina_bar.custom_minimum_size = Vector2(180, 6)
+	_pilot_stamina_bar.max_value = 100.0
+	_pilot_stamina_bar.value = 100.0
+	_pilot_stamina_bar.show_percentage = false
+	_pilot_stamina_fill = StyleBoxFlat.new()
+	_pilot_stamina_fill.bg_color = Color(0.2, 0.75, 1.0)
+	_pilot_stamina_bar.add_theme_stylebox_override("fill", _pilot_stamina_fill)
+	var s_bg := StyleBoxFlat.new()
+	s_bg.bg_color = Color(0.1, 0.12, 0.18, 0.9)
+	_pilot_stamina_bar.add_theme_stylebox_override("background", s_bg)
+	vbox.add_child(_pilot_stamina_bar)
+
+	# Weapon info
+	_pilot_weapon_label = Label.new()
+	_pilot_weapon_label.text = "WEAPON: Sidearm Submachine Gun"
+	_pilot_weapon_label.add_theme_font_size_override("font_size", 9)
+	_pilot_weapon_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
+	vbox.add_child(_pilot_weapon_label)
+
+
 func _fit_panel_to_content() -> void:
-	var panel = get_node_or_null("Panel")
+	var panel := get_node_or_null("Panel")
 	if panel == null:
 		return
 	var vp_h := get_viewport().get_visible_rect().size.y
 	var min_height: float = panel.get_combined_minimum_size().y
 	var max_height := maxf(vp_h - 100.0, 40.0)
 	var fit_h := clampf(min_height, 40.0, max_height)
-	# Set a clean 36px bottom margin so the HP panel stays comfortably inside the screen.
 	panel.offset_bottom = -36.0
 	panel.offset_top = panel.offset_bottom - fit_h
 	panel.clip_contents = true
 
 
-# Adds the ENERGY row (label + slim cyan bar) at the bottom of the HP panel's
-# grid, so the mech's boost pool reads as part of the same status cluster.
 func _create_energy_row() -> void:
-	var grid = get_node_or_null("Panel/Grid")
+	var grid := get_node_or_null("Panel/Grid")
 	if grid == null:
 		return
 	var row := VBoxContainer.new()
@@ -158,35 +335,11 @@ func _create_energy_row() -> void:
 	row.add_child(energy_bar)
 
 
-# Pilot HP label — shown instead of mech HP when the pilot ejects.
-var _pilot_hp_label: Label = null
-var _pilot_hp_bar: ProgressBar = null
-var _pilot_hp_fill: StyleBoxFlat = null
-var _mech_panel: Control = null  # reference to the mech HP Panel node
-
-
-# Polls the mech's boost pool every frame (the mech can be re-created by
-# eject/backup spawns) and paints the energy bar, tinting it orange when the
-# tank runs low.
-func _process(_delta: float) -> void:
-	var is_eject := GameManager.current_state == GameManager.State.EJECT
-	_update_eject_hud(is_eject)
-	if _player_mecha == null or not is_instance_valid(_player_mecha):
-		_player_mecha = GameManager.get_player_mecha()
-		if _player_mecha == null and not is_eject:
-			return
-	if not is_eject:
-		_update_energy_bar()
-		_update_drop_tank_indicator()
-	_update_precision_indicator()
-
-
 func _update_energy_bar() -> void:
 	if energy_bar == null or energy_label == null:
 		return
 	if _player_mecha == null or not is_instance_valid(_player_mecha):
 		return
-	# Read energy state from the mecha's energy_system subsystem or properties.
 	var es = _player_mecha.get("energy_system")
 	var max_e: float = 100.0
 	var cur_e: float = max_e
@@ -208,7 +361,6 @@ func _update_energy_bar() -> void:
 		_energy_fill.bg_color = Color(1.0, 0.65, 0.2) if ratio < 0.25 else Color(0.2, 0.75, 1.0)
 
 
-# A transparent full-screen ColorRect sits above the HUD and flashes red on hit.
 func _create_hit_flash() -> void:
 	_hit_flash = ColorRect.new()
 	_hit_flash.name = "HitFlash"
@@ -216,24 +368,20 @@ func _create_hit_flash() -> void:
 	_hit_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_hit_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_hit_flash)
-	_hit_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
 
 
 func _on_player_damaged(_slot_name: String, _amount: float, _damage_type: String) -> void:
 	if _hit_flash == null:
 		return
-	# Screen flash: briefly show a strong red, then fade out.
 	if _hit_flash_tween and _hit_flash_tween.is_valid():
 		_hit_flash_tween.kill()
 	_hit_flash.color.a = 0.5
 	_hit_flash_tween = create_tween()
 	_hit_flash_tween.tween_property(_hit_flash, "color:a", 0.0, 0.35)
 
-	# Distinct audio cue that the player is under fire.
 	if AudioManager:
 		AudioManager.play_player_hit()
 
-	# Camera shake so the impact is felt, not just seen.
 	var rig = get_tree().get_first_node_in_group("camera_rig")
 	if rig and rig.has_method("add_shake"):
 		rig.add_shake(0.35)
@@ -252,15 +400,19 @@ func _on_part_destroyed(slot_name: String) -> void:
 
 
 func _refresh(slot_name: String) -> void:
-	if not armor_bars.has(slot_name) or health_system == null:
+	if not armor_bars.has(slot_name) or health_system == null or not is_instance_valid(health_system):
 		return
 	if not health_system.parts.has(slot_name):
 		return
 	var part = health_system.parts[slot_name]
-	armor_bars[slot_name].setup(part["armor_hp"], part["max_armor"], part["destroyed"])
-	frame_bars[slot_name].setup(part["frame_hp"], part["max_frame"], part["destroyed"])
-	armor_values[slot_name].text = "%d" % int(part["armor_hp"])
-	frame_values[slot_name].text = "%d" % int(part["frame_hp"])
+	if armor_bars[slot_name]:
+		armor_bars[slot_name].setup(part["armor_hp"], part["max_armor"], part["destroyed"])
+	if frame_bars[slot_name]:
+		frame_bars[slot_name].setup(part["frame_hp"], part["max_frame"], part["destroyed"])
+	if armor_values[slot_name]:
+		armor_values[slot_name].text = "%d" % int(part["armor_hp"])
+	if frame_values[slot_name]:
+		frame_values[slot_name].text = "%d" % int(part["frame_hp"])
 
 
 func _update_all_bars() -> void:
@@ -268,30 +420,22 @@ func _update_all_bars() -> void:
 		_refresh(slot_name)
 
 
-# ---------------------------------------------------------------------------
-# DROP TANK HUD INDICATOR (GDD §2.4)
-# Shows external fuel canister HP + fuel level + purge warning. The whole
-# row is hidden when no drop tanks are equipped.
-# ---------------------------------------------------------------------------
-
 func _create_drop_tank_row() -> void:
-	var grid = get_node_or_null("Panel/Grid")
+	var grid := get_node_or_null("Panel/Grid")
 	if grid == null:
 		return
 	_dt_container = VBoxContainer.new()
 	_dt_container.name = "DropTankCell"
 	_dt_container.add_theme_constant_override("separation", 1)
-	_dt_container.visible = false  # hidden until drop tanks are equipped
+	_dt_container.visible = false
 	grid.add_child(_dt_container)
 
-	# Header label: "DROP TANK" in amber.
 	_dt_label = Label.new()
 	_dt_label.text = "DROP TANK"
 	_dt_label.add_theme_font_size_override("font_size", 9)
 	_dt_label.add_theme_color_override("font_color", Color(0.9, 0.6, 0.1))
 	_dt_container.add_child(_dt_label)
 
-	# HP bar: amber fill, shrinks as the tanks take damage.
 	_dt_hp_bar = ProgressBar.new()
 	_dt_hp_bar.custom_minimum_size = Vector2(120, 6)
 	_dt_hp_bar.max_value = 100.0
@@ -299,28 +443,18 @@ func _create_drop_tank_row() -> void:
 	_dt_hp_bar.show_percentage = false
 	_dt_hp_fill = StyleBoxFlat.new()
 	_dt_hp_fill.bg_color = Color(0.85, 0.55, 0.1)
-	_dt_hp_fill.corner_radius_top_left = 0
-	_dt_hp_fill.corner_radius_top_right = 0
-	_dt_hp_fill.corner_radius_bottom_left = 0
-	_dt_hp_fill.corner_radius_bottom_right = 0
 	_dt_hp_bar.add_theme_stylebox_override("fill", _dt_hp_fill)
 	var dt_bg := StyleBoxFlat.new()
 	dt_bg.bg_color = Color(0.1, 0.12, 0.18, 0.9)
-	dt_bg.corner_radius_top_left = 0
-	dt_bg.corner_radius_top_right = 0
-	dt_bg.corner_radius_bottom_left = 0
-	dt_bg.corner_radius_bottom_right = 0
 	_dt_hp_bar.add_theme_stylebox_override("background", dt_bg)
 	_dt_container.add_child(_dt_hp_bar)
 
-	# Fuel level label: how much fuel remains in the tanks.
 	_dt_fuel_label = Label.new()
 	_dt_fuel_label.text = "FUEL: 0"
 	_dt_fuel_label.add_theme_font_size_override("font_size", 9)
 	_dt_fuel_label.add_theme_color_override("font_color", Color(0.7, 0.85, 0.4))
 	_dt_container.add_child(_dt_fuel_label)
 
-	# Purge warning label: blinks red when detonation countdown starts.
 	_dt_purge_label = Label.new()
 	_dt_purge_label.text = ""
 	_dt_purge_label.add_theme_font_size_override("font_size", 10)
@@ -330,11 +464,8 @@ func _create_drop_tank_row() -> void:
 
 
 func _update_drop_tank_indicator() -> void:
-	if _dt_container == null:
+	if _dt_container == null or _player_mecha == null or not is_instance_valid(_player_mecha):
 		return
-	if _player_mecha == null or not is_instance_valid(_player_mecha):
-		return
-	# Read drop tank state from the mecha controller's energy system.
 	var es = _player_mecha.get("energy_system")
 	var active: bool = es._drop_tank_active if es else false
 	if not active:
@@ -342,18 +473,15 @@ func _update_drop_tank_indicator() -> void:
 		return
 	_dt_container.visible = true
 
-	# HP bar.
-	var max_hp: float = 60.0  # 2 tanks * 30 HP default
+	var max_hp: float = 60.0
 	var hp: float = es._drop_tank_hp if es else 0.0
-	# Derive max HP from GlobalData.
 	var attached_raw = GlobalData.get("drop_tanks_attached")
 	var attached: int = int(attached_raw) if attached_raw != null else 0
-	max_hp = attached * 30.0  # DROP_TANK_HP_PER_TANK
+	max_hp = attached * 30.0
 	if max_hp <= 0.0:
 		max_hp = 60.0
 	_dt_hp_bar.max_value = max_hp
 	_dt_hp_bar.value = maxf(hp, 0.0)
-	# Tint: green > orange > red as HP drops.
 	var hp_ratio := clampf(hp / max_hp, 0.0, 1.0)
 	if _dt_hp_fill:
 		if hp_ratio < 0.25:
@@ -364,12 +492,10 @@ func _update_drop_tank_indicator() -> void:
 			_dt_hp_fill.bg_color = Color(0.4, 0.75, 0.2)
 	_dt_label.text = "DROP TANK: %d" % int(hp)
 
-	# Fuel level.
 	var fuel_raw = GlobalData.get("drop_tank_fuel")
 	var fuel: float = float(fuel_raw) if fuel_raw != null else 0.0
 	_dt_fuel_label.text = "FUEL: %d" % int(fuel)
 
-	# Purge warning: show and blink when detonation countdown is active.
 	var detonating: bool = es._drop_tank_detonating if es else false
 	if detonating:
 		if not _dt_purge_label.visible:
@@ -394,145 +520,43 @@ func _start_purge_flash() -> void:
 	_dt_purge_flash_tween.tween_property(_dt_purge_label, "modulate:a", 1.0, 0.25)
 
 
-# --- Precision Dash HUD (GDD §3.2) ------------------------------------------
-# Shows a green "PRECISION!" flash when the player dodges an attack at the
-# last moment during a dash, confirming the energy refund.
 func _create_precision_row() -> void:
+	var grid := get_node_or_null("Panel/Grid")
+	if grid == null:
+		return
 	_precision_label = Label.new()
-	_precision_label.text = ""
-	_precision_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_precision_label.custom_minimum_size = Vector2(120, 12)
+	_precision_label.name = "PrecisionLabel"
+	_precision_label.text = "✦ PRECISION DASH! (+25% Energy)"
+	_precision_label.add_theme_font_size_override("font_size", 9)
+	_precision_label.add_theme_color_override("font_color", Color(0.3, 1.0, 0.4))
 	_precision_label.visible = false
-	_precision_label.add_theme_font_size_override("font_size", 11)
-	_precision_label.add_theme_color_override("font_color", Color(0.3, 1.0, 0.5))
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.1, 0.12, 0.18, 0.9)
-	style.corner_radius_top_left = 0
-	style.corner_radius_top_right = 0
-	style.corner_radius_bottom_left = 0
-	style.corner_radius_bottom_right = 0
-	style.content_margin_left = 6
-	style.content_margin_right = 6
-	style.content_margin_top = 2
-	style.content_margin_bottom = 2
-	_precision_label.add_theme_stylebox_override("normal", style)
-	# Insert after the energy row.
-	var grid = get_node_or_null("Panel/Grid")
-	if grid:
-		grid.add_child(_precision_label)
+	grid.add_child(_precision_label)
 
 
 func _update_precision_indicator() -> void:
-	if _precision_label == null or _player_mecha == null:
-		return
-	if not is_instance_valid(_player_mecha):
+	if _precision_label == null or _player_mecha == null or not is_instance_valid(_player_mecha):
 		return
 	var ds = _player_mecha.get("dash_system")
 	var dodged: bool = ds._precision_dodged if ds else false
 	if dodged and not _precision_was_dodged:
-		# Just triggered — flash the indicator.
-		_precision_label.text = "+4 PRECISION!"
+		_precision_was_dodged = true
 		_precision_label.visible = true
 		_precision_label.modulate.a = 1.0
 		if _precision_flash_tween and _precision_flash_tween.is_valid():
 			_precision_flash_tween.kill()
 		_precision_flash_tween = create_tween()
-		_precision_flash_tween.tween_interval(0.8)
-		_precision_flash_tween.tween_property(_precision_label, "modulate:a", 0.0, 0.3)
-		_precision_flash_tween.tween_callback(_precision_label.hide)
-	_precision_was_dodged = dodged
-
-
-# ---------------------------------------------------------------------------
-# EJECT HUD — pilot stats replace mech HUD when the pilot dismounts
-# ---------------------------------------------------------------------------
-
-func _update_eject_hud(is_eject: bool) -> void:
-	# Lazy-create the pilot HP UI on first eject.
-	if _pilot_hp_label == null and is_eject:
-		_create_pilot_hp_ui()
-	if _pilot_hp_label == null:
-		return
-	var panel = get_node_or_null("Panel")
-	if panel == null:
-		return
-	# Hide mech-specific rows (armor/frame/energy) when on foot.
-	var grid = panel.get_node_or_null("Grid")
-	if grid:
-		for child in grid.get_children():
-			if child.name in ["HeadCell", "BodyCell", "ArmLCell", "ArmRCell", "LegLCell", "LegRCell", "EnergyCell", "DropTankCell"]:
-				child.visible = not is_eject
-	# Pilot HP bar shows pilot health from PilotSystem.
-	_pilot_hp_label.visible = is_eject
-	_pilot_hp_bar.visible = is_eject
-	if is_eject:
-		var hp: float = PilotSystem.get_hp()
-		var max_hp: float = PilotSystem.get_max_hp()
-		if max_hp <= 0.0:
-			max_hp = 100.0
-			hp = 100.0
-		_pilot_hp_bar.max_value = max_hp
-		_pilot_hp_bar.value = hp
-		var ratio := clampf(hp / max_hp, 0.0, 1.0)
-		if _pilot_hp_fill:
-			if ratio < 0.25:
-				_pilot_hp_fill.bg_color = Color(0.9, 0.15, 0.1)
-			elif ratio < 0.5:
-				_pilot_hp_fill.bg_color = Color(0.9, 0.55, 0.1)
-			else:
-				_pilot_hp_fill.bg_color = Color(0.2, 0.8, 0.3)
-		_pilot_hp_label.text = "PILOT: %d / %d" % [int(hp), int(max_hp)]
-
-
-func _create_pilot_hp_ui() -> void:
-	var panel = get_node_or_null("Panel")
-	if panel == null:
-		return
-	var grid = panel.get_node_or_null("Grid")
-	if grid == null:
-		return
-	# Pilot HP label.
-	_pilot_hp_label = Label.new()
-	_pilot_hp_label.text = "PILOT: 100 / 100"
-	_pilot_hp_label.add_theme_font_size_override("font_size", 11)
-	_pilot_hp_label.add_theme_color_override("font_color", Color(0.9, 0.9, 0.7))
-	_pilot_hp_label.visible = false
-	grid.add_child(_pilot_hp_label)
-	# Pilot HP bar.
-	_pilot_hp_bar = ProgressBar.new()
-	_pilot_hp_bar.custom_minimum_size = Vector2(140, 8)
-	_pilot_hp_bar.max_value = 100.0
-	_pilot_hp_bar.value = 100.0
-	_pilot_hp_bar.show_percentage = false
-	_pilot_hp_bar.visible = false
-	_pilot_hp_fill = StyleBoxFlat.new()
-	_pilot_hp_fill.bg_color = Color(0.2, 0.8, 0.3)
-	_pilot_hp_fill.corner_radius_top_left = 0
-	_pilot_hp_fill.corner_radius_top_right = 0
-	_pilot_hp_fill.corner_radius_bottom_left = 0
-	_pilot_hp_fill.corner_radius_bottom_right = 0
-	_pilot_hp_bar.add_theme_stylebox_override("fill", _pilot_hp_fill)
-	var bg = StyleBoxFlat.new()
-	bg.bg_color = Color(0.1, 0.12, 0.18, 0.9)
-	bg.corner_radius_top_left = 0
-	bg.corner_radius_top_right = 0
-	bg.corner_radius_bottom_left = 0
-	bg.corner_radius_bottom_right = 0
-	_pilot_hp_bar.add_theme_stylebox_override("background", bg)
-	grid.add_child(_pilot_hp_bar)
-
-
-# --- Combat Mode & Stance Widget -------------------------------------------
-var _mode_label: Label = null
-var _guard_badge: Label = null
-var _pile_badge: Label = null
+		_precision_flash_tween.tween_interval(1.2)
+		_precision_flash_tween.tween_property(_precision_label, "modulate:a", 0.0, 0.4)
+		_precision_flash_tween.tween_callback(func(): _precision_label.visible = false)
+	elif not dodged:
+		_precision_was_dodged = false
 
 
 func _create_combat_mode_widget() -> void:
-	var panel = get_node_or_null("Panel")
+	var panel := get_node_or_null("Panel")
 	if panel == null:
 		return
-	var grid = panel.get_node_or_null("Grid")
+	var grid := panel.get_node_or_null("Grid")
 	if grid == null:
 		return
 
@@ -542,21 +566,20 @@ func _create_combat_mode_widget() -> void:
 	grid.add_child(row)
 
 	_mode_label = Label.new()
-	_mode_label.text = "[2] MODE: RANGED"
+	_mode_label.text = "MODE: BALANCED"
 	_mode_label.add_theme_font_size_override("font_size", 10)
 	_mode_label.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0))
 	row.add_child(_mode_label)
 
 	_guard_badge = Label.new()
 	_guard_badge.text = "[Q] GUARD"
-	_guard_badge.add_theme_font_size_override("font_size", 9)
+	_guard_badge.add_theme_font_size_override("font_size", 10)
 	_guard_badge.add_theme_color_override("font_color", Color(0.6, 0.7, 0.8))
-	_guard_badge.visible = false
 	row.add_child(_guard_badge)
 
 	_pile_badge = Label.new()
 	_pile_badge.text = "PILE: READY"
-	_pile_badge.add_theme_font_size_override("font_size", 9)
+	_pile_badge.add_theme_font_size_override("font_size", 10)
 	_pile_badge.add_theme_color_override("font_color", Color(1.0, 0.6, 0.2))
 	_pile_badge.visible = false
 	row.add_child(_pile_badge)
@@ -566,15 +589,11 @@ func _on_combat_mode_toggled(mode: String) -> void:
 	if _mode_label == null:
 		return
 	if mode == "close_combat":
-		_mode_label.text = "[2] MODE: CLOSE COMBAT"
-		_mode_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.15))
-		if _guard_badge:
-			_guard_badge.visible = true
+		_mode_label.text = "MODE: CLOSE COMBAT"
+		_mode_label.add_theme_color_override("font_color", Color(1.0, 0.35, 0.2))
 	else:
-		_mode_label.text = "[2] MODE: RANGED"
+		_mode_label.text = "MODE: BALANCED"
 		_mode_label.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0))
-		if _guard_badge:
-			_guard_badge.visible = false
 
 
 func _on_guard_state_changed(is_guarding: bool) -> void:
@@ -582,7 +601,7 @@ func _on_guard_state_changed(is_guarding: bool) -> void:
 		return
 	if is_guarding:
 		_guard_badge.text = "[Q] GUARDING"
-		_guard_badge.add_theme_color_override("font_color", Color(0.2, 1.0, 0.5))
+		_guard_badge.add_theme_color_override("font_color", Color(0.2, 0.9, 1.0))
 	else:
 		_guard_badge.text = "[Q] GUARD"
 		_guard_badge.add_theme_color_override("font_color", Color(0.6, 0.7, 0.8))
@@ -591,9 +610,9 @@ func _on_guard_state_changed(is_guarding: bool) -> void:
 func _on_deflect_triggered(_pos: Vector3, is_perfect: bool) -> void:
 	if _guard_badge == null:
 		return
-	_guard_badge.text = "DEFLECT PARRY!"
+	_guard_badge.text = "DEFLECT PARRY!" if is_perfect else "DEFLECT"
 	_guard_badge.add_theme_color_override("font_color", Color(1.0, 0.9, 0.1))
-	var tween = create_tween()
+	var tween := create_tween()
 	tween.tween_interval(0.6)
 	tween.tween_callback(func():
 		if _guard_badge:
@@ -614,19 +633,14 @@ func _on_pile_bunker_fired(is_loaded_blast: bool, _target_pos: Vector3) -> void:
 		_pile_badge.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
 
 
-# --- Interaction Prompt (Boarding / Dismount) ---
-var _interaction_panel: PanelContainer = null
-var _interaction_label: Label = null
-
-
 func _create_interaction_prompt_widget() -> void:
 	_interaction_panel = PanelContainer.new()
 	_interaction_panel.name = "InteractionPromptPanel"
 	_interaction_panel.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	_interaction_panel.offset_left = -180
 	_interaction_panel.offset_right = 180
-	_interaction_panel.offset_top = -140
-	_interaction_panel.offset_bottom = -95
+	_interaction_panel.offset_top = -150
+	_interaction_panel.offset_bottom = -105
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.06, 0.08, 0.12, 0.92)
 	style.border_width_left = 2

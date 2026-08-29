@@ -97,8 +97,13 @@ func _unhandled_input(event: InputEvent) -> void:
 	if GameManager.current_state != GameManager.State.EJECT:
 		return
 	if event.is_action_pressed("interact") or (event is InputEventKey and event.pressed and event.keycode == KEY_F and not event.echo):
+		var now := Time.get_ticks_msec()
+		var last_time: int = int(get_meta("last_mount_toggle_time", 0))
+		if now - last_time < 500:
+			return
 		var target_mech := find_nearest_boardable_mech()
 		if target_mech:
+			get_viewport().set_input_as_handled()
 			MechaEject.board_mecha(target_mech)
 			return
 	if event.is_action_pressed("fire_left"):

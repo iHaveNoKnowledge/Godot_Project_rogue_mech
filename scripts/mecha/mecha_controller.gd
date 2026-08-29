@@ -473,11 +473,17 @@ func _unhandled_input(event: InputEvent) -> void:
 	if GameManager.current_state != GameManager.State.COMBAT:
 		return
 	if event.is_action_pressed("interact") or (event is InputEventKey and event.pressed and event.keycode == KEY_F and not event.echo):
+		var now := Time.get_ticks_msec()
+		var last_time: int = int(get_meta("last_mount_toggle_time", 0))
+		if now - last_time < 500:
+			return # Debounce cooldown prevents instant dismount looping
+		get_viewport().set_input_as_handled()
 		dismount()
 
 
 ## Voluntarily dismounts the pilot from this mech
 func dismount() -> void:
+	set_meta("last_mount_toggle_time", Time.get_ticks_msec())
 	var me = get_node_or_null("MechaEject")
 	if me and me.has_method("dismount_pilot"):
 		me.dismount_pilot()

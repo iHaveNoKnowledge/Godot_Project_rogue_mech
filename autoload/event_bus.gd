@@ -19,6 +19,7 @@ signal speed_modified(new_speed: float)
 
 # --- Camera ---
 signal camera_mode_changed(new_mode: String)
+signal camera_target_changed(target: Node3D)
 signal lock_on_target_acquired(target: Node3D)
 signal lock_on_target_lost()
 

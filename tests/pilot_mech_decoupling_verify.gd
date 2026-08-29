@@ -7,6 +7,8 @@ func _ready() -> void:
 	_test_mecha_dismount_flow()
 	_test_pilot_proximity_and_boarding()
 	_test_switching_between_multiple_mechas()
+	_test_debounce_cooldown()
+	_test_hud_pilot_mech_separation()
 	print("All pilot_mech_decoupling_verify tests passed successfully!")
 	get_tree().quit(0)
 
@@ -114,3 +116,44 @@ func _test_switching_between_multiple_mechas() -> void:
 
 	mech1.queue_free()
 	mech2.queue_free()
+
+func _test_debounce_cooldown() -> void:
+	print("Testing Mount/Dismount Debounce Cooldown...")
+	var mecha := CharacterBody3D.new()
+	mecha.name = "Mecha_Debounce"
+	mecha.set_script(preload("res://scripts/mecha/mecha_controller.gd"))
+	add_child(mecha)
+	GameManager.current_state = GameManager.State.COMBAT
+
+	# Simulate immediate repeated dismount attempt within 10ms
+	mecha.set_meta("last_mount_toggle_time", Time.get_ticks_msec())
+	var key_ev := InputEventKey.new()
+	key_ev.pressed = true
+	key_ev.keycode = KEY_F
+	mecha._unhandled_input(key_ev)
+
+	_check(not mecha.has_meta("is_parked"), "Rapid input within debounce window was rejected")
+	mecha.queue_free()
+
+func _test_hud_pilot_mech_separation() -> void:
+	print("Testing CoreHUD separation between Pilot on foot and Mech...")
+	var hud_scene = preload("res://scenes/ui/core_hud.tscn")
+	var hud = hud_scene.instantiate()
+	add_child(hud)
+
+	var mech_panel: Control = hud.get_node("Panel")
+	var pilot_panel: Control = hud.get_node("PilotHUDPanel")
+
+	# Test Mech Combat Mode
+	GameManager.current_state = GameManager.State.COMBAT
+	hud._process(0.016)
+	_check(mech_panel.visible == true, "In Mech combat, Mech HP Panel is visible")
+	_check(pilot_panel.visible == false, "In Mech combat, Pilot HUD is hidden")
+
+	# Test Pilot Eject/On-Foot Mode
+	GameManager.current_state = GameManager.State.EJECT
+	hud._process(0.016)
+	_check(mech_panel.visible == false, "In Pilot on-foot mode, Mech HP Panel is completely HIDDEN")
+	_check(pilot_panel.visible == true, "In Pilot on-foot mode, Pilot HUD is visible")
+
+	hud.queue_free()

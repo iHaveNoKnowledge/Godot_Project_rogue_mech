@@ -27,6 +27,9 @@ func dismount_pilot(is_emergency: bool = false) -> void:
 	if mecha.has_meta("is_parked") or mecha.has_meta("is_unoccupied"):
 		return
 
+	var now := Time.get_ticks_msec()
+	mecha.set_meta("last_mount_toggle_time", now)
+
 	if is_emergency:
 		EventBus.eject_initiated.emit()
 
@@ -51,8 +54,13 @@ func dismount_pilot(is_emergency: bool = false) -> void:
 	if eject_point:
 		pilot.global_position = eject_point.global_position
 	else:
-		pilot.global_position = mecha.global_position + Vector3(0, 0.5, -2.5)
+		# Place pilot on the ground near the mech's front-side
+		var exit_offset := (-mecha.global_transform.basis.z * 2.2)
+		pilot.global_position = mecha.global_position + exit_offset + Vector3(0, 0.1, 0)
 
+	pilot.set_meta("last_mount_toggle_time", now)
+
+	EventBus.interaction_prompt_updated.emit("", false)
 	EventBus.camera_mode_changed.emit("eject")
 	EventBus.mecha_occupancy_changed.emit(false)
 	EventBus.pilot_spawned.emit(pilot)
@@ -69,6 +77,8 @@ static func board_mecha(target_mecha: CharacterBody3D) -> void:
 	if target_mecha == null or not is_instance_valid(target_mecha):
 		return
 
+	var now := Time.get_ticks_msec()
+
 	# Remove active on-foot pilot
 	var tree = target_mecha.get_tree()
 	if tree:
@@ -76,6 +86,10 @@ static func board_mecha(target_mecha: CharacterBody3D) -> void:
 		for p in pilots:
 			if is_instance_valid(p):
 				p.queue_free()
+
+	# Register newly boarded mecha as the active player mecha
+	GameManager.active_player_mecha = target_mecha
+	target_mecha.set_meta("last_mount_toggle_time", now)
 
 	# Wake up target mecha
 	if target_mecha.has_method("power_up"):
@@ -90,6 +104,9 @@ static func board_mecha(target_mecha: CharacterBody3D) -> void:
 		if col:
 			col.set_deferred("disabled", false)
 
+	EventBus.interaction_prompt_updated.emit("", false)
+	if EventBus.has_signal("camera_target_changed"):
+		EventBus.camera_target_changed.emit(target_mecha)
 	EventBus.camera_mode_changed.emit("combat")
 	EventBus.mecha_occupancy_changed.emit(true)
 	GameManager.resume_combat()

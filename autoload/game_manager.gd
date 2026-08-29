@@ -12,13 +12,26 @@ var is_boss_combat: bool = false
 var is_escaping: bool = false
 
 
-# Central lookup for the active player mecha. Avoids repeating fragile
-# `current_scene.get_node_or_null("Mecha")` string paths across scripts.
+var active_player_mecha: Node3D = null
+
+
+# Central lookup for the active player mecha. Supports dynamic mech switching in combat.
 func get_player_mecha() -> Node3D:
+	if active_player_mecha and is_instance_valid(active_player_mecha):
+		return active_player_mecha
 	var scene := get_tree().current_scene
 	if scene == null:
 		return null
-	return scene.get_node_or_null("Mecha") as Node3D
+	var m = scene.get_node_or_null("Mecha") as Node3D
+	if m and is_instance_valid(m):
+		active_player_mecha = m
+		return m
+	var mechas = get_tree().get_nodes_in_group("mecha")
+	for mech in mechas:
+		if is_instance_valid(mech) and not mech.has_meta("is_unoccupied") and not mech.has_meta("is_parked"):
+			active_player_mecha = mech
+			return mech
+	return null
 
 
 func transition_to(new_state: State) -> void:

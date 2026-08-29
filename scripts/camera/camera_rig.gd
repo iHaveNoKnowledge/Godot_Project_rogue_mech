@@ -30,6 +30,8 @@ func _ready() -> void:
 	add_to_group("camera_rig")
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	EventBus.camera_mode_changed.connect(_on_camera_mode_changed)
+	if EventBus.has_signal("camera_target_changed"):
+		EventBus.camera_target_changed.connect(_on_camera_target_changed)
 	EventBus.combat_mode_toggled.connect(_on_combat_mode_toggled)
 	EventBus.pilot_spawned.connect(_on_pilot_spawned)
 	EventBus.combat_ended.connect(_on_combat_ended)
@@ -37,6 +39,13 @@ func _ready() -> void:
 	target = GameManager.get_player_mecha()
 	if target and spring_arm:
 		spring_arm.add_excluded_object(target.get_rid())
+
+
+func _on_camera_target_changed(new_target: Node3D) -> void:
+	if new_target and is_instance_valid(new_target):
+		target = new_target
+		if spring_arm:
+			spring_arm.add_excluded_object(target.get_rid())
 
 
 func _on_combat_mode_toggled(mode: String) -> void:

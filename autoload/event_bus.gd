@@ -62,6 +62,8 @@ signal combat_ended(victory: bool)
 signal combat_escaped()
 signal combat_escaped_directional(escape_type: String, delta_tile: Vector2i)
 signal enemy_tech_escalated(new_tier: int)
+signal faction_research_started(faction: String, tier: int, reason: String)
+signal faction_tier_upgraded(faction: String, new_tier: int)
 
 # --- Game State ---
 signal game_state_changed(old_state: String, new_state: String)

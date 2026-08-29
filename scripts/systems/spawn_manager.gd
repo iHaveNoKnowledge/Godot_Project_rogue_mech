@@ -784,7 +784,42 @@ func _spawn_squad(entry: Dictionary, count: int, hp_scale: float, org: Dictionar
 	if count <= 0:
 		return
 
+	var faction_id: String = ""
 	var faction_name: String = str(org.get("name", ""))
+	var faction_paint: Dictionary = {}
+	if ResourceLoader.exists("res://scripts/systems/faction_system.gd"):
+		var FS = load("res://scripts/systems/faction_system.gd")
+		faction_id = FS.pick_next_faction()
+		faction_name = FS.get_faction_def(faction_id).get("name_en", faction_name)
+		faction_paint = FS.get_faction_paint(faction_id)
+		# Outland wanderers already have random tier inside generator
+		var fs_fleet: Dictionary = PilotGenerator.generate_enemy_fleet(count, faction_name, GlobalData.board.wanted_level, faction_paint, faction_id)
+		var fs_coord := EnemySquadCoordinator.new()
+		fs_coord.name = "SquadCoordinator_%s" % fs_fleet["squad_id"]
+		fs_coord.setup_squad(fs_fleet["squad_id"], fs_fleet["squad_name"])
+		add_child(fs_coord)
+
+		var fs_center: Vector3 = _get_spawn_position()
+		var fs_leader: String = _squad_leader_type(entry["type"])
+		var fs_commander: Dictionary = fs_fleet["commander"]
+
+		_spawn_enemy_with_pilot(
+			fs_leader, entry["archetype"], fs_center, hp_scale,
+			fs_commander, fs_coord, _paint_for_enemy(org, "commander") if faction_id == "" else faction_paint
+		)
+
+		var fs_slot := 0
+		for i in range(1, count):
+			var fs_offset: Vector3 = SQUAD_FORMATION[fs_slot % SQUAD_FORMATION.size()]
+			var fs_guard := 0
+			while fs_guard < SQUAD_FORMATION.size() and _spawn_blocked_by_cover(fs_center + fs_offset):
+				fs_slot += 1
+				fs_offset = SQUAD_FORMATION[fs_slot % SQUAD_FORMATION.size()]
+			fs_slot += 1
+			var fs_wingman: Dictionary = fs_fleet["pilots"][i] if i < fs_fleet["pilots"].size() else fs_commander
+			_spawn_enemy_with_pilot(entry["type"], entry["archetype"], fs_center + fs_offset, hp_scale, fs_wingman, fs_coord, faction_paint)
+		return
+	# Fallback legacy (should not reach here when FactionSystem exists)
 	var fleet_data: Dictionary = PilotGenerator.generate_enemy_fleet(count, faction_name, GlobalData.board.wanted_level)
 	var coordinator := EnemySquadCoordinator.new()
 	coordinator.name = "SquadCoordinator_%s" % fleet_data["squad_id"]

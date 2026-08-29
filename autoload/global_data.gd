@@ -497,11 +497,21 @@ func _on_board_day_ended() -> void:
 	fuel.day_end_tick()
 	_notify_research_completions(FleetSystem.tick_research(1))
 	RecruitSystem.tick_recovery()
+	# Faction R&D ticks by real time (days)
+	if ResourceLoader.exists("res://scripts/systems/faction_system.gd"):
+		var FactionSystemScript = load("res://scripts/systems/faction_system.gd")
+		FactionSystemScript.tick_research(1.0)
+		FactionSystemScript.evaluate_triggers()
 
 
 func _on_combat_ended(victory: bool) -> void:
 	# Clear environmental hazard after combat (one-shot per encounter).
 	board.current_hazard = ""
+	# Faction: record battle for trigger and tick research by combat time (0.5 day per battle)
+	if ResourceLoader.exists("res://scripts/systems/faction_system.gd"):
+		var FactionSystemScript2 = load("res://scripts/systems/faction_system.gd")
+		FactionSystemScript2.tick_research(0.5)
+		FactionSystemScript2.evaluate_triggers()
 	# Record bond.
 	if victory:
 		narrative.record_battle_survived(weapons.part_damage)

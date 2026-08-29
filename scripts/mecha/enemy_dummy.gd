@@ -757,6 +757,11 @@ func _on_destroyed() -> void:
 	if beehave_tree != null and is_instance_valid(beehave_tree):
 		beehave_tree.set_physics_process(false)
 	_eject_pilot()
+	# Faction: enemy loss triggers R&D (heat + combat necessity)
+	if ResourceLoader.exists("res://scripts/systems/faction_system.gd"):
+		var FS = load("res://scripts/systems/faction_system.gd")
+		FS.record_enemy_loss(1)
+		FS.evaluate_triggers()
 
 	# Spawn loot
 	var loot = get_node_or_null("/root/GameWorld/LootSystem")

@@ -57,6 +57,10 @@ func modify_heat(amount: int) -> void:
 	EventBus.heat_changed.emit(GlobalData.board.heat)
 	_update_wanted()
 	update_enemy_mobilization_capacity() # ขยายหรือล็อกขนาดสัดส่วนทัพสูงสุด
+	# Faction: heat rise makes enemy aware of us -> may trigger R&D
+	if ResourceLoader.exists("res://scripts/systems/faction_system.gd"):
+		var FS2 = load("res://scripts/systems/faction_system.gd")
+		FS2.evaluate_triggers()
 
 
 # ล็อกและปลดล็อกการระดมพลตามระบบ Heat (Early/Late Game Gates)

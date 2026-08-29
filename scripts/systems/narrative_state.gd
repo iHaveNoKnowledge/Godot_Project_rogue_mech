@@ -36,9 +36,25 @@ var sacrifice_event_triggered: bool = false
 var grand_entry_mech_id: String = ""
 var grand_entry_pending: bool = false
 
-# --- Enemy Tech Escalation ---
+# --- Enemy Tech Escalation (legacy, kept for compat) ---
 var enemy_tech_tier: int = 1
 var pending_escalation_event: bool = false
+
+# --- Faction Tech Tiers (Federation / Zeon / Outland) ---
+var federation_tier: int = 1
+var zeon_tier: int = 1
+# Research per faction
+var federation_research_active: bool = false
+var federation_research_progress: float = 0.0
+var federation_research_required: float = 2.5
+var federation_research_start_day: float = 0.0
+var federation_research_reason: String = ""
+var zeon_research_active: bool = false
+var zeon_research_progress: float = 0.0
+var zeon_research_required: float = 2.5
+var zeon_research_start_day: float = 0.0
+var zeon_research_reason: String = ""
+var enemy_losses: int = 0
 
 # --- Enemy Research Node Lifecycle ---
 var enemy_research_progress: float = 0.0
@@ -161,6 +177,19 @@ func reset() -> void:
 	grand_entry_pending = false
 	enemy_tech_tier = 1
 	pending_escalation_event = false
+	federation_tier = 1
+	zeon_tier = 1
+	federation_research_active = false
+	federation_research_progress = 0.0
+	federation_research_required = 2.5
+	federation_research_start_day = 0.0
+	federation_research_reason = ""
+	zeon_research_active = false
+	zeon_research_progress = 0.0
+	zeon_research_required = 2.5
+	zeon_research_start_day = 0.0
+	zeon_research_reason = ""
+	enemy_losses = 0
 	enemy_research_progress = 0.0
 	enemy_base_active = false
 	enemy_base_progress = 0.0

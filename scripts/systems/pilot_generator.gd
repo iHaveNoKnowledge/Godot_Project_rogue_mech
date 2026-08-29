@@ -363,6 +363,23 @@ static func _pick_armor_by_tier(eligible: Array, heaviest: bool) -> Dictionary:
 			best = entry
 	return best
 
+static func _pick_armor_by_faction_tier(eligible: Array, faction_tier: int) -> Dictionary:
+	if eligible.is_empty():
+		return {}
+	# Sort by HP (light -> heavy)
+	var sorted := eligible.duplicate()
+	sorted.sort_custom(func(a, b): return float(a.get("hp", 0.0)) < float(b.get("hp", 0.0)))
+	# Tier 1: lightest 33%, Tier 2: middle 33%, Tier 3: heaviest 33%
+	var idx: int = 0
+	if faction_tier == 1:
+		idx = 0
+	elif faction_tier == 2:
+		idx = int(sorted.size() * 0.5)
+	else:
+		idx = sorted.size() - 1
+	idx = clampi(idx, 0, sorted.size() - 1)
+	return sorted[idx] as Dictionary
+
 static func _archetype_palette_for(archetype: int, faction_paint: Dictionary = {}, squad_role: String = "") -> Dictionary:
 	if not faction_paint.is_empty():
 		var base: Color = faction_paint.get("base", Color(0.6, 0.6, 0.6))
@@ -396,7 +413,8 @@ static func _scene_type_for_archetype(archetype: int, is_commander: bool) -> Str
 
 ## Generates a per-pilot mech loadout from GlobalData catalogs.
 ## Returns { slot: {"frame":{}, "armor":{}} } mirroring enemy_dummy._enemy_loadout()
-static func generate_mech_loadout(archetype: int, faction_paint: Dictionary = {}, squad_role: String = "") -> Dictionary:
+## If FactionSystem is available, picks armor by faction tier (1=light, 3=heavy) otherwise heaviest/lightest.
+static func generate_mech_loadout(archetype: int, faction_paint: Dictionary = {}, squad_role: String = "", faction_id: String = "") -> Dictionary:
 	var has_global := false
 	var armor_cat: Dictionary = {}
 	var frame_cat: Dictionary = {}
@@ -408,9 +426,16 @@ static func generate_mech_loadout(archetype: int, faction_paint: Dictionary = {}
 		return {}
 	var palette := _archetype_palette_for(archetype, faction_paint, squad_role)
 	var wants_heavy := archetype == 2
+	# Try faction tier pick first (real time + event driven), fallback to archetype heaviest
+	var faction_tier: int = 0
+	if faction_id != "" and ResourceLoader.exists("res://scripts/systems/faction_system.gd"):
+		var FS = load("res://scripts/systems/faction_system.gd")
+		faction_tier = FS.get_tier(faction_id) if faction_id != "outland" else FS.get_tier("federation") # outland mixed, use federation as base then randomize below
+		if faction_id == "outland":
+			# Outland wanderers use random tier outside both factions (scrap mix)
+			faction_tier = randi_range(1, 3) if FS.get_time_days() >= 15 else randi_range(1, 2)
 	var loadout: Dictionary = {}
 	var slots: Array = ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]
-	# Use GlobalData.MECHA_SLOTS if catalog loop needs it, but hardcode above for safety.
 	for slot in slots:
 		var frame_entry: Dictionary = {}
 		var frames = frame_cat.get(slot, [])
@@ -430,7 +455,10 @@ static func generate_mech_loadout(archetype: int, faction_paint: Dictionary = {}
 				if not entry.get("blueprint_only", false):
 					eligible.append(entry as Dictionary)
 		if eligible.size() > 0:
-			armor_entry = _pick_armor_by_tier(eligible, wants_heavy).duplicate(true)
+			if faction_tier >= 1 and faction_tier <= 3:
+				armor_entry = _pick_armor_by_faction_tier(eligible, faction_tier).duplicate(true)
+			else:
+				armor_entry = _pick_armor_by_tier(eligible, wants_heavy).duplicate(true)
 		if not armor_entry.is_empty():
 			armor_entry["equipped"] = true
 			armor_entry["color"] = palette.get(slot, palette.get("default", Color(0.7, 0.15, 0.15)))
@@ -439,7 +467,8 @@ static func generate_mech_loadout(archetype: int, faction_paint: Dictionary = {}
 
 ## Generates a complete Enemy Fleet / Squad of procedural pilots with assigned tactical roles
 ## Each pilot now also carries a catalog-based mech_loadout and scene_type.
-static func generate_enemy_fleet(squad_size: int = 3, faction_name: String = "", difficulty: int = 1, faction_paint: Dictionary = {}) -> Dictionary:
+## faction_name is display name (Federation/Zeon), faction_id is federation/zeon/outland for tier
+static func generate_enemy_fleet(squad_size: int = 3, faction_name: String = "", difficulty: int = 1, faction_paint: Dictionary = {}, faction_id: String = "") -> Dictionary:
 	var squad_id := "fleet_%d_%d" % [Time.get_ticks_msec(), randi() % 99999]
 	var prefix: String = SQUAD_NAME_PREFIXES.pick_random()
 	var suffix: String = SQUAD_NAME_SUFFIXES.pick_random()
@@ -467,7 +496,8 @@ static func generate_enemy_fleet(squad_size: int = 3, faction_name: String = "",
 	if commander["trait"] not in ["Tactical", "Aggressive", "Cold & Calculating"]:
 		commander["trait"] = ["Tactical", "Aggressive", "Cold & Calculating"].pick_random()
 	commander["scene_type"] = _scene_type_for_archetype(int(commander.get("archetype", 0)), true)
-	commander["mech_loadout"] = generate_mech_loadout(int(commander.get("archetype", 0)), faction_paint, "commander")
+	commander["mech_loadout"] = generate_mech_loadout(int(commander.get("archetype", 0)), faction_paint, "commander", faction_id)
+	commander["faction_id"] = faction_id
 	pilots.append(commander)
 
 	# 2. Generate Wingmen Pilots with tactical distribution
@@ -504,7 +534,8 @@ static func generate_enemy_fleet(squad_size: int = 3, faction_name: String = "",
 				wingman["trait"] = "Balanced"
 				wingman["archetype"] = 4 # Shield / Heavy
 		wingman["scene_type"] = _scene_type_for_archetype(int(wingman.get("archetype", 0)), false)
-		wingman["mech_loadout"] = generate_mech_loadout(int(wingman.get("archetype", 0)), faction_paint, "member")
+		wingman["mech_loadout"] = generate_mech_loadout(int(wingman.get("archetype", 0)), faction_paint, "member", faction_id)
+		wingman["faction_id"] = faction_id
 		pilots.append(wingman)
 
 	return {

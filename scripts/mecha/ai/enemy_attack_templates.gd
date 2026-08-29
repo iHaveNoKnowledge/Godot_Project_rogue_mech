@@ -13,16 +13,16 @@ static func get_stats(archetype: int, is_full: bool = false) -> Dictionary:
 			if is_full:
 				return {
 					"move_speed": 2.8,
-					"attack_range": 3.5,
+					"attack_range": 5.2,
 					"attack_damage": 24.0,
-					"attack_cooldown": 2.4,
+					"attack_cooldown": 2.2,
 				}
 			else:
 				return {
 					"move_speed": 2.8,
-					"attack_range": 3.5,
+					"attack_range": 5.2,
 					"attack_damage": 18.0,
-					"attack_cooldown": 2.4,
+					"attack_cooldown": 2.2,
 				}
 		Archetype.SHIELD_RANGED:
 			if is_full:
@@ -43,14 +43,14 @@ static func get_stats(archetype: int, is_full: bool = false) -> Dictionary:
 			if is_full:
 				return {
 					"move_speed": 3.0,
-					"attack_range": 3.5,
+					"attack_range": 5.0,
 					"attack_damage": 20.0,
 					"attack_cooldown": 2.0,
 				}
 			else:
 				return {
 					"move_speed": 3.0,
-					"attack_range": 3.5,
+					"attack_range": 5.0,
 					"attack_damage": 15.0,
 					"attack_cooldown": 2.0,
 				}

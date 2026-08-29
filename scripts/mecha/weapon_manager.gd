@@ -131,13 +131,12 @@ var _heat_smoke_timer_right: float = 0.0
 
 
 # How far a melee swing carries the mech toward the target, matched to the
-# weapon's range_distance (lunge = range - arm reach, floored at 0.8 so even a
-# short weapon still takes a step):
-#   fist 3.0 / heat blade 3.0 -> 1.4   combat knife 2.5 -> 0.9   pile 4.0 -> 2.4
+# weapon's range_distance (lunge = range - arm reach, floored at 0.9):
+#   fist 4.5 -> 2.9   knife 4.2 -> 2.6   heat blade 5.2 -> 3.6   mace 5.0 -> 3.4   pile 6.0 -> 4.4
 func _melee_lunge_dist(weapon: WeaponPart) -> float:
 	if weapon == null or weapon.range_distance <= 0.0:
-		return 1.4
-	return maxf(weapon.range_distance - MELEE_HIT_REACH, 0.8)
+		return 2.9
+	return maxf(weapon.range_distance - MELEE_HIT_REACH, 0.9)
 
 # Synthetic unarmed-melee weapon: an empty hand still fights with a punch. It is
 # a real MELEE WeaponPart (no ammo, no heat) so it flows through the same
@@ -147,6 +146,8 @@ func _fist() -> WeaponPart:
 		_fist_weapon = WeaponPart.new()
 		_fist_weapon.weapon_name = "Bare Fist"
 		_fist_weapon.weapon_type = WeaponPart.WeaponType.MELEE
+		_fist_weapon.range_distance = 4.5
+		_fist_weapon.damage = 18.0
 		_fist_weapon.damage = FIST_DAMAGE
 		_fist_weapon.fire_rate = FIST_FIRE_INTERVAL
 		_fist_weapon.impact = FIST_IMPACT

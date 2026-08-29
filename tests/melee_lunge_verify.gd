@@ -2,7 +2,7 @@ extends Node
 
 ## Verifies the melee lunge "feel" tuning headlessly:
 ##   - a swing lunges the mech ~(range - reach) so the thrust visual matches the
-##     weapon's range_distance (fist 3.0 -> 1.4m, pile 4.0 -> 2.4m),
+##     weapon's range_distance (fist 4.5 -> 2.9m, pile 6.0 -> 4.4m),
 ##   - the hit check lands at the thrust peak, so hits connect exactly at the
 ##     weapon's range and whiff just past it,
 ##   - the mech returns to its origin after the recovery phase,
@@ -113,13 +113,13 @@ func _process(_delta: float) -> void:
 				_stage = 2
 				_start_swing("left", null)
 		2:
-			# Fist @ 3.0m: should hit, lunge ~1.4m, return to origin, and kick
+			# Fist @ 4.5m: should hit, lunge ~2.9m, return to origin, and kick
 			# the camera with a light impact shake.
 			if _elapsed(350):
 				_measuring = false
 				_stage = 3
-				_check(_enemy.damage_taken == FIST_DAMAGE, "fist connects at its 3m range")
-				_check(_peak_z <= -1.25, "fist lunges ~1.4m into the punch (peak %.2f)" % _peak_z)
+				_check(_enemy.damage_taken == FIST_DAMAGE, "fist connects at its 4.5m range")
+				_check(_peak_z <= -2.75, "fist lunges ~2.9m into the punch (peak %.2f)" % _peak_z)
 				_check(absf(_mecha.position.z) < 0.05, "mech returns to origin after the fist recovery")
 				_check(_shake_delta > 0.09 and _shake_delta < 0.15, "fist impact shakes the camera lightly (%.3f)" % _shake_delta)
 				_check(_flash_after_swing > 0.5, "fist impact flashes the screen edge (%.2f)" % _flash_after_swing)
@@ -127,7 +127,7 @@ func _process(_delta: float) -> void:
 				_check(_time_scale_after_swing == 1.0, "fist impact does NOT trigger hit-stop")
 				_check(_trail_color_after_swing.r > 0.85 and _trail_color_after_swing.b > 0.9,
 					"fist trail is muted steel-white (%s)" % _trail_color_after_swing)
-				_enemy.position = Vector3(0, 1.5, -3.2)
+				_enemy.position = Vector3(0, 1.5, -4.7)
 				_enemy.damage_taken = 0.0
 		3:
 			if _settle >= 3:
@@ -140,7 +140,7 @@ func _process(_delta: float) -> void:
 			if _elapsed(350):
 				_measuring = false
 				_stage = 5
-				_check(_enemy.damage_taken == 0.0, "fist whiffs just past its 3m range (reach == range)")
+				_check(_enemy.damage_taken == 0.0, "fist whiffs just past its 4.5m range (reach == range)")
 				_check(_flash_after_swing < 0.01, "whiff does not flash the screen edge")
 				_wm.left_hand = _knife
 				_enemy.position = Vector3(0, 1.5, -2.5)
@@ -176,7 +176,7 @@ func _process(_delta: float) -> void:
 				# peak-lunge measurement is measured from a clean stance.
 				_mecha.position = Vector3(0, 1.5, 0)
 				_wm.left_hand = _pile
-				_enemy.position = Vector3(0, 1.5, -4.0)
+				_enemy.position = Vector3(0, 1.5, -6.0)
 				_enemy.damage_taken = 0.0
 		8:
 			if _settle >= 3:
@@ -184,13 +184,13 @@ func _process(_delta: float) -> void:
 				_stage = 9
 				_start_swing("left", _wm.left_hand)
 		9:
-			# Pile bunker @ 4.0m: connects with its big 2.4m charge and the
+			# Pile bunker @ 6.0m: connects with its big 4.4m charge and the
 			# hardest shake of the melee set.
 			if _elapsed(400):
 				_measuring = false
 				_stage = 10
-				_check(_enemy.damage_taken == PILE_DAMAGE, "pile bunker connects at its 4m range")
-				_check(_peak_z <= -2.25, "pile bunker lunges ~2.4m into the charge (peak %.2f)" % _peak_z)
+				_check(_enemy.damage_taken == PILE_DAMAGE, "pile bunker connects at its 6m range")
+				_check(_peak_z <= -4.25, "pile bunker lunges ~4.4m into the charge (peak %.2f)" % _peak_z)
 				_check(absf(_mecha.position.z) < 0.05, "mech returns to origin after the pile recovery")
 				_check(_shake_delta > 0.32 and _shake_delta < 0.38, "pile impact kicks the camera hardest (%.3f)" % _shake_delta)
 				_check(_shake_delta > _rig.total_shake * 0.45, "pile shake outweighs the earlier melee taps")
@@ -204,7 +204,7 @@ func _process(_delta: float) -> void:
 				# (0.9m off, within the 1m body radius) and the true auto-aim band
 				# (1.1m off, crosshair beside the body) but whiff beyond it (1.4m).
 				_wm.left_hand = null
-				_enemy.position = Vector3(0.9, 1.5, -3.0)
+				_enemy.position = Vector3(0.9, 1.5, -4.5)
 				_enemy.damage_taken = 0.0
 				_mecha.position = Vector3(0, 1.5, 0)
 		10:
@@ -217,7 +217,7 @@ func _process(_delta: float) -> void:
 			if _elapsed(350):
 				_stage = 12
 				_check(_enemy.damage_taken == FIST_DAMAGE, "off-center enemy whose body fills the crosshair still connects")
-				_enemy.position = Vector3(1.1, 1.5, -3.0)
+				_enemy.position = Vector3(1.1, 1.5, -4.5)
 				_enemy.damage_taken = 0.0
 				_mecha.position = Vector3(0, 1.5, 0)
 		12:
@@ -230,7 +230,7 @@ func _process(_delta: float) -> void:
 			if _elapsed(350):
 				_stage = 14
 				_check(_enemy.damage_taken == FIST_DAMAGE, "crosshair-beside-body enemy is caught by the auto-aim band")
-				_enemy.position = Vector3(1.4, 1.5, -3.0)
+				_enemy.position = Vector3(1.4, 1.5, -4.5)
 				_enemy.damage_taken = 0.0
 				_mecha.position = Vector3(0, 1.5, 0)
 		14:
@@ -245,7 +245,7 @@ func _process(_delta: float) -> void:
 				_check(_enemy.damage_taken == 0.0, "enemy beyond the auto-aim width whiffs")
 				# Heat blade: connects at its 3m range with a warm ember trail.
 				_wm.left_hand = _blade
-				_enemy.position = Vector3(0, 1.5, -3.0)
+				_enemy.position = Vector3(0, 1.5, -4.5)
 				_enemy.damage_taken = 0.0
 				_mecha.position = Vector3(0, 1.5, 0)
 		16:
@@ -256,7 +256,7 @@ func _process(_delta: float) -> void:
 		17:
 			if _elapsed(350):
 				_stage = 18
-				_check(_enemy.damage_taken == BLADE_DAMAGE, "heat blade connects at its 3m range")
+				_check(_enemy.damage_taken == BLADE_DAMAGE, "heat blade connects at its 5.2m range")
 				_check(_trail_color_after_swing.r > 0.9 and _trail_color_after_swing.b < 0.55,
 					"heat blade trail is warm ember (%s)" % _trail_color_after_swing)
 				_finish()
@@ -287,7 +287,7 @@ func _build_scene() -> void:
 	_cam.current = true
 	_cam.position = Vector3(0, 1.8, 6.0)
 	add_child(_cam)  # must be in the tree before look_at() is legal
-	_cam.look_at(Vector3(0, 1.5, -3.0))
+	_cam.look_at(Vector3(0, 1.5, -4.5))
 
 	_enemy = CharacterBody3D.new()
 	_enemy.set_script(preload("res://tests/melee_dummy_target.gd"))
@@ -300,7 +300,7 @@ func _build_scene() -> void:
 	col.shape = capsule
 	col.position = Vector3(0, 2.25, 0)
 	_enemy.add_child(col)
-	_enemy.position = Vector3(0, 1.5, -3.0)
+	_enemy.position = Vector3(0, 1.5, -4.5)
 	add_child(_enemy)
 
 	# Fake camera rig so impact shakes can be measured.

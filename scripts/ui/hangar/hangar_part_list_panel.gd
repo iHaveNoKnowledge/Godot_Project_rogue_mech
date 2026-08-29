@@ -24,6 +24,14 @@ func populate(slot: String) -> void:
 	controller.visible_salvage_indices.clear()
 	controller.visible_frame_indices.clear()
 	controller.visible_weapon_indices.clear()
+	if "visible_attachment_indices" in controller:
+		controller.visible_attachment_indices.clear()
+	controller.selected_salvage_info = {}
+	controller.selected_frame_info = {}
+	controller.selected_attachment_info = {}
+	controller.selected_part_path = ""
+	controller.selected_part_id = ""
+	controller.selected_weapon_uid = ""
 	_is_populating = true  # Block 3D preview during auto-populate
 
 	_update_currently_equipped_display(slot)
@@ -189,6 +197,12 @@ func populate(slot: String) -> void:
 			controller.part_item_list.select(0)
 			_last_selected_item_index = 0
 			on_item_selected(0)
+		else:
+			controller.stats_label.text = "NO ARMOR SPARES IN INVENTORY\n\nCraft armor plates in the Craftery below, or salvage them from battles."
+			if controller.stats_hp_bar_box:
+				for child in controller.stats_hp_bar_box.get_children():
+					child.queue_free()
+			controller.update_tier_display({}, controller.selected_slot)
 
 	_is_populating = false  # Restore flag
 
@@ -335,7 +349,6 @@ func _update_currently_equipped_display(slot: String) -> void:
 
 
 func on_item_selected(index: int) -> void:
-	if _is_populating: return
 	_last_selected_item_index = index
 
 	if controller.stats_hp_bar_box:
@@ -535,11 +548,7 @@ func on_item_activated(index: int) -> void:
 
 func resolve_info_for_index(index: int) -> Dictionary:
 	var info_to_show: Dictionary = {}
-	if not controller.selected_salvage_info.is_empty():
-		info_to_show = controller.selected_salvage_info
-	elif not controller.selected_frame_info.is_empty():
-		info_to_show = controller.selected_frame_info
-	elif controller.current_mode == "frame" and controller.frame_catalog.has(controller.selected_slot):
+	if controller.current_mode == "frame" and controller.frame_catalog.has(controller.selected_slot):
 		var items = controller.frame_catalog[controller.selected_slot]
 		var f_idx = index
 		if index >= 0 and index < controller.visible_frame_indices.size():
@@ -550,9 +559,23 @@ func resolve_info_for_index(index: int) -> Dictionary:
 		if index >= 0 and index < controller.visible_weapon_indices.size():
 			var inv_idx = controller.visible_weapon_indices[index]
 			info_to_show = GlobalData.weapons.weapon_inventory[inv_idx]
+	elif controller.current_mode == "attachment":
+		if "visible_attachment_indices" in controller and index >= 0 and index < controller.visible_attachment_indices.size():
+			var cat_idx = controller.visible_attachment_indices[index]
+			if cat_idx >= 0 and cat_idx < GlobalData.frame_property_catalog.size():
+				info_to_show = GlobalData.frame_property_catalog[cat_idx].duplicate(true)
+				info_to_show["slot"] = controller.selected_slot
 	elif controller.armor_catalog.has(controller.selected_slot):
 		if index >= 0 and index < controller.visible_salvage_indices.size():
 			info_to_show = GlobalData.weapons.armor_inventory[controller.visible_salvage_indices[index]]
+
+	if info_to_show.is_empty():
+		if controller.current_mode == "armor" and not controller.selected_salvage_info.is_empty():
+			info_to_show = controller.selected_salvage_info
+		elif controller.current_mode == "frame" and not controller.selected_frame_info.is_empty():
+			info_to_show = controller.selected_frame_info
+		elif controller.current_mode == "attachment" and not controller.selected_attachment_info.is_empty():
+			info_to_show = controller.selected_attachment_info
 	return info_to_show
 
 

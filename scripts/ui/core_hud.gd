@@ -192,18 +192,40 @@ func _update_eject_hud(is_eject: bool) -> void:
 					var w = weaps[widx]
 					var wname: String = w.weapon_name if "weapon_name" in w else "Sidearm"
 					var atype: String = w.get_ammo_type() if w.has_method("get_ammo_type") else "none"
-					var ammo_cnt: int = PilotSystem.get_ammo(atype) if atype != "none" else 999
-					_pilot_weapon_label.text = "WEAPON: %s (Ammo: %d)" % [wname, ammo_cnt] if atype != "none" else "WEAPON: %s" % wname
+					var reserve_cnt: int = PilotSystem.get_ammo(atype) if atype != "none" else 999
+					var cur_mag: int = p.get_current_magazine() if p.has_method("get_current_magazine") else 0
+					var max_mag: int = p.get_max_magazine() if p.has_method("get_max_magazine") else 0
+					var is_rel: bool = p.is_currently_reloading() if p.has_method("is_currently_reloading") else false
+					var rel_prog: float = p.get_reload_progress() if p.has_method("get_reload_progress") else 0.0
+
+					_pilot_weapon_label.text = "WEAPON: %s" % wname
+
+					if _pilot_ammo_label:
+						if atype != "none":
+							if is_rel:
+								_pilot_ammo_label.text = "⟳ RELOADING... [%d%%]" % int(rel_prog * 100.0)
+								_pilot_ammo_label.add_theme_color_override("font_color", Color(1.0, 0.75, 0.2))
+							else:
+								_pilot_ammo_label.text = "AMMO: [ %d / %d ]  (Res: %d) [R]" % [cur_mag, max_mag, reserve_cnt]
+								_pilot_ammo_label.add_theme_color_override("font_color", Color(0.3, 0.95, 1.0) if cur_mag > 0 else Color(1.0, 0.3, 0.25))
+						else:
+							_pilot_ammo_label.text = "AMMO: ∞ (Melee)"
+							_pilot_ammo_label.add_theme_color_override("font_color", Color(0.8, 0.9, 1.0))
+
+					if _pilot_reload_bar:
+						_pilot_reload_bar.visible = is_rel
+						if is_rel:
+							_pilot_reload_bar.value = rel_prog * 100.0
 
 
 func _create_pilot_hud_panel() -> void:
 	_pilot_panel = PanelContainer.new()
 	_pilot_panel.name = "PilotHUDPanel"
 	_pilot_panel.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	_pilot_panel.offset_left = -160
-	_pilot_panel.offset_right = 160
-	_pilot_panel.offset_top = -120
-	_pilot_panel.offset_bottom = -36
+	_pilot_panel.offset_left = -170
+	_pilot_panel.offset_right = 170
+	_pilot_panel.offset_top = -140
+	_pilot_panel.offset_bottom = -30
 	_pilot_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_pilot_panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
 
@@ -231,9 +253,9 @@ func _create_pilot_hud_panel() -> void:
 	_pilot_panel.add_child(vbox)
 
 	var title := Label.new()
-	title.text = "🧑‍✈️ PILOT ON FOOT"
+	title.text = "🧑‍✈️ PILOT ON FOOT [TPS STANCE]"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 10)
+	title.add_theme_font_size_override("font_size", 11)
 	title.add_theme_color_override("font_color", Color(0.4, 0.9, 1.0))
 	vbox.add_child(title)
 
@@ -245,7 +267,7 @@ func _create_pilot_hud_panel() -> void:
 	vbox.add_child(_pilot_hp_label)
 
 	_pilot_hp_bar = ProgressBar.new()
-	_pilot_hp_bar.custom_minimum_size = Vector2(180, 8)
+	_pilot_hp_bar.custom_minimum_size = Vector2(200, 8)
 	_pilot_hp_bar.max_value = 100.0
 	_pilot_hp_bar.value = 100.0
 	_pilot_hp_bar.show_percentage = false
@@ -265,7 +287,7 @@ func _create_pilot_hud_panel() -> void:
 	vbox.add_child(_pilot_stamina_label)
 
 	_pilot_stamina_bar = ProgressBar.new()
-	_pilot_stamina_bar.custom_minimum_size = Vector2(180, 6)
+	_pilot_stamina_bar.custom_minimum_size = Vector2(200, 6)
 	_pilot_stamina_bar.max_value = 100.0
 	_pilot_stamina_bar.value = 100.0
 	_pilot_stamina_bar.show_percentage = false
@@ -280,9 +302,28 @@ func _create_pilot_hud_panel() -> void:
 	# Weapon info
 	_pilot_weapon_label = Label.new()
 	_pilot_weapon_label.text = "WEAPON: Sidearm Submachine Gun"
-	_pilot_weapon_label.add_theme_font_size_override("font_size", 9)
-	_pilot_weapon_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
+	_pilot_weapon_label.add_theme_font_size_override("font_size", 10)
+	_pilot_weapon_label.add_theme_color_override("font_color", Color(0.85, 0.9, 1.0))
 	vbox.add_child(_pilot_weapon_label)
+
+	# Ammo info & Reload indicator
+	_pilot_ammo_label = Label.new()
+	_pilot_ammo_label.text = "AMMO: [ 30 / 30 ]  (Res: 120) [R]"
+	_pilot_ammo_label.add_theme_font_size_override("font_size", 10)
+	_pilot_ammo_label.add_theme_color_override("font_color", Color(0.3, 0.95, 1.0))
+	vbox.add_child(_pilot_ammo_label)
+
+	_pilot_reload_bar = ProgressBar.new()
+	_pilot_reload_bar.custom_minimum_size = Vector2(200, 4)
+	_pilot_reload_bar.max_value = 100.0
+	_pilot_reload_bar.value = 0.0
+	_pilot_reload_bar.show_percentage = false
+	_pilot_reload_bar.visible = false
+	_pilot_reload_fill = StyleBoxFlat.new()
+	_pilot_reload_fill.bg_color = Color(1.0, 0.75, 0.2)
+	_pilot_reload_bar.add_theme_stylebox_override("fill", _pilot_reload_fill)
+	_pilot_reload_bar.add_theme_stylebox_override("background", s_bg)
+	vbox.add_child(_pilot_reload_bar)
 
 
 func _fit_panel_to_content() -> void:

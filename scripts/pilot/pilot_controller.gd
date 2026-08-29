@@ -7,9 +7,7 @@ const MechaEject = preload("res://scripts/mecha/mecha_eject.gd")
 
 var gravity := 20.0
 
-# Sprint + stamina are the PILOT'S OWN system — fully separate from the mech's
-# energy pool. Sprinting drains pilot stamina; it regenerates while walking /
-# standing. Out of stamina, the pilot can't sprint until it recovers.
+# Sprint + stamina system
 @export var sprint_speed: float = 8.2
 @export var max_stamina: float = 100.0
 @export var sprint_drain: float = 22.0
@@ -18,30 +16,32 @@ var gravity := 20.0
 var stamina: float = 100.0
 var _is_sprinting: bool = false
 
-# The pilot fights with their OWN body weapons (PilotSystem), completely
-# separate from the parked mech's loadout. One shared WeaponCore drives ammo /
-# cooldown / projectiles for whichever weapon is in hand; firing consumes the
-# pilot's personal ammo reserves.
+# Pilot personal weapons
 var _weapons: Array = []
 var _weapon_index: int = 0
 var _fire_core: WeaponCore = null
 var _fire_timer: float = 0.0
 var _weapon_mesh: Node3D = null
+var _human_visual: Node3D = null
+
+# TPS Magazine & Reload System
+var current_magazine: int = 0
+var is_reloading: bool = false
+var reload_timer: float = 0.0
+var reload_duration: float = 1.8
+var _orig_weapon_pos: Vector3 = Vector3(0.28, 1.00, -0.20)
+var _orig_weapon_rot: Vector3 = Vector3(0, 0, -0.15)
 
 
 func _ready() -> void:
 	add_to_group("pilot")
+	_build_tactical_human_mesh()
 	_weapons = PilotSystem.get_weapons()
 	if not _weapons.is_empty():
 		_equip_weapon(0)
 	_rebuild_weapon_mesh()
 
 
-# The pilot on foot is a real target: enemy fire (projectiles + melee) hits
-# them and drains the SAME PilotSystem HP pool that the mech-eject wounding
-# uses. A pilot whose HP reaches 0 is dead permanently — the run ends. This
-# is the same permanent-death rule enemy pilots use, so getting shot can end
-# a pilot for good instead of the player always ejecting and fleeing.
 func take_damage(amount: float, damage_type: String = "kinetic") -> void:
 	if amount <= 0.0 or PilotSystem.is_dead():
 		return
@@ -53,19 +53,70 @@ func take_damage(amount: float, damage_type: String = "kinetic") -> void:
 		_die()
 
 
-# Permanent death on foot: the pilot collapses and the run is over. The same
-# death rule applies to every pilot (player and enemy) — HP 0 is gone for good.
 func _die() -> void:
 	if GameManager.current_state == GameManager.State.EJECT:
 		GlobalData.board.run_notice = "Your pilot was shot and killed. The run ends here."
 		EventBus.combat_ended.emit(false)
 
 
+func get_max_magazine() -> int:
+	if _weapons.is_empty():
+		return 0
+	var weapon: WeaponPart = _weapons[_weapon_index % _weapons.size()]
+	if weapon.weapon_type == WeaponPart.WeaponType.MELEE:
+		return 999
+	var n := weapon.weapon_name.to_lower()
+	if "pistol" in n: return 12
+	if "assault" in n or "rifle" in n or "carbine" in n: return 30
+	if "anti_tank" in n or "sniper" in n: return 5
+	if "bazooka" in n or "missile" in n: return 1
+	return maxi(weapon.max_ammo, 15)
+
+
+func get_reload_duration() -> float:
+	if _weapons.is_empty():
+		return 1.8
+	var weapon: WeaponPart = _weapons[_weapon_index % _weapons.size()]
+	var n := weapon.weapon_name.to_lower()
+	if "pistol" in n: return 1.2
+	if "assault" in n or "rifle" in n: return 1.8
+	if "anti_tank" in n or "sniper" in n: return 2.4
+	if "bazooka" in n or "missile" in n: return 2.8
+	return 1.8
+
+
+func get_reserve_ammo() -> int:
+	if _weapons.is_empty():
+		return 0
+	var weapon: WeaponPart = _weapons[_weapon_index % _weapons.size()]
+	var ammo_type := weapon.get_ammo_type()
+	if ammo_type == "none" or weapon.weapon_type == WeaponPart.WeaponType.MELEE:
+		return 999
+	return PilotSystem.get_ammo(ammo_type)
+
+
+func get_current_magazine() -> int:
+	return current_magazine
+
+
+func is_currently_reloading() -> bool:
+	return is_reloading
+
+
+func get_reload_progress() -> float:
+	if not is_reloading or reload_duration <= 0.0:
+		return 0.0
+	return clampf(reload_timer / reload_duration, 0.0, 1.0)
+
+
 func _equip_weapon(index: int) -> void:
 	if _weapons.is_empty():
 		_weapon_index = 0
 		_fire_core = null
+		current_magazine = 0
 		return
+	is_reloading = false
+	reload_timer = 0.0
 	_weapon_index = posmod(index, _weapons.size())
 	var weapon: WeaponPart = _weapons[_weapon_index]
 	_fire_core = WeaponCore.from_weapon(weapon)
@@ -73,11 +124,12 @@ func _equip_weapon(index: int) -> void:
 	_fire_core.auto_reload = false
 	_fire_core.manual_reload = true
 	_fire_core.unlimited_ammo = weapon.max_ammo <= 0
+
+	var max_mag := get_max_magazine()
+	current_magazine = mini(max_mag, get_reserve_ammo())
 	_rebuild_weapon_mesh()
 
 
-# Rebuilds the pilot's carried-weapon model from the CURRENT weapon in hand.
-# Null clears it.
 func _rebuild_weapon_mesh() -> void:
 	if _weapon_mesh and is_instance_valid(_weapon_mesh):
 		_weapon_mesh.queue_free()
@@ -86,16 +138,120 @@ func _rebuild_weapon_mesh() -> void:
 		return
 	var weapon: WeaponPart = _weapons[_weapon_index % _weapons.size()]
 	_weapon_mesh = Node3D.new()
+	_weapon_mesh.name = "PilotWeaponMesh"
 	_weapon_mesh.add_child(WeaponVisualFactory.build_pilot_weapon(weapon))
-	# Naturally held at the pilot's right hand
+
 	var is_pistol := weapon.weapon_name.to_lower().contains("pistol")
 	if is_pistol:
-		_weapon_mesh.position = Vector3(0.26, 1.05, -0.25)
-		_weapon_mesh.rotation = Vector3(0, 0, -0.08)
+		_orig_weapon_pos = Vector3(0.24, 1.02, -0.22)
+		_orig_weapon_rot = Vector3(0, 0, -0.08)
 	else:
-		_weapon_mesh.position = Vector3(0.28, 1.00, -0.20)
-		_weapon_mesh.rotation = Vector3(0, 0, -0.15)
+		_orig_weapon_pos = Vector3(0.26, 0.98, -0.18)
+		_orig_weapon_rot = Vector3(0, 0, -0.15)
+
+	_weapon_mesh.position = _orig_weapon_pos
+	_weapon_mesh.rotation = _orig_weapon_rot
 	add_child(_weapon_mesh)
+
+
+func _build_tactical_human_mesh() -> void:
+	# Hide default placeholder capsule mesh
+	var placeholder := get_node_or_null("BodyMesh")
+	if placeholder:
+		placeholder.visible = false
+
+	if _human_visual and is_instance_valid(_human_visual):
+		_human_visual.queue_free()
+
+	_human_visual = Node3D.new()
+	_human_visual.name = "TacticalHumanVisual"
+
+	var suit_mat = StandardMaterial3D.new()
+	suit_mat.albedo_color = Color(0.18, 0.24, 0.28) # Tactical Slate / Navy
+	suit_mat.roughness = 0.65
+
+	var armor_mat = StandardMaterial3D.new()
+	armor_mat.albedo_color = Color(0.12, 0.16, 0.20) # Armored plating
+	armor_mat.metallic = 0.4
+	armor_mat.roughness = 0.35
+
+	var visor_mat = StandardMaterial3D.new()
+	visor_mat.albedo_color = Color(0.1, 0.85, 0.95) # Glowing Cyan Visor
+	visor_mat.emission_enabled = true
+	visor_mat.emission = Color(0.1, 0.85, 0.95)
+	visor_mat.emission_energy_multiplier = 3.5
+
+	# Head & Tactical Helmet (Height ~1.62m)
+	var head_mesh = MeshInstance3D.new()
+	var head_sphere = SphereMesh.new()
+	head_sphere.radius = 0.12
+	head_sphere.height = 0.22
+	head_mesh.mesh = head_sphere
+	head_mesh.position = Vector3(0, 1.58, 0)
+	head_mesh.set_surface_override_material(0, armor_mat)
+	_human_visual.add_child(head_mesh)
+
+	# Visor HUD
+	var visor_mesh = MeshInstance3D.new()
+	var visor_box = BoxMesh.new()
+	visor_box.size = Vector3(0.16, 0.06, 0.08)
+	visor_mesh.mesh = visor_box
+	visor_mesh.position = Vector3(0, 1.59, -0.09)
+	visor_mesh.set_surface_override_material(0, visor_mat)
+	_human_visual.add_child(visor_mesh)
+
+	# Torso Tactical Vest (Height ~1.20m)
+	var torso_mesh = MeshInstance3D.new()
+	var torso_box = BoxMesh.new()
+	torso_box.size = Vector3(0.36, 0.46, 0.22)
+	torso_mesh.mesh = torso_box
+	torso_mesh.position = Vector3(0, 1.20, 0)
+	torso_mesh.set_surface_override_material(0, armor_mat)
+	_human_visual.add_child(torso_mesh)
+
+	# Utility Belt
+	var belt_mesh = MeshInstance3D.new()
+	var belt_box = BoxMesh.new()
+	belt_box.size = Vector3(0.38, 0.08, 0.24)
+	belt_mesh.mesh = belt_box
+	belt_mesh.position = Vector3(0, 0.94, 0)
+	belt_mesh.set_surface_override_material(0, suit_mat)
+	_human_visual.add_child(belt_mesh)
+
+	# Left & Right Legs
+	for side in [-1.0, 1.0]:
+		var leg_mesh = MeshInstance3D.new()
+		var leg_cyl = CylinderMesh.new()
+		leg_cyl.top_radius = 0.07
+		leg_cyl.bottom_radius = 0.06
+		leg_cyl.height = 0.50
+		leg_mesh.mesh = leg_cyl
+		leg_mesh.position = Vector3(side * 0.11, 0.62, 0)
+		leg_mesh.set_surface_override_material(0, suit_mat)
+		_human_visual.add_child(leg_mesh)
+
+		# Combat Boots
+		var boot_mesh = MeshInstance3D.new()
+		var boot_box = BoxMesh.new()
+		boot_box.size = Vector3(0.09, 0.14, 0.18)
+		boot_mesh.mesh = boot_box
+		boot_mesh.position = Vector3(side * 0.11, 0.09, -0.02)
+		boot_mesh.set_surface_override_material(0, armor_mat)
+		_human_visual.add_child(boot_mesh)
+
+		# Arms
+		var arm_mesh = MeshInstance3D.new()
+		var arm_cyl = CylinderMesh.new()
+		arm_cyl.top_radius = 0.06
+		arm_cyl.bottom_radius = 0.05
+		arm_cyl.height = 0.44
+		arm_mesh.mesh = arm_cyl
+		arm_mesh.position = Vector3(side * 0.23, 1.18, -0.04)
+		arm_mesh.rotation = Vector3(0.15, 0, side * -0.1)
+		arm_mesh.set_surface_override_material(0, suit_mat)
+		_human_visual.add_child(arm_mesh)
+
+	add_child(_human_visual)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -111,24 +267,48 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			MechaEject.board_mecha(target_mech)
 			return
-	if event.is_action_pressed("fire_left"):
-		_try_fire()
-	elif event.is_action_pressed("fire_right"):
+
+	# Reload Input ([R] key or reload action)
+	if (event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_R or event.physical_keycode == KEY_R)) or (InputMap.has_action("reload") and event.is_action_pressed("reload")):
+		get_viewport().set_input_as_handled()
+		start_reload()
+		return
+
+	if event.is_action_pressed("fire_left") or event.is_action_pressed("fire_right"):
 		_try_fire()
 	elif event.is_action_pressed("weapon_left") or event.is_action_pressed("weapon_right"):
-		# Cycle personal weapons (key 1 / 3) — the pilot swaps their own sidearm.
 		if _weapons.size() > 1:
 			_equip_weapon(_weapon_index + 1)
 	elif event is InputEventMouseButton:
-		# Scroll wheel swaps the pilot's carried weapon (third-person shooter
-		# style): wheel up = next, wheel down = previous.
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed and _weapons.size() > 1:
 			_equip_weapon(_weapon_index + 1)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed and _weapons.size() > 1:
 			_equip_weapon(_weapon_index - 1)
 
 
-## Finds the closest boardable/unoccupied mecha within interaction distance (< 4.5m)
+func start_reload() -> void:
+	if _weapons.is_empty() or is_reloading:
+		return
+	var weapon: WeaponPart = _weapons[_weapon_index % _weapons.size()]
+	if weapon.weapon_type == WeaponPart.WeaponType.MELEE:
+		return
+	var max_mag := get_max_magazine()
+	if current_magazine >= max_mag:
+		return # Magazine already full
+	if get_reserve_ammo() <= 0:
+		return # No reserve ammo available
+
+	is_reloading = true
+	reload_duration = get_reload_duration()
+	reload_timer = 0.0
+
+	# Tactical weapon dipping animation during reload
+	if _weapon_mesh and is_instance_valid(_weapon_mesh):
+		var tw = create_tween()
+		tw.tween_property(_weapon_mesh, "position", _orig_weapon_pos + Vector3(0.0, -0.15, 0.05), 0.25)
+		tw.parallel().tween_property(_weapon_mesh, "rotation", _orig_weapon_rot + Vector3(0.3, 0.2, 0.0), 0.25)
+
+
 func find_nearest_boardable_mech() -> CharacterBody3D:
 	var tree := get_tree()
 	if tree == null:
@@ -145,8 +325,7 @@ func find_nearest_boardable_mech() -> CharacterBody3D:
 		if node is CharacterBody3D and is_instance_valid(node) and node != self:
 			var hs = node.get_node_or_null("HealthSystem")
 			if hs and bool(hs.get("is_destroyed")):
-				continue # Destroyed mechas cannot be boarded
-			# Must be unoccupied, parked, or without a live pilot
+				continue
 			if node.has_meta("is_unoccupied") or node.has_meta("is_parked") or not node.has_meta("has_pilot"):
 				var d := global_position.distance_to(node.global_position)
 				if d < best_dist:
@@ -160,17 +339,16 @@ func _try_fire() -> void:
 		return
 	var weapon: WeaponPart = _weapons[_weapon_index]
 	if weapon.weapon_type == WeaponPart.WeaponType.MELEE:
-		# On-foot melee: a short lunging swing with the sidearm's blade.
 		_melee_swing(weapon)
 		return
 
-	# Personal ammo: the pilot's own reserve (not the mech's). Melee / infinite
-	# weapons ignore it.
-	var ammo_type := weapon.get_ammo_type()
-	if ammo_type != "none" and not _fire_core.unlimited_ammo:
-		if PilotSystem.get_ammo(ammo_type) <= 0:
-			return
-		PilotSystem.consume_ammo(ammo_type, weapon.ammo_per_shot)
+	if is_reloading:
+		return # Cannot shoot while reloading
+
+	# Magazine check
+	if current_magazine <= 0:
+		start_reload()
+		return
 
 	var cam := get_viewport().get_camera_3d()
 	if cam == null:
@@ -192,9 +370,9 @@ func _try_fire() -> void:
 		aim_dir = (ray_origin + ray_dir * 500.0 - muzzle).normalized()
 
 	if _fire_core.try_fire(muzzle, aim_dir, false, self):
+		current_magazine = maxi(current_magazine - weapon.ammo_per_shot, 0)
 		if AudioManager:
 			AudioManager.play_sfx("machine_gun", muzzle, -8.0)
-		# Pilot weapons recoil the pilot's own aim slightly (no mech to absorb it).
 		velocity.x += -aim_dir.x * 0.8
 		velocity.z += -aim_dir.z * 0.8
 
@@ -216,8 +394,15 @@ func _melee_swing(weapon: WeaponPart) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if GameManager.current_state != GameManager.State.EJECT:
+	# Handle reload timer progression
+	if is_reloading:
+		reload_timer += delta
+		if reload_timer >= reload_duration:
+			_finish_reload()
+
+	if GameManager.current_state != GameManager.State.EJECT and not has_meta("test_mode"):
 		return
+
 	var input = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var cam = get_viewport().get_camera_3d()
 	if cam == null:
@@ -229,8 +414,6 @@ func _physics_process(delta: float) -> void:
 	right.y = 0.0
 	right = right.normalized()
 
-	# Sprint: Shift while moving. Drains pilot stamina (separate from the mech's
-	# energy). Stamina regens while walking/standing; empty stamina = no sprint.
 	var wants_sprint := Input.is_action_pressed("strafe") and input.length() > 0.1
 	_is_sprinting = wants_sprint and stamina > 0.0
 	if _is_sprinting:
@@ -256,6 +439,26 @@ func _physics_process(delta: float) -> void:
 		EventBus.interaction_prompt_updated.emit("", false)
 
 
-# Current stamina fraction 0..1 (for the pilot HUD).
+func _finish_reload() -> void:
+	is_reloading = false
+	reload_timer = 0.0
+	if _weapons.is_empty():
+		return
+	var weapon: WeaponPart = _weapons[_weapon_index % _weapons.size()]
+	var ammo_type := weapon.get_ammo_type()
+	var needed := get_max_magazine() - current_magazine
+	var available := PilotSystem.get_ammo(ammo_type) if ammo_type != "none" else 999
+	var to_load := mini(needed, available)
+	if ammo_type != "none":
+		PilotSystem.consume_ammo(ammo_type, to_load)
+	current_magazine += to_load
+
+	# Snap weapon back to aim stance
+	if _weapon_mesh and is_instance_valid(_weapon_mesh):
+		var tw = create_tween()
+		tw.tween_property(_weapon_mesh, "position", _orig_weapon_pos, 0.15).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		tw.parallel().tween_property(_weapon_mesh, "rotation", _orig_weapon_rot, 0.15)
+
+
 func get_stamina_ratio() -> float:
 	return clampf(stamina / maxf(max_stamina, 0.001), 0.0, 1.0)

@@ -19,6 +19,17 @@ var target: Node3D = null
 var shake_amount: float = 0.0
 var shake_decay: float = 4.5
 
+# Camera Presets
+const MECHA_SPRING_LENGTH: float = 6.8
+const MECHA_OFFSET_X: float = 1.8
+const MECHA_OFFSET_Y: float = 3.2
+const MECHA_FOV: float = 72.0
+
+const PILOT_SPRING_LENGTH: float = 2.4 # Close tactical over-the-shoulder
+const PILOT_OFFSET_X: float = 0.55 # Right beside pilot shoulder
+const PILOT_OFFSET_Y: float = 1.45 # Human shoulder/eye height (1.45m)
+const PILOT_FOV: float = 75.0
+
 # Combat Mode Camera Stances (High Over-The-Shoulder TPS Framing)
 var _target_spring_length: float = 6.8
 var _target_offset_x: float = 1.8
@@ -46,9 +57,23 @@ func _on_camera_target_changed(new_target: Node3D) -> void:
 		target = new_target
 		if spring_arm:
 			spring_arm.add_excluded_object(target.get_rid())
+		if target.is_in_group("pilot"):
+			_target_spring_length = PILOT_SPRING_LENGTH
+			_target_offset_x = PILOT_OFFSET_X
+			_target_offset_y = PILOT_OFFSET_Y
+			_target_fov = PILOT_FOV
+			pitch_limit = Vector2(-85, 75)
+		else:
+			_target_spring_length = MECHA_SPRING_LENGTH
+			_target_offset_x = MECHA_OFFSET_X
+			_target_offset_y = MECHA_OFFSET_Y
+			_target_fov = MECHA_FOV
+			pitch_limit = Vector2(-80, 50)
 
 
 func _on_combat_mode_toggled(mode: String) -> void:
+	if target and target.is_in_group("pilot"):
+		return
 	if mode == "close_combat":
 		_target_spring_length = 4.8
 		_target_offset_x = 1.4
@@ -56,16 +81,14 @@ func _on_combat_mode_toggled(mode: String) -> void:
 		_target_fov = 78.0
 		add_shake(0.25)
 	else:
-		_target_spring_length = 6.8
-		_target_offset_x = 1.8
-		_target_offset_y = 3.2
-		_target_fov = 72.0
+		_target_spring_length = MECHA_SPRING_LENGTH
+		_target_offset_x = MECHA_OFFSET_X
+		_target_offset_y = MECHA_OFFSET_Y
+		_target_fov = MECHA_FOV
 
 
 func _on_pilot_spawned(pilot_node: Node3D) -> void:
-	target = pilot_node
-	if target and spring_arm:
-		spring_arm.add_excluded_object(target.get_rid())
+	_on_camera_target_changed(pilot_node)
 
 
 func add_shake(amount: float) -> void:

@@ -49,7 +49,15 @@ class MockFullHangarController extends Control:
 	var stats_panel = null
 	var slot_panel = null
 	var action_panel = null
+	var weight_label: Label = null
+	var currently_equipped_box = null
+	var currently_equipped_label = null
+	var currently_equipped_sublabel = null
+	var currently_equipped_bar_box = null
+	var left_panel_ui = null
+	var equip_panel = null
 	var part_list_panel = null
+	var ammo_panel = null
 
 	func _init() -> void:
 		name = "RootControl"
@@ -79,6 +87,7 @@ func _ready() -> void:
 	print("--- Running hangar_ui_overhaul_verify ---")
 	_test_hp_part_bar_durability_mode()
 	_test_hangar_header_and_stats_separation()
+	_test_currently_equipped_card_hp()
 	_test_hangar_right_panel_and_durability_bars()
 	_test_toast_notification_trigger()
 	print("All hangar_ui_overhaul_verify tests passed successfully!")
@@ -138,7 +147,43 @@ func _test_hangar_header_and_stats_separation() -> void:
 	_check(summary_text.contains("PILOT:"), "Header summary contains PILOT")
 	_check(summary_text.contains("FRAME HP:"), "Header summary contains FRAME HP")
 	_check(summary_text.contains("ARMOR HP:"), "Header summary contains ARMOR HP")
-	_check(summary_text.contains("WEIGHT:"), "Header summary contains WEIGHT")
+	_check(ctrl.weight_label != null, "Header contains weight_label")
+	_check(ctrl.weight_label.text.contains("WEIGHT:"), "weight_label formatted correctly")
+
+	ctrl.queue_free()
+
+func _test_currently_equipped_card_hp() -> void:
+	print("Testing Currently Equipped card HP formatting...")
+	var ctrl = MockFullHangarController.new()
+	add_child(ctrl)
+
+	var left_p := HangarLeftPanel.new()
+	left_p.controller = ctrl
+	ctrl.left_panel_ui = left_p
+	left_p.build(ctrl)
+
+	var part_list_p := HangarPartListPanel.new()
+	part_list_p.controller = ctrl
+	ctrl.part_list_panel = part_list_p
+	ctrl.armor_catalog = {"body": true}
+	ctrl.selected_slot = "body"
+
+	# Set up equipped armor part with 25 HP and 100% durability
+	GlobalData.weapons.equipped_parts["body"] = {
+		"name": "Barbatos Right Shoulder Guard",
+		"hp": 25.0,
+		"max_hp": 25.0,
+		"armor": 15.0,
+		"durability": 1.0
+	}
+	GlobalData.weapons.part_damage["body"] = 0.0
+
+	part_list_p._update_currently_equipped_display("body")
+
+	_check(ctrl.currently_equipped_sublabel != null, "currently_equipped_sublabel exists")
+	var sub_text: String = ctrl.currently_equipped_sublabel.text
+	_check(sub_text.contains("HP: 25 / 25"), "Equipped armor displays HP: 25 / 25 (not 1/1)")
+	_check(sub_text.contains("Armor: 15"), "Equipped armor displays Armor: 15")
 
 	ctrl.queue_free()
 

@@ -302,12 +302,14 @@ func _update_currently_equipped_display(slot: String) -> void:
 		var eq = GlobalData.weapons.equipped_parts.get(slot)
 		if eq is Dictionary and not eq.is_empty():
 			var eq_name = str(eq.get("name", eq.get("part_name", "Unknown Armor")))
-			var eq_hp = float(eq.get("durability", eq.get("max_hp", 100.0)))
-			var eq_armor = float(eq.get("armor", 10.0))
+			var eq_base_hp = GlobalData.part_stat(eq, "max_hp", 30.0)
+			var dur_ratio = GlobalData.get_durability_ratio(eq)
+			var effective_max_hp = eq_base_hp * dur_ratio
+			var eq_armor = GlobalData.part_stat(eq, "armor", 10.0)
 			var eq_dmg = clampf(float(GlobalData.weapons.part_damage.get(slot, 0.0)), 0.0, 1.0)
 			var is_destroyed = eq_dmg >= 1.0
-			var cur_hp = eq_hp * (1.0 - eq_dmg)
-			var hp_text = "HP: %.0f / %.0f (%.0f%%)" % [cur_hp, eq_hp, (1.0 - eq_dmg) * 100.0] if eq_dmg > 0.001 else "HP: %.0f / %.0f" % [eq_hp, eq_hp]
+			var cur_hp = effective_max_hp * (1.0 - eq_dmg)
+			var hp_text = "HP: %.0f / %.0f (%.0f%%)" % [cur_hp, effective_max_hp, dur_ratio * 100.0] if (eq_dmg > 0.001 or dur_ratio < 0.999) else "HP: %.0f / %.0f" % [eq_base_hp, eq_base_hp]
 			controller.currently_equipped_label.text = eq_name + (" [DESTROYED]" if is_destroyed else "")
 			controller.currently_equipped_sublabel.text = "%s | Armor: %.0f" % [hp_text, eq_armor]
 		else:

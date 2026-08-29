@@ -166,13 +166,14 @@ func build(root: Control) -> void:
 	ov_hbox.add_child(wt_box)
 
 	var wt_lbl := Label.new()
-	wt_lbl.text = "WEIGHT:"
+	wt_lbl.text = "WEIGHT: 0/0kg"
 	wt_lbl.add_theme_font_size_override("font_size", 11)
 	wt_lbl.add_theme_color_override("font_color", Color(0.7, 0.8, 0.9))
+	controller.weight_label = wt_lbl
 	wt_box.add_child(wt_lbl)
 
 	controller.weight_bar = ProgressBar.new()
-	controller.weight_bar.custom_minimum_size = Vector2(120, 14)
+	controller.weight_bar.custom_minimum_size = Vector2(90, 14)
 	controller.weight_bar.max_value = 85.0
 	wt_box.add_child(controller.weight_bar)
 

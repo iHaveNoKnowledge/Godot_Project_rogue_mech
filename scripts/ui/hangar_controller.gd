@@ -75,6 +75,7 @@ var stats_label: Control
 var total_stats_label: Control
 var currency_label: Control
 var header_mech_summary_label: Control
+var weight_label: Label
 var weight_bar: ProgressBar
 var stats_durability_bar_box: VBoxContainer
 var toast_container: Control

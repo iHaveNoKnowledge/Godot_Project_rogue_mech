@@ -95,9 +95,16 @@ func update() -> void:
 		ahp_str = "[color=#44ff77]%.0f/%.0f[/color]" % [total_armor_hp, total_max_armor_hp]
 
 	if "header_mech_summary_label" in controller and controller.header_mech_summary_label:
-		controller.header_mech_summary_label.text = "[b]PILOT:[/b] %s  |  [b]FRAME HP:[/b] %s  |  [b]ARMOR HP:[/b] %s  |  [b]WEIGHT:[/b] %.1f/%.1fkg  |  [b]PACK:[/b] %.1f/%.1fkg%s" % [
-			_editing_pilot_name(), fhp_str, ahp_str, total_weight, max_weight, field_pack_weight, field_pack_capacity, penalty_text
+		controller.header_mech_summary_label.text = "[b]PILOT:[/b] %s  |  [b]FRAME HP:[/b] %s  |  [b]ARMOR HP:[/b] %s  |  [b]PACK:[/b] %.1f/%.1fkg%s" % [
+			_editing_pilot_name(), fhp_str, ahp_str, field_pack_weight, field_pack_capacity, penalty_text
 		]
+
+	if "weight_label" in controller and controller.weight_label:
+		controller.weight_label.text = "WEIGHT: %.1f/%.1fkg" % [total_weight, max_weight]
+		if total_weight > max_weight:
+			controller.weight_label.add_theme_color_override("font_color", Color(1.0, 0.35, 0.35))
+		else:
+			controller.weight_label.add_theme_color_override("font_color", Color(0.75, 0.85, 0.95))
 
 	if "total_stats_label" in controller and controller.total_stats_label:
 		var total_penalties := ""

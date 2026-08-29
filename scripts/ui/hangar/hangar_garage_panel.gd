@@ -595,7 +595,7 @@ func apply_armor_preview(slot: String, info: Dictionary) -> void:
 	if pmm:
 		var part = ArmorPart.new()
 		part.part_name = info.get("name", "Spiky Armor")
-		part.max_hp = info.get("durability", info.get("max_hp", 100.0))
+		part.max_hp = GlobalData.part_stat(info, "max_hp", 100.0)
 		if info.has("color"):
 			part.part_color = info.get("color")
 		pmm.initialize_slot(slot, part)

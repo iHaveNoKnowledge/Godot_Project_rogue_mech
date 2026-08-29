@@ -29,7 +29,7 @@ static func get_slot_node_path(slot: String) -> String:
 
 # Total Field Pack weight capacity in kg = base + sum of equipped frames.
 static func get_field_pack_capacity() -> float:
-	var capacity := GlobalData.FIELD_PACK_BASE_CAPACITY
+	var capacity: float = GlobalData.FIELD_PACK_BASE_CAPACITY
 	for slot in GlobalData.weapons.equipped_frames:
 		var f = GlobalData.weapons.equipped_frames[slot]
 		if f is Dictionary:
@@ -593,7 +593,7 @@ static func register_weapon(path: String, weapon_name: String = "") -> String:
 	# another pile bunker appends a second "Pile Bunker" entry; the stash never
 	# merges same-model copies into a x2 count. The new uid is returned so the
 	# caller can reference this exact copy in a loadout slot.
-	var uid := GlobalData._new_uid("w")
+	var uid: String = GlobalData._new_uid("w")
 	GlobalData.weapons.weapon_inventory.append({
 		"uid": uid,
 		"path": path,

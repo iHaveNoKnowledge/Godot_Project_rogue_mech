@@ -258,16 +258,14 @@ func _on_status_pressed() -> void:
 
 func _on_inventory_pressed() -> void:
 	current_view = "inventory"
-	info_panel.visible = true
+	info_panel.visible = false
 	_clear_actions()
-	info_label.text = _build_inventory_text()
 	var modal_script = load("res://scripts/ui/board_inventory_modal.gd")
 	if modal_script:
 		var modal = modal_script.new()
 		add_child(modal)
 		modal.modal_closed.connect(func():
 			_rebuild_status_bars()
-			info_label.text = _build_inventory_text()
 		)
 
 

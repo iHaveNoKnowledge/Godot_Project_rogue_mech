@@ -51,6 +51,12 @@ func _create_loot_pickup(pos: Vector3, loot_data: Dictionary) -> void:
 		"armor":
 			material.albedo_color = Color(0.85, 0.35, 0.85)
 			box.size = Vector3(0.5, 0.5, 0.5)
+		"fuel":
+			material.albedo_color = Color(0.1, 0.85, 1.0)
+			material.emission_enabled = true
+			material.emission = Color(0.1, 0.85, 1.0)
+			material.emission_energy_multiplier = 2.0
+			box.size = Vector3(0.45, 0.6, 0.45)
 	mesh.set_surface_override_material(0, material)
 
 	pickup.set_meta("loot_data", loot_data)
@@ -115,6 +121,12 @@ func _on_pickup_body_entered(body: Node3D, pickup: Area3D) -> void:
 			if not inst.is_empty() and ArmorSystem.get_armor_instance(str(inst.get("uid", ""))).is_empty():
 				GlobalData.weapons.armor_inventory.append(inst)
 				GlobalData.board.run_notice = "Salvaged armor: %s" % str(inst.get("name", "plate"))
+		"fuel":
+			var item_id: String = str(loot_data.get("id", "fuel_canister"))
+			var amount: int = int(loot_data.get("amount", 1))
+			GlobalData.add_fuel_item(item_id, amount)
+			var item_name: String = str(loot_data.get("name", "Fuel Canister"))
+			GlobalData.board.run_notice = "Collected %s x%d (Use in Inventory to refuel Convoy)" % [item_name, amount]
 	pickup.queue_free()
 
 
@@ -206,6 +218,8 @@ func spawn_enemy_loot(enemy_position: Vector3, archetype: int = -1) -> void:
 		{"type": "scrap", "amount": 5, "drop_chance": 0.2},
 		{"type": "repair", "slot": "body", "drop_chance": 0.15},
 		{"type": "armor", "instance": _roll_salvaged_armor(), "drop_chance": 0.14},
+		{"type": "fuel", "id": "fuel_canister", "name": "Diesel Fuel Canister", "amount": 1, "drop_chance": 0.25},
+		{"type": "fuel", "id": "energy_cell_pack", "name": "Energy Cell Battery", "amount": 1, "drop_chance": 0.20},
 	]
 
 	# Occasionally drop the same kind of weapon the enemy used in combat. A

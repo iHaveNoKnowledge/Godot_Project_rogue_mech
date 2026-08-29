@@ -1016,17 +1016,14 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 	if vp and vp.get_world_3d() and vp.get_world_3d().direct_space_state:
 		var space_state := vp.get_world_3d().direct_space_state
 		var query := PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 500.0)
-		query.collision_mask = 10
+		query.collision_mask = 1 | 2 | 4 | 8 # Ground (1), solid obstacles/buildings (2), hitboxes (4), enemies (8)
 		var result := space_state.intersect_ray(query)
 		if result:
 			target_point = result["position"]
 
-	# Stabilized aim: direction from the mech's CHEST (stable) to the camera
-	# target, not from the swinging muzzle. The muzzle is still the spawn point
-	# (visual), but the bullet direction no longer wobbles with arm bob/walk.
-	# This fixes “กระสุนมั่วเพราะแขนแกว่ง ท่ายิงยังไม่ตั้ง”.
-	var stable_origin: Vector3 = (mecha as Node3D).global_position + Vector3(0, 1.5, 0)
-	var aim_dir: Vector3 = (target_point - stable_origin).normalized()
+	# Precise crosshair convergence: trajectory points directly from the weapon muzzle
+	# to the exact 3D world collision point targeted by the crosshair center.
+	var aim_dir: Vector3 = (target_point - spawn_pos).normalized()
 
 	# Fire through the shared core: it consumes cooldown/ammo/heat and spawns the
 	# projectile (bullet/missile/shotgun visuals handled by weapon_type). The
@@ -1040,6 +1037,8 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 
 		# Trigger 3D Action Animations (Shoot recoil or Shoulder launch)
 		var anim = mecha.get_node_or_null("MechaAnimation")
+		if anim == null:
+			anim = mecha.get_node_or_null("AnimationSystem")
 		if anim and anim.get("action_animator") != null:
 			if weapon.weapon_type == WeaponPart.WeaponType.MISSILE:
 				anim.action_animator.play_shoulder_shoot()
@@ -1072,7 +1071,7 @@ func _melee_attack(hand: String, weapon: WeaponPart, is_loaded_blast: bool = tru
 	if vp and vp.get_world_3d() and vp.get_world_3d().direct_space_state:
 		var space_state := vp.get_world_3d().direct_space_state
 		var query := PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 500.0)
-		query.collision_mask = 10
+		query.collision_mask = 1 | 2 | 4 | 8
 		var result := space_state.intersect_ray(query)
 		if result:
 			target_point = result["position"]
@@ -1105,6 +1104,8 @@ func _melee_attack(hand: String, weapon: WeaponPart, is_loaded_blast: bool = tru
 	# Execute lunging punch animation + Keyframed 3-Step Combo Attack Animation
 	_perform_pile_bunker_lunge_anim(mecha, dir, weapon)
 	var anim = mecha.get_node_or_null("MechaAnimation")
+	if anim == null:
+		anim = mecha.get_node_or_null("AnimationSystem")
 	if anim and anim.get("action_animator") != null:
 		anim.action_animator.play_melee(hand)
 

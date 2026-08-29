@@ -329,16 +329,15 @@ func _build_catalog_body(mech: Dictionary) -> void:
 
 
 # The PartMeshManager assembles meshes inside Head/Body/ArmLeft/... nodes.
-# The ally scene ships those, but NOT the lower-joint containers (Forearm/
-# Shin), so create them (same offsets as the enemy scenes) if missing.
+# Sockets mirror mecha_base.tscn upper and lower pivots at true world scale (4.725m tall).
 func _ensure_slot_nodes() -> void:
 	var slot_positions := {
-		"Head": Vector3(0, 2.2, 0),
-		"Body": Vector3(0, 1.3, 0),
-		"ArmLeft": Vector3(-0.75, 1.3, 0),
-		"ArmRight": Vector3(0.75, 1.3, 0),
-		"LegLeft": Vector3(-0.35, 0.6, 0),
-		"LegRight": Vector3(0.35, 0.6, 0),
+		"Head": Vector3(0, 3.864, -0.0672),
+		"Body": Vector3(0, 3.024, 0),
+		"ArmLeft": Vector3(-1.1424, 3.444, 0),
+		"ArmRight": Vector3(1.1424, 3.444, 0),
+		"LegLeft": Vector3(-0.6384, 2.184, 0),
+		"LegRight": Vector3(0.6384, 2.184, 0),
 	}
 	for name in slot_positions:
 		if get_node_or_null(name) != null:
@@ -355,10 +354,10 @@ func _ensure_slot_nodes() -> void:
 		"LegRight/ShinRight",
 	]
 	var lower_offsets := {
-		"ArmLeft/ForearmLeft": Vector3(0, -0.38, 0),
-		"ArmRight/ForearmRight": Vector3(0, -0.38, 0),
-		"LegLeft/ShinLeft": Vector3(0, -0.55, 0),
-		"LegRight/ShinRight": Vector3(0, -0.55, 0),
+		"ArmLeft/ForearmLeft": Vector3(0, -0.6384, 0),
+		"ArmRight/ForearmRight": Vector3(0, -0.6384, 0),
+		"LegLeft/ShinLeft": Vector3(0, -0.924, 0),
+		"LegRight/ShinRight": Vector3(0, -0.924, 0),
 	}
 	for node_path in lower_parent_names:
 		if get_node_or_null(node_path) != null:
@@ -374,10 +373,10 @@ func _ensure_slot_nodes() -> void:
 # so allies move with the identical stride, bob and idle combat stance instead
 # of standing frozen. Runs after _build_catalog_body so the slot nodes exist.
 func _setup_leg_animation() -> void:
-	if get_node_or_null("AllyAnimation") != null:
+	if get_node_or_null("MechaAnimation") != null or get_node_or_null("AllyAnimation") != null:
 		return
 	var anim := Node.new()
-	anim.name = "AllyAnimation"
+	anim.name = "MechaAnimation"
 	anim.set_script(load("res://scripts/mecha/mecha_animation.gd"))
 	add_child(anim)
 

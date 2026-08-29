@@ -95,8 +95,8 @@ static func roll_random_start() -> void:
 	# A weapon model may only be equipped once (left hand, right hand, back
 	# carry), so the rolled left-hand pick must stay distinct from the fixed
 	# right-hand and back-carry defaults.
-	var right_path := GlobalData.DEFAULT_RIGHT_WEAPON_PATH
-	var carry_path := GlobalData.DEFAULT_CARRY_WEAPON_PATH
+	var right_path: String = GlobalData.DEFAULT_RIGHT_WEAPON_PATH
+	var carry_path: String = GlobalData.DEFAULT_CARRY_WEAPON_PATH
 	var left_pool: Array = []
 	for p in valid:
 		if str(p) != right_path and str(p) != carry_path:

@@ -224,14 +224,14 @@ func _build_catalog_body() -> void:
 	catalog_body = pmm
 	add_child(pmm)
 
-	# Extra bulk for heavy grunts so the silhouette reads at a glance (true scale 4.73m base).
-	# Scale the root so collision, hitboxes, and visuals scale uniformly. Keep within realistic 4.5-5.5 band.
+	# Extra bulk for heavy grunts so the silhouette reads at a glance (true scale 4.725m base).
+	# Scale the root so collision, hitboxes, and visuals scale uniformly. Keep within realistic 4.7m - 5.2m band.
 	if archetype == 2:
-		scale = Vector3(1.15, 1.15, 1.15) # Heavy: 4.73*1.15=5.44m ratio 3.11 (was 1.6=7.57m unrealistic kaiju)
+		scale = Vector3(1.10, 1.10, 1.10) # Heavy Titan: 5.20m
 	elif archetype == 3:
-		scale = Vector3(1.05, 1.05, 1.05) # Support: 4.97m
-	elif archetype == 0:
-		scale = Vector3(0.95, 0.95, 0.95) # Rusher: 4.49m
+		scale = Vector3(1.03, 1.03, 1.03) # Support: 4.86m
+	else:
+		scale = Vector3(1.0, 1.0, 1.0) # Rusher / Ranged / Shield: 4.725m (identical base to player)
 
 	var loadout := _enemy_loadout()
 	pmm.refresh_from_loadout(loadout)
@@ -247,16 +247,15 @@ func _build_catalog_body() -> void:
 
 
 # The PartMeshManager assembles meshes inside Head/Body/ArmLeft/... nodes.
-# Placeholder scenes (e.g. the capsule rusher) may not ship those nodes, so we
-# create matching ones (with the same offsets as real enemy scenes) if missing.
+# Sockets mirror mecha_base.tscn upper and lower pivots at true world scale (4.725m tall).
 func _ensure_slot_nodes() -> void:
 	var slot_positions := {
-		"Head": Vector3(0, 2.2, 0),
-		"Body": Vector3(0, 1.3, 0),
-		"ArmLeft": Vector3(-0.75, 1.3, 0),
-		"ArmRight": Vector3(0.75, 1.3, 0),
-		"LegLeft": Vector3(-0.35, 0.6, 0),
-		"LegRight": Vector3(0.35, 0.6, 0),
+		"Head": Vector3(0, 3.864, -0.0672),
+		"Body": Vector3(0, 3.024, 0),
+		"ArmLeft": Vector3(-1.1424, 3.444, 0),
+		"ArmRight": Vector3(1.1424, 3.444, 0),
+		"LegLeft": Vector3(-0.6384, 2.184, 0),
+		"LegRight": Vector3(0.6384, 2.184, 0),
 	}
 	for name in slot_positions:
 		if get_node_or_null(name) != null:
@@ -275,10 +274,10 @@ func _ensure_slot_nodes() -> void:
 		"LegRight/ShinRight",
 	]
 	var lower_offsets := {
-		"ArmLeft/ForearmLeft": Vector3(0, -0.38, 0),
-		"ArmRight/ForearmRight": Vector3(0, -0.38, 0),
-		"LegLeft/ShinLeft": Vector3(0, -0.55, 0),
-		"LegRight/ShinRight": Vector3(0, -0.55, 0),
+		"ArmLeft/ForearmLeft": Vector3(0, -0.6384, 0),
+		"ArmRight/ForearmRight": Vector3(0, -0.6384, 0),
+		"LegLeft/ShinLeft": Vector3(0, -0.924, 0),
+		"LegRight/ShinRight": Vector3(0, -0.924, 0),
 	}
 	for node_path in lower_parent_names:
 		if get_node_or_null(node_path) != null:
@@ -427,10 +426,10 @@ func _archetype_palette() -> Dictionary:
 # of a separate implementation. Runs after _build_catalog_body so the
 # Head/Body/Leg*/Shin* slot nodes exist to drive.
 func _setup_leg_animation() -> void:
-	if get_node_or_null("EnemyAnimation") != null:
+	if get_node_or_null("MechaAnimation") != null or get_node_or_null("EnemyAnimation") != null:
 		return
 	var anim := Node.new()
-	anim.name = "EnemyAnimation"
+	anim.name = "MechaAnimation"
 	anim.set_script(load("res://scripts/mecha/mecha_animation.gd"))
 	add_child(anim)
 

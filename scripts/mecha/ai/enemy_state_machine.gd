@@ -20,7 +20,7 @@ var _emp_stun_timer: float = 0.0
 
 func _physics_process(delta: float) -> void:
 	# GDD §7: EWar EMP stun — enemies frozen while stunned
-	if GlobalData.ewar != null and GlobalData.ewar.is_active(GlobalData.ewar.Ability.EMP):
+	if GlobalData != null and "ewar" in GlobalData and GlobalData.ewar != null and GlobalData.ewar.is_active(GlobalData.ewar.Ability.EMP):
 		_emp_stun_timer = GlobalData.ewar.emp_stun_duration()
 	if _emp_stun_timer > 0.0:
 		_emp_stun_timer = maxf(_emp_stun_timer - delta, 0.0)

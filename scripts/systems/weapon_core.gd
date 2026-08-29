@@ -1,6 +1,8 @@
 class_name WeaponCore
 extends RefCounted
 
+const PartPenaltySystem = preload("res://scripts/systems/part_penalty_system.gd")
+
 ## Shared weapon firing core. Owns the firing mechanics (cooldown, ammo, reload,
 ## heat/overheat) plus projectile spawning, so the player's WeaponManager and
 ## enemy/ally AI all drive the SAME rules. The caller only supplies where the
@@ -183,7 +185,7 @@ func try_fire(from_pos: Vector3, aim_dir: Vector3, fired_by_enemy: bool, owner: 
 	var current_spread := spread
 	# GDD §6.1: Head damage increases weapon spread (HUD glitch / optics degraded)
 	if not fired_by_enemy:
-		current_spread += _PPS.head_spread_penalty()
+		current_spread += PartPenaltySystem.head_spread_penalty()
 	if heat_capacity > 0.0 and heat > 0.0:
 		var heat_ratio := clampf(heat / heat_capacity, 0.0, 1.0)
 		# Spread increases progressively as barrel heats up (rewards burst-firing & cooling)

@@ -13,16 +13,27 @@ extends RefCounted
 
 
 static func ensure_default_equipped_parts() -> void:
-	if not GlobalData.weapons.equipped_parts.is_empty():
-		return
 	for slot in GlobalData.MECHA_SLOTS:
-		if GlobalData.armor_catalog.has(slot) and GlobalData.armor_catalog[slot].size() > 0:
-			var pid = GlobalData.armor_catalog[slot][0].get("id", "")
-			if pid == "":
-				continue
-			var inst := make_armor_instance_from_catalog(pid)
-			if not inst.is_empty():
-				equip_armor_instance(inst["uid"], slot)
+		var current = GlobalData.weapons.equipped_parts.get(slot)
+		var is_valid := false
+		if current is Dictionary and not current.is_empty():
+			if current.has("name") and current.has("uid") and (current.has("hp") or current.has("max_hp")):
+				is_valid = true
+			elif current.has("uid"):
+				var found = get_armor_instance(str(current["uid"]))
+				if not found.is_empty() and found.has("name"):
+					GlobalData.weapons.equipped_parts[slot] = found
+					is_valid = true
+		elif current is Resource:
+			is_valid = true
+
+		if not is_valid:
+			if GlobalData.armor_catalog.has(slot) and GlobalData.armor_catalog[slot].size() > 0:
+				var pid = str(GlobalData.armor_catalog[slot][0].get("id", ""))
+				if pid != "":
+					var inst := make_armor_instance_from_catalog(pid)
+					if not inst.is_empty():
+						equip_armor_instance(inst["uid"], slot)
 
 
 static func get_armor_catalog_entry(part_id: String) -> Dictionary:

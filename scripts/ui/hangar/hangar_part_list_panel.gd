@@ -315,7 +315,14 @@ func _update_currently_equipped_display(slot: String) -> void:
 	if controller.armor_catalog.has(slot):
 		var eq = GlobalData.weapons.equipped_parts.get(slot)
 		if eq is Dictionary and not eq.is_empty():
-			var eq_name = str(eq.get("name", eq.get("part_name", "Unknown Armor")))
+			var eq_name = str(eq.get("name", eq.get("part_name", "")))
+			if eq_name == "":
+				var pid = str(eq.get("db_id", eq.get("id", "")))
+				if pid != "" and ArmorSystem.is_catalog_armor_id(pid):
+					var cat = ArmorSystem.get_armor_catalog_entry(pid)
+					eq_name = str(cat.get("name", "Standard Armor Plate"))
+				else:
+					eq_name = "Standard Armor Plate"
 			var eq_base_hp = GlobalData.part_stat(eq, "max_hp", 30.0)
 			var dur_ratio = GlobalData.get_durability_ratio(eq)
 			var effective_max_hp = eq_base_hp * dur_ratio

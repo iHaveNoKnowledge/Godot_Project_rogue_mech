@@ -405,17 +405,21 @@ static func serialize_parts() -> Dictionary:
 		if item == null:
 			result[slot] = null
 		elif item is Dictionary and item.has("uid"):
-			# Owned instance: persist the uid reference (armor_inventory has the rest).
-			result[slot] = {"uid": item["uid"], "equipped": item.get("equipped", true)}
+			# Owned instance: persist the uid reference and db_id for robust catalog recovery
+			result[slot] = {
+				"uid": item["uid"],
+				"db_id": item.get("db_id", item.get("id", "")),
+				"equipped": item.get("equipped", true)
+			}
 		elif item is Resource and "resource_path" in item and item.resource_path != "":
 			# Resource file: save path string for reload
 			result[slot] = item.resource_path
 		elif item is Dictionary:
-			var pid = item.get("id", "")
+			var pid = item.get("id", item.get("db_id", ""))
 			if pid != "" and ArmorSystem.is_catalog_armor_id(pid):
 				# Legacy catalog part: persist only the id reference + equipped state.
 				# Static stats always come from the catalog (single source of truth).
-				result[slot] = {"id": pid, "equipped": item.get("equipped", true)}
+				result[slot] = {"id": pid, "db_id": pid, "equipped": item.get("equipped", true)}
 			else:
 				# Legacy instance part (non-catalog): persist the full dict.
 				result[slot] = item.duplicate(true)
@@ -445,6 +449,14 @@ static func restore_armor_instance(raw: Dictionary) -> Dictionary:
 		)
 	inst["durability"] = clampf(float(inst.get("durability", 1.0)), 0.0, 1.0)
 	inst["upgrade_level"] = int(inst.get("upgrade_level", 1))
+	# Ensure name exists if db_id is present
+	var db_id = str(inst.get("db_id", inst.get("id", "")))
+	if not inst.has("name") and db_id != "" and ArmorSystem.is_catalog_armor_id(db_id):
+		var cat = ArmorSystem.get_armor_catalog_entry(db_id)
+		if not cat.is_empty():
+			for k in cat:
+				if not inst.has(k):
+					inst[k] = cat[k]
 	return inst
 
 
@@ -484,13 +496,15 @@ static func resolve_armor_value(v: Variant) -> Variant:
 	if v is String and ResourceLoader.exists(v):
 		return load(v)
 	if v is Dictionary:
-		var pid = v.get("id", "")
+		var pid = v.get("id", v.get("db_id", ""))
 		var entry: Dictionary = {}
 		if pid != "":
 			entry = ArmorSystem.get_armor_catalog_entry(pid)
 		if not entry.is_empty():
 			var resolved = entry.duplicate()
 			resolved["equipped"] = v.get("equipped", true)
+			if v.has("uid"):
+				resolved["uid"] = v["uid"]
 			return resolved
 		return v.duplicate(true)
 	return v
@@ -502,41 +516,45 @@ static func resolve_armor_value(v: Variant) -> Variant:
 static func resolve_equipped_part(v: Variant) -> Variant:
 	if v is Dictionary and v.has("uid"):
 		var inst := ArmorSystem.get_armor_instance(str(v["uid"]))
-		if not inst.is_empty():
+		if not inst.is_empty() and inst.has("name"):
 			inst["equipped"] = v.get("equipped", true)
 			return inst
+		# If instance was missing from armor_inventory, recover from catalog via db_id/id
+		var pid = str(v.get("db_id", v.get("id", "")))
+		if pid != "" and ArmorSystem.is_catalog_armor_id(pid):
+			var recovered := ArmorSystem.make_armor_instance_from_catalog(pid)
+			if not recovered.is_empty():
+				recovered["uid"] = str(v["uid"])
+				recovered["equipped"] = v.get("equipped", true)
+				return recovered
 	return resolve_armor_value(v)
 
 
-# Migrates any legacy equipped part (catalog id / full dict without a uid) into a
-# proper instance so the whole loadout is instance-based after loading old saves.
+# Migrates any legacy or hollow equipped part into a proper instance so the whole
+# loadout is instance-based with real names and stats after loading old saves.
 static func ensure_equipped_parts_are_instances() -> void:
-	for slot in GlobalData.weapons.equipped_parts.keys():
-		var part = GlobalData.weapons.equipped_parts[slot]
-		if part == null or part is Resource:
+	for slot in GlobalData.MECHA_SLOTS:
+		var part = GlobalData.weapons.equipped_parts.get(slot)
+		if part is Resource:
 			continue
-		if part is Dictionary and part.has("uid"):
-			continue
-		var inst: Dictionary = {}
-		var pid = part.get("id", "") if part is Dictionary else ""
-		if pid != "" and ArmorSystem.is_catalog_armor_id(pid):
-			var created := ArmorSystem.make_armor_instance_from_catalog(pid)
-			if not created.is_empty():
-				inst = created
-		else:
-			inst = (part.duplicate(true) if part is Dictionary else {})
-			inst["uid"] = GlobalData._new_uid("a")
-			inst["db_id"] = ""
-			inst["slot"] = str(part.get("slot", slot)) if part is Dictionary else slot
-			inst["durability"] = 1.0
-			inst["upgrade_level"] = 1
-		if not inst.is_empty():
-			# The legacy non-catalog instance is NOT part of armor_inventory yet —
-			# register it first, otherwise equip_armor_instance() can't find the uid
-			# and the freshly minted instance is silently orphaned.
-			if ArmorSystem.get_armor_instance(str(inst["uid"])).is_empty():
-				GlobalData.weapons.armor_inventory.append(inst)
-			ArmorSystem.equip_armor_instance(inst["uid"], slot)
+		var is_valid_instance := false
+		if part is Dictionary and part.has("uid") and part.has("name") and (part.has("hp") or part.has("max_hp")):
+			is_valid_instance = true
+			if ArmorSystem.get_armor_instance(str(part["uid"])).is_empty():
+				GlobalData.weapons.armor_inventory.append(part)
+
+		if not is_valid_instance:
+			var pid = part.get("id", part.get("db_id", "")) if part is Dictionary else ""
+			var inst: Dictionary = {}
+			if pid != "" and ArmorSystem.is_catalog_armor_id(pid):
+				inst = ArmorSystem.make_armor_instance_from_catalog(pid)
+			else:
+				if GlobalData.armor_catalog.has(slot) and GlobalData.armor_catalog[slot].size() > 0:
+					var def_pid = str(GlobalData.armor_catalog[slot][0].get("id", ""))
+					if def_pid != "":
+						inst = ArmorSystem.make_armor_instance_from_catalog(def_pid)
+			if not inst.is_empty():
+				ArmorSystem.equip_armor_instance(inst["uid"], slot)
 
 
 static func serialize_attachments() -> Array:

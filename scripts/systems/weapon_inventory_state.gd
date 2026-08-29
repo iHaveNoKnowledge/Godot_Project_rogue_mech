@@ -125,11 +125,14 @@ func reset() -> void:
 
 
 func _ensure_default_frames() -> void:
-	if not equipped_frames.is_empty():
-		return
 	for slot in GlobalData.MECHA_SLOTS:
-		if GlobalData.frame_catalog.has(slot) and GlobalData.frame_catalog[slot].size() > 0:
-			equipped_frames[slot] = GlobalData.frame_catalog[slot][0].duplicate()
+		var f = equipped_frames.get(slot)
+		var is_valid := false
+		if f is Dictionary and not f.is_empty() and f.has("name"):
+			is_valid = true
+		if not is_valid:
+			if GlobalData.frame_catalog.has(slot) and GlobalData.frame_catalog[slot].size() > 0:
+				equipped_frames[slot] = GlobalData.frame_catalog[slot][0].duplicate(true)
 
 
 func clear_working_set() -> void:

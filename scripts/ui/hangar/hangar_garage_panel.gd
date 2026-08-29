@@ -20,10 +20,10 @@ var garage_cam: Camera3D
 var mecha_3d_root: Node3D
 var turntable_node: Node3D
 var selection_highlight: MeshInstance3D
-var cam_target_pos: Vector3 = Vector3(10.416, 2.688, 14.784)
-var cam_look_target: Vector3 = Vector3(0, 5.376, 0)
-var current_cam_pos: Vector3 = Vector3(10.416, 2.688, 14.784)
-var current_look_pos: Vector3 = Vector3(0, 5.376, 0)
+var cam_target_pos: Vector3 = Vector3(7.2, 3.8, 10.5)
+var cam_look_target: Vector3 = Vector3(0, 2.9, 0)
+var current_cam_pos: Vector3 = Vector3(7.2, 3.8, 10.5)
+var current_look_pos: Vector3 = Vector3(0, 2.9, 0)
 
 # Mouse-drag + tab-blink state.
 var _is_dragging_3d: bool = false
@@ -471,31 +471,32 @@ func apply_tab_blink(on: bool) -> void:
 
 
 func update_camera_focus(slot: String) -> void:
+	# Tight, part-filling framing for 4.73m mech (scale 1.0). Distances kept ~5-6.5m so part fills viewport, not distant 10m
 	match slot:
 		"head":
-			cam_target_pos = Vector3(1.344, 4.536, 7.56)
-			cam_look_target = Vector3(0, 4.2, 0)
+			cam_target_pos = Vector3(1.0, 4.4, 5.8)
+			cam_look_target = Vector3(0, 3.85, -0.05)
 		"body":
-			cam_target_pos = Vector3(1.344, 3.36, 8.064)
-			cam_look_target = Vector3(0, 3.024, 0)
+			cam_target_pos = Vector3(1.4, 3.4, 6.2)
+			cam_look_target = Vector3(0, 3.02, 0)
 		"arm_left", "weapon_left":
-			cam_target_pos = Vector3(2.016, 4.032, 8.736)
-			cam_look_target = Vector3(-1.512, 3.192, 0.0)
+			cam_target_pos = Vector3(2.4, 3.6, 6.4)
+			cam_look_target = Vector3(-1.14, 3.35, 0.0)
 		"arm_right", "weapon_right":
-			cam_target_pos = Vector3(-2.016, 4.032, 8.736)
-			cam_look_target = Vector3(1.512, 3.192, 0.0)
+			cam_target_pos = Vector3(-2.4, 3.6, 6.4)
+			cam_look_target = Vector3(1.14, 3.35, 0.0)
 		"weapon_carry":
-			cam_target_pos = Vector3(2.016, 4.368, -8.4)
-			cam_look_target = Vector3(0, 3.36, 0)
+			cam_target_pos = Vector3(1.8, 3.8, -6.0)
+			cam_look_target = Vector3(0, 3.0, -0.3)
 		"leg_left":
-			cam_target_pos = Vector3(1.344, 2.688, 8.4)
-			cam_look_target = Vector3(-0.84, 1.68, 0.0)
+			cam_target_pos = Vector3(1.6, 2.2, 6.0)
+			cam_look_target = Vector3(-0.64, 1.85, 0.0)
 		"leg_right":
-			cam_target_pos = Vector3(-1.344, 2.688, 8.4)
-			cam_look_target = Vector3(0.84, 1.68, 0.0)
+			cam_target_pos = Vector3(-1.6, 2.2, 6.0)
+			cam_look_target = Vector3(0.64, 1.85, 0.0)
 		_:
-			cam_target_pos = Vector3(3.024, 4.032, 10.08)
-			cam_look_target = Vector3(0, 3.024, 0)
+			cam_target_pos = Vector3(7.2, 3.8, 10.5)
+			cam_look_target = Vector3(0, 2.9, 0)
 
 
 # --- REAL-TIME 3D PREVIEWS IN GARAGE ---

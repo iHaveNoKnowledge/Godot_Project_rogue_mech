@@ -59,12 +59,20 @@ func reveal(animated: bool = true) -> void:
 		if animated:
 			var mat = _fog_mesh.get_surface_override_material(0)
 			if mat is ShaderMaterial:
+				var fog_id := _fog_mesh.get_instance_id() if _fog_mesh else 0
 				var tween := create_tween()
 				tween.tween_property(mat, "shader_parameter/dissolve_progress", 1.0, 0.65).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 				tween.tween_callback(func():
-					if _fog_mesh and is_instance_valid(_fog_mesh):
-						_fog_mesh.queue_free()
+					# Use id to avoid freed lambda capture if tile was freed/reused
+					var fog = instance_from_id(fog_id) if fog_id != 0 else null
+					if is_instance_valid(fog):
+						fog.queue_free()
+					if is_instance_valid(self) and _fog_mesh == fog:
 						_fog_mesh = null
+					elif fog_id != 0:
+						var self_fog = _fog_mesh
+						if is_instance_valid(self_fog) and self_fog.get_instance_id() == fog_id:
+							_fog_mesh = null
 				)
 			else:
 				_fog_mesh.queue_free()

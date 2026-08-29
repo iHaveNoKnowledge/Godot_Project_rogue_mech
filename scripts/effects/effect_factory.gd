@@ -427,12 +427,18 @@ static func spawn_burning_ground(scene: SceneTree, pos: Vector3,
 		var delay := float(i) * (duration / 5.0)
 		var fl_pos := pos + Vector3(randf_range(-radius * 0.5, radius * 0.5), 0.1, randf_range(-radius * 0.5, radius * 0.5))
 		if is_instance_valid(container):
+			var container_id := container.get_instance_id()
+			var scene_id := scene.get_instance_id() if scene != null else 0
+			var parent_id := parent.get_instance_id() if parent != null and parent is Node else 0
 			var timer_tween := container.create_tween()
 			timer_tween.tween_interval(delay)
 			timer_tween.tween_callback(func():
-				if is_instance_valid(container) and is_instance_valid(scene):
-					spawn_fire_burst(scene, fl_pos, radius * 0.4, 0.4, 4.0, parent)
-					spawn_smoke_plume(scene, fl_pos, 3, 0.2, 0.4, 0.7, Color(0.15, 0.15, 0.15, 0.7), parent)
+				var c = instance_from_id(container_id)
+				var sc = instance_from_id(scene_id) if scene_id != 0 else null
+				var p = instance_from_id(parent_id) if parent_id != 0 else parent
+				if is_instance_valid(c) and is_instance_valid(sc):
+					spawn_fire_burst(sc, fl_pos, radius * 0.4, 0.4, 4.0, p)
+					spawn_smoke_plume(sc, fl_pos, 3, 0.2, 0.4, 0.7, Color(0.15, 0.15, 0.15, 0.7), p)
 			)
 
 

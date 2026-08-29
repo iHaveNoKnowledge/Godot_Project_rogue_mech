@@ -252,15 +252,20 @@ func _build_unit_card(
 
 	_cards_box.add_child(card)
 
-	# Animate HP Bar depletion transition
+	# Animate HP Bar depletion transition - use instance_id to avoid freed capture if card removed early
+	var hp_lbl_id := hp_text_lbl.get_instance_id()
+	var bar_id := bar.get_instance_id()
 	var tw := card.create_tween()
 	tw.set_parallel(false)
 	tw.tween_interval(0.3)
 	tw.tween_property(bar, "value", new_hp, 0.75).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tw.tween_callback(func():
-		hp_text_lbl.text = "HP: %d / %d (%+d)" % [int(new_hp), int(max_hp), int(new_hp - old_hp)]
-		if (new_hp / max_hp) <= 0.35:
-			hp_text_lbl.add_theme_color_override("font_color", Color(1.0, 0.35, 0.35))
+		var lbl = instance_from_id(hp_lbl_id)
+		var b = instance_from_id(bar_id)
+		if is_instance_valid(lbl) and is_instance_valid(b):
+			lbl.text = "HP: %d / %d (%+d)" % [int(new_hp), int(max_hp), int(new_hp - old_hp)]
+			if (new_hp / max_hp) <= 0.35:
+				lbl.add_theme_color_override("font_color", Color(1.0, 0.35, 0.35))
 	)
 	_anim_tweens.append(tw)
 

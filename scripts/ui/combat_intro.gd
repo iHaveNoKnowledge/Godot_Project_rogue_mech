@@ -82,10 +82,16 @@ func _finish() -> void:
 	if _done:
 		return
 	_done = true
+	var overlay_id := _overlay.get_instance_id() if _overlay else 0
 	var tween := create_tween()
 	tween.tween_property(_overlay, "modulate:a", 0.0, FADE_TIME).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tween.tween_callback(func():
-		if AudioManager:
+		if AudioManager and is_instance_valid(AudioManager):
 			AudioManager.set_combat_muted(false)
-		queue_free()
+		var ov = instance_from_id(overlay_id) if overlay_id != 0 else null
+		# Self may already be freed if scene changed - guard
+		if is_instance_valid(self):
+			queue_free()
+		elif is_instance_valid(ov):
+			ov.queue_free()
 	)

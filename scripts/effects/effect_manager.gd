@@ -400,11 +400,14 @@ static func spawn_hit_spark(position: Vector3, normal: Vector3 = Vector3.UP, dam
 		instance.add_child(light)
 		light.global_position = position + norm * 0.15
 
+		var light_id := light.get_instance_id()
 		var lt := instance.create_tween()
 		lt.tween_property(light, "light_energy", 0.0, 0.06)
 		lt.tween_callback(func():
 			_active_hit_lights = maxi(0, _active_hit_lights - 1)
-			light.queue_free()
+			var l = instance_from_id(light_id)
+			if is_instance_valid(l):
+				l.queue_free()
 		)
 
 	# 2. Expanding High-Intensity 8-Point Starburst Flash Mesh

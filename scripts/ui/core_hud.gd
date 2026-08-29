@@ -591,7 +591,12 @@ func _update_precision_indicator() -> void:
 		_precision_flash_tween = create_tween()
 		_precision_flash_tween.tween_interval(1.2)
 		_precision_flash_tween.tween_property(_precision_label, "modulate:a", 0.0, 0.4)
-		_precision_flash_tween.tween_callback(func(): _precision_label.visible = false)
+		var prec_id := _precision_label.get_instance_id() if _precision_label else 0
+		_precision_flash_tween.tween_callback(func():
+			var lbl = instance_from_id(prec_id) if prec_id != 0 else null
+			if is_instance_valid(lbl):
+				lbl.visible = false
+		)
 	elif not dodged:
 		_precision_was_dodged = false
 
@@ -658,10 +663,12 @@ func _on_deflect_triggered(_pos: Vector3, is_perfect: bool) -> void:
 	_guard_badge.add_theme_color_override("font_color", Color(1.0, 0.9, 0.1))
 	var tween := create_tween()
 	tween.tween_interval(0.6)
+	var badge_id := _guard_badge.get_instance_id() if _guard_badge else 0
 	tween.tween_callback(func():
-		if _guard_badge:
-			_guard_badge.text = "[Q] GUARD"
-			_guard_badge.add_theme_color_override("font_color", Color(0.6, 0.7, 0.8))
+		var b = instance_from_id(badge_id) if badge_id != 0 else null
+		if is_instance_valid(b):
+			b.text = "[Q] GUARD"
+			b.add_theme_color_override("font_color", Color(0.6, 0.7, 0.8))
 	)
 
 

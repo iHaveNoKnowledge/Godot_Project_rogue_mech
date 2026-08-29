@@ -719,7 +719,19 @@ func _spawn_break_vfx(slot_name: String) -> void:
 		
 		var tween = debris.create_tween()
 		tween.tween_property(mesh_inst, "scale", Vector3.ZERO, 0.5).set_delay(2.5)
-		tween.tween_callback(debris.queue_free)
+		var debris_id_cb := debris.get_instance_id()
+		tween.tween_callback(func():
+			var d = instance_from_id(debris_id_cb)
+			if is_instance_valid(d):
+				d.queue_free()
+		)
+		# Safety hard-free if tween was killed early (scene change)
+		var debris_id_fallback := debris.get_instance_id()
+		get_tree().create_timer(4.0).timeout.connect(func():
+			var d2 = instance_from_id(debris_id_fallback)
+			if is_instance_valid(d2):
+				d2.queue_free()
+		, CONNECT_ONE_SHOT)
 		
 	var vfx_scene = load("res://scenes/mecha/effects/vfx_armor_break.tscn")
 	if vfx_scene and entry["armor"] and entry["armor"].is_inside_tree():

@@ -911,30 +911,35 @@ func _spawn_parabolic_shell(start_pos: Vector3, dest_pos: Vector3, delay: float)
 	var duration := 0.55
 	var arc_height := 8.0
 
+	var shell_id := shell.get_instance_id()
 	var tween := create_tween()
 	tween.tween_interval(delay)
 	tween.tween_callback(func():
-		if is_instance_valid(shell):
-			shell.visible = true
+		var s = instance_from_id(shell_id)
+		if is_instance_valid(s):
+			s.visible = true
 	)
 	tween.tween_method(func(progress: float):
-		if not is_instance_valid(shell):
+		var s2 = instance_from_id(shell_id)
+		if not is_instance_valid(s2):
 			return
 		var current_xz := start_pos.lerp(dest_pos, progress)
 		var height_offset := sin(progress * PI) * arc_height
-		shell.global_position = Vector3(current_xz.x, lerp(start_pos.y, dest_pos.y, progress) + height_offset, current_xz.z)
+		s2.global_position = Vector3(current_xz.x, lerp(start_pos.y, dest_pos.y, progress) + height_offset, current_xz.z)
 	, 0.0, 1.0, duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 	tween.tween_callback(func():
-		if is_instance_valid(shell):
-			shell.queue_free()
-		# Detonate on impact
-		EffectManager.spawn_explosion(dest_pos, 4.0)
-		var rigs = get_tree().get_nodes_in_group("camera_rig")
-		if not rigs.is_empty() and rigs[0].has_method("add_shake"):
-			rigs[0].add_shake(0.4)
-		if player_token and is_instance_valid(player_token):
-			_flinch_player_token()
+		var s3 = instance_from_id(shell_id)
+		if is_instance_valid(s3):
+			s3.queue_free()
+		# Detonate on impact - guard EffectManager and tree
+		if is_instance_valid(self):
+			EffectManager.spawn_explosion(dest_pos, 4.0)
+			var rigs = get_tree().get_nodes_in_group("camera_rig") if is_instance_valid(get_tree()) else []
+			if not rigs.is_empty() and is_instance_valid(rigs[0]) and rigs[0].has_method("add_shake"):
+				rigs[0].add_shake(0.4)
+			if player_token and is_instance_valid(player_token):
+				_flinch_player_token()
 	)
 
 

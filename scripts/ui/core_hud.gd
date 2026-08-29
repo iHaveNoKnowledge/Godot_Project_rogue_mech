@@ -74,6 +74,9 @@ var _pilot_stamina_label: Label = null
 var _pilot_stamina_bar: ProgressBar = null
 var _pilot_stamina_fill: StyleBoxFlat = null
 var _pilot_weapon_label: Label = null
+var _pilot_ammo_label: Label = null
+var _pilot_reload_bar: ProgressBar = null
+var _pilot_reload_fill: StyleBoxFlat = null
 
 # Interaction Prompt Banner
 var _interaction_panel: PanelContainer = null

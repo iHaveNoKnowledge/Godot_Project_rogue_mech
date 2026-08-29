@@ -118,12 +118,16 @@ static func from_stats(stats: Dictionary) -> WeaponCore:
 	core.projectile_speed = float(stats.get("projectile_speed", 30.0))
 	core.max_ammo = int(stats.get("max_ammo", 0))
 	core.ammo = core.max_ammo
+	core.reserve = int(stats.get("reserve_ammo", -1))
 	core.reload_time = float(stats.get("reload_time", 3.0))
 	core.damage_type = str(stats.get("damage_type", "kinetic"))
 	core.impact = float(stats.get("impact", 0.0))
 	core.projectile_style = Style.ORB
 	core.projectile_color = stats.get("projectile_color", Color(1, 0.8, 0.2))
-	core.unlimited_ammo = core.max_ammo <= 0
+	if stats.has("unlimited_ammo"):
+		core.unlimited_ammo = bool(stats["unlimited_ammo"])
+	else:
+		core.unlimited_ammo = core.max_ammo <= 0 or core.reserve < 0
 	core.auto_reload = not core.unlimited_ammo
 	return core
 
@@ -148,6 +152,10 @@ func can_fire() -> bool:
 	return true
 
 
+func is_completely_dry() -> bool:
+	return not unlimited_ammo and ammo <= 0 and reserve <= 0
+
+
 ## Consumes the shot's cost (cooldown, ammo, heat) WITHOUT spawning a
 ## projectile. Used by melee weapons, where the caller runs its own lunge/hit
 ## animation but still obeys the shared weapon rules.
@@ -158,7 +166,7 @@ func consume_shot() -> bool:
 	if not unlimited_ammo:
 		ammo = maxi(ammo - ammo_per_shot, 0)
 		ammo_changed.emit(ammo, max_ammo)
-		if ammo <= 0 and auto_reload:
+		if ammo <= 0 and auto_reload and (unlimited_ammo or reserve > 0):
 			begin_reload()
 	_accumulate_heat()
 	fired.emit()
@@ -204,13 +212,15 @@ func try_fire(from_pos: Vector3, aim_dir: Vector3, fired_by_enemy: bool, owner: 
 func begin_reload() -> bool:
 	if reloading or max_ammo <= 0 or ammo >= max_ammo:
 		return false
+	if not unlimited_ammo and reserve <= 0:
+		return false
 	reloading = true
 	reload_timer = reload_time
 	return true
 
 
-## Finishes a reload, drawing from `reserve` when set (player) or refilling the
-## whole magazine (enemies / infinite ammo). Returns the ammo refilled.
+## Finishes a reload, drawing from `reserve` when set or refilling the
+## whole magazine when unlimited. Returns the ammo refilled.
 func complete_reload() -> int:
 	if not reloading:
 		return 0
@@ -218,11 +228,13 @@ func complete_reload() -> int:
 	reload_timer = 0.0
 	var needed := max_ammo - ammo
 	var refilled := 0
-	if unlimited_ammo or reserve <= 0:
+	if unlimited_ammo:
 		refilled = needed
-	else:
+	elif reserve > 0:
 		refilled = mini(needed, reserve)
 		reserve -= refilled
+	else:
+		refilled = 0
 	ammo += refilled
 	ammo_changed.emit(ammo, max_ammo)
 	return refilled

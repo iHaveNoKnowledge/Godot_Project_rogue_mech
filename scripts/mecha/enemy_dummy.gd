@@ -125,8 +125,10 @@ var _weapon_hand_mount: Node3D = null
 # WeaponCore (same rules as the player's weapons); these fields feed the core's
 # from_stats() build and the getters below delegate to it.
 var max_ammo: int = 0
+var reserve_ammo: int = -1
 var reload_time: float = 3.0
 var fire_core: WeaponCore = null
+var is_melee_fallback_active: bool = false
 
 var is_reloading: bool:
 	get:
@@ -486,21 +488,52 @@ func _apply_archetype_stats() -> void:
 	attack_damage = stats["attack_damage"]
 	attack_cooldown = stats["attack_cooldown"]
 
-	# Set ammo for ranged types
+	var is_boss: bool = (squad_role == "commander") or (pilot_data.get("is_boss", false))
+	var is_ace: bool = int(pilot_data.get("tier", 1)) >= 3 or pilot_trait in ["Aggressive", "Tactical"]
+
+	# Set finite magazine & reserve ammo per tier and archetype
 	if archetype == 1:  # RANGED
 		max_ammo = 25
 		reload_time = 3.0
-	elif archetype == 2:  # HEAVY (charge uses stamina-like ammo)
-		max_ammo = 5
+		var mag_mult: int = 8 if is_boss else (4 if is_ace else 3)
+		reserve_ammo = max_ammo * mag_mult
+	elif archetype == 2:  # HEAVY (cannon / charge)
+		max_ammo = 6
 		reload_time = 4.0
+		var mag_mult: int = 6 if is_boss else (3 if is_ace else 2)
+		reserve_ammo = max_ammo * mag_mult
 	elif archetype == 5:  # SHIELD_RANGED (shield + gun)
 		max_ammo = 25
 		reload_time = 3.0
+		var mag_mult: int = 6 if is_boss else (3 if is_ace else 2)
+		reserve_ammo = max_ammo * mag_mult
+	else:
+		max_ammo = 0
+		reserve_ammo = -1 # Melee / Support archetypes stay ammo-free
+
 	_build_fire_core()
 
 
 func has_ammo() -> bool:
 	return fire_core != null and (fire_core.unlimited_ammo or fire_core.ammo > 0)
+
+
+func is_out_of_ammo() -> bool:
+	return fire_core != null and fire_core.is_completely_dry()
+
+
+## Tactical switch to CQB Melee mode when firearm is totally dry
+func switch_to_melee_fallback() -> void:
+	if is_melee_fallback_active:
+		return
+	is_melee_fallback_active = true
+	# Mount Heat Blade in right hand
+	if _weapon_hand_mount and is_instance_valid(_weapon_hand_mount):
+		_weapon_hand_mount.queue_free()
+	_weapon_hand_mount = WeaponVisualFactory.mount_hand(self, "right", preload("res://resources/mech/stock/weapon_heat_blade.tres"), "EnemyWeaponMount")
+	attack_range = 3.8
+	move_speed = maxf(move_speed * 1.25, 4.2)
+	attack_damage = maxf(attack_damage * 1.35, 18.0)
 
 
 # Builds the shared WeaponCore from the archetype's attack stats. Fire rate is
@@ -525,6 +558,7 @@ func _build_fire_core() -> void:
 		"attack_damage": attack_damage,
 		"attack_cooldown": attack_cooldown,
 		"max_ammo": max_ammo,
+		"reserve_ammo": reserve_ammo,
 		"reload_time": reload_time,
 		"projectile_speed": 30.0,
 		"damage_type": attack_type,
@@ -536,6 +570,8 @@ func _build_fire_core() -> void:
 func _process(delta: float) -> void:
 	if fire_core:
 		fire_core.tick(delta)
+		if not is_melee_fallback_active and is_out_of_ammo():
+			switch_to_melee_fallback()
 	# Recharge the pool whenever the enemy isn't mid-dash. The cost is charged
 	# up front in start_dash(), so an enemy that never boosts stays topped up.
 	if not is_dashing:
@@ -598,6 +634,14 @@ func absorb_damage_with_shield(amount: float, damage_type: String = "") -> float
 # other, reusing the same WeaponVisualFactory models the player's mech uses.
 func _mount_visual_loadout() -> void:
 	match archetype:
+		0:  # RUSHER: heat blade
+			_weapon_hand_mount = WeaponVisualFactory.mount_hand(self, "right", preload("res://resources/mech/stock/weapon_heat_blade.tres"), "EnemyWeaponMount")
+		1:  # RANGED: beam carbine
+			_weapon_hand_mount = WeaponVisualFactory.mount_hand(self, "right", preload("res://resources/mech/stock/weapon_beam_carbine.tres"), "EnemyWeaponMount")
+		2:  # HEAVY: assault cannon
+			_weapon_hand_mount = WeaponVisualFactory.mount_hand(self, "right", preload("res://resources/mech/stock/weapon_assault_cannon.tres"), "EnemyWeaponMount")
+		3:  # SUPPORT: beam carbine
+			_weapon_hand_mount = WeaponVisualFactory.mount_hand(self, "right", preload("res://resources/mech/stock/weapon_beam_carbine.tres"), "EnemyWeaponMount")
 		4:  # SHIELD_MELEE: shield + heat blade
 			_shield_hand_mount = WeaponVisualFactory.mount_hand(self, "left", preload("res://resources/mech/stock/weapon_shield.tres"), "EnemyShieldMount")
 			_weapon_hand_mount = WeaponVisualFactory.mount_hand(self, "right", preload("res://resources/mech/stock/weapon_heat_blade.tres"), "EnemyWeaponMount")

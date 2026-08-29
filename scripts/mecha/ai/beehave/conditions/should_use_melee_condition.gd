@@ -23,9 +23,12 @@ func tick(actor: Node, blackboard: Blackboard) -> int:
 	if profile.get("prefer_melee", false) and dist <= 20.0:
 		return SUCCESS
 	
-	# 3. If ranged weapon is dry or reloading, fallback to blade
+	# 3. If ranged weapon is totally dry or reloading near target, fallback to blade
 	var fire_core: WeaponCore = actor.get("fire_core")
-	if fire_core != null and fire_core.ammo <= 0 and dist <= 18.0:
-		return SUCCESS
+	if fire_core != null:
+		if fire_core.is_completely_dry():
+			return SUCCESS
+		if fire_core.ammo <= 0 and dist <= 18.0:
+			return SUCCESS
 	
 	return FAILURE

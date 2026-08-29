@@ -27,6 +27,11 @@ func physics_process(delta: float) -> void:
 
 	var distance = enemy.global_position.distance_to(enemy.target.global_position)
 
+	# If out of ammo, transition to chase immediately to close into melee range
+	if enemy.has_method("is_out_of_ammo") and enemy.is_out_of_ammo():
+		state_machine.transition_to("StateChase")
+		return
+
 	# If too close, chase away
 	if distance < enemy.attack_range * 0.5:
 		state_machine.transition_to("StateChase")

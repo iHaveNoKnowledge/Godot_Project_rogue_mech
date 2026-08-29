@@ -202,20 +202,25 @@ func _perform_attack() -> void:
 	match archetype:
 		0:  # RUSHER - melee swing (collision-based, see _perform_melee)
 			_perform_melee()
-		1:  # RANGED - projectile
+		1:  # RANGED - projectile (or melee fallback when dry)
 			if enemy.has_ammo():
 				_fire_ranged()
+			elif enemy.has_method("is_out_of_ammo") and enemy.is_out_of_ammo():
+				_perform_melee()
 			else:
 				state_machine.transition_to("StateChase")
-		2:  # HEAVY - charge (handled by state_charge)
-			pass
+		2:  # HEAVY - charge (handled by state_charge) or melee smash when dry
+			if enemy.has_method("is_out_of_ammo") and enemy.is_out_of_ammo():
+				_perform_melee()
 		3:  # SUPPORT - heal nearest ally
 			_heal_nearest_ally()
 		4:  # SHIELD MELEE - melee swing, shield dropped around the swing
 			_perform_melee()
-		5:  # SHIELD RANGED - projectile, shield dropped around each shot
+		5:  # SHIELD RANGED - projectile (or melee fallback when dry)
 			if enemy.has_ammo():
 				_fire_ranged()
+			elif enemy.has_method("is_out_of_ammo") and enemy.is_out_of_ammo():
+				_perform_melee()
 			else:
 				state_machine.transition_to("StateChase")
 
@@ -245,7 +250,8 @@ func _heal_nearest_ally() -> void:
 # player can sidestep or boost out of the arc before the swing connects.
 func _snapshot_melee_swing_dir() -> void:
 	var arch2 = enemy.get("archetype")
-	if (arch2 == null or int(arch2) not in [0, 4]) or not enemy.target or not is_instance_valid(enemy.target):
+	var is_melee_action: bool = (arch2 != null and int(arch2) in [0, 4]) or (enemy.has_method("is_out_of_ammo") and enemy.is_out_of_ammo())
+	if not is_melee_action or not enemy.target or not is_instance_valid(enemy.target):
 		return
 	var dir: Vector3 = enemy.target.global_position - enemy.global_position
 	dir.y = 0.0

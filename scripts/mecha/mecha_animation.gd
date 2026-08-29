@@ -166,19 +166,6 @@ func _run_procedural(delta: float) -> void:
 		foot_ik.update_ik(delta)
 
 
-func _build_joints_dict() -> Dictionary:
-	return {
-		"head": head_mesh,
-		"body": body_mesh,
-		"arm_left": arm_left,
-		"forearm_left": forearm_left,
-		"arm_right": arm_right,
-		"forearm_right": forearm_right,
-		"leg_left": leg_left,
-		"shin_left": shin_left if shin_left else leg_left,
-		"leg_right": leg_right,
-		"shin_right": shin_right if shin_right else leg_right,
-	}
 # ─── Shared pose helper ────────────────────────────────────────────────────
 # Interpolates every mech joint toward the target values in `targets`. Only
 # supply the keys you need — all others default to 0.0 (neutral rotation,
@@ -499,19 +486,21 @@ func _update_shield_arm(delta: float) -> void:
 		if forearm_right:
 			forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, target_forearm, blend)
 # Builds a joints dictionary from the cached node refs for passing to
-# MechaWalkingSystem helpers.
+# MechaWalkingSystem and MechaActionAnimator helpers.
 func _build_joints_dict() -> Dictionary:
 	var j: Dictionary = {}
-	j["body_mesh"] = body_mesh
+	j["head"] = head_mesh
 	j["head_mesh"] = head_mesh
+	j["body"] = body_mesh
+	j["body_mesh"] = body_mesh
 	j["arm_left"] = arm_left
 	j["arm_right"] = arm_right
 	j["forearm_left"] = forearm_left
 	j["forearm_right"] = forearm_right
 	j["leg_left"] = leg_left
 	j["leg_right"] = leg_right
-	j["shin_left"] = shin_left
-	j["shin_right"] = shin_right
+	j["shin_left"] = shin_left if shin_left else leg_left
+	j["shin_right"] = shin_right if shin_right else leg_right
 	j["original_body_pos"] = _original_body_pos
 	j["original_head_pos"] = _original_head_pos
 	j["original_leg_left_pos"] = _original_leg_left_pos

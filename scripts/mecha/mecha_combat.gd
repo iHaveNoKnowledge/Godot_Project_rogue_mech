@@ -111,6 +111,11 @@ func _physics_process(delta: float) -> void:
 	if is_guarding:
 		guard_time += delta
 
+	# While any UI modal (Field Loot, Pause Menu) has the mouse free, freeze combat aim
+	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+		is_aiming = false
+		return
+
 	# The mech is ragdolled in its core-breach death window: no aiming either.
 	var mecha_hs = mecha.get_node_or_null("HealthSystem")
 	if mecha_hs != null and bool(mecha_hs.get("is_destroyed")):

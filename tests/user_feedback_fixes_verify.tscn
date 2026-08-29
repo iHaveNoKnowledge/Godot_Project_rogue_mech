@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://user_feedback_fixes_verify"]
+
+[ext_resource type="Script" path="res://tests/user_feedback_fixes_verify.gd" id="1_test"]
+
+[node name="UserFeedbackFixesVerify" type="Node"]
+script = ExtResource("1_test")

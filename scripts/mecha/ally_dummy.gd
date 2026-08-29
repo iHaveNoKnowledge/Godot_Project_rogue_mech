@@ -378,7 +378,7 @@ func _setup_leg_animation() -> void:
 		return
 	var anim := Node.new()
 	anim.name = "AllyAnimation"
-	anim.set_script(preload("res://scripts/mecha/mecha_animation.gd"))
+	anim.set_script(load("res://scripts/mecha/mecha_animation.gd"))
 	add_child(anim)
 
 

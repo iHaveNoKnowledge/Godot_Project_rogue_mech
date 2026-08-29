@@ -303,6 +303,8 @@ func _build_tactical_human_mesh() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if GameManager.current_state != GameManager.State.EJECT:
 		return
+	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+		return
 	if event.is_action_pressed("interact") or (event is InputEventKey and event.pressed and event.keycode == KEY_F and not event.echo):
 		var now := Time.get_ticks_msec()
 		var last_time: int = int(get_meta("last_mount_toggle_time", 0))

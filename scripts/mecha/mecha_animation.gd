@@ -1,7 +1,5 @@
 extends Node
 
-const MechaActionAnimator = preload("res://scripts/mecha/mecha_action_animator.gd")
-
 @export var bob_amount: float = 0.15
 @export var bob_speed: float = 14.0
 @export var recoil_amount: float = 0.3

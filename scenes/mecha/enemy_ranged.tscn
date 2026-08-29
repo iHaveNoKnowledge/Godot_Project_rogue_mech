@@ -6,23 +6,23 @@
 [ext_resource type="Script" path="res://scripts/mecha/mecha_hitbox.gd" id="4"]
 
 [sub_resource type="CapsuleShape3D" id="BodyShape"]
-radius = 0.65
-height = 3.2
+radius = 1.05
+height = 4.725
 
 [sub_resource type="SphereMesh" id="HeadMesh"]
-radius = 0.35
-height = 0.7
+radius = 0.45
+height = 0.9
 
 [sub_resource type="BoxMesh" id="BodyMeshShape"]
-size = Vector3(1.3440, 1.6800, 0.8400)
+size = Vector3(1.8, 2.2, 1.1)
 
 [sub_resource type="BoxMesh" id="ArmMesh"]
-size = Vector3(0.3360, 1.3440, 0.3360)
+size = Vector3(0.45, 1.8, 0.45)
 
 [sub_resource type="CylinderMesh" id="LegMesh"]
-height = 1.0
-top_radius = 0.2
-bottom_radius = 0.25
+height = 1.6
+top_radius = 0.28
+bottom_radius = 0.35
 
 [sub_resource type="StandardMaterial3D" id="RangedMat"]
 albedo_color = Color(0.27, 0.51, 0.71, 1)
@@ -35,7 +35,7 @@ metallic = 0.4
 roughness = 0.5
 
 [sub_resource type="SphereShape3D" id="HitboxShape"]
-radius = 1.8
+radius = 2.688
 
 [node name="EnemyRanged" type="CharacterBody3D"]
 script = ExtResource("1")
@@ -48,46 +48,46 @@ collision_layer = 8
 collision_mask = 3
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.02, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.3625, 0)
 shape = SubResource("BodyShape")
 
 [node name="Head" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.0, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.864, 0)
 
 [node name="HeadMesh" type="MeshInstance3D" parent="Head"]
 mesh = SubResource("HeadMesh")
 material_override = SubResource("RangedMat")
 
 [node name="Body" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.024, 0)
 
 [node name="BodyMesh" type="MeshInstance3D" parent="Body"]
 mesh = SubResource("BodyMeshShape")
 material_override = SubResource("RangedMat")
 
 [node name="ArmLeft" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.6, 1.2, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.14, 3.444, 0)
 
 [node name="ArmLeftMesh" type="MeshInstance3D" parent="ArmLeft"]
 mesh = SubResource("ArmMesh")
 material_override = SubResource("RangedMatDark")
 
 [node name="ArmRight" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.6, 1.2, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.14, 3.444, 0)
 
 [node name="ArmRightMesh" type="MeshInstance3D" parent="ArmRight"]
 mesh = SubResource("ArmMesh")
 material_override = SubResource("RangedMatDark")
 
 [node name="LegLeft" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.3, 0.5, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.64, 2.184, 0)
 
 [node name="LegLeftMesh" type="MeshInstance3D" parent="LegLeft"]
 mesh = SubResource("LegMesh")
 material_override = SubResource("RangedMatDark")
 
 [node name="LegRight" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 0.5, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.64, 2.184, 0)
 
 [node name="LegRightMesh" type="MeshInstance3D" parent="LegRight"]
 mesh = SubResource("LegMesh")
@@ -116,6 +116,6 @@ mouse_filter = 2
 script = ExtResource("3")
 
 [node name="NameLabel3D" type="Label3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.2, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.0, 0)
 text = "RANGED"
 font_size = 18

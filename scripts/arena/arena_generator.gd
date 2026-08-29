@@ -563,6 +563,21 @@ func _get_theme_ground_color(pos_x: float, pos_z: float) -> Color:
 			return Color(0.40 + v, 0.42 + v, 0.45 + v)
 
 		BiomeTheme.CROSSROADS:
+			var is_suburb := GlobalData.board.combat_tile_sub_zone.begins_with("suburb") or GlobalData.board.board_theme_id == "suburb"
+			if is_suburb:
+				# Asphalt Streets (14m wide main cross avenues at X=0, Z=0)
+				if absf(pos_x) <= 7.0 or absf(pos_z) <= 7.0:
+					# Double yellow center lines outside the center intersection box
+					if ((absf(pos_x) <= 0.35 and absf(pos_z) > 7.0) or (absf(pos_z) <= 0.35 and absf(pos_x) > 7.0)):
+						return Color(0.92, 0.78, 0.15)
+					# Asphalt roadway
+					return Color(0.16 + v, 0.17 + v, 0.19 + v)
+				# Concrete Sidewalks & Curbs (2.5m wide bordering the street)
+				if (absf(pos_x) <= 9.5 or absf(pos_z) <= 9.5):
+					return Color(0.56 + v, 0.55 + v, 0.52 + v)
+				# Suburban manicured green lawns and gardens
+				var lawn_noise := ground_noise.get_noise_2d(pos_x * 0.08, pos_z * 0.08) * 0.04
+				return Color(0.24 + v + lawn_noise, 0.40 + v + lawn_noise, 0.19 + v)
 			if absf(pos_x) < 18.0 or absf(pos_z) < 18.0:
 				if absf(pos_x) < 1.0 or absf(pos_z) < 1.0:
 					return Color(0.85 + v, 0.75 + v, 0.20 + v)
@@ -1431,68 +1446,410 @@ func _build_crossroads_structures() -> void:
 		structures_container.add_child(block)
 
 
-## Suburb Village: Dense residential housing blocks, paved alleys, fences, and utility covers.
+## Suburb Village: Orderly residential street grid, realistic 1-2 story family homes,
+## walk-in front porches for dismounted pilot tactical cover, backyard fences, and street lamps.
 func _build_suburb_village_structures() -> void:
+	var village_root := Node3D.new()
+	village_root.name = "SuburbVillage"
+	structures_container.add_child(village_root)
+
+	# 1. Paved Road, Curb & Sidewalk Grid Overlay
+	_build_suburb_streets(village_root)
+
+	# 2. Orderly Planned House Lots Along Street Grid
+	_spawn_orderly_suburban_housing_blocks(village_root)
+
+
+func _build_suburb_streets(parent: Node3D) -> void:
+	var asphalt_mat := StandardMaterial3D.new()
+	asphalt_mat.albedo_color = Color(0.18, 0.19, 0.21)
+	asphalt_mat.metallic = 0.05
+	asphalt_mat.roughness = 0.85
+
+	var yellow_mat := StandardMaterial3D.new()
+	yellow_mat.albedo_color = Color(0.92, 0.78, 0.15)
+	yellow_mat.roughness = 0.6
+
+	var concrete_mat := StandardMaterial3D.new()
+	concrete_mat.albedo_color = Color(0.60, 0.59, 0.56)
+	concrete_mat.roughness = 0.75
+
+	var half := arena_size * 0.46
+	var street_w := 14.0
+	var sidewalk_w := 2.5
+	var curb_h := 0.22
+
+	# Main North-South Avenue (along Z axis at X=0)
+	var ns_road := MeshInstance3D.new()
+	var ns_box := BoxMesh.new()
+	ns_box.size = Vector3(street_w, 0.1, arena_size)
+	ns_road.mesh = ns_box
+	ns_road.material_override = asphalt_mat
+	ns_road.position = Vector3(0, 0.05, 0)
+	parent.add_child(ns_road)
+
+	# Main East-West Cross Street (along X axis at Z=0)
+	var ew_road := MeshInstance3D.new()
+	var ew_box := BoxMesh.new()
+	ew_box.size = Vector3(arena_size, 0.1, street_w)
+	ew_road.mesh = ew_box
+	ew_road.material_override = asphalt_mat
+	ew_road.position = Vector3(0, 0.05, 0)
+	parent.add_child(ew_road)
+
+	# Raised Concrete Sidewalks & Curbs along all 4 street flanks
+	for sx in [-street_w * 0.5 - sidewalk_w * 0.5, street_w * 0.5 + sidewalk_w * 0.5]:
+		for sz_sign in [-1.0, 1.0]:
+			var z_start: float = (street_w * 0.5 + sidewalk_w) * sz_sign
+			var z_len: float = half - absf(z_start)
+			if z_len > 10.0:
+				var sw := StaticBody3D.new()
+				sw.collision_layer = 2
+				sw.collision_mask = 1
+				var col := CollisionShape3D.new()
+				var c_shape := BoxShape3D.new()
+				c_shape.size = Vector3(sidewalk_w, curb_h, z_len)
+				col.shape = c_shape
+				col.position.y = curb_h * 0.5
+				sw.add_child(col)
+
+				var sw_mi := MeshInstance3D.new()
+				var c_mesh := BoxMesh.new()
+				c_mesh.size = c_shape.size
+				sw_mi.mesh = c_mesh
+				sw_mi.material_override = concrete_mat
+				sw_mi.position.y = curb_h * 0.5
+				sw.add_child(sw_mi)
+
+				var z_center: float = z_start + (z_len * 0.5 * sz_sign)
+				sw.position = Vector3(sx, 0, z_center)
+				parent.add_child(sw)
+
+	for sz in [-street_w * 0.5 - sidewalk_w * 0.5, street_w * 0.5 + sidewalk_w * 0.5]:
+		for sx_sign in [-1.0, 1.0]:
+			var x_start: float = (street_w * 0.5 + sidewalk_w) * sx_sign
+			var x_len: float = half - absf(x_start)
+			if x_len > 10.0:
+				var sw := StaticBody3D.new()
+				sw.collision_layer = 2
+				sw.collision_mask = 1
+				var col := CollisionShape3D.new()
+				var c_shape := BoxShape3D.new()
+				c_shape.size = Vector3(x_len, curb_h, sidewalk_w)
+				col.shape = c_shape
+				col.position.y = curb_h * 0.5
+				sw.add_child(col)
+
+				var sw_mi := MeshInstance3D.new()
+				var c_mesh := BoxMesh.new()
+				c_mesh.size = c_shape.size
+				sw_mi.mesh = c_mesh
+				sw_mi.material_override = concrete_mat
+				sw_mi.position.y = curb_h * 0.5
+				sw.add_child(sw_mi)
+
+				var x_center: float = x_start + (x_len * 0.5 * sx_sign)
+				sw.position = Vector3(x_center, 0, sz)
+				parent.add_child(sw)
+
+
+func _spawn_orderly_suburban_housing_blocks(parent: Node3D) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = _footprint_seed() + 777
+
+	# Street layout parameters:
+	# Sidewalk outer edge = 9.5m. Front lawn setback = 6.5m -> House center setback = 20.5m
+	var setback_front := 20.5
+	var lot_step := 16.0 # 16m between neighboring houses along the street
 	var half := arena_size * 0.42
-	var house_count := randi_range(10, 16)
-	var house_mat := StandardMaterial3D.new()
-	house_mat.albedo_color = Color(0.68, 0.65, 0.60)
-	house_mat.roughness = 0.8
+
+	# 4 Quadrants: Organized rows facing the North-South Avenue & East-West Avenue
+	# 1. North-South street lots (Facing East or West towards the Avenue)
+	for sign_x_f in [-1.0, 1.0]:
+		var sign_x: float = sign_x_f
+		var house_x: float = sign_x * setback_front
+		var rot_deg: float = 90.0 if sign_x < 0.0 else -90.0 # Facing street at center
+		var z_pos: float = 24.0
+		while z_pos < half:
+			for sign_z_f in [-1.0, 1.0]:
+				var sign_z: float = sign_z_f
+				var pos := Vector3(house_x, 0, sign_z * z_pos)
+				if footprint != null and not _rect_inside_footprint(Vector2(pos.x, pos.z), Vector2(8.0, 8.0)):
+					continue
+				var h_type := rng.randi_range(0, 2)
+				_spawn_suburban_house(parent, pos, rot_deg, h_type, rng)
+				# Street light pole on sidewalk in front of every other house
+				if int(z_pos) % 32 == 24:
+					var lamp_pos := Vector3(sign_x * 8.5, 0, sign_z * z_pos)
+					_spawn_suburban_street_lamp(parent, lamp_pos, Vector3(sign_x, 0, 0))
+			z_pos += lot_step
+
+	# 2. East-West street lots (Facing North or South towards the Cross Street)
+	for sign_z_f in [-1.0, 1.0]:
+		var sign_z: float = sign_z_f
+		var house_z: float = sign_z * setback_front
+		var rot_deg: float = 0.0 if sign_z < 0.0 else 180.0 # Facing street at center
+		var x_pos: float = 38.0 # Offset past the NS row corner
+		while x_pos < half:
+			for sign_x_f in [-1.0, 1.0]:
+				var sign_x: float = sign_x_f
+				var pos := Vector3(sign_x * x_pos, 0, house_z)
+				if footprint != null and not _rect_inside_footprint(Vector2(pos.x, pos.z), Vector2(8.0, 8.0)):
+					continue
+				var h_type := rng.randi_range(0, 2)
+				_spawn_suburban_house(parent, pos, rot_deg, h_type, rng)
+				if int(x_pos) % 32 == 38:
+					var lamp_pos := Vector3(sign_x * x_pos, 0, sign_z * 8.5)
+					_spawn_suburban_street_lamp(parent, lamp_pos, Vector3(0, 0, sign_z))
+			x_pos += lot_step
+
+	# 3. Secondary Rear Lots (Neighborhood depth block behind the front row)
+	var setback_back: float = 40.0
+	for sign_x_f in [-1.0, 1.0]:
+		var sign_x: float = sign_x_f
+		for sign_z_f in [-1.0, 1.0]:
+			var sign_z: float = sign_z_f
+			for z_off in [28.0, 46.0, 64.0]:
+				if z_off > half:
+					break
+				var pos := Vector3(sign_x * setback_back, 0, sign_z * z_off)
+				if footprint != null and not _rect_inside_footprint(Vector2(pos.x, pos.z), Vector2(8.0, 8.0)):
+					continue
+				var h_type := rng.randi_range(0, 2)
+				_spawn_suburban_house(parent, pos, 90.0 if sign_x < 0.0 else -90.0, h_type, rng)
+
+
+## Builds an authentic, human-scaled suburban home (1-2 stories, 3.6m - 5.2m wall height)
+## with an open covered porch and 2.2m door alcove accessible for dismounted pilots on foot.
+func _spawn_suburban_house(parent: Node3D, pos: Vector3, rot_deg_y: float, house_type: int, rng: RandomNumberGenerator) -> void:
+	var house := StaticBody3D.new()
+	house.name = "SuburbanHouse"
+	house.collision_layer = 2
+	house.collision_mask = 1
+
+	# Realistic Palette
+	var wall_colors := [
+		Color(0.78, 0.74, 0.68), # Warm Cream Siding
+		Color(0.68, 0.70, 0.72), # Modern Slate Grey
+		Color(0.82, 0.80, 0.76), # Classic White Plaster
+		Color(0.65, 0.38, 0.30), # Brick Red
+		Color(0.62, 0.66, 0.58)  # Sage Green Siding
+	]
+	var roof_colors := [
+		Color(0.22, 0.23, 0.26), # Charcoal Shingle
+		Color(0.48, 0.22, 0.18), # Terracotta Shingle
+		Color(0.25, 0.30, 0.38)  # Navy Shingle
+	]
+
+	var wall_mat := StandardMaterial3D.new()
+	wall_mat.albedo_color = wall_colors[rng.randi() % wall_colors.size()]
+	wall_mat.roughness = 0.75
 
 	var roof_mat := StandardMaterial3D.new()
-	roof_mat.albedo_color = Color(0.52, 0.24, 0.20)
+	roof_mat.albedo_color = roof_colors[rng.randi() % roof_colors.size()]
 	roof_mat.roughness = 0.7
 
-	var placed := 0
-	var guard := 0
-	while placed < house_count and guard < house_count * 6:
-		guard += 1
-		var angle := randf_range(0, TAU)
-		var dist := randf_range(28.0, half)
-		var pos_x := cos(angle) * dist
-		var pos_z := sin(angle) * dist
+	var trim_mat := StandardMaterial3D.new()
+	trim_mat.albedo_color = Color(0.92, 0.92, 0.90)
+	trim_mat.roughness = 0.5
 
-		var hw := randf_range(14.0, 20.0)
-		var hh := randf_range(8.0, 14.0)
-		var hd := randf_range(14.0, 22.0)
+	var door_mat := StandardMaterial3D.new()
+	door_mat.albedo_color = Color(0.35, 0.22, 0.14)
+	door_mat.roughness = 0.6
 
-		if footprint != null and not _rect_inside_footprint(Vector2(pos_x, pos_z), Vector2(hw * 0.5 + 4.0, hd * 0.5 + 4.0)):
-			continue
-		placed += 1
+	var glass_mat := StandardMaterial3D.new()
+	glass_mat.albedo_color = Color(0.18, 0.24, 0.30)
+	glass_mat.metallic = 0.9
+	glass_mat.roughness = 0.1
 
-		var house := StaticBody3D.new()
-		house.collision_layer = 2
-		house.collision_mask = 1
+	var is_two_story := (house_type == 1)
+	var hw: float = 8.5 if is_two_story else 8.0 # Width
+	var hd: float = 9.5 if is_two_story else 9.0 # Depth
+	var hh: float = 5.2 if is_two_story else 3.6 # Wall Height (True Realistic Scale)
 
-		var collision := CollisionShape3D.new()
-		var shape := BoxShape3D.new()
-		shape.size = Vector3(hw, hh, hd)
-		collision.shape = shape
-		collision.position.y = hh * 0.5
-		house.add_child(collision)
+	# 1. Main House Body Collision & Mesh
+	var col := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(hw, hh, hd)
+	col.shape = box
+	col.position.y = hh * 0.5
+	house.add_child(col)
 
-		var mesh_inst := MeshInstance3D.new()
-		var box := BoxMesh.new()
-		box.size = Vector3(hw, hh, hd)
-		mesh_inst.mesh = box
-		mesh_inst.material_override = house_mat
-		mesh_inst.position.y = hh * 0.5
-		house.add_child(mesh_inst)
+	var body_mesh := MeshInstance3D.new()
+	var b_box := BoxMesh.new()
+	b_box.size = Vector3(hw, hh, hd)
+	body_mesh.mesh = b_box
+	body_mesh.material_override = wall_mat
+	body_mesh.position.y = hh * 0.5
+	house.add_child(body_mesh)
 
-		# Pitch roof mesh
-		var roof := MeshInstance3D.new()
-		var r_box := BoxMesh.new()
-		r_box.size = Vector3(hw + 1.2, 2.5, hd + 1.2)
-		roof.mesh = r_box
-		roof.material_override = roof_mat
-		roof.position.y = hh + 1.25
-		house.add_child(roof)
+	# 2. Pitched Gabled Roof
+	var roof := MeshInstance3D.new()
+	var r_box := BoxMesh.new()
+	var roof_h := 2.0 if is_two_story else 1.6
+	r_box.size = Vector3(hw + 1.2, roof_h, hd + 1.2)
+	roof.mesh = r_box
+	roof.material_override = roof_mat
+	roof.position.y = hh + roof_h * 0.5
+	house.add_child(roof)
 
-		house.position = Vector3(pos_x, 0, pos_z)
-		house.rotation.y = randf_range(0, TAU)
-		house.add_to_group("concealment")
-		house.add_to_group("solid_obstacle")
-		structures_container.add_child(house)
+	# 3. Walk-In Front Porch (Tactical Pilot Cover & Human Scale)
+	var porch_w := 3.8
+	var porch_d := 2.2
+	var porch_deck_h := 0.30
+
+	# Porch Deck Step
+	var porch_deck := MeshInstance3D.new()
+	var pd_box := BoxMesh.new()
+	pd_box.size = Vector3(porch_w, porch_deck_h, porch_d)
+	porch_deck.mesh = pd_box
+	porch_deck.material_override = trim_mat
+	porch_deck.position = Vector3(0, porch_deck_h * 0.5, hd * 0.5 + porch_d * 0.5)
+	house.add_child(porch_deck)
+
+	# Porch Roof Canopy (Clearance = 2.4m for pilot to walk beneath)
+	var porch_canopy := MeshInstance3D.new()
+	var pc_box := BoxMesh.new()
+	pc_box.size = Vector3(porch_w + 0.4, 0.25, porch_d + 0.3)
+	porch_canopy.mesh = pc_box
+	porch_canopy.material_override = roof_mat
+	porch_canopy.position = Vector3(0, 2.65, hd * 0.5 + porch_d * 0.5)
+	house.add_child(porch_canopy)
+
+	# Porch Support Pillars
+	for px in [-porch_w * 0.5 + 0.2, porch_w * 0.5 - 0.2]:
+		var post := MeshInstance3D.new()
+		var p_cyl := CylinderMesh.new()
+		p_cyl.top_radius = 0.10
+		p_cyl.bottom_radius = 0.12
+		p_cyl.height = 2.4
+		post.mesh = p_cyl
+		post.material_override = trim_mat
+		post.position = Vector3(px, 1.4, hd * 0.5 + porch_d - 0.2)
+		house.add_child(post)
+
+	# Front Door (2.2m tall, 1.1m wide)
+	var front_door := MeshInstance3D.new()
+	var fd_box := BoxMesh.new()
+	fd_box.size = Vector3(1.1, 2.2, 0.1)
+	front_door.mesh = fd_box
+	front_door.material_override = door_mat
+	front_door.position = Vector3(0, 1.25, hd * 0.5 + 0.05)
+	house.add_child(front_door)
+
+	# Windows with Glass & Trim
+	var win_positions := [
+		Vector3(-2.4, 1.8, hd * 0.5 + 0.05),
+		Vector3(2.4, 1.8, hd * 0.5 + 0.05)
+	]
+	if is_two_story:
+		win_positions.append(Vector3(-2.4, 3.8, hd * 0.5 + 0.05))
+		win_positions.append(Vector3(0.0, 3.8, hd * 0.5 + 0.05))
+		win_positions.append(Vector3(2.4, 3.8, hd * 0.5 + 0.05))
+
+	for wp in win_positions:
+		var win := MeshInstance3D.new()
+		var w_box := BoxMesh.new()
+		w_box.size = Vector3(1.2, 1.3, 0.1)
+		win.mesh = w_box
+		win.material_override = glass_mat
+		win.position = wp
+		house.add_child(win)
+
+	# Concrete Driveway connecting to the front yard
+	var driveway := MeshInstance3D.new()
+	var dw_box := BoxMesh.new()
+	dw_box.size = Vector3(3.2, 0.08, 6.5)
+	driveway.mesh = dw_box
+	var conc_mat := StandardMaterial3D.new()
+	conc_mat.albedo_color = Color(0.60, 0.59, 0.56)
+	conc_mat.roughness = 0.8
+	driveway.material_override = conc_mat
+	driveway.position = Vector3(2.8, 0.04, hd * 0.5 + 3.25)
+	house.add_child(driveway)
+
+	# Backyard Fence (1.1m tall - pilot cover height)
+	var fence_mat := StandardMaterial3D.new()
+	fence_mat.albedo_color = Color(0.85, 0.82, 0.75)
+	fence_mat.roughness = 0.85
+	for fz in [-hd * 0.5 - 3.5]:
+		var fence := StaticBody3D.new()
+		fence.collision_layer = 2
+		fence.collision_mask = 1
+		var f_col := CollisionShape3D.new()
+		var fc_shape := BoxShape3D.new()
+		fc_shape.size = Vector3(hw + 4.0, 1.1, 0.2)
+		f_col.shape = fc_shape
+		f_col.position.y = 0.55
+		fence.add_child(f_col)
+
+		var f_mi := MeshInstance3D.new()
+		var fm_box := BoxMesh.new()
+		fm_box.size = fc_shape.size
+		f_mi.mesh = fm_box
+		f_mi.material_override = fence_mat
+		f_mi.position.y = 0.55
+		fence.add_child(f_mi)
+
+		fence.position = Vector3(0, 0, fz)
+		house.add_child(fence)
+
+	house.position = pos
+	house.rotation_degrees.y = rot_deg_y
+	house.add_to_group("concealment")
+	house.add_to_group("solid_obstacle")
+	parent.add_child(house)
+
+
+func _spawn_suburban_street_lamp(parent: Node3D, pos: Vector3, facing_dir: Vector3) -> void:
+	var lamp := Node3D.new()
+	lamp.name = "StreetLamp"
+
+	var metal_mat := StandardMaterial3D.new()
+	metal_mat.albedo_color = Color(0.20, 0.22, 0.24)
+	metal_mat.metallic = 0.8
+	metal_mat.roughness = 0.35
+
+	var glow_mat := StandardMaterial3D.new()
+	glow_mat.albedo_color = Color(1.0, 0.95, 0.8)
+	glow_mat.emission_enabled = true
+	glow_mat.emission = Color(1.0, 0.92, 0.7)
+	glow_mat.emission_energy_multiplier = 4.0
+
+	# Pole (6.2m height)
+	var pole := MeshInstance3D.new()
+	var p_cyl := CylinderMesh.new()
+	p_cyl.top_radius = 0.08
+	p_cyl.bottom_radius = 0.14
+	p_cyl.height = 6.2
+	pole.mesh = p_cyl
+	pole.material_override = metal_mat
+	pole.position.y = 3.1
+	lamp.add_child(pole)
+
+	# Overhang Arm
+	var arm := MeshInstance3D.new()
+	var a_box := BoxMesh.new()
+	a_box.size = Vector3(0.08, 0.08, 1.4)
+	arm.mesh = a_box
+	arm.material_override = metal_mat
+	arm.position = Vector3(0, 6.1, 0.6)
+	lamp.add_child(arm)
+
+	# Light fixture bulb
+	var bulb := MeshInstance3D.new()
+	var b_mesh := SphereMesh.new()
+	b_mesh.radius = 0.22
+	b_mesh.height = 0.3
+	bulb.mesh = b_mesh
+	bulb.material_override = glow_mat
+	bulb.position = Vector3(0, 5.95, 1.2)
+	lamp.add_child(bulb)
+
+	lamp.position = pos
+	lamp.rotation.y = atan2(facing_dir.x, facing_dir.z)
+	lamp.add_to_group("street_lamp")
+	parent.add_child(lamp)
 
 
 ## Suburb Meadow: Expansive open grass field, minimal structures, wide line of sight for ranged duels.

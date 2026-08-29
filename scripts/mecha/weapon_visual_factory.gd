@@ -836,6 +836,9 @@ static func build(weapon: WeaponPart) -> Node3D:
 	muzzle.name = "Muzzle"
 	muzzle.position = muzzle_local
 	mount.add_child(muzzle)
+
+	# Proportional Giant Mecha Weapon Scaling (1.55x) so guns, blades, and heavy cannons balance with 4.75m mecha
+	mount.scale = Vector3.ONE * 1.55
 	return mount
 
 

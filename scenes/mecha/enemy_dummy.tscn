@@ -6,12 +6,12 @@
 [ext_resource type="Script" path="res://scripts/mecha/mecha_hitbox.gd" id="4"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
-height = 3.5
-radius = 0.8
+radius = 1.05
+height = 4.725
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_body"]
-height = 3.5
-radius = 0.8
+radius = 1.05
+height = 4.725
 
 [sub_resource type="StandardMaterial3D" id="EnemyMat"]
 albedo_color = Color(0.8, 0.2, 0.2, 1)
@@ -19,7 +19,7 @@ metallic = 0.2
 roughness = 0.7
 
 [sub_resource type="SphereShape3D" id="HitboxShape"]
-radius = 2.0
+radius = 2.688
 
 [node name="EnemyDummy" type="CharacterBody3D"]
 script = ExtResource("1")
@@ -27,11 +27,11 @@ collision_layer = 8
 collision_mask = 35
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.15, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.3625, 0)
 shape = SubResource("CapsuleShape3D_body")
 
 [node name="BodyMesh" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.3625, 0)
 mesh = SubResource("CapsuleMesh_body")
 material_override = SubResource("EnemyMat")
 
@@ -58,6 +58,6 @@ mouse_filter = 2
 script = ExtResource("3")
 
 [node name="NameLabel3D" type="Label3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.0, 0)
 text = "ENEMY"
 font_size = 24

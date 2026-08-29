@@ -419,18 +419,15 @@ func _update_heat_smoke(delta: float) -> void:
 # ====================================================================
 
 func _input(event: InputEvent) -> void:
+	# While any UI modal (Field Loot, Pause Menu, Tab Menu) has the mouse free, ignore weapon firing & weapon swaps
+	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+		return
 	# The mech is ragdolled in its core-breach death window: the weapons are
 	# dead (only the eject seat still works), so ignore every weapon input.
 	var mecha = get_parent()
 	if mecha != null:
 		var hs = mecha.get_node_or_null("HealthSystem")
 		if hs != null and bool(hs.get("is_destroyed")):
-			return
-	# While the F pickup-decision menu is open (real-time mode) the hands must not
-	# fire/swap/drop — mouse clicks belong to the menu buttons, not the weapons.
-	if get_tree() and get_tree().current_scene:
-		var hud = get_tree().current_scene.get_node_or_null("WeaponHUD")
-		if hud and hud.get("pickup_menu_open"):
 			return
 	# The pilot has LEFT the mech: fire buttons belong to the pilot's own body
 	# weapons, not the parked mech's loadout.

@@ -31,21 +31,32 @@ const PILOT_OFFSET_Y: float = 1.45 # Human shoulder/eye height (1.45m)
 const PILOT_FOV: float = 75.0
 
 # Combat Mode Camera Stances (High Over-The-Shoulder TPS Framing)
-var _target_spring_length: float = 6.8
-var _target_offset_x: float = 1.8
-var _target_offset_y: float = 3.2
-var _target_fov: float = 72.0
+var _target_spring_length: float = MECHA_SPRING_LENGTH
+var _target_offset_x: float = MECHA_OFFSET_X
+var _target_offset_y: float = MECHA_OFFSET_Y
+var _target_fov: float = MECHA_FOV
 
 
 func _ready() -> void:
 	add_to_group("camera_rig")
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	is_mouse_captured = true
 	EventBus.camera_mode_changed.connect(_on_camera_mode_changed)
 	if EventBus.has_signal("camera_target_changed"):
 		EventBus.camera_target_changed.connect(_on_camera_target_changed)
 	EventBus.combat_mode_toggled.connect(_on_combat_mode_toggled)
 	EventBus.pilot_spawned.connect(_on_pilot_spawned)
 	EventBus.combat_ended.connect(_on_combat_ended)
+
+	# Snap initial framing immediately so start of battle never feels crowded or obstructed
+	if spring_arm:
+		spring_arm.spring_length = _target_spring_length
+	if camera_offset:
+		camera_offset.position.x = _target_offset_x
+		camera_offset.position.y = _target_offset_y
+	if camera:
+		camera.fov = _target_fov
+
 	await get_tree().process_frame
 	target = GameManager.get_player_mecha()
 	if target and spring_arm:
@@ -133,7 +144,7 @@ func _process_screen_shake(delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if event is InputEventMouseMotion and is_mouse_captured:
+	if event is InputEventMouseMotion and is_mouse_captured and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		yaw -= event.relative.x * mouse_sensitivity
 		pitch -= event.relative.y * mouse_sensitivity
 		pitch = clampf(pitch, deg_to_rad(pitch_limit.x), deg_to_rad(pitch_limit.y))

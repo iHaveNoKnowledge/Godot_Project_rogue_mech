@@ -8,7 +8,7 @@ const MechaEject = preload("res://scripts/mecha/mecha_eject.gd")
 var gravity := 20.0
 
 # Realistic human height range 1.55m - 1.80m (GDD: varied pilots, mech 4.5-5.0m)
-@export var pilot_height: float = 1.75
+@export var pilot_height: float = 1.80
 @export var height_randomize: bool = true
 
 # Sprint + stamina system
@@ -44,19 +44,17 @@ func _ready() -> void:
 	floor_constant_speed = true
 	floor_max_angle = deg_to_rad(48.0)
 	# Randomize height 1.55-1.80m per pilot instance (deterministic per pilot name so same pilot keeps same height)
-	if height_randomize and not has_meta("test_mode"):
+	if has_meta("test_mode"):
+		pilot_height = 1.80
+	elif height_randomize:
 		var seed_name: String = str(get_meta("pilot_name", ""))
 		if seed_name != "":
-			# Deterministic pseudo-random from name hash
 			var h := hash(seed_name) % 1000
 			if h < 0: h = -h
 			pilot_height = 1.55 + float(h % 251) / 1000.0 * 1.0  # 1.55-1.80
 			pilot_height = clampf(pilot_height, 1.55, 1.80)
-		else:
-			pilot_height = randf_range(1.55, 1.80)
-	elif has_meta("test_mode"):
-		# Keep export/default for tests (1.75) to avoid flaky asserts
-		pilot_height = 1.75
+		elif not has_meta("is_player"):
+			pilot_height = 1.80
 	_apply_height_to_collision()
 	_build_tactical_human_mesh()
 	_weapons = PilotSystem.get_weapons()
@@ -70,13 +68,13 @@ func _apply_height_to_collision() -> void:
 	if col and col.shape is CapsuleShape3D:
 		var cap := col.shape as CapsuleShape3D
 		cap.height = pilot_height
-		cap.radius = 0.30 * (pilot_height / 1.75) # proportional width
+		cap.radius = 0.30 * (pilot_height / 1.80) # proportional width (0.30m radius / 60cm shoulders at 1.80m)
 		col.position = Vector3(0, pilot_height * 0.5, 0)
 	var body_mesh := get_node_or_null("BodyMesh") as MeshInstance3D
 	if body_mesh and body_mesh.mesh is CapsuleMesh:
 		var cm := body_mesh.mesh as CapsuleMesh
 		cm.height = pilot_height
-		cm.radius = 0.30 * (pilot_height / 1.75)
+		cm.radius = 0.30 * (pilot_height / 1.80)
 		body_mesh.position = Vector3(0, pilot_height * 0.5, 0)
 	# Adjust interact area height slightly above head
 	var interact := get_node_or_null("InteractArea/CollisionShape3D") as CollisionShape3D
@@ -326,7 +324,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		start_reload()
 		return
 
-	if event.is_action_pressed("fire_left") or event.is_action_pressed("fire_right"):
+	# Right Click: Focus Aim (ADS / Scope Zoom)
+	# Left Click: Fire Weapon (Manual click for pistol, hold/tap for automatic)
+	if event.is_action_pressed("fire_left"):
 		_try_fire()
 	elif event.is_action_pressed("weapon_left") or event.is_action_pressed("weapon_right"):
 		if _weapons.size() > 1:

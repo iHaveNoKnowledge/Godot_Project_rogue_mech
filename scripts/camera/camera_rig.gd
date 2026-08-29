@@ -118,13 +118,26 @@ func _physics_process(delta: float) -> void:
 		global_position = global_position.lerp(target.global_position, follow_speed * delta)
 	
 	# Smoothly interpolate spring arm length and camera framing based on combat mode
+	var eff_spring := _target_spring_length
+	var eff_offset_x := _target_offset_x
+	var eff_offset_y := _target_offset_y
+	var eff_fov := _target_fov
+
+	if target and target.is_in_group("pilot"):
+		if Input.is_action_pressed("fire_right"):
+			# Precision ADS Scope / Shoulder Focus Zoom
+			eff_spring = 1.4
+			eff_offset_x = 0.42
+			eff_offset_y = 1.48
+			eff_fov = 52.0
+
 	if spring_arm:
-		spring_arm.spring_length = lerpf(spring_arm.spring_length, _target_spring_length, 8.0 * delta)
+		spring_arm.spring_length = lerpf(spring_arm.spring_length, eff_spring, 10.0 * delta)
 	if camera_offset:
-		camera_offset.position.x = lerpf(camera_offset.position.x, _target_offset_x, 8.0 * delta)
-		camera_offset.position.y = lerpf(camera_offset.position.y, _target_offset_y, 8.0 * delta)
+		camera_offset.position.x = lerpf(camera_offset.position.x, eff_offset_x, 10.0 * delta)
+		camera_offset.position.y = lerpf(camera_offset.position.y, eff_offset_y, 10.0 * delta)
 	if camera:
-		camera.fov = lerpf(camera.fov, _target_fov, 8.0 * delta)
+		camera.fov = lerpf(camera.fov, eff_fov, 10.0 * delta)
 
 	_process_screen_shake(delta)
 	_check_lock_on()

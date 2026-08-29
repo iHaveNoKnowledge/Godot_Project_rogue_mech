@@ -112,6 +112,10 @@ static func _uid_for_equip(path: String) -> String:
 		var uid := str(inst.get("uid", ""))
 		if uid != "" and str(inst.get("path", "")) == path:
 			return uid
+	# If this weapon was newly acquired during combat (e.g. looted from field) and doesn't have an instance yet, register it now
+	if ResourceLoader.exists(path):
+		var uid := register_weapon(path)
+		return uid
 	return ""
 
 

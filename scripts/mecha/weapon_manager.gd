@@ -730,18 +730,18 @@ func _commit_selection(hand: String) -> void:
 		holding_right = false
 		_selecting_right = false
 
-	# Quick tap without scroll → cycle to next weapon (or bare fists)
+	# Quick tap without scroll → cycle to next weapon from carry
 	if not did_scroll and hold_time < TAP_THRESHOLD:
 		if not carry.is_empty():
-			var old_weapon = carry[0]
-			carry.remove_at(0)
+			# The current hand weapon was already inserted at carry[0] in _start_selection.
+			# To cycle to the NEXT weapon: rotate the first element to the end and pick the new front.
+			var old_weapon = carry.pop_front()
 			carry.append(old_weapon)
-			var new_weapon = carry[0]
+			var new_weapon = carry.pop_front()
 			if is_left:
 				left_hand = new_weapon
 			else:
 				right_hand = new_weapon
-			carry.remove_at(0)
 		else:
 			if is_left:
 				left_hand = null
@@ -766,7 +766,7 @@ func _commit_selection(hand: String) -> void:
 			right_hand = carry[idx]
 		carry.remove_at(idx)
 	else:
-		# Index carry.size() selected -> BARE FISTS (holster weapon to carry, hand empty)
+		# Index carry.size() selected -> BARE FISTS (hand empty, weapons stored in carry)
 		if is_left:
 			left_hand = null
 		else:

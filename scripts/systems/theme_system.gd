@@ -294,11 +294,19 @@ static func apply_event_effect(event: Dictionary) -> bool:
 					GlobalData.currency.credits += 50
 					GlobalData.board.run_notice = "Scavenged the wreckage successfully! Found 50 credits."
 				elif loot_roll < 0.65:
-					GlobalData.currency.data_cores += 2
-					GlobalData.board.run_notice = "Scavenged the wreckage successfully! Found 2 data cores."
+					# Discover pilot firearm / military assault rifle cache
+					var pilot_wpn := "res://resources/mech/stock/weapon_pilot_assault_rifle.tres"
+					if not GlobalData.pilot.pilot_weapons.has(pilot_wpn):
+						PilotSystem.add_weapon(pilot_wpn)
+						PilotSystem.add_ammo("kinetic", 90)
+						GlobalData.board.run_notice = "Scavenged military arms crate! Acquired [color=#44ff88]Pilot Assault Rifle[/color] + 90 Ammo!"
+					else:
+						PilotSystem.add_ammo("kinetic", 120)
+						GlobalData.currency.data_cores += 1
+						GlobalData.board.run_notice = "Scavenged ammo supply cache! +120 Pilot Ammo & 1 Data Core."
 				else:
 					# GDD §4.2: wreckage yields Crude Oil (type 0)
-					var crude_amount := randf_range(6.0, 20.0)
+					var crude_amount := randf_range(15.0, 35.0)
 					var gained := GlobalData.fuel.add_mech_fuel(0, crude_amount)
 					GlobalData.board.run_notice = "Scavenged the wreckage! Extracted %.0f Crude Oil from the tank." % gained
 			elif roll < 0.80:

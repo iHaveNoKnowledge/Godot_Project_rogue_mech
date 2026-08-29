@@ -23,7 +23,9 @@ func close() -> void:
 	controller.readiness_panel.check(func():
 		controller.visible = false
 		controller.get_tree().paused = false
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		# Return to board: use VISIBLE so the player can click board tiles.
+		# (Combat entry sets CAPTURED through its own path; don't set it here.)
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		GlobalData.save_run()
 		if GameManager and GameManager.has_method("return_to_board"):
 			GameManager.return_to_board()

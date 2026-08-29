@@ -129,6 +129,11 @@ func enter_safehouse() -> void:
 
 
 func enter_hangar() -> void:
+	# Flush the current working-set weapon loadout (which sync_loadout_to_global
+	# may have updated after the last combat) into the active mech's roster entry
+	# BEFORE the scene changes. This ensures load_mech_state() in the customize
+	# page always restores the correct post-combat weapon state.
+	HangarManager.save_active()
 	get_tree().call_deferred("change_scene_to_file", "res://scenes/ui/hangar_scene.tscn")
 	transition_to(State.HANGAR)
 

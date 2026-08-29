@@ -19,6 +19,12 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_create_ui()
 	_show_menu()
+	# Always start hidden. The board is directly playable; the player presses ESC
+	# to open the intermission menu. Starting visible would block the board on
+	# every reload (including after returning from the hangar scene), because the
+	# game_state_changed("HANGAR","BOARD") signal fires BEFORE the deferred scene
+	# change completes, so this controller never receives it in _on_state_changed.
+	visible = false
 	EventBus.game_state_changed.connect(_on_state_changed)
 	# NOTE: the intermission music is owned by the board STATE (GameManager
 	# enter_board / return_to_board / advance_to_next_sector), not by this panel.
@@ -224,7 +230,11 @@ func _get_status_text() -> String:
 
 func _on_state_changed(old_state: String, new_state: String) -> void:
 	if new_state == "BOARD":
-		if old_state == "COMBAT":
+		# Hide the overlay whenever returning from combat OR the hangar scene.
+		# (Returning from hangar: game_state_changed fires before the board scene
+		# loads, so this handler only runs for transitions where the old scene is
+		# still active — the visible=false in _ready() covers the deferred load.)
+		if old_state in ["COMBAT", "HANGAR"]:
 			visible = false
 		status_label.text = _get_status_text()
 	elif new_state == "COMBAT":

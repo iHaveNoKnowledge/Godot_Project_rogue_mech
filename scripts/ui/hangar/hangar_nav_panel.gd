@@ -164,6 +164,9 @@ func show_hangar_menu() -> void:
 		controller.garage_panel.clear_selection_blink()
 		controller.garage_panel.update_camera_focus("")
 		controller.garage_panel.update_selection_highlight("")
+	# Sync the current working-set loadout back into the active roster entry so
+	# browsing the roster (which calls load_mech_state) never reads stale data.
+	HangarManager.save_active()
 
 
 # The customize page (mech center, part list left, stats right). Also the base

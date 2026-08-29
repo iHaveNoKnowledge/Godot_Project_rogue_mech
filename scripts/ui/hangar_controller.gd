@@ -70,8 +70,6 @@ var attachment_catalog: Array:
 # UI Nodes
 var tab_container: HBoxContainer
 var sub_toggle_container: HBoxContainer
-var left_panel: PanelContainer
-var right_panel: PanelContainer
 var part_item_list: ItemList
 var stats_label: Control
 var total_stats_label: Control

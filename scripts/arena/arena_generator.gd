@@ -1038,6 +1038,7 @@ func _add_escape_apron() -> void:
 	var apron_mat := StandardMaterial3D.new()
 	apron_mat.albedo_color = Color(0.16, 0.15, 0.13)
 	apron_mat.roughness = 0.95
+	apron_mat.render_priority = 1
 
 	# North/south slabs run the FULL width (covering the corners); east/west
 	# slabs cover the edge strips between the corners.
@@ -1060,7 +1061,8 @@ func _add_escape_apron() -> void:
 		box.size = def["size"]
 		mesh.mesh = box
 		mesh.material_override = apron_mat
-		mesh.position = def["pos"] + Vector3(0, top_y - 0.4, 0)
+		# Lift 0.015m above ground to avoid coplanar Z-fighting with main terrain (battle flicker)
+		mesh.position = def["pos"] + Vector3(0, top_y - 0.385, 0)
 		body.add_child(mesh)
 
 	structures_container.add_child(body)
@@ -1105,7 +1107,7 @@ func _add_boundary_escape_apron() -> void:
 		box.size = size
 		mesh.mesh = box
 		mesh.material_override = apron_mat
-		mesh.position = pos
+		mesh.position = pos + Vector3(0, 0.015, 0)
 		body.add_child(mesh)
 
 	structures_container.add_child(body)

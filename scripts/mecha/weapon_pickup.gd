@@ -1,9 +1,12 @@
 extends Area3D
 
 ## Recoverable weapon pickup.
-## Instead of auto-collecting on contact, this pickup tracks the mecha that walks
-## into it and lets the HUD show a "[F] Pickup" prompt. When the player presses F
-## (the "interact" action) the HUD opens a choice: TAKE WEAPON / TAKE AMMO ONLY.
+## Tracks nearby players (both Mechas and Pilots on foot).
+## Supports Field Loot UI interactions:
+##   - Direct Hand Equip / Swap
+##   - Field Pack Carrier storage (with live weight limit check)
+##   - Ammo unloading to player reserves
+##   - Convoy Salvage Tagging (with distinctive sandwich triangle badge 🔺)
 
 @export var weapon_resource: WeaponPart
 @export var bob_speed: float = 2.0
@@ -14,33 +17,104 @@ var mesh: MeshInstance3D = null
 var original_y: float = 0.0
 var timer: float = 0.0
 
-# The mecha currently standing inside this pickup (null when nobody is near).
+var nearby_entity: Node3D = null
 var nearby_mecha: Node3D = null
+
+var is_tagged_for_convoy: bool = false
+var current_ammo: int = -1
+var _tag_badge: Node3D = null
 
 
 func _ready() -> void:
 	add_to_group("weapon_pickup")
+	add_to_group("loot_pickup")
 	body_entered.connect(_on_body_entered)
 	body_exited.connect(_on_body_exited)
+	if weapon_resource and current_ammo < 0:
+		current_ammo = weapon_resource.max_ammo
 	_create_visual()
 
 
 func _exit_tree() -> void:
-	if nearby_mecha:
-		nearby_mecha = null
+	nearby_entity = null
+	nearby_mecha = null
+
+
+func is_near_player() -> bool:
+	return nearby_entity != null and is_instance_valid(nearby_entity)
 
 
 func is_near_mecha() -> bool:
-	return nearby_mecha != null
+	return nearby_mecha != null and is_instance_valid(nearby_mecha)
 
 
 func get_weapon_manager() -> Node:
-	if nearby_mecha == null:
+	if nearby_entity == null or not is_instance_valid(nearby_entity):
 		return null
-	return nearby_mecha.get_node_or_null("WeaponManager")
+	return nearby_entity.get_node_or_null("WeaponManager")
 
 
-# True when the mecha already carries (hand or back) another copy of this model.
+## Tags this weapon to be automatically salvaged into the Convoy Depot after winning combat
+func tag_for_convoy(tagged: bool) -> void:
+	is_tagged_for_convoy = tagged
+	set_meta("tagged_for_convoy", tagged)
+	_update_tag_visual()
+
+
+func _update_tag_visual() -> void:
+	if _tag_badge and is_instance_valid(_tag_badge):
+		_tag_badge.queue_free()
+		_tag_badge = null
+
+	if not is_tagged_for_convoy:
+		return
+
+	# Create a floating sandwich triangle 3D badge above the weapon
+	_tag_badge = Node3D.new()
+	_tag_badge.name = "ConvoyTagBadge"
+	_tag_badge.position = Vector3(0.0, 0.8, 0.0)
+
+	var label := Label3D.new()
+	label.name = "BadgeLabel"
+	label.text = "▲ [CONVOY SALVAGE] ▲"
+	label.font_size = 32
+	label.outline_size = 6
+	label.outline_modulate = Color.BLACK
+	label.modulate = Color(1.0, 0.75, 0.15) # Amber Gold
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	_tag_badge.add_child(label)
+
+	add_child(_tag_badge)
+
+
+## Unloads remaining ammunition from this dropped weapon into the player's ammo reserve
+func unload_ammo_to_player(player_body: Node3D = null) -> int:
+	if weapon_resource == null:
+		return 0
+	if current_ammo <= 0:
+		return 0
+
+	var target := player_body if player_body != null else nearby_entity
+	var ammo_type := weapon_resource.get_ammo_type()
+	var amount := current_ammo
+
+	if target != null and is_instance_valid(target):
+		if target.is_in_group("mecha"):
+			var wm = target.get_node_or_null("WeaponManager")
+			if wm:
+				wm.add_ammo(amount, "", ammo_type)
+		elif target.is_in_group("pilot"):
+			PilotSystem.add_ammo(ammo_type, amount)
+	else:
+		# Fallback to GlobalData
+		LoadoutSystem.add_reserve_ammo(ammo_type, amount)
+
+	current_ammo = 0
+	return amount
+
+
+## True when the mecha already carries another copy of this model
 func is_already_carried() -> bool:
 	if weapon_resource == null:
 		return false
@@ -50,64 +124,53 @@ func is_already_carried() -> bool:
 	return false
 
 
-# Player chose to take the whole weapon into the FIELD PACK (also registers it in
-# the stash). Checks Field Pack capacity; returns false if it would be violated.
-# Same catalog model = separate items: taking a second copy is allowed (it is
-# added as its own physical weapon, not rejected as a duplicate).
-func take_weapon() -> bool:
+## Adds the weapon to the player's Field Pack / Carrier
+func take_weapon(player_body: Node3D = null) -> bool:
 	if weapon_resource == null:
 		return false
-	if not can_take_to_field_pack():
+	var target := player_body if player_body != null else nearby_entity
+	if target == null:
 		return false
-	var wm = get_weapon_manager()
-	if wm:
+
+	var wm = target.get_node_or_null("WeaponManager")
+	if wm and wm.has_method("add_weapon"):
 		wm.add_weapon(weapon_resource)
+	else:
+		LoadoutSystem.register_weapon(weapon_resource.resource_path, weapon_resource.weapon_name)
+
 	queue_free()
 	return true
 
 
-# Player chose to scrap the weapon and keep only its ammo (in the battle reserve).
-# The scrap metal of the weapon itself becomes crafting material.
-func take_ammo_only() -> void:
-	var wm = get_weapon_manager()
-	if wm and weapon_resource:
-		wm.add_ammo(weapon_resource.max_ammo, "", weapon_resource.get_ammo_type())
+func take_ammo_only(player_body: Node3D = null) -> void:
+	unload_ammo_to_player(player_body)
 	if weapon_resource:
-		var scrap_value := maxi(2, int(round(float(weapon_resource.weight))) + int(weapon_resource.rarity) * 5)
-		GlobalData.currency.gain_scrap(scrap_value)
+		var scrap_val := maxi(2, int(round(float(weapon_resource.weight))) + int(weapon_resource.rarity) * 5)
+		GlobalData.currency.gain_scrap(scrap_val)
 	queue_free()
 
 
-# Player chose to send the weapon straight to the DEPOT (permanent stash): it is
-# NOT carried into this battle, but is available for loadout later in the hangar.
-# The weapon's ammo is sent to the depot ammo stash instead of the battle reserve.
-func send_to_depot() -> void:
-	if weapon_resource:
-		LoadoutSystem.register_weapon(weapon_resource.resource_path, weapon_resource.weapon_name)
-		LoadoutSystem.add_reserve_ammo(weapon_resource.get_ammo_type(), weapon_resource.max_ammo)
-	queue_free()
-
-
-func can_take_to_field_pack() -> bool:
+func can_take_to_field_pack(player_body: Node3D = null) -> bool:
 	if weapon_resource == null:
 		return false
+	var target := player_body if player_body != null else nearby_entity
 	var current_weight := LoadoutSystem.get_field_pack_weight()
-	var wm = get_weapon_manager()
-	if wm and wm.has_method("get_battle_field_pack_weight"):
-		current_weight = wm.get_battle_field_pack_weight()
+	if target != null and is_instance_valid(target):
+		var wm = target.get_node_or_null("WeaponManager")
+		if wm and wm.has_method("get_battle_field_pack_weight"):
+			current_weight = wm.get_battle_field_pack_weight()
 	return current_weight + float(weapon_resource.weight) <= LoadoutSystem.get_field_pack_capacity()
 
 
 func _create_visual() -> void:
 	mesh = MeshInstance3D.new()
 
-	# Show the actual weapon model when a weapon resource is set (matches hangar).
 	if weapon_resource:
-		# Hide any placeholder box mesh defined in the scene (stock pickups).
 		for child in get_children():
-			if child is MeshInstance3D:
+			if child is MeshInstance3D and child.name != "ConvoyTagBadge":
 				child.visible = false
 		var visual := Node3D.new()
+		visual.name = "WeaponMeshContainer"
 		visual.add_child(WeaponVisualFactory.build(weapon_resource))
 		add_child(visual)
 		original_y = position.y
@@ -131,15 +194,22 @@ func _create_visual() -> void:
 func _process(delta: float) -> void:
 	timer += delta
 	rotate_y(rotate_speed * delta)
-	if mesh and mesh.is_inside_tree():
+	var vis = get_node_or_null("WeaponMeshContainer")
+	if vis and is_instance_valid(vis):
+		vis.position.y = sin(timer * bob_speed) * bob_amount
+	elif mesh and mesh.is_inside_tree():
 		mesh.position.y = sin(timer * bob_speed) * bob_amount
 
 
 func _on_body_entered(body: Node3D) -> void:
-	if body.is_in_group("mecha"):
-		nearby_mecha = body
+	if body.is_in_group("mecha") or body.is_in_group("pilot"):
+		nearby_entity = body
+		if body.is_in_group("mecha"):
+			nearby_mecha = body
 
 
 func _on_body_exited(body: Node3D) -> void:
+	if body == nearby_entity:
+		nearby_entity = null
 	if body == nearby_mecha:
 		nearby_mecha = null

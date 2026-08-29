@@ -510,12 +510,40 @@ func _create_pickup_ui() -> void:
 	cbox.add_child(cancel_btn)
 
 
+var field_loot_modal: CanvasLayer = null
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if GameManager.current_state != GameManager.State.COMBAT:
+		return
+	if event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_F or event.physical_keycode == KEY_F):
+		if nearby_pickup != null and is_instance_valid(nearby_pickup):
+			get_viewport().set_input_as_handled()
+			_open_field_loot_modal()
+
+
+func _open_field_loot_modal() -> void:
+	if field_loot_modal == null or not is_instance_valid(field_loot_modal):
+		var loot_scene = preload("res://scenes/ui/field_loot_modal.tscn")
+		field_loot_modal = loot_scene.instantiate()
+		add_child(field_loot_modal)
+	var player = GameManager.get_player_mecha()
+	if player == null:
+		player = get_tree().get_first_node_in_group("pilot")
+	field_loot_modal.open_modal(player)
+
+
 func _update_nearby_pickup() -> void:
+	if field_loot_modal != null and is_instance_valid(field_loot_modal) and field_loot_modal.is_open:
+		_set_prompt_visible(false)
+		return
 	if pickup_menu_open:
 		# Keep the menu open even if the mech nudges out of the radius.
 		return
-	var mecha = GameManager.get_player_mecha()
-	if mecha == null:
+	var player: Node3D = GameManager.get_player_mecha()
+	if player == null:
+		player = get_tree().get_first_node_in_group("pilot")
+	if player == null:
 		_set_prompt_visible(false)
 		nearby_pickup = null
 		return
@@ -525,16 +553,23 @@ func _update_nearby_pickup() -> void:
 	for pickup in get_tree().get_nodes_in_group("weapon_pickup"):
 		if pickup == null or not is_instance_valid(pickup):
 			continue
-		if not pickup.is_near_mecha():
-			continue
-		var d = pickup.global_position.distance_to(mecha.global_position)
-		if d < best_dist:
-			best_dist = d
-			best = pickup
-			if best:
-				var wname = best.weapon_resource.weapon_name if best.weapon_resource else "Weapon"
-				pickup_prompt_label.text = "[F] Pickup: %s" % wname
-				pickup_choice_label.text = "PICKUP: %s" % wname
+		var is_near = false
+		if pickup.has_method("is_near_player"):
+			is_near = pickup.is_near_player()
+		elif pickup.has_method("is_near_mecha"):
+			is_near = pickup.is_near_mecha()
+
+		var d = pickup.global_position.distance_to(player.global_position)
+		if is_near or d <= 4.5:
+			if d < best_dist:
+				best_dist = d
+				best = pickup
+
+	nearby_pickup = best
+	if best:
+		var wname = best.weapon_resource.weapon_name if (best.get("weapon_resource") and best.weapon_resource) else "Weapon Salvage"
+		pickup_prompt_label.text = "[F] Field Loot / Salvage: %s" % wname
+		pickup_choice_label.text = "PICKUP: %s" % wname
 	_set_prompt_visible(best != null)
 
 

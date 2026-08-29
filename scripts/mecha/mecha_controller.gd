@@ -472,7 +472,7 @@ func _on_weight_changed(_w: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if GameManager.current_state != GameManager.State.COMBAT:
 		return
-	if event.is_action_pressed("interact") or (event is InputEventKey and event.pressed and event.keycode == KEY_F and not event.echo):
+	if (event is InputEventKey and event.pressed and (event.keycode == KEY_G or event.physical_keycode == KEY_G) and not event.echo) or (InputMap.has_action("dismount") and event.is_action_pressed("dismount")):
 		var now := Time.get_ticks_msec()
 		var last_time: int = int(get_meta("last_mount_toggle_time", 0))
 		if now - last_time < 500:

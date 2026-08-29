@@ -97,7 +97,7 @@ func get_guard_damage_mitigation() -> float:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("toggle_combat_mode") or (event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_2 or event.physical_keycode == KEY_2 or event.keycode == KEY_F)):
+	if event.is_action_pressed("toggle_combat_mode") or (event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_2 or event.physical_keycode == KEY_2)):
 		toggle_combat_mode()
 
 	# Guard input (Q key, Shift, or custom action "guard")

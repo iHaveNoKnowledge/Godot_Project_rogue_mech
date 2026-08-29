@@ -74,7 +74,7 @@ func _create_weapon_pickup(pos: Vector3, weapon: WeaponPart) -> void:
 
 
 func _on_pickup_body_entered(body: Node3D, pickup: Area3D) -> void:
-	if not body.is_in_group("mecha"):
+	if not body.is_in_group("mecha") and not body.is_in_group("pilot"):
 		return
 	var loot_data = pickup.get_meta("loot_data", {})
 	match loot_data.get("type", "ammo"):
@@ -86,9 +86,12 @@ func _on_pickup_body_entered(body: Node3D, pickup: Area3D) -> void:
 					wm.add_weapon(weapon)
 		"ammo":
 			var amount: int = loot_data.get("amount", 10)
-			var wm = body.get_node_or_null("WeaponManager")
-			if wm:
-				wm.add_ammo(amount)
+			if body.is_in_group("mecha"):
+				var wm = body.get_node_or_null("WeaponManager")
+				if wm:
+					wm.add_ammo(amount)
+			elif body.is_in_group("pilot"):
+				PilotSystem.add_ammo("kinetic", amount)
 		"repair":
 			var slot: String = loot_data.get("slot", "")
 			if slot:
@@ -98,16 +101,32 @@ func _on_pickup_body_entered(body: Node3D, pickup: Area3D) -> void:
 				GlobalData.weapons.part_damage.erase(slot + "_frame")
 				GlobalData.weapons.part_hit_meta.erase(slot)
 				EventBus.weight_changed.emit(0.0)
+			if body.is_in_group("pilot"):
+				PilotSystem.heal(30)
 		"scrap":
 			GlobalData.currency.gain_scrap(loot_data.get("amount", 1))
 		"armor":
 			# Salvaged plate from a destroyed enemy: grants a real armor instance
-		# (slot picked at drop time) into the convoy's armor inventory.
+			# (slot picked at drop time) into the convoy's armor inventory.
 			var inst: Dictionary = loot_data.get("instance", {})
 			if not inst.is_empty() and ArmorSystem.get_armor_instance(str(inst.get("uid", ""))).is_empty():
 				GlobalData.weapons.armor_inventory.append(inst)
 				GlobalData.board.run_notice = "Salvaged armor: %s" % str(inst.get("name", "plate"))
 	pickup.queue_free()
+
+
+## Automatically called on mission victory: scans all remaining ground pickups for tagged items
+## and deposits them into the permanent convoy stash/inventory.
+func collect_convoy_tagged_loot() -> Array:
+	var salvaged_weapons: Array = []
+	for node in get_tree().get_nodes_in_group("weapon_pickup"):
+		if node and is_instance_valid(node):
+			var tagged: bool = node.get("is_tagged_for_convoy") == true or node.get_meta("tagged_for_convoy", false) == true
+			if tagged and node.weapon_resource:
+				LoadoutSystem.register_weapon(node.weapon_resource.resource_path, node.weapon_resource.weapon_name)
+				salvaged_weapons.append(node.weapon_resource.weapon_name)
+				node.queue_free()
+	return salvaged_weapons
 
 
 # Spawns a single scrap-material pickup (used by wreckage debris when a player

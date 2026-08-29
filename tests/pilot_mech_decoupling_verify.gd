@@ -129,7 +129,7 @@ func _test_debounce_cooldown() -> void:
 	mecha.set_meta("last_mount_toggle_time", Time.get_ticks_msec())
 	var key_ev := InputEventKey.new()
 	key_ev.pressed = true
-	key_ev.keycode = KEY_F
+	key_ev.keycode = KEY_G
 	mecha._unhandled_input(key_ev)
 
 	_check(not mecha.has_meta("is_parked"), "Rapid input within debounce window was rejected")

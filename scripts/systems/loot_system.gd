@@ -1,7 +1,7 @@
 extends Node3D
 
 var loot_items: Array = []
-var pickup_radius: float = 2.0
+var pickup_radius: float = 3.5
 
 func _ready() -> void:
 	add_to_group("loot_system")
@@ -32,32 +32,69 @@ func _create_loot_pickup(pos: Vector3, loot_data: Dictionary) -> void:
 
 	var mesh = MeshInstance3D.new()
 	var box = BoxMesh.new()
-	box.size = Vector3(0.5, 0.5, 0.5)
+	box.size = Vector3(0.55, 0.55, 0.55)
 	mesh.mesh = box
-	mesh.position.y = 0.5
+	mesh.position.y = 0.6
 	pickup.add_child(mesh)
 
+	# Vertical beacon light / pillar
+	var beacon = MeshInstance3D.new()
+	var cyl = CylinderMesh.new()
+	cyl.top_radius = 0.08
+	cyl.bottom_radius = 0.08
+	cyl.height = 3.5
+	beacon.mesh = cyl
+	beacon.position.y = 2.0
+	pickup.add_child(beacon)
+
 	var material = StandardMaterial3D.new()
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	material.emission_enabled = true
+	var beacon_mat = StandardMaterial3D.new()
+	beacon_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	beacon_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+
 	match loot_data.get("type", "ammo"):
 		"weapon":
 			material.albedo_color = Color(0.9, 0.7, 0.1)
+			material.emission = Color(0.9, 0.7, 0.1)
+			material.emission_energy_multiplier = 1.5
+			beacon_mat.albedo_color = Color(0.9, 0.7, 0.1, 0.35)
 		"ammo":
-			material.albedo_color = Color(0.2, 0.8, 0.2)
+			material.albedo_color = Color(0.2, 0.85, 0.2)
+			material.emission = Color(0.2, 0.85, 0.2)
+			material.emission_energy_multiplier = 1.5
+			beacon_mat.albedo_color = Color(0.2, 0.85, 0.2, 0.35)
 		"repair":
-			material.albedo_color = Color(0.2, 0.2, 0.9)
+			material.albedo_color = Color(0.2, 0.3, 0.95)
+			material.emission = Color(0.2, 0.3, 0.95)
+			material.emission_energy_multiplier = 1.5
+			beacon_mat.albedo_color = Color(0.2, 0.3, 0.95, 0.35)
 		"scrap":
-			material.albedo_color = Color(0.75, 0.55, 0.25)
-			box.size = Vector3(0.4, 0.4, 0.4)
+			material.albedo_color = Color(0.85, 0.65, 0.25)
+			material.emission = Color(0.85, 0.65, 0.25)
+			material.emission_energy_multiplier = 1.2
+			box.size = Vector3(0.45, 0.45, 0.45)
+			beacon_mat.albedo_color = Color(0.85, 0.65, 0.25, 0.3)
 		"armor":
 			material.albedo_color = Color(0.85, 0.35, 0.85)
-			box.size = Vector3(0.5, 0.5, 0.5)
+			material.emission = Color(0.85, 0.35, 0.85)
+			material.emission_energy_multiplier = 1.5
+			beacon_mat.albedo_color = Color(0.85, 0.35, 0.85, 0.35)
 		"fuel":
 			material.albedo_color = Color(0.1, 0.85, 1.0)
-			material.emission_enabled = true
 			material.emission = Color(0.1, 0.85, 1.0)
-			material.emission_energy_multiplier = 2.0
-			box.size = Vector3(0.45, 0.6, 0.45)
+			material.emission_energy_multiplier = 2.5
+			box.size = Vector3(0.5, 0.65, 0.5)
+			beacon_mat.albedo_color = Color(0.1, 0.85, 1.0, 0.45)
+
 	mesh.set_surface_override_material(0, material)
+	beacon.set_surface_override_material(0, beacon_mat)
+
+	# Floating bob tween
+	var tw = pickup.create_tween().set_loops()
+	tw.tween_property(mesh, "position:y", 0.9, 0.9).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(mesh, "position:y", 0.5, 0.9).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 	pickup.set_meta("loot_data", loot_data)
 	pickup.add_to_group("loot_pickup")
@@ -141,6 +178,23 @@ func collect_convoy_tagged_loot() -> Array:
 				LoadoutSystem.register_weapon(node.weapon_resource.resource_path, node.weapon_resource.weapon_name)
 				salvaged_weapons.append(node.weapon_resource.weapon_name)
 				node.queue_free()
+
+	# Auto-sweep all remaining uncollected ground loot pickups (fuel, scrap, armor) into convoy stash
+	for node in get_tree().get_nodes_in_group("loot_pickup"):
+		if node and is_instance_valid(node) and node is Area3D:
+			var loot_data: Dictionary = node.get_meta("loot_data", {})
+			match str(loot_data.get("type", "")):
+				"fuel":
+					var item_id: String = str(loot_data.get("id", "fuel_canister"))
+					var amount: int = int(loot_data.get("amount", 1))
+					GlobalData.add_fuel_item(item_id, amount)
+				"scrap":
+					GlobalData.currency.gain_scrap(int(loot_data.get("amount", 1)))
+				"armor":
+					var inst: Dictionary = loot_data.get("instance", {})
+					if not inst.is_empty() and ArmorSystem.get_armor_instance(str(inst.get("uid", ""))).is_empty():
+						GlobalData.weapons.armor_inventory.append(inst)
+			node.queue_free()
 	return salvaged_weapons
 
 

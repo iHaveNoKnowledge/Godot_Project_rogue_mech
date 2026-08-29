@@ -145,6 +145,31 @@ func _refresh() -> void:
 		btn.pressed.connect(_on_buy_ammo.bind(ammo_type))
 		stock_container.add_child(btn)
 
+	# Fuel Consumables for Convoy & Mecha (Usable anywhere via Inventory)
+	var fuel_sep = HSeparator.new()
+	stock_container.add_child(fuel_sep)
+	var fuel_hdr = Label.new()
+	fuel_hdr.text = "CONVOY FUEL CONSUMABLES (stored in stash, use in Inventory)"
+	fuel_hdr.add_theme_font_size_override("font_size", 12)
+	fuel_hdr.add_theme_color_override("font_color", Color(0.2, 0.9, 1.0))
+	stock_container.add_child(fuel_hdr)
+
+	for fc in GlobalData.FUEL_CONSUMABLES:
+		var item_id: String = str(fc.get("id", ""))
+		var item_name: String = str(fc.get("name", item_id))
+		var price: int = int(fc.get("price", 100))
+		var owned: int = GlobalData.get_fuel_item_count(item_id)
+		var c_fuel: float = float(fc.get("convoy_fuel", 100.0))
+		var btn = Button.new()
+		btn.custom_minimum_size = Vector2(560, 34)
+		btn.text = "⛽ %s (+%.0f Convoy Fuel) — %d credits  [owned: %d]" % [
+			item_name, c_fuel, price, owned
+		]
+		btn.tooltip_text = str(fc.get("desc", ""))
+		btn.disabled = GlobalData.currency.credits < price
+		btn.pressed.connect(_on_buy_fuel_item.bind(item_id, price))
+		stock_container.add_child(btn)
+
 	# Drop Tanks (GDD §2.4)
 	var dt_sep = HSeparator.new()
 	stock_container.add_child(dt_sep)
@@ -202,6 +227,18 @@ func _on_buy_ammo(ammo_type: String) -> void:
 	if bought > 0:
 		status_label.text = "Bought %d %s ammo! Credits: %d" % [
 			bought, ammo_type, GlobalData.currency.credits
+		]
+	else:
+		status_label.text = "Not enough credits!"
+	_refresh()
+
+
+func _on_buy_fuel_item(item_id: String, price: int) -> void:
+	if GlobalData.currency.try_spend_credits(price):
+		GlobalData.add_fuel_item(item_id, 1)
+		var item_entry := GlobalData.get_fuel_item_entry(item_id)
+		status_label.text = "Purchased %s! Credits: %d" % [
+			item_entry.get("name", item_id), GlobalData.currency.credits
 		]
 	else:
 		status_label.text = "Not enough credits!"

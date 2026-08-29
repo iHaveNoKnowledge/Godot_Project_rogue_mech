@@ -7,6 +7,10 @@ const MechaEject = preload("res://scripts/mecha/mecha_eject.gd")
 
 var gravity := 20.0
 
+# Realistic human height range 1.55m - 1.80m (GDD: varied pilots, mech 4.5-5.0m)
+@export var pilot_height: float = 1.75
+@export var height_randomize: bool = true
+
 # Sprint + stamina system
 @export var sprint_speed: float = 8.2
 @export var max_stamina: float = 100.0
@@ -35,11 +39,51 @@ var _orig_weapon_rot: Vector3 = Vector3(0, 0, -0.15)
 
 func _ready() -> void:
 	add_to_group("pilot")
+	# Randomize height 1.55-1.80m per pilot instance (deterministic per pilot name so same pilot keeps same height)
+	if height_randomize and not has_meta("test_mode"):
+		var seed_name: String = str(get_meta("pilot_name", ""))
+		if seed_name == "" and PilotSystem.has_method("get_pilot_name"):
+			seed_name = str(PilotSystem.call("get_pilot_name"))
+		if seed_name != "":
+			# Deterministic pseudo-random from name hash
+			var h := hash(seed_name) % 1000
+			if h < 0: h = -h
+			pilot_height = 1.55 + float(h % 251) / 1000.0 * 1.0  # 1.55-1.802 approx
+			pilot_height = clampf(pilot_height, 1.55, 1.80)
+		else:
+			pilot_height = randf_range(1.55, 1.80)
+	elif has_meta("test_mode"):
+		# Keep export/default for tests (1.75) to avoid flaky asserts
+		pilot_height = 1.75
+	_apply_height_to_collision()
 	_build_tactical_human_mesh()
 	_weapons = PilotSystem.get_weapons()
 	if not _weapons.is_empty():
 		_equip_weapon(0)
 	_rebuild_weapon_mesh()
+
+
+func _apply_height_to_collision() -> void:
+	var col := get_node_or_null("CollisionShape3D") as CollisionShape3D
+	if col and col.shape is CapsuleShape3D:
+		var cap := col.shape as CapsuleShape3D
+		cap.height = pilot_height
+		cap.radius = 0.30 * (pilot_height / 1.75) # proportional width
+		col.position = Vector3(0, pilot_height * 0.5, 0)
+	var body_mesh := get_node_or_null("BodyMesh") as MeshInstance3D
+	if body_mesh and body_mesh.mesh is CapsuleMesh:
+		var cm := body_mesh.mesh as CapsuleMesh
+		cm.height = pilot_height
+		cm.radius = 0.30 * (pilot_height / 1.75)
+		body_mesh.position = Vector3(0, pilot_height * 0.5, 0)
+	# Adjust interact area height slightly above head
+	var interact := get_node_or_null("InteractArea/CollisionShape3D") as CollisionShape3D
+	if interact:
+		interact.position = Vector3(0, pilot_height * 0.5, 0)
+
+
+func get_pilot_height() -> float:
+	return pilot_height
 
 
 func take_damage(amount: float, damage_type: String = "kinetic") -> void:
@@ -141,12 +185,13 @@ func _rebuild_weapon_mesh() -> void:
 	_weapon_mesh.name = "PilotWeaponMesh"
 	_weapon_mesh.add_child(WeaponVisualFactory.build_pilot_weapon(weapon))
 
+	var h_factor := pilot_height / 1.75
 	var is_pistol := weapon.weapon_name.to_lower().contains("pistol")
 	if is_pistol:
-		_orig_weapon_pos = Vector3(0.24, 1.02, -0.22)
+		_orig_weapon_pos = Vector3(0.24, 1.02 * h_factor, -0.22)
 		_orig_weapon_rot = Vector3(0, 0, -0.08)
 	else:
-		_orig_weapon_pos = Vector3(0.26, 0.98, -0.18)
+		_orig_weapon_pos = Vector3(0.26, 0.98 * h_factor, -0.18)
 		_orig_weapon_rot = Vector3(0, 0, -0.15)
 
 	_weapon_mesh.position = _orig_weapon_pos
@@ -251,6 +296,9 @@ func _build_tactical_human_mesh() -> void:
 		arm_mesh.set_surface_override_material(0, suit_mat)
 		_human_visual.add_child(arm_mesh)
 
+	# Apply height scale so 1.55m pilot looks shorter than 1.80m pilot (reference 1.79m)
+	var h_scale := pilot_height / 1.79
+	_human_visual.scale = Vector3.ONE * h_scale
 	add_child(_human_visual)
 
 

@@ -14,10 +14,10 @@ radius = 0.5
 height = 1.0
 
 [sub_resource type="BoxMesh" id="BodyMeshShape"]
-size = Vector3(1.5, 1.8, 1.0)
+size = Vector3(2.5200, 3.0240, 1.6800)
 
 [sub_resource type="BoxMesh" id="ArmMesh"]
-size = Vector3(0.4, 1.2, 0.4)
+size = Vector3(0.6720, 2.0160, 0.6720)
 
 [sub_resource type="CylinderMesh" id="LegMesh"]
 height = 1.5
@@ -35,7 +35,7 @@ metallic = 0.5
 roughness = 0.4
 
 [sub_resource type="BoxMesh" id="ShoulderPlate"]
-size = Vector3(0.6, 0.3, 0.6)
+size = Vector3(1.0080, 0.5040, 1.0080)
 
 [sub_resource type="SphereShape3D" id="HitboxShape"]
 radius = 2.5

@@ -14,10 +14,10 @@ radius = 0.4
 height = 0.8
 
 [sub_resource type="BoxMesh" id="BodyMeshShape"]
-size = Vector3(1.0, 1.3, 0.6)
+size = Vector3(1.6800, 2.1840, 1.0080)
 
 [sub_resource type="BoxMesh" id="ArmMesh"]
-size = Vector3(0.25, 0.9, 0.25)
+size = Vector3(0.4200, 1.5120, 0.4200)
 
 [sub_resource type="CylinderMesh" id="LegMesh"]
 height = 1.2

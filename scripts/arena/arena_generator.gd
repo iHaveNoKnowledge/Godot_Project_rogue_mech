@@ -1698,7 +1698,14 @@ func _spawn_suburban_house(parent: Node3D, pos: Vector3, rot_deg_y: float, house
 	var porch_d := 2.2
 	var porch_deck_h := 0.30
 
-	# Porch Deck Step
+	# Porch Deck Step & Solid Floor Collision
+	var pd_col := CollisionShape3D.new()
+	var pd_shape := BoxShape3D.new()
+	pd_shape.size = Vector3(porch_w, porch_deck_h, porch_d)
+	pd_col.shape = pd_shape
+	pd_col.position = Vector3(0, porch_deck_h * 0.5, hd * 0.5 + porch_d * 0.5)
+	house.add_child(pd_col)
+
 	var porch_deck := MeshInstance3D.new()
 	var pd_box := BoxMesh.new()
 	pd_box.size = Vector3(porch_w, porch_deck_h, porch_d)

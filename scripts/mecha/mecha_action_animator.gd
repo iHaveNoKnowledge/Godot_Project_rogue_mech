@@ -45,24 +45,27 @@ static func _ensure_library_cached() -> void:
 		push_warning("MechaActionAnimator: Anim FBX not found at " + ANIM_FBX_PATH)
 		return
 
-	var anim_scene = load(ANIM_FBX_PATH)
-	if anim_scene == null:
-		push_warning("MechaActionAnimator: Failed to load anim scene from " + ANIM_FBX_PATH)
+	var loaded_res = load(ANIM_FBX_PATH)
+	if loaded_res == null:
+		push_warning("MechaActionAnimator: Failed to load anim resource from " + ANIM_FBX_PATH)
 		return
 
-	var inst = anim_scene.instantiate()
-	var ap: AnimationPlayer = inst.get_node_or_null("AnimationPlayer")
-	if ap == null:
+	if loaded_res is AnimationLibrary:
+		var lib := loaded_res as AnimationLibrary
+		for anim_name in lib.get_animation_list():
+			var anim := lib.get_animation(anim_name)
+			_cached_anim_library[anim_name] = anim
+			_cached_track_maps[anim_name] = _build_track_map(anim)
+	elif loaded_res is PackedScene:
+		var inst = (loaded_res as PackedScene).instantiate()
+		var ap: AnimationPlayer = inst.get_node_or_null("AnimationPlayer")
+		if ap != null:
+			var anim_list := ap.get_animation_list()
+			for anim_name in anim_list:
+				var anim: Animation = ap.get_animation(anim_name)
+				_cached_anim_library[anim_name] = anim
+				_cached_track_maps[anim_name] = _build_track_map(anim)
 		inst.queue_free()
-		return
-
-	var anim_list := ap.get_animation_list()
-	for anim_name in anim_list:
-		var anim: Animation = ap.get_animation(anim_name)
-		_cached_anim_library[anim_name] = anim
-		_cached_track_maps[anim_name] = _build_track_map(anim)
-
-	inst.queue_free()
 
 
 static func _build_track_map(anim: Animation) -> Dictionary:

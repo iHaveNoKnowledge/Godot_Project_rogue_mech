@@ -39,6 +39,10 @@ var _orig_weapon_rot: Vector3 = Vector3(0, 0, -0.15)
 
 func _ready() -> void:
 	add_to_group("pilot")
+	floor_snap_length = 0.35
+	floor_stop_on_slope = true
+	floor_constant_speed = true
+	floor_max_angle = deg_to_rad(48.0)
 	# Randomize height 1.55-1.80m per pilot instance (deterministic per pilot name so same pilot keeps same height)
 	if height_randomize and not has_meta("test_mode"):
 		var seed_name: String = str(get_meta("pilot_name", ""))

@@ -19,10 +19,10 @@ var target: Node3D = null
 var shake_amount: float = 0.0
 var shake_decay: float = 4.5
 
-# Camera Presets
-const MECHA_SPRING_LENGTH: float = 6.8
-const MECHA_OFFSET_X: float = 1.8
-const MECHA_OFFSET_Y: float = 3.2
+# Camera Presets - scaled for 1.68 mech (4.73m tall vs 1.79m pilot = 2.64x colossal)
+const MECHA_SPRING_LENGTH: float = 7.2
+const MECHA_OFFSET_X: float = 1.9
+const MECHA_OFFSET_Y: float = 3.45
 const MECHA_FOV: float = 72.0
 
 const PILOT_SPRING_LENGTH: float = 2.4 # Close tactical over-the-shoulder

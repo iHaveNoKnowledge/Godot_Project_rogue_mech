@@ -10,16 +10,16 @@ extends SceneTree
 ## Two files are written per run:
 ##   exports/procedural_innerframe_local.glb — LOCAL units (the AUTHORING
 ##       target). Authored part scenes attach inside mecha_base whose ROOT node
-##       carries scale 1.6, so replacement meshes must be modeled at this size;
+##       carries scale 1.68, so replacement meshes must be modeled at this size;
 ##       import into Godot with scale 1.0 and they render correct in-game size.
-##   exports/procedural_innerframe.glb — WORLD scale (x1.6): true on-screen
+##   exports/procedural_innerframe.glb — WORLD scale (x1.68): true on-screen
 ##       meters, for checking overall proportions only.
 ##
 ## Every exported mesh node carries no rotation/scale — vertices are
 ## pre-transformed — and JNT_* empties mark the joint pivots a replacement
 ## part's origin must sit on.
 
-const GAME_SCALE := 1.6
+const GAME_SCALE := 1.68
 
 const EXPORT_CONFIGS := [
 	{"path": "res://exports/procedural_innerframe_local.glb", "scale": 1.0, "tag": "LOCAL  (author at this scale)"},

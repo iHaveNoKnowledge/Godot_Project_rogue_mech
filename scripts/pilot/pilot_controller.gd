@@ -181,13 +181,13 @@ func _build_tactical_human_mesh() -> void:
 	visor_mat.emission = Color(0.1, 0.85, 0.95)
 	visor_mat.emission_energy_multiplier = 3.5
 
-	# Head & Tactical Helmet (Height ~1.62m)
+	# Head & Tactical Helmet (Realistic 1.80m human - head top ~1.78m)
 	var head_mesh = MeshInstance3D.new()
 	var head_sphere = SphereMesh.new()
-	head_sphere.radius = 0.12
-	head_sphere.height = 0.22
+	head_sphere.radius = 0.13
+	head_sphere.height = 0.24
 	head_mesh.mesh = head_sphere
-	head_mesh.position = Vector3(0, 1.58, 0)
+	head_mesh.position = Vector3(0, 1.66, 0)
 	head_mesh.set_surface_override_material(0, armor_mat)
 	_human_visual.add_child(head_mesh)
 
@@ -196,57 +196,57 @@ func _build_tactical_human_mesh() -> void:
 	var visor_box = BoxMesh.new()
 	visor_box.size = Vector3(0.16, 0.06, 0.08)
 	visor_mesh.mesh = visor_box
-	visor_mesh.position = Vector3(0, 1.59, -0.09)
+	visor_mesh.position = Vector3(0, 1.67, -0.10)
 	visor_mesh.set_surface_override_material(0, visor_mat)
 	_human_visual.add_child(visor_mesh)
 
-	# Torso Tactical Vest (Height ~1.20m)
+	# Torso Tactical Vest (Chest 1.22m, size 0.46 -> top 1.45 bottom 0.99)
 	var torso_mesh = MeshInstance3D.new()
 	var torso_box = BoxMesh.new()
 	torso_box.size = Vector3(0.36, 0.46, 0.22)
 	torso_mesh.mesh = torso_box
-	torso_mesh.position = Vector3(0, 1.20, 0)
+	torso_mesh.position = Vector3(0, 1.22, 0)
 	torso_mesh.set_surface_override_material(0, armor_mat)
 	_human_visual.add_child(torso_mesh)
 
-	# Utility Belt
+	# Utility Belt (waist 0.96)
 	var belt_mesh = MeshInstance3D.new()
 	var belt_box = BoxMesh.new()
 	belt_box.size = Vector3(0.38, 0.08, 0.24)
 	belt_mesh.mesh = belt_box
-	belt_mesh.position = Vector3(0, 0.94, 0)
+	belt_mesh.position = Vector3(0, 0.96, 0)
 	belt_mesh.set_surface_override_material(0, suit_mat)
 	_human_visual.add_child(belt_mesh)
 
-	# Left & Right Legs
+	# Left & Right Legs - realistic 0.82m thigh+shin, continuous to boots
 	for side in [-1.0, 1.0]:
 		var leg_mesh = MeshInstance3D.new()
 		var leg_cyl = CylinderMesh.new()
-		leg_cyl.top_radius = 0.07
-		leg_cyl.bottom_radius = 0.06
-		leg_cyl.height = 0.50
+		leg_cyl.top_radius = 0.075
+		leg_cyl.bottom_radius = 0.065
+		leg_cyl.height = 0.82
 		leg_mesh.mesh = leg_cyl
-		leg_mesh.position = Vector3(side * 0.11, 0.62, 0)
+		leg_mesh.position = Vector3(side * 0.11, 0.56, 0)
 		leg_mesh.set_surface_override_material(0, suit_mat)
 		_human_visual.add_child(leg_mesh)
 
-		# Combat Boots
+		# Combat Boots - sole at ground 0, top 0.14, seamless with leg bottom (0.15)
 		var boot_mesh = MeshInstance3D.new()
 		var boot_box = BoxMesh.new()
-		boot_box.size = Vector3(0.09, 0.14, 0.18)
+		boot_box.size = Vector3(0.10, 0.14, 0.20)
 		boot_mesh.mesh = boot_box
-		boot_mesh.position = Vector3(side * 0.11, 0.09, -0.02)
+		boot_mesh.position = Vector3(side * 0.11, 0.07, -0.02)
 		boot_mesh.set_surface_override_material(0, armor_mat)
 		_human_visual.add_child(boot_mesh)
 
-		# Arms
+		# Arms - realistic 0.52m upper+forearm
 		var arm_mesh = MeshInstance3D.new()
 		var arm_cyl = CylinderMesh.new()
 		arm_cyl.top_radius = 0.06
 		arm_cyl.bottom_radius = 0.05
-		arm_cyl.height = 0.44
+		arm_cyl.height = 0.52
 		arm_mesh.mesh = arm_cyl
-		arm_mesh.position = Vector3(side * 0.23, 1.18, -0.04)
+		arm_mesh.position = Vector3(side * 0.24, 1.18, -0.04)
 		arm_mesh.rotation = Vector3(0.15, 0, side * -0.1)
 		arm_mesh.set_surface_override_material(0, suit_mat)
 		_human_visual.add_child(arm_mesh)

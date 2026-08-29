@@ -27,6 +27,7 @@ const HEAL_ITEMS: Array = [
 		"name": "Field Medkit",
 		"desc": "A compact first-aid kit. Restores 30 pilot HP.",
 		"heal": 30,
+		"stamina": 0,
 		"price": 50,
 	},
 	{
@@ -34,6 +35,7 @@ const HEAL_ITEMS: Array = [
 		"name": "Combat Medkit",
 		"desc": "Military-grade trauma kit. Restores 60 pilot HP.",
 		"heal": 60,
+		"stamina": 0,
 		"price": 110,
 	},
 	{
@@ -41,7 +43,24 @@ const HEAL_ITEMS: Array = [
 		"name": "Surgical Kit",
 		"desc": "A full field surgery kit. Restores the pilot to full HP.",
 		"heal": 0,  # 0 = fully restores
+		"stamina": 0,
 		"price": 200,
+	},
+	{
+		"id": "rations_combat",
+		"name": "Combat Rations",
+		"desc": "Calorie-dense military ration pack. Restores 30 stamina and 15 pilot HP.",
+		"heal": 15,
+		"stamina": 30,
+		"price": 40,
+	},
+	{
+		"id": "rations_luxury",
+		"name": "Fresh Provisions",
+		"desc": "Nutritious meal pack. Restores 50 stamina and 35 pilot HP.",
+		"heal": 35,
+		"stamina": 50,
+		"price": 80,
 	},
 ]
 

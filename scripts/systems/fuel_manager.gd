@@ -260,6 +260,22 @@ func refuel_convoy_from_carried(amount: float) -> float:
 	return transfer
 
 
+## Refuels the convoy truck directly from an energy/fuel item. Returns actual fuel gained.
+func refuel_convoy_direct(amount: float) -> float:
+	var needed := maxf(convoy_max_fuel - convoy_fuel, 0.0)
+	var added := minf(amount, needed)
+	convoy_fuel = clampf(convoy_fuel + added, 0.0, convoy_max_fuel)
+	return added
+
+
+## Charges the mecha energy directly from an energy/fuel item. Returns actual energy gained.
+func refuel_mech_direct(amount: float) -> float:
+	var needed := maxf(mech_max_energy - mech_energy, 0.0)
+	var added := minf(amount, needed)
+	mech_energy = clampf(mech_energy + added, 0.0, mech_max_energy)
+	return added
+
+
 func get_camouflage_rate(terrain: String) -> float:
 	match terrain:
 		"forest":

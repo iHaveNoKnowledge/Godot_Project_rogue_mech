@@ -261,6 +261,14 @@ func _on_inventory_pressed() -> void:
 	info_panel.visible = true
 	_clear_actions()
 	info_label.text = _build_inventory_text()
+	var modal_script = load("res://scripts/ui/board_inventory_modal.gd")
+	if modal_script:
+		var modal = modal_script.new()
+		add_child(modal)
+		modal.modal_closed.connect(func():
+			_rebuild_status_bars()
+			info_label.text = _build_inventory_text()
+		)
 
 
 # Pilot Status view: the pilot's own HP/weapons/ammo/items (separate from the

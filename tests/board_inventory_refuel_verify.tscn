@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://c53y2r89v4p1m"]
+
+[ext_resource type="Script" path="res://tests/board_inventory_refuel_verify.gd" id="1_test"]
+
+[node name="BoardInventoryRefuelVerify" type="Node"]
+script = ExtResource("1_test")

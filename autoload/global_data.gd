@@ -38,6 +38,48 @@ var ally_unit_templates: Dictionary = {}
 var run_themes: Array = []
 var run_events: Array = []
 
+# --- Consumables & Fuel Stash ---
+var fuel_inventory: Dictionary = {
+	"fuel_canister": 2,
+	"energy_cell_pack": 2,
+	"bio_fuel_cell": 1,
+}
+
+const FUEL_CONSUMABLES: Array = [
+	{
+		"id": "fuel_canister",
+		"name": "Diesel Fuel Canister",
+		"desc": "Pressurized military fuel canister. Refuels 150 Convoy Fuel or 300 Mech Energy.",
+		"convoy_fuel": 150.0,
+		"mech_energy": 300.0,
+		"price": 100,
+	},
+	{
+		"id": "energy_cell_pack",
+		"name": "Energy Cell Battery",
+		"desc": "High-density capacitor cell. Refuels 80 Convoy Fuel or 200 Mech Energy.",
+		"convoy_fuel": 80.0,
+		"mech_energy": 200.0,
+		"price": 75,
+	},
+	{
+		"id": "bio_fuel_cell",
+		"name": "Bio-Ethanol Fuel Tank",
+		"desc": "Refined bio-fuel tank. Refuels 120 Convoy Fuel or 250 Mech Energy.",
+		"convoy_fuel": 120.0,
+		"mech_energy": 250.0,
+		"price": 90,
+	},
+	{
+		"id": "crude_oil_drum",
+		"name": "Crude Oil Drum",
+		"desc": "Raw crude oil drum. Refuels 200 Convoy Fuel.",
+		"convoy_fuel": 200.0,
+		"mech_energy": 100.0,
+		"price": 120,
+	}
+]
+
 const EMERGENCY_REPAIR_BASE_SCRAP: int = 5
 const EMERGENCY_REPAIR_SCRAP_PER_ARMOR_HP: float = 0.1
 const EMERGENCY_REPAIR_SCRAP_PER_FRAME_HP: float = 0.15
@@ -666,6 +708,50 @@ func restore_item_instance_durability(item: Dictionary, amount: float = 1.0) -> 
 		return
 	var cur := get_durability_ratio(item)
 	item["durability"] = clampf(cur + amount, 0.0, 1.0)
+
+
+## Finds a fuel consumable definition by its ID
+func get_fuel_item_entry(item_id: String) -> Dictionary:
+	for entry in FUEL_CONSUMABLES:
+		if entry.get("id", "") == item_id:
+			return entry.duplicate(true)
+	return {}
+
+
+## Returns the quantity of a fuel item currently in stock
+func get_fuel_item_count(item_id: String) -> int:
+	return int(fuel_inventory.get(item_id, 0))
+
+
+## Adds a quantity of fuel items to the inventory stash
+func add_fuel_item(item_id: String, count: int = 1) -> void:
+	if count <= 0:
+		return
+	fuel_inventory[item_id] = get_fuel_item_count(item_id) + count
+
+
+## Uses a fuel consumable item to refuel the Convoy truck or recharge the Mecha
+## Returns the actual fuel/energy gained (> 0 on success, 0.0 on failure/full)
+func use_fuel_item(item_id: String, target: String = "convoy") -> float:
+	var entry := get_fuel_item_entry(item_id)
+	if entry.is_empty():
+		return 0.0
+	if get_fuel_item_count(item_id) <= 0:
+		return 0.0
+
+	var gained: float = 0.0
+	if target == "convoy":
+		var amount: float = float(entry.get("convoy_fuel", 100.0))
+		gained = fuel.refuel_convoy_direct(amount)
+	else:
+		var amount: float = float(entry.get("mech_energy", 200.0))
+		gained = fuel.refuel_mech_direct(amount)
+
+	if gained > 0.0:
+		fuel_inventory[item_id] = get_fuel_item_count(item_id) - 1
+		if fuel_inventory[item_id] <= 0:
+			fuel_inventory.erase(item_id)
+	return gained
 
 
 func scrap_attach_node_paths(slot: String) -> Array[String]:

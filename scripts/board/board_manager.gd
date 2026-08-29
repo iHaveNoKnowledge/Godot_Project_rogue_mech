@@ -18,6 +18,8 @@ var _patrol_marker_container: Node3D = null
 # Last movement heading, used to rotate the player's arrow token. Defaults to
 # east so the token faces into the board on spawn.
 var _last_dir: Vector2i = Vector2i(1, 0)
+var _is_moving: bool = false
+var _path_trail_markers: Array[Node3D] = []
 
 
 func _ready() -> void:
@@ -179,12 +181,19 @@ func _build_objective_event() -> Dictionary:
 
 # Steps the token towards the target cell. If adjacent, takes 1 step directly.
 # If further away, calculates a walkable path and steps cell-by-cell up to available MP / Energy.
-func move_to_tile(target: Vector2i) -> bool:
+# Supports smooth hopping arc transitions during interactive gameplay.
+func move_to_tile(target: Vector2i, animate: bool = true) -> bool:
 	if not is_inside_tree() or get_tree().paused or _intermission_open():
 		return false
-	if target == current_pos:
+	if target == current_pos or _is_moving:
 		return false
 
+	var is_interactive: bool = animate and not DisplayServer.get_name().to_lower().contains("headless")
+	if is_interactive:
+		_execute_move_coroutine(target)
+		return true
+
+	# Synchronous execution fallback (for headless unit tests & instant operations)
 	if _is_adjacent(current_pos, target):
 		return _try_step(target)
 
@@ -207,6 +216,158 @@ func move_to_tile(target: Vector2i) -> bool:
 			break
 
 	return moved_any
+
+
+## Asynchronous sequential movement coroutine for interactive gameplay
+func _execute_move_coroutine(target: Vector2i) -> void:
+	if _is_moving:
+		return
+	_is_moving = true
+
+	var path: Array[Vector2i] = []
+	if _is_adjacent(current_pos, target):
+		path.append(target)
+	else:
+		path = _find_path(current_pos, target)
+
+	if path.is_empty():
+		_is_moving = false
+		return
+
+	_show_path_trail(path)
+
+	for step in path:
+		if not is_inside_tree() or get_tree().paused or _intermission_open() or GameManager.current_state != GameManager.State.BOARD:
+			break
+		if GlobalData.board.board_mp <= 0 or GlobalData.fuel.mech_energy <= 0.0:
+			break
+
+		var prev := current_pos
+		# Smooth animated hop to the next tile
+		if nodes_dict.has(prev) and nodes_dict.has(step):
+			await _animate_token_step(prev, step, 0.24)
+
+		var ok := _try_step(step)
+		if not ok:
+			break
+
+		if not is_inside_tree() or get_tree().paused or GameManager.current_state != GameManager.State.BOARD or _intermission_open():
+			break
+
+	_clear_path_trail()
+	_is_moving = false
+	_clear_highlights()
+	_highlight_adjacent()
+
+
+## Smooth hopping arc transition for the player pawn
+func _animate_token_step(from_pos_grid: Vector2i, to_pos_grid: Vector2i, step_duration: float = 0.24) -> void:
+	if not is_inside_tree() or player_token == null or not is_instance_valid(player_token):
+		return
+	if not nodes_dict.has(to_pos_grid):
+		return
+
+	var to_tile = nodes_dict[to_pos_grid]
+	if not is_instance_valid(to_tile) or not to_tile.is_inside_tree():
+		return
+
+	var patrol_on_tile := not PatrolSystem.get_patrol_at(to_pos_grid).is_empty()
+	var offset_x: float = -0.55 if patrol_on_tile else 0.0
+	var start_world_pos := player_token.global_position
+	var target_world_pos: Vector3 = to_tile.global_position + Vector3(offset_x, 0.9, 0.0)
+
+	var move_dir := to_pos_grid - from_pos_grid
+	var target_yaw := -atan2(float(move_dir.y), float(move_dir.x))
+	var current_yaw := player_token.rotation.y
+	var shortest_angle := wrapf(target_yaw - current_yaw, -PI, PI)
+	target_yaw = current_yaw + shortest_angle
+
+	# Create parallel movement tween
+	var tween := create_tween().set_parallel(true)
+	# Horizontal glide
+	tween.tween_property(player_token, "global_position:x", target_world_pos.x, step_duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(player_token, "global_position:z", target_world_pos.z, step_duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(player_token, "rotation:y", target_yaw, minf(0.12, step_duration)).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+	# Parabolic Hop Arc on Y
+	var hop_apex: float = maxf(start_world_pos.y, target_world_pos.y) + 0.35
+	var half_dur: float = step_duration * 0.5
+	var y_tween := create_tween()
+	y_tween.tween_property(player_token, "global_position:y", hop_apex, half_dur).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	y_tween.tween_property(player_token, "global_position:y", target_world_pos.y, half_dur).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+
+	# Slight forward pitch during the hop
+	var pitch_tween := create_tween()
+	pitch_tween.tween_property(player_token, "rotation:x", deg_to_rad(6.0), half_dur).set_trans(Tween.TRANS_SINE)
+	pitch_tween.tween_property(player_token, "rotation:x", deg_to_rad(0.0), half_dur).set_trans(Tween.TRANS_SINE)
+
+	# Visual landing ripple & audio feedback
+	_spawn_step_ripple(to_tile.global_position)
+	if AudioManager != null and AudioManager.has_method("play_ui_click"):
+		AudioManager.play_ui_click()
+
+	await tween.finished
+
+	# Soft landing squash & rebound
+	if is_instance_valid(player_token):
+		var squash := create_tween()
+		squash.tween_property(player_token, "scale", Vector3(1.10, 0.90, 1.10), 0.04).set_trans(Tween.TRANS_SINE)
+		squash.tween_property(player_token, "scale", Vector3(1.0, 1.0, 1.0), 0.08).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+		await squash.finished
+
+
+## Spawns an expanding tactical landing ripple on the destination tile
+func _spawn_step_ripple(pos: Vector3) -> void:
+	var ripple := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.25
+	cyl.bottom_radius = 0.30
+	cyl.height = 0.02
+	ripple.mesh = cyl
+	var mat := StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(0.3, 0.8, 1.0, 0.7)
+	mat.emission_enabled = true
+	mat.emission = Color(0.3, 0.8, 1.0)
+	mat.emission_energy_multiplier = 2.5
+	ripple.material_override = mat
+	ripple.position = pos + Vector3(0.0, 0.06, 0.0)
+	add_child(ripple)
+
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(ripple, "scale", Vector3(2.4, 1.0, 2.4), 0.30).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(mat, "albedo_color:a", 0.0, 0.30).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.chain().tween_callback(ripple.queue_free)
+
+
+## Shows glowing planned route markers along the multi-tile path
+func _show_path_trail(path: Array[Vector2i]) -> void:
+	_clear_path_trail()
+	for p in path:
+		if nodes_dict.has(p):
+			var tile = nodes_dict[p]
+			var marker := MeshInstance3D.new()
+			var sphere := SphereMesh.new()
+			sphere.radius = 0.10
+			sphere.height = 0.20
+			marker.mesh = sphere
+			var mat := StandardMaterial3D.new()
+			mat.albedo_color = Color(0.3, 0.85, 1.0, 0.8)
+			mat.emission_enabled = true
+			mat.emission = Color(0.3, 0.85, 1.0)
+			mat.emission_energy_multiplier = 3.0
+			marker.material_override = mat
+			marker.position = tile.global_position + Vector3(0, 0.20, 0)
+			add_child(marker)
+			_path_trail_markers.append(marker)
+
+
+func _clear_path_trail() -> void:
+	for m in _path_trail_markers:
+		if is_instance_valid(m):
+			m.queue_free()
+	_path_trail_markers.clear()
 
 
 func _find_path(start: Vector2i, goal: Vector2i) -> Array[Vector2i]:
@@ -255,7 +416,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	# The token moves by CLICKING a reachable tile (board_tile._on_input_event);
 	# WASD/Q/E belong to the camera (pan + rotate). Board-wide keys (end day, roller toggle)
 	# are handled here.
-	if not is_inside_tree() or get_tree().paused or not visible or _intermission_open():
+	if not is_inside_tree() or get_tree().paused or not visible or _intermission_open() or _is_moving:
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.is_action_pressed("pause"):

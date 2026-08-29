@@ -979,4 +979,3 @@ static func build_pilot_weapon(weapon: WeaponPart) -> Node3D:
 	muzzle.position = muzzle_local
 	mount.add_child(muzzle)
 	return mount
-

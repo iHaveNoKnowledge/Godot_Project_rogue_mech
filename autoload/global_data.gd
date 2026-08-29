@@ -17,6 +17,9 @@ extends Node
 ## combat-damage tracking that is tightly coupled to event handling.
 ## ---------------------------------------------------------------------------
 
+# --- Signals ---
+signal armor_destroyed_permanently(slot: String, armor_data: Dictionary)
+
 # --- Managers (created as children in _ready) ---
 var currency: CurrencyManager
 var fuel: FuelManager
@@ -640,25 +643,50 @@ func get_frame_durability(slot: String) -> float:
 	return 1.0
 
 
-## Degrades the lifetime durability of an equipped armor part (e.g. from repairs or armor shatter)
+## Degrades the lifetime durability of an equipped armor part (from taking damage in combat)
 func degrade_part_durability(slot: String, amount: float) -> void:
-	if amount <= 0.0:
+	if amount <= 0.0 or weapons == null:
 		return
 	var p = weapons.equipped_parts.get(slot)
-	if p is Dictionary:
+	if p is Dictionary and not p.is_empty():
 		var cur := get_durability_ratio(p)
-		p["durability"] = clampf(cur - amount, 0.10, 1.0)
+		var new_dur := clampf(cur - amount, 0.0, 1.0)
+		p["durability"] = new_dur
+		if new_dur <= 0.0:
+			shatter_and_destroy_armor(slot)
+
+
+## Permanently shatters and destroys an armor plate when durability hits 0.0
+func shatter_and_destroy_armor(slot: String) -> void:
+	if weapons == null:
+		return
+	var p = weapons.equipped_parts.get(slot)
+	if p is Dictionary and not p.is_empty():
+		var destroyed_part: Dictionary = p.duplicate(true)
+		weapons.equipped_parts[slot] = {}
+		# Remove from inventory if present
+		if "armor_inventory" in weapons and weapons.armor_inventory is Array:
+			var idx := -1
+			for i in range(weapons.armor_inventory.size()):
+				var item = weapons.armor_inventory[i]
+				if item is Dictionary and (item == p or (item.has("uid") and item["uid"] == destroyed_part.get("uid", ""))):
+					idx = i
+					break
+			if idx != -1:
+				weapons.armor_inventory.remove_at(idx)
+		armor_destroyed_permanently.emit(slot, destroyed_part)
+		EventBus.armor_broken.emit(slot)
 
 
 ## Degrades the lifetime durability of an equipped frame
 func degrade_frame_durability(slot: String, amount: float) -> void:
-	if amount <= 0.0:
+	if amount <= 0.0 or weapons == null:
 		return
 	var base_slot := str(slot).replace("_frame", "")
 	var f = weapons.equipped_frames.get(base_slot)
 	if f is Dictionary:
 		var cur := get_durability_ratio(f)
-		f["durability"] = clampf(cur - amount, 0.10, 1.0)
+		f["durability"] = clampf(cur - amount, 0.0, 1.0)
 
 
 ## Degrades the lifetime durability of an equipped weapon
@@ -676,7 +704,7 @@ func degrade_weapon_durability(hand: String, amount: float) -> void:
 	for w in inv_list:
 		if w is Dictionary and str(w.get("uid", "")) == uid:
 			var cur := get_durability_ratio(w)
-			w["durability"] = clampf(cur - amount, 0.05, 1.0)
+			w["durability"] = clampf(cur - amount, 0.0, 1.0)
 			break
 
 

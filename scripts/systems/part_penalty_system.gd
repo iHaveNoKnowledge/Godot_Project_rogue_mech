@@ -58,32 +58,40 @@ const TORSO_HEAT_SEVERE: float = 1.60     # heat accumulation +60%
 
 
 # ==========================================================================
-# READ HELPERS — get damage ratio for a slot
+# READ HELPERS — get Frame Durability wear ratio for a slot
+# (Debuffs are driven strictly by Frame Durability wear: 0.0 = pristine 100% dur, 1.0 = 0% dur)
 # ==========================================================================
 
-## Returns the armor damage ratio for a slot (0.0 = pristine, 1.0 = destroyed).
+## Returns the frame wear / degradation ratio for a slot (0.0 = 100% dur, 1.0 = 0% dur).
+static func frame_wear(slot: String) -> float:
+	var base_slot := str(slot).replace("_frame", "")
+	var dur := GlobalData.get_frame_durability(base_slot)
+	return clampf(1.0 - dur, 0.0, 1.0)
+
+
+## Combined wear for a slot (alias for frame_wear to ensure armor damage does NOT inflict operational debuffs).
+static func combined_damage(slot: String) -> float:
+	return frame_wear(slot)
+
+
+## Returns the armor damage ratio for a slot (0.0 = pristine, 1.0 = destroyed). Kept for combat UI queries.
 static func armor_damage(slot: String) -> float:
 	return clampf(float(GlobalData.weapons.part_damage.get(slot, 0.0)), 0.0, 1.0)
 
 
-## Returns the frame damage ratio for a slot (0.0 = pristine, 1.0 = destroyed).
+## Returns the frame combat damage ratio for a slot (0.0 = pristine, 1.0 = destroyed). Kept for combat UI queries.
 static func frame_damage(slot: String) -> float:
 	return clampf(float(GlobalData.weapons.part_damage.get(slot + "_frame", 0.0)), 0.0, 1.0)
 
 
-## Combined damage for a slot (whichever layer is worse).
-static func combined_damage(slot: String) -> float:
-	return maxf(armor_damage(slot), frame_damage(slot))
-
-
-## Best damage across both arms (worst arm dictates penalties).
+## Worst frame wear across both arms (dictates arm operational penalties).
 static func worst_arm_damage() -> float:
-	return maxf(combined_damage("arm_left"), combined_damage("arm_right"))
+	return maxf(frame_wear("arm_left"), frame_wear("arm_right"))
 
 
-## Best damage across both legs (worst leg dictates penalties).
+## Worst frame wear across both legs (dictates leg operational penalties).
 static func worst_leg_damage() -> float:
-	return maxf(combined_damage("leg_left"), combined_damage("leg_right"))
+	return maxf(frame_wear("leg_left"), frame_wear("leg_right"))
 
 
 # ==========================================================================

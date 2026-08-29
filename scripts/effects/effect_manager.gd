@@ -934,3 +934,60 @@ static func spawn_thruster_burst(position: Vector3, direction: Vector3 = Vector3
 	var tween := target_parent.create_tween()
 	tween.tween_property(light, "light_energy", 0.0, 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tween.tween_callback(light.queue_free)
+
+
+## Spawns flying armor plate metal fragments, sparks, and debris (triggered on low durability < 40% or 0% permadeath shatter).
+static func spawn_armor_fragments(position: Vector3, is_shatter: bool = false, color: Color = Color(0.85, 0.82, 0.78)) -> void:
+	var target_parent: Node = instance if instance != null and is_instance_valid(instance) and instance.is_inside_tree() else Engine.get_main_loop().root
+	if target_parent == null:
+		return
+
+	# 1. Fragment particles (shattered armor shards)
+	var parts_count: int = 18 if is_shatter else 6
+	var fragments := GPUParticles3D.new()
+	var mat := ParticleProcessMaterial.new()
+	mat.direction = Vector3(0, 1, 0)
+	mat.spread = 160.0
+	mat.initial_velocity_min = 4.0 if not is_shatter else 8.0
+	mat.initial_velocity_max = 8.0 if not is_shatter else 14.0
+	mat.gravity = Vector3(0, -14.0, 0)
+	mat.scale_min = 0.08 if not is_shatter else 0.15
+	mat.scale_max = 0.16 if not is_shatter else 0.35
+
+	fragments.process_material = mat
+	fragments.amount = parts_count
+	fragments.lifetime = 0.6 if not is_shatter else 1.0
+	fragments.one_shot = true
+	fragments.explosiveness = 0.95
+	fragments.emitting = true
+
+	var shard_mesh := BoxMesh.new()
+	shard_mesh.size = Vector3(0.12, 0.04, 0.18) if not is_shatter else Vector3(0.24, 0.06, 0.32)
+	var shard_mat := StandardMaterial3D.new()
+	shard_mat.albedo_color = color
+	shard_mat.metallic = 0.9
+	shard_mat.roughness = 0.3
+	shard_mat.emission_enabled = true
+	shard_mat.emission = Color(1.0, 0.6, 0.2) if is_shatter else Color(0.8, 0.5, 0.1)
+	shard_mat.emission_energy_multiplier = 2.0 if is_shatter else 1.0
+	shard_mesh.material = shard_mat
+	fragments.draw_pass_1 = shard_mesh
+
+	target_parent.add_child(fragments)
+	fragments.global_position = position
+
+	# 2. Flash of sparks
+	if is_shatter:
+		var flash := OmniLight3D.new()
+		flash.light_color = Color(1.0, 0.65, 0.2)
+		flash.light_energy = 8.0
+		flash.omni_range = 6.0
+		target_parent.add_child(flash)
+		flash.global_position = position
+		var ft := target_parent.create_tween()
+		ft.tween_property(flash, "light_energy", 0.0, 0.15)
+		ft.tween_callback(flash.queue_free)
+
+	var tween := target_parent.create_tween()
+	tween.tween_interval(1.2)
+	tween.tween_callback(fragments.queue_free)

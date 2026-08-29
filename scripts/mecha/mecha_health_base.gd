@@ -74,6 +74,8 @@ func _ready() -> void:
 	# ally mechs manage their own pilot state via set_piloted().
 	if is_player:
 		EventBus.mecha_occupancy_changed.connect(_on_mecha_occupancy_changed)
+		if GlobalData.has_signal("armor_destroyed_permanently"):
+			GlobalData.armor_destroyed_permanently.connect(_on_armor_destroyed_permanently)
 	# A MANUAL drop (hold 1/3 + scroll + X) must leave the weapon as a
 	# recoverable pickup at the mech's feet — the signal used to fire into
 	# nothing, so the weapon simply vanished.
@@ -523,10 +525,30 @@ func _apply_armor_damage(slot_name: String, amount: float, damage_type: String, 
 	var attack := normalize_damage_type(damage_type)
 	var defense := str(part.get("defense_type", "")).to_lower()
 	var resistance := 1.0
+
+	var dur := 1.0
+	if is_player:
+		dur = GlobalData.get_part_durability(slot_name)
+	var def_mult := ArmorSystem.get_durability_def_multiplier(dur)
+
 	if defense == "" or defense == "balanced" or defense == attack:
-		resistance = float(part.get("armor_class", 1.0))
+		resistance = float(part.get("armor_class", 1.0)) * def_mult
+	else:
+		resistance = def_mult
 	var reduced = amount / maxf(resistance, 0.1)
 	part["armor_hp"] = maxf(part["armor_hp"] - reduced, 0.0)
+
+	# In-combat durability wear from taking direct damage hits
+	if is_player:
+		var dur_wear := clampf(reduced * 0.0004, 0.0005, 0.02)
+		GlobalData.degrade_part_durability(slot_name, dur_wear)
+		dur = GlobalData.get_part_durability(slot_name)
+
+	# Visual & Audio: Low Durability (<40%) metal sparks & fragment debris burst + vibration
+	if is_player and dur < 0.40 and dur > 0.0:
+		var fx_pos := hit_pos if hit_pos != Vector3.ZERO else _get_slot_center(slot_name)
+		EffectManager.spawn_armor_fragments(fx_pos, false)
+		_vibrate_damaged_section(slot_name)
 
 	_update_part_visual(slot_name)
 	health_changed.emit(slot_name, "armor", part["armor_hp"], part["max_armor"])
@@ -549,6 +571,32 @@ func _apply_armor_damage(slot_name: String, amount: float, damage_type: String, 
 
 	if part["armor_hp"] <= 0.0:
 		_on_armor_broken(slot_name, damage_type)
+
+
+func _vibrate_damaged_section(slot_name: String) -> void:
+	var section := _get_section_node(slot_name)
+	if section == null:
+		return
+	var orig_pos := section.position
+	var tween := create_tween()
+	for i in range(3):
+		var shake := Vector3(randf_range(-0.03, 0.03), randf_range(-0.03, 0.03), randf_range(-0.03, 0.03))
+		tween.tween_property(section, "position", orig_pos + shake, 0.03)
+	tween.tween_property(section, "position", orig_pos, 0.03)
+
+
+func _on_armor_destroyed_permanently(slot_name: String, _armor_data: Dictionary) -> void:
+	if not parts.has(slot_name):
+		return
+	parts[slot_name]["armor_hp"] = 0.0
+	parts[slot_name]["max_armor"] = 0.0
+	parts[slot_name]["armor_broken"] = true
+	_show_frame(slot_name)
+	_calculate_totals()
+	var slot_pos := _get_slot_center(slot_name)
+	EffectManager.spawn_armor_fragments(slot_pos, true)
+	if AudioManager:
+		AudioManager.play_armor_break(slot_pos)
 
 
 func _apply_frame_damage(slot_name: String, amount: float, damage_type: String, hit_pos: Vector3 = Vector3.ZERO) -> void:

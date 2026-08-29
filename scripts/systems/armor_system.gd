@@ -188,13 +188,19 @@ static func degrade_armor_durability(uid: String, amount: float) -> float:
 	if inst.is_empty():
 		return 1.0
 	var cur: float = float(inst.get("durability", 1.0))
-	var new_dur: float = clampf(cur - amount, 0.10, 1.0)
+	var new_dur: float = clampf(cur - amount, 0.0, 1.0)
 	inst["durability"] = new_dur
 	# Also sync equipped_parts if this instance is currently equipped
 	for slot in GlobalData.weapons.equipped_parts:
 		var p = GlobalData.weapons.equipped_parts[slot]
 		if p is Dictionary and str(p.get("uid", "")) == uid and p != inst:
 			p["durability"] = new_dur
+	if new_dur <= 0.0:
+		for slot in GlobalData.weapons.equipped_parts:
+			var p = GlobalData.weapons.equipped_parts[slot]
+			if p is Dictionary and str(p.get("uid", "")) == uid:
+				GlobalData.shatter_and_destroy_armor(slot)
+				break
 	return new_dur
 
 
@@ -206,4 +212,15 @@ static func degrade_equipped_armor(slot: String, amount: float) -> float:
 		GlobalData.degrade_part_durability(slot, amount)
 		return float(part.get("durability", 1.0))
 	return 1.0
+
+
+## Returns DEF / damage mitigation multiplier based on armor durability.
+## When durability >= 50%: 1.0 (100% defense, no penalty)
+## When durability < 50%: scales down linearly, dropping at most 20% (multiplier 0.80 at 0% dur).
+static func get_durability_def_multiplier(durability: float) -> float:
+	var dur := clampf(durability, 0.0, 1.0)
+	if dur >= 0.50:
+		return 1.0
+	var t := (0.50 - dur) / 0.50 # 0.0 at 0.5, 1.0 at 0.0
+	return 1.0 - (t * 0.20)
 

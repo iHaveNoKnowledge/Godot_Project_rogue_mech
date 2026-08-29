@@ -10,6 +10,7 @@ signal friendly_damage_received(raw_damage: float)
 ## Payload: {template_id, name, health (0..1), destroyed}.
 signal ally_squad_updated(ally_data: Dictionary)
 signal armor_degraded(slot_name: String, current_hp: float, max_hp: float)
+signal armor_broken(slot_name: String)
 signal part_destroyed(slot_name: String)
 signal mecha_destroyed()
 

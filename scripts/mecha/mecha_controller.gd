@@ -515,9 +515,19 @@ func power_up() -> void:
 	remove_meta("is_parked")
 	remove_meta("is_unoccupied")
 	remove_from_group("boardable_mech")
+	remove_from_group("backup_mech")
 	set_physics_process(true)
 	visible = true
 	var col = get_node_or_null("CollisionShape3D")
 	if col:
 		col.set_deferred("disabled", false)
+	# Re-enable any child systems that were disabled while parked (e.g. reserve mechs)
+	for child in get_children():
+		child.set_process(true)
+		child.set_physics_process(true)
+	# Restore chassis-derived mobility that power_down zeroed (current_speed = 0)
+	_apply_chassis_from_global_data()
+	_recalculate_weight()
+	velocity = Vector3.ZERO
+	is_roller_dashing = false
 	EventBus.mecha_occupancy_changed.emit(true)

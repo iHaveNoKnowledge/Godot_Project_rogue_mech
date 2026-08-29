@@ -98,11 +98,25 @@ static func board_mecha(target_mecha: CharacterBody3D) -> void:
 		target_mecha.remove_meta("is_parked")
 		target_mecha.remove_meta("is_unoccupied")
 		target_mecha.remove_from_group("boardable_mech")
+		target_mecha.remove_from_group("backup_mech")
 		target_mecha.set_physics_process(true)
 		target_mecha.visible = true
 		var col = target_mecha.get_node_or_null("CollisionShape3D")
 		if col:
 			col.set_deferred("disabled", false)
+		for child in target_mecha.get_children():
+			child.set_process(true)
+			child.set_physics_process(true)
+		if target_mecha.has_method("_apply_chassis_from_global_data"):
+			target_mecha._apply_chassis_from_global_data()
+		if target_mecha.has_method("_recalculate_weight"):
+			target_mecha._recalculate_weight()
+		elif "current_speed" in target_mecha:
+			# Fallback: ensure speed is not zeroed
+			if float(target_mecha.get("current_speed")) == 0.0:
+				target_mecha.set("current_speed", 7.0)
+		if "velocity" in target_mecha:
+			target_mecha.velocity = Vector3.ZERO
 
 	EventBus.interaction_prompt_updated.emit("", false)
 	if EventBus.has_signal("camera_target_changed"):

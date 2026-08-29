@@ -3,6 +3,9 @@ extends Node3D
 var loot_items: Array = []
 var pickup_radius: float = 2.0
 
+func _ready() -> void:
+	add_to_group("loot_system")
+
 
 func spawn_loot(position: Vector3, loot_table: Array) -> void:
 	for item in loot_table:
@@ -190,6 +193,9 @@ const ARCHETYPE_WEAPON_POOLS: Dictionary = {
 # Chance a defeated enemy drops the weapon it actually used (grunts modest,
 # aces/bosses richer). Tuned so loot stays occasional.
 const BASE_WEAPON_DROP_CHANCE: float = 0.12
+# Arm destroyed: weapon falls off the hand with HIGH chance (player sees it drop), core explosion lower.
+const ARM_WEAPON_DROP_CHANCE: float = 0.70
+const ARM_SHIELD_DROP_CHANCE: float = 0.60
 
 
 func spawn_enemy_loot(enemy_position: Vector3, archetype: int = -1) -> void:
@@ -210,6 +216,8 @@ func spawn_enemy_loot(enemy_position: Vector3, archetype: int = -1) -> void:
 			var weapon: WeaponPart = pool[randi() % pool.size()]
 			loot_table.append({"type": "weapon", "weapon": weapon, "drop_chance": BASE_WEAPON_DROP_CHANCE})
 
+	# Also note: arm loss drops are handled separately via spawn_arm_weapon_drop() with HIGH chance (0.70) vs core 0.12
+
 	# Weapons and armor parts are held for the POST-BATTLE summary instead of
 	# becoming walk-over pickups: the player picks what to take back from the
 	# summary screen (combat_rewards_ui). Ammo / scrap / repair still drop as
@@ -223,6 +231,32 @@ func spawn_enemy_loot(enemy_position: Vector3, archetype: int = -1) -> void:
 		else:
 			pickup_table.append(item)
 	spawn_loot(enemy_position, pickup_table)
+
+
+## Spawns a physical weapon pickup at the exact arm position when that arm is destroyed.
+## High chance (0.70) so player sees the gun fall, vs 0.12 when core explodes (may vaporize).
+func spawn_arm_weapon_drop(drop_pos: Vector3, archetype: int, arm_slot: String) -> void:
+	var is_left := arm_slot == "arm_left"
+	# Shield arms drop shields with slightly lower chance (shields are bulky)
+	if is_left and (archetype == 4 or archetype == 5):
+		if randf() > ARM_SHIELD_DROP_CHANCE:
+			return
+		var shield_pool: Array = [preload("res://resources/mech/stock/weapon_shield.tres"), preload("res://resources/mech/stock/weapon_light_buckler.tres")]
+		var shield: WeaponPart = shield_pool[randi() % shield_pool.size()]
+		_create_weapon_pickup(drop_pos + Vector3(randf_range(-0.5, 0.5), 0.3, randf_range(-0.5, 0.5)), shield)
+		# Also add to battle loot summary for post-battle choosing
+		GlobalData.weapons.battle_loot.append({"type": "weapon", "weapon": shield, "drop_chance": 1.0})
+		return
+	# Right arm (or non-shield left) drops archetype weapon with high chance
+	if randf() > ARM_WEAPON_DROP_CHANCE:
+		return
+	if archetype >= 0 and ARCHETYPE_WEAPON_POOLS.has(archetype):
+		var pool: Array = ARCHETYPE_WEAPON_POOLS[archetype]
+		if not pool.is_empty():
+			var weapon: WeaponPart = pool[randi() % pool.size()]
+			# Physical drop at arm with slight scatter so it doesn't clip the wreck
+			_create_weapon_pickup(drop_pos + Vector3(randf_range(-0.7, 0.7), 0.4, randf_range(-0.7, 0.7)), weapon)
+			GlobalData.weapons.battle_loot.append({"type": "weapon", "weapon": weapon, "drop_chance": 1.0})
 
 
 # A random non-blueprint armor plate off the enemy's wreck, as a real armor

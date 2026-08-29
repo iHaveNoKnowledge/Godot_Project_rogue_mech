@@ -635,8 +635,29 @@ func _both_legs_destroyed() -> bool:
 
 
 func _on_part_destroyed(slot_name: String) -> void:
-	# A lost arm takes its hand-mounted shield/weapon model with it.
+	# A lost arm takes its hand-mounted shield/weapon model with it - and DROPS that weapon with HIGH chance.
 	_hide_hand_mounts(slot_name)
+	if slot_name == "arm_left" or slot_name == "arm_right":
+		var arm_node := get_node_or_null("ArmLeft" if slot_name == "arm_left" else "ArmRight")
+		# Fallback to Body if arm node missing (e.g., simple layout)
+		var drop_pos: Vector3 = global_position
+		if arm_node and is_instance_valid(arm_node):
+			drop_pos = (arm_node as Node3D).global_position
+		else:
+			drop_pos = global_position + Vector3(randf_range(-1,1), 1.2, randf_range(-1,1))
+		var loot = get_node_or_null("/root/GameWorld/LootSystem")
+		if loot == null:
+			loot = get_tree().current_scene.get_node_or_null("LootSystem") if get_tree().current_scene else null
+		if loot == null:
+			# Search any LootSystem in tree
+			var nodes := get_tree().get_nodes_in_group("loot_system") if get_tree() else []
+			if not nodes.is_empty():
+				loot = nodes[0]
+		if loot and loot.has_method("spawn_arm_weapon_drop"):
+			loot.spawn_arm_weapon_drop(drop_pos, archetype, slot_name)
+		elif loot and loot.has_method("_create_weapon_pickup"):
+			# Fallback: try to spawn via pool directly
+			pass
 	var arms_gone := _both_arms_destroyed()
 	var legs_gone := _both_legs_destroyed()
 	if arms_gone and legs_gone:

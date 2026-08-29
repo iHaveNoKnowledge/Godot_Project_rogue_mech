@@ -1040,6 +1040,15 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 		AudioManager.play_weapon_sfx_with_override(weapon, spawn_pos)
 		if weapon.weapon_type != WeaponPart.WeaponType.MISSILE:
 			_spawn_shell_casing(spawn_pos, hand)
+
+		# Trigger 3D Action Animations (Shoot recoil or Shoulder launch)
+		var anim = mecha.get_node_or_null("MechaAnimation")
+		if anim and anim.get("action_animator") != null:
+			if weapon.weapon_type == WeaponPart.WeaponType.MISSILE:
+				anim.action_animator.play_shoulder_shoot()
+			else:
+				var is_heavy: bool = weapon.damage >= 55.0 or weapon.weapon_name.to_lower().contains("cannon") or weapon.weapon_name.to_lower().contains("heavy") or weapon.weapon_name.to_lower().contains("sniper")
+				anim.action_animator.play_shoot(hand, is_heavy)
 		
 		# Durability wear: firing wears weapon lifespan; firing at high heat accelerates wear.
 		# Scaled with fire_rate so high-RPM weapons wear proportionately per minute with heavy single-shot weapons.
@@ -1096,8 +1105,11 @@ func _melee_attack(hand: String, weapon: WeaponPart, is_loaded_blast: bool = tru
 		var spawn_pos = mecha.global_position + (Vector3(-0.6, 1.5, 0.5) if hand == "left" else Vector3(0.6, 1.5, 0.5))
 		_spawn_shell_casing(spawn_pos, hand)
 		
-	# Execute lunging punch animation (Anticipation -> Thrust -> Camera Shake -> Recovery)
+	# Execute lunging punch animation + Keyframed 3-Step Combo Attack Animation
 	_perform_pile_bunker_lunge_anim(mecha, dir, weapon)
+	var anim = mecha.get_node_or_null("MechaAnimation")
+	if anim and anim.get("action_animator") != null:
+		anim.action_animator.play_melee(hand)
 
 	_spawn_melee_trail(mecha, dir, weapon)
 	_check_melee_hit(mecha, dir, hit_damage, weapon, is_loaded_blast)

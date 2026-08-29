@@ -1,5 +1,7 @@
 extends Node
 
+const MechaActionAnimator = preload("res://scripts/mecha/mecha_action_animator.gd")
+
 @export var bob_amount: float = 0.15
 @export var bob_speed: float = 14.0
 @export var recoil_amount: float = 0.3
@@ -19,6 +21,7 @@ var shin_right: Node3D = null
 var foot_ik: MechaFootIK = null
 
 var _walk: MechaWalkingSystem = null
+var action_animator: MechaActionAnimator = null
 var air_timer: float = 0.0
 var current_recoil: float = 0.0
 var landing_impact: float = 0.0
@@ -43,6 +46,9 @@ func _ready() -> void:
 	_walk = MechaWalkingSystem.new()
 	_walk.name = "WalkingSystem"
 	add_child(_walk)
+	action_animator = MechaActionAnimator.new()
+	action_animator.name = "ActionAnimator"
+	add_child(action_animator)
 	_refresh_node_refs()
 	EventBus.mecha_occupancy_changed.connect(_on_occupancy_changed)
 # Resolves the mech's part-slot nodes. Called on _ready AND lazily whenever a
@@ -153,8 +159,28 @@ func _run_procedural(delta: float) -> void:
 	_update_aim_arms(delta)
 	_update_shield_arm(delta)
 
+	if action_animator:
+		action_animator.update(delta)
+		var joints := _build_joints_dict()
+		action_animator.apply_to_joints(joints)
+
 	if foot_ik:
 		foot_ik.update_ik(delta)
+
+
+func _build_joints_dict() -> Dictionary:
+	return {
+		"head": head_mesh,
+		"body": body_mesh,
+		"arm_left": arm_left,
+		"forearm_left": forearm_left,
+		"arm_right": arm_right,
+		"forearm_right": forearm_right,
+		"leg_left": leg_left,
+		"shin_left": shin_left if shin_left else leg_left,
+		"leg_right": leg_right,
+		"shin_right": shin_right if shin_right else leg_right,
+	}
 # ─── Shared pose helper ────────────────────────────────────────────────────
 # Interpolates every mech joint toward the target values in `targets`. Only
 # supply the keys you need — all others default to 0.0 (neutral rotation,

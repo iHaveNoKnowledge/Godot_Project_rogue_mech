@@ -182,6 +182,14 @@ func take_damage_to_part(slot_name: String, amount: float, damage_type: String =
 	else:
 		_apply_frame_damage(slot_name, amount, damage_type, hit_pos)
 
+	# Flinch animation on heavy impact
+	if amount >= 35.0:
+		var mecha := get_parent()
+		if mecha:
+			var anim = mecha.get_node_or_null("MechaAnimation")
+			if anim and anim.get("action_animator") != null:
+				anim.action_animator.play_get_hit()
+
 
 # Location-based damage: the impact point decides which part AND which surface
 # (armor plate vs exposed frame) takes the hit.
@@ -788,6 +796,11 @@ const DESTROYED_NODE_LIFETIME := CORE_BREACH_DELAY + 1.0
 func _on_mecha_destroyed() -> void:
 	is_destroyed = true
 	mecha_destroyed.emit()
+	var mecha := get_parent()
+	if mecha:
+		var anim = mecha.get_node_or_null("MechaAnimation")
+		if anim and anim.get("action_animator") != null:
+			anim.action_animator.play_die()
 	# SAFETY SEQUENCE: the mech goes down and flashes a warning for ~1.8s
 	# before the actual detonation — never an instant explosion. This gives the
 	# pilot the standard eject window (and makes the destruction readable).

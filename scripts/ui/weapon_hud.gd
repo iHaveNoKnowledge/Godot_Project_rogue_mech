@@ -24,18 +24,12 @@ var hand_label: Label
 var left_holding: bool = false
 var right_holding: bool = false
 
-# --- Pickup prompt / choice UI ---
+# --- Pickup prompt / Field Loot UI ---
 var pickup_prompt: PanelContainer
 var pickup_prompt_label: Label
-var pickup_choice_panel: PanelContainer
-var pickup_choice_label: Label
-var pack_info_label: Label
-var take_weapon_btn: Button
-var take_ammo_btn: Button
-var depot_btn: Button
 var nearby_pickup = null
-var pickup_menu_open: bool = false
 var _pickup_prompt_tween: Tween = null
+var field_loot_modal: CanvasLayer = null
 var _reload_flash_rect: ColorRect = null
 var _reload_flash_tween: Tween = null
 
@@ -77,9 +71,8 @@ func _ready() -> void:
 
 
 func _on_combat_ended(_victory: bool) -> void:
-	# Never leave the decision menu (and its mouse lock) open past combat.
-	if pickup_menu_open:
-		_close_pickup_menu()
+	if field_loot_modal != null and is_instance_valid(field_loot_modal) and field_loot_modal.is_open:
+		field_loot_modal.close_modal()
 
 
 func _process(_delta: float) -> void:
@@ -187,12 +180,8 @@ func _input(event: InputEvent) -> void:
 	if weapon_manager == null:
 		return
 
-	if event.is_action_pressed("interact"):
-		_toggle_pickup_menu()
-		return
-
-	if pickup_menu_open:
-		# While the pickup choice menu is open, don't act on weapon inputs.
+	if field_loot_modal != null and is_instance_valid(field_loot_modal) and field_loot_modal.is_open:
+		# While the field loot modal is open, don't act on weapon inputs.
 		return
 
 	if event.is_action_pressed("weapon_left"):
@@ -427,11 +416,11 @@ func _create_carry_ui() -> void:
 
 
 func _create_pickup_ui() -> void:
-	# Bottom center prompt: "[F] Pickup <Weapon>"
+	# Bottom center prompt: "[F] Field Loot / Salvage"
 	pickup_prompt = PanelContainer.new()
 	pickup_prompt.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	pickup_prompt.offset_left = -160
-	pickup_prompt.offset_right = 160
+	pickup_prompt.offset_left = -170
+	pickup_prompt.offset_right = 170
 	pickup_prompt.offset_top = -130
 	pickup_prompt.offset_bottom = -75
 	pickup_prompt.add_theme_stylebox_override("panel", _make_panel_style(Color(0.08, 0.10, 0.16, 0.92)))
@@ -443,80 +432,28 @@ func _create_pickup_ui() -> void:
 	pickup_prompt.add_child(vbox)
 
 	pickup_prompt_label = Label.new()
-	pickup_prompt_label.text = "[F] Pickup"
+	pickup_prompt_label.text = "[F] Field Loot / Salvage"
 	pickup_prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	pickup_prompt_label.add_theme_font_size_override("font_size", 14)
 	pickup_prompt_label.add_theme_color_override("font_color", _highlight_color)
 	vbox.add_child(pickup_prompt_label)
 
 	var hint = Label.new()
-	hint.text = "Press F to decide: carry it, stash it, or scrap it for ammo + material"
+	hint.text = "Press [F] to inspect loot, equip, or stash into Field Pack"
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.add_theme_font_size_override("font_size", 12)
 	hint.add_theme_color_override("font_color", Color(0.75, 0.85, 0.75))
 	vbox.add_child(hint)
 
-	# Center choice modal: FIELD PACK / DEPOT / AMMO ONLY / CANCEL.
-	pickup_choice_panel = PanelContainer.new()
-	pickup_choice_panel.set_anchors_preset(Control.PRESET_CENTER)
-	pickup_choice_panel.offset_left = -190
-	pickup_choice_panel.offset_right = 190
-	pickup_choice_panel.offset_top = -150
-	pickup_choice_panel.offset_bottom = 150
-	pickup_choice_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.06, 0.06, 0.12, 0.96)))
-	root_control.add_child(pickup_choice_panel)
-	pickup_choice_panel.visible = false
-
-	var cbox = VBoxContainer.new()
-	cbox.add_theme_constant_override("separation", 10)
-	pickup_choice_panel.add_child(cbox)
-
-	pickup_choice_label = Label.new()
-	pickup_choice_label.text = "PICKUP: ???"
-	pickup_choice_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	pickup_choice_label.add_theme_font_size_override("font_size", 16)
-	pickup_choice_label.add_theme_color_override("font_color", _accent_color)
-	cbox.add_child(pickup_choice_label)
-
-	pack_info_label = Label.new()
-	pack_info_label.text = "FIELD PACK: %.1f / %.1f kg" % [LoadoutSystem.get_field_pack_weight(), LoadoutSystem.get_field_pack_capacity()]
-	pack_info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	pack_info_label.add_theme_font_size_override("font_size", 11)
-	pack_info_label.add_theme_color_override("font_color", Color(0.6, 0.8, 0.6))
-	cbox.add_child(pack_info_label)
-
-	take_weapon_btn = Button.new()
-	take_weapon_btn.text = "ADD TO FIELD PACK (ใส่สนาม)"
-	take_weapon_btn.custom_minimum_size = Vector2(0, 38)
-	take_weapon_btn.pressed.connect(_on_take_weapon_pressed)
-	cbox.add_child(take_weapon_btn)
-
-	depot_btn = Button.new()
-	depot_btn.text = "SEND TO DEPOT (ส่งคลัง)"
-	depot_btn.custom_minimum_size = Vector2(0, 38)
-	depot_btn.pressed.connect(_on_send_to_depot_pressed)
-	cbox.add_child(depot_btn)
-
-	take_ammo_btn = Button.new()
-	take_ammo_btn.text = "TAKE AMMO ONLY + SCRAP (เอาแค่กระสุน)"
-	take_ammo_btn.custom_minimum_size = Vector2(0, 38)
-	take_ammo_btn.pressed.connect(_on_take_ammo_only_pressed)
-	cbox.add_child(take_ammo_btn)
-
-	var cancel_btn = Button.new()
-	cancel_btn.text = "CANCEL"
-	cancel_btn.custom_minimum_size = Vector2(0, 32)
-	cancel_btn.pressed.connect(_close_pickup_menu)
-	cbox.add_child(cancel_btn)
-
-
-var field_loot_modal: CanvasLayer = null
-
 
 func _unhandled_input(event: InputEvent) -> void:
-	if GameManager.current_state != GameManager.State.COMBAT:
+	if GameManager.current_state != GameManager.State.COMBAT and GameManager.current_state != GameManager.State.EJECT:
 		return
-	if event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_F or event.physical_keycode == KEY_F):
+	if event.is_action_pressed("interact") or (event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_F or event.physical_keycode == KEY_F)):
+		if field_loot_modal != null and is_instance_valid(field_loot_modal) and field_loot_modal.is_open:
+			get_viewport().set_input_as_handled()
+			field_loot_modal.close_modal()
+			return
 		if nearby_pickup != null and is_instance_valid(nearby_pickup):
 			get_viewport().set_input_as_handled()
 			_open_field_loot_modal()
@@ -530,15 +467,13 @@ func _open_field_loot_modal() -> void:
 	var player = GameManager.get_player_mecha()
 	if player == null:
 		player = get_tree().get_first_node_in_group("pilot")
+	_set_prompt_visible(false)
 	field_loot_modal.open_modal(player)
 
 
 func _update_nearby_pickup() -> void:
 	if field_loot_modal != null and is_instance_valid(field_loot_modal) and field_loot_modal.is_open:
 		_set_prompt_visible(false)
-		return
-	if pickup_menu_open:
-		# Keep the menu open even if the mech nudges out of the radius.
 		return
 	var player: Node3D = GameManager.get_player_mecha()
 	if player == null:
@@ -569,7 +504,6 @@ func _update_nearby_pickup() -> void:
 	if best:
 		var wname = best.weapon_resource.weapon_name if (best.get("weapon_resource") and best.weapon_resource) else "Weapon Salvage"
 		pickup_prompt_label.text = "[F] Field Loot / Salvage: %s" % wname
-		pickup_choice_label.text = "PICKUP: %s" % wname
 	_set_prompt_visible(best != null)
 
 
@@ -583,74 +517,6 @@ func _set_prompt_visible(show: bool) -> void:
 			pickup_prompt.modulate.a = 0.0
 			_pickup_prompt_tween = create_tween()
 			_pickup_prompt_tween.tween_property(pickup_prompt, "modulate:a", 1.0, 0.15)
-
-
-func _toggle_pickup_menu() -> void:
-	if nearby_pickup == null or not is_instance_valid(nearby_pickup):
-		return
-	if pickup_menu_open:
-		_close_pickup_menu()
-	else:
-		_open_pickup_menu()
-
-
-func _open_pickup_menu() -> void:
-	if nearby_pickup == null:
-		return
-	pickup_menu_open = true
-	_set_prompt_visible(false)
-	pickup_choice_panel.visible = true
-	# Release the mouse so the player can click the decision buttons.
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-
-	# Update pack info & button state based on capacity and duplicates
-	var can_carry: bool = nearby_pickup.can_take_to_field_pack()
-	var already_carried: bool = nearby_pickup.is_already_carried()
-	if take_weapon_btn:
-		take_weapon_btn.disabled = not can_carry
-		if already_carried:
-			take_weapon_btn.text = "ADD ANOTHER COPY (+1 ชิ้น)"
-		else:
-			take_weapon_btn.text = "ADD TO FIELD PACK (ใส่สนาม)"
-	if pack_info_label:
-		pack_info_label.text = "FIELD PACK: %.1f / %.1f kg" % [LoadoutSystem.get_field_pack_weight(), LoadoutSystem.get_field_pack_capacity()]
-		if not can_carry:
-			pack_info_label.text += "\nFIELD PACK FULL!"
-		elif already_carried:
-			pack_info_label.text += "\nYou already carry this model — a separate copy will be added."
-
-
-func _close_pickup_menu() -> void:
-	pickup_menu_open = false
-	if pickup_choice_panel:
-		pickup_choice_panel.visible = false
-	# Hand the mouse back to the camera look.
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-
-
-func _on_take_weapon_pressed() -> void:
-	var pickup = nearby_pickup
-	_close_pickup_menu()
-	if pickup and is_instance_valid(pickup):
-		if not pickup.take_weapon():
-			return
-	nearby_pickup = null
-
-
-func _on_send_to_depot_pressed() -> void:
-	var pickup = nearby_pickup
-	_close_pickup_menu()
-	if pickup and is_instance_valid(pickup):
-		pickup.send_to_depot()
-	nearby_pickup = null
-
-
-func _on_take_ammo_only_pressed() -> void:
-	var pickup = nearby_pickup
-	_close_pickup_menu()
-	if pickup and is_instance_valid(pickup):
-		pickup.take_ammo_only()
-	nearby_pickup = null
 
 
 func _show_carry(hand: String) -> void:

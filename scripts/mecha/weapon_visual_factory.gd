@@ -300,13 +300,19 @@ static func build(weapon: WeaponPart) -> Node3D:
 		# Exhaust vents (three slits on top)
 		for i in range(3):
 			_add_box(mount, Vector3(0.10, 0.015, 0.04), Vector3(0.0, 0.09, -0.08 - float(i) * 0.18), _mat(Color(0.02, 0.02, 0.02), 0.10, 0.90))
-		# Forward kinetic spike (tapered piston)
+		# Forward kinetic spike (tapered heavy tungsten drill/stake)
+		# Cylinder default is vertical along Y: top_radius (+Y) / bottom_radius (-Y).
+		# With rotation_degrees = Vector3(90, 0, 0):
+		#   +Y rotates to +Z (REAR toward chamber) -> top_radius is at the BASE/REAR.
+		#   -Y rotates to -Z (FRONT toward enemy)  -> bottom_radius is at the TIP/FRONT.
 		var spike_mat := _mat(Color(0.86, 0.90, 0.95), 0.95, 0.18)
-		_add_cyl(mount, 0.03, 0.11, 1.25, Vector3(0.0, -0.14, -0.92), spike_mat, Vector3(90, 0, 0))
-		_add_cyl(mount, 0.015, 0.03, 0.18, Vector3(0.0, -0.14, -1.64), spike_mat, Vector3(90, 0, 0))
-		# Muzzle collar
+		# Main Stake Shaft: Base at rear (0.11m) tapering to intermediate shaft (0.035m) forward
+		_add_cyl(mount, 0.11, 0.035, 1.25, Vector3(0.0, -0.14, -0.92), spike_mat, Vector3(90, 0, 0))
+		# Armor-Piercing Needle Tip: Intermediate (0.035m) tapering to sharp piercing cone (0.002m) at the forward tip (-Z)
+		_add_cyl(mount, 0.035, 0.002, 0.22, Vector3(0.0, -0.14, -1.65), spike_mat, Vector3(90, 0, 0))
+		# Muzzle collar guide ring (surrounding the wide base at the chamber mouth)
 		_add_cyl(mount, 0.13, 0.13, 0.08, Vector3(0.0, -0.14, -0.60), mat_silver, Vector3(90, 0, 0))
-		muzzle_local = Vector3(0, -0.14, -1.74)
+		muzzle_local = Vector3(0, -0.14, -1.76)
 
 	# -----------------------------------------------------------------------
 	# 2) SHIELD — physical plates

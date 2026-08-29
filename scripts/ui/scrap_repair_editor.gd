@@ -428,16 +428,11 @@ func _build_garage() -> void:
 	rim.light_color = Color(1.0, 0.8, 0.5)
 
 	var scene_base = preload("res://scenes/mecha/mecha_base.tscn").instantiate()
-	# Disable the living mech (controller, animations, health) so it can't react to
-	# battle keybinds in this editor viewport — otherwise it skates off the display
-	# (the battle move actions are read directly via Input, not per-event, so marking
-	# editor key events as handled is not enough). The freeze MUST run AFTER
-	# add_child(): mecha scripts re-enable processing in their _ready, and a live
-	# physics process makes the editor mech run move_and_slide() every physics
-	# frame. The garage mech's collision capsule lives in the SAME physics world
-	# (SubViewports share the parent world by default), so the editor mech would
-	# collide with the hidden garage mech and be pushed UP to stand on top of it —
-	# a floating, doubled mech in the repair view.
+	scene_base.set_script(null)
+	for system_node_name in ["AnimationSystem", "MechaAnimation", "FootIKSystem", "MechaCombat", "MechaEject", "Hitbox", "AimRay"]:
+		var sys = scene_base.get_node_or_null(system_node_name)
+		if sys:
+			sys.queue_free()
 	_apply_neutral_pose(scene_base)
 	turntable_node.add_child(scene_base)
 	scene_base.set_process(false)

@@ -166,7 +166,7 @@ func build_garage() -> void:
 
 	var scene_base = preload("res://scenes/mecha/mecha_base.tscn").instantiate()
 	scene_base.set_script(null)
-	for system_node_name in ["AnimationSystem", "FootIKSystem", "MechaCombat", "MechaEject", "Hitbox", "AimRay"]:
+	for system_node_name in ["AnimationSystem", "MechaAnimation", "FootIKSystem", "MechaCombat", "MechaEject", "Hitbox", "AimRay"]:
 		var sys = scene_base.get_node_or_null(system_node_name)
 		if sys:
 			sys.queue_free()

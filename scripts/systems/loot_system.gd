@@ -120,8 +120,14 @@ func _create_weapon_pickup(pos: Vector3, weapon: WeaponPart) -> void:
 
 
 func _on_pickup_body_entered(body: Node3D, pickup: Area3D) -> void:
+	if not is_instance_valid(pickup) or pickup.is_queued_for_deletion():
+		return
+	if pickup.get_meta("is_collected", false) == true:
+		return
 	if not body.is_in_group("mecha") and not body.is_in_group("pilot"):
 		return
+	pickup.set_meta("is_collected", true)
+	pickup.set_deferred("monitoring", false)
 	var loot_data = pickup.get_meta("loot_data", {})
 	match loot_data.get("type", "ammo"):
 		"weapon":
@@ -129,7 +135,7 @@ func _on_pickup_body_entered(body: Node3D, pickup: Area3D) -> void:
 			if weapon:
 				var wm = body.get_node_or_null("WeaponManager")
 				if wm:
-					wm.add_weapon(weapon)
+					wm.add_weapon(weapon.duplicate(true) as WeaponPart)
 		"ammo":
 			var amount: int = loot_data.get("amount", 10)
 			if body.is_in_group("mecha"):

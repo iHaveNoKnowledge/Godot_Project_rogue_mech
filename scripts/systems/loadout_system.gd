@@ -154,7 +154,9 @@ static func get_equipped_weapon(side: String) -> WeaponPart:
 	if not ResourceLoader.exists(path):
 		path = GlobalData.DEFAULT_LEFT_WEAPON_PATH if side == "left" else GlobalData.DEFAULT_RIGHT_WEAPON_PATH
 	if ResourceLoader.exists(path):
-		return load(path)
+		var res = load(path)
+		if res is WeaponPart:
+			return (res as WeaponPart).duplicate(true) as WeaponPart
 	return null
 
 
@@ -172,7 +174,9 @@ static func get_carry_weapons() -> Array[WeaponPart]:
 	for ref in carry_refs:
 		var path := ref_to_path(ref)
 		if path != "" and ResourceLoader.exists(path):
-			result.append(load(path))
+			var res = load(path)
+			if res is WeaponPart:
+				result.append((res as WeaponPart).duplicate(true) as WeaponPart)
 	return result
 
 

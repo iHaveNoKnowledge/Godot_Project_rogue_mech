@@ -20,10 +20,10 @@ var garage_cam: Camera3D
 var mecha_3d_root: Node3D
 var turntable_node: Node3D
 var selection_highlight: MeshInstance3D
-var cam_target_pos: Vector3 = Vector3(7.2, 3.8, 10.5)
-var cam_look_target: Vector3 = Vector3(0, 2.9, 0)
-var current_cam_pos: Vector3 = Vector3(7.2, 3.8, 10.5)
-var current_look_pos: Vector3 = Vector3(0, 2.9, 0)
+var cam_target_pos: Vector3 = Vector3(4.8, 1.1, 7.2)
+var cam_look_target: Vector3 = Vector3(0, 3.6, 0)
+var current_cam_pos: Vector3 = Vector3(4.8, 1.1, 7.2)
+var current_look_pos: Vector3 = Vector3(0, 3.6, 0)
 
 # Mouse-drag + tab-blink state.
 var _is_dragging_3d: bool = false
@@ -513,8 +513,8 @@ func update_camera_focus(slot: String) -> void:
 			cam_target_pos = Vector3(-1.6, 2.2, 6.0)
 			cam_look_target = Vector3(0.64, 1.85, 0.0)
 		_:
-			cam_target_pos = Vector3(7.2, 3.8, 10.5)
-			cam_look_target = Vector3(0, 2.9, 0)
+			cam_target_pos = Vector3(4.8, 1.1, 7.2)
+			cam_look_target = Vector3(0, 3.6, 0)
 
 
 # --- REAL-TIME 3D PREVIEWS IN GARAGE ---

@@ -19,11 +19,11 @@ var target: Node3D = null
 var shake_amount: float = 0.0
 var shake_decay: float = 4.5
 
-# Camera Presets - pulled back & higher so mech back doesn't block center (see [Image 1] block)
-const MECHA_SPRING_LENGTH: float = 9.2
-const MECHA_OFFSET_X: float = 2.4
-const MECHA_OFFSET_Y: float = 4.2
-const MECHA_FOV: float = 74.0
+# Camera Presets - pushed to side & high so mech sits bottom-left, center clear (fix [Image 1] block)
+const MECHA_SPRING_LENGTH: float = 11.0
+const MECHA_OFFSET_X: float = 3.4
+const MECHA_OFFSET_Y: float = 5.2
+const MECHA_FOV: float = 76.0
 
 const PILOT_SPRING_LENGTH: float = 2.4 # Close tactical over-the-shoulder
 const PILOT_OFFSET_X: float = 0.55 # Right beside pilot shoulder
@@ -75,9 +75,9 @@ func _on_combat_mode_toggled(mode: String) -> void:
 	if target and target.is_in_group("pilot"):
 		return
 	if mode == "close_combat":
-		_target_spring_length = 6.8
-		_target_offset_x = 2.0
-		_target_offset_y = 3.6
+		_target_spring_length = 8.0
+		_target_offset_x = 3.0
+		_target_offset_y = 4.6
 		_target_fov = 78.0
 		add_shake(0.25)
 	else:

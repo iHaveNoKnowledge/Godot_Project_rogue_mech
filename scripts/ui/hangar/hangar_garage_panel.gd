@@ -20,10 +20,10 @@ var garage_cam: Camera3D
 var mecha_3d_root: Node3D
 var turntable_node: Node3D
 var selection_highlight: MeshInstance3D
-var cam_target_pos: Vector3 = Vector3(6.2, 1.6, 8.8)
-var cam_look_target: Vector3 = Vector3(0, 3.2, 0)
-var current_cam_pos: Vector3 = Vector3(6.2, 1.6, 8.8)
-var current_look_pos: Vector3 = Vector3(0, 3.2, 0)
+var cam_target_pos: Vector3 = Vector3(10.416, 2.688, 14.784)
+var cam_look_target: Vector3 = Vector3(0, 5.376, 0)
+var current_cam_pos: Vector3 = Vector3(10.416, 2.688, 14.784)
+var current_look_pos: Vector3 = Vector3(0, 5.376, 0)
 
 # Mouse-drag + tab-blink state.
 var _is_dragging_3d: bool = false
@@ -97,7 +97,7 @@ func build_garage() -> void:
 	var key_spot := SpotLight3D.new()
 	key_spot.position = Vector3(4.5, 7.5, 6.0)
 	hangar_env_node.add_child(key_spot)
-	key_spot.look_at(Vector3(0, 2.5, 0), Vector3.UP)
+	key_spot.look_at(Vector3(0, 4.2, 0), Vector3.UP)
 	key_spot.light_energy = 6.2
 	key_spot.spot_range = 25.0
 	key_spot.spot_angle = 50.0
@@ -109,7 +109,7 @@ func build_garage() -> void:
 	var fill_spot := SpotLight3D.new()
 	fill_spot.position = Vector3(-5.0, 6.0, 5.0)
 	hangar_env_node.add_child(fill_spot)
-	fill_spot.look_at(Vector3(0, 2.2, 0), Vector3.UP)
+	fill_spot.look_at(Vector3(0, 3.696, 0), Vector3.UP)
 	fill_spot.light_energy = 3.8
 	fill_spot.spot_range = 22.0
 	fill_spot.spot_angle = 55.0
@@ -136,7 +136,7 @@ func build_garage() -> void:
 	var rim_spot := SpotLight3D.new()
 	rim_spot.position = Vector3(0.0, 4.8, -4.5)
 	hangar_env_node.add_child(rim_spot)
-	rim_spot.look_at(Vector3(0, 2.2, 0), Vector3.UP)
+	rim_spot.look_at(Vector3(0, 3.696, 0), Vector3.UP)
 	rim_spot.light_energy = 4.2
 	rim_spot.spot_range = 18.0
 	rim_spot.spot_angle = 60.0
@@ -321,45 +321,45 @@ func apply_tactical_idle_pose(mecha_node: Node3D) -> void:
 	var shin_left = mecha_node.get_node_or_null("LegLeft/ShinLeft")
 	var shin_right = mecha_node.get_node_or_null("LegRight/ShinRight")
 
-	# Armored Core Classic Heavy Hangar Stance (Wide A-Stance, Lowered Center of Gravity, Flared Ready Arms)
+		# Armored Core Classic Heavy Hangar Stance - TRUE SCALE 1.0 (MechaBase 4.73m). Values are world meters * WORLD_SCALE (1.68) from legacy 1.6 pose
 	if body:
-		body.rotation = Vector3(-deg_to_rad(4.0), 0.0, 0.0) # Slight aggressive forward chest angle
-		body.position = Vector3(0, 1.70, 0) # Lowered COG
+		body.rotation = Vector3(-deg_to_rad(4.0), 0.0, 0.0)
+		body.position = Vector3(0, 2.856, 0) # 1.70*1.68 lowered COG (Body pivot 3.024)
 
 	if head:
 		head.rotation = Vector3(-deg_to_rad(2.0), 0.0, 0.0)
-		head.position = Vector3(0, 2.22, -0.05) # Nestled low between shoulder armor
+		head.position = Vector3(0, 3.7296, -0.084) # 2.22*1.68 nestled low (Head 3.864)
 
-	# Legs: Wide A-Stance (Thighs flared outward, knees flexed, feet planted wide)
+	# Legs: Wide A-Stance
 	if leg_left:
-		leg_left.position = Vector3(-0.46, 1.25, 0.0)
-		leg_left.rotation = Vector3(deg_to_rad(8.0), deg_to_rad(14.0), -deg_to_rad(14.0)) # Flared OUT to left
+		leg_left.position = Vector3(-0.7728, 2.10, 0.0) # -0.46*1.68, 1.25*1.68
+		leg_left.rotation = Vector3(deg_to_rad(8.0), deg_to_rad(14.0), -deg_to_rad(14.0))
 	if leg_right:
-		leg_right.position = Vector3(0.46, 1.25, 0.0)
-		leg_right.rotation = Vector3(deg_to_rad(8.0), -deg_to_rad(14.0), deg_to_rad(14.0)) # Flared OUT to right
+		leg_right.position = Vector3(0.7728, 2.10, 0.0)
+		leg_right.rotation = Vector3(deg_to_rad(8.0), -deg_to_rad(14.0), deg_to_rad(14.0))
 
-	# Shins / Knees: Bent forward with outward plant
+	# Shins / Knees
 	if shin_left:
-		shin_left.position = Vector3(0, -0.55, 0)
+		shin_left.position = Vector3(0, -0.924, 0) # -0.55*1.68
 		shin_left.rotation = Vector3(-deg_to_rad(18.0), 0.0, deg_to_rad(8.0))
 	if shin_right:
-		shin_right.position = Vector3(0, -0.55, 0)
+		shin_right.position = Vector3(0, -0.924, 0)
 		shin_right.rotation = Vector3(-deg_to_rad(18.0), 0.0, -deg_to_rad(8.0))
 
-	# Left Arm: Flared outward at shoulder (-Z), forearm angled naturally inward/forward
+	# Left Arm
 	if arm_left:
-		arm_left.position = Vector3(-0.68, 1.95, 0.0)
-		arm_left.rotation = Vector3(deg_to_rad(12.0), deg_to_rad(6.0), -deg_to_rad(28.0)) # Flared OUT to left
+		arm_left.position = Vector3(-1.1424, 3.276, 0.0) # -0.68*1.68, 1.95*1.68
+		arm_left.rotation = Vector3(deg_to_rad(12.0), deg_to_rad(6.0), -deg_to_rad(28.0))
 	if forearm_left:
-		forearm_left.position = Vector3(0, -0.38, 0)
+		forearm_left.position = Vector3(0, -0.6384, 0) # -0.38*1.68
 		forearm_left.rotation = Vector3(deg_to_rad(28.0), 0.0, deg_to_rad(14.0))
 
-	# Right Arm: Flared outward at shoulder (+Z), rifle held pointing downward at floor (~35 deg)
+	# Right Arm
 	if arm_right:
-		arm_right.position = Vector3(0.68, 1.95, 0.0)
-		arm_right.rotation = Vector3(deg_to_rad(14.0), -deg_to_rad(6.0), deg_to_rad(28.0)) # Flared OUT to right
+		arm_right.position = Vector3(1.1424, 3.276, 0.0)
+		arm_right.rotation = Vector3(deg_to_rad(14.0), -deg_to_rad(6.0), deg_to_rad(28.0))
 	if forearm_right:
-		forearm_right.position = Vector3(0, -0.38, 0)
+		forearm_right.position = Vector3(0, -0.6384, 0)
 		forearm_right.rotation = Vector3(deg_to_rad(30.0), 0.0, -deg_to_rad(14.0))
 
 
@@ -465,34 +465,29 @@ func apply_tab_blink(on: bool) -> void:
 func update_camera_focus(slot: String) -> void:
 	match slot:
 		"head":
-			cam_target_pos = Vector3(0.8, 2.7, 4.5)
-			cam_look_target = Vector3(0, 2.5, 0)
+			cam_target_pos = Vector3(1.344, 4.536, 7.56)
+			cam_look_target = Vector3(0, 4.2, 0)
 		"body":
-			cam_target_pos = Vector3(0.8, 2.0, 4.8)
-			cam_look_target = Vector3(0, 1.8, 0)
+			cam_target_pos = Vector3(1.344, 3.36, 8.064)
+			cam_look_target = Vector3(0, 3.024, 0)
 		"arm_left", "weapon_left":
-			# Focuses directly on the Left Arm (-0.9 X) with centered viewport framing
-			cam_target_pos = Vector3(1.2, 2.4, 5.2)
-			cam_look_target = Vector3(-0.9, 1.9, 0.0)
+			cam_target_pos = Vector3(2.016, 4.032, 8.736)
+			cam_look_target = Vector3(-1.512, 3.192, 0.0)
 		"arm_right", "weapon_right":
-			# Focuses directly on the Right Arm (+0.9 X) with centered viewport framing
-			cam_target_pos = Vector3(-1.2, 2.4, 5.2)
-			cam_look_target = Vector3(0.9, 1.9, 0.0)
+			cam_target_pos = Vector3(-2.016, 4.032, 8.736)
+			cam_look_target = Vector3(1.512, 3.192, 0.0)
 		"weapon_carry":
-			# Swings around to the back to inspect carry weapons & backpack
-			cam_target_pos = Vector3(1.2, 2.6, -5.0)
-			cam_look_target = Vector3(0, 2.0, 0)
+			cam_target_pos = Vector3(2.016, 4.368, -8.4)
+			cam_look_target = Vector3(0, 3.36, 0)
 		"leg_left":
-			# Frames the left leg centered in the visible viewport
-			cam_target_pos = Vector3(0.8, 1.6, 5.0)
-			cam_look_target = Vector3(-0.5, 1.0, 0.0)
+			cam_target_pos = Vector3(1.344, 2.688, 8.4)
+			cam_look_target = Vector3(-0.84, 1.68, 0.0)
 		"leg_right":
-			# Frames the right leg centered in the visible viewport
-			cam_target_pos = Vector3(-0.8, 1.6, 5.0)
-			cam_look_target = Vector3(0.5, 1.0, 0.0)
+			cam_target_pos = Vector3(-1.344, 2.688, 8.4)
+			cam_look_target = Vector3(0.84, 1.68, 0.0)
 		_:
-			cam_target_pos = Vector3(1.8, 2.4, 6.0)
-			cam_look_target = Vector3(0, 1.8, 0)
+			cam_target_pos = Vector3(3.024, 4.032, 10.08)
+			cam_look_target = Vector3(0, 3.024, 0)
 
 
 # --- REAL-TIME 3D PREVIEWS IN GARAGE ---

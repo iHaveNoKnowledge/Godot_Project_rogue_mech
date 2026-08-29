@@ -256,24 +256,30 @@ func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary) -> vo
 	var strafe_left := calc_strafe_leg(phase_left, not is_strafe_right)
 	var strafe_right := calc_strafe_leg(phase_right, is_strafe_right)
 
-	var lateral_l: float = side_ratio * (float(strafe_left["roll"]) if is_strafe_right else -float(strafe_left["roll"]))
-	var lateral_r: float = side_ratio * (float(strafe_right["roll"]) if is_strafe_right else -float(strafe_right["roll"]))
+	# Lateral roll: side_ratio already gives sign, roll is magnitude (outward leg larger)
+	var lateral_l: float = side_ratio * float(strafe_left["roll"])
+	var lateral_r: float = side_ratio * float(strafe_right["roll"])
 	var lat_shin_l: float = float(strafe_left["shin"])
 	var lat_shin_r: float = float(strafe_right["shin"])
 	var lat_lift_l: float = float(strafe_left["lift"])
 	var lat_lift_r: float = float(strafe_right["lift"])
 
-	# Blend longitudinal and lateral components
+	# Blend longitudinal and lateral components — keep full amplitude for diagonal (don't halve pitch)
 	var total_weight := maxf(fwd_weight + rev_weight + side_weight, 0.001)
 	var long_norm := (fwd_weight + rev_weight) / total_weight
 	var side_norm := side_weight / total_weight
-
-	var target_pitch_l: float = pitch_l * long_norm
-	var target_pitch_r: float = pitch_r * long_norm
+	var target_pitch_l: float = pitch_l
+	var target_pitch_r: float = pitch_r
 	var target_shin_l: float = long_shin_l * long_norm + lat_shin_l * side_norm
 	var target_shin_r: float = long_shin_r * long_norm + lat_shin_r * side_norm
 	var total_lift_l: float = long_lift_l * long_norm + lat_lift_l * side_norm
 	var total_lift_r: float = long_lift_r * long_norm + lat_lift_r * side_norm
+	# Scale side roll/lift with speed so strafe at full speed doesn't look like slow shuffle
+	var speed_scale := clampf(speed / 5.0, 0.75, 1.35)
+	lateral_l *= speed_scale
+	lateral_r *= speed_scale
+	total_lift_l *= speed_scale
+	total_lift_r *= speed_scale
 
 	# 3. Decoupled Pelvis Hip Swivel (Yaw - aligns leg heading towards stride direction up to ±45°)
 	# For forward motion, align relative to forward; for backward motion, align relative to backward.

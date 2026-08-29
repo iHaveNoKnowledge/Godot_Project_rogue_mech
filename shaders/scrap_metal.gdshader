@@ -13,8 +13,8 @@ uniform vec4 plate_color : source_color = vec4(0.30, 0.33, 0.36, 1.0);
 uniform vec4 rust_color : source_color = vec4(0.60, 0.28, 0.10, 1.0);
 uniform vec4 weld_color : source_color = vec4(0.10, 0.11, 0.13, 1.0);
 uniform float rust_intensity : hint_range(0.0, 1.0) = 0.45;
-uniform float metalness : hint_range(0.0, 1.0) = 0.62;
-uniform float roughness_base : hint_range(0.0, 1.0) = 0.38;
+uniform float metalness : hint_range(0.0, 1.0) = 0.22;
+uniform float roughness_base : hint_range(0.0, 1.0) = 0.68;
 
 
 // 3D hash

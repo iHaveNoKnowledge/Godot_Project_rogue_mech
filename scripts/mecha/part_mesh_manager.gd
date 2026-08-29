@@ -191,8 +191,12 @@ func _attach_custom_mesh_scene(upper_container: Node3D, lower_container: Node3D,
 	# Explicit lower scene specified
 	if lower_scene != null and lower_container != null:
 		if upper_scene != null:
-			upper_container.add_child(upper_scene.instantiate())
-		lower_container.add_child(lower_scene.instantiate())
+			var up_inst = upper_scene.instantiate()
+			upper_container.add_child(up_inst)
+			_apply_realistic_fix_recursive(up_inst)
+		var low_inst = lower_scene.instantiate()
+		lower_container.add_child(low_inst)
+		_apply_realistic_fix_recursive(low_inst)
 		return
 
 	# Single scene provided -> auto-split if lower nodes exist
@@ -209,8 +213,10 @@ func _attach_custom_mesh_scene(upper_container: Node3D, lower_container: Node3D,
 				for lnode in lower_nodes:
 					instance.remove_child(lnode)
 					lower_container.add_child(lnode)
+					_apply_realistic_fix_recursive(lnode)
 
 		upper_container.add_child(instance)
+		_apply_realistic_fix_recursive(instance)
 
 
 func _hide_legacy_slot_meshes(parent_node: Node3D) -> void:
@@ -446,8 +452,8 @@ func _render_scrap_patch(slot: String) -> void:
 			scrap_mat.shader = preload("res://shaders/scrap_metal.gdshader")
 			scrap_mat.set_shader_parameter("plate_color", color)
 			scrap_mat.set_shader_parameter("rust_intensity", 0.45)
-			scrap_mat.set_shader_parameter("metalness", 0.75)
-			scrap_mat.set_shader_parameter("roughness_base", 0.45)
+			scrap_mat.set_shader_parameter("metalness", 0.22)
+			scrap_mat.set_shader_parameter("roughness_base", 0.68)
 			mi.material_override = scrap_mat
 
 		container.add_child(mi)
@@ -622,6 +628,60 @@ func _apply_material_recursive(node: Node, mat: Material) -> void:
 		_apply_material_recursive(child, mat)
 
 
+# ---------------------------------------------------------------------------
+# IMPORTED GLB REALISTIC FIX - makes shiny imported models look painted/matte
+# Any MeshInstance3D from .glb that still uses default StandardMaterial3D with
+# low roughness / high metallic gets clamped to realistic painted values.
+# If the model already uses mecha_master_pbr shader, it is left untouched.
+# ---------------------------------------------------------------------------
+func _apply_realistic_fix_recursive(node: Node) -> void:
+	if node is MeshInstance3D:
+		var mi := node as MeshInstance3D
+		# Check material_override first, then mesh surface materials
+		if mi.material_override != null:
+			_fix_material_if_needed(mi.material_override)
+		if mi.mesh != null:
+			for i in mi.mesh.get_surface_count():
+				var surf_mat = mi.mesh.surface_get_material(i)
+				if surf_mat != null:
+					_fix_material_if_needed(surf_mat)
+				# Also check per-instance surface override
+				var override = mi.get_surface_override_material(i)
+				if override != null:
+					_fix_material_if_needed(override)
+		# Also scan child GeometryInstance3D that may hold own overrides
+	for child in node.get_children():
+		_apply_realistic_fix_recursive(child)
+
+
+func _fix_material_if_needed(mat: Material) -> void:
+	# Skip already realistic shader materials (master PBR / scrap / cloth)
+	if mat is ShaderMaterial:
+		return
+	if mat is StandardMaterial3D:
+		var sm := mat as StandardMaterial3D
+		# Heuristic: if material is overly shiny (metallic > 0.4 or roughness < 0.45)
+		# clamp it to painted armor look. Don't touch emissive / transparent mats.
+		if sm.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
+			return
+		var needs_fix := false
+		if sm.metallic > 0.45:
+			sm.metallic = 0.08
+			needs_fix = true
+		elif sm.metallic > 0.25:
+			sm.metallic = 0.12
+			needs_fix = true
+		if sm.roughness < 0.45:
+			sm.roughness = 0.68
+			needs_fix = true
+		elif sm.roughness < 0.58:
+			sm.roughness = 0.65
+			needs_fix = true
+		# Also ensure specular isn't too high (paint F0)
+		if sm.metallic < 0.2 and needs_fix:
+			sm.metallic_specular = 0.35
+
+
 func _spawn_break_vfx(slot_name: String) -> void:
 	var entry = slot_meshes.get(slot_name)
 	if entry == null or entry["frame"] == null:
@@ -644,8 +704,8 @@ func _spawn_break_vfx(slot_name: String) -> void:
 		
 		var mat = StandardMaterial3D.new()
 		mat.albedo_color = Color(0.25, 0.40, 0.60)
-		mat.metallic = 0.75
-		mat.roughness = 0.3
+		mat.metallic = 0.15
+		mat.roughness = 0.72
 		mesh_inst.material_override = mat
 		debris.add_child(mesh_inst)
 		
@@ -668,26 +728,29 @@ func _spawn_break_vfx(slot_name: String) -> void:
 		vfx.global_position = entry["armor"].global_position
 
 
-# Helper materials for inner frame & armor
+# Helper materials for inner frame & armor - REALISTIC PBR VALUES
+# Painted surfaces are dielectric (metallic ~0), brushed metal is ~0.7-0.85, chrome is refined but not mirror
 func _get_dark_frame_material() -> ShaderMaterial:
 	var mat = ShaderMaterial.new()
 	mat.shader = MASTER_PBR_SHADER
 	mat.set_shader_parameter("primary_color", Color(0.14, 0.16, 0.20))
-	mat.set_shader_parameter("metallic", 0.94)
-	mat.set_shader_parameter("roughness", 0.22)
+	mat.set_shader_parameter("metallic", 0.35)
+	mat.set_shader_parameter("roughness", 0.62)
 	mat.set_shader_parameter("panel_grid_scale", 10.0)
 	mat.set_shader_parameter("panel_line_depth", 0.40)
-	mat.set_shader_parameter("edge_wear", 0.18)
+	mat.set_shader_parameter("edge_wear", 0.12)
+	mat.set_shader_parameter("rim_strength", 0.05)
 	return mat
 
 func _get_chrome_material() -> ShaderMaterial:
 	var mat = ShaderMaterial.new()
 	mat.shader = MASTER_PBR_SHADER
-	mat.set_shader_parameter("primary_color", Color(0.85, 0.88, 0.92))
-	mat.set_shader_parameter("metallic", 0.98)
-	mat.set_shader_parameter("roughness", 0.08)
+	mat.set_shader_parameter("primary_color", Color(0.72, 0.74, 0.78))
+	mat.set_shader_parameter("metallic", 0.88)
+	mat.set_shader_parameter("roughness", 0.32)
 	mat.set_shader_parameter("panel_grid_scale", 0.0)
-	mat.set_shader_parameter("edge_wear", 0.05)
+	mat.set_shader_parameter("edge_wear", 0.04)
+	mat.set_shader_parameter("rim_strength", 0.06)
 	return mat
 
 func _get_eye_sensor_material() -> ShaderMaterial:
@@ -957,27 +1020,30 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 	if part and "part_color" in part and part.part_color != Color.TRANSPARENT and part.part_color.a > 0.1:
 		col = part.part_color
 
+	# Realistic painted armor: metallic ~0.08 (paint over primer), roughness ~0.65-0.72 matte
 	var armor_mat = ShaderMaterial.new()
 	armor_mat.shader = MASTER_PBR_SHADER
 	armor_mat.render_priority = 1
 	armor_mat.set_shader_parameter("primary_color", col)
 	armor_mat.set_shader_parameter("trim_color", Color(0.12, 0.14, 0.18))
-	armor_mat.set_shader_parameter("metallic", 0.86)
-	armor_mat.set_shader_parameter("roughness", 0.30)
+	armor_mat.set_shader_parameter("metallic", 0.08)
+	armor_mat.set_shader_parameter("roughness", 0.68)
 	armor_mat.set_shader_parameter("panel_grid_scale", 5.5)
-	armor_mat.set_shader_parameter("panel_line_depth", 0.60)
-	armor_mat.set_shader_parameter("edge_wear", 0.12)
+	armor_mat.set_shader_parameter("panel_line_depth", 0.50)
+	armor_mat.set_shader_parameter("edge_wear", 0.08)
+	armor_mat.set_shader_parameter("rim_strength", 0.06)
 
 	var dark_trim_mat = ShaderMaterial.new()
 	dark_trim_mat.shader = MASTER_PBR_SHADER
 	dark_trim_mat.render_priority = 1
 	dark_trim_mat.set_shader_parameter("primary_color", Color(0.12, 0.14, 0.18))
 	dark_trim_mat.set_shader_parameter("trim_color", Color(0.08, 0.09, 0.11))
-	dark_trim_mat.set_shader_parameter("metallic", 0.92)
-	dark_trim_mat.set_shader_parameter("roughness", 0.24)
+	dark_trim_mat.set_shader_parameter("metallic", 0.12)
+	dark_trim_mat.set_shader_parameter("roughness", 0.72)
 	dark_trim_mat.set_shader_parameter("panel_grid_scale", 8.0)
-	dark_trim_mat.set_shader_parameter("panel_line_depth", 0.40)
-	dark_trim_mat.set_shader_parameter("edge_wear", 0.20)
+	dark_trim_mat.set_shader_parameter("panel_line_depth", 0.35)
+	dark_trim_mat.set_shader_parameter("edge_wear", 0.10)
+	dark_trim_mat.set_shader_parameter("rim_strength", 0.05)
 
 	match slot_name.to_lower():
 		"head":

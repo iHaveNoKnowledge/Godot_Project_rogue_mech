@@ -13,9 +13,11 @@ uniform vec4 undercoat_metal_color : source_color = vec4(0.82, 0.85, 0.90, 1.0);
 uniform float trim_mask_amount : hint_range(0.0, 1.0) = 0.0;
 
 group_uniforms PBRProperties;
-uniform float metallic : hint_range(0.0, 1.0) = 0.85;
-uniform float roughness : hint_range(0.0, 1.0) = 0.32;
-uniform float rim_strength : hint_range(0.0, 1.0) = 0.25;
+// Realistic painted armor: paint is DIELECTRIC (non-metal), only bare metal is metallic.
+// Default = matte military paint, not plastic chrome.
+uniform float metallic : hint_range(0.0, 1.0) = 0.05;
+uniform float roughness : hint_range(0.0, 1.0) = 0.68;
+uniform float rim_strength : hint_range(0.0, 1.0) = 0.08;
 uniform float ao_strength : hint_range(0.0, 1.0) = 0.60;
 
 group_uniforms PanelingAndDetails;
@@ -65,12 +67,13 @@ void fragment() {
 		              lines.z * (n_weight.x + n_weight.y)) * 0.5;
 		panel_seam = clamp(panel_seam * panel_line_depth, 0.0, 1.0);
 		
-		// Darken paint inside panel seams
-		base_color = mix(base_color, base_color * 0.20, panel_seam);
-		cur_roughness = mix(cur_roughness, 0.70, panel_seam * 0.5);
+		// Darken paint inside panel seams - seams collect dust, rougher and darker
+		base_color = mix(base_color, base_color * 0.35, panel_seam);
+		cur_roughness = mix(cur_roughness, 0.82, panel_seam * 0.6);
 	}
 
 	// 3. Edge Wear & Scratches revealing raw underlying metal
+	// Real bare steel is NOT chrome mirror - brushed steel roughness ~0.35-0.45
 	float wear_mask = 0.0;
 	if (edge_wear > 0.001) {
 		float n1 = hash31(floor(v_pos * 24.0));
@@ -78,19 +81,19 @@ void fragment() {
 		float micro_noise = (n1 * 0.6 + n2 * 0.4);
 		wear_mask = smoothstep(1.0 - edge_wear * 1.2, 1.0, micro_noise);
 		
-		// Blend raw metal on worn edges
+		// Blend raw metal on worn edges - brushed steel, not mirror chrome
 		base_color = mix(base_color, undercoat_metal_color.rgb, wear_mask);
-		cur_metallic = mix(cur_metallic, 0.96, wear_mask);
-		cur_roughness = mix(cur_roughness, 0.15, wear_mask);
+		cur_metallic = mix(cur_metallic, 0.75, wear_mask);
+		cur_roughness = mix(cur_roughness, 0.38, wear_mask);
 	}
 
-	// 4. Battle Scorch & Thermal Charring
+	// 4. Battle Scorch & Thermal Charring - carbon soot is dielectric and very matte
 	if (scorch_amount > 0.001) {
 		float scorch_noise = hash31(floor(v_pos * 12.0));
 		float char_factor = clamp(scorch_amount * (0.7 + 0.3 * scorch_noise), 0.0, 1.0);
-		base_color = mix(base_color, vec3(0.05, 0.05, 0.06), char_factor * 0.85);
-		cur_metallic = mix(cur_metallic, 0.15, char_factor * 0.7);
-		cur_roughness = mix(cur_roughness, 0.85, char_factor * 0.8);
+		base_color = mix(base_color, vec3(0.04, 0.04, 0.045), char_factor * 0.88);
+		cur_metallic = mix(cur_metallic, 0.02, char_factor * 0.9);
+		cur_roughness = mix(cur_roughness, 0.92, char_factor * 0.85);
 	}
 
 	// 5. Emissive Glow & Pulsing
@@ -100,14 +103,14 @@ void fragment() {
 	}
 	vec3 emissive_out = emission_color.rgb * (emission_energy * pulse);
 
-	// Output PBR channels
+	// Output PBR channels - SPECULAR lowered for realistic paint (dielectric F0 ~0.04)
 	ALBEDO = base_color;
 	METALLIC = cur_metallic;
-	ROUGHNESS = cur_roughness;
-	SPECULAR = 0.5;
-	RIM = rim_strength;
-	RIM_TINT = 0.3;
+	ROUGHNESS = clamp(cur_roughness, 0.0, 1.0);
+	SPECULAR = 0.35;
+	RIM = rim_strength * 0.4;
+	RIM_TINT = 0.2;
 	AO = 1.0 - (panel_seam * ao_strength);
-	AO_LIGHT_AFFECT = 0.5;
+	AO_LIGHT_AFFECT = 0.65;
 	EMISSION = emissive_out;
 }

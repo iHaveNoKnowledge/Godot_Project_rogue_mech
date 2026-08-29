@@ -1040,10 +1040,12 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 		if weapon.weapon_type != WeaponPart.WeaponType.MISSILE:
 			_spawn_shell_casing(spawn_pos, hand)
 		
-		# Durability wear: firing wears weapon lifespan; firing at high heat accelerates wear
-		var wear := 0.0003
+		# Durability wear: firing wears weapon lifespan; firing at high heat accelerates wear.
+		# Scaled with fire_rate so high-RPM weapons wear proportionately per minute with heavy single-shot weapons.
+		var rate_scale: float = clampf(float(weapon.fire_rate) / 0.2, 0.25, 2.0) if ("fire_rate" in weapon and weapon.fire_rate > 0.0) else 1.0
+		var wear: float = 0.00004 * rate_scale
 		if core.heat > (core.max_heat * 0.75):
-			wear = 0.0025
+			wear += 0.00015 * rate_scale
 		GlobalData.degrade_weapon_durability(hand, wear)
 
 

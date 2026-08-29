@@ -97,8 +97,8 @@ static func apply_emergency_repair(slot: String, primitives: Array = []) -> Dict
 	if had_frame_damage:
 		GlobalData.weapons.frame_bindings[slot] = true
 
-	# Quick scrap repair taxes max durability by 10% (wear and tear on crude patching)
-	ArmorSystem.degrade_equipped_armor(slot, 0.10)
+	# Quick scrap repair taxes max durability by 2% (wear and tear on crude patching)
+	ArmorSystem.degrade_equipped_armor(slot, 0.02)
 
 	# Practice makes perfect — patching is how the driver's repair skill grows.
 	FleetSystem.gain_repair_xp(10 + cost)

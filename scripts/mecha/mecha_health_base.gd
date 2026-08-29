@@ -617,7 +617,7 @@ func _on_armor_broken(slot_name: String, damage_type: String = "") -> void:
 	parts[slot_name]["armor_broken"] = true
 	parts[slot_name]["armor_hp"] = 0.0
 	if is_player:
-		ArmorSystem.degrade_equipped_armor(slot_name, 0.15)
+		ArmorSystem.degrade_equipped_armor(slot_name, 0.03)
 	# An EMERGENCY SCRAP PATCH behaves exactly like normal armor: when its HP
 	# hits zero it shatters and is GONE. Remove the patch from the persistent
 	# stash so the crude plates fall off the mech, the hangar stops showing it,

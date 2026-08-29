@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://b28y6p38x4q1m"]
+
+[ext_resource type="Script" path="res://tests/durability_rebalance_verify.gd" id="1_test"]
+
+[node name="DurabilityRebalanceVerify" type="Node"]
+script = ExtResource("1_test")

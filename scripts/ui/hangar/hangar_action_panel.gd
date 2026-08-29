@@ -158,7 +158,7 @@ func show(info: Dictionary) -> void:
 	)
 	grid.add_child(toggle_btn)
 
-	# 2. REPAIR — owned armor instances & inner frames only (never mutates the catalog)
+	# 2. REPAIR — owned armor instances & inner frames only (0% permanent wear penalty in Hangar)
 	if not is_weapon_slot and (is_instance or controller.current_mode == "frame"):
 		var repair_btn = Button.new()
 		var repair_cost := RepairSystem.get_repair_cost(controller.selected_slot)
@@ -166,11 +166,6 @@ func show(info: Dictionary) -> void:
 		repair_btn.custom_minimum_size = Vector2(180, 36)
 		repair_btn.pressed.connect(func():
 			if GlobalData.currency.try_spend_credits(repair_cost):
-				var a_dmg := float(GlobalData.weapons.part_damage.get(controller.selected_slot, 0.0))
-				var f_dmg := float(GlobalData.weapons.part_damage.get(controller.selected_slot + "_frame", 0.0))
-				GlobalData.degrade_part_durability(controller.selected_slot, a_dmg * 0.04)
-				GlobalData.degrade_frame_durability(controller.selected_slot, f_dmg * 0.04)
-
 				GlobalData.weapons.part_damage.erase(controller.selected_slot)
 				GlobalData.weapons.part_damage.erase(controller.selected_slot + "_frame")
 				GlobalData.weapons.part_hit_meta.erase(controller.selected_slot)
@@ -182,6 +177,54 @@ func show(info: Dictionary) -> void:
 			close()
 		)
 		grid.add_child(repair_btn)
+
+	# 2.5 OVERHAUL / REFURBISH — restores degraded lifetime durability back to 100%
+	var item_dur: float = 1.0
+	if is_weapon_slot:
+		item_dur = GlobalData.get_durability_ratio(info)
+	elif controller.current_mode == "frame":
+		item_dur = GlobalData.get_frame_durability(controller.selected_slot) if is_eq else GlobalData.get_durability_ratio(info)
+	elif is_instance or controller.current_mode == "armor":
+		item_dur = controller.part_list_panel.instance_durability(controller.selected_slot, info)
+
+	if item_dur < 0.999:
+		var lost_pct: float = 1.0 - item_dur
+		var oh_cr: int = int(lost_pct * 80.0) + 20
+		var oh_scrap: int = int(lost_pct * 15.0) + 5
+		var overhaul_btn = Button.new()
+		overhaul_btn.text = "OVERHAUL (100%% DUR - %d cr, %d sc)" % [oh_cr, oh_scrap]
+		overhaul_btn.add_theme_color_override("font_color", Color(0.3, 0.85, 1.0))
+		overhaul_btn.custom_minimum_size = Vector2(180, 36)
+		overhaul_btn.pressed.connect(func():
+			if GlobalData.currency.credits < oh_cr:
+				controller.status_message_label.text = "Need %d credits for overhaul!" % oh_cr
+				return
+			if GlobalData.currency.scrap < oh_scrap:
+				controller.status_message_label.text = "Need %d scrap for overhaul!" % oh_scrap
+				return
+			GlobalData.currency.try_spend_credits(oh_cr)
+			GlobalData.currency.try_spend_scrap(oh_scrap)
+
+			if is_weapon_slot:
+				var hand := "left" if controller.selected_slot == "weapon_left" else "right"
+				GlobalData.restore_weapon_durability(hand, 1.0)
+				GlobalData.restore_item_instance_durability(info, 1.0)
+			elif controller.current_mode == "frame":
+				GlobalData.restore_frame_durability(controller.selected_slot, 1.0)
+				GlobalData.restore_item_instance_durability(info, 1.0)
+			else:
+				GlobalData.restore_part_durability(controller.selected_slot, 1.0)
+				GlobalData.restore_item_instance_durability(info, 1.0)
+
+			GlobalData.weapons.part_damage.erase(controller.selected_slot)
+			GlobalData.weapons.part_damage.erase(controller.selected_slot + "_frame")
+			GlobalData.weapons.part_hit_meta.erase(controller.selected_slot)
+			controller.status_message_label.text = "Part Overhauled to 100% Durability!"
+			GlobalData.save_run()
+			controller.refresh_after_part_mutation(controller.selected_slot)
+			close()
+		)
+		grid.add_child(overhaul_btn)
 
 	# 3. UPGRADE — raises the part's upgrade tier (armor +15 HP, weapon +10%
 	#    damage, frame +15 HP on the equipped copy). Shared 1 -> 1.1 -> ... -> 2

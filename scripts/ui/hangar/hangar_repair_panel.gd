@@ -11,7 +11,7 @@ var controller  # hangar_controller.gd
 
 
 # Repair the currently selected slot: skip when undamaged, require credits,
-# then clear the slot's part/frame damage and repaint.
+# then clear the slot's part/frame damage and repaint. (0% permanent wear penalty in Hangar).
 func repair_part() -> void:
 	var repair_cost := RepairSystem.get_repair_cost(controller.selected_slot)
 	if repair_cost <= 0:
@@ -19,12 +19,6 @@ func repair_part() -> void:
 		return
 	if _block_without_credits(repair_cost):
 		return
-	var a_dmg := float(GlobalData.weapons.part_damage.get(controller.selected_slot, 0.0))
-	var f_dmg := float(GlobalData.weapons.part_damage.get(controller.selected_slot + "_frame", 0.0))
-	
-	# Repair wear & tear (like battery degradation): each repair slightly reduces part durability
-	GlobalData.degrade_part_durability(controller.selected_slot, a_dmg * 0.04)
-	GlobalData.degrade_frame_durability(controller.selected_slot, f_dmg * 0.04)
 
 	GlobalData.weapons.part_damage.erase(controller.selected_slot)
 	GlobalData.weapons.part_damage.erase(controller.selected_slot + "_frame")
@@ -34,7 +28,7 @@ func repair_part() -> void:
 	controller.refresh_after_part_mutation(controller.selected_slot)
 
 
-# Repair every mecha slot at once, clearing all part damage.
+# Repair every mecha slot at once, clearing all part damage (0% permanent wear penalty in Hangar).
 func full_repair() -> void:
 	var total_cost := 0
 	for slot in GlobalData.MECHA_SLOTS:
@@ -47,15 +41,36 @@ func full_repair() -> void:
 	if _block_without_credits(total_cost):
 		return
 
-	for slot in GlobalData.MECHA_SLOTS:
-		var a_dmg := float(GlobalData.weapons.part_damage.get(slot, 0.0))
-		var f_dmg := float(GlobalData.weapons.part_damage.get(slot + "_frame", 0.0))
-		GlobalData.degrade_part_durability(slot, a_dmg * 0.04)
-		GlobalData.degrade_frame_durability(slot, f_dmg * 0.04)
-
 	GlobalData.weapons.part_damage.clear()
 	GlobalData.weapons.part_hit_meta.clear()
 	controller.status_message_label.text = "Full Repair Complete!"
+	GlobalData.save_run()
+	controller.refresh_after_part_mutation()
+
+
+# Full overhaul of the mecha: restores all frame and equipped armor durabilities to 100%.
+func full_overhaul() -> void:
+	var total_scrap := 25
+	var total_credits := 120
+	if GlobalData.currency.scrap < total_scrap:
+		controller.status_message_label.text = "Need %d scrap for full overhaul!" % total_scrap
+		return
+	if GlobalData.currency.credits < total_credits:
+		controller.status_message_label.text = "Need %d credits for full overhaul!" % total_credits
+		return
+
+	GlobalData.currency.try_spend_scrap(total_scrap)
+	GlobalData.currency.try_spend_credits(total_credits)
+
+	for slot in GlobalData.MECHA_SLOTS:
+		GlobalData.restore_part_durability(slot, 1.0)
+		GlobalData.restore_frame_durability(slot, 1.0)
+	GlobalData.restore_weapon_durability("left", 1.0)
+	GlobalData.restore_weapon_durability("right", 1.0)
+	GlobalData.weapons.part_damage.clear()
+	GlobalData.weapons.part_hit_meta.clear()
+
+	controller.status_message_label.text = "Full Mecha Overhaul Complete! Durability restored to 100%."
 	GlobalData.save_run()
 	controller.refresh_after_part_mutation()
 

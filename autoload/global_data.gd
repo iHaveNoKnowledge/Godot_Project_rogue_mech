@@ -610,6 +610,46 @@ func degrade_weapon_durability(hand: String, amount: float) -> void:
 			break
 
 
+## Restores the lifetime durability of an equipped armor part (e.g. from Hangar Overhaul)
+func restore_part_durability(slot: String, amount: float = 1.0) -> void:
+	var p = weapons.equipped_parts.get(slot)
+	if p is Dictionary:
+		var cur := get_durability_ratio(p)
+		p["durability"] = clampf(cur + amount, 0.0, 1.0)
+
+
+## Restores the lifetime durability of an equipped frame
+func restore_frame_durability(slot: String, amount: float = 1.0) -> void:
+	var base_slot := str(slot).replace("_frame", "")
+	var f = weapons.equipped_frames.get(base_slot)
+	if f is Dictionary:
+		var cur := get_durability_ratio(f)
+		f["durability"] = clampf(cur + amount, 0.0, 1.0)
+
+
+## Restores the lifetime durability of an equipped weapon
+func restore_weapon_durability(hand: String, amount: float = 1.0) -> void:
+	if weapons == null:
+		return
+	var uid := str(weapons.weapon_loadout.get(hand, "")) if "weapon_loadout" in weapons else ""
+	if uid == "":
+		return
+	var inv_list: Array = weapons.weapon_inventory if "weapon_inventory" in weapons else []
+	for w in inv_list:
+		if w is Dictionary and (str(w.get("uid", "")) == uid or str(w.get("path", "")) == uid):
+			var cur := get_durability_ratio(w)
+			w["durability"] = clampf(cur + amount, 0.0, 1.0)
+			break
+
+
+## Restores the lifetime durability of any inventory item dictionary directly
+func restore_item_instance_durability(item: Dictionary, amount: float = 1.0) -> void:
+	if item.is_empty():
+		return
+	var cur := get_durability_ratio(item)
+	item["durability"] = clampf(cur + amount, 0.0, 1.0)
+
+
 func scrap_attach_node_paths(slot: String) -> Array[String]:
 	var paths: Array[String] = []
 	for opt in SCRAP_ATTACH_OPTIONS.get(slot, []):

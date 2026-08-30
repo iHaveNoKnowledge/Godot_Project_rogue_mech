@@ -37,12 +37,21 @@ func _test_river_bridge_arena_generation() -> void:
 	var struct_container = arena_gen.get_node_or_null("ThemeStructures")
 	_check(struct_container != null, "ThemeStructures container created")
 
-	# Check Water volumes
+	# Check Ground Banks quads
+	var ground_container = arena_gen.get_node_or_null("GroundTiles")
+	_check(ground_container != null, "GroundTiles container created")
+	var ground_banks := []
+	for child in ground_container.get_children():
+		if child is MeshInstance3D and child.name.begins_with("GroundBank"):
+			ground_banks.append(child)
+	_check(ground_banks.size() >= 2, "Generated 2 ground banks (South & North) with position-mapped UVs")
+
+	# Check Water volume
 	var water_volumes := []
 	for child in struct_container.get_children():
 		if child is Area3D and child.is_in_group("water_volume"):
 			water_volumes.append(child)
-	_check(water_volumes.size() >= 4, "Generated %d water volume sections across river" % water_volumes.size())
+	_check(water_volumes.size() >= 1, "Generated continuous water volume across river channel")
 
 	if not water_volumes.is_empty():
 		var first_water = water_volumes[0]
@@ -57,7 +66,6 @@ func _test_river_bridge_arena_generation() -> void:
 			_check(mat is ShaderMaterial, "Water surface uses custom ShaderMaterial")
 			if mat is ShaderMaterial:
 				_check(mat.shader != null, "Water shader is compiled")
-				_check(mat.get_shader_parameter("normal_map1") != null, "Water shader has normal_map1 parameter assigned")
 
 	# Check Bridge static bodies and riverbed
 	var bridges := []

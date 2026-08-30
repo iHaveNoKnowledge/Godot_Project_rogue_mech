@@ -283,8 +283,7 @@ func _add_ground_tiles() -> void:
 
 	match current_theme:
 		BiomeTheme.RIVER_BRIDGE:
-			_add_ground_plane(texture, 0.45, -22.0, arena_size / 2.0)
-			_add_ground_plane(texture, 0.45, 22.0, arena_size / 2.0)
+			_add_river_bridge_ground_banks(texture)
 		BiomeTheme.FOREST, BiomeTheme.FOREST_ROAD:
 			_add_forest_terrain_banks(texture)
 			_add_forest_strip_plane(texture)
@@ -393,19 +392,67 @@ func _add_terrain_mesh(texture: Texture2D) -> void:
 	tile_container.add_child(surface)
 
 
-func _add_ground_plane(texture: Texture2D, y: float, z0: float, z1: float) -> void:
-	var size_z := z1 - z0
-	var center_z := (z0 + z1) * 0.5
-	var plane = MeshInstance3D.new()
-	var box = BoxMesh.new()
-	box.size = Vector3(arena_size, 0.1, size_z)
-	plane.mesh = box
-
+func _add_river_bridge_ground_banks(texture: Texture2D) -> void:
+	var half := arena_size / 2.0
+	var z_trench := 22.0
 	var mat = MaterialFactory.get_ground_material(current_theme, texture)
-	plane.material_override = mat
 
-	plane.position = Vector3(0, y, center_z)
-	tile_container.add_child(plane)
+	# 1. South Bank: Z from -half to -22.0, top surface at Y = 0.45
+	_add_quad_ground_plane(-half, half, -half, -z_trench, 0.45, mat, "GroundBank_South")
+
+	# 2. North Bank: Z from 22.0 to half, top surface at Y = 0.45
+	_add_quad_ground_plane(-half, half, z_trench, half, 0.45, mat, "GroundBank_North")
+
+	# 3. Retaining concrete/rock embankment walls facing the river
+	_add_river_retaining_walls()
+
+
+func _add_quad_ground_plane(x0: float, x1: float, z0: float, z1: float, y: float, mat: Material, node_name: String = "GroundBank") -> void:
+	var half := arena_size / 2.0
+	var verts := PackedVector3Array([
+		Vector3(x0, y, z0),
+		Vector3(x1, y, z0),
+		Vector3(x0, y, z1),
+		Vector3(x1, y, z1),
+	])
+	var uvs := PackedVector2Array([
+		Vector2((x0 + half) / arena_size, (z0 + half) / arena_size),
+		Vector2((x1 + half) / arena_size, (z0 + half) / arena_size),
+		Vector2((x0 + half) / arena_size, (z1 + half) / arena_size),
+		Vector2((x1 + half) / arena_size, (z1 + half) / arena_size),
+	])
+	var normals := PackedVector3Array([Vector3.UP, Vector3.UP, Vector3.UP, Vector3.UP])
+	var indices := PackedInt32Array([0, 2, 1, 1, 2, 3])
+
+	var mesh := ArrayMesh.new()
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_INDEX] = indices
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+
+	var surface := MeshInstance3D.new()
+	surface.name = node_name
+	surface.mesh = mesh
+	surface.material_override = mat
+	tile_container.add_child(surface)
+
+
+func _add_river_retaining_walls() -> void:
+	var half := arena_size / 2.0
+	var wall_mat = MaterialFactory.get_cover_material("barrier")
+
+	for sign_z in [-1.0, 1.0]:
+		var z_pos: float = sign_z * 22.0
+		var wall_mi := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(arena_size, 1.65, 0.4)
+		wall_mi.mesh = box
+		wall_mi.material_override = wall_mat
+		wall_mi.position = Vector3(0, -0.375, z_pos)
+		tile_container.add_child(wall_mi)
 
 
 # The flat river band (|z| < 24) between the two banks. Built as an explicit
@@ -2107,7 +2154,6 @@ func _build_forest_ruins_structures() -> void:
 		mi.material_override = ruin_mat
 		mi.position.y = shape.size.y * 0.5
 		pillar.add_child(mi)
-
 		pillar.position = Vector3(px, 0, pz)
 		pillar.rotation.y = randf_range(0, TAU)
 		pillar.add_to_group("solid_obstacle")
@@ -2116,28 +2162,12 @@ func _build_forest_ruins_structures() -> void:
 
 
 func _build_river_bridge_structures() -> void:
-	# 1. Submerged riverbed floor with dark river rocks, silt, and underwater boulders
+	# 1. Submerged riverbed floor with dark river silt and rocks
 	_spawn_riverbed_floor()
 
-	# 2. Water trench as passable volumes with realistic flowing water shader
-	var water_mat = _create_water_material()
-	var center_bridge_half = 15.0
-	var flank_center_x = 75.0
-	var flank_bridge_half = 7.5
-	var half = arena_size / 2.0
-	var water_x_ranges = [
-		[-half, -flank_center_x - flank_bridge_half],
-		[-flank_center_x + flank_bridge_half, -center_bridge_half],
-		[center_bridge_half, flank_center_x - flank_bridge_half],
-		[flank_center_x + flank_bridge_half, half],
-	]
-	for x_range in water_x_ranges:
-		var x0: float = x_range[0]
-		var x1: float = x_range[1]
-		var width: float = x1 - x0
-		if width <= 0.0:
-			continue
-		_spawn_water_volume((x0 + x1) * 0.5, width, water_mat)
+	# 2. Continuous flowing river surface & water detection zone
+	var water_mat := _create_water_material()
+	_spawn_continuous_water_surface(water_mat)
 
 	# --- PBR Materials for Bridge Architecture ---
 	var asphalt_mat := StandardMaterial3D.new()
@@ -2193,90 +2223,72 @@ func _build_river_bridge_structures() -> void:
 	steel_guard_mat.metallic = 0.70
 	steel_guard_mat.roughness = 0.38
 
-	# 3. Main Center Steel Bridge Crossing (X = -15 to 15, Z = -26 to 26)
+	# 3. Main Center Steel Bridge Crossing (X = -15 to 15, Z = -22 to 22, length 44m matching trench)
+	var bridge_len := 44.0
 	var bridge := StaticBody3D.new()
 	bridge.collision_layer = 2
 	bridge.collision_mask = 1
 
 	var collision := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
-	shape.size = Vector3(30, 1.0, 52)
+	shape.size = Vector3(30, 0.9, bridge_len)
 	collision.shape = shape
 	collision.position.y = 0.0
 	bridge.add_child(collision)
 
-	# Main Asphalt Road Surface Deck
+	# Main Asphalt Road Surface Deck (top at Y = 0.45 flush with South & North Banks)
 	var deck_mesh := MeshInstance3D.new()
 	var deck_box := BoxMesh.new()
-	deck_box.size = Vector3(25, 0.8, 52)
+	deck_box.size = Vector3(25, 0.8, bridge_len)
 	deck_mesh.mesh = deck_box
 	deck_mesh.material_override = asphalt_mat
-	deck_mesh.position.y = 0.0
+	deck_mesh.position.y = 0.05
 	bridge.add_child(deck_mesh)
 
 	# Double Yellow Center Dividing Lines
 	var yellow_line := MeshInstance3D.new()
 	var y_box := BoxMesh.new()
-	y_box.size = Vector3(0.6, 0.05, 52)
+	y_box.size = Vector3(0.6, 0.05, bridge_len)
 	yellow_line.mesh = y_box
 	yellow_line.material_override = yellow_paint_mat
-	yellow_line.position = Vector3(0, 0.42, 0)
+	yellow_line.position = Vector3(0, 0.46, 0)
 	bridge.add_child(yellow_line)
 
 	# White Lane Edge Lines
 	for lane_x in [-11.8, 11.8]:
 		var white_line := MeshInstance3D.new()
 		var w_box := BoxMesh.new()
-		w_box.size = Vector3(0.35, 0.05, 52)
+		w_box.size = Vector3(0.35, 0.05, bridge_len)
 		white_line.mesh = w_box
 		white_line.material_override = white_paint_mat
-		white_line.position = Vector3(lane_x, 0.42, 0)
+		white_line.position = Vector3(lane_x, 0.46, 0)
 		bridge.add_child(white_line)
 
 	# Elevated Concrete Sidewalks & Curbs
 	for side_x in [-13.75, 13.75]:
 		var sidewalk := MeshInstance3D.new()
 		var s_box := BoxMesh.new()
-		s_box.size = Vector3(2.5, 1.1, 52)
+		s_box.size = Vector3(2.5, 1.1, bridge_len)
 		sidewalk.mesh = s_box
 		sidewalk.material_override = concrete_mat
-		sidewalk.position = Vector3(side_x, 0.15, 0)
+		sidewalk.position = Vector3(side_x, 0.20, 0)
 		bridge.add_child(sidewalk)
 
 		# Concrete Jersey Safety Barrier Parapet
 		var barrier := MeshInstance3D.new()
 		var b_box := BoxMesh.new()
-		b_box.size = Vector3(0.5, 1.2, 52)
+		b_box.size = Vector3(0.5, 1.2, bridge_len)
 		barrier.mesh = b_box
 		barrier.material_override = concrete_mat
-		barrier.position = Vector3(side_x + (-0.9 if side_x < 0 else 0.9), 0.9, 0)
+		barrier.position = Vector3(side_x + (-0.9 if side_x < 0 else 0.9), 0.95, 0)
 		bridge.add_child(barrier)
-
-	# Concrete Abutment Walls at North/South Ends
-	for z_end in [-26.0, 26.0]:
-		var abutment := MeshInstance3D.new()
-		var ab_box := BoxMesh.new()
-		ab_box.size = Vector3(32.0, 2.2, 1.8)
-		abutment.mesh = ab_box
-		abutment.material_override = concrete_mat
-		abutment.position = Vector3(0, -0.6, z_end)
-		bridge.add_child(abutment)
-
-		# Steel Expansion Joint Plate
-		var exp_joint := MeshInstance3D.new()
-		var exp_box := BoxMesh.new()
-		exp_box.size = Vector3(26.0, 0.08, 0.7)
-		exp_joint.mesh = exp_box
-		exp_joint.material_override = steel_guard_mat
-		exp_joint.position = Vector3(0, 0.43, z_end)
-		bridge.add_child(exp_joint)
 
 	# Structural Warren Steel Truss Arch Superstructure
 	for side in [-15.0, 15.0]:
 		# Bottom Chord
 		var b_chord := MeshInstance3D.new()
 		var bc_box := BoxMesh.new()
-		bc_box.size = Vector3(0.8, 1.2, 52.0)
+		bc_box.size = Vector3(0.8, 1.2, bridge_len)
 		b_chord.mesh = bc_box
 		b_chord.material_override = steel_truss_mat
 		b_chord.position = Vector3(side, 0.1, 0)
@@ -2285,14 +2297,14 @@ func _build_river_bridge_structures() -> void:
 		# Top Chord
 		var t_chord := MeshInstance3D.new()
 		var tc_box := BoxMesh.new()
-		tc_box.size = Vector3(0.8, 0.8, 52.0)
+		tc_box.size = Vector3(0.8, 0.8, bridge_len)
 		t_chord.mesh = tc_box
 		t_chord.material_override = steel_truss_mat
 		t_chord.position = Vector3(side, 8.2, 0)
 		bridge.add_child(t_chord)
 
 		# Vertical Steel Struts & Diagonal Bracing
-		for z_step in [-26.0, -19.5, -13.0, -6.5, 0.0, 6.5, 13.0, 19.5, 26.0]:
+		for z_step in [-22.0, -16.5, -11.0, -5.5, 0.0, 5.5, 11.0, 16.5, 22.0]:
 			var strut := MeshInstance3D.new()
 			var st_box := BoxMesh.new()
 			st_box.size = Vector3(0.7, 8.0, 0.7)
@@ -2302,7 +2314,7 @@ func _build_river_bridge_structures() -> void:
 			bridge.add_child(strut)
 
 	# Overhead Cross-Bracing Portals
-	for portal_z in [-26.0, 0.0, 26.0]:
+	for portal_z in [-22.0, 0.0, 22.0]:
 		var portal := MeshInstance3D.new()
 		var p_box := BoxMesh.new()
 		p_box.size = Vector3(30.8, 0.7, 0.8)
@@ -2313,7 +2325,7 @@ func _build_river_bridge_structures() -> void:
 
 	# 4 Heavy Reinforced Concrete Bridge Support Piers
 	for px in [-8.0, 8.0]:
-		for pz in [-13.0, 13.0]:
+		for pz in [-11.0, 11.0]:
 			var pier := MeshInstance3D.new()
 			var p_cyl := CylinderMesh.new()
 			p_cyl.top_radius = 1.4
@@ -2324,7 +2336,6 @@ func _build_river_bridge_structures() -> void:
 			pier.position = Vector3(px, -0.9, pz)
 			bridge.add_child(pier)
 
-			# Concrete Foundation Footing Pedestal
 			var footing := MeshInstance3D.new()
 			var foot_box := BoxMesh.new()
 			foot_box.size = Vector3(3.8, 0.8, 3.8)
@@ -2332,19 +2343,6 @@ func _build_river_bridge_structures() -> void:
 			footing.material_override = concrete_mat
 			footing.position = Vector3(px, -1.6, pz)
 			bridge.add_child(footing)
-
-	# Highway Light Poles on Bridge
-	for lz in [-16.0, 16.0]:
-		for lx in [-15.2, 15.2]:
-			var pole := MeshInstance3D.new()
-			var pol_cyl := CylinderMesh.new()
-			pol_cyl.top_radius = 0.12
-			pol_cyl.bottom_radius = 0.18
-			pol_cyl.height = 10.5
-			pole.mesh = pol_cyl
-			pole.material_override = steel_guard_mat
-			pole.position = Vector3(lx, 5.0, lz)
-			bridge.add_child(pole)
 
 	bridge.position = Vector3(0, 0, 0)
 	structures_container.add_child(bridge)
@@ -2357,40 +2355,41 @@ func _build_river_bridge_structures() -> void:
 
 		var f_collision := CollisionShape3D.new()
 		var f_shape := BoxShape3D.new()
-		f_shape.size = Vector3(15, 1.0, 52)
+		f_shape.size = Vector3(15, 0.9, bridge_len)
 		f_collision.shape = f_shape
 		f_collision.position.y = 0.0
 		f_bridge.add_child(f_collision)
 
-		# Asphalt Road Deck
+		# Asphalt Road Deck (top at Y = 0.45)
 		var f_deck := MeshInstance3D.new()
 		var f_box := BoxMesh.new()
-		f_box.size = Vector3(13.5, 0.8, 52)
+		f_box.size = Vector3(13.5, 0.8, bridge_len)
 		f_deck.mesh = f_box
 		f_deck.material_override = asphalt_mat
+		f_deck.position.y = 0.05
 		f_bridge.add_child(f_deck)
 
 		# Yellow Lane Stripe
 		var f_yellow := MeshInstance3D.new()
 		var fy_box := BoxMesh.new()
-		fy_box.size = Vector3(0.45, 0.05, 52)
+		fy_box.size = Vector3(0.45, 0.05, bridge_len)
 		f_yellow.mesh = fy_box
 		f_yellow.material_override = yellow_paint_mat
-		f_yellow.position = Vector3(0, 0.42, 0)
+		f_yellow.position = Vector3(0, 0.46, 0)
 		f_bridge.add_child(f_yellow)
 
 		# Concrete Safety Barriers
 		for b_side in [-7.0, 7.0]:
 			var f_barrier := MeshInstance3D.new()
 			var fb_box := BoxMesh.new()
-			fb_box.size = Vector3(0.8, 1.3, 52)
+			fb_box.size = Vector3(0.8, 1.3, bridge_len)
 			f_barrier.mesh = fb_box
 			f_barrier.material_override = concrete_mat
-			f_barrier.position = Vector3(b_side, 0.65, 0)
+			f_barrier.position = Vector3(b_side, 0.70, 0)
 			f_bridge.add_child(f_barrier)
 
-		# Underwater Support Piers for Flank Bridge
-		for pz in [-13.0, 13.0]:
+		# Support Piers for Flank Bridge
+		for pz in [-11.0, 11.0]:
 			var f_pier := MeshInstance3D.new()
 			var fp_cyl := CylinderMesh.new()
 			fp_cyl.top_radius = 1.3
@@ -2412,7 +2411,7 @@ func _spawn_riverbed_floor() -> void:
 
 	var col := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
-	shape.size = Vector3(arena_size, 0.6, 40)
+	shape.size = Vector3(arena_size, 0.6, 44.0)
 	col.shape = shape
 	floor_body.add_child(col)
 
@@ -2422,7 +2421,7 @@ func _spawn_riverbed_floor() -> void:
 	mesh.mesh = box
 
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.16, 0.20, 0.18) # Dark damp riverbed silt / gravel
+	mat.albedo_color = Color(0.16, 0.20, 0.18)
 	mat.roughness = 0.85
 	mat.metallic = 0.02
 	var rock_norm := "res://resources/textures/rock/normal.jpg"
@@ -2442,11 +2441,9 @@ func _spawn_riverbed_floor() -> void:
 	floor_body.position = Vector3(0, -1.5, 0)
 	structures_container.add_child(floor_body)
 
-	# Scatter natural riverbed stones & boulders along the river channel
 	var rock_mat = MaterialFactory.get_cover_material("rock")
 	for i in range(16):
 		var rx := randf_range(-arena_size * 0.45, arena_size * 0.45)
-		# Skip directly under bridge roadbeds
 		if absf(rx) < 18.0 or absf(rx - 75.0) < 10.0 or absf(rx + 75.0) < 10.0:
 			continue
 		var rz := randf_range(-16.0, 16.0)
@@ -2469,66 +2466,49 @@ func _create_water_material() -> ShaderMaterial:
 shader_type spatial;
 render_mode blend_mix, depth_draw_always, cull_back;
 
-uniform vec4 shallow_color : source_color = vec4(0.08, 0.28, 0.34, 0.82);
-uniform vec4 deep_color : source_color = vec4(0.03, 0.12, 0.16, 0.96);
-uniform float wave_speed : hint_range(0, 5) = 1.2;
-uniform float wave_scale : hint_range(0.1, 10.0) = 3.2;
-uniform float wave_height : hint_range(0, 0.5) = 0.05;
-uniform sampler2D normal_map1 : hint_normal;
-uniform sampler2D normal_map2 : hint_normal;
+uniform vec4 shallow_color : source_color = vec4(0.12, 0.48, 0.72, 0.82);
+uniform vec4 deep_color : source_color = vec4(0.04, 0.20, 0.42, 0.95);
+uniform float wave_speed : hint_range(0.1, 5.0) = 1.2;
+uniform float wave_scale : hint_range(0.1, 10.0) = 3.0;
+uniform float wave_height : hint_range(0.0, 0.5) = 0.04;
 
 void vertex() {
-	// River current swell along river channel (X axis)
 	float t = TIME * wave_speed;
-	VERTEX.y += sin(VERTEX.x * 0.35 + t * 1.8) * cos(VERTEX.z * 0.5 + t) * wave_height;
+	VERTEX.y += sin(VERTEX.x * 0.35 + t * 1.6) * cos(VERTEX.z * 0.45 + t * 0.9) * wave_height;
 }
 
 void fragment() {
-	float t = TIME * wave_speed * 0.25;
-	vec2 uv1 = UV * wave_scale + vec2(t * 0.85, t * 0.15);
-	vec2 uv2 = UV * (wave_scale * 1.65) - vec2(t * 0.55, t * 0.35);
+	float t = TIME * wave_speed * 0.18;
+	vec2 uv1 = UV * wave_scale + vec2(t * 0.7, t * 0.12);
+	vec2 uv2 = UV * (wave_scale * 1.55) - vec2(t * 0.45, t * 0.25);
 
-	vec3 n1 = texture(normal_map1, uv1).rgb * 2.0 - 1.0;
-	vec3 n2 = texture(normal_map2, uv2).rgb * 2.0 - 1.0;
-	vec3 wave_norm = normalize(vec3(n1.xy + n2.xy, n1.z * n2.z * 1.4));
+	float n1 = sin(uv1.x * 14.0 + uv1.y * 10.0 + TIME * 1.4) * 0.5 + 0.5;
+	float n2 = cos(uv2.x * 18.0 - uv2.y * 12.0 + TIME * 1.1) * 0.5 + 0.5;
+	vec3 wave_norm = normalize(vec3((n1 - 0.5) * 0.25, 1.0, (n2 - 0.5) * 0.25));
 	NORMAL = wave_norm;
 
-	// Realistic Fresnel reflectivity
-	float fresnel = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 3.2);
+	float fresnel = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 3.0);
+	vec3 water_col = mix(shallow_color.rgb, deep_color.rgb, clamp(length(UV - 0.5) * 1.4, 0.0, 1.0));
+	water_col = mix(water_col, vec3(0.70, 0.88, 1.0), fresnel * 0.65);
 
-	// Water body color with depth gradient and specular sky reflection
-	vec3 water_col = mix(shallow_color.rgb, deep_color.rgb, clamp(length(UV - 0.5) * 1.6, 0.0, 1.0));
-	water_col = mix(water_col, vec3(0.55, 0.78, 0.90), fresnel * 0.65);
-
-	// Dynamic shoreline foam along riverbanks (Z = -20 / +20)
+	// Shoreline foam along the river edges (UV.y near 0 and 1)
 	float shore_dist = abs(UV.y - 0.5) * 2.0;
-	float foam_wave = sin(UV.x * 28.0 + TIME * 2.6) * 0.04 + sin(UV.x * 56.0 - TIME * 1.4) * 0.02;
-	float foam = smoothstep(0.82, 0.98, shore_dist + foam_wave);
-	water_col = mix(water_col, vec3(0.92, 0.96, 1.0), foam * 0.70);
+	float foam_wave = sin(UV.x * 36.0 + TIME * 2.2) * 0.03;
+	float foam = smoothstep(0.86, 0.98, shore_dist + foam_wave);
+	water_col = mix(water_col, vec3(0.94, 0.97, 1.0), foam * 0.75);
 
 	ALBEDO = water_col;
 	ALPHA = mix(shallow_color.a, 0.96, fresnel);
-	ROUGHNESS = mix(0.05, 0.28, foam);
-	METALLIC = 0.0;
-	SPECULAR = 0.5;
+	ROUGHNESS = mix(0.04, 0.30, foam);
+	METALLIC = 0.02;
+	SPECULAR = 0.65;
 }
 """
 	mat.shader = shader
-	var n_tex1 := load("res://resources/textures/road/normal.jpg") as Texture2D
-	var n_tex2 := load("res://resources/textures/forest/normal.jpg") as Texture2D
-	if n_tex1:
-		mat.set_shader_parameter("normal_map1", n_tex1)
-	if n_tex2:
-		mat.set_shader_parameter("normal_map2", n_tex2)
 	return mat
 
 
-# Spawns a passable water volume tagged as a water volume.
-# The DETECTION box is a tall, invisible volume so a wading mech (feet down in
-# the trench) is counted as "in water". The VISUAL is a thin, flat sheet sunk
-# below the riverbanks and bridge deck — water must sit lower than the ground
-# and lower than the bridge, never as a tall cube rising above them.
-func _spawn_water_volume(center_x: float, width: float, mat: Material) -> void:
+func _spawn_continuous_water_surface(mat: Material) -> void:
 	var area := Area3D.new()
 	area.name = "WaterVolume"
 	area.collision_layer = 4
@@ -2538,26 +2518,25 @@ func _spawn_water_volume(center_x: float, width: float, mat: Material) -> void:
 
 	var col := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
-	shape.size = Vector3(width, 2.6, 40)
+	shape.size = Vector3(arena_size, 2.4, 44.0)
 	col.shape = shape
 	area.add_child(col)
 
-	# Visual: realistic flowing river surface sunk below riverbanks (+0.45) and bridge deck (0.0)
+	# Visual water plane spanning the river channel seamlessly
 	var mesh := MeshInstance3D.new()
 	var box := BoxMesh.new()
-	box.size = Vector3(width, 0.15, 40)
+	box.size = Vector3(arena_size, 0.05, 44.0)
 	mesh.mesh = box
 	mesh.material_override = mat
-	mesh.position.y = -0.55
+	mesh.position.y = 0.65
 	area.add_child(mesh)
 
-	area.position = Vector3(center_x, -0.9, 0)
+	area.position = Vector3(0, -0.9, 0)
 	structures_container.add_child(area)
 
 
 # ====================================================================
 # FOREST BIOME (ป่า: trees, streams, waterfall, rocks, grassland)
-# ====================================================================
 
 # Height of the forest terrain at a world position. Returns
 # FOREST_RIVER_STRIP_Y on the river strip (which includes the center spawn

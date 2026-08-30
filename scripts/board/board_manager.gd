@@ -187,7 +187,7 @@ func _build_objective_event() -> Dictionary:
 # If further away, calculates a walkable path and steps cell-by-cell up to available MP / Energy.
 # Supports smooth hopping arc transitions during interactive gameplay.
 func move_to_tile(target: Vector2i, animate: bool = true) -> bool:
-	if not is_inside_tree() or get_tree().paused or _intermission_open():
+	if not is_inside_tree() or get_tree().paused or _intermission_open() or GlobalData.board.convoy_breakdown_turns > 0:
 		return false
 	if target == current_pos or _is_moving:
 		return false
@@ -420,7 +420,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	# The token moves by CLICKING a reachable tile (board_tile._on_input_event);
 	# WASD/Q/E belong to the camera (pan + rotate). Board-wide keys (end day, roller toggle)
 	# are handled here.
-	if not is_inside_tree() or get_tree().paused or not visible or _intermission_open() or _is_moving:
+	if not is_inside_tree() or get_tree().paused or not visible or _intermission_open() or _is_moving or GlobalData.board.convoy_breakdown_turns > 0:
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.is_action_pressed("pause"):
@@ -685,6 +685,8 @@ func _refresh_after_event_closed() -> void:
 	_clear_highlights()
 	_highlight_adjacent()
 	_update_token_position()
+	if GlobalData.board.convoy_breakdown_turns > 0:
+		_start_breakdown_repair_coroutine()
 
 
 # Public alias called by event_ui._resume_from_popup() via has_method("refresh_after_event").
@@ -1081,16 +1083,20 @@ func _update_token_position() -> void:
 			player_token.add_child(tag)
 
 		var mode: String = GlobalData.fuel.traversal_mode
-		match mode:
-			"mecha":
-				tag.text = "🤖 MECHA MARCH\nBattery: %.0f" % GlobalData.fuel.mech_energy
-				tag.modulate = Color(0.3, 0.8, 1.0)
-			"pilot":
-				tag.text = "🏃 PILOT SCOUT (STEALTH)\nStamina: %.0f" % GlobalData.fuel.pilot_stamina
-				tag.modulate = Color(0.4, 1.0, 0.4)
-			_:
-				tag.text = "🚚 CONVOY TRUCK\nFuel: %.0f/%.0f" % [GlobalData.fuel.convoy_fuel, GlobalData.fuel.convoy_max_fuel]
-				tag.modulate = Color(1.0, 0.88, 0.2)
+		if GlobalData.board.convoy_breakdown_turns > 0:
+			tag.text = "⚠️ CONVOY BROKEN DOWN\n🔧 REPAIRS: Turn %d/2" % (3 - GlobalData.board.convoy_breakdown_turns)
+			tag.modulate = Color(1.0, 0.25, 0.25)
+		else:
+			match mode:
+				"mecha":
+					tag.text = "🤖 MECHA MARCH\nBattery: %.0f" % GlobalData.fuel.mech_energy
+					tag.modulate = Color(0.3, 0.8, 1.0)
+				"pilot":
+					tag.text = "🏃 PILOT SCOUT (STEALTH)\nStamina: %.0f" % GlobalData.fuel.pilot_stamina
+					tag.modulate = Color(0.4, 1.0, 0.4)
+				_:
+					tag.text = "🚚 CONVOY TRUCK\nFuel: %.0f/%.0f" % [GlobalData.fuel.convoy_fuel, GlobalData.fuel.convoy_max_fuel]
+					tag.modulate = Color(1.0, 0.88, 0.2)
 
 	# 2. Manage Parked Convoy Base Camp Token
 	if GlobalData.fuel.convoy_is_deployed:
@@ -1745,19 +1751,74 @@ func _roll_travel_breakdown(terrain: String) -> bool:
 		base_chance += 0.04
 
 	if randf() < base_chance:
-		GlobalData.board.convoy_defense_waves = 3
-		GlobalData.board.convoy_defense_current_wave = 0
-		GlobalData.board.convoy_defense_active = true
-		GlobalData.narrative.blocked_intermission = true
-		EventBus.event_triggered.emit({
-			"name": "🔧 VEHICLE BREAKDOWN",
-			"effect": "force_combat",
-			"amount": 0,
-			"desc": "The supply truck's drivetrain cracked while traversing harsh %s terrain! Hostiles are closing in — defend the convoy!" % terrain.capitalize(),
-			"params": {"combat_type": "grunt"},
-		})
+		_trigger_convoy_breakdown(terrain)
 		return true
 	return false
+
+
+func _trigger_convoy_breakdown(terrain: String) -> void:
+	GlobalData.board.convoy_breakdown_turns = 2
+	GlobalData.board.board_mp = 0
+	GlobalData.narrative.blocked_intermission = true
+	EventBus.event_triggered.emit({
+		"name": "🔧 VEHICLE BREAKDOWN",
+		"effect": "none",
+		"amount": 0,
+		"desc": "The supply truck's drivetrain cracked while traversing harsh %s terrain!\n\nEmergency field repairs will take 2 turns (convoy is immobile).\nNearby hostile patrols will actively converge on our position!" % terrain.capitalize(),
+	})
+
+
+func _start_breakdown_repair_coroutine() -> void:
+	if _is_moving or not is_inside_tree():
+		return
+	_is_moving = true
+
+	while GlobalData.board.convoy_breakdown_turns > 0 and GameManager.current_state == GameManager.State.BOARD:
+		var turn_idx := 3 - GlobalData.board.convoy_breakdown_turns
+		GlobalData.board.run_notice = "EMERGENCY REPAIRS IN PROGRESS (Turn %d/2)..." % turn_idx
+		_update_token_position()
+		_clear_highlights()
+
+		# Visual & atmospheric feedback: delay per turn step so the player sees patrols moving
+		if not DisplayServer.get_name().to_lower().contains("headless"):
+			await get_tree().create_timer(0.70).timeout
+
+		if not is_inside_tree() or GameManager.current_state != GameManager.State.BOARD:
+			break
+
+		# Advance day & night
+		GlobalData.board.board_day += 1
+		DayNightSystem.advance_to_next_dawn()
+
+		# Patrols actively converge on stranded player
+		var ambush := PatrolSystem.advance_breakdown_turn(current_pos)
+		_refresh_patrol_markers()
+		_update_token_position()
+
+		# If an enemy patrol stepped on player tile, trigger combat interception!
+		if (ambush != Vector2i(-1, -1) or not PatrolSystem.get_patrol_at(current_pos).is_empty()) and GameManager.current_state == GameManager.State.BOARD:
+			GlobalData.board.convoy_breakdown_turns = 0
+			_is_moving = false
+			GlobalData.board.ambush_pincer = true
+			if _check_current_tile_patrol_engagement():
+				return
+
+		GlobalData.board.convoy_breakdown_turns -= 1
+
+	_is_moving = false
+	if GameManager.current_state == GameManager.State.BOARD and is_inside_tree():
+		GlobalData.board.convoy_breakdown_turns = 0
+		GlobalData.narrative.blocked_intermission = false
+		GlobalData.board.board_mp = GlobalData.board.board_mp_max
+		_clear_highlights()
+		_highlight_adjacent()
+		_update_token_position()
+		EventBus.event_triggered.emit({
+			"name": "🔧 REPAIRS COMPLETE",
+			"effect": "none",
+			"amount": 0,
+			"desc": "Drivetrain patched and engine restarted! The convoy is operational and mobile again.",
+		})
 
 
 # A "bait" tile reads as an abandoned supply cache but is a decoy: stepping on

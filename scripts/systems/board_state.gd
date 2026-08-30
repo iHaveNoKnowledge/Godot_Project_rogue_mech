@@ -101,6 +101,7 @@ var convoy_defense_waves: int = 0
 var convoy_defense_current_wave: int = 0
 var convoy_defense_active: bool = false
 var convoy_destroyed: bool = false
+var convoy_breakdown_turns: int = 0
 
 # --- Run Notice ---
 var run_notice: String = ""
@@ -149,5 +150,6 @@ func reset() -> void:
 	convoy_defense_current_wave = 0
 	convoy_defense_active = false
 	convoy_destroyed = false
+	convoy_breakdown_turns = 0
 	run_notice = ""
 	safehouse_upgrades.clear()

@@ -601,6 +601,53 @@ static func advance_day(player_pos: Vector2i) -> Vector2i:
 	return ambush
 
 
+# Advances hostile patrols during a vehicle breakdown emergency repair turn:
+# all active hostile fleets converge directly toward the stranded player's tile.
+# Returns the ambush tile position if any fleet intercepted the player.
+static func advance_breakdown_turn(player_pos: Vector2i) -> Vector2i:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = GlobalData.board.board_day * 137 + GlobalData.board.board_seed
+	var nodes: Dictionary = {}
+	var grid: Array = GlobalData.board.board_grid
+	if not grid.is_empty() and grid[0] is Dictionary:
+		nodes = grid[0]
+
+	var occupied: Dictionary = {}
+	for p in GlobalData.board.board_patrols:
+		occupied[p.get("pos")] = true
+
+	var ambush := Vector2i(-1, -1)
+	GlobalData.board.patrol_alert = mini(GlobalData.board.patrol_alert + 2, ALERT_MAX)
+	GlobalData.board.patrol_last_seen = player_pos
+
+	for p in GlobalData.board.board_patrols:
+		normalize_patrol(p)
+		var is_unknown := str(p.get("faction", "hostile")) == "unknown"
+		if is_unknown:
+			continue
+
+		p["aggro"] = true
+		var cur: Vector2i = p.get("pos")
+		var archetype: String = str(p.get("archetype", "armored"))
+		var fleet_mp: int = int(BoardConfig.FLEET_ARCHETYPES.get(archetype, {}).get("mp", 1))
+
+		for step in range(fleet_mp):
+			var next := _step_toward(cur, player_pos, nodes, occupied, rng)
+			if next != cur:
+				occupied.erase(cur)
+				occupied[next] = true
+				p["prev_pos"] = cur
+				p["pos"] = next
+				p["dir"] = next - cur
+				cur = next
+				if next == player_pos:
+					ambush = next
+					break
+
+	_merge_coincident_fleets()
+	return ambush
+
+
 static func _process_parked_convoy_seizure(nodes: Dictionary, rng: RandomNumberGenerator, player_pos: Vector2i) -> void:
 	# 1. Check if an enemy patrol stumbled upon the parked Convoy Base Camp while player is deployed elsewhere
 	if GlobalData.fuel.convoy_is_deployed and player_pos != GlobalData.fuel.convoy_pos:

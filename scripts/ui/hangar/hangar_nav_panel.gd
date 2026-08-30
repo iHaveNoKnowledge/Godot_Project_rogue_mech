@@ -29,6 +29,7 @@ func show_hangar() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	# Open the editor on the mech the player is currently piloting.
 	controller._customize_mech_id = GlobalData.hangar.active_hangar_mech_id
+	HangarManager.load_mech_state(GlobalData.hangar.active_hangar_mech_id)
 	controller.stats_panel.update()
 	AudioManager.play_hangar_music()
 	controller.garage_panel.call_deferred("update_all_slots_preview")

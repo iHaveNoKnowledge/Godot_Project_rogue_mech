@@ -410,10 +410,18 @@ func _update_aim_arms(delta: float) -> void:
 
 	if want_left and arm_left and forearm_left:
 		arm_left.rotation.x = lerp_angle(arm_left.rotation.x, arm_target, blend)
+		arm_left.rotation.y = lerp_angle(arm_left.rotation.y, 0.0, blend)
+		arm_left.rotation.z = lerp_angle(arm_left.rotation.z, 0.0, blend)
 		forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, forearm_target, blend)
+		forearm_left.rotation.y = lerp_angle(forearm_left.rotation.y, 0.0, blend)
+		forearm_left.rotation.z = lerp_angle(forearm_left.rotation.z, 0.0, blend)
 	if want_right and arm_right and forearm_right:
 		arm_right.rotation.x = lerp_angle(arm_right.rotation.x, arm_target, blend)
+		arm_right.rotation.y = lerp_angle(arm_right.rotation.y, 0.0, blend)
+		arm_right.rotation.z = lerp_angle(arm_right.rotation.z, 0.0, blend)
 		forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, forearm_target, blend)
+		forearm_right.rotation.y = lerp_angle(forearm_right.rotation.y, 0.0, blend)
+		forearm_right.rotation.z = lerp_angle(forearm_right.rotation.z, 0.0, blend)
 
 
 # True when the given hand holds a RANGED weapon on an intact arm — melee

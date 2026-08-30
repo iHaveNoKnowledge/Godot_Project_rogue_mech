@@ -687,6 +687,13 @@ func _refresh_after_event_closed() -> void:
 	_update_token_position()
 
 
+# Public alias called by event_ui._resume_from_popup() via has_method("refresh_after_event").
+# Keeping the implementation private (_refresh_after_event_closed) preserves the
+# original naming convention; this thin wrapper is the stable public surface.
+func refresh_after_event() -> void:
+	_refresh_after_event_closed()
+
+
 func _end_day() -> void:
 	# Safety net: combat was entered this frame (the board scene is already out
 	# of the tree), so the end-of-day emit would hit an orphaned EventUI.

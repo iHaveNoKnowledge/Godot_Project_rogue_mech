@@ -222,6 +222,7 @@ const DEFAULT_CARRY_WEAPON_PATH := "res://resources/mech/stock/weapon_combat_sho
 var _combat_friendly_total_hp: float = 0.0
 var _combat_friendly_damage: float = 0.0
 var last_combat_damage_ratio: float = 0.0
+var pre_combat_weapon_loadout: Dictionary = {}
 
 # --- Combat damage snapshot helper ---
 func snapshot_friendly_hp(hp: float) -> void:
@@ -508,6 +509,24 @@ func _on_board_day_ended() -> void:
 
 
 func _on_combat_ended(victory: bool) -> void:
+	# Preserve loadout: after victory weapons must stay equipped, not thrown to inventory
+	if victory and not pre_combat_weapon_loadout.is_empty():
+		var cur = weapons.weapon_loadout
+		var is_empty := str(cur.get("left", "")) == "" and str(cur.get("right", "")) == "" and (cur.get("carry", []) as Array).is_empty()
+		if is_empty:
+			weapons.weapon_loadout = pre_combat_weapon_loadout.duplicate(true)
+		else:
+			# Even if not fully empty, restore any hand that got cleared (e.g., arm destroyed should stay empty, but intact hands stay)
+			for hand in ["left", "right"]:
+				if str(cur.get(hand, "")) == "" and str(pre_combat_weapon_loadout.get(hand, "")) != "":
+					# Only restore if that arm wasn't destroyed in this battle
+					if float(weapons.part_damage.get(hand == "left" ? "arm_left_frame" : "arm_right_frame", 0.0)) < 1.0:
+						cur[hand] = pre_combat_weapon_loadout[hand]
+			var pre_carry = pre_combat_weapon_loadout.get("carry", [])
+			var cur_carry = cur.get("carry", [])
+			if (cur_carry is Array and pre_carry is Array and cur_carry.is_empty() and not pre_carry.is_empty()):
+				cur["carry"] = pre_carry.duplicate()
+	pre_combat_weapon_loadout.clear()
 	# Clear environmental hazard after combat (one-shot per encounter).
 	board.current_hazard = ""
 	# Faction: record battle for trigger and tick research by combat time (0.5 day per battle)

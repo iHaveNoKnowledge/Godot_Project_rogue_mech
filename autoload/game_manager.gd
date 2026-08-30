@@ -63,6 +63,8 @@ func enter_combat(combat_type: String = "grunt") -> void:
 	combat_node_type = combat_type
 	is_boss_combat = (combat_type == "boss")
 	is_escaping = false
+	# Preserve loadout so it isn't thrown into inventory after battle (user request: stay equipped)
+	GlobalData.pre_combat_weapon_loadout = GlobalData.weapons.weapon_loadout.duplicate(true)
 
 	# Resolve how many fleets are engaged from the board token
 	if GlobalData.board.board_patrol_engagement >= 0:

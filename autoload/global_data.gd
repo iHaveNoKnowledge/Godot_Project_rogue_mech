@@ -520,7 +520,8 @@ func _on_combat_ended(victory: bool) -> void:
 			for hand in ["left", "right"]:
 				if str(cur.get(hand, "")) == "" and str(pre_combat_weapon_loadout.get(hand, "")) != "":
 					# Only restore if that arm wasn't destroyed in this battle
-					if float(weapons.part_damage.get(hand == "left" ? "arm_left_frame" : "arm_right_frame", 0.0)) < 1.0:
+					var frame_key: String = "arm_left_frame" if hand == "left" else "arm_right_frame"
+					if float(weapons.part_damage.get(frame_key, 0.0)) < 1.0:
 						cur[hand] = pre_combat_weapon_loadout[hand]
 			var pre_carry = pre_combat_weapon_loadout.get("carry", [])
 			var cur_carry = cur.get("carry", [])

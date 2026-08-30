@@ -240,6 +240,7 @@ static func build(mech_name: String = "", requested_slot: int = 0) -> Dictionary
 	var snapshot := _capture_snapshot(mech_id, display_name, "", requested_slot)
 	GlobalData.hangar.hangar_mechs.append(snapshot)
 	GlobalData.narrative.mech_less = false
+	GlobalData.fuel.mech_energy = GlobalData.fuel.mech_max_energy
 	return snapshot
 
 

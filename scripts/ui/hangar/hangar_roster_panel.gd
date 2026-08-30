@@ -802,6 +802,9 @@ func _confirm_register(slot: int) -> void:
 			controller.selected_chassis_key = GlobalData.weapons.chassis_id
 		HangarManager.assign_pilot(new_id, HangarManager.PLAYER_PILOT_ID)
 		_restore_pending_roster_only()
+		GlobalData.fuel.mech_energy = GlobalData.fuel.mech_max_energy
+		GlobalData.fuel.traversal_mode = "convoy"
+		GlobalData.board.board_mp = maxi(GlobalData.board.board_mp, 4)
 		_set_status("Registered %s in SLOT %02d — it is now your piloted mech — tune it here." % [
 			str(new_mech.get("name", "Mech")), slot])
 	else:

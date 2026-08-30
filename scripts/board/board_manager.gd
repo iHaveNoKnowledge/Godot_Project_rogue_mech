@@ -59,6 +59,10 @@ func _ready() -> void:
 	# Ensure mech_less is synced with actual roster state
 	if not GlobalData.hangar.hangar_mechs.is_empty():
 		GlobalData.narrative.mech_less = false
+		if GlobalData.fuel.mech_energy <= 0.0:
+			GlobalData.fuel.mech_energy = GlobalData.fuel.mech_max_energy
+		if GlobalData.board.board_mp <= 0:
+			GlobalData.board.board_mp = GlobalData.board.board_mp_max
 
 	# Artillery Impact Report UI (sequential cinematic strikes)
 	if get_node_or_null("ArtilleryReportUI") == null:
@@ -2451,12 +2455,15 @@ func place_wreckage_tile(pos: Vector2i) -> void:
 # Pilot reaches the wreckage and siphons dirty fuel from the wreck.
 func _trigger_wreckage_siphon() -> void:
 	if not GlobalData.narrative.mech_less:
-		EventBus.event_triggered.emit({
-			"name": "WRECKAGE",
-			"effect": "none",
-			"amount": 0,
-			"desc": "Your destroyed mech's wreckage. The fuel tanks are ruptured but some dirty fuel remains.",
-		})
+		if GlobalData.fuel.wreckage_fuel_remaining > 0.0:
+			GlobalData.currency.gain_scrap(25)
+			GlobalData.fuel.wreckage_fuel_remaining = 0.0
+			EventBus.event_triggered.emit({
+				"name": "⚙️ SALVAGED DESTROYED MECH",
+				"effect": "none",
+				"amount": 0,
+				"desc": "Salvaged remaining materials (+25 Scrap) from your previous destroyed frame.",
+			})
 		return
 	if GlobalData.fuel.wreckage_fuel_remaining <= 0.0:
 		EventBus.event_triggered.emit({

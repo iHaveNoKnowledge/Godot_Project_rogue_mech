@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://f1v2w8r4q9y1d"]
+[gd_scene format=3 uid="uid://b6h7c6uu624al"]
 
 [ext_resource type="Script" path="res://tests/mecha_shoot_anim_verify.gd" id="1_test"]
 

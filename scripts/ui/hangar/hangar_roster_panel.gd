@@ -23,6 +23,7 @@ var mech_next_button: Button = null
 # members so callers (and the test suite) can drive the LineEdit + confirm.
 var register_dialog: Control = null
 var register_dialog_edit: LineEdit = null
+var register_dialog_active_check: CheckBox = null
 # Rename-prompt modal opened from an occupied roster row (same test-drivable
 # pattern as the register prompt).
 var rename_dialog: Control = null
@@ -724,6 +725,13 @@ func build_register_dialog(slot: int) -> void:
 	edit.text_submitted.connect(func(_t: String): _confirm_register(slot))
 	vbox.add_child(edit)
 
+	var make_active_check := CheckBox.new()
+	make_active_check.name = "MakeActiveCheckBox"
+	make_active_check.text = "Set as ACTIVE piloted mech (Move Pilot YOU to this frame)"
+	make_active_check.button_pressed = (GlobalData.hangar.active_hangar_mech_id == "" or GlobalData.narrative.mech_less)
+	make_active_check.add_theme_font_size_override("font_size", 11)
+	vbox.add_child(make_active_check)
+
 	var btn_row := HBoxContainer.new()
 	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	btn_row.add_theme_constant_override("separation", 12)
@@ -747,6 +755,7 @@ func build_register_dialog(slot: int) -> void:
 		controller.add_child(modal)
 	register_dialog = modal
 	register_dialog_edit = edit
+	register_dialog_active_check = make_active_check
 	edit.grab_focus()
 
 
@@ -766,9 +775,15 @@ func _set_status(text: String) -> void:
 
 func _confirm_register(slot: int) -> void:
 	var chosen := ""
+	var make_active := true
 	if register_dialog_edit and is_instance_valid(register_dialog_edit):
 		chosen = register_dialog_edit.text.strip_edges()
+	if register_dialog_active_check and is_instance_valid(register_dialog_active_check):
+		make_active = register_dialog_active_check.button_pressed
+	elif GlobalData.hangar.active_hangar_mech_id != "" and not GlobalData.narrative.mech_less:
+		make_active = false
 	close_register_dialog()
+
 	var new_mech := HangarManager.build(chosen, slot)
 	if new_mech.is_empty():
 		# Re-check the chassis gate for an accurate message (frames could have
@@ -776,25 +791,33 @@ func _confirm_register(slot: int) -> void:
 		_set_status("REGISTER needs a walking chassis (body + both leg frames) equipped."
 			if not _has_walking_chassis() else "No free berth in the convoy.")
 		return
-	# Assembly is free — the frame is the player's own, so nothing is charged.
-	# The freshly assembled frame takes over as the player's mech (the previous
-	# one parks as a pilotless spare) so tuning it on the customize page carries
-	# straight into the next fight. Registering just names it: no pilot pick.
+
 	GlobalData.narrative.mech_less = false
 	var new_id := str(new_mech.get("id", ""))
-	if GlobalData.hangar.active_hangar_mech_id == "":
+
+	if make_active or GlobalData.hangar.active_hangar_mech_id == "":
 		GlobalData.hangar.active_hangar_mech_id = new_id
-	controller.set_editing_mech_id(new_id)
-	if HangarManager.switch_mech(new_id):
-		controller.selected_chassis_key = GlobalData.weapons.chassis_id
-	HangarManager.assign_pilot(new_id, HangarManager.PLAYER_PILOT_ID)
-	# The assembled frames leaked onto the pre-flow berths via equip commits
-	# (commit_and_save) and build()/switch_mech()'s save_active() — the new mech
-	# is the only one that should carry the new build, so restore their loadouts
-	# (the pilot swap above is preserved: restore never touches identity fields).
-	_restore_pending_roster_only()
+		controller.set_editing_mech_id(new_id)
+		if HangarManager.switch_mech(new_id):
+			controller.selected_chassis_key = GlobalData.weapons.chassis_id
+		HangarManager.assign_pilot(new_id, HangarManager.PLAYER_PILOT_ID)
+		_restore_pending_roster_only()
+		_set_status("Registered %s in SLOT %02d — it is now your piloted mech — tune it here." % [
+			str(new_mech.get("name", "Mech")), slot])
+	else:
+		# Keep as reserve / spare mech: do not reassign player pilot
+		var active_id := str(_pending_original_active.get("id", ""))
+		if active_id == "":
+			active_id = GlobalData.hangar.active_hangar_mech_id
+		_restore_pending_roster_only()
+		if active_id != "":
+			HangarManager.load_mech_state(active_id)
+			controller.set_editing_mech_id(active_id)
+		_set_status("Registered %s as a RESERVE mech in SLOT %02d (Piloted mech unchanged)." % [
+			str(new_mech.get("name", "Mech")), slot])
+
 	GlobalData.save_run()
-	# Distinct cue: the frame is assembled and takes over as the player's mech.
+	# Distinct cue: the frame is assembled into the convoy.
 	AudioManager.play_mech_register()
 	refresh_page()
 	# Close the pending banner BEFORE the final refresh so the new mech's
@@ -803,8 +826,6 @@ func _confirm_register(slot: int) -> void:
 	close_pending_register(false)
 	controller.refresh_panel.after_mech_change(false)
 	controller.nav_panel.select_submenu("customize")
-	_set_status("Registered %s in SLOT %02d — it is now your piloted mech — tune it here." % [
-		str(new_mech.get("name", "Mech")), slot])
 
 
 func close_register_dialog() -> void:
@@ -812,6 +833,7 @@ func close_register_dialog() -> void:
 		register_dialog.queue_free()
 	register_dialog = null
 	register_dialog_edit = null
+	register_dialog_active_check = null
 
 
 # RENAME — small modal that renames a parked mech straight from its roster row.

@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://c6h7c6uu624am"]
+
+[ext_resource type="Script" path="res://tests/register_reserve_mech_verify.gd" id="1_test"]
+
+[node name="RegisterReserveMechVerify" type="Node"]
+script = ExtResource("1_test")

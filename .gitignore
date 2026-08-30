@@ -11,3 +11,7 @@ download/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local dev - don't push
+opencode.json
+scratch/

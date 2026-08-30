@@ -930,7 +930,7 @@ func _build_scavenger_camp_model(root: Node3D) -> void:
 	# Get manpower from ScavengerSystem
 	var mp_text := "🏴‍☠️ SCAVENGER CAMP"
 	for camp in ScavengerSystem.get_camps():
-		if Vector2i(camp.get("pos_x", -999), camp.get("pos_y", -999)) == board_pos:
+		if Vector2i(camp.get("pos_x", -999), camp.get("pos_y", -999)) == grid_pos:
 			mp_text = "🏴‍☠️ %s [%d/%d MP]" % [camp.get("name", "Scav Camp"), camp.get("manpower", 10), camp.get("max_manpower", 20)]
 			break
 
@@ -963,7 +963,7 @@ func _build_tile_wreckage_marker(root: Node3D) -> void:
 
 	root.add_child(w_node)
 
-	var wr_data = ScavengerSystem.get_wreckage_at(board_pos)
+	var wr_data = ScavengerSystem.get_wreckage_at(grid_pos)
 	var item_count = wr_data.get("items", []).size()
 	var scrap = wr_data.get("scrap", 0)
 	var badge_str = "⚙️ SALVAGE (%d items)" % item_count if item_count > 0 else "⚙️ SALVAGE (%d scrap)" % scrap

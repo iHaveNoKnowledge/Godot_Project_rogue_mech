@@ -123,7 +123,7 @@ func test_board_tile_visual_rendering() -> void:
 	var camp_tile = Node3D.new()
 	camp_tile.set_script(tile_script)
 	add_child(camp_tile)
-	camp_tile.board_pos = Vector2i(2, 2)
+	camp_tile.grid_pos = Vector2i(2, 2)
 	camp_tile.tile_type = "scavenger_camp"
 	camp_tile._update_poi_visual()
 	assert_true(camp_tile._poi_node != null, "Camp POI node created")
@@ -133,7 +133,7 @@ func test_board_tile_visual_rendering() -> void:
 	var wr_tile = Node3D.new()
 	wr_tile.set_script(tile_script)
 	add_child(wr_tile)
-	wr_tile.board_pos = Vector2i(3, 3)
+	wr_tile.grid_pos = Vector2i(3, 3)
 	wr_tile.tile_type = "tile_wreckage"
 	wr_tile._update_poi_visual()
 	assert_true(wr_tile._poi_node != null, "Wreckage POI node created")

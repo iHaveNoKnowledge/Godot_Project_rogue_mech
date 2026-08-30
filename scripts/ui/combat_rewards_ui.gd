@@ -261,7 +261,7 @@ func _grant_take_back_loot() -> void:
 
 	# If player left items in BATTLE DROPS, register them on the board tile as a Wreckage Marker
 	if not _left_items.is_empty():
-		var board_pos := GlobalData.board.player_pos
+		var board_pos: Vector2i = GlobalData.board.current_tile
 		ScavengerSystem.register_tile_wreckage(board_pos, _left_items)
 		GlobalData.board.run_notice = "Leftover battlefield wreckage marked on world map."
 

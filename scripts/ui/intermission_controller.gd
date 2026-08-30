@@ -37,18 +37,13 @@ func _ready() -> void:
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("pause"):
 		if GameManager.current_state == GameManager.State.BOARD:
-			if GlobalData.narrative.blocked_intermission:
-				# Ambush aftermath: no time to reorganize at the menu.
+			# If an event popup is up (tree paused): ESC closes the popup, not the intermission
+			var has_event_modal := get_tree().get_nodes_in_group("event_popup").size() > 0
+			if get_tree().paused and has_event_modal:
 				return
-			# An event popup / pause overlay is up (tree paused): ESC belongs to
-			# it, so never stack the menu on top — the popup closes itself.
-			if get_tree().paused:
-				# Only clear stale pause if no event modal is actually showing.
-				var has_event_modal := get_tree().get_nodes_in_group("event_popup").size() > 0
-				if has_event_modal:
-					return
-				# Stale pause from hangar/combat — clear it so the menu can open.
+			if get_tree().paused and not has_event_modal:
 				get_tree().paused = false
+
 			visible = not visible
 			if visible:
 				_show_menu()

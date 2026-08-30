@@ -425,7 +425,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.is_action_pressed("pause"):
 			return
-		if event.keycode == KEY_END or event.keycode == KEY_ENTER:
+		if event.keycode == KEY_END or event.keycode == KEY_ENTER or event.keycode == KEY_SPACE:
 			_end_day()
 		elif event.keycode == KEY_R or event.keycode == KEY_TAB:
 			_cycle_traversal_mode()

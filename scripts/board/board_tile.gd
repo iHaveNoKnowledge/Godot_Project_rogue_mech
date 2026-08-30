@@ -612,6 +612,10 @@ func _add_poi_visual() -> void:
 			_build_distress_model(_poi_node)
 		"scavenge_site":
 			_build_scavenge_model(_poi_node)
+		"scavenger_camp":
+			_build_scavenger_camp_model(_poi_node)
+		"tile_wreckage":
+			_build_tile_wreckage_marker(_poi_node)
 		"convoy_ambush":
 			_build_ambush_model(_poi_node)
 		"convoy_breakdown":
@@ -883,6 +887,87 @@ func _build_wreckage_model(root: Node3D) -> void:
 	root.add_child(ember)
 
 	_add_floating_badge(root, "🔧 WRECKAGE", Color(0.95, 0.55, 0.3), 1.8)
+
+
+# Scavenger Camp Fortress Outpost
+func _build_scavenger_camp_model(root: Node3D) -> void:
+	var camp_node := Node3D.new()
+	camp_node.position = Vector3(1.1, 0, -1.1)
+	camp_node.scale = Vector3(0.85, 0.85, 0.85)
+
+	# Fortified scrap wall
+	var wall := MeshInstance3D.new()
+	var wm := BoxMesh.new()
+	wm.size = Vector3(1.6, 0.8, 1.6)
+	wall.mesh = wm
+	wall.material_override = _poi_mat(Color(0.28, 0.24, 0.18), 0.9)
+	wall.position = Vector3(0, 0.4, 0)
+	camp_node.add_child(wall)
+
+	# Watchtower / Junk Crane
+	var tower := MeshInstance3D.new()
+	var tm := CylinderMesh.new()
+	tm.top_radius = 0.25
+	tm.bottom_radius = 0.4
+	tm.height = 1.8
+	tower.mesh = tm
+	tower.material_override = _poi_mat(Color(0.45, 0.35, 0.20), 0.8)
+	tower.position = Vector3(-0.5, 0.9, -0.5)
+	camp_node.add_child(tower)
+
+	# Orange/Amber Hazard Beacon
+	var beacon := MeshInstance3D.new()
+	var bm := SphereMesh.new()
+	bm.radius = 0.12
+	bm.height = 0.24
+	beacon.mesh = bm
+	beacon.material_override = _poi_mat(Color(1.0, 0.6, 0.1), 0.2, Color(1.0, 0.6, 0.1), 4.0)
+	beacon.position = Vector3(-0.5, 1.9, -0.5)
+	camp_node.add_child(beacon)
+
+	root.add_child(camp_node)
+
+	# Get manpower from ScavengerSystem
+	var mp_text := "🏴‍☠️ SCAVENGER CAMP"
+	for camp in ScavengerSystem.get_camps():
+		if Vector2i(camp.get("pos_x", -999), camp.get("pos_y", -999)) == board_pos:
+			mp_text = "🏴‍☠️ %s [%d/%d MP]" % [camp.get("name", "Scav Camp"), camp.get("manpower", 10), camp.get("max_manpower", 20)]
+			break
+
+	_add_floating_badge(root, mp_text, Color(1.0, 0.65, 0.15), 2.2, Vector2(1.0, -1.0))
+
+
+# Battlefield Wreckage Marker (Unrecovered weapons/gear on tile)
+func _build_tile_wreckage_marker(root: Node3D) -> void:
+	var w_node := Node3D.new()
+	w_node.position = Vector3(0.9, 0, -0.9)
+	w_node.scale = Vector3(0.8, 0.8, 0.8)
+
+	var chassis := MeshInstance3D.new()
+	var cm := BoxMesh.new()
+	cm.size = Vector3(1.3, 0.6, 0.9)
+	chassis.mesh = cm
+	chassis.material_override = _poi_mat(Color(0.3, 0.25, 0.22), 0.9)
+	chassis.position = Vector3(0, 0.3, 0)
+	chassis.rotation = Vector3(0.15, 0.4, -0.2)
+	w_node.add_child(chassis)
+
+	var spark := MeshInstance3D.new()
+	var sm := SphereMesh.new()
+	sm.radius = 0.09
+	sm.height = 0.18
+	spark.mesh = sm
+	spark.material_override = _poi_mat(Color(0.2, 0.85, 1.0), 0.2, Color(0.2, 0.85, 1.0), 3.5)
+	spark.position = Vector3(0.1, 0.65, 0.1)
+	w_node.add_child(spark)
+
+	root.add_child(w_node)
+
+	var wr_data = ScavengerSystem.get_wreckage_at(board_pos)
+	var item_count = wr_data.get("items", []).size()
+	var scrap = wr_data.get("scrap", 0)
+	var badge_str = "⚙️ SALVAGE (%d items)" % item_count if item_count > 0 else "⚙️ SALVAGE (%d scrap)" % scrap
+	_add_floating_badge(root, badge_str, Color(0.3, 0.9, 1.0), 2.0, Vector2(1.0, -1.0))
 
 
 # Science & Research Laboratory

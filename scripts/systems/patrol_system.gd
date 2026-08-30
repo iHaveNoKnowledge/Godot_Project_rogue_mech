@@ -62,13 +62,16 @@ static func _build_faction_paint(archetype: String) -> Dictionary:
 	var paint: Dictionary = (org.get("paint", {}) as Dictionary).duplicate(true) if org.has("paint") else {}
 	if paint.is_empty():
 		# Fallback palette per archetype (mirrors enemy_dummy._archetype_palette)
-		match archetype:
-			"recon": paint = {"base": Color(0.85, 0.45, 0.1), "accent": Color(1.0, 0.55, 0.15), "trim": Color(0.7, 0.35, 0.08)}
-			"armored": paint = {"base": Color(0.65, 0.15, 0.2), "accent": Color(0.9, 0.25, 0.2), "trim": Color(0.5, 0.12, 0.15)}
-			"artillery": paint = {"base": Color(0.75, 0.65, 0.2), "accent": Color(0.9, 0.8, 0.2), "trim": Color(0.6, 0.5, 0.1)}
-			"hunter_killer": paint = {"base": Color(0.45, 0.2, 0.6), "accent": Color(0.7, 0.3, 0.9), "trim": Color(0.35, 0.15, 0.5)}
-			"boss": paint = {"base": Color(0.3, 0.15, 0.45), "accent": Color(0.6, 0.2, 0.9), "trim": Color(0.4, 0.18, 0.55)}
-			_: paint = {"base": Color(0.6, 0.6, 0.6), "accent": Color(0.9, 0.9, 0.9), "trim": Color(0.5, 0.5, 0.5)}
+		if archetype.begins_with("scav"):
+			paint = {"base": Color(0.75, 0.45, 0.15), "accent": Color(1.0, 0.70, 0.15), "trim": Color(0.35, 0.25, 0.18)}
+		else:
+			match archetype:
+				"recon": paint = {"base": Color(0.85, 0.45, 0.1), "accent": Color(1.0, 0.55, 0.15), "trim": Color(0.7, 0.35, 0.08)}
+				"armored": paint = {"base": Color(0.65, 0.15, 0.2), "accent": Color(0.9, 0.25, 0.2), "trim": Color(0.5, 0.12, 0.15)}
+				"artillery": paint = {"base": Color(0.75, 0.65, 0.2), "accent": Color(0.9, 0.8, 0.2), "trim": Color(0.6, 0.5, 0.1)}
+				"hunter_killer": paint = {"base": Color(0.45, 0.2, 0.6), "accent": Color(0.7, 0.3, 0.9), "trim": Color(0.35, 0.15, 0.5)}
+				"boss": paint = {"base": Color(0.3, 0.15, 0.45), "accent": Color(0.6, 0.2, 0.9), "trim": Color(0.4, 0.18, 0.55)}
+				_: paint = {"base": Color(0.6, 0.6, 0.6), "accent": Color(0.9, 0.9, 0.9), "trim": Color(0.5, 0.5, 0.5)}
 	return paint
 
 static func _ensure_patrol_roster(p: Dictionary, force: bool = false) -> void:

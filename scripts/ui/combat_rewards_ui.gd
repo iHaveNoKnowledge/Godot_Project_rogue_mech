@@ -258,13 +258,13 @@ func _grant_take_back_loot() -> void:
 					var uid := str(inst.get("uid", ""))
 					if uid == "" or ArmorSystem.get_armor_instance(uid).is_empty():
 						GlobalData.weapons.armor_inventory.append(inst)
-	# Unclaimed drops are stripped for scrap instead of being left behind.
-	var salvaged_scrap := 0
-	for entry in _left_items:
-		salvaged_scrap += _salvage_value(entry)
-	if salvaged_scrap > 0:
-		GlobalData.currency.gain_scrap(salvaged_scrap)
-		GlobalData.board.run_notice = "Unclaimed drops salvaged for +%d scrap." % salvaged_scrap
+
+	# If player left items in BATTLE DROPS, register them on the board tile as a Wreckage Marker
+	if not _left_items.is_empty():
+		var board_pos := GlobalData.board.player_pos
+		ScavengerSystem.register_tile_wreckage(board_pos, _left_items)
+		GlobalData.board.run_notice = "Leftover battlefield wreckage marked on world map."
+
 	GlobalData.weapons.battle_loot.clear()
 	_left_items.clear()
 	_right_items.clear()
@@ -422,6 +422,14 @@ func _show_victory_rewards() -> void:
 
 	# Load the battle loot into the two-column picker (drops on the left).
 	_left_items = GlobalData.weapons.battle_loot.duplicate()
+
+	# Sweep any remaining ground weapon pickups in the arena into battle loot
+	if get_tree():
+		for node in get_tree().get_nodes_in_group("weapon_pickup"):
+			if node and is_instance_valid(node) and ("weapon_resource" in node) and node.weapon_resource:
+				_left_items.append({"type": "weapon", "weapon": node.weapon_resource, "drop_chance": 1.0})
+				node.queue_free()
+
 	_right_items.clear()
 	_populate_loot_picker()
 	if loot_picker:

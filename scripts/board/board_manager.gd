@@ -53,6 +53,9 @@ func _ready() -> void:
 		_setup_objective()
 	GlobalData.board.board_patrol_engagement = -1
 
+	# Ensure Scavenger Camps exist on board
+	ScavengerSystem.ensure_camps(nodes_dict)
+
 	# Artillery Impact Report UI (sequential cinematic strikes)
 	if get_node_or_null("ArtilleryReportUI") == null:
 		var art_ui := ArtilleryReportUI.new()
@@ -615,6 +618,24 @@ func _try_step(target: Vector2i) -> bool:
 		engaged_patrol = true
 		GlobalData.board.board_patrol_engagement = int(patrol.get("id", -1))
 
+	# Battlefield Wreckage Recovery on tile
+	if ScavengerSystem.has_wreckage_at(target):
+		var wr := ScavengerSystem.claim_tile_wreckage(target)
+		var it_cnt := (wr.get("items", []) as Array).size()
+		var scrap_amt := int(wr.get("scrap", 0))
+		for item in wr.get("items", []):
+			if item.get("type") == "weapon" and item.get("weapon"):
+				var w: WeaponPart = item.get("weapon")
+				LoadoutSystem.register_weapon(w.resource_path, w.weapon_name)
+		if scrap_amt > 0:
+			GlobalData.currency.gain_scrap(scrap_amt)
+		EventBus.event_triggered.emit({
+			"name": "⚙️ SALVAGED BATTLEFIELD WRECKAGE",
+			"effect": "none",
+			"amount": 0,
+			"desc": "Recovered %d weapons and +%d scrap from previous combat wreckage on this tile!" % [it_cnt, scrap_amt],
+		})
+
 	EventBus.tile_entered.emit(target, tile)
 	if not engaged_patrol:
 		# A chokepoint (bridge / one-wide passage) is ambush ground: hostile
@@ -754,11 +775,24 @@ func _end_day() -> void:
 			"desc": "The prolonged planetary war has shifted the technological landscape into the %s!" % str(era_res.get("era_name", "")),
 		})
 
+	# Scavenger Outpost Manpower growth & Fleet dispatches
+	var scav_events := ScavengerSystem.advance_turn(nodes_dict)
+	for s_event in scav_events:
+		EventBus.event_triggered.emit({
+			"name": "🏴‍☠️ SCAVENGER RAID FLEET",
+			"effect": "none",
+			"amount": 0,
+			"desc": "%s has deployed a raider fleet into Sector %d!" % [s_event.get("camp_name", "Scavenger Outpost"), GlobalData.board.current_sector],
+		})
+
 	# Patrols move after the day's systems resolve.
 	var ambush := PatrolSystem.advance_day(current_pos)
 	if (ambush != Vector2i(-1, -1) or not PatrolSystem.get_patrol_at(current_pos).is_empty()) and GameManager.current_state == GameManager.State.BOARD:
 		if _check_current_tile_patrol_engagement():
 			return
+
+	# Multi-Faction Clash Check (Scavengers vs Hostiles/Allies)
+	_check_multi_faction_collisions()
 
 	_update_token_position()
 	_refresh_patrol_markers()
@@ -775,6 +809,43 @@ func _end_day() -> void:
 		"amount": 0,
 		"desc": "Supplies refreshed — %d MP. %s" % [GlobalData.board.board_mp_max, BoardSystem.progress_text()],
 	})
+
+
+func _check_multi_faction_collisions() -> void:
+	var patrols: Array = GlobalData.board.board_patrols
+	if patrols.is_empty():
+		return
+	var to_remove: Array = []
+	for i in range(patrols.size()):
+		var p1 = patrols[i]
+		if p1 in to_remove or p1.get("destroyed", false):
+			continue
+		var pos1: Vector2i = PatrolSystem.normalize_dir(p1.get("pos", Vector2i.ZERO))
+		var fac1: String = str(p1.get("faction", "hostile"))
+
+		for j in range(i + 1, patrols.size()):
+			var p2 = patrols[j]
+			if p2 in to_remove or p2.get("destroyed", false):
+				continue
+			var pos2: Vector2i = PatrolSystem.normalize_dir(p2.get("pos", Vector2i.ZERO))
+			var fac2: String = str(p2.get("faction", "hostile"))
+
+			if pos1 == pos2 and fac1 != fac2:
+				# Hostile factions clash in auto-battle!
+				var res = ScavengerSystem.resolve_auto_battle(p1, p2)
+				EventBus.event_triggered.emit({
+					"name": "💥 FACTION BATTLE",
+					"effect": "none",
+					"amount": 0,
+					"desc": res.get("log", "Factions clashed!"),
+				})
+				if p1.get("destroyed", false):
+					to_remove.append(p1)
+				if p2.get("destroyed", false):
+					to_remove.append(p2)
+
+	for dead in to_remove:
+		patrols.erase(dead)
 
 
 # Artillery Fleet strategic bombardment (GDD §3.3)

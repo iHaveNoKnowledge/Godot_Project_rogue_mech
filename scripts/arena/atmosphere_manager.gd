@@ -160,6 +160,15 @@ func _setup_atmosphere() -> void:
 	sky.sky_material = sky_mat
 	env.sky = sky
 	
+	# Distance Horizon Fog — softly blends distant outer skirt & backdrops into sky horizon
+	env.fog_enabled = true
+	env.fog_mode = Environment.FOG_MODE_EXPONENTIAL
+	env.fog_density = 0.0022
+	env.fog_light_color = sky_mat.sky_horizon_color
+	env.fog_sun_scatter = 0.30
+	env.fog_aerial_perspective = 0.65
+	env.fog_sky_affect = 0.40
+
 	# Volumetric atmospheric fog with high-fidelity temporal reprojection
 	env.volumetric_fog_enabled = true
 	env.volumetric_fog_anisotropy = 0.35

@@ -254,6 +254,7 @@ func generate_arena() -> void:
 	_add_escape_apron()
 	_create_void_barrier()
 	_create_theme_structures()
+	ArenaBackdropSpawner.build_perimeters(self, current_theme, arena_size)
 	EventBus.arena_generated.emit({
 		"size": arena_size,
 		"theme": current_theme

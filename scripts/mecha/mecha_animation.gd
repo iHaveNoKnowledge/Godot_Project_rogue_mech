@@ -204,12 +204,20 @@ func _apply_pose(targets: Dictionary, speed: float) -> void:
 		head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, targets.get("head_tilt", 0.0), speed)
 	if arm_left:
 		arm_left.rotation.x = lerp_angle(arm_left.rotation.x, targets.get("arm_left", 0.0), speed)
+		arm_left.rotation.y = lerp_angle(arm_left.rotation.y, targets.get("arm_left_yaw", 0.0), speed)
+		arm_left.rotation.z = lerp_angle(arm_left.rotation.z, targets.get("arm_left_roll", 0.0), speed)
 	if arm_right:
 		arm_right.rotation.x = lerp_angle(arm_right.rotation.x, targets.get("arm_right", 0.0), speed)
+		arm_right.rotation.y = lerp_angle(arm_right.rotation.y, targets.get("arm_right_yaw", 0.0), speed)
+		arm_right.rotation.z = lerp_angle(arm_right.rotation.z, targets.get("arm_right_roll", 0.0), speed)
 	if forearm_left:
 		forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, targets.get("forearm_left", 0.0), speed)
+		forearm_left.rotation.y = lerp_angle(forearm_left.rotation.y, 0.0, speed)
+		forearm_left.rotation.z = lerp_angle(forearm_left.rotation.z, 0.0, speed)
 	if forearm_right:
 		forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, targets.get("forearm_right", 0.0), speed)
+		forearm_right.rotation.y = lerp_angle(forearm_right.rotation.y, 0.0, speed)
+		forearm_right.rotation.z = lerp_angle(forearm_right.rotation.z, 0.0, speed)
 	if leg_left:
 		leg_left.rotation.x = lerp_angle(leg_left.rotation.x, targets.get("thigh_left", 0.0), speed)
 		leg_left.rotation.y = lerp_angle(leg_left.rotation.y, targets.get("thigh_left_yaw", 0.0), speed)

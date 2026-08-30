@@ -5,6 +5,8 @@ func _ready() -> void:
 	test_shoot_channels_isolation()
 	test_shoot_heavy_variant_selection()
 	test_dual_hand_simultaneous_firing()
+	test_shoot_arm_splay_prevention()
+	test_walking_arm_alignment()
 	print("--- ALL TESTS PASSED SUCCESSFULLY! ---")
 	get_tree().quit(0)
 
@@ -20,7 +22,7 @@ func assert_true(cond: bool, msg: String) -> void:
 
 func _create_mock_joints() -> Dictionary:
 	var joints: Dictionary = {}
-	var names = ["arm_left", "arm_right", "forearm_left", "forearm_right", "body", "head"]
+	var names = ["arm_left", "arm_right", "forearm_left", "forearm_right", "body", "head", "leg_left", "leg_right"]
 	for n in names:
 		var node = Node3D.new()
 		node.name = n
@@ -111,3 +113,53 @@ func test_dual_hand_simultaneous_firing() -> void:
 
 	_free_mock_joints(joints)
 	animator.queue_free()
+
+
+func test_shoot_arm_splay_prevention() -> void:
+	var animator := MechaActionAnimator.new()
+	add_child(animator)
+	var joints := _create_mock_joints()
+
+	animator.play_shoot("right", false)
+	animator.update(0.05)
+	animator.apply_to_joints(joints)
+
+	# Firing right arm must keep Y and Z at 0 (no T-pose flare)
+	assert_true(absf(joints["arm_right"].rotation.y) < 0.001, "Right arm Y rotation remains 0.0 during shoot")
+	assert_true(absf(joints["arm_right"].rotation.z) < 0.001, "Right arm Z rotation remains 0.0 during shoot (no T-pose flare)")
+
+	# Let animation complete
+	animator.update(1.0)
+	assert_true(not animator.shoot_channel_right.is_active, "Right shoot channel finished")
+
+	_free_mock_joints(joints)
+	animator.queue_free()
+
+
+func test_walking_arm_alignment() -> void:
+	var walker := MechaWalkingSystem.new()
+	add_child(walker)
+	var joints := _create_mock_joints()
+
+	var dummy_mecha := CharacterBody3D.new()
+	dummy_mecha.velocity = Vector3(0, 0, -5.0) # Moving forward
+	add_child(dummy_mecha)
+
+	walker.is_moving = true
+	walker.bob_timer = 1.0
+
+	# Dirty the arm Y/Z rotation to simulate any potential external disturbance
+	joints["arm_left"].rotation = Vector3(0.2, 0.8, -0.7)
+	joints["arm_right"].rotation = Vector3(-0.2, -0.6, 0.9)
+
+	walker.update_legs(0.1, dummy_mecha, joints)
+
+	# Walking arm pump must restore Y and Z toward 0
+	assert_true(absf(joints["arm_left"].rotation.y) < 0.5, "Walking pump recovers Left Arm Y rotation")
+	assert_true(absf(joints["arm_left"].rotation.z) < 0.5, "Walking pump recovers Left Arm Z rotation")
+	assert_true(absf(joints["arm_right"].rotation.y) < 0.5, "Walking pump recovers Right Arm Y rotation")
+	assert_true(absf(joints["arm_right"].rotation.z) < 0.5, "Walking pump recovers Right Arm Z rotation")
+
+	walker.queue_free()
+	dummy_mecha.queue_free()
+	_free_mock_joints(joints)

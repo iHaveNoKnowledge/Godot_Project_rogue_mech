@@ -346,7 +346,8 @@ func _apply_shoot_channel_to_joints(channel: ShootChannel, joints: Dictionary, m
 			var target_euler: Vector3 = q.get_euler()
 			# Additive recoil pitch layered over current aim angle
 			node.rotation.x = lerp_angle(node.rotation.x, node.rotation.x + target_euler.x * 0.45, effective_weight)
-			node.rotation.z = lerp_angle(node.rotation.z, target_euler.z, effective_weight * 0.5)
+			node.rotation.y = lerp_angle(node.rotation.y, 0.0, effective_weight)
+			node.rotation.z = lerp_angle(node.rotation.z, 0.0, effective_weight)
 
 	if tmap.has(forearm_key):
 		var node: Node3D = joints.get(forearm_key + "_mesh", null)
@@ -356,6 +357,8 @@ func _apply_shoot_channel_to_joints(channel: ShootChannel, joints: Dictionary, m
 			var q: Quaternion = anim.rotation_track_interpolate(tmap[forearm_key], sample_t)
 			var target_euler: Vector3 = q.get_euler()
 			node.rotation.x = lerp_angle(node.rotation.x, node.rotation.x + target_euler.x * 0.35, effective_weight)
+			node.rotation.y = lerp_angle(node.rotation.y, 0.0, effective_weight)
+			node.rotation.z = lerp_angle(node.rotation.z, 0.0, effective_weight)
 
 	# Subtle chest/torso recoil kick
 	if tmap.has("body"):

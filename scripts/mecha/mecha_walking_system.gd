@@ -332,12 +332,20 @@ func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary) -> vo
 
 	if arm_left:
 		arm_left.rotation.x = -target_pitch_l * 0.75
+		arm_left.rotation.y = lerp_angle(arm_left.rotation.y, 0.0, 10.0 * delta)
+		arm_left.rotation.z = lerp_angle(arm_left.rotation.z, 0.0, 10.0 * delta)
 		if forearm_left:
 			forearm_left.rotation.x = deg_to_rad(55.0) + absf(sin(phase_left)) * deg_to_rad(20.0)
+			forearm_left.rotation.y = lerp_angle(forearm_left.rotation.y, 0.0, 10.0 * delta)
+			forearm_left.rotation.z = lerp_angle(forearm_left.rotation.z, 0.0, 10.0 * delta)
 	if arm_right:
 		arm_right.rotation.x = -target_pitch_r * 0.75
+		arm_right.rotation.y = lerp_angle(arm_right.rotation.y, 0.0, 10.0 * delta)
+		arm_right.rotation.z = lerp_angle(arm_right.rotation.z, 0.0, 10.0 * delta)
 		if forearm_right:
 			forearm_right.rotation.x = deg_to_rad(55.0) + absf(sin(phase_right)) * deg_to_rad(20.0)
+			forearm_right.rotation.y = lerp_angle(forearm_right.rotation.y, 0.0, 10.0 * delta)
+			forearm_right.rotation.z = lerp_angle(forearm_right.rotation.z, 0.0, 10.0 * delta)
 
 
 ## Scans the standard mecha rig node paths and returns a joints dictionary.

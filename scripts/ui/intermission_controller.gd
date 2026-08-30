@@ -19,12 +19,10 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_create_ui()
 	_show_menu()
-	# Always start hidden. The board is directly playable; the player presses ESC
-	# to open the intermission menu. Starting visible would block the board on
-	# every reload (including after returning from the hangar scene), because the
-	# game_state_changed("HANGAR","BOARD") signal fires BEFORE the deferred scene
-	# change completes, so this controller never receives it in _on_state_changed.
-	visible = false
+	# Intermission menu is the primary hub upon entering the board / returning from hangar.
+	# The driver sees the intermission menu first, and can choose 'Move on Board'
+	# (or press ESC) to close the menu and step across the board tiles.
+	visible = true
 	EventBus.game_state_changed.connect(_on_state_changed)
 	# NOTE: the intermission music is owned by the board STATE (GameManager
 	# enter_board / return_to_board / advance_to_next_sector), not by this panel.
@@ -44,9 +42,6 @@ func _input(event: InputEvent) -> void:
 				return
 			# An event popup / pause overlay is up (tree paused): ESC belongs to
 			# it, so never stack the menu on top — the popup closes itself.
-			# EXCEPTION: if get_tree().paused is stale from a previous scene
-			# (e.g. hangar left paused=true before scene change), clear it first
-			# so the board is always reachable after returning from the hangar.
 			if get_tree().paused:
 				# Only clear stale pause if no event modal is actually showing.
 				var has_event_modal := get_tree().get_nodes_in_group("event_popup").size() > 0
@@ -54,15 +49,17 @@ func _input(event: InputEvent) -> void:
 					return
 				# Stale pause from hangar/combat — clear it so the menu can open.
 				get_tree().paused = false
-			visible = true
-			info_panel.visible = false
-			status_label.text = _get_status_text()
+			visible = not visible
+			if visible:
+				_show_menu()
+				status_label.text = _get_status_text()
 
 
 func _create_ui() -> void:
-	# Root control for full screen
+	# Root control for full screen — IGNORE so clicks outside panels pass to 3D board
 	root_control = Control.new()
 	root_control.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root_control.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root_control)
 
 	# Main menu panel (left side)
@@ -238,14 +235,10 @@ func _get_status_text() -> String:
 
 func _on_state_changed(old_state: String, new_state: String) -> void:
 	if new_state == "BOARD":
-		# Hide the overlay whenever returning from combat OR the hangar scene.
-		# (Returning from hangar: game_state_changed fires before the board scene
-		# loads, so this handler only runs for transitions where the old scene is
-		# still active — the visible=false in _ready() covers the deferred load.)
-		if old_state in ["COMBAT", "HANGAR"]:
-			visible = false
+		visible = true
+		_show_menu()
 		status_label.text = _get_status_text()
-	elif new_state == "COMBAT":
+	elif new_state == "COMBAT" or new_state == "HANGAR":
 		visible = false
 
 

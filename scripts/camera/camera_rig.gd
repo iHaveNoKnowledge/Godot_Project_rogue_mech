@@ -19,7 +19,7 @@ var target: Node3D = null
 var shake_amount: float = 0.0
 var shake_decay: float = 4.5
 
-# Camera Presets - pushed to side & high so mech sits bottom-left, center clear (fix [Image 1] block)
+# Camera Presets - matches MechaScaleSystem.COMBAT_CAM (true 4.73m) — newest
 const MECHA_SPRING_LENGTH: float = 11.0
 const MECHA_OFFSET_X: float = 3.4
 const MECHA_OFFSET_Y: float = 5.2

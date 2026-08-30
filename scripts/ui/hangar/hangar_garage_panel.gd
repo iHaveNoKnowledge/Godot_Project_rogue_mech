@@ -20,10 +20,10 @@ var garage_cam: Camera3D
 var mecha_3d_root: Node3D
 var turntable_node: Node3D
 var selection_highlight: MeshInstance3D
-var cam_target_pos: Vector3 = Vector3(4.8, 1.1, 7.2)
-var cam_look_target: Vector3 = Vector3(0, 3.6, 0)
-var current_cam_pos: Vector3 = Vector3(4.8, 1.1, 7.2)
-var current_look_pos: Vector3 = Vector3(0, 3.6, 0)
+var cam_target_pos: Vector3 = MechaScaleSystem.HANGAR_CAM["initial_pos"]
+var cam_look_target: Vector3 = MechaScaleSystem.HANGAR_CAM["initial_look"]
+var current_cam_pos: Vector3 = MechaScaleSystem.HANGAR_CAM["initial_pos"]
+var current_look_pos: Vector3 = MechaScaleSystem.HANGAR_CAM["initial_look"]
 
 # Mouse-drag + tab-blink state.
 var _is_dragging_3d: bool = false
@@ -347,45 +347,37 @@ func apply_tactical_idle_pose(mecha_node: Node3D) -> void:
 	var shin_left = mecha_node.get_node_or_null("LegLeft/ShinLeft")
 	var shin_right = mecha_node.get_node_or_null("LegRight/ShinRight")
 
-		# Armored Core Classic Heavy Hangar Stance - TRUE SCALE 1.0 (MechaBase 4.73m). Values are world meters * WORLD_SCALE (1.68) from legacy 1.6 pose
+		# Armored Core stance - now uses MechaScaleSystem.HANGAR_POSE (newest, replaces legacy 1.6*1.68 hardcodes)
+	var pose: Dictionary = MechaScaleSystem.HANGAR_POSE
 	if body:
 		body.rotation = Vector3(-deg_to_rad(4.0), 0.0, 0.0)
-		body.position = Vector3(0, 2.856, 0) # 1.70*1.68 lowered COG (Body pivot 3.024)
-
+		body.position = pose["body_pos"]
 	if head:
 		head.rotation = Vector3(-deg_to_rad(2.0), 0.0, 0.0)
-		head.position = Vector3(0, 3.7296, -0.084) # 2.22*1.68 nestled low (Head 3.864)
-
-	# Legs: Wide A-Stance
+		head.position = pose["head_pos"]
 	if leg_left:
-		leg_left.position = Vector3(-0.7728, 2.10, 0.0) # -0.46*1.68, 1.25*1.68
+		leg_left.position = pose["leg_left_pos"]
 		leg_left.rotation = Vector3(deg_to_rad(8.0), deg_to_rad(14.0), -deg_to_rad(14.0))
 	if leg_right:
-		leg_right.position = Vector3(0.7728, 2.10, 0.0)
+		leg_right.position = pose["leg_right_pos"]
 		leg_right.rotation = Vector3(deg_to_rad(8.0), -deg_to_rad(14.0), deg_to_rad(14.0))
-
-	# Shins / Knees
 	if shin_left:
-		shin_left.position = Vector3(0, -0.924, 0) # -0.55*1.68
+		shin_left.position = pose["shin_pos"]
 		shin_left.rotation = Vector3(-deg_to_rad(18.0), 0.0, deg_to_rad(8.0))
 	if shin_right:
-		shin_right.position = Vector3(0, -0.924, 0)
+		shin_right.position = pose["shin_pos"]
 		shin_right.rotation = Vector3(-deg_to_rad(18.0), 0.0, -deg_to_rad(8.0))
-
-	# Left Arm
 	if arm_left:
-		arm_left.position = Vector3(-1.1424, 3.276, 0.0) # -0.68*1.68, 1.95*1.68
+		arm_left.position = pose["arm_left_pos"]
 		arm_left.rotation = Vector3(deg_to_rad(12.0), deg_to_rad(6.0), -deg_to_rad(28.0))
 	if forearm_left:
-		forearm_left.position = Vector3(0, -0.6384, 0) # -0.38*1.68
+		forearm_left.position = pose["forearm_pos"]
 		forearm_left.rotation = Vector3(deg_to_rad(28.0), 0.0, deg_to_rad(14.0))
-
-	# Right Arm
 	if arm_right:
-		arm_right.position = Vector3(1.1424, 3.276, 0.0)
+		arm_right.position = pose["arm_right_pos"]
 		arm_right.rotation = Vector3(deg_to_rad(14.0), -deg_to_rad(6.0), deg_to_rad(28.0))
 	if forearm_right:
-		forearm_right.position = Vector3(0, -0.6384, 0)
+		forearm_right.position = pose["forearm_pos"]
 		forearm_right.rotation = Vector3(deg_to_rad(30.0), 0.0, -deg_to_rad(14.0))
 
 
@@ -489,32 +481,19 @@ func apply_tab_blink(on: bool) -> void:
 
 
 func update_camera_focus(slot: String) -> void:
-	# Tight, part-filling framing for 4.73m mech (scale 1.0). Distances kept ~5-6.5m so part fills viewport, not distant 10m
-	match slot:
-		"head":
-			cam_target_pos = Vector3(1.0, 4.4, 5.8)
-			cam_look_target = Vector3(0, 3.85, -0.05)
-		"body":
-			cam_target_pos = Vector3(1.4, 3.4, 6.2)
-			cam_look_target = Vector3(0, 3.02, 0)
-		"arm_left", "weapon_left":
-			cam_target_pos = Vector3(2.4, 3.6, 6.4)
-			cam_look_target = Vector3(-1.14, 3.35, 0.0)
-		"arm_right", "weapon_right":
-			cam_target_pos = Vector3(-2.4, 3.6, 6.4)
-			cam_look_target = Vector3(1.14, 3.35, 0.0)
-		"weapon_carry":
-			cam_target_pos = Vector3(1.8, 3.8, -6.0)
-			cam_look_target = Vector3(0, 3.0, -0.3)
-		"leg_left":
-			cam_target_pos = Vector3(1.6, 2.2, 6.0)
-			cam_look_target = Vector3(-0.64, 1.85, 0.0)
-		"leg_right":
-			cam_target_pos = Vector3(-1.6, 2.2, 6.0)
-			cam_look_target = Vector3(0.64, 1.85, 0.0)
-		_:
-			cam_target_pos = Vector3(4.8, 1.1, 7.2)
-			cam_look_target = Vector3(0, 3.6, 0)
+	# Use MechaScaleSystem.HANGAR_CAM (newest) — replaces legacy 5.8-6.4m hardcodes
+	var cam: Dictionary = MechaScaleSystem.HANGAR_CAM.get(slot, {})
+	if cam.is_empty() and slot.begins_with("weapon"):
+		cam = MechaScaleSystem.HANGAR_CAM.get(slot.get_slice("_", 0), MechaScaleSystem.HANGAR_CAM["default"])
+	if cam.is_empty():
+		cam = MechaScaleSystem.HANGAR_CAM["default"]
+	# Handle arm/weapon aliases
+	if slot in ["arm_left", "weapon_left"] and MechaScaleSystem.HANGAR_CAM.has("arm_left"):
+		cam = MechaScaleSystem.HANGAR_CAM["arm_left"]
+	elif slot in ["arm_right", "weapon_right"] and MechaScaleSystem.HANGAR_CAM.has("arm_right"):
+		cam = MechaScaleSystem.HANGAR_CAM["arm_right"]
+	cam_target_pos = cam.get("pos", MechaScaleSystem.HANGAR_CAM["default"]["pos"])
+	cam_look_target = cam.get("look", MechaScaleSystem.HANGAR_CAM["default"]["look"])
 
 
 # --- REAL-TIME 3D PREVIEWS IN GARAGE ---

@@ -1,11 +1,9 @@
 extends Node3D
 
 const MASTER_PBR_SHADER: Shader = preload("res://shaders/mecha_master_pbr.gdshader")
-# World scale: MechaBase now at scale 1.0 with true meters (4.73m tall). Procedural meshes were authored
-# for 1.6 scale, so they need 1.68x to reach true world size. Containers are scaled, imported GLBs are
-# counter-scaled to stay at authoring true size (model at 4.73m, import at 1.0 -> renders correct).
-const WORLD_SCALE: float = 1.68
-const INV_WORLD_SCALE: float = 1.0 / 1.68
+# Centralized scale — use MechaScaleSystem.WORLD_SCALE (newest). Kept here for legacy callers that reference part_mesh_manager.WORLD_SCALE
+const WORLD_SCALE: float = MechaScaleSystem.WORLD_SCALE
+const INV_WORLD_SCALE: float = MechaScaleSystem.INV_WORLD_SCALE
 
 var slot_meshes: Dictionary = {}
 # When true, slots without an inner frame render a faint translucent skeleton

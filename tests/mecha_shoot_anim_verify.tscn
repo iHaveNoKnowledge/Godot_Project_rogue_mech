@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://f1v2w8r4q9y1d"]
+
+[ext_resource type="Script" path="res://tests/mecha_shoot_anim_verify.gd" id="1_test"]
+
+[node name="MechaShootAnimVerify" type="Node"]
+script = ExtResource("1_test")

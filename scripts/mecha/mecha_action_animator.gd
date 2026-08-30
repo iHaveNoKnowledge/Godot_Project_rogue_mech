@@ -104,7 +104,23 @@ var windup_speed: float = 0.60
 var strike_speed: float = 2.40
 
 
-## Plays an action clip by name
+class ShootChannel:
+	var anim_name: String = ""
+	var anim_time: float = 0.0
+	var anim_length: float = 0.0
+	var anim_speed: float = 2.2
+	var blend_weight: float = 0.0
+	var fade_in_time: float = 0.02
+	var fade_out_time: float = 0.12
+	var is_active: bool = false
+	var hand: String = "right"
+
+
+var shoot_channel_left: ShootChannel = ShootChannel.new()
+var shoot_channel_right: ShootChannel = ShootChannel.new()
+
+
+## Plays an action clip by name (full-body or primary channel)
 func play_action(anim_name: String, speed: float = 1.0, fade_in: float = 0.08, fade_out: float = 0.15) -> bool:
 	_ensure_library_cached()
 	var anim: Animation = _cached_anim_library.get(anim_name, null)
@@ -176,12 +192,29 @@ func play_melee(hand: String, forced_combo_step: int = 0) -> void:
 	play_action(clip_name, play_speed, 0.06, 0.14)
 
 
-## Plays Shooting Recoil and Weapon Bracing
+## Plays Shooting Recoil on the isolated firing arm without affecting the other arm
 func play_shoot(hand: String, is_heavy: bool = false) -> void:
+	_ensure_library_cached()
+	var channel := shoot_channel_left if hand == "left" else shoot_channel_right
 	var side_suffix := "_L" if hand == "left" else "_R"
 	var clip_name := "Mech_Shoot2%s" % side_suffix if is_heavy else "Mech_Shoot%s" % side_suffix
-	var speed := 2.2 if not is_heavy else 1.6
-	play_action(clip_name, speed, 0.04, 0.12)
+
+	var anim: Animation = _cached_anim_library.get(clip_name, null)
+	if anim == null:
+		clip_name = "Mech_Shoot%s" % side_suffix
+		anim = _cached_anim_library.get(clip_name, null)
+		if anim == null:
+			return
+
+	channel.anim_name = clip_name
+	channel.anim_time = 0.0
+	channel.anim_length = anim.length
+	channel.anim_speed = 2.4 if not is_heavy else 1.8
+	channel.fade_in_time = 0.02
+	channel.fade_out_time = 0.12 if not is_heavy else 0.18
+	channel.blend_weight = 0.0
+	channel.is_active = true
+	channel.hand = hand
 
 
 ## Plays Shoulder Cannon / Missile Pod Barrage Launch
@@ -201,64 +234,135 @@ func play_die() -> void:
 
 
 func is_playing() -> bool:
-	return is_active and blend_weight > 0.001
+	return (is_active and blend_weight > 0.001) or shoot_channel_left.is_active or shoot_channel_right.is_active
 
 
-## Advances playback timeline and calculates crossfade envelope
+## Advances playback timelines and calculates crossfade envelopes
 func update(delta: float) -> void:
-	if not is_active:
+	# 1. Main Action Channel
+	if is_active:
+		if is_custom_pacing:
+			var norm_pos := anim_time / maxf(anim_length, 0.001)
+			var current_step_speed := windup_speed if norm_pos < windup_fraction else strike_speed
+			anim_time += delta * current_step_speed
+		else:
+			anim_time += delta * anim_speed
+
+		if anim_time < fade_in_time:
+			blend_weight = clampf(anim_time / fade_in_time, 0.0, 1.0)
+		elif anim_time >= anim_length - fade_out_time:
+			var remaining := maxf(anim_length - anim_time, 0.0)
+			blend_weight = clampf(remaining / fade_out_time, 0.0, 1.0)
+		else:
+			blend_weight = 1.0
+
+		if anim_time >= anim_length:
+			is_active = false
+			blend_weight = 0.0
+	else:
 		blend_weight = move_toward(blend_weight, 0.0, delta / 0.15)
+
+	# 2. Per-Hand Shoot Channels
+	_update_shoot_channel(shoot_channel_left, delta)
+	_update_shoot_channel(shoot_channel_right, delta)
+
+
+func _update_shoot_channel(channel: ShootChannel, delta: float) -> void:
+	if not channel.is_active:
+		channel.blend_weight = move_toward(channel.blend_weight, 0.0, delta / 0.10)
 		return
 
-	if is_custom_pacing:
-		var norm_pos := anim_time / maxf(anim_length, 0.001)
-		var current_step_speed := windup_speed if norm_pos < windup_fraction else strike_speed
-		anim_time += delta * current_step_speed
-	else:
-		anim_time += delta * anim_speed
+	channel.anim_time += delta * channel.anim_speed
 
-	# Calculate fade-in and fade-out envelope
-	if anim_time < fade_in_time:
-		blend_weight = clampf(anim_time / fade_in_time, 0.0, 1.0)
-	elif anim_time >= anim_length - fade_out_time:
-		var remaining := maxf(anim_length - anim_time, 0.0)
-		blend_weight = clampf(remaining / fade_out_time, 0.0, 1.0)
+	if channel.anim_time < channel.fade_in_time:
+		channel.blend_weight = clampf(channel.anim_time / channel.fade_in_time, 0.0, 1.0)
+	elif channel.anim_time >= channel.anim_length - channel.fade_out_time:
+		var remaining := maxf(channel.anim_length - channel.anim_time, 0.0)
+		channel.blend_weight = clampf(remaining / channel.fade_out_time, 0.0, 1.0)
 	else:
-		blend_weight = 1.0
+		channel.blend_weight = 1.0
 
-	if anim_time >= anim_length:
-		is_active = false
-		blend_weight = 0.0
+	if channel.anim_time >= channel.anim_length:
+		channel.is_active = false
+		channel.blend_weight = 0.0
 
 
 ## Blends keyframe rotations onto the mech's joints dictionary
 func apply_to_joints(joints: Dictionary, master_weight: float = 1.0) -> void:
-	var effective_weight := blend_weight * master_weight
+	# 1. Main action animation (Melee, Die, GetHit, Shoulder)
+	var effective_main := blend_weight * master_weight
+	if effective_main > 0.001:
+		var anim: Animation = _cached_anim_library.get(current_anim_name, null)
+		var tmap: Dictionary = _cached_track_maps.get(current_anim_name, {})
+		if anim != null and not tmap.is_empty():
+			var sample_t := clampf(anim_time, 0.0, anim_length)
+			for joint_key in tmap:
+				var track_idx: int = tmap[joint_key]
+				var node: Node3D = joints.get(joint_key + "_mesh", null)
+				if node == null:
+					node = joints.get(joint_key, null)
+				if node == null or not is_instance_valid(node):
+					continue
+
+				var q: Quaternion = anim.rotation_track_interpolate(track_idx, sample_t)
+				var target_euler: Vector3 = q.get_euler()
+				var blend := effective_main
+				node.rotation.x = lerp_angle(node.rotation.x, target_euler.x, blend)
+				if joint_key in ["arm_left", "arm_right", "forearm_left", "forearm_right", "body"]:
+					node.rotation.y = lerp_angle(node.rotation.y, target_euler.y, blend)
+					node.rotation.z = lerp_angle(node.rotation.z, target_euler.z, blend)
+
+	# 2. Left Shoot Recoil (Isolated to left arm + torso kick)
+	_apply_shoot_channel_to_joints(shoot_channel_left, joints, master_weight)
+
+	# 3. Right Shoot Recoil (Isolated to right arm + torso kick)
+	_apply_shoot_channel_to_joints(shoot_channel_right, joints, master_weight)
+
+
+func _apply_shoot_channel_to_joints(channel: ShootChannel, joints: Dictionary, master_weight: float) -> void:
+	var effective_weight := channel.blend_weight * master_weight
 	if effective_weight <= 0.001:
 		return
 
-	var anim: Animation = _cached_anim_library.get(current_anim_name, null)
-	var tmap: Dictionary = _cached_track_maps.get(current_anim_name, {})
+	var anim: Animation = _cached_anim_library.get(channel.anim_name, null)
+	var tmap: Dictionary = _cached_track_maps.get(channel.anim_name, {})
 	if anim == null or tmap.is_empty():
 		return
 
-	var sample_t := clampf(anim_time, 0.0, anim_length)
+	var sample_t := clampf(channel.anim_time, 0.0, channel.anim_length)
+	var is_left := (channel.hand == "left")
 
-	# Joint mapping dictionary
-	for joint_key in tmap:
-		var track_idx: int = tmap[joint_key]
-		var node: Node3D = joints.get(joint_key + "_mesh", null)
+	# Recoil kickback angle computed from keyframe curve
+	# Only affect the specific shooting arm joints + subtle body kick
+	var arm_key := "arm_left" if is_left else "arm_right"
+	var forearm_key := "forearm_left" if is_left else "forearm_right"
+
+	if tmap.has(arm_key):
+		var node: Node3D = joints.get(arm_key + "_mesh", null)
 		if node == null:
-			node = joints.get(joint_key, null)
-		if node == null or not is_instance_valid(node):
-			continue
+			node = joints.get(arm_key, null)
+		if node != null and is_instance_valid(node):
+			var q: Quaternion = anim.rotation_track_interpolate(tmap[arm_key], sample_t)
+			var target_euler: Vector3 = q.get_euler()
+			# Additive recoil pitch layered over current aim angle
+			node.rotation.x = lerp_angle(node.rotation.x, node.rotation.x + target_euler.x * 0.45, effective_weight)
+			node.rotation.z = lerp_angle(node.rotation.z, target_euler.z, effective_weight * 0.5)
 
-		var q: Quaternion = anim.rotation_track_interpolate(track_idx, sample_t)
-		var target_euler: Vector3 = q.get_euler()
+	if tmap.has(forearm_key):
+		var node: Node3D = joints.get(forearm_key + "_mesh", null)
+		if node == null:
+			node = joints.get(forearm_key, null)
+		if node != null and is_instance_valid(node):
+			var q: Quaternion = anim.rotation_track_interpolate(tmap[forearm_key], sample_t)
+			var target_euler: Vector3 = q.get_euler()
+			node.rotation.x = lerp_angle(node.rotation.x, node.rotation.x + target_euler.x * 0.35, effective_weight)
 
-		# Upper-body actions blend naturally; clamp extremes for stability
-		var blend := effective_weight
-		node.rotation.x = lerp_angle(node.rotation.x, target_euler.x, blend)
-		if joint_key in ["arm_left", "arm_right", "forearm_left", "forearm_right", "body"]:
-			node.rotation.y = lerp_angle(node.rotation.y, target_euler.y, blend)
-			node.rotation.z = lerp_angle(node.rotation.z, target_euler.z, blend)
+	# Subtle chest/torso recoil kick
+	if tmap.has("body"):
+		var body_node: Node3D = joints.get("body_mesh", null)
+		if body_node == null:
+			body_node = joints.get("body", null)
+		if body_node != null and is_instance_valid(body_node):
+			var q_body: Quaternion = anim.rotation_track_interpolate(tmap["body"], sample_t)
+			var body_euler: Vector3 = q_body.get_euler()
+			body_node.rotation.x = lerp_angle(body_node.rotation.x, body_node.rotation.x + body_euler.x * 0.25, effective_weight)

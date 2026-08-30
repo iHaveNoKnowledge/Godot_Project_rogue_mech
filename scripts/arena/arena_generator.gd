@@ -1395,51 +1395,52 @@ func _rect_inside_footprint(center: Vector2, half_ext: Vector2) -> bool:
 
 
 func _build_city_highrise_structures() -> void:
-	# Grid of skyscraper building blocks, but never the same city twice: a
-	# seeded roll decides which cells actually rise (and how tall), so two
-	# battles in the highrise never look identical.
-	var b_coords = [-70.0, -35.0, 35.0, 70.0]
+	var city_root := Node3D.new()
+	city_root.name = "SkyscraperCity"
+	structures_container.add_child(city_root)
+
+	# Shared cached PBR materials for high rendering efficiency (Zero lag)
+	var glass_mat := StandardMaterial3D.new()
+	glass_mat.albedo_color = Color(0.15, 0.22, 0.30)
+	glass_mat.metallic = 0.85
+	glass_mat.roughness = 0.15
+
+	var steel_mat := StandardMaterial3D.new()
+	steel_mat.albedo_color = Color(0.24, 0.26, 0.28)
+	steel_mat.metallic = 0.65
+	steel_mat.roughness = 0.45
+
+	var concrete_mat := StandardMaterial3D.new()
+	concrete_mat.albedo_color = Color(0.40, 0.42, 0.44)
+	concrete_mat.metallic = 0.05
+	concrete_mat.roughness = 0.80
+
+	var tower_materials := [glass_mat, steel_mat, concrete_mat]
+
+	# Dense grid of skyscraper coordinates (tight city canyon layout)
+	var b_coords = [-85.0, -58.0, -32.0, 32.0, 58.0, 85.0]
 	for bx in b_coords:
 		for bz in b_coords:
-			if absf(bx) < 20.0 and absf(bz) < 20.0:
-				continue # Clear spawn area
-			# On an irregular footprint the city only rises where the outline
-			# actually covers the block (a tower at a missing corner would float
-			# over the void).
-			if footprint != null and not _rect_inside_footprint(Vector2(bx, bz), Vector2(16.0, 16.0)):
+			# Keep center intersection open for combat arena maneuverability
+			if absf(bx) < 24.0 and absf(bz) < 24.0:
 				continue
-			# ~78% fill: some cells stay as empty lots/parks.
-			if randf() < 0.22:
+			if footprint != null and not _rect_inside_footprint(Vector2(bx, bz), Vector2(12.0, 12.0)):
 				continue
-			var b_height = randf_range(25.0, 45.0)
-			var building = StaticBody3D.new()
-			building.collision_layer = 2
-			building.collision_mask = 1
+			# Dense 85% fill for tight skyscraper canyon feel
+			if randf() < 0.15:
+				continue
 
-			var b_size = randf_range(15.0, 24.0)
-			var collision = CollisionShape3D.new()
-			var shape = BoxShape3D.new()
-			shape.size = Vector3(b_size, b_height, b_size)
-			collision.shape = shape
-			collision.position.y = b_height / 2.0
-			building.add_child(collision)
+			var b_height := randf_range(30.0, 60.0)
+			var b_size_x := randf_range(16.0, 24.0)
+			var b_size_z := randf_range(16.0, 24.0)
+			var tower_mat = tower_materials[randi() % tower_materials.size()]
 
-			var mesh = MeshInstance3D.new()
-			var box = BoxMesh.new()
-			box.size = Vector3(b_size, b_height, b_size)
-			mesh.mesh = box
-			var mat = StandardMaterial3D.new()
-			mat.albedo_color = Color(randf_range(0.12, 0.18), randf_range(0.15, 0.22), randf_range(0.20, 0.28))
-			mat.metallic = 0.3
-			mat.roughness = 0.5
-			mesh.material_override = mat
-			building.add_child(mesh)
+			var DestructibleBuildingScript = preload("res://scripts/arena/destructible_building.gd")
+			var building = DestructibleBuildingScript.new()
+			building.setup_building(Vector3(b_size_x, b_height, b_size_z), tower_mat, randf_range(160.0, 280.0))
+			building.position = Vector3(bx + randf_range(-2.5, 2.5), 0, bz + randf_range(-2.5, 2.5))
+			city_root.add_child(building)
 
-			# Slight random offset so blocks don't sit in a rigid grid.
-			building.position = Vector3(bx + randf_range(-4, 4), 0, bz + randf_range(-4, 4))
-			building.add_to_group("concealment")
-			building.add_to_group("solid_obstacle")
-			structures_container.add_child(building)
 
 
 func _build_crossroads_structures() -> void:

@@ -310,10 +310,14 @@ func _add_tree(parent: Node3D, rng: RandomNumberGenerator, trunk_h: float, canop
 
 
 func _add_building(parent: Node3D, rng: RandomNumberGenerator) -> void:
+	var b_root := Node3D.new()
+	# Position near the corner edge so the tile center remains open for player token
+	b_root.position = Vector3(1.1, 0, -1.1)
+
 	var building := MeshInstance3D.new()
 	var body := BoxMesh.new()
-	var bw := rng.randf_range(1.8, 2.6)
-	var bh := rng.randf_range(2.0, 3.6)
+	var bw := rng.randf_range(1.2, 1.6)
+	var bh := rng.randf_range(1.6, 2.6)
 	body.size = Vector3(bw, bh, bw)
 	building.mesh = body
 	var mat := StandardMaterial3D.new()
@@ -321,19 +325,21 @@ func _add_building(parent: Node3D, rng: RandomNumberGenerator) -> void:
 	mat.roughness = 0.8
 	building.material_override = mat
 	building.position = Vector3(0, bh * 0.5, 0)
-	parent.add_child(building)
+	b_root.add_child(building)
 
 	# Roof slab
 	var roof := MeshInstance3D.new()
 	var roof_mesh := BoxMesh.new()
-	roof_mesh.size = Vector3(bw + 0.2, 0.12, bw + 0.2)
+	roof_mesh.size = Vector3(bw + 0.15, 0.1, bw + 0.15)
 	roof.mesh = roof_mesh
 	var roof_mat := StandardMaterial3D.new()
 	roof_mat.albedo_color = Color(0.42, 0.43, 0.48)
 	roof_mat.roughness = 0.9
 	roof.material_override = roof_mat
-	roof.position = Vector3(0, bh + 0.06, 0)
-	parent.add_child(roof)
+	roof.position = Vector3(0, bh + 0.05, 0)
+	b_root.add_child(roof)
+
+	parent.add_child(b_root)
 
 
 func _add_boulder(parent: Node3D, rng: RandomNumberGenerator) -> void:
@@ -368,9 +374,9 @@ func _add_bush(parent: Node3D, rng: RandomNumberGenerator) -> void:
 
 func _add_suburban_house(parent: Node3D, rng: RandomNumberGenerator) -> void:
 	var house := Node3D.new()
-	var hw := rng.randf_range(1.2, 1.6)
-	var hh := rng.randf_range(1.0, 1.4)
-	var hd := rng.randf_range(1.4, 1.8)
+	var hw := rng.randf_range(1.0, 1.3)
+	var hh := rng.randf_range(0.8, 1.1)
+	var hd := rng.randf_range(1.1, 1.4)
 
 	var base_mesh := MeshInstance3D.new()
 	var box := BoxMesh.new()
@@ -386,16 +392,17 @@ func _add_suburban_house(parent: Node3D, rng: RandomNumberGenerator) -> void:
 	# Gabled roof
 	var roof := MeshInstance3D.new()
 	var r_mesh := PrismMesh.new()
-	r_mesh.size = Vector3(hw + 0.3, 0.7, hd + 0.2)
+	r_mesh.size = Vector3(hw + 0.2, 0.55, hd + 0.15)
 	roof.mesh = r_mesh
 	var r_mat := StandardMaterial3D.new()
 	r_mat.albedo_color = Color(0.55 + rng.randf_range(-0.1, 0.1), 0.22, 0.18)
 	r_mat.roughness = 0.7
 	roof.material_override = r_mat
-	roof.position = Vector3(0, hh + 0.35, 0)
+	roof.position = Vector3(0, hh + 0.28, 0)
 	house.add_child(roof)
 
-	house.position = Vector3(rng.randf_range(-0.8, 0.8), 0, rng.randf_range(-0.8, 0.8))
+	# Position near the corner edge of tile
+	house.position = Vector3(1.1, 0, -1.1)
 	house.rotation.y = rng.randf_range(0.0, TAU)
 	parent.add_child(house)
 
@@ -543,7 +550,7 @@ func _poi_mat(color: Color, roughness: float = 0.7, emission: Color = Color.BLAC
 	return mat
 
 
-func _add_floating_badge(parent: Node3D, text: String, color: Color, height: float = 2.4) -> void:
+func _add_floating_badge(parent: Node3D, text: String, color: Color, height: float = 2.4, offset_xz: Vector2 = Vector2.ZERO) -> void:
 	var lbl := Label3D.new()
 	lbl.name = "TacticalBadge"
 	lbl.text = text
@@ -554,7 +561,7 @@ func _add_floating_badge(parent: Node3D, text: String, color: Color, height: flo
 	lbl.outline_size = 10
 	lbl.outline_modulate = Color(0.02, 0.03, 0.06, 0.98)
 	lbl.modulate = color
-	lbl.position = Vector3(0, height, 0)
+	lbl.position = Vector3(offset_xz.x, height, offset_xz.y)
 	parent.add_child(lbl)
 
 
@@ -696,100 +703,114 @@ func _build_exit_model(root: Node3D) -> void:
 
 # Safehouse / Field Repair Bunker
 func _build_safehouse_model(root: Node3D) -> void:
+	var s_node := Node3D.new()
+	s_node.position = Vector3(1.0, 0, -1.0)
+	s_node.scale = Vector3(0.8, 0.8, 0.8)
+
 	var bunker := MeshInstance3D.new()
 	var bm := SphereMesh.new()
-	bm.radius = 1.1
-	bm.height = 1.2
+	bm.radius = 1.0
+	bm.height = 1.1
 	bunker.mesh = bm
 	bunker.material_override = _poi_mat(Color(0.28, 0.34, 0.30), 0.7)
 	bunker.position = Vector3(0, 0.3, 0)
-	root.add_child(bunker)
+	s_node.add_child(bunker)
 
 	# Blast door entrance vestibule
 	var door := MeshInstance3D.new()
 	var dm := BoxMesh.new()
-	dm.size = Vector3(0.8, 0.85, 0.6)
+	dm.size = Vector3(0.7, 0.8, 0.5)
 	door.mesh = dm
 	door.material_override = _poi_mat(Color(0.18, 0.22, 0.20), 0.8)
-	door.position = Vector3(0, 0.42, 0.95)
-	root.add_child(door)
+	door.position = Vector3(0, 0.4, 0.85)
+	s_node.add_child(door)
 
 	# Green status light
 	var light := MeshInstance3D.new()
 	var lm := SphereMesh.new()
-	lm.radius = 0.1
-	lm.height = 0.2
+	lm.radius = 0.08
+	lm.height = 0.16
 	light.mesh = lm
 	light.material_override = _poi_mat(Color(0.3, 0.95, 0.4), 0.2, Color(0.3, 0.95, 0.4), 3.0)
-	light.position = Vector3(0, 0.9, 0.98)
-	root.add_child(light)
+	light.position = Vector3(0, 0.85, 0.88)
+	s_node.add_child(light)
 
-	_add_floating_badge(root, "🏠 SAFEHOUSE", Color(0.4, 0.95, 0.4), 2.2)
+	root.add_child(s_node)
+	_add_floating_badge(root, "🏠 SAFEHOUSE", Color(0.4, 0.95, 0.4), 2.2, Vector2(1.0, -1.0))
 
 
 # Trading City / Settlement Cluster
 func _build_city_model(root: Node3D) -> void:
+	var c_node := Node3D.new()
+	c_node.position = Vector3(1.1, 0, -1.1)
+
 	var b1 := MeshInstance3D.new()
 	var b1m := BoxMesh.new()
-	b1m.size = Vector3(1.2, 2.4, 1.2)
+	b1m.size = Vector3(0.8, 1.8, 0.8)
 	b1.mesh = b1m
 	b1.material_override = _poi_mat(Color(0.38, 0.40, 0.44), 0.8)
-	b1.position = Vector3(-0.3, 1.2, -0.3)
-	root.add_child(b1)
+	b1.position = Vector3(-0.25, 0.9, -0.25)
+	c_node.add_child(b1)
 
 	var b2 := MeshInstance3D.new()
 	var b2m := BoxMesh.new()
-	b2m.size = Vector3(0.9, 1.6, 0.9)
+	b2m.size = Vector3(0.65, 1.2, 0.65)
 	b2.mesh = b2m
 	b2.material_override = _poi_mat(Color(0.44, 0.42, 0.38), 0.8)
-	b2.position = Vector3(0.6, 0.8, -0.2)
-	root.add_child(b2)
+	b2.position = Vector3(0.35, 0.6, -0.2)
+	c_node.add_child(b2)
 
 	var b3 := MeshInstance3D.new()
 	var b3m := BoxMesh.new()
-	b3m.size = Vector3(0.8, 1.1, 0.8)
+	b3m.size = Vector3(0.6, 0.85, 0.6)
 	b3.mesh = b3m
 	b3.material_override = _poi_mat(Color(0.35, 0.38, 0.42), 0.8)
-	b3.position = Vector3(0.1, 0.55, 0.7)
-	root.add_child(b3)
+	b3.position = Vector3(0.1, 0.42, 0.35)
+	c_node.add_child(b3)
 
-	_add_floating_badge(root, "🏙️ CITY", Color(1.0, 0.75, 0.3), 3.0)
+	root.add_child(c_node)
+	_add_floating_badge(root, "🏙️ CITY", Color(1.0, 0.75, 0.3), 2.5, Vector2(1.1, -1.1))
 
 
 # Fuel Depot Storage Silos
 func _build_fuel_depot_model(root: Node3D) -> void:
-	for x_off in [-0.55, 0.55]:
+	var f_node := Node3D.new()
+	f_node.position = Vector3(1.0, 0, -1.0)
+	f_node.scale = Vector3(0.75, 0.75, 0.75)
+
+	for x_off in [-0.5, 0.5]:
 		var silo := MeshInstance3D.new()
 		var sm := CylinderMesh.new()
-		sm.top_radius = 0.45
-		sm.bottom_radius = 0.45
-		sm.height = 1.4
+		sm.top_radius = 0.4
+		sm.bottom_radius = 0.4
+		sm.height = 1.3
 		silo.mesh = sm
 		silo.material_override = _poi_mat(Color(0.55, 0.58, 0.62), 0.6)
-		silo.position = Vector3(x_off, 0.7, 0)
-		root.add_child(silo)
+		silo.position = Vector3(x_off, 0.65, 0)
+		f_node.add_child(silo)
 
 		# Amber hazard stripe ring
 		var stripe := MeshInstance3D.new()
 		var stm := CylinderMesh.new()
-		stm.top_radius = 0.46
-		stm.bottom_radius = 0.46
-		stm.height = 0.2
+		stm.top_radius = 0.41
+		stm.bottom_radius = 0.41
+		stm.height = 0.18
 		stripe.mesh = stm
 		stripe.material_override = _poi_mat(Color(0.95, 0.65, 0.1), 0.5, Color(0.95, 0.65, 0.1), 1.0)
-		stripe.position = Vector3(x_off, 1.1, 0)
-		root.add_child(stripe)
+		stripe.position = Vector3(x_off, 1.0, 0)
+		f_node.add_child(stripe)
 
 	# Fuel manifold pipe
 	var pipe := MeshInstance3D.new()
 	var pm := BoxMesh.new()
-	pm.size = Vector3(1.2, 0.12, 0.12)
+	pm.size = Vector3(1.1, 0.1, 0.1)
 	pipe.mesh = pm
 	pipe.material_override = _poi_mat(Color(0.25, 0.28, 0.32), 0.8)
-	pipe.position = Vector3(0, 0.8, 0)
-	root.add_child(pipe)
+	pipe.position = Vector3(0, 0.75, 0)
+	f_node.add_child(pipe)
 
-	_add_floating_badge(root, "⛽ FUEL DEPOT", Color(1.0, 0.8, 0.2), 2.2)
+	root.add_child(f_node)
+	_add_floating_badge(root, "⛽ FUEL DEPOT", Color(1.0, 0.8, 0.2), 2.2, Vector2(1.0, -1.0))
 
 
 # Supply Truck Carrier
@@ -866,29 +887,34 @@ func _build_wreckage_model(root: Node3D) -> void:
 
 # Science & Research Laboratory
 func _build_research_lab_model(root: Node3D) -> void:
+	var r_node := Node3D.new()
+	r_node.position = Vector3(1.0, 0, -1.0)
+	r_node.scale = Vector3(0.75, 0.75, 0.75)
+
 	var base := MeshInstance3D.new()
 	var bm := CylinderMesh.new()
-	bm.top_radius = 1.0
-	bm.bottom_radius = 1.1
-	bm.height = 0.9
+	bm.top_radius = 0.9
+	bm.bottom_radius = 1.0
+	bm.height = 0.85
 	base.mesh = bm
 	base.material_override = _poi_mat(Color(0.35, 0.42, 0.50), 0.7)
-	base.position = Vector3(0, 0.45, 0)
-	root.add_child(base)
+	base.position = Vector3(0, 0.42, 0)
+	r_node.add_child(base)
 
 	# Satellite Dish
 	var dish := MeshInstance3D.new()
 	var dm := CylinderMesh.new()
-	dm.top_radius = 0.65
+	dm.top_radius = 0.6
 	dm.bottom_radius = 0.08
-	dm.height = 0.25
+	dm.height = 0.22
 	dish.mesh = dm
 	dish.material_override = _poi_mat(Color(0.75, 0.80, 0.88), 0.5)
-	dish.position = Vector3(0.2, 1.25, 0)
+	dish.position = Vector3(0.2, 1.15, 0)
 	dish.rotation = Vector3(0.5, 0.4, 0)
-	root.add_child(dish)
+	r_node.add_child(dish)
 
-	_add_floating_badge(root, "🔬 RESEARCH LAB", Color(0.5, 0.75, 1.0), 2.4)
+	root.add_child(r_node)
+	_add_floating_badge(root, "🔬 RESEARCH LAB", Color(0.5, 0.75, 1.0), 2.2, Vector2(1.0, -1.0))
 
 
 # Dust Storm Vortex Ring

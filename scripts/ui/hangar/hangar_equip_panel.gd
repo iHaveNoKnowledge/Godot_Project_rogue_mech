@@ -230,7 +230,7 @@ func _perform_attachment_mod_toggle(slot: String, info: Dictionary) -> void:
 	controller.part_list_panel.populate(slot)
 	controller.stats_panel.update()
 	if controller.persist_panel:
-		controller.persist_panel.save_custom_mecha_data()
+		controller.persist_panel.commit_and_save()
 
 
 # Performs the weapon equip (including a cross-mech transfer). Runs directly when

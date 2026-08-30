@@ -38,3 +38,8 @@ func commit_and_save() -> void:
 	# re-evaluates on every committed edit (cheap no-op when nothing is armed).
 	if controller.roster_panel_ui:
 		controller.roster_panel_ui.refresh_pending_register()
+
+
+# Compatibility alias for legacy callers
+func save_custom_mecha_data() -> void:
+	commit_and_save()

@@ -218,8 +218,6 @@ static func save_active() -> bool:
 # in the normal hangar editor. The newly parked mech has no pilot until one is
 # assigned from the roster page.
 static func build(mech_name: String = "", requested_slot: int = 0) -> Dictionary:
-	if GlobalData.narrative.mech_less:
-		return {}
 	for required in REQUIRED_WALKING_FRAMES:
 		if not GlobalData.weapons.equipped_frames.has(required) or GlobalData.weapons.equipped_frames[required] == null:
 			return {}
@@ -231,13 +229,15 @@ static func build(mech_name: String = "", requested_slot: int = 0) -> Dictionary
 		requested_slot = _next_free_slot()
 	if requested_slot > get_capacity() or _used_slots().has(requested_slot):
 		return {}
-	save_active()
+	if not GlobalData.narrative.mech_less:
+		save_active()
 	var mech_id := _new_id()
 	var display_name := mech_name.strip_edges()
 	if display_name == "":
 		display_name = "Mech %02d" % requested_slot
 	var snapshot := _capture_snapshot(mech_id, display_name, "", requested_slot)
 	GlobalData.hangar.hangar_mechs.append(snapshot)
+	GlobalData.narrative.mech_less = false
 	return snapshot
 
 

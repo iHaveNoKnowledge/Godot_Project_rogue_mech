@@ -292,21 +292,17 @@ func build_slot_row(slot: int, mech: Dictionary, over_capacity: bool) -> void:
 		empty_lbl.add_theme_color_override("font_color", Color(0.45, 0.5, 0.6))
 		row.add_child(empty_lbl)
 
-		# REGISTER assembles the currently built parts into this berth. While on
-		# foot (mech_less) the hangar has nothing to build from — a chassis has to
-		# come back through recovery missions, so the button is withheld.
-		if not GlobalData.narrative.mech_less:
-			var register_btn := Button.new()
-			register_btn.text = "REGISTER"
-			register_btn.tooltip_text = "Assemble a mech frame into this berth from the currently assembled parts (free; needs a body + both leg frames)."
-			register_btn.custom_minimum_size = Vector2(96, 28)
-			register_btn.focus_mode = Control.FOCUS_NONE
-			register_btn.pressed.connect(register_mech.bind(slot))
-			row.add_child(register_btn)
+		# REGISTER assembles the currently built parts into this berth.
+		var register_btn := Button.new()
+		register_btn.text = "REGISTER"
+		register_btn.tooltip_text = "Assemble a mech frame into this berth from the currently assembled parts (free; needs a body + both leg frames)."
+		register_btn.custom_minimum_size = Vector2(96, 28)
+		register_btn.focus_mode = Control.FOCUS_NONE
+		register_btn.pressed.connect(register_mech.bind(slot))
+		row.add_child(register_btn)
 
 		var hint := Label.new()
-		hint.text = "Assemble a frame from the current build · free (needs a body + both leg frames)" \
-			if not GlobalData.narrative.mech_less else "On foot — rebuild a chassis through recovery missions"
+		hint.text = "Assemble a frame from parts · free (needs a body + both leg frames)"
 		hint.custom_minimum_size = Vector2(200, 0)
 		hint.add_theme_font_size_override("font_size", 10)
 		hint.add_theme_color_override("font_color", Color(0.5, 0.55, 0.65))
@@ -407,9 +403,6 @@ func build_slot_row(slot: int, mech: Dictionary, over_capacity: bool) -> void:
 # becomes the player's mech (active + pilot) — assembly is free, the frame
 # belongs to the player.
 func register_mech(slot: int) -> void:
-	if GlobalData.narrative.mech_less:
-		_set_status("You're on foot — rebuild a chassis through recovery missions.")
-		return
 	close_register_dialog()
 	# Jump straight into the frame picker so equipping BODY + both legs is the
 	# very next action. The chassis + price gates now live on the banner's
@@ -787,7 +780,10 @@ func _confirm_register(slot: int) -> void:
 	# The freshly assembled frame takes over as the player's mech (the previous
 	# one parks as a pilotless spare) so tuning it on the customize page carries
 	# straight into the next fight. Registering just names it: no pilot pick.
+	GlobalData.narrative.mech_less = false
 	var new_id := str(new_mech.get("id", ""))
+	if GlobalData.hangar.active_hangar_mech_id == "":
+		GlobalData.hangar.active_hangar_mech_id = new_id
 	controller.set_editing_mech_id(new_id)
 	if HangarManager.switch_mech(new_id):
 		controller.selected_chassis_key = GlobalData.weapons.chassis_id

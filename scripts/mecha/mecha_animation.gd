@@ -115,6 +115,21 @@ func _update_clip_animation(delta: float) -> void:
 	var anim_player = mecha.get_node_or_null(MechaRig.ANIM_PLAYER_NODE) as AnimationPlayer
 	if anim_player == null or anim_player.get_animation_list().is_empty():
 		_run_procedural(delta)
+		return
+	# Clip exists: let AnimationPlayer drive the Rig, then post-process aim so FBX arms point forward (not splayed)
+	# This fixes FBX generic rig (Mech_00) that has splayed shoot pose — same logic as procedural
+	_update_recoil(delta)
+	var is_on_ground = mecha.is_on_floor()
+	_walk.is_moving = is_on_ground and mecha.velocity.length() > 0.8
+	# Keep bob/legs from procedural for FBX as well (so walk/run still syncs with speed)
+	_update_bob(delta)
+	_update_legs(delta)
+	_update_aim_arms(delta)
+	_update_shield_arm(delta)
+	if foot_ik:
+		foot_ik.update_ik(delta)
+	# Also fix any imported FBX Skeleton3D under MechaBase (e.g., Mech_00) that has different bone names
+	_fix_fbx_skeleton_aim()
 func _run_procedural(delta: float) -> void:
 	# The death (core-breach) collapse takes precedence over every other pose:
 	# the machine is down and no longer responding to pilot/movement input.
@@ -493,6 +508,52 @@ func _update_shield_arm(delta: float) -> void:
 			arm_right.rotation.x = lerp_angle(arm_right.rotation.x, target_arm, blend)
 		if forearm_right:
 			forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, target_forearm, blend)
+# FBX generic rigs (Mech_00) have splayed shoot poses. After the clip has
+# updated the skeleton, force the arm bones to point forward so the barrel
+# aligns with current_aim_point — same as procedural.
+func _fix_fbx_skeleton_aim() -> void:
+	if mecha == null:
+		return
+	var skeletons: Array[Node] = []
+	_find_skeletons_recursive(mecha, skeletons)
+	for skel_node in skeletons:
+		var skel := skel_node as Skeleton3D
+		if skel == null:
+			continue
+		# Skip the main Rig (it has Bone_Head etc, already handled by procedural)
+		if skel.name == "Rig":
+			continue
+		for i in range(skel.get_bone_count()):
+			var bname: String = skel.get_bone_name(i)
+			var lname: String = bname.to_lower()
+			# Find arm bones: Mech_00 uses Base_*_Arm, Core_ShoulderJoint, or generic UpperArm/LowerArm
+			var is_upper := lname.contains("upperarm") or lname.contains("shoulder") or (lname.contains("arm") and not lname.contains("lower") and not lname.contains("forearm") and not lname.contains("hand"))
+			var is_lower := lname.contains("lowerarm") or lname.contains("forearm") or lname.contains("elbow")
+			if not is_upper and not is_lower:
+				continue
+			# Only fix when aiming/shooting (same condition as procedural)
+			var wm = mecha.get_node_or_null("WeaponManager")
+			var should_aim: bool = false
+			if wm:
+				var left_ranged := _hand_is_ranged_gun(wm, "left")
+				var right_ranged := _hand_is_ranged_gun(wm, "right")
+				should_aim = left_ranged or right_ranged
+			if not should_aim:
+				continue
+			var is_left: bool = lname.contains("left") or lname.contains("_l") or lname.contains("l_")
+			# Forward aim: upper arm ~57deg, lower ~22deg on top of clip (lerp 0.6)
+			var target_upper := deg_to_rad(57.0) if not is_left else deg_to_rad(57.0)
+			var target_lower := deg_to_rad(22.0)
+			var cur := skel.get_bone_pose_rotation(i)
+			var target := Quaternion.from_euler(Vector3(target_upper if is_upper else target_lower, 0, 0))
+			skel.set_bone_pose_rotation(i, cur.slerp(target, 0.7))
+
+func _find_skeletons_recursive(node: Node, out: Array[Node]) -> void:
+	for child in node.get_children():
+		if child is Skeleton3D:
+			out.append(child)
+		_find_skeletons_recursive(child, out)
+
 # Builds a joints dictionary from the cached node refs for passing to
 # MechaWalkingSystem and MechaActionAnimator helpers.
 func _build_joints_dict() -> Dictionary:

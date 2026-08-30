@@ -230,11 +230,11 @@ static func _create_river_canyon_backdrops(parent: Node3D, arena_size: float) ->
 	cliff_mat.roughness = 0.95
 
 	# Flanking River Canyon Bluffs
-	var sides = [-1.0, 1.0]
+	var sides: Array[float] = [-1.0, 1.0]
 	for side in sides:
 		for j in range(12):
-			var z_pos := lerpf(-half * 1.4, half * 1.4, float(j) / 11.0)
-			var x_pos := side * (half + rng.randf_range(25.0, 70.0))
+			var z_pos: float = lerpf(-half * 1.4, half * 1.4, float(j) / 11.0)
+			var x_pos: float = float(side) * (half + rng.randf_range(25.0, 70.0))
 
 			var bluff := MeshInstance3D.new()
 			var b_mesh := BoxMesh.new()

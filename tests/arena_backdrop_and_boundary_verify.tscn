@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://i1v2w8r4q9y1g"]
+[gd_scene format=3 uid="uid://bb3cq4xmmu8iw"]
 
 [ext_resource type="Script" path="res://tests/arena_backdrop_and_boundary_verify.gd" id="1_test"]
 

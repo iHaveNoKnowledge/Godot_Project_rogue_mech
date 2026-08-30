@@ -3,6 +3,11 @@
 *.import
 export_presets.cfg
 
+# Mech assets - raw downloads (large, licensed, don't redistribute standalone)
+download/
+*.fbx
+*.zip
+
 # OS
 .DS_Store
 Thumbs.db

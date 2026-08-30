@@ -43,6 +43,9 @@ func transition_to(new_state: State) -> void:
 
 
 func enter_board() -> void:
+	# Ensure hangar edits are flushed to the roster before leaving hangar (so board->combat keeps the same loadout)
+	if current_state == State.HANGAR:
+		HangarManager.save_active()
 	# Deferred to avoid Vulkan swap_chain_resize ERR_CANT_CREATE when called
 	# from input_event (_on_input_event → move_to_tile → _request_combat) or
 	# physics. Immediate change_scene during input can tear down the viewport
@@ -63,6 +66,22 @@ func enter_combat(combat_type: String = "grunt") -> void:
 	combat_node_type = combat_type
 	is_boss_combat = (combat_type == "boss")
 	is_escaping = false
+	# Ensure carry/left/right not lost on the way to battle: if GlobalData's working set is empty but the active hangar berth has a loadout, restore it
+	var active_mech := HangarManager.get_active_mech()
+	if active_mech and active_mech.has("weapon_loadout"):
+		var saved_loadout: Dictionary = active_mech.get("weapon_loadout", {})
+		var cur_loadout: Dictionary = GlobalData.weapons.weapon_loadout
+		for hand in ["left", "right"]:
+			if str(cur_loadout.get(hand, "")) == "" and str(saved_loadout.get(hand, "")) != "":
+				cur_loadout[hand] = saved_loadout[hand]
+		var cur_carry = cur_loadout.get("carry", [])
+		var saved_carry = saved_loadout.get("carry", [])
+		if cur_carry is Array and saved_carry is Array and cur_carry.is_empty() and not saved_carry.is_empty():
+			cur_loadout["carry"] = saved_carry.duplicate(true)
+		var cur_ammo = cur_loadout.get("ammo", {})
+		var saved_ammo = saved_loadout.get("ammo", {})
+		if cur_ammo is Dictionary and saved_ammo is Dictionary and cur_ammo.is_empty() and not saved_ammo.is_empty():
+			cur_loadout["ammo"] = saved_ammo.duplicate(true)
 	# Preserve loadout so it isn't thrown into inventory after battle (user request: stay equipped)
 	GlobalData.pre_combat_weapon_loadout = GlobalData.weapons.weapon_loadout.duplicate(true)
 

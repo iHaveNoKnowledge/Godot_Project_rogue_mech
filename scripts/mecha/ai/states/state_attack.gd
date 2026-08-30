@@ -136,6 +136,7 @@ func physics_process(delta: float) -> void:
 		_blink_timer = 0.0
 		_flash_visible = false
 		_snapshot_melee_swing_dir()
+		_trigger_enemy_melee_animation()
 		# A shield melee COMMITS to the swing when the telegraph starts: the
 		# barrier drops for the telegraph + swing + recovery, leaving it exposed
 		# — dodge the swing and shoot it while it's open.
@@ -244,6 +245,27 @@ func _heal_nearest_ally() -> void:
 		nearest.health_system.take_heal(5.0)
 		# Visual feedback
 		EffectManager.spawn_damage_number(nearest.global_position + Vector3(0, 3, 0), 5.0, Color(0.2, 1.0, 0.2))
+
+
+func _trigger_enemy_melee_animation() -> void:
+	if not enemy or not is_instance_valid(enemy):
+		return
+	var action_anim: MechaActionAnimator = null
+	var anim_node = enemy.get_node_or_null("MechaAnimation")
+	if anim_node == null:
+		anim_node = enemy.get_node_or_null("EnemyAnimation")
+	if anim_node == null:
+		anim_node = enemy.get_node_or_null("AnimationSystem")
+	
+	if anim_node != null and anim_node.get("action_animator") != null:
+		action_anim = anim_node.action_animator
+	elif enemy.get_node_or_null("MechaAnimation/ActionAnimator") != null:
+		action_anim = enemy.get_node_or_null("MechaAnimation/ActionAnimator") as MechaActionAnimator
+
+	if action_anim != null:
+		var hand := "right"
+		var t_dur := _telegraph_duration()
+		action_anim.play_enemy_melee(hand, t_dur)
 
 
 # Freeze the melee swing direction the moment the telegraph starts, so the

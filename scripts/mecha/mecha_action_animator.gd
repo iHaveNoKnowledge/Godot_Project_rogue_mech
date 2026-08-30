@@ -97,6 +97,13 @@ static func _build_track_map(anim: Animation) -> Dictionary:
 	return tmap
 
 
+# Custom dynamic pacing for enemy melee wind-up vs strike acceleration
+var is_custom_pacing: bool = false
+var windup_fraction: float = 0.35
+var windup_speed: float = 0.60
+var strike_speed: float = 2.40
+
+
 ## Plays an action clip by name
 func play_action(anim_name: String, speed: float = 1.0, fade_in: float = 0.08, fade_out: float = 0.15) -> bool:
 	_ensure_library_cached()
@@ -108,8 +115,43 @@ func play_action(anim_name: String, speed: float = 1.0, fade_in: float = 0.08, f
 	anim_time = 0.0
 	anim_length = anim.length
 	anim_speed = speed
+	is_custom_pacing = false
 	fade_in_time = maxf(fade_in, 0.01)
 	fade_out_time = maxf(fade_out, 0.01)
+	blend_weight = 0.0
+	is_active = true
+	return true
+
+
+## Plays Enemy Melee Attack 1 with deliberate wind-up (ง้าง) accelerating into a fast forward slash
+func play_enemy_melee(hand: String = "right", telegraph_dur: float = 0.5) -> bool:
+	var side_suffix := "_L" if hand == "left" else "_R"
+	var clip_name := "Mech_Attack1%s" % side_suffix
+
+	_ensure_library_cached()
+	var anim: Animation = _cached_anim_library.get(clip_name, null)
+	if anim == null:
+		clip_name = "Mech_Attack1_R"
+		anim = _cached_anim_library.get(clip_name, null)
+		if anim == null:
+			return false
+
+	current_anim_name = clip_name
+	anim_time = 0.0
+	anim_length = anim.length
+	is_custom_pacing = true
+	windup_fraction = 0.35
+
+	# Scale windup speed so the windup pose spans the telegraph window cleanly
+	var windup_clip_time := anim_length * windup_fraction
+	if telegraph_dur > 0.05:
+		windup_speed = windup_clip_time / telegraph_dur
+	else:
+		windup_speed = 0.65
+	strike_speed = 2.40
+
+	fade_in_time = 0.06
+	fade_out_time = 0.15
 	blend_weight = 0.0
 	is_active = true
 	return true
@@ -168,7 +210,12 @@ func update(delta: float) -> void:
 		blend_weight = move_toward(blend_weight, 0.0, delta / 0.15)
 		return
 
-	anim_time += delta * anim_speed
+	if is_custom_pacing:
+		var norm_pos := anim_time / maxf(anim_length, 0.001)
+		var current_step_speed := windup_speed if norm_pos < windup_fraction else strike_speed
+		anim_time += delta * current_step_speed
+	else:
+		anim_time += delta * anim_speed
 
 	# Calculate fade-in and fade-out envelope
 	if anim_time < fade_in_time:

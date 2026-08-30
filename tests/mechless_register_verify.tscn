@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://b7v2w8r4q9y1z"]
+[gd_scene format=3 uid="uid://b7v2w8r4ray10"]
 
 [ext_resource type="Script" path="res://tests/mechless_register_verify.gd" id="1_test"]
 

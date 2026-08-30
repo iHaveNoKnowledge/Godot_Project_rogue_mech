@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://d1v2w8r4q9y1b"]
+
+[ext_resource type="Script" path="res://tests/enemy_melee_anim_verify.gd" id="1_test"]
+
+[node name="EnemyMeleeAnimVerify" type="Node"]
+script = ExtResource("1_test")

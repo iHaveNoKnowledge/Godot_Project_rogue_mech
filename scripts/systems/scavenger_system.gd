@@ -88,6 +88,19 @@ static func get_wreckage_at(tile_pos: Vector2i) -> Dictionary:
 	return wreckages.get(key, {})
 
 
+static func _get_tile_terrain(tile: Variant) -> String:
+	if tile is Dictionary:
+		return str((tile as Dictionary).get("terrain", (tile as Dictionary).get("type", "plain")))
+	if tile is Object and is_instance_valid(tile):
+		if "terrain" in tile:
+			return str(tile.terrain)
+		if tile.has_meta("terrain"):
+			return str(tile.get_meta("terrain"))
+		if "tile_type" in tile:
+			return str(tile.tile_type)
+	return "plain"
+
+
 ## Spawns initial Scavenger Camps on the board
 static func ensure_camps(board_tiles: Dictionary, count: int = 2) -> void:
 	var camps: Array = get_camps()
@@ -97,8 +110,9 @@ static func ensure_camps(board_tiles: Dictionary, count: int = 2) -> void:
 	var candidates: Array[Vector2i] = []
 	for pos in board_tiles:
 		var tile = board_tiles[pos]
+		var t_type := _get_tile_terrain(tile)
 		# Place camps away from player start (0, 0) in wilderness / ruins
-		if pos != Vector2i.ZERO and pos.length() >= 5.0 and tile.get("type", "") in ["plain", "sand", "forest", "rock"]:
+		if pos != Vector2i.ZERO and pos.length() >= 5.0 and t_type in ["plain", "sand", "forest", "rock"]:
 			candidates.append(pos)
 
 	candidates.shuffle()

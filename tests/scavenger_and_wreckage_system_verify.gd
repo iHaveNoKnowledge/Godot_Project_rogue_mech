@@ -25,13 +25,19 @@ func test_camp_creation_and_manpower_growth() -> void:
 	GlobalData.reset_all()
 
 	var dummy_tiles := {}
+	var tile_script = load("res://scripts/board/board_tile.gd")
 	for x in range(10):
 		for y in range(10):
-			dummy_tiles[Vector2i(x, y)] = {"type": "plain"}
+			var tile_node = StaticBody3D.new()
+			tile_node.set_script(tile_script)
+			tile_node.terrain = "plain"
+			tile_node.set_meta("terrain", "plain")
+			dummy_tiles[Vector2i(x, y)] = tile_node
+			add_child(tile_node)
 
 	ScavengerSystem.ensure_camps(dummy_tiles, 2)
 	var camps: Array = ScavengerSystem.get_camps()
-	assert_true(camps.size() == 2, "2 Scavenger camps created on board")
+	assert_true(camps.size() == 2, "2 Scavenger camps created on board with StaticBody3D tile nodes")
 
 	var camp0 = camps[0]
 	var initial_mp = int(camp0.get("manpower", 0))
@@ -42,6 +48,9 @@ func test_camp_creation_and_manpower_growth() -> void:
 	var updated_camps = ScavengerSystem.get_camps()
 	var new_mp = int(updated_camps[0].get("manpower", 0))
 	assert_true(new_mp >= initial_mp, "Manpower grew over turn: %d -> %d" % [initial_mp, new_mp])
+
+	for pos in dummy_tiles:
+		dummy_tiles[pos].queue_free()
 
 
 func test_scavenger_fleet_spawning() -> void:

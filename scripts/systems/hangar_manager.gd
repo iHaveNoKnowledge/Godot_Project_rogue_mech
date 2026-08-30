@@ -121,7 +121,9 @@ static func get_pilot_status(pilot_id: String) -> String:
 
 
 static func ensure_roster() -> void:
-	if GlobalData.narrative.mech_less:
+	if not GlobalData.hangar.hangar_mechs.is_empty():
+		GlobalData.narrative.mech_less = false
+	elif GlobalData.narrative.mech_less:
 		return
 	if GlobalData.hangar.hangar_mechs.is_empty():
 		var first_id := _new_id()

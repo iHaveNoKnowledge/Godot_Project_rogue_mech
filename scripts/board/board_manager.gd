@@ -56,6 +56,10 @@ func _ready() -> void:
 	# Ensure Scavenger Camps exist on board
 	ScavengerSystem.ensure_camps(nodes_dict)
 
+	# Ensure mech_less is synced with actual roster state
+	if not GlobalData.hangar.hangar_mechs.is_empty():
+		GlobalData.narrative.mech_less = false
+
 	# Artillery Impact Report UI (sequential cinematic strikes)
 	if get_node_or_null("ArtilleryReportUI") == null:
 		var art_ui := ArtilleryReportUI.new()

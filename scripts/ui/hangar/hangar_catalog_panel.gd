@@ -254,6 +254,11 @@ func build_window() -> void:
 
 # --- HOVER STATS (right-side preview of the item under the cursor) ---
 
+func force_refresh_hover_stats() -> void:
+	_last_hover_index = -1
+	refresh_hover_stats()
+
+
 func refresh_hover_stats() -> void:
 	if hover_stats_label == null:
 		return
@@ -279,8 +284,9 @@ func _update_hover_hp_bar(index: int) -> void:
 		if index >= 0 and index < frame_items.size():
 			var info = frame_items[index]
 			var is_eq = controller.part_list_panel.is_item_equipped(controller.selected_slot, info)
+			var f_info = GlobalData.weapons.equipped_frames.get(controller.selected_slot, info) if is_eq else info
 			var dur_ratio: float = GlobalData.get_frame_durability(controller.selected_slot) if is_eq else 1.0
-			var fhp = float(info.get("hp", info.get("max_hp", 20.0)))
+			var fhp = float(f_info.get("hp", f_info.get("max_hp", 20.0)))
 			hover_hp_bar_box.add_child(HPPartBar.create_row("Frame", fhp * dur_ratio, fhp, true, false, 200, 8, 11))
 	elif controller.armor_catalog.has(controller.selected_slot):
 		if index >= 0 and index < controller.visible_salvage_indices.size():
@@ -335,19 +341,22 @@ func stats_text_for_index(index: int) -> String:
 		if index < 0 or index >= frame_items.size():
 			return ""
 		var info = frame_items[index]
-		var fname = info.get("name", info.get("part_name", "Inner Frame"))
 		var is_eq = controller.part_list_panel.is_item_equipped(controller.selected_slot, info)
+		var f_info = GlobalData.weapons.equipped_frames.get(controller.selected_slot, info) if is_eq else info
+		var fname = f_info.get("name", f_info.get("part_name", "Inner Frame"))
 		var dur_ratio: float = 1.0
 		if is_eq:
 			dur_ratio = GlobalData.get_frame_durability(controller.selected_slot)
-		var fcap = HangarPartText.frame_capability_text(info, dur_ratio)
+		var fcap = HangarPartText.frame_capability_text(f_info, dur_ratio)
+		var upg := int(f_info.get("upgrade_level", 1))
+		var tier_str := "  [Tier %s]" % GlobalData.part_tier_text(upg) if upg > 1 else ""
 		if is_eq:
-			var fhp = float(info.get("hp", info.get("max_hp", 20.0)))
+			var fhp = float(f_info.get("hp", f_info.get("max_hp", 20.0)))
 			var cur_fhp = fhp * dur_ratio
-			return "INNER FRAME PART: %s  [E]\nDURABILITY: %.0f%% (%.0f / %.0f HP)\n\n%s\n\nCurrently equipped." % [
-				fname, dur_ratio * 100.0, cur_fhp, fhp, fcap
+			return "INNER FRAME PART: %s%s  [E]\nDURABILITY: %.0f%% (%.0f / %.0f HP)\n\n%s\n\nCurrently equipped." % [
+				fname, tier_str, dur_ratio * 100.0, cur_fhp, fhp, fcap
 			]
-		return "INNER FRAME PART: %s\nDURABILITY: 100%%\n\n%s\n\nEquip to install fresh at 100%% HP." % [fname, fcap]
+		return "INNER FRAME PART: %s%s\nDURABILITY: 100%%\n\n%s\n\nEquip to install fresh at 100%% HP." % [fname, tier_str, fcap]
 
 	if controller.selected_slot.begins_with("weapon"):
 		if index < 0 or index >= controller.visible_weapon_indices.size():
@@ -366,17 +375,19 @@ func stats_text_for_index(index: int) -> String:
 				wtype = HangarPartText.weapon_type_label(res.weapon_type) if "weapon_type" in res else "Unknown"
 				wcap = HangarPartText.weapon_capability_text(res)
 		var owned := LoadoutSystem.count_owned_weapon(wpath)
+		var w_upg := int(inv.get("upgrade_level", 1))
+		var w_tier_str := "  [Tier %s, +%d%% DMG]" % [GlobalData.part_tier_text(w_upg), (w_upg - 1) * 10] if w_upg > 1 else ""
 		if controller.selected_slot == "weapon_carry":
 			var carried := LoadoutSystem.count_carry_weapon(wpath)
-			return "BACK CARRY: %s\nDURABILITY: %.0f%%\n\n%s\nWEIGHT: %.1f kg\nOWNED: x%d | ON PACK: x%d\n\nFIELD PACK: %.1f / %.1f kg" % [
-				wname, wdur * 100.0, wcap if not wcap.is_empty() else "TYPE: %s" % wtype,
+			return "BACK CARRY: %s%s\nDURABILITY: %.0f%%\n\n%s\nWEIGHT: %.1f kg\nOWNED: x%d | ON PACK: x%d\n\nFIELD PACK: %.1f / %.1f kg" % [
+				wname, w_tier_str, wdur * 100.0, wcap if not wcap.is_empty() else "TYPE: %s" % wtype,
 				wwt, owned, carried,
 				LoadoutSystem.get_field_pack_weight(), LoadoutSystem.get_field_pack_capacity()
 			]
 		var hand = "left" if controller.selected_slot == "weapon_left" else "right"
 		var eq = LoadoutSystem.get_equipped_weapon_uid(hand) == str(inv.get("uid", ""))
-		return "%s HAND WEAPON: %s%s\nDURABILITY: %.0f%%\n\n%s\nWEIGHT: %.1f kg\nOWNED: x%d\n\nFIELD PACK: %.1f / %.1f kg" % [
-			hand.to_upper(), "[E] " if eq else "", wname, wdur * 100.0,
+		return "%s HAND WEAPON: %s%s%s\nDURABILITY: %.0f%%\n\n%s\nWEIGHT: %.1f kg\nOWNED: x%d\n\nFIELD PACK: %.1f / %.1f kg" % [
+			hand.to_upper(), "[E] " if eq else "", wname, w_tier_str, wdur * 100.0,
 			wcap if not wcap.is_empty() else "TYPE: %s" % wtype,
 			wwt, owned,
 			LoadoutSystem.get_field_pack_weight(), LoadoutSystem.get_field_pack_capacity()
@@ -389,7 +400,9 @@ func stats_text_for_index(index: int) -> String:
 			var dur_pct = controller.part_list_panel.instance_durability(controller.selected_slot, inst)
 			var acap = HangarPartText.armor_capability_text(inst, dur_pct)
 			var is_eq = controller.part_list_panel.is_item_equipped(controller.selected_slot, inst)
-			return "OWNED ARMOR: %s  %s\nDURABILITY: %.0f%%\n\n%s" % [
-				item_name, "[E]" if is_eq else "", dur_pct * 100.0, acap
+			var a_upg := int(inst.get("upgrade_level", 1))
+			var a_tier_str := "  [Tier %s]" % GlobalData.part_tier_text(a_upg) if a_upg > 1 else ""
+			return "OWNED ARMOR: %s%s  %s\nDURABILITY: %.0f%%\n\n%s" % [
+				item_name, a_tier_str, "[E]" if is_eq else "", dur_pct * 100.0, acap
 			]
 	return ""

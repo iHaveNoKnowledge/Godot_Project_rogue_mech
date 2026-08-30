@@ -62,15 +62,6 @@ func _init_parts() -> void:
 			if p and p.get("defense_type") != null:
 				parts[slot]["defense_type"] = str(p.defense_type)
 
-		# Durability wear scaling: effective max HP is capped by the component's lifetime durability
-		var p_dur := GlobalData.get_part_durability(slot)
-		parts[slot]["max_armor"] *= p_dur
-		parts[slot]["armor_hp"] *= p_dur
-
-		var f_dur := GlobalData.get_frame_durability(slot)
-		parts[slot]["max_frame"] *= f_dur
-		parts[slot]["frame_hp"] *= f_dur
-
 		# -----------------------------------------------------------------------
 		# Scrap emergency patch: this slot was rebuilt from scrap in the
 		# intermission screen, so it uses WEAKER scrap stats (scaled by the

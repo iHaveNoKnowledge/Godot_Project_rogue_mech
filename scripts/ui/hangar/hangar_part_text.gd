@@ -129,17 +129,21 @@ static func armor_capability_text(inst: Dictionary, durability: float) -> String
 
 	var full_hp := float(GlobalData.part_stat(inst, "max_hp", 30.0))
 	var dur := clampf(durability, 0.0, 1.0)
-	var cur_hp := full_hp * dur
-	var lost_hp := full_hp - cur_hp
+	var armor_class := GlobalData.part_stat(inst, "armor", 0.0)
+	
+	lines.append("ARMOR HP: %.0f / %.0f" % [full_hp, full_hp])
 	if dur < 0.999:
 		var col_tag := "#ff4444" if dur <= 0.35 else "#ffaa33"
-		lines.append("ARMOR HP: [color=%s]%.0f / %.0f (-%.0f, %.0f%% Durability)[/color]" % [col_tag, cur_hp, full_hp, lost_hp, dur * 100.0])
+		lines.append("DURABILITY: [color=%s]%.0f%% (DEF Mitigation: %.0f%%)[/color]" % [col_tag, dur * 100.0, dur * 100.0])
 	else:
-		lines.append("ARMOR HP: [color=#44ff77]%.0f / %.0f (100%% Pristine)[/color]" % [cur_hp, full_hp])
+		lines.append("DURABILITY: [color=#44ff77]100%% (Pristine DEF: 100%%)[/color]")
 
-	var armor_class := GlobalData.part_stat(inst, "armor", 0.0)
 	if armor_class > 0.0:
-		lines.append("ARMOR CLASS: %.0f" % armor_class)
+		var eff_ac := armor_class * dur
+		if dur < 0.999:
+			lines.append("ARMOR CLASS: %.1f (Base: %.0f)" % [eff_ac, armor_class])
+		else:
+			lines.append("ARMOR CLASS: %.0f" % armor_class)
 
 	var weight := GlobalData.part_stat(inst, "weight", 0.0)
 	if weight > 0.0:
@@ -165,13 +169,12 @@ static func frame_capability_text(info: Dictionary, durability: float = 1.0) -> 
 
 	var fhp := float(info.get("hp", info.get("max_hp", 20.0)))
 	var dur := clampf(durability, 0.0, 1.0)
-	var cur_fhp := fhp * dur
-	var lost_fhp := fhp - cur_fhp
+	lines.append("FRAME HP: %.0f / %.0f" % [fhp, fhp])
 	if dur < 0.999:
 		var col_tag := "#ff4444" if dur <= 0.35 else "#ffaa33"
-		lines.append("FRAME HP: [color=%s]%.0f / %.0f (-%.0f, %.0f%% Durability)[/color]" % [col_tag, cur_fhp, fhp, lost_fhp, dur * 100.0])
+		lines.append("DURABILITY: [color=%s]%.0f%% (DEF Mitigation: %.0f%%)[/color]" % [col_tag, dur * 100.0, dur * 100.0])
 	else:
-		lines.append("FRAME HP: [color=#44ff77]%.0f / %.0f (100%% Pristine)[/color]" % [cur_fhp, fhp])
+		lines.append("DURABILITY: [color=#44ff77]100%% (Pristine DEF: 100%%)[/color]")
 
 	var fwt := float(info.get("weight", 0.0))
 	if fwt > 0.0:

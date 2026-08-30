@@ -299,6 +299,8 @@ func refresh_after_part_mutation(slot: String = "") -> void:
 	if part_list_panel:
 		var target_slot := slot if slot != "" else selected_slot
 		part_list_panel.populate(target_slot)
+	if catalog_panel and catalog_panel.has_method("force_refresh_hover_stats"):
+		catalog_panel.force_refresh_hover_stats()
 	if garage_panel:
 		garage_panel.update_all_slots_preview()
 		var mecha = garage_panel.get_mecha_base()

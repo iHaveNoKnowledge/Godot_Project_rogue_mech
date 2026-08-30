@@ -13,13 +13,17 @@ var is_open: bool = false
 
 func close() -> void:
 	is_open = false
-	if controller.root_control:
+	if modal_panel != null and is_instance_valid(modal_panel):
+		modal_panel.queue_free()
+		modal_panel = null
+	if controller and controller.root_control:
 		for child in controller.root_control.get_children():
-			if child.name == "DiagnosticModal":
+			if child.name == "DiagnosticModal" or child.name.begins_with("DiagnosticModal") or child.name.begins_with("@DiagnosticModal"):
 				child.queue_free()
-	var local_old = controller.get_node_or_null("DiagnosticModal")
-	if local_old:
-		local_old.queue_free()
+	if controller:
+		var local_old = controller.get_node_or_null("DiagnosticModal")
+		if local_old:
+			local_old.queue_free()
 	modal_panel = null
 
 

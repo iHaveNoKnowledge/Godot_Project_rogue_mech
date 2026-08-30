@@ -215,12 +215,7 @@ static func degrade_equipped_armor(slot: String, amount: float) -> float:
 
 
 ## Returns DEF / damage mitigation multiplier based on armor durability.
-## When durability >= 50%: 1.0 (100% defense, no penalty)
-## When durability < 50%: scales down linearly, dropping at most 20% (multiplier 0.80 at 0% dur).
+## Scales defense directly by durability percentage (e.g. 80% durability = 80% DEF).
 static func get_durability_def_multiplier(durability: float) -> float:
-	var dur := clampf(durability, 0.0, 1.0)
-	if dur >= 0.50:
-		return 1.0
-	var t := (0.50 - dur) / 0.50 # 0.0 at 0.5, 1.0 at 0.0
-	return 1.0 - (t * 0.20)
+	return clampf(durability, 0.10, 1.0)
 

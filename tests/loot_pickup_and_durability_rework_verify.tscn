@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://c7v6w8r9q1y3z"]
+
+[ext_resource type="Script" path="res://tests/loot_pickup_and_durability_rework_verify.gd" id="1_test"]
+
+[node name="LootAndDurabilityVerify" type="Node"]
+script = ExtResource("1_test")

@@ -161,11 +161,13 @@ func _create_ui() -> void:
 	var ground_scroll = ScrollContainer.new()
 	ground_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	ground_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	ground_scroll.mouse_filter = Control.MOUSE_FILTER_PASS
 	left_content_box.add_child(ground_scroll)
 
 	ground_list_container = VBoxContainer.new()
 	ground_list_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	ground_list_container.add_theme_constant_override("separation", 10)
+	ground_list_container.mouse_filter = Control.MOUSE_FILTER_PASS
 	ground_scroll.add_child(ground_list_container)
 
 	# Setup drop detection on left panel (Drop to ground)
@@ -451,15 +453,42 @@ func _build_ground_item_card(pickup: Node3D) -> PanelContainer:
 	stats_lbl.add_theme_color_override("font_color", Color(0.7, 0.75, 0.85))
 	vb.add_child(stats_lbl)
 
-	# Row 3: Action Buttons (Unload Ammo, Tag Convoy, Drag Hint)
+	# Row 3: Action Buttons (Quick Stash, Equip Left, Equip Right, Unload Ammo, Tag Convoy)
 	var actions_row = HBoxContainer.new()
-	actions_row.add_theme_constant_override("separation", 8)
+	actions_row.add_theme_constant_override("separation", 6)
+
+	var stash_btn = Button.new()
+	stash_btn.text = "🎒 เก็บใส่เป้"
+	stash_btn.add_theme_font_size_override("font_size", 11)
+	_style_cyber_button(stash_btn, ACCENT_GREEN)
+	stash_btn.pressed.connect(func():
+		take_weapon_to_carrier(pickup)
+	)
+	actions_row.add_child(stash_btn)
+
+	var equip_l_btn = Button.new()
+	equip_l_btn.text = "✋ มือซ้าย"
+	equip_l_btn.add_theme_font_size_override("font_size", 11)
+	_style_cyber_button(equip_l_btn, ACCENT_CYAN)
+	equip_l_btn.pressed.connect(func():
+		take_weapon_to_hand("left", pickup)
+	)
+	actions_row.add_child(equip_l_btn)
+
+	var equip_r_btn = Button.new()
+	equip_r_btn.text = "✋ มือขวา"
+	equip_r_btn.add_theme_font_size_override("font_size", 11)
+	_style_cyber_button(equip_r_btn, ACCENT_CYAN)
+	equip_r_btn.pressed.connect(func():
+		take_weapon_to_hand("right", pickup)
+	)
+	actions_row.add_child(equip_r_btn)
 
 	var unload_btn = Button.new()
 	unload_btn.text = "⚡ ปลดกระสุน (%d)" % cur_ammo
 	unload_btn.disabled = (cur_ammo <= 0)
 	unload_btn.add_theme_font_size_override("font_size", 11)
-	_style_cyber_button(unload_btn, ACCENT_CYAN)
+	_style_cyber_button(unload_btn, ACCENT_CYAN.lerp(Color.WHITE, 0.2))
 	unload_btn.pressed.connect(func():
 		if pickup and is_instance_valid(pickup):
 			var drained = pickup.unload_ammo_to_player(player_entity)
@@ -468,7 +497,7 @@ func _build_ground_item_card(pickup: Node3D) -> PanelContainer:
 	actions_row.add_child(unload_btn)
 
 	var tag_btn = Button.new()
-	tag_btn.text = "▲ กู้ส่ง Convoy" if not is_tagged else "✓ ปลด Tag กู้"
+	tag_btn.text = "▲ Tag กู้" if not is_tagged else "✓ ปลด Tag"
 	tag_btn.add_theme_font_size_override("font_size", 11)
 	_style_cyber_button(tag_btn, ACCENT_AMBER if not is_tagged else ACCENT_GREEN)
 	tag_btn.pressed.connect(func():
@@ -478,14 +507,6 @@ func _build_ground_item_card(pickup: Node3D) -> PanelContainer:
 			_refresh_all()
 	)
 	actions_row.add_child(tag_btn)
-
-	var drag_hint = Label.new()
-	drag_hint.text = "(คลิกค้างเพื่อลากสวมใส่)"
-	drag_hint.add_theme_font_size_override("font_size", 11)
-	drag_hint.add_theme_color_override("font_color", Color(0.5, 0.6, 0.7))
-	drag_hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	drag_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	actions_row.add_child(drag_hint)
 
 	vb.add_child(actions_row)
 
@@ -729,6 +750,61 @@ func _update_drag_ghost_position() -> void:
 		_drag_ghost.global_position = root_control.get_global_mouse_position() + Vector2(16, 16)
 
 
+func take_weapon_to_carrier(pickup: Node3D) -> void:
+	if pickup == null or not is_instance_valid(pickup):
+		return
+	var w: WeaponPart = pickup.get("weapon_resource")
+	if w == null:
+		return
+
+	var cur_w := LoadoutSystem.get_field_pack_weight()
+	var cap := LoadoutSystem.get_field_pack_capacity()
+	if cur_w + float(w.weight) > cap:
+		_show_weight_overload_toast()
+		return
+
+	# Remove from ground and group immediately
+	pickup.remove_from_group("weapon_pickup")
+	pickup.remove_from_group("loot_pickup")
+	pickup.queue_free()
+
+	# Register unique UID instance in inventory
+	LoadoutSystem.register_weapon(w.resource_path, w.weapon_name)
+
+	# Add to carrier
+	_add_to_carrier(w)
+	_refresh_all()
+
+
+func take_weapon_to_hand(hand: String, pickup: Node3D) -> void:
+	if pickup == null or not is_instance_valid(pickup):
+		return
+	var w: WeaponPart = pickup.get("weapon_resource")
+	if w == null:
+		return
+
+	# Remove from ground and group immediately
+	pickup.remove_from_group("weapon_pickup")
+	pickup.remove_from_group("loot_pickup")
+	pickup.queue_free()
+
+	# Register unique UID instance in inventory
+	LoadoutSystem.register_weapon(w.resource_path, w.weapon_name)
+
+	var wm = _get_weapon_manager()
+	if wm:
+		var old_weapon: WeaponPart = wm.left_hand if hand == "left" else wm.right_hand
+		if hand == "left":
+			wm.left_hand = w
+		else:
+			wm.right_hand = w
+		if old_weapon != null and old_weapon != w:
+			_add_to_carrier(old_weapon)
+		_sync_weapon_manager(wm)
+
+	_refresh_all()
+
+
 func _finish_drag() -> void:
 	if _drag_data.is_empty():
 		_cancel_drag()
@@ -767,7 +843,7 @@ func _equip_to_hand(hand: String, weapon_to_equip: WeaponPart, src: String) -> v
 	else:
 		wm.right_hand = weapon_to_equip
 
-	# If there was an old weapon, attach it to cursor for swapping or place in carrier
+	# If there was an old weapon, place in carrier
 	if old_weapon != null and old_weapon != weapon_to_equip:
 		_add_to_carrier(old_weapon)
 
@@ -811,7 +887,11 @@ func _remove_from_source(src: String, w: WeaponPart) -> void:
 	if src == "ground":
 		var node: Node = _drag_data.get("pickup_node")
 		if node and is_instance_valid(node):
+			node.remove_from_group("weapon_pickup")
+			node.remove_from_group("loot_pickup")
 			node.queue_free()
+		if w != null:
+			LoadoutSystem.register_weapon(w.resource_path, w.weapon_name)
 	elif src == "hand_left":
 		if wm: wm.left_hand = null
 	elif src == "hand_right":
@@ -868,6 +948,8 @@ func _sync_weapon_manager(wm: Node) -> void:
 			wm._rebuild_visuals()
 		if wm.has_method("_recalculate_weight"):
 			wm._recalculate_weight()
+		if wm.has_method("sync_loadout_to_global"):
+			wm.sync_loadout_to_global()
 	EventBus.weight_changed.emit(LoadoutSystem.get_field_pack_weight())
 
 

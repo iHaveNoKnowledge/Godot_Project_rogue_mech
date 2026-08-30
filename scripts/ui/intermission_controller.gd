@@ -685,7 +685,7 @@ func _mech_armor_frame_totals(mech: Dictionary) -> Dictionary:
 	return {"armor_cur": armor_cur, "armor_max": armor_max, "frame_cur": frame_cur, "frame_max": frame_max}
 
 
-# Max armor HP for a part (ArmorPart resource or Dictionary instance with durability scaling).
+# Max armor HP for a part (ArmorPart resource or Dictionary instance).
 func _slot_armor_max(slot: String, part: Variant) -> float:
 	var base_hp := 0.0
 	if part is ArmorPart:
@@ -694,11 +694,10 @@ func _slot_armor_max(slot: String, part: Variant) -> float:
 		base_hp = float((part as Dictionary).get("hp", (part as Dictionary).get("max_hp", 0.0)))
 	if base_hp <= 0.0:
 		base_hp = _default_slot_armor(slot)
-	var dur := GlobalData.get_part_durability(slot)
-	return base_hp * dur
+	return base_hp
 
 
-# Max frame HP for a slot (equipped inner frame with durability scaling).
+# Max frame HP for a slot (equipped inner frame).
 func _slot_frame_max(slot: String) -> float:
 	var f = GlobalData.weapons.equipped_frames.get(slot)
 	var base_hp := 0.0
@@ -706,8 +705,7 @@ func _slot_frame_max(slot: String) -> float:
 		base_hp = float(f.get("hp", 0.0)) + LoadoutSystem.get_frame_upgrade_hp_bonus()
 	if base_hp <= 0.0:
 		base_hp = _default_slot_frame(slot) + LoadoutSystem.get_frame_upgrade_hp_bonus()
-	var dur := GlobalData.get_frame_durability(slot)
-	return base_hp * dur
+	return base_hp
 
 
 func _default_slot_armor(slot: String) -> float:

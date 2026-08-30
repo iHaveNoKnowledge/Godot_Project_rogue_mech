@@ -23,6 +23,10 @@ var _path_trail_markers: Array[Node3D] = []
 
 
 func _ready() -> void:
+	# Safety net: always unpause on board load. If the previous scene (hangar,
+	# combat, etc.) left the SceneTree paused when change_scene_to_file fired,
+	# the board would silently block all input without this guard.
+	get_tree().paused = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_tooltip = get_node_or_null("BoardTooltipUI")
 	var generator = get_node_or_null("BoardGenerator")

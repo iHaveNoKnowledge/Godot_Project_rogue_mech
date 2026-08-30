@@ -44,8 +44,16 @@ func _input(event: InputEvent) -> void:
 				return
 			# An event popup / pause overlay is up (tree paused): ESC belongs to
 			# it, so never stack the menu on top — the popup closes itself.
+			# EXCEPTION: if get_tree().paused is stale from a previous scene
+			# (e.g. hangar left paused=true before scene change), clear it first
+			# so the board is always reachable after returning from the hangar.
 			if get_tree().paused:
-				return
+				# Only clear stale pause if no event modal is actually showing.
+				var has_event_modal := get_tree().get_nodes_in_group("event_popup").size() > 0
+				if has_event_modal:
+					return
+				# Stale pause from hangar/combat — clear it so the menu can open.
+				get_tree().paused = false
 			visible = true
 			info_panel.visible = false
 			status_label.text = _get_status_text()

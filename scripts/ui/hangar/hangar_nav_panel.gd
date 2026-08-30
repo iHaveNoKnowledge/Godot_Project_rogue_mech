@@ -21,7 +21,11 @@ var current_submenu: String = ""
 # Entry point: show the editor on the mech the player is currently piloting.
 func show_hangar() -> void:
 	controller.visible = true
-	controller.get_tree().paused = true
+	# NOTE: do NOT pause the SceneTree here. The hangar is a standalone scene
+	# (change_scene_to_file from enter_hangar), not an overlay over the board.
+	# Pausing used to prevent the board from ticking in the background, but now
+	# there is no board — and leaving paused=true causes the board to load with
+	# all input blocked when we return via return_to_board().
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	# Open the editor on the mech the player is currently piloting.
 	controller._customize_mech_id = GlobalData.hangar.active_hangar_mech_id

@@ -134,17 +134,19 @@ func _spawn_player_mecha() -> void:
 func _ensure_war_camera(mecha: Node) -> void:
 	if mecha == null:
 		return
-	if get_node_or_null("WarCamera") != null:
+	if get_node_or_null("MechaCamera") != null or get_node_or_null("WarCamera") != null:
 		return
-	# Simple third-person camera behind mecha (reuse PhantomCamera logic simplified)
+	# Same as Campaign game_world.tscn — Phantom MechaCamera
+	var cam_scene = load("res://scenes/camera/mecha_camera.tscn")
+	if cam_scene:
+		var cam = cam_scene.instantiate()
+		cam.name = "MechaCamera"
+		add_child(cam)
+		return
 	var cam = Camera3D.new()
 	cam.name = "WarCamera"
 	cam.current = true
 	cam.fov = 75.0
-	cam.position = Vector3(0, 6, 12)
-	# look_at needs tree, defer
-	cam.set_meta("target_pos", Vector3.ZERO)
-	# Attach as sibling of mecha, follow via script
 	add_child(cam)
 	var follow = Node.new()
 	follow.name = "CameraFollow"
@@ -232,15 +234,37 @@ func _decorate_phase2() -> void:
 
 
 func _setup_hud() -> void:
-	# Tab/I handled by WarHUD overlay
+	# Same HUD as Campaign game_world.tscn — CoreHUD + WeaponHUD + Crosshair + CombatHUD
+	for res in [
+		["CoreHUD", "res://scenes/ui/core_hud.tscn"],
+		["WeaponHUD", "res://scenes/ui/weapon_hud.tscn"],
+		["Crosshair", "res://scenes/ui/crosshair.tscn"],
+		["CombatHUD", "res://scripts/ui/combat_hud.gd"],
+	]:
+		if get_node_or_null(res[0]) != null:
+			continue
+		if res[1].ends_with(".tscn"):
+			var sc = load(res[1])
+			if sc:
+				var n = sc.instantiate()
+				n.name = res[0]
+				add_child(n)
+		else:
+			var n = CanvasLayer.new()
+			n.name = res[0]
+			n.set_script(load(res[1]))
+			add_child(n)
+	# War extra: Tab/I + Minimap + Ambush
 	var hud_script = load("res://scripts/war/war_hud.gd")
-	if hud_script:
+	if hud_script and get_node_or_null("WarHUD") == null:
 		var hud = CanvasLayer.new()
 		hud.name = "WarHUD"
 		hud.set_script(hud_script)
 		add_child(hud)
-	var minimap = WarMinimap.new()
-	add_child(minimap)
-	var ambush = WarConvoyAmbush.new()
-	ambush.name = "ConvoyAmbush"
-	add_child(ambush)
+	if get_node_or_null("Minimap") == null:
+		var minimap = WarMinimap.new()
+		add_child(minimap)
+	if get_node_or_null("ConvoyAmbush") == null:
+		var ambush = WarConvoyAmbush.new()
+		ambush.name = "ConvoyAmbush"
+		add_child(ambush)

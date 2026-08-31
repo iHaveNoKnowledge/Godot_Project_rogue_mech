@@ -153,6 +153,11 @@ func _decorate_phase2() -> void:
 	WarMapGenerator.decorate_underground_tunnel(self, Vector3(-500, -5, -500))
 	WarMapGenerator.spawn_weapon_cache(self, Vector3(300, 1, -300))
 	WarMapGenerator.spawn_weapon_cache(self, Vector3(-350, 1, 350))
+	for base in [get_node_or_null("FriendlyMainBase"), get_node_or_null("EnemyMainBase")]:
+		if base:
+			var hangar = WarRealtimeHangar.new()
+			hangar.position = Vector3(10, 1, 0)
+			base.add_child(hangar)
 
 
 func _setup_hud() -> void:

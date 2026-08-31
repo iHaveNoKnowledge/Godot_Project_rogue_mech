@@ -9,6 +9,8 @@ var _bases_spawned: bool = false
 func _ready() -> void:
 	_setup_ground()
 	_spawn_bases()
+	_spawn_ore_nodes()
+	_spawn_logistic_trucks()
 	_spawn_player_mecha()
 	_setup_hud()
 
@@ -93,6 +95,26 @@ func _spawn_player_mecha() -> void:
 			mecha.position = Vector3(0, 2, -750)
 	if mecha and mecha.has_method("set_team"):
 		mecha.set_team("friendly")
+
+
+func _spawn_ore_nodes() -> void:
+	var ore_positions = [
+		Vector3(400, 0.5, 0), Vector3(-400, 0.5, 200),
+		Vector3(200, 0.5, 400), Vector3(-300, 0.5, -300)
+	]
+	for i in range(ore_positions.size()):
+		var node = WarOreNode.new()
+		node.position = ore_positions[i]
+		node.ore_type = "ore" if i % 2 == 0 else "oil"
+		add_child(node)
+
+
+func _spawn_logistic_trucks() -> void:
+	var logistic = WarLogisticSystem.new()
+	var depot = Vector3(0, 0, -800)
+	for pos in [Vector3(50, 1, -750), Vector3(-50, 1, -750)]:
+		var truck = logistic.create_truck(pos, depot)
+		add_child(truck)
 
 
 func _setup_hud() -> void:

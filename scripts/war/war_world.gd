@@ -78,14 +78,14 @@ func _add_hq_shield(base: Node) -> void:
 	shield.add_child(col)
 	shield.set_meta("shield_active", true)
 	shield.set_meta("shield_reduction", 0.9)
+	base.add_child(shield)
 	# Deactivate after 10 minutes
 	var timer = Timer.new()
 	timer.wait_time = 600.0
 	timer.one_shot = true
+	timer.autostart = true
 	timer.timeout.connect(func(): shield.set_meta("shield_active", false))
 	shield.add_child(timer)
-	timer.start()
-	base.add_child(shield)
 
 
 func _spawn_player_mecha() -> void:

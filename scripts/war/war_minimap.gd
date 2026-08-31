@@ -43,7 +43,7 @@ func _build_minimap() -> void:
 	var e_dot = ColorRect.new()
 	e_dot.color = Color(0.85, 0.2, 0.2)
 	e_dot.custom_minimum_size = Vector2(8, 8)
-	e_dot.position = Vector3(96, 20, 0) as Vector2
+	e_dot.position = Vector2(96, 20)
 	map_rect.add_child(e_dot)
 	add_child(panel)
 	# Fog overlay texture (simple dark rect with holes revealed)

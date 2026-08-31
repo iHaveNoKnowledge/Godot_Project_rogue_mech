@@ -54,7 +54,7 @@
 | **Humvee** | ลาดตระเวนเร็ว หา Data/แร่ซ่อน | `pilot_controller.gd` สลับขึ้นลง `F` เหมือน `mecha_eject.gd` |
 | **Truck** | ขนแร่/น้ำมัน จุเยอะ ช้า | มี `Storage` 200 scrap / 3 ถังน้ำมัน |
 | **Tank** | ยิงแรง เกราะหนา ช้า | ปืนหลัก + ปืนรอง |
-| **Carrier (ใหญ่)** | บรรทุกหุ่น 2 ตัว + คลังอาวุธเคลื่อนที่ | 2 ช่องจอดหลังกระบะ `Area3D` หุ่นกระโดดขึ้นล็อค → `HangarState` park, มี `Weapon Rack` 6 ช่อง + `Ammo Crate` ให้หุ่นโดดลงมาเปลี่ยนปืนกลางสนามได้, นักบินดีดจากหุ่น → ขึ้นขับ Carrier ได้ |
+| **Carrier (ใหญ่)** | บรรทุกหุ่น 2 ตัว + คลังอาวุธเคลื่อนที่ | 2 ช่องจอดหลังกระบะ `Area3D` กด Dock → หุ่น `FREEZE` (disable physics) + `Reparent` เป็น Child ของ Carrier โดยตรง (ไม่ยืนบน Collision) แก้ Jitter/Lag ตอน Carrier วิ่ง → `HangarState` park, มี `Weapon Rack` 6 ช่อง + `Ammo Crate` ให้หุ่นโดดลงมาเปลี่ยนปืนกลางสนามได้, นักบินดีดจากหุ่น → ขึ้นขับ Carrier ได้ |
 
 หุ่นคืออาวุธหลัก รถเป็น support/logistic
 
@@ -164,7 +164,7 @@ scripts/war/
   pilot_survival_system.gd    หุ่นระเบิด 3วิ ต้องดีดทัน / EMP เฉพาะ Reactor
   stunt_weapon_system.gd      อาวุธ Stunt 2-4วิ เฉพาะ Reactor (ต่อยอด ewar_system.gd)
   vehicle_controller.gd       Humvee/Truck/Tank/Carrier (ต่อยอด pilot_controller.gd)
-  carrier_dock.gd             2 ช่องจอด + Weapon Rack
+  carrier_dock.gd             2 ช่องจอด + Weapon Rack — Dock = FREEZE + Reparent เป็น Child ของ Carrier แก้ Jitter (ไม่ให้ยืนบน Physics)
   backpack_system.gd          ต่อยอด hangar_state.gd
   shoulder_weapon_system.gd   Q/E (6 Part เดิมไม่เปลี่ยน)
   war_hud.gd                  Tab/I

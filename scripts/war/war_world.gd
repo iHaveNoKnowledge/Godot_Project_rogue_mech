@@ -36,10 +36,33 @@ func _setup_ground() -> void:
 		pm.size = Vector2(2000, 2000)
 		mi.mesh = pm
 		var mat = StandardMaterial3D.new()
-		mat.albedo_color = Color(0.35, 0.38, 0.32)
-		mat.roughness = 0.95
+		mat.albedo_color = Color(0.45, 0.52, 0.32)
+		mat.roughness = 0.85
 		mi.material_override = mat
 		ground.add_child(mi)
+		# Grid lines for orientation (every 200m)
+		for x in range(-1000, 1001, 200):
+			var line = MeshInstance3D.new()
+			var box = BoxMesh.new()
+			box.size = Vector3(2, 0.1, 2000)
+			line.mesh = box
+			var lmat = StandardMaterial3D.new()
+			lmat.albedo_color = Color(0.6, 0.6, 0.55, 0.5)
+			lmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			line.material_override = lmat
+			line.position = Vector3(x, 0.05, 0)
+			ground.add_child(line)
+		for z in range(-1000, 1001, 200):
+			var line = MeshInstance3D.new()
+			var box = BoxMesh.new()
+			box.size = Vector3(2000, 0.1, 2)
+			line.mesh = box
+			var lmat = StandardMaterial3D.new()
+			lmat.albedo_color = Color(0.6, 0.6, 0.55, 0.5)
+			lmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			line.material_override = lmat
+			line.position = Vector3(0, 0.05, z)
+			ground.add_child(line)
 
 
 func _spawn_bases() -> void:
@@ -132,8 +155,8 @@ func _ensure_war_camera(mecha: Node) -> void:
 
 func _spawn_ore_nodes() -> void:
 	var ore_positions = [
-		Vector3(400, 0.5, 0), Vector3(-400, 0.5, 200),
-		Vector3(200, 0.5, 400), Vector3(-300, 0.5, -300)
+		Vector3(100, 0.5, -650), Vector3(-100, 0.5, -650),
+		Vector3(0, 0.5, -600), Vector3(200, 0.5, -700)
 	]
 	for i in range(ore_positions.size()):
 		var node = WarOreNode.new()
@@ -155,7 +178,7 @@ func _spawn_data_events() -> void:
 	for i in range(3):
 		var ev = WarDataEvent.new()
 		ev.data_type = types[i % types.size()]
-		ev.position = Vector3(randf_range(-600, 600), 1, randf_range(-400, 400))
+		ev.position = Vector3(randf_range(-150, 150), 1, randf_range(-700, -550))
 		add_child(ev)
 
 
@@ -178,10 +201,11 @@ func _spawn_merchant_manager() -> void:
 
 
 func _decorate_phase2() -> void:
-	WarMapGenerator.decorate_highland(self, Vector3(500, 5, 500))
-	WarMapGenerator.decorate_underground_tunnel(self, Vector3(-500, -5, -500))
-	WarMapGenerator.spawn_weapon_cache(self, Vector3(300, 1, -300))
-	WarMapGenerator.spawn_weapon_cache(self, Vector3(-350, 1, 350))
+	# Place near player start so visible immediately (was 500 away invisible)
+	WarMapGenerator.decorate_highland(self, Vector3(150, 5, -650))
+	WarMapGenerator.decorate_underground_tunnel(self, Vector3(-150, -5, -650))
+	WarMapGenerator.spawn_weapon_cache(self, Vector3(80, 1, -700))
+	WarMapGenerator.spawn_weapon_cache(self, Vector3(-80, 1, -700))
 	for base in [get_node_or_null("FriendlyMainBase"), get_node_or_null("EnemyMainBase")]:
 		if base:
 			var hangar = WarRealtimeHangar.new()

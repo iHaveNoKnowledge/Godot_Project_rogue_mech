@@ -12,6 +12,8 @@ func _ready() -> void:
 	_spawn_ore_nodes()
 	_spawn_logistic_trucks()
 	_spawn_data_events()
+	_spawn_carrier()
+	_spawn_merchant_manager()
 	_spawn_player_mecha()
 	_setup_hud()
 
@@ -125,6 +127,24 @@ func _spawn_data_events() -> void:
 		ev.data_type = types[i % types.size()]
 		ev.position = Vector3(randf_range(-600, 600), 1, randf_range(-400, 400))
 		add_child(ev)
+
+
+func _spawn_carrier() -> void:
+	var dock = CarrierDock.new()
+	var carrier = dock.create_carrier(Vector3(80, 1, -750))
+	add_child(carrier)
+	# Store dock logic on carrier for later use
+	carrier.set_meta("dock_logic", dock)
+
+
+func _spawn_merchant_manager() -> void:
+	var mgr = WarMerchantSystem.new()
+	mgr.name = "MerchantManager"
+	add_child(mgr)
+
+	var prod = WarProductionQueue.new()
+	prod.name = "ProductionQueue"
+	add_child(prod)
 
 
 func _setup_hud() -> void:

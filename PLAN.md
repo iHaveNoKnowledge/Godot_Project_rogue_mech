@@ -30,6 +30,7 @@
 ### 2.2 ฐาน
 * `Main Base` ฝั่งละ 1 (reuse `ForwardBase.spawn_base("fortified")` `forward_base.gd:39` HQ 220HP) มี `Storage Depot` + `Refinery` + `War Factory (Hangar)` + `Reactor Bay`
 * ฐานย่อยไม่มี — ยึดด้วยทรัพยากร ไม่ใช่ capture point แบบเดิม
+* **กำลังคน:** ขึ้นกับ `Barracks Lv` ใน `Main Base/ForwardBase` (Lv1=4 คน, Lv2=8, Lv3=12) + `Pilot Pool` สุ่มจาก `PilotGenerator` + เงินจ้าง `RecruitSystem` เดิม — อัพ Barracks ถึงเพิ่มคนได้
 
 ---
 

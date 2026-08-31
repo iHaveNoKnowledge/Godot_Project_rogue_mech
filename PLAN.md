@@ -101,7 +101,16 @@ Roll Table (วิจัย 1 Data):
 
 ---
 
-## 7.5 นักบินสำคัญ + 6 Part เดิม + Stunt/EMP เฉพาะ Reactor
+## 7.5 คราฟท์/ซ่อมใช้เวลา + พ่อค้า Part พร้อมใช้
+
+* **คราฟท์ไม่ทันที:** สั่งคราฟท์ Part/Frame/Module/Backpack → เข้าคิว `WarFactory Queue` `scripts/war/war_production_queue.gd` ใช้เวลา 60-180วิ (ตาม Tier) แสดงหลอด progress ที่ `War Factory` ต้องรอหรือจ่ายเร่ง — reuse `FleetSystem.tick_research()` + `research_catalogs.tres` timer เดิม
+* **ซ่อมก็ใช้เวลา:** สั่งซ่อม 6 Part ที่ Hangar → เข้าคิวซ่อม 30-90วิ ต่อชิ้น (หุ่นพังหนักรอนาน) ระหว่างซ่อมใช้หุ่นสำรองจาก `HangarState` ไปรบก่อนได้
+* **Event พ่อค้า Part:** สุ่มเกิด `Merchant Convoy` / `Black Market Cache` กลางแมพ 2-3 นาที/ครั้ง ขึ้น HUD "พ่อค้าโผล่" → วิ่งไปซื้อ Part พร้อมใช้ได้ทันที จ่าย `credits` แพงกว่า 1.5-2x แต่เร็วกว่ารอคราฟท์/ซ่อม — reuse `board_tile.gd` Event + `CityShop` `city_shop_ui.gd` + `loot_system.gd`
+* ถ่วงดุล: รอคราฟท์ถูกแต่ช้า / ซื้อพ่อค้าแพงแต่ได้ทันที
+
+---
+
+## 7.6 นักบินสำคัญ + 6 Part เดิม + Stunt/EMP เฉพาะ Reactor
 
 * **หุ่น = 6 Part เดิม** `head/body/arm_left/arm_right/leg_left/leg_right` `global_data.gd:90` + `part_mesh_manager.gd:335` — War Mode ไม่เปลี่ยนโครงสร้างนี้
 * **นักบินสำคัญ:** หุ่นพัง (`HP 0`) → ระเบิดใน 3-4 วิ ถ้าดีด `G` (`mecha_eject.gd` `GameManager.State.EJECT` `game_manager.gd:162`) ไม่ทัน = นักบินตาย → `Respawn` เลือกฐานฝั่งเราได้ (`Main Base` หรือ `Carrier` ที่จอดในเขตเรา) — reuse `pilot_state.gd` + `hangar_state.gd` เลือกจุดเกิด
@@ -139,6 +148,8 @@ scripts/war/
   war_resource_system.gd      tick รายได้, Refinery Lv
   war_logistic_system.gd      Truck/Carrier ขนของ → Depot
   data_event_system.gd        สุ่ม Event Area + แบกกลับ + roll table
+  war_production_queue.gd     คิวคราฟท์/ซ่อมใช้เวลา 60-180วิ + เร่งได้
+  war_merchant_system.gd      พ่อค้า Part พร้อมใช้ สุ่มเกิด 2-3นาที (ต่อยอด city_shop_ui.gd)
   capture_wreckage_system.gd  ซากหุ่นเทพชิงได้ (ต่อยอด scavenger_system.gd)
   war_respawn_system.gd       ตายเลือกฐานเกิด + หุ่นจอดที่เดิม + โดนขโมยได้
   pilot_survival_system.gd    หุ่นระเบิด 3วิ ต้องดีดทัน / EMP เฉพาะ Reactor
@@ -163,6 +174,7 @@ Reuse 100%: `PartMeshManager`, `RepairSystem`, `Hangar`, `PilotSystem`, `Faction
 * [ ] Carrier 1 คัน บรรทุก 2 หุ่น + Weapon Rack เปลี่ยนปืนกลางสนาม
 * [ ] Module ถอดได้ 3 ตัว + ตกชิงได้
 * [ ] Pilot ดีด 3วิ + Respawn เลือกฐาน + หุ่น 6 Part เดิม + Stunt เฉพาะ Reactor (Combustion โดนนาน / Ancient กัน)
+* [ ] คราฟท์/ซ่อมใช้เวลา (คิว 60-180วิ) + พ่อค้า Part พร้อมใช้สุ่มเกิด
 
 **Phase 2 — เต็ม 4 สัปดาห์**
 * [ ] แมพซับซ้อน HIGHLAND/UNDERGROUND ซ่อนของ + Weapon Cache

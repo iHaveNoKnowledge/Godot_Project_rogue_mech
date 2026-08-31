@@ -105,6 +105,7 @@ Roll Table (วิจัย 1 Data):
 
 * **คราฟท์ไม่ทันที:** สั่งคราฟท์ Part/Frame/Module/Backpack → เข้าคิว `WarFactory Queue` `scripts/war/war_production_queue.gd` ใช้เวลา 60-180วิ (ตาม Tier) แสดงหลอด progress ที่ `War Factory` ต้องรอหรือจ่ายเร่ง — reuse `FleetSystem.tick_research()` + `research_catalogs.tres` timer เดิม
 * **ซ่อมก็ใช้เวลา:** สั่งซ่อม 6 Part ที่ Hangar → เข้าคิวซ่อม 30-90วิ ต่อชิ้น (หุ่นพังหนักรอนาน) ระหว่างซ่อมใช้หุ่นสำรองจาก `HangarState` ไปรบก่อนได้
+* **Hangar Realtime (War Mode):** Hangar ตั้งอยู่ที่ `Main Base`/`Carrier` บนแมพจริง — กด `F` ที่อาคารแล้วเปิด Overlay UI ซ่อม/แต่งหุ่นตรงนั้นเลย ไม่ตัดฉากไป `hangar_scene.tscn` แบบ Campaign (`GameManager.enter_hangar()` เดิม) — ตัวหุ่น 3D ยังจอดในโลก เห็นศัตรูบุกได้
 * **Event พ่อค้า Part:** สุ่มเกิด `Merchant Convoy` / `Black Market Cache` กลางแมพ 2-3 นาที/ครั้ง ขึ้น HUD "พ่อค้าโผล่" → วิ่งไปซื้อ Part พร้อมใช้ได้ทันที จ่าย `credits` แพงกว่า 1.5-2x แต่เร็วกว่ารอคราฟท์/ซ่อม — reuse `board_tile.gd` Event + `CityShop` `city_shop_ui.gd` + `loot_system.gd`
 * ถ่วงดุล: รอคราฟท์ถูกแต่ช้า / ซื้อพ่อค้าแพงแต่ได้ทันที
 

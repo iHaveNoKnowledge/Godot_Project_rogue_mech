@@ -92,12 +92,22 @@ Roll Table (วิจัย 1 Data):
 
 ---
 
-## 7. สูตรเต็มตัว vs Mass Product
+## 7. สูตรเต็มตัว vs Mass Product (รวม Stunt/EMP เฉพาะ Reactor)
 
 * ได้ **หุ่นทั้งคัน** หรือ **สูตร** → เอากลับฐานวิจัย → ปลด 2 ทาง:
   * **Original** 100% — ต้องใช้ `Ancient Core` + Data + scrap 200 + credits 800 แพง/แรร์
   * **Mass Product** 75% — ใช้ scrap 80 + credits 400 คราฟท์ได้เรื่อยๆ ใน `craft_panel.gd` สเปคต่ำกว่า 20% แต่ทุนถูก
 * Mass Product ตายก็ตกให้ชิงได้เหมือนกัน
+
+---
+
+## 7.5 นักบินสำคัญ + 6 Part เดิม + Stunt/EMP เฉพาะ Reactor
+
+* **หุ่น = 6 Part เดิม** `head/body/arm_left/arm_right/leg_left/leg_right` `global_data.gd:90` + `part_mesh_manager.gd:335` — War Mode ไม่เปลี่ยนโครงสร้างนี้
+* **นักบินสำคัญ:** หุ่นพัง (`HP 0`) → ระเบิดใน 3-4 วิ ถ้าดีด `G` (`mecha_eject.gd` `GameManager.State.EJECT` `game_manager.gd:162`) ไม่ทัน = นักบินตาย → `Respawn` เลือกฐานฝั่งเราได้ (`Main Base` หรือ `Carrier` ที่จอดในเขตเรา) — reuse `pilot_state.gd` + `hangar_state.gd` เลือกจุดเกิด
+* ถ้าตายแต่หุ่นยังอยู่ → หุ่นจอดที่เดิมเป็นซาก `ScavengerSystem` ไม่หาย ใครยึดได้เอาไปขับ/วิจัยต่อ — ยิ่งหุ่นเทพ Tech สูงยิ่งเสี่ยงโดนขโมย (ถ่วงดุล)
+* **Stunt Weapon:** อาวุธประเภท `STUNT` ใหม่ `weapon_part.gd:4` ยิงแล้วติด `stunned` 2-4 วิ ขยับไม่ได้ (reuse `ewar_system.gd` + `heat_wanted_system.gd` EMP เดิม `GDD.md:188` แต่แยกเป็นดีบัฟ Stunt)
+  * **เฉพาะ Reactor:** `Direct Combustion` โดน Stunt นานสุด / `Overclocked Hybrid` กลาง / `Ancient/Legendary` ทน Stunt สูง (หรือกัน 100%) — `power_core_system.gd` + `WeaponPart.damage_type="stunt"` เช็ค `target.reactor_type` ก่อนติดสถานะ ไม่ใช่ยิงใส่ทุกหุ่นแล้วติดหมด
 
 ---
 
@@ -109,7 +119,7 @@ Roll Table (วิจัย 1 Data):
 
 ---
 
-## 9. สถาปัตยกรรมใหม่
+## 9. สถาปัตยกรรมใหม่ (เพิ่ม Pilot/Stunt)
 
 ```
 GameManager.State.BOARD (เดิม) + GameManager.State.WAR (ใหม่คู่กัน)
@@ -130,10 +140,13 @@ scripts/war/
   war_logistic_system.gd      Truck/Carrier ขนของ → Depot
   data_event_system.gd        สุ่ม Event Area + แบกกลับ + roll table
   capture_wreckage_system.gd  ซากหุ่นเทพชิงได้ (ต่อยอด scavenger_system.gd)
+  war_respawn_system.gd       ตายเลือกฐานเกิด + หุ่นจอดที่เดิม + โดนขโมยได้
+  pilot_survival_system.gd    หุ่นระเบิด 3วิ ต้องดีดทัน / EMP เฉพาะ Reactor
+  stunt_weapon_system.gd      อาวุธ Stunt 2-4วิ เฉพาะ Reactor (ต่อยอด ewar_system.gd)
   vehicle_controller.gd       Humvee/Truck/Tank/Carrier (ต่อยอด pilot_controller.gd)
   carrier_dock.gd             2 ช่องจอด + Weapon Rack
   backpack_system.gd          ต่อยอด hangar_state.gd
-  shoulder_weapon_system.gd   Q/E
+  shoulder_weapon_system.gd   Q/E (6 Part เดิมไม่เปลี่ยน)
   war_hud.gd                  Tab/I
 ```
 
@@ -144,11 +157,12 @@ Reuse 100%: `PartMeshManager`, `RepairSystem`, `Hangar`, `PilotSystem`, `Faction
 ## 10. เฟสทำ
 
 **Phase 1 — MVP 2 สัปดาห์ (เล่นได้)**
-* [ ] `GameManager.State.WAR` + `war_world.tscn` โล่ง + Main Base 2 ฝั่ง
+* [ ] `GameManager.State.WAR` + `war_world.tscn` โล่ง + Main Base 2 ฝั่ง (เก็บ Board เดิมไว้)
 * [ ] Ore Node 4 จุด + Truck ขนกลับ Depot + Tab HUD
 * [ ] Data Event 1 แบบ (Part เทพ) แบกกลับวิจัย
 * [ ] Carrier 1 คัน บรรทุก 2 หุ่น + Weapon Rack เปลี่ยนปืนกลางสนาม
 * [ ] Module ถอดได้ 3 ตัว + ตกชิงได้
+* [ ] Pilot ดีด 3วิ + Respawn เลือกฐาน + หุ่น 6 Part เดิม + Stunt เฉพาะ Reactor (Combustion โดนนาน / Ancient กัน)
 
 **Phase 2 — เต็ม 4 สัปดาห์**
 * [ ] แมพซับซ้อน HIGHLAND/UNDERGROUND ซ่อนของ + Weapon Cache

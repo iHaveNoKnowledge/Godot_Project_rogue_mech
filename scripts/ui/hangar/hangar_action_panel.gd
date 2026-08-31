@@ -306,39 +306,36 @@ func show(info: Dictionary) -> void:
 		)
 		grid.add_child(upgrade_btn)
 
-	# 4. PAINT — recolors this instance (the catalog template is never touched)
+	# 4. PAINT — opens the immersive Spray Booth (palette + custom picker + VFX)
 	if is_instance and not is_weapon_slot:
 			var paint_btn = Button.new()
-			paint_btn.text = "PAINT COLOR"
+			paint_btn.text = "🎨  SPRAY BOOTH"
 			paint_btn.custom_minimum_size = Vector2(180, 36)
 			paint_btn.pressed.connect(func():
-				var palette = [
-					Color(0.25, 0.40, 0.60), # Mecha Navy Blue
-					Color(0.80, 0.20, 0.20), # Crimson Ace Red
-					Color(0.90, 0.90, 0.95), # Gundam White
-					Color(0.20, 0.65, 0.35), # Zaku Green
-					Color(0.85, 0.70, 0.20), # Gold Trim
-					Color(0.20, 0.22, 0.26)  # Dark Steel Frame
-				]
-				var cur_col = info.get("color", Color(0.25, 0.40, 0.60))
-				var next_idx = 0
-				for i in range(palette.size()):
-					if palette[i].is_equal_approx(cur_col):
-						next_idx = (i + 1) % palette.size()
-						break
-				var new_color = palette[next_idx]
-				info["color"] = new_color
-				info["part_color"] = new_color
-				controller.status_message_label.text = "Armor paint updated!"
-				controller.garage_panel.apply_armor_preview(controller.selected_slot, info)
-				# Only sync the equipped copy when the same instance is mounted;
-				# .has() is true even for null/other instances, and Dictionary ==
-				# compares by value (not reference) — match on the unique uid instead.
-				var equipped = GlobalData.weapons.equipped_parts.get(controller.selected_slot)
-				if equipped is Dictionary and info.has("uid") and equipped.get("uid", "") == str(info["uid"]):
-					equipped["color"] = new_color
-					equipped["part_color"] = new_color
-				GlobalData.save_run()
+				close()
+				if controller.spray_booth:
+					controller.spray_booth.open(controller.selected_slot, info)
+				else:
+					# Fallback: cycle palette if booth not wired (never hit in normal flow)
+					var palette = [
+						Color(0.25, 0.40, 0.60), Color(0.80, 0.20, 0.20), Color(0.90, 0.90, 0.95),
+						Color(0.20, 0.65, 0.35), Color(0.85, 0.70, 0.20), Color(0.20, 0.22, 0.26)
+					]
+					var cur_col = info.get("color", Color(0.25, 0.40, 0.60))
+					var next_idx = 0
+					for i in range(palette.size()):
+						if palette[i].is_equal_approx(cur_col):
+							next_idx = (i + 1) % palette.size()
+							break
+					var new_color = palette[next_idx]
+					info["color"] = new_color
+					info["part_color"] = new_color
+					controller.garage_panel.apply_armor_preview(controller.selected_slot, info)
+					var equipped = GlobalData.weapons.equipped_parts.get(controller.selected_slot)
+					if equipped is Dictionary and info.has("uid") and equipped.get("uid", "") == str(info["uid"]):
+						equipped["color"] = new_color
+						equipped["part_color"] = new_color
+					GlobalData.save_run()
 			)
 			grid.add_child(paint_btn)
 

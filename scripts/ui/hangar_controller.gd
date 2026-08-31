@@ -47,6 +47,7 @@ var header_panel: HangarHeaderPanel = null
 var left_panel_ui: HangarLeftPanel = null
 var right_panel_ui: HangarRightPanel = null
 var diagnostic_modal: HangarDiagnosticModal = null
+var spray_booth: HangarSprayBooth = null
 # Slot tab buttons keyed by slot id, reused for UI-only selection highlight.
 var slot_tab_buttons: Dictionary = {}
 var mode_buttons: Dictionary = {}
@@ -226,6 +227,8 @@ func _build_ui_layout() -> void:
 	wounded_banner.controller = self
 	diagnostic_modal = HangarDiagnosticModal.new()
 	diagnostic_modal.controller = self
+	spray_booth = HangarSprayBooth.new()
+	spray_booth.controller = self
 
 	var root = Control.new()
 	root.name = "RootControl"
@@ -317,6 +320,9 @@ func refresh_after_part_mutation(slot: String = "") -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not visible:
 		return
+	# Spray booth blocks turntable drag while open
+	if spray_booth and spray_booth.is_open():
+		return
 	# The emergency repair editor is a full-screen modal: don't rotate the hangar
 	# turntable or drag attachments while it is open on top.
 	if _is_scrap_editor_open():
@@ -344,6 +350,10 @@ func open_pilot_loadout_editor(pilot_id: String, pilot_name: String) -> void:
 # hangar menu root does ESC actually exit to the board.
 func _input(event: InputEvent) -> void:
 	if not visible or not event.is_action_pressed("pause") or exit_panel == null:
+		return
+	# Spray booth closes first (topmost overlay)
+	if spray_booth and spray_booth.is_open():
+		spray_booth.close()
 		return
 	# Full-screen modal editors close first.
 	if _is_scrap_editor_open():

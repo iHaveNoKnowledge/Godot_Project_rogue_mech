@@ -11,6 +11,7 @@ func _ready() -> void:
 	_spawn_bases()
 	_spawn_ore_nodes()
 	_spawn_logistic_trucks()
+	_spawn_data_events()
 	_spawn_player_mecha()
 	_setup_hud()
 
@@ -115,6 +116,15 @@ func _spawn_logistic_trucks() -> void:
 	for pos in [Vector3(50, 1, -750), Vector3(-50, 1, -750)]:
 		var truck = logistic.create_truck(pos, depot)
 		add_child(truck)
+
+
+func _spawn_data_events() -> void:
+	var types = ["part", "frame", "module", "weapon"]
+	for i in range(3):
+		var ev = WarDataEvent.new()
+		ev.data_type = types[i % types.size()]
+		ev.position = Vector3(randf_range(-600, 600), 1, randf_range(-400, 400))
+		add_child(ev)
 
 
 func _setup_hud() -> void:

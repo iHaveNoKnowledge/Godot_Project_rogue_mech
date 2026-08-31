@@ -8,6 +8,7 @@ var _bases_spawned: bool = false
 
 func _ready() -> void:
 	_setup_ground()
+	_setup_combat_systems()
 	_spawn_bases()
 	_spawn_ore_nodes()
 	_spawn_logistic_trucks()
@@ -200,12 +201,29 @@ func _spawn_merchant_manager() -> void:
 	add_child(prod)
 
 
+func _setup_combat_systems() -> void:
+	# Reuse Arena combat stack from game_world.tscn (per user: ยกระบบ combat มาใช้แบบเดียวกับ arena)
+	for res in [
+		["SpawnManager", "res://scripts/systems/spawn_manager.gd"],
+		["EffectManager", "res://scripts/effects/effect_manager.gd"],
+		["ArenaSeedSystem", "res://scripts/arena/arena_seed_system.gd"],
+		["LootSystem", "res://scripts/systems/loot_system.gd"],
+		["ConvoyEscort", "res://scripts/systems/convoy_escort.gd"],
+	]:
+		if get_node_or_null(res[0]) != null:
+			continue
+		var n = Node3D.new() if res[0] != "ArenaSeedSystem" else Node.new()
+		n.name = res[0]
+		n.set_script(load(res[1]))
+		add_child(n)
+
+
 func _decorate_phase2() -> void:
 	# Place near player start so visible immediately (was 500 away invisible)
 	WarMapGenerator.decorate_highland(self, Vector3(150, 5, -650))
 	WarMapGenerator.decorate_underground_tunnel(self, Vector3(-150, -5, -650))
 	WarMapGenerator.spawn_weapon_cache(self, Vector3(80, 1, -700))
-	WarMapGenerator.spawn_weapon_cache(self, Vector3(-80, 1, -700))
+	WarMapGenerator.spawn_weapon_cache(self, Vector3(-80, 1, 350))
 	for base in [get_node_or_null("FriendlyMainBase"), get_node_or_null("EnemyMainBase")]:
 		if base:
 			var hangar = WarRealtimeHangar.new()

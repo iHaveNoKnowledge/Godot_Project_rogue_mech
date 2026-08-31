@@ -200,7 +200,22 @@ Reuse 100%: `PartMeshManager`, `RepairSystem`, `Hangar`, `PilotSystem`, `Faction
 
 ---
 
-## 11. หมายเหตุ
+## 11. Performance & Engine (Godot 4.6 Specifics)
+
+### 11.1 Terrain & Occlusion — แมพ 2000x2000 + Ore/ซากหุ่น
+* **ปัญหา:** Object/Ore/ซากหุ่นหล่นพื้นจำนวนมาก + `SpotLight3D` หลายดวงใน `UNDERGROUND` → ไม่มี culling เฟรมตก
+* **แก้:**
+  * **Chunk Loader:** แบ่งแมพ 16x16 chunk (125m) — โหลด/ซ่อน `Ore Node`/`Scrap`/`Wreckage` ตาม `VisibilityNotifier3D` + ระยะผู้เล่น (reuse `spawn_manager.gd` pool)
+  * **OccluderInstance3D:** ใส่ `OccluderInstance3D` + `Occluder3D` Box ที่ปากอุโมงค์และผนังใต้ดิน → บัง `UNDERGROUND` ทั้งโซนเมื่อผู้เล่นอยู่บนพื้น ลด draw call `SpotLight3D`
+  * **Terrain LOD:** ใช้ `HeightMapShape3D` chunk เดียวกับ mesh, ปิด `shadow` ของ Ore ไกล >150m
+
+### 11.2 อื่นๆ
+* `NavigationAgent3D` bake แยก `GROUND` vs `UNDERGROUND` (2 `NavigationRegion3D`) ไม่ให้ AI ข้ามชั้น
+* `MultiMeshInstance3D` สำหรับหิน/แร่ซ้ำๆ แทน `MeshInstance3D` แยก
+
+---
+
+## 12. หมายเหตุ
 
 * Godot 4.6.2 path: `D:\godot\Godot_v4.6.2-stable_win64.exe` — validate ด้วย `--headless --import`
 * ทุกเฟสจบ commit + push ตาม `AGENTS.md`

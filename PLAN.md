@@ -52,9 +52,9 @@
 | รถ | บทบาท | ขับยังไง |
 |---|---|---|
 | **Humvee** | ลาดตระเวนเร็ว หา Data/แร่ซ่อน | `pilot_controller.gd` สลับขึ้นลง `F` เหมือน `mecha_eject.gd` |
-| **Truck** | ขนแร่/น้ำมัน จุเยอะ ช้า | มี `Storage` 200 scrap / 3 ถังน้ำมัน |
-| **Tank** | ยิงแรง เกราะหนา ช้า | ปืนหลัก + ปืนรอง |
-| **Carrier (ใหญ่)** | บรรทุกหุ่น 2 ตัว + คลังอาวุธเคลื่อนที่ | 2 ช่องจอดหลังกระบะ `Area3D` กด Dock → หุ่น `FREEZE` (disable physics) + `Reparent` เป็น Child ของ Carrier โดยตรง (ไม่ยืนบน Collision) แก้ Jitter/Lag ตอน Carrier วิ่ง → `HangarState` park, มี `Weapon Rack` 6 ช่อง + `Ammo Crate` ให้หุ่นโดดลงมาเปลี่ยนปืนกลางสนามได้, นักบินดีดจากหุ่น → ขึ้นขับ Carrier ได้ |
+| **Truck** | ขนแร่/น้ำมัน จุเยอะ ช้า | AI ขับอัตโนมัติ `NavigationAgent3D` บน Terrain (รวม UNDERGROUND) ส่งของ Depot→Depot, ผู้เล่นกด `F` ยึดขับเองได้ถ้าว่าง | มี `Storage` 200 scrap / 3 ถังน้ำมัน |
+| **Tank** | ยิงแรง เกราะหนา ช้า | AI + ผู้เล่นขับได้ |
+| **Carrier (ใหญ่)** | บรรทุกหุ่น 2 ตัว + คลังอาวุธเคลื่อนที่ | AI `Automated Logistic Track` วิ่งตามเส้นทาง Depot เอง + ผู้เล่นยึดขับได้, 2 ช่องจอดหลังกระบะ `Area3D` กด Dock → หุ่น `FREEZE` + `Reparent` เป็น Child ของ Carrier แก้ Jitter → `HangarState` park, มี `Weapon Rack` 6 ช่อง + `Ammo Crate` |
 
 หุ่นคืออาวุธหลัก รถเป็น support/logistic
 
@@ -122,6 +122,7 @@ Roll Table (วิจัย 1 Data):
 
 * **หุ่น = 6 Part เดิม** `head/body/arm_left/arm_right/leg_left/leg_right` `global_data.gd:90` + `part_mesh_manager.gd:335` — War Mode ไม่เปลี่ยนโครงสร้างนี้
 * **นักบินสำคัญ:** หุ่นพัง (`HP 0`) → ระเบิดใน 3-4 วิ ถ้าดีด `G` (`mecha_eject.gd` `GameManager.State.EJECT` `game_manager.gd:162`) ไม่ทัน = นักบินตาย → `Respawn` เลือกฐานฝั่งเราได้ (`Main Base` หรือ `Carrier` ที่จอดในเขตเรา) — reuse `pilot_state.gd` + `hangar_state.gd` เลือกจุดเกิด
+* **AI หุ่นโดดข้าม:** AI ทั้งเรา/ศัตรู (`pilot_controller.gd` + `Beehave`) มี `RayCast3D` เช็คสิ่งกีดขวางหน้า → สั่ง `Jump impulse` ข้ามได้ ไม่ติดหิน/กำแพงเตี้ย (`war_ai_jump_system.gd` ต่อยอด `mecha_controller.gd` Jump)
 * ถ้าตายแต่หุ่นยังอยู่ → หุ่นจอดที่เดิมเป็นซาก `ScavengerSystem` ไม่หาย ใครยึดได้เอาไปขับ/วิจัยต่อ — ยิ่งหุ่นเทพ Tech สูงยิ่งเสี่ยงโดนขโมย (ถ่วงดุล)
 * **Stunt Weapon:** อาวุธประเภท `STUNT` ใหม่ `weapon_part.gd:4` ยิงแล้วติด `stunned` 2-4 วิ ขยับไม่ได้ (reuse `ewar_system.gd` + `heat_wanted_system.gd` EMP เดิม `GDD.md:188` แต่แยกเป็นดีบัฟ Stunt)
   * **เฉพาะ Reactor:** `Direct Combustion` โดน Stunt นานสุด / `Overclocked Hybrid` กลาง / `Ancient/Legendary` ทน Stunt สูง (หรือกัน 100%) — `power_core_system.gd` + `WeaponPart.damage_type="stunt"` เช็ค `target.reactor_type` ก่อนติดสถานะ ไม่ใช่ยิงใส่ทุกหุ่นแล้วติดหมด
@@ -163,7 +164,8 @@ scripts/war/
   war_respawn_system.gd       ตายเลือกฐานเกิด + หุ่นจอดที่เดิม + โดนขโมยได้
   pilot_survival_system.gd    หุ่นระเบิด 3วิ ต้องดีดทัน / EMP เฉพาะ Reactor
   stunt_weapon_system.gd      อาวุธ Stunt 2-4วิ เฉพาะ Reactor (ต่อยอด ewar_system.gd)
-  vehicle_controller.gd       Humvee/Truck/Tank/Carrier (ต่อยอด pilot_controller.gd)
+  vehicle_controller.gd       Humvee/Truck/Tank/Carrier — AI Automated Logistic Track (NavigationAgent3D บน Terrain รวม UNDERGROUND) + ผู้เล่นยึดขับเองได้ถ้าว่าง
+  war_ai_jump_system.gd       AI หุ่นโดดข้ามสิ่งกีดขวาง (RayCast + Jump impulse) ทั้งฝั่งเรา/ศัตรู
   carrier_dock.gd             2 ช่องจอด + Weapon Rack — Dock = FREEZE + Reparent เป็น Child ของ Carrier แก้ Jitter (ไม่ให้ยืนบน Physics)
   backpack_system.gd          ต่อยอด hangar_state.gd
   shoulder_weapon_system.gd   Q/E (6 Part เดิมไม่เปลี่ยน)

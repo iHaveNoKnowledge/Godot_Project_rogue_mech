@@ -209,8 +209,13 @@ Reuse 100%: `PartMeshManager`, `RepairSystem`, `Hangar`, `PilotSystem`, `Faction
   * **OccluderInstance3D:** ใส่ `OccluderInstance3D` + `Occluder3D` Box ที่ปากอุโมงค์และผนังใต้ดิน → บัง `UNDERGROUND` ทั้งโซนเมื่อผู้เล่นอยู่บนพื้น ลด draw call `SpotLight3D`
   * **Terrain LOD:** ใช้ `HeightMapShape3D` chunk เดียวกับ mesh, ปิด `shadow` ของ Ore ไกล >150m
 
-### 11.2 อื่นๆ
-* `NavigationAgent3D` bake แยก `GROUND` vs `UNDERGROUND` (2 `NavigationRegion3D`) ไม่ให้ AI ข้ามชั้น
+### 11.2 Navigation 2 ชั้น + Link
+* `NavigationAgent3D` bake แยก `GROUND` vs `UNDERGROUND` (2 `NavigationRegion3D`)
+* **ข้ามชั้น:** ใส่ `NavigationLink3D` ตรงปากอุโมงค์/ทางลง เชื่อม 2 Region ให้ Agent คำนวณ Path ข้ามไร้รอยต่อ
+
+### 11.3 Micro Edge Cases
+* **HQ Barrier Shield (Anti-Rush):** HQ 220HP มี barrier ลดดาเมจ 90% จนกว่าศัตรูบุกในรัศมี 100m ของฐาน หรือถึง Late Game นาที 10+ (reuse `ForwardBase` ใส่ `Area3D` Shield + `damage_reduction` ก่อน `take_damage()`)
+* **เซฟแยกโหมด:** War Mode กับ Campaign (Board) แยกเซฟคนละไฟล์ `user://save_war.json` vs `user://savegame.json` ไม่แชร์ Part/เงิน/Progress
 * `MultiMeshInstance3D` สำหรับหิน/แร่ซ้ำๆ แทน `MeshInstance3D` แยก
 
 ---

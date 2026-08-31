@@ -1,64 +1,166 @@
-# Rogue Mech — Roadmap ระบบใหญ่
+# WAR MODE — Battlefield + Red Alert Hybrid (No Board) — Master Plan
 
-## เสร็จแล้ว (commits)
-
-- [X] merge `spare_parts` → `credits` (รวมเป็นสกุลเงินเดียว, save เก่า migrate อัตโนมัติ) — `d5efd9e`
-- [X] Frame Upgrade จ่าย `credits` อย่างเดียว (เอา data_cores ออกจากราคา/UI) — `d5efd9e`
-- [X] `data_cores` เปลี่ยนเป็น research item (เก็บ count, พร้อมให้ระบบวิจัยใช้)
-
-## การตัดสินใจที่ยืนยันแล้ว
-
-1. `spare_parts` + `credits` merge → ใช้ `credits` อย่างเดียว
-2. ระบบ Frame Upgrade เก็บไว้ แต่จ่ายด้วย `credits`
-3. inventory เป็นแบบ **instance-based** (ทุก instance มี uid แยกกัน)
+> ตัด `Board` ทิ้ง เปิดมาเป็น `War Map` ใหญ่ 2 ฝั่งเลย — หุ่นธรรมดาเริ่ม → เก็บ Data/แร่ → วิจัย → สร้างหุ่นเทพ/Mass Product
+> Engine: Godot 4.6.2.stable, reuse ระบบเดิม 70% (Hangar/Assembly/Repair/Pilot/Faction)
 
 ---
 
-## เฟสที่เหลือ (ยังไม่ทำ)
+## 1. วิสัยทัศน์
 
-### เฟส 2: Instance Inventory (ฐานของทั้งหมด — ควรทำก่อน)
+**Battlefield Conquest + Red Alert Harvest** ไม่ใช่ Dota lane
 
-- [X] ยูนิฟาย inventory: ทุก instance = `{ uid, db_id, durability, upgrade_level }` — `aec40f0`
-- [X] เอา `salvaged_armor_inventory` ออก (`spawn_enemy_armor_salvage()` ลบแล้ว) — `aec40f0`
-- [X] `weapon_inventory` (count-based) → instance-based (`register_weapon()` append instance) — `aec40f0`
-- [X] durability bridge: instance = เก็บหลัก, `part_damage` = cache instance ที่สวม (sync equip/unequip/save/combat end) — `aec40f0`
-- [X] save schema: armor instances + weapon instances + migration จาก save เก่า — `aec40f0`
-
-### เฟส 3: Scrap & Crafting
-
-- [X] เพิ่มสกุล "scrap" (วัสดุ) ใหม่ — ประกาศ/reset/save/load ครบ (ค่าเริ่ม 0)
-- [X] ยูนิฟายคำว่า "scrap" 3 แนวคิด:
-  - [X] `_spawn_scrap_wreckage()` — debris visual ยังอยู่ + ตอนนี้**ทิ้ง scrap pickup** (เป็นวัสดุได้จริง, เก็บ auto-collect เหมือน ammo)
-  - [X] `weapon_pickup.gd` — กด F "scrap" อาวุธ = ได้อมโม + scrap วัสดุ (weight + rarity)
-  - [X] board event "Salvage Cache" — เปลี่ยนจาก credits → ให้ **scrap**
-- [X] `loot_system.gd` เพิ่ม pickup type "scrap" + enemy drops scrap (ตาราง drop)
-- [X] คราฟเกราะจาก scrap + credits ที่ hangar (ค่ายิงจาก stats: scrap = ceil((hp+1.5ac+2wt)/20), cr = ceil((hp+ac+wt)/15)); เกราะที่คราฟ = instance ใหม่ (ต่อเฟส 2); cost-gate ที่ equip template
-- [X] UI แสดง scrap: hangar stats bar, intermission (status/mech/inventory), combat rewards
-
-### เฟส 4: Research & Blueprint (Gundam-type)
-
-- `data_cores` → ส่งเข้าสถานีวิจัย → ปลดล็อก blueprint ต่อ run
-- เพิ่ม `GlobalData.unlocked_blueprints` (per-run, reset ใน `reset_run_data()`)
-- `mech_catalogs.tres`: เพิ่ม item หุ่น gundam + flag `blueprint_only` (ไม่ขึ้นร้าน/ดรอปปกติ)
-- Research UI ใหม่ + คราฟหุ่น gundam ด้วย blueprint + credit
+* แมพเดียว 2000x2000 กึ่ง open world หลายระดับ (ที่สูง/พื้น/อุโมงค์ใต้ดิน) ซ่อนทรัพยากร
+* ต้อง **ขนส่ง (Logistic)** แร่/น้ำมันกลับ Storage ไม่ได้เข้าคลังทันที
+* หา **Data** ตาม Event Area แบกกลับฐานวิจัย → สุ่มได้ Part เทพ / Frame เทพ / Module / สูตรเต็มตัว / หุ่นทั้งคัน
+* มี **Module/Backpack/อาวุธไหล่ Q/E** ถอดได้ ตกให้ชิงได้ — หุ่นเทพตายกลางสนามกลายเป็นศึกชิงซาก
+* รถ **Humvee / Truck / Tank / Carrier 2 หุ่น** + คลังอาวุธเคลื่อนที่ เปลี่ยนปืนกลางสนามได้
+* กด **Tab ดูทรัพยากร / I ดู Inventory**
 
 ---
 
-## Overlap ระหว่าง progress ปัจจุบัน กับระบบใหญ่
+## 2. แมพ — ซับซ้อน ซ่อนของ
 
-| จุด                                   | ปัจจุบัน                                   | ระบบใหญ่        | ผล                   | แนวทาง                                                                   |
-| ---------------------------------------- | -------------------------------------------------- | ----------------------- | ---------------------- | ------------------------------------------------------------------------------ |
-| `part_damage` (key-by-slot, 55 จุด) | ใช้กันทุกหน้าจอ                     | durability per-instance | **ชนหนัก** | bridge: instance = เก็บหลัก, part_damage = cache instance ที่สวม |
-| `salvaged_armor_inventory`             | dead code + ไม่ save                            | เอาออก            | ชนน้อย           | ลบได้เลย (รายการ UI + intermission)                              |
-| `weapon_inventory` count               | dedupe+count++                                     | instance                | ชน                   | register_weapon → append instance; UI ตัด count                            |
-| "scrap" 3 แนวคิด                   | visual / ทิ้งอาวุธ / event ให้ credits | scrap material          | ชน                   | ยูนิฟายทั้งหมดเป็น material                                  |
-| `data_cores`                           | research item (ว่าง)                           | research/blueprint      | ไม่ชน             | ต่อยอดได้เลย                                                       |
-| save schema                              | เก็บ weapon_inventory, part_damage             | เพิ่ม instances    | ชน                   | เพิ่ม field ใหม่ + migration                                          |
-| Docs                                     | ARCHITECTURE.md:240,286, design.md                 | —                      | stale                  | อัปเดตทีหลัง                                                       |
+### 2.1 โครงสร้าง
+* `scenes/war/war_world.tscn` แผ่นเดียว (แทน `board/game_board.tscn`)
+* Terrain เดียวด้วย `arena_generator.gd:333 _add_terrain_mesh()` + `HeightMapShape3D` `arena_generator.gd:755`
+* แบ่ง 3 โซนตาม GDD Sub-Zone: `HIGHLAND` (เนินสูง sniper) / `GROUND` (crossroads) / `UNDERGROUND` (อุโมงค์ BoxMesh เพดาน + SpotLight)
+* ซ่อน `Ore Node` 6-8 จุด + `Oil Well` 3 จุด + `Weapon Cache` 2 จุด ในซอกหุบ/ใต้ดิน — มองจากที่สูงไม่เห็น ต้องลาดตระเวนด้วย Humvee
 
-## หมายเหตุ
+### 2.2 ฐาน
+* `Main Base` ฝั่งละ 1 (reuse `ForwardBase.spawn_base("fortified")` `forward_base.gd:39` HQ 220HP) มี `Storage Depot` + `Refinery` + `War Factory (Hangar)` + `Reactor Bay`
+* ฐานย่อยไม่มี — ยึดด้วยทรัพยากร ไม่ใช่ capture point แบบเดิม
 
-- มี Godot binary: `D:\godot\Godot_v4.6.2-stable_win64.exe` → ใช้ headless validate ได้
-- คำสั่งตรวจ: `--headless --import` (validate resources) + `--headless --quit-after 5 <scene.tscn>` (compile scripts/scene ที่ระบุ; รันผ่าน main scene เฉพาะเมนู ไม่ได้แตะหน้าในเกม)
-- ข้อจำกัด: `--check-only --script` ให้ false positive (ไม่มี autoload) อย่าใช้ตัดสิน ต้องรันผ่าน scene แทน
-- ทุกเฟสจบแล้ว commit + push (ตาม AGENTS.md)
+---
+
+## 3. ทรัพยากร + Logistic
+
+| ทรัพยากร | ได้จาก | เก็บยังไง | ใช้ทำอะไร |
+|---|---|---|---|
+| **Credits** | ขายแร่ที่ Depot, ฆ่าศัตรู | Auto เข้า `CurrencyManager` `global_data.gd:240` | คราฟท์ Part/อาวุธ, อัพฐาน |
+| **Scrap** | แร่ Ore Node, ซากหุ่น | ต้องขนด้วย Truck → Depot | คราฟท์เกราะ/เฟรม |
+| **Oil/Fuel** | Oil Well, ถังพก | ถัง `FuelContainerInventory` `fuel_container_inventory.gd` พกเติมกลางสนาม หรือขับกลับ Hangar เติม | พลังงานหุ่น `PowerCoreSystem` `GDD.md:152` |
+| **Data** | Event Area | แบกกลับฐานวิจัย (CTF ช้าลง 20%) | สุ่ม Part/Module/สูตรเทพ |
+| **Energy (หุ่นใหม่)** | เตาพิเศษในฐาน | สร้าง `Ancient Reactor` ที่ฐาน Lv3 ถึงผลิตได้ | เติมหุ่น Legendary ไม่กินน้ำมัน |
+
+**Logistic Rule:** เก็บแร่/น้ำมันแล้วไม่เข้าคลัง — ต้องขับ `Truck` / `Carrier` กลับ `Storage Depot` กด `F` ถ่ายของ (reuse `convoy_escort.gd` + `FuelContainerInventory` ถังพก) ถูกดักปล้นระหว่างทางได้
+
+---
+
+## 4. ยานพาหนะ
+
+| รถ | บทบาท | ขับยังไง |
+|---|---|---|
+| **Humvee** | ลาดตระเวนเร็ว หา Data/แร่ซ่อน | `pilot_controller.gd` สลับขึ้นลง `F` เหมือน `mecha_eject.gd` |
+| **Truck** | ขนแร่/น้ำมัน จุเยอะ ช้า | มี `Storage` 200 scrap / 3 ถังน้ำมัน |
+| **Tank** | ยิงแรง เกราะหนา ช้า | ปืนหลัก + ปืนรอง |
+| **Carrier (ใหญ่)** | บรรทุกหุ่น 2 ตัว + คลังอาวุธเคลื่อนที่ | 2 ช่องจอดหลังกระบะ `Area3D` หุ่นกระโดดขึ้นล็อค → `HangarState` park, มี `Weapon Rack` 6 ช่อง + `Ammo Crate` ให้หุ่นโดดลงมาเปลี่ยนปืนกลางสนามได้, นักบินดีดจากหุ่น → ขึ้นขับ Carrier ได้ |
+
+หุ่นคืออาวุธหลัก รถเป็น support/logistic
+
+---
+
+## 5. Data — 6 แบบ + คลังอาวุธ
+
+**Event Area** สุ่มเกิด 2-3 จุด/5 นาที ขึ้น HUD "DATA ลึกลับ" → เข้าไปกด `F` เก็บ → แบกกลับฐาน (ถือแล้ววิ่งช้า) → กดวิจัยที่ `War Factory`
+
+Roll Table (วิจัย 1 Data):
+
+| ผล | โอกาส | ได้อะไร | หมายเหตุ |
+|---|---|---|---|
+| Part เทพ | 30% | เกราะแขน/ขา/หัว HP สูง | คราฟท์ไม่ได้ ต้องหา Data |
+| Frame เทพ | 20% | เฟรมเบา/ถึกพิเศษ | ใส่แล้วเพิ่ม `carry_bonus` |
+| Module เทพ | 20% | `frame_property_catalog` `global_data.gd:327` (Fission Core, FCS, Gyro, Roller Overdrive) ถอดได้ | ตกให้ชิงได้ |
+| Data อาวุธ | 15% | `WeaponPart` `weapon_part.gd:4` เทพ (Railgun, Beam) |  |
+| สูตรหุ่นเต็มตัว | 8% | Blueprint หุ่นเทพทั้งตัว | ต้องใช้แรร์ถึงคราฟท์ |
+| หุ่นทั้งคัน | 2% | หุ่นเทพจอดกลางแมพ กดขึ้นขับได้เลย | เอากลับฐานวิจัยต่อได้ |
+
+**Weapon Cache** จุดซ่อนถาวร 2 จุด เปิดแล้วได้อาวุธ/โล่สุ่ม (reuse `LootSystem`)
+
+---
+
+## 6. Module / Backpack / อาวุธไหล่ — ถอดได้ ตกชิงได้
+
+* **Module** = `frame_property_catalog` 20 รายการเดิม ติด Slot `head/body/arm/leg` ถอดได้ใน Hangar ยิงตก → เป็น `LootPickup` ให้เก็บ (reuse `ScavengerSystem` + `salvage_system.gd`)
+* **Backpack** = `Attachment` ใหม่ต่อยอด `hangar_state.gd`
+  * `Cargo` +จุ 40kg
+  * `Booster` +Roller Dash 30%
+  * `Combat` +เกราะ/ระบายความร้อน
+* **อาวุธไหล่** = Slot ใหม่ `shoulder_left` / `shoulder_right` `weapon_part.gd:4` กด `Q` ไหล่ซ้าย / `E` ไหล่ขวา (เพิ่ม Input `project.godot:46` แยกจาก `fire_left/right` เมาส์) ใส่โล่ไหล่หรือ Missile Pod ได้
+
+หุ่นเทพตาย → ซากไม่หาย + Module/Backpack/Part เทพหล่น → ใครเก็บได้เอาเข้า Hangar ติดตัวอื่นได้ → ศึกชิงซาก
+
+---
+
+## 7. สูตรเต็มตัว vs Mass Product
+
+* ได้ **หุ่นทั้งคัน** หรือ **สูตร** → เอากลับฐานวิจัย → ปลด 2 ทาง:
+  * **Original** 100% — ต้องใช้ `Ancient Core` + Data + scrap 200 + credits 800 แพง/แรร์
+  * **Mass Product** 75% — ใช้ scrap 80 + credits 400 คราฟท์ได้เรื่อยๆ ใน `craft_panel.gd` สเปคต่ำกว่า 20% แต่ทุนถูก
+* Mass Product ตายก็ตกให้ชิงได้เหมือนกัน
+
+---
+
+## 8. UI — Tab / I
+
+* เพิ่ม Input `project.godot:46` `resource_view` = Tab (hold) / `inventory` = I
+* **Tab** → Overlay `WarResourceHUD` โชว์ Credits/Scrap/Fuel/Ore/Oil/Data/Energy (ดึงจาก `CurrencyManager` + `FuelManager`)
+* **I** → `WarInventory` เต็มจอ โชว์ Part/Frame/Module/Backpack/อาวุธมือ+ไหล่ ที่ถือ/ติดอยู่ ถอด/ติดได้
+
+---
+
+## 9. สถาปัตยกรรมใหม่
+
+```
+GameManager.State.WAR (เพิ่ม `autoload/game_manager.gd:3` แทน BOARD)
+  enter_war() → war_world.tscn
+
+scenes/war/
+  war_world.tscn              แมพใหญ่ + Main Base 2 ฝั่ง
+  war_resource_hud.tscn       Tab overlay
+  war_inventory.tscn          I inventory
+
+scripts/war/
+  war_manager.gd              ควบคุมรอบ, ชนะ/แพ้ (ทำลาย HQ 220HP)
+  war_map_generator.gd        ต่อยอด arena_generator สร้าง Terrain + วาง Ore/Oil/Cache
+  war_resource_system.gd      tick รายได้, Refinery Lv
+  war_logistic_system.gd      Truck/Carrier ขนของ → Depot
+  data_event_system.gd        สุ่ม Event Area + แบกกลับ + roll table
+  capture_wreckage_system.gd  ซากหุ่นเทพชิงได้ (ต่อยอด scavenger_system.gd)
+  vehicle_controller.gd       Humvee/Truck/Tank/Carrier (ต่อยอด pilot_controller.gd)
+  carrier_dock.gd             2 ช่องจอด + Weapon Rack
+  backpack_system.gd          ต่อยอด hangar_state.gd
+  shoulder_weapon_system.gd   Q/E
+  war_hud.gd                  Tab/I
+```
+
+Reuse 100%: `PartMeshManager`, `RepairSystem`, `Hangar`, `PilotSystem`, `FactionSystem`, `PowerCoreSystem`, `WeaponInventoryState`
+
+---
+
+## 10. เฟสทำ
+
+**Phase 1 — MVP 2 สัปดาห์ (เล่นได้)**
+* [ ] `GameManager.State.WAR` + `war_world.tscn` โล่ง + Main Base 2 ฝั่ง
+* [ ] Ore Node 4 จุด + Truck ขนกลับ Depot + Tab HUD
+* [ ] Data Event 1 แบบ (Part เทพ) แบกกลับวิจัย
+* [ ] Carrier 1 คัน บรรทุก 2 หุ่น + Weapon Rack เปลี่ยนปืนกลางสนาม
+* [ ] Module ถอดได้ 3 ตัว + ตกชิงได้
+
+**Phase 2 — เต็ม 4 สัปดาห์**
+* [ ] แมพซับซ้อน HIGHLAND/UNDERGROUND ซ่อนของ + Weapon Cache
+* [ ] Data ครบ 6 แบบ + สูตรเต็มตัว/Mass Product + หุ่นทั้งคัน 2%
+* [ ] Backpack 3 แบบ + อาวุธไหล่ Q/E + โล่ไหล่
+* [ ] เตาพิเศษ Ancient Reactor + น้ำมันถังพกเติมกลางสนาม
+* [ ] I Inventory เต็ม + ระบบชิงซากหุ่นเทพ
+
+**Phase 3 — Polish**
+* [ ] Minimap + Fog of War + Convoy ถูกปล้นระหว่างขน
+* [ ] Balance ราคา Original vs Mass, เรทดรอป, ความจุ Carrier
+
+---
+
+## 11. หมายเหตุ
+
+* Godot 4.6.2 path: `D:\godot\Godot_v4.6.2-stable_win64.exe` — validate ด้วย `--headless --import`
+* ทุกเฟสจบ commit + push ตาม `AGENTS.md`
+* สูตรหุ่นเทพใช้ทรัพยากรแรร์จริง แต่ Mass Product ให้ผู้เล่นทุนน้อยก็เล่นได้ — ไม่ pay-to-win

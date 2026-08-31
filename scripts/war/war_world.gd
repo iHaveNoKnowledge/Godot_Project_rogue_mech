@@ -90,15 +90,44 @@ func _add_hq_shield(base: Node) -> void:
 
 func _spawn_player_mecha() -> void:
 	var mecha = get_node_or_null("Mecha")
+	var is_placeholder = mecha != null and mecha.get_node_or_null("PartMeshManager") == null
+	if is_placeholder:
+		mecha.queue_free()
+		mecha = null
 	if mecha == null:
 		var scene = load("res://scenes/mecha/mecha_base.tscn")
 		if scene:
 			mecha = scene.instantiate()
 			mecha.name = "Mecha"
 			add_child(mecha)
-			mecha.position = Vector3(0, 2, -750)
+			mecha.position = Vector3(0, 3, -750)
+			mecha.add_to_group("mecha")
 	if mecha and mecha.has_method("set_team"):
 		mecha.set_team("friendly")
+	_ensure_war_camera(mecha)
+
+
+func _ensure_war_camera(mecha: Node) -> void:
+	if mecha == null:
+		return
+	if get_node_or_null("WarCamera") != null:
+		return
+	# Simple third-person camera behind mecha (reuse PhantomCamera logic simplified)
+	var cam = Camera3D.new()
+	cam.name = "WarCamera"
+	cam.current = true
+	cam.fov = 75.0
+	cam.position = Vector3(0, 6, 12)
+	# look_at needs tree, defer
+	cam.set_meta("target_pos", Vector3.ZERO)
+	# Attach as sibling of mecha, follow via script
+	add_child(cam)
+	var follow = Node.new()
+	follow.name = "CameraFollow"
+	follow.set_script(load("res://scripts/war/war_camera_follow.gd"))
+	add_child(follow)
+	if follow.has_method("setup"):
+		follow.setup(cam, mecha as Node3D)
 
 
 func _spawn_ore_nodes() -> void:

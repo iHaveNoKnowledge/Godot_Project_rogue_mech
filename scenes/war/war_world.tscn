@@ -29,7 +29,5 @@ collision_layer = 2
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Ground"]
 shape = SubResource("1")
 
-[node name="Mecha" type="CharacterBody3D" parent="."]
+[node name="MechaPlaceholder" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, -800)
-
-[node name="CameraRig" type="Node3D" parent="Mecha"]

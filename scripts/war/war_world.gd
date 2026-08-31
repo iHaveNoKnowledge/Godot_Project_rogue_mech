@@ -163,3 +163,8 @@ func _setup_hud() -> void:
 		hud.name = "WarHUD"
 		hud.set_script(hud_script)
 		add_child(hud)
+	var minimap = WarMinimap.new()
+	add_child(minimap)
+	var ambush = WarConvoyAmbush.new()
+	ambush.name = "ConvoyAmbush"
+	add_child(ambush)

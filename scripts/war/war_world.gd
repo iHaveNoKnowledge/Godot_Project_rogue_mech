@@ -14,6 +14,7 @@ func _ready() -> void:
 	_spawn_data_events()
 	_spawn_carrier()
 	_spawn_merchant_manager()
+	_decorate_phase2()
 	_spawn_player_mecha()
 	_setup_hud()
 
@@ -145,6 +146,13 @@ func _spawn_merchant_manager() -> void:
 	var prod = WarProductionQueue.new()
 	prod.name = "ProductionQueue"
 	add_child(prod)
+
+
+func _decorate_phase2() -> void:
+	WarMapGenerator.decorate_highland(self, Vector3(500, 5, 500))
+	WarMapGenerator.decorate_underground_tunnel(self, Vector3(-500, -5, -500))
+	WarMapGenerator.spawn_weapon_cache(self, Vector3(300, 1, -300))
+	WarMapGenerator.spawn_weapon_cache(self, Vector3(-350, 1, 350))
 
 
 func _setup_hud() -> void:

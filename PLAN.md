@@ -110,7 +110,15 @@ Roll Table (วิจัย 1 Data):
 
 ---
 
-## 7.6 นักบินสำคัญ + 6 Part เดิม + Stunt/EMP เฉพาะ Reactor
+## 7.6 ศัตรูพังดรอป Part/อาวุธ + เรียกรถจากฐานสาขาไปขนกลับ
+
+* **ดรอป:** ศัตรูหุ่นพัง (`HP 0` + ระเบิด) มีโอกาส 35-50% ทิ้ง `Part` หรือ `WeaponPart` กลางสนาม (reuse `LootSystem` `loot_system.gd` + `ScavengerSystem`) วางเป็น `Salvage Marker` บน minimap
+* **เรียกขน:** กดเมนู `เรียกเก็บ` → เลือกฐานสาขา (`Main Base` / `Forward Storage` / `Carrier` ใกล้สุด) → ส่ง `Truck`/`Humvee` AI วิ่งไปเก็บ (reuse `convoy_escort.gd` + `vehicle_controller.gd` NavAgent) ถึงจุดแล้วเก็บเข้าคลังฐานนั้นทันที — เลือกฐานไกล = ช้าแต่ปลอดภัย, ฐานใกล้ = เร็วแต่เสี่ยงโดนดัก
+* ถ้าไม่เรียก รถไม่มา ของค้างกลางสนามให้ศัตรูชิงได้เหมือน Module/หุ่นเทพ
+
+---
+
+## 7.7 นักบินสำคัญ + 6 Part เดิม + Stunt/EMP เฉพาะ Reactor
 
 * **หุ่น = 6 Part เดิม** `head/body/arm_left/arm_right/leg_left/leg_right` `global_data.gd:90` + `part_mesh_manager.gd:335` — War Mode ไม่เปลี่ยนโครงสร้างนี้
 * **นักบินสำคัญ:** หุ่นพัง (`HP 0`) → ระเบิดใน 3-4 วิ ถ้าดีด `G` (`mecha_eject.gd` `GameManager.State.EJECT` `game_manager.gd:162`) ไม่ทัน = นักบินตาย → `Respawn` เลือกฐานฝั่งเราได้ (`Main Base` หรือ `Carrier` ที่จอดในเขตเรา) — reuse `pilot_state.gd` + `hangar_state.gd` เลือกจุดเกิด
@@ -151,6 +159,7 @@ scripts/war/
   war_production_queue.gd     คิวคราฟท์/ซ่อมใช้เวลา 60-180วิ + เร่งได้
   war_merchant_system.gd      พ่อค้า Part พร้อมใช้ สุ่มเกิด 2-3นาที (ต่อยอด city_shop_ui.gd)
   capture_wreckage_system.gd  ซากหุ่นเทพชิงได้ (ต่อยอด scavenger_system.gd)
+  war_salvage_dispatch.gd     ศัตรูดรอป Part/อาวุธ + เรียกรถจากฐานสาขาไปเก็บ (ต่อยอด loot_system.gd + convoy_escort.gd)
   war_respawn_system.gd       ตายเลือกฐานเกิด + หุ่นจอดที่เดิม + โดนขโมยได้
   pilot_survival_system.gd    หุ่นระเบิด 3วิ ต้องดีดทัน / EMP เฉพาะ Reactor
   stunt_weapon_system.gd      อาวุธ Stunt 2-4วิ เฉพาะ Reactor (ต่อยอด ewar_system.gd)
@@ -181,7 +190,7 @@ Reuse 100%: `PartMeshManager`, `RepairSystem`, `Hangar`, `PilotSystem`, `Faction
 * [ ] Data ครบ 6 แบบ + สูตรเต็มตัว/Mass Product + หุ่นทั้งคัน 2%
 * [ ] Backpack 3 แบบ + อาวุธไหล่ Q/E + โล่ไหล่
 * [ ] เตาพิเศษ Ancient Reactor + น้ำมันถังพกเติมกลางสนาม
-* [ ] I Inventory เต็ม + ระบบชิงซากหุ่นเทพ
+* [ ] I Inventory เต็ม + ระบบชิงซากหุ่นเทพ + ระบบเรียกรถขนซากจากฐานสาขา
 
 **Phase 3 — Polish**
 * [ ] Minimap + Fog of War + Convoy ถูกปล้นระหว่างขน

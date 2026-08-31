@@ -1,0 +1,105 @@
+extends Node3D
+
+## War World MVP — 2000x2000 flat terrain + 2 Main Bases (fortified).
+## Phase 1 skeleton: no chunk loader yet, just ground + bases + spawn.
+
+var _bases_spawned: bool = false
+
+
+func _ready() -> void:
+	_setup_ground()
+	_spawn_bases()
+	_spawn_player_mecha()
+	_setup_hud()
+
+
+func _setup_ground() -> void:
+	var ground = get_node_or_null("Ground")
+	if ground == null:
+		ground = StaticBody3D.new()
+		ground.name = "Ground"
+		ground.collision_layer = 2
+		add_child(ground)
+		var col = CollisionShape3D.new()
+		var shape = BoxShape3D.new()
+		shape.size = Vector3(2000, 1, 2000)
+		col.shape = shape
+		ground.add_child(col)
+		var mi = MeshInstance3D.new()
+		var pm = PlaneMesh.new()
+		pm.size = Vector2(2000, 2000)
+		mi.mesh = pm
+		var mat = StandardMaterial3D.new()
+		mat.albedo_color = Color(0.35, 0.38, 0.32)
+		mat.roughness = 0.95
+		mi.material_override = mat
+		ground.add_child(mi)
+
+
+func _spawn_bases() -> void:
+	if _bases_spawned:
+		return
+	_bases_spawned = true
+	var fb_script = load("res://scripts/arena/forward_base.gd")
+	# Friendly Main Base (south)
+	var friendly = Node3D.new()
+	friendly.name = "FriendlyMainBase"
+	friendly.set_script(fb_script)
+	add_child(friendly)
+	if friendly.has_method("spawn_base"):
+		friendly.spawn_base("fortified", Vector3(0, 0, -800))
+		friendly.set_meta("team", "friendly")
+	# Enemy Main Base (north) with HQ Barrier Shield (90% until within 100m or 10min)
+	var enemy = Node3D.new()
+	enemy.name = "EnemyMainBase"
+	enemy.set_script(fb_script)
+	add_child(enemy)
+	if enemy.has_method("spawn_base"):
+		enemy.spawn_base("fortified", Vector3(0, 0, 800))
+		enemy.set_meta("team", "enemy")
+		_add_hq_shield(enemy)
+
+
+func _add_hq_shield(base: Node) -> void:
+	var shield = Area3D.new()
+	shield.name = "HQBarrierShield"
+	shield.collision_layer = 0
+	shield.collision_mask = 0
+	var col = CollisionShape3D.new()
+	var sphere = SphereShape3D.new()
+	sphere.radius = 100.0
+	col.shape = sphere
+	shield.add_child(col)
+	shield.set_meta("shield_active", true)
+	shield.set_meta("shield_reduction", 0.9)
+	# Deactivate after 10 minutes
+	var timer = Timer.new()
+	timer.wait_time = 600.0
+	timer.one_shot = true
+	timer.timeout.connect(func(): shield.set_meta("shield_active", false))
+	shield.add_child(timer)
+	timer.start()
+	base.add_child(shield)
+
+
+func _spawn_player_mecha() -> void:
+	var mecha = get_node_or_null("Mecha")
+	if mecha == null:
+		var scene = load("res://scenes/mecha/mecha_base.tscn")
+		if scene:
+			mecha = scene.instantiate()
+			mecha.name = "Mecha"
+			add_child(mecha)
+			mecha.position = Vector3(0, 2, -750)
+	if mecha and mecha.has_method("set_team"):
+		mecha.set_team("friendly")
+
+
+func _setup_hud() -> void:
+	# Tab/I handled by WarHUD overlay
+	var hud_script = load("res://scripts/war/war_hud.gd")
+	if hud_script:
+		var hud = CanvasLayer.new()
+		hud.name = "WarHUD"
+		hud.set_script(hud_script)
+		add_child(hud)

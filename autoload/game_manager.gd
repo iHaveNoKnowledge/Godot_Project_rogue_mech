@@ -1,6 +1,6 @@
 extends Node
 
-enum State { MENU, BOARD, COMBAT, SAFEHOUSE, HANGAR, EJECT, PILOT }
+enum State { MENU, BOARD, COMBAT, SAFEHOUSE, HANGAR, EJECT, PILOT, WAR }
 
 var current_state: State = State.MENU
 
@@ -160,6 +160,24 @@ func enter_hangar() -> void:
 
 
 func enter_eject() -> void:
+	transition_to(State.EJECT)
+
+
+func enter_war() -> void:
+	if current_state == State.HANGAR:
+		HangarManager.save_active()
+	get_tree().call_deferred("change_scene_to_file", "res://scenes/war/war_world.tscn")
+	transition_to(State.WAR)
+	AudioManager.play_combat_music("war")
+
+
+func return_to_menu() -> void:
+	get_tree().call_deferred("change_scene_to_file", "res://scenes/main_menu/main_menu.tscn")
+	transition_to(State.MENU)
+	AudioManager.play_menu_music()
+
+
+func enter_eject_war() -> void:
 	transition_to(State.EJECT)
 
 

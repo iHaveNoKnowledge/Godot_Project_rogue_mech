@@ -81,10 +81,15 @@ func _create_ui() -> void:
 	hint.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Medium.ttf"))
 	vbox.add_child(hint)
 
-	# New Game — primary (inverted on hover)
-	var new_game_btn = _make_button("NEW  GAME", true)
-	new_game_btn.pressed.connect(_on_new_game_pressed)
-	vbox.add_child(new_game_btn)
+	# Campaign — Roguelike Board (existing)
+	var campaign_btn = _make_button("CAMPAIGN  //  BOARD", true)
+	campaign_btn.pressed.connect(_on_new_game_pressed)
+	vbox.add_child(campaign_btn)
+
+	# War Mode — Battlefield+Red Alert (new)
+	var war_btn = _make_button("WAR  MODE  //  BATTLEFIELD", false)
+	war_btn.pressed.connect(_on_war_mode_pressed)
+	vbox.add_child(war_btn)
 
 	# Continue — secondary
 	var continue_btn = _make_button("CONTINUE", false)
@@ -284,6 +289,11 @@ func _on_theme_chosen(theme_id: String) -> void:
 	GlobalData.narrative.theme_id = theme_id
 	RunStartSystem.roll_random_start()
 	GameManager.enter_board()
+
+
+func _on_war_mode_pressed() -> void:
+	GlobalData.reset_run_data()
+	GameManager.enter_war()
 
 
 func _on_continue() -> void:

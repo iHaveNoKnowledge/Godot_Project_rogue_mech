@@ -1,6 +1,7 @@
-# WAR MODE — Battlefield + Red Alert Hybrid (No Board) — Master Plan
+# WAR MODE — Battlefield + Red Alert Hybrid — Master Plan (โหมดใหม่ คู่กับโหมดเดิม)
 
-> ตัด `Board` ทิ้ง เปิดมาเป็น `War Map` ใหญ่ 2 ฝั่งเลย — หุ่นธรรมดาเริ่ม → เก็บ Data/แร่ → วิจัย → สร้างหุ่นเทพ/Mass Product
+> **ระบบเดิมเก็บไว้ทั้งหมด** — `Board` (Roguelike Convoy 25x25) ยังอยู่เหมือนเดิม `board_system.gd` / `game_manager.gd:State.BOARD`
+> `War Mode` เป็นโหมดใหม่เลือกที่ Main Menu → เปิดเป็น `War Map` ใหญ่ 2 ฝั่ง — หุ่นธรรมดาเริ่ม → เก็บ Data/แร่ → วิจัย → สร้างหุ่นเทพ/Mass Product
 > Engine: Godot 4.6.2.stable, reuse ระบบเดิม 70% (Hangar/Assembly/Repair/Pilot/Faction)
 
 ---
@@ -9,19 +10,19 @@
 
 **Battlefield Conquest + Red Alert Harvest** ไม่ใช่ Dota lane
 
-* แมพเดียว 2000x2000 กึ่ง open world หลายระดับ (ที่สูง/พื้น/อุโมงค์ใต้ดิน) ซ่อนทรัพยากร
+* **2 โหมดคู่กัน:** `Campaign (Board)` เดิมยังเล่นได้ปกติ + `War Mode` แมพเดียว 2000x2000 กึ่ง open world หลายระดับ (ที่สูง/พื้น/อุโมงค์ใต้ดิน) ซ่อนทรัพยากร
 * ต้อง **ขนส่ง (Logistic)** แร่/น้ำมันกลับ Storage ไม่ได้เข้าคลังทันที
 * หา **Data** ตาม Event Area แบกกลับฐานวิจัย → สุ่มได้ Part เทพ / Frame เทพ / Module / สูตรเต็มตัว / หุ่นทั้งคัน
 * มี **Module/Backpack/อาวุธไหล่ Q/E** ถอดได้ ตกให้ชิงได้ — หุ่นเทพตายกลางสนามกลายเป็นศึกชิงซาก
 * รถ **Humvee / Truck / Tank / Carrier 2 หุ่น** + คลังอาวุธเคลื่อนที่ เปลี่ยนปืนกลางสนามได้
-* กด **Tab ดูทรัพยากร / I ดู Inventory**
+* กด **Tab ดูทรัพยากร / I ดู Inventory** (ใช้ได้ทั้ง 2 โหมด แต่ War Mode มีทรัพยากรเพิ่ม)
 
 ---
 
 ## 2. แมพ — ซับซ้อน ซ่อนของ
 
 ### 2.1 โครงสร้าง
-* `scenes/war/war_world.tscn` แผ่นเดียว (แทน `board/game_board.tscn`)
+* `scenes/war/war_world.tscn` แผ่นเดียว (เพิ่มใหม่ ไม่แทน `board/game_board.tscn` เดิม)
 * Terrain เดียวด้วย `arena_generator.gd:333 _add_terrain_mesh()` + `HeightMapShape3D` `arena_generator.gd:755`
 * แบ่ง 3 โซนตาม GDD Sub-Zone: `HIGHLAND` (เนินสูง sniper) / `GROUND` (crossroads) / `UNDERGROUND` (อุโมงค์ BoxMesh เพดาน + SpotLight)
 * ซ่อน `Ore Node` 6-8 จุด + `Oil Well` 3 จุด + `Weapon Cache` 2 จุด ในซอกหุบ/ใต้ดิน — มองจากที่สูงไม่เห็น ต้องลาดตระเวนด้วย Humvee
@@ -111,8 +112,11 @@ Roll Table (วิจัย 1 Data):
 ## 9. สถาปัตยกรรมใหม่
 
 ```
-GameManager.State.WAR (เพิ่ม `autoload/game_manager.gd:3` แทน BOARD)
-  enter_war() → war_world.tscn
+GameManager.State.BOARD (เดิม) + GameManager.State.WAR (ใหม่คู่กัน)
+  Main Menu → [CAMPAIGN (Board)] / [WAR MODE]  → เลือกโหมด
+  enter_board() → game_board.tscn (เดิม)
+  enter_war()   → war_world.tscn (ใหม่)
+  Hangar/Repair/Pilot/Faction ใช้ร่วมกันทั้ง 2 โหมด
 
 scenes/war/
   war_world.tscn              แมพใหญ่ + Main Base 2 ฝั่ง

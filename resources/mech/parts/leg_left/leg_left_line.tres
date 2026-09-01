@@ -1,0 +1,14 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+[ext_resource type="Script" path="res://resources/mech/armor_part.gd" id="1"]
+[ext_resource type="PackedScene" uid="" path="res://scenes/mecha/parts/leg_left/leg_left_line.tscn" id="2"]
+[resource]
+script = ExtResource("1")
+part_name = "Line-Issue Leg Left"
+slot_id = "leg_left"
+mesh_scene = ExtResource("2")
+max_hp = 28.0
+max_frame_hp = 28.0
+weight = 5.0
+armor_class = 16.0
+break_threshold = 0.3
+part_color = Color(0.6, 0.65, 0.7, 1)

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+[ext_resource type="Script" path="res://resources/mech/armor_part.gd" id="1"]
+[ext_resource type="PackedScene" uid="" path="res://scenes/mecha/parts/arm_left/arm_left_strike.tscn" id="2"]
+[resource]
+script = ExtResource("1")
+part_name = "Strike-Apex Arm Left"
+slot_id = "arm_left"
+mesh_scene = ExtResource("2")
+max_hp = 22.0
+max_frame_hp = 22.0
+weight = 3.0
+armor_class = 12.0
+break_threshold = 0.3
+part_color = Color(0.85, 0.85, 0.9, 1)

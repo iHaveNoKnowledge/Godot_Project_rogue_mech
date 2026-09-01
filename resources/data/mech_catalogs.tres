@@ -36,7 +36,43 @@ armor_catalog = {
 "path": "res://resources/mech/parts/arm_left/arm_left_001.tres",
 "type": "Vagrant Wrap",
 "weight": 4.0
-}],
+, {
+"armor": 16.0,
+"color": Color(0.6, 0.65, 0.7, 1),
+"hp": 28.0,
+"id": "arm_left_line",
+"name": "Line-Issue Arm Left",
+"path": "res://resources/mech/parts/arm_left/arm_left_line.tres",
+"type": "Standard Armor",
+"weight": 5.0
+}, {
+"armor": 28.0,
+"color": Color(0.45, 0.38, 0.30, 1),
+"hp": 45.0,
+"id": "arm_left_iron",
+"name": "Iron-Vanguard Arm Left",
+"path": "res://resources/mech/parts/arm_left/arm_left_iron.tres",
+"type": "Heavy Armor",
+"weight": 9.0
+}, {
+"armor": 12.0,
+"color": Color(0.85, 0.85, 0.9, 1),
+"hp": 22.0,
+"id": "arm_left_strike",
+"name": "Strike-Apex Arm Left",
+"path": "res://resources/mech/parts/arm_left/arm_left_strike.tres",
+"type": "Light Plating",
+"weight": 3.0
+}, {
+"armor": 35.0,
+"color": Color(0.9, 0.2, 0.25, 1),
+"hp": 55.0,
+"id": "arm_left_valkyrion",
+"name": "Valkyrion Prime Arm Left",
+"path": "res://resources/mech/parts/arm_left/arm_left_valkyrion.tres",
+"type": "Valkyrion Armor",
+"weight": 6.0
+}}],
 "arm_right": [{
 "armor": 15.0,
 "color": Color(0.9, 0.9, 0.95, 1),
@@ -68,7 +104,43 @@ armor_catalog = {
 "path": "res://resources/mech/parts/arm_right/arm_right_001.tres",
 "type": "Vagrant Wrap",
 "weight": 4.0
-}],
+, {
+"armor": 16.0,
+"color": Color(0.6, 0.65, 0.7, 1),
+"hp": 28.0,
+"id": "arm_right_line",
+"name": "Line-Issue Arm Right",
+"path": "res://resources/mech/parts/arm_right/arm_right_line.tres",
+"type": "Standard Armor",
+"weight": 5.0
+}, {
+"armor": 28.0,
+"color": Color(0.45, 0.38, 0.30, 1),
+"hp": 45.0,
+"id": "arm_right_iron",
+"name": "Iron-Vanguard Arm Right",
+"path": "res://resources/mech/parts/arm_right/arm_right_iron.tres",
+"type": "Heavy Armor",
+"weight": 9.0
+}, {
+"armor": 12.0,
+"color": Color(0.85, 0.85, 0.9, 1),
+"hp": 22.0,
+"id": "arm_right_strike",
+"name": "Strike-Apex Arm Right",
+"path": "res://resources/mech/parts/arm_right/arm_right_strike.tres",
+"type": "Light Plating",
+"weight": 3.0
+}, {
+"armor": 35.0,
+"color": Color(0.9, 0.2, 0.25, 1),
+"hp": 55.0,
+"id": "arm_right_valkyrion",
+"name": "Valkyrion Prime Arm Right",
+"path": "res://resources/mech/parts/arm_right/arm_right_valkyrion.tres",
+"type": "Valkyrion Armor",
+"weight": 6.0
+}}],
 "body": [{
 "armor": 40.0,
 "color": Color(0.9, 0.9, 0.95, 1),
@@ -110,7 +182,43 @@ armor_catalog = {
 "path": "res://resources/mech/parts/body/body_001.tres",
 "type": "Vagrant Cloak",
 "weight": 11.0
-}],
+, {
+"armor": 16.0,
+"color": Color(0.6, 0.65, 0.7, 1),
+"hp": 28.0,
+"id": "body_line",
+"name": "Line-Issue Body",
+"path": "res://resources/mech/parts/body/body_line.tres",
+"type": "Standard Armor",
+"weight": 5.0
+}, {
+"armor": 28.0,
+"color": Color(0.45, 0.38, 0.30, 1),
+"hp": 45.0,
+"id": "body_iron",
+"name": "Iron-Vanguard Body",
+"path": "res://resources/mech/parts/body/body_iron.tres",
+"type": "Heavy Armor",
+"weight": 9.0
+}, {
+"armor": 12.0,
+"color": Color(0.85, 0.85, 0.9, 1),
+"hp": 22.0,
+"id": "body_strike",
+"name": "Strike-Apex Body",
+"path": "res://resources/mech/parts/body/body_strike.tres",
+"type": "Light Plating",
+"weight": 3.0
+}, {
+"armor": 35.0,
+"color": Color(0.9, 0.2, 0.25, 1),
+"hp": 55.0,
+"id": "body_valkyrion",
+"name": "Valkyrion Prime Body",
+"path": "res://resources/mech/parts/body/body_valkyrion.tres",
+"type": "Valkyrion Armor",
+"weight": 6.0
+}}],
 "head": [{
 "armor": 20.0,
 "color": Color(0.9, 0.9, 0.95, 1),
@@ -152,7 +260,43 @@ armor_catalog = {
 "path": "res://resources/mech/parts/head/head_001.tres",
 "type": "Vagrant Cloak",
 "weight": 2.2
-}],
+, {
+"armor": 16.0,
+"color": Color(0.6, 0.65, 0.7, 1),
+"hp": 28.0,
+"id": "head_line",
+"name": "Line-Issue Head",
+"path": "res://resources/mech/parts/head/head_line.tres",
+"type": "Standard Armor",
+"weight": 5.0
+}, {
+"armor": 28.0,
+"color": Color(0.45, 0.38, 0.30, 1),
+"hp": 45.0,
+"id": "head_iron",
+"name": "Iron-Vanguard Head",
+"path": "res://resources/mech/parts/head/head_iron.tres",
+"type": "Heavy Armor",
+"weight": 9.0
+}, {
+"armor": 12.0,
+"color": Color(0.85, 0.85, 0.9, 1),
+"hp": 22.0,
+"id": "head_strike",
+"name": "Strike-Apex Head",
+"path": "res://resources/mech/parts/head/head_strike.tres",
+"type": "Light Plating",
+"weight": 3.0
+}, {
+"armor": 35.0,
+"color": Color(0.9, 0.2, 0.25, 1),
+"hp": 55.0,
+"id": "head_valkyrion",
+"name": "Valkyrion Prime Head",
+"path": "res://resources/mech/parts/head/head_valkyrion.tres",
+"type": "Valkyrion Armor",
+"weight": 6.0
+}}],
 "leg_left": [{
 "armor": 20.0,
 "color": Color(0.9, 0.9, 0.95, 1),
@@ -184,7 +328,43 @@ armor_catalog = {
 "path": "res://resources/mech/parts/leg_left/leg_left_001.tres",
 "type": "Vagrant Vector",
 "weight": 5.5
-}],
+, {
+"armor": 16.0,
+"color": Color(0.6, 0.65, 0.7, 1),
+"hp": 28.0,
+"id": "leg_left_line",
+"name": "Line-Issue Leg Left",
+"path": "res://resources/mech/parts/leg_left/leg_left_line.tres",
+"type": "Standard Armor",
+"weight": 5.0
+}, {
+"armor": 28.0,
+"color": Color(0.45, 0.38, 0.30, 1),
+"hp": 45.0,
+"id": "leg_left_iron",
+"name": "Iron-Vanguard Leg Left",
+"path": "res://resources/mech/parts/leg_left/leg_left_iron.tres",
+"type": "Heavy Armor",
+"weight": 9.0
+}, {
+"armor": 12.0,
+"color": Color(0.85, 0.85, 0.9, 1),
+"hp": 22.0,
+"id": "leg_left_strike",
+"name": "Strike-Apex Leg Left",
+"path": "res://resources/mech/parts/leg_left/leg_left_strike.tres",
+"type": "Light Plating",
+"weight": 3.0
+}, {
+"armor": 35.0,
+"color": Color(0.9, 0.2, 0.25, 1),
+"hp": 55.0,
+"id": "leg_left_valkyrion",
+"name": "Valkyrion Prime Leg Left",
+"path": "res://resources/mech/parts/leg_left/leg_left_valkyrion.tres",
+"type": "Valkyrion Armor",
+"weight": 6.0
+}}],
 "leg_right": [{
 "armor": 20.0,
 "color": Color(0.9, 0.9, 0.95, 1),
@@ -216,7 +396,43 @@ armor_catalog = {
 "path": "res://resources/mech/parts/leg_right/leg_right_001.tres",
 "type": "Vagrant Vector",
 "weight": 5.5
-}],
+, {
+"armor": 16.0,
+"color": Color(0.6, 0.65, 0.7, 1),
+"hp": 28.0,
+"id": "leg_right_line",
+"name": "Line-Issue Leg Right",
+"path": "res://resources/mech/parts/leg_right/leg_right_line.tres",
+"type": "Standard Armor",
+"weight": 5.0
+}, {
+"armor": 28.0,
+"color": Color(0.45, 0.38, 0.30, 1),
+"hp": 45.0,
+"id": "leg_right_iron",
+"name": "Iron-Vanguard Leg Right",
+"path": "res://resources/mech/parts/leg_right/leg_right_iron.tres",
+"type": "Heavy Armor",
+"weight": 9.0
+}, {
+"armor": 12.0,
+"color": Color(0.85, 0.85, 0.9, 1),
+"hp": 22.0,
+"id": "leg_right_strike",
+"name": "Strike-Apex Leg Right",
+"path": "res://resources/mech/parts/leg_right/leg_right_strike.tres",
+"type": "Light Plating",
+"weight": 3.0
+}, {
+"armor": 35.0,
+"color": Color(0.9, 0.2, 0.25, 1),
+"hp": 55.0,
+"id": "leg_right_valkyrion",
+"name": "Valkyrion Prime Leg Right",
+"path": "res://resources/mech/parts/leg_right/leg_right_valkyrion.tres",
+"type": "Valkyrion Armor",
+"weight": 6.0
+}}],
 "weapon_left": [{
 "armor": 0.0,
 "hp": 0.0,

@@ -175,6 +175,16 @@ func _spawn_player_mecha() -> void:
 			mecha.add_to_group("mecha")
 	if mecha and mecha.has_method("set_team"):
 		mecha.set_team("friendly")
+	# Placeholder tier — Line-Issue เริ่มเกม (เดี๋ยวแทนด้วย .glb จริง)
+	var pmm = mecha.get_node_or_null("PartMeshManager")
+	if pmm and pmm.has_method("refresh_slots"):
+		# equip line tier for demo
+		for slot in GlobalData.MECHA_SLOTS:
+			var tid: String = WarFactionVisual.get_tier_ids("line").get(slot, "")
+			if tid != "":
+				var part = pmm.build_part_for_slot({"id": tid, "slot": slot})
+				pmm.initialize_slot(slot, part, false)
+		WarFactionVisual.apply_team_tint(mecha, "friendly")
 	_ensure_war_camera(mecha)
 
 

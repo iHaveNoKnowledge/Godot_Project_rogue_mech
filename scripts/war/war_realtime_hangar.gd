@@ -70,9 +70,9 @@ func _open_hangar(opener: Node) -> void:
 	_overlay.layer = 12
 	add_child(_overlay)
 	# Instantiate the real hangar UI (same as hangar_scene but as overlay, no scene cut)
-	var hangar_scene := load("res://scenes/ui/hangar_ui.tscn")
+	var hangar_scene = load("res://scenes/ui/hangar_ui.tscn")
 	if hangar_scene:
-		var hangar_ui := hangar_scene.instantiate()
+		var hangar_ui = hangar_scene.instantiate()
 		hangar_ui.name = "RealtimeHangarUI"
 		_overlay.add_child(hangar_ui)
 		# Ensure mouse is visible for UI interaction

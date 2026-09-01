@@ -2,10 +2,10 @@ extends Node3D
 
 const PilotLoadoutEditorScript = preload("res://scripts/ui/hangar/hangar_pilot_loadout_editor.gd")
 
-## 3D Hangar Garage Controller (Gundam Barbatos / Vidar Style)
+## 3D Hangar Garage Controller (Valkyrion Barbatos / Vidar Style)
 ## - Core Power comes from the Inner Frame (Alaya-Vijnana Skeleton) which can be upgraded with Reactor Levels.
 ## - Outer Armor Plating allows visual freedom & scavenged enemy armor patching (Zaku Green, Tank Grey, Crimson Ace).
-## - Live 3D Viewport Turntable renders mix-and-matched scavenger armor colors over the dark Gundam Inner Frame!
+## - Live 3D Viewport Turntable renders mix-and-matched scavenger armor colors over the dark Valkyrion Inner Frame!
 
 var root_control: Control
 var _bg_color: Color = Color(0.08, 0.08, 0.12, 0.85)

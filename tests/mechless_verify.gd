@@ -26,8 +26,8 @@ func _ready() -> void:
 	var aff := ThemeSystem.get_affiliation()
 	_check(aff.get("name", "") == "Fleet Soldier", "soldier affiliation name")
 	_check(bool(aff.get("mechless_retreat", false)), "soldier convoy can retreat pilot-only")
-	GlobalData.narrative.theme_id = "gundam_merc"
-	_check(not bool(ThemeSystem.get_affiliation().get("mechless_retreat", true)), "gundam heir has no transport to retreat with")
+	GlobalData.narrative.theme_id = "valkyrion_merc"
+	_check(not bool(ThemeSystem.get_affiliation().get("mechless_retreat", true)), "valkyrion heir has no transport to retreat with")
 	GlobalData.narrative.theme_id = "soldier"
 
 	# --- Remove the seed mech -> pilot-only mode ---

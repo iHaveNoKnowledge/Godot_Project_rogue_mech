@@ -132,11 +132,11 @@ func _verify_leg_power_scaling() -> void:
 	var strong_full: float = mech.jump_system._calculate_jump_velocity(Vector3.ZERO)
 	_check(strong_full > weak_full, "stronger leg frames jump higher (%.1f > %.1f)" % [strong_full, weak_full])
 
-	# A special gundam-class leg frame declaring its own jump_power leaps beyond standard curve
+	# A special valkyrion-class leg frame declaring its own jump_power leaps beyond standard curve
 	GlobalData.weapons.equipped_frames["leg_left"] = {"carry_bonus": 3.0, "jump_power": 25.0, "weight": 3.0}
 	GlobalData.weapons.equipped_frames["leg_right"] = {"carry_bonus": 3.0, "jump_power": 25.0, "weight": 3.0}
-	var gundam_full: float = mech.jump_system._calculate_jump_velocity(Vector3.ZERO)
-	_check(gundam_full > strong_full + 5.0, "a special frame's jump_power leaps higher than normal legs (%.1f > %.1f)" % [gundam_full, strong_full])
+	var valkyrion_full: float = mech.jump_system._calculate_jump_velocity(Vector3.ZERO)
+	_check(valkyrion_full > strong_full + 5.0, "a special frame's jump_power leaps higher than normal legs (%.1f > %.1f)" % [valkyrion_full, strong_full])
 
 	# Restore standard legs
 	GlobalData.weapons.equipped_frames["leg_left"] = {"carry_bonus": 6.0, "weight": 3.0}

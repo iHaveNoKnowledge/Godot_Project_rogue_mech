@@ -13,18 +13,18 @@
 
 - **Item 1 (BUG tile reset):** `destroy_enemy_base()` / `_enemy_base_completed()` ตั้ง `pending_enemy_base_tile_reset` ก่อนล้าง tile pos → `board_manager` เรียก `_clear_enemy_base_tile()` ตอน `_ready` + `move_to_tile` (set meta กลับเป็น `"combat"` + `_update_visual()`). เพิ่ม guard ใน `_process_tile_effect` ให้ raid เฉพาะเมื่อ `enemy_base_active` + pos ตรง node จริง ไม่งั้น = combat
 - **Item 2 (type_pool):** เอาออก `"enemy_base"` จาก `type_pool` ใน `board_generator.gd` → enemy_base เกิดจาก spy system อย่างเดียว
-- **Item 3 (counter-unit identity):** `_trigger_stalking_ace_ambush` แยกตัวตน — `special_ace` = heavy_full (HP 2.2), `gundam_copy` = tank_full (HP 2.6); reset `stalking_chance` แทน `ambush_probability` ที่ตายแล้ว
+- **Item 3 (counter-unit identity):** `_trigger_stalking_ace_ambush` แยกตัวตน — `special_ace` = heavy_full (HP 2.2), `valkyrion_copy` = tank_full (HP 2.6); reset `stalking_chance` แทน `ambush_probability` ที่ตายแล้ว
 - **Item 5 (tests):** เพิ่ม `_test_enemy_base_tile_reset` (destroy + completion reset), `_test_board_has_no_random_enemy_base`; เพิ่ม `_consume_enemy_special_unit()` ให้ consume `enemy_special_units` จริงหลังต่อสู้จบ — ผลเทสต์ 0 failed (106-107 passed ตาม outcome สุ่ม)
 
 ---
 
-## ✅ Phase 4 (Research & Blueprint) — ส่วนคราฟหุ่น gundam
+## ✅ Phase 4 (Research & Blueprint) — ส่วนคราฟหุ่น valkyrion
 
-- เพิ่ม gundam-tier armor ใน `mech_catalogs.tres` (ทุก 6 slot) พร้อม flag `blueprint_only: true` + `blueprint_id: "bp_gundam_armor"` → ไม่ดรอป/ไม่ขึ้น random start (`roll_random_start` เลือก index 0 = standard เท่านั้น)
+- เพิ่ม valkyrion-tier armor ใน `mech_catalogs.tres` (ทุก 6 slot) พร้อม flag `blueprint_only: true` + `blueprint_id: "bp_valkyrion_armor"` → ไม่ดรอป/ไม่ขึ้น random start (`roll_random_start` เลือก index 0 = standard เท่านั้น)
 - เพิ่ม `GlobalData.entry_is_blueprint_locked(entry)` — ถ้า `blueprint_only` และ blueprint ยังไม่ได้ research → lock; ใช้ gate `try_craft_armor_from_catalog()` (ปฏิเสธตอน lock)
 - Gate crafting/equip ใน hangar: craft window แสดง `[BLUEPRINT]` + ปุ่ม "RESEARCH TO UNLOCK" disabled; `_equip_part_to_slot` + `_craft_armor_from_template` ตรวจ blueprint ก่อน
 - `_apply_research_reward` ครอบคลุม `armor/frame` = research unlock สะท้อนผ่าน `research_unlocked` → unlock freely
-- Test ใหม่ `_test_blueprint_gated_gundam_armor`: lock เมื่อยังไม่ research, refuse craft, random start ไม่ให้ gundam part, research แล้ว craft ได้
+- Test ใหม่ `_test_blueprint_gated_valkyrion_armor`: lock เมื่อยังไม่ research, refuse craft, random start ไม่ให้ valkyrion part, research แล้ว craft ได้
 
 ---
 

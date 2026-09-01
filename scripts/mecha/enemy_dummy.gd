@@ -293,7 +293,7 @@ func _ensure_slot_nodes() -> void:
 # archetype's faction color so each enemy variety remains visually distinct.
 # Durability tiers follow the archetype: Heavy gets the bulkiest non-blueprint
 # plates/frames (so its HP matches its 1.6x silhouette), faster archetypes stay
-# light. Blueprint-only tiers (Gundam etc.) are never worn by grunts.
+# light. Blueprint-only tiers (Valkyrion etc.) are never worn by grunts.
 # If pilot_data carries a canonical mech_loadout (from the board fleet roster),
 # that loadout is the single source of truth (WYSIWYG) and is returned directly.
 func _enemy_loadout() -> Dictionary:
@@ -353,15 +353,15 @@ func _enemy_loadout() -> Dictionary:
 	return loadout
 
 
-# Blueprint-only catalog entries (Gundam tier) must never be worn by grunts.
+# Blueprint-only catalog entries (Valkyrion tier) must never be worn by grunts.
 # Armor carries an explicit `blueprint_only` flag; frames mark the tier via the
 # `type` field instead, so detect it by name.
 func _is_blueprint_frame(entry: Dictionary) -> bool:
-	return str(entry.get("type", "")).contains("Gundam")
+	return str(entry.get("type", "")).contains("Valkyrion")
 
 
 # Frame durability tier per archetype. frame_catalog[slot] is ordered
-# [standard, gundam, medium, heavy]; the Gundam tier is filtered out above,
+# [standard, valkyrion, medium, heavy]; the Valkyrion tier is filtered out above,
 # leaving [standard, medium, heavy] to index into.
 func _archetype_frame_index() -> int:
 	match archetype:

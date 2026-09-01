@@ -2234,10 +2234,10 @@ func _build_enemy_base_completed_event() -> Dictionary:
 			}
 		_:
 			return {
-				"name": "GUNDAM COPY FIELDED",
+				"name": "VALKYRION COPY FIELDED",
 				"effect": "none",
 				"amount": 0,
-				"desc": "The enemy research base completed! They have produced a copy of your gundam-class mech. It fights with your own tech.",
+				"desc": "The enemy research base completed! They have produced a copy of your valkyrion-class mech. It fights with your own tech.",
 			}
 
 

@@ -2,7 +2,7 @@ extends RefCounted
 class_name WarDeploymentManager
 
 ## Deploy Cap + Stock Cooldown — per PLAN.md 6.2
-## แยกจาก war_god_mech_system.gd (ชั่วคราว) มาเป็นไฟล์เดี่ยว
+## แยกจาก war_valkyrion_system.gd (ชั่วคราว) มาเป็นไฟล์เดี่ยว
 ## Caps: Line 5/5, Strike 3/3, Iron 3/3, Valkyrion 1/1
 ## Stock Respawn: พังแล้วติด cooldown เติมสต็อก (Valkyrion 3-5 นาที)
 

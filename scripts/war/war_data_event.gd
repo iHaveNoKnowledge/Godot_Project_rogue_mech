@@ -95,7 +95,7 @@ func deliver_to_base(base: Node, carrier: Node) -> void:
 
 
 func _grant_reward(dtype: String, carrier: Node, base: Node) -> void:
-	var rolled = WarGodMechSystem.roll_data_reward() if dtype == "part" else dtype
+	var rolled = WarValkyrionSystem.roll_data_reward() if dtype == "part" else dtype
 	match rolled:
 		"part":
 			var entry = GlobalData.armor_catalog.get("body", [])[0] if not GlobalData.armor_catalog.is_empty() else {}
@@ -114,11 +114,11 @@ func _grant_reward(dtype: String, carrier: Node, base: Node) -> void:
 			if ResourceLoader.exists(wpath):
 				GlobalData.weapons.weapon_inventory.append({"path": wpath, "uid": "war_%d" % randi()})
 		"full_blueprint":
-			WarGodMechSystem.grant_blueprint(carrier)
+			WarValkyrionSystem.grant_blueprint(carrier)
 		"whole_mech":
 			var parent = base.get_parent() if base else carrier.get_parent()
 			if parent:
-				WarGodMechSystem.grant_whole_mech(parent, carrier.global_position + Vector3(5, 0, 0))
+				WarValkyrionSystem.grant_whole_mech(parent, carrier.global_position + Vector3(5, 0, 0))
 	GlobalData.save_run()
 	if base:
 		base.set_meta("last_research", rolled)

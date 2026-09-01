@@ -16,11 +16,11 @@ var _selected_color: Color = Color(0.25, 0.40, 0.60)
 var _original_color: Color = Color(0.25, 0.40, 0.60)
 var _history: Array[Color] = []
 
-# Expanded military palette — 16 swatches covering Gundam / Zaku / Ace tones
+# Expanded military palette — 16 swatches covering Valkyrion / Zaku / Ace tones
 const PALETTE: Array[Color] = [
 	Color(0.25, 0.40, 0.60), # Navy Blue
 	Color(0.80, 0.20, 0.20), # Crimson Red
-	Color(0.90, 0.90, 0.95), # Gundam White
+	Color(0.90, 0.90, 0.95), # Valkyrion White
 	Color(0.20, 0.65, 0.35), # Zaku Green
 	Color(0.85, 0.70, 0.20), # Gold Trim
 	Color(0.20, 0.22, 0.26), # Dark Steel

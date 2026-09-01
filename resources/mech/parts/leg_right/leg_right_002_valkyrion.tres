@@ -4,11 +4,11 @@
 
 [resource]
 script = ExtResource("1")
-part_name = "Gundam Reactive Shoulder Plate (R)"
-slot_id = "arm_right"
-max_hp = 40.0
-max_frame_hp = 25.0
-weight = 5.0
-armor_class = 30.0
+part_name = "Valkyrion Reactive Leg Guard (R)"
+slot_id = "leg_right"
+max_hp = 55.0
+max_frame_hp = 30.0
+weight = 7.0
+armor_class = 35.0
 break_threshold = 0.3
 part_color = Color(0.9, 0.2, 0.25, 1)

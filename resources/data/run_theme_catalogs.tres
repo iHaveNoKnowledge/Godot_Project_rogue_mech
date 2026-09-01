@@ -53,7 +53,7 @@ themes = [{
 "credits": [100, 200],
 "data_cores": [0, 1],
 "part_tier_weights": {
-"gundam": 5,
+"valkyrion": 5,
 "heavy": 10,
 "medium": 25,
 "standard": 60
@@ -63,7 +63,7 @@ themes = [{
 }
 }, {
 "ending": {
-"boss_waves": "gundam_merc",
+"boss_waves": "valkyrion_merc",
 "defeat_text": "They hunted you down like a war machine that outlived its purpose. The family name ends here.",
 "name": "Hunt for the Heir",
 "victory_text": "You out-flew every ace they sent and carved your name into the sky. The world now knows what your family's machine can do."
@@ -71,7 +71,7 @@ themes = [{
 "events": ["rebel_hideout", "fellow_rebels", "bounty_hunters", "underground_respect"],
 "affiliation": {
 "mechless_retreat": false,
-"name": "Gundam Heir",
+"name": "Valkyrion Heir",
 "transport": "None — you fly solo",
 "transport_desc": "No backup transport. Lose your machine and the hunt is over."
 },
@@ -92,8 +92,8 @@ themes = [{
 },
 "style": "squad"
 },
-"id": "gundam_merc",
-"name": "Gundam Heir",
+"id": "valkyrion_merc",
+"name": "Valkyrion Heir",
 "start": {
 "allies": {
 "max": 1,
@@ -110,7 +110,7 @@ themes = [{
 "credits": [50, 100],
 "data_cores": [1, 2],
 "part_tier_weights": {
-"gundam": 55,
+"valkyrion": 55,
 "heavy": 15,
 "medium": 20,
 "standard": 10
@@ -167,7 +167,7 @@ themes = [{
 "credits": [60, 120],
 "data_cores": [0, 0],
 "part_tier_weights": {
-"gundam": 10,
+"valkyrion": 10,
 "heavy": 15,
 "medium": 30,
 "standard": 45

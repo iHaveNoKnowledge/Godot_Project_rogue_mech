@@ -125,7 +125,7 @@ events = [{
 "params": {
 "heat": -4
 },
-"themes": ["gundam_merc"],
+"themes": ["valkyrion_merc"],
 "weight": 9
 }, {
 "amount": 0,
@@ -137,7 +137,7 @@ events = [{
 "params": {
 "unit_id": "ally_gunner"
 },
-"themes": ["gundam_merc"],
+"themes": ["valkyrion_merc"],
 "weight": 7
 }, {
 "amount": 0,
@@ -149,7 +149,7 @@ events = [{
 "params": {
 "combat_type": "ace"
 },
-"themes": ["gundam_merc"],
+"themes": ["valkyrion_merc"],
 "weight": 7
 }, {
 "amount": 1,
@@ -158,7 +158,7 @@ events = [{
 "id": "underground_respect",
 "min_reputation": 0,
 "name": "Underground Respect",
-"themes": ["gundam_merc"],
+"themes": ["valkyrion_merc"],
 "weight": 8
 }, {
 "amount": 18,
@@ -378,7 +378,7 @@ events = [{
 }
 }]
 },
-"themes": ["gundam_merc"],
+"themes": ["valkyrion_merc"],
 "weight": 6
 }, {
 "amount": 0,

@@ -301,10 +301,10 @@ const RARITY_SCRAP_MULTIPLIERS: Array[float] = [1.0, 1.6, 2.5, 4.0]
 
 # Armor rarity tier derived from the catalog type label: standard / light
 # plating are common (0), heavy armor uncommon (1), high-mobility rare (2),
-# and gundam-tier armor legendary (3).
+# and valkyrion-tier armor legendary (3).
 func _armor_rarity_tier(inst: Dictionary) -> int:
 	var atype := str(inst.get("type", ""))
-	if atype.contains("Gundam"):
+	if atype.contains("Valkyrion"):
 		return 3
 	if atype.contains("High-Mobility"):
 		return 2

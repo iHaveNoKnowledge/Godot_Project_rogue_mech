@@ -4,7 +4,7 @@
 
 [resource]
 script = ExtResource("1")
-part_name = "Gundam Core Reactive Chestplate"
+part_name = "Valkyrion Core Reactive Chestplate"
 slot_id = "body"
 max_hp = 130.0
 max_frame_hp = 60.0

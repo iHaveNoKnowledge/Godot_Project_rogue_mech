@@ -33,12 +33,12 @@ static func roll_armor_part(slot: String) -> String:
 
 
 # Picks a frame id for a slot weighted by part_tier_weights.
-# frame_catalog[slot] is ordered: [standard, gundam, medium, heavy] per slot.
+# frame_catalog[slot] is ordered: [standard, valkyrion, medium, heavy] per slot.
 static func roll_frame(slot: String, tier_weights: Dictionary) -> String:
 	var entries: Array = GlobalData.frame_catalog.get(slot, [])
 	if entries.is_empty():
 		return ""
-	var tier_order := ["standard", "gundam", "medium", "heavy"]
+	var tier_order := ["standard", "valkyrion", "medium", "heavy"]
 	var total := 0
 	for tier in tier_order:
 		total += int(tier_weights.get(tier, 0))

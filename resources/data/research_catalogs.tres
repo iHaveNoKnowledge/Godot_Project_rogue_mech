@@ -34,19 +34,19 @@ research_projects = [{
 }, {
 "data_cores": 5,
 "desc": "Reactive armor kit derived from salvaged blueprints. Greatly boosts part armor rating.",
-"id": "bp_gundam_armor",
+"id": "bp_valkyrion_armor",
 "name": "Advanced Reactive Armor",
 "research_time": 16,
-"reward_id": "gundam_armor_mk1",
+"reward_id": "valkyrion_armor_mk1",
 "reward_name": "Reactive Armor MK-I",
 "reward_type": "armor"
 }, {
 "data_cores": 4,
-"desc": "Alaya-Vijnana neural link frame. Lightweight gundam-tier skeleton that boosts carry capacity and agility.",
-"id": "bp_gundam_frame",
-"name": "Gundam Frame Blueprint",
+"desc": "Alaya-Vijnana neural link frame. Lightweight valkyrion-tier skeleton that boosts carry capacity and agility.",
+"id": "bp_valkyrion_frame",
+"name": "Valkyrion Frame Blueprint",
 "research_time": 14,
-"reward_id": "gundam_frame_set",
+"reward_id": "valkyrion_frame_set",
 "reward_name": "Alaya-Vijnana Frame Set",
 "reward_type": "frame"
 }, {
@@ -62,19 +62,19 @@ research_projects = [{
 "data_cores": 4,
 "desc": "Advanced helmet with enhanced sensors. Improves lock-on speed and HUD clarity.",
 "id": "bp_head_armor",
-"name": "Gundam Head Armor Blueprint",
+"name": "Valkyrion Head Armor Blueprint",
 "research_time": 10,
-"reward_id": "gundam_head_set",
-"reward_name": "Gundam Duo-visor Plating",
+"reward_id": "valkyrion_head_set",
+"reward_name": "Valkyrion Duo-visor Plating",
 "reward_type": "armor"
 }, {
 "data_cores": 4,
 "desc": "Reactive leg guards with heat dissipation. Reduces terrain penalties and boosts roller dash efficiency.",
 "id": "bp_leg_armor",
-"name": "Gundam Leg Armor Blueprint",
+"name": "Valkyrion Leg Armor Blueprint",
 "research_time": 10,
-"reward_id": "gundam_leg_set",
-"reward_name": "Gundam Reactive Leg Guards",
+"reward_id": "valkyrion_leg_set",
+"reward_name": "Valkyrion Reactive Leg Guards",
 "reward_type": "armor"
 }, {
 "data_cores": 3,

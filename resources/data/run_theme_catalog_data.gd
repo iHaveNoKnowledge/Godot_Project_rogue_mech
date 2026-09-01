@@ -10,7 +10,7 @@ extends Resource
 ##   "id": "soldier", "name": "Fleet Soldier", "flavor": "...",
 ##   "start": {
 ##     "chassis_weights": { "standard": 50, "vanguard": 20, "titan": 15, "brawler": 10, "aegis": 5 },
-##     "part_tier_weights": { "standard": 60, "medium": 25, "heavy": 10, "gundam": 5 },
+##     "part_tier_weights": { "standard": 60, "medium": 25, "heavy": 10, "valkyrion": 5 },
 ##     "weapon_pool": [ "res://.../weapon_beam_rifle.tres", ... ],
 ##     "allies": { "templates": ["ally_gm", "ally_gunner"], "min": 1, "max": 2 },
 ##     "credits": [80, 200], "scrap": [0, 15], "data_cores": [0, 1]

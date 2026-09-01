@@ -1,10 +1,10 @@
 extends RefCounted
-class_name WarGodMechSystem
+class_name WarValkyrionSystem
 
-## God Mech — full blueprint 8% + whole mech 2% + Mass Product 75% (per PLAN.md 5,7)
+## Valkyrion — full blueprint 8% + whole mech 2% + Mass Product 75% (per PLAN.md 5,7)
 
-const GOD_MECH_POOL: Array[String] = [
-	"res://resources/mech/stock/mech_gundam.tres",
+const VALKYRION_POOL: Array[String] = [
+	"res://resources/mech/stock/mech_valkyrion.tres",
 	"res://resources/mech/stock/mech_ace.tres",
 ]
 
@@ -29,13 +29,15 @@ static func grant_whole_mech(parent: Node, pos: Vector3) -> Node3D:
 	if scene == null:
 		return null
 	var mech = scene.instantiate()
-	mech.name = "GodMech_Wreck"
+	mech.name = "Valkyrion_Wreck"
 	mech.position = pos
-	mech.add_to_group("god_mech_wreck")
-	mech.set_meta("is_god_mech", true)
+	mech.add_to_group("valkyrion_wreck")
+	mech.add_to_group("valkyrion_wreck")
+	mech.set_meta("is_valkyrion", true)
+	mech.set_meta("is_valkyrion", true)
 	mech.set_meta("is_unoccupied", true)
 	var lbl = Label3D.new()
-	lbl.text = "GOD MECH\n[F] BOARD"
+	lbl.text = "VALKYRION\n[F] BOARD"
 	lbl.font_size = 22
 	lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	lbl.no_depth_test = true
@@ -46,7 +48,8 @@ static func grant_whole_mech(parent: Node, pos: Vector3) -> Node3D:
 
 
 static func grant_blueprint(carrier: Node) -> void:
-	carrier.set_meta("god_blueprint", true)
+	carrier.set_meta("valkyrion_blueprint", true)
+	carrier.set_meta("valkyrion_blueprint", true)
 	GlobalData.save_run()
 
 

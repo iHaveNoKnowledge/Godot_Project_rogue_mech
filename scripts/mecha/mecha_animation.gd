@@ -319,7 +319,7 @@ func _update_kneel_posture(delta: float) -> void:
 		"leg_left_drop": -0.5,
 		"leg_right_drop": -0.5,
 	}, 10.0 * delta)
-# Gundam AGE Symmetrical Forward-Pitched Roller Skating Dash Stance
+# Valkyrion AGE Symmetrical Forward-Pitched Roller Skating Dash Stance
 func _update_roller_dash_posture(delta: float) -> void:
 	if mecha and mecha.get("is_roller_dashing") != null:
 		var speed = 12.0 * delta

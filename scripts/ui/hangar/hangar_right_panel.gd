@@ -15,7 +15,7 @@ var controller  # hangar_controller.gd
 
 # Build the right sidebar into `root` (the full-rect RootControl).
 func build(root: Control) -> void:
-	# Right Sidebar (Stats & Gundam Frame Core Power Panel)
+	# Right Sidebar (Stats & Valkyrion Frame Core Power Panel)
 	var right_panel = PanelContainer.new()
 	right_panel.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
 	right_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN

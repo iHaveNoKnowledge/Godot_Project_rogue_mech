@@ -335,7 +335,7 @@ static func remove_mech(mech_id: String) -> bool:
 
 # True when the player is pilot-only (every mech lost) and the convoy can still
 # retreat: squadmates must hold the convoy AND the theme must have a transport
-# that parks spare mechs (a solo Gundam Heir has no backup truck, so losing the
+# that parks spare mechs (a solo Valkyrion Heir has no backup truck, so losing the
 # machine ends the run).
 static func can_mechless_retreat() -> bool:
 	if not GlobalData.narrative.mech_less:

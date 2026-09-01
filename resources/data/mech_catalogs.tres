@@ -16,15 +16,15 @@ armor_catalog = {
 "weight": 6.0
 }, {
 "armor": 30.0,
-"blueprint_id": "bp_gundam_armor",
+"blueprint_id": "bp_valkyrion_armor",
 "blueprint_only": true,
 "color": Color(0.9, 0.2, 0.25, 1),
 "hp": 40.0,
-"id": "arm_left_002_gundam",
+"id": "arm_left_002_valkyrion",
 "defense_type": "heat",
-"name": "Gundam Reactive Shoulder Plate (L)",
-"path": "res://resources/mech/parts/arm_left/arm_left_002_gundam.tres",
-"type": "Gundam Armor",
+"name": "Valkyrion Reactive Shoulder Plate (L)",
+"path": "res://resources/mech/parts/arm_left/arm_left_002_valkyrion.tres",
+"type": "Valkyrion Armor",
 "weight": 5.0
 }, {
 "armor": 22.0,
@@ -48,15 +48,15 @@ armor_catalog = {
 "weight": 6.0
 }, {
 "armor": 30.0,
-"blueprint_id": "bp_gundam_armor",
+"blueprint_id": "bp_valkyrion_armor",
 "blueprint_only": true,
 "color": Color(0.9, 0.2, 0.25, 1),
 "hp": 40.0,
-"id": "arm_right_002_gundam",
+"id": "arm_right_002_valkyrion",
 "defense_type": "heat",
-"name": "Gundam Reactive Shoulder Plate (R)",
-"path": "res://resources/mech/parts/arm_right/arm_right_002_gundam.tres",
-"type": "Gundam Armor",
+"name": "Valkyrion Reactive Shoulder Plate (R)",
+"path": "res://resources/mech/parts/arm_right/arm_right_002_valkyrion.tres",
+"type": "Valkyrion Armor",
 "weight": 5.0
 }, {
 "armor": 22.0,
@@ -90,15 +90,15 @@ armor_catalog = {
 "weight": 24.0
 }, {
 "armor": 85.0,
-"blueprint_id": "bp_gundam_armor",
+"blueprint_id": "bp_valkyrion_armor",
 "blueprint_only": true,
 "color": Color(0.9, 0.2, 0.25, 1),
 "hp": 130.0,
-"id": "body_003_gundam",
+"id": "body_003_valkyrion",
 "defense_type": "heat",
-"name": "Gundam Core Reactive Chestplate",
-"path": "res://resources/mech/parts/body/body_003_gundam.tres",
-"type": "Gundam Armor",
+"name": "Valkyrion Core Reactive Chestplate",
+"path": "res://resources/mech/parts/body/body_003_valkyrion.tres",
+"type": "Valkyrion Armor",
 "weight": 18.0
 }, {
 "armor": 50.0,
@@ -132,15 +132,15 @@ armor_catalog = {
 "weight": 2.0
 }, {
 "armor": 32.0,
-"blueprint_id": "bp_gundam_armor",
+"blueprint_id": "bp_valkyrion_armor",
 "blueprint_only": true,
 "color": Color(0.9, 0.2, 0.25, 1),
 "hp": 55.0,
-"id": "head_003_gundam",
+"id": "head_003_valkyrion",
 "defense_type": "heat",
-"name": "Gundam Duo-visor Plating",
-"path": "res://resources/mech/parts/head/head_003_gundam.tres",
-"type": "Gundam Armor",
+"name": "Valkyrion Duo-visor Plating",
+"path": "res://resources/mech/parts/head/head_003_valkyrion.tres",
+"type": "Valkyrion Armor",
 "weight": 3.0
 }, {
 "armor": 22.0,
@@ -164,15 +164,15 @@ armor_catalog = {
 "weight": 8.0
 }, {
 "armor": 35.0,
-"blueprint_id": "bp_gundam_armor",
+"blueprint_id": "bp_valkyrion_armor",
 "blueprint_only": true,
 "color": Color(0.9, 0.2, 0.25, 1),
 "hp": 55.0,
-"id": "leg_left_002_gundam",
+"id": "leg_left_002_valkyrion",
 "defense_type": "heat",
-"name": "Gundam Reactive Leg Guard (L)",
-"path": "res://resources/mech/parts/leg_left/leg_left_002_gundam.tres",
-"type": "Gundam Armor",
+"name": "Valkyrion Reactive Leg Guard (L)",
+"path": "res://resources/mech/parts/leg_left/leg_left_002_valkyrion.tres",
+"type": "Valkyrion Armor",
 "weight": 7.0
 }, {
 "armor": 26.0,
@@ -196,15 +196,15 @@ armor_catalog = {
 "weight": 8.0
 }, {
 "armor": 35.0,
-"blueprint_id": "bp_gundam_armor",
+"blueprint_id": "bp_valkyrion_armor",
 "blueprint_only": true,
 "color": Color(0.9, 0.2, 0.25, 1),
 "hp": 55.0,
-"id": "leg_right_002_gundam",
+"id": "leg_right_002_valkyrion",
 "defense_type": "heat",
-"name": "Gundam Reactive Leg Guard (R)",
-"path": "res://resources/mech/parts/leg_right/leg_right_002_gundam.tres",
-"type": "Gundam Armor",
+"name": "Valkyrion Reactive Leg Guard (R)",
+"path": "res://resources/mech/parts/leg_right/leg_right_002_valkyrion.tres",
+"type": "Valkyrion Armor",
 "weight": 7.0
 }, {
 "armor": 26.0,
@@ -354,7 +354,7 @@ frame_catalog = {
 "hp": 20.0,
 "id": "frame_arm_left_02",
 "name": "Alaya-Vijnana Arm Joint (L)",
-"type": "Gundam Frame",
+"type": "Valkyrion Frame",
 "weight": 3.0
 }, {
 "carry_bonus": 7.0,
@@ -390,7 +390,7 @@ frame_catalog = {
 "hp": 20.0,
 "id": "frame_arm_right_02",
 "name": "Alaya-Vijnana Arm Joint (R)",
-"type": "Gundam Frame",
+"type": "Valkyrion Frame",
 "weight": 3.0
 }, {
 "carry_bonus": 7.0,
@@ -426,7 +426,7 @@ frame_catalog = {
 "hp": 50.0,
 "id": "frame_body_02",
 "name": "Alaya-Vijnana Core Spine",
-"type": "Gundam Frame",
+"type": "Valkyrion Frame",
 "weight": 6.0
 }, {
 "carry_bonus": 16.0,
@@ -462,7 +462,7 @@ frame_catalog = {
 "hp": 25.0,
 "id": "frame_head_02",
 "name": "Alaya-Vijnana Head Skeleton",
-"type": "Gundam Frame",
+"type": "Valkyrion Frame",
 "weight": 2.0
 }, {
 "carry_bonus": 6.0,
@@ -498,7 +498,7 @@ frame_catalog = {
 "hp": 25.0,
 "id": "frame_leg_left_02",
 "name": "Alaya-Vijnana Leg Actuator (L)",
-"type": "Gundam Frame",
+"type": "Valkyrion Frame",
 "weight": 4.0
 }, {
 "carry_bonus": 8.0,
@@ -534,7 +534,7 @@ frame_catalog = {
 "hp": 25.0,
 "id": "frame_leg_right_02",
 "name": "Alaya-Vijnana Leg Actuator (R)",
-"type": "Gundam Frame",
+"type": "Valkyrion Frame",
 "weight": 4.0
 }, {
 "carry_bonus": 8.0,

@@ -342,7 +342,7 @@ const TACTICAL_ROLES: Array[String] = [
 # ---------------------------------------------------------------------------
 
 static func _is_blueprint_frame(entry: Dictionary) -> bool:
-	return str(entry.get("type", "")).contains("Gundam")
+	return str(entry.get("type", "")).contains("Valkyrion")
 
 static func _archetype_frame_index(archetype: int) -> int:
 	match archetype:

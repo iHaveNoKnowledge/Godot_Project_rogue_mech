@@ -150,7 +150,7 @@ func craft_armor(info: Dictionary) -> void:
 		return
 	if ArmorSystem.entry_is_blueprint_locked(info):
 		if controller.status_message_label:
-			controller.status_message_label.text = "This gundam part requires its blueprint researched first."
+			controller.status_message_label.text = "This valkyrion part requires its blueprint researched first."
 		return
 	var s_cost := ArmorSystem.get_armor_scrap_cost(info)
 	var c_cost := ArmorSystem.get_armor_credit_cost(info)

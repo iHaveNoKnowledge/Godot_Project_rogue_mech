@@ -79,7 +79,7 @@ func _test_switching_between_multiple_mechas() -> void:
 	print("Testing Switching Between Multiple Independent Mechas...")
 	# Spawn Mech 1
 	var mech1 := CharacterBody3D.new()
-	mech1.name = "Gundam_Unit_01"
+	mech1.name = "Valkyrion_Unit_01"
 	mech1.set_script(preload("res://scripts/mecha/mecha_controller.gd"))
 	add_child(mech1)
 	mech1.global_position = Vector3(0, 0, 0)

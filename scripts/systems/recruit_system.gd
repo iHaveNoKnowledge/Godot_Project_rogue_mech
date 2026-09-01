@@ -57,7 +57,7 @@ const CHARACTERS: Array = [
 		"duel_scene": "rusher_full",
 		"duel_archetype": HangarManager.ARCHETYPE_RUSHER,
 		"duel_hp_scale": 2.0,
-		"themes": ["gundam_merc"],
+		"themes": ["valkyrion_merc"],
 		"weight": 6,
 		"min_reputation": 0,
 		"desc": "A mercenary in a Crimson Fang melee frame circles your position, heat blade still smoking. \"You're the one with the rep. Show me what you've got.\"",

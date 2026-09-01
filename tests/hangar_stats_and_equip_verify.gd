@@ -45,7 +45,7 @@ func _test_part_text_degradation_formatting() -> void:
 func _test_is_item_equipped_sync() -> void:
 	print("Testing Item Equipped [E] matching...")
 	# Setup GlobalData
-	GlobalData.weapons.equipped_frames["body"] = {"name": "Gundam Core", "uid": "frame_core_1"}
+	GlobalData.weapons.equipped_frames["body"] = {"name": "Valkyrion Core", "uid": "frame_core_1"}
 	GlobalData.weapons.equipped_parts["body"] = {"name": "Titanium Chest", "uid": "armor_chest_1", "id": "titanium_chest"}
 	GlobalData.weapons.weapon_loadout["left"] = "res://resources/weapons/beam_rifle.tres"
 	GlobalData.weapons.weapon_loadout["right"] = "wpn_inst_99"
@@ -57,7 +57,7 @@ func _test_is_item_equipped_sync() -> void:
 	panel.controller = mock_ctrl
 
 	# Frame match
-	_check(panel.is_item_equipped("body", {"name": "Gundam Core", "uid": "frame_core_1"}), "Equipped frame matches by UID/name")
+	_check(panel.is_item_equipped("body", {"name": "Valkyrion Core", "uid": "frame_core_1"}), "Equipped frame matches by UID/name")
 	_check(not panel.is_item_equipped("body", {"name": "Other Frame", "uid": "frame_core_2"}), "Non-equipped frame returns false")
 
 	# Armor match
@@ -84,7 +84,7 @@ func _test_hangar_stats_panel_formatting() -> void:
 	stats_panel.controller = mock_ctrl
 
 	# Set part damage and valid HP
-	GlobalData.weapons.equipped_frames["body"] = {"name": "Gundam Core", "uid": "frame_core_1", "hp": 100.0}
+	GlobalData.weapons.equipped_frames["body"] = {"name": "Valkyrion Core", "uid": "frame_core_1", "hp": 100.0}
 	GlobalData.weapons.equipped_parts["body"] = {"name": "Titanium Chest", "uid": "armor_chest_1", "id": "titanium_chest", "max_hp": 80.0}
 	GlobalData.weapons.part_damage["body_frame"] = 0.25 # 25% damaged frame
 	GlobalData.weapons.part_damage["body"] = 0.50 # 50% damaged armor

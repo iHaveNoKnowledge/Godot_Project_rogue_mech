@@ -13,7 +13,7 @@ extends RefCounted
 #   enemy copies it for the next deployment.
 # - When enough mech data is stolen, the enemy spins up a research base node on
 #   the board. If it completes, the enemy fields one of three upgraded unit
-#   types (grunt MKII / special ace / gundam copy). If destroyed first, the
+#   types (grunt MKII / special ace / valkyrion copy). If destroyed first, the
 #   player salvages only a partial grunt upgrade.
 # -----------------------------------------------------------------------------
 
@@ -196,7 +196,7 @@ static func _roll_enemy_base_outcome() -> String:
 		return "grunt_mk2"
 	if roll < mk2_weight + special_weight:
 		return "special_ace"
-	return "gundam_copy"
+	return "valkyrion_copy"
 
 
 static func _apply_enemy_base_outcome(outcome: String) -> void:
@@ -206,9 +206,9 @@ static func _apply_enemy_base_outcome(outcome: String) -> void:
 		"special_ace":
 			GlobalData.narrative.enemy_special_units.append({"kind": "special_ace", "source": "research_node"})
 			_add_stalking_ace("special_ace")
-		"gundam_copy":
-			GlobalData.narrative.enemy_special_units.append({"kind": "gundam_copy", "source": "research_node"})
-			_add_stalking_ace("gundam_copy")
+		"valkyrion_copy":
+			GlobalData.narrative.enemy_special_units.append({"kind": "valkyrion_copy", "source": "research_node"})
+			_add_stalking_ace("valkyrion_copy")
 
 
 # A completed research node deploys its counter-unit as a stalking ace that

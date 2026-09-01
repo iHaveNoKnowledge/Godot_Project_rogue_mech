@@ -108,7 +108,7 @@ static func get_armor_credit_cost(entry: Dictionary) -> int:
 	return maxi(1, int(ceil((s.hp + s.armor + s.weight) / 15.0)))
 
 
-# True when a catalog armor entry is a gundam-tier part that must first be
+# True when a catalog armor entry is a valkyrion-tier part that must first be
 # researched (its matching research project completed) before it can be crafted.
 static func entry_is_blueprint_locked(entry: Dictionary) -> bool:
 	if not bool(entry.get("blueprint_only", false)):

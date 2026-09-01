@@ -34,7 +34,7 @@
 * **2 โหมดคู่กัน:** `Campaign (Board)` เดิมยังเล่นได้ปกติ + `War Mode` แมพเดียว 2000x2000 กึ่ง open world หลายระดับ (ที่สูง/พื้น/อุโมงค์ใต้ดิน) ซ่อนทรัพยากร
 * **IP Classification — `Valkren` vs `Valkyrion`:**
   * **Valkren (วาลเครน):** ศัพท์เรียกสปีชีส์/ประเภทจักรกลรบหลักทั้งหมดในสนามรบ (เทียบเท่า Mobile Suit)
-  * **Valkyrion (วาลคิริออน):** ชื่อเรียกหุ่นต้นแบบสเปกสุดยอด / Secret Frame ที่ขับเคลื่อนด้วย Ancient Core (เทียบเท่า Gundam)
+  * **Valkyrion (วาลคิริออน):** ชื่อเรียกหุ่นต้นแบบสเปกสุดยอด / Secret Frame ที่ขับเคลื่อนด้วย Ancient Core
   * **Combat Hierarchy:** `Valkyrion (Apex)` > `Valkren Class` > `Tank Class` > `Infantry / Pilot Class`
   * **จุดเด่น Valkren:** ความคล่องตัวสูง (High Mobility), ตอบสนองไว (High Response), และความต่อเนื่องในการโจมตีสูงมาก (Offensive Continuity / Seamless Fire-on-Move)
   * **วิวัฒนาการเกราะ:** ยุคแรกเกราะอาจเบากว่ารถถังเน้นหลบหลีก แต่เมื่ออัปเกรด (Upgraded Gen) เกราะจะแข็งแกร่งทนทานกว่ารถถังยุคเก่าอย่างเห็นได้ชัด
@@ -180,7 +180,7 @@ scripts/war/ — สถานะปัจจุบัน (ตรวจสอบ 
   ✅ war_ore_node.gd           Ore/Oil Node + FuelContainer
   ✅ war_module_system.gd      Module ถอดได้/ตกชิงได้
   ✅ war_reactor_bay.gd        เตาพิเศษ Ancient Reactor
-  ✅ war_god_mech_system.gd    Roll 6 แบบ + Original/Mass craft
+  ✅ war_valkyrion_system.gd    Roll 6 แบบ + Original/Mass craft
   ✅ war_balance.gd            ค่าคงที่สมดุล (Original/Mass, Drop, Barracks, Carrier, HQ)
   ✅ war_minimap.gd            Minimap + Fog of War
   ✅ war_convoy_ambush.gd      ระบบดักปล้น Convoy
@@ -192,8 +192,8 @@ scripts/war/ — สถานะปัจจุบัน (ตรวจสอบ 
   ✅ shoulder_weapon_system.gd Q/E (6 Part เดิมไม่เปลี่ยน)
   ✅ stunt_weapon_system.gd    อาวุธ Stunt 2-4วิ เฉพาะ Reactor
   ✅ war_camera_follow.gd      WarCamera follow (fallback, หลักใช้ mecha_camera.tscn)
-  ⏳ war_deployment_manager.gd จัดการ Deploy Cap + Stock Cooldown — ยังไม่สร้าง (logic ชั่วคราวอยู่ใน war_god_mech_system.gd)
-  ⏳ development_node_resource.gd Resource โครงสร้าง Tech Tree — ยังไม่สร้าง (ใช้ Dictionary ใน war_god_mech_system.gd)
+  ⏳ war_deployment_manager.gd จัดการ Deploy Cap + Stock Cooldown — ยังไม่สร้าง (logic ชั่วคราวอยู่ใน war_valkyrion_system.gd)
+  ⏳ development_node_resource.gd Resource โครงสร้าง Tech Tree — ยังไม่สร้าง (ใช้ Dictionary ใน war_valkyrion_system.gd)
   ⏳ war_resource_system.gd    tick รายได้, Refinery Lv — ยังไม่แยกไฟล์ (logic อยู่ใน war_logistic_system.gd + war_manager.gd)
   ⏳ capture_wreckage_system.gd ซาก Valkyrion ชิงได้ — ยังไม่แยกไฟล์ (อยู่ใน war_salvage_dispatch.gd)
   ⏳ war_respawn_system.gd     ตายเลือกฐานเกิด + หุ่นจอดที่เดิม — ยังไม่แยกไฟล์ (ใช้ pilot_state.gd + hangar_state.gd)
@@ -211,7 +211,7 @@ scripts/war/ — สถานะปัจจุบัน (ตรวจสอบ 
 
 - [x] GameManager.State.WAR + war_world.tscn โล่ง + Main Base 2 ฝั่ง
 - [x] Ore Node 4 จุด + Truck ขนกลับ Depot + Tab HUD
-- [x] Deploy Cap skeleton + Stock Cooldown (ชั่วคราวใน war_god_mech_system.gd — รอแยกเป็น war_deployment_manager.gd)
+- [x] Deploy Cap skeleton + Stock Cooldown (ชั่วคราวใน war_valkyrion_system.gd — รอแยกเป็น war_deployment_manager.gd)
 - [x] Data Event 1 แบบ (Part เทพ) แบกกลับวิจัย
 - [x] Carrier 1 คัน + Docking Physics (Freeze & Reparent)
 - [x] Module ถอดได้ 3 ตัว + ตกชิงได้
@@ -221,11 +221,11 @@ scripts/war/ — สถานะปัจจุบัน (ตรวจสอบ 
 ### Phase 2 — เต็ม 4 สัปดาห์ — ✅ เสร็จหมดแล้ว
 
 - [x] แมพซับซ้อน HIGHLAND/UNDERGROUND ซ่อนของ + Weapon Cache (`war_map_generator.gd`)
-- [x] Data ครบ 6 แบบ + สูตรเต็มตัว/Mass Product + หุ่นทั้งคัน 2% (`war_god_mech_system.gd`)
+- [x] Data ครบ 6 แบบ + สูตรเต็มตัว/Mass Product + หุ่นทั้งคัน 2% (`war_valkyrion_system.gd`)
 - [x] Backpack 3 แบบ + อาวุธไหล่ Q/E + โล่ไหล่ (`backpack_system.gd` / `shoulder_weapon_system.gd`)
 - [x] เตาพิเศษ Ancient Reactor + น้ำมันถังพกเติมกลางสนาม (`war_reactor_bay.gd`)
 - [x] I Inventory เต็ม + ระบบชิงซากหุ่นเทพ + ระบบเรียกรถขนซากจากฐานสาขา (`war_salvage_dispatch.gd`)
-- [x] Dynamic Launch Setup skeleton + Ace Right System (logic ใน `war_god_mech_system.gd` — รอแยก UI เป็น `war_launch_setup_ui.tscn`)
+- [x] Dynamic Launch Setup skeleton + Ace Right System (logic ใน `war_valkyrion_system.gd` — รอแยก UI เป็น `war_launch_setup_ui.tscn`)
 
 ### Phase 3 — Polish
 
@@ -329,7 +329,7 @@ scripts/war/ — สถานะปัจจุบัน (ตรวจสอบ 
 
 ### TODO ก่อน Beta
 
-- [x] สร้าง `war_deployment_manager.gd` แยกจาก `war_god_mech_system.gd` + test Deploy Cap 5/3/1 — `war_deployment_manager.gd:8 CAPS`, `WarBalance.DEPLOY_CAPS`
+- [x] สร้าง `war_deployment_manager.gd` แยกจาก `war_valkyrion_system.gd` + test Deploy Cap 5/3/1 — `war_deployment_manager.gd:8 CAPS`, `WarBalance.DEPLOY_CAPS`
 - [x] สร้าง `war_launch_setup_ui.tscn` + Ace Right 30วิ timeout — `war_launch_setup_ui.gd:WarBalance.ACE_RIGHT_TIMEOUT`
 - [x] แยก `war_resource_hud.tscn` / `war_inventory.tscn` จาก `war_hud.gd` — `war_resource_hud.gd` + `war_inventory_ui.gd`
 - [x] เพิ่ม Input `shoulder_left/right`, `war_resource_view`, `war_inventory` ใน `project.godot` — Q/E/Tab/I
@@ -354,7 +354,7 @@ scripts/war/ — สถานะปัจจุบัน (ตรวจสอบ 
 | คำ | ความหมาย |
 |----|----------|
 | **Valkren** | จักรกลรบหลักทุกตัวในสนาม (Mobile Suit) |
-| **Valkyrion** | หุ่นต้นแบบ Apex ขับด้วย Ancient Core (Gundam) |
+| **Valkyrion** | หุ่นต้นแบบ Apex ขับด้วย Ancient Core |
 | **Line-Issue** | Valkren Mass Product มาตรฐาน |
 | **Iron-Vanguard** | Valkren สายเกราะหนัก Walk-Tank |
 | **Strike-Apex** | Valkren สายเร็วสูง EWAR |

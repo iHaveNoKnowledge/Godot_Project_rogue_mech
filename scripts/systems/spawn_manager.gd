@@ -105,7 +105,7 @@ var theme_boss_wave_defs: Dictionary = {
 		 {"type": "heavy_full", "archetype": 2, "count": 2},
 		 {"type": "support_full", "archetype": 3, "count": 1}],
 	],
-	"gundam_merc": [
+	"valkyrion_merc": [
 		[{"type": "ranged_full", "archetype": 1, "count": 3},
 		 {"type": "heavy_full", "archetype": 2, "count": 1}],
 		[{"type": "heavy_full", "archetype": 2, "count": 2},
@@ -135,7 +135,7 @@ var theme_grunt_wave_defs: Dictionary = {
 		[{"type": "ranged_simple", "archetype": 1, "count": 3},
 		 {"type": "rusher_simple", "archetype": 0, "count": 2}],
 	],
-	"gundam_merc": [
+	"valkyrion_merc": [
 		[{"type": "ranged_simple", "archetype": 1, "count": 4},
 		 {"type": "support_simple", "archetype": 3, "count": 1}],
 		[{"type": "rusher_simple", "archetype": 0, "count": 2},
@@ -155,7 +155,7 @@ var theme_ace_wave_defs: Dictionary = {
 		[{"type": "heavy_full", "archetype": 2, "count": 2},
 		 {"type": "ranged_full", "archetype": 1, "count": 3}],
 	],
-	"gundam_merc": [
+	"valkyrion_merc": [
 		[{"type": "ranged_full", "archetype": 1, "count": 4},
 		 {"type": "heavy_full", "archetype": 2, "count": 1}],
 		[{"type": "heavy_full", "archetype": 2, "count": 3},
@@ -621,11 +621,11 @@ func _trigger_stalking_ace_ambush() -> void:
 
 	# Give each counter-unit a distinct battlefield identity instead of both
 	# being plain heavy units: a special ace is a brutal melee stalker, while a
-	# gundam copy is a slower, armored threat that mirrors heavier mech tech.
+	# valkyrion copy is a slower, armored threat that mirrors heavier mech tech.
 	var scene_type := "heavy_full"
 	var archetype := 2
 	var hp_scale := 2.2
-	if ace_kind == "gundam_copy":
+	if ace_kind == "valkyrion_copy":
 		scene_type = "tank_full"
 		archetype = 1
 		hp_scale = 2.6

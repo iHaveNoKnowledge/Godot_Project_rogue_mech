@@ -4,7 +4,7 @@
 
 [resource]
 script = ExtResource("1")
-part_name = "Gundam Reactive Leg Guard (L)"
+part_name = "Valkyrion Reactive Leg Guard (L)"
 slot_id = "leg_left"
 max_hp = 55.0
 max_frame_hp = 30.0

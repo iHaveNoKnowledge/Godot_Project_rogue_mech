@@ -5,7 +5,7 @@ extends RefCounted
 ## NARRATIVE STATE — run identity, pilot-mech bond, and faction escalation.
 ##
 ## Extracted from GlobalData.  Owns:
-##   • Run theme (soldier / gundam_merc / scavenger)
+##   • Run theme (soldier / valkyrion_merc / scavenger)
 ##   • Reputation
 ##   • Pilot-mech bond + sacrifice / grand entry events
 ##   • Enemy tech escalation

@@ -4,7 +4,7 @@
 
 [resource]
 script = ExtResource("1")
-part_name = "Gundam Duo-visor Plating"
+part_name = "Valkyrion Duo-visor Plating"
 slot_id = "head"
 max_hp = 55.0
 max_frame_hp = 30.0

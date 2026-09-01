@@ -85,7 +85,7 @@ func complete_grand_entry() -> void:
 	var new_mech = HangarManager.build("Hero Unit", 0)
 	if not new_mech.is_empty():
 		# Apply a stronger chassis based on tier.
-		var chassis_id := "gundam" if GlobalData.board.current_sector >= 2 else "gm"
+		var chassis_id := "valkyrion" if GlobalData.board.current_sector >= 2 else "gm"
 		new_mech["chassis_id"] = chassis_id
 		new_mech["name"] = _get_mech_name(new_mech_id)
 		# Set as active mech.
@@ -100,7 +100,7 @@ func _select_replacement_mech() -> String:
 	if GlobalData.board.current_sector >= 3:
 		return "freedom"
 	elif GlobalData.board.current_sector >= 2:
-		return "gundam"
+		return "valkyrion"
 	else:
 		return "gm_custom"
 
@@ -108,9 +108,9 @@ func _select_replacement_mech() -> String:
 func _get_mech_name(mech_id: String) -> String:
 	match mech_id:
 		"freedom":
-			return "Freedom Gundam"
-		"gundam":
-			return "Strike Gundam"
+			return "Freedom Valkyrion"
+		"valkyrion":
+			return "Strike Valkyrion"
 		"gm_custom":
 			return "GM Custom"
 		_:

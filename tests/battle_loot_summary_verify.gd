@@ -237,9 +237,9 @@ func _verify_rarity_tier_pricing() -> void:
 		"hp": 25.0, "armor": 15.0, "weight": 6.0,
 		"color": Color(0.9, 0.9, 0.95), "durability": 1.0, "upgrade_level": 1, "equipped": false,
 	}
-	var gundam_armor := {
-		"uid": "loot_test_tier_gundam", "db_id": "gundam_plate", "name": "Gundam Plate",
-		"slot": "body", "type": "Gundam Armor",
+	var valkyrion_armor := {
+		"uid": "loot_test_tier_valkyrion", "db_id": "valkyrion_plate", "name": "Valkyrion Plate",
+		"slot": "body", "type": "Valkyrion Armor",
 		"hp": 40.0, "armor": 30.0, "weight": 5.0,
 		"color": Color(0.9, 0.2, 0.25), "durability": 1.0, "upgrade_level": 1, "equipped": false,
 	}
@@ -254,17 +254,17 @@ func _verify_rarity_tier_pricing() -> void:
 	_check(common_val >= 2, "common weapon has a base scrap value (%d)" % common_val)
 	_check(legendary_val > common_val * 2, "legendary weapon sells for >2x a common weapon (%d vs %d)" % [legendary_val, common_val])
 
-	# Armor: gundam-tier must sell for clearly more than standard armor.
+	# Armor: valkyrion-tier must sell for clearly more than standard armor.
 	var std_val := int(rewards_ui._salvage_value({"type": "armor", "instance": standard_armor}))
-	var gundam_val := int(rewards_ui._salvage_value({"type": "armor", "instance": gundam_armor}))
+	var valkyrion_val := int(rewards_ui._salvage_value({"type": "armor", "instance": valkyrion_armor}))
 	_check(std_val >= 1, "standard armor has a base scrap value (%d)" % std_val)
-	_check(gundam_val > std_val * 2, "gundam armor sells for >2x standard armor (%d vs %d)" % [gundam_val, std_val])
+	_check(valkyrion_val > std_val * 2, "valkyrion armor sells for >2x standard armor (%d vs %d)" % [valkyrion_val, std_val])
 
 	# The per-row label advertises the scrap value so tier pricing is visible.
 	var label: String = rewards_ui._loot_entry_label({"type": "weapon", "weapon": railgun})
 	_check(label.contains("(%d scrap)" % legendary_val), "weapon row shows its scrap value (%s)" % label)
-	var armor_label: String = rewards_ui._loot_entry_label({"type": "armor", "instance": gundam_armor})
-	_check(armor_label.contains("(%d scrap)" % gundam_val), "armor row shows its scrap value (%s)" % armor_label)
+	var armor_label: String = rewards_ui._loot_entry_label({"type": "armor", "instance": valkyrion_armor})
+	_check(armor_label.contains("(%d scrap)" % valkyrion_val), "armor row shows its scrap value (%s)" % armor_label)
 
 	rewards_ui.queue_free()
 	await get_tree().process_frame

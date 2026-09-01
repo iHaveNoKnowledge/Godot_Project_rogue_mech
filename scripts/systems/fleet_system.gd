@@ -260,7 +260,7 @@ static func _apply_research_reward(project_id: String) -> void:
 			add_ally_unit(str(project.get("reward_id", "")))
 		"armor", "frame":
 			# Completing an armor/frame blueprint unlocks crafting access to the
-			# matching gundam-tier catalog parts (flagged blueprint_only). The
+			# matching valkyrion-tier catalog parts (flagged blueprint_only). The
 			# unlocking is recorded in research_unlocked; the hangar/craft gates
 			# read entry_is_blueprint_locked() against that list. The blueprint_id
 			# on each guarded catalog entry must equal this project_id.

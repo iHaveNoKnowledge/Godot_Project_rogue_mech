@@ -3,7 +3,7 @@ extends CanvasLayer
 ## ResearchLabUI: a board node that lets the player browse and start research
 ## projects. Each project costs data_cores to begin and takes research_time
 ## (board moves = 1pt, combats = 2pts) to complete. Completed projects
-## unlock ally units, gundam-tier gear, or special abilities.
+## unlock ally units, valkyrion-tier gear, or special abilities.
 
 var root_control: Control
 var panel: PanelContainer

@@ -7,7 +7,7 @@ extends RefCounted
 # system that drives board encounters. Extracted from GlobalData so the run-
 # state autoload stays focused on state; GlobalData keeps thin facades.
 #
-# - theme_id:       which story this run is (soldier / gundam_merc / scavenger).
+# - theme_id:       which story this run is (soldier / valkyrion_merc / scavenger).
 # - reputation:     accrued deeds that gate high-tier choice events.
 # - theme_switched: allows a theme_switch event to fire at most once per run.
 # - ceasefire_turns: board moves left with no combat (political ceasefire).

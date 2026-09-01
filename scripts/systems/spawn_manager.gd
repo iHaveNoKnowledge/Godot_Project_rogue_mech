@@ -222,6 +222,12 @@ func _duel_wave_defs() -> Array:
 
 
 func _ready() -> void:
+	# WAR battlefield: no token-based waves — uses WarAIJumpSystem / battlefield spawns instead
+	if GameManager.current_state == GameManager.State.WAR:
+		_generate_spawn_points()
+		# Still snapshot stats but don't start token waves
+		CombatStatsSystem.begin_combat_stats()
+		return
 	_generate_spawn_points()
 	_spawn_fielded_allies()
 	_spawn_convoy_trucks_if_needed()

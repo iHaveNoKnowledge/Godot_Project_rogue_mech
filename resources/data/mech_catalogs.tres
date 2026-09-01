@@ -36,7 +36,7 @@ armor_catalog = {
 "path": "res://resources/mech/parts/arm_left/arm_left_001.tres",
 "type": "Vagrant Wrap",
 "weight": 4.0
-, {
+}, {
 "armor": 16.0,
 "color": Color(0.6, 0.65, 0.7, 1),
 "hp": 28.0,
@@ -104,7 +104,7 @@ armor_catalog = {
 "path": "res://resources/mech/parts/arm_right/arm_right_001.tres",
 "type": "Vagrant Wrap",
 "weight": 4.0
-, {
+}, {
 "armor": 16.0,
 "color": Color(0.6, 0.65, 0.7, 1),
 "hp": 28.0,
@@ -182,7 +182,7 @@ armor_catalog = {
 "path": "res://resources/mech/parts/body/body_001.tres",
 "type": "Vagrant Cloak",
 "weight": 11.0
-, {
+}, {
 "armor": 16.0,
 "color": Color(0.6, 0.65, 0.7, 1),
 "hp": 28.0,
@@ -260,7 +260,7 @@ armor_catalog = {
 "path": "res://resources/mech/parts/head/head_001.tres",
 "type": "Vagrant Cloak",
 "weight": 2.2
-, {
+}, {
 "armor": 16.0,
 "color": Color(0.6, 0.65, 0.7, 1),
 "hp": 28.0,
@@ -328,7 +328,7 @@ armor_catalog = {
 "path": "res://resources/mech/parts/leg_left/leg_left_001.tres",
 "type": "Vagrant Vector",
 "weight": 5.5
-, {
+}, {
 "armor": 16.0,
 "color": Color(0.6, 0.65, 0.7, 1),
 "hp": 28.0,
@@ -396,7 +396,7 @@ armor_catalog = {
 "path": "res://resources/mech/parts/leg_right/leg_right_001.tres",
 "type": "Vagrant Vector",
 "weight": 5.5
-, {
+}, {
 "armor": 16.0,
 "color": Color(0.6, 0.65, 0.7, 1),
 "hp": 28.0,

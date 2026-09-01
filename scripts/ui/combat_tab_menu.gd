@@ -26,7 +26,8 @@ func _input(event: InputEvent) -> void:
 	if not event.is_action_pressed("combat_menu"):
 		return
 	if GameManager.current_state != GameManager.State.COMBAT \
-			and GameManager.current_state != GameManager.State.EJECT:
+			and GameManager.current_state != GameManager.State.EJECT \
+			and GameManager.current_state != GameManager.State.WAR:
 		return
 	if _open:
 		close()

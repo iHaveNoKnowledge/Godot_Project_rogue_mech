@@ -447,7 +447,7 @@ func _create_pickup_ui() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if GameManager.current_state != GameManager.State.COMBAT and GameManager.current_state != GameManager.State.EJECT:
+	if GameManager.current_state != GameManager.State.COMBAT and GameManager.current_state != GameManager.State.EJECT and GameManager.current_state != GameManager.State.WAR:
 		return
 	if event.is_action_pressed("interact") or (event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_F or event.physical_keycode == KEY_F)):
 		if field_loot_modal != null and is_instance_valid(field_loot_modal) and field_loot_modal.is_open:

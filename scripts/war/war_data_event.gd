@@ -8,13 +8,16 @@ class_name WarDataEvent
 
 var _collected: bool = false
 var _carrier: Node = null
+var _inside_bodies: Array[Node] = []
 
 
 func _ready() -> void:
 	add_to_group("data_event")
 	collision_layer = 0
-	collision_mask = 0
+	collision_mask = 1
+	monitoring = true
 	body_entered.connect(_on_body_entered)
+	body_exited.connect(_on_body_exited)
 	_setup_visual()
 
 
@@ -54,8 +57,27 @@ func _on_body_entered(body: Node) -> void:
 	if _collected:
 		return
 	if body.is_in_group("mecha") or body.is_in_group("pilot"):
-		if Input.is_action_pressed("interact") or true:
-			collect(body)
+		if not _inside_bodies.has(body):
+			_inside_bodies.append(body)
+		EventBus.interaction_prompt_updated.emit("[F] COLLECT DATA — %s" % data_type.to_upper(), true)
+
+func _on_body_exited(body: Node) -> void:
+	_inside_bodies.erase(body)
+	if _inside_bodies.is_empty():
+		EventBus.interaction_prompt_updated.emit("", false)
+
+func _process(_delta: float) -> void:
+	if _collected or _inside_bodies.is_empty():
+		return
+	if Input.is_action_just_pressed("interact"):
+		var carrier: Node = null
+		for b in _inside_bodies:
+			if is_instance_valid(b):
+				carrier = b
+				break
+		if carrier:
+			EventBus.interaction_prompt_updated.emit("", false)
+			collect(carrier)
 
 
 func collect(carrier: Node) -> void:

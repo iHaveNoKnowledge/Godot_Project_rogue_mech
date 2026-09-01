@@ -18,6 +18,8 @@ func _ready() -> void:
 	_decorate_phase2()
 	_spawn_player_mecha()
 	_setup_hud()
+	# Ensure mouse is captured for combat controls (same as game_world arena)
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
 func _setup_ground() -> void:

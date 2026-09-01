@@ -8,10 +8,13 @@ var _overlay: CanvasLayer = null
 var _daynight: Node = null
 
 
+var _inside_bodies: Array[Node] = []
+
 func _ready() -> void:
 	add_to_group("war_hangar")
 	collision_layer = 0
 	collision_mask = 1
+	monitoring = true
 	var col = CollisionShape3D.new()
 	var shape = BoxShape3D.new()
 	shape.size = Vector3(7.5, 6.0, 9.5)
@@ -26,12 +29,38 @@ func _ready() -> void:
 	lbl.position = Vector3(0, 4.2, 4.8)
 	add_child(lbl)
 	body_entered.connect(_on_body_entered)
+	body_exited.connect(_on_body_exited)
 
 
 func _on_body_entered(body: Node) -> void:
 	if body.is_in_group("mecha") or body.is_in_group("pilot"):
-		if Input.is_action_pressed("interact"):
-			_open_hangar(body)
+		if not _inside_bodies.has(body):
+			_inside_bodies.append(body)
+		_update_prompt(true)
+
+func _on_body_exited(body: Node) -> void:
+	_inside_bodies.erase(body)
+	if _inside_bodies.is_empty():
+		_update_prompt(false)
+
+func _update_prompt(inside: bool) -> void:
+	if inside:
+		EventBus.interaction_prompt_updated.emit("[F] CUSTOMIZE — Hangar", true)
+	else:
+		EventBus.interaction_prompt_updated.emit("", false)
+
+func _process(_delta: float) -> void:
+	if _inside_bodies.is_empty():
+		return
+	# Poll F while inside — body_entered alone misses the press timing
+	if Input.is_action_just_pressed("interact"):
+		var opener: Node = null
+		for b in _inside_bodies:
+			if is_instance_valid(b):
+				opener = b
+				break
+		if opener:
+			_open_hangar(opener)
 
 
 func _open_hangar(opener: Node) -> void:

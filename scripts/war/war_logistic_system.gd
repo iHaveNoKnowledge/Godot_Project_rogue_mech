@@ -12,6 +12,10 @@ func create_truck(pos: Vector3, depot_pos: Vector3) -> Node3D:
 	truck.add_to_group("logistic_truck")
 	truck.collision_layer = 1
 	truck.collision_mask = 2
+	# AI driver
+	var ai := WarTruckAI.new()
+	ai.name = "TruckAI"
+	truck.add_child(ai)
 	# Visual
 	var body = MeshInstance3D.new()
 	var box = BoxMesh.new()

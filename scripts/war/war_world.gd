@@ -120,7 +120,7 @@ func _spawn_bases() -> void:
 		return
 	_bases_spawned = true
 	var fb_script = load("res://scripts/arena/forward_base.gd")
-	# Friendly Main Base (south)
+	# Friendly Main Base (south) — open layout, gate on south side for exit
 	var friendly = Node3D.new()
 	friendly.name = "FriendlyMainBase"
 	friendly.set_script(fb_script)
@@ -128,6 +128,8 @@ func _spawn_bases() -> void:
 	if friendly.has_method("spawn_base"):
 		friendly.spawn_base("fortified", Vector3(0, 0, -800))
 		friendly.set_meta("team", "friendly")
+		_make_friendly_entrance_clear(friendly)
+		_spawn_barracks_personnel(friendly, "friendly")
 	# Enemy Main Base (north) with HQ Barrier Shield (90% until within 100m or 10min)
 	var enemy = Node3D.new()
 	enemy.name = "EnemyMainBase"
@@ -136,7 +138,79 @@ func _spawn_bases() -> void:
 	if enemy.has_method("spawn_base"):
 		enemy.spawn_base("fortified", Vector3(0, 0, 800))
 		enemy.set_meta("team", "enemy")
+		_spawn_barracks_personnel(enemy, "enemy")
 		_add_hq_shield(enemy)
+
+func _make_friendly_entrance_clear(base: Node3D) -> void:
+	# Ensure southern approach to friendly base is not blocked by Training Yard fence
+	# Move fence slightly north and ensure gap faces south (already done in forward_base.gd)
+	# Also clear any cover boxes that might have spawned inside apron
+	var apron_half: float = 10.0
+	var base_pos: Vector2 = Vector2(base.global_position.x, base.global_position.z)
+	for child in get_children():
+		if child is StaticBody3D and child.is_in_group("cover"):
+			var p := Vector2(child.global_position.x, child.global_position.z)
+			if p.distance_to(base_pos) < apron_half:
+				# Push cover just outside apron
+				var dir := (p - base_pos).normalized()
+				if dir.length() < 0.01:
+					dir = Vector2(1, 0)
+				child.global_position += Vector3(dir.x, 0, dir.y) * 6.0
+
+func _spawn_barracks_personnel(base: Node3D, team: String) -> void:
+	# Spawn 3-4 infantry near barracks buildings
+	var barracks_nodes: Array[Node3D] = []
+	for child in base.get_children():
+		if child is StaticBody3D and str(child.name).to_lower().contains("barracks"):
+			barracks_nodes.append(child as Node3D)
+	if barracks_nodes.is_empty():
+		# Fallback: use base center
+		barracks_nodes.append(base)
+	var count := 4 if team == "enemy" else 3
+	for i in range(count):
+		var anchor: Node3D = barracks_nodes[i % barracks_nodes.size()]
+		var off := Vector3(randf_range(-3.5, 3.5), 0, randf_range(-2.5, 2.5))
+		var pos: Vector3 = anchor.global_position + off + Vector3(0, 1.2, 0)
+		pos = WarBiomeGenerator.snap_to_ground(Vector3(pos.x, 0, pos.z), 1.0)
+		# Use pilot scene as soldier placeholder (ally or enemy pilot)
+		var is_enemy: bool = (team == "enemy")
+		var soldier := CharacterBody3D.new()
+		soldier.name = "BarracksSoldier_%s_%d" % [team, i]
+		soldier.position = pos
+		soldier.add_to_group("barracks_personnel")
+		soldier.add_to_group("enemy" if is_enemy else "ally")
+		soldier.collision_layer = 8 if is_enemy else 1
+		soldier.collision_mask = 1 | 2
+		# Visual
+		var body := MeshInstance3D.new()
+		var cap := CapsuleMesh.new()
+		cap.radius = 0.38
+		cap.height = 1.5
+		body.mesh = cap
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(0.85, 0.2, 0.18) if is_enemy else Color(0.25, 0.55, 0.85)
+		body.material_override = mat
+		soldier.add_child(body)
+		var col := CollisionShape3D.new()
+		var shape := CapsuleShape3D.new()
+		shape.radius = 0.38
+		shape.height = 1.5
+		col.shape = shape
+		soldier.add_child(col)
+		var lbl := Label3D.new()
+		lbl.text = "GUARD" if is_enemy else "CREW"
+		lbl.font_size = 16
+		lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		lbl.no_depth_test = true
+		lbl.position = Vector3(0, 1.5, 0)
+		soldier.add_child(lbl)
+		# Simple wander AI
+		var ai := Node.new()
+		ai.name = "WanderAI"
+		ai.set_script(load("res://scripts/war/war_soldier_ai.gd"))
+		soldier.add_child(ai)
+		add_child(soldier)
+		soldier.global_position = pos
 
 
 func _add_hq_shield(base: Node) -> void:

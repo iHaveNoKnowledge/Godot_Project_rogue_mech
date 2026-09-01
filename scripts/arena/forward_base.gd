@@ -171,29 +171,52 @@ func _create_building(def: Dictionary) -> Node3D:
 			_add_hp_label(root, str(def.get("name","")), hp)
 			return root
 		"fence":
-			# Training yard as low wall loop
+			# Training yard as low wall loop — hollow perimeter with gate gap on south side so friendly base remains enterable
 			for i in 4:
-				var seg := MeshInstance3D.new()
-				var sm := BoxMesh.new()
-				var wall_len := size.x if i %2==0 else size.z
-				sm.size = Vector3(wall_len, 0.6, 0.12)
-				seg.mesh = sm
-				var wmat := StandardMaterial3D.new()
-				wmat.albedo_color = col
-				seg.material_override = wmat
-				match i:
-					0: seg.position = Vector3(0, 0.3, size.z*0.5)
-					1: seg.position = Vector3(size.x*0.5, 0.3, 0)
-					2: seg.position = Vector3(0, 0.3, -size.z*0.5)
-					3: seg.position = Vector3(-size.x*0.5, 0.3, 0)
-				seg.rotation_degrees = Vector3(0, 90 if i%2==1 else 0, 0)
-				root.add_child(seg)
-			var colf := CollisionShape3D.new()
-			var bf := BoxShape3D.new()
-			bf.size = Vector3(size.x, 0.6, size.z)
-			colf.shape = bf
-			colf.position = Vector3(0, 0.3, 0)
-			root.add_child(colf)
+				# South wall (i==2) gets a 1.8m gap in the middle for entry
+				if i == 2:
+					# split south wall into two segments leaving gap
+					for sx in [-1, 1]:
+						var seg := MeshInstance3D.new()
+						var sm := BoxMesh.new()
+						var seg_len := (size.x - 1.8) * 0.5
+						sm.size = Vector3(seg_len, 0.6, 0.12)
+						seg.mesh = sm
+						var wmat := StandardMaterial3D.new()
+						wmat.albedo_color = col
+						seg.material_override = wmat
+						seg.position = Vector3(sx * (seg_len*0.5 + 0.9), 0.3, -size.z*0.5)
+						root.add_child(seg)
+						# collision for each half
+						var wcol := CollisionShape3D.new()
+						var wbox := BoxShape3D.new()
+						wbox.size = Vector3(seg_len, 0.6, 0.12)
+						wcol.shape = wbox
+						wcol.position = seg.position
+						root.add_child(wcol)
+				else:
+					var seg := MeshInstance3D.new()
+					var sm := BoxMesh.new()
+					var wall_len := size.x if i %2==0 else size.z
+					sm.size = Vector3(wall_len, 0.6, 0.12)
+					seg.mesh = sm
+					var wmat := StandardMaterial3D.new()
+					wmat.albedo_color = col
+					seg.material_override = wmat
+					match i:
+						0: seg.position = Vector3(0, 0.3, size.z*0.5)
+						1: seg.position = Vector3(size.x*0.5, 0.3, 0)
+						2: seg.position = Vector3(0, 0.3, -size.z*0.5)
+						3: seg.position = Vector3(-size.x*0.5, 0.3, 0)
+					seg.rotation_degrees = Vector3(0, 90 if i%2==1 else 0, 0)
+					root.add_child(seg)
+					var wcol := CollisionShape3D.new()
+					var wbox := BoxShape3D.new()
+					wbox.size = Vector3(wall_len, 0.6, 0.12)
+					wcol.shape = wbox
+					wcol.position = seg.position
+					wcol.rotation_degrees = seg.rotation_degrees
+					root.add_child(wcol)
 			_add_hp_label(root, str(def.get("name","")), hp)
 			return root
 		_:

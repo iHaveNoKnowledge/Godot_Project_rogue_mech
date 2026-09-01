@@ -180,25 +180,25 @@ Reuse 100%: `PartMeshManager`, `RepairSystem`, `Hangar`, `PilotSystem`, `Faction
 
 ## 10. เฟสทำ
 
-**Phase 1 — MVP 2 สัปดาห์ (เล่นได้)**
-* [ ] `GameManager.State.WAR` + `war_world.tscn` โล่ง + Main Base 2 ฝั่ง (เก็บ Board เดิมไว้)
-* [ ] Ore Node 4 จุด + Truck ขนกลับ Depot + Tab HUD
-* [ ] Data Event 1 แบบ (Part เทพ) แบกกลับวิจัย
-* [ ] Carrier 1 คัน บรรทุก 2 หุ่น + Weapon Rack เปลี่ยนปืนกลางสนาม
-* [ ] Module ถอดได้ 3 ตัว + ตกชิงได้
-* [ ] Pilot ดีด 3วิ + Respawn เลือกฐาน + หุ่น 6 Part เดิม + Stunt เฉพาะ Reactor (Combustion โดนนาน / Ancient กัน)
-* [ ] คราฟท์/ซ่อมใช้เวลา (คิว 60-180วิ) + พ่อค้า Part พร้อมใช้สุ่มเกิด
+**Phase 1 — MVP 2 สัปดาห์ (เล่นได้)** — ✅ เสร็จหมดแล้ว (commit e711ac8 -> 609b2fa)
+* [x] `GameManager.State.WAR` + `war_world.tscn` โล่ง + Main Base 2 ฝั่ง (เก็บ Board เดิมไว้) — e711ac8 war_world.tscn:15 game_manager.gd:166 + แก้พื้นหาย 609b2fa war_world.gd:42
+* [x] Ore Node 4 จุด + Truck ขนกลับ Depot + Tab HUD — 955eb16 war_ore_node.gd:1 war_logistic_system.gd:1 war_hud.gd:1 + grid/ground 8318510
+* [x] Data Event 1 แบบ (Part เทพ) แบกกลับวิจัย — 5a57764 war_data_event.gd:1 war_god_mech_system.gd:1
+* [x] Carrier 1 คัน บรรทุก 2 หุ่น + Weapon Rack เปลี่ยนปืนกลางสนาม — d760663 carrier_dock.gd:1 FREEZE+Reparent 2 ช่อง
+* [x] Module ถอดได้ 3 ตัว + ตกชิงได้ — 5a57764 war_module_system.gd:1 (scavengable)
+* [x] Pilot ดีด 3วิ + Respawn เลือกฐาน + หุ่น 6 Part เดิม + Stunt เฉพาะ Reactor (Combustion โดนนาน / Ancient กัน) — d760663 stunt_weapon_system.gd:1 war_reactor_bay.gd:1 + eject mecha_eject.gd:1 war_ai_jump_system.gd:1
+* [x] คราฟท์/ซ่อมใช้เวลา (คิว 60-180วิ) + พ่อค้า Part พร้อมใช้สุ่มเกิด — d760663 war_production_queue.gd:1 war_merchant_system.gd:1 war_balance.gd:1
 
-**Phase 2 — เต็ม 4 สัปดาห์**
-* [ ] แมพซับซ้อน HIGHLAND/UNDERGROUND ซ่อนของ + Weapon Cache
-* [ ] Data ครบ 6 แบบ + สูตรเต็มตัว/Mass Product + หุ่นทั้งคัน 2%
-* [ ] Backpack 3 แบบ + อาวุธไหล่ Q/E + โล่ไหล่
-* [ ] เตาพิเศษ Ancient Reactor + น้ำมันถังพกเติมกลางสนาม
-* [ ] I Inventory เต็ม + ระบบชิงซากหุ่นเทพ + ระบบเรียกรถขนซากจากฐานสาขา
+**Phase 2 — เต็ม 4 สัปดาห์** — ✅ เสร็จหมดแล้ว
+* [x] แมพซับซ้อน HIGHLAND/UNDERGROUND ซ่อนของ + Weapon Cache — c67daeb war_map_generator.gd:1 hill + tunnel Occluder + cache x2
+* [x] Data ครบ 6 แบบ + สูตรเต็มตัว/Mass Product + หุ่นทั้งคัน 2% — 230c852 war_god_mech_system.gd:1 roll table 30/20/20/15/8/2%
+* [x] Backpack 3 แบบ + อาวุธไหล่ Q/E + โล่ไหล่ — fe31d90 backpack_system.gd:1 shoulder_weapon_system.gd:1 Input Q/E project.godot:46
+* [x] เตาพิเศษ Ancient Reactor + น้ำมันถังพกเติมกลางสนาม — 0cc52b7 war_reactor_bay.gd:1 + war_ore_node.gd:1 oil wells
+* [x] I Inventory เต็ม + ระบบชิงซากหุ่นเทพ + ระบบเรียกรถขนซากจากฐานสาขา — 0cc52b7 war_salvage_dispatch.gd:1 war_ai_jump_system.gd:1 + war_realtime_hangar.gd:1 Hangar ที่ฐาน
 
 **Phase 3 — Polish**
-* [ ] Minimap + Fog of War + Convoy ถูกปล้นระหว่างขน
-* [ ] Balance ราคา Original vs Mass, เรทดรอป, ความจุ Carrier
+* [x] Minimap + Fog of War + Convoy ถูกปล้นระหว่างขน — 43724ac war_minimap.gd:1 war_convoy_ambush.gd:1 + war_world.gd:252 war_balance.gd:1
+* [ ] Balance ราคา Original vs Mass, เรทดรอป, ความจุ Carrier — ค่าคงที่เริ่มแล้ว d2d998b war_balance.gd:1 แต่ยังไม่ได้ playtest จริง (รอ Polish)
 
 ---
 

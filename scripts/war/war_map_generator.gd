@@ -4,24 +4,11 @@ class_name WarMapGenerator
 ## Generates HIGHLAND / UNDERGROUND zones + Weapon Cache + Occluder + Chunk markers
 
 static func decorate_highland(parent: Node3D, pos: Vector3) -> void:
-	var hill = StaticBody3D.new()
-	hill.position = pos
-	hill.collision_layer = 2
-	var col = CollisionShape3D.new()
-	var shape = BoxShape3D.new()
-	shape.size = Vector3(300, 40, 300)
-	col.shape = shape
-	hill.add_child(col)
-	var mi = MeshInstance3D.new()
-	var box = BoxMesh.new()
-	box.size = Vector3(300, 40, 300)
-	mi.mesh = box
-	var mat = StandardMaterial3D.new()
-	mat.albedo_color = Color(0.55, 0.52, 0.48)
-	mat.roughness = 0.9
-	mi.material_override = mat
-	hill.add_child(mi)
-	parent.add_child(hill)
+	# Grounded mesa — ไม่ลอย (snapped to WarBiomeGenerator ground)
+	var xz := Vector2(pos.x, pos.z)
+	var mesa := WarBiomeGenerator.spawn_highland_mesa(parent, xz, Vector3(300, 40, 300), 22.0)
+	# keep group for AI
+	mesa.add_to_group("solid_obstacle")
 
 
 static func decorate_underground_tunnel(parent: Node3D, pos: Vector3) -> void:
@@ -74,7 +61,9 @@ static func decorate_underground_tunnel(parent: Node3D, pos: Vector3) -> void:
 static func spawn_weapon_cache(parent: Node3D, pos: Vector3) -> void:
 	var cache = Area3D.new()
 	cache.name = "WeaponCache"
-	cache.position = pos
+	# snap to ground — ไม่ลอย
+	var snapped: Vector3 = WarBiomeGenerator.snap_to_ground(Vector3(pos.x, 0, pos.z), 1.0)
+	cache.position = snapped
 	cache.add_to_group("weapon_cache")
 	var mi = MeshInstance3D.new()
 	var box = BoxMesh.new()
@@ -85,6 +74,16 @@ static func spawn_weapon_cache(parent: Node3D, pos: Vector3) -> void:
 	mat.roughness = 0.7
 	mi.material_override = mat
 	cache.add_child(mi)
+	# ขาตั้งเสายึดกับพื้น — ไม่ลอย
+	var stand := MeshInstance3D.new()
+	var sbox := BoxMesh.new()
+	sbox.size = Vector3(0.4, 1.0, 0.4)
+	stand.mesh = sbox
+	var smat := StandardMaterial3D.new()
+	smat.albedo_color = Color(0.35, 0.35, 0.36)
+	stand.material_override = smat
+	stand.position = Vector3(0, -1.0, 0)
+	cache.add_child(stand)
 	var col = CollisionShape3D.new()
 	var shape = BoxShape3D.new()
 	shape.size = Vector3(4, 3, 4)

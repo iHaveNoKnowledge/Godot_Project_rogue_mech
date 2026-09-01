@@ -21,6 +21,8 @@ func _ready() -> void:
 
 
 func _setup_ground() -> void:
+	var p_seed: int = int(GlobalData.board.board_seed) if GlobalData.board else 1337
+	WarBiomeGenerator._ensure_noise(p_seed)
 	var ground = get_node_or_null("Ground")
 	if ground == null:
 		ground = StaticBody3D.new()
@@ -34,9 +36,14 @@ func _setup_ground() -> void:
 		ground.add_child(col)
 		_ensure_ground_mesh(ground)
 	else:
-		# Scene already has Ground (collision only) — ensure visual mesh + grid exist.
 		if not _ground_has_mesh(ground):
 			_ensure_ground_mesh(ground)
+	# Biome patches 4 โซน Voronoi — สีพื้นแยกตาม biome
+	if ground.get_node_or_null("BiomeRoot") == null:
+		var biome_root := Node3D.new()
+		biome_root.name = "BiomeRoot"
+		ground.add_child(biome_root)
+		WarBiomeGenerator.build_biome_ground(biome_root, p_seed)
 
 
 func _ground_has_mesh(ground: Node) -> bool:
@@ -149,7 +156,7 @@ func _spawn_player_mecha() -> void:
 			mecha = scene.instantiate()
 			mecha.name = "Mecha"
 			add_child(mecha)
-			mecha.position = Vector3(0, 3, -750)
+			mecha.position = WarBiomeGenerator.snap_to_ground(Vector3(0, 0, -750), 3.0)
 			mecha.add_to_group("mecha")
 	if mecha and mecha.has_method("set_team"):
 		mecha.set_team("friendly")
@@ -183,12 +190,12 @@ func _ensure_war_camera(mecha: Node) -> void:
 
 func _spawn_ore_nodes() -> void:
 	var ore_positions = [
-		Vector3(100, 0.5, -650), Vector3(-100, 0.5, -650),
-		Vector3(0, 0.5, -600), Vector3(200, 0.5, -700)
+		Vector3(100, 0, -650), Vector3(-100, 0, -650),
+		Vector3(0, 0, -600), Vector3(200, 0, -700)
 	]
 	for i in range(ore_positions.size()):
 		var node = WarOreNode.new()
-		node.position = ore_positions[i]
+		node.position = WarBiomeGenerator.snap_to_ground(ore_positions[i], 0.5)
 		node.ore_type = "ore" if i % 2 == 0 else "oil"
 		add_child(node)
 
@@ -196,8 +203,8 @@ func _spawn_ore_nodes() -> void:
 func _spawn_logistic_trucks() -> void:
 	var logistic = WarLogisticSystem.new()
 	var depot = Vector3(0, 0, -800)
-	for pos in [Vector3(50, 1, -750), Vector3(-50, 1, -750)]:
-		var truck = logistic.create_truck(pos, depot)
+	for pos in [Vector3(50, 0, -750), Vector3(-50, 0, -750)]:
+		var truck = logistic.create_truck(WarBiomeGenerator.snap_to_ground(pos, 1.0), depot)
 		add_child(truck)
 
 
@@ -206,15 +213,14 @@ func _spawn_data_events() -> void:
 	for i in range(3):
 		var ev = WarDataEvent.new()
 		ev.data_type = types[i % types.size()]
-		ev.position = Vector3(randf_range(-150, 150), 1, randf_range(-700, -550))
+		ev.position = WarBiomeGenerator.snap_to_ground(Vector3(randf_range(-150, 150), 0, randf_range(-700, -550)), 1.0)
 		add_child(ev)
 
 
 func _spawn_carrier() -> void:
 	var dock = CarrierDock.new()
-	var carrier = dock.create_carrier(Vector3(80, 1, -750))
+	var carrier = dock.create_carrier(WarBiomeGenerator.snap_to_ground(Vector3(80, 0, -750), 1.0))
 	add_child(carrier)
-	# Store dock logic on carrier for later use
 	carrier.set_meta("dock_logic", dock)
 
 
@@ -246,11 +252,13 @@ func _setup_combat_systems() -> void:
 
 
 func _decorate_phase2() -> void:
-	# Place near player start so visible immediately (was 500 away invisible)
-	WarMapGenerator.decorate_highland(self, Vector3(150, 5, -650))
-	WarMapGenerator.decorate_underground_tunnel(self, Vector3(-150, -5, -650))
-	WarMapGenerator.spawn_weapon_cache(self, Vector3(80, 1, -700))
-	WarMapGenerator.spawn_weapon_cache(self, Vector3(-80, 1, 350))
+	# Grounded + มีเสา/คาน — ไม่ลอย
+	WarMapGenerator.decorate_highland(self, Vector3(150, 0, -650))
+	WarMapGenerator.decorate_underground_tunnel(self, Vector3(-150, 0, -650))
+	WarMapGenerator.spawn_weapon_cache(self, Vector3(80, 0, -700))
+	WarMapGenerator.spawn_weapon_cache(self, Vector3(-80, 0, 350))
+	# สะพานตัวอย่างข้ามหุบ — มีเสาทุก 25m ลงถึงพื้นจริง
+	WarBiomeGenerator.spawn_bridge(self, Vector2(-180, -620), Vector2(180, -620), 6.0, 8.0)
 	for base in [get_node_or_null("FriendlyMainBase"), get_node_or_null("EnemyMainBase")]:
 		if base:
 			# Place trigger inside Mech Hangar (now 8x6.5x10 at -7.2,0,0.2) — not floating at 10,1,0

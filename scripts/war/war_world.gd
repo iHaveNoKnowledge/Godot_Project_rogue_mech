@@ -38,12 +38,27 @@ func _setup_ground() -> void:
 	else:
 		if not _ground_has_mesh(ground):
 			_ensure_ground_mesh(ground)
-	# Biome patches 4 โซน Voronoi — สีพื้นแยกตาม biome
 	if ground.get_node_or_null("BiomeRoot") == null:
 		var biome_root := Node3D.new()
 		biome_root.name = "BiomeRoot"
 		ground.add_child(biome_root)
 		WarBiomeGenerator.build_biome_ground(biome_root, p_seed)
+		WarBiomeGenerator.populate_biome_scatter(biome_root, p_seed)
+	# Chunk loader สำหรับ ore/cache/salvage — cull ไกล + ปิด shadow >150m
+	if get_node_or_null("ChunkLoader") == null:
+		var loader := WarChunkLoader.new()
+		loader.name = "ChunkLoader"
+		add_child(loader)
+	# Occluder กลางแมพ กันเห็นข้าม biome (ลด draw)
+	if ground.get_node_or_null("BiomeOccluder") == null:
+		var occ_root := Node3D.new()
+		occ_root.name = "BiomeOccluder"
+		occ_root.position = Vector3(0, 4, 0)
+		var occ := OccluderInstance3D.new()
+		occ.occluder = BoxOccluder3D.new()
+		(occ.occluder as BoxOccluder3D).size = Vector3(2000, 8, 0.5)
+		occ_root.add_child(occ)
+		ground.add_child(occ_root)
 
 
 func _ground_has_mesh(ground: Node) -> bool:
@@ -193,11 +208,16 @@ func _spawn_ore_nodes() -> void:
 		Vector3(100, 0, -650), Vector3(-100, 0, -650),
 		Vector3(0, 0, -600), Vector3(200, 0, -700)
 	]
+	var loader: WarChunkLoader = get_node_or_null("ChunkLoader") as WarChunkLoader
 	for i in range(ore_positions.size()):
 		var node = WarOreNode.new()
 		node.position = WarBiomeGenerator.snap_to_ground(ore_positions[i], 0.5)
 		node.ore_type = "ore" if i % 2 == 0 else "oil"
-		add_child(node)
+		node.set_meta("chunk_auto", true)
+		if loader:
+			loader.add_to_chunk(node)
+		else:
+			add_child(node)
 
 
 func _spawn_logistic_trucks() -> void:
@@ -252,12 +272,18 @@ func _setup_combat_systems() -> void:
 
 
 func _decorate_phase2() -> void:
-	# Grounded + มีเสา/คาน — ไม่ลอย
 	WarMapGenerator.decorate_highland(self, Vector3(150, 0, -650))
 	WarMapGenerator.decorate_underground_tunnel(self, Vector3(-150, 0, -650))
-	WarMapGenerator.spawn_weapon_cache(self, Vector3(80, 0, -700))
-	WarMapGenerator.spawn_weapon_cache(self, Vector3(-80, 0, 350))
-	# สะพานตัวอย่างข้ามหุบ — มีเสาทุก 25m ลงถึงพื้นจริง
+	var loader: WarChunkLoader = get_node_or_null("ChunkLoader") as WarChunkLoader
+	for p in [Vector3(80, 0, -700), Vector3(-80, 0, 350)]:
+		var before: int = get_child_count()
+		WarMapGenerator.spawn_weapon_cache(self, p)
+		# ย้าย cache เข้า chunk ถ้ามี
+		if loader and get_child_count() > before:
+			var cache: Node3D = get_child(get_child_count() - 1) as Node3D
+			if cache and cache.name == "WeaponCache":
+				cache.set_meta("chunk_auto", true)
+				loader.add_to_chunk(cache)
 	WarBiomeGenerator.spawn_bridge(self, Vector2(-180, -620), Vector2(180, -620), 6.0, 8.0)
 	for base in [get_node_or_null("FriendlyMainBase"), get_node_or_null("EnemyMainBase")]:
 		if base:

@@ -232,3 +232,63 @@ static func spawn_highland_mesa(parent: Node3D, center_xz: Vector2, size: Vector
 	body.add_child(mi)
 	parent.add_child(body)
 	return body
+
+
+## MultiMesh — หิน/ต้นไม้ซ้ำๆ รวม draw call เดียว + grounded + ปิด shadow ไกล
+static func spawn_multimesh_scatter(parent: Node3D, mesh: Mesh, count: int, area_center: Vector2, area_extents: Vector2, min_scale: float = 0.8, max_scale: float = 1.4) -> MultiMeshInstance3D:
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.instance_count = count
+	mm.mesh = mesh
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(area_center.x * 1000 + area_center.y * 1000) + count
+	for i in range(count):
+		var wx: float = rng.randf_range(area_center.x - area_extents.x, area_center.x + area_extents.x)
+		var wz: float = rng.randf_range(area_center.y - area_extents.y, area_center.y + area_extents.y)
+		var gy: float = get_ground_height(wx, wz)
+		var s: float = rng.randf_range(min_scale, max_scale)
+		var t := Transform3D(Basis().scaled(Vector3(s, s, s)), Vector3(wx, gy + s * 0.5, wz))
+		t = t.rotated(Vector3.UP, rng.randf_range(0, TAU))
+		mm.set_instance_transform(i, t)
+	var inst := MultiMeshInstance3D.new()
+	inst.multimesh = mm
+	inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	var mat := StandardMaterial3D.new()
+	if mesh is BoxMesh:
+		mat.albedo_color = Color(0.45, 0.38, 0.30)
+	else:
+		mat.albedo_color = Color(0.18, 0.32, 0.16)
+	mat.roughness = 0.9
+	inst.material_override = mat
+	parent.add_child(inst)
+	return inst
+
+
+static func populate_biome_scatter(parent: Node3D, p_seed: int = 1337) -> void:
+	_ensure_noise(p_seed)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = p_seed + 999
+	# หิน desert — BoxMesh
+	var rock_mesh := BoxMesh.new()
+	rock_mesh.size = Vector3(2.2, 1.6, 2.0)
+	# ต้นไม้ forest — Cylinder + Cone
+	var trunk_mesh := CylinderMesh.new()
+	trunk_mesh.top_radius = 0.35
+	trunk_mesh.bottom_radius = 0.45
+	trunk_mesh.height = 4.0
+	for qx in [-1, 1]:
+		for qz in [-1, 1]:
+			var cx: float = qx * 500.0
+			var cz: float = qz * 500.0
+			var b: int = biome_at(cx, cz)
+			match b:
+				Biome.DESERT:
+					spawn_multimesh_scatter(parent, rock_mesh, 18, Vector2(cx, cz), Vector2(380, 380), 0.7, 1.5)
+				Biome.FOREST:
+					spawn_multimesh_scatter(parent, trunk_mesh, 22, Vector2(cx, cz), Vector2(380, 380), 0.9, 1.3)
+				Biome.CITY_RUINS:
+					var rubble := BoxMesh.new()
+					rubble.size = Vector3(3.0, 2.5, 3.0)
+					spawn_multimesh_scatter(parent, rubble, 12, Vector2(cx, cz), Vector2(380, 380), 0.8, 1.2)
+				Biome.RIVER_VALLEY:
+					spawn_multimesh_scatter(parent, rock_mesh, 10, Vector2(cx, cz), Vector2(380, 380), 0.8, 1.2)

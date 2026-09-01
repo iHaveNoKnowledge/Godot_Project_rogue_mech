@@ -1,10 +1,10 @@
 
 # CHANGEPLAN — งานที่เหลือทำต่อ (Resume Point)
 
-> ย้ายเครื่องมาแล้วอ่านไฟล์นี้ก่อน ข้อมูลในนี้ตรงกับโค้ด commit `165405f` บน branch `main`
-> วิธีรันเทสต์ headless:
-> `D:\godot\Godot_v4.6.2-stable_win64.exe --headless --quit-after 5 res://tests/refactor_qa_test.tscn`
-> (เครื่องนี้ Godot อยู่ที่ `H:\hack\project\godot\Godot_v4.6.2-stable_win64.exe`; ถ้าเพิ่ง clone ใหม่ต้องรัน `--import` ก่อนเพื่อ build class cache)
+> ย้ายเครื่องมาแล้วอ่านไฟล์นี้ก่อน ข้อมูลในนี้ตรงกับโค้ด commit `8ac026d` บน branch `main`
+> วิธีรันเทสต์ headless (แก้ `<GODOT>` เป็น path เครื่องตัวเอง):
+> `<GODOT>\Godot_v4.6.2-stable_win64.exe --headless --quit-after 5 res://tests/refactor_qa_test.tscn`
+> ตัวอย่าง: `D:\godot\...`, `H:\hack\project\godot\...`, `C:\Tools\Godot\...` — ถ้าเพิ่ง clone ใหม่ต้องรัน `--import` ก่อนเพื่อ build class cache
 > หลังแก้ทุกครั้ง: รันเทสต์หลายรอบ (test มี randomness ต้องรัน 8-15 รอบ) + `git commit` + `git push` ตาม AGENTS.md
 
 ---

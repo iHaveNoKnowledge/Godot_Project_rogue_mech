@@ -303,11 +303,16 @@ scripts/war/ — สถานะปัจจุบัน (ตรวจสอบ 
 
 ### Headless Validate (Godot 4.6.2)
 
+> dev หลายเครื่อง — แก้ `<GODOT>` เป็น path เครื่องตัวเอง
+
 ```powershell
-H:\hack\project\godot\Godot_v4.6.2-stable_win64.exe --headless --import
-H:\hack\project\godot\Godot_v4.6.2-stable_win64.exe --headless --quit-after 5 res://tests/refactor_qa_test.tscn
-# หรือเครื่อง dev ปัจจุบัน:
-D:\godot\Godot_v4.6.2-stable_win64.exe --headless --import
+<GODOT>\Godot_v4.6.2-stable_win64.exe --headless --import
+<GODOT>\Godot_v4.6.2-stable_win64.exe --headless --quit-after 5 res://scenes/war/war_world.tscn
+
+# ตัวอย่าง path ที่ใช้จริง:
+# H:\hack\project\godot\Godot_v4.6.2-stable_win64.exe --headless --import
+# D:\godot\Godot_v4.6.2-stable_win64.exe --headless --import
+# C:\Tools\Godot\Godot_v4.6.2-stable_win64.exe --headless --import
 ```
 
 ### War Mode Manual QA
@@ -358,7 +363,7 @@ D:\godot\Godot_v4.6.2-stable_win64.exe --headless --import
 | **Ace Right** | สิทธิ์จองขับ Valkyrion ของ Ace |
 | **HQ Barrier** | โล่ลดดาเมจ 90% รอบ HQ 100m / 10 นาที |
 
-* Godot 4.6.2 path: `D:\godot\Godot_v4.6.2-stable_win64.exe` — validate ด้วย `--headless --import` (เครื่อง hack: `H:\hack\project\godot\...`)
+* Godot 4.6.2 path: `<GODOT>\Godot_v4.6.2-stable_win64.exe` — dev หลายเครื่อง ให้แก้เป็น path เครื่องตัวเอง (เช่น `D:\godot\...`, `H:\hack\project\godot\...`, `C:\Tools\Godot\...`) แล้ว validate ด้วย `--headless --import`
 * ทุกเฟสจบ commit + push ตาม `AGENTS.md`
 * สูตรหุ่นเทพใช้ทรัพยากรแรร์จริง แต่ Mass Product ให้ผู้เล่นทุนน้อยก็เล่นได้ — ไม่ pay-to-win
 * เอกสารนี้ตรงกับโค้ด commit หลัง War Phase3 — deploy + launch + hud split + Input 2026-09-01

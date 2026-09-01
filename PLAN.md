@@ -1,229 +1,365 @@
 # WAR MODE — Battlefield + Red Alert Hybrid — Master Plan (โหมดใหม่ คู่กับโหมดเดิม)
 
 > **ระบบเดิมเก็บไว้ทั้งหมด** — `Board` (Roguelike Convoy 25x25) ยังอยู่เหมือนเดิม `board_system.gd` / `game_manager.gd:State.BOARD`
-> `War Mode` เป็นโหมดใหม่เลือกที่ Main Menu → เปิดเป็น `War Map` ใหญ่ 2 ฝั่ง — หุ่นธรรมดาเริ่ม → เก็บ Data/แร่ → วิจัย → สร้างหุ่นเทพ/Mass Product
+> `War Mode` เป็นโหมดใหม่เลือกที่ Main Menu → เปิดเป็น `War Map` ใหญ่ 2 ฝั่ง — หุ่น `Valkren Class` ธรรมดาเริ่ม → เก็บ Data/แร่ → วิจัย → สร้าง Valkyrion/Mass Product
 > Engine: Godot 4.6.2.stable, reuse ระบบเดิม 70% (Hangar/Assembly/Repair/Pilot/Faction)
 
 ---
 
-## 1. วิสัยทัศน์
+## สารบัญ
 
-**Battlefield Conquest + Red Alert Harvest** ไม่ใช่ Dota lane
-
-* **2 โหมดคู่กัน:** `Campaign (Board)` เดิมยังเล่นได้ปกติ + `War Mode` แมพเดียว 2000x2000 กึ่ง open world หลายระดับ (ที่สูง/พื้น/อุโมงค์ใต้ดิน) ซ่อนทรัพยากร
-* ต้อง **ขนส่ง (Logistic)** แร่/น้ำมันกลับ Storage ไม่ได้เข้าคลังทันที
-* หา **Data** ตาม Event Area แบกกลับฐานวิจัย → สุ่มได้ Part เทพ / Frame เทพ / Module / สูตรเต็มตัว / หุ่นทั้งคัน
-* มี **Module/Backpack/อาวุธไหล่ Q/E** ถอดได้ ตกให้ชิงได้ — หุ่นเทพตายกลางสนามกลายเป็นศึกชิงซาก
-* รถ **Humvee / Truck / Tank / Carrier 2 หุ่น** + คลังอาวุธเคลื่อนที่ เปลี่ยนปืนกลางสนามได้
-* กด **Tab ดูทรัพยากร / I ดู Inventory** (ใช้ได้ทั้ง 2 โหมด แต่ War Mode มีทรัพยากรเพิ่ม)
+1. [วิสัยทัศน์ & IP Naming](#1-วิสัยทัศน์--ip-naming-conventions)
+2. [แมพ & จุดยึดส่งกำลังพล](#2-แมพ--จุดยึดส่งกำลังพล-spawn-locations)
+3. [ทรัพยากร + Logistic](#3-ทรัพยากร--logistic)
+4. [ยานพาหนะ & Carrier Physics](#4-ยานพาหนะ--carrier-physics-rules)
+5. [Valkren Classification & Evolution Schema](#5-valkren-classification--evolution-schema-tech-tree)
+6. [Combat Scale, Deploy Cap & Ace Right](#6-combat-scale-deploy-cap--ace-right-system)
+7. [Dynamic Launch Setup, Realtime Hangar & System Details](#7-dynamic-launch-setup-realtime-hangar--system-details)
+8. [สถาปัตยกรรมไฟล์](#8-สถาปัตยกรรมไฟล์-scripts--scenes)
+9. [แผนการดำเนินงาน (Phases)](#9-แผนการดำเนินงาน-phases-progress)
+10. [Performance & Engine (Godot 4.6 Specifics)](#10-performance--engine-godot-46-specifics)
+11. [ระบบเซฟ & แยกโหมด](#11-ระบบเซฟ--แยกโหมด-save-system)
+12. [Input Map & Controls (War Mode)](#12-input-map--controls-war-mode)
+13. [Audio / VFX / UI Polish](#13-audio--vfx--ui-polish)
+14. [Testing & QA Checklist](#14-testing--qa-checklist)
+15. [Risks & Mitigations](#15-risks--mitigations)
+16. [Glossary & หมายเหตุ](#16-glossary--หมายเหตุ)
 
 ---
 
-## 2. แมพ — ซับซ้อน ซ่อนของ
+## 1. วิสัยทัศน์ & IP Naming Conventions
 
-### 2.1 โครงสร้าง
-* `scenes/war/war_world.tscn` แผ่นเดียว (เพิ่มใหม่ ไม่แทน `board/game_board.tscn` เดิม)
+**Battlefield Conquest + Red Alert Harvest (Valkren Tactical Combat)**
+
+* **2 โหมดคู่กัน:** `Campaign (Board)` เดิมยังเล่นได้ปกติ + `War Mode` แมพเดียว 2000x2000 กึ่ง open world หลายระดับ (ที่สูง/พื้น/อุโมงค์ใต้ดิน) ซ่อนทรัพยากร
+* **IP Classification — `Valkren` vs `Valkyrion`:**
+  * **Valkren (วาลเครน):** ศัพท์เรียกสปีชีส์/ประเภทจักรกลรบหลักทั้งหมดในสนามรบ (เทียบเท่า Mobile Suit)
+  * **Valkyrion (วาลคิริออน):** ชื่อเรียกหุ่นต้นแบบสเปกสุดยอด / Secret Frame ที่ขับเคลื่อนด้วย Ancient Core (เทียบเท่า Gundam)
+  * **Combat Hierarchy:** `Valkyrion (Apex)` > `Valkren Class` > `Tank Class` > `Infantry / Pilot Class`
+  * **จุดเด่น Valkren:** ความคล่องตัวสูง (High Mobility), ตอบสนองไว (High Response), และความต่อเนื่องในการโจมตีสูงมาก (Offensive Continuity / Seamless Fire-on-Move)
+  * **วิวัฒนาการเกราะ:** ยุคแรกเกราะอาจเบากว่ารถถังเน้นหลบหลีก แต่เมื่ออัปเกรด (Upgraded Gen) เกราะจะแข็งแกร่งทนทานกว่ารถถังยุคเก่าอย่างเห็นได้ชัด
+* **ระบบ ขนส่ง (Logistic):** แร่/น้ำมัน ต้องแบกกลับ Storage Depot ไม่ได้เข้าคลังทันที
+* **หา Data:** ตาม Event Area แบกกลับฐานวิจัย → สุ่มได้ Valkren Part / Frame / Module / Blueprint / Valkyrion ทั้งคัน
+* **อุปกรณ์ถอดได้/ตกชิงได้:** Module/Backpack/อาวุธไหล่ Q/E — เมื่อ Valkren/Valkyrion พังกลางสนามจะกลายเป็นศึกชิงซาก
+* **ยานพาหนะ Support:** Humvee / Truck / Tank / Carrier (คลังอาวุธเคลื่อนที่ + จุด Spawn)
+* **UI Input:** กด **Tab ดูทรัพยากร (`WarResourceHUD`) / I ดู Inventory (`WarInventory`)**
+
+### Reuse 70% — แยกของใหม่ vs ของเดิม
+
+| ระบบ | Reuse ของเดิม | ของใหม่ War Mode |
+|------|---------------|-----------------|
+| Hangar/Assembly/Repair | `hangar_state.gd`, `repair_system.gd`, `part_mesh_manager.gd` | `war_realtime_hangar.gd` (Overlay บนแมพจริง) |
+| Combat/Weapon/Projectile | `spawn_manager.gd`, `weapon_core.gd`, `projectile.gd`, `loot_system.gd` | `stunt_weapon_system.gd`, `shoulder_weapon_system.gd` (Q/E) |
+| Pilot/Eject | `mecha_eject.gd`, `pilot_controller.gd`, `pilot_state.gd` | `war_ai_jump_system.gd` + HQ Shield |
+| Board/Faction | `PilotGenerator`, `RecruitSystem`, `FactionSystem` | `WarManager` + Barracks Lv 4/8/12 |
+| Arena/Terrain | `arena_generator.gd` | `war_map_generator.gd` (HIGHLAND/UNDERGROUND) |
+
+---
+
+## 2. แมพ & จุดยึดส่งกำลังพล (Spawn Locations)
+
+### 2.1 โครงสร้างแมพ
+
+* `scenes/war/war_world.tscn` แผ่นเดียว (`war_world.gd`)
 * Terrain เดียวด้วย `arena_generator.gd:333 _add_terrain_mesh()` + `HeightMapShape3D` `arena_generator.gd:755`
-* แบ่ง 3 โซนตาม GDD Sub-Zone: `HIGHLAND` (เนินสูง sniper) / `GROUND` (crossroads) / `UNDERGROUND` (อุโมงค์ BoxMesh เพดาน + SpotLight)
+* แบ่ง 3 โซนตาม GDD Sub-Zone: `HIGHLAND` (เนินสูง sniper) / `GROUND` (crossroads) / `UNDERGROUND` (อุโมงค์ซ่อนของ + SpotLight)
 * ซ่อน `Ore Node` 6-8 จุด + `Oil Well` 3 จุด + `Weapon Cache` 2 จุด ในซอกหุบ/ใต้ดิน — มองจากที่สูงไม่เห็น ต้องลาดตระเวนด้วย Humvee
 
-### 2.2 ฐาน
-* `Main Base` ฝั่งละ 1 (reuse `ForwardBase.spawn_base("fortified")` `forward_base.gd:39` HQ 220HP) มี `Storage Depot` + `Refinery` + `War Factory (Hangar)` + `Reactor Bay`
-* ฐานย่อยไม่มี — ยึดด้วยทรัพยากร ไม่ใช่ capture point แบบเดิม
+### 2.2 ฐาน & จุด Spawn แนวหน้า
+
+* **Main Base (War Factory):** ฐานหลักฝั่งละ 1 (`forward_base.gd:39` HQ 220HP) มี `Storage Depot` + `Refinery` + `War Factory (Hangar)` + `Reactor Bay` (เกิด Valkren ได้ทุก Class และ Valkyrion)
+* **Mobile Carrier (Deploy Mode):** จุดเกิดยูนิต `Valkren Line-Issue` และ `Vehicles` แนวหน้า เคลื่อนที่ได้
+* **Forward Storage Depot:** ยึดจุดยุทธศาสตร์เพื่อส่งกำลังบำรุง และเป็นจุดเกิด `Valkren Line-Issue` / `Truck` / `Humvee` (ห้ามเกิด Valkyrion)
+* **Supply Beacon / Drop Pod:** ให้ Infantry เรียก Drop Pod ส่ง `Line-Valkren` ลงตำแหน่งแนวหน้า (จ่าย Resource เพิ่ม 2 เท่า)
 * **กำลังคน:** ขึ้นกับ `Barracks Lv` ใน `Main Base/ForwardBase` (Lv1=4 คน, Lv2=8, Lv3=12) + `Pilot Pool` สุ่มจาก `PilotGenerator` + เงินจ้าง `RecruitSystem` เดิม — อัพ Barracks ถึงเพิ่มคนได้
 
 ---
 
 ## 3. ทรัพยากร + Logistic
 
-| ทรัพยากร | ได้จาก | เก็บยังไง | ใช้ทำอะไร |
-|---|---|---|---|
-| **Credits** | ขายแร่ที่ Depot, ฆ่าศัตรู | Auto เข้า `CurrencyManager` `global_data.gd:240` | คราฟท์ Part/อาวุธ, อัพฐาน |
-| **Scrap** | แร่ Ore Node, ซากหุ่น | ต้องขนด้วย Truck → Depot | คราฟท์เกราะ/เฟรม |
-| **Oil/Fuel** | Oil Well, ถังพก | ถัง `FuelContainerInventory` `fuel_container_inventory.gd` พกเติมกลางสนาม หรือขับกลับ Hangar เติม | พลังงานหุ่น `PowerCoreSystem` `GDD.md:152` |
-| **Data** | Event Area | แบกกลับฐานวิจัย (CTF ช้าลง 20%) | สุ่ม Part/Module/สูตรเทพ |
-| **Energy (หุ่นใหม่)** | เตาพิเศษในฐาน | สร้าง `Ancient Reactor` ที่ฐาน Lv3 ถึงผลิตได้ | เติมหุ่น Legendary ไม่กินน้ำมัน |
+| ทรัพยากร   | ได้จาก                               | เก็บยังไง                                                                                                               | ใช้ทำอะไร                                          |
+| ------------------ | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| **Credits**  | ขายแร่ที่ Depot, ฆ่าศัตรู | Auto เข้า`CurrencyManager` (`global_data.gd:240`)                                                                        | คราฟท์ Part/อาวุธ, อัพฐาน                  |
+| **Scrap**    | แร่ Ore Node, ซาก Valkren            | ต้องขนด้วย Truck → Depot                                                                                              | คราฟท์เกราะ/เฟรม                             |
+| **Oil/Fuel** | Oil Well, ถังพก                       | ถัง`FuelContainerInventory` (`fuel_container_inventory.gd`) พกเติมกลางสนาม หรือกลับ Hangar เติม | พลังงาน Valkren (`PowerCoreSystem` `GDD.md:152`) |
+| **Data**     | Event Area                                 | แบกกลับฐานวิจัย (ถือแล้ววิ่งช้าลง 20%)                                                            | สุ่ม Part/Module/สูตรวิจัย Valkren             |
+| **Energy**   | เตาพิเศษ Ancient Reactor           | สร้างที่ฐาน Lv3 ถึงผลิตได้                                                                                  | เติม Valkyrion สเปกล้ำ ไม่กินน้ำมัน  |
 
-**Logistic Rule:** เก็บแร่/น้ำมันแล้วไม่เข้าคลัง — ต้องขับ `Truck` / `Carrier` กลับ `Storage Depot` กด `F` ถ่ายของ (reuse `convoy_escort.gd` + `FuelContainerInventory` ถังพก) ถูกดักปล้นระหว่างทางได้
-
----
-
-## 4. ยานพาหนะ
-
-| รถ | บทบาท | ขับยังไง |
-|---|---|---|
-| **Humvee** | ลาดตระเวนเร็ว หา Data/แร่ซ่อน | `pilot_controller.gd` สลับขึ้นลง `F` เหมือน `mecha_eject.gd` |
-| **Truck** | ขนแร่/น้ำมัน จุเยอะ ช้า | AI ขับอัตโนมัติ `NavigationAgent3D` บน Terrain (รวม UNDERGROUND) ส่งของ Depot→Depot, ผู้เล่นกด `F` ยึดขับเองได้ถ้าว่าง | มี `Storage` 200 scrap / 3 ถังน้ำมัน |
-| **Tank** | ยิงแรง เกราะหนา ช้า | AI + ผู้เล่นขับได้ |
-| **Carrier (ใหญ่)** | บรรทุกหุ่น 2 ตัว + คลังอาวุธเคลื่อนที่ | AI `Automated Logistic Track` วิ่งตามเส้นทาง Depot เอง + ผู้เล่นยึดขับได้, 2 ช่องจอดหลังกระบะ `Area3D` กด Dock → หุ่น `FREEZE` + `Reparent` เป็น Child ของ Carrier แก้ Jitter → `HangarState` park, มี `Weapon Rack` 6 ช่อง + `Ammo Crate` |
-
-หุ่นคืออาวุธหลัก รถเป็น support/logistic
+**Logistic Rule:** เก็บแร่/น้ำมันแล้วไม่เข้าคลัง — ต้องขับ `Truck` / `Carrier` กลับ `Storage Depot` กด `F` ถ่ายของ (`convoy_escort.gd` + `FuelContainerInventory` ถังพก) ถูกดักปล้นระหว่างทางได้
 
 ---
 
-## 5. Data — 6 แบบ + คลังอาวุธ
+## 4. ยานพาหนะ & Carrier Physics Rules
 
-**Event Area** สุ่มเกิด 2-3 จุด/5 นาที ขึ้น HUD "DATA ลึกลับ" → เข้าไปกด `F` เก็บ → แบกกลับฐาน (ถือแล้ววิ่งช้า) → กดวิจัยที่ `War Factory`
-
-Roll Table (วิจัย 1 Data):
-
-| ผล | โอกาส | ได้อะไร | หมายเหตุ |
-|---|---|---|---|
-| Part เทพ | 30% | เกราะแขน/ขา/หัว HP สูง | คราฟท์ไม่ได้ ต้องหา Data |
-| Frame เทพ | 20% | เฟรมเบา/ถึกพิเศษ | ใส่แล้วเพิ่ม `carry_bonus` |
-| Module เทพ | 20% | `frame_property_catalog` `global_data.gd:327` (Fission Core, FCS, Gyro, Roller Overdrive) ถอดได้ | ตกให้ชิงได้ |
-| Data อาวุธ | 15% | `WeaponPart` `weapon_part.gd:4` เทพ (Railgun, Beam) |  |
-| สูตรหุ่นเต็มตัว | 8% | Blueprint หุ่นเทพทั้งตัว | ต้องใช้แรร์ถึงคราฟท์ |
-| หุ่นทั้งคัน | 2% | หุ่นเทพจอดกลางแมพ กดขึ้นขับได้เลย | เอากลับฐานวิจัยต่อได้ |
-
-**Weapon Cache** จุดซ่อนถาวร 2 จุด เปิดแล้วได้อาวุธ/โล่สุ่ม (reuse `LootSystem`)
+| ยานพาหนะ             | บทบาท                                                           | ขับยังไง / สเปค                                                                                                                                                                                                                                                                        |
+| ---------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Humvee**             | ลาดตระเวนเร็ว หา Data/แร่ซ่อน                  | `pilot_controller.gd` สลับขึ้นลง `F` เหมือน `mecha_eject.gd`                                                                                                                                                                                                                 |
+| **Truck**              | ขนแร่/น้ำมัน จุเยอะ ช้า                          | AI ขับอัตโนมัติ`NavigationAgent3D` บน Terrain (รวม UNDERGROUND) ส่งของ Depot→Depot / ผู้เล่นยึดขับเองได้ มี Storage 200 scrap / 3 ถังน้ำมัน                                                                                                |
+| **Tank**               | ยิงแรง เกราะหนา ยิงนัดเดียวหนัก (Burst) | เคลื่อนที่ช้า หมุนป้อมช้า เป็นเหยื่อของ Valkren                                                                                                                                                                                                               |
+| **Carrier (ใหญ่)** | บรรทุก Valkren 2 ตัว + คลังอาวุธ                   | **Physics Rule:** AI `Automated Logistic Track` วิ่งตามเส้นทาง Depot / ผู้เล่นยึดขับได้. 2 ช่องจอดหลังกระบะ `Area3D` กด Dock → สั่ง `FREEZE` Physics + `Reparent` เป็น Child ของ Carrier แก้ปัญหา Physics Jitter |
 
 ---
 
-## 6. Module / Backpack / อาวุธไหล่ — ถอดได้ ตกชิงได้
+## 5. Valkren Classification & Evolution Schema (Tech Tree)
 
-* **Module** = `frame_property_catalog` 20 รายการเดิม ติด Slot `head/body/arm/leg` ถอดได้ใน Hangar ยิงตก → เป็น `LootPickup` ให้เก็บ (reuse `ScavengerSystem` + `salvage_system.gd`)
-* **Backpack** = `Attachment` ใหม่ต่อยอด `hangar_state.gd`
-  * `Cargo` +จุ 40kg
-  * `Booster` +Roller Dash 30%
-  * `Combat` +เกราะ/ระบายความร้อน
-* **อาวุธไหล่** = Slot ใหม่ `shoulder_left` / `shoulder_right` `weapon_part.gd:4` กด `Q` ไหล่ซ้าย / `E` ไหล่ขวา (เพิ่ม Input `project.godot:46` แยกจาก `fire_left/right` เมาส์) ใส่โล่ไหล่หรือ Missile Pod ได้
+วิวัฒนาการสายการวิจัยแบ่งออกเป็น 4 Class หลัก:
 
-หุ่นเทพตาย → ซากไม่หาย + Module/Backpack/Part เทพหล่น → ใครเก็บได้เอาเข้า Hangar ติดตัวอื่นได้ → ศึกชิงซาก
+1. **Valkren Line-Issue (Standard Frame):** Valkren รุ่นผลิตจำนวนมาก (Mass Product) อะไหล่หาง่าย คล่องตัว สมดุล
+2. **Valkren Iron-Vanguard (Heavy Armored Walker):** อดีตสุดยอดป้อมปราการเดินได้ ติดตั้งป้อมปืนใหญ่และเกราะหนา รับแรงปะทะแนวหน้า (Walk-Tank)
+3. **Valkren Strike-Apex (High-Mobility & EWAR):** อดีตหุ่นความเร็วสูงสุด เฟรมเบา ติดล้อสายพาน/Booster ก่อกวนและยึดพื้นที่ฉับไว
+4. **Valkyrion Prime (Apex Secret Branch):** หุ่นต้นแบบสเปกสูง ปลดล็อกจากการวิจัย Data Event กลางสนามรบ ขับเคลื่อนด้วย Ancient Core
 
----
+**Data Roll Table (วิจัย 1 Data):**
 
-## 7. สูตรเต็มตัว vs Mass Product (รวม Stunt/EMP เฉพาะ Reactor)
-
-* ได้ **หุ่นทั้งคัน** หรือ **สูตร** → เอากลับฐานวิจัย → ปลด 2 ทาง:
-  * **Original** 100% — ต้องใช้ `Ancient Core` + Data + scrap 200 + credits 800 แพง/แรร์
-  * **Mass Product** 75% — ใช้ scrap 80 + credits 400 คราฟท์ได้เรื่อยๆ ใน `craft_panel.gd` สเปคต่ำกว่า 20% แต่ทุนถูก
-* Mass Product ตายก็ตกให้ชิงได้เหมือนกัน
+* Part เทพ (30%) / Frame เทพ (20%) / Module เทพ (20%) / Data อาวุธ (15%) / Blueprint หุ่นเต็มตัว (8%) / Valkyrion ทั้งคัน (2%)
+* **Original (100% Spec):** ใช้ `Ancient Core` + Data + scrap 200 + credits 800 (แพง/แรร์)
+* **Mass Product (75% Spec):** ใช้ scrap 80 + credits 400 คราฟท์ได้เรื่อยๆ ใน `craft_panel.gd`
 
 ---
 
-## 7.5 คราฟท์/ซ่อมใช้เวลา + พ่อค้า Part พร้อมใช้
+## 6. Combat Scale, Deploy Cap & Ace Right System
 
-* **คราฟท์ไม่ทันที:** สั่งคราฟท์ Part/Frame/Module/Backpack → เข้าคิว `WarFactory Queue` `scripts/war/war_production_queue.gd` ใช้เวลา 60-180วิ (ตาม Tier) แสดงหลอด progress ที่ `War Factory` ต้องรอหรือจ่ายเร่ง — reuse `FleetSystem.tick_research()` + `research_catalogs.tres` timer เดิม
-* **ซ่อมก็ใช้เวลา:** สั่งซ่อม 6 Part ที่ Hangar → เข้าคิวซ่อม 30-90วิ ต่อชิ้น (หุ่นพังหนักรอนาน) ระหว่างซ่อมใช้หุ่นสำรองจาก `HangarState` ไปรบก่อนได้
-* **Hangar Realtime (War Mode):** Hangar ตั้งอยู่ที่ `Main Base`/`Carrier`/`ForwardBase` บนแมพจริง — สร้าง Hangar ที่ ForwardBase ได้ด้วย (จ่าย credits/scrap) กด `F` ที่อาคารแล้วเปิด Overlay UI ซ่อม/แต่งหุ่นตรงนั้นเลย ไม่ตัดฉากไป `hangar_scene.tscn` แบบ Campaign (`GameManager.enter_hangar()` เดิม) — ตัวหุ่น 3D ยังจอดในโลก เห็นศัตรูบุกได้
-* **Event พ่อค้า Part:** สุ่มเกิด `Merchant Convoy` / `Black Market Cache` กลางแมพ 2-3 นาที/ครั้ง ขึ้น HUD "พ่อค้าโผล่" → วิ่งไปซื้อ Part พร้อมใช้ได้ทันที จ่าย `credits` แพงกว่า 1.5-2x แต่เร็วกว่ารอคราฟท์/ซ่อม — reuse `board_tile.gd` Event + `CityShop` `city_shop_ui.gd` + `loot_system.gd`
-* ถ่วงดุล: รอคราฟท์ถูกแต่ช้า / ซื้อพ่อค้าแพงแต่ได้ทันที
+### 6.1 Combat Scale (15-20 Active Units / Faction)
 
----
+* **ผู้เล่น (Player):** 1-4 คน (Solo: ผู้เล่น 1 + AI Squad 3)
+* **Ally Commander AI:** 3-5 ตัว (ขับ Valkren / Tank)
+* **Logistic AI:** 2-3 ตัว (ขับ Truck / Carrier อัตโนมัติ)
+* **Enemy AI:** 8-12 ตัว (คุม Valkren, Tank, และ Logistic)
+* *Performance Note:* ใช้ Simplified AI Navigation สำหรับยูนิตระยะไกล เพื่อคุม Frame Rate ที่ 60+ FPS บน Godot 4.6
 
-## 7.6 ศัตรูพังดรอป Part/อาวุธ + เรียกรถจากฐานสาขาไปขนกลับ
+### 6.2 Deploy Cap & Stock Cooldown
 
-* **ดรอป:** ศัตรูหุ่นพัง (`HP 0` + ระเบิด) มีโอกาส 35-50% ทิ้ง `Part` หรือ `WeaponPart` กลางสนาม (reuse `LootSystem` `loot_system.gd` + `ScavengerSystem`) วางเป็น `Salvage Marker` บน minimap
-* **เรียกขน:** กดเมนู `เรียกเก็บ` → เลือกฐานสาขา (`Main Base` / `Forward Storage` / `Carrier` ใกล้สุด) → ส่ง `Truck`/`Humvee` AI วิ่งไปเก็บ (reuse `convoy_escort.gd` + `vehicle_controller.gd` NavAgent) ถึงจุดแล้วเก็บเข้าคลังฐานนั้นทันที — เลือกฐานไกล = ช้าแต่ปลอดภัย, ฐานใกล้ = เร็วแต่เสี่ยงโดนดัก
-* ถ้าไม่เรียก รถไม่มา ของค้างกลางสนามให้ศัตรูชิงได้เหมือน Module/หุ่นเทพ
+* **จำกัดโควตาประจำการ (Deploy Cap):** ควบคุมเพดานยูนิตสนามรบ เช่น `Line-Valkren: 5/5`, `Strike/Iron: 3/3`, `Valkyrion: 1/1`
+* **Stock Respawn Timer:** เมื่อ Valkren/Valkyrion พัง สต็อกยูนิตจะติดคูลดาวน์เติมสต็อก (3-5 นาทีสำหรับ Valkyrion)
+* **การซ่อมบำรุงใน Hangar/Carrier:** ถอยกลับมาซ่อม ใช้เวลาเพียง 15-30 วินาที ไม่เสียคูลดาวน์สต็อก บังคับให้การถอยซ่อมคุ้มค่ากว่าปล่อยระเบิด
 
----
+### 6.3 สิทธิ์การขับ Valkyrion (Apex Right System)
 
-## 7.7 นักบินสำคัญ + 6 Part เดิม + Stunt/EMP เฉพาะ Reactor
-
-* **หุ่น = 6 Part เดิม** `head/body/arm_left/arm_right/leg_left/leg_right` `global_data.gd:90` + `part_mesh_manager.gd:335` — War Mode ไม่เปลี่ยนโครงสร้างนี้
-* **นักบินสำคัญ:** หุ่นพัง (`HP 0`) → ระเบิดใน 3-4 วิ ถ้าดีด `G` (`mecha_eject.gd` `GameManager.State.EJECT` `game_manager.gd:162`) ไม่ทัน = นักบินตาย → `Respawn` เลือกฐานฝั่งเราได้ (`Main Base` หรือ `Carrier` ที่จอดในเขตเรา) — reuse `pilot_state.gd` + `hangar_state.gd` เลือกจุดเกิด
-* **AI หุ่นโดดข้าม:** AI ทั้งเรา/ศัตรู (`pilot_controller.gd` + `Beehave`) มี `RayCast3D` เช็คสิ่งกีดขวางหน้า → สั่ง `Jump impulse` ข้ามได้ ไม่ติดหิน/กำแพงเตี้ย (`war_ai_jump_system.gd` ต่อยอด `mecha_controller.gd` Jump)
-* ถ้าตายแต่หุ่นยังอยู่ → หุ่นจอดที่เดิมเป็นซาก `ScavengerSystem` ไม่หาย ใครยึดได้เอาไปขับ/วิจัยต่อ — ยิ่งหุ่นเทพ Tech สูงยิ่งเสี่ยงโดนขโมย (ถ่วงดุล)
-* **Stunt Weapon:** อาวุธประเภท `STUNT` ใหม่ `weapon_part.gd:4` ยิงแล้วติด `stunned` 2-4 วิ ขยับไม่ได้ (reuse `ewar_system.gd` + `heat_wanted_system.gd` EMP เดิม `GDD.md:188` แต่แยกเป็นดีบัฟ Stunt)
-  * **เฉพาะ Reactor:** `Direct Combustion` โดน Stunt นานสุด / `Overclocked Hybrid` กลาง / `Ancient/Legendary` ทน Stunt สูง (หรือกัน 100%) — `power_core_system.gd` + `WeaponPart.damage_type="stunt"` เช็ค `target.reactor_type` ก่อนติดสถานะ ไม่ใช่ยิงใส่ทุกหุ่นแล้วติดหมด
+* **Single-Player:** ผู้เล่นได้สิทธิ์เด็ดขาดในการสั่ง Deploy ขับเอง หรือมอบหมายให้ AI Ace Pilot ในทีม
+* **Multiplayer / Team Play (Hybrid Ace System):**
+  * เมื่อ Valkyrion พร้อมใช้งาน ผู้เล่นที่มีคะแนน Merit / Score สูงสุดในทีม (Ace Pilot) จะได้รับสิทธิ์จองขับก่อน 30 วินาที
+  * หาก Ace ไม่กดรับสิทธิ์ ระบบจะเปิด Public ให้ผู้เล่นคนอื่นในทีมกด Spawn ลงสนามแทนได้ทันที
 
 ---
 
-## 8. UI — Tab / I
+## 7. Dynamic Launch Setup, Realtime Hangar & System Details
 
-* เพิ่ม Input `project.godot:46` `resource_view` = Tab (hold) / `inventory` = I
-* **Tab** → Overlay `WarResourceHUD` โชว์ Credits/Scrap/Fuel/Ore/Oil/Data/Energy (ดึงจาก `CurrencyManager` + `FuelManager`)
-* **I** → `WarInventory` เต็มจอ โชว์ Part/Frame/Module/Backpack/อาวุธมือ+ไหล่ ที่ถือ/ติดอยู่ ถอด/ติดได้
+* **Dynamic Launch Setup Interface:** ก่อนกด Spawn Valkren/Valkyrion ลงสนาม เลือก Quick Launch หรือ Custom Fitting สลับ Main Hand, Off-Hand, Backpack, และอาวุธไหล่ Q/E ได้สดๆ
+* **Realtime Hangar (War Mode):** Hangar ตั้งอยู่ที่ `Main Base`/`Carrier`/`ForwardBase` บนแมพจริง กด `F` เปิด Overlay UI ซ่อม/แต่งหุ่นได้ทันที ไม่ตัดฉาก
+* **Module / Backpack / อาวุธไหล่ Q/E:**
+  * Module = `frame_property_catalog` 20 รายการเดิม (ถอดได้/ตกชิงได้)
+  * Backpack = `Cargo` (+40kg), `Booster` (+30% Dash), `Combat` (+เกราะ/ระบายความร้อน)
+  * อาวุธไหล่ = Slot `shoulder_left` (Q) / `shoulder_right` (E) ใส่ Missile Pod หรือ Shield
+* **Pilot & Ejection System:** หุ่นพัง (`HP 0`) → ระเบิดใน 3-4 วิ ดีดตัว `G` (`mecha_eject.gd`) ไม่ทัน = นักบินตาย. AI มีระบบ `war_ai_jump_system.gd` กระโดดข้ามสิ่งกีดขวาง
+* **Stunt Weapon & Reactor Response:** อาวุธ Stunt ยิงติดชะงัก 2-4 วิ โดย `Direct Combustion` โดนผลหนักสุด ส่วน `Ancient Reactor (Valkyrion)` มีแรงต้านทาน Stunt สูงสุด
 
 ---
 
-## 9. สถาปัตยกรรมใหม่ (เพิ่ม Pilot/Stunt)
+## 8. สถาปัตยกรรมไฟล์ (Scripts & Scenes)
 
-```
+```text
 GameManager.State.BOARD (เดิม) + GameManager.State.WAR (ใหม่คู่กัน)
-  Main Menu → [CAMPAIGN (Board)] / [WAR MODE]  → เลือกโหมด
   enter_board() → game_board.tscn (เดิม)
   enter_war()   → war_world.tscn (ใหม่)
-  Hangar/Repair/Pilot/Faction ใช้ร่วมกันทั้ง 2 โหมด
 
 scenes/war/
   war_world.tscn              แมพใหญ่ + Main Base 2 ฝั่ง
-  war_resource_hud.tscn       Tab overlay
-  war_inventory.tscn          I inventory
+  war_resource_hud.tscn       Tab overlay          ⏳ TODO — ปัจจุบันใช้ war_hud.gd แบบ CanvasLayer ชั่วคราว
+  war_inventory.tscn          I inventory          ⏳ TODO — ปัจจุบัน logic อยู่ใน war_hud.gd
+  war_launch_setup_ui.tscn    หน้าเลือก Fitting/Preset/Ace Right ก่อน Spawn  ⏳ TODO
 
-scripts/war/
-  war_manager.gd              ควบคุมรอบ, ชนะ/แพ้ (ทำลาย HQ 220HP)
-  war_map_generator.gd        ต่อยอด arena_generator สร้าง Terrain + วาง Ore/Oil/Cache
-  war_resource_system.gd      tick รายได้, Refinery Lv
-  war_logistic_system.gd      Truck/Carrier ขนของ → Depot
-  data_event_system.gd        สุ่ม Event Area + แบกกลับ + roll table
-  war_production_queue.gd     คิวคราฟท์/ซ่อมใช้เวลา 60-180วิ + เร่งได้
-  war_merchant_system.gd      พ่อค้า Part พร้อมใช้ สุ่มเกิด 2-3นาที (ต่อยอด city_shop_ui.gd)
-  capture_wreckage_system.gd  ซากหุ่นเทพชิงได้ (ต่อยอด scavenger_system.gd)
-  war_salvage_dispatch.gd     ศัตรูดรอป Part/อาวุธ + เรียกรถจากฐานสาขาไปเก็บ (ต่อยอด loot_system.gd + convoy_escort.gd)
-  war_respawn_system.gd       ตายเลือกฐานเกิด + หุ่นจอดที่เดิม + โดนขโมยได้
-  pilot_survival_system.gd    หุ่นระเบิด 3วิ ต้องดีดทัน / EMP เฉพาะ Reactor
-  stunt_weapon_system.gd      อาวุธ Stunt 2-4วิ เฉพาะ Reactor (ต่อยอด ewar_system.gd)
-  vehicle_controller.gd       Humvee/Truck/Tank/Carrier — AI Automated Logistic Track (NavigationAgent3D บน Terrain รวม UNDERGROUND) + ผู้เล่นยึดขับเองได้ถ้าว่าง
-  war_ai_jump_system.gd       AI หุ่นโดดข้ามสิ่งกีดขวาง (RayCast + Jump impulse) ทั้งฝั่งเรา/ศัตรู
-  carrier_dock.gd             2 ช่องจอด + Weapon Rack — Dock = FREEZE + Reparent เป็น Child ของ Carrier แก้ Jitter (ไม่ให้ยืนบน Physics)
-  backpack_system.gd          ต่อยอด hangar_state.gd
-  shoulder_weapon_system.gd   Q/E (6 Part เดิมไม่เปลี่ยน)
-  war_hud.gd                  Tab/I
+scripts/war/ — สถานะปัจจุบัน (ตรวจสอบ 2026-09-01)
+  ✅ war_world.gd              แมพใหญ่ + Ground + Bases + Spawn
+  ✅ war_manager.gd            ควบคุมรอบ, ชนะ/แพ้ (HQ 220HP) — skeleton, SAVE_WAR_PATH = user://save_war.json
+  ✅ war_map_generator.gd      HIGHLAND/UNDERGROUND + Weapon Cache + Occluder
+  ✅ war_logistic_system.gd    Truck/Carrier ขนของ → Depot
+  ✅ war_data_event.gd         สุ่ม Event Area + แบกกลับ + roll table (data_event_system.gd ตามแผน = ตัวเดียวกัน)
+  ✅ war_production_queue.gd   คิวคราฟท์/ซ่อม 60-180วิ + เร่งได้
+  ✅ war_merchant_system.gd    พ่อค้า Part พร้อมใช้ สุ่มเกิด 2-3นาที
+  ✅ war_salvage_dispatch.gd   ศัตรูดรอป Part/อาวุธ + เรียกรถจากฐานสาขาไปเก็บ
+  ✅ war_ore_node.gd           Ore/Oil Node + FuelContainer
+  ✅ war_module_system.gd      Module ถอดได้/ตกชิงได้
+  ✅ war_reactor_bay.gd        เตาพิเศษ Ancient Reactor
+  ✅ war_god_mech_system.gd    Roll 6 แบบ + Original/Mass craft
+  ✅ war_balance.gd            ค่าคงที่สมดุล (Original/Mass, Drop, Barracks, Carrier, HQ)
+  ✅ war_minimap.gd            Minimap + Fog of War
+  ✅ war_convoy_ambush.gd      ระบบดักปล้น Convoy
+  ✅ war_realtime_hangar.gd    Hangar Overlay บนแมพจริง
+  ✅ war_hud.gd                Tab/I HUD
+  ✅ war_ai_jump_system.gd     AI โดดข้ามสิ่งกีดขวาง (RayCast + Jump)
+  ✅ carrier_dock.gd           2 ช่องจอด + Dock = FREEZE + Reparent
+  ✅ backpack_system.gd        Cargo/Booster/Combat
+  ✅ shoulder_weapon_system.gd Q/E (6 Part เดิมไม่เปลี่ยน)
+  ✅ stunt_weapon_system.gd    อาวุธ Stunt 2-4วิ เฉพาะ Reactor
+  ✅ war_camera_follow.gd      WarCamera follow (fallback, หลักใช้ mecha_camera.tscn)
+  ⏳ war_deployment_manager.gd จัดการ Deploy Cap + Stock Cooldown — ยังไม่สร้าง (logic ชั่วคราวอยู่ใน war_god_mech_system.gd)
+  ⏳ development_node_resource.gd Resource โครงสร้าง Tech Tree — ยังไม่สร้าง (ใช้ Dictionary ใน war_god_mech_system.gd)
+  ⏳ war_resource_system.gd    tick รายได้, Refinery Lv — ยังไม่แยกไฟล์ (logic อยู่ใน war_logistic_system.gd + war_manager.gd)
+  ⏳ capture_wreckage_system.gd ซาก Valkyrion ชิงได้ — ยังไม่แยกไฟล์ (อยู่ใน war_salvage_dispatch.gd)
+  ⏳ war_respawn_system.gd     ตายเลือกฐานเกิด + หุ่นจอดที่เดิม — ยังไม่แยกไฟล์ (ใช้ pilot_state.gd + hangar_state.gd)
+  ⏳ pilot_survival_system.gd  หุ่นระเบิด 3วิ ต้องดีดทัน — ยังไม่แยกไฟล์ (ใช้ mecha_eject.gd)
+  ⏳ vehicle_controller.gd     Humvee/Truck/Tank/Carrier AI Track — ยังไม่แยกไฟล์ (ใช้ war_logistic_system.gd)
 ```
 
-Reuse 100%: `PartMeshManager`, `RepairSystem`, `Hangar`, `PilotSystem`, `FactionSystem`, `PowerCoreSystem`, `WeaponInventoryState`
+> Reuse 100%: `PartMeshManager`, `RepairSystem`, `Hangar`, `PilotSystem`, `FactionSystem`, `PowerCoreSystem`, `WeaponInventoryState`, `SpawnManager`, `EffectManager`, `LootSystem`, `ConvoyEscort`, `ArenaSeedSystem`
 
 ---
 
-## 10. เฟสทำ
+## 9. แผนการดำเนินงาน (Phases Progress)
 
-**Phase 1 — MVP 2 สัปดาห์ (เล่นได้)** — ✅ เสร็จหมดแล้ว (commit e711ac8 -> 609b2fa)
-* [x] `GameManager.State.WAR` + `war_world.tscn` โล่ง + Main Base 2 ฝั่ง (เก็บ Board เดิมไว้) — e711ac8 war_world.tscn:15 game_manager.gd:166 + แก้พื้นหาย 609b2fa war_world.gd:42
-* [x] Ore Node 4 จุด + Truck ขนกลับ Depot + Tab HUD — 955eb16 war_ore_node.gd:1 war_logistic_system.gd:1 war_hud.gd:1 + grid/ground 8318510
-* [x] Data Event 1 แบบ (Part เทพ) แบกกลับวิจัย — 5a57764 war_data_event.gd:1 war_god_mech_system.gd:1
-* [x] Carrier 1 คัน บรรทุก 2 หุ่น + Weapon Rack เปลี่ยนปืนกลางสนาม — d760663 carrier_dock.gd:1 FREEZE+Reparent 2 ช่อง
-* [x] Module ถอดได้ 3 ตัว + ตกชิงได้ — 5a57764 war_module_system.gd:1 (scavengable)
-* [x] Pilot ดีด 3วิ + Respawn เลือกฐาน + หุ่น 6 Part เดิม + Stunt เฉพาะ Reactor (Combustion โดนนาน / Ancient กัน) — d760663 stunt_weapon_system.gd:1 war_reactor_bay.gd:1 + eject mecha_eject.gd:1 war_ai_jump_system.gd:1
-* [x] คราฟท์/ซ่อมใช้เวลา (คิว 60-180วิ) + พ่อค้า Part พร้อมใช้สุ่มเกิด — d760663 war_production_queue.gd:1 war_merchant_system.gd:1 war_balance.gd:1
+### Phase 1 — MVP 2 สัปดาห์ (เล่นได้) — ✅ เสร็จหมดแล้ว (commit e711ac8 -> 609b2fa)
 
-**Phase 2 — เต็ม 4 สัปดาห์** — ✅ เสร็จหมดแล้ว
-* [x] แมพซับซ้อน HIGHLAND/UNDERGROUND ซ่อนของ + Weapon Cache — c67daeb war_map_generator.gd:1 hill + tunnel Occluder + cache x2
-* [x] Data ครบ 6 แบบ + สูตรเต็มตัว/Mass Product + หุ่นทั้งคัน 2% — 230c852 war_god_mech_system.gd:1 roll table 30/20/20/15/8/2%
-* [x] Backpack 3 แบบ + อาวุธไหล่ Q/E + โล่ไหล่ — fe31d90 backpack_system.gd:1 shoulder_weapon_system.gd:1 Input Q/E project.godot:46
-* [x] เตาพิเศษ Ancient Reactor + น้ำมันถังพกเติมกลางสนาม — 0cc52b7 war_reactor_bay.gd:1 + war_ore_node.gd:1 oil wells
-* [x] I Inventory เต็ม + ระบบชิงซากหุ่นเทพ + ระบบเรียกรถขนซากจากฐานสาขา — 0cc52b7 war_salvage_dispatch.gd:1 war_ai_jump_system.gd:1 + war_realtime_hangar.gd:1 Hangar ที่ฐาน
+- [x] GameManager.State.WAR + war_world.tscn โล่ง + Main Base 2 ฝั่ง
+- [x] Ore Node 4 จุด + Truck ขนกลับ Depot + Tab HUD
+- [x] Deploy Cap skeleton + Stock Cooldown (ชั่วคราวใน war_god_mech_system.gd — รอแยกเป็น war_deployment_manager.gd)
+- [x] Data Event 1 แบบ (Part เทพ) แบกกลับวิจัย
+- [x] Carrier 1 คัน + Docking Physics (Freeze & Reparent)
+- [x] Module ถอดได้ 3 ตัว + ตกชิงได้
+- [x] Pilot ดีด 3วิ + Respawn เลือกฐาน + หุ่น 6 Part เดิม + Stunt เฉพาะ Reactor
+- [x] คราฟท์/ซ่อมใช้เวลา (คิว 60-180วิ) + พ่อค้า Part พร้อมใช้สุ่มเกิด
 
-**Phase 3 — Polish**
-* [x] Minimap + Fog of War + Convoy ถูกปล้นระหว่างขน — 43724ac war_minimap.gd:1 war_convoy_ambush.gd:1 + war_world.gd:252 war_balance.gd:1
-* [ ] Balance ราคา Original vs Mass, เรทดรอป, ความจุ Carrier — ค่าคงที่เริ่มแล้ว d2d998b war_balance.gd:1 แต่ยังไม่ได้ playtest จริง (รอ Polish)
+### Phase 2 — เต็ม 4 สัปดาห์ — ✅ เสร็จหมดแล้ว
+
+- [x] แมพซับซ้อน HIGHLAND/UNDERGROUND ซ่อนของ + Weapon Cache (`war_map_generator.gd`)
+- [x] Data ครบ 6 แบบ + สูตรเต็มตัว/Mass Product + หุ่นทั้งคัน 2% (`war_god_mech_system.gd`)
+- [x] Backpack 3 แบบ + อาวุธไหล่ Q/E + โล่ไหล่ (`backpack_system.gd` / `shoulder_weapon_system.gd`)
+- [x] เตาพิเศษ Ancient Reactor + น้ำมันถังพกเติมกลางสนาม (`war_reactor_bay.gd`)
+- [x] I Inventory เต็ม + ระบบชิงซากหุ่นเทพ + ระบบเรียกรถขนซากจากฐานสาขา (`war_salvage_dispatch.gd`)
+- [x] Dynamic Launch Setup skeleton + Ace Right System (logic ใน `war_god_mech_system.gd` — รอแยก UI เป็น `war_launch_setup_ui.tscn`)
+
+### Phase 3 — Polish
+
+- [x] Minimap + Fog of War + Convoy ถูกปล้นระหว่างขน (`war_minimap.gd`, `war_convoy_ambush.gd`)
+- [ ] Balance ราคา Original vs Mass, เรทดรอป, ความจุ Carrier — (`war_balance.gd` ปรับจูนจริงระหว่าง Playtest) ⏳ รอ Playtest
 
 ---
 
-## 11. Performance & Engine (Godot 4.6 Specifics)
+## 10. Performance & Engine (Godot 4.6 Specifics)
 
-### 11.1 Terrain & Occlusion — แมพ 2000x2000 + Ore/ซากหุ่น
-* **ปัญหา:** Object/Ore/ซากหุ่นหล่นพื้นจำนวนมาก + `SpotLight3D` หลายดวงใน `UNDERGROUND` → ไม่มี culling เฟรมตก
-* **แก้:**
-  * **Chunk Loader:** แบ่งแมพ 16x16 chunk (125m) — โหลด/ซ่อน `Ore Node`/`Scrap`/`Wreckage` ตาม `VisibilityNotifier3D` + ระยะผู้เล่น (reuse `spawn_manager.gd` pool)
-  * **OccluderInstance3D:** ใส่ `OccluderInstance3D` + `Occluder3D` Box ที่ปากอุโมงค์และผนังใต้ดิน → บัง `UNDERGROUND` ทั้งโซนเมื่อผู้เล่นอยู่บนพื้น ลด draw call `SpotLight3D`
-  * **Terrain LOD:** ใช้ `HeightMapShape3D` chunk เดียวกับ mesh, ปิด `shadow` ของ Ore ไกล >150m
+### 10.1 Terrain & Occlusion — แมพ 2000x2000 + Ore/ซากหุ่น
 
-### 11.2 Navigation 2 ชั้น + Link
+**ปัญหา:** Object/Ore/ซากหุ่นจำนวนมาก + `SpotLight3D` หลายดวงใน UNDERGROUND → ไม่มี culling เฟรมตก
+
+**แก้:**
+
+* **Chunk Loader:** แบ่งแมพ 16x16 chunk (125m) — โหลด/ซ่อน `Ore Node`/`Scrap`/`Wreckage` ตาม `VisibilityNotifier3D` + ระยะผู้เล่น
+* **OccluderInstance3D:** ใส่ `OccluderInstance3D` + `Occluder3D` Box ที่ปากอุโมงค์และผนังใต้ดิน → บัง UNDERGROUND ทั้งโซนเมื่อผู้เล่นอยู่บนพื้น ลด draw call `SpotLight3D`
+* **Terrain LOD:** ใช้ `HeightMapShape3D` chunk เดียวกับ mesh, ปิด shadow ของ Ore ไกล >150m
+* **MultiMeshInstance3D:** หิน/แร่ซ้ำๆ ใช้ MultiMesh แทน MeshInstance3D แยก
+
+### 10.2 Navigation 2 ชั้น + Link
+
 * `NavigationAgent3D` bake แยก `GROUND` vs `UNDERGROUND` (2 `NavigationRegion3D`)
 * **ข้ามชั้น:** ใส่ `NavigationLink3D` ตรงปากอุโมงค์/ทางลง เชื่อม 2 Region ให้ Agent คำนวณ Path ข้ามไร้รอยต่อ
 
-### 11.3 Micro Edge Cases
-* **HQ Barrier Shield (Anti-Rush):** HQ 220HP มี barrier ลดดาเมจ 90% จนกว่าศัตรูบุกในรัศมี 100m ของฐาน หรือถึง Late Game นาที 10+ (reuse `ForwardBase` ใส่ `Area3D` Shield + `damage_reduction` ก่อน `take_damage()`)
-* **เซฟแยกโหมด:** War Mode กับ Campaign (Board) แยกเซฟคนละไฟล์ `user://save_war.json` vs `user://savegame.json` ไม่แชร์ Part/เงิน/Progress
-* `MultiMeshInstance3D` สำหรับหิน/แร่ซ้ำๆ แทน `MeshInstance3D` แยก
+### 10.3 Micro Edge Cases
+
+* **HQ Barrier Shield (Anti-Rush):** HQ 220HP มี barrier ลดดาเมจ 90% จนกว่าศัตรูบุกในรัศมี 100m ของฐาน หรือถึง Late Game นาที 10+ (`war_world.gd:118 _add_hq_shield()` + `SphereShape3D radius 100` + `Timer 600s`)
+* **เซฟแยกโหมด:** War Mode กับ Campaign (Board) แยกเซฟคนละไฟล์ `user://save_war.json` vs `user://savegame.json` ไม่แชร์ Part/เงิน/Progress (`war_manager.gd:7 SAVE_WAR_PATH`)
+* **Camera:** War Mode ใช้ `MechaCamera` เดียวกับ Campaign (`war_world.gd:159 _ensure_war_camera()` — PhantomCamera) ไม่ใช่ WarCamera แยก
 
 ---
 
-## 12. หมายเหตุ
+## 11. ระบบเซฟ & แยกโหมด (Save System)
 
-* Godot 4.6.2 path: `D:\godot\Godot_v4.6.2-stable_win64.exe` — validate ด้วย `--headless --import`
+| โหมด | ไฟล์เซฟ | เนื้อหา | แชร์กันไหม |
+|------|---------|---------|------------|
+| Campaign (Board) | `user://savegame.json` | Board tiles, Day, Convoy, Hangar roster, Parts, Credits | ❌ แยก |
+| War Mode | `user://save_war.json` | War HQ HP, Ore nodes, Data research, Carrier, Stock Cooldown | ❌ แยก |
+
+* `GameManager.enter_war()` / `enter_board()` สลับโหมด — `HangarManager.save_active()` ก่อนเปลี่ยนฉากเสมอ (`game_manager.gd:166`)
+* War save ยังเป็น skeleton (`war_manager.gd:7`) — ต้องเพิ่ม `WarSaveIO` (serialize: ore collected, depot stock, research unlocked, HQ HP, carrier pos) ก่อน Beta
+* Validate: `godot --headless --import` + โหลด `war_world.tscn` ต้องไม่ error `load_steps`
+
+---
+
+## 12. Input Map & Controls (War Mode)
+
+> Base จาก `project.godot:46` — War Mode เพิ่ม Q/E ไหล่ + Tab/I
+
+| Action | ปุ่ม | ไฟล์ | หมายเหตุ |
+|--------|------|------|----------|
+| เดิน/Strafe/Jump/Dash | `WASD` / `Shift` / `Space` / `PageDown/Up` | `project.godot` | เหมือน Campaign |
+| ยิงมือซ้าย/ขวา | `Mouse Left/Right` | `project.godot:fire_left/right` | `weapon_core.gd` |
+| อาวุธไหล่ซ้าย/ขวา | `Q` / `E` (`guard` เดิมคือ Q — ต้องแยก) | `shoulder_weapon_system.gd` | ⏳ TODO: เพิ่ม `shoulder_left`/`shoulder_right` ใน `project.godot` แยกจาก `guard` |
+| โต้ตอบ/ขึ้นรถ/Dock | `F` (`interact`) | `project.godot` | `carrier_dock.gd`, `war_realtime_hangar.gd` |
+| ดีดตัว | `G` (`eject`) | `project.godot` | `mecha_eject.gd` |
+| Tab ทรัพยากร | `Tab` (`camera_unlock` เดิม) | `war_hud.gd` | ⏳ TODO: เพิ่ม `war_resource_view` = Tab แยกจาก `camera_unlock` |
+| Inventory | `I` | `war_hud.gd` | ⏳ TODO: เพิ่ม `war_inventory` = I ใน `project.godot` |
+| Roller Dash | `PageUp` | `project.godot` | `mecha_controller.gd` |
+
+---
+
+## 13. Audio / VFX / UI Polish
+
+* **Audio:** `AudioManager.play_combat_music("war")` ใน `game_manager.gd:171` — ต้องเพิ่ม war BGM แยกจาก combat ปกติ + SFX สำหรับ Ore drill, Dock clamp, Data pickup
+* **VFX:** ใช้ `EffectManager` เดิม (reuse) — เพิ่ม HQ shield hit VFX, Ore spark, UNDERGROUND fog
+* **UI:** `WarHUD` (Tab/I) ปัจจุบันเป็น CanvasLayer ชั่วคราว — ต้องแยกเป็น `war_resource_hud.tscn` + `war_inventory.tscn` + `war_launch_setup_ui.tscn` แบบ Figma ก่อน Beta
+* **Minimap:** `war_minimap.gd` แสดง Friendly/Enemy/ Ore/Cache/Convoy — Fog of War ค่อยๆ เผยตามระยะ Humvee
+
+---
+
+## 14. Testing & QA Checklist
+
+### Headless Validate (Godot 4.6.2)
+
+```powershell
+H:\hack\project\godot\Godot_v4.6.2-stable_win64.exe --headless --import
+H:\hack\project\godot\Godot_v4.6.2-stable_win64.exe --headless --quit-after 5 res://tests/refactor_qa_test.tscn
+# หรือเครื่อง dev ปัจจุบัน:
+D:\godot\Godot_v4.6.2-stable_win64.exe --headless --import
+```
+
+### War Mode Manual QA
+
+- [ ] Main Menu → [WAR MODE] → โหลด `war_world.tscn` ไม่จอฟ้า/เทา (Ground mesh ครบ)
+- [ ] Tab/I เปิด WarHUD/Inventory ได้, ปิดได้
+- [ ] Ore Node ขุด → Truck ขน → Depot กด F รับ Scrap/Credits
+- [ ] Data Event เก็บ → แบกช้าลง 20% → กลับฐานวิจัย → Roll 30/20/20/15/8/2
+- [ ] Carrier Dock: ขับ Valkren เข้า Area → กด Dock → FREEZE + Reparent ไม่สั่น
+- [ ] HIGHLAND มองลงมาไม่เห็น Ore ใต้หุบ, UNDERGROUND มี SpotLight + Occluder
+- [ ] HQ Shield: ยิง HQ จากไกลลดดาเมจ 90%, เข้าใกล้ 100m หรือรอ 10 นาที ยิงเข้าเต็ม
+- [ ] Eject G → Respawn เลือกฐาน → หุ่นเก่าจอดเป็นซากให้ชิงได้
+- [ ] Stunt Weapon ยิงแล้วติด 2-4วิ — Direct Combustion นานสุด, Ancient กัน
+
+### TODO ก่อน Beta
+
+- [ ] สร้าง `war_deployment_manager.gd` แยกจาก `war_god_mech_system.gd` + test Deploy Cap 5/3/1
+- [ ] สร้าง `war_launch_setup_ui.tscn` + Ace Right 30วิ timeout
+- [ ] แยก `war_resource_hud.tscn` / `war_inventory.tscn` จาก `war_hud.gd`
+- [ ] เพิ่ม Input `shoulder_left/right`, `war_resource_view`, `war_inventory` ใน `project.godot`
+
+---
+
+## 15. Risks & Mitigations
+
+| ความเสี่ยง | ผลกระทบ | แนวทางแก้ |
+|------------|---------|-----------|
+| แมพ 2000x2000 วัตถุเยอะเฟรมตก | FPS <30 บนเครื่องกลาง | Chunk Loader + Occluder + MultiMesh + ปิด shadow ไกล |
+| Physics Jitter บน Carrier | หุ่นสั่น/หลุดกระบะ | FREEZE + Reparent เป็น Child (ทำแล้ว `carrier_dock.gd`) |
+| Navigation 2 ชั้นไม่เชื่อม | Truck ติดปากอุโมงค์ | 2 NavigationRegion3D + NavigationLink3D |
+| เซฟ War/Campaign ปนกัน | ของหาย/เงินปน | แยกไฟล์ `save_war.json` vs `savegame.json` + ไม่แชร์ GlobalData |
+| สูตร Valkyrion โกง/เกลือ | Mass Product 75% ไม่คุ้ม | ปรับ `war_balance.gd` ระหว่าง Playtest (Phase 3) |
+| Input Q/E ชน guard | กด Q แล้วกันแทนยิงไหล่ | แยก Input Map ใหม่ shoulder_left/right |
+
+---
+
+## 16. Glossary & หมายเหตุ
+
+| คำ | ความหมาย |
+|----|----------|
+| **Valkren** | จักรกลรบหลักทุกตัวในสนาม (Mobile Suit) |
+| **Valkyrion** | หุ่นต้นแบบ Apex ขับด้วย Ancient Core (Gundam) |
+| **Line-Issue** | Valkren Mass Product มาตรฐาน |
+| **Iron-Vanguard** | Valkren สายเกราะหนัก Walk-Tank |
+| **Strike-Apex** | Valkren สายเร็วสูง EWAR |
+| **Deploy Cap** | โควตาจำกัดจำนวนหุ่นประจำการ |
+| **Stock Cooldown** | คูลดาวน์เติมสต็อกหลังหุ่นพัง |
+| **Ace Right** | สิทธิ์จองขับ Valkyrion ของ Ace |
+| **HQ Barrier** | โล่ลดดาเมจ 90% รอบ HQ 100m / 10 นาที |
+
+* Godot 4.6.2 path: `D:\godot\Godot_v4.6.2-stable_win64.exe` — validate ด้วย `--headless --import` (เครื่อง hack: `H:\hack\project\godot\...`)
 * ทุกเฟสจบ commit + push ตาม `AGENTS.md`
 * สูตรหุ่นเทพใช้ทรัพยากรแรร์จริง แต่ Mass Product ให้ผู้เล่นทุนน้อยก็เล่นได้ — ไม่ pay-to-win
+* เอกสารนี้ตรงกับโค้ด commit `90c788d` + สแกนไฟล์จริง `scripts/war/` 2026-09-01
+

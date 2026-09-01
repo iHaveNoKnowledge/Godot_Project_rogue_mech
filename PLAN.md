@@ -324,10 +324,10 @@ D:\godot\Godot_v4.6.2-stable_win64.exe --headless --import
 
 ### TODO ก่อน Beta
 
-- [ ] สร้าง `war_deployment_manager.gd` แยกจาก `war_god_mech_system.gd` + test Deploy Cap 5/3/1
-- [ ] สร้าง `war_launch_setup_ui.tscn` + Ace Right 30วิ timeout
-- [ ] แยก `war_resource_hud.tscn` / `war_inventory.tscn` จาก `war_hud.gd`
-- [ ] เพิ่ม Input `shoulder_left/right`, `war_resource_view`, `war_inventory` ใน `project.godot`
+- [x] สร้าง `war_deployment_manager.gd` แยกจาก `war_god_mech_system.gd` + test Deploy Cap 5/3/1 — `war_deployment_manager.gd:8 CAPS`, `WarBalance.DEPLOY_CAPS`
+- [x] สร้าง `war_launch_setup_ui.tscn` + Ace Right 30วิ timeout — `war_launch_setup_ui.gd:WarBalance.ACE_RIGHT_TIMEOUT`
+- [x] แยก `war_resource_hud.tscn` / `war_inventory.tscn` จาก `war_hud.gd` — `war_resource_hud.gd` + `war_inventory_ui.gd`
+- [x] เพิ่ม Input `shoulder_left/right`, `war_resource_view`, `war_inventory` ใน `project.godot` — Q/E/Tab/I
 
 ---
 
@@ -361,5 +361,5 @@ D:\godot\Godot_v4.6.2-stable_win64.exe --headless --import
 * Godot 4.6.2 path: `D:\godot\Godot_v4.6.2-stable_win64.exe` — validate ด้วย `--headless --import` (เครื่อง hack: `H:\hack\project\godot\...`)
 * ทุกเฟสจบ commit + push ตาม `AGENTS.md`
 * สูตรหุ่นเทพใช้ทรัพยากรแรร์จริง แต่ Mass Product ให้ผู้เล่นทุนน้อยก็เล่นได้ — ไม่ pay-to-win
-* เอกสารนี้ตรงกับโค้ด commit `90c788d` + สแกนไฟล์จริง `scripts/war/` 2026-09-01
+* เอกสารนี้ตรงกับโค้ด commit หลัง War Phase3 — deploy + launch + hud split + Input 2026-09-01
 

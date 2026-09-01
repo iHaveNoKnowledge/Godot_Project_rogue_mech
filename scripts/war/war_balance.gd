@@ -32,3 +32,7 @@ const HQ_SHIELD_TIME: float = 600.0 # 10 min
 const SALVAGE_DROP_CHANCE: float = 0.45
 const MERCHANT_INTERVAL: Vector2 = Vector2(120, 180)
 const PRODUCTION_TIME: Vector2 = Vector2(60, 180)
+
+const DEPLOY_CAPS: Dictionary = {"line": 5, "strike": 3, "iron": 3, "valkyrion": 1}
+const DEPLOY_COOLDOWNS: Dictionary = {"line": 30.0, "strike": 60.0, "iron": 60.0, "valkyrion": 180.0}
+const ACE_RIGHT_TIMEOUT: float = 30.0

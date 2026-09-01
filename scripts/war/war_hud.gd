@@ -11,7 +11,11 @@ func _ready() -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed:
+	if event.is_action_pressed("war_resource_view"):
+		_show_resource_overlay()
+	elif event.is_action_pressed("war_inventory"):
+		_toggle_inventory()
+	elif event is InputEventKey and event.pressed:
 		if event.keycode == KEY_TAB:
 			_show_resource_overlay()
 		elif event.keycode == KEY_I:
@@ -19,7 +23,9 @@ func _input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey and not event.pressed and event.keycode == KEY_TAB:
+	if event.is_action_released("war_resource_view"):
+		_hide_resource_overlay()
+	elif event is InputEventKey and not event.pressed and event.keycode == KEY_TAB:
 		_hide_resource_overlay()
 
 

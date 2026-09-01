@@ -32,38 +32,63 @@ func _setup_ground() -> void:
 		shape.size = Vector3(2000, 1, 2000)
 		col.shape = shape
 		ground.add_child(col)
-		var mi = MeshInstance3D.new()
-		var pm = PlaneMesh.new()
-		pm.size = Vector2(2000, 2000)
-		mi.mesh = pm
-		var mat = StandardMaterial3D.new()
-		mat.albedo_color = Color(0.45, 0.52, 0.32)
-		mat.roughness = 0.85
-		mi.material_override = mat
-		ground.add_child(mi)
-		# Grid lines for orientation (every 200m)
-		for x in range(-1000, 1001, 200):
-			var line = MeshInstance3D.new()
-			var box = BoxMesh.new()
-			box.size = Vector3(2, 0.1, 2000)
-			line.mesh = box
-			var lmat = StandardMaterial3D.new()
-			lmat.albedo_color = Color(0.6, 0.6, 0.55, 0.5)
-			lmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-			line.material_override = lmat
-			line.position = Vector3(x, 0.05, 0)
-			ground.add_child(line)
-		for z in range(-1000, 1001, 200):
-			var line = MeshInstance3D.new()
-			var box = BoxMesh.new()
-			box.size = Vector3(2000, 0.1, 2)
-			line.mesh = box
-			var lmat = StandardMaterial3D.new()
-			lmat.albedo_color = Color(0.6, 0.6, 0.55, 0.5)
-			lmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-			line.material_override = lmat
-			line.position = Vector3(0, 0.05, z)
-			ground.add_child(line)
+		_ensure_ground_mesh(ground)
+	else:
+		# Scene already has Ground (collision only) — ensure visual mesh + grid exist.
+		if not _ground_has_mesh(ground):
+			_ensure_ground_mesh(ground)
+
+
+func _ground_has_mesh(ground: Node) -> bool:
+	for child in ground.get_children():
+		if child is MeshInstance3D:
+			# PlaneMesh/BoxMesh floor counts as ground visual
+			var mi := child as MeshInstance3D
+			if mi.mesh is PlaneMesh or mi.mesh is BoxMesh:
+				# First PlaneMesh found is the floor itself, not a grid line (grid lines are thin strips)
+				if mi.mesh is PlaneMesh:
+					return true
+				# BoxMesh ground in war fallback is 2000x2000 thin — grid lines are 2x2000 thin strips
+				if mi.mesh is BoxMesh and (mi.mesh as BoxMesh).size.x > 100.0 and (mi.mesh as BoxMesh).size.z > 100.0:
+					return true
+			elif mi.mesh is PlaneMesh:
+				return true
+	return false
+
+
+func _ensure_ground_mesh(ground: Node) -> void:
+	var mi = MeshInstance3D.new()
+	var pm = PlaneMesh.new()
+	pm.size = Vector2(2000, 2000)
+	mi.mesh = pm
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(0.45, 0.52, 0.32)
+	mat.roughness = 0.85
+	mi.material_override = mat
+	ground.add_child(mi)
+	# Grid lines for orientation (every 200m)
+	for x in range(-1000, 1001, 200):
+		var line = MeshInstance3D.new()
+		var box = BoxMesh.new()
+		box.size = Vector3(2, 0.1, 2000)
+		line.mesh = box
+		var lmat = StandardMaterial3D.new()
+		lmat.albedo_color = Color(0.6, 0.6, 0.55, 0.5)
+		lmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		line.material_override = lmat
+		line.position = Vector3(x, 0.05, 0)
+		ground.add_child(line)
+	for z in range(-1000, 1001, 200):
+		var line = MeshInstance3D.new()
+		var box = BoxMesh.new()
+		box.size = Vector3(2000, 0.1, 2)
+		line.mesh = box
+		var lmat = StandardMaterial3D.new()
+		lmat.albedo_color = Color(0.6, 0.6, 0.55, 0.5)
+		lmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		line.material_override = lmat
+		line.position = Vector3(0, 0.05, z)
+		ground.add_child(line)
 
 
 func _spawn_bases() -> void:

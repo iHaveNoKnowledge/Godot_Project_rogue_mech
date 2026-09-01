@@ -1,4 +1,4 @@
-[gd_scene load_steps=3 format=3 uid="uid://war_world_mvp"]
+[gd_scene load_steps=5 format=3 uid="uid://war_world_mvp"]
 
 [ext_resource type="Script" path="res://scripts/war/war_world.gd" id="1"]
 
@@ -11,6 +11,13 @@ background_color = Color(0.6, 0.75, 0.9, 1)
 ambient_light_source = 1
 ambient_light_color = Color(0.6, 0.68, 0.8, 1)
 ambient_light_energy = 1.2
+
+[sub_resource type="PlaneMesh" id="3"]
+size = Vector2(2000, 2000)
+
+[sub_resource type="StandardMaterial3D" id="4"]
+albedo_color = Color(0.45, 0.52, 0.32, 1)
+roughness = 0.85
 
 [node name="WarWorld" type="Node3D"]
 script = ExtResource("1")
@@ -28,6 +35,10 @@ collision_layer = 2
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Ground"]
 shape = SubResource("1")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Ground"]
+mesh = SubResource("3")
+material_override = SubResource("4")
 
 [node name="MechaPlaceholder" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, -800)

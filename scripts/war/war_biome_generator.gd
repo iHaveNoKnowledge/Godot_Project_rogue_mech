@@ -283,12 +283,55 @@ static func populate_biome_scatter(parent: Node3D, p_seed: int = 1337) -> void:
 			var b: int = biome_at(cx, cz)
 			match b:
 				Biome.DESERT:
-					spawn_multimesh_scatter(parent, rock_mesh, 18, Vector2(cx, cz), Vector2(380, 380), 0.7, 1.5)
+					# 3x density + add solid cover rocks
+					spawn_multimesh_scatter(parent, rock_mesh, 55, Vector2(cx, cz), Vector2(380, 380), 0.7, 1.5)
+					_spawn_cover_boxes(parent, 18, Vector2(cx, cz), Vector2(360, 360), Vector3(2.5, 2.0, 2.5), Color(0.55, 0.45, 0.30), p_seed + qx * 100 + qz)
 				Biome.FOREST:
-					spawn_multimesh_scatter(parent, trunk_mesh, 22, Vector2(cx, cz), Vector2(380, 380), 0.9, 1.3)
+					spawn_multimesh_scatter(parent, trunk_mesh, 70, Vector2(cx, cz), Vector2(380, 380), 0.9, 1.3)
+					_spawn_cover_boxes(parent, 14, Vector2(cx, cz), Vector2(360, 360), Vector3(1.8, 3.5, 1.8), Color(0.20, 0.30, 0.18), p_seed + qx * 200 + qz)
+					# fallen logs as low cover
+					_spawn_cover_boxes(parent, 10, Vector2(cx, cz), Vector2(360, 360), Vector3(4.0, 1.2, 1.2), Color(0.35, 0.25, 0.18), p_seed + qx * 300 + qz)
 				Biome.CITY_RUINS:
 					var rubble := BoxMesh.new()
 					rubble.size = Vector3(3.0, 2.5, 3.0)
-					spawn_multimesh_scatter(parent, rubble, 12, Vector2(cx, cz), Vector2(380, 380), 0.8, 1.2)
+					spawn_multimesh_scatter(parent, rubble, 38, Vector2(cx, cz), Vector2(380, 380), 0.8, 1.2)
+					_spawn_cover_boxes(parent, 22, Vector2(cx, cz), Vector2(360, 360), Vector3(3.2, 2.8, 3.2), Color(0.42, 0.42, 0.44), p_seed + qx * 400 + qz)
+					# walls — long cover
+					_spawn_cover_boxes(parent, 8, Vector2(cx, cz), Vector2(360, 360), Vector3(6.0, 2.2, 0.8), Color(0.38, 0.38, 0.40), p_seed + qx * 500 + qz)
 				Biome.RIVER_VALLEY:
-					spawn_multimesh_scatter(parent, rock_mesh, 10, Vector2(cx, cz), Vector2(380, 380), 0.8, 1.2)
+					spawn_multimesh_scatter(parent, rock_mesh, 32, Vector2(cx, cz), Vector2(380, 380), 0.8, 1.2)
+					_spawn_cover_boxes(parent, 12, Vector2(cx, cz), Vector2(360, 360), Vector3(2.2, 1.6, 2.2), Color(0.40, 0.45, 0.35), p_seed + qx * 600 + qz)
+
+## Spawns solid cover boxes with collision (group "cover") so LOS/shooting is blocked and SpawnManager avoids them
+static func _spawn_cover_boxes(parent: Node3D, count: int, center: Vector2, extents: Vector2, size: Vector3, color: Color, seed_off: int) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_off
+	for i in range(count):
+		var wx: float = rng.randf_range(center.x - extents.x, center.x + extents.x)
+		var wz: float = rng.randf_range(center.y - extents.y, center.y + extents.y)
+		var gy: float = get_ground_height(wx, wz)
+		var s := rng.randf_range(0.85, 1.15)
+		var sz := size * s
+		var body := StaticBody3D.new()
+		body.collision_layer = 2
+		body.collision_mask = 1
+		body.position = Vector3(wx, gy + sz.y * 0.5, wz)
+		body.rotation.y = rng.randf_range(0, TAU)
+		body.add_to_group("cover")
+		body.add_to_group("solid_obstacle")
+		var col := CollisionShape3D.new()
+		var shape := BoxShape3D.new()
+		shape.size = sz
+		col.shape = shape
+		body.add_child(col)
+		var mi := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = sz
+		mi.mesh = box
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = color
+		mat.roughness = 0.9
+		mi.material_override = mat
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		body.add_child(mi)
+		parent.add_child(body)

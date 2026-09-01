@@ -783,8 +783,12 @@ func _eject_pilot() -> void:
 	_tilt_over()
 
 
-# The wreck falls over onto the ground and stays there.
+# The wreck falls over — if a true physics ragdoll exists (spawned by
+# MechaHealthBase._collapse_mech via MechaRagdoll), skip the fake tween because
+# the RigidBody pieces already handle the fall. Otherwise legacy fake tilt.
 func _tilt_over() -> void:
+	if has_meta("ragdoll_bodies") and get_meta("ragdoll_bodies") is Array and not (get_meta("ragdoll_bodies") as Array).is_empty():
+		return
 	if _ragdoll_tween and _ragdoll_tween.is_valid():
 		_ragdoll_tween.kill()
 	_ragdoll_tween = create_tween().set_parallel(true)

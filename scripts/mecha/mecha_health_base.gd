@@ -883,10 +883,9 @@ func _get_all_meshes(node: Node) -> Array[MeshInstance3D]:
 	return result
 
 
-# The mech goes limp: the shared mech animation (if attached) switches into its
-# death-collapse pose AND the whole machine RAGDOLLS over onto the ground right
-# away (rotation.x -> -82°, drop to y 0.40) — the same collapse downed enemies
-# use. Everything but the eject seat is dead: no movement, no weapons, no HUD.
+# The mech goes limp: spawns a TRUE physics ragdoll (RigidBody + PinJoint)
+# via MechaRagdoll (no plugin). Falls naturally and flops on the ground.
+# Falls back to the legacy tween collapse if ragdoll spawn fails (e.g. headless).
 func _collapse_mech() -> void:
 	var mecha = get_parent()
 	if mecha == null or not is_instance_valid(mecha):
@@ -906,6 +905,18 @@ func _collapse_mech() -> void:
 	elif mecha.has_method("_eject_pilot"):
 		mecha.call("_eject_pilot")
 
+	# --- True ragdoll (RigidBody + PinJoint) — no plugin, Godot 4.6.2 built-in ---
+	var ragdoll_ok := false
+	if mecha is CharacterBody3D:
+		var RagdollScript = load("res://scripts/mecha/mecha_ragdoll.gd")
+		if RagdollScript != null:
+			var result: Dictionary = RagdollScript.spawn_ragdoll(mecha as CharacterBody3D)
+			ragdoll_ok = result.has("bodies") and result["bodies"] is Array and not (result["bodies"] as Array).is_empty()
+
+	if ragdoll_ok:
+		return
+
+	# Fallback: legacy fake fall (tween the whole CharacterBody)
 	var tween = mecha.create_tween().set_parallel(true)
 	tween.tween_property(mecha, "rotation:x", deg_to_rad(-82.0), 0.55).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tween.tween_property(mecha, "position:y", 0.40, 0.55).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
@@ -968,6 +979,12 @@ func _apply_scorched_wreck() -> void:
 	var mecha = get_parent()
 	if mecha == null or not is_instance_valid(mecha):
 		return
+	# If a true ragdoll was spawned, scorch its RigidBody meshes instead of the hidden original
+	if mecha.has_meta("ragdoll_bodies"):
+		var RagdollScript2 = load("res://scripts/mecha/mecha_ragdoll.gd")
+		if RagdollScript2 != null and RagdollScript2.has_method("scorch_ragdolls"):
+			RagdollScript2.scorch_ragdolls(mecha)
+			return
 	var all_meshes := _get_all_meshes(mecha)
 	for mesh_inst in all_meshes:
 		if not is_instance_valid(mesh_inst):
@@ -1094,6 +1111,12 @@ func _detonate_mech() -> void:
 	var mecha := get_parent()
 	var is_enemy := mecha.is_in_group("enemy") if mecha else true
 	EffectManager.apply_area_explosion_damage(blast_pos, 80.0, 12.0, is_enemy, "explosive", mecha)
+
+	# Blast the ragdoll pieces outward so the wreck scatters on detonation
+	if mecha != null and mecha.has_meta("ragdoll_bodies"):
+		var RagdollScript3 = load("res://scripts/mecha/mecha_ragdoll.gd")
+		if RagdollScript3 != null and RagdollScript3.has_method("apply_blast_to_ragdoll"):
+			RagdollScript3.apply_blast_to_ragdoll(mecha, blast_pos, 22.0)
 	
 	# Detonation flash: the breach glow slams white-hot and wide for a beat, then
 	# dies with the blast.

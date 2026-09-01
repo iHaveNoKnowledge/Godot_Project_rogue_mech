@@ -24,7 +24,7 @@ const BUILDINGS_CAMP: Array[Dictionary] = [
 
 const BUILDINGS_FORTIFIED: Array[Dictionary] = [
 	{"name":"HQ Warehouse", "size":Vector3(4.2,2.4,3.2), "pos":Vector3(0,1.2,0), "color":Color(0.42,0.42,0.44), "hp":220.0, "hq":true, "mesh":"box"},
-	{"name":"Mech Hangar", "size":Vector3(3.8,2.8,3.6), "pos":Vector3(-3.6,1.4,0.2), "color":Color(0.32,0.34,0.36), "hp":180.0, "hq":false, "mesh":"hangar"},
+	{"name":"Mech Hangar", "size":Vector3(8.0,6.5,10.0), "pos":Vector3(-7.2,0,0.2), "color":Color(0.32,0.34,0.36), "hp":180.0, "hq":false, "mesh":"hangar"},
 	{"name":"Comm Tower", "size":Vector3(0.45,5.0,0.45), "pos":Vector3(3.2,2.5,1.6), "color":Color(0.26,0.28,0.32), "hp":90.0, "hq":false, "mesh":"tower"},
 	{"name":"Barracks Block", "size":Vector3(2.6,1.6,2.2), "pos":Vector3(-2.0,0.8,-2.8), "color":Color(0.36,0.36,0.38), "hp":80.0, "hq":false, "mesh":"box"},
 	{"name":"Mess Hall", "size":Vector3(2.4,1.4,1.9), "pos":Vector3(3.0,0.7,-2.4), "color":Color(0.34,0.32,0.30), "hp":60.0, "hq":false, "mesh":"box"},
@@ -71,6 +71,7 @@ func _create_building(def: Dictionary) -> Node3D:
 	root.collision_mask = 1
 	root.set_script(load("res://scripts/arena/building.gd"))
 	root.set("base_ref", self)
+	root.position = def.get("pos", Vector3.ZERO)
 
 	var mesh_type: String = str(def.get("mesh","box"))
 	var size: Vector3 = def.get("size", Vector3.ONE)
@@ -94,13 +95,39 @@ func _create_building(def: Dictionary) -> Node3D:
 		"hangar":
 			mi = _build_hangar_mesh(size, col)
 			root.add_child(mi)
-			# Collision for hangar (use box)
-			var col_shape := CollisionShape3D.new()
-			var box := BoxShape3D.new()
-			box.size = size
-			col_shape.shape = box
-			col_shape.position = Vector3(0, size.y*0.5, 0)
-			root.add_child(col_shape)
+			# Traversable interior: collision only on walls/roof, not solid interior
+			# Floor slab
+			var floor_col := CollisionShape3D.new()
+			var floor_box := BoxShape3D.new()
+			floor_box.size = Vector3(size.x, 0.2, size.z)
+			floor_col.shape = floor_box
+			floor_col.position = Vector3(0, 0.1, 0)
+			root.add_child(floor_col)
+			# Side walls (left/right) — thickness 0.35
+			for x in [-size.x*0.5 + 0.175, size.x*0.5 - 0.175]:
+				var wcol := CollisionShape3D.new()
+				var wbox := BoxShape3D.new()
+				wbox.size = Vector3(0.35, size.y, size.z)
+				wcol.shape = wbox
+				wcol.position = Vector3(x, size.y*0.5, 0)
+				root.add_child(wcol)
+			# Back wall (closed) — front is open for Valkren entry
+			var back_col := CollisionShape3D.new()
+			var back_box := BoxShape3D.new()
+			back_box.size = Vector3(size.x, size.y, 0.35)
+			back_col.shape = back_box
+			back_col.position = Vector3(0, size.y*0.5, -size.z*0.5 + 0.175)
+			root.add_child(back_col)
+			# Roof
+			var roof_col := CollisionShape3D.new()
+			var roof_box := BoxShape3D.new()
+			roof_box.size = Vector3(size.x, 0.25, size.z)
+			roof_col.shape = roof_box
+			roof_col.position = Vector3(0, size.y - 0.125, 0)
+			root.add_child(roof_col)
+			# Door frame markers for navigation
+			root.set_meta("hangar_door_pos", Vector3(0, 0, size.z*0.5 + 0.5))
+			root.set_meta("hangar_door_size", Vector2(size.x*0.8, size.y*0.85))
 			# HP label
 			_add_hp_label(root, str(def.get("name","")), hp)
 			root.set_meta("mesh_instance", mi)
@@ -214,42 +241,75 @@ func _create_building(def: Dictionary) -> Node3D:
 
 func _build_hangar_mesh(size: Vector3, col: Color) -> MeshInstance3D:
 	var root := MeshInstance3D.new()
-	# Hangar as box with open front (simulate via two walls + roof)
-	var base := BoxMesh.new()
-	base.size = Vector3(size.x, size.y*0.25, size.z)
-	var m1 := MeshInstance3D.new()
-	m1.mesh = base
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = col
+	mat.roughness = 0.82
+	# Floor slab
+	var base := BoxMesh.new()
+	base.size = Vector3(size.x, 0.2, size.z)
+	var m1 := MeshInstance3D.new()
+	m1.mesh = base
 	m1.material_override = mat
-	m1.position = Vector3(0, size.y*0.12, 0)
+	m1.position = Vector3(0, 0.1, 0)
 	root.add_child(m1)
-	# Walls
-	for x in [-size.x*0.45, size.x*0.45]:
+	# Side walls — height full, thickness 0.35, open front
+	for x in [-size.x*0.5 + 0.175, size.x*0.5 - 0.175]:
 		var w := BoxMesh.new()
-		w.size = Vector3(0.18, size.y, size.z)
+		w.size = Vector3(0.35, size.y, size.z)
 		var wm := MeshInstance3D.new()
 		wm.mesh = w
-		wm.material_override = mat
+		var wmat := StandardMaterial3D.new()
+		wmat.albedo_color = col.lightened(0.05)
+		wm.material_override = wmat
 		wm.position = Vector3(x, size.y*0.5, 0)
 		root.add_child(wm)
+	# Back wall (closed)
+	var back := BoxMesh.new()
+	back.size = Vector3(size.x, size.y, 0.35)
+	var bm := MeshInstance3D.new()
+	bm.mesh = back
+	bm.material_override = mat
+	bm.position = Vector3(0, size.y*0.5, -size.z*0.5 + 0.175)
+	root.add_child(bm)
 	# Roof
 	var roof := BoxMesh.new()
-	roof.size = Vector3(size.x, 0.15, size.z)
+	roof.size = Vector3(size.x, 0.25, size.z)
 	var rm := MeshInstance3D.new()
 	rm.mesh = roof
 	rm.material_override = mat
-	rm.position = Vector3(0, size.y - 0.07, 0)
+	rm.position = Vector3(0, size.y - 0.125, 0)
 	root.add_child(rm)
-	# Interior mech silhouette (hint)
+	# Door frame highlight (front opening)
+	var frame_mat := StandardMaterial3D.new()
+	frame_mat.albedo_color = Color(1.0, 0.85, 0.25, 1.0)
+	frame_mat.emission_enabled = true
+	frame_mat.emission = Color(1.0, 0.7, 0.15)
+	frame_mat.emission_energy_multiplier = 0.8
+	for x in [-size.x*0.38, size.x*0.38]:
+		var pillar := BoxMesh.new()
+		pillar.size = Vector3(0.3, size.y*0.9, 0.3)
+		var pm := MeshInstance3D.new()
+		pm.mesh = pillar
+		pm.material_override = frame_mat
+		pm.position = Vector3(x, size.y*0.45, size.z*0.5 - 0.15)
+		root.add_child(pm)
+	var lintel := BoxMesh.new()
+	lintel.size = Vector3(size.x*0.85, 0.3, 0.3)
+	var lm := MeshInstance3D.new()
+	lm.mesh = lintel
+	lm.material_override = frame_mat
+	lm.position = Vector3(0, size.y*0.88, size.z*0.5 - 0.15)
+	root.add_child(lm)
+	# Interior mech silhouette (hint) — scaled to show clearance
 	var mech := BoxMesh.new()
-	mech.size = Vector3(0.9, 1.6, 0.7)
+	mech.size = Vector3(1.8, 3.2, 1.4)
 	var mm := MeshInstance3D.new()
 	mm.mesh = mech
 	var mmat := StandardMaterial3D.new()
-	mmat.albedo_color = Color(0.18,0.20,0.22,1.0)
+	mmat.albedo_color = Color(0.18,0.20,0.22,0.6)
+	mmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mm.material_override = mmat
-	mm.position = Vector3(0, 0.8, 0)
+	mm.position = Vector3(0, 1.6, -size.z*0.15)
 	root.add_child(mm)
 	return root
 
@@ -271,7 +331,7 @@ func _add_apron(fortified: bool) -> void:
 	var apron := MeshInstance3D.new()
 	apron.name = "Apron"
 	var pm := BoxMesh.new()
-	var s := 10.0 if fortified else 7.0
+	var s := 16.0 if fortified else 7.0
 	pm.size = Vector3(s, 0.04, s)
 	apron.mesh = pm
 	var mat := StandardMaterial3D.new()

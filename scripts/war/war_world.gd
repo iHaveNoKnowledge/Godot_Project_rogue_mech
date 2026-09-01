@@ -253,8 +253,13 @@ func _decorate_phase2() -> void:
 	WarMapGenerator.spawn_weapon_cache(self, Vector3(-80, 1, 350))
 	for base in [get_node_or_null("FriendlyMainBase"), get_node_or_null("EnemyMainBase")]:
 		if base:
+			# Place trigger inside Mech Hangar (now 8x6.5x10 at -7.2,0,0.2) — not floating at 10,1,0
+			var hangar_pos := Vector3(-7.2, 0.2, 0.2)
+			var mech_hangar = base.get_node_or_null("Mech_Hangar")
+			if mech_hangar:
+				hangar_pos = mech_hangar.position
 			var hangar = WarRealtimeHangar.new()
-			hangar.position = Vector3(10, 1, 0)
+			hangar.position = hangar_pos
 			base.add_child(hangar)
 
 

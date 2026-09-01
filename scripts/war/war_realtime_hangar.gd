@@ -11,18 +11,19 @@ var _daynight: Node = null
 func _ready() -> void:
 	add_to_group("war_hangar")
 	collision_layer = 0
-	collision_mask = 0
+	collision_mask = 1
 	var col = CollisionShape3D.new()
 	var shape = BoxShape3D.new()
-	shape.size = Vector3(8, 4, 8)
+	shape.size = Vector3(7.5, 6.0, 9.5)
 	col.shape = shape
+	col.position = Vector3(0, 3.0, 0)
 	add_child(col)
 	var lbl = Label3D.new()
-	lbl.text = "HANGAR\n[F] CUSTOMIZE (Realtime)"
-	lbl.font_size = 18
+	lbl.text = "HANGAR GATE\n[F] CUSTOMIZE (Realtime) — Walk Valkren In"
+	lbl.font_size = 20
 	lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	lbl.no_depth_test = true
-	lbl.position = Vector3(0, 3, 0)
+	lbl.position = Vector3(0, 4.2, 4.8)
 	add_child(lbl)
 	body_entered.connect(_on_body_entered)
 

@@ -403,6 +403,23 @@ func _spawn_logistic_trucks() -> void:
 	for pos in [Vector3(50, 0, -750), Vector3(-50, 0, -750)]:
 		var truck = logistic.create_truck(WarBiomeGenerator.snap_to_ground(pos, 1.0), depot)
 		add_child(truck)
+	_spawn_construction_trucks(depot)
+
+
+func _spawn_construction_trucks(depot: Vector3) -> void:
+	# รถก่อสร้าง 1 คัน + Build Sites 3 จุด (ผู้เล่นสั่งสร้างเพิ่มได้ผ่าน WarHUD)
+	var sites := [
+		Vector3(-120, 0, -650),
+		Vector3(120, 0, -620),
+		Vector3(0, 0, -400),
+	]
+	for s_pos in sites:
+		var snapped := WarBiomeGenerator.snap_to_ground(s_pos, 0.5)
+		var marker := WarConstructionSystem.create_build_site(snapped, "outpost")
+		add_child(marker)
+	var c_pos := WarBiomeGenerator.snap_to_ground(Vector3(0, 0, -730), 1.0)
+	var c_truck := WarConstructionSystem.create_construction_truck(c_pos, depot)
+	add_child(c_truck)
 
 
 func _spawn_data_events() -> void:

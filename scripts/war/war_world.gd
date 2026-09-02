@@ -3,6 +3,8 @@ extends Node3D
 ## War World MVP — 2000x2000 flat terrain + 2 Main Bases (fortified).
 ## Phase 1 skeleton: no chunk loader yet, just ground + bases + spawn.
 
+const WarPilotAgent = preload("res://scripts/war/war_pilot_agent.gd")
+
 var _bases_spawned: bool = false
 
 
@@ -266,53 +268,52 @@ func _spawn_player_mecha() -> void:
 
 
 func _spawn_friendly_ai_squad() -> void:
-	var ally_scene = load("res://scenes/mecha/ally_dummy.tscn")
-	if ally_scene == null:
+	var pilot_scene = load("res://scenes/war/war_pilot.tscn")
+	if pilot_scene == null:
 		return
 
-	# Solo: Player + 3 AI Squad Mechas (per PLAN.md 6.1)
-	var squad_offsets = [
-		Vector3(-8.0, 0, -735.0),
-		Vector3(8.0, 0, -735.0),
-		Vector3(-14.0, 0, -725.0),
+	# Solo: Player + 3 AI Squad Pilots spawning at Barracks (PLAN.md 6.1)
+	var barrack_spawns = [
+		Vector3(-4.0, 0, -805.0),
+		Vector3(4.0, 0, -805.0),
+		Vector3(0.0, 0, -808.0),
 	]
-	var templates = ["ally_gm", "ally_zaku_custom", "ally_jegan"]
+	var roles = ["assault", "heavy", "scout"]
+	var names = ["Lt. Rowan", "Sgt. Vance", "Cpl. Hayes"]
 
-	for i in range(squad_offsets.size()):
-		var ally = ally_scene.instantiate()
-		ally.name = "AllyMecha_%d" % i
-		ally.template_id = templates[i % templates.size()]
-		ally.position = WarBiomeGenerator.snap_to_ground(squad_offsets[i], 0.05)
-		ally.add_to_group("ally")
-		ally.add_to_group("mecha")
-		add_child(ally)
-		WarFactionVisual.apply_team_tint(ally, "friendly")
+	for i in range(barrack_spawns.size()):
+		var pilot = pilot_scene.instantiate() as WarPilotAgent
+		pilot.name = "FriendlyPilot_%d" % i
+		pilot.team = "friendly"
+		pilot.pilot_name = names[i % names.size()]
+		pilot.assigned_role = roles[i % roles.size()]
+		pilot.position = WarBiomeGenerator.snap_to_ground(barrack_spawns[i], 0.05)
+		add_child(pilot)
 
 
 func _spawn_enemy_ai_squad() -> void:
-	var enemy_scenes = [
-		"res://scenes/mecha/enemy_dummy_full.tscn",
-		"res://scenes/mecha/enemy_ranged.tscn",
-		"res://scenes/mecha/enemy_tank.tscn"
-	]
-	var enemy_positions = [
-		Vector3(-15.0, 0, 750.0),
-		Vector3(15.0, 0, 750.0),
-		Vector3(0.0, 0, 720.0),
-		Vector3(100.0, 0, 450.0),
-		Vector3(-100.0, 0, 450.0),
-	]
+	var pilot_scene = load("res://scenes/war/war_pilot.tscn")
+	if pilot_scene == null:
+		return
 
-	for i in range(enemy_positions.size()):
-		var sc_path: String = enemy_scenes[i % enemy_scenes.size()]
-		var sc = load(sc_path)
-		if sc:
-			var enemy = sc.instantiate()
-			enemy.name = "EnemyMecha_%d" % i
-			enemy.position = WarBiomeGenerator.snap_to_ground(enemy_positions[i], 0.05)
-			enemy.add_to_group("enemy")
-			add_child(enemy)
-			WarFactionVisual.apply_team_tint(enemy, "enemy")
+	# Enemy Squad Pilots spawning at Enemy Barracks
+	var barrack_spawns = [
+		Vector3(-5.0, 0, 805.0),
+		Vector3(5.0, 0, 805.0),
+		Vector3(0.0, 0, 808.0),
+		Vector3(-8.0, 0, 802.0),
+	]
+	var roles = ["assault", "heavy", "assault", "scout"]
+	var names = ["Cdr. Richter", "Gnr. Klaus", "Raider Jax", "Scout Mal"]
+
+	for i in range(barrack_spawns.size()):
+		var pilot = pilot_scene.instantiate() as WarPilotAgent
+		pilot.name = "EnemyPilot_%d" % i
+		pilot.team = "enemy"
+		pilot.pilot_name = names[i % names.size()]
+		pilot.assigned_role = roles[i % roles.size()]
+		pilot.position = WarBiomeGenerator.snap_to_ground(barrack_spawns[i], 0.05)
+		add_child(pilot)
 
 
 func _ensure_war_camera(mecha: Node) -> void:

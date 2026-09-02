@@ -191,16 +191,16 @@ func _test_war_world_integration() -> void:
 	_assert(player_mecha.position.y < 0.2, "Player Mecha is grounded (position.y = %.2f)" % player_mecha.position.y)
 	_assert(player_mecha.is_in_group("player"), "Player Mecha has 'player' group")
 
-	# Verify Friendly AI Squad Mechas are spawned with ally_dummy AI (NOT player mecha controller)
-	var allies := get_tree().get_nodes_in_group("ally")
-	var ally_mechas: Array = []
-	for a in allies:
-		if a is CharacterBody3D and (a as Node).name.begins_with("AllyMecha"):
-			ally_mechas.append(a)
-	_assert(ally_mechas.size() >= 2, "Found %d friendly AI squad mechas" % ally_mechas.size())
-	for a in ally_mechas:
-		var script_path: String = a.get_script().resource_path if a.get_script() else ""
-		_assert(script_path.contains("ally_dummy"), "Ally mecha runs autonomous AI script (ally_dummy), not player controller")
+	# Verify Friendly AI Squad Pilots exist and operate with symmetric WarPilotAgent AI
+	var pilots := get_tree().get_nodes_in_group("pilot")
+	var friendly_pilots: Array = []
+	for p in pilots:
+		if p is CharacterBody3D and (p as Node).name.begins_with("FriendlyPilot"):
+			friendly_pilots.append(p)
+	_assert(friendly_pilots.size() >= 3, "Found %d friendly AI squad pilots on foot at Barracks" % friendly_pilots.size())
+	for p in friendly_pilots:
+		var script_path: String = p.get_script().resource_path if p.get_script() else ""
+		_assert(script_path.contains("war_pilot_agent"), "Pilot runs symmetric AI script (war_pilot_agent)")
 
 	# Verify Realtime Hangar Customizer opens and allows live fitting on PartMeshManager
 	var customizer = load("res://scripts/war/war_realtime_customizer.gd").new()

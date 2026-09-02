@@ -53,6 +53,20 @@ var max_energy: float:
 		elif GlobalData.fuel:
 			GlobalData.fuel.mech_max_energy = val
 
+## Decoupled Pilot-Vehicle Drive Interface
+@export var is_player_driven: bool = false
+var seated_pilot: Node = null
+
+# Input command buffers (fed either by Player Input when is_player_driven=true, or by WarPilotAgent when AI)
+var cmd_move_vector: Vector2 = Vector2.ZERO
+var cmd_world_direction: Vector3 = Vector3.ZERO
+var cmd_aim_point: Vector3 = Vector3.ZERO
+var cmd_wants_dash: bool = false
+var cmd_wants_jump: bool = false
+var cmd_fire_left: bool = false
+var cmd_fire_right: bool = false
+var cmd_roller_toggle: bool = false
+
 
 func _init() -> void:
 	jump_system = preload("res://scripts/mecha/mecha_jump_system.gd").new()
@@ -62,6 +76,8 @@ func _init() -> void:
 
 func _ready() -> void:
 	add_to_group("mecha")
+	if is_in_group("player") or name == "Mecha":
+		is_player_driven = true
 	floor_snap_length = 0.3
 	floor_max_angle = deg_to_rad(60)
 	_apply_chassis_from_global_data()
@@ -276,59 +292,104 @@ func _start_dash() -> void:
 
 # --- Movement input & application -------------------------------------------
 
+# --- Decoupled Control & Handshake -----------------------------------------
+
+func set_drive_commands(world_dir: Vector3, aim_pt: Vector3, fire_l: bool = false, fire_r: bool = false, dash: bool = false, jump: bool = false) -> void:
+	cmd_world_direction = world_dir
+	cmd_aim_point = aim_pt
+	cmd_fire_left = fire_l
+	cmd_fire_right = fire_r
+	if dash:
+		cmd_wants_dash = true
+	if jump:
+		cmd_wants_jump = true
+
+
+func board_pilot(pilot_node: Node) -> void:
+	seated_pilot = pilot_node
+	set_meta("is_unoccupied", false)
+	set_meta("is_parked", false)
+	set_physics_process(true)
+	if pilot_node != null and (pilot_node.is_in_group("player") or pilot_node.name == "Pilot"):
+		is_player_driven = true
+		add_to_group("player")
+	else:
+		is_player_driven = false
+		remove_from_group("player")
+
+
+func eject_pilot() -> Node:
+	var p = seated_pilot
+	seated_pilot = null
+	set_meta("is_unoccupied", true)
+	is_player_driven = false
+	remove_from_group("player")
+	return p
+
+
+func _toggle_roller() -> void:
+	if not is_on_floor():
+		is_roller_dashing = false
+		energy_system.roller_drain_ramp = 0.0
+	elif energy_system.energy > 1.0:
+		if not is_roller_dashing:
+			energy_system.roller_drain_ramp = 0.0
+		is_roller_dashing = not is_roller_dashing
+		if AudioManager:
+			AudioManager.play_mecha_actuator(global_position)
+	else:
+		is_roller_dashing = false
+		energy_system.roller_drain_ramp = 0.0
+
+
+# --- Movement input & application -------------------------------------------
+
 func _handle_movement_input() -> void:
-	input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
-	strafe_mode = Input.is_action_pressed("strafe")
+	if is_player_driven:
+		input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+		strafe_mode = Input.is_action_pressed("strafe")
 
-	# Roller toggle.
-	if Input.is_action_just_pressed("roller_dash"):
-		if not is_on_floor():
-			is_roller_dashing = false
-			energy_system.roller_drain_ramp = 0.0
-		elif energy_system.energy > 1.0:
-			if not is_roller_dashing:
-				energy_system.roller_drain_ramp = 0.0
-			is_roller_dashing = not is_roller_dashing
-			if AudioManager:
-				AudioManager.play_mecha_actuator(global_position)
-		else:
-			is_roller_dashing = false
-			energy_system.roller_drain_ramp = 0.0
+		# Roller toggle.
+		if Input.is_action_just_pressed("roller_dash"):
+			_toggle_roller()
 
-	# Dash.
-	if Input.is_action_just_pressed("dash"):
-		_start_dash()
+		# Dash.
+		if Input.is_action_just_pressed("dash"):
+			_start_dash()
 
-	# Jump & Mid-Air Thruster Glide
-	if jump_system:
-		if is_on_floor():
-			if Input.is_action_just_pressed("jump"):
-				_start_jump()
-		else:
-			# While mid-air, holding or pressing jump engages thruster slow-fall glide
-			if Input.is_action_pressed("jump") and energy_system.energy > 0.5:
-				jump_system.is_gliding = true
+		# Jump & Mid-Air Thruster Glide
+		if jump_system:
+			if is_on_floor():
+				if Input.is_action_just_pressed("jump"):
+					_start_jump()
 			else:
-				jump_system.is_gliding = false
+				# While mid-air, holding or pressing jump engages thruster slow-fall glide
+				if Input.is_action_pressed("jump") and energy_system.energy > 0.5:
+					jump_system.is_gliding = true
+				else:
+					jump_system.is_gliding = false
 
-	# Drop tank purge.
-	if energy_system._drop_tank_active and Input.is_action_just_pressed("eject"):
-		energy_system.purge_drop_tanks()
+		# Drop tank purge.
+		if energy_system._drop_tank_active and Input.is_action_just_pressed("eject"):
+			energy_system.purge_drop_tanks()
+	else:
+		# AI Pilot driving inputs
+		input_dir = cmd_move_vector
+		if cmd_wants_dash:
+			_start_dash()
+			cmd_wants_dash = false
+		if cmd_roller_toggle:
+			_toggle_roller()
+			cmd_roller_toggle = false
+		if jump_system:
+			if is_on_floor() and cmd_wants_jump:
+				_start_jump()
+				cmd_wants_jump = false
+			elif not is_on_floor():
+				jump_system.is_gliding = cmd_wants_jump and energy_system.energy > 0.5
 
 
 func _apply_movement(delta: float) -> void:
-	var cam = get_viewport().get_camera_3d()
-	if cam == null:
-		return
-
-	var cam_basis = cam.global_transform.basis
-	var forward = -cam_basis.z
-	var right = cam_basis.x
-	forward.y = 0.0
-	forward = forward.normalized()
-	right.y = 0.0
-	right = right.normalized()
-
 	var move_speed = current_speed
 	# GDD §6.1: Leg damage reduces walk and dash speed
 	move_speed *= PartPenaltySystem.total_board_speed_multiplier()
@@ -338,7 +399,6 @@ func _apply_movement(delta: float) -> void:
 		move_speed *= 0.45
 	if GlobalData.board.current_hazard == GlobalData.HAZARD_DUST_STORM:
 		move_speed *= GlobalData.DUST_STORM_SPEED_MULT
-	# GDD Extended: Weather speed multipliers
 	elif GlobalData.board.current_hazard == GlobalData.HAZARD_RAIN:
 		move_speed *= GlobalData.RAIN_SPEED_MULT
 	elif GlobalData.board.current_hazard == GlobalData.HAZARD_SANDSTORM:
@@ -347,24 +407,61 @@ func _apply_movement(delta: float) -> void:
 		move_speed *= GlobalData.FOG_SPEED_MULT
 
 	var desired_velocity := Vector3.ZERO
-	desired_velocity = (forward * -input_dir.y + right * input_dir.x) * move_speed
 
-	var is_attacking: bool = Input.is_action_pressed("fire_left") or Input.is_action_pressed("fire_right")
-	var wm = get_node_or_null("WeaponManager")
-	if wm:
-		if wm.get("fire_left_holding") or wm.get("fire_right_holding") or (wm.get("_pending_fire") != null and str(wm.get("_pending_fire")) != ""):
-			is_attacking = true
+	if is_player_driven:
+		var cam = get_viewport().get_camera_3d()
+		if cam == null:
+			return
+		var cam_basis = cam.global_transform.basis
+		var forward = -cam_basis.z
+		var right = cam_basis.x
+		forward.y = 0.0
+		forward = forward.normalized()
+		right.y = 0.0
+		right = right.normalized()
+		desired_velocity = (forward * -input_dir.y + right * input_dir.x) * move_speed
 
-	if is_attacking or strafe_mode:
-		var target_angle = atan2(-forward.x, -forward.z)
-		var effective_turn = maxf(turn_rate * 2.5, 16.0)
-		var lerp_weight = clampf(effective_turn * delta, 0.0, 1.0)
-		rotation.y = lerp_angle(rotation.y, target_angle, lerp_weight)
-	elif desired_velocity.length() > 0.1:
-		var target_angle = atan2(-desired_velocity.x, -desired_velocity.z)
-		var effective_turn = turn_rate * (1.5 if is_roller_dashing else 1.0)
-		var lerp_weight = clampf(effective_turn * delta, 0.0, 1.0)
-		rotation.y = lerp_angle(rotation.y, target_angle, lerp_weight)
+		var is_attacking: bool = Input.is_action_pressed("fire_left") or Input.is_action_pressed("fire_right")
+		var wm = get_node_or_null("WeaponManager")
+		if wm:
+			if wm.get("fire_left_holding") or wm.get("fire_right_holding") or (wm.get("_pending_fire") != null and str(wm.get("_pending_fire")) != ""):
+				is_attacking = true
+
+		if is_attacking or strafe_mode:
+			var target_angle = atan2(-forward.x, -forward.z)
+			var effective_turn = maxf(turn_rate * 2.5, 16.0)
+			var lerp_weight = clampf(effective_turn * delta, 0.0, 1.0)
+			rotation.y = lerp_angle(rotation.y, target_angle, lerp_weight)
+		elif desired_velocity.length() > 0.1:
+			var target_angle = atan2(-desired_velocity.x, -desired_velocity.z)
+			var effective_turn = turn_rate * (1.5 if is_roller_dashing else 1.0)
+			var lerp_weight = clampf(effective_turn * delta, 0.0, 1.0)
+			rotation.y = lerp_angle(rotation.y, target_angle, lerp_weight)
+	else:
+		# AI Pilot driving: cmd_world_direction and cmd_aim_point
+		if cmd_world_direction.length_squared() > 0.01:
+			var h_dir = Vector3(cmd_world_direction.x, 0.0, cmd_world_direction.z).normalized()
+			desired_velocity = h_dir * move_speed
+
+		# Facing direction: prioritize aim target, fallback to movement direction
+		if cmd_aim_point != Vector3.ZERO:
+			var aim_dir = (cmd_aim_point - global_position)
+			aim_dir.y = 0.0
+			if aim_dir.length_squared() > 0.01:
+				aim_dir = aim_dir.normalized()
+				var target_angle = atan2(-aim_dir.x, -aim_dir.z)
+				rotation.y = lerp_angle(rotation.y, target_angle, clampf(turn_rate * 2.5 * delta, 0.0, 1.0))
+		elif desired_velocity.length() > 0.1:
+			var target_angle = atan2(-desired_velocity.x, -desired_velocity.z)
+			rotation.y = lerp_angle(rotation.y, target_angle, clampf(turn_rate * delta, 0.0, 1.0))
+
+		# AI weapon trigger handshake
+		var wm_ai = get_node_or_null("WeaponManager")
+		if wm_ai and wm_ai.has_method("_try_fire"):
+			if cmd_fire_left and wm_ai.left_hand:
+				wm_ai._try_fire("left", wm_ai.left_hand)
+			if cmd_fire_right and wm_ai.right_hand:
+				wm_ai._try_fire("right", wm_ai.right_hand)
 
 	velocity.x = desired_velocity.x
 	velocity.z = desired_velocity.z

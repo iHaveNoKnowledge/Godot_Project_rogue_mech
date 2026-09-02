@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://war_pilot_symmetric_ai_verify_tscn"]
+
+[ext_resource type="Script" path="res://tests/war_pilot_symmetric_ai_verify.gd" id="1_test"]
+
+[node name="WarPilotVerify" type="Node"]
+script = ExtResource("1_test")

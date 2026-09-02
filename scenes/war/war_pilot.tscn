@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://war_pilot_actor"]
+
+[ext_resource type="Script" path="res://scripts/war/war_pilot_agent.gd" id="1_pilot"]
+
+[node name="WarPilot" type="CharacterBody3D"]
+collision_layer = 1
+collision_mask = 1
+script = ExtResource("1_pilot")

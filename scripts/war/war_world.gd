@@ -254,15 +254,22 @@ func _spawn_player_mecha() -> void:
 			mecha.add_to_group("player")
 	if mecha and mecha.has_method("set_team"):
 		mecha.set_team("friendly")
-	# Placeholder tier — Line-Issue เริ่มเกม (เดี๋ยวแทนด้วย .glb จริง)
 	var pmm = mecha.get_node_or_null("PartMeshManager")
 	if pmm and pmm.has_method("refresh_slots"):
-		# equip line tier for demo
-		for slot in GlobalData.MECHA_SLOTS:
-			var tid: String = WarFactionVisual.get_tier_ids("line").get(slot, "")
-			if tid != "":
-				var part = pmm.build_part_for_slot({"id": tid, "slot": slot})
-				pmm.initialize_slot(slot, part, false)
+		# Use hangar working set (GlobalData) so outer armor matches what was equipped in hangar.
+		# If no loadout yet (new save), fallback to Line-Issue demo tier.
+		var has_frames := not GlobalData.weapons.equipped_frames.is_empty()
+		var has_parts := not GlobalData.weapons.equipped_parts.is_empty()
+		if has_frames or has_parts:
+			pmm.refresh_slots()
+			if pmm.has_method("refresh_scrap_patches"):
+				pmm.refresh_scrap_patches()
+		else:
+			for slot in GlobalData.MECHA_SLOTS:
+				var tid: String = WarFactionVisual.get_tier_ids("line").get(slot, "")
+				if tid != "":
+					var part = pmm.build_part_for_slot({"id": tid, "slot": slot})
+					pmm.initialize_slot(slot, part, false)
 		WarFactionVisual.apply_team_tint(mecha, "friendly")
 
 	# Attach and initialize full combat WeaponManager (same as game_world.tscn)

@@ -1,4 +1,28 @@
-extends Node3D
+extends Node
+
+## NOTE: Historically this script was CanvasLayer (hangar_ui) and Node3D (hangar_scene).
+## Godot 4.6 enforces script base type must match node type -> "Script inherits from Node3D
+## can't be assigned to CanvasLayer" when pressing F in war mode (WarRealtimeHangar loads hangar_ui.tscn).
+## Extending Node makes it assignable to both CanvasLayer and Node3D. Provide a shim `visible`
+## property since Node has no built-in visible, but the controller gates _process on `visible`.
+## When running as CanvasLayer/Node3D the engine's own visible is bypassed; we forward to root_control.
+
+var visible: bool = true:
+	set(v):
+		visible = v
+		if root_control and is_instance_valid(root_control):
+			root_control.visible = v
+	get:
+		return visible
+
+func show() -> void:
+	visible = true
+
+func hide() -> void:
+	visible = false
+
+func is_visible_in_tree() -> bool:
+	return visible and is_inside_tree()
 
 const PilotLoadoutEditorScript = preload("res://scripts/ui/hangar/hangar_pilot_loadout_editor.gd")
 

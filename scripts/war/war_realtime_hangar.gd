@@ -66,52 +66,13 @@ func _process(_delta: float) -> void:
 func _open_hangar(opener: Node) -> void:
 	if _overlay and is_instance_valid(_overlay):
 		return
-	_overlay = CanvasLayer.new()
-	_overlay.layer = 12
-	add_child(_overlay)
-	# Instantiate the real hangar UI (same as hangar_scene but as overlay, no scene cut)
-	var hangar_scene = load("res://scenes/ui/hangar_ui.tscn")
-	if hangar_scene:
-		var hangar_ui = hangar_scene.instantiate()
-		hangar_ui.name = "RealtimeHangarUI"
-		_overlay.add_child(hangar_ui)
-		# Ensure mouse is visible for UI interaction
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-		# ESC will close via _unhandled_input; also add explicit close callback
-		if hangar_ui.has_signal("tree_exiting"):
-			pass
-	else:
-		# Fallback placeholder if hangar scene missing
-		var panel = PanelContainer.new()
-		panel.set_anchors_preset(Control.PRESET_CENTER)
-		panel.custom_minimum_size = Vector2(700, 450)
-		var style = StyleBoxFlat.new()
-		style.bg_color = Color(0.09, 0.10, 0.13, 0.97)
-		style.border_width_left = 1
-		style.border_width_top = 1
-		style.border_width_right = 1
-		style.border_width_bottom = 1
-		style.border_color = Color(0.3, 0.6, 1.0, 1.0)
-		panel.add_theme_stylebox_override("panel", style)
-		var vbox = VBoxContainer.new()
-		vbox.add_theme_constant_override("separation", 8)
-		panel.add_child(vbox)
-		var title = Label.new()
-		title.text = "REALTIME HANGAR — 6 PARTS (TAB/I still works, enemy can attack)"
-		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		title.add_theme_font_size_override("font_size", 12)
-		title.add_theme_color_override("font_color", Color(0.9, 0.95, 1.0))
-		vbox.add_child(title)
-		var hint = Label.new()
-		hint.text = "DayNight modulates DirectionalLight + hand brightness — reuse DayNightSystem"
-		hint.add_theme_font_size_override("font_size", 10)
-		vbox.add_child(hint)
-		var close = Button.new()
-		close.text = "CLOSE [ESC]"
-		close.pressed.connect(func(): _close_hangar())
-		vbox.add_child(close)
-		_overlay.add_child(panel)
-	# Modulate light for DayNight
+	var customizer_script = load("res://scripts/war/war_realtime_customizer.gd")
+	if customizer_script:
+		var customizer = customizer_script.new()
+		customizer.mecha_ref = opener
+		_overlay = customizer
+		add_child(customizer)
+		customizer.closed.connect(func(): _overlay = null)
 	_apply_daynight()
 
 func _close_hangar() -> void:

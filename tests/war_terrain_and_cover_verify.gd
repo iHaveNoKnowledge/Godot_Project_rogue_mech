@@ -173,4 +173,46 @@ func _test_war_world_integration() -> void:
 			low_ground_ores += 1
 	_assert(low_ground_ores >= 2, "Found %d ore nodes tucked inside canyons/quarries" % low_ground_ores)
 
+	# Verify Ground Mesh normals point UP and cull_mode is CULL_DISABLED
+	var first_chunk = biome_root.get_node_or_null("TerrainChunk_0_0")
+	_assert(first_chunk != null, "Found TerrainChunk_0_0")
+	if first_chunk:
+		var mi = first_chunk.get_node_or_null("TerrainMesh") as MeshInstance3D
+		_assert(mi != null and mi.mesh != null, "TerrainMesh exists on chunk")
+		var mat = mi.material_override as StandardMaterial3D
+		_assert(mat != null and mat.cull_mode == BaseMaterial3D.CULL_DISABLED, "Terrain material has CULL_DISABLED for full visibility")
+		var arrays = (mi.mesh as ArrayMesh).surface_get_arrays(0)
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		_assert(normals.size() > 0 and normals[0].y > 0.5, "Terrain mesh normals point upwards (normal.y = %.2f)" % normals[0].y)
+
+	# Verify Player Mecha is spawned on ground (not floating)
+	var player_mecha = world.get_node_or_null("Mecha") as CharacterBody3D
+	_assert(player_mecha != null, "Player Mecha node exists")
+	_assert(player_mecha.position.y < 0.2, "Player Mecha is grounded (position.y = %.2f)" % player_mecha.position.y)
+	_assert(player_mecha.is_in_group("player"), "Player Mecha has 'player' group")
+
+	# Verify Friendly AI Squad Mechas are spawned with ally_dummy AI (NOT player mecha controller)
+	var allies := get_tree().get_nodes_in_group("ally")
+	var ally_mechas: Array = []
+	for a in allies:
+		if a is CharacterBody3D and (a as Node).name.begins_with("AllyMecha"):
+			ally_mechas.append(a)
+	_assert(ally_mechas.size() >= 2, "Found %d friendly AI squad mechas" % ally_mechas.size())
+	for a in ally_mechas:
+		var script_path: String = a.get_script().resource_path if a.get_script() else ""
+		_assert(script_path.contains("ally_dummy"), "Ally mecha runs autonomous AI script (ally_dummy), not player controller")
+
+	# Verify Realtime Hangar Customizer opens and allows live fitting on PartMeshManager
+	var customizer = load("res://scripts/war/war_realtime_customizer.gd").new()
+	customizer.mecha_ref = player_mecha
+	world.add_child(customizer)
+	_assert(customizer._panel != null, "WarRealtimeCustomizer built UI overlay")
+	_assert(customizer._slot_button_container != null, "WarRealtimeCustomizer has slot button container")
+	var pmm = player_mecha.get_node_or_null("PartMeshManager")
+	_assert(pmm != null, "Player mecha has PartMeshManager")
+	# Live equip a part
+	customizer._equip_part("body", {"id": "body_002", "name": "Fortress Heavy Reactive", "slot": "body", "hp": 110, "armor": 75, "weight": 22})
+	_assert(pmm.slot_meshes.has("body"), "PartMeshManager updated body slot live in realtime")
+	customizer._close()
+
 	world.queue_free()

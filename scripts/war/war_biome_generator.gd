@@ -285,7 +285,7 @@ static func build_biome_ground(parent: Node3D, p_seed: int = 1337) -> void:
 					st.set_uv(Vector2(float(c) / float(samples - 1) * 8.0, float(r) / float(samples - 1) * 8.0))
 					st.add_vertex(Vector3(wx - cx, gy, wz - cz))
 
-			# Add quad indices
+			# Add quad indices (counter-clockwise winding so normals point UP)
 			for r in range(samples - 1):
 				for c in range(samples - 1):
 					var i0: int = r * samples + c
@@ -294,12 +294,12 @@ static func build_biome_ground(parent: Node3D, p_seed: int = 1337) -> void:
 					var i3: int = (r + 1) * samples + (c + 1)
 
 					st.add_index(i0)
-					st.add_index(i2)
 					st.add_index(i1)
+					st.add_index(i2)
 
 					st.add_index(i1)
-					st.add_index(i2)
 					st.add_index(i3)
+					st.add_index(i2)
 
 			st.generate_normals()
 			var mesh := st.commit()
@@ -309,7 +309,8 @@ static func build_biome_ground(parent: Node3D, p_seed: int = 1337) -> void:
 			mi.mesh = mesh
 			var mat := StandardMaterial3D.new()
 			mat.vertex_color_use_as_albedo = true
-			mat.roughness = 0.9
+			mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+			mat.roughness = 0.85
 			mi.material_override = mat
 			chunk_body.add_child(mi)
 

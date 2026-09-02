@@ -245,8 +245,9 @@ func _spawn_player_mecha() -> void:
 			mecha = scene.instantiate()
 			mecha.name = "Mecha"
 			add_child(mecha)
-			mecha.position = WarBiomeGenerator.snap_to_ground(Vector3(0, 0, -750), 3.0)
+			mecha.position = WarBiomeGenerator.snap_to_ground(Vector3(0, 0, -750), 0.05)
 			mecha.add_to_group("mecha")
+			mecha.add_to_group("player")
 	if mecha and mecha.has_method("set_team"):
 		mecha.set_team("friendly")
 	# Placeholder tier — Line-Issue เริ่มเกม (เดี๋ยวแทนด้วย .glb จริง)
@@ -260,6 +261,58 @@ func _spawn_player_mecha() -> void:
 				pmm.initialize_slot(slot, part, false)
 		WarFactionVisual.apply_team_tint(mecha, "friendly")
 	_ensure_war_camera(mecha)
+	_spawn_friendly_ai_squad()
+	_spawn_enemy_ai_squad()
+
+
+func _spawn_friendly_ai_squad() -> void:
+	var ally_scene = load("res://scenes/mecha/ally_dummy.tscn")
+	if ally_scene == null:
+		return
+
+	# Solo: Player + 3 AI Squad Mechas (per PLAN.md 6.1)
+	var squad_offsets = [
+		Vector3(-8.0, 0, -735.0),
+		Vector3(8.0, 0, -735.0),
+		Vector3(-14.0, 0, -725.0),
+	]
+	var templates = ["ally_gm", "ally_zaku_custom", "ally_jegan"]
+
+	for i in range(squad_offsets.size()):
+		var ally = ally_scene.instantiate()
+		ally.name = "AllyMecha_%d" % i
+		ally.template_id = templates[i % templates.size()]
+		ally.position = WarBiomeGenerator.snap_to_ground(squad_offsets[i], 0.05)
+		ally.add_to_group("ally")
+		ally.add_to_group("mecha")
+		add_child(ally)
+		WarFactionVisual.apply_team_tint(ally, "friendly")
+
+
+func _spawn_enemy_ai_squad() -> void:
+	var enemy_scenes = [
+		"res://scenes/mecha/enemy_dummy_full.tscn",
+		"res://scenes/mecha/enemy_ranged.tscn",
+		"res://scenes/mecha/enemy_tank.tscn"
+	]
+	var enemy_positions = [
+		Vector3(-15.0, 0, 750.0),
+		Vector3(15.0, 0, 750.0),
+		Vector3(0.0, 0, 720.0),
+		Vector3(100.0, 0, 450.0),
+		Vector3(-100.0, 0, 450.0),
+	]
+
+	for i in range(enemy_positions.size()):
+		var sc_path: String = enemy_scenes[i % enemy_scenes.size()]
+		var sc = load(sc_path)
+		if sc:
+			var enemy = sc.instantiate()
+			enemy.name = "EnemyMecha_%d" % i
+			enemy.position = WarBiomeGenerator.snap_to_ground(enemy_positions[i], 0.05)
+			enemy.add_to_group("enemy")
+			add_child(enemy)
+			WarFactionVisual.apply_team_tint(enemy, "enemy")
 
 
 func _ensure_war_camera(mecha: Node) -> void:

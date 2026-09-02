@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://carrier_dock_verify_tscn"]
+
+[ext_resource type="Script" path="res://tests/carrier_dock_verify.gd" id="1_test"]
+
+[node name="CarrierDockVerify" type="Node"]
+script = ExtResource("1_test")

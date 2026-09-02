@@ -1,0 +1,18 @@
+[gd_scene format=3 uid="uid://test_wanzer_001"]
+
+[ext_resource type="Script" path="res://scripts/test_wanzer_equip.gd" id="1"]
+[ext_resource type="PackedScene" uid="uid://c68hdpgorbxsh" path="res://scenes/mecha/mecha_base.tscn" id="2"]
+
+[node name="TestWanzer" type="Node3D"]
+script = ExtResource("1")
+
+[node name="MechaBase" parent="." instance=ExtResource("2")]
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866, -0.5, 0, 0, 0.5, 0.866, 0.5, 0.866, 0, 0, 5, 0)
+light_energy = 1.2
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.707, 0.707, 0, -0.707, 0.707, 0, 3.5, 8)
+current = true
+fov = 45.0

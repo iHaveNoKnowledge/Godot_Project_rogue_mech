@@ -1,0 +1,4 @@
+[gd_scene format=3]
+[ext_resource type="PackedScene" path="res://scenes/mecha/parts/arm_left/wanzer_arm_left_blender.glb" id="1"]
+[node name="wanzer_arm_left_blender" type="Node3D"]
+[node name="Model" parent="." instance=ExtResource("1")]

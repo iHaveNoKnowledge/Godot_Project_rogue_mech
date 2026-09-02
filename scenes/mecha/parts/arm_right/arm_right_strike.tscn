@@ -1,10 +1,4 @@
 [gd_scene format=3]
-[sub_resource type="StandardMaterial3D" id="1"]
-albedo_color = Color(0.85, 0.85, 0.9, 1)
-roughness = 0.68
-[sub_resource type="BoxMesh" id="2"]
-size = Vector3(0.30, 0.22, 0.30)
+[ext_resource type="PackedScene" path="res://scenes/mecha/parts/arm_right/arm_right_strike.glb" id="1"]
 [node name="arm_right_strike" type="Node3D"]
-[node name="Mesh" type="MeshInstance3D" parent="."]
-mesh = SubResource("2")
-material_override = SubResource("1")
+[node name="Model" parent="." instance=ExtResource("1")]

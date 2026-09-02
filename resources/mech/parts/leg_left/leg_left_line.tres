@@ -1,6 +1,6 @@
-[gd_resource type="Resource" load_steps=2 format=3]
+[gd_resource type="Resource" load_steps=3 format=3]
 [ext_resource type="Script" path="res://resources/mech/armor_part.gd" id="1"]
-[ext_resource type="PackedScene" uid="" path="res://scenes/mecha/parts/leg_left/leg_left_line.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/mecha/parts/leg_left/leg_left_line.tscn" id="2"]
 [resource]
 script = ExtResource("1")
 part_name = "Line-Issue Leg Left"

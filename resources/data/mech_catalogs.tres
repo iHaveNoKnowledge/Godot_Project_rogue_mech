@@ -33,7 +33,7 @@ armor_catalog = {
 "hp": 32.0,
 "id": "arm_left_vagrant_01",
 "name": "Scrap Pilgrim Wrapped Forearm (L)",
-"path": "res://resources/mech/parts/arm_left/arm_left_001.tres",
+"path": "res://resources/mech/parts/arm_left/arm_left_vagrant_01.tres",
 "type": "Vagrant Wrap",
 "weight": 4.0
 }, {
@@ -101,7 +101,7 @@ armor_catalog = {
 "hp": 32.0,
 "id": "arm_right_vagrant_01",
 "name": "Scrap Pilgrim Wrapped Forearm (R)",
-"path": "res://resources/mech/parts/arm_right/arm_right_001.tres",
+"path": "res://resources/mech/parts/arm_right/arm_right_vagrant_01.tres",
 "type": "Vagrant Wrap",
 "weight": 4.0
 }, {
@@ -179,7 +179,7 @@ armor_catalog = {
 "hp": 80.0,
 "id": "body_vagrant_01",
 "name": "Scrap Pilgrim Layered Cloak Armor",
-"path": "res://resources/mech/parts/body/body_001.tres",
+"path": "res://resources/mech/parts/body/body_vagrant_01.tres",
 "type": "Vagrant Cloak",
 "weight": 11.0
 }, {
@@ -257,7 +257,7 @@ armor_catalog = {
 "hp": 35.0,
 "id": "head_vagrant_01",
 "name": "Scrap Pilgrim Cowl Visor",
-"path": "res://resources/mech/parts/head/head_001.tres",
+"path": "res://resources/mech/parts/head/head_vagrant_01.tres",
 "type": "Vagrant Cloak",
 "weight": 2.2
 }, {
@@ -325,7 +325,7 @@ armor_catalog = {
 "hp": 40.0,
 "id": "leg_left_vagrant_01",
 "name": "Scrap Pilgrim Vector Leg Guard (L)",
-"path": "res://resources/mech/parts/leg_left/leg_left_001.tres",
+"path": "res://resources/mech/parts/leg_left/leg_left_vagrant_01.tres",
 "type": "Vagrant Vector",
 "weight": 5.5
 }, {
@@ -393,7 +393,7 @@ armor_catalog = {
 "hp": 40.0,
 "id": "leg_right_vagrant_01",
 "name": "Scrap Pilgrim Vector Leg Guard (R)",
-"path": "res://resources/mech/parts/leg_right/leg_right_001.tres",
+"path": "res://resources/mech/parts/leg_right/leg_right_vagrant_01.tres",
 "type": "Vagrant Vector",
 "weight": 5.5
 }, {

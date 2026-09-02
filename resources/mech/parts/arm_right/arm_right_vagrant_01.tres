@@ -1,0 +1,14 @@
+[gd_resource type="Resource" load_steps=3 format=3]
+[ext_resource type="Script" path="res://resources/mech/armor_part.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/mecha/parts/arm_right/arm_right_vagrant_01.tscn" id="2"]
+[resource]
+script = ExtResource("1")
+part_name = "Scrap Pilgrim Wrapped Forearm (R)"
+slot_id = "arm_right"
+mesh_scene = ExtResource("2")
+max_hp = 32.0
+max_frame_hp = 32.0
+weight = 4.0
+armor_class = 22.0
+break_threshold = 0.3
+part_color = Color(0.45, 0.4, 0.35, 1)

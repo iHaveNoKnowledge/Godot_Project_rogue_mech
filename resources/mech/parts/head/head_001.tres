@@ -1,11 +1,11 @@
-[gd_resource type="Resource" load_steps=2 format=3]
-
+[gd_resource type="Resource" load_steps=3 format=3]
 [ext_resource type="Script" path="res://resources/mech/armor_part.gd" id="1"]
-
+[ext_resource type="PackedScene" path="res://scenes/mecha/parts/head/head_001.tscn" id="2"]
 [resource]
 script = ExtResource("1")
 part_name = "Barbatos White Visor Plating"
 slot_id = "head"
+mesh_scene = ExtResource("2")
 max_hp = 30.0
 max_frame_hp = 30.0
 weight = 4.0

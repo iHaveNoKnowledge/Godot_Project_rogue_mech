@@ -68,7 +68,7 @@ def classify(obj):
     if cy > 0.55:
         return "head"
     if cy < -0.05:
-        return "legs"  # combined legs
+        return "leg_left" if cx < 0 else "leg_right"
     if cx < -0.28:
         return "arm_left"
     if cx > 0.28:
@@ -76,7 +76,7 @@ def classify(obj):
     return "body"
 
 # Group loose parts
-groups = {"head":[], "body":[], "arm_left":[], "arm_right":[], "legs":[], "weapon":[]}
+groups = {"head":[], "body":[], "arm_left":[], "arm_right":[], "leg_left":[], "leg_right":[], "weapon":[]}
 for o in loose:
     slot = classify(o)
     groups[slot].append(o)
@@ -106,15 +106,15 @@ for slot, objs in groups.items():
         "body":"body",
         "arm_left":"arm_left",
         "arm_right":"arm_right",
-        "legs":"leg_left",  # we save legs as leg_left for now, also duplicate to leg_right? But request says Legs single
-        "weapon":"body",  # weapon saved alongside body as separate, use body folder with weapon name
+        "leg_left":"leg_left",
+        "leg_right":"leg_right",
+        "weapon":"body",
     }
     # Decide output filenames
-    if slot == "legs":
-        # Save as wanzer_legs.glb to body? Actually legs should be in leg_left and leg_right? For this 6-part spec we save combined
-        out_name = "wanzer_legs.glb"
-        out_dir = proj / "scenes" / "mecha" / "parts" / "leg_left"
-        asset_name = "wanzer_legs.glb"
+    if slot in ("leg_left","leg_right"):
+        out_name = f"wanzer_{slot}_blender.glb"
+        out_dir = proj / "scenes" / "mecha" / "parts" / godot_slot_map[slot]
+        asset_name = f"wanzer_{slot}_blender.glb"
     elif slot == "weapon":
         out_name = "wanzer_weapon.glb"
         out_dir = proj / "assets" / "models"
@@ -141,7 +141,7 @@ for slot, objs in groups.items():
         print(f"  copied to {asset_path}")
 
     # Also create .tscn wrapper and .tres for Godot (optional)
-    if slot in ("head","body","arm_left","arm_right"):
+    if slot in ("head","body","arm_left","arm_right","leg_left","leg_right"):
         tscn_dir = proj / "scenes" / "mecha" / "parts" / godot_slot_map[slot]
         tscn_path = tscn_dir / f"wanzer_{slot}_blender.tscn"
         glb_res = f"res://scenes/mecha/parts/{godot_slot_map[slot]}/{out_name}"

@@ -418,20 +418,70 @@ func _decorate_phase2() -> void:
 	WarMapGenerator.decorate_highland(self, Vector3(150, 0, -650))
 	WarMapGenerator.decorate_underground_tunnel(self, Vector3(-150, 0, -650))
 	var loader: WarChunkLoader = get_node_or_null("ChunkLoader") as WarChunkLoader
-	# Weapon Caches hidden in deep canyon & sunken quarry basins
+
+	# 1. Weapon Caches hidden in deep canyon & sunken quarry basins
 	for p in [Vector3(190, 0, -250), Vector3(-480, 0, -420), Vector3(80, 0, -700)]:
 		var before: int = get_child_count()
 		WarMapGenerator.spawn_weapon_cache(self, p)
-		# ย้าย cache เข้า chunk ถ้ามี
 		if loader and get_child_count() > before:
 			var cache: Node3D = get_child(get_child_count() - 1) as Node3D
 			if cache and cache.name == "WeaponCache":
 				cache.set_meta("chunk_auto", true)
 				loader.add_to_chunk(cache)
+
+	# 2. Canyon Bridge
 	WarBiomeGenerator.spawn_bridge(self, Vector2(-180, -620), Vector2(180, -620), 6.0, 8.0)
+
+	# 3. 4 Military Forward Outposts (Bunkers, 8.5m Watchtowers, Radar Masts, Sandbags, Barricades)
+	var outpost_coords := [
+		{"pos": Vector3(-280, 0, -420), "friendly": true},
+		{"pos": Vector3(280, 0, -420), "friendly": true},
+		{"pos": Vector3(-280, 0, 420), "friendly": false},
+		{"pos": Vector3(280, 0, 420), "friendly": false},
+	]
+	for oc in outpost_coords:
+		var before_op: int = get_child_count()
+		var op = WarBiomeGenerator.spawn_military_outpost(self, oc["pos"], oc["friendly"])
+		if loader and op:
+			loader.add_to_chunk(op)
+
+	# 4. 6 Contested Frontline Urban Ruins (Collapsed multi-story slabs, trench lines, dragon's teeth, wrecked mechas)
+	var ruin_coords := [
+		Vector3(0, 0, 0),        # Central No Man's Land crossroads
+		Vector3(-250, 0, -70),   # West approach trench & ruin
+		Vector3(250, 0, 70),     # East approach trench & ruin
+		Vector3(-180, 0, -160),  # Northwest fortress breach
+		Vector3(180, 0, 160),    # Southeast fortress breach
+		Vector3(200, 0, -220),   # Canyon rim contested outpost
+	]
+	for rc in ruin_coords:
+		var ruin = WarBiomeGenerator.spawn_frontline_ruins(self, rc)
+		if loader and ruin:
+			loader.add_to_chunk(ruin)
+
+	# 5. Industrial Pipeline Networks & Fuel Storage Silos
+	var pipe1 = WarBiomeGenerator.spawn_industrial_pipeline(self, Vector3(140, 0, -320), Vector3(220, 0, -100))
+	if loader and pipe1:
+		loader.add_to_chunk(pipe1)
+	var pipe2 = WarBiomeGenerator.spawn_industrial_pipeline(self, Vector3(-350, 0, -380), Vector3(-450, 0, -500))
+	if loader and pipe2:
+		loader.add_to_chunk(pipe2)
+
+	# 6. Smoldering Wrecked Valkren Carcasses in open terrain corridors
+	var wreck_scatter := [
+		Vector3(-100, 0, -280), Vector3(100, 0, -280),
+		Vector3(-90, 0, 260), Vector3(90, 0, 260),
+		Vector3(-380, 0, 150), Vector3(380, 0, -150)
+	]
+	for wsp in wreck_scatter:
+		var gy = WarBiomeGenerator.get_ground_height(wsp.x, wsp.z)
+		var wreck = WarBiomeGenerator.spawn_wrecked_mecha(self, Vector3(wsp.x, gy, wsp.z), randf_range(0, TAU))
+		if loader and wreck:
+			loader.add_to_chunk(wreck)
+
+	# 7. Realtime Hangar Interaction zones at main bases
 	for base in [get_node_or_null("FriendlyMainBase"), get_node_or_null("EnemyMainBase")]:
 		if base:
-			# Place trigger inside Mech Hangar (now 8x6.5x10 at -7.2,0,0.2) — not floating at 10,1,0
 			var hangar_pos := Vector3(-7.2, 0.2, 0.2)
 			var mech_hangar = base.get_node_or_null("Mech_Hangar")
 			if mech_hangar:

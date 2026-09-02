@@ -117,8 +117,15 @@ func _physics_process(delta: float) -> void:
 
 
 func _process_seeking_vehicle(delta: float) -> void:
-	# Determine Hangar Bay coordinates for our faction
+	# Determine Hangar Bay coordinates for our faction — use actual Mech_Hangar node inside ForwardBase
 	var hangar_pos := Vector3(0, 0, -780) if team == "friendly" else Vector3(0, 0, 780)
+	var base_name := "FriendlyMainBase" if team == "friendly" else "EnemyMainBase"
+	var base := get_tree().current_scene.get_node_or_null(base_name) if get_tree() and get_tree().current_scene else null
+	if base:
+		var mh = base.get_node_or_null("Mech_Hangar")
+		if mh and mh is Node3D:
+			hangar_pos = (mh as Node3D).global_position
+			hangar_pos.y = WarBiomeGenerator.get_ground_height(hangar_pos.x, hangar_pos.z) + 0.05
 	target_destination = hangar_pos
 
 	var dist := global_position.distance_to(hangar_pos)
@@ -141,31 +148,48 @@ func _process_seeking_vehicle(delta: float) -> void:
 
 
 func _claim_and_board_vehicle() -> void:
-	# 1. Check for nearby unoccupied mecha or tank in staging area
+	# 1. Check for nearby unoccupied mecha or tank in staging area (hangar apron)
 	var nearby_unoccupied := _find_nearest_unoccupied_vehicle(25.0)
 	if nearby_unoccupied != null:
 		_board_existing_vehicle(nearby_unoccupied)
 		return
 
-	# 2. Spawn a fresh machine from Hangar Stock
+	# 2. เรียกหุ่นจาก Hangar Stock — จำลองการ walk-in แล้ว hangar function spawn
+	# หา WarRealtimeHangar หรือ ForwardBase Mech_Hangar เพื่อใช้เป็น spawn point จริง
 	var parent_scene = get_parent()
 	if parent_scene == null:
 		return
 
-	var spawn_pos = global_position + Vector3(randf_range(-4, 4), 0, randf_range(-4, 4))
-	spawn_pos = WarBiomeGenerator.snap_to_ground(spawn_pos, 0.05)
+	var hangar_spawn := global_position + Vector3(randf_range(-4, 4), 0, randf_range(-4, 4))
+	# ถ้ามี hangar zone ให้ spawn ตรงหน้า hangar door
+	var base_name := "FriendlyMainBase" if team == "friendly" else "EnemyMainBase"
+	var base := get_tree().current_scene.get_node_or_null(base_name) if get_tree() and get_tree().current_scene else null
+	if base:
+		var mh = base.get_node_or_null("Mech_Hangar")
+		if mh and mh is Node3D and mh.has_meta("hangar_door_pos"):
+			var door_local: Vector3 = mh.get_meta("hangar_door_pos")
+			hangar_spawn = (mh as Node3D).global_position + door_local + Vector3(randf_range(-2, 2), 0, randf_range(1, 3))
+		elif mh and mh is Node3D:
+			hangar_spawn = (mh as Node3D).global_position + Vector3(0, 0, 3.0)
+	hangar_spawn = WarBiomeGenerator.snap_to_ground(hangar_spawn, 0.05)
+	# Dispatch delay เล็กน้อยให้รู้สึกว่า hangar กำลังเรียกหุ่น (deploy)
+	await get_tree().create_timer(0.35).timeout
+	if not is_instance_valid(self) or state != PilotState.ON_FOOT_SEEKING_VEHICLE:
+		return
 
-	# If iron requested and tank is available, or Valkren line
 	var scene = load("res://scenes/mecha/mecha_base.tscn")
 	if scene:
 		var mech = scene.instantiate()
 		mech.name = "%s_Valkren_%d" % [team.capitalize(), randi() % 1000]
-		mech.position = spawn_pos
+		mech.position = hangar_spawn
 		parent_scene.add_child(mech)
 
 		# Apply Faction Archetype: GM for friendly, Zaku for enemy
 		WarFactionVisual.apply_faction_archetype(mech, team, _desired_tier)
 		mech.add_to_group(team)
+		# Mark as hangar-dispatched so WarRealtimeHangar/Deployment can track
+		mech.set_meta("hangar_dispatched", true)
+		mech.set_meta("hangar_team", team)
 
 		_board_existing_vehicle(mech)
 

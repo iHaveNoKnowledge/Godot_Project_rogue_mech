@@ -1,5 +1,9 @@
 extends Node
 
+signal realtime_closed
+
+var is_realtime_war_mode: bool = false
+
 ## NOTE: Historically this script was CanvasLayer (hangar_ui) and Node3D (hangar_scene).
 ## Godot 4.6 enforces script base type must match node type -> "Script inherits from Node3D
 ## can't be assigned to CanvasLayer" when pressing F in war mode (WarRealtimeHangar loads hangar_ui.tscn).
@@ -150,17 +154,38 @@ var frame_catalog: Dictionary:
 
 # Outer Armor Catalog
 ## Armor catalog is now stored in GlobalData.armor_catalog (single source of truth).
-## This computed property provides a local alias for convenience.
 var armor_catalog: Dictionary:
 	get:
 		return GlobalData.armor_catalog
 
 
+func setup_realtime_mode(target_mecha: Node) -> void:
+	is_realtime_war_mode = true
+	if garage_panel == null:
+		garage_panel = HangarGaragePanel.new()
+		garage_panel.controller = self
+	garage_panel.is_realtime_world = true
+	garage_panel.realtime_target_mecha = target_mecha
+	if is_inside_tree() and not garage_panel.is_built:
+		garage_panel.build_garage()
+
+
+func close_realtime_hangar() -> void:
+	if garage_panel:
+		garage_panel.cleanup_realtime_camera()
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	visible = false
+	realtime_closed.emit()
+	queue_free()
+
+
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	garage_panel = HangarGaragePanel.new()
-	garage_panel.controller = self
-	garage_panel.build_garage()
+	if garage_panel == null:
+		garage_panel = HangarGaragePanel.new()
+		garage_panel.controller = self
+	if not garage_panel.is_built:
+		garage_panel.build_garage()
 	_build_ui_layout()
 	nav_panel.show_hangar()
 	pilot_loadout_editor = PilotLoadoutEditorScript.new()
@@ -168,7 +193,7 @@ func _ready() -> void:
 	pilot_loadout_editor.layer = 20
 	add_child(pilot_loadout_editor)
 	pilot_loadout_editor.visible = false
-	if AudioManager:
+	if AudioManager and not is_realtime_war_mode:
 		AudioManager.play_hangar_music()
 
 

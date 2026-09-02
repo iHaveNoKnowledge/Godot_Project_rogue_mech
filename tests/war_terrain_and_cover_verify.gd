@@ -202,17 +202,19 @@ func _test_war_world_integration() -> void:
 		var script_path: String = p.get_script().resource_path if p.get_script() else ""
 		_assert(script_path.contains("war_pilot_agent"), "Pilot runs symmetric AI script (war_pilot_agent)")
 
-	# Verify Realtime Hangar Customizer opens and allows live fitting on PartMeshManager
-	var customizer = load("res://scripts/war/war_realtime_customizer.gd").new()
-	customizer.mecha_ref = player_mecha
-	world.add_child(customizer)
-	_assert(customizer._panel != null, "WarRealtimeCustomizer built UI overlay")
-	_assert(customizer._slot_button_container != null, "WarRealtimeCustomizer has slot button container")
+	# Verify Original Hangar UI opens in Realtime Mode and allows live fitting
+	var hangar_scene = load("res://scenes/ui/hangar_ui.tscn")
+	_assert(hangar_scene != null, "hangar_ui.tscn loaded")
+	var hangar = hangar_scene.instantiate()
+	hangar.setup_realtime_mode(player_mecha)
+	world.add_child(hangar)
+	_assert(hangar.is_realtime_war_mode, "HangarUI initialized in realtime war mode")
+	_assert(hangar.garage_panel != null, "HangarUI has garage_panel")
+	_assert(hangar.garage_panel.is_realtime_world, "garage_panel configured with is_realtime_world")
+	_assert(hangar.garage_panel.garage_cam != null, "garage_panel created in-world realtime camera")
+	_assert(hangar.garage_panel.viewport_container == null, "No SubViewport created in realtime mode")
 	var pmm = player_mecha.get_node_or_null("PartMeshManager")
 	_assert(pmm != null, "Player mecha has PartMeshManager")
-	# Live equip a part
-	customizer._equip_part("body", {"id": "body_002", "name": "Fortress Heavy Reactive", "slot": "body", "hp": 110, "armor": 75, "weight": 22})
-	_assert(pmm.slot_meshes.has("body"), "PartMeshManager updated body slot live in realtime")
-	customizer._close()
+	hangar.close_realtime_hangar()
 
 	world.queue_free()

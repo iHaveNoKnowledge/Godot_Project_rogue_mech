@@ -38,7 +38,10 @@ func show_hangar() -> void:
 		controller.wounded_banner.refresh()
 	# Entering the hangar shows the landing sub-menu first — the customize page
 	# only appears once the driver picks a topic (CUSTOMIZE / UPGRADE / etc).
-	show_hangar_menu()
+	if controller.get("is_realtime_war_mode"):
+		show_customize_page()
+	else:
+		show_hangar_menu()
 
 
 func switch_custom_mode(mode: String) -> void:
@@ -104,6 +107,14 @@ func build_landing_rail(root: Control) -> void:
 		{"id": "craft", "label": "Craft"},
 		{"id": "catalog", "label": "Catalog"},
 	]
+	if controller.get("is_realtime_war_mode"):
+		submenu_items = [
+			{"id": "customize", "label": "Customize"},
+			{"id": "upgrade", "label": "Upgrade"},
+			{"id": "emergency", "label": "Emergency Repair"},
+			{"id": "craft", "label": "Craft"},
+			{"id": "catalog", "label": "Catalog"},
+		]
 	for item in submenu_items:
 		var sbtn = Button.new()
 		sbtn.text = item["label"]
@@ -177,6 +188,7 @@ func show_hangar_menu() -> void:
 # The customize page (mech center, part list left, stats right). Also the base
 # surface for upgrade/craft/catalog which open their windows over it.
 func show_customize_page() -> void:
+	current_submenu = "customize"
 	if controller.submenu_rail:
 		controller.submenu_rail.visible = false
 	if controller.back_to_menu_button:

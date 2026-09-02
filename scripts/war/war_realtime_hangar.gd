@@ -66,18 +66,31 @@ func _process(_delta: float) -> void:
 func _open_hangar(opener: Node) -> void:
 	if _overlay and is_instance_valid(_overlay):
 		return
-	var customizer_script = load("res://scripts/war/war_realtime_customizer.gd")
-	if customizer_script:
-		var customizer = customizer_script.new()
-		customizer.mecha_ref = opener
-		_overlay = customizer
-		add_child(customizer)
-		customizer.closed.connect(func(): _overlay = null)
+
+	# If opener is a pilot, find their current vehicle if boarded
+	var target_mech: Node = opener
+	if opener is CharacterBody3D and "current_vehicle" in opener and opener.current_vehicle != null:
+		target_mech = opener.current_vehicle
+
+	var hangar_scene = load("res://scenes/ui/hangar_ui.tscn")
+	if hangar_scene:
+		var hangar_ui = hangar_scene.instantiate()
+		if hangar_ui.has_method("setup_realtime_mode"):
+			hangar_ui.setup_realtime_mode(target_mech)
+		_overlay = hangar_ui
+		add_child(hangar_ui)
+		hangar_ui.tree_exited.connect(func():
+			_overlay = null
+			_update_prompt(not _inside_bodies.is_empty())
+		)
 	_apply_daynight()
 
 func _close_hangar() -> void:
 	if _overlay and is_instance_valid(_overlay):
-		_overlay.queue_free()
+		if _overlay.has_method("close_realtime_hangar"):
+			_overlay.close_realtime_hangar()
+		else:
+			_overlay.queue_free()
 		_overlay = null
 	EventBus.interaction_prompt_updated.emit("", false)
 	# Restore mouse capture for battlefield combat

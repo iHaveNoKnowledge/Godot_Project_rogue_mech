@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://war_realtime_hangar_original_ui_verify_tscn"]
+
+[ext_resource type="Script" path="res://tests/war_realtime_hangar_original_ui_verify.gd" id="1_test"]
+
+[node name="WarRealtimeHangarVerify" type="Node"]
+script = ExtResource("1_test")

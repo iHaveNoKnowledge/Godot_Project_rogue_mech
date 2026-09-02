@@ -32,8 +32,22 @@ var _blink_interval: float = 0.45
 var _blink_on: bool = true
 var _blink_target_button: Button = null
 
+# Realtime In-World Mode (War Mode)
+var is_realtime_world: bool = false
+var realtime_target_mecha: Node3D = null
+var previous_camera: Camera3D = null
+var is_built: bool = false
+
 
 func build_garage() -> void:
+	if is_built:
+		return
+	is_built = true
+
+	if is_realtime_world:
+		_build_realtime_garage()
+		return
+
 	viewport_container = SubViewportContainer.new()
 	viewport_container.set_anchors_preset(Control.PRESET_FULL_RECT)
 	viewport_container.stretch = true
@@ -186,6 +200,47 @@ func build_garage() -> void:
 	hangar_env_node.add_child(garage_cam)
 	garage_cam.look_at(current_look_pos, Vector3.UP)
 	garage_cam.fov = 55.0
+
+
+func _build_realtime_garage() -> void:
+	if realtime_target_mecha == null and controller.has_method("get_player_mecha"):
+		realtime_target_mecha = controller.get_player_mecha()
+	if realtime_target_mecha == null and GameManager and GameManager.has_method("get_player_mecha"):
+		realtime_target_mecha = GameManager.get_player_mecha()
+	if realtime_target_mecha == null:
+		var mechas := controller.get_tree().get_nodes_in_group("player") if controller.get_tree() else []
+		if not mechas.is_empty():
+			realtime_target_mecha = mechas[0] as Node3D
+
+	var world_scene = realtime_target_mecha.get_tree().current_scene if (realtime_target_mecha and realtime_target_mecha.get_tree()) else (controller.get_tree().current_scene if controller.get_tree() else null)
+
+	previous_camera = controller.get_viewport().get_camera_3d() if controller.get_viewport() else null
+
+	garage_cam = Camera3D.new()
+	garage_cam.name = "RealtimeGarageCamera"
+	garage_cam.fov = 55.0
+
+	if world_scene:
+		world_scene.add_child(garage_cam)
+	else:
+		controller.add_child(garage_cam)
+
+	garage_cam.current = true
+
+	# Set initial camera focus to body/torso
+	update_camera_focus("body")
+	current_cam_pos = cam_target_pos
+	current_look_pos = cam_look_target
+	garage_cam.global_position = current_cam_pos
+	garage_cam.look_at(current_look_pos, Vector3.UP)
+
+
+func cleanup_realtime_camera() -> void:
+	if previous_camera and is_instance_valid(previous_camera):
+		previous_camera.current = true
+	if garage_cam and is_instance_valid(garage_cam):
+		garage_cam.queue_free()
+		garage_cam = null
 
 
 func _build_hangar_bay_room() -> void:
@@ -388,8 +443,8 @@ func apply_tactical_idle_pose(mecha_node: Node3D) -> void:
 func process(delta: float) -> void:
 	current_cam_pos = current_cam_pos.lerp(cam_target_pos, 5.0 * delta)
 	current_look_pos = current_look_pos.lerp(cam_look_target, 5.0 * delta)
-	if garage_cam:
-		garage_cam.position = current_cam_pos
+	if garage_cam and is_instance_valid(garage_cam):
+		garage_cam.global_position = current_cam_pos
 		garage_cam.look_at(current_look_pos, Vector3.UP)
 
 	if _blink_target_button and is_instance_valid(_blink_target_button):
@@ -481,6 +536,11 @@ func apply_tab_blink(on: bool) -> void:
 
 
 func update_camera_focus(slot: String) -> void:
+	if slot == "backpack":
+		slot = "weapon_carry"
+	elif slot == "legs":
+		slot = "leg_left"
+
 	# Use MechaScaleSystem.HANGAR_CAM (newest) — replaces legacy 5.8-6.4m hardcodes
 	var cam: Dictionary = MechaScaleSystem.HANGAR_CAM.get(slot, {})
 	if cam.is_empty() and slot.begins_with("weapon"):
@@ -492,8 +552,16 @@ func update_camera_focus(slot: String) -> void:
 		cam = MechaScaleSystem.HANGAR_CAM["arm_left"]
 	elif slot in ["arm_right", "weapon_right"] and MechaScaleSystem.HANGAR_CAM.has("arm_right"):
 		cam = MechaScaleSystem.HANGAR_CAM["arm_right"]
-	cam_target_pos = cam.get("pos", MechaScaleSystem.HANGAR_CAM["default"]["pos"])
-	cam_look_target = cam.get("look", MechaScaleSystem.HANGAR_CAM["default"]["look"])
+	var local_pos: Vector3 = cam.get("pos", MechaScaleSystem.HANGAR_CAM["default"]["pos"])
+	var local_look: Vector3 = cam.get("look", MechaScaleSystem.HANGAR_CAM["default"]["look"])
+
+	if is_realtime_world and realtime_target_mecha != null and is_instance_valid(realtime_target_mecha):
+		var m_trans: Transform3D = realtime_target_mecha.global_transform
+		cam_target_pos = m_trans * local_pos
+		cam_look_target = m_trans * local_look
+	else:
+		cam_target_pos = local_pos
+		cam_look_target = local_look
 
 
 # --- REAL-TIME 3D PREVIEWS IN GARAGE ---
@@ -606,6 +674,8 @@ func apply_armor_preview(slot: String, info: Dictionary) -> void:
 
 # Returns the mech's root Node3D (MechaBase if present, else the whole scene).
 func get_mecha_base() -> Node3D:
+	if is_realtime_world and realtime_target_mecha != null and is_instance_valid(realtime_target_mecha):
+		return realtime_target_mecha
 	if mecha_3d_root == null:
 		return null
 	return mecha_3d_root.get_node_or_null("MechaBase") if mecha_3d_root.has_node("MechaBase") else mecha_3d_root

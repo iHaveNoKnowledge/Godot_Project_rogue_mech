@@ -221,6 +221,9 @@ scripts/war/ — สถานะปัจจุบัน (ตรวจสอบ 
 ### Phase 2 — เต็ม 4 สัปดาห์ — ✅ เสร็จหมดแล้ว
 
 - [x] แมพซับซ้อน HIGHLAND/UNDERGROUND ซ่อนของ + Weapon Cache (`war_map_generator.gd`)
+  - [x] 3-Tier Multi-Elevation Terrain Volume: Canyons (Y=-12m), Mid-Ground (Y=0m), Mesas (Y=+22m) เชื่อมด้วยทางลาด Ramps 12-15°
+  - [x] 16-Chunked HeightMapShape3D Colliders (51x51 per chunk) + Displaced SurfaceTool Mesh แบบไร้รอยต่อ
+  - [x] Hybrid Biome Tactical Cover: โครงสร้างถาวร + ที่กำบังทำลายได้ (HP) + Mecha Dash/Ramming ทำลายสิ่งกีดขวาง
 - [x] Data ครบ 6 แบบ + สูตรเต็มตัว/Mass Product + หุ่นทั้งคัน 2% (`war_valkyrion_system.gd`)
 - [x] Backpack 3 แบบ + อาวุธไหล่ Q/E + โล่ไหล่ (`backpack_system.gd` / `shoulder_weapon_system.gd`)
 - [x] เตาพิเศษ Ancient Reactor + น้ำมันถังพกเติมกลางสนาม (`war_reactor_bay.gd`)

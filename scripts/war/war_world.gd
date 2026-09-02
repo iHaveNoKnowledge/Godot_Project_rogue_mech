@@ -23,23 +23,21 @@ func _ready() -> void:
 
 
 func _setup_ground() -> void:
-	var p_seed: int = int(GlobalData.board.board_seed) if GlobalData.board else 1337
+	var p_seed: int = int(GlobalData.board.board_seed) if (GlobalData and GlobalData.board) else 1337
 	WarBiomeGenerator._ensure_noise(p_seed)
 	var ground = get_node_or_null("Ground")
 	if ground == null:
-		ground = StaticBody3D.new()
+		ground = Node3D.new()
 		ground.name = "Ground"
-		ground.collision_layer = 2
 		add_child(ground)
-		var col = CollisionShape3D.new()
-		var shape = BoxShape3D.new()
-		shape.size = Vector3(2000, 1, 2000)
-		col.shape = shape
-		ground.add_child(col)
-		_ensure_ground_mesh(ground)
 	else:
-		if not _ground_has_mesh(ground):
-			_ensure_ground_mesh(ground)
+		# Remove legacy flat 2000x2000 collision box and flat PlaneMesh
+		for child in ground.get_children():
+			if child is CollisionShape3D:
+				child.queue_free()
+			elif child is MeshInstance3D and not child.name.begins_with("TerrainChunk"):
+				child.queue_free()
+
 	if ground.get_node_or_null("BiomeRoot") == null:
 		var biome_root := Node3D.new()
 		biome_root.name = "BiomeRoot"
@@ -292,7 +290,12 @@ func _ensure_war_camera(mecha: Node) -> void:
 func _spawn_ore_nodes() -> void:
 	var ore_positions = [
 		Vector3(100, 0, -650), Vector3(-100, 0, -650),
-		Vector3(0, 0, -600), Vector3(200, 0, -700)
+		Vector3(0, 0, -600), Vector3(200, 0, -700),
+		# Canyon & Riverbed deep choke points (Tier 0: Y=-12m)
+		Vector3(180, 0, -350), Vector3(190, 0, -100),
+		Vector3(175, 0, 250), Vector3(220, 0, 600),
+		# Desert Sunken Quarry / Excavation (Tier 0: Y=-10m)
+		Vector3(-450, 0, -480), Vector3(-520, 0, -380),
 	]
 	var loader: WarChunkLoader = get_node_or_null("ChunkLoader") as WarChunkLoader
 	for i in range(ore_positions.size()):
@@ -361,7 +364,8 @@ func _decorate_phase2() -> void:
 	WarMapGenerator.decorate_highland(self, Vector3(150, 0, -650))
 	WarMapGenerator.decorate_underground_tunnel(self, Vector3(-150, 0, -650))
 	var loader: WarChunkLoader = get_node_or_null("ChunkLoader") as WarChunkLoader
-	for p in [Vector3(80, 0, -700), Vector3(-80, 0, 350)]:
+	# Weapon Caches hidden in deep canyon & sunken quarry basins
+	for p in [Vector3(190, 0, -250), Vector3(-480, 0, -420), Vector3(80, 0, -700)]:
 		var before: int = get_child_count()
 		WarMapGenerator.spawn_weapon_cache(self, p)
 		# ย้าย cache เข้า chunk ถ้ามี

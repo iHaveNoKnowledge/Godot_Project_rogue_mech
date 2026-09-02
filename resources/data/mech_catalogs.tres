@@ -72,7 +72,7 @@ armor_catalog = {
 "path": "res://resources/mech/parts/arm_left/arm_left_valkyrion.tres",
 "type": "Valkyrion Armor",
 "weight": 6.0
-}}],
+}],
 "arm_right": [{
 "armor": 15.0,
 "color": Color(0.9, 0.9, 0.95, 1),
@@ -140,7 +140,7 @@ armor_catalog = {
 "path": "res://resources/mech/parts/arm_right/arm_right_valkyrion.tres",
 "type": "Valkyrion Armor",
 "weight": 6.0
-}}],
+}],
 "body": [{
 "armor": 40.0,
 "color": Color(0.9, 0.9, 0.95, 1),
@@ -218,7 +218,7 @@ armor_catalog = {
 "path": "res://resources/mech/parts/body/body_valkyrion.tres",
 "type": "Valkyrion Armor",
 "weight": 6.0
-}}],
+}], 
 "head": [{
 "armor": 20.0,
 "color": Color(0.9, 0.9, 0.95, 1),
@@ -296,7 +296,7 @@ armor_catalog = {
 "path": "res://resources/mech/parts/head/head_valkyrion.tres",
 "type": "Valkyrion Armor",
 "weight": 6.0
-}}],
+}], 
 "leg_left": [{
 "armor": 20.0,
 "color": Color(0.9, 0.9, 0.95, 1),
@@ -364,7 +364,7 @@ armor_catalog = {
 "path": "res://resources/mech/parts/leg_left/leg_left_valkyrion.tres",
 "type": "Valkyrion Armor",
 "weight": 6.0
-}}],
+}], 
 "leg_right": [{
 "armor": 20.0,
 "color": Color(0.9, 0.9, 0.95, 1),
@@ -432,7 +432,7 @@ armor_catalog = {
 "path": "res://resources/mech/parts/leg_right/leg_right_valkyrion.tres",
 "type": "Valkyrion Armor",
 "weight": 6.0
-}}],
+}], 
 "weapon_left": [{
 "armor": 0.0,
 "hp": 0.0,

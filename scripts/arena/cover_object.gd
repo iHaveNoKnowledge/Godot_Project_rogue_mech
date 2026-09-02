@@ -30,6 +30,11 @@ func _find_mesh() -> void:
 			return
 
 
+func ram_by_mecha(speed: float) -> void:
+	var ram_dmg: float = maxf(speed * 12.0, 120.0)
+	take_damage(ram_dmg, "ram")
+
+
 func take_damage(amount: float, _damage_type: String = "kinetic") -> void:
 	var reduced = amount / maxf(armor_class, 0.1)
 	current_hp -= reduced

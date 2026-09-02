@@ -233,6 +233,19 @@ func _physics_process(delta: float) -> void:
 	elif AudioManager:
 		AudioManager.stop_roller_dash()
 
+	# Dynamic Cover Breaching / Mecha Ramming
+	var is_dashing_now: bool = (dash_system and dash_system.is_dashing) or is_roller_dashing or h_speed > 16.0
+	if is_dashing_now:
+		for i in range(get_slide_collision_count()):
+			var col = get_slide_collision(i)
+			var collider = col.get_collider()
+			if collider and collider.is_in_group("cover"):
+				if collider.has_method("ram_by_mecha"):
+					collider.ram_by_mecha(maxf(h_speed, 20.0))
+				elif collider.has_method("take_damage"):
+					collider.take_damage(maxf(h_speed * 12.0, 120.0), "ram")
+
+
 
 # --- Jump / Dash helper bridges --------------------------------------------
 

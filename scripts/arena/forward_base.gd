@@ -24,7 +24,7 @@ const BUILDINGS_CAMP: Array[Dictionary] = [
 
 const BUILDINGS_FORTIFIED: Array[Dictionary] = [
 	{"name":"HQ Warehouse", "size":Vector3(4.2,2.4,3.2), "pos":Vector3(0,1.2,0), "color":Color(0.42,0.42,0.44), "hp":220.0, "hq":true, "mesh":"box"},
-	{"name":"Mech Hangar", "size":Vector3(8.0,6.5,10.0), "pos":Vector3(-7.2,0,0.2), "color":Color(0.32,0.34,0.36), "hp":180.0, "hq":false, "mesh":"hangar"},
+	{"name":"Mech Hangar", "size":Vector3(18.0,10.0,22.0), "pos":Vector3(-10.0,0,2.0), "color":Color(0.32,0.34,0.36), "hp":350.0, "hq":false, "mesh":"hangar"},
 	{"name":"Comm Tower", "size":Vector3(0.45,5.0,0.45), "pos":Vector3(3.2,2.5,1.6), "color":Color(0.26,0.28,0.32), "hp":90.0, "hq":false, "mesh":"tower"},
 	{"name":"Barracks Block", "size":Vector3(2.6,1.6,2.2), "pos":Vector3(-2.0,0.8,-2.8), "color":Color(0.36,0.36,0.38), "hp":80.0, "hq":false, "mesh":"box"},
 	{"name":"Mess Hall", "size":Vector3(2.4,1.4,1.9), "pos":Vector3(3.0,0.7,-2.4), "color":Color(0.34,0.32,0.30), "hp":60.0, "hq":false, "mesh":"box"},

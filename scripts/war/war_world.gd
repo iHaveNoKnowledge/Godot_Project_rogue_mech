@@ -9,6 +9,8 @@ var _bases_spawned: bool = false
 
 
 func _ready() -> void:
+	if GameManager:
+		GameManager.current_state = GameManager.State.WAR
 	_setup_ground()
 	_setup_combat_systems()
 	_spawn_bases()
@@ -262,6 +264,31 @@ func _spawn_player_mecha() -> void:
 				var part = pmm.build_part_for_slot({"id": tid, "slot": slot})
 				pmm.initialize_slot(slot, part, false)
 		WarFactionVisual.apply_team_tint(mecha, "friendly")
+
+	# Attach and initialize full combat WeaponManager (same as game_world.tscn)
+	var wm = mecha.get_node_or_null("WeaponManager")
+	if wm == null:
+		var wm_script = load("res://scripts/mecha/weapon_manager.gd")
+		wm = Node3D.new()
+		wm.name = "WeaponManager"
+		wm.set_script(wm_script)
+		mecha.add_child(wm)
+
+	if GameManager:
+		GameManager.active_player_mecha = mecha
+
+	# Initialize battle loadout if slots are empty
+	if wm.left_hand == null:
+		wm.left_hand = load("res://resources/mech/stock/weapon_beam_rifle.tres")
+	if wm.right_hand == null:
+		wm.right_hand = load("res://resources/mech/stock/weapon_heat_blade.tres")
+	if wm.carry.is_empty():
+		wm.carry.append(load("res://resources/mech/stock/weapon_combat_shotgun.tres"))
+	if wm.battle_reserve.is_empty():
+		wm.battle_reserve = {"kinetic": 300, "energy": 150, "explosive": 30}
+
+	wm.call_deferred("_emit_initial_state")
+
 	_ensure_war_camera(mecha)
 	_spawn_friendly_ai_squad()
 	_spawn_enemy_ai_squad()
@@ -482,7 +509,7 @@ func _decorate_phase2() -> void:
 	# 7. Realtime Hangar Interaction zones at main bases
 	for base in [get_node_or_null("FriendlyMainBase"), get_node_or_null("EnemyMainBase")]:
 		if base:
-			var hangar_pos := Vector3(-7.2, 0.2, 0.2)
+			var hangar_pos := Vector3(-10.0, 0.2, 2.0)
 			var mech_hangar = base.get_node_or_null("Mech_Hangar")
 			if mech_hangar:
 				hangar_pos = mech_hangar.position
@@ -512,6 +539,11 @@ func _setup_hud() -> void:
 			n.name = res[0]
 			n.set_script(load(res[1]))
 			add_child(n)
+
+	var whud = get_node_or_null("WeaponHUD")
+	if whud and whud.has_method("_try_connect_weapon_manager"):
+		whud._try_connect_weapon_manager()
+		whud.call_deferred("_update_display")
 	# War extra: Tab/I + Minimap + Ambush
 	var hud_script = load("res://scripts/war/war_hud.gd")
 	if hud_script and get_node_or_null("WarHUD") == null:

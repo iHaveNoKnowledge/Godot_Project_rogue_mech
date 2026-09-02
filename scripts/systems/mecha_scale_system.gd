@@ -49,16 +49,16 @@ const HANGAR_POSE: Dictionary = {
 
 # Hangar camera (low worm-eye + tight part framing) in true world
 const HANGAR_CAM: Dictionary = {
-	"initial_pos": Vector3(4.8, 1.1, 7.2),
-	"initial_look": Vector3(0, 3.6, 0),
-	"head": {"pos": Vector3(1.0, 4.4, 5.8), "look": Vector3(0, 3.85, -0.05)},
-	"body": {"pos": Vector3(1.4, 3.4, 6.2), "look": Vector3(0, 3.02, 0)},
-	"arm_left": {"pos": Vector3(2.4, 3.6, 6.4), "look": Vector3(-1.14, 3.35, 0)},
-	"arm_right": {"pos": Vector3(-2.4, 3.6, 6.4), "look": Vector3(1.14, 3.35, 0)},
-	"weapon_carry": {"pos": Vector3(1.8, 3.8, -6.0), "look": Vector3(0, 3.0, -0.3)},
-	"leg_left": {"pos": Vector3(1.6, 2.2, 6.0), "look": Vector3(-0.64, 1.85, 0)},
-	"leg_right": {"pos": Vector3(-1.6, 2.2, 6.0), "look": Vector3(0.64, 1.85, 0)},
-	"default": {"pos": Vector3(4.8, 1.1, 7.2), "look": Vector3(0, 3.6, 0)},
+	"initial_pos": Vector3(3.6, 1.4, -6.4),
+	"initial_look": Vector3(0, 3.2, 0),
+	"head": {"pos": Vector3(1.0, 4.4, -5.2), "look": Vector3(0, 3.85, -0.05)},
+	"body": {"pos": Vector3(1.2, 3.4, -5.6), "look": Vector3(0, 3.02, 0)},
+	"arm_left": {"pos": Vector3(-2.6, 3.6, -5.4), "look": Vector3(-1.14, 3.35, 0)},
+	"arm_right": {"pos": Vector3(2.6, 3.6, -5.4), "look": Vector3(1.14, 3.35, 0)},
+	"weapon_carry": {"pos": Vector3(1.8, 3.8, 5.8), "look": Vector3(0, 3.0, 0.3)},
+	"leg_left": {"pos": Vector3(-1.6, 2.2, -5.0), "look": Vector3(-0.64, 1.85, 0)},
+	"leg_right": {"pos": Vector3(1.6, 2.2, -5.0), "look": Vector3(0.64, 1.85, 0)},
+	"default": {"pos": Vector3(3.6, 1.4, -6.4), "look": Vector3(0, 3.2, 0)},
 }
 
 # Combat camera (pulled back so back doesn't block center)

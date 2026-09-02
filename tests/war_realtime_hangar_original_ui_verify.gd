@@ -66,21 +66,21 @@ func _test_realtime_hangar_setup_and_camera_focus() -> void:
 	gp.update_camera_focus("head")
 	_assert(gp.cam_target_pos.y > mecha.position.y + 3.0, "Head focus aims camera higher up (target Y = %.2f)" % gp.cam_target_pos.y)
 
-	# 2. Arm Left focus (camera angles towards mecha's left side)
+	# 2. Arm Left focus (camera angles towards mecha's left arm at -X)
 	gp.update_camera_focus("arm_left")
-	_assert(gp.cam_target_pos.x > mecha.position.x, "Arm left focus offsets camera to frame left side (target X = %.2f)" % gp.cam_target_pos.x)
+	_assert(gp.cam_target_pos.x < mecha.position.x, "Arm left focus offsets camera to frame left side (target X = %.2f < %.2f)" % [gp.cam_target_pos.x, mecha.position.x])
 
-	# 3. Arm Right focus (camera angles towards mecha's right side)
+	# 3. Arm Right focus (camera angles towards mecha's right arm at +X)
 	gp.update_camera_focus("arm_right")
-	_assert(gp.cam_target_pos.x < mecha.position.x, "Arm right focus offsets camera to frame right side (target X = %.2f)" % gp.cam_target_pos.x)
+	_assert(gp.cam_target_pos.x > mecha.position.x, "Arm right focus offsets camera to frame right side (target X = %.2f > %.2f)" % [gp.cam_target_pos.x, mecha.position.x])
 
 	# 4. Legs focus (lower angle)
 	gp.update_camera_focus("legs")
 	_assert(gp.cam_target_pos.y < mecha.position.y + 2.5, "Legs focus drops camera to lower height (target Y = %.2f)" % gp.cam_target_pos.y)
 
-	# 5. Backpack focus (rear angle)
+	# 5. Backpack focus (rear angle: in Godot +Z is behind mecha which faces -Z)
 	gp.update_camera_focus("backpack")
-	_assert(gp.cam_target_pos.z < mecha.position.z, "Backpack focus positions camera behind mecha (target Z = %.2f)" % gp.cam_target_pos.z)
+	_assert(gp.cam_target_pos.z > mecha.position.z, "Backpack focus positions camera behind mecha (target Z = %.2f > %.2f)" % [gp.cam_target_pos.z, mecha.position.z])
 
 	# Clean up
 	hangar.close_realtime_hangar()

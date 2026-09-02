@@ -2,7 +2,7 @@ extends CharacterBody3D
 
 var _loot_script = preload("res://scripts/systems/loot_system.gd")
 
-@export var move_speed: float = 3.0
+@export var move_speed: float = 13.5
 @export var attack_range: float = 15.0
 @export var attack_damage: float = 10.0
 @export var attack_cooldown: float = 2.0
@@ -737,7 +737,7 @@ func _process_crawl(delta: float) -> void:
 		dir = dir.normalized()
 		velocity.x = dir.x * crawl_speed
 		velocity.z = dir.z * crawl_speed
-		rotation.y = lerp_angle(rotation.y, atan2(dir.x, dir.z), 5.0 * delta)
+		rotation.y = lerp_angle(rotation.y, atan2(-dir.x, -dir.z), 5.0 * delta)
 	else:
 		velocity.x = 0.0
 		velocity.z = 0.0
@@ -1031,7 +1031,7 @@ func _physics_process(delta: float) -> void:
 		velocity.y = -10.0
 		move_and_slide()
 		if dash_direction.length() > 0.1:
-			rotation.y = lerp_angle(rotation.y, atan2(dash_direction.x, dash_direction.z), 10.0 * delta)
+			rotation.y = lerp_angle(rotation.y, atan2(-dash_direction.x, -dash_direction.z), 10.0 * delta)
 		if dash_timer <= 0.0:
 			is_dashing = false
 		return

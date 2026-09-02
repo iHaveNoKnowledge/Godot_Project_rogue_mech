@@ -5,7 +5,7 @@ extends CharacterBody3D
 ## archetype stat templates so it behaves like a friendly counterpart to the
 ## enemy grunts (GM vs Zaku).
 
-@export var move_speed: float = 4.0
+@export var move_speed: float = 14.0
 @export var attack_range: float = 60.0
 @export var attack_damage: float = 12.0
 @export var attack_cooldown: float = 0.9
@@ -528,14 +528,14 @@ func _move_toward_target(delta: float) -> void:
 	velocity.y = -10.0
 	move_and_slide()
 	if direction.length() > 0.1:
-		rotation.y = lerp_angle(rotation.y, atan2(direction.x, direction.z), 5.0 * delta)
+		rotation.y = lerp_angle(rotation.y, atan2(-direction.x, -direction.z), 5.0 * delta)
 
 
 func _strafe_and_attack(delta: float, use_melee: bool) -> void:
 	var direction = (target.global_position - global_position).normalized()
 	direction.y = 0.0
 	if direction.length() > 0.1:
-		rotation.y = lerp_angle(rotation.y, atan2(direction.x, direction.z), 8.0 * delta)
+		rotation.y = lerp_angle(rotation.y, atan2(-direction.x, -direction.z), 8.0 * delta)
 
 	strafe_timer += delta
 	if strafe_timer > 2.0:
@@ -603,7 +603,7 @@ func _perform_melee() -> void:
 	if dir.length() < 0.01:
 		return
 	dir = dir.normalized()
-	rotation.y = atan2(dir.x, dir.z)
+	rotation.y = atan2(-dir.x, -dir.z)
 	# Positional swing voice (blade slash) so ally melee reads at range.
 	if AudioManager:
 		AudioManager.play_ally_melee_swing(global_position)
@@ -666,7 +666,7 @@ func _go_to_ammo_pickup(delta: float) -> bool:
 	velocity.y = -10.0
 	move_and_slide()
 	if direction.length() > 0.1:
-		rotation.y = lerp_angle(rotation.y, atan2(direction.x, direction.z), 5.0 * delta)
+		rotation.y = lerp_angle(rotation.y, atan2(-direction.x, -direction.z), 5.0 * delta)
 	return true
 
 

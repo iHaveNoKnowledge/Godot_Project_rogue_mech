@@ -294,7 +294,7 @@ func _start_dash() -> void:
 
 # --- Decoupled Control & Handshake -----------------------------------------
 
-func set_drive_commands(world_dir: Vector3, aim_pt: Vector3, fire_l: bool = false, fire_r: bool = false, dash: bool = false, jump: bool = false) -> void:
+func set_drive_commands(world_dir: Vector3, aim_pt: Vector3, fire_l: bool = false, fire_r: bool = false, dash: bool = false, jump: bool = false, roller: bool = false) -> void:
 	cmd_world_direction = world_dir
 	cmd_aim_point = aim_pt
 	cmd_fire_left = fire_l
@@ -303,6 +303,8 @@ func set_drive_commands(world_dir: Vector3, aim_pt: Vector3, fire_l: bool = fals
 		cmd_wants_dash = true
 	if jump:
 		cmd_wants_jump = true
+	if roller:
+		cmd_roller_toggle = true
 
 
 func board_pilot(pilot_node: Node) -> void:
@@ -443,8 +445,10 @@ func _apply_movement(delta: float) -> void:
 			var h_dir = Vector3(cmd_world_direction.x, 0.0, cmd_world_direction.z).normalized()
 			desired_velocity = h_dir * move_speed
 
-		# Facing direction: prioritize aim target, fallback to movement direction
-		if cmd_aim_point != Vector3.ZERO:
+		# Facing direction:
+		# If actively shooting, face the aim point (target); otherwise face movement direction
+		var is_shooting: bool = cmd_fire_left or cmd_fire_right
+		if is_shooting and cmd_aim_point != Vector3.ZERO:
 			var aim_dir = (cmd_aim_point - global_position)
 			aim_dir.y = 0.0
 			if aim_dir.length_squared() > 0.01:
@@ -453,7 +457,14 @@ func _apply_movement(delta: float) -> void:
 				rotation.y = lerp_angle(rotation.y, target_angle, clampf(turn_rate * 2.5 * delta, 0.0, 1.0))
 		elif desired_velocity.length() > 0.1:
 			var target_angle = atan2(-desired_velocity.x, -desired_velocity.z)
-			rotation.y = lerp_angle(rotation.y, target_angle, clampf(turn_rate * delta, 0.0, 1.0))
+			rotation.y = lerp_angle(rotation.y, target_angle, clampf(turn_rate * 2.0 * delta, 0.0, 1.0))
+		elif cmd_aim_point != Vector3.ZERO:
+			var aim_dir = (cmd_aim_point - global_position)
+			aim_dir.y = 0.0
+			if aim_dir.length_squared() > 0.01:
+				aim_dir = aim_dir.normalized()
+				var target_angle = atan2(-aim_dir.x, -aim_dir.z)
+				rotation.y = lerp_angle(rotation.y, target_angle, clampf(turn_rate * 2.0 * delta, 0.0, 1.0))
 
 		# AI weapon trigger handshake
 		var wm_ai = get_node_or_null("WeaponManager")

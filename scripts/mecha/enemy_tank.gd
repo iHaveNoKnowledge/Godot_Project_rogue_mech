@@ -183,13 +183,13 @@ func _physics_process(delta: float) -> void:
 			if get_slide_collision_count() > 0:
 				velocity = _NavAvoidance.slide_along_wall(velocity, self)
 			if dir.length() > 0.1:
-				rotation.y = lerp_angle(rotation.y, atan2(dir.x, dir.z), 5.0 * delta)
+				rotation.y = lerp_angle(rotation.y, atan2(-dir.x, -dir.z), 5.0 * delta)
 
 	# Rotate turret and shoot if turret intact
 	if not turret_destroyed and dist <= attack_range:
 		if turret_node:
 			var t_dir = (target.global_position - turret_node.global_position).normalized()
-			turret_node.rotation.y = lerp_angle(turret_node.rotation.y, atan2(t_dir.x, t_dir.z), 8.0 * delta)
+			turret_node.rotation.y = lerp_angle(turret_node.rotation.y, atan2(-t_dir.x, -t_dir.z), 8.0 * delta)
 
 		attack_timer -= delta
 		if attack_timer <= 0.0:
@@ -304,7 +304,7 @@ func _follow_tank_path(delta: float) -> bool:
 				_tank_stuck_time = 0.0
 		else:
 			_tank_stuck_time = 0.0
-	rotation.y = lerp_angle(rotation.y, atan2(to_wp.x, to_wp.z), 5.0 * delta)
+	rotation.y = lerp_angle(rotation.y, atan2(-to_wp.x, -to_wp.z), 5.0 * delta)
 	return true
 
 

@@ -90,7 +90,7 @@ func physics_process(delta: float) -> void:
 		if enemy.get_slide_collision_count() > 0:
 			enemy.velocity = _NavAvoidance.slide_along_wall(enemy.velocity, enemy)
 
-		enemy.rotation.y = lerp_angle(enemy.rotation.y, atan2(direction.x, direction.z), 5.0 * delta)
+		enemy.rotation.y = lerp_angle(enemy.rotation.y, atan2(-direction.x, -direction.z), 8.0 * delta)
 
 
 func _has_valid_target() -> bool:
@@ -130,7 +130,7 @@ func _direct_flee(delta: float) -> void:
 		enemy.velocity = _NavAvoidance.slide_along_wall(enemy.velocity, enemy)
 
 	if away_dir.length() > 0.1:
-		enemy.rotation.y = lerp_angle(enemy.rotation.y, atan2(away_dir.x, away_dir.z), 5.0 * delta)
+		enemy.rotation.y = lerp_angle(enemy.rotation.y, atan2(-away_dir.x, -away_dir.z), 8.0 * delta)
 
 
 func _is_low_hp() -> bool:

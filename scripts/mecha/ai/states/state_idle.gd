@@ -136,7 +136,7 @@ func _move_to_search_target(delta: float) -> void:
 		var dir: Vector3 = _NavAvoidance.steer_around(raw_dir, enemy.global_position, space, 3.0) if space else raw_dir
 		enemy.velocity.x = dir.x * enemy.move_speed
 		enemy.velocity.z = dir.z * enemy.move_speed
-		enemy.rotation.y = lerp_angle(enemy.rotation.y, atan2(direction.x, direction.z), 5.0 * delta)
+		enemy.rotation.y = lerp_angle(enemy.rotation.y, atan2(-direction.x, -direction.z), 8.0 * delta)
 		if enemy.get_slide_collision_count() > 0:
 			var flat_vel := Vector3(enemy.velocity.x, 0, enemy.velocity.z)
 			flat_vel = _NavAvoidance.slide_along_wall(flat_vel, enemy)
@@ -166,7 +166,7 @@ func _direct_search_move(delta: float) -> void:
 		var dir: Vector3 = _NavAvoidance.steer_around(raw_dir, enemy.global_position, space, 3.0) if space else raw_dir
 		enemy.velocity.x = dir.x * enemy.move_speed
 		enemy.velocity.z = dir.z * enemy.move_speed
-		enemy.rotation.y = lerp_angle(enemy.rotation.y, atan2(direction.x, direction.z), 5.0 * delta)
+		enemy.rotation.y = lerp_angle(enemy.rotation.y, atan2(-direction.x, -direction.z), 8.0 * delta)
 		if enemy.get_slide_collision_count() > 0:
 			var flat_vel := Vector3(enemy.velocity.x, 0, enemy.velocity.z)
 			flat_vel = _NavAvoidance.slide_along_wall(flat_vel, enemy)

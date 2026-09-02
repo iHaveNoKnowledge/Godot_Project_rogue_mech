@@ -3,6 +3,7 @@ extends RefCounted
 
 ## Static attack pattern definitions per archetype.
 ## 4 = SHIELD_MELEE (โล่ + ดาบ), 5 = SHIELD_RANGED (โล่ + ปืน).
+## Updated speeds to parity with player mecha speeds (~11.0 - 14.5 m/s).
 
 enum Archetype { RUSHER, RANGED, HEAVY, SUPPORT, SHIELD_MELEE, SHIELD_RANGED }
 
@@ -12,14 +13,14 @@ static func get_stats(archetype: int, is_full: bool = false) -> Dictionary:
 		Archetype.SHIELD_MELEE:
 			if is_full:
 				return {
-					"move_speed": 2.8,
+					"move_speed": 13.0,
 					"attack_range": 5.2,
 					"attack_damage": 24.0,
 					"attack_cooldown": 2.2,
 				}
 			else:
 				return {
-					"move_speed": 2.8,
+					"move_speed": 12.5,
 					"attack_range": 5.2,
 					"attack_damage": 18.0,
 					"attack_cooldown": 2.2,
@@ -27,14 +28,14 @@ static func get_stats(archetype: int, is_full: bool = false) -> Dictionary:
 		Archetype.SHIELD_RANGED:
 			if is_full:
 				return {
-					"move_speed": 3.5,
+					"move_speed": 13.8,
 					"attack_range": 50.0,
 					"attack_damage": 22.0,
 					"attack_cooldown": 1.2,
 				}
 			else:
 				return {
-					"move_speed": 3.5,
+					"move_speed": 13.5,
 					"attack_range": 50.0,
 					"attack_damage": 16.0,
 					"attack_cooldown": 1.2,
@@ -42,14 +43,14 @@ static func get_stats(archetype: int, is_full: bool = false) -> Dictionary:
 		Archetype.RUSHER:
 			if is_full:
 				return {
-					"move_speed": 3.0,
+					"move_speed": 14.5,
 					"attack_range": 5.0,
 					"attack_damage": 20.0,
 					"attack_cooldown": 2.0,
 				}
 			else:
 				return {
-					"move_speed": 3.0,
+					"move_speed": 14.0,
 					"attack_range": 5.0,
 					"attack_damage": 15.0,
 					"attack_cooldown": 2.0,
@@ -57,21 +58,21 @@ static func get_stats(archetype: int, is_full: bool = false) -> Dictionary:
 		Archetype.RANGED:
 			if is_full:
 				return {
-					"move_speed": 4.0,
+					"move_speed": 14.0,
 					"attack_range": 60.0,
 					"attack_damage": 15.0,
 					"attack_cooldown": 0.5,
 				}
 			else:
 				return {
-					"move_speed": 4.0,
+					"move_speed": 13.5,
 					"attack_range": 60.0,
 					"attack_damage": 12.0,
 					"attack_cooldown": 0.6,
 				}
 		Archetype.HEAVY:
 			return {
-				"move_speed": 1.5,
+				"move_speed": 11.0,
 				"attack_range": 10.0,
 				"attack_damage": 50.0,
 				"attack_cooldown": 4.0,
@@ -79,14 +80,14 @@ static func get_stats(archetype: int, is_full: bool = false) -> Dictionary:
 		Archetype.SUPPORT:
 			if is_full:
 				return {
-					"move_speed": 5.0,
+					"move_speed": 14.5,
 					"attack_range": 40.0,
 					"attack_damage": 0.0,
 					"attack_cooldown": 1.0,
 				}
 			else:
 				return {
-					"move_speed": 5.0,
+					"move_speed": 14.0,
 					"attack_range": 40.0,
 					"attack_damage": 0.0,
 					"attack_cooldown": 1.0,

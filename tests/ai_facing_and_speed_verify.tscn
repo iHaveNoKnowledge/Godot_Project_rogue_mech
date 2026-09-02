@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://ai_facing_and_speed_verify_tscn"]
+
+[ext_resource type="Script" path="res://tests/ai_facing_and_speed_verify.gd" id="1_test"]
+
+[node name="AiFacingAndSpeedVerify" type="Node"]
+script = ExtResource("1_test")

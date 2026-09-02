@@ -63,7 +63,7 @@ func physics_process(delta: float) -> void:
 	var face_dir = (target_pos - enemy.global_position).normalized()
 	face_dir.y = 0.0
 	if face_dir.length() > 0.1:
-		enemy.rotation.y = lerp_angle(enemy.rotation.y, atan2(face_dir.x, face_dir.z), 8.0 * delta)
+		enemy.rotation.y = lerp_angle(enemy.rotation.y, atan2(-face_dir.x, -face_dir.z), 8.0 * delta)
 
 	# Fire
 	fire_timer -= delta

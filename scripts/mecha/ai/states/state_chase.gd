@@ -160,7 +160,7 @@ func _follow_path(delta: float) -> void:
 					_stuck_time = 0.0
 			_last_pos = enemy.global_position
 
-		enemy.rotation.y = lerp_angle(enemy.rotation.y, atan2(direction.x, direction.z), 5.0 * delta)
+		enemy.rotation.y = lerp_angle(enemy.rotation.y, atan2(-direction.x, -direction.z), 8.0 * delta)
 
 
 func _direct_move(delta: float) -> void:
@@ -187,7 +187,7 @@ func _direct_move(delta: float) -> void:
 			enemy.velocity = _NavAvoidance.slide_along_wall(enemy.velocity, enemy)
 
 	if direction.length() > 0.1:
-		enemy.rotation.y = lerp_angle(enemy.rotation.y, atan2(direction.x, direction.z), 5.0 * delta)
+		enemy.rotation.y = lerp_angle(enemy.rotation.y, atan2(-direction.x, -direction.z), 8.0 * delta)
 
 
 func _is_low_hp() -> bool:

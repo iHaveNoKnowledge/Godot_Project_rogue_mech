@@ -270,7 +270,7 @@ func _process_fight(delta: float) -> void:
 		var to_target := (_target.global_position - global_position)
 		to_target.y = 0.0
 		if to_target.length() > 0.5:
-			rotation.y = lerp_angle(rotation.y, atan2(to_target.x, to_target.z), 6.0 * delta)
+			rotation.y = lerp_angle(rotation.y, atan2(-to_target.x, -to_target.z), 6.0 * delta)
 
 		# Strafe slowly while fighting — don't stand still.
 		var strafe_dir := Vector3.ZERO
@@ -327,7 +327,7 @@ func _process_retreat(delta: float) -> void:
 		dir = dir.normalized()
 		velocity.x = dir.x * _run_speed
 		velocity.z = dir.z * _run_speed
-		rotation.y = lerp_angle(rotation.y, atan2(dir.x, dir.z), 8.0 * delta)
+		rotation.y = lerp_angle(rotation.y, atan2(-dir.x, -dir.z), 8.0 * delta)
 
 	velocity.y -= 20.0 * delta
 	move_and_slide()

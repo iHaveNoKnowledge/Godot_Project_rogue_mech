@@ -24,7 +24,7 @@ enum PilotState {
 @export var team: String = "friendly"
 @export var pilot_name: String = "Pilot"
 @export var assigned_role: String = "assault"
-@export var walk_speed: float = 6.5
+@export var walk_speed: float = 10.0
 
 var state: int = PilotState.SPAWNED_AT_BARRACKS
 var current_vehicle: Node3D = null
@@ -211,6 +211,9 @@ func _process_piloting_combat(delta: float) -> void:
 	var fire_l := false
 	var fire_r := false
 	var wants_dash := false
+	var wants_roller := false
+
+	var is_skating: bool = current_vehicle.get("is_roller_dashing") == true
 
 	if combat_target != null and is_instance_valid(combat_target):
 		var target_pos = combat_target.global_position
@@ -220,11 +223,16 @@ func _process_piloting_combat(delta: float) -> void:
 		if dist_to_target > 25.0:
 			# Advance toward target
 			move_dir = (target_pos - current_vehicle.global_position).normalized()
-			if dist_to_target > 50.0 and randf() < 0.2:
-				wants_dash = true
+			if dist_to_target > 40.0:
+				if not is_skating:
+					wants_roller = true # engage high-speed roller skating
+				if randf() < 0.15:
+					wants_dash = true
 		elif dist_to_target < 12.0:
 			# Tactical strafe / backup
 			move_dir = -(target_pos - current_vehicle.global_position).normalized()
+			if is_skating:
+				wants_roller = true # cut roller for tight close-range footwork
 		else:
 			# Circle strafe
 			var to_tgt = (target_pos - current_vehicle.global_position).normalized()
@@ -235,15 +243,17 @@ func _process_piloting_combat(delta: float) -> void:
 			fire_l = true
 			fire_r = (dist_to_target <= 40.0)
 	else:
-		# Advance toward enemy territory
+		# Advance toward enemy territory at full high-speed roller dash
 		var enemy_base_z: float = 750.0 if team == "friendly" else -750.0
 		var objective_pos := Vector3(randf_range(-100, 100), 0, enemy_base_z)
 		move_dir = (objective_pos - current_vehicle.global_position).normalized()
 		aim_point = current_vehicle.global_position + move_dir * 30.0
+		if not is_skating:
+			wants_roller = true
 
 	# Feed commands into decoupled vehicle interface
 	if current_vehicle.has_method("set_drive_commands"):
-		current_vehicle.set_drive_commands(move_dir, aim_point, fire_l, fire_r, wants_dash)
+		current_vehicle.set_drive_commands(move_dir, aim_point, fire_l, fire_r, wants_dash, false, wants_roller)
 
 
 func _acquire_combat_target() -> void:

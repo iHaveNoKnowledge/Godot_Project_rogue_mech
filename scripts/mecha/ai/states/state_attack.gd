@@ -100,7 +100,7 @@ func physics_process(delta: float) -> void:
 	var direction = (enemy.target.global_position - enemy.global_position).normalized()
 	direction.y = 0.0
 	if direction.length() > 0.1:
-		enemy.rotation.y = lerp_angle(enemy.rotation.y, atan2(direction.x, direction.z), 8.0 * delta)
+		enemy.rotation.y = lerp_angle(enemy.rotation.y, atan2(-direction.x, -direction.z), 8.0 * delta)
 
 	# Slight strafe while attacking
 	strafe_timer += delta
@@ -292,7 +292,7 @@ func _perform_melee() -> void:
 	if dir.length() < 0.01:
 		return
 
-	enemy.rotation.y = atan2(dir.x, dir.z)
+	enemy.rotation.y = atan2(-dir.x, -dir.z)
 	# Positional swing voice (low brute whoosh) so enemy melee reads at range.
 	if AudioManager:
 		AudioManager.play_enemy_melee_swing(enemy.global_position)

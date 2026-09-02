@@ -314,10 +314,10 @@ static func build_biome_ground(parent: Node3D, p_seed: int = 1337) -> void:
 				var mat := ShaderMaterial.new()
 				mat.shader = shader
 				# Tune here or expose to WarBiomeGenerator statics for global tweaking
-				mat.set_shader_parameter("uv_scale", 8.0)
+				mat.set_shader_parameter("uv_scale", 1.0)
 				mat.set_shader_parameter("roughness", 0.85)
 				mat.set_shader_parameter("metallic", 0.02)
-				mat.set_shader_parameter("normal_strength", 1.0)
+				mat.set_shader_parameter("normal_strength", 0.0)
 				mat.set_shader_parameter("has_albedo_tex", false)
 				mat.set_shader_parameter("has_normal_tex", false)
 				mat.set_shader_parameter("has_roughness_tex", false)

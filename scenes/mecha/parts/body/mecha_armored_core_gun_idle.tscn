@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/mecha/parts/body/mecha_armored_core_gun_idle_body.glb" id="1_abc"]
+
+[node name="mecha_armored_core_gun_idle" type="Node3D"]
+
+[node name="MechaGLB" parent="." instance=ExtResource("1_abc")]
+

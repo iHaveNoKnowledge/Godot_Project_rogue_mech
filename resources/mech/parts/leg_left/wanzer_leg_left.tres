@@ -1,0 +1,14 @@
+[gd_resource type="Resource" load_steps=3 format=3]
+[ext_resource type="Script" path="res://resources/mech/armor_part.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/mecha/parts/leg_left/wanzer_leg_left.tscn" id="2"]
+[resource]
+script = ExtResource("1")
+part_name = "Wanzer Riveted Leg L"
+slot_id = "leg_left"
+mesh_scene = ExtResource("2")
+max_hp = 60.0
+max_frame_hp = 60.0
+weight = 12.0
+armor_class = 45.0
+break_threshold = 0.3
+part_color = Color(0.35, 0.42, 0.28, 1)

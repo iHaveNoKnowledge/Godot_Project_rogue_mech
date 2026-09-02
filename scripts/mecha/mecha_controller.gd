@@ -348,6 +348,9 @@ func _toggle_roller() -> void:
 
 func _handle_movement_input() -> void:
 	if is_player_driven:
+		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED or bool(get_meta("is_tuning_in_hangar", false)):
+			input_dir = Vector2.ZERO
+			return
 		input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 		strafe_mode = Input.is_action_pressed("strafe")
 

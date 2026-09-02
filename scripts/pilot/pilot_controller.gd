@@ -455,6 +455,12 @@ func _physics_process(delta: float) -> void:
 	if GameManager.current_state != GameManager.State.EJECT and not has_meta("test_mode"):
 		return
 
+	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+		velocity.x = 0.0
+		velocity.z = 0.0
+		move_and_slide()
+		return
+
 	var input = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var cam = get_viewport().get_camera_3d()
 	if cam == null:

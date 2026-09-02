@@ -161,17 +161,26 @@ var armor_catalog: Dictionary:
 
 func setup_realtime_mode(target_mecha: Node) -> void:
 	is_realtime_war_mode = true
+	set("layer", 50)
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if target_mecha and is_instance_valid(target_mecha):
+		target_mecha.set_meta("is_tuning_in_hangar", true)
 	if garage_panel == null:
 		garage_panel = HangarGaragePanel.new()
 		garage_panel.controller = self
 	garage_panel.is_realtime_world = true
 	garage_panel.realtime_target_mecha = target_mecha
+	if garage_panel.viewport_container and is_instance_valid(garage_panel.viewport_container):
+		garage_panel.viewport_container.visible = false
+		garage_panel.viewport_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if is_inside_tree() and not garage_panel.is_built:
 		garage_panel.build_garage()
 
 
 func close_realtime_hangar() -> void:
 	if garage_panel:
+		if garage_panel.realtime_target_mecha and is_instance_valid(garage_panel.realtime_target_mecha):
+			garage_panel.realtime_target_mecha.set_meta("is_tuning_in_hangar", false)
 		garage_panel.cleanup_realtime_camera()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	visible = false
@@ -181,6 +190,9 @@ func close_realtime_hangar() -> void:
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	if is_realtime_war_mode:
+		set("layer", 50)
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if garage_panel == null:
 		garage_panel = HangarGaragePanel.new()
 		garage_panel.controller = self
@@ -190,7 +202,7 @@ func _ready() -> void:
 	nav_panel.show_hangar()
 	pilot_loadout_editor = PilotLoadoutEditorScript.new()
 	pilot_loadout_editor.controller = self
-	pilot_loadout_editor.layer = 20
+	pilot_loadout_editor.layer = 60
 	add_child(pilot_loadout_editor)
 	pilot_loadout_editor.visible = false
 	if AudioManager and not is_realtime_war_mode:

@@ -133,9 +133,34 @@ func _test_realtime_hangar_live_part_fitting() -> void:
 	hangar.setup_realtime_mode(mecha)
 	add_child(hangar)
 
+	_assert(int(hangar.get("layer")) >= 50, "HangarUI layer is set to >= 50 (got %d) ensuring it renders and receives clicks above WarHUD" % int(hangar.get("layer")))
+	if DisplayServer.get_name() != "headless":
+		_assert(Input.mouse_mode == Input.MOUSE_MODE_VISIBLE, "Mouse mode set to MOUSE_MODE_VISIBLE so buttons are interactive and clickable")
+	else:
+		_assert(true, "Headless test skips windowed mouse mode check")
+
 	_assert(hangar.garage_panel.get_mecha_base() == mecha, "garage_panel.get_mecha_base() returns the in-world player mecha directly")
 	var pmm = hangar.garage_panel.get_part_mesh_manager()
 	_assert(pmm != null, "garage_panel.get_part_mesh_manager() resolves player mecha's PartMeshManager")
+
+	# Test Button Clickability
+	# 1. Click Slot Tab 'head'
+	if hangar.slot_tab_buttons.has("head"):
+		var head_btn: Button = hangar.slot_tab_buttons["head"]
+		_assert(head_btn != null and is_instance_valid(head_btn), "Head slot tab button exists")
+		_assert(head_btn.mouse_filter == Control.MOUSE_FILTER_STOP, "Head slot button has MOUSE_FILTER_STOP to capture mouse clicks")
+		head_btn.pressed.emit()
+		_assert(hangar.selected_slot == "head", "Clicking Head tab switches selected_slot to 'head'")
+
+	# 2. Click Slot Tab 'arm_left'
+	if hangar.slot_tab_buttons.has("arm_left"):
+		var arm_btn: Button = hangar.slot_tab_buttons["arm_left"]
+		arm_btn.pressed.emit()
+		_assert(hangar.selected_slot == "arm_left", "Clicking L.Arm tab switches selected_slot to 'arm_left'")
+
+	# 3. Verify ItemList is interactive
+	_assert(hangar.part_item_list != null and is_instance_valid(hangar.part_item_list), "part_item_list exists")
+	_assert(hangar.part_item_list.mouse_filter == Control.MOUSE_FILTER_STOP, "part_item_list can receive mouse clicks")
 
 	hangar.close_realtime_hangar()
 	mecha.queue_free()

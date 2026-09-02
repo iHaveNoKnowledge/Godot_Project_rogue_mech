@@ -75,10 +75,13 @@ func _open_hangar(opener: Node) -> void:
 	var hangar_scene = load("res://scenes/ui/hangar_ui.tscn")
 	if hangar_scene:
 		var hangar_ui = hangar_scene.instantiate()
+		_overlay = hangar_ui
 		if hangar_ui.has_method("setup_realtime_mode"):
 			hangar_ui.setup_realtime_mode(target_mech)
-		_overlay = hangar_ui
+		if hangar_ui is CanvasLayer:
+			hangar_ui.layer = 50
 		add_child(hangar_ui)
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		hangar_ui.tree_exited.connect(func():
 			_overlay = null
 			_update_prompt(not _inside_bodies.is_empty())

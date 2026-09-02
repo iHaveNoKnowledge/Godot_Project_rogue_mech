@@ -307,11 +307,31 @@ static func build_biome_ground(parent: Node3D, p_seed: int = 1337) -> void:
 			var mi := MeshInstance3D.new()
 			mi.name = "TerrainMesh"
 			mi.mesh = mesh
-			var mat := StandardMaterial3D.new()
-			mat.vertex_color_use_as_albedo = true
-			mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-			mat.roughness = 0.85
-			mi.material_override = mat
+			# Whole-map PBR: ShaderMaterial reads vertex COLOR (biome tint) + optional tiled texture.
+			# Falls back gracefully when no texture is assigned (pure vertex color + procedural micro).
+			var shader: Shader = load("res://shaders/war_terrain.gdshader")
+			if shader != null:
+				var mat := ShaderMaterial.new()
+				mat.shader = shader
+				# Tune here or expose to WarBiomeGenerator statics for global tweaking
+				mat.set_shader_parameter("uv_scale", 8.0)
+				mat.set_shader_parameter("roughness", 0.85)
+				mat.set_shader_parameter("metallic", 0.02)
+				mat.set_shader_parameter("normal_strength", 1.0)
+				mat.set_shader_parameter("has_albedo_tex", false)
+				mat.set_shader_parameter("has_normal_tex", false)
+				mat.set_shader_parameter("has_roughness_tex", false)
+				# To add texture for whole map, uncomment and point to a tilable texture:
+				# var tex: Texture2D = load("res://assets/terrain/war_ground_albedo.png")
+				# mat.set_shader_parameter("albedo_tex", tex)
+				# mat.set_shader_parameter("has_albedo_tex", tex != null)
+				mi.material_override = mat
+			else:
+				var fallback := StandardMaterial3D.new()
+				fallback.vertex_color_use_as_albedo = true
+				fallback.cull_mode = BaseMaterial3D.CULL_DISABLED
+				fallback.roughness = 0.85
+				mi.material_override = fallback
 			chunk_body.add_child(mi)
 
 			parent.add_child(chunk_body)

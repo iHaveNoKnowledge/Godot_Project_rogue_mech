@@ -6,7 +6,7 @@ import sys
 import numpy as np
 import trimesh
 
-TARGET = {"head": 0.55, "body": 1.50, "arm": 1.70, "leg": 2.30}
+TARGET = {"head": 0.55, "body": 1.20, "arm": 1.28, "leg": 1.72}
 # pivot: fraction of height where joint sits (0=bottom,1=top). head->neck bottom,
 # body->center, arm->shoulder top, leg->hip top.
 PIVOT = {"head": 0.0, "body": 0.5, "arm": 1.0, "leg": 1.0}

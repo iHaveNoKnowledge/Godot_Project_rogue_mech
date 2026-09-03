@@ -154,20 +154,36 @@ func update_bob(delta: float, mecha: CharacterBody3D, joints: Dictionary,
 		var run_speed: float = clampf(speed * 1.35, 3.0, 16.0)
 		_prev_bob_timer = bob_timer
 		bob_timer += delta * run_speed
-		var bob: float = sin(bob_timer) * bob_amount
+		# Double-bounce run bob: primary stride bounce + half-amplitude
+		# second harmonic gives the flight-phase "hang" instead of a robot sine.
+		var speed_norm := clampf((speed - 2.0) / 8.0, 0.0, 1.0)
+		var bob_amp := bob_amount * (0.7 + 0.7 * speed_norm)
+		var bob: float = sin(bob_timer) * bob_amp + sin(bob_timer * 2.0) * bob_amp * 0.28
 
 		var fwd_ratio: float = clampf(-local_vel.z / maxf(speed, 0.1), -1.0, 1.0)
 		var side_ratio: float = clampf(local_vel.x / maxf(speed, 0.1), -1.0, 1.0)
 
-		# Forward lean when sprinting forward; slight counter-pitch when backpedaling
+		# Speed-scaled lean: walk ~10deg, full sprint ~24deg; backpedal stays
+		# shallow so the mech reads as braking, not charging backwards.
 		var target_pitch: float
 		if fwd_ratio >= 0.0:
-			target_pitch = -deg_to_rad(18.0) * fwd_ratio
+			target_pitch = -lerpf(deg_to_rad(10.0), deg_to_rad(24.0), speed_norm) * fwd_ratio
 		else:
-			target_pitch = deg_to_rad(10.0) * (-fwd_ratio)
+			target_pitch = lerpf(deg_to_rad(7.0), deg_to_rad(12.0), speed_norm) * (-fwd_ratio)
 
 		# Lateral banking: torso rolls into the strafe/slide
 		var target_bank := -deg_to_rad(8.5) * side_ratio
+
+		# COM crouch: the faster the run, the lower the hips sit, plus a
+		# flight-phase dip so both-feet-off-ground frames feel weighty.
+		var flight_dip := maxf(0.0, sin(bob_timer * 2.0)) * -0.03 * speed_norm
+		var crouch := -(0.02 + 0.07 * speed_norm) + flight_dip
+
+		# Torso counter-twist against the leg swing (left leg fwd = torso yaws
+		# right). Fades out in pure strafe where there is no sagittal swing.
+		var gait_phase := bob_timer * 0.5
+		var twist_amp := lerpf(deg_to_rad(4.0), deg_to_rad(10.0), speed_norm) * (0.35 + 0.65 * absf(fwd_ratio))
+		var twist := -sin(gait_phase) * twist_amp
 
 		var body_mesh: Node3D = joints.get("body_mesh")
 		var head_mesh: Node3D = joints.get("head_mesh")
@@ -175,20 +191,28 @@ func update_bob(delta: float, mecha: CharacterBody3D, joints: Dictionary,
 		var orig_head: Vector3 = joints.get("original_head_pos", Vector3.ZERO)
 
 		if body_mesh:
-			body_mesh.position.y = orig_body.y + absf(bob) * 0.35
+			body_mesh.position.y = orig_body.y + absf(bob) * 0.35 + crouch
 			body_mesh.rotation.x = lerp_angle(body_mesh.rotation.x, target_pitch, 10.0 * delta)
 			body_mesh.rotation.z = lerp_angle(body_mesh.rotation.z, target_bank, 10.0 * delta)
+			body_mesh.rotation.y = lerp_angle(body_mesh.rotation.y, twist, 8.0 * delta)
 		if head_mesh:
-			head_mesh.position = orig_head + Vector3(0, absf(bob) * 0.35, 0)
-			head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, target_pitch * 0.6, 10.0 * delta)
+			# Head stabilizes gaze: counter-yaws the torso and only takes a
+			# third of the pitch so the eyes stay on the horizon while running.
+			head_mesh.position = orig_head + Vector3(0, absf(bob) * 0.30 + crouch * 0.7, 0)
+			head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, target_pitch * 0.35, 10.0 * delta)
 			head_mesh.rotation.z = lerp_angle(head_mesh.rotation.z, -target_bank * 0.5, 10.0 * delta)
+			head_mesh.rotation.y = lerp_angle(head_mesh.rotation.y, -twist * 0.7, 8.0 * delta)
 		return bob
 	else:
 		if not is_skating:
 			bob_timer = 0.0
 		var body_mesh: Node3D = joints.get("body_mesh")
+		var head_mesh: Node3D = joints.get("head_mesh")
 		if body_mesh:
 			body_mesh.rotation.z = lerp_angle(body_mesh.rotation.z, 0.0, 8.0 * delta)
+			body_mesh.rotation.y = lerp_angle(body_mesh.rotation.y, 0.0, 8.0 * delta)
+		if head_mesh:
+			head_mesh.rotation.y = lerp_angle(head_mesh.rotation.y, 0.0, 8.0 * delta)
 	return 0.0
 
 
@@ -268,8 +292,11 @@ func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary) -> vo
 	var total_weight := maxf(fwd_weight + rev_weight + side_weight, 0.001)
 	var long_norm := (fwd_weight + rev_weight) / total_weight
 	var side_norm := side_weight / total_weight
-	var target_pitch_l: float = pitch_l
-	var target_pitch_r: float = pitch_r
+	# Ease out of the full sprint spread at low speed so a slow walk doesn't
+	# goose-step with a sprint-sized stride.
+	var stride_amp := clampf(speed / 6.0, 0.55, 1.0)
+	var target_pitch_l: float = pitch_l * stride_amp
+	var target_pitch_r: float = pitch_r * stride_amp
 	var target_shin_l: float = long_shin_l * long_norm + lat_shin_l * side_norm
 	var target_shin_r: float = long_shin_r * long_norm + lat_shin_r * side_norm
 	var total_lift_l: float = long_lift_l * long_norm + lat_lift_l * side_norm
@@ -331,19 +358,25 @@ func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary) -> vo
 	var forearm_right: Node3D = joints.get("forearm_right")
 
 	if arm_left:
-		arm_left.rotation.x = -target_pitch_l * 0.75
+		# Counter-swing against the same-side leg, smoothed so direction
+		# reversals don't pop. Elbow flex peaks mid-backswing (phase-led).
+		var arm_l_target := -target_pitch_l * 0.8 - lateral_l * 0.35
+		arm_left.rotation.x = lerp_angle(arm_left.rotation.x, arm_l_target, 11.0 * delta)
 		arm_left.rotation.y = lerp_angle(arm_left.rotation.y, 0.0, 10.0 * delta)
-		arm_left.rotation.z = lerp_angle(arm_left.rotation.z, 0.0, 10.0 * delta)
+		arm_left.rotation.z = lerp_angle(arm_left.rotation.z, -side_ratio * deg_to_rad(6.0), 10.0 * delta)
 		if forearm_left:
-			forearm_left.rotation.x = deg_to_rad(55.0) + absf(sin(phase_left)) * deg_to_rad(20.0)
+			var elbow_l := deg_to_rad(42.0) + (0.5 + 0.5 * sin(phase_left + PI * 0.5)) * deg_to_rad(28.0)
+			forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, elbow_l, 12.0 * delta)
 			forearm_left.rotation.y = lerp_angle(forearm_left.rotation.y, 0.0, 10.0 * delta)
 			forearm_left.rotation.z = lerp_angle(forearm_left.rotation.z, 0.0, 10.0 * delta)
 	if arm_right:
-		arm_right.rotation.x = -target_pitch_r * 0.75
+		var arm_r_target := -target_pitch_r * 0.8 - lateral_r * 0.35
+		arm_right.rotation.x = lerp_angle(arm_right.rotation.x, arm_r_target, 11.0 * delta)
 		arm_right.rotation.y = lerp_angle(arm_right.rotation.y, 0.0, 10.0 * delta)
-		arm_right.rotation.z = lerp_angle(arm_right.rotation.z, 0.0, 10.0 * delta)
+		arm_right.rotation.z = lerp_angle(arm_right.rotation.z, -side_ratio * deg_to_rad(6.0), 10.0 * delta)
 		if forearm_right:
-			forearm_right.rotation.x = deg_to_rad(55.0) + absf(sin(phase_right)) * deg_to_rad(20.0)
+			var elbow_r := deg_to_rad(42.0) + (0.5 + 0.5 * sin(phase_right + PI * 0.5)) * deg_to_rad(28.0)
+			forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, elbow_r, 12.0 * delta)
 			forearm_right.rotation.y = lerp_angle(forearm_right.rotation.y, 0.0, 10.0 * delta)
 			forearm_right.rotation.z = lerp_angle(forearm_right.rotation.z, 0.0, 10.0 * delta)
 

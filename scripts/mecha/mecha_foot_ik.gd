@@ -91,6 +91,10 @@ func _resolve_nodes() -> void:
 		ray_right.add_exception(mecha)
 
 
+func get_ground_offsets() -> Vector2:
+	return Vector2(_current_left_foot_offset, _current_right_foot_offset)
+
+
 func update_ik(delta: float) -> void:
 	if not enabled or mecha == null:
 		return
@@ -138,11 +142,18 @@ func _process_foot_placement(delta: float) -> void:
 	_current_left_foot_offset = lerpf(_current_left_foot_offset, left_offset * ik_weight, hip_adjustment_speed * delta)
 	_current_right_foot_offset = lerpf(_current_right_foot_offset, right_offset * ik_weight, hip_adjustment_speed * delta)
 
-	# 3. Leg vertical height adaptation
-	if leg_left:
-		leg_left.position.y = _orig_leg_left_pos.y + _current_left_foot_offset
-	if leg_right:
-		leg_right.position.y = _orig_leg_right_pos.y + _current_right_foot_offset
+	# 3. Leg vertical height adaptation (lerped, never snapped).
+	# While sprinting the WalkingSystem owns step lift (0.16-0.20m), so the
+	# ground offset is faded out with speed and only lerped in — a direct
+	# overwrite here used to erase the lift and make feet slide.
+	var planar_speed: float = Vector2(mecha.velocity.x, mecha.velocity.z).length()
+	var move_suppress := clampf(planar_speed / 8.0, 0.0, 0.85)
+	var k := clampf(hip_adjustment_speed * (1.0 - move_suppress) * ik_weight * delta, 0.0, 1.0)
+	if k > 0.001:
+		if leg_left:
+			leg_left.position.y = lerpf(leg_left.position.y, _orig_leg_left_pos.y + _current_left_foot_offset * (1.0 - move_suppress), k)
+		if leg_right:
+			leg_right.position.y = lerpf(leg_right.position.y, _orig_leg_right_pos.y + _current_right_foot_offset * (1.0 - move_suppress), k)
 
 	# 4. Ankle rotation alignment (match terrain normal)
 	_apply_ankle_alignment(foot_left, left_normal, delta, true)

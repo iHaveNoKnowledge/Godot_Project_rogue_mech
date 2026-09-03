@@ -102,6 +102,23 @@ resources/mech/parts/{slot}/{id}.tres   ← ArmorPart ผูก mesh (แก้�
 - ถ้าเป็นเกราะชั้นเดียว (ไม่แยกโครง) ให้ระบุแค่ `mesh_scene` ก็พอ ส่วน `inner_frame_scene`
   จะยังใช้ตัวสร้าง procedural อัตโนมัติแทน
 
+### 4.1b ล้างโมเดล AI (Hunyuan3D → เกราะเหลี่ยม + สมมาตร)
+
+ไฟล์ `.glb` จาก image-to-3D จะผิวปั้นดิน (smooth shading + รอยซ้อนที่ข้อต่อ)
+ล้างใน Blender ตามลำดับนี้ก่อน export จริง:
+
+1. **Shade Flat + Edge Split:** เลือก mesh → `Shade Flat` → modifier/option
+   `Edge Split` มุม `~30°` — เกราะจะอ่านเป็นแผ่นเหลี่ยมทันที
+   (เข้ากับ art อนิเมะสีแบน ไม่ต้องเพิ่มความละเอียด mesh)
+2. **ผ่าครึ่ง + Mirror (master สมมาตร):** `Bisect` ที่ `X=0` ลบครึ่งหนึ่งทิ้ง →
+   เติม `Mirror modifier` แกน X → Apply → `Recalc Normals Outside`
+   (ล็อกสมมาตร 100% + แก้แค่ครึ่งเดียว; ห้ามใช้แค่ `scale -1` ใน engine
+   เพราะ normal/winding จะกลับด้าน)
+3. **Trim ส่วนเกิน + วาง pivot:** ลบหน้าที่เกินจากชิ้นข้างเคียง
+   (รอยซ้อนที่ข้อต่อโดนเกราะทับมองไม่เห็นอยู่แล้ว เหลือไว้ได้นิดหน่อย) แล้วตั้ง
+   pivot ที่ข้อต่อตามข้อ 4.1 (ไหล่/ศอก/สะโพก/เข่า/คอ)
+4. ค่อย export `.glb` (`Forward: -Z, Up: +Y`, Apply Transforms) แล้วทำข้อ 4.2 ต่อ
+
 ### 4.2 วางไฟล์ + import
 
 1. นำ `.glb` ไปวางในโฟลเดอร์ตาม slot (ข้อ 3)

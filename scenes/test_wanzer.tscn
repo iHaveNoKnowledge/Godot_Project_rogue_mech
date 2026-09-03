@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" path="res://scripts/test_wanzer_equip.gd" id="1"]
 [ext_resource type="PackedScene" uid="uid://c68hdpgorbxsh" path="res://scenes/mecha/mecha_base.tscn" id="2"]
+[ext_resource type="Script" path="res://scripts/test_wanzer_orbit_cam.gd" id="3"]
 
 [sub_resource type="BoxShape3D" id="GroundShape"]
 size = Vector3(60, 0.2, 60)
@@ -40,3 +41,4 @@ light_energy = 1.2
 transform = Transform3D(1, 0, 0, 0, 0.9806, 0.1961, 0, -0.1961, 0.9806, 0, 4, 10)
 current = true
 fov = 45.0
+script = ExtResource("3")

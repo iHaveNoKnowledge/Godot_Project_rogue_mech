@@ -15,6 +15,9 @@ extends Node
 var bob_timer: float = 0.0
 var _prev_bob_timer: float = 0.0
 var is_moving: bool = false
+# Robotic gait: piston legs, locked torso, stompy steps instead of human bounce.
+# Set false to restore the old organic human-like run.
+var robotic_gait: bool = true
 
 
 ## Given a forward gait phase in [0, TAU], returns { "thigh": float, "shin": float, "lift": float }
@@ -61,6 +64,39 @@ static func calc_sprint_leg(phase: float) -> Dictionary:
 
 		lift = 0.0
 
+	return { "thigh": thigh, "shin": shin, "lift": lift }
+
+
+## Robotic piston gait: legs move like hydraulic pistons, not muscles.
+## Narrow swing (-38..+32 deg), stiff knee (max -48 deg), flat-topped stomp
+## lift with linear phase so motion reads stepped/mechanical.
+static func calc_robot_sprint_leg(phase: float) -> Dictionary:
+	var norm_phase := fmod(phase, TAU)
+	if norm_phase < 0.0:
+		norm_phase += TAU
+	var thigh := 0.0
+	var shin := 0.0
+	var lift := 0.0
+	if norm_phase < PI:
+		var t := norm_phase / PI
+		thigh = lerp(-deg_to_rad(38.0), deg_to_rad(32.0), t)
+		if t < 0.35:
+			shin = lerp(-deg_to_rad(8.0), -deg_to_rad(48.0), t / 0.35)
+		elif t < 0.7:
+			shin = -deg_to_rad(48.0)
+		else:
+			shin = lerp(-deg_to_rad(48.0), -deg_to_rad(14.0), (t - 0.7) / 0.3)
+		if t < 0.2:
+			lift = (t / 0.2) * 0.16
+		elif t < 0.75:
+			lift = 0.16
+		else:
+			lift = 0.16 * (1.0 - (t - 0.75) / 0.25)
+	else:
+		var t := (norm_phase - PI) / PI
+		thigh = lerp(deg_to_rad(32.0), -deg_to_rad(38.0), t)
+		shin = lerp(-deg_to_rad(14.0), -deg_to_rad(6.0), t)
+		lift = 0.0
 	return { "thigh": thigh, "shin": shin, "lift": lift }
 
 
@@ -112,6 +148,37 @@ static func calc_reverse_leg(phase: float) -> Dictionary:
 	return { "thigh": thigh, "shin": shin, "lift": lift }
 
 
+## Robotic reverse piston stride: same stiff-knee, flat stomp feel backwards.
+static func calc_robot_reverse_leg(phase: float) -> Dictionary:
+	var norm_phase := fmod(phase, TAU)
+	if norm_phase < 0.0:
+		norm_phase += TAU
+	var thigh := 0.0
+	var shin := 0.0
+	var lift := 0.0
+	if norm_phase < PI:
+		var t := norm_phase / PI
+		thigh = lerp(deg_to_rad(30.0), -deg_to_rad(34.0), t)
+		if t < 0.4:
+			shin = lerp(-deg_to_rad(10.0), -deg_to_rad(44.0), t / 0.4)
+		elif t < 0.7:
+			shin = -deg_to_rad(44.0)
+		else:
+			shin = lerp(-deg_to_rad(44.0), -deg_to_rad(14.0), (t - 0.7) / 0.3)
+		if t < 0.2:
+			lift = (t / 0.2) * 0.14
+		elif t < 0.75:
+			lift = 0.14
+		else:
+			lift = 0.14 * (1.0 - (t - 0.75) / 0.25)
+	else:
+		var t := (norm_phase - PI) / PI
+		thigh = lerp(-deg_to_rad(34.0), deg_to_rad(30.0), t)
+		shin = lerp(-deg_to_rad(14.0), -deg_to_rad(8.0), t)
+		lift = 0.0
+	return { "thigh": thigh, "shin": shin, "lift": lift }
+
+
 ## Given a strafe gait phase in [0, TAU], returns { "roll": float, "shin": float, "lift": float }
 ## for lateral side-stepping strides.
 static func calc_strafe_leg(phase: float, is_outward_leg: bool) -> Dictionary:
@@ -154,14 +221,48 @@ func update_bob(delta: float, mecha: CharacterBody3D, joints: Dictionary,
 		var run_speed: float = clampf(speed * 1.35, 3.0, 16.0)
 		_prev_bob_timer = bob_timer
 		bob_timer += delta * run_speed
-		# Double-bounce run bob: primary stride bounce + half-amplitude
-		# second harmonic gives the flight-phase "hang" instead of a robot sine.
 		var speed_norm := clampf((speed - 2.0) / 8.0, 0.0, 1.0)
-		var bob_amp := bob_amount * (0.7 + 0.7 * speed_norm)
-		var bob: float = sin(bob_timer) * bob_amp + sin(bob_timer * 2.0) * bob_amp * 0.28
-
 		var fwd_ratio: float = clampf(-local_vel.z / maxf(speed, 0.1), -1.0, 1.0)
 		var side_ratio: float = clampf(local_vel.x / maxf(speed, 0.1), -1.0, 1.0)
+
+		var body_mesh: Node3D = joints.get("body_mesh")
+		var head_mesh: Node3D = joints.get("head_mesh")
+		var orig_body: Vector3 = joints.get("original_body_pos", Vector3.ZERO)
+		var orig_head: Vector3 = joints.get("original_head_pos", Vector3.ZERO)
+
+		if robotic_gait:
+			# ── ROBOT MODE: stepped stomp, locked torso, no human sway ──
+			# Quantized 2-level stomp bob (no smooth sine, no double-bounce hang).
+			var step_phase := fmod(bob_timer, PI) / PI
+			var stomp: float = 1.0 if step_phase < 0.5 else 0.35
+			var bob_amp := bob_amount * (0.45 + 0.35 * speed_norm)
+			var bob: float = stomp * bob_amp
+			# Fixed forward hull lean (heavy mech charging) + strafe bank kept
+			# so directional tests still read forward/strafe correctly.
+			var target_pitch: float
+			if fwd_ratio >= 0.0:
+				target_pitch = -lerpf(deg_to_rad(12.0), deg_to_rad(20.0), speed_norm) * fwd_ratio
+			else:
+				target_pitch = lerpf(deg_to_rad(8.0), deg_to_rad(12.0), speed_norm) * (-fwd_ratio)
+			var target_bank := -deg_to_rad(6.0) * side_ratio
+			# Deep fixed crouch (weighty mech), no flight-phase dip sway.
+			var crouch := -(0.06 + 0.05 * speed_norm)
+			if body_mesh:
+				body_mesh.position.y = orig_body.y + bob * 0.25 + crouch
+				body_mesh.rotation.x = lerp_angle(body_mesh.rotation.x, target_pitch, 14.0 * delta)
+				body_mesh.rotation.z = lerp_angle(body_mesh.rotation.z, target_bank, 14.0 * delta)
+				body_mesh.rotation.y = lerp_angle(body_mesh.rotation.y, 0.0, 14.0 * delta)
+			if head_mesh:
+				# Head bolted to hull: rides the stomp, no gaze stabilization.
+				head_mesh.position = orig_head + Vector3(0, bob * 0.2 + crouch * 0.7, 0)
+				head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, 0.0, 14.0 * delta)
+				head_mesh.rotation.z = lerp_angle(head_mesh.rotation.z, 0.0, 14.0 * delta)
+				head_mesh.rotation.y = lerp_angle(head_mesh.rotation.y, 0.0, 14.0 * delta)
+			return bob
+		# Double-bounce run bob: primary stride bounce + half-amplitude
+		# second harmonic gives the flight-phase "hang" instead of a robot sine.
+		var bob_amp := bob_amount * (0.7 + 0.7 * speed_norm)
+		var bob: float = sin(bob_timer) * bob_amp + sin(bob_timer * 2.0) * bob_amp * 0.28
 
 		# Speed-scaled lean: walk ~10deg, full sprint ~24deg; backpedal stays
 		# shallow so the mech reads as braking, not charging backwards.
@@ -184,11 +285,6 @@ func update_bob(delta: float, mecha: CharacterBody3D, joints: Dictionary,
 		var gait_phase := bob_timer * 0.5
 		var twist_amp := lerpf(deg_to_rad(4.0), deg_to_rad(10.0), speed_norm) * (0.35 + 0.65 * absf(fwd_ratio))
 		var twist := -sin(gait_phase) * twist_amp
-
-		var body_mesh: Node3D = joints.get("body_mesh")
-		var head_mesh: Node3D = joints.get("head_mesh")
-		var orig_body: Vector3 = joints.get("original_body_pos", Vector3.ZERO)
-		var orig_head: Vector3 = joints.get("original_head_pos", Vector3.ZERO)
 
 		if body_mesh:
 			body_mesh.position.y = orig_body.y + absf(bob) * 0.35 + crouch
@@ -262,10 +358,10 @@ func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary) -> vo
 	var rev_weight := maxf(-fwd_ratio, 0.0)
 	var side_weight := absf(side_ratio)
 
-	var fwd_left := calc_sprint_leg(phase_left)
-	var fwd_right := calc_sprint_leg(phase_right)
-	var rev_left := calc_reverse_leg(phase_left)
-	var rev_right := calc_reverse_leg(phase_right)
+	var fwd_left := calc_robot_sprint_leg(phase_left) if robotic_gait else calc_sprint_leg(phase_left)
+	var fwd_right := calc_robot_sprint_leg(phase_right) if robotic_gait else calc_sprint_leg(phase_right)
+	var rev_left := calc_robot_reverse_leg(phase_left) if robotic_gait else calc_reverse_leg(phase_left)
+	var rev_right := calc_robot_reverse_leg(phase_right) if robotic_gait else calc_reverse_leg(phase_right)
 
 	# Calculate longitudinal pitch & longitudinal shin flexion
 	var pitch_l: float = float(fwd_left["thigh"]) * fwd_weight + float(rev_left["thigh"]) * rev_weight
@@ -295,6 +391,8 @@ func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary) -> vo
 	# Ease out of the full sprint spread at low speed so a slow walk doesn't
 	# goose-step with a sprint-sized stride.
 	var stride_amp := clampf(speed / 6.0, 0.55, 1.0)
+	if robotic_gait:
+		stride_amp *= 0.8
 	var target_pitch_l: float = pitch_l * stride_amp
 	var target_pitch_r: float = pitch_r * stride_amp
 	var target_shin_l: float = long_shin_l * long_norm + lat_shin_l * side_norm
@@ -316,25 +414,29 @@ func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary) -> vo
 	else:
 		move_heading = atan2(local_vel.x, local_vel.z)
 	var hip_swivel := clampf(move_heading * 0.60, -deg_to_rad(45.0), deg_to_rad(45.0))
+	if robotic_gait:
+		hip_swivel = clampf(move_heading * 0.35, -deg_to_rad(22.0), deg_to_rad(22.0))
 
-	# Apply smoothly to leg joints
-	leg_left.rotation.x = lerp_angle(leg_left.rotation.x, target_pitch_l, 14.0 * delta)
-	leg_left.rotation.y = lerp_angle(leg_left.rotation.y, hip_swivel, 12.0 * delta)
-	leg_left.rotation.z = lerp_angle(leg_left.rotation.z, lateral_l, 12.0 * delta)
-	leg_left.position.y = lerp(leg_left.position.y, orig_leg_left.y + total_lift_l, 14.0 * delta)
+	# Apply smoothly to leg joints (robot snaps faster for servo feel)
+	var leg_snap := 18.0 if robotic_gait else 14.0
+	leg_left.rotation.x = lerp_angle(leg_left.rotation.x, target_pitch_l, leg_snap * delta)
+	leg_left.rotation.y = lerp_angle(leg_left.rotation.y, hip_swivel, leg_snap * delta)
+	leg_left.rotation.z = lerp_angle(leg_left.rotation.z, lateral_l, leg_snap * delta)
+	leg_left.position.y = lerp(leg_left.position.y, orig_leg_left.y + total_lift_l, leg_snap * delta)
 
-	leg_right.rotation.x = lerp_angle(leg_right.rotation.x, target_pitch_r, 14.0 * delta)
-	leg_right.rotation.y = lerp_angle(leg_right.rotation.y, hip_swivel, 12.0 * delta)
-	leg_right.rotation.z = lerp_angle(leg_right.rotation.z, lateral_r, 12.0 * delta)
-	leg_right.position.y = lerp(leg_right.position.y, orig_leg_right.y + total_lift_r, 14.0 * delta)
+	leg_right.rotation.x = lerp_angle(leg_right.rotation.x, target_pitch_r, leg_snap * delta)
+	leg_right.rotation.y = lerp_angle(leg_right.rotation.y, hip_swivel, leg_snap * delta)
+	leg_right.rotation.z = lerp_angle(leg_right.rotation.z, lateral_r, leg_snap * delta)
+	leg_right.position.y = lerp(leg_right.position.y, orig_leg_right.y + total_lift_r, leg_snap * delta)
 
 	# Knee flexion (Shins)
 	var shin_left: Node3D = joints.get("shin_left")
 	var shin_right: Node3D = joints.get("shin_right")
+	var knee_snap := 22.0 if robotic_gait else 16.0
 	if shin_left:
-		shin_left.rotation.x = lerp_angle(shin_left.rotation.x, target_shin_l, 16.0 * delta)
+		shin_left.rotation.x = lerp_angle(shin_left.rotation.x, target_shin_l, knee_snap * delta)
 	if shin_right:
-		shin_right.rotation.x = lerp_angle(shin_right.rotation.x, target_shin_r, 16.0 * delta)
+		shin_right.rotation.x = lerp_angle(shin_right.rotation.x, target_shin_r, knee_snap * delta)
 
 	# Footstep audio positioned in the actual direction of motion
 	var prev_step_idx := int((_prev_bob_timer * 0.5) / PI)
@@ -356,6 +458,29 @@ func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary) -> vo
 	var arm_right: Node3D = joints.get("arm_right")
 	var forearm_left: Node3D = joints.get("forearm_left")
 	var forearm_right: Node3D = joints.get("forearm_right")
+
+	if robotic_gait:
+		# ROBOT MODE: arms bolted in a braced carry — no human counter-swing,
+		# elbows locked. Aim system (_update_aim_arms) still overrides when firing.
+		var lock_arm := deg_to_rad(12.0)
+		var lock_elbow := deg_to_rad(18.0)
+		if arm_left:
+			arm_left.rotation.x = lerp_angle(arm_left.rotation.x, lock_arm, 14.0 * delta)
+			arm_left.rotation.y = lerp_angle(arm_left.rotation.y, 0.0, 14.0 * delta)
+			arm_left.rotation.z = lerp_angle(arm_left.rotation.z, 0.0, 14.0 * delta)
+			if forearm_left:
+				forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, lock_elbow, 14.0 * delta)
+				forearm_left.rotation.y = lerp_angle(forearm_left.rotation.y, 0.0, 14.0 * delta)
+				forearm_left.rotation.z = lerp_angle(forearm_left.rotation.z, 0.0, 14.0 * delta)
+		if arm_right:
+			arm_right.rotation.x = lerp_angle(arm_right.rotation.x, lock_arm, 14.0 * delta)
+			arm_right.rotation.y = lerp_angle(arm_right.rotation.y, 0.0, 14.0 * delta)
+			arm_right.rotation.z = lerp_angle(arm_right.rotation.z, 0.0, 14.0 * delta)
+			if forearm_right:
+				forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, lock_elbow, 14.0 * delta)
+				forearm_right.rotation.y = lerp_angle(forearm_right.rotation.y, 0.0, 14.0 * delta)
+				forearm_right.rotation.z = lerp_angle(forearm_right.rotation.z, 0.0, 14.0 * delta)
+		return
 
 	if arm_left:
 		# Counter-swing against the same-side leg, smoothed so direction

@@ -72,6 +72,15 @@ armor_catalog = {
 "path": "res://resources/mech/parts/arm_left/arm_left_valkyrion.tres",
 "type": "Valkyrion Armor",
 "weight": 6.0
+}, {
+"armor": 45.0,
+"color": Color(0.35, 0.42, 0.28, 1),
+"hp": 60.0,
+"id": "wanzer_arm_left_001",
+"name": "Wanzer Arm Left 001 (HY per-part, clean)",
+"path": "res://resources/mech/parts/arm_left/wanzer_arm_left_001.tres",
+"type": "Wanzer Armor",
+"weight": 12.0
 }],
 "arm_right": [{
 "armor": 15.0,
@@ -140,6 +149,15 @@ armor_catalog = {
 "path": "res://resources/mech/parts/arm_right/arm_right_valkyrion.tres",
 "type": "Valkyrion Armor",
 "weight": 6.0
+}, {
+"armor": 45.0,
+"color": Color(0.35, 0.42, 0.28, 1),
+"hp": 60.0,
+"id": "wanzer_arm_right_001",
+"name": "Wanzer Arm Right 001 (mirror of left)",
+"path": "res://resources/mech/parts/arm_right/wanzer_arm_right_001.tres",
+"type": "Wanzer Armor",
+"weight": 12.0
 }],
 "body": [{
 "armor": 40.0,
@@ -218,6 +236,15 @@ armor_catalog = {
 "path": "res://resources/mech/parts/body/body_valkyrion.tres",
 "type": "Valkyrion Armor",
 "weight": 6.0
+}, {
+"armor": 45.0,
+"color": Color(0.35, 0.42, 0.28, 1),
+"hp": 60.0,
+"id": "wanzer_body_001",
+"name": "Wanzer Body 001 (HY per-part, clean)",
+"path": "res://resources/mech/parts/body/wanzer_body_001.tres",
+"type": "Wanzer Armor",
+"weight": 12.0
 }], 
 "head": [{
 "armor": 20.0,
@@ -296,6 +323,15 @@ armor_catalog = {
 "path": "res://resources/mech/parts/head/head_valkyrion.tres",
 "type": "Valkyrion Armor",
 "weight": 6.0
+}, {
+"armor": 45.0,
+"color": Color(0.35, 0.42, 0.28, 1),
+"hp": 60.0,
+"id": "wanzer_head_001",
+"name": "Wanzer Head 001 (HY per-part, clean)",
+"path": "res://resources/mech/parts/head/wanzer_head_001.tres",
+"type": "Wanzer Armor",
+"weight": 12.0
 }], 
 "leg_left": [{
 "armor": 20.0,
@@ -364,6 +400,15 @@ armor_catalog = {
 "path": "res://resources/mech/parts/leg_left/leg_left_valkyrion.tres",
 "type": "Valkyrion Armor",
 "weight": 6.0
+}, {
+"armor": 45.0,
+"color": Color(0.35, 0.42, 0.28, 1),
+"hp": 60.0,
+"id": "wanzer_leg_left_001",
+"name": "Wanzer Leg Left 001 (HY per-part, clean)",
+"path": "res://resources/mech/parts/leg_left/wanzer_leg_left_001.tres",
+"type": "Wanzer Armor",
+"weight": 12.0
 }], 
 "leg_right": [{
 "armor": 20.0,
@@ -432,6 +477,15 @@ armor_catalog = {
 "path": "res://resources/mech/parts/leg_right/leg_right_valkyrion.tres",
 "type": "Valkyrion Armor",
 "weight": 6.0
+}, {
+"armor": 45.0,
+"color": Color(0.35, 0.42, 0.28, 1),
+"hp": 60.0,
+"id": "wanzer_leg_right_001",
+"name": "Wanzer Leg Right 001 (mirror of left)",
+"path": "res://resources/mech/parts/leg_right/wanzer_leg_right_001.tres",
+"type": "Wanzer Armor",
+"weight": 12.0
 }], 
 "weapon_left": [{
 "armor": 0.0,

@@ -1,12 +1,27 @@
 """Clean Hunyuan3D per-part GLB: keep main shell, bisect+mirror for symmetry,
 flat-shade (unmerge), normalize scale, set joint pivot. Usage:
   python tools/clean_hy_part.py <in.glb> <slot:head|body|arm|leg> <out.glb>
+
+VALIDATED 2026-09-04 (measured in Blender, Godot meters):
+  head 0.55 (neck pivot bottom) / body 1.20 (center pivot) /
+  arm 1.28 (shoulder pivot top, split elbow frac 0.50) /
+  leg 2.15 (hip pivot top, split knee frac 0.43).
+  Total leg armor must reach hip->sole (~2.18m); 1.72 left feet floating.
+
+WARNINGS:
+  - trimesh rebuilds geometry WITHOUT materials/UVs. Output renders with
+    Godot's default gray unless a material is assigned afterwards.
+    Canonical fix: assign WanzerArmor in Blender before export (see rework
+    notes in MECH_MODEL_GUIDE.md).
+  - PCA uprighting assumes the part's longest axis is vertical. Verify the
+    output orientation in Blender before binding (raw HY head/body import
+    upright already; arm/leg need manual yaw).
 """
 import sys
 import numpy as np
 import trimesh
 
-TARGET = {"head": 0.55, "body": 1.20, "arm": 1.28, "leg": 1.72}
+TARGET = {"head": 0.55, "body": 1.20, "arm": 1.28, "leg": 2.15}
 # pivot: fraction of height where joint sits (0=bottom,1=top). head->neck bottom,
 # body->center, arm->shoulder top, leg->hip top.
 PIVOT = {"head": 0.0, "body": 0.5, "arm": 1.0, "leg": 1.0}

@@ -288,8 +288,8 @@ static func _collect_recursive(node: Node, into: Array) -> void:
 	if node is MeshInstance3D:
 		into.append(node)
 	for child in node.get_children():
-		# Never recurse into ragdoll plumbing or lights
-		if child is Light3D or child is CollisionShape3D:
+		# Never recurse into ragdoll plumbing, lights, or pilots
+		if child is Light3D or child is CollisionShape3D or child.is_in_group("pilot"):
 			continue
 		_collect_recursive(child, into)
 
@@ -310,12 +310,16 @@ static func _hide_original_visuals(mecha: Node3D) -> void:
 		if n == null:
 			continue
 		_hide_meshes_recursive(n)
-	# Also hide any top-level legacy meshes on the mecha root
+	# Also hide any top-level legacy meshes on the mecha root, skipping pilots
 	for child in mecha.get_children():
+		if child.is_in_group("pilot"):
+			continue
 		if child is MeshInstance3D:
 			(child as MeshInstance3D).visible = false
 
 static func _hide_meshes_recursive(node: Node) -> void:
+	if node.is_in_group("pilot"):
+		return
 	if node is MeshInstance3D:
 		(node as MeshInstance3D).visible = false
 	for child in node.get_children():

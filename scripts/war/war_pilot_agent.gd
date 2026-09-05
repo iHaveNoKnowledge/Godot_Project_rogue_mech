@@ -1,6 +1,8 @@
 extends CharacterBody3D
 class_name WarPilotAgent
 
+const MechaAIController = preload("res://scripts/mecha/ai/mecha_ai_controller.gd")
+
 ## =============================================================================
 ## WAR PILOT AGENT — Symmetric Pilot AI (Pilot-Centric Warfare Simulation)
 ## =============================================================================
@@ -30,6 +32,7 @@ var state: int = PilotState.SPAWNED_AT_BARRACKS
 var current_vehicle: Node3D = null
 var target_destination: Vector3 = Vector3.ZERO
 var combat_target: Node3D = null
+var ai_controller = null
 
 var _decision_timer: float = 0.0
 var _desired_tier: String = "line"
@@ -211,10 +214,26 @@ func _board_existing_vehicle(vehicle: Node3D) -> void:
 	reparent(vehicle)
 	position = Vector3(0, 1.2, 0)
 
+	# Initialize Unified Mecha AI Controller
+	if ai_controller == null:
+		ai_controller = MechaAIController.new()
+		ai_controller.name = "MechaAIController"
+		add_child(ai_controller)
+	ai_controller.actor = vehicle as CharacterBody3D
+	ai_controller.faction_team = team
+	ai_controller.has_objective = true
+	var enemy_base_z: float = 750.0 if team == "friendly" else -750.0
+	ai_controller.objective_target_pos = Vector3(randf_range(-100, 100), 0, enemy_base_z)
+	ai_controller.preferred_range = 26.0
+	ai_controller.min_retreat_range = 12.0
+
 	# Connect vehicle destruction signal for emergency eject
 	var hs = vehicle.get_node_or_null("HealthSystem")
-	if hs and hs.has_signal("destroyed"):
-		hs.destroyed.connect(_on_vehicle_destroyed)
+	if hs:
+		if hs.has_signal("destroyed") and not hs.destroyed.is_connected(_on_vehicle_destroyed):
+			hs.destroyed.connect(_on_vehicle_destroyed)
+		if hs.has_signal("mecha_destroyed") and not hs.mecha_destroyed.is_connected(_on_vehicle_destroyed):
+			hs.mecha_destroyed.connect(_on_vehicle_destroyed)
 
 
 func _process_piloting_combat(delta: float) -> void:
@@ -225,62 +244,20 @@ func _process_piloting_combat(delta: float) -> void:
 	# Keep pilot position synced with vehicle
 	global_position = current_vehicle.global_position
 
-	# Periodic strategic AI decision
-	if _decision_timer <= 0.0:
-		_decision_timer = randf_range(0.8, 1.4)
-		_acquire_combat_target()
-
-	var move_dir := Vector3.ZERO
-	var aim_point := Vector3.ZERO
-	var fire_l := false
-	var fire_r := false
-	var wants_dash := false
-	var wants_roller := false
-
-	var is_skating: bool = current_vehicle.get("is_roller_dashing") == true
-
-	if combat_target != null and is_instance_valid(combat_target):
-		var target_pos = combat_target.global_position
-		aim_point = target_pos + Vector3(0, 1.5, 0)
-		var dist_to_target = current_vehicle.global_position.distance_to(target_pos)
-
-		if dist_to_target > 25.0:
-			# Advance toward target
-			move_dir = (target_pos - current_vehicle.global_position).normalized()
-			if dist_to_target > 40.0:
-				if not is_skating:
-					wants_roller = true # engage high-speed roller skating
-				if randf() < 0.15:
-					wants_dash = true
-		elif dist_to_target < 12.0:
-			# Tactical strafe / backup
-			move_dir = -(target_pos - current_vehicle.global_position).normalized()
-			if is_skating:
-				wants_roller = true # cut roller for tight close-range footwork
-		else:
-			# Circle strafe
-			var to_tgt = (target_pos - current_vehicle.global_position).normalized()
-			move_dir = Vector3(-to_tgt.z, 0, to_tgt.x)
-
-		# Fire weapons when target is in line of sight and within combat range (< 65m)
-		if dist_to_target <= 65.0:
-			fire_l = true
-			fire_r = (dist_to_target <= 40.0)
-	else:
-		# Advance toward enemy territory at full high-speed roller dash
-		var enemy_base_z: float = 750.0 if team == "friendly" else -750.0
-		var objective_pos := Vector3(randf_range(-100, 100), 0, enemy_base_z)
-		move_dir = (objective_pos - current_vehicle.global_position).normalized()
-		aim_point = current_vehicle.global_position + move_dir * 30.0
-		if not is_skating:
-			wants_roller = true
-
-	# Feed commands into decoupled vehicle interface
-	if current_vehicle.has_method("set_drive_commands"):
-		current_vehicle.set_drive_commands(move_dir, aim_point, fire_l, fire_r, wants_dash, false, wants_roller)
+	# Drive vehicle through Unified Mecha AI Controller
+	if ai_controller != null and is_instance_valid(ai_controller):
+		ai_controller.apply_drive_to_actor(delta)
+		combat_target = ai_controller.current_target
+	elif current_vehicle.has_method("set_drive_commands"):
+		# Fallback if no AI controller
+		current_vehicle.set_drive_commands(Vector3.ZERO, Vector3.ZERO, false, false, false, false, false)
 
 
 func _acquire_combat_target() -> void:
+	if ai_controller != null and is_instance_valid(ai_controller):
+		combat_target = ai_controller.acquire_target()
+		return
+
 	combat_target = null
 	var enemy_group: String = "enemy" if team == "friendly" else "friendly"
 	var hostile_nodes := get_tree().get_nodes_in_group(enemy_group) if get_tree() else []
@@ -310,9 +287,12 @@ func _emergency_eject() -> void:
 	state = PilotState.EJECTED_SURVIVAL
 	var eject_pos := global_position
 	if current_vehicle and is_instance_valid(current_vehicle):
-		eject_pos = current_vehicle.global_position + Vector3(randf_range(-3, 3), 1.0, randf_range(-3, 3))
+		eject_pos = current_vehicle.global_position + Vector3(randf_range(-2, 2), 2.0, randf_range(-2, 2))
 		if current_vehicle.has_method("eject_pilot"):
 			current_vehicle.eject_pilot()
+
+	if ai_controller != null and is_instance_valid(ai_controller):
+		ai_controller.current_target = null
 
 	# Restore on-foot pilot
 	var world_root = get_tree().current_scene if get_tree() else null
@@ -323,6 +303,9 @@ func _emergency_eject() -> void:
 	collision_layer = 1
 	collision_mask = 1
 	current_vehicle = null
+
+	# Physical ejection burst impulse (launches pilot out of cockpit)
+	velocity = Vector3(randf_range(-3, 3), 7.5, randf_range(-3, 3))
 
 	# Trigger eject audio and VFX
 	if AudioManager and AudioManager.has_method("play_eject"):

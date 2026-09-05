@@ -329,6 +329,18 @@ func eject_pilot() -> Node:
 	return p
 
 
+func _eject_pilot() -> void:
+	if seated_pilot != null and is_instance_valid(seated_pilot):
+		if seated_pilot.has_method("_emergency_eject"):
+			seated_pilot._emergency_eject()
+		else:
+			eject_pilot()
+	else:
+		var me = get_node_or_null("MechaEject")
+		if me and me.has_method("initiate_eject"):
+			me.initiate_eject()
+
+
 func _toggle_roller() -> void:
 	if not is_on_floor():
 		is_roller_dashing = false

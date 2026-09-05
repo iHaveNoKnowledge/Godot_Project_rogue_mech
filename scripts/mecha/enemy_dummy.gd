@@ -785,15 +785,41 @@ func _eject_pilot() -> void:
 
 # The wreck falls over — if a true physics ragdoll exists (spawned by
 # MechaHealthBase._collapse_mech via MechaRagdoll), skip the fake tween because
-# the RigidBody pieces already handle the fall. Otherwise legacy fake tilt.
+# the RigidBody pieces already handle the fall. Otherwise spawn MechaRagdoll or fallback fake tilt.
 func _tilt_over() -> void:
 	if has_meta("ragdoll_bodies") and get_meta("ragdoll_bodies") is Array and not (get_meta("ragdoll_bodies") as Array).is_empty():
 		return
+	var RagdollScript = load("res://scripts/mecha/mecha_ragdoll.gd")
+	if RagdollScript != null:
+		var result: Dictionary = RagdollScript.spawn_ragdoll(self)
+		if result.has("bodies") and result["bodies"] is Array and not (result["bodies"] as Array).is_empty():
+			return
 	if _ragdoll_tween and _ragdoll_tween.is_valid():
 		_ragdoll_tween.kill()
 	_ragdoll_tween = create_tween().set_parallel(true)
 	_ragdoll_tween.tween_property(self, "rotation:x", deg_to_rad(-82.0), 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	_ragdoll_tween.tween_property(self, "position:y", 0.55, 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+
+
+## Decoupled Drive Command interface (compatible with MechaAIController and MechaBase standard)
+func set_drive_commands(world_dir: Vector3, aim_pt: Vector3, _fire_l: bool = false, _fire_r: bool = false, _dash: bool = false, _jump: bool = false, _roller: bool = false) -> void:
+	if world_dir.length_squared() > 0.01:
+		velocity.x = world_dir.normalized().x * move_speed
+		velocity.z = world_dir.normalized().z * move_speed
+		var target_angle := atan2(-world_dir.x, -world_dir.z)
+		rotation.y = lerp_angle(rotation.y, target_angle, 0.15)
+	else:
+		velocity.x = 0.0
+		velocity.z = 0.0
+
+	if aim_pt != Vector3.ZERO:
+		var aim_dir := (aim_pt - global_position)
+		aim_dir.y = 0.0
+		if aim_dir.length_squared() > 0.01:
+			var target_angle := atan2(-aim_dir.x, -aim_dir.z)
+			rotation.y = lerp_angle(rotation.y, target_angle, 0.2)
+
+	move_and_slide()
 
 
 func _on_destroyed() -> void:

@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://unified_ai_ragdoll_verify_tscn"]
+
+[ext_resource type="Script" path="res://tests/unified_ai_ragdoll_verify.gd" id="1_test"]
+
+[node name="UnifiedAiRagdollVerify" type="Node"]
+script = ExtResource("1_test")

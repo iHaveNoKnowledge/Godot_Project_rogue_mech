@@ -56,14 +56,20 @@ func _ready() -> void:
 		hs.take_damage_to_part(slot, 99999.0, "kinetic", "frame")
 	_check(bool(hs.get("is_destroyed")), "depleting all frame HP sets is_destroyed")
 	_check(_mech_downed(mech), "controller reports the mech as downed")
-	var waited := 0
-	while is_instance_valid(mech) and absf(mech.rotation.x - deg_to_rad(-82.0)) > 0.02 and waited < 120:
-		await get_tree().process_frame
-		waited += 1
-	_check(is_instance_valid(mech) and absf(mech.rotation.x - deg_to_rad(-82.0)) < 0.05,
-		"mech ragdolls over (rotation.x %.1f deg)" % rad_to_deg(mech.rotation.x))
-	_check(is_instance_valid(mech) and absf(mech.position.y - 0.55) < 0.25,
-		"mech drops to the ground (y %.2f)" % mech.position.y)
+	var has_ragdoll: bool = mech.has_meta("ragdoll_bodies") and (mech.get_meta("ragdoll_bodies") is Array) and not (mech.get_meta("ragdoll_bodies") as Array).is_empty()
+	if has_ragdoll:
+		var bodies: Array = mech.get_meta("ragdoll_bodies")
+		_check(bodies.size() >= 8, "mech spawns physics ragdoll pieces (got %d bodies)" % bodies.size())
+		_check(mech.has_meta("ragdoll_joints"), "mech creates ragdoll pin joints")
+	else:
+		var waited := 0
+		while is_instance_valid(mech) and absf(mech.rotation.x - deg_to_rad(-82.0)) > 0.02 and waited < 120:
+			await get_tree().process_frame
+			waited += 1
+		_check(is_instance_valid(mech) and absf(mech.rotation.x - deg_to_rad(-82.0)) < 0.05,
+			"mech ragdolls over (rotation.x %.1f deg)" % rad_to_deg(mech.rotation.x))
+		_check(is_instance_valid(mech) and absf(mech.position.y - 0.55) < 0.25,
+			"mech drops to the ground (y %.2f)" % mech.position.y)
 
 	# --- 2. Heat-glow light spawns dark, then ramps up ---
 	var glow: OmniLight3D = mech.get_node_or_null("BreachGlow")

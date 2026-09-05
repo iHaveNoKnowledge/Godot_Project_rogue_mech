@@ -662,14 +662,11 @@ func apply_armor_preview(slot: String, info: Dictionary) -> void:
 	var mecha = get_mecha_base()
 	var pmm = get_part_mesh_manager()
 	if pmm:
-		var part = ArmorPart.new()
-		part.part_name = info.get("name", "Spiky Armor")
-		part.max_hp = GlobalData.part_stat(info, "max_hp", 100.0)
-		if info.has("color"):
-			part.part_color = info.get("color")
+		var part: ArmorPart = pmm.build_part_for_slot(info)
 		pmm.initialize_slot(slot, part)
 		if mecha:
 			update_weapon_preview(mecha)
+
 
 
 # Returns the mech's root Node3D (MechaBase if present, else the whole scene).
@@ -828,12 +825,8 @@ func move_selected_attachment(mouse_delta: Vector2) -> void:
 
 
 func apply_salvage_preview(slot: String, info: Dictionary) -> void:
-	if mecha_3d_root == null: return
-	var mat = StandardMaterial3D.new()
-	mat.albedo_color = info.get("color", Color(0.2, 0.45, 0.25))
-	mat.metallic = 0.75
-	mat.roughness = 0.4
-	set_slot_material(slot, mat)
+	apply_armor_preview(slot, info)
+
 
 
 func set_slot_material(slot: String, mat: Material) -> void:

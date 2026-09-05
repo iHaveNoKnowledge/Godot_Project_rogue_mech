@@ -115,6 +115,16 @@ func build_window() -> void:
 		info_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		row.add_child(info_lbl)
 
+		# Live 3D Preview button
+		var prev_btn = Button.new()
+		prev_btn.text = "PREVIEW"
+		prev_btn.custom_minimum_size = Vector2(75, 32)
+		prev_btn.pressed.connect(func():
+			controller.garage_panel.update_camera_focus(controller.selected_slot)
+			controller.garage_panel.apply_armor_preview(controller.selected_slot, info)
+		)
+		row.add_child(prev_btn)
+
 		var craft_btn = Button.new()
 		if blueprint_locked:
 			craft_btn.text = "RESEARCH TO UNLOCK"
@@ -125,6 +135,7 @@ func build_window() -> void:
 			craft_btn.pressed.connect(func(): craft_armor(info))
 		craft_btn.custom_minimum_size = Vector2(160, 32)
 		row.add_child(craft_btn)
+
 
 	var sep2 = HSeparator.new()
 	vbox.add_child(sep2)

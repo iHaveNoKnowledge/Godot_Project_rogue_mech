@@ -75,26 +75,27 @@ func build_window() -> void:
 
 	var modal = PanelContainer.new()
 	modal.name = "CatalogWindow"
-	modal.anchor_left = 0.5
-	modal.anchor_right = 0.5
-	modal.anchor_top = 0.5
-	modal.anchor_bottom = 0.5
-	modal.offset_left = -420
-	modal.offset_right = 420
-	modal.offset_top = -330
-	modal.offset_bottom = 330
+	# Dock to the left side of the screen so the 3D Mecha in center/right is clearly visible
+	modal.anchor_left = 0.0
+	modal.anchor_right = 0.0
+	modal.anchor_top = 0.0
+	modal.anchor_bottom = 1.0
+	modal.offset_left = 20
+	modal.offset_right = 540
+	modal.offset_top = 40
+	modal.offset_bottom = -40
 
 	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.09, 0.09, 0.09, 0.96)
+	style.bg_color = Color(0.08, 0.09, 0.11, 0.94)
 	style.border_width_left = 1
 	style.border_width_top = 1
 	style.border_width_right = 1
 	style.border_width_bottom = 1
 	style.border_color = controller._highlight_color
-	style.corner_radius_top_left = 0
-	style.corner_radius_top_right = 0
-	style.corner_radius_bottom_left = 0
-	style.corner_radius_bottom_right = 0
+	style.corner_radius_top_left = 4
+	style.corner_radius_top_right = 4
+	style.corner_radius_bottom_left = 4
+	style.corner_radius_bottom_right = 4
 	modal.add_theme_stylebox_override("panel", style)
 
 	var vbox = VBoxContainer.new()
@@ -102,10 +103,10 @@ func build_window() -> void:
 	modal.add_child(vbox)
 
 	var title = Label.new()
-	title.text = "CATALOG — CHASSIS, ALL ARMOR & WEAPONS"
+	title.text = "CATALOG — CHASSIS, ARMOR & WEAPONS"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_color_override("font_color", controller._highlight_color)
-	title.add_theme_font_size_override("font_size", 15)
+	title.add_theme_font_size_override("font_size", 14)
 	vbox.add_child(title)
 
 	var hint = Label.new()
@@ -115,7 +116,6 @@ func build_window() -> void:
 	vbox.add_child(hint)
 
 	var scroll = ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(800, 520)
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vbox.add_child(scroll)
 
@@ -157,7 +157,7 @@ func build_window() -> void:
 		else:
 			sel_btn.text = "SELECT"
 			sel_btn.pressed.connect(func(): apply_chassis(key))
-		sel_btn.custom_minimum_size = Vector2(160, 30)
+		sel_btn.custom_minimum_size = Vector2(100, 30)
 		crow.add_child(sel_btn)
 
 	var chass_sep = HSeparator.new()
@@ -178,12 +178,12 @@ func build_window() -> void:
 			var blueprint_locked := ArmorSystem.entry_is_blueprint_locked(info)
 
 			var row = HBoxContainer.new()
-			row.add_theme_constant_override("separation", 8)
+			row.add_theme_constant_override("separation", 6)
 			rows.add_child(row)
 
 			var info_lbl = Label.new()
-			var bp_tag = "  [BLUEPRINT]" if blueprint_locked else ""
-			info_lbl.text = "%s%s [%s]  %.1fkg   (%.0f HP / %.0f armor)" % [
+			var bp_tag = "  [BP]" if blueprint_locked else ""
+			info_lbl.text = "%s%s [%s]\n%.1fkg (%.0f HP / %.0f def)" % [
 				info.get("name", "Armor"), bp_tag, info.get("type", "?"),
 				GlobalData.weapons.part_stat(info, "weight", 0.0),
 				GlobalData.weapons.part_stat(info, "max_hp", 0.0),
@@ -193,16 +193,27 @@ func build_window() -> void:
 			info_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			row.add_child(info_lbl)
 
+			# Live 3D Preview button
+			var prev_btn = Button.new()
+			prev_btn.text = "PREVIEW"
+			prev_btn.custom_minimum_size = Vector2(75, 30)
+			prev_btn.pressed.connect(func():
+				controller.garage_panel.update_camera_focus(slot)
+				controller.garage_panel.apply_armor_preview(slot, info)
+			)
+			row.add_child(prev_btn)
+
 			var craft_btn = Button.new()
 			if blueprint_locked:
-				craft_btn.text = "RESEARCH TO UNLOCK"
+				craft_btn.text = "LOCKED"
 				craft_btn.disabled = true
 			else:
-				craft_btn.text = "CRAFT  %d scrap / %d cr" % [s_cost, c_cost]
+				craft_btn.text = "CRAFT (%ds/%dc)" % [s_cost, c_cost]
 				craft_btn.disabled = GlobalData.currency.scrap < s_cost or GlobalData.currency.credits < c_cost
 				craft_btn.pressed.connect(func(): controller.craft_panel.craft_armor(info))
-			craft_btn.custom_minimum_size = Vector2(160, 30)
+			craft_btn.custom_minimum_size = Vector2(130, 30)
 			row.add_child(craft_btn)
+
 
 	var wsec = Label.new()
 	wsec.text = "=== WEAPON STASH (OWNED) ==="

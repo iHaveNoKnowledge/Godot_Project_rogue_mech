@@ -13,20 +13,17 @@ func _ready() -> void:
 		return
 
 	# Ensure frames exist (default inner frame) so Armor can show
-	# Wanzer uses custom ArmorPart tres that already point to wanzer_{slot}.tscn
 	var loadout := {
-		"head": {"frame": {"id":"frame_head_01","equipped":true}, "armor": {"id":"wanzer_head_001","equipped":true,"path":"res://resources/mech/parts/head/wanzer_head_001.tres","slot":"head"}},
-		"body": {"frame": {"id":"frame_body_01","equipped":true}, "armor": {"id":"wanzer_body_001","equipped":true,"path":"res://resources/mech/parts/body/wanzer_body_001.tres","slot":"body"}},
-		"arm_left": {"frame": {"id":"frame_arm_left_01","equipped":true}, "armor": {"id":"wanzer_arm_left_001","equipped":true,"path":"res://resources/mech/parts/arm_left/wanzer_arm_left_001.tres","slot":"arm_left"}},
-		"arm_right": {"frame": {"id":"frame_arm_right_01","equipped":true}, "armor": {"id":"wanzer_arm_right_001","equipped":true,"path":"res://resources/mech/parts/arm_right/wanzer_arm_right_001.tres","slot":"arm_right"}},
-		"leg_left": {"frame": {"id":"frame_leg_left_01","equipped":true}, "armor": {"id":"wanzer_leg_left_001","equipped":true,"path":"res://resources/mech/parts/leg_left/wanzer_leg_left_001.tres","slot":"leg_left"}},
-		"leg_right": {"frame": {"id":"frame_leg_right_01","equipped":true}, "armor": {"id":"wanzer_leg_right_001","equipped":true,"path":"res://resources/mech/parts/leg_right/wanzer_leg_right_001.tres","slot":"leg_right"}},
+		"head": {"frame": {"id":"frame_head_01","equipped":true}, "armor": {"id":"line_head","equipped":true,"path":"res://resources/mech/parts/head/line_head.tres","slot":"head"}},
+		"body": {"frame": {"id":"frame_body_01","equipped":true}, "armor": {"id":"line_body","equipped":true,"path":"res://resources/mech/parts/body/line_body.tres","slot":"body"}},
+		"arm_left": {"frame": {"id":"frame_arm_left_01","equipped":true}, "armor": {"id":"line_arm_left","equipped":true,"path":"res://resources/mech/parts/arm_left/line_arm_left.tres","slot":"arm_left"}},
+		"arm_right": {"frame": {"id":"frame_arm_right_01","equipped":true}, "armor": {"id":"line_arm_right","equipped":true,"path":"res://resources/mech/parts/arm_right/line_arm_right.tres","slot":"arm_right"}},
+		"leg_left": {"frame": {"id":"frame_leg_left_01","equipped":true}, "armor": {"id":"line_leg_left","equipped":true,"path":"res://resources/mech/parts/leg_left/line_leg_left.tres","slot":"leg_left"}},
+		"leg_right": {"frame": {"id":"frame_leg_right_01","equipped":true}, "armor": {"id":"line_leg_right","equipped":true,"path":"res://resources/mech/parts/leg_right/line_leg_right.tres","slot":"leg_right"}},
 	}
 
-	# Also test full GLB as single mesh preview (optional): attach to Body for reference
-	# var full = load("res://scenes/mecha/parts/body/wanzer_body.tscn")
 	pm.refresh_from_loadout(loadout)
-	print("[TestWanzer] Equipped Wanzer 6 parts via refresh_from_loadout")
+	print("[TestWanzer] Equipped Line Modular Pack via refresh_from_loadout")
 	for slot in ["head","body","arm_left","arm_right","leg_left","leg_right"]:
 		var tres_path = "res://resources/mech/parts/%s/wanzer_%s_001.tres" % [slot, slot]
 		print("  %s -> %s exists: %s" % [slot, tres_path, ResourceLoader.exists(tres_path)])

@@ -26,36 +26,35 @@ PARTS_DIR = os.path.join(BASE_DIR, "scenes", "mecha", "parts")
 
 # Materials
 def get_materials():
-    # 1. Main Slate Grey Armor
+    # 1. Main Pale Industrial Off-White / Concrete Primer Grey Armor
     mat_armor = bpy.data.materials.new("Tankhead_Armor")
     mat_armor.use_nodes = True
     bsdf = mat_armor.node_tree.nodes["Principled BSDF"]
-    bsdf.inputs["Base Color"].default_value = (0.28, 0.31, 0.35, 1.0)
-    bsdf.inputs["Metallic"].default_value = 0.15
-    bsdf.inputs["Roughness"].default_value = 0.65
+    bsdf.inputs["Base Color"].default_value = (0.76, 0.75, 0.73, 1.0)
+    bsdf.inputs["Metallic"].default_value = 0.12
+    bsdf.inputs["Roughness"].default_value = 0.58
 
     # 2. Dark Industrial Undersuit / Mechanical
     mat_dark = bpy.data.materials.new("Tankhead_Dark")
     mat_dark.use_nodes = True
     bsdf2 = mat_dark.node_tree.nodes["Principled BSDF"]
     bsdf2.inputs["Base Color"].default_value = (0.12, 0.13, 0.15, 1.0)
-    bsdf2.inputs["Metallic"].default_value = 0.30
-    bsdf2.inputs["Roughness"].default_value = 0.70
+    bsdf2.inputs["Metallic"].default_value = 0.35
+    bsdf2.inputs["Roughness"].default_value = 0.65
 
     # 3. Bronze / Orange Accent & Sensor
     mat_accent = bpy.data.materials.new("Tankhead_Sensor")
     mat_accent.use_nodes = True
     bsdf3 = mat_accent.node_tree.nodes["Principled BSDF"]
-    bsdf3.inputs["Base Color"].default_value = (0.95, 0.48, 0.12, 1.0)
+    bsdf3.inputs["Base Color"].default_value = (0.96, 0.52, 0.10, 1.0)
     bsdf3.inputs["Metallic"].default_value = 0.10
     bsdf3.inputs["Roughness"].default_value = 0.30
-    bsdf3.inputs["Emission Color"].default_value = (0.95, 0.48, 0.12, 1.0)
+    bsdf3.inputs["Emission Color"].default_value = (0.96, 0.52, 0.10, 1.0)
     bsdf3.inputs["Emission Strength"].default_value = 2.5
 
     return mat_armor, mat_dark, mat_accent
 
 def clean_scene():
-    bpy.ops.wm.read_factory_settings(use_empty=True)
     for obj in list(bpy.data.objects):
         bpy.data.objects.remove(obj, do_unlink=True)
     for mesh in list(bpy.data.meshes):
@@ -194,6 +193,12 @@ def build_tankhead_head(mat_armor, mat_dark, mat_accent):
     antenna = create_box("head_antenna", (0, -0.06, 0.38), (0.06, 0.28, 0.16), rot=(math.radians(-15), 0, 0), mat=mat_accent)
     objs.append(antenna)
     
+    # 9. Twin Angled Ear Antenna Fins (from concept art)
+    ear_l = create_box("head_ear_l", (-0.26, -0.04, 0.40), (0.05, 0.22, 0.28), rot=(0, math.radians(-18), math.radians(-8)), mat=mat_armor)
+    ear_r = create_box("head_ear_r", (0.26, -0.04, 0.40), (0.05, 0.22, 0.28), rot=(0, math.radians(18), math.radians(8)), mat=mat_armor)
+    ear_accent = create_box("head_ear_accent", (-0.28, -0.02, 0.42), (0.02, 0.10, 0.14), rot=(0, math.radians(-18), math.radians(-8)), mat=mat_accent)
+    objs.extend([ear_l, ear_r, ear_accent])
+    
     head = join_objects(objs, "tankhead_head")
     apply_bevel_and_edgesplit(head, bevel_w=0.014)
     return head
@@ -214,10 +219,11 @@ def build_tankhead_body(mat_armor, mat_dark, mat_accent):
     chest_glacis = create_box("body_glacis", (0, 0.26, 0.38), (0.92, 0.22, 0.52), rot=(math.radians(-24), 0, 0), mat=mat_armor)
     objs.append(chest_glacis)
     
-    # 3. Applique Reactive Armor Slabs (Dual Front Chest Blocks)
-    slab_l = create_box("body_slab_l", (-0.26, 0.36, 0.42), (0.32, 0.08, 0.30), rot=(math.radians(-24), 0, 0), mat=mat_accent)
-    slab_r = create_box("body_slab_r", (0.26, 0.36, 0.42), (0.32, 0.08, 0.30), rot=(math.radians(-24), 0, 0), mat=mat_accent)
-    objs.extend([slab_l, slab_r])
+    # 3. Applique Reactive Armor Slabs (Tri-Segment Front Chest Blocks from concept art)
+    slab_mid = create_box("body_slab_mid", (0, 0.38, 0.40), (0.36, 0.12, 0.28), rot=(math.radians(-24), 0, 0), mat=mat_armor)
+    slab_l = create_box("body_slab_l", (-0.28, 0.35, 0.42), (0.26, 0.10, 0.28), rot=(math.radians(-24), 0, 0), mat=mat_armor)
+    slab_r = create_box("body_slab_r", (0.28, 0.35, 0.42), (0.26, 0.10, 0.28), rot=(math.radians(-24), 0, 0), mat=mat_armor)
+    objs.extend([slab_mid, slab_l, slab_r])
     
     # 4. HIGH RAISED ARMOR COLLAR (Fully encases the upper spine and neck base up to +0.92m)
     collar_l = create_box("body_collar_l", (-0.28, 0.04, 0.74), (0.14, 0.46, 0.36), rot=(0, math.radians(10), 0), mat=mat_armor)
@@ -327,16 +333,16 @@ def build_tankhead_leg_upper(mat_armor, mat_dark, mat_accent):
     hip_cap = create_box("leg_hip_cap", (0, 0, -0.08), (0.50, 0.50, 0.24), mat=mat_dark)
     objs.append(hip_cap)
     
-    # Massive Angular Blocky Thigh Armor
-    thigh_block = create_box("leg_thigh_block", (0, 0.02, -0.42), (0.64, 0.62, 0.66), mat=mat_armor)
+    # Massive Angular Blocky Thigh Armor (Monolithic square slabs from concept art)
+    thigh_block = create_box("leg_thigh_block", (0, 0.02, -0.42), (0.72, 0.68, 0.68), mat=mat_armor)
     objs.append(thigh_block)
     
     # Front Reactive Armor Slanted Plate
-    front_plate = create_box("leg_front_plate", (0, 0.32, -0.40), (0.52, 0.10, 0.56), rot=(math.radians(-12), 0, 0), mat=mat_accent)
+    front_plate = create_box("leg_front_plate", (0, 0.35, -0.40), (0.58, 0.10, 0.58), rot=(math.radians(-12), 0, 0), mat=mat_armor)
     objs.append(front_plate)
     
     # Outer Side Armor Slab
-    side_plate = create_box("leg_side_plate", (-0.32, 0.02, -0.42), (0.08, 0.52, 0.58), mat=mat_dark)
+    side_plate = create_box("leg_side_plate", (-0.36, 0.02, -0.42), (0.08, 0.56, 0.60), mat=mat_dark)
     objs.append(side_plate)
     
     leg_up = join_objects(objs, "tankhead_leg_left_upper")
@@ -375,11 +381,16 @@ def build_tankhead_leg_lower(mat_armor, mat_dark, mat_accent):
     cuff = create_box("leg_cuff", (0, 0, -0.88), (0.46, 0.46, 0.20), mat=mat_dark)
     objs.append(cuff)
     
-    # Heavy Blocky Stabilizer Tank Foot
+    # Heavy Blocky Stabilizer Tank Foot with Track Treads
     foot_heel = create_box("leg_foot_heel", (0, -0.16, -1.05), (0.46, 0.34, 0.20), mat=mat_dark)
     foot_main = create_box("leg_foot_main", (0, 0.16, -1.05), (0.50, 0.46, 0.22), mat=mat_armor)
     foot_claw = create_box("leg_foot_claw", (0, 0.38, -1.06), (0.42, 0.16, 0.16), rot=(math.radians(-18), 0, 0), mat=mat_accent)
-    objs.extend([foot_heel, foot_main, foot_claw])
+    # Tank-tread sole ribs
+    tread_1 = create_box("leg_tread_1", (0, 0.30, -1.15), (0.52, 0.06, 0.03), mat=mat_dark)
+    tread_2 = create_box("leg_tread_2", (0, 0.10, -1.15), (0.52, 0.06, 0.03), mat=mat_dark)
+    tread_3 = create_box("leg_tread_3", (0, -0.10, -1.15), (0.52, 0.06, 0.03), mat=mat_dark)
+    tread_4 = create_box("leg_tread_4", (0, -0.28, -1.15), (0.52, 0.06, 0.03), mat=mat_dark)
+    objs.extend([foot_heel, foot_main, foot_claw, tread_1, tread_2, tread_3, tread_4])
     
     leg_lo = join_objects(objs, "tankhead_leg_left_lower")
     apply_bevel_and_edgesplit(leg_lo, bevel_w=0.020)

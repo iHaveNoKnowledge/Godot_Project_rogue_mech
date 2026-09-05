@@ -3,26 +3,26 @@
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fcq32"]
 resource_name = "Tankhead_Armor"
 cull_mode = 2
-albedo_color = Color(0.5657284, 0.59261936, 0.6262097, 1)
-metallic = 0.15
-roughness = 0.65
+albedo_color = Color(0.886004, 0.88082504, 0.87034494, 1)
+metallic = 0.12
+roughness = 0.58
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_linia"]
 resource_name = "Tankhead_Dark"
 cull_mode = 2
 albedo_color = Color(0.38109186, 0.39588127, 0.42358288, 1)
-metallic = 0.3
-roughness = 0.7
+metallic = 0.35
+roughness = 0.65
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_sb3wd"]
 resource_name = "Tankhead_Sensor"
 cull_mode = 2
-albedo_color = Color(0.97769153, 0.72202736, 0.38109186, 1)
+albedo_color = Color(0.9822071, 0.7483791, 0.3491902, 1)
 metallic = 0.1
 roughness = 0.3
 emission_enabled = true
-emission = Color(1, 0.73881286, 0.39051244, 1)
-emission_energy_multiplier = 2.375
+emission = Color(1, 0.7621608, 0.35612395, 1)
+emission_energy_multiplier = 2.3999999
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_56l4m"]
 resource_name = "tankhead_arm_left_upper_Cube"
@@ -65,8 +65,8 @@ _surfaces = [{
 }]
 blend_shape_mode = 0
 
-[node name="tankhead_arm_left_upper2" type="Node3D" unique_id=2005499871]
+[node name="tankhead_arm_left_upper2" type="Node3D" unique_id=1485076777]
 
-[node name="tankhead_arm_left_upper" type="MeshInstance3D" parent="." unique_id=1308187391]
+[node name="tankhead_arm_left_upper" type="MeshInstance3D" parent="." unique_id=397027010]
 mesh = SubResource("ArrayMesh_56l4m")
 skeleton = NodePath("")

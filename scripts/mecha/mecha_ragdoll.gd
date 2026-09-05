@@ -8,16 +8,16 @@ class_name MechaRagdoll
 ## body frame is destroyed or total_frame_hp <= 0.
 
 const RAGDOLL_MASS: Dictionary = {
-	"head": 2.5,
-	"body": 18.0,
-	"arm_left": 4.0,
-	"arm_right": 4.0,
-	"forearm_left": 2.2,
-	"forearm_right": 2.2,
-	"leg_left": 5.5,
-	"leg_right": 5.5,
-	"shin_left": 3.5,
-	"shin_right": 3.5,
+	"head": 15.0,
+	"body": 120.0,
+	"arm_left": 25.0,
+	"arm_right": 25.0,
+	"forearm_left": 18.0,
+	"forearm_right": 18.0,
+	"leg_left": 45.0,
+	"leg_right": 45.0,
+	"shin_left": 30.0,
+	"shin_right": 30.0,
 }
 
 const RAGDOLL_BOX: Dictionary = {
@@ -105,11 +105,12 @@ static func spawn_ragdoll(mecha: CharacterBody3D) -> Dictionary:
 		var xf: Transform3D = seg_xform[seg]
 		var rb := RigidBody3D.new()
 		rb.name = "Ragdoll_%s" % seg
-		rb.mass = float(RAGDOLL_MASS.get(seg, 3.0))
+		rb.mass = float(RAGDOLL_MASS.get(seg, 300.0))
+		rb.gravity_scale = 2.4 # matches mecha gravity (20 m/s^2) for heavy, crunching collapse
 		rb.collision_layer = 8 # keep same as scrap
 		rb.collision_mask = 1 | 2 # Environment + Mecha (ground)
-		rb.linear_damp = 0.15
-		rb.angular_damp = 0.25
+		rb.linear_damp = 1.2 # strong friction to prevent floaty sliding
+		rb.angular_damp = 2.8 # heavy rotational damping to prevent toy-like spinning
 		rb.continuous_cd = true
 		rb.contact_monitor = true
 		rb.max_contacts_reported = 4
@@ -145,18 +146,24 @@ static func spawn_ragdoll(mecha: CharacterBody3D) -> Dictionary:
 		# Must set global after added to scene
 		rb.global_transform = xf
 
-		# Random death impulse — body gets a stronger topple
-		var imp := Vector3(randf_range(-2.5, 2.5), randf_range(0.5, 2.0), randf_range(-2.5, 2.5))
+		# Heavy topple impulse — downward slump into ground, no floaty pop-up
+		var topple_fwd: Vector3 = -mecha.global_transform.basis.z
+		topple_fwd.y = 0.0
+		topple_fwd = topple_fwd.normalized() if topple_fwd.length_squared() > 0.01 else Vector3.FORWARD
+		var topple_side: Vector3 = mecha.global_transform.basis.x
+		topple_side.y = 0.0
+		topple_side = topple_side.normalized() if topple_side.length_squared() > 0.01 else Vector3.RIGHT
+
 		if seg == "body":
-			imp += Vector3(0, -1.5, randf_range(-1.0, 1.0))
-			rb.apply_central_impulse(imp * 3.0)
-			rb.apply_torque_impulse(Vector3(randf_range(-8, 8), randf_range(-4, 4), randf_range(-6, 6)))
-		elif seg == "head":
-			rb.apply_central_impulse(imp * 1.2)
-			rb.angular_velocity = Vector3(randf_range(-6, 6), randf_range(-6, 6), randf_range(-6, 6))
+			# Body collapses heavily down and topples forward
+			var body_imp: Vector3 = topple_fwd * randf_range(-2.0, 3.0) + Vector3(0, -6.0, 0)
+			rb.apply_central_impulse(body_imp * 12.0)
+			rb.apply_torque_impulse(Vector3(randf_range(-15.0, -30.0), randf_range(-6, 6), randf_range(-6, 6)))
 		else:
-			rb.apply_central_impulse(imp)
-			rb.angular_velocity = Vector3(randf_range(-5, 5), randf_range(-5, 5), randf_range(-5, 5))
+			# Limbs slump down with minor spread
+			var limb_imp: Vector3 = topple_fwd * randf_range(-1.5, 1.5) + topple_side * randf_range(-1.5, 1.5) + Vector3(0, -4.0, 0)
+			rb.apply_central_impulse(limb_imp * 5.0)
+			rb.apply_torque_impulse(Vector3(randf_range(-4, 4), randf_range(-4, 4), randf_range(-4, 4)))
 
 		bodies[seg] = rb
 		created.append(rb)
@@ -179,8 +186,8 @@ static func spawn_ragdoll(mecha: CharacterBody3D) -> Dictionary:
 		joint.global_position = mid
 		joint.node_a = a_body.get_path()
 		joint.node_b = b_body.get_path()
-		# Soften the joint so ragdoll flops instead of being rigid
-		# PinJoint has no exposed softness — rely on mass + damping for flop
+		joint.set_param(PinJoint3D.PARAM_BIAS, 0.3)
+		joint.set_param(PinJoint3D.PARAM_DAMPING, 1.5)
 		joints_created.append(joint)
 
 	# Hide original mecha visuals (keep node alive for BreachGlow / countdown)
@@ -281,15 +288,46 @@ static func _clone_visuals_to(source: Node3D, target: RigidBody3D, seg_global: T
 
 static func _collect_mesh_instances(node: Node) -> Array:
 	var out: Array = []
-	_collect_recursive(node, out)
+	if node == null or not is_instance_valid(node):
+		return out
+
+	var armor_mesh_node := node.get_node_or_null("ArmorMesh") as Node3D
+	var armor_meshes: Array = []
+	if armor_mesh_node != null and armor_mesh_node.visible:
+		_collect_recursive(armor_mesh_node, armor_meshes)
+
+	if not armor_meshes.is_empty():
+		# Outer armor exists and is visible -> use outer armor model, exclude inner frame boxes!
+		out.append_array(armor_meshes)
+		# Also collect accessories (e.g. Backpack / Thrusters under Body)
+		for child in node.get_children():
+			if child.name == "ArmorMesh" or child.name == "FrameMesh":
+				continue
+			if child.name.begins_with("Forearm") or child.name.begins_with("Shin"):
+				continue
+			if child is Light3D or child is CollisionShape3D or child.is_in_group("pilot"):
+				continue
+			_collect_recursive(child, out)
+	else:
+		# No outer armor -> use inner frame or other visual nodes
+		_collect_recursive(node, out)
+
 	return out
 
 static func _collect_recursive(node: Node, into: Array) -> void:
+	# Skip hidden branches (e.g. hidden FrameMesh procedural boxes while armor is on, or hidden drop tanks)
+	if node is Node3D and not (node as Node3D).visible:
+		return
 	if node is MeshInstance3D:
-		into.append(node)
+		var mi := node as MeshInstance3D
+		if mi.visible and mi.mesh != null:
+			into.append(mi)
 	for child in node.get_children():
 		# Never recurse into ragdoll plumbing, lights, or pilots
 		if child is Light3D or child is CollisionShape3D or child.is_in_group("pilot"):
+			continue
+		# Also do NOT recurse into child limb segments (e.g. Forearm under Arm, Shin under Leg)
+		if child.name.begins_with("Forearm") or child.name.begins_with("Shin"):
 			continue
 		_collect_recursive(child, into)
 

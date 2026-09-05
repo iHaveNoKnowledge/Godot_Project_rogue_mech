@@ -34,14 +34,15 @@ func close_window() -> void:
 func build_window() -> void:
 	var modal = PanelContainer.new()
 	modal.name = "CraftWindow"
+	# Dock to left side so the 3D mecha remains clearly visible in center
 	modal.anchor_left = 0.0
 	modal.anchor_right = 0.0
-	modal.anchor_top = 0.5
-	modal.anchor_bottom = 0.5
-	modal.offset_left = 340
-	modal.offset_right = 900
-	modal.offset_top = -260
-	modal.offset_bottom = 260
+	modal.anchor_top = 0.0
+	modal.anchor_bottom = 1.0
+	modal.offset_left = 20
+	modal.offset_right = 560
+	modal.offset_top = 40
+	modal.offset_bottom = -40
 
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(0.09, 0.09, 0.09, 0.96)

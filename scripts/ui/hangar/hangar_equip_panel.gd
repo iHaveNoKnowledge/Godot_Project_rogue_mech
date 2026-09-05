@@ -318,6 +318,7 @@ func _perform_armor_equip(slot: String, inst: Dictionary) -> void:
 		controller.status_message_label.text = "Armor equipped%s" % swap_note
 	controller.persist_panel.commit_and_save()
 	controller.garage_panel.apply_armor_preview(slot, inst)
+	controller.garage_panel.update_all_slots_preview()
 	controller.stats_panel.update()
 	controller.part_list_panel.populate(slot)
 	AudioManager.play_ui_confirm()

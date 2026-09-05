@@ -165,13 +165,13 @@ func build_garage() -> void:
 	rim_spot.light_color = Color(0.40, 0.82, 1.0)
 	rim_spot.shadow_enabled = true
 
-	# Gantry Warm Amber Accent Lights (Background Atmosphere)
-	for x_pos in [-4.0, 4.0]:
+	# Gantry Warm Amber Accent Lights (Background Atmosphere behind mecha)
+	for x_pos in [-8.0, 8.0]:
 		var gantry_accent := OmniLight3D.new()
-		gantry_accent.position = Vector3(x_pos, 3.8, -7.0)
+		gantry_accent.position = Vector3(x_pos, 5.0, 18.0)
 		hangar_env_node.add_child(gantry_accent)
-		gantry_accent.light_energy = 1.6
-		gantry_accent.omni_range = 9.0
+		gantry_accent.light_energy = 2.2
+		gantry_accent.omni_range = 14.0
 		gantry_accent.light_color = Color(1.0, 0.65, 0.25)
 
 	# 3D Mecha Model in Garage (Static Showroom Display Mannequin)
@@ -194,12 +194,14 @@ func build_garage() -> void:
 	if pmm and pmm.has_method("_hide_all_legacy_models"):
 		pmm._hide_all_legacy_models()
 
-	# Camera
+	# Camera with wide clipping margins to prevent backdrop clipping
 	garage_cam = Camera3D.new()
 	garage_cam.position = current_cam_pos
 	hangar_env_node.add_child(garage_cam)
 	garage_cam.look_at(current_look_pos, Vector3.UP)
 	garage_cam.fov = 55.0
+	garage_cam.near = 0.05
+	garage_cam.far = 500.0
 
 
 func _build_realtime_garage() -> void:
@@ -219,6 +221,8 @@ func _build_realtime_garage() -> void:
 	garage_cam = Camera3D.new()
 	garage_cam.name = "RealtimeGarageCamera"
 	garage_cam.fov = 55.0
+	garage_cam.near = 0.05
+	garage_cam.far = 500.0
 
 	if world_scene:
 		world_scene.add_child(garage_cam)
@@ -244,10 +248,10 @@ func cleanup_realtime_camera() -> void:
 
 
 func _build_hangar_bay_room() -> void:
-	# 1. Garage Floor - dirty concrete with oil stains, NOT showroom alloy
+	# 1. Garage Floor - spacious 80x80 industrial concrete with oil stains
 	var floor_mesh := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(32, 32)
+	plane.size = Vector2(80, 80)
 	floor_mesh.mesh = plane
 	var mat_floor := StandardMaterial3D.new()
 	mat_floor.albedo_color = Color(0.18, 0.18, 0.19)
@@ -256,10 +260,11 @@ func _build_hangar_bay_room() -> void:
 	mat_floor.roughness = 0.88
 	floor_mesh.material_override = mat_floor
 	hangar_env_node.add_child(floor_mesh)
+
 	# Oil stain patch under mech
 	var stain := MeshInstance3D.new()
 	var stain_plane := PlaneMesh.new()
-	stain_plane.size = Vector2(6, 4)
+	stain_plane.size = Vector2(8, 6)
 	stain.mesh = stain_plane
 	var mat_stain := StandardMaterial3D.new()
 	mat_stain.albedo_color = Color(0.09, 0.09, 0.11, 0.55)
@@ -270,21 +275,37 @@ func _build_hangar_bay_room() -> void:
 	stain.position = Vector3(0, 0.02, 0.5)
 	hangar_env_node.add_child(stain)
 
-	# 2. Back Hangar Wall - matte concrete, dusty
+	# 2. Back Hangar Wall - placed at +Z = +22.0 (BEHIND the mecha, facing the camera)
 	var back_wall := MeshInstance3D.new()
 	var wall_mesh := BoxMesh.new()
-	wall_mesh.size = Vector3(32.0, 14.0, 0.6)
+	wall_mesh.size = Vector3(80.0, 20.0, 0.8)
 	back_wall.mesh = wall_mesh
-	back_wall.position = Vector3(0, 6.5, -8.0)
+	back_wall.position = Vector3(0, 9.5, 22.0)
 	var mat_wall := StandardMaterial3D.new()
 	mat_wall.albedo_color = Color(0.22, 0.22, 0.24)
 	mat_wall.metallic = 0.02
 	mat_wall.metallic_specular = 0.32
 	mat_wall.roughness = 0.92
+	mat_wall.cull_mode = BaseMaterial3D.CULL_BACK
 	back_wall.material_override = mat_wall
 	hangar_env_node.add_child(back_wall)
 
-	# 3. Vertical Structural Pillars - dirty brushed steel, not chrome
+	# Side Walls (Left & Right)
+	var left_wall := MeshInstance3D.new()
+	var side_mesh := BoxMesh.new()
+	side_mesh.size = Vector3(0.8, 20.0, 80.0)
+	left_wall.mesh = side_mesh
+	left_wall.position = Vector3(-38.0, 9.5, 0.0)
+	left_wall.material_override = mat_wall
+	hangar_env_node.add_child(left_wall)
+
+	var right_wall := MeshInstance3D.new()
+	right_wall.mesh = side_mesh
+	right_wall.position = Vector3(38.0, 9.5, 0.0)
+	right_wall.material_override = mat_wall
+	hangar_env_node.add_child(right_wall)
+
+	# 3. Structural Industrial Pillars - positioned along the back wall (+Z = 21.0)
 	var mat_pillar := StandardMaterial3D.new()
 	mat_pillar.albedo_color = Color(0.26, 0.27, 0.29)
 	mat_pillar.metallic = 0.35
@@ -296,39 +317,39 @@ func _build_hangar_bay_room() -> void:
 	mat_hazard.metallic = 0.06
 	mat_hazard.roughness = 0.72
 
-	for px in [-7.5, -2.5, 2.5, 7.5]:
+	for px in [-18.0, -9.0, 0.0, 9.0, 18.0]:
 		var pillar := MeshInstance3D.new()
 		var p_box := BoxMesh.new()
-		p_box.size = Vector3(0.9, 14.0, 0.9)
+		p_box.size = Vector3(1.2, 20.0, 1.2)
 		pillar.mesh = p_box
-		pillar.position = Vector3(px, 6.5, -7.5)
+		pillar.position = Vector3(px, 9.5, 21.2)
 		pillar.material_override = mat_pillar
 		hangar_env_node.add_child(pillar)
 
 		# Yellow caution band on pillar
 		var band := MeshInstance3D.new()
 		var b_box := BoxMesh.new()
-		b_box.size = Vector3(0.95, 0.4, 0.95)
+		b_box.size = Vector3(1.25, 0.5, 1.25)
 		band.mesh = b_box
-		band.position = Vector3(px, 1.8, -7.5)
+		band.position = Vector3(px, 2.5, 21.2)
 		band.material_override = mat_hazard
 		hangar_env_node.add_child(band)
 
-	# 4. Background Gantry / Catwalk - dirty steel
+	# 4. Background Gantry / Catwalk - positioned behind mecha at +Z = 19.5
 	var gantry := MeshInstance3D.new()
 	var g_box := BoxMesh.new()
-	g_box.size = Vector3(32.0, 0.35, 2.2)
+	g_box.size = Vector3(80.0, 0.45, 3.0)
 	gantry.mesh = g_box
-	gantry.position = Vector3(0, 3.8, -6.8)
+	gantry.position = Vector3(0, 5.0, 19.5)
 	gantry.material_override = mat_pillar
 	hangar_env_node.add_child(gantry)
 
-	# Gantry Safety Railing - matte safety yellow, not glossy
+	# Gantry Safety Railing
 	var rail := MeshInstance3D.new()
 	var r_box := BoxMesh.new()
-	r_box.size = Vector3(32.0, 0.9, 0.08)
+	r_box.size = Vector3(80.0, 1.0, 0.10)
 	rail.mesh = r_box
-	rail.position = Vector3(0, 4.4, -5.7)
+	rail.position = Vector3(0, 5.8, 18.1)
 	var mat_rail := StandardMaterial3D.new()
 	mat_rail.albedo_color = Color(0.78, 0.62, 0.18)
 	mat_rail.metallic = 0.08

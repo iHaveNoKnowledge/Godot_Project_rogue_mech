@@ -1,0 +1,16 @@
+[gd_resource type="Resource" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://resources/mech/armor_part.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/mecha/parts/head/tankhead_head.tscn" id="2"]
+
+[resource]
+script = ExtResource("1")
+part_name = "Tankhead Heavy Iron Head"
+slot_id = "head"
+mesh_scene = ExtResource("2")
+max_hp = 60.0
+max_frame_hp = 48.0
+weight = 9.0
+armor_class = 40.0
+break_threshold = 0.3
+part_color = Color(0.28, 0.31, 0.35, 1)

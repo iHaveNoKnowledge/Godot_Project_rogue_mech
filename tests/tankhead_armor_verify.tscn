@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://tankhead_armor_verify"]
+
+[ext_resource type="Script" path="res://tests/tankhead_armor_verify.gd" id="1_test"]
+
+[node name="TankheadArmorVerify" type="Node3D"]
+script = ExtResource("1_test")

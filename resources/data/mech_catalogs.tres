@@ -7,6 +7,16 @@ script = ExtResource("1")
 armor_catalog = {
 "arm_left": [
 {
+"armor": 45.0,
+"color": Color(0.28, 0.31, 0.35, 1),
+"hp": 55.0,
+"id": "tankhead_arm_left",
+"name": "Tankhead Heavy Iron Arm Left",
+"path": "res://resources/mech/parts/arm_left/tankhead_arm_left.tres",
+"type": "Super Heavy Armor",
+"weight": 12.0
+}, 
+{
 "armor": 15.0,
 "color": Color(0.2, 0.7, 0.85, 1),
 "hp": 25.0,
@@ -130,6 +140,16 @@ armor_catalog = {
 }],
 "arm_right": [
 {
+"armor": 45.0,
+"color": Color(0.28, 0.31, 0.35, 1),
+"hp": 55.0,
+"id": "tankhead_arm_right",
+"name": "Tankhead Heavy Iron Arm Right",
+"path": "res://resources/mech/parts/arm_right/tankhead_arm_right.tres",
+"type": "Super Heavy Armor",
+"weight": 12.0
+}, 
+{
 "armor": 15.0,
 "color": Color(0.2, 0.7, 0.85, 1),
 "hp": 25.0,
@@ -252,6 +272,16 @@ armor_catalog = {
 "weight": 8.0
 }],
 "body": [
+{
+"armor": 70.0,
+"color": Color(0.28, 0.31, 0.35, 1),
+"hp": 150.0,
+"id": "tankhead_body",
+"name": "Tankhead Heavy Iron Body",
+"path": "res://resources/mech/parts/body/tankhead_body.tres",
+"type": "Super Heavy Armor",
+"weight": 28.0
+}, 
 {
 "armor": 25.0,
 "color": Color(0.2, 0.7, 0.85, 1),
@@ -386,6 +416,16 @@ armor_catalog = {
 }], 
 "head": [
 {
+"armor": 40.0,
+"color": Color(0.28, 0.31, 0.35, 1),
+"hp": 60.0,
+"id": "tankhead_head",
+"name": "Tankhead Heavy Iron Head",
+"path": "res://resources/mech/parts/head/tankhead_head.tres",
+"type": "Super Heavy Armor",
+"weight": 9.0
+}, 
+{
 "armor": 15.0,
 "color": Color(0.2, 0.7, 0.85, 1),
 "hp": 30.0,
@@ -519,6 +559,16 @@ armor_catalog = {
 }], 
 "leg_left": [
 {
+"armor": 50.0,
+"color": Color(0.28, 0.31, 0.35, 1),
+"hp": 80.0,
+"id": "tankhead_leg_left",
+"name": "Tankhead Heavy Iron Leg Left",
+"path": "res://resources/mech/parts/leg_left/tankhead_leg_left.tres",
+"type": "Super Heavy Armor",
+"weight": 18.0
+}, 
+{
 "armor": 20.0,
 "color": Color(0.2, 0.7, 0.85, 1),
 "hp": 35.0,
@@ -641,6 +691,16 @@ armor_catalog = {
 "weight": 8.0
 }], 
 "leg_right": [
+{
+"armor": 50.0,
+"color": Color(0.28, 0.31, 0.35, 1),
+"hp": 80.0,
+"id": "tankhead_leg_right",
+"name": "Tankhead Heavy Iron Leg Right",
+"path": "res://resources/mech/parts/leg_right/tankhead_leg_right.tres",
+"type": "Super Heavy Armor",
+"weight": 18.0
+}, 
 {
 "armor": 20.0,
 "color": Color(0.2, 0.7, 0.85, 1),
@@ -888,7 +948,8 @@ chassis_catalog = {
 }
 }
 frame_catalog = {
-"arm_left": [{
+"arm_left": [
+{
 "carry_bonus": 3.0,
 "hp": 15.0,
 "id": "frame_arm_left_01",
@@ -924,7 +985,8 @@ frame_catalog = {
 "type": "Pre-Cog Frame",
 "weight": 2.5
 }],
-"arm_right": [{
+"arm_right": [
+{
 "carry_bonus": 3.0,
 "hp": 15.0,
 "id": "frame_arm_right_01",
@@ -960,7 +1022,8 @@ frame_catalog = {
 "type": "Pre-Cog Frame",
 "weight": 2.5
 }],
-"body": [{
+"body": [
+{
 "carry_bonus": 8.0,
 "hp": 40.0,
 "id": "frame_body_01",
@@ -996,7 +1059,8 @@ frame_catalog = {
 "type": "Pre-Cog Frame",
 "weight": 5.0
 }],
-"head": [{
+"head": [
+{
 "carry_bonus": 2.0,
 "hp": 20.0,
 "id": "frame_head_01",
@@ -1032,7 +1096,8 @@ frame_catalog = {
 "type": "Pre-Cog Frame",
 "weight": 1.8
 }],
-"leg_left": [{
+"leg_left": [
+{
 "carry_bonus": 4.0,
 "hp": 20.0,
 "id": "frame_leg_left_01",
@@ -1068,7 +1133,8 @@ frame_catalog = {
 "type": "Pre-Cog Frame",
 "weight": 3.5
 }],
-"leg_right": [{
+"leg_right": [
+{
 "carry_bonus": 4.0,
 "hp": 20.0,
 "id": "frame_leg_right_01",

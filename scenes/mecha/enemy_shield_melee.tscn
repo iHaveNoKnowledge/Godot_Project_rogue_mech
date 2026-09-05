@@ -38,6 +38,7 @@ roughness = 0.35
 radius = 2.688
 
 [node name="EnemyShieldMelee" type="CharacterBody3D"]
+transform = Transform3D(1.15, 0, 0, 0, 1.15, 0, 0, 0, 1.15, 0, 0, 0)
 script = ExtResource("1")
 archetype = 4
 move_speed = 2.8

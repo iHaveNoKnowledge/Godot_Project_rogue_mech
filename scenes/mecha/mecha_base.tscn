@@ -31,6 +31,7 @@ height = 0.588
 radius = 2.688
 
 [node name="MechaBase" type="CharacterBody3D" unique_id=1003373891]
+transform = Transform3D(1.15, 0, 0, 0, 1.15, 0, 0, 0, 1.15, 0, 0, 0)
 collision_mask = 3
 script = ExtResource("1")
 

@@ -38,6 +38,7 @@ roughness = 0.5
 radius = 2.688
 
 [node name="EnemyRanged" type="CharacterBody3D"]
+transform = Transform3D(1.15, 0, 0, 0, 1.15, 0, 0, 0, 1.15, 0, 0, 0)
 script = ExtResource("1")
 archetype = 1
 move_speed = 4.0

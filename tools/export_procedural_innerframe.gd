@@ -26,21 +26,21 @@ const EXPORT_CONFIGS := [
 
 ## slot -> [node name, local position] — mirrors mecha_base.tscn upper pivots (TRUE WORLD at scale 1.0).
 const UPPER_PIVOTS := {
-	"head": ["Head", Vector3(0, 3.864, -0.0672)],
-	"body": ["Body", Vector3(0, 3.024, 0)],
-	"arm_left": ["ArmLeft", Vector3(-1.1424, 3.444, 0)],
-	"arm_right": ["ArmRight", Vector3(1.1424, 3.444, 0)],
-	"leg_left": ["LegLeft", Vector3(-0.6384, 2.184, 0)],
-	"leg_right": ["LegRight", Vector3(0.6384, 2.184, 0)],
+	"head": ["Head", Vector3(0, 4.4436, -0.07728)],
+	"body": ["Body", Vector3(0, 3.4776, 0)],
+	"arm_left": ["ArmLeft", Vector3(-1.31376, 3.9606, 0)],
+	"arm_right": ["ArmRight", Vector3(1.31376, 3.9606, 0)],
+	"leg_left": ["LegLeft", Vector3(-0.73416, 2.5116, 0)],
+	"leg_right": ["LegRight", Vector3(0.73416, 2.5116, 0)],
 }
 
 ## slot -> lower-joint pivot (null when the slot has none) — mirrors
 ## part_mesh_manager._LOWER_NODE_NAMES plus the tscn transforms (TRUE WORLD).
 const LOWER_PIVOTS := {
-	"arm_left": ["ForearmLeft", Vector3(0, -0.6384, 0)],
-	"arm_right": ["ForearmRight", Vector3(0, -0.6384, 0)],
-	"leg_left": ["ShinLeft", Vector3(0, -0.924, 0)],
-	"leg_right": ["ShinRight", Vector3(0, -0.924, 0)],
+	"arm_left": ["ForearmLeft", Vector3(0, -0.73416, 0)],
+	"arm_right": ["ForearmRight", Vector3(0, -0.73416, 0)],
+	"leg_left": ["ShinLeft", Vector3(0, -1.0626, 0)],
+	"leg_right": ["ShinRight", Vector3(0, -1.0626, 0)],
 }
 
 ## Piece names in the exact order _build_procedural_inner_frame adds them,

@@ -242,16 +242,16 @@ static func scorch_ragdolls(mecha: Node) -> void:
 
 static func _fallback_offset(seg: String) -> Vector3:
 	match seg:
-		"head": return Vector3(0, 3.864, -0.0672)
-		"body": return Vector3(0, 3.024, 0)
-		"arm_left": return Vector3(-1.14, 3.44, 0)
-		"arm_right": return Vector3(1.14, 3.44, 0)
-		"forearm_left": return Vector3(-1.14, 2.80, 0)
-		"forearm_right": return Vector3(1.14, 2.80, 0)
-		"leg_left": return Vector3(-0.64, 2.18, 0)
-		"leg_right": return Vector3(0.64, 2.18, 0)
-		"shin_left": return Vector3(-0.64, 1.26, 0)
-		"shin_right": return Vector3(0.64, 1.26, 0)
+		"head": return Vector3(0, 4.4436, -0.07728)
+		"body": return Vector3(0, 3.4776, 0)
+		"arm_left": return Vector3(-1.311, 3.956, 0)
+		"arm_right": return Vector3(1.311, 3.956, 0)
+		"forearm_left": return Vector3(-1.311, 3.22, 0)
+		"forearm_right": return Vector3(1.311, 3.22, 0)
+		"leg_left": return Vector3(-0.736, 2.507, 0)
+		"leg_right": return Vector3(0.736, 2.507, 0)
+		"shin_left": return Vector3(-0.736, 1.449, 0)
+		"shin_right": return Vector3(0.736, 1.449, 0)
 		_: return Vector3.ZERO
 
 

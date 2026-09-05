@@ -1,0 +1,18 @@
+[gd_resource type="Resource" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://resources/mech/armor_part.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/mecha/parts/leg_right/line_leg_right_upper.glb" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/mecha/parts/leg_right/line_leg_right_lower.glb" id="3"]
+
+[resource]
+script = ExtResource("1")
+part_name = "Titan Line Leg Right"
+slot_id = "leg_right"
+mesh_scene = ExtResource("2")
+mesh_scene_lower = ExtResource("3")
+max_hp = 50.0
+max_frame_hp = 40.0
+weight = 10.0
+armor_class = 30.0
+break_threshold = 0.3
+part_color = Color(0.3, 0.5, 0.7, 1)

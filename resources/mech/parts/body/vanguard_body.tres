@@ -1,0 +1,16 @@
+[gd_resource type="Resource" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://resources/mech/armor_part.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/mecha/parts/body/vanguard_body.glb" id="2"]
+
+[resource]
+script = ExtResource("1")
+part_name = "Colossus Vanguard Body"
+slot_id = "body"
+mesh_scene = ExtResource("2")
+max_hp = 130.0
+max_frame_hp = 104.0
+weight = 24.0
+armor_class = 60.0
+break_threshold = 0.3
+part_color = Color(0.85, 0.45, 0.2, 1)

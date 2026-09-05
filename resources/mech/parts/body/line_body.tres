@@ -1,0 +1,16 @@
+[gd_resource type="Resource" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://resources/mech/armor_part.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/mecha/parts/body/line_body.glb" id="2"]
+
+[resource]
+script = ExtResource("1")
+part_name = "Titan Line Body"
+slot_id = "body"
+mesh_scene = ExtResource("2")
+max_hp = 90.0
+max_frame_hp = 72.0
+weight = 16.0
+armor_class = 40.0
+break_threshold = 0.3
+part_color = Color(0.3, 0.5, 0.7, 1)

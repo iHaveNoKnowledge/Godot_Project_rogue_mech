@@ -7,6 +7,15 @@ script = ExtResource("1")
 armor_catalog = {
 "arm_left": [
 {
+"armor": 40.0,
+"color": Color(0.82, 0.81, 0.79, 1),
+"hp": 50.0,
+"id": "hero3_arm_left",
+"name": "Hero3 Vanguard Arm Left",
+"path": "res://resources/mech/parts/arm_left/hero3_arm_left.tres",
+"type": "Heavy Armor",
+"weight": 11.0
+}, {
 "armor": 45.0,
 "color": Color(0.28, 0.31, 0.35, 1),
 "hp": 55.0,
@@ -140,6 +149,15 @@ armor_catalog = {
 }],
 "arm_right": [
 {
+"armor": 40.0,
+"color": Color(0.82, 0.81, 0.79, 1),
+"hp": 50.0,
+"id": "hero3_arm_right",
+"name": "Hero3 Vanguard Arm Right",
+"path": "res://resources/mech/parts/arm_right/hero3_arm_right.tres",
+"type": "Heavy Armor",
+"weight": 11.0
+}, {
 "armor": 45.0,
 "color": Color(0.28, 0.31, 0.35, 1),
 "hp": 55.0,
@@ -273,6 +291,15 @@ armor_catalog = {
 }],
 "body": [
 {
+"armor": 65.0,
+"color": Color(0.82, 0.81, 0.79, 1),
+"hp": 140.0,
+"id": "hero3_body",
+"name": "Hero3 Vanguard Body",
+"path": "res://resources/mech/parts/body/hero3_body.tres",
+"type": "Heavy Armor",
+"weight": 26.0
+}, {
 "armor": 70.0,
 "color": Color(0.28, 0.31, 0.35, 1),
 "hp": 150.0,
@@ -416,6 +443,15 @@ armor_catalog = {
 }], 
 "head": [
 {
+"armor": 35.0,
+"color": Color(0.82, 0.81, 0.79, 1),
+"hp": 55.0,
+"id": "hero3_head",
+"name": "Hero3 Vanguard Head",
+"path": "res://resources/mech/parts/head/hero3_head.tres",
+"type": "Heavy Armor",
+"weight": 8.0
+}, {
 "armor": 40.0,
 "color": Color(0.28, 0.31, 0.35, 1),
 "hp": 60.0,
@@ -559,6 +595,15 @@ armor_catalog = {
 }], 
 "leg_left": [
 {
+"armor": 48.0,
+"color": Color(0.82, 0.81, 0.79, 1),
+"hp": 75.0,
+"id": "hero3_leg_left",
+"name": "Hero3 Vanguard Leg Left",
+"path": "res://resources/mech/parts/leg_left/hero3_leg_left.tres",
+"type": "Heavy Armor",
+"weight": 17.0
+}, {
 "armor": 50.0,
 "color": Color(0.28, 0.31, 0.35, 1),
 "hp": 80.0,
@@ -692,6 +737,15 @@ armor_catalog = {
 }], 
 "leg_right": [
 {
+"armor": 48.0,
+"color": Color(0.82, 0.81, 0.79, 1),
+"hp": 75.0,
+"id": "hero3_leg_right",
+"name": "Hero3 Vanguard Leg Right",
+"path": "res://resources/mech/parts/leg_right/hero3_leg_right.tres",
+"type": "Heavy Armor",
+"weight": 17.0
+}, {
 "armor": 50.0,
 "color": Color(0.28, 0.31, 0.35, 1),
 "hp": 80.0,

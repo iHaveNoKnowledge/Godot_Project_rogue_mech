@@ -4,7 +4,7 @@
 [ext_resource type="PackedScene" path="res://scenes/mecha/parts/leg_left/wanzer_leg_left_001_lower.tscn" id="3"]
 [resource]
 script = ExtResource("1")
-part_name = "Wanzer Leg Left 001 (HY per-part, clean)"
+part_name = "Wanzer Leg Left 001 (Trellis, clean)"
 slot_id = "leg_left"
 mesh_scene = ExtResource("2")
 mesh_scene_lower = ExtResource("3")

@@ -3,7 +3,7 @@
 [ext_resource type="PackedScene" path="res://scenes/mecha/parts/head/wanzer_head_001_clean.tscn" id="2"]
 [resource]
 script = ExtResource("1")
-part_name = "Wanzer Head 001 (HY per-part, clean)"
+part_name = "Wanzer Head 001 (Trellis, clean)"
 slot_id = "head"
 mesh_scene = ExtResource("2")
 max_hp = 60.0

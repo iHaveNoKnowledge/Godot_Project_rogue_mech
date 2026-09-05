@@ -190,11 +190,22 @@ func _on_combat_ended(_victory: bool) -> void:
 		if amount > 0:
 			LoadoutSystem.add_reserve_ammo(ammo_type, amount)
 	battle_reserve.clear()
-	# Persist whatever the mech is actually carrying so the next battle starts
-	# with the weapons picked up / swapped during this one. Skip while a hand is
-	# still mid-swap (weapon temporarily held out of the hand, not yet committed).
-	if not _selecting_left and not _selecting_right:
-		sync_loadout_to_global()
+
+	# If mid-selection, cancel selection state and restore weapon in hand so hands are never left empty
+	if _selecting_left or _selecting_right:
+		_selecting_left = false
+		_selecting_right = false
+		holding_left = false
+		holding_right = false
+		if left_hand == null and not carry.is_empty():
+			left_hand = carry.pop_front()
+		if right_hand == null and not carry.is_empty():
+			right_hand = carry.pop_front()
+		_enforce_two_hand_grip()
+		_update_weapon_visuals()
+
+	sync_loadout_to_global()
+	HangarManager.save_active()
 
 
 # Writes the current hands + back-carry back into GlobalData.weapons.weapon_loadout so
@@ -918,13 +929,21 @@ func add_ammo(amount: int, hand: String = "", ammo_type: String = "") -> void:
 	if target_type.is_empty():
 		target_type = "kinetic"
 
-	# Ammo found mid-battle is added to the local battle reserve so it is usable
-	# right away; unused leftovers return to the stash when combat ends.
+	# Ammo found mid-battle is added to the local battle reserve so it is usable right away
 	add_battle_reserve(target_type, amount)
+	# Also persist into GlobalData ammo inventory
+	LoadoutSystem.add_reserve_ammo(target_type, amount)
 
-	if target_weapon:
-		var current = _get_ammo(target_weapon)
-		ammo_changed.emit(hand if not hand.is_empty() else "left", current, target_weapon.max_ammo)
+	# If the weapon currently in hand uses this ammo type and magazine has space, top it off directly
+	if target_weapon and target_weapon.get_ammo_type() == target_type:
+		var cur_mag := _get_ammo(target_weapon)
+		var max_mag := target_weapon.max_ammo
+		if cur_mag < max_mag:
+			var needed := max_mag - cur_mag
+			var take := mini(needed, amount)
+			consume_battle_reserve(target_type, take)
+			_set_ammo(target_weapon, cur_mag + take)
+		ammo_changed.emit(hand if not hand.is_empty() else "left", _get_ammo(target_weapon), target_weapon.max_ammo)
 
 
 # ====================================================================

@@ -127,6 +127,7 @@ func advance_to_next_sector() -> void:
 	# and enemy mobilization capacity all stay in sync (never mutate directly).
 	HeatWantedSystem.modify_heat(-2)
 	HeatWantedSystem.escalate_wanted(1, 5)
+	HangarManager.save_active()
 	GlobalData.save_run()
 	EventBus.combat_intensity_changed.emit(0.0)
 	AudioManager.stop_music()
@@ -137,6 +138,7 @@ func advance_to_next_sector() -> void:
 
 func return_to_board() -> void:
 	is_boss_combat = false
+	HangarManager.save_active()
 	GlobalData.save_run()
 	EventBus.combat_intensity_changed.emit(0.0)
 	AudioManager.stop_music()

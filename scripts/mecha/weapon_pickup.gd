@@ -104,8 +104,13 @@ func unload_ammo_to_player(player_body: Node3D = null) -> int:
 			var wm = target.get_node_or_null("WeaponManager")
 			if wm:
 				wm.add_ammo(amount, "", ammo_type)
+			else:
+				LoadoutSystem.add_reserve_ammo(ammo_type, amount)
 		elif target.is_in_group("pilot"):
 			PilotSystem.add_ammo(ammo_type, amount)
+			LoadoutSystem.add_reserve_ammo(ammo_type, amount)
+		else:
+			LoadoutSystem.add_reserve_ammo(ammo_type, amount)
 	else:
 		# Fallback to GlobalData
 		LoadoutSystem.add_reserve_ammo(ammo_type, amount)

@@ -268,6 +268,7 @@ func _grant_take_back_loot() -> void:
 	GlobalData.weapons.battle_loot.clear()
 	_left_items.clear()
 	_right_items.clear()
+	HangarManager.save_active()
 
 
 # Scrap value of a loot entry the player did not take back: the convoy strips

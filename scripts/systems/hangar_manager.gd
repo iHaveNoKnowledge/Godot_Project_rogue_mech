@@ -365,9 +365,10 @@ static func grant_recovery_mech() -> Dictionary:
 
 
 # Parks a recruited character's signature mech as a new convoy berth, assigned
-# to that pilot. `damage` optionally seeds heavy part damage (0..1 per slot) so
-# a salvaged wreck arrives near-broken and repairable. Returns {} on no berth.
-static func park_ally_mech(mech_name: String, pilot_id: String, archetype: int, damage: Dictionary = {}) -> Dictionary:
+# to that pilot. Generates its own independent chassis, frames, armor plates,
+# and unique registered weapons so it never clones or conflicts with the player's mech.
+# `damage` optionally seeds heavy part damage (0..1 per slot) so a salvaged wreck arrives near-broken.
+static func park_ally_mech(mech_name: String, pilot_id: String, archetype: int, damage: Dictionary = {}, custom_weapons: Dictionary = {}) -> Dictionary:
 	if GlobalData.narrative.mech_less:
 		return {}
 	if GlobalData.hangar.hangar_mechs.size() >= get_capacity():
@@ -377,11 +378,93 @@ static func park_ally_mech(mech_name: String, pilot_id: String, archetype: int, 
 	save_active()
 	var mech_id := _new_id()
 	var slot := _next_free_slot()
-	var snapshot := _capture_snapshot(mech_id, mech_name, pilot_id, slot)
-	snapshot["archetype"] = clampi(archetype, ARCHETYPE_RUSHER, ARCHETYPE_SUPPORT)
+	var arch := clampi(archetype, ARCHETYPE_RUSHER, ARCHETYPE_SUPPORT)
+
+	# 1. Determine signature chassis for the ally
+	var chassis := "standard"
+	if arch == ARCHETYPE_RUSHER:
+		chassis = "vanguard"
+	elif arch == ARCHETYPE_HEAVY:
+		chassis = "titan"
+	elif arch == ARCHETYPE_SUPPORT:
+		chassis = "aegis"
+
+	# 2. Independent standard inner frames for all slots
+	var frames: Dictionary = {}
+	for s in GlobalData.MECHA_SLOTS:
+		frames[s] = {
+			"id": "standard_%s" % s,
+			"type": "standard",
+			"name": "Standard %s Frame" % s.capitalize(),
+			"hp": 50.0
+		}
+
+	# 3. Independent standard armor plates for all slots
+	var parts: Dictionary = {}
+	for s in GlobalData.MECHA_SLOTS:
+		var part_id := "standard_%s" % s
+		var inst: Dictionary = ArmorSystem.make_armor_instance_from_catalog(part_id)
+		if not inst.is_empty():
+			parts[s] = inst
+
+	# 4. Signature weapons suited to the character / archetype with fresh unique UIDs
+	var left_path := str(custom_weapons.get("left", ""))
+	var right_path := str(custom_weapons.get("right", ""))
+	var carry_paths = custom_weapons.get("carry", [])
+	if left_path == "" or right_path == "":
+		if arch == ARCHETYPE_RUSHER:
+			left_path = "res://resources/mech/stock/weapon_heat_blade.tres"
+			right_path = "res://resources/mech/stock/weapon_beam_carbine.tres"
+		elif arch == ARCHETYPE_HEAVY:
+			left_path = "res://resources/mech/stock/weapon_combat_shotgun.tres"
+			right_path = "res://resources/mech/stock/weapon_assault_cannon.tres"
+		elif arch == ARCHETYPE_SUPPORT:
+			left_path = "res://resources/mech/stock/weapon_beam_rifle.tres"
+			right_path = "res://resources/mech/stock/weapon_missile.tres"
+		else: # ARCHETYPE_RANGED
+			left_path = "res://resources/mech/stock/weapon_beam_rifle.tres"
+			right_path = "res://resources/mech/stock/weapon_combat_shotgun.tres"
+
+	var left_uid := LoadoutSystem.register_weapon(left_path)
+	var right_uid := LoadoutSystem.register_weapon(right_path)
+	var carry_uids: Array = []
+	if carry_paths is Array:
+		for cp in carry_paths:
+			var cuid := LoadoutSystem.register_weapon(str(cp))
+			if cuid != "":
+				carry_uids.append(cuid)
+
+	var ally_weapon_loadout = {
+		"left": left_uid,
+		"right": right_uid,
+		"carry": carry_uids,
+		"ammo": {
+			"kinetic": 250,
+			"energy": 150,
+			"explosive": 25,
+			"missile": 12,
+		}
+	}
+
+	var snapshot = {
+		"id": mech_id,
+		"name": mech_name,
+		"slot": slot,
+		"pilot": pilot_id,
+		"chassis_id": chassis,
+		"frames": frames,
+		"parts": parts,
+		"damage": {},
+		"attachments": [],
+		"weapon_loadout": ally_weapon_loadout,
+		"scrap_patches": {},
+		"archetype": arch,
+	}
+
 	if not damage.is_empty():
 		for key in damage:
 			snapshot["damage"][key] = clampf(float(damage[key]), 0.0, 1.0)
+
 	GlobalData.hangar.hangar_mechs.append(snapshot)
 	return snapshot
 

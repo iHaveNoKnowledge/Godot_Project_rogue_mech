@@ -192,14 +192,46 @@ static func recruit(character_id: String) -> bool:
 	return true
 
 
+# Helper to retrieve signature weapons for named recruit characters
+static func get_character_signature_weapons(character_id: String) -> Dictionary:
+	match character_id:
+		"serra":
+			return {
+				"left": "res://resources/mech/stock/weapon_combat_shotgun.tres",
+				"right": "res://resources/mech/stock/weapon_assault_cannon.tres",
+				"carry": ["res://resources/mech/stock/weapon_heavy_missile.tres"]
+			}
+		"ren":
+			return {
+				"left": "res://resources/mech/stock/weapon_heat_blade.tres",
+				"right": "res://resources/mech/stock/weapon_beam_carbine.tres",
+				"carry": ["res://resources/mech/stock/weapon_combat_knife.tres"]
+			}
+		"jax":
+			return {
+				"left": "res://resources/mech/stock/weapon_beam_rifle.tres",
+				"right": "res://resources/mech/stock/weapon_missile.tres",
+				"carry": ["res://resources/mech/stock/weapon_machine_gun.tres"]
+			}
+		"vagrant_ace":
+			return {
+				"left": "res://resources/mech/stock/weapon_heat_blade.tres",
+				"right": "res://resources/mech/stock/weapon_beam_rifle_mk2.tres",
+				"carry": ["res://resources/mech/stock/weapon_combat_shotgun.tres"]
+			}
+	return {}
+
+
 # Parks the character's signature mech as a hangar berth piloted by them.
 # Returns a human-readable berth line, or "" when no berth was available.
 static func _park_signature_mech(character: Dictionary, template_id: String) -> String:
+	var weapons := get_character_signature_weapons(str(character.get("id", "")))
 	var mech := HangarManager.park_ally_mech(
 		str(character.get("mech_name", "Recruit Mech")),
 		"fleet_%s" % template_id,
 		int(character.get("archetype", HangarManager.ARCHETYPE_RANGED)),
-		{}
+		{},
+		weapons
 	)
 	if mech.is_empty():
 		return ""
@@ -316,11 +348,13 @@ static func _park_salvage_wreck(character: Dictionary, template_id: String) -> D
 	var damage: Dictionary = {}
 	for slot in GlobalData.MECHA_SLOTS:
 		damage[slot] = randf_range(0.55, 0.95)
+	var weapons := get_character_signature_weapons(str(character.get("id", "")))
 	var mech := HangarManager.park_ally_mech(
 		"%s (Wreck)" % str(character.get("mech_name", "Recruit Mech")),
 		"",
 		int(character.get("archetype", HangarManager.ARCHETYPE_RANGED)),
-		damage
+		damage,
+		weapons
 	)
 	return mech
 

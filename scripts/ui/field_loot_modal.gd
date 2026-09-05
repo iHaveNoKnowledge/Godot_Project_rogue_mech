@@ -28,6 +28,7 @@ var carrier_list_container: VBoxContainer
 var weight_bar: ProgressBar
 var weight_label: Label
 var close_button: Button
+var ammo_hbox: HBoxContainer = null
 
 # Drag & Drop State
 var _drag_data: Dictionary = {}
@@ -214,6 +215,37 @@ func _create_ui() -> void:
 	hsep.add_theme_constant_override("separation", 10)
 	right_content_box.add_child(hsep)
 
+	# --- AMMO RESERVES SECTION (INVENTORY POOL) ---
+	var ammo_panel = PanelContainer.new()
+	var ap_style = StyleBoxFlat.new()
+	ap_style.bg_color = Color(0.06, 0.10, 0.16, 0.9)
+	ap_style.border_width_left = 1
+	ap_style.border_width_right = 1
+	ap_style.border_width_top = 1
+	ap_style.border_width_bottom = 1
+	ap_style.border_color = ACCENT_CYAN.lerp(Color.BLACK, 0.6)
+	ap_style.corner_radius_top_left = 4
+	ap_style.corner_radius_top_right = 4
+	ap_style.corner_radius_bottom_left = 4
+	ap_style.corner_radius_bottom_right = 4
+	ammo_panel.add_theme_stylebox_override("panel", ap_style)
+
+	var ap_margin = MarginContainer.new()
+	ap_margin.add_theme_constant_override("margin_left", 8)
+	ap_margin.add_theme_constant_override("margin_right", 8)
+	ap_margin.add_theme_constant_override("margin_top", 4)
+	ap_margin.add_theme_constant_override("margin_bottom", 4)
+	ammo_panel.add_child(ap_margin)
+
+	ammo_hbox = HBoxContainer.new()
+	ammo_hbox.add_theme_constant_override("separation", 12)
+	ap_margin.add_child(ammo_hbox)
+	right_content_box.add_child(ammo_panel)
+
+	var hsep2 = HSeparator.new()
+	hsep2.add_theme_constant_override("separation", 10)
+	right_content_box.add_child(hsep2)
+
 	# --- BOTTOM SECTION: Field Pack Carrier ---
 	var carrier_header = HBoxContainer.new()
 	var carrier_lbl = Label.new()
@@ -359,7 +391,43 @@ func _refresh_all() -> void:
 	_refresh_ground_panel()
 	_refresh_hands_panel()
 	_refresh_carrier_panel()
+	_refresh_ammo_display()
 	_update_weight_display()
+
+
+func _refresh_ammo_display() -> void:
+	if ammo_hbox == null or not is_instance_valid(ammo_hbox):
+		return
+	for c in ammo_hbox.get_children():
+		c.queue_free()
+
+	var wm = _get_weapon_manager()
+	var ammo_types = [
+		{"type": "kinetic", "label": "KINETIC", "color": Color(0.95, 0.8, 0.35)},
+		{"type": "energy", "label": "ENERGY", "color": Color(0.3, 0.85, 1.0)},
+		{"type": "explosive", "label": "EXPLOSIVE", "color": Color(1.0, 0.45, 0.25)},
+		{"type": "missile", "label": "MISSILE", "color": Color(0.85, 0.4, 0.95)},
+	]
+
+	var title_lbl = Label.new()
+	title_lbl.text = "AMMO RESERVES:"
+	title_lbl.add_theme_font_size_override("font_size", 11)
+	title_lbl.add_theme_color_override("font_color", Color(0.65, 0.75, 0.85))
+	ammo_hbox.add_child(title_lbl)
+
+	for at in ammo_types:
+		var type_str: String = at["type"]
+		var count: int = 0
+		if wm:
+			count = wm.get_battle_reserve(type_str)
+		elif LoadoutSystem:
+			count = LoadoutSystem.get_reserve_ammo(type_str)
+
+		var chip = Label.new()
+		chip.text = "[%s: %d]" % [at["label"], count]
+		chip.add_theme_font_size_override("font_size", 11)
+		chip.add_theme_color_override("font_color", at["color"])
+		ammo_hbox.add_child(chip)
 
 
 # ---------------------------------------------------------------------------
@@ -492,6 +560,8 @@ func _build_ground_item_card(pickup: Node3D) -> PanelContainer:
 	unload_btn.pressed.connect(func():
 		if pickup and is_instance_valid(pickup):
 			var drained = pickup.unload_ammo_to_player(player_entity)
+			if drained > 0 and AudioManager and AudioManager.has_method("play_ui_confirm"):
+				AudioManager.play_ui_confirm()
 			_refresh_all()
 	)
 	actions_row.add_child(unload_btn)

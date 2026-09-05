@@ -8,6 +8,10 @@ download/
 *.fbx
 *.zip
 
+# Hero3 AI meshes: converted .tscn exceed GitHub's 100MB limit.
+# Regenerate locally: Godot --headless --script res://tools/convert_hero3_to_tscn.gd
+scenes/mecha/parts/*/hero3_*.tscn
+
 # OS
 .DS_Store
 Thumbs.db

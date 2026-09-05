@@ -1,0 +1,16 @@
+[gd_resource type="Resource" load_steps=4 format=3]
+[ext_resource type="Script" path="res://resources/mech/armor_part.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/mecha/parts/arm_right/kitbash_shell_arm_right_001_upper.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/mecha/parts/arm_right/kitbash_shell_arm_right_001_lower.tscn" id="3"]
+[resource]
+script = ExtResource("1")
+part_name = "Shell Arm Right 001 (Kitbash)"
+slot_id = "arm_right"
+mesh_scene = ExtResource("2")
+mesh_scene_lower = ExtResource("3")
+max_hp = 45.0
+max_frame_hp = 45.0
+weight = 8.0
+armor_class = 35.0
+break_threshold = 0.3
+part_color = Color(0.72, 0.62, 0.47, 1)

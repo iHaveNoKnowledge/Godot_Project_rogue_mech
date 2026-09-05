@@ -90,6 +90,15 @@ armor_catalog = {
 "path": "res://resources/mech/parts/arm_left/wanzer_local_001.tres",
 "type": "Wanzer Armor",
 "weight": 12.0
+}, {
+"armor": 35.0,
+"color": Color(0.72, 0.62, 0.47, 1),
+"hp": 45.0,
+"id": "shell_arm_left_001",
+"name": "Shell Arm Left 001 (Kitbash)",
+"path": "res://resources/mech/parts/arm_left/shell_001.tres",
+"type": "Wanzer Armor",
+"weight": 8.0
 }],
 "arm_right": [{
 "armor": 15.0,
@@ -176,6 +185,15 @@ armor_catalog = {
 "path": "res://resources/mech/parts/arm_right/wanzer_local_001.tres",
 "type": "Wanzer Armor",
 "weight": 12.0
+}, {
+"armor": 35.0,
+"color": Color(0.72, 0.62, 0.47, 1),
+"hp": 45.0,
+"id": "shell_arm_right_001",
+"name": "Shell Arm Right 001 (Kitbash)",
+"path": "res://resources/mech/parts/arm_right/shell_001.tres",
+"type": "Wanzer Armor",
+"weight": 8.0
 }],
 "body": [{
 "armor": 40.0,
@@ -272,6 +290,15 @@ armor_catalog = {
 "path": "res://resources/mech/parts/body/wanzer_local_001.tres",
 "type": "Wanzer Armor",
 "weight": 12.0
+}, {
+"armor": 35.0,
+"color": Color(0.72, 0.62, 0.47, 1),
+"hp": 45.0,
+"id": "shell_body_001",
+"name": "Shell Body 001 (Kitbash)",
+"path": "res://resources/mech/parts/body/shell_001.tres",
+"type": "Wanzer Armor",
+"weight": 8.0
 }], 
 "head": [{
 "armor": 20.0,
@@ -368,6 +395,15 @@ armor_catalog = {
 "path": "res://resources/mech/parts/head/wanzer_local_001.tres",
 "type": "Wanzer Armor",
 "weight": 12.0
+}, {
+"armor": 35.0,
+"color": Color(0.72, 0.62, 0.47, 1),
+"hp": 45.0,
+"id": "shell_head_001",
+"name": "Shell Head 001 (Kitbash)",
+"path": "res://resources/mech/parts/head/shell_001.tres",
+"type": "Wanzer Armor",
+"weight": 8.0
 }], 
 "leg_left": [{
 "armor": 20.0,
@@ -454,6 +490,15 @@ armor_catalog = {
 "path": "res://resources/mech/parts/leg_left/wanzer_local_001.tres",
 "type": "Wanzer Armor",
 "weight": 12.0
+}, {
+"armor": 35.0,
+"color": Color(0.72, 0.62, 0.47, 1),
+"hp": 45.0,
+"id": "shell_leg_left_001",
+"name": "Shell Leg Left 001 (Kitbash)",
+"path": "res://resources/mech/parts/leg_left/shell_001.tres",
+"type": "Wanzer Armor",
+"weight": 8.0
 }], 
 "leg_right": [{
 "armor": 20.0,
@@ -540,6 +585,15 @@ armor_catalog = {
 "path": "res://resources/mech/parts/leg_right/wanzer_local_001.tres",
 "type": "Wanzer Armor",
 "weight": 12.0
+}, {
+"armor": 35.0,
+"color": Color(0.72, 0.62, 0.47, 1),
+"hp": 45.0,
+"id": "shell_leg_right_001",
+"name": "Shell Leg Right 001 (Kitbash)",
+"path": "res://resources/mech/parts/leg_right/shell_001.tres",
+"type": "Wanzer Armor",
+"weight": 8.0
 }], 
 "weapon_left": [{
 "armor": 0.0,

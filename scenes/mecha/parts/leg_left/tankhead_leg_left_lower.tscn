@@ -65,8 +65,8 @@ _surfaces = [{
 }]
 blend_shape_mode = 0
 
-[node name="tankhead_leg_left_lower2" type="Node3D" unique_id=909083303]
+[node name="tankhead_leg_left_lower2" type="Node3D" unique_id=334480051]
 
-[node name="tankhead_leg_left_lower" type="MeshInstance3D" parent="." unique_id=2021231698]
+[node name="tankhead_leg_left_lower" type="MeshInstance3D" parent="." unique_id=53143557]
 mesh = SubResource("ArrayMesh_rlxi2")
 skeleton = NodePath("")

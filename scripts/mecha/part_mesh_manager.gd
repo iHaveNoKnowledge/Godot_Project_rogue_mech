@@ -870,17 +870,40 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 			core.material_override = chrome_mat
 			upper_container.add_child(core)
 
-			for side_x in [-0.42, 0.42]:
+			# Shoulder Clavicle Axles & Sockets connecting body to arm shoulder pivots (X = ±0.782, Y = 0.288)
+			for side_sign in [-1.0, 1.0]:
+				# Horizontal Clavicle Axle Beam from spine out to shoulder
+				var clavicle = MeshInstance3D.new()
+				var cl_cyl = CylinderMesh.new()
+				cl_cyl.top_radius = 0.08
+				cl_cyl.bottom_radius = 0.08
+				cl_cyl.height = 0.48
+				clavicle.mesh = cl_cyl
+				clavicle.rotation_degrees.z = 90
+				clavicle.position = Vector3(side_sign * 0.54, 0.288, 0)
+				clavicle.material_override = chrome_mat
+				upper_container.add_child(clavicle)
+
+				# Outer Shoulder Socket Cup that cups the arm shoulder ball
 				var socket = MeshInstance3D.new()
 				var s_cyl = CylinderMesh.new()
-				s_cyl.top_radius = 0.14
-				s_cyl.bottom_radius = 0.14
-				s_cyl.height = 0.16
+				s_cyl.top_radius = 0.16
+				s_cyl.bottom_radius = 0.16
+				s_cyl.height = 0.14
 				socket.mesh = s_cyl
 				socket.rotation_degrees.z = 90
-				socket.position = Vector3(side_x, 0.28, 0)
+				socket.position = Vector3(side_sign * 0.76, 0.288, 0)
 				socket.material_override = frame_mat
 				upper_container.add_child(socket)
+
+				# Inner Shoulder Hub
+				var inner_hub = MeshInstance3D.new()
+				var h_box = BoxMesh.new()
+				h_box.size = Vector3(0.24, 0.26, 0.26)
+				inner_hub.mesh = h_box
+				inner_hub.position = Vector3(side_sign * 0.38, 0.288, 0)
+				inner_hub.material_override = frame_mat
+				upper_container.add_child(inner_hub)
 
 			var waist = MeshInstance3D.new()
 			var w_cyl = CylinderMesh.new()
@@ -902,6 +925,63 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 				piston.position = Vector3(piston_x, -0.24, 0)
 				piston.material_override = chrome_mat
 				upper_container.add_child(piston)
+
+			# --- PELVIS / HIP GIRDLE CHASSIS (connects waist directly to leg hip pivots X = ±0.529, Y = -0.518) ---
+			# 1. Central Pelvis / Sacrum Core
+			var pelvis = MeshInstance3D.new()
+			var p_box = BoxMesh.new()
+			p_box.size = Vector3(0.38, 0.18, 0.32)
+			pelvis.mesh = p_box
+			pelvis.position = Vector3(0, -0.48, 0)
+			pelvis.material_override = frame_mat
+			upper_container.add_child(pelvis)
+
+			# 2. Transverse Hip Axle Beam bridging from waist to left & right hip joints
+			var hip_axle = MeshInstance3D.new()
+			var a_cyl = CylinderMesh.new()
+			a_cyl.top_radius = 0.09
+			a_cyl.bottom_radius = 0.09
+			a_cyl.height = 1.06
+			hip_axle.mesh = a_cyl
+			hip_axle.rotation_degrees.z = 90
+			hip_axle.position = Vector3(0, -0.518, 0)
+			hip_axle.material_override = chrome_mat
+			upper_container.add_child(hip_axle)
+
+			# 3. Left & Right Hip Ball Socket Cups (Enclosing the leg hip spheres!)
+			for hip_sign in [-1.0, 1.0]:
+				var hip_socket = MeshInstance3D.new()
+				var hs_cyl = CylinderMesh.new()
+				hs_cyl.top_radius = 0.18
+				hs_cyl.bottom_radius = 0.18
+				hs_cyl.height = 0.14
+				hip_socket.mesh = hs_cyl
+				hip_socket.rotation_degrees.z = 90
+				hip_socket.position = Vector3(hip_sign * 0.529, -0.518, 0)
+				hip_socket.material_override = frame_mat
+				upper_container.add_child(hip_socket)
+
+				# Diagonal Hip Hydraulic Brace from pelvis to hip socket
+				var brace = MeshInstance3D.new()
+				var b_cyl = CylinderMesh.new()
+				b_cyl.top_radius = 0.04
+				b_cyl.bottom_radius = 0.04
+				b_cyl.height = 0.22
+				brace.mesh = b_cyl
+				brace.rotation_degrees.z = hip_sign * 45.0
+				brace.position = Vector3(hip_sign * 0.32, -0.45, 0)
+				brace.material_override = chrome_mat
+				upper_container.add_child(brace)
+
+			# 4. Front Groin / Crotch Armor Deflector
+			var crotch = MeshInstance3D.new()
+			var c_box = BoxMesh.new()
+			c_box.size = Vector3(0.24, 0.22, 0.18)
+			crotch.mesh = c_box
+			crotch.position = Vector3(0, -0.52, -0.12)
+			crotch.rotation_degrees.x = -15.0
+			crotch.material_override = frame_mat
+			upper_container.add_child(crotch)
 
 		"arm_left", "arm_right":
 			# --- UPPER ARM SEGMENT (Attaches to Shoulder Pivot ArmLeft/ArmRight) ---
@@ -1152,6 +1232,36 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 			ab_plate.position = Vector3(0, -0.28, -0.10)
 			ab_plate.material_override = armor_mat
 			upper_container.add_child(ab_plate)
+
+			# Shoulder cowls extending outward to bridge torso to shoulder pivots
+			for side_x in [-0.58, 0.58]:
+				var shoulder_cowl = MeshInstance3D.new()
+				var sc_box = BoxMesh.new()
+				sc_box.size = Vector3(0.34, 0.28, 0.38)
+				shoulder_cowl.mesh = sc_box
+				shoulder_cowl.position = Vector3(side_x, 0.22, -0.02)
+				shoulder_cowl.material_override = dark_trim_mat
+				upper_container.add_child(shoulder_cowl)
+
+			# Pelvis chassis & hip girdle (bridges waist to leg hip joints)
+			var pelvis_armor = MeshInstance3D.new()
+			var p_box = BoxMesh.new()
+			p_box.size = Vector3(0.68, 0.24, 0.36)
+			pelvis_armor.mesh = p_box
+			pelvis_armor.position = Vector3(0, -0.48, -0.04)
+			pelvis_armor.material_override = dark_trim_mat
+			upper_container.add_child(pelvis_armor)
+
+			# Left & right articulated hip skirts (cover hip sockets and connect waist to thighs)
+			for side_x in [-0.50, 0.50]:
+				var skirt = MeshInstance3D.new()
+				var sk_box = BoxMesh.new()
+				sk_box.size = Vector3(0.12, 0.34, 0.38)
+				skirt.mesh = sk_box
+				skirt.position = Vector3(side_x, -0.48, -0.02)
+				skirt.rotation_degrees.z = -12.0 if side_x < 0 else 12.0
+				skirt.material_override = armor_mat
+				upper_container.add_child(skirt)
 
 		"arm_left", "arm_right":
 			var is_left = slot_name.to_lower() == "arm_left"

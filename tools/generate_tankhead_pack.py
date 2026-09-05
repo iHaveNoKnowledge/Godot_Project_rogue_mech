@@ -226,16 +226,24 @@ def build_tankhead_body(mat_armor, mat_dark, mat_accent):
     collar_back = create_box("body_collar_back", (0, -0.18, 0.78), (0.66, 0.12, 0.34), mat=mat_armor)
     objs.extend([collar_l, collar_r, collar_front, collar_back])
     
-    # 5. Side Torso Sponsons / Heavy Shoulder Sockets
-    side_l = create_box("body_side_l", (-0.54, 0.0, 0.26), (0.24, 0.54, 0.64), mat=mat_dark)
-    side_r = create_box("body_side_r", (0.54, 0.0, 0.26), (0.24, 0.54, 0.64), mat=mat_dark)
-    objs.extend([side_l, side_r])
+    # 5. Side Torso Sponsons / Heavy Shoulder Sockets (Bridges outward to shoulder pivot at X = ±0.78m)
+    side_l = create_box("body_side_l", (-0.64, 0.0, 0.26), (0.36, 0.54, 0.64), mat=mat_dark)
+    side_r = create_box("body_side_r", (0.64, 0.0, 0.26), (0.36, 0.54, 0.64), mat=mat_dark)
+    cowl_l = create_box("body_cowl_l", (-0.68, 0.04, 0.38), (0.30, 0.42, 0.22), mat=mat_armor)
+    cowl_r = create_box("body_cowl_r", (0.68, 0.04, 0.38), (0.30, 0.42, 0.22), mat=mat_armor)
+    objs.extend([side_l, side_r, cowl_l, cowl_r])
     
-    # 6. Segmented Abdomen / Groin Armor
+    # 6. Segmented Abdomen / Groin Armor & Pelvis Hip Girdle
     ab_mid = create_box("body_ab_mid", (0, 0.20, -0.14), (0.60, 0.20, 0.24), mat=mat_armor)
     ab_low = create_box("body_ab_low", (0, 0.16, -0.32), (0.52, 0.22, 0.22), mat=mat_armor)
     pelvis = create_box("body_pelvis", (0, 0.08, -0.48), (0.42, 0.36, 0.20), rot=(math.radians(-18), 0, 0), mat=mat_dark)
-    objs.extend([ab_mid, ab_low, pelvis])
+    
+    # Transverse Pelvis Chassis / Hip Cross-Member (bridges waist to leg hips at X = ±0.53m, Z = -0.52m)
+    pelvis_chassis = create_box("body_pelvis_chassis", (0, 0.0, -0.48), (1.12, 0.46, 0.28), mat=mat_dark)
+    # Left & Right Articulated Hip Skirts
+    skirt_l = create_box("body_skirt_l", (-0.56, 0.02, -0.48), (0.12, 0.50, 0.36), rot=(0, math.radians(-12), 0), mat=mat_armor)
+    skirt_r = create_box("body_skirt_r", (0.56, 0.02, -0.48), (0.12, 0.50, 0.36), rot=(0, math.radians(12), 0), mat=mat_armor)
+    objs.extend([ab_mid, ab_low, pelvis, pelvis_chassis, skirt_l, skirt_r])
     
     # 7. Rear Powerpack / Reactor Housing & Cowls
     reactor = create_box("body_reactor", (0, -0.36, 0.22), (0.76, 0.34, 0.72), mat=mat_dark)
@@ -258,6 +266,10 @@ def build_tankhead_arm_upper(mat_armor, mat_dark, mat_accent):
     # Main Shoulder Pauldron Block
     pauldron = create_box("arm_pauldron", (0, 0, -0.12), (0.52, 0.52, 0.34), mat=mat_armor)
     objs.append(pauldron)
+    
+    # Inner Inset Flange (Bridges inward towards torso)
+    inner_flange = create_box("arm_inner_flange", (0.16, 0, -0.06), (0.24, 0.44, 0.26), mat=mat_dark)
+    objs.append(inner_flange)
     
     # Outer Applique Shoulder Armor Slab
     outer_slab = create_box("arm_outer_slab", (-0.28, 0, -0.12), (0.08, 0.48, 0.36), mat=mat_accent)

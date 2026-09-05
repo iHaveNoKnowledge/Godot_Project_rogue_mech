@@ -63,7 +63,7 @@ func _ready() -> void:
 	
 	# Initialize each slot with Tankhead part
 	for slot in slots:
-		var part: ArmorPart = parts.get(slot)
+		var part = parts.get(slot)
 		if part != null:
 			pmm.initialize_slot(slot, part, false)
 			print("Initialized slot %s with %s" % [slot, part.part_name])

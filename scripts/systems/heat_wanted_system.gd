@@ -52,56 +52,56 @@ func decay_notoriety_memory() -> void:
 		GlobalData.narrative.max_notoriety_multiplier = maxf(GlobalData.narrative.max_notoriety_multiplier - 0.05, 1.0)
 
 
+## Initializes heat for an extraction contract based on min/max heat settings.
+func init_contract_heat(min_stars: int, max_stars: int) -> void:
+	GlobalData.board.extraction_min_heat = min_stars
+	GlobalData.board.extraction_max_heat = max_stars
+	# 1 star = ~2 heat points, 2 stars = ~5 heat points, etc.
+	var initial_heat = min_stars * 3
+	GlobalData.board.heat = initial_heat
+	_update_wanted()
+	update_enemy_mobilization_capacity()
+
+
+## Called on each player move step in extraction mode
+func on_player_step_heat() -> void:
+	GlobalData.board.mission_step_count += 1
+	# Accumulate 1 heat point every 4 movement steps
+	if GlobalData.board.mission_step_count % 4 == 0:
+		modify_heat(1)
+
+
 func modify_heat(amount: int) -> void:
-	GlobalData.board.heat = clampi(GlobalData.board.heat + amount, 0, max_heat)
+	var min_h := GlobalData.board.extraction_min_heat * 3
+	var max_h := GlobalData.board.extraction_max_heat * 3
+	GlobalData.board.heat = clampi(GlobalData.board.heat + amount, min_h, max_h)
 	EventBus.heat_changed.emit(GlobalData.board.heat)
 	_update_wanted()
-	update_enemy_mobilization_capacity() # ขยายหรือล็อกขนาดสัดส่วนทัพสูงสุด
-	# Faction: heat rise makes enemy aware of us -> may trigger R&D
+	update_enemy_mobilization_capacity()
 	if ResourceLoader.exists("res://scripts/systems/faction_system.gd"):
 		var FS2 = load("res://scripts/systems/faction_system.gd")
 		FS2.evaluate_triggers()
 
 
-# ล็อกและปลดล็อกการระดมพลตามระบบ Heat (Early/Late Game Gates)
-func update_enemy_mobilization_capacity() -> void:
-	var heat = GlobalData.board.heat
-	
-	if heat < 3:
-		# ช่วงต้นเกม (Tutorial Zone): ล็อกกำลังพลศัตรูไว้ระดับต่ำสุดเพื่อฝึกซ้อมฝีมือ
-		GlobalData.narrative.enemy_forces["grunt_max"] = 20
-		GlobalData.narrative.enemy_forces["ace_max"] = 2
-		GlobalData.narrative.enemy_forces["boss_max"] = 1
-	elif heat >= 3 and heat < 7:
-		GlobalData.narrative.enemy_forces["grunt_max"] = 60
-		GlobalData.narrative.enemy_forces["ace_max"] = 4
-		GlobalData.narrative.enemy_forces["boss_max"] = 1
-	elif heat >= 7 and heat < 11:
-		GlobalData.narrative.enemy_forces["grunt_max"] = 110
-		GlobalData.narrative.enemy_forces["ace_max"] = 6
-		GlobalData.narrative.enemy_forces["boss_max"] = 1
-	else: # Heat 11+ (Late Game)
-		GlobalData.narrative.enemy_forces["grunt_max"] = 150
-		GlobalData.narrative.enemy_forces["ace_max"] = 8
-		GlobalData.narrative.enemy_forces["boss_max"] = 2
-
-
-func add_wave_heat() -> void:
-	modify_heat(3)
-
-
 func _update_wanted() -> void:
-	# Heat thresholds push wanted up to 3; sector progression escalates it
-	# further via escalate_wanted(). The escalation acts as a floor so a
-	# heat cool-down never undoes the run's progression.
-	var heat_derived = 0
-	for threshold in wanted_thresholds:
-		if GlobalData.board.heat >= threshold:
-			heat_derived += 1
-	var new_wanted = maxi(heat_derived, GlobalData.board.wanted_escalation)
-	if new_wanted != GlobalData.board.wanted_level:
-		GlobalData.board.wanted_level = new_wanted
-		EventBus.wanted_changed.emit(new_wanted)
+	# Calculate 1 to 5 Stars (GTA-style)
+	var stars: int = 1
+	var h: int = GlobalData.board.heat
+	if h >= 14:
+		stars = 5
+	elif h >= 11:
+		stars = 4
+	elif h >= 8:
+		stars = 3
+	elif h >= 5:
+		stars = 2
+	else:
+		stars = 1
+
+	stars = clampi(stars, GlobalData.board.extraction_min_heat, GlobalData.board.extraction_max_heat)
+	if stars != GlobalData.board.wanted_level:
+		GlobalData.board.wanted_level = stars
+		EventBus.wanted_changed.emit(stars)
 
 
 # Sector progression: the run gets hotter each sector even after heat cools
@@ -116,3 +116,21 @@ func escalate_wanted(amount: int = 1, max_wanted: int = 5) -> void:
 func get_enemy_force_multiplier() -> float:
 	# คำนวณความใหญ่จาก Notoriety Memory เป็นหลักเพื่อให้ศัตรูยังระแวงอยู่
 	return GlobalData.narrative.max_notoriety_multiplier * (1.0 + (GlobalData.board.wanted_level * 0.15))
+
+
+## Updates enemy mobilization capacity based on current wanted/heat level and sector progression
+func update_enemy_mobilization_capacity() -> void:
+	var wanted := GlobalData.board.wanted_level
+	var sector := GlobalData.board.current_sector
+	var base_grunts := 10 + (sector - 1) * 5 + wanted * 3
+	var base_aces := 1 + (sector - 1) + (1 if wanted >= 3 else 0)
+	GlobalData.narrative.enemy_forces["grunt_max"] = base_grunts
+	GlobalData.narrative.enemy_forces["ace_max"] = base_aces
+	GlobalData.narrative.enemy_forces["grunt_current"] = mini(
+		int(GlobalData.narrative.enemy_forces.get("grunt_current", base_grunts)),
+		base_grunts
+	)
+	GlobalData.narrative.enemy_forces["ace_current"] = mini(
+		int(GlobalData.narrative.enemy_forces.get("ace_current", base_aces)),
+		base_aces
+	)

@@ -604,6 +604,204 @@ static func advance_day(player_pos: Vector2i) -> Vector2i:
 	return ambush
 
 
+# Advances fleets on EVERY player step in Extraction Run Mode.
+# Fleets move up to their Archetype MP (scaled per step: Recon 2-3, HK 2, Armored 1).
+# At high wanted level (4★, 5★), reinforcement fleets can dynamically spawn.
+# Also directs scavengers / hostiles to investigate abandoned player mech wrecks.
+static func advance_step_turn(player_pos: Vector2i) -> Vector2i:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = GlobalData.board.mission_step_count * 313 + GlobalData.board.board_seed
+	var nodes: Dictionary = {}
+	var grid: Array = GlobalData.board.board_grid
+	if not grid.is_empty() and grid[0] is Dictionary:
+		nodes = grid[0]
+
+	var occupied: Dictionary = {}
+	for p in GlobalData.board.board_patrols:
+		occupied[p.get("pos")] = true
+
+	# Wanted level affects detection distance: Wanted 1★ = base 4, 5★ = base 4 + 4 = 8
+	var wanted_bonus: int = clampi(GlobalData.board.wanted_level - 1, 0, 4)
+	var detect := DETECT_BASE + clampi(GlobalData.board.patrol_alert, 0, ALERT_MAX) + wanted_bonus
+	var saw_player := false
+	var ambush := Vector2i(-1, -1)
+
+	# High wanted star dynamic reinforcements (every ~10-15 steps at wanted >= 4)
+	_check_high_heat_reinforcements(nodes, occupied, rng, player_pos)
+
+	for p in GlobalData.board.board_patrols:
+		normalize_patrol(p)
+		var cur: Vector2i = p.get("pos")
+		var home: Vector2i = p.get("home")
+		var dist := _manhattan(cur, player_pos)
+		var archetype: String = str(p.get("archetype", "armored"))
+		var fleet_mp: int = int(BoardConfig.FLEET_ARCHETYPES.get(archetype, {}).get("mp", 1))
+
+		var is_unknown := str(p.get("faction", "hostile")) == "unknown"
+		var is_scavenger := str(p.get("faction", "hostile")) == "scavenger"
+
+		if not is_unknown and dist <= detect:
+			p["aggro"] = true
+			GlobalData.board.patrol_last_seen = player_pos
+			saw_player = true
+		elif p.get("aggro", false) and dist > detect + 4:
+			p["aggro"] = false
+
+		# In extraction step-turn, active aggro units step according to archetype:
+		# Recon moves 2 steps, Hunter-Killer 2 steps, Armored/Boss 1 step per player step
+		var steps_to_take := 1
+		if p.get("aggro", false):
+			steps_to_take = maxi(1, int(ceil(float(fleet_mp) * 0.5)))
+		elif is_scavenger:
+			steps_to_take = 1
+
+		for step in range(steps_to_take):
+			var next := cur
+			# Priority 1: If aggro, hunt player
+			if p.get("aggro", false):
+				next = _step_toward(cur, player_pos, nodes, occupied, rng)
+			# Priority 2: If abandoned player mech wrecks exist, investigate nearest wreck
+			elif not GlobalData.board.abandoned_mech_wrecks.is_empty() and (is_scavenger or rng.randf() < 0.5):
+				var target_wreck := _find_nearest_wreck(cur)
+				if target_wreck != Vector2i(-1, -1):
+					next = _step_toward(cur, target_wreck, nodes, occupied, rng)
+				else:
+					next = _wander(cur, home, nodes, occupied, rng)
+			# Priority 3: Convergence on last seen trail
+			elif not is_unknown and GlobalData.board.patrol_last_seen != Vector2i(-1, -1) and rng.randf() < 0.6:
+				next = _step_toward(cur, GlobalData.board.patrol_last_seen, nodes, occupied, rng)
+			# Priority 4: Wander
+			elif rng.randf() < 0.5:
+				next = _wander(cur, home, nodes, occupied, rng)
+
+			if next != cur:
+				occupied.erase(cur)
+				occupied[next] = true
+				p["prev_pos"] = cur
+				p["pos"] = next
+				p["dir"] = next - cur
+				cur = next
+				if next == player_pos:
+					ambush = next
+					break
+
+	_merge_coincident_fleets()
+	_process_parked_convoy_seizure(nodes, rng, player_pos)
+	_process_abandoned_mech_salvage(rng)
+
+	if saw_player:
+		GlobalData.board.patrol_alert = mini(GlobalData.board.patrol_alert + 1, ALERT_MAX)
+	else:
+		GlobalData.board.patrol_alert = maxi(GlobalData.board.patrol_alert - 1, 0)
+	return ambush
+
+
+static func _find_nearest_wreck(from_pos: Vector2i) -> Vector2i:
+	var best_pos := Vector2i(-1, -1)
+	var best_dist := 99999
+	for wreck_key in GlobalData.board.abandoned_mech_wrecks:
+		var parts = str(wreck_key).split(",")
+		if parts.size() >= 2:
+			var w_pos := Vector2i(int(parts[0]), int(parts[1]))
+			var d := _manhattan(from_pos, w_pos)
+			if d < best_dist:
+				best_dist = d
+				best_pos = w_pos
+	return best_pos
+
+
+static func _process_abandoned_mech_salvage(rng: RandomNumberGenerator) -> void:
+	if GlobalData.board.abandoned_mech_wrecks.is_empty():
+		return
+	var to_erase: Array = []
+	for wreck_key in GlobalData.board.abandoned_mech_wrecks:
+		var parts = str(wreck_key).split(",")
+		if parts.size() >= 2:
+			var w_pos := Vector2i(int(parts[0]), int(parts[1]))
+			var patrol := get_patrol_at(w_pos)
+			if not patrol.is_empty():
+				to_erase.append(wreck_key)
+				var mech_data = GlobalData.board.abandoned_mech_wrecks[wreck_key]
+				var mech_name = str(mech_data.get("name", "Player Mech"))
+				GlobalData.board.run_notice = "⚠️ SALVAGE STOLEN: Hostile scavengers seized our abandoned chassis [%s] at %s!" % [mech_name, str(w_pos)]
+	for k in to_erase:
+		GlobalData.board.abandoned_mech_wrecks.erase(k)
+
+
+static func _check_high_heat_reinforcements(nodes: Dictionary, occupied: Dictionary, rng: RandomNumberGenerator, player_pos: Vector2i) -> void:
+	if GlobalData.board.wanted_level < 4:
+		return
+	# Only spawn reinforcement periodically
+	var step_cnt := GlobalData.board.mission_step_count
+	var interval := 12 if GlobalData.board.wanted_level == 4 else 8
+	if step_cnt <= 0 or step_cnt % interval != 0:
+		return
+
+	# Limit total active patrols to avoid flooding map
+	if GlobalData.board.board_patrols.size() >= 10:
+		return
+
+	# Find edge tile 6 to 12 tiles from player
+	var spawn_candidates: Array[Vector2i] = []
+	for k in nodes:
+		var dist := _manhattan(k, player_pos)
+		if dist >= 7 and dist <= 14 and not occupied.has(k):
+			if BoardConfig.is_passable(nodes[k].get_meta("terrain", "plain")):
+				var tt: String = nodes[k].get_meta("tile_type", "empty")
+				if not (tt in ["start", "exit", "safehouse"]):
+					spawn_candidates.append(k)
+
+	if spawn_candidates.is_empty():
+		return
+
+	var spawn_pos: Vector2i = spawn_candidates[rng.randi() % spawn_candidates.size()]
+	var arch := "hunter_killer" if GlobalData.board.wanted_level >= 5 else "recon"
+	var max_id := 0
+	for p in GlobalData.board.board_patrols:
+		max_id = maxi(max_id, int(p.get("id", 0)))
+
+	var faction_paint := _build_faction_paint(arch)
+	var fleet_data: Dictionary = PilotGenerator.generate_enemy_fleet(
+		2 + GlobalData.board.current_sector,
+		"QRF Strike",
+		GlobalData.board.current_sector,
+		faction_paint
+	)
+	var squad_name: String = "⚠️ QRF %s %d" % [arch.to_upper(), max_id + 1]
+	fleet_data["squad_name"] = squad_name
+	var pilots: Array = fleet_data.get("pilots", [])
+	var commander: Dictionary = fleet_data.get("commander", {}) if not pilots.is_empty() else {}
+
+	var new_patrol := {
+		"id": max_id + 1,
+		"pos": spawn_pos,
+		"home": spawn_pos,
+		"prev_pos": spawn_pos,
+		"name": squad_name,
+		"grunts": 2,
+		"aces": 1 if GlobalData.board.wanted_level >= 5 else 0,
+		"archetype": arch,
+		"aggro": true,
+		"faction": "hostile",
+		"character_id": "",
+		"dir": Vector2i(1, 0),
+		"commander": commander,
+		"pilots": pilots,
+		"squad_id": fleet_data.get("squad_id", ""),
+		"squad_name": squad_name,
+		"formation": "wedge",
+		"fleet_count": 1,
+		"merged_fleets": [],
+	}
+	normalize_patrol(new_patrol)
+	GlobalData.board.board_patrols.append(new_patrol)
+	occupied[spawn_pos] = true
+	GlobalData.board.run_notice = "🚨 REINFORCEMENTS DETECTED: Heat level %d★ triggered hostile QRF dropship at sector perimeter (%d,%d)!" % [
+		GlobalData.board.wanted_level, spawn_pos.x, spawn_pos.y
+	]
+
+
+
 # Advances hostile patrols during a vehicle breakdown emergency repair turn:
 # all active hostile fleets converge directly toward the stranded player's tile.
 # Returns the ambush tile position if any fleet intercepted the player.

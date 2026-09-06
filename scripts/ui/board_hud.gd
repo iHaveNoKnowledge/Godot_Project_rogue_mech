@@ -879,16 +879,33 @@ func _refresh() -> void:
 	_mp_bar.modulate = Color(1.0, 0.4, 0.35) if mp <= 0 else Color.WHITE
 
 	var alert := GlobalData.board.patrol_alert
-	_alert_label.text = "ALERT LEVEL: %d (TIER %d)" % [alert, GlobalData.narrative.enemy_tech_tier]
-	_alert_bar.value = float(alert)
+	var wanted := GlobalData.board.wanted_level
+	var stars := ""
+	for s in range(5):
+		stars += "★" if s < wanted else "☆"
+	_alert_label.text = "THREAT [%s] %d★ (Alert %d)" % [stars, wanted, alert]
+	_alert_bar.max_value = 5.0
+	_alert_bar.value = float(wanted)
 
-	var obj: Dictionary = _BoardSystem.get_objective()
-	var prog := GlobalData.board.board_objective_progress
-	var req := GlobalData.board.board_objective_required
-	var pct := int(float(prog) / maxi(req, 1) * 100.0)
-	_objective_label.text = "OBJECTIVE: %s (%d%%)\n%d / %d — %s" % [
-		obj.get("name", "Objective"), pct, prog, req, _BoardSystem.objective_desc()
-	]
+	if not GlobalData.board.active_contract.is_empty():
+		var contract = GlobalData.board.active_contract
+		var c_name = str(contract.get("name", "Extraction Run"))
+		var primary_obj = contract.get("primary_objective", {})
+		var p_desc = str(primary_obj.get("desc", "Complete primary objective"))
+		var p_status = "✅" if GlobalData.board.primary_objective_done else "❌"
+		var ex_status = "🟢 LZ UNLOCKED" if GlobalData.board.extraction_unlocked else "🔒 LZ LOCKED"
+
+		_objective_label.text = "CONTRACT: %s\n%s [PRI] %s\n• %s (Reach Extraction LZ)" % [
+			c_name, p_status, p_desc, ex_status
+		]
+	else:
+		var obj: Dictionary = _BoardSystem.get_objective()
+		var prog := GlobalData.board.board_objective_progress
+		var req := GlobalData.board.board_objective_required
+		var pct := int(float(prog) / maxi(req, 1) * 100.0)
+		_objective_label.text = "OBJECTIVE: %s (%d%%)\n%d / %d — %s" % [
+			obj.get("name", "Objective"), pct, prog, req, _BoardSystem.objective_desc()
+		]
 
 	# Ceasefire Status
 	if _ceasefire_label:

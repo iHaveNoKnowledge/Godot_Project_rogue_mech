@@ -83,8 +83,87 @@ static func energy_cost(terrain: String, is_roller: bool = false) -> float:
 			return 35.0 # Roller Dash off-road penalty: -35 Energy
 	return float(TERRAIN_ENERGY.get(terrain, 20.0))
 
-# Default grid dimensions for a sector's open board (expanded for strategic breath and open spaces).
-const GRID_SIZE: int = 25
+# Default grid dimensions for a sector's open board (expanded for strategic extraction runs).
+const GRID_SIZE: int = 35
+
+# -----------------------------------------------------------------------------
+# EXTRACTION CONTRACTS
+# Procedural contracts offered at the start of a sector run. Each contract defines
+# a Primary Objective, optional Secondaries, Min/Max Heat stars, and extraction rewards.
+# -----------------------------------------------------------------------------
+const EXTRACTION_CONTRACTS: Dictionary = {
+	"destroy_comms": {
+		"id": "destroy_comms",
+		"name": "Operation: Blackout Relay",
+		"theme": "suburb",
+		"desc": "Infiltrate deep behind enemy lines and demolish the regional Comms Relay Array. Once communications are severed, reach the extraction LZ before airborne hunter squads locate your signal.",
+		"primary": {
+			"id": "destroy_relay",
+			"name": "Demolish Comms Array",
+			"target_tile_type": "comms_relay",
+			"desc": "Locate and neutralize the fortified Comms Relay Array facility."
+		},
+		"secondaries": [
+			{"id": "hack_intel", "name": "Extract Encryption Core", "target_tile_type": "data_node", "desc": "Hack an auxiliary data terminal (+150 cr, +2 Cores).", "reward_credits": 150, "reward_scrap": 20},
+			{"id": "destroy_patrol", "name": "Silence Patrol Vanguard", "desc": "Eliminate at least 2 hostile patrol fleets (+100 cr).", "target_count": 2, "reward_credits": 100, "reward_scrap": 30}
+		],
+		"min_heat": 2,
+		"max_heat": 5,
+		"reward_credits": 600,
+		"reward_scrap": 80,
+	},
+	"prototype_heist": {
+		"id": "prototype_heist",
+		"name": "Operation: Stolen Core",
+		"theme": "desert",
+		"desc": "A convoy transporting a prototype energy reactor has broken down in the desert wastes. Recover the prototype reactor core and bring it safely to the extraction LZ.",
+		"primary": {
+			"id": "secure_core",
+			"name": "Recover Prototype Core",
+			"target_tile_type": "prototype_vault",
+			"desc": "Breach the secure vault and secure the prototype core."
+		},
+		"secondaries": [
+			{"id": "scav_cache", "name": "Raid Scavenger Stash", "target_tile_type": "salvage_cache", "desc": "Loot an abandoned military supply cache (+120 cr, +40 scrap).", "reward_credits": 120, "reward_scrap": 40},
+			{"id": "survey_dunes", "name": "Reconnaissance Survey", "desc": "Map at least 8 unknown sectors (+80 cr).", "target_count": 8, "reward_credits": 80, "reward_scrap": 15}
+		],
+		"min_heat": 1,
+		"max_heat": 4,
+		"reward_credits": 500,
+		"reward_scrap": 100,
+	},
+	"assassinate_warlord": {
+		"id": "assassinate_warlord",
+		"name": "Operation: Apex Hunt",
+		"theme": "urban",
+		"desc": "A notorious enemy ace warlord is coordinating sector defense from an urban stronghold. Eliminate the target and break through the subsequent high-alert blockade to extract.",
+		"primary": {
+			"id": "kill_warlord",
+			"name": "Assassinate Ace Warlord",
+			"target_tile_type": "enemy_base",
+			"desc": "Engage and destroy the warlord's elite command detachment."
+		},
+		"secondaries": [
+			{"id": "rescue_operative", "name": "Extract Captured Informant", "target_tile_type": "safehouse", "desc": "Rescue the trapped syndicate spy (+200 cr).", "reward_credits": 200, "reward_scrap": 25},
+			{"id": "demolish_depot", "name": "Burn Ammo Stockpile", "target_tile_type": "supply_depot", "desc": "Detonate the weapons stockpile to weaken reinforcements (+100 cr).", "reward_credits": 100, "reward_scrap": 50}
+		],
+		"min_heat": 3,
+		"max_heat": 5,
+		"reward_credits": 850,
+		"reward_scrap": 120,
+	}
+}
+
+static func get_contracts_for_sector(sector: int) -> Array[Dictionary]:
+	var list: Array[Dictionary] = []
+	for k in EXTRACTION_CONTRACTS:
+		var c: Dictionary = EXTRACTION_CONTRACTS[k].duplicate(true)
+		# Scale payout slightly by sector tier
+		var mult: float = 1.0 + float(sector - 1) * 0.35
+		c["reward_credits"] = int(float(c.get("reward_credits", 500)) * mult)
+		c["reward_scrap"] = int(float(c.get("reward_scrap", 50)) * mult)
+		list.append(c)
+	return list
 
 # -----------------------------------------------------------------------------
 # SUB-ZONES (Micro-Biomes)

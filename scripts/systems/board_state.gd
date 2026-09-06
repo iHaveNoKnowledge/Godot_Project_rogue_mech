@@ -29,21 +29,30 @@ var board_mp: int = 8
 var board_day: int = 1
 var time_hour: float = 8.0  # GDD §3.1: 24-hour clock (0-23)
 
-# --- Theme & Objective ---
+# --- Theme, Objective & Extraction Contract ---
 var board_theme_id: String = "suburb"
 var board_objective_id: String = ""
 var board_objective_progress: int = 0
 var board_objective_required: int = 0
 var board_objective_intro_consumed: bool = false
+var active_contract: Dictionary = {}
+var primary_objective_done: bool = false
+var secondary_objectives_status: Dictionary = {} # id -> bool
+var extraction_zone_pos: Vector2i = Vector2i(-1, -1)
+var extraction_unlocked: bool = false
+var extraction_min_heat: int = 1
+var extraction_max_heat: int = 5
+var mission_step_count: int = 0
+var abandoned_mech_wrecks: Dictionary = {} # Vector2i (serialized as "x,y") -> Dictionary of mech data
 
 # --- Patrols ---
 var board_patrols: Array = []
 var board_patrol_engagement: int = -1
 var pending_tile_clear: Vector2i = Vector2i(-1, -1)
 
-# --- Heat & Wanted ---
+# --- Heat & Wanted (1-5 Star System) ---
 var heat: int = 0
-var wanted_level: int = 0
+var wanted_level: int = 1
 var wanted_escalation: int = 0
 
 # --- Sector Progression ---
@@ -125,11 +134,20 @@ func reset() -> void:
 	board_objective_progress = 0
 	board_objective_required = default_obj["required"]
 	board_objective_intro_consumed = false
+	active_contract.clear()
+	primary_objective_done = false
+	secondary_objectives_status.clear()
+	extraction_zone_pos = Vector2i(-1, -1)
+	extraction_unlocked = false
+	extraction_min_heat = 1
+	extraction_max_heat = 5
+	mission_step_count = 0
+	abandoned_mech_wrecks.clear()
 	board_patrols.clear()
 	board_patrol_engagement = -1
 	pending_tile_clear = Vector2i(-1, -1)
 	heat = 0
-	wanted_level = 0
+	wanted_level = 1
 	wanted_escalation = 0
 	current_sector = 1
 	current_hazard = ""

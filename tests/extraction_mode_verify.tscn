@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://c34e7f8ba1bc"]
+
+[ext_resource type="Script" path="res://tests/extraction_mode_verify.gd" id="1_test"]
+
+[node name="ExtractionModeVerify" type="Node"]
+script = ExtResource("1_test")

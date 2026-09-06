@@ -14,6 +14,8 @@ static func get_objective() -> Dictionary:
 
 
 static func is_objective_complete() -> bool:
+	if not GlobalData.board.active_contract.is_empty():
+		return GlobalData.board.primary_objective_done
 	var obj := get_objective()
 	return GlobalData.board.board_objective_progress >= int(obj.get("required", 1))
 

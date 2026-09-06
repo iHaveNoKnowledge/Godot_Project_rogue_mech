@@ -622,6 +622,57 @@ func _add_poi_visual() -> void:
 			_build_breakdown_model(_poi_node)
 		"unknown_signal":
 			_build_unknown_signal_model(_poi_node)
+		"comms_relay":
+			_build_comms_relay_model(_poi_node)
+		"prototype_vault":
+			_build_prototype_vault_model(_poi_node)
+		"salvage_cache":
+			_build_salvage_cache_model(_poi_node)
+
+
+func _build_comms_relay_model(root: Node3D) -> void:
+	var tower := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.1
+	cyl.bottom_radius = 0.4
+	cyl.height = 3.2
+	tower.mesh = cyl
+	tower.position = Vector3(0, 1.6, 0)
+	tower.material_override = _poi_mat(Color(0.2, 0.4, 0.6), 0.3, Color(0.1, 0.6, 1.0), 2.0)
+	root.add_child(tower)
+
+	var dish := MeshInstance3D.new()
+	var dish_m := SphereMesh.new()
+	dish_m.radius = 0.5
+	dish_m.height = 0.3
+	dish.mesh = dish_m
+	dish.position = Vector3(0, 3.2, 0)
+	dish.rotation.x = deg_to_rad(-45.0)
+	dish.material_override = _poi_mat(Color(0.8, 0.85, 0.9), 0.2, Color(0.2, 0.8, 1.0), 1.5)
+	root.add_child(dish)
+	_add_floating_badge(root, "📡 COMMS RELAY [PRIMARY]", Color(0.2, 0.8, 1.0), 3.8)
+
+
+func _build_prototype_vault_model(root: Node3D) -> void:
+	var vault := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(1.8, 1.4, 1.8)
+	vault.mesh = box
+	vault.position = Vector3(0, 0.7, 0)
+	vault.material_override = _poi_mat(Color(0.3, 0.25, 0.4), 0.4, Color(0.8, 0.3, 1.0), 2.5)
+	root.add_child(vault)
+	_add_floating_badge(root, "🔐 PROTOTYPE VAULT [PRIMARY]", Color(0.85, 0.4, 1.0), 2.4)
+
+
+func _build_salvage_cache_model(root: Node3D) -> void:
+	var cache := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(1.2, 0.8, 1.2)
+	cache.mesh = box
+	cache.position = Vector3(0, 0.4, 0)
+	cache.material_override = _poi_mat(Color(0.6, 0.45, 0.2), 0.5, Color(1.0, 0.7, 0.1), 1.8)
+	root.add_child(cache)
+	_add_floating_badge(root, "📦 SALVAGE CACHE [BONUS]", Color(1.0, 0.75, 0.2), 1.8)
 
 
 # Start Hangar / Forward Command Launchpad

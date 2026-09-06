@@ -20,6 +20,9 @@ var _patrol_marker_container: Node3D = null
 var _last_dir: Vector2i = Vector2i(1, 0)
 var _is_moving: bool = false
 var _path_trail_markers: Array[Node3D] = []
+var _mission_select_ui: ExtractionMissionSelect = null
+var _summary_modal_ui: ExtractionSummaryModal = null
+
 
 
 func _ready() -> void:
@@ -55,6 +58,18 @@ func _ready() -> void:
 
 	# Ensure Scavenger Camps exist on board
 	ScavengerSystem.ensure_camps(nodes_dict)
+
+	# Extraction Mode: Contract Selection & Summary UI
+	_mission_select_ui = ExtractionMissionSelect.new()
+	_mission_select_ui.contract_selected.connect(_on_contract_selected)
+	add_child(_mission_select_ui)
+
+	_summary_modal_ui = ExtractionSummaryModal.new()
+	_summary_modal_ui.extraction_confirmed.connect(_on_extraction_confirmed)
+	add_child(_summary_modal_ui)
+
+	if GlobalData.board.active_contract.is_empty():
+		_mission_select_ui.open_select(GlobalData.board.current_sector)
 
 	# Ensure mech_less is synced with actual roster state
 	if not GlobalData.hangar.hangar_mechs.is_empty():
@@ -609,6 +624,11 @@ func _try_step(target: Vector2i) -> bool:
 	# it was — fleets that lose sight keep converging on that last position.
 	PatrolSystem.record_spotting(current_pos)
 
+	# Extraction Run Mode: Advance Heat per step and trigger 1:1 Patrol step turns
+	HeatWantedSystem.on_player_step_heat()
+	var patrol_ambush := PatrolSystem.advance_step_turn(current_pos)
+	_refresh_patrol_markers()
+
 	GlobalData.narrative.blocked_intermission = false
 
 	# Objective progress triggers.
@@ -622,6 +642,8 @@ func _try_step(target: Vector2i) -> bool:
 	# (white arrows) are mercenary convoys: they offer a talk encounter instead.
 	var patrol := PatrolSystem.get_patrol_at(target)
 	var engaged_patrol := false
+	if patrol.is_empty() and patrol_ambush != Vector2i(-1, -1) and patrol_ambush == target:
+		patrol = PatrolSystem.get_patrol_at(target)
 	if not patrol.is_empty() and GameManager.current_state == GameManager.State.BOARD:
 		engaged_patrol = true
 		GlobalData.board.board_patrol_engagement = int(patrol.get("id", -1))
@@ -1597,6 +1619,12 @@ func _process_tile_effect(tile_type: String) -> void:
 			# A decoy cache: it looks like loot but springs a pincer ambush.
 			# Sprung traps are recorded so the decoy stays cleared on reload.
 			_trigger_bait_trap()
+		"comms_relay":
+			_trigger_extraction_primary_objective("Destroyed Comms Relay", "Primary Relay tower neutralized! Extraction LZ coordinates revealed and unlocked.")
+		"prototype_vault":
+			_trigger_extraction_primary_objective("Breached Prototype Vault", "Secured classified prototype core! Extraction LZ coordinates revealed and unlocked.")
+		"salvage_cache":
+			_trigger_extraction_secondary_objective("Raid Scavenger Stash", 120, 40)
 		"start":
 			print("Entering Hangar Practice Ground.")
 		"exit":
@@ -2073,9 +2101,23 @@ func _trigger_exit_event() -> void:
 			"name": "ROUTE BLOCKED",
 			"effect": "none",
 			"amount": 0,
-			"desc": "The extraction zone is sealed. Complete the sector objective first: %s" % BoardSystem.progress_text(),
+			"desc": "The extraction zone is sealed. Complete the sector primary objective first: %s" % BoardSystem.progress_text(),
 		})
 		return
+
+	# If in Extraction Run Contract mode, open debrief summary and bank rewards
+	if not GlobalData.board.active_contract.is_empty():
+		var contract = GlobalData.board.active_contract
+		var rew_cr := int(contract.get("reward_credits", 500))
+		var rew_sc := int(contract.get("reward_scrap", 50))
+		GlobalData.currency.credits += rew_cr
+		GlobalData.currency.scrap += rew_sc
+		if _summary_modal_ui:
+			_summary_modal_ui.show_summary(contract, rew_cr, rew_sc, GlobalData.board.wanted_level)
+		else:
+			_on_extraction_confirmed()
+		return
+
 	if GlobalData.narrative.mech_less:
 		var event = {
 			"name": "The Wanderer",
@@ -2090,6 +2132,7 @@ func _trigger_exit_event() -> void:
 		return
 	print("Entering Extraction Zone / Final Boss Battle!")
 	GameManager.enter_combat("boss")
+
 
 
 func _trigger_recovery_event() -> void:
@@ -2541,3 +2584,64 @@ func _clear_wreckage_tile() -> void:
 	tile.set_meta("tile_type", "empty")
 	if tile.has_method("_update_visual"):
 		tile._update_visual()
+
+
+func _on_contract_selected(contract: Dictionary) -> void:
+	GlobalData.board.active_contract = contract
+	GlobalData.board.primary_objective_done = false
+	GlobalData.board.extraction_unlocked = false
+	var min_h := int(contract.get("min_heat", 1))
+	var max_h := int(contract.get("max_heat", 5))
+	HeatWantedSystem.init_contract_heat(min_h, max_h)
+	var pri: Dictionary = contract.get("primary", {})
+	EventBus.event_triggered.emit({
+		"name": "CONTRACT ACCEPTED",
+		"effect": "none",
+		"amount": 0,
+		"desc": "Extraction Contract: %s\nObjective: %s\nHeat range: %d★ - %d★. Complete primary objective then reach Extraction LZ to escape!" % [
+			contract.get("name", ""), pri.get("name", ""), min_h, max_h
+		]
+	})
+
+
+func _trigger_extraction_primary_objective(title: String, desc: String) -> void:
+	if GlobalData.board.primary_objective_done:
+		return
+	GlobalData.board.primary_objective_done = true
+	GlobalData.board.extraction_unlocked = true
+	HeatWantedSystem.modify_heat(3) # Objective breach generates heat
+	EventBus.event_triggered.emit({
+		"name": "🎯 PRIMARY OBJECTIVE COMPLETED!",
+		"effect": "none",
+		"amount": 0,
+		"desc": "%s\n\n%s\nExtraction LZ is now UNLOCKED at tile %s. Proceed to extract immediately!" % [
+			title, desc, str(GlobalData.board.extraction_zone_pos)
+		]
+	})
+	if nodes_dict.has(current_pos):
+		nodes_dict[current_pos].set_meta("tile_type", "empty")
+		if nodes_dict[current_pos].has_method("_update_visual"):
+			nodes_dict[current_pos]._update_visual()
+
+
+func _trigger_extraction_secondary_objective(title: String, rew_cr: int, rew_sc: int) -> void:
+	GlobalData.currency.credits += rew_cr
+	GlobalData.currency.scrap += rew_sc
+	EventBus.event_triggered.emit({
+		"name": "📦 BONUS OBJECTIVE COMPLETED: %s" % title,
+		"effect": "none",
+		"amount": 0,
+		"desc": "Secured tactical secondary target!\nRewards: +%d Credits | +%d Scrap" % [rew_cr, rew_sc]
+	})
+	if nodes_dict.has(current_pos):
+		nodes_dict[current_pos].set_meta("tile_type", "empty")
+		if nodes_dict[current_pos].has_method("_update_visual"):
+			nodes_dict[current_pos]._update_visual()
+
+
+func _on_extraction_confirmed() -> void:
+	GlobalData.board.active_contract.clear()
+	GlobalData.board.primary_objective_done = false
+	GlobalData.board.extraction_unlocked = false
+	GlobalData.board.mission_step_count = 0
+	GameManager.advance_to_next_sector()

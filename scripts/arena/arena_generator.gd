@@ -1491,8 +1491,8 @@ func _build_city_highrise_structures() -> void:
 			var DestructibleBuildingScript = preload("res://scripts/arena/destructible_building.gd")
 			var building = DestructibleBuildingScript.new()
 			building.setup_building(Vector3(b_size_x, b_height, b_size_z), tower_mat, randf_range(160.0, 280.0))
-			var bpx := bx + randf_range(-2.5, 2.5)
-			var bpz := bz + randf_range(-2.5, 2.5)
+			var bpx: float = float(bx) + randf_range(-2.5, 2.5)
+			var bpz: float = float(bz) + randf_range(-2.5, 2.5)
 			building.position = Vector3(bpx, _prop_base_y(bpx, bpz), bpz)
 			city_root.add_child(building)
 

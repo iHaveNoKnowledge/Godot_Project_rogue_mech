@@ -331,13 +331,44 @@ func _assign_content(terrain_grid: Dictionary, start_key: Vector2i, exit_key: Ve
 	if not far.is_empty():
 		result[far[0]] = "city"
 
+	# Extraction Mode Contract Placement:
+	# Primary Objective Target placed in deep territory (between 1/2 and 4/5 distance)
+	var contract: Dictionary = GlobalData.board.active_contract
+	var primary_placed := false
+	if not contract.is_empty():
+		var p_info: Dictionary = contract.get("primary", {})
+		var p_type: String = str(p_info.get("target_tile_type", "comms_relay"))
+		var deep_candidates = walkable.filter(func(k: Vector2i) -> bool:
+			if result.has(k) or k == start_key or k == exit_key:
+				return false
+			var dist = abs(k.x - start_key.x) + abs(k.y - start_key.y)
+			return dist >= int(grid_size_i * 0.6) and dist <= int(grid_size_i * 1.2))
+		if deep_candidates.is_empty():
+			deep_candidates = walkable.filter(func(k: Vector2i) -> bool: return not result.has(k) and k != start_key and k != exit_key)
+		if not deep_candidates.is_empty():
+			var p_pos: Vector2i = deep_candidates[0]
+			result[p_pos] = p_type
+			primary_placed = true
+
+		# Secondary Objective Targets
+		var secondaries = contract.get("secondaries", [])
+		if secondaries is Array:
+			var s_candidates = walkable.filter(func(k: Vector2i) -> bool: return not result.has(k) and k != start_key and k != exit_key)
+			var s_idx := 0
+			for sec in secondaries:
+				var s_type: String = str(sec.get("target_tile_type", ""))
+				if s_type != "" and s_idx < s_candidates.size():
+					result[s_candidates[s_idx]] = s_type
+					s_idx += 1
+
+	GlobalData.board.extraction_zone_pos = exit_key
+
 	# Scatter content on the rest of the walkable pool.
 	for key in walkable:
 		if result.has(key):
 			continue
 		result[key] = _roll_content(rng)
 
-	# Dead ends: any leftover walkable with no walkable neighbor beyond forward.
 	return result
 
 

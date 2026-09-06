@@ -161,7 +161,7 @@ func _ready() -> void:
 			"desc": notice,
 		})
 
-	if GlobalData.board.board_day == 1 and GlobalData.board.board_mp >= GlobalData.board.board_mp_max and not GlobalData.board.board_objective_intro_consumed:
+	if GlobalData.board.board_day == 1 and GlobalData.board.board_mp >= GlobalData.board.board_mp_max and not GlobalData.board.board_objective_intro_consumed and not GlobalData.board.active_contract.is_empty():
 		GlobalData.board.board_objective_intro_consumed = true
 		EventBus.event_triggered.emit(_build_objective_event())
 
@@ -2593,6 +2593,30 @@ func _on_contract_selected(contract: Dictionary) -> void:
 	var min_h := int(contract.get("min_heat", 1))
 	var max_h := int(contract.get("max_heat", 5))
 	HeatWantedSystem.init_contract_heat(min_h, max_h)
+
+	# Re-generate board matching the chosen biome theme
+	var generator = get_node_or_null("BoardGenerator")
+	if generator and tile_container:
+		for child in tile_container.get_children():
+			child.queue_free()
+		var data = generator.generate_board()
+		nodes_dict = data["nodes"]
+		tile_container.add_child(generator.build_environment_and_light())
+		tile_container.add_child(generator.build_ground())
+		for key in nodes_dict:
+			tile_container.add_child(nodes_dict[key])
+
+		if data.has("start_pos"):
+			current_pos = data["start_pos"]
+			GlobalData.board.current_tile = current_pos
+
+		ScavengerSystem.ensure_camps(nodes_dict)
+		PatrolSystem.spawn_patrols()
+		_reveal_around(current_pos)
+		_refresh_patrol_markers()
+		_update_token_position()
+		_highlight_adjacent()
+
 	var pri: Dictionary = contract.get("primary", {})
 	EventBus.event_triggered.emit({
 		"name": "CONTRACT ACCEPTED",

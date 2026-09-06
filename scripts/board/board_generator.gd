@@ -14,6 +14,10 @@ func generate_board() -> Dictionary:
 	rng.seed = GlobalData.board.board_seed
 
 	var theme_id := BoardConfig.theme_for_sector(GlobalData.board.current_sector)
+	if not GlobalData.board.active_contract.is_empty():
+		var c_theme: String = str(GlobalData.board.active_contract.get("theme", "")).strip_edges().to_lower()
+		if c_theme != "":
+			theme_id = c_theme
 	GlobalData.board.board_theme_id = theme_id
 
 	# Step 1: partition the 2D grid into organic sub-zones (micro-biomes).

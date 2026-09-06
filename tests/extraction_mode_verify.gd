@@ -93,15 +93,39 @@ func _ready() -> void:
 		mock_nodes[k].free()
 	GlobalData.board.board_grid = []
 
-	# Test 5: UI Modal Instantiation
+	# Test 5: UI Modal Instantiation & Clickability
 	var select_modal := ExtractionMissionSelect.new()
 	add_child(select_modal)
 	select_modal.open_select(1)
 	_check(select_modal.visible, "ExtractionMissionSelect modal opens successfully")
+	_check(select_modal.process_mode == Node.PROCESS_MODE_ALWAYS, "ExtractionMissionSelect process_mode is PROCESS_MODE_ALWAYS")
+
+	var chosen_contract := {}
+	select_modal.contract_selected.connect(func(c: Dictionary):
+		chosen_contract.assign(c)
+	)
+
+	# Simulate choosing second contract (desert heist)
+	select_modal._on_contract_chosen(contracts[1])
+	_check(not chosen_contract.is_empty(), "Contract selected signal received successfully")
+	_check(chosen_contract.get("theme") == "desert", "Selected contract theme is desert")
+	_check(not select_modal.visible, "Modal hides after contract selection")
 	select_modal.queue_free()
+
+	# Test theme override in BoardGenerator
+	GlobalData.board.active_contract = chosen_contract
+	var board_gen_script = preload("res://scripts/board/board_generator.gd")
+	var generator = board_gen_script.new()
+	add_child(generator)
+	var bg_data = generator.generate_board()
+	_check(GlobalData.board.board_theme_id == "desert", "Board theme successfully set to desert by contract")
+	for k in bg_data["nodes"]:
+		bg_data["nodes"][k].free()
+	generator.queue_free()
 
 	var summary_modal := ExtractionSummaryModal.new()
 	add_child(summary_modal)
+	_check(summary_modal.process_mode == Node.PROCESS_MODE_ALWAYS, "ExtractionSummaryModal process_mode is PROCESS_MODE_ALWAYS")
 	summary_modal.show_summary(c0, 500, 50, 3)
 	_check(summary_modal.visible, "ExtractionSummaryModal displays report successfully")
 	summary_modal.queue_free()

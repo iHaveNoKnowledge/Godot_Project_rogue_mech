@@ -13,25 +13,30 @@ func _init() -> void:
 	layer = 125
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build_ui()
 	visible = false
 
 func _build_ui() -> void:
 	_overlay = Control.new()
 	_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_overlay)
 
 	var bg := ColorRect.new()
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	bg.color = Color(0.02, 0.04, 0.06, 0.96)
+	bg.mouse_filter = Control.MOUSE_FILTER_STOP
 	_overlay.add_child(bg)
 
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_overlay.add_child(center)
 
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(720, 520)
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	var p_style := StyleBoxFlat.new()
 	p_style.bg_color = Color(0.06, 0.09, 0.12, 0.98)
 	p_style.border_color = Color(0.2, 0.8, 0.4, 1.0)
@@ -47,6 +52,7 @@ func _build_ui() -> void:
 	center.add_child(panel)
 
 	var margin := MarginContainer.new()
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	margin.add_theme_constant_override("margin_left", 28)
 	margin.add_theme_constant_override("margin_top", 28)
 	margin.add_theme_constant_override("margin_right", 28)
@@ -54,6 +60,7 @@ func _build_ui() -> void:
 	panel.add_child(margin)
 
 	var vbox := VBoxContainer.new()
+	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox.add_theme_constant_override("separation", 18)
 	margin.add_child(vbox)
 

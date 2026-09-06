@@ -84,6 +84,11 @@ func enter_combat(combat_type: String = "grunt") -> void:
 			cur_loadout["ammo"] = saved_ammo.duplicate(true)
 	# Preserve loadout so it isn't thrown into inventory after battle (user request: stay equipped)
 	GlobalData.pre_combat_weapon_loadout = GlobalData.weapons.weapon_loadout.duplicate(true)
+	var _ec_l := str(GlobalData.weapons.weapon_loadout.get("left", ""))
+	var _ec_r := str(GlobalData.weapons.weapon_loadout.get("right", ""))
+	var _ec_c = GlobalData.weapons.weapon_loadout.get("carry", [])
+	var _ec_cn := (_ec_c as Array).size() if _ec_c is Array else -1
+	print("[LOADOUT] enter_combat(%s): hands=(%s,%s) carry=%d" % [combat_type, _ec_l, _ec_r, _ec_cn])
 
 	# Resolve how many fleets are engaged from the board token
 	if GlobalData.board.board_patrol_engagement >= 0:

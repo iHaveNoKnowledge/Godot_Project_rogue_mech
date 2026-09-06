@@ -171,6 +171,13 @@ func _ready() -> void:
 	shoulder_left = LoadoutSystem.get_equipped_shoulder("left")
 	shoulder_right = LoadoutSystem.get_equipped_shoulder("right")
 	carry = LoadoutSystem.get_carry_weapons()
+	print("[LOADOUT] battle ready: refs=(%s,%s,carry=%s) resolved_hands=(%s,%s) carry=%d" % [
+		str(GlobalData.weapons.weapon_loadout.get("left", "")),
+		str(GlobalData.weapons.weapon_loadout.get("right", "")),
+		str(GlobalData.weapons.weapon_loadout.get("carry", [])),
+		"null" if left_hand == null else left_hand.resource_path,
+		"null" if right_hand == null else right_hand.resource_path,
+		carry.size()])
 	# Battle reserve = the ammo the player chose to carry in the loadout.
 	# Deduct that from the persistent stash now (what you fire is spent); any
 	# leftover returns to the stash when combat ends.
@@ -224,6 +231,9 @@ func _on_combat_ended(_victory: bool) -> void:
 func sync_loadout_to_global() -> void:
 	# Hands/shoulders/back are written back by INSTANCE uid (the copy that entered the
 	# battle keeps its identity) so the hangar [E] badge stays per-instance.
+	var _pre_l := str(GlobalData.weapons.weapon_loadout.get("left", ""))
+	var _pre_r := str(GlobalData.weapons.weapon_loadout.get("right", ""))
+	var _pre_c := GlobalData.weapons.weapon_loadout.get("carry", [])
 	LoadoutSystem.set_hand_weapon("left", LoadoutSystem.resolve_hand_uid_for_sync("left", left_hand.resource_path if left_hand else ""))
 	LoadoutSystem.set_hand_weapon("right", LoadoutSystem.resolve_hand_uid_for_sync("right", right_hand.resource_path if right_hand else ""))
 	LoadoutSystem.set_shoulder_weapon("left", LoadoutSystem.resolve_shoulder_uid_for_sync("left", shoulder_left.resource_path if shoulder_left else ""))
@@ -233,6 +243,19 @@ func sync_loadout_to_global() -> void:
 		if weapon:
 			carry_paths.append(weapon.resource_path)
 	GlobalData.weapons.weapon_loadout["carry"] = LoadoutSystem.resolve_carry_uids_for_sync(carry_paths)
+	# [LOADOUT] wipe tracer: pinpoints the exact sync that empties a slot that
+	# was filled before (live hands null with no drop, unexpected clear, ...).
+	var _post_l := str(GlobalData.weapons.weapon_loadout.get("left", ""))
+	var _post_r := str(GlobalData.weapons.weapon_loadout.get("right", ""))
+	var _post_c = GlobalData.weapons.weapon_loadout.get("carry", [])
+	if (_pre_l != "" and _post_l == "") or (_pre_r != "" and _post_r == ""):
+		print("[LOADOUT] slot emptied by sync: pre=(%s,%s) live_hands=(%s,%s) live_carry=%d post=(%s,%s)" % [
+			_pre_l, _pre_r,
+			"null" if left_hand == null else left_hand.resource_path,
+			"null" if right_hand == null else right_hand.resource_path,
+			carry.size(), _post_l, _post_r])
+	if _pre_c is Array and not (_pre_c as Array).is_empty() and (_post_c is Array and (_post_c as Array).is_empty()):
+		print("[LOADOUT] carry emptied by sync: pre=%s live_carry=%d" % [str(_pre_c), carry.size()])
 	# The mech's total weight now includes the loadout weapons, so a pickup/drop
 	# must re-trigger the live weight calculation (speed/turn) right away.
 	EventBus.weight_changed.emit(0.0)

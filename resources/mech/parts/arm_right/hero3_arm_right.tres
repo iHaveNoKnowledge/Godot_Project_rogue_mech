@@ -1,0 +1,14 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/mech/armor_part.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+part_name = "Hero3 Vanguard Arm Right"
+slot_id = "arm_right"
+max_hp = 50.0
+max_frame_hp = 40.0
+weight = 11.0
+armor_class = 40.0
+break_threshold = 0.3
+part_color = Color(0.82, 0.81, 0.79, 1)

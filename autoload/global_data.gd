@@ -527,7 +527,10 @@ func _on_combat_ended(victory: bool) -> void:
 			var cur_carry = cur.get("carry", [])
 			if (cur_carry is Array and pre_carry is Array and cur_carry.is_empty() and not pre_carry.is_empty()):
 				cur["carry"] = pre_carry.duplicate()
-	pre_combat_weapon_loadout.clear()
+	# NOTE: deliberately NOT cleared here. The victory screen needs the
+	# pre-battle refs to tell the player's own dropped guns apart from enemy
+	# drops (auto take-back). enter_combat() overwrites it every battle, and
+	# the restore above only fills empty slots, so keeping it is safe.
 	# Clear environmental hazard after combat (one-shot per encounter).
 	board.current_hazard = ""
 	# Faction: record battle for trigger and tick research by combat time (0.5 day per battle)

@@ -241,23 +241,60 @@ func _on_take_all_pressed() -> void:
 	AudioManager.play_ui_confirm()
 
 
+# Guns knocked from your hands mid-battle (arm-frame destroyed, manual drop)
+# land as field pickups and the sweep above files them under BATTLE DROPS while
+# the loadout slots stay "" (synced at combat end). One hurried Continue press
+# would then convert your own guns into tile wreckage and the NEXT battle would
+# start unarmed. So drops matching a slot that was filled pre-battle but is
+# empty now default to TAKE BACK (one click moves them back to drops to scrap).
+func _auto_take_back_own_drops() -> void:
+	var pre: Dictionary = GlobalData.pre_combat_weapon_loadout
+	if pre.is_empty():
+		return
+	var cur: Dictionary = GlobalData.weapons.weapon_loadout
+	var lost_paths: Array = []
+	for key in ["left", "right", "shoulder_left", "shoulder_right"]:
+		if str(cur.get(key, "")) == "" and str(pre.get(key, "")) != "":
+			lost_paths.append(LoadoutSystem.ref_to_path(pre.get(key, "")))
+	var cur_carry = cur.get("carry", [])
+	var pre_carry = pre.get("carry", [])
+	if cur_carry is Array and pre_carry is Array and (cur_carry as Array).is_empty() and not (pre_carry as Array).is_empty():
+		for ref in pre_carry:
+			lost_paths.append(LoadoutSystem.ref_to_path(ref))
+	if lost_paths.is_empty():
+		return
+	var keep_left: Array = []
+	for entry in _left_items:
+		if str(entry.get("type", "")) == "weapon" and entry.get("weapon") != null:
+			var w: WeaponPart = entry["weapon"]
+			if str(w.resource_path) in lost_paths:
+				_right_items.append(entry)
+				continue
+		keep_left.append(entry)
+	_left_items = keep_left
+
+
 # Grants every item on the TAKE BACK side: weapons are registered into the depot
 # stash, armor instances appended to the convoy inventory. Items the player left
 # in BATTLE DROPS are NOT wasted — they are auto-salvaged into scrap (the convoy
 # mechanics strip whatever the player didn't pick). Clears the battle pool either way.
 func _grant_take_back_loot() -> void:
+	var fresh_weapon_uids: Array = []
 	for entry in _right_items:
 		match str(entry.get("type", "")):
 			"weapon":
 				var w: WeaponPart = entry.get("weapon")
 				if w:
-					LoadoutSystem.register_weapon(w.resource_path, w.weapon_name)
+					var new_uid := LoadoutSystem.register_weapon(w.resource_path, w.weapon_name)
+					if new_uid != "":
+						fresh_weapon_uids.append({"uid": new_uid, "weight": float(w.weight)})
 			"armor":
 				var inst: Dictionary = entry.get("instance", {})
 				if not inst.is_empty():
 					var uid := str(inst.get("uid", ""))
 					if uid == "" or ArmorSystem.get_armor_instance(uid).is_empty():
 						GlobalData.weapons.armor_inventory.append(inst)
+	_rearm_empty_slots(fresh_weapon_uids)
 
 	# If player left items in BATTLE DROPS, register them on the board tile as a Wreckage Marker
 	if not _left_items.is_empty():
@@ -269,6 +306,32 @@ func _grant_take_back_loot() -> void:
 	_left_items.clear()
 	_right_items.clear()
 	HangarManager.save_active()
+
+
+# Refills loadout slots emptied by mid-battle drops from just-registered
+# take-backs (hands first, then back-carry), so the next battle starts armed
+# instead of fists-only. Slots the player deliberately left empty with nothing
+# taken back are untouched, and overweight leftovers stay in the stash.
+func _rearm_empty_slots(fresh_weapons: Array) -> void:
+	if fresh_weapons.is_empty():
+		return
+	var cap := LoadoutSystem.get_field_pack_capacity()
+	var idx := 0
+	for key in ["left", "right"]:
+		if idx >= fresh_weapons.size():
+			break
+		if str(GlobalData.weapons.weapon_loadout.get(key, "")) != "":
+			continue
+		var cand: Dictionary = fresh_weapons[idx]
+		if LoadoutSystem.get_field_pack_weight() + float(cand.get("weight", 0.0)) <= cap:
+			LoadoutSystem.set_hand_weapon("left" if key == "left" else "right", str(cand.get("uid", "")))
+			idx += 1
+	while idx < fresh_weapons.size():
+		var cand2: Dictionary = fresh_weapons[idx]
+		idx += 1
+		if LoadoutSystem.get_field_pack_weight() + float(cand2.get("weight", 0.0)) > cap:
+			continue
+		LoadoutSystem.add_carry_weapon(str(cand2.get("uid", "")))
 
 
 # Scrap value of a loot entry the player did not take back: the convoy strips
@@ -432,6 +495,7 @@ func _show_victory_rewards() -> void:
 				node.queue_free()
 
 	_right_items.clear()
+	_auto_take_back_own_drops()
 	_populate_loot_picker()
 	if loot_picker:
 		loot_picker.visible = not _left_items.is_empty()

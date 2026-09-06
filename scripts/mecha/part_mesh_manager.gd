@@ -806,6 +806,20 @@ func _get_eye_sensor_material() -> ShaderMaterial:
 	return mat
 
 
+# ComfyUI armor detail overlay (Z-Image-Turbo, neutral mid-gray multiply).
+# Bound when the texture exists; otherwise the shader default (off) keeps the
+# old look. Shared by every procedural armor/trim material so the whole body
+# gets the same worn-metal grain.
+const COMFY_ARMOR_DETAIL_TEX := "res://resources/textures/mech/comfy_armor_detail.png"
+
+func _apply_comfy_armor_detail(mat: ShaderMaterial, strength: float = 0.35) -> void:
+	if not ResourceLoader.exists(COMFY_ARMOR_DETAIL_TEX):
+		return
+	mat.set_shader_parameter("has_detail_tex", true)
+	mat.set_shader_parameter("detail_tex", load(COMFY_ARMOR_DETAIL_TEX))
+	mat.set_shader_parameter("detail_strength", strength)
+
+
 # ==============================================================================
 # SKELETAL INNER FRAME GENERATOR (UPPER + LOWER JOINT SPLIT)
 # ==============================================================================
@@ -1155,6 +1169,7 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 	armor_mat.set_shader_parameter("panel_line_depth", 0.50)
 	armor_mat.set_shader_parameter("edge_wear", 0.08)
 	armor_mat.set_shader_parameter("rim_strength", 0.06)
+	_apply_comfy_armor_detail(armor_mat)
 
 	var dark_trim_mat = ShaderMaterial.new()
 	dark_trim_mat.shader = MASTER_PBR_SHADER
@@ -1167,6 +1182,7 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 	dark_trim_mat.set_shader_parameter("panel_line_depth", 0.35)
 	dark_trim_mat.set_shader_parameter("edge_wear", 0.10)
 	dark_trim_mat.set_shader_parameter("rim_strength", 0.05)
+	_apply_comfy_armor_detail(dark_trim_mat)
 
 	match slot_name.to_lower():
 		"head":

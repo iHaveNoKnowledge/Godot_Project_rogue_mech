@@ -25,6 +25,14 @@ uniform float panel_grid_scale : hint_range(0.0, 30.0) = 5.0;
 uniform float panel_line_depth : hint_range(0.0, 1.0) = 0.55;
 uniform float edge_wear : hint_range(0.0, 1.0) = 0.12;
 
+group_uniforms SurfaceDetail;
+// ComfyUI-generated armor detail texture (neutral mid-gray multiply overlay).
+// Off by default so existing look is unchanged until a texture is bound.
+uniform bool has_detail_tex = false;
+uniform sampler2D detail_tex : source_color, filter_linear_mipmap, repeat_enable;
+uniform float detail_uv_scale : hint_range(0.0, 20.0) = 2.0;
+uniform float detail_strength : hint_range(0.0, 1.0) = 0.35;
+
 group_uniforms DamageAndWear;
 uniform float scorch_amount : hint_range(0.0, 1.0) = 0.0;
 uniform float damage_crack_amount : hint_range(0.0, 1.0) = 0.0;
@@ -51,6 +59,21 @@ void fragment() {
 	vec3 base_color = mix(primary_color.rgb, trim_color.rgb, trim_mask_amount);
 	float cur_metallic = metallic;
 	float cur_roughness = roughness;
+
+	// 1b. ComfyUI surface detail texture (triplanar, neutral mid-gray multiply:
+	// mid-gray 0.5 reads as neutral 1.0, darker grime darkens, worn streaks lighten)
+	if (has_detail_tex) {
+		vec3 dp = v_pos * detail_uv_scale;
+		vec3 nw = abs(v_normal);
+		vec3 dt = texture(detail_tex, dp.xy).rgb * nw.z
+		        + texture(detail_tex, dp.xz).rgb * nw.y
+		        + texture(detail_tex, dp.yz).rgb * nw.x;
+		float dw = max(nw.x + nw.y + nw.z, 0.001);
+		dt /= dw;
+		float dg = dot(dt, vec3(0.3333)) * 2.0;
+		base_color *= mix(vec3(1.0), vec3(dg), detail_strength);
+		cur_roughness = clamp(cur_roughness + (1.0 - dg) * 0.15 * detail_strength, 0.0, 1.0);
+	}
 
 	// 2. Triplanar Procedural Panel Seams (if enabled)
 	float panel_seam = 0.0;

@@ -724,6 +724,15 @@ func _fix_material_if_needed(mat: Material) -> void:
 		# Also ensure specular isn't too high (paint F0)
 		if sm.metallic < 0.2 and needs_fix:
 			sm.metallic_specular = 0.35
+		# ComfyUI tank-armor plate overlay for imported .glb mechs (bright plates,
+		# dark seams + bolts). Only when the model brings no texture of its own,
+		# triplanar-mapped so it works regardless of the model's UVs. Skips
+		# emissive mats (sensors/glow) so they keep glowing.
+		if sm.albedo_texture == null and not sm.emission_enabled:
+			var plate_tex := "res://resources/textures/mech/comfy_armor_plates.png"
+			if ResourceLoader.exists(plate_tex):
+				sm.albedo_texture = load(plate_tex)
+				sm.uv1_triplanar = true
 
 
 func _spawn_break_vfx(slot_name: String) -> void:

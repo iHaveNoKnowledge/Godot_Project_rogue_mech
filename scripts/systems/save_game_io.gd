@@ -43,6 +43,15 @@ static func save_run() -> void:
 		"board_objective_id": GlobalData.board.board_objective_id,
 		"board_objective_progress": GlobalData.board.board_objective_progress,
 		"board_objective_required": GlobalData.board.board_objective_required,
+		"board_objective_intro_consumed": GlobalData.board.board_objective_intro_consumed,
+		"active_contract": GlobalData.board.active_contract.duplicate(true),
+		"primary_objective_done": GlobalData.board.primary_objective_done,
+		"secondary_objectives_status": GlobalData.board.secondary_objectives_status.duplicate(),
+		"extraction_zone_pos": {"x": GlobalData.board.extraction_zone_pos.x, "y": GlobalData.board.extraction_zone_pos.y},
+		"extraction_unlocked": GlobalData.board.extraction_unlocked,
+		"extraction_min_heat": GlobalData.board.extraction_min_heat,
+		"extraction_max_heat": GlobalData.board.extraction_max_heat,
+		"mission_step_count": GlobalData.board.mission_step_count,
 		"board_patrols": _serialize_patrols(),
 		"enemy_forces": GlobalData.narrative.enemy_forces.duplicate(),
 		"last_combat_squad_size": GlobalData.narrative.last_combat_squad_size,
@@ -145,6 +154,21 @@ static func restore_from_dict(data: Dictionary) -> void:
 	GlobalData.board.board_objective_id = str(data.get("board_objective_id", ""))
 	GlobalData.board.board_objective_progress = int(data.get("board_objective_progress", 0))
 	GlobalData.board.board_objective_required = int(data.get("board_objective_required", 0))
+	GlobalData.board.board_objective_intro_consumed = bool(data.get("board_objective_intro_consumed", false))
+	# Extraction contract: only prompt mission select when no contract is active.
+	# Without this, Continue always reopened the select screen instead of
+	# resuming the in-progress mission.
+	var loaded_contract = data.get("active_contract", {})
+	GlobalData.board.active_contract = loaded_contract.duplicate(true) if loaded_contract is Dictionary else {}
+	GlobalData.board.primary_objective_done = bool(data.get("primary_objective_done", false))
+	var loaded_secondary = data.get("secondary_objectives_status", {})
+	GlobalData.board.secondary_objectives_status = loaded_secondary.duplicate() if loaded_secondary is Dictionary else {}
+	var loaded_extraction = data.get("extraction_zone_pos", {"x": -1, "y": -1})
+	GlobalData.board.extraction_zone_pos = Vector2i(int(loaded_extraction.get("x", -1)), int(loaded_extraction.get("y", -1)))
+	GlobalData.board.extraction_unlocked = bool(data.get("extraction_unlocked", false))
+	GlobalData.board.extraction_min_heat = int(data.get("extraction_min_heat", 1))
+	GlobalData.board.extraction_max_heat = int(data.get("extraction_max_heat", 5))
+	GlobalData.board.mission_step_count = int(data.get("mission_step_count", 0))
 	var loaded_patrols = data.get("board_patrols", [])
 	GlobalData.board.board_patrols.clear()
 	if loaded_patrols is Array:

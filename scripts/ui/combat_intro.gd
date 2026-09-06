@@ -20,6 +20,12 @@ var _done: bool = false
 
 func _ready() -> void:
 	layer = 100
+	# Must tick even if the tree arrived paused (a pause leak from the board
+	# would otherwise leave this opaque overlay stuck forever, blocking all
+	# input and looking like a frozen combat load).
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	if get_tree():
+		get_tree().paused = false
 	_build_overlay()
 	if AudioManager:
 		AudioManager.set_combat_muted(true)
@@ -82,6 +88,8 @@ func _finish() -> void:
 	if _done:
 		return
 	_done = true
+	if get_tree() and get_tree().paused:
+		get_tree().paused = false
 	var overlay_id := _overlay.get_instance_id() if _overlay else 0
 	var tween := create_tween()
 	tween.tween_property(_overlay, "modulate:a", 0.0, FADE_TIME).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)

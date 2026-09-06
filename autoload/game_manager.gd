@@ -121,6 +121,14 @@ func advance_to_next_sector() -> void:
 	GlobalData.board.board_objective_progress = 0
 	GlobalData.board.board_objective_required = BoardConfig.get_objective(BoardConfig.theme_for_sector(GlobalData.board.current_sector))["required"]
 	GlobalData.board.board_objective_intro_consumed = false
+	# Fresh sector = fresh mission: clear the previous contract so the board
+	# shows the select screen once, then tiles until extraction/boss.
+	GlobalData.board.active_contract.clear()
+	GlobalData.board.primary_objective_done = false
+	GlobalData.board.secondary_objectives_status.clear()
+	GlobalData.board.extraction_zone_pos = Vector2i(-1, -1)
+	GlobalData.board.extraction_unlocked = false
+	GlobalData.board.mission_step_count = 0
 	GlobalData.board.board_patrols.clear()
 	GlobalData.board.board_patrol_engagement = -1
 	# Route through HeatWantedSystem so the HUD signals, wanted escalation floor

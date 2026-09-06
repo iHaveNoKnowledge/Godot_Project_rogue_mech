@@ -2618,6 +2618,9 @@ func _on_contract_selected(contract: Dictionary) -> void:
 		_highlight_adjacent()
 
 	var pri: Dictionary = contract.get("primary", {})
+	# Persist immediately so Continue resumes this mission instead of
+	# reopening the select screen.
+	GlobalData.save_run()
 	EventBus.event_triggered.emit({
 		"name": "CONTRACT ACCEPTED",
 		"effect": "none",

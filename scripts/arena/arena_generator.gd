@@ -628,11 +628,15 @@ func _add_forest_bank_mesh(texture: Texture2D, z0: float, z1: float) -> void:
 	tile_container.add_child(surface)
 
 
-# Generates a seamless 1024px ground texture for the current theme. Each pixel
+# Generates a seamless ground texture for the current theme. Each pixel
 # maps to a world coordinate and gets the theme's palette (roads, sidewalks,
 # lanes, trails) blended with organic noise so it never looks tiled.
+# NOTE: kept at 256px (was 1024px). The 1024px loop ran 1M set_pixel calls in
+# GDScript on the main thread every combat entry, freezing the game for
+# seconds (read as a hang). 256px is stretched over the same field and looks
+# identical at battlefield distances.
 func _build_ground_texture() -> ImageTexture:
-	var res := 1024
+	var res := 256
 	var img := Image.create(res, res, false, Image.FORMAT_RGB8)
 	var half := arena_size / 2.0
 	for py in range(res):

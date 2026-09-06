@@ -44,7 +44,7 @@ func _random_positions() -> Array:
 	rng.randomize()
 	var half = arena_size / 2.0 - 15.0
 
-	for i in range(30):
+	for i in range(70):
 		results.append({
 			"pos": Vector3(rng.randf_range(-half, half), 0, rng.randf_range(-half, half)),
 			"type": rng.randi_range(0, 5),

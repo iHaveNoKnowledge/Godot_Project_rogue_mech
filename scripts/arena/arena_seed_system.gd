@@ -29,8 +29,9 @@ func get_obstacle_positions(theme: int = 0, arena_size: float = 240.0) -> Array:
 
 	match theme:
 		0: # DESERT (ทะเลทราย)
-			# Outpost perimeter & scattered sand dunes/bunkers
-			for i in range(rng.randi_range(28, 38)):
+			# Outpost perimeter & scattered sand dunes/bunkers — dense layout so
+			# the 240-400m field never reads empty.
+			for i in range(rng.randi_range(60, 80)):
 				var angle = rng.randf() * TAU
 				var radius = rng.randf_range(20, 100)
 				positions.append({
@@ -40,8 +41,8 @@ func get_obstacle_positions(theme: int = 0, arena_size: float = 240.0) -> Array:
 				})
 
 		1: # CITY_HIGHRISE (เมืองตึกเยอะ)
-			# Street alley barricades & container stacks
-			for i in range(rng.randi_range(30, 42)):
+			# Street alley barricades & container stacks — dense cover for CQB.
+			for i in range(rng.randi_range(62, 85)):
 				var x = rng.randf_range(-half, half)
 				var z = rng.randf_range(-half, half)
 				if absf(x) < 15.0 and absf(z) < 15.0: continue
@@ -58,8 +59,8 @@ func get_obstacle_positions(theme: int = 0, arena_size: float = 240.0) -> Array:
 					var pos_val = (i - 2) * 12.0
 					positions.append({"pos": Vector3(side, 0, pos_val), "type": 0, "rot": deg_to_rad(90)})
 					positions.append({"pos": Vector3(pos_val, 0, side), "type": 0, "rot": 0.0})
-			# Corner cover
-			for i in range(rng.randi_range(20, 28)):
+			# Corner cover — doubled for dense crossfire lanes.
+			for i in range(rng.randi_range(40, 55)):
 				positions.append({
 					"pos": Vector3(rng.randf_range(-half, half), 0, rng.randf_range(-half, half)),
 					"type": rng.randi_range(1, 5),
@@ -71,8 +72,8 @@ func get_obstacle_positions(theme: int = 0, arena_size: float = 240.0) -> Array:
 			for z in [-28.0, 28.0]:
 				for bx in [-10.0, 0.0, 10.0]:
 					positions.append({"pos": Vector3(bx, 0, z), "type": 0, "rot": 0.0})
-			# Flanking bridge cover & riverbank supply crates
-			for i in range(rng.randi_range(25, 35)):
+			# Flanking bridge cover & riverbank supply crates — dense.
+			for i in range(rng.randi_range(50, 70)):
 				var rx = rng.randf_range(-half, half)
 				var rz = rng.randf_range(-half, half)
 				if absf(rz) < 22.0:
@@ -92,7 +93,8 @@ func get_obstacle_positions(theme: int = 0, arena_size: float = 240.0) -> Array:
 			# forest cover types (6=tree trunk, 7=fallen log, 8=fern) are used so
 			# no city props (containers, barriers, pillars) break the biome. The
 			# central band stays clear on both variants (river strip / road).
-			for i in range(rng.randi_range(34, 46)):
+			# Doubled density for thick jungle concealment gameplay.
+			for i in range(rng.randi_range(70, 95)):
 				var x = rng.randf_range(-half, half)
 				var z = rng.randf_range(-half, half)
 				if absf(z) < 24.0:

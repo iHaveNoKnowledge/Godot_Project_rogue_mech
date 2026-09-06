@@ -11,8 +11,13 @@ static func get_ground_material(theme: int, base_texture: Texture2D = null) -> S
 	var key = "ground_%d" % theme
 	if _mat_cache.has(key):
 		var cached: StandardMaterial3D = _mat_cache[key]
-		if base_texture != null:
+		if base_texture != null and theme != 0:
 			cached.albedo_texture = base_texture
+		# DESERT keeps ComfyUI albedo (see creation branch), ignore procedural base_texture.
+		if theme == 0:
+			var comfy_path := "res://resources/textures/sand/comfy_desert_albedo.png"
+			if ResourceLoader.exists(comfy_path):
+				cached.albedo_texture = load(comfy_path)
 		return cached
 
 	var mat = StandardMaterial3D.new()
@@ -20,7 +25,7 @@ static func get_ground_material(theme: int, base_texture: Texture2D = null) -> S
 	mat.metallic = 0.05
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 
-	if base_texture != null:
+	if base_texture != null and theme != 0:
 		mat.albedo_texture = base_texture
 
 	var norm_path := ""
@@ -32,6 +37,13 @@ static func get_ground_material(theme: int, base_texture: Texture2D = null) -> S
 			mat.metallic = 0.0
 			mat.metallic_specular = 0.35
 			mat.albedo_color = Color(0.97, 0.92, 0.84)
+			# ComfyUI-generated tileable sand albedo (Z-Image-Turbo). Falls back
+			# to procedural base_texture when the file is missing.
+			var comfy_albedo := "res://resources/textures/sand/comfy_desert_albedo.png"
+			if ResourceLoader.exists(comfy_albedo):
+				mat.albedo_texture = load(comfy_albedo)
+				mat.uv1_scale = Vector3(24, 24, 24)
+				mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 			norm_path = "res://resources/textures/sand/normal.jpg"
 			rough_path = "" # Do not use dark glossy roughness map on sand
 		1: # CITY_HIGHRISE — weathered concrete, not glossy road

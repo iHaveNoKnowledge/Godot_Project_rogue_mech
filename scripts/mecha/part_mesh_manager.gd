@@ -13,6 +13,19 @@ var ghost_mode: bool = false
 # Cached ghost material: ghost frames rebuild constantly during an assembly.
 var _ghost_mat: StandardMaterial3D = null
 
+# Shared base materials (class-wide cache). Every mech build — player, allies
+# AND every enemy spawn — used to news up ~30 ShaderMaterials per mech
+# (2 armor + 3 frame per slot x 6 slots), stalling combat entry and every
+# reinforcement wave. The base materials are never mutated after creation
+# (damage cracks use separate material_overlay slots, the realistic-fix pass
+# skips ShaderMaterials), so sharing them across all meshes/mechs is safe and
+# also cuts draw-state changes. Armor paint varies by color -> keyed by html.
+static var _shared_armor_mats: Dictionary = {}
+static var _shared_dark_trim_mat: ShaderMaterial = null
+static var _shared_frame_mat: ShaderMaterial = null
+static var _shared_chrome_mat: ShaderMaterial = null
+static var _shared_eye_mat: ShaderMaterial = null
+
 
 func set_ghost_mode(enabled: bool) -> void:
 	ghost_mode = enabled
@@ -773,37 +786,85 @@ func _spawn_break_vfx(slot_name: String) -> void:
 
 # Helper materials for inner frame & armor - REALISTIC PBR VALUES
 # Painted surfaces are dielectric (metallic ~0), brushed metal is ~0.7-0.85, chrome is refined but not mirror
+# All shared class-wide (see _shared_* cache): identical params, never mutated.
 func _get_dark_frame_material() -> ShaderMaterial:
-	var mat = ShaderMaterial.new()
-	mat.shader = MASTER_PBR_SHADER
-	mat.set_shader_parameter("primary_color", Color(0.14, 0.16, 0.20))
-	mat.set_shader_parameter("metallic", 0.35)
-	mat.set_shader_parameter("roughness", 0.62)
-	mat.set_shader_parameter("panel_grid_scale", 10.0)
-	mat.set_shader_parameter("panel_line_depth", 0.40)
-	mat.set_shader_parameter("edge_wear", 0.12)
-	mat.set_shader_parameter("rim_strength", 0.05)
-	return mat
+	if _shared_frame_mat == null or not is_instance_valid(_shared_frame_mat):
+		var mat = ShaderMaterial.new()
+		mat.shader = MASTER_PBR_SHADER
+		mat.set_shader_parameter("primary_color", Color(0.14, 0.16, 0.20))
+		mat.set_shader_parameter("metallic", 0.35)
+		mat.set_shader_parameter("roughness", 0.62)
+		mat.set_shader_parameter("panel_grid_scale", 10.0)
+		mat.set_shader_parameter("panel_line_depth", 0.40)
+		mat.set_shader_parameter("edge_wear", 0.12)
+		mat.set_shader_parameter("rim_strength", 0.05)
+		_shared_frame_mat = mat
+	return _shared_frame_mat
 
 func _get_chrome_material() -> ShaderMaterial:
-	var mat = ShaderMaterial.new()
-	mat.shader = MASTER_PBR_SHADER
-	mat.set_shader_parameter("primary_color", Color(0.72, 0.74, 0.78))
-	mat.set_shader_parameter("metallic", 0.88)
-	mat.set_shader_parameter("roughness", 0.32)
-	mat.set_shader_parameter("panel_grid_scale", 0.0)
-	mat.set_shader_parameter("edge_wear", 0.04)
-	mat.set_shader_parameter("rim_strength", 0.06)
-	return mat
+	if _shared_chrome_mat == null or not is_instance_valid(_shared_chrome_mat):
+		var mat = ShaderMaterial.new()
+		mat.shader = MASTER_PBR_SHADER
+		mat.set_shader_parameter("primary_color", Color(0.72, 0.74, 0.78))
+		mat.set_shader_parameter("metallic", 0.88)
+		mat.set_shader_parameter("roughness", 0.32)
+		mat.set_shader_parameter("panel_grid_scale", 0.0)
+		mat.set_shader_parameter("edge_wear", 0.04)
+		mat.set_shader_parameter("rim_strength", 0.06)
+		_shared_chrome_mat = mat
+	return _shared_chrome_mat
 
 func _get_eye_sensor_material() -> ShaderMaterial:
-	var mat = ShaderMaterial.new()
-	mat.shader = MASTER_PBR_SHADER
-	mat.set_shader_parameter("primary_color", Color(1.0, 0.12, 0.20))
-	mat.set_shader_parameter("emission_color", Color(1.0, 0.15, 0.25))
-	mat.set_shader_parameter("emission_energy", 5.0)
-	mat.set_shader_parameter("pulse_speed", 2.0)
-	return mat
+	if _shared_eye_mat == null or not is_instance_valid(_shared_eye_mat):
+		var mat = ShaderMaterial.new()
+		mat.shader = MASTER_PBR_SHADER
+		mat.set_shader_parameter("primary_color", Color(1.0, 0.12, 0.20))
+		mat.set_shader_parameter("emission_color", Color(1.0, 0.15, 0.25))
+		mat.set_shader_parameter("emission_energy", 5.0)
+		mat.set_shader_parameter("pulse_speed", 2.0)
+		_shared_eye_mat = mat
+	return _shared_eye_mat
+
+# Shared outer-armor materials. armor_mat varies only by paint color, so it is
+# cached per color-html; dark trim is a constant single shared instance.
+func _get_shared_armor_mat(col: Color) -> ShaderMaterial:
+	var key := col.to_html()
+	if _shared_armor_mats.has(key):
+		var cached: ShaderMaterial = _shared_armor_mats[key]
+		if is_instance_valid(cached):
+			return cached
+	# Realistic painted armor: metallic ~0.08 (paint over primer), roughness ~0.65-0.72 matte
+	var armor_mat = ShaderMaterial.new()
+	armor_mat.shader = MASTER_PBR_SHADER
+	armor_mat.render_priority = 1
+	armor_mat.set_shader_parameter("primary_color", col)
+	armor_mat.set_shader_parameter("trim_color", Color(0.12, 0.14, 0.18))
+	armor_mat.set_shader_parameter("metallic", 0.08)
+	armor_mat.set_shader_parameter("roughness", 0.68)
+	armor_mat.set_shader_parameter("panel_grid_scale", 5.5)
+	armor_mat.set_shader_parameter("panel_line_depth", 0.50)
+	armor_mat.set_shader_parameter("edge_wear", 0.08)
+	armor_mat.set_shader_parameter("rim_strength", 0.06)
+	_apply_comfy_armor_detail(armor_mat)
+	_shared_armor_mats[key] = armor_mat
+	return armor_mat
+
+func _get_shared_dark_trim_mat() -> ShaderMaterial:
+	if _shared_dark_trim_mat == null or not is_instance_valid(_shared_dark_trim_mat):
+		var dark_trim_mat = ShaderMaterial.new()
+		dark_trim_mat.shader = MASTER_PBR_SHADER
+		dark_trim_mat.render_priority = 1
+		dark_trim_mat.set_shader_parameter("primary_color", Color(0.12, 0.14, 0.18))
+		dark_trim_mat.set_shader_parameter("trim_color", Color(0.08, 0.09, 0.11))
+		dark_trim_mat.set_shader_parameter("metallic", 0.12)
+		dark_trim_mat.set_shader_parameter("roughness", 0.72)
+		dark_trim_mat.set_shader_parameter("panel_grid_scale", 8.0)
+		dark_trim_mat.set_shader_parameter("panel_line_depth", 0.35)
+		dark_trim_mat.set_shader_parameter("edge_wear", 0.10)
+		dark_trim_mat.set_shader_parameter("rim_strength", 0.05)
+		_apply_comfy_armor_detail(dark_trim_mat)
+		_shared_dark_trim_mat = dark_trim_mat
+	return _shared_dark_trim_mat
 
 
 # ComfyUI armor detail overlay (Z-Image-Turbo, neutral mid-gray multiply).
@@ -1157,32 +1218,9 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 	if part and "part_color" in part and part.part_color != Color.TRANSPARENT and part.part_color.a > 0.1:
 		col = part.part_color
 
-	# Realistic painted armor: metallic ~0.08 (paint over primer), roughness ~0.65-0.72 matte
-	var armor_mat = ShaderMaterial.new()
-	armor_mat.shader = MASTER_PBR_SHADER
-	armor_mat.render_priority = 1
-	armor_mat.set_shader_parameter("primary_color", col)
-	armor_mat.set_shader_parameter("trim_color", Color(0.12, 0.14, 0.18))
-	armor_mat.set_shader_parameter("metallic", 0.08)
-	armor_mat.set_shader_parameter("roughness", 0.68)
-	armor_mat.set_shader_parameter("panel_grid_scale", 5.5)
-	armor_mat.set_shader_parameter("panel_line_depth", 0.50)
-	armor_mat.set_shader_parameter("edge_wear", 0.08)
-	armor_mat.set_shader_parameter("rim_strength", 0.06)
-	_apply_comfy_armor_detail(armor_mat)
-
-	var dark_trim_mat = ShaderMaterial.new()
-	dark_trim_mat.shader = MASTER_PBR_SHADER
-	dark_trim_mat.render_priority = 1
-	dark_trim_mat.set_shader_parameter("primary_color", Color(0.12, 0.14, 0.18))
-	dark_trim_mat.set_shader_parameter("trim_color", Color(0.08, 0.09, 0.11))
-	dark_trim_mat.set_shader_parameter("metallic", 0.12)
-	dark_trim_mat.set_shader_parameter("roughness", 0.72)
-	dark_trim_mat.set_shader_parameter("panel_grid_scale", 8.0)
-	dark_trim_mat.set_shader_parameter("panel_line_depth", 0.35)
-	dark_trim_mat.set_shader_parameter("edge_wear", 0.10)
-	dark_trim_mat.set_shader_parameter("rim_strength", 0.05)
-	_apply_comfy_armor_detail(dark_trim_mat)
+	# Shared cached materials (same look, no per-slot/per-mech rebuild cost).
+	var armor_mat := _get_shared_armor_mat(col)
+	var dark_trim_mat := _get_shared_dark_trim_mat()
 
 	match slot_name.to_lower():
 		"head":

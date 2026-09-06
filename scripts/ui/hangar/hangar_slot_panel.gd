@@ -17,9 +17,10 @@ func select(slot: String) -> void:
 	controller.selected_slot = slot
 	if controller.craft_panel:
 		controller.craft_panel.close_window()
-	controller.sub_toggle_container.visible = not slot.begins_with("weapon")
+	var is_wep = slot.begins_with("weapon") or slot.begins_with("shoulder")
+	controller.sub_toggle_container.visible = not is_wep
 	if controller.ammo_panel:
-		controller.ammo_panel.ammo_loadout_box.visible = slot.begins_with("weapon")
+		controller.ammo_panel.ammo_loadout_box.visible = is_wep
 		if controller.ammo_panel.ammo_loadout_box.visible:
 			controller.ammo_panel.refresh()
 	controller.garage_panel.update_camera_focus(slot)

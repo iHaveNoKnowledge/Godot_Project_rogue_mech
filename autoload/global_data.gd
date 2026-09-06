@@ -710,14 +710,19 @@ func degrade_frame_durability(slot: String, amount: float) -> void:
 
 
 ## Degrades the lifetime durability of an equipped weapon
-func degrade_weapon_durability(hand: String, amount: float) -> void:
+func degrade_weapon_durability(slot_or_hand: String, amount: float) -> void:
 	if amount <= 0.0 or weapons == null:
 		return
 	var uid := ""
+	var slot_key := slot_or_hand
+	if slot_or_hand == "shoulder_left" or slot_or_hand == "shoulder_right":
+		slot_key = slot_or_hand
+	elif slot_or_hand != "left" and slot_or_hand != "right":
+		slot_key = "shoulder_" + slot_or_hand if (slot_or_hand == "shldr_left" or slot_or_hand == "shldr_right") else slot_or_hand
 	if "weapon_loadout" in weapons:
-		uid = str(weapons.weapon_loadout.get(hand, ""))
+		uid = str(weapons.weapon_loadout.get(slot_key, ""))
 	elif "equipped_weapon_instances" in weapons:
-		uid = str(weapons.equipped_weapon_instances.get(hand, ""))
+		uid = str(weapons.equipped_weapon_instances.get(slot_key, ""))
 	if uid == "":
 		return
 	var inv_list: Array = weapons.weapon_inventory if "weapon_inventory" in weapons else (weapons.inventory if "inventory" in weapons else [])

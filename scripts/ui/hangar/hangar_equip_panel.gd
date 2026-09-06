@@ -114,12 +114,12 @@ func _close_swap_confirm() -> void:
 
 
 func equip_part(slot: String, info: Dictionary) -> void:
-	# Weapon slots (hands / back carry) are mode-independent: clicking a weapon
-	# hand tab never changes current_mode, so equipping a weapon must NOT be
+	# Weapon slots (hands / shoulders / back carry) are mode-independent: clicking a weapon
+	# tab never changes current_mode, so equipping a weapon must NOT be
 	# hijacked by a leftover mode. (REGISTER drops the player into frame mode,
 	# so equipping weapons on a freshly registered mech would otherwise run the
 	# frame branch below and the weapon would never reach the loadout.)
-	if slot.begins_with("weapon"):
+	if slot.begins_with("weapon") or slot.begins_with("shoulder"):
 		var wpath = info.get("path", "")
 		if wpath == "" or not ResourceLoader.exists(wpath):
 			controller.status_message_label.text = "Weapon not found in stash."
@@ -239,7 +239,7 @@ func _perform_attachment_mod_toggle(slot: String, info: Dictionary) -> void:
 func _perform_weapon_equip(slot: String, info: Dictionary, wref: String) -> void:
 	var wpath := str(info.get("path", ""))
 	var moved_note := ""
-	if slot != "weapon_carry" and _arm_destroyed("left" if slot == "weapon_left" else "right"):
+	if slot.begins_with("weapon") and slot != "weapon_carry" and _arm_destroyed("left" if slot == "weapon_left" else "right"):
 		# A destroyed arm cannot hold a weapon: the arm is gone (frame HP 0), so
 		# there is no hand to grip the gun. Same rule as combat — a broken arm
 		# cannot fire or wield anything.
@@ -264,8 +264,26 @@ func _perform_weapon_equip(slot: String, info: Dictionary, wref: String) -> void
 		if from_mech != "":
 			moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
 		elif equipped != "" and not spare:
-			moved_note = " (moved from %s hand)" % equipped
+			moved_note = " (moved from %s)" % equipped
 		LoadoutSystem.add_carry_weapon(wref)
+	elif slot.begins_with("shoulder"):
+		var side = "left" if slot == "shoulder_left" else "right"
+		var equipped := LoadoutSystem.weapon_equipped_slot_ref(wref)
+		if equipped == ("shoulder_" + side):
+			controller.status_message_label.text = "This weapon is already equipped on the %s shoulder." % side
+			return
+		var replaced_path = str(GlobalData.weapons.weapon_loadout.get("shoulder_" + side, ""))
+		var spare := LoadoutSystem.has_spare_weapon(wpath)
+		var freed_path: String = wpath if (equipped != "" and not spare) else ""
+		if controller.garage_panel.would_exceed_field_pack(wpath, replaced_path, freed_path):
+			controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
+			return
+		var from_mech := _transfer_weapon_from_other_mechs(wref, wpath)
+		if from_mech != "":
+			moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
+		elif equipped != "" and not spare:
+			moved_note = " (moved from %s)" % equipped
+		LoadoutSystem.set_shoulder_weapon(side, wref)
 	else:
 		var hand = "left" if slot == "weapon_left" else "right"
 		var equipped := LoadoutSystem.weapon_equipped_slot_ref(wref)
@@ -363,9 +381,26 @@ func _perform_selected_weapon_equip(res: Resource) -> void:
 		if from_mech != "":
 			moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
 		elif equipped != "" and not spare:
-			moved_note = " (moved from %s hand)" % equipped
+			moved_note = " (moved from %s)" % equipped
 		LoadoutSystem.add_carry_weapon(wref)
 		controller.status_message_label.text = "Added to Back Carry: %s!%s" % [(res.weapon_name if "weapon_name" in res else "Weapon"), moved_note]
+	elif controller.selected_slot.begins_with("shoulder"):
+		var side = "left" if controller.selected_slot == "shoulder_left" else "right"
+		if equipped == ("shoulder_" + side):
+			controller.status_message_label.text = "This weapon is already equipped on the %s shoulder." % side
+			return
+		var replaced_path = str(GlobalData.weapons.weapon_loadout.get("shoulder_" + side, ""))
+		var freed_path: String = wpath if (equipped != "" and not spare) else ""
+		if controller.garage_panel.would_exceed_field_pack(wpath, replaced_path, freed_path):
+			controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
+			return
+		var from_mech := _transfer_weapon_from_other_mechs(wref, wpath)
+		if from_mech != "":
+			moved_note = " (SWAPPED from %s — that mech no longer carries it)" % from_mech
+		elif equipped != "" and not spare:
+			moved_note = " (moved from %s)" % equipped
+		LoadoutSystem.set_shoulder_weapon(side, wref)
+		controller.status_message_label.text = "Equipped %s on %s shoulder!%s" % [(res.weapon_name if "weapon_name" in res else "Weapon"), side, moved_note]
 	elif _arm_destroyed(hand):
 		# A destroyed arm cannot hold a weapon (same rule as combat: a broken
 		# arm cannot fire or wield). Block the equip before the transfer logic.
@@ -690,18 +725,21 @@ func unequip_part(slot: String) -> void:
 	# Same mode-independence rule as equip_part(): weapon slots must be handled
 	# before the frame-mode branch, or UNEQUIP on a weapon while in frame mode
 	# would erase a frames-dict key and leave the weapon in the loadout.
-	if slot.begins_with("weapon"):
+	if slot.begins_with("weapon") or slot.begins_with("shoulder"):
 		if slot == "weapon_carry":
 			var wpath = controller.selected_part_path
 			if wpath != "" and LoadoutSystem.is_weapon_in_carry(wpath):
 				LoadoutSystem.remove_carry_weapon(wpath)
+		elif slot.begins_with("shoulder"):
+			var side = "left" if slot == "shoulder_left" else "right"
+			LoadoutSystem.set_shoulder_weapon(side, "")
 		else:
 			var hand = "left" if slot == "weapon_left" else "right"
 			LoadoutSystem.set_hand_weapon(hand, "")
 		controller.persist_panel.commit_and_save()
 		var mecha = controller.garage_panel.get_mecha_base()
 		if mecha:
-			for node_name in ["WeaponVisual_left", "WeaponVisual_right", "WeaponVisual_carry"]:
+			for node_name in ["WeaponVisual_left", "WeaponVisual_right", "WeaponVisual_shoulder_left", "WeaponVisual_shoulder_right", "WeaponVisual_carry"]:
 				var existing = mecha.get_node_or_null("ArmLeft/ForearmLeft/" + node_name)
 				if existing == null:
 					existing = mecha.get_node_or_null("ArmRight/ForearmRight/" + node_name)
@@ -806,8 +844,8 @@ func on_equip_pressed() -> void:
 	elif controller.selected_part_path != "" and ResourceLoader.exists(controller.selected_part_path):
 		var res = load(controller.selected_part_path)
 		if res:
-			if controller.selected_slot.begins_with("weapon"):
-				# Weapons go into the central weapon_loadout (hands / back). A weapon
+			if controller.selected_slot.begins_with("weapon") or controller.selected_slot.begins_with("shoulder"):
+				# Weapons go into the central weapon_loadout (hands / shoulders / back). A weapon
 				# model only exists once: equipping one that is already carried MOVES
 				# it (same mech slot, or transferred from another parked mech).
 				# If another parked mech holds it, ask before stripping it off them.

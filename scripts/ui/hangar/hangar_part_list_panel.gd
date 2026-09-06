@@ -113,7 +113,7 @@ func populate(slot: String) -> void:
 			controller.part_item_list.select(0)
 			_last_selected_item_index = 0
 			on_item_selected(0)
-	elif slot.begins_with("weapon"):
+	elif slot.begins_with("weapon") or slot.begins_with("shoulder"):
 		if slot == "weapon_left" or slot == "weapon_right":
 			var hand := "left" if slot == "weapon_left" else "right"
 			var arm_slot := "arm_left" if hand == "left" else "arm_right"
@@ -215,7 +215,7 @@ func _update_currently_equipped_display(slot: String) -> void:
 		for child in controller.currently_equipped_bar_box.get_children():
 			child.queue_free()
 
-	if slot.begins_with("weapon"):
+	if slot.begins_with("weapon") or slot.begins_with("shoulder"):
 		if slot == "weapon_carry":
 			var carry_list := LoadoutSystem.get_carry_weapons()
 			if not carry_list.is_empty():
@@ -235,6 +235,34 @@ func _update_currently_equipped_display(slot: String) -> void:
 			else:
 				controller.currently_equipped_label.text = "(No Back Carry Weapons)"
 				controller.currently_equipped_sublabel.text = "Select weapons from inventory below (Max 3)"
+		elif slot.begins_with("shoulder"):
+			var side := "left" if slot == "shoulder_left" else "right"
+			var shldr_label := "Left Shoulder" if side == "left" else "Right Shoulder"
+			var uid := LoadoutSystem.get_equipped_shoulder_uid(side)
+			var w_name := ""
+			var w_dur := 1.0
+			var w_wt := 0.0
+			var w_dmg_type := ""
+			for inv in GlobalData.weapons.weapon_inventory:
+				if str(inv.get("uid", "")) == uid:
+					w_name = str(inv.get("name", "Weapon"))
+					w_dur = GlobalData.get_durability_ratio(inv)
+					var wpath = str(inv.get("path", ""))
+					if wpath != "" and ResourceLoader.exists(wpath):
+						var res = load(wpath)
+						if res:
+							if "weight" in res and res.weight != null:
+								w_wt = float(res.weight)
+							if "damage_type" in res and res.damage_type != null:
+								w_dmg_type = str(res.damage_type)
+					break
+			if w_name != "":
+				controller.currently_equipped_label.text = w_name
+				var dmg_str := (" | %s" % w_dmg_type.capitalize()) if w_dmg_type != "" else ""
+				controller.currently_equipped_sublabel.text = "%s | DUR: %.0f%%%s | Wt: %.1fkg" % [shldr_label, w_dur * 100.0, dmg_str, w_wt]
+			else:
+				controller.currently_equipped_label.text = "(No Weapon - %s)" % shldr_label
+				controller.currently_equipped_sublabel.text = "Select a weapon from inventory below"
 		else:
 			var hand := "left" if slot == "weapon_left" else "right"
 			var hand_label := "Left Hand" if hand == "left" else "Right Hand"
@@ -485,6 +513,16 @@ func on_item_selected(index: int) -> void:
 					wwt,
 					LoadoutSystem.get_field_pack_weight(), LoadoutSystem.get_field_pack_capacity()
 				]
+			elif controller.selected_slot.begins_with("shoulder"):
+				var side = "left" if controller.selected_slot == "shoulder_left" else "right"
+				var eq = weapon_in_loadout(controller.selected_slot, inv)
+				var prefix = "[E] " if eq else ""
+				var dur_str := "[color=%s]%.0f%%[/color]" % ["#ff4444" if wdur <= 0.35 else "#ffaa33", wdur * 100.0] if wdur < 0.999 else "[color=#44ff77]100%%[/color]"
+				controller.stats_label.text = "%s SHOULDER WEAPON: %s%s\nDURABILITY: %s\n\n%s\nWEIGHT: %.1f kg\n\nEquip this weapon to the %s shoulder.\nFIELD PACK: %.1f / %.1f kg" % [
+					side.to_upper(), prefix, wname, dur_str, wcap if not wcap.is_empty() else "TYPE: %s" % wtype,
+					wwt, side,
+					LoadoutSystem.get_field_pack_weight(), LoadoutSystem.get_field_pack_capacity()
+				]
 			else:
 				var hand = "left" if controller.selected_slot == "weapon_left" else "right"
 				var eq = weapon_in_loadout(controller.selected_slot, inv)
@@ -590,7 +628,7 @@ func is_item_equipped(slot: String, info: Dictionary) -> bool:
 	if info.is_empty():
 		return false
 
-	if slot.begins_with("weapon"):
+	if slot.begins_with("weapon") or slot.begins_with("shoulder"):
 		return weapon_in_loadout(slot, info)
 
 	if controller.current_mode == "frame":
@@ -659,6 +697,17 @@ func weapon_in_loadout(slot: String, inv: Dictionary) -> bool:
 		if path != "" and LoadoutSystem.is_weapon_in_carry(path):
 			return true
 		return false
+	if slot.begins_with("shoulder"):
+		var side = "left" if slot == "shoulder_left" else "right"
+		var eq_uid := LoadoutSystem.get_equipped_shoulder_uid(side)
+		if uid != "" and eq_uid != "" and eq_uid == uid:
+			return true
+		var eq_w = LoadoutSystem.get_equipped_shoulder(side)
+		if eq_w and path != "" and (eq_w.resource_path == path or eq_uid == path):
+			return true
+		if eq_uid != "" and path != "" and eq_uid == path:
+			return true
+		return false
 	var hand = "left" if slot == "weapon_left" else "right"
 	var eq_uid := LoadoutSystem.get_equipped_weapon_uid(hand)
 	if uid != "" and eq_uid != "" and eq_uid == uid:
@@ -689,12 +738,40 @@ func other_mech_weapon_user(slot: String, uid: String, path: String) -> String:
 		if slot == "weapon_left":
 			if str(cur_loadout.get("right", "")) == uid:
 				return "R.Hand"
+			if str(cur_loadout.get("shoulder_left", "")) == uid:
+				return "L.Shldr"
+			if str(cur_loadout.get("shoulder_right", "")) == uid:
+				return "R.Shldr"
 			var carry = cur_loadout.get("carry", [])
 			if carry is Array and uid in carry:
 				return "Back Carry"
 		elif slot == "weapon_right":
 			if str(cur_loadout.get("left", "")) == uid:
 				return "L.Hand"
+			if str(cur_loadout.get("shoulder_left", "")) == uid:
+				return "L.Shldr"
+			if str(cur_loadout.get("shoulder_right", "")) == uid:
+				return "R.Shldr"
+			var carry = cur_loadout.get("carry", [])
+			if carry is Array and uid in carry:
+				return "Back Carry"
+		elif slot == "shoulder_left":
+			if str(cur_loadout.get("left", "")) == uid:
+				return "L.Hand"
+			if str(cur_loadout.get("right", "")) == uid:
+				return "R.Hand"
+			if str(cur_loadout.get("shoulder_right", "")) == uid:
+				return "R.Shldr"
+			var carry = cur_loadout.get("carry", [])
+			if carry is Array and uid in carry:
+				return "Back Carry"
+		elif slot == "shoulder_right":
+			if str(cur_loadout.get("left", "")) == uid:
+				return "L.Hand"
+			if str(cur_loadout.get("right", "")) == uid:
+				return "R.Hand"
+			if str(cur_loadout.get("shoulder_left", "")) == uid:
+				return "L.Shldr"
 			var carry = cur_loadout.get("carry", [])
 			if carry is Array and uid in carry:
 				return "Back Carry"
@@ -703,6 +780,10 @@ func other_mech_weapon_user(slot: String, uid: String, path: String) -> String:
 				return "L.Hand"
 			if str(cur_loadout.get("right", "")) == uid:
 				return "R.Hand"
+			if str(cur_loadout.get("shoulder_left", "")) == uid:
+				return "L.Shldr"
+			if str(cur_loadout.get("shoulder_right", "")) == uid:
+				return "R.Shldr"
 
 	# 2. Check other parked mechs in hangar:
 	var editing_id: String = controller.get_editing_mech_id()
@@ -744,6 +825,8 @@ func _other_mech_weapon_uid_user(uid: String, editing_id: String) -> String:
 		if not (loadout is Dictionary):
 			continue
 		if str(loadout.get("left", "")) == uid or str(loadout.get("right", "")) == uid:
+			return str(mech.get("name", "Mech"))
+		if str(loadout.get("shoulder_left", "")) == uid or str(loadout.get("shoulder_right", "")) == uid:
 			return str(mech.get("name", "Mech"))
 		var carry = loadout.get("carry", [])
 		if carry is Array and uid in carry:

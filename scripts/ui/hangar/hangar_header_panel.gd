@@ -63,6 +63,8 @@ func build(root: Control) -> void:
 		{"id": "leg_right", "label": "R.LEGS"},
 		{"id": "weapon_left", "label": "L.HAND"},
 		{"id": "weapon_right", "label": "R.HAND"},
+		{"id": "shoulder_left", "label": "L.SHLDR"},
+		{"id": "shoulder_right", "label": "R.SHLDR"},
 		{"id": "weapon_carry", "label": "BACK CARRY"}
 	]
 

@@ -14,10 +14,12 @@ extends RefCounted
 ## ---------------------------------------------------------------------------
 
 # --- Weapon Loadout ---
-# "left"/"right" = instance uid; "carry" = uids on back; "ammo" = allocation.
+# "left"/"right" = instance uid; "shoulder_left"/"shoulder_right" = uid; "carry" = uids on back; "ammo" = allocation.
 var weapon_loadout: Dictionary = {
 	"left": "w_starter_left",
 	"right": "w_starter_right",
+	"shoulder_left": "",
+	"shoulder_right": "",
 	"carry": ["w_starter_carry"],
 	"ammo": {
 		"kinetic": 300,
@@ -99,6 +101,8 @@ func reset() -> void:
 	weapon_loadout = {
 		"left": "w_starter_left",
 		"right": "w_starter_right",
+		"shoulder_left": "",
+		"shoulder_right": "",
 		"carry": ["w_starter_carry"],
 		"ammo": {
 			"kinetic": 300,

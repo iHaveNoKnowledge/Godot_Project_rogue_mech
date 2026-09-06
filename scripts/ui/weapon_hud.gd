@@ -17,6 +17,17 @@ var right_reserve_label: Label
 var right_type_label: Label
 var right_heat_bar: ProgressBar
 
+# --- Shoulder Panels ---
+var left_shoulder_panel: PanelContainer
+var left_shoulder_name_label: Label
+var left_shoulder_ammo_label: Label
+var left_shoulder_heat_bar: ProgressBar
+
+var right_shoulder_panel: PanelContainer
+var right_shoulder_name_label: Label
+var right_shoulder_ammo_label: Label
+var right_shoulder_heat_bar: ProgressBar
+
 var carry_panel: PanelContainer
 var carry_container: VBoxContainer
 var hand_label: Label
@@ -62,6 +73,8 @@ func _ready() -> void:
 	_create_root()
 	_create_left_panel()
 	_create_right_panel()
+	_create_left_shoulder_panel()
+	_create_right_shoulder_panel()
 	_create_carry_ui()
 	_create_pickup_ui()
 	_create_reload_flash()
@@ -172,6 +185,12 @@ func _try_connect_weapon_manager() -> void:
 	if weapon_manager.has_signal("reload_failed"):
 		weapon_manager.reload_failed.connect(_on_reload_failed)
 	weapon_manager.carry_updated.connect(_on_carry_updated)
+	if weapon_manager.has_signal("shoulder_ammo_changed"):
+		weapon_manager.shoulder_ammo_changed.connect(_on_shoulder_ammo_changed)
+	if weapon_manager.has_signal("shoulder_heat_changed"):
+		weapon_manager.shoulder_heat_changed.connect(_on_shoulder_heat_changed)
+	if weapon_manager.has_signal("shoulder_switched"):
+		weapon_manager.shoulder_switched.connect(_on_shoulder_switched)
 	weapon_manager._emit_initial_state()
 	_update_display()
 
@@ -381,6 +400,116 @@ func _create_right_panel() -> void:
 	key_hint.add_theme_font_size_override("font_size", 9)
 	key_hint.add_theme_color_override("font_color", _dim_color)
 	vbox.add_child(key_hint)
+
+
+func _create_left_shoulder_panel() -> void:
+	left_shoulder_panel = PanelContainer.new()
+	left_shoulder_panel.anchor_left = 0.0
+	left_shoulder_panel.anchor_top = 1.0
+	left_shoulder_panel.anchor_right = 0.0
+	left_shoulder_panel.anchor_bottom = 1.0
+	left_shoulder_panel.offset_left = 32
+	left_shoulder_panel.offset_right = 232
+	left_shoulder_panel.offset_top = -260
+	left_shoulder_panel.offset_bottom = -194
+	left_shoulder_panel.add_theme_stylebox_override("panel", _make_panel_style())
+	left_shoulder_panel.visible = false
+	root_control.add_child(left_shoulder_panel)
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 2)
+	left_shoulder_panel.add_child(vbox)
+
+	var row = HBoxContainer.new()
+	vbox.add_child(row)
+
+	var tag = Label.new()
+	tag.text = "[Q] L.SHLDR"
+	tag.add_theme_font_size_override("font_size", 10)
+	tag.add_theme_color_override("font_color", _highlight_color)
+	row.add_child(tag)
+
+	left_shoulder_ammo_label = Label.new()
+	left_shoulder_ammo_label.text = ""
+	left_shoulder_ammo_label.add_theme_font_size_override("font_size", 11)
+	left_shoulder_ammo_label.add_theme_color_override("font_color", Color(0.9, 0.95, 1.0))
+	left_shoulder_ammo_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left_shoulder_ammo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	row.add_child(left_shoulder_ammo_label)
+
+	left_shoulder_name_label = Label.new()
+	left_shoulder_name_label.text = "EMPTY"
+	left_shoulder_name_label.add_theme_font_size_override("font_size", 12)
+	left_shoulder_name_label.add_theme_color_override("font_color", Color.WHITE)
+	vbox.add_child(left_shoulder_name_label)
+
+	left_shoulder_heat_bar = ProgressBar.new()
+	left_shoulder_heat_bar.min_value = 0.0
+	left_shoulder_heat_bar.max_value = 100.0
+	left_shoulder_heat_bar.value = 0.0
+	left_shoulder_heat_bar.custom_minimum_size = Vector2(0, 6)
+	left_shoulder_heat_bar.show_percentage = false
+	left_shoulder_heat_bar.visible = false
+	var bg_style = StyleBoxFlat.new()
+	bg_style.bg_color = Color(0.15, 0.15, 0.2, 0.8)
+	left_shoulder_heat_bar.add_theme_stylebox_override("fill", _make_heat_style())
+	left_shoulder_heat_bar.add_theme_stylebox_override("background", bg_style)
+	vbox.add_child(left_shoulder_heat_bar)
+
+
+func _create_right_shoulder_panel() -> void:
+	right_shoulder_panel = PanelContainer.new()
+	right_shoulder_panel.anchor_left = 1.0
+	right_shoulder_panel.anchor_top = 1.0
+	right_shoulder_panel.anchor_right = 1.0
+	right_shoulder_panel.anchor_bottom = 1.0
+	right_shoulder_panel.offset_left = -232
+	right_shoulder_panel.offset_right = -32
+	right_shoulder_panel.offset_top = -260
+	right_shoulder_panel.offset_bottom = -194
+	right_shoulder_panel.add_theme_stylebox_override("panel", _make_panel_style())
+	right_shoulder_panel.visible = false
+	root_control.add_child(right_shoulder_panel)
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 2)
+	right_shoulder_panel.add_child(vbox)
+
+	var row = HBoxContainer.new()
+	vbox.add_child(row)
+
+	var tag = Label.new()
+	tag.text = "[E] R.SHLDR"
+	tag.add_theme_font_size_override("font_size", 10)
+	tag.add_theme_color_override("font_color", _highlight_color)
+	row.add_child(tag)
+
+	right_shoulder_ammo_label = Label.new()
+	right_shoulder_ammo_label.text = ""
+	right_shoulder_ammo_label.add_theme_font_size_override("font_size", 11)
+	right_shoulder_ammo_label.add_theme_color_override("font_color", Color(0.9, 0.95, 1.0))
+	right_shoulder_ammo_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right_shoulder_ammo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	row.add_child(right_shoulder_ammo_label)
+
+	right_shoulder_name_label = Label.new()
+	right_shoulder_name_label.text = "EMPTY"
+	right_shoulder_name_label.add_theme_font_size_override("font_size", 12)
+	right_shoulder_name_label.add_theme_color_override("font_color", Color.WHITE)
+	vbox.add_child(right_shoulder_name_label)
+
+	right_shoulder_heat_bar = ProgressBar.new()
+	right_shoulder_heat_bar.min_value = 0.0
+	right_shoulder_heat_bar.max_value = 100.0
+	right_shoulder_heat_bar.value = 0.0
+	right_shoulder_heat_bar.custom_minimum_size = Vector2(0, 6)
+	right_shoulder_heat_bar.show_percentage = false
+	right_shoulder_heat_bar.visible = false
+	var bg_style = StyleBoxFlat.new()
+	bg_style.bg_color = Color(0.15, 0.15, 0.2, 0.8)
+	right_shoulder_heat_bar.add_theme_stylebox_override("fill", _make_heat_style())
+	right_shoulder_heat_bar.add_theme_stylebox_override("background", bg_style)
+	vbox.add_child(right_shoulder_heat_bar)
 
 
 func _create_carry_ui() -> void:
@@ -795,6 +924,68 @@ func _update_display() -> void:
 		right_ammo_label.modulate = Color.WHITE
 		right_reserve_label.text = ""
 		right_heat_bar.visible = false
+
+	# Left Shoulder
+	if left_shoulder_panel:
+		if weapon_manager.get("shoulder_left"):
+			var w = weapon_manager.shoulder_left
+			left_shoulder_panel.visible = true
+			left_shoulder_name_label.text = w.weapon_name
+			var ammo = weapon_manager._get_ammo(w)
+			if w.max_ammo >= 999:
+				left_shoulder_ammo_label.text = "inf"
+			else:
+				var res = weapon_manager.get_battle_reserve(w.get_ammo_type())
+				left_shoulder_ammo_label.text = "%d/%d (res:%d)" % [ammo, w.max_ammo, res]
+			if w.uses_heat():
+				left_shoulder_heat_bar.visible = true
+				left_shoulder_heat_bar.max_value = maxf(w.heat_capacity, 1.0)
+				left_shoulder_heat_bar.value = weapon_manager._get_heat(w)
+				left_shoulder_heat_bar.modulate = Color(1.0, 0.4, 0.4) if weapon_manager.is_overheated("shoulder_left") else Color.WHITE
+			else:
+				left_shoulder_heat_bar.visible = false
+		else:
+			left_shoulder_panel.visible = false
+
+	# Right Shoulder
+	if right_shoulder_panel:
+		if weapon_manager.get("shoulder_right"):
+			var w = weapon_manager.shoulder_right
+			right_shoulder_panel.visible = true
+			right_shoulder_name_label.text = w.weapon_name
+			var ammo = weapon_manager._get_ammo(w)
+			if w.max_ammo >= 999:
+				right_shoulder_ammo_label.text = "inf"
+			else:
+				var res = weapon_manager.get_battle_reserve(w.get_ammo_type())
+				right_shoulder_ammo_label.text = "%d/%d (res:%d)" % [ammo, w.max_ammo, res]
+			if w.uses_heat():
+				right_shoulder_heat_bar.visible = true
+				right_shoulder_heat_bar.max_value = maxf(w.heat_capacity, 1.0)
+				right_shoulder_heat_bar.value = weapon_manager._get_heat(w)
+				right_shoulder_heat_bar.modulate = Color(1.0, 0.4, 0.4) if weapon_manager.is_overheated("shoulder_right") else Color.WHITE
+			else:
+				right_shoulder_heat_bar.visible = false
+		else:
+			right_shoulder_panel.visible = false
+
+
+func _on_shoulder_ammo_changed(_side: String, _current: int, _max_ammo: int) -> void:
+	_update_display()
+
+
+func _on_shoulder_heat_changed(side: String, current: float, max_heat: float, overheated: bool) -> void:
+	var bar: ProgressBar = left_shoulder_heat_bar if side == "left" else right_shoulder_heat_bar
+	if bar == null:
+		return
+	bar.max_value = maxf(max_heat, 1.0)
+	bar.value = current
+	bar.visible = true
+	bar.modulate = Color(1.0, 0.4, 0.4) if overheated else Color.WHITE
+
+
+func _on_shoulder_switched(_side: String, _weapon_name: String) -> void:
+	_update_display()
 
 
 func _on_carry_updated(_carry_list: Array) -> void:

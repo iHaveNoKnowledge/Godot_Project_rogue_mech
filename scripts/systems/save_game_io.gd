@@ -388,7 +388,7 @@ static func restore_from_dict(data: Dictionary) -> void:
 		# Older saves stored resource PATHS in the loadout; current saves store
 		# instance uids so the [E] badge stays per-instance. Migrate any path
 		# refs to the matching stash instance's uid when one exists.
-		for key in ["left", "right"]:
+		for key in ["left", "right", "shoulder_left", "shoulder_right"]:
 			GlobalData.weapons.weapon_loadout[key] = LoadoutSystem.migrate_ref_to_uid(GlobalData.weapons.weapon_loadout.get(key, ""))
 		var migrated_carry: Array = []
 		var carry = GlobalData.weapons.weapon_loadout.get("carry", [])

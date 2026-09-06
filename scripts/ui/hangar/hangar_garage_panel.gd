@@ -677,7 +677,7 @@ func apply_frame_preview(slot: String, info: Dictionary) -> void:
 
 func apply_armor_preview(slot: String, info: Dictionary) -> void:
 	if mecha_3d_root == null: return
-	if slot.begins_with("weapon"):
+	if slot.begins_with("weapon") or slot.begins_with("shoulder"):
 		preview_weapon_on_hand(slot, info)
 		return
 	var mecha = get_mecha_base()
@@ -705,7 +705,7 @@ func get_part_mesh_manager() -> Node:
 	return mecha.get_node_or_null("PartMeshManager") if mecha else null
 
 
-# Shows a selected weapon on the matching hand (or on the back for carry) as a
+# Shows a selected weapon on the matching hand/shoulder (or on the back for carry) as a
 # live preview (not yet equipped).
 func preview_weapon_on_hand(slot: String, info: Dictionary) -> void:
 	var mecha = get_mecha_base()
@@ -719,6 +719,9 @@ func preview_weapon_on_hand(slot: String, info: Dictionary) -> void:
 		return
 	if slot == "weapon_carry":
 		WeaponVisualFactory.mount_carry(mecha, [weapon], "WeaponVisual_carry")
+	elif slot.begins_with("shoulder"):
+		var side = "left" if slot == "shoulder_left" else "right"
+		WeaponVisualFactory.mount_shoulder(mecha, side, weapon, "WeaponVisual_shoulder_" + side)
 	else:
 		var hand = "left" if slot == "weapon_left" else "right"
 		WeaponVisualFactory.mount_hand(mecha, hand, weapon, "WeaponVisual_" + hand)
@@ -743,7 +746,7 @@ func update_all_slots_preview() -> void:
 	update_weapon_preview(mecha)
 
 
-# Shows the equipped weapons on the mech's hands and back in the 3D garage.
+# Shows the equipped weapons on the mech's hands, shoulders, and back in the 3D garage.
 # Uses the SAME shared factory (WeaponVisualFactory) as battle so the model
 # shown in the hangar is exactly what appears in combat.
 func update_weapon_preview(mecha: Node3D) -> void:
@@ -757,6 +760,11 @@ func update_weapon_preview(mecha: Node3D) -> void:
 		if weapon == null or GlobalData.weapons.part_damage.get(arm_slot + "_frame", 0.0) >= 1.0:
 			weapon = null
 		WeaponVisualFactory.mount_hand(mecha, hand, weapon, "WeaponVisual_" + hand)
+
+	# Shoulder weapons
+	for side in ["left", "right"]:
+		var sh_weapon = LoadoutSystem.get_equipped_shoulder(side)
+		WeaponVisualFactory.mount_shoulder(mecha, side, sh_weapon, "WeaponVisual_shoulder_" + side)
 
 	# Back carry weapons (spread horizontally across the back pack).
 	WeaponVisualFactory.mount_carry(mecha, LoadoutSystem.get_carry_weapons(), "WeaponVisual_carry")

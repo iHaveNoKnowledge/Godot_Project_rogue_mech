@@ -9,6 +9,9 @@ signal reload_failed(hand: String, reason: String)
 signal carry_updated(carry_list: Array)
 signal weapon_dropped(hand: String, weapon: WeaponPart)
 signal heat_changed(hand: String, current: float, max_heat: float, overheated: bool)
+signal shoulder_ammo_changed(side: String, current: int, max_ammo: int)
+signal shoulder_heat_changed(side: String, current: float, max_heat: float, overheated: bool)
+signal shoulder_switched(side: String, weapon_name: String)
 # Fired when a melee swing actually connects (damage applied). The HUD listens
 # for it to flash the screen edge as impact feedback.
 signal melee_hit_landed
@@ -25,6 +28,8 @@ var _hitstop_timer: SceneTreeTimer = null
 # --- Slots ---
 var left_hand: WeaponPart = null
 var right_hand: WeaponPart = null
+var shoulder_left: WeaponPart = null
+var shoulder_right: WeaponPart = null
 var carry: Array[WeaponPart] = []
 
 # --- Ammo ---
@@ -163,14 +168,18 @@ func _ready() -> void:
 	# An empty hand slot in the loadout means "unarmed" — kept as null.
 	left_hand = LoadoutSystem.get_equipped_weapon("left")
 	right_hand = LoadoutSystem.get_equipped_weapon("right")
+	shoulder_left = LoadoutSystem.get_equipped_shoulder("left")
+	shoulder_right = LoadoutSystem.get_equipped_shoulder("right")
 	carry = LoadoutSystem.get_carry_weapons()
 	# Battle reserve = the ammo the player chose to carry in the loadout.
 	# Deduct that from the persistent stash now (what you fire is spent); any
 	# leftover returns to the stash when combat ends.
 	battle_reserve = LoadoutSystem.get_loadout_ammo_dict()
-	# Per-model upgrade multipliers from the loadout instances (hands + pack).
+	# Per-model upgrade multipliers from the loadout instances (hands + shoulders + pack).
 	_register_damage_mult(GlobalData.weapons.weapon_loadout.get("left", ""))
 	_register_damage_mult(GlobalData.weapons.weapon_loadout.get("right", ""))
+	_register_damage_mult(GlobalData.weapons.weapon_loadout.get("shoulder_left", ""))
+	_register_damage_mult(GlobalData.weapons.weapon_loadout.get("shoulder_right", ""))
 	var carry_refs = GlobalData.weapons.weapon_loadout.get("carry", [])
 	if carry_refs is Array:
 		for ref in carry_refs:
@@ -208,15 +217,17 @@ func _on_combat_ended(_victory: bool) -> void:
 	HangarManager.save_active()
 
 
-# Writes the current hands + back-carry back into GlobalData.weapons.weapon_loadout so
+# Writes the current hands + shoulders + back-carry back into GlobalData.weapons.weapon_loadout so
 # in-battle pickups and swaps survive into the next battle. Runs at combat end
 # (and after each commit/drop) since return_to_board() -> save_run() only saves
 # the state GlobalData holds at that moment.
 func sync_loadout_to_global() -> void:
-	# Hands/back are written back by INSTANCE uid (the copy that entered the
+	# Hands/shoulders/back are written back by INSTANCE uid (the copy that entered the
 	# battle keeps its identity) so the hangar [E] badge stays per-instance.
 	LoadoutSystem.set_hand_weapon("left", LoadoutSystem.resolve_hand_uid_for_sync("left", left_hand.resource_path if left_hand else ""))
 	LoadoutSystem.set_hand_weapon("right", LoadoutSystem.resolve_hand_uid_for_sync("right", right_hand.resource_path if right_hand else ""))
+	LoadoutSystem.set_shoulder_weapon("left", LoadoutSystem.resolve_shoulder_uid_for_sync("left", shoulder_left.resource_path if shoulder_left else ""))
+	LoadoutSystem.set_shoulder_weapon("right", LoadoutSystem.resolve_shoulder_uid_for_sync("right", shoulder_right.resource_path if shoulder_right else ""))
 	var carry_paths: Array = []
 	for weapon in carry:
 		if weapon:
@@ -280,6 +291,12 @@ func _emit_initial_state() -> void:
 	if right_hand:
 		weapon_switched.emit("right", right_hand.weapon_name)
 		ammo_changed.emit("right", _get_ammo(right_hand), right_hand.max_ammo)
+	if shoulder_left:
+		shoulder_switched.emit("left", shoulder_left.weapon_name)
+		shoulder_ammo_changed.emit("left", _get_ammo(shoulder_left), shoulder_left.max_ammo)
+	if shoulder_right:
+		shoulder_switched.emit("right", shoulder_right.weapon_name)
+		shoulder_ammo_changed.emit("right", _get_ammo(shoulder_right), shoulder_right.max_ammo)
 	call_deferred("_update_weapon_visuals")
 	carry_updated.emit(carry)
 
@@ -507,6 +524,13 @@ func _input(event: InputEvent) -> void:
 	if event.is_action_released("fire_right"):
 		fire_right_holding = false
 
+	# --- SHOULDER WEAPONS (Q = left shoulder in normal mode / E = right shoulder) ---
+	if event.is_action_pressed("shoulder_left") or (event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_Q):
+		if not _is_close_combat_mode():
+			_try_fire_shoulder("left")
+	if event.is_action_pressed("shoulder_right") or (event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_E):
+		_try_fire_shoulder("right")
+
 
 func reload_weapon(hand: String) -> void:
 	var is_left = (hand == "left")
@@ -616,6 +640,19 @@ func _get_muzzle_world_pos(hand: String) -> Vector3:
 	if muzzle == null or not is_instance_valid(muzzle):
 		return Vector3.INF
 	return muzzle.global_position
+
+
+func _get_shoulder_muzzle_world_pos(side: String) -> Vector3:
+	var mecha = get_parent() as Node3D
+	if mecha == null or not mecha.is_inside_tree():
+		return Vector3.INF
+	var mount := mecha.get_node_or_null("ShoulderMesh_" + side)
+	if mount == null or not is_instance_valid(mount):
+		return Vector3.INF
+	var muzzle := WeaponVisualFactory.find_muzzle_node(mount)
+	if muzzle != null and is_instance_valid(muzzle):
+		return muzzle.global_position
+	return mount.global_position
 
 
 # ====================================================================
@@ -1072,6 +1109,76 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 		if core.heat > (core.max_heat * 0.75):
 			wear += 0.00015 * rate_scale
 		GlobalData.degrade_weapon_durability(hand, wear)
+
+
+func _try_fire_shoulder(side: String) -> void:
+	var weapon: WeaponPart = shoulder_left if side == "left" else shoulder_right
+	if weapon == null:
+		return
+
+	var core := _core_for_weapon(weapon)
+	if core == null or not core.can_fire():
+		return
+
+	# Handle ammo consumption from battle_reserve if needed
+	var ammo_type: String = weapon.get_ammo_type()
+	if ammo_type != "none":
+		if core.ammo <= 0:
+			# Auto-replenish from battle_reserve if available
+			var needed := weapon.max_ammo
+			var available := consume_battle_reserve(ammo_type, needed)
+			if available > 0:
+				core.ammo = available
+			else:
+				reload_failed.emit(side, "OUT OF AMMO")
+				return
+
+	var mecha = get_parent() as Node3D
+	if mecha == null:
+		return
+	var cam = get_viewport().get_camera_3d()
+	if cam == null:
+		return
+
+	# Determine spawn position
+	var spawn_pos := _get_shoulder_muzzle_world_pos(side)
+	if spawn_pos == Vector3.INF:
+		var off: Vector3 = WeaponVisualFactory.shoulder_mount_position(side)
+		spawn_pos = mecha.global_position + mecha.global_transform.basis * off
+
+	var viewport_size = get_viewport().get_visible_rect().size
+	var center = viewport_size / 2.0
+	var ray_origin = cam.project_ray_origin(center)
+	var ray_dir = cam.project_ray_normal(center)
+
+	var target_point: Vector3 = ray_origin + ray_dir * 500.0
+	var vp := get_viewport()
+	if vp and vp.get_world_3d() and vp.get_world_3d().direct_space_state:
+		var space_state := vp.get_world_3d().direct_space_state
+		var query := PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 500.0)
+		query.collision_mask = 1 | 2 | 4 | 8
+		var result := space_state.intersect_ray(query)
+		if result:
+			target_point = result["position"]
+
+	var aim_dir: Vector3 = (target_point - spawn_pos).normalized()
+	core.damage_multiplier = float(_damage_mult_by_name.get(weapon.weapon_name, 1.0))
+
+	if core.try_fire(spawn_pos, aim_dir, false, mecha):
+		AudioManager.play_weapon_sfx_with_override(weapon, spawn_pos)
+		var anim = mecha.get_node_or_null("MechaAnimation")
+		if anim == null:
+			anim = mecha.get_node_or_null("AnimationSystem")
+		if anim and anim.get("action_animator") != null:
+			anim.action_animator.play_shoulder_shoot()
+
+		# Wear
+		var rate_scale: float = clampf(float(weapon.fire_rate) / 0.2, 0.25, 2.0) if ("fire_rate" in weapon and weapon.fire_rate > 0.0) else 1.0
+		var wear: float = 0.00004 * rate_scale
+		if core.heat > (core.max_heat * 0.75):
+			wear += 0.00015 * rate_scale
+		GlobalData.degrade_weapon_durability("shoulder_" + side, wear)
+		shoulder_ammo_changed.emit(side, core.ammo, weapon.max_ammo)
 
 
 func _melee_attack(hand: String, weapon: WeaponPart, is_loaded_blast: bool = true) -> void:
@@ -1787,10 +1894,15 @@ func _update_weapon_visuals() -> void:
 		return
 	_update_hand_weapon_visual(mecha, "left", left_hand)
 	_update_hand_weapon_visual(mecha, "right", right_hand)
+	_update_shoulder_weapon_visual(mecha, "left", shoulder_left)
+	_update_shoulder_weapon_visual(mecha, "right", shoulder_right)
 	_update_carry_visuals(mecha)
 
 func _update_hand_weapon_visual(mecha: Node3D, hand: String, weapon: WeaponPart) -> void:
 	WeaponVisualFactory.mount_hand(mecha, hand, weapon, "WeaponMesh_" + hand)
+
+func _update_shoulder_weapon_visual(mecha: Node3D, side: String, weapon: WeaponPart) -> void:
+	WeaponVisualFactory.mount_shoulder(mecha, side, weapon, "ShoulderMesh_" + side)
 
 # Renders the weapons carried on the mech's back (from the loadout).
 func _update_carry_visuals(mecha: Node3D) -> void:

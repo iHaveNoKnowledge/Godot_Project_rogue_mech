@@ -100,10 +100,13 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_combat_mode") or (event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_2 or event.physical_keycode == KEY_2)):
 		toggle_combat_mode()
 
-	# Guard input (Q key, Shift, or custom action "guard")
-	if event.is_action_pressed("guard") or (event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_Q):
-		start_guard()
-	elif event.is_action_released("guard") or (event is InputEventKey and not event.pressed and event.keycode == KEY_Q):
+	# Guard input (only active in Close Combat Mode; normal mode uses Q for shoulder_left)
+	if is_close_combat():
+		if event.is_action_pressed("guard") or (event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_Q):
+			start_guard()
+		elif event.is_action_released("guard") or (event is InputEventKey and not event.pressed and event.keycode == KEY_Q):
+			stop_guard()
+	elif is_guarding:
 		stop_guard()
 
 

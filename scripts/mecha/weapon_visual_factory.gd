@@ -4,6 +4,8 @@ extends RefCounted
 # Shared mount transforms (hangar preview and battle use the same placements).
 const HAND_LEFT_POS := Vector3(-0.85, 1.4, 0.4)
 const HAND_RIGHT_POS := Vector3(0.85, 1.4, 0.4)
+const SHOULDER_LEFT_POS := Vector3(-0.72, 2.15, -0.10)
+const SHOULDER_RIGHT_POS := Vector3(0.72, 2.15, -0.10)
 # Back-carry mount sits BEHIND the torso: weapons are sheathed vertically/upright
 # over the shoulder (-105° on X points the blade/barrel upward along the back)
 # so they never pierce through the chest or torso.
@@ -21,6 +23,11 @@ const HAND_FOREARM_POS := Vector3(0.0, -0.72, 0.0)
 # Returns the mount position for a hand ("left"/"right").
 static func hand_mount_position(hand: String) -> Vector3:
 	return HAND_LEFT_POS if hand == "left" else HAND_RIGHT_POS
+
+
+# Returns the mount position for a shoulder ("left"/"right").
+static func shoulder_mount_position(side: String) -> Vector3:
+	return SHOULDER_LEFT_POS if side == "left" else SHOULDER_RIGHT_POS
 
 
 ## Determines the effective hold stance for a weapon part
@@ -100,6 +107,31 @@ static func mount_hand(mecha: Node3D, hand: String, weapon: WeaponPart, node_nam
 	if weapon == null:
 		return mount
 	mount.add_child(build(weapon))
+	var dur_ratio: float = _resolve_weapon_durability(weapon)
+	apply_durability_wear_to_node(mount, dur_ratio)
+	return mount
+
+
+# Mounts an equipped weapon onto the left or right shoulder hardpoint.
+static func mount_shoulder(mecha: Node3D, side: String, weapon: WeaponPart, node_name: String) -> Node3D:
+	var mount = mecha.get_node_or_null(node_name)
+	if mount == null or not mount.is_inside_tree() or mount.is_queued_for_deletion():
+		if mount != null and mount.is_inside_tree():
+			mecha.remove_child(mount)
+		mount = Node3D.new()
+		mount.name = node_name
+		mecha.add_child(mount)
+
+	mount.position = shoulder_mount_position(side)
+	# Shoulder weapons point forward along -Z
+	mount.rotation_degrees = Vector3(0.0, 0.0, 0.0)
+
+	for child in mount.get_children():
+		child.queue_free()
+	if weapon == null:
+		return mount
+	var model = build(weapon)
+	mount.add_child(model)
 	var dur_ratio: float = _resolve_weapon_durability(weapon)
 	apply_durability_wear_to_node(mount, dur_ratio)
 	return mount

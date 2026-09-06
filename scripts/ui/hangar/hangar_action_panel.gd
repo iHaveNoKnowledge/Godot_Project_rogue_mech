@@ -69,7 +69,7 @@ func show(info: Dictionary) -> void:
 	title.add_theme_font_size_override("font_size", 14)
 	vbox.add_child(title)
 
-	var is_weapon_slot = controller.selected_slot.begins_with("weapon")
+	var is_weapon_slot = controller.selected_slot.begins_with("weapon") or controller.selected_slot.begins_with("shoulder")
 	var is_instance = info.has("uid")
 	var wt_val = info.get("weight", 10.0)
 	var details = Label.new()
@@ -218,8 +218,17 @@ func show(info: Dictionary) -> void:
 			GlobalData.currency.try_spend_scrap(oh_scrap)
 
 			if is_weapon_slot:
-				var hand := "left" if controller.selected_slot == "weapon_left" else "right"
-				GlobalData.restore_weapon_durability(hand, 1.0)
+				var hand := ""
+				if controller.selected_slot == "weapon_left":
+					hand = "left"
+				elif controller.selected_slot == "weapon_right":
+					hand = "right"
+				elif controller.selected_slot == "shoulder_left":
+					hand = "shoulder_left"
+				elif controller.selected_slot == "shoulder_right":
+					hand = "shoulder_right"
+				if hand != "":
+					GlobalData.restore_weapon_durability(hand, 1.0)
 				GlobalData.restore_item_instance_durability(info, 1.0)
 			elif controller.current_mode == "frame":
 				GlobalData.restore_frame_durability(controller.selected_slot, 1.0)

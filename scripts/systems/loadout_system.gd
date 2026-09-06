@@ -85,13 +85,17 @@ static func ref_to_path(ref) -> String:
 	return s
 
 
-# True when the uid currently sits in any loadout slot (left / right / carry).
+# True when the uid currently sits in any loadout slot (left / right / shoulder_left / shoulder_right / carry).
 static func _is_uid_in_loadout(uid: String) -> bool:
 	if uid == "":
 		return false
 	if str(GlobalData.weapons.weapon_loadout.get("left", "")) == uid:
 		return true
 	if str(GlobalData.weapons.weapon_loadout.get("right", "")) == uid:
+		return true
+	if str(GlobalData.weapons.weapon_loadout.get("shoulder_left", "")) == uid:
+		return true
+	if str(GlobalData.weapons.weapon_loadout.get("shoulder_right", "")) == uid:
 		return true
 	var carry = GlobalData.weapons.weapon_loadout.get("carry", [])
 	return carry is Array and uid in carry
@@ -169,6 +173,25 @@ static func get_equipped_weapon_uid(side: String) -> String:
 	return str(GlobalData.weapons.weapon_loadout.get("left", "") if side == "left" else GlobalData.weapons.weapon_loadout.get("right", ""))
 
 
+# Returns the equipped WeaponPart for the given shoulder ("left"/"right").
+# Returns null when unequipped.
+static func get_equipped_shoulder(side: String) -> WeaponPart:
+	var key := "shoulder_left" if side == "left" else "shoulder_right"
+	var path := ref_to_path(GlobalData.weapons.weapon_loadout.get(key, ""))
+	if path == "" or not ResourceLoader.exists(path):
+		return null
+	var res = load(path)
+	if res is WeaponPart:
+		return (res as WeaponPart).duplicate(true) as WeaponPart
+	return null
+
+
+# The instance uid currently equipped on a shoulder ("" = empty).
+static func get_equipped_shoulder_uid(side: String) -> String:
+	var key := "shoulder_left" if side == "left" else "shoulder_right"
+	return str(GlobalData.weapons.weapon_loadout.get(key, ""))
+
+
 # Returns the WeaponParts the mech carries on its back into battle (from loadout).
 static func get_carry_weapons() -> Array[WeaponPart]:
 	var result: Array[WeaponPart] = []
@@ -184,7 +207,7 @@ static func get_carry_weapons() -> Array[WeaponPart]:
 	return result
 
 
-# Total weight of all loadout weapons (both hands + back).
+# Total weight of all loadout weapons (both hands + shoulders + back).
 static func get_loadout_weapons_total() -> float:
 	var total := 0.0
 	var left = get_equipped_weapon("left")
@@ -193,25 +216,34 @@ static func get_loadout_weapons_total() -> float:
 	var right = get_equipped_weapon("right")
 	if right:
 		total += float(right.weight)
+	var shldr_l = get_equipped_shoulder("left")
+	if shldr_l:
+		total += float(shldr_l.weight)
+	var shldr_r = get_equipped_shoulder("right")
+	if shldr_r:
+		total += float(shldr_r.weight)
 	for w in get_carry_weapons():
 		total += float(w.weight)
 	return total
 
 
-# Total weight of all loadout weapons (both hands + back).
+# Total weight of all loadout weapons (both hands + shoulders + back).
 static func get_loadout_weapon_weight() -> float:
 	return get_loadout_weapons_total()
 
 
 # A weapon model may only be equipped in ONE slot at a time (left hand, right
-# hand, or back carry) per physical copy. Returns the slot holding the model,
-# or "" when it isn't equipped anywhere. Enforced by set_hand_weapon /
-# add_carry_weapon so a shotgun can't be in both hands at once.
+# hand, shoulder_left, shoulder_right, or back carry) per physical copy. Returns the slot holding the model,
+# or "" when it isn't equipped anywhere.
 static func weapon_equipped_slot(path: String) -> String:
 	if ref_to_path(GlobalData.weapons.weapon_loadout.get("left", "")) == path:
 		return "left"
 	if ref_to_path(GlobalData.weapons.weapon_loadout.get("right", "")) == path:
 		return "right"
+	if ref_to_path(GlobalData.weapons.weapon_loadout.get("shoulder_left", "")) == path:
+		return "shoulder_left"
+	if ref_to_path(GlobalData.weapons.weapon_loadout.get("shoulder_right", "")) == path:
+		return "shoulder_right"
 	if is_weapon_in_carry(path):
 		return "carry"
 	return ""
@@ -226,6 +258,10 @@ static func weapon_equipped_slot_by_uid(uid: String) -> String:
 		return "left"
 	if str(GlobalData.weapons.weapon_loadout.get("right", "")) == uid:
 		return "right"
+	if str(GlobalData.weapons.weapon_loadout.get("shoulder_left", "")) == uid:
+		return "shoulder_left"
+	if str(GlobalData.weapons.weapon_loadout.get("shoulder_right", "")) == uid:
+		return "shoulder_right"
 	var carry = GlobalData.weapons.weapon_loadout.get("carry", [])
 	if carry is Array and uid in carry:
 		return "carry"
@@ -241,7 +277,7 @@ static func weapon_equipped_slot_ref(ref) -> String:
 	return weapon_equipped_slot_by_uid(s)
 
 
-# Returns the slot ("left"/"right"/"carry") holding `path` inside an arbitrary
+# Returns the slot ("left"/"right"/"shoulder_left"/"shoulder_right"/"carry") holding `path` inside an arbitrary
 # loadout dictionary (e.g. a parked mech's roster snapshot), or "" when absent.
 # Refs are resolved through the stash, so uid-based snapshots match paths too.
 static func weapon_slot_in_loadout(loadout: Dictionary, path: String) -> String:
@@ -249,6 +285,10 @@ static func weapon_slot_in_loadout(loadout: Dictionary, path: String) -> String:
 		return "left"
 	if ref_to_path(loadout.get("right", "")) == path:
 		return "right"
+	if ref_to_path(loadout.get("shoulder_left", "")) == path:
+		return "shoulder_left"
+	if ref_to_path(loadout.get("shoulder_right", "")) == path:
+		return "shoulder_right"
 	var carry = loadout.get("carry", [])
 	if carry is Array:
 		for ref in carry:
@@ -272,6 +312,23 @@ static func set_hand_weapon(side: String, ref) -> bool:
 		GlobalData.weapons.weapon_loadout[key] = ""
 		return true
 	# One physical copy lives in one slot: free the slot holding this instance.
+	var slot := weapon_equipped_slot_by_uid(uid)
+	if slot != "" and slot != key:
+		if slot == "carry":
+			remove_carry_weapon(uid)
+		else:
+			GlobalData.weapons.weapon_loadout[slot] = ""
+	GlobalData.weapons.weapon_loadout[key] = uid
+	return true
+
+
+# Assigns a weapon to a shoulder slot ("left"/"right"). `ref` is instance uid or path.
+static func set_shoulder_weapon(side: String, ref) -> bool:
+	var key := "shoulder_left" if side == "left" else "shoulder_right"
+	var uid := _ref_to_uid(ref)
+	if uid == "":
+		GlobalData.weapons.weapon_loadout[key] = ""
+		return true
 	var slot := weapon_equipped_slot_by_uid(uid)
 	if slot != "" and slot != key:
 		if slot == "carry":
@@ -345,7 +402,7 @@ static func count_owned_weapon(path: String) -> int:
 	return owned
 
 
-# How many loadout slots (left hand + right hand + back pack) currently hold a
+# How many loadout slots (hands, shoulders, back pack) currently hold a
 # copy of this weapon model. With separate instances, a model can fill several
 # slots at once as long as the player owns enough copies.
 static func count_equipped_weapon(path: String) -> int:
@@ -353,6 +410,10 @@ static func count_equipped_weapon(path: String) -> int:
 	if ref_to_path(GlobalData.weapons.weapon_loadout.get("left", "")) == path:
 		n += 1
 	if ref_to_path(GlobalData.weapons.weapon_loadout.get("right", "")) == path:
+		n += 1
+	if ref_to_path(GlobalData.weapons.weapon_loadout.get("shoulder_left", "")) == path:
+		n += 1
+	if ref_to_path(GlobalData.weapons.weapon_loadout.get("shoulder_right", "")) == path:
 		n += 1
 	var carry = GlobalData.weapons.weapon_loadout.get("carry", [])
 	if carry is Array:
@@ -383,6 +444,10 @@ static func weapon_slots_in_loadout(loadout: Dictionary, path: String) -> int:
 	if ref_to_path(loadout.get("left", "")) == path:
 		n += 1
 	if ref_to_path(loadout.get("right", "")) == path:
+		n += 1
+	if ref_to_path(loadout.get("shoulder_left", "")) == path:
+		n += 1
+	if ref_to_path(loadout.get("shoulder_right", "")) == path:
 		n += 1
 	var carry = loadout.get("carry", [])
 	if carry is Array:
@@ -451,6 +516,17 @@ static func resolve_hand_uid_for_sync(side: String, path: String) -> String:
 	if path == "":
 		return ""
 	var key := "left" if side == "left" else "right"
+	var cur := str(GlobalData.weapons.weapon_loadout.get(key, ""))
+	var inst := _instance_by_uid(cur)
+	if not inst.is_empty() and str(inst.get("path", "")) == path:
+		return cur
+	return _uid_for_equip(path)
+
+
+static func resolve_shoulder_uid_for_sync(side: String, path: String) -> String:
+	if path == "":
+		return ""
+	var key := "shoulder_left" if side == "left" else "shoulder_right"
 	var cur := str(GlobalData.weapons.weapon_loadout.get(key, ""))
 	var inst := _instance_by_uid(cur)
 	if not inst.is_empty() and str(inst.get("path", "")) == path:

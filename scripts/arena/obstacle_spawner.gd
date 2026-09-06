@@ -21,6 +21,12 @@ func spawn_covers() -> void:
 		if cover:
 			add_child(cover)
 
+	# Gravity settle: drop every ground-sitting structure onto the terrain
+	# (runs after both structures and covers exist, so nothing hovers).
+	var arena_gen = get_node_or_null("../ArenaGenerator")
+	if arena_gen != null and arena_gen.has_method("settle_all_grounded_props"):
+		arena_gen.settle_all_grounded_props()
+
 
 func _generate_positions() -> Array:
 	var arena_gen = get_node_or_null("../ArenaGenerator")
@@ -223,10 +229,15 @@ func _create_cover(def: Dictionary) -> StaticBody3D:
 	return cover
 
 
-# Surface height under a spawn position: raycasts down onto the environment
-# collision layer (ground tiles, terrain heightmaps, dunes, riverbanks) so
-# cover never ends up half-buried or floating above the ground.
+# Surface height under a spawn position. Uses the ArenaGenerator's terrain math
+# directly (exact, no physics needed) so covers sit ON the ground instead of
+# floating at y=0 while the terrain sits at ~-0.35. The old raycast version
+# could also hit previously spawned covers (same layer 2) and stack props in
+# mid-air, so the ray is only a fallback for test scenes without a generator.
 func _surface_y_at(pos: Vector3) -> float:
+	var arena_gen = get_node_or_null("../ArenaGenerator")
+	if arena_gen != null and arena_gen.has_method("_get_terrain_height"):
+		return float(arena_gen._get_terrain_height(pos.x, pos.z)) - 0.05
 	var space := get_world_3d().direct_space_state
 	var query := PhysicsRayQueryParameters3D.create(
 		pos + Vector3(0, 80.0, 0),
@@ -236,4 +247,4 @@ func _surface_y_at(pos: Vector3) -> float:
 	var hit := space.intersect_ray(query)
 	if hit.is_empty():
 		return pos.y
-	return hit.position.y
+	return hit.position.y - 0.05

@@ -330,6 +330,56 @@ func _get_terrain_height(wx: float, wz: float) -> float:
 var _current_terrain_mesh: ArrayMesh = null
 
 
+# Base Y for props so gravity holds: the terrain surface minus a small sink so
+# boxes/buildings/dunes embed slightly instead of hovering at a fixed y=0
+# while the terrain itself sits at ~-0.35.
+func _prop_base_y(x: float, z: float, sink: float = 0.15) -> float:
+	return _get_terrain_height(x, z) - sink
+
+
+# Gravity settle pass: drops every ground-sitting structure onto the terrain so
+# nothing hovers. Only touches bodies inside this arena's structures that opted
+# into "solid_obstacle". Skips dune-toppers ("no_ground_settle") which sit on
+# other props, not the ground. Bridges/roads/lamps are never in that group.
+# Called by the ObstacleSpawner after covers spawn (one frame after our _ready),
+# so both structures and covers exist by then.
+func settle_all_grounded_props() -> void:
+	if structures_container == null:
+		return
+	for node in get_tree().get_nodes_in_group("solid_obstacle"):
+		if not (node is Node3D):
+			continue
+		var body := node as Node3D
+		if body.is_in_group("no_ground_settle"):
+			continue
+		if not structures_container.is_ancestor_of(body):
+			# Covers live under ObstacleSpawner (already snapped at creation);
+			# only settle our own structures here.
+			continue
+		settle_body_to_ground(body)
+
+
+func settle_body_to_ground(body: Node3D, sink: float = 0.15) -> void:
+	var bottom := 0.0
+	var found := false
+	for child in body.get_children():
+		if child is CollisionShape3D and (child as CollisionShape3D).shape != null:
+			var s: Shape3D = (child as CollisionShape3D).shape
+			var off: float = (child as CollisionShape3D).position.y
+			if s is BoxShape3D:
+				bottom = off - (s as BoxShape3D).size.y * 0.5
+			elif s is CylinderShape3D:
+				bottom = off - (s as CylinderShape3D).height * 0.5
+			else:
+				continue
+			found = true
+			break
+	if not found:
+		return
+	var ground := _prop_base_y(body.position.x, body.position.z, sink)
+	body.position.y = ground - bottom
+
+
 func _add_terrain_mesh(texture: Texture2D) -> void:
 	var half := arena_size / 2.0
 	var step := 4.0
@@ -1257,7 +1307,7 @@ func _build_recovery_dense_compound() -> void:
 	prompt.modulate = Color(1.0, 0.88, 0.2)
 	prompt.position = Vector3(0, 4.0, 0)
 	parked_asset.add_child(prompt)
-	parked_asset.position = Vector3(0, 1.6, 0)
+	parked_asset.position = Vector3(0, _prop_base_y(0.0, 0.0) + 1.6, 0)
 	compound.add_child(parked_asset)
 
 	# 2. Dense Ring of Shipping Containers & Ruin Barricades surrounding the asset (Dense Cover)
@@ -1286,7 +1336,7 @@ func _build_recovery_dense_compound() -> void:
 		c_mi.material_override = container_mat
 		c_body.add_child(c_mi)
 
-		c_body.position = Vector3(cx, c_box.size.y * 0.5, cz)
+		c_body.position = Vector3(cx, _prop_base_y(cx, cz) + c_box.size.y * 0.5, cz)
 		c_body.rotation.y = angle + randf_range(-0.4, 0.4)
 		compound.add_child(c_body)
 
@@ -1347,7 +1397,7 @@ func _generate_randomized_desert_dunes() -> void:
 		
 		dune.rotation.y = randf_range(0, TAU)
 		dune.rotation.x = deg_to_rad(randf_range(-5.0, 5.0))
-		dune.position = Vector3(pos_x, height / 2.0 - 0.2, pos_z)
+		dune.position = Vector3(pos_x, _prop_base_y(pos_x, pos_z, 0.3) + height / 2.0, pos_z)
 		
 		# Solid obstacle: the player must never spawn inside its footprint.
 		dune.add_to_group("solid_obstacle")
@@ -1379,6 +1429,8 @@ func _spawn_desert_outcrop(pos: Vector3, rock_mat: StandardMaterial3D) -> void:
 	rock.rotation.z = deg_to_rad(randf_range(-12, 12))
 	rock.position = pos
 	rock.add_to_group("solid_obstacle")
+	# Sits ON TOP of its dune (centered, half-embedded) — never snap to terrain.
+	rock.add_to_group("no_ground_settle")
 	structures_container.add_child(rock)
 
 
@@ -1439,7 +1491,9 @@ func _build_city_highrise_structures() -> void:
 			var DestructibleBuildingScript = preload("res://scripts/arena/destructible_building.gd")
 			var building = DestructibleBuildingScript.new()
 			building.setup_building(Vector3(b_size_x, b_height, b_size_z), tower_mat, randf_range(160.0, 280.0))
-			building.position = Vector3(bx + randf_range(-2.5, 2.5), 0, bz + randf_range(-2.5, 2.5))
+			var bpx := bx + randf_range(-2.5, 2.5)
+			var bpz := bz + randf_range(-2.5, 2.5)
+			building.position = Vector3(bpx, _prop_base_y(bpx, bpz), bpz)
 			city_root.add_child(building)
 
 
@@ -1490,6 +1544,7 @@ func _build_crossroads_structures() -> void:
 		block.add_child(mesh)
 
 		block.position = pos + Vector3(randf_range(-8, 8), 0, randf_range(-8, 8))
+		block.position.y = _prop_base_y(block.position.x, block.position.z)
 		block.add_to_group("concealment")
 		block.add_to_group("solid_obstacle")
 		structures_container.add_child(block)

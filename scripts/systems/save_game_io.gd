@@ -97,6 +97,8 @@ static func save_run() -> void:
 		"driver_repair_xp": GlobalData.narrative.driver_repair_xp,
 		"scrap_patches": GlobalData.weapons.scrap_patches.duplicate(true),
 		"frame_bindings": GlobalData.weapons.frame_bindings.duplicate(true),
+		"frame_modules": GlobalData.weapons.frame_modules.duplicate(true),
+		"module_inventory": GlobalData.weapons.module_inventory.duplicate(true),
 		"part_hit_meta": _serialize_hit_meta(),
 		"thermal_cloak": GlobalData.thermal_cloak.serialize() if GlobalData.thermal_cloak else {},
 		"ewar": GlobalData.ewar.serialize() if GlobalData.ewar else {},
@@ -274,6 +276,12 @@ static func restore_from_dict(data: Dictionary) -> void:
 	var loaded_bindings = data.get("frame_bindings", {})
 	if loaded_bindings is Dictionary:
 		GlobalData.weapons.frame_bindings = loaded_bindings.duplicate(true)
+	var loaded_modules = data.get("frame_modules", {})
+	if loaded_modules is Dictionary:
+		GlobalData.weapons.frame_modules = loaded_modules.duplicate(true)
+	var loaded_mod_inv = data.get("module_inventory", [])
+	if loaded_mod_inv is Array:
+		GlobalData.weapons.module_inventory = loaded_mod_inv.duplicate(true)
 	var loaded_hit = data.get("part_hit_meta", {})
 	if loaded_hit is Dictionary:
 		GlobalData.weapons.part_hit_meta = _deserialize_hit_meta(loaded_hit)

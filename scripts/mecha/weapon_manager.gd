@@ -44,6 +44,17 @@ var battle_reserve: Dictionary = {}
 # the core; the manager only adds input, aim and presentation.
 var _cores: Dictionary = {}
 
+func instant_reload_all() -> void:
+	for core in _cores.values():
+		if core is WeaponCore:
+			core.ammo = core.max_ammo
+			core.reloading = false
+			core.reload_timer = 0.0
+			core.heat = 0.0
+			core.overheated = false
+			core.ammo_changed.emit(core.ammo, core.max_ammo)
+			core.heat_changed.emit(0.0, core.heat_capacity, false)
+
 # --- Input State ---
 var holding_left: bool = false
 var holding_right: bool = false

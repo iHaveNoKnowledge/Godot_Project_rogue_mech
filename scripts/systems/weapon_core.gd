@@ -172,7 +172,11 @@ func is_completely_dry() -> bool:
 func consume_shot() -> bool:
 	if not can_fire():
 		return false
-	cooldown = fire_interval
+	var interval := fire_interval
+	if heat_capacity > 0.0 and heat > 0.0:
+		var heat_ratio := clampf(heat / heat_capacity, 0.0, 1.0)
+		interval /= FrameModuleSystem.calculate_heat_fire_rate_multiplier(heat_ratio)
+	cooldown = interval
 	if not unlimited_ammo:
 		ammo = maxi(ammo - ammo_per_shot, 0)
 		ammo_changed.emit(ammo, max_ammo)
@@ -468,7 +472,11 @@ func _spawn_projectile(from_pos: Vector3, aim_dir: Vector3, fired_by_enemy: bool
 		projectile.visual_node = visual       # re-aimed every frame to the live flight vector
 		projectile.explosive_visual = true    # missiles always detonate visibly on impact
 
-	projectile.speed = projectile_speed
+	var final_speed := projectile_speed
+	if not fired_by_enemy and heat_capacity > 0.0 and heat > 0.0:
+		var heat_ratio := clampf(heat / heat_capacity, 0.0, 1.0)
+		final_speed *= FrameModuleSystem.calculate_heat_proj_speed_multiplier(heat_ratio)
+	projectile.speed = final_speed
 	projectile.damage = damage * damage_multiplier
 	projectile.damage_type = damage_type
 	projectile.impact = impact

@@ -52,6 +52,7 @@
 * **Arm Catalog:** ค่ากำลังแบกน้ำหนัก (Load Capacity), แรงดีดปืน (Recoil Control), และการสวิงอาวุธประชิด^^
 * **Leg Catalog:** โหมดการเคลื่อนที่ (Bipedal Walk / Roller Dash Mechanism), สปีดการพุ่ง, และ MP/Energy Cost^^
 * **Weapon Catalog:** ค่าความเสียหาย, ประเภทกระสุน, อัตราสิ้นเปลืองพลังงาน, และแรงดีด^^
+* **Inner Frame Modules (Sleeper Build Engine):** สล็อตติดตั้งโมดูลชิปและเครื่องยนต์ต้นแบบลงบน Inner Frame (Torso 3 ช่อง, Arms ข้างละ 1 ช่อง, Legs ข้างละ 1 ช่อง รวม 7 Sockets) สำหรับสร้าง Roguelike Synergies และ Power Spikes ("ภายนอกรถกระป๋อง ภายในเครื่อง V8")^^
 
 ### 2.2 Dynamic Enemy Generation Logic
 

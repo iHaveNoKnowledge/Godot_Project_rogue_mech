@@ -108,7 +108,11 @@ func start_dash(energy: float, global_pos: Vector3, global_rot: Basis) -> float:
 	var actual_cost: float = base_cost * (1.0 + float(_dash_spam_count - 1) * SPAM_DASH_ENERGY_PENALTY_MULT)
 	# GDD §4.3: Power Core class modifies dash speed
 	var core_dash_mult = _PCS.dash_speed_multiplier()
-	current_dash_speed = dash_speed * core_dash_mult * (1.0 - (SPAM_DASH_MOMENTUM_PENALTY if is_flash_burn else 0.0))
+	# Frame Module: V8 Twin-Turbo boosts speed on consecutive dash stacks & ignores spam penalty
+	var has_v8 := FrameModuleSystem.has_module("v8_twin_turbo")
+	var v8_mult: float = FrameModuleSystem.calculate_dash_stack_multiplier(_dash_spam_count - 1)
+	var momentum_penalty: float = 0.0 if has_v8 else (SPAM_DASH_MOMENTUM_PENALTY if is_flash_burn else 0.0)
+	current_dash_speed = dash_speed * core_dash_mult * v8_mult * (1.0 - momentum_penalty)
 
 	is_dashing = true
 	dash_timer = dash_duration
@@ -118,12 +122,19 @@ func start_dash(energy: float, global_pos: Vector3, global_rot: Basis) -> float:
 	_precision_armed = true
 	_precision_dodged = false
 
+	# Frame Module: Nitrous Scorch ignites ground along dash path
+	if FrameModuleSystem.has_module("nitrous_scorch"):
+		EffectFactory.spawn_burning_ground(get_tree(), global_pos, 1.8, 3.0)
+
 	# VFX
 	for i in range(3):
 		var trail_pos := global_pos + Vector3(0, 1.5, 0) - dash_direction * (0.5 + i * 0.4)
 		var color: Color
 		var emission: Color
-		if is_flash_burn:
+		if has_v8:
+			color = Color(1.0, 0.45, 0.1, 0.8 - i * 0.15)
+			emission = Color(1.0, 0.5, 0.0)
+		elif is_flash_burn:
 			color = Color(1.0, 0.35, 0.15, 0.7 - i * 0.15)
 			emission = Color(1.0, 0.25, 0.05)
 		else:
@@ -131,7 +142,7 @@ func start_dash(energy: float, global_pos: Vector3, global_rot: Basis) -> float:
 			emission = Color(0.3, 0.5, 1.0)
 		EffectFactory.spawn_trail(Engine.get_main_loop(), trail_pos, global_rot,
 			Vector3(0.8, 2.0, 1.5 - i * 0.3), color, emission, 0.2,
-			4.0 - i if is_flash_burn else 3.0 - i)
+			4.0 - i if (is_flash_burn or has_v8) else 3.0 - i)
 
 	if AudioManager:
 		AudioManager.play_dash(global_pos)
@@ -177,3 +188,21 @@ func _trigger_precision_dodge(hit_pos: Vector3) -> void:
 	if AudioManager:
 		var pos := (parent as Node3D).global_position if parent is Node3D else Vector3.ZERO
 		AudioManager.play_mecha_actuator(pos)
+
+	# Frame Module: Synaptic Reflex Processor (Bullet-Time & Instant Reload)
+	if FrameModuleSystem.has_module("synaptic_reflex"):
+		_apply_synaptic_bullet_time(parent)
+
+
+func _apply_synaptic_bullet_time(parent_mecha: Node) -> void:
+	Engine.time_scale = 0.30
+	if parent_mecha:
+		var wm = parent_mecha.get_node_or_null("WeaponManager")
+		if wm and wm.has_method("instant_reload_all"):
+			wm.instant_reload_all()
+	var tree := get_tree()
+	if tree:
+		var t := tree.create_tween()
+		t.set_ignore_time_scale(true)
+		t.tween_interval(1.2)
+		t.tween_callback(func(): Engine.time_scale = 1.0)

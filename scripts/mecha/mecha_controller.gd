@@ -263,6 +263,19 @@ func _physics_process(delta: float) -> void:
 
 
 
+func _trigger_landing_impact() -> void:
+	EffectFactory.spawn_dust_puffs(get_tree(), global_position, 6)
+	if is_player_driven and FrameModuleSystem.has_module("seismic_piston"):
+		var tree := get_tree()
+		if tree:
+			EffectFactory.spawn_expanding_ring(tree, global_position + Vector3(0, 0.1, 0), Color(0.9, 0.6, 0.2), Vector3(0.6, 0.2, 0.6), Vector3(7.0, 0.2, 7.0), 0.35, 4.0)
+			for enemy in tree.get_nodes_in_group("enemy"):
+				if enemy is Node3D and is_instance_valid(enemy):
+					var d := global_position.distance_to((enemy as Node3D).global_position)
+					if d <= 7.0 and enemy.has_method("apply_stagger"):
+						enemy.apply_stagger(1.0)
+
+
 # --- Jump / Dash helper bridges --------------------------------------------
 
 func _start_jump() -> float:
@@ -410,6 +423,8 @@ func _apply_movement(delta: float) -> void:
 	var move_speed = current_speed
 	# GDD §6.1: Leg damage reduces walk and dash speed
 	move_speed *= PartPenaltySystem.total_board_speed_multiplier()
+	if is_player_driven:
+		move_speed *= FrameModuleSystem.calculate_berserk_speed_multiplier()
 	if is_roller_dashing:
 		move_speed *= 2.0 * PartPenaltySystem.total_dash_speed_multiplier()
 	if _is_in_water() and not can_traverse_water:

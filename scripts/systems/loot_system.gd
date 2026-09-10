@@ -87,6 +87,13 @@ func _create_loot_pickup(pos: Vector3, loot_data: Dictionary) -> void:
 			material.emission_energy_multiplier = 2.5
 			box.size = Vector3(0.5, 0.65, 0.5)
 			beacon_mat.albedo_color = Color(0.1, 0.85, 1.0, 0.45)
+		"module":
+			# High-tier Inner Frame module / Relic (Luminescent Cyber Violet / Gold)
+			material.albedo_color = Color(0.85, 0.25, 0.95)
+			material.emission = Color(0.85, 0.25, 0.95)
+			material.emission_energy_multiplier = 3.5
+			box.size = Vector3(0.5, 0.5, 0.5)
+			beacon_mat.albedo_color = Color(0.85, 0.25, 0.95, 0.6)
 
 	mesh.set_surface_override_material(0, material)
 	beacon.set_surface_override_material(0, beacon_mat)
@@ -170,6 +177,15 @@ func _on_pickup_body_entered(body: Node3D, pickup: Area3D) -> void:
 			GlobalData.add_fuel_item(item_id, amount)
 			var item_name: String = str(loot_data.get("name", "Fuel Canister"))
 			GlobalData.board.run_notice = "Collected %s x%d (Use in Inventory to refuel Convoy)" % [item_name, amount]
+		"module":
+			var mod_id: String = str(loot_data.get("module_id", ""))
+			if mod_id != "" and FrameModuleSystem.MODULE_CATALOG.has(mod_id):
+				GlobalData.weapons.module_inventory.append(mod_id)
+				var mod_info = FrameModuleSystem.get_module(mod_id)
+				var mod_name: String = str(mod_info.get("name", mod_id))
+				GlobalData.board.run_notice = "Acquired Inner Frame Module: %s!" % mod_name
+				if AudioManager:
+					AudioManager.play_sfx("pickup_ammo", global_position, 1.3)
 	pickup.queue_free()
 
 
@@ -200,6 +216,10 @@ func collect_convoy_tagged_loot() -> Array:
 					var inst: Dictionary = loot_data.get("instance", {})
 					if not inst.is_empty() and ArmorSystem.get_armor_instance(str(inst.get("uid", ""))).is_empty():
 						GlobalData.weapons.armor_inventory.append(inst)
+				"module":
+					var mod_id: String = str(loot_data.get("module_id", ""))
+					if mod_id != "" and FrameModuleSystem.MODULE_CATALOG.has(mod_id):
+						GlobalData.weapons.module_inventory.append(mod_id)
 			node.queue_free()
 	return salvaged_weapons
 

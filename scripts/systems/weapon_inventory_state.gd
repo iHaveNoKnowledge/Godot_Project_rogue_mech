@@ -78,6 +78,11 @@ var scrap_patches: Dictionary = {}
 # Composite cloth wraps around exposed inner frame after repair.
 var frame_bindings: Dictionary = {}
 
+# --- Frame Modules (Sleeper Build Engine / Roguelike Relics) ---
+# slot_name -> Array[String] (module IDs per socket)
+var frame_modules: Dictionary = {}
+var module_inventory: Array = []  # Array of module IDs or Dictionaries in cargo
+
 # --- Impact-localized damage (per-slot hit origin for crack shader) ---
 # slot -> {"pos": Vector3, "radius": float}  radius 0 = no hit (uniform fallback)
 var part_hit_meta: Dictionary = {}
@@ -97,6 +102,8 @@ func reset() -> void:
 	frame_upgrade_level = 1
 	scrap_patches.clear()
 	frame_bindings.clear()
+	frame_modules.clear()
+	module_inventory.clear()
 	part_hit_meta.clear()
 	weapon_loadout = {
 		"left": "w_starter_left",

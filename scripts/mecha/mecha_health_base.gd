@@ -574,6 +574,8 @@ func _apply_armor_damage(slot_name: String, amount: float, damage_type: String, 
 
 	if is_player:
 		EventBus.damage_received.emit(slot_name, reduced, damage_type)
+		if FrameModuleSystem.has_module("dynamo_siphon"):
+			_apply_dynamo_siphon(reduced)
 	if _is_friendly():
 		EventBus.friendly_damage_received.emit(reduced)
 
@@ -626,6 +628,8 @@ func _apply_frame_damage(slot_name: String, amount: float, damage_type: String, 
 
 	if is_player:
 		EventBus.damage_received.emit(slot_name, amount, damage_type)
+		if FrameModuleSystem.has_module("dynamo_siphon"):
+			_apply_dynamo_siphon(amount)
 		# Near-death escape detection (GDD §5): bond increases when HP drops below 20%.
 		# Only fires once per near-death event (tracked by _near_death_recorded flag).
 		var hp_ratio := total_frame_hp / maxf(max_total_frame, 1.0)
@@ -689,6 +693,30 @@ func _on_armor_broken(slot_name: String, damage_type: String = "") -> void:
 
 	# Multiple distinct break VFX (Armor shatter debris, fire explosion, EMP electric arc)
 	_play_part_break_vfx(slot_name, false, damage_type)
+
+	# Frame Module: Phantom Decoy Emitter
+	if is_player and FrameModuleSystem.has_module("phantom_decoy"):
+		_trigger_phantom_decoy()
+
+
+func _apply_dynamo_siphon(dmg: float) -> void:
+	var mecha = get_parent()
+	if mecha and "energy_system" in mecha and mecha.energy_system:
+		var es = mecha.energy_system
+		if "energy" in es and "max_energy" in es:
+			var gain := dmg * 0.25
+			es.energy = minf(es.energy + gain, es.max_energy)
+
+
+func _trigger_phantom_decoy() -> void:
+	var tree := get_tree()
+	if tree == null:
+		return
+	var center := global_position + Vector3(0, 1.2, 0)
+	EffectFactory.spawn_smoke_plume(tree, center, 10, 0.4, 0.8, 1.5)
+	EffectFactory.spawn_flash(tree, center, Color(0.75, 0.35, 1.0), 1.2, 0.2, 8.0, true, 3.5)
+	if AudioManager:
+		AudioManager.play_sfx("cockpit_alert", global_position, 0.5)
 
 
 # Plays dynamic part destruction VFX depending on damage type and layer (armor vs frame):

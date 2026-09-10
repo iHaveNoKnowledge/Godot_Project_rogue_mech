@@ -37,6 +37,10 @@ window/stretch/mode="viewport"
 
 enabled=PackedStringArray("res://addons/phantom_camera/plugin.cfg", "res://addons/SphynxMotionBlurToolkit/plugin.cfg", "res://addons/beehave/plugin.cfg")
 
+[filesystem]
+
+import/blender/enabled=false
+
 [gui]
 
 theme/custom="res://resources/theme/main_theme.tres"

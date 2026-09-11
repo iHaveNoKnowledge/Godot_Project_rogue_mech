@@ -244,7 +244,7 @@ func sync_loadout_to_global() -> void:
 	# battle keeps its identity) so the hangar [E] badge stays per-instance.
 	var _pre_l := str(GlobalData.weapons.weapon_loadout.get("left", ""))
 	var _pre_r := str(GlobalData.weapons.weapon_loadout.get("right", ""))
-	var _pre_c := GlobalData.weapons.weapon_loadout.get("carry", [])
+	var _pre_c: Array = GlobalData.weapons.weapon_loadout.get("carry", [])
 	LoadoutSystem.set_hand_weapon("left", LoadoutSystem.resolve_hand_uid_for_sync("left", left_hand.resource_path if left_hand else ""))
 	LoadoutSystem.set_hand_weapon("right", LoadoutSystem.resolve_hand_uid_for_sync("right", right_hand.resource_path if right_hand else ""))
 	LoadoutSystem.set_shoulder_weapon("left", LoadoutSystem.resolve_shoulder_uid_for_sync("left", shoulder_left.resource_path if shoulder_left else ""))
@@ -258,7 +258,7 @@ func sync_loadout_to_global() -> void:
 	# was filled before (live hands null with no drop, unexpected clear, ...).
 	var _post_l := str(GlobalData.weapons.weapon_loadout.get("left", ""))
 	var _post_r := str(GlobalData.weapons.weapon_loadout.get("right", ""))
-	var _post_c = GlobalData.weapons.weapon_loadout.get("carry", [])
+	var _post_c: Array = GlobalData.weapons.weapon_loadout.get("carry", [])
 	if (_pre_l != "" and _post_l == "") or (_pre_r != "" and _post_r == ""):
 		print("[LOADOUT] slot emptied by sync: pre=(%s,%s) live_hands=(%s,%s) live_carry=%d post=(%s,%s)" % [
 			_pre_l, _pre_r,

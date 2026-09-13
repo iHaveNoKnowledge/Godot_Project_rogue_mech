@@ -80,6 +80,8 @@ func _test_procedural_sounds() -> void:
 		"roller_skate",
 		"pile_bunker_fire",
 		"pile_bunker_hit",
+		"cannon_fire",
+		"cannon_explosion",
 	]
 
 	for sname in required_sounds:
@@ -96,6 +98,10 @@ func _test_procedural_sounds() -> void:
 	_check(jump_st is AudioStreamMP3, "Jump sound is loaded from jump01.mp3 file (AudioStreamMP3)")
 	var land_st = AudioManager._pick_stream("land")
 	_check(land_st is AudioStreamMP3, "Land sound is loaded from land01.mp3 file (AudioStreamMP3)")
+	var cannon_fire_st = AudioManager._pick_stream("cannon_fire")
+	_check(cannon_fire_st is AudioStreamMP3, "Cannon fire sound is loaded from cannon_fire.mp3 file (AudioStreamMP3)")
+	var cannon_explosion_st = AudioManager._pick_stream("cannon_explosion")
+	_check(cannon_explosion_st is AudioStreamMP3, "Cannon explosion sound is loaded from cannon_explosion.mp3 file (AudioStreamMP3)")
 
 
 func _test_sfx_playback() -> void:

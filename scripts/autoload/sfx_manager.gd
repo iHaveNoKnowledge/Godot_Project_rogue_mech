@@ -66,6 +66,10 @@ func _generate_sounds() -> void:
 	_sound_cache["machine_gun_light"] = preload("res://resources/audio/sfx/machine_gun02.wav")
 	_sound_cache["missile"] = preload("res://resources/audio/sfx/missile01.wav")
 	_sound_cache["shotgun"] = preload("res://resources/audio/sfx/Dense_heavy_combat_s_#1-1782744878871.wav")
+	var cannon_fire_file: Variant = _load_sfx_file("cannon_fire")
+	_sound_cache["cannon_fire"] = cannon_fire_file if cannon_fire_file != null else _gen_cannon_fire()
+	var cannon_explosion_file: Variant = _load_sfx_file("cannon_explosion")
+	_sound_cache["cannon_explosion"] = cannon_explosion_file if cannon_explosion_file != null else _gen_war_explosion(0.8, 0.95)
 	_sound_cache["armor_break"] = _gen_armor_shatter()
 	_sound_cache["explosion"] = _gen_war_explosion(0.65, 0.9)
 	var ui_click := _load_ui_sound("click")
@@ -339,6 +343,8 @@ func play_weapon_sfx_with_override(weapon: WeaponPart, pos: Vector3) -> void:
 		player.volume_db = -1.5
 		player.bus = "SFX"
 		player.play()
+	elif weapon != null and weapon.weapon_name.to_lower().contains("cannon"):
+		play_sfx("cannon_fire", pos, -1.0)
 	elif weapon != null and weapon.weapon_type == WeaponPart.WeaponType.MACHINE_GUN:
 		var wname := weapon.weapon_name.to_lower()
 		if weapon.damage <= 4.5 or wname.contains("light") or wname.contains("gatling"):
@@ -449,7 +455,7 @@ func play_shield_break(pos: Vector3) -> void:
 
 
 func play_explosion(pos: Vector3) -> void:
-	play_sfx("explosion", pos, 2.0)
+	play_sfx("cannon_explosion", pos, 2.0)
 
 
 func play_footstep(pos: Vector3) -> void:
@@ -922,6 +928,42 @@ func _gen_mech_jump() -> AudioStreamWAV:
 
 func _gen_mech_land() -> AudioStreamWAV:
 	return _gen_sine_sweep(400.0, 60.0, 0.2, 0.5)
+
+
+## Procedural heavy-cannon fire fallback — sharp muzzle crack + deep boom + rumble tail.
+## Used only when resources/audio/sfx/cannon_fire.* is missing.
+func _gen_cannon_fire() -> AudioStreamWAV:
+	var sample_rate := 22050
+	var duration := 0.7
+	var num_samples := int(duration * sample_rate)
+	var data := PackedByteArray()
+	data.resize(num_samples * 2)
+	for i in range(num_samples):
+		var t := float(i) / sample_rate
+		var sample := 0.0
+		# Phase 1: sharp muzzle crack (0-0.06s).
+		if t < 0.06:
+			var crack_env := exp(-t * 55.0)
+			sample += (randf() * 2.0 - 1.0) * 0.55 * crack_env
+			sample += sin(TAU * 1600.0 * t) * 0.25 * crack_env
+		# Phase 2: deep powder boom (0.02-0.35s).
+		if t >= 0.02 and t < 0.35:
+			var boom_env := exp(-(t - 0.02) * 11.0)
+			sample += sin(TAU * lerp(150.0, 35.0, (t - 0.02) / 0.33) * t) * 0.65 * boom_env
+		# Phase 3: rolling rumble tail (0.25-0.7s).
+		if t >= 0.25:
+			var rumble_env := exp(-(t - 0.25) * 7.0)
+			sample += sin(TAU * 42.0 * t) * 0.3 * rumble_env
+			sample += (randf() * 2.0 - 1.0) * 0.08 * rumble_env
+		var val := int(clamp(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+	var stream := AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream
 
 
 func _gen_war_explosion(duration: float, volume: float) -> AudioStreamWAV:

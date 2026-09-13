@@ -213,6 +213,24 @@ hbar.parent = cockpit_tub
 hbar.rotation_euler = (0, math.radians(90), 0)
 hbar.data.materials.append(mat_dark_frame)
 
+# Fixed Rear Armored Canopy (Covers rear half over pilot helmet from Y = -0.66m to Y = +0.06m)
+bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0, -0.30, 0.54))
+roof_rear = bpy.context.active_object
+roof_rear.name = "CockpitRoofRear"
+roof_rear.parent = cockpit_tub
+roof_rear.scale = (0.76, 0.72, 0.04)
+bpy.ops.object.transform_apply(scale=True)
+roof_rear.data.materials.append(mat_dark_frame)
+
+# Weather Seal Overlap Lip on rear canopy edge (Y = +0.06m)
+bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0, 0.06, 0.53))
+roof_lip = bpy.context.active_object
+roof_lip.name = "CockpitRoofSealLip"
+roof_lip.parent = cockpit_tub
+roof_lip.scale = (0.72, 0.04, 0.02)
+bpy.ops.object.transform_apply(scale=True)
+roof_lip.data.materials.append(mat_dark_frame)
+
 # ------------------------------------------------------------------------------
 # 2.2 HIGH-DETAIL PILOT BUCKET SEAT (24° NATURAL MECHA COMBAT POSTURE)
 # Pelvis at Y=-0.12m, Z=-0.28m -> Headrest at Y=-0.39m, Bulkhead at Y=-0.66m (27cm clearance!)
@@ -331,25 +349,27 @@ hud_frame.data.materials.append(mat_hud_cyan)
 
 # ==============================================================================
 # 2.3 ARTICULATED HATCH HYDRAULIC PISTON BASES (ON STATIONARY COCKPIT TUB)
+# Mounted tucked inside along side rails at X = ±0.34m, Y = +0.08m, Z = +0.44m
+# Authored along local +Y in Blender -> maps to Godot -Z (direction of look_at)
 # ==============================================================================
-for side, sx in [("L", -0.36), ("R", 0.36)]:
-    # Clevis pin bracket on tub rim
-    bpy.ops.mesh.primitive_cube_add(size=1.0, location=(sx, 0.20, 0.46))
+for side, sx in [("L", -0.34), ("R", 0.34)]:
+    # Clevis pin bracket on tub inner rail
+    bpy.ops.mesh.primitive_cube_add(size=1.0, location=(sx, 0.08, 0.44))
     clevis = bpy.context.active_object
     clevis.name = f"HatchClevisTub_{side}"
     clevis.parent = cockpit_tub
-    clevis.scale = (0.05, 0.06, 0.06)
+    clevis.scale = (0.035, 0.05, 0.05)
     bpy.ops.object.transform_apply(scale=True)
     clevis.data.materials.append(mat_dark_frame)
 
     # Rotating Pivot Node for Cylinder
     piv_tub = bpy.data.objects.new(f"HatchPivotTub_{side}", None)
-    piv_tub.location = (sx, 0.20, 0.46)
+    piv_tub.location = (sx, 0.08, 0.44)
     piv_tub.parent = cockpit_tub
     bpy.context.scene.collection.objects.link(piv_tub)
 
     # Transverse Clevis Pin
-    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.012, depth=0.07, location=(0, 0, 0))
+    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.009, depth=0.055, location=(0, 0, 0))
     c_pin = bpy.context.active_object
     c_pin.name = f"HatchClevisPinTub_{side}"
     c_pin.parent = piv_tub
@@ -357,7 +377,7 @@ for side, sx in [("L", -0.36), ("R", 0.36)]:
     c_pin.data.materials.append(mat_chrome)
 
     # Hydraulic Cylinder Barrel (extends along local +Y from pivot origin)
-    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.026, depth=0.55, location=(0, 0.275, 0))
+    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.022, depth=0.42, location=(0, 0.21, 0))
     cyl = bpy.context.active_object
     cyl.name = f"HatchCylinder_{side}"
     cyl.parent = piv_tub
@@ -366,7 +386,7 @@ for side, sx in [("L", -0.36), ("R", 0.36)]:
     cyl.data.materials.append(mat_dark_frame)
 
     # Polished Cylinder Collar Ring at the opening
-    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.031, depth=0.04, location=(0, 0.54, 0))
+    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.026, depth=0.03, location=(0, 0.41, 0))
     collar = bpy.context.active_object
     collar.name = f"HatchCylinderCollar_{side}"
     collar.parent = piv_tub
@@ -400,12 +420,13 @@ chest_vent.scale = (0.46, 0.05, 0.16)
 bpy.ops.object.transform_apply(scale=True)
 chest_vent.data.materials.append(mat_dark_frame)
 
-# 3.3 Canopy Top Seal Lip (Seals overhead roof when hatch closes at Z=+0.50m)
-bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0, 0.40, 0.52))
+# 3.3 Sliding Front Canopy Hood (Seals overhead roof when hatch closes at Z=+0.54m)
+# Covers from Y = +0.06m forward to Y = +0.72m, meeting the rear fixed canopy with 100% seal!
+bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0, 0.39, 0.54))
 canopy_lip = bpy.context.active_object
 canopy_lip.name = "CanopyTopLip"
 canopy_lip.parent = sliding_carriage
-canopy_lip.scale = (0.72, 0.44, 0.05)
+canopy_lip.scale = (0.76, 0.66, 0.04)
 bpy.ops.object.transform_apply(scale=True)
 canopy_lip.data.materials.append(mat_dark_frame)
 
@@ -428,33 +449,33 @@ for sx in [-0.36, 0.36]:
     rail.rotation_euler = (math.radians(90), 0, 0)
     rail.data.materials.append(mat_chrome)
 
-# 3.6 Piston Rod Clevis Pivots on Sliding Carriage
-for side, sx in [("L", -0.36), ("R", 0.36)]:
+# 3.6 Piston Rod Clevis Pivots on Sliding Carriage (Inner side rails at X = ±0.34m, Y = +0.48m, Z = +0.38m)
+for side, sx in [("L", -0.34), ("R", 0.34)]:
     # Clevis pin bracket on carriage
-    bpy.ops.mesh.primitive_cube_add(size=1.0, location=(sx, 0.66, 0.26))
+    bpy.ops.mesh.primitive_cube_add(size=1.0, location=(sx, 0.48, 0.38))
     clevis_c = bpy.context.active_object
     clevis_c.name = f"HatchClevisCarriage_{side}"
     clevis_c.parent = sliding_carriage
-    clevis_c.scale = (0.048, 0.055, 0.055)
+    clevis_c.scale = (0.035, 0.05, 0.05)
     bpy.ops.object.transform_apply(scale=True)
     clevis_c.data.materials.append(mat_dark_frame)
 
     # Rotating Pivot Node for Piston Rod
     piv_c = bpy.data.objects.new(f"HatchPivotCarriage_{side}", None)
-    piv_c.location = (sx, 0.66, 0.26)
+    piv_c.location = (sx, 0.48, 0.38)
     piv_c.parent = sliding_carriage
     bpy.context.scene.collection.objects.link(piv_c)
 
     # Transverse Pin
-    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.010, depth=0.065, location=(0, 0, 0))
+    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.008, depth=0.055, location=(0, 0, 0))
     c_pin_c = bpy.context.active_object
     c_pin_c.name = f"HatchClevisPinCarriage_{side}"
     c_pin_c.parent = piv_c
     c_pin_c.rotation_euler = (0, math.radians(90), 0)
     c_pin_c.data.materials.append(mat_chrome)
 
-    # Chrome Piston Rod (extends along local -Y toward tub from pivot origin)
-    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.016, depth=0.65, location=(0, -0.325, 0))
+    # Chrome Piston Rod (extends along local -Y toward tub from pivot origin, fully retracted in rest pose!)
+    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.014, depth=0.48, location=(0, -0.24, 0))
     rod = bpy.context.active_object
     rod.name = f"HatchPistonRod_{side}"
     rod.parent = piv_c

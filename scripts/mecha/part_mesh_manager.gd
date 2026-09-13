@@ -150,6 +150,7 @@ func _update_hatch_pistons() -> void:
 			if g_tub.distance_squared_to(g_car) > 0.001:
 				piv_tub.look_at(g_car, Vector3.UP)
 				piv_car.look_at(g_tub, Vector3.UP)
+				piv_car.rotate_object_local(Vector3.UP, PI)
 
 
 ## Sets whether the pilot mannequin inside the cockpit tub is visible.

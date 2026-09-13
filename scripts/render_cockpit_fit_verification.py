@@ -156,7 +156,40 @@ bpy.context.scene.render.resolution_x = 1280
 bpy.context.scene.render.resolution_y = 720
 
 # ------------------------------------------------------------------------------
-# RENDER 1: Side Cutaway (Hide CockpitWall_L)
+# RENDER 1: 3/4 Perspective View - CLOSED COCKPIT (Verify 100% Roof Seal & Zero Piston Protrusion)
+# ------------------------------------------------------------------------------
+for obj in bpy.data.objects:
+    obj.hide_render = False
+
+carriage = bpy.data.objects.get("SlidingCarriage")
+if carriage:
+    carriage.location = (0, 0, 0)
+    carriage.rotation_euler = (0, 0, 0)
+
+for side in ["L", "R"]:
+    piv_t = bpy.data.objects.get(f"HatchPivotTub_{side}")
+    piv_c = bpy.data.objects.get(f"HatchPivotCarriage_{side}")
+    if piv_t and piv_c:
+        direction_t = piv_c.matrix_world.translation - piv_t.matrix_world.translation
+        piv_t.rotation_euler = direction_t.to_track_quat('Y', 'Z').to_euler()
+        direction_c = piv_t.matrix_world.translation - piv_c.matrix_world.translation
+        piv_c.rotation_euler = direction_c.to_track_quat('-Y', 'Z').to_euler()
+
+cam_closed_data = bpy.data.cameras.new("CamClosed")
+cam_closed_data.lens = 45
+cam_closed_obj = bpy.data.objects.new("CamClosed", cam_closed_data)
+bpy.context.scene.collection.objects.link(cam_closed_obj)
+bpy.context.scene.camera = cam_closed_obj
+cam_closed_obj.location = (-1.8, 1.8, 1.4)
+cam_closed_obj.rotation_euler = (math.radians(60), 0, math.radians(-135))
+
+out_img_closed = r"C:\Users\hackd\.gemini\antigravity-ide\brain\bf3b05a4-f495-4afc-a908-879adb0da03d\cockpit_closed_preview.png"
+bpy.context.scene.render.filepath = out_img_closed
+bpy.ops.render.render(write_still=True)
+print(f"RENDER 1 COMPLETE: {out_img_closed}")
+
+# ------------------------------------------------------------------------------
+# RENDER 2: Side Cutaway (Hide CockpitWall_L, Show Reclined Pilot)
 # ------------------------------------------------------------------------------
 for obj in bpy.data.objects:
     if "CockpitWall_L" in obj.name or "SlideRail_L" in obj.name:
@@ -174,23 +207,17 @@ cam1_obj.rotation_euler = (math.radians(90), 0, math.radians(-90))
 out_img1 = r"C:\Users\hackd\.gemini\antigravity-ide\brain\bf3b05a4-f495-4afc-a908-879adb0da03d\cockpit_heroic_tall_cutaway.png"
 bpy.context.scene.render.filepath = out_img1
 bpy.ops.render.render(write_still=True)
-print(f"RENDER 1 COMPLETE: {out_img1}")
+print(f"RENDER 2 COMPLETE: {out_img1}")
 
 # ------------------------------------------------------------------------------
-# RENDER 2: 3/4 Perspective View (Hatch Open & Pistons Articulated)
+# RENDER 3: 3/4 Perspective View - HATCH OPEN (Articulated Pistons & Easy Ingress)
 # ------------------------------------------------------------------------------
-for obj in bpy.data.objects:
-    if "CockpitWall_L" in obj.name:
-        obj.hide_render = True
-    elif "SlideRail_L" in obj.name:
-        obj.hide_render = False
-
-carriage = bpy.data.objects.get("SlidingCarriage")
 if carriage:
     carriage.location = (0.0, 0.44, -0.22)
     carriage.rotation_euler = (math.radians(10), 0, 0)
 
-# Aim pistons
+bpy.context.view_layer.update()
+
 for side in ["L", "R"]:
     piv_t = bpy.data.objects.get(f"HatchPivotTub_{side}")
     piv_c = bpy.data.objects.get(f"HatchPivotCarriage_{side}")
@@ -200,15 +227,9 @@ for side in ["L", "R"]:
         direction_c = piv_t.matrix_world.translation - piv_c.matrix_world.translation
         piv_c.rotation_euler = direction_c.to_track_quat('-Y', 'Z').to_euler()
 
-cam2_data = bpy.data.cameras.new("IsoPerspectiveCam")
-cam2_data.lens = 45
-cam2_obj = bpy.data.objects.new("IsoPerspectiveCam", cam2_data)
-bpy.context.scene.collection.objects.link(cam2_obj)
-bpy.context.scene.camera = cam2_obj
-cam2_obj.location = (-1.8, 1.8, 1.2)
-cam2_obj.rotation_euler = (math.radians(64), 0, math.radians(-135))
+bpy.context.scene.camera = cam_closed_obj
 
 out_img2 = r"C:\Users\hackd\.gemini\antigravity-ide\brain\bf3b05a4-f495-4afc-a908-879adb0da03d\cockpit_heroic_tall_perspective_open.png"
 bpy.context.scene.render.filepath = out_img2
 bpy.ops.render.render(write_still=True)
-print(f"RENDER 2 COMPLETE: {out_img2}")
+print(f"RENDER 3 COMPLETE: {out_img2}")

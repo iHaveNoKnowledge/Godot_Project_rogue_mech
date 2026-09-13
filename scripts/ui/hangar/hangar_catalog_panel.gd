@@ -306,7 +306,7 @@ func _update_hover_hp_bar(index: int) -> void:
 			var dur_pct = controller.part_list_panel.instance_durability(controller.selected_slot, info)
 			var full_hp = float(GlobalData.part_stat(info, "max_hp", 30.0))
 			hover_hp_bar_box.add_child(HPPartBar.create_row("Armor", full_hp * dur_pct, full_hp, false, false, 200, 8, 11))
-	elif controller.selected_slot.begins_with("weapon"):
+	elif controller.selected_slot.begins_with("weapon") or controller.selected_slot.begins_with("shoulder"):
 		if index >= 0 and index < controller.visible_weapon_indices.size():
 			var inv = GlobalData.weapons.weapon_inventory[controller.visible_weapon_indices[index]]
 			var wpath = inv.get("path", "")
@@ -369,7 +369,7 @@ func stats_text_for_index(index: int) -> String:
 			]
 		return "INNER FRAME PART: %s%s\nDURABILITY: 100%%\n\n%s\n\nEquip to install fresh at 100%% HP." % [fname, tier_str, fcap]
 
-	if controller.selected_slot.begins_with("weapon"):
+	if controller.selected_slot.begins_with("weapon") or controller.selected_slot.begins_with("shoulder"):
 		if index < 0 or index >= controller.visible_weapon_indices.size():
 			return ""
 		var inv = GlobalData.weapons.weapon_inventory[controller.visible_weapon_indices[index]]

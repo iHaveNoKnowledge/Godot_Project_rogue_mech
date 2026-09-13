@@ -148,9 +148,10 @@ func build(root: Control) -> void:
 		var slot: String = controller.selected_slot
 		if slot != "":
 			var item_dur: float = 1.0
-			if slot.begins_with("weapon"):
-				var hand := "left" if slot == "weapon_left" else "right"
-				item_dur = GlobalData.get_durability_ratio(LoadoutSystem.get_equipped_weapon(hand)) if LoadoutSystem.get_equipped_weapon(hand) else 1.0
+			if slot.begins_with("weapon") or slot.begins_with("shoulder"):
+				var hand := "left" if slot == "weapon_left" else ("right" if slot == "weapon_right" else ("shoulder_left" if slot == "shoulder_left" else "shoulder_right"))
+				var w_item = LoadoutSystem.get_equipped_shoulder("left" if slot == "shoulder_left" else "right") if slot.begins_with("shoulder") else LoadoutSystem.get_equipped_weapon(hand)
+				item_dur = GlobalData.get_durability_ratio(w_item) if w_item else 1.0
 			elif controller.current_mode == "frame":
 				item_dur = GlobalData.get_frame_durability(slot)
 			else:
@@ -172,8 +173,8 @@ func build(root: Control) -> void:
 
 			GlobalData.currency.try_spend_credits(oh_cr)
 			GlobalData.currency.try_spend_scrap(oh_scrap)
-			if slot.begins_with("weapon"):
-				var hand := "left" if slot == "weapon_left" else "right"
+			if slot.begins_with("weapon") or slot.begins_with("shoulder"):
+				var hand := "left" if slot == "weapon_left" else ("right" if slot == "weapon_right" else ("shoulder_left" if slot == "shoulder_left" else "shoulder_right"))
 				GlobalData.restore_weapon_durability(hand, 1.0)
 			elif controller.current_mode == "frame":
 				GlobalData.restore_frame_durability(slot, 1.0)

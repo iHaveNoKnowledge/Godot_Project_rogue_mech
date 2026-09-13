@@ -31,6 +31,8 @@ var right_hand: WeaponPart = null
 var shoulder_left: WeaponPart = null
 var shoulder_right: WeaponPart = null
 var carry: Array[WeaponPart] = []
+const MissileLockOnSystemClass = preload("res://scripts/systems/missile_lock_on_system.gd")
+var missile_lock_system: Node = null
 
 # --- Ammo ---
 # Ammo brought into this battle from the Hangar loadout. Reload consumes from
@@ -207,6 +209,10 @@ func _ready() -> void:
 		if amount > 0:
 			LoadoutSystem.consume_reserve_ammo(ammo_type, amount)
 	EventBus.combat_ended.connect(_on_combat_ended)
+	missile_lock_system = MissileLockOnSystemClass.new()
+	missile_lock_system.name = "MissileLockOnSystem"
+	missile_lock_system.weapon_manager = self
+	add_child(missile_lock_system)
 	call_deferred("_emit_initial_state")
 
 
@@ -544,26 +550,66 @@ func _input(event: InputEvent) -> void:
 
 	# --- FIRE / RELOAD LEFT ---
 	if event.is_action_pressed("fire_left"):
-		if _fire_press("left"):
-			return  # deferred for a possible dual charge, or consumed
-		_commit_normal_fire("left")
+		if _is_missile_weapon(left_hand) and not holding_reload and not Input.is_action_pressed("reload"):
+			var core = _core_for_weapon(left_hand)
+			var ammo_cnt: int = core.ammo if core else (left_hand.max_ammo if left_hand else 0)
+			if missile_lock_system:
+				missile_lock_system.start_locking("left", left_hand, ammo_cnt)
+		else:
+			if _fire_press("left"):
+				return  # deferred for a possible dual charge, or consumed
+			_commit_normal_fire("left")
 	if event.is_action_released("fire_left"):
 		fire_left_holding = false
+		if _is_missile_weapon(left_hand):
+			_handle_missile_release("left")
 
 	# --- FIRE / RELOAD RIGHT ---
 	if event.is_action_pressed("fire_right"):
-		if _fire_press("right"):
-			return  # deferred for a possible dual charge, or consumed
-		_commit_normal_fire("right")
+		if _is_missile_weapon(right_hand) and not holding_reload and not Input.is_action_pressed("reload"):
+			var core = _core_for_weapon(right_hand)
+			var ammo_cnt: int = core.ammo if core else (right_hand.max_ammo if right_hand else 0)
+			if missile_lock_system:
+				missile_lock_system.start_locking("right", right_hand, ammo_cnt)
+		else:
+			if _fire_press("right"):
+				return  # deferred for a possible dual charge, or consumed
+			_commit_normal_fire("right")
 	if event.is_action_released("fire_right"):
 		fire_right_holding = false
+		if _is_missile_weapon(right_hand):
+			_handle_missile_release("right")
 
 	# --- SHOULDER WEAPONS (Q = left shoulder in normal mode / E = right shoulder) ---
-	if event.is_action_pressed("shoulder_left") or (event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_Q):
+	var q_pressed: bool = event.is_action_pressed("shoulder_left") or (event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_Q)
+	var q_released: bool = event.is_action_released("shoulder_left") or (event is InputEventKey and not event.pressed and event.keycode == KEY_Q)
+	var e_pressed: bool = event.is_action_pressed("shoulder_right") or (event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_E)
+	var e_released: bool = event.is_action_released("shoulder_right") or (event is InputEventKey and not event.pressed and event.keycode == KEY_E)
+
+	if q_pressed:
 		if not _is_close_combat_mode():
-			_try_fire_shoulder("left")
-	if event.is_action_pressed("shoulder_right") or (event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_E):
-		_try_fire_shoulder("right")
+			if _is_missile_weapon(shoulder_left):
+				var core = _core_for_weapon(shoulder_left)
+				var ammo_cnt: int = core.ammo if core else (shoulder_left.max_ammo if shoulder_left else 0)
+				if missile_lock_system:
+					missile_lock_system.start_locking("shoulder_left", shoulder_left, ammo_cnt)
+			else:
+				_try_fire_shoulder("left")
+	if q_released:
+		if _is_missile_weapon(shoulder_left):
+			_handle_missile_release("shoulder_left")
+
+	if e_pressed:
+		if _is_missile_weapon(shoulder_right):
+			var core = _core_for_weapon(shoulder_right)
+			var ammo_cnt: int = core.ammo if core else (shoulder_right.max_ammo if shoulder_right else 0)
+			if missile_lock_system:
+				missile_lock_system.start_locking("shoulder_right", shoulder_right, ammo_cnt)
+		else:
+			_try_fire_shoulder("right")
+	if e_released:
+		if _is_missile_weapon(shoulder_right):
+			_handle_missile_release("shoulder_right")
 
 
 func reload_weapon(hand: String) -> void:
@@ -1213,6 +1259,107 @@ func _try_fire_shoulder(side: String) -> void:
 			wear += 0.00015 * rate_scale
 		GlobalData.degrade_weapon_durability("shoulder_" + side, wear)
 		shoulder_ammo_changed.emit(side, core.ammo, weapon.max_ammo)
+
+
+func _is_missile_weapon(weapon: WeaponPart) -> bool:
+	if weapon == null:
+		return false
+	return weapon.weapon_type == WeaponPart.WeaponType.MISSILE or weapon.weapon_name.to_lower().contains("missile")
+
+
+func _handle_missile_release(slot: String) -> void:
+	if missile_lock_system == null or not missile_lock_system.is_locking:
+		return
+	if missile_lock_system.active_slot != slot:
+		return
+
+	var result: Dictionary = missile_lock_system.stop_locking()
+	var weapon: WeaponPart = result.get("weapon")
+	if weapon == null:
+		return
+
+	var targets: Dictionary = result.get("targets", {})
+	var is_tap: bool = bool(result.get("is_tap", false))
+	var total_locks: int = int(result.get("total_locks", 0))
+
+	if is_tap or total_locks <= 0 or targets.is_empty():
+		_fire_dumbfire_missile(slot, weapon)
+	else:
+		_fire_missile_salvo(slot, weapon, targets)
+
+
+func _fire_dumbfire_missile(slot: String, weapon: WeaponPart) -> void:
+	if slot == "left":
+		_try_fire("left", weapon)
+	elif slot == "right":
+		_try_fire("right", weapon)
+	elif slot == "shoulder_left":
+		_try_fire_shoulder("left")
+	elif slot == "shoulder_right":
+		_try_fire_shoulder("right")
+
+
+func _fire_missile_salvo(slot: String, weapon: WeaponPart, targets_dict: Dictionary) -> void:
+	var core := _core_for_weapon(weapon)
+	if core == null:
+		return
+
+	var is_shoulder := slot.begins_with("shoulder")
+	var side := "left" if (slot == "left" or slot == "shoulder_left") else "right"
+	var mecha := get_parent() as Node3D
+	if mecha == null:
+		return
+
+	var cam := get_viewport().get_camera_3d()
+	var aim_dir := -cam.global_transform.basis.z.normalized() if cam else -mecha.global_transform.basis.z.normalized()
+
+	# Flatten target queue according to missile count
+	var queue: Array[Node3D] = []
+	for target in targets_dict.keys():
+		var count: int = int(targets_dict[target])
+		for i in range(count):
+			queue.append(target)
+
+	if is_shoulder:
+		var ammo_type: String = weapon.get_ammo_type()
+		if ammo_type != "none" and core.ammo <= 0:
+			var available := consume_battle_reserve(ammo_type, queue.size())
+			if available > 0:
+				core.ammo = available
+
+	for i in range(queue.size()):
+		var target_node: Node3D = queue[i]
+		if i > 0:
+			await get_tree().create_timer(0.065).timeout
+		if not is_instance_valid(mecha) or not mecha.is_inside_tree():
+			return
+		if core.ammo <= 0 and core.max_ammo > 0:
+			break
+
+		var spawn_pos: Vector3
+		if is_shoulder:
+			spawn_pos = _get_shoulder_muzzle_world_pos(side)
+			if spawn_pos == Vector3.INF:
+				spawn_pos = mecha.global_position + mecha.global_transform.basis * WeaponVisualFactory.shoulder_mount_position(side)
+		else:
+			spawn_pos = _get_muzzle_world_pos(side)
+
+		core.damage_multiplier = float(_damage_mult_by_name.get(weapon.weapon_name, 1.0))
+		if core.try_fire_homing(spawn_pos, aim_dir, target_node, false, mecha, 0.45):
+			AudioManager.play_weapon_sfx_with_override(weapon, spawn_pos)
+			var anim = mecha.get_node_or_null("MechaAnimation")
+			if anim == null:
+				anim = mecha.get_node_or_null("AnimationSystem")
+			if anim and anim.get("action_animator") != null:
+				if is_shoulder:
+					anim.action_animator.play_shoulder_shoot()
+				else:
+					anim.action_animator.play_shoot_recoil(side)
+			GlobalData.degrade_weapon_durability("shoulder_" + side if is_shoulder else side, 0.002)
+			if is_shoulder:
+				shoulder_ammo_changed.emit(side, core.ammo, weapon.max_ammo)
+			else:
+				ammo_changed.emit(side, core.ammo, weapon.max_ammo)
 
 
 func _melee_attack(hand: String, weapon: WeaponPart, is_loaded_blast: bool = true) -> void:

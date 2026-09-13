@@ -226,6 +226,24 @@ func try_fire(from_pos: Vector3, aim_dir: Vector3, fired_by_enemy: bool, owner: 
 	return true
 
 
+func try_fire_homing(from_pos: Vector3, aim_dir: Vector3, target_node: Node3D, fired_by_enemy: bool = false, owner: Node = null, burst_spread: float = 0.25) -> bool:
+	if not consume_shot():
+		return false
+
+	var launch_dir := aim_dir
+	if burst_spread > 0.0:
+		var up_vec := Vector3.UP if absf(aim_dir.y) < 0.9 else Vector3.RIGHT
+		var right_vec := aim_dir.cross(up_vec).normalized()
+		var true_up := right_vec.cross(aim_dir).normalized()
+		var angle := randf_range(0.0, TAU)
+		# Arc upward and outward slightly like Macross swarm missiles
+		launch_dir = (aim_dir + right_vec * (cos(angle) * burst_spread) + true_up * (sin(angle) * burst_spread * 0.7 + 0.22)).normalized()
+
+	_spawn_projectile(from_pos, launch_dir, fired_by_enemy, owner, target_node)
+	fired.emit()
+	return true
+
+
 func begin_reload() -> bool:
 	if reloading or max_ammo <= 0 or ammo >= max_ammo:
 		return false
@@ -434,7 +452,7 @@ static func _get_flame_material() -> StandardMaterial3D:
 
 
 # --- Projectile spawning (shared with the player's WeaponManager) ---
-func _spawn_projectile(from_pos: Vector3, aim_dir: Vector3, fired_by_enemy: bool, owner: Node) -> void:
+func _spawn_projectile(from_pos: Vector3, aim_dir: Vector3, fired_by_enemy: bool, owner: Node, target_node: Node3D = null) -> void:
 	if owner == null or not owner.is_inside_tree() or owner.get_tree().current_scene == null:
 		return
 
@@ -485,6 +503,7 @@ func _spawn_projectile(from_pos: Vector3, aim_dir: Vector3, fired_by_enemy: bool
 	projectile.impact = impact
 	projectile.direction = aim_dir
 	projectile.fired_by_enemy = fired_by_enemy
+	projectile.target_node = target_node
 	projectile.sonic_boom = sonic_boom
 	projectile.drop_gravity = drop_gravity
 	if explosion_radius > 0.0:

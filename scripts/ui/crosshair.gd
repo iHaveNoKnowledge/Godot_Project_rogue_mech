@@ -249,6 +249,8 @@ func _on_overlay_draw() -> void:
 	_draw_impact_flash()
 	# Jump charge radial arc gauge beside reticle.
 	_draw_jump_charge_gauge(center)
+	# Missile Lock-on Reticles & Targets
+	_draw_missile_locks(center)
 
 	if is_head_destroyed:
 		# Sensors offline: a full + through the center signals manual aim only.
@@ -315,3 +317,78 @@ func _draw_jump_charge_gauge(center: Vector2) -> void:
 		if font:
 			var text_pos := center + Vector2(radius + 7.0, 4.0)
 			overlay_control.draw_string(font, text_pos, "MAX", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1.0, 0.9, 0.3, 0.95 * _jump_gauge_alpha))
+
+
+var _cached_wm: Node = null
+
+func _draw_missile_locks(center: Vector2) -> void:
+	if _cached_wm == null or not is_instance_valid(_cached_wm):
+		var mecha = GameManager.get_player_mecha()
+		if mecha:
+			_cached_wm = mecha.get_node_or_null("WeaponManager")
+	if _cached_wm == null:
+		return
+
+	var lock_sys = _cached_wm.get("missile_lock_system")
+	if lock_sys == null or not is_instance_valid(lock_sys) or not lock_sys.is_locking:
+		return
+
+	var cam := get_viewport().get_camera_3d()
+	if cam == null:
+		return
+
+	var font: Font = overlay_control.get_theme_default_font()
+
+	# 1. Central sweeping lock-on radar cone
+	var sweep_radius := 65.0
+	var radar_col := Color(0.2, 0.82, 1.0, 0.45)
+	overlay_control.draw_arc(center, sweep_radius, 0.0, TAU, 36, radar_col, 1.5, true)
+
+	for angle_deg in [45.0, 135.0, 225.0, 315.0]:
+		var rad := deg_to_rad(angle_deg)
+		var pt := center + Vector2(cos(rad), sin(rad)) * sweep_radius
+		overlay_control.draw_circle(pt, 2.5, Color(0.3, 0.88, 1.0, 0.75))
+
+	var total_locks: int = lock_sys.get_total_locks()
+	if font:
+		var lock_msg := ("LOCK SALVO: %d" % total_locks) if total_locks > 0 else "LOCKING..."
+		var col := Color(1.0, 0.25, 0.25, 0.95) if total_locks > 0 else Color(1.0, 0.8, 0.2, 0.85)
+		var text_sz := font.get_string_size(lock_msg, HORIZONTAL_ALIGNMENT_CENTER, -1, 12)
+		overlay_control.draw_string(font, center + Vector2(-text_sz.x * 0.5, sweep_radius + 20.0), lock_msg, HORIZONTAL_ALIGNMENT_CENTER, -1, 12, col)
+
+	# 2. Tactical diamond/square brackets on each locked target
+	for target in lock_sys.locked_targets.keys():
+		if not is_instance_valid(target) or not target.is_inside_tree():
+			continue
+		var count: int = int(lock_sys.locked_targets[target])
+		if count <= 0:
+			continue
+		var tpos: Vector3 = target.global_position + Vector3(0.0, 1.2, 0.0)
+		if cam.is_position_behind(tpos):
+			continue
+		var s_pos: Vector2 = cam.unproject_position(tpos)
+
+		var bracket_sz := 24.0
+		var bracket_col := Color(1.0, 0.2, 0.2, 0.95)
+		var corner_len := 8.0
+
+		# Top-Left corner
+		overlay_control.draw_line(s_pos + Vector2(-bracket_sz, -bracket_sz), s_pos + Vector2(-bracket_sz + corner_len, -bracket_sz), bracket_col, 2.0)
+		overlay_control.draw_line(s_pos + Vector2(-bracket_sz, -bracket_sz), s_pos + Vector2(-bracket_sz, -bracket_sz + corner_len), bracket_col, 2.0)
+		# Top-Right corner
+		overlay_control.draw_line(s_pos + Vector2(bracket_sz, -bracket_sz), s_pos + Vector2(bracket_sz - corner_len, -bracket_sz), bracket_col, 2.0)
+		overlay_control.draw_line(s_pos + Vector2(bracket_sz, -bracket_sz), s_pos + Vector2(bracket_sz, -bracket_sz + corner_len), bracket_col, 2.0)
+		# Bottom-Left corner
+		overlay_control.draw_line(s_pos + Vector2(-bracket_sz, bracket_sz), s_pos + Vector2(-bracket_sz + corner_len, bracket_sz), bracket_col, 2.0)
+		overlay_control.draw_line(s_pos + Vector2(-bracket_sz, bracket_sz), s_pos + Vector2(-bracket_sz, bracket_sz - corner_len), bracket_col, 2.0)
+		# Bottom-Right corner
+		overlay_control.draw_line(s_pos + Vector2(bracket_sz, bracket_sz), s_pos + Vector2(bracket_sz - corner_len, bracket_sz), bracket_col, 2.0)
+		overlay_control.draw_line(s_pos + Vector2(bracket_sz, bracket_sz), s_pos + Vector2(bracket_sz, bracket_sz - corner_len), bracket_col, 2.0)
+
+		# Center pip
+		overlay_control.draw_circle(s_pos, 3.0, bracket_col)
+
+		# Number badge e.g. [x2]
+		if font:
+			var badge_str := "[x%d]" % count
+			overlay_control.draw_string(font, s_pos + Vector2(bracket_sz + 6.0, 5.0), badge_str, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(1.0, 0.9, 0.25, 0.98))

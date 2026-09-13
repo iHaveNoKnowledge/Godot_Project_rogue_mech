@@ -27,6 +27,10 @@ var _drop_speed: float = 0.0
 # always detonate with fire/smoke even when damage_type isn't "explosive".
 var visual_node: Node3D = null
 var explosive_visual: bool = false
+var target_node: Node3D = null
+var homing_turn_speed: float = 6.8
+var initial_boost_timer: float = 0.2
+var _smoke_timer: float = 0.0
 
 
 func _ready() -> void:
@@ -76,9 +80,30 @@ func _physics_process(delta: float) -> void:
 		return
 
 	prev_position = global_position
+
+	# --- Homing Guidance (Macross / AC Swarm Trajectory) ---
+	if target_node != null:
+		if not is_instance_valid(target_node) or ("is_destroyed" in target_node and target_node.is_destroyed):
+			target_node = null
+		elif timer >= initial_boost_timer:
+			var target_pos: Vector3 = target_node.global_position + Vector3(0.0, 1.2, 0.0)
+			var desired_dir: Vector3 = (target_pos - global_position).normalized()
+			if desired_dir.length_squared() > 0.001:
+				var turn_amount: float = homing_turn_speed * delta
+				direction = direction.slerp(desired_dir, clampf(turn_amount, 0.0, 1.0)).normalized()
+
 	var step := speed * delta
 	position += direction * step
 	_traveled += step
+
+	# Smoke trail behind missiles
+	if explosive_visual or visual_node != null or target_node != null:
+		_smoke_timer += delta
+		if _smoke_timer >= 0.04:
+			_smoke_timer = 0.0
+			var tree := get_tree()
+			if tree:
+				EffectFactory.spawn_smoke_plume(tree, global_position, 1, 0.12, 0.22, 0.35)
 
 	# Bullet drop: only active when weapon explicitly specifies drop_gravity > 0.0 (e.g. Mortars/Grenades).
 	if drop_gravity > 0.0 and _traveled > drop_start_distance:
@@ -93,8 +118,10 @@ func _physics_process(delta: float) -> void:
 			vel.y -= _drop_speed
 		if vel.length_squared() > 0.01:
 			var vdir := vel.normalized()
-			if absf(vdir.dot(Vector3.UP)) < 0.995:  # look_at needs a non-colinear up
-				visual_node.look_at(global_position + vdir, Vector3.UP)
+			var up := Vector3.UP
+			if absf(vdir.dot(up)) > 0.99:
+				up = Vector3.RIGHT
+			visual_node.look_at(global_position + vdir, up)
 
 	# Check for obstacle (cover) collision using raycast between frames
 	_check_obstacle_collision()

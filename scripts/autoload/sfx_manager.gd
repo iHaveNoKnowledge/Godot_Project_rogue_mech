@@ -94,6 +94,7 @@ func _generate_sounds() -> void:
 	var roller_file: Variant = _load_sfx_file("roller_dash")
 	_sound_cache["roller_dash"] = roller_file if roller_file != null else _gen_roller_loop()
 	_sound_cache["reload_complete"] = _gen_heavy_reload_complete()
+	_sound_cache["lock_on_beep"] = _gen_tactical_lock_beep()
 	_sound_cache["impact"] = [
 		preload("res://resources/audio/sfx/impact01.wav"),
 		_gen_pitch_variant(preload("res://resources/audio/sfx/impact01.wav"), 0.88),
@@ -321,6 +322,22 @@ func play_sfx_2d(sound_name: String, volume_db: float = 0.0, bus: String = "SFX"
 	player.stream = stream
 	player.volume_db = volume_db
 	player.bus = bus
+	player.play()
+
+
+func play_lock_on_beep(stack: int = 1) -> void:
+	if combat_muted:
+		return
+	var stream = _pick_stream("lock_on_beep")
+	if stream == null:
+		return
+	var player = _get_free_2d_player()
+	if player == null:
+		return
+	player.stream = stream
+	player.volume_db = -2.0
+	player.bus = "SFX"
+	player.pitch_scale = clampf(1.0 + float(stack - 1) * 0.08, 0.9, 2.0)
 	player.play()
 
 
@@ -622,6 +639,29 @@ func _gen_roller_loop() -> AudioStreamWAV:
 	stream.mix_rate = sample_rate
 	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
 	stream.loop_end = num_samples
+	return stream
+
+
+func _gen_tactical_lock_beep() -> AudioStreamWAV:
+	var sample_rate := 22050
+	var duration := 0.065
+	var num_samples := int(duration * sample_rate)
+	var data := PackedByteArray()
+	data.resize(num_samples * 2)
+	for i in range(num_samples):
+		var t := float(i) / sample_rate
+		var progress := t / duration
+		var freq := lerpf(1400.0, 2150.0, progress)
+		var envelope := (1.0 - progress) * minf(progress * 16.0, 1.0)
+		var sample := sin(TAU * freq * t) * envelope * 0.72 * 32767.0
+		var val := int(clamp(sample, -32767, 32767))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+	var stream := AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
 	return stream
 
 

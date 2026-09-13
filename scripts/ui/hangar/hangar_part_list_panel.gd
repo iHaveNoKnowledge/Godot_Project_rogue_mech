@@ -369,8 +369,8 @@ func _update_currently_equipped_display(slot: String) -> void:
 			controller.currently_equipped_sublabel.text = "Exposed Inner Frame"
 		return
 
-	if slot.begins_with("weapon"):
-		var hand = "left" if slot == "weapon_left" else ("right" if slot == "weapon_right" else "carry")
+	if slot.begins_with("weapon") or slot.begins_with("shoulder"):
+		var hand = "left" if slot == "weapon_left" else ("right" if slot == "weapon_right" else ("shoulder_left" if slot == "shoulder_left" else ("shoulder_right" if slot == "shoulder_right" else "carry")))
 		var wpath = GlobalData.weapons.weapon_loadout.get(hand, "")
 		var w = GlobalData.weapons.get_weapon_by_path(wpath)
 		if w is Dictionary and not w.is_empty():
@@ -472,7 +472,7 @@ func on_item_selected(index: int) -> void:
 		controller.stats_panel.update()
 		return
 
-	if controller.selected_slot.begins_with("weapon"):
+	if controller.selected_slot.begins_with("weapon") or controller.selected_slot.begins_with("shoulder"):
 		if index >= 0 and index < controller.visible_weapon_indices.size():
 			var inv_idx = controller.visible_weapon_indices[index]
 			var inv = GlobalData.weapons.weapon_inventory[inv_idx]
@@ -603,7 +603,7 @@ func resolve_info_for_index(index: int) -> Dictionary:
 			f_idx = controller.visible_frame_indices[index]
 		if f_idx >= 0 and f_idx < items.size():
 			info_to_show = items[f_idx]
-	elif controller.selected_slot.begins_with("weapon"):
+	elif controller.selected_slot.begins_with("weapon") or controller.selected_slot.begins_with("shoulder"):
 		if index >= 0 and index < controller.visible_weapon_indices.size():
 			var inv_idx = controller.visible_weapon_indices[index]
 			info_to_show = GlobalData.weapons.weapon_inventory[inv_idx]

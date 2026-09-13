@@ -356,10 +356,29 @@ func generate_arena() -> void:
 	_create_void_barrier()
 	_create_theme_structures()
 	ArenaBackdropSpawner.build_perimeters(self, current_theme, arena_size)
+	_sink_outer_skirt()
 	EventBus.arena_generated.emit({
 		"size": arena_size,
 		"theme": current_theme
 	})
+
+
+# The 1200m OuterGroundSkirt sits at y=-0.05: with sculpted ±10m terrain it
+# slices through dunes (hiding low ground, letting peaks poke out). Sink it
+# below each HD variant's lowest point so it only ever reads as horizon floor.
+func _sink_outer_skirt() -> void:
+	if not _has_hd_terrain():
+		return
+	var skirt := get_node_or_null("ArenaBackdropRoot/OuterGroundSkirt") as MeshInstance3D
+	if skirt == null:
+		return
+	match desert_variant:
+		"canyon":
+			skirt.position.y = -22.0
+		"oasis":
+			skirt.position.y = -10.0
+		_:
+			skirt.position.y = -11.0
 
 
 func _create_containers() -> void:
@@ -467,13 +486,10 @@ func _try_add_hd_desert_terrain() -> bool:
 	return true
 
 
-# Instantiates a Blender HD terrain. Meshes named *-col carry Godot
-# auto-collision (StaticBody3D + ConcavePolygonShape3D built at import), so we
-# only retag those onto the Environment layer — no runtime trimesh building.
-# Rocks/crags (no -col) get cheap boxes; palm trunks keep tiny trimeshes.
-# Palm leaves are visual-only. If the import ever yields zero auto bodies
-# (stale import), floors fall back to runtime trimesh so the mech never falls
-# through the world.
+# Instantiates a Blender HD terrain. Only the water disc still carries Godot
+# auto-collision (-col at import); terrain floors use a fast HeightMapShape
+# (smooth CharacterBody slides instead of concave-triangle judder = the
+# desert stutter), rocks get cheap boxes, palm trunks tiny trimeshes.
 func _add_hd_desert_model(file: String, node_name: String) -> void:
 	var model_scene: PackedScene = load("res://assets/models/" + file)
 	if model_scene == null:
@@ -497,14 +513,90 @@ func _add_hd_desert_model(file: String, node_name: String) -> void:
 		# breaks up the tiled PBR texture so it no longer reads as repeating
 		# tiles. Harmless white when a mesh carries no COLOR layer.
 		_enable_vertex_tint(mesh_inst)
-		if "Rock" in mesh_inst.name or "Crag" in mesh_inst.name:
+		var mname := mesh_inst.name
+		if mname == "DuneField" or mname == "CanyonFloor" or mname == "OasisBase":
+			_add_heightfield_for_floor(mesh_inst)
+			continue
+		if "Rock" in mname or "Crag" in mname:
 			_add_rock_box_collision(mesh_inst)
 			continue
-		if auto_bodies.is_empty() and "Trunk" not in mesh_inst.name and "Leaf" not in mesh_inst.name:
+		if "Trunk" in mname:
 			_add_runtime_trimesh(mesh_inst)
 			continue
-		if "Trunk" in mesh_inst.name:
+		if auto_bodies.is_empty():
+			# Stale import without -col bodies (water disc): build it at runtime.
 			_add_runtime_trimesh(mesh_inst)
+
+
+# Heightfield collision resampled from the Blender grid mesh: 301x301 samples
+# at 1m over the 300m terrain (same convention as the forest bank collision).
+# Averaged per cell + hole-filled so 1.5m source grids still read smooth.
+func _add_heightfield_for_floor(mesh_inst: MeshInstance3D) -> void:
+	var mesh := mesh_inst.mesh
+	var W := 301
+	var sums := PackedFloat32Array()
+	sums.resize(W * W)
+	var counts := PackedInt32Array()
+	counts.resize(W * W)
+	var xf: Transform3D = mesh_inst.global_transform
+	for si in range(mesh.get_surface_count()):
+		var arrays := mesh.surface_get_arrays(si)
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		for v in verts:
+			var wv: Vector3 = xf * v
+			var ix := clampi(int(round(wv.x + 150.0)), 0, W - 1)
+			var iz := clampi(int(round(wv.z + 150.0)), 0, W - 1)
+			var idx := iz * W + ix
+			sums[idx] += wv.y
+			counts[idx] += 1
+	var data := PackedFloat32Array()
+	data.resize(W * W)
+	var total := 0.0
+	var total_n := 0
+	for i in range(W * W):
+		if counts[i] > 0:
+			data[i] = sums[i] / float(counts[i])
+			total += data[i]
+			total_n += 1
+	var mean_h := total / float(maxi(total_n, 1))
+	for i in range(W * W):
+		if counts[i] == 0:
+			data[i] = mean_h
+	# Fill sampling holes from non-empty neighbours (3 dilation passes).
+	for _pass in range(3):
+		var filled := 0
+		for z in range(1, W - 1):
+			for x in range(1, W - 1):
+				var idx := z * W + x
+				if counts[idx] == 0:
+					var acc := 0.0
+					var n := 0
+					for dz in [-1, 0, 1]:
+						for dx in [-1, 0, 1]:
+							var nidx := (z + dz) * W + (x + dx)
+							if counts[nidx] > 0:
+								acc += data[nidx]
+								n += 1
+					if n > 0:
+						data[idx] = acc / float(n)
+						counts[idx] = -1
+						filled += 1
+		if filled == 0:
+			break
+	var shape := HeightMapShape3D.new()
+	shape.map_width = W
+	shape.map_depth = W
+	shape.map_data = data
+	var body := StaticBody3D.new()
+	body.name = mesh_inst.name + "HeightCollision"
+	body.collision_layer = 2
+	body.collision_mask = 1
+	var col := CollisionShape3D.new()
+	col.shape = shape
+	body.add_child(col)
+	tile_container.add_child(body)
+	body.position = Vector3.ZERO
+	body.add_to_group("ground_collision")
 
 
 # Runtime trimesh fallback: used for palm trunks (small, cheap) and for whole

@@ -402,7 +402,9 @@ func _add_ground_tiles() -> void:
 			_add_forest_terrain_banks(texture)
 			_add_forest_strip_plane(texture)
 		BiomeTheme.DESERT:
-			if desert_variant == "canyon" and is_equal_approx(arena_size, 240.0) and ResourceLoader.exists("res://assets/models/terrain_desert_chasm.glb"):
+			if is_equal_approx(arena_size, 240.0) and _try_add_hd_desert_terrain():
+				pass
+			elif desert_variant == "canyon" and is_equal_approx(arena_size, 240.0) and ResourceLoader.exists("res://assets/models/terrain_desert_chasm.glb"):
 				_add_desert_chasm_model_ground()
 			elif desert_variant == "mountain" and is_equal_approx(arena_size, 240.0) and ResourceLoader.exists("res://assets/models/terrain_desert_mountains.glb"):
 				_add_desert_mountains_model_ground()
@@ -438,6 +440,73 @@ func _add_desert_mountains_model_ground() -> void:
 				b.collision_mask = 1
 				b.add_to_group("ground_collision")
 		tile_container.add_child(model_inst)
+
+
+# Blender-sculpted HD desert terrains (240m, built for the grunt arena size).
+# Picks the file by desert_variant: dunes / oasis / canyon. Mountain keeps its
+# existing model. Returns false when no HD file matches so the caller falls
+# back to the legacy model or procedural mesh.
+func _try_add_hd_desert_terrain() -> bool:
+	var file := ""
+	var node_name := ""
+	match desert_variant:
+		"dunes":
+			file = "terrain_desert_dunes_hd.glb"
+			node_name = "DunesHDModel"
+		"oasis":
+			file = "terrain_desert_oasis_hd.glb"
+			node_name = "OasisHDModel"
+		"canyon":
+			file = "terrain_desert_canyon_hd.glb"
+			node_name = "CanyonHDModel"
+		_:
+			return false
+	if file == "" or not ResourceLoader.exists("res://assets/models/" + file):
+		return false
+	_add_hd_desert_model(file, node_name)
+	return true
+
+
+# Instantiates a Blender HD terrain and builds trimesh collision from its
+# meshes (the GLBs carry no StaticBody). Palm leaves are visual-only so they
+# never block movement or shots; everything else is solid ground on layer 2,
+# which the player/enemy spawn raycasts already target.
+func _add_hd_desert_model(file: String, node_name: String) -> void:
+	var model_scene: PackedScene = load("res://assets/models/" + file)
+	if model_scene == null:
+		return
+	var model_inst := model_scene.instantiate() as Node3D
+	model_inst.name = node_name
+	tile_container.add_child(model_inst)
+	for mi in model_inst.find_children("*", "MeshInstance3D", true, false):
+		var mesh_inst := mi as MeshInstance3D
+		if mesh_inst == null or mesh_inst.mesh == null:
+			continue
+		if "Leaf" in mesh_inst.name or "Leaf" in str(mesh_inst.mesh.resource_name):
+			continue
+		var col_shape := mesh_inst.mesh.create_trimesh_shape()
+		if col_shape == null:
+			continue
+		var body := StaticBody3D.new()
+		body.name = mesh_inst.name + "Collision"
+		body.collision_layer = 2
+		body.collision_mask = 1
+		var col := CollisionShape3D.new()
+		col.shape = col_shape
+		body.add_child(col)
+		tile_container.add_child(body)
+		body.transform = mesh_inst.global_transform
+		body.add_to_group("ground_collision")
+
+
+# True when a Blender HD terrain is in play — procedural box-dunes / cylinder
+# spires and the flat fallback collision must stay out of the way then.
+func _has_hd_terrain() -> bool:
+	if tile_container == null:
+		return false
+	return tile_container.has_node("DunesHDModel") \
+		or tile_container.has_node("OasisHDModel") \
+		or tile_container.has_node("CanyonHDModel")
 
 
 func _get_terrain_height(wx: float, wz: float) -> float:
@@ -1034,6 +1103,8 @@ func _add_ground_collision() -> void:
 		_add_forest_terrain_collision()
 		return
 	if current_theme == BiomeTheme.DESERT:
+		if _has_hd_terrain():
+			return
 		if (desert_variant == "canyon" and tile_container.has_node("DesertChasmModel")) or \
 				(desert_variant == "mountain" and tile_container.has_node("DesertMountainsModel")):
 			return
@@ -1637,6 +1708,8 @@ func _build_recovery_dense_compound() -> void:
 
 
 func _build_desert_structures() -> void:
+	if _has_hd_terrain():
+		return
 	_generate_randomized_desert_dunes()
 
 func _generate_randomized_desert_dunes() -> void:
@@ -2424,6 +2497,8 @@ func _build_urban_park_structures() -> void:
 
 ## Desert Canyon: Steep sandstone spires and towering rock ridges.
 func _build_desert_canyon_structures() -> void:
+	if _has_hd_terrain():
+		return
 	var half := arena_size * 0.42
 	var spire_count := randi_range(12, 18)
 	var canyon_mat := StandardMaterial3D.new()
@@ -2480,6 +2555,8 @@ func _build_desert_canyon_structures() -> void:
 
 ## Desert Oasis: Central spring basin with palms and salvage depot outposts.
 func _build_desert_oasis_structures() -> void:
+	if _has_hd_terrain():
+		return
 	_generate_randomized_desert_dunes()
 
 

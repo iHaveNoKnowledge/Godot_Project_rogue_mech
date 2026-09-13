@@ -297,6 +297,15 @@ func initialize_slot(slot_name: String, part: ArmorPart, apply_player_damage: bo
 		_sync_cockpit_state()
 
 
+func _normalize_mesh_orientation(node: Node3D) -> void:
+	if node == null:
+		return
+	if node.has_meta("orientation_y_deg"):
+		node.rotation_degrees.y += float(node.get_meta("orientation_y_deg"))
+	elif node.has_meta("invert_forward") and bool(node.get_meta("invert_forward")):
+		node.rotation_degrees.y += 180.0
+
+
 func _attach_custom_mesh_scene(upper_container: Node3D, lower_container: Node3D, upper_scene: PackedScene, lower_scene: PackedScene) -> void:
 	if upper_container == null:
 		return
@@ -307,11 +316,13 @@ func _attach_custom_mesh_scene(upper_container: Node3D, lower_container: Node3D,
 			var up_inst = upper_scene.instantiate()
 			if up_inst is Node3D:
 				(up_inst as Node3D).scale *= INV_WORLD_SCALE
+				_normalize_mesh_orientation(up_inst as Node3D)
 			upper_container.add_child(up_inst)
 			_apply_realistic_fix_recursive(up_inst)
 		var low_inst = lower_scene.instantiate()
 		if low_inst is Node3D:
 			(low_inst as Node3D).scale *= INV_WORLD_SCALE
+			_normalize_mesh_orientation(low_inst as Node3D)
 		lower_container.add_child(low_inst)
 		_apply_realistic_fix_recursive(low_inst)
 		return
@@ -321,6 +332,7 @@ func _attach_custom_mesh_scene(upper_container: Node3D, lower_container: Node3D,
 		var instance = upper_scene.instantiate()
 		if instance is Node3D:
 			(instance as Node3D).scale *= INV_WORLD_SCALE
+			_normalize_mesh_orientation(instance as Node3D)
 		if lower_container != null:
 			var lower_nodes: Array[Node] = []
 			for child in instance.get_children():
@@ -339,6 +351,7 @@ func _attach_custom_mesh_scene(upper_container: Node3D, lower_container: Node3D,
 						var ln3d := lnode as Node3D
 						# Compensate: instance root INV no longer affects it, so apply INV directly
 						ln3d.scale *= INV_WORLD_SCALE
+						_normalize_mesh_orientation(ln3d)
 					lower_container.add_child(lnode)
 					_apply_realistic_fix_recursive(lnode)
 

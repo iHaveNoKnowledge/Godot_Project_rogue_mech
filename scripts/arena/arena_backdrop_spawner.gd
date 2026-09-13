@@ -74,29 +74,35 @@ static func _create_desert_backdrops(parent: Node3D, arena_size: float) -> void:
 	rock_mat.albedo_color = Color(0.58, 0.42, 0.30)
 	rock_mat.roughness = 0.95
 
-	# Outer Ring of Rolling Sand Dunes
+	# Outer Ring of Rolling Sand Dunes. Kept WELL outside the playable field
+	# (old ring at half+35 sat inside the arena and read as giant balls) and
+	# flattened into low ridges. One shared low-poly sphere mesh for all dunes.
+	var dune_proto := SphereMesh.new()
+	dune_proto.radius = 1.0
+	dune_proto.height = 2.0
+	dune_proto.radial_segments = 24
+	dune_proto.rings = 12
 	var num_dunes := 28
 	for i in range(num_dunes):
 		var angle := (float(i) / float(num_dunes)) * TAU + rng.randf_range(-0.1, 0.1)
-		var dist := half + rng.randf_range(35.0, 160.0)
+		var dist := half + rng.randf_range(200.0, 380.0)
 		var pos := Vector3(cos(angle) * dist, 0.0, sin(angle) * dist)
 
 		var dune := MeshInstance3D.new()
-		var s_mesh := SphereMesh.new()
 		var d_scale_x := rng.randf_range(60.0, 140.0)
-		var d_scale_y := rng.randf_range(16.0, 38.0)
+		var d_scale_y := rng.randf_range(8.0, 20.0)
 		var d_scale_z := rng.randf_range(50.0, 100.0)
-		s_mesh.radius = 1.0
-		s_mesh.height = 2.0
-		dune.mesh = s_mesh
+		dune.mesh = dune_proto
 		dune.scale = Vector3(d_scale_x, d_scale_y, d_scale_z)
-		dune.position = Vector3(pos.x, d_scale_y * 0.35, pos.z)
+		dune.position = Vector3(pos.x, d_scale_y * 0.1, pos.z)
 		dune.rotation.y = angle + PI * 0.5
 		dune.material_override = dune_mat
 		dune.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		parent.add_child(dune)
 
-	# Distant Sandstone Mesa Rock Bluffs
+	# Distant Sandstone Mesa Rock Bluffs. One shared unit box scaled per mesa.
+	var mesa_proto := BoxMesh.new()
+	mesa_proto.size = Vector3.ONE
 	var num_mesas := 14
 	for i in range(num_mesas):
 		var angle := (float(i) / float(num_mesas)) * TAU + rng.randf_range(-0.2, 0.2)
@@ -104,14 +110,13 @@ static func _create_desert_backdrops(parent: Node3D, arena_size: float) -> void:
 		var pos := Vector3(cos(angle) * dist, 0.0, sin(angle) * dist)
 
 		var mesa := MeshInstance3D.new()
-		var b_mesh := BoxMesh.new()
 		var m_w := rng.randf_range(50.0, 110.0)
 		var m_h := rng.randf_range(45.0, 95.0)
 		var m_d := rng.randf_range(50.0, 90.0)
-		b_mesh.size = Vector3(m_w, m_h, m_d)
-		mesa.mesh = b_mesh
+		mesa.mesh = mesa_proto
+		mesa.scale = Vector3(m_w, m_h, m_d)
 		mesa.position = Vector3(pos.x, m_h * 0.5 - 5.0, pos.z)
-		mesa.rotation.y = rng.randf_range(0.0, TAU)
+		mesa.rotation.y = rng.randf_range(-0.3, 0.3)
 		mesa.material_override = rock_mat
 		mesa.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		parent.add_child(mesa)

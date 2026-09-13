@@ -14,9 +14,10 @@ const TERRAIN: Dictionary = {
 	"plain": 1,
 	"sand": 2,
 	"forest": 2,
+	"urban": 2,
 	"bridge": 1,
+	"rock": 3,
 	"water": -1,
-	"rock": -1,
 }
 
 # Energy cost per terrain cell (GDD §3.1).
@@ -25,10 +26,11 @@ const TERRAIN_ENERGY: Dictionary = {
 	"road": 10.0,
 	"bridge": 10.0,
 	"plain": 20.0,
+	"urban": 20.0,
 	"sand": 25.0,
 	"forest": 25.0,
+	"rock": 35.0,
 	"water": 0.0,
-	"rock": 0.0,
 }
 
 # Enemy Fleet Archetypes (GDD §3.3)
@@ -364,7 +366,11 @@ static func theme_for_sector(sector: int) -> String:
 		1:
 			return "suburb"
 		2:
-			return "desert" if (GlobalData.board.board_seed % 2 == 0) else "forest"
+			var b_seed: int = 0
+			if Engine.has_singleton("GlobalData") or is_instance_valid(Engine.get_main_loop()) and Engine.get_main_loop().root and Engine.get_main_loop().root.has_node("GlobalData"):
+				var gd = Engine.get_main_loop().root.get_node("GlobalData")
+				b_seed = int(gd.board.board_seed)
+			return "desert" if (b_seed % 2 == 0) else "forest"
 		_:
 			return "urban"
 

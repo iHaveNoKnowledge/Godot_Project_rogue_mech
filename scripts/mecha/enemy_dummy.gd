@@ -2,7 +2,8 @@ extends CharacterBody3D
 
 var _loot_script = preload("res://scripts/systems/loot_system.gd")
 
-@export var move_speed: float = 13.5
+@export var move_speed: float = 7.0
+@export var roller_speed: float = 14.5
 @export var attack_range: float = 15.0
 @export var attack_damage: float = 10.0
 @export var attack_cooldown: float = 2.0
@@ -483,6 +484,7 @@ func _apply_archetype_stats() -> void:
 	if stats.is_empty():
 		return
 	move_speed = stats["move_speed"]
+	roller_speed = float(stats.get("roller_speed", 14.0))
 	attack_range = stats["attack_range"]
 	attack_damage = stats["attack_damage"]
 	attack_cooldown = stats["attack_cooldown"]
@@ -803,9 +805,15 @@ func _tilt_over() -> void:
 
 ## Decoupled Drive Command interface (compatible with MechaAIController and MechaBase standard)
 func set_drive_commands(world_dir: Vector3, aim_pt: Vector3, _fire_l: bool = false, _fire_r: bool = false, _dash: bool = false, _jump: bool = false, _roller: bool = false) -> void:
+	var cur_speed := roller_speed if _roller else move_speed
+	if _jump and is_on_floor():
+		velocity.y = 8.5
+	if not is_on_floor():
+		velocity.y -= 19.6 * get_physics_process_delta_time()
+
 	if world_dir.length_squared() > 0.01:
-		velocity.x = world_dir.normalized().x * move_speed
-		velocity.z = world_dir.normalized().z * move_speed
+		velocity.x = world_dir.normalized().x * cur_speed
+		velocity.z = world_dir.normalized().z * cur_speed
 		var target_angle := atan2(-world_dir.x, -world_dir.z)
 		rotation.y = lerp_angle(rotation.y, target_angle, 0.15)
 	else:

@@ -273,6 +273,11 @@ func _execute_move_coroutine(target: Vector2i) -> void:
 			break
 
 		var prev := current_pos
+		# Pre-validate step feasibility so we NEVER visibly hop into an invalid or impassable tile!
+		if not _can_step(step):
+			_try_step(step) # triggers informative event popup without hop
+			break
+
 		# Smooth animated hop to the next tile
 		if nodes_dict.has(prev) and nodes_dict.has(step):
 			await _animate_token_step(prev, step, 0.24)
@@ -452,7 +457,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.is_action_pressed("pause"):
 			return
 		if event.keycode == KEY_END or event.keycode == KEY_ENTER or event.keycode == KEY_SPACE:
-			_end_day()
+			_end_turn()
 		elif event.keycode == KEY_R or event.keycode == KEY_TAB:
 			_cycle_traversal_mode()
 		elif event.keycode == KEY_1:
@@ -503,6 +508,44 @@ func _on_mode_switched(title: String, desc_text: String) -> void:
 		"amount": 0,
 		"desc": desc_text,
 	})
+
+
+func _can_step(target: Vector2i) -> bool:
+	if not nodes_dict.has(target) or target == current_pos:
+		return false
+	var tile = nodes_dict[target]
+	var terrain := str(tile.get_meta("terrain", "plain"))
+	if not BoardConfig.is_passable(terrain):
+		return false
+	if not _is_adjacent(current_pos, target):
+		return false
+
+	var mode: String = GlobalData.fuel.traversal_mode
+	var step_costs: Dictionary = GlobalData.fuel.get_mode_step_cost(terrain)
+	var cost: int = int(step_costs["mp"])
+	cost += PatrolSystem.interception_surcharge(current_pos, target)
+
+	var hazard := GlobalData.board.current_hazard
+	if hazard == GlobalData.HAZARD_RAIN:
+		step_costs["fuel"] *= GlobalData.RAIN_FUEL_DRAIN_MULT
+		step_costs["energy"] *= GlobalData.RAIN_FUEL_DRAIN_MULT
+	elif hazard == GlobalData.HAZARD_SANDSTORM:
+		step_costs["fuel"] *= GlobalData.SANDSTORM_FUEL_DRAIN_MULT
+		step_costs["energy"] *= GlobalData.SANDSTORM_FUEL_DRAIN_MULT
+	elif hazard == GlobalData.HAZARD_FOG:
+		step_costs["fuel"] *= 1.1
+		step_costs["energy"] *= 1.1
+
+	if mode == "convoy" and GlobalData.fuel.convoy_fuel < float(step_costs["fuel"]):
+		return false
+	elif mode == "mecha" and GlobalData.fuel.mech_energy < float(step_costs["energy"]):
+		return false
+	elif mode == "pilot" and GlobalData.fuel.pilot_stamina < float(step_costs["stamina"]):
+		return false
+
+	if GlobalData.board.board_mp < cost:
+		return false
+	return true
 
 
 func _try_step(target: Vector2i) -> bool:
@@ -586,7 +629,9 @@ func _try_step(target: Vector2i) -> bool:
 
 	# GDD §3.1: Advance clock by step time cost
 	var step_terrain := str(tile.get_meta("terrain", "plain"))
-	DayNightSystem.advance_step(step_terrain)
+	var midnight_crossed := DayNightSystem.advance_step(step_terrain)
+	if midnight_crossed:
+		_advance_calendar_day()
 
 	# Re-embarkation check: if returning to the parked convoy base camp
 	if GlobalData.fuel.convoy_is_deployed and target == GlobalData.fuel.convoy_pos:
@@ -698,7 +743,7 @@ func _try_step(target: Vector2i) -> bool:
 	# its event popup would crash on get_tree() == null.
 	if GlobalData.board.board_mp <= 0 and is_inside_tree() and not get_tree().paused \
 			and GameManager.current_state == GameManager.State.BOARD:
-		_end_day()
+		_end_turn()
 	# GDD §6.2: Drain thermal cloak charge on each step
 	if GlobalData.thermal_cloak != null and GlobalData.thermal_cloak.is_active:
 		GlobalData.thermal_cloak.drain_step()
@@ -747,15 +792,48 @@ func refresh_after_event() -> void:
 	_refresh_after_event_closed()
 
 
-func _end_day() -> void:
-	# Safety net: combat was entered this frame (the board scene is already out
-	# of the tree), so the end-of-day emit would hit an orphaned EventUI.
+## Passes control to the Enemy/Patrol turn when MP is spent or turn is passed.
+## Crucially does NOT automatically increment the calendar day.
+func _end_turn() -> void:
+	if not is_inside_tree() or GameManager.current_state != GameManager.State.BOARD:
+		return
+
+	# Patrols move during the enemy turn.
+	var ambush := PatrolSystem.advance_day(current_pos)
+	if (ambush != Vector2i(-1, -1) or not PatrolSystem.get_patrol_at(current_pos).is_empty()) and GameManager.current_state == GameManager.State.BOARD:
+		if _check_current_tile_patrol_engagement():
+			return
+
+	# Multi-Faction Clash Check (Scavengers vs Hostiles/Allies)
+	_check_multi_faction_collisions()
+
+	# Refresh player movement points for their next turn
+	GlobalData.board.board_mp = GlobalData.board.board_mp_max
+
+	_update_token_position()
+	_refresh_patrol_markers()
+	_highlight_adjacent()
+
+	# Check Artillery Fleet Bombardment (GDD §3.3)
+	var artillery_strikes := PatrolSystem.check_artillery_bombardment(current_pos)
+	if not artillery_strikes.is_empty() and GameManager.current_state == GameManager.State.BOARD:
+		_trigger_artillery_bombardment(artillery_strikes)
+
+	EventBus.event_triggered.emit({
+		"name": "ENEMY TURN COMPLETE",
+		"effect": "none",
+		"amount": 0,
+		"desc": "Hostile patrols have moved. MP refreshed — %d MP. %s" % [GlobalData.board.board_mp_max, BoardSystem.progress_text()],
+	})
+
+
+## Advances the actual calendar day (called when 24h step clock crosses midnight or when camping).
+func _advance_calendar_day() -> void:
 	if not is_inside_tree() or GameManager.current_state != GameManager.State.BOARD:
 		return
 	GlobalData.board.board_day += 1
-	GlobalData.board.board_mp = GlobalData.board.board_mp_max
-	# GDD §3.1: Advance clock to dawn of new day
 	DayNightSystem.advance_to_next_dawn()
+
 	# Passive energy regen: the mech recharges while resting between days.
 	GlobalData.fuel.mech_energy = minf(
 		GlobalData.fuel.mech_energy + GlobalData.BOARD_ENERGY_REGEN_PER_DAY,
@@ -774,6 +852,9 @@ func _end_day() -> void:
 	# Reset daily depot seizure flag.
 	GlobalData.fuel.fuel_depot_seized_today = false
 
+	# Advance living Faction Economy
+	FactionEconomySystem.advance_day_economy()
+
 	# Once-per-day systems.
 	process_turn_mobilization()
 	accumulate_stalker_chance()
@@ -788,8 +869,6 @@ func _end_day() -> void:
 
 	if EnemyFactionSystem.tick_enemy_base_progress(1.0):
 		EventBus.event_triggered.emit(_build_enemy_base_completed_event())
-	# The base's research moved forward today — upgrade its model from a
-	# temporary camp to a rooted tower once it has dug in (>= half done).
 	_refresh_enemy_base_model()
 
 	EventBus.board_day_ended.emit()
@@ -815,30 +894,18 @@ func _end_day() -> void:
 			"desc": "%s has deployed a raider fleet into Sector %d!" % [s_event.get("camp_name", "Scavenger Outpost"), GlobalData.board.current_sector],
 		})
 
-	# Patrols move after the day's systems resolve.
-	var ambush := PatrolSystem.advance_day(current_pos)
-	if (ambush != Vector2i(-1, -1) or not PatrolSystem.get_patrol_at(current_pos).is_empty()) and GameManager.current_state == GameManager.State.BOARD:
-		if _check_current_tile_patrol_engagement():
-			return
-
-	# Multi-Faction Clash Check (Scavengers vs Hostiles/Allies)
-	_check_multi_faction_collisions()
-
-	_update_token_position()
-	_refresh_patrol_markers()
-	_highlight_adjacent()
-
-	# Check Artillery Fleet Bombardment (GDD §3.3)
-	var artillery_strikes := PatrolSystem.check_artillery_bombardment(current_pos)
-	if not artillery_strikes.is_empty() and GameManager.current_state == GameManager.State.BOARD:
-		_trigger_artillery_bombardment(artillery_strikes)
-
 	EventBus.event_triggered.emit({
 		"name": "DAY %d" % GlobalData.board.board_day,
 		"effect": "none",
 		"amount": 0,
-		"desc": "Supplies refreshed — %d MP. %s" % [GlobalData.board.board_mp_max, BoardSystem.progress_text()],
+		"desc": "Dawn of Day %d. %s" % [GlobalData.board.board_day, BoardSystem.progress_text()],
 	})
+
+
+## Backward-compatible end day (e.g. from Intermission menu "End Day" button)
+func _end_day() -> void:
+	_advance_calendar_day()
+	_end_turn()
 
 
 func _check_multi_faction_collisions() -> void:
@@ -1991,13 +2058,10 @@ func _roll_chokepoint_ambush(tile: Node) -> bool:
 # convoy has parked mechs with seated pilots to choose from; solo convoys and
 # surprise ambushes skip straight into the battle.
 func _request_combat(combat_type: String) -> void:
-	# Guard: ignore duplicate requests while already leaving the board (e.g. rapid
-	# double-click on a tile) — otherwise two deferred change_scene calls race
-	# and Vulkan can fail with swap_chain_resize ERR_CANT_CREATE.
+	# Guard: ignore duplicate requests while already leaving the board
 	if GameManager.current_state != GameManager.State.BOARD:
 		return
-	# Tell the arena generator what terrain this battle happens on: a forest
-	# board fought on a ROAD tile gets the road-through-forest arena.
+	# Tell the arena generator what terrain this battle happens on
 	var tile = nodes_dict.get(current_pos)
 	GlobalData.board.combat_tile_terrain = str(tile.get_meta("terrain", "plain")) if tile != null else "plain"
 	GlobalData.board.combat_tile_sub_zone = str(tile.get_meta("sub_zone", "")) if tile != null else ""
@@ -2006,7 +2070,58 @@ func _request_combat(combat_type: String) -> void:
 			and deploy.has_ally_candidates():
 		deploy.open_deploy(combat_type)
 		return
-	GameManager.enter_combat(combat_type)
+
+	var is_interactive := not DisplayServer.get_name().to_lower().contains("headless")
+	if is_interactive and is_inside_tree() and player_token != null:
+		_play_encounter_rush_and_enter(combat_type)
+	else:
+		GameManager.enter_combat(combat_type)
+
+
+func _play_encounter_rush_and_enter(combat_type: String) -> void:
+	_is_moving = true
+	var p_pos: Vector3 = player_token.global_position
+	# Spawn dynamic alert holographic marker rushing toward player
+	var rush_marker := Node3D.new()
+	rush_marker.name = "EncounterRushMarker"
+	var offset_dir := Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)).normalized()
+	if offset_dir.length_squared() < 0.1:
+		offset_dir = Vector3(1, 0, 0)
+	var spawn_pos := p_pos + offset_dir * 5.0 + Vector3(0, 0.8, 0)
+	rush_marker.global_position = spawn_pos
+	add_child(rush_marker)
+
+	# Red holographic indicator
+	var sphere := MeshInstance3D.new()
+	var sm := SphereMesh.new()
+	sm.radius = 0.45
+	sm.height = 0.9
+	sphere.mesh = sm
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(1.0, 0.15, 0.15)
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.2, 0.2)
+	mat.emission_energy_multiplier = 3.5
+	sphere.material_override = mat
+	rush_marker.add_child(sphere)
+
+	if AudioManager and AudioManager.has_method("play_ui_denied"):
+		AudioManager.play_ui_denied()
+
+	var rigs := get_tree().get_nodes_in_group("camera_rig") if is_inside_tree() else []
+	if not rigs.is_empty() and is_instance_valid(rigs[0]) and rigs[0].has_method("add_shake"):
+		rigs[0].add_shake(0.4)
+
+	# Tween token rushing directly into player token
+	var tw := create_tween()
+	tw.tween_property(rush_marker, "global_position", p_pos + Vector3(0, 0.8, 0), 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	await tw.finished
+
+	if is_instance_valid(rush_marker):
+		rush_marker.queue_free()
+
+	if is_inside_tree() and GameManager.current_state == GameManager.State.BOARD:
+		GameManager.enter_combat(combat_type)
 
 
 func _trigger_ceasefire_skip() -> void:

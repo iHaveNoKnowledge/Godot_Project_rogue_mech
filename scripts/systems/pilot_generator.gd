@@ -269,7 +269,11 @@ static func generate_pilot_name(include_callsign_prob: float = 0.70) -> Dictiona
 static func generate_pilot(opts: Dictionary = {}) -> Dictionary:
 	var name_info := generate_pilot_name(opts.get("callsign_prob", 0.75))
 	var bg: Dictionary = BACKGROUNDS.pick_random()
-	var allow_legendary: bool = opts.get("allow_legendary", false) or (randf() < 0.01 and GlobalData.board.current_sector >= 3)
+	var cur_sec: int = 1
+	if Engine.has_singleton("GlobalData") or (is_instance_valid(Engine.get_main_loop()) and Engine.get_main_loop().root and Engine.get_main_loop().root.has_node("GlobalData")):
+		var gd = Engine.get_main_loop().root.get_node("GlobalData")
+		cur_sec = int(gd.board.current_sector)
+	var allow_legendary: bool = opts.get("allow_legendary", false) or (randf() < 0.01 and cur_sec >= 3)
 	var perk: Dictionary = pick_random_perk(allow_legendary)
 	var trait_str: String = PERSONALITY_TRAITS.pick_random()
 
@@ -418,9 +422,10 @@ static func generate_mech_loadout(archetype: int, faction_paint: Dictionary = {}
 	var has_global := false
 	var armor_cat: Dictionary = {}
 	var frame_cat: Dictionary = {}
-	if is_instance_valid(GlobalData) and GlobalData.armor_catalog.size() > 0:
-		armor_cat = GlobalData.armor_catalog
-		frame_cat = GlobalData.frame_catalog
+	var gd_inst = Engine.get_singleton("GlobalData") if Engine.has_singleton("GlobalData") else (Engine.get_main_loop().root.get_node_or_null("GlobalData") if is_instance_valid(Engine.get_main_loop()) and Engine.get_main_loop().root else null)
+	if gd_inst and gd_inst.armor_catalog.size() > 0:
+		armor_cat = gd_inst.armor_catalog
+		frame_cat = gd_inst.frame_catalog
 		has_global = true
 	if not has_global:
 		return {}

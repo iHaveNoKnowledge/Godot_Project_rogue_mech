@@ -11,87 +11,53 @@ enum Archetype { RUSHER, RANGED, HEAVY, SUPPORT, SHIELD_MELEE, SHIELD_RANGED }
 static func get_stats(archetype: int, is_full: bool = false) -> Dictionary:
 	match archetype:
 		Archetype.SHIELD_MELEE:
-			if is_full:
-				return {
-					"move_speed": 13.0,
-					"attack_range": 5.2,
-					"attack_damage": 24.0,
-					"attack_cooldown": 2.2,
-				}
-			else:
-				return {
-					"move_speed": 12.5,
-					"attack_range": 5.2,
-					"attack_damage": 18.0,
-					"attack_cooldown": 2.2,
-				}
+			return {
+				"move_speed": 7.0 if not is_full else 7.5,
+				"roller_speed": 14.5,
+				"attack_range": 5.2,
+				"attack_damage": 24.0 if is_full else 18.0,
+				"attack_cooldown": 2.2,
+			}
 		Archetype.SHIELD_RANGED:
-			if is_full:
-				return {
-					"move_speed": 13.8,
-					"attack_range": 50.0,
-					"attack_damage": 22.0,
-					"attack_cooldown": 1.2,
-				}
-			else:
-				return {
-					"move_speed": 13.5,
-					"attack_range": 50.0,
-					"attack_damage": 16.0,
-					"attack_cooldown": 1.2,
-				}
+			return {
+				"move_speed": 6.8 if not is_full else 7.2,
+				"roller_speed": 14.0,
+				"attack_range": 50.0,
+				"attack_damage": 22.0 if is_full else 16.0,
+				"attack_cooldown": 1.2,
+			}
 		Archetype.RUSHER:
-			if is_full:
-				return {
-					"move_speed": 14.5,
-					"attack_range": 5.0,
-					"attack_damage": 20.0,
-					"attack_cooldown": 2.0,
-				}
-			else:
-				return {
-					"move_speed": 14.0,
-					"attack_range": 5.0,
-					"attack_damage": 15.0,
-					"attack_cooldown": 2.0,
-				}
+			return {
+				"move_speed": 7.5 if not is_full else 8.0,
+				"roller_speed": 16.0,
+				"attack_range": 5.0,
+				"attack_damage": 20.0 if is_full else 15.0,
+				"attack_cooldown": 2.0,
+			}
 		Archetype.RANGED:
-			if is_full:
-				return {
-					"move_speed": 14.0,
-					"attack_range": 60.0,
-					"attack_damage": 15.0,
-					"attack_cooldown": 0.5,
-				}
-			else:
-				return {
-					"move_speed": 13.5,
-					"attack_range": 60.0,
-					"attack_damage": 12.0,
-					"attack_cooldown": 0.6,
-				}
+			return {
+				"move_speed": 6.5 if not is_full else 7.0,
+				"roller_speed": 13.5,
+				"attack_range": 60.0,
+				"attack_damage": 15.0 if is_full else 12.0,
+				"attack_cooldown": 0.6,
+			}
 		Archetype.HEAVY:
 			return {
-				"move_speed": 11.0,
+				"move_speed": 5.8,
+				"roller_speed": 12.0,
 				"attack_range": 10.0,
 				"attack_damage": 50.0,
 				"attack_cooldown": 4.0,
 			}
 		Archetype.SUPPORT:
-			if is_full:
-				return {
-					"move_speed": 14.5,
-					"attack_range": 40.0,
-					"attack_damage": 0.0,
-					"attack_cooldown": 1.0,
-				}
-			else:
-				return {
-					"move_speed": 14.0,
-					"attack_range": 40.0,
-					"attack_damage": 0.0,
-					"attack_cooldown": 1.0,
-				}
+			return {
+				"move_speed": 7.0 if not is_full else 7.5,
+				"roller_speed": 14.0,
+				"attack_range": 40.0,
+				"attack_damage": 0.0,
+				"attack_cooldown": 1.0,
+			}
 	return {}
 
 

@@ -675,7 +675,6 @@ func _spawn_enemy_with_pilot(type: String, archetype: int, pos: Vector3, hp_scal
 	# Lift the root by the body's ground-contact offset so the whole mech rests
 	# ON the surface immediately (no half-buried spawn, no pop-up).
 	spawn_pos.y -= body_bottom_offset(enemy)
-	enemy.position = spawn_pos
 
 	if enemy.get("pilot_data") != null:
 		enemy.pilot_data = pilot
@@ -688,8 +687,31 @@ func _spawn_enemy_with_pilot(type: String, archetype: int, pos: Vector3, hp_scal
 	if enemy.get("faction_paint") != null:
 		enemy.faction_paint = paint
 
-	add_child(enemy)
-	await enemy.ready
+	var is_interactive := not DisplayServer.get_name().to_lower().contains("headless")
+	if is_interactive and is_inside_tree():
+		# Slide-in from arena boundary / high-speed thruster rush
+		var spawn_dir := spawn_pos.normalized()
+		if spawn_dir.length_squared() < 0.01:
+			spawn_dir = Vector3.FORWARD
+		var entry_origin := spawn_pos + spawn_dir * randf_range(16.0, 24.0)
+		entry_origin.y = spawn_pos.y + 0.8
+		enemy.position = entry_origin
+
+		add_child(enemy)
+		await enemy.ready
+
+		_animate_combat_slide_in(enemy, entry_origin, spawn_pos)
+	else:
+		enemy.position = spawn_pos
+		add_child(enemy)
+		await enemy.ready
+
+	# Pass supply posture down to AI Brain
+	var ai = enemy.get_node_or_null("MechaAIController")
+	if ai:
+		ai.is_starved = bool(pilot.get("is_starved", false))
+		if ai.is_starved:
+			ai.posture = "gak"
 
 	if coordinator != null:
 		coordinator.register_member(enemy, pilot)
@@ -710,6 +732,25 @@ func _spawn_enemy_with_pilot(type: String, archetype: int, pos: Vector3, hp_scal
 
 	enemies_alive += 1
 	return enemy
+
+
+func _animate_combat_slide_in(enemy: Node3D, start_pos: Vector3, end_pos: Vector3) -> void:
+	if not is_instance_valid(enemy):
+		return
+	var duration := randf_range(0.42, 0.60)
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(enemy, "position:x", end_pos.x, duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(enemy, "position:z", end_pos.z, duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(enemy, "position:y", end_pos.y, duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+	# Spawn smoke/dust trail along entrance vector
+	var eff_fact = load("res://scripts/effects/effect_factory.gd")
+	if eff_fact and eff_fact.has_method("spawn_smoke_plume"):
+		eff_fact.spawn_smoke_plume(get_tree(), (start_pos + end_pos) * 0.5, 4, 0.25, 0.7, 1.4)
+
+	await tw.finished
+	if is_instance_valid(enemy) and EffectManager != null and EffectManager.has_method("spawn_dust_cloud"):
+		EffectManager.spawn_dust_cloud(end_pos, 2.2)
 
 
 # The run theme's enemy organization config (style/paint/variance), see

@@ -18,6 +18,8 @@ const NAMES := ["Ravens", "Vultures", "Jackals", "Hawks", "Coyotes", "Strykers"]
 const GRUNT_MIN: int = 1
 const GRUNT_MAX: int = 3
 
+const _FES = preload("res://scripts/systems/faction_economy_system.gd")
+
 # How close a hostile fleet must be to smell the convoy (base). Grows as
 # patrol_alert climbs, so lingering near patrols widens their hunt.
 const DETECT_BASE := 4
@@ -104,11 +106,19 @@ static func _ensure_patrol_roster(p: Dictionary, force: bool = false) -> void:
 		squad_size = grunts + aces + 1 # boss grunts/aces already include escorts
 	else:
 		squad_size = grunts + aces + 1 # commander + grunts + ace wingmen
+	var fac_name: String = str(p.get("faction", "hostile"))
+	var is_starved: bool = _FES.is_faction_starved(fac_name)
+	if is_starved and not is_boss:
+		# Economic deficit reduces available combat personnel ("ศัตรูน้อยผิดปกติ")
+		squad_size = maxi(1, squad_size - 1)
 	squad_size = clampi(squad_size, 1, 6)
 	var faction_paint := _build_faction_paint(arch_str)
 	var difficulty: int = int(GlobalData.board.current_sector) if is_instance_valid(GlobalData) else 1
 	var fleet_data: Dictionary = PilotGenerator.generate_enemy_fleet(squad_size, str(p.get("name", "")), difficulty, faction_paint)
 	var pilots: Array = fleet_data.get("pilots", [])
+	for plt in pilots:
+		plt["is_starved"] = is_starved
+		plt["supply_status"] = _FES.get_economy(fac_name).get("supply_status", "normal")
 	# Tag rivalry/bounty on commander for pursuit system
 	if not pilots.is_empty():
 		var cmdr: Dictionary = pilots[0]
@@ -125,6 +135,7 @@ static func _ensure_patrol_roster(p: Dictionary, force: bool = false) -> void:
 	p["squad_name"] = fleet_data.get("squad_name", p.get("squad_name", ""))
 	p["formation"] = fleet_data.get("formation", "wedge")
 	p["fleet_count"] = maxi(int(p.get("fleet_count", 1)), 1)
+	p["is_starved"] = is_starved
 
 static func normalize_patrol(p: Dictionary) -> void:
 	p["pos"] = normalize_dir(p.get("pos"))

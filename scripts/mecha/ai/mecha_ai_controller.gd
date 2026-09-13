@@ -27,6 +27,22 @@ class_name MechaAIController
 @export var objective_target_pos: Vector3 = Vector3.ZERO
 @export var has_objective: bool = false
 
+# Tactical Postures: "aggressive" (normal), "gak" (conservative/starved), "retreat" (low HP / escape)
+@export var posture: String = "aggressive"
+@export var is_starved: bool = false
+
+# AI Energy & Mobility Management
+var ai_energy: float = 100.0
+var ai_max_energy: float = 100.0
+const AI_ROLLER_DRAIN_RATE := 15.0
+const AI_REGEN_RATE := 16.0
+const AI_LOW_ENERGY_CUTOFF := 18.0
+
+var has_popped_retreat_smoke: bool = false
+var last_known_target_pos: Vector3 = Vector3.ZERO
+var _search_patrol_timer: float = 0.0
+var _search_patrol_dir: Vector3 = Vector3.FORWARD
+
 # Targets
 var current_target: Node3D = null
 var _decision_timer: float = 0.0
@@ -127,6 +143,7 @@ func update_ai_decisions(delta: float) -> Dictionary:
 	_decision_timer -= delta
 	_dash_cooldown_timer -= delta
 	_strafe_switch_timer -= delta
+	_search_patrol_timer -= delta
 
 	if _strafe_switch_timer <= 0.0:
 		_strafe_switch_timer = randf_range(2.0, 4.5)
@@ -138,20 +155,39 @@ func update_ai_decisions(delta: float) -> Dictionary:
 		if current_target == null or not is_instance_valid(current_target) or (current_target.has_method("_is_downed") and current_target.call("_is_downed")):
 			acquire_target(max_detection_range)
 
+	# Update Posture dynamically based on HP & logistics supply
+	var hs = actor.get_node_or_null("HealthSystem")
+	if hs and hs.has_method("get_total_hp"):
+		var cur_hp: float = float(hs.get("total_hp") if "total_hp" in hs else 100.0)
+		var max_hp: float = float(hs.get("max_total_hp") if "max_total_hp" in hs else 100.0)
+		if max_hp > 0.0 and (cur_hp / max_hp) < 0.30:
+			posture = "retreat"
+	elif is_starved:
+		posture = "gak"
+
 	var move_dir := Vector3.ZERO
 	var aim_pt := Vector3.ZERO
 	var fire_l := false
 	var fire_r := false
 	var wants_dash := false
 	var wants_roller := false
+	var wants_jump := false
 
 	var is_skating: bool = actor.get("is_roller_dashing") == true
-	var actor_pos: Vector3 = actor.global_position
-	var fwd := -actor.global_transform.basis.z
+	var actor_pos: Vector3 = actor.global_position if actor.is_inside_tree() else actor.position
+	var fwd := -actor.global_transform.basis.z if actor.is_inside_tree() else Vector3.FORWARD
 	fwd.y = 0.0
 	fwd = fwd.normalized() if fwd.length_squared() > 0.001 else Vector3.FORWARD
 
+	# Energy tracking: drain during roller-dash, recharge when walking/idle
+	if is_skating:
+		ai_energy = maxf(ai_energy - AI_ROLLER_DRAIN_RATE * delta, 0.0)
+	else:
+		ai_energy = minf(ai_energy + AI_REGEN_RATE * delta, ai_max_energy)
+	var can_boost: bool = ai_energy >= AI_LOW_ENERGY_CUTOFF
+
 	if current_target != null and is_instance_valid(current_target):
+		last_known_target_pos = current_target.global_position
 		var target_pos := current_target.global_position
 		aim_pt = target_pos + Vector3(0, 1.4, 0)
 		var dist: float = actor_pos.distance_to(target_pos)
@@ -159,17 +195,38 @@ func update_ai_decisions(delta: float) -> Dictionary:
 		to_target.y = 0.0
 		var to_target_norm: Vector3 = to_target.normalized() if to_target.length_squared() > 0.001 else Vector3.FORWARD
 
-		# Tactical distance management
-		if dist > preferred_range + 4.0:
+		# Dynamic range modifier by posture
+		var eff_preferred := preferred_range
+		var eff_min_retreat := min_retreat_range
+		if posture == "gak":
+			eff_preferred += 12.0
+			eff_min_retreat += 8.0
+
+		if posture == "retreat":
+			# Tactical Retreat: pop smoke and fall back to arena border
+			if not has_popped_retreat_smoke:
+				has_popped_retreat_smoke = true
+				if is_inside_tree():
+					var eff_fact = load("res://scripts/effects/effect_factory.gd")
+					if eff_fact and eff_fact.has_method("spawn_smoke_plume"):
+						eff_fact.spawn_smoke_plume(get_tree(), actor_pos, 7, 0.35, 1.2, 2.5)
+			# Move in reverse away from target
+			move_dir = -to_target_norm
+			aim_pt = actor_pos + to_target_norm * 10.0
+			if can_boost:
+				wants_roller = true
+			# Suppressive parting shots
+			fire_l = randf() < 0.35
+		elif dist > eff_preferred + 4.0:
 			# Advance toward target
 			move_dir = to_target_norm
-			if dist > preferred_range + 20.0:
+			if dist > eff_preferred + 18.0 and can_boost:
 				if not is_skating:
 					wants_roller = true
-				if _dash_cooldown_timer <= 0.0 and randf() < 0.2:
+				if _dash_cooldown_timer <= 0.0 and randf() < 0.2 and posture != "gak":
 					wants_dash = true
 					_dash_cooldown_timer = 3.5
-		elif dist < min_retreat_range:
+		elif dist < eff_min_retreat:
 			# Too close: tactical back-pedal
 			move_dir = -to_target_norm
 			if is_skating:
@@ -182,40 +239,59 @@ func update_ai_decisions(delta: float) -> Dictionary:
 				wants_roller = true
 
 		# Weapon firing triggers & arc check
-		# Check facing angle (target should be roughly within front 65 degrees)
 		var angle_to_tgt: float = rad_to_deg(fwd.angle_to(to_target_norm))
-
-		if dist <= preferred_range * 1.6 and angle_to_tgt <= 65.0:
+		if posture != "retreat" and dist <= eff_preferred * 1.6 and angle_to_tgt <= 65.0:
 			fire_l = true
-			if dist <= preferred_range * 1.1:
+			# Gak posture conserves secondary weapons unless opponent is pressed close
+			if posture == "gak":
+				fire_r = (dist <= 8.0)
+			elif dist <= eff_preferred * 1.1:
 				fire_r = true
 	else:
-		# No target: pursue objective target if available
-		if has_objective and objective_target_pos != Vector3.ZERO:
+		# Search / Hunt behavior when target is lost
+		if last_known_target_pos != Vector3.ZERO and actor_pos.distance_to(last_known_target_pos) > 6.0:
+			var to_last := (last_known_target_pos - actor_pos)
+			to_last.y = 0.0
+			move_dir = to_last.normalized()
+			aim_pt = last_known_target_pos + Vector3(0, 1.4, 0)
+			if is_skating:
+				wants_roller = true # walk normally when hunting
+		elif has_objective and objective_target_pos != Vector3.ZERO:
 			var to_obj := (objective_target_pos - actor_pos)
 			to_obj.y = 0.0
 			if to_obj.length() > 8.0:
 				move_dir = to_obj.normalized()
 				aim_pt = actor_pos + move_dir * 25.0
-				if not is_skating:
+				if not is_skating and can_boost:
 					wants_roller = true
 			else:
 				move_dir = Vector3.ZERO
 				aim_pt = actor_pos + fwd * 10.0
-				if is_skating:
-					wants_roller = true
 		else:
-			move_dir = Vector3.ZERO
-			aim_pt = actor_pos - actor.global_transform.basis.z * 15.0
+			# Gentle perimeter scanning patrol
+			if _search_patrol_timer <= 0.0:
+				_search_patrol_timer = randf_range(3.0, 6.0)
+				var angle := randf_range(-PI, PI)
+				_search_patrol_dir = Vector3(cos(angle), 0, sin(angle))
+			move_dir = _search_patrol_dir * 0.4
+			aim_pt = actor_pos + _search_patrol_dir * 12.0
 			if is_skating:
 				wants_roller = true
+
+	# Obstacle avoidance and jump clearance
+	if actor.is_on_wall() and move_dir.length_squared() > 0.05:
+		wants_jump = true
+		# Sidestep away from wall normal
+		var wall_norm := actor.get_wall_normal()
+		var side_slide := Vector3(-wall_norm.z, 0, wall_norm.x) * _strafe_sign
+		move_dir = (move_dir * 0.4 + side_slide * 0.6).normalized()
 
 	cmd_move_direction = move_dir
 	cmd_aim_point = aim_pt
 	cmd_fire_left = fire_l
 	cmd_fire_right = fire_r
 	cmd_wants_dash = wants_dash
-	cmd_wants_jump = false
+	cmd_wants_jump = wants_jump
 	cmd_wants_roller = wants_roller
 
 	return {

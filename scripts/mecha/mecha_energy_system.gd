@@ -13,10 +13,12 @@ var max_energy: float = 200.0
 var energy: float = 200.0
 
 const ENERGY_REGEN_RATE := 10.0
-const ROLLER_BASE_DRAIN := 2.0
-const ROLLER_RAMP_DRAIN := 3.0
-const ROLLER_MAX_DRAIN := 20.0
+const PASSIVE_BATTLE_REGEN_RATE := 6.5
+const ROLLER_BASE_DRAIN := 1.8
+const ROLLER_RAMP_DRAIN := 1.8
+const ROLLER_MAX_DRAIN := 14.0
 var roller_drain_ramp: float = 0.0
+var frame_efficiency: float = 1.0
 
 # Drop tanks (GDD §2.4).
 var _drop_tank_active: bool = false
@@ -62,6 +64,7 @@ func process_energy(delta: float) -> void:
 	if is_roller_dashing and is_on_floor and input_dir.length() > 0.0:
 		roller_drain_ramp = minf(roller_drain_ramp + ROLLER_RAMP_DRAIN * delta, ROLLER_MAX_DRAIN)
 		var drain_mult := GlobalData.DUST_STORM_ROLLER_DRAIN_MULT if GlobalData.board.current_hazard == GlobalData.HAZARD_DUST_STORM else 1.0
+		drain_mult *= frame_efficiency
 		energy = maxf(energy - (ROLLER_BASE_DRAIN + roller_drain_ramp) * drain_mult * delta, 0.0)
 		if energy <= 0.0:
 			is_roller_dashing = false
@@ -70,8 +73,9 @@ func process_energy(delta: float) -> void:
 				AudioManager.play_mecha_actuator(pos)
 	else:
 		roller_drain_ramp = 0.0
-		# No passive energy regen in battle — the boost pool only refills from
-		# specific recharge sources (energy pickups, support allies, etc.).
+		# Gentle passive generator recharge while in combat when not boosting
+		if energy < max_energy:
+			energy = minf(energy + PASSIVE_BATTLE_REGEN_RATE * delta, max_energy)
 
 
 func process_drop_tanks(delta: float) -> void:

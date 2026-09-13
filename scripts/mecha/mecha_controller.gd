@@ -349,8 +349,8 @@ func _toggle_roller() -> void:
 		if not is_roller_dashing:
 			energy_system.roller_drain_ramp = 0.0
 		is_roller_dashing = not is_roller_dashing
-		if AudioManager:
-			AudioManager.play_mecha_actuator(global_position)
+		# No one-shot here: the roller_dash loop itself starts/stops
+		# via update_roller_dash/stop_roller_dash in _physics_process.
 	else:
 		is_roller_dashing = false
 		energy_system.roller_drain_ramp = 0.0

@@ -663,8 +663,40 @@ func settle_body_to_ground(body: Node3D, sink: float = 0.15) -> void:
 			break
 	if not found:
 		return
-	var ground := _prop_base_y(body.position.x, body.position.z, sink)
+	var ground := ground_ray_y(body.position.x, body.position.z, _prop_base_y(body.position.x, body.position.z, sink), [body.get_rid()] if body is CollisionObject3D else [])
 	body.position.y = ground - bottom
+
+
+# Physics-first ground height: raycasts the real collision (Blender HD meshes,
+# dunes, bridges) so props sit correctly even when the visual terrain differs
+# from the analytic formula by meters (e.g. 10m peaks / deep pits). Bodies in
+# `extra_excludes` plus every solid_obstacle / cover body are excluded so the
+# ray never lands on another prop and stacks things mid-air. Falls back to
+# `fallback_y` (usually analytic) when nothing is hit.
+func ground_ray_y(x: float, z: float, fallback_y: float, extra_excludes: Array = []) -> float:
+	var space := get_world_3d().direct_space_state
+	var query := PhysicsRayQueryParameters3D.create(
+		Vector3(x, 80.0, z),
+		Vector3(x, -80.0, z),
+		2  # Environment layer: ground, terrain, dunes, banks, bridges.
+	)
+	var excludes: Array[RID] = []
+	for e in extra_excludes:
+		if e is RID and (e as RID).is_valid():
+			excludes.append(e)
+	for node in get_tree().get_nodes_in_group("solid_obstacle"):
+		if node is CollisionObject3D:
+			excludes.append((node as CollisionObject3D).get_rid())
+	var spawner := get_parent().get_node_or_null("ObstacleSpawner") if get_parent() != null else null
+	if spawner != null:
+		for child in spawner.find_children("*", "StaticBody3D", true, false):
+			if child is CollisionObject3D:
+				excludes.append((child as CollisionObject3D).get_rid())
+	query.exclude = excludes
+	var hit := space.intersect_ray(query)
+	if hit.is_empty():
+		return fallback_y
+	return (hit.position as Vector3).y
 
 
 func _add_terrain_mesh(texture: Texture2D) -> void:

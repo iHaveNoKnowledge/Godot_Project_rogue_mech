@@ -229,15 +229,19 @@ func _create_cover(def: Dictionary) -> StaticBody3D:
 	return cover
 
 
-# Surface height under a spawn position. Uses the ArenaGenerator's terrain math
-# directly (exact, no physics needed) so covers sit ON the ground instead of
-# floating at y=0 while the terrain sits at ~-0.35. The old raycast version
-# could also hit previously spawned covers (same layer 2) and stack props in
-# mid-air, so the ray is only a fallback for test scenes without a generator.
+# Surface height under a spawn position. On Blender HD terrains the visual
+# ground can differ from the analytic formula by meters (10m peaks / deep
+# pits), so raycast the real collision first — excluding every existing prop
+# body so covers never stack mid-air on each other — and keep the analytic
+# height only as fallback (and as the primary path for procedural themes).
 func _surface_y_at(pos: Vector3) -> float:
 	var arena_gen = get_node_or_null("../ArenaGenerator")
 	if arena_gen != null and arena_gen.has_method("_get_terrain_height"):
-		return float(arena_gen._get_terrain_height(pos.x, pos.z)) - 0.05
+		var analytic_y := float(arena_gen._get_terrain_height(pos.x, pos.z)) - 0.05
+		if arena_gen.has_method("_has_hd_terrain") and bool(arena_gen.call("_has_hd_terrain")) \
+				and arena_gen.has_method("ground_ray_y"):
+			return float(arena_gen.call("ground_ray_y", pos.x, pos.z, analytic_y))
+		return analytic_y
 	var space := get_world_3d().direct_space_state
 	var query := PhysicsRayQueryParameters3D.create(
 		pos + Vector3(0, 80.0, 0),

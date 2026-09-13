@@ -14,6 +14,14 @@ func _ready() -> void:
 
 
 func spawn_covers() -> void:
+	# Blender-sculpted HD desert terrains carry their own rocks/crags/palms —
+	# the dense procedural city-prop scatter (60-80 barrels/crates/walls)
+	# would only clutter them, so skip it there (structures already skip).
+	var arena_gen0 = get_node_or_null("../ArenaGenerator")
+	if arena_gen0 != null and arena_gen0.has_method("_has_hd_terrain") and bool(arena_gen0.call("_has_hd_terrain")):
+		if arena_gen0.has_method("settle_all_grounded_props"):
+			arena_gen0.settle_all_grounded_props()
+		return
 	var covers = _generate_positions()
 
 	for def in covers:

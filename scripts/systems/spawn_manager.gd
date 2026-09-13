@@ -239,6 +239,12 @@ func _ready() -> void:
 	start_waves()
 
 func _spawn_convoy_trucks_if_needed() -> void:
+	# Wait until StaticBodies are registered in the physics server — a frame-0
+	# snap raycast always misses and leaves trucks floating or buried.
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	if not is_inside_tree():
+		return
 	var is_defense := GlobalData.board.convoy_defense_active or GameManager.combat_node_type in ["defense", "convoy_ambush", "convoy_breakdown"]
 	if not is_defense:
 		# Also check if board_tile type was convoy breakdown/ambush
@@ -276,6 +282,12 @@ func _spawn_convoy_trucks_if_needed() -> void:
 		add_child(truck_node)
 
 func _spawn_forward_base_if_needed() -> void:
+	# Same frame-0 physics reason as trucks/allies: settle the base + player
+	# only after the ground collision exists.
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	if not is_inside_tree():
+		return
 	var is_base := GameManager.combat_node_type in ["enemy_base", "camp", "forward_base"]
 	if not is_base:
 		# Also check if enemy_base_active and combat is boss-like
@@ -397,6 +409,12 @@ func _nearest_arc_points(by_angle: Array, target: float, count: int) -> Array:
 # The shared FleetSystem.get_sortie_units() helper is the single source (also
 # used by the hangar SORTIE page + intermission fleet panel).
 func _spawn_fielded_allies() -> void:
+	# Frame-0 snap rays miss (ground not in the physics server yet) and drop
+	# allies under sculpted terrain — wait for registration first.
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	if not is_inside_tree():
+		return
 	var mecha = GameManager.get_player_mecha()
 	var anchor = mecha.global_position if mecha else Vector3.ZERO
 	var i := 0
@@ -672,6 +690,10 @@ func _spawn_enemy_with_pilot(type: String, archetype: int, pos: Vector3, hp_scal
 	var enemy = scene.instantiate()
 	enemy.archetype = archetype
 	var spawn_pos := snap_to_ground(pos, get_world_3d().direct_space_state)
+	if is_equal_approx(spawn_pos.y, pos.y):
+		# Ray missed (outside the mesh / physics not ready): spawn high and
+		# let gravity settle instead of burying the mech under the terrain.
+		spawn_pos.y = pos.y + 12.0
 	# Lift the root by the body's ground-contact offset so the whole mech rests
 	# ON the surface immediately (no half-buried spawn, no pop-up).
 	spawn_pos.y -= body_bottom_offset(enemy)

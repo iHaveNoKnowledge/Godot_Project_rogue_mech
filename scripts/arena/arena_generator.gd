@@ -36,6 +36,7 @@ var footprint: ArenaFootprint = null
 
 var current_theme: BiomeTheme = BiomeTheme.DESERT
 var desert_variant: String = "dunes"
+var forest_variant: String = "river"
 var tile_container: Node3D
 var escape_zone_container: Node3D
 var structures_container: Node3D
@@ -69,6 +70,8 @@ func _ready() -> void:
 	current_theme = _theme_from_board()
 	if current_theme == BiomeTheme.DESERT:
 		desert_variant = _resolve_desert_variant()
+	elif current_theme == BiomeTheme.FOREST:
+		forest_variant = _resolve_forest_variant()
 	arena_size = _arena_size_for_combat()
 	GlobalData.board.current_arena_size = arena_size
 	footprint = _build_footprint()
@@ -272,6 +275,20 @@ func _resolve_desert_variant() -> String:
 		return "oasis"
 
 
+func _resolve_forest_variant() -> String:
+	var sub_zone: String = GlobalData.board.combat_tile_sub_zone
+	if sub_zone == "forest_waterfall" or sub_zone == "forest_cliffs" or sub_zone == "forest_plateau":
+		return "waterfall"
+	elif sub_zone == "forest_river":
+		return "river"
+	var tile: Vector2i = GlobalData.board.current_tile
+	var roll := absi((tile.x * 48271) ^ (tile.y * 16807) ^ int(GlobalData.board.board_seed)) % 100
+	if roll < 50:
+		return "waterfall"
+	else:
+		return "river"
+
+
 func generate_arena() -> void:
 	_create_containers()
 	_add_ground_tiles()
@@ -317,7 +334,13 @@ func _add_ground_tiles() -> void:
 	match current_theme:
 		BiomeTheme.RIVER_BRIDGE:
 			_add_river_bridge_ground_banks(texture)
-		BiomeTheme.FOREST, BiomeTheme.FOREST_ROAD:
+		BiomeTheme.FOREST:
+			if forest_variant == "waterfall":
+				_add_forest_waterfall_terrain(texture)
+			else:
+				_add_forest_terrain_banks(texture)
+				_add_forest_strip_plane(texture)
+		BiomeTheme.FOREST_ROAD:
 			_add_forest_terrain_banks(texture)
 			_add_forest_strip_plane(texture)
 		BiomeTheme.DESERT:
@@ -368,7 +391,11 @@ func _get_terrain_height(wx: float, wz: float) -> float:
 		return 0.0
 
 	match current_theme:
-		BiomeTheme.FOREST, BiomeTheme.FOREST_ROAD:
+		BiomeTheme.FOREST:
+			if forest_variant == "waterfall":
+				return _forest_waterfall_terrain_height(wx, wz, rim)
+			return _forest_terrain_height(wx, wz)
+		BiomeTheme.FOREST_ROAD:
 			return _forest_terrain_height(wx, wz)
 		BiomeTheme.DESERT:
 			var pocket_ramp := clampf((maxf(nx, nz) - 15.0) / 20.0, 0.0, 1.0)
@@ -885,6 +912,19 @@ func _get_theme_ground_color(pos_x: float, pos_z: float) -> Color:
 			return Color(0.18 + v, 0.28 + v, 0.16 + v)
 
 		BiomeTheme.FOREST:
+			if forest_variant == "waterfall":
+				if pos_z > -20.0 and pos_z < 16.0 and absf(pos_x) < 36.0:
+					return Color(0.14 + v, 0.22 + v, 0.18 + v)
+				if pos_z >= -26.0 and pos_z <= -10.0 and absf(pos_x) < 38.0:
+					var rock_n := ground_noise.get_noise_2d(pos_x * 0.12, pos_z * 0.12) * 0.05
+					return Color(0.28 + rock_n, 0.22 + rock_n, 0.16 + rock_n)
+				if (absf(pos_x - (-50.0)) < 14.0 or absf(pos_x - 50.0) < 14.0) and pos_z >= -35.0 and pos_z <= 20.0:
+					return Color(0.34 + v, 0.30 + v, 0.22 + v)
+				if pos_z < -20.0:
+					return Color(0.16 + v, 0.28 + v, 0.14 + v)
+				if _is_open_field(pos_x, pos_z):
+					return Color(0.32 + v, 0.56 + v, 0.24 + v)
+				return Color(0.18 + v, 0.36 + v, 0.16 + v)
 			# Open fields read as sunlit meadow clearings (lighter green); the
 			# rest of the forest floor stays dark mossy undergrowth.
 			if _is_open_field(pos_x, pos_z):
@@ -919,6 +959,20 @@ func _add_ground_collision() -> void:
 		_add_riverbank_collision()
 		return
 	if current_theme == BiomeTheme.FOREST or current_theme == BiomeTheme.FOREST_ROAD:
+		if current_theme == BiomeTheme.FOREST and forest_variant == "waterfall":
+			if _current_terrain_mesh != null:
+				var col_shape := _current_terrain_mesh.create_trimesh_shape()
+				if col_shape is ConcavePolygonShape3D:
+					col_shape.backface_collision = true
+				var ground := StaticBody3D.new()
+				ground.name = "ForestWaterfallCollision"
+				ground.collision_layer = 2
+				ground.collision_mask = 1
+				var col := CollisionShape3D.new()
+				col.shape = col_shape
+				ground.add_child(col)
+				structures_container.add_child(ground)
+				return
 		_add_forest_terrain_collision()
 		return
 	if current_theme == BiomeTheme.DESERT:
@@ -1454,7 +1508,9 @@ func _create_theme_structures() -> void:
 		BiomeTheme.RIVER_BRIDGE:
 			_build_river_bridge_structures()
 		BiomeTheme.FOREST, BiomeTheme.FOREST_ROAD:
-			if sub_zone == "forest_ruins":
+			if current_theme == BiomeTheme.FOREST and forest_variant == "waterfall":
+				_build_forest_waterfall_structures()
+			elif sub_zone == "forest_ruins":
 				_build_forest_ruins_structures()
 			else:
 				_build_forest_structures()
@@ -2822,6 +2878,250 @@ func _spawn_continuous_water_surface(mat: Material) -> void:
 
 	area.position = Vector3(0, -0.9, 0)
 	structures_container.add_child(area)
+
+
+func _forest_waterfall_terrain_height(wx: float, wz: float, rim: float = 1.0) -> float:
+	var plateau_noise := terrain_noise.get_noise_2d(wx * 0.4, wz * 0.4) * 3.0
+	var valley_noise := terrain_noise.get_noise_2d(wx * 0.6 + 50.0, wz * 0.6 + 50.0) * 1.2
+	var cliff_z := -18.0 + sin(wx * 0.05) * 4.0
+	var raw_h := 0.0
+
+	if wz < cliff_z - 8.0:
+		raw_h = 24.0 + plateau_noise
+		if absf(wx) < 18.0:
+			var stream_t := 1.0 - absf(wx) / 18.0
+			raw_h -= stream_t * 3.5
+	elif wz > cliff_z + 8.0:
+		raw_h = 0.4 + valley_noise
+		if wz < 16.0 and absf(wx) < 36.0:
+			var pool_dist := Vector2(wx, wz - 0.0).length()
+			if pool_dist < 32.0:
+				raw_h = -1.2 + sin(wx * 0.1) * 0.2
+		elif wz >= 16.0 and absf(wx - sin(wz * 0.04) * 8.0) < 14.0:
+			raw_h = -0.85
+	else:
+		var t := clampf((wz - (cliff_z - 8.0)) / 16.0, 0.0, 1.0)
+		var cliff_drop := lerpf(24.0 + plateau_noise, 0.4 + valley_noise, pow(t, 0.4))
+		raw_h = cliff_drop
+
+	# Traversable Mountain Ramps (ทางลาดหิน 22 องศา ไต่ขึ้น-ลงหน้าผา)
+	var west_ramp_x_dist := absf(wx - (-50.0))
+	if west_ramp_x_dist < 14.0 and wz >= -38.0 and wz <= 20.0:
+		var ramp_t := clampf((20.0 - wz) / 58.0, 0.0, 1.0)
+		var ramp_h := lerpf(0.5, 24.0, ramp_t)
+		var blend_x := 1.0 - (west_ramp_x_dist / 14.0)
+		raw_h = lerpf(raw_h, ramp_h, blend_x * 0.9)
+
+	var east_ramp_x_dist := absf(wx - 50.0)
+	if east_ramp_x_dist < 14.0 and wz >= -38.0 and wz <= 20.0:
+		var ramp_t := clampf((20.0 - wz) / 58.0, 0.0, 1.0)
+		var ramp_h := lerpf(0.5, 24.0, ramp_t)
+		var blend_x := 1.0 - (east_ramp_x_dist / 14.0)
+		raw_h = lerpf(raw_h, ramp_h, blend_x * 0.9)
+
+	# Stepped Tactical Jump Shelves (ชานพักหินขั้นบันได)
+	if (absf(wx - (-26.0)) < 7.0 or absf(wx - 26.0) < 7.0) and wz >= -24.0 and wz <= -12.0:
+		if wz < -18.0:
+			raw_h = maxf(raw_h, 16.0)
+		else:
+			raw_h = maxf(raw_h, 8.5)
+
+	return raw_h * rim
+
+
+func _add_forest_waterfall_terrain(texture: Texture2D) -> void:
+	var half := arena_size / 2.0
+	var step := 3.0
+	var cols := int(ceil(arena_size / step))
+	var rows := int(ceil(arena_size / step))
+
+	var verts := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var uvs2 := PackedVector2Array()
+	var normals := PackedVector3Array()
+
+	for row in range(rows + 1):
+		var wz := -half + float(row) * arena_size / float(rows)
+		for col in range(cols + 1):
+			var wx := -half + float(col) * arena_size / float(cols)
+			var rim := clampf((half - maxf(absf(wx), absf(wz))) / 22.0, 0.0, 1.0)
+			var wy := _forest_waterfall_terrain_height(wx, wz, rim)
+			verts.append(Vector3(wx, wy, wz))
+			uvs.append(Vector2((wx + half) / arena_size, (wz + half) / arena_size))
+			uvs2.append(Vector2(wx * 0.125, wz * 0.125))
+			normals.append(Vector3.ZERO)
+
+	var indices := PackedInt32Array()
+	for row in range(rows):
+		for col in range(cols):
+			var i00 := row * (cols + 1) + col
+			var i10 := i00 + 1
+			var i01 := i00 + (cols + 1)
+			var i11 := i01 + 1
+			indices.append(i00)
+			indices.append(i01)
+			indices.append(i10)
+			indices.append(i10)
+			indices.append(i01)
+			indices.append(i11)
+
+	for i in range(0, indices.size(), 3):
+		var a := verts[indices[i]]
+		var b := verts[indices[i + 1]]
+		var c := verts[indices[i + 2]]
+		var n := (b - a).cross(c - a)
+		normals[indices[i]] += n
+		normals[indices[i + 1]] += n
+		normals[indices[i + 2]] += n
+
+	for i in range(normals.size()):
+		normals[i] = normals[i].normalized()
+
+	var mesh := ArrayMesh.new()
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_TEX_UV2] = uvs2
+	arrays[Mesh.ARRAY_INDEX] = indices
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	_current_terrain_mesh = mesh
+
+	var surface := MeshInstance3D.new()
+	surface.name = "ForestWaterfallTerrain"
+	surface.mesh = mesh
+	surface.material_override = MaterialFactory.get_ground_material(current_theme, texture)
+	tile_container.add_child(surface)
+
+
+func _create_waterfall_torrent_material() -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	var shader := Shader.new()
+	shader.code = """
+shader_type spatial;
+render_mode blend_mix, depth_draw_always, cull_disabled;
+
+uniform vec4 water_color : source_color = vec4(0.40, 0.75, 0.95, 0.88);
+uniform vec4 foam_color : source_color = vec4(0.95, 0.98, 1.0, 0.96);
+uniform float flow_speed : hint_range(1.0, 15.0) = 5.2;
+
+void vertex() {
+	float jitter = sin(VERTEX.x * 2.5 + TIME * 8.0) * 0.12;
+	VERTEX.z += jitter;
+}
+
+void fragment() {
+	float t = TIME * flow_speed;
+	vec2 flow_uv1 = UV * vec2(3.0, 1.0) + vec2(0.0, -t * 0.6);
+	vec2 flow_uv2 = UV * vec2(4.5, 1.2) + vec2(sin(UV.y * 10.0 + t) * 0.05, -t * 0.85);
+
+	float n1 = sin(flow_uv1.x * 8.0 + flow_uv1.y * 12.0) * 0.5 + 0.5;
+	float n2 = cos(flow_uv2.x * 12.0 + flow_uv2.y * 16.0) * 0.5 + 0.5;
+	float foam_mask = smoothstep(0.45, 0.85, (n1 + n2) * 0.5);
+
+	vec3 col = mix(water_color.rgb, foam_color.rgb, foam_mask);
+	float edge_dist = abs(UV.x - 0.5) * 2.0;
+	float edge_foam = smoothstep(0.75, 0.98, edge_dist);
+	col = mix(col, foam_color.rgb, edge_foam * 0.85);
+
+	ALBEDO = col;
+	ALPHA = mix(water_color.a, foam_color.a, max(foam_mask, edge_foam));
+	ROUGHNESS = 0.12;
+	METALLIC = 0.05;
+	SPECULAR = 0.7;
+	EMISSION = foam_color.rgb * foam_mask * 0.35;
+}
+"""
+	mat.shader = shader
+	return mat
+
+
+func _build_forest_waterfall_structures() -> void:
+	# 1. Continuous Plunge Pool and River Water Volume with Wave Shader
+	var water_area := Area3D.new()
+	water_area.name = "ForestWaterfallBasin"
+	water_area.collision_layer = 4
+	water_area.collision_mask = 0
+	water_area.monitoring = true
+	water_area.add_to_group("water_volume")
+
+	var col := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(64.0, 3.0, 120.0)
+	col.shape = shape
+	col.position = Vector3(0, -0.6, 25.0)
+	water_area.add_child(col)
+
+	var water_mat := _create_water_material()
+	var water_mesh := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(64.0, 0.05, 120.0)
+	water_mesh.mesh = box
+	water_mesh.material_override = water_mat
+	water_mesh.position = Vector3(0, -0.25, 25.0)
+	water_area.add_child(water_mesh)
+	structures_container.add_child(water_area)
+
+	# 2. Giant Cascading Waterfall Mesh (Drops from Y=23.0 to Y=-0.5 at Z=-19.0)
+	var cascade_inst := MeshInstance3D.new()
+	cascade_inst.name = "WaterfallCascade"
+	var c_mesh := BoxMesh.new()
+	c_mesh.size = Vector3(32.0, 24.0, 0.8)
+	cascade_inst.mesh = c_mesh
+	cascade_inst.material_override = _create_waterfall_torrent_material()
+	cascade_inst.position = Vector3(0, 11.5, -19.0)
+	structures_container.add_child(cascade_inst)
+
+	# 3. Waterfall Base Spray Mist
+	for i in range(4):
+		var mist_inst := MeshInstance3D.new()
+		mist_inst.name = "WaterfallMist%d" % i
+		var m_box := BoxMesh.new()
+		m_box.size = Vector3(10.0 + i * 4.0, 2.5 + i * 1.0, 8.0 + i * 2.0)
+		mist_inst.mesh = m_box
+		var m_mat := StandardMaterial3D.new()
+		m_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m_mat.albedo_color = Color(0.92, 0.96, 1.0, 0.22 - i * 0.04)
+		m_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mist_inst.material_override = m_mat
+		mist_inst.position = Vector3(randf_range(-6.0, 6.0), 0.8 + i * 1.5, -17.5 + i * 1.2)
+		structures_container.add_child(mist_inst)
+
+	# 4. Dense Overgrown Foliage & Natural Clutter ("รกรุงรัง")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(int(GlobalData.board.board_seed) * 53 + 997)
+	for i in range(20):
+		var bx := rng.randf_range(-34.0, 34.0)
+		var bz := rng.randf_range(-18.0, 40.0)
+		if Vector2(bx, bz - 5.0).length() > 8.0:
+			_spawn_forest_rock(Vector3(bx, 0, bz))
+
+	for i in range(16):
+		var rx := -48.0 + rng.randf_range(-8.0, 8.0) if i % 2 == 0 else 48.0 + rng.randf_range(-8.0, 8.0)
+		var rz := rng.randf_range(-30.0, 15.0)
+		_spawn_forest_rock(Vector3(rx, 0, rz))
+
+	for i in range(16):
+		var tx := rng.randf_range(-90.0, 90.0)
+		var tz := rng.randf_range(-100.0, -28.0)
+		if absf(tx) > 18.0 or tz < -40.0:
+			_spawn_forest_tree(Vector3(tx, 0, tz))
+
+	for i in range(18):
+		var vx := rng.randf_range(-95.0, 95.0)
+		var vz := rng.randf_range(25.0, 95.0)
+		_spawn_forest_tree(Vector3(vx, 0, vz))
+		if i % 2 == 0:
+			_spawn_fallen_log(Vector3(vx + rng.randf_range(-8.0, 8.0), 0, vz + rng.randf_range(-8.0, 8.0)))
+
+	for i in range(24):
+		var fx := rng.randf_range(-85.0, 85.0)
+		var fz := rng.randf_range(-85.0, 85.0)
+		if i % 2 == 0:
+			_spawn_grass_patch(Vector3(fx, 0, fz))
+		else:
+			_spawn_flower_patch(Vector3(fx, 0, fz))
 
 
 # ====================================================================

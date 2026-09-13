@@ -149,14 +149,18 @@ func _refresh_parts_list() -> void:
 
 		var part_name = slot.to_upper()
 		var part = GlobalData.weapons.equipped_parts.get(slot)
+		var part_tier := 0
 		if part is ArmorPart:
 			part_name = part.part_name
+			part_tier = PartTierStyle.armor_tier({"name": part.part_name})
 		elif part is Dictionary:
 			part_name = part.get("name", part.get("part_name", part_name))
+			part_tier = PartTierStyle.armor_tier(part)
 
 		var frame_dmg = GlobalData.weapons.part_damage.get(slot + "_frame", 0.0)
 		var status = "BROKEN" if frame_dmg >= 1.0 else "DAMAGED"
-		btn.text = "%s [%s] - Cost: %d credits" % [part_name, status, cost]
+		btn.text = "%s %s [%s] - Cost: %d credits" % [PartTierStyle.tier_tag(part_tier), part_name, status, cost]
+		PartTierStyle.style_button(btn, part_tier)
 		btn.pressed.connect(_on_repair_part_pressed.bind(slot))
 		parts_container.add_child(btn)
 

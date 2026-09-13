@@ -67,7 +67,9 @@ func _refresh_list() -> void:
 	weapon_list.clear()
 	for weapon in current_weapons:
 		var tagged = " [TAGGED]" if _get_salvage().is_tagged(weapon) else ""
-		weapon_list.add_item("%s - %s%s" % [weapon.weapon_name, weapon.description, tagged])
+		var tier := clampi(int(weapon.rarity), 0, 3)
+		weapon_list.add_item("%s %s - %s%s" % [PartTierStyle.tier_tag(tier), weapon.weapon_name, weapon.description, tagged])
+		PartTierStyle.apply_itemlist_row(weapon_list, weapon_list.item_count - 1, tier)
 	salvage_count_label.text = "Tagged: %d" % _get_salvage().get_salvaged_count()
 
 

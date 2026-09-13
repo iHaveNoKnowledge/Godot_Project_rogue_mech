@@ -191,10 +191,11 @@ func _populate_loot_picker() -> void:
 
 func _add_loot_row(list: VBoxContainer, entry: Dictionary, in_right: bool) -> void:
 	var btn := Button.new()
-	btn.text = _loot_entry_label(entry)
+	btn.text = "%s %s" % [PartTierStyle.tier_tag(PartTierStyle.loot_entry_tier(entry)), _loot_entry_label(entry)]
 	btn.custom_minimum_size = Vector2(0, 34)
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.tooltip_text = "Click to move to the other column."
+	PartTierStyle.style_button(btn, PartTierStyle.loot_entry_tier(entry))
 	btn.pressed.connect(func() -> void:
 		_toggle_loot_entry(entry)
 	)
@@ -363,18 +364,10 @@ func _salvage_value(entry: Dictionary) -> int:
 const RARITY_SCRAP_MULTIPLIERS: Array[float] = [1.0, 1.6, 2.5, 4.0]
 
 
-# Armor rarity tier derived from the catalog type label: standard / light
-# plating are common (0), heavy armor uncommon (1), high-mobility rare (2),
-# and valkyrion-tier armor legendary (3).
+# Armor rarity tier derived from the catalog type label — delegates to
+# PartTierStyle so loot pricing and list border colors never drift apart.
 func _armor_rarity_tier(inst: Dictionary) -> int:
-	var atype := str(inst.get("type", ""))
-	if atype.contains("Valkyrion"):
-		return 3
-	if atype.contains("High-Mobility"):
-		return 2
-	if atype.contains("Heavy"):
-		return 1
-	return 0
+	return PartTierStyle.armor_tier(inst)
 
 
 # Rebuilds the loot-summary block from the CURRENT left/right split so the

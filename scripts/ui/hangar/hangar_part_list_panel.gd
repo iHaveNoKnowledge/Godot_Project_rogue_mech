@@ -108,6 +108,7 @@ func populate(slot: String) -> void:
 			var hp_str = "HP: %.0f/%.0f (-%.0f)" % [cur_fhp, fhp, lost_fhp] if dur_pct < 0.999 else "HP: %.0f" % fhp
 			var label_str = "%s%s (%s, %.1fkg)%s" % [prefix, fname, hp_str, fwt, state_tag]
 			controller.part_item_list.add_item(label_str)
+			PartTierStyle.apply_itemlist_row(controller.part_item_list, controller.part_item_list.item_count - 1, PartTierStyle.frame_tier(info))
 			controller.visible_frame_indices.append(f_idx)
 		if controller.part_item_list.item_count > 0:
 			controller.part_item_list.select(0)
@@ -146,6 +147,7 @@ func populate(slot: String) -> void:
 			var prefix := "[E] " if is_eq else ("" if other_user == "" else "[E·%s] " % other_user)
 			var label_str = "%s%s (DUR: %.0f%%)" % [prefix, wname, wdur * 100.0]
 			controller.part_item_list.add_item(label_str)
+			PartTierStyle.apply_itemlist_row(controller.part_item_list, controller.part_item_list.item_count - 1, PartTierStyle.weapon_tier(inv))
 			controller.visible_weapon_indices.append(index)
 		if controller.part_item_list.item_count > 0:
 			controller.part_item_list.select(0)
@@ -192,6 +194,7 @@ func populate(slot: String) -> void:
 			var hp_str = "HP: %.0f/%.0f (-%.0f, %.0f%%)" % [cur_hp, full_hp, lost_hp, dur_pct * 100.0] if dur_pct < 0.999 else "HP: %.0f" % full_hp
 			var inst_label = "%s%s [%s] (%s)%s" % [prefix, inst.get("name", "Armor"), inst.get("type", "Instance"), hp_str, state_tag]
 			controller.part_item_list.add_item(inst_label)
+			PartTierStyle.apply_itemlist_row(controller.part_item_list, controller.part_item_list.item_count - 1, PartTierStyle.armor_tier(inst))
 			controller.visible_salvage_indices.append(inst_index)
 		if controller.part_item_list.item_count > 0:
 			controller.part_item_list.select(0)

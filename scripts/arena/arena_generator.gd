@@ -484,6 +484,13 @@ func _add_hd_desert_model(file: String, node_name: String) -> void:
 			continue
 		if "Leaf" in mesh_inst.name or "Leaf" in str(mesh_inst.mesh.resource_name):
 			continue
+		# Rocks/crags get a cheap BoxShape fitted to their bounds instead of a
+		# full trimesh: an 8k-tri concave shape per rock stalls the physics
+		# solver whenever the mech brushes past (visible stutter). Boxes are
+		# more than precise enough for boulders.
+		if "Rock" in mesh_inst.name or "Crag" in mesh_inst.name:
+			_add_rock_box_collision(mesh_inst)
+			continue
 		var col_shape := mesh_inst.mesh.create_trimesh_shape()
 		if col_shape == null:
 			continue
@@ -497,6 +504,27 @@ func _add_hd_desert_model(file: String, node_name: String) -> void:
 		tile_container.add_child(body)
 		body.transform = mesh_inst.global_transform
 		body.add_to_group("ground_collision")
+
+
+# Cheap box collision for a rock/crag mesh: fits the mesh AABB (in the mesh's
+# local frame, so rotation still matches the visual). Slightly inset so the
+# mech doesn't float on boulder spikes.
+func _add_rock_box_collision(mesh_inst: MeshInstance3D) -> void:
+	var aabb := mesh_inst.mesh.get_aabb()
+	var body := StaticBody3D.new()
+	body.name = mesh_inst.name + "Collision"
+	body.collision_layer = 2
+	body.collision_mask = 1
+	var col := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = aabb.size * 0.85
+	col.shape = box
+	col.position = aabb.get_center()
+	body.add_child(col)
+	tile_container.add_child(body)
+	body.transform = mesh_inst.global_transform
+	body.add_to_group("ground_collision")
+	body.add_to_group("solid_obstacle")
 
 
 # True when a Blender HD terrain is in play — procedural box-dunes / cylinder

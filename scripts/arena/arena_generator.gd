@@ -76,7 +76,25 @@ func _ready() -> void:
 	GlobalData.board.current_arena_size = arena_size
 	footprint = _build_footprint()
 	generate_arena()
+	_lower_safety_net()
 	_place_player_at_arena_edge()
+
+
+# The global Ground in game_world.tscn (top ~ -2.5) is only a deep safety net,
+# but desert dunes dip to ~-4.9 and canyon chasms to ~-16 — the net would catch
+# the mech mid-air as an invisible floor (or block the deferred snap ray).
+# Drop it to -30 so real terrain collision is used and the net only catches
+# true void falls.
+func _lower_safety_net() -> void:
+	var host := get_parent()
+	if host == null:
+		return
+	var ground := host.get_node_or_null("Ground")
+	if ground is StaticBody3D:
+		ground.position.y = -30.0
+		for child in ground.get_children():
+			if child is MeshInstance3D:
+				(child as MeshInstance3D).visible = false
 
 
 # Builds the irregular footprint for the flat themes (or null for the
@@ -134,12 +152,11 @@ func _place_player_at_arena_edge() -> void:
 			if footprint.distance_to_outline(Vector2(candidate.x, candidate.z)) < 13.0:
 				continue
 			if _spawn_point_clear(candidate, 8.0, cover_positions):
-				mecha.position = candidate
-				mecha.position.y = _get_terrain_height(candidate.x, candidate.z) + 1.2
+				_set_player_spawn_position(mecha, candidate)
 				return
 		# No clear boundary spot — fall back to the footprint's middle, which
 		# every theme keeps clear of structures.
-		mecha.position = Vector3(footprint.centroid.x, _get_terrain_height(footprint.centroid.x, footprint.centroid.y) + 1.2, footprint.centroid.y)
+		_set_player_spawn_position(mecha, Vector3(footprint.centroid.x, 0.0, footprint.centroid.y))
 		return
 	while attempts < 24:
 		attempts += 1
@@ -151,13 +168,54 @@ func _place_player_at_arena_edge() -> void:
 		var candidate := Vector3(cos(angle) * dist, 0.0, sin(angle) * dist)
 		# Keep clear of every solid obstacle + upcoming cover spawn.
 		if _spawn_point_clear(candidate, 8.0, cover_positions):
-			mecha.position = candidate
-			mecha.position.y = _get_terrain_height(candidate.x, candidate.z) + 1.2
+			_set_player_spawn_position(mecha, candidate)
 			return
 	# No clear ring spot (dense dune/buildings) — fall back to the arena center,
 	# which every theme keeps clear of structures (center pockets stay empty).
-	mecha.position = Vector3.ZERO
-	mecha.position.y = _get_terrain_height(0.0, 0.0) + 1.2
+	_set_player_spawn_position(mecha, Vector3.ZERO)
+
+
+# Sets the player XZ immediately but places Y HIGH above the analytic terrain
+# height, then snaps down onto the REAL physics ground (GLB terrain, dunes,
+# trimesh, bridges) once collision is registered. This keeps custom desert maps
+# (e.g. new chasm/mountain GLB where the visual mesh != analytic height func)
+# from spawning the mech under the floor. Drop-in is hidden by CombatIntro.
+func _set_player_spawn_position(mecha: Node3D, xz: Vector3) -> void:
+	var analytic_y := _get_terrain_height(xz.x, xz.z) + 1.2
+	# Spawn well above any dune/peak so we never start embedded; gravity +
+	# deferred snap brings us down to the true surface.
+	mecha.position = Vector3(xz.x, analytic_y + 8.0, xz.z)
+	if mecha is CharacterBody3D:
+		(mecha as CharacterBody3D).velocity = Vector3.ZERO
+	_snap_player_to_ground_deferred(mecha, analytic_y)
+
+
+# Deferred physics snap: waits until StaticBodies exist in the physics server,
+# raycasts down on the Environment layer (2), and corrects Y to the true
+# surface. Falls back to the analytic height when nothing is hit (e.g. GLB
+# without collision) so the mech never stays floating at +8m.
+func _snap_player_to_ground_deferred(mecha: Node3D, analytic_y: float) -> void:
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	if not is_instance_valid(mecha):
+		return
+	var space := get_world_3d().direct_space_state
+	var from := Vector3(mecha.position.x, mecha.position.y + 60.0, mecha.position.z)
+	var to := Vector3(mecha.position.x, mecha.position.y - 120.0, mecha.position.z)
+	var query := PhysicsRayQueryParameters3D.create(from, to, 2)
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
+	var hit := space.intersect_ray(query)
+	if not hit.is_empty():
+		var ground_y := float((hit.position as Vector3).y)
+		mecha.position.y = ground_y + 1.2
+		if mecha is CharacterBody3D:
+			(mecha as CharacterBody3D).velocity = Vector3.ZERO
+	else:
+		# No physics ground found (custom map without layer-2 collision?):
+		# fall back to analytic height instead of hovering.
+		mecha.position.y = analytic_y
+		push_warning("ArenaGenerator: no ground hit at spawn (%s) — using analytic y=%.2f" % [mecha.position, analytic_y])
 
 
 # True when no solid obstacle (dune, rock, building, tree, log, cover) occupies

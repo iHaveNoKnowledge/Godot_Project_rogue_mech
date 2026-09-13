@@ -15,6 +15,6 @@ projectile_speed = 120.0
 spread = 0.0
 weight = 12.0
 range_distance = 100.0
-description = "ปืน beam ระยะไกล damage สูง ยิงช้า แม่นยำมาก"
+description = "ปืน beam ระยะไกล damage สูง ยิงช้า แม่นยำมาก (นัดละ 2 เซลล์)"
 rarity = 2
 reload_time = 3.0

@@ -26,6 +26,7 @@ func _ready() -> void:
 	_verify_catalog_sync()
 	_verify_migration()
 	_verify_pilot_migration()
+	_verify_consumption()
 	await get_tree().process_frame
 
 	print("AMMO_SYSTEM_VERIFY: checks=%d fails=%d" % [_checks, _fails])
@@ -133,3 +134,45 @@ func _verify_pilot_migration() -> void:
 	var modern := {"sidearm": 30, "he_tube": 4}
 	AmmoSystem.migrate_pilot_dict(modern)
 	_check(int(modern.get("sidearm", 0)) == 30 and int(modern.get("he_tube", 0)) == 4, "modern pilot pool is untouched")
+
+
+# One trigger pull must deduct exactly ammo_per_shot rounds AND launch a
+# matching number of projectiles — no silent tax (the old Swarm bug: 3 in, 1 out).
+# The Beam Sniper is the deliberate exception: a 2-cell charged single slug.
+func _verify_consumption() -> void:
+	var dir := DirAccess.open("res://resources/mech/stock")
+	_check(dir != null, "stock weapon folder opens")
+	if dir == null:
+		return
+	var checked := 0
+	for file in dir.get_files():
+		if not file.begins_with("weapon_") or not file.ends_with(".tres"):
+			continue
+		var w: WeaponPart = load("res://resources/mech/stock/" + file)
+		if w == null:
+			continue
+		var core := WeaponCore.from_weapon(w)
+		checked += 1
+		_check(core.ammo_per_shot == w.ammo_per_shot, "%s core carries ammo_per_shot=%d" % [w.weapon_name, w.ammo_per_shot])
+		_check(core.pellets >= 1, "%s spawns at least 1 projectile" % w.weapon_name)
+		if w.weapon_type == WeaponPart.WeaponType.MELEE or w.weapon_type == WeaponPart.WeaponType.SHIELD:
+			# Powered melee (Pile Bunker) spends 1 spike per charged hit and
+			# falls back to an unpowered combo when dry — every other melee is free.
+			if w.weapon_name.to_lower().contains("pile"):
+				_check(w.ammo_per_shot == 1, "pile bunker spends 1 spike per powered hit")
+			else:
+				_check(w.ammo_per_shot == 0, "%s is ammo-free" % w.weapon_name)
+			continue
+		var before: int = core.ammo
+		_check(core.consume_shot(), "%s fires" % w.weapon_name)
+		_check(before - core.ammo == w.ammo_per_shot, "%s deducts exactly %d/pill" % [w.weapon_name, w.ammo_per_shot])
+		if w.ammo_per_shot > 1 and w.weapon_name != "Beam Sniper":
+			_check(core.pellets == w.ammo_per_shot, "%s launches %d for %d paid" % [w.weapon_name, core.pellets, w.ammo_per_shot])
+	_check(checked >= 25, "audited %d stock weapons" % checked)
+	# Pin the two known multi-round designs so future edits stay deliberate.
+	var swarm: WeaponPart = load("res://resources/mech/stock/weapon_swarm_missile.tres")
+	var swarm_core := WeaponCore.from_weapon(swarm)
+	_check(swarm_core.ammo_per_shot == 3 and swarm_core.pellets == 3, "swarm volley: 3 rockets in, 3 out")
+	var sniper: WeaponPart = load("res://resources/mech/stock/weapon_beam_sniper.tres")
+	var sniper_core := WeaponCore.from_weapon(sniper)
+	_check(sniper_core.ammo_per_shot == 2 and sniper_core.pellets == 1, "sniper stays a deliberate 2-cell single slug")

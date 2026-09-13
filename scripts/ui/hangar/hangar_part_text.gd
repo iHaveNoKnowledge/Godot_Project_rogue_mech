@@ -61,11 +61,14 @@ static func weapon_capability_text(res: Resource) -> String:
 
 	var max_ammo := int(res.max_ammo) if "max_ammo" in res and res.max_ammo != null else 0
 	var ammo_per_shot := int(res.ammo_per_shot) if "ammo_per_shot" in res and res.ammo_per_shot != null else 1
+	var volley := int(res.projectiles_per_shot) if "projectiles_per_shot" in res and res.projectiles_per_shot != null else 1
 	var is_melee_or_shield := int(res.weapon_type) in [4, 5]
 	if max_ammo > 0 and not is_melee_or_shield:
 		lines.append("MAG SIZE: %d rounds" % max_ammo)
 		if ammo_per_shot > 1:
 			lines.append("AMMO / SHOT: %d" % ammo_per_shot)
+		if volley > 1:
+			lines.append("VOLLEY: x%d projectiles / pull" % volley)
 	elif is_melee_or_shield:
 		lines.append("AMMO: NONE")
 

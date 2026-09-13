@@ -111,10 +111,13 @@ static func from_weapon(weapon: WeaponPart) -> WeaponCore:
 				core.pellets = 7
 			WeaponPart.WeaponType.RAILGUN:
 				# Railgun rounds are hypervelocity: electric-blue bolt, no bullet drop
-				# sag, and a sonic-boom shockwave ring along the flight path.
+				# sag, and a sonic-boom shockwave ring along their flight path.
 				core.projectile_style = Style.BULLET
 				core.projectile_color = Color(0.45, 0.85, 1.0)
 				core.sonic_boom = true
+	# Volley weapons (Swarm pods): one trigger pull launches N projectiles for
+	# N rounds — never charge ammo that doesn't leave the barrel.
+	core.pellets = maxi(core.pellets, weapon.projectiles_per_shot)
 	return core
 
 

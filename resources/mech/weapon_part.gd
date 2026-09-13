@@ -17,6 +17,10 @@ enum DamageType { HEAT, PIERCE, BLUNT }
 @export var fire_rate: float = 0.2
 @export var max_ammo: int = 100
 @export var ammo_per_shot: int = 1
+## Projectiles spawned per trigger pull (volley weapons). Must be >= 1, and
+## when ammo_per_shot > 1 it should match it — otherwise the player pays for
+## rounds that never leave the barrel (the old Swarm bug: 3 rockets in, 1 out).
+@export var projectiles_per_shot: int = 1
 @export var projectile_speed: float = 50.0
 @export var spread: float = 0.0
 @export var weight: float = 5.0

@@ -253,6 +253,8 @@ func _resolve_desert_variant() -> String:
 	var sub_zone: String = GlobalData.board.combat_tile_sub_zone
 	if sub_zone == "desert_canyon":
 		return "canyon"
+	elif sub_zone == "desert_mountains" or sub_zone == "desert_peaks":
+		return "mountain"
 	elif sub_zone == "desert_oasis":
 		return "oasis"
 	elif sub_zone == "desert_dunes":
@@ -260,9 +262,11 @@ func _resolve_desert_variant() -> String:
 	# If no specific sub-zone, alternate deterministically based on tile coords & seed
 	var tile: Vector2i = GlobalData.board.current_tile
 	var roll := absi((tile.x * 73856093) ^ (tile.y * 19349663) ^ int(GlobalData.board.board_seed)) % 100
-	if roll < 45:
+	if roll < 30:
 		return "canyon"
-	elif roll < 80:
+	elif roll < 60:
+		return "mountain"
+	elif roll < 85:
 		return "dunes"
 	else:
 		return "oasis"
@@ -319,6 +323,8 @@ func _add_ground_tiles() -> void:
 		BiomeTheme.DESERT:
 			if desert_variant == "canyon" and is_equal_approx(arena_size, 240.0) and ResourceLoader.exists("res://assets/models/terrain_desert_chasm.glb"):
 				_add_desert_chasm_model_ground()
+			elif desert_variant == "mountain" and is_equal_approx(arena_size, 240.0) and ResourceLoader.exists("res://assets/models/terrain_desert_mountains.glb"):
+				_add_desert_mountains_model_ground()
 			else:
 				_add_terrain_mesh(texture)
 		_:
@@ -330,6 +336,20 @@ func _add_desert_chasm_model_ground() -> void:
 	if model_scene:
 		var model_inst := model_scene.instantiate() as Node3D
 		model_inst.name = "DesertChasmModel"
+		var bodies := model_inst.find_children("*", "StaticBody3D", true, false)
+		for b in bodies:
+			if b is StaticBody3D:
+				b.collision_layer = 2
+				b.collision_mask = 1
+				b.add_to_group("ground_collision")
+		tile_container.add_child(model_inst)
+
+
+func _add_desert_mountains_model_ground() -> void:
+	var model_scene: PackedScene = load("res://assets/models/terrain_desert_mountains.glb")
+	if model_scene:
+		var model_inst := model_scene.instantiate() as Node3D
+		model_inst.name = "DesertMountainsModel"
 		var bodies := model_inst.find_children("*", "StaticBody3D", true, false)
 		for b in bodies:
 			if b is StaticBody3D:
@@ -354,6 +374,8 @@ func _get_terrain_height(wx: float, wz: float) -> float:
 			var pocket_ramp := clampf((maxf(nx, nz) - 15.0) / 20.0, 0.0, 1.0)
 			if desert_variant == "canyon":
 				return _desert_canyon_terrain_height(wx, wz, rim, pocket_ramp)
+			elif desert_variant == "mountain":
+				return _desert_mountain_terrain_height(wx, wz, rim, pocket_ramp)
 			elif desert_variant == "oasis":
 				return _desert_oasis_terrain_height(wx, wz, rim, pocket_ramp)
 			var dune_noise := terrain_noise.get_noise_2d(wx * 0.75, wz * 0.75) * 3.2
@@ -398,6 +420,34 @@ func _desert_canyon_terrain_height(wx: float, wz: float, rim: float, pocket_ramp
 			depth = -15.0 + sin(wx * 0.2) * 0.4
 		return base_h + depth * (1.0 - bridge_factor) * rim
 	return base_h
+
+
+func _desert_mountain_terrain_height(wx: float, wz: float, rim: float, pocket_ramp: float) -> float:
+	var low_dune := terrain_noise.get_noise_2d(wx * 0.5, wz * 0.5) * 2.0
+	var ripple := sin(wx * 0.14 + wz * 0.08) * 0.35
+	var base_h := -0.35 + (low_dune + ripple) * pocket_ramp
+
+	var valley_center_z := sin(wx * 0.025) * 30.0 - 5.0
+	var dist_to_valley := absf(wz - valley_center_z)
+	var valley_width := 32.0 + cos(wx * 0.04) * 8.0
+
+	var mountain_height := 0.0
+	if dist_to_valley > valley_width * 0.45:
+		var ramp_t := clampf((dist_to_valley - valley_width * 0.45) / (valley_width * 0.8), 0.0, 1.0)
+		var peak_noise := absf(terrain_noise.get_noise_2d(wx * 0.8, wz * 0.8)) * 24.0
+		var raw_height := (peak_noise + 8.0) * ramp_t
+		var terrace := roundf(raw_height / 6.0) * 6.0
+		mountain_height = clampf(raw_height * 0.65 + terrace * 0.35, 0.0, 32.0)
+
+	# Natural ramps up to plateaus
+	var ramp1_dist := Vector2(wx - (-50.0), wz - (valley_center_z + 35.0)).length()
+	var ramp2_dist := Vector2(wx - 45.0, wz - (valley_center_z - 35.0)).length()
+	if ramp1_dist < 18.0:
+		mountain_height = minf(mountain_height, 10.0 * (ramp1_dist / 18.0))
+	if ramp2_dist < 18.0:
+		mountain_height = minf(mountain_height, 10.0 * (ramp2_dist / 18.0))
+
+	return (base_h + mountain_height) * rim
 
 
 func _desert_oasis_terrain_height(wx: float, wz: float, rim: float, pocket_ramp: float) -> float:
@@ -742,6 +792,14 @@ func _get_theme_ground_color(pos_x: float, pos_z: float) -> Color:
 				if _get_terrain_height(pos_x, pos_z) < -2.5:
 					var rock_val := ground_noise.get_noise_2d(pos_x * 0.08, pos_z * 0.08) * 0.06
 					return Color(0.38 + rock_val, 0.24 + rock_val, 0.16 + rock_val)
+			elif desert_variant == "mountain":
+				var h := _get_terrain_height(pos_x, pos_z)
+				if h > 8.0:
+					var rock_val := ground_noise.get_noise_2d(pos_x * 0.08, pos_z * 0.08) * 0.06
+					return Color(0.52 + rock_val, 0.28 + rock_val, 0.16 + rock_val)
+				elif h > 3.0:
+					var rock_val := ground_noise.get_noise_2d(pos_x * 0.08, pos_z * 0.08) * 0.06
+					return Color(0.68 + rock_val, 0.45 + rock_val, 0.26 + rock_val)
 			elif desert_variant == "oasis":
 				var cdist := Vector2(pos_x, pos_z).length()
 				if cdist < 16.0:
@@ -843,8 +901,10 @@ func _add_ground_collision() -> void:
 	if current_theme == BiomeTheme.FOREST or current_theme == BiomeTheme.FOREST_ROAD:
 		_add_forest_terrain_collision()
 		return
-	if current_theme == BiomeTheme.DESERT and desert_variant == "canyon" and tile_container.has_node("DesertChasmModel"):
-		return
+	if current_theme == BiomeTheme.DESERT:
+		if (desert_variant == "canyon" and tile_container.has_node("DesertChasmModel")) or \
+				(desert_variant == "mountain" and tile_container.has_node("DesertMountainsModel")):
+			return
 
 	if _current_terrain_mesh != null:
 		var col_shape := _current_terrain_mesh.create_trimesh_shape()
@@ -1351,6 +1411,8 @@ func _create_theme_structures() -> void:
 		BiomeTheme.DESERT:
 			if desert_variant == "canyon":
 				_build_desert_canyon_structures()
+			elif desert_variant == "mountain":
+				_build_desert_mountain_structures()
 			elif desert_variant == "oasis":
 				_build_desert_oasis_structures()
 			else:
@@ -2285,6 +2347,50 @@ func _build_desert_canyon_structures() -> void:
 ## Desert Oasis: Central spring basin with palms and salvage depot outposts.
 func _build_desert_oasis_structures() -> void:
 	_generate_randomized_desert_dunes()
+
+
+## Desert Mountains: High rocky crags, observation boulders, and vantage outposts.
+func _build_desert_mountain_structures() -> void:
+	var rock_mat := StandardMaterial3D.new()
+	rock_mat.albedo_color = Color(0.50, 0.32, 0.22)
+	rock_mat.roughness = 0.9
+
+	var boulder_count := randi_range(14, 22)
+	var half := arena_size * 0.44
+
+	for i in range(boulder_count):
+		var px := randf_range(-half, half)
+		var pz := randf_range(-half, half)
+
+		var h := _get_terrain_height(px, pz)
+		# Keep ground pass clear of massive blocking boulders (only spawn on mountain slopes/peaks or near ridges)
+		if h < 2.0 and randf() < 0.75:
+			continue
+
+		var b_size := Vector3(randf_range(5.0, 11.0), randf_range(4.0, 12.0), randf_range(5.0, 11.0))
+		var boulder := StaticBody3D.new()
+		boulder.collision_layer = 2
+		boulder.collision_mask = 1
+
+		var col := CollisionShape3D.new()
+		var shape := BoxShape3D.new()
+		shape.size = b_size
+		col.shape = shape
+		boulder.add_child(col)
+
+		var mi := MeshInstance3D.new()
+		var mesh := BoxMesh.new()
+		mesh.size = b_size
+		mi.mesh = mesh
+		mi.material_override = rock_mat
+		boulder.add_child(mi)
+
+		boulder.position = Vector3(px, _prop_base_y(px, pz) + b_size.y * 0.5, pz)
+		boulder.rotation.y = randf_range(0, TAU)
+		boulder.rotation.x = deg_to_rad(randf_range(-8.0, 8.0))
+		boulder.add_to_group("solid_obstacle")
+		boulder.add_to_group("concealment")
+		structures_container.add_child(boulder)
 
 
 ## Forest Ruins: Mossy ancient stone arches and monoliths.

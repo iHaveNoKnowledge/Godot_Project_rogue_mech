@@ -313,7 +313,8 @@ static func restore_from_dict(data: Dictionary) -> void:
 	var loaded_pilot_ammo = data.get("pilot_ammo", {})
 	GlobalData.pilot.pilot_ammo = {}
 	if loaded_pilot_ammo is Dictionary:
-		GlobalData.pilot.pilot_ammo = AmmoSystem.migrate_dict(loaded_pilot_ammo.duplicate())
+		# Pilot pools are human-scale — legacy shared keys convert over.
+		GlobalData.pilot.pilot_ammo = AmmoSystem.migrate_pilot_dict(loaded_pilot_ammo.duplicate())
 	var loaded_pilot_items = data.get("pilot_items", {})
 	GlobalData.pilot.pilot_items = {}
 	if loaded_pilot_items is Dictionary:

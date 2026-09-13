@@ -79,8 +79,8 @@ func _test_magazine_and_reload_system() -> void:
 	print("Testing Pilot Magazine Capacity & TPS Reload System...")
 	GameManager.current_state = GameManager.State.EJECT
 	GlobalData.reset_run_data()
-	GlobalData.pilot.pilot_ammo["bullet"] = 120
-	GlobalData.pilot.pilot_ammo["explosive"] = 10
+	GlobalData.pilot.pilot_ammo["sidearm"] = 120
+	GlobalData.pilot.pilot_ammo["he_tube"] = 10
 
 	var pilot_scene = preload("res://scenes/pilot/pilot.tscn")
 	var pilot = pilot_scene.instantiate()

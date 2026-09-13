@@ -298,10 +298,10 @@ static func apply_event_effect(event: Dictionary) -> bool:
 					var pilot_wpn := "res://resources/mech/stock/weapon_pilot_assault_rifle.tres"
 					if not GlobalData.pilot.pilot_weapons.has(pilot_wpn):
 						PilotSystem.add_weapon(pilot_wpn)
-						PilotSystem.add_ammo("bullet", 90)
+						PilotSystem.add_ammo("sidearm", 90)
 						GlobalData.board.run_notice = "Scavenged military arms crate! Acquired [color=#44ff88]Pilot Assault Rifle[/color] + 90 Ammo!"
 					else:
-						PilotSystem.add_ammo("bullet", 120)
+						PilotSystem.add_ammo("sidearm", 120)
 						GlobalData.currency.data_cores += 1
 						GlobalData.board.run_notice = "Scavenged ammo supply cache! +120 Pilot Ammo & 1 Data Core."
 				else:

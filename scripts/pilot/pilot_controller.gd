@@ -139,6 +139,18 @@ func get_reserve_ammo() -> int:
 	return PilotSystem.get_ammo(ammo_type)
 
 
+## Ammo type of the currently held pilot weapon ("sidearm" fallback, "none"
+## when unarmed/melee). Loot grants use this so pilots never receive
+## mech-scale rounds they can't chamber.
+func get_current_weapon_ammo_type() -> String:
+	if _weapons.is_empty():
+		return "sidearm"
+	var weapon: WeaponPart = _weapons[_weapon_index % _weapons.size()]
+	if weapon == null:
+		return "sidearm"
+	return weapon.get_ammo_type()
+
+
 func get_current_magazine() -> int:
 	return current_magazine
 

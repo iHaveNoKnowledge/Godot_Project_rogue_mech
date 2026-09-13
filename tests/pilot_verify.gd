@@ -22,7 +22,7 @@ func _ready() -> void:
 	_check(PilotSystem.get_hp() == 100.0, "pilot starts at full HP")
 	_check(not PilotSystem.is_injured(), "healthy pilot is not injured")
 	_check(PilotSystem.get_weapons().size() == 1, "pilot starts with one personal weapon")
-	_check(PilotSystem.get_ammo("bullet") == 120, "pilot starts with bullet ammo")
+	_check(PilotSystem.get_ammo("sidearm") == 120, "pilot starts with sidearm ammo")
 
 	# --- Damage / eject ---
 	PilotSystem.take_damage(40)
@@ -85,10 +85,10 @@ func _ready() -> void:
 	# brings the stack back up to 2 (1 leftover + 1 bought).
 	_check(PilotSystem.get_item_count("medkit_small") == 2, "bought medkit is in inventory")
 	_check(GlobalData.currency.credits == credits_before + 1000 - 50, "buy spent exactly 50 credits")
-	var before_ammo := PilotSystem.get_ammo("energy_cell")
-	var bought := PilotSystem.buy_ammo("energy_cell", 20)
-	_check(bought == 20, "bought 20 energy cell ammo")
-	_check(PilotSystem.get_ammo("energy_cell") == before_ammo + 20, "energy cell ammo increased")
+	var before_ammo := PilotSystem.get_ammo("sidearm")
+	var bought := PilotSystem.buy_ammo("sidearm", 20)
+	_check(bought == 20, "bought 20 sidearm ammo")
+	_check(PilotSystem.get_ammo("sidearm") == before_ammo + 20, "sidearm ammo increased")
 	# Can't buy an unknown item.
 	_check(not PilotSystem.buy_item("nonexistent"), "unknown item cannot be bought")
 

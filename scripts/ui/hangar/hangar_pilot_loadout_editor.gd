@@ -198,12 +198,13 @@ func _refresh_ui() -> void:
 		empty.add_theme_font_size_override("font_size", 11)
 		_weapon_list.add_child(empty)
 
-	# --- Ammo: per-type personal ammo with a top-up button drawing from the
-	# convoy's ammo reserve (the same reserve the mech loadout draws from).
+	# --- Ammo: human-scale personal ammo. Pilots can't chamber mech rounds, so
+	# the hangar buys rounds with credits (same prices as the City shop) —
+	# topping up no longer draws from the convoy's mech reserve.
 	var ammo_rows := VBoxContainer.new()
 	ammo_rows.add_theme_constant_override("separation", 4)
 	_ammo_label.add_child(ammo_rows)
-	for ammo_type in AmmoSystem.ORDER:
+	for ammo_type in AmmoSystem.PILOT_ORDER:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
 		ammo_rows.add_child(row)
@@ -212,12 +213,13 @@ func _refresh_ui() -> void:
 		info.text = "%s: %d" % [AmmoSystem.display_name(ammo_type), PilotSystem.get_ammo(ammo_type)]
 		info.add_theme_font_size_override("font_size", 11)
 		row.add_child(info)
-		var reserve := LoadoutSystem.get_reserve_ammo(ammo_type)
+		var price := PilotSystem.get_ammo_price(ammo_type) * 20
 		var topup := Button.new()
-		topup.text = "+20 (reserve: %d)" % reserve
+		topup.text = "+20 (%d cr)" % price
 		topup.custom_minimum_size = Vector2(140, 24)
 		topup.focus_mode = Control.FOCUS_NONE
-		topup.disabled = reserve <= 0
+		topup.disabled = GlobalData.currency.credits < price
+		topup.tooltip_text = "Buy 20 %s with convoy credits." % AmmoSystem.display_name(ammo_type)
 		topup.pressed.connect(_top_up_ammo.bind(ammo_type))
 		row.add_child(topup)
 
@@ -293,13 +295,12 @@ func _find_label_named(node: Node, label_name: String, out: Array) -> void:
 
 
 func _top_up_ammo(ammo_type: String) -> void:
-	var amount := mini(20, LoadoutSystem.get_reserve_ammo(ammo_type))
-	if amount <= 0:
-		return
-	LoadoutSystem.consume_reserve_ammo(ammo_type, amount)
-	PilotSystem.add_ammo(ammo_type, amount)
+	var bought := PilotSystem.buy_ammo(ammo_type, 20)
 	if _status_label:
-		_status_label.text = "+%d %s ammo moved to the pilot's personal reserve." % [amount, ammo_type]
+		if bought > 0:
+			_status_label.text = "+%d %s bought for the pilot's personal reserve." % [bought, AmmoSystem.display_name(ammo_type)]
+		else:
+			_status_label.text = "Not enough credits for %s." % AmmoSystem.display_name(ammo_type)
 	GlobalData.save_run()
 	_refresh_ui()
 

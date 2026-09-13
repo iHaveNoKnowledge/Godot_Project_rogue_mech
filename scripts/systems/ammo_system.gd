@@ -15,14 +15,22 @@ extends RefCounted
 ##   explosive    — Assault Cannon, Bazooka
 ##   none         — melee / shields (never consumed)
 ##
+## PILOT-SCALE ammo (humans are 1.5-2m; a mech's autocannon round is artillery
+## to them, so pilots run a separate pool that never mixes with the mech one):
+##   sidearm      — Pilot Pistol, Assault Rifle (small arms)
+##   ap_round     — Anti-Tank Rifle (long armor-piercing)
+##   he_tube      — Bazooka (shoulder-launched HE)
+##
 ## All ammo pools (pilot_ammo, ammo_inventory, loadout "ammo", battle_reserve)
 ## are plain Dictionaries keyed by these ids, so no other system needs to know
-## the list — iterate ORDER for UI rows.
+## the list — iterate ORDER for mech UI rows, PILOT_ORDER for pilot UI rows.
 
 const ORDER: Array[String] = [
 	"bullet", "heavy_round", "shell", "spike",
 	"energy_cell", "rocket", "missile", "explosive",
 ]
+
+const PILOT_ORDER: Array[String] = ["sidearm", "ap_round", "he_tube"]
 
 const NAMES: Dictionary = {
 	"bullet": "Bullets",
@@ -33,6 +41,9 @@ const NAMES: Dictionary = {
 	"rocket": "Rockets",
 	"missile": "Missiles",
 	"explosive": "Explosives",
+	"sidearm": "Sidearm Rounds",
+	"ap_round": "AP Rounds",
+	"he_tube": "HE Tubes",
 }
 
 const DESCS: Dictionary = {
@@ -44,6 +55,9 @@ const DESCS: Dictionary = {
 	"rocket": "Unguided rockets for Micro and Swarm pods.",
 	"missile": "Guided heavy missiles for Launchers.",
 	"explosive": "High-explosive rounds for Cannons and Bazookas.",
+	"sidearm": "Pistol and rifle cartridges (human scale).",
+	"ap_round": "Long armor-piercing rounds for AT Rifles (human scale).",
+	"he_tube": "Shoulder-launched HE tubes for Bazookas (human scale).",
 }
 
 # Credits per unit at city shops (single source of truth — PilotSystem reads it).
@@ -56,6 +70,9 @@ const PRICES: Dictionary = {
 	"rocket": 8,
 	"missile": 15,
 	"explosive": 8,
+	"sidearm": 2,
+	"ap_round": 6,
+	"he_tube": 8,
 }
 
 # Field-pack kg per unit (single source of truth — GlobalData mirrors it).
@@ -68,6 +85,9 @@ const WEIGHTS: Dictionary = {
 	"rocket": 0.25,
 	"missile": 0.50,
 	"explosive": 0.20,
+	"sidearm": 0.005,
+	"ap_round": 0.02,
+	"he_tube": 0.10,
 }
 
 const COLORS: Dictionary = {
@@ -79,6 +99,9 @@ const COLORS: Dictionary = {
 	"rocket": Color(1.00, 0.45, 0.75),
 	"missile": Color(0.70, 0.45, 1.00),
 	"explosive": Color(1.00, 0.30, 0.10),
+	"sidearm": Color(0.90, 0.80, 0.55),
+	"ap_round": Color(0.45, 0.65, 0.90),
+	"he_tube": Color(0.85, 0.30, 0.45),
 }
 
 # Fresh-run mech reserve / loadout allocation.
@@ -93,11 +116,12 @@ const STARTER_RESERVE: Dictionary = {
 	"explosive": 30,
 }
 
-# Fresh-run pilot pockets (pilot guns: pistol/bullet, AT rifle/spike, bazooka/explosive).
+# Fresh-run pilot pockets (pilot guns: pistol+rifle/sidearm, AT rifle/ap_round,
+# bazooka/he_tube). Never shares keys with the mech pool.
 const STARTER_PILOT_AMMO: Dictionary = {
-	"bullet": 120,
-	"spike": 10,
-	"explosive": 8,
+	"sidearm": 120,
+	"ap_round": 10,
+	"he_tube": 8,
 }
 
 # Old (4-type) save keys -> their successor type(s). A legacy pool copies its
@@ -108,6 +132,18 @@ const MIGRATION: Dictionary = {
 	"energy": ["energy_cell"],
 	"missile": ["missile", "rocket"],
 	"explosive": ["explosive"],
+}
+
+# Old pilot pools (shared mech-scale keys) -> pilot-scale successors. Anything
+# without a successor (mech-only leftovers) is dropped — pilots can't chamber it.
+const PILOT_MIGRATION: Dictionary = {
+	"kinetic": "sidearm",
+	"bullet": "sidearm",
+	"sidearm": "sidearm",
+	"spike": "ap_round",
+	"ap_round": "ap_round",
+	"explosive": "he_tube",
+	"he_tube": "he_tube",
 }
 
 
@@ -143,4 +179,19 @@ static func migrate_dict(pool: Dictionary) -> Dictionary:
 	for key in pool.keys():
 		if str(key) == "none" or int(pool.get(key, 0)) <= 0:
 			pool.erase(key)
+	return pool
+
+
+## Normalizes a PILOT ammo pool in place: converts any shared mech-scale keys
+## to pilot-scale successors, drops mech-only leftovers and empty keys.
+static func migrate_pilot_dict(pool: Dictionary) -> Dictionary:
+	for old_key in pool.keys():
+		var amount := int(pool.get(old_key, 0))
+		pool.erase(old_key)
+		if amount <= 0:
+			continue
+		var successor := str(PILOT_MIGRATION.get(str(old_key), ""))
+		if successor == "":
+			continue
+		pool[successor] = int(pool.get(successor, 0)) + amount
 	return pool

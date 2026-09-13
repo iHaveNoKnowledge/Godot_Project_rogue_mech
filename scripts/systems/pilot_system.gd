@@ -75,6 +75,9 @@ const AMMO_PRICES: Dictionary = {
 	"rocket": 8,
 	"missile": 15,
 	"explosive": 8,
+	"sidearm": 2,
+	"ap_round": 6,
+	"he_tube": 8,
 }
 
 # -----------------------------------------------------------------------------

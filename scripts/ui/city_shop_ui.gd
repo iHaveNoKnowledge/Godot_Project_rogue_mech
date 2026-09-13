@@ -104,7 +104,7 @@ func _get_tile_type(pos: Vector2i) -> String:
 
 func _refresh() -> void:
 	var ammo_bits: Array[String] = []
-	for ammo_type in AmmoSystem.ORDER:
+	for ammo_type in AmmoSystem.PILOT_ORDER:
 		ammo_bits.append("%s %d" % [AmmoSystem.display_name(ammo_type), PilotSystem.get_ammo(ammo_type)])
 	pilot_label.text = "PILOT STATUS: HP %d / %d%s\nPERSONAL AMMO: %s | Credits: %d" % [
 		int(PilotSystem.get_hp()),
@@ -136,7 +136,7 @@ func _refresh() -> void:
 	# Personal ammo
 	var ammo_sep = HSeparator.new()
 	stock_container.add_child(ammo_sep)
-	for ammo_type in AmmoSystem.ORDER:
+	for ammo_type in AmmoSystem.PILOT_ORDER:
 		var price := PilotSystem.get_ammo_price(ammo_type)
 		var btn = Button.new()
 		btn.custom_minimum_size = Vector2(560, 30)

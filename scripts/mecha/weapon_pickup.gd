@@ -107,7 +107,14 @@ func unload_ammo_to_player(player_body: Node3D = null) -> int:
 			else:
 				LoadoutSystem.add_reserve_ammo(ammo_type, amount)
 		elif target.is_in_group("pilot"):
-			PilotSystem.add_ammo(ammo_type, amount)
+			# Scavenging a mech-scale weapon as a pilot converts the haul into
+			# rounds their current weapon chambers (pilot pool is human-scale).
+			var ptype := "sidearm"
+			if target.has_method("get_current_weapon_ammo_type"):
+				ptype = str(target.get_current_weapon_ammo_type())
+			if ptype == "none" or ptype == "":
+				ptype = "sidearm"
+			PilotSystem.add_ammo(ptype, amount)
 			LoadoutSystem.add_reserve_ammo(ammo_type, amount)
 		else:
 			LoadoutSystem.add_reserve_ammo(ammo_type, amount)

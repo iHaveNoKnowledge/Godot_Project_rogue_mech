@@ -17,4 +17,5 @@ weight = 1.0
 range_distance = 40.0
 description = "ปืนพกประจำกายขนาดเบา พกได้คล่องตัว เสียงเบา ใช้กระสุนน้อย"
 rarity = 0
+ammo_type = "sidearm"
 reload_time = 1.0

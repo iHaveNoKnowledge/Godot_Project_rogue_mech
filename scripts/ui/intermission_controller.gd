@@ -325,7 +325,7 @@ func _build_pilot_text() -> String:
 			text += "- %s\n" % (wp.weapon_name if wp else "?")
 	text += "\n--- Personal Ammo ---\n"
 	var pilot_bits: Array[String] = []
-	for ammo_id in AmmoSystem.ORDER:
+	for ammo_id in AmmoSystem.PILOT_ORDER:
 		pilot_bits.append("%s: %d" % [AmmoSystem.display_name(ammo_id), PilotSystem.get_ammo(ammo_id)])
 	text += "%s\n" % " | ".join(pilot_bits)
 	text += "\n--- Items ---\n"

@@ -150,7 +150,14 @@ func _on_pickup_body_entered(body: Node3D, pickup: Area3D) -> void:
 				if wm:
 					wm.add_ammo(amount)
 			elif body.is_in_group("pilot"):
-				PilotSystem.add_ammo("bullet", amount)
+				# Pilots run human-scale ammo — grant what their current weapon
+				# chambers, never mech-scale rounds.
+				var ptype := "sidearm"
+				if body.has_method("get_current_weapon_ammo_type"):
+					ptype = str(body.get_current_weapon_ammo_type())
+				if ptype == "none" or ptype == "":
+					ptype = "sidearm"
+				PilotSystem.add_ammo(ptype, amount)
 		"repair":
 			var slot: String = loot_data.get("slot", "")
 			if slot:

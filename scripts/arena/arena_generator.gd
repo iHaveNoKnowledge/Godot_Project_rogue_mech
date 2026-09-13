@@ -35,6 +35,7 @@ const VOID_GROUND_COLOR := Color(0.025, 0.025, 0.045)
 var footprint: ArenaFootprint = null
 
 var current_theme: BiomeTheme = BiomeTheme.DESERT
+var desert_variant: String = "dunes"
 var tile_container: Node3D
 var escape_zone_container: Node3D
 var structures_container: Node3D
@@ -66,6 +67,8 @@ const FOREST_RIVER_STRIP_Y := -0.35
 
 func _ready() -> void:
 	current_theme = _theme_from_board()
+	if current_theme == BiomeTheme.DESERT:
+		desert_variant = _resolve_desert_variant()
 	arena_size = _arena_size_for_combat()
 	GlobalData.board.current_arena_size = arena_size
 	footprint = _build_footprint()
@@ -246,6 +249,25 @@ func _theme_from_board() -> BiomeTheme:
 	return BiomeTheme.CROSSROADS
 
 
+func _resolve_desert_variant() -> String:
+	var sub_zone: String = GlobalData.board.combat_tile_sub_zone
+	if sub_zone == "desert_canyon":
+		return "canyon"
+	elif sub_zone == "desert_oasis":
+		return "oasis"
+	elif sub_zone == "desert_dunes":
+		return "dunes"
+	# If no specific sub-zone, alternate deterministically based on tile coords & seed
+	var tile: Vector2i = GlobalData.board.current_tile
+	var roll := absi((tile.x * 73856093) ^ (tile.y * 19349663) ^ int(GlobalData.board.board_seed)) % 100
+	if roll < 45:
+		return "canyon"
+	elif roll < 80:
+		return "dunes"
+	else:
+		return "oasis"
+
+
 func generate_arena() -> void:
 	_create_containers()
 	_add_ground_tiles()
@@ -262,6 +284,12 @@ func generate_arena() -> void:
 
 
 func _create_containers() -> void:
+	for old_name in ["EscapeZones", "GroundTiles", "ThemeStructures"]:
+		var old = get_node_or_null(old_name)
+		if old:
+			old.name = "Old_" + old_name
+			old.queue_free()
+
 	escape_zone_container = Node3D.new()
 	escape_zone_container.name = "EscapeZones"
 	add_child(escape_zone_container)
@@ -288,8 +316,27 @@ func _add_ground_tiles() -> void:
 		BiomeTheme.FOREST, BiomeTheme.FOREST_ROAD:
 			_add_forest_terrain_banks(texture)
 			_add_forest_strip_plane(texture)
+		BiomeTheme.DESERT:
+			if desert_variant == "canyon" and is_equal_approx(arena_size, 240.0) and ResourceLoader.exists("res://assets/models/terrain_desert_chasm.glb"):
+				_add_desert_chasm_model_ground()
+			else:
+				_add_terrain_mesh(texture)
 		_:
 			_add_terrain_mesh(texture)
+
+
+func _add_desert_chasm_model_ground() -> void:
+	var model_scene: PackedScene = load("res://assets/models/terrain_desert_chasm.glb")
+	if model_scene:
+		var model_inst := model_scene.instantiate() as Node3D
+		model_inst.name = "DesertChasmModel"
+		var bodies := model_inst.find_children("*", "StaticBody3D", true, false)
+		for b in bodies:
+			if b is StaticBody3D:
+				b.collision_layer = 2
+				b.collision_mask = 1
+				b.add_to_group("ground_collision")
+		tile_container.add_child(model_inst)
 
 
 func _get_terrain_height(wx: float, wz: float) -> float:
@@ -305,6 +352,10 @@ func _get_terrain_height(wx: float, wz: float) -> float:
 			return _forest_terrain_height(wx, wz)
 		BiomeTheme.DESERT:
 			var pocket_ramp := clampf((maxf(nx, nz) - 15.0) / 20.0, 0.0, 1.0)
+			if desert_variant == "canyon":
+				return _desert_canyon_terrain_height(wx, wz, rim, pocket_ramp)
+			elif desert_variant == "oasis":
+				return _desert_oasis_terrain_height(wx, wz, rim, pocket_ramp)
 			var dune_noise := terrain_noise.get_noise_2d(wx * 0.75, wz * 0.75) * 3.2
 			var ripple := sin(wx * 0.05 + wz * 0.035) * 1.3
 			return -0.35 + (dune_noise + ripple) * pocket_ramp * rim
@@ -325,6 +376,38 @@ func _get_terrain_height(wx: float, wz: float) -> float:
 		_:
 			var h := terrain_noise.get_noise_2d(wx, wz) * 1.5
 			return -0.38 + h * rim
+
+
+func _desert_canyon_terrain_height(wx: float, wz: float, rim: float, pocket_ramp: float) -> float:
+	var dune_noise := terrain_noise.get_noise_2d(wx * 0.75, wz * 0.75) * 2.8
+	var ripple := sin(wx * 0.05 + wz * 0.035) * 1.1
+	var base_h := -0.35 + (dune_noise + ripple) * pocket_ramp * rim
+
+	var chasm_center_z := sin(wx * 0.035) * 25.0 + cos(wx * 0.015) * 15.0 - 5.0
+	var dist_to_chasm := absf(wz - chasm_center_z)
+	var chasm_width := 18.0 + sin(wx * 0.05) * 4.0
+
+	var bridge1_dist := Vector2(wx - (-45.0), wz - chasm_center_z).length()
+	var bridge2_dist := Vector2(wx - 55.0, wz - chasm_center_z).length()
+	var bridge_factor := clampf(1.0 - minf(bridge1_dist, bridge2_dist) / 10.0, 0.0, 1.0)
+
+	if dist_to_chasm < chasm_width:
+		var t := pow(dist_to_chasm / chasm_width, 0.4)
+		var depth := (1.0 - t) * -16.0
+		if depth < -15.0:
+			depth = -15.0 + sin(wx * 0.2) * 0.4
+		return base_h + depth * (1.0 - bridge_factor) * rim
+	return base_h
+
+
+func _desert_oasis_terrain_height(wx: float, wz: float, rim: float, pocket_ramp: float) -> float:
+	var dune_noise := terrain_noise.get_noise_2d(wx * 0.5, wz * 0.5) * 2.0
+	var base_h := -0.35 + dune_noise * pocket_ramp * rim
+	var center_dist := Vector2(wx, wz).length()
+	if center_dist < 48.0:
+		var basin_factor := clampf((48.0 - center_dist) / 28.0, 0.0, 1.0)
+		return base_h - basin_factor * 3.2 * rim
+	return base_h
 
 
 var _current_terrain_mesh: ArrayMesh = null
@@ -655,6 +738,16 @@ func _get_theme_ground_color(pos_x: float, pos_z: float) -> Color:
 	var v := ground_noise.get_noise_2d(pos_x * 0.03, pos_z * 0.03) * 0.05
 	match current_theme:
 		BiomeTheme.DESERT:
+			if desert_variant == "canyon":
+				if _get_terrain_height(pos_x, pos_z) < -2.5:
+					var rock_val := ground_noise.get_noise_2d(pos_x * 0.08, pos_z * 0.08) * 0.06
+					return Color(0.38 + rock_val, 0.24 + rock_val, 0.16 + rock_val)
+			elif desert_variant == "oasis":
+				var cdist := Vector2(pos_x, pos_z).length()
+				if cdist < 16.0:
+					return Color(0.18 + v, 0.46 + v, 0.54 + v)
+				elif cdist < 26.0:
+					return Color(0.42 + v, 0.54 + v, 0.30 + v)
 			var dune_val := ground_noise.get_noise_2d(pos_x * 0.04, pos_z * 0.04) * 0.08
 			var ripple_val := sin(pos_x * 0.15 + pos_z * 0.08) * 0.03
 			return Color(0.85 + dune_val + ripple_val, 0.72 + dune_val + ripple_val, 0.50 + dune_val)
@@ -749,6 +842,8 @@ func _add_ground_collision() -> void:
 		return
 	if current_theme == BiomeTheme.FOREST or current_theme == BiomeTheme.FOREST_ROAD:
 		_add_forest_terrain_collision()
+		return
+	if current_theme == BiomeTheme.DESERT and desert_variant == "canyon" and tile_container.has_node("DesertChasmModel"):
 		return
 
 	if _current_terrain_mesh != null:
@@ -1254,9 +1349,9 @@ func _create_theme_structures() -> void:
 
 	match current_theme:
 		BiomeTheme.DESERT:
-			if sub_zone == "desert_canyon":
+			if desert_variant == "canyon":
 				_build_desert_canyon_structures()
-			elif sub_zone == "desert_oasis":
+			elif desert_variant == "oasis":
 				_build_desert_oasis_structures()
 			else:
 				_generate_randomized_desert_dunes()
@@ -2148,6 +2243,13 @@ func _build_desert_canyon_structures() -> void:
 		var s_rad := randf_range(6.0, 12.0)
 		var s_h := randf_range(18.0, 38.0)
 
+		# Keep bridges clear of obstructive spires
+		var chasm_center_z := sin(px * 0.035) * 25.0 + cos(px * 0.015) * 15.0 - 5.0
+		var bridge1_dist := Vector2(px - (-45.0), pz - chasm_center_z).length()
+		var bridge2_dist := Vector2(px - 55.0, pz - chasm_center_z).length()
+		if bridge1_dist < 15.0 or bridge2_dist < 15.0:
+			continue
+
 		if footprint != null and not _rect_inside_footprint(Vector2(px, pz), Vector2(s_rad, s_rad)):
 			continue
 
@@ -2173,7 +2275,7 @@ func _build_desert_canyon_structures() -> void:
 		mi.position.y = s_h * 0.5
 		spire.add_child(mi)
 
-		spire.position = Vector3(px, 0, pz)
+		spire.position = Vector3(px, _prop_base_y(px, pz), pz)
 		spire.rotation.y = randf_range(0, TAU)
 		spire.add_to_group("solid_obstacle")
 		spire.add_to_group("concealment")

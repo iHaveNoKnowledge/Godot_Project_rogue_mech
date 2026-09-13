@@ -49,7 +49,7 @@ func _ready() -> void:
 			var m = child as MeshInstance3D
 			if m == null or m.mesh == null:
 				continue
-			if m.mesh is BoxMesh:
+			if m.mesh is BoxMesh or m.mesh is ArrayMesh:
 				box_count += 1
 			if m.mesh is PlaneMesh:
 				plane_count += 1

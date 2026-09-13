@@ -88,8 +88,8 @@ func hide_slot_completely(slot_name: String) -> void:
 ## Toggles cockpit hatch extension. When open, front carriage slides forward-down along guide rails.
 func set_cockpit_open(open: bool, animate: bool = true) -> void:
 	is_cockpit_open = open
-	var target_pos := Vector3(0.0, -0.22, -0.48) if open else Vector3.ZERO
-	var target_rot := Vector3(8.0, 0.0, 0.0) if open else Vector3.ZERO
+	var target_pos := Vector3(0.0, -0.26, -0.62) if open else Vector3.ZERO
+	var target_rot := Vector3(10.0, 0.0, 0.0) if open else Vector3.ZERO
 
 	var carriages: Array[Node3D] = []
 	var body_entry = slot_meshes.get("body")
@@ -113,6 +113,7 @@ func set_cockpit_open(open: bool, animate: bool = true) -> void:
 		for c in carriages:
 			c.position = target_pos
 			c.rotation_degrees = target_rot
+		_update_hatch_pistons()
 		return
 
 	_cockpit_tween = create_tween()
@@ -124,6 +125,31 @@ func set_cockpit_open(open: bool, animate: bool = true) -> void:
 	for c in carriages:
 		_cockpit_tween.tween_property(c, "position", target_pos, duration).set_trans(trans).set_ease(ease)
 		_cockpit_tween.tween_property(c, "rotation_degrees", target_rot, duration).set_trans(trans).set_ease(ease)
+
+	_cockpit_tween.tween_method(func(_v: float): _update_hatch_pistons(), 0.0, 1.0, duration)
+
+
+## Dynamically tracks and rotates the hatch hydraulic cylinders on the tub and piston rods on the carriage
+## so that as the hatch opens and drops, the pistons realistically tilt and extend between their clevis pivots.
+func _update_hatch_pistons() -> void:
+	var body_entry = slot_meshes.get("body")
+	if not body_entry or not body_entry.get("frame") or not is_instance_valid(body_entry["frame"]):
+		return
+	var frame_mesh: Node3D = body_entry["frame"]
+	var tub = frame_mesh.get_node_or_null("CockpitTub")
+	var carriage = frame_mesh.get_node_or_null("SlidingCarriage")
+	if not tub or not carriage:
+		return
+
+	for side in ["L", "R"]:
+		var piv_tub = tub.find_child("HatchPivotTub_" + side, true, false) as Node3D
+		var piv_car = carriage.find_child("HatchPivotCarriage_" + side, true, false) as Node3D
+		if piv_tub and piv_car and piv_tub.is_inside_tree() and piv_car.is_inside_tree():
+			var g_tub: Vector3 = piv_tub.global_position
+			var g_car: Vector3 = piv_car.global_position
+			if g_tub.distance_squared_to(g_car) > 0.001:
+				piv_tub.look_at(g_car, Vector3.UP)
+				piv_car.look_at(g_tub, Vector3.UP)
 
 
 ## Sets whether the pilot mannequin inside the cockpit tub is visible.
@@ -138,8 +164,8 @@ func set_cockpit_pilot_seated(seated: bool) -> void:
 
 ## Synchronizes newly rebuilt slot meshes with current cockpit open/seated state.
 func _sync_cockpit_state() -> void:
-	var target_pos := Vector3(0.0, -0.22, -0.48) if is_cockpit_open else Vector3.ZERO
-	var target_rot := Vector3(8.0, 0.0, 0.0) if is_cockpit_open else Vector3.ZERO
+	var target_pos := Vector3(0.0, -0.26, -0.62) if is_cockpit_open else Vector3.ZERO
+	var target_rot := Vector3(10.0, 0.0, 0.0) if is_cockpit_open else Vector3.ZERO
 	var body_entry = slot_meshes.get("body")
 	if body_entry:
 		if body_entry.get("frame") and is_instance_valid(body_entry["frame"]):
@@ -155,6 +181,7 @@ func _sync_cockpit_state() -> void:
 			if c is Node3D:
 				c.position = target_pos
 				c.rotation_degrees = target_rot
+	_update_hatch_pistons()
 
 
 func initialize_slot(slot_name: String, part: ArmorPart, apply_player_damage: bool = true) -> void:
@@ -1029,56 +1056,55 @@ func _create_cockpit_pilot_mannequin() -> Node3D:
 	var pilot_mat = _get_shared_pilot_mat()
 	var visor_mat = _get_shared_visor_mat()
 
-	# Reclined Torso (38° lean back toward +Z, low-profile semi-supine posture)
+	# Reclined Torso (52° Kenbu / F1 layback posture toward +Z)
 	var pilot_torso = MeshInstance3D.new()
 	var pt_box = BoxMesh.new()
-	pt_box.size = Vector3(0.18, 0.22, 0.13)
+	pt_box.size = Vector3(0.28, 0.38, 0.18)
 	pilot_torso.mesh = pt_box
-	pilot_torso.rotation_degrees.x = 38.0
-	pilot_torso.position = Vector3(0, 0.04, 0.08)
+	pilot_torso.rotation_degrees.x = 52.0
+	pilot_torso.position = Vector3(0, 0.02, 0.24)
 	pilot_torso.material_override = pilot_mat
 	pilot_mannequin.add_child(pilot_torso)
 
-	# Head resting low on the reclined headrest (Z=0.18, Y=0.14) -> top of head < 0.21, safe inside canopy!
+	# Head resting on 52° reclined headrest (Z=0.38, Y=0.18) -> top of helmet < 0.28m, well below 0.35m canopy
 	var pilot_head = MeshInstance3D.new()
 	var ph_sph = SphereMesh.new()
-	ph_sph.radius = 0.065
-	ph_sph.height = 0.13
+	ph_sph.radius = 0.09
+	ph_sph.height = 0.18
 	pilot_head.mesh = ph_sph
-	pilot_head.rotation_degrees.x = 38.0
-	pilot_head.position = Vector3(0, 0.14, 0.18)
+	pilot_head.rotation_degrees.x = 52.0
+	pilot_head.position = Vector3(0, 0.18, 0.38)
 	pilot_head.material_override = pilot_mat
 	pilot_mannequin.add_child(pilot_head)
 
 	var pilot_visor = MeshInstance3D.new()
 	var pv_box = BoxMesh.new()
-	pv_box.size = Vector3(0.09, 0.03, 0.04)
+	pv_box.size = Vector3(0.13, 0.04, 0.06)
 	pilot_visor.mesh = pv_box
-	pilot_visor.rotation_degrees.x = 38.0
-	pilot_visor.position = Vector3(0, 0.15, 0.14)
+	pilot_visor.rotation_degrees.x = 52.0
+	pilot_visor.position = Vector3(0, 0.20, 0.32)
 	pilot_visor.material_override = visor_mat
 	pilot_mannequin.add_child(pilot_visor)
 
-	# Limbs: arms forward on joysticks, legs forward towards pedals
+	# Arms reaching forward to HOTAS sticks, legs reaching forward to rudder pedals
 	for arm_sign in [-1.0, 1.0]:
 		var pilot_arm = MeshInstance3D.new()
 		var pa_box = BoxMesh.new()
-		pa_box.size = Vector3(0.05, 0.05, 0.14)
+		pa_box.size = Vector3(0.06, 0.06, 0.26)
 		pilot_arm.mesh = pa_box
-		pilot_arm.position = Vector3(arm_sign * 0.13, 0.02, -0.02)
-		pilot_arm.rotation_degrees.x = 20.0
+		pilot_arm.position = Vector3(arm_sign * 0.20, 0.02, 0.06)
+		pilot_arm.rotation_degrees.x = 26.0
 		pilot_arm.material_override = pilot_mat
 		pilot_mannequin.add_child(pilot_arm)
 
 		var pilot_leg = MeshInstance3D.new()
 		var pl_box = BoxMesh.new()
-		pl_box.size = Vector3(0.06, 0.05, 0.18)
+		pl_box.size = Vector3(0.08, 0.07, 0.36)
 		pilot_leg.mesh = pl_box
-		pilot_leg.position = Vector3(arm_sign * 0.07, -0.06, -0.10)
-		pilot_leg.rotation_degrees.x = -18.0
+		pilot_leg.position = Vector3(arm_sign * 0.12, -0.10, -0.16)
+		pilot_leg.rotation_degrees.x = -22.0
 		pilot_leg.material_override = pilot_mat
 		pilot_mannequin.add_child(pilot_leg)
-
 	return pilot_mannequin
 
 

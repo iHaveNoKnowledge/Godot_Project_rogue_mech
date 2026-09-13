@@ -64,13 +64,22 @@ func _ready() -> void:
 	frame_carriage = frame_mesh.get_node_or_null("SlidingCarriage")
 	armor_carriage = armor_mesh.get_node_or_null("SlidingCarriage")
 
-	var expected_pos := Vector3(0.0, -0.22, -0.48)
-	var expected_rot := Vector3(8.0, 0.0, 0.0)
+	var expected_pos := Vector3(0.0, -0.26, -0.62)
+	var expected_rot := Vector3(10.0, 0.0, 0.0)
 	assert(frame_carriage.position.is_equal_approx(expected_pos), "Frame carriage position must match extended forward-down offset %s vs %s" % [frame_carriage.position, expected_pos])
 	assert(armor_carriage.position.is_equal_approx(expected_pos), "Armor carriage position must match extended forward-down offset %s vs %s" % [armor_carriage.position, expected_pos])
 	assert(frame_carriage.rotation_degrees.is_equal_approx(expected_rot), "Frame carriage tilt must match %s" % expected_rot)
 	assert(armor_carriage.rotation_degrees.is_equal_approx(expected_rot), "Armor carriage tilt must match %s" % expected_rot)
-	print("  [PASS] Cockpit hatch extension (forward -0.48m, down -0.22m, tilt 8 deg) verified on both frame and armor")
+	print("  [PASS] Cockpit hatch extension (forward -0.62m, down -0.26m, tilt 10 deg) verified on both frame and armor")
+
+	# Test 5.1: Verify Articulated Hatch Hydraulic Piston Pivots
+	var piv_tub_l = tub.find_child("HatchPivotTub_L", true, false)
+	var piv_tub_r = tub.find_child("HatchPivotTub_R", true, false)
+	var piv_car_l = frame_carriage.find_child("HatchPivotCarriage_L", true, false)
+	var piv_car_r = frame_carriage.find_child("HatchPivotCarriage_R", true, false)
+	assert(piv_tub_l != null and piv_tub_r != null, "Tub hydraulic cylinder pivots must exist")
+	assert(piv_car_l != null and piv_car_r != null, "Carriage hydraulic rod pivots must exist")
+	print("  [PASS] Articulated hatch hydraulic cylinder & rod clevis pivots verified")
 
 	# Test 6: Test set_cockpit_open(false, false) (return to flush closed position)
 	pmm.set_cockpit_open(false, false)

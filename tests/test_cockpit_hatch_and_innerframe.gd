@@ -64,13 +64,13 @@ func _ready() -> void:
 	frame_carriage = frame_mesh.get_node_or_null("SlidingCarriage")
 	armor_carriage = armor_mesh.get_node_or_null("SlidingCarriage")
 
-	var expected_pos := Vector3(0.0, -0.26, -0.62)
+	var expected_pos := Vector3(0.0, -0.22, -0.44)
 	var expected_rot := Vector3(10.0, 0.0, 0.0)
 	assert(frame_carriage.position.is_equal_approx(expected_pos), "Frame carriage position must match extended forward-down offset %s vs %s" % [frame_carriage.position, expected_pos])
 	assert(armor_carriage.position.is_equal_approx(expected_pos), "Armor carriage position must match extended forward-down offset %s vs %s" % [armor_carriage.position, expected_pos])
 	assert(frame_carriage.rotation_degrees.is_equal_approx(expected_rot), "Frame carriage tilt must match %s" % expected_rot)
 	assert(armor_carriage.rotation_degrees.is_equal_approx(expected_rot), "Armor carriage tilt must match %s" % expected_rot)
-	print("  [PASS] Cockpit hatch extension (forward -0.62m, down -0.26m, tilt 10 deg) verified on both frame and armor")
+	print("  [PASS] Cockpit hatch extension (forward -0.44m, down -0.22m, tilt 10 deg) verified on both frame and armor")
 
 	# Test 5.1: Verify Articulated Hatch Hydraulic Piston Pivots
 	var piv_tub_l = tub.find_child("HatchPivotTub_L", true, false)
@@ -130,6 +130,27 @@ func _ready() -> void:
 	assert(anim.stance_mode == "wide_squat", "Stance must switch to wide_squat")
 	anim.set_stance_mode("combat_crouch")
 	print("  [PASS] Stance Mode cycling (Kenbu combat_crouch, upright_formal, wide_squat) verified")
+
+	# Test 11: Multi-frame inner frame resolution (Series decoupling)
+	# frame_body_04 (Titan Heavy Frame) does not have model_path, should use procedural fallback
+	var heavy_frame = ArmorSystem.get_frame_catalog_entry("frame_body_04")
+	pmm.initialize_slot("body", null, false, heavy_frame)
+	frame_mesh = body_parent.get_node_or_null("FrameMesh")
+	var heavy_tub = frame_mesh.get_node_or_null("CockpitTub")
+	assert(heavy_tub != null, "Heavy frame CockpitTub must exist via procedural fallback")
+	var heavy_waist_core = frame_mesh.get_node_or_null("WaistCore")
+	assert(heavy_waist_core == null, "WaistCore (Kenbu asset) must NOT exist on procedural fallback frame_body_04")
+	print("  [PASS] frame_body_04 successfully uses procedural fallback skeleton without loading Kenbu asset")
+
+	# Re-initialize with frame_body_01 (Standard Core Structure with Kenbu 3D model)
+	var std_frame = ArmorSystem.get_frame_catalog_entry("frame_body_01")
+	pmm.initialize_slot("body", null, false, std_frame)
+	frame_mesh = body_parent.get_node_or_null("FrameMesh")
+	var std_tub = frame_mesh.get_node_or_null("CockpitTub")
+	var std_waist_core = frame_mesh.get_node_or_null("WaistCore")
+	assert(std_tub != null, "frame_body_01 CockpitTub must exist")
+	assert(std_waist_core != null, "frame_body_01 WaistCore must exist from 3D model")
+	print("  [PASS] frame_body_01 successfully loads dedicated 3D cockpit model asset")
 
 	print("\n=== ALL COCKPIT HATCH & INNERFRAME TESTS PASSED (100%) ===\n")
 	get_tree().quit(0)

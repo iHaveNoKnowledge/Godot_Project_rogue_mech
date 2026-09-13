@@ -185,7 +185,7 @@ func _sync_cockpit_state() -> void:
 	_update_hatch_pistons()
 
 
-func initialize_slot(slot_name: String, part: ArmorPart, apply_player_damage: bool = true) -> void:
+func initialize_slot(slot_name: String, part: ArmorPart, apply_player_damage: bool = true, frame_data: Variant = null) -> void:
 	var parent_node = _get_slot_parent_node(slot_name)
 	if parent_node == null:
 		return
@@ -253,7 +253,7 @@ func initialize_slot(slot_name: String, part: ArmorPart, apply_player_damage: bo
 	if part and (part.inner_frame_scene != null or part.inner_frame_scene_lower != null):
 		_attach_custom_mesh_scene(frame_mesh, frame_mesh_lower, part.inner_frame_scene, part.inner_frame_scene_lower)
 	else:
-		_build_procedural_inner_frame(slot_name, frame_mesh, frame_mesh_lower)
+		_build_procedural_inner_frame(slot_name, frame_mesh, frame_mesh_lower, frame_data)
 	frame_mesh.visible = true
 	if frame_mesh_lower: frame_mesh_lower.visible = true
 
@@ -536,16 +536,16 @@ func _rebuild_slot(slot: String, frame_data: Variant, equipped: Variant, apply_p
 		# EMERGENCY SCRAP PATCH: the slot was rebuilt from scrap, so show the
 		# bare inner frame (or scrap stand-in) plus the crude patch primitives
 		# the driver placed on it.
-		initialize_slot(slot, null, apply_player_scrap)
+		initialize_slot(slot, null, apply_player_scrap, frame_data)
 		_show_inner_frame(slot)
 		_render_scrap_patch(slot)
 	elif not is_armor_equipped:
 		# INNER FRAME EQUIPPED, NO ARMOR: Render bare skeletal inner frame only
-		initialize_slot(slot, null, apply_player_scrap)
+		initialize_slot(slot, null, apply_player_scrap, frame_data)
 		_show_inner_frame(slot)
 	else:
 		# INNER FRAME + OUTER ARMOR EQUIPPED: Render armor over inner frame
-		initialize_slot(slot, build_part_for_slot(equipped), apply_player_scrap)
+		initialize_slot(slot, build_part_for_slot(equipped), apply_player_scrap, frame_data)
 
 
 # Rebuilds (or removes) the ScrapPatch primitive visuals for a patched slot.
@@ -707,6 +707,7 @@ func _get_slot_lower_parent_node(slot_name: String) -> Node3D:
 func _clear_children(node: Node) -> void:
 	if not node: return
 	for child in node.get_children():
+		node.remove_child(child)
 		child.queue_free()
 
 
@@ -1112,7 +1113,7 @@ func _create_cockpit_pilot_mannequin() -> Node3D:
 # ==============================================================================
 # SKELETAL INNER FRAME GENERATOR (UPPER + LOWER JOINT SPLIT)
 # ==============================================================================
-func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, lower_container: Node3D = null) -> void:
+func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, lower_container: Node3D = null, frame_data: Variant = null) -> void:
 	var frame_mat = _get_dark_frame_material()
 	var chrome_mat = _get_chrome_material()
 	var eye_mat = _get_eye_sensor_material()
@@ -1169,9 +1170,29 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 			spine.material_override = frame_mat
 			upper_container.add_child(spine)
 
+			# Resolve custom 3D inner frame model if specified for this body frame series
+			var frame_model_path: String = ""
+			var target_frame = frame_data
+			if target_frame == null and GlobalData != null and GlobalData.weapons != null:
+				target_frame = GlobalData.weapons.equipped_frames.get("body")
+			# If still null/unspecified and in standalone testing, fallback to default standard frame (frame_body_01)
+			if target_frame == null and GlobalData != null and GlobalData.frame_catalog.has("body") and not GlobalData.frame_catalog["body"].is_empty():
+				target_frame = GlobalData.frame_catalog["body"][0]
+
+			if target_frame is Dictionary:
+				frame_model_path = target_frame.get("model_path", "")
+				if frame_model_path.is_empty() and target_frame.has("id"):
+					var entry = ArmorSystem.get_frame_catalog_entry(target_frame.get("id", ""))
+					frame_model_path = entry.get("model_path", "")
+			elif target_frame is String and not target_frame.is_empty():
+				var entry = ArmorSystem.get_frame_catalog_entry(target_frame)
+				frame_model_path = entry.get("model_path", "")
+
 			# --- 2. COCKPIT TUB & SLIDING CARRIAGE (Blender 3D Asset or Procedural Fallback) ---
 			var has_waist_core := false
-			var blender_cockpit_scene: PackedScene = load(COCKPIT_BLENDER_GLB) as PackedScene if ResourceLoader.exists(COCKPIT_BLENDER_GLB) else null
+			var blender_cockpit_scene: PackedScene = null
+			if not frame_model_path.is_empty() and ResourceLoader.exists(frame_model_path):
+				blender_cockpit_scene = load(frame_model_path) as PackedScene
 			if blender_cockpit_scene != null:
 				var b_inst = blender_cockpit_scene.instantiate()
 
@@ -1191,8 +1212,8 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 					b_carriage.owner = null
 					b_carriage.name = "SlidingCarriage"
 					if is_cockpit_open:
-						b_carriage.position = Vector3(0.0, -0.22, -0.48)
-						b_carriage.rotation_degrees = Vector3(8.0, 0.0, 0.0)
+						b_carriage.position = Vector3(0.0, -0.22, -0.44)
+						b_carriage.rotation_degrees = Vector3(10.0, 0.0, 0.0)
 					else:
 						b_carriage.position = Vector3.ZERO
 						b_carriage.rotation_degrees = Vector3.ZERO
@@ -1213,6 +1234,10 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 
 				# Set holographic display shader material on HUD if present
 				var holo = b_tub.find_child("HoloHUD_Display", true, false)
+				if holo == null:
+					holo = b_tub.find_child("CenterHUD", true, false)
+					if holo:
+						holo.name = "HoloHUD_Display"
 				if holo and holo is MeshInstance3D:
 					holo.material_override = _get_shared_holo_mat()
 
@@ -1352,8 +1377,8 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 				var carriage = Node3D.new()
 				carriage.name = "SlidingCarriage"
 				if is_cockpit_open:
-					carriage.position = Vector3(0.0, -0.22, -0.48)
-					carriage.rotation_degrees = Vector3(8.0, 0.0, 0.0)
+					carriage.position = Vector3(0.0, -0.22, -0.44)
+					carriage.rotation_degrees = Vector3(10.0, 0.0, 0.0)
 				upper_container.add_child(carriage)
 
 				# Front Rib Arc

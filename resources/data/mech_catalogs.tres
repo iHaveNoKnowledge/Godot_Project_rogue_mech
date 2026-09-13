@@ -1141,6 +1141,7 @@ frame_catalog = {
 "carry_bonus": 8.0,
 "hp": 40.0,
 "id": "frame_body_01",
+"model_path": "res://assets/models/mech_cockpit_tub.glb",
 "name": "Standard Core Structure",
 "type": "Standard Frame",
 "weight": 6.0

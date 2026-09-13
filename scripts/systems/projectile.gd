@@ -225,6 +225,8 @@ func _hit_target(target: Node3D) -> void:
 
 
 func _explode(blast_pos: Vector3) -> void:
+	if AudioManager:
+		AudioManager.play_explosion(blast_pos)
 	EffectManager.spawn_explosion(blast_pos, explosion_radius)
 	if get_tree():
 		EffectFactory.spawn_fire_burst(get_tree(), blast_pos, maxf(explosion_radius * 0.7, 0.8), 0.45, 6.0)
@@ -243,7 +245,7 @@ func _spawn_missile_impact_fx(pos: Vector3) -> void:
 		EffectFactory.spawn_fire_burst(tree, pos, 0.9, 0.35, 5.0)
 		EffectFactory.spawn_smoke_plume(tree, pos, 4, 0.22, 0.4, 0.65)
 	if AudioManager:
-		AudioManager.play_explosion(pos)
+		AudioManager.play_missile_explosion(pos)
 
 
 func _spawn_trail() -> void:

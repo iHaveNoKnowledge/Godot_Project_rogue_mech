@@ -212,6 +212,9 @@ func play_shield_break(pos: Vector3) -> void:
 func play_explosion(pos: Vector3) -> void:
 	sfx.play_explosion(pos)
 
+func play_missile_explosion(pos: Vector3) -> void:
+	sfx.play_missile_explosion(pos)
+
 func play_footstep(pos: Vector3) -> void:
 	sfx.play_footstep(pos)
 

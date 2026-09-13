@@ -70,6 +70,8 @@ func _generate_sounds() -> void:
 	_sound_cache["cannon_fire"] = cannon_fire_file if cannon_fire_file != null else _gen_cannon_fire()
 	var cannon_explosion_file: Variant = _load_sfx_file("cannon_explosion")
 	_sound_cache["cannon_explosion"] = cannon_explosion_file if cannon_explosion_file != null else _gen_war_explosion(0.8, 0.95)
+	var missile_explosion_file: Variant = _load_sfx_file("missile_explosion")
+	_sound_cache["missile_explosion"] = missile_explosion_file if missile_explosion_file != null else _gen_war_explosion(0.7, 0.9)
 	_sound_cache["armor_break"] = _gen_armor_shatter()
 	_sound_cache["explosion"] = _gen_war_explosion(0.65, 0.9)
 	var ui_click := _load_ui_sound("click")
@@ -456,6 +458,10 @@ func play_shield_break(pos: Vector3) -> void:
 
 func play_explosion(pos: Vector3) -> void:
 	play_sfx("cannon_explosion", pos, 2.0)
+
+
+func play_missile_explosion(pos: Vector3) -> void:
+	play_sfx("missile_explosion", pos, 2.0)
 
 
 func play_footstep(pos: Vector3) -> void:

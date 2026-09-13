@@ -215,10 +215,11 @@ hbar.data.materials.append(mat_dark_frame)
 
 # ------------------------------------------------------------------------------
 # 2.2 HIGH-DETAIL PILOT BUCKET SEAT (24° NATURAL MECHA COMBAT POSTURE)
-# Pelvis at Y=-0.10m, Z=-0.28m -> Headrest at Y=-0.37m, Bulkhead at Y=-0.66m (16cm clearance!)
+# Pelvis at Y=-0.12m, Z=-0.28m -> Headrest at Y=-0.39m, Bulkhead at Y=-0.66m (27cm clearance!)
+# POSITIVE rotation around X in Blender tilts the top BACKWARD towards -Y!
 # ------------------------------------------------------------------------------
 seat_base = bpy.data.objects.new("PilotSeatBase", None)
-seat_base.location = (0, -0.10, -0.28)
+seat_base.location = (0, -0.12, -0.28)
 seat_base.parent = cockpit_tub
 bpy.context.scene.collection.objects.link(seat_base)
 
@@ -231,55 +232,64 @@ seat_frame.scale = (0.46, 0.36, 0.04)
 bpy.ops.object.transform_apply(scale=True)
 seat_frame.data.materials.append(mat_dark_frame)
 
-# Seat Bottom Cushion (Sunken, padded butt support)
-bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0, 0.0, 0.02))
+# Seat Bottom Cushion (Sunken, padded butt support tilted +6° up at front)
+bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0, 0.04, 0.02))
 seat_butt = bpy.context.active_object
 seat_butt.name = "SeatCushionButt"
 seat_butt.parent = seat_base
 seat_butt.scale = (0.46, 0.36, 0.06)
-seat_butt.rotation_euler = (math.radians(-6), 0, 0)
+seat_butt.rotation_euler = (math.radians(6), 0, 0)
 bpy.ops.object.transform_apply(scale=True, rotation=True)
 seat_butt.data.materials.append(mat_seat_cushion)
 
 # Side Thigh Bolsters (Left & Right)
 for side_x in [-0.23, 0.23]:
-    bpy.ops.mesh.primitive_cube_add(size=1.0, location=(side_x, 0.0, 0.08))
+    bpy.ops.mesh.primitive_cube_add(size=1.0, location=(side_x, 0.04, 0.08))
     bolster = bpy.context.active_object
     bolster.name = f"ThighBolster_{'L' if side_x < 0 else 'R'}"
     bolster.parent = seat_base
     bolster.scale = (0.05, 0.36, 0.08)
-    bolster.rotation_euler = (math.radians(-6), 0, math.radians(-15 if side_x < 0 else 15))
+    bolster.rotation_euler = (math.radians(6), 0, math.radians(-15 if side_x < 0 else 15))
     bpy.ops.object.transform_apply(scale=True, rotation=True)
     bolster.data.materials.append(mat_seat_fabric)
 
-# Ergonomic Backrest (24° Combat Recline toward -Y)
-bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0, -0.14, 0.30))
+# Ergonomic Backrest (POSITIVE +24° Recline toward -Y backward!)
+recline_deg = 24.0
+back_len = 0.64
+back_center_y = -0.06 - (back_len * 0.5 * math.sin(math.radians(recline_deg)))
+back_center_z = 0.04 + (back_len * 0.5 * math.cos(math.radians(recline_deg)))
+
+bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0, back_center_y, back_center_z))
 seat_back = bpy.context.active_object
 seat_back.name = "SeatBackrest"
 seat_back.parent = seat_base
-seat_back.scale = (0.44, 0.06, 0.64)
-seat_back.rotation_euler = (math.radians(-24), 0, 0)
+seat_back.scale = (0.44, 0.06, back_len)
+seat_back.rotation_euler = (math.radians(recline_deg), 0, 0)
 bpy.ops.object.transform_apply(scale=True, rotation=True)
 seat_back.data.materials.append(mat_seat_cushion)
 
 # Side Rib Bolsters on Backrest
 for side_x in [-0.22, 0.22]:
-    bpy.ops.mesh.primitive_cube_add(size=1.0, location=(side_x, -0.14, 0.30))
+    bpy.ops.mesh.primitive_cube_add(size=1.0, location=(side_x, back_center_y, back_center_z))
     rib_b = bpy.context.active_object
     rib_b.name = f"RibBolster_{'L' if side_x < 0 else 'R'}"
     rib_b.parent = seat_base
     rib_b.scale = (0.05, 0.10, 0.58)
-    rib_b.rotation_euler = (math.radians(-24), 0, math.radians(-20 if side_x < 0 else 20))
+    rib_b.rotation_euler = (math.radians(recline_deg), 0, math.radians(-20 if side_x < 0 else 20))
     bpy.ops.object.transform_apply(scale=True, rotation=True)
     rib_b.data.materials.append(mat_seat_fabric)
 
-# Armored Headrest (supporting helmet at Y=-0.27m relative, world Y=-0.37m, Z=+0.34m)
-bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0, -0.27, 0.62))
+# Armored Headrest (supporting helmet with +24° recline behind neck/head)
+head_dist_seat = back_len + 0.08
+headrest_y = -0.06 - (head_dist_seat * math.sin(math.radians(recline_deg)))
+headrest_z = 0.04 + (head_dist_seat * math.cos(math.radians(recline_deg)))
+
+bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0, headrest_y, headrest_z))
 seat_head = bpy.context.active_object
 seat_head.name = "SeatHeadrest"
 seat_head.parent = seat_base
 seat_head.scale = (0.30, 0.08, 0.20)
-seat_head.rotation_euler = (math.radians(-24), 0, 0)
+seat_head.rotation_euler = (math.radians(recline_deg), 0, 0)
 bpy.ops.object.transform_apply(scale=True, rotation=True)
 seat_head.data.materials.append(mat_seat_cushion)
 

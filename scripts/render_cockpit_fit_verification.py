@@ -39,8 +39,8 @@ def build_fitted_pilot(height_m, name, mat_suit, offset_x=0.0):
     root.location = (offset_x, 0, 0)
     bpy.context.scene.collection.objects.link(root)
 
-    pelvis_y = -0.10
-    pelvis_z = -0.25
+    pelvis_y = -0.12
+    pelvis_z = -0.28
     recline_deg = 24.0
 
     # Pelvis
@@ -51,7 +51,7 @@ def build_fitted_pilot(height_m, name, mat_suit, offset_x=0.0):
     bpy.ops.object.transform_apply(scale=True)
     p.data.materials.append(mat_suit)
 
-    # Torso
+    # Torso (Reclines backward towards -Y with positive rotation around X)
     t_dist = torso_h * 0.5
     t_y = pelvis_y - (t_dist * math.sin(math.radians(recline_deg)))
     t_z = pelvis_z + (t_dist * math.cos(math.radians(recline_deg)))
@@ -59,7 +59,7 @@ def build_fitted_pilot(height_m, name, mat_suit, offset_x=0.0):
     t = bpy.context.active_object
     t.parent = root
     t.scale = (torso_w, torso_d, torso_h)
-    t.rotation_euler = (math.radians(-recline_deg), 0, 0)
+    t.rotation_euler = (math.radians(recline_deg), 0, 0)
     bpy.ops.object.transform_apply(scale=True, rotation=True)
     t.data.materials.append(mat_suit)
 
@@ -78,7 +78,7 @@ def build_fitted_pilot(height_m, name, mat_suit, offset_x=0.0):
     v = bpy.context.active_object
     v.parent = root
     v.scale = (head_r * 1.3, head_r * 0.55, head_r * 0.45)
-    v.rotation_euler = (math.radians(-recline_deg), 0, 0)
+    v.rotation_euler = (math.radians(recline_deg), 0, 0)
     bpy.ops.object.transform_apply(scale=True, rotation=True)
     v.data.materials.append(mat_visor)
 
@@ -180,7 +180,9 @@ print(f"RENDER 1 COMPLETE: {out_img1}")
 # RENDER 2: 3/4 Perspective View (Hatch Open & Pistons Articulated)
 # ------------------------------------------------------------------------------
 for obj in bpy.data.objects:
-    if "CockpitWall_L" in obj.name or "SlideRail_L" in obj.name:
+    if "CockpitWall_L" in obj.name:
+        obj.hide_render = True
+    elif "SlideRail_L" in obj.name:
         obj.hide_render = False
 
 carriage = bpy.data.objects.get("SlidingCarriage")

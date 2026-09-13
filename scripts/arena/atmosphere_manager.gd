@@ -90,11 +90,11 @@ func _setup_atmosphere() -> void:
 				sky_mat.ground_horizon_color = Color(0.88, 0.75, 0.52, 1)
 				env.volumetric_fog_density = 0.008
 				env.volumetric_fog_albedo = Color(0.88, 0.78, 0.60, 1)
-			env.ambient_light_color = Color(0.80, 0.70, 0.55, 1)
-			env.ambient_light_energy = 0.5
-			if sun:
-				sun.light_color = Color(1.0, 0.95, 0.85, 1)
-				sun.light_energy = 1.0
+				env.ambient_light_color = Color(0.80, 0.70, 0.55, 1)
+				env.ambient_light_energy = 0.5
+				if sun:
+					sun.light_color = Color(1.0, 0.95, 0.85, 1)
+					sun.light_energy = 1.0
 			1: # CITY_HIGHRISE
 				sky_mat.sky_top_color = Color(0.18, 0.32, 0.58, 1)
 				sky_mat.sky_horizon_color = Color(0.60, 0.72, 0.85, 1)

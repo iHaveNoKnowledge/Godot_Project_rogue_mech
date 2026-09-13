@@ -521,6 +521,7 @@ func _add_terrain_mesh(texture: Texture2D) -> void:
 
 	var verts := PackedVector3Array()
 	var uvs := PackedVector2Array()
+	var uvs2 := PackedVector2Array()
 	var normals := PackedVector3Array()
 
 	for row in range(rows + 1):
@@ -529,6 +530,7 @@ func _add_terrain_mesh(texture: Texture2D) -> void:
 			var wx := -half + float(col) * arena_size / float(cols)
 			verts.append(Vector3(wx, _get_terrain_height(wx, wz), wz))
 			uvs.append(Vector2((wx + half) / arena_size, (wz + half) / arena_size))
+			uvs2.append(Vector2(wx * 0.125, wz * 0.125))
 			normals.append(Vector3.ZERO)
 
 	var indices := PackedInt32Array()
@@ -565,6 +567,7 @@ func _add_terrain_mesh(texture: Texture2D) -> void:
 	arrays[Mesh.ARRAY_VERTEX] = verts
 	arrays[Mesh.ARRAY_NORMAL] = normals
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_TEX_UV2] = uvs2
 	arrays[Mesh.ARRAY_INDEX] = indices
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	_current_terrain_mesh = mesh
@@ -605,6 +608,12 @@ func _add_quad_ground_plane(x0: float, x1: float, z0: float, z1: float, y: float
 		Vector2((x0 + half) / arena_size, (z1 + half) / arena_size),
 		Vector2((x1 + half) / arena_size, (z1 + half) / arena_size),
 	])
+	var uvs2 := PackedVector2Array([
+		Vector2(x0 * 0.125, z0 * 0.125),
+		Vector2(x1 * 0.125, z0 * 0.125),
+		Vector2(x0 * 0.125, z1 * 0.125),
+		Vector2(x1 * 0.125, z1 * 0.125),
+	])
 	var normals := PackedVector3Array([Vector3.UP, Vector3.UP, Vector3.UP, Vector3.UP])
 	var indices := PackedInt32Array([0, 2, 1, 1, 2, 3])
 
@@ -614,6 +623,7 @@ func _add_quad_ground_plane(x0: float, x1: float, z0: float, z1: float, y: float
 	arrays[Mesh.ARRAY_VERTEX] = verts
 	arrays[Mesh.ARRAY_NORMAL] = normals
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_TEX_UV2] = uvs2
 	arrays[Mesh.ARRAY_INDEX] = indices
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 
@@ -662,6 +672,12 @@ func _add_forest_strip_plane(texture: Texture2D) -> void:
 		Vector2(0.0, (z1 + half) / arena_size),
 		Vector2(1.0, (z1 + half) / arena_size),
 	])
+	var uvs2 := PackedVector2Array([
+		Vector2(-half * 0.125, z0 * 0.125),
+		Vector2(half * 0.125, z0 * 0.125),
+		Vector2(-half * 0.125, z1 * 0.125),
+		Vector2(half * 0.125, z1 * 0.125),
+	])
 	var normals := PackedVector3Array([Vector3.UP, Vector3.UP, Vector3.UP, Vector3.UP])
 	# Counter-clockwise winding when viewed from ABOVE: (0,2,1) and (1,2,3)
 	# both cross to +Y, so the front face points up at the camera. The old
@@ -676,6 +692,7 @@ func _add_forest_strip_plane(texture: Texture2D) -> void:
 	arrays[Mesh.ARRAY_VERTEX] = verts
 	arrays[Mesh.ARRAY_NORMAL] = normals
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_TEX_UV2] = uvs2
 	arrays[Mesh.ARRAY_INDEX] = indices
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 
@@ -705,6 +722,7 @@ func _add_forest_bank_mesh(texture: Texture2D, z0: float, z1: float) -> void:
 
 	var verts := PackedVector3Array()
 	var uvs := PackedVector2Array()
+	var uvs2 := PackedVector2Array()
 	var normals := PackedVector3Array()
 	for row in range(rows + 1):
 		var wz := z0 + float(row) * (z1 - z0) / float(rows)
@@ -714,6 +732,7 @@ func _add_forest_bank_mesh(texture: Texture2D, z0: float, z1: float) -> void:
 			# UVs map back to world coords so the position-based floor texture
 			# (roads/trails/moss) stays continuous across banks and river strip.
 			uvs.append(Vector2((wx + half) / arena_size, (wz + half) / arena_size))
+			uvs2.append(Vector2(wx * 0.125, wz * 0.125))
 			normals.append(Vector3.ZERO)
 
 	var indices := PackedInt32Array()
@@ -749,6 +768,7 @@ func _add_forest_bank_mesh(texture: Texture2D, z0: float, z1: float) -> void:
 	arrays[Mesh.ARRAY_VERTEX] = verts
 	arrays[Mesh.ARRAY_NORMAL] = normals
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_TEX_UV2] = uvs2
 	arrays[Mesh.ARRAY_INDEX] = indices
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 

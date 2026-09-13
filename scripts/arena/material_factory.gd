@@ -30,6 +30,9 @@ static func get_ground_material(theme: int, base_texture: Texture2D = null) -> S
 
 	var norm_path := ""
 	var rough_path := ""
+	var detail_albedo_path := ""
+	var detail_norm_path := ""
+	var ao_path := ""
 
 	match theme:
 		0: # DESERT — Dry, diffuse golden sand with high roughness and zero mirror reflections (matte, powdery)
@@ -46,36 +49,61 @@ static func get_ground_material(theme: int, base_texture: Texture2D = null) -> S
 				mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 			norm_path = "res://resources/textures/sand/normal.jpg"
 			rough_path = "" # Do not use dark glossy roughness map on sand
-		1: # CITY_HIGHRISE — weathered concrete, not glossy road
+		1: # CITY_HIGHRISE — weathered concrete & asphalt
 			mat.roughness = 0.88
 			mat.metallic = 0.02
 			mat.metallic_specular = 0.35
-			norm_path = "res://resources/textures/road/normal.jpg"
-			rough_path = "res://resources/textures/road/roughness.jpg"
-		2: # CROSSROADS — same weathered asphalt
+			detail_albedo_path = "res://resources/textures/road/pbr_asphalt_albedo.jpg"
+			detail_norm_path = "res://resources/textures/road/pbr_asphalt_normal.jpg"
+			rough_path = "res://resources/textures/road/pbr_asphalt_roughness.jpg"
+			ao_path = "res://resources/textures/road/pbr_asphalt_ao.jpg"
+		2: # CROSSROADS — weathered asphalt roadway & sidewalk detail
 			mat.roughness = 0.90
 			mat.metallic = 0.02
 			mat.metallic_specular = 0.35
-			norm_path = "res://resources/textures/road/normal.jpg"
-			rough_path = "res://resources/textures/road/roughness.jpg"
-		3: # RIVER_BRIDGE — damp concrete but still matte
+			detail_albedo_path = "res://resources/textures/road/pbr_asphalt_albedo.jpg"
+			detail_norm_path = "res://resources/textures/road/pbr_asphalt_normal.jpg"
+			rough_path = "res://resources/textures/road/pbr_asphalt_roughness.jpg"
+			ao_path = "res://resources/textures/road/pbr_asphalt_ao.jpg"
+		3: # RIVER_BRIDGE — damp riverbanks, wet mud & stone
 			mat.roughness = 0.86
 			mat.metallic = 0.02
 			mat.metallic_specular = 0.35
-			norm_path = "res://resources/textures/bridge/normal.jpg"
-			rough_path = "res://resources/textures/bridge/roughness.jpg"
-		4, 5: # FOREST, FOREST_ROAD — mossy humus, very matte
+			detail_albedo_path = "res://resources/textures/bridge/pbr_mud_albedo.jpg"
+			detail_norm_path = "res://resources/textures/bridge/pbr_mud_normal.jpg"
+			rough_path = "res://resources/textures/bridge/pbr_mud_roughness.jpg"
+			ao_path = "res://resources/textures/bridge/pbr_mud_ao.jpg"
+		4, 5: # FOREST, FOREST_ROAD — rich mossy humus, grass blades & forest floor
 			mat.roughness = 0.94
 			mat.metallic = 0.0
 			mat.metallic_specular = 0.35
-			norm_path = "res://resources/textures/forest/normal.jpg"
-			rough_path = "res://resources/textures/forest/roughness.jpg"
+			detail_albedo_path = "res://resources/textures/forest/pbr_grass_albedo.jpg"
+			detail_norm_path = "res://resources/textures/forest/pbr_grass_normal.jpg"
+			rough_path = "res://resources/textures/forest/pbr_grass_roughness.jpg"
+			ao_path = "res://resources/textures/forest/pbr_grass_ao.jpg"
 		_:
 			mat.roughness = 0.90
 			mat.metallic = 0.02
 			mat.metallic_specular = 0.35
 			norm_path = "res://resources/textures/plain/normal.jpg"
 			rough_path = "res://resources/textures/plain/roughness.jpg"
+
+	if detail_albedo_path != "" and ResourceLoader.exists(detail_albedo_path):
+		var dtex: Texture2D = load(detail_albedo_path)
+		if dtex:
+			mat.detail_enabled = true
+			mat.detail_blend_mode = BaseMaterial3D.BLEND_MODE_MUL
+			mat.detail_uv_layer = BaseMaterial3D.DETAIL_UV_2
+			mat.detail_albedo = dtex
+
+	if detail_norm_path != "" and ResourceLoader.exists(detail_norm_path):
+		var dntex: Texture2D = load(detail_norm_path)
+		if dntex:
+			if not mat.detail_enabled:
+				mat.detail_enabled = true
+				mat.detail_blend_mode = BaseMaterial3D.BLEND_MODE_MUL
+				mat.detail_uv_layer = BaseMaterial3D.DETAIL_UV_2
+			mat.detail_normal = dntex
 
 	if norm_path != "" and ResourceLoader.exists(norm_path):
 		var ntex: Texture2D = load(norm_path)
@@ -88,6 +116,14 @@ static func get_ground_material(theme: int, base_texture: Texture2D = null) -> S
 		var rtex: Texture2D = load(rough_path)
 		if rtex:
 			mat.roughness_texture = rtex
+
+	if ao_path != "" and ResourceLoader.exists(ao_path):
+		var aotex: Texture2D = load(ao_path)
+		if aotex:
+			mat.ao_enabled = true
+			mat.ao_texture = aotex
+			mat.ao_on_uv2 = true
+			mat.ao_light_affect = 0.45
 
 	_mat_cache[key] = mat
 	return mat

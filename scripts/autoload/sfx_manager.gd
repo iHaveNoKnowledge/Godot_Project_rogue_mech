@@ -577,7 +577,7 @@ func _ensure_roller_player() -> AudioStreamPlayer3D:
 		_roller_player = AudioStreamPlayer3D.new()
 		_roller_player.name = "RollerLoop"
 		_roller_player.bus = "Movement"
-		_roller_player.volume_db = -8.0
+		_roller_player.volume_db = -10.0
 		add_child(_roller_player)
 	return _roller_player
 
@@ -630,18 +630,41 @@ func _gen_sine_sweep(freq_start: float, freq_end: float, duration: float, volume
 	return stream
 
 
+## High-frequency brushless motor whine loop (seamless).
+## Fundamental 880 Hz + harmonics to 4.4 kHz, faint 7 kHz PWM carrier,
+## 28/14 Hz wheel-rotation AM, quiet 110 Hz body sub, rolling-noise bed.
+## All partials complete integer cycles in 1.0 s so LOOP_FORWARD wraps cleanly.
 func _gen_roller_loop() -> AudioStreamWAV:
 	var sample_rate := 22050
-	var num_samples := int(0.5 * sample_rate)
+	var num_samples := int(1.0 * sample_rate)
+	var samples := PackedFloat32Array()
+	samples.resize(num_samples)
+	var lp_acc := 0.0
+	for i in range(num_samples):
+		var t := float(i) / sample_rate
+		var ph := TAU * 880.0 * t + 0.15 * sin(TAU * 7.0 * t)
+		var sig := 0.35 * sin(ph) \
+			+ 0.22 * sin(2.0 * ph) \
+			+ 0.12 * sin(3.0 * ph) \
+			+ 0.08 * sin(4.0 * ph) \
+			+ 0.05 * sin(5.0 * ph) \
+			+ 0.035 * sin(TAU * 7040.0 * t + 0.3 * sin(TAU * 7.0 * t)) \
+			+ 0.02 * sin(TAU * 8800.0 * t)
+		sig *= 1.0 + 0.12 * sin(TAU * 28.0 * t) + 0.06 * sin(TAU * 14.0 * t + 1.3)
+		sig += 0.06 * sin(TAU * 110.0 * t) + 0.03 * sin(TAU * 220.0 * t)
+		var noise := randf() * 2.0 - 1.0
+		lp_acc += 0.08 * (noise - lp_acc)
+		sig += lp_acc * 0.19 + (noise - lp_acc) * 0.03
+		samples[i] = sig * 0.55
+	# Crossfade the tail into the head so the random noise bed wraps seamlessly.
+	var xf := int(sample_rate * 0.02)
+	for j in range(xf):
+		var w := float(j) / float(xf)
+		samples[num_samples - xf + j] = samples[num_samples - xf + j] * (1.0 - w) + samples[j] * w
 	var data := PackedByteArray()
 	data.resize(num_samples * 2)
 	for i in range(num_samples):
-		var t := float(i) / sample_rate
-		var win := sin(PI * float(i) / num_samples)
-		var hum := sin(TAU * 150.0 * t) * 0.5 + sin(TAU * 300.0 * t) * 0.25
-		var hiss := (randf() * 2.0 - 1.0) * win * 0.35
-		var sample := (hum * 0.5 + hiss) * 0.5 * 32767
-		var val := int(clamp(sample, -32767, 32767))
+		var val := int(clamp(samples[i] * 32767.0, -32767.0, 32767.0))
 		data[i * 2] = val & 0xFF
 		data[i * 2 + 1] = (val >> 8) & 0xFF
 	var stream := AudioStreamWAV.new()

@@ -850,15 +850,23 @@ func _fix_material_if_needed(mat: Material) -> void:
 		# Also ensure specular isn't too high (paint F0)
 		if sm.metallic < 0.2 and needs_fix:
 			sm.metallic_specular = 0.35
-		# ComfyUI tank-armor plate overlay for imported .glb mechs (bright plates,
-		# dark seams + bolts). Only when the model brings no texture of its own,
-		# triplanar-mapped so it works regardless of the model's UVs. Skips
-		# emissive mats (sensors/glow) so they keep glowing.
+		# Poly Haven realistic PBR metal textures for imported .glb mechs (PBR maps).
+		# Only when the model brings no texture of its own, triplanar-mapped so it
+		# works regardless of the model's UVs. Skips emissive mats (sensors/glow).
 		if sm.albedo_texture == null and not sm.emission_enabled:
-			var plate_tex := "res://resources/textures/mech/comfy_armor_plates.png"
-			if ResourceLoader.exists(plate_tex):
-				sm.albedo_texture = load(plate_tex)
+			var pbr_diff := "res://resources/textures/mech/pbr/metal_plate_diff.png"
+			var pbr_nor := "res://resources/textures/mech/pbr/metal_plate_nor_gl.png"
+			var pbr_rough := "res://resources/textures/mech/pbr/metal_plate_rough.png"
+			var pbr_ao := "res://resources/textures/mech/pbr/metal_plate_ao.png"
+			if ResourceLoader.exists(pbr_diff):
+				sm.albedo_texture = load(pbr_diff)
+				sm.normal_enabled = true
+				sm.normal_texture = load(pbr_nor)
+				sm.roughness_texture = load(pbr_rough)
+				sm.ao_enabled = true
+				sm.ao_texture = load(pbr_ao)
 				sm.uv1_triplanar = true
+				sm.uv1_scale = Vector3(1.2, 1.2, 1.2)
 
 
 func _spawn_break_vfx(slot_name: String) -> void:
@@ -929,10 +937,10 @@ func _get_dark_frame_material() -> ShaderMaterial:
 		mat.set_shader_parameter("primary_color", Color(0.14, 0.16, 0.20))
 		mat.set_shader_parameter("metallic", 0.35)
 		mat.set_shader_parameter("roughness", 0.62)
-		mat.set_shader_parameter("panel_grid_scale", 10.0)
-		mat.set_shader_parameter("panel_line_depth", 0.40)
+		mat.set_shader_parameter("panel_grid_scale", 0.0)
 		mat.set_shader_parameter("edge_wear", 0.12)
 		mat.set_shader_parameter("rim_strength", 0.05)
+		_apply_polyhaven_pbr(mat, 2.0, 0.6)
 		_shared_frame_mat = mat
 	return _shared_frame_mat
 
@@ -976,10 +984,10 @@ func _get_shared_armor_mat(col: Color) -> ShaderMaterial:
 	armor_mat.set_shader_parameter("trim_color", Color(0.12, 0.14, 0.18))
 	armor_mat.set_shader_parameter("metallic", 0.08)
 	armor_mat.set_shader_parameter("roughness", 0.68)
-	armor_mat.set_shader_parameter("panel_grid_scale", 5.5)
-	armor_mat.set_shader_parameter("panel_line_depth", 0.50)
-	armor_mat.set_shader_parameter("edge_wear", 0.08)
+	armor_mat.set_shader_parameter("panel_grid_scale", 0.0)
+	armor_mat.set_shader_parameter("edge_wear", 0.10)
 	armor_mat.set_shader_parameter("rim_strength", 0.06)
+	_apply_polyhaven_pbr(armor_mat, 1.2, 0.8)
 	_apply_comfy_armor_detail(armor_mat)
 	_shared_armor_mats[key] = armor_mat
 	return armor_mat
@@ -993,13 +1001,31 @@ func _get_shared_dark_trim_mat() -> ShaderMaterial:
 		dark_trim_mat.set_shader_parameter("trim_color", Color(0.08, 0.09, 0.11))
 		dark_trim_mat.set_shader_parameter("metallic", 0.12)
 		dark_trim_mat.set_shader_parameter("roughness", 0.72)
-		dark_trim_mat.set_shader_parameter("panel_grid_scale", 8.0)
-		dark_trim_mat.set_shader_parameter("panel_line_depth", 0.35)
-		dark_trim_mat.set_shader_parameter("edge_wear", 0.10)
+		dark_trim_mat.set_shader_parameter("panel_grid_scale", 0.0)
+		dark_trim_mat.set_shader_parameter("edge_wear", 0.12)
 		dark_trim_mat.set_shader_parameter("rim_strength", 0.05)
+		_apply_polyhaven_pbr(dark_trim_mat, 1.5, 0.9)
 		_apply_comfy_armor_detail(dark_trim_mat)
 		_shared_dark_trim_mat = dark_trim_mat
 	return _shared_dark_trim_mat
+
+# Poly Haven realistic PBR metal textures
+const PBR_METAL_DIFFUSE := "res://resources/textures/mech/pbr/metal_plate_diff.png"
+const PBR_METAL_NORMAL := "res://resources/textures/mech/pbr/metal_plate_nor_gl.png"
+const PBR_METAL_ROUGH := "res://resources/textures/mech/pbr/metal_plate_rough.png"
+const PBR_METAL_AO := "res://resources/textures/mech/pbr/metal_plate_ao.png"
+
+func _apply_polyhaven_pbr(mat: ShaderMaterial, uv_scale: float = 1.2, normal_str: float = 0.8) -> void:
+	if not ResourceLoader.exists(PBR_METAL_DIFFUSE):
+		return
+	mat.set_shader_parameter("use_pbr_maps", true)
+	mat.set_shader_parameter("use_triplanar", true)
+	mat.set_shader_parameter("pbr_uv_scale", uv_scale)
+	mat.set_shader_parameter("pbr_albedo", load(PBR_METAL_DIFFUSE))
+	mat.set_shader_parameter("pbr_normal", load(PBR_METAL_NORMAL))
+	mat.set_shader_parameter("pbr_roughness", load(PBR_METAL_ROUGH))
+	mat.set_shader_parameter("pbr_ao", load(PBR_METAL_AO))
+	mat.set_shader_parameter("normal_strength", normal_str)
 
 
 # ComfyUI armor detail overlay (Z-Image-Turbo, neutral mid-gray multiply).

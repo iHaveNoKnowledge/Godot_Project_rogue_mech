@@ -573,7 +573,7 @@ func _add_heightfield_for_floor(mesh_inst: MeshInstance3D) -> void:
 					var n := 0
 					for dz in [-1, 0, 1]:
 						for dx in [-1, 0, 1]:
-							var nidx := (z + dz) * W + (x + dx)
+							var nidx: int = (z + dz) * W + (x + dx)
 							if counts[nidx] > 0:
 								acc += data[nidx]
 								n += 1

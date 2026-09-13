@@ -484,6 +484,42 @@ for side, sx in [("L", -0.34), ("R", 0.34)]:
     rod.data.materials.append(mat_chrome)
 
 # ==============================================================================
+# HARD SURFACE BEVEL & WEIGHTED NORMAL MODIFIERS (PREMIUM MECHA ARMOR EDGES)
+# ==============================================================================
+def apply_hard_surface_bevel(obj, width=0.008, segments=2):
+    if not obj or obj.type != 'MESH':
+        return
+    bev = obj.modifiers.new(name="HardEdgeBevel", type='BEVEL')
+    bev.width = width
+    bev.segments = segments
+    bev.limit_method = 'ANGLE'
+    bev.angle_limit = math.radians(40)
+    bev.harden_normals = True
+    
+    wn = obj.modifiers.new(name="WeightedNormal", type='WEIGHTED_NORMAL')
+    wn.keep_sharp = True
+
+    bpy.context.view_layer.objects.active = obj
+    try:
+        bpy.ops.object.modifier_apply(modifier="HardEdgeBevel")
+        bpy.ops.object.modifier_apply(modifier="WeightedNormal")
+    except Exception as e:
+        print(f"Notice applying bevel on {obj.name}: {e}")
+
+# Target prominent armor cowls and structural frame housings
+bevel_targets = [
+    "CowlUpper_Chest", "CowlLower_Abdomen", "HatchLip_Forehead", "ChestVent_Grille",
+    "CockpitWall_L", "CockpitWall_R", "CockpitFloor", "FootwellFloor",
+    "RearBulkhead", "HeadrestCowl", "RearSpineBackbone", "HorizontalHitchBar",
+    "RoofArmorRear", "RoofLipForward", "WaistYawBase", "WaistArchBracket"
+]
+
+for target_name in bevel_targets:
+    target_obj = bpy.data.objects.get(target_name)
+    if target_obj:
+        apply_hard_surface_bevel(target_obj, width=0.007, segments=2)
+
+# ==============================================================================
 # EXPORT GLB
 # ==============================================================================
 out_path = r"c:\Users\hackd\OneDrive\เอกสาร\GitHub\Godot_Project_rogue_mech\assets\models\mech_cockpit_tub.glb"
@@ -499,4 +535,5 @@ bpy.ops.export_scene.gltf(
     export_apply=False
 )
 
-print(f"SUCCESS: Exported Expanded Cockpit (155-200cm) with Articulated Hydraulic Hatch Pistons to {out_path}")
+print(f"SUCCESS: Exported Expanded Cockpit (155-200cm) with Hard-Surface Bevels to {out_path}")
+

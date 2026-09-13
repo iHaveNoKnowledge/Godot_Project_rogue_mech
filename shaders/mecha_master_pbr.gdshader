@@ -21,13 +21,22 @@ uniform float rim_strength : hint_range(0.0, 1.0) = 0.08;
 uniform float ao_strength : hint_range(0.0, 1.0) = 0.60;
 
 group_uniforms PanelingAndDetails;
-uniform float panel_grid_scale : hint_range(0.0, 30.0) = 5.0;
+uniform float panel_grid_scale : hint_range(0.0, 30.0) = 0.0; // Disabled by default to avoid bathroom-tile grid
 uniform float panel_line_depth : hint_range(0.0, 1.0) = 0.55;
 uniform float edge_wear : hint_range(0.0, 1.0) = 0.12;
 
+group_uniforms PBRTextures;
+uniform bool use_pbr_maps = false;
+uniform bool use_triplanar = true;
+uniform sampler2D pbr_albedo : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D pbr_normal : hint_normal, filter_linear_mipmap, repeat_enable;
+uniform sampler2D pbr_roughness : hint_roughness_r, filter_linear_mipmap, repeat_enable;
+uniform sampler2D pbr_ao : hint_default_white, filter_linear_mipmap, repeat_enable;
+uniform float pbr_uv_scale : hint_range(0.1, 20.0) = 1.5;
+uniform float normal_strength : hint_range(0.0, 3.0) = 0.8;
+
 group_uniforms SurfaceDetail;
 // ComfyUI-generated armor detail texture (neutral mid-gray multiply overlay).
-// Off by default so existing look is unchanged until a texture is bound.
 uniform bool has_detail_tex = false;
 uniform sampler2D detail_tex : source_color, filter_linear_mipmap, repeat_enable;
 uniform float detail_uv_scale : hint_range(0.0, 20.0) = 2.0;
@@ -59,9 +68,54 @@ void fragment() {
 	vec3 base_color = mix(primary_color.rgb, trim_color.rgb, trim_mask_amount);
 	float cur_metallic = metallic;
 	float cur_roughness = roughness;
+	float cur_ao = 1.0;
 
-	// 1b. ComfyUI surface detail texture (triplanar, neutral mid-gray multiply:
-	// mid-gray 0.5 reads as neutral 1.0, darker grime darkens, worn streaks lighten)
+	// 1b. Poly Haven PBR Texture Maps (Real metal surface, micro-scratches & roughness variation)
+	if (use_pbr_maps) {
+		vec3 nw = abs(v_normal);
+		float dw = max(nw.x + nw.y + nw.z, 0.001);
+		nw /= dw;
+
+		vec3 pbr_alb_val;
+		vec3 pbr_norm_val;
+		float pbr_rough_val;
+		float pbr_ao_val;
+
+		if (use_triplanar) {
+			vec3 dp = v_pos * pbr_uv_scale;
+			pbr_alb_val = (texture(pbr_albedo, dp.xy).rgb * nw.z +
+			               texture(pbr_albedo, dp.xz).rgb * nw.y +
+			               texture(pbr_albedo, dp.yz).rgb * nw.x);
+			pbr_norm_val = (texture(pbr_normal, dp.xy).rgb * nw.z +
+			                texture(pbr_normal, dp.xz).rgb * nw.y +
+			                texture(pbr_normal, dp.yz).rgb * nw.x);
+			pbr_rough_val = (texture(pbr_roughness, dp.xy).r * nw.z +
+			                 texture(pbr_roughness, dp.xz).r * nw.y +
+			                 texture(pbr_roughness, dp.yz).r * nw.x);
+			pbr_ao_val = (texture(pbr_ao, dp.xy).r * nw.z +
+			              texture(pbr_ao, dp.xz).r * nw.y +
+			              texture(pbr_ao, dp.yz).r * nw.x);
+		} else {
+			vec2 uv_scaled = UV * pbr_uv_scale;
+			pbr_alb_val = texture(pbr_albedo, uv_scaled).rgb;
+			pbr_norm_val = texture(pbr_normal, uv_scaled).rgb;
+			pbr_rough_val = texture(pbr_roughness, uv_scaled).r;
+			pbr_ao_val = texture(pbr_ao, uv_scaled).r;
+		}
+
+		// Tint base paint color with metal micro-grain (luminance normalized around 0.5)
+		float alb_lum = dot(pbr_alb_val, vec3(0.299, 0.587, 0.114)) * 1.8;
+		base_color *= mix(vec3(1.0), vec3(alb_lum), 0.35);
+
+		// Blend roughness and ambient occlusion
+		cur_roughness = clamp(mix(cur_roughness, cur_roughness * (0.6 + 0.8 * pbr_rough_val), 0.7), 0.0, 1.0);
+		cur_ao *= pbr_ao_val;
+
+		NORMAL_MAP = pbr_norm_val;
+		NORMAL_MAP_DEPTH = normal_strength;
+	}
+
+	// 1c. ComfyUI surface detail texture overlay (optional)
 	if (has_detail_tex) {
 		vec3 dp = v_pos * detail_uv_scale;
 		vec3 nw = abs(v_normal);
@@ -75,7 +129,7 @@ void fragment() {
 		cur_roughness = clamp(cur_roughness + (1.0 - dg) * 0.15 * detail_strength, 0.0, 1.0);
 	}
 
-	// 2. Triplanar Procedural Panel Seams (if enabled)
+	// 2. Procedural Panel Seams (only if intentionally enabled > 0)
 	float panel_seam = 0.0;
 	if (panel_grid_scale > 0.01 && panel_line_depth > 0.001) {
 		vec3 p = v_pos * panel_grid_scale;
@@ -86,31 +140,31 @@ void fragment() {
 		vec3 n_weight = abs(v_normal);
 		n_weight /= max(n_weight.x + n_weight.y + n_weight.z, 0.001);
 		panel_seam = (lines.x * (n_weight.y + n_weight.z) +
-		              lines.y * (n_weight.x + n_weight.z) +
+		              lines.y * (n_weight.x + n_weight.y) +
 		              lines.z * (n_weight.x + n_weight.y)) * 0.5;
 		panel_seam = clamp(panel_seam * panel_line_depth, 0.0, 1.0);
 		
-		// Darken paint inside panel seams - seams collect dust, rougher and darker
 		base_color = mix(base_color, base_color * 0.35, panel_seam);
 		cur_roughness = mix(cur_roughness, 0.82, panel_seam * 0.6);
 	}
 
-	// 3. Edge Wear & Scratches revealing raw underlying metal
-	// Real bare steel is NOT chrome mirror - brushed steel roughness ~0.35-0.45
+	// 3. Geometry-Aware Edge Wear: paint chips along actual 3D chamfers and silhouette edges
 	float wear_mask = 0.0;
 	if (edge_wear > 0.001) {
+		float geom_edge = clamp(length(fwidth(v_normal)) * 2.8, 0.0, 1.0);
 		float n1 = hash31(floor(v_pos * 24.0));
 		float n2 = hash31(floor(v_pos * 48.0));
 		float micro_noise = (n1 * 0.6 + n2 * 0.4);
-		wear_mask = smoothstep(1.0 - edge_wear * 1.2, 1.0, micro_noise);
+		float combined_edge = mix(micro_noise, geom_edge * 0.75 + micro_noise * 0.25, 0.70);
+		wear_mask = smoothstep(1.0 - edge_wear * 1.5, 1.0, combined_edge);
 		
-		// Blend raw metal on worn edges - brushed steel, not mirror chrome
+		// Blend raw metal on worn edges - realistic brushed steel
 		base_color = mix(base_color, undercoat_metal_color.rgb, wear_mask);
 		cur_metallic = mix(cur_metallic, 0.75, wear_mask);
 		cur_roughness = mix(cur_roughness, 0.38, wear_mask);
 	}
 
-	// 4. Battle Scorch & Thermal Charring - carbon soot is dielectric and very matte
+	// 4. Battle Scorch & Thermal Charring
 	if (scorch_amount > 0.001) {
 		float scorch_noise = hash31(floor(v_pos * 12.0));
 		float char_factor = clamp(scorch_amount * (0.7 + 0.3 * scorch_noise), 0.0, 1.0);
@@ -126,14 +180,14 @@ void fragment() {
 	}
 	vec3 emissive_out = emission_color.rgb * (emission_energy * pulse);
 
-	// Output PBR channels - SPECULAR lowered for realistic paint (dielectric F0 ~0.04)
+	// Output PBR channels
 	ALBEDO = base_color;
 	METALLIC = cur_metallic;
 	ROUGHNESS = clamp(cur_roughness, 0.0, 1.0);
 	SPECULAR = 0.35;
 	RIM = rim_strength * 0.4;
 	RIM_TINT = 0.2;
-	AO = 1.0 - (panel_seam * ao_strength);
+	AO = cur_ao * (1.0 - (panel_seam * ao_strength));
 	AO_LIGHT_AFFECT = 0.65;
 	EMISSION = emissive_out;
 }

@@ -1029,46 +1029,53 @@ func _create_cockpit_pilot_mannequin() -> Node3D:
 	var pilot_mat = _get_shared_pilot_mat()
 	var visor_mat = _get_shared_visor_mat()
 
+	# Reclined Torso (38° lean back toward +Z, low-profile semi-supine posture)
 	var pilot_torso = MeshInstance3D.new()
 	var pt_box = BoxMesh.new()
-	pt_box.size = Vector3(0.18, 0.22, 0.14)
+	pt_box.size = Vector3(0.18, 0.22, 0.13)
 	pilot_torso.mesh = pt_box
-	pilot_torso.position = Vector3(0, 0.12, 0.05)
+	pilot_torso.rotation_degrees.x = 38.0
+	pilot_torso.position = Vector3(0, 0.04, 0.08)
 	pilot_torso.material_override = pilot_mat
 	pilot_mannequin.add_child(pilot_torso)
 
+	# Head resting low on the reclined headrest (Z=0.18, Y=0.14) -> top of head < 0.21, safe inside canopy!
 	var pilot_head = MeshInstance3D.new()
 	var ph_sph = SphereMesh.new()
-	ph_sph.radius = 0.075
-	ph_sph.height = 0.15
+	ph_sph.radius = 0.065
+	ph_sph.height = 0.13
 	pilot_head.mesh = ph_sph
-	pilot_head.position = Vector3(0, 0.28, 0.05)
+	pilot_head.rotation_degrees.x = 38.0
+	pilot_head.position = Vector3(0, 0.14, 0.18)
 	pilot_head.material_override = pilot_mat
 	pilot_mannequin.add_child(pilot_head)
 
 	var pilot_visor = MeshInstance3D.new()
 	var pv_box = BoxMesh.new()
-	pv_box.size = Vector3(0.10, 0.035, 0.04)
+	pv_box.size = Vector3(0.09, 0.03, 0.04)
 	pilot_visor.mesh = pv_box
-	pilot_visor.position = Vector3(0, 0.28, -0.015)
+	pilot_visor.rotation_degrees.x = 38.0
+	pilot_visor.position = Vector3(0, 0.15, 0.14)
 	pilot_visor.material_override = visor_mat
 	pilot_mannequin.add_child(pilot_visor)
 
+	# Limbs: arms forward on joysticks, legs forward towards pedals
 	for arm_sign in [-1.0, 1.0]:
 		var pilot_arm = MeshInstance3D.new()
 		var pa_box = BoxMesh.new()
-		pa_box.size = Vector3(0.05, 0.06, 0.14)
+		pa_box.size = Vector3(0.05, 0.05, 0.14)
 		pilot_arm.mesh = pa_box
-		pilot_arm.position = Vector3(arm_sign * 0.13, 0.06, -0.02)
-		pilot_arm.rotation_degrees.x = 25.0
+		pilot_arm.position = Vector3(arm_sign * 0.13, 0.02, -0.02)
+		pilot_arm.rotation_degrees.x = 20.0
 		pilot_arm.material_override = pilot_mat
 		pilot_mannequin.add_child(pilot_arm)
 
 		var pilot_leg = MeshInstance3D.new()
 		var pl_box = BoxMesh.new()
-		pl_box.size = Vector3(0.06, 0.06, 0.16)
+		pl_box.size = Vector3(0.06, 0.05, 0.18)
 		pilot_leg.mesh = pl_box
-		pilot_leg.position = Vector3(arm_sign * 0.08, -0.04, -0.10)
+		pilot_leg.position = Vector3(arm_sign * 0.07, -0.06, -0.10)
+		pilot_leg.rotation_degrees.x = -18.0
 		pilot_leg.material_override = pilot_mat
 		pilot_mannequin.add_child(pilot_leg)
 
@@ -1122,12 +1129,24 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 			upper_container.add_child(spine)
 
 			# --- 2. COCKPIT TUB & SLIDING CARRIAGE (Blender 3D Asset or Procedural Fallback) ---
+			var has_waist_core := false
 			var blender_cockpit_scene: PackedScene = load(COCKPIT_BLENDER_GLB) as PackedScene if ResourceLoader.exists(COCKPIT_BLENDER_GLB) else null
 			if blender_cockpit_scene != null:
 				var b_inst = blender_cockpit_scene.instantiate()
-				var b_carriage = b_inst.get_node_or_null("SlidingCarriage")
+
+				# Extract WaistCore (Mailes Kenbu style hemispherical ball joint + hydraulic dampers)
+				var b_waist = b_inst.find_child("WaistCore", true, false)
+				if b_waist:
+					b_waist.get_parent().remove_child(b_waist)
+					b_waist.owner = null
+					b_waist.name = "WaistCore"
+					upper_container.add_child(b_waist)
+					has_waist_core = true
+
+				# Extract SlidingCarriage (Kenbu front armor cowl & hatch)
+				var b_carriage = b_inst.find_child("SlidingCarriage", true, false)
 				if b_carriage:
-					b_inst.remove_child(b_carriage)
+					b_carriage.get_parent().remove_child(b_carriage)
 					b_carriage.owner = null
 					b_carriage.name = "SlidingCarriage"
 					if is_cockpit_open:
@@ -1138,18 +1157,28 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 						b_carriage.rotation_degrees = Vector3.ZERO
 					upper_container.add_child(b_carriage)
 
-				b_inst.name = "CockpitTub"
-				upper_container.add_child(b_inst)
+				# Extract CockpitTub (Stationary tub structure)
+				var b_tub = b_inst.find_child("CockpitTub", true, false)
+				if b_tub:
+					b_tub.get_parent().remove_child(b_tub)
+					b_tub.owner = null
+					b_tub.name = "CockpitTub"
+					upper_container.add_child(b_tub)
+					b_inst.queue_free()
+				else:
+					b_inst.name = "CockpitTub"
+					upper_container.add_child(b_inst)
+					b_tub = b_inst
 
 				# Set holographic display shader material on HUD if present
-				var holo = b_inst.get_node_or_null("HoloHUD_Display")
+				var holo = b_tub.find_child("HoloHUD_Display", true, false)
 				if holo and holo is MeshInstance3D:
 					holo.material_override = _get_shared_holo_mat()
 
 				# Mount seated pilot mannequin into cockpit tub
 				var pilot_mannequin = _create_cockpit_pilot_mannequin()
 				pilot_mannequin.visible = is_cockpit_pilot_seated
-				b_inst.add_child(pilot_mannequin)
+				b_tub.add_child(pilot_mannequin)
 			else:
 				# --- Procedural Fallback ---
 				var cockpit_tub = Node3D.new()
@@ -1360,26 +1389,27 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 				inner_hub.material_override = frame_mat
 				upper_container.add_child(inner_hub)
 
-			var waist = MeshInstance3D.new()
-			var w_cyl = CylinderMesh.new()
-			w_cyl.top_radius = 0.22
-			w_cyl.bottom_radius = 0.22
-			w_cyl.height = 0.12
-			waist.mesh = w_cyl
-			waist.position = Vector3(0, -0.38, 0)
-			waist.material_override = frame_mat
-			upper_container.add_child(waist)
+			if not has_waist_core:
+				var waist = MeshInstance3D.new()
+				var w_cyl = CylinderMesh.new()
+				w_cyl.top_radius = 0.22
+				w_cyl.bottom_radius = 0.22
+				w_cyl.height = 0.12
+				waist.mesh = w_cyl
+				waist.position = Vector3(0, -0.38, 0)
+				waist.material_override = frame_mat
+				upper_container.add_child(waist)
 
-			for piston_x in [-0.14, 0.14]:
-				var piston = MeshInstance3D.new()
-				var p_cyl = CylinderMesh.new()
-				p_cyl.top_radius = 0.03
-				p_cyl.bottom_radius = 0.03
-				p_cyl.height = 0.32
-				piston.mesh = p_cyl
-				piston.position = Vector3(piston_x, -0.24, 0)
-				piston.material_override = chrome_mat
-				upper_container.add_child(piston)
+				for piston_x in [-0.14, 0.14]:
+					var piston = MeshInstance3D.new()
+					var p_cyl = CylinderMesh.new()
+					p_cyl.top_radius = 0.03
+					p_cyl.bottom_radius = 0.03
+					p_cyl.height = 0.32
+					piston.mesh = p_cyl
+					piston.position = Vector3(piston_x, -0.24, 0)
+					piston.material_override = chrome_mat
+					upper_container.add_child(piston)
 
 			# --- PELVIS / HIP GIRDLE CHASSIS (connects waist directly to leg hip pivots X = ±0.529, Y = -0.518) ---
 			# 1. Central Pelvis / Sacrum Core
@@ -1657,12 +1687,10 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 				if frame_container:
 					var fc = frame_container.get_node_or_null("SlidingCarriage")
 					if fc:
-						var cp = fc.get_node_or_null("Chest_Armor_Plate")
-						if cp and cp is MeshInstance3D:
-							cp.material_override = armor_mat
-						var ap = fc.get_node_or_null("Abdominal_Armor_Plate")
-						if ap and ap is MeshInstance3D:
-							ap.material_override = armor_mat
+						for plate_name in ["FrontChestArmor", "AbdominalFlap", "Chest_Armor_Plate", "Abdominal_Armor_Plate"]:
+							var p = fc.get_node_or_null(plate_name)
+							if p and p is MeshInstance3D:
+								p.material_override = armor_mat
 			else:
 				var chest = MeshInstance3D.new()
 				var c_prism = PrismMesh.new()

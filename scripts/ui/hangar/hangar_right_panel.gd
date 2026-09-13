@@ -216,6 +216,26 @@ func build(root: Control) -> void:
 	)
 	actions_grid.add_child(pilot_btn)
 
+	var stance_btn = Button.new()
+	var cur_mode: String = GlobalData.selected_stance_mode if "selected_stance_mode" in GlobalData else "combat_crouch"
+	var label_map := {"combat_crouch": "Crouch", "upright_formal": "Upright", "wide_squat": "Wide Squat"}
+	stance_btn.text = "🥋 Stance: %s" % label_map.get(cur_mode, "Crouch")
+	stance_btn.custom_minimum_size = Vector2(150, 32)
+	stance_btn.add_theme_color_override("font_color", Color(0.95, 0.65, 1.0))
+	stance_btn.pressed.connect(func():
+		var anim = controller.garage_panel.get_mecha_animation() if controller.garage_panel and controller.garage_panel.has_method("get_mecha_animation") else null
+		var modes := ["combat_crouch", "upright_formal", "wide_squat"]
+		var active_mode: String = anim.stance_mode if (anim and "stance_mode" in anim) else GlobalData.selected_stance_mode
+		var current_idx := modes.find(active_mode)
+		var next_mode: String = modes[(current_idx + 1) % modes.size()]
+		GlobalData.selected_stance_mode = next_mode
+		if anim and anim.has_method("set_stance_mode"):
+			anim.set_stance_mode(next_mode)
+		stance_btn.text = "🥋 Stance: %s" % label_map.get(next_mode, next_mode)
+		controller.show_toast("🥋 Stance Mode: %s" % label_map.get(next_mode, next_mode), false)
+	)
+	actions_grid.add_child(stance_btn)
+
 	controller.full_repair_button = Button.new()
 	controller.full_repair_button.text = "🛠️ Full Fleet Repair"
 	controller.full_repair_button.custom_minimum_size = Vector2(0, 32)

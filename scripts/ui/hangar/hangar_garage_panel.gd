@@ -705,6 +705,12 @@ func get_part_mesh_manager() -> Node:
 	return mecha.get_node_or_null("PartMeshManager") if mecha else null
 
 
+# Returns the MechaAnimation node attached to the mech base, or null.
+func get_mecha_animation() -> Node:
+	var mecha = get_mecha_base()
+	return mecha.get_node_or_null("MechaAnimation") if mecha else null
+
+
 # Shows a selected weapon on the matching hand/shoulder (or on the back for carry) as a
 # live preview (not yet equipped).
 func preview_weapon_on_hand(slot: String, info: Dictionary) -> void:

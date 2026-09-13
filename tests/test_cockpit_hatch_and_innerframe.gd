@@ -27,12 +27,17 @@ func _ready() -> void:
 	print("  [PASS] CockpitTub container verified")
 
 	# Test 2: Verify Cockpit Tub Interior Details (Seat, Controls, Holo HUD, Rails)
-	var holo = tub.get_node_or_null("HoloHUD_Display")
+	var holo = tub.find_child("HoloHUD_Display", true, false)
 	assert(holo != null, "HoloHUD_Display must exist inside CockpitTub")
 	assert(holo is MeshInstance3D, "HoloHUD must be a MeshInstance3D")
 	var pilot = tub.get_node_or_null("CockpitPilot")
 	assert(pilot != null, "CockpitPilot mannequin must exist inside CockpitTub")
 	print("  [PASS] Cockpit Interior elements (Holo HUD, pilot mannequin, seat) verified")
+
+	# Test 2.5: Verify WaistCore articulated ball joint sub-node exists under Body FrameMesh
+	var waist_core = frame_mesh.get_node_or_null("WaistCore")
+	assert(waist_core != null, "WaistCore sub-node must exist inside Body FrameMesh")
+	print("  [PASS] Articulated WaistCore hemispherical joint node verified")
 
 	# Test 3: Verify SlidingCarriage exists under FrameMesh
 	var frame_carriage = frame_mesh.get_node_or_null("SlidingCarriage")
@@ -105,6 +110,17 @@ func _ready() -> void:
 	GlobalData.fuel.deploy_mecha()
 	assert(GlobalData.fuel.mecha_is_parked == false, "Mecha parking cleared upon remount")
 	print("  [PASS] FuelManager mecha parking tracking verified")
+
+	# Test 10: Test Stance Mode cycling
+	var anim = mecha.get_node_or_null("MechaAnimation")
+	assert(anim != null, "MechaAnimation must exist on Mecha")
+	assert(anim.stance_mode == "combat_crouch", "Default stance must be combat_crouch")
+	anim.set_stance_mode("upright_formal")
+	assert(anim.stance_mode == "upright_formal", "Stance must switch to upright_formal")
+	anim.set_stance_mode("wide_squat")
+	assert(anim.stance_mode == "wide_squat", "Stance must switch to wide_squat")
+	anim.set_stance_mode("combat_crouch")
+	print("  [PASS] Stance Mode cycling (Kenbu combat_crouch, upright_formal, wide_squat) verified")
 
 	print("\n=== ALL COCKPIT HATCH & INNERFRAME TESTS PASSED (100%) ===\n")
 	get_tree().quit(0)

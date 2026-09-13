@@ -31,6 +31,7 @@ var weapons: WeaponInventoryState
 var thermal_cloak  # ThermalCloakSystem instance (GDD §6.2)
 var ewar  # EWarSystem instance (GDD §7 electronic warfare)
 var weather_transition  # WeatherTransitionSystem instance (dynamic weather)
+var selected_stance_mode: String = "combat_crouch" # "combat_crouch", "upright_formal", "wide_squat"
 # --- Catalog databases (loaded once at startup) ---
 var armor_catalog: Dictionary = {}
 var chassis_catalog: Dictionary = {}

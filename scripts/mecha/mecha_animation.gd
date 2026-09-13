@@ -33,6 +33,9 @@ var is_kneeling: bool = false
 # pose takes over every other posture (set by the health system on destroy).
 var is_core_breach: bool = false
 
+# Stance mode: "combat_crouch" (Kenbu athletic stance), "upright_formal", "wide_squat"
+@export var stance_mode: String = "combat_crouch"
+
 var _original_head_pos: Vector3
 var _original_body_pos: Vector3
 var _original_arm_left_pos: Vector3
@@ -41,6 +44,8 @@ var _original_leg_left_pos: Vector3
 var _original_leg_right_pos: Vector3
 func _ready() -> void:
 	mecha = get_parent()
+	if mecha and mecha.is_in_group("player") and "selected_stance_mode" in GlobalData:
+		stance_mode = GlobalData.selected_stance_mode
 	_walk = MechaWalkingSystem.new()
 	_walk.name = "WalkingSystem"
 	add_child(_walk)
@@ -91,6 +96,11 @@ func set_kneeling(kneel: bool) -> void:
 	is_kneeling = kneel
 func set_core_breach(breach: bool) -> void:
 	is_core_breach = breach
+
+func set_stance_mode(mode: String) -> void:
+	stance_mode = mode
+	if is_inside_tree() and mecha and mecha.is_in_group("player") and "selected_stance_mode" in GlobalData:
+		GlobalData.selected_stance_mode = mode
 # When true the AnimationPlayer (MechaRig.ANIM_PLAYER_NODE) drives the mech
 # from external clips instead of the procedural pose. Stays false until skinned
 # parts + animation assets exist; flipping it early safely falls back to
@@ -198,6 +208,10 @@ func _apply_pose(targets: Dictionary, speed: float) -> void:
 	if body_mesh:
 		body_mesh.rotation.x = lerp_angle(body_mesh.rotation.x, targets.get("body_tilt", 0.0), speed)
 		body_mesh.position.y = lerp(body_mesh.position.y, _original_body_pos.y + drop, speed)
+		var waist_core = body_mesh.get_node_or_null("FrameMesh/WaistCore")
+		if waist_core:
+			waist_core.rotation.y = lerp_angle(waist_core.rotation.y, targets.get("waist_yaw", 0.0), speed)
+			waist_core.rotation.x = lerp_angle(waist_core.rotation.x, targets.get("waist_pitch", 0.0), speed)
 	if head_mesh:
 		var head_pos: Vector3 = targets.get("head_position", _original_head_pos + Vector3(0, drop, 0))
 		head_mesh.position = head_mesh.position.lerp(head_pos, speed)
@@ -281,25 +295,67 @@ func _update_airborne_fall_posture(delta: float) -> void:
 		"shin_left": -deg_to_rad(55.0),
 		"shin_right": -deg_to_rad(30.0),
 	}, 8.0 * delta)
-# Idle combat stance (standing still, ready to fight): knees slightly bent,
-# torso leaning forward, head level and both arms raised in a guard with bent
-# elbows.
+# Idle combat stance (standing still, ready to fight):
+# Driven by stance_mode:
+#   "combat_crouch": Mailes Kenbu athletic crouch (deep knee bend, wide stance, lowered center of gravity)
+#   "upright_formal": Standard military parade upright stance
+#   "wide_squat": Heavy siege / artillery wide stance
 func _update_combat_idle_posture(delta: float) -> void:
-	_apply_pose({
-		"body_tilt": -deg_to_rad(10.0),
-		"head_tilt": -deg_to_rad(5.0),
-		"drop": -0.05,
-		"arm_left": deg_to_rad(25.0),
-		"arm_right": deg_to_rad(25.0),
-		"forearm_left": deg_to_rad(55.0),
-		"forearm_right": deg_to_rad(55.0),
-		"thigh_left": deg_to_rad(12.0),
-		"thigh_right": deg_to_rad(12.0),
-		"shin_left": -deg_to_rad(18.0),
-		"shin_right": -deg_to_rad(18.0),
-		"leg_left_drop": 0.0,
-		"leg_right_drop": 0.0,
-	}, 6.0 * delta)
+	match stance_mode:
+		"upright_formal":
+			_apply_pose({
+				"body_tilt": 0.0,
+				"head_tilt": 0.0,
+				"drop": 0.0,
+				"arm_left": deg_to_rad(10.0),
+				"arm_right": deg_to_rad(10.0),
+				"forearm_left": deg_to_rad(20.0),
+				"forearm_right": deg_to_rad(20.0),
+				"thigh_left": deg_to_rad(4.0),
+				"thigh_right": deg_to_rad(4.0),
+				"shin_left": -deg_to_rad(6.0),
+				"shin_right": -deg_to_rad(6.0),
+				"leg_left_drop": 0.0,
+				"leg_right_drop": 0.0,
+			}, 6.0 * delta)
+		"wide_squat":
+			_apply_pose({
+				"body_tilt": -deg_to_rad(12.0),
+				"head_tilt": deg_to_rad(6.0),
+				"drop": -0.28,
+				"arm_left": deg_to_rad(25.0),
+				"arm_right": deg_to_rad(25.0),
+				"forearm_left": deg_to_rad(55.0),
+				"forearm_right": deg_to_rad(55.0),
+				"thigh_left": deg_to_rad(36.0),
+				"thigh_right": deg_to_rad(36.0),
+				"thigh_left_yaw": deg_to_rad(18.0),
+				"thigh_right_yaw": -deg_to_rad(18.0),
+				"shin_left": -deg_to_rad(58.0),
+				"shin_right": -deg_to_rad(58.0),
+				"leg_left_drop": 0.0,
+				"leg_right_drop": 0.0,
+			}, 6.0 * delta)
+		_: # "combat_crouch" (Mailes Kenbu athletic stance)
+			_apply_pose({
+				"body_tilt": -deg_to_rad(8.0),
+				"head_tilt": deg_to_rad(4.0),
+				"drop": -0.18,
+				"arm_left": deg_to_rad(20.0),
+				"arm_left_roll": -deg_to_rad(8.0),
+				"arm_right": deg_to_rad(20.0),
+				"arm_right_roll": deg_to_rad(8.0),
+				"forearm_left": deg_to_rad(45.0),
+				"forearm_right": deg_to_rad(45.0),
+				"thigh_left": deg_to_rad(28.0),
+				"thigh_right": deg_to_rad(28.0),
+				"thigh_left_yaw": deg_to_rad(10.0),
+				"thigh_right_yaw": -deg_to_rad(10.0),
+				"shin_left": -deg_to_rad(45.0),
+				"shin_right": -deg_to_rad(45.0),
+				"leg_left_drop": 0.0,
+				"leg_right_drop": 0.0,
+			}, 6.0 * delta)
 # Kneel pose (pilot out / backup waiting): both thighs fold forward so the
 # knees come down, shins fold back under, and the torso drops and bows while
 # the head stays level and the arms hang relaxed.

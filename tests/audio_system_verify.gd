@@ -108,6 +108,8 @@ func _test_procedural_sounds() -> void:
 	_check(missile_explosion_st is AudioStreamMP3, "Missile explosion sound is loaded from missile_explosion.mp3 file (AudioStreamMP3)")
 	var roller_dash_st = AudioManager._pick_stream("roller_dash")
 	_check(roller_dash_st is AudioStreamWAV, "Roller dash sound is loaded from roller_dash.wav file (AudioStreamWAV)")
+	var dash_st = AudioManager._pick_stream("dash")
+	_check(dash_st is AudioStreamMP3, "Dash sound is loaded from dash.mp3 file (AudioStreamMP3)")
 
 
 func _test_sfx_playback() -> void:

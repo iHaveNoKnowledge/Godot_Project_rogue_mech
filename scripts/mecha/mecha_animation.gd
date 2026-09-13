@@ -220,10 +220,17 @@ func _apply_pose(targets: Dictionary, speed: float) -> void:
 			else:
 				waist_core.rotation.x = lerp_angle(waist_core.rotation.x, targets.get("waist_pitch", 0.0), speed)
 	if head_mesh:
-		var head_pos: Vector3 = targets.get("head_position", _original_head_pos + Vector3(0, drop, 0))
+		# Anchor head dynamically to the body's forward collar opening so when
+		# the torso tilts forward or drops, the head sits perfectly in the collar
+		# recess and never sinks into the cockpit tub.
+		var collar_local := Vector3(0.0, 0.536, -0.16)
+		var collar_world := body_mesh.position + collar_local.rotated(Vector3.RIGHT, body_mesh.rotation.x) if body_mesh else (_original_head_pos + Vector3(0, drop, 0))
+		var head_pos: Vector3 = targets.get("head_position", collar_world)
 		head_mesh.position = head_mesh.position.lerp(head_pos, speed)
-		head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, targets.get("head_tilt", targets.get("head_pitch", 0.0)), speed)
+		var base_pitch: float = body_mesh.rotation.x if body_mesh else 0.0
+		head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, base_pitch + targets.get("head_tilt", targets.get("head_pitch", 0.0)), speed)
 		head_mesh.rotation.y = lerp_angle(head_mesh.rotation.y, targets.get("head_yaw", 0.0), speed)
+
 	if arm_left:
 		arm_left.rotation.x = lerp_angle(arm_left.rotation.x, targets.get("arm_left", 0.0), speed)
 		arm_left.rotation.y = lerp_angle(arm_left.rotation.y, targets.get("arm_left_yaw", 0.0), speed)
@@ -344,26 +351,29 @@ func _update_combat_idle_posture(delta: float) -> void:
 				"leg_left_drop": 0.0,
 				"leg_right_drop": 0.0,
 			}, 6.0 * delta)
-		_: # "combat_crouch" (Mailes Kenbu athletic stance)
+		_: # "combat_crouch" (Walking Tank Low Combat Stance - per user model reference)
 			_apply_pose({
-				"body_tilt": -deg_to_rad(8.0),
-				"head_tilt": deg_to_rad(4.0),
-				"drop": -0.18,
-				"arm_left": deg_to_rad(20.0),
-				"arm_left_roll": -deg_to_rad(8.0),
-				"arm_right": deg_to_rad(20.0),
-				"arm_right_roll": deg_to_rad(8.0),
-				"forearm_left": deg_to_rad(45.0),
-				"forearm_right": deg_to_rad(45.0),
-				"thigh_left": deg_to_rad(28.0),
-				"thigh_right": deg_to_rad(28.0),
-				"thigh_left_yaw": deg_to_rad(10.0),
-				"thigh_right_yaw": -deg_to_rad(10.0),
-				"shin_left": -deg_to_rad(45.0),
-				"shin_right": -deg_to_rad(45.0),
+				"body_tilt": -deg_to_rad(14.0),
+				"head_tilt": deg_to_rad(8.0),
+				"drop": -0.32,
+				"arm_left": deg_to_rad(14.0),
+				"arm_left_yaw": deg_to_rad(4.0),
+				"arm_left_roll": -deg_to_rad(10.0),
+				"arm_right": deg_to_rad(14.0),
+				"arm_right_yaw": -deg_to_rad(4.0),
+				"arm_right_roll": deg_to_rad(10.0),
+				"forearm_left": deg_to_rad(36.0),
+				"forearm_right": deg_to_rad(36.0),
+				"thigh_left": deg_to_rad(32.0),
+				"thigh_right": deg_to_rad(32.0),
+				"thigh_left_yaw": deg_to_rad(12.0),
+				"thigh_right_yaw": -deg_to_rad(12.0),
+				"shin_left": -deg_to_rad(48.0),
+				"shin_right": -deg_to_rad(48.0),
 				"leg_left_drop": 0.0,
 				"leg_right_drop": 0.0,
 			}, 6.0 * delta)
+
 # Kneel pose (pilot out / backup waiting): both thighs fold forward so the
 # knees come down, shins fold back under, and the torso drops and bows while
 # the head stays level and the arms hang relaxed.
@@ -397,8 +407,7 @@ func _update_roller_dash_posture(delta: float) -> void:
 				"body_tilt": target_body_tilt,
 				"head_tilt": target_head_tilt,
 				"drop": target_drop,
-				# Head snaps to target instead of lerping (skating needs instant lock)
-				"head_position": _original_head_pos + Vector3(0, target_drop, 0),
+				# Head naturally follows the tilted collar opening via collar_world in _apply_pose
 				"arm_left": -deg_to_rad(20.0),
 				"arm_right": deg_to_rad(20.0),
 				"forearm_left": deg_to_rad(80.0),

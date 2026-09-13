@@ -21,6 +21,7 @@ var energy_system: Node = null
 # Roller state (kept on controller — input + VFX are controller concerns).
 var is_roller_dashing: bool = false
 var roller_spark_timer: float = 0.0
+var _roller_micro_skid_timer: float = 0.0
 var _emp_spark_timer: float = 0.0
 
 # Recoil (weapon kick).
@@ -246,6 +247,10 @@ func _physics_process(delta: float) -> void:
 		var ratio := h_speed / maxf(current_speed * 2.0, 1.0)
 		if AudioManager:
 			AudioManager.update_roller_dash(global_position, ratio)
+			_roller_micro_skid_timer -= delta
+			if _roller_micro_skid_timer <= 0.0:
+				_roller_micro_skid_timer = randf_range(0.35, 0.70)
+				AudioManager.play_roller_skate(global_position)
 	elif AudioManager:
 		AudioManager.stop_roller_dash()
 

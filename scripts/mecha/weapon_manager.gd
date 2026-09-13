@@ -244,6 +244,15 @@ func _on_combat_ended(_victory: bool) -> void:
 	HangarManager.save_active()
 
 
+func _get_weapon_path(w: WeaponPart) -> String:
+	if w == null:
+		return ""
+	if not w.resource_path.is_empty():
+		return w.resource_path
+	if "source_path" in w and not str(w.source_path).is_empty():
+		return str(w.source_path)
+	return ""
+
 # Writes the current hands + shoulders + back-carry back into GlobalData.weapons.weapon_loadout so
 # in-battle pickups and swaps survive into the next battle. Runs at combat end
 # (and after each commit/drop) since return_to_board() -> save_run() only saves
@@ -254,15 +263,16 @@ func sync_loadout_to_global() -> void:
 	var _pre_l := str(GlobalData.weapons.weapon_loadout.get("left", ""))
 	var _pre_r := str(GlobalData.weapons.weapon_loadout.get("right", ""))
 	var _pre_c: Array = GlobalData.weapons.weapon_loadout.get("carry", [])
-	LoadoutSystem.set_hand_weapon("left", LoadoutSystem.resolve_hand_uid_for_sync("left", left_hand.resource_path if left_hand else ""))
-	LoadoutSystem.set_hand_weapon("right", LoadoutSystem.resolve_hand_uid_for_sync("right", right_hand.resource_path if right_hand else ""))
-	LoadoutSystem.set_shoulder_weapon("left", LoadoutSystem.resolve_shoulder_uid_for_sync("left", shoulder_left.resource_path if shoulder_left else ""))
-	LoadoutSystem.set_shoulder_weapon("right", LoadoutSystem.resolve_shoulder_uid_for_sync("right", shoulder_right.resource_path if shoulder_right else ""))
+	LoadoutSystem.set_hand_weapon("left", LoadoutSystem.resolve_hand_uid_for_sync("left", _get_weapon_path(left_hand)))
+	LoadoutSystem.set_hand_weapon("right", LoadoutSystem.resolve_hand_uid_for_sync("right", _get_weapon_path(right_hand)))
+	LoadoutSystem.set_shoulder_weapon("left", LoadoutSystem.resolve_shoulder_uid_for_sync("left", _get_weapon_path(shoulder_left)))
+	LoadoutSystem.set_shoulder_weapon("right", LoadoutSystem.resolve_shoulder_uid_for_sync("right", _get_weapon_path(shoulder_right)))
 	var carry_paths: Array = []
 	for weapon in carry:
 		if weapon:
-			carry_paths.append(weapon.resource_path)
+			carry_paths.append(_get_weapon_path(weapon))
 	GlobalData.weapons.weapon_loadout["carry"] = LoadoutSystem.resolve_carry_uids_for_sync(carry_paths)
+
 	# [LOADOUT] wipe tracer: pinpoints the exact sync that empties a slot that
 	# was filled before (live hands null with no drop, unexpected clear, ...).
 	var _post_l := str(GlobalData.weapons.weapon_loadout.get("left", ""))

@@ -43,7 +43,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.3625, 0)
 shape = SubResource("FullBodyShape")
 
 [node name="Head" type="Node3D" parent="." unique_id=916399513]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.42, -0.0672)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.56, -0.16)
 
 [node name="Body" type="Node3D" parent="." unique_id=2068096301]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.024, 0)

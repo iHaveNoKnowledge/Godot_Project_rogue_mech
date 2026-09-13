@@ -164,7 +164,9 @@ static func get_equipped_weapon(side: String) -> WeaponPart:
 	if ResourceLoader.exists(path):
 		var res = load(path)
 		if res is WeaponPart:
-			return (res as WeaponPart).duplicate(true) as WeaponPart
+			var dup: WeaponPart = (res as WeaponPart).duplicate(true) as WeaponPart
+			dup.source_path = path
+			return dup
 	return null
 
 
@@ -182,7 +184,9 @@ static func get_equipped_shoulder(side: String) -> WeaponPart:
 		return null
 	var res = load(path)
 	if res is WeaponPart:
-		return (res as WeaponPart).duplicate(true) as WeaponPart
+		var dup: WeaponPart = (res as WeaponPart).duplicate(true) as WeaponPart
+		dup.source_path = path
+		return dup
 	return null
 
 
@@ -203,8 +207,12 @@ static func get_carry_weapons() -> Array[WeaponPart]:
 		if path != "" and ResourceLoader.exists(path):
 			var res = load(path)
 			if res is WeaponPart:
-				result.append((res as WeaponPart).duplicate(true) as WeaponPart)
+				var dup: WeaponPart = (res as WeaponPart).duplicate(true) as WeaponPart
+				dup.source_path = path
+				result.append(dup)
 	return result
+
+
 
 
 # Total weight of all loadout weapons (both hands + shoulders + back).

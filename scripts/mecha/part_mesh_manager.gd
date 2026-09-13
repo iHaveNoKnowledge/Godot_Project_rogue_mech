@@ -1507,7 +1507,7 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 			# 1. Central Pelvis / Sacrum Core
 			var pelvis = MeshInstance3D.new()
 			var p_box = BoxMesh.new()
-			p_box.size = Vector3(0.38, 0.18, 0.32)
+			p_box.size = Vector3(0.52, 0.22, 0.36)
 			pelvis.mesh = p_box
 			pelvis.position = Vector3(0, -0.48, 0)
 			pelvis.material_override = frame_mat
@@ -1516,9 +1516,9 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 			# 2. Transverse Hip Axle Beam bridging from waist to left & right hip joints
 			var hip_axle = MeshInstance3D.new()
 			var a_cyl = CylinderMesh.new()
-			a_cyl.top_radius = 0.09
-			a_cyl.bottom_radius = 0.09
-			a_cyl.height = 1.06
+			a_cyl.top_radius = 0.11
+			a_cyl.bottom_radius = 0.11
+			a_cyl.height = 1.10
 			hip_axle.mesh = a_cyl
 			hip_axle.rotation_degrees.z = 90
 			hip_axle.position = Vector3(0, -0.518, 0)
@@ -1529,9 +1529,9 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 			for hip_sign in [-1.0, 1.0]:
 				var hip_socket = MeshInstance3D.new()
 				var hs_cyl = CylinderMesh.new()
-				hs_cyl.top_radius = 0.18
-				hs_cyl.bottom_radius = 0.18
-				hs_cyl.height = 0.14
+				hs_cyl.top_radius = 0.20
+				hs_cyl.bottom_radius = 0.20
+				hs_cyl.height = 0.16
 				hip_socket.mesh = hs_cyl
 				hip_socket.rotation_degrees.z = 90
 				hip_socket.position = Vector3(hip_sign * 0.529, -0.518, 0)
@@ -1541,9 +1541,9 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 				# Diagonal Hip Hydraulic Brace from pelvis to hip socket
 				var brace = MeshInstance3D.new()
 				var b_cyl = CylinderMesh.new()
-				b_cyl.top_radius = 0.04
-				b_cyl.bottom_radius = 0.04
-				b_cyl.height = 0.22
+				b_cyl.top_radius = 0.05
+				b_cyl.bottom_radius = 0.05
+				b_cyl.height = 0.24
 				brace.mesh = b_cyl
 				brace.rotation_degrees.z = hip_sign * 45.0
 				brace.position = Vector3(hip_sign * 0.32, -0.45, 0)
@@ -1553,7 +1553,7 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 			# 4. Front Groin / Crotch Armor Deflector
 			var crotch = MeshInstance3D.new()
 			var c_box = BoxMesh.new()
-			c_box.size = Vector3(0.24, 0.22, 0.18)
+			c_box.size = Vector3(0.28, 0.24, 0.20)
 			crotch.mesh = c_box
 			crotch.position = Vector3(0, -0.52, -0.12)
 			crotch.rotation_degrees.x = -15.0
@@ -1564,17 +1564,17 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 			# --- UPPER ARM SEGMENT (Attaches to Shoulder Pivot ArmLeft/ArmRight) ---
 			var shoulder_joint = MeshInstance3D.new()
 			var s_sphere = SphereMesh.new()
-			s_sphere.radius = 0.16
-			s_sphere.height = 0.32
+			s_sphere.radius = 0.18
+			s_sphere.height = 0.36
 			shoulder_joint.mesh = s_sphere
 			shoulder_joint.material_override = frame_mat
 			upper_container.add_child(shoulder_joint)
 
 			var shoulder_bolt = MeshInstance3D.new()
 			var b_cyl = CylinderMesh.new()
-			b_cyl.top_radius = 0.17
-			b_cyl.bottom_radius = 0.17
-			b_cyl.height = 0.08
+			b_cyl.top_radius = 0.18
+			b_cyl.bottom_radius = 0.18
+			b_cyl.height = 0.10
 			shoulder_bolt.mesh = b_cyl
 			shoulder_bolt.rotation_degrees.z = 90
 			shoulder_bolt.material_override = chrome_mat
@@ -1582,7 +1582,7 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 
 			var upper_arm = MeshInstance3D.new()
 			var u_box = BoxMesh.new()
-			u_box.size = Vector3(0.16, 0.38, 0.16)
+			u_box.size = Vector3(0.20, 0.40, 0.20)
 			upper_arm.mesh = u_box
 			upper_arm.position = Vector3(0, -0.19, 0)
 			upper_arm.material_override = frame_mat
@@ -1592,9 +1592,9 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 			if lower_container:
 				var elbow_disc = MeshInstance3D.new()
 				var e_cyl = CylinderMesh.new()
-				e_cyl.top_radius = 0.11
-				e_cyl.bottom_radius = 0.11
-				e_cyl.height = 0.12
+				e_cyl.top_radius = 0.13
+				e_cyl.bottom_radius = 0.13
+				e_cyl.height = 0.14
 				elbow_disc.mesh = e_cyl
 				elbow_disc.rotation_degrees.z = 90
 				elbow_disc.position = Vector3(0, 0, 0)
@@ -1603,7 +1603,7 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 
 				var forearm_frame = MeshInstance3D.new()
 				var f_box = BoxMesh.new()
-				f_box.size = Vector3(0.18, 0.45, 0.18)
+				f_box.size = Vector3(0.22, 0.45, 0.22)
 				forearm_frame.mesh = f_box
 				forearm_frame.position = Vector3(0, -0.225, 0)
 				forearm_frame.material_override = frame_mat
@@ -1611,7 +1611,7 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 
 				var hand_block = MeshInstance3D.new()
 				var h_box = BoxMesh.new()
-				h_box.size = Vector3(0.14, 0.14, 0.16)
+				h_box.size = Vector3(0.16, 0.16, 0.18)
 				hand_block.mesh = h_box
 				hand_block.position = Vector3(0, -0.46, 0)
 				hand_block.material_override = chrome_mat
@@ -1621,27 +1621,40 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 			# --- UPPER LEG SEGMENT (Attaches to Hip Pivot LegLeft/LegRight) ---
 			var hip_joint = MeshInstance3D.new()
 			var h_sphere = SphereMesh.new()
-			h_sphere.radius = 0.18
-			h_sphere.height = 0.36
+			h_sphere.radius = 0.19
+			h_sphere.height = 0.38
 			hip_joint.mesh = h_sphere
 			hip_joint.material_override = frame_mat
 			upper_container.add_child(hip_joint)
 
 			var thigh_frame = MeshInstance3D.new()
 			var t_box = BoxMesh.new()
-			t_box.size = Vector3(0.18, 0.44, 0.18)
+			t_box.size = Vector3(0.24, 0.44, 0.26)
 			thigh_frame.mesh = t_box
 			thigh_frame.position = Vector3(0, -0.275, 0)
 			thigh_frame.material_override = frame_mat
 			upper_container.add_child(thigh_frame)
 
+			# Twin hydraulic struts on thigh back
+			for strut_x in [-0.06, 0.06]:
+				var t_strut = MeshInstance3D.new()
+				var ts_cyl = CylinderMesh.new()
+				ts_cyl.top_radius = 0.024
+				ts_cyl.bottom_radius = 0.024
+				ts_cyl.height = 0.36
+				t_strut.mesh = ts_cyl
+				t_strut.position = Vector3(strut_x, -0.275, 0.11)
+				t_strut.material_override = chrome_mat
+				upper_container.add_child(t_strut)
+
 			# --- LOWER LEG SEGMENT (Attaches to Knee Pivot ShinLeft/ShinRight) ---
 			if lower_container:
+				# Heavy rotary actuator knee disc
 				var knee_disc = MeshInstance3D.new()
 				var k_cyl = CylinderMesh.new()
-				k_cyl.top_radius = 0.12
-				k_cyl.bottom_radius = 0.12
-				k_cyl.height = 0.12
+				k_cyl.top_radius = 0.15
+				k_cyl.bottom_radius = 0.15
+				k_cyl.height = 0.16
 				knee_disc.mesh = k_cyl
 				knee_disc.rotation_degrees.z = 90
 				knee_disc.position = Vector3(0, 0, 0)
@@ -1650,58 +1663,85 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 
 				var shin_frame = MeshInstance3D.new()
 				var s_box = BoxMesh.new()
-				s_box.size = Vector3(0.18, 0.44, 0.18)
+				s_box.size = Vector3(0.24, 0.44, 0.24)
 				shin_frame.mesh = s_box
 				shin_frame.position = Vector3(0, -0.275, 0)
 				shin_frame.material_override = frame_mat
 				lower_container.add_child(shin_frame)
 
-				var damper = MeshInstance3D.new()
-				var d_cyl = CylinderMesh.new()
-				d_cyl.top_radius = 0.022
-				d_cyl.bottom_radius = 0.022
-				d_cyl.height = 0.40
-				damper.mesh = d_cyl
-				damper.position = Vector3(0, -0.275, 0.10)
-				damper.material_override = chrome_mat
-				lower_container.add_child(damper)
+				# Dual shock-absorber dampers behind shin
+				for damper_x in [-0.06, 0.06]:
+					var damper = MeshInstance3D.new()
+					var d_cyl = CylinderMesh.new()
+					d_cyl.top_radius = 0.024
+					d_cyl.bottom_radius = 0.024
+					d_cyl.height = 0.40
+					damper.mesh = d_cyl
+					damper.position = Vector3(damper_x, -0.275, 0.11)
+					damper.material_override = chrome_mat
+					lower_container.add_child(damper)
 
 				var ankle = MeshInstance3D.new()
 				var a_cyl = CylinderMesh.new()
-				a_cyl.top_radius = 0.09
-				a_cyl.bottom_radius = 0.09
-				a_cyl.height = 0.08
+				a_cyl.top_radius = 0.11
+				a_cyl.bottom_radius = 0.11
+				a_cyl.height = 0.10
 				ankle.mesh = a_cyl
 				ankle.position = Vector3(0, -0.53, 0)
 				ankle.material_override = chrome_mat
 				lower_container.add_child(ankle)
 
+				# Walking Tank Broad Skid Foot with Outriggers & Roller Housing
 				var foot_block = MeshInstance3D.new()
 				var ft_box = BoxMesh.new()
-				ft_box.size = Vector3(0.16, 0.05, 0.18)
+				ft_box.size = Vector3(0.28, 0.06, 0.42)
 				foot_block.mesh = ft_box
-				foot_block.position = Vector3(0, -0.58, 0)
+				foot_block.position = Vector3(0, -0.58, -0.04)
 				foot_block.material_override = frame_mat
 				lower_container.add_child(foot_block)
 
-				for claw_x in [-0.08, 0.08]:
+				# Left & Right ski runners / outrigger stabilizer rails
+				for skid_x in [-0.15, 0.15]:
+					var skid_rail = MeshInstance3D.new()
+					var sr_box = BoxMesh.new()
+					sr_box.size = Vector3(0.04, 0.09, 0.46)
+					skid_rail.mesh = sr_box
+					skid_rail.position = Vector3(skid_x, -0.57, -0.04)
+					skid_rail.material_override = chrome_mat
+					lower_container.add_child(skid_rail)
+
+				# Front roller skate wheel pod
+				var roller_pod = MeshInstance3D.new()
+				var rp_cyl = CylinderMesh.new()
+				rp_cyl.top_radius = 0.045
+				rp_cyl.bottom_radius = 0.045
+				rp_cyl.height = 0.24
+				roller_pod.mesh = rp_cyl
+				roller_pod.rotation_degrees.z = 90
+				roller_pod.position = Vector3(0, -0.59, -0.22)
+				roller_pod.material_override = chrome_mat
+				lower_container.add_child(roller_pod)
+
+				# Rear heel skid block
+				var heel = MeshInstance3D.new()
+				var h_box = BoxMesh.new()
+				h_box.size = Vector3(0.22, 0.06, 0.14)
+				heel.mesh = h_box
+				heel.position = Vector3(0, -0.58, 0.18)
+				heel.rotation_degrees.x = 10
+				heel.material_override = frame_mat
+				lower_container.add_child(heel)
+
+				# Front toe clamp claws
+				for claw_x in [-0.09, 0.09]:
 					var claw = MeshInstance3D.new()
 					var c_box = BoxMesh.new()
-					c_box.size = Vector3(0.05, 0.05, 0.22)
+					c_box.size = Vector3(0.05, 0.05, 0.16)
 					claw.mesh = c_box
-					claw.position = Vector3(claw_x, -0.59, -0.14)
+					claw.position = Vector3(claw_x, -0.59, -0.24)
 					claw.rotation_degrees.x = -15
 					claw.material_override = frame_mat
 					lower_container.add_child(claw)
-
-				var heel = MeshInstance3D.new()
-				var h_box = BoxMesh.new()
-				h_box.size = Vector3(0.12, 0.05, 0.15)
-				heel.mesh = h_box
-				heel.position = Vector3(0, -0.59, 0.12)
-				heel.rotation_degrees.x = 15
-				heel.material_override = frame_mat
-				lower_container.add_child(heel)
 
 		_:
 			var box = BoxMesh.new()
@@ -1858,7 +1898,7 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 			# --- UPPER ARM ARMOR (Shoulder Pauldron attached to ArmLeft/ArmRight) ---
 			var pauldron = MeshInstance3D.new()
 			var p_box = BoxMesh.new()
-			p_box.size = Vector3(0.44, 0.32, 0.44)
+			p_box.size = Vector3(0.48, 0.34, 0.48)
 			pauldron.mesh = p_box
 			pauldron.position = Vector3(dir_sign * 0.08, 0.04, 0)
 			pauldron.material_override = armor_mat
@@ -1866,7 +1906,7 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 
 			var trim = MeshInstance3D.new()
 			var t_box = BoxMesh.new()
-			t_box.size = Vector3(0.48, 0.10, 0.48)
+			t_box.size = Vector3(0.52, 0.10, 0.52)
 			trim.mesh = t_box
 			trim.position = Vector3(dir_sign * 0.08, 0.16, 0)
 			trim.material_override = dark_trim_mat
@@ -1876,15 +1916,23 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 			if lower_container:
 				var forearm_guard = MeshInstance3D.new()
 				var fg_box = BoxMesh.new()
-				fg_box.size = Vector3(0.30, 0.44, 0.30)
+				fg_box.size = Vector3(0.34, 0.46, 0.34)
 				forearm_guard.mesh = fg_box
 				forearm_guard.position = Vector3(0, -0.225, 0)
 				forearm_guard.material_override = armor_mat
 				lower_container.add_child(forearm_guard)
 
+				var elbow_cap = MeshInstance3D.new()
+				var ec_box = BoxMesh.new()
+				ec_box.size = Vector3(0.26, 0.16, 0.12)
+				elbow_cap.mesh = ec_box
+				elbow_cap.position = Vector3(0, 0, 0.14)
+				elbow_cap.material_override = dark_trim_mat
+				lower_container.add_child(elbow_cap)
+
 				var knuckle = MeshInstance3D.new()
 				var k_box = BoxMesh.new()
-				k_box.size = Vector3(0.16, 0.05, 0.16)
+				k_box.size = Vector3(0.18, 0.06, 0.18)
 				knuckle.mesh = k_box
 				knuckle.position = Vector3(0, -0.45, -0.02)
 				knuckle.material_override = armor_mat
@@ -1894,17 +1942,26 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 			# --- UPPER LEG ARMOR (Thigh Guard attached to LegLeft/LegRight) ---
 			var thigh_armor = MeshInstance3D.new()
 			var ta_box = BoxMesh.new()
-			ta_box.size = Vector3(0.32, 0.42, 0.32)
+			ta_box.size = Vector3(0.36, 0.44, 0.36)
 			thigh_armor.mesh = ta_box
 			thigh_armor.position = Vector3(0, -0.275, 0)
 			thigh_armor.material_override = armor_mat
 			upper_container.add_child(thigh_armor)
 
+			for side_x in [-0.19, 0.19]:
+				var t_side = MeshInstance3D.new()
+				var ts_box = BoxMesh.new()
+				ts_box.size = Vector3(0.06, 0.38, 0.28)
+				t_side.mesh = ts_box
+				t_side.position = Vector3(side_x, -0.275, 0)
+				t_side.material_override = dark_trim_mat
+				upper_container.add_child(t_side)
+
 			# --- LOWER LEG ARMOR (Knee Cap + Shin Guard attached to ShinLeft/ShinRight) ---
 			if lower_container:
 				var knee_cap = MeshInstance3D.new()
 				var k_prism = PrismMesh.new()
-				k_prism.size = Vector3(0.24, 0.22, 0.20)
+				k_prism.size = Vector3(0.30, 0.26, 0.24)
 				knee_cap.mesh = k_prism
 				knee_cap.rotation_degrees.x = 90
 				knee_cap.position = Vector3(0, 0, 0.15)
@@ -1913,19 +1970,47 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 
 				var shin_armor = MeshInstance3D.new()
 				var sa_box = BoxMesh.new()
-				sa_box.size = Vector3(0.34, 0.48, 0.30)
+				sa_box.size = Vector3(0.36, 0.48, 0.34)
 				shin_armor.mesh = sa_box
 				shin_armor.position = Vector3(0, -0.275, 0.04)
 				shin_armor.material_override = armor_mat
 				lower_container.add_child(shin_armor)
 
+				for side_x in [-0.19, 0.19]:
+					var calf_plate = MeshInstance3D.new()
+					var cp_box = BoxMesh.new()
+					cp_box.size = Vector3(0.06, 0.36, 0.24)
+					calf_plate.mesh = cp_box
+					calf_plate.position = Vector3(side_x, -0.275, 0.02)
+					calf_plate.material_override = dark_trim_mat
+					lower_container.add_child(calf_plate)
+
+				# Wide Walking Tank Skid Foot Armor
 				var foot_cap = MeshInstance3D.new()
 				var fc_box = BoxMesh.new()
-				fc_box.size = Vector3(0.26, 0.09, 0.28)
+				fc_box.size = Vector3(0.32, 0.10, 0.42)
 				foot_cap.mesh = fc_box
-				foot_cap.position = Vector3(0, -0.58, -0.04)
+				foot_cap.position = Vector3(0, -0.56, -0.04)
 				foot_cap.material_override = armor_mat
 				lower_container.add_child(foot_cap)
+
+				for skid_x in [-0.17, 0.17]:
+					var skid_guard = MeshInstance3D.new()
+					var sg_box = BoxMesh.new()
+					sg_box.size = Vector3(0.05, 0.08, 0.46)
+					skid_guard.mesh = sg_box
+					skid_guard.position = Vector3(skid_x, -0.56, -0.04)
+					skid_guard.material_override = dark_trim_mat
+					lower_container.add_child(skid_guard)
+
+				var toe_deflector = MeshInstance3D.new()
+				var td_box = BoxMesh.new()
+				td_box.size = Vector3(0.28, 0.07, 0.14)
+				toe_deflector.mesh = td_box
+				toe_deflector.position = Vector3(0, -0.57, -0.24)
+				toe_deflector.rotation_degrees.x = -15
+				toe_deflector.material_override = dark_trim_mat
+				lower_container.add_child(toe_deflector)
 
 		_:
 			var box = BoxMesh.new()

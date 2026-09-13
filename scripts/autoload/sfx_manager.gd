@@ -99,11 +99,12 @@ func _generate_sounds() -> void:
 	# gets LOOP_FORWARD here (imported .wav keeps LOOP_DISABLED by default).
 	var roller_streams: Array = _sound_cache["roller_dash"] if _sound_cache["roller_dash"] is Array else [_sound_cache["roller_dash"]]
 	for stream in roller_streams:
-		if stream is AudioStreamWAV and stream.format == AudioStreamWAV.FORMAT_16_BITS:
-			var bytes_per_frame := 4 if stream.stereo else 2
+		if stream is AudioStreamWAV:
 			stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
 			stream.loop_begin = 0
-			stream.loop_end = int(stream.data.size() / bytes_per_frame)
+			if stream.format == AudioStreamWAV.FORMAT_16_BITS:
+				var bytes_per_frame := 4 if stream.stereo else 2
+				stream.loop_end = int(stream.data.size() / bytes_per_frame)
 	_sound_cache["reload_complete"] = _gen_heavy_reload_complete()
 	_sound_cache["lock_on_beep"] = _gen_tactical_lock_beep()
 	_sound_cache["impact"] = [
@@ -630,37 +631,41 @@ func _gen_sine_sweep(freq_start: float, freq_end: float, duration: float, volume
 	return stream
 
 
-## High-frequency brushless motor whine loop (seamless).
-## Fundamental 880 Hz + harmonics to 4.4 kHz, faint 7 kHz PWM carrier,
-## 28/14 Hz wheel-rotation AM, quiet 110 Hz body sub, rolling-noise bed.
-## All partials complete integer cycles in 1.0 s so LOOP_FORWARD wraps cleanly.
+## Smooth continuous ground-skate / turbine glide loop (seamless).
+## Clean sub drone (160 Hz / 240 Hz) + high-speed mechanical bearing whir (540 Hz)
+## + layered pink/brown ground-friction noise with a 150 ms smooth crossfade.
+## Free of artificial low-frequency wobble or periodic pulsing.
 func _gen_roller_loop() -> AudioStreamWAV:
 	var sample_rate := 22050
-	var num_samples := int(1.0 * sample_rate)
+	var num_samples := int(3.0 * sample_rate)
 	var samples := PackedFloat32Array()
 	samples.resize(num_samples)
 	var lp_acc := 0.0
+	var lp_acc2 := 0.0
 	for i in range(num_samples):
 		var t := float(i) / sample_rate
-		var ph := TAU * 880.0 * t + 0.15 * sin(TAU * 7.0 * t)
-		var sig := 0.35 * sin(ph) \
-			+ 0.22 * sin(2.0 * ph) \
-			+ 0.12 * sin(3.0 * ph) \
-			+ 0.08 * sin(4.0 * ph) \
-			+ 0.05 * sin(5.0 * ph) \
-			+ 0.035 * sin(TAU * 7040.0 * t + 0.3 * sin(TAU * 7.0 * t)) \
-			+ 0.02 * sin(TAU * 8800.0 * t)
-		sig *= 1.0 + 0.12 * sin(TAU * 28.0 * t) + 0.06 * sin(TAU * 14.0 * t + 1.3)
-		sig += 0.06 * sin(TAU * 110.0 * t) + 0.03 * sin(TAU * 220.0 * t)
-		var noise := randf() * 2.0 - 1.0
-		lp_acc += 0.08 * (noise - lp_acc)
-		sig += lp_acc * 0.19 + (noise - lp_acc) * 0.03
-		samples[i] = sig * 0.55
-	# Crossfade the tail into the head so the random noise bed wraps seamlessly.
-	var xf := int(sample_rate * 0.02)
+		# Continuous stable tones: integer cycles within 3.0 seconds
+		# 160 Hz (480 cycles), 240 Hz (720 cycles), 540 Hz (1620 cycles), 1080 Hz (3240 cycles)
+		var sig := 0.22 * sin(TAU * 160.0 * t) \
+			+ 0.16 * sin(TAU * 240.0 * t) \
+			+ 0.18 * sin(TAU * 540.0 * t) \
+			+ 0.08 * sin(TAU * 1080.0 * t) \
+			+ 0.03 * sin(TAU * 2160.0 * t)
+		# Smooth two-pole lowpass filtered noise (skate friction on asphalt/sand)
+		var white := randf() * 2.0 - 1.0
+		lp_acc += 0.05 * (white - lp_acc)
+		lp_acc2 += 0.08 * (lp_acc - lp_acc2)
+		sig += lp_acc2 * 0.35 + (white - lp_acc) * 0.04
+		samples[i] = sig * 0.48
+
+	# Generous crossfade at the boundary for seamless infinite looping
+	var xf := int(sample_rate * 0.15)
 	for j in range(xf):
 		var w := float(j) / float(xf)
-		samples[num_samples - xf + j] = samples[num_samples - xf + j] * (1.0 - w) + samples[j] * w
+		var smooth_w := 0.5 * (1.0 - cos(PI * w))
+		var idx_tail := num_samples - xf + j
+		samples[idx_tail] = samples[idx_tail] * (1.0 - smooth_w) + samples[j] * smooth_w
+
 	var data := PackedByteArray()
 	data.resize(num_samples * 2)
 	for i in range(num_samples):

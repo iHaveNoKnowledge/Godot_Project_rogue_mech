@@ -13,7 +13,11 @@ var sfx: SfxManager
 var music: MusicManager
 
 ## Shared mute flag — suppresses all battle audio during the intro overlay.
-var combat_muted: bool = false
+var combat_muted: bool = false:
+	set(val):
+		combat_muted = val
+		if sfx:
+			sfx.combat_muted = val
 
 # Volume levels (linear 0.0–1.0), synced to children.
 var master_volume: float = 1.0

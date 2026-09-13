@@ -115,8 +115,8 @@ func _verify_ammo_panel() -> void:
 	GlobalData.reset_run_data()
 	# reset_run_data grants a starter loadout + reserve; force a clean slate for
 	# the panel so the assertions are deterministic.
-	LoadoutSystem.set_loadout_ammo("kinetic", 0)
-	LoadoutSystem.add_reserve_ammo("kinetic", 50)
+	LoadoutSystem.set_loadout_ammo("bullet", 0)
+	LoadoutSystem.add_reserve_ammo("bullet", 50)
 	await get_tree().process_frame
 
 	var panel := HangarAmmoPanel.new()
@@ -128,23 +128,23 @@ func _verify_ammo_panel() -> void:
 	panel.status_label = status_lbl
 
 	_check(panel.ammo_loadout_box != null, "ammo panel builds a loadout box")
-	_check(panel.ammo_value_labels.size() == 4, "ammo panel tracks 4 ammo types")
+	_check(panel.ammo_value_labels.size() == AmmoSystem.ORDER.size(), "ammo panel tracks every catalog ammo type")
 	_check(panel.ammo_loadout_box.visible == false, "loadout box starts hidden")
 
-	panel.adjust("kinetic", 10)
-	_check(LoadoutSystem.get_loadout_ammo("kinetic") == 10, "adjust adds to loadout")
-	_check(status_lbl.text == "Kinetic ammo to carry: 10", "adjust reports via status label")
+	panel.adjust("bullet", 10)
+	_check(LoadoutSystem.get_loadout_ammo("bullet") == 10, "adjust adds to loadout")
+	_check(status_lbl.text == "Bullets ammo to carry: 10", "adjust reports via status label")
 
-	panel.adjust("kinetic", -5)
-	_check(LoadoutSystem.get_loadout_ammo("kinetic") == 5, "adjust subtracts loadout")
+	panel.adjust("bullet", -5)
+	_check(LoadoutSystem.get_loadout_ammo("bullet") == 5, "adjust subtracts loadout")
 
-	# A huge request clamps to what is owned in reserve (350: starter 300 + 50).
-	panel.adjust("kinetic", 999)
-	_check(LoadoutSystem.get_loadout_ammo("kinetic") == 350, "adjust clamps to owned reserve")
+	# A huge request clamps to what is owned in reserve (300: starter 250 + 50).
+	panel.adjust("bullet", 999)
+	_check(LoadoutSystem.get_loadout_ammo("bullet") == 300, "adjust clamps to owned reserve")
 
 	panel.refresh()
-	var value_lbl: Label = panel.ammo_value_labels["kinetic"]
-	_check(value_lbl.text == "350 / 350", "refresh repaints carried / owned labels")
+	var value_lbl: Label = panel.ammo_value_labels["bullet"]
+	_check(value_lbl.text == "300 / 300", "refresh repaints carried / owned labels")
 
 	box.queue_free()
 	status_lbl.queue_free()

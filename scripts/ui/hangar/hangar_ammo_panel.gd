@@ -24,15 +24,14 @@ func build(parent_box: VBoxContainer) -> void:
 	title.add_theme_color_override("font_color", Color(1.0, 0.8, 0.2))
 	ammo_loadout_box.add_child(title)
 
-	var ammo_types := ["kinetic", "energy", "explosive", "missile"]
-	var ammo_names := {"kinetic": "Kinetic", "energy": "Energy", "explosive": "Explosive", "missile": "Missile"}
+	var ammo_types := AmmoSystem.ORDER
 	for ammo_type in ammo_types:
 		var row = HBoxContainer.new()
 		row.add_theme_constant_override("separation", 6)
 		ammo_loadout_box.add_child(row)
 
 		var name_lbl = Label.new()
-		name_lbl.text = ammo_names[ammo_type]
+		name_lbl.text = AmmoSystem.display_name(ammo_type)
 		name_lbl.custom_minimum_size = Vector2(80, 0)
 		name_lbl.add_theme_font_size_override("font_size", 11)
 		row.add_child(name_lbl)
@@ -86,7 +85,7 @@ func adjust(ammo_type: String, delta: int) -> void:
 	LoadoutSystem.set_loadout_ammo(ammo_type, i)
 	refresh()
 	if status_label:
-		status_label.text = "%s ammo to carry: %d" % [ammo_type.capitalize(), i]
+		status_label.text = "%s ammo to carry: %d" % [AmmoSystem.display_name(ammo_type), i]
 	GlobalData.save_run()
 
 

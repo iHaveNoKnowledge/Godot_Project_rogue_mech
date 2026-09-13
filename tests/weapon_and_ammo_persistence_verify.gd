@@ -63,15 +63,15 @@ func _ready() -> void:
 	dummy_mecha.add_child(wm)
 	add_child(dummy_mecha)
 
-	var starting_kinetic_reserve = wm.get_battle_reserve("kinetic")
-	var starting_kinetic_stash = LoadoutSystem.get_reserve_ammo("kinetic")
+	var starting_bullet_reserve = wm.get_battle_reserve("bullet")
+	var starting_bullet_stash = LoadoutSystem.get_reserve_ammo("bullet")
 
 	var dummy_pickup_node = Area3D.new()
 	dummy_pickup_node.set_script(load("res://scripts/mecha/weapon_pickup.gd"))
 	var dropped_weapon = WeaponPart.new()
-	dropped_weapon.weapon_name = "Test Kinetic Cannon"
+	dropped_weapon.weapon_name = "Test Bullet Cannon"
 	dropped_weapon.weapon_type = WeaponPart.WeaponType.MACHINE_GUN
-	dropped_weapon.ammo_type = "kinetic"
+	dropped_weapon.ammo_type = "bullet"
 	dropped_weapon.max_ammo = 100
 	dummy_pickup_node.weapon_resource = dropped_weapon
 	dummy_pickup_node.current_ammo = 60
@@ -80,8 +80,8 @@ func _ready() -> void:
 	var drained = dummy_pickup_node.unload_ammo_to_player(dummy_mecha)
 	_check(drained == 60, "WeaponPickup unloaded full ammo (60 rounds)")
 	_check(dummy_pickup_node.current_ammo == 0, "Dropped weapon pickup ammo reduced to 0")
-	_check(wm.get_battle_reserve("kinetic") == starting_kinetic_reserve + 60, "Player WeaponManager battle reserve increased by 60")
-	_check(LoadoutSystem.get_reserve_ammo("kinetic") == starting_kinetic_stash + 60, "LoadoutSystem ammo inventory persisted +60")
+	_check(wm.get_battle_reserve("bullet") == starting_bullet_reserve + 60, "Player WeaponManager battle reserve increased by 60")
+	_check(LoadoutSystem.get_reserve_ammo("bullet") == starting_bullet_stash + 60, "LoadoutSystem ammo inventory persisted +60")
 
 	# 3. Test Carry Weapon Selection List (1-3) Excludes Ammo
 	_check(wm.carry is Array, "WeaponManager carry is an Array of WeaponPart")

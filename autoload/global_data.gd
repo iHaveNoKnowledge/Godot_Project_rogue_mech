@@ -148,8 +148,9 @@ const SCRAP_ATTACH_OPTIONS := {
 
 const FIELD_PACK_BASE_CAPACITY := 40.0
 const AMMO_WEIGHT_PER_UNIT := {
-	"kinetic": 0.01, "energy": 0.02, "explosive": 0.20, "missile": 0.50,
-}
+	"bullet": 0.01, "heavy_round": 0.03, "shell": 0.05, "spike": 0.04,
+	"energy_cell": 0.02, "rocket": 0.25, "missile": 0.50, "explosive": 0.20,
+} # Full catalog lives in AmmoSystem.WEIGHTS (kept in sync by test).
 const PART_TIER_SUBSTEPS: int = 4
 const REPAIR_COST_PER_HP := 0.5
 const DECISIVE_VICTORY_RATIO := 0.5

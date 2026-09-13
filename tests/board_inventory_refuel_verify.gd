@@ -75,7 +75,7 @@ func _test_board_inventory_modal_ui() -> void:
 	_check(modal.item_list_container.get_child_count() > 0, "Medical items populated in list")
 
 	modal.switch_category("ammo")
-	_check(modal.item_list_container.get_child_count() == 4, "4 Ammo reserve types populated in list")
+	_check(modal.item_list_container.get_child_count() == AmmoSystem.ORDER.size(), "every catalog ammo reserve type populated in list")
 
 	modal.switch_category("parts")
 	_check(modal.current_category == "parts", "Switched to parts category")

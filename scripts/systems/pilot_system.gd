@@ -65,11 +65,16 @@ const HEAL_ITEMS: Array = [
 ]
 
 # Personal ammo sold at city nodes (type -> credits per unit).
+# Full catalog lives in AmmoSystem.PRICES (kept in sync by test).
 const AMMO_PRICES: Dictionary = {
-	"kinetic": 2,
-	"energy": 3,
-	"explosive": 8,
+	"bullet": 2,
+	"heavy_round": 4,
+	"shell": 4,
+	"spike": 6,
+	"energy_cell": 3,
+	"rocket": 8,
 	"missile": 15,
+	"explosive": 8,
 }
 
 # -----------------------------------------------------------------------------

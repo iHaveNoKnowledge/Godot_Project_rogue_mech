@@ -86,12 +86,12 @@ func _test_ammo_unloading() -> void:
 	pickup_scene.current_ammo = 45
 	add_child(pickup_scene)
 
-	var init_reserve = LoadoutSystem.get_reserve_ammo("kinetic")
+	var init_reserve = LoadoutSystem.get_reserve_ammo("explosive")
 	var drained = pickup_scene.unload_ammo_to_player()
 
 	_check(drained == 45, "Unloaded all 45 rounds from ground weapon")
 	_check(pickup_scene.current_ammo == 0, "Ground weapon current_ammo is now 0")
-	_check(LoadoutSystem.get_reserve_ammo("kinetic") >= init_reserve + 45, "Player ammo reserve received +45 rounds")
+	_check(LoadoutSystem.get_reserve_ammo("explosive") >= init_reserve + 45, "Player ammo reserve received +45 rounds")
 
 	pickup_scene.queue_free()
 

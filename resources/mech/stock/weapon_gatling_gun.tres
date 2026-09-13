@@ -18,6 +18,7 @@ weight = 15.0
 range_distance = 70.0
 description = "ปืนกล multiple barrels ยิงเร็วสุด กระสุนเยอะสุด แต่หนักมาก"
 rarity = 2
+ammo_type = "heavy_round"
 fire_sfx = ExtResource("2")
 heat_capacity = 100.0
 heat_per_shot = 3.0

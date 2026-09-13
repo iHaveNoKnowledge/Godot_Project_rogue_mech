@@ -19,12 +19,7 @@ var pilot_max_hp: float = 100.0
 var pilot_weapons: Array = ["res://resources/mech/stock/weapon_pilot_pistol.tres"]
 
 # --- Personal Ammo (type -> count) ---
-var pilot_ammo: Dictionary = {
-	"kinetic": 120,
-	"energy": 40,
-	"explosive": 8,
-	"missile": 3,
-}
+var pilot_ammo: Dictionary = AmmoSystem.STARTER_PILOT_AMMO.duplicate()
 
 # --- Items (item_id: count) ---
 var pilot_items: Dictionary = {}
@@ -43,12 +38,7 @@ func reset() -> void:
 	pilot_hp = PilotSystem.PILOT_MAX_HP_DEFAULT
 	pilot_max_hp = PilotSystem.PILOT_MAX_HP_DEFAULT
 	pilot_weapons = ["res://resources/mech/stock/weapon_pilot_pistol.tres"]
-	pilot_ammo = {
-		"kinetic": 120,
-		"energy": 40,
-		"explosive": 8,
-		"missile": 3,
-	}
+	pilot_ammo = AmmoSystem.STARTER_PILOT_AMMO.duplicate()
 	pilot_items = {}
 	hired_pilots.clear()
 	fallen_pilots.clear()

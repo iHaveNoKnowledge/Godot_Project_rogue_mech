@@ -324,12 +324,10 @@ func _build_pilot_text() -> String:
 		for wp in weapons:
 			text += "- %s\n" % (wp.weapon_name if wp else "?")
 	text += "\n--- Personal Ammo ---\n"
-	text += "Kinetic: %d | Energy: %d | Explosive: %d | Missile: %d\n" % [
-		PilotSystem.get_ammo("kinetic"),
-		PilotSystem.get_ammo("energy"),
-		PilotSystem.get_ammo("explosive"),
-		PilotSystem.get_ammo("missile"),
-	]
+	var pilot_bits: Array[String] = []
+	for ammo_id in AmmoSystem.ORDER:
+		pilot_bits.append("%s: %d" % [AmmoSystem.display_name(ammo_id), PilotSystem.get_ammo(ammo_id)])
+	text += "%s\n" % " | ".join(pilot_bits)
 	text += "\n--- Items ---\n"
 	var items := PilotSystem.get_items()
 	if items.is_empty():
@@ -531,12 +529,10 @@ func _build_convoy_text() -> String:
 		text += "STATUS: %d/%d mech berths parked.\n" % [GlobalData.hangar.hangar_mechs.size(), HangarManager.get_capacity()]
 	text += "\n"
 	text += "Pilots in convoy: %d\n" % HangarManager.get_fleet_size()
-	text += "Reserve ammo: Kin %d | En %d | Exp %d | Ms %d\n" % [
-		LoadoutSystem.get_reserve_ammo("kinetic"),
-		LoadoutSystem.get_reserve_ammo("energy"),
-		LoadoutSystem.get_reserve_ammo("explosive"),
-		LoadoutSystem.get_reserve_ammo("missile")
-	]
+	var reserve_bits: Array[String] = []
+	for ammo_id in AmmoSystem.ORDER:
+		reserve_bits.append("%s %d" % [AmmoSystem.display_name(ammo_id), LoadoutSystem.get_reserve_ammo(ammo_id)])
+	text += "Reserve ammo: %s\n" % " | ".join(reserve_bits)
 	return text
 
 
@@ -821,10 +817,9 @@ func _build_inventory_text() -> String:
 	text += "Data Cores (Research): %d\n\n" % GlobalData.currency.data_cores
 
 	text += "--- Reserve Ammo Stock ---\n"
-	text += "Kinetic Ammo: %d\n" % LoadoutSystem.get_reserve_ammo("kinetic")
-	text += "Energy Cells: %d\n" % LoadoutSystem.get_reserve_ammo("energy")
-	text += "Explosive Shells: %d\n" % LoadoutSystem.get_reserve_ammo("explosive")
-	text += "Missile Pods: %d\n\n" % LoadoutSystem.get_reserve_ammo("missile")
+	for ammo_id in AmmoSystem.ORDER:
+		text += "%s: %d\n" % [AmmoSystem.display_name(ammo_id), LoadoutSystem.get_reserve_ammo(ammo_id)]
+	text += "\n"
 
 	text += "--- Weapon Inventory ---\n"
 	if GlobalData.weapons.weapon_inventory.is_empty():

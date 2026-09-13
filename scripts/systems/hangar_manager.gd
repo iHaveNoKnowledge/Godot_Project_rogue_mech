@@ -438,12 +438,7 @@ static func park_ally_mech(mech_name: String, pilot_id: String, archetype: int, 
 		"left": left_uid,
 		"right": right_uid,
 		"carry": carry_uids,
-		"ammo": {
-			"kinetic": 250,
-			"energy": 150,
-			"explosive": 25,
-			"missile": 12,
-		}
+		"ammo": AmmoSystem.STARTER_RESERVE.duplicate(),
 	}
 
 	var snapshot = {

@@ -17,4 +17,5 @@ weight = 10.0
 range_distance = 70.0
 description = "ยิงจรวด 3 ลูกพร้อมกัน ยิงกระจาย damage รวมสูง"
 rarity = 1
+ammo_type = "rocket"
 reload_time = 3.5

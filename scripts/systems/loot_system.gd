@@ -150,7 +150,7 @@ func _on_pickup_body_entered(body: Node3D, pickup: Area3D) -> void:
 				if wm:
 					wm.add_ammo(amount)
 			elif body.is_in_group("pilot"):
-				PilotSystem.add_ammo("kinetic", amount)
+				PilotSystem.add_ammo("bullet", amount)
 		"repair":
 			var slot: String = loot_data.get("slot", "")
 			if slot:

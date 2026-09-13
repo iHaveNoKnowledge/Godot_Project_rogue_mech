@@ -103,14 +103,14 @@ func _get_tile_type(pos: Vector2i) -> String:
 
 
 func _refresh() -> void:
-	pilot_label.text = "PILOT STATUS: HP %d / %d%s\nPERSONAL AMMO: Kin %d | En %d | Exp %d | Ms %d | Credits: %d" % [
+	var ammo_bits: Array[String] = []
+	for ammo_type in AmmoSystem.ORDER:
+		ammo_bits.append("%s %d" % [AmmoSystem.display_name(ammo_type), PilotSystem.get_ammo(ammo_type)])
+	pilot_label.text = "PILOT STATUS: HP %d / %d%s\nPERSONAL AMMO: %s | Credits: %d" % [
 		int(PilotSystem.get_hp()),
 		int(PilotSystem.get_max_hp()),
 		"  (INJURED — buy medkits to heal)" if PilotSystem.get_hp() < PilotSystem.get_max_hp() else "",
-		PilotSystem.get_ammo("kinetic"),
-		PilotSystem.get_ammo("energy"),
-		PilotSystem.get_ammo("explosive"),
-		PilotSystem.get_ammo("missile"),
+		" | ".join(ammo_bits),
 		GlobalData.currency.credits,
 	]
 
@@ -136,11 +136,11 @@ func _refresh() -> void:
 	# Personal ammo
 	var ammo_sep = HSeparator.new()
 	stock_container.add_child(ammo_sep)
-	for ammo_type in ["kinetic", "energy", "explosive", "missile"]:
+	for ammo_type in AmmoSystem.ORDER:
 		var price := PilotSystem.get_ammo_price(ammo_type)
 		var btn = Button.new()
 		btn.custom_minimum_size = Vector2(560, 30)
-		btn.text = "+20 %s ammo (%d credits)" % [ammo_type.capitalize(), price * 20]
+		btn.text = "+20 %s ammo (%d credits)" % [AmmoSystem.display_name(ammo_type), price * 20]
 		btn.disabled = GlobalData.currency.credits < price * 20
 		btn.pressed.connect(_on_buy_ammo.bind(ammo_type))
 		stock_container.add_child(btn)

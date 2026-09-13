@@ -998,7 +998,7 @@ func add_ammo(amount: int, hand: String = "", ammo_type: String = "") -> void:
 	if target_type.is_empty() and target_weapon:
 		target_type = target_weapon.get_ammo_type()
 	if target_type.is_empty():
-		target_type = "kinetic"
+		target_type = "bullet"
 
 	# Ammo found mid-battle is added to the local battle reserve so it is usable right away
 	add_battle_reserve(target_type, amount)
@@ -1256,7 +1256,7 @@ func _melee_attack(hand: String, weapon: WeaponPart, is_loaded_blast: bool = tru
 		else:
 			hit_damage = 45.0 * _hand_damage_mult(hand)
 
-	# Eject spent shell casing for loaded Pile Bunker / kinetic melee
+	# Eject spent shell casing for loaded Pile Bunker / spike-fed melee
 	if weapon and ((is_pile and is_loaded_blast) or (not is_pile and (weapon.ammo_per_shot > 0 or weapon.get_ammo_type() != "none"))):
 		var spawn_pos = mecha.global_position + (Vector3(-0.6, 1.5, 0.5) if hand == "left" else Vector3(0.6, 1.5, 0.5))
 		_spawn_shell_casing(spawn_pos, hand)

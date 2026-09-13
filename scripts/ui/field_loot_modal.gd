@@ -402,12 +402,9 @@ func _refresh_ammo_display() -> void:
 		c.queue_free()
 
 	var wm = _get_weapon_manager()
-	var ammo_types = [
-		{"type": "kinetic", "label": "KINETIC", "color": Color(0.95, 0.8, 0.35)},
-		{"type": "energy", "label": "ENERGY", "color": Color(0.3, 0.85, 1.0)},
-		{"type": "explosive", "label": "EXPLOSIVE", "color": Color(1.0, 0.45, 0.25)},
-		{"type": "missile", "label": "MISSILE", "color": Color(0.85, 0.4, 0.95)},
-	]
+	var ammo_types: Array = []
+	for ammo_id in AmmoSystem.ORDER:
+		ammo_types.append({"type": ammo_id, "label": AmmoSystem.display_name(ammo_id).to_upper(), "color": AmmoSystem.chip_color(ammo_id)})
 
 	var title_lbl = Label.new()
 	title_lbl.text = "AMMO RESERVES:"
@@ -476,7 +473,7 @@ func _build_ground_item_card(pickup: Node3D) -> PanelContainer:
 
 	var w: WeaponPart = pickup.get("weapon_resource")
 	var wname := w.weapon_name if w else "Weapon Wreckage"
-	var wtype := w.get_ammo_type() if w else "kinetic"
+	var wtype := w.get_ammo_type() if w else "bullet"
 	var wweight := float(w.weight) if w else 8.0
 	var cur_ammo := int(pickup.get("current_ammo")) if pickup.get("current_ammo") != null else (w.max_ammo if w else 0)
 	var is_tagged := bool(pickup.get("is_tagged_for_convoy")) if pickup.get("is_tagged_for_convoy") != null else false

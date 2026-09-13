@@ -203,13 +203,13 @@ func _refresh_ui() -> void:
 	var ammo_rows := VBoxContainer.new()
 	ammo_rows.add_theme_constant_override("separation", 4)
 	_ammo_label.add_child(ammo_rows)
-	for ammo_type in ["kinetic", "energy", "explosive", "missile"]:
+	for ammo_type in AmmoSystem.ORDER:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
 		ammo_rows.add_child(row)
 		var info := Label.new()
 		info.custom_minimum_size = Vector2(200, 0)
-		info.text = "%s: %d" % [ammo_type.capitalize(), PilotSystem.get_ammo(ammo_type)]
+		info.text = "%s: %d" % [AmmoSystem.display_name(ammo_type), PilotSystem.get_ammo(ammo_type)]
 		info.add_theme_font_size_override("font_size", 11)
 		row.add_child(info)
 		var reserve := LoadoutSystem.get_reserve_ammo(ammo_type)

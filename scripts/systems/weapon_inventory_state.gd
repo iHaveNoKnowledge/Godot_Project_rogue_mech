@@ -21,12 +21,7 @@ var weapon_loadout: Dictionary = {
 	"shoulder_left": "",
 	"shoulder_right": "",
 	"carry": ["w_starter_carry"],
-	"ammo": {
-		"kinetic": 300,
-		"energy": 150,
-		"explosive": 30,
-		"missile": 12,
-	}
+	"ammo": AmmoSystem.STARTER_RESERVE.duplicate(),
 }
 
 var equipped_weapon_instances: Dictionary:
@@ -45,12 +40,7 @@ var inventory: Array:
 	set(val): weapon_inventory = val
 
 # --- Ammo Inventory (reserve, replenished between battles) ---
-var ammo_inventory: Dictionary = {
-	"kinetic": 300,
-	"energy": 150,
-	"explosive": 30,
-	"missile": 12,
-}
+var ammo_inventory: Dictionary = AmmoSystem.STARTER_RESERVE.duplicate()
 
 # --- Battle Loot (drops from THIS battle) ---
 var battle_loot: Array = []
@@ -111,19 +101,9 @@ func reset() -> void:
 		"shoulder_left": "",
 		"shoulder_right": "",
 		"carry": ["w_starter_carry"],
-		"ammo": {
-			"kinetic": 300,
-			"energy": 150,
-			"explosive": 30,
-			"missile": 12,
-		}
+		"ammo": AmmoSystem.STARTER_RESERVE.duplicate(),
 	}
-	ammo_inventory = {
-		"kinetic": 300,
-		"energy": 150,
-		"explosive": 30,
-		"missile": 12,
-	}
+	ammo_inventory = AmmoSystem.STARTER_RESERVE.duplicate()
 	weapon_inventory = [
 		{"uid": "w_starter_left", "path": "res://resources/mech/stock/weapon_beam_rifle.tres", "name": "Beam Rifle", "durability": 1.0, "upgrade_level": 1},
 		{"uid": "w_starter_right", "path": "res://resources/mech/stock/weapon_heat_blade.tres", "name": "Heat Blade", "durability": 1.0, "upgrade_level": 1},

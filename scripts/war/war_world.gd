@@ -292,7 +292,7 @@ func _spawn_player_mecha() -> void:
 	if wm.carry.is_empty():
 		wm.carry.append(load("res://resources/mech/stock/weapon_combat_shotgun.tres"))
 	if wm.battle_reserve.is_empty():
-		wm.battle_reserve = {"kinetic": 300, "energy": 150, "explosive": 30}
+		wm.battle_reserve = AmmoSystem.STARTER_RESERVE.duplicate()
 
 	wm.call_deferred("_emit_initial_state")
 

@@ -339,13 +339,8 @@ func _populate_parts_items() -> void:
 				_select_armor_part(a)
 
 func _populate_ammo_items() -> void:
-	var ammo_types = [
-		{"id": "kinetic", "name": "Kinetic Ammunition", "desc": "Solid ballistic rounds for Machine Guns, Autocannons, and Rifles."},
-		{"id": "energy", "name": "Energy Battery Cells", "desc": "Capacitor cells for Lasers, Plasma Cannons, and Particle Rifles."},
-		{"id": "explosive", "name": "Explosive Heavy Shells", "desc": "Heavy caliber shells for Cannons and Grenade Launchers."},
-		{"id": "missile", "name": "Guided Missile Pods", "desc": "Smart-guided micro-missiles and Swarm pods."}
-	]
-	for a in ammo_types:
+	for ammo_id in AmmoSystem.ORDER:
+		var a := {"id": ammo_id, "name": AmmoSystem.display_name(ammo_id), "desc": str(AmmoSystem.DESCS.get(ammo_id, ""))}
 		var count := LoadoutSystem.get_reserve_ammo(a["id"])
 		var btn := _create_item_row(a["name"], count, "📦 AMMO", Color(0.85, 0.45, 1.0), count > 0)
 		btn.pressed.connect(func(): _select_ammo_item(a, count))

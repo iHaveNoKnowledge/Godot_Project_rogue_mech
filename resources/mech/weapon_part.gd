@@ -26,7 +26,7 @@ enum DamageType { HEAT, PIERCE, BLUNT }
 @export var description: String = ""
 @export var rarity: int = 0
 
-@export var ammo_type: String = "" # "kinetic", "energy", "explosive", "missile", "none" (if empty, auto-inferred)
+@export var ammo_type: String = "" # AmmoSystem id ("bullet", "shell", "spike", "energy_cell", "rocket", "missile", "explosive", "heavy_round", "none"; empty = auto-inferred)
 @export var reload_time: float = 2.0 # seconds to refill the magazine from reserve
 
 # ----
@@ -120,12 +120,18 @@ func get_ammo_type() -> String:
 		return ammo_type.to_lower()
 	match weapon_type:
 		WeaponType.BEAM_RIFLE:
-			return "energy"
-		WeaponType.MACHINE_GUN, WeaponType.SHOTGUN:
-			return "kinetic"
+			return "energy_cell"
+		WeaponType.MACHINE_GUN:
+			return "bullet"
+		WeaponType.SHOTGUN:
+			return "shell"
 		WeaponType.MISSILE:
 			return "missile"
+		WeaponType.RAILGUN:
+			return "spike"
+		WeaponType.MINIGUN:
+			return "heavy_round"
 		WeaponType.MELEE, WeaponType.SHIELD:
 			return "none"
 		_:
-			return "kinetic"
+			return "bullet"

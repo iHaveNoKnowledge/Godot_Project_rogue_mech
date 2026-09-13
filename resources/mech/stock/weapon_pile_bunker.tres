@@ -17,5 +17,5 @@ weight = 15.0
 range_distance = 6.0
 description = "ทะลวงเกราะ แรงสุด ใช้ปลอกกระสุนอัดจุดระเบิดต่อตอก"
 rarity = 2
-ammo_type = "kinetic"
+ammo_type = "spike"
 reload_time = 3.0

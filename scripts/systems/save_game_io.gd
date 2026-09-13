@@ -313,7 +313,7 @@ static func restore_from_dict(data: Dictionary) -> void:
 	var loaded_pilot_ammo = data.get("pilot_ammo", {})
 	GlobalData.pilot.pilot_ammo = {}
 	if loaded_pilot_ammo is Dictionary:
-		GlobalData.pilot.pilot_ammo = loaded_pilot_ammo.duplicate()
+		GlobalData.pilot.pilot_ammo = AmmoSystem.migrate_dict(loaded_pilot_ammo.duplicate())
 	var loaded_pilot_items = data.get("pilot_items", {})
 	GlobalData.pilot.pilot_items = {}
 	if loaded_pilot_items is Dictionary:
@@ -387,7 +387,7 @@ static func restore_from_dict(data: Dictionary) -> void:
 
 	var loaded_ammo = data.get("ammo_inventory", {})
 	if loaded_ammo is Dictionary and not loaded_ammo.is_empty():
-		GlobalData.weapons.ammo_inventory = loaded_ammo.duplicate()
+		GlobalData.weapons.ammo_inventory = AmmoSystem.migrate_dict(loaded_ammo.duplicate())
 
 	var loaded_weapons = data.get("weapon_inventory", [])
 	GlobalData.weapons.weapon_inventory = []
@@ -411,12 +411,16 @@ static func restore_from_dict(data: Dictionary) -> void:
 		GlobalData.weapons.weapon_loadout = loaded_loadout.duplicate(true)
 		# Older saves predate the "ammo" loadout key — default to the stash.
 		if not GlobalData.weapons.weapon_loadout.has("ammo"):
-			GlobalData.weapons.weapon_loadout["ammo"] = {
-				"kinetic": LoadoutSystem.get_reserve_ammo("kinetic"),
-				"energy": LoadoutSystem.get_reserve_ammo("energy"),
-				"explosive": LoadoutSystem.get_reserve_ammo("explosive"),
-				"missile": LoadoutSystem.get_reserve_ammo("missile")
-			}
+			var fallback_ammo := {}
+			for ammo_id in AmmoSystem.ORDER:
+				fallback_ammo[ammo_id] = LoadoutSystem.get_reserve_ammo(ammo_id)
+			GlobalData.weapons.weapon_loadout["ammo"] = fallback_ammo
+		else:
+			# Older saves use the legacy 4-type ammo keys — migrate to the
+			# 8-type catalog (kinetic -> bullet/heavy_round/shell/spike, ...).
+			var loadout_ammo = GlobalData.weapons.weapon_loadout.get("ammo", {})
+			if loadout_ammo is Dictionary:
+				GlobalData.weapons.weapon_loadout["ammo"] = AmmoSystem.migrate_dict(loadout_ammo)
 		# Older saves stored resource PATHS in the loadout; current saves store
 		# instance uids so the [E] badge stays per-instance. Migrate any path
 		# refs to the matching stash instance's uid when one exists.

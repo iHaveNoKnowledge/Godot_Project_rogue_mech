@@ -30,6 +30,7 @@ static var _shared_pilot_mat: StandardMaterial3D = null
 static var _shared_visor_mat: StandardMaterial3D = null
 
 ## Cockpit Tub & Sliding Carriage state
+const COCKPIT_BLENDER_GLB := "res://assets/models/mech_cockpit_tub.glb"
 var is_cockpit_open: bool = false
 var is_cockpit_pilot_seated: bool = false
 var _cockpit_tween: Tween = null
@@ -1009,6 +1010,58 @@ func _get_shared_visor_mat() -> StandardMaterial3D:
 	return _shared_visor_mat
 
 
+func _create_cockpit_pilot_mannequin() -> Node3D:
+	var pilot_mannequin = Node3D.new()
+	pilot_mannequin.name = "CockpitPilot"
+	var pilot_mat = _get_shared_pilot_mat()
+	var visor_mat = _get_shared_visor_mat()
+
+	var pilot_torso = MeshInstance3D.new()
+	var pt_box = BoxMesh.new()
+	pt_box.size = Vector3(0.18, 0.22, 0.14)
+	pilot_torso.mesh = pt_box
+	pilot_torso.position = Vector3(0, 0.12, 0.05)
+	pilot_torso.material_override = pilot_mat
+	pilot_mannequin.add_child(pilot_torso)
+
+	var pilot_head = MeshInstance3D.new()
+	var ph_sph = SphereMesh.new()
+	ph_sph.radius = 0.075
+	ph_sph.height = 0.15
+	pilot_head.mesh = ph_sph
+	pilot_head.position = Vector3(0, 0.28, 0.05)
+	pilot_head.material_override = pilot_mat
+	pilot_mannequin.add_child(pilot_head)
+
+	var pilot_visor = MeshInstance3D.new()
+	var pv_box = BoxMesh.new()
+	pv_box.size = Vector3(0.10, 0.035, 0.04)
+	pilot_visor.mesh = pv_box
+	pilot_visor.position = Vector3(0, 0.28, -0.015)
+	pilot_visor.material_override = visor_mat
+	pilot_mannequin.add_child(pilot_visor)
+
+	for arm_sign in [-1.0, 1.0]:
+		var pilot_arm = MeshInstance3D.new()
+		var pa_box = BoxMesh.new()
+		pa_box.size = Vector3(0.05, 0.06, 0.14)
+		pilot_arm.mesh = pa_box
+		pilot_arm.position = Vector3(arm_sign * 0.13, 0.06, -0.02)
+		pilot_arm.rotation_degrees.x = 25.0
+		pilot_arm.material_override = pilot_mat
+		pilot_mannequin.add_child(pilot_arm)
+
+		var pilot_leg = MeshInstance3D.new()
+		var pl_box = BoxMesh.new()
+		pl_box.size = Vector3(0.06, 0.06, 0.16)
+		pilot_leg.mesh = pl_box
+		pilot_leg.position = Vector3(arm_sign * 0.08, -0.04, -0.10)
+		pilot_leg.material_override = pilot_mat
+		pilot_mannequin.add_child(pilot_leg)
+
+	return pilot_mannequin
+
+
 # ==============================================================================
 # SKELETAL INNER FRAME GENERATOR (UPPER + LOWER JOINT SPLIT)
 # ==============================================================================
@@ -1055,227 +1108,209 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 			spine.material_override = frame_mat
 			upper_container.add_child(spine)
 
-			# --- 2. COCKPIT TUB (Tubular cockpit chamber with pilot seat, controls & HUD) ---
-			var cockpit_tub = Node3D.new()
-			cockpit_tub.name = "CockpitTub"
-			upper_container.add_child(cockpit_tub)
+			# --- 2. COCKPIT TUB & SLIDING CARRIAGE (Blender 3D Asset or Procedural Fallback) ---
+			var blender_cockpit_scene: PackedScene = load(COCKPIT_BLENDER_GLB) as PackedScene if ResourceLoader.exists(COCKPIT_BLENDER_GLB) else null
+			if blender_cockpit_scene != null:
+				var b_inst = blender_cockpit_scene.instantiate()
+				var b_carriage = b_inst.get_node_or_null("SlidingCarriage")
+				if b_carriage:
+					b_inst.remove_child(b_carriage)
+					b_carriage.owner = null
+					b_carriage.name = "SlidingCarriage"
+					if is_cockpit_open:
+						b_carriage.position = Vector3(0.0, -0.22, -0.48)
+						b_carriage.rotation_degrees = Vector3(8.0, 0.0, 0.0)
+					else:
+						b_carriage.position = Vector3.ZERO
+						b_carriage.rotation_degrees = Vector3.ZERO
+					upper_container.add_child(b_carriage)
 
-			# Cockpit floor
-			var tub_floor = MeshInstance3D.new()
-			var tf_box = BoxMesh.new()
-			tf_box.size = Vector3(0.48, 0.04, 0.44)
-			tub_floor.mesh = tf_box
-			tub_floor.position = Vector3(0, -0.08, -0.05)
-			tub_floor.material_override = frame_mat
-			cockpit_tub.add_child(tub_floor)
+				b_inst.name = "CockpitTub"
+				upper_container.add_child(b_inst)
 
-			# Cockpit left wall
-			var tub_left = MeshInstance3D.new()
-			var tl_box = BoxMesh.new()
-			tl_box.size = Vector3(0.04, 0.32, 0.44)
-			tub_left.mesh = tl_box
-			tub_left.position = Vector3(-0.24, 0.08, -0.05)
-			tub_left.material_override = frame_mat
-			cockpit_tub.add_child(tub_left)
+				# Set holographic display shader material on HUD if present
+				var holo = b_inst.get_node_or_null("HoloHUD_Display")
+				if holo and holo is MeshInstance3D:
+					holo.material_override = _get_shared_holo_mat()
 
-			# Cockpit right wall
-			var tub_right = MeshInstance3D.new()
-			var tr_box = BoxMesh.new()
-			tr_box.size = Vector3(0.04, 0.32, 0.44)
-			tub_right.mesh = tr_box
-			tub_right.position = Vector3(0.24, 0.08, -0.05)
-			tub_right.material_override = frame_mat
-			cockpit_tub.add_child(tub_right)
+				# Mount seated pilot mannequin into cockpit tub
+				var pilot_mannequin = _create_cockpit_pilot_mannequin()
+				pilot_mannequin.visible = is_cockpit_pilot_seated
+				b_inst.add_child(pilot_mannequin)
+			else:
+				# --- Procedural Fallback ---
+				var cockpit_tub = Node3D.new()
+				cockpit_tub.name = "CockpitTub"
+				upper_container.add_child(cockpit_tub)
 
-			# Cockpit rear bulkhead / armored seat mount
-			var tub_bulkhead = MeshInstance3D.new()
-			var tb_box = BoxMesh.new()
-			tb_box.size = Vector3(0.48, 0.42, 0.06)
-			tub_bulkhead.mesh = tb_box
-			tub_bulkhead.position = Vector3(0, 0.13, 0.16)
-			tub_bulkhead.material_override = frame_mat
-			cockpit_tub.add_child(tub_bulkhead)
+				# Cockpit floor
+				var tub_floor = MeshInstance3D.new()
+				var tf_box = BoxMesh.new()
+				tf_box.size = Vector3(0.48, 0.04, 0.44)
+				tub_floor.mesh = tf_box
+				tub_floor.position = Vector3(0, -0.08, -0.05)
+				tub_floor.material_override = frame_mat
+				cockpit_tub.add_child(tub_floor)
 
-			# Left & Right Hydraulic Guide Slide Rails (on top rim of tub walls)
-			for rail_sign in [-1.0, 1.0]:
-				var rail = MeshInstance3D.new()
-				var r_cyl = CylinderMesh.new()
-				r_cyl.top_radius = 0.018
-				r_cyl.bottom_radius = 0.018
-				r_cyl.height = 0.46
-				rail.mesh = r_cyl
-				rail.rotation_degrees.x = 90.0
-				rail.position = Vector3(rail_sign * 0.24, 0.24, -0.05)
-				rail.material_override = chrome_mat
-				cockpit_tub.add_child(rail)
+				# Cockpit left wall
+				var tub_left = MeshInstance3D.new()
+				var tl_box = BoxMesh.new()
+				tl_box.size = Vector3(0.04, 0.32, 0.44)
+				tub_left.mesh = tl_box
+				tub_left.position = Vector3(-0.24, 0.08, -0.05)
+				tub_left.material_override = frame_mat
+				cockpit_tub.add_child(tub_left)
 
-			# Ergonomic Bucket Seat
-			var dark_trim = _get_shared_dark_trim_mat()
+				# Cockpit right wall
+				var tub_right = MeshInstance3D.new()
+				var tr_box = BoxMesh.new()
+				tr_box.size = Vector3(0.04, 0.32, 0.44)
+				tub_right.mesh = tr_box
+				tub_right.position = Vector3(0.24, 0.08, -0.05)
+				tub_right.material_override = frame_mat
+				cockpit_tub.add_child(tub_right)
 
-			var seat_base = MeshInstance3D.new()
-			var sb_box = BoxMesh.new()
-			sb_box.size = Vector3(0.26, 0.08, 0.24)
-			seat_base.mesh = sb_box
-			seat_base.position = Vector3(0, -0.02, 0.04)
-			seat_base.material_override = dark_trim
-			cockpit_tub.add_child(seat_base)
+				# Cockpit rear bulkhead / armored seat mount
+				var tub_bulkhead = MeshInstance3D.new()
+				var tb_box = BoxMesh.new()
+				tb_box.size = Vector3(0.48, 0.42, 0.06)
+				tub_bulkhead.mesh = tb_box
+				tub_bulkhead.position = Vector3(0, 0.13, 0.16)
+				tub_bulkhead.material_override = frame_mat
+				cockpit_tub.add_child(tub_bulkhead)
 
-			var seat_back = MeshInstance3D.new()
-			var sbk_box = BoxMesh.new()
-			sbk_box.size = Vector3(0.26, 0.32, 0.06)
-			seat_back.mesh = sbk_box
-			seat_back.rotation_degrees.x = -8.0
-			seat_back.position = Vector3(0, 0.18, 0.13)
-			seat_back.material_override = dark_trim
-			cockpit_tub.add_child(seat_back)
+				# Left & Right Hydraulic Guide Slide Rails (on top rim of tub walls)
+				for rail_sign in [-1.0, 1.0]:
+					var rail = MeshInstance3D.new()
+					var r_cyl = CylinderMesh.new()
+					r_cyl.top_radius = 0.018
+					r_cyl.bottom_radius = 0.018
+					r_cyl.height = 0.46
+					rail.mesh = r_cyl
+					rail.rotation_degrees.x = 90.0
+					rail.position = Vector3(rail_sign * 0.24, 0.24, -0.05)
+					rail.material_override = chrome_mat
+					cockpit_tub.add_child(rail)
 
-			var headrest = MeshInstance3D.new()
-			var hr_box = BoxMesh.new()
-			hr_box.size = Vector3(0.18, 0.12, 0.08)
-			headrest.mesh = hr_box
-			headrest.position = Vector3(0, 0.38, 0.11)
-			headrest.material_override = dark_trim
-			cockpit_tub.add_child(headrest)
+				# Ergonomic Bucket Seat
+				var dark_trim = _get_shared_dark_trim_mat()
 
-			# Dual Flight Joysticks
-			for stick_sign in [-1.0, 1.0]:
-				var stick_base = MeshInstance3D.new()
-				var stkb_box = BoxMesh.new()
-				stkb_box.size = Vector3(0.06, 0.04, 0.06)
-				stick_base.mesh = stkb_box
-				stick_base.position = Vector3(stick_sign * 0.16, -0.04, -0.08)
-				stick_base.material_override = frame_mat
-				cockpit_tub.add_child(stick_base)
+				var seat_base = MeshInstance3D.new()
+				var sb_box = BoxMesh.new()
+				sb_box.size = Vector3(0.26, 0.08, 0.24)
+				seat_base.mesh = sb_box
+				seat_base.position = Vector3(0, -0.02, 0.04)
+				seat_base.material_override = dark_trim
+				cockpit_tub.add_child(seat_base)
 
-				var stick = MeshInstance3D.new()
-				var st_cyl = CylinderMesh.new()
-				st_cyl.top_radius = 0.012
-				st_cyl.bottom_radius = 0.012
-				st_cyl.height = 0.10
-				stick.mesh = st_cyl
-				stick.rotation_degrees.x = -15.0
-				stick.position = Vector3(stick_sign * 0.16, 0.03, -0.08)
-				stick.material_override = chrome_mat
-				cockpit_tub.add_child(stick)
+				var seat_back = MeshInstance3D.new()
+				var sbk_box = BoxMesh.new()
+				sbk_box.size = Vector3(0.26, 0.32, 0.06)
+				seat_back.mesh = sbk_box
+				seat_back.rotation_degrees.x = -8.0
+				seat_back.position = Vector3(0, 0.18, 0.13)
+				seat_back.material_override = dark_trim
+				cockpit_tub.add_child(seat_back)
 
-			# Forward Dashboard Console & Glowing Holo-HUD Screen
-			var console_deck = MeshInstance3D.new()
-			var cd_box = BoxMesh.new()
-			cd_box.size = Vector3(0.36, 0.05, 0.12)
-			console_deck.mesh = cd_box
-			console_deck.rotation_degrees.x = -25.0
-			console_deck.position = Vector3(0, 0.08, -0.22)
-			console_deck.material_override = dark_trim
-			cockpit_tub.add_child(console_deck)
+				var headrest = MeshInstance3D.new()
+				var hr_box = BoxMesh.new()
+				hr_box.size = Vector3(0.18, 0.12, 0.08)
+				headrest.mesh = hr_box
+				headrest.position = Vector3(0, 0.38, 0.11)
+				headrest.material_override = dark_trim
+				cockpit_tub.add_child(headrest)
 
-			var holo_screen = MeshInstance3D.new()
-			holo_screen.name = "HoloHUD_Display"
-			var hs_box = BoxMesh.new()
-			hs_box.size = Vector3(0.28, 0.14, 0.01)
-			holo_screen.mesh = hs_box
-			holo_screen.rotation_degrees.x = -15.0
-			holo_screen.position = Vector3(0, 0.19, -0.20)
-			holo_screen.material_override = _get_shared_holo_mat()
-			cockpit_tub.add_child(holo_screen)
+				# Dual Flight Joysticks
+				for stick_sign in [-1.0, 1.0]:
+					var stick_base = MeshInstance3D.new()
+					var stkb_box = BoxMesh.new()
+					stkb_box.size = Vector3(0.06, 0.04, 0.06)
+					stick_base.mesh = stkb_box
+					stick_base.position = Vector3(stick_sign * 0.16, -0.04, -0.08)
+					stick_base.material_override = frame_mat
+					cockpit_tub.add_child(stick_base)
 
-			# Seated Pilot Mannequin (visible when manned)
-			var pilot_mannequin = Node3D.new()
-			pilot_mannequin.name = "CockpitPilot"
-			var pilot_mat = _get_shared_pilot_mat()
-			var visor_mat = _get_shared_visor_mat()
+					var stick = MeshInstance3D.new()
+					var st_cyl = CylinderMesh.new()
+					st_cyl.top_radius = 0.012
+					st_cyl.bottom_radius = 0.012
+					st_cyl.height = 0.10
+					stick.mesh = st_cyl
+					stick.rotation_degrees.x = -15.0
+					stick.position = Vector3(stick_sign * 0.16, 0.03, -0.08)
+					stick.material_override = chrome_mat
+					cockpit_tub.add_child(stick)
 
-			var pilot_torso = MeshInstance3D.new()
-			var pt_box = BoxMesh.new()
-			pt_box.size = Vector3(0.18, 0.22, 0.14)
-			pilot_torso.mesh = pt_box
-			pilot_torso.position = Vector3(0, 0.12, 0.05)
-			pilot_torso.material_override = pilot_mat
-			pilot_mannequin.add_child(pilot_torso)
+				# Forward Dashboard Console & Glowing Holo-HUD Screen
+				var console_deck = MeshInstance3D.new()
+				var cd_box = BoxMesh.new()
+				cd_box.size = Vector3(0.36, 0.05, 0.12)
+				console_deck.mesh = cd_box
+				console_deck.rotation_degrees.x = -25.0
+				console_deck.position = Vector3(0, 0.08, -0.22)
+				console_deck.material_override = dark_trim
+				cockpit_tub.add_child(console_deck)
 
-			var pilot_head = MeshInstance3D.new()
-			var ph_sph = SphereMesh.new()
-			ph_sph.radius = 0.075
-			ph_sph.height = 0.15
-			pilot_head.mesh = ph_sph
-			pilot_head.position = Vector3(0, 0.28, 0.05)
-			pilot_head.material_override = pilot_mat
-			pilot_mannequin.add_child(pilot_head)
+				var holo_screen = MeshInstance3D.new()
+				holo_screen.name = "HoloHUD_Display"
+				var hs_box = BoxMesh.new()
+				hs_box.size = Vector3(0.28, 0.14, 0.01)
+				holo_screen.mesh = hs_box
+				holo_screen.rotation_degrees.x = -15.0
+				holo_screen.position = Vector3(0, 0.19, -0.20)
+				holo_screen.material_override = _get_shared_holo_mat()
+				cockpit_tub.add_child(holo_screen)
 
-			var pilot_visor = MeshInstance3D.new()
-			var pv_box = BoxMesh.new()
-			pv_box.size = Vector3(0.10, 0.035, 0.04)
-			pilot_visor.mesh = pv_box
-			pilot_visor.position = Vector3(0, 0.28, -0.015)
-			pilot_visor.material_override = visor_mat
-			pilot_mannequin.add_child(pilot_visor)
+				var pilot_mannequin = _create_cockpit_pilot_mannequin()
+				pilot_mannequin.visible = is_cockpit_pilot_seated
+				cockpit_tub.add_child(pilot_mannequin)
 
-			for arm_sign in [-1.0, 1.0]:
-				var pilot_arm = MeshInstance3D.new()
-				var pa_box = BoxMesh.new()
-				pa_box.size = Vector3(0.05, 0.06, 0.14)
-				pilot_arm.mesh = pa_box
-				pilot_arm.position = Vector3(arm_sign * 0.13, 0.06, -0.02)
-				pilot_arm.rotation_degrees.x = 25.0
-				pilot_arm.material_override = pilot_mat
-				pilot_mannequin.add_child(pilot_arm)
+				# --- 3. SLIDING FRONT CARRIAGE (Slides forward and down when cockpit open) ---
+				var carriage = Node3D.new()
+				carriage.name = "SlidingCarriage"
+				if is_cockpit_open:
+					carriage.position = Vector3(0.0, -0.22, -0.48)
+					carriage.rotation_degrees = Vector3(8.0, 0.0, 0.0)
+				upper_container.add_child(carriage)
 
-				var pilot_leg = MeshInstance3D.new()
-				var pl_box = BoxMesh.new()
-				pl_box.size = Vector3(0.06, 0.06, 0.16)
-				pilot_leg.mesh = pl_box
-				pilot_leg.position = Vector3(arm_sign * 0.08, -0.04, -0.10)
-				pilot_leg.material_override = pilot_mat
-				pilot_mannequin.add_child(pilot_leg)
+				# Front Rib Arc
+				var rib = MeshInstance3D.new()
+				var r_box = BoxMesh.new()
+				r_box.size = Vector3(0.54, 0.08, 0.16)
+				rib.mesh = r_box
+				rib.position = Vector3(0, 0.12, -0.24)
+				rib.material_override = frame_mat
+				carriage.add_child(rib)
 
-			pilot_mannequin.visible = is_cockpit_pilot_seated
-			cockpit_tub.add_child(pilot_mannequin)
+				# Front Chin Frame
+				var chin = MeshInstance3D.new()
+				var ch_box = BoxMesh.new()
+				ch_box.size = Vector3(0.36, 0.10, 0.14)
+				chin.mesh = ch_box
+				chin.position = Vector3(0, -0.16, -0.22)
+				chin.material_override = frame_mat
+				carriage.add_child(chin)
 
-			# --- 3. SLIDING FRONT CARRIAGE (Slides forward and down when cockpit open) ---
-			var carriage = Node3D.new()
-			carriage.name = "SlidingCarriage"
-			if is_cockpit_open:
-				carriage.position = Vector3(0.0, -0.22, -0.48)
-				carriage.rotation_degrees = Vector3(8.0, 0.0, 0.0)
-			upper_container.add_child(carriage)
+				# Hydraulic Slide Runners (telescoping along tub guide rails)
+				for side_sign in [-1.0, 1.0]:
+					var runner = MeshInstance3D.new()
+					var rn_cyl = CylinderMesh.new()
+					rn_cyl.top_radius = 0.025
+					rn_cyl.bottom_radius = 0.025
+					rn_cyl.height = 0.38
+					runner.mesh = rn_cyl
+					runner.rotation_degrees.x = 90.0
+					runner.position = Vector3(side_sign * 0.25, 0.24, -0.08)
+					runner.material_override = chrome_mat
+					carriage.add_child(runner)
 
-			# Front Rib Arc
-			var rib = MeshInstance3D.new()
-			var r_box = BoxMesh.new()
-			r_box.size = Vector3(0.54, 0.08, 0.16)
-			rib.mesh = r_box
-			rib.position = Vector3(0, 0.12, -0.24)
-			rib.material_override = frame_mat
-			carriage.add_child(rib)
-
-			# Front Chin Frame
-			var chin = MeshInstance3D.new()
-			var ch_box = BoxMesh.new()
-			ch_box.size = Vector3(0.36, 0.10, 0.14)
-			chin.mesh = ch_box
-			chin.position = Vector3(0, -0.16, -0.22)
-			chin.material_override = frame_mat
-			carriage.add_child(chin)
-
-			# Hydraulic Slide Runners (telescoping along tub guide rails)
-			for side_sign in [-1.0, 1.0]:
-				var runner = MeshInstance3D.new()
-				var rn_cyl = CylinderMesh.new()
-				rn_cyl.top_radius = 0.025
-				rn_cyl.bottom_radius = 0.025
-				rn_cyl.height = 0.38
-				runner.mesh = rn_cyl
-				runner.rotation_degrees.x = 90.0
-				runner.position = Vector3(side_sign * 0.25, 0.24, -0.08)
-				runner.material_override = chrome_mat
-				carriage.add_child(runner)
-
-				var clasp = MeshInstance3D.new()
-				var cl_box = BoxMesh.new()
-				cl_box.size = Vector3(0.04, 0.12, 0.08)
-				clasp.mesh = cl_box
-				clasp.position = Vector3(side_sign * 0.28, 0.12, -0.18)
-				clasp.material_override = chrome_mat
-				carriage.add_child(clasp)
+					var clasp = MeshInstance3D.new()
+					var cl_box = BoxMesh.new()
+					cl_box.size = Vector3(0.04, 0.12, 0.08)
+					clasp.mesh = cl_box
+					clasp.position = Vector3(side_sign * 0.28, 0.12, -0.18)
+					clasp.material_override = chrome_mat
+					carriage.add_child(clasp)
 
 			# Shoulder Clavicle Axles & Sockets connecting body to arm shoulder pivots (X = ±0.782, Y = 0.288)
 			for side_sign in [-1.0, 1.0]:
@@ -1601,31 +1636,46 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 				armor_carriage.rotation_degrees = Vector3(8.0, 0.0, 0.0)
 			upper_container.add_child(armor_carriage)
 
-			var chest = MeshInstance3D.new()
-			var c_prism = PrismMesh.new()
-			c_prism.size = Vector3(0.95, 0.65, 0.48)
-			chest.mesh = c_prism
-			chest.rotation_degrees.x = 90
-			chest.position = Vector3(0, 0.12, -0.14)
-			chest.material_override = armor_mat
-			armor_carriage.add_child(chest)
+			var has_blender_cockpit := ResourceLoader.exists(COCKPIT_BLENDER_GLB)
+			if has_blender_cockpit:
+				# High-detail Blender cockpit SlidingCarriage provides the faceted breastplate,
+				# cooling vents, fins, and abdominal armor. Apply equipped armor material to plates:
+				var frame_container = upper_container.get_parent().get_node_or_null("FrameMesh")
+				if frame_container:
+					var fc = frame_container.get_node_or_null("SlidingCarriage")
+					if fc:
+						var cp = fc.get_node_or_null("Chest_Armor_Plate")
+						if cp and cp is MeshInstance3D:
+							cp.material_override = armor_mat
+						var ap = fc.get_node_or_null("Abdominal_Armor_Plate")
+						if ap and ap is MeshInstance3D:
+							ap.material_override = armor_mat
+			else:
+				var chest = MeshInstance3D.new()
+				var c_prism = PrismMesh.new()
+				c_prism.size = Vector3(0.95, 0.65, 0.48)
+				chest.mesh = c_prism
+				chest.rotation_degrees.x = 90
+				chest.position = Vector3(0, 0.12, -0.14)
+				chest.material_override = armor_mat
+				armor_carriage.add_child(chest)
 
-			for side_x in [-0.42, 0.42]:
-				var vent = MeshInstance3D.new()
-				var v_box = BoxMesh.new()
-				v_box.size = Vector3(0.14, 0.35, 0.25)
-				vent.mesh = v_box
-				vent.position = Vector3(side_x, 0.15, -0.08)
-				vent.material_override = dark_trim_mat
-				armor_carriage.add_child(vent)
+				for side_x in [-0.42, 0.42]:
+					var vent = MeshInstance3D.new()
+					var v_box = BoxMesh.new()
+					v_box.size = Vector3(0.14, 0.35, 0.25)
+					vent.mesh = v_box
+					vent.position = Vector3(side_x, 0.15, -0.08)
+					vent.material_override = dark_trim_mat
+					armor_carriage.add_child(vent)
 
-			var ab_plate = MeshInstance3D.new()
-			var ab_box = BoxMesh.new()
-			ab_box.size = Vector3(0.58, 0.35, 0.26)
-			ab_plate.mesh = ab_box
-			ab_plate.position = Vector3(0, -0.28, -0.10)
-			ab_plate.material_override = armor_mat
-			armor_carriage.add_child(ab_plate)
+				var ab_plate = MeshInstance3D.new()
+				var ab_box = BoxMesh.new()
+				ab_box.size = Vector3(0.58, 0.35, 0.26)
+				ab_plate.mesh = ab_box
+				ab_plate.position = Vector3(0, -0.28, -0.10)
+				ab_plate.material_override = armor_mat
+				armor_carriage.add_child(ab_plate)
 
 			# Shoulder cowls extending outward to bridge torso to shoulder pivots
 			for side_x in [-0.58, 0.58]:

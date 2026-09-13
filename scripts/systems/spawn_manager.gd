@@ -749,8 +749,8 @@ func _animate_combat_slide_in(enemy: Node3D, start_pos: Vector3, end_pos: Vector
 		eff_fact.spawn_smoke_plume(get_tree(), (start_pos + end_pos) * 0.5, 4, 0.25, 0.7, 1.4)
 
 	await tw.finished
-	if is_instance_valid(enemy) and EffectManager != null and EffectManager.has_method("spawn_dust_cloud"):
-		EffectManager.spawn_dust_cloud(end_pos, 2.2)
+	if is_instance_valid(enemy) and eff_fact and eff_fact.has_method("spawn_dust_puffs"):
+		eff_fact.spawn_dust_puffs(get_tree(), end_pos)
 
 
 # The run theme's enemy organization config (style/paint/variance), see

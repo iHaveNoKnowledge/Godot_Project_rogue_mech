@@ -84,9 +84,9 @@ func _generate_sounds() -> void:
 	var step_lift_file: Variant = _load_sfx_file("step_lift")
 	_sound_cache["step_lift"] = step_lift_file if step_lift_file != null else _gen_mech_step_lift()
 	var dash_file: Variant = _load_sfx_file("dash")
-	var dash_stream: AudioStream = dash_file if dash_file != null else _gen_actuator()
-	_sound_cache["dash"] = dash_stream
-	_sound_cache["mecha_actuator"] = dash_stream
+	var dash_sound: Variant = dash_file if dash_file != null else _gen_actuator()
+	_sound_cache["dash"] = dash_sound
+	_sound_cache["mecha_actuator"] = dash_sound
 	var jump_file: Variant = _load_sfx_file("jump")
 	_sound_cache["jump"] = jump_file if jump_file != null else _gen_mech_jump()
 	var land_file: Variant = _load_sfx_file("land")

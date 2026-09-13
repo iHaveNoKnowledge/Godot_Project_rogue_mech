@@ -76,7 +76,7 @@ func _init() -> void:
 
 func _ready() -> void:
 	add_to_group("mecha")
-	if is_in_group("player") or name == "Mecha":
+	if is_in_group("player") or name == "Mecha" or name == "MechaBase":
 		is_player_driven = true
 	floor_snap_length = 0.3
 	floor_max_angle = deg_to_rad(60)
@@ -610,6 +610,12 @@ func _initialize_mesh_from_global_data() -> void:
 	if not pmm:
 		return
 	pmm.refresh_slots()
+	if has_meta("is_parked") or has_meta("is_unoccupied") or (not is_player_driven and seated_pilot == null and not is_in_group("player")):
+		pmm.set_cockpit_open(true, false)
+		pmm.set_cockpit_pilot_seated(false)
+	else:
+		pmm.set_cockpit_open(false, false)
+		pmm.set_cockpit_pilot_seated(true)
 
 
 func _on_weight_changed(_w: float) -> void:
@@ -623,9 +629,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		var now := Time.get_ticks_msec()
 		var last_time: int = int(get_meta("last_mount_toggle_time", 0))
 		if now - last_time < 500:
-			return # Debounce cooldown prevents instant dismount looping
-		get_viewport().set_input_as_handled()
-		dismount()
+			return
+		set_meta("last_mount_toggle_time", now)
+		var me = get_node_or_null("MechaEject")
+		if me and me.has_method("dismount_pilot"):
+			me.dismount_pilot()
+		else:
+			var eject_script = preload("res://scripts/mecha/mecha_eject.gd").new()
+			add_child(eject_script)
+			eject_script.dismount_pilot()
 
 
 ## Voluntarily dismounts the pilot from this mech
@@ -638,6 +650,20 @@ func dismount() -> void:
 		var eject_script = preload("res://scripts/mecha/mecha_eject.gd").new()
 		add_child(eject_script)
 		eject_script.dismount_pilot()
+
+
+## Controls cockpit hatch slide animation
+func set_cockpit_open(open: bool, animate: bool = true) -> void:
+	var pmm = get_node_or_null("PartMeshManager")
+	if pmm and pmm.has_method("set_cockpit_open"):
+		pmm.set_cockpit_open(open, animate)
+
+
+## Controls seated pilot mannequin visibility
+func set_cockpit_pilot_seated(seated: bool) -> void:
+	var pmm = get_node_or_null("PartMeshManager")
+	if pmm and pmm.has_method("set_cockpit_pilot_seated"):
+		pmm.set_cockpit_pilot_seated(seated)
 
 
 ## Puts the vacated mech into a standby/power-down state
@@ -654,6 +680,8 @@ func power_down() -> void:
 		ws.current_heat = 0.0
 	add_to_group("boardable_mech")
 	add_to_group("backup_mech")
+	set_cockpit_open(true, true)
+	set_cockpit_pilot_seated(false)
 	EventBus.mecha_occupancy_changed.emit(false)
 
 
@@ -677,4 +705,6 @@ func power_up() -> void:
 	_recalculate_weight()
 	velocity = Vector3.ZERO
 	is_roller_dashing = false
+	set_cockpit_open(false, true)
+	set_cockpit_pilot_seated(true)
 	EventBus.mecha_occupancy_changed.emit(true)

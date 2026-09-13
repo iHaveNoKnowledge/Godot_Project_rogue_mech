@@ -1219,6 +1219,7 @@ func _clear_highlights() -> void:
 
 
 var _base_camp_token: Node3D = null
+var _parked_mecha_token: Node3D = null
 
 
 func _update_token_position() -> void:
@@ -1310,6 +1311,60 @@ func _update_token_position() -> void:
 		if _base_camp_token != null:
 			_base_camp_token.queue_free()
 			_base_camp_token = null
+
+	# 3. Manage Parked Mecha Token (Cockpit Open) when Pilot is deployed on foot
+	if GlobalData.fuel.traversal_mode == "pilot" and GlobalData.fuel.mecha_is_parked:
+		var m_pos: Vector2i = GlobalData.fuel.mecha_parked_pos
+		if nodes_dict.has(m_pos):
+			if _parked_mecha_token == null:
+				_parked_mecha_token = Node3D.new()
+				_parked_mecha_token.name = "ParkedMechaToken"
+
+				# Outer chassis box
+				var body_mesh := MeshInstance3D.new()
+				var b_box := BoxMesh.new()
+				b_box.size = Vector3(0.9, 1.2, 0.7)
+				body_mesh.mesh = b_box
+				var b_mat := StandardMaterial3D.new()
+				b_mat.albedo_color = Color(0.2, 0.4, 0.7)
+				b_mat.metallic = 0.5
+				b_mat.roughness = 0.3
+				body_mesh.material_override = b_mat
+				_parked_mecha_token.add_child(body_mesh)
+
+				# Extended sliding carriage (open cockpit hatch)
+				var hatch := MeshInstance3D.new()
+				var h_box := BoxMesh.new()
+				h_box.size = Vector3(0.7, 0.4, 0.4)
+				hatch.mesh = h_box
+				hatch.position = Vector3(0.0, -0.3, -0.55)
+				var h_mat := StandardMaterial3D.new()
+				h_mat.albedo_color = Color(0.3, 0.7, 1.0)
+				h_mat.emission_enabled = true
+				h_mat.emission = Color(0.1, 0.5, 0.9)
+				h_mat.emission_energy_multiplier = 1.2
+				hatch.material_override = h_mat
+				_parked_mecha_token.add_child(hatch)
+
+				var m_tag := Label3D.new()
+				m_tag.name = "MechaTag"
+				m_tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+				m_tag.no_depth_test = true
+				m_tag.font_size = 38
+				m_tag.position = Vector3(0.0, 1.1, 0.0)
+				m_tag.outline_size = 8
+				m_tag.outline_modulate = Color.BLACK
+				m_tag.text = "🤖 PARKED MECHA\n[COCKPIT OPEN]"
+				m_tag.modulate = Color(0.35, 0.85, 1.0)
+				_parked_mecha_token.add_child(m_tag)
+				add_child(_parked_mecha_token)
+
+			var m_tile = nodes_dict[m_pos]
+			_parked_mecha_token.global_position = m_tile.global_position + Vector3(0, 0.8, 0)
+	else:
+		if _parked_mecha_token != null:
+			_parked_mecha_token.queue_free()
+			_parked_mecha_token = null
 
 
 # ---------------------------------------------------------------------------

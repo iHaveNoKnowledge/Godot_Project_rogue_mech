@@ -738,6 +738,13 @@ func update_all_slots_preview() -> void:
 	var rp = controller.roster_panel_ui if controller else null
 	pmm.set_ghost_mode(rp != null and rp.has_method("is_pending_register_active") and rp.is_pending_register_active())
 	pmm.refresh_slots()
+	var active_mech: Dictionary = HangarManager.get_active_mech() if (ClassDB.class_exists("HangarManager") or ResourceLoader.exists("res://scripts/systems/hangar_manager.gd")) else {}
+	var has_pilot: bool = active_mech is Dictionary and str(active_mech.get("pilot", "")) != ""
+	if pmm.has_method("set_cockpit_pilot_seated"):
+		pmm.set_cockpit_pilot_seated(has_pilot)
+	if pmm.has_method("set_cockpit_open"):
+		if not has_pilot:
+			pmm.set_cockpit_open(true, false)
 
 	var attachment_manager = mecha.get_node_or_null("AttachmentManager") if mecha else null
 	if attachment_manager:

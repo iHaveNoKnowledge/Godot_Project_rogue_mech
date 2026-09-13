@@ -25,6 +25,14 @@ static var _shared_dark_trim_mat: ShaderMaterial = null
 static var _shared_frame_mat: ShaderMaterial = null
 static var _shared_chrome_mat: ShaderMaterial = null
 static var _shared_eye_mat: ShaderMaterial = null
+static var _shared_holo_mat: StandardMaterial3D = null
+static var _shared_pilot_mat: StandardMaterial3D = null
+static var _shared_visor_mat: StandardMaterial3D = null
+
+## Cockpit Tub & Sliding Carriage state
+var is_cockpit_open: bool = false
+var is_cockpit_pilot_seated: bool = false
+var _cockpit_tween: Tween = null
 
 
 func set_ghost_mode(enabled: bool) -> void:
@@ -74,6 +82,78 @@ func hide_slot_completely(slot_name: String) -> void:
 	if entry.get("armor_lower") and entry["armor_lower"]: entry["armor_lower"].visible = false
 	if entry["frame"]: entry["frame"].visible = false
 	if entry.get("frame_lower") and entry["frame_lower"]: entry["frame_lower"].visible = false
+
+
+## Toggles cockpit hatch extension. When open, front carriage slides forward-down along guide rails.
+func set_cockpit_open(open: bool, animate: bool = true) -> void:
+	is_cockpit_open = open
+	var target_pos := Vector3(0.0, -0.22, -0.48) if open else Vector3.ZERO
+	var target_rot := Vector3(8.0, 0.0, 0.0) if open else Vector3.ZERO
+
+	var carriages: Array[Node3D] = []
+	var body_entry = slot_meshes.get("body")
+	if body_entry:
+		if body_entry.get("frame") and is_instance_valid(body_entry["frame"]):
+			var c = body_entry["frame"].get_node_or_null("SlidingCarriage")
+			if c is Node3D:
+				carriages.append(c)
+		if body_entry.get("armor") and is_instance_valid(body_entry["armor"]):
+			var c = body_entry["armor"].get_node_or_null("SlidingCarriage")
+			if c is Node3D:
+				carriages.append(c)
+
+	if carriages.is_empty():
+		return
+
+	if _cockpit_tween and _cockpit_tween.is_valid():
+		_cockpit_tween.kill()
+
+	if not animate or not is_inside_tree():
+		for c in carriages:
+			c.position = target_pos
+			c.rotation_degrees = target_rot
+		return
+
+	_cockpit_tween = create_tween()
+	_cockpit_tween.set_parallel(true)
+	var duration := 0.75
+	var trans := Tween.TRANS_CUBIC
+	var ease := Tween.EASE_OUT if open else Tween.EASE_IN_OUT
+
+	for c in carriages:
+		_cockpit_tween.tween_property(c, "position", target_pos, duration).set_trans(trans).set_ease(ease)
+		_cockpit_tween.tween_property(c, "rotation_degrees", target_rot, duration).set_trans(trans).set_ease(ease)
+
+
+## Sets whether the pilot mannequin inside the cockpit tub is visible.
+func set_cockpit_pilot_seated(seated: bool) -> void:
+	is_cockpit_pilot_seated = seated
+	var body_entry = slot_meshes.get("body")
+	if body_entry and body_entry.get("frame") and is_instance_valid(body_entry["frame"]):
+		var pilot = body_entry["frame"].get_node_or_null("CockpitTub/CockpitPilot")
+		if pilot is Node3D:
+			pilot.visible = seated
+
+
+## Synchronizes newly rebuilt slot meshes with current cockpit open/seated state.
+func _sync_cockpit_state() -> void:
+	var target_pos := Vector3(0.0, -0.22, -0.48) if is_cockpit_open else Vector3.ZERO
+	var target_rot := Vector3(8.0, 0.0, 0.0) if is_cockpit_open else Vector3.ZERO
+	var body_entry = slot_meshes.get("body")
+	if body_entry:
+		if body_entry.get("frame") and is_instance_valid(body_entry["frame"]):
+			var c = body_entry["frame"].get_node_or_null("SlidingCarriage")
+			if c is Node3D:
+				c.position = target_pos
+				c.rotation_degrees = target_rot
+			var pilot = body_entry["frame"].get_node_or_null("CockpitTub/CockpitPilot")
+			if pilot is Node3D:
+				pilot.visible = is_cockpit_pilot_seated
+		if body_entry.get("armor") and is_instance_valid(body_entry["armor"]):
+			var c = body_entry["armor"].get_node_or_null("SlidingCarriage")
+			if c is Node3D:
+				c.position = target_pos
+				c.rotation_degrees = target_rot
 
 
 func initialize_slot(slot_name: String, part: ArmorPart, apply_player_damage: bool = true) -> void:
@@ -211,6 +291,9 @@ func initialize_slot(slot_name: String, part: ArmorPart, apply_player_damage: bo
 							var m_rad := float(meta.get("radius", 0.65))
 							if m_pos is Vector3:
 								dmg_vis.update_slot_hit(slot_name, m_layer, m_pos as Vector3, m_rad)
+
+	if slot_name.to_lower() == "body":
+		_sync_cockpit_state()
 
 
 func _attach_custom_mesh_scene(upper_container: Node3D, lower_container: Node3D, upper_scene: PackedScene, lower_scene: PackedScene) -> void:
@@ -890,6 +973,42 @@ func _apply_comfy_armor_detail(mat: ShaderMaterial, strength: float = 0.35) -> v
 	mat.set_shader_parameter("detail_strength", strength)
 
 
+func _get_shared_holo_mat() -> StandardMaterial3D:
+	if _shared_holo_mat == null:
+		var mat := StandardMaterial3D.new()
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.albedo_color = Color(0.12, 0.85, 1.0, 0.55)
+		mat.emission_enabled = true
+		mat.emission = Color(0.15, 0.90, 1.0)
+		mat.emission_energy_multiplier = 2.5
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_shared_holo_mat = mat
+	return _shared_holo_mat
+
+
+func _get_shared_pilot_mat() -> StandardMaterial3D:
+	if _shared_pilot_mat == null:
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(0.18, 0.22, 0.28)
+		mat.metallic = 0.1
+		mat.roughness = 0.75
+		_shared_pilot_mat = mat
+	return _shared_pilot_mat
+
+
+func _get_shared_visor_mat() -> StandardMaterial3D:
+	if _shared_visor_mat == null:
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(0.95, 0.75, 0.15)
+		mat.metallic = 0.85
+		mat.roughness = 0.2
+		mat.emission_enabled = true
+		mat.emission = Color(0.95, 0.75, 0.15)
+		mat.emission_energy_multiplier = 1.2
+		_shared_visor_mat = mat
+	return _shared_visor_mat
+
+
 # ==============================================================================
 # SKELETAL INNER FRAME GENERATOR (UPPER + LOWER JOINT SPLIT)
 # ==============================================================================
@@ -927,32 +1046,236 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 			upper_container.add_child(neck)
 
 		"body":
+			# --- 1. REAR STRUCTURAL SPINE & WAIST CHASSIS (Stationary) ---
 			var spine = MeshInstance3D.new()
 			var sp_box = BoxMesh.new()
-			sp_box.size = Vector3(0.18, 0.90, 0.18)
+			sp_box.size = Vector3(0.20, 0.90, 0.18)
 			spine.mesh = sp_box
-			spine.position = Vector3(0, 0.05, 0)
+			spine.position = Vector3(0, 0.05, 0.22)
 			spine.material_override = frame_mat
 			upper_container.add_child(spine)
 
-			for rib_y in [0.28, 0.08, -0.12]:
-				var rib = MeshInstance3D.new()
-				var r_box = BoxMesh.new()
-				r_box.size = Vector3(0.56, 0.08, 0.32)
-				rib.mesh = r_box
-				rib.position = Vector3(0, rib_y, 0)
-				rib.material_override = frame_mat
-				upper_container.add_child(rib)
+			# --- 2. COCKPIT TUB (Tubular cockpit chamber with pilot seat, controls & HUD) ---
+			var cockpit_tub = Node3D.new()
+			cockpit_tub.name = "CockpitTub"
+			upper_container.add_child(cockpit_tub)
 
-			var core = MeshInstance3D.new()
-			var c_cyl = CylinderMesh.new()
-			c_cyl.top_radius = 0.14
-			c_cyl.bottom_radius = 0.14
-			c_cyl.height = 0.48
-			core.mesh = c_cyl
-			core.position = Vector3(0, 0.10, 0)
-			core.material_override = chrome_mat
-			upper_container.add_child(core)
+			# Cockpit floor
+			var tub_floor = MeshInstance3D.new()
+			var tf_box = BoxMesh.new()
+			tf_box.size = Vector3(0.48, 0.04, 0.44)
+			tub_floor.mesh = tf_box
+			tub_floor.position = Vector3(0, -0.08, -0.05)
+			tub_floor.material_override = frame_mat
+			cockpit_tub.add_child(tub_floor)
+
+			# Cockpit left wall
+			var tub_left = MeshInstance3D.new()
+			var tl_box = BoxMesh.new()
+			tl_box.size = Vector3(0.04, 0.32, 0.44)
+			tub_left.mesh = tl_box
+			tub_left.position = Vector3(-0.24, 0.08, -0.05)
+			tub_left.material_override = frame_mat
+			cockpit_tub.add_child(tub_left)
+
+			# Cockpit right wall
+			var tub_right = MeshInstance3D.new()
+			var tr_box = BoxMesh.new()
+			tr_box.size = Vector3(0.04, 0.32, 0.44)
+			tub_right.mesh = tr_box
+			tub_right.position = Vector3(0.24, 0.08, -0.05)
+			tub_right.material_override = frame_mat
+			cockpit_tub.add_child(tub_right)
+
+			# Cockpit rear bulkhead / armored seat mount
+			var tub_bulkhead = MeshInstance3D.new()
+			var tb_box = BoxMesh.new()
+			tb_box.size = Vector3(0.48, 0.42, 0.06)
+			tub_bulkhead.mesh = tb_box
+			tub_bulkhead.position = Vector3(0, 0.13, 0.16)
+			tub_bulkhead.material_override = frame_mat
+			cockpit_tub.add_child(tub_bulkhead)
+
+			# Left & Right Hydraulic Guide Slide Rails (on top rim of tub walls)
+			for rail_sign in [-1.0, 1.0]:
+				var rail = MeshInstance3D.new()
+				var r_cyl = CylinderMesh.new()
+				r_cyl.top_radius = 0.018
+				r_cyl.bottom_radius = 0.018
+				r_cyl.height = 0.46
+				rail.mesh = r_cyl
+				rail.rotation_degrees.x = 90.0
+				rail.position = Vector3(rail_sign * 0.24, 0.24, -0.05)
+				rail.material_override = chrome_mat
+				cockpit_tub.add_child(rail)
+
+			# Ergonomic Bucket Seat
+			var dark_trim = _get_shared_dark_trim_mat()
+
+			var seat_base = MeshInstance3D.new()
+			var sb_box = BoxMesh.new()
+			sb_box.size = Vector3(0.26, 0.08, 0.24)
+			seat_base.mesh = sb_box
+			seat_base.position = Vector3(0, -0.02, 0.04)
+			seat_base.material_override = dark_trim
+			cockpit_tub.add_child(seat_base)
+
+			var seat_back = MeshInstance3D.new()
+			var sbk_box = BoxMesh.new()
+			sbk_box.size = Vector3(0.26, 0.32, 0.06)
+			seat_back.mesh = sbk_box
+			seat_back.rotation_degrees.x = -8.0
+			seat_back.position = Vector3(0, 0.18, 0.13)
+			seat_back.material_override = dark_trim
+			cockpit_tub.add_child(seat_back)
+
+			var headrest = MeshInstance3D.new()
+			var hr_box = BoxMesh.new()
+			hr_box.size = Vector3(0.18, 0.12, 0.08)
+			headrest.mesh = hr_box
+			headrest.position = Vector3(0, 0.38, 0.11)
+			headrest.material_override = dark_trim
+			cockpit_tub.add_child(headrest)
+
+			# Dual Flight Joysticks
+			for stick_sign in [-1.0, 1.0]:
+				var stick_base = MeshInstance3D.new()
+				var stkb_box = BoxMesh.new()
+				stkb_box.size = Vector3(0.06, 0.04, 0.06)
+				stick_base.mesh = stkb_box
+				stick_base.position = Vector3(stick_sign * 0.16, -0.04, -0.08)
+				stick_base.material_override = frame_mat
+				cockpit_tub.add_child(stick_base)
+
+				var stick = MeshInstance3D.new()
+				var st_cyl = CylinderMesh.new()
+				st_cyl.top_radius = 0.012
+				st_cyl.bottom_radius = 0.012
+				st_cyl.height = 0.10
+				stick.mesh = st_cyl
+				stick.rotation_degrees.x = -15.0
+				stick.position = Vector3(stick_sign * 0.16, 0.03, -0.08)
+				stick.material_override = chrome_mat
+				cockpit_tub.add_child(stick)
+
+			# Forward Dashboard Console & Glowing Holo-HUD Screen
+			var console_deck = MeshInstance3D.new()
+			var cd_box = BoxMesh.new()
+			cd_box.size = Vector3(0.36, 0.05, 0.12)
+			console_deck.mesh = cd_box
+			console_deck.rotation_degrees.x = -25.0
+			console_deck.position = Vector3(0, 0.08, -0.22)
+			console_deck.material_override = dark_trim
+			cockpit_tub.add_child(console_deck)
+
+			var holo_screen = MeshInstance3D.new()
+			holo_screen.name = "HoloHUD_Display"
+			var hs_box = BoxMesh.new()
+			hs_box.size = Vector3(0.28, 0.14, 0.01)
+			holo_screen.mesh = hs_box
+			holo_screen.rotation_degrees.x = -15.0
+			holo_screen.position = Vector3(0, 0.19, -0.20)
+			holo_screen.material_override = _get_shared_holo_mat()
+			cockpit_tub.add_child(holo_screen)
+
+			# Seated Pilot Mannequin (visible when manned)
+			var pilot_mannequin = Node3D.new()
+			pilot_mannequin.name = "CockpitPilot"
+			var pilot_mat = _get_shared_pilot_mat()
+			var visor_mat = _get_shared_visor_mat()
+
+			var pilot_torso = MeshInstance3D.new()
+			var pt_box = BoxMesh.new()
+			pt_box.size = Vector3(0.18, 0.22, 0.14)
+			pilot_torso.mesh = pt_box
+			pilot_torso.position = Vector3(0, 0.12, 0.05)
+			pilot_torso.material_override = pilot_mat
+			pilot_mannequin.add_child(pilot_torso)
+
+			var pilot_head = MeshInstance3D.new()
+			var ph_sph = SphereMesh.new()
+			ph_sph.radius = 0.075
+			ph_sph.height = 0.15
+			pilot_head.mesh = ph_sph
+			pilot_head.position = Vector3(0, 0.28, 0.05)
+			pilot_head.material_override = pilot_mat
+			pilot_mannequin.add_child(pilot_head)
+
+			var pilot_visor = MeshInstance3D.new()
+			var pv_box = BoxMesh.new()
+			pv_box.size = Vector3(0.10, 0.035, 0.04)
+			pilot_visor.mesh = pv_box
+			pilot_visor.position = Vector3(0, 0.28, -0.015)
+			pilot_visor.material_override = visor_mat
+			pilot_mannequin.add_child(pilot_visor)
+
+			for arm_sign in [-1.0, 1.0]:
+				var pilot_arm = MeshInstance3D.new()
+				var pa_box = BoxMesh.new()
+				pa_box.size = Vector3(0.05, 0.06, 0.14)
+				pilot_arm.mesh = pa_box
+				pilot_arm.position = Vector3(arm_sign * 0.13, 0.06, -0.02)
+				pilot_arm.rotation_degrees.x = 25.0
+				pilot_arm.material_override = pilot_mat
+				pilot_mannequin.add_child(pilot_arm)
+
+				var pilot_leg = MeshInstance3D.new()
+				var pl_box = BoxMesh.new()
+				pl_box.size = Vector3(0.06, 0.06, 0.16)
+				pilot_leg.mesh = pl_box
+				pilot_leg.position = Vector3(arm_sign * 0.08, -0.04, -0.10)
+				pilot_leg.material_override = pilot_mat
+				pilot_mannequin.add_child(pilot_leg)
+
+			pilot_mannequin.visible = is_cockpit_pilot_seated
+			cockpit_tub.add_child(pilot_mannequin)
+
+			# --- 3. SLIDING FRONT CARRIAGE (Slides forward and down when cockpit open) ---
+			var carriage = Node3D.new()
+			carriage.name = "SlidingCarriage"
+			if is_cockpit_open:
+				carriage.position = Vector3(0.0, -0.22, -0.48)
+				carriage.rotation_degrees = Vector3(8.0, 0.0, 0.0)
+			upper_container.add_child(carriage)
+
+			# Front Rib Arc
+			var rib = MeshInstance3D.new()
+			var r_box = BoxMesh.new()
+			r_box.size = Vector3(0.54, 0.08, 0.16)
+			rib.mesh = r_box
+			rib.position = Vector3(0, 0.12, -0.24)
+			rib.material_override = frame_mat
+			carriage.add_child(rib)
+
+			# Front Chin Frame
+			var chin = MeshInstance3D.new()
+			var ch_box = BoxMesh.new()
+			ch_box.size = Vector3(0.36, 0.10, 0.14)
+			chin.mesh = ch_box
+			chin.position = Vector3(0, -0.16, -0.22)
+			chin.material_override = frame_mat
+			carriage.add_child(chin)
+
+			# Hydraulic Slide Runners (telescoping along tub guide rails)
+			for side_sign in [-1.0, 1.0]:
+				var runner = MeshInstance3D.new()
+				var rn_cyl = CylinderMesh.new()
+				rn_cyl.top_radius = 0.025
+				rn_cyl.bottom_radius = 0.025
+				rn_cyl.height = 0.38
+				runner.mesh = rn_cyl
+				runner.rotation_degrees.x = 90.0
+				runner.position = Vector3(side_sign * 0.25, 0.24, -0.08)
+				runner.material_override = chrome_mat
+				carriage.add_child(runner)
+
+				var clasp = MeshInstance3D.new()
+				var cl_box = BoxMesh.new()
+				cl_box.size = Vector3(0.04, 0.12, 0.08)
+				clasp.mesh = cl_box
+				clasp.position = Vector3(side_sign * 0.28, 0.12, -0.18)
+				clasp.material_override = chrome_mat
+				carriage.add_child(clasp)
 
 			# Shoulder Clavicle Axles & Sockets connecting body to arm shoulder pivots (X = ±0.782, Y = 0.288)
 			for side_sign in [-1.0, 1.0]:
@@ -1270,6 +1593,14 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 			upper_container.add_child(collar)
 
 		"body":
+			# Front half armor attached to the SlidingCarriage (slides forward-down with inner frame)
+			var armor_carriage = Node3D.new()
+			armor_carriage.name = "SlidingCarriage"
+			if is_cockpit_open:
+				armor_carriage.position = Vector3(0.0, -0.22, -0.48)
+				armor_carriage.rotation_degrees = Vector3(8.0, 0.0, 0.0)
+			upper_container.add_child(armor_carriage)
+
 			var chest = MeshInstance3D.new()
 			var c_prism = PrismMesh.new()
 			c_prism.size = Vector3(0.95, 0.65, 0.48)
@@ -1277,7 +1608,7 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 			chest.rotation_degrees.x = 90
 			chest.position = Vector3(0, 0.12, -0.14)
 			chest.material_override = armor_mat
-			upper_container.add_child(chest)
+			armor_carriage.add_child(chest)
 
 			for side_x in [-0.42, 0.42]:
 				var vent = MeshInstance3D.new()
@@ -1286,7 +1617,7 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 				vent.mesh = v_box
 				vent.position = Vector3(side_x, 0.15, -0.08)
 				vent.material_override = dark_trim_mat
-				upper_container.add_child(vent)
+				armor_carriage.add_child(vent)
 
 			var ab_plate = MeshInstance3D.new()
 			var ab_box = BoxMesh.new()
@@ -1294,7 +1625,7 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 			ab_plate.mesh = ab_box
 			ab_plate.position = Vector3(0, -0.28, -0.10)
 			ab_plate.material_override = armor_mat
-			upper_container.add_child(ab_plate)
+			armor_carriage.add_child(ab_plate)
 
 			# Shoulder cowls extending outward to bridge torso to shoulder pivots
 			for side_x in [-0.58, 0.58]:

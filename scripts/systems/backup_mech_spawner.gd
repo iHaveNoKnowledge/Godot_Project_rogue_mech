@@ -148,6 +148,9 @@ func _spawn_reserve_mech(mech_id: String, spawn_pos: Vector3) -> void:
 			pmm.refresh_from_loadout(loadout)
 		elif pmm.has_method("refresh_slots"):
 			pmm.refresh_slots()
+		if pmm.has_method("set_cockpit_open"):
+			pmm.set_cockpit_open(true, false)
+			pmm.set_cockpit_pilot_seated(false)
 
 	var anim = backup.get_node_or_null("AnimationSystem")
 	if anim:

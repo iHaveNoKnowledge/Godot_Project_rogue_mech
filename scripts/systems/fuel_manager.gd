@@ -81,6 +81,8 @@ const REIGNITION_ENGINE_DIRT_COST: float = 0.15
 var traversal_mode: String = "convoy" # "convoy", "mecha", "pilot"
 var convoy_pos: Vector2i = Vector2i.ZERO
 var convoy_is_deployed: bool = false
+var mecha_parked_pos: Vector2i = Vector2i.ZERO
+var mecha_is_parked: bool = false
 
 # --- Convoy Truck Primary Fuel Tank ---
 var convoy_fuel: float = 350.0
@@ -232,6 +234,7 @@ func deploy_mecha() -> void:
 	if traversal_mode == "convoy":
 		convoy_pos = GlobalData.board.current_tile
 		convoy_is_deployed = true
+	mecha_is_parked = false
 	traversal_mode = "mecha"
 
 
@@ -239,12 +242,16 @@ func deploy_pilot() -> void:
 	if traversal_mode == "convoy":
 		convoy_pos = GlobalData.board.current_tile
 		convoy_is_deployed = true
+	elif traversal_mode == "mecha":
+		mecha_parked_pos = GlobalData.board.current_tile
+		mecha_is_parked = true
 	traversal_mode = "pilot"
 
 
 func reembark_convoy() -> void:
 	traversal_mode = "convoy"
 	convoy_is_deployed = false
+	mecha_is_parked = false
 	if carried_fuel > 0.0:
 		refuel_convoy_from_carried(carried_fuel)
 	# Re-embarking clears active seizure if we returned and resolved it

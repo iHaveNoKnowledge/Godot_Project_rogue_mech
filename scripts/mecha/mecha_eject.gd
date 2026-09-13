@@ -42,6 +42,10 @@ func dismount_pilot(is_emergency: bool = false) -> void:
 		mecha.set_physics_process(false)
 		mecha.add_to_group("boardable_mech")
 		mecha.add_to_group("backup_mech")
+		if mecha.has_method("set_cockpit_open"):
+			mecha.set_cockpit_open(true, true)
+		if mecha.has_method("set_cockpit_pilot_seated"):
+			mecha.set_cockpit_pilot_seated(false)
 
 	# Spawn pilot on foot
 	var pilot: CharacterBody3D = pilot_scene.instantiate()
@@ -111,6 +115,10 @@ static func board_mecha(target_mecha: CharacterBody3D) -> void:
 			target_mecha._apply_chassis_from_global_data()
 		if target_mecha.has_method("_recalculate_weight"):
 			target_mecha._recalculate_weight()
+		if target_mecha.has_method("set_cockpit_open"):
+			target_mecha.set_cockpit_open(false, true)
+		if target_mecha.has_method("set_cockpit_pilot_seated"):
+			target_mecha.set_cockpit_pilot_seated(true)
 		elif "current_speed" in target_mecha:
 			# Fallback: ensure speed is not zeroed
 			if float(target_mecha.get("current_speed")) == 0.0:

@@ -190,6 +190,32 @@ func build(root: Control) -> void:
 	)
 	actions_grid.add_child(controller.overhaul_part_button)
 
+	var hatch_btn = Button.new()
+	hatch_btn.text = "🚪 Cockpit Hatch"
+	hatch_btn.custom_minimum_size = Vector2(150, 32)
+	hatch_btn.add_theme_color_override("font_color", Color(0.95, 0.85, 0.4))
+	hatch_btn.pressed.connect(func():
+		var pmm = controller.garage_panel.get_part_mesh_manager() if controller.garage_panel else null
+		if pmm and pmm.has_method("set_cockpit_open"):
+			pmm.set_cockpit_open(not pmm.is_cockpit_open, true)
+			var state_txt := "OPEN" if pmm.is_cockpit_open else "CLOSED"
+			controller.show_toast("Cockpit Hatch %s" % state_txt, false)
+	)
+	actions_grid.add_child(hatch_btn)
+
+	var pilot_btn = Button.new()
+	pilot_btn.text = "👤 Pilot Seated"
+	pilot_btn.custom_minimum_size = Vector2(150, 32)
+	pilot_btn.add_theme_color_override("font_color", Color(0.6, 0.85, 1.0))
+	pilot_btn.pressed.connect(func():
+		var pmm = controller.garage_panel.get_part_mesh_manager() if controller.garage_panel else null
+		if pmm and pmm.has_method("set_cockpit_pilot_seated"):
+			pmm.set_cockpit_pilot_seated(not pmm.is_cockpit_pilot_seated)
+			var state_txt := "SEATED" if pmm.is_cockpit_pilot_seated else "VACATED"
+			controller.show_toast("Cockpit Pilot %s" % state_txt, false)
+	)
+	actions_grid.add_child(pilot_btn)
+
 	controller.full_repair_button = Button.new()
 	controller.full_repair_button.text = "🛠️ Full Fleet Repair"
 	controller.full_repair_button.custom_minimum_size = Vector2(0, 32)

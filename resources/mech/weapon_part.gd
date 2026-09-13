@@ -2,6 +2,7 @@ extends Resource
 class_name WeaponPart
 
 enum WeaponType { BEAM_RIFLE, MACHINE_GUN, MISSILE, SHOTGUN, MELEE, SHIELD, RAILGUN, MINIGUN }
+enum TriggerMode { AUTO, SEMI, BURST }
 enum HoldStance { AUTO, RANGED_RIFLE, MELEE_UPRIGHT, PILE_BUNKER_GRIP, FOREARM_MOUNTED, SHIELD_SIDE }
 
 ## The three attack types. Every weapon deals one of these, every armor plate
@@ -17,6 +18,12 @@ enum DamageType { HEAT, PIERCE, BLUNT }
 @export var fire_rate: float = 0.2
 @export var max_ammo: int = 100
 @export var ammo_per_shot: int = 1
+## Trigger discipline (TriggerMode AUTO/SEMI/BURST): AUTO sprays while held,
+## SEMI fires one attempt per press, BURST fires up to burst_count shots per
+## press. Gated per hand by TriggerState; melee/shields always behave as AUTO.
+@export var trigger_mode: int = 0
+## Shots per trigger pull when trigger_mode is BURST.
+@export var burst_count: int = 3
 ## Projectiles spawned per trigger pull (volley weapons). Must be >= 1, and
 ## when ammo_per_shot > 1 it should match it — otherwise the player pays for
 ## rounds that never leave the barrel (the old Swarm bug: 3 rockets in, 1 out).

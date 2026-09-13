@@ -18,3 +18,4 @@ range_distance = 90.0
 description = "จรวดขนาดใหญ่ damage สูงมาก ยิงช้า กระสุนน้อยสุด"
 rarity = 2
 reload_time = 4.0
+trigger_mode = 1

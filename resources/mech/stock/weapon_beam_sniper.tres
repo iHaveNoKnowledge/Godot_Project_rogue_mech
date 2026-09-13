@@ -18,3 +18,4 @@ range_distance = 100.0
 description = "ปืน beam ระยะไกล damage สูง ยิงช้า แม่นยำมาก (นัดละ 2 เซลล์)"
 rarity = 2
 reload_time = 3.0
+trigger_mode = 1

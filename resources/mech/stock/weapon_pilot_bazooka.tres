@@ -21,3 +21,4 @@ description = "บาซูก้าทำลายยานเกราะ ร�
 rarity = 2
 ammo_type = "he_tube"
 reload_time = 3.5
+trigger_mode = 1

@@ -69,6 +69,12 @@ static func weapon_capability_text(res: Resource) -> String:
 			lines.append("AMMO / SHOT: %d" % ammo_per_shot)
 		if volley > 1:
 			lines.append("VOLLEY: x%d projectiles / pull" % volley)
+		var trig := int(res.trigger_mode) if "trigger_mode" in res and res.trigger_mode != null else 0
+		var burst_n := int(res.burst_count) if "burst_count" in res and res.burst_count != null else 3
+		if trig == 1:
+			lines.append("TRIGGER: SEMI (press per shot)")
+		elif trig == 2:
+			lines.append("TRIGGER: BURST x%d (hold)" % maxi(burst_n, 1))
 	elif is_melee_or_shield:
 		lines.append("AMMO: NONE")
 

@@ -28,3 +28,4 @@ recoil_force = 22.0
 recoil_shake = 0.55
 impact = 3.5
 reload_time = 4.0
+trigger_mode = 1

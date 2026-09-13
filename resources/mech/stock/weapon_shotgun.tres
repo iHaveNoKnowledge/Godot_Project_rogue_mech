@@ -18,3 +18,4 @@ range_distance = 20.0
 description = "ลูกซอง ยิงกระจาย 7 เม็ด แรง近距离"
 rarity = 1
 reload_time = 2.5
+trigger_mode = 1

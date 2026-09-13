@@ -19,3 +19,4 @@ description = "ปืนใหญ่อัตโนมัติหนัก (Hea
 rarity = 2
 ammo_type = "explosive"
 reload_time = 2.8
+trigger_mode = 1

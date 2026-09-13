@@ -21,3 +21,4 @@ description = "ไรเฟิลต่อต้านยานเกราะ�
 rarity = 2
 ammo_type = "ap_round"
 reload_time = 3.0
+trigger_mode = 1

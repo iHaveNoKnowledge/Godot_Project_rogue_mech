@@ -67,6 +67,9 @@ var reloading_left: bool = false
 var reloading_right: bool = false
 var _hold_time_left: float = 0.0
 var _hold_time_right: float = 0.0
+# Per-hand trigger discipline (AUTO/SEMI/BURST from the gun's own data).
+var trigger_left := TriggerState.new()
+var trigger_right := TriggerState.new()
 
 # --- Shield State ---
 # Shields are PHYSICAL plates held on one arm (no energy barrier, no
@@ -419,23 +422,53 @@ func _physics_process(delta: float) -> void:
 	if fire_left_holding:
 		if not Input.is_action_pressed("fire_left"):
 			fire_left_holding = false
+			trigger_left.release()
 		else:
-			if left_hand:
-				if left_hand.weapon_type != WeaponPart.WeaponType.SHIELD:
-					_try_fire("left", left_hand)
-			else:
-				_try_fire("left", null)
+			_hold_fire("left", left_hand)
 	if fire_right_holding:
 		if not Input.is_action_pressed("fire_right"):
 			fire_right_holding = false
+			trigger_right.release()
 		else:
-			if right_hand:
-				if right_hand.weapon_type != WeaponPart.WeaponType.SHIELD:
-					_try_fire("right", right_hand)
-			else:
-				_try_fire("right", null)
+			_hold_fire("right", right_hand)
 
 	# Physical shield plates never regenerate — a damaged plate stays damaged.
+
+
+## One held-frame of trigger discipline for a hand: AUTO sprays, SEMI stays
+## silent until the next press, BURST spends its remaining pull. Only shots
+## that consumed ammo count down a burst.
+func _hold_fire(hand: String, weapon: WeaponPart) -> void:
+	var trig := trigger_left if hand == "left" else trigger_right
+	if weapon == null:
+		trig.sync(null)
+		_try_fire(hand, null)
+		return
+	if weapon.weapon_type == WeaponPart.WeaponType.SHIELD:
+		return
+	trig.sync(weapon)
+	if not trig.allow_hold_shot():
+		return
+	var before := _get_ammo(weapon)
+	_try_fire(hand, weapon)
+	if _get_ammo(weapon) < before:
+		trig.on_hold_shot_fired()
+
+
+## Ammo-diff wrapper for the commit-press immediate shot: arms the trigger
+## (BURST loads its count) and counts the press shot when it consumed ammo.
+func _commit_fire(hand: String, weapon: WeaponPart) -> void:
+	var trig := trigger_left if hand == "left" else trigger_right
+	if weapon == null:
+		trig.sync(null)
+		_try_fire(hand, null)
+		return
+	trig.sync(weapon)
+	trig.press()
+	var before := _get_ammo(weapon)
+	_try_fire(hand, weapon)
+	if _get_ammo(weapon) < before:
+		trig.on_hold_shot_fired()
 
 
 func _update_heat_smoke(delta: float) -> void:
@@ -561,6 +594,7 @@ func _input(event: InputEvent) -> void:
 			_commit_normal_fire("left")
 	if event.is_action_released("fire_left"):
 		fire_left_holding = false
+		trigger_left.release()
 		if _is_missile_weapon(left_hand):
 			_handle_missile_release("left")
 
@@ -577,6 +611,7 @@ func _input(event: InputEvent) -> void:
 			_commit_normal_fire("right")
 	if event.is_action_released("fire_right"):
 		fire_right_holding = false
+		trigger_right.release()
 		if _is_missile_weapon(right_hand):
 			_handle_missile_release("right")
 
@@ -1521,10 +1556,10 @@ func _commit_normal_fire(hand: String) -> void:
 				if left_hand.weapon_type == WeaponPart.WeaponType.SHIELD:
 					_toggle_shield("left")
 				else:
-					_try_fire("left", left_hand)
+					_commit_fire("left", left_hand)
 			else:
 				# Unarmed: bare-fist punch.
-				_try_fire("left", null)
+				_commit_fire("left", null)
 	else:
 		if holding_reload or Input.is_action_pressed("reload"):
 			reload_weapon("right")
@@ -1534,10 +1569,10 @@ func _commit_normal_fire(hand: String) -> void:
 				if right_hand.weapon_type == WeaponPart.WeaponType.SHIELD:
 					_toggle_shield("right")
 				else:
-					_try_fire("right", right_hand)
+					_commit_fire("right", right_hand)
 			else:
 				# Unarmed: bare-fist punch.
-				_try_fire("right", null)
+				_commit_fire("right", null)
 
 
 # Fires the straight dual charge: one heavy combined ram (both shoulders / both

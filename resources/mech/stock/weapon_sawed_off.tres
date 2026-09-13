@@ -18,3 +18,4 @@ range_distance = 12.0
 description = "ลูกซองสั้น ยิงเร็ว spread กว้าง ระยะสั้นมาก"
 rarity = 0
 reload_time = 1.5
+trigger_mode = 1

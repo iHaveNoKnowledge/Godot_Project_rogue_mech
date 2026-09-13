@@ -4,11 +4,9 @@ import os
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 
-# 1. Import newly exported GLB
 glb_path = r"c:\Users\hackd\OneDrive\เอกสาร\GitHub\Godot_Project_rogue_mech\assets\models\mech_cockpit_tub.glb"
 bpy.ops.import_scene.gltf(filepath=glb_path)
 
-# 2. Materials
 def create_mat(name, color, roughness=0.35, metallic=0.1):
     mat = bpy.data.materials.new(name=name)
     mat.use_nodes = True
@@ -23,7 +21,7 @@ mat_p200 = create_mat("Pilot200_Orange", (0.95, 0.45, 0.1, 1.0))
 mat_p155 = create_mat("Pilot155_Green", (0.15, 0.75, 0.35, 1.0))
 mat_visor = create_mat("VisorMat", (0.05, 0.08, 0.12, 1.0), roughness=0.05, metallic=0.9)
 
-# 3. Pilot builder (46° semi-recline matching the new seat)
+# Build 24° combat seated pilot
 def build_fitted_pilot(height_m, name, mat_suit, offset_x=0.0):
     scale_fac = height_m / 1.75
     head_r = 0.10 * scale_fac
@@ -41,9 +39,9 @@ def build_fitted_pilot(height_m, name, mat_suit, offset_x=0.0):
     root.location = (offset_x, 0, 0)
     bpy.context.scene.collection.objects.link(root)
 
-    pelvis_y = 0.02
-    pelvis_z = -0.19
-    recline_deg = 46.0
+    pelvis_y = -0.10
+    pelvis_z = -0.25
+    recline_deg = 24.0
 
     # Pelvis
     bpy.ops.mesh.primitive_cube_add(size=1.0, location=(offset_x, pelvis_y, pelvis_z))
@@ -84,31 +82,35 @@ def build_fitted_pilot(height_m, name, mat_suit, offset_x=0.0):
     bpy.ops.object.transform_apply(scale=True, rotation=True)
     v.data.materials.append(mat_visor)
 
-    # Legs
+    # Legs: thighs forward-flat (+4 deg), knees bent at 82 deg, shins dropping into footwell
     for sx in [-torso_w * 0.28, torso_w * 0.28]:
-        th_y = pelvis_y + (thigh_len * 0.5 * math.cos(math.radians(40)))
-        th_z = pelvis_z + (thigh_len * 0.5 * math.sin(math.radians(40)))
+        # Thigh
+        th_y = pelvis_y + (thigh_len * 0.5 * math.cos(math.radians(4)))
+        th_z = pelvis_z + (thigh_len * 0.5 * math.sin(math.radians(4)))
         bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=thigh_r, depth=thigh_len, location=(offset_x + sx, th_y, th_z))
         th = bpy.context.active_object
         th.parent = root
-        th.rotation_euler = (math.radians(50), 0, 0)
+        th.rotation_euler = (math.radians(86), 0, 0)
         bpy.ops.object.transform_apply(scale=True, rotation=True)
         th.data.materials.append(mat_suit)
 
-        kn_y = pelvis_y + (thigh_len * math.cos(math.radians(40)))
-        kn_z = pelvis_z + (thigh_len * math.sin(math.radians(40)))
+        # Knee
+        kn_y = pelvis_y + (thigh_len * math.cos(math.radians(4)))
+        kn_z = pelvis_z + (thigh_len * math.sin(math.radians(4)))
 
-        sh_y = kn_y + (shin_len * 0.5 * math.cos(math.radians(65)))
-        sh_z = kn_z - (shin_len * 0.5 * math.sin(math.radians(65)))
+        # Shin
+        sh_y = kn_y + (shin_len * 0.5 * math.cos(math.radians(78)))
+        sh_z = kn_z - (shin_len * 0.5 * math.sin(math.radians(78)))
         bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=shin_r, depth=shin_len, location=(offset_x + sx, sh_y, sh_z))
         sh = bpy.context.active_object
         sh.parent = root
-        sh.rotation_euler = (math.radians(-25), 0, 0)
+        sh.rotation_euler = (math.radians(-12), 0, 0)
         bpy.ops.object.transform_apply(scale=True, rotation=True)
         sh.data.materials.append(mat_suit)
 
-        ft_y = kn_y + (shin_len * math.cos(math.radians(65))) + foot_len * 0.15
-        ft_z = kn_z - (shin_len * math.sin(math.radians(65)))
+        # Foot resting on pedal
+        ft_y = kn_y + (shin_len * math.cos(math.radians(78))) + foot_len * 0.15
+        ft_z = kn_z - (shin_len * math.sin(math.radians(78)))
         bpy.ops.mesh.primitive_cube_add(size=1.0, location=(offset_x + sx, ft_y, ft_z))
         ft = bpy.context.active_object
         ft.parent = root
@@ -117,15 +119,15 @@ def build_fitted_pilot(height_m, name, mat_suit, offset_x=0.0):
         ft.data.materials.append(mat_suit)
 
     rear_y = h_y - head_r
-    bulk_y = -0.86
+    bulk_y = -0.66
     clear_rear = abs(bulk_y - rear_y)
     front_y = ft_y + foot_len * 0.5
-    front_wall = 0.82
+    front_wall = 0.72
     clear_front = front_wall - front_y
     top_z = h_z + head_r
-    roof_z = 0.42
+    roof_z = 0.58
     clear_top = roof_z - top_z
-    print(f"[{name} ERGONOMICS REPORT]")
+    print(f"[{name} TALL COMPACT MECHA REPORT]")
     print(f"  Head Rear Y: {rear_y:.3f}m | Bulkhead Y: {bulk_y:.3f}m | Clearance Behind Head: {clear_rear*100:.1f} cm")
     print(f"  Foot Front Y: {front_y:.3f}m | Front Face Y: {front_wall:.3f}m | Clearance In Front: {clear_front*100:.1f} cm")
     print(f"  Head Top Z: {top_z:.3f}m | Canopy Top Z: {roof_z:.3f}m | Clearance Above Head: {clear_top*100:.1f} cm")
@@ -154,7 +156,7 @@ bpy.context.scene.render.resolution_x = 1280
 bpy.context.scene.render.resolution_y = 720
 
 # ------------------------------------------------------------------------------
-# RENDER 1: Side Cutaway (Zero Head Clipping Verification)
+# RENDER 1: Side Cutaway (Hide CockpitWall_L)
 # ------------------------------------------------------------------------------
 for obj in bpy.data.objects:
     if "CockpitWall_L" in obj.name or "SlideRail_L" in obj.name:
@@ -162,20 +164,20 @@ for obj in bpy.data.objects:
 
 cam1_data = bpy.data.cameras.new("SideCutawayCam")
 cam1_data.type = 'ORTHO'
-cam1_data.ortho_scale = 2.4
+cam1_data.ortho_scale = 2.0
 cam1_obj = bpy.data.objects.new("SideCutawayCam", cam1_data)
 bpy.context.scene.collection.objects.link(cam1_obj)
 bpy.context.scene.camera = cam1_obj
-cam1_obj.location = (-3.5, -0.02, 0.08)
+cam1_obj.location = (-3.5, 0.03, 0.04)
 cam1_obj.rotation_euler = (math.radians(90), 0, math.radians(-90))
 
-out_img1 = r"C:\Users\hackd\.gemini\antigravity-ide\brain\bf3b05a4-f495-4afc-a908-879adb0da03d\cockpit_head_clearance_cutaway.png"
+out_img1 = r"C:\Users\hackd\.gemini\antigravity-ide\brain\bf3b05a4-f495-4afc-a908-879adb0da03d\cockpit_heroic_tall_cutaway.png"
 bpy.context.scene.render.filepath = out_img1
 bpy.ops.render.render(write_still=True)
 print(f"RENDER 1 COMPLETE: {out_img1}")
 
 # ------------------------------------------------------------------------------
-# RENDER 2: Articulated Hatch Pistons 3/4 Perspective View (Hatch Open)
+# RENDER 2: 3/4 Perspective View (Hatch Open & Pistons Articulated)
 # ------------------------------------------------------------------------------
 for obj in bpy.data.objects:
     if "CockpitWall_L" in obj.name or "SlideRail_L" in obj.name:
@@ -183,7 +185,7 @@ for obj in bpy.data.objects:
 
 carriage = bpy.data.objects.get("SlidingCarriage")
 if carriage:
-    carriage.location = (0.0, 0.52, -0.26)
+    carriage.location = (0.0, 0.44, -0.22)
     carriage.rotation_euler = (math.radians(10), 0, 0)
 
 # Aim pistons
@@ -201,10 +203,10 @@ cam2_data.lens = 45
 cam2_obj = bpy.data.objects.new("IsoPerspectiveCam", cam2_data)
 bpy.context.scene.collection.objects.link(cam2_obj)
 bpy.context.scene.camera = cam2_obj
-cam2_obj.location = (-1.9, 1.8, 1.2)
+cam2_obj.location = (-1.8, 1.8, 1.2)
 cam2_obj.rotation_euler = (math.radians(64), 0, math.radians(-135))
 
-out_img2 = r"C:\Users\hackd\.gemini\antigravity-ide\brain\bf3b05a4-f495-4afc-a908-879adb0da03d\cockpit_hatch_pistons_articulated.png"
+out_img2 = r"C:\Users\hackd\.gemini\antigravity-ide\brain\bf3b05a4-f495-4afc-a908-879adb0da03d\cockpit_heroic_tall_perspective_open.png"
 bpy.context.scene.render.filepath = out_img2
 bpy.ops.render.render(write_still=True)
 print(f"RENDER 2 COMPLETE: {out_img2}")

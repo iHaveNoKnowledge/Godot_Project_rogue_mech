@@ -88,7 +88,7 @@ func hide_slot_completely(slot_name: String) -> void:
 ## Toggles cockpit hatch extension. When open, front carriage slides forward-down along guide rails.
 func set_cockpit_open(open: bool, animate: bool = true) -> void:
 	is_cockpit_open = open
-	var target_pos := Vector3(0.0, -0.26, -0.62) if open else Vector3.ZERO
+	var target_pos := Vector3(0.0, -0.22, -0.44) if open else Vector3.ZERO
 	var target_rot := Vector3(10.0, 0.0, 0.0) if open else Vector3.ZERO
 
 	var carriages: Array[Node3D] = []
@@ -164,7 +164,7 @@ func set_cockpit_pilot_seated(seated: bool) -> void:
 
 ## Synchronizes newly rebuilt slot meshes with current cockpit open/seated state.
 func _sync_cockpit_state() -> void:
-	var target_pos := Vector3(0.0, -0.26, -0.62) if is_cockpit_open else Vector3.ZERO
+	var target_pos := Vector3(0.0, -0.22, -0.44) if is_cockpit_open else Vector3.ZERO
 	var target_rot := Vector3(10.0, 0.0, 0.0) if is_cockpit_open else Vector3.ZERO
 	var body_entry = slot_meshes.get("body")
 	if body_entry:
@@ -1056,24 +1056,24 @@ func _create_cockpit_pilot_mannequin() -> Node3D:
 	var pilot_mat = _get_shared_pilot_mat()
 	var visor_mat = _get_shared_visor_mat()
 
-	# Reclined Torso (52° Kenbu / F1 layback posture toward +Z)
+	# Reclined Torso (24° natural mecha combat seating toward +Z)
 	var pilot_torso = MeshInstance3D.new()
 	var pt_box = BoxMesh.new()
-	pt_box.size = Vector3(0.28, 0.38, 0.18)
+	pt_box.size = Vector3(0.28, 0.42, 0.18)
 	pilot_torso.mesh = pt_box
-	pilot_torso.rotation_degrees.x = 52.0
-	pilot_torso.position = Vector3(0, 0.02, 0.24)
+	pilot_torso.rotation_degrees.x = 24.0
+	pilot_torso.position = Vector3(0, -0.06, 0.16)
 	pilot_torso.material_override = pilot_mat
 	pilot_mannequin.add_child(pilot_torso)
 
-	# Head resting on 52° reclined headrest (Z=0.38, Y=0.18) -> top of helmet < 0.28m, well below 0.35m canopy
+	# Head resting on 24° reclined headrest (Z=0.28, Y=0.32)
 	var pilot_head = MeshInstance3D.new()
 	var ph_sph = SphereMesh.new()
 	ph_sph.radius = 0.09
 	ph_sph.height = 0.18
 	pilot_head.mesh = ph_sph
-	pilot_head.rotation_degrees.x = 52.0
-	pilot_head.position = Vector3(0, 0.18, 0.38)
+	pilot_head.rotation_degrees.x = 24.0
+	pilot_head.position = Vector3(0, 0.32, 0.28)
 	pilot_head.material_override = pilot_mat
 	pilot_mannequin.add_child(pilot_head)
 
@@ -1081,28 +1081,28 @@ func _create_cockpit_pilot_mannequin() -> Node3D:
 	var pv_box = BoxMesh.new()
 	pv_box.size = Vector3(0.13, 0.04, 0.06)
 	pilot_visor.mesh = pv_box
-	pilot_visor.rotation_degrees.x = 52.0
-	pilot_visor.position = Vector3(0, 0.20, 0.32)
+	pilot_visor.rotation_degrees.x = 24.0
+	pilot_visor.position = Vector3(0, 0.32, 0.20)
 	pilot_visor.material_override = visor_mat
 	pilot_mannequin.add_child(pilot_visor)
 
-	# Arms reaching forward to HOTAS sticks, legs reaching forward to rudder pedals
+	# Arms reaching down-forward to HOTAS sticks, legs dropping into sunken footwell
 	for arm_sign in [-1.0, 1.0]:
 		var pilot_arm = MeshInstance3D.new()
 		var pa_box = BoxMesh.new()
 		pa_box.size = Vector3(0.06, 0.06, 0.26)
 		pilot_arm.mesh = pa_box
-		pilot_arm.position = Vector3(arm_sign * 0.20, 0.02, 0.06)
-		pilot_arm.rotation_degrees.x = 26.0
+		pilot_arm.position = Vector3(arm_sign * 0.20, -0.08, -0.04)
+		pilot_arm.rotation_degrees.x = 18.0
 		pilot_arm.material_override = pilot_mat
 		pilot_mannequin.add_child(pilot_arm)
 
 		var pilot_leg = MeshInstance3D.new()
 		var pl_box = BoxMesh.new()
-		pl_box.size = Vector3(0.08, 0.07, 0.36)
+		pl_box.size = Vector3(0.08, 0.07, 0.38)
 		pilot_leg.mesh = pl_box
-		pilot_leg.position = Vector3(arm_sign * 0.12, -0.10, -0.16)
-		pilot_leg.rotation_degrees.x = -22.0
+		pilot_leg.position = Vector3(arm_sign * 0.12, -0.32, -0.24)
+		pilot_leg.rotation_degrees.x = -68.0
 		pilot_leg.material_override = pilot_mat
 		pilot_mannequin.add_child(pilot_leg)
 	return pilot_mannequin

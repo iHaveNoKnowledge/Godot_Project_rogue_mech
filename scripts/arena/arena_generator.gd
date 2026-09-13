@@ -467,10 +467,13 @@ func _try_add_hd_desert_terrain() -> bool:
 	return true
 
 
-# Instantiates a Blender HD terrain and builds trimesh collision from its
-# meshes (the GLBs carry no StaticBody). Palm leaves are visual-only so they
-# never block movement or shots; everything else is solid ground on layer 2,
-# which the player/enemy spawn raycasts already target.
+# Instantiates a Blender HD terrain. Meshes named *-col carry Godot
+# auto-collision (StaticBody3D + ConcavePolygonShape3D built at import), so we
+# only retag those onto the Environment layer — no runtime trimesh building.
+# Rocks/crags (no -col) get cheap boxes; palm trunks keep tiny trimeshes.
+# Palm leaves are visual-only. If the import ever yields zero auto bodies
+# (stale import), floors fall back to runtime trimesh so the mech never falls
+# through the world.
 func _add_hd_desert_model(file: String, node_name: String) -> void:
 	var model_scene: PackedScene = load("res://assets/models/" + file)
 	if model_scene == null:
@@ -478,36 +481,48 @@ func _add_hd_desert_model(file: String, node_name: String) -> void:
 	var model_inst := model_scene.instantiate() as Node3D
 	model_inst.name = node_name
 	tile_container.add_child(model_inst)
+	var auto_bodies := model_inst.find_children("*", "StaticBody3D", true, false)
+	for b in auto_bodies:
+		if b is StaticBody3D:
+			(b as StaticBody3D).collision_layer = 2
+			(b as StaticBody3D).collision_mask = 1
+			(b as Node).add_to_group("ground_collision")
 	for mi in model_inst.find_children("*", "MeshInstance3D", true, false):
 		var mesh_inst := mi as MeshInstance3D
 		if mesh_inst == null or mesh_inst.mesh == null:
+			continue
+		if "Leaf" in mesh_inst.name or "Leaf" in str(mesh_inst.mesh.resource_name):
 			continue
 		# Blender-baked vertex tint (dark pits / light crests / hue noise)
 		# breaks up the tiled PBR texture so it no longer reads as repeating
 		# tiles. Harmless white when a mesh carries no COLOR layer.
 		_enable_vertex_tint(mesh_inst)
-		if "Leaf" in mesh_inst.name or "Leaf" in str(mesh_inst.mesh.resource_name):
-			continue
-		# Rocks/crags get a cheap BoxShape fitted to their bounds instead of a
-		# full trimesh: an 8k-tri concave shape per rock stalls the physics
-		# solver whenever the mech brushes past (visible stutter). Boxes are
-		# more than precise enough for boulders.
 		if "Rock" in mesh_inst.name or "Crag" in mesh_inst.name:
 			_add_rock_box_collision(mesh_inst)
 			continue
-		var col_shape := mesh_inst.mesh.create_trimesh_shape()
-		if col_shape == null:
+		if auto_bodies.is_empty() and "Trunk" not in mesh_inst.name and "Leaf" not in mesh_inst.name:
+			_add_runtime_trimesh(mesh_inst)
 			continue
-		var body := StaticBody3D.new()
-		body.name = mesh_inst.name + "Collision"
-		body.collision_layer = 2
-		body.collision_mask = 1
-		var col := CollisionShape3D.new()
-		col.shape = col_shape
-		body.add_child(col)
-		tile_container.add_child(body)
-		body.transform = mesh_inst.global_transform
-		body.add_to_group("ground_collision")
+		if "Trunk" in mesh_inst.name:
+			_add_runtime_trimesh(mesh_inst)
+
+
+# Runtime trimesh fallback: used for palm trunks (small, cheap) and for whole
+# terrains only when the -col auto-collision is missing (stale GLB import).
+func _add_runtime_trimesh(mesh_inst: MeshInstance3D) -> void:
+	var col_shape := mesh_inst.mesh.create_trimesh_shape()
+	if col_shape == null:
+		return
+	var body := StaticBody3D.new()
+	body.name = mesh_inst.name + "Collision"
+	body.collision_layer = 2
+	body.collision_mask = 1
+	var col := CollisionShape3D.new()
+	col.shape = col_shape
+	body.add_child(col)
+	tile_container.add_child(body)
+	body.transform = mesh_inst.global_transform
+	body.add_to_group("ground_collision")
 
 
 # Turns on vertex-color tinting for every material on the mesh so Blender's

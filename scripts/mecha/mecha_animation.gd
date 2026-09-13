@@ -211,11 +211,19 @@ func _apply_pose(targets: Dictionary, speed: float) -> void:
 		var waist_core = body_mesh.get_node_or_null("FrameMesh/WaistCore")
 		if waist_core:
 			waist_core.rotation.y = lerp_angle(waist_core.rotation.y, targets.get("waist_yaw", 0.0), speed)
-			waist_core.rotation.x = lerp_angle(waist_core.rotation.x, targets.get("waist_pitch", 0.0), speed)
+			var pitch_j = waist_core.get_node_or_null("WaistPitchJoint")
+			if pitch_j:
+				pitch_j.rotation.x = lerp_angle(pitch_j.rotation.x, targets.get("waist_pitch", 0.0), speed)
+				var roll_j = pitch_j.get_node_or_null("WaistRollJoint")
+				if roll_j:
+					roll_j.rotation.z = lerp_angle(roll_j.rotation.z, targets.get("waist_roll", 0.0), speed)
+			else:
+				waist_core.rotation.x = lerp_angle(waist_core.rotation.x, targets.get("waist_pitch", 0.0), speed)
 	if head_mesh:
 		var head_pos: Vector3 = targets.get("head_position", _original_head_pos + Vector3(0, drop, 0))
 		head_mesh.position = head_mesh.position.lerp(head_pos, speed)
-		head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, targets.get("head_tilt", 0.0), speed)
+		head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, targets.get("head_tilt", targets.get("head_pitch", 0.0)), speed)
+		head_mesh.rotation.y = lerp_angle(head_mesh.rotation.y, targets.get("head_yaw", 0.0), speed)
 	if arm_left:
 		arm_left.rotation.x = lerp_angle(arm_left.rotation.x, targets.get("arm_left", 0.0), speed)
 		arm_left.rotation.y = lerp_angle(arm_left.rotation.y, targets.get("arm_left_yaw", 0.0), speed)

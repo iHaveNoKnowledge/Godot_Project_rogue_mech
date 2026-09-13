@@ -1092,31 +1092,45 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 
 	match slot_name.to_lower():
 		"head":
+			# Compact Low-Profile Sensor Turret Core (ป้อมปืน/เซนเซอร์เหลี่ยมมุมตัด เตี้ยลู่ลม)
 			var skull = MeshInstance3D.new()
 			var s_box = BoxMesh.new()
-			s_box.size = Vector3(0.24, 0.22, 0.28)
+			s_box.size = Vector3(0.20, 0.12, 0.22)
 			skull.mesh = s_box
-			skull.position = Vector3(0, 0.04, 0)
+			skull.position = Vector3(0, 0.04, -0.02)
 			skull.material_override = frame_mat
 			upper_container.add_child(skull)
 
+			# Tactical Sensor Visor / Dual Optical Aperture
 			var eye = MeshInstance3D.new()
 			var e_box = BoxMesh.new()
-			e_box.size = Vector3(0.16, 0.08, 0.06)
+			e_box.size = Vector3(0.14, 0.04, 0.04)
 			eye.mesh = e_box
-			eye.position = Vector3(0, 0.06, -0.14)
+			eye.position = Vector3(0, 0.04, -0.13)
 			eye.material_override = eye_mat
 			upper_container.add_child(eye)
 
+			# Short Chamfered Neck Collar Hub (คอกระบอกสั้นลง เหลี่ยมมุมตัด มีรายละเอียดโครงใน)
 			var neck = MeshInstance3D.new()
-			var n_cyl = CylinderMesh.new()
-			n_cyl.top_radius = 0.08
-			n_cyl.bottom_radius = 0.08
-			n_cyl.height = 0.26
-			neck.mesh = n_cyl
-			neck.position = Vector3(0, -0.13, 0)
+			var n_box = BoxMesh.new()
+			n_box.size = Vector3(0.14, 0.08, 0.14)
+			neck.mesh = n_box
+			neck.position = Vector3(0, -0.05, 0)
 			neck.material_override = chrome_mat
 			upper_container.add_child(neck)
+
+			# Neck side mechanical pivot flanges
+			for flange_x in [-0.08, 0.08]:
+				var flange = MeshInstance3D.new()
+				var fl_cyl = CylinderMesh.new()
+				fl_cyl.top_radius = 0.025
+				fl_cyl.bottom_radius = 0.025
+				fl_cyl.height = 0.03
+				flange.mesh = fl_cyl
+				flange.rotation_degrees.z = 90
+				flange.position = Vector3(flange_x, -0.05, 0)
+				flange.material_override = frame_mat
+				upper_container.add_child(flange)
 
 		"body":
 			# --- 1. REAR STRUCTURAL SPINE & WAIST CHASSIS (Stationary) ---
@@ -1634,44 +1648,45 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 
 	match slot_name.to_lower():
 		"head":
+			# Compact Turret Sensor Cowl (เกราะส่วนหัวลู่ลมขนาดกะทัดรัด)
 			var helmet = MeshInstance3D.new()
 			var h_box = BoxMesh.new()
-			h_box.size = Vector3(0.36, 0.26, 0.36)
+			h_box.size = Vector3(0.24, 0.14, 0.24)
 			helmet.mesh = h_box
-			helmet.position = Vector3(0, 0.04, 0)
+			helmet.position = Vector3(0, 0.05, -0.02)
 			helmet.material_override = armor_mat
 			upper_container.add_child(helmet)
 
-			for side_x in [-0.18, 0.18]:
+			for side_x in [-0.13, 0.13]:
 				var cheek = MeshInstance3D.new()
 				var c_box = BoxMesh.new()
-				c_box.size = Vector3(0.06, 0.18, 0.22)
+				c_box.size = Vector3(0.04, 0.10, 0.18)
 				cheek.mesh = c_box
-				cheek.position = Vector3(side_x, -0.02, -0.05)
+				cheek.position = Vector3(side_x, 0.03, -0.04)
 				cheek.material_override = dark_trim_mat
 				upper_container.add_child(cheek)
 
 			var brow = MeshInstance3D.new()
 			var b_prism = PrismMesh.new()
-			b_prism.size = Vector3(0.18, 0.20, 0.28)
+			b_prism.size = Vector3(0.18, 0.10, 0.16)
 			brow.mesh = b_prism
 			brow.rotation_degrees.x = -25
-			brow.position = Vector3(0, 0.18, -0.05)
+			brow.position = Vector3(0, 0.10, -0.06)
 			brow.material_override = armor_mat
 			upper_container.add_child(brow)
 
 			var collar = MeshInstance3D.new()
 			var cl_cyl = CylinderMesh.new()
-			cl_cyl.top_radius = 0.20
-			cl_cyl.bottom_radius = 0.22
-			cl_cyl.height = 0.12
+			cl_cyl.top_radius = 0.12
+			cl_cyl.bottom_radius = 0.14
+			cl_cyl.height = 0.06
 			collar.mesh = cl_cyl
-			collar.position = Vector3(0, -0.16, 0)
+			collar.position = Vector3(0, -0.05, 0)
 			collar.material_override = dark_trim_mat
 			upper_container.add_child(collar)
 
 		"body":
-			# Front half armor attached to the SlidingCarriage (slides forward-down with inner frame)
+			# Classic Outer Armor Hatch Plate attached to SlidingCarriage
 			var armor_carriage = Node3D.new()
 			armor_carriage.name = "SlidingCarriage"
 			if is_cockpit_open:
@@ -1679,44 +1694,54 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 				armor_carriage.rotation_degrees = Vector3(8.0, 0.0, 0.0)
 			upper_container.add_child(armor_carriage)
 
-			var has_blender_cockpit := ResourceLoader.exists(COCKPIT_BLENDER_GLB)
-			if has_blender_cockpit:
-				# High-detail Blender cockpit SlidingCarriage provides the faceted breastplate,
-				# cooling vents, fins, and abdominal armor. Apply equipped armor material to plates:
-				var frame_container = upper_container.get_parent().get_node_or_null("FrameMesh")
-				if frame_container:
-					var fc = frame_container.get_node_or_null("SlidingCarriage")
-					if fc:
-						for plate_name in ["FrontChestArmor", "AbdominalFlap", "Chest_Armor_Plate", "Abdominal_Armor_Plate"]:
-							var p = fc.get_node_or_null(plate_name)
-							if p and p is MeshInstance3D:
-								p.material_override = armor_mat
-			else:
-				var chest = MeshInstance3D.new()
-				var c_prism = PrismMesh.new()
-				c_prism.size = Vector3(0.95, 0.65, 0.48)
-				chest.mesh = c_prism
-				chest.rotation_degrees.x = 90
-				chest.position = Vector3(0, 0.12, -0.14)
-				chest.material_override = armor_mat
-				armor_carriage.add_child(chest)
+			# Classic Angled Chest Armor Plate (รูป 2-3)
+			var chest = MeshInstance3D.new()
+			var c_prism = PrismMesh.new()
+			c_prism.size = Vector3(0.95, 0.65, 0.48)
+			chest.mesh = c_prism
+			chest.rotation_degrees.x = 90
+			chest.position = Vector3(0, 0.12, -0.14)
+			chest.material_override = armor_mat
+			armor_carriage.add_child(chest)
 
-				for side_x in [-0.42, 0.42]:
-					var vent = MeshInstance3D.new()
-					var v_box = BoxMesh.new()
-					v_box.size = Vector3(0.14, 0.35, 0.25)
-					vent.mesh = v_box
-					vent.position = Vector3(side_x, 0.15, -0.08)
-					vent.material_override = dark_trim_mat
-					armor_carriage.add_child(vent)
+			# Dual Classic Front Intake Vents
+			for side_x in [-0.42, 0.42]:
+				var vent = MeshInstance3D.new()
+				var v_box = BoxMesh.new()
+				v_box.size = Vector3(0.14, 0.35, 0.25)
+				vent.mesh = v_box
+				vent.position = Vector3(side_x, 0.15, -0.08)
+				vent.material_override = dark_trim_mat
+				armor_carriage.add_child(vent)
 
-				var ab_plate = MeshInstance3D.new()
-				var ab_box = BoxMesh.new()
-				ab_box.size = Vector3(0.58, 0.35, 0.26)
-				ab_plate.mesh = ab_box
-				ab_plate.position = Vector3(0, -0.28, -0.10)
-				ab_plate.material_override = armor_mat
-				armor_carriage.add_child(ab_plate)
+			# Front Hatch Center Slot Trim
+			var center_trim = MeshInstance3D.new()
+			var ct_box = BoxMesh.new()
+			ct_box.size = Vector3(0.44, 0.08, 0.05)
+			center_trim.mesh = ct_box
+			center_trim.position = Vector3(0, 0.02, -0.36)
+			center_trim.material_override = dark_trim_mat
+			armor_carriage.add_child(center_trim)
+
+			# Classic Abdominal Armor Flap
+			var ab_plate = MeshInstance3D.new()
+			var ab_box = BoxMesh.new()
+			ab_box.size = Vector3(0.58, 0.35, 0.26)
+			ab_plate.mesh = ab_box
+			ab_plate.position = Vector3(0, -0.28, -0.10)
+			ab_plate.material_override = armor_mat
+			armor_carriage.add_child(ab_plate)
+
+			# Armored Neck Cowl / Collar Ring sealing the gap between cockpit roof and lowered head socket
+			var neck_cowl = MeshInstance3D.new()
+			var nc_cyl = CylinderMesh.new()
+			nc_cyl.top_radius = 0.18
+			nc_cyl.bottom_radius = 0.24
+			nc_cyl.height = 0.14
+			neck_cowl.mesh = nc_cyl
+			neck_cowl.position = Vector3(0, 0.28, -0.04)
+			neck_cowl.material_override = dark_trim_mat
+			upper_container.add_child(neck_cowl)
 
 			# Shoulder cowls extending outward to bridge torso to shoulder pivots
 			for side_x in [-0.58, 0.58]:

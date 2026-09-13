@@ -482,6 +482,10 @@ func _add_hd_desert_model(file: String, node_name: String) -> void:
 		var mesh_inst := mi as MeshInstance3D
 		if mesh_inst == null or mesh_inst.mesh == null:
 			continue
+		# Blender-baked vertex tint (dark pits / light crests / hue noise)
+		# breaks up the tiled PBR texture so it no longer reads as repeating
+		# tiles. Harmless white when a mesh carries no COLOR layer.
+		_enable_vertex_tint(mesh_inst)
 		if "Leaf" in mesh_inst.name or "Leaf" in str(mesh_inst.mesh.resource_name):
 			continue
 		# Rocks/crags get a cheap BoxShape fitted to their bounds instead of a
@@ -504,6 +508,18 @@ func _add_hd_desert_model(file: String, node_name: String) -> void:
 		tile_container.add_child(body)
 		body.transform = mesh_inst.global_transform
 		body.add_to_group("ground_collision")
+
+
+# Turns on vertex-color tinting for every material on the mesh so Blender's
+# baked COLOR layer multiplies the albedo (breaks texture tiling).
+func _enable_vertex_tint(mesh_inst: MeshInstance3D) -> void:
+	var mesh := mesh_inst.mesh
+	for si in range(mesh.get_surface_count()):
+		var mat := mesh_inst.get_surface_override_material(si)
+		if mat == null:
+			mat = mesh.surface_get_material(si)
+		if mat is StandardMaterial3D:
+			(mat as StandardMaterial3D).vertex_color_use_as_albedo = true
 
 
 # Cheap box collision for a rock/crag mesh: fits the mesh AABB (in the mesh's

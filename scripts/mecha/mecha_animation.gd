@@ -353,25 +353,27 @@ func _update_combat_idle_posture(delta: float) -> void:
 			}, 6.0 * delta)
 		_: # "combat_crouch" (Front Mission intimidating stance - Blender ref Mech_Idle_FrontMission:
 			# wide-spread legs, deep crouch, torso leaned in, guard arms out. No sway/oscillation,
-			# only the bob-system breathing may move it, so it never reads as dancing.)
+			# only the bob-system breathing may move it, so it never reads as dancing.
+			# Feet stay flat: thigh (+22) + shin (-22) nets 0 at the ankle; the
+			# gait wrapper yields the legs to this pose when standing still.
 			_apply_pose({
-				"body_tilt": -deg_to_rad(8.0),
-				"head_tilt": deg_to_rad(8.0),
+				"body_tilt": -deg_to_rad(6.0),
+				"head_tilt": deg_to_rad(6.0),
 				"drop": -0.16,
 				"arm_left": deg_to_rad(12.0),
-				"arm_left_yaw": deg_to_rad(6.0),
-				"arm_left_roll": -deg_to_rad(8.0),
+				"arm_left_yaw": deg_to_rad(10.0),
+				"arm_left_roll": -deg_to_rad(12.0),
 				"arm_right": deg_to_rad(12.0),
-				"arm_right_yaw": -deg_to_rad(6.0),
-				"arm_right_roll": deg_to_rad(8.0),
+				"arm_right_yaw": -deg_to_rad(10.0),
+				"arm_right_roll": deg_to_rad(12.0),
 				"forearm_left": deg_to_rad(28.0),
 				"forearm_right": deg_to_rad(28.0),
 				"thigh_left": deg_to_rad(22.0),
 				"thigh_right": deg_to_rad(22.0),
-				"thigh_left_yaw": deg_to_rad(14.0),
-				"thigh_right_yaw": -deg_to_rad(14.0),
-				"shin_left": -deg_to_rad(24.0),
-				"shin_right": -deg_to_rad(24.0),
+				"thigh_left_yaw": deg_to_rad(20.0),
+				"thigh_right_yaw": -deg_to_rad(20.0),
+				"shin_left": -deg_to_rad(22.0),
+				"shin_right": -deg_to_rad(22.0),
 				"leg_left_drop": 0.0,
 				"leg_right_drop": 0.0,
 			}, 6.0 * delta)
@@ -402,7 +404,7 @@ func _update_roller_dash_posture(delta: float) -> void:
 		var is_skating = mecha.get("is_roller_dashing") == true
 
 		if is_skating:
-			var target_drop = -0.40
+			var target_drop = -0.52
 			var target_body_tilt = -deg_to_rad(40.0)
 			# Head COUNTER-pitches the torso (Blender ref: Mech_Dash_HeadLocked
 			# f6 body +38 / head local -33, net gaze +5 fwd). Positive tilt
@@ -418,10 +420,10 @@ func _update_roller_dash_posture(delta: float) -> void:
 				"arm_right": deg_to_rad(20.0),
 				"forearm_left": deg_to_rad(80.0),
 				"forearm_right": deg_to_rad(75.0),
-				"thigh_left": deg_to_rad(24.0),
-				"thigh_right": deg_to_rad(24.0),
-				"shin_left": -deg_to_rad(24.0),
-				"shin_right": -deg_to_rad(24.0),
+				"thigh_left": deg_to_rad(30.0),
+				"thigh_right": deg_to_rad(30.0),
+				"shin_left": -deg_to_rad(30.0),
+				"shin_right": -deg_to_rad(30.0),
 			}, speed)
 
 			var model = mecha.get_node_or_null("Zenisrev")
@@ -671,6 +673,13 @@ func _update_bob(delta: float) -> void:
 		# forward lean, raised guard arms) instead of a stiff straight pose.
 		_update_combat_idle_posture(delta)
 func _update_legs(delta: float) -> void:
+	# The procedural gait only owns the legs while actually striding. When
+	# standing still (or airborne / kneeling / breaching) the base posture
+	# (combat idle, jump, fall, kneel, breach) owns them — letting the gait
+	# ease the legs to neutral here fought the crouch every frame, leaving
+	# straight legs under a hunched torso (the "MJ lean" with tiptoe feet).
+	if not _walk.is_moving:
+		return
 	var joints := _build_joints_dict()
 	_walk.update_legs(delta, mecha, joints)
 

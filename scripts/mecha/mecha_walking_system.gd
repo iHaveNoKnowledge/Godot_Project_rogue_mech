@@ -80,7 +80,7 @@ static func calc_robot_sprint_leg(phase: float) -> Dictionary:
 	var lift := 0.0
 	if norm_phase < PI:
 		var t := norm_phase / PI
-		thigh = lerp(-deg_to_rad(45.0), deg_to_rad(38.0), t)
+		thigh = lerp(-deg_to_rad(55.0), deg_to_rad(38.0), t)
 		if t < 0.35:
 			shin = lerp(-deg_to_rad(8.0), -deg_to_rad(48.0), t / 0.35)
 		elif t < 0.7:
@@ -95,7 +95,7 @@ static func calc_robot_sprint_leg(phase: float) -> Dictionary:
 			lift = 0.16 * (1.0 - (t - 0.75) / 0.25)
 	else:
 		var t := (norm_phase - PI) / PI
-		thigh = lerp(deg_to_rad(38.0), -deg_to_rad(45.0), t)
+		thigh = lerp(deg_to_rad(38.0), -deg_to_rad(55.0), t)
 		shin = lerp(-deg_to_rad(14.0), -deg_to_rad(6.0), t)
 		lift = 0.0
 	return { "thigh": thigh, "shin": shin, "lift": lift }
@@ -238,11 +238,11 @@ func update_bob(delta: float, mecha: CharacterBody3D, joints: Dictionary,
 			var stomp: float = 1.0 if step_phase < 0.5 else 0.35
 			var bob_amp := bob_amount * (0.45 + 0.35 * speed_norm)
 			var bob: float = stomp * bob_amp
-			# Fixed forward hull lean (heavy mech charging) + strafe bank kept
-			# so directional tests still read forward/strafe correctly.
+			# Fixed forward hull lean (heavy mech charging, drives into the run)
+			# + strafe bank kept so directional tests still read correctly.
 			var target_pitch: float
 			if fwd_ratio >= 0.0:
-				target_pitch = -lerpf(deg_to_rad(12.0), deg_to_rad(20.0), speed_norm) * fwd_ratio
+				target_pitch = -lerpf(deg_to_rad(16.0), deg_to_rad(26.0), speed_norm) * fwd_ratio
 			else:
 				target_pitch = lerpf(deg_to_rad(8.0), deg_to_rad(12.0), speed_norm) * (-fwd_ratio)
 			var target_bank := -deg_to_rad(6.0) * side_ratio
@@ -463,12 +463,12 @@ func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary) -> vo
 	if robotic_gait:
 		# PISTON COUNTER-SWING (Blender ref: Mech_Run f1/f13 contact frames):
 		# arms swing opposite the same-side leg so the sprint reads as
-		# running instead of gliding. Amplitude clamped, elbows bent,
-		# Y/Z stay bolted at 0 for the servo feel. Aim system
-		# (_update_aim_arms) still overrides when firing.
-		var swing_l := clampf(-target_pitch_l * 0.6, deg_to_rad(-28.0), deg_to_rad(28.0))
-		var swing_r := clampf(-target_pitch_r * 0.6, deg_to_rad(-28.0), deg_to_rad(28.0))
-		var piston_elbow := deg_to_rad(30.0)
+		# running instead of gliding. Wide amplitude for a powerful drive
+		# feel, elbows bent, Y/Z stay bolted at 0 for the servo feel. Aim
+		# system (_update_aim_arms) still overrides when firing.
+		var swing_l := clampf(-target_pitch_l * 0.75, deg_to_rad(-40.0), deg_to_rad(40.0))
+		var swing_r := clampf(-target_pitch_r * 0.75, deg_to_rad(-40.0), deg_to_rad(40.0))
+		var piston_elbow := deg_to_rad(35.0)
 		if arm_left:
 			arm_left.rotation.x = lerp_angle(arm_left.rotation.x, swing_l, 14.0 * delta)
 			arm_left.rotation.y = lerp_angle(arm_left.rotation.y, 0.0, 14.0 * delta)

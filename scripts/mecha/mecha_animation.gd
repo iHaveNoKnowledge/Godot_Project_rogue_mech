@@ -161,6 +161,8 @@ func _run_procedural(delta: float) -> void:
 
 	if not is_on_ground:
 		air_timer += delta
+		_pulse_was = false
+		_dash_end_t = 99.0
 		if vert_vel > 0.8:
 			_update_jump_posture(delta)
 		else:
@@ -168,9 +170,19 @@ func _run_procedural(delta: float) -> void:
 	else:
 		air_timer = 0.0
 		var is_skating = mecha.get("is_roller_dashing") == true
+		var ds = mecha.get_node_or_null("DashSystem")
+		_pulse_dashing = ds != null and ds.get("is_dashing") == true
+		if _pulse_was and not _pulse_dashing:
+			# Pulse dash just released: play the shared stop-overshoot.
+			_pulse_was = false
+			_dash_end_t = 0.0
 		if is_skating:
 			_dash_end_t = 99.0
 			_update_roller_dash_posture(delta)
+		elif _pulse_dashing:
+			_dash_end_t = 99.0
+			_pulse_was = true
+			_update_pulse_dash_posture(delta)
 		elif _dash_end_t < 0.45:
 			# Dash just released: overshoot past neutral, then the normal
 			# stance takes over (Blender ref: Mech_Dash_HighImpact f25-f40).
@@ -420,10 +432,14 @@ func _update_kneel_posture(delta: float) -> void:
 var _dash_t: float = 0.0
 var _dash_end_t: float = 99.0
 var _dash_was: bool = false
-# Valkyrion AGE Symmetrical Forward-Pitched Roller Skating Dash Stance
-# with High-Impact phases: ANTICIPATION (coil back 0.15s) -> SNAP (slam
-# into the deep pose fast) -> SUSTAIN -> OVERSHOOT on release (handled
-# by _update_dash_overshoot_posture).
+# Short-pulse dash (DashSystem, 0.2s) pose flags. While a pulse dash runs it
+# owns the body + legs (gait yields, same as the MJ-lean fix); on release the
+# shared stop-overshoot plays via _dash_end_t.
+var _pulse_dashing: bool = false
+var _pulse_was: bool = false
+# Roller skate stance: SQUAT style (not deep pitch) with High-Impact phases:
+# ANTICIPATION (coil back 0.15s) -> SNAP (slam into squat fast) -> SUSTAIN
+# -> OVERSHOOT on release (handled by _update_dash_overshoot_posture).
 func _update_roller_dash_posture(delta: float) -> void:
 	if mecha == null or mecha.get("is_roller_dashing") == null:
 		return
@@ -453,26 +469,24 @@ func _update_roller_dash_posture(delta: float) -> void:
 	# SNAP (t < 0.32): very high lerp speed slams the pose in like the
 	# LINEAR snap keys in Blender; SUSTAIN after that eases normally.
 	var snap_speed := 24.0 * delta if _dash_t < 0.32 else 12.0 * delta
-	var target_drop = -0.52
-	var target_body_tilt = -deg_to_rad(40.0)
-	# Head COUNTER-pitches the torso (Blender ref f9: body +38 / head
-	# local -33, net gaze +5 fwd). Positive tilt pitches the head back/up
-	# against the forward hull so the eyes stay forward and the skull
-	# never sinks into the cockpit tub.
-	var target_head_tilt = deg_to_rad(30.0)
+	# SQUAT (not deep pitch): hips drop straight down, torso stays up with a
+	# slight nod, gaze forward. Upper arm + forearm at 90 deg guard.
+	var target_drop = -0.42
+	var target_body_tilt = -deg_to_rad(15.0)
+	var target_head_tilt = deg_to_rad(7.0)
 	_apply_pose({
 		"body_tilt": target_body_tilt,
 		"head_tilt": target_head_tilt,
 		"drop": target_drop,
 		# Head naturally follows the tilted collar opening via collar_world in _apply_pose
-		"arm_left": -deg_to_rad(20.0),
-		"arm_right": deg_to_rad(20.0),
-		"forearm_left": deg_to_rad(80.0),
-		"forearm_right": deg_to_rad(75.0),
-		"thigh_left": deg_to_rad(30.0),
-		"thigh_right": deg_to_rad(30.0),
-		"shin_left": -deg_to_rad(30.0),
-		"shin_right": -deg_to_rad(30.0),
+		"arm_left": deg_to_rad(50.0),
+		"arm_right": deg_to_rad(50.0),
+		"forearm_left": deg_to_rad(90.0),
+		"forearm_right": deg_to_rad(90.0),
+		"thigh_left": deg_to_rad(35.0),
+		"thigh_right": deg_to_rad(35.0),
+		"shin_left": -deg_to_rad(35.0),
+		"shin_right": -deg_to_rad(35.0),
 	}, snap_speed)
 
 	var model = mecha.get_node_or_null("Zenisrev")
@@ -496,6 +510,59 @@ func _update_dash_overshoot_posture(delta: float) -> void:
 		"shin_left": -deg_to_rad(12.0),
 		"shin_right": -deg_to_rad(12.0),
 	}, 10.0 * delta)
+
+
+# Short-pulse dash pose, blended by dash direction (Blender refs:
+# Mech_Dash_Fwd / Mech_Dash_Side / Mech_Dash_Back). The 0.2s window needs
+# a hard snap, so this lerps at 20/s.
+func _update_pulse_dash_posture(delta: float) -> void:
+	var ds = mecha.get_node_or_null("DashSystem")
+	if ds == null:
+		return
+	var dir: Vector3 = ds.get("dash_direction")
+	if dir.length() < 0.1:
+		dir = -mecha.global_transform.basis.z
+	var local: Vector3 = mecha.global_transform.basis.inverse() * dir
+	var fwd := clampf(-local.z, -1.0, 1.0)
+	var side := clampf(local.x, -1.0, 1.0)
+	var wf := maxf(fwd, 0.0)
+	var wb := maxf(-fwd, 0.0)
+	var ws := absf(side)
+	var tot := wf + wb + ws
+	if tot < 0.05:
+		wf = 1.0
+		tot = 1.0
+	wf /= tot
+	wb /= tot
+	ws /= tot
+	var lead_right := side >= 0.0
+	var s := 1.0 if lead_right else -1.0
+	# Lead leg plants toward the dash, trail leg pushes; lead arm tucks,
+	# trail arm flings out for balance.
+	var lead_thigh := 18.0
+	var trail_thigh := 12.0
+	var lead_roll := 20.0
+	var lead_shin := -20.0
+	var trail_shin := -35.0
+	_apply_pose({
+		"body_tilt": deg_to_rad(wf * -25.0 + wb * 10.0 + ws * -10.0),
+		"waist_roll": deg_to_rad(-12.0) * s * ws,
+		"head_tilt": deg_to_rad(wf * 20.0 + wb * -12.0 + ws * 8.0),
+		"head_yaw": deg_to_rad(-20.0) * s * ws,
+		"drop": wf * -0.18 + wb * -0.12 + ws * -0.20,
+		"arm_left": deg_to_rad(wf * -30.0 + wb * 50.0 + ws * 10.0),
+		"arm_right": deg_to_rad(wf * -30.0 + wb * 50.0 + ws * 10.0),
+		"arm_left_roll": deg_to_rad(-8.0 if lead_right else -25.0) * ws,
+		"arm_right_roll": deg_to_rad(25.0 if lead_right else 8.0) * ws,
+		"forearm_left": deg_to_rad(wf * 30.0 + wb * 90.0 + ws * (20.0 if lead_right else 55.0)),
+		"forearm_right": deg_to_rad(wf * 30.0 + wb * 90.0 + ws * (55.0 if lead_right else 20.0)),
+		"thigh_left": deg_to_rad(wf * 45.0 + wb * 55.0 + ws * (trail_thigh if lead_right else lead_thigh)),
+		"thigh_right": deg_to_rad(wf * -40.0 + wb * 10.0 + ws * (lead_thigh if lead_right else trail_thigh)),
+		"thigh_left_roll": deg_to_rad(-8.0 if lead_right else -lead_roll) * ws,
+		"thigh_right_roll": deg_to_rad(lead_roll if lead_right else 8.0) * ws,
+		"shin_left": deg_to_rad(wf * -30.0 + wb * -80.0 + ws * (trail_shin if lead_right else lead_shin)),
+		"shin_right": deg_to_rad(wf * -10.0 + wb * -20.0 + ws * (lead_shin if lead_right else trail_shin)),
+	}, 20.0 * delta)
 # Death collapse: the mech goes limp before detonating — torso slumps back and
 # drops, head tilts down, arms hang splayed, legs fold under.
 func _update_core_breach_posture(delta: float) -> void:
@@ -745,7 +812,8 @@ func _update_legs(delta: float) -> void:
 	# (combat idle, jump, fall, kneel, breach) owns them — letting the gait
 	# ease the legs to neutral here fought the crouch every frame, leaving
 	# straight legs under a hunched torso (the "MJ lean" with tiptoe feet).
-	if not _walk.is_moving:
+	# A pulse dash also owns the legs for its lunge.
+	if not _walk.is_moving or _pulse_dashing:
 		return
 	var joints := _build_joints_dict()
 	_walk.update_legs(delta, mecha, joints)

@@ -241,12 +241,12 @@ func _apply_pose(targets: Dictionary, speed: float) -> void:
 		arm_right.rotation.z = lerp_angle(arm_right.rotation.z, targets.get("arm_right_roll", 0.0), speed)
 	if forearm_left:
 		forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, targets.get("forearm_left", 0.0), speed)
-		forearm_left.rotation.y = lerp_angle(forearm_left.rotation.y, 0.0, speed)
-		forearm_left.rotation.z = lerp_angle(forearm_left.rotation.z, 0.0, speed)
+		forearm_left.rotation.y = lerp_angle(forearm_left.rotation.y, targets.get("forearm_left_yaw", 0.0), speed)
+		forearm_left.rotation.z = lerp_angle(forearm_left.rotation.z, targets.get("forearm_left_roll", 0.0), speed)
 	if forearm_right:
 		forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, targets.get("forearm_right", 0.0), speed)
-		forearm_right.rotation.y = lerp_angle(forearm_right.rotation.y, 0.0, speed)
-		forearm_right.rotation.z = lerp_angle(forearm_right.rotation.z, 0.0, speed)
+		forearm_right.rotation.y = lerp_angle(forearm_right.rotation.y, targets.get("forearm_right_yaw", 0.0), speed)
+		forearm_right.rotation.z = lerp_angle(forearm_right.rotation.z, targets.get("forearm_right_roll", 0.0), speed)
 	if leg_left:
 		leg_left.rotation.x = lerp_angle(leg_left.rotation.x, targets.get("thigh_left", 0.0), speed)
 		leg_left.rotation.y = lerp_angle(leg_left.rotation.y, targets.get("thigh_left_yaw", 0.0), speed)
@@ -261,8 +261,12 @@ func _apply_pose(targets: Dictionary, speed: float) -> void:
 			leg_right.position.y = lerp(leg_right.position.y, _original_leg_right_pos.y + targets["leg_right_drop"], speed)
 	if shin_left:
 		shin_left.rotation.x = lerp_angle(shin_left.rotation.x, targets.get("shin_left", 0.0), speed)
+		shin_left.rotation.y = lerp_angle(shin_left.rotation.y, targets.get("shin_left_yaw", 0.0), speed)
+		shin_left.rotation.z = lerp_angle(shin_left.rotation.z, targets.get("shin_left_roll", 0.0), speed)
 	if shin_right:
 		shin_right.rotation.x = lerp_angle(shin_right.rotation.x, targets.get("shin_right", 0.0), speed)
+		shin_right.rotation.y = lerp_angle(shin_right.rotation.y, targets.get("shin_right_yaw", 0.0), speed)
+		shin_right.rotation.z = lerp_angle(shin_right.rotation.z, targets.get("shin_right_roll", 0.0), speed)
 # ─── Posture functions ─────────────────────────────────────────────────────
 
 func _update_prejump_charge_posture(delta: float) -> void:
@@ -351,29 +355,34 @@ func _update_combat_idle_posture(delta: float) -> void:
 				"leg_left_drop": 0.0,
 				"leg_right_drop": 0.0,
 			}, 6.0 * delta)
-		_: # "combat_crouch" (Front Mission intimidating stance - Blender ref Mech_Idle_FrontMission:
-			# wide-spread legs, deep crouch, torso leaned in, guard arms out. No sway/oscillation,
-			# only the bob-system breathing may move it, so it never reads as dancing.
-			# Feet stay flat: thigh (+22) + shin (-22) nets 0 at the ankle; the
-			# gait wrapper yields the legs to this pose when standing still.
+		_: # "combat_crouch" = hangar hero pose 1:1 (Armored Core stance,
+			# hangar_garage_panel.gd:429-457). Tall proud posture, legs spread
+			# by roll, arms in a strong outward A-pose. No sway/oscillation so
+			# it never reads as dancing; FootIK plants the feet flat.
 			_apply_pose({
-				"body_tilt": -deg_to_rad(6.0),
-				"head_tilt": deg_to_rad(6.0),
-				"drop": -0.16,
+				"body_tilt": -deg_to_rad(4.0),
+				"head_tilt": deg_to_rad(2.0),
+				"drop": 0.0,
 				"arm_left": deg_to_rad(12.0),
-				"arm_left_yaw": deg_to_rad(10.0),
-				"arm_left_roll": -deg_to_rad(12.0),
-				"arm_right": deg_to_rad(12.0),
-				"arm_right_yaw": -deg_to_rad(10.0),
-				"arm_right_roll": deg_to_rad(12.0),
+				"arm_left_yaw": deg_to_rad(6.0),
+				"arm_left_roll": -deg_to_rad(28.0),
+				"arm_right": deg_to_rad(14.0),
+				"arm_right_yaw": -deg_to_rad(6.0),
+				"arm_right_roll": deg_to_rad(28.0),
 				"forearm_left": deg_to_rad(28.0),
-				"forearm_right": deg_to_rad(28.0),
-				"thigh_left": deg_to_rad(22.0),
-				"thigh_right": deg_to_rad(22.0),
-				"thigh_left_yaw": deg_to_rad(20.0),
-				"thigh_right_yaw": -deg_to_rad(20.0),
-				"shin_left": -deg_to_rad(22.0),
-				"shin_right": -deg_to_rad(22.0),
+				"forearm_left_roll": deg_to_rad(14.0),
+				"forearm_right": deg_to_rad(30.0),
+				"forearm_right_roll": -deg_to_rad(14.0),
+				"thigh_left": deg_to_rad(8.0),
+				"thigh_right": deg_to_rad(8.0),
+				"thigh_left_yaw": deg_to_rad(14.0),
+				"thigh_right_yaw": -deg_to_rad(14.0),
+				"thigh_left_roll": -deg_to_rad(14.0),
+				"thigh_right_roll": deg_to_rad(14.0),
+				"shin_left": -deg_to_rad(18.0),
+				"shin_left_roll": deg_to_rad(8.0),
+				"shin_right": -deg_to_rad(18.0),
+				"shin_right_roll": -deg_to_rad(8.0),
 				"leg_left_drop": 0.0,
 				"leg_right_drop": 0.0,
 			}, 6.0 * delta)

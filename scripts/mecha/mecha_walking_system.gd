@@ -418,16 +418,19 @@ func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary) -> vo
 	if robotic_gait:
 		hip_swivel = clampf(move_heading * 0.35, -deg_to_rad(22.0), deg_to_rad(22.0))
 
-	# Apply smoothly to leg joints (robot snaps faster for servo feel)
+	# Apply smoothly to leg joints (robot snaps faster for servo feel).
+	# Base abduction keeps the knees tracking outward over the feet so the
+	# stride never collapses inward into a knock-kneed V.
+	var abduct := deg_to_rad(7.0)
 	var leg_snap := 18.0 if robotic_gait else 14.0
 	leg_left.rotation.x = lerp_angle(leg_left.rotation.x, target_pitch_l, leg_snap * delta)
 	leg_left.rotation.y = lerp_angle(leg_left.rotation.y, hip_swivel, leg_snap * delta)
-	leg_left.rotation.z = lerp_angle(leg_left.rotation.z, lateral_l, leg_snap * delta)
+	leg_left.rotation.z = lerp_angle(leg_left.rotation.z, lateral_l - abduct, leg_snap * delta)
 	leg_left.position.y = lerp(leg_left.position.y, orig_leg_left.y + total_lift_l, leg_snap * delta)
 
 	leg_right.rotation.x = lerp_angle(leg_right.rotation.x, target_pitch_r, leg_snap * delta)
 	leg_right.rotation.y = lerp_angle(leg_right.rotation.y, hip_swivel, leg_snap * delta)
-	leg_right.rotation.z = lerp_angle(leg_right.rotation.z, lateral_r, leg_snap * delta)
+	leg_right.rotation.z = lerp_angle(leg_right.rotation.z, lateral_r + abduct, leg_snap * delta)
 	leg_right.position.y = lerp(leg_right.position.y, orig_leg_right.y + total_lift_r, leg_snap * delta)
 
 	# Knee flexion (Shins)

@@ -470,7 +470,9 @@ func _update_roller_dash_posture(delta: float) -> void:
 	# LINEAR snap keys in Blender; SUSTAIN after that eases normally.
 	var snap_speed := 24.0 * delta if _dash_t < 0.32 else 12.0 * delta
 	# SQUAT (not deep pitch): hips drop straight down, torso stays up with a
-	# slight nod, gaze forward. Upper arm + forearm at 90 deg guard.
+	# slight nod, gaze forward. Upper arm runs PARALLEL to the torso axis
+	# (same -15 deg pitch, since both hang off the root) + 90 deg elbow, so
+	# the forearm points down at the ground in front — never at the sky.
 	var target_drop = -0.42
 	var target_body_tilt = -deg_to_rad(15.0)
 	var target_head_tilt = deg_to_rad(7.0)
@@ -479,14 +481,18 @@ func _update_roller_dash_posture(delta: float) -> void:
 		"head_tilt": target_head_tilt,
 		"drop": target_drop,
 		# Head naturally follows the tilted collar opening via collar_world in _apply_pose
-		"arm_left": deg_to_rad(50.0),
-		"arm_right": deg_to_rad(50.0),
+		"arm_left": target_body_tilt,
+		"arm_right": target_body_tilt,
 		"forearm_left": deg_to_rad(90.0),
 		"forearm_right": deg_to_rad(90.0),
 		"thigh_left": deg_to_rad(35.0),
 		"thigh_right": deg_to_rad(35.0),
+		"thigh_left_roll": -deg_to_rad(10.0),
+		"thigh_right_roll": deg_to_rad(10.0),
 		"shin_left": -deg_to_rad(35.0),
 		"shin_right": -deg_to_rad(35.0),
+		"shin_left_roll": deg_to_rad(5.0),
+		"shin_right_roll": -deg_to_rad(5.0),
 	}, snap_speed)
 
 	var model = mecha.get_node_or_null("Zenisrev")
@@ -558,10 +564,12 @@ func _update_pulse_dash_posture(delta: float) -> void:
 		"forearm_right": deg_to_rad(wf * 30.0 + wb * 90.0 + ws * (55.0 if lead_right else 20.0)),
 		"thigh_left": deg_to_rad(wf * 45.0 + wb * 55.0 + ws * (trail_thigh if lead_right else lead_thigh)),
 		"thigh_right": deg_to_rad(wf * -40.0 + wb * 10.0 + ws * (lead_thigh if lead_right else trail_thigh)),
-		"thigh_left_roll": deg_to_rad(-8.0 if lead_right else -lead_roll) * ws,
-		"thigh_right_roll": deg_to_rad(lead_roll if lead_right else 8.0) * ws,
+		"thigh_left_roll": deg_to_rad(-10.0) + deg_to_rad(-8.0 if lead_right else -lead_roll) * ws,
+		"thigh_right_roll": deg_to_rad(10.0) + deg_to_rad(lead_roll if lead_right else 8.0) * ws,
 		"shin_left": deg_to_rad(wf * -30.0 + wb * -80.0 + ws * (trail_shin if lead_right else lead_shin)),
 		"shin_right": deg_to_rad(wf * -10.0 + wb * -20.0 + ws * (lead_shin if lead_right else trail_shin)),
+		"shin_left_roll": deg_to_rad(5.0),
+		"shin_right_roll": -deg_to_rad(5.0),
 	}, 20.0 * delta)
 # Death collapse: the mech goes limp before detonating — torso slumps back and
 # drops, head tilts down, arms hang splayed, legs fold under.

@@ -16,6 +16,7 @@ import bpy  # type: ignore[import-not-found]  # provided by Blender at runtime
 import math
 
 D = math.radians
+SPREAD = 8.0  # constant outward abduction so knees track over the feet, never a V
 RIG_NAME = "Mech_Rig"
 ACTION_NAME = "Mech_Run"
 LOOP = (1, 28)
@@ -27,16 +28,18 @@ BONES = ("Root", "Body", "Head", "ArmL", "ArmR", "ForeL", "ForeR",
 
 # (pelvisZ, pelvisY, rootY, bodyX, headX, armL, armR, elbL, elbR,
 #  thighL, shinL, thighR, shinR, squash)
+# Signs: Blender fwd = Body -X (up-bones), limbs +X = forward swing.
+# Head counters the torso so net gaze stays ~7 deg down-forward.
 POSES = {
-    1: (-0.16, 0.00, 0.00, 12, -7, -45, 45, 50, 70, 40, -12, -50, -5, 0.98),
-    5: (-0.20, -0.02, -0.01, 12, -7, -30, 30, 55, 65, 10, -35, -55, -15, 0.97),
-    8: (-0.06, 0.08, 0.04, 15, -10, -50, 50, 60, 55, -45, -8, 60, -90, 1.02),
-    12: (0.00, 0.10, 0.02, 13, -8, -10, 10, 60, 60, 10, -70, 30, -30, 1.02),
-    15: (-0.16, 0.00, 0.00, 12, -7, 45, -45, 70, 50, -50, -5, 40, -12, 0.98),
-    19: (-0.20, -0.02, -0.01, 12, -7, 30, -30, 65, 55, -55, -15, 10, -35, 0.97),
-    22: (-0.06, 0.08, 0.04, 15, -10, 50, -50, 55, 60, 60, -90, -45, -8, 1.02),
-    26: (0.00, 0.10, 0.02, 13, -8, 10, -10, 60, 60, 30, -30, 10, -70, 1.02),
-    29: (-0.16, 0.00, 0.00, 12, -7, -45, 45, 50, 70, 40, -12, -50, -5, 0.98),
+    1: (-0.16, 0.00, 0.00, -12, 5, -45, 45, 50, 70, 40, -12, -50, -5, 0.98),
+    5: (-0.20, -0.02, -0.01, -12, 5, -30, 30, 55, 65, 10, -35, -55, -15, 0.97),
+    8: (-0.06, 0.08, 0.04, -15, 8, -50, 50, 60, 55, -45, -8, 60, -90, 1.02),
+    12: (0.00, 0.10, 0.02, -13, 6, -10, 10, 60, 60, 10, -70, 30, -30, 1.02),
+    15: (-0.16, 0.00, 0.00, -12, 5, 45, -45, 70, 50, -50, -5, 40, -12, 0.98),
+    19: (-0.20, -0.02, -0.01, -12, 5, 30, -30, 65, 55, -55, -15, 10, -35, 0.97),
+    22: (-0.06, 0.08, 0.04, -15, 8, 50, -50, 55, 60, 60, -90, -45, -8, 1.02),
+    26: (0.00, 0.10, 0.02, -13, 6, 10, -10, 60, 60, 30, -30, 10, -70, 1.02),
+    29: (-0.16, 0.00, 0.00, -12, 5, -45, 45, 50, 70, 40, -12, -50, -5, 0.98),
 }
 
 
@@ -70,8 +73,8 @@ def apply_pose(bones, p) -> None:
     bones["ArmR"].rotation_euler = (D(aR), D(-6.0), 0)
     bones["ForeL"].rotation_euler = (D(eL), 0, 0)
     bones["ForeR"].rotation_euler = (D(eR), 0, 0)
-    bones["LegL"].rotation_euler = (D(lLx), 0, 0)
-    bones["LegR"].rotation_euler = (D(lRx), 0, 0)
+    bones["LegL"].rotation_euler = (D(lLx), D(SPREAD), 0)
+    bones["LegR"].rotation_euler = (D(lRx), D(-SPREAD), 0)
     bones["ShinL"].rotation_euler = (D(lLs), 0, 0)
     bones["ShinR"].rotation_euler = (D(lRs), 0, 0)
 

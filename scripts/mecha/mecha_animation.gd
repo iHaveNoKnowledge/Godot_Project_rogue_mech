@@ -169,8 +169,16 @@ func _run_procedural(delta: float) -> void:
 		air_timer = 0.0
 		var is_skating = mecha.get("is_roller_dashing") == true
 		if is_skating:
+			_dash_end_t = 99.0
 			_update_roller_dash_posture(delta)
+		elif _dash_end_t < 0.45:
+			# Dash just released: overshoot past neutral, then the normal
+			# stance takes over (Blender ref: Mech_Dash_HighImpact f25-f40).
+			_dash_was = false
+			_dash_end_t += delta
+			_update_dash_overshoot_posture(delta)
 		else:
+			_dash_was = false
 			_update_bob(delta)
 			_update_legs(delta)
 			var js = mecha.get("jump_system")
@@ -406,38 +414,88 @@ func _update_kneel_posture(delta: float) -> void:
 		"leg_left_drop": -0.5,
 		"leg_right_drop": -0.5,
 	}, 10.0 * delta)
+# High-impact dash phase timers (Blender ref: Mech_Dash_HighImpact).
+# _dash_t counts up while the dash is held; _dash_end_t counts up after
+# release so the stop-overshoot can play out before idle resumes.
+var _dash_t: float = 0.0
+var _dash_end_t: float = 99.0
+var _dash_was: bool = false
 # Valkyrion AGE Symmetrical Forward-Pitched Roller Skating Dash Stance
+# with High-Impact phases: ANTICIPATION (coil back 0.15s) -> SNAP (slam
+# into the deep pose fast) -> SUSTAIN -> OVERSHOOT on release (handled
+# by _update_dash_overshoot_posture).
 func _update_roller_dash_posture(delta: float) -> void:
-	if mecha and mecha.get("is_roller_dashing") != null:
-		var speed = 12.0 * delta
-		var is_skating = mecha.get("is_roller_dashing") == true
+	if mecha == null or mecha.get("is_roller_dashing") == null:
+		return
+	if not _dash_was:
+		_dash_was = true
+		_dash_t = 0.0
+	_dash_t += delta
 
-		if is_skating:
-			var target_drop = -0.52
-			var target_body_tilt = -deg_to_rad(40.0)
-			# Head COUNTER-pitches the torso (Blender ref: Mech_Dash_HeadLocked
-			# f6 body +38 / head local -33, net gaze +5 fwd). Positive tilt
-			# pitches the head back/up against the forward hull so the eyes
-			# stay forward and the skull never sinks into the cockpit tub.
-			var target_head_tilt = deg_to_rad(30.0)
-			_apply_pose({
-				"body_tilt": target_body_tilt,
-				"head_tilt": target_head_tilt,
-				"drop": target_drop,
-				# Head naturally follows the tilted collar opening via collar_world in _apply_pose
-				"arm_left": -deg_to_rad(20.0),
-				"arm_right": deg_to_rad(20.0),
-				"forearm_left": deg_to_rad(80.0),
-				"forearm_right": deg_to_rad(75.0),
-				"thigh_left": deg_to_rad(30.0),
-				"thigh_right": deg_to_rad(30.0),
-				"shin_left": -deg_to_rad(30.0),
-				"shin_right": -deg_to_rad(30.0),
-			}, speed)
+	if _dash_t < 0.15:
+		# ANTICIPATION: brief coil — torso tips back/up, arms swing forward
+		# as the counter-movement before the launch.
+		_apply_pose({
+			"body_tilt": deg_to_rad(8.0),
+			"head_tilt": -deg_to_rad(8.0),
+			"drop": -0.10,
+			"arm_left": deg_to_rad(28.0),
+			"arm_right": deg_to_rad(28.0),
+			"forearm_left": deg_to_rad(45.0),
+			"forearm_right": deg_to_rad(45.0),
+			"thigh_left": deg_to_rad(15.0),
+			"thigh_right": deg_to_rad(15.0),
+			"shin_left": -deg_to_rad(15.0),
+			"shin_right": -deg_to_rad(15.0),
+		}, 10.0 * delta)
+		return
 
-			var model = mecha.get_node_or_null("Zenisrev")
-			if model:
-				model.rotation.x = lerp_angle(model.rotation.x, target_body_tilt, speed)
+	# SNAP (t < 0.32): very high lerp speed slams the pose in like the
+	# LINEAR snap keys in Blender; SUSTAIN after that eases normally.
+	var snap_speed := 24.0 * delta if _dash_t < 0.32 else 12.0 * delta
+	var target_drop = -0.52
+	var target_body_tilt = -deg_to_rad(40.0)
+	# Head COUNTER-pitches the torso (Blender ref f9: body +38 / head
+	# local -33, net gaze +5 fwd). Positive tilt pitches the head back/up
+	# against the forward hull so the eyes stay forward and the skull
+	# never sinks into the cockpit tub.
+	var target_head_tilt = deg_to_rad(30.0)
+	_apply_pose({
+		"body_tilt": target_body_tilt,
+		"head_tilt": target_head_tilt,
+		"drop": target_drop,
+		# Head naturally follows the tilted collar opening via collar_world in _apply_pose
+		"arm_left": -deg_to_rad(20.0),
+		"arm_right": deg_to_rad(20.0),
+		"forearm_left": deg_to_rad(80.0),
+		"forearm_right": deg_to_rad(75.0),
+		"thigh_left": deg_to_rad(30.0),
+		"thigh_right": deg_to_rad(30.0),
+		"shin_left": -deg_to_rad(30.0),
+		"shin_right": -deg_to_rad(30.0),
+	}, snap_speed)
+
+	var model = mecha.get_node_or_null("Zenisrev")
+	if model:
+		model.rotation.x = lerp_angle(model.rotation.x, target_body_tilt, snap_speed)
+
+
+# Stop-overshoot: on dash release the torso swings PAST neutral upright
+# and the arms fling forward (follow-through), then idle catches it.
+func _update_dash_overshoot_posture(delta: float) -> void:
+	_apply_pose({
+		"body_tilt": deg_to_rad(7.0),
+		"head_tilt": -deg_to_rad(9.0),
+		"drop": -0.06,
+		"arm_left": deg_to_rad(35.0),
+		"arm_right": deg_to_rad(35.0),
+		"forearm_left": deg_to_rad(50.0),
+		"forearm_right": deg_to_rad(50.0),
+		"thigh_left": deg_to_rad(12.0),
+		"thigh_right": deg_to_rad(12.0),
+		"shin_left": -deg_to_rad(12.0),
+		"shin_right": -deg_to_rad(12.0),
+	}, 10.0 * delta)
 # Death collapse: the mech goes limp before detonating — torso slumps back and
 # drops, head tilts down, arms hang splayed, legs fold under.
 func _update_core_breach_posture(delta: float) -> void:

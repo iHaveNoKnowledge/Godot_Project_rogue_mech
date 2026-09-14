@@ -68,8 +68,9 @@ static func calc_sprint_leg(phase: float) -> Dictionary:
 
 
 ## Robotic piston gait: legs move like hydraulic pistons, not muscles.
-## Narrow swing (-38..+32 deg), stiff knee (max -48 deg), flat-topped stomp
-## lift with linear phase so motion reads stepped/mechanical.
+## Wider swing (-45..+38 deg, Blender ref Mech_Run) so the sprint reads as
+## running; stiff knee (max -48 deg), flat-topped stomp lift with linear
+## phase so motion stays stepped/mechanical.
 static func calc_robot_sprint_leg(phase: float) -> Dictionary:
 	var norm_phase := fmod(phase, TAU)
 	if norm_phase < 0.0:
@@ -79,7 +80,7 @@ static func calc_robot_sprint_leg(phase: float) -> Dictionary:
 	var lift := 0.0
 	if norm_phase < PI:
 		var t := norm_phase / PI
-		thigh = lerp(-deg_to_rad(38.0), deg_to_rad(32.0), t)
+		thigh = lerp(-deg_to_rad(45.0), deg_to_rad(38.0), t)
 		if t < 0.35:
 			shin = lerp(-deg_to_rad(8.0), -deg_to_rad(48.0), t / 0.35)
 		elif t < 0.7:
@@ -94,7 +95,7 @@ static func calc_robot_sprint_leg(phase: float) -> Dictionary:
 			lift = 0.16 * (1.0 - (t - 0.75) / 0.25)
 	else:
 		var t := (norm_phase - PI) / PI
-		thigh = lerp(deg_to_rad(32.0), -deg_to_rad(38.0), t)
+		thigh = lerp(deg_to_rad(38.0), -deg_to_rad(45.0), t)
 		shin = lerp(-deg_to_rad(14.0), -deg_to_rad(6.0), t)
 		lift = 0.0
 	return { "thigh": thigh, "shin": shin, "lift": lift }
@@ -460,24 +461,28 @@ func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary) -> vo
 	var forearm_right: Node3D = joints.get("forearm_right")
 
 	if robotic_gait:
-		# ROBOT MODE: arms bolted in a braced carry — no human counter-swing,
-		# elbows locked. Aim system (_update_aim_arms) still overrides when firing.
-		var lock_arm := deg_to_rad(12.0)
-		var lock_elbow := deg_to_rad(18.0)
+		# PISTON COUNTER-SWING (Blender ref: Mech_Run f1/f13 contact frames):
+		# arms swing opposite the same-side leg so the sprint reads as
+		# running instead of gliding. Amplitude clamped, elbows bent,
+		# Y/Z stay bolted at 0 for the servo feel. Aim system
+		# (_update_aim_arms) still overrides when firing.
+		var swing_l := clampf(-target_pitch_l * 0.6, deg_to_rad(-28.0), deg_to_rad(28.0))
+		var swing_r := clampf(-target_pitch_r * 0.6, deg_to_rad(-28.0), deg_to_rad(28.0))
+		var piston_elbow := deg_to_rad(30.0)
 		if arm_left:
-			arm_left.rotation.x = lerp_angle(arm_left.rotation.x, lock_arm, 14.0 * delta)
+			arm_left.rotation.x = lerp_angle(arm_left.rotation.x, swing_l, 14.0 * delta)
 			arm_left.rotation.y = lerp_angle(arm_left.rotation.y, 0.0, 14.0 * delta)
 			arm_left.rotation.z = lerp_angle(arm_left.rotation.z, 0.0, 14.0 * delta)
 			if forearm_left:
-				forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, lock_elbow, 14.0 * delta)
+				forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, piston_elbow, 14.0 * delta)
 				forearm_left.rotation.y = lerp_angle(forearm_left.rotation.y, 0.0, 14.0 * delta)
 				forearm_left.rotation.z = lerp_angle(forearm_left.rotation.z, 0.0, 14.0 * delta)
 		if arm_right:
-			arm_right.rotation.x = lerp_angle(arm_right.rotation.x, lock_arm, 14.0 * delta)
+			arm_right.rotation.x = lerp_angle(arm_right.rotation.x, swing_r, 14.0 * delta)
 			arm_right.rotation.y = lerp_angle(arm_right.rotation.y, 0.0, 14.0 * delta)
 			arm_right.rotation.z = lerp_angle(arm_right.rotation.z, 0.0, 14.0 * delta)
 			if forearm_right:
-				forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, lock_elbow, 14.0 * delta)
+				forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, piston_elbow, 14.0 * delta)
 				forearm_right.rotation.y = lerp_angle(forearm_right.rotation.y, 0.0, 14.0 * delta)
 				forearm_right.rotation.z = lerp_angle(forearm_right.rotation.z, 0.0, 14.0 * delta)
 		return

@@ -351,25 +351,27 @@ func _update_combat_idle_posture(delta: float) -> void:
 				"leg_left_drop": 0.0,
 				"leg_right_drop": 0.0,
 			}, 6.0 * delta)
-		_: # "combat_crouch" (Walking Tank Balanced Stance - shin perpendicular to ground)
+		_: # "combat_crouch" (Front Mission intimidating stance - Blender ref Mech_Idle_FrontMission:
+			# wide-spread legs, deep crouch, torso leaned in, guard arms out. No sway/oscillation,
+			# only the bob-system breathing may move it, so it never reads as dancing.)
 			_apply_pose({
-				"body_tilt": 0.0,
-				"head_tilt": 0.0,
-				"drop": -0.14,
+				"body_tilt": -deg_to_rad(8.0),
+				"head_tilt": deg_to_rad(8.0),
+				"drop": -0.16,
 				"arm_left": deg_to_rad(12.0),
-				"arm_left_yaw": deg_to_rad(4.0),
+				"arm_left_yaw": deg_to_rad(6.0),
 				"arm_left_roll": -deg_to_rad(8.0),
 				"arm_right": deg_to_rad(12.0),
-				"arm_right_yaw": -deg_to_rad(4.0),
+				"arm_right_yaw": -deg_to_rad(6.0),
 				"arm_right_roll": deg_to_rad(8.0),
-				"forearm_left": deg_to_rad(32.0),
-				"forearm_right": deg_to_rad(32.0),
-				"thigh_left": deg_to_rad(26.0),
-				"thigh_right": deg_to_rad(26.0),
-				"thigh_left_yaw": deg_to_rad(10.0),
-				"thigh_right_yaw": -deg_to_rad(10.0),
-				"shin_left": -deg_to_rad(26.0),
-				"shin_right": -deg_to_rad(26.0),
+				"forearm_left": deg_to_rad(28.0),
+				"forearm_right": deg_to_rad(28.0),
+				"thigh_left": deg_to_rad(22.0),
+				"thigh_right": deg_to_rad(22.0),
+				"thigh_left_yaw": deg_to_rad(14.0),
+				"thigh_right_yaw": -deg_to_rad(14.0),
+				"shin_left": -deg_to_rad(24.0),
+				"shin_right": -deg_to_rad(24.0),
 				"leg_left_drop": 0.0,
 				"leg_right_drop": 0.0,
 			}, 6.0 * delta)
@@ -402,7 +404,11 @@ func _update_roller_dash_posture(delta: float) -> void:
 		if is_skating:
 			var target_drop = -0.40
 			var target_body_tilt = -deg_to_rad(40.0)
-			var target_head_tilt = -deg_to_rad(18.0)
+			# Head COUNTER-pitches the torso (Blender ref: Mech_Dash_HeadLocked
+			# f6 body +38 / head local -33, net gaze +5 fwd). Positive tilt
+			# pitches the head back/up against the forward hull so the eyes
+			# stay forward and the skull never sinks into the cockpit tub.
+			var target_head_tilt = deg_to_rad(30.0)
 			_apply_pose({
 				"body_tilt": target_body_tilt,
 				"head_tilt": target_head_tilt,

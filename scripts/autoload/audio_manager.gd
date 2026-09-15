@@ -237,6 +237,12 @@ func play_jump(pos: Vector3) -> void:
 func play_land(pos: Vector3) -> void:
 	sfx.play_land(pos)
 
+func play_hatch_open(pos: Vector3) -> void:
+	sfx.play_hatch_open(pos)
+
+func play_hatch_close(pos: Vector3) -> void:
+	sfx.play_hatch_close(pos)
+
 func play_roller_skate(pos: Vector3) -> void:
 	sfx.play_roller_skate(pos)
 

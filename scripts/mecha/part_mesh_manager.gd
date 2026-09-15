@@ -110,6 +110,15 @@ func set_cockpit_open(open: bool, animate: bool = true) -> void:
 	if carriages.is_empty():
 		return
 
+	if AudioManager and AudioManager.has_method("play_hatch_open"):
+		var sfx_pos := Vector3.ZERO
+		if is_instance_valid(carriages[0]) and carriages[0].is_inside_tree():
+			sfx_pos = carriages[0].global_position
+		if open:
+			AudioManager.play_hatch_open(sfx_pos)
+		else:
+			AudioManager.play_hatch_close(sfx_pos)
+
 	if _cockpit_tween and _cockpit_tween.is_valid():
 		_cockpit_tween.kill()
 

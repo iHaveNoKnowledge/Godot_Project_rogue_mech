@@ -91,6 +91,10 @@ func _generate_sounds() -> void:
 	_sound_cache["jump"] = jump_file if jump_file != null else _gen_mech_jump()
 	var land_file: Variant = _load_sfx_file("land")
 	_sound_cache["land"] = land_file if land_file != null else _gen_mech_land()
+	var hatch_open_file: Variant = _load_sfx_file("hatch_open")
+	_sound_cache["hatch_open"] = hatch_open_file if hatch_open_file != null else _gen_hatch_open()
+	var hatch_close_file: Variant = _load_sfx_file("hatch_close")
+	_sound_cache["hatch_close"] = hatch_close_file if hatch_close_file != null else _gen_hatch_close()
 	_sound_cache["roller_skate"] = _gen_roller_skate_grunt()
 	var roller_file: Variant = _load_sfx_file("roller_dash")
 	_sound_cache["roller_dash"] = roller_file if roller_file != null else _gen_roller_loop()
@@ -515,6 +519,15 @@ func play_jump(pos: Vector3) -> void:
 
 func play_land(pos: Vector3) -> void:
 	play_sfx("land", pos, -4.0, "Movement")
+
+
+## Cockpit hatch slide (0.75s tween): 3D positional, Movement bus.
+func play_hatch_open(pos: Vector3) -> void:
+	play_sfx("hatch_open", pos, -4.0, "Movement")
+
+
+func play_hatch_close(pos: Vector3) -> void:
+	play_sfx("hatch_close", pos, -4.0, "Movement")
 
 
 func play_roller_skate(pos: Vector3) -> void:
@@ -1178,6 +1191,64 @@ func _gen_mech_armor_hit() -> AudioStreamWAV:
 
 func _gen_actuator() -> AudioStreamWAV:
 	return _gen_sine_sweep(150.0, 50.0, 0.1, 0.35)
+
+
+## Procedural cockpit hatch OPEN fallback (0.75s, matches hatch tween):
+## pressure-release hiss -> low hydraulic slide -> end-stop clunk.
+func _gen_hatch_open() -> AudioStreamWAV:
+	var sample_rate := 22050
+	var duration := 0.75
+	var num_samples := int(duration * sample_rate)
+	var data := PackedByteArray()
+	data.resize(num_samples * 2)
+	for i in range(num_samples):
+		var t := float(i) / sample_rate
+		var progress := t / duration
+		var hiss := (randf() * 2.0 - 1.0) * 0.35 * exp(-t * 14.0)
+		var slide := sin(TAU * lerpf(130.0, 70.0, progress) * t) * 0.30 * sin(PI * progress)
+		var clunk := 0.0
+		if t > 0.62:
+			var ct := (t - 0.62) / 0.13
+			clunk = (sin(TAU * lerpf(900.0, 300.0, ct) * (t - 0.62)) * 0.5 + (randf() * 2.0 - 1.0) * 0.25) * exp(-ct * 6.0) * 0.5
+		var sample := (hiss + slide + clunk) * 0.5
+		var val := int(clampf(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+	var stream := AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream
+
+
+## Procedural cockpit hatch CLOSE fallback (0.75s): slide -> heavy seal clunk + low thud.
+func _gen_hatch_close() -> AudioStreamWAV:
+	var sample_rate := 22050
+	var duration := 0.75
+	var num_samples := int(duration * sample_rate)
+	var data := PackedByteArray()
+	data.resize(num_samples * 2)
+	for i in range(num_samples):
+		var t := float(i) / sample_rate
+		var progress := t / duration
+		var slide := sin(TAU * lerpf(90.0, 140.0, progress) * t) * 0.28 * sin(PI * progress)
+		var scrape := (randf() * 2.0 - 1.0) * 0.12 * sin(PI * progress)
+		var seal := 0.0
+		if t > 0.60:
+			var ct := (t - 0.60) / 0.15
+			seal = (sin(TAU * lerpf(700.0, 180.0, ct) * (t - 0.60)) * 0.55 + (randf() * 2.0 - 1.0) * 0.30) * exp(-ct * 5.0) * 0.55
+			seal += sin(TAU * 55.0 * (t - 0.60)) * 0.25 * exp(-ct * 4.0)
+		var sample := (slide + scrape + seal) * 0.5
+		var val := int(clampf(sample * 32767.0, -32767.0, 32767.0))
+		data[i * 2] = val & 0xFF
+		data[i * 2 + 1] = (val >> 8) & 0xFF
+	var stream := AudioStreamWAV.new()
+	stream.data = data
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	return stream
 
 
 func _gen_retreat_alert() -> AudioStreamWAV:

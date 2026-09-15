@@ -31,6 +31,12 @@ const BONE_SHIN_R := "Bone_Shin_R"
 const BONE_FOOT_L := "Bone_Foot_L"
 const BONE_FOOT_R := "Bone_Foot_R"
 
+# Head node rest offset from the Body node in mecha_base.tscn:
+# Head (0, 3.56, -0.16) minus Body (0, 3.024, 0). The procedural pose keeps
+# the head glued to this body-local collar point (rotated by body pitch) so
+# the helmet never sinks into the chest when the torso leans or drops.
+const HEAD_COLLAR_LOCAL := Vector3(0.0, 0.536, -0.16)
+
 const CLIP_IDLE := "idle"
 const CLIP_RUN := "run"
 const CLIP_JUMP_LAUNCH := "jump_launch"

@@ -243,7 +243,7 @@ func _apply_pose(targets: Dictionary, speed: float) -> void:
 		# Anchor head dynamically to the body's forward collar opening so when
 		# the torso tilts forward or drops, the head sits perfectly in the collar
 		# recess and never sinks into the cockpit tub.
-		var collar_local := Vector3(0.0, 0.536, -0.16)
+		var collar_local := MechaRig.HEAD_COLLAR_LOCAL
 		var collar_world := body_mesh.position + collar_local.rotated(Vector3.RIGHT, body_mesh.rotation.x) if body_mesh else (_original_head_pos + Vector3(0, drop, 0))
 		var head_pos: Vector3 = targets.get("head_position", collar_world)
 		head_mesh.position = head_mesh.position.lerp(head_pos, speed)

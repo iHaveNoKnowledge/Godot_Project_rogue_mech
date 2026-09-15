@@ -254,8 +254,11 @@ func update_bob(delta: float, mecha: CharacterBody3D, joints: Dictionary,
 				body_mesh.rotation.z = lerp_angle(body_mesh.rotation.z, target_bank, 14.0 * delta)
 				body_mesh.rotation.y = lerp_angle(body_mesh.rotation.y, 0.0, 14.0 * delta)
 			if head_mesh:
-				# Head bolted to hull: rides the stomp, no gaze stabilization.
-				head_mesh.position = orig_head + Vector3(0, bob * 0.2 + crouch * 0.7, 0)
+				# Head rides the pitched collar recess (not a fixed offset):
+				# the torso leans up to -26 deg at sprint, and a fixed
+				# offset leaves the helmet behind/inside the chest.
+				# (crouch already rides along inside body_mesh.position.)
+				head_mesh.position = anchored_head_pos(body_mesh, orig_head) + Vector3(0, bob * 0.2, 0)
 				head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, 0.0, 14.0 * delta)
 				head_mesh.rotation.z = lerp_angle(head_mesh.rotation.z, 0.0, 14.0 * delta)
 				head_mesh.rotation.y = lerp_angle(head_mesh.rotation.y, 0.0, 14.0 * delta)
@@ -295,7 +298,9 @@ func update_bob(delta: float, mecha: CharacterBody3D, joints: Dictionary,
 		if head_mesh:
 			# Head stabilizes gaze: counter-yaws the torso and only takes a
 			# third of the pitch so the eyes stay on the horizon while running.
-			head_mesh.position = orig_head + Vector3(0, absf(bob) * 0.30 + crouch * 0.7, 0)
+			# Position still rides the pitched collar so the helmet can't sink
+			# into the leaning chest (crouch rides along in body position).
+			head_mesh.position = anchored_head_pos(body_mesh, orig_head) + Vector3(0, absf(bob) * 0.30, 0)
 			head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, target_pitch * 0.35, 10.0 * delta)
 			head_mesh.rotation.z = lerp_angle(head_mesh.rotation.z, -target_bank * 0.5, 10.0 * delta)
 			head_mesh.rotation.y = lerp_angle(head_mesh.rotation.y, -twist * 0.7, 8.0 * delta)
@@ -512,6 +517,17 @@ func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary) -> vo
 			forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, elbow_r, 12.0 * delta)
 			forearm_right.rotation.y = lerp_angle(forearm_right.rotation.y, 0.0, 10.0 * delta)
 			forearm_right.rotation.z = lerp_angle(forearm_right.rotation.z, 0.0, 10.0 * delta)
+
+
+## Head world target glued to the torso collar recess: body position plus the
+## rest offset (MechaRig.HEAD_COLLAR_LOCAL) rotated by current body pitch.
+## Same anchor _apply_pose uses at idle — the run branch must use it too,
+## otherwise a sprint lean parks the chest in front of a fixed-offset helmet.
+## Falls back to the captured rest offset when the body node is missing.
+static func anchored_head_pos(body_mesh: Node3D, orig_head: Vector3) -> Vector3:
+	if body_mesh == null:
+		return orig_head
+	return body_mesh.position + MechaRig.HEAD_COLLAR_LOCAL.rotated(Vector3.RIGHT, body_mesh.rotation.x)
 
 
 ## Scans the standard mecha rig node paths and returns a joints dictionary.

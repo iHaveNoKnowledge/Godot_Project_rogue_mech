@@ -500,6 +500,8 @@ static func _get_flame_material() -> StandardMaterial3D:
 ## Loaded lazily; when the GLB is missing (headless tests) the procedural
 ## builders below take over so gameplay never breaks.
 const FX_GLB_PATH = "res://assets/models/projectile_fx.glb"
+## Beam bolts fly 33% longer than authored so the laser reads at range.
+const BEAM_LENGTH_MULT = 1.33
 static var _fx_scene: PackedScene = null
 static var _fx_missing := false
 
@@ -569,9 +571,11 @@ static func _build_beam_bolt(halo_mat: StandardMaterial3D) -> Node3D:
 	var authored := _fx_node("BeamBolt")
 	if authored != null:
 		authored.name = "BeamBolt"
+		authored.scale = Vector3(1.0, 1.0, BEAM_LENGTH_MULT)
 		return authored
 	var root := Node3D.new()
 	root.name = "BeamBolt"
+	root.scale = Vector3(1.0, 1.0, BEAM_LENGTH_MULT)
 	var core := MeshInstance3D.new()
 	var core_mesh := CapsuleMesh.new()
 	core_mesh.radius = 0.03
@@ -661,6 +665,22 @@ func _spawn_projectile(from_pos: Vector3, aim_dir: Vector3, fired_by_enemy: bool
 		mesh.material_override = _get_cached_material(projectile_color)
 		visual = mesh
 	projectile.add_child(visual)
+
+	# Energy rounds carry real light: the beam/slug visibly illuminates dark
+	# corners as it flies (emissive mesh alone only glows, it lights nothing).
+	# No shadows — cheap clustered omni that dies with the projectile.
+	if projectile_style == Style.BEAM or projectile_style == Style.SLUG:
+		var glow := OmniLight3D.new()
+		if projectile_style == Style.BEAM:
+			glow.light_color = Color(0.5, 0.9, 1.0)
+			glow.light_energy = 3.0
+			glow.omni_range = 6.0
+		else:
+			glow.light_color = Color(0.75, 0.9, 1.0)
+			glow.light_energy = 2.0
+			glow.omni_range = 5.0
+		glow.omni_attenuation = 1.2
+		projectile.add_child(glow)
 
 	owner.get_tree().current_scene.add_child(projectile)
 	projectile.global_position = from_pos

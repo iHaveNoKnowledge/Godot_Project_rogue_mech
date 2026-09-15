@@ -40,6 +40,10 @@ enum DamageType { HEAT, PIERCE, BLUNT }
 
 @export var ammo_type: String = "" # AmmoSystem id ("bullet", "shell", "spike", "energy_cell", "rocket", "missile", "explosive", "heavy_round", "none"; empty = auto-inferred)
 @export var reload_time: float = 2.0 # seconds to refill the magazine from reserve
+## Onboard round fabricator (rounds/second forged straight into the magazine,
+## 0 = off). For the railgun's spike printer: slow trickle so heat — not the
+## magazine — is the real limiter when reserves run dry.
+@export var ammo_regen_per_sec: float = 0.0
 
 # ----
 # GRIP / TWO-HAND REQUIREMENT
@@ -125,6 +129,16 @@ func get_damage_type() -> String:
 # so a shield with no plating still counts as a plain physical plate.
 func get_shield_type() -> String:
 	return shield_type.to_lower() if not shield_type.is_empty() else "blunt"
+
+
+## True when firing this weapon flings a spent brass casing. Only kinetic
+## firearms eject shells — energy guns (beam), missiles, melee and shields
+## never do (the pile bunker's loaded blast keeps its own exception in code).
+func ejects_shell_casing() -> bool:
+	match weapon_type:
+		WeaponType.MACHINE_GUN, WeaponType.SHOTGUN, WeaponType.RAILGUN, WeaponType.MINIGUN:
+			return true
+	return false
 
 
 func get_ammo_type() -> String:

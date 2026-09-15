@@ -1213,7 +1213,8 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 	if core.try_fire(spawn_pos, aim_dir, false, mecha):
 		_apply_recoil(weapon)
 		AudioManager.play_weapon_sfx_with_override(weapon, spawn_pos)
-		if weapon.weapon_type != WeaponPart.WeaponType.MISSILE:
+		# Brass only for kinetic firearms — energy bolts and missiles eject nothing.
+		if weapon.ejects_shell_casing():
 			_spawn_shell_casing(spawn_pos, hand)
 
 		# Trigger 3D Action Animations (Shoot recoil or Shoulder launch)
@@ -1448,8 +1449,9 @@ func _melee_attack(hand: String, weapon: WeaponPart, is_loaded_blast: bool = tru
 		else:
 			hit_damage = 45.0 * _hand_damage_mult(hand)
 
-	# Eject spent shell casing for loaded Pile Bunker / spike-fed melee
-	if weapon and ((is_pile and is_loaded_blast) or (not is_pile and (weapon.ammo_per_shot > 0 or weapon.get_ammo_type() != "none"))):
+	# Eject a spent casing only for the Pile Bunker's loaded spike blast —
+	# blades and fists never fling brass.
+	if weapon and is_pile and is_loaded_blast:
 		var spawn_pos = mecha.global_position + (Vector3(-0.6, 1.5, 0.5) if hand == "left" else Vector3(0.6, 1.5, 0.5))
 		_spawn_shell_casing(spawn_pos, hand)
 		

@@ -23,12 +23,18 @@ signal ammo_changed(current: int, max_ammo: int)
 signal heat_changed(current: float, max_heat: float, overheated: bool)
 signal fired
 
-enum Style { BULLET, MISSILE, SHOTGUN, ORB, CANNON_SHELL }
+## Projectile look: BULLET = brass pellet (kinetic firearms), BEAM = energy
+## bolt (beam rifles/carbines/snipers), SLUG = hypervelocity railgun rod with
+## a trailing vapor cone, MISSILE / SHOTGUN / ORB / CANNON_SHELL as before.
+## (BEAM/SLUG appended last so existing int values never shift.)
+enum Style { BULLET, MISSILE, SHOTGUN, ORB, CANNON_SHELL, BEAM, SLUG }
 
 ## Projectile mesh variety (player loadout uses BULLET/MISSILE/SHOTGUN/CANNON_SHELL; enemy
 ## grunts and allied dummies use ORB to keep their silhouette readable).
 var projectile_style: int = Style.ORB
 var projectile_color: Color = Color(1, 0.8, 0.2)
+var trail_head: Color = Color(1, 0.8, 0.3, 0.9)
+var trail_fade: Color = Color(1, 0.7, 0.2)
 # Railgun rounds leave a sonic-boom shockwave ring along their flight path.
 var sonic_boom: bool = false
 var explosion_radius: float = 0.0
@@ -51,8 +57,11 @@ var ammo_per_shot: int = 1
 var max_ammo: int = 100
 var unlimited_ammo: bool = false
 var reload_time: float = 1.0
-var auto_reload: bool = true
+	var auto_reload: bool = true
 var manual_reload: bool = false
+## Onboard fabricator trickle (rounds/sec into the magazine, 0 = off).
+var ammo_regen_per_sec: float = 0.0
+var ammo_regen_accum: float = 0.0
 
 # --- Heat config (heat_capacity > 0 enables the system) ---
 var heat_capacity: float = 0.0
@@ -86,6 +95,8 @@ static func from_weapon(weapon: WeaponPart) -> WeaponCore:
 	core.ammo_per_shot = weapon.ammo_per_shot
 	core.max_ammo = weapon.max_ammo
 	core.reload_time = weapon.reload_time
+	core.ammo_regen_per_sec = weapon.ammo_regen_per_sec
+	core.ammo_regen_accum = 0.0
 	# Frame modules (cryo loop) widen the tank; per-shot/cooler bonuses
 	# apply dynamically in _accumulate_heat()/_cool_heat() so mid-run
 	# installs take effect without rebuilding the core.
@@ -96,6 +107,8 @@ static func from_weapon(weapon: WeaponPart) -> WeaponCore:
 	core.ammo = weapon.max_ammo
 	core.projectile_style = Style.BULLET
 	core.projectile_color = Color(1, 0.8, 0.2)
+	core.trail_head = Color(1, 0.8, 0.3, 0.9)
+	core.trail_fade = Color(1, 0.7, 0.2)
 	# The attack type (heat/pierce/blunt) is data on the weapon — the core just
 	# carries it to the projectile so armor/shield defenses can match on it.
 	core.damage_type = weapon.get_damage_type()
@@ -112,11 +125,20 @@ static func from_weapon(weapon: WeaponPart) -> WeaponCore:
 			WeaponPart.WeaponType.SHOTGUN:
 				core.projectile_style = Style.SHOTGUN
 				core.pellets = 7
+			WeaponPart.WeaponType.BEAM_RIFLE:
+				# Energy guns fire coherent light, not brass: elongated cyan
+				# bolt with a matching ion trail.
+				core.projectile_style = Style.BEAM
+				core.projectile_color = Color(0.35, 0.9, 1.0)
+				core.trail_head = Color(0.4, 0.95, 1.0, 0.9)
+				core.trail_fade = Color(0.2, 0.7, 1.0)
 			WeaponPart.WeaponType.RAILGUN:
-				# Railgun rounds are hypervelocity: electric-blue bolt, no bullet drop
-				# sag, and a sonic-boom shockwave ring along their flight path.
-				core.projectile_style = Style.BULLET
-				core.projectile_color = Color(0.45, 0.85, 1.0)
+				# Railgun rounds are hypervelocity: solid pale slug up front
+				# with a vapor-cone + shockwave-ring wake, no bullet drop sag.
+				core.projectile_style = Style.SLUG
+				core.projectile_color = Color(0.75, 0.92, 1.0)
+				core.trail_head = Color(0.85, 0.95, 1.0, 0.9)
+				core.trail_fade = Color(0.5, 0.8, 1.0)
 				core.sonic_boom = true
 	# Volley weapons (Swarm pods): one trigger pull launches N projectiles for
 	# N rounds — never charge ammo that doesn't leave the barrel.
@@ -157,6 +179,7 @@ func tick(delta: float) -> void:
 		if reload_timer <= 0.0 and not manual_reload:
 			complete_reload()
 
+	_regen_ammo(delta)
 	_cool_heat(delta)
 
 
@@ -276,6 +299,22 @@ func complete_reload() -> int:
 	ammo += refilled
 	ammo_changed.emit(ammo, max_ammo)
 	return refilled
+
+
+# --- Fabricator trickle (railgun spike printer) ---
+func _regen_ammo(delta: float) -> void:
+	if ammo_regen_per_sec <= 0.0 or unlimited_ammo or reloading:
+		return
+	if ammo >= max_ammo:
+		ammo_regen_accum = 0.0
+		return
+	ammo_regen_accum += ammo_regen_per_sec * delta
+	while ammo_regen_accum >= 1.0 and ammo < max_ammo:
+		ammo_regen_accum -= 1.0
+		ammo += 1
+		ammo_changed.emit(ammo, max_ammo)
+	if ammo >= max_ammo:
+		ammo_regen_accum = 0.0
 
 
 # --- Heat ---
@@ -456,6 +495,141 @@ static func _get_flame_material() -> StandardMaterial3D:
 	return _cached_flame_material
 
 
+## Blender-authored FX (assets/models/projectile_fx.glb: BeamBolt + RailSlug
+## with its VaporCone wake, front authored toward +Y so -Z leads in Godot).
+## Loaded lazily; when the GLB is missing (headless tests) the procedural
+## builders below take over so gameplay never breaks.
+const FX_GLB_PATH := "res://assets/models/projectile_fx.glb"
+static var _fx_scene: PackedScene = null
+static var _fx_missing := false
+
+
+## Extracts one named mesh node out of the FX GLB (with its children, e.g.
+## the vapor cone parented under the slug). Returns null when unavailable.
+static func _fx_node(node_name: String) -> Node3D:
+	if _fx_missing:
+		return null
+	if _fx_scene == null:
+		if not ResourceLoader.exists(FX_GLB_PATH):
+			_fx_missing = true
+			return null
+		_fx_scene = load(FX_GLB_PATH) as PackedScene
+		if _fx_scene == null:
+			_fx_missing = true
+			return null
+	var inst := _fx_scene.instantiate() as Node3D
+	if inst == null:
+		return null
+	var n := inst.find_child(node_name, true, true) as Node3D
+	if n == null:
+		inst.queue_free()
+		return null
+	var parent := n.get_parent()
+	if parent != null:
+		parent.remove_child(n)
+		n.owner = null
+	inst.queue_free()
+	return n
+
+
+static var _cached_hot_material: StandardMaterial3D = null
+static var _cached_vapor_material: StandardMaterial3D = null
+
+
+## White-hot unshaded core shared by beam bolts and railgun slugs.
+static func _get_hot_material() -> StandardMaterial3D:
+	if _cached_hot_material == null:
+		var m := StandardMaterial3D.new()
+		m.albedo_color = Color(1, 1, 1)
+		m.emission_enabled = true
+		m.emission = Color(0.9, 1.0, 1.0)
+		m.emission_energy_multiplier = 6.0
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_cached_hot_material = m
+	return _cached_hot_material
+
+
+## Translucent vapor-cone skin for the railgun's sonic wake.
+static func _get_vapor_material() -> StandardMaterial3D:
+	if _cached_vapor_material == null:
+		var m := StandardMaterial3D.new()
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.albedo_color = Color(0.7, 0.9, 1.0, 0.4)
+		m.emission_enabled = true
+		m.emission = Color(0.6, 0.85, 1.0)
+		m.emission_energy_multiplier = 2.0
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_cached_vapor_material = m
+	return _cached_vapor_material
+
+
+## Energy bolt: white-hot core inside a colored halo, long axis on Z so the
+## container's -Z stays the flight direction (no extra roll after look_at).
+static func _build_beam_bolt(halo_mat: StandardMaterial3D) -> Node3D:
+	var authored := _fx_node("BeamBolt")
+	if authored != null:
+		authored.name = "BeamBolt"
+		return authored
+	var root := Node3D.new()
+	root.name = "BeamBolt"
+	var core := MeshInstance3D.new()
+	var core_mesh := CapsuleMesh.new()
+	core_mesh.radius = 0.03
+	core_mesh.height = 1.3
+	core.mesh = core_mesh
+	core.material_override = _get_hot_material()
+	core.rotation_degrees = Vector3(90, 0, 0)
+	root.add_child(core)
+	var halo := MeshInstance3D.new()
+	var halo_mesh := CapsuleMesh.new()
+	halo_mesh.radius = 0.07
+	halo_mesh.height = 1.1
+	halo.mesh = halo_mesh
+	halo.material_override = halo_mat
+	halo.rotation_degrees = Vector3(90, 0, 0)
+	root.add_child(halo)
+	return root
+
+
+## Railgun slug: dense pale rod up front (leads), vapor cone trailing behind
+## (+Z, the wake), plus the expanding shockwave rings from projectile.gd.
+static func _build_rail_slug(rod_mat: StandardMaterial3D) -> Node3D:
+	var authored := _fx_node("RailSlug")
+	if authored != null:
+		authored.name = "RailSlug"
+		return authored
+	var root := Node3D.new()
+	root.name = "RailSlug"
+	var rod := MeshInstance3D.new()
+	var rod_mesh := CapsuleMesh.new()
+	rod_mesh.radius = 0.05
+	rod_mesh.height = 0.9
+	rod.mesh = rod_mesh
+	rod.material_override = rod_mat
+	rod.rotation_degrees = Vector3(90, 0, 0)
+	root.add_child(rod)
+	var tip := MeshInstance3D.new()
+	var tip_mesh := SphereMesh.new()
+	tip_mesh.radius = 0.06
+	tip_mesh.height = 0.12
+	tip.mesh = tip_mesh
+	tip.material_override = _get_hot_material()
+	tip.position = Vector3(0, 0, -0.48)
+	root.add_child(tip)
+	var cone := MeshInstance3D.new()
+	cone.name = "VaporCone"
+	var cone_mesh := CylinderMesh.new()
+	cone_mesh.top_radius = 0.04
+	cone_mesh.bottom_radius = 0.30
+	cone_mesh.height = 1.1
+	cone.mesh = cone_mesh
+	cone.material_override = _get_vapor_material()
+	cone.rotation_degrees = Vector3(-90, 0, 0) # narrow end forward, flare aft
+	cone.position = Vector3(0, 0, 0.95)
+	root.add_child(cone)
+	return root
+
+
 # --- Projectile spawning (shared with the player's WeaponManager) ---
 func _spawn_projectile(from_pos: Vector3, aim_dir: Vector3, fired_by_enemy: bool, owner: Node, target_node: Node3D = null) -> void:
 	if owner == null or not owner.is_inside_tree() or owner.get_tree().current_scene == null:
@@ -475,6 +649,12 @@ func _spawn_projectile(from_pos: Vector3, aim_dir: Vector3, fired_by_enemy: bool
 		# Real missile silhouette aimed by its own nose (-Z): NO extra roll,
 		# which used to stand the old box mesh on end pointing at the sky.
 		visual = _build_missile_model(_get_cached_material(projectile_color))
+	elif projectile_style == Style.BEAM:
+		# Coherent energy bolt, already -Z forward: no extra roll.
+		visual = _build_beam_bolt(_get_cached_material(projectile_color))
+	elif projectile_style == Style.SLUG:
+		# Hypervelocity slug + vapor cone, already -Z forward: no extra roll.
+		visual = _build_rail_slug(_get_cached_material(projectile_color))
 	else:
 		var mesh := MeshInstance3D.new()
 		mesh.mesh = _get_cached_mesh(projectile_style)
@@ -491,7 +671,7 @@ func _spawn_projectile(from_pos: Vector3, aim_dir: Vector3, fired_by_enemy: bool
 	if absf(aim_dir.normalized().dot(up)) > 0.99:
 		up = Vector3.RIGHT
 	visual.look_at(from_pos + aim_dir, up)
-	if projectile_style != Style.MISSILE and projectile_style != Style.ORB:
+	if projectile_style == Style.BULLET or projectile_style == Style.SHOTGUN or projectile_style == Style.CANNON_SHELL:
 		visual.rotate_object_local(Vector3.RIGHT, deg_to_rad(90))
 
 	if projectile_style == Style.MISSILE:
@@ -510,6 +690,8 @@ func _spawn_projectile(from_pos: Vector3, aim_dir: Vector3, fired_by_enemy: bool
 	projectile.fired_by_enemy = fired_by_enemy
 	projectile.target_node = target_node
 	projectile.sonic_boom = sonic_boom
+	projectile.trail_head = trail_head
+	projectile.trail_fade = trail_fade
 	projectile.drop_gravity = drop_gravity
 	if explosion_radius > 0.0:
 		projectile.explosion_radius = explosion_radius

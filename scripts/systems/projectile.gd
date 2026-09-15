@@ -7,6 +7,10 @@ var impact: float = 0.0
 var lifetime: float = 5.0
 var timer: float = 0.0
 var trail_timer: float = 0.0
+## Trail streak colors, set per shot by WeaponCore (brass for bullets, ion
+## cyan for beams, pale vapor blue for railgun slugs).
+var trail_head: Color = Color(1, 0.8, 0.3, 0.9)
+var trail_fade: Color = Color(1, 0.7, 0.2)
 var direction: Vector3 = Vector3.FORWARD
 var fired_by_enemy: bool = false
 # Railgun rounds leave a shrinking sonic-boom ring along their flight path.
@@ -277,8 +281,8 @@ func _spawn_missile_impact_fx(pos: Vector3) -> void:
 
 func _spawn_trail() -> void:
 	EffectFactory.spawn_trail_dir(get_tree(), global_position, direction,
-		Vector3(0.02, 0.02, 0.15), Color(1, 0.8, 0.3, 0.9),
-		Color(1, 0.7, 0.2), 0.2, 3.0)
+		Vector3(0.02, 0.02, 0.15), trail_head,
+		trail_fade, 0.2, 3.0)
 
 
 # A railgun round tears the air as it passes: a bright expanding shockwave ring

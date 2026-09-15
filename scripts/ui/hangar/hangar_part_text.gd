@@ -87,6 +87,9 @@ static func weapon_capability_text(res: Resource) -> String:
 	if "spread" in res and res.spread != null and float(res.spread) > 0.0:
 		lines.append("SPREAD: %.2f" % float(res.spread))
 
+	if "ammo_regen_per_sec" in res and res.ammo_regen_per_sec != null and float(res.ammo_regen_per_sec) > 0.0:
+		lines.append("FABRICATOR: forges +1 round / %.1fs into the mag" % (1.0 / float(res.ammo_regen_per_sec)))
+
 	if "heat_capacity" in res and res.heat_capacity != null and float(res.heat_capacity) > 0.0:
 		var hcap := float(res.heat_capacity)
 		var hshot := float(res.heat_per_shot) if "heat_per_shot" in res and res.heat_per_shot != null else 0.0

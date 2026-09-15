@@ -499,7 +499,7 @@ static func _get_flame_material() -> StandardMaterial3D:
 ## with its VaporCone wake, front authored toward +Y so -Z leads in Godot).
 ## Loaded lazily; when the GLB is missing (headless tests) the procedural
 ## builders below take over so gameplay never breaks.
-const FX_GLB_PATH := "res://assets/models/projectile_fx.glb"
+const FX_GLB_PATH = "res://assets/models/projectile_fx.glb"
 static var _fx_scene: PackedScene = null
 static var _fx_missing := false
 

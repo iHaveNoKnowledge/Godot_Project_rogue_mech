@@ -31,6 +31,10 @@ static var _shared_visor_mat: StandardMaterial3D = null
 
 ## Cockpit Tub & Sliding Carriage state
 const COCKPIT_BLENDER_GLB := "res://assets/models/mech_cockpit_tub.glb"
+## Hybrid Blender/procedural switch. true = use Blender .glb/.tscn when the
+## ArmorPart assigns mesh_scene/inner_frame_scene, otherwise fall back to the
+## procedural builders. false = force procedural for every slot (debug/art check).
+@export var use_blender_models: bool = true
 var is_cockpit_open: bool = false
 var is_cockpit_pilot_seated: bool = false
 var _cockpit_tween: Tween = null
@@ -247,12 +251,19 @@ func initialize_slot(slot_name: String, part: ArmorPart, apply_player_damage: bo
 	}
 
 	# 3. Build Inner Frame (Upper + Lower articulated segments)
+	# Hybrid Blender/procedural: try Blender model first, fall back to
+	# procedural when no model is assigned, the scene is missing/corrupt,
+	# or the instance contains no renderable meshes.
 	_clear_children(frame_mesh)
 	if frame_mesh_lower: _clear_children(frame_mesh_lower)
 
-	if part and (part.inner_frame_scene != null or part.inner_frame_scene_lower != null):
-		_attach_custom_mesh_scene(frame_mesh, frame_mesh_lower, part.inner_frame_scene, part.inner_frame_scene_lower)
-	else:
+	var frame_ok := false
+	if use_blender_models and part and (part.inner_frame_scene != null or part.inner_frame_scene_lower != null):
+		frame_ok = _attach_custom_mesh_scene(frame_mesh, frame_mesh_lower, part.inner_frame_scene, part.inner_frame_scene_lower)
+	if not frame_ok:
+		# Ensure a failed Blender attach leaves no half-built nodes behind.
+		_clear_children(frame_mesh)
+		if frame_mesh_lower: _clear_children(frame_mesh_lower)
 		_build_procedural_inner_frame(slot_name, frame_mesh, frame_mesh_lower, frame_data)
 	frame_mesh.visible = true
 	if frame_mesh_lower: frame_mesh_lower.visible = true
@@ -262,9 +273,12 @@ func initialize_slot(slot_name: String, part: ArmorPart, apply_player_damage: bo
 	if armor_mesh_lower: _clear_children(armor_mesh_lower)
 
 	if part != null:
-		if part.mesh_scene != null or part.mesh_scene_lower != null:
-			_attach_custom_mesh_scene(armor_mesh, armor_mesh_lower, part.mesh_scene, part.mesh_scene_lower)
-		else:
+		var armor_ok := false
+		if use_blender_models and (part.mesh_scene != null or part.mesh_scene_lower != null):
+			armor_ok = _attach_custom_mesh_scene(armor_mesh, armor_mesh_lower, part.mesh_scene, part.mesh_scene_lower)
+		if not armor_ok:
+			_clear_children(armor_mesh)
+			if armor_mesh_lower: _clear_children(armor_mesh_lower)
 			_build_procedural_outer_armor(slot_name, armor_mesh, armor_mesh_lower, part)
 
 		# Player-only: reflect the current combat damage cache in the visuals.
@@ -334,33 +348,46 @@ func _normalize_mesh_orientation(node: Node3D) -> void:
 		node.rotation_degrees.y += 180.0
 
 
-func _attach_custom_mesh_scene(upper_container: Node3D, lower_container: Node3D, upper_scene: PackedScene, lower_scene: PackedScene) -> void:
+# Attaches a Blender-authored scene (or pair) into the slot containers.
+# Returns true only when at least one renderable mesh landed in a container.
+# Any failure (null scene, broken instance, no meshes) returns false so the
+# caller can fall back to the procedural builders — the mech never renders
+# an empty slot just because a .glb/.tscn is missing.
+func _attach_custom_mesh_scene(upper_container: Node3D, lower_container: Node3D, upper_scene: PackedScene, lower_scene: PackedScene) -> bool:
 	if upper_container == null:
-		return
+		return false
+	if upper_scene == null and lower_scene == null:
+		return false
 
 	# Explicit lower scene specified - counter-scale so authoring at true meters (scale 1.0) renders correct in WORLD_SCALE container
 	if lower_scene != null and lower_container != null:
+		var attached_any := false
 		if upper_scene != null:
-			var up_inst = upper_scene.instantiate()
-			if up_inst is Node3D:
-				(up_inst as Node3D).scale *= INV_WORLD_SCALE
-				_normalize_mesh_orientation(up_inst as Node3D)
-			upper_container.add_child(up_inst)
-			_apply_realistic_fix_recursive(up_inst)
-		var low_inst = lower_scene.instantiate()
-		if low_inst is Node3D:
-			(low_inst as Node3D).scale *= INV_WORLD_SCALE
-			_normalize_mesh_orientation(low_inst as Node3D)
-		lower_container.add_child(low_inst)
-		_apply_realistic_fix_recursive(low_inst)
-		return
+			var up_inst := _try_safe_instantiate(upper_scene)
+			if up_inst != null:
+				up_inst.scale *= INV_WORLD_SCALE
+				_normalize_mesh_orientation(up_inst)
+				upper_container.add_child(up_inst)
+				_apply_realistic_fix_recursive(up_inst)
+				attached_any = true
+		var low_inst := _try_safe_instantiate(lower_scene)
+		if low_inst != null:
+			low_inst.scale *= INV_WORLD_SCALE
+			_normalize_mesh_orientation(low_inst)
+			lower_container.add_child(low_inst)
+			_apply_realistic_fix_recursive(low_inst)
+			attached_any = true
+		if not attached_any:
+			return false
+		return _container_has_meshes(upper_container) or (lower_container != null and _container_has_meshes(lower_container))
 
 	# Single scene provided -> auto-split if lower nodes exist
 	if upper_scene != null:
-		var instance = upper_scene.instantiate()
-		if instance is Node3D:
-			(instance as Node3D).scale *= INV_WORLD_SCALE
-			_normalize_mesh_orientation(instance as Node3D)
+		var instance := _try_safe_instantiate(upper_scene)
+		if instance == null:
+			return false
+		instance.scale *= INV_WORLD_SCALE
+		_normalize_mesh_orientation(instance)
 		if lower_container != null:
 			var lower_nodes: Array[Node] = []
 			for child in instance.get_children():
@@ -385,6 +412,43 @@ func _attach_custom_mesh_scene(upper_container: Node3D, lower_container: Node3D,
 
 		upper_container.add_child(instance)
 		_apply_realistic_fix_recursive(instance)
+		if _container_has_meshes(upper_container):
+			return true
+		if lower_container != null and _container_has_meshes(lower_container):
+			return true
+		# Instance added but contains no meshes (e.g. empty wrapper) — let the
+		# caller clean up and fall back to procedural.
+		return false
+	return false
+
+
+# Safe PackedScene instantiate: returns the Node3D root or null. A broken
+# .tscn/.glb (missing ext_resource, script error) must never crash slot build.
+func _try_safe_instantiate(scene: PackedScene) -> Node3D:
+	if scene == null:
+		return null
+	if not scene.can_instantiate():
+		push_warning("[PartMeshManager] Blender scene cannot instantiate, falling back to procedural.")
+		return null
+	var inst := scene.instantiate()
+	if inst == null or not (inst is Node3D):
+		if is_instance_valid(inst) and not (inst is Node3D):
+			inst.queue_free()
+		push_warning("[PartMeshManager] Blender scene root is not Node3D, falling back to procedural.")
+		return null
+	return inst as Node3D
+
+
+# True when the container (or any descendant) holds a MeshInstance3D with a mesh.
+func _container_has_meshes(container: Node) -> bool:
+	if container == null:
+		return false
+	for child in container.get_children():
+		if child is MeshInstance3D and (child as MeshInstance3D).mesh != null:
+			return true
+		if _container_has_meshes(child):
+			return true
+	return false
 
 
 func _hide_legacy_slot_meshes(parent_node: Node3D) -> void:

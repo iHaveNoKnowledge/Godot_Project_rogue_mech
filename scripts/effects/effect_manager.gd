@@ -483,6 +483,46 @@ static func spawn_impact(position: Vector3, normal: Vector3) -> void:
 	spawn_hit_spark(position, normal, "kinetic")
 
 
+static var _cached_scar_disc: CylinderMesh = null
+
+
+static func _get_cached_scar_disc() -> CylinderMesh:
+	if _cached_scar_disc == null:
+		_cached_scar_disc = CylinderMesh.new()
+		_cached_scar_disc.top_radius = 0.24
+		_cached_scar_disc.bottom_radius = 0.24
+		_cached_scar_disc.height = 0.03
+	return _cached_scar_disc
+
+
+## Beam-weapon impact mark: a white-hot scorch disc stamped onto the surface
+## that cools through orange to a black scar, then fades away. Beam energy
+## soaks into the target — it never ricochets off walls.
+static func spawn_heat_scar(position: Vector3, normal: Vector3 = Vector3.UP) -> void:
+	if instance == null:
+		return
+	var norm := normal.normalized() if normal.length_squared() > 0.001 else Vector3.UP
+	var scar := MeshInstance3D.new()
+	scar.mesh = _get_cached_scar_disc()
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(1.0, 0.55, 0.15)
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.95, 0.85)
+	mat.emission_energy_multiplier = 6.0
+	scar.material_override = mat
+	instance.add_child(scar)
+	scar.global_position = position + norm * 0.05
+	scar.look_at(position + norm, Vector3.UP if absf(norm.y) < 0.9 else Vector3.FORWARD)
+	scar.rotate_object_local(Vector3.RIGHT, deg_to_rad(90))
+	scar.scale = Vector3(randf_range(0.8, 1.3), 1.0, randf_range(0.8, 1.3))
+	var t := instance.create_tween().set_parallel(true)
+	t.tween_property(mat, "emission_energy_multiplier", 0.0, 2.2)
+	t.tween_property(mat, "emission", Color(0.02, 0.01, 0.01), 2.2)
+	t.tween_property(mat, "albedo_color", Color(0.03, 0.02, 0.02), 2.2)
+	t.tween_interval(5.0)
+	t.chain().tween_callback(scar.queue_free)
+
+
 static func spawn_damage_number(position: Vector3, damage: float, color: Color = Color.WHITE) -> void:
 	if instance == null:
 		return

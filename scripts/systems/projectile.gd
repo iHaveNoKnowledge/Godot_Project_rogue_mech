@@ -15,6 +15,8 @@ var direction: Vector3 = Vector3.FORWARD
 var fired_by_enemy: bool = false
 # Railgun rounds leave a shrinking sonic-boom ring along their flight path.
 var sonic_boom: bool = false
+# Beam bolts soak into whatever they hit (glowing heat scar, never ricochet).
+var is_beam: bool = false
 var ricochet_chance: float = 0.15
 var prev_position: Vector3
 var explosion_radius: float = 3.0
@@ -165,6 +167,8 @@ func _physics_process(delta: float) -> void:
 			_explode(global_position)
 		else:
 			EffectManager.spawn_hit_spark(global_position, Vector3.UP, damage_type)
+			if is_beam:
+				EffectManager.spawn_heat_scar(global_position, Vector3.UP)
 		queue_free()
 		return
 
@@ -196,6 +200,12 @@ func _check_obstacle_collision() -> void:
 
 		if damage_type.to_lower() == "explosive":
 			_explode(hit_pos)
+			queue_free()
+			return
+
+		if is_beam:
+			# Energy soaks in: white-hot scar that cools to black, no bounce.
+			EffectManager.spawn_heat_scar(hit_pos, hit_normal)
 			queue_free()
 			return
 
@@ -240,6 +250,9 @@ func _hit_target(target: Node3D) -> void:
 		_spawn_missile_impact_fx(position)
 
 	EffectManager.spawn_hit_spark(position, -direction if direction.length_squared() > 0.001 else Vector3.UP, damage_type)
+	if is_beam:
+		var back := -direction if direction.length_squared() > 0.001 else Vector3.UP
+		EffectManager.spawn_heat_scar(position, back)
 	if AudioManager:
 		AudioManager.play_impact_by_type(damage_type, position)
 

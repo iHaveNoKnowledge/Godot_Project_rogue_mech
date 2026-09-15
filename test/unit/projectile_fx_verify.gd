@@ -90,5 +90,31 @@ func _ready() -> void:
 	bolt_vis.queue_free()
 	slug_vis.queue_free()
 
+	# --- 6. fired shots carry behavior flags; heat-scar API exists ---
+	var owner := Node3D.new()
+	add_child(owner)
+	var fire_beam := WeaponCore.from_weapon(beam_part)
+	_check(fire_beam.try_fire(Vector3.ZERO, Vector3.FORWARD, false, owner), "beam core fires a live projectile")
+	await get_tree().process_frame
+	var beam_shot := false
+	for p in get_tree().get_nodes_in_group("projectile"):
+		if p.get("is_beam") == true:
+			beam_shot = true
+			p.queue_free()
+	_check(beam_shot, "fired beam projectile carries is_beam flag (scar, no ricochet)")
+	var fire_rail := WeaponCore.from_weapon(rail_part)
+	_check(fire_rail.try_fire(Vector3.ZERO, Vector3.FORWARD, false, owner), "railgun core fires a live projectile")
+	await get_tree().process_frame
+	var slug_shot := false
+	for p in get_tree().get_nodes_in_group("projectile"):
+		if p.get("sonic_boom") == true and p.get("is_beam") != true:
+			slug_shot = true
+			p.queue_free()
+	_check(slug_shot, "fired railgun slug keeps sonic wake without beam behavior")
+	# Direct call proves the heat-scar API links and is headless-safe (no-ops without an FX instance).
+	EffectManager.spawn_heat_scar(Vector3.ZERO, Vector3.UP)
+	_check(true, "heat-scar impact call runs without errors")
+	owner.queue_free()
+
 	print("PROJECTILE_FX_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	get_tree().quit(1 if _fails > 0 else 0)

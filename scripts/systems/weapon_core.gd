@@ -690,6 +690,7 @@ func _spawn_projectile(from_pos: Vector3, aim_dir: Vector3, fired_by_enemy: bool
 	projectile.fired_by_enemy = fired_by_enemy
 	projectile.target_node = target_node
 	projectile.sonic_boom = sonic_boom
+	projectile.is_beam = (projectile_style == Style.BEAM)
 	projectile.trail_head = trail_head
 	projectile.trail_fade = trail_fade
 	projectile.drop_gravity = drop_gravity

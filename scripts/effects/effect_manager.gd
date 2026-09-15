@@ -483,44 +483,53 @@ static func spawn_impact(position: Vector3, normal: Vector3) -> void:
 	spawn_hit_spark(position, normal, "kinetic")
 
 
-static var _cached_scar_disc: CylinderMesh = null
+static var _cached_heat_gradient: GradientTexture2D = null
 
 
-static func _get_cached_scar_disc() -> CylinderMesh:
-	if _cached_scar_disc == null:
-		_cached_scar_disc = CylinderMesh.new()
-		_cached_scar_disc.top_radius = 0.24
-		_cached_scar_disc.bottom_radius = 0.24
-		_cached_scar_disc.height = 0.03
-	return _cached_scar_disc
+## Radial heat falloff shared by all scorch decals: white-hot core through
+## yellow/orange to a transparent edge.
+static func _get_cached_heat_gradient() -> GradientTexture2D:
+	if _cached_heat_gradient == null:
+		var grad := Gradient.new()
+		grad.set_color(0, Color(1.0, 1.0, 1.0, 1.0))
+		grad.set_color(1, Color(0.15, 0.03, 0.02, 0.0))
+		grad.add_point(0.35, Color(1.0, 0.85, 0.4, 0.95))
+		grad.add_point(0.65, Color(1.0, 0.35, 0.08, 0.55))
+		var tex := GradientTexture2D.new()
+		tex.gradient = grad
+		tex.width = 128
+		tex.height = 128
+		tex.fill = GradientTexture2D.FILL_RADIAL
+		tex.fill_from = Vector2(0.5, 0.5)
+		tex.fill_to = Vector2(1.0, 0.5)
+		_cached_heat_gradient = tex
+	return _cached_heat_gradient
 
 
-## Beam-weapon impact mark: a white-hot scorch disc stamped onto the surface
-## that cools through orange to a black scar, then fades away. Beam energy
-## soaks into the target — it never ricochets off walls.
+## Beam-weapon impact mark: a scorch DECAL projected straight onto the hit
+## surface (no floating geometry) — white-hot core cooling through yellow /
+## orange / red to a dark scar, then gone. Beam energy soaks into the target,
+## it never ricochets off walls.
 static func spawn_heat_scar(position: Vector3, normal: Vector3 = Vector3.UP) -> void:
 	if instance == null:
 		return
 	var norm := normal.normalized() if normal.length_squared() > 0.001 else Vector3.UP
-	var scar := MeshInstance3D.new()
-	scar.mesh = _get_cached_scar_disc()
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(1.0, 0.55, 0.15)
-	mat.emission_enabled = true
-	mat.emission = Color(1.0, 0.95, 0.85)
-	mat.emission_energy_multiplier = 6.0
-	scar.material_override = mat
-	instance.add_child(scar)
-	scar.global_position = position + norm * 0.05
-	scar.look_at(position + norm, Vector3.UP if absf(norm.y) < 0.9 else Vector3.FORWARD)
-	scar.rotate_object_local(Vector3.RIGHT, deg_to_rad(90))
-	scar.scale = Vector3(randf_range(0.8, 1.3), 1.0, randf_range(0.8, 1.3))
-	var t := instance.create_tween().set_parallel(true)
-	t.tween_property(mat, "emission_energy_multiplier", 0.0, 2.2)
-	t.tween_property(mat, "emission", Color(0.02, 0.01, 0.01), 2.2)
-	t.tween_property(mat, "albedo_color", Color(0.03, 0.02, 0.02), 2.2)
-	t.tween_interval(5.0)
-	t.chain().tween_callback(scar.queue_free)
+	var decal := Decal.new()
+	decal.texture_albedo = _get_cached_heat_gradient()
+	decal.texture_emission = _get_cached_heat_gradient()
+	decal.emission_energy = 6.0
+	var s := randf_range(0.45, 0.7)
+	decal.size = Vector3(s, s, s + 0.15)
+	instance.add_child(decal)
+	decal.global_position = position + norm * 0.06
+	decal.look_at(position + norm, Vector3.UP if absf(norm.y) < 0.9 else Vector3.FORWARD)
+	var t := instance.create_tween()
+	t.set_parallel(true)
+	t.tween_property(decal, "emission_energy", 0.0, 2.4)
+	t.tween_property(decal, "modulate", Color(0.2, 0.05, 0.05, 1.0), 2.4)
+	t.chain().tween_interval(2.5)
+	t.tween_property(decal, "modulate:a", 0.0, 1.2)
+	t.tween_callback(decal.queue_free)
 
 
 static func spawn_damage_number(position: Vector3, damage: float, color: Color = Color.WHITE) -> void:

@@ -114,6 +114,8 @@ func _ready() -> void:
 	# Direct call proves the heat-scar API links and is headless-safe (no-ops without an FX instance).
 	EffectManager.spawn_heat_scar(Vector3.ZERO, Vector3.UP)
 	_check(true, "heat-scar impact call runs without errors")
+	var heat_tex: GradientTexture2D = EffectManager._get_cached_heat_gradient()
+	_check(heat_tex != null and heat_tex.width == 128, "scorch decal uses a cached radial heat gradient")
 	owner.queue_free()
 
 	print("PROJECTILE_FX_VERIFY: checks=%d fails=%d" % [_checks, _fails])

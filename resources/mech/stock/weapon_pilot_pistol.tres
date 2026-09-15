@@ -19,3 +19,7 @@ description = "ปืนพกประจำกายขนาดเบา พ�
 rarity = 0
 ammo_type = "sidearm"
 reload_time = 1.0
+heat_capacity = 60.0
+heat_per_shot = 2.0
+heat_cool_rate = 18.0
+heat_release_ratio = 0.5

@@ -86,7 +86,10 @@ static func from_weapon(weapon: WeaponPart) -> WeaponCore:
 	core.ammo_per_shot = weapon.ammo_per_shot
 	core.max_ammo = weapon.max_ammo
 	core.reload_time = weapon.reload_time
-	core.heat_capacity = weapon.heat_capacity
+	# Frame modules (cryo loop) widen the tank; per-shot/cooler bonuses
+	# apply dynamically in _accumulate_heat()/_cool_heat() so mid-run
+	# installs take effect without rebuilding the core.
+	core.heat_capacity = weapon.heat_capacity * FrameModuleSystem.calculate_heat_capacity_multiplier()
 	core.heat_per_shot = weapon.heat_per_shot
 	core.heat_cool_rate = weapon.heat_cool_rate
 	core.heat_release_ratio = weapon.heat_release_ratio
@@ -286,6 +289,8 @@ func _accumulate_heat() -> void:
 	var effective_heat = heat_per_shot * _PCS.heat_accumulation_multiplier("", using_bio)
 	# GDD §6.1: Torso damage increases heat accumulation (easier overheat)
 	effective_heat *= _PPS.total_heat_multiplier()
+	# Frame modules (vent protocol) bleed heat off each shot.
+	effective_heat *= FrameModuleSystem.calculate_heat_per_shot_multiplier()
 	heat = minf(heat + effective_heat, heat_capacity)
 	overheated = heat >= heat_capacity
 	heat_changed.emit(heat, heat_capacity, overheated)
@@ -299,7 +304,7 @@ func _cool_heat(delta: float) -> void:
 	if passive > 0.0:
 		heat = minf(heat + passive * delta, heat_capacity)
 	# Tactical Smog: heat cool rate x0.5 — chemical smoke traps heat in the barrel.
-	var cool_rate := heat_cool_rate
+	var cool_rate := heat_cool_rate * FrameModuleSystem.calculate_heat_cool_rate_multiplier()
 	if GlobalData.board.current_hazard == GlobalData.HAZARD_TACTICAL_SMOG:
 		cool_rate *= GlobalData.SMOG_HEAT_COOL_PENALTY
 	var cooled := maxf(heat - cool_rate * delta, 0.0)

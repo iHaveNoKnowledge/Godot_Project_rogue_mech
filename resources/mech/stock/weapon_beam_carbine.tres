@@ -18,3 +18,7 @@ range_distance = 40.0
 description = "ปืน beam ขนาดเล็ก ยิงเร็ว เบา แต่ damage น้อย"
 rarity = 0
 reload_time = 1.5
+heat_capacity = 80.0
+heat_per_shot = 3.5
+heat_cool_rate = 22.0
+heat_release_ratio = 0.5

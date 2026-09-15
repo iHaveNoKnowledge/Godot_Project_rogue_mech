@@ -20,3 +20,7 @@ rarity = 1
 ammo_type = "rocket"
 projectiles_per_shot = 3
 reload_time = 3.5
+heat_capacity = 100.0
+heat_per_shot = 6.0
+heat_cool_rate = 12.0
+heat_release_ratio = 0.5

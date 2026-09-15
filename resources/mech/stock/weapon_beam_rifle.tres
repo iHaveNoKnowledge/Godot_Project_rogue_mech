@@ -18,3 +18,7 @@ range_distance = 55.0
 description = "อาวุธ_beam_ระยะกลาง, ยิงเร็ว, แม่นยำ"
 rarity = 0
 reload_time = 2.0
+heat_capacity = 100.0
+heat_per_shot = 6.0
+heat_cool_rate = 18.0
+heat_release_ratio = 0.5

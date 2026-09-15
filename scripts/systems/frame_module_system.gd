@@ -44,6 +44,30 @@ const MODULE_CATALOG: Dictionary = {
 		},
 		"rarity_color": Color(0.95, 0.25, 0.2), # Fiery Red
 	},
+	"cryo_heatsink_loop": {
+		"id": "cryo_heatsink_loop",
+		"name": "Cryo Heatsink Loop",
+		"category": "torso",
+		"tier": "military",
+		"desc": "Liquid-cryo heatsink loop: +25% weapon heat capacity and +40% heat cool rate. Energy weapons stay in the fight longer.",
+		"effects": {
+			"heat_capacity_mult": 1.25,
+			"heat_cool_rate_mult": 1.40,
+		},
+		"rarity_color": Color(0.35, 0.85, 1.0), # Cryo Cyan
+	},
+	"vent_protocol": {
+		"id": "vent_protocol",
+		"name": "Vent Protocol Actuator",
+		"category": "arm",
+		"tier": "scrap",
+		"desc": "Scavenged barrel vents: each shot generates 30% less heat and residual heat sheds 15% faster.",
+		"effects": {
+			"heat_per_shot_mult": 0.70,
+			"heat_cool_rate_mult": 1.15,
+		},
+		"rarity_color": Color(0.65, 0.85, 0.75), # Vent Sage
+	},
 	"nitrous_scorch": {
 		"id": "nitrous_scorch",
 		"name": "Nitrous Scorch Injector",
@@ -326,6 +350,42 @@ static func calculate_heat_proj_speed_multiplier(heat_ratio: float) -> float:
 	var scale: float = float(get_module_effect("heat_kinetic_converter", "heat_proj_speed_scale", 0.35))
 	var active_ratio = clampf((heat_ratio - 0.4) / 0.6, 0.0, 1.0)
 	return 1.0 + active_ratio * scale
+
+
+## Cryo/Vent heat-management multipliers. Each installed heat module
+## contributes its own multiplier; multiple modules stack multiplicatively
+## so a full cryo + vent build is strong but never free.
+static func calculate_heat_capacity_multiplier() -> float:
+	if GlobalData == null or GlobalData.weapons == null:
+		return 1.0
+	var mult := 1.0
+	for mod in get_all_installed_modules():
+		var effs: Dictionary = mod.get("effects", {})
+		if effs.has("heat_capacity_mult"):
+			mult *= float(effs["heat_capacity_mult"])
+	return mult
+
+
+static func calculate_heat_cool_rate_multiplier() -> float:
+	if GlobalData == null or GlobalData.weapons == null:
+		return 1.0
+	var mult := 1.0
+	for mod in get_all_installed_modules():
+		var effs: Dictionary = mod.get("effects", {})
+		if effs.has("heat_cool_rate_mult"):
+			mult *= float(effs["heat_cool_rate_mult"])
+	return mult
+
+
+static func calculate_heat_per_shot_multiplier() -> float:
+	if GlobalData == null or GlobalData.weapons == null:
+		return 1.0
+	var mult := 1.0
+	for mod in get_all_installed_modules():
+		var effs: Dictionary = mod.get("effects", {})
+		if effs.has("heat_per_shot_mult"):
+			mult *= float(effs["heat_per_shot_mult"])
+	return mult
 
 
 ## Counts total damaged / broken / patched outer armor slots for Berserk synergy

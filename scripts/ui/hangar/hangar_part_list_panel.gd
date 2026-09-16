@@ -689,36 +689,35 @@ func instance_durability(slot: String, inst: Dictionary) -> float:
 	return GlobalData.get_durability_ratio(inst)
 
 
-# Whether this weapon INSTANCE (matched by uid or path) is part of the current loadout
-# for this weapon slot.
+# Whether this weapon INSTANCE is part of the current loadout for this weapon
+# slot. One physical copy = one [E] badge: matching is by exact instance uid
+# first, so a spare copy of the same model never shares the badge. The model
+# (path) fallback applies ONLY to legacy path refs (old saves store paths,
+# not uids) — never when the slot already holds a tracked instance.
 func weapon_in_loadout(slot: String, inv: Dictionary) -> bool:
 	var uid := str(inv.get("uid", ""))
 	var path := str(inv.get("path", ""))
 	if slot == "weapon_carry":
-		if uid != "" and LoadoutSystem.is_weapon_in_carry_by_uid(uid):
+		var carry_refs = GlobalData.weapons.weapon_loadout.get("carry", [])
+		if uid != "" and carry_refs is Array and uid in carry_refs:
 			return true
-		if path != "" and LoadoutSystem.is_weapon_in_carry(path):
-			return true
+		if path != "" and carry_refs is Array:
+			for ref in carry_refs:
+				if str(ref).begins_with("res://") and LoadoutSystem.ref_to_path(ref) == path:
+					return true
 		return false
 	if slot.begins_with("shoulder"):
 		var side = "left" if slot == "shoulder_left" else "right"
-		var eq_uid := LoadoutSystem.get_equipped_shoulder_uid(side)
-		if uid != "" and eq_uid != "" and eq_uid == uid:
-			return true
-		var eq_w = LoadoutSystem.get_equipped_shoulder(side)
-		if eq_w and path != "" and (eq_w.resource_path == path or eq_uid == path):
-			return true
-		if eq_uid != "" and path != "" and eq_uid == path:
-			return true
-		return false
+		return _shoulder_or_hand_in_loadout(LoadoutSystem.get_equipped_shoulder_uid(side), uid, path)
 	var hand = "left" if slot == "weapon_left" else "right"
-	var eq_uid := LoadoutSystem.get_equipped_weapon_uid(hand)
+	return _shoulder_or_hand_in_loadout(LoadoutSystem.get_equipped_weapon_uid(hand), uid, path)
+
+
+# Exact-uid match, else legacy-path fallback (see weapon_in_loadout).
+func _shoulder_or_hand_in_loadout(eq_uid: String, uid: String, path: String) -> bool:
 	if uid != "" and eq_uid != "" and eq_uid == uid:
 		return true
-	var eq_w = LoadoutSystem.get_equipped_weapon(hand)
-	if eq_w and path != "" and (eq_w.resource_path == path or eq_uid == path):
-		return true
-	if eq_uid != "" and path != "" and eq_uid == path:
+	if path != "" and eq_uid.begins_with("res://") and LoadoutSystem.ref_to_path(eq_uid) == path:
 		return true
 	return false
 

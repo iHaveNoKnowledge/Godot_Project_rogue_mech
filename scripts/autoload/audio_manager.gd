@@ -273,6 +273,9 @@ func play_reload_start(pos: Vector3 = Vector3.ZERO) -> void:
 func play_reload_complete() -> void:
 	sfx.play_reload_complete()
 
+func play_lock_on_beep(stack: int = 1) -> void:
+	sfx.play_lock_on_beep(stack)
+
 func play_sfx_by_name(sound_name: String, pos: Vector3 = Vector3.ZERO, volume_db: float = 0.0) -> void:
 	sfx.play_sfx_by_name(sound_name, pos, volume_db)
 

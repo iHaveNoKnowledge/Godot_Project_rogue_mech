@@ -110,7 +110,8 @@ func _generate_sounds() -> void:
 				var bytes_per_frame := 4 if stream.stereo else 2
 				stream.loop_end = int(stream.data.size() / bytes_per_frame)
 	_sound_cache["reload_complete"] = _gen_heavy_reload_complete()
-	_sound_cache["lock_on_beep"] = _gen_tactical_lock_beep()
+	var lock_on_beep_file: Variant = _load_sfx_file("lock_on_beep")
+	_sound_cache["lock_on_beep"] = lock_on_beep_file if lock_on_beep_file != null else _gen_tactical_lock_beep()
 	_sound_cache["impact"] = [
 		preload("res://resources/audio/sfx/impact01.wav"),
 		_gen_pitch_variant(preload("res://resources/audio/sfx/impact01.wav"), 0.88),

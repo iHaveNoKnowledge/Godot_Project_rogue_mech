@@ -38,8 +38,72 @@ static func get_field_pack_capacity() -> float:
 
 
 # Current Field Pack load weight in kg (hand weapons + carry weapons + ammo).
+# Shoulder hardpoint weapons are bolted to the chassis like armor: they count
+# toward the chassis TOTAL load (get_loadout_weapons_total), not toward the
+# portable pack capacity, so mounting a shoulder pod never needs pack room.
 static func get_field_pack_weight() -> float:
-	return get_loadout_weapons_total() + get_field_pack_ammo_weight()
+	return get_hand_carry_weight() + get_field_pack_ammo_weight()
+
+
+# Weight of the portable loadout: both hands + back-carry weapons.
+static func get_hand_carry_weight() -> float:
+	var total := 0.0
+	var left = get_equipped_weapon("left")
+	if left:
+		total += float(left.weight)
+	var right = get_equipped_weapon("right")
+	if right:
+		total += float(right.weight)
+	for w in get_carry_weapons():
+		total += float(w.weight)
+	return total
+
+
+# Weight of both shoulder hardpoint weapons (chassis load, not pack load).
+static func get_shoulder_weight() -> float:
+	var total := 0.0
+	var shldr_l = get_equipped_shoulder("left")
+	if shldr_l:
+		total += float(shldr_l.weight)
+	var shldr_r = get_equipped_shoulder("right")
+	if shldr_r:
+		total += float(shldr_r.weight)
+	return total
+
+
+# True when a loadout slot's weapon rides in the portable field pack (hands +
+# back carry). Shoulder hardpoints are chassis-mounted and never consume pack
+# capacity. Accepts both vocabularies: "left"/"carry" and
+# "weapon_left"/"weapon_carry"/"shoulder_left".
+static func pack_counts_slot(slot: String) -> bool:
+	var s := str(slot).trim_prefix("weapon_")
+	return s == "left" or s == "right" or s == "carry"
+
+
+# Exact pack-capacity check for a pending equip. The target slot's current
+# occupant leaves the pack (when it rides in the pack), a moved copy's old
+# slot is freed the same way, and the newcomer counts only outside shoulders.
+# Refs accept instance uids OR legacy paths (resolved through the stash), so a
+# uid occupant always subtracts correctly — never a false "pack full".
+static func pack_would_exceed(target_slot: String, new_path: String, replaced_ref = "", moved_from_slot: String = "", freed_ref = "") -> bool:
+	var pack := get_field_pack_weight()
+	if pack_counts_slot(target_slot):
+		var old_path := ref_to_path(replaced_ref)
+		if old_path != "" and ResourceLoader.exists(old_path):
+			var old_res = load(old_path)
+			if old_res:
+				pack -= float(old_res.weight)
+	if str(freed_ref) != "" and pack_counts_slot(moved_from_slot):
+		var freed_path := ref_to_path(freed_ref)
+		if freed_path != "" and ResourceLoader.exists(freed_path):
+			var freed_res = load(freed_path)
+			if freed_res:
+				pack -= float(freed_res.weight)
+	if pack_counts_slot(target_slot) and new_path != "" and ResourceLoader.exists(new_path):
+		var new_res = load(new_path)
+		if new_res:
+			pack += float(new_res.weight)
+	return pack > get_field_pack_capacity()
 
 
 # Weight of the ammo the player chose to carry (the "ammo" loadout).
@@ -216,23 +280,10 @@ static func get_carry_weapons() -> Array[WeaponPart]:
 
 
 # Total weight of all loadout weapons (both hands + shoulders + back).
+# Chassis TOTAL-load accounting (hangar weight bar, mech overweight checks).
+# Field-pack capacity uses get_field_pack_weight() instead (no shoulders).
 static func get_loadout_weapons_total() -> float:
-	var total := 0.0
-	var left = get_equipped_weapon("left")
-	if left:
-		total += float(left.weight)
-	var right = get_equipped_weapon("right")
-	if right:
-		total += float(right.weight)
-	var shldr_l = get_equipped_shoulder("left")
-	if shldr_l:
-		total += float(shldr_l.weight)
-	var shldr_r = get_equipped_shoulder("right")
-	if shldr_r:
-		total += float(shldr_r.weight)
-	for w in get_carry_weapons():
-		total += float(w.weight)
-	return total
+	return get_hand_carry_weight() + get_shoulder_weight()
 
 
 # Total weight of all loadout weapons (both hands + shoulders + back).

@@ -815,19 +815,24 @@ func get_total_load(excluding_attachment_id: String = "", excluding_slot: String
 # Returns true if adding `new_weight_path` to the loadout (optionally replacing
 # `replaced_path`) would push the total frame load over the chassis max weight.
 # Field Pack capacity check (hand weapons + carry weapons + ammo <= frame-based cap).
-# `freed_path` is a weapon that stops being carried when this equip is a MOVE of
-# an already-equipped model (it is leaving the other hand or the back pack), so
-# its weight no longer counts against the pack.
-func would_exceed_field_pack(new_weight_path: String, replaced_path: String = "", freed_path: String = "") -> bool:
-	var current_weapons := LoadoutSystem.get_loadout_weapons_total()
-	for subtract_path in [replaced_path, freed_path]:
+# Shoulder hardpoints never consume pack capacity; `target_slot` selects the
+# exact math (LoadoutSystem.pack_would_exceed) so a uid occupant or a moved copy
+# always subtracts correctly. `moved_from_slot` is the slot a moved copy leaves
+# ("", "left"/"right"/"carry"/"shoulder_left"/...). Called without slots by
+# legacy callers (panels test), which keep the historical path arithmetic.
+func would_exceed_field_pack(new_weight_path: String, replaced_path: String = "", freed_path: String = "", target_slot: String = "", moved_from_slot: String = "") -> bool:
+	if target_slot != "":
+		return LoadoutSystem.pack_would_exceed(target_slot, new_weight_path, replaced_path, moved_from_slot, freed_path)
+	var current_pack := LoadoutSystem.get_field_pack_weight()
+	for subtract_ref in [replaced_path, freed_path]:
+		var subtract_path := LoadoutSystem.ref_to_path(subtract_ref)
 		if subtract_path != "" and ResourceLoader.exists(subtract_path):
 			var old = load(subtract_path)
 			if old:
-				current_weapons -= float(old.weight)
+				current_pack -= float(old.weight)
 	var new_w = load(new_weight_path)
 	var new_wt = float(new_w.weight) if new_w else 0.0
-	return current_weapons + new_wt + LoadoutSystem.get_field_pack_ammo_weight() > LoadoutSystem.get_field_pack_capacity()
+	return current_pack + new_wt > LoadoutSystem.get_field_pack_capacity()
 
 
 func has_attachment(attachment_id: String, slot: String) -> bool:

@@ -233,6 +233,14 @@ func _perform_attachment_mod_toggle(slot: String, info: Dictionary) -> void:
 		controller.persist_panel.commit_and_save()
 
 
+# Rejection message when the portable pack is over capacity. Shows live numbers
+# and tells the driver how to free room (trim carried ammo, drop a hand/carry
+# weapon, or upgrade frames). Shoulder hardpoints never consume pack capacity.
+func _pack_full_message() -> String:
+	return "FIELD PACK full: %.1f/%.1f kg — trim carried ammo/weapons or upgrade frames!" % [
+		LoadoutSystem.get_field_pack_weight(), LoadoutSystem.get_field_pack_capacity()]
+
+
 # Performs the weapon equip (including a cross-mech transfer). Runs directly when
 # no other mech holds the weapon, or as the SWAP confirmation continuation.
 # `wref` is the clicked instance's uid (preferred) or the weapon path fallback.
@@ -257,8 +265,8 @@ func _perform_weapon_equip(slot: String, info: Dictionary, wref: String) -> void
 		# spare copy adds new weight instead.
 		var spare := LoadoutSystem.has_spare_weapon(wpath)
 		var freed_path: String = wpath if (equipped != "" and not spare) else ""
-		if controller.garage_panel.would_exceed_field_pack(wpath, "", freed_path):
-			controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
+		if controller.garage_panel.would_exceed_field_pack(wpath, "", freed_path, slot, equipped):
+			controller.status_message_label.text = _pack_full_message()
 			return
 		var from_mech := _transfer_weapon_from_other_mechs(wref, wpath)
 		if from_mech != "":
@@ -275,8 +283,8 @@ func _perform_weapon_equip(slot: String, info: Dictionary, wref: String) -> void
 		var replaced_path = str(GlobalData.weapons.weapon_loadout.get("shoulder_" + side, ""))
 		var spare := LoadoutSystem.has_spare_weapon(wpath)
 		var freed_path: String = wpath if (equipped != "" and not spare) else ""
-		if controller.garage_panel.would_exceed_field_pack(wpath, replaced_path, freed_path):
-			controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
+		if controller.garage_panel.would_exceed_field_pack(wpath, replaced_path, freed_path, slot, equipped):
+			controller.status_message_label.text = _pack_full_message()
 			return
 		var from_mech := _transfer_weapon_from_other_mechs(wref, wpath)
 		if from_mech != "":
@@ -294,8 +302,8 @@ func _perform_weapon_equip(slot: String, info: Dictionary, wref: String) -> void
 		# Only a MOVED weapon (last free copy) frees its old slot's weight.
 		var spare := LoadoutSystem.has_spare_weapon(wpath)
 		var freed_path: String = wpath if (equipped != "" and not spare) else ""
-		if controller.garage_panel.would_exceed_field_pack(wpath, replaced_path, freed_path):
-			controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
+		if controller.garage_panel.would_exceed_field_pack(wpath, replaced_path, freed_path, slot, equipped):
+			controller.status_message_label.text = _pack_full_message()
 			return
 		var from_mech := _transfer_weapon_from_other_mechs(wref, wpath)
 		if from_mech != "":
@@ -305,6 +313,14 @@ func _perform_weapon_equip(slot: String, info: Dictionary, wref: String) -> void
 		LoadoutSystem.set_hand_weapon(hand, wref)
 	if moved_note != "":
 		controller.status_message_label.text = "Equipped %s%s" % [info.get("name", "Weapon"), moved_note]
+	elif slot == "weapon_carry":
+		controller.status_message_label.text = "Added to Back Carry: %s!" % info.get("name", "Weapon")
+	elif slot.begins_with("shoulder"):
+		var side := "left" if slot == "shoulder_left" else "right"
+		controller.status_message_label.text = "Equipped %s on %s shoulder!" % [info.get("name", "Weapon"), side]
+	else:
+		var hand_label := "left" if slot == "weapon_left" else "right"
+		controller.status_message_label.text = "Equipped %s on %s hand!" % [info.get("name", "Weapon"), hand_label]
 	controller.persist_panel.commit_and_save()
 	controller.garage_panel.apply_armor_preview(slot, info)
 	controller.stats_panel.update()
@@ -374,8 +390,8 @@ func _perform_selected_weapon_equip(res: Resource) -> void:
 			controller.status_message_label.text = "This weapon is already on the back pack (no spare copies)."
 			return
 		var freed_path: String = wpath if (equipped != "" and not spare) else ""
-		if controller.garage_panel.would_exceed_field_pack(wpath, "", freed_path):
-			controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
+		if controller.garage_panel.would_exceed_field_pack(wpath, "", freed_path, controller.selected_slot, equipped):
+			controller.status_message_label.text = _pack_full_message()
 			return
 		var from_mech := _transfer_weapon_from_other_mechs(wref, wpath)
 		if from_mech != "":
@@ -391,8 +407,8 @@ func _perform_selected_weapon_equip(res: Resource) -> void:
 			return
 		var replaced_path = str(GlobalData.weapons.weapon_loadout.get("shoulder_" + side, ""))
 		var freed_path: String = wpath if (equipped != "" and not spare) else ""
-		if controller.garage_panel.would_exceed_field_pack(wpath, replaced_path, freed_path):
-			controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
+		if controller.garage_panel.would_exceed_field_pack(wpath, replaced_path, freed_path, controller.selected_slot, equipped):
+			controller.status_message_label.text = _pack_full_message()
 			return
 		var from_mech := _transfer_weapon_from_other_mechs(wref, wpath)
 		if from_mech != "":
@@ -412,8 +428,8 @@ func _perform_selected_weapon_equip(res: Resource) -> void:
 			return
 		var replaced_path = str(GlobalData.weapons.weapon_loadout.get(hand, ""))
 		var freed_path: String = wpath if (equipped != "" and not spare) else ""
-		if controller.garage_panel.would_exceed_field_pack(wpath, replaced_path, freed_path):
-			controller.status_message_label.text = "FIELD PACK full: exceeds carry capacity!"
+		if controller.garage_panel.would_exceed_field_pack(wpath, replaced_path, freed_path, controller.selected_slot, equipped):
+			controller.status_message_label.text = _pack_full_message()
 			return
 		var from_mech := _transfer_weapon_from_other_mechs(wref, wpath)
 		if from_mech != "":
@@ -480,7 +496,8 @@ func _weapon_swap_owner(wref: String, wpath: String) -> String:
 	return _weapon_swap_owner_by_path(wpath)
 
 
-# Exact-instance lookup: the OTHER parked mech whose loadout holds THIS uid.
+# Exact-instance lookup: the OTHER parked mech whose loadout holds THIS uid
+# (hands, shoulders, or back carry).
 func _weapon_swap_owner_by_uid(uid: String) -> String:
 	if uid == "":
 		return ""
@@ -495,6 +512,8 @@ func _weapon_swap_owner_by_uid(uid: String) -> String:
 		if not (loadout is Dictionary):
 			continue
 		if str(loadout.get("left", "")) == uid or str(loadout.get("right", "")) == uid:
+			return str(mech.get("name", "another mech"))
+		if str(loadout.get("shoulder_left", "")) == uid or str(loadout.get("shoulder_right", "")) == uid:
 			return str(mech.get("name", "another mech"))
 		var carry = loadout.get("carry", [])
 		if carry is Array and uid in carry:
@@ -559,7 +578,8 @@ func _transfer_weapon_from_other_mechs(wref: String, wpath: String) -> String:
 	return _transfer_weapon_from_other_mechs_by_path(wpath)
 
 
-# Strips the exact instance (uid) off whichever OTHER parked mech holds it.
+# Strips the exact instance (uid) off whichever OTHER parked mech holds it
+# (hands, shoulders, or back carry).
 func _transfer_weapon_from_other_mechs_by_uid(uid: String) -> String:
 	if uid == "":
 		return ""
@@ -578,6 +598,12 @@ func _transfer_weapon_from_other_mechs_by_uid(uid: String) -> String:
 			return str(mech.get("name", "another mech"))
 		if str(loadout.get("right", "")) == uid:
 			loadout["right"] = ""
+			return str(mech.get("name", "another mech"))
+		if str(loadout.get("shoulder_left", "")) == uid:
+			loadout["shoulder_left"] = ""
+			return str(mech.get("name", "another mech"))
+		if str(loadout.get("shoulder_right", "")) == uid:
+			loadout["shoulder_right"] = ""
 			return str(mech.get("name", "another mech"))
 		var carry = loadout.get("carry", [])
 		if carry is Array and uid in carry:

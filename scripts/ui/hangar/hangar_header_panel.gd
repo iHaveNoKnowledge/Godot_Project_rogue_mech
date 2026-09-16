@@ -282,7 +282,8 @@ func update_slot_indicators() -> void:
 	var base_labels = {
 		"head": "HEAD", "body": "BODY", "arm_left": "L.ARM", "arm_right": "R.ARM",
 		"leg_left": "L.LEGS", "leg_right": "R.LEGS", "weapon_left": "L.HAND",
-		"weapon_right": "R.HAND", "weapon_carry": "BACK CARRY"
+		"weapon_right": "R.HAND", "shoulder_left": "L.SHLDR", "shoulder_right": "R.SHLDR",
+		"weapon_carry": "BACK CARRY"
 	}
 	for slot_id: String in controller.slot_tab_buttons:
 		var btn: Button = controller.slot_tab_buttons[slot_id]

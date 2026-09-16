@@ -396,6 +396,15 @@ func stats_text_for_index(index: int) -> String:
 				LoadoutSystem.get_field_pack_weight(), LoadoutSystem.get_field_pack_capacity()
 			]
 		var hand = "left" if controller.selected_slot == "weapon_left" else "right"
+		if controller.selected_slot.begins_with("shoulder"):
+			var side := "left" if controller.selected_slot == "shoulder_left" else "right"
+			var sh_eq: bool = LoadoutSystem.get_equipped_shoulder_uid(side) == str(inv.get("uid", ""))
+			return "%s SHOULDER WEAPON: %s%s%s\nDURABILITY: %.0f%%\n\n%s\nWEIGHT: %.1f kg\nOWNED: x%d\n\nFIELD PACK: %.1f / %.1f kg" % [
+				side.to_upper(), "[E] " if sh_eq else "", wname, w_tier_str, wdur * 100.0,
+				wcap if not wcap.is_empty() else "TYPE: %s" % wtype,
+				wwt, owned,
+				LoadoutSystem.get_field_pack_weight(), LoadoutSystem.get_field_pack_capacity()
+			]
 		var eq = LoadoutSystem.get_equipped_weapon_uid(hand) == str(inv.get("uid", ""))
 		return "%s HAND WEAPON: %s%s%s\nDURABILITY: %.0f%%\n\n%s\nWEIGHT: %.1f kg\nOWNED: x%d\n\nFIELD PACK: %.1f / %.1f kg" % [
 			hand.to_upper(), "[E] " if eq else "", wname, w_tier_str, wdur * 100.0,

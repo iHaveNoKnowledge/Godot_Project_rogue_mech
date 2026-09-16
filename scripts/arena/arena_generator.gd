@@ -482,18 +482,21 @@ func _try_add_hd_desert_terrain() -> bool:
 			return false
 	if file == "" or not ResourceLoader.exists("res://assets/models/" + file):
 		return false
-	_add_hd_desert_model(file, node_name)
-	return true
+	return _add_hd_desert_model(file, node_name)
 
 
 # Instantiates a Blender HD terrain. Only the water disc still carries Godot
 # auto-collision (-col at import); terrain floors use a fast HeightMapShape
 # (smooth CharacterBody slides instead of concave-triangle judder = the
 # desert stutter), rocks get cheap boxes, palm trunks tiny trimeshes.
-func _add_hd_desert_model(file: String, node_name: String) -> void:
+# Returns false when the model (or one of its baked textures) is missing so
+# the caller falls back to the legacy model or procedural mesh instead of
+# leaving the arena with no ground at all.
+func _add_hd_desert_model(file: String, node_name: String) -> bool:
 	var model_scene: PackedScene = load("res://assets/models/" + file)
 	if model_scene == null:
-		return
+		push_warning("ArenaGenerator: HD desert terrain missing (%s), using fallback ground." % file)
+		return false
 	var model_inst := model_scene.instantiate() as Node3D
 	model_inst.name = node_name
 	tile_container.add_child(model_inst)
@@ -526,6 +529,7 @@ func _add_hd_desert_model(file: String, node_name: String) -> void:
 		if auto_bodies.is_empty():
 			# Stale import without -col bodies (water disc): build it at runtime.
 			_add_runtime_trimesh(mesh_inst)
+	return true
 
 
 # Heightfield collision resampled from the Blender grid mesh: 301x301 samples

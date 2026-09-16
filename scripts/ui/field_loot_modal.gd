@@ -736,14 +736,24 @@ func _build_carrier_item_card(w: WeaponPart, index: int) -> PanelContainer:
 	return p
 
 
-func _update_weight_display(preview_add_weight: float = 0.0) -> void:
-	if weight_bar == null or weight_label == null:
-		return
-
+# Battle pack weight that BOTH the weight display and the pickup gates agree
+# on: the live battle loadout (hands + carrier). The hangar LoadoutSystem
+# number silently adds ~30kg of allocated ammo on top, which used to reject
+# pickups the display said should fit. Falls back to the hangar number when
+# no battle WeaponManager is present (E-pickup path parity).
+func _current_battle_pack_weight() -> float:
 	var cur_w := LoadoutSystem.get_field_pack_weight()
 	var wm = _get_weapon_manager()
 	if wm and wm.has_method("get_battle_field_pack_weight"):
 		cur_w = wm.get_battle_field_pack_weight()
+	return cur_w
+
+
+func _update_weight_display(preview_add_weight: float = 0.0) -> void:
+	if weight_bar == null or weight_label == null:
+		return
+
+	var cur_w := _current_battle_pack_weight()
 
 	var cap := LoadoutSystem.get_field_pack_capacity()
 	var eff_w := cur_w + preview_add_weight
@@ -824,10 +834,10 @@ func take_weapon_to_carrier(pickup: Node3D) -> void:
 	if w == null:
 		return
 
-	var cur_w := LoadoutSystem.get_field_pack_weight()
+	var cur_w := _current_battle_pack_weight()
 	var cap := LoadoutSystem.get_field_pack_capacity()
 	if cur_w + float(w.weight) > cap:
-		_show_weight_overload_toast()
+		_show_weight_overload_toast(float(w.weight))
 		return
 
 	# Remove from ground and group immediately
@@ -923,11 +933,11 @@ func _store_to_carrier(w: WeaponPart, src: String) -> void:
 	if src == "carrier":
 		return # Already in carrier
 
-	# Check weight
-	var cur_w := LoadoutSystem.get_field_pack_weight()
+	# Check weight (same battle numbers as the display: hands + carrier).
+	var cur_w := _current_battle_pack_weight()
 	var cap := LoadoutSystem.get_field_pack_capacity()
 	if cur_w + float(w.weight) > cap:
-		_show_weight_overload_toast()
+		_show_weight_overload_toast(float(w.weight))
 		return
 
 	_remove_from_source(src, w)
@@ -1020,11 +1030,18 @@ func _sync_weapon_manager(wm: Node) -> void:
 	EventBus.weight_changed.emit(LoadoutSystem.get_field_pack_weight())
 
 
-func _show_weight_overload_toast() -> void:
-	if weight_label:
-		var tw = create_tween()
-		weight_label.modulate = Color(1.5, 0.3, 0.3)
-		tw.tween_property(weight_label, "modulate", Color.WHITE, 0.4)
+func _show_weight_overload_toast(attempted_weight: float = 0.0) -> void:
+	if weight_label == null:
+		return
+	# Say WHY in numbers, not just a red blink: the display already shows the
+	# same battle weight, so a rejection always explains itself.
+	var cur_w := _current_battle_pack_weight()
+	var cap := LoadoutSystem.get_field_pack_capacity()
+	weight_label.text = "WEIGHT: %.1f (+%.1f) / %.1f kg [OVERLOAD!]" % [cur_w, attempted_weight, cap]
+	weight_label.add_theme_color_override("font_color", ACCENT_RED)
+	var tw = create_tween()
+	weight_label.modulate = Color(1.5, 0.3, 0.3)
+	tw.tween_property(weight_label, "modulate", Color.WHITE, 0.4)
 
 
 func _style_cyber_button(btn: Button, border_color: Color) -> void:

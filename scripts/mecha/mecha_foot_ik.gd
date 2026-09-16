@@ -155,12 +155,22 @@ func _process_foot_placement(delta: float) -> void:
 		if leg_right:
 			leg_right.position.y = lerpf(leg_right.position.y, _orig_leg_right_pos.y + _current_right_foot_offset * (1.0 - move_suppress), k)
 
-	# 4. Ankle rotation alignment (match terrain normal)
-	_apply_ankle_alignment(foot_left, left_normal, delta, true)
-	_apply_ankle_alignment(foot_right, right_normal, delta, false)
+	# 4. Ankle rotation alignment (match terrain normal + articulate the
+	# mechanical ankle so the foot stays level while the leg joints move).
+	_apply_ankle_alignment(foot_left, left_normal, delta, true, leg_left, shin_left)
+	_apply_ankle_alignment(foot_right, right_normal, delta, false, leg_right, shin_right)
 
 
-func _apply_ankle_alignment(foot_node: Node3D, world_normal: Vector3, delta: float, is_left: bool) -> void:
+## Mechanical ankle compensation (radians): the foot-local pitch/roll needed
+## to keep the foot level while the thigh + shin joints are rotated.
+## The foot hangs off the shin, so its world tilt is thigh + shin; negating
+## that sum keeps the sole flat instead of rigidly following the shin.
+## Pure math — covered by foot_ground_contact_verify.
+static func ankle_compensation(thigh_x: float, shin_x: float, thigh_z: float, shin_z: float) -> Vector2:
+	return Vector2(-(thigh_x + shin_x), -(thigh_z + shin_z))
+
+
+func _apply_ankle_alignment(foot_node: Node3D, world_normal: Vector3, delta: float, is_left: bool, leg_node: Node3D = null, shin_node: Node3D = null) -> void:
 	if foot_node == null:
 		return
 
@@ -171,6 +181,15 @@ func _apply_ankle_alignment(foot_node: Node3D, world_normal: Vector3, delta: flo
 	# Compute pitch (forward/back tilt) and roll (left/right tilt)
 	var pitch := atan2(local_normal.z, local_normal.y)
 	var roll := -atan2(local_normal.x, local_normal.y)
+
+	# Mechanical ankle articulation: counter-rotate the thigh + shin joint
+	# angles so the planted foot stays flat on the ground while the leg
+	# moves above it (instead of the foot rigidly following the shin and
+	# hovering heel-up/toe-down). Fades out airborne with ik_weight.
+	if leg_node != null and shin_node != null:
+		var comp := ankle_compensation(leg_node.rotation.x, shin_node.rotation.x, leg_node.rotation.z, shin_node.rotation.z)
+		pitch += comp.x
+		roll += comp.y
 
 	# Clamp to reasonable mecha ankle ranges (-45 deg to +45 deg)
 	pitch = clampf(pitch, -deg_to_rad(45.0), deg_to_rad(45.0))

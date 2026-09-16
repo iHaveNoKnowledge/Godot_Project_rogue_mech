@@ -386,7 +386,10 @@ func _update_combat_idle_posture(delta: float) -> void:
 			_apply_pose({
 				"body_tilt": -deg_to_rad(4.0),
 				"head_tilt": deg_to_rad(2.0),
-				"drop": 0.0,
+				# Crouch bends the knees (thigh 8 / shin -18), which shortens
+				# the legs ~0.02: drop the hips by the same amount so the
+				# feet stay planted instead of hovering.
+				"drop": -0.02,
 				"arm_left": deg_to_rad(12.0),
 				"arm_left_yaw": deg_to_rad(6.0),
 				"arm_left_roll": -deg_to_rad(28.0),

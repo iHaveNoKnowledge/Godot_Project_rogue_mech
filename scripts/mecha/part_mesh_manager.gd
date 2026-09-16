@@ -1354,14 +1354,34 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 				upper_container.add_child(flange)
 
 		"body":
-			# --- 1. REAR STRUCTURAL SPINE & WAIST CHASSIS (Stationary) ---
-			var spine = MeshInstance3D.new()
-			var sp_box = BoxMesh.new()
-			sp_box.size = Vector3(0.20, 0.90, 0.18)
-			spine.mesh = sp_box
-			spine.position = Vector3(0, 0.05, 0.22)
-			spine.material_override = frame_mat
-			upper_container.add_child(spine)
+			# --- 1. SEGMENTED TWIN-RAIL SPINE (primary load-bearing members) ---
+			# Two articulated rails run behind the cockpit tub (never inside the
+			# pilot clearance volume) with pivot pins and gaps between segments.
+			for rail_sign in [-1.0, 1.0]:
+				var seg_y := [0.42, 0.14, -0.18]
+				var seg_idx := 1
+				for sy in seg_y:
+					var ch_seg = MeshInstance3D.new()
+					ch_seg.name = "CH_SpineRail%s%d" % ["L" if rail_sign < 0.0 else "R", seg_idx]
+					var seg_box = BoxMesh.new()
+					seg_box.size = Vector3(0.10, 0.24, 0.14)
+					ch_seg.mesh = seg_box
+					ch_seg.position = Vector3(rail_sign * 0.17, sy, 0.33)
+					ch_seg.material_override = frame_mat
+					upper_container.add_child(ch_seg)
+					seg_idx += 1
+			# Transverse pivot pin bridging the rails at the mid articulation gap.
+			var ch_pin = MeshInstance3D.new()
+			ch_pin.name = "CH_SpinePin"
+			var pin_cyl = CylinderMesh.new()
+			pin_cyl.top_radius = 0.045
+			pin_cyl.bottom_radius = 0.045
+			pin_cyl.height = 0.40
+			ch_pin.mesh = pin_cyl
+			ch_pin.rotation_degrees.z = 90
+			ch_pin.position = Vector3(0, 0.0, 0.33)
+			ch_pin.material_override = chrome_mat
+			upper_container.add_child(ch_pin)
 
 			# Resolve custom 3D inner frame model if specified for this body frame series
 			var frame_model_path: String = ""
@@ -1648,6 +1668,237 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 				inner_hub.material_override = frame_mat
 				upper_container.add_child(inner_hub)
 
+			# --- 2. LAYERED STRUCTURAL CHASSIS (engineered members, not decor) ---
+			# All members below are built OUTSIDE the pilot clearance volume
+			# (see COCKPIT_CLEARANCE in the chassis verify test): the frame
+			# wraps AROUND the cockpit, never through it. Coordinate space is
+			# the Body FrameMesh container (WORLD_SCALE applied by the parent).
+			var ch_trim := _get_shared_dark_trim_mat()
+
+			# 2a. Rear roll-bar beam + mid/low cross beams tying the spine rails.
+			var ch_roll = MeshInstance3D.new()
+			ch_roll.name = "CH_RollBar"
+			var ch_roll_box = BoxMesh.new()
+			ch_roll_box.size = Vector3(0.53, 0.07, 0.08)
+			ch_roll.mesh = ch_roll_box
+			ch_roll.position = Vector3(0, 0.54, 0.33)
+			ch_roll.material_override = frame_mat
+			upper_container.add_child(ch_roll)
+
+			for ch_beam_y in [0.10, -0.14]:
+				var ch_beam = MeshInstance3D.new()
+				ch_beam.name = "CH_RearBeam%.2f" % ch_beam_y
+				var ch_beam_box = BoxMesh.new()
+				ch_beam_box.size = Vector3(0.39, 0.07, 0.08)
+				ch_beam.mesh = ch_beam_box
+				ch_beam.position = Vector3(0, ch_beam_y, 0.33)
+				ch_beam.material_override = frame_mat
+				upper_container.add_child(ch_beam)
+
+			# 2b. Segmented structural ribs: vertical posts outboard of the tub
+			# walls, three stations per side (front / mid / rear).
+			for ch_side in [-1.0, 1.0]:
+				var ch_tag := "L" if ch_side < 0.0 else "R"
+				var ch_station := 1
+				for ch_rib_z in [-0.18, -0.02, 0.12]:
+					var ch_rib = MeshInstance3D.new()
+					ch_rib.name = "CH_Rib%s%d" % [ch_tag, ch_station]
+					var ch_rib_box = BoxMesh.new()
+					ch_rib_box.size = Vector3(0.05, 0.38, 0.12)
+					ch_rib.mesh = ch_rib_box
+					ch_rib.position = Vector3(ch_side * 0.32, 0.10, ch_rib_z)
+					ch_rib.material_override = frame_mat
+					upper_container.add_child(ch_rib)
+					ch_station += 1
+
+				# 2c. Front chest posts + top beam (frame the hatch opening).
+				var ch_post = MeshInstance3D.new()
+				ch_post.name = "CH_ChestPost" + ch_tag
+				var ch_post_box = BoxMesh.new()
+				ch_post_box.size = Vector3(0.05, 0.36, 0.08)
+				ch_post.mesh = ch_post_box
+				ch_post.position = Vector3(ch_side * 0.24, 0.12, -0.30)
+				ch_post.material_override = frame_mat
+				upper_container.add_child(ch_post)
+
+				# 2d. Front diagonal brace (chest post foot to hatch beam).
+				var ch_fbrace = MeshInstance3D.new()
+				ch_fbrace.name = "CH_BraceFront" + ch_tag
+				var ch_fbrace_box = BoxMesh.new()
+				ch_fbrace_box.size = Vector3(0.05, 0.32, 0.06)
+				ch_fbrace.mesh = ch_fbrace_box
+				ch_fbrace.rotation_degrees.z = ch_side * -25.0
+				ch_fbrace.position = Vector3(ch_side * 0.20, 0.10, -0.30)
+				ch_fbrace.material_override = frame_mat
+				upper_container.add_child(ch_fbrace)
+
+				# 2e. Layered side plates with a service gap between them.
+				var ch_plate_up = MeshInstance3D.new()
+				ch_plate_up.name = "CH_SidePlateUpper" + ch_tag
+				var ch_plate_up_box = BoxMesh.new()
+				ch_plate_up_box.size = Vector3(0.05, 0.14, 0.30)
+				ch_plate_up.mesh = ch_plate_up_box
+				ch_plate_up.position = Vector3(ch_side * 0.28, 0.23, -0.02)
+				ch_plate_up.material_override = frame_mat
+				upper_container.add_child(ch_plate_up)
+
+				var ch_plate_low = MeshInstance3D.new()
+				ch_plate_low.name = "CH_SidePlateLower" + ch_tag
+				var ch_plate_low_box = BoxMesh.new()
+				ch_plate_low_box.size = Vector3(0.05, 0.12, 0.34)
+				ch_plate_low.mesh = ch_plate_low_box
+				ch_plate_low.position = Vector3(ch_side * 0.28, -0.26, 0.0)
+				ch_plate_low.material_override = ch_trim
+				upper_container.add_child(ch_plate_low)
+
+				# 2f. Trapezius load beam: spine top out to the shoulder socket.
+				var ch_trap = MeshInstance3D.new()
+				ch_trap.name = "CH_Trapezius" + ch_tag
+				var ch_trap_box = BoxMesh.new()
+				ch_trap_box.size = Vector3(0.50, 0.09, 0.12)
+				ch_trap.mesh = ch_trap_box
+				ch_trap.position = Vector3(ch_side * 0.45, 0.40, 0.10)
+				ch_trap.material_override = frame_mat
+				upper_container.add_child(ch_trap)
+
+				# 2g. Shoulder actuator bracket (outboard mounting plate).
+				var ch_shb = MeshInstance3D.new()
+				ch_shb.name = "CH_ShoulderBracket" + ch_tag
+				var ch_shb_box = BoxMesh.new()
+				ch_shb_box.size = Vector3(0.04, 0.20, 0.20)
+				ch_shb.mesh = ch_shb_box
+				ch_shb.position = Vector3(ch_side * 0.52, 0.288, 0.0)
+				ch_shb.material_override = ch_trim
+				upper_container.add_child(ch_shb)
+
+				# 2h. Hip suspension: spring housing + coaxial piston rod.
+				var ch_hspring = MeshInstance3D.new()
+				ch_hspring.name = "CH_HipSpring" + ch_tag
+				var ch_hspring_cyl = CylinderMesh.new()
+				ch_hspring_cyl.top_radius = 0.08
+				ch_hspring_cyl.bottom_radius = 0.08
+				ch_hspring_cyl.height = 0.10
+				ch_hspring.mesh = ch_hspring_cyl
+				ch_hspring.position = Vector3(ch_side * 0.529, -0.30, 0.0)
+				ch_hspring.material_override = ch_trim
+				upper_container.add_child(ch_hspring)
+
+				var ch_hpiston = MeshInstance3D.new()
+				ch_hpiston.name = "CH_HipPiston" + ch_tag
+				var ch_hpiston_cyl = CylinderMesh.new()
+				ch_hpiston_cyl.top_radius = 0.045
+				ch_hpiston_cyl.bottom_radius = 0.045
+				ch_hpiston_cyl.height = 0.16
+				ch_hpiston.mesh = ch_hpiston_cyl
+				ch_hpiston.position = Vector3(ch_side * 0.529, -0.30, 0.0)
+				ch_hpiston.material_override = chrome_mat
+				upper_container.add_child(ch_hpiston)
+
+				# 2i. Hip actuator cylinder + outer hip mounting plate.
+				var ch_hact = MeshInstance3D.new()
+				ch_hact.name = "CH_HipActuator" + ch_tag
+				var ch_hact_cyl = CylinderMesh.new()
+				ch_hact_cyl.top_radius = 0.035
+				ch_hact_cyl.bottom_radius = 0.035
+				ch_hact_cyl.height = 0.30
+				ch_hact.mesh = ch_hact_cyl
+				ch_hact.position = Vector3(ch_side * 0.40, -0.30, 0.10)
+				ch_hact.material_override = chrome_mat
+				upper_container.add_child(ch_hact)
+
+				var ch_hplate = MeshInstance3D.new()
+				ch_hplate.name = "CH_HipPlate" + ch_tag
+				var ch_hplate_box = BoxMesh.new()
+				ch_hplate_box.size = Vector3(0.05, 0.24, 0.30)
+				ch_hplate.mesh = ch_hplate_box
+				ch_hplate.position = Vector3(ch_side * 0.62, -0.45, 0.0)
+				ch_hplate.material_override = frame_mat
+				upper_container.add_child(ch_hplate)
+
+				# 2j. Cable conduit + service channel on the rib line.
+				var ch_conduit = MeshInstance3D.new()
+				ch_conduit.name = "CH_Conduit" + ch_tag
+				var ch_conduit_cyl = CylinderMesh.new()
+				ch_conduit_cyl.top_radius = 0.02
+				ch_conduit_cyl.bottom_radius = 0.02
+				ch_conduit_cyl.height = 0.40
+				ch_conduit.mesh = ch_conduit_cyl
+				ch_conduit.position = Vector3(ch_side * 0.345, 0.10, -0.10)
+				ch_conduit.material_override = chrome_mat
+				upper_container.add_child(ch_conduit)
+
+				var ch_service = MeshInstance3D.new()
+				ch_service.name = "CH_Service" + ch_tag
+				var ch_service_box = BoxMesh.new()
+				ch_service_box.size = Vector3(0.03, 0.24, 0.10)
+				ch_service.mesh = ch_service_box
+				ch_service.position = Vector3(ch_side * 0.36, 0.10, -0.02)
+				ch_service.material_override = ch_trim
+				upper_container.add_child(ch_service)
+
+				# 2k. Front armor hardpoint + mount bolt (outer-layer interface).
+				var ch_hard = MeshInstance3D.new()
+				ch_hard.name = "CH_HardpointF" + ch_tag
+				var ch_hard_box = BoxMesh.new()
+				ch_hard_box.size = Vector3(0.07, 0.10, 0.04)
+				ch_hard.mesh = ch_hard_box
+				ch_hard.position = Vector3(ch_side * 0.24, 0.20, -0.35)
+				ch_hard.material_override = frame_mat
+				upper_container.add_child(ch_hard)
+
+				var ch_hbolt = MeshInstance3D.new()
+				ch_hbolt.name = "CH_HardBoltF" + ch_tag
+				var ch_hbolt_cyl = CylinderMesh.new()
+				ch_hbolt_cyl.top_radius = 0.025
+				ch_hbolt_cyl.bottom_radius = 0.025
+				ch_hbolt_cyl.height = 0.06
+				ch_hbolt.mesh = ch_hbolt_cyl
+				ch_hbolt.rotation_degrees.x = 90
+				ch_hbolt.position = Vector3(ch_side * 0.24, 0.20, -0.38)
+				ch_hbolt.material_override = chrome_mat
+				upper_container.add_child(ch_hbolt)
+
+				# 2l. Waist side beam (hip ring member).
+				var ch_wside = MeshInstance3D.new()
+				ch_wside.name = "CH_WaistSide" + ch_tag
+				var ch_wside_box = BoxMesh.new()
+				ch_wside_box.size = Vector3(0.06, 0.10, 0.44)
+				ch_wside.mesh = ch_wside_box
+				ch_wside.position = Vector3(ch_side * 0.27, -0.36, 0.02)
+				ch_wside.material_override = frame_mat
+				upper_container.add_child(ch_wside)
+
+			# 2m. Front chest beam + rear horizontal cable conduit + waist front.
+			var ch_chest_beam = MeshInstance3D.new()
+			ch_chest_beam.name = "CH_ChestBeamFront"
+			var ch_chest_beam_box = BoxMesh.new()
+			ch_chest_beam_box.size = Vector3(0.53, 0.06, 0.08)
+			ch_chest_beam.mesh = ch_chest_beam_box
+			ch_chest_beam.position = Vector3(0, 0.30, -0.30)
+			ch_chest_beam.material_override = frame_mat
+			upper_container.add_child(ch_chest_beam)
+
+			var ch_conduit_rear = MeshInstance3D.new()
+			ch_conduit_rear.name = "CH_ConduitRear"
+			var ch_conduit_rear_cyl = CylinderMesh.new()
+			ch_conduit_rear_cyl.top_radius = 0.025
+			ch_conduit_rear_cyl.bottom_radius = 0.025
+			ch_conduit_rear_cyl.height = 0.40
+			ch_conduit_rear.mesh = ch_conduit_rear_cyl
+			ch_conduit_rear.rotation_degrees.z = 90
+			ch_conduit_rear.position = Vector3(0, 0.10, 0.36)
+			ch_conduit_rear.material_override = chrome_mat
+			upper_container.add_child(ch_conduit_rear)
+
+			var ch_waist_front = MeshInstance3D.new()
+			ch_waist_front.name = "CH_WaistFront"
+			var ch_waist_front_box = BoxMesh.new()
+			ch_waist_front_box.size = Vector3(0.60, 0.10, 0.06)
+			ch_waist_front.mesh = ch_waist_front_box
+			ch_waist_front.position = Vector3(0, -0.36, 0.26)
+			ch_waist_front.material_override = frame_mat
+			upper_container.add_child(ch_waist_front)
+
 			if not has_waist_core:
 				var waist = MeshInstance3D.new()
 				var w_cyl = CylinderMesh.new()
@@ -1759,6 +2010,27 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 			upper_arm.material_override = frame_mat
 			upper_container.add_child(upper_arm)
 
+			# Shoulder actuator cylinder behind the upper arm + bracket cap.
+			var ch_uact = MeshInstance3D.new()
+			ch_uact.name = "CH_UpperActuator"
+			var ch_uact_cyl = CylinderMesh.new()
+			ch_uact_cyl.top_radius = 0.04
+			ch_uact_cyl.bottom_radius = 0.04
+			ch_uact_cyl.height = 0.22
+			ch_uact.mesh = ch_uact_cyl
+			ch_uact.position = Vector3(0, -0.19, 0.17)
+			ch_uact.material_override = chrome_mat
+			upper_container.add_child(ch_uact)
+
+			var ch_shcap = MeshInstance3D.new()
+			ch_shcap.name = "CH_ShoulderCap"
+			var ch_shcap_box = BoxMesh.new()
+			ch_shcap_box.size = Vector3(0.20, 0.06, 0.20)
+			ch_shcap.mesh = ch_shcap_box
+			ch_shcap.position = Vector3(0, 0.24, 0)
+			ch_shcap.material_override = _get_shared_dark_trim_mat()
+			upper_container.add_child(ch_shcap)
+
 			# --- LOWER ARM SEGMENT (Attaches to Elbow Pivot ForearmLeft/ForearmRight) ---
 			if lower_container:
 				var elbow_disc = MeshInstance3D.new()
@@ -1788,6 +2060,29 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 				hand_block.material_override = chrome_mat
 				lower_container.add_child(hand_block)
 
+				# Forearm cable conduit + wrist collar ring.
+				var ch_econduit = MeshInstance3D.new()
+				ch_econduit.name = "CH_ElbowConduit"
+				var ch_econduit_cyl = CylinderMesh.new()
+				ch_econduit_cyl.top_radius = 0.025
+				ch_econduit_cyl.bottom_radius = 0.025
+				ch_econduit_cyl.height = 0.34
+				ch_econduit.mesh = ch_econduit_cyl
+				ch_econduit.position = Vector3(0, -0.22, 0.19)
+				ch_econduit.material_override = _get_shared_dark_trim_mat()
+				lower_container.add_child(ch_econduit)
+
+				var ch_wcollar = MeshInstance3D.new()
+				ch_wcollar.name = "CH_WristCollar"
+				var ch_wcollar_cyl = CylinderMesh.new()
+				ch_wcollar_cyl.top_radius = 0.17
+				ch_wcollar_cyl.bottom_radius = 0.17
+				ch_wcollar_cyl.height = 0.06
+				ch_wcollar.mesh = ch_wcollar_cyl
+				ch_wcollar.position = Vector3(0, -0.44, 0)
+				ch_wcollar.material_override = chrome_mat
+				lower_container.add_child(ch_wcollar)
+
 		"leg_left", "leg_right":
 			# --- UPPER LEG SEGMENT (Attaches to Hip Pivot LegLeft/LegRight) ---
 			# Wanzer rebalance: width/depth scaled UP for load-bearing mass.
@@ -1807,6 +2102,27 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 			thigh_frame.position = Vector3(0, -0.275, 0)
 			thigh_frame.material_override = frame_mat
 			upper_container.add_child(thigh_frame)
+
+			# Hip bracket plate + thigh cable conduit.
+			var ch_hipbracket = MeshInstance3D.new()
+			ch_hipbracket.name = "CH_HipBracket"
+			var ch_hipbracket_box = BoxMesh.new()
+			ch_hipbracket_box.size = Vector3(0.24, 0.08, 0.10)
+			ch_hipbracket.mesh = ch_hipbracket_box
+			ch_hipbracket.position = Vector3(0, -0.06, 0.16)
+			ch_hipbracket.material_override = _get_shared_dark_trim_mat()
+			upper_container.add_child(ch_hipbracket)
+
+			var ch_tconduit = MeshInstance3D.new()
+			ch_tconduit.name = "CH_ThighConduit"
+			var ch_tconduit_cyl = CylinderMesh.new()
+			ch_tconduit_cyl.top_radius = 0.03
+			ch_tconduit_cyl.bottom_radius = 0.03
+			ch_tconduit_cyl.height = 0.36
+			ch_tconduit.mesh = ch_tconduit_cyl
+			ch_tconduit.position = Vector3(0, -0.275, 0.20)
+			ch_tconduit.material_override = chrome_mat
+			upper_container.add_child(ch_tconduit)
 
 			# Twin hydraulic struts on thigh back
 			for strut_x in [-0.09, 0.09]:
@@ -1833,6 +2149,20 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 				knee_disc.position = Vector3(0, 0, 0)
 				knee_disc.material_override = chrome_mat
 				lower_container.add_child(knee_disc)
+
+				# Knee pivot bolt caps on both faces of the actuator disc.
+				for ch_knee_sign in [-1.0, 1.0]:
+					var ch_kneebolt = MeshInstance3D.new()
+					ch_kneebolt.name = "CH_KneeBolt%s" % ["L" if ch_knee_sign < 0.0 else "R"]
+					var ch_kneebolt_cyl = CylinderMesh.new()
+					ch_kneebolt_cyl.top_radius = 0.06
+					ch_kneebolt_cyl.bottom_radius = 0.06
+					ch_kneebolt_cyl.height = 0.04
+					ch_kneebolt.mesh = ch_kneebolt_cyl
+					ch_kneebolt.rotation_degrees.z = 90
+					ch_kneebolt.position = Vector3(ch_knee_sign * 0.11, 0, 0)
+					ch_kneebolt.material_override = chrome_mat
+					lower_container.add_child(ch_kneebolt)
 
 				var shin_frame = MeshInstance3D.new()
 				var s_box = BoxMesh.new()

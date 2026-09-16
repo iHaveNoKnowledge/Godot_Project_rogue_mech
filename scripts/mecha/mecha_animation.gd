@@ -16,6 +16,8 @@ var leg_left: Node3D = null
 var leg_right: Node3D = null
 var shin_left: Node3D = null
 var shin_right: Node3D = null
+var foot_left: Node3D = null
+var foot_right: Node3D = null
 var foot_ik: MechaFootIK = null
 
 var _walk: MechaWalkingSystem = null
@@ -69,6 +71,8 @@ func _refresh_node_refs() -> void:
 	leg_right = get_node_or_null("../LegRight") if leg_right == null else leg_right
 	shin_left = get_node_or_null("../LegLeft/ShinLeft") if shin_left == null else shin_left
 	shin_right = get_node_or_null("../LegRight/ShinRight") if shin_right == null else shin_right
+	foot_left = get_node_or_null("../LegLeft/ShinLeft/FootLeft") if foot_left == null else foot_left
+	foot_right = get_node_or_null("../LegRight/ShinRight/FootRight") if foot_right == null else foot_right
 	if foot_ik == null and mecha:
 		foot_ik = mecha.get_node_or_null("FootIKSystem") as MechaFootIK
 
@@ -801,6 +805,10 @@ func _build_joints_dict() -> Dictionary:
 	j["leg_right"] = leg_right
 	j["shin_left"] = shin_left if shin_left else leg_left
 	j["shin_right"] = shin_right if shin_right else leg_right
+	# Foot pivots are owned by FootIK (terrain alignment); exposed here so
+	# action/gait helpers can read them without rotating them.
+	j["foot_left"] = foot_left
+	j["foot_right"] = foot_right
 	j["original_body_pos"] = _original_body_pos
 	j["original_head_pos"] = _original_head_pos
 	j["original_leg_left_pos"] = _original_leg_left_pos

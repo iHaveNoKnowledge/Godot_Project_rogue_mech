@@ -543,6 +543,8 @@ static func build_joints(mecha: Node3D) -> Dictionary:
 	j["leg_right"] = mecha.get_node_or_null("LegRight")
 	j["shin_left"] = mecha.get_node_or_null("LegLeft/ShinLeft")
 	j["shin_right"] = mecha.get_node_or_null("LegRight/ShinRight")
+	j["foot_left"] = mecha.get_node_or_null("LegLeft/ShinLeft/FootLeft")
+	j["foot_right"] = mecha.get_node_or_null("LegRight/ShinRight/FootRight")
 
 	if j["body_mesh"]:
 		j["original_body_pos"] = j["body_mesh"].position

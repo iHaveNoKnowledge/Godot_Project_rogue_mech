@@ -85,8 +85,10 @@ func hide_slot_completely(slot_name: String) -> void:
 		return
 	if entry["armor"]: entry["armor"].visible = false
 	if entry.get("armor_lower") and entry["armor_lower"]: entry["armor_lower"].visible = false
+	if entry.get("armor_foot") and entry["armor_foot"]: entry["armor_foot"].visible = false
 	if entry["frame"]: entry["frame"].visible = false
 	if entry.get("frame_lower") and entry["frame_lower"]: entry["frame_lower"].visible = false
+	if entry.get("frame_foot") and entry["frame_foot"]: entry["frame_foot"].visible = false
 
 
 ## Toggles cockpit hatch extension. When open, front carriage slides forward-down along guide rails.
@@ -204,11 +206,14 @@ func initialize_slot(slot_name: String, part: ArmorPart, apply_player_damage: bo
 		return
 
 	var lower_parent_node = _get_slot_lower_parent_node(slot_name)
+	var foot_parent_node = _get_slot_foot_parent_node(slot_name)
 
 	# Hide legacy placeholder primitives in mecha_base.tscn
 	_hide_legacy_slot_meshes(parent_node)
 	if lower_parent_node:
 		_hide_legacy_slot_meshes(lower_parent_node)
+	if foot_parent_node:
+		_hide_legacy_slot_meshes(foot_parent_node)
 
 	# 1. Setup Frame & Armor containers for Upper Joint (Shoulder / Hip)
 	# Scale 1.0 world: containers scaled to WORLD_SCALE so procedural meshes (authored at 1.6) render at true 4.73m
@@ -252,43 +257,74 @@ func initialize_slot(slot_name: String, part: ArmorPart, apply_player_damage: bo
 		else:
 			armor_mesh_lower.scale = Vector3.ONE * WORLD_SCALE
 
+	# 2b. Setup Frame & Armor containers for the Ankle/Foot Joint.
+	# The foot is a separate movable part from the lower leg so FootIK can
+	# pivot it at the ankle independently of the shin.
+	var frame_mesh_foot: Node3D = null
+	var armor_mesh_foot: Node3D = null
+	if foot_parent_node:
+		frame_mesh_foot = foot_parent_node.get_node_or_null("FrameMesh")
+		if frame_mesh_foot == null:
+			frame_mesh_foot = Node3D.new()
+			frame_mesh_foot.name = "FrameMesh"
+			frame_mesh_foot.scale = Vector3.ONE * WORLD_SCALE
+			foot_parent_node.add_child(frame_mesh_foot)
+		else:
+			frame_mesh_foot.scale = Vector3.ONE * WORLD_SCALE
+
+		armor_mesh_foot = foot_parent_node.get_node_or_null("ArmorMesh")
+		if armor_mesh_foot == null:
+			armor_mesh_foot = Node3D.new()
+			armor_mesh_foot.name = "ArmorMesh"
+			armor_mesh_foot.scale = Vector3.ONE * WORLD_SCALE
+			foot_parent_node.add_child(armor_mesh_foot)
+		else:
+			armor_mesh_foot.scale = Vector3.ONE * WORLD_SCALE
+
 	slot_meshes[slot_name] = {
 		"armor": armor_mesh,
 		"frame": frame_mesh,
 		"armor_lower": armor_mesh_lower,
-		"frame_lower": frame_mesh_lower
+		"frame_lower": frame_mesh_lower,
+		"armor_foot": armor_mesh_foot,
+		"frame_foot": frame_mesh_foot
 	}
 
-	# 3. Build Inner Frame (Upper + Lower articulated segments)
+	# 3. Build Inner Frame (Upper + Lower + Foot articulated segments)
 	# Hybrid Blender/procedural: try Blender model first, fall back to
 	# procedural when no model is assigned, the scene is missing/corrupt,
 	# or the instance contains no renderable meshes.
 	_clear_children(frame_mesh)
 	if frame_mesh_lower: _clear_children(frame_mesh_lower)
+	if frame_mesh_foot: _clear_children(frame_mesh_foot)
 
 	var frame_ok := false
 	if use_blender_models and part and (part.inner_frame_scene != null or part.inner_frame_scene_lower != null):
-		frame_ok = _attach_custom_mesh_scene(frame_mesh, frame_mesh_lower, part.inner_frame_scene, part.inner_frame_scene_lower)
+		frame_ok = _attach_custom_mesh_scene(frame_mesh, frame_mesh_lower, part.inner_frame_scene, part.inner_frame_scene_lower, frame_mesh_foot)
 	if not frame_ok:
 		# Ensure a failed Blender attach leaves no half-built nodes behind.
 		_clear_children(frame_mesh)
 		if frame_mesh_lower: _clear_children(frame_mesh_lower)
-		_build_procedural_inner_frame(slot_name, frame_mesh, frame_mesh_lower, frame_data)
+		if frame_mesh_foot: _clear_children(frame_mesh_foot)
+		_build_procedural_inner_frame(slot_name, frame_mesh, frame_mesh_lower, frame_data, frame_mesh_foot)
 	frame_mesh.visible = true
 	if frame_mesh_lower: frame_mesh_lower.visible = true
+	if frame_mesh_foot: frame_mesh_foot.visible = true
 
-	# 4. Build Outer Armor Plate (Upper + Lower articulated armor sleeves)
+	# 4. Build Outer Armor Plate (Upper + Lower + Foot articulated armor sleeves)
 	_clear_children(armor_mesh)
 	if armor_mesh_lower: _clear_children(armor_mesh_lower)
+	if armor_mesh_foot: _clear_children(armor_mesh_foot)
 
 	if part != null:
 		var armor_ok := false
 		if use_blender_models and (part.mesh_scene != null or part.mesh_scene_lower != null):
-			armor_ok = _attach_custom_mesh_scene(armor_mesh, armor_mesh_lower, part.mesh_scene, part.mesh_scene_lower)
+			armor_ok = _attach_custom_mesh_scene(armor_mesh, armor_mesh_lower, part.mesh_scene, part.mesh_scene_lower, armor_mesh_foot)
 		if not armor_ok:
 			_clear_children(armor_mesh)
 			if armor_mesh_lower: _clear_children(armor_mesh_lower)
-			_build_procedural_outer_armor(slot_name, armor_mesh, armor_mesh_lower, part)
+			if armor_mesh_foot: _clear_children(armor_mesh_foot)
+			_build_procedural_outer_armor(slot_name, armor_mesh, armor_mesh_lower, part, armor_mesh_foot)
 
 		# Player-only: reflect the current combat damage cache in the visuals.
 		# Enemies (refresh_from_loadout) skip this — their damage lives in their
@@ -305,9 +341,11 @@ func initialize_slot(slot_name: String, part: ArmorPart, apply_player_damage: bo
 		else:
 			armor_mesh.visible = true
 			if armor_mesh_lower: armor_mesh_lower.visible = true
+			if armor_mesh_foot: armor_mesh_foot.visible = true
 	else:
 		armor_mesh.visible = false
 		if armor_mesh_lower: armor_mesh_lower.visible = false
+		if armor_mesh_foot: armor_mesh_foot.visible = false
 
 	# Register with ArmorDamageVisuals if health system exists on mecha.
 	# Runs for EVERY slot (armored or bare frame): armor plates bind to the
@@ -322,10 +360,14 @@ func initialize_slot(slot_name: String, part: ArmorPart, apply_player_damage: bo
 				dmg_vis.register_slot_container(slot_name, armor_mesh, "armor")
 				if armor_mesh_lower:
 					dmg_vis.register_slot_container(slot_name, armor_mesh_lower, "armor")
+				if armor_mesh_foot:
+					dmg_vis.register_slot_container(slot_name, armor_mesh_foot, "armor")
 				if frame_mesh:
 					dmg_vis.register_slot_container(slot_name, frame_mesh, "frame")
 				if frame_mesh_lower:
 					dmg_vis.register_slot_container(slot_name, frame_mesh_lower, "frame")
+				if frame_mesh_foot:
+					dmg_vis.register_slot_container(slot_name, frame_mesh_foot, "frame")
 				# Cross-battle persistence: ensure material already holds the saved damage/hit
 				# (HealthSystem set damage before meshes existed — see ArmorDamageVisuals fix,
 				# but also explicitly sync here so PartMeshManager is the source of truth).
@@ -362,7 +404,7 @@ func _normalize_mesh_orientation(node: Node3D) -> void:
 # Any failure (null scene, broken instance, no meshes) returns false so the
 # caller can fall back to the procedural builders — the mech never renders
 # an empty slot just because a .glb/.tscn is missing.
-func _attach_custom_mesh_scene(upper_container: Node3D, lower_container: Node3D, upper_scene: PackedScene, lower_scene: PackedScene) -> bool:
+func _attach_custom_mesh_scene(upper_container: Node3D, lower_container: Node3D, upper_scene: PackedScene, lower_scene: PackedScene, foot_container: Node3D = null) -> bool:
 	if upper_container == null:
 		return false
 	if upper_scene == null and lower_scene == null:
@@ -388,7 +430,7 @@ func _attach_custom_mesh_scene(upper_container: Node3D, lower_container: Node3D,
 			attached_any = true
 		if not attached_any:
 			return false
-		return _container_has_meshes(upper_container) or (lower_container != null and _container_has_meshes(lower_container))
+		return _container_has_meshes(upper_container) or (lower_container != null and _container_has_meshes(lower_container)) or (foot_container != null and _container_has_meshes(foot_container))
 
 	# Single scene provided -> auto-split if lower nodes exist
 	if upper_scene != null:
@@ -399,9 +441,14 @@ func _attach_custom_mesh_scene(upper_container: Node3D, lower_container: Node3D,
 		_normalize_mesh_orientation(instance)
 		if lower_container != null:
 			var lower_nodes: Array[Node] = []
+			var foot_nodes: Array[Node] = []
 			for child in instance.get_children():
 				var cname := child.name.to_lower()
-				if cname.contains("lower") or cname.contains("forearm") or cname.contains("shin") or cname.contains("knee") or cname.contains("calf") or cname.contains("foot"):
+				# Foot/ankle/toe nodes belong on the dedicated ankle pivot so
+				# the foot stays independently transformable from the shin.
+				if foot_container != null and (cname.contains("foot") or cname.contains("ankle") or cname.contains("toe")):
+					foot_nodes.append(child)
+				elif cname.contains("lower") or cname.contains("forearm") or cname.contains("shin") or cname.contains("knee") or cname.contains("calf"):
 					lower_nodes.append(child)
 
 			if not lower_nodes.is_empty():
@@ -418,12 +465,23 @@ func _attach_custom_mesh_scene(upper_container: Node3D, lower_container: Node3D,
 						_normalize_mesh_orientation(ln3d)
 					lower_container.add_child(lnode)
 					_apply_realistic_fix_recursive(lnode)
+			if not foot_nodes.is_empty():
+				for fnode in foot_nodes:
+					instance.remove_child(fnode)
+					if fnode is Node3D:
+						var fn3d := fnode as Node3D
+						fn3d.scale *= INV_WORLD_SCALE
+						_normalize_mesh_orientation(fn3d)
+					foot_container.add_child(fnode)
+					_apply_realistic_fix_recursive(fnode)
 
 		upper_container.add_child(instance)
 		_apply_realistic_fix_recursive(instance)
 		if _container_has_meshes(upper_container):
 			return true
 		if lower_container != null and _container_has_meshes(lower_container):
+			return true
+		if foot_container != null and _container_has_meshes(foot_container):
 			return true
 		# Instance added but contains no meshes (e.g. empty wrapper) — let the
 		# caller clean up and fall back to procedural.
@@ -466,6 +524,7 @@ func _hide_legacy_slot_meshes(parent_node: Node3D) -> void:
 		if child.name != "FrameMesh" and child.name != "ArmorMesh" \
 			and child.name != "ForearmLeft" and child.name != "ForearmRight" \
 			and child.name != "ShinLeft" and child.name != "ShinRight" \
+			and child.name != "FootLeft" and child.name != "FootRight" \
 			and not child.name.begins_with("WeaponVisual_") \
 			and not child.name.begins_with("Attachment_") \
 			and not child is Light3D:
@@ -766,6 +825,14 @@ const _LOWER_NODE_NAMES: Dictionary = {
 	"leg_right": "LegRight/ShinRight",
 }
 
+# Dedicated ankle/foot pivots (THIGH > KNEE > SHIN > ANKLE > FOOT). The foot is
+# a separate movable part from the lower leg: FootLeft/FootRight hang off the
+# Shin nodes at ankle height so FootIK can rotate them independently.
+const _FOOT_NODE_NAMES: Dictionary = {
+	"leg_left": "LegLeft/ShinLeft/FootLeft",
+	"leg_right": "LegRight/ShinRight/FootRight",
+}
+
 
 func _get_slot_lower_parent_node(slot_name: String) -> Node3D:
 	var mecha = get_parent()
@@ -775,6 +842,31 @@ func _get_slot_lower_parent_node(slot_name: String) -> Node3D:
 	if path == "":
 		return null
 	return mecha.get_node_or_null(path)
+
+
+# Returns the ankle/foot pivot node for leg slots (null for all other slots).
+# Auto-creates the Foot node under the Shin when the base scene predates it
+# (older instances / enemy dummies built before the ankle joint existed).
+func _get_slot_foot_parent_node(slot_name: String) -> Node3D:
+	var mecha = get_parent()
+	if not mecha:
+		return null
+	var path: String = _FOOT_NODE_NAMES.get(slot_name.to_lower(), "")
+	if path == "":
+		return null
+	var foot: Node3D = mecha.get_node_or_null(path) as Node3D
+	if foot == null:
+		var shin := _get_slot_lower_parent_node(slot_name)
+		if shin == null:
+			return null
+		foot = Node3D.new()
+		foot.name = "FootLeft" if slot_name.to_lower() == "leg_left" else "FootRight"
+		# Ankle height in Shin-local space: the old ankle actuator sat at
+		# container-local -0.53 inside the WORLD_SCALE (1.68) container, so the
+		# pivot sits at -0.53 * WORLD_SCALE to keep world placement identical.
+		foot.position = Vector3(0, -0.53 * WORLD_SCALE, 0)
+		shin.add_child(foot)
+	return foot
 
 
 func _clear_children(node: Node) -> void:
@@ -810,8 +902,10 @@ func _show_inner_frame(slot_name: String) -> void:
 		return
 	if entry["armor"]: entry["armor"].visible = false
 	if entry.get("armor_lower") and entry["armor_lower"]: entry["armor_lower"].visible = false
+	if entry.get("armor_foot") and entry["armor_foot"]: entry["armor_foot"].visible = false
 	if entry["frame"]: entry["frame"].visible = true
 	if entry.get("frame_lower") and entry["frame_lower"]: entry["frame_lower"].visible = true
+	if entry.get("frame_foot") and entry["frame_foot"]: entry["frame_foot"].visible = true
 
 
 # True when `slot_name` is rendering the translucent ghost frame — i.e. ghost
@@ -859,7 +953,7 @@ func _apply_ghost_material(slot_name: String) -> void:
 	if entry == null:
 		return
 	var ghost_mat := _get_ghost_frame_material()
-	for container in [entry["frame"], entry.get("frame_lower")]:
+	for container in [entry["frame"], entry.get("frame_lower"), entry.get("frame_foot")]:
 		if container != null:
 			_apply_material_recursive(container, ghost_mat)
 
@@ -1212,7 +1306,7 @@ func _create_cockpit_pilot_mannequin() -> Node3D:
 # ==============================================================================
 # SKELETAL INNER FRAME GENERATOR (UPPER + LOWER JOINT SPLIT)
 # ==============================================================================
-func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, lower_container: Node3D = null, frame_data: Variant = null) -> void:
+func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, lower_container: Node3D = null, frame_data: Variant = null, foot_container: Node3D = null) -> void:
 	var frame_mat = _get_dark_frame_material()
 	var chrome_mat = _get_chrome_material()
 	var eye_mat = _get_eye_sensor_material()
@@ -1578,9 +1672,11 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 
 			# --- PELVIS / HIP GIRDLE CHASSIS (connects waist directly to leg hip pivots X = ±0.529, Y = -0.518) ---
 			# 1. Central Pelvis / Sacrum Core
+			# Wanzer rebalance: widened/deepened (Y unchanged) so the pelvis
+			# properly connects the fixed torso to the thicker thighs.
 			var pelvis = MeshInstance3D.new()
 			var p_box = BoxMesh.new()
-			p_box.size = Vector3(0.52, 0.22, 0.36)
+			p_box.size = Vector3(0.60, 0.22, 0.40)
 			pelvis.mesh = p_box
 			pelvis.position = Vector3(0, -0.48, 0)
 			pelvis.material_override = frame_mat
@@ -1589,8 +1685,8 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 			# 2. Transverse Hip Axle Beam bridging from waist to left & right hip joints
 			var hip_axle = MeshInstance3D.new()
 			var a_cyl = CylinderMesh.new()
-			a_cyl.top_radius = 0.11
-			a_cyl.bottom_radius = 0.11
+			a_cyl.top_radius = 0.13
+			a_cyl.bottom_radius = 0.13
 			a_cyl.height = 1.10
 			hip_axle.mesh = a_cyl
 			hip_axle.rotation_degrees.z = 90
@@ -1602,9 +1698,9 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 			for hip_sign in [-1.0, 1.0]:
 				var hip_socket = MeshInstance3D.new()
 				var hs_cyl = CylinderMesh.new()
-				hs_cyl.top_radius = 0.20
-				hs_cyl.bottom_radius = 0.20
-				hs_cyl.height = 0.16
+				hs_cyl.top_radius = 0.24
+				hs_cyl.bottom_radius = 0.24
+				hs_cyl.height = 0.18
 				hip_socket.mesh = hs_cyl
 				hip_socket.rotation_degrees.z = 90
 				hip_socket.position = Vector3(hip_sign * 0.529, -0.518, 0)
@@ -1635,19 +1731,21 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 
 		"arm_left", "arm_right":
 			# --- UPPER ARM SEGMENT (Attaches to Shoulder Pivot ArmLeft/ArmRight) ---
+			# Wanzer rebalance: width/depth scaled UP to match the fixed torso
+			# and the carried weapons. Lengths (Y) are unchanged.
 			var shoulder_joint = MeshInstance3D.new()
 			var s_sphere = SphereMesh.new()
-			s_sphere.radius = 0.18
-			s_sphere.height = 0.36
+			s_sphere.radius = 0.23
+			s_sphere.height = 0.46
 			shoulder_joint.mesh = s_sphere
 			shoulder_joint.material_override = frame_mat
 			upper_container.add_child(shoulder_joint)
 
 			var shoulder_bolt = MeshInstance3D.new()
 			var b_cyl = CylinderMesh.new()
-			b_cyl.top_radius = 0.18
-			b_cyl.bottom_radius = 0.18
-			b_cyl.height = 0.10
+			b_cyl.top_radius = 0.22
+			b_cyl.bottom_radius = 0.22
+			b_cyl.height = 0.14
 			shoulder_bolt.mesh = b_cyl
 			shoulder_bolt.rotation_degrees.z = 90
 			shoulder_bolt.material_override = chrome_mat
@@ -1655,7 +1753,7 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 
 			var upper_arm = MeshInstance3D.new()
 			var u_box = BoxMesh.new()
-			u_box.size = Vector3(0.20, 0.40, 0.20)
+			u_box.size = Vector3(0.30, 0.40, 0.30)
 			upper_arm.mesh = u_box
 			upper_arm.position = Vector3(0, -0.19, 0)
 			upper_arm.material_override = frame_mat
@@ -1665,9 +1763,9 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 			if lower_container:
 				var elbow_disc = MeshInstance3D.new()
 				var e_cyl = CylinderMesh.new()
-				e_cyl.top_radius = 0.13
-				e_cyl.bottom_radius = 0.13
-				e_cyl.height = 0.14
+				e_cyl.top_radius = 0.16
+				e_cyl.bottom_radius = 0.16
+				e_cyl.height = 0.18
 				elbow_disc.mesh = e_cyl
 				elbow_disc.rotation_degrees.z = 90
 				elbow_disc.position = Vector3(0, 0, 0)
@@ -1676,7 +1774,7 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 
 				var forearm_frame = MeshInstance3D.new()
 				var f_box = BoxMesh.new()
-				f_box.size = Vector3(0.22, 0.45, 0.22)
+				f_box.size = Vector3(0.32, 0.45, 0.32)
 				forearm_frame.mesh = f_box
 				forearm_frame.position = Vector3(0, -0.225, 0)
 				forearm_frame.material_override = frame_mat
@@ -1684,39 +1782,41 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 
 				var hand_block = MeshInstance3D.new()
 				var h_box = BoxMesh.new()
-				h_box.size = Vector3(0.16, 0.16, 0.18)
+				h_box.size = Vector3(0.20, 0.18, 0.22)
 				hand_block.mesh = h_box
-				hand_block.position = Vector3(0, -0.46, 0)
+				hand_block.position = Vector3(0, -0.47, 0)
 				hand_block.material_override = chrome_mat
 				lower_container.add_child(hand_block)
 
 		"leg_left", "leg_right":
 			# --- UPPER LEG SEGMENT (Attaches to Hip Pivot LegLeft/LegRight) ---
+			# Wanzer rebalance: width/depth scaled UP for load-bearing mass.
+			# Lengths (Y) are unchanged so stride and ground contact are kept.
 			var hip_joint = MeshInstance3D.new()
 			var h_sphere = SphereMesh.new()
-			h_sphere.radius = 0.19
-			h_sphere.height = 0.38
+			h_sphere.radius = 0.24
+			h_sphere.height = 0.48
 			hip_joint.mesh = h_sphere
 			hip_joint.material_override = frame_mat
 			upper_container.add_child(hip_joint)
 
 			var thigh_frame = MeshInstance3D.new()
 			var t_box = BoxMesh.new()
-			t_box.size = Vector3(0.24, 0.44, 0.26)
+			t_box.size = Vector3(0.36, 0.44, 0.38)
 			thigh_frame.mesh = t_box
 			thigh_frame.position = Vector3(0, -0.275, 0)
 			thigh_frame.material_override = frame_mat
 			upper_container.add_child(thigh_frame)
 
 			# Twin hydraulic struts on thigh back
-			for strut_x in [-0.06, 0.06]:
+			for strut_x in [-0.09, 0.09]:
 				var t_strut = MeshInstance3D.new()
 				var ts_cyl = CylinderMesh.new()
-				ts_cyl.top_radius = 0.024
-				ts_cyl.bottom_radius = 0.024
+				ts_cyl.top_radius = 0.028
+				ts_cyl.bottom_radius = 0.028
 				ts_cyl.height = 0.36
 				t_strut.mesh = ts_cyl
-				t_strut.position = Vector3(strut_x, -0.275, 0.11)
+				t_strut.position = Vector3(strut_x, -0.275, 0.15)
 				t_strut.material_override = chrome_mat
 				upper_container.add_child(t_strut)
 
@@ -1725,9 +1825,9 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 				# Heavy rotary actuator knee disc
 				var knee_disc = MeshInstance3D.new()
 				var k_cyl = CylinderMesh.new()
-				k_cyl.top_radius = 0.15
-				k_cyl.bottom_radius = 0.15
-				k_cyl.height = 0.16
+				k_cyl.top_radius = 0.19
+				k_cyl.bottom_radius = 0.19
+				k_cyl.height = 0.20
 				knee_disc.mesh = k_cyl
 				knee_disc.rotation_degrees.z = 90
 				knee_disc.position = Vector3(0, 0, 0)
@@ -1736,85 +1836,113 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 
 				var shin_frame = MeshInstance3D.new()
 				var s_box = BoxMesh.new()
-				s_box.size = Vector3(0.24, 0.44, 0.24)
+				s_box.size = Vector3(0.36, 0.44, 0.36)
 				shin_frame.mesh = s_box
 				shin_frame.position = Vector3(0, -0.275, 0)
 				shin_frame.material_override = frame_mat
 				lower_container.add_child(shin_frame)
 
 				# Dual shock-absorber dampers behind shin
-				for damper_x in [-0.06, 0.06]:
+				for damper_x in [-0.09, 0.09]:
 					var damper = MeshInstance3D.new()
 					var d_cyl = CylinderMesh.new()
-					d_cyl.top_radius = 0.024
-					d_cyl.bottom_radius = 0.024
+					d_cyl.top_radius = 0.028
+					d_cyl.bottom_radius = 0.028
 					d_cyl.height = 0.40
 					damper.mesh = d_cyl
-					damper.position = Vector3(damper_x, -0.275, 0.11)
+					damper.position = Vector3(damper_x, -0.275, 0.15)
 					damper.material_override = chrome_mat
 					lower_container.add_child(damper)
 
+			# --- ANKLE + FOOT (separate movable part on the Foot pivot) ---
+			# Foot meshes live in foot_container (child of the Foot node at
+			# ankle height) so the foot pivots independently of the shin.
+			# Positions below are Foot-local (ankle = origin).
+			var foot_parent := foot_container if foot_container != null else lower_container
+			var foot_y_off := -0.53 if foot_container != null else 0.0
+			if foot_parent:
 				var ankle = MeshInstance3D.new()
+				ankle.name = "AnkleJoint"
 				var a_cyl = CylinderMesh.new()
-				a_cyl.top_radius = 0.11
-				a_cyl.bottom_radius = 0.11
-				a_cyl.height = 0.10
+				a_cyl.top_radius = 0.15
+				a_cyl.bottom_radius = 0.15
+				a_cyl.height = 0.14
 				ankle.mesh = a_cyl
-				ankle.position = Vector3(0, -0.53, 0)
+				ankle.rotation_degrees.z = 90
+				ankle.position = Vector3(0, 0, 0) if foot_container != null else Vector3(0, -0.53, 0)
 				ankle.material_override = chrome_mat
-				lower_container.add_child(ankle)
+				foot_parent.add_child(ankle)
+
+				# Ankle side pivot flanges (visible mechanical connection)
+				for flange_x in [-0.16, 0.16]:
+					var flange = MeshInstance3D.new()
+					flange.name = "AnkleFlange"
+					var fl_cyl = CylinderMesh.new()
+					fl_cyl.top_radius = 0.05
+					fl_cyl.bottom_radius = 0.05
+					fl_cyl.height = 0.05
+					flange.mesh = fl_cyl
+					flange.rotation_degrees.z = 90
+					flange.position = Vector3(flange_x, 0, 0) if foot_container != null else Vector3(flange_x, -0.53, 0)
+					flange.material_override = frame_mat
+					foot_parent.add_child(flange)
 
 				# Walking Tank Broad Skid Foot with Outriggers & Roller Housing
 				var foot_block = MeshInstance3D.new()
+				foot_block.name = "FootBlock"
 				var ft_box = BoxMesh.new()
-				ft_box.size = Vector3(0.28, 0.06, 0.42)
+				ft_box.size = Vector3(0.36, 0.08, 0.50)
 				foot_block.mesh = ft_box
-				foot_block.position = Vector3(0, -0.58, -0.04)
+				foot_block.position = Vector3(0, -0.58 - foot_y_off, -0.04)
 				foot_block.material_override = frame_mat
-				lower_container.add_child(foot_block)
+				foot_parent.add_child(foot_block)
 
 				# Left & Right ski runners / outrigger stabilizer rails
-				for skid_x in [-0.15, 0.15]:
+				for skid_x in [-0.19, 0.19]:
 					var skid_rail = MeshInstance3D.new()
+					skid_rail.name = "FootSkid"
 					var sr_box = BoxMesh.new()
-					sr_box.size = Vector3(0.04, 0.09, 0.46)
+					sr_box.size = Vector3(0.05, 0.10, 0.54)
 					skid_rail.mesh = sr_box
-					skid_rail.position = Vector3(skid_x, -0.57, -0.04)
+					skid_rail.position = Vector3(skid_x, -0.57 - foot_y_off, -0.04)
 					skid_rail.material_override = chrome_mat
-					lower_container.add_child(skid_rail)
+					foot_parent.add_child(skid_rail)
 
 				# Front roller skate wheel pod
 				var roller_pod = MeshInstance3D.new()
+				roller_pod.name = "FootRoller"
 				var rp_cyl = CylinderMesh.new()
-				rp_cyl.top_radius = 0.045
-				rp_cyl.bottom_radius = 0.045
-				rp_cyl.height = 0.24
+				rp_cyl.top_radius = 0.055
+				rp_cyl.bottom_radius = 0.055
+				rp_cyl.height = 0.30
 				roller_pod.mesh = rp_cyl
 				roller_pod.rotation_degrees.z = 90
-				roller_pod.position = Vector3(0, -0.59, -0.22)
+				roller_pod.position = Vector3(0, -0.59 - foot_y_off, -0.24)
 				roller_pod.material_override = chrome_mat
-				lower_container.add_child(roller_pod)
+				foot_parent.add_child(roller_pod)
 
 				# Rear heel skid block
 				var heel = MeshInstance3D.new()
+				heel.name = "FootHeel"
 				var h_box = BoxMesh.new()
-				h_box.size = Vector3(0.22, 0.06, 0.14)
+				h_box.size = Vector3(0.28, 0.07, 0.16)
 				heel.mesh = h_box
-				heel.position = Vector3(0, -0.58, 0.18)
+				heel.position = Vector3(0, -0.58 - foot_y_off, 0.20)
 				heel.rotation_degrees.x = 10
 				heel.material_override = frame_mat
-				lower_container.add_child(heel)
+				foot_parent.add_child(heel)
 
 				# Front toe clamp claws
-				for claw_x in [-0.09, 0.09]:
+				for claw_x in [-0.11, 0.11]:
 					var claw = MeshInstance3D.new()
+					claw.name = "FootClaw"
 					var c_box = BoxMesh.new()
-					c_box.size = Vector3(0.05, 0.05, 0.16)
+					c_box.size = Vector3(0.06, 0.06, 0.18)
 					claw.mesh = c_box
-					claw.position = Vector3(claw_x, -0.59, -0.24)
+					claw.position = Vector3(claw_x, -0.59 - foot_y_off, -0.27)
 					claw.rotation_degrees.x = -15
 					claw.material_override = frame_mat
-					lower_container.add_child(claw)
+					foot_parent.add_child(claw)
 
 		_:
 			var box = BoxMesh.new()
@@ -1828,7 +1956,7 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 # ==============================================================================
 # MODULAR OUTER ARMOR GENERATOR (UPPER + LOWER JOINT SPLIT)
 # ==============================================================================
-func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, lower_container: Node3D = null, part: ArmorPart = null) -> void:
+func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, lower_container: Node3D = null, part: ArmorPart = null, foot_container: Node3D = null) -> void:
 	var col = Color(0.28, 0.32, 0.38) # Sleek Titanium Gunmetal
 	if part and "part_color" in part and part.part_color != Color.TRANSPARENT and part.part_color.a > 0.1:
 		col = part.part_color
@@ -1945,19 +2073,20 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 				upper_container.add_child(shoulder_cowl)
 
 			# Pelvis chassis & hip girdle (bridges waist to leg hip joints)
+			# Wanzer rebalance: widened (Y unchanged) to meet the thicker thighs.
 			var pelvis_armor = MeshInstance3D.new()
 			var p_box = BoxMesh.new()
-			p_box.size = Vector3(0.68, 0.24, 0.36)
+			p_box.size = Vector3(0.76, 0.24, 0.40)
 			pelvis_armor.mesh = p_box
 			pelvis_armor.position = Vector3(0, -0.48, -0.04)
 			pelvis_armor.material_override = dark_trim_mat
 			upper_container.add_child(pelvis_armor)
 
 			# Left & right articulated hip skirts (cover hip sockets and connect waist to thighs)
-			for side_x in [-0.50, 0.50]:
+			for side_x in [-0.54, 0.54]:
 				var skirt = MeshInstance3D.new()
 				var sk_box = BoxMesh.new()
-				sk_box.size = Vector3(0.12, 0.34, 0.38)
+				sk_box.size = Vector3(0.13, 0.34, 0.42)
 				skirt.mesh = sk_box
 				skirt.position = Vector3(side_x, -0.48, -0.02)
 				skirt.rotation_degrees.z = -12.0 if side_x < 0 else 12.0
@@ -1969,9 +2098,11 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 			var dir_sign = -1.0 if is_left else 1.0
 
 			# --- UPPER ARM ARMOR (Shoulder Pauldron attached to ArmLeft/ArmRight) ---
+			# Wanzer rebalance: thickened in width/depth (Y unchanged) so the
+			# arm carries enough mass for its weapon.
 			var pauldron = MeshInstance3D.new()
 			var p_box = BoxMesh.new()
-			p_box.size = Vector3(0.48, 0.34, 0.48)
+			p_box.size = Vector3(0.56, 0.36, 0.56)
 			pauldron.mesh = p_box
 			pauldron.position = Vector3(dir_sign * 0.08, 0.04, 0)
 			pauldron.material_override = armor_mat
@@ -1979,9 +2110,9 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 
 			var trim = MeshInstance3D.new()
 			var t_box = BoxMesh.new()
-			t_box.size = Vector3(0.52, 0.10, 0.52)
+			t_box.size = Vector3(0.60, 0.10, 0.60)
 			trim.mesh = t_box
-			trim.position = Vector3(dir_sign * 0.08, 0.16, 0)
+			trim.position = Vector3(dir_sign * 0.08, 0.17, 0)
 			trim.material_override = dark_trim_mat
 			upper_container.add_child(trim)
 
@@ -1989,7 +2120,7 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 			if lower_container:
 				var forearm_guard = MeshInstance3D.new()
 				var fg_box = BoxMesh.new()
-				fg_box.size = Vector3(0.34, 0.46, 0.34)
+				fg_box.size = Vector3(0.42, 0.46, 0.42)
 				forearm_guard.mesh = fg_box
 				forearm_guard.position = Vector3(0, -0.225, 0)
 				forearm_guard.material_override = armor_mat
@@ -1997,15 +2128,15 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 
 				var elbow_cap = MeshInstance3D.new()
 				var ec_box = BoxMesh.new()
-				ec_box.size = Vector3(0.26, 0.16, 0.12)
+				ec_box.size = Vector3(0.30, 0.18, 0.14)
 				elbow_cap.mesh = ec_box
-				elbow_cap.position = Vector3(0, 0, 0.14)
+				elbow_cap.position = Vector3(0, 0, 0.16)
 				elbow_cap.material_override = dark_trim_mat
 				lower_container.add_child(elbow_cap)
 
 				var knuckle = MeshInstance3D.new()
 				var k_box = BoxMesh.new()
-				k_box.size = Vector3(0.18, 0.06, 0.18)
+				k_box.size = Vector3(0.22, 0.07, 0.22)
 				knuckle.mesh = k_box
 				knuckle.position = Vector3(0, -0.45, -0.02)
 				knuckle.material_override = armor_mat
@@ -2013,18 +2144,19 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 
 		"leg_left", "leg_right":
 			# --- UPPER LEG ARMOR (Thigh Guard attached to LegLeft/LegRight) ---
+			# Wanzer rebalance: thickened in width/depth (Y unchanged).
 			var thigh_armor = MeshInstance3D.new()
 			var ta_box = BoxMesh.new()
-			ta_box.size = Vector3(0.36, 0.44, 0.36)
+			ta_box.size = Vector3(0.48, 0.44, 0.48)
 			thigh_armor.mesh = ta_box
 			thigh_armor.position = Vector3(0, -0.275, 0)
 			thigh_armor.material_override = armor_mat
 			upper_container.add_child(thigh_armor)
 
-			for side_x in [-0.19, 0.19]:
+			for side_x in [-0.25, 0.25]:
 				var t_side = MeshInstance3D.new()
 				var ts_box = BoxMesh.new()
-				ts_box.size = Vector3(0.06, 0.38, 0.28)
+				ts_box.size = Vector3(0.07, 0.38, 0.36)
 				t_side.mesh = ts_box
 				t_side.position = Vector3(side_x, -0.275, 0)
 				t_side.material_override = dark_trim_mat
@@ -2034,56 +2166,77 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 			if lower_container:
 				var knee_cap = MeshInstance3D.new()
 				var k_prism = PrismMesh.new()
-				k_prism.size = Vector3(0.30, 0.26, 0.24)
+				k_prism.size = Vector3(0.38, 0.28, 0.30)
 				knee_cap.mesh = k_prism
 				knee_cap.rotation_degrees.x = 90
-				knee_cap.position = Vector3(0, 0, 0.15)
+				knee_cap.position = Vector3(0, 0, 0.17)
 				knee_cap.material_override = armor_mat
 				lower_container.add_child(knee_cap)
 
 				var shin_armor = MeshInstance3D.new()
 				var sa_box = BoxMesh.new()
-				sa_box.size = Vector3(0.36, 0.48, 0.34)
+				sa_box.size = Vector3(0.48, 0.48, 0.46)
 				shin_armor.mesh = sa_box
 				shin_armor.position = Vector3(0, -0.275, 0.04)
 				shin_armor.material_override = armor_mat
 				lower_container.add_child(shin_armor)
 
-				for side_x in [-0.19, 0.19]:
+				for side_x in [-0.25, 0.25]:
 					var calf_plate = MeshInstance3D.new()
 					var cp_box = BoxMesh.new()
-					cp_box.size = Vector3(0.06, 0.36, 0.24)
+					cp_box.size = Vector3(0.07, 0.36, 0.32)
 					calf_plate.mesh = cp_box
 					calf_plate.position = Vector3(side_x, -0.275, 0.02)
 					calf_plate.material_override = dark_trim_mat
 					lower_container.add_child(calf_plate)
 
+			# --- FOOT ARMOR (separate movable part on the Foot pivot) ---
+			# Positions are Foot-local (ankle = origin); world placement is
+			# unchanged from the old Shin-local layout.
+			var foot_armor_parent := foot_container if foot_container != null else lower_container
+			var foot_armor_off := -0.53 if foot_container != null else 0.0
+			if foot_armor_parent:
+				# Ankle cuff armor ringing the joint
+				var ankle_cuff = MeshInstance3D.new()
+				ankle_cuff.name = "AnkleCuff"
+				var ac_cyl = CylinderMesh.new()
+				ac_cyl.top_radius = 0.19
+				ac_cyl.bottom_radius = 0.21
+				ac_cyl.height = 0.10
+				ankle_cuff.mesh = ac_cyl
+				ankle_cuff.position = Vector3(0, -0.02, 0) if foot_container != null else Vector3(0, -0.53, 0)
+				ankle_cuff.material_override = dark_trim_mat
+				foot_armor_parent.add_child(ankle_cuff)
+
 				# Wide Walking Tank Skid Foot Armor
 				var foot_cap = MeshInstance3D.new()
+				foot_cap.name = "FootCap"
 				var fc_box = BoxMesh.new()
-				fc_box.size = Vector3(0.32, 0.10, 0.42)
+				fc_box.size = Vector3(0.40, 0.12, 0.52)
 				foot_cap.mesh = fc_box
-				foot_cap.position = Vector3(0, -0.56, -0.04)
+				foot_cap.position = Vector3(0, -0.56 - foot_armor_off, -0.04)
 				foot_cap.material_override = armor_mat
-				lower_container.add_child(foot_cap)
+				foot_armor_parent.add_child(foot_cap)
 
-				for skid_x in [-0.17, 0.17]:
+				for skid_x in [-0.21, 0.21]:
 					var skid_guard = MeshInstance3D.new()
+					skid_guard.name = "FootSkidGuard"
 					var sg_box = BoxMesh.new()
-					sg_box.size = Vector3(0.05, 0.08, 0.46)
+					sg_box.size = Vector3(0.06, 0.09, 0.56)
 					skid_guard.mesh = sg_box
-					skid_guard.position = Vector3(skid_x, -0.56, -0.04)
+					skid_guard.position = Vector3(skid_x, -0.56 - foot_armor_off, -0.04)
 					skid_guard.material_override = dark_trim_mat
-					lower_container.add_child(skid_guard)
+					foot_armor_parent.add_child(skid_guard)
 
 				var toe_deflector = MeshInstance3D.new()
+				toe_deflector.name = "FootToe"
 				var td_box = BoxMesh.new()
-				td_box.size = Vector3(0.28, 0.07, 0.14)
+				td_box.size = Vector3(0.34, 0.08, 0.16)
 				toe_deflector.mesh = td_box
-				toe_deflector.position = Vector3(0, -0.57, -0.24)
+				toe_deflector.position = Vector3(0, -0.57 - foot_armor_off, -0.27)
 				toe_deflector.rotation_degrees.x = -15
 				toe_deflector.material_override = dark_trim_mat
-				lower_container.add_child(toe_deflector)
+				foot_armor_parent.add_child(toe_deflector)
 
 		_:
 			var box = BoxMesh.new()
@@ -2116,21 +2269,21 @@ var _binding_templates: Dictionary = {
 		{"pos": Vector3(0, -0.1, 0), "rot": Vector3(0, 0, 0), "scale": Vector3(0.35, 0.06, 0.32), "color": BINDING_COLOR_DARK},
 	],
 	"arm_left": [
-		{"pos": Vector3(0, 0.1, 0), "rot": Vector3(0, 0, 0.15), "scale": Vector3(0.14, 0.05, 0.14), "color": BINDING_COLOR_LIGHT},
-		{"pos": Vector3(0, -0.15, 0), "rot": Vector3(0, 0, -0.1), "scale": Vector3(0.12, 0.04, 0.12), "color": BINDING_COLOR_ACCENT},
+		{"pos": Vector3(0, 0.1, 0), "rot": Vector3(0, 0, 0.15), "scale": Vector3(0.18, 0.05, 0.18), "color": BINDING_COLOR_LIGHT},
+		{"pos": Vector3(0, -0.15, 0), "rot": Vector3(0, 0, -0.1), "scale": Vector3(0.16, 0.04, 0.16), "color": BINDING_COLOR_ACCENT},
 	],
 	"arm_right": [
-		{"pos": Vector3(0, 0.1, 0), "rot": Vector3(0, 0, -0.15), "scale": Vector3(0.14, 0.05, 0.14), "color": BINDING_COLOR_LIGHT},
-		{"pos": Vector3(0, -0.15, 0), "rot": Vector3(0, 0, 0.1), "scale": Vector3(0.12, 0.04, 0.12), "color": BINDING_COLOR_ACCENT},
+		{"pos": Vector3(0, 0.1, 0), "rot": Vector3(0, 0, -0.15), "scale": Vector3(0.18, 0.05, 0.18), "color": BINDING_COLOR_LIGHT},
+		{"pos": Vector3(0, -0.15, 0), "rot": Vector3(0, 0, 0.1), "scale": Vector3(0.16, 0.04, 0.16), "color": BINDING_COLOR_ACCENT},
 	],
 	"leg_left": [
-		{"pos": Vector3(0, 0.15, 0), "rot": Vector3(0, 0, 0), "scale": Vector3(0.16, 0.05, 0.16), "color": BINDING_COLOR_DARK},
-		{"pos": Vector3(0, -0.2, 0), "rot": Vector3(0, 0, 0), "scale": Vector3(0.14, 0.04, 0.14), "color": BINDING_COLOR_LIGHT},
+		{"pos": Vector3(0, 0.15, 0), "rot": Vector3(0, 0, 0), "scale": Vector3(0.21, 0.05, 0.21), "color": BINDING_COLOR_DARK},
+		{"pos": Vector3(0, -0.2, 0), "rot": Vector3(0, 0, 0), "scale": Vector3(0.19, 0.04, 0.19), "color": BINDING_COLOR_LIGHT},
 	],
 	"leg_right": [
-		{"pos": Vector3(0, 0.15, 0), "rot": Vector3(0, 0, 0), "scale": Vector3(0.16, 0.05, 0.16), "color": BINDING_COLOR_DARK},
-		{"pos": Vector3(0, -0.2, 0), "rot": Vector3(0, 0, 0), "scale": Vector3(0.14, 0.04, 0.14), "color": BINDING_COLOR_LIGHT},
-],
+		{"pos": Vector3(0, 0.15, 0), "rot": Vector3(0, 0, 0), "scale": Vector3(0.21, 0.05, 0.21), "color": BINDING_COLOR_DARK},
+		{"pos": Vector3(0, -0.2, 0), "rot": Vector3(0, 0, 0), "scale": Vector3(0.19, 0.04, 0.19), "color": BINDING_COLOR_LIGHT},
+	],
 }
 
 

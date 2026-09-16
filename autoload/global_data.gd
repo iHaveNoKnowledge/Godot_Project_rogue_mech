@@ -140,10 +140,12 @@ const SCRAP_ATTACH_OPTIONS := {
 	"leg_left": [
 		{"name": "Thigh", "node": "LegLeft"},
 		{"name": "Shin", "node": "LegLeft/ShinLeft"},
+		{"name": "Foot", "node": "LegLeft/ShinLeft/FootLeft"},
 	],
 	"leg_right": [
 		{"name": "Thigh", "node": "LegRight"},
 		{"name": "Shin", "node": "LegRight/ShinRight"},
+		{"name": "Foot", "node": "LegRight/ShinRight/FootRight"},
 	],
 }
 

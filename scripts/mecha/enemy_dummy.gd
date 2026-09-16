@@ -273,21 +273,25 @@ func _ensure_slot_nodes() -> void:
 		"ArmRight/ForearmRight",
 		"LegLeft/ShinLeft",
 		"LegRight/ShinRight",
+		"LegLeft/ShinLeft/FootLeft",
+		"LegRight/ShinRight/FootRight",
 	]
 	var lower_offsets := {
 		"ArmLeft/ForearmLeft": Vector3(0, -0.6384, 0),
 		"ArmRight/ForearmRight": Vector3(0, -0.6384, 0),
 		"LegLeft/ShinLeft": Vector3(0, -0.924, 0),
 		"LegRight/ShinRight": Vector3(0, -0.924, 0),
+		"LegLeft/ShinLeft/FootLeft": Vector3(0, -0.8904, 0),
+		"LegRight/ShinRight/FootRight": Vector3(0, -0.8904, 0),
 	}
 	for node_path in lower_parent_names:
 		if get_node_or_null(node_path) != null:
 			continue
 		var parts_path: PackedStringArray = node_path.split("/")
 		var lower := Node3D.new()
-		lower.name = parts_path[1]
+		lower.name = parts_path[parts_path.size() - 1]
 		lower.position = lower_offsets[node_path]
-		get_node(parts_path[0]).add_child(lower)
+		get_node("/".join(parts_path.slice(0, parts_path.size() - 1))).add_child(lower)
 
 
 # Picks a per-slot frame + armor entry from the catalogs and applies the

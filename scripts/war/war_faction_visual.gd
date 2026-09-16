@@ -14,7 +14,7 @@ static func apply_team_tint(mecha: Node3D, team: String) -> void:
 		var entry = mgr.slot_meshes.get(slot, null)
 		if entry == null:
 			continue
-		for key in ["armor", "armor_lower", "frame", "frame_lower"]:
+		for key in ["armor", "armor_lower", "armor_foot", "frame", "frame_lower", "frame_foot"]:
 			var c = entry.get(key, null)
 			if c is Node3D and is_instance_valid(c):
 				for child in c.get_children():

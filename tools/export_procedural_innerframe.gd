@@ -43,20 +43,27 @@ const LOWER_PIVOTS := {
 	"leg_right": ["ShinRight", Vector3(0, -1.0626, 0)],
 }
 
+## slot -> ankle/foot pivot — mirrors part_mesh_manager._FOOT_NODE_NAMES
+## (Foot hangs off the Shin at ankle height, TRUE WORLD).
+const FOOT_PIVOTS := {
+	"leg_left": ["FootLeft", Vector3(0, -1.024, 0)],
+	"leg_right": ["FootRight", Vector3(0, -1.024, 0)],
+}
+
 ## Piece names in the exact order _build_procedural_inner_frame adds them,
 ## keyed by segment ("upper" = frame container on the upper pivot, "lower" =
-## frame_lower container on the lower pivot). Used to give exported meshes
-## readable names.
+## frame_lower container on the lower pivot, "foot" = frame_foot container on
+## the ankle pivot). Used to give exported meshes readable names.
 const PIECE_LABELS := {
-	"head": {"upper": ["skull", "eye_sensor", "neck"], "lower": []},
+	"head": {"upper": ["skull", "eye_sensor", "neck"], "lower": [], "foot": []},
 	"body": {"upper": [
 		"spine", "rib_top", "rib_mid", "rib_low", "core",
 		"socket_l", "socket_r", "waist", "piston_l", "piston_r",
-	], "lower": []},
-	"arm_left": {"upper": ["shoulder_joint", "shoulder_bolt", "upper_arm"], "lower": ["elbow_disc", "forearm_frame", "hand_block"]},
-	"arm_right": {"upper": ["shoulder_joint", "shoulder_bolt", "upper_arm"], "lower": ["elbow_disc", "forearm_frame", "hand_block"]},
-	"leg_left": {"upper": ["hip_joint", "thigh_frame"], "lower": ["knee_disc", "shin_frame", "damper", "ankle", "foot_block", "claw_inner", "claw_outer", "heel"]},
-	"leg_right": {"upper": ["hip_joint", "thigh_frame"], "lower": ["knee_disc", "shin_frame", "damper", "ankle", "foot_block", "claw_inner", "claw_outer", "heel"]},
+	], "lower": [], "foot": []},
+	"arm_left": {"upper": ["shoulder_joint", "shoulder_bolt", "upper_arm"], "lower": ["elbow_disc", "forearm_frame", "hand_block"], "foot": []},
+	"arm_right": {"upper": ["shoulder_joint", "shoulder_bolt", "upper_arm"], "lower": ["elbow_disc", "forearm_frame", "hand_block"], "foot": []},
+	"leg_left": {"upper": ["hip_joint", "thigh_frame"], "lower": ["knee_disc", "shin_frame", "damper"], "foot": ["ankle", "ankle_flange_l", "ankle_flange_r", "foot_block", "skid_l", "skid_r", "roller", "heel", "claw_l", "claw_r"]},
+	"leg_right": {"upper": ["hip_joint", "thigh_frame"], "lower": ["knee_disc", "shin_frame", "damper"], "foot": ["ankle", "ankle_flange_l", "ankle_flange_r", "foot_block", "skid_l", "skid_r", "roller", "heel", "claw_l", "claw_r"]},
 }
 
 
@@ -99,6 +106,11 @@ func _export_one(out_path: String, scale: float, tag: String) -> bool:
 	# Lower pivots hang off their upper pivot (ForearmLeft under ArmLeft etc.)
 	for slot in LOWER_PIVOTS:
 		_pivot(joint_markers[slot], LOWER_PIVOTS[slot][0], LOWER_PIVOTS[slot][1])
+	# Foot pivots hang off the lower pivot (FootLeft under ShinLeft etc.)
+	var foot_markers := {}
+	for slot in FOOT_PIVOTS:
+		var shin: Node3D = joint_markers[slot].get_node(LOWER_PIVOTS[slot][0])
+		foot_markers[slot] = _pivot(shin, FOOT_PIVOTS[slot][0], FOOT_PIVOTS[slot][1])
 
 	# --- 2. Build the procedural inner frames exactly like in game -----------
 	var manager := Node3D.new()
@@ -119,6 +131,9 @@ func _export_one(out_path: String, scale: float, tag: String) -> bool:
 	for slot in LOWER_PIVOTS:
 		var lp: Node3D = joint_markers[slot].get_node(LOWER_PIVOTS[slot][0])
 		out_root.add_child(_joint_empty("JNT_" + LOWER_PIVOTS[slot][0], lp.global_position))
+	for slot in FOOT_PIVOTS:
+		var fp: Node3D = foot_markers[slot]
+		out_root.add_child(_joint_empty("JNT_" + FOOT_PIVOTS[slot][0], fp.global_position))
 
 	var used_names := {}
 	var total_tris := 0
@@ -130,11 +145,12 @@ func _export_one(out_path: String, scale: float, tag: String) -> bool:
 	for slot in GlobalData.MECHA_SLOTS:
 		var entry: Dictionary = manager.slot_meshes.get(slot, {})
 		var labels: Dictionary = PIECE_LABELS.get(slot, {})
-		for segment in ["frame", "frame_lower"]:
+		for segment in ["frame", "frame_lower", "frame_foot"]:
 			var container: Node3D = entry.get(segment)
 			if container == null:
 				continue
-			var seg_labels: Array = labels.get("upper" if segment == "frame" else "lower", [])
+			var seg_key := "upper" if segment == "frame" else ("lower" if segment == "frame_lower" else "foot")
+			var seg_labels: Array = labels.get(seg_key, [])
 			var idx := 0
 			for child in container.get_children():
 				if not (child is MeshInstance3D) or child.mesh == null:

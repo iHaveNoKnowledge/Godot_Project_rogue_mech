@@ -10,27 +10,31 @@ class_name MechaRagdoll
 const RAGDOLL_MASS: Dictionary = {
 	"head": 15.0,
 	"body": 120.0,
-	"arm_left": 25.0,
-	"arm_right": 25.0,
-	"forearm_left": 18.0,
-	"forearm_right": 18.0,
-	"leg_left": 45.0,
-	"leg_right": 45.0,
-	"shin_left": 30.0,
-	"shin_right": 30.0,
+	"arm_left": 32.0,
+	"arm_right": 32.0,
+	"forearm_left": 24.0,
+	"forearm_right": 24.0,
+	"leg_left": 58.0,
+	"leg_right": 58.0,
+	"shin_left": 40.0,
+	"shin_right": 40.0,
+	"foot_left": 20.0,
+	"foot_right": 20.0,
 }
 
 const RAGDOLL_BOX: Dictionary = {
 	"head": Vector3(0.55, 0.50, 0.55),
 	"body": Vector3(0.95, 1.1, 0.72),
-	"arm_left": Vector3(0.38, 0.55, 0.38),
-	"arm_right": Vector3(0.38, 0.55, 0.38),
-	"forearm_left": Vector3(0.32, 0.48, 0.32),
-	"forearm_right": Vector3(0.32, 0.48, 0.32),
-	"leg_left": Vector3(0.36, 0.50, 0.36),
-	"leg_right": Vector3(0.36, 0.50, 0.36),
-	"shin_left": Vector3(0.34, 0.55, 0.34),
-	"shin_right": Vector3(0.34, 0.55, 0.34),
+	"arm_left": Vector3(0.48, 0.55, 0.48),
+	"arm_right": Vector3(0.48, 0.55, 0.48),
+	"forearm_left": Vector3(0.42, 0.48, 0.42),
+	"forearm_right": Vector3(0.42, 0.48, 0.42),
+	"leg_left": Vector3(0.48, 0.50, 0.48),
+	"leg_right": Vector3(0.48, 0.50, 0.48),
+	"shin_left": Vector3(0.48, 0.55, 0.46),
+	"shin_right": Vector3(0.48, 0.55, 0.46),
+	"foot_left": Vector3(0.42, 0.20, 0.56),
+	"foot_right": Vector3(0.42, 0.20, 0.56),
 }
 
 ## Segments that exist as Node3D pivots in MechaBase / EnemyDummy
@@ -45,6 +49,8 @@ const SEGMENT_NODE_PATH: Dictionary = {
 	"leg_right": "LegRight",
 	"shin_left": "LegLeft/ShinLeft",
 	"shin_right": "LegRight/ShinRight",
+	"foot_left": "LegLeft/ShinLeft/FootLeft",
+	"foot_right": "LegRight/ShinRight/FootRight",
 }
 
 ## Joint connections — PinJoint3D between each parent -> child
@@ -58,6 +64,8 @@ const JOINTS: Array = [
 	["arm_right", "forearm_right"],
 	["leg_left", "shin_left"],
 	["leg_right", "shin_right"],
+	["shin_left", "foot_left"],
+	["shin_right", "foot_right"],
 ]
 
 
@@ -259,6 +267,8 @@ static func _fallback_offset(seg: String) -> Vector3:
 		"leg_right": return Vector3(0.736, 2.507, 0)
 		"shin_left": return Vector3(-0.736, 1.449, 0)
 		"shin_right": return Vector3(0.736, 1.449, 0)
+		"foot_left": return Vector3(-0.736, 0.425, 0)
+		"foot_right": return Vector3(0.736, 0.425, 0)
 		_: return Vector3.ZERO
 
 
@@ -303,7 +313,7 @@ static func _collect_mesh_instances(node: Node) -> Array:
 		for child in node.get_children():
 			if child.name == "ArmorMesh" or child.name == "FrameMesh":
 				continue
-			if child.name.begins_with("Forearm") or child.name.begins_with("Shin"):
+			if child.name.begins_with("Forearm") or child.name.begins_with("Shin") or child.name.begins_with("Foot"):
 				continue
 			if child is Light3D or child is CollisionShape3D or child.is_in_group("pilot"):
 				continue
@@ -326,8 +336,8 @@ static func _collect_recursive(node: Node, into: Array) -> void:
 		# Never recurse into ragdoll plumbing, lights, or pilots
 		if child is Light3D or child is CollisionShape3D or child.is_in_group("pilot"):
 			continue
-		# Also do NOT recurse into child limb segments (e.g. Forearm under Arm, Shin under Leg)
-		if child.name.begins_with("Forearm") or child.name.begins_with("Shin"):
+		# Also do NOT recurse into child limb segments (e.g. Forearm under Arm, Shin under Leg, Foot under Shin)
+		if child.name.begins_with("Forearm") or child.name.begins_with("Shin") or child.name.begins_with("Foot"):
 			continue
 		_collect_recursive(child, into)
 

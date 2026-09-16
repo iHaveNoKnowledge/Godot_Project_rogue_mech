@@ -63,11 +63,11 @@ func _setup_mesh_overlays() -> void:
 	if pmm and "slot_meshes" in pmm:
 		for slot in pmm.slot_meshes:
 			var data: Dictionary = pmm.slot_meshes[slot]
-			for key in ["armor", "armor_lower"]:
+			for key in ["armor", "armor_lower", "armor_foot"]:
 				var container: Node3D = data.get(key)
 				if container:
 					register_slot_container(slot, container, LAYER_ARMOR)
-			for key in ["frame", "frame_lower"]:
+			for key in ["frame", "frame_lower", "frame_foot"]:
 				var container: Node3D = data.get(key)
 				if container:
 					register_slot_container(slot, container, LAYER_FRAME)

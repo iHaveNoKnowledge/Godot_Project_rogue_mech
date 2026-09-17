@@ -2,6 +2,7 @@ class_name HangarStatsPanel
 extends RefCounted
 
 const PartPenaltySystem = preload("res://scripts/systems/part_penalty_system.gd")
+const FrameSetSys = preload("res://scripts/systems/frame_set_system.gd")
 
 ## Total mech stats aggregation for the hangar right sidebar: sums frame/armor/
 ## attachment/weapon weights and HP, then repaints the weight bar and the
@@ -120,10 +121,29 @@ func update() -> void:
 		var total_penalties := ""
 		if not active_penalties.is_empty():
 			total_penalties = "\n[color=#ff5555]" + "\n".join(active_penalties) + "[/color]"
-		controller.total_stats_label.text = "PILOT: %s\nFRAME LVL: %d | FRAME HP: %s | ARMOR HP: %s\nTOTAL WEIGHT: %.1f / %.1f kg\nFIELD PACK: %.1f / %.1f kg\nCREDITS: %d cr   |   SCRAP: %d%s" % [
+
+		var set_summary := ""
+		var active_bonuses := FrameSetSys.get_active_set_bonuses()
+		if not active_bonuses.is_empty():
+			var counts := FrameSetSys.get_equipped_set_counts()
+			var set_tags: Array[String] = []
+			for sid in counts:
+				var def := FrameSetSys.get_set_definition(sid)
+				var sname: String = str(def.get("name", sid.capitalize()))
+				var tiers := FrameSetSys.get_active_set_tiers(sid)
+				if not tiers.is_empty():
+					var tier_strs: Array[String] = []
+					for t in tiers:
+						tier_strs.append("%dP" % t)
+					set_tags.append("[color=#00e5ff]%s (%d/6: %s)[/color]" % [sname, counts[sid], "+".join(tier_strs)])
+			if not set_tags.is_empty():
+				set_summary = "\nFRAME SETS: " + ", ".join(set_tags)
+
+		controller.total_stats_label.text = "PILOT: %s\nFRAME LVL: %d | FRAME HP: %s | ARMOR HP: %s\nTOTAL WEIGHT: %.1f / %.1f kg\nFIELD PACK: %.1f / %.1f kg\nCREDITS: %d cr   |   SCRAP: %d%s%s" % [
 			_editing_pilot_name(), GlobalData.weapons.frame_upgrade_level, fhp_str, ahp_str,
 			total_weight, max_weight,
 			field_pack_weight, field_pack_capacity,
 			GlobalData.currency.credits, GlobalData.currency.scrap,
-			total_penalties
+			total_penalties,
+			set_summary
 		]

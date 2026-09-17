@@ -324,11 +324,15 @@ static func ensure_frame_data_schema(entry: Dictionary, slot_hint: String = "") 
 		return entry
 	var out := entry.duplicate(true)
 	var fid: String = str(out.get("id", ""))
-	if not out.has("frame_set_id"):
-		if fid.contains("valkyrion"):
+	if not out.has("frame_set_id") or str(out["frame_set_id"]).strip_edges() == "":
+		var ftype := str(out.get("type", "")).to_lower()
+		var fname := str(out.get("name", "")).to_lower()
+		if fid.contains("valkyrion") or ftype.contains("valkyrion") or fname.contains("alaya"):
 			out["frame_set_id"] = "valkyrion"
-		elif fid.contains("vagrant"):
+		elif fid.contains("vagrant") or ftype.contains("pre-cog") or fname.contains("scrap pilgrim"):
 			out["frame_set_id"] = "vagrant"
+		elif fid.contains("_04") or ftype.contains("heavy") or fname.contains("fortress") or fname.contains("siege"):
+			out["frame_set_id"] = "heavy"
 		else:
 			out["frame_set_id"] = "standard"
 	if not out.has("recoil_resistance"):

@@ -335,6 +335,8 @@ static func ensure_frame_data_schema(entry: Dictionary, slot_hint: String = "") 
 		out["recoil_resistance"] = 0.0
 	if not out.has("max_armor_capacity"):
 		out["max_armor_capacity"] = float(out.get("hp", 50.0)) * 2.0
+	if not out.has("max_armor_weight"):
+		out["max_armor_weight"] = float(out.get("weight", 4.0)) * 2.5
 	if not out.has("module_slots"):
 		var s: String = slot_hint if slot_hint != "" else str(out.get("slot", ""))
 		out["module_slots"] = 3 if (s == "body" or s == "torso") else 1
@@ -342,8 +344,21 @@ static func ensure_frame_data_schema(entry: Dictionary, slot_hint: String = "") 
 		out["generator_compatibility"] = ["all"]
 	if not out.has("backpack_compatibility"):
 		out["backpack_compatibility"] = ["all"]
-	if not out.has("frame_tags"):
-		out["frame_tags"] = []
+	if not out.has("frame_tags") or (out["frame_tags"] is Array and (out["frame_tags"] as Array).is_empty()):
+		var tags: Array = []
+		var ftype := str(out.get("type", "")).to_lower()
+		var fname := str(out.get("name", "")).to_lower()
+		if ftype.contains("heavy") or fname.contains("heavy") or fname.contains("titan"):
+			tags.append("heavy")
+		elif ftype.contains("medium"):
+			tags.append("medium")
+		elif ftype.contains("light"):
+			tags.append("light")
+		elif ftype.contains("valkyrion") or ftype.contains("pre-cog") or fname.contains("alaya"):
+			tags.append("experimental")
+		else:
+			tags.append("standard")
+		out["frame_tags"] = tags
 	if not out.has("base_frame_id"):
 		out["base_frame_id"] = fid
 	if not out.has("modifications"):
@@ -528,16 +543,19 @@ var frame_property_catalog: Array = [
 
 
 func get_slot_frame_sockets(slot: String) -> int:
-	return FrameModuleSys.get_socket_count(slot)
+	var fdict = weapons.equipped_frames.get(slot)
+	if fdict is Dictionary and fdict.has("sockets"):
+		return int(fdict.get("sockets", 2))
+	return 2
 
 
 func get_frame_property_entry(mod_id: String) -> Dictionary:
-	var entry := FrameModuleSys.get_module(mod_id)
-	if not entry.is_empty():
-		return entry
 	for e in frame_property_catalog:
 		if e.get("id", "") == mod_id:
 			return e
+	var entry := FrameModuleSys.get_module(mod_id)
+	if not entry.is_empty():
+		return entry
 	return {}
 
 

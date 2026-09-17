@@ -1,6 +1,8 @@
 class_name FrameModuleSystem
 extends RefCounted
 
+const FrameSys = preload("res://scripts/systems/frame_system.gd")
+
 ## ---------------------------------------------------------------------------
 ## FRAME MODULE SYSTEM — "Sleeper Build Engine" (Roguelike Relic Architecture)
 ##
@@ -399,15 +401,8 @@ static func get_socket_count(slot: String) -> int:
 	var norm := normalize_slot_name(slot)
 	if GlobalData and GlobalData.weapons and ("equipped_frames" in GlobalData.weapons):
 		var frame = GlobalData.weapons.equipped_frames.get(norm, {})
-		if frame is Dictionary:
-			if frame.has("module_slots"):
-				var ms = frame["module_slots"]
-				if ms is int or ms is float:
-					return int(ms)
-				elif ms is Dictionary:
-					return int(ms.get(norm, DEFAULT_SOCKET_COUNTS.get(norm, 1)))
-			if frame.has("sockets"):
-				return int(frame["sockets"])
+		if frame is Dictionary and not frame.is_empty():
+			return FrameSys.get_frame_module_slots(frame, norm)
 	return int(DEFAULT_SOCKET_COUNTS.get(norm, 1))
 
 

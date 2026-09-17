@@ -583,25 +583,7 @@ func _recalculate_weight() -> void:
 	if _recalculating:
 		return
 	_recalculating = true
-	var base_frame_weight: float = 22.0
-	for slot in GlobalData.weapons.equipped_frames:
-		var f = GlobalData.weapons.equipped_frames[slot]
-		if f is Dictionary:
-			base_frame_weight += f.get("weight", 3.0)
-	total_weight = base_frame_weight
-	for slot in GlobalData.weapons.equipped_parts:
-		var part = GlobalData.weapons.equipped_parts[slot]
-		if part:
-			var break_thresh = part.break_threshold if "break_threshold" in part else 999.0
-			if not GlobalData.weapons.part_damage.get(slot, 0.0) >= break_thresh:
-				if part is ArmorPart:
-					total_weight += part.weight
-				elif part is Dictionary:
-					total_weight += part.get("weight", 0.0)
-	for attachment in GlobalData.weapons.attachments:
-		total_weight += float(attachment.get("weight", 0.0))
-	total_weight += LoadoutSystem.get_loadout_weapon_weight()
-	total_weight += BackpackSystem.get_backpack_weight()
+	total_weight = LoadoutSystem.get_total_mecha_weight()
 	var base_speed: float = _chassis_speed_override
 	var weight_cap: float = _chassis_weight_capacity_override
 	var base_turn: float = chassis.base_turn_rate if chassis else 4.0

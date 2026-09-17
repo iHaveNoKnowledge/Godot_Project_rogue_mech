@@ -53,6 +53,8 @@ func _ready() -> void:
 	_test_non_mutating_and_no_stacking_bonuses()
 	_test_save_load_reconstruction()
 	_test_capability_unlock_and_compatibility()
+	_test_part_destruction_reduces_set_count_safely()
+	_test_mixed_sets_and_zero_bonus_viability()
 
 	print("\n=== FRAME SET TEST SUMMARY ===")
 	print("Checks: %d, Failures: %d" % [_checks, _fails])
@@ -356,3 +358,82 @@ func _test_capability_unlock_and_compatibility() -> void:
 	var ui_summary := FrameSetSys.format_set_summary_bbcode()
 	_check(ui_summary.contains("Valkyrion"), "[20c] UI BBCode formatting summary includes Valkyrion")
 	_check(ui_summary.contains("✓ 6-Piece"), "[20d] UI BBCode summary shows active 6-Piece tier")
+
+
+func _test_part_destruction_reduces_set_count_safely() -> void:
+	print("\n-- [21] Part Destruction Reduces Set Count Safely --")
+	_clear_equipped_frames()
+
+	# Start: 6/6 Valkyrion
+	for slot in GlobalData.MECHA_SLOTS:
+		GlobalData.weapons.equipped_frames[slot] = {
+			"id": "frame_" + slot + "_02",
+			"name": "Alaya-Vijnana " + slot,
+			"frame_set_id": "valkyrion",
+			"hp": 25.0,
+			"weight": 4.0
+		}
+	_check(FrameSetSys.get_set_piece_count("valkyrion") == 6, "[21a] Pristine mech has 6/6 Valkyrion")
+	_check(FrameSetSys.is_set_bonus_active("valkyrion", 6), "[21b] 6-piece bonus is active at start")
+
+	# Right arm destroyed in combat
+	GlobalData.weapons.part_damage["arm_right_frame"] = 1.0
+	_check(FrameSetSys.get_set_piece_count("valkyrion") == 5, "[21c] Destroyed arm reduces count to 5/6")
+	_check(not FrameSetSys.is_set_bonus_active("valkyrion", 6), "[21d] 6-piece bonus deactivates when piece is destroyed")
+	_check(FrameSetSys.is_set_bonus_active("valkyrion", 4), "[21e] 4-piece bonus remains active")
+	_check(FrameSetSys.is_set_bonus_active("valkyrion", 2), "[21f] 2-piece bonus remains active")
+
+	# Right leg destroyed
+	GlobalData.weapons.part_damage["leg_right_frame"] = 1.0
+	_check(FrameSetSys.get_set_piece_count("valkyrion") == 4, "[21g] Destroyed leg reduces count to 4/6")
+	_check(FrameSetSys.is_set_bonus_active("valkyrion", 4), "[21h] 4-piece bonus still active at 4/6")
+	_check(FrameSetSys.is_set_bonus_active("valkyrion", 2), "[21i] 2-piece bonus still active at 4/6")
+
+	# Surviving pieces remain fully functional individual parts
+	var head_frame = GlobalData.weapons.equipped_frames["head"]
+	_check(head_frame["hp"] == 25.0, "[21j] Surviving head frame maintains individual 25 HP")
+	GlobalData.weapons.part_damage.clear()
+
+
+func _test_mixed_sets_and_zero_bonus_viability() -> void:
+	print("\n-- [22] Mixed Sets & Zero-Bonus Roguelike Viability --")
+	_clear_equipped_frames()
+
+	# Equip a realistic improvised roguelike mech from scavenged parts:
+	# Vagrant Head, Standard Body, Heavy Left Arm, Valkyrion Right Arm, Heavy Left Leg, Vagrant Right Leg
+	GlobalData.weapons.equipped_frames = {
+		"head": {"id": "frame_head_vagrant", "frame_set_id": "vagrant", "hp": 20.0, "weight": 2.5},
+		"body": {"id": "frame_body_01", "frame_set_id": "standard", "hp": 40.0, "weight": 6.0},
+		"arm_left": {"id": "frame_arm_left_04", "frame_set_id": "heavy", "hp": 48.0, "weight": 8.0},
+		"arm_right": {"id": "frame_arm_right_02", "frame_set_id": "valkyrion", "hp": 20.0, "weight": 3.0},
+		"leg_left": {"id": "frame_leg_left_04", "frame_set_id": "heavy", "hp": 45.0, "weight": 8.0},
+		"leg_right": {"id": "frame_leg_right_vagrant", "frame_set_id": "vagrant", "hp": 28.0, "weight": 3.0}
+	}
+
+	var counts := FrameSetSys.get_equipped_set_counts()
+	_check(counts.get("heavy", 0) == 2, "[22a] Mixed mech has 2 Heavy pieces")
+	_check(counts.get("vagrant", 0) == 2, "[22b] Mixed mech has 2 Vagrant pieces")
+	_check(counts.get("standard", 0) == 1, "[22c] Mixed mech has 1 Standard piece")
+	_check(counts.get("valkyrion", 0) == 1, "[22d] Mixed mech has 1 Valkyrion piece")
+
+	# Heavy 2P and Vagrant 2P active concurrently; Valkyrion and Standard inactive
+	_check(FrameSetSys.is_set_bonus_active("heavy", 2), "[22e] Mixed mech gets Heavy 2P incidental bonus")
+	_check(FrameSetSys.is_set_bonus_active("vagrant", 2), "[22f] Mixed mech gets Vagrant 2P incidental bonus")
+	_check(not FrameSetSys.is_set_bonus_active("valkyrion", 2), "[22g] 1 Valkyrion piece triggers no bonus")
+	_check(not FrameSetSys.is_set_bonus_active("standard", 2), "[22h] 1 Standard piece triggers no bonus")
+
+	# Pure zero set bonus mech: 6 completely different sets (no 2 pieces of any set)
+	_clear_equipped_frames()
+	GlobalData.weapons.equipped_frames = {
+		"head": {"id": "f1", "frame_set_id": "set_a", "hp": 20.0, "weight": 2.0},
+		"body": {"id": "f2", "frame_set_id": "set_b", "hp": 40.0, "weight": 6.0},
+		"arm_left": {"id": "f3", "frame_set_id": "set_c", "hp": 20.0, "weight": 3.0},
+		"arm_right": {"id": "f4", "frame_set_id": "set_d", "hp": 20.0, "weight": 3.0},
+		"leg_left": {"id": "f5", "frame_set_id": "set_e", "hp": 30.0, "weight": 4.0},
+		"leg_right": {"id": "f6", "frame_set_id": "set_f", "hp": 30.0, "weight": 4.0}
+	}
+	_check(FrameSetSys.get_active_set_bonuses().is_empty(), "[22i] 6 unique frame sets yields 0 active set bonuses")
+	var base_stats := {"hp": 160.0, "carry_capacity": 50.0, "recoil_resistance": 0.0}
+	var derived := FrameSetSys.apply_set_bonuses_to_stats(base_stats)
+	_check(derived["hp"] == 160.0 and derived["carry_capacity"] == 50.0, "[22j] Zero-bonus mech operates at 100% baseline with 0 penalties")
+

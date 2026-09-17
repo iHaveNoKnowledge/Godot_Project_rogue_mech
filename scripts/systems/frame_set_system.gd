@@ -4,20 +4,25 @@ extends RefCounted
 ## ---------------------------------------------------------------------------
 ## FRAME SET SYSTEM — Data-Driven Frame Set Bonuses (Phase 2B-2)
 ##
-## Evaluates relationships between the six anatomical Frame segments:
-##   - head
-##   - body (or torso)
-##   - arm_left
-##   - arm_right
-##   - leg_left
-##   - leg_right
+## CORE ROGUELIKE MECHA SURVIVAL DESIGN PRINCIPLE:
+## "Set Bonus is incidental, not mandatory."
 ##
-## Each equipped Frame segment provides a `frame_set_id`. This system:
+## In this roguelike survival loop, players scavenge and salvage unpredictable
+## parts to assemble functional mechas. Mixed-frame builds (e.g. 1 Vagrant,
+## 2 Heavy, 1 Valkyrion, 2 Standard) are normal, fully viable, and never penalized.
+## Set bonuses are an optional, incidental upside—never a prerequisite for power.
+##
+## PART DESTRUCTION IS EXPECTED:
+## When a frame segment is destroyed during a run, its piece count drops
+## gracefully without collapsing surviving parts or breaking the build.
+##
+## System Responsibilities:
 ##   - Identifies frame sets and counts equipped pieces across the 6 segments.
 ##   - Evaluates active set tiers against data-driven arbitrary thresholds.
 ##   - Aggregates active set bonuses (stat modifiers & special capabilities).
 ##   - Computes derived stats without mutating base frame definitions or instances.
-##   - Supports multiple simultaneous active sets and clean safe fallbacks.
+##   - Supports multiple simultaneous active sets, 0-bonus builds, and safe fallbacks.
+##   - Excludes destroyed frame pieces from active set counts.
 ## ---------------------------------------------------------------------------
 
 const SLOTS: Array[String] = [
@@ -179,6 +184,14 @@ static func get_equipped_set_counts() -> Dictionary:
 		var frame = equipped_frames.get(slot, null)
 		if frame == null or not (frame is Dictionary) or frame.is_empty():
 			continue
+
+		# Roguelike rule: Exclude destroyed frame segments from active set counting.
+		# Part destruction is expected; remaining surviving pieces remain fully functional.
+		if frame.get("destroyed", false) == true:
+			continue
+		if GlobalData.weapons != null and ("part_damage" in GlobalData.weapons) and (GlobalData.weapons.part_damage is Dictionary):
+			if float(GlobalData.weapons.part_damage.get(slot + "_frame", 0.0)) >= 1.0:
+				continue
 
 		var set_id: String = str(frame.get("frame_set_id", "")).to_lower().strip_edges()
 		if set_id == "":

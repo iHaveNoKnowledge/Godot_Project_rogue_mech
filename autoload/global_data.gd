@@ -20,6 +20,8 @@ extends Node
 # --- Signals ---
 signal armor_destroyed_permanently(slot: String, armor_data: Dictionary)
 
+const FrameModuleSys = preload("res://scripts/systems/frame_module_system.gd")
+
 # --- Managers (created as children in _ready) ---
 var currency: CurrencyManager
 var fuel: FuelManager
@@ -255,6 +257,7 @@ func _ready() -> void:
 	_load_catalogs()
 	weapons._ensure_default_frames()
 	ArmorSystem.ensure_default_equipped_parts()
+	migrate_legacy_attachments()
 	EventBus.tile_entered.connect(_on_tile_entered)
 	EventBus.board_day_ended.connect(_on_board_day_ended)
 	EventBus.combat_ended.connect(_on_combat_ended)
@@ -296,11 +299,65 @@ func _load_catalogs() -> void:
 		run_events = re.events
 
 
+static func ensure_armor_data_schema(entry: Dictionary) -> Dictionary:
+	if entry.is_empty():
+		return entry
+	var out := entry.duplicate(true)
+	if not out.has("defense_type"):
+		out["defense_type"] = str(out.get("type", "standard"))
+	if not out.has("resistance") or not (out["resistance"] is Dictionary):
+		var dtype: String = str(out.get("defense_type", "standard"))
+		match dtype:
+			"heavy", "reinforced":
+				out["resistance"] = {"heat": 1.0, "pierce": 0.8, "impact": 0.7}
+			"energy", "heat_resistant":
+				out["resistance"] = {"heat": 0.6, "pierce": 1.0, "impact": 1.0}
+			"reactive":
+				out["resistance"] = {"heat": 1.1, "pierce": 0.6, "impact": 0.9}
+			_:
+				out["resistance"] = {"heat": 1.0, "pierce": 1.0, "impact": 1.0}
+	return out
+
+
+static func ensure_frame_data_schema(entry: Dictionary, slot_hint: String = "") -> Dictionary:
+	if entry.is_empty():
+		return entry
+	var out := entry.duplicate(true)
+	var fid: String = str(out.get("id", ""))
+	if not out.has("frame_set_id"):
+		if fid.contains("valkyrion"):
+			out["frame_set_id"] = "valkyrion"
+		elif fid.contains("vagrant"):
+			out["frame_set_id"] = "vagrant"
+		else:
+			out["frame_set_id"] = "standard"
+	if not out.has("recoil_resistance"):
+		out["recoil_resistance"] = 0.0
+	if not out.has("max_armor_capacity"):
+		out["max_armor_capacity"] = float(out.get("hp", 50.0)) * 2.0
+	if not out.has("module_slots"):
+		var s: String = slot_hint if slot_hint != "" else str(out.get("slot", ""))
+		out["module_slots"] = 3 if (s == "body" or s == "torso") else 1
+	if not out.has("generator_compatibility"):
+		out["generator_compatibility"] = ["all"]
+	if not out.has("backpack_compatibility"):
+		out["backpack_compatibility"] = ["all"]
+	if not out.has("frame_tags"):
+		out["frame_tags"] = []
+	if not out.has("base_frame_id"):
+		out["base_frame_id"] = fid
+	if not out.has("modifications"):
+		out["modifications"] = []
+	if not out.has("unlocked_capabilities"):
+		out["unlocked_capabilities"] = []
+	return out
+
+
 func get_armor_catalog_entry(part_id: String) -> Dictionary:
 	for slot in armor_catalog:
 		for entry in armor_catalog[slot]:
 			if entry.get("id", "") == part_id:
-				return entry
+				return ensure_armor_data_schema(entry)
 	return {}
 
 
@@ -308,7 +365,7 @@ func get_frame_catalog_entry(frame_id: String) -> Dictionary:
 	for slot in frame_catalog:
 		for entry in frame_catalog[slot]:
 			if entry.get("id", "") == frame_id:
-				return entry
+				return ensure_frame_data_schema(entry, slot)
 	return {}
 
 
@@ -316,7 +373,7 @@ func get_frame_catalog_entry_by_name(frame_name: String) -> Dictionary:
 	for slot in frame_catalog:
 		for entry in frame_catalog[slot]:
 			if entry.get("name", "") == frame_name:
-				return entry
+				return ensure_frame_data_schema(entry, slot)
 	return {}
 
 
@@ -471,25 +528,76 @@ var frame_property_catalog: Array = [
 
 
 func get_slot_frame_sockets(slot: String) -> int:
-	var fdict = weapons.equipped_frames.get(slot)
-	if fdict is Dictionary:
-		return int(fdict.get("sockets", 2))
-	return 2
+	return FrameModuleSys.get_socket_count(slot)
 
 
 func get_frame_property_entry(mod_id: String) -> Dictionary:
-	for entry in frame_property_catalog:
-		if entry.get("id", "") == mod_id:
-			return entry
+	var entry := FrameModuleSys.get_module(mod_id)
+	if not entry.is_empty():
+		return entry
+	for e in frame_property_catalog:
+		if e.get("id", "") == mod_id:
+			return e
 	return {}
 
 
 func get_equipped_frame_mods_for_slot(slot: String) -> Array:
 	var result: Array = []
-	for att in weapons.attachments:
-		if att.get("slot", "") == slot:
-			result.append(att)
+	var norm := FrameModuleSys.normalize_slot_name(slot)
+	var seen_ids: Dictionary = {}
+	# 1. Check authoritative FrameModuleSystem installed modules
+	if weapons and "frame_modules" in weapons and weapons.frame_modules.has(norm):
+		for mod_id in weapons.frame_modules[norm]:
+			if mod_id != "":
+				var mod_data = FrameModuleSys.get_module(mod_id)
+				if not mod_data.is_empty():
+					result.append(mod_data)
+					seen_ids[mod_id] = true
+	# 2. Check legacy attachments for backward compatibility
+	if weapons and "attachments" in weapons:
+		for att in weapons.attachments:
+			if att is Dictionary and att.get("slot", "") == slot:
+				var aid: String = str(att.get("id", ""))
+				if not seen_ids.has(aid):
+					result.append(att)
 	return result
+
+
+## Migrates legacy backpacks and frame properties out of attachments into their dedicated fields
+func migrate_legacy_attachments() -> void:
+	if weapons == null or not ("attachments" in weapons) or not (weapons.attachments is Array):
+		return
+	var remaining_attachments: Array = []
+	for att in weapons.attachments:
+		if not (att is Dictionary):
+			remaining_attachments.append(att)
+			continue
+		var aid := str(att.get("id", ""))
+		var aslot := str(att.get("slot", ""))
+		# Migrate backpack if equipped_backpack is currently empty
+		if aid in BackpackSystem.BACKPACKS or aslot == "backpack":
+			if "equipped_backpack" in weapons and weapons.equipped_backpack.is_empty():
+				weapons.equipped_backpack = att.duplicate(true)
+			# Do not keep backpack inside attachments
+			continue
+		# Migrate module into frame_modules if not already installed
+		if FrameModuleSystem.MODULE_CATALOG.has(aid):
+			var norm := FrameModuleSystem.normalize_slot_name(aslot)
+			var installed := false
+			if norm in weapons.frame_modules and weapons.frame_modules[norm] is Array:
+				for installed_id in weapons.frame_modules[norm]:
+					if installed_id == aid:
+						installed = true
+						break
+			if not installed:
+				var sc := FrameModuleSystem.get_socket_count(norm)
+				for s_idx in range(sc):
+					if FrameModuleSystem.get_installed_module_id(norm, s_idx) == "":
+						FrameModuleSystem.install_module(norm, s_idx, aid)
+						break
+			# Kept in attachments only if cosmetic/positional test requires it, otherwise migrated
+		remaining_attachments.append(att)
+	weapons.attachments = remaining_attachments
 
 
 # ===========================================================================

@@ -57,7 +57,8 @@ func update() -> void:
 		total_attachment_weight += float(attachment.get("weight", 0.0))
 
 	var total_weapon_weight = LoadoutSystem.get_loadout_weapon_weight()
-	var total_weight = total_frame_weight + total_armor_weight + total_attachment_weight + total_weapon_weight
+	var total_backpack_weight = BackpackSystem.get_backpack_weight()
+	var total_weight = total_frame_weight + total_armor_weight + total_attachment_weight + total_weapon_weight + total_backpack_weight
 
 	var field_pack_weight = LoadoutSystem.get_field_pack_weight()
 	var field_pack_capacity = LoadoutSystem.get_field_pack_capacity()

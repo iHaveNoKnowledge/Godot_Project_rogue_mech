@@ -601,6 +601,7 @@ func _recalculate_weight() -> void:
 	for attachment in GlobalData.weapons.attachments:
 		total_weight += float(attachment.get("weight", 0.0))
 	total_weight += LoadoutSystem.get_loadout_weapon_weight()
+	total_weight += BackpackSystem.get_backpack_weight()
 	var base_speed: float = _chassis_speed_override
 	var weight_cap: float = _chassis_weight_capacity_override
 	var base_turn: float = chassis.base_turn_rate if chassis else 4.0

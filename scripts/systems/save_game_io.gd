@@ -99,6 +99,8 @@ static func save_run() -> void:
 		"frame_bindings": GlobalData.weapons.frame_bindings.duplicate(true),
 		"frame_modules": GlobalData.weapons.frame_modules.duplicate(true),
 		"module_inventory": GlobalData.weapons.module_inventory.duplicate(true),
+		"equipped_backpack": GlobalData.weapons.equipped_backpack.duplicate(true) if GlobalData.weapons.equipped_backpack is Dictionary else GlobalData.weapons.equipped_backpack,
+		"backpack_inventory": GlobalData.weapons.backpack_inventory.duplicate(true),
 		"part_hit_meta": _serialize_hit_meta(),
 		"thermal_cloak": GlobalData.thermal_cloak.serialize() if GlobalData.thermal_cloak else {},
 		"ewar": GlobalData.ewar.serialize() if GlobalData.ewar else {},
@@ -282,6 +284,16 @@ static func restore_from_dict(data: Dictionary) -> void:
 	var loaded_mod_inv = data.get("module_inventory", [])
 	if loaded_mod_inv is Array:
 		GlobalData.weapons.module_inventory = loaded_mod_inv.duplicate(true)
+	var raw_bp = data.get("equipped_backpack", {})
+	if raw_bp is Dictionary:
+		GlobalData.weapons.equipped_backpack = raw_bp.duplicate(true)
+	elif raw_bp is String and raw_bp != "":
+		BackpackSystem.equip(raw_bp)
+	else:
+		GlobalData.weapons.equipped_backpack = {}
+	var loaded_backpack_inv = data.get("backpack_inventory", [])
+	if loaded_backpack_inv is Array:
+		GlobalData.weapons.backpack_inventory = loaded_backpack_inv.duplicate(true)
 	var loaded_hit = data.get("part_hit_meta", {})
 	if loaded_hit is Dictionary:
 		GlobalData.weapons.part_hit_meta = _deserialize_hit_meta(loaded_hit)
@@ -433,6 +445,7 @@ static func restore_from_dict(data: Dictionary) -> void:
 			for ref in carry:
 				migrated_carry.append(LoadoutSystem.migrate_ref_to_uid(ref))
 			GlobalData.weapons.weapon_loadout["carry"] = migrated_carry
+	GlobalData.migrate_legacy_attachments()
 
 
 static func serialize_parts() -> Dictionary:

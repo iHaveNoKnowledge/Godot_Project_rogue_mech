@@ -10,6 +10,17 @@ extends RefCounted
 ## chips that break game rules and create exponential combat synergies.
 ## ---------------------------------------------------------------------------
 
+const DEFAULT_SOCKET_COUNTS: Dictionary = {
+	"head": 1,
+	"body": 3,
+	"torso": 3,
+	"arm_left": 1,
+	"arm_right": 1,
+	"leg_left": 1,
+	"leg_right": 1,
+}
+
+# Legacy alias for backward compatibility with older tests/callers
 const SOCKET_COUNTS: Dictionary = {
 	"torso": 3,
 	"arm_left": 1,
@@ -17,6 +28,12 @@ const SOCKET_COUNTS: Dictionary = {
 	"leg_left": 1,
 	"leg_right": 1,
 }
+
+static func normalize_slot_name(slot: String) -> String:
+	var s := str(slot).to_lower().strip_edges()
+	if s == "torso":
+		return "body"
+	return s
 
 const MODULE_CATALOG: Dictionary = {
 	"v8_twin_turbo": {
@@ -188,6 +205,166 @@ const MODULE_CATALOG: Dictionary = {
 		},
 		"rarity_color": Color(0.2, 0.95, 0.7), # Nanite Emerald
 	},
+	# ---- Unified Legacy Frame Properties (Migrated from frame_property_catalog) ----
+	"mod_reactor_fission": {
+		"id": "mod_reactor_fission",
+		"name": "Fission Power Core",
+		"category": "body",
+		"tier": "military",
+		"weight": 18.0,
+		"desc": "Primary power reactor. +1000 Energy, +80/s Recharge rate.",
+		"effects": {
+			"energy_bonus": 1000.0,
+			"recharge_bonus": 80.0,
+		},
+		"rarity_color": Color(0.2, 0.7, 1.0),
+	},
+	"mod_flight_booster": {
+		"id": "mod_flight_booster",
+		"name": "High-Output Vector Thruster",
+		"category": "body",
+		"tier": "military",
+		"weight": 14.0,
+		"desc": "Aerial thruster glide system. +25% Dash Speed.",
+		"effects": {
+			"dash_speed_bonus": 0.25,
+			"flight_glide": true,
+		},
+		"rarity_color": Color(1.0, 0.5, 0.1),
+	},
+	"mod_cryo_heatsink": {
+		"id": "mod_cryo_heatsink",
+		"name": "Cryogenic Heat Dissipator",
+		"category": "body",
+		"tier": "thermal",
+		"weight": 8.0,
+		"desc": "Liquid coolant circulation. -30% Heat accumulation.",
+		"effects": {
+			"heat_reduction": 0.30,
+		},
+		"rarity_color": Color(0.3, 0.85, 1.0),
+	},
+	"mod_targeting_fcs": {
+		"id": "mod_targeting_fcs",
+		"name": "Tactical FCS Sensor",
+		"category": "head",
+		"tier": "sensor",
+		"weight": 4.0,
+		"desc": "+40% Lock-On tracking speed, -15% weapon spread.",
+		"effects": {
+			"lock_on_bonus": 0.40,
+			"spread_reduction": 0.15,
+		},
+		"rarity_color": Color(0.2, 1.0, 0.4),
+	},
+	"mod_threat_analyzer": {
+		"id": "mod_threat_analyzer",
+		"name": "Weakpoint Scanner",
+		"category": "head",
+		"tier": "sensor",
+		"weight": 5.0,
+		"desc": "Analyzes armor fault lines. +15% Critical hit chance.",
+		"effects": {
+			"crit_bonus": 0.15,
+		},
+		"rarity_color": Color(1.0, 0.3, 0.3),
+	},
+	"mod_recoil_gyro_l": {
+		"id": "mod_recoil_gyro_l",
+		"name": "Gyro Recoil Compensator (L)",
+		"category": "arm",
+		"tier": "actuator",
+		"weight": 6.0,
+		"desc": "Torque dampeners. -35% weapon recoil kick.",
+		"effects": {
+			"recoil_reduction": 0.35,
+		},
+		"rarity_color": Color(0.8, 0.8, 0.3),
+	},
+	"mod_recoil_gyro_r": {
+		"id": "mod_recoil_gyro_r",
+		"name": "Gyro Recoil Compensator (R)",
+		"category": "arm",
+		"tier": "actuator",
+		"weight": 6.0,
+		"desc": "Torque dampeners. -35% weapon recoil kick.",
+		"effects": {
+			"recoil_reduction": 0.35,
+		},
+		"rarity_color": Color(0.8, 0.8, 0.3),
+	},
+	"mod_melee_hydraulic_l": {
+		"id": "mod_melee_hydraulic_l",
+		"name": "High-Torque Melee Actuator (L)",
+		"category": "arm",
+		"tier": "actuator",
+		"weight": 10.0,
+		"desc": "Reinforced arm servos. +30% Melee attack speed & damage.",
+		"effects": {
+			"melee_speed_bonus": 0.30,
+		},
+		"rarity_color": Color(1.0, 0.4, 0.1),
+	},
+	"mod_melee_hydraulic_r": {
+		"id": "mod_melee_hydraulic_r",
+		"name": "High-Torque Melee Actuator (R)",
+		"category": "arm",
+		"tier": "actuator",
+		"weight": 10.0,
+		"desc": "Reinforced arm servos. +30% Melee attack speed & damage.",
+		"effects": {
+			"melee_speed_bonus": 0.30,
+		},
+		"rarity_color": Color(1.0, 0.4, 0.1),
+	},
+	"mod_roller_overdrive_l": {
+		"id": "mod_roller_overdrive_l",
+		"name": "Roller Overdrive Bearings (L)",
+		"category": "leg",
+		"tier": "mobility",
+		"weight": 8.0,
+		"desc": "+30% Roller Dash speed, -20% roller energy cost.",
+		"effects": {
+			"roller_speed_bonus": 0.30,
+		},
+		"rarity_color": Color(0.4, 0.9, 1.0),
+	},
+	"mod_roller_overdrive_r": {
+		"id": "mod_roller_overdrive_r",
+		"name": "Roller Overdrive Bearings (R)",
+		"category": "leg",
+		"tier": "mobility",
+		"weight": 8.0,
+		"desc": "+30% Roller Dash speed, -20% roller energy cost.",
+		"effects": {
+			"roller_speed_bonus": 0.30,
+		},
+		"rarity_color": Color(0.4, 0.9, 1.0),
+	},
+	"mod_shock_absorbers_l": {
+		"id": "mod_shock_absorbers_l",
+		"name": "Hydraulic Impact Dampeners (L)",
+		"category": "leg",
+		"tier": "mobility",
+		"weight": 7.0,
+		"desc": "Zero landing stun, +20% jump height.",
+		"effects": {
+			"jump_bonus": 0.20,
+		},
+		"rarity_color": Color(0.9, 0.7, 0.2),
+	},
+	"mod_shock_absorbers_r": {
+		"id": "mod_shock_absorbers_r",
+		"name": "Hydraulic Impact Dampeners (R)",
+		"category": "leg",
+		"tier": "mobility",
+		"weight": 7.0,
+		"desc": "Zero landing stun, +20% jump height.",
+		"effects": {
+			"jump_bonus": 0.20,
+		},
+		"rarity_color": Color(0.9, 0.7, 0.2),
+	},
 }
 
 
@@ -199,8 +376,9 @@ static func init_slots_if_needed() -> void:
 	if GlobalData == null or GlobalData.weapons == null:
 		return
 	var modules: Dictionary = GlobalData.weapons.frame_modules
-	for slot in SOCKET_COUNTS:
-		var target_count: int = int(SOCKET_COUNTS[slot])
+	var all_slots := ["head", "body", "arm_left", "arm_right", "leg_left", "leg_right"]
+	for slot in all_slots:
+		var target_count: int = get_socket_count(slot)
 		if not modules.has(slot) or not (modules[slot] is Array):
 			var arr: Array = []
 			for i in range(target_count):
@@ -212,10 +390,25 @@ static func init_slots_if_needed() -> void:
 				arr.append("")
 			if arr.size() > target_count:
 				arr.resize(target_count)
+	# Also ensure legacy "torso" points to "body" for older callers
+	if modules.has("body"):
+		modules["torso"] = modules["body"]
 
 
 static func get_socket_count(slot: String) -> int:
-	return int(SOCKET_COUNTS.get(slot, 0))
+	var norm := normalize_slot_name(slot)
+	if GlobalData and GlobalData.weapons and ("equipped_frames" in GlobalData.weapons):
+		var frame = GlobalData.weapons.equipped_frames.get(norm, {})
+		if frame is Dictionary:
+			if frame.has("module_slots"):
+				var ms = frame["module_slots"]
+				if ms is int or ms is float:
+					return int(ms)
+				elif ms is Dictionary:
+					return int(ms.get(norm, DEFAULT_SOCKET_COUNTS.get(norm, 1)))
+			if frame.has("sockets"):
+				return int(frame["sockets"])
+	return int(DEFAULT_SOCKET_COUNTS.get(norm, 1))
 
 
 static func get_module(module_id: String) -> Dictionary:
@@ -224,7 +417,8 @@ static func get_module(module_id: String) -> Dictionary:
 
 static func get_installed_module_id(slot: String, socket_index: int) -> String:
 	init_slots_if_needed()
-	var arr: Array = GlobalData.weapons.frame_modules.get(slot, [])
+	var norm := normalize_slot_name(slot)
+	var arr: Array = GlobalData.weapons.frame_modules.get(norm, [])
 	if socket_index >= 0 and socket_index < arr.size():
 		return str(arr[socket_index])
 	return ""
@@ -236,13 +430,17 @@ static func get_installed_module(slot: String, socket_index: int) -> Dictionary:
 
 
 static func is_slot_compatible(module_category: String, target_slot: String) -> bool:
-	if module_category == "universal":
+	var cat := module_category.to_lower().strip_edges()
+	var slot := normalize_slot_name(target_slot)
+	if cat == "universal":
 		return true
-	if module_category == "torso" and target_slot == "torso":
+	if cat == "head" and slot == "head":
 		return true
-	if module_category == "arm" and (target_slot == "arm_left" or target_slot == "arm_right"):
+	if (cat == "torso" or cat == "body") and (slot == "body" or slot == "torso"):
 		return true
-	if module_category == "leg" and (target_slot == "leg_left" or target_slot == "leg_right"):
+	if cat == "arm" and (slot == "arm_left" or slot == "arm_right"):
+		return true
+	if cat == "leg" and (slot == "leg_left" or slot == "leg_right"):
 		return true
 	return false
 
@@ -260,7 +458,8 @@ static func install_module(slot: String, socket_index: int, module_id: String) -
 	if not is_slot_compatible(cat, slot):
 		return false
 	
-	var arr: Array = GlobalData.weapons.frame_modules.get(slot, [])
+	var norm := normalize_slot_name(slot)
+	var arr: Array = GlobalData.weapons.frame_modules.get(norm, [])
 	if socket_index < 0 or socket_index >= arr.size():
 		return false
 	
@@ -281,7 +480,8 @@ static func install_module(slot: String, socket_index: int, module_id: String) -
 
 static func uninstall_module(slot: String, socket_index: int) -> String:
 	init_slots_if_needed()
-	var arr: Array = GlobalData.weapons.frame_modules.get(slot, [])
+	var norm := normalize_slot_name(slot)
+	var arr: Array = GlobalData.weapons.frame_modules.get(norm, [])
 	if socket_index < 0 or socket_index >= arr.size():
 		return ""
 	var old_id: String = str(arr[socket_index])

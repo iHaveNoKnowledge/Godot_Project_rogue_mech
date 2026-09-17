@@ -53,6 +53,8 @@ var chassis_id: String = "standard"
 var power_core_id: String = "combustion"  # GDD §4.3: combustion / hybrid / ancient
 var equipped_parts: Dictionary = {}
 var equipped_frames: Dictionary = {}
+var equipped_backpack: Dictionary = {}
+var backpack_inventory: Array = []
 var attachments: Array = []
 var part_damage: Dictionary = {}
 var frame_upgrade_level: int = 1
@@ -87,6 +89,8 @@ func reset() -> void:
 	power_core_id = "combustion"
 	equipped_parts.clear()
 	equipped_frames.clear()
+	equipped_backpack.clear()
+	backpack_inventory.clear()
 	attachments.clear()
 	part_damage.clear()
 	frame_upgrade_level = 1
@@ -123,7 +127,8 @@ func _ensure_default_frames() -> void:
 			is_valid = true
 		if not is_valid:
 			if GlobalData.frame_catalog.has(slot) and GlobalData.frame_catalog[slot].size() > 0:
-				equipped_frames[slot] = GlobalData.frame_catalog[slot][0].duplicate(true)
+				var entry: Dictionary = GlobalData.frame_catalog[slot][0]
+				equipped_frames[slot] = GlobalData.ensure_frame_data_schema(entry, slot)
 
 
 func clear_working_set() -> void:
@@ -133,6 +138,7 @@ func clear_working_set() -> void:
 			part["equipped"] = false
 	equipped_parts.clear()
 	equipped_frames.clear()
+	equipped_backpack.clear()
 	attachments.clear()
 	part_damage.clear()
 	part_hit_meta.clear()

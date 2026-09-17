@@ -3,6 +3,8 @@ class_name WarModuleSystem
 
 ## Module — ติด/ถอดได้ ตกให้ชิงได้ (Phase1: 3 ตัว)
 
+const FrameModuleSys = preload("res://scripts/systems/frame_module_system.gd")
+
 const STARTER_MODULES: Array[String] = [
 	"mod_reactor_fission",
 	"mod_targeting_fcs",
@@ -10,6 +12,9 @@ const STARTER_MODULES: Array[String] = [
 ]
 
 static func get_module_entry(mod_id: String) -> Dictionary:
+	var entry := FrameModuleSys.get_module(mod_id)
+	if not entry.is_empty():
+		return entry
 	return GlobalData.get_frame_property_entry(mod_id)
 
 
@@ -17,22 +22,47 @@ static func attach_to_slot(slot: String, mod_id: String) -> bool:
 	var entry = get_module_entry(mod_id)
 	if entry.is_empty():
 		return false
+	var norm := FrameModuleSys.normalize_slot_name(slot)
+	# Install into authoritative FrameModuleSystem
+	var socket_count := FrameModuleSys.get_socket_count(norm)
+	var target_socket := -1
+	for i in range(socket_count):
+		if FrameModuleSys.get_installed_module_id(norm, i) == "":
+			target_socket = i
+			break
+	if target_socket != -1:
+		FrameModuleSys.install_module(norm, target_socket, mod_id)
+
 	var inst = entry.duplicate(true)
 	inst["slot"] = slot
 	inst["uid"] = "mod_%d_%d" % [Time.get_ticks_usec(), randi() % 99999]
-	GlobalData.weapons.attachments.append(inst)
+	var already := false
+	for att in GlobalData.weapons.attachments:
+		if att is Dictionary and str(att.get("id", "")) == mod_id and str(att.get("slot", "")) == slot:
+			already = true
+			break
+	if not already:
+		GlobalData.weapons.attachments.append(inst)
 	GlobalData.save_run()
 	return true
 
 
 static func detach(mod_uid: String) -> bool:
+	var found := false
 	for i in range(GlobalData.weapons.attachments.size()):
 		var att = GlobalData.weapons.attachments[i]
-		if str(att.get("uid", "")) == mod_uid:
+		if str(att.get("uid", "")) == mod_uid or str(att.get("id", "")) == mod_uid:
+			var slot = str(att.get("slot", "body"))
+			var norm = FrameModuleSys.normalize_slot_name(slot)
+			for s_idx in range(FrameModuleSys.get_socket_count(norm)):
+				if FrameModuleSys.get_installed_module_id(norm, s_idx) == str(att.get("id", "")):
+					FrameModuleSys.uninstall_module(norm, s_idx)
+					break
 			GlobalData.weapons.attachments.remove_at(i)
-			GlobalData.save_run()
-			return true
-	return false
+			found = true
+			break
+	GlobalData.save_run()
+	return found
 
 
 static func spawn_dropped_module(pos: Vector3, mod_id: String, parent: Node) -> Node3D:

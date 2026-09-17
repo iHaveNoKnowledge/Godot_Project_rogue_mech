@@ -1,6 +1,9 @@
 class_name LoadoutSystem
 extends RefCounted
 
+const PowerCoreSys = preload("res://scripts/systems/power_core_system.gd")
+const FrameModuleSys = preload("res://scripts/systems/frame_module_system.gd")
+
 # -----------------------------------------------------------------------------
 # WEAPON LOADOUT + FIELD PACK + FRAME UPGRADES
 # What the mech carries into battle and how much that weighs, extracted from
@@ -27,13 +30,14 @@ static func get_slot_node_path(slot: String) -> String:
 	return GlobalData.SLOT_TO_NODE.get(slot, "")
 
 
-# Total Field Pack weight capacity in kg = base + sum of equipped frames.
+# Total Field Pack weight capacity in kg = base + sum of equipped frames + backpack carry bonus.
 static func get_field_pack_capacity() -> float:
 	var capacity: float = GlobalData.FIELD_PACK_BASE_CAPACITY
 	for slot in GlobalData.weapons.equipped_frames:
 		var f = GlobalData.weapons.equipped_frames[slot]
 		if f is Dictionary:
 			capacity += float(f.get("carry_bonus", 0.0))
+	capacity += BackpackSystem.get_backpack_carry_bonus()
 	return capacity
 
 
@@ -289,6 +293,39 @@ static func get_loadout_weapons_total() -> float:
 # Total weight of all loadout weapons (both hands + shoulders + back).
 static func get_loadout_weapon_weight() -> float:
 	return get_loadout_weapons_total()
+
+
+# Equipped backpack weight in kg (from BackpackSystem).
+static func get_backpack_weight() -> float:
+	return BackpackSystem.get_backpack_weight()
+
+
+# Centralized total mecha weight: Frames + Armor + Attachments + Weapons + Backpack + Generator + Frame Modules
+static func get_total_mecha_weight() -> float:
+	var total: float = 0.0
+	for slot in GlobalData.weapons.equipped_frames:
+		var f = GlobalData.weapons.equipped_frames[slot]
+		if f is Dictionary:
+			total += float(f.get("weight", 0.0))
+	for slot in GlobalData.weapons.equipped_parts:
+		var p = GlobalData.weapons.equipped_parts[slot]
+		if p:
+			if p is Resource and "weight" in p:
+				total += float(p.weight)
+			elif p is Dictionary:
+				total += float(p.get("weight", 0.0))
+	for attachment in GlobalData.weapons.attachments:
+		total += float(attachment.get("weight", 0.0))
+	total += get_loadout_weapon_weight()
+	total += BackpackSystem.get_backpack_weight()
+	total += PowerCoreSys.get_current_core_weight()
+	for slot in GlobalData.weapons.frame_modules:
+		var mods = GlobalData.weapons.frame_modules[slot]
+		if mods is Array:
+			for mod_id in mods:
+				var mdef = FrameModuleSys.get_module(str(mod_id))
+				total += float(mdef.get("weight", 0.0))
+	return total
 
 
 # A weapon model may only be equipped in ONE slot at a time (left hand, right

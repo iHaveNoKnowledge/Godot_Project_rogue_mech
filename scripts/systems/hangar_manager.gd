@@ -569,6 +569,8 @@ static func load_mech_state(mech_id: String) -> bool:
 			part["equipped"] = true
 
 	GlobalData.weapons.part_damage = target.get("damage", {}).duplicate(true)
+	GlobalData.weapons.equipped_backpack = target.get("equipped_backpack", {}).duplicate(true)
+	GlobalData.weapons.frame_modules = target.get("frame_modules", {}).duplicate(true)
 	GlobalData.weapons.attachments = target.get("attachments", []).duplicate(true)
 	GlobalData.weapons.weapon_loadout = target.get("weapon_loadout", GlobalData.weapons.weapon_loadout).duplicate(true)
 	GlobalData.weapons.scrap_patches = target.get("scrap_patches", {}).duplicate(true)
@@ -605,7 +607,7 @@ static func restore_berth_loadout(mech_id: String, snapshot: Dictionary) -> bool
 		var entry = GlobalData.hangar.hangar_mechs[i]
 		if entry is Dictionary and str(entry.get("id", "")) == mech_id:
 			var updated: Dictionary = entry.duplicate(true)
-			for key in ["chassis_id", "frames", "parts", "damage", "attachments", "weapon_loadout", "scrap_patches"]:
+			for key in ["chassis_id", "frames", "parts", "damage", "equipped_backpack", "frame_modules", "attachments", "weapon_loadout", "scrap_patches"]:
 				if snapshot.has(key):
 					var value = snapshot[key]
 					updated[key] = value.duplicate(true) if value is Dictionary or value is Array else value
@@ -625,6 +627,8 @@ static func _capture_snapshot(mech_id: String, mech_name: String, pilot_id: Stri
 		"frames": SaveGameIO.serialize_frames(),
 		"parts": SaveGameIO.serialize_parts(),
 		"damage": GlobalData.weapons.part_damage.duplicate(true),
+		"equipped_backpack": GlobalData.weapons.equipped_backpack.duplicate(true) if ("equipped_backpack" in GlobalData.weapons) else {},
+		"frame_modules": GlobalData.weapons.frame_modules.duplicate(true) if ("frame_modules" in GlobalData.weapons) else {},
 		"attachments": SaveGameIO.serialize_attachments(),
 		"weapon_loadout": GlobalData.weapons.weapon_loadout.duplicate(true),
 		"scrap_patches": GlobalData.weapons.scrap_patches.duplicate(true),

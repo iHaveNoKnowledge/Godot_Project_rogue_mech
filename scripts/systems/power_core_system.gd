@@ -1,3 +1,4 @@
+class_name PowerCoreSystem
 extends RefCounted
 
 ## ---------------------------------------------------------------------------
@@ -59,6 +60,43 @@ const DESCRIPTIONS := {
 	"combustion": "Heavy diesel engine. Uses Crude Oil, high torque for heavy weapons, but medium heat buildup and slower dash.",
 	"hybrid": "Overclocked turbine. Saves 20% fuel, powerful roller-dash, but runs dangerously hot — high heat drains Frame Durability.",
 	"ancient": "GN-Drive relic. Zero fuel cost on board, sustains beam fire, but cannot drop parts and attracts Hunter-Killer fleets.",
+}
+
+# ---- Data-Driven Generator Registry (Extensible Data Model) ----
+const GENERATOR_REGISTRY: Dictionary = {
+	"combustion": {
+		"id": "combustion",
+		"name": "Direct Combustion Core",
+		"tier": "standard",
+		"weight": 12.0,
+		"energy_capacity": 200.0,
+		"energy_generation": 6.5,
+		"heat_generation": 1.0,
+		"frame_compatibility": ["all"],
+		"desc": "Heavy diesel engine. Standard military power generation.",
+	},
+	"hybrid": {
+		"id": "hybrid",
+		"name": "Overclocked Hybrid Core",
+		"tier": "military",
+		"weight": 8.0,
+		"energy_capacity": 250.0,
+		"energy_generation": 8.5,
+		"heat_generation": 1.5,
+		"frame_compatibility": ["all"],
+		"desc": "High-output turbine with aggressive acceleration.",
+	},
+	"ancient": {
+		"id": "ancient",
+		"name": "Ancient GN-Drive Core",
+		"tier": "relic",
+		"weight": 4.0,
+		"energy_capacity": 400.0,
+		"energy_generation": 15.0,
+		"heat_generation": 0.3,
+		"frame_compatibility": ["all"],
+		"desc": "GN-Drive relic offering sustained high-output generation.",
+	},
 }
 
 
@@ -161,3 +199,39 @@ static func stats_summary(core_id: String) -> Dictionary:
 	s["drops_loot"] = drops_loot(core_id)
 	s["hk_attraction"] = hk_attraction_multiplier(core_id)
 	return s
+
+
+static func get_generator_def(core_id: String = "") -> Dictionary:
+	var cid := core_id if core_id != "" else get_current_core()
+	if GENERATOR_REGISTRY.has(cid):
+		return GENERATOR_REGISTRY[cid].duplicate(true)
+	return {
+		"id": cid,
+		"name": display_name(cid),
+		"tier": "standard",
+		"weight": 10.0,
+		"energy_capacity": 200.0,
+		"energy_generation": 6.5,
+		"heat_generation": 1.0,
+		"frame_compatibility": ["all"],
+	}
+
+
+static func get_current_core_def() -> Dictionary:
+	return get_generator_def()
+
+
+static func get_current_core_weight() -> float:
+	var gen := get_generator_def()
+	return float(gen.get("weight", 10.0))
+
+
+static func get_current_core_energy_capacity() -> float:
+	var gen := get_generator_def()
+	return float(gen.get("energy_capacity", 200.0))
+
+
+static func get_current_core_generation_rate() -> float:
+	var gen := get_generator_def()
+	return float(gen.get("energy_generation", 6.5))
+

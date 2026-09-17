@@ -18,6 +18,13 @@ var music_volume: float = 0.6
 @export var grunt_tracks: Array[AudioStream] = []
 @export var ace_tracks: Array[AudioStream] = []
 @export var boss_tracks: Array[AudioStream] = []
+## Biome-exclusive battle tracks (desert only — e.g. Iron March on the Dunes).
+## Rolled as an alternative pick when the battle biome is desert.
+@export var desert_tracks: Array[AudioStream] = []
+
+## Chance (0.0–1.0) that a desert-biome battle plays a desert-exclusive
+## track instead of the normal grunt/ace pick. Boss/war keep their identity.
+const DESERT_EXCLUSIVE_CHANCE: float = 0.5
 
 # A/B crossfade players
 var music_player_a: AudioStreamPlayer
@@ -80,6 +87,8 @@ func _auto_scan_music_folders() -> void:
 		ace_tracks = _scan_music_directory("res://resources/audio/music/ace")
 	if boss_tracks.is_empty():
 		boss_tracks = _scan_music_directory("res://resources/audio/music/boss")
+	if desert_tracks.is_empty():
+		desert_tracks = _scan_music_directory("res://resources/audio/music/desert")
 
 
 func _scan_music_directory(dir_path: String) -> Array[AudioStream]:
@@ -172,7 +181,7 @@ func play_hangar_music(fade_time: float = 1.5, force_restart: bool = false) -> v
 	_crossfade_to_stream(stream_to_play, fade_time)
 
 
-func play_combat_music(category: String, fade_time: float = 1.5, force_restart: bool = false) -> void:
+func play_combat_music(category: String, fade_time: float = 1.5, force_restart: bool = false, biome: String = "") -> void:
 	if not force_restart and current_music_category == category and current_music.playing:
 		return
 	# Save intermission state so return_to_board resumes the same track.
@@ -180,6 +189,25 @@ func play_combat_music(category: String, fade_time: float = 1.5, force_restart: 
 		_saved_intermission_track = current_music.stream
 		_saved_intermission_pos = current_music.get_playback_position()
 	_auto_scan_music_folders()
+	var stream_to_play: AudioStream = _pick_combat_stream(category, biome)
+	if stream_to_play == null:
+		return
+	current_music_category = category
+	_crossfade_to_stream(stream_to_play, fade_time)
+
+
+## Picks the combat stream WITHOUT playing it (testable selection logic).
+## Desert biome + grunt/ace: rolls DESERT_EXCLUSIVE_CHANCE for a
+## desert-exclusive track; boss/war and other biomes use normal playlists.
+func _pick_combat_stream(category: String, biome: String = "") -> AudioStream:
+	_auto_scan_music_folders()
+	if biome.to_lower() == "desert" and (category == "grunt" or category == "ace"):
+		if not desert_tracks.is_empty() and randf() < DESERT_EXCLUSIVE_CHANCE:
+			var exclusive = desert_tracks.duplicate()
+			if exclusive.size() > 1 and current_track != null:
+				exclusive.erase(current_track)
+			exclusive.shuffle()
+			return exclusive[0]
 	var tracks: Array[AudioStream] = []
 	match category:
 		"grunt":
@@ -190,21 +218,15 @@ func play_combat_music(category: String, fade_time: float = 1.5, force_restart: 
 			tracks = boss_tracks
 		_:
 			tracks = grunt_tracks
-	var stream_to_play: AudioStream = null
 	if not tracks.is_empty():
 		var available = tracks.duplicate()
 		if available.size() > 1 and current_track != null:
 			available.erase(current_track)
 		available.shuffle()
-		stream_to_play = available[0]
-	else:
-		if not _procedural_music_cache.has(category):
-			_procedural_music_cache[category] = _gen_procedural_combat_track(category)
-		stream_to_play = _procedural_music_cache[category]
-	if stream_to_play == null:
-		return
-	current_music_category = category
-	_crossfade_to_stream(stream_to_play, fade_time)
+		return available[0]
+	if not _procedural_music_cache.has(category):
+		_procedural_music_cache[category] = _gen_procedural_combat_track(category)
+	return _procedural_music_cache[category]
 
 
 func stop_music(fade_time: float = 1.0) -> void:

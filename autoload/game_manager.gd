@@ -112,7 +112,7 @@ func enter_combat(combat_type: String = "grunt") -> void:
 	get_tree().call_deferred("change_scene_to_file", "res://scenes/game_world.tscn")
 	transition_to(State.COMBAT)
 	EventBus.combat_intensity_changed.emit(1.0)
-	AudioManager.play_combat_music(combat_type)
+	AudioManager.play_combat_music(combat_type, 1.5, false, str(GlobalData.board.board_theme_id))
 
 
 func advance_to_next_sector() -> void:

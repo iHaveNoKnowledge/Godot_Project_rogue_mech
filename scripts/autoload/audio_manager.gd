@@ -299,8 +299,8 @@ func play_intermission_music(fade_time: float = 1.5, force_restart: bool = false
 func play_hangar_music(fade_time: float = 1.5, force_restart: bool = false) -> void:
 	music.play_hangar_music(fade_time, force_restart)
 
-func play_combat_music(category: String, fade_time: float = 1.5, force_restart: bool = false) -> void:
-	music.play_combat_music(category, fade_time, force_restart)
+func play_combat_music(category: String, fade_time: float = 1.5, force_restart: bool = false, biome: String = "") -> void:
+	music.play_combat_music(category, fade_time, force_restart, biome)
 
 func stop_music(fade_time: float = 1.0) -> void:
 	music.stop_music(fade_time)

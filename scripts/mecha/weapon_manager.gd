@@ -1430,11 +1430,19 @@ func _fire_missile_salvo(slot: String, weapon: WeaponPart, targets_dict: Diction
 			if available > 0:
 				core.ammo = available
 
+	# A salvo is ONE trigger pull: the weapon's fire_interval must not gate
+	# individual missiles (0.065s spacing << interval would drop every lock
+	# after the first). Heat/ammo/overheat rules still apply per missile.
+	# Pricing is 1 lock = 1 missile = 1 ammo; volley pricing (e.g. Swarm's
+	# ammo_per_shot 3 for 3 dumbfire projectiles) stays on the dumbfire path.
+	var saved_aps := core.ammo_per_shot
+	core.ammo_per_shot = 1
 	for i in range(queue.size()):
 		var target_node: Node3D = queue[i]
 		if i > 0:
 			await get_tree().create_timer(0.065).timeout
 		if not is_instance_valid(mecha) or not mecha.is_inside_tree():
+			core.ammo_per_shot = saved_aps
 			return
 		if core.ammo <= 0 and core.max_ammo > 0:
 			break
@@ -1448,6 +1456,7 @@ func _fire_missile_salvo(slot: String, weapon: WeaponPart, targets_dict: Diction
 			spawn_pos = _get_muzzle_world_pos(side)
 
 		core.damage_multiplier = float(_damage_mult_by_name.get(weapon.weapon_name, 1.0))
+		core.cooldown = 0.0
 		if core.try_fire_homing(spawn_pos, aim_dir, target_node, false, mecha, 0.45):
 			AudioManager.play_weapon_sfx_with_override(weapon, spawn_pos)
 			var anim = mecha.get_node_or_null("MechaAnimation")
@@ -1463,6 +1472,7 @@ func _fire_missile_salvo(slot: String, weapon: WeaponPart, targets_dict: Diction
 				shoulder_ammo_changed.emit(side, core.ammo, weapon.max_ammo)
 			else:
 				ammo_changed.emit(side, core.ammo, weapon.max_ammo)
+	core.ammo_per_shot = saved_aps
 
 
 func _melee_attack(hand: String, weapon: WeaponPart, is_loaded_blast: bool = true) -> void:

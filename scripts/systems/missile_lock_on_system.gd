@@ -20,6 +20,8 @@ var target_lock_progress: Dictionary = {}  # Node3D -> float (seconds accumulate
 
 var lock_interval: float = 0.16           # time in seconds to add 1 missile to lock stack
 var effective_range: float = 100.0
+# Per-target cap is per POD MODEL (set in start_locking from weapon.max_ammo),
+# 8 is only the fallback for weapons with no magazine size.
 var max_locks_per_target: int = 8
 var max_total_locks: int = 8
 var lock_cone_degrees: float = 16.0
@@ -38,7 +40,11 @@ func start_locking(slot: String, weapon: WeaponPart, current_ammo: int) -> void:
 	target_lock_progress.clear()
 	effective_range = weapon.range_distance if ("range_distance" in weapon and weapon.range_distance > 0.0) else 100.0
 	var mag_limit := weapon.max_ammo if ("max_ammo" in weapon and weapon.max_ammo > 0) else 8
+	# Total locks never exceed the pod's magazine (current ammo or pod max,
+	# whichever is smaller); each single target may take up to the FULL pod,
+	# so locks split across targets by sweep time (4/8+4/8, 1/8+3/8+4/8, ...).
 	max_total_locks = mini(current_ammo, mag_limit)
+	max_locks_per_target = mag_limit
 	lock_updated.emit(locked_targets)
 
 

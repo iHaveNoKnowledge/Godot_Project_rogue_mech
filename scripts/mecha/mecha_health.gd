@@ -61,6 +61,10 @@ func _init_parts() -> void:
 			# Empty means a balanced plate that always uses its armor_class.
 			if p and p.get("defense_type") != null:
 				parts[slot]["defense_type"] = str(p.defense_type)
+			if p is ArmorPart and p.resistance is Dictionary:
+				parts[slot]["resistance"] = p.resistance.duplicate(true)
+			elif p is Dictionary and p.has("resistance") and p["resistance"] is Dictionary:
+				parts[slot]["resistance"] = p["resistance"].duplicate(true)
 
 		# -----------------------------------------------------------------------
 		# Scrap emergency patch: this slot was rebuilt from scrap in the

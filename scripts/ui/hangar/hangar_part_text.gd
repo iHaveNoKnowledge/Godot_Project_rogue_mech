@@ -139,6 +139,13 @@ static func armor_capability_text(inst: Dictionary, durability: float) -> String
 	else:
 		lines.append("DEFENSE TYPE: BALANCED (all types at armor class)")
 
+	if inst.has("resistance") and inst["resistance"] is Dictionary and not (inst["resistance"] as Dictionary).is_empty():
+		var r: Dictionary = inst["resistance"]
+		var heat_r: float = float(r.get("heat", 1.0))
+		var pierce_r: float = float(r.get("pierce", 1.0))
+		var impact_r: float = float(r.get("impact", r.get("blunt", 1.0)))
+		lines.append("RESISTANCE: Heat x%.2f | Pierce x%.2f | Impact x%.2f" % [heat_r, pierce_r, impact_r])
+
 	var full_hp := float(GlobalData.part_stat(inst, "max_hp", 30.0))
 	var dur := clampf(durability, 0.0, 1.0)
 	var armor_class := GlobalData.part_stat(inst, "armor", 0.0)

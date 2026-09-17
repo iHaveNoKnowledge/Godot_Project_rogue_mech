@@ -741,11 +741,18 @@ static func build_mech_catalog_loadout(mech: Dictionary, fallback_color: Color =
 					# authored model for this exact part id.
 					armor_entry["id"] = str(p.get("db_id", p.get("id", "")))
 					armor_entry["path"] = str(p.get("path", ""))
+					if p.has("defense_type"):
+						armor_entry["defense_type"] = p["defense_type"]
+					if p.has("resistance") and p["resistance"] is Dictionary:
+						armor_entry["resistance"] = (p["resistance"] as Dictionary).duplicate(true)
 				elif p is ArmorPart:
 					armor_entry["name"] = (p as ArmorPart).part_name
 					armor_entry["hp"] = (p as ArmorPart).max_hp
 					armor_entry["color"] = (p as ArmorPart).part_color
 					armor_entry["path"] = (p as ArmorPart).resource_path
+					armor_entry["defense_type"] = (p as ArmorPart).defense_type
+					if not (p as ArmorPart).resistance.is_empty():
+						armor_entry["resistance"] = (p as ArmorPart).resistance.duplicate(true)
 				armor_entry["equipped"] = true
 		loadout[slot] = {"frame": frame_entry, "armor": armor_entry}
 	return loadout

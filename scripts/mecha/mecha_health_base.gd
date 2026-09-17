@@ -110,6 +110,11 @@ static func normalize_damage_type(t: String) -> String:
 			return str(t).to_lower()
 
 
+## Authoritative armor damage calculation path: applies resistance and durability mitigation.
+static func calculate_armor_damage(raw_damage: float, damage_type: String, armor_data: Variant, durability_multiplier: float = 1.0) -> float:
+	return DamageCalculator.calculate_armor_damage(raw_damage, damage_type, armor_data, durability_multiplier)
+
+
 func _calculate_totals() -> void:
 	total_armor_hp = 0.0
 	total_frame_hp = 0.0
@@ -524,26 +529,12 @@ func _collect_mesh_descendants(node: Node, into: Array) -> void:
 
 func _apply_armor_damage(slot_name: String, amount: float, damage_type: String, hit_pos: Vector3 = Vector3.ZERO) -> void:
 	var part = parts[slot_name]
-	# Armor only dampens attacks of its OWN defense type. A plate defends
-	# against one of heat/pierce/blunt; when the incoming attack type matches
-	# it, armor_class applies normally. When it doesn't match, the plate can't
-	# shed the damage — it takes the hit at full strength (no armor_class
-	# reduction) until it breaks. Empty defense_type = balanced plate, so the
-	# old armor_class behaviour stays for untyped parts (and scrap patches).
-	var attack := normalize_damage_type(damage_type)
-	var defense := str(part.get("defense_type", "")).to_lower()
-	var resistance := 1.0
-
 	var dur := 1.0
 	if is_player:
 		dur = GlobalData.get_part_durability(slot_name)
 	var def_mult := ArmorSystem.get_durability_def_multiplier(dur)
 
-	if defense == "" or defense == "balanced" or defense == attack:
-		resistance = float(part.get("armor_class", 1.0)) * def_mult
-	else:
-		resistance = def_mult
-	var reduced = amount / maxf(resistance, 0.1)
+	var reduced = calculate_armor_damage(amount, damage_type, part, def_mult)
 	part["armor_hp"] = maxf(part["armor_hp"] - reduced, 0.0)
 
 	# In-combat durability wear from taking direct damage hits

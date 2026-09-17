@@ -949,6 +949,94 @@ static func advance_discovery_state(tech_id: String, target_state: int) -> bool:
 	return false
 
 
+## Validates whether a discovery transition from the current state to target_state is permitted.
+## In Phase 2E-3A, only the controlled forward transitions UNKNOWN -> ENCOUNTERED and ENCOUNTERED -> SALVAGED are permitted.
+static func can_transition_discovery_state(tech_id: String, target_state: int) -> bool:
+	init_catalog_if_needed()
+	if not has_technology(tech_id):
+		return false
+	var cur := get_discovery_state(tech_id)
+	if cur == DiscoveryState.UNKNOWN and target_state == DiscoveryState.ENCOUNTERED:
+		return true
+	if cur == DiscoveryState.ENCOUNTERED and target_state == DiscoveryState.SALVAGED:
+		return true
+	return false
+
+
+## Transitions discovery state using the validated transition rules.
+## Returns true if a state transition occurred, false if invalid or already at/past target state.
+static func transition_discovery_state(tech_id: String, target_state: int, context: Dictionary = {}) -> bool:
+	if not can_transition_discovery_state(tech_id, target_state):
+		return false
+	if target_state == DiscoveryState.ENCOUNTERED:
+		return record_technology_encountered(tech_id, context)
+	elif target_state == DiscoveryState.SALVAGED:
+		return record_technology_salvaged(tech_id, context)
+	return false
+
+
+## Records an observational encounter of a technology (combat, recon, prototype observation).
+## Controlled transition: UNKNOWN -> ENCOUNTERED.
+## Idempotent: repeated encounters of an already ENCOUNTERED or higher technology return false without state regression.
+static func record_technology_encountered(tech_id: String, context: Dictionary = {}) -> bool:
+	init_catalog_if_needed()
+	if not has_technology(tech_id):
+		return false
+	var cur := get_discovery_state(tech_id)
+	if cur == DiscoveryState.UNKNOWN:
+		_player_discovery[tech_id] = DiscoveryState.ENCOUNTERED
+		_emit_discovery_state_changed(tech_id, DiscoveryState.ENCOUNTERED, cur, context)
+		return true
+	return false
+
+
+## Records the acquisition of physical technology evidence (salvage, wreckage, component).
+## Controlled transition: ENCOUNTERED -> SALVAGED.
+## Idempotent: repeated salvage of an already SALVAGED or higher technology return false without state regression.
+## Rejects arbitrary jump from UNKNOWN without prior encounter (must be encountered first).
+static func record_technology_salvaged(tech_id: String, context: Dictionary = {}) -> bool:
+	init_catalog_if_needed()
+	if not has_technology(tech_id):
+		return false
+	var cur := get_discovery_state(tech_id)
+	if cur == DiscoveryState.ENCOUNTERED:
+		_player_discovery[tech_id] = DiscoveryState.SALVAGED
+		_emit_discovery_state_changed(tech_id, DiscoveryState.SALVAGED, cur, context)
+		return true
+	return false
+
+
+## Resolves or extracts the technology ID referenced by an item, salvage, or equipment dictionary/resource.
+## Returns "" if the object is not technology-bearing evidence.
+static func resolve_item_technology_id(item_data: Variant) -> String:
+	if item_data is Dictionary:
+		if item_data.has("tech_id"):
+			return str(item_data["tech_id"]).strip_edges()
+	elif item_data is Object and item_data.get("tech_id") != null:
+		return str(item_data.get("tech_id")).strip_edges()
+	return ""
+
+
+## Returns true if the provided object carries evidence of a valid registered technology.
+static func is_technology_evidence(item_data: Variant) -> bool:
+	init_catalog_if_needed()
+	var tid := resolve_item_technology_id(item_data)
+	return tid != "" and has_technology(tid)
+
+
+## Internal helper to safely emit discovery change events through EventBus if present in tree.
+static func _emit_discovery_state_changed(tech_id: String, new_state: int, old_state: int, context: Dictionary = {}) -> void:
+	if Engine.is_editor_hint():
+		return
+	var main_loop = Engine.get_main_loop()
+	if main_loop is SceneTree:
+		var root = (main_loop as SceneTree).root
+		if root and root.has_node("EventBus"):
+			var bus = root.get_node("EventBus")
+			if bus.has_signal("technology_discovery_state_changed"):
+				bus.technology_discovery_state_changed.emit(tech_id, new_state, old_state, context)
+
+
 static func is_technology_usable(tech_id: String) -> bool:
 	return get_discovery_state(tech_id) >= DiscoveryState.USABLE
 

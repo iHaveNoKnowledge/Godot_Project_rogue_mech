@@ -82,3 +82,25 @@ signal combat_rewards_shown(rewards: Dictionary)
 signal arena_generated(arena_data: Dictionary)
 signal cover_destroyed(pos: Vector3, type: String)
 signal combat_intensity_changed(intensity: float)
+
+# --- Technology Discovery (Phase 2E-3A) ---
+signal technology_observed(tech_id: String, observation_data: Dictionary)
+signal technology_salvaged(tech_id: String, salvage_data: Dictionary)
+signal technology_discovery_state_changed(tech_id: String, new_state: int, old_state: int, context: Dictionary)
+
+
+func _ready() -> void:
+	technology_observed.connect(_on_technology_observed)
+	technology_salvaged.connect(_on_technology_salvaged)
+
+
+func _on_technology_observed(tech_id: String, observation_data: Dictionary) -> void:
+	TechnologySystem.record_technology_encountered(tech_id, observation_data)
+
+
+func _on_technology_salvaged(tech_id: String, salvage_data: Dictionary) -> void:
+	var cur := TechnologySystem.get_discovery_state(tech_id)
+	if cur == TechnologySystem.DiscoveryState.UNKNOWN:
+		TechnologySystem.record_technology_encountered(tech_id, {"source": "salvage_observed", "salvage_data": salvage_data})
+	TechnologySystem.record_technology_salvaged(tech_id, salvage_data)
+

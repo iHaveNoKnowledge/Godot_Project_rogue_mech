@@ -48,9 +48,22 @@ const LINEAGE_VALKRYON := "valkryon"
 const LINEAGE_COMMON := "common"
 const LINEAGE_EXPERIMENTAL := "experimental"
 
+# Neutral Technology Diffusion Categories (Phase 2E-1)
+const CATEGORY_CONVENTIONAL := "conventional"
+const CATEGORY_MIXED := "mixed"
+const CATEGORY_EXPERIMENTAL := "experimental"
+
+# Standard Faction Access Identifiers (Phase 2E-1)
+const FACTION_ALL := "all"
+const FACTION_RIVAL := "rival"
+const FACTION_CONVOY := "convoy"
+
 # In-memory technology catalog and discovery state
 static var _catalog: Dictionary = {}
 static var _player_discovery: Dictionary = {}
+static var _world_diffusion_overrides: Dictionary = {}
+static var _active_world_prototypes: Dictionary = {}
+static var _faction_technologies: Dictionary = {}
 static var _initialized: bool = false
 
 
@@ -59,10 +72,10 @@ static var _initialized: bool = false
 # ===========================================================================
 
 static func init_catalog_if_needed() -> void:
-	if _initialized and not _catalog.is_empty():
+	if _initialized:
 		return
-	_catalog.clear()
 	_initialized = true
+	_catalog.clear()
 
 	# --- Generation 1: Conventional Valkren Foundation ---
 	register_technology({
@@ -80,6 +93,14 @@ static func init_catalog_if_needed() -> void:
 		},
 		"discovery_metadata": {
 			"base_state": DiscoveryState.USABLE,
+		},
+		"diffusion_metadata": {
+			"category": CATEGORY_CONVENTIONAL,
+			"min_era_phase": 1,
+			"default_diffused": true,
+			"prototype_only": false,
+			"restricted": false,
+			"factions": [FACTION_ALL]
 		},
 		"description": "Standard heavy kinetic ordnance, rifling mechanisms, and chemical propellant feed systems."
 	})
@@ -100,6 +121,14 @@ static func init_catalog_if_needed() -> void:
 		"discovery_metadata": {
 			"base_state": DiscoveryState.USABLE,
 		},
+		"diffusion_metadata": {
+			"category": CATEGORY_CONVENTIONAL,
+			"min_era_phase": 1,
+			"default_diffused": true,
+			"prototype_only": false,
+			"restricted": false,
+			"factions": [FACTION_ALL]
+		},
 		"description": "High-displacement combustion powerplants providing immense torque at the cost of weight and thermal output."
 	})
 
@@ -119,6 +148,14 @@ static func init_catalog_if_needed() -> void:
 		"discovery_metadata": {
 			"base_state": DiscoveryState.USABLE,
 		},
+		"diffusion_metadata": {
+			"category": CATEGORY_CONVENTIONAL,
+			"min_era_phase": 1,
+			"default_diffused": true,
+			"prototype_only": false,
+			"restricted": false,
+			"factions": [FACTION_ALL]
+		},
 		"description": "Standard passive heat sink fins and heat-pipe radiator assemblies."
 	})
 
@@ -137,6 +174,14 @@ static func init_catalog_if_needed() -> void:
 		},
 		"discovery_metadata": {
 			"base_state": DiscoveryState.USABLE,
+		},
+		"diffusion_metadata": {
+			"category": CATEGORY_CONVENTIONAL,
+			"min_era_phase": 1,
+			"default_diffused": true,
+			"prototype_only": false,
+			"restricted": false,
+			"factions": [FACTION_ALL]
 		},
 		"description": "High-pressure hydraulic actuators suited for heavy armor bearing and stable firing postures."
 	})
@@ -158,6 +203,14 @@ static func init_catalog_if_needed() -> void:
 		"discovery_metadata": {
 			"base_state": DiscoveryState.UNKNOWN,
 		},
+		"diffusion_metadata": {
+			"category": CATEGORY_MIXED,
+			"min_era_phase": 2,
+			"default_diffused": true,
+			"prototype_only": false,
+			"restricted": false,
+			"factions": [FACTION_ALL]
+		},
 		"description": "Solid-state power converters and optical bus interfaces enabling high-draw beam hardware on older platforms."
 	})
 
@@ -178,6 +231,15 @@ static func init_catalog_if_needed() -> void:
 		"discovery_metadata": {
 			"base_state": DiscoveryState.UNKNOWN,
 		},
+		"diffusion_metadata": {
+			"category": CATEGORY_EXPERIMENTAL,
+			"min_era_phase": 2,
+			"default_diffused": false,
+			"prototype_only": true,
+			"restricted": false,
+			"factions": [FACTION_RIVAL],
+			"lab_tier_req": 2
+		},
 		"description": "Coherent particle focus emitters designed for piercing hardened composite armor plates."
 	})
 
@@ -197,6 +259,14 @@ static func init_catalog_if_needed() -> void:
 		},
 		"discovery_metadata": {
 			"base_state": DiscoveryState.UNKNOWN,
+		},
+		"diffusion_metadata": {
+			"category": CATEGORY_MIXED,
+			"min_era_phase": 2,
+			"default_diffused": true,
+			"prototype_only": false,
+			"restricted": false,
+			"factions": [FACTION_ALL]
 		},
 		"description": "Pressurized sub-zero coolant loops capable of rapidly dissipating weapon discharge spikes."
 	})
@@ -219,6 +289,15 @@ static func init_catalog_if_needed() -> void:
 		"discovery_metadata": {
 			"base_state": DiscoveryState.UNKNOWN,
 		},
+		"diffusion_metadata": {
+			"category": CATEGORY_EXPERIMENTAL,
+			"min_era_phase": 3,
+			"default_diffused": false,
+			"prototype_only": true,
+			"restricted": false,
+			"factions": [FACTION_RIVAL],
+			"lab_tier_req": 3
+		},
 		"description": "Direct synthetic muscle fiber bundles with rapid impulse response and zero fluid-seal fatigue."
 	})
 
@@ -239,8 +318,25 @@ static func init_catalog_if_needed() -> void:
 		"discovery_metadata": {
 			"base_state": DiscoveryState.UNKNOWN,
 		},
+		"diffusion_metadata": {
+			"category": CATEGORY_EXPERIMENTAL,
+			"min_era_phase": 3,
+			"default_diffused": false,
+			"prototype_only": true,
+			"restricted": false,
+			"factions": [FACTION_RIVAL],
+			"excavation_tier_req": 2
+		},
 		"description": "Full-envelope reactive plasma deflection matrix capable of absorbing high-velocity kinetic and thermal impacts."
 	})
+
+
+static func _infer_diffusion_category(gen: int, tags: Array) -> String:
+	if "prototype" in tags or "relic" in tags or "advanced" in tags or gen >= 3:
+		return CATEGORY_EXPERIMENTAL
+	if "bridge" in tags or "converter" in tags or "interface" in tags or gen == 2:
+		return CATEGORY_MIXED
+	return CATEGORY_CONVENTIONAL
 
 
 static func register_technology(def: Dictionary) -> void:
@@ -249,17 +345,34 @@ static func register_technology(def: Dictionary) -> void:
 	if tid == "":
 		return
 
+	var raw_tags: Array = Array(def.get("tags", []))
+	var t_gen: int = int(def.get("generation", 1))
+	var era_req: int = int(def.get("era_phase_req", 1))
+	var raw_diff: Dictionary = Dictionary(def.get("diffusion_metadata", {}))
+
+	var schematized_diff: Dictionary = {
+		"category": str(raw_diff.get("category", _infer_diffusion_category(t_gen, raw_tags))),
+		"min_era_phase": int(raw_diff.get("min_era_phase", era_req)),
+		"default_diffused": bool(raw_diff.get("default_diffused", era_req <= 1)),
+		"prototype_only": bool(raw_diff.get("prototype_only", false)),
+		"restricted": bool(raw_diff.get("restricted", false)),
+		"factions": Array(raw_diff.get("factions", [FACTION_ALL])),
+		"excavation_tier_req": int(raw_diff.get("excavation_tier_req", 0)),
+		"lab_tier_req": int(raw_diff.get("lab_tier_req", 0))
+	}
+
 	var schematized: Dictionary = {
 		"tech_id": tid,
 		"name": str(def.get("name", tid)),
-		"generation": int(def.get("generation", 1)),
+		"generation": t_gen,
 		"technology_family": str(def.get("technology_family", FAMILY_BALLISTIC)),
-		"era_phase_req": int(def.get("era_phase_req", 1)),
+		"era_phase_req": era_req,
 		"origin_lineage": str(def.get("origin_lineage", LINEAGE_COMMON)),
-		"tags": Array(def.get("tags", [])),
+		"tags": raw_tags,
 		"prerequisites": Array(def.get("prerequisites", [])),
 		"compatibility_requirements": Dictionary(def.get("compatibility_requirements", {})),
 		"discovery_metadata": Dictionary(def.get("discovery_metadata", {})),
+		"diffusion_metadata": schematized_diff,
 		"description": str(def.get("description", ""))
 	}
 	_catalog[tid] = schematized
@@ -304,8 +417,19 @@ static func get_technologies_by_generation(generation: int) -> Array:
 
 
 # ===========================================================================
-# ERA & WORLD PROGRESSION INTERFACE
+# ERA & WORLD PROGRESSION INTERFACE (Phase 2E-1)
 # ===========================================================================
+
+static func _get_current_era_phase() -> int:
+	var eps = load("res://scripts/systems/era_progression_system.gd")
+	if eps and "current_phase" in eps:
+		return int(eps.current_phase)
+	return 1
+
+
+static func _get_rival_system():
+	return load("res://scripts/systems/rival_progression_system.gd")
+
 
 ## Queries whether a technology is plausible/available in the current world era phase.
 static func is_technology_plausible_in_era(tech_id: String, era_phase: int) -> bool:
@@ -324,6 +448,301 @@ static func get_plausible_technologies_for_era(era_phase: int) -> Array:
 		if is_technology_plausible_in_era(k, era_phase):
 			res.append(_catalog[k].duplicate(true))
 	return res
+
+
+## Authoritatively checks whether a technology has diffused into general world encounter/loot pools.
+static func is_technology_diffused_in_world(tech_id: String) -> bool:
+	init_catalog_if_needed()
+	if not _catalog.has(tech_id):
+		return false
+	
+	if _world_diffusion_overrides.has(tech_id):
+		var override_data: Dictionary = _world_diffusion_overrides[tech_id]
+		if override_data.has("diffused"):
+			return bool(override_data["diffused"])
+
+	var def: Dictionary = _catalog[tech_id]
+	var diff_meta: Dictionary = def.get("diffusion_metadata", {})
+	
+	if bool(diff_meta.get("restricted", false)):
+		return false
+	
+	if bool(diff_meta.get("prototype_only", false)):
+		return false
+
+	var min_phase: int = int(diff_meta.get("min_era_phase", def.get("era_phase_req", 1)))
+	var cur_phase: int = _get_current_era_phase()
+	if cur_phase < min_phase:
+		return false
+
+	var prereqs: Array = def.get("prerequisites", [])
+	for p in prereqs:
+		if not is_technology_diffused_in_world(str(p)):
+			return false
+			
+	return true
+
+
+## Authoritatively checks whether a technology exists/is active in the world in any form
+## (diffused in general pools, active prototype testbed, or possessed by a faction).
+static func is_technology_available_in_world(tech_id: String) -> bool:
+	init_catalog_if_needed()
+	if not _catalog.has(tech_id):
+		return false
+
+	if is_technology_diffused_in_world(tech_id):
+		return true
+
+	if is_technology_prototype_active(tech_id):
+		return true
+
+	if _world_diffusion_overrides.has(tech_id):
+		var ov: Dictionary = _world_diffusion_overrides[tech_id]
+		if ov.get("available", false):
+			return true
+
+	for f in [FACTION_RIVAL, FACTION_CONVOY]:
+		if _can_faction_access_technology(f, tech_id):
+			return true
+
+	return false
+
+
+## Checks whether a technology is currently deployed as an active prototype.
+static func is_technology_prototype_active(tech_id: String) -> bool:
+	if _active_world_prototypes.get(tech_id, false):
+		return true
+	
+	var rps = _get_rival_system()
+	if rps:
+		if rps.has_method("get_active_prototype_tech_id") and rps.has_method("has_active_prototype"):
+			if rps.has_active_prototype() and rps.get_active_prototype_tech_id() == tech_id:
+				return true
+	return false
+
+
+## Returns all technologies currently diffused in the world.
+static func get_diffused_technologies() -> Array:
+	init_catalog_if_needed()
+	var res: Array = []
+	for k in _catalog:
+		if is_technology_diffused_in_world(k):
+			res.append(_catalog[k].duplicate(true))
+	return res
+
+
+## Returns all technologies that would be diffused at a given hypothetical/specific era phase.
+static func get_diffused_technologies_for_phase(phase: int) -> Array:
+	init_catalog_if_needed()
+	var res: Array = []
+	for k in _catalog:
+		var def: Dictionary = _catalog[k]
+		var diff_meta: Dictionary = def.get("diffusion_metadata", {})
+		if bool(diff_meta.get("restricted", false)) or bool(diff_meta.get("prototype_only", false)):
+			continue
+		var min_phase: int = int(diff_meta.get("min_era_phase", def.get("era_phase_req", 1)))
+		if phase >= min_phase:
+			var prereqs_ok := true
+			for p in def.get("prerequisites", []):
+				var p_def: Dictionary = get_technology_definition(str(p))
+				var p_min: int = int(p_def.get("diffusion_metadata", {}).get("min_era_phase", p_def.get("era_phase_req", 1)))
+				if phase < p_min:
+					prereqs_ok = false
+					break
+			if prereqs_ok:
+				res.append(_catalog[k].duplicate(true))
+	return res
+
+
+## Returns all technologies categorized under a specific diffusion category
+## (e.g. CATEGORY_CONVENTIONAL, CATEGORY_MIXED, CATEGORY_EXPERIMENTAL).
+static func get_technologies_by_diffusion_category(category: String) -> Array:
+	init_catalog_if_needed()
+	var res: Array = []
+	for k in _catalog:
+		var def: Dictionary = _catalog[k]
+		var cat: String = str(def.get("diffusion_metadata", {}).get("category", ""))
+		if cat == category:
+			res.append(_catalog[k].duplicate(true))
+	return res
+
+
+## Checks internal faction access rules.
+static func _can_faction_access_technology(faction_id: String, tech_id: String) -> bool:
+	if not _catalog.has(tech_id):
+		return false
+	
+	var def: Dictionary = _catalog[tech_id]
+	var diff_meta: Dictionary = def.get("diffusion_metadata", {})
+	var allowed_factions: Array = diff_meta.get("factions", [FACTION_ALL])
+	
+	if is_technology_diffused_in_world(tech_id):
+		if FACTION_ALL in allowed_factions or faction_id in allowed_factions:
+			return true
+
+	if _faction_technologies.has(faction_id) and tech_id in _faction_technologies[faction_id]:
+		return true
+
+	if faction_id == FACTION_RIVAL:
+		var rps = _get_rival_system()
+		if rps:
+			var lab_req: int = int(diff_meta.get("lab_tier_req", 0))
+			if lab_req > 0 and rps.has_method("get_lab_tier") and rps.get_lab_tier() >= lab_req:
+				return true
+			var exc_req: int = int(diff_meta.get("excavation_tier_req", 0))
+			if exc_req > 0 and rps.has_method("get_excavation_tier") and rps.get_excavation_tier() >= exc_req:
+				return true
+			if rps.has_method("get_active_prototype_tech_id") and rps.get_active_prototype_tech_id() == tech_id:
+				return true
+
+	return false
+
+
+## Returns all technologies available to a specific faction.
+static func get_faction_available_technologies(faction_id: String) -> Array:
+	init_catalog_if_needed()
+	var res: Array = []
+	for k in _catalog:
+		if _can_faction_access_technology(faction_id, k):
+			res.append(_catalog[k].duplicate(true))
+	return res
+
+
+## Returns detailed world status dictionary for a technology.
+static func get_technology_world_state(tech_id: String) -> Dictionary:
+	init_catalog_if_needed()
+	if not _catalog.has(tech_id):
+		return {
+			"tech_id": tech_id,
+			"is_registered": false,
+			"is_diffused": false,
+			"is_available_in_world": false,
+			"is_prototype_active": false,
+			"diffusion_category": "unknown",
+			"factions_with_access": [],
+			"era_phase_req": 1,
+			"missing_requirements": ["technology_not_found"]
+		}
+
+	var def: Dictionary = _catalog[tech_id]
+	var diff_meta: Dictionary = def.get("diffusion_metadata", {})
+	var factions_access: Array = []
+	for f in [FACTION_RIVAL, FACTION_CONVOY]:
+		if _can_faction_access_technology(f, tech_id):
+			factions_access.append(f)
+
+	return {
+		"tech_id": tech_id,
+		"is_registered": true,
+		"is_diffused": is_technology_diffused_in_world(tech_id),
+		"is_available_in_world": is_technology_available_in_world(tech_id),
+		"is_prototype_active": is_technology_prototype_active(tech_id),
+		"diffusion_category": str(diff_meta.get("category", CATEGORY_CONVENTIONAL)),
+		"factions_with_access": factions_access,
+		"era_phase_req": int(def.get("era_phase_req", 1)),
+		"missing_requirements": get_missing_diffusion_requirements(tech_id)
+	}
+
+
+## Returns array of missing requirement identifiers preventing diffusion in the world.
+static func get_missing_diffusion_requirements(tech_id: String, _context: Dictionary = {}) -> Array:
+	init_catalog_if_needed()
+	if not _catalog.has(tech_id):
+		return ["technology_not_found"]
+
+	var def: Dictionary = _catalog[tech_id]
+	var diff_meta: Dictionary = def.get("diffusion_metadata", {})
+	var missing: Array = []
+
+	var min_phase: int = int(diff_meta.get("min_era_phase", def.get("era_phase_req", 1)))
+	var cur_phase: int = _get_current_era_phase()
+	if cur_phase < min_phase:
+		missing.append("insufficient_era_phase")
+
+	if bool(diff_meta.get("restricted", false)):
+		if not _world_diffusion_overrides.get(tech_id, {}).get("diffused", false):
+			missing.append("restricted_requires_activation")
+
+	if bool(diff_meta.get("prototype_only", false)):
+		if not _world_diffusion_overrides.get(tech_id, {}).get("diffused", false):
+			missing.append("prototype_only_not_diffused")
+
+	var prereqs: Array = def.get("prerequisites", [])
+	for p in prereqs:
+		if not is_technology_diffused_in_world(str(p)):
+			missing.append("missing_prerequisite:" + str(p))
+
+	var lab_req: int = int(diff_meta.get("lab_tier_req", 0))
+	if lab_req > 0:
+		var rps = _get_rival_system()
+		if rps and rps.has_method("get_lab_tier") and rps.get_lab_tier() < lab_req:
+			missing.append("insufficient_lab_tier")
+
+	var exc_req: int = int(diff_meta.get("excavation_tier_req", 0))
+	if exc_req > 0:
+		var rps = _get_rival_system()
+		if rps and rps.has_method("get_excavation_tier") and rps.get_excavation_tier() < exc_req:
+			missing.append("insufficient_excavation_tier")
+
+	return missing
+
+
+# --- World Diffusion Mutations & Overrides (ZERO impact on Player Discovery) ---
+
+static func activate_technology_diffusion(tech_id: String) -> bool:
+	if not has_technology(tech_id):
+		return false
+	_world_diffusion_overrides[tech_id] = {"diffused": true, "available": true}
+	return true
+
+
+static func deactivate_technology_diffusion(tech_id: String) -> bool:
+	if not has_technology(tech_id):
+		return false
+	_world_diffusion_overrides[tech_id] = {"diffused": false, "available": false}
+	return true
+
+
+static func set_technology_prototype_active(tech_id: String, active: bool) -> void:
+	if active:
+		_active_world_prototypes[tech_id] = true
+	else:
+		_active_world_prototypes.erase(tech_id)
+
+
+static func grant_faction_technology(faction_id: String, tech_id: String) -> void:
+	if not _faction_technologies.has(faction_id):
+		_faction_technologies[faction_id] = []
+	if not _faction_technologies[faction_id].has(tech_id):
+		_faction_technologies[faction_id].append(tech_id)
+
+
+static func reset_world_diffusion_state() -> void:
+	_world_diffusion_overrides.clear()
+	_active_world_prototypes.clear()
+	_faction_technologies.clear()
+
+
+static func serialize_world_diffusion_state() -> Dictionary:
+	return {
+		"overrides": _world_diffusion_overrides.duplicate(true),
+		"prototypes": _active_world_prototypes.duplicate(true),
+		"faction_technologies": _faction_technologies.duplicate(true)
+	}
+
+
+static func deserialize_world_diffusion_state(data: Variant) -> void:
+	reset_world_diffusion_state()
+	if data is Dictionary:
+		var ov = data.get("overrides", {})
+		if ov is Dictionary:
+			_world_diffusion_overrides = ov.duplicate(true)
+		var proto = data.get("prototypes", {})
+		if proto is Dictionary:
+			_active_world_prototypes = proto.duplicate(true)
+		var ftech = data.get("faction_technologies", {})
+		if ftech is Dictionary:
+			_faction_technologies = ftech.duplicate(true)
 
 
 # ===========================================================================

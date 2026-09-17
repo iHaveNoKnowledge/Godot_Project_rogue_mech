@@ -113,7 +113,8 @@ static func save_run() -> void:
 		"pilot_weapons": GlobalData.pilot.pilot_weapons.duplicate(),
 		"pilot_ammo": GlobalData.pilot.pilot_ammo.duplicate(),
 		"pilot_items": GlobalData.pilot.pilot_items.duplicate(),
-		"technology_discovery": TechnologySystem.serialize_discovery_states()
+		"technology_discovery": TechnologySystem.serialize_discovery_states(),
+		"world_technology_diffusion": TechnologySystem.serialize_world_diffusion_state()
 	}
 	var file := FileAccess.open(GlobalData.SAVE_PATH, FileAccess.WRITE)
 	if file:
@@ -350,6 +351,8 @@ static func restore_from_dict(data: Dictionary) -> void:
 		GlobalData.hangar.research_unlocked = loaded_unlocked.duplicate()
 	var loaded_tech_discovery = data.get("technology_discovery", {})
 	TechnologySystem.deserialize_discovery_states(loaded_tech_discovery)
+	var loaded_world_diffusion = data.get("world_technology_diffusion", {})
+	TechnologySystem.deserialize_world_diffusion_state(loaded_world_diffusion)
 
 	var pos = data.get("position", {"x": 0, "y": 0})
 	GlobalData.board.current_tile = Vector2i(pos.x, pos.y)

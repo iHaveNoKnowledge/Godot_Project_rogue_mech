@@ -108,12 +108,15 @@ static func _develop_prototype() -> void:
 		"Zephyr-Type-Null 'Blink Striker'"
 	]
 	var selected_name: String = prototype_names[randi() % prototype_names.size()]
+	var wtype: String = "prototype_beam" if randf() > 0.5 else "relic_singularity_blade"
+	var tid: String = "tech_beam_weaponry" if wtype == "prototype_beam" else "tech_high_energy_barrier"
 	
 	active_prototype = {
 		"name": selected_name,
 		"tier": lab_tier,
 		"pilot_callsign": PilotGenerator.CALLSIGNS[randi() % PilotGenerator.CALLSIGNS.size()],
-		"weapon_type": "prototype_beam" if randf() > 0.5 else "relic_singularity_blade",
+		"weapon_type": wtype,
+		"tech_id": tid,
 		"damage_mult": 1.4 + float(lab_tier) * 0.2,
 		"speed_mult": 1.25 + float(lab_tier) * 0.1,
 		"special_sfx": "prototype_charge"
@@ -163,3 +166,28 @@ static func get_rival_status_summary() -> Dictionary:
 		"has_prototype": not active_prototype.is_empty(),
 		"pending_encounter": pending_prototype_encounter
 	}
+
+
+static func get_scout_tier() -> int:
+	return scout_tier
+
+
+static func get_excavation_tier() -> int:
+	return excavation_tier
+
+
+static func get_lab_tier() -> int:
+	return lab_tier
+
+
+static func get_active_prototype() -> Dictionary:
+	return active_prototype.duplicate(true)
+
+
+static func get_active_prototype_tech_id() -> String:
+	return str(active_prototype.get("tech_id", ""))
+
+
+static func has_active_prototype() -> bool:
+	return not active_prototype.is_empty()
+

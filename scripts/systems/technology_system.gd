@@ -186,6 +186,62 @@ static func init_catalog_if_needed() -> void:
 		"description": "High-pressure hydraulic actuators suited for heavy armor bearing and stable firing postures."
 	})
 
+	register_technology({
+		"tech_id": "tech_reinforced_plating",
+		"name": "Reinforced Composite Armor Plating",
+		"generation": 1,
+		"technology_family": FAMILY_BALLISTIC,
+		"era_phase_req": 1,
+		"origin_lineage": LINEAGE_VALKREN,
+		"tags": ["armor", "plating", "ballistic", "reinforced"],
+		"prerequisites": ["tech_ballistic_conventional"],
+		"compatibility_requirements": {
+			"min_generation": 1,
+			"required_families": [FAMILY_BALLISTIC],
+		},
+		"discovery_metadata": {
+			"base_state": DiscoveryState.UNKNOWN,
+		},
+		"diffusion_metadata": {
+			"category": CATEGORY_CONVENTIONAL,
+			"min_era_phase": 1,
+			"default_diffused": false,
+			"prototype_only": false,
+			"restricted": false,
+			"factions": [FACTION_ALL],
+			"lab_tier_req": 1
+		},
+		"description": "Heavy rolled homogeneous armor plating with ballistic deflective angling."
+	})
+
+	register_technology({
+		"tech_id": "tech_relic_excavation_core",
+		"name": "Excavated Pre-Calamity Relic Matrix",
+		"generation": 1,
+		"technology_family": FAMILY_POWER,
+		"era_phase_req": 1,
+		"origin_lineage": LINEAGE_COMMON,
+		"tags": ["relic", "ancient", "excavation", "salvage", "energy"],
+		"prerequisites": [],
+		"compatibility_requirements": {
+			"min_generation": 1,
+			"required_families": [FAMILY_POWER],
+		},
+		"discovery_metadata": {
+			"base_state": DiscoveryState.UNKNOWN,
+		},
+		"diffusion_metadata": {
+			"category": CATEGORY_EXPERIMENTAL,
+			"min_era_phase": 1,
+			"default_diffused": false,
+			"prototype_only": true,
+			"restricted": false,
+			"factions": [FACTION_RIVAL],
+			"excavation_tier_req": 1
+		},
+		"description": "Unearthed pre-calamity energy accumulator recovered from ruins excavation dig sites."
+	})
+
 	# --- Generation 2: Modernized & Energy Systems ---
 	register_technology({
 		"tech_id": "tech_modular_energy_interface",
@@ -608,6 +664,96 @@ static func get_faction_available_technologies(faction_id: String) -> Array:
 	return res
 
 
+## Queries technologies currently eligible for a faction to unlock via research/breakthrough.
+## Evaluates:
+## 1. Faction eligibility (def.diffusion_metadata.factions contains faction_id or FACTION_ALL)
+## 2. Era phase requirement (def.diffusion_metadata.min_era_phase <= EraProgressionSystem.current_phase)
+## 3. Prerequisites: Faction must already possess all required prerequisites
+## 4. Exclusion: Faction must not already possess the technology
+## 5. Optional context filters (branch == "laboratory" or "excavation", category, family)
+static func get_eligible_faction_technologies(faction_id: String, context: Dictionary = {}) -> Array:
+	init_catalog_if_needed()
+	var res: Array = []
+	var cur_phase := _get_current_era_phase()
+	var branch: String = str(context.get("branch", "")).to_lower()
+	var desired_category: String = str(context.get("category", ""))
+	var desired_family: String = str(context.get("family", ""))
+
+	for tid in _catalog:
+		var def: Dictionary = _catalog[tid]
+		var diff_meta: Dictionary = def.get("diffusion_metadata", {})
+		
+		# 1. Faction eligibility
+		var allowed_factions: Array = diff_meta.get("factions", [FACTION_ALL])
+		if not (FACTION_ALL in allowed_factions or faction_id in allowed_factions):
+			continue
+			
+		# 2. Era phase requirement
+		var min_phase: int = int(diff_meta.get("min_era_phase", def.get("era_phase_req", 1)))
+		if cur_phase < min_phase:
+			continue
+			
+		# 3. Must NOT already be possessed by the faction or generally diffused in world
+		if has_faction_technology(faction_id, tid) or is_technology_diffused_in_world(tid):
+			continue
+			
+		# 4. Prerequisites: All prerequisites must already be accessible to this faction
+		var prereqs_ok := true
+		for p in def.get("prerequisites", []):
+			if not _can_faction_access_technology(faction_id, str(p)):
+				prereqs_ok = false
+				break
+		if not prereqs_ok:
+			continue
+			
+		# 5. Optional context filters
+		if desired_category != "" and str(diff_meta.get("category", "")) != desired_category:
+			continue
+			
+		if desired_family != "" and str(def.get("technology_family", "")) != desired_family:
+			continue
+
+		if branch == "laboratory":
+			var lab_req: int = int(diff_meta.get("lab_tier_req", 0))
+			var fam: String = str(def.get("technology_family", ""))
+			var is_lab_family: bool = fam in [FAMILY_ENERGY, FAMILY_INTERFACE, FAMILY_ACTUATION, FAMILY_COOLING, FAMILY_BALLISTIC]
+			var is_lab_meta: bool = lab_req > 0 or bool(diff_meta.get("prototype_only", false)) or is_lab_family
+			if not is_lab_meta:
+				continue
+		elif branch == "excavation":
+			var exc_req: int = int(diff_meta.get("excavation_tier_req", 0))
+			var tags: Array = def.get("tags", [])
+			var is_exc_meta: bool = exc_req > 0 or "relic" in tags or "ancient" in tags or "barrier" in tags or "salvage" in tags
+			if not is_exc_meta:
+				continue
+
+		res.append(def.duplicate(true))
+
+	return res
+
+
+## Selects a single breakthrough technology for a faction from eligible candidates.
+## Uses data-driven metadata rather than a rigid hardcoded ladder.
+static func select_breakthrough_technology(faction_id: String, context: Dictionary = {}) -> String:
+	var eligible := get_eligible_faction_technologies(faction_id, context)
+	if eligible.is_empty():
+		return ""
+	
+	# Prefer technology that directly targets the current branch tier if specified
+	var target_tier: int = int(context.get("tier", 0))
+	var branch: String = str(context.get("branch", "")).to_lower()
+	if target_tier > 0:
+		for candidate in eligible:
+			var diff_meta: Dictionary = candidate.get("diffusion_metadata", {})
+			if branch == "laboratory" and int(diff_meta.get("lab_tier_req", 0)) == target_tier:
+				return str(candidate.get("tech_id", ""))
+			elif branch == "excavation" and int(diff_meta.get("excavation_tier_req", 0)) == target_tier:
+				return str(candidate.get("tech_id", ""))
+
+	# Otherwise return the first valid eligible candidate
+	return str(eligible[0].get("tech_id", ""))
+
+
 ## Returns detailed world status dictionary for a technology.
 static func get_technology_world_state(tech_id: String) -> Dictionary:
 	init_catalog_if_needed()
@@ -715,6 +861,18 @@ static func grant_faction_technology(faction_id: String, tech_id: String) -> voi
 		_faction_technologies[faction_id] = []
 	if not _faction_technologies[faction_id].has(tech_id):
 		_faction_technologies[faction_id].append(tech_id)
+
+
+static func has_faction_technology(faction_id: String, tech_id: String) -> bool:
+	if not _faction_technologies.has(faction_id):
+		return false
+	return tech_id in _faction_technologies[faction_id]
+
+
+static func get_technologies_for_faction(faction_id: String) -> Array:
+	if not _faction_technologies.has(faction_id):
+		return []
+	return _faction_technologies[faction_id].duplicate()
 
 
 static func reset_world_diffusion_state() -> void:

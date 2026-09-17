@@ -35,6 +35,7 @@ signal pile_bunker_fired(is_loaded_blast: bool, target_pos: Vector3)
 signal rival_progression_updated(rival_data: Dictionary)
 signal era_phase_advanced(new_era: String, phase_index: int)
 signal prototype_encounter_triggered(prototype_data: Dictionary)
+signal rival_technology_breakthrough(breakthrough_info: Dictionary)
 
 # --- Eject / Pilot ---
 signal eject_initiated()

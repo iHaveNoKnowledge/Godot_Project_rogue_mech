@@ -110,3 +110,27 @@ static func get_era_modifiers() -> Dictionary:
 				"omni_barrier_active": true
 			}
 	return {}
+
+
+static func serialize_era_state() -> Dictionary:
+	return {
+		"current_turn": current_turn,
+		"current_phase": int(current_phase)
+	}
+
+
+static func deserialize_era_state(data: Variant) -> void:
+	reset()
+	if data is Dictionary:
+		current_turn = maxi(1, int(data.get("current_turn", 1)))
+		var phase_val := int(data.get("current_phase", EraPhase.PHASE_1_TACTICAL))
+		if phase_val in [EraPhase.PHASE_1_TACTICAL, EraPhase.PHASE_2_ENERGY, EraPhase.PHASE_3_SINGULARITY]:
+			current_phase = phase_val
+		else:
+			if current_turn >= PHASE_3_TURN_THRESHOLD:
+				current_phase = EraPhase.PHASE_3_SINGULARITY
+			elif current_turn >= PHASE_2_TURN_THRESHOLD:
+				current_phase = EraPhase.PHASE_2_ENERGY
+			else:
+				current_phase = EraPhase.PHASE_1_TACTICAL
+

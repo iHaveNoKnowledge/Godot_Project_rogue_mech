@@ -83,7 +83,7 @@ func _ready() -> void:
 	var bolt_vis: Node3D = WeaponCore._build_beam_bolt(WeaponCore._get_cached_material(Color(0.35, 0.9, 1.0)))
 	_check(bolt_vis != null and bolt_vis.name == "BeamBolt", "beam visual builds with correct name")
 	_check(is_equal_approx(bolt_vis.scale.z, 1.33), "beam bolt is stretched 33% longer along flight")
-	_check(bolt_vis.find_children("*", "MeshInstance3D", true, false).size() > 0, "beam visual carries mesh geometry")
+	_check((bolt_vis is MeshInstance3D) or bolt_vis.find_children("*", "MeshInstance3D", true, false).size() > 0, "beam visual carries mesh geometry")
 	var slug_vis: Node3D = WeaponCore._build_rail_slug(WeaponCore._get_cached_material(Color(0.75, 0.92, 1.0)))
 	_check(slug_vis != null and slug_vis.name == "RailSlug", "rail slug visual builds with correct name")
 	_check(slug_vis.find_children("*", "MeshInstance3D", true, false).size() > 0, "rail slug carries mesh geometry")
@@ -116,6 +116,7 @@ func _ready() -> void:
 	_check(slug_shot, "fired railgun slug keeps sonic wake without beam behavior")
 	_check(slug_lit, "railgun slug carries a real light for dark areas")
 	# Beam light check on a fresh shot (previous beam projectile was freed above).
+	fire_beam.cooldown = 0.0
 	_check(fire_beam.try_fire(Vector3.ZERO, Vector3.FORWARD, false, owner), "beam core fires again for light check")
 	await get_tree().process_frame
 	var beam_lit := false

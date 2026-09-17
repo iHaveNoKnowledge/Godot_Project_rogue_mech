@@ -272,6 +272,41 @@ static func get_total_recoil_resistance() -> float:
 	return total / maxf(float(count), 1.0)
 
 
-## Preserves existing arm-frame heavy weapon power gating.
+## Preserves existing arm-power heavy weapon gating.
 static func get_arm_power(side: String) -> float:
 	return GlobalData.get_arm_power(side)
+
+
+# ===========================================================================
+# TECHNOLOGY QUERIES (Phase 2D Integration)
+# ===========================================================================
+
+## Returns the architectural technology lineage of this frame (e.g. "valkren", "valkryon").
+static func get_frame_technology_lineage(frame_data: Variant) -> String:
+	var dict := _resolve_frame_dict(frame_data)
+	return str(dict.get("technology_lineage", "valkren"))
+
+
+## Returns the native architecture generation of this frame (e.g. 1, 2, 3).
+static func get_frame_native_generation(frame_data: Variant) -> int:
+	var dict := _resolve_frame_dict(frame_data)
+	return int(dict.get("native_generation", 1))
+
+
+## Returns the supported technology families array for this frame.
+static func get_frame_supported_families(frame_data: Variant) -> Array:
+	var dict := _resolve_frame_dict(frame_data)
+	var fams = dict.get("supported_families", ["all"])
+	return Array(fams) if fams is Array else ["all"]
+
+
+## Evaluates whether this frame can support a given technology directly or via bridges.
+static func can_support_technology(frame_data: Variant, tech_id: String, installed_bridges: Array = []) -> bool:
+	var ts = load("res://scripts/systems/technology_system.gd")
+	return ts.can_frame_support_technology(frame_data, tech_id, installed_bridges)
+
+
+## Returns full compatibility evaluation dictionary.
+static func evaluate_technology_compatibility(frame_data: Variant, tech_id: String, installed_bridges: Array = []) -> Dictionary:
+	var ts = load("res://scripts/systems/technology_system.gd")
+	return ts.evaluate_frame_technology_compatibility(frame_data, tech_id, installed_bridges)

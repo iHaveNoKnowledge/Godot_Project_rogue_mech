@@ -112,7 +112,8 @@ static func save_run() -> void:
 		"pilot_max_hp": GlobalData.pilot.pilot_max_hp,
 		"pilot_weapons": GlobalData.pilot.pilot_weapons.duplicate(),
 		"pilot_ammo": GlobalData.pilot.pilot_ammo.duplicate(),
-		"pilot_items": GlobalData.pilot.pilot_items.duplicate()
+		"pilot_items": GlobalData.pilot.pilot_items.duplicate(),
+		"technology_discovery": TechnologySystem.serialize_discovery_states()
 	}
 	var file := FileAccess.open(GlobalData.SAVE_PATH, FileAccess.WRITE)
 	if file:
@@ -347,6 +348,8 @@ static func restore_from_dict(data: Dictionary) -> void:
 	var loaded_unlocked = data.get("research_unlocked", [])
 	if loaded_unlocked is Array:
 		GlobalData.hangar.research_unlocked = loaded_unlocked.duplicate()
+	var loaded_tech_discovery = data.get("technology_discovery", {})
+	TechnologySystem.deserialize_discovery_states(loaded_tech_discovery)
 
 	var pos = data.get("position", {"x": 0, "y": 0})
 	GlobalData.board.current_tile = Vector2i(pos.x, pos.y)

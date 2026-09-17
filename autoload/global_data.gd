@@ -369,6 +369,15 @@ static func ensure_frame_data_schema(entry: Dictionary, slot_hint: String = "") 
 		out["modifications"] = []
 	if not out.has("unlocked_capabilities"):
 		out["unlocked_capabilities"] = []
+	# Phase 2D: Technology Metadata
+	if not out.has("technology_lineage"):
+		var sid := str(out.get("frame_set_id", ""))
+		out["technology_lineage"] = "valkryon" if sid == "valkyrion" else "valkren"
+	if not out.has("native_generation"):
+		var sid := str(out.get("frame_set_id", ""))
+		out["native_generation"] = 3 if sid == "valkyrion" else 1
+	if not out.has("supported_families"):
+		out["supported_families"] = ["all"]
 	return out
 
 

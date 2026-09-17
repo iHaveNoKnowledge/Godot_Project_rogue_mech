@@ -73,7 +73,28 @@ const MODULE_CATALOG: Dictionary = {
 			"heat_capacity_mult": 1.25,
 			"heat_cool_rate_mult": 1.40,
 		},
+		"bridge_capabilities": {
+			"bridges_generation_up_to": 2,
+			"bridges_families": ["cooling"],
+			"bridge_tags": ["cryo_coolant_interface"],
+		},
 		"rarity_color": Color(0.35, 0.85, 1.0), # Cryo Cyan
+	},
+	"modular_energy_converter": {
+		"id": "modular_energy_converter",
+		"name": "Modular Energy Bridge Interface",
+		"category": "torso",
+		"tier": "military",
+		"desc": "Optical bus converter and high-draw transformer. Acts as a Technology Bridge enabling modern energy and beam systems on conventional frames.",
+		"effects": {
+			"energy_bonus": 200.0,
+		},
+		"bridge_capabilities": {
+			"bridges_generation_up_to": 2,
+			"bridges_families": ["energy", "interface"],
+			"bridge_tags": ["energy_interface"],
+		},
+		"rarity_color": Color(0.2, 0.8, 1.0),
 	},
 	"vent_protocol": {
 		"id": "vent_protocol",
@@ -218,6 +239,11 @@ const MODULE_CATALOG: Dictionary = {
 		"effects": {
 			"energy_bonus": 1000.0,
 			"recharge_bonus": 80.0,
+		},
+		"bridge_capabilities": {
+			"bridges_generation_up_to": 2,
+			"bridges_families": ["power", "energy"],
+			"bridge_tags": ["high_output_reactor"],
 		},
 		"rarity_color": Color(0.2, 0.7, 1.0),
 	},
@@ -489,8 +515,8 @@ static func uninstall_module(slot: String, socket_index: int) -> String:
 static func get_all_installed_modules() -> Array[Dictionary]:
 	init_slots_if_needed()
 	var list: Array[Dictionary] = []
-	for slot in GlobalData.weapons.frame_modules:
-		var arr: Array = GlobalData.weapons.frame_modules[slot]
+	for slot in GlobalData.MECHA_SLOTS:
+		var arr: Array = GlobalData.weapons.frame_modules.get(slot, [])
 		for mod_id in arr:
 			if mod_id != "" and MODULE_CATALOG.has(mod_id):
 				list.append(MODULE_CATALOG[mod_id])
@@ -499,8 +525,8 @@ static func get_all_installed_modules() -> Array[Dictionary]:
 
 static func has_module(module_id: String) -> bool:
 	init_slots_if_needed()
-	for slot in GlobalData.weapons.frame_modules:
-		var arr: Array = GlobalData.weapons.frame_modules[slot]
+	for slot in GlobalData.MECHA_SLOTS:
+		var arr: Array = GlobalData.weapons.frame_modules.get(slot, [])
 		if arr.has(module_id):
 			return true
 	return false
@@ -613,3 +639,34 @@ static func calculate_berserk_melee_multiplier() -> float:
 	var count := get_total_broken_or_bound_slots()
 	var per_slot: float = float(get_module_effect("exposed_frame_berserk", "broken_slot_melee", 0.25))
 	return 1.0 + float(count) * per_slot
+
+
+# ===========================================================================
+# TECHNOLOGY BRIDGE QUERIES (Phase 2D Integration)
+# ===========================================================================
+
+## Returns the bridge capabilities dictionary for a given module ID or dictionary.
+static func get_module_bridge_capabilities(module_data_or_id: Variant) -> Dictionary:
+	if module_data_or_id is Dictionary:
+		return module_data_or_id.get("bridge_capabilities", {}).duplicate(true)
+	elif module_data_or_id is String:
+		var mod := get_module(str(module_data_or_id))
+		return mod.get("bridge_capabilities", {}).duplicate(true)
+	return {}
+
+
+## Returns an array of bridge capability dictionaries for all currently installed modules across all slots.
+static func get_installed_bridge_capabilities() -> Array:
+	var list: Array = []
+	for mod in get_all_installed_modules():
+		var caps: Dictionary = mod.get("bridge_capabilities", {})
+		if not caps.is_empty():
+			list.append(caps.duplicate(true))
+	return list
+
+
+## Evaluates whether a module can bridge a specific technology ID.
+static func bridges_technology(module_data_or_id: Variant, tech_id: String) -> bool:
+	var ts = load("res://scripts/systems/technology_system.gd")
+	return ts.can_module_bridge_technology(module_data_or_id, tech_id)
+

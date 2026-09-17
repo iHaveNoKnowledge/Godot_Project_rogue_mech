@@ -149,6 +149,8 @@ var _fist_weapon: WeaponPart = null
 # Heat smoke timers — throttles 3D smoke puffs rising from hot barrels
 var _heat_smoke_timer_left: float = 0.0
 var _heat_smoke_timer_right: float = 0.0
+var _heat_smoke_timer_shoulder_left: float = 0.0
+var _heat_smoke_timer_shoulder_right: float = 0.0
 
 
 # How far a melee swing carries the mech toward the target, matched to the
@@ -381,15 +383,23 @@ func _core_for_weapon(weapon: WeaponPart) -> WeaponCore:
 
 
 func _forward_ammo_changed(current: int, max_ammo: int, key: String) -> void:
-	var hand = _hand_of_weapon(key)
-	if not hand.is_empty():
-		ammo_changed.emit(hand, current, max_ammo)
+	var slot = _hand_of_weapon(key)
+	if slot == "left" or slot == "right":
+		ammo_changed.emit(slot, current, max_ammo)
+	elif slot == "shoulder_left":
+		shoulder_ammo_changed.emit("left", current, max_ammo)
+	elif slot == "shoulder_right":
+		shoulder_ammo_changed.emit("right", current, max_ammo)
 
 
 func _forward_heat_changed(current: float, max_heat: float, overheated: bool, key: String) -> void:
-	var hand = _hand_of_weapon(key)
-	if not hand.is_empty():
-		heat_changed.emit(hand, current, max_heat, overheated)
+	var slot = _hand_of_weapon(key)
+	if slot == "left" or slot == "right":
+		heat_changed.emit(slot, current, max_heat, overheated)
+	elif slot == "shoulder_left":
+		shoulder_heat_changed.emit("left", current, max_heat, overheated)
+	elif slot == "shoulder_right":
+		shoulder_heat_changed.emit("right", current, max_heat, overheated)
 
 
 func _hand_of_weapon(key: String) -> String:
@@ -397,6 +407,10 @@ func _hand_of_weapon(key: String) -> String:
 		return "left"
 	if right_hand and str(right_hand.get_instance_id()) == key:
 		return "right"
+	if shoulder_left and str(shoulder_left.get_instance_id()) == key:
+		return "shoulder_left"
+	if shoulder_right and str(shoulder_right.get_instance_id()) == key:
+		return "shoulder_right"
 	return ""
 
 
@@ -409,6 +423,13 @@ func _physics_process(delta: float) -> void:
 		_core_for_weapon(left_hand).tick(delta)
 	if right_hand:
 		_core_for_weapon(right_hand).tick(delta)
+	# Shoulders run the SAME WeaponCore rules as hands (cooldown/ammo/heat).
+	# They must be ticked too — otherwise cooldown never clears (fires once
+	# then locks) and heat never cools.
+	if shoulder_left:
+		_core_for_weapon(shoulder_left).tick(delta)
+	if shoulder_right:
+		_core_for_weapon(shoulder_right).tick(delta)
 	if not left_hand or not right_hand:
 		_core_for_weapon(_fist()).tick(delta)
 
@@ -523,6 +544,42 @@ func _update_heat_smoke(delta: float) -> void:
 			EffectFactory.spawn_smoke_plume(get_tree(), muzzle + Vector3(0,0.08,0), 1, 0.14, 0.28, 0.7)
 		else:
 			EffectFactory.spawn_smoke_plume(get_tree(), muzzle + Vector3(0,0.06,0), 1, 0.10, 0.22, 0.55)
+	for side in ["left", "right"]:
+		var sweapon: WeaponPart = shoulder_left if side == "left" else shoulder_right
+		if sweapon == null or not sweapon.uses_heat():
+			continue
+		var score := _core_for_weapon(sweapon)
+		if score == null or score.heat_capacity <= 0.0:
+			continue
+		var sratio: float = clampf(score.heat / score.heat_capacity, 0.0, 1.0)
+		if sratio < 0.35:
+			continue
+		var stimer: float = _heat_smoke_timer_shoulder_left if side == "left" else _heat_smoke_timer_shoulder_right
+		stimer -= delta
+		var sinterval: float = lerp(0.45, 0.12, (sratio - 0.35) / 0.65)
+		if stimer > 0.0:
+			if side == "left":
+				_heat_smoke_timer_shoulder_left = stimer
+			else:
+				_heat_smoke_timer_shoulder_right = stimer
+			continue
+		if side == "left":
+			_heat_smoke_timer_shoulder_left = sinterval
+		else:
+			_heat_smoke_timer_shoulder_right = sinterval
+		var smuzzle: Vector3 = _get_shoulder_muzzle_world_pos(side)
+		if smuzzle == Vector3.INF:
+			var smecha := get_parent() as Node3D
+			if smecha == null:
+				continue
+			smuzzle = smecha.global_position + smecha.global_transform.basis * WeaponVisualFactory.shoulder_mount_position(side)
+		if score.overheated:
+			EffectFactory.spawn_smoke_plume(get_tree(), smuzzle + Vector3(0,0.12,0), 3, 0.20, 0.40, 0.95)
+			EffectManager.spawn_hit_spark(smuzzle + Vector3(0,0.10,0), Vector3.UP, "heat")
+		elif sratio > 0.65:
+			EffectFactory.spawn_smoke_plume(get_tree(), smuzzle + Vector3(0,0.08,0), 1, 0.14, 0.28, 0.7)
+		else:
+			EffectFactory.spawn_smoke_plume(get_tree(), smuzzle + Vector3(0,0.06,0), 1, 0.10, 0.22, 0.55)
 
 
 # ====================================================================
@@ -1885,6 +1942,29 @@ func get_heat_percent(hand: String) -> float:
 
 func is_overheated(hand: String) -> bool:
 	var weapon = left_hand if hand == "left" else right_hand
+	if weapon == null:
+		return false
+	var core = _core_for_weapon(weapon)
+	return core.is_overheated() if core else false
+
+
+func get_shoulder_heat(side: String) -> float:
+	var weapon: WeaponPart = shoulder_left if side == "left" else shoulder_right
+	if weapon == null:
+		return 0.0
+	return _get_heat(weapon)
+
+
+func get_shoulder_heat_percent(side: String) -> float:
+	var weapon: WeaponPart = shoulder_left if side == "left" else shoulder_right
+	if weapon == null or not weapon.uses_heat():
+		return 0.0
+	var core = _core_for_weapon(weapon)
+	return core.get_heat_percent() if core else 0.0
+
+
+func is_shoulder_overheated(side: String) -> bool:
+	var weapon: WeaponPart = shoulder_left if side == "left" else shoulder_right
 	if weapon == null:
 		return false
 	var core = _core_for_weapon(weapon)

@@ -14,7 +14,12 @@ static func equip_shoulder(side: String, weapon_path: String) -> bool:
 	return true
 
 
+## DEPRECATED for combat firing: real shoulder shots go through
+## WeaponManager._try_fire_shoulder() -> WeaponCore (same cooldown/ammo/heat
+## rules as hands). This stub only plays the equip SFX and spawns nothing —
+## do NOT use it to fire or you get "fires once / heat never cools" bugs.
 static func fire_shoulder(side: String, from_pos: Vector3, dir: Vector3) -> void:
+	push_warning("ShoulderWeaponSystem.fire_shoulder is deprecated; WeaponManager owns shoulder firing via WeaponCore.")
 	var slot = "shoulder_left" if side == "left" else "shoulder_right"
 	var data = GlobalData.weapons.equipped_parts.get(slot, {})
 	if data is Dictionary and not data.is_empty():

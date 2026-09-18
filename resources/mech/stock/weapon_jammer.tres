@@ -1,0 +1,36 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/mech/weapon_part.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+weapon_name = "Pulse Jammer"
+damage_type = "heat"
+weapon_type = 0
+damage = 0.0
+fire_rate = 1.0
+max_ammo = 1
+ammo_per_shot = 1
+projectile_speed = 0.0
+spread = 0.0
+weight = 6.0
+range_distance = 25.0
+description = "High-frequency electronic disruption pulse emitter that temporarily suppresses target locomotion."
+rarity = 1
+reload_time = 0.0
+tech_id = "tech_modular_energy_interface"
+special_capability = {
+	"area_parameters": {
+		"radius": 25.0
+	},
+	"area_shape": "sphere",
+	"capability_type": "temporary_disruption",
+	"cooldown": 10.0,
+	"duration": 4.0,
+	"effect_payload": {
+		"effect_type": "temporary_disruption",
+		"movement_inhibition": 1.0
+	},
+	"energy_cost": 20.0,
+	"targeting_mode": "area_radius"
+}

@@ -133,6 +133,42 @@ var max_ammo: int = 0
 var reserve_ammo: int = -1
 var reload_time: float = 3.0
 var fire_core: WeaponCore = null
+
+
+## Returns true if this enemy's movement is currently suppressed by electronic disruption or stun.
+func is_movement_inhibited() -> bool:
+	if has_meta("disrupted_until") and Time.get_ticks_msec() < int(get_meta("disrupted_until", 0)):
+		return true
+	if bool(get_meta("is_stunned", false)):
+		return true
+	return false
+
+
+## Queries whether the enemy is cleared for movement.
+func can_move() -> bool:
+	return not is_movement_inhibited()
+
+
+## Authoritatively applies an electronic disruption effect to this enemy.
+func apply_disruption(duration: float, disruption_data: Dictionary = {}) -> void:
+	var now_ms := Time.get_ticks_msec()
+	var new_expire := now_ms + int(duration * 1000.0)
+	var cur_expire := int(get_meta("disrupted_until", 0))
+	set_meta("disrupted_until", maxi(cur_expire, new_expire))
+	set_meta("disruption_data", disruption_data)
+	velocity = Vector3.ZERO
+	if is_dashing:
+		is_dashing = false
+
+
+## Toggles or updates the stunned state of this enemy.
+func set_stunned(stunned: bool) -> void:
+	set_meta("is_stunned", stunned)
+	if stunned:
+		velocity = Vector3.ZERO
+		if is_dashing:
+			is_dashing = false
+
 var is_melee_fallback_active: bool = false
 
 var is_reloading: bool:

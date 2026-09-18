@@ -25,6 +25,14 @@ func _physics_process(delta: float) -> void:
 	if _emp_stun_timer > 0.0:
 		_emp_stun_timer = maxf(_emp_stun_timer - delta, 0.0)
 		return  # Skip AI processing while stunned
+	# Generic electronic disruption / stunt freeze
+	if enemy:
+		if enemy.has_method("is_movement_inhibited") and enemy.is_movement_inhibited():
+			return
+		elif enemy.has_meta("disrupted_until") and Time.get_ticks_msec() < int(enemy.get_meta("disrupted_until", 0)):
+			return
+		elif bool(enemy.get_meta("is_stunned", false)):
+			return
 	if current_state:
 		current_state.physics_process(delta)
 

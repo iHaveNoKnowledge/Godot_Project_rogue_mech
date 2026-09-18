@@ -81,6 +81,8 @@ static func resolve_special_capability(weapon_or_data: Variant) -> Dictionary:
 		}
 
 	var cap_type := str(raw_cap.get("capability_type", CAPABILITY_CUSTOM)).to_lower()
+	if cap_type == "temporary_disruption":
+		cap_type = CAPABILITY_DISRUPTION
 	var targeting_mode := str(raw_cap.get("targeting_mode", TARGETING_POINT)).to_lower()
 	var area_shape := str(raw_cap.get("area_shape", SHAPE_SPHERE)).to_lower()
 	var area_params: Dictionary = raw_cap.get("area_parameters", {}) if raw_cap.get("area_parameters") is Dictionary else {}
@@ -272,7 +274,7 @@ static func resolve_affected_targets(targeting_mode: String, origin: Vector3, di
 
 
 static func _extract_target_position(target: Variant) -> Vector3:
-	if target is Node3D:
+	if target is Node3D and is_instance_valid(target) and target.is_inside_tree():
 		return target.global_position
 	elif target is Dictionary:
 		if target.has("global_position"):
@@ -282,6 +284,50 @@ static func _extract_target_position(target: Variant) -> Vector3:
 	elif target is Vector3:
 		return target
 	return Vector3.INF
+
+
+## Validates whether a candidate target entity can receive electronic / disruption effects.
+## Excludes source node, destroyed nodes, dead nodes, and static terrain/cover props.
+static func is_valid_disruption_target(target: Variant, source_node: Node = null) -> bool:
+	if target == null:
+		return false
+	if target == source_node:
+		return false
+	if target is Node:
+		if not is_instance_valid(target) or target.is_queued_for_deletion():
+			return false
+		if target.has_method("_is_downed") and target._is_downed():
+			return false
+		if target.has_meta("is_destroyed") and bool(target.get_meta("is_destroyed")):
+			return false
+		var hs = target.get_node_or_null("HealthSystem")
+		if hs and bool(hs.get("is_destroyed")):
+			return false
+		if target.is_in_group("terrain") or target.is_in_group("cover") or target.is_in_group("debris"):
+			return false
+		return true
+	elif target is Dictionary:
+		if bool(target.get("destroyed", false)) or bool(target.get("is_dead", false)):
+			return false
+		if str(target.get("type", "")) in ["terrain", "cover", "static_prop", "building"]:
+			return false
+		return true
+	return false
+
+
+## Filters a candidate target array according to capability-specific rules.
+static func filter_valid_targets(candidate_targets: Array, capability_type: String, source_node: Node = null) -> Array:
+	var valid: Array = []
+	for target in candidate_targets:
+		match capability_type:
+			CAPABILITY_DISRUPTION:
+				if is_valid_disruption_target(target, source_node):
+					valid.append(target)
+			_:
+				if target != source_node:
+					valid.append(target)
+	return valid
+
 
 
 # =============================================================================
@@ -376,3 +422,115 @@ static func report_special_weapon_observed(tech_id: String, source_node: Node, c
 		var tech_sys = load("res://scripts/systems/technology_system.gd")
 		if tech_sys:
 			tech_sys.record_technology_encountered(tech_id, obs_payload)
+
+
+# =============================================================================
+# AUTHORITATIVE ACTIVATION PIPELINE
+# =============================================================================
+
+## High-level authoritative activation pipeline for special weapon capabilities.
+## Connects validation, capability resolution, target resolution, effect request construction,
+## effect dispatch to StuntWeaponSystem, resource/cooldown consumption, and technology observation.
+## Does NOT directly mutate target node movement or gameplay state.
+static func activate_special_weapon(weapon_or_data: Variant, source_node: Node, user_context: Dictionary = {}, potential_targets: Array = []) -> Dictionary:
+	# 1. Validation Gate (Technology Usability + Frame Compatibility + Resources + Cooldown)
+	var val := validate_special_activation(weapon_or_data, user_context)
+	if not bool(val.get("can_activate", false)):
+		return {
+			"success": false,
+			"reason": str(val.get("reason", "validation_failed")),
+			"validation": val,
+			"capability": val.get("capability", {}),
+			"targets_affected": 0,
+			"affected_targets": []
+		}
+
+	# 2. Capability Resolution
+	var cap := resolve_special_capability(weapon_or_data)
+	if not bool(cap.get("has_capability", false)):
+		return {
+			"success": false,
+			"reason": "no_special_capability",
+			"validation": val,
+			"capability": cap,
+			"targets_affected": 0,
+			"affected_targets": []
+		}
+
+	# 3. Spatial Origin & Direction
+	var origin: Vector3 = Vector3.ZERO
+	var direction: Vector3 = Vector3.FORWARD
+	if user_context.has("origin") and user_context["origin"] is Vector3:
+		origin = user_context["origin"]
+	elif source_node is Node3D and is_instance_valid(source_node) and source_node.is_inside_tree():
+		origin = source_node.global_position
+
+	if user_context.has("direction") and user_context["direction"] is Vector3:
+		direction = user_context["direction"]
+	elif source_node is Node3D and is_instance_valid(source_node) and source_node.is_inside_tree():
+		direction = -source_node.global_transform.basis.z
+
+	# 4. Candidate Target Collection & Filtering
+	var candidates: Array = []
+	if not potential_targets.is_empty():
+		candidates = potential_targets
+	elif user_context.has("potential_targets") and user_context["potential_targets"] is Array:
+		candidates = user_context["potential_targets"]
+	else:
+		if source_node and source_node.is_inside_tree():
+			var tree := source_node.get_tree()
+			if tree:
+				var pool: Array = []
+				for grp in ["enemies", "mecha", "target"]:
+					for n in tree.get_nodes_in_group(grp):
+						if not pool.has(n):
+							pool.append(n)
+				candidates = pool
+
+	var cap_type: String = str(cap.get("capability_type", CAPABILITY_CUSTOM))
+	var filtered_candidates := filter_valid_targets(candidates, cap_type, source_node)
+
+	# 5. Geometric Target Resolution
+	var targeting_mode: String = str(cap.get("targeting_mode", TARGETING_AREA_RADIUS))
+	var area_params: Dictionary = cap.get("area_parameters", {})
+	var affected := resolve_affected_targets(targeting_mode, origin, direction, area_params, filtered_candidates)
+
+	# 6. Generic Effect Request Construction (Pure Data Payload)
+	var effect_request := create_effect_request(cap_type, cap, origin, affected, {
+		"source_node": source_node,
+		"weapon": weapon_or_data
+	})
+
+	# 7. Authoritative Effect Dispatch to StuntWeaponSystem
+	var affected_count := dispatch_effect_request(effect_request)
+
+	# 8. Resource & Cooldown Consumption on User Context
+	if user_context.has("core") and user_context["core"] != null:
+		var core = user_context["core"]
+		if "cooldown" in core:
+			core.cooldown = float(cap.get("cooldown", 0.0))
+		if "ammo" in core and not bool(core.get("unlimited_ammo", false)):
+			if core.ammo > 0:
+				core.ammo -= 1
+				if core.has_signal("ammo_changed"):
+					core.ammo_changed.emit(core.ammo, core.max_ammo)
+	if user_context.has("energy_system") and user_context["energy_system"] != null:
+		var es = user_context["energy_system"]
+		var req_energy := float(cap.get("energy_cost", 0.0))
+		if req_energy > 0.0 and "energy" in es:
+			es.energy = maxf(es.energy - req_energy, 0.0)
+
+	# 9. Generic Technology Observation Dispatch
+	var tech_id := str(cap.get("tech_id", ""))
+	if tech_id != "":
+		report_special_weapon_observed(tech_id, source_node, cap_type, {"weapon_data": weapon_or_data})
+
+	return {
+		"success": true,
+		"reason": "ok",
+		"capability": cap,
+		"effect_request": effect_request,
+		"targets_affected": affected_count,
+		"affected_targets": affected
+	}
+

@@ -1204,6 +1204,24 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 	if core == null or not core.can_fire():
 		return
 
+	# Advanced Special Weapon Capability (Phase 2E-6)
+	if weapon.has_special_capability():
+		var mecha_node = get_parent() as Node3D
+		var user_ctx: Dictionary = {
+			"frame_data": LoadoutSystem.get_equipped_frame("arm_" + hand) if LoadoutSystem else {},
+			"installed_bridges": LoadoutSystem.get_installed_bridges("arm_" + hand) if LoadoutSystem else [],
+			"current_energy": mecha_node.energy if (mecha_node and "energy" in mecha_node) else 100.0,
+			"energy_system": mecha_node.energy_system if (mecha_node and "energy_system" in mecha_node) else null,
+			"cooldown_remaining": core.cooldown,
+			"core": core,
+			"origin": _get_muzzle_world_pos(hand) if _get_muzzle_world_pos(hand) != Vector3.INF else (mecha_node.global_position if mecha_node else Vector3.ZERO)
+		}
+		var special_res := SpecialWeaponSystem.activate_special_weapon(weapon, mecha_node, user_ctx)
+		if special_res.get("success", false):
+			_apply_recoil(weapon)
+			AudioManager.play_weapon_sfx_with_override(weapon, user_ctx["origin"])
+		return
+
 	# Melee keeps its custom lunge/hit animation but obeys the shared rules
 	# (cooldown, ammo, heat) through the core.
 	if weapon.weapon_type == WeaponPart.WeaponType.MELEE:
@@ -1301,6 +1319,24 @@ func _try_fire_shoulder(side: String) -> void:
 
 	var core := _core_for_weapon(weapon)
 	if core == null or not core.can_fire():
+		return
+
+	# Advanced Special Weapon Capability (Phase 2E-6)
+	if weapon.has_special_capability():
+		var mecha_node = get_parent() as Node3D
+		var user_ctx: Dictionary = {
+			"frame_data": LoadoutSystem.get_equipped_frame("torso") if LoadoutSystem else {},
+			"installed_bridges": LoadoutSystem.get_installed_bridges("torso") if LoadoutSystem else [],
+			"current_energy": mecha_node.energy if (mecha_node and "energy" in mecha_node) else 100.0,
+			"energy_system": mecha_node.energy_system if (mecha_node and "energy_system" in mecha_node) else null,
+			"cooldown_remaining": core.cooldown,
+			"core": core,
+			"origin": _get_shoulder_muzzle_world_pos(side) if _get_shoulder_muzzle_world_pos(side) != Vector3.INF else (mecha_node.global_position if mecha_node else Vector3.ZERO)
+		}
+		var special_res := SpecialWeaponSystem.activate_special_weapon(weapon, mecha_node, user_ctx)
+		if special_res.get("success", false):
+			_apply_recoil(weapon)
+			AudioManager.play_weapon_sfx_with_override(weapon, user_ctx["origin"])
 		return
 
 	# Handle ammo consumption from battle_reserve if needed

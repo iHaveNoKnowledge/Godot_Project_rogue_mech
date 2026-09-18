@@ -42,11 +42,15 @@ static func try_stun(target: Node, reactor_type: String) -> bool:
 
 ## Authoritatively applies a disruption effect (electronic / movement inhibition) to a target node.
 ## Handles status lifecycle, metadata, node methods, and recovery timers.
+## Reapplication policy: refreshes expiry to the latest timestamp (maxi(current, new)).
 static func apply_disruption(target: Node, duration: float, disruption_data: Dictionary = {}) -> bool:
 	if target == null or not is_instance_valid(target):
 		return false
 
-	var expire_ms := Time.get_ticks_msec() + int(duration * 1000.0)
+	var now_ms := Time.get_ticks_msec()
+	var new_expire := now_ms + int(duration * 1000.0)
+	var cur_expire := int(target.get_meta("disrupted_until", 0))
+	var expire_ms := maxi(cur_expire, new_expire)
 	target.set_meta("disrupted_until", expire_ms)
 	target.set_meta("disruption_data", disruption_data)
 
@@ -69,6 +73,32 @@ static func apply_disruption(target: Node, duration: float, disruption_data: Dic
 		return true
 
 	return true
+
+
+## Returns true if the target is currently under an active disruption / stun effect.
+static func is_disrupted(target: Node) -> bool:
+	if target == null or not is_instance_valid(target):
+		return false
+	if target.has_meta("disrupted_until"):
+		var expire_ms: int = int(target.get_meta("disrupted_until", 0))
+		if Time.get_ticks_msec() < expire_ms:
+			return true
+	if bool(target.get_meta("is_stunned", false)):
+		return true
+	if target.has_method("is_disrupted"):
+		return target.is_disrupted()
+	if target.has_method("is_movement_inhibited"):
+		return target.is_movement_inhibited()
+	return false
+
+
+## Queries whether the target's movement is currently authorized and uninhibited.
+static func can_target_move(target: Node) -> bool:
+	if target == null or not is_instance_valid(target):
+		return false
+	if target.has_method("can_move"):
+		return target.can_move()
+	return not is_disrupted(target)
 
 
 ## Authoritatively applies a generic effect request payload to all targets referenced in the request.

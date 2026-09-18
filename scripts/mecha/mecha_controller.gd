@@ -363,7 +363,48 @@ func _toggle_roller() -> void:
 
 # --- Movement input & application -------------------------------------------
 
+## Returns true if this mecha's movement is currently suppressed by electronic disruption or stun.
+func is_movement_inhibited() -> bool:
+	if has_meta("disrupted_until") and Time.get_ticks_msec() < int(get_meta("disrupted_until", 0)):
+		return true
+	if bool(get_meta("is_stunned", false)):
+		return true
+	return false
+
+
+## Queries whether the mecha is cleared for movement.
+func can_move() -> bool:
+	return not is_movement_inhibited() and not _is_downed()
+
+
+## Authoritatively applies an electronic disruption effect to this mecha.
+func apply_disruption(duration: float, disruption_data: Dictionary = {}) -> void:
+	var now_ms := Time.get_ticks_msec()
+	var new_expire := now_ms + int(duration * 1000.0)
+	var cur_expire := int(get_meta("disrupted_until", 0))
+	set_meta("disrupted_until", maxi(cur_expire, new_expire))
+	set_meta("disruption_data", disruption_data)
+	if dash_system and dash_system.is_dashing:
+		dash_system.is_dashing = false
+	if is_roller_dashing:
+		is_roller_dashing = false
+
+
+## Toggles or updates the stunned state of this mecha.
+func set_stunned(stunned: bool) -> void:
+	set_meta("is_stunned", stunned)
+	if stunned:
+		if dash_system and dash_system.is_dashing:
+			dash_system.is_dashing = false
+		if is_roller_dashing:
+			is_roller_dashing = false
+
+
 func _handle_movement_input() -> void:
+	if is_movement_inhibited():
+		input_dir = Vector2.ZERO
+		return
+
 	if is_player_driven:
 		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED or bool(get_meta("is_tuning_in_hangar", false)):
 			input_dir = Vector2.ZERO
@@ -412,6 +453,12 @@ func _handle_movement_input() -> void:
 
 
 func _apply_movement(delta: float) -> void:
+	if is_movement_inhibited():
+		# Brake horizontal velocity under disruption without mutating base speed stats
+		velocity.x = move_toward(velocity.x, 0.0, 30.0 * delta)
+		velocity.z = move_toward(velocity.z, 0.0, 30.0 * delta)
+		return
+
 	var move_speed = current_speed
 	# GDD §6.1: Leg damage reduces walk and dash speed
 	move_speed *= PartPenaltySystem.total_board_speed_multiplier()

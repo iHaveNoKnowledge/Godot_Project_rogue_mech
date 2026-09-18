@@ -21,6 +21,7 @@ extends Node
 signal armor_destroyed_permanently(slot: String, armor_data: Dictionary)
 
 const FrameModuleSys = preload("res://scripts/systems/frame_module_system.gd")
+const ResProgSys = preload("res://scripts/systems/research_progression_system.gd")
 
 # --- Managers (created as children in _ready) ---
 var currency: CurrencyManager
@@ -642,7 +643,8 @@ func _on_tile_entered(_tile_pos: Vector2i, _tile_data: Node) -> void:
 func _on_board_day_ended() -> void:
 	# Delegate day-end ticks to subsystems.
 	fuel.day_end_tick()
-	_notify_research_completions(FleetSystem.tick_research(1))
+	var day_prog: Dictionary = ResProgSys.dispatch_progression("board_day", 1.0)
+	_notify_research_completions(day_prog.get("blueprints_completed", []))
 	RecruitSystem.tick_recovery()
 	# Faction R&D ticks by real time (days)
 	if ResourceLoader.exists("res://scripts/systems/faction_system.gd"):
@@ -718,7 +720,8 @@ func _on_combat_ended(victory: bool) -> void:
 	EnemyFactionSystem.on_combat_ended_for_tech(victory)
 	if victory:
 		ArmorSystem.sync_equipped_armor_durability()
-		_notify_research_completions(FleetSystem.tick_research(2))
+		var victory_prog: Dictionary = ResProgSys.dispatch_progression("combat_victory", 2.0)
+		_notify_research_completions(victory_prog.get("blueprints_completed", []))
 
 
 func _on_friendly_damage_received(raw_damage: float) -> void:

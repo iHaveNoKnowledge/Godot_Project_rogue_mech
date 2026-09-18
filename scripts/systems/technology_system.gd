@@ -1155,6 +1155,68 @@ static func start_research(tech_id: String, context: Dictionary = {}) -> bool:
 	return true
 
 
+## Returns the ID of the currently active technology research project, or "" if none.
+static func get_active_research_project() -> String:
+	return _active_research_project
+
+
+## Cancels the currently active research project selection without losing accumulated progress.
+static func cancel_active_research() -> void:
+	_active_research_project = ""
+
+
+## Advances active technology research by the given progression points.
+## Progress increment is calculated from research_time: increment = (100.0 / research_time) * points.
+## Returns a status dictionary describing the progression outcome.
+static func advance_active_research(points: float = 1.0, context: Dictionary = {}) -> Dictionary:
+	init_catalog_if_needed()
+	var tech_id := _active_research_project
+	if tech_id == "" or not has_technology(tech_id):
+		return {
+			"success": false,
+			"reason": "no_active_project",
+			"tech_id": "",
+			"progress": 0.0,
+			"can_complete": false,
+			"finalized": false
+		}
+	if get_discovery_state(tech_id) != DiscoveryState.IDENTIFIED:
+		return {
+			"success": false,
+			"reason": "not_identified",
+			"tech_id": tech_id,
+			"progress": get_research_progress(tech_id),
+			"can_complete": false,
+			"finalized": false
+		}
+	if points <= 0.0:
+		return {
+			"success": true,
+			"tech_id": tech_id,
+			"progress": get_research_progress(tech_id),
+			"can_complete": can_complete_research(tech_id),
+			"finalized": false
+		}
+	var meta := get_research_metadata(tech_id)
+	var r_time: float = float(meta.get("research_time", 1.0))
+	if r_time <= 0.0:
+		r_time = 1.0
+	var increment: float = (100.0 / r_time) * points
+	add_research_progress(tech_id, increment, context)
+	var cur_prog := get_research_progress(tech_id)
+	var can_comp := can_complete_research(tech_id)
+	var finalized := false
+	if can_comp and bool(context.get("auto_finalize", false)):
+		finalized = complete_technology_research(tech_id, context)
+	return {
+		"success": true,
+		"tech_id": tech_id,
+		"progress": cur_prog,
+		"can_complete": can_comp,
+		"finalized": finalized
+	}
+
+
 ## Adds research progress points / percentage to an identified technology.
 ## Clamps between 0.0 and 100.0. Does NOT automatically complete research until explicitly finalized.
 static func add_research_progress(tech_id: String, amount: float, context: Dictionary = {}) -> bool:

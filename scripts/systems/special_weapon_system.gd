@@ -1,0 +1,366 @@
+class_name SpecialWeaponSystem
+extends RefCounted
+
+## =============================================================================
+## SPECIAL WEAPON SYSTEM — Generic Advanced Technology Integration Contract (Phase 2E-5)
+##
+## Defines generic capability contracts, targeting models, area geometries,
+## validation gates, effect payload structures, and observation hooks for special weapons
+## without introducing weapon-specific ID branching or violating authority boundaries.
+##
+## CAPABILITIES SUPPORTED (Data-Driven):
+## 1. Disruption: Electronic & movement inhibition (e.g. Jammer, EMP, dampener)
+## 2. Strategic Strike: Large-scale beam, sweep, or orbital bombardment (e.g. Satellite Cannon)
+## 3. Area Denial: Persistent zone hazard / interference
+## 4. Custom: Extensible generic data contracts
+##
+## AUTHORITY BOUNDARIES:
+## - TechnologySystem: Technology lifecycle & usability authorization authority.
+## - FrameSystem: Physical hardware compatibility authority.
+## - LoadoutSystem / ArmorSystem: Equipment state mutation authority.
+## - SpecialWeaponSystem: Special capability contract & validation resolution.
+## - EventBus: Asynchronous signal broker.
+## =============================================================================
+
+# Canonical Capability Types
+const CAPABILITY_DISRUPTION := "disruption"
+const CAPABILITY_STRATEGIC_STRIKE := "strategic_strike"
+const CAPABILITY_AREA_DENIAL := "area_denial"
+const CAPABILITY_CUSTOM := "custom"
+
+# Canonical Targeting Modes
+const TARGETING_POINT := "point"
+const TARGETING_AREA_RADIUS := "area_radius"
+const TARGETING_BEAM_LINE := "beam_line"
+const TARGETING_SWEEP_CONE := "sweep_cone"
+const TARGETING_MAP_SECTOR := "map_sector"
+
+# Canonical Area Geometry Shapes
+const SHAPE_SPHERE := "sphere"
+const SHAPE_CYLINDER := "cylinder"
+const SHAPE_BOX := "box"
+const SHAPE_CONE := "cone"
+const SHAPE_LINE := "line"
+
+
+# =============================================================================
+# CAPABILITY RESOLUTION & NORMALIZATION
+# =============================================================================
+
+## Resolves and normalizes special capability data from a weapon resource or dictionary.
+static func resolve_special_capability(weapon_or_data: Variant) -> Dictionary:
+	var raw_cap: Dictionary = {}
+	var tech_id := ""
+
+	if weapon_or_data is Dictionary:
+		if weapon_or_data.has("special_capability") and weapon_or_data["special_capability"] is Dictionary:
+			raw_cap = weapon_or_data["special_capability"]
+		elif weapon_or_data.has("capability_type"):
+			raw_cap = weapon_or_data
+		tech_id = str(weapon_or_data.get("tech_id", weapon_or_data.get("technology_id", "")))
+	elif weapon_or_data is Resource:
+		if "special_capability" in weapon_or_data and weapon_or_data.special_capability is Dictionary:
+			raw_cap = weapon_or_data.special_capability
+		if "tech_id" in weapon_or_data:
+			tech_id = str(weapon_or_data.tech_id)
+
+	if raw_cap.is_empty():
+		return {
+			"has_capability": false,
+			"capability_type": "",
+			"targeting_mode": TARGETING_POINT,
+			"area_shape": SHAPE_SPHERE,
+			"area_parameters": {},
+			"duration": 0.0,
+			"cooldown": 0.0,
+			"energy_cost": 0.0,
+			"effect_payload": {},
+			"tech_id": tech_id
+		}
+
+	var cap_type := str(raw_cap.get("capability_type", CAPABILITY_CUSTOM)).to_lower()
+	var targeting_mode := str(raw_cap.get("targeting_mode", TARGETING_POINT)).to_lower()
+	var area_shape := str(raw_cap.get("area_shape", SHAPE_SPHERE)).to_lower()
+	var area_params: Dictionary = raw_cap.get("area_parameters", {}) if raw_cap.get("area_parameters") is Dictionary else {}
+	var duration := float(raw_cap.get("duration", 0.0))
+	var cooldown := float(raw_cap.get("cooldown", 0.0))
+	var energy_cost := float(raw_cap.get("energy_cost", 0.0))
+	var effect_payload: Dictionary = raw_cap.get("effect_payload", {}) if raw_cap.get("effect_payload") is Dictionary else {}
+
+	# Infer standard defaults based on capability type if omitted
+	if not raw_cap.has("targeting_mode"):
+		if cap_type == CAPABILITY_DISRUPTION:
+			targeting_mode = TARGETING_AREA_RADIUS
+		elif cap_type == CAPABILITY_STRATEGIC_STRIKE:
+			targeting_mode = TARGETING_BEAM_LINE
+
+	if not raw_cap.has("area_shape"):
+		if targeting_mode == TARGETING_AREA_RADIUS:
+			area_shape = SHAPE_SPHERE
+		elif targeting_mode == TARGETING_BEAM_LINE:
+			area_shape = SHAPE_LINE
+		elif targeting_mode == TARGETING_SWEEP_CONE:
+			area_shape = SHAPE_CONE
+
+	return {
+		"has_capability": true,
+		"capability_type": cap_type,
+		"targeting_mode": targeting_mode,
+		"area_shape": area_shape,
+		"area_parameters": area_params.duplicate(true),
+		"duration": duration,
+		"cooldown": cooldown,
+		"energy_cost": energy_cost,
+		"effect_payload": effect_payload.duplicate(true),
+		"tech_id": tech_id
+	}
+
+
+# =============================================================================
+# AUTHORITATIVE ACTIVATION VALIDATION
+# =============================================================================
+
+## Authoritatively validates if a special weapon capability can be activated.
+## Checks:
+## 1. Capability contract validity
+## 2. Technology authorization (via TechnologySystem)
+## 3. Physical frame compatibility (via FrameSystem if frame context provided)
+## 4. Resource / cooldown readiness (if context provided)
+## Does NOT mutate any gameplay or equipment state.
+static func validate_special_activation(weapon_or_data: Variant, user_context: Dictionary = {}) -> Dictionary:
+	var cap := resolve_special_capability(weapon_or_data)
+	if not bool(cap.get("has_capability", false)):
+		return {
+			"can_activate": false,
+			"reason": "no_special_capability",
+			"message": "Weapon does not possess a special capability contract.",
+			"capability": cap,
+			"tech_id": ""
+		}
+
+	var tech_id := str(cap.get("tech_id", ""))
+
+	# 1. Technology Authorization Gate (Delegated to TechnologySystem authority)
+	var tech_sys = load("res://scripts/systems/technology_system.gd")
+	if tech_sys and tech_id != "":
+		var is_usable: bool = tech_sys.is_technology_usable(tech_id)
+		if not is_usable:
+			return {
+				"can_activate": false,
+				"reason": "technology_locked",
+				"message": "Special technology '%s' is not authorized for combat use." % tech_id,
+				"capability": cap,
+				"tech_id": tech_id
+			}
+
+	# 2. Physical Frame Compatibility Gate (Delegated to FrameSystem authority)
+	var frame_sys = load("res://scripts/systems/frame_system.gd")
+	if frame_sys and user_context.has("frame_data") and tech_id != "":
+		var frame_data = user_context["frame_data"]
+		var installed_bridges: Array = user_context.get("installed_bridges", [])
+		var is_compat: bool = frame_sys.can_support_technology(frame_data, tech_id, installed_bridges)
+		if not is_compat:
+			return {
+				"can_activate": false,
+				"reason": "physically_incompatible",
+				"message": "Frame cannot physically support technology '%s'." % tech_id,
+				"capability": cap,
+				"tech_id": tech_id
+			}
+
+	# 3. Energy / Resource Requirements
+	var req_energy: float = float(cap.get("energy_cost", 0.0))
+	if req_energy > 0.0 and user_context.has("current_energy"):
+		var cur_energy: float = float(user_context["current_energy"])
+		if cur_energy < req_energy:
+			return {
+				"can_activate": false,
+				"reason": "insufficient_energy",
+				"message": "Insufficient energy (%.1f required, %.1f available)." % [req_energy, cur_energy],
+				"capability": cap,
+				"tech_id": tech_id
+			}
+
+	# 4. Cooldown Validation
+	if user_context.has("cooldown_remaining"):
+		var cd: float = float(user_context["cooldown_remaining"])
+		if cd > 0.0:
+			return {
+				"can_activate": false,
+				"reason": "on_cooldown",
+				"message": "Special capability on cooldown (%.1fs remaining)." % cd,
+				"capability": cap,
+				"tech_id": tech_id
+			}
+
+	return {
+		"can_activate": true,
+		"reason": "ok",
+		"message": "Special capability is ready for activation.",
+		"capability": cap,
+		"tech_id": tech_id
+	}
+
+
+# =============================================================================
+# TARGETING & AREA RESOLUTION
+# =============================================================================
+
+## Geometrically evaluates and returns all targets affected by a special capability volume.
+## Uses pure vector geometry independent of weapon identity.
+static func resolve_affected_targets(targeting_mode: String, origin: Vector3, direction: Vector3, area_params: Dictionary, potential_targets: Array) -> Array:
+	var affected: Array = []
+	var norm_dir := direction.normalized() if direction.length_squared() > 0.0001 else Vector3.FORWARD
+
+	for target in potential_targets:
+		var target_pos := _extract_target_position(target)
+		if target_pos == Vector3.INF:
+			continue
+
+		var is_inside := false
+		match targeting_mode:
+			TARGETING_AREA_RADIUS:
+				var radius := float(area_params.get("radius", area_params.get("range", 10.0)))
+				is_inside = origin.distance_to(target_pos) <= radius
+
+			TARGETING_BEAM_LINE:
+				var length := float(area_params.get("length", area_params.get("range", 100.0)))
+				var width := float(area_params.get("width", area_params.get("beam_radius", 4.0)))
+				var half_width := width / 2.0 if width > 0.0 else 2.0
+				var to_target := target_pos - origin
+				var proj := to_target.dot(norm_dir)
+				if proj >= 0.0 and proj <= length:
+					var perp_dist := (to_target - norm_dir * proj).length()
+					is_inside = perp_dist <= half_width
+
+			TARGETING_SWEEP_CONE:
+				var range_dist := float(area_params.get("range", area_params.get("length", 50.0)))
+				var cone_angle := float(area_params.get("angle", area_params.get("spread", 45.0)))
+				var half_angle := cone_angle / 2.0
+				var dist := origin.distance_to(target_pos)
+				if dist <= range_dist:
+					if dist < 0.001:
+						is_inside = true
+					else:
+						var to_target_dir := (target_pos - origin).normalized()
+						var dot_val := clampf(norm_dir.dot(to_target_dir), -1.0, 1.0)
+						var angle_deg := rad_to_deg(acos(dot_val))
+						is_inside = angle_deg <= half_angle
+
+			TARGETING_MAP_SECTOR:
+				if area_params.has("min") and area_params.has("max"):
+					var b_min: Vector3 = area_params["min"]
+					var b_max: Vector3 = area_params["max"]
+					is_inside = (target_pos.x >= b_min.x and target_pos.x <= b_max.x and
+								 target_pos.y >= b_min.y and target_pos.y <= b_max.y and
+								 target_pos.z >= b_min.z and target_pos.z <= b_max.z)
+				else:
+					var sec_radius := float(area_params.get("radius", 500.0))
+					is_inside = origin.distance_to(target_pos) <= sec_radius
+
+			TARGETING_POINT, _:
+				var point_radius := float(area_params.get("radius", 2.0))
+				var target_point := origin + norm_dir * float(area_params.get("range", 50.0))
+				is_inside = target_pos.distance_to(target_point) <= point_radius
+
+		if is_inside:
+			affected.append(target)
+
+	return affected
+
+
+static func _extract_target_position(target: Variant) -> Vector3:
+	if target is Node3D:
+		return target.global_position
+	elif target is Dictionary:
+		if target.has("global_position"):
+			return target["global_position"]
+		elif target.has("position"):
+			return target["position"]
+	elif target is Vector3:
+		return target
+	return Vector3.INF
+
+
+# =============================================================================
+# EFFECT PAYLOAD BUILDER & DISPATCHER
+# =============================================================================
+
+## Builds a standardized, structured effect payload for special capabilities.
+static func build_effect_payload(capability_type: String, capability_data: Dictionary, origin: Vector3, target_positions: Array = [], extra_context: Dictionary = {}) -> Dictionary:
+	return {
+		"capability_type": capability_type,
+		"origin": origin,
+		"target_positions": target_positions.duplicate(true),
+		"duration": float(capability_data.get("duration", 0.0)),
+		"intensity": float(capability_data.get("intensity", 1.0)),
+		"area_parameters": capability_data.get("area_parameters", {}).duplicate(true) if capability_data.get("area_parameters") is Dictionary else {},
+		"effect_payload": capability_data.get("effect_payload", {}).duplicate(true) if capability_data.get("effect_payload") is Dictionary else {},
+		"timestamp": Time.get_ticks_msec(),
+		"extra": extra_context.duplicate(true)
+	}
+
+
+## Applies a generic disruption effect (electronic / movement inhibition) to a target entity.
+## Delegates state mutation to target hooks without direct structural tampering.
+static func apply_disruption_effect(target: Node, duration: float, disruption_data: Dictionary = {}) -> bool:
+	if target == null or not is_instance_valid(target):
+		return false
+
+	var expire_ms := Time.get_ticks_msec() + int(duration * 1000.0)
+	target.set_meta("disrupted_until", expire_ms)
+	target.set_meta("disruption_data", disruption_data)
+
+	if target.has_method("apply_disruption"):
+		target.apply_disruption(duration, disruption_data)
+		return true
+	elif target.has_method("apply_stunt"):
+		target.apply_stunt(duration)
+		return true
+	elif target.has_method("set_stunned"):
+		target.set_stunned(true)
+		var tree := target.get_tree()
+		if tree:
+			var t := tree.create_timer(duration)
+			t.timeout.connect(func():
+				if is_instance_valid(target) and target.has_method("set_stunned"):
+					if Time.get_ticks_msec() >= int(target.get_meta("disrupted_until", 0)):
+						target.set_stunned(false)
+			)
+		return true
+
+	return true
+
+
+# =============================================================================
+# TECHNOLOGY OBSERVATION INTEGRATION
+# =============================================================================
+
+## Dispatches a generic technology observation event through EventBus when a special capability is executed.
+static func report_special_weapon_observed(tech_id: String, source_node: Node, capability_type: String, extra_data: Dictionary = {}) -> void:
+	if tech_id == "":
+		return
+
+	var obs_payload: Dictionary = {
+		"source": "special_weapon",
+		"source_type": capability_type,
+		"source_node": source_node.name if source_node else "unknown",
+		"timestamp": Time.get_ticks_msec()
+	}
+	for k in extra_data:
+		obs_payload[k] = extra_data[k]
+
+	var tree: SceneTree = null
+	if source_node and source_node.is_inside_tree():
+		tree = source_node.get_tree()
+	elif Engine.get_main_loop() is SceneTree:
+		tree = Engine.get_main_loop() as SceneTree
+
+	if tree and tree.root and tree.root.has_node("EventBus"):
+		var bus = tree.root.get_node("EventBus")
+		if bus and bus.has_signal("technology_observed"):
+			bus.technology_observed.emit(tech_id, obs_payload)
+	else:
+		var tech_sys = load("res://scripts/systems/technology_system.gd")
+		if tech_sys:
+			tech_sys.record_technology_encountered(tech_id, obs_payload)

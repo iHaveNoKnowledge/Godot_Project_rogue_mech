@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://test/unit/special_weapon_contract_verify.gd" id="1"]
+
+[node name="SpecialWeaponContractVerify" type="Node"]
+script = ExtResource("1")

@@ -26,6 +26,7 @@ signal lock_on_target_lost()
 
 # --- Combat ---
 signal weapon_fired(target_position: Vector3)
+signal special_weapon_activated(weapon_data: Dictionary, capability_type: String, origin: Vector3, target_data: Dictionary)
 signal combat_mode_toggled(mode: String)
 signal deflect_triggered(position: Vector3, is_perfect: bool)
 signal guard_state_changed(is_guarding: bool)

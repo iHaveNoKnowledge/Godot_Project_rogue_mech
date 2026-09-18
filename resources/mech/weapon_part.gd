@@ -38,6 +38,7 @@ enum DamageType { HEAT, PIERCE, BLUNT }
 @export var rarity: int = 0
 @export var source_path: String = ""
 @export var tech_id: String = "" # TechnologySystem ID (""; empty = technology-neutral legacy weapon)
+@export var special_capability: Dictionary = {} # Advanced / Special weapon capability definition (Phase 2E-5)
 
 @export var ammo_type: String = "" # AmmoSystem id ("bullet", "shell", "spike", "energy_cell", "rocket", "missile", "explosive", "heavy_round", "none"; empty = auto-inferred)
 @export var reload_time: float = 2.0 # seconds to refill the magazine from reserve
@@ -162,3 +163,33 @@ func get_ammo_type() -> String:
 			return "none"
 		_:
 			return "bullet"
+
+
+# =============================================================================
+# ADVANCED / SPECIAL CAPABILITY CONTRACT (Phase 2E-5)
+# =============================================================================
+
+func has_special_capability() -> bool:
+	return not special_capability.is_empty()
+
+
+func get_special_capability() -> Dictionary:
+	return special_capability.duplicate(true)
+
+
+func get_special_capability_type() -> String:
+	return str(special_capability.get("capability_type", ""))
+
+
+func get_targeting_mode() -> String:
+	return str(special_capability.get("targeting_mode", "point"))
+
+
+func get_area_parameters() -> Dictionary:
+	var area = special_capability.get("area_parameters", {})
+	return area.duplicate(true) if area is Dictionary else {}
+
+
+func get_duration() -> float:
+	return float(special_capability.get("duration", 0.0))
+

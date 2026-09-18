@@ -99,6 +99,18 @@ func show(info: Dictionary) -> void:
 	details.add_theme_color_override("font_color", Color(0.8, 0.85, 0.9))
 	vbox.add_child(details)
 
+	var validation := LoadoutSystem.validate_equip_request(controller.selected_slot, info)
+	var can_eq := bool(validation.get("can_equip", false))
+	if not bool(validation.get("is_legacy_neutral", true)):
+		var tech_lbl := Label.new()
+		var t_stat := "USABLE" if bool(validation.get("technology_allowed", false)) else "LOCKED"
+		var f_stat := "COMPATIBLE" if bool(validation.get("physically_compatible", false)) else "INCOMPATIBLE"
+		tech_lbl.text = "TECH: %s (%s)  |  FRAME: %s" % [str(validation.get("tech_id", "")), t_stat, f_stat]
+		tech_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		var t_col := Color(0.4, 0.9, 0.5) if can_eq else (Color(1.0, 0.4, 0.4) if not bool(validation.get("technology_allowed", false)) else Color(1.0, 0.75, 0.3))
+		tech_lbl.add_theme_color_override("font_color", t_col)
+		vbox.add_child(tech_lbl)
+
 	# 1. EQUIP / UNEQUIP CONTEXT BUTTON BASED ON BULLETPROOF EQUIPPED MATCH
 	var is_eq = controller.part_list_panel.is_item_equipped(controller.selected_slot, info)
 
@@ -144,9 +156,28 @@ func show(info: Dictionary) -> void:
 	elif controller.current_mode == "armor" and not is_instance:
 		toggle_btn.text = "[ CRAFT & EQUIP ]"
 		toggle_btn.add_theme_color_override("font_color", Color(0.4, 1.0, 0.5))
-	else:
+	elif can_eq:
 		toggle_btn.text = "[ EQUIP ]"
 		toggle_btn.add_theme_color_override("font_color", Color(0.4, 1.0, 0.5))
+	else:
+		toggle_btn.disabled = true
+		var r: String = str(validation.get("reason", ""))
+		if r == "technology_locked":
+			toggle_btn.text = "[ TECH LOCKED ]"
+			toggle_btn.add_theme_color_override("font_color", Color(0.75, 0.45, 0.45))
+			toggle_btn.tooltip_text = str(validation.get("message", "Technology not authorized"))
+		elif r == "physically_incompatible":
+			toggle_btn.text = "[ INCOMPATIBLE ]"
+			toggle_btn.add_theme_color_override("font_color", Color(0.85, 0.65, 0.35))
+			toggle_btn.tooltip_text = str(validation.get("message", "Frame cannot mount hardware"))
+		elif r == "arm_destroyed":
+			toggle_btn.text = "[ ARM BROKEN ]"
+			toggle_btn.add_theme_color_override("font_color", Color(0.85, 0.45, 0.45))
+			toggle_btn.tooltip_text = str(validation.get("message", "Arm is destroyed"))
+		else:
+			toggle_btn.text = "[ CANNOT EQUIP ]"
+			toggle_btn.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+			toggle_btn.tooltip_text = str(validation.get("message", "Cannot equip item"))
 
 	toggle_btn.custom_minimum_size = Vector2(180, 36)
 	toggle_btn.pressed.connect(func():

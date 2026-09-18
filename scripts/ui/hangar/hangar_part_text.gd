@@ -204,3 +204,42 @@ static func frame_capability_text(info: Dictionary, durability: float = 1.0) -> 
 		lines.append("FIELD PACK BONUS: +%.1f kg" % bonus)
 
 	return "\n".join(lines)
+
+
+## Builds the Technology and Physical Compatibility status block for the Detail Panel.
+## Formats authoritative validation results returned by LoadoutSystem.validate_equip_request.
+static func technology_status_block(validation: Dictionary) -> String:
+	if validation.is_empty():
+		return ""
+	var is_legacy: bool = bool(validation.get("is_legacy_neutral", false))
+	var tid: String = str(validation.get("tech_id", ""))
+	if is_legacy or tid == "":
+		return "\n[color=#88aacc]TECHNOLOGY & COMPATIBILITY:[/color]\n  Technology: [color=#44ff77]CONVENTIONAL (Standard)[/color]\n  Frame Compatibility: [color=#44ff77]COMPATIBLE[/color]\n  Equip Status: [color=#44ff77]AVAILABLE[/color]"
+
+	var tech_allowed: bool = bool(validation.get("technology_allowed", false))
+	var phys_compat: bool = bool(validation.get("physically_compatible", false))
+	var can_eq: bool = bool(validation.get("can_equip", false))
+	var reason: String = str(validation.get("reason", ""))
+
+	var tech_status_str := "[color=#44ff77]USABLE[/color]" if tech_allowed else "[color=#ff5555]NOT USABLE (Locked)[/color]"
+	var frame_status_str := "[color=#44ff77]COMPATIBLE[/color]" if phys_compat else "[color=#ffaa33]INCOMPATIBLE[/color]"
+
+	var equip_status_str := "[color=#44ff77]AVAILABLE[/color]"
+	if not can_eq:
+		if reason == "technology_locked":
+			equip_status_str = "[color=#ff5555]LOCKED (Technology not authorized)[/color]"
+		elif reason == "physically_incompatible":
+			equip_status_str = "[color=#ffaa33]LOCKED (Current frame cannot support this hardware)[/color]"
+		elif reason == "arm_destroyed":
+			equip_status_str = "[color=#ff5555]LOCKED (Arm is destroyed)[/color]"
+		else:
+			equip_status_str = "[color=#ff5555]LOCKED[/color]"
+
+	var lines: Array[String] = [
+		"\n[color=#88aacc]TECHNOLOGY & COMPATIBILITY:[/color]",
+		"  Technology (%s): %s" % [tid, tech_status_str],
+		"  Frame Compatibility: %s" % frame_status_str,
+		"  Equip Status: %s" % equip_status_str
+	]
+	return "\n".join(lines)
+

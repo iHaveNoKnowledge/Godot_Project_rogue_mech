@@ -133,23 +133,33 @@ static func try_craft_armor_from_catalog(part_id: String) -> Dictionary:
 	return make_armor_instance_from_catalog(part_id)
 
 
+## Validates whether an armor equip request satisfies technology and physical compatibility gates.
+## Delegates to LoadoutSystem's unified equipment validator.
+static func validate_equip_request(slot: String, item_data: Variant, context: Dictionary = {}) -> Dictionary:
+	var loadout_sys = load("res://scripts/systems/loadout_system.gd")
+	if loadout_sys:
+		return loadout_sys.validate_equip_request(slot, item_data, context)
+	return {
+		"can_equip": true,
+		"allowed": true,
+		"technology_allowed": true,
+		"physically_compatible": true,
+		"is_legacy_neutral": true,
+		"reason": "ok",
+		"tech_id": "",
+		"state_name": "USABLE",
+		"message": "Ready to equip"
+	}
+
+
 # Equips an owned instance into a slot, carrying its wear into the combat cache.
 static func equip_armor_instance(uid: String, slot: String) -> bool:
 	var inst := get_armor_instance(uid)
 	if inst.is_empty():
 		return false
-	var tech_sys = load("res://scripts/systems/technology_system.gd")
-	if tech_sys:
-		var tech_check: Dictionary = tech_sys.can_equip_item_technology(inst)
-		if not bool(tech_check.get("allowed", false)):
-			return false
-	var frame_sys = load("res://scripts/systems/frame_system.gd")
-	if frame_sys and tech_sys:
-		var tid: String = str(tech_sys.resolve_item_technology_id(inst))
-		if tid != "":
-			var active_frame: Dictionary = frame_sys.get_equipped_frame(slot)
-			if not active_frame.is_empty() and not frame_sys.can_support_technology(active_frame, tid):
-				return false
+	var validation := validate_equip_request(slot, inst)
+	if not bool(validation.get("can_equip", false)):
+		return false
 	unequip_armor_instance(slot)
 	inst["equipped"] = true
 	inst["slot"] = slot

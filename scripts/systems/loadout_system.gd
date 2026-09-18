@@ -797,29 +797,47 @@ static func register_weapon(path: String, weapon_name: String = "") -> String:
 ## - "allowed": bool
 ## - "reason": String ("ok", "technology_locked", "physically_incompatible", "arm_destroyed", "pack_full")
 ## - "message": String
+## - "can_equip": bool
+## - "allowed": bool (alias for can_equip)
+## - "technology_allowed": bool
+## - "physically_compatible": bool
+## - "is_legacy_neutral": bool
+## - "reason": String ("ok", "technology_locked", "physically_incompatible", "arm_destroyed", "pack_full")
 ## - "tech_id": String
+## - "state_name": String
+## - "message": String
 static func validate_equip_request(slot: String, item_data: Variant, context: Dictionary = {}) -> Dictionary:
 	var tech_sys = load("res://scripts/systems/technology_system.gd")
 	var frame_sys = load("res://scripts/systems/frame_system.gd")
 
+	var item_tech_id := ""
+	var tech_allowed := true
+	var state_name := "USABLE"
+	var is_legacy := true
+
 	# 1. Technology Authorization Gate
 	if tech_sys:
+		item_tech_id = tech_sys.resolve_item_technology_id(item_data)
+		is_legacy = (item_tech_id == "")
 		var tech_check: Dictionary = tech_sys.can_equip_item_technology(item_data)
-		if not bool(tech_check.get("allowed", false)):
-			var t_id := str(tech_check.get("tech_id", "Unknown"))
-			var s_name := str(tech_check.get("state_name", "UNKNOWN"))
+		tech_allowed = bool(tech_check.get("allowed", false))
+		state_name = str(tech_check.get("state_name", "USABLE" if is_legacy else "UNKNOWN"))
+		if not tech_allowed:
+			var t_id := str(tech_check.get("tech_id", item_tech_id))
 			return {
+				"can_equip": false,
 				"allowed": false,
+				"technology_allowed": false,
+				"physically_compatible": true,
+				"is_legacy_neutral": false,
 				"reason": "technology_locked",
 				"tech_id": t_id,
-				"state_name": s_name,
-				"message": "Cannot equip: Technology '%s' is not authorized (State: %s)." % [t_id, s_name]
+				"state_name": state_name,
+				"message": "Cannot equip: Technology '%s' is not authorized (State: %s)." % [t_id, state_name]
 			}
 
 	# 2. Physical Frame Compatibility Gate
-	var item_tech_id := ""
-	if tech_sys:
-		item_tech_id = tech_sys.resolve_item_technology_id(item_data)
+	var physically_compatible := true
 	if item_tech_id != "" and frame_sys:
 		var target_frame_slot := slot
 		if slot == "weapon_left":
@@ -838,10 +856,15 @@ static func validate_equip_request(slot: String, item_data: Variant, context: Di
 						installed_bridges.append(m)
 		if not active_frame.is_empty() and not frame_sys.can_support_technology(active_frame, item_tech_id, installed_bridges):
 			return {
+				"can_equip": false,
 				"allowed": false,
+				"technology_allowed": true,
+				"physically_compatible": false,
+				"is_legacy_neutral": false,
 				"reason": "physically_incompatible",
 				"tech_id": item_tech_id,
-				"message": "Cannot equip: Frame does not support technology '%s'." % item_tech_id
+				"state_name": state_name,
+				"message": "Cannot equip: Current frame cannot support this hardware (Technology '%s')." % item_tech_id
 			}
 
 	# 3. Mechanical limb check (weapons in hands need intact arm frames)
@@ -850,15 +873,26 @@ static func validate_equip_request(slot: String, item_data: Variant, context: Di
 		var arm_slot := "arm_left" if hand == "left" else "arm_right"
 		if float(GlobalData.weapons.part_damage.get(arm_slot + "_frame", 0.0)) >= 1.0:
 			return {
+				"can_equip": false,
 				"allowed": false,
+				"technology_allowed": true,
+				"physically_compatible": physically_compatible,
+				"is_legacy_neutral": is_legacy,
 				"reason": "arm_destroyed",
+				"tech_id": item_tech_id,
+				"state_name": state_name,
 				"message": "Cannot equip: that arm is destroyed! Repair or replace it first."
 			}
 
 	return {
+		"can_equip": true,
 		"allowed": true,
+		"technology_allowed": true,
+		"physically_compatible": true,
+		"is_legacy_neutral": is_legacy,
 		"reason": "ok",
 		"tech_id": item_tech_id,
+		"state_name": state_name,
 		"message": "Ready to equip"
 	}
 

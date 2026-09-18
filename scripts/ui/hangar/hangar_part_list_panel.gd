@@ -145,14 +145,31 @@ func populate(slot: String) -> void:
 			var wname = inv.get("name", "Weapon")
 			var wdur = GlobalData.get_durability_ratio(inv)
 			var prefix := "[E] " if is_eq else ("" if other_user == "" else "[E·%s] " % other_user)
-			var label_str = "%s%s (DUR: %.0f%%)" % [prefix, wname, wdur * 100.0]
+			var validation := LoadoutSystem.validate_equip_request(slot, inv)
+			var status_tag := ""
+			if not is_eq:
+				if not bool(validation.get("technology_allowed", true)):
+					status_tag = " [TECH LOCKED]"
+				elif not bool(validation.get("physically_compatible", true)):
+					status_tag = " [INCOMPATIBLE]"
+			var label_str = "%s%s (DUR: %.0f%%)%s" % [prefix, wname, wdur * 100.0, status_tag]
 			controller.part_item_list.add_item(label_str)
 			PartTierStyle.apply_itemlist_row(controller.part_item_list, controller.part_item_list.item_count - 1, PartTierStyle.weapon_tier(inv))
+			var row_idx: int = int(controller.part_item_list.item_count) - 1
+			if not is_eq:
+				if not bool(validation.get("technology_allowed", true)):
+					controller.part_item_list.set_item_custom_fg_color(row_idx, Color(0.75, 0.45, 0.45))
+					controller.part_item_list.set_item_tooltip(row_idx, "Technology not authorized: %s" % validation.get("tech_id", ""))
+				elif not bool(validation.get("physically_compatible", true)):
+					controller.part_item_list.set_item_custom_fg_color(row_idx, Color(0.85, 0.65, 0.35))
+					controller.part_item_list.set_item_tooltip(row_idx, "Frame cannot support technology: %s" % validation.get("tech_id", ""))
 			controller.visible_weapon_indices.append(index)
 		if controller.part_item_list.item_count > 0:
 			controller.part_item_list.select(0)
 			_last_selected_item_index = 0
 			on_item_selected(0)
+		else:
+			_update_equip_button_state()
 	elif controller.armor_catalog.has(slot):
 		controller.visible_salvage_indices.clear()
 		var shown_uids := {}
@@ -187,14 +204,29 @@ func populate(slot: String) -> void:
 			var other_user: String = str(row["other"])
 			var prefix := "[E] " if is_eq else ("" if other_user == "" else "[E·%s] " % other_user)
 			var state_tag = " [DESTROYED]" if (is_eq and is_destroyed) else ""
+			var validation := LoadoutSystem.validate_equip_request(slot, inst)
+			var tech_tag := ""
+			if not is_eq:
+				if not bool(validation.get("technology_allowed", true)):
+					tech_tag = " [TECH LOCKED]"
+				elif not bool(validation.get("physically_compatible", true)):
+					tech_tag = " [INCOMPATIBLE]"
 			var full_hp = float(GlobalData.part_stat(inst, "max_hp", 30.0))
 			var dur_pct = instance_durability(slot, inst)
 			var cur_hp = full_hp * dur_pct
 			var lost_hp = full_hp - cur_hp
 			var hp_str = "HP: %.0f/%.0f (-%.0f, %.0f%%)" % [cur_hp, full_hp, lost_hp, dur_pct * 100.0] if dur_pct < 0.999 else "HP: %.0f" % full_hp
-			var inst_label = "%s%s [%s] (%s)%s" % [prefix, inst.get("name", "Armor"), inst.get("type", "Instance"), hp_str, state_tag]
+			var inst_label = "%s%s [%s] (%s)%s%s" % [prefix, inst.get("name", "Armor"), inst.get("type", "Instance"), hp_str, state_tag, tech_tag]
 			controller.part_item_list.add_item(inst_label)
 			PartTierStyle.apply_itemlist_row(controller.part_item_list, controller.part_item_list.item_count - 1, PartTierStyle.armor_tier(inst))
+			var row_idx: int = int(controller.part_item_list.item_count) - 1
+			if not is_eq:
+				if not bool(validation.get("technology_allowed", true)):
+					controller.part_item_list.set_item_custom_fg_color(row_idx, Color(0.75, 0.45, 0.45))
+					controller.part_item_list.set_item_tooltip(row_idx, "Technology not authorized: %s" % validation.get("tech_id", ""))
+				elif not bool(validation.get("physically_compatible", true)):
+					controller.part_item_list.set_item_custom_fg_color(row_idx, Color(0.85, 0.65, 0.35))
+					controller.part_item_list.set_item_tooltip(row_idx, "Frame cannot support technology: %s" % validation.get("tech_id", ""))
 			controller.visible_salvage_indices.append(inst_index)
 		if controller.part_item_list.item_count > 0:
 			controller.part_item_list.select(0)
@@ -206,6 +238,7 @@ func populate(slot: String) -> void:
 				for child in controller.stats_hp_bar_box.get_children():
 					child.queue_free()
 			controller.update_tier_display({}, controller.selected_slot)
+			_update_equip_button_state()
 
 	_is_populating = false  # Restore flag
 
@@ -536,11 +569,15 @@ func on_item_selected(index: int) -> void:
 					wwt, hand,
 					LoadoutSystem.get_field_pack_weight(), LoadoutSystem.get_field_pack_capacity()
 				]
+			var validation := LoadoutSystem.validate_equip_request(controller.selected_slot, inv)
+			controller.stats_label.text += HangarPartText.technology_status_block(validation)
+
 			# Only change 3D model when user explicitly picks a part, not on section switch
 			if not _is_populating:
 				controller.garage_panel.preview_weapon_on_hand(controller.selected_slot, inv)
 			controller.update_tier_display(inv, controller.selected_slot)
 		controller.stats_panel.update()
+		_update_equip_button_state()
 		return
 
 	if controller.armor_catalog.has(controller.selected_slot):
@@ -568,6 +605,9 @@ func on_item_selected(index: int) -> void:
 				controller.stats_label.text = "OWNED ARMOR: %s\nARMOR HP: %s\nDURABILITY: %.0f%%\n\n%s\n\nEquip this plate to install it." % [
 					item_name, hp_str, dur_pct * 100.0, acap
 				]
+			var validation := LoadoutSystem.validate_equip_request(controller.selected_slot, controller.selected_salvage_info)
+			controller.stats_label.text += HangarPartText.technology_status_block(validation)
+
 			if controller.stats_hp_bar_box:
 				controller.stats_hp_bar_box.add_child(HPPartBar.create_row("Armor HP", cur_hp, full_hp, false, false, 240, 10, 11))
 				controller.stats_hp_bar_box.add_child(HPPartBar.create_row("Durability", dur_pct * 100.0, 100.0, false, false, 240, 10, 11, true))
@@ -576,6 +616,58 @@ func on_item_selected(index: int) -> void:
 				controller.garage_panel.apply_salvage_preview(controller.selected_slot, controller.selected_salvage_info)
 	controller.update_tier_display(controller.selected_salvage_info, controller.selected_slot)
 	controller.stats_panel.update()
+	_update_equip_button_state()
+
+
+func _update_equip_button_state() -> void:
+	if not controller or not ("equip_button" in controller) or controller.equip_button == null:
+		return
+
+	if controller.current_mode == "upgrade" or controller.current_mode == "attachment":
+		controller.equip_button.disabled = false
+		controller.equip_button.text = "EQUIP SELECTION"
+		controller.equip_button.tooltip_text = ""
+		return
+
+	var selected_item = null
+	if controller.selected_slot.begins_with("weapon") or controller.selected_slot.begins_with("shoulder"):
+		if controller.selected_weapon_uid != "":
+			selected_item = LoadoutSystem.get_weapon_instance(controller.selected_weapon_uid)
+		if (selected_item == null or (selected_item is Dictionary and selected_item.is_empty())) and controller.selected_part_path != "":
+			selected_item = controller.selected_part_path
+	elif controller.armor_catalog.has(controller.selected_slot):
+		if not controller.selected_salvage_info.is_empty():
+			selected_item = controller.selected_salvage_info
+	elif controller.current_mode == "frame":
+		if not controller.selected_frame_info.is_empty():
+			selected_item = controller.selected_frame_info
+
+	if selected_item == null or (selected_item is Dictionary and selected_item.is_empty()):
+		controller.equip_button.disabled = true
+		controller.equip_button.text = "EQUIP SELECTION"
+		controller.equip_button.tooltip_text = "No item selected"
+		return
+
+	var validation := LoadoutSystem.validate_equip_request(controller.selected_slot, selected_item)
+	var can_eq: bool = bool(validation.get("can_equip", false))
+	controller.equip_button.disabled = not can_eq
+	if can_eq:
+		controller.equip_button.text = "EQUIP SELECTION"
+		controller.equip_button.tooltip_text = ""
+	else:
+		var r: String = str(validation.get("reason", ""))
+		if r == "technology_locked":
+			controller.equip_button.text = "EQUIP (TECH LOCKED)"
+			controller.equip_button.tooltip_text = str(validation.get("message", "Technology not authorized"))
+		elif r == "physically_incompatible":
+			controller.equip_button.text = "EQUIP (INCOMPATIBLE)"
+			controller.equip_button.tooltip_text = str(validation.get("message", "Frame cannot mount hardware"))
+		elif r == "arm_destroyed":
+			controller.equip_button.text = "EQUIP (ARM BROKEN)"
+			controller.equip_button.tooltip_text = str(validation.get("message", "Arm is destroyed"))
+		else:
+			controller.equip_button.text = "EQUIP (UNAVAILABLE)"
+			controller.equip_button.tooltip_text = str(validation.get("message", "Cannot equip item"))
 
 
 func on_item_clicked(index: int, _at_position: Vector2 = Vector2.ZERO, _mouse_button_index: int = 1) -> void:

@@ -116,8 +116,10 @@ func _close_swap_confirm() -> void:
 func equip_part(slot: String, info: Dictionary) -> void:
 	# Delegate equip authorization and physical compatibility validation to LoadoutSystem authority
 	var validation := LoadoutSystem.validate_equip_request(slot, info)
-	if not bool(validation.get("allowed", false)):
+	if not bool(validation.get("can_equip", false)):
 		controller.status_message_label.text = str(validation.get("message", "Cannot equip item."))
+		if controller.part_list_panel:
+			controller.part_list_panel.populate(slot)
 		return
 
 	# Weapon slots (hands / shoulders / back carry) are mode-independent: clicking a weapon
@@ -855,8 +857,10 @@ func on_equip_pressed() -> void:
 
 	if not controller.selected_salvage_info.is_empty():
 		var validation := LoadoutSystem.validate_equip_request(controller.selected_slot, controller.selected_salvage_info)
-		if not bool(validation.get("allowed", false)):
+		if not bool(validation.get("can_equip", false)):
 			controller.status_message_label.text = str(validation.get("message", "Cannot equip item."))
+			if controller.part_list_panel:
+				controller.part_list_panel.populate(controller.selected_slot)
 			return
 		# Same one-plate-per-mech rule as equip_part(): confirm before stripping
 		# the instance from whichever other berth wears it.
@@ -878,9 +882,16 @@ func on_equip_pressed() -> void:
 		_perform_selected_frame_equip()
 		return
 	elif controller.selected_part_path != "" and ResourceLoader.exists(controller.selected_part_path):
-		var validation := LoadoutSystem.validate_equip_request(controller.selected_slot, controller.selected_part_path)
-		if not bool(validation.get("allowed", false)):
+		var item_to_validate: Variant = controller.selected_part_path
+		if controller.selected_weapon_uid != "":
+			var inv_item := LoadoutSystem.get_weapon_instance(controller.selected_weapon_uid)
+			if not inv_item.is_empty():
+				item_to_validate = inv_item
+		var validation := LoadoutSystem.validate_equip_request(controller.selected_slot, item_to_validate)
+		if not bool(validation.get("can_equip", false)):
 			controller.status_message_label.text = str(validation.get("message", "Cannot equip item."))
+			if controller.part_list_panel:
+				controller.part_list_panel.populate(controller.selected_slot)
 			return
 		var res = load(controller.selected_part_path)
 		if res:

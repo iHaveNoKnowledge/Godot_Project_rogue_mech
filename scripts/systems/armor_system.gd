@@ -138,6 +138,18 @@ static func equip_armor_instance(uid: String, slot: String) -> bool:
 	var inst := get_armor_instance(uid)
 	if inst.is_empty():
 		return false
+	var tech_sys = load("res://scripts/systems/technology_system.gd")
+	if tech_sys:
+		var tech_check: Dictionary = tech_sys.can_equip_item_technology(inst)
+		if not bool(tech_check.get("allowed", false)):
+			return false
+	var frame_sys = load("res://scripts/systems/frame_system.gd")
+	if frame_sys and tech_sys:
+		var tid: String = str(tech_sys.resolve_item_technology_id(inst))
+		if tid != "":
+			var active_frame: Dictionary = frame_sys.get_equipped_frame(slot)
+			if not active_frame.is_empty() and not frame_sys.can_support_technology(active_frame, tid):
+				return false
 	unequip_armor_instance(slot)
 	inst["equipped"] = true
 	inst["slot"] = slot

@@ -1465,154 +1465,31 @@ static func reset_discovery_states() -> void:
 
 
 # ===========================================================================
-# AUTHORITATIVE COMPATIBILITY EVALUATION
+# COMPATIBILITY SPECIFICATIONS & FRAME FORWARDERS (FrameSystem is Authority)
 # ===========================================================================
 
-## Resolves raw frame data (Dict, String ID, or Variant) into a normalized frame dictionary.
-static func _resolve_frame(frame_data: Variant) -> Dictionary:
-	if frame_data is Dictionary:
-		return frame_data
-	elif frame_data is String:
-		var fid: String = str(frame_data)
-		if fid != "" and GlobalData:
-			var entry: Dictionary = GlobalData.get_frame_catalog_entry(fid)
-			if not entry.is_empty():
-				return entry
-			var entry_name: Dictionary = GlobalData.get_frame_catalog_entry_by_name(fid)
-			if not entry_name.is_empty():
-				return entry_name
-		return {"id": fid, "name": fid}
-	return {}
-
-
-## Authoritatively checks whether a given frame platform can support a technology,
-## returning a detailed report with DIRECT, BRIDGED, or INCOMPATIBLE status.
+## Evaluates whether a frame platform can physically support a technology.
+## Delegates to FrameSystem (the physical hardware compatibility authority).
 static func evaluate_frame_technology_compatibility(frame_data: Variant, tech_id: String, installed_bridges: Array = []) -> Dictionary:
-	var def := get_technology_definition(tech_id)
-	if def.is_empty():
-		return {
-			"status": CompatibilityStatus.INCOMPATIBLE,
-			"is_supported": false,
-			"active_bridges": [],
-			"missing_requirements": ["technology_not_found"],
-			"reasons": ["Technology ID '%s' is not registered." % tech_id]
-		}
-
-	var frame_dict := _resolve_frame(frame_data)
-	var f_lineage := str(frame_dict.get("technology_lineage", LINEAGE_VALKREN)).to_lower()
-	var f_gen := int(frame_dict.get("native_generation", 1))
-	var f_supported_fams: Array = frame_dict.get("supported_families", ["all"])
-
-	var t_gen := int(def.get("generation", 1))
-	var t_family := str(def.get("technology_family", FAMILY_BALLISTIC))
-	var t_lineage := str(def.get("origin_lineage", LINEAGE_COMMON)).to_lower()
-	var compat_reqs: Dictionary = def.get("compatibility_requirements", {})
-
-	var req_lineage: String = str(compat_reqs.get("required_lineage", "")).to_lower()
-	var req_gen: int = int(compat_reqs.get("min_generation", t_gen))
-	var req_bridge_tags: Array = compat_reqs.get("required_bridge_tags", [])
-
-	# 1. Test Direct Native Compatibility:
-	var direct_gen_ok := (f_gen >= req_gen)
-	var direct_fam_ok := ("all" in f_supported_fams or t_family in f_supported_fams)
-	var direct_lineage_ok := (req_lineage == "" or req_lineage == LINEAGE_COMMON or f_lineage == req_lineage)
-
-	if direct_gen_ok and direct_fam_ok and direct_lineage_ok:
-		return {
-			"status": CompatibilityStatus.DIRECT,
-			"is_supported": true,
-			"active_bridges": [],
-			"missing_requirements": [],
-			"reasons": ["Native frame architecture directly supports technology generation and family."]
-		}
-
-	# 2. Test Bridged Compatibility via Installed Technology Bridges:
-	var active_bridges: Array = []
-	var remaining_missing: Array = []
-	var reasons: Array = []
-
-	# Gather bridge capabilities
-	var bridge_max_gen := f_gen
-	var bridged_families: Array = []
-	var provided_bridge_tags: Array = []
-
-	for b in installed_bridges:
-		var b_dict: Dictionary = b if b is Dictionary else {}
-		if b_dict.is_empty() and b is String:
-			# If a string module_id is passed, query FrameModuleSystem if available
-			var mod_def := FrameModuleSystem.get_module(str(b))
-			if not mod_def.is_empty():
-				b_dict = mod_def.get("bridge_capabilities", {})
-		else:
-			b_dict = b_dict.get("bridge_capabilities", b_dict)
-
-		var up_to := int(b_dict.get("bridges_generation_up_to", 0))
-		if up_to > bridge_max_gen:
-			bridge_max_gen = up_to
-
-		var b_fams = b_dict.get("bridges_families", [])
-		if b_fams is Array:
-			for bf in b_fams:
-				if not bridged_families.has(bf):
-					bridged_families.append(bf)
-
-		var b_tags = b_dict.get("bridge_tags", [])
-		if b_tags is Array:
-			for bt in b_tags:
-				if not provided_bridge_tags.has(bt):
-					provided_bridge_tags.append(bt)
-
-	# Check Generation requirement
-	var gen_bridged := (f_gen >= req_gen) or (bridge_max_gen >= req_gen)
-	if not gen_bridged:
-		remaining_missing.append("insufficient_generation")
-		reasons.append("Frame generation (%d) and bridge limit (%d) below required (%d)." % [f_gen, bridge_max_gen, req_gen])
-
-	# Check Family requirement
-	var fam_bridged := direct_fam_ok or ("all" in bridged_families) or (t_family in bridged_families)
-	if not fam_bridged:
-		remaining_missing.append("unsupported_family")
-		reasons.append("Technology family '%s' is not supported by frame or active bridge modules." % t_family)
-
-	# Check Specific Bridge Tags
-	for req_tag in req_bridge_tags:
-		var tag_str := str(req_tag)
-		if not provided_bridge_tags.has(tag_str):
-			# If frame natively supports the lineage and generation, specific bridge tag may not be required
-			if not (direct_gen_ok and direct_lineage_ok):
-				remaining_missing.append("missing_bridge_tag:" + tag_str)
-				reasons.append("Requires bridge module providing tag '%s'." % tag_str)
-
-	# Check Lineage constraint
-	if req_lineage != "" and req_lineage != LINEAGE_COMMON and f_lineage != req_lineage:
-		# Can only bridge lineage if a bridge explicitly provides lineage adapter tag
-		var lineage_bridge_tag := req_lineage + "_interface"
-		if not provided_bridge_tags.has(lineage_bridge_tag) and not provided_bridge_tags.has("universal_interface"):
-			remaining_missing.append("incompatible_lineage:" + req_lineage)
-			reasons.append("Frame lineage '%s' does not match required '%s', no compatible adapter installed." % [f_lineage, req_lineage])
-
-	if remaining_missing.is_empty():
-		return {
-			"status": CompatibilityStatus.BRIDGED,
-			"is_supported": true,
-			"active_bridges": installed_bridges,
-			"missing_requirements": [],
-			"reasons": ["Technology successfully bridged to frame via installed module interfaces."]
-		}
-
+	var fs = load("res://scripts/systems/frame_system.gd")
+	if fs:
+		return fs.evaluate_technology_compatibility(frame_data, tech_id, installed_bridges)
 	return {
 		"status": CompatibilityStatus.INCOMPATIBLE,
 		"is_supported": false,
 		"active_bridges": [],
-		"missing_requirements": remaining_missing,
-		"reasons": reasons
+		"missing_requirements": ["frame_system_unavailable"],
+		"reasons": ["FrameSystem is unavailable."]
 	}
 
 
 ## Quick boolean query for frame technology support.
+## Delegates to FrameSystem (the physical hardware compatibility authority).
 static func can_frame_support_technology(frame_data: Variant, tech_id: String, installed_bridges: Array = []) -> bool:
-	var report := evaluate_frame_technology_compatibility(frame_data, tech_id, installed_bridges)
-	return bool(report.get("is_supported", false))
+	var fs = load("res://scripts/systems/frame_system.gd")
+	if fs:
+		return fs.can_support_technology(frame_data, tech_id, installed_bridges)
+	return false
 
 
 ## Returns requirements dictionary for a given technology.

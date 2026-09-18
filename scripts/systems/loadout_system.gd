@@ -201,7 +201,7 @@ static func _ref_to_uid(ref) -> String:
 		return _uid_for_equip(s)
 	if not _instance_by_uid(s).is_empty():
 		return s
-	return ""
+	return s
 
 
 # Legacy-save migration: converts a path ref to the uid of the matching stash
@@ -782,3 +782,126 @@ static func register_weapon(path: String, weapon_name: String = "") -> String:
 		"upgrade_level": 1
 	})
 	return uid
+
+
+# =============================================================================
+# AUTHORITATIVE EQUIPMENT VALIDATION & STATE MUTATION (Loadout Authority)
+# =============================================================================
+
+## Authoritatively validates whether an item can be equipped to a specific loadout slot.
+## Queries:
+## 1. TechnologySystem for technology authorization (is_item_technology_usable).
+## 2. FrameSystem for physical hardware compatibility (can_support_technology).
+## 3. Physical mechanical / pack capacity constraints.
+## Returns a status dictionary:
+## - "allowed": bool
+## - "reason": String ("ok", "technology_locked", "physically_incompatible", "arm_destroyed", "pack_full")
+## - "message": String
+## - "tech_id": String
+static func validate_equip_request(slot: String, item_data: Variant, context: Dictionary = {}) -> Dictionary:
+	var tech_sys = load("res://scripts/systems/technology_system.gd")
+	var frame_sys = load("res://scripts/systems/frame_system.gd")
+
+	# 1. Technology Authorization Gate
+	if tech_sys:
+		var tech_check: Dictionary = tech_sys.can_equip_item_technology(item_data)
+		if not bool(tech_check.get("allowed", false)):
+			var t_id := str(tech_check.get("tech_id", "Unknown"))
+			var s_name := str(tech_check.get("state_name", "UNKNOWN"))
+			return {
+				"allowed": false,
+				"reason": "technology_locked",
+				"tech_id": t_id,
+				"state_name": s_name,
+				"message": "Cannot equip: Technology '%s' is not authorized (State: %s)." % [t_id, s_name]
+			}
+
+	# 2. Physical Frame Compatibility Gate
+	var item_tech_id := ""
+	if tech_sys:
+		item_tech_id = tech_sys.resolve_item_technology_id(item_data)
+	if item_tech_id != "" and frame_sys:
+		var target_frame_slot := slot
+		if slot == "weapon_left":
+			target_frame_slot = "arm_left"
+		elif slot == "weapon_right":
+			target_frame_slot = "arm_right"
+		elif slot == "weapon_carry" or slot.begins_with("shoulder"):
+			target_frame_slot = "body"
+		var active_frame: Dictionary = frame_sys.get_equipped_frame(target_frame_slot)
+		var installed_bridges: Array = []
+		if GlobalData and GlobalData.weapons and ("frame_modules" in GlobalData.weapons):
+			for s in GlobalData.weapons.frame_modules:
+				var mods = GlobalData.weapons.frame_modules[s]
+				if mods is Array:
+					for m in mods:
+						installed_bridges.append(m)
+		if not active_frame.is_empty() and not frame_sys.can_support_technology(active_frame, item_tech_id, installed_bridges):
+			return {
+				"allowed": false,
+				"reason": "physically_incompatible",
+				"tech_id": item_tech_id,
+				"message": "Cannot equip: Frame does not support technology '%s'." % item_tech_id
+			}
+
+	# 3. Mechanical limb check (weapons in hands need intact arm frames)
+	if slot.begins_with("weapon") and slot != "weapon_carry":
+		var hand := "left" if slot == "weapon_left" else "right"
+		var arm_slot := "arm_left" if hand == "left" else "arm_right"
+		if float(GlobalData.weapons.part_damage.get(arm_slot + "_frame", 0.0)) >= 1.0:
+			return {
+				"allowed": false,
+				"reason": "arm_destroyed",
+				"message": "Cannot equip: that arm is destroyed! Repair or replace it first."
+			}
+
+	return {
+		"allowed": true,
+		"reason": "ok",
+		"tech_id": item_tech_id,
+		"message": "Ready to equip"
+	}
+
+
+## Authoritatively performs the weapon equip state mutation after validating gates.
+## Returns a status dictionary:
+## - "success": bool
+## - "reason": String
+## - "message": String
+## - "slot": String
+## - "wref": String
+static func equip_weapon(slot: String, item_data: Variant, wref: String = "") -> Dictionary:
+	var validation := validate_equip_request(slot, item_data)
+	if not bool(validation.get("allowed", false)):
+		return {
+			"success": false,
+			"reason": validation.get("reason", "rejected"),
+			"message": validation.get("message", "Cannot equip item.")
+		}
+
+	var wpath := ""
+	if item_data is Dictionary:
+		wpath = str(item_data.get("path", ""))
+	elif item_data is Resource:
+		wpath = item_data.resource_path
+	elif item_data is String:
+		wpath = item_data
+
+	var ref := wref if wref != "" else (wpath if wpath != "" else str(item_data))
+
+	if slot == "weapon_carry":
+		add_carry_weapon(ref)
+	elif slot.begins_with("shoulder"):
+		var side := "left" if slot == "shoulder_left" else "right"
+		set_shoulder_weapon(side, ref)
+	else:
+		var hand := "left" if slot == "weapon_left" else "right"
+		set_hand_weapon(hand, ref)
+
+	return {
+		"success": true,
+		"reason": "ok",
+		"message": "Equipped successfully.",
+		"slot": slot,
+		"wref": ref
+	}

@@ -277,8 +277,15 @@ static func get_arm_power(side: String) -> float:
 	return GlobalData.get_arm_power(side)
 
 
+# Compatibility evaluation status
+enum CompatibilityStatus {
+	INCOMPATIBLE = 0,
+	DIRECT = 1,
+	BRIDGED = 2
+}
+
 # ===========================================================================
-# TECHNOLOGY QUERIES (Phase 2D Integration)
+# PHYSICAL HARDWARE COMPATIBILITY EVALUATION (FrameSystem Authority)
 # ===========================================================================
 
 ## Returns the architectural technology lineage of this frame (e.g. "valkren", "valkryon").
@@ -300,13 +307,156 @@ static func get_frame_supported_families(frame_data: Variant) -> Array:
 	return Array(fams) if fams is Array else ["all"]
 
 
-## Evaluates whether this frame can support a given technology directly or via bridges.
+## Resolves hardware/technology requirement specifications.
+## Can accept a tech_id (String) and query TechnologySystem, or a Dictionary directly.
+static func _resolve_hardware_requirements(req_data: Variant) -> Dictionary:
+	if req_data is Dictionary:
+		return req_data
+	elif req_data is String:
+		var tid := str(req_data)
+		var ts = load("res://scripts/systems/technology_system.gd")
+		if ts:
+			var def: Dictionary = ts.get_technology_definition(tid)
+			if not def.is_empty():
+				var compat_reqs: Dictionary = def.get("compatibility_requirements", {})
+				var t_gen: int = int(def.get("generation", 1))
+				return {
+					"tech_id": tid,
+					"generation": t_gen,
+					"min_generation": int(compat_reqs.get("min_generation", t_gen)),
+					"technology_family": str(def.get("technology_family", "ballistic")),
+					"origin_lineage": str(def.get("origin_lineage", "common")).to_lower(),
+					"required_lineage": str(compat_reqs.get("required_lineage", "")).to_lower(),
+					"required_bridge_tags": Array(compat_reqs.get("required_bridge_tags", []))
+				}
+	return {}
+
+
+## Authoritatively evaluates physical hardware compatibility between a frame platform and hardware requirements.
+## FrameSystem is the sole authority for physical compatibility.
+static func evaluate_hardware_compatibility(frame_data: Variant, hardware_requirements_or_tech_id: Variant, installed_bridges: Array = []) -> Dictionary:
+	var reqs := _resolve_hardware_requirements(hardware_requirements_or_tech_id)
+	if reqs.is_empty():
+		return {
+			"status": CompatibilityStatus.INCOMPATIBLE,
+			"is_supported": false,
+			"active_bridges": [],
+			"missing_requirements": ["hardware_requirements_not_found"],
+			"reasons": ["Hardware specification or technology definition not found."]
+		}
+
+	var frame_dict := _resolve_frame_dict(frame_data)
+	var f_lineage := str(frame_dict.get("technology_lineage", "valkren")).to_lower()
+	var f_gen := int(frame_dict.get("native_generation", 1))
+	var f_supported_fams: Array = frame_dict.get("supported_families", ["all"])
+
+	var req_gen: int = int(reqs.get("min_generation", reqs.get("generation", 1)))
+	var t_family: String = str(reqs.get("technology_family", "ballistic"))
+	var req_lineage: String = str(reqs.get("required_lineage", "")).to_lower()
+	var req_bridge_tags: Array = reqs.get("required_bridge_tags", [])
+
+	# 1. Test Direct Native Compatibility:
+	var direct_gen_ok := (f_gen >= req_gen)
+	var direct_fam_ok := ("all" in f_supported_fams or t_family in f_supported_fams)
+	var direct_lineage_ok := (req_lineage == "" or req_lineage == "common" or f_lineage == req_lineage)
+
+	if direct_gen_ok and direct_fam_ok and direct_lineage_ok:
+		return {
+			"status": CompatibilityStatus.DIRECT,
+			"is_supported": true,
+			"active_bridges": [],
+			"missing_requirements": [],
+			"reasons": ["Native frame architecture directly supports hardware generation and family."]
+		}
+
+	# 2. Test Bridged Compatibility via Installed Technology Bridges:
+	var active_bridges: Array = []
+	var remaining_missing: Array = []
+	var reasons: Array = []
+
+	var bridge_max_gen := f_gen
+	var bridged_families: Array = []
+	var provided_bridge_tags: Array = []
+
+	var mod_sys = load("res://scripts/systems/frame_module_system.gd")
+
+	for b in installed_bridges:
+		var b_dict: Dictionary = b if b is Dictionary else {}
+		if b_dict.is_empty() and b is String and mod_sys:
+			var mod_def: Dictionary = mod_sys.get_module(str(b))
+			if not mod_def.is_empty():
+				b_dict = mod_def.get("bridge_capabilities", {})
+		else:
+			b_dict = b_dict.get("bridge_capabilities", b_dict)
+
+		var up_to := int(b_dict.get("bridges_generation_up_to", 0))
+		if up_to > bridge_max_gen:
+			bridge_max_gen = up_to
+
+		var b_fams = b_dict.get("bridges_families", [])
+		if b_fams is Array:
+			for bf in b_fams:
+				if not bridged_families.has(bf):
+					bridged_families.append(bf)
+
+		var b_tags = b_dict.get("bridge_tags", [])
+		if b_tags is Array:
+			for bt in b_tags:
+				if not provided_bridge_tags.has(bt):
+					provided_bridge_tags.append(bt)
+
+	var gen_bridged := (f_gen >= req_gen) or (bridge_max_gen >= req_gen)
+	if not gen_bridged:
+		remaining_missing.append("insufficient_generation")
+		reasons.append("Frame generation (%d) and bridge limit (%d) below required (%d)." % [f_gen, bridge_max_gen, req_gen])
+
+	var fam_bridged := direct_fam_ok or ("all" in bridged_families) or (t_family in bridged_families)
+	if not fam_bridged:
+		remaining_missing.append("unsupported_family")
+		reasons.append("Hardware family '%s' is not supported by frame or active bridge modules." % t_family)
+
+	for req_tag in req_bridge_tags:
+		var tag_str := str(req_tag)
+		if not provided_bridge_tags.has(tag_str):
+			if not (direct_gen_ok and direct_lineage_ok):
+				remaining_missing.append("missing_bridge_tag:" + tag_str)
+				reasons.append("Requires bridge module providing tag '%s'." % tag_str)
+
+	if req_lineage != "" and req_lineage != "common" and f_lineage != req_lineage:
+		var lineage_bridge_tag := req_lineage + "_interface"
+		if not provided_bridge_tags.has(lineage_bridge_tag) and not provided_bridge_tags.has("universal_interface"):
+			remaining_missing.append("incompatible_lineage:" + req_lineage)
+			reasons.append("Frame lineage '%s' does not match required '%s', no compatible adapter installed." % [f_lineage, req_lineage])
+
+	if remaining_missing.is_empty():
+		return {
+			"status": CompatibilityStatus.BRIDGED,
+			"is_supported": true,
+			"active_bridges": installed_bridges,
+			"missing_requirements": [],
+			"reasons": ["Hardware successfully bridged to frame via installed module interfaces."]
+		}
+
+	return {
+		"status": CompatibilityStatus.INCOMPATIBLE,
+		"is_supported": false,
+		"active_bridges": [],
+		"missing_requirements": remaining_missing,
+		"reasons": reasons
+	}
+
+
+## Evaluates whether this frame can physically support given hardware or technology requirements.
+static func can_support_hardware(frame_data: Variant, hardware_requirements_or_tech_id: Variant, installed_bridges: Array = []) -> bool:
+	var report := evaluate_hardware_compatibility(frame_data, hardware_requirements_or_tech_id, installed_bridges)
+	return bool(report.get("is_supported", false))
+
+
+## Convenience alias for technology compatibility queries.
 static func can_support_technology(frame_data: Variant, tech_id: String, installed_bridges: Array = []) -> bool:
-	var ts = load("res://scripts/systems/technology_system.gd")
-	return ts.can_frame_support_technology(frame_data, tech_id, installed_bridges)
+	return can_support_hardware(frame_data, tech_id, installed_bridges)
 
 
-## Returns full compatibility evaluation dictionary.
+## Convenience alias returning full report.
 static func evaluate_technology_compatibility(frame_data: Variant, tech_id: String, installed_bridges: Array = []) -> Dictionary:
-	var ts = load("res://scripts/systems/technology_system.gd")
-	return ts.evaluate_frame_technology_compatibility(frame_data, tech_id, installed_bridges)
+	return evaluate_hardware_compatibility(frame_data, tech_id, installed_bridges)

@@ -304,6 +304,32 @@ func _test_equipment_gate() -> void:
 	_check(not bool(eval_report.get("is_supported", false)), "[16a] Frame report is_supported is false")
 	_check(eval_report.get("missing_requirements", []).size() > 0, "[16b] Missing requirements documented")
 
+	# 16c-16f: Non-UI LoadoutSystem & ArmorSystem Authority
+	var loadout_sys = preload("res://scripts/systems/loadout_system.gd")
+	var armor_sys = preload("res://scripts/systems/armor_system.gd")
+	if loadout_sys:
+		# Test LoadoutSystem.validate_equip_request
+		GlobalData.weapons.equipped_frames["arm_right"] = gen1_frame
+		var val_incompat := loadout_sys.validate_equip_request("weapon_right", weapon_item)
+		_check(not bool(val_incompat.get("allowed", false)), "[16c] LoadoutSystem authority rejects physically incompatible frame")
+		_check(val_incompat.get("reason", "") == "physically_incompatible", "[16d] LoadoutSystem reason is physically_incompatible")
+
+		# Test with compatible frame
+		var gen2_frame: Dictionary = {
+			"id": "frame_energy_2",
+			"native_generation": 2,
+			"technology_lineage": "valkren",
+			"supported_families": [TechSys.FAMILY_ENERGY]
+		}
+		GlobalData.weapons.equipped_frames["arm_right"] = gen2_frame
+		var val_compat := loadout_sys.validate_equip_request("weapon_right", weapon_item)
+		_check(bool(val_compat.get("allowed", false)), "[16e] LoadoutSystem authority allows valid tech + compatible frame")
+
+		# Test LoadoutSystem.equip_weapon mutation
+		var equip_res := loadout_sys.equip_weapon("weapon_right", weapon_item, "test_uid_energy_gun")
+		_check(bool(equip_res.get("success", false)), "[16f] LoadoutSystem mutates loadout state successfully")
+		_check(str(GlobalData.weapons.weapon_loadout.get("right", "")) == "test_uid_energy_gun", "[16g] Weapon loadout right hand updated to test_uid_energy_gun")
+
 
 # -----------------------------------------------------------------------------
 # LEGACY COMPATIBILITY (17-19)

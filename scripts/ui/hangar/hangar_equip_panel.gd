@@ -114,35 +114,11 @@ func _close_swap_confirm() -> void:
 
 
 func equip_part(slot: String, info: Dictionary) -> void:
-	# Phase 2E-4C: Technology Authorization Gate
-	var tech_check := TechnologySystem.can_equip_item_technology(info)
-	if not bool(tech_check.get("allowed", false)):
-		var t_id := str(tech_check.get("tech_id", "Unknown"))
-		var s_name := str(tech_check.get("state_name", "UNKNOWN"))
-		controller.status_message_label.text = "Cannot equip: Technology '%s' is not authorized (State: %s)." % [t_id, s_name]
+	# Delegate equip authorization and physical compatibility validation to LoadoutSystem authority
+	var validation := LoadoutSystem.validate_equip_request(slot, info)
+	if not bool(validation.get("allowed", false)):
+		controller.status_message_label.text = str(validation.get("message", "Cannot equip item."))
 		return
-
-	# Phase 2E-4C: Physical Frame Compatibility Check
-	var item_tech_id := str(tech_check.get("tech_id", ""))
-	if item_tech_id != "":
-		var target_frame_slot := slot
-		if slot == "weapon_left":
-			target_frame_slot = "arm_left"
-		elif slot == "weapon_right":
-			target_frame_slot = "arm_right"
-		elif slot == "weapon_carry" or slot.begins_with("shoulder"):
-			target_frame_slot = "body"
-		var active_frame := FrameSystem.get_equipped_frame(target_frame_slot)
-		var installed_bridges: Array = []
-		if GlobalData and GlobalData.weapons and GlobalData.weapons.has("frame_modules"):
-			for s in GlobalData.weapons.frame_modules:
-				var mods = GlobalData.weapons.frame_modules[s]
-				if mods is Array:
-					for m in mods:
-						installed_bridges.append(m)
-		if not active_frame.is_empty() and not FrameSystem.can_support_technology(active_frame, item_tech_id, installed_bridges):
-			controller.status_message_label.text = "Cannot equip: Frame does not support technology '%s'." % item_tech_id
-			return
 
 	# Weapon slots (hands / shoulders / back carry) are mode-independent: clicking a weapon
 	# tab never changes current_mode, so equipping a weapon must NOT be
@@ -878,11 +854,9 @@ func on_equip_pressed() -> void:
 		return
 
 	if not controller.selected_salvage_info.is_empty():
-		var tech_check := TechnologySystem.can_equip_item_technology(controller.selected_salvage_info)
-		if not bool(tech_check.get("allowed", false)):
-			var t_id := str(tech_check.get("tech_id", "Unknown"))
-			var s_name := str(tech_check.get("state_name", "UNKNOWN"))
-			controller.status_message_label.text = "Cannot equip: Technology '%s' is not authorized (State: %s)." % [t_id, s_name]
+		var validation := LoadoutSystem.validate_equip_request(controller.selected_slot, controller.selected_salvage_info)
+		if not bool(validation.get("allowed", false)):
+			controller.status_message_label.text = str(validation.get("message", "Cannot equip item."))
 			return
 		# Same one-plate-per-mech rule as equip_part(): confirm before stripping
 		# the instance from whichever other berth wears it.
@@ -904,11 +878,9 @@ func on_equip_pressed() -> void:
 		_perform_selected_frame_equip()
 		return
 	elif controller.selected_part_path != "" and ResourceLoader.exists(controller.selected_part_path):
-		var tech_check := TechnologySystem.can_equip_item_technology(controller.selected_part_path)
-		if not bool(tech_check.get("allowed", false)):
-			var t_id := str(tech_check.get("tech_id", "Unknown"))
-			var s_name := str(tech_check.get("state_name", "UNKNOWN"))
-			controller.status_message_label.text = "Cannot equip: Technology '%s' is not authorized (State: %s)." % [t_id, s_name]
+		var validation := LoadoutSystem.validate_equip_request(controller.selected_slot, controller.selected_part_path)
+		if not bool(validation.get("allowed", false)):
+			controller.status_message_label.text = str(validation.get("message", "Cannot equip item."))
 			return
 		var res = load(controller.selected_part_path)
 		if res:

@@ -432,6 +432,7 @@ static func register_technology(def: Dictionary) -> void:
 		"compatibility_requirements": Dictionary(def.get("compatibility_requirements", {})),
 		"discovery_metadata": Dictionary(def.get("discovery_metadata", {})),
 		"diffusion_metadata": schematized_diff,
+		"research_metadata": Dictionary(def.get("research_metadata", {})).duplicate(true),
 		"description": str(def.get("description", ""))
 	}
 	_catalog[tid] = schematized
@@ -1044,6 +1045,38 @@ static func get_research_metadata(tech_id: String) -> Dictionary:
 		"identification_cost": float(meta.get("identification_cost", 0.0)),
 		"prerequisites": meta.get("prerequisites", def.get("prerequisites", [])).duplicate()
 	}
+
+
+## Validates whether an external currency provider (e.g. CurrencyManager, GlobalData.currency, or dict) has sufficient credits for research.
+## Read-only validation; does NOT deduct or mutate economy state.
+static func can_afford_research(tech_id: String, currency_provider: Variant) -> bool:
+	if currency_provider == null:
+		return false
+	var meta := get_research_metadata(tech_id)
+	var cost := float(meta.get("research_cost", 0.0))
+	if cost <= 0.0:
+		return true
+	if currency_provider is Object and "credits" in currency_provider:
+		return float(currency_provider.credits) >= cost
+	elif currency_provider is Dictionary:
+		return float(currency_provider.get("credits", 0.0)) >= cost
+	return false
+
+
+## Validates whether an external currency provider has sufficient credits for identification.
+## Read-only validation; does NOT deduct or mutate economy state.
+static func can_afford_identification(tech_id: String, currency_provider: Variant) -> bool:
+	if currency_provider == null:
+		return false
+	var meta := get_research_metadata(tech_id)
+	var cost := float(meta.get("identification_cost", 0.0))
+	if cost <= 0.0:
+		return true
+	if currency_provider is Object and "credits" in currency_provider:
+		return float(currency_provider.credits) >= cost
+	elif currency_provider is Dictionary:
+		return float(currency_provider.get("credits", 0.0)) >= cost
+	return false
 
 
 ## Records technology evidence (salvage fragments, technical scans, analysis points).

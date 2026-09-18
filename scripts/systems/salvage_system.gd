@@ -44,6 +44,7 @@ func collect_salvage(salvage_item: Dictionary) -> void:
 			TechnologySystem.record_technology_encountered(tid, {"source": "salvage_observed", "salvage_item": salvage_item})
 		# Acquiring the physical evidence transitions to SALVAGED
 		TechnologySystem.record_technology_salvaged(tid, {"source": "salvage_acquired", "salvage_item": salvage_item})
+		TechnologySystem.add_technology_evidence(tid, 1.0, {"source": "salvage_acquired", "salvage_item": salvage_item})
 		var tree := Engine.get_main_loop() as SceneTree
 		if tree and tree.root and tree.root.has_node("EventBus"):
 			var bus = tree.root.get_node("EventBus")

@@ -64,6 +64,9 @@ static var _player_discovery: Dictionary = {}
 static var _world_diffusion_overrides: Dictionary = {}
 static var _active_world_prototypes: Dictionary = {}
 static var _faction_technologies: Dictionary = {}
+static var _technology_evidence: Dictionary = {}
+static var _research_progress: Dictionary = {}
+static var _active_research_project: String = ""
 static var _initialized: bool = false
 
 
@@ -950,7 +953,9 @@ static func advance_discovery_state(tech_id: String, target_state: int) -> bool:
 
 
 ## Validates whether a discovery transition from the current state to target_state is permitted.
-## In Phase 2E-3A, only the controlled forward transitions UNKNOWN -> ENCOUNTERED and ENCOUNTERED -> SALVAGED are permitted.
+## In Phase 2E-3C, valid forward transitions are:
+## UNKNOWN -> ENCOUNTERED -> SALVAGED -> IDENTIFIED -> RESEARCHED -> USABLE.
+## All skips and backward regressions are strictly rejected.
 static func can_transition_discovery_state(tech_id: String, target_state: int) -> bool:
 	init_catalog_if_needed()
 	if not has_technology(tech_id):
@@ -960,6 +965,12 @@ static func can_transition_discovery_state(tech_id: String, target_state: int) -
 		return true
 	if cur == DiscoveryState.ENCOUNTERED and target_state == DiscoveryState.SALVAGED:
 		return true
+	if cur == DiscoveryState.SALVAGED and target_state == DiscoveryState.IDENTIFIED:
+		return true
+	if cur == DiscoveryState.IDENTIFIED and target_state == DiscoveryState.RESEARCHED:
+		return true
+	if cur == DiscoveryState.RESEARCHED and target_state == DiscoveryState.USABLE:
+		return true
 	return false
 
 
@@ -968,10 +979,17 @@ static func can_transition_discovery_state(tech_id: String, target_state: int) -
 static func transition_discovery_state(tech_id: String, target_state: int, context: Dictionary = {}) -> bool:
 	if not can_transition_discovery_state(tech_id, target_state):
 		return false
-	if target_state == DiscoveryState.ENCOUNTERED:
-		return record_technology_encountered(tech_id, context)
-	elif target_state == DiscoveryState.SALVAGED:
-		return record_technology_salvaged(tech_id, context)
+	match target_state:
+		DiscoveryState.ENCOUNTERED:
+			return record_technology_encountered(tech_id, context)
+		DiscoveryState.SALVAGED:
+			return record_technology_salvaged(tech_id, context)
+		DiscoveryState.IDENTIFIED:
+			return record_technology_identified(tech_id, context)
+		DiscoveryState.RESEARCHED:
+			return complete_technology_research(tech_id, context)
+		DiscoveryState.USABLE:
+			return record_technology_usable(tech_id, context)
 	return false
 
 
@@ -1001,9 +1019,191 @@ static func record_technology_salvaged(tech_id: String, context: Dictionary = {}
 	var cur := get_discovery_state(tech_id)
 	if cur == DiscoveryState.ENCOUNTERED:
 		_player_discovery[tech_id] = DiscoveryState.SALVAGED
+		if get_technology_evidence(tech_id) <= 0.0:
+			add_technology_evidence(tech_id, float(context.get("evidence_amount", 1.0)), context)
 		_emit_discovery_state_changed(tech_id, DiscoveryState.SALVAGED, cur, context)
 		return true
 	return false
+
+
+# --- Evidence & Research Lifecycle (Phase 2E-3C) ---
+
+## Returns research metadata for a technology, populated with data-driven defaults if omitted.
+static func get_research_metadata(tech_id: String) -> Dictionary:
+	init_catalog_if_needed()
+	var def := get_technology_definition(tech_id)
+	if def.is_empty():
+		return {}
+	var meta: Dictionary = def.get("research_metadata", {})
+	return {
+		"research_cost": float(meta.get("research_cost", 100.0)),
+		"research_time": float(meta.get("research_time", 1.0)),
+		"required_evidence": float(meta.get("required_evidence", 1.0)),
+		"required_materials": meta.get("required_materials", {}).duplicate(true) if meta.get("required_materials") is Dictionary else {},
+		"required_facility": str(meta.get("required_facility", "")),
+		"identification_cost": float(meta.get("identification_cost", 0.0)),
+		"prerequisites": meta.get("prerequisites", def.get("prerequisites", [])).duplicate()
+	}
+
+
+## Records technology evidence (salvage fragments, technical scans, analysis points).
+static func add_technology_evidence(tech_id: String, amount: float = 1.0, data: Dictionary = {}) -> void:
+	if tech_id == "":
+		return
+	var cur: float = float(_technology_evidence.get(tech_id, 0.0))
+	_technology_evidence[tech_id] = maxf(0.0, cur + amount)
+
+
+## Returns current accumulated evidence points for a technology.
+static func get_technology_evidence(tech_id: String) -> float:
+	return float(_technology_evidence.get(tech_id, 0.0))
+
+
+## Returns true if enough physical/analytical evidence has been gathered to identify the technology.
+static func can_identify_technology(tech_id: String) -> bool:
+	init_catalog_if_needed()
+	if not has_technology(tech_id):
+		return false
+	if get_discovery_state(tech_id) != DiscoveryState.SALVAGED:
+		return false
+	var meta := get_research_metadata(tech_id)
+	var req_evidence: float = float(meta.get("required_evidence", 1.0))
+	return get_technology_evidence(tech_id) >= req_evidence
+
+
+## Records that a salvaged technology has been analyzed and identified.
+## Controlled transition: SALVAGED -> IDENTIFIED.
+## Requires sufficient evidence (can_identify_technology).
+## Idempotent: repeated identification calls return false without state regression.
+static func record_technology_identified(tech_id: String, context: Dictionary = {}) -> bool:
+	init_catalog_if_needed()
+	if not has_technology(tech_id):
+		return false
+	var cur := get_discovery_state(tech_id)
+	if cur != DiscoveryState.SALVAGED:
+		return false
+	if not can_identify_technology(tech_id) and not bool(context.get("force", false)):
+		return false
+	_player_discovery[tech_id] = DiscoveryState.IDENTIFIED
+	_emit_discovery_state_changed(tech_id, DiscoveryState.IDENTIFIED, cur, context)
+	_emit_bus_signal("technology_identified", [tech_id, context])
+	return true
+
+
+## Returns current research progress for a technology (percentage: 0.0 to 100.0).
+static func get_research_progress(tech_id: String) -> float:
+	return float(_research_progress.get(tech_id, 0.0))
+
+
+## Checks whether research can be started on an identified technology.
+## Requires IDENTIFIED state and all prerequisite technologies to be at least RESEARCHED or USABLE.
+static func can_start_research(tech_id: String) -> bool:
+	init_catalog_if_needed()
+	if not has_technology(tech_id):
+		return false
+	if get_discovery_state(tech_id) != DiscoveryState.IDENTIFIED:
+		return false
+	var meta := get_research_metadata(tech_id)
+	var prereqs: Array = meta.get("prerequisites", [])
+	for p in prereqs:
+		if get_discovery_state(str(p)) < DiscoveryState.RESEARCHED:
+			return false
+	return true
+
+
+## Starts an active research project on an identified technology.
+static func start_research(tech_id: String, context: Dictionary = {}) -> bool:
+	if not can_start_research(tech_id):
+		return false
+	_active_research_project = tech_id
+	if not _research_progress.has(tech_id):
+		_research_progress[tech_id] = 0.0
+	_emit_bus_signal("research_started", [tech_id, context])
+	return true
+
+
+## Adds research progress points / percentage to an identified technology.
+## Clamps between 0.0 and 100.0. Does NOT automatically complete research until explicitly finalized.
+static func add_research_progress(tech_id: String, amount: float, context: Dictionary = {}) -> bool:
+	init_catalog_if_needed()
+	if not has_technology(tech_id):
+		return false
+	if get_discovery_state(tech_id) != DiscoveryState.IDENTIFIED:
+		return false
+	var cur: float = get_research_progress(tech_id)
+	var new_val: float = clampf(cur + amount, 0.0, 100.0)
+	_research_progress[tech_id] = new_val
+	_emit_bus_signal("research_progressed", [tech_id, new_val, context])
+	return true
+
+
+## Returns true if all conditions to finalize research are satisfied:
+## 1. State is IDENTIFIED
+## 2. Progress is at least 100.0%
+## 3. All prerequisites are at least RESEARCHED or USABLE
+static func can_complete_research(tech_id: String) -> bool:
+	init_catalog_if_needed()
+	if not has_technology(tech_id):
+		return false
+	if get_discovery_state(tech_id) != DiscoveryState.IDENTIFIED:
+		return false
+	if get_research_progress(tech_id) < 100.0:
+		return false
+	var meta := get_research_metadata(tech_id)
+	var prereqs: Array = meta.get("prerequisites", [])
+	for p in prereqs:
+		if get_discovery_state(str(p)) < DiscoveryState.RESEARCHED:
+			return false
+	return true
+
+
+## Finalizes research on an identified technology with 100% progress.
+## Controlled transition: IDENTIFIED -> RESEARCHED.
+## Idempotent: repeated calls return false without state regression.
+static func complete_technology_research(tech_id: String, context: Dictionary = {}) -> bool:
+	init_catalog_if_needed()
+	if not has_technology(tech_id):
+		return false
+	var cur := get_discovery_state(tech_id)
+	if cur != DiscoveryState.IDENTIFIED:
+		return false
+	if not can_complete_research(tech_id) and not bool(context.get("force", false)):
+		return false
+	_player_discovery[tech_id] = DiscoveryState.RESEARCHED
+	if _active_research_project == tech_id:
+		_active_research_project = ""
+	_emit_discovery_state_changed(tech_id, DiscoveryState.RESEARCHED, cur, context)
+	_emit_bus_signal("technology_researched", [tech_id, context])
+	return true
+
+
+## Checks whether a researched technology satisfies all requirements to become USABLE.
+## Requires RESEARCHED state.
+static func can_make_technology_usable(tech_id: String) -> bool:
+	init_catalog_if_needed()
+	if not has_technology(tech_id):
+		return false
+	if get_discovery_state(tech_id) != DiscoveryState.RESEARCHED:
+		return false
+	return true
+
+
+## Finalizes usability authorization for a researched technology.
+## Controlled transition: RESEARCHED -> USABLE.
+## Idempotent: repeated calls return false without state regression.
+static func record_technology_usable(tech_id: String, context: Dictionary = {}) -> bool:
+	init_catalog_if_needed()
+	if not has_technology(tech_id):
+		return false
+	var cur := get_discovery_state(tech_id)
+	if cur != DiscoveryState.RESEARCHED:
+		return false
+	if not can_make_technology_usable(tech_id) and not bool(context.get("force", false)):
+		return false
+	_player_discovery[tech_id] = DiscoveryState.USABLE
+	_emit_discovery_state_changed(tech_id, DiscoveryState.USABLE, cur, context)
+	_emit_bus_signal("technology_became_usable", [tech_id, context])
+	return true
 
 
 ## Resolves or extracts the technology ID referenced by an item, salvage, or equipment dictionary/resource.
@@ -1037,23 +1237,79 @@ static func _emit_discovery_state_changed(tech_id: String, new_state: int, old_s
 				bus.technology_discovery_state_changed.emit(tech_id, new_state, old_state, context)
 
 
+static func _emit_bus_signal(sig_name: String, args: Array) -> void:
+	if Engine.is_editor_hint():
+		return
+	var main_loop = Engine.get_main_loop()
+	if main_loop is SceneTree:
+		var root = (main_loop as SceneTree).root
+		if root and root.has_node("EventBus"):
+			var bus = root.get_node("EventBus")
+			match sig_name:
+				"technology_identified":
+					if bus.has_signal("technology_identified"):
+						bus.technology_identified.emit(args[0], args[1] if args.size() > 1 else {})
+				"research_started":
+					if bus.has_signal("research_started"):
+						bus.research_started.emit(args[0], args[1] if args.size() > 1 else {})
+				"research_progressed":
+					if bus.has_signal("research_progressed"):
+						bus.research_progressed.emit(args[0], args[1] if args.size() > 1 else 0.0, args[2] if args.size() > 2 else {})
+				"technology_researched":
+					if bus.has_signal("technology_researched"):
+						bus.technology_researched.emit(args[0], args[1] if args.size() > 1 else {})
+				"technology_became_usable":
+					if bus.has_signal("technology_became_usable"):
+						bus.technology_became_usable.emit(args[0], args[1] if args.size() > 1 else {})
+				_:
+					if bus.has_signal(sig_name):
+						bus.emit_signal(StringName(sig_name))
+
+
 static func is_technology_usable(tech_id: String) -> bool:
 	return get_discovery_state(tech_id) >= DiscoveryState.USABLE
 
 
 static func serialize_discovery_states() -> Dictionary:
-	return _player_discovery.duplicate(true)
+	var out := _player_discovery.duplicate(true)
+	if not _technology_evidence.is_empty():
+		out["__evidence"] = _technology_evidence.duplicate(true)
+	if not _research_progress.is_empty():
+		out["__progress"] = _research_progress.duplicate(true)
+	if _active_research_project != "":
+		out["__active_project"] = _active_research_project
+	return out
 
 
 static func deserialize_discovery_states(data: Variant) -> void:
-	_player_discovery.clear()
+	reset_discovery_states()
 	if data is Dictionary:
 		for k in data:
-			_player_discovery[str(k)] = int(data[k])
+			var key_str := str(k)
+			if key_str == "__evidence":
+				var evid = data[k]
+				if evid is Dictionary:
+					for ek in evid:
+						_technology_evidence[str(ek)] = float(evid[ek])
+			elif key_str == "__progress":
+				var prog = data[k]
+				if prog is Dictionary:
+					for pk in prog:
+						_research_progress[str(pk)] = float(prog[pk])
+			elif key_str == "__active_project":
+				_active_research_project = str(data[k])
+			elif key_str == "states" and data[k] is Dictionary:
+				for sk in data[k]:
+					_player_discovery[str(sk)] = int(data[k][sk])
+			elif not key_str.begins_with("__"):
+				_player_discovery[key_str] = int(data[k])
 
 
 static func reset_discovery_states() -> void:
 	_player_discovery.clear()
+	_technology_evidence.clear()
+	_research_progress.clear()
+	_active_research_project = ""
 
 
 # ===========================================================================

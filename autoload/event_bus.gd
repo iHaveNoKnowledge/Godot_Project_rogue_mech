@@ -83,9 +83,14 @@ signal arena_generated(arena_data: Dictionary)
 signal cover_destroyed(pos: Vector3, type: String)
 signal combat_intensity_changed(intensity: float)
 
-# --- Technology Discovery (Phase 2E-3A) ---
+# --- Technology Discovery & Research Lifecycle (Phase 2E-3A / 2E-3C) ---
 signal technology_observed(tech_id: String, observation_data: Dictionary)
 signal technology_salvaged(tech_id: String, salvage_data: Dictionary)
+signal technology_identified(tech_id: String, identify_data: Dictionary)
+signal research_started(tech_id: String, research_data: Dictionary)
+signal research_progressed(tech_id: String, progress: float, context: Dictionary)
+signal technology_researched(tech_id: String, research_data: Dictionary)
+signal technology_became_usable(tech_id: String, context: Dictionary)
 signal technology_discovery_state_changed(tech_id: String, new_state: int, old_state: int, context: Dictionary)
 
 

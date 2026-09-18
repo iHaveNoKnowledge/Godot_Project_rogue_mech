@@ -669,7 +669,7 @@ func _consume_enemy_special_unit(kind: String) -> void:
 			return
 
 
-func _spawn_enemy(type: String, archetype: int, pos: Vector3, hp_scale: float, squad_role: String = "", paint: Dictionary = {}) -> void:
+func _spawn_enemy(type: String, archetype: int, pos: Vector3, hp_scale: float, squad_role: String = "", paint: Dictionary = {}, tech_id: String = "") -> void:
 	var pilot: Dictionary = PilotGenerator.generate_pilot({
 		"archetype": archetype,
 		"level": GlobalData.board.wanted_level
@@ -679,10 +679,10 @@ func _spawn_enemy(type: String, archetype: int, pos: Vector3, hp_scale: float, s
 		pilot["rank_title"] = "[CMDR]" if squad_role == "commander" else "[PVT]"
 		pilot["display_name"] = "%s %s" % [pilot["rank_title"], pilot["name"]]
 
-	_spawn_enemy_with_pilot(type, archetype, pos, hp_scale, pilot, null, paint)
+	_spawn_enemy_with_pilot(type, archetype, pos, hp_scale, pilot, null, paint, tech_id)
 
 
-func _spawn_enemy_with_pilot(type: String, archetype: int, pos: Vector3, hp_scale: float, pilot: Dictionary, coordinator: Node = null, paint: Dictionary = {}) -> Node3D:
+func _spawn_enemy_with_pilot(type: String, archetype: int, pos: Vector3, hp_scale: float, pilot: Dictionary, coordinator: Node = null, paint: Dictionary = {}, tech_id: String = "") -> Node3D:
 	var scene = _get_enemy_scene(type)
 	if scene == null:
 		return null
@@ -708,6 +708,13 @@ func _spawn_enemy_with_pilot(type: String, archetype: int, pos: Vector3, hp_scal
 		enemy.squad_coordinator = coordinator
 	if enemy.get("faction_paint") != null:
 		enemy.faction_paint = paint
+
+	var target_tech := tech_id
+	if target_tech == "" and pilot.has("tech_id"):
+		target_tech = str(pilot.get("tech_id", ""))
+	if target_tech != "" and enemy.get("observed_tech_id") != null:
+		enemy.observed_tech_id = target_tech
+
 
 	var is_interactive := not DisplayServer.get_name().to_lower().contains("headless")
 	if is_interactive and is_inside_tree():

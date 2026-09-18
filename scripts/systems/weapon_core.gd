@@ -222,6 +222,10 @@ func try_fire(from_pos: Vector3, aim_dir: Vector3, fired_by_enemy: bool, owner: 
 	if not consume_shot():
 		return false
 
+	if fired_by_enemy and owner != null and owner.has_method("report_technology_observation"):
+		owner.report_technology_observation("weapon_fired")
+
+
 	# Dynamic heat spread (barrel thermal blooming): higher heat causes higher bullet dispersion.
 	var current_spread := spread
 	# GDD §6.1: Head damage increases weapon spread (HUD glitch / optics degraded)

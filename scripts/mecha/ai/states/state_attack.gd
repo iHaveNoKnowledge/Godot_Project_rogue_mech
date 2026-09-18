@@ -281,7 +281,10 @@ func _snapshot_melee_swing_dir() -> void:
 
 
 func _perform_melee() -> void:
+	if enemy and enemy.has_method("report_technology_observation"):
+		enemy.report_technology_observation("melee_attack")
 	var dir := _melee_swing_dir
+
 	if dir.length() < 0.01:
 		if not enemy.target or not is_instance_valid(enemy.target):
 			return

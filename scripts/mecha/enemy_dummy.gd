@@ -12,6 +12,10 @@ var _loot_script = preload("res://scripts/systems/loot_system.gd")
 ## 4=ShieldMelee (โล่+ดาบ), 5=ShieldRanged (โล่+ปืน)
 @export var archetype: int = 0
 
+## Technology identifier this enemy is actively fielding (e.g. experimental prototype or advanced hardware).
+@export var observed_tech_id: String = ""
+var _tech_observed_reported: bool = false
+
 var target: Node3D = null
 var attack_timer: float = 0.0
 var health_system: Node = null
@@ -625,6 +629,7 @@ func is_shield_active() -> bool:
 func absorb_damage_with_shield(amount: float, damage_type: String = "") -> float:
 	if not shield_active or shield_max_hp <= 0.0 or shield_current_hp <= 0.0:
 		return amount
+	report_technology_observation("barrier_deflection")
 	var attack: String = MechaHealthBase.normalize_damage_type(damage_type)
 	var drain_mult := 0.4 if attack == shield_type else 1.0
 	shield_current_hp = maxf(shield_current_hp - amount * drain_mult, 0.0)
@@ -632,6 +637,26 @@ func absorb_damage_with_shield(amount: float, damage_type: String = "") -> float
 		shield_current_hp = 0.0
 		shield_active = false
 	return 0.0
+
+
+## Decoupled gameplay observation reporter. Emits EventBus.technology_observed once when actively deployed.
+func report_technology_observation(action: String = "combat_action") -> void:
+	if observed_tech_id == "" or _tech_observed_reported:
+		return
+	_tech_observed_reported = true
+	var tree := get_tree()
+	var bus = null
+	if tree and tree.root and tree.root.has_node("EventBus"):
+		bus = tree.root.get_node("EventBus")
+	if bus and bus.has_signal("technology_observed"):
+		bus.technology_observed.emit(observed_tech_id, {
+			"source": "combat",
+			"source_type": action,
+			"enemy_id": name,
+			"pilot": pilot_data.get("display_name", "UNKNOWN") if not pilot_data.is_empty() else "UNKNOWN",
+			"archetype": archetype
+		})
+
 
 
 # Mounts the visible loadout on the hands: a shield plate on one arm and the

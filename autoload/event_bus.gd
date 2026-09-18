@@ -92,6 +92,7 @@ signal technology_discovery_state_changed(tech_id: String, new_state: int, old_s
 func _ready() -> void:
 	technology_observed.connect(_on_technology_observed)
 	technology_salvaged.connect(_on_technology_salvaged)
+	lock_on_target_acquired.connect(_on_lock_on_target_acquired)
 
 
 func _on_technology_observed(tech_id: String, observation_data: Dictionary) -> void:
@@ -103,4 +104,10 @@ func _on_technology_salvaged(tech_id: String, salvage_data: Dictionary) -> void:
 	if cur == TechnologySystem.DiscoveryState.UNKNOWN:
 		TechnologySystem.record_technology_encountered(tech_id, {"source": "salvage_observed", "salvage_data": salvage_data})
 	TechnologySystem.record_technology_salvaged(tech_id, salvage_data)
+
+
+func _on_lock_on_target_acquired(target: Node3D) -> void:
+	if target and is_instance_valid(target) and target.has_method("report_technology_observation"):
+		target.report_technology_observation("lock_on_scan")
+
 

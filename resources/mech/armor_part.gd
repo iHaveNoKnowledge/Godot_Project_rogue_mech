@@ -16,6 +16,7 @@ class_name ArmorPart
 @export var icon: Texture2D
 @export var defense_type: String = "standard"
 @export var resistance: Dictionary = {"heat": 1.0, "pierce": 1.0, "impact": 1.0}
+@export var tech_id: String = "" # TechnologySystem ID (""; empty = technology-neutral legacy armor)
 
 func get_resistance(damage_type: String) -> float:
 	if resistance.has(damage_type):

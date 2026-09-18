@@ -37,6 +37,7 @@ enum DamageType { HEAT, PIERCE, BLUNT }
 @export var description: String = ""
 @export var rarity: int = 0
 @export var source_path: String = ""
+@export var tech_id: String = "" # TechnologySystem ID (""; empty = technology-neutral legacy weapon)
 
 @export var ammo_type: String = "" # AmmoSystem id ("bullet", "shell", "spike", "energy_cell", "rocket", "missile", "explosive", "heavy_round", "none"; empty = auto-inferred)
 @export var reload_time: float = 2.0 # seconds to refill the magazine from reserve

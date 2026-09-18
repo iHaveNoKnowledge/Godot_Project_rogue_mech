@@ -1302,13 +1302,28 @@ static func record_technology_usable(tech_id: String, context: Dictionary = {}) 
 
 
 ## Resolves or extracts the technology ID referenced by an item, salvage, or equipment dictionary/resource.
-## Returns "" if the object is not technology-bearing evidence.
+## Returns "" if the object is not technology-bearing or technology-neutral.
+## Does NOT infer technology from names or string manipulation.
 static func resolve_item_technology_id(item_data: Variant) -> String:
 	if item_data is Dictionary:
-		if item_data.has("tech_id"):
+		if item_data.has("tech_id") and str(item_data["tech_id"]).strip_edges() != "":
 			return str(item_data["tech_id"]).strip_edges()
-	elif item_data is Object and item_data.get("tech_id") != null:
-		return str(item_data.get("tech_id")).strip_edges()
+		if item_data.has("technology_id") and str(item_data["technology_id"]).strip_edges() != "":
+			return str(item_data["technology_id"]).strip_edges()
+		var p = item_data.get("path", "")
+		if p is String and p != "" and ResourceLoader.exists(p):
+			var res = load(p)
+			if res:
+				return resolve_item_technology_id(res)
+	elif item_data is Object:
+		if item_data.get("tech_id") != null and str(item_data.get("tech_id")).strip_edges() != "":
+			return str(item_data.get("tech_id")).strip_edges()
+		if item_data.get("technology_id") != null and str(item_data.get("technology_id")).strip_edges() != "":
+			return str(item_data.get("technology_id")).strip_edges()
+	elif item_data is String and ResourceLoader.exists(item_data):
+		var res = load(item_data)
+		if res:
+			return resolve_item_technology_id(res)
 	return ""
 
 
@@ -1363,6 +1378,48 @@ static func _emit_bus_signal(sig_name: String, args: Array) -> void:
 
 static func is_technology_usable(tech_id: String) -> bool:
 	return get_discovery_state(tech_id) >= DiscoveryState.USABLE
+
+
+## Checks whether an item's required technology is authorized and usable by the player.
+## Returns a detailed report dictionary:
+## - "allowed": bool
+## - "tech_id": String
+## - "reason": String ("neutral_technology", "authorized", "technology_not_usable", "unregistered_technology")
+## - "state": int (DiscoveryState)
+## - "state_name": String
+## Items with no technology requirement (tech_id == "") are considered technology-neutral and allowed.
+static func can_equip_item_technology(item_data: Variant) -> Dictionary:
+	var tid := resolve_item_technology_id(item_data)
+	if tid == "":
+		return {
+			"allowed": true,
+			"tech_id": "",
+			"reason": "neutral_technology",
+			"state": DiscoveryState.USABLE,
+			"state_name": "USABLE"
+		}
+	init_catalog_if_needed()
+	if not has_technology(tid):
+		return {
+			"allowed": false,
+			"tech_id": tid,
+			"reason": "unregistered_technology",
+			"state": DiscoveryState.UNKNOWN,
+			"state_name": "UNKNOWN"
+		}
+	var usable := is_technology_usable(tid)
+	return {
+		"allowed": usable,
+		"tech_id": tid,
+		"reason": "authorized" if usable else "technology_not_usable",
+		"state": get_discovery_state(tid),
+		"state_name": get_discovery_state_name(tid)
+	}
+
+
+## Quick boolean query for whether an item's technology is authorized and usable.
+static func is_item_technology_usable(item_data: Variant) -> bool:
+	return bool(can_equip_item_technology(item_data).get("allowed", false))
 
 
 static func serialize_discovery_states() -> Dictionary:

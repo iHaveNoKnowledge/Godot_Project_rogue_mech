@@ -18,7 +18,9 @@ extends RefCounted
 ## - TechnologySystem: Technology lifecycle & usability authorization authority.
 ## - FrameSystem: Physical hardware compatibility authority.
 ## - LoadoutSystem / ArmorSystem: Equipment state mutation authority.
+## - WeaponCore / WeaponManager: Combat firing execution authority.
 ## - SpecialWeaponSystem: Special capability contract & validation resolution.
+## - StuntWeaponSystem: Authoritative effect / status application & state mutation.
 ## - EventBus: Asynchronous signal broker.
 ## =============================================================================
 
@@ -283,15 +285,17 @@ static func _extract_target_position(target: Variant) -> Vector3:
 
 
 # =============================================================================
-# EFFECT PAYLOAD BUILDER & DISPATCHER
+# EFFECT REQUEST BUILDER & DISPATCHER
 # =============================================================================
 
-## Builds a standardized, structured effect payload for special capabilities.
-static func build_effect_payload(capability_type: String, capability_data: Dictionary, origin: Vector3, target_positions: Array = [], extra_context: Dictionary = {}) -> Dictionary:
+## Builds a standardized, structured effect request payload for special capabilities.
+## This function is a pure factory that does NOT perform state mutation.
+static func create_effect_request(capability_type: String, capability_data: Dictionary, origin: Vector3, targets: Array = [], extra_context: Dictionary = {}) -> Dictionary:
 	return {
 		"capability_type": capability_type,
 		"origin": origin,
-		"target_positions": target_positions.duplicate(true),
+		"targets": targets.duplicate(true),
+		"target_positions": targets.duplicate(true), # Backward compatibility with positional array queries
 		"duration": float(capability_data.get("duration", 0.0)),
 		"intensity": float(capability_data.get("intensity", 1.0)),
 		"area_parameters": capability_data.get("area_parameters", {}).duplicate(true) if capability_data.get("area_parameters") is Dictionary else {},
@@ -301,35 +305,43 @@ static func build_effect_payload(capability_type: String, capability_data: Dicti
 	}
 
 
-## Applies a generic disruption effect (electronic / movement inhibition) to a target entity.
-## Delegates state mutation to target hooks without direct structural tampering.
+## Legacy alias for create_effect_request. Constructs pure effect data without mutating target state.
+static func build_effect_payload(capability_type: String, capability_data: Dictionary, origin: Vector3, target_positions: Array = [], extra_context: Dictionary = {}) -> Dictionary:
+	return create_effect_request(capability_type, capability_data, origin, target_positions, extra_context)
+
+
+## Dispatches an effect request to the authoritative effect/status system.
+## SpecialWeaponSystem itself NEVER owns node status or gameplay state mutation.
+static func dispatch_effect_request(effect_request: Dictionary, effect_authority: Variant = null) -> int:
+	if effect_request.is_empty():
+		return 0
+
+	var auth = effect_authority
+	if auth == null:
+		auth = load("res://scripts/war/stunt_weapon_system.gd")
+
+	if auth:
+		if auth.has_method("apply_effect_request"):
+			return auth.apply_effect_request(effect_request)
+		elif auth.has_method("apply_disruption") and effect_request.has("targets"):
+			var duration: float = float(effect_request.get("duration", 0.0))
+			var eff_data: Dictionary = effect_request.get("effect_payload", {}) if effect_request.get("effect_payload") is Dictionary else {}
+			var count := 0
+			for t in effect_request.get("targets", []):
+				if t is Node and auth.apply_disruption(t, duration, eff_data):
+					count += 1
+			return count
+
+	return 0
+
+
+## Applies a generic disruption effect by delegating to the authoritative StuntWeaponSystem.
+## SpecialWeaponSystem does NOT directly mutate target metadata or create status timers.
 static func apply_disruption_effect(target: Node, duration: float, disruption_data: Dictionary = {}) -> bool:
-	if target == null or not is_instance_valid(target):
-		return false
-
-	var expire_ms := Time.get_ticks_msec() + int(duration * 1000.0)
-	target.set_meta("disrupted_until", expire_ms)
-	target.set_meta("disruption_data", disruption_data)
-
-	if target.has_method("apply_disruption"):
-		target.apply_disruption(duration, disruption_data)
-		return true
-	elif target.has_method("apply_stunt"):
-		target.apply_stunt(duration)
-		return true
-	elif target.has_method("set_stunned"):
-		target.set_stunned(true)
-		var tree := target.get_tree()
-		if tree:
-			var t := tree.create_timer(duration)
-			t.timeout.connect(func():
-				if is_instance_valid(target) and target.has_method("set_stunned"):
-					if Time.get_ticks_msec() >= int(target.get_meta("disrupted_until", 0)):
-						target.set_stunned(false)
-			)
-		return true
-
-	return true
+	var stunt_sys = load("res://scripts/war/stunt_weapon_system.gd")
+	if stunt_sys and stunt_sys.has_method("apply_disruption"):
+		return stunt_sys.apply_disruption(target, duration, disruption_data)
+	return false
 
 
 # =============================================================================

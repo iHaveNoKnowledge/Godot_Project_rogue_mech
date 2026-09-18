@@ -12,6 +12,7 @@ const FrameSys = preload("res://scripts/systems/frame_system.gd")
 const LoadoutSys = preload("res://scripts/systems/loadout_system.gd")
 const ArmorSys = preload("res://scripts/systems/armor_system.gd")
 const SpecialWeaponSys = preload("res://scripts/systems/special_weapon_system.gd")
+const StuntWeaponSys = preload("res://scripts/war/stunt_weapon_system.gd")
 
 
 func _check(cond: bool, msg: String) -> void:
@@ -238,17 +239,36 @@ func _test_effect_payload_and_disruption_application() -> void:
 	_check(payload.get("target_positions", []).size() == 2, "[E4] Target positions recorded")
 	_check(payload.get("extra", {}).get("source_player") == true, "[E5] Extra context preserved")
 
-	# Target Disruption Mutation
+	# Target Node for Invariance & Mutation Verification
 	var dummy_node := Node3D.new()
 	add_child(dummy_node)
 
-	var applied := SpecialWeaponSys.apply_disruption_effect(dummy_node, 3.0, {"dampen": true})
-	_check(applied == true, "[E6] apply_disruption_effect returns true on valid node")
-	_check(dummy_node.has_meta("disrupted_until"), "[E7] Target node has disrupted_until metadata")
+	# Invariance Check: create_effect_request MUST NOT mutate target state
+	var req := SpecialWeaponSys.create_effect_request(
+		SpecialWeaponSys.CAPABILITY_DISRUPTION,
+		cap_data,
+		origin,
+		[dummy_node],
+		{"source_player": true}
+	)
+	_check(not dummy_node.has_meta("disrupted_until"), "[E6] create_effect_request does NOT mutate target state")
+
+	# Authoritative StuntWeaponSystem Effect Application via dispatch_effect_request
+	var count := SpecialWeaponSys.dispatch_effect_request(req)
+	_check(count == 1, "[E7] dispatch_effect_request delegates to effect authority and affects 1 target")
+	_check(dummy_node.has_meta("disrupted_until"), "[E8] Target node has disrupted_until metadata after authority dispatch")
 	var expire := int(dummy_node.get_meta("disrupted_until", 0))
-	_check(expire > Time.get_ticks_msec(), "[E8] Disruption expiration is set in the future")
+	_check(expire > Time.get_ticks_msec(), "[E9] Disruption expiration is set in the future")
+
+	# Clean target for direct delegation test
+	var dummy_node2 := Node3D.new()
+	add_child(dummy_node2)
+	var applied := SpecialWeaponSys.apply_disruption_effect(dummy_node2, 3.0, {"dampen": true})
+	_check(applied == true, "[E10] apply_disruption_effect delegation returns true on valid node")
+	_check(dummy_node2.has_meta("disrupted_until"), "[E11] Target node2 has disrupted_until metadata")
 
 	dummy_node.queue_free()
+	dummy_node2.queue_free()
 
 
 # -----------------------------------------------------------------------------

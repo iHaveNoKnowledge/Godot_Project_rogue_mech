@@ -101,6 +101,27 @@ static func can_target_move(target: Node) -> bool:
 	return not is_disrupted(target)
 
 
+## Authoritatively applies a generic damage effect to a target node through the established damage pipeline.
+## Routes damage to take_damage_at_point or take_damage on the target.
+static func apply_damage_effect(target: Node, damage_amount: float, damage_type: String = "heat", hit_pos: Vector3 = Vector3.ZERO, _effect_data: Dictionary = {}) -> bool:
+	if target == null or not is_instance_valid(target):
+		return false
+	if damage_amount <= 0.0:
+		return false
+	if target.has_method("take_damage_at_point") and hit_pos != Vector3.ZERO and hit_pos != Vector3.INF:
+		target.take_damage_at_point(damage_amount, hit_pos, damage_type)
+		return true
+	elif target.has_method("take_damage"):
+		target.take_damage(damage_amount, damage_type)
+		return true
+	elif target.has_node("HealthSystem"):
+		var hs = target.get_node("HealthSystem")
+		if hs and hs.has_method("take_damage"):
+			hs.take_damage(damage_amount, damage_type)
+			return true
+	return false
+
+
 ## Authoritatively applies a generic effect request payload to all targets referenced in the request.
 ## Returns the count of successfully affected targets.
 static func apply_effect_request(effect_request: Dictionary) -> int:
@@ -111,6 +132,7 @@ static func apply_effect_request(effect_request: Dictionary) -> int:
 	var cap_type: String = str(effect_request.get("capability_type", "")).to_lower()
 	var duration: float = float(effect_request.get("duration", 0.0))
 	var effect_data: Dictionary = effect_request.get("effect_payload", {}) if effect_request.get("effect_payload") is Dictionary else {}
+	var origin: Vector3 = effect_request.get("origin", Vector3.ZERO) if effect_request.get("origin") is Vector3 else Vector3.ZERO
 
 	var targets: Array = []
 	if effect_request.has("targets") and effect_request["targets"] is Array:
@@ -124,8 +146,19 @@ static func apply_effect_request(effect_request: Dictionary) -> int:
 			match cap_type:
 				"disruption":
 					applied = apply_disruption(target, duration, effect_data)
+				"strategic_strike":
+					var dmg := float(effect_data.get("damage", 0.0))
+					var dmg_type := str(effect_data.get("damage_type", "heat"))
+					var hit_pos: Vector3 = target.global_position if target is Node3D else origin
+					applied = apply_damage_effect(target, dmg, dmg_type, hit_pos, effect_data)
 				_:
-					applied = apply_disruption(target, duration, effect_data)
+					if effect_data.has("damage") and float(effect_data["damage"]) > 0.0:
+						var dmg := float(effect_data.get("damage", 0.0))
+						var dmg_type := str(effect_data.get("damage_type", "heat"))
+						var hit_pos: Vector3 = target.global_position if target is Node3D else origin
+						applied = apply_damage_effect(target, dmg, dmg_type, hit_pos, effect_data)
+					else:
+						applied = apply_disruption(target, duration, effect_data)
 			if applied:
 				affected_count += 1
 

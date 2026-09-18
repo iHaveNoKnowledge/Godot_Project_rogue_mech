@@ -1,0 +1,37 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/mech/weapon_part.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+weapon_name = "Satellite Cannon"
+damage_type = "heat"
+weapon_type = 0
+damage = 350.0
+fire_rate = 1.0
+max_ammo = 1
+ammo_per_shot = 1
+projectile_speed = 0.0
+spread = 0.0
+weight = 18.0
+range_distance = 150.0
+description = "High-orbit particle relay cannon capable of delivering strategic high-energy precision strikes across wide target corridors."
+rarity = 2
+reload_time = 0.0
+tech_id = "tech_beam_weaponry"
+special_capability = {
+	"area_parameters": {
+		"length": 150.0,
+		"width": 12.0
+	},
+	"area_shape": "line",
+	"capability_type": "strategic_strike",
+	"cooldown": 25.0,
+	"duration": 0.0,
+	"effect_payload": {
+		"damage": 350.0,
+		"damage_type": "heat"
+	},
+	"energy_cost": 50.0,
+	"targeting_mode": "beam_line"
+}

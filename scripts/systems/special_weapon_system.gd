@@ -90,6 +90,19 @@ static func resolve_special_capability(weapon_or_data: Variant) -> Dictionary:
 	var cooldown := float(raw_cap.get("cooldown", 0.0))
 	var energy_cost := float(raw_cap.get("energy_cost", 0.0))
 	var effect_payload: Dictionary = raw_cap.get("effect_payload", {}) if raw_cap.get("effect_payload") is Dictionary else {}
+	if not effect_payload.has("damage"):
+		if weapon_or_data is Resource and "damage" in weapon_or_data and float(weapon_or_data.damage) > 0.0:
+			effect_payload["damage"] = float(weapon_or_data.damage)
+		elif weapon_or_data is Dictionary and weapon_or_data.has("damage") and float(weapon_or_data["damage"]) > 0.0:
+			effect_payload["damage"] = float(weapon_or_data["damage"])
+
+	if not effect_payload.has("damage_type"):
+		if weapon_or_data is Resource and weapon_or_data.has_method("get_damage_type") and str(weapon_or_data.get_damage_type()) != "":
+			effect_payload["damage_type"] = weapon_or_data.get_damage_type()
+		elif weapon_or_data is Resource and "damage_type" in weapon_or_data and str(weapon_or_data.damage_type) != "":
+			effect_payload["damage_type"] = str(weapon_or_data.damage_type)
+		elif weapon_or_data is Dictionary and weapon_or_data.has("damage_type"):
+			effect_payload["damage_type"] = str(weapon_or_data["damage_type"])
 
 	# Infer standard defaults based on capability type if omitted
 	if not raw_cap.has("targeting_mode"):
@@ -315,6 +328,31 @@ static func is_valid_disruption_target(target: Variant, source_node: Node = null
 	return false
 
 
+## Validates whether a candidate target entity can receive damage / strategic strike effects.
+## Excludes source node, destroyed nodes, dead nodes, and non-targetable entities.
+static func is_valid_damage_target(target: Variant, source_node: Node = null) -> bool:
+	if target == null:
+		return false
+	if target == source_node:
+		return false
+	if target is Node:
+		if not is_instance_valid(target) or target.is_queued_for_deletion():
+			return false
+		if target.has_method("_is_downed") and target._is_downed():
+			return false
+		if target.has_meta("is_destroyed") and bool(target.get_meta("is_destroyed")):
+			return false
+		var hs = target.get_node_or_null("HealthSystem")
+		if hs and bool(hs.get("is_destroyed")):
+			return false
+		return true
+	elif target is Dictionary:
+		if bool(target.get("destroyed", false)) or bool(target.get("is_dead", false)):
+			return false
+		return true
+	return false
+
+
 ## Filters a candidate target array according to capability-specific rules.
 static func filter_valid_targets(candidate_targets: Array, capability_type: String, source_node: Node = null) -> Array:
 	var valid: Array = []
@@ -322,6 +360,9 @@ static func filter_valid_targets(candidate_targets: Array, capability_type: Stri
 		match capability_type:
 			CAPABILITY_DISRUPTION:
 				if is_valid_disruption_target(target, source_node):
+					valid.append(target)
+			CAPABILITY_STRATEGIC_STRIKE:
+				if is_valid_damage_target(target, source_node):
 					valid.append(target)
 			_:
 				if target != source_node:
@@ -509,7 +550,7 @@ static func activate_special_weapon(weapon_or_data: Variant, source_node: Node, 
 		var core = user_context["core"]
 		if "cooldown" in core:
 			core.cooldown = float(cap.get("cooldown", 0.0))
-		if "ammo" in core and not bool(core.get("unlimited_ammo", false)):
+		if "ammo" in core and not bool(core.get("unlimited_ammo")):
 			if core.ammo > 0:
 				core.ammo -= 1
 				if core.has_signal("ammo_changed"):

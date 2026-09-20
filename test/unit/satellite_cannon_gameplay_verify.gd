@@ -78,6 +78,7 @@ func _test_a_data_definition() -> void:
 	_check(sc_res.damage == 350.0, "[A6] Damage is 350.0")
 	_check(sc_res.get_damage_type() == "heat", "[A7] Damage type is heat")
 	_check(sc_res.tech_id == "tech_beam_weaponry", "[A8] Tech ID is tech_beam_weaponry")
+	_check(float(sc_res.special_capability.get("charge_time", 0.0)) == 3.0, "[A9] Charge time is 3.0s")
 
 
 # -----------------------------------------------------------------------------
@@ -101,6 +102,7 @@ func _test_b_generic_resolution() -> void:
 	var eff_payload: Dictionary = cap.get("effect_payload", {})
 	_check(float(eff_payload.get("damage", 0.0)) == 350.0, "[B9] Effect payload damage is 350.0")
 	_check(str(eff_payload.get("damage_type", "")) == "heat", "[B10] Effect payload damage_type is heat")
+	_check(float(cap.get("charge_time", 0.0)) == 3.0, "[B11] Charge time is 3.0s")
 
 
 # -----------------------------------------------------------------------------
@@ -359,7 +361,15 @@ func _test_g_resource_and_cooldown() -> void:
 	var res := SpecialWeaponSys.activate_special_weapon(sc_res, null, user_ctx, [dummy_target])
 
 	_check(bool(res.get("success", false)), "[G1] Special weapon activation succeeded")
-	_check(int(res.get("targets_affected", 0)) == 1, "[G2] 1 target affected by activation")
+	_check(bool(res.get("is_charging", false)), "[G2a] Satellite Cannon entered charging phase")
+	var session = res.get("timing_session")
+	_check(session != null, "[G2b] Timing session created for 3.0s charge")
+	_check(mock_core.cooldown == 0.0, "[G2c] Cooldown not consumed during charge")
+	_check(mock_energy_sys.energy == 100.0, "[G2d] Energy not deducted during charge")
+
+	# Complete the 3.0s charge
+	session.tick(3.0)
+	_check(session.is_completed(), "[G2e] Charge session completed after 3.0s")
 	_check(mock_core.cooldown == 25.0, "[G3] Cooldown set to 25.0 on WeaponCore")
 	_check(mock_energy_sys.energy == 50.0, "[G4] Energy deducted by 50.0 (100 -> 50)")
 

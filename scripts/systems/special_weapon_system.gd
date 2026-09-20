@@ -180,16 +180,17 @@ static func validate_special_activation(weapon_or_data: Variant, user_context: D
 	var frame_sys = load("res://scripts/systems/frame_system.gd")
 	if frame_sys and user_context.has("frame_data") and tech_id != "":
 		var frame_data = user_context["frame_data"]
-		var installed_bridges: Array = user_context.get("installed_bridges", [])
-		var is_compat: bool = frame_sys.can_support_technology(frame_data, tech_id, installed_bridges)
-		if not is_compat:
-			return {
-				"can_activate": false,
-				"reason": "physically_incompatible",
-				"message": "Frame cannot physically support technology '%s'." % tech_id,
-				"capability": cap,
-				"tech_id": tech_id
-			}
+		if (frame_data is Dictionary and not frame_data.is_empty()) or (frame_data != null and not (frame_data is Dictionary)):
+			var installed_bridges: Array = user_context.get("installed_bridges", [])
+			var is_compat: bool = frame_sys.can_support_technology(frame_data, tech_id, installed_bridges)
+			if not is_compat:
+				return {
+					"can_activate": false,
+					"reason": "physically_incompatible",
+					"message": "Frame cannot physically support technology '%s'." % tech_id,
+					"capability": cap,
+					"tech_id": tech_id
+				}
 
 	# 3. Energy / Resource Requirements
 	var req_energy: float = float(cap.get("energy_cost", 0.0))
@@ -599,6 +600,8 @@ static func activate_special_weapon(weapon_or_data: Variant, source_node: Node, 
 	var session_ctx := user_context.duplicate(true)
 	session_ctx["origin"] = origin
 	session_ctx["direction"] = direction
+	session_ctx["affected_targets"] = affected
+	session_ctx["targets"] = affected
 
 	var final_res: Dictionary = {
 		"effect_request": {},

@@ -26,6 +26,7 @@ special_capability = {
 	},
 	"area_shape": "line",
 	"capability_type": "strategic_strike",
+	"charge_time": 3.0,
 	"cooldown": 25.0,
 	"duration": 0.0,
 	"effect_payload": {

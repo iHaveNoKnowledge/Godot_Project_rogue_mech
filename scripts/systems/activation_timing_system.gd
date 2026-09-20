@@ -35,6 +35,7 @@ var context: Dictionary = {}
 var completion_callback: Callable = Callable()
 var cancellation_callback: Callable = Callable()
 var cancellation_reason: String = ""
+var started_at: int = 0
 
 
 ## Factory to create and configure a new generic activation timing session.
@@ -54,6 +55,7 @@ static func create_session(cap_data: Dictionary = {}, user_ctx: Dictionary = {},
 func start() -> void:
 	elapsed = 0.0
 	cancellation_reason = ""
+	started_at = Time.get_ticks_msec()
 	if duration <= 0.0:
 		phase = Phase.COMPLETED
 		if completion_callback.is_valid():
@@ -93,6 +95,7 @@ func reset() -> void:
 	phase = Phase.READY
 	elapsed = 0.0
 	cancellation_reason = ""
+	started_at = 0
 
 
 ## Returns the normalized progress from 0.0 (started) to 1.0 (completed).
@@ -140,16 +143,58 @@ func get_telegraph_descriptor() -> Dictionary:
 	if context.has("direction") and context["direction"] is Vector3:
 		direction = context["direction"]
 
+	var targeting_mode: String = str(capability_data.get("targeting_mode", "point"))
+	var area_shape: String = str(capability_data.get("area_shape", "sphere"))
+	var is_act: bool = (phase == Phase.PREPARING)
+
+	# Deterministic strike endpoint / target position calculation
+	var target_pos: Vector3 = origin
+	if context.has("target_position") and context["target_position"] is Vector3:
+		target_pos = context["target_position"]
+	elif targeting_mode == "beam_line" or area_shape == "line":
+		var beam_len: float = float(area_params.get("length", area_params.get("range", 100.0)))
+		var norm_dir: Vector3 = direction.normalized() if direction.length_squared() > 0.0001 else Vector3.FORWARD
+		target_pos = origin + norm_dir * beam_len
+	elif targeting_mode == "point":
+		var range_dist: float = float(area_params.get("range", 50.0))
+		var norm_dir: Vector3 = direction.normalized() if direction.length_squared() > 0.0001 else Vector3.FORWARD
+		target_pos = origin + norm_dir * range_dist
+	elif context.has("targets") and context["targets"] is Array and not context["targets"].is_empty():
+		var first_target = context["targets"][0]
+		if first_target is Node3D and is_instance_valid(first_target) and first_target.is_inside_tree():
+			target_pos = first_target.global_position
+		elif first_target is Dictionary and first_target.has("global_position"):
+			target_pos = first_target["global_position"]
+
+	var effect_id: String = str(capability_data.get("capability_type", capability_data.get("tech_id", "special_weapon")))
+	var geom_type: String = area_shape if area_shape != "" else targeting_mode
+
 	return {
-		"is_active": phase == Phase.PREPARING,
+		# Status & Lifecycle
+		"active": is_act,
+		"is_active": is_act,
 		"phase": phase,
 		"progress": get_progress(),
 		"elapsed": elapsed,
 		"duration": duration,
 		"remaining": get_remaining_time(),
-		"targeting_mode": str(capability_data.get("targeting_mode", "point")),
-		"area_shape": str(capability_data.get("area_shape", "sphere")),
-		"area_parameters": area_params,
+		"started_at": started_at,
+
+		# Identity
+		"effect_id": effect_id,
+		"capability_type": str(capability_data.get("capability_type", "")),
+		"tech_id": str(capability_data.get("tech_id", "")),
+
+		# Spatial & Strike Geometry
+		"source": origin,
+		"source_position": origin,
 		"origin": origin,
-		"direction": direction
+		"target": target_pos,
+		"target_position": target_pos,
+		"direction": direction,
+		"geometry_type": geom_type,
+		"targeting_mode": targeting_mode,
+		"area_shape": area_shape,
+		"area_parameters": area_params,
+		"targets": context.get("affected_targets", context.get("targets", []))
 	}

@@ -128,6 +128,9 @@ const MELEE_AUTO_AIM_WIDTH: float = 1.2
 # fire on a broken side to bash with that shoulder.
 const SHOULDER_DAMAGE: float = 12.0
 
+# Active special capability activation / charge sessions (ActivationTimingSystem)
+var _active_timing_sessions: Array = []
+
 # A dual melee charge: pressing BOTH fire buttons together (within the window)
 # when both sides fight melee (weapon, fist or shoulder) lunges the mech deep
 # toward the target for a heavy combined hit instead of two separate swings.
@@ -432,6 +435,16 @@ func _physics_process(delta: float) -> void:
 		_core_for_weapon(shoulder_right).tick(delta)
 	if not left_hand or not right_hand:
 		_core_for_weapon(_fist()).tick(delta)
+
+	# Tick active special weapon activation/charge sessions
+	var s_idx := _active_timing_sessions.size() - 1
+	while s_idx >= 0:
+		var session = _active_timing_sessions[s_idx]
+		if session and session.has_method("is_preparing") and session.is_preparing():
+			session.tick(delta)
+		if session == null or not session.has_method("is_preparing") or session.is_completed() or session.is_cancelled():
+			_active_timing_sessions.remove_at(s_idx)
+		s_idx -= 1
 
 	_update_heat_smoke(delta)
 
@@ -1208,8 +1221,8 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 	if weapon.has_special_capability():
 		var mecha_node = get_parent() as Node3D
 		var user_ctx: Dictionary = {
-			"frame_data": LoadoutSystem.get_equipped_frame("arm_" + hand) if LoadoutSystem else {},
-			"installed_bridges": LoadoutSystem.get_installed_bridges("arm_" + hand) if LoadoutSystem else [],
+			"frame_data": FrameSystem.get_equipped_frame("arm_" + hand) if FrameSystem else {},
+			"installed_bridges": [],
 			"current_energy": mecha_node.energy if (mecha_node and "energy" in mecha_node) else 100.0,
 			"energy_system": mecha_node.energy_system if (mecha_node and "energy_system" in mecha_node) else null,
 			"cooldown_remaining": core.cooldown,
@@ -1218,6 +1231,8 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 		}
 		var special_res := SpecialWeaponSystem.activate_special_weapon(weapon, mecha_node, user_ctx)
 		if special_res.get("success", false):
+			if bool(special_res.get("is_charging", false)) and special_res.get("timing_session") != null:
+				_active_timing_sessions.append(special_res["timing_session"])
 			_apply_recoil(weapon)
 			AudioManager.play_weapon_sfx_with_override(weapon, user_ctx["origin"])
 		return
@@ -1325,8 +1340,8 @@ func _try_fire_shoulder(side: String) -> void:
 	if weapon.has_special_capability():
 		var mecha_node = get_parent() as Node3D
 		var user_ctx: Dictionary = {
-			"frame_data": LoadoutSystem.get_equipped_frame("torso") if LoadoutSystem else {},
-			"installed_bridges": LoadoutSystem.get_installed_bridges("torso") if LoadoutSystem else [],
+			"frame_data": FrameSystem.get_equipped_frame("torso") if FrameSystem else {},
+			"installed_bridges": [],
 			"current_energy": mecha_node.energy if (mecha_node and "energy" in mecha_node) else 100.0,
 			"energy_system": mecha_node.energy_system if (mecha_node and "energy_system" in mecha_node) else null,
 			"cooldown_remaining": core.cooldown,
@@ -1335,6 +1350,8 @@ func _try_fire_shoulder(side: String) -> void:
 		}
 		var special_res := SpecialWeaponSystem.activate_special_weapon(weapon, mecha_node, user_ctx)
 		if special_res.get("success", false):
+			if bool(special_res.get("is_charging", false)) and special_res.get("timing_session") != null:
+				_active_timing_sessions.append(special_res["timing_session"])
 			_apply_recoil(weapon)
 			AudioManager.play_weapon_sfx_with_override(weapon, user_ctx["origin"])
 		return
@@ -2261,3 +2278,12 @@ func _update_shoulder_weapon_visual(mecha: Node3D, side: String, weapon: WeaponP
 # Renders the weapons carried on the mech's back (from the loadout).
 func _update_carry_visuals(mecha: Node3D) -> void:
 	WeaponVisualFactory.mount_carry(mecha, carry, "CarryWeapons")
+
+
+## Returns an array of active telegraph descriptor dictionaries from currently charging special weapons.
+func get_active_telegraph_descriptors() -> Array:
+	var list: Array = []
+	for session in _active_timing_sessions:
+		if session and session.has_method("is_preparing") and session.is_preparing():
+			list.append(session.get_telegraph_descriptor())
+	return list

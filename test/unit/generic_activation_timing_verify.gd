@@ -311,7 +311,7 @@ func _test_8_integration_with_existing_weapons() -> void:
 	_check(j_res.get("is_charging") == false, "Jammer is NOT charging (executes instantly)")
 	_check(StuntWeaponSys.is_disrupted(dummy1) == true, "Jammer applied disruption immediately")
 
-	# 2. Satellite Cannon (Instant, charge_time == 0.0)
+	# 2. Satellite Cannon (Charged, charge_time == 3.0s)
 	var sc_res = load("res://resources/mech/stock/weapon_satellite_cannon.tres")
 	var dummy2 = EnemyScene.instantiate()
 	add_child(dummy2)
@@ -322,8 +322,19 @@ func _test_8_integration_with_existing_weapons() -> void:
 	var sc_res_act := SpecialWeaponSys.activate_special_weapon(sc_res, null, {"current_energy": 100.0}, [dummy2])
 
 	_check(sc_res_act.get("success") == true, "Satellite Cannon activates successfully")
-	_check(sc_res_act.get("is_charging") == false, "Satellite Cannon is NOT charging (executes instantly)")
-	_check(dummy2.health_system.current_health < hp_before, "Satellite Cannon applied damage immediately")
+	_check(sc_res_act.get("is_charging") == true, "Satellite Cannon enters charging phase (3.0s)")
+	var sc_session = sc_res_act.get("timing_session")
+	_check(sc_session != null, "Satellite Cannon timing session created")
+	_check(sc_session.duration == 3.0, "Satellite Cannon session duration is 3.0s")
+
+	# Halfway through charge: HP untouched
+	sc_session.tick(1.5)
+	_check(dummy2.health_system.current_health == hp_before, "Satellite Cannon target HP untouched halfway through charge")
+
+	# Complete charge: damage applied
+	sc_session.tick(1.5)
+	_check(sc_session.is_completed(), "Satellite Cannon session completed")
+	_check(dummy2.health_system.current_health < hp_before, "Satellite Cannon applied damage upon completion")
 
 	dummy1.queue_free()
 	dummy2.queue_free()

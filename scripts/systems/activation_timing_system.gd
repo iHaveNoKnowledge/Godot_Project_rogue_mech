@@ -27,6 +27,9 @@ enum Phase {
 	CANCELLED = 3,
 }
 
+static var _session_counter: int = 0
+
+var session_id: String = ""
 var phase: Phase = Phase.READY
 var duration: float = 0.0
 var elapsed: float = 0.0
@@ -41,6 +44,8 @@ var started_at: int = 0
 ## Factory to create and configure a new generic activation timing session.
 static func create_session(cap_data: Dictionary = {}, user_ctx: Dictionary = {}, on_complete: Callable = Callable(), on_cancel: Callable = Callable()) -> RefCounted:
 	var session = (load("res://scripts/systems/activation_timing_system.gd") as GDScript).new()
+	_session_counter += 1
+	session.session_id = "timing_session_%d" % _session_counter
 	session.capability_data = cap_data.duplicate(true)
 	session.context = user_ctx.duplicate(true)
 	session.completion_callback = on_complete
@@ -171,6 +176,7 @@ func get_telegraph_descriptor() -> Dictionary:
 
 	return {
 		# Status & Lifecycle
+		"session_id": session_id if session_id != "" else ("timing_session_%d" % get_instance_id()),
 		"active": is_act,
 		"is_active": is_act,
 		"phase": phase,

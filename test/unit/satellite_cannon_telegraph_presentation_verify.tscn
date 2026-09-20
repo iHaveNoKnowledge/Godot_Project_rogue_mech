@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://chg7e1e9presentation01"]
+
+[ext_resource type="Script" path="res://test/unit/satellite_cannon_telegraph_presentation_verify.gd" id="1_test"]
+
+[node name="SatelliteCannonTelegraphPresentationVerify" type="Node3D"]
+script = ExtResource("1_test")

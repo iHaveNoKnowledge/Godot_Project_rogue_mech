@@ -130,6 +130,7 @@ const SHOULDER_DAMAGE: float = 12.0
 
 # Active special capability activation / charge sessions (ActivationTimingSystem)
 var _active_timing_sessions: Array = []
+var telegraph_presentation: Node3D = null
 
 # A dual melee charge: pressing BOTH fire buttons together (within the window)
 # when both sides fight melee (weapon, fist or shoulder) lunges the mech deep
@@ -221,6 +222,14 @@ func _ready() -> void:
 	missile_lock_system.name = "MissileLockOnSystem"
 	missile_lock_system.weapon_manager = self
 	add_child(missile_lock_system)
+
+	var telegraph_cls = load("res://scripts/effects/telegraph_presentation.gd")
+	if telegraph_cls:
+		telegraph_presentation = telegraph_cls.new()
+		telegraph_presentation.name = "TelegraphPresentation"
+		telegraph_presentation.weapon_manager = self
+		add_child(telegraph_presentation)
+
 	call_deferred("_emit_initial_state")
 
 
@@ -445,6 +454,9 @@ func _physics_process(delta: float) -> void:
 		if session == null or not session.has_method("is_preparing") or session.is_completed() or session.is_cancelled():
 			_active_timing_sessions.remove_at(s_idx)
 		s_idx -= 1
+
+	if telegraph_presentation and is_instance_valid(telegraph_presentation):
+		telegraph_presentation.sync_descriptors(get_active_telegraph_descriptors())
 
 	_update_heat_smoke(delta)
 

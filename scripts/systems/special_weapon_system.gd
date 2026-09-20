@@ -24,6 +24,9 @@ extends RefCounted
 ## - EventBus: Asynchronous signal broker.
 ## =============================================================================
 
+# Preloaded Systems
+const ActivationTimingSys = preload("res://scripts/systems/activation_timing_system.gd")
+
 # Canonical Capability Types
 const CAPABILITY_DISRUPTION := "disruption"
 const CAPABILITY_STRATEGIC_STRIKE := "strategic_strike"
@@ -74,6 +77,7 @@ static func resolve_special_capability(weapon_or_data: Variant) -> Dictionary:
 			"area_shape": SHAPE_SPHERE,
 			"area_parameters": {},
 			"duration": 0.0,
+			"charge_time": 0.0,
 			"cooldown": 0.0,
 			"energy_cost": 0.0,
 			"effect_payload": {},
@@ -87,6 +91,7 @@ static func resolve_special_capability(weapon_or_data: Variant) -> Dictionary:
 	var area_shape := str(raw_cap.get("area_shape", SHAPE_SPHERE)).to_lower()
 	var area_params: Dictionary = raw_cap.get("area_parameters", {}) if raw_cap.get("area_parameters") is Dictionary else {}
 	var duration := float(raw_cap.get("duration", 0.0))
+	var charge_time := maxf(float(raw_cap.get("charge_time", raw_cap.get("activation_delay", 0.0))), 0.0)
 	var cooldown := float(raw_cap.get("cooldown", 0.0))
 	var energy_cost := float(raw_cap.get("energy_cost", 0.0))
 	var effect_payload: Dictionary = raw_cap.get("effect_payload", {}) if raw_cap.get("effect_payload") is Dictionary else {}
@@ -126,6 +131,7 @@ static func resolve_special_capability(weapon_or_data: Variant) -> Dictionary:
 		"area_shape": area_shape,
 		"area_parameters": area_params.duplicate(true),
 		"duration": duration,
+		"charge_time": charge_time,
 		"cooldown": cooldown,
 		"energy_cost": energy_cost,
 		"effect_payload": effect_payload.duplicate(true),
@@ -536,42 +542,104 @@ static func activate_special_weapon(weapon_or_data: Variant, source_node: Node, 
 	var area_params: Dictionary = cap.get("area_parameters", {})
 	var affected := resolve_affected_targets(targeting_mode, origin, direction, area_params, filtered_candidates)
 
-	# 6. Generic Effect Request Construction (Pure Data Payload)
-	var effect_request := create_effect_request(cap_type, cap, origin, affected, {
-		"source_node": source_node,
-		"weapon": weapon_or_data
-	})
+	# Helper closure to execute effect dispatch, resource consumption, and observation at completion
+	var execute_effect = func(_session = null) -> Dictionary:
+		# 6. Generic Effect Request Construction (Pure Data Payload)
+		var effect_request := create_effect_request(cap_type, cap, origin, affected, {
+			"source_node": source_node,
+			"weapon": weapon_or_data
+		})
 
-	# 7. Authoritative Effect Dispatch to StuntWeaponSystem
-	var affected_count := dispatch_effect_request(effect_request)
+		# 7. Authoritative Effect Dispatch to StuntWeaponSystem
+		var affected_count := dispatch_effect_request(effect_request)
 
-	# 8. Resource & Cooldown Consumption on User Context
-	if user_context.has("core") and user_context["core"] != null:
-		var core = user_context["core"]
-		if "cooldown" in core:
-			core.cooldown = float(cap.get("cooldown", 0.0))
-		if "ammo" in core and not bool(core.get("unlimited_ammo")):
-			if core.ammo > 0:
-				core.ammo -= 1
-				if core.has_signal("ammo_changed"):
-					core.ammo_changed.emit(core.ammo, core.max_ammo)
-	if user_context.has("energy_system") and user_context["energy_system"] != null:
-		var es = user_context["energy_system"]
-		var req_energy := float(cap.get("energy_cost", 0.0))
-		if req_energy > 0.0 and "energy" in es:
-			es.energy = maxf(es.energy - req_energy, 0.0)
+		# 8. Resource & Cooldown Consumption on User Context
+		if user_context.has("core") and user_context["core"] != null:
+			var core = user_context["core"]
+			if "cooldown" in core:
+				core.cooldown = float(cap.get("cooldown", 0.0))
+			if "ammo" in core and not bool(core.get("unlimited_ammo")):
+				if core.ammo > 0:
+					core.ammo -= 1
+					if core.has_signal("ammo_changed"):
+						core.ammo_changed.emit(core.ammo, core.max_ammo)
+		if user_context.has("energy_system") and user_context["energy_system"] != null:
+			var es = user_context["energy_system"]
+			var req_energy := float(cap.get("energy_cost", 0.0))
+			if req_energy > 0.0 and "energy" in es:
+				es.energy = maxf(es.energy - req_energy, 0.0)
 
-	# 9. Generic Technology Observation Dispatch
-	var tech_id := str(cap.get("tech_id", ""))
-	if tech_id != "":
-		report_special_weapon_observed(tech_id, source_node, cap_type, {"weapon_data": weapon_or_data})
+		# 9. Generic Technology Observation Dispatch
+		var tech_id := str(cap.get("tech_id", ""))
+		if tech_id != "":
+			report_special_weapon_observed(tech_id, source_node, cap_type, {"weapon_data": weapon_or_data})
+
+		return {
+			"effect_request": effect_request,
+			"affected_count": affected_count
+		}
+
+	# 10. Activation Timing Evaluation
+	var charge_time := float(cap.get("charge_time", 0.0))
+	if charge_time <= 0.0:
+		# Instantaneous execution (Zero-duration activation)
+		var res: Dictionary = execute_effect.call(null)
+		return {
+			"success": true,
+			"reason": "ok",
+			"capability": cap,
+			"effect_request": res.get("effect_request", {}),
+			"targets_affected": int(res.get("affected_count", 0)),
+			"affected_targets": affected,
+			"is_charging": false,
+			"timing_session": null
+		}
+
+	# Deferred execution via Generic ActivationTimingSystem
+	var session_ctx := user_context.duplicate(true)
+	session_ctx["origin"] = origin
+	session_ctx["direction"] = direction
+
+	var final_res: Dictionary = {
+		"effect_request": {},
+		"affected_count": 0
+	}
+
+	var on_complete = func(s):
+		var exec_res: Dictionary = execute_effect.call(s)
+		final_res["effect_request"] = exec_res.get("effect_request", {})
+		final_res["affected_count"] = exec_res.get("affected_count", 0)
+		if user_context.has("on_complete") and user_context["on_complete"] is Callable:
+			user_context["on_complete"].call(s, exec_res)
+
+	var on_cancel = func(s, reason: String):
+		if user_context.has("on_cancel") and user_context["on_cancel"] is Callable:
+			user_context["on_cancel"].call(s, reason)
+
+	var timing_session = ActivationTimingSys.create_session(cap, session_ctx, on_complete, on_cancel)
+	timing_session.start()
 
 	return {
 		"success": true,
-		"reason": "ok",
+		"reason": "charging",
 		"capability": cap,
-		"effect_request": effect_request,
-		"targets_affected": affected_count,
-		"affected_targets": affected
+		"effect_request": final_res.get("effect_request", {}),
+		"targets_affected": int(final_res.get("affected_count", 0)),
+		"affected_targets": affected,
+		"is_charging": true,
+		"timing_session": timing_session
 	}
+
+
+## Creates an activation timing session for a capability.
+static func create_activation_session(weapon_or_data: Variant, user_context: Dictionary = {}, on_complete: Callable = Callable(), on_cancel: Callable = Callable()) -> RefCounted:
+	var cap := resolve_special_capability(weapon_or_data)
+	return ActivationTimingSys.create_session(cap, user_context, on_complete, on_cancel)
+
+
+## Helper to query the charge / activation delay time for a weapon or capability.
+static func get_charge_time(weapon_or_data: Variant) -> float:
+	var cap := resolve_special_capability(weapon_or_data)
+	return float(cap.get("charge_time", 0.0))
+
 

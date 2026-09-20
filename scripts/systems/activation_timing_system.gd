@@ -1,0 +1,155 @@
+class_name ActivationTimingSystem
+extends RefCounted
+
+## =============================================================================
+## ACTIVATION TIMING SYSTEM — Generic Capability Activation Timing Contract (Phase 2E-9)
+##
+## Defines generic activation timing, charging, and telegraph state tracking for
+## special weapon capabilities and actions without weapon-ID branching.
+##
+## PHASES:
+## - READY (IDLE): No active timing session or reset.
+## - PREPARING (CHARGING / WINDUP): Timing window active (0.0 <= elapsed < duration).
+## - COMPLETED: Timing window reached completion (elapsed >= duration).
+## - CANCELLED: Timing window was aborted prior to completion.
+##
+## AUTHORITY BOUNDARIES:
+## - Owns: Activation phase, elapsed time, remaining time, progress [0.0..1.0],
+##   cancellation state, completion callback execution, generic telegraph descriptor.
+## - MUST NOT OWN: HP, armor, damage calculations, movement inhibition,
+##   status application, technology progression, cooldown timers, or energy pools.
+## =============================================================================
+
+enum Phase {
+	READY = 0,
+	PREPARING = 1,
+	COMPLETED = 2,
+	CANCELLED = 3,
+}
+
+var phase: Phase = Phase.READY
+var duration: float = 0.0
+var elapsed: float = 0.0
+var capability_data: Dictionary = {}
+var context: Dictionary = {}
+var completion_callback: Callable = Callable()
+var cancellation_callback: Callable = Callable()
+var cancellation_reason: String = ""
+
+
+## Factory to create and configure a new generic activation timing session.
+static func create_session(cap_data: Dictionary = {}, user_ctx: Dictionary = {}, on_complete: Callable = Callable(), on_cancel: Callable = Callable()) -> RefCounted:
+	var session = (load("res://scripts/systems/activation_timing_system.gd") as GDScript).new()
+	session.capability_data = cap_data.duplicate(true)
+	session.context = user_ctx.duplicate(true)
+	session.completion_callback = on_complete
+	session.cancellation_callback = on_cancel
+	session.duration = maxf(float(cap_data.get("charge_time", cap_data.get("activation_delay", 0.0))), 0.0)
+	return session
+
+
+## Starts the timing session.
+## If duration <= 0.0, completes immediately in a synchronous pass.
+## Otherwise enters PREPARING phase.
+func start() -> void:
+	elapsed = 0.0
+	cancellation_reason = ""
+	if duration <= 0.0:
+		phase = Phase.COMPLETED
+		if completion_callback.is_valid():
+			completion_callback.call(self)
+	else:
+		phase = Phase.PREPARING
+
+
+## Advances the timing session by delta seconds.
+## Transitions to COMPLETED when elapsed >= duration and triggers completion callback.
+func tick(delta: float) -> void:
+	if phase != Phase.PREPARING:
+		return
+
+	elapsed = minf(elapsed + maxf(delta, 0.0), duration)
+	if elapsed >= duration or is_equal_approx(elapsed, duration):
+		elapsed = duration
+		phase = Phase.COMPLETED
+		if completion_callback.is_valid():
+			completion_callback.call(self)
+
+
+## Aborts an in-progress activation session.
+## Transitions to CANCELLED and prevents completion from executing.
+func cancel(reason: String = "manual_cancel") -> bool:
+	if phase == Phase.PREPARING:
+		phase = Phase.CANCELLED
+		cancellation_reason = reason
+		if cancellation_callback.is_valid():
+			cancellation_callback.call(self, reason)
+		return true
+	return false
+
+
+## Resets the session back to READY.
+func reset() -> void:
+	phase = Phase.READY
+	elapsed = 0.0
+	cancellation_reason = ""
+
+
+## Returns the normalized progress from 0.0 (started) to 1.0 (completed).
+func get_progress() -> float:
+	if duration <= 0.0:
+		return 1.0
+	return clampf(elapsed / duration, 0.0, 1.0)
+
+
+## Returns remaining duration in seconds.
+func get_remaining_time() -> float:
+	return maxf(duration - elapsed, 0.0)
+
+
+## Phase query helpers.
+func is_ready() -> bool:
+	return phase == Phase.READY
+
+
+func is_preparing() -> bool:
+	return phase == Phase.PREPARING
+
+
+func is_completed() -> bool:
+	return phase == Phase.COMPLETED
+
+
+func is_cancelled() -> bool:
+	return phase == Phase.CANCELLED
+
+
+## Generates a pure, generic telegraph descriptor dictionary suitable for
+## visual/HUD rendering (danger zones, charge reticle, warning indicator)
+## without polluting combat logic.
+func get_telegraph_descriptor() -> Dictionary:
+	var area_params: Dictionary = {}
+	if capability_data.has("area_parameters") and capability_data["area_parameters"] is Dictionary:
+		area_params = capability_data["area_parameters"].duplicate(true)
+
+	var origin: Vector3 = Vector3.ZERO
+	if context.has("origin") and context["origin"] is Vector3:
+		origin = context["origin"]
+
+	var direction: Vector3 = Vector3.FORWARD
+	if context.has("direction") and context["direction"] is Vector3:
+		direction = context["direction"]
+
+	return {
+		"is_active": phase == Phase.PREPARING,
+		"phase": phase,
+		"progress": get_progress(),
+		"elapsed": elapsed,
+		"duration": duration,
+		"remaining": get_remaining_time(),
+		"targeting_mode": str(capability_data.get("targeting_mode", "point")),
+		"area_shape": str(capability_data.get("area_shape", "sphere")),
+		"area_parameters": area_params,
+		"origin": origin,
+		"direction": direction
+	}

@@ -192,4 +192,3 @@ func get_area_parameters() -> Dictionary:
 
 func get_duration() -> float:
 	return float(special_capability.get("duration", 0.0))
-

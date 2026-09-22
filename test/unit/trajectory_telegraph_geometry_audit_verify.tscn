@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://bmtrajtelegraph01"]
+[gd_scene format=3 uid="uid://b7gji4nqq5weq"]
 
 [ext_resource type="Script" path="res://test/unit/trajectory_telegraph_geometry_audit_verify.gd" id="1_test"]
 

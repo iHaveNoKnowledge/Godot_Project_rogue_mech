@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://bmconetelegraph01"]
+[gd_scene format=3 uid="uid://c58ypgshl2k5u"]
 
 [ext_resource type="Script" path="res://test/unit/cone_telegraph_geometry_audit_verify.gd" id="1_test"]
 

@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://jammertg01auditverify"]
+[gd_scene format=3 uid="uid://coqfd6vvpd5bi"]
 
 [ext_resource type="Script" path="res://test/unit/jammer_telegraph_audit_verify.gd" id="1_test"]
 

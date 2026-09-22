@@ -19,6 +19,16 @@ const CLIP_SOURCES := {
 	MechaRig.CLIP_AI_RUN: "res://scenes/mecha/animations/ai_mech_run.glb",
 }
 
+# The run clip's natural ground speed: ~2.9m stride x 1.67 strides/s.
+# Playback rate scales with mech speed around this so cadence tracks travel
+# (slow pump while accelerating, full rate at speed) instead of shuffling.
+const NATURAL_SPEED := 5.0
+const MIN_RATE := 0.2
+const MAX_RATE := 1.4
+
+static func rate_for_speed(h_speed: float) -> float:
+	return clampf(h_speed / NATURAL_SPEED, MIN_RATE, MAX_RATE)
+
 # Extra bones present in the clean clip (beyond the 16-bone game convention).
 const TOE_L := "Bone_Toe_L"
 const TOE_R := "Bone_Toe_R"

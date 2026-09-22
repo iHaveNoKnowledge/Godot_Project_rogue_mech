@@ -69,6 +69,21 @@ func _ready() -> void:
 		after.append(leg.rotation.x)
 	_check(_range_of(after) > deg_to_rad(5.0), "leg keeps moving after arm destroyed (range=%.1f deg)" % rad_to_deg(_range_of(after)))
 
+	# Cadence follows speed: same frame budget at 6 m/s pumps more cycles
+	# than at 2 m/s (no full-speed shuffling while accelerating).
+	var fast_x: Array = []
+	for i in range(90):
+		mecha.velocity = Vector3(0, mecha.velocity.y, -6.0)
+		await get_tree().physics_frame
+		fast_x.append(leg.rotation.x)
+	var slow_x: Array = []
+	for i in range(90):
+		mecha.velocity = Vector3(0, mecha.velocity.y, -2.0)
+		await get_tree().physics_frame
+		slow_x.append(leg.rotation.x)
+	_check(_zero_crossings(fast_x) > _zero_crossings(slow_x), "cadence tracks speed (fast=%d slow=%d crossings)" % [_zero_crossings(fast_x), _zero_crossings(slow_x)])
+	_check(_range_of(slow_x) > deg_to_rad(3.0), "slow speed still strides (range=%.1f deg)" % rad_to_deg(_range_of(slow_x)))
+
 	# Dune bump: brief airtime (< grace) must NOT snap to the static fall
 	# pose — the run clip carries over the bump.
 	mecha.position.y += 1.5
@@ -115,3 +130,17 @@ func _range_of(a: Array) -> float:
 		lo = minf(lo, v)
 		hi = maxf(hi, v)
 	return hi - lo
+
+
+func _zero_crossings(a: Array) -> int:
+	if a.size() < 3:
+		return 0
+	var mean := 0.0
+	for v in a:
+		mean += v
+	mean /= a.size()
+	var n := 0
+	for i in range(1, a.size()):
+		if (a[i - 1] < mean) != (a[i] < mean):
+			n += 1
+	return n

@@ -23,6 +23,7 @@ var foot_ik: MechaFootIK = null
 var _walk: MechaWalkingSystem = null
 var action_animator: MechaActionAnimator = null
 var clip_retarget: MechaClipRetarget = null
+var debug_branch: String = ""
 var air_timer: float = 0.0
 var current_recoil: float = 0.0
 var landing_impact: float = 0.0
@@ -143,6 +144,7 @@ func _update_clip_animation(delta: float) -> void:
 	# override kneel, death or dash postures.
 	if is_kneeling or is_core_breach:
 		_clip_air_time = 0.0
+		debug_branch = "procedural_state"
 		_run_procedural(delta)
 		return
 	if mecha.is_on_floor():
@@ -150,17 +152,21 @@ func _update_clip_animation(delta: float) -> void:
 	else:
 		_clip_air_time += delta
 	if _clip_air_time >= CLIP_AIR_GRACE:
+		debug_branch = "procedural_air"
 		_run_procedural(delta)
 		return
 	if mecha.get("is_roller_dashing") == true:
+		debug_branch = "procedural_dash"
 		_run_procedural(delta)
 		return
 	var ds = mecha.get_node_or_null("DashSystem")
 	if ds != null and ds.get("is_dashing") == true:
+		debug_branch = "procedural_pulse"
 		_run_procedural(delta)
 		return
 	_walk.is_moving = mecha.velocity.length() > 0.8
 	if not _walk.is_moving or clip_retarget == null:
+		debug_branch = "procedural_idle"
 		_run_procedural(delta)
 		return
 	# Hand-authored run is primary; an AI clip wins when present.
@@ -168,12 +174,15 @@ func _update_clip_animation(delta: float) -> void:
 	if clip_retarget.has_clip(MechaRig.CLIP_AI_RUN):
 		clip_name = MechaRig.CLIP_AI_RUN
 	if not clip_retarget.has_clip(clip_name):
+		debug_branch = "procedural_noclip"
 		_run_procedural(delta)
 		return
+	debug_branch = "clip_" + clip_name
 	clip_retarget.play_clip(clip_name)
 	_update_recoil(delta)
 	var joints := _build_joints_dict()
-	clip_retarget.advance_and_apply(delta, joints, _original_body_pos.y)
+	var h_speed := Vector2(mecha.velocity.x, mecha.velocity.z).length()
+	clip_retarget.advance_and_apply(delta * MechaClipRetarget.rate_for_speed(h_speed), joints, _original_body_pos.y)
 	_update_aim_arms(delta)
 	_update_shield_arm(delta)
 	if action_animator:

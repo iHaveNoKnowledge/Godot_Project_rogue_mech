@@ -122,12 +122,21 @@ class TelegraphVisualInstance extends Node3D:
 	var target_reticle: Node3D
 	var target_ring_mesh: MeshInstance3D
 	var area_disc_mesh: MeshInstance3D
+	var cone_container: Node3D
+	var cone_sector_mesh: MeshInstance3D
+	var cone_border_mesh: MeshInstance3D
 
 	# Materials
 	var outer_mat: StandardMaterial3D
 	var inner_mat: StandardMaterial3D
 	var reticle_mat: StandardMaterial3D
 	var disc_mat: StandardMaterial3D
+	var cone_mat: StandardMaterial3D
+	var cone_border_mat: StandardMaterial3D
+
+	# Geometry Caches
+	var _cached_cone_range: float = -1.0
+	var _cached_cone_angle: float = -1.0
 
 	func _init(desc: Dictionary) -> void:
 		name = "TelegraphInstance_" + str(desc.get("session_id", "anon"))
@@ -222,6 +231,91 @@ class TelegraphVisualInstance extends Node3D:
 		area_disc_mesh.visible = false
 		target_reticle.add_child(area_disc_mesh)
 
+		# Cone / Sector Visual Indicator
+		cone_container = Node3D.new()
+		cone_container.name = "ConeContainer"
+		cone_container.visible = false
+		add_child(cone_container)
+
+		cone_sector_mesh = MeshInstance3D.new()
+		cone_sector_mesh.name = "ConeSector"
+		cone_mat = StandardMaterial3D.new()
+		cone_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		cone_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		cone_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		cone_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		cone_mat.albedo_color = Color(1.0, 0.45, 0.1, 0.12)
+		cone_sector_mesh.material_override = cone_mat
+		cone_container.add_child(cone_sector_mesh)
+
+		cone_border_mesh = MeshInstance3D.new()
+		cone_border_mesh.name = "ConeBorder"
+		cone_border_mat = StandardMaterial3D.new()
+		cone_border_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		cone_border_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		cone_border_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		cone_border_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		cone_border_mat.albedo_color = Color(1.0, 0.6, 0.2, 0.5)
+		cone_border_mat.emission_enabled = true
+		cone_border_mat.emission = Color(1.0, 0.5, 0.1)
+		cone_border_mat.emission_energy_multiplier = 2.0
+		cone_border_mesh.material_override = cone_border_mat
+		cone_container.add_child(cone_border_mesh)
+
+	## Generates procedural sector fan and border lines for cone geometry.
+	func _build_cone_mesh(range_dist: float, angle_deg: float) -> void:
+		_cached_cone_range = range_dist
+		_cached_cone_angle = angle_deg
+
+		var segments: int = 24
+		var clamped_angle: float = clampf(angle_deg, 0.5, 360.0)
+		var half_rad: float = deg_to_rad(clamped_angle * 0.5)
+
+		# 1. Sector Fill Mesh (Triangles)
+		var st_fill := SurfaceTool.new()
+		st_fill.begin(Mesh.PRIMITIVE_TRIANGLES)
+		var apex := Vector3(0, 0.02, 0)
+		var arc_pts: Array[Vector3] = []
+
+		for i in range(segments + 1):
+			var t: float = float(i) / float(segments)
+			var cur_angle: float = lerpf(-half_rad, half_rad, t)
+			# Local coordinates: Forward is -Z, Right is +X
+			var vx: float = sin(cur_angle) * range_dist
+			var vz: float = -cos(cur_angle) * range_dist
+			arc_pts.append(Vector3(vx, 0.02, vz))
+
+		for i in range(segments):
+			st_fill.add_vertex(apex)
+			st_fill.add_vertex(arc_pts[i])
+			st_fill.add_vertex(arc_pts[i + 1])
+
+		cone_sector_mesh.mesh = st_fill.commit()
+
+		# 2. Border & Centerline Outline (Lines)
+		var st_line := SurfaceTool.new()
+		st_line.begin(Mesh.PRIMITIVE_LINES)
+
+		# Left flank
+		st_line.add_vertex(apex)
+		st_line.add_vertex(arc_pts[0])
+
+		# Right flank
+		st_line.add_vertex(apex)
+		st_line.add_vertex(arc_pts[segments])
+
+		# Outer perimeter arc
+		for i in range(segments):
+			st_line.add_vertex(arc_pts[i])
+			st_line.add_vertex(arc_pts[i + 1])
+
+		# Centerline forward indicator
+		var mid_idx: int = segments / 2
+		st_line.add_vertex(apex)
+		st_line.add_vertex(arc_pts[mid_idx])
+
+		cone_border_mesh.mesh = st_line.commit()
+
 	## Updates transform, geometry, and visual progression from authoritative descriptor.
 	func update_from_descriptor(desc: Dictionary) -> void:
 		source_pos = desc.get("source_position", desc.get("source", desc.get("origin", Vector3.ZERO)))
@@ -231,22 +325,62 @@ class TelegraphVisualInstance extends Node3D:
 		var geom_type: String = str(desc.get("geometry_type", "")).to_lower()
 		var area_shape: String = str(desc.get("area_shape", "")).to_lower()
 		var targeting_mode: String = str(desc.get("targeting_mode", "")).to_lower()
-		var is_area: bool = (geom_type in ["sphere", "circle", "cylinder", "area"] or targeting_mode == "area_radius" or area_shape in ["sphere", "circle", "cylinder"])
+
+		var is_cone: bool = (geom_type in ["cone", "sector", "wedge"] or targeting_mode in ["sweep_cone", "cone", "sector"] or area_shape in ["cone", "sector", "wedge"])
+		var is_area: bool = not is_cone and (geom_type in ["sphere", "circle", "cylinder", "area"] or targeting_mode in ["area_radius", "area", "radius"] or area_shape in ["sphere", "circle", "cylinder"])
 
 		var area_params: Dictionary = desc.get("area_parameters", {})
-		var effective_radius: float
-		if is_area:
-			effective_radius = float(area_params.get("radius", area_params.get("range", 25.0)))
-		else:
-			var width: float = float(area_params.get("width", area_params.get("beam_radius", 12.0)))
-			effective_radius = maxf(width * 0.5, 0.5)
-		beam_radius = effective_radius
 
-		if is_area:
+		if is_cone:
+			# Directional Cone / Sector Geometry (e.g. EMP sweep, shockwave, flamethrower)
+			beam_container.visible = false
+			area_disc_mesh.visible = false
+			target_ring_mesh.visible = false
+			target_reticle.visible = true
+			cone_container.visible = true
+
+			var cone_range: float = float(area_params.get("range", area_params.get("length", 50.0)))
+			var cone_angle: float = float(area_params.get("angle", area_params.get("spread", 45.0)))
+
+			if absf(_cached_cone_range - cone_range) > 0.01 or absf(_cached_cone_angle - cone_angle) > 0.01:
+				_build_cone_mesh(cone_range, cone_angle)
+
+			var dir_vec: Vector3 = Vector3(desc.get("direction", Vector3.FORWARD))
+			if dir_vec.length_squared() < 0.0001 and source_pos.distance_squared_to(target_pos) > 0.001:
+				dir_vec = (target_pos - source_pos).normalized()
+			var norm_dir: Vector3 = dir_vec.normalized() if dir_vec.length_squared() > 0.0001 else Vector3.FORWARD
+
+			var up_vec: Vector3 = Vector3.UP
+			if absf(norm_dir.dot(Vector3.UP)) > 0.99:
+				up_vec = Vector3.RIGHT
+
+			if is_inside_tree():
+				cone_container.global_position = source_pos
+				cone_container.look_at(source_pos + norm_dir, up_vec)
+				target_reticle.global_position = target_pos
+			else:
+				cone_container.position = source_pos
+				cone_container.transform = Transform3D().looking_at(norm_dir, up_vec)
+				cone_container.position = source_pos
+				target_reticle.position = target_pos
+
+			var fill_alpha: float = 0.08 + progress * 0.25
+			cone_mat.albedo_color = Color(1.0, 0.45, 0.1, fill_alpha)
+
+			var border_alpha: float = 0.40 + progress * 0.60
+			var border_emission: float = 1.5 + progress * 6.5
+			cone_border_mat.albedo_color = Color(1.0, 0.6, 0.2, border_alpha)
+			cone_border_mat.emission_energy_multiplier = border_emission
+		elif is_area:
 			# Area Geometry (e.g. Jammer, radial pulse, shockwave)
 			beam_container.visible = false
+			cone_container.visible = false
 			area_disc_mesh.visible = true
+			target_ring_mesh.visible = true
 			target_reticle.visible = true
+
+			var effective_radius: float = float(area_params.get("radius", area_params.get("range", 25.0)))
+			beam_radius = effective_radius
 
 			if is_inside_tree():
 				target_reticle.global_position = target_pos
@@ -276,7 +410,13 @@ class TelegraphVisualInstance extends Node3D:
 			# Directional Line/Beam Geometry (e.g. Satellite Cannon)
 			beam_container.visible = true
 			area_disc_mesh.visible = false
+			target_ring_mesh.visible = true
+			cone_container.visible = false
 			target_reticle.visible = true
+
+			var width: float = float(area_params.get("width", area_params.get("beam_radius", 12.0)))
+			var effective_radius: float = maxf(width * 0.5, 0.5)
+			beam_radius = effective_radius
 
 			# 1. Update Beam Geometry (spans source to target)
 			var dist: float = source_pos.distance_to(target_pos)

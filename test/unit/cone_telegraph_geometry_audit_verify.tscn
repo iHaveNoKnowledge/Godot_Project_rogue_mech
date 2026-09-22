@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://bmconetelegraph01"]
+
+[ext_resource type="Script" path="res://test/unit/cone_telegraph_geometry_audit_verify.gd" id="1_test"]
+
+[node name="ConeTelegraphGeometryAuditVerify" type="Node"]
+script = ExtResource("1_test")

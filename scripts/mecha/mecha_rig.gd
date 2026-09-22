@@ -39,6 +39,7 @@ const HEAD_COLLAR_LOCAL := Vector3(0.0, 0.536, -0.16)
 
 const CLIP_IDLE := "idle"
 const CLIP_RUN := "run"
+const CLIP_AI_RUN := "ai_run"
 const CLIP_JUMP_LAUNCH := "jump_launch"
 const CLIP_JUMP_FALL := "jump_fall"
 const CLIP_LAND := "land"

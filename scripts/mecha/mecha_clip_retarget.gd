@@ -14,7 +14,10 @@ class_name MechaClipRetarget
 ## pose, then written rest-relative onto the matching pivot. Immune to bone
 ## roll conventions; lateral/roll detail from the clip is skipped (v1).
 
-const CLIP_SOURCE := "res://scenes/mecha/animations/innerframe_run_cycle_clean.glb"
+const CLIP_SOURCES := {
+	MechaRig.CLIP_RUN: "res://scenes/mecha/animations/innerframe_run_cycle_clean.glb",
+	MechaRig.CLIP_AI_RUN: "res://scenes/mecha/animations/ai_mech_run.glb",
+}
 
 # Extra bones present in the clean clip (beyond the 16-bone game convention).
 const TOE_L := "Bone_Toe_L"
@@ -50,6 +53,8 @@ const SEGMENT_CHILD: Dictionary = {
 
 var skeleton: Skeleton3D = null
 var player: AnimationPlayer = null
+var active_clip: String = ""
+var _sources: Dictionary = {}
 var _bone_cache: Dictionary = {}
 var _rest_pitch: Dictionary = {}
 var _rest_flex: Dictionary = {}
@@ -59,41 +64,60 @@ var _body_seeded: bool = false
 
 
 func _ready() -> void:
-	_build_source()
+	for clip_name in CLIP_SOURCES:
+		_build_source(clip_name, String(CLIP_SOURCES[clip_name]))
+	if _sources.has(MechaRig.CLIP_RUN):
+		_use_source(MechaRig.CLIP_RUN)
 
 
-func _build_source() -> void:
-	if not ResourceLoader.exists(CLIP_SOURCE):
+func _build_source(clip_name: String, path: String) -> void:
+	if not ResourceLoader.exists(path):
 		return
-	var packed: PackedScene = load(CLIP_SOURCE)
+	var packed: PackedScene = load(path)
 	if packed == null or not packed.can_instantiate():
 		return
 	var inst: Node = packed.instantiate()
 	add_child(inst)
 	# Hidden pose source: meshes are never rendered, only the skeleton moves.
 	_free_meshes(inst)
-	skeleton = _find_skeleton(inst)
-	player = _find_player(inst)
-	if skeleton == null or player == null:
+	var skel := _find_skeleton(inst)
+	var pl := _find_player(inst)
+	if skel == null or pl == null:
+		inst.queue_free()
 		return
-	if player.has_animation(MechaRig.CLIP_RUN):
-		var anim: Animation = player.get_animation(MechaRig.CLIP_RUN)
-		anim.loop_mode = Animation.LOOP_LINEAR
-		player.playback_process_mode = AnimationPlayer.ANIMATION_PROCESS_MANUAL
-		player.play(MechaRig.CLIP_RUN)
-		player.seek(randf() * anim.length, true)
+	if not pl.has_animation(clip_name):
+		inst.queue_free()
+		return
+	var anim: Animation = pl.get_animation(clip_name)
+	anim.loop_mode = Animation.LOOP_LINEAR
+	pl.playback_process_mode = AnimationPlayer.ANIMATION_PROCESS_MANUAL
+	_sources[clip_name] = {"skeleton": skel, "player": pl}
+	if active_clip == "":
+		_use_source(clip_name)
+
+
+func _use_source(clip_name: String) -> void:
+	var src: Dictionary = _sources.get(clip_name, {})
+	if src.is_empty():
+		return
+	skeleton = src["skeleton"]
+	player = src["player"]
+	active_clip = clip_name
+	_bone_cache.clear()
 	_cache_rest()
+	player.play(clip_name)
+	player.seek(randf() * player.current_animation_length, true)
 
 
 func has_clip(clip_name: String) -> bool:
-	return player != null and player.has_animation(clip_name)
+	return _sources.has(clip_name)
 
 
 func play_clip(clip_name: String) -> void:
 	if not has_clip(clip_name):
 		return
-	if player.current_animation != clip_name:
-		player.play(clip_name)
+	if active_clip != clip_name:
+		_use_source(clip_name)
 
 
 ## Steps the clip and writes the pose onto the pivots. `joints` uses the

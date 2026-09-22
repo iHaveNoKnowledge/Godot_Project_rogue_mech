@@ -145,10 +145,17 @@ func _update_clip_animation(delta: float) -> void:
 		_run_procedural(delta)
 		return
 	_walk.is_moving = mecha.velocity.length() > 0.8
-	if not _walk.is_moving or clip_retarget == null or not clip_retarget.has_clip(MechaRig.CLIP_RUN):
+	if not _walk.is_moving or clip_retarget == null:
 		_run_procedural(delta)
 		return
-	clip_retarget.play_clip(MechaRig.CLIP_RUN)
+	# AI-generated clip wins when present, hand-authored run is the fallback.
+	var clip_name := MechaRig.CLIP_RUN
+	if clip_retarget.has_clip(MechaRig.CLIP_AI_RUN):
+		clip_name = MechaRig.CLIP_AI_RUN
+	if not clip_retarget.has_clip(clip_name):
+		_run_procedural(delta)
+		return
+	clip_retarget.play_clip(clip_name)
 	_update_recoil(delta)
 	var joints := _build_joints_dict()
 	clip_retarget.advance_and_apply(delta, joints, _original_body_pos.y)

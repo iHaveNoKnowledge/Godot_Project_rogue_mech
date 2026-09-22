@@ -682,6 +682,75 @@ func _spawn_enemy(type: String, archetype: int, pos: Vector3, hp_scale: float, s
 	_spawn_enemy_with_pilot(type, archetype, pos, hp_scale, pilot, null, paint, tech_id)
 
 
+## Spawns an experimental Rival Prototype Ace mecha with dynamic counter-build loadout and heightened AI.
+func spawn_rival_prototype(prototype_data: Dictionary, pos: Vector3 = Vector3.ZERO) -> Node3D:
+	var arch: int = int(prototype_data.get("archetype", 0))
+	var scene_type := "rusher_full"
+	match arch:
+		0: scene_type = "rusher_full"
+		1: scene_type = "ranged_full"
+		2: scene_type = "heavy_full"
+		3: scene_type = "support_full"
+		4: scene_type = "shieldmelee_full"
+		5: scene_type = "shieldranged_full"
+		_: scene_type = "rusher_full"
+
+	var hp_scale: float = float(prototype_data.get("hp_scale", 1.8))
+	var tech_id: String = str(prototype_data.get("tech_id", ""))
+	var paint: Dictionary = prototype_data.get("paint", {
+		"primary": Color(0.12, 0.12, 0.14),
+		"secondary": Color(0.88, 0.15, 0.15),
+		"accent": Color(1.0, 0.45, 0.1)
+	})
+
+	var pilot: Dictionary = {
+		"name": str(prototype_data.get("pilot_callsign", "Nemesis")),
+		"rank_title": "[RIVAL ACE]",
+		"display_name": "%s [%s]" % [str(prototype_data.get("name", "Prototype")), str(prototype_data.get("pilot_callsign", "Ace"))],
+		"archetype": arch,
+		"tier": int(prototype_data.get("tier", 3)),
+		"is_boss": true,
+		"is_rival_ace": true,
+		"trait": str(prototype_data.get("tactical_stance", "Aggressive")),
+		"tech_id": tech_id,
+		"tactical_role": "commander"
+	}
+
+	var enemy = await _spawn_enemy_with_pilot(scene_type, arch, pos, hp_scale, pilot, null, paint, tech_id)
+	if enemy:
+		enemy.add_to_group("rival_ace")
+		enemy.add_to_group("boss")
+		if prototype_data.has("damage_mult"):
+			enemy.attack_damage *= float(prototype_data["damage_mult"])
+		if prototype_data.has("speed_mult"):
+			enemy.move_speed *= float(prototype_data["speed_mult"])
+			enemy.roller_speed *= float(prototype_data["speed_mult"])
+
+		# Configure or attach Unified MechaAIController
+		var ai = enemy.get_node_or_null("MechaAIController")
+		if ai == null:
+			var MechaAIControllerScript = load("res://scripts/mecha/ai/mecha_ai_controller.gd")
+			if MechaAIControllerScript:
+				ai = MechaAIControllerScript.new()
+				ai.name = "MechaAIController"
+				enemy.add_child(ai)
+		if ai:
+			ai.actor = enemy
+			ai.archetype = arch
+			ai.posture = str(prototype_data.get("ai_posture", "aggressive"))
+			ai.pilot_trait = pilot["trait"]
+
+	# Clear pending encounter state from rival progression
+	var rps = load("res://scripts/systems/rival_progression_system.gd")
+	if rps:
+		rps.pending_prototype_encounter = false
+
+	if EventBus.has_signal("prototype_encounter_spawned"):
+		EventBus.prototype_encounter_spawned.emit(prototype_data)
+
+	return enemy
+
+
 func _spawn_enemy_with_pilot(type: String, archetype: int, pos: Vector3, hp_scale: float, pilot: Dictionary, coordinator: Node = null, paint: Dictionary = {}, tech_id: String = "") -> Node3D:
 	var scene = _get_enemy_scene(type)
 	if scene == null:
@@ -727,13 +796,15 @@ func _spawn_enemy_with_pilot(type: String, archetype: int, pos: Vector3, hp_scal
 		enemy.position = entry_origin
 
 		add_child(enemy)
-		await enemy.ready
+		if not enemy.is_node_ready():
+			await enemy.ready
 
 		_animate_combat_slide_in(enemy, entry_origin, spawn_pos)
 	else:
 		enemy.position = spawn_pos
 		add_child(enemy)
-		await enemy.ready
+		if not enemy.is_node_ready():
+			await enemy.ready
 
 	# Pass supply posture down to AI Brain
 	var ai = enemy.get_node_or_null("MechaAIController")

@@ -53,9 +53,14 @@ func physics_process(delta: float) -> void:
 		raw_dir.y = 0.0
 		var space := enemy.get_world_3d().direct_space_state if enemy.get_world_3d() else null
 		var move_dir: Vector3 = _NavAvoidance.steer_around(raw_dir, enemy.global_position, space, 2.8) if space else raw_dir
-		enemy.velocity = move_dir * enemy.move_speed
-		enemy.velocity.y = -10.0
+		enemy.velocity.x = move_dir.x * enemy.move_speed
+		enemy.velocity.z = move_dir.z * enemy.move_speed
+		if not enemy.is_on_floor():
+			enemy.velocity.y -= 19.6 * delta
+		elif enemy.velocity.y < 0.0:
+			enemy.velocity.y = -1.0
 		enemy.move_and_slide()
+		_NavAvoidance.check_jump_clearance(enemy)
 		if enemy.get_slide_collision_count() > 0:
 			enemy.velocity = _NavAvoidance.slide_along_wall(enemy.velocity, enemy)
 

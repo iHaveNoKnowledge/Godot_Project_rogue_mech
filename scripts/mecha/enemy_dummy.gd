@@ -876,6 +876,9 @@ func set_drive_commands(world_dir: Vector3, aim_pt: Vector3, _fire_l: bool = fal
 	if not is_on_floor():
 		velocity.y -= 19.6 * get_physics_process_delta_time()
 
+	if _dash and not is_dashing and dash_cooldown_timer <= 0.0 and energy >= dash_energy_cost:
+		start_dash(world_dir)
+
 	if world_dir.length_squared() > 0.01:
 		velocity.x = world_dir.normalized().x * cur_speed
 		velocity.z = world_dir.normalized().z * cur_speed
@@ -892,7 +895,23 @@ func set_drive_commands(world_dir: Vector3, aim_pt: Vector3, _fire_l: bool = fal
 			var target_angle := atan2(-aim_dir.x, -aim_dir.z)
 			rotation.y = lerp_angle(rotation.y, target_angle, 0.2)
 
+	if (_fire_l or _fire_r) and can_attack():
+		if fire_core and fire_core.can_fire():
+			var muzzle := global_position + Vector3(0, 1.5, 0)
+			var aim_dir := -global_transform.basis.z
+			if aim_pt != Vector3.ZERO:
+				aim_dir = (aim_pt - muzzle).normalized()
+			fire_core.try_fire(muzzle, aim_dir, true, self)
+
 	move_and_slide()
+
+
+## Helper to trigger jump clearance over obstacles (Unified AI standard)
+func try_jump_clearance(jump_velocity: float = 8.5) -> bool:
+	if is_on_floor() and is_on_wall():
+		velocity.y = jump_velocity
+		return true
+	return false
 
 
 func _on_destroyed() -> void:

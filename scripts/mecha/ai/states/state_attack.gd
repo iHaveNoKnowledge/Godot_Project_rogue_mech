@@ -1,4 +1,5 @@
 extends EnemyState
+const _NavAvoidance = preload("res://scripts/arena/nav_avoidance.gd")
 
 ## Attack state: execute attack when in range.
 
@@ -112,9 +113,15 @@ func physics_process(delta: float) -> void:
 	# ground, but it can't strafe).
 	if enemy.get("ragdolled") != true:
 		var strafe = enemy.global_transform.basis.x * strafe_direction * enemy.move_speed * 0.3
-		enemy.velocity = strafe
-		enemy.velocity.y = -10.0
+		enemy.velocity.x = strafe.x
+		enemy.velocity.z = strafe.z
+		if not enemy.is_on_floor():
+			enemy.velocity.y -= 19.6 * delta
+		elif enemy.velocity.y < 0.0:
+			enemy.velocity.y = -1.0
 		enemy.move_and_slide()
+		if enemy.get_slide_collision_count() > 0:
+			enemy.velocity = _NavAvoidance.slide_along_wall(enemy.velocity, enemy)
 
 	# Attack
 	attack_timer -= delta

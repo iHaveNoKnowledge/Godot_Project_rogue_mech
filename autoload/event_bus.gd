@@ -37,6 +37,7 @@ signal rival_progression_updated(rival_data: Dictionary)
 signal era_phase_advanced(new_era: String, phase_index: int)
 signal prototype_encounter_triggered(prototype_data: Dictionary)
 signal rival_technology_breakthrough(breakthrough_info: Dictionary)
+signal prototype_encounter_spawned(prototype_data: Dictionary)
 
 # --- Eject / Pilot ---
 signal eject_initiated()

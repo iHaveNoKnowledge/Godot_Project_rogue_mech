@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://test/unit/dynamic_encounter_director_verify.gd" id="1"]
+
+[node name="DynamicEncounterDirectorVerify" type="Node"]
+script = ExtResource("1")

@@ -79,3 +79,18 @@ static func slide_along_wall(velocity: Vector3, enemy: CharacterBody3D) -> Vecto
 		tangent = -tangent
 	vel_flat += tangent * 1.2
 	return Vector3(vel_flat.x, velocity.y, vel_flat.z)
+
+
+## Tests if an actor facing an obstacle can and should jump over it.
+## Matches War Mode's obstacle jump clearance standard.
+static func check_jump_clearance(enemy: CharacterBody3D, jump_velocity: float = 8.5) -> bool:
+	if not enemy:
+		return false
+	var on_floor: bool = enemy.is_on_floor() if not enemy.has_meta("mock_on_floor") else bool(enemy.get_meta("mock_on_floor"))
+	if not on_floor:
+		return false
+	var on_wall: bool = enemy.is_on_wall() if not enemy.has_meta("mock_on_wall") else bool(enemy.get_meta("mock_on_wall"))
+	if on_wall:
+		enemy.velocity.y = jump_velocity
+		return true
+	return false

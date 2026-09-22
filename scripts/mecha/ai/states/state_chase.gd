@@ -130,9 +130,14 @@ func _follow_path(delta: float) -> void:
 		# Raycast avoidance: steer around Environment (layer 2) blocking the way
 		var space := enemy.get_world_3d().direct_space_state if enemy.get_world_3d() else null
 		var move_dir: Vector3 = _NavAvoidance.steer_around(raw_dir, enemy.global_position, space, 3.5) if space else raw_dir
-		enemy.velocity = move_dir * enemy.move_speed
-		enemy.velocity.y = gravity
+		enemy.velocity.x = move_dir.x * enemy.move_speed
+		enemy.velocity.z = move_dir.z * enemy.move_speed
+		if not enemy.is_on_floor():
+			enemy.velocity.y -= 19.6 * delta
+		elif enemy.velocity.y < 0.0:
+			enemy.velocity.y = -1.0
 		enemy.move_and_slide()
+		_NavAvoidance.check_jump_clearance(enemy)
 		# If slid into a wall, nudge along the wall so we don't stick in corners
 		if enemy.get_slide_collision_count() > 0:
 			enemy.velocity = _NavAvoidance.slide_along_wall(enemy.velocity, enemy)
@@ -144,8 +149,8 @@ func _follow_path(delta: float) -> void:
 					_stuck_time = 0.0
 					# Hard 90° escape
 					var escape := raw_dir.rotated(Vector3.UP, deg_to_rad(90.0 if randf() < 0.5 else -90.0))
-					enemy.velocity = escape * enemy.move_speed
-					enemy.velocity.y = gravity
+					enemy.velocity.x = escape.x * enemy.move_speed
+					enemy.velocity.z = escape.z * enemy.move_speed
 					enemy.move_and_slide()
 			else:
 				_stuck_time = 0.0
@@ -180,9 +185,14 @@ func _direct_move(delta: float) -> void:
 	var space := enemy.get_world_3d().direct_space_state if enemy.get_world_3d() else null
 	var move_dir = _NavAvoidance.steer_around(raw_dir, enemy.global_position, space, 3.5) if space else raw_dir
 	if enemy.get("ragdolled") != true:
-		enemy.velocity = move_dir * enemy.move_speed
-		enemy.velocity.y = gravity
+		enemy.velocity.x = move_dir.x * enemy.move_speed
+		enemy.velocity.z = move_dir.z * enemy.move_speed
+		if not enemy.is_on_floor():
+			enemy.velocity.y -= 19.6 * delta
+		elif enemy.velocity.y < 0.0:
+			enemy.velocity.y = -1.0
 		enemy.move_and_slide()
+		_NavAvoidance.check_jump_clearance(enemy)
 		if enemy.get_slide_collision_count() > 0:
 			enemy.velocity = _NavAvoidance.slide_along_wall(enemy.velocity, enemy)
 

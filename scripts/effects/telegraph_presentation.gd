@@ -121,11 +121,13 @@ class TelegraphVisualInstance extends Node3D:
 	var inner_mesh_inst: MeshInstance3D
 	var target_reticle: Node3D
 	var target_ring_mesh: MeshInstance3D
+	var area_disc_mesh: MeshInstance3D
 
 	# Materials
 	var outer_mat: StandardMaterial3D
 	var inner_mat: StandardMaterial3D
 	var reticle_mat: StandardMaterial3D
+	var disc_mat: StandardMaterial3D
 
 	func _init(desc: Dictionary) -> void:
 		name = "TelegraphInstance_" + str(desc.get("session_id", "anon"))
@@ -137,7 +139,7 @@ class TelegraphVisualInstance extends Node3D:
 		beam_container.name = "BeamContainer"
 		add_child(beam_container)
 
-		# Outer corridor mesh (translucent warning sheath)
+		# Outer corridor mesh (translucent warning sheath for directional lines)
 		outer_mesh_inst = MeshInstance3D.new()
 		outer_mesh_inst.name = "OuterCorridor"
 		var outer_cylinder = CylinderMesh.new()
@@ -176,7 +178,7 @@ class TelegraphVisualInstance extends Node3D:
 		inner_mesh_inst.rotation_degrees = Vector3(90, 0, 0)
 		beam_container.add_child(inner_mesh_inst)
 
-		# Target Reticle / Warning Ring
+		# Target Reticle / Warning Ring & Area Indicator
 		target_reticle = Node3D.new()
 		target_reticle.name = "TargetReticle"
 		add_child(target_reticle)
@@ -202,66 +204,129 @@ class TelegraphVisualInstance extends Node3D:
 		target_ring_mesh.material_override = reticle_mat
 		target_reticle.add_child(target_ring_mesh)
 
+		# Area Ground Disc (translucent ground warning zone for area/radius geometries)
+		area_disc_mesh = MeshInstance3D.new()
+		area_disc_mesh.name = "AreaDisc"
+		var disc_cyl = CylinderMesh.new()
+		disc_cyl.radial_segments = 32
+		disc_cyl.height = 0.05
+		area_disc_mesh.mesh = disc_cyl
+
+		disc_mat = StandardMaterial3D.new()
+		disc_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		disc_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		disc_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		disc_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		disc_mat.albedo_color = Color(1.0, 0.4, 0.1, 0.12)
+		area_disc_mesh.material_override = disc_mat
+		area_disc_mesh.visible = false
+		target_reticle.add_child(area_disc_mesh)
+
 	## Updates transform, geometry, and visual progression from authoritative descriptor.
 	func update_from_descriptor(desc: Dictionary) -> void:
 		source_pos = desc.get("source_position", desc.get("source", desc.get("origin", Vector3.ZERO)))
 		target_pos = desc.get("target_position", desc.get("target", Vector3.ZERO))
 		progress = clampf(float(desc.get("progress", 0.0)), 0.0, 1.0)
 
+		var geom_type: String = str(desc.get("geometry_type", "")).to_lower()
+		var area_shape: String = str(desc.get("area_shape", "")).to_lower()
+		var targeting_mode: String = str(desc.get("targeting_mode", "")).to_lower()
+		var is_area: bool = (geom_type in ["sphere", "circle", "cylinder", "area"] or targeting_mode == "area_radius" or area_shape in ["sphere", "circle", "cylinder"])
+
 		var area_params: Dictionary = desc.get("area_parameters", {})
-		var width: float = float(area_params.get("width", area_params.get("beam_radius", 12.0)))
-		beam_radius = maxf(width * 0.5, 0.5)
-
-		# 1. Update Beam Geometry (spans source to target)
-		var dist: float = source_pos.distance_to(target_pos)
-		if dist < 0.001:
-			dist = 0.001
-
-		var mid_point: Vector3 = (source_pos + target_pos) * 0.5
-		if is_inside_tree():
-			beam_container.global_position = mid_point
-			var dir_to_target: Vector3 = (target_pos - source_pos).normalized()
-			if dir_to_target.length_squared() > 0.001:
-				var up_vec: Vector3 = Vector3.UP
-				if absf(dir_to_target.dot(Vector3.UP)) > 0.99:
-					up_vec = Vector3.RIGHT
-				beam_container.look_at(target_pos, up_vec)
-			target_reticle.global_position = target_pos
+		var effective_radius: float
+		if is_area:
+			effective_radius = float(area_params.get("radius", area_params.get("range", 25.0)))
 		else:
-			beam_container.position = mid_point
-			target_reticle.position = target_pos
+			var width: float = float(area_params.get("width", area_params.get("beam_radius", 12.0)))
+			effective_radius = maxf(width * 0.5, 0.5)
+		beam_radius = effective_radius
 
-		# Update corridor dimensions
-		var outer_cyl := outer_mesh_inst.mesh as CylinderMesh
-		if outer_cyl:
-			outer_cyl.height = dist
-			outer_cyl.top_radius = beam_radius
-			outer_cyl.bottom_radius = beam_radius
+		if is_area:
+			# Area Geometry (e.g. Jammer, radial pulse, shockwave)
+			beam_container.visible = false
+			area_disc_mesh.visible = true
+			target_reticle.visible = true
 
-		var inner_cyl := inner_mesh_inst.mesh as CylinderMesh
-		if inner_cyl:
-			inner_cyl.height = dist
-			var core_rad: float = 0.12 + progress * 0.28
-			inner_cyl.top_radius = core_rad
-			inner_cyl.bottom_radius = core_rad
+			if is_inside_tree():
+				target_reticle.global_position = target_pos
+			else:
+				target_reticle.position = target_pos
 
-		# 2. Update Target Reticle Size
-		var ring_torus := target_ring_mesh.mesh as TorusMesh
-		if ring_torus:
-			ring_torus.inner_radius = maxf(beam_radius * 0.85, 0.4)
-			ring_torus.outer_radius = maxf(beam_radius, 0.6)
+			# Update area perimeter ring and ground warning disc
+			var ring_torus := target_ring_mesh.mesh as TorusMesh
+			if ring_torus:
+				ring_torus.inner_radius = maxf(effective_radius * 0.97, 0.4)
+				ring_torus.outer_radius = effective_radius
 
-		# 3. Update Progress Feedback (alpha, emission, intensity)
-		# Faint at 0.0, intensifying monotonically to brilliant warning at 1.0
-		var corridor_alpha: float = 0.10 + progress * 0.35
-		outer_mat.albedo_color = Color(1.0, 0.45, 0.1, corridor_alpha)
+			var disc_cyl := area_disc_mesh.mesh as CylinderMesh
+			if disc_cyl:
+				disc_cyl.top_radius = effective_radius
+				disc_cyl.bottom_radius = effective_radius
+				disc_cyl.height = 0.05
 
-		var core_alpha: float = 0.40 + progress * 0.60
-		var core_emission: float = 1.5 + progress * 5.5
-		inner_mat.albedo_color = Color(1.0, 0.95, 0.6, core_alpha)
-		inner_mat.emission_energy_multiplier = core_emission
+			var disc_alpha: float = 0.08 + progress * 0.25
+			disc_mat.albedo_color = Color(1.0, 0.4, 0.1, disc_alpha)
 
-		var reticle_alpha: float = 0.35 + progress * 0.65
-		var reticle_emission: float = 1.5 + progress * 6.5
-		reticle_mat.albedo_color = Color(1.0, 0.35, 0.1, reticle_alpha)
-		reticle_mat.emission_energy_multiplier = reticle_emission
+			var reticle_alpha: float = 0.35 + progress * 0.65
+			var reticle_emission: float = 1.5 + progress * 6.5
+			reticle_mat.albedo_color = Color(1.0, 0.35, 0.1, reticle_alpha)
+			reticle_mat.emission_energy_multiplier = reticle_emission
+		else:
+			# Directional Line/Beam Geometry (e.g. Satellite Cannon)
+			beam_container.visible = true
+			area_disc_mesh.visible = false
+			target_reticle.visible = true
+
+			# 1. Update Beam Geometry (spans source to target)
+			var dist: float = source_pos.distance_to(target_pos)
+			if dist < 0.001:
+				dist = 0.001
+
+			var mid_point: Vector3 = (source_pos + target_pos) * 0.5
+			if is_inside_tree():
+				beam_container.global_position = mid_point
+				var dir_to_target: Vector3 = (target_pos - source_pos).normalized()
+				if dir_to_target.length_squared() > 0.001:
+					var up_vec: Vector3 = Vector3.UP
+					if absf(dir_to_target.dot(Vector3.UP)) > 0.99:
+						up_vec = Vector3.RIGHT
+					beam_container.look_at(target_pos, up_vec)
+				target_reticle.global_position = target_pos
+			else:
+				beam_container.position = mid_point
+				target_reticle.position = target_pos
+
+			# Update corridor dimensions
+			var outer_cyl := outer_mesh_inst.mesh as CylinderMesh
+			if outer_cyl:
+				outer_cyl.height = dist
+				outer_cyl.top_radius = beam_radius
+				outer_cyl.bottom_radius = beam_radius
+
+			var inner_cyl := inner_mesh_inst.mesh as CylinderMesh
+			if inner_cyl:
+				inner_cyl.height = dist
+				var core_rad: float = 0.12 + progress * 0.28
+				inner_cyl.top_radius = core_rad
+				inner_cyl.bottom_radius = core_rad
+
+			# 2. Update Target Reticle Size
+			var ring_torus := target_ring_mesh.mesh as TorusMesh
+			if ring_torus:
+				ring_torus.inner_radius = maxf(beam_radius * 0.85, 0.4)
+				ring_torus.outer_radius = maxf(beam_radius, 0.6)
+
+			# 3. Update Progress Feedback (alpha, emission, intensity)
+			var corridor_alpha: float = 0.10 + progress * 0.35
+			outer_mat.albedo_color = Color(1.0, 0.45, 0.1, corridor_alpha)
+
+			var core_alpha: float = 0.40 + progress * 0.60
+			var core_emission: float = 1.5 + progress * 5.5
+			inner_mat.albedo_color = Color(1.0, 0.95, 0.6, core_alpha)
+			inner_mat.emission_energy_multiplier = core_emission
+
+			var reticle_alpha: float = 0.35 + progress * 0.65
+			var reticle_emission: float = 1.5 + progress * 6.5
+			reticle_mat.albedo_color = Color(1.0, 0.35, 0.1, reticle_alpha)
+			reticle_mat.emission_energy_multiplier = reticle_emission

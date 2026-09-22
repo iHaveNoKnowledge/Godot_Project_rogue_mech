@@ -180,10 +180,13 @@ static func calc_robot_reverse_leg(phase: float) -> Dictionary:
 	return { "thigh": thigh, "shin": shin, "lift": lift }
 
 
-## Given a strafe gait phase in [0, TAU], returns { "roll": float, "shin": float, "lift": float }
+## Given a strafe gait phase in [0, TAU], returns { "roll": float, "thigh": float, "shin": float, "lift": float }
 ## for lateral side-stepping strides.
+## Strafe-RUN (not shuffle): legs scissor fore-aft (crossover steps) via "thigh"
+## while abducting via "roll", so pure sideways motion still reads as running.
 static func calc_strafe_leg(phase: float, is_outward_leg: bool) -> Dictionary:
 	var roll := 0.0
+	var thigh := 0.0
 	var shin := 0.0
 	var lift := 0.0
 
@@ -192,23 +195,27 @@ static func calc_strafe_leg(phase: float, is_outward_leg: bool) -> Dictionary:
 		norm_phase += TAU
 
 	if norm_phase < PI:
-		# Swing Phase (leg airborne, stepping out/in)
+		# Swing Phase (leg airborne, stepping out/in + driving forward for crossover)
 		var t := norm_phase / PI
 		var s := 0.5 - 0.5 * cos(t * PI)
-		var max_roll := deg_to_rad(22.0) if is_outward_leg else deg_to_rad(12.0)
+		var max_roll := deg_to_rad(32.0) if is_outward_leg else deg_to_rad(18.0)
 		roll = s * max_roll
-		shin = lerp(-deg_to_rad(10.0), -deg_to_rad(45.0), s)
-		lift = sin(t * PI) * 0.20
+		# Crossover scissor: swing leg drives forward (+28 deg) so L/R alternate
+		# fore-aft when their phases are offset by PI (same as forward run).
+		thigh = lerp(deg_to_rad(-28.0), deg_to_rad(28.0), s)
+		shin = lerp(-deg_to_rad(12.0), -deg_to_rad(60.0), s)
+		lift = sin(t * PI) * 0.24
 	else:
-		# Stance Phase (leg on ground supporting lateral shift)
+		# Stance Phase (leg on ground supporting lateral shift, pushing back)
 		var t := (norm_phase - PI) / PI
 		var s := 0.5 - 0.5 * cos(t * PI)
-		var max_roll := deg_to_rad(6.0) if is_outward_leg else deg_to_rad(2.0)
+		var max_roll := deg_to_rad(8.0) if is_outward_leg else deg_to_rad(4.0)
 		roll = lerp(max_roll, 0.0, s)
-		shin = lerp(-deg_to_rad(15.0), -deg_to_rad(6.0), s)
+		thigh = lerp(deg_to_rad(28.0), deg_to_rad(-28.0), s)
+		shin = lerp(-deg_to_rad(18.0), -deg_to_rad(8.0), s)
 		lift = 0.0
 
-	return { "roll": roll, "shin": shin, "lift": lift }
+	return { "roll": roll, "thigh": thigh, "shin": shin, "lift": lift }
 
 
 ## Drives torso bob, forward sprint lean, and lateral banking based on movement direction.
@@ -240,12 +247,15 @@ func update_bob(delta: float, mecha: CharacterBody3D, joints: Dictionary,
 			var bob: float = stomp * bob_amp
 			# Fixed forward hull lean (heavy mech charging, drives into the run)
 			# + strafe bank kept so directional tests still read correctly.
+			# Strafe-run drive: even pure sideways motion leans forward into the
+			# sprint (crossover run) and banks harder, otherwise it reads as a hover.
 			var target_pitch: float
 			if fwd_ratio >= 0.0:
 				target_pitch = -lerpf(deg_to_rad(16.0), deg_to_rad(26.0), speed_norm) * fwd_ratio
 			else:
 				target_pitch = lerpf(deg_to_rad(8.0), deg_to_rad(12.0), speed_norm) * (-fwd_ratio)
-			var target_bank := -deg_to_rad(6.0) * side_ratio
+			target_pitch += -lerpf(deg_to_rad(6.0), deg_to_rad(14.0), speed_norm) * absf(side_ratio)
+			var target_bank := (-deg_to_rad(6.0) * side_ratio) + (-deg_to_rad(4.0) * side_ratio * speed_norm)
 			# Deep fixed crouch (weighty mech), no flight-phase dip sway.
 			var crouch := -(0.06 + 0.05 * speed_norm)
 			if body_mesh:
@@ -385,6 +395,11 @@ func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary) -> vo
 	# Lateral roll: side_ratio already gives sign, roll is magnitude (outward leg larger)
 	var lateral_l: float = side_ratio * float(strafe_left["roll"])
 	var lateral_r: float = side_ratio * float(strafe_right["roll"])
+	# Strafe-run crossover: fore-aft scissor from the strafe cycle so pure
+	# sideways motion still strides instead of shuffling. Left/right phases are
+	# offset by PI, so the two thighs alternate like a run.
+	var strafe_thigh_l: float = float(strafe_left.get("thigh", 0.0))
+	var strafe_thigh_r: float = float(strafe_right.get("thigh", 0.0))
 	var lat_shin_l: float = float(strafe_left["shin"])
 	var lat_shin_r: float = float(strafe_right["shin"])
 	var lat_lift_l: float = float(strafe_left["lift"])
@@ -399,8 +414,8 @@ func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary) -> vo
 	var stride_amp := clampf(speed / 6.0, 0.55, 1.0)
 	if robotic_gait:
 		stride_amp *= 0.8
-	var target_pitch_l: float = pitch_l * stride_amp
-	var target_pitch_r: float = pitch_r * stride_amp
+	var target_pitch_l: float = pitch_l * stride_amp + strafe_thigh_l * side_norm * stride_amp
+	var target_pitch_r: float = pitch_r * stride_amp + strafe_thigh_r * side_norm * stride_amp
 	var target_shin_l: float = long_shin_l * long_norm + lat_shin_l * side_norm
 	var target_shin_r: float = long_shin_r * long_norm + lat_shin_r * side_norm
 	var total_lift_l: float = long_lift_l * long_norm + lat_lift_l * side_norm
@@ -476,11 +491,20 @@ func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary) -> vo
 		# system (_update_aim_arms) still overrides when firing.
 		var swing_l := clampf(-target_pitch_l * 0.75, deg_to_rad(-40.0), deg_to_rad(40.0))
 		var swing_r := clampf(-target_pitch_r * 0.75, deg_to_rad(-40.0), deg_to_rad(40.0))
+		# Strafe-run arm drive: in pure strafe the sagittal swing above comes
+		# from the crossover cycle, but add a lateral counter-pump so the arms
+		# visibly work against the sideways stride instead of hanging.
+		var strafe_pump_l := -lateral_l * 0.9
+		var strafe_pump_r := -lateral_r * 0.9
+		swing_l = clampf(swing_l + strafe_pump_l, deg_to_rad(-45.0), deg_to_rad(45.0))
+		swing_r = clampf(swing_r + strafe_pump_r, deg_to_rad(-45.0), deg_to_rad(45.0))
+		var arm_roll_l := -side_ratio * deg_to_rad(10.0)
+		var arm_roll_r := -side_ratio * deg_to_rad(10.0)
 		var piston_elbow := deg_to_rad(35.0)
 		if arm_left:
 			arm_left.rotation.x = lerp_angle(arm_left.rotation.x, swing_l, 14.0 * delta)
 			arm_left.rotation.y = lerp_angle(arm_left.rotation.y, 0.0, 14.0 * delta)
-			arm_left.rotation.z = lerp_angle(arm_left.rotation.z, 0.0, 14.0 * delta)
+			arm_left.rotation.z = lerp_angle(arm_left.rotation.z, arm_roll_l, 14.0 * delta)
 			if forearm_left:
 				forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, piston_elbow, 14.0 * delta)
 				forearm_left.rotation.y = lerp_angle(forearm_left.rotation.y, 0.0, 14.0 * delta)
@@ -488,7 +512,7 @@ func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary) -> vo
 		if arm_right:
 			arm_right.rotation.x = lerp_angle(arm_right.rotation.x, swing_r, 14.0 * delta)
 			arm_right.rotation.y = lerp_angle(arm_right.rotation.y, 0.0, 14.0 * delta)
-			arm_right.rotation.z = lerp_angle(arm_right.rotation.z, 0.0, 14.0 * delta)
+			arm_right.rotation.z = lerp_angle(arm_right.rotation.z, arm_roll_r, 14.0 * delta)
 			if forearm_right:
 				forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, piston_elbow, 14.0 * delta)
 				forearm_right.rotation.y = lerp_angle(forearm_right.rotation.y, 0.0, 14.0 * delta)

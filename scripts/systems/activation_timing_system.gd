@@ -164,6 +164,8 @@ func get_telegraph_descriptor() -> Dictionary:
 		var range_dist: float = float(area_params.get("range", 50.0))
 		var norm_dir: Vector3 = direction.normalized() if direction.length_squared() > 0.0001 else Vector3.FORWARD
 		target_pos = origin + norm_dir * range_dist
+	elif targeting_mode == "area_radius" or area_shape in ["sphere", "circle", "cylinder"]:
+		target_pos = origin
 	elif context.has("targets") and context["targets"] is Array and not context["targets"].is_empty():
 		var first_target = context["targets"][0]
 		if first_target is Node3D and is_instance_valid(first_target) and first_target.is_inside_tree():

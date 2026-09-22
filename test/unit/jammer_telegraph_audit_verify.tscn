@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://jammertg01auditverify"]
+
+[ext_resource type="Script" path="res://test/unit/jammer_telegraph_audit_verify.gd" id="1_test"]
+
+[node name="JammerTelegraphAuditVerify" type="Node3D"]
+script = ExtResource("1_test")

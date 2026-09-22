@@ -35,7 +35,7 @@ func _ready() -> void:
 	_check(anim != null, "MechaAnimation exists")
 	_check(anim != null and anim.get("clip_retarget") != null, "ClipRetarget attached")
 	var retarget = anim.get("clip_retarget") if anim != null else null
-	_check(retarget != null and retarget.has_clip(MechaRig.CLIP_AI_RUN), "ai_run clip live on mech")
+	_check(retarget != null and retarget.has_clip(MechaRig.CLIP_RUN), "run clip live on mech")
 
 	# Bare inner frames (procedural) so pivots exist with real child meshes.
 	var pmm = mecha.get_node_or_null("PartMeshManager")

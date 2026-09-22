@@ -163,7 +163,7 @@ func _update_clip_animation(delta: float) -> void:
 	if not _walk.is_moving or clip_retarget == null:
 		_run_procedural(delta)
 		return
-	# AI-generated clip wins when present, hand-authored run is the fallback.
+	# Hand-authored run is primary; an AI clip wins when present.
 	var clip_name := MechaRig.CLIP_RUN
 	if clip_retarget.has_clip(MechaRig.CLIP_AI_RUN):
 		clip_name = MechaRig.CLIP_AI_RUN

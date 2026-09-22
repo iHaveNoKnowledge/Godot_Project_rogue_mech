@@ -113,8 +113,9 @@ func set_stance_mode(mode: String) -> void:
 # scenes/mecha/animations/innerframe_run_cycle_clean.glb) drives the modular
 # pivots during grounded locomotion instead of the procedural gait. Armor
 # destruction keeps working (meshes hide, pivots carry on). Every other
-# state — idle, airborne, dash, kneel, core breach — stays procedural, and a
-# missing clip falls back to procedural, so the flag never freezes a mech.
+# state — idle, sustained airtime, dash, kneel, core breach — stays
+# procedural, and a missing clip falls back to procedural, so the flag
+# never freezes a mech.
 @export var use_clip_animation: bool = true
 
 func _physics_process(delta: float) -> void:
@@ -131,10 +132,24 @@ func _physics_process(delta: float) -> void:
 # (legs, arms, torso, hip bob); aim/shield overlays still apply on top so
 # guns and guard poses keep tracking. FootIK is skipped while the clip
 # drives — the cycle carries baked feet and IK would fight it.
+# Airborne grace: dune bumps and hover flicker is_on_floor for a few frames.
+# Without a grace period the run snaps to the static fall posture mid-stride
+# (frozen pose + sliding). Only sustained airtime hands over to procedural.
+var _clip_air_time: float = 0.0
+const CLIP_AIR_GRACE: float = 0.3
+
 func _update_clip_animation(delta: float) -> void:
 	# Special states own their whole posture: never let the run cycle
-	# override kneel, death, airtime or dash postures.
-	if is_kneeling or is_core_breach or not mecha.is_on_floor():
+	# override kneel, death or dash postures.
+	if is_kneeling or is_core_breach:
+		_clip_air_time = 0.0
+		_run_procedural(delta)
+		return
+	if mecha.is_on_floor():
+		_clip_air_time = 0.0
+	else:
+		_clip_air_time += delta
+	if _clip_air_time >= CLIP_AIR_GRACE:
 		_run_procedural(delta)
 		return
 	if mecha.get("is_roller_dashing") == true:

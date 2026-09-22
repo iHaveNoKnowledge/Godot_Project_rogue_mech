@@ -69,6 +69,16 @@ func _ready() -> void:
 		after.append(leg.rotation.x)
 	_check(_range_of(after) > deg_to_rad(5.0), "leg keeps moving after arm destroyed (range=%.1f deg)" % rad_to_deg(_range_of(after)))
 
+	# Dune bump: brief airtime (< grace) must NOT snap to the static fall
+	# pose — the run clip carries over the bump.
+	mecha.position.y += 1.5
+	mecha.velocity = Vector3(0, 1.0, -6.0)
+	var bump: Array = []
+	for i in range(10):
+		await get_tree().physics_frame
+		bump.append(leg.rotation.x)
+	_check(_range_of(bump) > deg_to_rad(3.0), "run survives brief airtime (range=%.1f deg)" % rad_to_deg(_range_of(bump)))
+
 	print("CLIP_INGAME_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	if _fails > 0:
 		printerr("CLIP_INGAME_VERIFY_FAILED")

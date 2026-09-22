@@ -39,6 +39,7 @@ const TARGETING_AREA_RADIUS := "area_radius"
 const TARGETING_BEAM_LINE := "beam_line"
 const TARGETING_SWEEP_CONE := "sweep_cone"
 const TARGETING_MAP_SECTOR := "map_sector"
+const TARGETING_BALLISTIC_IMPACT := "ballistic_impact"
 
 # Canonical Area Geometry Shapes
 const SHAPE_SPHERE := "sphere"
@@ -46,6 +47,7 @@ const SHAPE_CYLINDER := "cylinder"
 const SHAPE_BOX := "box"
 const SHAPE_CONE := "cone"
 const SHAPE_LINE := "line"
+const SHAPE_TRAJECTORY := "trajectory"
 
 
 # =============================================================================
@@ -123,6 +125,8 @@ static func resolve_special_capability(weapon_or_data: Variant) -> Dictionary:
 			area_shape = SHAPE_LINE
 		elif targeting_mode == TARGETING_SWEEP_CONE:
 			area_shape = SHAPE_CONE
+		elif targeting_mode == TARGETING_BALLISTIC_IMPACT:
+			area_shape = SHAPE_TRAJECTORY
 
 	return {
 		"has_capability": true,
@@ -281,6 +285,11 @@ static func resolve_affected_targets(targeting_mode: String, origin: Vector3, di
 				else:
 					var sec_radius := float(area_params.get("radius", 500.0))
 					is_inside = origin.distance_to(target_pos) <= sec_radius
+
+			TARGETING_BALLISTIC_IMPACT:
+				var impact_pt: Vector3 = area_params.get("impact_position", area_params.get("target_position", origin + norm_dir * float(area_params.get("range", 50.0))))
+				var exp_radius := float(area_params.get("radius", area_params.get("explosion_radius", 10.0)))
+				is_inside = impact_pt.distance_to(target_pos) <= exp_radius
 
 			TARGETING_POINT, _:
 				var point_radius := float(area_params.get("radius", 2.0))

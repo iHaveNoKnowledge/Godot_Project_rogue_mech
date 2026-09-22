@@ -125,6 +125,9 @@ class TelegraphVisualInstance extends Node3D:
 	var cone_container: Node3D
 	var cone_sector_mesh: MeshInstance3D
 	var cone_border_mesh: MeshInstance3D
+	var trajectory_container: Node3D
+	var trajectory_arc_mesh: MeshInstance3D
+	var trajectory_marker_mesh: MeshInstance3D
 
 	# Materials
 	var outer_mat: StandardMaterial3D
@@ -133,10 +136,15 @@ class TelegraphVisualInstance extends Node3D:
 	var disc_mat: StandardMaterial3D
 	var cone_mat: StandardMaterial3D
 	var cone_border_mat: StandardMaterial3D
+	var trajectory_mat: StandardMaterial3D
+	var tracer_mat: StandardMaterial3D
 
 	# Geometry Caches
 	var _cached_cone_range: float = -1.0
 	var _cached_cone_angle: float = -1.0
+	var _cached_traj_source: Vector3 = Vector3(INF, INF, INF)
+	var _cached_traj_target: Vector3 = Vector3(INF, INF, INF)
+	var _cached_traj_height: float = -1.0
 
 	func _init(desc: Dictionary) -> void:
 		name = "TelegraphInstance_" + str(desc.get("session_id", "anon"))
@@ -262,6 +270,62 @@ class TelegraphVisualInstance extends Node3D:
 		cone_border_mesh.material_override = cone_border_mat
 		cone_container.add_child(cone_border_mesh)
 
+		# Trajectory / Ballistic Arc Indicator
+		trajectory_container = Node3D.new()
+		trajectory_container.name = "TrajectoryContainer"
+		trajectory_container.visible = false
+		add_child(trajectory_container)
+
+		trajectory_arc_mesh = MeshInstance3D.new()
+		trajectory_arc_mesh.name = "TrajectoryArc"
+		trajectory_mat = StandardMaterial3D.new()
+		trajectory_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		trajectory_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		trajectory_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		trajectory_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		trajectory_mat.albedo_color = Color(1.0, 0.65, 0.2, 0.4)
+		trajectory_mat.emission_enabled = true
+		trajectory_mat.emission = Color(1.0, 0.5, 0.1)
+		trajectory_mat.emission_energy_multiplier = 2.0
+		trajectory_arc_mesh.material_override = trajectory_mat
+		trajectory_container.add_child(trajectory_arc_mesh)
+
+		trajectory_marker_mesh = MeshInstance3D.new()
+		trajectory_marker_mesh.name = "TrajectoryTracer"
+		var marker_sphere = SphereMesh.new()
+		marker_sphere.radius = 0.25
+		marker_sphere.height = 0.5
+		trajectory_marker_mesh.mesh = marker_sphere
+		tracer_mat = StandardMaterial3D.new()
+		tracer_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		tracer_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		tracer_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		tracer_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		tracer_mat.albedo_color = Color(1.0, 0.95, 0.6, 0.8)
+		tracer_mat.emission_enabled = true
+		tracer_mat.emission = Color(1.0, 0.8, 0.2)
+		tracer_mat.emission_energy_multiplier = 3.0
+		trajectory_marker_mesh.material_override = tracer_mat
+		trajectory_container.add_child(trajectory_marker_mesh)
+
+	## Generates procedural ballistic trajectory arc line from source to target.
+	func _build_trajectory_mesh(src: Vector3, dst: Vector3, arc_height: float) -> void:
+		_cached_traj_source = src
+		_cached_traj_target = dst
+		_cached_traj_height = arc_height
+
+		var segments: int = 32
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_LINE_STRIP)
+
+		for i in range(segments + 1):
+			var t: float = float(i) / float(segments)
+			var pt: Vector3 = src.lerp(dst, t)
+			pt.y += 4.0 * arc_height * t * (1.0 - t)
+			st.add_vertex(pt)
+
+		trajectory_arc_mesh.mesh = st.commit()
+
 	## Generates procedural sector fan and border lines for cone geometry.
 	func _build_cone_mesh(range_dist: float, angle_deg: float) -> void:
 		_cached_cone_range = range_dist
@@ -326,14 +390,70 @@ class TelegraphVisualInstance extends Node3D:
 		var area_shape: String = str(desc.get("area_shape", "")).to_lower()
 		var targeting_mode: String = str(desc.get("targeting_mode", "")).to_lower()
 
-		var is_cone: bool = (geom_type in ["cone", "sector", "wedge"] or targeting_mode in ["sweep_cone", "cone", "sector"] or area_shape in ["cone", "sector", "wedge"])
-		var is_area: bool = not is_cone and (geom_type in ["sphere", "circle", "cylinder", "area"] or targeting_mode in ["area_radius", "area", "radius"] or area_shape in ["sphere", "circle", "cylinder"])
+		var is_trajectory: bool = (geom_type in ["trajectory", "ballistic", "arc", "mortar", "artillery"] or targeting_mode in ["trajectory", "ballistic", "ballistic_impact", "mortar"] or area_shape in ["trajectory", "ballistic", "arc"])
+		var is_cone: bool = not is_trajectory and (geom_type in ["cone", "sector", "wedge"] or targeting_mode in ["sweep_cone", "cone", "sector"] or area_shape in ["cone", "sector", "wedge"])
+		var is_area: bool = not is_trajectory and not is_cone and (geom_type in ["sphere", "circle", "cylinder", "area"] or targeting_mode in ["area_radius", "area", "radius"] or area_shape in ["sphere", "circle", "cylinder"])
 
 		var area_params: Dictionary = desc.get("area_parameters", {})
 
-		if is_cone:
+		if is_trajectory:
+			# Ballistic Trajectory / Parabolic Arc Geometry (e.g. Mortar, artillery, ballistic strike)
+			beam_container.visible = false
+			cone_container.visible = false
+			trajectory_container.visible = true
+			area_disc_mesh.visible = true
+			target_ring_mesh.visible = true
+			target_reticle.visible = true
+
+			var effective_radius: float = float(area_params.get("radius", area_params.get("impact_radius", 8.0)))
+			var arc_height: float = float(area_params.get("arc_height", area_params.get("height", 15.0)))
+
+			# Rebuild trajectory arc mesh if coordinates or arc height changed
+			if _cached_traj_source.distance_squared_to(source_pos) > 0.01 or _cached_traj_target.distance_squared_to(target_pos) > 0.01 or absf(_cached_traj_height - arc_height) > 0.01:
+				_build_trajectory_mesh(source_pos, target_pos, arc_height)
+
+			# Position tracer along the parabolic arc based directly on authoritative progress
+			var tracer_pos: Vector3 = source_pos.lerp(target_pos, progress)
+			tracer_pos.y += 4.0 * arc_height * progress * (1.0 - progress)
+
+			if is_inside_tree():
+				target_reticle.global_position = target_pos
+				trajectory_marker_mesh.global_position = tracer_pos
+			else:
+				target_reticle.position = target_pos
+				trajectory_marker_mesh.position = tracer_pos
+
+			# Update target impact danger disc and ring
+			var ring_torus := target_ring_mesh.mesh as TorusMesh
+			if ring_torus:
+				ring_torus.inner_radius = maxf(effective_radius * 0.95, 0.4)
+				ring_torus.outer_radius = effective_radius
+
+			var disc_cyl := area_disc_mesh.mesh as CylinderMesh
+			if disc_cyl:
+				disc_cyl.top_radius = effective_radius
+				disc_cyl.bottom_radius = effective_radius
+				disc_cyl.height = 0.05
+
+			var traj_alpha: float = 0.25 + progress * 0.50
+			var traj_emission: float = 1.0 + progress * 4.0
+			trajectory_mat.albedo_color = Color(1.0, 0.65, 0.2, traj_alpha)
+			trajectory_mat.emission_energy_multiplier = traj_emission
+
+			var tracer_emission: float = 2.0 + progress * 6.0
+			tracer_mat.emission_energy_multiplier = tracer_emission
+
+			var disc_alpha: float = 0.08 + progress * 0.30
+			disc_mat.albedo_color = Color(1.0, 0.35, 0.1, disc_alpha)
+
+			var reticle_alpha: float = 0.35 + progress * 0.65
+			var reticle_emission: float = 1.5 + progress * 6.5
+			reticle_mat.albedo_color = Color(1.0, 0.35, 0.1, reticle_alpha)
+			reticle_mat.emission_energy_multiplier = reticle_emission
+		elif is_cone:
 			# Directional Cone / Sector Geometry (e.g. EMP sweep, shockwave, flamethrower)
 			beam_container.visible = false
+			trajectory_container.visible = false
 			area_disc_mesh.visible = false
 			target_ring_mesh.visible = false
 			target_reticle.visible = true
@@ -375,6 +495,7 @@ class TelegraphVisualInstance extends Node3D:
 			# Area Geometry (e.g. Jammer, radial pulse, shockwave)
 			beam_container.visible = false
 			cone_container.visible = false
+			trajectory_container.visible = false
 			area_disc_mesh.visible = true
 			target_ring_mesh.visible = true
 			target_reticle.visible = true
@@ -412,6 +533,7 @@ class TelegraphVisualInstance extends Node3D:
 			area_disc_mesh.visible = false
 			target_ring_mesh.visible = true
 			cone_container.visible = false
+			trajectory_container.visible = false
 			target_reticle.visible = true
 
 			var width: float = float(area_params.get("width", area_params.get("beam_radius", 12.0)))

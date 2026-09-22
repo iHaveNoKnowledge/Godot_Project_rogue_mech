@@ -22,6 +22,7 @@ var foot_ik: MechaFootIK = null
 
 var _walk: MechaWalkingSystem = null
 var action_animator: MechaActionAnimator = null
+var clip_retarget: MechaClipRetarget = null
 var air_timer: float = 0.0
 var current_recoil: float = 0.0
 var landing_impact: float = 0.0
@@ -54,6 +55,9 @@ func _ready() -> void:
 	action_animator = MechaActionAnimator.new()
 	action_animator.name = "ActionAnimator"
 	add_child(action_animator)
+	clip_retarget = MechaClipRetarget.new()
+	clip_retarget.name = "ClipRetarget"
+	add_child(clip_retarget)
 	_refresh_node_refs()
 	EventBus.mecha_occupancy_changed.connect(_on_occupancy_changed)
 # Resolves the mech's part-slot nodes. Called on _ready AND lazily whenever a
@@ -105,11 +109,13 @@ func set_stance_mode(mode: String) -> void:
 	stance_mode = mode
 	if is_inside_tree() and mecha and mecha.is_in_group("player") and "selected_stance_mode" in GlobalData:
 		GlobalData.selected_stance_mode = mode
-# When true the AnimationPlayer (MechaRig.ANIM_PLAYER_NODE) drives the mech
-# from external clips instead of the procedural pose. Stays false until skinned
-# parts + animation assets exist; flipping it early safely falls back to
-# procedural until the first clip is present.
-@export var use_clip_animation: bool = false
+# When true the cleaned inner-frame clip (MechaClipRetarget, sourced from
+# scenes/mecha/animations/innerframe_run_cycle_clean.glb) drives the modular
+# pivots during grounded locomotion instead of the procedural gait. Armor
+# destruction keeps working (meshes hide, pivots carry on). Every other
+# state — idle, airborne, dash, kneel, core breach — stays procedural, and a
+# missing clip falls back to procedural, so the flag never freezes a mech.
+@export var use_clip_animation: bool = true
 
 func _physics_process(delta: float) -> void:
 	if mecha == null:
@@ -121,29 +127,36 @@ func _physics_process(delta: float) -> void:
 		return
 
 	_run_procedural(delta)
-# Clip-driven entry point. Once external animation lands, this becomes the
-# state machine that plays/queues the MechaRig.CLIP_* clips (idle, run, jump,
-# kneel, core breach, shield, recoil...). Until clips exist it hands the frame
-# back to the procedural pose so the flag never freezes a mech.
+# Clip-driven entry point. The retargeted run clip owns grounded locomotion
+# (legs, arms, torso, hip bob); aim/shield overlays still apply on top so
+# guns and guard poses keep tracking. FootIK is skipped while the clip
+# drives — the cycle carries baked feet and IK would fight it.
 func _update_clip_animation(delta: float) -> void:
-	var anim_player = mecha.get_node_or_null(MechaRig.ANIM_PLAYER_NODE) as AnimationPlayer
-	if anim_player == null or anim_player.get_animation_list().is_empty():
+	# Special states own their whole posture: never let the run cycle
+	# override kneel, death, airtime or dash postures.
+	if is_kneeling or is_core_breach or not mecha.is_on_floor():
 		_run_procedural(delta)
 		return
-	# Clip exists: let AnimationPlayer drive the Rig, then post-process aim so FBX arms point forward (not splayed)
-	# This fixes FBX generic rig (Mech_00) that has splayed shoot pose — same logic as procedural
+	if mecha.get("is_roller_dashing") == true:
+		_run_procedural(delta)
+		return
+	var ds = mecha.get_node_or_null("DashSystem")
+	if ds != null and ds.get("is_dashing") == true:
+		_run_procedural(delta)
+		return
+	_walk.is_moving = mecha.velocity.length() > 0.8
+	if not _walk.is_moving or clip_retarget == null or not clip_retarget.has_clip(MechaRig.CLIP_RUN):
+		_run_procedural(delta)
+		return
+	clip_retarget.play_clip(MechaRig.CLIP_RUN)
 	_update_recoil(delta)
-	var is_on_ground = mecha.is_on_floor()
-	_walk.is_moving = is_on_ground and mecha.velocity.length() > 0.8
-	# Keep bob/legs from procedural for FBX as well (so walk/run still syncs with speed)
-	_update_bob(delta)
-	_update_legs(delta)
+	var joints := _build_joints_dict()
+	clip_retarget.advance_and_apply(delta, joints, _original_body_pos.y)
 	_update_aim_arms(delta)
 	_update_shield_arm(delta)
-	if foot_ik:
-		foot_ik.update_ik(delta)
-	# Also fix any imported FBX Skeleton3D under MechaBase (e.g., Mech_00) that has different bone names
-	_fix_fbx_skeleton_aim()
+	if action_animator:
+		action_animator.update(delta)
+		action_animator.apply_to_joints(joints)
 func _run_procedural(delta: float) -> void:
 	# The death (core-breach) collapse takes precedence over every other pose:
 	# the machine is down and no longer responding to pilot/movement input.

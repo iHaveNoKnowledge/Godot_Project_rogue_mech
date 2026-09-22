@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://ctveiw81m17to"]
+
+[ext_resource type="Script" path="res://test/unit/projectile_ballistics_impact_semantics_audit_verify.gd" id="1_test"]
+
+[node name="ProjectileBallisticsImpactSemanticsAuditVerify" type="Node"]
+script = ExtResource("1_test")

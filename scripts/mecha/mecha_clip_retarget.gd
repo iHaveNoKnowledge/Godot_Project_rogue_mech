@@ -51,6 +51,14 @@ const HINGE_JOINTS: Dictionary = {
 	"foot_left": [MechaRig.BONE_SHIN_L, MechaRig.BONE_FOOT_L],
 	"foot_right": [MechaRig.BONE_SHIN_R, MechaRig.BONE_FOOT_R],
 }
+# Stride emphasis: the 2.3m legs top out near a 2.9m stride, which reads
+# as shuffling at 6-7 m/s cruise. A mild swing boost lengthens each step so
+# cadence can stay lower; clamps keep knees from hyperextending and feet
+# near the ground (no IK runs under the clip to fix them).
+const THIGH_BOOST := 1.15
+const THIGH_MAX := 1.40 # ~80 deg
+const SHIN_BOOST := 1.1
+const SHIN_MIN := -2.18 # ~-125 deg
 # Segment endpoints for swing measurement (bone -> its distal joint bone).
 const SEGMENT_CHILD: Dictionary = {
 	MechaRig.BONE_UPPER_ARM_L: MechaRig.BONE_LOWER_ARM_L,
@@ -173,10 +181,10 @@ func _apply_pose(joints: Dictionary, body_base_y: float) -> void:
 		if child == "":
 			continue
 		var swing := wrapf(_segment_pitch(_pose_dir(bone, child)) - float(_rest_pitch.get(bone, 0.0)), -PI, PI)
-		if bone == MechaRig.BONE_TORSO:
-			pivot.rotation.x = swing
-		else:
-			pivot.rotation.x = swing
+		if bone == MechaRig.BONE_THIGH_L or bone == MechaRig.BONE_THIGH_R:
+			swing = clampf(swing * THIGH_BOOST, -THIGH_MAX, THIGH_MAX)
+		pivot.rotation.x = swing
+		if bone != MechaRig.BONE_TORSO:
 			pivot.rotation.y = 0.0
 			pivot.rotation.z = 0.0
 	# Hinge flexion (elbow/knee/ankle, rest-relative).
@@ -186,7 +194,10 @@ func _apply_pose(joints: Dictionary, body_base_y: float) -> void:
 			continue
 		var pair: Array = HINGE_JOINTS[key]
 		var flex_now := _hinge_angle(_pose_dir(pair[0], pair[1]), pair[0], pair[1], false)
-		pivot.rotation.x = wrapf(flex_now - float(_rest_flex.get(key, 0.0)), -PI, PI)
+		var flex := wrapf(flex_now - float(_rest_flex.get(key, 0.0)), -PI, PI)
+		if key == "shin_left" or key == "shin_right":
+			flex = maxf(flex * SHIN_BOOST, SHIN_MIN)
+		pivot.rotation.x = flex
 	# Hip bob onto the body (delta only; skeleton is already at game scale).
 	var body: Node3D = joints.get("body")
 	if body != null:

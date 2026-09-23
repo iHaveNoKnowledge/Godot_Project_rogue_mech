@@ -406,3 +406,76 @@ static func record_pilot_permadeath(pilot_name: String, cause: String = "Killed 
 	var replacement := PilotGenerator.generate_replacement_pilot(pilot_name)
 	return replacement
 
+
+# --- Combat Pilot Progression (Phase 2E-16A Foundation) --------------------
+
+static func get_progression() -> Dictionary:
+	if GlobalData and GlobalData.pilot:
+		return GlobalData.pilot.progression.duplicate(true)
+	return {
+		"level": 1,
+		"xp": 0,
+		"skill_points": 0,
+		"unlocked_skills": [],
+		"specialization": ""
+	}
+
+
+static func get_pilot_level() -> int:
+	return int(get_progression().get("level", 1))
+
+
+static func get_pilot_xp() -> int:
+	return int(get_progression().get("xp", 0))
+
+
+static func get_skill_points() -> int:
+	return int(get_progression().get("skill_points", 0))
+
+
+static func get_unlocked_skills() -> Array:
+	return Array(get_progression().get("unlocked_skills", [])).duplicate()
+
+
+static func get_specialization() -> String:
+	return str(get_progression().get("specialization", ""))
+
+
+static func serialize_progression() -> Dictionary:
+	return get_progression()
+
+
+static func deserialize_progression(data: Variant) -> void:
+	if GlobalData == null or GlobalData.pilot == null:
+		return
+	if data is Dictionary:
+		GlobalData.pilot.progression = {
+			"level": int(data.get("level", 1)),
+			"xp": int(data.get("xp", 0)),
+			"skill_points": int(data.get("skill_points", 0)),
+			"unlocked_skills": Array(data.get("unlocked_skills", [])).duplicate(),
+			"specialization": str(data.get("specialization", ""))
+		}
+	else:
+		GlobalData.pilot.progression = {
+			"level": 1,
+			"xp": 0,
+			"skill_points": 0,
+			"unlocked_skills": [],
+			"specialization": ""
+		}
+
+
+## Checks whether the convoy/player pilot possesses a specific pilot perk.
+## Evaluates hired pilots and signature character affiliations without leaking into NarrativeState.
+static func has_pilot_perk(perk_id: String, hired_pilots: Array = [], recruited_characters: Array = []) -> bool:
+	var pilots: Array = hired_pilots if not hired_pilots.is_empty() else (GlobalData.pilot.hired_pilots if (GlobalData != null and GlobalData.pilot != null) else [])
+	var recruits: Array = recruited_characters if not recruited_characters.is_empty() else (GlobalData.hangar.recruited_characters if (GlobalData != null and GlobalData.hangar != null) else [])
+	for pilot in pilots:
+		if pilot is Dictionary and str(pilot.get("perk_id", "")) == perk_id:
+			return true
+	for cid in recruits:
+		if cid == "vagrant_ace" and perk_id == "precognitive_flow":
+			return true
+	return false
+

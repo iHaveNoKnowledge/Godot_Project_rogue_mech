@@ -33,6 +33,15 @@ var rival_pilots: Array = []
 var defeated_rivals: Array = []
 var active_combat_commander: Dictionary = {}
 
+# --- Combat Pilot Progression (Phase 2E-16A) ---
+var progression: Dictionary = {
+	"level": 1,
+	"xp": 0,
+	"skill_points": 0,
+	"unlocked_skills": [],
+	"specialization": ""
+}
+
 
 func reset() -> void:
 	pilot_hp = PilotSystem.PILOT_MAX_HP_DEFAULT
@@ -45,3 +54,10 @@ func reset() -> void:
 	rival_pilots.clear()
 	defeated_rivals.clear()
 	active_combat_commander.clear()
+	progression = {
+		"level": 1,
+		"xp": 0,
+		"skill_points": 0,
+		"unlocked_skills": [],
+		"specialization": ""
+	}

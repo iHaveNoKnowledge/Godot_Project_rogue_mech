@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://e16apilotfound01"]
+
+[ext_resource type="Script" path="res://test/unit/phase_2e_16a_pilot_foundation_verify.gd" id="1_test"]
+
+[node name="Phase2E16APilotFoundationVerify" type="Node"]
+script = ExtResource("1_test")

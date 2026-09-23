@@ -113,6 +113,7 @@ static func save_run() -> void:
 		"pilot_weapons": GlobalData.pilot.pilot_weapons.duplicate(),
 		"pilot_ammo": GlobalData.pilot.pilot_ammo.duplicate(),
 		"pilot_items": GlobalData.pilot.pilot_items.duplicate(),
+		"pilot_progression": PilotSystem.serialize_progression(),
 		"technology_discovery": TechnologySystem.serialize_discovery_states(),
 		"world_technology_diffusion": TechnologySystem.serialize_world_diffusion_state(),
 		"era_progression": EraProgressionSystem.serialize_era_state(),
@@ -335,6 +336,9 @@ static func restore_from_dict(data: Dictionary) -> void:
 	GlobalData.pilot.pilot_items = {}
 	if loaded_pilot_items is Dictionary:
 		GlobalData.pilot.pilot_items = loaded_pilot_items.duplicate()
+
+	var loaded_pilot_progression = data.get("pilot_progression", {})
+	PilotSystem.deserialize_progression(loaded_pilot_progression)
 
 	var loaded_roster = data.get("fleet_roster", [])
 	if loaded_roster is Array:

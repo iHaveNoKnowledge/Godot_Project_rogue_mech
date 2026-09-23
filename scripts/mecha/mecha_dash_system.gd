@@ -1,6 +1,7 @@
 extends Node
 
 const _PCS = preload("res://scripts/systems/power_core_system.gd")
+const _CMR = preload("res://scripts/systems/combat_modifier_resolver.gd")
 
 ## ---------------------------------------------------------------------------
 ## MECHA DASH SYSTEM — short-pulse dash, Flash Burn (spam penalty), and
@@ -94,7 +95,7 @@ func start_dash(energy: float, global_pos: Vector3, global_rot: Basis) -> float:
 	if dash_direction.length() < 0.1:
 		dash_direction = -Transform3D(Basis(Vector3.UP, global_rot.get_euler().y), Vector3.ZERO).basis.z
 
-	var has_precog := GlobalData.narrative.has_pilot_perk("precognitive_flow")
+	var has_precog := _CMR.has_pilot_perk("precognitive_flow")
 	var is_flash_burn := false
 	if not has_precog and _dash_spam_window > 0.0:
 		_dash_spam_count += 1
@@ -104,7 +105,8 @@ func start_dash(energy: float, global_pos: Vector3, global_rot: Basis) -> float:
 
 	_dash_spam_window = SPAM_DASH_WINDOW
 
-	var base_cost := DASH_ENERGY_COST * (0.5 if has_precog else 1.0)
+	var pilot_energy_mult := _CMR.resolve_dash_energy_multiplier()
+	var base_cost := DASH_ENERGY_COST * pilot_energy_mult
 	var actual_cost: float = base_cost * (1.0 + float(_dash_spam_count - 1) * SPAM_DASH_ENERGY_PENALTY_MULT)
 	# GDD §4.3: Power Core class modifies dash speed
 	var core_dash_mult = _PCS.dash_speed_multiplier()
@@ -118,7 +120,8 @@ func start_dash(energy: float, global_pos: Vector3, global_rot: Basis) -> float:
 	dash_timer = dash_duration
 
 	_dash_start_pos = global_pos
-	_precision_window = PRECISION_WINDOW * (1.5 if has_precog else 1.0)
+	var precision_mult := _CMR.resolve_dash_precision_window_multiplier()
+	_precision_window = PRECISION_WINDOW * precision_mult
 	_precision_armed = true
 	_precision_dodged = false
 

@@ -18,6 +18,7 @@ extends RefCounted
 static func begin_combat_stats() -> void:
 	GlobalData._combat_friendly_damage = 0.0
 	GlobalData._combat_friendly_total_hp = 0.0
+	GlobalData._combat_xp_awarded = false
 	var scene = GlobalData.get_tree().current_scene
 	if scene == null:
 		return
@@ -38,6 +39,7 @@ static func begin_combat_stats() -> void:
 static func set_combat_hp_snapshot(total_hp: float) -> void:
 	GlobalData._combat_friendly_total_hp = maxf(total_hp, 0.0)
 	GlobalData._combat_friendly_damage = 0.0
+	GlobalData._combat_xp_awarded = false
 
 
 static func get_combat_friendly_total_hp() -> float:

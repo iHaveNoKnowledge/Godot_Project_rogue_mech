@@ -63,6 +63,8 @@ var manual_reload: bool = false
 ## Onboard fabricator trickle (rounds/sec into the magazine, 0 = off).
 var ammo_regen_per_sec: float = 0.0
 var ammo_regen_accum: float = 0.0
+## Entity affiliation context (true for enemy/AI weapons)
+var is_enemy: bool = false
 
 # --- Heat config (heat_capacity > 0 enables the system) ---
 var heat_capacity: float = 0.0
@@ -166,8 +168,12 @@ static func from_stats(stats: Dictionary) -> WeaponCore:
 	if stats.has("unlimited_ammo"):
 		core.unlimited_ammo = bool(stats["unlimited_ammo"])
 	else:
-		core.unlimited_ammo = core.max_ammo <= 0 or core.reserve < 0
+		core.unlimited_ammo = core.max_ammo <= 0
 	core.auto_reload = not core.unlimited_ammo
+	if stats.has("is_enemy"):
+		core.is_enemy = bool(stats["is_enemy"])
+	else:
+		core.is_enemy = true
 	return core
 
 
@@ -193,13 +199,13 @@ func can_fire() -> bool:
 
 
 func is_completely_dry() -> bool:
-	return not unlimited_ammo and ammo <= 0 and reserve <= 0
+	return not unlimited_ammo and ammo <= 0 and reserve == 0
 
 
 ## Consumes the shot's cost (cooldown, ammo, heat) WITHOUT spawning a
 ## projectile. Used by melee weapons, where the caller runs its own lunge/hit
 ## animation but still obeys the shared weapon rules.
-func consume_shot() -> bool:
+func consume_shot(fired_by_enemy: Variant = null) -> bool:
 	if not can_fire():
 		return false
 	var interval := fire_interval
@@ -210,9 +216,10 @@ func consume_shot() -> bool:
 	if not unlimited_ammo:
 		ammo = maxi(ammo - ammo_per_shot, 0)
 		ammo_changed.emit(ammo, max_ammo)
-		if ammo <= 0 and auto_reload and (unlimited_ammo or reserve > 0):
+		if ammo <= 0 and auto_reload and (unlimited_ammo or reserve != 0):
 			begin_reload()
-	_accumulate_heat()
+	var is_enemy_shot: bool = is_enemy if fired_by_enemy == null else bool(fired_by_enemy)
+	_accumulate_heat(is_enemy_shot)
 	fired.emit()
 	return true
 
@@ -220,7 +227,7 @@ func consume_shot() -> bool:
 ## Consumes a shot and spawns the projectile(s). Returns true when a shot was
 ## actually fired (ammo/heat/cooldown all consumed).
 func try_fire(from_pos: Vector3, aim_dir: Vector3, fired_by_enemy: bool, owner: Node) -> bool:
-	if not consume_shot():
+	if not consume_shot(fired_by_enemy):
 		return false
 
 	if fired_by_enemy and owner != null and owner.has_method("report_technology_observation"):
@@ -259,7 +266,7 @@ func try_fire(from_pos: Vector3, aim_dir: Vector3, fired_by_enemy: bool, owner: 
 
 
 func try_fire_homing(from_pos: Vector3, aim_dir: Vector3, target_node: Node3D, fired_by_enemy: bool = false, owner: Node = null, burst_spread: float = 0.25) -> bool:
-	if not consume_shot():
+	if not consume_shot(fired_by_enemy):
 		return false
 
 	var launch_dir := aim_dir
@@ -279,7 +286,7 @@ func try_fire_homing(from_pos: Vector3, aim_dir: Vector3, target_node: Node3D, f
 func begin_reload() -> bool:
 	if reloading or max_ammo <= 0 or ammo >= max_ammo:
 		return false
-	if not unlimited_ammo and reserve <= 0:
+	if not unlimited_ammo and reserve == 0:
 		return false
 	reloading = true
 	reload_timer = reload_time
@@ -295,7 +302,7 @@ func complete_reload() -> int:
 	reload_timer = 0.0
 	var needed := max_ammo - ammo
 	var refilled := 0
-	if unlimited_ammo:
+	if unlimited_ammo or reserve < 0:
 		refilled = needed
 	elif reserve > 0:
 		refilled = mini(needed, reserve)
@@ -324,7 +331,7 @@ func _regen_ammo(delta: float) -> void:
 
 
 # --- Heat ---
-func _accumulate_heat() -> void:
+func _accumulate_heat(fired_by_enemy: bool = false) -> void:
 	if heat_capacity <= 0.0:
 		return
 	# GDD §4.3: Power Core class modifies heat accumulation
@@ -336,7 +343,8 @@ func _accumulate_heat() -> void:
 	effective_heat *= _PPS.total_heat_multiplier()
 	# Frame modules (vent protocol) bleed heat off each shot.
 	effective_heat *= FrameModuleSystem.calculate_heat_per_shot_multiplier()
-	effective_heat *= _CMR.resolve_pilot_heat_generation_multiplier()
+	if not fired_by_enemy:
+		effective_heat *= _CMR.resolve_pilot_heat_generation_multiplier()
 	heat = minf(heat + effective_heat, heat_capacity)
 	overheated = heat >= heat_capacity
 	heat_changed.emit(heat, heat_capacity, overheated)

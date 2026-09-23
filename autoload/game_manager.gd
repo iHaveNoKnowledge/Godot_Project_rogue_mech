@@ -66,6 +66,7 @@ func enter_combat(combat_type: String = "grunt") -> void:
 	combat_node_type = combat_type
 	is_boss_combat = (combat_type == "boss")
 	is_escaping = false
+	GlobalData._combat_xp_awarded = false
 	# Ensure carry/left/right not lost on the way to battle: if GlobalData's working set is empty but the active hangar berth has a loadout, restore it
 	var active_mech := HangarManager.get_active_mech()
 	if active_mech and active_mech.has("weapon_loadout"):

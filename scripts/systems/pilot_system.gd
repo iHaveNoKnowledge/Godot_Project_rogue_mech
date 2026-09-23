@@ -445,16 +445,37 @@ static func serialize_progression() -> Dictionary:
 	return get_progression()
 
 
+const PilotSkillCat = preload("res://scripts/systems/pilot_skill_catalog.gd")
+
+
 static func deserialize_progression(data: Variant) -> void:
 	if GlobalData == null or GlobalData.pilot == null:
 		return
 	if data is Dictionary:
+		var raw_level := int(data.get("level", 1))
+		var level := clampi(raw_level, 1, 10)
+		var raw_xp := maxi(int(data.get("xp", 0)), 0)
+		var xp := 0 if level >= 10 else raw_xp
+		var skill_points := maxi(int(data.get("skill_points", 0)), 0)
+
+		var raw_skills = data.get("unlocked_skills", [])
+		var sanitized_skills: Array[String] = []
+		if raw_skills is Array:
+			for sid in raw_skills:
+				var str_id := str(sid).strip_edges()
+				if str_id != "" and not sanitized_skills.has(str_id):
+					if PilotSkillCat.has_skill_definition(str_id):
+						sanitized_skills.append(str_id)
+
+		var raw_spec := str(data.get("specialization", "")).to_lower().strip_edges()
+		var spec := raw_spec if raw_spec in ["vanguard", "skirmisher", "artillery"] else ""
+
 		GlobalData.pilot.progression = {
-			"level": int(data.get("level", 1)),
-			"xp": int(data.get("xp", 0)),
-			"skill_points": int(data.get("skill_points", 0)),
-			"unlocked_skills": Array(data.get("unlocked_skills", [])).duplicate(),
-			"specialization": str(data.get("specialization", ""))
+			"level": level,
+			"xp": xp,
+			"skill_points": skill_points,
+			"unlocked_skills": sanitized_skills,
+			"specialization": spec
 		}
 	else:
 		GlobalData.pilot.progression = {

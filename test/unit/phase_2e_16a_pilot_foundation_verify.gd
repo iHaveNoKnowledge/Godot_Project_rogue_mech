@@ -87,7 +87,7 @@ func _test_save_load_progression_fidelity() -> void:
 	GlobalData.pilot.progression["level"] = 4
 	GlobalData.pilot.progression["xp"] = 1200
 	GlobalData.pilot.progression["skill_points"] = 1
-	GlobalData.pilot.progression["unlocked_skills"] = ["quick_draw", "evasion_mastery"]
+	GlobalData.pilot.progression["unlocked_skills"] = ["tactical_dash", "evasive_reflexes"]
 	GlobalData.pilot.progression["specialization"] = "skirmisher"
 
 	var serialized: Dictionary = PilotSys.serialize_progression()
@@ -103,7 +103,7 @@ func _test_save_load_progression_fidelity() -> void:
 	_check(PilotSys.get_pilot_level() == 4, "Deserialized level is 4")
 	_check(PilotSys.get_pilot_xp() == 1200, "Deserialized XP is 1200")
 	_check(PilotSys.get_skill_points() == 1, "Deserialized skill points is 1")
-	_check(PilotSys.get_unlocked_skills().has("quick_draw"), "Deserialized contains 'quick_draw'")
+	_check(PilotSys.get_unlocked_skills().has("tactical_dash"), "Deserialized contains 'tactical_dash'")
 	_check(PilotSys.get_specialization() == "skirmisher", "Deserialized specialization is 'skirmisher'")
 
 	# 3. Test backward compatibility: empty / legacy save dict

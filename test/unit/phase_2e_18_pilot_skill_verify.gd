@@ -10,6 +10,8 @@ const PilotSys = preload("res://scripts/systems/pilot_system.gd")
 const CombatModRes = preload("res://scripts/systems/combat_modifier_resolver.gd")
 const TechSys = preload("res://scripts/systems/technology_system.gd")
 const LoadoutSys = preload("res://scripts/systems/loadout_system.gd")
+const WeaponCoreCls = preload("res://scripts/systems/weapon_core.gd")
+const CombatStatsSys = preload("res://scripts/systems/combat_stats_system.gd")
 
 var _pass_count: int = 0
 var _fail_count: int = 0
@@ -36,6 +38,8 @@ func _run_all_tests() -> void:
 	_test_precognitive_flow_preservation()
 	_test_technology_and_equipment_boundaries()
 	_test_save_load_persistence_and_schema_preservation()
+	_test_combat_xp_exact_once_lifecycle_and_reset()
+	_test_heat_channel_entity_context_isolation()
 
 
 func _check(condition: bool, test_name: String) -> void:
@@ -346,7 +350,25 @@ func _test_save_load_persistence_and_schema_preservation() -> void:
 	_check(PilotSkillSys.get_unlocked_skills().has("tactical_dash"), "Deserialized contains 'tactical_dash'")
 	_check(PilotSkillSys.get_specialization() == "skirmisher", "Deserialized specialization is 'skirmisher'")
 
-	# Unknown skill ID in save data does not crash
+	# Save sanitization test cases
+	# Case A: Level below minimum (-100 -> 1)
+	PilotSys.deserialize_progression({"level": -100, "xp": 0, "skill_points": 0, "unlocked_skills": [], "specialization": ""})
+	_check(PilotSkillSys.get_level() == 1, "Level below minimum (-100) sanitizes to 1")
+
+	# Case B: Level above maximum (999 -> 10)
+	PilotSys.deserialize_progression({"level": 999, "xp": 100, "skill_points": 0, "unlocked_skills": [], "specialization": ""})
+	_check(PilotSkillSys.get_level() == 10, "Level above maximum (999) sanitizes to 10")
+	_check(PilotSkillSys.get_xp() == 0, "XP at max level sanitizes to 0")
+
+	# Case C: Negative XP (-500 -> 0)
+	PilotSys.deserialize_progression({"level": 3, "xp": -500, "skill_points": 1, "unlocked_skills": [], "specialization": ""})
+	_check(PilotSkillSys.get_xp() == 0, "Negative XP (-500) sanitizes to 0")
+
+	# Case D: Negative skill points (-10 -> 0)
+	PilotSys.deserialize_progression({"level": 3, "xp": 0, "skill_points": -10, "unlocked_skills": [], "specialization": ""})
+	_check(PilotSkillSys.get_skill_points() == 0, "Negative skill points (-10) sanitizes to 0")
+
+	# Case E: Unknown skill ID is safely discarded
 	var corrupted_save := {
 		"level": 3,
 		"xp": 50,
@@ -356,7 +378,112 @@ func _test_save_load_persistence_and_schema_preservation() -> void:
 	}
 	PilotSys.deserialize_progression(corrupted_save)
 	_check(PilotSkillSys.is_skill_unlocked("tactical_dash"), "Valid skill in save remains unlocked")
+	_check(not PilotSkillSys.is_skill_unlocked("deprecated_removed_skill"), "Unknown skill ID is safely discarded")
+	_check(PilotSkillSys.get_unlocked_skills().size() == 1, "unlocked_skills has only valid skill")
 	_check(is_equal_approx(CombatModRes.resolve_dash_energy_multiplier(), 0.85), "Combat modifier resolves safely with unknown skill in save")
+
+	# Case F: Duplicate skill IDs are deduplicated
+	PilotSys.deserialize_progression({
+		"level": 3,
+		"xp": 0,
+		"skill_points": 0,
+		"unlocked_skills": ["tactical_dash", "tactical_dash", "tactical_dash"],
+		"specialization": ""
+	})
+	_check(PilotSkillSys.get_unlocked_skills().size() == 1, "Duplicate skill IDs in save are deduplicated to 1 entry")
+
+	# Case G: Invalid specialization falls back to empty string
+	PilotSys.deserialize_progression({
+		"level": 5,
+		"xp": 0,
+		"skill_points": 0,
+		"unlocked_skills": [],
+		"specialization": "unknown_doctrine_spec"
+	})
+	_check(PilotSkillSys.get_specialization() == "", "Invalid specialization in save falls back to empty string")
+
+
+# --- [9] Combat XP Exact-Once Idempotency & Lifecycle Reset ---
+func _test_combat_xp_exact_once_lifecycle_and_reset() -> void:
+	print("\n-- [9] Combat XP Exact-Once Idempotency & Lifecycle Reset --")
+	GlobalData.reset_run_data()
+	GameManager.combat_node_type = "grunt"
+	CombatStatsSys.set_combat_hp_snapshot(100.0) # 0 damage taken -> decisive (50 * 1.25 = 63 XP)
+
+	# Case 1: Normal victory -> XP awarded once
+	EventBus.combat_ended.emit(true)
+	_check(PilotSkillSys.get_xp() == 63, "Normal victory awards 63 XP")
+
+	# Case 2: Duplicate victory emission in same encounter -> 0 additional XP
+	EventBus.combat_ended.emit(true)
+	_check(PilotSkillSys.get_xp() == 63, "Duplicate victory emission does NOT award duplicate XP")
+
+	# Case 3: Victory then defeat emission -> 0 additional XP
+	EventBus.combat_ended.emit(false)
+	_check(PilotSkillSys.get_xp() == 63, "Defeat emission after victory does NOT alter XP")
+
+	# Case 4: Defeat encounter -> 0 XP
+	GlobalData.reset_run_data()
+	GameManager.combat_node_type = "grunt"
+	CombatStatsSys.set_combat_hp_snapshot(100.0)
+	EventBus.combat_ended.emit(false)
+	_check(PilotSkillSys.get_xp() == 0, "Defeat encounter awards 0 XP")
+
+	# Case 5: Duplicate defeat emissions -> 0 XP
+	EventBus.combat_ended.emit(false)
+	_check(PilotSkillSys.get_xp() == 0, "Duplicate defeat emissions award 0 XP")
+
+	# Case 6: Next combat encounter after reset awards normally
+	GameManager.combat_node_type = "ace"
+	CombatStatsSys.set_combat_hp_snapshot(100.0) # Resets encounter state and sets HP snapshot (Decisive: 100 * 1.25 = 125 XP)
+	EventBus.combat_ended.emit(true)
+	# 125 XP from Level 1 consumes 100 XP -> Level 2 with 25 carry-over XP
+	_check(PilotSkillSys.get_level() == 2 and PilotSkillSys.get_xp() == 25, "Subsequent encounter after reset awards XP normally (125 XP -> Level 2 with 25 XP)")
+
+
+# --- [10] WeaponCore Heat Channel Entity Context Isolation ---
+func _test_heat_channel_entity_context_isolation() -> void:
+	print("\n-- [10] WeaponCore Heat Channel Entity Context Isolation --")
+	GlobalData.reset_run_data()
+
+	# Create a weapon part with heat capacity and heat per shot
+	var w := WeaponPart.new()
+	w.weapon_name = "Plasma Carbine"
+	w.heat_capacity = 100.0
+	w.heat_per_shot = 20.0
+
+	var player_core := WeaponCoreCls.from_weapon(w)
+	player_core.is_enemy = false
+
+	var enemy_core := WeaponCoreCls.from_weapon(w)
+	enemy_core.is_enemy = true
+
+	# Neutral baseline (no skills)
+	player_core.consume_shot(false)
+	_check(is_equal_approx(player_core.heat, 20.0), "Player weapon accumulates 20.0 heat without skill")
+
+	enemy_core.consume_shot(true)
+	_check(is_equal_approx(enemy_core.heat, 20.0), "Enemy weapon accumulates 20.0 heat without skill")
+
+	# Unlock heat_venting_drills (0.85x)
+	GlobalData.pilot.progression["unlocked_skills"] = ["heat_venting_drills"]
+
+	var player_core2 := WeaponCoreCls.from_weapon(w)
+	player_core2.is_enemy = false
+	player_core2.consume_shot(false)
+	_check(is_equal_approx(player_core2.heat, 17.0), "Player weapon accumulates 17.0 heat (20.0 * 0.85) with heat_venting_drills")
+
+	var enemy_core2 := WeaponCoreCls.from_weapon(w)
+	enemy_core2.is_enemy = true
+	enemy_core2.consume_shot(true)
+	_check(is_equal_approx(enemy_core2.heat, 20.0), "Enemy weapon remains at 20.0 heat (1.0x) despite player's heat_venting_drills")
+
+	# Enemy core constructed from stats defaults to is_enemy = true
+	var enemy_stats_core := WeaponCoreCls.from_stats({"attack_damage": 10.0, "attack_cooldown": 1.0})
+	enemy_stats_core.heat_capacity = 100.0
+	enemy_stats_core.heat_per_shot = 20.0
+	enemy_stats_core.consume_shot() # Default null -> uses is_enemy (true)
+	_check(is_equal_approx(enemy_stats_core.heat, 20.0), "Enemy stats weapon core remains at 20.0 heat (1.0x)")
 
 
 func _print_summary() -> void:

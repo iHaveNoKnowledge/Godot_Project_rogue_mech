@@ -231,6 +231,7 @@ var _combat_friendly_total_hp: float = 0.0
 var _combat_friendly_damage: float = 0.0
 var last_combat_damage_ratio: float = 0.0
 var pre_combat_weapon_loadout: Dictionary = {}
+var _combat_xp_awarded: bool = false
 
 # --- Combat damage snapshot helper ---
 func snapshot_friendly_hp(hp: float) -> void:
@@ -694,7 +695,8 @@ func _on_combat_ended(victory: bool) -> void:
 		board.run_notice = "Bond is at its peak and the old machine is wrecked. A SACRIFICE MISSION awaits at the Safehouse."
 	# Finalize combat damage stats.
 	CombatStatsSystem.compute_last_combat_damage_ratio()
-	if victory:
+	if victory and not _combat_xp_awarded:
+		_combat_xp_awarded = true
 		var is_decisive := CombatStatsSystem.was_decisive_victory()
 		PilotSkillSys.award_combat_xp(GameManager.combat_node_type, is_decisive)
 	# Patrol fleet engagement resolves first.
@@ -1109,6 +1111,7 @@ func reset_run_data() -> void:
 	_combat_friendly_total_hp = 0.0
 	_combat_friendly_damage = 0.0
 	last_combat_damage_ratio = 0.0
+	_combat_xp_awarded = false
 
 	# Restore defaults after weapons.reset() (it calls ensure_default_equipped_parts).
 	ArmorSystem.ensure_default_equipped_parts()

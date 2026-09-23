@@ -955,7 +955,7 @@ func _on_destroyed() -> void:
 
 func _on_armor_broken(slot_name: String) -> void:
 	if slot_name == "body":
-		if health_system:
+		if health_system and "layout" in health_system and health_system.layout == EnemyHealth.Layout.SIMPLE:
 			health_system.set("is_destroyed", true)
 			if health_system.has_signal("mecha_destroyed"):
 				health_system.mecha_destroyed.emit()

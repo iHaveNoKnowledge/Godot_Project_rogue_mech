@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://d3m0c7b20a1p1"]
+
+[ext_resource type="Script" path="res://test/unit/phase_2e_20_combat_pipeline_verify.gd" id="1_test"]
+
+[node name="Phase2E20CombatPipelineVerify" type="Node"]
+script = ExtResource("1_test")

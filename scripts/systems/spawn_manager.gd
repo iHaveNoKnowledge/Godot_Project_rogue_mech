@@ -53,6 +53,7 @@ var total_waves: int = 5
 var enemies_alive: int = 0
 var spawn_points: Array = []
 var is_active: bool = false
+var _combat_ended: bool = false
 
 # Ring markers already handed out this wave, so multiple enemies never stack
 # on the same spawn point (adjacent markers are ~57m apart, so a distinct
@@ -222,6 +223,7 @@ func _duel_wave_defs() -> Array:
 
 
 func _ready() -> void:
+	_combat_ended = false
 	# WAR battlefield: no token-based waves — uses WarAIJumpSystem / battlefield spawns instead
 	if GameManager.current_state == GameManager.State.WAR:
 		_generate_spawn_points()
@@ -318,6 +320,9 @@ func _spawn_forward_base_if_needed() -> void:
 func _on_forward_base_destroyed() -> void:
 	await get_tree().create_timer(0.6).timeout
 	if is_inside_tree() and is_instance_valid(self):
+		if _combat_ended:
+			return
+		_combat_ended = true
 		EventBus.combat_ended.emit(true)
 
 
@@ -605,6 +610,9 @@ func _check_combat_ended() -> void:
 			print("SPAWN_MGR: _check_combat_ended — stalking aces remain, spawning one")
 			_trigger_stalking_ace_ambush()
 		else:
+			if _combat_ended:
+				return
+			_combat_ended = true
 			print("SPAWN_MGR: _check_combat_ended — emitting combat_ended(true)")
 			EventBus.combat_ended.emit(true)
 	else:

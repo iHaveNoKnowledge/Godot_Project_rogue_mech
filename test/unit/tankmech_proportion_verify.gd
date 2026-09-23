@@ -93,8 +93,8 @@ func _test_part_scenes_load_and_instantiate() -> void:
 	print("\n-- [1] Scenes load and instantiate with expected mesh counts --")
 	var expected_meshes := {
 		"body": 28, "head": 6,
-		"arm_left": 10, "arm_right": 10,
-		"leg_left": 11, "leg_right": 11,
+		"arm_left": 16, "arm_right": 16,
+		"leg_left": 19, "leg_right": 19,
 	}
 	for slot in expected_meshes.keys():
 		var inst := _instantiate_slot(slot)
@@ -168,6 +168,11 @@ func _test_leg_reaches_ankle_pivot() -> void:
 			"%s foot at least 0.55 wide (got %.3f)" % [slot, foot_aabb.size.x])
 		_check(foot_aabb.size.z > 1.0,
 			"%s foot+toe+heel at least 1.0 long (got %.3f)" % [slot, foot_aabb.size.z])
+		# Limb dressing: panel lines + accent plates on thigh/shin/foot.
+		var leg_lines := _count_keyword_meshes(inst, "_line")
+		var leg_accents := _count_keyword_meshes(inst, "_accent")
+		_check(leg_lines >= 4, "%s leg has panel lines (got %d)" % [slot, leg_lines])
+		_check(leg_accents >= 3, "%s leg has accent plates (got %d)" % [slot, leg_accents])
 		inst.queue_free()
 
 
@@ -209,6 +214,13 @@ func _test_arm_reaches_elbow_pivot() -> void:
 		var vents := _count_keyword_meshes(inst, "vent")
 		_check(thrusters >= 1, "%s pauldron has a thruster block" % slot)
 		_check(vents >= 2, "%s pauldron has vent blocks (got %d)" % [slot, vents])
+		# Chunky forearm + oversized fist + panel-line dressing.
+		_check(fore_aabb.size.x > 0.60,
+			"%s forearm armor at least 0.60 wide (got %.3f)" % [slot, fore_aabb.size.x])
+		var arm_lines := _count_keyword_meshes(inst, "_line")
+		var arm_accents := _count_keyword_meshes(inst, "_accent")
+		_check(arm_lines >= 4, "%s arm has panel lines (got %d)" % [slot, arm_lines])
+		_check(arm_accents >= 2, "%s arm has accent plates (got %d)" % [slot, arm_accents])
 		# Exaggerated kitbash pauldron (1.15 wide on the shoulder, outboard of the
 		# pivot) + upper arm at x 0: shoulder-frame bulk 1.4..2.0 wide.
 		var bounds := _slot_bounds(slot)

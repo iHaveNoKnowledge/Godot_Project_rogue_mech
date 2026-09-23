@@ -1,14 +1,25 @@
 extends Node3D
-## Preview: assemble mecha_base with the tankmech armor set, then save a PNG
-## snapshot of the viewport for visual proportion checks (run windowed).
+## Preview: assemble mecha_base with the tankmech armor set, then save PNG
+## snapshots of the viewport for visual proportion checks (run windowed).
 ## Usage:
 ##   Godot --path . --resolution 1280x720 res://tools/preview_tankmech.tscn
+##   TANKMECH_ANGLES=front,side,back,3q to pick angles (default all four)
 ## Also prints measured world-space AABBs per armor slot so proportion
 ## decisions come from numbers, not eyeballing alone.
 
-const OUT_PATH := "user://tankmech_preview.png"
+const OUT_PATH := "user://tankmech_preview"
 ## Relative fallback when running from the project root.
-const OUT_ABS := "tools/tankmech_preview.png"
+const OUT_ABS := "tools/tankmech_preview"
+## Camera presets: azimuth degrees around the mecha (0 = looking at the front
+## -Z face) and elevation degrees above the horizon.
+const ANGLE_PRESETS := {
+	"front": {"az": 0.0, "el": 8.0},
+	"side": {"az": 90.0, "el": 8.0},
+	"back": {"az": 180.0, "el": 8.0},
+	"3q": {"az": 38.0, "el": 16.0},
+}
+
+var _cam: Camera3D
 
 
 func _ready() -> void:
@@ -41,15 +52,25 @@ func _ready() -> void:
 	await get_tree().process_frame
 
 	_dump_slot_aabbs(mecha)
-	_frame_camera(mecha)
-	await get_tree().process_frame
-	await RenderingServer.frame_post_draw
 
-	var img := get_viewport().get_texture().get_image()
-	var err := img.save_png(OUT_ABS)
-	if err != OK:
-		err = img.save_png(OUT_PATH)
-	print("[PREVIEW] saved %s (err=%d) size=%s" % [OUT_ABS, err, img.get_size()])
+	var angles: PackedStringArray = "front,side,back,3q".split(",")
+	var env_opt := OS.get_environment("TANKMECH_ANGLES")
+	if env_opt != "":
+		angles = env_opt.split(",")
+	for ang in angles:
+		var label := String(ang).strip_edges().to_lower()
+		if not ANGLE_PRESETS.has(label):
+			printerr("[PREVIEW] unknown angle '%s' (skip; try front/side/back/3q)" % label)
+			continue
+		_frame_camera(mecha, label)
+		await get_tree().process_frame
+		await RenderingServer.frame_post_draw
+		var img := get_viewport().get_texture().get_image()
+		var path := "%s_%s.png" % [OUT_ABS, label]
+		var err := img.save_png(path)
+		if err != OK:
+			err = img.save_png("%s_%s.png" % [OUT_PATH, label])
+		print("[PREVIEW] saved %s (err=%d) size=%s" % [path, err, img.get_size()])
 	get_tree().quit(0)
 
 
@@ -103,18 +124,31 @@ func _v3(v: Vector3) -> String:
 	return "(%.2f, %.2f, %.2f)" % [v.x, v.y, v.z]
 
 
-func _frame_camera(mecha: Node) -> void:
-	var cam := Camera3D.new()
-	cam.name = "PreviewCam"
-	add_child(cam)
-	cam.make_current()
+func _frame_camera(mecha: Node, label: String) -> void:
+	if _cam == null:
+		_cam = Camera3D.new()
+		_cam.name = "PreviewCam"
+		add_child(_cam)
+		_ensure_stage()
+	_cam.make_current()
 
-	# 3/4 hero angle on the upper body, like the reference photo.
-	var focus := (mecha as Node3D).global_position + Vector3(0, 3.2, 0)
-	cam.global_position = focus + Vector3(4.2, 1.6, 5.6)
-	cam.look_at(focus, Vector3.UP)
-	cam.fov = 45.0
+	# Orbit preset around the mecha: azimuth 0 looks at the front (-Z face).
+	var preset: Dictionary = ANGLE_PRESETS[label]
+	var az: float = deg_to_rad(preset["az"])
+	var el: float = deg_to_rad(preset["el"])
+	var focus: Vector3 = (mecha as Node3D).global_position + Vector3(0, 3.0, 0)
+	var dist := 8.6
+	var offset := Vector3(
+		sin(az) * cos(el),
+		sin(el),
+		-cos(az) * cos(el)
+	) * dist
+	_cam.global_position = focus + offset
+	_cam.look_at(focus, Vector3.UP)
+	_cam.fov = 45.0
 
+
+func _ensure_stage() -> void:
 	# Soft studio lighting: key + fill + rim, faint ambient.
 	var key := DirectionalLight3D.new()
 	key.rotation_degrees = Vector3(-42, -35, 0)

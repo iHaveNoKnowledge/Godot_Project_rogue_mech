@@ -226,7 +226,9 @@ func update_bob(delta: float, mecha: CharacterBody3D, joints: Dictionary,
 		var local_vel: Vector3 = mecha.global_transform.basis.inverse() * mecha.velocity
 		local_vel.y = 0.0
 		var speed: float = local_vel.length()
-		var run_speed: float = clampf(speed * 1.35, 3.0, 16.0)
+		# Gait rate tracks ground speed so slow walks paddle slowly and
+		# sprints churn fast (a fixed 3.0 floor made slow mechs skate).
+		var run_speed: float = clampf(speed * 1.35, 0.8, 16.0)
 		_prev_bob_timer = bob_timer
 		bob_timer += delta * run_speed
 		var speed_norm := clampf((speed - 2.0) / 8.0, 0.0, 1.0)
@@ -409,9 +411,9 @@ func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary) -> vo
 	var total_weight := maxf(fwd_weight + rev_weight + side_weight, 0.001)
 	var long_norm := (fwd_weight + rev_weight) / total_weight
 	var side_norm := side_weight / total_weight
-	# Ease out of the full sprint spread at low speed so a slow walk doesn't
-	# goose-step with a sprint-sized stride.
-	var stride_amp := clampf(speed / 6.0, 0.55, 1.0)
+	# Ease out of the full sprint spread at low speed so a slow walk takes
+	# short shuffling steps instead of goose-stepping at sprint size.
+	var stride_amp := clampf(speed / 6.0, 0.25, 1.0)
 	if robotic_gait:
 		stride_amp *= 0.8
 	var target_pitch_l: float = pitch_l * stride_amp + strafe_thigh_l * side_norm * stride_amp

@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://dmyejw93n39vq"]
+
+[ext_resource type="Script" path="res://test/unit/weapon_firing_resource_lifecycle_audit_verify.gd" id="1_test"]
+
+[node name="WeaponFiringResourceLifecycleAuditVerify" type="Node"]
+script = ExtResource("1_test")

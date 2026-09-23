@@ -50,6 +50,75 @@ metadata/extras = {
 vertex_color_use_as_albedo = true
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_svdgk"]
+resource_name = "tankmech_leg_left_legL_thigh_line_h"
+_surfaces = [{
+"aabb": AABB(-0.31, -0.575, -0.36, 0.62, 0.050000012, 0.04000002),
+"attribute_data": PackedByteArray("JCcv/yQnL/8kJy//JCcv/yQnL/8kJy//JCcv/yQnL/8="),
+"format": 34359742473,
+"index_count": 36,
+"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
+"material": SubResource("StandardMaterial3D_q01qx"),
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 8,
+"vertex_data": PackedByteArray("UrievjMzE7/sUbi+UrievjMzE78K16O+UrievmZmBr/sUbi+UrievmZmBr8K16O+UriePjMzE7/sUbi+UriePjMzE78K16O+UriePmZmBr/sUbi+UriePmZmBr8K16O+")
+}]
+blend_shape_mode = 0
+metadata/extras = {
+"extents": [0.62, 0.05, 0.04],
+"shape": "box"
+}
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_2sevn"]
+vertex_color_use_as_albedo = true
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_vw5uh"]
+resource_name = "tankmech_leg_left_legL_thigh_line_v"
+_surfaces = [{
+"aabb": AABB(-0.305, -1.47, -0.36, 0.050000012, 1.2, 0.04000002),
+"attribute_data": PackedByteArray("JCcv/yQnL/8kJy//JCcv/yQnL/8kJy//JCcv/yQnL/8="),
+"format": 34359742473,
+"index_count": 36,
+"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
+"material": SubResource("StandardMaterial3D_2sevn"),
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 8,
+"vertex_data": PackedByteArray("9iicvvYovL/sUbi+9iicvvYovL8K16O+9iicvnE9ir7sUbi+9iicvnE9ir4K16O+XI+CvvYovL/sUbi+XI+CvvYovL8K16O+XI+CvnE9ir7sUbi+XI+CvnE9ir4K16O+")
+}]
+blend_shape_mode = 0
+metadata/extras = {
+"extents": [0.05, 1.2, 0.04],
+"shape": "box"
+}
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_q06mf"]
+vertex_color_use_as_albedo = true
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_y23ue"]
+resource_name = "tankmech_leg_left_legL_thigh_accent"
+_surfaces = [{
+"aabb": AABB(0.17, -1.25, -0.36, 0.17999999, 0.100000024, 0.04000002),
+"attribute_data": PackedByteArray("5kY8/+ZGPP/mRjz/5kY8/+ZGPP/mRjz/5kY8/+ZGPP8="),
+"format": 34359742473,
+"index_count": 36,
+"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
+"material": SubResource("StandardMaterial3D_q06mf"),
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 8,
+"vertex_data": PackedByteArray("exQuPgAAoL/sUbi+exQuPgAAoL8K16O+exQuPjMzk7/sUbi+exQuPjMzk78K16O+MzOzPgAAoL/sUbi+MzOzPgAAoL8K16O+MzOzPjMzk7/sUbi+MzOzPjMzk78K16O+")
+}]
+blend_shape_mode = 0
+metadata/extras = {
+"extents": [0.18, 0.1, 0.04],
+"shape": "box"
+}
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_t4gn4"]
+vertex_color_use_as_albedo = true
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_adr6c"]
 resource_name = "tankmech_leg_left_legL_knee"
 _surfaces = [{
 "aabb": AABB(-0.31, -0.2, -0.33, 0.62, 0.4, 0.62),
@@ -57,7 +126,7 @@ _surfaces = [{
 "format": 34359742473,
 "index_count": 36,
 "index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
-"material": SubResource("StandardMaterial3D_q01qx"),
+"material": SubResource("StandardMaterial3D_t4gn4"),
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
 "vertex_count": 8,
@@ -69,10 +138,10 @@ metadata/extras = {
 "shape": "box"
 }
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_2sevn"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_gup3s"]
 vertex_color_use_as_albedo = true
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_vw5uh"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_hb1xq"]
 resource_name = "tankmech_leg_left_legL_knee_plate"
 _surfaces = [{
 "aabb": AABB(-0.27, -0.25, -0.42, 0.54, 0.5, 0.16),
@@ -80,7 +149,7 @@ _surfaces = [{
 "format": 34359742473,
 "index_count": 36,
 "index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
-"material": SubResource("StandardMaterial3D_2sevn"),
+"material": SubResource("StandardMaterial3D_gup3s"),
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
 "vertex_count": 8,
@@ -92,10 +161,10 @@ metadata/extras = {
 "shape": "box"
 }
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_q06mf"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_l3k5g"]
 vertex_color_use_as_albedo = true
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_y23ue"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_km118"]
 resource_name = "tankmech_leg_left_legL_shin_upper"
 _surfaces = [{
 "aabb": AABB(-0.28, -0.9, -0.28, 0.56, 0.9, 0.6),
@@ -103,7 +172,7 @@ _surfaces = [{
 "format": 34359742473,
 "index_count": 36,
 "index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
-"material": SubResource("StandardMaterial3D_q06mf"),
+"material": SubResource("StandardMaterial3D_l3k5g"),
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
 "vertex_count": 8,
@@ -115,10 +184,10 @@ metadata/extras = {
 "shape": "box"
 }
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_t4gn4"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_xqk0l"]
 vertex_color_use_as_albedo = true
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_adr6c"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_vuayw"]
 resource_name = "tankmech_leg_left_legL_shin_lower"
 _surfaces = [{
 "aabb": AABB(-0.24, -1.525, -0.24, 0.48, 0.84999996, 0.52),
@@ -126,7 +195,7 @@ _surfaces = [{
 "format": 34359742473,
 "index_count": 36,
 "index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
-"material": SubResource("StandardMaterial3D_t4gn4"),
+"material": SubResource("StandardMaterial3D_xqk0l"),
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
 "vertex_count": 8,
@@ -138,10 +207,10 @@ metadata/extras = {
 "shape": "box"
 }
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_gup3s"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_8tudy"]
 vertex_color_use_as_albedo = true
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_hb1xq"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_rkhho"]
 resource_name = "tankmech_leg_left_legL_shin_guard"
 _surfaces = [{
 "aabb": AABB(-0.21, -1.4, -0.38, 0.42, 1.3, 0.14),
@@ -149,7 +218,7 @@ _surfaces = [{
 "format": 34359742473,
 "index_count": 36,
 "index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
-"material": SubResource("StandardMaterial3D_gup3s"),
+"material": SubResource("StandardMaterial3D_8tudy"),
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
 "vertex_count": 8,
@@ -161,10 +230,79 @@ metadata/extras = {
 "shape": "box"
 }
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_l3k5g"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_05krg"]
 vertex_color_use_as_albedo = true
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_km118"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_2ifi2"]
+resource_name = "tankmech_leg_left_legL_shin_line_h"
+_surfaces = [{
+"aabb": AABB(-0.21, -0.875, -0.41, 0.42, 0.050000012, 0.03999999),
+"attribute_data": PackedByteArray("JCcv/yQnL/8kJy//JCcv/yQnL/8kJy//JCcv/yQnL/8="),
+"format": 34359742473,
+"index_count": 36,
+"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
+"material": SubResource("StandardMaterial3D_05krg"),
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 8,
+"vertex_data": PackedByteArray("PQpXvgAAYL+F69G+PQpXvgAAYL+kcL2+PQpXvjMzU7+F69G+PQpXvjMzU7+kcL2+PQpXPgAAYL+F69G+PQpXPgAAYL+kcL2+PQpXPjMzU7+F69G+PQpXPjMzU7+kcL2+")
+}]
+blend_shape_mode = 0
+metadata/extras = {
+"extents": [0.42, 0.05, 0.04],
+"shape": "box"
+}
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_7p57f"]
+vertex_color_use_as_albedo = true
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_qbim2"]
+resource_name = "tankmech_leg_left_legL_shin_line_v"
+_surfaces = [{
+"aabb": AABB(-0.205, -1.4, -0.41, 0.049999997, 1.1999999, 0.03999999),
+"attribute_data": PackedByteArray("JCcv/yQnL/8kJy//JCcv/yQnL/8kJy//JCcv/yQnL/8="),
+"format": 34359742473,
+"index_count": 36,
+"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
+"material": SubResource("StandardMaterial3D_7p57f"),
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 8,
+"vertex_data": PackedByteArray("hetRvjMzs7+F69G+hetRvjMzs7+kcL2+hetRvs3MTL6F69G+hetRvs3MTL6kcL2+UrgevjMzs7+F69G+UrgevjMzs7+kcL2+Urgevs3MTL6F69G+Urgevs3MTL6kcL2+")
+}]
+blend_shape_mode = 0
+metadata/extras = {
+"extents": [0.05, 1.2, 0.04],
+"shape": "box"
+}
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_8jggt"]
+vertex_color_use_as_albedo = true
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_alyjf"]
+resource_name = "tankmech_leg_left_legL_shin_accent"
+_surfaces = [{
+"aabb": AABB(0.1, -1.3, -0.41, 0.16, 0.099999905, 0.03999999),
+"attribute_data": PackedByteArray("5kY8/+ZGPP/mRjz/5kY8/+ZGPP/mRjz/5kY8/+ZGPP8="),
+"format": 34359742473,
+"index_count": 36,
+"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
+"material": SubResource("StandardMaterial3D_8jggt"),
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 8,
+"vertex_data": PackedByteArray("zczMPWZmpr+F69G+zczMPWZmpr+kcL2+zczMPZqZmb+F69G+zczMPZqZmb+kcL2+uB6FPmZmpr+F69G+uB6FPmZmpr+kcL2+uB6FPpqZmb+F69G+uB6FPpqZmb+kcL2+")
+}]
+blend_shape_mode = 0
+metadata/extras = {
+"extents": [0.16, 0.1, 0.04],
+"shape": "box"
+}
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_c7b2i"]
+vertex_color_use_as_albedo = true
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_rvwc4"]
 resource_name = "tankmech_leg_left_legL_foot_ankle"
 _surfaces = [{
 "aabb": AABB(-0.17, -0.25, -0.17, 0.34, 0.26, 0.34),
@@ -172,7 +310,7 @@ _surfaces = [{
 "format": 34359742473,
 "index_count": 36,
 "index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
-"material": SubResource("StandardMaterial3D_l3k5g"),
+"material": SubResource("StandardMaterial3D_c7b2i"),
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
 "vertex_count": 8,
@@ -184,10 +322,10 @@ metadata/extras = {
 "shape": "box"
 }
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_xqk0l"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_l67qx"]
 vertex_color_use_as_albedo = true
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_vuayw"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_86rvc"]
 resource_name = "tankmech_leg_left_legL_foot"
 _surfaces = [{
 "aabb": AABB(-0.3, -0.37, -0.575, 0.6, 0.24000001, 0.95),
@@ -195,7 +333,7 @@ _surfaces = [{
 "format": 34359742473,
 "index_count": 36,
 "index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
-"material": SubResource("StandardMaterial3D_xqk0l"),
+"material": SubResource("StandardMaterial3D_l67qx"),
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
 "vertex_count": 8,
@@ -207,10 +345,10 @@ metadata/extras = {
 "shape": "box"
 }
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_8tudy"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_4lfrh"]
 vertex_color_use_as_albedo = true
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_rkhho"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_615ve"]
 resource_name = "tankmech_leg_left_legL_foot_toe"
 _surfaces = [{
 "aabb": AABB(-0.27, -0.37, -0.7, 0.54, 0.18, 0.28),
@@ -218,7 +356,7 @@ _surfaces = [{
 "format": 34359742473,
 "index_count": 36,
 "index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
-"material": SubResource("StandardMaterial3D_8tudy"),
+"material": SubResource("StandardMaterial3D_4lfrh"),
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
 "vertex_count": 8,
@@ -230,10 +368,10 @@ metadata/extras = {
 "shape": "box"
 }
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_05krg"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_v2a82"]
 vertex_color_use_as_albedo = true
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_2ifi2"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_d1nek"]
 resource_name = "tankmech_leg_left_legL_foot_heel"
 _surfaces = [{
 "aabb": AABB(-0.21, -0.37, 0.25, 0.42, 0.22, 0.22),
@@ -241,7 +379,7 @@ _surfaces = [{
 "format": 34359742473,
 "index_count": 36,
 "index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
-"material": SubResource("StandardMaterial3D_05krg"),
+"material": SubResource("StandardMaterial3D_v2a82"),
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
 "vertex_count": 8,
@@ -253,48 +391,126 @@ metadata/extras = {
 "shape": "box"
 }
 
-[node name="tankmech_leg_left" type="Node3D" unique_id=458607815]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_8uppv"]
+vertex_color_use_as_albedo = true
 
-[node name="legL_hip_cap" type="MeshInstance3D" parent="." unique_id=644711986]
+[sub_resource type="ArrayMesh" id="ArrayMesh_s8ur3"]
+resource_name = "tankmech_leg_left_legL_foot_line"
+_surfaces = [{
+"aabb": AABB(-0.22, -0.31, -0.745, 0.44, 0.060000002, 0.04000002),
+"attribute_data": PackedByteArray("JCcv/yQnL/8kJy//JCcv/yQnL/8kJy//JCcv/yQnL/8="),
+"format": 34359742473,
+"index_count": 36,
+"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
+"material": SubResource("StandardMaterial3D_8uppv"),
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 8,
+"vertex_data": PackedByteArray("rkdhvlK4nr5SuD6/rkdhvlK4nr7hejS/rkdhvgAAgL5SuD6/rkdhvgAAgL7hejS/rkdhPlK4nr5SuD6/rkdhPlK4nr7hejS/rkdhPgAAgL5SuD6/rkdhPgAAgL7hejS/")
+}]
+blend_shape_mode = 0
+metadata/extras = {
+"extents": [0.44, 0.06, 0.04],
+"shape": "box"
+}
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_suwm2"]
+vertex_color_use_as_albedo = true
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_qw7ml"]
+resource_name = "tankmech_leg_left_legL_foot_accent"
+_surfaces = [{
+"aabb": AABB(-0.22, -0.32, -0.745, 0.12, 0.08, 0.04000002),
+"attribute_data": PackedByteArray("5kY8/+ZGPP/mRjz/5kY8/+ZGPP/mRjz/5kY8/+ZGPP8="),
+"format": 34359742473,
+"index_count": 36,
+"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
+"material": SubResource("StandardMaterial3D_suwm2"),
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 8,
+"vertex_data": PackedByteArray("rkdhvgrXo75SuD6/rkdhvgrXo77hejS/rkdhvo/Cdb5SuD6/rkdhvo/Cdb7hejS/zczMvQrXo75SuD6/zczMvQrXo77hejS/zczMvY/Cdb5SuD6/zczMvY/Cdb7hejS/")
+}]
+blend_shape_mode = 0
+metadata/extras = {
+"extents": [0.12, 0.08, 0.04],
+"shape": "box"
+}
+
+[node name="tankmech_leg_left" type="Node3D" unique_id=380379837]
+
+[node name="legL_hip_cap" type="MeshInstance3D" parent="." unique_id=231657633]
 mesh = SubResource("ArrayMesh_1em7n")
 skeleton = NodePath("")
 
-[node name="legL_thigh" type="MeshInstance3D" parent="." unique_id=1311870834]
+[node name="legL_thigh" type="MeshInstance3D" parent="." unique_id=2136238215]
 mesh = SubResource("ArrayMesh_34yw6")
 skeleton = NodePath("")
 
-[node name="legL_knee" type="MeshInstance3D" parent="." unique_id=656467992]
+[node name="legL_thigh_line_h" type="MeshInstance3D" parent="." unique_id=1266051029]
 mesh = SubResource("ArrayMesh_svdgk")
 skeleton = NodePath("")
 
-[node name="legL_knee_plate" type="MeshInstance3D" parent="." unique_id=132160806]
+[node name="legL_thigh_line_v" type="MeshInstance3D" parent="." unique_id=1237110973]
 mesh = SubResource("ArrayMesh_vw5uh")
 skeleton = NodePath("")
 
-[node name="legL_shin_upper" type="MeshInstance3D" parent="." unique_id=1277116507]
+[node name="legL_thigh_accent" type="MeshInstance3D" parent="." unique_id=1980134089]
 mesh = SubResource("ArrayMesh_y23ue")
 skeleton = NodePath("")
 
-[node name="legL_shin_lower" type="MeshInstance3D" parent="." unique_id=1961492603]
+[node name="legL_knee" type="MeshInstance3D" parent="." unique_id=1498508986]
 mesh = SubResource("ArrayMesh_adr6c")
 skeleton = NodePath("")
 
-[node name="legL_shin_guard" type="MeshInstance3D" parent="." unique_id=818939712]
+[node name="legL_knee_plate" type="MeshInstance3D" parent="." unique_id=1832278446]
 mesh = SubResource("ArrayMesh_hb1xq")
 skeleton = NodePath("")
 
-[node name="legL_foot_ankle" type="MeshInstance3D" parent="." unique_id=1986929694]
+[node name="legL_shin_upper" type="MeshInstance3D" parent="." unique_id=1898265393]
 mesh = SubResource("ArrayMesh_km118")
 skeleton = NodePath("")
 
-[node name="legL_foot" type="MeshInstance3D" parent="." unique_id=851636759]
+[node name="legL_shin_lower" type="MeshInstance3D" parent="." unique_id=1462527202]
 mesh = SubResource("ArrayMesh_vuayw")
 skeleton = NodePath("")
 
-[node name="legL_foot_toe" type="MeshInstance3D" parent="." unique_id=805255315]
+[node name="legL_shin_guard" type="MeshInstance3D" parent="." unique_id=1978134653]
 mesh = SubResource("ArrayMesh_rkhho")
 skeleton = NodePath("")
 
-[node name="legL_foot_heel" type="MeshInstance3D" parent="." unique_id=888776370]
+[node name="legL_shin_line_h" type="MeshInstance3D" parent="." unique_id=1812304183]
 mesh = SubResource("ArrayMesh_2ifi2")
+skeleton = NodePath("")
+
+[node name="legL_shin_line_v" type="MeshInstance3D" parent="." unique_id=1361484275]
+mesh = SubResource("ArrayMesh_qbim2")
+skeleton = NodePath("")
+
+[node name="legL_shin_accent" type="MeshInstance3D" parent="." unique_id=2135648817]
+mesh = SubResource("ArrayMesh_alyjf")
+skeleton = NodePath("")
+
+[node name="legL_foot_ankle" type="MeshInstance3D" parent="." unique_id=1529519743]
+mesh = SubResource("ArrayMesh_rvwc4")
+skeleton = NodePath("")
+
+[node name="legL_foot" type="MeshInstance3D" parent="." unique_id=689206454]
+mesh = SubResource("ArrayMesh_86rvc")
+skeleton = NodePath("")
+
+[node name="legL_foot_toe" type="MeshInstance3D" parent="." unique_id=976561476]
+mesh = SubResource("ArrayMesh_615ve")
+skeleton = NodePath("")
+
+[node name="legL_foot_heel" type="MeshInstance3D" parent="." unique_id=658763259]
+mesh = SubResource("ArrayMesh_d1nek")
+skeleton = NodePath("")
+
+[node name="legL_foot_line" type="MeshInstance3D" parent="." unique_id=1882031989]
+mesh = SubResource("ArrayMesh_s8ur3")
+skeleton = NodePath("")
+
+[node name="legL_foot_accent" type="MeshInstance3D" parent="." unique_id=1800125188]
+mesh = SubResource("ArrayMesh_qw7ml")
 skeleton = NodePath("")

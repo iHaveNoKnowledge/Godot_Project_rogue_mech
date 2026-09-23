@@ -138,28 +138,28 @@ metadata/extras = {
 "shape": "box"
 }
 
-[node name="tankmech_head" type="Node3D" unique_id=1328210058]
+[node name="tankmech_head" type="Node3D" unique_id=637832658]
 
-[node name="head_helm" type="MeshInstance3D" parent="." unique_id=1565465415]
+[node name="head_helm" type="MeshInstance3D" parent="." unique_id=423352124]
 mesh = SubResource("ArrayMesh_ncqdm")
 skeleton = NodePath("")
 
-[node name="head_face" type="MeshInstance3D" parent="." unique_id=792864790]
+[node name="head_face" type="MeshInstance3D" parent="." unique_id=406261497]
 mesh = SubResource("ArrayMesh_hb52s")
 skeleton = NodePath("")
 
-[node name="head_visor" type="MeshInstance3D" parent="." unique_id=656389637]
+[node name="head_visor" type="MeshInstance3D" parent="." unique_id=1427222524]
 mesh = SubResource("ArrayMesh_fa4w6")
 skeleton = NodePath("")
 
-[node name="head_crest" type="MeshInstance3D" parent="." unique_id=137219673]
+[node name="head_crest" type="MeshInstance3D" parent="." unique_id=999020345]
 mesh = SubResource("ArrayMesh_irmxp")
 skeleton = NodePath("")
 
-[node name="head_antenna" type="MeshInstance3D" parent="." unique_id=1462406532]
+[node name="head_antenna" type="MeshInstance3D" parent="." unique_id=1280113908]
 mesh = SubResource("ArrayMesh_6m17c")
 skeleton = NodePath("")
 
-[node name="head_neck" type="MeshInstance3D" parent="." unique_id=1669123148]
+[node name="head_neck" type="MeshInstance3D" parent="." unique_id=2007923492]
 mesh = SubResource("ArrayMesh_py3ek")
 skeleton = NodePath("")

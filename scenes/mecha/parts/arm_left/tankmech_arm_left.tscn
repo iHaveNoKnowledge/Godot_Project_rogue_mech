@@ -119,6 +119,75 @@ metadata/extras = {
 vertex_color_use_as_albedo = true
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_85v7w"]
+resource_name = "tankmech_arm_left_armL_pauldron_line_h"
+_surfaces = [{
+"aabb": AABB(-1.375, 0.525, -0.755, 1.05, 0.050000012, 0.04000002),
+"attribute_data": PackedByteArray("JCcv/yQnL/8kJy//JCcv/yQnL/8kJy//JCcv/yQnL/8="),
+"format": 34359742473,
+"index_count": 36,
+"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
+"material": SubResource("StandardMaterial3D_q6wdy"),
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 8,
+"vertex_data": PackedByteArray("AACwv2ZmBj+uR0G/AACwv2ZmBj89Cje/AACwvzMzEz+uR0G/AACwvzMzEz89Cje/ZmamvmZmBj+uR0G/ZmamvmZmBj89Cje/ZmamvjMzEz+uR0G/ZmamvjMzEz89Cje/")
+}]
+blend_shape_mode = 0
+metadata/extras = {
+"extents": [1.05, 0.05, 0.04],
+"shape": "box"
+}
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_pkiw2"]
+vertex_color_use_as_albedo = true
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_vg8e1"]
+resource_name = "tankmech_arm_left_armL_pauldron_line_v"
+_surfaces = [{
+"aabb": AABB(-0.875, -0.5, -0.755, 0.050000012, 1.1, 0.04000002),
+"attribute_data": PackedByteArray("JCcv/yQnL/8kJy//JCcv/yQnL/8kJy//JCcv/yQnL/8="),
+"format": 34359742473,
+"index_count": 36,
+"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
+"material": SubResource("StandardMaterial3D_pkiw2"),
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 8,
+"vertex_data": PackedByteArray("AABgvwAAAL+uR0G/AABgvwAAAL89Cje/AABgv5qZGT+uR0G/AABgv5qZGT89Cje/MzNTvwAAAL+uR0G/MzNTvwAAAL89Cje/MzNTv5qZGT+uR0G/MzNTv5qZGT89Cje/")
+}]
+blend_shape_mode = 0
+metadata/extras = {
+"extents": [0.05, 1.1, 0.04],
+"shape": "box"
+}
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wv0rl"]
+vertex_color_use_as_albedo = true
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_umvkr"]
+resource_name = "tankmech_arm_left_armL_pauldron_accent"
+_surfaces = [{
+"aabb": AABB(-1.29, 0.36, -0.755, 0.21999991, 0.119999975, 0.04000002),
+"attribute_data": PackedByteArray("5kY8/+ZGPP/mRjz/5kY8/+ZGPP/mRjz/5kY8/+ZGPP8="),
+"format": 34359742473,
+"index_count": 36,
+"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
+"material": SubResource("StandardMaterial3D_wv0rl"),
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 8,
+"vertex_data": PackedByteArray("uB6lv+xRuD6uR0G/uB6lv+xRuD49Cje/uB6lv4/C9T6uR0G/uB6lv4/C9T49Cje/w/WIv+xRuD6uR0G/w/WIv+xRuD49Cje/w/WIv4/C9T6uR0G/w/WIv4/C9T49Cje/")
+}]
+blend_shape_mode = 0
+metadata/extras = {
+"extents": [0.22, 0.12, 0.04],
+"shape": "box"
+}
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_40t7c"]
+vertex_color_use_as_albedo = true
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_fxwup"]
 resource_name = "tankmech_arm_left_armL_upper"
 _surfaces = [{
 "aabb": AABB(-0.17, -0.75, -0.18, 0.34, 0.78, 0.36),
@@ -126,7 +195,7 @@ _surfaces = [{
 "format": 34359742473,
 "index_count": 36,
 "index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
-"material": SubResource("StandardMaterial3D_q6wdy"),
+"material": SubResource("StandardMaterial3D_40t7c"),
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
 "vertex_count": 8,
@@ -138,10 +207,10 @@ metadata/extras = {
 "shape": "box"
 }
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_pkiw2"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ixupc"]
 vertex_color_use_as_albedo = true
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_vg8e1"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_n33rn"]
 resource_name = "tankmech_arm_left_armL_elbow_cap"
 _surfaces = [{
 "aabb": AABB(-0.21, -0.75, -0.21, 0.42, 0.22000003, 0.42),
@@ -149,7 +218,7 @@ _surfaces = [{
 "format": 34359742473,
 "index_count": 36,
 "index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
-"material": SubResource("StandardMaterial3D_pkiw2"),
+"material": SubResource("StandardMaterial3D_ixupc"),
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
 "vertex_count": 8,
@@ -161,113 +230,206 @@ metadata/extras = {
 "shape": "box"
 }
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wv0rl"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_lu5ql"]
 vertex_color_use_as_albedo = true
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_umvkr"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_14duv"]
 resource_name = "tankmech_arm_left_armL_forearm"
 _surfaces = [{
-"aabb": AABB(-0.23, -0.8, -0.25, 0.46, 0.8, 0.5),
+"aabb": AABB(-0.31, -0.8, -0.33, 0.62, 0.8, 0.66),
 "attribute_data": PackedByteArray("QlR2/0JUdv9CVHb/QlR2/0JUdv9CVHb/QlR2/0JUdv8="),
 "format": 34359742473,
 "index_count": 36,
 "index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
-"material": SubResource("StandardMaterial3D_wv0rl"),
+"material": SubResource("StandardMaterial3D_lu5ql"),
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
 "vertex_count": 8,
-"vertex_data": PackedByteArray("H4Vrvs3MTL8AAIC+H4Vrvs3MTL8AAIA+H4VrvgAAAAAAAIC+H4VrvgAAAAAAAIA+H4VrPs3MTL8AAIC+H4VrPs3MTL8AAIA+H4VrPgAAAAAAAIC+H4VrPgAAAAAAAIA+")
+"vertex_data": PackedByteArray("Urievs3MTL/D9ai+Urievs3MTL/D9ag+UrievgAAAADD9ai+UrievgAAAADD9ag+UriePs3MTL/D9ai+UriePs3MTL/D9ag+UriePgAAAADD9ai+UriePgAAAADD9ag+")
 }]
 blend_shape_mode = 0
 metadata/extras = {
-"extents": [0.46, 0.8, 0.5],
+"extents": [0.62, 0.8, 0.66],
 "shape": "box"
 }
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_40t7c"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_c2drs"]
 vertex_color_use_as_albedo = true
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_fxwup"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_rrykc"]
 resource_name = "tankmech_arm_left_armL_forearm_plate"
 _surfaces = [{
-"aabb": AABB(-0.26, -0.75, -0.28, 0.52, 0.3, 0.56),
+"aabb": AABB(-0.34, -0.75, -0.36, 0.68, 0.3, 0.72),
 "attribute_data": PackedByteArray("MDpU/zA6VP8wOlT/MDpU/zA6VP8wOlT/MDpU/zA6VP8="),
 "format": 34359742473,
 "index_count": 36,
 "index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
-"material": SubResource("StandardMaterial3D_40t7c"),
+"material": SubResource("StandardMaterial3D_c2drs"),
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
 "vertex_count": 8,
-"vertex_data": PackedByteArray("uB6FvgAAQL8pXI++uB6FvgAAQL8pXI8+uB6FvmZm5r4pXI++uB6FvmZm5r4pXI8+uB6FPgAAQL8pXI++uB6FPgAAQL8pXI8+uB6FPmZm5r4pXI++uB6FPmZm5r4pXI8+")
+"vertex_data": PackedByteArray("exSuvgAAQL/sUbi+exSuvgAAQL/sUbg+exSuvmZm5r7sUbi+exSuvmZm5r7sUbg+exSuPgAAQL/sUbi+exSuPgAAQL/sUbg+exSuPmZm5r7sUbi+exSuPmZm5r7sUbg+")
 }]
 blend_shape_mode = 0
 metadata/extras = {
-"extents": [0.52, 0.3, 0.56],
+"extents": [0.68, 0.3, 0.72],
 "shape": "box"
 }
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ixupc"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_j0gwq"]
 vertex_color_use_as_albedo = true
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_n33rn"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_264p6"]
 resource_name = "tankmech_arm_left_armL_forearm_fist"
 _surfaces = [{
-"aabb": AABB(-0.15, -1.14, -0.17, 0.3, 0.36, 0.34),
+"aabb": AABB(-0.2, -1.14, -0.22, 0.4, 0.39999998, 0.44),
 "attribute_data": PackedByteArray("HB0h/xwdIf8cHSH/HB0h/xwdIf8cHSH/HB0h/xwdIf8="),
 "format": 34359742473,
 "index_count": 36,
 "index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
-"material": SubResource("StandardMaterial3D_ixupc"),
+"material": SubResource("StandardMaterial3D_j0gwq"),
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
 "vertex_count": 8,
-"vertex_data": PackedByteArray("mpkZvoXrkb97FC6+mpkZvoXrkb97FC4+mpkZvhSuR797FC6+mpkZvhSuR797FC4+mpkZPoXrkb97FC6+mpkZPoXrkb97FC4+mpkZPhSuR797FC6+mpkZPhSuR797FC4+")
+"vertex_data": PackedByteArray("zcxMvoXrkb+uR2G+zcxMvoXrkb+uR2E+zcxMvqRwPb+uR2G+zcxMvqRwPb+uR2E+zcxMPoXrkb+uR2G+zcxMPoXrkb+uR2E+zcxMPqRwPb+uR2G+zcxMPqRwPb+uR2E+")
 }]
 blend_shape_mode = 0
 metadata/extras = {
-"extents": [0.3, 0.36, 0.34],
+"extents": [0.4, 0.4, 0.44],
 "shape": "box"
 }
 
-[node name="tankmech_arm_left" type="Node3D" unique_id=2031197515]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_xi1dj"]
+vertex_color_use_as_albedo = true
 
-[node name="armL_pauldron" type="MeshInstance3D" parent="." unique_id=335869572]
+[sub_resource type="ArrayMesh" id="ArrayMesh_pbt7p"]
+resource_name = "tankmech_arm_left_armL_forearm_line_h"
+_surfaces = [{
+"aabb": AABB(-0.31, -0.325, -0.37, 0.62, 0.049999982, 0.03999999),
+"attribute_data": PackedByteArray("JCcv/yQnL/8kJy//JCcv/yQnL/8kJy//JCcv/yQnL/8="),
+"format": 34359742473,
+"index_count": 36,
+"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
+"material": SubResource("StandardMaterial3D_xi1dj"),
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 8,
+"vertex_data": PackedByteArray("UrievmZmpr6kcL2+UrievmZmpr7D9ai+Urievs3MjL6kcL2+Urievs3MjL7D9ai+UriePmZmpr6kcL2+UriePmZmpr7D9ai+UriePs3MjL6kcL2+UriePs3MjL7D9ai+")
+}]
+blend_shape_mode = 0
+metadata/extras = {
+"extents": [0.62, 0.05, 0.04],
+"shape": "box"
+}
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_uxwo4"]
+vertex_color_use_as_albedo = true
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_55dsg"]
+resource_name = "tankmech_arm_left_armL_forearm_line_v"
+_surfaces = [{
+"aabb": AABB(0.255, -0.8, -0.37, 0.050000012, 0.8, 0.03999999),
+"attribute_data": PackedByteArray("JCcv/yQnL/8kJy//JCcv/yQnL/8kJy//JCcv/yQnL/8="),
+"format": 34359742473,
+"index_count": 36,
+"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
+"material": SubResource("StandardMaterial3D_uxwo4"),
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 8,
+"vertex_data": PackedByteArray("XI+CPs3MTL+kcL2+XI+CPs3MTL/D9ai+XI+CPgAAAACkcL2+XI+CPgAAAADD9ai+9iicPs3MTL+kcL2+9iicPs3MTL/D9ai+9iicPgAAAACkcL2+9iicPgAAAADD9ai+")
+}]
+blend_shape_mode = 0
+metadata/extras = {
+"extents": [0.05, 0.8, 0.04],
+"shape": "box"
+}
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_qsj2w"]
+vertex_color_use_as_albedo = true
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_i81b5"]
+resource_name = "tankmech_arm_left_armL_forearm_accent"
+_surfaces = [{
+"aabb": AABB(-0.34, -0.67, -0.39, 0.2, 0.100000024, 0.03999999),
+"attribute_data": PackedByteArray("5kY8/+ZGPP/mRjz/5kY8/+ZGPP/mRjz/5kY8/+ZGPP8="),
+"format": 34359742473,
+"index_count": 36,
+"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
+"material": SubResource("StandardMaterial3D_qsj2w"),
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 8,
+"vertex_data": PackedByteArray("exSuvh+FK78Urse+exSuvh+FK78zM7O+exSuvoXrEb8Urse+exSuvoXrEb8zM7O+KVwPvh+FK78Urse+KVwPvh+FK78zM7O+KVwPvoXrEb8Urse+KVwPvoXrEb8zM7O+")
+}]
+blend_shape_mode = 0
+metadata/extras = {
+"extents": [0.2, 0.1, 0.04],
+"shape": "box"
+}
+
+[node name="tankmech_arm_left" type="Node3D" unique_id=675186664]
+
+[node name="armL_pauldron" type="MeshInstance3D" parent="." unique_id=19646773]
 mesh = SubResource("ArrayMesh_7af5a")
 skeleton = NodePath("")
 
-[node name="armL_pauldron_skirt" type="MeshInstance3D" parent="." unique_id=438558640]
+[node name="armL_pauldron_skirt" type="MeshInstance3D" parent="." unique_id=658147330]
 mesh = SubResource("ArrayMesh_4xhp0")
 skeleton = NodePath("")
 
-[node name="armL_pauldron_thruster" type="MeshInstance3D" parent="." unique_id=17427413]
+[node name="armL_pauldron_thruster" type="MeshInstance3D" parent="." unique_id=376771827]
 mesh = SubResource("ArrayMesh_hs3xk")
 skeleton = NodePath("")
 
-[node name="armL_pauldron_vent_front" type="MeshInstance3D" parent="." unique_id=370430698]
+[node name="armL_pauldron_vent_front" type="MeshInstance3D" parent="." unique_id=899905042]
 mesh = SubResource("ArrayMesh_6yc35")
 skeleton = NodePath("")
 
-[node name="armL_pauldron_vent_rear" type="MeshInstance3D" parent="." unique_id=2045235714]
+[node name="armL_pauldron_vent_rear" type="MeshInstance3D" parent="." unique_id=764336383]
 mesh = SubResource("ArrayMesh_kf588")
 skeleton = NodePath("")
 
-[node name="armL_upper" type="MeshInstance3D" parent="." unique_id=87217079]
+[node name="armL_pauldron_line_h" type="MeshInstance3D" parent="." unique_id=1435958397]
 mesh = SubResource("ArrayMesh_85v7w")
 skeleton = NodePath("")
 
-[node name="armL_elbow_cap" type="MeshInstance3D" parent="." unique_id=846841731]
+[node name="armL_pauldron_line_v" type="MeshInstance3D" parent="." unique_id=2026149746]
 mesh = SubResource("ArrayMesh_vg8e1")
 skeleton = NodePath("")
 
-[node name="armL_forearm" type="MeshInstance3D" parent="." unique_id=857814865]
+[node name="armL_pauldron_accent" type="MeshInstance3D" parent="." unique_id=29384364]
 mesh = SubResource("ArrayMesh_umvkr")
 skeleton = NodePath("")
 
-[node name="armL_forearm_plate" type="MeshInstance3D" parent="." unique_id=820618101]
+[node name="armL_upper" type="MeshInstance3D" parent="." unique_id=676509039]
 mesh = SubResource("ArrayMesh_fxwup")
 skeleton = NodePath("")
 
-[node name="armL_forearm_fist" type="MeshInstance3D" parent="." unique_id=479906052]
+[node name="armL_elbow_cap" type="MeshInstance3D" parent="." unique_id=939064670]
 mesh = SubResource("ArrayMesh_n33rn")
+skeleton = NodePath("")
+
+[node name="armL_forearm" type="MeshInstance3D" parent="." unique_id=819903451]
+mesh = SubResource("ArrayMesh_14duv")
+skeleton = NodePath("")
+
+[node name="armL_forearm_plate" type="MeshInstance3D" parent="." unique_id=534946122]
+mesh = SubResource("ArrayMesh_rrykc")
+skeleton = NodePath("")
+
+[node name="armL_forearm_fist" type="MeshInstance3D" parent="." unique_id=1584788269]
+mesh = SubResource("ArrayMesh_264p6")
+skeleton = NodePath("")
+
+[node name="armL_forearm_line_h" type="MeshInstance3D" parent="." unique_id=432778723]
+mesh = SubResource("ArrayMesh_pbt7p")
+skeleton = NodePath("")
+
+[node name="armL_forearm_line_v" type="MeshInstance3D" parent="." unique_id=1357853312]
+mesh = SubResource("ArrayMesh_55dsg")
+skeleton = NodePath("")
+
+[node name="armL_forearm_accent" type="MeshInstance3D" parent="." unique_id=772297247]
+mesh = SubResource("ArrayMesh_i81b5")
 skeleton = NodePath("")

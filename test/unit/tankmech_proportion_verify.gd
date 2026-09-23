@@ -31,6 +31,8 @@ func _ready() -> void:
 	_test_arm_reaches_elbow_pivot()
 	_test_head_small_between_pauldrons()
 	_test_body_panel_lines_and_accents()
+	_test_two_tone_zones_present()
+	_test_backpack_armor_present()
 	_test_resources_point_at_rebuilt_scenes()
 
 	print("\n=== TANKMECH PROPORTION SUMMARY ===")
@@ -92,7 +94,7 @@ func _combined_aabb(bounds: Array) -> AABB:
 func _test_part_scenes_load_and_instantiate() -> void:
 	print("\n-- [1] Scenes load and instantiate with expected mesh counts --")
 	var expected_meshes := {
-		"body": 28, "head": 6,
+		"body": 39, "head": 6,
 		"arm_left": 16, "arm_right": 16,
 		"leg_left": 19, "leg_right": 19,
 	}
@@ -284,6 +286,70 @@ func _test_head_small_between_pauldrons() -> void:
 	_check(merged.size.y > 0.40 and merged.size.y < 0.65,
 		"head height 0.40..0.65m (got %.3f)" % merged.size.y)
 	_check(merged.size.x < 0.4, "head narrower than pauldrons (got %.3f)" % merged.size.x)
+
+
+func _test_two_tone_zones_present() -> void:
+	print("\n-- [5c] Two-tone armor zones (primary vs secondary) --")
+	var inst := _instantiate_slot("body")
+	if inst == null:
+		return
+	# Secondary-zone meshes carry the _d_ infix in their node names.
+	var zone_b := _count_keyword_meshes(inst, "_d_")
+	_check(zone_b >= 10, "body has >=10 secondary-zone meshes (got %d)" % zone_b)
+	var arm := _instantiate_slot("arm_left")
+	if arm != null:
+		_check(_count_keyword_meshes(arm, "_d_") >= 2, "arm_left has secondary-zone meshes")
+		arm.queue_free()
+	var leg := _instantiate_slot("leg_left")
+	if leg != null:
+		_check(_count_keyword_meshes(leg, "_d_") >= 2, "leg_left has secondary-zone meshes")
+		leg.queue_free()
+	# The zones must be visually distinct: several distinct vertex colors.
+	var colors := _distinct_mesh_colors(inst)
+	_check(colors.size() >= 4, "body uses >=4 distinct plate colors (got %d)" % colors.size())
+	inst.queue_free()
+
+
+# Distinct quantized vertex colors across all meshes under root (sampled at
+# the first vertex of every surface).
+func _distinct_mesh_colors(root: Node) -> Array:
+	var seen := {}
+	var stack: Array[Node] = [root]
+	while not stack.is_empty():
+		var n: Node = stack.pop_back()
+		if n is MeshInstance3D and (n as MeshInstance3D).mesh != null:
+			var mesh: Mesh = (n as MeshInstance3D).mesh
+			for s in mesh.get_surface_count():
+				var arrays := mesh.surface_get_arrays(s)
+				if arrays == null:
+					continue
+				var cols = arrays[Mesh.ARRAY_COLOR]
+				if cols == null or (cols as PackedColorArray).is_empty():
+					continue
+				var c: Color = (cols as PackedColorArray)[0]
+				var key := int(round(c.r * 255.0)) * 65536 \
+						+ int(round(c.g * 255.0)) * 256 + int(round(c.b * 255.0))
+				seen[key] = true
+		for ch in n.get_children():
+			stack.append(ch)
+	return seen.keys()
+
+
+func _test_backpack_armor_present() -> void:
+	print("\n-- [5d] Backpack/thruster armor block --")
+	var inst := _instantiate_slot("body")
+	if inst == null:
+		return
+	var bp := _count_keyword_meshes(inst, "_bp_")
+	_check(bp >= 6, "body has >=6 backpack meshes (got %d)" % bp)
+	var vents := _count_keyword_meshes(inst, "_vent")
+	_check(vents >= 4, "body has >=4 vent blocks incl. backpack (got %d)" % vents)
+	# The backpack must extend behind the tub: authored rear face lands at
+	# body-local z +1.88, past the previous rear reach of +1.57.
+	var merged := _combined_aabb(_slot_bounds("body"))
+	_check(merged.end.z > 1.85,
+		"body rear (backpack) reaches past z +1.85 (got %.3f)" % merged.end.z)
+	inst.queue_free()
 
 
 func _test_resources_point_at_rebuilt_scenes() -> void:

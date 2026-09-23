@@ -27,10 +27,10 @@ metadata/extras = {
 vertex_color_use_as_albedo = true
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_4xhp0"]
-resource_name = "tankmech_arm_left_armL_pauldron_skirt"
+resource_name = "tankmech_arm_left_armL_d_pauldron_skirt"
 _surfaces = [{
 "aabb": AABB(-1.38, -0.64, -0.43, 0.71999997, 0.68, 0.86),
-"attribute_data": PackedByteArray("MDpU/zA6VP8wOlT/MDpU/zA6VP8wOlT/MDpU/zA6VP8="),
+"attribute_data": PackedByteArray("IiY2/yImNv8iJjb/IiY2/yImNv8iJjb/IiY2/yImNv8="),
 "format": 34359742473,
 "index_count": 36,
 "index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
@@ -257,10 +257,10 @@ metadata/extras = {
 vertex_color_use_as_albedo = true
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_rrykc"]
-resource_name = "tankmech_arm_left_armL_forearm_plate"
+resource_name = "tankmech_arm_left_armL_d_forearm_plate"
 _surfaces = [{
 "aabb": AABB(-0.34, -0.75, -0.36, 0.68, 0.3, 0.72),
-"attribute_data": PackedByteArray("MDpU/zA6VP8wOlT/MDpU/zA6VP8wOlT/MDpU/zA6VP8="),
+"attribute_data": PackedByteArray("IiY2/yImNv8iJjb/IiY2/yImNv8iJjb/IiY2/yImNv8="),
 "format": 34359742473,
 "index_count": 36,
 "index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
@@ -368,68 +368,68 @@ metadata/extras = {
 "shape": "box"
 }
 
-[node name="tankmech_arm_left" type="Node3D" unique_id=675186664]
+[node name="tankmech_arm_left" type="Node3D" unique_id=375768539]
 
-[node name="armL_pauldron" type="MeshInstance3D" parent="." unique_id=19646773]
+[node name="armL_pauldron" type="MeshInstance3D" parent="." unique_id=335983091]
 mesh = SubResource("ArrayMesh_7af5a")
 skeleton = NodePath("")
 
-[node name="armL_pauldron_skirt" type="MeshInstance3D" parent="." unique_id=658147330]
+[node name="armL_d_pauldron_skirt" type="MeshInstance3D" parent="." unique_id=1600621689]
 mesh = SubResource("ArrayMesh_4xhp0")
 skeleton = NodePath("")
 
-[node name="armL_pauldron_thruster" type="MeshInstance3D" parent="." unique_id=376771827]
+[node name="armL_pauldron_thruster" type="MeshInstance3D" parent="." unique_id=1854652361]
 mesh = SubResource("ArrayMesh_hs3xk")
 skeleton = NodePath("")
 
-[node name="armL_pauldron_vent_front" type="MeshInstance3D" parent="." unique_id=899905042]
+[node name="armL_pauldron_vent_front" type="MeshInstance3D" parent="." unique_id=307030008]
 mesh = SubResource("ArrayMesh_6yc35")
 skeleton = NodePath("")
 
-[node name="armL_pauldron_vent_rear" type="MeshInstance3D" parent="." unique_id=764336383]
+[node name="armL_pauldron_vent_rear" type="MeshInstance3D" parent="." unique_id=761225152]
 mesh = SubResource("ArrayMesh_kf588")
 skeleton = NodePath("")
 
-[node name="armL_pauldron_line_h" type="MeshInstance3D" parent="." unique_id=1435958397]
+[node name="armL_pauldron_line_h" type="MeshInstance3D" parent="." unique_id=1314775697]
 mesh = SubResource("ArrayMesh_85v7w")
 skeleton = NodePath("")
 
-[node name="armL_pauldron_line_v" type="MeshInstance3D" parent="." unique_id=2026149746]
+[node name="armL_pauldron_line_v" type="MeshInstance3D" parent="." unique_id=437307670]
 mesh = SubResource("ArrayMesh_vg8e1")
 skeleton = NodePath("")
 
-[node name="armL_pauldron_accent" type="MeshInstance3D" parent="." unique_id=29384364]
+[node name="armL_pauldron_accent" type="MeshInstance3D" parent="." unique_id=1197386561]
 mesh = SubResource("ArrayMesh_umvkr")
 skeleton = NodePath("")
 
-[node name="armL_upper" type="MeshInstance3D" parent="." unique_id=676509039]
+[node name="armL_upper" type="MeshInstance3D" parent="." unique_id=1229792749]
 mesh = SubResource("ArrayMesh_fxwup")
 skeleton = NodePath("")
 
-[node name="armL_elbow_cap" type="MeshInstance3D" parent="." unique_id=939064670]
+[node name="armL_elbow_cap" type="MeshInstance3D" parent="." unique_id=1275663567]
 mesh = SubResource("ArrayMesh_n33rn")
 skeleton = NodePath("")
 
-[node name="armL_forearm" type="MeshInstance3D" parent="." unique_id=819903451]
+[node name="armL_forearm" type="MeshInstance3D" parent="." unique_id=1194693611]
 mesh = SubResource("ArrayMesh_14duv")
 skeleton = NodePath("")
 
-[node name="armL_forearm_plate" type="MeshInstance3D" parent="." unique_id=534946122]
+[node name="armL_d_forearm_plate" type="MeshInstance3D" parent="." unique_id=504182593]
 mesh = SubResource("ArrayMesh_rrykc")
 skeleton = NodePath("")
 
-[node name="armL_forearm_fist" type="MeshInstance3D" parent="." unique_id=1584788269]
+[node name="armL_forearm_fist" type="MeshInstance3D" parent="." unique_id=417797628]
 mesh = SubResource("ArrayMesh_264p6")
 skeleton = NodePath("")
 
-[node name="armL_forearm_line_h" type="MeshInstance3D" parent="." unique_id=432778723]
+[node name="armL_forearm_line_h" type="MeshInstance3D" parent="." unique_id=141853583]
 mesh = SubResource("ArrayMesh_pbt7p")
 skeleton = NodePath("")
 
-[node name="armL_forearm_line_v" type="MeshInstance3D" parent="." unique_id=1357853312]
+[node name="armL_forearm_line_v" type="MeshInstance3D" parent="." unique_id=44972312]
 mesh = SubResource("ArrayMesh_55dsg")
 skeleton = NodePath("")
 
-[node name="armL_forearm_accent" type="MeshInstance3D" parent="." unique_id=772297247]
+[node name="armL_forearm_accent" type="MeshInstance3D" parent="." unique_id=2110183525]
 mesh = SubResource("ArrayMesh_i81b5")
 skeleton = NodePath("")

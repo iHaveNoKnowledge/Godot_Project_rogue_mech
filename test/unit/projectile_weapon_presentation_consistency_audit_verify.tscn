@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://dmxeixa2n28up"]
+
+[ext_resource type="Script" path="res://test/unit/projectile_weapon_presentation_consistency_audit_verify.gd" id="1_test"]
+
+[node name="ProjectileWeaponPresentationConsistencyAuditVerify" type="Node"]
+script = ExtResource("1_test")

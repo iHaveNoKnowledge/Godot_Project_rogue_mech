@@ -358,7 +358,7 @@ func _draw_missile_locks(center: Vector2) -> void:
 
 	# 2. Tactical diamond/square brackets on each locked target
 	for target in lock_sys.locked_targets.keys():
-		if not is_instance_valid(target) or not target.is_inside_tree():
+		if not is_instance_valid(target) or not target.is_inside_tree() or target.is_queued_for_deletion():
 			continue
 		var count: int = int(lock_sys.locked_targets[target])
 		if count <= 0:

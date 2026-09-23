@@ -89,7 +89,7 @@ func _physics_process(delta: float) -> void:
 
 	# --- Homing Guidance (Macross / AC Swarm Trajectory) ---
 	if target_node != null:
-		if not is_instance_valid(target_node) or ("is_destroyed" in target_node and target_node.is_destroyed):
+		if not is_instance_valid(target_node) or not target_node.is_inside_tree() or target_node.is_queued_for_deletion() or ("is_destroyed" in target_node and target_node.is_destroyed):
 			target_node = null
 		elif timer >= initial_boost_timer:
 			var target_pos: Vector3 = target_node.global_position + Vector3(0.0, 1.2, 0.0)

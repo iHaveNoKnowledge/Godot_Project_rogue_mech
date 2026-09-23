@@ -91,13 +91,15 @@ func _physics_process(delta: float) -> void:
 	# 1. Prune dead or destroyed targets
 	var keys_to_remove: Array = []
 	for target in locked_targets.keys():
-		if not is_instance_valid(target) or not target.is_inside_tree():
+		if not is_instance_valid(target) or not target.is_inside_tree() or target.is_queued_for_deletion():
 			keys_to_remove.append(target)
 		elif "is_destroyed" in target and target.is_destroyed:
 			keys_to_remove.append(target)
-	for k in keys_to_remove:
-		locked_targets.erase(k)
-		target_lock_progress.erase(k)
+	if not keys_to_remove.is_empty():
+		for k in keys_to_remove:
+			locked_targets.erase(k)
+			target_lock_progress.erase(k)
+		lock_updated.emit(locked_targets)
 
 	var tree := get_tree()
 	if tree == null:

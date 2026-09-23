@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://dmyejw93n39vq"]
+[gd_scene format=3 uid="uid://dmyejxa3n4avq"]
 
 [ext_resource type="Script" path="res://test/unit/weapon_firing_resource_lifecycle_audit_verify.gd" id="1_test"]
 

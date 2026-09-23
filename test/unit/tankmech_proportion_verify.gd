@@ -30,6 +30,7 @@ func _ready() -> void:
 	_test_leg_reaches_ankle_pivot()
 	_test_arm_reaches_elbow_pivot()
 	_test_head_small_between_pauldrons()
+	_test_body_panel_lines_and_accents()
 	_test_resources_point_at_rebuilt_scenes()
 
 	print("\n=== TANKMECH PROPORTION SUMMARY ===")
@@ -91,7 +92,7 @@ func _combined_aabb(bounds: Array) -> AABB:
 func _test_part_scenes_load_and_instantiate() -> void:
 	print("\n-- [1] Scenes load and instantiate with expected mesh counts --")
 	var expected_meshes := {
-		"body": 11, "head": 6,
+		"body": 28, "head": 6,
 		"arm_left": 7, "arm_right": 7,
 		"leg_left": 10, "leg_right": 10,
 	}
@@ -202,6 +203,49 @@ func _test_arm_reaches_elbow_pivot() -> void:
 		_check(merged.size.x > 1.4 and merged.size.x < 2.0,
 			"%s pauldron bulk x-width 1.4..2.0 (got %.3f)" % [slot, merged.size.x])
 		inst.queue_free()
+
+
+func _test_body_panel_lines_and_accents() -> void:
+	print("\n-- [5b] Body armor carries panel lines + accent plates --")
+	var inst := _instantiate_slot("body")
+	if inst == null:
+		return
+	var lines := _count_keyword_meshes(inst, "_line")
+	var accents := _count_keyword_meshes(inst, "_accent")
+	_check(lines >= 8, "body has panel lines (got %d)" % lines)
+	_check(accents >= 5, "body has accent plates (got %d)" % accents)
+
+	# Every detail mesh must sit INSIDE the body silhouette (they dress the
+	# plates, not float around them).
+	var combined := _combined_aabb(_slot_bounds("body"))
+	var all := _all_mesh_aabbs(inst)
+	var inside := 0
+	for a in all:
+		if combined.encloses(a):
+			inside += 1
+	_check(inside == all.size(), "all %d body meshes sit inside the body silhouette" % all.size())
+	inst.queue_free()
+
+
+# Number of MeshInstance3D whose name contains `keyword`.
+func _count_keyword_meshes(root: Node, keyword: String) -> int:
+	var count := 0
+	var stack: Array[Node] = [root]
+	while not stack.is_empty():
+		var n: Node = stack.pop_back()
+		if n is MeshInstance3D and (n as MeshInstance3D).mesh != null \
+				and n.name.to_lower().contains(keyword):
+			count += 1
+		for c in n.get_children():
+			stack.append(c)
+	return count
+
+
+# AABB of every MeshInstance3D under root (transformed into scene space).
+func _all_mesh_aabbs(root: Node) -> Array:
+	var out: Array = []
+	_collect_mesh_bounds(root, Transform3D.IDENTITY, out)
+	return out
 
 
 func _test_head_small_between_pauldrons() -> void:

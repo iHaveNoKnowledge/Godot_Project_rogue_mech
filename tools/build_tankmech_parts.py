@@ -50,7 +50,9 @@ def box(name, size, center, color):
 
 def build_body():
     """Armor plates hugging the cockpit tub (local y +-0.941, x +-0.675,
-    z -1.352..1.260)."""
+    z -1.352..1.260). Dressed with panel-line strips (thin TRIM boxes protruding
+    ~0.03 from the plate faces) and red SENSOR accent plates per the reference
+    photo. Node names carry 'line' / 'accent' keywords for verification."""
     return [
         box('body_chest', (1.40, 1.70, 0.14), (0, 0.06, -1.42), ARMOR),
         box('body_chest_core', (0.90, 0.80, 0.18), (0, 0.28, -1.50), ARMOR_D),
@@ -63,6 +65,25 @@ def build_body():
         box('body_thruster_l', (0.34, 0.70, 0.30), (-0.30, 0.20, 1.42), JOINT),
         box('body_thruster_r', (0.34, 0.70, 0.30), (0.30, 0.20, 1.42), JOINT),
         box('body_collar', (0.80, 0.26, 0.80), (0, 1.02, -0.10), TRIM),
+        # --- panel lines: thin TRIM strips proud of the plate faces ---
+        box('body_chest_line_h_low', (1.40, 0.05, 0.04), (0, -0.60, -1.50), TRIM),
+        box('body_chest_line_h_up', (1.40, 0.05, 0.04), (0, 0.55, -1.50), TRIM),
+        box('body_chest_line_v_l', (0.05, 1.50, 0.04), (-0.62, 0.06, -1.50), TRIM),
+        box('body_chest_line_v_r', (0.05, 1.50, 0.04), (0.62, 0.06, -1.50), TRIM),
+        box('body_skirt_line_h', (1.44, 0.05, 0.04), (0, -0.88, -1.19), TRIM),
+        box('body_skirt_line_v_l', (0.05, 0.40, 0.04), (-0.45, -0.98, -1.19), TRIM),
+        box('body_skirt_line_v_r', (0.05, 0.40, 0.04), (0.45, -0.98, -1.19), TRIM),
+        box('body_side_line_l', (0.04, 0.05, 2.30), (-0.81, 0.42, -0.05), TRIM),
+        box('body_side_line_r', (0.04, 0.05, 2.30), (0.81, 0.42, -0.05), TRIM),
+        box('body_rear_line_h', (1.28, 0.05, 0.04), (0, 0.60, 1.41), TRIM),
+        # --- accent plates: red SENSOR marks like the reference photo ---
+        box('body_chest_accent_l', (0.12, 0.14, 0.04), (-0.52, 0.70, -1.50), SENSOR),
+        box('body_chest_accent_r', (0.12, 0.14, 0.04), (0.52, 0.70, -1.50), SENSOR),
+        box('body_skirt_accent_c', (0.30, 0.10, 0.04), (0, -1.06, -1.19), SENSOR),
+        box('body_side_accent_l', (0.04, 0.14, 0.70), (-0.81, -0.35, -0.70), SENSOR),
+        box('body_side_accent_r', (0.04, 0.14, 0.70), (0.81, -0.35, -0.70), SENSOR),
+        box('body_rear_accent_l', (0.16, 0.28, 0.04), (-0.56, 0.22, 1.41), SENSOR),
+        box('body_rear_accent_r', (0.16, 0.28, 0.04), (0.56, 0.22, 1.41), SENSOR),
     ]
 
 

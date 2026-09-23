@@ -351,7 +351,7 @@ func _draw_missile_locks(center: Vector2) -> void:
 
 	var total_locks: int = lock_sys.get_total_locks()
 	if font:
-		var lock_msg := ("LOCK SALVO: %d" % total_locks) if total_locks > 0 else "LOCKING..."
+		var lock_msg := ("SALVO: %d MISSILES" % total_locks) if total_locks > 1 else (("SALVO: 1 MISSILE") if total_locks == 1 else "LOCKING...")
 		var col := Color(1.0, 0.25, 0.25, 0.95) if total_locks > 0 else Color(1.0, 0.8, 0.2, 0.85)
 		var text_sz := font.get_string_size(lock_msg, HORIZONTAL_ALIGNMENT_CENTER, -1, 12)
 		overlay_control.draw_string(font, center + Vector2(-text_sz.x * 0.5, sweep_radius + 20.0), lock_msg, HORIZONTAL_ALIGNMENT_CENTER, -1, 12, col)
@@ -380,7 +380,7 @@ func _draw_missile_locks(center: Vector2) -> void:
 		overlay_control.draw_line(s_pos + Vector2(bracket_sz, -bracket_sz), s_pos + Vector2(bracket_sz, -bracket_sz + corner_len), bracket_col, 2.0)
 		# Bottom-Left corner
 		overlay_control.draw_line(s_pos + Vector2(-bracket_sz, bracket_sz), s_pos + Vector2(-bracket_sz + corner_len, bracket_sz), bracket_col, 2.0)
-		overlay_control.draw_line(s_pos + Vector2(-bracket_sz, bracket_sz), s_pos + Vector2(-bracket_sz, bracket_sz - corner_len), bracket_col, 2.0)
+		overlay_control.draw_line(s_pos + Vector2(-bracket_sz, bracket_sz), s_pos + Vector2(-bracket_sz, -bracket_sz + corner_len), bracket_col, 2.0)
 		# Bottom-Right corner
 		overlay_control.draw_line(s_pos + Vector2(bracket_sz, bracket_sz), s_pos + Vector2(bracket_sz - corner_len, bracket_sz), bracket_col, 2.0)
 		overlay_control.draw_line(s_pos + Vector2(bracket_sz, bracket_sz), s_pos + Vector2(bracket_sz, bracket_sz - corner_len), bracket_col, 2.0)
@@ -388,7 +388,7 @@ func _draw_missile_locks(center: Vector2) -> void:
 		# Center pip
 		overlay_control.draw_circle(s_pos, 3.0, bracket_col)
 
-		# Number badge e.g. [x2]
+		# Number badge e.g. [x2 MSL]
 		if font:
-			var badge_str := "[x%d]" % count
+			var badge_str := "[x%d MSL]" % count
 			overlay_control.draw_string(font, s_pos + Vector2(bracket_sz + 6.0, 5.0), badge_str, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(1.0, 0.9, 0.25, 0.98))

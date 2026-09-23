@@ -434,16 +434,57 @@ static func evaluate_hardware_compatibility(frame_data: Variant, hardware_requir
 			"is_supported": true,
 			"active_bridges": installed_bridges,
 			"missing_requirements": [],
-			"reasons": ["Hardware successfully bridged to frame via installed module interfaces."]
+			"reasons": ["Hardware successfully bridged to frame via installed module interfaces."],
+			"required_bridge_summary": ""
 		}
+
+	var bridge_summary: String = resolve_bridge_requirement_summary(remaining_missing, reqs)
 
 	return {
 		"status": CompatibilityStatus.INCOMPATIBLE,
 		"is_supported": false,
 		"active_bridges": [],
 		"missing_requirements": remaining_missing,
-		"reasons": reasons
+		"reasons": reasons,
+		"required_bridge_summary": bridge_summary
 	}
+
+
+## Authoritatively resolves human-readable requirement descriptions for missing hardware/bridge capabilities.
+static func resolve_bridge_requirement_summary(missing_requirements: Array, hardware_reqs: Dictionary) -> String:
+	var req_parts: Array[String] = []
+	var req_gen: int = int(hardware_reqs.get("min_generation", hardware_reqs.get("generation", 1)))
+	var t_family: String = str(hardware_reqs.get("technology_family", ""))
+	var req_lineage: String = str(hardware_reqs.get("required_lineage", "")).to_lower()
+
+	for missing in missing_requirements:
+		var m_str := str(missing)
+		if m_str == "unsupported_family":
+			if t_family == "energy":
+				req_parts.append("Energy Weapon Bridge (e.g. Modular Energy Bridge Interface)")
+			elif t_family == "cooling":
+				req_parts.append("Cryo Coolant Bridge (e.g. Cryo Heatsink Loop)")
+			elif t_family != "":
+				req_parts.append("%s Architecture Bridge Module" % t_family.capitalize())
+		elif m_str == "insufficient_generation":
+			req_parts.append("Gen %d+ Bridge Module or Gen %d+ Frame" % [req_gen, req_gen])
+		elif m_str.begins_with("missing_bridge_tag:"):
+			var tag := m_str.trim_prefix("missing_bridge_tag:")
+			if tag == "energy_interface":
+				if not req_parts.has("Energy Weapon Bridge (e.g. Modular Energy Bridge Interface)"):
+					req_parts.append("Energy Interface Bridge (Modular Energy Bridge Interface)")
+			elif tag == "cryo_coolant_interface":
+				if not req_parts.has("Cryo Coolant Bridge (e.g. Cryo Heatsink Loop)"):
+					req_parts.append("Cryo Coolant Interface Bridge (Cryo Heatsink Loop)")
+			else:
+				req_parts.append("%s Interface Module" % tag.replace("_", " ").capitalize())
+		elif m_str.begins_with("incompatible_lineage:"):
+			var lin := m_str.trim_prefix("incompatible_lineage:")
+			req_parts.append("%s Lineage Adapter Module" % lin.capitalize())
+
+	if req_parts.is_empty():
+		return "Compatible Frame Bridge Module or Upgraded Frame"
+	return " | ".join(req_parts)
 
 
 ## Evaluates whether this frame can physically support given hardware or technology requirements.

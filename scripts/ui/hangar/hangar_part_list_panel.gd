@@ -162,7 +162,11 @@ func populate(slot: String) -> void:
 					controller.part_item_list.set_item_tooltip(row_idx, "Technology not authorized: %s" % validation.get("tech_id", ""))
 				elif not bool(validation.get("physically_compatible", true)):
 					controller.part_item_list.set_item_custom_fg_color(row_idx, Color(0.85, 0.65, 0.35))
-					controller.part_item_list.set_item_tooltip(row_idx, "Frame cannot support technology: %s" % validation.get("tech_id", ""))
+					var req_b: String = str(validation.get("required_bridge_summary", ""))
+					if req_b != "":
+						controller.part_item_list.set_item_tooltip(row_idx, "Frame Incompatible — Requires: %s" % req_b)
+					else:
+						controller.part_item_list.set_item_tooltip(row_idx, "Frame cannot support technology: %s" % validation.get("tech_id", ""))
 			controller.visible_weapon_indices.append(index)
 		if controller.part_item_list.item_count > 0:
 			controller.part_item_list.select(0)
@@ -226,7 +230,11 @@ func populate(slot: String) -> void:
 					controller.part_item_list.set_item_tooltip(row_idx, "Technology not authorized: %s" % validation.get("tech_id", ""))
 				elif not bool(validation.get("physically_compatible", true)):
 					controller.part_item_list.set_item_custom_fg_color(row_idx, Color(0.85, 0.65, 0.35))
-					controller.part_item_list.set_item_tooltip(row_idx, "Frame cannot support technology: %s" % validation.get("tech_id", ""))
+					var req_b: String = str(validation.get("required_bridge_summary", ""))
+					if req_b != "":
+						controller.part_item_list.set_item_tooltip(row_idx, "Frame Incompatible — Requires: %s" % req_b)
+					else:
+						controller.part_item_list.set_item_tooltip(row_idx, "Frame cannot support technology: %s" % validation.get("tech_id", ""))
 			controller.visible_salvage_indices.append(inst_index)
 		if controller.part_item_list.item_count > 0:
 			controller.part_item_list.select(0)

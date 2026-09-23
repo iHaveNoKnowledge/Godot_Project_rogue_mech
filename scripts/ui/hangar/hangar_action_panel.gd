@@ -104,7 +104,8 @@ func show(info: Dictionary) -> void:
 	if not bool(validation.get("is_legacy_neutral", true)):
 		var tech_lbl := Label.new()
 		var t_stat := "USABLE" if bool(validation.get("technology_allowed", false)) else "LOCKED"
-		var f_stat := "COMPATIBLE" if bool(validation.get("physically_compatible", false)) else "INCOMPATIBLE"
+		var req_b: String = str(validation.get("required_bridge_summary", ""))
+		var f_stat := "COMPATIBLE" if bool(validation.get("physically_compatible", false)) else ("REQ: " + (req_b if req_b != "" else "BRIDGE MODULE"))
 		tech_lbl.text = "TECH: %s (%s)  |  FRAME: %s" % [str(validation.get("tech_id", "")), t_stat, f_stat]
 		tech_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		var t_col := Color(0.4, 0.9, 0.5) if can_eq else (Color(1.0, 0.4, 0.4) if not bool(validation.get("technology_allowed", false)) else Color(1.0, 0.75, 0.3))
@@ -169,7 +170,11 @@ func show(info: Dictionary) -> void:
 		elif r == "physically_incompatible":
 			toggle_btn.text = "[ INCOMPATIBLE ]"
 			toggle_btn.add_theme_color_override("font_color", Color(0.85, 0.65, 0.35))
-			toggle_btn.tooltip_text = str(validation.get("message", "Frame cannot mount hardware"))
+			var req_b: String = str(validation.get("required_bridge_summary", ""))
+			if req_b != "":
+				toggle_btn.tooltip_text = "Requires: %s" % req_b
+			else:
+				toggle_btn.tooltip_text = str(validation.get("message", "Frame cannot mount hardware"))
 		elif r == "arm_destroyed":
 			toggle_btn.text = "[ ARM BROKEN ]"
 			toggle_btn.add_theme_color_override("font_color", Color(0.85, 0.45, 0.45))

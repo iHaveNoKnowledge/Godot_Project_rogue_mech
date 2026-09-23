@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://b14auxremediation001"]
+
+[ext_resource type="Script" path="res://test/unit/phase_2e_14a_ux_remediation_verify.gd" id="1_test"]
+
+[node name="Phase2E14AUxRemediationVerify" type="Node"]
+script = ExtResource("1_test")

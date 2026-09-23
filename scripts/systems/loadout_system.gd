@@ -854,7 +854,13 @@ static func validate_equip_request(slot: String, item_data: Variant, context: Di
 				if mods is Array:
 					for m in mods:
 						installed_bridges.append(m)
-		if not active_frame.is_empty() and not frame_sys.can_support_technology(active_frame, item_tech_id, installed_bridges):
+		var compat_eval: Dictionary = frame_sys.evaluate_technology_compatibility(active_frame, item_tech_id, installed_bridges)
+		if not active_frame.is_empty() and not bool(compat_eval.get("is_supported", false)):
+			var req_summary: String = str(compat_eval.get("required_bridge_summary", ""))
+			if req_summary == "":
+				var reasons: Array = compat_eval.get("reasons", [])
+				if not reasons.is_empty():
+					req_summary = str(reasons[0])
 			return {
 				"can_equip": false,
 				"allowed": false,
@@ -864,7 +870,9 @@ static func validate_equip_request(slot: String, item_data: Variant, context: Di
 				"reason": "physically_incompatible",
 				"tech_id": item_tech_id,
 				"state_name": state_name,
-				"message": "Cannot equip: Current frame cannot support this hardware (Technology '%s')." % item_tech_id
+				"required_bridge_summary": req_summary,
+				"compatibility_report": compat_eval,
+				"message": "Cannot equip: Current frame cannot support this hardware (Technology '%s'). Requires: %s" % [item_tech_id, req_summary]
 			}
 
 	# 3. Mechanical limb check (weapons in hands need intact arm frames)

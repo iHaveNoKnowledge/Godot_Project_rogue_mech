@@ -67,25 +67,27 @@ def build_body():
 
 
 def build_head():
-    """Small head tucked between the pauldrons (pivot at local 4.377)."""
+    """Tiny head buried between the oversized pauldrons (pivot at local
+    4.377) — exaggerated kitbash proportion: total height ~0.54, width 0.34."""
     return [
-        box('head_helm', (0.46, 0.38, 0.46), (0, 0.14, 0.0), ARMOR),
-        box('head_face', (0.34, 0.14, 0.10), (0, 0.10, -0.26), JOINT),
-        box('head_visor', (0.30, 0.05, 0.05), (0, 0.12, -0.31), SENSOR),
-        box('head_crest', (0.08, 0.18, 0.34), (0, 0.40, 0.02), TRIM),
-        box('head_antenna', (0.05, 0.22, 0.05), (0.16, 0.42, 0.10), TRIM),
-        box('head_neck', (0.30, 0.16, 0.30), (0, -0.09, 0.0), JOINT),
+        box('head_helm', (0.34, 0.28, 0.34), (0, 0.12, 0.0), ARMOR),
+        box('head_face', (0.26, 0.10, 0.08), (0, 0.08, -0.20), JOINT),
+        box('head_visor', (0.22, 0.04, 0.04), (0, 0.10, -0.26), SENSOR),
+        box('head_crest', (0.06, 0.14, 0.26), (0, 0.31, 0.02), TRIM),
+        box('head_antenna', (0.04, 0.16, 0.04), (0.12, 0.33, 0.08), TRIM),
+        box('head_neck', (0.24, 0.12, 0.24), (0, -0.07, 0.0), JOINT),
     ]
 
 
 def build_arm(sign):
     """sign -1 = left, +1 = right. Shoulder-frame origin; elbow sits 0.6384
-    below the pivot. Big pauldron overhangs the tub like the reference photo.
+    below the pivot. Huge pauldrons (1.15x1.20x1.35) tower over the tiny head
+    and overhang the tub like the reference photo.
     Forearm pieces are authored elbow-local (elbow pivot = origin)."""
     side = 'L' if sign < 0 else 'R'
     return [
-        box(f'arm{side}_pauldron', (0.80, 0.85, 1.00), (sign * 0.15, 0.15, -0.05), ARMOR),
-        box(f'arm{side}_pauldron_skirt', (0.55, 0.50, 0.62), (sign * 0.48, -0.14, 0.02), ARMOR_D),
+        box(f'arm{side}_pauldron', (1.15, 1.20, 1.35), (sign * 0.85, 0.08, -0.05), ARMOR),
+        box(f'arm{side}_pauldron_skirt', (0.72, 0.68, 0.86), (sign * 1.02, -0.30, 0.0), ARMOR_D),
         box(f'arm{side}_upper', (0.34, 0.78, 0.36), (0, -0.36, 0.0), JOINT),
         box(f'arm{side}_elbow_cap', (0.42, 0.22, 0.42), (0, -0.64, 0.0), TRIM),
         # elbow container pieces (routed by the "forearm" keyword, elbow-local)

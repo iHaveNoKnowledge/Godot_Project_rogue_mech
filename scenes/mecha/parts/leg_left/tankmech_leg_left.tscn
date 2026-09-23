@@ -230,44 +230,44 @@ metadata/extras = {
 "shape": "box"
 }
 
-[node name="tankmech_leg_left" type="Node3D" unique_id=1325273443]
+[node name="tankmech_leg_left" type="Node3D" unique_id=189344657]
 
-[node name="legL_hip_cap" type="MeshInstance3D" parent="." unique_id=983192437]
+[node name="legL_hip_cap" type="MeshInstance3D" parent="." unique_id=817099574]
 mesh = SubResource("ArrayMesh_1em7n")
 skeleton = NodePath("")
 
-[node name="legL_thigh" type="MeshInstance3D" parent="." unique_id=1475527224]
+[node name="legL_thigh" type="MeshInstance3D" parent="." unique_id=1398649521]
 mesh = SubResource("ArrayMesh_34yw6")
 skeleton = NodePath("")
 
-[node name="legL_knee" type="MeshInstance3D" parent="." unique_id=250538697]
+[node name="legL_knee" type="MeshInstance3D" parent="." unique_id=894406999]
 mesh = SubResource("ArrayMesh_svdgk")
 skeleton = NodePath("")
 
-[node name="legL_knee_plate" type="MeshInstance3D" parent="." unique_id=1381891675]
+[node name="legL_knee_plate" type="MeshInstance3D" parent="." unique_id=1384198604]
 mesh = SubResource("ArrayMesh_vw5uh")
 skeleton = NodePath("")
 
-[node name="legL_shin_upper" type="MeshInstance3D" parent="." unique_id=49231461]
+[node name="legL_shin_upper" type="MeshInstance3D" parent="." unique_id=1904349431]
 mesh = SubResource("ArrayMesh_y23ue")
 skeleton = NodePath("")
 
-[node name="legL_shin_lower" type="MeshInstance3D" parent="." unique_id=253135936]
+[node name="legL_shin_lower" type="MeshInstance3D" parent="." unique_id=730754001]
 mesh = SubResource("ArrayMesh_adr6c")
 skeleton = NodePath("")
 
-[node name="legL_shin_guard" type="MeshInstance3D" parent="." unique_id=1437828937]
+[node name="legL_shin_guard" type="MeshInstance3D" parent="." unique_id=491561408]
 mesh = SubResource("ArrayMesh_hb1xq")
 skeleton = NodePath("")
 
-[node name="legL_foot_ankle" type="MeshInstance3D" parent="." unique_id=523891067]
+[node name="legL_foot_ankle" type="MeshInstance3D" parent="." unique_id=681989207]
 mesh = SubResource("ArrayMesh_km118")
 skeleton = NodePath("")
 
-[node name="legL_foot" type="MeshInstance3D" parent="." unique_id=1450649988]
+[node name="legL_foot" type="MeshInstance3D" parent="." unique_id=630160267]
 mesh = SubResource("ArrayMesh_vuayw")
 skeleton = NodePath("")
 
-[node name="legL_foot_toe" type="MeshInstance3D" parent="." unique_id=1782745090]
+[node name="legL_foot_toe" type="MeshInstance3D" parent="." unique_id=440123148]
 mesh = SubResource("ArrayMesh_rkhho")
 skeleton = NodePath("")

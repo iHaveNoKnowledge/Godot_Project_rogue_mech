@@ -6,7 +6,7 @@ vertex_color_use_as_albedo = true
 [sub_resource type="ArrayMesh" id="ArrayMesh_ncqdm"]
 resource_name = "tankmech_head_head_helm"
 _surfaces = [{
-"aabb": AABB(-0.23, -0.05, -0.23, 0.46, 0.38000003, 0.46),
+"aabb": AABB(-0.17, -0.02, -0.17, 0.34, 0.28, 0.34),
 "attribute_data": PackedByteArray("QlR2/0JUdv9CVHb/QlR2/0JUdv9CVHb/QlR2/0JUdv8="),
 "format": 34359742473,
 "index_count": 36,
@@ -15,11 +15,11 @@ _surfaces = [{
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
 "vertex_count": 8,
-"vertex_data": PackedByteArray("H4Vrvs3MTL0fhWu+H4Vrvs3MTL0fhWs+H4VrvsP1qD4fhWu+H4VrvsP1qD4fhWs+H4VrPs3MTL0fhWu+H4VrPs3MTL0fhWs+H4VrPsP1qD4fhWu+H4VrPsP1qD4fhWs+")
+"vertex_data": PackedByteArray("exQuvgrXo7x7FC6+exQuvgrXo7x7FC4+exQuvrgehT57FC6+exQuvrgehT57FC4+exQuPgrXo7x7FC6+exQuPgrXo7x7FC4+exQuPrgehT57FC6+exQuPrgehT57FC4+")
 }]
 blend_shape_mode = 0
 metadata/extras = {
-"extents": [0.46, 0.38, 0.46],
+"extents": [0.34, 0.28, 0.34],
 "shape": "box"
 }
 
@@ -29,7 +29,7 @@ vertex_color_use_as_albedo = true
 [sub_resource type="ArrayMesh" id="ArrayMesh_hb52s"]
 resource_name = "tankmech_head_head_face"
 _surfaces = [{
-"aabb": AABB(-0.17, 0.03, -0.31, 0.34, 0.14, 0.10000001),
+"aabb": AABB(-0.13, 0.03, -0.24, 0.26, 0.099999994, 0.08),
 "attribute_data": PackedByteArray("HB0h/xwdIf8cHSH/HB0h/xwdIf8cHSH/HB0h/xwdIf8="),
 "format": 34359742473,
 "index_count": 36,
@@ -38,11 +38,11 @@ _surfaces = [{
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
 "vertex_count": 8,
-"vertex_data": PackedByteArray("exQuvo/C9TxSuJ6+exQuvo/C9Tw9Cle+exQuvnsULj5SuJ6+exQuvnsULj49Cle+exQuPo/C9TxSuJ6+exQuPo/C9Tw9Cle+exQuPnsULj5SuJ6+exQuPnsULj49Cle+")
+"vertex_data": PackedByteArray("uB4Fvo/C9TyPwnW+uB4Fvo/C9TwK1yO+uB4FvrgeBT6PwnW+uB4FvrgeBT4K1yO+uB4FPo/C9TyPwnW+uB4FPo/C9TwK1yO+uB4FPrgeBT6PwnW+uB4FPrgeBT4K1yO+")
 }]
 blend_shape_mode = 0
 metadata/extras = {
-"extents": [0.34, 0.14, 0.1],
+"extents": [0.26, 0.1, 0.08],
 "shape": "box"
 }
 
@@ -52,7 +52,7 @@ vertex_color_use_as_albedo = true
 [sub_resource type="ArrayMesh" id="ArrayMesh_fa4w6"]
 resource_name = "tankmech_head_head_visor"
 _surfaces = [{
-"aabb": AABB(-0.15, 0.095, -0.335, 0.3, 0.049999997, 0.050000012),
+"aabb": AABB(-0.11, 0.08, -0.28, 0.22, 0.04, 0.040000007),
 "attribute_data": PackedByteArray("5kY8/+ZGPP/mRjz/5kY8/+ZGPP/mRjz/5kY8/+ZGPP8="),
 "format": 34359742473,
 "index_count": 36,
@@ -61,11 +61,11 @@ _surfaces = [{
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
 "vertex_count": 8,
-"vertex_data": PackedByteArray("mpkZvlyPwj0fhau+mpkZvlyPwj2F65G+mpkZvuF6FD4fhau+mpkZvuF6FD6F65G+mpkZPlyPwj0fhau+mpkZPlyPwj2F65G+mpkZPuF6FD4fhau+mpkZPuF6FD6F65G+")
+"vertex_data": PackedByteArray("rkfhvQrXoz0pXI++rkfhvQrXoz2PwnW+rkfhvY/C9T0pXI++rkfhvY/C9T2PwnW+rkfhPQrXoz0pXI++rkfhPQrXoz2PwnW+rkfhPY/C9T0pXI++rkfhPY/C9T2PwnW+")
 }]
 blend_shape_mode = 0
 metadata/extras = {
-"extents": [0.3, 0.05, 0.05],
+"extents": [0.22, 0.04, 0.04],
 "shape": "box"
 }
 
@@ -75,7 +75,7 @@ vertex_color_use_as_albedo = true
 [sub_resource type="ArrayMesh" id="ArrayMesh_irmxp"]
 resource_name = "tankmech_head_head_crest"
 _surfaces = [{
-"aabb": AABB(-0.04, 0.31, -0.15, 0.08, 0.18, 0.34),
+"aabb": AABB(-0.03, 0.24, -0.11, 0.06, 0.14, 0.26),
 "attribute_data": PackedByteArray("JCcv/yQnL/8kJy//JCcv/yQnL/8kJy//JCcv/yQnL/8="),
 "format": 34359742473,
 "index_count": 36,
@@ -84,11 +84,11 @@ _surfaces = [{
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
 "vertex_count": 8,
-"vertex_data": PackedByteArray("CtcjvVK4nj6amRm+CtcjvVK4nj5cj0I+CtcjvUjh+j6amRm+CtcjvUjh+j5cj0I+CtcjPVK4nj6amRm+CtcjPVK4nj5cj0I+CtcjPUjh+j6amRm+CtcjPUjh+j5cj0I+")
+"vertex_data": PackedByteArray("j8L1vI/CdT6uR+G9j8L1vI/CdT6amRk+j8L1vFyPwj6uR+G9j8L1vFyPwj6amRk+j8L1PI/CdT6uR+G9j8L1PI/CdT6amRk+j8L1PFyPwj6uR+G9j8L1PFyPwj6amRk+")
 }]
 blend_shape_mode = 0
 metadata/extras = {
-"extents": [0.08, 0.18, 0.34],
+"extents": [0.06, 0.14, 0.26],
 "shape": "box"
 }
 
@@ -98,7 +98,7 @@ vertex_color_use_as_albedo = true
 [sub_resource type="ArrayMesh" id="ArrayMesh_6m17c"]
 resource_name = "tankmech_head_head_antenna"
 _surfaces = [{
-"aabb": AABB(0.135, 0.31, 0.075, 0.049999997, 0.21999997, 0.049999997),
+"aabb": AABB(0.1, 0.25, 0.06, 0.04, 0.16, 0.040000003),
 "attribute_data": PackedByteArray("JCcv/yQnL/8kJy//JCcv/yQnL/8kJy//JCcv/yQnL/8="),
 "format": 34359742473,
 "index_count": 36,
@@ -107,11 +107,11 @@ _surfaces = [{
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
 "vertex_count": 8,
-"vertex_data": PackedByteArray("cT0KPlK4nj6amZk9cT0KPlK4nj4AAAA+cT0KPhSuBz+amZk9cT0KPhSuBz8AAAA+pHA9PlK4nj6amZk9pHA9PlK4nj4AAAA+pHA9PhSuBz+amZk9pHA9PhSuBz8AAAA+")
+"vertex_data": PackedByteArray("zczMPQAAgD6PwnU9zczMPQAAgD7NzMw9zczMPYXr0T6PwnU9zczMPYXr0T7NzMw9KVwPPgAAgD6PwnU9KVwPPgAAgD7NzMw9KVwPPoXr0T6PwnU9KVwPPoXr0T7NzMw9")
 }]
 blend_shape_mode = 0
 metadata/extras = {
-"extents": [0.05, 0.22, 0.05],
+"extents": [0.04, 0.16, 0.04],
 "shape": "box"
 }
 
@@ -121,7 +121,7 @@ vertex_color_use_as_albedo = true
 [sub_resource type="ArrayMesh" id="ArrayMesh_py3ek"]
 resource_name = "tankmech_head_head_neck"
 _surfaces = [{
-"aabb": AABB(-0.15, -0.17, -0.15, 0.3, 0.16, 0.3),
+"aabb": AABB(-0.12, -0.13, -0.12, 0.24, 0.12, 0.24),
 "attribute_data": PackedByteArray("HB0h/xwdIf8cHSH/HB0h/xwdIf8cHSH/HB0h/xwdIf8="),
 "format": 34359742473,
 "index_count": 36,
@@ -130,36 +130,36 @@ _surfaces = [{
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
 "vertex_count": 8,
-"vertex_data": PackedByteArray("mpkZvnsULr6amRm+mpkZvnsULr6amRk+mpkZvgrXI7yamRm+mpkZvgrXI7yamRk+mpkZPnsULr6amRm+mpkZPnsULr6amRk+mpkZPgrXI7yamRm+mpkZPgrXI7yamRk+")
+"vertex_data": PackedByteArray("j8L1vbgeBb6PwvW9j8L1vbgeBb6PwvU9j8L1vQrXI7yPwvW9j8L1vQrXI7yPwvU9j8L1PbgeBb6PwvW9j8L1PbgeBb6PwvU9j8L1PQrXI7yPwvW9j8L1PQrXI7yPwvU9")
 }]
 blend_shape_mode = 0
 metadata/extras = {
-"extents": [0.3, 0.16, 0.3],
+"extents": [0.24, 0.12, 0.24],
 "shape": "box"
 }
 
-[node name="tankmech_head" type="Node3D" unique_id=923317982]
+[node name="tankmech_head" type="Node3D" unique_id=1328210058]
 
-[node name="head_helm" type="MeshInstance3D" parent="." unique_id=1334027824]
+[node name="head_helm" type="MeshInstance3D" parent="." unique_id=1565465415]
 mesh = SubResource("ArrayMesh_ncqdm")
 skeleton = NodePath("")
 
-[node name="head_face" type="MeshInstance3D" parent="." unique_id=707421814]
+[node name="head_face" type="MeshInstance3D" parent="." unique_id=792864790]
 mesh = SubResource("ArrayMesh_hb52s")
 skeleton = NodePath("")
 
-[node name="head_visor" type="MeshInstance3D" parent="." unique_id=169338451]
+[node name="head_visor" type="MeshInstance3D" parent="." unique_id=656389637]
 mesh = SubResource("ArrayMesh_fa4w6")
 skeleton = NodePath("")
 
-[node name="head_crest" type="MeshInstance3D" parent="." unique_id=1099398854]
+[node name="head_crest" type="MeshInstance3D" parent="." unique_id=137219673]
 mesh = SubResource("ArrayMesh_irmxp")
 skeleton = NodePath("")
 
-[node name="head_antenna" type="MeshInstance3D" parent="." unique_id=377302073]
+[node name="head_antenna" type="MeshInstance3D" parent="." unique_id=1462406532]
 mesh = SubResource("ArrayMesh_6m17c")
 skeleton = NodePath("")
 
-[node name="head_neck" type="MeshInstance3D" parent="." unique_id=1778472251]
+[node name="head_neck" type="MeshInstance3D" parent="." unique_id=1669123148]
 mesh = SubResource("ArrayMesh_py3ek")
 skeleton = NodePath("")

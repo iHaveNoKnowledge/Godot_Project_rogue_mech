@@ -253,48 +253,48 @@ metadata/extras = {
 "shape": "box"
 }
 
-[node name="tankmech_body" type="Node3D" unique_id=1045775852]
+[node name="tankmech_body" type="Node3D" unique_id=223398877]
 
-[node name="body_chest" type="MeshInstance3D" parent="." unique_id=1117898971]
+[node name="body_chest" type="MeshInstance3D" parent="." unique_id=1232273813]
 mesh = SubResource("ArrayMesh_7btgt")
 skeleton = NodePath("")
 
-[node name="body_chest_core" type="MeshInstance3D" parent="." unique_id=1172749491]
+[node name="body_chest_core" type="MeshInstance3D" parent="." unique_id=1345936593]
 mesh = SubResource("ArrayMesh_h7rnm")
 skeleton = NodePath("")
 
-[node name="body_chest_vent_l" type="MeshInstance3D" parent="." unique_id=809372539]
+[node name="body_chest_vent_l" type="MeshInstance3D" parent="." unique_id=352114130]
 mesh = SubResource("ArrayMesh_7m2t6")
 skeleton = NodePath("")
 
-[node name="body_chest_vent_r" type="MeshInstance3D" parent="." unique_id=1207754233]
+[node name="body_chest_vent_r" type="MeshInstance3D" parent="." unique_id=1247641363]
 mesh = SubResource("ArrayMesh_lq6si")
 skeleton = NodePath("")
 
-[node name="body_side_l" type="MeshInstance3D" parent="." unique_id=1931490903]
+[node name="body_side_l" type="MeshInstance3D" parent="." unique_id=177733471]
 mesh = SubResource("ArrayMesh_468ug")
 skeleton = NodePath("")
 
-[node name="body_side_r" type="MeshInstance3D" parent="." unique_id=1518471315]
+[node name="body_side_r" type="MeshInstance3D" parent="." unique_id=881116806]
 mesh = SubResource("ArrayMesh_n64b2")
 skeleton = NodePath("")
 
-[node name="body_skirt" type="MeshInstance3D" parent="." unique_id=187119376]
+[node name="body_skirt" type="MeshInstance3D" parent="." unique_id=919592244]
 mesh = SubResource("ArrayMesh_bmkot")
 skeleton = NodePath("")
 
-[node name="body_rear" type="MeshInstance3D" parent="." unique_id=799899879]
+[node name="body_rear" type="MeshInstance3D" parent="." unique_id=195442446]
 mesh = SubResource("ArrayMesh_3qxis")
 skeleton = NodePath("")
 
-[node name="body_thruster_l" type="MeshInstance3D" parent="." unique_id=879508961]
+[node name="body_thruster_l" type="MeshInstance3D" parent="." unique_id=1520035448]
 mesh = SubResource("ArrayMesh_ityis")
 skeleton = NodePath("")
 
-[node name="body_thruster_r" type="MeshInstance3D" parent="." unique_id=1840730174]
+[node name="body_thruster_r" type="MeshInstance3D" parent="." unique_id=1701008572]
 mesh = SubResource("ArrayMesh_0mtx7")
 skeleton = NodePath("")
 
-[node name="body_collar" type="MeshInstance3D" parent="." unique_id=1598812433]
+[node name="body_collar" type="MeshInstance3D" parent="." unique_id=1371648695]
 mesh = SubResource("ArrayMesh_vspoq")
 skeleton = NodePath("")

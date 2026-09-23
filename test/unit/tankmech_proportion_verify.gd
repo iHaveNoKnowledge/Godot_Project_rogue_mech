@@ -195,24 +195,26 @@ func _test_arm_reaches_elbow_pivot() -> void:
 			"%s forearm+fist reaches ~1.14 below the elbow pivot (got %.3f)" % [slot, fore_aabb.position.y])
 		_check(absf(fore_aabb.end.y - 0.0) < 0.06,
 			"%s forearm tops out at the elbow pivot (got %.3f)" % [slot, fore_aabb.end.y])
-		# Pauldron bulky (kitbash proportion): shoulder-frame width 0.7..1.3.
+		# Exaggerated kitbash pauldron (1.15 wide on the shoulder, outboard of the
+		# pivot) + upper arm at x 0: shoulder-frame bulk 1.4..2.0 wide.
 		var bounds := _slot_bounds(slot)
 		var merged := _combined_aabb(bounds)
-		_check(merged.size.x > 0.7 and merged.size.x < 1.3,
-			"%s pauldron bulk x-width 0.7..1.3 (got %.3f)" % [slot, merged.size.x])
+		_check(merged.size.x > 1.4 and merged.size.x < 2.0,
+			"%s pauldron bulk x-width 1.4..2.0 (got %.3f)" % [slot, merged.size.x])
 		inst.queue_free()
 
 
 func _test_head_small_between_pauldrons() -> void:
-	print("\n-- [5] Head is small (kitbash proportion) --")
+	print("\n-- [5] Head is tiny (exaggerated kitbash proportion) --")
 	var bounds := _slot_bounds("head")
 	if bounds.is_empty():
 		return
 	var merged := _combined_aabb(bounds)
-	# Head total ~0.70m high (helm+crest+antenna) — clearly small vs body 2.34m.
-	_check(merged.size.y > 0.55 and merged.size.y < 0.85,
-		"head height 0.55..0.85m (got %.3f)" % merged.size.y)
-	_check(merged.size.x < 0.6, "head narrower than pauldrons (got %.3f)" % merged.size.x)
+	# Head total ~0.54m high (helm+crest+antenna) — buried between the
+	# 1.15-wide pauldrons, narrower than the tub shoulder span.
+	_check(merged.size.y > 0.40 and merged.size.y < 0.65,
+		"head height 0.40..0.65m (got %.3f)" % merged.size.y)
+	_check(merged.size.x < 0.4, "head narrower than pauldrons (got %.3f)" % merged.size.x)
 
 
 func _test_resources_point_at_rebuilt_scenes() -> void:

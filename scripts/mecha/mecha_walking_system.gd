@@ -48,7 +48,7 @@ static func calc_sprint_leg(phase: float) -> Dictionary:
 			var s := 0.5 - 0.5 * cos(((t - 0.4) / 0.6) * PI)
 			shin = lerp(-deg_to_rad(85.0), -deg_to_rad(26.0), s)
 
-		lift = sin(t * PI) * 0.18
+		lift = sin(t * PI) * 0.26
 	else:
 		# Stance / Push-Off Phase (foot on ground, FRONT -> BACK)
 		var t := (norm_phase - PI) / PI
@@ -88,11 +88,11 @@ static func calc_robot_sprint_leg(phase: float) -> Dictionary:
 		else:
 			shin = lerp(-deg_to_rad(48.0), -deg_to_rad(14.0), (t - 0.7) / 0.3)
 		if t < 0.2:
-			lift = (t / 0.2) * 0.16
+			lift = (t / 0.2) * 0.23
 		elif t < 0.75:
-			lift = 0.16
+			lift = 0.23
 		else:
-			lift = 0.16 * (1.0 - (t - 0.75) / 0.25)
+			lift = 0.23 * (1.0 - (t - 0.75) / 0.25)
 	else:
 		var t := (norm_phase - PI) / PI
 		thigh = lerp(deg_to_rad(38.0), -deg_to_rad(55.0), t)
@@ -130,7 +130,7 @@ static func calc_reverse_leg(phase: float) -> Dictionary:
 			var s := 0.5 - 0.5 * cos(((t - 0.5) / 0.5) * PI)
 			shin = lerp(-deg_to_rad(75.0), -deg_to_rad(22.0), s)
 
-		lift = sin(t * PI) * 0.16
+		lift = sin(t * PI) * 0.23
 	else:
 		# Stance / Push-Off Phase (foot on ground, BACK -> FRONT)
 		var t := (norm_phase - PI) / PI
@@ -167,11 +167,11 @@ static func calc_robot_reverse_leg(phase: float) -> Dictionary:
 		else:
 			shin = lerp(-deg_to_rad(44.0), -deg_to_rad(14.0), (t - 0.7) / 0.3)
 		if t < 0.2:
-			lift = (t / 0.2) * 0.14
+			lift = (t / 0.2) * 0.20
 		elif t < 0.75:
-			lift = 0.14
+			lift = 0.20
 		else:
-			lift = 0.14 * (1.0 - (t - 0.75) / 0.25)
+			lift = 0.20 * (1.0 - (t - 0.75) / 0.25)
 	else:
 		var t := (norm_phase - PI) / PI
 		thigh = lerp(-deg_to_rad(34.0), deg_to_rad(30.0), t)
@@ -204,7 +204,7 @@ static func calc_strafe_leg(phase: float, is_outward_leg: bool) -> Dictionary:
 		# fore-aft when their phases are offset by PI (same as forward run).
 		thigh = lerp(deg_to_rad(-28.0), deg_to_rad(28.0), s)
 		shin = lerp(-deg_to_rad(12.0), -deg_to_rad(60.0), s)
-		lift = sin(t * PI) * 0.24
+		lift = sin(t * PI) * 0.35
 	else:
 		# Stance Phase (leg on ground supporting lateral shift, pushing back)
 		var t := (norm_phase - PI) / PI

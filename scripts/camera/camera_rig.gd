@@ -22,7 +22,7 @@ var shake_decay: float = 4.5
 # Camera Presets - matches MechaScaleSystem.COMBAT_CAM (true 4.73m) — newest
 const MECHA_SPRING_LENGTH: float = 11.0
 const MECHA_OFFSET_X: float = 3.4
-const MECHA_OFFSET_Y: float = 5.2
+	const MECHA_OFFSET_Y: float = 6.1
 const MECHA_FOV: float = 76.0
 
 const PILOT_SPRING_LENGTH: float = 2.4 # Close tactical over-the-shoulder
@@ -88,7 +88,7 @@ func _on_combat_mode_toggled(mode: String) -> void:
 	if mode == "close_combat":
 		_target_spring_length = 8.0
 		_target_offset_x = 3.0
-		_target_offset_y = 4.6
+		_target_offset_y = 5.5
 		_target_fov = 78.0
 		add_shake(0.25)
 	else:

@@ -1,10 +1,10 @@
 extends Node
-## LIMB PROPORTION + ANKLE VERIFY (Wanzer rebalance pass)
+## LIMB PROPORTION + ANKLE VERIFY (long-stride remodel pass)
 ##
-## The torso/body is the FIXED reference and must NOT be resized. Limbs are
-## scaled UP in width/depth/volume (never length) to match it, and the foot is
-## a separate movable part on its own ankle pivot (THIGH > KNEE > SHIN >
-## ANKLE > FOOT).
+## The torso/body is the FIXED reference and must NOT be resized. Legs are
+## lengthened x1.45 (thigh/shin frames 0.44 -> 0.64) so the stride matches
+## cruise speed, and the foot is a separate movable part on its own ankle
+## pivot (THIGH > KNEE > SHIN > ANKLE > FOOT).
 ##
 ## Covers:
 ##  1. Torso dimensions unchanged (chest plate + Body pivot).
@@ -130,9 +130,9 @@ func _mesh_sizes(container: Node) -> Array:
 
 func _test_torso_untouched(mecha: Node3D, pmm: Node) -> void:
 	var body = mecha.get_node_or_null("Body")
-	# The idle combat stance eases the hips down ~0.02 (crouch compensation),
+	# The idle combat stance eases the hips down ~0.03 (crouch compensation),
 	# so allow that envelope while pinning X/Z and the rest height.
-	_check(body != null and absf(body.position.x) < 0.001 and absf(body.position.z) < 0.001 and body.position.y <= 3.024 and body.position.y >= 2.97, "Body pivot unchanged (x/z 0, y in idle envelope, got %s)" % str(body.position) if body != null else "Body pivot unchanged")
+	_check(body != null and absf(body.position.x) < 0.001 and absf(body.position.z) < 0.001 and body.position.y <= 3.841 and body.position.y >= 3.79, "Body pivot unchanged (x/z 0, y in idle envelope, got %s)" % str(body.position) if body != null else "Body pivot unchanged")
 	var entry: Dictionary = pmm.slot_meshes.get("body", {})
 	var armor: Node3D = entry.get("armor")
 	_check(armor != null, "body armor container exists")
@@ -189,16 +189,16 @@ func _test_arms(_mecha: Node3D, pmm: Node) -> void:
 		_check((sizes["arm_left_fore"] as Vector3).is_equal_approx(sizes["arm_right_fore"]), "forearms symmetrical L/R")
 
 
-# --- 3. legs: load-bearing mass, same length, symmetrical --------------------
+# --- 3. legs: load-bearing mass, lengthened stride, symmetrical ----
 
 func _test_legs(_mecha: Node3D, pmm: Node) -> void:
 	var sizes := {}
 	for slot in ["leg_left", "leg_right"]:
 		var entry: Dictionary = pmm.slot_meshes.get(slot, {})
-		var thigh: MeshInstance3D = _find_box(entry.get("frame"), 0.44)
-		var shin: MeshInstance3D = _find_box(entry.get("frame_lower"), 0.44)
-		_check(thigh != null, slot + " thigh frame exists (length 0.44 kept)")
-		_check(shin != null, slot + " shin frame exists (length 0.44 kept)")
+		var thigh: MeshInstance3D = _find_box(entry.get("frame"), 0.64)
+		var shin: MeshInstance3D = _find_box(entry.get("frame_lower"), 0.64)
+		_check(thigh != null, slot + " thigh frame exists (length 0.64 kept)")
+		_check(shin != null, slot + " shin frame exists (length 0.64 kept)")
 		if thigh != null:
 			var s: Vector3 = (thigh.mesh as BoxMesh).size
 			_check(s.x >= 0.34 and s.z >= 0.34, slot + " thigh thickened (x/z >= 0.34, got %s)" % str(s))
@@ -211,9 +211,9 @@ func _test_legs(_mecha: Node3D, pmm: Node) -> void:
 		_check(hip != null and (hip.mesh as SphereMesh).radius >= 0.22, slot + " hip joint radius >= 0.22")
 		var knee := _find_cyl(entry.get("frame_lower"), 0.20)
 		_check(knee != null and ((knee.mesh as CylinderMesh).top_radius) >= 0.17, slot + " knee disc radius >= 0.17")
-		var thigh_armor: MeshInstance3D = _find_box(entry.get("armor"), 0.44)
+		var thigh_armor: MeshInstance3D = _find_box(entry.get("armor"), 0.64)
 		_check(thigh_armor != null and (thigh_armor.mesh as BoxMesh).size.x >= 0.46, slot + " thigh armor thickened (x >= 0.46)")
-		var shin_armor: MeshInstance3D = _find_box(entry.get("armor_lower"), 0.48)
+		var shin_armor: MeshInstance3D = _find_box(entry.get("armor_lower"), 0.70)
 		_check(shin_armor != null and (shin_armor.mesh as BoxMesh).size.x >= 0.46, slot + " shin armor thickened (x >= 0.46)")
 	if sizes.has("leg_left_thigh") and sizes.has("leg_right_thigh"):
 		_check((sizes["leg_left_thigh"] as Vector3).is_equal_approx(sizes["leg_right_thigh"]), "thighs symmetrical L/R")

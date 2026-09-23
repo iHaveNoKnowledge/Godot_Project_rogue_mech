@@ -7,7 +7,7 @@ extends Node
 ##     lifted heel/toe off the ground. Fixed by ankle compensation in
 ##     MechaFootIK (foot stays level while the leg articulates above it).
 ##  2. The idle combat crouch bends the knees with no hip drop, shortening
-##     the legs ~0.02 and hovering the feet. Fixed with a matching drop.
+##     the legs ~0.03 and hovering the feet. Fixed with a matching drop.
 ##
 ## Covers:
 ##  1. ankle_compensation() pure math (flat-foot angles, roll, zero case).
@@ -142,8 +142,8 @@ func _test_structure() -> void:
 	if fl != null and fr != null:
 		_check(absf(fl.position.x + fr.position.x) < 0.001 and absf(fl.position.y - fr.position.y) < 0.001, "ankle pivots symmetrical L/R")
 	# Proportion guard: torso is the fixed reference (idle stance may ease
-	# the hips down ~0.02, so allow that envelope).
+	# the hips down ~0.03, so allow that envelope).
 	var body = mecha.get_node_or_null("Body")
-	_check(body != null and absf(body.position.x) < 0.001 and absf(body.position.z) < 0.001 and body.position.y <= 3.024 and body.position.y >= 2.97, "Body pivot untouched (idle envelope)")
+	_check(body != null and absf(body.position.x) < 0.001 and absf(body.position.z) < 0.001 and body.position.y <= 3.841 and body.position.y >= 3.79, "Body pivot untouched (idle envelope)")
 
 	mecha.queue_free()

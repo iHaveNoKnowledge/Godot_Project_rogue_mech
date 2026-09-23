@@ -864,7 +864,7 @@ func _get_slot_foot_parent_node(slot_name: String) -> Node3D:
 		# Ankle height in Shin-local space: the old ankle actuator sat at
 		# container-local -0.53 inside the WORLD_SCALE (1.68) container, so the
 		# pivot sits at -0.53 * WORLD_SCALE to keep world placement identical.
-		foot.position = Vector3(0, -0.53 * WORLD_SCALE, 0)
+		foot.position = Vector3(0, -0.77 * WORLD_SCALE, 0)
 		shin.add_child(foot)
 	return foot
 
@@ -2097,9 +2097,9 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 
 			var thigh_frame = MeshInstance3D.new()
 			var t_box = BoxMesh.new()
-			t_box.size = Vector3(0.36, 0.44, 0.38)
+			t_box.size = Vector3(0.36, 0.64, 0.38)
 			thigh_frame.mesh = t_box
-			thigh_frame.position = Vector3(0, -0.275, 0)
+			thigh_frame.position = Vector3(0, -0.399, 0)
 			thigh_frame.material_override = frame_mat
 			upper_container.add_child(thigh_frame)
 
@@ -2118,9 +2118,9 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 			var ch_tconduit_cyl = CylinderMesh.new()
 			ch_tconduit_cyl.top_radius = 0.03
 			ch_tconduit_cyl.bottom_radius = 0.03
-			ch_tconduit_cyl.height = 0.36
+			ch_tconduit_cyl.height = 0.52
 			ch_tconduit.mesh = ch_tconduit_cyl
-			ch_tconduit.position = Vector3(0, -0.275, 0.20)
+			ch_tconduit.position = Vector3(0, -0.399, 0.20)
 			ch_tconduit.material_override = chrome_mat
 			upper_container.add_child(ch_tconduit)
 
@@ -2130,9 +2130,9 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 				var ts_cyl = CylinderMesh.new()
 				ts_cyl.top_radius = 0.028
 				ts_cyl.bottom_radius = 0.028
-				ts_cyl.height = 0.36
+				ts_cyl.height = 0.52
 				t_strut.mesh = ts_cyl
-				t_strut.position = Vector3(strut_x, -0.275, 0.15)
+				t_strut.position = Vector3(strut_x, -0.399, 0.15)
 				t_strut.material_override = chrome_mat
 				upper_container.add_child(t_strut)
 
@@ -2166,9 +2166,9 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 
 				var shin_frame = MeshInstance3D.new()
 				var s_box = BoxMesh.new()
-				s_box.size = Vector3(0.36, 0.44, 0.36)
+				s_box.size = Vector3(0.36, 0.64, 0.36)
 				shin_frame.mesh = s_box
-				shin_frame.position = Vector3(0, -0.275, 0)
+				shin_frame.position = Vector3(0, -0.399, 0)
 				shin_frame.material_override = frame_mat
 				lower_container.add_child(shin_frame)
 
@@ -2178,9 +2178,9 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 					var d_cyl = CylinderMesh.new()
 					d_cyl.top_radius = 0.028
 					d_cyl.bottom_radius = 0.028
-					d_cyl.height = 0.40
+					d_cyl.height = 0.58
 					damper.mesh = d_cyl
-					damper.position = Vector3(damper_x, -0.275, 0.15)
+					damper.position = Vector3(damper_x, -0.399, 0.15)
 					damper.material_override = chrome_mat
 					lower_container.add_child(damper)
 
@@ -2189,7 +2189,7 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 			# ankle height) so the foot pivots independently of the shin.
 			# Positions below are Foot-local (ankle = origin).
 			var foot_parent := foot_container if foot_container != null else lower_container
-			var foot_y_off := -0.53 if foot_container != null else 0.0
+			var foot_y_off := -0.77 if foot_container != null else 0.0
 			if foot_parent:
 				var ankle = MeshInstance3D.new()
 				ankle.name = "AnkleJoint"
@@ -2199,7 +2199,7 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 				a_cyl.height = 0.14
 				ankle.mesh = a_cyl
 				ankle.rotation_degrees.z = 90
-				ankle.position = Vector3(0, 0, 0) if foot_container != null else Vector3(0, -0.53, 0)
+				ankle.position = Vector3(0, 0, 0) if foot_container != null else Vector3(0, -0.77, 0)
 				ankle.material_override = chrome_mat
 				foot_parent.add_child(ankle)
 
@@ -2213,7 +2213,7 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 					fl_cyl.height = 0.05
 					flange.mesh = fl_cyl
 					flange.rotation_degrees.z = 90
-					flange.position = Vector3(flange_x, 0, 0) if foot_container != null else Vector3(flange_x, -0.53, 0)
+					flange.position = Vector3(flange_x, 0, 0) if foot_container != null else Vector3(flange_x, -0.77, 0)
 					flange.material_override = frame_mat
 					foot_parent.add_child(flange)
 
@@ -2223,7 +2223,7 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 				var ft_box = BoxMesh.new()
 				ft_box.size = Vector3(0.36, 0.08, 0.50)
 				foot_block.mesh = ft_box
-				foot_block.position = Vector3(0, -0.58 - foot_y_off, -0.04)
+				foot_block.position = Vector3(0, -0.82 - foot_y_off, -0.04)
 				foot_block.material_override = frame_mat
 				foot_parent.add_child(foot_block)
 
@@ -2234,7 +2234,7 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 					var sr_box = BoxMesh.new()
 					sr_box.size = Vector3(0.05, 0.10, 0.54)
 					skid_rail.mesh = sr_box
-					skid_rail.position = Vector3(skid_x, -0.57 - foot_y_off, -0.04)
+					skid_rail.position = Vector3(skid_x, -0.81 - foot_y_off, -0.04)
 					skid_rail.material_override = chrome_mat
 					foot_parent.add_child(skid_rail)
 
@@ -2247,7 +2247,7 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 				rp_cyl.height = 0.30
 				roller_pod.mesh = rp_cyl
 				roller_pod.rotation_degrees.z = 90
-				roller_pod.position = Vector3(0, -0.59 - foot_y_off, -0.24)
+				roller_pod.position = Vector3(0, -0.83 - foot_y_off, -0.24)
 				roller_pod.material_override = chrome_mat
 				foot_parent.add_child(roller_pod)
 
@@ -2257,7 +2257,7 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 				var h_box = BoxMesh.new()
 				h_box.size = Vector3(0.28, 0.07, 0.16)
 				heel.mesh = h_box
-				heel.position = Vector3(0, -0.58 - foot_y_off, 0.20)
+				heel.position = Vector3(0, -0.82 - foot_y_off, 0.20)
 				heel.rotation_degrees.x = 10
 				heel.material_override = frame_mat
 				foot_parent.add_child(heel)
@@ -2269,7 +2269,7 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 					var c_box = BoxMesh.new()
 					c_box.size = Vector3(0.06, 0.06, 0.18)
 					claw.mesh = c_box
-					claw.position = Vector3(claw_x, -0.59 - foot_y_off, -0.27)
+					claw.position = Vector3(claw_x, -0.83 - foot_y_off, -0.27)
 					claw.rotation_degrees.x = -15
 					claw.material_override = frame_mat
 					foot_parent.add_child(claw)
@@ -2477,18 +2477,18 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 			# Wanzer rebalance: thickened in width/depth (Y unchanged).
 			var thigh_armor = MeshInstance3D.new()
 			var ta_box = BoxMesh.new()
-			ta_box.size = Vector3(0.48, 0.44, 0.48)
+			ta_box.size = Vector3(0.48, 0.64, 0.48)
 			thigh_armor.mesh = ta_box
-			thigh_armor.position = Vector3(0, -0.275, 0)
+			thigh_armor.position = Vector3(0, -0.399, 0)
 			thigh_armor.material_override = armor_mat
 			upper_container.add_child(thigh_armor)
 
 			for side_x in [-0.25, 0.25]:
 				var t_side = MeshInstance3D.new()
 				var ts_box = BoxMesh.new()
-				ts_box.size = Vector3(0.07, 0.38, 0.36)
+				ts_box.size = Vector3(0.07, 0.55, 0.36)
 				t_side.mesh = ts_box
-				t_side.position = Vector3(side_x, -0.275, 0)
+				t_side.position = Vector3(side_x, -0.399, 0)
 				t_side.material_override = dark_trim_mat
 				upper_container.add_child(t_side)
 
@@ -2505,18 +2505,18 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 
 				var shin_armor = MeshInstance3D.new()
 				var sa_box = BoxMesh.new()
-				sa_box.size = Vector3(0.48, 0.48, 0.46)
+				sa_box.size = Vector3(0.48, 0.70, 0.46)
 				shin_armor.mesh = sa_box
-				shin_armor.position = Vector3(0, -0.275, 0.04)
+				shin_armor.position = Vector3(0, -0.399, 0.04)
 				shin_armor.material_override = armor_mat
 				lower_container.add_child(shin_armor)
 
 				for side_x in [-0.25, 0.25]:
 					var calf_plate = MeshInstance3D.new()
 					var cp_box = BoxMesh.new()
-					cp_box.size = Vector3(0.07, 0.36, 0.32)
+					cp_box.size = Vector3(0.07, 0.52, 0.32)
 					calf_plate.mesh = cp_box
-					calf_plate.position = Vector3(side_x, -0.275, 0.02)
+					calf_plate.position = Vector3(side_x, -0.399, 0.02)
 					calf_plate.material_override = dark_trim_mat
 					lower_container.add_child(calf_plate)
 
@@ -2524,7 +2524,7 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 			# Positions are Foot-local (ankle = origin); world placement is
 			# unchanged from the old Shin-local layout.
 			var foot_armor_parent := foot_container if foot_container != null else lower_container
-			var foot_armor_off := -0.53 if foot_container != null else 0.0
+			var foot_armor_off := -0.77 if foot_container != null else 0.0
 			if foot_armor_parent:
 				# Ankle cuff armor ringing the joint
 				var ankle_cuff = MeshInstance3D.new()
@@ -2534,7 +2534,7 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 				ac_cyl.bottom_radius = 0.21
 				ac_cyl.height = 0.10
 				ankle_cuff.mesh = ac_cyl
-				ankle_cuff.position = Vector3(0, -0.02, 0) if foot_container != null else Vector3(0, -0.53, 0)
+				ankle_cuff.position = Vector3(0, -0.02, 0) if foot_container != null else Vector3(0, -0.77, 0)
 				ankle_cuff.material_override = dark_trim_mat
 				foot_armor_parent.add_child(ankle_cuff)
 
@@ -2544,7 +2544,7 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 				var fc_box = BoxMesh.new()
 				fc_box.size = Vector3(0.40, 0.12, 0.52)
 				foot_cap.mesh = fc_box
-				foot_cap.position = Vector3(0, -0.56 - foot_armor_off, -0.04)
+				foot_cap.position = Vector3(0, -0.80 - foot_armor_off, -0.04)
 				foot_cap.material_override = armor_mat
 				foot_armor_parent.add_child(foot_cap)
 

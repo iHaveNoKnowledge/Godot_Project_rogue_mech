@@ -291,12 +291,12 @@ func _build_catalog_body() -> void:
 # Sockets mirror mecha_base.tscn upper and lower pivots at true world scale (4.725m tall).
 func _ensure_slot_nodes() -> void:
 	var slot_positions := {
-		"Head": Vector3(0, 3.864, -0.0672),
-		"Body": Vector3(0, 3.024, 0),
-		"ArmLeft": Vector3(-1.1424, 3.444, 0),
-		"ArmRight": Vector3(1.1424, 3.444, 0),
-		"LegLeft": Vector3(-0.6384, 2.184, 0),
-		"LegRight": Vector3(0.6384, 2.184, 0),
+		"Head": Vector3(0, 4.681, -0.0672),
+		"Body": Vector3(0, 3.841, 0),
+		"ArmLeft": Vector3(-1.1424, 4.261, 0),
+		"ArmRight": Vector3(1.1424, 4.261, 0),
+		"LegLeft": Vector3(-0.6384, 3.001, 0),
+		"LegRight": Vector3(0.6384, 3.001, 0),
 	}
 	for name in slot_positions:
 		if get_node_or_null(name) != null:
@@ -319,10 +319,10 @@ func _ensure_slot_nodes() -> void:
 	var lower_offsets := {
 		"ArmLeft/ForearmLeft": Vector3(0, -0.6384, 0),
 		"ArmRight/ForearmRight": Vector3(0, -0.6384, 0),
-		"LegLeft/ShinLeft": Vector3(0, -0.924, 0),
-		"LegRight/ShinRight": Vector3(0, -0.924, 0),
-		"LegLeft/ShinLeft/FootLeft": Vector3(0, -0.8904, 0),
-		"LegRight/ShinRight/FootRight": Vector3(0, -0.8904, 0),
+		"LegLeft/ShinLeft": Vector3(0, -1.34, 0),
+		"LegRight/ShinRight": Vector3(0, -1.34, 0),
+		"LegLeft/ShinLeft/FootLeft": Vector3(0, -1.291, 0),
+		"LegRight/ShinRight/FootRight": Vector3(0, -1.291, 0),
 	}
 	for node_path in lower_parent_names:
 		if get_node_or_null(node_path) != null:

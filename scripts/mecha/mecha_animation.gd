@@ -1,6 +1,6 @@
 extends Node
 
-@export var bob_amount: float = 0.15
+@export var bob_amount: float = 0.22
 @export var bob_speed: float = 14.0
 @export var recoil_amount: float = 0.3
 @export var recoil_recovery: float = 10.0
@@ -341,7 +341,7 @@ func _update_prejump_charge_posture(delta: float) -> void:
 	var js = mecha.get("jump_system")
 	var charge_time: float = float(js.get("prejump_charge_time")) if (js and js.get("prejump_charge_time") != null) else 0.0
 	var ratio := clampf(charge_time / 0.35, 0.0, 1.0)
-	_apply_pose({"drop": -0.08 * ratio}, 12.0 * delta)
+	_apply_pose({"drop": -0.12 * ratio}, 12.0 * delta)
 # Jump Launch Specs (Thrusters firing, upward launch trajectory):
 # 1. Torso pitches slightly back/up (+12 deg) with chest raised
 # 2. Head counter-tilts (-12 deg) to lock eyes forward
@@ -351,7 +351,7 @@ func _update_jump_posture(delta: float) -> void:
 	_apply_pose({
 		"body_tilt": deg_to_rad(12.0),
 		"head_tilt": -deg_to_rad(12.0),
-		"drop": 0.1,
+		"drop": 0.15,
 		"arm_left": -deg_to_rad(20.0),
 		"arm_right": -deg_to_rad(20.0),
 		"forearm_left": deg_to_rad(40.0),
@@ -368,11 +368,11 @@ func _update_jump_posture(delta: float) -> void:
 # 4. Right Leg trailing back (-22 deg thigh, -30 deg shin knee flex)
 # 5. Organic floating hover sway applied to body position
 func _update_airborne_fall_posture(delta: float) -> void:
-	var float_sway = sin(air_timer * 4.0) * 0.05
+	var float_sway = sin(air_timer * 4.0) * 0.07
 	_apply_pose({
 		"body_tilt": -deg_to_rad(24.0),
 		"head_tilt": -deg_to_rad(10.0),
-		"drop": -0.15 + float_sway,
+		"drop": -0.22 + float_sway,
 		"arm_left": -deg_to_rad(15.0),
 		"arm_right": deg_to_rad(15.0),
 		"forearm_left": deg_to_rad(50.0),
@@ -409,7 +409,7 @@ func _update_combat_idle_posture(delta: float) -> void:
 			_apply_pose({
 				"body_tilt": -deg_to_rad(3.0),
 				"head_tilt": deg_to_rad(3.0),
-				"drop": -0.20,
+				"drop": -0.29,
 				"arm_left": deg_to_rad(20.0),
 				"arm_right": deg_to_rad(20.0),
 				"forearm_left": deg_to_rad(45.0),
@@ -430,10 +430,10 @@ func _update_combat_idle_posture(delta: float) -> void:
 			_apply_pose({
 				"body_tilt": -deg_to_rad(4.0),
 				"head_tilt": deg_to_rad(2.0),
-				# Crouch bends the knees (thigh 8 / shin -18), which shortens
-				# the legs ~0.02: drop the hips by the same amount so the
-				# feet stay planted instead of hovering.
-				"drop": -0.02,
+			# Crouch bends the knees (thigh 8 / shin -18), which shortens
+			# the legs ~0.03: drop the hips by the same amount so the
+			# feet stay planted instead of hovering.
+			"drop": -0.03,
 				"arm_left": deg_to_rad(12.0),
 				"arm_left_yaw": deg_to_rad(6.0),
 				"arm_left_roll": -deg_to_rad(28.0),
@@ -465,7 +465,7 @@ func _update_kneel_posture(delta: float) -> void:
 	_apply_pose({
 		"body_tilt": -deg_to_rad(12.0),
 		"head_tilt": -deg_to_rad(8.0),
-		"drop": -0.5,
+		"drop": -0.73,
 		"arm_left": deg_to_rad(10.0),
 		"arm_right": deg_to_rad(10.0),
 		"forearm_left": deg_to_rad(65.0),
@@ -474,8 +474,8 @@ func _update_kneel_posture(delta: float) -> void:
 		"thigh_right": deg_to_rad(75.0),
 		"shin_left": -deg_to_rad(120.0),
 		"shin_right": -deg_to_rad(120.0),
-		"leg_left_drop": -0.5,
-		"leg_right_drop": -0.5,
+		"leg_left_drop": -0.73,
+		"leg_right_drop": -0.73,
 	}, 10.0 * delta)
 # High-impact dash phase timers (Blender ref: Mech_Dash_HighImpact).
 # _dash_t counts up while the dash is held; _dash_end_t counts up after
@@ -505,7 +505,7 @@ func _update_roller_dash_posture(delta: float) -> void:
 		_apply_pose({
 			"body_tilt": deg_to_rad(8.0),
 			"head_tilt": -deg_to_rad(8.0),
-			"drop": -0.10,
+			"drop": -0.15,
 			"arm_left": deg_to_rad(28.0),
 			"arm_right": deg_to_rad(28.0),
 			"forearm_left": deg_to_rad(45.0),
@@ -524,7 +524,7 @@ func _update_roller_dash_posture(delta: float) -> void:
 	# slight nod, gaze forward. Upper arm runs PARALLEL to the torso axis
 	# (same -15 deg pitch, since both hang off the root) + 90 deg elbow, so
 	# the forearm points down at the ground in front — never at the sky.
-	var target_drop = -0.42
+	var target_drop = -0.61
 	var target_body_tilt = -deg_to_rad(15.0)
 	var target_head_tilt = deg_to_rad(7.0)
 	_apply_pose({
@@ -557,7 +557,7 @@ func _update_dash_overshoot_posture(delta: float) -> void:
 	_apply_pose({
 		"body_tilt": deg_to_rad(7.0),
 		"head_tilt": -deg_to_rad(9.0),
-		"drop": -0.06,
+		"drop": -0.09,
 		"arm_left": deg_to_rad(35.0),
 		"arm_right": deg_to_rad(35.0),
 		"forearm_left": deg_to_rad(50.0),
@@ -606,7 +606,7 @@ func _update_pulse_dash_posture(delta: float) -> void:
 		"waist_roll": deg_to_rad(-12.0) * s * ws,
 		"head_tilt": deg_to_rad(wf * 20.0 + wb * -12.0 + ws * 8.0),
 		"head_yaw": deg_to_rad(-20.0) * s * ws,
-		"drop": wf * -0.18 + wb * -0.12 + ws * -0.20,
+		"drop": wf * -0.26 + wb * -0.17 + ws * -0.29,
 		"arm_left": deg_to_rad(wf * -30.0 + wb * 50.0 + ws * 10.0),
 		"arm_right": deg_to_rad(wf * -30.0 + wb * 50.0 + ws * 10.0),
 		"arm_left_roll": deg_to_rad(-8.0 if lead_right else -25.0) * ws,
@@ -628,7 +628,7 @@ func _update_core_breach_posture(delta: float) -> void:
 	_apply_pose({
 		"body_tilt": deg_to_rad(22.0),
 		"head_tilt": -deg_to_rad(35.0),
-		"drop": -0.65,
+		"drop": -0.94,
 		"arm_left": deg_to_rad(55.0),
 		"arm_right": deg_to_rad(55.0),
 		"forearm_left": deg_to_rad(25.0),
@@ -637,8 +637,8 @@ func _update_core_breach_posture(delta: float) -> void:
 		"thigh_right": -deg_to_rad(55.0),
 		"shin_left": -deg_to_rad(90.0),
 		"shin_right": -deg_to_rad(70.0),
-		"leg_left_drop": -0.65,
-		"leg_right_drop": -0.65,
+		"leg_left_drop": -0.94,
+		"leg_right_drop": -0.94,
 	}, 7.0 * delta)
 func play_landing_impact() -> void:
 	landing_impact = 1.0
@@ -651,7 +651,7 @@ func _update_recoil(delta: float) -> void:
 	if landing_impact > 0.0:
 		landing_impact = move_toward(landing_impact, 0.0, 4.5 * delta)
 		if body_mesh:
-			body_mesh.position.y = lerp(body_mesh.position.y, _original_body_pos.y - landing_impact * 0.25, 12.0 * delta)
+			body_mesh.position.y = lerp(body_mesh.position.y, _original_body_pos.y - landing_impact * 0.36, 12.0 * delta)
 		if leg_left and leg_right:
 			leg_left.rotation.x = lerp_angle(leg_left.rotation.x, deg_to_rad(22.0) * landing_impact, 12.0 * delta)
 			leg_right.rotation.x = lerp_angle(leg_right.rotation.x, deg_to_rad(22.0) * landing_impact, 12.0 * delta)

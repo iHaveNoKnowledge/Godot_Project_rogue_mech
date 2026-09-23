@@ -12,10 +12,10 @@ extends Node3D
 ## ---------------------------------------------------------------------------
 
 @export var enabled: bool = true
-@export var ray_height: float = 1.6
-@export var ray_length: float = 2.5
+@export var ray_height: float = 2.4
+@export var ray_length: float = 3.3
 @export var foot_spacing_x: float = 0.38
-@export var max_step_height: float = 0.6
+@export var max_step_height: float = 0.85
 @export var ik_blend_speed: float = 12.0
 @export var ankle_rotation_speed: float = 14.0
 @export var hip_adjustment_speed: float = 10.0

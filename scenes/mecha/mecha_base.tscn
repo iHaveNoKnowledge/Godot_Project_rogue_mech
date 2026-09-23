@@ -14,7 +14,7 @@
 
 [sub_resource type="CapsuleShape3D" id="FullBodyShape"]
 radius = 1.05
-height = 4.725
+height = 5.5
 
 [sub_resource type="StandardMaterial3D" id="FlameMat"]
 albedo_color = Color(1, 0.5, 0.1, 1)
@@ -39,14 +39,14 @@ script = ExtResource("1")
 script = ExtResource("10_attachment")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=883517169]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.3625, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.75, 0)
 shape = SubResource("FullBodyShape")
 
 [node name="Head" type="Node3D" parent="." unique_id=916399513]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.56, -0.16)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.377, -0.16)
 
 [node name="Body" type="Node3D" parent="." unique_id=2068096301]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.024, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.841, 0)
 
 [node name="Backpack" type="Node3D" parent="Body" unique_id=1953738518]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.252, 0.58799996)
@@ -65,34 +65,34 @@ mesh = SubResource("ThrusterNozzle")
 script = ExtResource("drop_tank_visuals")
 
 [node name="ArmLeft" type="Node3D" parent="." unique_id=163684479]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.1424, 3.444, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.1424, 4.261, 0)
 
 [node name="ForearmLeft" type="Node3D" parent="ArmLeft" unique_id=1606698012]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.6384, 0)
 
 [node name="ArmRight" type="Node3D" parent="." unique_id=2079032481]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1424, 3.444, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1424, 4.261, 0)
 
 [node name="ForearmRight" type="Node3D" parent="ArmRight" unique_id=350185092]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.6384, 0)
 
 [node name="LegLeft" type="Node3D" parent="." unique_id=2119342772]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.6384, 2.184, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.6384, 3.001, 0)
 
 [node name="ShinLeft" type="Node3D" parent="LegLeft" unique_id=350567621]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.924, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.34, 0)
 
 [node name="FootLeft" type="Node3D" parent="LegLeft/ShinLeft" unique_id=715028441]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.8904, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.291, 0)
 
 [node name="LegRight" type="Node3D" parent="." unique_id=1846650816]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.6384, 2.184, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.6384, 3.001, 0)
 
 [node name="ShinRight" type="Node3D" parent="LegRight" unique_id=625551916]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.924, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.34, 0)
 
 [node name="FootRight" type="Node3D" parent="LegRight/ShinRight" unique_id=715028442]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.8904, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.291, 0)
 
 [node name="HealthSystem" type="Node3D" parent="." unique_id=2146244237]
 script = ExtResource("4")
@@ -117,7 +117,7 @@ script = ExtResource("3")
 script = ExtResource("2")
 
 [node name="EjectPoint" type="Node3D" parent="." unique_id=1488271186]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.52, -1.68)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.337, -1.68)
 
 [node name="MechaEject" type="Node" parent="." unique_id=999703923]
 script = ExtResource("7")

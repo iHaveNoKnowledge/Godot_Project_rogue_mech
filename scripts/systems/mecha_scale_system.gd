@@ -13,63 +13,64 @@ extends RefCounted
 
 const WORLD_SCALE: float = 1.68
 const INV_WORLD_SCALE: float = 1.0 / 1.68
-const TRUE_HEIGHT: float = 4.86
+const TRUE_HEIGHT: float = 5.80
 const LEGACY_CAPSULE_HEIGHT: float = 2.8125
 const LEGACY_CAPSULE_RADIUS: float = 0.625
 
-# True world pivots (legacy * WORLD_SCALE) — mirrors mecha_base.tscn at scale 1.0
+# True world pivots (legacy * WORLD_SCALE, +0.94 leg extension) — mirrors
+# mecha_base.tscn at scale 1.0
 const PIVOTS: Dictionary = {
-	"head": Vector3(0, 4.4436, -0.07728),
-	"body": Vector3(0, 3.4776, 0),
-	"arm_left": Vector3(-1.31376, 3.9606, 0),
-	"arm_right": Vector3(1.31376, 3.9606, 0),
-	"leg_left": Vector3(-0.73416, 2.5116, 0),
-	"leg_right": Vector3(0.73416, 2.5116, 0),
+	"head": Vector3(0, 5.3836, -0.07728),
+	"body": Vector3(0, 4.4176, 0),
+	"arm_left": Vector3(-1.31376, 4.9006, 0),
+	"arm_right": Vector3(1.31376, 4.9006, 0),
+	"leg_left": Vector3(-0.73416, 3.4516, 0),
+	"leg_right": Vector3(0.73416, 3.4516, 0),
 	"forearm_left": Vector3(0, -0.73416, 0),
 	"forearm_right": Vector3(0, -0.73416, 0),
 	"shin_left": Vector3(0, -1.0626, 0),
 	"shin_right": Vector3(0, -1.0626, 0),
-	"eject": Vector3(0, 2.898, -1.932),
-	"collision": Vector3(0, 2.71687, 0),
-	"capsule": Vector3(1.2075, 5.43375, 1.2075), # radius, height, radius (y is height)
-	"hitbox": Vector3(3.0912, 3.0912, 3.0912),
+	"eject": Vector3(0, 3.838, -1.932),
+	"collision": Vector3(0, 3.16, 0),
+	"capsule": Vector3(1.2075, 6.37375, 1.2075), # radius, height, radius (y is height)
+	"hitbox": Vector3(3.6, 3.6, 3.6),
 }
 
-# Hangar pose (Armored Core stance) in true world meters — legacy 1.6 pose * WORLD_SCALE
+# Hangar pose (Armored Core stance) in true world meters — legacy 1.6 pose * WORLD_SCALE + 0.94 leg extension
 const HANGAR_POSE: Dictionary = {
-	"body_pos": Vector3(0, 3.2844, 0),
-	"head_pos": Vector3(0, 4.28904, -0.0966),
-	"leg_left_pos": Vector3(-0.88872, 2.415, 0),
-	"leg_right_pos": Vector3(0.88872, 2.415, 0),
+	"body_pos": Vector3(0, 4.2244, 0),
+	"head_pos": Vector3(0, 5.22904, -0.0966),
+	"leg_left_pos": Vector3(-0.88872, 3.355, 0),
+	"leg_right_pos": Vector3(0.88872, 3.355, 0),
 	"shin_pos": Vector3(0, -1.0626, 0),
-	"arm_left_pos": Vector3(-1.31376, 3.7674, 0),
-	"arm_right_pos": Vector3(1.31376, 3.7674, 0),
+	"arm_left_pos": Vector3(-1.31376, 4.7074, 0),
+	"arm_right_pos": Vector3(1.31376, 4.7074, 0),
 	"forearm_pos": Vector3(0, -0.73416, 0),
 }
 
 # Hangar camera (low worm-eye + tight part framing) in true world
 const HANGAR_CAM: Dictionary = {
-	"initial_pos": Vector3(4.14, 1.61, -7.36),
-	"initial_look": Vector3(0, 3.68, 0),
-	"head": {"pos": Vector3(1.15, 5.06, -5.98), "look": Vector3(0, 4.4275, -0.0575)},
-	"body": {"pos": Vector3(1.38, 3.91, -6.44), "look": Vector3(0, 3.473, 0)},
-	"arm_left": {"pos": Vector3(-2.99, 4.14, -6.21), "look": Vector3(-1.311, 3.8525, 0)},
-	"arm_right": {"pos": Vector3(2.99, 4.14, -6.21), "look": Vector3(1.311, 3.8525, 0)},
-	"weapon_carry": {"pos": Vector3(2.07, 4.37, 6.67), "look": Vector3(0, 3.45, 0.345)},
-	"leg_left": {"pos": Vector3(-1.84, 2.53, -5.75), "look": Vector3(-0.736, 2.1275, 0)},
-	"leg_right": {"pos": Vector3(1.84, 2.53, -5.75), "look": Vector3(0.736, 2.1275, 0)},
-	"default": {"pos": Vector3(4.14, 1.61, -7.36), "look": Vector3(0, 3.68, 0)},
+	"initial_pos": Vector3(4.14, 2.55, -7.36),
+	"initial_look": Vector3(0, 4.62, 0),
+	"head": {"pos": Vector3(1.15, 6.0, -5.98), "look": Vector3(0, 5.3675, -0.0575)},
+	"body": {"pos": Vector3(1.38, 4.85, -6.44), "look": Vector3(0, 4.413, 0)},
+	"arm_left": {"pos": Vector3(-2.99, 5.08, -6.21), "look": Vector3(-1.311, 4.7925, 0)},
+	"arm_right": {"pos": Vector3(2.99, 5.08, -6.21), "look": Vector3(1.311, 4.7925, 0)},
+	"weapon_carry": {"pos": Vector3(2.07, 5.31, 6.67), "look": Vector3(0, 4.39, 0.345)},
+	"leg_left": {"pos": Vector3(-1.84, 3.47, -5.75), "look": Vector3(-0.736, 3.0675, 0)},
+	"leg_right": {"pos": Vector3(1.84, 3.47, -5.75), "look": Vector3(0.736, 3.0675, 0)},
+	"default": {"pos": Vector3(4.14, 2.55, -7.36), "look": Vector3(0, 4.62, 0)},
 }
 
 # Combat camera (pulled back so back doesn't block center)
 const COMBAT_CAM: Dictionary = {
 	"spring": 11.0,
 	"offset_x": 3.4,
-	"offset_y": 5.2,
+	"offset_y": 6.1,
 	"fov": 76.0,
 	"close_spring": 8.0,
 	"close_x": 3.0,
-	"close_y": 4.6,
+	"close_y": 5.5,
 }
 
 # Helpers — use newest API: scale_vec / scale_val / true_height

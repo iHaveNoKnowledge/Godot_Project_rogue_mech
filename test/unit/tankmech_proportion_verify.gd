@@ -93,8 +93,8 @@ func _test_part_scenes_load_and_instantiate() -> void:
 	print("\n-- [1] Scenes load and instantiate with expected mesh counts --")
 	var expected_meshes := {
 		"body": 28, "head": 6,
-		"arm_left": 7, "arm_right": 7,
-		"leg_left": 10, "leg_right": 10,
+		"arm_left": 10, "arm_right": 10,
+		"leg_left": 11, "leg_right": 11,
 	}
 	for slot in expected_meshes.keys():
 		var inst := _instantiate_slot(slot)
@@ -160,6 +160,14 @@ func _test_leg_reaches_ankle_pivot() -> void:
 			"%s foot sole sits 0.37 below the ankle pivot (got %.3f)" % [slot, foot_aabb.position.y])
 		_check(absf(foot_aabb.end.y - 0.03) < 0.06,
 			"%s foot tops out at the ankle pivot (got %.3f)" % [slot, foot_aabb.end.y])
+		# Chunky lower body: knee subtree (knee + shin armor) and the foot must
+		# be wide/long — the kitbash look needs thick shins and big feet.
+		_check(knee_aabb.size.x > 0.55,
+			"%s knee/shin armor at least 0.55 wide (got %.3f)" % [slot, knee_aabb.size.x])
+		_check(foot_aabb.size.x > 0.55,
+			"%s foot at least 0.55 wide (got %.3f)" % [slot, foot_aabb.size.x])
+		_check(foot_aabb.size.z > 1.0,
+			"%s foot+toe+heel at least 1.0 long (got %.3f)" % [slot, foot_aabb.size.z])
 		inst.queue_free()
 
 
@@ -196,6 +204,11 @@ func _test_arm_reaches_elbow_pivot() -> void:
 			"%s forearm+fist reaches ~1.14 below the elbow pivot (got %.3f)" % [slot, fore_aabb.position.y])
 		_check(absf(fore_aabb.end.y - 0.0) < 0.06,
 			"%s forearm tops out at the elbow pivot (got %.3f)" % [slot, fore_aabb.end.y])
+		# Detail blocks break up the big pauldron faces.
+		var thrusters := _count_keyword_meshes(inst, "thruster")
+		var vents := _count_keyword_meshes(inst, "vent")
+		_check(thrusters >= 1, "%s pauldron has a thruster block" % slot)
+		_check(vents >= 2, "%s pauldron has vent blocks (got %d)" % [slot, vents])
 		# Exaggerated kitbash pauldron (1.15 wide on the shoulder, outboard of the
 		# pivot) + upper arm at x 0: shoulder-frame bulk 1.4..2.0 wide.
 		var bounds := _slot_bounds(slot)

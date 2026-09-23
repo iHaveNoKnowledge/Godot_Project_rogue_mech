@@ -109,6 +109,10 @@ def build_arm(sign):
     return [
         box(f'arm{side}_pauldron', (1.15, 1.20, 1.35), (sign * 0.85, 0.08, -0.05), ARMOR),
         box(f'arm{side}_pauldron_skirt', (0.72, 0.68, 0.86), (sign * 1.02, -0.30, 0.0), ARMOR_D),
+        # --- detail blocks breaking up the big pauldron faces ---
+        box(f'arm{side}_pauldron_thruster', (0.26, 0.16, 0.26), (sign * 0.85, 0.76, -0.30), JOINT),
+        box(f'arm{side}_pauldron_vent_front', (0.60, 0.34, 0.10), (sign * 0.85, 0.10, -0.775), TRIM),
+        box(f'arm{side}_pauldron_vent_rear', (0.44, 0.30, 0.10), (sign * 0.85, 0.30, 0.675), TRIM),
         box(f'arm{side}_upper', (0.34, 0.78, 0.36), (0, -0.36, 0.0), JOINT),
         box(f'arm{side}_elbow_cap', (0.42, 0.22, 0.42), (0, -0.64, 0.0), TRIM),
         # elbow container pieces (routed by the "forearm" keyword, elbow-local)
@@ -124,18 +128,19 @@ def build_leg(sign):
     Knee pieces are authored knee-local, foot pieces ankle-local."""
     side = 'L' if sign < 0 else 'R'
     return [
-        box(f'leg{side}_hip_cap', (0.56, 0.36, 0.58), (0, -0.15, 0.0), ARMOR_D),
-        box(f'leg{side}_thigh', (0.50, 1.30, 0.54), (0, -0.87, 0.0), ARMOR),
+        box(f'leg{side}_hip_cap', (0.72, 0.36, 0.74), (0, -0.15, 0.0), ARMOR_D),
+        box(f'leg{side}_thigh', (0.62, 1.30, 0.66), (0, -0.87, 0.0), ARMOR),
         # knee container pieces (routed by "knee"/"shin" keywords, knee-local)
-        box(f'leg{side}_knee', (0.50, 0.40, 0.50), (0, 0.0, -0.02), TRIM),
-        box(f'leg{side}_knee_plate', (0.44, 0.50, 0.14), (0, 0.0, -0.32), ARMOR),
-        box(f'leg{side}_shin_upper', (0.46, 0.90, 0.50), (0, -0.45, 0.02), ARMOR),
-        box(f'leg{side}_shin_lower', (0.40, 0.85, 0.44), (0, -1.10, 0.02), ARMOR_D),
-        box(f'leg{side}_shin_guard', (0.34, 1.30, 0.12), (0, -0.75, -0.29), ARMOR),
+        box(f'leg{side}_knee', (0.62, 0.40, 0.62), (0, 0.0, -0.02), TRIM),
+        box(f'leg{side}_knee_plate', (0.54, 0.50, 0.16), (0, 0.0, -0.34), ARMOR),
+        box(f'leg{side}_shin_upper', (0.56, 0.90, 0.60), (0, -0.45, 0.02), ARMOR),
+        box(f'leg{side}_shin_lower', (0.48, 0.85, 0.52), (0, -1.10, 0.02), ARMOR_D),
+        box(f'leg{side}_shin_guard', (0.42, 1.30, 0.14), (0, -0.75, -0.31), ARMOR),
         # ankle container pieces (routed by "foot" keyword, ankle-local)
-        box(f'leg{side}_foot_ankle', (0.30, 0.26, 0.30), (0, -0.12, 0.0), JOINT),
-        box(f'leg{side}_foot', (0.50, 0.24, 0.85), (0, -0.25, -0.08), TRIM),
-        box(f'leg{side}_foot_toe', (0.44, 0.18, 0.24), (0, -0.28, -0.48), ARMOR_D),
+        box(f'leg{side}_foot_ankle', (0.34, 0.26, 0.34), (0, -0.12, 0.0), JOINT),
+        box(f'leg{side}_foot', (0.60, 0.24, 0.95), (0, -0.25, -0.10), TRIM),
+        box(f'leg{side}_foot_toe', (0.54, 0.18, 0.28), (0, -0.28, -0.56), ARMOR_D),
+        box(f'leg{side}_foot_heel', (0.42, 0.22, 0.22), (0, -0.26, 0.36), JOINT),
     ]
 
 

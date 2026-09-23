@@ -19,12 +19,15 @@ const CLIP_SOURCES := {
 	MechaRig.CLIP_AI_RUN: "res://scenes/mecha/animations/ai_mech_run.glb",
 }
 
-# The run clip's natural ground speed: ~2.9m stride x 1.67 strides/s.
-# Playback rate scales with mech speed around this so cadence tracks travel
-# (slow pump while accelerating, full rate at speed) instead of shuffling.
-const NATURAL_SPEED := 5.0
+# The run clip's ground speed, measured from the baked cycle itself:
+# stride ~3.73m x cadence/rate ~1.79 strides/s per unit rate, so foot travel
+# matches body travel when rate = h_speed / 6.7 (audit 26de8ef: sync was
+# 1.33/0.75/0.39 at 3.5/7/14 m/s with NATURAL_SPEED 5.0). MAX_RATE 1.0 holds
+# sync through 7 m/s cruise; beyond that cadence caps deliberately (a heavy
+# frame paddling at 2.5 Hz reads worse than mild slide at absolute max).
+const NATURAL_SPEED := 6.7
 const MIN_RATE := 0.2
-const MAX_RATE := 1.4
+const MAX_RATE := 1.0
 
 static func rate_for_speed(h_speed: float) -> float:
 	return clampf(h_speed / NATURAL_SPEED, MIN_RATE, MAX_RATE)
@@ -55,10 +58,20 @@ const HINGE_JOINTS: Dictionary = {
 # as shuffling at 6-7 m/s cruise. A mild swing boost lengthens each step so
 # cadence can stay lower; clamps keep knees from hyperextending and feet
 # near the ground (no IK runs under the clip to fix them).
+# Body pitch runs 30% high (less face-down): the baked crouch aims the
+# chest at the ground, so the torso swing is scaled back toward upright.
+# Scaling (not offsetting) keeps it bounded and wrap-safe.
+const BODY_PITCH_SCALE := 0.7
 const THIGH_BOOST := 1.15
 const THIGH_MAX := 1.40 # ~80 deg
 const SHIN_BOOST := 1.1
 const SHIN_MIN := -2.18 # ~-125 deg
+# Ankle clamp: the baked clip carries a strongly asymmetric right foot
+# (measured runtime pivots: R min -2.28 rad vs L min -0.81). Past ~-63 deg
+# the foot folds unrealistically, so bound the hinge output; the left foot's
+# whole natural range sits inside the clamp and is untouched.
+const FOOT_MIN := -1.1 # ~-63 deg
+const FOOT_MAX := 0.9 # ~+52 deg
 # Segment endpoints for swing measurement (bone -> its distal joint bone).
 const SEGMENT_CHILD: Dictionary = {
 	MechaRig.BONE_UPPER_ARM_L: MechaRig.BONE_LOWER_ARM_L,
@@ -131,6 +144,37 @@ func has_clip(clip_name: String) -> bool:
 	return _sources.has(clip_name)
 
 
+# Footfall fractions of the run loop (measured foot-minima per side),
+# consumed by the animation layer to phase anything stride-synced
+# (strafe overlay). Fired in order as the clip position advances.
+const STEP_FRACS := [0.02, 0.19, 0.33, 0.55, 0.64, 0.86]
+const STEP_RIGHT := [true, false, true, false, true, false]
+var _last_step_pos: float = 0.0
+func poll_step_events() -> Array:
+	var out: Array = []
+	if player == null:
+		return out
+	var length: float = player.current_animation_length
+	if length <= 0.001:
+		return out
+	var pos: float = player.current_animation_position / length
+	var old: float = _last_step_pos
+	_last_step_pos = pos
+	if pos < old:
+		_collect_crossed(old, 1.0, out)
+		_collect_crossed(0.0, pos, out)
+	else:
+		_collect_crossed(old, pos, out)
+	return out
+
+
+func _collect_crossed(a: float, b: float, out: Array) -> void:
+	for i in range(STEP_FRACS.size()):
+		var f: float = STEP_FRACS[i]
+		if f > a and f <= b:
+			out.append(STEP_RIGHT[i])
+
+
 func play_clip(clip_name: String) -> void:
 	if not has_clip(clip_name):
 		return
@@ -183,6 +227,8 @@ func _apply_pose(joints: Dictionary, body_base_y: float) -> void:
 		var swing := wrapf(_segment_pitch(_pose_dir(bone, child)) - float(_rest_pitch.get(bone, 0.0)), -PI, PI)
 		if bone == MechaRig.BONE_THIGH_L or bone == MechaRig.BONE_THIGH_R:
 			swing = clampf(swing * THIGH_BOOST, -THIGH_MAX, THIGH_MAX)
+		if bone == MechaRig.BONE_TORSO:
+			swing *= BODY_PITCH_SCALE
 		pivot.rotation.x = swing
 		if bone != MechaRig.BONE_TORSO:
 			pivot.rotation.y = 0.0
@@ -197,6 +243,8 @@ func _apply_pose(joints: Dictionary, body_base_y: float) -> void:
 		var flex := wrapf(flex_now - float(_rest_flex.get(key, 0.0)), -PI, PI)
 		if key == "shin_left" or key == "shin_right":
 			flex = maxf(flex * SHIN_BOOST, SHIN_MIN)
+		if key == "foot_left" or key == "foot_right":
+			flex = clampf(flex, FOOT_MIN, FOOT_MAX)
 		pivot.rotation.x = flex
 	# Hip bob onto the body (delta only; skeleton is already at game scale).
 	var body: Node3D = joints.get("body")

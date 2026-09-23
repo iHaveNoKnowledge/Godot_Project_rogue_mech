@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://dpsk18pilotverify"]
+
+[ext_resource type="Script" path="res://test/unit/phase_2e_18_pilot_skill_verify.gd" id="1_test"]
+
+[node name="Phase2E18PilotSkillVerify" type="Node"]
+script = ExtResource("1_test")

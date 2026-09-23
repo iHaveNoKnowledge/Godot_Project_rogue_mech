@@ -1,6 +1,7 @@
 extends CharacterBody3D
 
 const PartPenaltySystem = preload("res://scripts/systems/part_penalty_system.gd")
+const _CMR = preload("res://scripts/systems/combat_modifier_resolver.gd")
 
 @export var chassis: ChassisData
 
@@ -464,6 +465,7 @@ func _apply_movement(delta: float) -> void:
 	move_speed *= PartPenaltySystem.total_board_speed_multiplier()
 	if is_player_driven:
 		move_speed *= FrameModuleSystem.calculate_berserk_speed_multiplier()
+		move_speed *= _CMR.resolve_pilot_movement_speed_multiplier()
 	if is_roller_dashing:
 		move_speed *= 2.0 * PartPenaltySystem.total_dash_speed_multiplier()
 	if _is_in_water() and not can_traverse_water:

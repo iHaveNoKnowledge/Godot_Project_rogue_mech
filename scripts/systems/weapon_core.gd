@@ -2,6 +2,7 @@ class_name WeaponCore
 extends RefCounted
 
 const PartPenaltySystem = preload("res://scripts/systems/part_penalty_system.gd")
+const _CMR = preload("res://scripts/systems/combat_modifier_resolver.gd")
 
 ## Shared weapon firing core. Owns the firing mechanics (cooldown, ammo, reload,
 ## heat/overheat) plus projectile spawning, so the player's WeaponManager and
@@ -241,6 +242,7 @@ func try_fire(from_pos: Vector3, aim_dir: Vector3, fired_by_enemy: bool, owner: 
 	# Combined with chest-stable aim_dir (weapon_manager) this fixes “ยิงแล้วกระสุนมั่วเพราะแขนแกว่ง”.
 	if not fired_by_enemy:
 		current_spread *= 0.70
+		current_spread *= _CMR.resolve_pilot_spread_multiplier()
 
 	for i in range(pellets):
 		var pellet_dir := aim_dir
@@ -334,6 +336,7 @@ func _accumulate_heat() -> void:
 	effective_heat *= _PPS.total_heat_multiplier()
 	# Frame modules (vent protocol) bleed heat off each shot.
 	effective_heat *= FrameModuleSystem.calculate_heat_per_shot_multiplier()
+	effective_heat *= _CMR.resolve_pilot_heat_generation_multiplier()
 	heat = minf(heat + effective_heat, heat_capacity)
 	overheated = heat >= heat_capacity
 	heat_changed.emit(heat, heat_capacity, overheated)
@@ -707,7 +710,8 @@ func _spawn_projectile(from_pos: Vector3, aim_dir: Vector3, fired_by_enemy: bool
 		var heat_ratio := clampf(heat / heat_capacity, 0.0, 1.0)
 		final_speed *= FrameModuleSystem.calculate_heat_proj_speed_multiplier(heat_ratio)
 	projectile.speed = final_speed
-	projectile.damage = damage * damage_multiplier
+	var pilot_dmg_mult: float = 1.0 if fired_by_enemy else _CMR.resolve_pilot_damage_multiplier()
+	projectile.damage = damage * damage_multiplier * pilot_dmg_mult
 	projectile.damage_type = damage_type
 	projectile.impact = impact
 	projectile.direction = aim_dir

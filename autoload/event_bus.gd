@@ -49,6 +49,7 @@ signal backup_mech_destroyed()
 signal mecha_occupancy_changed(occupied: bool)
 ## Fired when on-foot pilot or player moves in/out of range of an interactive entity (e.g. boardable mech)
 signal interaction_prompt_updated(prompt_text: String, is_visible: bool)
+signal pilot_level_up(level: int, skill_points: int)
 
 # --- Board ---
 signal tile_entered(tile_pos: Vector2i, tile_data: Node)

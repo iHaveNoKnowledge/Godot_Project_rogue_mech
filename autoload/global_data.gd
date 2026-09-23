@@ -22,6 +22,7 @@ signal armor_destroyed_permanently(slot: String, armor_data: Dictionary)
 
 const FrameModuleSys = preload("res://scripts/systems/frame_module_system.gd")
 const ResProgSys = preload("res://scripts/systems/research_progression_system.gd")
+const PilotSkillSys = preload("res://scripts/systems/pilot_skill_system.gd")
 
 # --- Managers (created as children in _ready) ---
 var currency: CurrencyManager
@@ -693,6 +694,9 @@ func _on_combat_ended(victory: bool) -> void:
 		board.run_notice = "Bond is at its peak and the old machine is wrecked. A SACRIFICE MISSION awaits at the Safehouse."
 	# Finalize combat damage stats.
 	CombatStatsSystem.compute_last_combat_damage_ratio()
+	if victory:
+		var is_decisive := CombatStatsSystem.was_decisive_victory()
+		PilotSkillSys.award_combat_xp(GameManager.combat_node_type, is_decisive)
 	# Patrol fleet engagement resolves first.
 	if board.board_patrol_engagement >= 0:
 		PatrolSystem.resolve_patrol_combat(victory)

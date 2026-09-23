@@ -17,6 +17,7 @@ class_name MechaClipRetarget
 const CLIP_SOURCES := {
 	MechaRig.CLIP_RUN: "res://scenes/mecha/animations/innerframe_run_cycle_clean.glb",
 	MechaRig.CLIP_AI_RUN: "res://scenes/mecha/animations/ai_mech_run.glb",
+	MechaRig.CLIP_AF_JOG: "res://scenes/mecha/animations/af_jog_fwd.glb",
 }
 
 # The run clip's ground speed, measured from the baked cycle itself:

@@ -68,11 +68,11 @@ func _ready() -> void:
 	_check(pitch_mean > deg_to_rad(-40.0) and pitch_mean < deg_to_rad(-20.0),
 		"torso pitch raised 30%, still leaning in (mean=%.1f deg)" % rad_to_deg(pitch_mean))
 
-	# Playback rate follows the validated retarget map (NATURAL_SPEED 6.7,
+	# Playback rate follows the validated retarget map (NATURAL_SPEED 8.5,
 	# MAX_RATE 1.0): sync holds through cruise instead of capping early.
 	_check(absf(MechaClipRetarget.rate_for_speed(0.0) - 0.2) < 0.001, "rate floors at standstill")
-	_check(absf(MechaClipRetarget.rate_for_speed(5.0) - 5.0 / 6.7) < 0.001, "rate tracks below natural speed")
-	_check(absf(MechaClipRetarget.rate_for_speed(7.0) - 1.0) < 0.001, "rate holds through cruise")
+	_check(absf(MechaClipRetarget.rate_for_speed(5.0) - 5.0 / 8.5) < 0.001, "rate tracks below natural speed")
+	_check(absf(MechaClipRetarget.rate_for_speed(7.0) - 7.0 / 8.5) < 0.001, "rate holds through cruise")
 	_check(absf(MechaClipRetarget.rate_for_speed(100.0) - 1.0) < 0.001, "rate never exceeds cap at overspeed")
 
 	# Destroyed limb (pivot gone) must not crash the transfer.

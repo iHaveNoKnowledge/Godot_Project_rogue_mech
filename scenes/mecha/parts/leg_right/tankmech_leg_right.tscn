@@ -4,513 +4,144 @@
 vertex_color_use_as_albedo = true
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_qqvot"]
-resource_name = "tankmech_leg_right_legR_d_hip_cap"
+resource_name = "tankmech_leg_right_legL_foot_001"
 _surfaces = [{
-"aabb": AABB(-0.4, -0.33, -0.37, 0.8, 0.36, 0.74),
-"attribute_data": PackedByteArray("IiY2/yImNv8iJjb/IiY2/yImNv8iJjb/IiY2/yImNv8="),
-"format": 34359742473,
+"aabb": AABB(-0.23, -1.95, -0.48, 0.46, 0.26, 0.71999997),
+"attribute_data": PackedByteArray("WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/"),
+"format": 34896613391,
 "index_count": 36,
-"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
+"index_data": PackedByteArray("AQAKAAQAAQAHAAoADQAWABMADQAQABYAAgAUAAgAAgAOABQABQAXABEABQALABcAAAAPAAwAAAADAA8ABgAVAAkABgASABUA"),
 "material": SubResource("StandardMaterial3D_6vp1j"),
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 8,
-"vertex_data": PackedByteArray("zczMvsP1qL6kcL2+zczMvsP1qL6kcL0+zczMvo/C9TykcL2+zczMvo/C9TykcL0+zczMPsP1qL6kcL2+zczMPsP1qL6kcL0+zczMPo/C9TykcL2+zczMPo/C9TykcL0+")
+"vertex_count": 24,
+"vertex_data": PackedByteArray("AAAAAP////8AAAAA/////wAAAAD///////8AAP///////wAA////////AAD///+/AAAAAAAA/78AAAAAAAD//wAAAAAAAP////8AAAAA/7///wAAAAD/////AAAAAP+/AAD///////8AAP///////wAA//////////////////////////////////////+/AAD//wAA/78AAP//AAD//wAA//8AAP///////wAA/7//////AAD///////8AAP+//z//v/9//7//v/9//z//v/9//7//f////3//f/9//7//v/9//3//f/9//7//f////z//v/9//z//v/9//z//v/9//z//f////3//f/9//z//v/9//3//f/9//z//f///")
 }]
 blend_shape_mode = 0
-metadata/extras = {
-"extents": [0.8, 0.36, 0.74],
-"shape": "box"
-}
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_0nugr"]
 vertex_color_use_as_albedo = true
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_wxsxx"]
-resource_name = "tankmech_leg_right_legR_thigh"
+resource_name = "tankmech_leg_right_legL_kneeplate_001"
 _surfaces = [{
-"aabb": AABB(-0.39, -1.52, -0.33, 0.78, 1.3, 0.66),
-"attribute_data": PackedByteArray("QlR2/0JUdv9CVHb/QlR2/0JUdv9CVHb/QlR2/0JUdv8="),
-"format": 34359742473,
+"aabb": AABB(-0.25, -1.13, -0.23, 0.5, 0.42000002, 0.22),
+"attribute_data": PackedByteArray("WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/"),
+"format": 34896613391,
 "index_count": 36,
-"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
+"index_data": PackedByteArray("AQAKAAQAAQAHAAoADQAWABMADQAQABYAAgAUAAgAAgAOABQABQAXABEABQALABcAAAAPAAwAAAADAA8ABgAVAAkABgASABUA"),
 "material": SubResource("StandardMaterial3D_0nugr"),
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 8,
-"vertex_data": PackedByteArray("FK7HvlyPwr/D9ai+FK7HvlyPwr/D9ag+FK7Hvq5HYb7D9ai+FK7Hvq5HYb7D9ag+FK7HPlyPwr/D9ai+FK7HPlyPwr/D9ag+FK7HPq5HYb7D9ai+FK7HPq5HYb7D9ag+")
+"vertex_count": 24,
+"vertex_data": PackedByteArray("AAAAAP////8AAAAA/////wAAAAD///////8AAP///////wAA////////AAD///+/AAAAAAAA/78AAAAAAAD//wAAAAAAAP////8AAAAA/7///wAAAAD/////AAAAAP+/AAD///////8AAP///////wAA//////////////////////////////////////+/AAD//wAA/78AAP//AAD//wAA//8AAP///////wAA/7//////AAD///////8AAP+//z//v/9//7//v/9//z//v/9//7//f////3//f/9//7//v/9//3//f/9//7//f////z//v/9//z//v/9//z//v/9//z//f////3//f/9//z//v/9//3//f/9//z//f///")
 }]
 blend_shape_mode = 0
-metadata/extras = {
-"extents": [0.78, 1.3, 0.66],
-"shape": "box"
-}
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_2cht5"]
 vertex_color_use_as_albedo = true
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_71nfn"]
-resource_name = "tankmech_leg_right_legR_thigh_line_h"
+resource_name = "tankmech_leg_right_legL_shin_back_001"
 _surfaces = [{
-"aabb": AABB(-0.39, -0.575, -0.37, 0.78, 0.050000012, 0.03999999),
-"attribute_data": PackedByteArray("JCcv/yQnL/8kJy//JCcv/yQnL/8kJy//JCcv/yQnL/8="),
-"format": 34359742473,
-"index_count": 36,
-"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
+"aabb": AABB(-0.275, -1.8249999, 0, 0.55, 0.9499999, 0.315),
+"attribute_data": PackedByteArray("WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/"),
+"format": 34896613391,
+"index_count": 84,
+"index_data": PackedByteArray("AQAKAAcAAQAEAAoADQAWABAADQATABYAAgAUAA4AAgAIABQABQAXAAsABQARABcAAAAPAAMAAAAMAA8AGQAiABwAGQAfACIAJQAuACsAJQAoAC4AGgAsACAAGgAmACwAHQAvACkAHQAjAC8AGAAnACQAGAAbACcACQAtACEACQAVAC0AEgAeACoAEgAGAB4ABgAhAB4ABgAJACEAFQAqAC0AFQASACoA"),
 "material": SubResource("StandardMaterial3D_2cht5"),
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 8,
-"vertex_data": PackedByteArray("FK7HvjMzE7+kcL2+FK7HvjMzE7/D9ai+FK7HvmZmBr+kcL2+FK7HvmZmBr/D9ai+FK7HPjMzE7+kcL2+FK7HPjMzE7/D9ai+FK7HPmZmBr+kcL2+FK7HPmZmBr/D9ai+")
+"vertex_count": 48,
+"vertex_data": PackedByteArray("ShBuCY3j/79KEG4JjeP//0oQbgmN4/+/tO9uCY3j/7+0724JjeP//7TvbgmN4///ShBuCQAA/79KEG4JAAD//0oQbgkAAP+/tO9uCQAA/7+0724JAAD//7TvbgkAAP//ShCQ9o3j/79KEJD2jeP//0oQkPaN4/+/tO+Q9o3j/7+075D2jeP//7TvkPaN4///ShCQ9gAA/79KEJD2AAD//0oQkPYAAP+/tO+Q9gAA/7+075D2AAD//7TvkPYAAP//AAAAAP////8AAAAA/////wAAAAD///////8AAP///////wAA////////AAD///+/AAAAAAAA/78AAAAAAAD//wAAAAAAAP////8AAAAA/7///wAAAAD/////AAAAAP+/AAD///////8AAP///////wAA//////////////////////////////////////+/AAD//wAA/78AAP//AAD//wAA//8AAP///////wAA/7//////AAD///////8AAP+//3//f/9//z//f////3//f/9//z//v/9//3//f/9//z//f////3//f/9//z//v/9//3//f/9//7//f////3//f/9//7//v/9//3//f/9//7//f////3//f/9//7//v/9//z//v/9//7//v/9//z//v/9//7//f////3//f/9//7//v/9//3//f/9//7//f////z//v/9//z//v/9//z//v/9//z//f////3//f/9//z//v/9//3//f/9//z//f///")
 }]
 blend_shape_mode = 0
-metadata/extras = {
-"extents": [0.78, 0.05, 0.04],
-"shape": "box"
-}
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_guulm"]
 vertex_color_use_as_albedo = true
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_y6lis"]
-resource_name = "tankmech_leg_right_legR_thigh_line_v"
+resource_name = "tankmech_leg_right_legL_shin_front_001"
 _surfaces = [{
-"aabb": AABB(-0.365, -1.47, -0.37, 0.050000012, 1.2, 0.03999999),
-"attribute_data": PackedByteArray("JCcv/yQnL/8kJy//JCcv/yQnL/8kJy//JCcv/yQnL/8="),
-"format": 34359742473,
-"index_count": 36,
-"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
+"aabb": AABB(-0.275, -1.8249999, -0.315, 0.55, 0.9499999, 0.315),
+"attribute_data": PackedByteArray("WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/"),
+"format": 34896613391,
+"index_count": 84,
+"index_data": PackedByteArray("AQAKAAcAAQAEAAoADQAWABAADQATABYAAgAUAA4AAgAIABQABQAXAAsABQARABcABgAVABIABgAJABUAGQAiABwAGQAfACIAJQAuACsAJQAoAC4AGgAsACAAGgAmACwAHQAvACkAHQAjAC8AHgAtACEAHgAqAC0AAwAYABsAAwAAABgADwAbACcADwADABsAAAAkABgAAAAMACQADAAnACQADAAPACcA"),
 "material": SubResource("StandardMaterial3D_guulm"),
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 8,
-"vertex_data": PackedByteArray("SOG6vvYovL+kcL2+SOG6vvYovL/D9ai+SOG6vnE9ir6kcL2+SOG6vnE9ir7D9ai+rkehvvYovL+kcL2+rkehvvYovL/D9ai+rkehvnE9ir6kcL2+rkehvnE9ir7D9ai+")
+"vertex_count": 48,
+"vertex_data": PackedByteArray("ShBuCf////9KEG4J/////0oQbgn///+/tO9uCf////+0724J/////7Tvbgn/////ShBuCXEc//9KEG4JcRz//0oQbglxHP+/tO9uCXEc//+0724JcRz//7TvbglxHP//ShCQ9v////9KEJD2/////0oQkPb///+/tO+Q9v////+075D2/////7TvkPb/////ShCQ9nEc//9KEJD2cRz//0oQkPZxHP+/tO+Q9nEc//+075D2cRz//7TvkPZxHP//AAAAAP////8AAAAA/////wAAAAD///////8AAP///////wAA////////AAD///+/AAAAAAAA/78AAAAAAAD//wAAAAAAAP////8AAAAA/7///wAAAAD/////AAAAAP+/AAD///////8AAP///////wAA//////////////////////////////////////+/AAD//wAA/78AAP//AAD//wAA//8AAP///////wAA/7//////AAD///////8AAP+//z//v/9//z//f////z//v/9//z//v/9//z//v/9//z//f////z//v/9//z//v/9//z//v/9//7//f////z//v/9//7//v/9//z//v/9//7//f////z//v/9//7//v/9//z//v/9//7//v/9//z//v/9//7//f////3//f/9//7//v/9//3//f/9//7//f////z//v/9//z//v/9//z//v/9//z//f////3//f/9//z//v/9//3//f/9//z//f///")
 }]
 blend_shape_mode = 0
-metadata/extras = {
-"extents": [0.05, 1.2, 0.04],
-"shape": "box"
-}
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ktq3a"]
 vertex_color_use_as_albedo = true
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_5bwmy"]
-resource_name = "tankmech_leg_right_legR_thigh_accent"
+resource_name = "tankmech_leg_right_legL_thigh_back_001"
 _surfaces = [{
-"aabb": AABB(0.23, -1.25, -0.37, 0.17999999, 0.100000024, 0.03999999),
-"attribute_data": PackedByteArray("5kY8/+ZGPP/mRjz/5kY8/+ZGPP/mRjz/5kY8/+ZGPP8="),
-"format": 34359742473,
-"index_count": 36,
-"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
+"aabb": AABB(-0.315, -0.925, 0, 0.63, 0.95, 0.345),
+"attribute_data": PackedByteArray("WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/"),
+"format": 34896613391,
+"index_count": 84,
+"index_data": PackedByteArray("AQAKAAcAAQAEAAoADQAWABAADQATABYAAgAUAA4AAgAIABQABQAXAAsABQARABcAAAAPAAMAAAAMAA8AGQAiABwAGQAfACIAJQAuACsAJQAoAC4AGgAsACAAGgAmACwAHQAvACkAHQAjAC8AGAAnACQAGAAbACcACQAtACEACQAVAC0AEgAeACoAEgAGAB4ABgAhAB4ABgAJACEAFQAqAC0AFQASACoA"),
 "material": SubResource("StandardMaterial3D_ktq3a"),
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 8,
-"vertex_data": PackedByteArray("H4VrPgAAoL+kcL2+H4VrPgAAoL/D9ai+H4VrPjMzk7+kcL2+H4VrPjMzk7/D9ai+hevRPgAAoL+kcL2+hevRPgAAoL/D9ai+hevRPjMzk7+kcL2+hevRPjMzk7/D9ai+")
+"vertex_count": 48,
+"vertex_data": PackedByteArray("OA5uCQbm/784Dm4JBub//zgObgkG5v+/xvFuCQbm/7/G8W4JBub//8bxbgkG5v//OA5uCQAA/784Dm4JAAD//zgObgkAAP+/xvFuCQAA/7/G8W4JAAD//8bxbgkAAP//OA6Q9gbm/784DpD2Bub//zgOkPYG5v+/xvGQ9gbm/7/G8ZD2Bub//8bxkPYG5v//OA6Q9gAA/784DpD2AAD//zgOkPYAAP+/xvGQ9gAA/7/G8ZD2AAD//8bxkPYAAP//AAAAAP////8AAAAA/////wAAAAD///////8AAP///////wAA////////AAD///+/AAAAAAAA/78AAAAAAAD//wAAAAAAAP////8AAAAA/7///wAAAAD/////AAAAAP+/AAD///////8AAP///////wAA//////////////////////////////////////+/AAD//wAA/78AAP//AAD//wAA//8AAP///////wAA/7//////AAD///////8AAP+//3//f/9//z//f////3//f/9//z//v/9//3//f/9//z//f////3//f/9//z//v/9//3//f/9//7//f////3//f/9//7//v/9//3//f/9//7//f////3//f/9//7//v/9//z//v/9//7//v/9//z//v/9//7//f////3//f/9//7//v/9//3//f/9//7//f////z//v/9//z//v/9//z//v/9//z//f////3//f/9//z//v/9//3//f/9//z//f///")
 }]
 blend_shape_mode = 0
-metadata/extras = {
-"extents": [0.18, 0.1, 0.04],
-"shape": "box"
-}
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_46no0"]
 vertex_color_use_as_albedo = true
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_81itv"]
-resource_name = "tankmech_leg_right_legR_knee"
+resource_name = "tankmech_leg_right_legL_thigh_front_001"
 _surfaces = [{
-"aabb": AABB(-0.35, -0.2, -0.33, 0.7, 0.4, 0.62),
-"attribute_data": PackedByteArray("JCcv/yQnL/8kJy//JCcv/yQnL/8kJy//JCcv/yQnL/8="),
-"format": 34359742473,
-"index_count": 36,
-"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
+"aabb": AABB(-0.315, -0.925, -0.345, 0.63, 0.95, 0.345),
+"attribute_data": PackedByteArray("WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/WVtg/1lbYP9ZW2D/"),
+"format": 34896613391,
+"index_count": 84,
+"index_data": PackedByteArray("AQAKAAcAAQAEAAoADQAWABAADQATABYAAgAUAA4AAgAIABQABQAXAAsABQARABcABgAVABIABgAJABUAGQAiABwAGQAfACIAJQAuACsAJQAoAC4AGgAsACAAGgAmACwAHQAvACkAHQAjAC8AHgAtACEAHgAqAC0ADwAbACcADwADABsAAAAkABgAAAAMACQADAAnACQADAAPACcAAwAYABsAAwAAABgA"),
 "material": SubResource("StandardMaterial3D_46no0"),
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 8,
-"vertex_data": PackedByteArray("MzOzvs3MTL7D9ai+MzOzvs3MTL7hepQ+MzOzvs3MTD7D9ai+MzOzvs3MTD7hepQ+MzOzPs3MTL7D9ai+MzOzPs3MTL7hepQ+MzOzPs3MTD7D9ai+MzOzPs3MTD7hepQ+")
+"vertex_count": 48,
+"vertex_data": PackedByteArray("OA5uCf////84Dm4J/////zgObgn///+/xvFuCf/////G8W4J/////8bxbgn/////OA5uCfgZ//84Dm4J+Bn//zgObgn4Gf+/xvFuCfgZ///G8W4J+Bn//8bxbgn4Gf//OA6Q9v////84DpD2/////zgOkPb///+/xvGQ9v/////G8ZD2/////8bxkPb/////OA6Q9vgZ//84DpD2+Bn//zgOkPb4Gf+/xvGQ9vgZ///G8ZD2+Bn//8bxkPb4Gf//AAAAAP////8AAAAA/////wAAAAD///////8AAP///////wAA////////AAD///+/AAAAAAAA/78AAAAAAAD//wAAAAAAAP////8AAAAA/7///wAAAAD/////AAAAAP+/AAD///////8AAP///////wAA//////////////////////////////////////+/AAD//wAA/78AAP//AAD//wAA//8AAP///////wAA/7//////AAD///////8AAP+//z//v/9//z//f////z//v/9//z//v/9//z//v/9//z//f////z//v/9//z//v/9//z//v/9//7//f////z//v/9//7//v/9//z//v/9//7//f////z//v/9//7//v/9//z//v/9//7//v/9//z//v/9//7//f////3//f/9//7//v/9//3//f/9//7//f////z//v/9//z//v/9//z//v/9//z//f////3//f/9//z//v/9//3//f/9//z//f///")
 }]
 blend_shape_mode = 0
-metadata/extras = {
-"extents": [0.7, 0.4, 0.62],
-"shape": "box"
-}
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_l5ynb"]
-vertex_color_use_as_albedo = true
+[node name="tankmech_leg_right" type="Node3D" unique_id=624516729]
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_76fft"]
-resource_name = "tankmech_leg_right_legR_knee_plate"
-_surfaces = [{
-"aabb": AABB(-0.27, -0.25, -0.42, 0.54, 0.5, 0.16),
-"attribute_data": PackedByteArray("QlR2/0JUdv9CVHb/QlR2/0JUdv9CVHb/QlR2/0JUdv8="),
-"format": 34359742473,
-"index_count": 36,
-"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
-"material": SubResource("StandardMaterial3D_l5ynb"),
-"primitive": 3,
-"uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 8,
-"vertex_data": PackedByteArray("cT2KvgAAgL49Cte+cT2KvgAAgL64HoW+cT2KvgAAgD49Cte+cT2KvgAAgD64HoW+cT2KPgAAgL49Cte+cT2KPgAAgL64HoW+cT2KPgAAgD49Cte+cT2KPgAAgD64HoW+")
-}]
-blend_shape_mode = 0
-metadata/extras = {
-"extents": [0.54, 0.5, 0.16],
-"shape": "box"
-}
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_uiqd7"]
-vertex_color_use_as_albedo = true
-
-[sub_resource type="ArrayMesh" id="ArrayMesh_yd124"]
-resource_name = "tankmech_leg_right_legR_shin_upper"
-_surfaces = [{
-"aabb": AABB(-0.28, -0.9, -0.28, 0.56, 0.9, 0.6),
-"attribute_data": PackedByteArray("QlR2/0JUdv9CVHb/QlR2/0JUdv9CVHb/QlR2/0JUdv8="),
-"format": 34359742473,
-"index_count": 36,
-"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
-"material": SubResource("StandardMaterial3D_uiqd7"),
-"primitive": 3,
-"uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 8,
-"vertex_data": PackedByteArray("KVyPvmZmZr8pXI++KVyPvmZmZr8K16M+KVyPvgAAAAApXI++KVyPvgAAAAAK16M+KVyPPmZmZr8pXI++KVyPPmZmZr8K16M+KVyPPgAAAAApXI++KVyPPgAAAAAK16M+")
-}]
-blend_shape_mode = 0
-metadata/extras = {
-"extents": [0.56, 0.9, 0.6],
-"shape": "box"
-}
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_xo36r"]
-vertex_color_use_as_albedo = true
-
-[sub_resource type="ArrayMesh" id="ArrayMesh_f8je8"]
-resource_name = "tankmech_leg_right_legR_d_shin_lower"
-_surfaces = [{
-"aabb": AABB(-0.24, -1.525, -0.24, 0.48, 0.84999996, 0.52),
-"attribute_data": PackedByteArray("IiY2/yImNv8iJjb/IiY2/yImNv8iJjb/IiY2/yImNv8="),
-"format": 34359742473,
-"index_count": 36,
-"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
-"material": SubResource("StandardMaterial3D_xo36r"),
-"primitive": 3,
-"uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 8,
-"vertex_data": PackedByteArray("j8J1vjMzw7+PwnW+j8J1vjMzw78pXI8+j8J1vs3MLL+PwnW+j8J1vs3MLL8pXI8+j8J1PjMzw7+PwnW+j8J1PjMzw78pXI8+j8J1Ps3MLL+PwnW+j8J1Ps3MLL8pXI8+")
-}]
-blend_shape_mode = 0
-metadata/extras = {
-"extents": [0.48, 0.85, 0.52],
-"shape": "box"
-}
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_5nglj"]
-vertex_color_use_as_albedo = true
-
-[sub_resource type="ArrayMesh" id="ArrayMesh_7adyn"]
-resource_name = "tankmech_leg_right_legR_shin_guard"
-_surfaces = [{
-"aabb": AABB(-0.21, -1.4, -0.38, 0.42, 1.3, 0.14),
-"attribute_data": PackedByteArray("QlR2/0JUdv9CVHb/QlR2/0JUdv9CVHb/QlR2/0JUdv8="),
-"format": 34359742473,
-"index_count": 36,
-"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
-"material": SubResource("StandardMaterial3D_5nglj"),
-"primitive": 3,
-"uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 8,
-"vertex_data": PackedByteArray("PQpXvjMzs79cj8K+PQpXvjMzs7+PwnW+PQpXvs3MzL1cj8K+PQpXvs3MzL2PwnW+PQpXPjMzs79cj8K+PQpXPjMzs7+PwnW+PQpXPs3MzL1cj8K+PQpXPs3MzL2PwnW+")
-}]
-blend_shape_mode = 0
-metadata/extras = {
-"extents": [0.42, 1.3, 0.14],
-"shape": "box"
-}
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_0ldqw"]
-vertex_color_use_as_albedo = true
-
-[sub_resource type="ArrayMesh" id="ArrayMesh_p58ik"]
-resource_name = "tankmech_leg_right_legR_shin_line_h"
-_surfaces = [{
-"aabb": AABB(-0.21, -0.875, -0.41, 0.42, 0.050000012, 0.03999999),
-"attribute_data": PackedByteArray("JCcv/yQnL/8kJy//JCcv/yQnL/8kJy//JCcv/yQnL/8="),
-"format": 34359742473,
-"index_count": 36,
-"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
-"material": SubResource("StandardMaterial3D_0ldqw"),
-"primitive": 3,
-"uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 8,
-"vertex_data": PackedByteArray("PQpXvgAAYL+F69G+PQpXvgAAYL+kcL2+PQpXvjMzU7+F69G+PQpXvjMzU7+kcL2+PQpXPgAAYL+F69G+PQpXPgAAYL+kcL2+PQpXPjMzU7+F69G+PQpXPjMzU7+kcL2+")
-}]
-blend_shape_mode = 0
-metadata/extras = {
-"extents": [0.42, 0.05, 0.04],
-"shape": "box"
-}
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_r00ei"]
-vertex_color_use_as_albedo = true
-
-[sub_resource type="ArrayMesh" id="ArrayMesh_ij06y"]
-resource_name = "tankmech_leg_right_legR_shin_line_v"
-_surfaces = [{
-"aabb": AABB(-0.205, -1.4, -0.41, 0.049999997, 1.1999999, 0.03999999),
-"attribute_data": PackedByteArray("JCcv/yQnL/8kJy//JCcv/yQnL/8kJy//JCcv/yQnL/8="),
-"format": 34359742473,
-"index_count": 36,
-"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
-"material": SubResource("StandardMaterial3D_r00ei"),
-"primitive": 3,
-"uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 8,
-"vertex_data": PackedByteArray("hetRvjMzs7+F69G+hetRvjMzs7+kcL2+hetRvs3MTL6F69G+hetRvs3MTL6kcL2+UrgevjMzs7+F69G+UrgevjMzs7+kcL2+Urgevs3MTL6F69G+Urgevs3MTL6kcL2+")
-}]
-blend_shape_mode = 0
-metadata/extras = {
-"extents": [0.05, 1.2, 0.04],
-"shape": "box"
-}
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_y45ur"]
-vertex_color_use_as_albedo = true
-
-[sub_resource type="ArrayMesh" id="ArrayMesh_ygj06"]
-resource_name = "tankmech_leg_right_legR_shin_accent"
-_surfaces = [{
-"aabb": AABB(0.1, -1.3, -0.41, 0.16, 0.099999905, 0.03999999),
-"attribute_data": PackedByteArray("5kY8/+ZGPP/mRjz/5kY8/+ZGPP/mRjz/5kY8/+ZGPP8="),
-"format": 34359742473,
-"index_count": 36,
-"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
-"material": SubResource("StandardMaterial3D_y45ur"),
-"primitive": 3,
-"uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 8,
-"vertex_data": PackedByteArray("zczMPWZmpr+F69G+zczMPWZmpr+kcL2+zczMPZqZmb+F69G+zczMPZqZmb+kcL2+uB6FPmZmpr+F69G+uB6FPmZmpr+kcL2+uB6FPpqZmb+F69G+uB6FPpqZmb+kcL2+")
-}]
-blend_shape_mode = 0
-metadata/extras = {
-"extents": [0.16, 0.1, 0.04],
-"shape": "box"
-}
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_q6l5r"]
-vertex_color_use_as_albedo = true
-
-[sub_resource type="ArrayMesh" id="ArrayMesh_xnim4"]
-resource_name = "tankmech_leg_right_legR_foot_ankle"
-_surfaces = [{
-"aabb": AABB(-0.17, -0.25, -0.17, 0.34, 0.26, 0.34),
-"attribute_data": PackedByteArray("HB0h/xwdIf8cHSH/HB0h/xwdIf8cHSH/HB0h/xwdIf8="),
-"format": 34359742473,
-"index_count": 36,
-"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
-"material": SubResource("StandardMaterial3D_q6l5r"),
-"primitive": 3,
-"uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 8,
-"vertex_data": PackedByteArray("exQuvgAAgL57FC6+exQuvgAAgL57FC4+exQuvgrXIzx7FC6+exQuvgrXIzx7FC4+exQuPgAAgL57FC6+exQuPgAAgL57FC4+exQuPgrXIzx7FC6+exQuPgrXIzx7FC4+")
-}]
-blend_shape_mode = 0
-metadata/extras = {
-"extents": [0.34, 0.26, 0.34],
-"shape": "box"
-}
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_lt8bv"]
-vertex_color_use_as_albedo = true
-
-[sub_resource type="ArrayMesh" id="ArrayMesh_v5c2x"]
-resource_name = "tankmech_leg_right_legR_foot"
-_surfaces = [{
-"aabb": AABB(-0.3, -0.37, -0.575, 0.6, 0.24000001, 0.95),
-"attribute_data": PackedByteArray("JCcv/yQnL/8kJy//JCcv/yQnL/8kJy//JCcv/yQnL/8="),
-"format": 34359742473,
-"index_count": 36,
-"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
-"material": SubResource("StandardMaterial3D_lt8bv"),
-"primitive": 3,
-"uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 8,
-"vertex_data": PackedByteArray("mpmZvqRwvb4zMxO/mpmZvqRwvb4AAMA+mpmZvrgeBb4zMxO/mpmZvrgeBb4AAMA+mpmZPqRwvb4zMxO/mpmZPqRwvb4AAMA+mpmZPrgeBb4zMxO/mpmZPrgeBb4AAMA+")
-}]
-blend_shape_mode = 0
-metadata/extras = {
-"extents": [0.6, 0.24, 0.95],
-"shape": "box"
-}
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_xc6mn"]
-vertex_color_use_as_albedo = true
-
-[sub_resource type="ArrayMesh" id="ArrayMesh_vqd2f"]
-resource_name = "tankmech_leg_right_legR_d_foot_toe"
-_surfaces = [{
-"aabb": AABB(-0.27, -0.37, -0.7, 0.54, 0.18, 0.28),
-"attribute_data": PackedByteArray("IiY2/yImNv8iJjb/IiY2/yImNv8iJjb/IiY2/yImNv8="),
-"format": 34359742473,
-"index_count": 36,
-"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
-"material": SubResource("StandardMaterial3D_xc6mn"),
-"primitive": 3,
-"uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 8,
-"vertex_data": PackedByteArray("cT2KvqRwvb4zMzO/cT2KvqRwvb49Cte+cT2KvlyPQr4zMzO/cT2KvlyPQr49Cte+cT2KPqRwvb4zMzO/cT2KPqRwvb49Cte+cT2KPlyPQr4zMzO/cT2KPlyPQr49Cte+")
-}]
-blend_shape_mode = 0
-metadata/extras = {
-"extents": [0.54, 0.18, 0.28],
-"shape": "box"
-}
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_tajov"]
-vertex_color_use_as_albedo = true
-
-[sub_resource type="ArrayMesh" id="ArrayMesh_rhh2u"]
-resource_name = "tankmech_leg_right_legR_foot_heel"
-_surfaces = [{
-"aabb": AABB(-0.21, -0.37, 0.25, 0.42, 0.22, 0.22),
-"attribute_data": PackedByteArray("HB0h/xwdIf8cHSH/HB0h/xwdIf8cHSH/HB0h/xwdIf8="),
-"format": 34359742473,
-"index_count": 36,
-"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
-"material": SubResource("StandardMaterial3D_tajov"),
-"primitive": 3,
-"uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 8,
-"vertex_data": PackedByteArray("PQpXvqRwvb4AAIA+PQpXvqRwvb7Xo/A+PQpXvpqZGb4AAIA+PQpXvpqZGb7Xo/A+PQpXPqRwvb4AAIA+PQpXPqRwvb7Xo/A+PQpXPpqZGb4AAIA+PQpXPpqZGb7Xo/A+")
-}]
-blend_shape_mode = 0
-metadata/extras = {
-"extents": [0.42, 0.22, 0.22],
-"shape": "box"
-}
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_qt4h4"]
-vertex_color_use_as_albedo = true
-
-[sub_resource type="ArrayMesh" id="ArrayMesh_1vi0f"]
-resource_name = "tankmech_leg_right_legR_foot_line"
-_surfaces = [{
-"aabb": AABB(-0.22, -0.31, -0.745, 0.44, 0.060000002, 0.04000002),
-"attribute_data": PackedByteArray("JCcv/yQnL/8kJy//JCcv/yQnL/8kJy//JCcv/yQnL/8="),
-"format": 34359742473,
-"index_count": 36,
-"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
-"material": SubResource("StandardMaterial3D_qt4h4"),
-"primitive": 3,
-"uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 8,
-"vertex_data": PackedByteArray("rkdhvlK4nr5SuD6/rkdhvlK4nr7hejS/rkdhvgAAgL5SuD6/rkdhvgAAgL7hejS/rkdhPlK4nr5SuD6/rkdhPlK4nr7hejS/rkdhPgAAgL5SuD6/rkdhPgAAgL7hejS/")
-}]
-blend_shape_mode = 0
-metadata/extras = {
-"extents": [0.44, 0.06, 0.04],
-"shape": "box"
-}
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_tmewn"]
-vertex_color_use_as_albedo = true
-
-[sub_resource type="ArrayMesh" id="ArrayMesh_6l00w"]
-resource_name = "tankmech_leg_right_legR_foot_accent"
-_surfaces = [{
-"aabb": AABB(-0.22, -0.32, -0.745, 0.12, 0.08, 0.04000002),
-"attribute_data": PackedByteArray("5kY8/+ZGPP/mRjz/5kY8/+ZGPP/mRjz/5kY8/+ZGPP8="),
-"format": 34359742473,
-"index_count": 36,
-"index_data": PackedByteArray("AQAAAAMABAAAAAEAAAACAAMAAgAAAAQAAQADAAcABQAEAAEABQABAAcAAwACAAcABgACAAQAAgAGAAcABgAEAAUABwAGAAUA"),
-"material": SubResource("StandardMaterial3D_tmewn"),
-"primitive": 3,
-"uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 8,
-"vertex_data": PackedByteArray("rkdhvgrXo75SuD6/rkdhvgrXo77hejS/rkdhvo/Cdb5SuD6/rkdhvo/Cdb7hejS/zczMvQrXo75SuD6/zczMvQrXo77hejS/zczMvY/Cdb5SuD6/zczMvY/Cdb7hejS/")
-}]
-blend_shape_mode = 0
-metadata/extras = {
-"extents": [0.12, 0.08, 0.04],
-"shape": "box"
-}
-
-[node name="tankmech_leg_right" type="Node3D" unique_id=1508446535]
-
-[node name="legR_d_hip_cap" type="MeshInstance3D" parent="." unique_id=1655761027]
+[node name="legL_foot_001" type="MeshInstance3D" parent="." unique_id=1491995784]
+transform = Transform3D(1, 0, 0, 0, 1.31, 0, 0, 0, 1, 0, 2.19, 0)
 mesh = SubResource("ArrayMesh_qqvot")
 skeleton = NodePath("")
 
-[node name="legR_thigh" type="MeshInstance3D" parent="." unique_id=1214072466]
+[node name="legL_kneeplate_001" type="MeshInstance3D" parent="." unique_id=942174446]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.97, 0)
 mesh = SubResource("ArrayMesh_wxsxx")
 skeleton = NodePath("")
 
-[node name="legR_thigh_line_h" type="MeshInstance3D" parent="." unique_id=1146643640]
+[node name="legL_shin_back_001" type="MeshInstance3D" parent="." unique_id=113762249]
+transform = Transform3D(1, 0, 0, 0, 1.36, 0, 0, 0, 1, 0, 1.19, 0)
 mesh = SubResource("ArrayMesh_71nfn")
 skeleton = NodePath("")
 
-[node name="legR_thigh_line_v" type="MeshInstance3D" parent="." unique_id=1077490441]
+[node name="legL_shin_front_001" type="MeshInstance3D" parent="." unique_id=1141660811]
+transform = Transform3D(1, 0, 0, 0, 1.36, 0, 0, 0, 1, 0, 1.19, 0)
 mesh = SubResource("ArrayMesh_y6lis")
 skeleton = NodePath("")
 
-[node name="legR_thigh_accent" type="MeshInstance3D" parent="." unique_id=309034339]
+[node name="legL_thigh_back_001" type="MeshInstance3D" parent="." unique_id=1439953175]
+transform = Transform3D(1, 0, 0, 0, 1.41, 0, 0, 0, 1, 0, 0, 0)
 mesh = SubResource("ArrayMesh_5bwmy")
 skeleton = NodePath("")
 
-[node name="legR_knee" type="MeshInstance3D" parent="." unique_id=182662873]
+[node name="legL_thigh_front_001" type="MeshInstance3D" parent="." unique_id=1394511000]
+transform = Transform3D(1, 0, 0, 0, 1.41, 0, 0, 0, 1, 0, 0, 0)
 mesh = SubResource("ArrayMesh_81itv")
-skeleton = NodePath("")
-
-[node name="legR_knee_plate" type="MeshInstance3D" parent="." unique_id=1913238386]
-mesh = SubResource("ArrayMesh_76fft")
-skeleton = NodePath("")
-
-[node name="legR_shin_upper" type="MeshInstance3D" parent="." unique_id=1310723628]
-mesh = SubResource("ArrayMesh_yd124")
-skeleton = NodePath("")
-
-[node name="legR_d_shin_lower" type="MeshInstance3D" parent="." unique_id=1370011200]
-mesh = SubResource("ArrayMesh_f8je8")
-skeleton = NodePath("")
-
-[node name="legR_shin_guard" type="MeshInstance3D" parent="." unique_id=1161094108]
-mesh = SubResource("ArrayMesh_7adyn")
-skeleton = NodePath("")
-
-[node name="legR_shin_line_h" type="MeshInstance3D" parent="." unique_id=1582881826]
-mesh = SubResource("ArrayMesh_p58ik")
-skeleton = NodePath("")
-
-[node name="legR_shin_line_v" type="MeshInstance3D" parent="." unique_id=57052487]
-mesh = SubResource("ArrayMesh_ij06y")
-skeleton = NodePath("")
-
-[node name="legR_shin_accent" type="MeshInstance3D" parent="." unique_id=1839657462]
-mesh = SubResource("ArrayMesh_ygj06")
-skeleton = NodePath("")
-
-[node name="legR_foot_ankle" type="MeshInstance3D" parent="." unique_id=1628183402]
-mesh = SubResource("ArrayMesh_xnim4")
-skeleton = NodePath("")
-
-[node name="legR_foot" type="MeshInstance3D" parent="." unique_id=1131374876]
-mesh = SubResource("ArrayMesh_v5c2x")
-skeleton = NodePath("")
-
-[node name="legR_d_foot_toe" type="MeshInstance3D" parent="." unique_id=628758404]
-mesh = SubResource("ArrayMesh_vqd2f")
-skeleton = NodePath("")
-
-[node name="legR_foot_heel" type="MeshInstance3D" parent="." unique_id=1690271943]
-mesh = SubResource("ArrayMesh_rhh2u")
-skeleton = NodePath("")
-
-[node name="legR_foot_line" type="MeshInstance3D" parent="." unique_id=2057140502]
-mesh = SubResource("ArrayMesh_1vi0f")
-skeleton = NodePath("")
-
-[node name="legR_foot_accent" type="MeshInstance3D" parent="." unique_id=1772692163]
-mesh = SubResource("ArrayMesh_6l00w")
 skeleton = NodePath("")

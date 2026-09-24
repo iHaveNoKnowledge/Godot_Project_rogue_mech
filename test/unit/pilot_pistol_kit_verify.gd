@@ -50,6 +50,8 @@ func _ready() -> void:
 	_check(skel.find_bone("Palm.R") >= 0, "Palm.R bone present")
 	_check(skel.find_bone("LowerArm.L") >= 0, "LowerArm.L bone present")
 	_check(_has_mesh(inst), "pilot mesh present")
+	var pilot_height := _mesh_height(inst)
+	_check(pilot_height > 1.5 and pilot_height < 2.2, "pilot mesh human-sized (%.2fm)" % pilot_height)
 	for clip in ["pistol_idle", "pistol_reload", "pistol_shoot"]:
 		_check(player.has_animation(clip), "clip present: " + clip)
 
@@ -111,6 +113,16 @@ func _find_player(n: Node) -> AnimationPlayer:
 		if found != null:
 			return found
 	return null
+
+
+func _mesh_height(n: Node) -> float:
+	var best := 0.0
+	if n is MeshInstance3D:
+		var box: AABB = (n as MeshInstance3D).get_aabb()
+		best = maxf(best, box.size.y * (n as Node3D).global_transform.basis.get_scale().y)
+	for c in n.get_children():
+		best = maxf(best, _mesh_height(c))
+	return best
 
 
 func _has_mesh(n: Node) -> bool:

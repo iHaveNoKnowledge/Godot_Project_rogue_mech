@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://tests/mecha/hatch_assembly_validation.gd" id="1"]
+
+[node name="HatchAssemblyValidation" type="Node"]
+script = ExtResource("1")

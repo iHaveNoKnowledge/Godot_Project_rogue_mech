@@ -55,6 +55,24 @@ var spawn_points: Array = []
 var is_active: bool = false
 var _combat_ended: bool = false
 
+# Active instance reference for decoupled static lookups (Option A)
+static var active_instance: SpawnManager = null
+# Static fallback idempotency tracking (Option B)
+static var _completed_fallback_enemy_ids: Dictionary = {}
+static var _fallback_empty_completed: bool = false
+
+
+static func get_active() -> SpawnManager:
+	if active_instance != null and is_instance_valid(active_instance) and not active_instance.is_queued_for_deletion() and active_instance.is_inside_tree():
+		return active_instance
+	return null
+
+
+static func reset_fallback_state() -> void:
+	_completed_fallback_enemy_ids.clear()
+	_fallback_empty_completed = false
+
+
 # Ring markers already handed out this wave, so multiple enemies never stack
 # on the same spawn point (adjacent markers are ~57m apart, so a distinct
 # marker per enemy is all the separation they need). Reset every wave.
@@ -224,6 +242,8 @@ func _duel_wave_defs() -> Array:
 
 func _ready() -> void:
 	_combat_ended = false
+	active_instance = self
+	add_to_group("spawn_manager")
 	# WAR battlefield: no token-based waves — uses WarAIJumpSystem / battlefield spawns instead
 	if GameManager.current_state == GameManager.State.WAR:
 		_generate_spawn_points()
@@ -584,24 +604,77 @@ func notify_enemy_killed() -> void:
 			_check_combat_ended()
 
 
+func _exit_tree() -> void:
+	if active_instance == self:
+		active_instance = null
+
+
 # Shared fallback for enemy dummies that die OUTSIDE the normal SpawnManager
 # flow (e.g. SpawnManager node missing): when no enemy is left alive, declare
 # victory. Kept static so every enemy type uses the same rule (previously
 # duplicated in enemy_dummy.gd and enemy_tank.gd).
 static func check_all_enemies_defeated() -> void:
-	var enemies = Engine.get_main_loop().root.get_tree().get_nodes_in_group("enemy")
+	# Option A: Delegate to active SpawnManager instance if present in scene
+	var active_mgr := get_active()
+	if active_mgr != null:
+		active_mgr._check_combat_ended()
+		return
+
+	# Option B: Guarded static fallback when no SpawnManager instance exists
+	var tree = Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return
+
+	var enemies = tree.get_nodes_in_group("enemy")
 	var alive := 0
+	var enemy_ids: Array[int] = []
 	for e in enemies:
+		if not is_instance_valid(e) or e.is_queued_for_deletion():
+			continue
 		# Ejected enemy pilots should not block victory.
 		if e.is_in_group("enemy_pilot"):
 			continue
-		if is_instance_valid(e) and e.get("health_system") != null:
-			var hs = e.health_system
+		var hs = e.get("health_system")
+		if hs == null:
+			hs = e.get_node_or_null("HealthSystem")
+		if hs != null:
 			if not hs.get("is_destroyed"):
 				alive += 1
+		enemy_ids.append(e.get_instance_id())
+
 	print("SPAWN_MGR: check_all_enemies_defeated (static) — alive=%d" % alive)
-	if alive == 0:
+	if alive > 0:
+		return
+
+	if enemy_ids.is_empty():
+		if _fallback_empty_completed:
+			return
+		_fallback_empty_completed = true
 		EventBus.combat_ended.emit(true)
+		return
+
+	var all_completed := true
+	for eid in enemy_ids:
+		if not _completed_fallback_enemy_ids.has(eid):
+			all_completed = false
+			break
+
+	if all_completed:
+		return
+
+	for eid in enemy_ids:
+		_completed_fallback_enemy_ids[eid] = true
+
+	# Prune stale IDs of freed objects if dictionary grows large
+	if _completed_fallback_enemy_ids.size() > 50:
+		var stale_ids: Array = []
+		for eid in _completed_fallback_enemy_ids:
+			if not is_instance_id_valid(eid):
+				stale_ids.append(eid)
+		for sid in stale_ids:
+			_completed_fallback_enemy_ids.erase(sid)
+
+	EventBus.combat_ended.emit(true)
 
 
 func _check_combat_ended() -> void:

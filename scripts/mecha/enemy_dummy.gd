@@ -937,11 +937,13 @@ func _on_destroyed() -> void:
 		get_tree().current_scene.add_child(loot)
 	loot.spawn_enemy_loot(global_position, archetype)
 
-	var spawn_mgr = get_node_or_null("/root/GameWorld/SpawnManager")
+	const SpawnManagerScript := preload("res://scripts/systems/spawn_manager.gd")
+	var spawn_mgr = SpawnManagerScript.get_active()
+	if spawn_mgr == null:
+		spawn_mgr = get_node_or_null("/root/GameWorld/SpawnManager")
 	if spawn_mgr and spawn_mgr.has_method("notify_enemy_killed"):
 		spawn_mgr.notify_enemy_killed()
 	else:
-		const SpawnManagerScript := preload("res://scripts/systems/spawn_manager.gd")
 		SpawnManagerScript.check_all_enemies_defeated()
 
 	# Stay alive through core-breach warning + detonation + charred smoke wreckage display

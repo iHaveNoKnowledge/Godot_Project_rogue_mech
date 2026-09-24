@@ -236,11 +236,13 @@ func _explode_and_destroy() -> void:
 	set_physics_process(false)
 	visible = false
 
-	var spawn_mgr = get_node_or_null("/root/GameWorld/SpawnManager")
+	const SpawnManagerScript := preload("res://scripts/systems/spawn_manager.gd")
+	var spawn_mgr = SpawnManagerScript.get_active()
+	if spawn_mgr == null:
+		spawn_mgr = get_node_or_null("/root/GameWorld/SpawnManager")
 	if spawn_mgr and spawn_mgr.has_method("notify_enemy_killed"):
 		spawn_mgr.notify_enemy_killed()
 	else:
-		const SpawnManagerScript := preload("res://scripts/systems/spawn_manager.gd")
 		SpawnManagerScript.check_all_enemies_defeated()
 
 	queue_free()

@@ -30,6 +30,9 @@ func _run_all_tests() -> void:
 	_test_enemy_full_layout_body_armor_break()
 	_test_enemy_simple_layout_compatibility()
 	_test_forward_base_completion_idempotency()
+	_test_static_fallback_repeated_calls_idempotency()
+	_test_static_fallback_no_cross_encounter_leakage()
+	_test_static_fallback_delegates_to_active_instance()
 
 
 func _check(condition: bool, test_name: String) -> void:
@@ -211,6 +214,124 @@ func _test_forward_base_completion_idempotency() -> void:
 	sm._combat_ended = true # If already ended
 	sm._on_forward_base_destroyed() # Async timer
 	_check(counts["combat_ended"] == 0, "_on_forward_base_destroyed does not emit if _combat_ended is true")
+
+	EventBus.combat_ended.disconnect(test_cb)
+	sm.queue_free()
+
+
+# --- [TEST F] Static Fallback Repeated Calls Idempotency (F-04) ---
+func _test_static_fallback_repeated_calls_idempotency() -> void:
+	print("\n-- [TEST F] Static Fallback Repeated Calls Idempotency (F-04) --")
+	SpawnManagerCls.reset_fallback_state()
+
+	# Create two test dummy enemies
+	var enemy1 := Node3D.new()
+	enemy1.add_to_group("enemy")
+	var eh1 := EnemyHealthCls.new()
+	eh1.name = "HealthSystem"
+	eh1.is_destroyed = true
+	enemy1.add_child(eh1)
+	add_child(enemy1)
+
+	var enemy2 := Node3D.new()
+	enemy2.add_to_group("enemy")
+	var eh2 := EnemyHealthCls.new()
+	eh2.name = "HealthSystem"
+	eh2.is_destroyed = true
+	enemy2.add_child(eh2)
+	add_child(enemy2)
+
+	var counts := {"combat_ended": 0}
+	var test_cb := func(victory: bool) -> void:
+		if victory:
+			counts["combat_ended"] += 1
+	EventBus.combat_ended.connect(test_cb)
+
+	# Call static fallback 3 times
+	SpawnManagerCls.check_all_enemies_defeated()
+	SpawnManagerCls.check_all_enemies_defeated()
+	SpawnManagerCls.check_all_enemies_defeated()
+
+	_check(counts["combat_ended"] == 1, "Static fallback check_all_enemies_defeated emits combat_ended(true) exactly once across repeated calls")
+
+	EventBus.combat_ended.disconnect(test_cb)
+	enemy1.queue_free()
+	enemy2.queue_free()
+
+
+# --- [TEST G] Static Fallback No Cross-Encounter Leakage (F-04) ---
+func _test_static_fallback_no_cross_encounter_leakage() -> void:
+	print("\n-- [TEST G] Static Fallback No Cross-Encounter Leakage (F-04) --")
+	SpawnManagerCls.reset_fallback_state()
+
+	var counts := {"combat_ended": 0}
+	var test_cb := func(victory: bool) -> void:
+		if victory:
+			counts["combat_ended"] += 1
+	EventBus.combat_ended.connect(test_cb)
+
+	# --- Fallback Encounter A ---
+	var enemyA := Node3D.new()
+	enemyA.add_to_group("enemy")
+	var ehA := EnemyHealthCls.new()
+	ehA.name = "HealthSystem"
+	ehA.is_destroyed = true
+	enemyA.add_child(ehA)
+	add_child(enemyA)
+
+	SpawnManagerCls.check_all_enemies_defeated()
+	_check(counts["combat_ended"] == 1, "Fallback Encounter A emits combat_ended(true) once")
+
+	# Clean up Encounter A
+	enemyA.queue_free()
+
+	# --- Fallback Encounter B (Distinct enemy instance) ---
+	var enemyB := Node3D.new()
+	enemyB.add_to_group("enemy")
+	var ehB := EnemyHealthCls.new()
+	ehB.name = "HealthSystem"
+	ehB.is_destroyed = true
+	enemyB.add_child(ehB)
+	add_child(enemyB)
+
+	SpawnManagerCls.check_all_enemies_defeated()
+	_check(counts["combat_ended"] == 2, "Fallback Encounter B successfully emits combat_ended(true) without being poisoned by Encounter A")
+
+	# Repeated call in Encounter B does NOT emit again
+	SpawnManagerCls.check_all_enemies_defeated()
+	_check(counts["combat_ended"] == 2, "Repeated call in Encounter B remains idempotent (count still 2)")
+
+	EventBus.combat_ended.disconnect(test_cb)
+	enemyB.queue_free()
+
+
+# --- [TEST H] Static Fallback Delegates to Active Instance (Option A) ---
+func _test_static_fallback_delegates_to_active_instance() -> void:
+	print("\n-- [TEST H] Static Fallback Delegates to Active Instance (Option A) --")
+	var sm = SpawnManagerCls.new()
+	add_child(sm)
+	sm.is_active = true
+	sm._combat_ended = false
+
+	_check(SpawnManagerCls.get_active() == sm, "SpawnManager.get_active() resolves the active instance")
+
+	var counts := {"combat_ended": 0}
+	var test_cb := func(victory: bool) -> void:
+		if victory:
+			counts["combat_ended"] += 1
+	EventBus.combat_ended.connect(test_cb)
+
+	GlobalData.narrative.stalking_aces.clear()
+	sm.enemies_alive = 0
+
+	# Call check_all_enemies_defeated while sm is active -> delegates to sm._check_combat_ended()
+	SpawnManagerCls.check_all_enemies_defeated()
+	_check(counts["combat_ended"] == 1, "check_all_enemies_defeated routed to active instance and emitted combat_ended(true) once")
+	_check(sm._combat_ended == true, "Active instance _combat_ended marked true")
+
+	# Second call while sm is active does not duplicate
+	SpawnManagerCls.check_all_enemies_defeated()
+	_check(counts["combat_ended"] == 1, "Second check_all_enemies_defeated does not duplicate through active instance")
 
 	EventBus.combat_ended.disconnect(test_cb)
 	sm.queue_free()

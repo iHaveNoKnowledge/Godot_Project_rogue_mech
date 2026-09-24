@@ -21,12 +21,11 @@ const CLIP_SOURCES := {
 }
 
 # The run clip's ground speed, measured from the baked cycle itself:
-# stride ~3.73m x cadence/rate ~1.79 strides/s per unit rate, so foot travel
-# matches body travel when rate = h_speed / 6.7 (audit 26de8ef: sync was
-# 1.33/0.75/0.39 at 3.5/7/14 m/s with NATURAL_SPEED 5.0). MAX_RATE 1.0 holds
-# sync through 7 m/s cruise; beyond that cadence caps deliberately (a heavy
-# frame paddling at 2.5 Hz reads worse than mild slide at absolute max).
-const NATURAL_SPEED := 6.7
+# stride x cadence-per-unit-rate. Rebaked clip (grounded stride ~4.85m,
+# cadence/rate ~1.75): rate = h_speed / 8.5 holds sync ~= 1.0 through cruise.
+# MAX_RATE 1.0 caps cadence deliberately (a heavy frame paddling faster reads
+# worse than mild slide at absolute max); sub-cap travel stays synchronized.
+const NATURAL_SPEED := 8.5
 const MIN_RATE := 0.2
 const MAX_RATE := 1.0
 

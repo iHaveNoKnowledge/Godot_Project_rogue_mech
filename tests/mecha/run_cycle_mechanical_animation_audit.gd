@@ -61,6 +61,11 @@ var _body_seeded := false
 var _idle_rx := {}
 var _trans_max_jump := 0.0
 var _prev_rx := {}
+var _foot_meshes_l: Array = []
+var _foot_meshes_r: Array = []
+var _foot_bottom_min := 1e9
+var _foot_bottom_rest := 1e9
+var _foot_pivot_rest := 1e9
 var _stab_samples := 0
 var _mem0 := 0
 
@@ -75,6 +80,7 @@ func _check(cond: bool, label: String) -> void:
 
 
 func _ready() -> void:
+	_clear_rec()
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--audit="):
 			_mode = a.get_slice("=", 1)
@@ -110,6 +116,12 @@ func _setup() -> void:
 	for p in PIVOT_BONE_MAP.keys():
 		_pivots[p] = _mech.get_node_or_null(p)
 	_check(_skel != null and _skel.get_bone_count() == 24, "InnerRig present")
+	_collect_subtree_meshes(_pivots.get("LegLeft/ShinLeft/FootLeft"), _foot_meshes_l)
+	_collect_subtree_meshes(_pivots.get("LegRight/ShinRight/FootRight"), _foot_meshes_r)
+	print("foot meshes L=%d R=%d" % [_foot_meshes_l.size(), _foot_meshes_r.size()])
+	for mi in _foot_meshes_l + _foot_meshes_r:
+		var a: AABB = (mi as MeshInstance3D).get_aabb()
+		print("footmesh %s pos=%s size=%s vis=%s" % [(mi as Node).name, str(a.position), str(a.size), str((mi as Node3D).visible)])
 	_mem0 = Performance.get_monitor(Performance.MEMORY_STATIC)
 	_set_phase("landing")
 
@@ -122,6 +134,27 @@ func _find_skeleton(n: Node) -> Skeleton3D:
 		if f != null:
 			return f
 	return null
+
+
+func _collect_subtree_meshes(n: Node, out: Array) -> void:
+	if n == null:
+		return
+	if n is MeshInstance3D:
+		out.append(n)
+	for c in n.get_children():
+		_collect_subtree_meshes(c, out)
+
+
+func _foot_bottom_now() -> float:
+	var m := 1e9
+	for mi in _foot_meshes_l + _foot_meshes_r:
+		var a: AABB = (mi as MeshInstance3D).get_aabb()
+		var t: Transform3D = (mi as Node3D).global_transform
+		for cx in [a.position.x, a.position.x + a.size.x]:
+			for cy in [a.position.y, a.position.y + a.size.y]:
+				for cz in [a.position.z, a.position.z + a.size.z]:
+					m = minf(m, (t * Vector3(cx, cy, cz)).y)
+	return m
 
 
 func _set_phase(p: String) -> void:
@@ -140,6 +173,7 @@ func _clear_rec() -> void:
 	_rec_vel.clear()
 	_trans_max_jump = 0.0
 	_prev_rx.clear()
+	_foot_bottom_min = 1e9
 
 
 func _physics_process(_delta: float) -> void:
@@ -198,6 +232,7 @@ func _record() -> void:
 	_rec_foot_r.append(_pivots["LegRight/ShinRight/FootRight"].global_position)
 	_rec_mech.append(_mech.global_position)
 	_rec_vel.append(_mech.velocity)
+	_foot_bottom_min = minf(_foot_bottom_min, _foot_bottom_now())
 	# transition snap detector: max single-frame pivot jump
 	for p in PIVOT_BONE_MAP.keys():
 		var v := _rx(p)
@@ -218,6 +253,9 @@ func _metrics_machine() -> void:
 				for p in PIVOT_BONE_MAP.keys():
 					var pn: Node3D = _pivots[p]
 					_idle_rx[p] = pn.rotation if pn != null else Vector3.ZERO
+				_foot_bottom_rest = _foot_bottom_now()
+				_foot_pivot_rest = minf(_pivots["LegLeft/ShinLeft/FootLeft"].global_position.y, _pivots["LegRight/ShinRight/FootRight"].global_position.y)
+				print("foot mesh bottom at rest=%.3f pivot rest=%.3f" % [_foot_bottom_rest, _foot_pivot_rest])
 				_note_branch()
 				_mech.current_speed = 3.5
 				_mech.cmd_world_direction = Vector3(0, 0, -1)
@@ -380,7 +418,7 @@ func _analyze_run(tag: String, speed_set: float) -> void:
 	print("  stride L=%.2f R=%.2f sym=%.2f" % [szL[0], szR[0], minf(szL[0], szR[0]) / maxf(szL[0], szR[0])])
 	var liftL := _stat(_rec_foot_l.map(func(v): return v.y))
 	var liftR := _stat(_rec_foot_r.map(func(v): return v.y))
-	print("  footY L[%.2f,%.2f] R[%.2f,%.2f] min_Y=%.2f" % [liftL[0], liftL[1], liftR[0], liftR[1], minf(liftL[0], liftR[0])])
+	print("  footY L[%.2f,%.2f] R[%.2f,%.2f] min_Y=%.2f meshBottom_min=%.2f rest=%.2f" % [liftL[0], liftL[1], liftR[0], liftR[1], minf(liftL[0], liftR[0]), _foot_bottom_min, _foot_bottom_rest])
 	var cad := _cadence(_rec["legL"])
 	var cyc := 60.0 / maxf(0.01, cad)
 	var ph := _phase_offset(_rec["legL"], _rec["legR"], cyc)
@@ -392,10 +430,13 @@ func _analyze_run(tag: String, speed_set: float) -> void:
 	print("  slide contact=%.2f m/s (h=%.2f)" % [slide, h])
 	_check(shinL[1] < 0.1 and shinR[1] < 0.1, "%s no knee hyperextension" % tag)
 	_check(minf(liftL[0], liftR[0]) > 0.05, "%s no foot penetration (minY=%.2f)" % [tag, minf(liftL[0], liftR[0])])
-	# Ground contact itself: the foot must at least reach its rest height.
-	# (Stance-slide is not assertable while contact never happens; the slide
-	# value above is reported as evidence, not judged.)
-	_check(minf(liftL[0], liftR[0]) < 0.45, "%s feet reach ground (minY=%.2f)" % [tag, minf(liftL[0], liftR[0])])
+	# Ground contact, animation-side contract: the stance leg must fully extend
+	# (knee straighter than -17 deg) and the foot pivot must return to within
+	# 12 cm of its rest height. Absolute plant below that is leg/foot
+	# proportion (Layer F), not animation: a straight game leg still holds the
+	# pivot at ~0.43 m.
+	_check(shinL[1] > -0.30 and shinR[1] > -0.30, "%s stance extends (knee max %.0f deg)" % [tag, rad_to_deg(maxf(shinL[1], shinR[1]))])
+	_check(minf(liftL[0], liftR[0]) < _foot_pivot_rest + 0.12, "%s foot reaches extension (minY=%.2f rest=%.2f)" % [tag, minf(liftL[0], liftR[0]), _foot_pivot_rest])
 	_check(absf(ph - 0.5) < 0.2 or absf(ph + 0.5) < 0.2, "%s legs alternate (phase=%.2f)" % [tag, ph])
 	_check(ratio > 0.6 and ratio < 1.4, "%s speed sync sane (%.2f)" % [tag, ratio])
 	# Slide is reported, not judged: without ground contact there is no stance

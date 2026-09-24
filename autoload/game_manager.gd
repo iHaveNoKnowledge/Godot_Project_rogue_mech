@@ -11,6 +11,8 @@ var is_boss_combat: bool = false
 # death/defeat path can't fire at the same time as the retreat.
 var is_escaping: bool = false
 
+## Optional flag to suppress scene change during unit tests
+var suppress_scene_change: bool = false
 
 var active_player_mecha: Node3D = null
 
@@ -67,6 +69,7 @@ func enter_combat(combat_type: String = "grunt") -> void:
 	is_boss_combat = (combat_type == "boss")
 	is_escaping = false
 	GlobalData._combat_xp_awarded = false
+	SpawnManager.reset_fallback_state()
 	# Ensure carry/left/right not lost on the way to battle: if GlobalData's working set is empty but the active hangar berth has a loadout, restore it
 	var active_mech := HangarManager.get_active_mech()
 	if active_mech and active_mech.has("weapon_loadout"):
@@ -110,7 +113,8 @@ func enter_combat(combat_type: String = "grunt") -> void:
 			GlobalData.save_run()
 			var name := str(HangarManager.get_active_mech().get("name", "the backup mech"))
 			GlobalData.board.run_notice = "The piloted mech's driver was wounded, so it was parked. You're piloting %s instead." % name
-	get_tree().call_deferred("change_scene_to_file", "res://scenes/game_world.tscn")
+	if not suppress_scene_change:
+		get_tree().call_deferred("change_scene_to_file", "res://scenes/game_world.tscn")
 	transition_to(State.COMBAT)
 	EventBus.combat_intensity_changed.emit(1.0)
 	AudioManager.play_combat_music(combat_type, 1.5, false, str(GlobalData.board.board_theme_id))
@@ -145,7 +149,8 @@ func advance_to_next_sector() -> void:
 	GlobalData.save_run()
 	EventBus.combat_intensity_changed.emit(0.0)
 	AudioManager.stop_music()
-	get_tree().call_deferred("change_scene_to_file", "res://scenes/board/game_board.tscn")
+	if not suppress_scene_change:
+		get_tree().call_deferred("change_scene_to_file", "res://scenes/board/game_board.tscn")
 	transition_to(State.BOARD)
 	AudioManager.play_intermission_music()
 
@@ -156,7 +161,8 @@ func return_to_board() -> void:
 	GlobalData.save_run()
 	EventBus.combat_intensity_changed.emit(0.0)
 	AudioManager.stop_music()
-	get_tree().call_deferred("change_scene_to_file", "res://scenes/board/game_board.tscn")
+	if not suppress_scene_change:
+		get_tree().call_deferred("change_scene_to_file", "res://scenes/board/game_board.tscn")
 	transition_to(State.BOARD)
 	AudioManager.play_intermission_music()
 

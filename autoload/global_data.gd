@@ -699,21 +699,15 @@ func _on_combat_ended(victory: bool) -> void:
 		_combat_xp_awarded = true
 		var is_decisive := CombatStatsSystem.was_decisive_victory()
 		PilotSkillSys.award_combat_xp(GameManager.combat_node_type, is_decisive)
-	# Patrol fleet engagement resolves first.
+	# Encounter-specific resolution (patrol, duel, enemy base, fuel depot)
 	if board.board_patrol_engagement >= 0:
 		PatrolSystem.resolve_patrol_combat(victory)
-		return
-	# Duel resolves.
-	if RecruitSystem.has_pending_duel():
+	elif RecruitSystem.has_pending_duel():
 		RecruitSystem.resolve_duel(victory)
-		return
-	# Enemy base raid.
-	if GameManager.combat_node_type == "enemy_base":
+	elif GameManager.combat_node_type == "enemy_base":
 		if victory:
 			EnemyFactionSystem.destroy_enemy_base()
-		return
-	# Fuel depot seizure.
-	if GameManager.combat_node_type == "fuel_depot":
+	elif GameManager.combat_node_type == "fuel_depot":
 		if victory:
 			var bonus: float = FuelManager.FUEL_DEPOT_PRECISE_BONUS if fuel.fuel_depot_approach == "precise" else FuelManager.FUEL_DEPOT_HEAVY_BONUS
 			var gained := fuel.add_mech_fuel(0, bonus)  # FuelType.CRUDE_OIL = 0
@@ -722,7 +716,8 @@ func _on_combat_ended(victory: bool) -> void:
 		else:
 			board.run_notice = "The fuel depot was lost in the fighting."
 		fuel.fuel_depot_approach = ""
-		return
+
+	# Common post-combat technology, armor durability, and research progression
 	EnemyFactionSystem.on_combat_ended_for_tech(victory)
 	if victory:
 		ArmorSystem.sync_equipped_armor_durability()

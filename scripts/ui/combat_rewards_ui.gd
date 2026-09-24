@@ -29,6 +29,8 @@ var _loot_summary_active: bool = false
 const ESCAPE_HEAT_PENALTY := 4
 
 var is_escaped := false
+var _rewards_claimed: bool = false
+var _continue_processing: bool = false
 
 
 func _ready() -> void:
@@ -36,9 +38,17 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_create_ui()
 	visible = false
+	reset_reward_state()
 	EventBus.combat_ended.connect(_on_combat_ended)
 	EventBus.combat_escaped_directional.connect(_on_combat_escaped_directional)
 	EventBus.combat_escaped.connect(_on_combat_escaped)
+
+
+func reset_reward_state() -> void:
+	_rewards_claimed = false
+	_continue_processing = false
+	if continue_button:
+		continue_button.disabled = false
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -416,6 +426,12 @@ func _on_combat_escaped() -> void:
 
 
 func _show_victory_rewards() -> void:
+	if _rewards_claimed:
+		return
+	_rewards_claimed = true
+	_continue_processing = false
+	if continue_button:
+		continue_button.disabled = false
 	visible = true
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -520,6 +536,9 @@ func _show_victory_rewards() -> void:
 
 
 func _show_escape_screen() -> void:
+	_continue_processing = false
+	if continue_button:
+		continue_button.disabled = false
 	visible = true
 	_loot_summary_active = false
 	if _last_escape_type == "breakthrough":
@@ -549,6 +568,9 @@ func _show_escape_screen() -> void:
 
 
 func _show_defeat_screen() -> void:
+	_continue_processing = false
+	if continue_button:
+		continue_button.disabled = false
 	visible = true
 	_loot_summary_active = false
 	var ending: Dictionary = ThemeSystem.get_theme_ending()
@@ -571,6 +593,11 @@ func _show_defeat_screen() -> void:
 
 
 func _on_continue_pressed() -> void:
+	if _continue_processing:
+		return
+	_continue_processing = true
+	if continue_button:
+		continue_button.disabled = true
 	visible = false
 	get_tree().paused = false
 	if is_escaped:

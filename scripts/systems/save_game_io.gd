@@ -117,7 +117,8 @@ static func save_run() -> void:
 		"technology_discovery": TechnologySystem.serialize_discovery_states(),
 		"world_technology_diffusion": TechnologySystem.serialize_world_diffusion_state(),
 		"era_progression": EraProgressionSystem.serialize_era_state(),
-		"rival_progression": RivalProgressionSystem.serialize_rival_state()
+		"rival_progression": RivalProgressionSystem.serialize_rival_state(),
+		"tile_wreckages": _serialize_tile_wreckages()
 	}
 	var file := FileAccess.open(GlobalData.SAVE_PATH, FileAccess.WRITE)
 	if file:
@@ -363,6 +364,7 @@ static func restore_from_dict(data: Dictionary) -> void:
 	EraProgressionSystem.deserialize_era_state(loaded_era_progression)
 	var loaded_rival_progression = data.get("rival_progression", {})
 	RivalProgressionSystem.deserialize_rival_state(loaded_rival_progression)
+	_deserialize_tile_wreckages(data.get("tile_wreckages", {}))
 
 	var pos = data.get("position", {"x": 0, "y": 0})
 	GlobalData.board.current_tile = Vector2i(pos.x, pos.y)
@@ -788,3 +790,56 @@ static func _resolve_armor_paint(p: Dictionary, fallback: Color) -> Color:
 		if not cat_entry.is_empty() and cat_entry.has("color"):
 			return cat_entry["color"]
 	return fallback
+
+
+static func _serialize_tile_wreckages() -> Dictionary:
+	var raw: Dictionary = ScavengerSystem.get_tile_wreckages()
+	var out: Dictionary = {}
+	for key in raw:
+		var w_entry = raw[key]
+		if not (w_entry is Dictionary):
+			continue
+		var s_items: Array = []
+		for item in w_entry.get("items", []):
+			if item is Dictionary:
+				var it_copy: Dictionary = item.duplicate(true)
+				if it_copy.get("weapon") is Resource:
+					var res: Resource = it_copy["weapon"]
+					it_copy["weapon_path"] = res.resource_path
+					it_copy["weapon_name"] = res.get("weapon_name") if "weapon_name" in res else ""
+					it_copy.erase("weapon")
+				s_items.append(it_copy)
+		out[key] = {
+			"pos_x": int(w_entry.get("pos_x", 0)),
+			"pos_y": int(w_entry.get("pos_y", 0)),
+			"scrap": int(w_entry.get("scrap", 0)),
+			"items": s_items
+		}
+	return out
+
+
+static func _deserialize_tile_wreckages(data: Variant) -> void:
+	if not (data is Dictionary):
+		ScavengerSystem.set_tile_wreckages({})
+		return
+	var out: Dictionary = {}
+	for key in data:
+		var entry = data[key]
+		if not (entry is Dictionary):
+			continue
+		var items: Array = []
+		for item in entry.get("items", []):
+			if item is Dictionary:
+				var it: Dictionary = item.duplicate(true)
+				if it.has("weapon_path") and not str(it["weapon_path"]).is_empty():
+					var path: String = str(it["weapon_path"])
+					if ResourceLoader.exists(path):
+						it["weapon"] = load(path)
+				items.append(it)
+		out[key] = {
+			"pos_x": int(entry.get("pos_x", 0)),
+			"pos_y": int(entry.get("pos_y", 0)),
+			"scrap": int(entry.get("scrap", 0)),
+			"items": items
+		}
+	ScavengerSystem.set_tile_wreckages(out)

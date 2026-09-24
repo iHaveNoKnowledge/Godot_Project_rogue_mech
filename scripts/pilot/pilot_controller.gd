@@ -28,6 +28,14 @@ var _fire_timer: float = 0.0
 var _weapon_mesh: Node3D = null
 var _human_visual: Node3D = null
 
+# Quaternius pilot kit (skinned mesh + pistol clips). Replaces the primitive
+# TacticalHumanVisual when the kit file is present; node name is kept so
+# existing tests that look up "TacticalHumanVisual" keep working.
+const PILOT_KIT_PATH := "res://scenes/pilot/pilot_pistol_kit.glb"
+const KIT_MODEL_HEIGHT := 1.7
+var _kit_player: AnimationPlayer = null
+var _kit_prop: Node3D = null
+
 # TPS Magazine & Reload System
 var current_magazine: int = 0
 var is_reloading: bool = false
@@ -209,9 +217,96 @@ func _rebuild_weapon_mesh() -> void:
 	_weapon_mesh.position = _orig_weapon_pos
 	_weapon_mesh.rotation = _orig_weapon_rot
 	add_child(_weapon_mesh)
+	_update_kit_prop()
+	# Kit holds its own pistol in-hand: hide the floating mesh for pistols so
+	# the gun does not render twice. Node stays non-null by design.
+	var hide_floating := _kit_player != null and is_pistol
+	_weapon_mesh.visible = not hide_floating
 
 
 func _build_tactical_human_mesh() -> void:
+	# Hide default placeholder capsule mesh
+	var placeholder := get_node_or_null("BodyMesh")
+	if placeholder:
+		placeholder.visible = false
+
+	if _human_visual and is_instance_valid(_human_visual):
+		_human_visual.queue_free()
+	_kit_player = null
+	_kit_prop = null
+
+	_human_visual = Node3D.new()
+	_human_visual.name = "TacticalHumanVisual"
+	add_child(_human_visual)
+
+	if ResourceLoader.exists(PILOT_KIT_PATH):
+		var packed: PackedScene = load(PILOT_KIT_PATH)
+		if packed != null and packed.can_instantiate():
+			var kit: Node = packed.instantiate()
+			_human_visual.add_child(kit)
+			# Kit faces +Z out of the box; game forward is -Z.
+			kit.rotation.y = PI
+			kit.scale = Vector3.ONE * (pilot_height / KIT_MODEL_HEIGHT)
+			_kit_player = _find_kit_player(kit)
+			_kit_prop = kit.find_child("PistolProp", true, false) as Node3D
+			if _kit_prop == null:
+				_kit_prop = kit.find_child("*Pistol*", true, false) as Node3D
+			if _kit_player != null:
+				_set_kit_loop("pistol_idle", true)
+				_set_kit_loop("pistol_reload", true)
+				if not _kit_player.animation_finished.is_connected(_on_kit_animation_finished):
+					_kit_player.animation_finished.connect(_on_kit_animation_finished)
+				_kit_player.play("pistol_idle")
+			_update_kit_prop()
+			return
+	_build_legacy_tactical_mesh()
+
+
+func _find_kit_player(n: Node) -> AnimationPlayer:
+	if n is AnimationPlayer:
+		return n
+	for c in n.get_children():
+		var found := _find_kit_player(c)
+		if found != null:
+			return found
+	return null
+
+
+func _set_kit_loop(clip: String, loop: bool) -> void:
+	if _kit_player == null or not _kit_player.has_animation(clip):
+		return
+	_kit_player.get_animation(clip).loop_mode = Animation.LOOP_LINEAR if loop else Animation.LOOP_NONE
+
+
+func _play_kit_clip(clip: String, loop: bool = false) -> void:
+	if _kit_player == null or not _kit_player.has_animation(clip):
+		return
+	_set_kit_loop(clip, loop)
+	_kit_player.play(clip)
+
+
+func _on_kit_animation_finished(anim_name: StringName) -> void:
+	if _kit_player == null:
+		return
+	if anim_name == &"pistol_shoot":
+		_play_kit_clip("pistol_idle", true)
+
+
+func _is_pistol_equipped() -> bool:
+	if _weapons.is_empty():
+		return false
+	var weapon: WeaponPart = _weapons[_weapon_index % _weapons.size()]
+	return weapon != null and weapon.weapon_name.to_lower().contains("pistol")
+
+
+## In-hand kit pistol shows only when a pistol is equipped; otherwise the
+## floating PilotWeaponMesh carries the visual (kept non-null for tests).
+func _update_kit_prop() -> void:
+	if _kit_prop and is_instance_valid(_kit_prop):
+		_kit_prop.visible = _is_pistol_equipped()
+
+
+func _build_legacy_tactical_mesh() -> void:
 	# Hide default placeholder capsule mesh
 	var placeholder := get_node_or_null("BodyMesh")
 	if placeholder:
@@ -365,6 +460,7 @@ func start_reload() -> void:
 	is_reloading = true
 	reload_duration = get_reload_duration()
 	reload_timer = 0.0
+	_play_kit_clip("pistol_reload", true)
 
 	# Tactical weapon dipping animation during reload
 	if _weapon_mesh and is_instance_valid(_weapon_mesh):
@@ -435,6 +531,8 @@ func _try_fire() -> void:
 
 	if _fire_core.try_fire(muzzle, aim_dir, false, self):
 		current_magazine = maxi(current_magazine - weapon.ammo_per_shot, 0)
+		if _is_pistol_equipped():
+			_play_kit_clip("pistol_shoot")
 		if AudioManager:
 			AudioManager.play_sfx("machine_gun", muzzle, -8.0)
 		velocity.x += -aim_dir.x * 0.8
@@ -512,6 +610,7 @@ func _physics_process(delta: float) -> void:
 func _finish_reload() -> void:
 	is_reloading = false
 	reload_timer = 0.0
+	_play_kit_clip("pistol_idle", true)
 	if _weapons.is_empty():
 		return
 	var weapon: WeaponPart = _weapons[_weapon_index % _weapons.size()]

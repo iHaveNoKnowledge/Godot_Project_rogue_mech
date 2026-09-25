@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://b2e22rewardtrans01"]
+
+[ext_resource type="Script" path="res://test/unit/phase_2e_22_combat_reward_transition_boundary_verify.gd" id="1_test"]
+
+[node name="Phase2E22CombatRewardTransitionBoundaryVerify" type="Node"]
+script = ExtResource("1_test")

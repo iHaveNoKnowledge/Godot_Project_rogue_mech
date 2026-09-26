@@ -200,24 +200,47 @@ func _run() -> void:
 	_check(_hs.parts["body"]["armor_broken"] == true, "body armor breaks")
 	_check(_hs.is_destroyed == false, "armor break alone does not destroy mech")
 
-	# ---- 10. explosive AoE: primary + splash through the same pipeline ----
+	# ---- 10. explosive AoE on a PRISTINE mech: pre-broken slots eat
+	# unmitigated frame splash that would dwarf the mitigated primary and make
+	# the assertion about splash geometry rather than the 65/35 split.
 	# (65% primary / 35% splash split; head need not fully break from one hit)
+	# Exterior hit point: pivots can sit inside overlapping armor volumes
+	# (head pivot is within the tall cuirass AABB), while real projectiles
+	# strike exterior surfaces. Aim slightly forward-up of the head so the
+	# nearest surface is unambiguously the helm.
+	var keep: Dictionary = (GlobalData.weapons.part_damage as Dictionary).duplicate(true)
+	(GlobalData.weapons.part_damage as Dictionary).clear()
+	var mechF: CharacterBody3D = load(MECH_SCENE).instantiate()
+	add_child(mechF)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var hsF: Node = mechF.get_node_or_null("HealthSystem")
+	var fwdF: Vector3 = -mechF.global_transform.basis.z.normalized()
+	fwdF.y = 0.0
+	var hpF: Vector3 = (mechF.get_node_or_null("Head") as Node3D).global_position
+	var hitF: Vector3 = hpF + fwdF * 0.9 + Vector3(0, 0.35, 0)
+	var rr: Dictionary = hsF._resolve_hit(hitF)
+	_check(rr["slot"] == "head", "pristine explosive resolves head primary")
 	var pre := {}
-	for s in _hs.parts.keys():
-		pre[s] = float(_hs.parts[s]["armor_hp"]) + float(_hs.parts[s]["frame_hp"])
-	_hs.take_damage_at_point(60.0, head_pos, "explosive")
+	for s in hsF.parts.keys():
+		pre[s] = float(hsF.parts[s]["armor_hp"]) + float(hsF.parts[s]["frame_hp"])
+	hsF.take_damage_at_point(60.0, hitF, "explosive")
 	await get_tree().physics_frame
-	var post := {}
-	for s in _hs.parts.keys():
-		post[s] = float(_hs.parts[s]["armor_hp"]) + float(_hs.parts[s]["frame_hp"])
-	var dhead: float = pre["head"] - post["head"]
+	var total := 0.0
 	var dmax := 0.0
-	for s in pre.keys():
-		dmax = maxf(dmax, float(pre[s]) - float(post[s]))
-	_check(dhead > 0.0 and is_equal_approx(dhead, dmax), "explosive primary hits head hardest (%.2f)" % dhead)
-	var dsplash: float = (float(pre["body"]) - float(post["body"])) + float(pre["arm_left"]) - float(post["arm_left"])
-	_check(dsplash > 0.0, "explosive splashes adjacent parts (%.2f)" % dsplash)
+	var dmaxslot := ""
+	for s in hsF.parts.keys():
+		var dd: float = float(pre[s]) - float(hsF.parts[s]["armor_hp"]) - float(hsF.parts[s]["frame_hp"])
+		print("splash %s delta=%.2f" % [s, dd])
+		total += dd
+		if dd > dmax:
+			dmax = dd
+			dmaxslot = s
+	_check(dmaxslot == "head" and total > 39.0, "primary dominates + splash exists (head=%.2f total=%.2f)" % [float(pre["head"]) - float(hsF.parts["head"]["armor_hp"]) - float(hsF.parts["head"]["frame_hp"]), total])
 	_check(_bus_hits > 0, "damage events reach the bus (%d)" % _bus_hits)
+	mechF.queue_free()
+	await get_tree().process_frame
+	GlobalData.weapons.part_damage = keep.duplicate(true)
 
 	GlobalData.weapons.part_damage = _pd_snap.duplicate(true)
 	_mech.queue_free()

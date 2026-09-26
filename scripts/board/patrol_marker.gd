@@ -1,45 +1,31 @@
 extends Node3D
 
-## Board patrol marker: chevron ">" arrows that read as enemy fleets on the
-## map — red ">" for a grunt fleet, red ">>" for an ace fleet, white ">" for an
-## unknown (mercenary) convoy.
+## Board patrol marker: 3D Fleet Commander model that represents enemy fleets
+## on the tactical board grid, styled to match the fleet's archetype
+## (Armored, Recon, Artillery, Hunter-Killer, Mercenary).
+##
 ## If multiple fleets are traveling together (fleet_count > 1), a camera-facing
 ## billboard badge ("x2", "x3", etc.) floats at the top-right of the token.
 
-var _arrow: Node3D
+const BoardUnit3D = preload("res://scripts/board/board_unit_3d.gd")
+
+var _unit: Node3D
 var _count_badge: Label3D = null
+var fleet_data: Dictionary = {}
 
 
 func setup(fleet: Dictionary) -> void:
-	var is_unknown := str(fleet.get("faction", "hostile")) == "unknown"
-	var archetype: String = str(fleet.get("archetype", "armored"))
-	var aces := int(fleet.get("aces", 0))
+	fleet_data = fleet
 	var fleet_count := int(fleet.get("fleet_count", 1))
 
-	var color := BoardArrow.UNKNOWN_WHITE
-	var is_double := aces > 0 or archetype == "hunter_killer"
-
-	if not is_unknown:
-		match archetype:
-			"recon":
-				color = BoardArrow.RECON_ORANGE
-			"armored":
-				color = BoardArrow.ARMORED_RED
-			"artillery":
-				color = BoardArrow.ARTILLERY_AMBER
-			"hunter_killer":
-				color = BoardArrow.HUNTER_KILLER_PURPLE
-			_:
-				color = BoardArrow.HOSTILE_RED
-
-	_arrow = Node3D.new()
-	_arrow.set_script(preload("res://scripts/board/board_arrow.gd"))
-	_arrow.setup(color, is_double, 1.0, true)
-	add_child(_arrow)
+	_unit = BoardUnit3D.new()
+	_unit.name = "CommanderUnit3D"
+	_unit.setup_commander(fleet)
+	add_child(_unit)
 
 	# dir can arrive as Vector2i, an {x, y} dict, or a JSON-flattened String
 	var dir := PatrolSystem.normalize_dir(fleet.get("dir"))
-	_arrow.face_heading(dir)
+	_unit.face_heading(dir, true)
 
 	# If multiple fleets travel together as one token, show billboard "xN" badge at top-right
 	if fleet_count > 1:
@@ -52,5 +38,30 @@ func setup(fleet: Dictionary) -> void:
 		_count_badge.outline_size = 10
 		_count_badge.outline_modulate = Color.BLACK
 		_count_badge.modulate = Color(1.0, 0.88, 0.2)
-		_count_badge.position = Vector3(0.55, 0.85, -0.35)
+		_count_badge.position = Vector3(0.55, 1.4, -0.35)
 		add_child(_count_badge)
+
+
+func face_heading(heading: Vector2i, immediate: bool = false) -> void:
+	if _unit:
+		_unit.face_heading(heading, immediate)
+
+
+func play_idle() -> void:
+	if _unit:
+		_unit.play_idle()
+
+
+func play_run() -> void:
+	if _unit:
+		_unit.play_run()
+
+
+func play_move() -> void:
+	if _unit:
+		_unit.play_move()
+
+
+func stop_move() -> void:
+	if _unit:
+		_unit.stop_move()

@@ -317,6 +317,9 @@ func _animate_token_step(from_pos_grid: Vector2i, to_pos_grid: Vector2i, step_du
 	var shortest_angle := wrapf(target_yaw - current_yaw, -PI, PI)
 	target_yaw = current_yaw + shortest_angle
 
+	if player_token.has_method("play_run"):
+		player_token.play_run()
+
 	# Create parallel movement tween
 	var tween := create_tween().set_parallel(true)
 	# Horizontal glide
@@ -349,6 +352,8 @@ func _animate_token_step(from_pos_grid: Vector2i, to_pos_grid: Vector2i, step_du
 		squash.tween_property(player_token, "scale", Vector3(1.10, 0.90, 1.10), 0.04).set_trans(Tween.TRANS_SINE)
 		squash.tween_property(player_token, "scale", Vector3(1.0, 1.0, 1.0), 0.08).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
 		await squash.finished
+		if player_token.has_method("play_idle"):
+			player_token.play_idle()
 
 
 ## Spawns an expanding tactical landing ripple on the destination tile
@@ -1395,29 +1400,32 @@ func _refresh_patrol_markers() -> void:
 		# so player pawn and enemy fleet token stand side-by-side cleanly.
 		var offset_x: float = 0.55 if pos == current_pos else 0.0
 		var prev_pos: Vector2i = PatrolSystem.normalize_dir(p.get("prev_pos", pos))
+		marker.setup(p)
 		if prev_pos != pos and nodes_dict.has(prev_pos) and nodes_dict[pos].is_revealed:
 			var start_offset: float = 0.55 if prev_pos == current_pos else 0.0
-			marker.global_position = nodes_dict[prev_pos].global_position + Vector3(start_offset, 1.0, 0.0)
-			var target_pos: Vector3 = nodes_dict[pos].global_position + Vector3(offset_x, 1.0, 0.0)
+			marker.global_position = nodes_dict[prev_pos].global_position + Vector3(start_offset, 0.9, 0.0)
+			var target_pos: Vector3 = nodes_dict[pos].global_position + Vector3(offset_x, 0.9, 0.0)
+			if marker.has_method("play_run"):
+				marker.play_run()
 			var tween := create_tween()
 			tween.tween_property(marker, "global_position", target_pos, 0.8).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+			if marker.has_method("play_idle"):
+				tween.tween_callback(marker.play_idle)
 		else:
-			marker.global_position = nodes_dict[pos].global_position + Vector3(offset_x, 1.0, 0.0)
-		marker.setup(p)
+			marker.global_position = nodes_dict[pos].global_position + Vector3(offset_x, 0.9, 0.0)
 	_add_boss_marker()
 
 
-# The exit tile holds the sector boss: a large purple arrow that marks the
-# extraction point so its location is obvious at a glance.
+# The exit tile holds the sector boss: an imposing 3D Boss Overlord mech
+# that marks the extraction point so its location is obvious at a glance.
 func _add_boss_marker() -> void:
 	for key in nodes_dict:
 		if str(nodes_dict[key].get_meta("tile_type", "empty")) != "exit":
 			continue
-		var marker := Node3D.new()
-		marker.set_script(preload("res://scripts/board/board_arrow.gd"))
-		marker.setup(BoardArrow.BOSS_PURPLE, false, 1.7, true)
+		var marker = preload("res://scripts/board/board_unit_3d.gd").new()
+		marker.setup_boss()
 		_patrol_marker_container.add_child(marker)
-		marker.global_position = nodes_dict[key].global_position + Vector3(0, 1.1, 0)
+		marker.global_position = nodes_dict[key].global_position + Vector3(0, 0.9, 0)
 		return
 
 

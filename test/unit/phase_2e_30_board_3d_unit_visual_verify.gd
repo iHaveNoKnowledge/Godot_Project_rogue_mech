@@ -106,7 +106,7 @@ func _run_all_tests() -> void:
 
 	# [4] Player Unit Scale & Framing
 	print("\n-- [4] Player Unit Scale & Framing --")
-	_assert(player_token.unit_scale.x > 0.2 and player_token.unit_scale.x < 0.8, "Player unit scale is well-framed for tabletop (0.38)")
+	_assert(player_token.unit_scale.x >= 0.50 and player_token.unit_scale.x <= 0.70, "Player unit scale is well-framed for tabletop (0.58)")
 	_assert(player_token.model_root != null and player_token.model_root.scale == player_token.unit_scale, "ModelRoot reflects configured unit_scale")
 
 	# [5] Ground Contact Offset
@@ -141,6 +141,16 @@ func _run_all_tests() -> void:
 	_assert(absf(player_token.rotation.y) < 0.05, "Unit correctly faces North heading (rotation.y = 0)")
 	player_token.face_heading(Vector2i(0, 1), true) # South -> PI
 	_assert(absf(absf(player_token.rotation.y) - PI) < 0.05, "Unit correctly faces South heading (rotation.y = PI)")
+	player_token.face_heading(Vector2i(-1, 0), true) # West -> PI/2
+	_assert(absf(player_token.rotation.y - (PI * 0.5)) < 0.05, "Unit correctly faces West heading (rotation.y = PI/2)")
+	player_token.face_heading(Vector2i(1, -1), true) # North-East -> -PI/4
+	_assert(absf(player_token.rotation.y - (-PI * 0.25)) < 0.05, "Unit correctly faces North-East heading (rotation.y = -PI/4)")
+	player_token.face_heading(Vector2i(1, 1), true) # South-East -> -3*PI/4
+	_assert(absf(player_token.rotation.y - (-PI * 0.75)) < 0.05, "Unit correctly faces South-East heading (rotation.y = -3*PI/4)")
+	player_token.face_heading(Vector2i(-1, 1), true) # South-West -> 3*PI/4
+	_assert(absf(player_token.rotation.y - (PI * 0.75)) < 0.05, "Unit correctly faces South-West heading (rotation.y = 3*PI/4)")
+	player_token.face_heading(Vector2i(-1, -1), true) # North-West -> PI/4
+	_assert(absf(player_token.rotation.y - (PI * 0.25)) < 0.05, "Unit correctly faces North-West heading (rotation.y = PI/4)")
 
 	# [10] Single-Tile Animated Step Progression
 	print("\n-- [10] Single-Tile Animated Step Progression --")

@@ -312,7 +312,8 @@ func _animate_token_step(from_pos_grid: Vector2i, to_pos_grid: Vector2i, step_du
 	var target_world_pos: Vector3 = to_tile.global_position + Vector3(offset_x, 0.9, 0.0)
 
 	var move_dir := to_pos_grid - from_pos_grid
-	var target_yaw := -atan2(float(move_dir.y), float(move_dir.x))
+	# Standard Godot 3D forward is -Z: North(0,-1)->0, South(0,1)->PI, East(1,0)->-PI/2, West(-1,0)->PI/2
+	var target_yaw := atan2(-float(move_dir.x), -float(move_dir.y))
 	var current_yaw := player_token.rotation.y
 	var shortest_angle := wrapf(target_yaw - current_yaw, -PI, PI)
 	target_yaw = current_yaw + shortest_angle
@@ -320,40 +321,20 @@ func _animate_token_step(from_pos_grid: Vector2i, to_pos_grid: Vector2i, step_du
 	if player_token.has_method("play_run"):
 		player_token.play_run()
 
-	# Create parallel movement tween
+	# Continuous grounded running locomotion across table surface (no vertical hop arc)
 	var tween := create_tween().set_parallel(true)
-	# Horizontal glide
-	tween.tween_property(player_token, "global_position:x", target_world_pos.x, step_duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tween.tween_property(player_token, "global_position:z", target_world_pos.z, step_duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tween.tween_property(player_token, "rotation:y", target_yaw, minf(0.12, step_duration)).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tween.tween_property(player_token, "global_position:x", target_world_pos.x, step_duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(player_token, "global_position:z", target_world_pos.z, step_duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(player_token, "global_position:y", target_world_pos.y, step_duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(player_token, "rotation:y", target_yaw, minf(0.10, step_duration)).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
-	# Parabolic Hop Arc on Y
-	var hop_apex: float = maxf(start_world_pos.y, target_world_pos.y) + 0.35
-	var half_dur: float = step_duration * 0.5
-	var y_tween := create_tween()
-	y_tween.tween_property(player_token, "global_position:y", hop_apex, half_dur).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	y_tween.tween_property(player_token, "global_position:y", target_world_pos.y, half_dur).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-
-	# Slight forward pitch during the hop
-	var pitch_tween := create_tween()
-	pitch_tween.tween_property(player_token, "rotation:x", deg_to_rad(6.0), half_dur).set_trans(Tween.TRANS_SINE)
-	pitch_tween.tween_property(player_token, "rotation:x", deg_to_rad(0.0), half_dur).set_trans(Tween.TRANS_SINE)
-
-	# Visual landing ripple & audio feedback
-	_spawn_step_ripple(to_tile.global_position)
 	if AudioManager != null and AudioManager.has_method("play_ui_click"):
 		AudioManager.play_ui_click()
 
 	await tween.finished
 
-	# Soft landing squash & rebound
-	if is_instance_valid(player_token):
-		var squash := create_tween()
-		squash.tween_property(player_token, "scale", Vector3(1.10, 0.90, 1.10), 0.04).set_trans(Tween.TRANS_SINE)
-		squash.tween_property(player_token, "scale", Vector3(1.0, 1.0, 1.0), 0.08).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
-		await squash.finished
-		if player_token.has_method("play_idle"):
-			player_token.play_idle()
+	if player_token.has_method("play_idle"):
+		player_token.play_idle()
 
 
 ## Spawns an expanding tactical landing ripple on the destination tile

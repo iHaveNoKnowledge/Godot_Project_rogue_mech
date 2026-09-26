@@ -213,7 +213,7 @@ func _build_objective_event() -> Dictionary:
 # If further away, calculates a walkable path and steps cell-by-cell up to available MP / Energy.
 # Supports smooth hopping arc transitions during interactive gameplay.
 func move_to_tile(target: Vector2i, animate: bool = true) -> bool:
-	if not is_inside_tree() or get_tree().paused or _intermission_open() or GlobalData.board.convoy_breakdown_turns > 0:
+	if not is_inside_tree() or get_tree().paused or _intermission_open() or GlobalData.board.convoy_breakdown_turns > 0 or GameManager.current_state != GameManager.State.BOARD:
 		return false
 	if target == current_pos or _is_moving:
 		return false

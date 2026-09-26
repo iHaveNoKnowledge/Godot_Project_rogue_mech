@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://test/unit/phase_2e_29_player_facing_board_runtime_verify.gd" id="1_verify"]
+
+[node name="Phase2E29Verify" type="Node"]
+script = ExtResource("1_verify")

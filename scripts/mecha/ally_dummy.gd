@@ -83,9 +83,12 @@ func _ready() -> void:
 	_init_ammo()
 	_setup_enemy_status()
 	if health_system:
-		health_system.mecha_destroyed.connect(_on_destroyed)
-		health_system.armor_broken.connect(_on_armor_broken)
-		health_system.health_changed.connect(func(_s, _l, _c, _m): if is_instance_valid(self): _emit_squad_hp())
+		if health_system.has_signal("mecha_destroyed"):
+			health_system.mecha_destroyed.connect(_on_destroyed)
+		if health_system.has_signal("armor_broken"):
+			health_system.armor_broken.connect(_on_armor_broken)
+		if health_system.has_signal("health_changed"):
+			health_system.health_changed.connect(func(_s, _l, _c, _m): if is_instance_valid(self): _emit_squad_hp())
 
 
 # Broadcasts this ally's live HP for the squad panel (and any other HUD that

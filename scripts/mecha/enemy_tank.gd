@@ -49,12 +49,14 @@ func _ready() -> void:
 
 
 func _setup_health_system() -> void:
-	var enemy_health_script = preload("res://scripts/mecha/enemy_health.gd")
-	health_system = enemy_health_script.new()
-	health_system.name = "HealthSystem"
-	health_system.layout = enemy_health_script.Layout.TANK
-	add_child(health_system)
-	health_system.mecha_destroyed.connect(_explode_and_destroy)
+	if health_system == null:
+		var enemy_health_script = preload("res://scripts/mecha/enemy_health.gd")
+		health_system = enemy_health_script.new()
+		health_system.name = "HealthSystem"
+		health_system.layout = enemy_health_script.Layout.TANK
+		add_child(health_system)
+	if health_system and health_system.has_signal("mecha_destroyed") and not health_system.mecha_destroyed.is_connected(_explode_and_destroy):
+		health_system.mecha_destroyed.connect(_explode_and_destroy)
 
 
 func take_damage_at_point(amount: float, world_pos: Vector3, damage_type: String = "kinetic") -> void:

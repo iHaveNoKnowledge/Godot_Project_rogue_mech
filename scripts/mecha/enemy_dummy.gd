@@ -203,14 +203,17 @@ func _ready() -> void:
 	add_to_group("enemy")
 	floor_snap_length = 0.3
 	floor_max_angle = deg_to_rad(60)
-	health_system = $HealthSystem
+	health_system = get_node_or_null("HealthSystem")
 	_setup_hitbox()
 	_setup_enemy_status()
-	health_system.mecha_destroyed.connect(_on_destroyed)
-	health_system.armor_broken.connect(_on_armor_broken)
-	if health_system.has_signal("part_destroyed"):
-		health_system.part_destroyed.connect(_on_part_destroyed)
-	_apply_catalog_health()
+	if health_system:
+		if health_system.has_signal("mecha_destroyed"):
+			health_system.mecha_destroyed.connect(_on_destroyed)
+		if health_system.has_signal("armor_broken"):
+			health_system.armor_broken.connect(_on_armor_broken)
+		if health_system.has_signal("part_destroyed"):
+			health_system.part_destroyed.connect(_on_part_destroyed)
+		_apply_catalog_health()
 	_scale_by_wanted_level()
 	_apply_archetype_stats()
 	_apply_energy_tuning()
@@ -965,7 +968,7 @@ func _on_armor_broken(slot_name: String) -> void:
 
 
 func _setup_hitbox() -> void:
-	var hitbox = $Hitbox
+	var hitbox = get_node_or_null("Hitbox")
 	if hitbox and hitbox.has_method("set_health_system"):
 		hitbox.set_health_system(health_system)
 

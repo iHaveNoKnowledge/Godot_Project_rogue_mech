@@ -84,7 +84,7 @@ func _verify_spawner() -> void:
 	if delivered:
 		_check(delivered.is_in_group("backup_mech"), "delivered mech is boardable (backup_mech group)")
 		_check(str(delivered.get_meta("hangar_mech_id", "")) == mech_id, "delivered mech carries the called berth id")
-		var anim = delivered.get_node_or_null("AnimationSystem")
+		var anim = delivered.get_node_or_null("MechaAnimation")
 		_check(anim != null, "delivered mech keeps its animation node")
 	_check(beacon == null or not is_instance_valid(beacon), "beacon is cleared after delivery")
 	_check(spawner._pending.is_empty(), "pending delivery map is empty after delivery")

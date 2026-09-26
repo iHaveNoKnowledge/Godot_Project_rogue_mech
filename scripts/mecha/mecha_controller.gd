@@ -592,7 +592,9 @@ func _trigger_landing_impact() -> void:
 	var rigs = get_tree().get_nodes_in_group("camera_rig")
 	if not rigs.is_empty() and rigs[0].has_method("add_shake"):
 		rigs[0].add_shake(0.50)
-	var anim = get_node_or_null("AnimationSystem")
+	# Animation node is MechaAnimation (the legacy "AnimationSystem" name was
+	# renamed; get_node_or_null keeps this safe on older dummy scenes).
+	var anim = get_node_or_null("MechaAnimation")
 	if anim and anim.has_method("play_landing_impact"):
 		anim.play_landing_impact()
 	EffectFactory.spawn_expanding_ring(get_tree(),

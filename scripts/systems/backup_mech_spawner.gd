@@ -133,12 +133,14 @@ func _spawn_reserve_mech(mech_id: String, spawn_pos: Vector3) -> void:
 	backup.name = "ReserveMech"
 	backup.add_to_group("backup_mech")
 	backup.set_meta("hangar_mech_id", mech_id)
-	backup.set_physics_process(false)
 	for child in backup.get_children():
 		child.set_process(false)
 		child.set_physics_process(false)
 
 	get_parent().add_child(backup)
+	# Parked delivery: physics stays off AFTER add_child, because the base
+	# _ready cascade re-enables processing (a pre-add disable does not stick).
+	backup.set_physics_process(false)
 	var pmm = backup.get_node_or_null("PartMeshManager")
 	if pmm:
 		# Dress the delivered mech from the called berth's armor/frame plates
@@ -152,7 +154,9 @@ func _spawn_reserve_mech(mech_id: String, spawn_pos: Vector3) -> void:
 			pmm.set_cockpit_open(true, false)
 			pmm.set_cockpit_pilot_seated(false)
 
-	var anim = backup.get_node_or_null("AnimationSystem")
+	# Animation node is MechaAnimation (the legacy "AnimationSystem" name was
+	# renamed; get_node_or_null keeps this safe on older dummy scenes).
+	var anim = backup.get_node_or_null("MechaAnimation")
 	if anim:
 		anim.set_process(true)
 		anim.set_physics_process(true)

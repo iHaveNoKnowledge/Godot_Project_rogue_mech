@@ -473,7 +473,7 @@ static func generate_mech_loadout(archetype: int, faction_paint: Dictionary = {}
 ## Generates a complete Enemy Fleet / Squad of procedural pilots with assigned tactical roles
 ## Each pilot now also carries a catalog-based mech_loadout and scene_type.
 ## faction_name is display name (Federation/Zeon), faction_id is federation/zeon/outland for tier
-static func generate_enemy_fleet(squad_size: int = 3, faction_name: String = "", difficulty: int = 1, faction_paint: Dictionary = {}, faction_id: String = "") -> Dictionary:
+static func generate_enemy_fleet(squad_size: int = 3, faction_name: String = "", difficulty: int = 1, faction_paint: Dictionary = {}, faction_id: String = "", commander_archetype: int = -1) -> Dictionary:
 	var squad_id := "fleet_%d_%d" % [Time.get_ticks_msec(), randi() % 99999]
 	var prefix: String = SQUAD_NAME_PREFIXES.pick_random()
 	var suffix: String = SQUAD_NAME_SUFFIXES.pick_random()
@@ -490,6 +490,8 @@ static func generate_enemy_fleet(squad_size: int = 3, faction_name: String = "",
 		"allow_legendary": difficulty >= 3,
 		"level": difficulty + 1,
 	}
+	if commander_archetype >= 0:
+		commander_opts["archetype"] = commander_archetype
 	var commander := generate_pilot(commander_opts)
 	commander["squad_id"] = squad_id
 	commander["squad_name"] = squad_name

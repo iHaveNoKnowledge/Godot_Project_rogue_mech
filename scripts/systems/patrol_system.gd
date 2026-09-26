@@ -76,6 +76,17 @@ static func _build_faction_paint(archetype: String) -> Dictionary:
 				_: paint = {"base": Color(0.6, 0.6, 0.6), "accent": Color(0.9, 0.9, 0.9), "trim": Color(0.5, 0.5, 0.5)}
 	return paint
 
+## Maps fleet archetype string to numeric pilot archetype (0=rusher, 1=ranged, 2=heavy, 3=support, 4=shieldmelee, 5=shieldranged)
+static func archetype_string_to_int(arch_str: String) -> int:
+	match arch_str:
+		"recon": return 1
+		"armored": return 2
+		"artillery": return 3
+		"hunter_killer": return 4
+		"boss": return 2
+		"tank": return 1
+		_: return 0
+
 static func _ensure_patrol_roster(p: Dictionary, force: bool = false) -> void:
 	# Ensure p has a canonical pilots[] roster that is the SINGLE source of truth
 	# for both board hover and combat. Each pilot already carries mech_loadout + scene_type.
@@ -114,7 +125,10 @@ static func _ensure_patrol_roster(p: Dictionary, force: bool = false) -> void:
 	squad_size = clampi(squad_size, 1, 6)
 	var faction_paint := _build_faction_paint(arch_str)
 	var difficulty: int = int(GlobalData.board.current_sector) if is_instance_valid(GlobalData) else 1
-	var fleet_data: Dictionary = PilotGenerator.generate_enemy_fleet(squad_size, str(p.get("name", "")), difficulty, faction_paint)
+	var cmdr_arch := archetype_string_to_int(arch_str)
+	if p.has("commander") and p["commander"] is Dictionary and p["commander"].has("archetype"):
+		cmdr_arch = int(p["commander"]["archetype"])
+	var fleet_data: Dictionary = PilotGenerator.generate_enemy_fleet(squad_size, str(p.get("name", "")), difficulty, faction_paint, "", cmdr_arch)
 	var pilots: Array = fleet_data.get("pilots", [])
 	for plt in pilots:
 		plt["is_starved"] = is_starved
@@ -149,8 +163,8 @@ static func normalize_patrol(p: Dictionary) -> void:
 	if not p.has("commander") or not p["commander"] is Dictionary or p["commander"].is_empty():
 		var arch_str: String = str(p.get("archetype", "armored"))
 		p["commander"] = PilotGenerator.generate_pilot({
-			"archetype": BoardConfig.FLEET_ARCHETYPES.get(arch_str, {}).get("mp", 1),
-			"level": GlobalData.board.current_sector,
+			"archetype": archetype_string_to_int(arch_str),
+			"level": GlobalData.board.current_sector if is_instance_valid(GlobalData) else 1,
 		})
 	_ensure_patrol_roster(p, false)
 
@@ -400,7 +414,8 @@ static func spawn_patrols() -> void:
 			character_id = _pick_recruitable_pilot()
 
 		var faction_paint := _build_faction_paint(archetype)
-		var fleet_data: Dictionary = PilotGenerator.generate_enemy_fleet(grunts + aces + 1, NAMES[rng.randi() % NAMES.size()], GlobalData.board.current_sector, faction_paint)
+		var cmdr_arch := archetype_string_to_int(archetype)
+		var fleet_data: Dictionary = PilotGenerator.generate_enemy_fleet(grunts + aces + 1, NAMES[rng.randi() % NAMES.size()], GlobalData.board.current_sector, faction_paint, "", cmdr_arch)
 		# Override squad name to match patrol name style
 		var patrol_name: String = NAMES[rng.randi() % NAMES.size()]
 		fleet_data["squad_name"] = patrol_name

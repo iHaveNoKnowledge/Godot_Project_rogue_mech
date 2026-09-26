@@ -48,6 +48,20 @@ const PRODUCTION_ENEMY_SCENES := {
 	"mercenary": "res://scenes/mecha/enemy_dummy_full.tscn",
 }
 
+const PRODUCTION_SCENE_MAP_BY_TYPE := {
+	"rusher_simple": "res://scenes/mecha/enemy_dummy.tscn",
+	"rusher_full": "res://scenes/mecha/enemy_dummy_full.tscn",
+	"ranged_simple": "res://scenes/mecha/enemy_dummy.tscn",
+	"ranged_full": "res://scenes/mecha/enemy_ranged.tscn",
+	"heavy_full": "res://scenes/mecha/enemy_heavy.tscn",
+	"support_simple": "res://scenes/mecha/enemy_dummy.tscn",
+	"support_full": "res://scenes/mecha/enemy_support.tscn",
+	"tank_full": "res://scenes/mecha/enemy_tank.tscn",
+	"boss_overlord": "res://scenes/mecha/enemy_boss.tscn",
+	"shieldmelee_full": "res://scenes/mecha/enemy_shield_melee.tscn",
+	"shieldranged_full": "res://scenes/mecha/enemy_shield_ranged.tscn",
+}
+
 @export var unit_type: UnitType = UnitType.PLAYER
 # Refined scale for tabletop readability on 4.0m tiles: ~0.55 - 0.60
 @export var unit_scale: Vector3 = Vector3(0.58, 0.58, 0.58)
@@ -81,7 +95,9 @@ var foot_right_node: Node3D
 
 var anim_player: AnimationPlayer
 var _base_y: float = 0.0
+var _torso_base_y: float = 1.6
 var _current_heading: Vector2i = Vector2i(1, 0)
+var _current_fleet_data: Dictionary = {}
 
 
 func _ready() -> void:
@@ -122,12 +138,39 @@ func _build_hierarchy() -> void:
 ## Instantiates and attaches the actual canonical production Commander model
 func _build_production_commander() -> void:
 	var scene_key := archetype
-	if unit_type == UnitType.BOSS:
-		scene_key = "boss"
-	elif not PRODUCTION_ENEMY_SCENES.has(scene_key):
-		scene_key = "armored"
+	var commander_pilot: Dictionary = {}
+	if _current_fleet_data.has("commander") and _current_fleet_data["commander"] is Dictionary and not _current_fleet_data["commander"].is_empty():
+		commander_pilot = _current_fleet_data["commander"]
+	elif _current_fleet_data.has("pilots") and _current_fleet_data["pilots"] is Array and not (_current_fleet_data["pilots"] as Array).is_empty():
+		commander_pilot = _current_fleet_data["pilots"][0] as Dictionary
 
-	var scene_path: String = PRODUCTION_ENEMY_SCENES.get(scene_key, "res://scenes/mecha/enemy_heavy.tscn")
+	var scene_path := ""
+	var cmdr_arch_int: int = -1
+
+	if not commander_pilot.is_empty():
+		var scene_type := str(commander_pilot.get("scene_type", ""))
+		if scene_type != "" and PRODUCTION_SCENE_MAP_BY_TYPE.has(scene_type):
+			scene_path = PRODUCTION_SCENE_MAP_BY_TYPE[scene_type]
+		cmdr_arch_int = int(commander_pilot.get("archetype", -1))
+
+	if scene_path == "":
+		if unit_type == UnitType.BOSS or scene_key == "boss":
+			scene_path = PRODUCTION_ENEMY_SCENES.get("boss", "res://scenes/mecha/enemy_boss.tscn")
+			if cmdr_arch_int < 0: cmdr_arch_int = 2
+		elif PRODUCTION_ENEMY_SCENES.has(scene_key):
+			scene_path = PRODUCTION_ENEMY_SCENES[scene_key]
+			if cmdr_arch_int < 0:
+				match scene_key:
+					"recon": cmdr_arch_int = 1
+					"armored": cmdr_arch_int = 2
+					"artillery": cmdr_arch_int = 3
+					"hunter_killer": cmdr_arch_int = 4
+					"tank": cmdr_arch_int = 1
+					_: cmdr_arch_int = 0
+		else:
+			scene_path = "res://scenes/mecha/enemy_heavy.tscn"
+			if cmdr_arch_int < 0: cmdr_arch_int = 2
+
 	if ResourceLoader.exists(scene_path):
 		var p_scene := load(scene_path) as PackedScene
 		if p_scene:
@@ -138,18 +181,33 @@ func _build_production_commander() -> void:
 				production_model.collision_layer = 0
 				production_model.collision_mask = 0
 
+			# Configure archetype and pilot data on EnemyDummy
+			if cmdr_arch_int >= 0 and "archetype" in production_model:
+				production_model.archetype = cmdr_arch_int
+			if not commander_pilot.is_empty() and "pilot_data" in production_model:
+				production_model.pilot_data = commander_pilot
+
 			# Strip combat billboards and area hitboxes to keep board clean
 			_strip_combat_components(production_model)
 			production_model.position = Vector3.ZERO
 			model_root.add_child(production_model)
 
+			# Mount authoritative visual loadout (weapons / shield) matching battle
+			if production_model.has_method("_mount_visual_loadout"):
+				production_model._mount_visual_loadout()
+			elif cmdr_arch_int >= 0:
+				_mount_enemy_archetype_weapons(production_model, cmdr_arch_int)
+
 			# Map limb references for locomotion
 			head_node = production_model.get_node_or_null("Head")
 			torso_node = production_model.get_node_or_null("Body")
+			backpack_node = production_model.get_node_or_null("Body/Backpack")
 			arm_left_node = production_model.get_node_or_null("ArmLeft")
 			arm_right_node = production_model.get_node_or_null("ArmRight")
 			leg_left_node = production_model.get_node_or_null("LegLeft")
 			leg_right_node = production_model.get_node_or_null("LegRight")
+			if torso_node:
+				_torso_base_y = torso_node.position.y
 			return
 
 	# Fallback if scene is not found
@@ -157,17 +215,102 @@ func _build_production_commander() -> void:
 
 
 func _strip_combat_components(node: Node) -> void:
-	for child in node.get_children():
-		if child is CollisionShape3D or child is Area3D:
-			child.queue_free()
-		elif child.name.begins_with("EnemyStatusBillboard") or child.name.begins_with("Hitbox") or child.name.begins_with("HealthSystem"):
-			child.queue_free()
+	var children := node.get_children()
+	for child in children:
+		if child is CollisionShape3D or child is Area3D or child is Camera3D or child is AudioStreamPlayer3D or child is AudioStreamPlayer:
+			node.remove_child(child)
+			child.free()
+		elif child.name.begins_with("EnemyStatusBillboard") or child.name.begins_with("EnemyStatus") or child.name.begins_with("Hitbox") or child.name.begins_with("HealthSystem") or child.name.begins_with("MechaCombat") or child.name.begins_with("MechaEject") or child.name.begins_with("MechaFootIK"):
+			node.remove_child(child)
+			child.free()
 		else:
 			_strip_combat_components(child)
 
 
-## Builds the canonical Valkren player model with tactical armor, visor, and thrusters
+## Builds the canonical production Valkren player model with current loadout and weapons
 func _build_valkren_player() -> void:
+	var mecha_scene_path := "res://scenes/mecha/mecha_base.tscn"
+	if ResourceLoader.exists(mecha_scene_path):
+		var p_scene := load(mecha_scene_path) as PackedScene
+		if p_scene:
+			production_model = p_scene.instantiate()
+			production_model.process_mode = Node.PROCESS_MODE_DISABLED
+			if production_model is CollisionObject3D:
+				production_model.collision_layer = 0
+				production_model.collision_mask = 0
+
+			# Strip combat-only components (camera, audio, hitbox, health, etc.)
+			_strip_combat_components(production_model)
+
+			# Reset root scale so model_root.scale (0.58) controls the tabletop scale
+			production_model.scale = Vector3.ONE
+			production_model.position = Vector3.ZERO
+			model_root.add_child(production_model)
+
+			# Trigger PartMeshManager to build current equipped parts/paint from GlobalData
+			var pmm = production_model.get_node_or_null("PartMeshManager")
+			if pmm and pmm.has_method("refresh_slots"):
+				pmm.refresh_slots()
+
+			# Mount current equipped weapons from LoadoutSystem
+			_mount_player_weapons(production_model)
+
+			# Map limb references for board locomotion
+			head_node = production_model.get_node_or_null("Head")
+			torso_node = production_model.get_node_or_null("Body")
+			backpack_node = production_model.get_node_or_null("Body/Backpack")
+			arm_left_node = production_model.get_node_or_null("ArmLeft")
+			arm_right_node = production_model.get_node_or_null("ArmRight")
+			leg_left_node = production_model.get_node_or_null("LegLeft")
+			leg_right_node = production_model.get_node_or_null("LegRight")
+			if torso_node:
+				_torso_base_y = torso_node.position.y
+			return
+
+	# Fallback if scene is not found
+	_build_procedural_fallback()
+
+
+func _mount_player_weapons(mecha: Node3D) -> void:
+	if not ResourceLoader.exists("res://scripts/systems/loadout_system.gd"):
+		return
+	var LS = load("res://scripts/systems/loadout_system.gd")
+	if not LS:
+		return
+	var left_w = LS.get_equipped_weapon("left")
+	var right_w = LS.get_equipped_weapon("right")
+	var sh_left = LS.get_equipped_shoulder("left")
+	var sh_right = LS.get_equipped_shoulder("right")
+	var carry_w = LS.get_carry_weapons()
+
+	if left_w:
+		WeaponVisualFactory.mount_hand(mecha, "left", left_w, "WeaponMesh_left")
+	if right_w:
+		WeaponVisualFactory.mount_hand(mecha, "right", right_w, "WeaponMesh_right")
+	if sh_left:
+		WeaponVisualFactory.mount_shoulder(mecha, "left", sh_left, "ShoulderMesh_left")
+	if sh_right:
+		WeaponVisualFactory.mount_shoulder(mecha, "right", sh_right, "ShoulderMesh_right")
+	if carry_w is Array and not carry_w.is_empty():
+		WeaponVisualFactory.mount_carry(mecha, carry_w, "CarryWeapons")
+
+
+func _mount_enemy_archetype_weapons(model: Node3D, arch_int: int) -> void:
+	match arch_int:
+		0: # Rusher
+			WeaponVisualFactory.mount_hand(model, "right", preload("res://resources/mech/stock/weapon_heat_blade.tres"), "EnemyWeaponMount")
+		1: # Ranged
+			WeaponVisualFactory.mount_hand(model, "right", preload("res://resources/mech/stock/weapon_beam_carbine.tres"), "EnemyWeaponMount")
+		2: # Heavy
+			WeaponVisualFactory.mount_hand(model, "right", preload("res://resources/mech/stock/weapon_assault_cannon.tres"), "EnemyWeaponMount")
+		3: # Support
+			WeaponVisualFactory.mount_hand(model, "right", preload("res://resources/mech/stock/weapon_beam_carbine.tres"), "EnemyWeaponMount")
+		4: # Shield Melee
+			WeaponVisualFactory.mount_hand(model, "left", preload("res://resources/mech/stock/weapon_shield.tres"), "EnemyShieldMount")
+			WeaponVisualFactory.mount_hand(model, "right", preload("res://resources/mech/stock/weapon_heat_blade.tres"), "EnemyWeaponMount")
+		5: # Shield Ranged
+			WeaponVisualFactory.mount_hand(model, "left", preload("res://resources/mech/stock/weapon_shield.tres"), "EnemyShieldMount")
+			WeaponVisualFactory.mount_hand(model, "right", preload("res://resources/mech/stock/weapon_beam_carbine.tres"), "EnemyWeaponMount")
 	var mat_base := StandardMaterial3D.new()
 	mat_base.albedo_color = PLAYER_COLOR_BASE
 	mat_base.metallic = 0.55
@@ -429,12 +572,13 @@ func setup_player(_loadout_data: Dictionary = {}) -> void:
 ## Configures unit as Enemy Fleet Commander matching authoritative fleet dictionary
 func setup_commander(fleet_data: Dictionary) -> void:
 	unit_type = UnitType.COMMANDER
+	_current_fleet_data = fleet_data
 	var is_unknown := str(fleet_data.get("faction", "hostile")) == "unknown"
 	archetype = str(fleet_data.get("archetype", "armored"))
 	if is_unknown:
 		archetype = "unknown"
 	var aces := int(fleet_data.get("aces", 0))
-	if aces > 0 and archetype != "unknown":
+	if aces > 0 and archetype != "unknown" and archetype != "boss":
 		archetype = "hunter_killer"
 
 	unit_scale = Vector3(0.55, 0.55, 0.55)
@@ -448,6 +592,7 @@ func setup_commander(fleet_data: Dictionary) -> void:
 func setup_boss() -> void:
 	unit_type = UnitType.BOSS
 	archetype = "boss"
+	_current_fleet_data = {"archetype": "boss", "is_boss": true}
 	unit_scale = Vector3(0.68, 0.68, 0.68)
 	_build_hierarchy()
 
@@ -529,13 +674,13 @@ func _process(delta: float) -> void:
 			arm_right_node.rotation.x = stride * deg_to_rad(25.0)
 
 		if torso_node:
-			torso_node.position.y = 1.6 + absf(sin(t * 2.0)) * 0.08
+			torso_node.position.y = _torso_base_y + absf(sin(t * 2.0)) * 0.08
 			torso_node.rotation.z = sin(t) * deg_to_rad(2.5)
 	else:
 		var t := anim_timer * idle_speed
 		# Gentle breathing stance
 		if torso_node:
-			torso_node.position.y = 1.6 + sin(t) * 0.03
+			torso_node.position.y = _torso_base_y + sin(t) * 0.03
 			torso_node.rotation.z = 0.0
 		if arm_left_node:
 			arm_left_node.rotation.x = deg_to_rad(5.0) + sin(t) * deg_to_rad(2.0)

@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://c2e23boardrun01"]
+
+[ext_resource type="Script" path="res://test/unit/phase_2e_23_combat_board_run_boundary_verify.gd" id="1_test"]
+
+[node name="Phase2E23CombatBoardRunBoundaryVerify" type="Node"]
+script = ExtResource("1_test")

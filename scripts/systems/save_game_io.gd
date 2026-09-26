@@ -181,6 +181,7 @@ static func restore_from_dict(data: Dictionary) -> void:
 	GlobalData.board.mission_step_count = int(data.get("mission_step_count", 0))
 	var loaded_patrols = data.get("board_patrols", [])
 	GlobalData.board.board_patrols.clear()
+	GlobalData.board.board_patrol_engagement = -1
 	if loaded_patrols is Array:
 		for p in loaded_patrols:
 			if not (p is Dictionary):

@@ -695,10 +695,6 @@ func _on_combat_ended(victory: bool) -> void:
 		board.run_notice = "Bond is at its peak and the old machine is wrecked. A SACRIFICE MISSION awaits at the Safehouse."
 	# Finalize combat damage stats.
 	CombatStatsSystem.compute_last_combat_damage_ratio()
-	if victory and not _combat_xp_awarded:
-		_combat_xp_awarded = true
-		var is_decisive := CombatStatsSystem.was_decisive_victory()
-		PilotSkillSys.award_combat_xp(GameManager.combat_node_type, is_decisive)
 	# Encounter-specific resolution (patrol, duel, enemy base, fuel depot)
 	if board.board_patrol_engagement >= 0:
 		PatrolSystem.resolve_patrol_combat(victory)
@@ -719,7 +715,10 @@ func _on_combat_ended(victory: bool) -> void:
 
 	# Common post-combat technology, armor durability, and research progression
 	EnemyFactionSystem.on_combat_ended_for_tech(victory)
-	if victory:
+	if victory and not _combat_xp_awarded:
+		_combat_xp_awarded = true
+		var is_decisive := CombatStatsSystem.was_decisive_victory()
+		PilotSkillSys.award_combat_xp(GameManager.combat_node_type, is_decisive)
 		ArmorSystem.sync_equipped_armor_durability()
 		var victory_prog: Dictionary = ResProgSys.dispatch_progression("combat_victory", 2.0)
 		_notify_research_completions(victory_prog.get("blueprints_completed", []))

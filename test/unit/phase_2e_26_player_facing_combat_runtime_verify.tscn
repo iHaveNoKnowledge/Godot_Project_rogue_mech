@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://phase_2e_26_verify_tscn"]
+
+[ext_resource type="Script" path="res://test/unit/phase_2e_26_player_facing_combat_runtime_verify.gd" id="1_verify"]
+
+[node name="Phase2E26PlayerFacingCombatRuntimeVerify" type="Node"]
+script = ExtResource("1_verify")

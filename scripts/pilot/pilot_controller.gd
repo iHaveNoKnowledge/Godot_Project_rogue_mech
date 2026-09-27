@@ -35,6 +35,9 @@ const PILOT_KIT_PATH := "res://scenes/pilot/pilot_pistol_kit.glb"
 const KIT_MODEL_HEIGHT := 1.7
 var _kit_player: AnimationPlayer = null
 var _kit_prop: Node3D = null
+var _kit_root: Node3D = null
+var _grip_ready := false
+var _grip_local := Transform3D.IDENTITY
 
 # TPS Magazine & Reload System
 var current_magazine: int = 0
@@ -247,19 +250,90 @@ func _build_tactical_human_mesh() -> void:
 			# Kit faces +Z out of the box; game forward is -Z.
 			kit.rotation.y = PI
 			kit.scale = Vector3.ONE * (pilot_height / KIT_MODEL_HEIGHT)
+			_kit_root = kit
 			_kit_player = _find_kit_player(kit)
 			_kit_prop = kit.find_child("PistolProp", true, false) as Node3D
 			if _kit_prop == null:
 				_kit_prop = kit.find_child("*Pistol*", true, false) as Node3D
-			if _kit_player != null:
-				_set_kit_loop("pistol_idle", true)
-				_set_kit_loop("pistol_reload", true)
-				if not _kit_player.animation_finished.is_connected(_on_kit_animation_finished):
-					_kit_player.animation_finished.connect(_on_kit_animation_finished)
-				_kit_player.play("pistol_idle")
+		if _kit_player != null:
+			_set_kit_loop("pistol_idle", true)
+			_set_kit_loop("pistol_reload", true)
+			if not _kit_player.animation_finished.is_connected(_on_kit_animation_finished):
+				_kit_player.animation_finished.connect(_on_kit_animation_finished)
+			_kit_player.play("pistol_idle")
 			_update_kit_prop()
 			return
 	_build_legacy_tactical_mesh()
+
+
+## Drive the in-hand pistol from the live hand joint every frame (the
+## file carries no working joint attachment). Calibrate once the idle clip
+## is live, then follow rigidly: constant joint-space offset.
+func _drive_kit_pistol() -> void:
+	if _kit_prop == null or not is_instance_valid(_kit_prop):
+		return
+	var skel := _find_kit_skeleton(_human_visual)
+	if skel == null:
+		return
+	var hi: int = skel.find_bone("hand_r")
+	if hi < 0:
+		return
+	if not _grip_ready:
+		if _kit_player == null or _kit_player.current_animation_position < 0.05:
+			return
+		var hw0: Transform3D = skel.get_bone_global_pose(hi)
+		var fwd0: Vector3 = -global_transform.basis.z
+		fwd0.y = 0.0
+		if fwd0.length_squared() < 0.000001:
+			fwd0 = Vector3(0, 0, -1)
+		fwd0 = fwd0.normalized()
+		# Mesh muzzle faces file +Z and mag faces file +Y: pitch both 180°
+		# about X so the muzzle points pilot-forward and the mag hangs down.
+		var want0 := Transform3D(Basis(Vector3(1, 0, 0), PI) * Basis.looking_at(fwd0, Vector3.UP), hw0.origin + Vector3(0.0, -0.035, 0.0) + fwd0 * 0.02)
+		_grip_local = hw0.affine_inverse() * want0
+		_grip_ready = true
+	var hw: Transform3D = skel.get_bone_global_pose(hi)
+	_kit_prop.global_transform = hw * _grip_local
+
+
+## High-contrast visor marker so the dark SWAT kit reads at night: a small
+## emissive box on the helmet front (kit-local +Z, matching legacy cyan visor).
+func _add_visor_marker(kit: Node) -> void:
+	if kit == null:
+		return
+	# Tree is busy during _ready: finish once idle (dupes guarded inside).
+	_add_visor_marker_now.call_deferred(kit)
+
+
+func _add_visor_marker_now(kit: Node) -> void:
+	if kit == null or not is_instance_valid(kit):
+		return
+	if kit.get_node_or_null("PilotVisorMarker") != null:
+		return
+	var h := pilot_height / KIT_MODEL_HEIGHT
+	var visor := MeshInstance3D.new()
+	visor.name = "PilotVisorMarker"
+	var box := BoxMesh.new()
+	box.size = Vector3(0.16 * h, 0.06 * h, 0.08 * h)
+	visor.mesh = box
+	visor.position = Vector3(0.0, 1.67 * h, 0.10 * h)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.1, 0.85, 0.95)
+	mat.emission_enabled = true
+	mat.emission = Color(0.1, 0.85, 0.95)
+	mat.emission_energy_multiplier = 3.5
+	visor.set_surface_override_material(0, mat)
+	kit.add_child(visor)
+
+
+func _find_kit_skeleton(n: Node) -> Skeleton3D:
+	if n is Skeleton3D:
+		return n
+	for c in n.get_children():
+		var found := _find_kit_skeleton(c)
+		if found != null:
+			return found
+	return null
 
 
 func _find_kit_player(n: Node) -> AnimationPlayer:
@@ -602,6 +676,13 @@ func _physics_process(delta: float) -> void:
 		reload_timer += delta
 		if reload_timer >= reload_duration:
 			_finish_reload()
+
+	# Drive the in-hand pistol from the live hand joint.
+	_drive_kit_pistol()
+	# Retry the visor marker until the kit tree settles (kills busy races).
+	if _kit_root != null and is_instance_valid(_kit_root) and _kit_root.get_node_or_null("PilotVisorMarker") == null:
+		_add_visor_marker(_kit_root)
+
 
 	if GameManager.current_state != GameManager.State.EJECT and not has_meta("test_mode"):
 		return

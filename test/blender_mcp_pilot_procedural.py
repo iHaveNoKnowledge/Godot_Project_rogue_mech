@@ -36,8 +36,8 @@ OB = bpy.data.objects
 scn = bpy.context.scene
 RIGS = {'A': OB['Pilot_Character'], 'B': OB['Pilot_Character.001']}
 MESH = {'A': 'Pilot_SWAT', 'B': 'Swat_Body.001'}
-CLIPS = {'A': ['pistol_idle', 'pistol_reload', 'pistol_shoot'],
-         'B': ['pistol_idle.001', 'pistol_reload.001', 'pistol_shoot.001']}
+CLIPS = {'A': ['pistol_idle', 'pistol_reload', 'pistol_shoot', 'pilot_walk', 'pilot_run'],
+         'B': ['pistol_idle.001', 'pistol_reload.001', 'pistol_shoot.001', 'pilot_walk.001', 'pilot_run.001']}
 
 def set_pos(rig, mode):
     rig.data.pose_position = mode
@@ -184,8 +184,66 @@ def pose_shoot(rk, u):
     d['spine_01'] = aim(rk, 'spine_01', REST_DIR[rk]['spine_01'], 2.0 * kick, 'X')
     return d
 
-POSES = {'pistol_idle': pose_idle, 'pistol_reload': pose_reload, 'pistol_shoot': pose_shoot}
-FRAMES = {'pistol_idle': 51, 'pistol_reload': 51, 'pistol_shoot': 20}
+# ------------- locomotion (legs walk/run, arms keep the gun-ready pose) -----
+
+def _leg_phase(rk, u, side_sign, amp_thigh, amp_shin, amp_foot, lift, phase_offset=0.0):
+    """Joint-angle dict for one leg: thigh pitch, knee flex, foot pitch.
+    Angles are in degrees; positive thigh pitch swings the leg forward (-Y)."""
+    ph = (u + phase_offset) * 2 * math.pi
+    thigh = amp_thigh * math.sin(ph)
+    # knee flexes most when the thigh swings back-to-forward (mid swing)
+    knee = amp_shin * max(0.0, math.sin(ph + 0.9))
+    foot = amp_foot * math.sin(ph + 1.8) - lift
+    return thigh, knee, foot
+
+def _leg_aims(rk, side, thigh_d, knee_d, foot_d):
+    """Return {bone: 3x3} for a leg chain pitched by the given angles (deg,
+    positive = segment tip toward character front -Y)."""
+    d = {}
+    for prefix, ang in (('thigh', thigh_d), ('calf', knee_d), ('foot', foot_d)):
+        bn = '%s_%s' % (prefix, 'l' if side < 0 else 'r')
+        if bn in REST_DIR[rk]:
+            d[bn] = aim(rk, bn, _pitch_down(rk, bn, ang))
+    return d
+
+def _pitch_down(rk, bn, pitch_deg):
+    """Aim direction for a DOWN-pointing segment pitched forward by pitch_deg
+    around the X axis (positive pitch = tip moves toward -Y front)."""
+    rest = REST_DIR[rk][bn]
+    # rotate rest dir around X: y' = y cos - z sin ... keep simple: build target
+    r = math.radians(pitch_deg)
+    d = Vector((rest.x, rest.y * math.cos(r) - rest.z * math.sin(r),
+                rest.y * math.sin(r) + rest.z * math.cos(r)))
+    return d
+
+def pose_walk(rk, u):
+    """Walk: ~2 stride cycle, thigh +-20 deg, knee 0..30, feet roll.
+    Arms keep the idle gun-ready pose (upper sway damped)."""
+    d = dict(pose_idle(rk, 0.0))
+    for side in (-1.0, 1.0):
+        th, kn, ft = _leg_phase(rk, u, side, 20.0, 30.0, 12.0, 3.0,
+                                phase_offset=0.0 if side < 0 else 0.5)
+        d.update(_leg_aims(rk, side, th, kn, ft))
+    d['spine_01'] = aim(rk, 'spine_01', REST_DIR[rk]['spine_01'], 1.0, 'X')
+    d['pelvis'] = aim(rk, 'pelvis', REST_DIR[rk]['pelvis'], 1.5 * math.sin(u * 2 * math.pi), 'Z')
+    return d
+
+def pose_run(rk, u):
+    """Run: faster/bigger cycle, thigh +-38 deg, knee 0..65, forward lean.
+    Arms still hold the pistol (two-hand grip never breaks)."""
+    d = dict(pose_idle(rk, 0.0))
+    for side in (-1.0, 1.0):
+        th, kn, ft = _leg_phase(rk, u, side, 38.0, 65.0, 20.0, 6.0,
+                                phase_offset=0.0 if side < 0 else 0.5)
+        d.update(_leg_aims(rk, side, th, kn, ft))
+    d['spine_01'] = aim(rk, 'spine_01', REST_DIR[rk]['spine_01'], 4.0, 'X')
+    d['pelvis'] = aim(rk, 'pelvis', REST_DIR[rk]['pelvis'], 2.5 * math.sin(u * 2 * math.pi), 'Z')
+    return d
+
+POSES = {'pistol_idle': pose_idle, 'pistol_reload': pose_reload, 'pistol_shoot': pose_shoot,
+         'pilot_walk': pose_walk, 'pilot_run': pose_run}
+FRAMES = {'pistol_idle': 51, 'pistol_reload': 51, 'pistol_shoot': 20,
+          'pilot_walk': 61, 'pilot_run': 41}
 
 def key_clip(rk, clip):
     rig = RIGS[rk]
@@ -200,7 +258,7 @@ def key_clip(rk, clip):
         pb.matrix_basis = Matrix.Identity(4)
     for f in frames:
         u = f / (n - 1) if n > 1 else 0.0
-        if base == 'pistol_idle':
+        if base in ('pistol_idle', 'pilot_walk', 'pilot_run'):
             u = f / n  # loop continuity
         offs = posefn(rk, u)
         R_t = {}
@@ -244,6 +302,7 @@ elif STAGE == 'finish':
     for rk, rig in RIGS.items():
         for clip in CLIPS[rk]:
             frames = FRAMES[clip[:-4] if clip.endswith('.001') else clip]
+            is_loco = clip.startswith('pilot_')
             act = bpy.data.actions[clip]
             bind(rig, act)
             scn.frame_set(0)
@@ -253,6 +312,8 @@ elif STAGE == 'finish':
             h1 = handdir(rig, ev, 'hand_r')
             b0 = bbox(OB[MESH[rk]])
             dev = 0.0
+            legdev = 0.0
+            ti = ev.pose.bones['thigh_l'].matrix.to_3x3().to_quaternion() if 'thigh_l' in ev.pose.bones else None
             zmin = 1e9; zmax = -1e9; yspan = 0.0
             for f in range(frames):
                 scn.frame_set(f)
@@ -261,13 +322,19 @@ elif STAGE == 'finish':
                 evf = rig.evaluated_get(dg)
                 hf = handdir(rig, evf, 'hand_r')
                 dev = max(dev, math.degrees(h1.angle(hf)))
+                if ti is not None:
+                    tq = evf.pose.bones['thigh_l'].matrix.to_3x3().to_quaternion()
+                    legdev = max(legdev, math.degrees(ti.rotation_difference(tq).angle))
                 b = bbox(OB[MESH[rk]])
                 zmin = min(zmin, b[2]); zmax = max(zmax, b[3])
                 yspan = max(yspan, b[1] - b[0])
-            good = zmin > -0.06 and yspan < 1.2 and abs(h1.y) > 0.7
+            # Locomotion sanity: feet on floor, legs actually swing (>25 deg),
+            # span bounded (running stride reaches ~1.5 m front-to-back).
+            good = (zmin > -0.06 and yspan < 1.2 and abs(h1.y) > 0.7) if not is_loco \
+                else (zmin > -0.06 and yspan < 1.6 and legdev > 15.0)
             ok = ok and good
-            print('%s (%s): f0 Yspan %.3f | all-frames Z %.2f..%.2f Yspan<= %.3f | hand_r=[%.2f,%.2f,%.2f] | hand dev %.1f deg | %s'
-                  % (clip, rk, b0[1] - b0[0], zmin, zmax, yspan, h1.x, h1.y, h1.z, dev, 'OK' if good else 'FAIL'))
+            print('%s (%s): f0 Yspan %.3f | all-frames Z %.2f..%.2f Yspan<= %.3f | hand_r=[%.2f,%.2f,%.2f] | hand dev %.1f deg | leg swing %.1f deg | %s'
+                  % (clip, rk, b0[1] - b0[0], zmin, zmax, yspan, h1.x, h1.y, h1.z, dev, legdev, 'OK' if good else 'FAIL'))
     scn.frame_set(0)
     bpy.context.view_layer.update()
     dg = bpy.context.evaluated_depsgraph_get()

@@ -627,6 +627,25 @@ func _update_aim_facing(delta: float) -> void:
 	rotation.y = lerp_angle(rotation.y, target, 1.0 - exp(-10.0 * delta))
 
 
+## Locomotion clips for the kit: walk/run while keeping the two-hand
+## gun-ready pose (arms come from the same procedural generator as idle).
+## No-op when the kit is absent (legacy placeholder mesh).
+func _update_kit_locomotion(moving: bool, sprinting: bool) -> void:
+	if _kit_player == null or is_reloading:
+		return
+	var want := ""
+	if moving:
+		want = "pilot_run" if sprinting else "pilot_walk"
+	if want == "" and _kit_player.current_animation != "pistol_idle" \
+			and _kit_player.current_animation_position >= 0.0:
+		if not _kit_player.is_playing() or _kit_player.current_animation == &"pilot_walk" \
+				or _kit_player.current_animation == &"pilot_run":
+			_play_kit_clip("pistol_idle", true)
+		return
+	if want != "" and _kit_player.current_animation != StringName(want):
+		_play_kit_clip(want, true)
+
+
 func _melee_swing(weapon: WeaponPart) -> void:
 	var cam := get_viewport().get_camera_3d()
 	if cam == null:
@@ -677,6 +696,7 @@ func _physics_process(delta: float) -> void:
 
 	var wants_sprint := Input.is_action_pressed("strafe") and input.length() > 0.1
 	_is_sprinting = wants_sprint and stamina > 0.0
+	_update_kit_locomotion(input.length() > 0.1, _is_sprinting)
 	if _is_sprinting:
 		stamina = maxf(stamina - sprint_drain * delta, 0.0)
 	else:

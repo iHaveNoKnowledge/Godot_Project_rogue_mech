@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://b6k9q3m4v7e8x"]
+
+[ext_resource type="Script" path="res://test/unit/phase_2e_38_run_progression_continuity_verify.gd" id="1_prog"]
+
+[node name="Phase2E38Verify" type="Node"]
+script = ExtResource("1_prog")

@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://phase_2e_43_verify"]
+
+[ext_resource type="Script" path="res://test/unit/phase_2e_43_state_propagation_reactive_synchronization_verify.gd" id="1_script"]
+
+[node name="Phase2E43Verify" type="Node"]
+script = ExtResource("1_script")

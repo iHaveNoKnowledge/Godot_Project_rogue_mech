@@ -778,6 +778,10 @@ func unequip_part(slot: String) -> void:
 				if existing == null:
 					existing = mecha.get_node_or_null("ArmRight/ForearmRight/" + node_name)
 				if existing == null:
+					existing = mecha.get_node_or_null("ArmLeft/" + node_name)
+				if existing == null:
+					existing = mecha.get_node_or_null("ArmRight/" + node_name)
+				if existing == null:
 					existing = mecha.get_node_or_null(node_name)
 				if existing:
 					existing.queue_free()

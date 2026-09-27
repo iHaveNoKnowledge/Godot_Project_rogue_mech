@@ -69,26 +69,54 @@ func _test_shoulder_weight_calculation() -> void:
 
 func _test_weapon_visual_mounting() -> void:
 	print("Testing WeaponVisualFactory.mount_shoulder...")
+	var test_path := "res://resources/mech/stock/weapon_combat_shotgun.tres"
+	var res = load(test_path)
+
+	# 1. Fallback dummy mecha (no arm hierarchy)
 	var dummy_mecha = Node3D.new()
 	add_child(dummy_mecha)
 
-	var test_path := "res://resources/mech/stock/weapon_combat_shotgun.tres"
-	var res = load(test_path)
 	WeaponVisualFactory.mount_shoulder(dummy_mecha, "left", res, "WeaponVisual_shoulder_left")
 	var m_left = dummy_mecha.get_node_or_null("WeaponVisual_shoulder_left")
-	_check(m_left != null, "Mounted shoulder left visual on mecha")
+	_check(m_left != null, "Mounted shoulder left visual on mecha (fallback)")
 	if m_left:
 		_check(is_equal_approx(m_left.position.x, WeaponVisualFactory.SHOULDER_LEFT_POS.x), "Shoulder left visual position.x matches SHOULDER_LEFT_POS.x")
 		_check(m_left.get_child_count() > 0, "Shoulder left visual has model children")
 
 	WeaponVisualFactory.mount_shoulder(dummy_mecha, "right", res, "WeaponVisual_shoulder_right")
 	var m_right = dummy_mecha.get_node_or_null("WeaponVisual_shoulder_right")
-	_check(m_right != null, "Mounted shoulder right visual on mecha")
+	_check(m_right != null, "Mounted shoulder right visual on mecha (fallback)")
 	if m_right:
 		_check(is_equal_approx(m_right.position.x, WeaponVisualFactory.SHOULDER_RIGHT_POS.x), "Shoulder right visual position.x matches SHOULDER_RIGHT_POS.x")
 		_check(m_right.get_child_count() > 0, "Shoulder right visual has model children")
 
 	dummy_mecha.queue_free()
+
+	# 2. Hierarchical mecha with ArmLeft and ArmRight (Valkren architecture)
+	var rig_mech = Node3D.new()
+	var arm_l = Node3D.new()
+	arm_l.name = "ArmLeft"
+	arm_l.position = Vector3(-1.1424, 4.261, 0.0)
+	rig_mech.add_child(arm_l)
+	var arm_r = Node3D.new()
+	arm_r.name = "ArmRight"
+	arm_r.position = Vector3(1.1424, 4.261, 0.0)
+	rig_mech.add_child(arm_r)
+	add_child(rig_mech)
+
+	var mount_l = WeaponVisualFactory.mount_shoulder(rig_mech, "left", res, "WeaponVisual_shoulder_left")
+	_check(mount_l != null, "Mounted shoulder left visual on hierarchical mech")
+	_check(mount_l.get_parent() == arm_l, "Left shoulder weapon is parented to ArmLeft")
+	_check(mount_l.position.is_equal_approx(WeaponVisualFactory.SHOULDER_ARM_POS), "Left shoulder weapon sits at SHOULDER_ARM_POS")
+	_check(mount_l.get_child_count() > 0, "Left shoulder weapon has model children")
+
+	var mount_r = WeaponVisualFactory.mount_shoulder(rig_mech, "right", res, "WeaponVisual_shoulder_right")
+	_check(mount_r != null, "Mounted shoulder right visual on hierarchical mech")
+	_check(mount_r.get_parent() == arm_r, "Right shoulder weapon is parented to ArmRight")
+	_check(mount_r.position.is_equal_approx(WeaponVisualFactory.SHOULDER_ARM_POS), "Right shoulder weapon sits at SHOULDER_ARM_POS")
+	_check(mount_r.get_child_count() > 0, "Right shoulder weapon has model children")
+
+	rig_mech.queue_free()
 
 func _test_weapon_manager_shoulder_integration() -> void:
 	print("Testing WeaponManager shoulder weapon loading and firing core...")

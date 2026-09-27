@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://shoulder_mount_align_verify_01"]
+
+[ext_resource type="Script" path="res://test/unit/shoulder_mount_alignment_verify.gd" id="1_align"]
+
+[node name="ShoulderMountAlignmentVerify" type="Node"]
+script = ExtResource("1_align")

@@ -4,8 +4,13 @@ extends RefCounted
 # Shared mount transforms (hangar preview and battle use the same placements).
 const HAND_LEFT_POS := Vector3(-0.85, 1.4, 0.4)
 const HAND_RIGHT_POS := Vector3(0.85, 1.4, 0.4)
-const SHOULDER_LEFT_POS := Vector3(-0.72, 2.15, -0.10)
-const SHOULDER_RIGHT_POS := Vector3(0.72, 2.15, -0.10)
+# Shoulder mount position in the Arm* node's local space (top pauldron hardpoint).
+const SHOULDER_ARM_POS := Vector3(0.0, 0.25, 0.0)
+
+# Fallback root positions when ArmLeft / ArmRight are not present on the mecha node:
+# In MechaBase, ArmLeft is at (-1.1424, 4.261, 0), so shoulder top is at (-1.1424, 4.511, 0).
+const SHOULDER_LEFT_POS := Vector3(-1.1424, 4.511, 0.0)
+const SHOULDER_RIGHT_POS := Vector3(1.1424, 4.511, 0.0)
 # Back-carry mount sits BEHIND the torso: weapons are sheathed vertically/upright
 # over the shoulder (-105° on X points the blade/barrel upward along the back)
 # so they never pierce through the chest or torso.
@@ -113,18 +118,42 @@ static func mount_hand(mecha: Node3D, hand: String, weapon: WeaponPart, node_nam
 
 
 # Mounts an equipped weapon onto the left or right shoulder hardpoint.
+# The weapon is parented to the Arm* node (when present) so it sits on the
+# shoulder pauldron and follows the arm/shoulder animations instead of floating
+# at a fixed root offset.
 static func mount_shoulder(mecha: Node3D, side: String, weapon: WeaponPart, node_name: String) -> Node3D:
-	var mount = mecha.get_node_or_null(node_name)
-	if mount == null or not mount.is_inside_tree() or mount.is_queued_for_deletion():
-		if mount != null and mount.is_inside_tree():
-			mecha.remove_child(mount)
-		mount = Node3D.new()
-		mount.name = node_name
-		mecha.add_child(mount)
+	var side_cap := "Left" if side == "left" else "Right"
+	var arm := mecha.get_node_or_null("Arm" + side_cap) as Node3D
+	var mount: Node3D = null
 
-	mount.position = shoulder_mount_position(side)
-	# Shoulder weapons point forward along -Z
-	mount.rotation_degrees = Vector3(0.0, 0.0, 0.0)
+	if arm != null:
+		# Free any stale root-anchored mount from a previous version.
+		var stale := mecha.get_node_or_null(node_name)
+		if stale != null:
+			stale.queue_free()
+		mount = arm.get_node_or_null(node_name)
+		if mount == null or not mount.is_inside_tree() or mount.is_queued_for_deletion():
+			if mount != null and mount.is_inside_tree():
+				arm.remove_child(mount)
+			mount = Node3D.new()
+			mount.name = node_name
+			arm.add_child(mount)
+
+		mount.position = SHOULDER_ARM_POS
+		# Shoulder weapons point forward along -Z
+		mount.rotation_degrees = Vector3(0.0, 0.0, 0.0)
+	else:
+		mount = mecha.get_node_or_null(node_name)
+		if mount == null or not mount.is_inside_tree() or mount.is_queued_for_deletion():
+			if mount != null and mount.is_inside_tree():
+				mecha.remove_child(mount)
+			mount = Node3D.new()
+			mount.name = node_name
+			mecha.add_child(mount)
+
+		mount.position = shoulder_mount_position(side)
+		# Shoulder weapons point forward along -Z
+		mount.rotation_degrees = Vector3(0.0, 0.0, 0.0)
 
 	for child in mount.get_children():
 		child.queue_free()

@@ -853,7 +853,10 @@ func _get_shoulder_muzzle_world_pos(side: String) -> Vector3:
 	var mecha = get_parent() as Node3D
 	if mecha == null or not mecha.is_inside_tree():
 		return Vector3.INF
-	var mount := mecha.get_node_or_null("ShoulderMesh_" + side)
+	var side_cap := "Left" if side == "left" else "Right"
+	var mount := mecha.get_node_or_null("Arm%s/ShoulderMesh_%s" % [side_cap, side])
+	if mount == null or not is_instance_valid(mount):
+		mount = mecha.get_node_or_null("ShoulderMesh_" + side)  # legacy root mount
 	if mount == null or not is_instance_valid(mount):
 		return Vector3.INF
 	var muzzle := WeaponVisualFactory.find_muzzle_node(mount)

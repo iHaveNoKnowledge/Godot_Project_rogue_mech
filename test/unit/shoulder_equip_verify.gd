@@ -81,7 +81,9 @@ func _test_action_menu_shoulder_equip() -> void:
 	_check(mecha != null, "garage mecha exists")
 	if mecha:
 		hangar.garage_panel.update_all_slots_preview()
-		var mount = mecha.get_node_or_null("WeaponVisual_shoulder_left")
+		var mount = mecha.get_node_or_null("ArmLeft/WeaponVisual_shoulder_left")
+		if mount == null:
+			mount = mecha.get_node_or_null("WeaponVisual_shoulder_left")
 		_check(mount != null, "WeaponVisual_shoulder_left node mounted in garage")
 		if mount:
 			_check(mount.get_child_count() > 0, "shoulder_left mount has visible model children")

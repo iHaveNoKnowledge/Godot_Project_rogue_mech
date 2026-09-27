@@ -122,7 +122,9 @@ func _test_visor_and_grip() -> void:
 	_check(skel != null and pistol != null, "skeleton + in-hand pistol present")
 	if skel != null and pistol != null:
 		var hi: int = skel.find_bone("hand_r")
-		var hw: Vector3 = skel.get_bone_global_pose(hi).origin
+		# Compare in WORLD space: bone pose origin is model-space, so push it
+		# through the skeleton's global transform before measuring the gap.
+		var hw: Vector3 = skel.global_transform * skel.get_bone_global_pose(hi).origin
 		var pw: Vector3 = (pistol as Node3D).global_transform.origin
 		print("PROBEDBG pistol local=", (pistol as Node3D).transform.origin, " attach=", ((pistol as Node3D).get_parent().name if (pistol as Node3D).get_parent() else "none"))
 		_check(hw.distance_to(pw) < 0.15, "pistol seated in palm (gap=%.3fm)" % hw.distance_to(pw))

@@ -11,7 +11,7 @@ def send_code(code: str, host: str = "127.0.0.1", port: int = 9876) -> str:
     with socket.create_connection((host, port), timeout=8) as s:
         cmd = {"type": "execute_code", "params": {"code": code}}
         s.sendall(json.dumps(cmd).encode("utf-8"))
-        s.settimeout(20)
+        s.settimeout(600)
         chunks = []
         while True:
             try:

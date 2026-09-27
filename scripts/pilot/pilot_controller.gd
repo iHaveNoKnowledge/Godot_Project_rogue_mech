@@ -36,8 +36,6 @@ const KIT_MODEL_HEIGHT := 1.7
 var _kit_player: AnimationPlayer = null
 var _kit_prop: Node3D = null
 var _kit_root: Node3D = null
-var _grip_ready := false
-var _grip_local := Transform3D.IDENTITY
 
 # TPS Magazine & Reload System
 var current_magazine: int = 0
@@ -266,34 +264,9 @@ func _build_tactical_human_mesh() -> void:
 	_build_legacy_tactical_mesh()
 
 
-## Drive the in-hand pistol from the live hand joint every frame (the
-## file carries no working joint attachment). Calibrate once the idle clip
-## is live, then follow rigidly: constant joint-space offset.
-func _drive_kit_pistol() -> void:
-	if _kit_prop == null or not is_instance_valid(_kit_prop):
-		return
-	var skel := _find_kit_skeleton(_human_visual)
-	if skel == null:
-		return
-	var hi: int = skel.find_bone("hand_r")
-	if hi < 0:
-		return
-	if not _grip_ready:
-		if _kit_player == null or _kit_player.current_animation_position < 0.05:
-			return
-		var hw0: Transform3D = skel.get_bone_global_pose(hi)
-		var fwd0: Vector3 = -global_transform.basis.z
-		fwd0.y = 0.0
-		if fwd0.length_squared() < 0.000001:
-			fwd0 = Vector3(0, 0, -1)
-		fwd0 = fwd0.normalized()
-		# Mesh muzzle faces file +Z and mag faces file +Y: pitch both 180°
-		# about X so the muzzle points pilot-forward and the mag hangs down.
-		var want0 := Transform3D(Basis(Vector3(1, 0, 0), PI) * Basis.looking_at(fwd0, Vector3.UP), hw0.origin + Vector3(0.0, -0.035, 0.0) + fwd0 * 0.02)
-		_grip_local = hw0.affine_inverse() * want0
-		_grip_ready = true
-	var hw: Transform3D = skel.get_bone_global_pose(hi)
-	_kit_prop.global_transform = hw * _grip_local
+## The kit GLB carries the pistol as a real child of the hand_r joint
+## (authored in Blender), so no per-frame driving is needed: the in-hand
+## pistol follows the hand animation exactly, from the file itself.
 
 
 ## High-contrast visor marker so the dark SWAT kit reads at night: a small
@@ -677,8 +650,6 @@ func _physics_process(delta: float) -> void:
 		if reload_timer >= reload_duration:
 			_finish_reload()
 
-	# Drive the in-hand pistol from the live hand joint.
-	_drive_kit_pistol()
 	# Retry the visor marker until the kit tree settles (kills busy races).
 	if _kit_root != null and is_instance_valid(_kit_root) and _kit_root.get_node_or_null("PilotVisorMarker") == null:
 		_add_visor_marker(_kit_root)

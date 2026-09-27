@@ -20,6 +20,7 @@ var _patrol_marker_container: Node3D = null
 var _last_dir: Vector2i = Vector2i(1, 0)
 var _is_moving: bool = false
 var _path_trail_markers: Array[Node3D] = []
+var selected_pos: Vector2i = Vector2i(-1, -1)
 var _mission_select_ui: ExtractionMissionSelect = null
 var _summary_modal_ui: ExtractionSummaryModal = null
 
@@ -214,10 +215,13 @@ func _build_objective_event() -> Dictionary:
 # Supports smooth hopping arc transitions during interactive gameplay.
 func move_to_tile(target: Vector2i, animate: bool = true) -> bool:
 	if not is_inside_tree() or get_tree().paused or _intermission_open() or GlobalData.board.convoy_breakdown_turns > 0 or GameManager.current_state != GameManager.State.BOARD:
+		_notify_invalid_move(target, "Board busy or broken down")
 		return false
 	if target == current_pos or _is_moving:
+		selected_pos = target
 		return false
 
+	selected_pos = target
 	var is_interactive: bool = animate and not DisplayServer.get_name().to_lower().contains("headless")
 	if is_interactive:
 		_execute_move_coroutine(target)
@@ -225,10 +229,14 @@ func move_to_tile(target: Vector2i, animate: bool = true) -> bool:
 
 	# Synchronous execution fallback (for headless unit tests & instant operations)
 	if _is_adjacent(current_pos, target):
-		return _try_step(target)
+		var ok := _try_step(target)
+		if not ok:
+			_notify_invalid_move(target, "Cannot step to target")
+		return ok
 
 	var path := _find_path(current_pos, target)
 	if path.is_empty():
+		_notify_invalid_move(target, "No walkable path")
 		print("Cannot move there! (no walkable path)")
 		return false
 
@@ -240,6 +248,7 @@ func move_to_tile(target: Vector2i, animate: bool = true) -> bool:
 			break
 		var ok := _try_step(step)
 		if not ok:
+			_notify_invalid_move(step, "Step blocked")
 			break
 		moved_any = true
 		if not is_inside_tree() or get_tree().paused or GameManager.current_state != GameManager.State.BOARD:
@@ -363,11 +372,40 @@ func _spawn_step_ripple(pos: Vector3) -> void:
 
 
 ## Shows glowing planned route markers along the multi-tile path
+## with waypoint markers and a distinct destination reticle on the goal tile.
 func _show_path_trail(path: Array[Vector2i]) -> void:
 	_clear_path_trail()
-	for p in path:
-		if nodes_dict.has(p):
-			var tile = nodes_dict[p]
+	for i in range(path.size()):
+		var p: Vector2i = path[i]
+		if not nodes_dict.has(p):
+			continue
+		var tile = nodes_dict[p]
+		var is_goal: bool = (i == path.size() - 1)
+		var is_enemy_tile: bool = not PatrolSystem.get_patrol_at(p).is_empty()
+
+		if is_goal:
+			# Distinct Destination Reticle on goal tile
+			var dest_marker := MeshInstance3D.new()
+			dest_marker.name = "DestinationReticle"
+			var torus := TorusMesh.new()
+			torus.inner_radius = 0.55
+			torus.outer_radius = 0.68
+			torus.rings = 24
+			torus.ring_segments = 4
+			dest_marker.mesh = torus
+			var d_mat := StandardMaterial3D.new()
+			var dest_col: Color = Color(1.0, 0.35, 0.2) if is_enemy_tile else Color(0.25, 0.85, 1.0)
+			d_mat.albedo_color = dest_col
+			d_mat.emission_enabled = true
+			d_mat.emission = dest_col
+			d_mat.emission_energy_multiplier = 3.0
+			d_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			dest_marker.material_override = d_mat
+			dest_marker.position = tile.global_position + Vector3(0, 0.06, 0)
+			add_child(dest_marker)
+			_path_trail_markers.append(dest_marker)
+		else:
+			# Waypoint sphere
 			var marker := MeshInstance3D.new()
 			var sphere := SphereMesh.new()
 			sphere.radius = 0.10
@@ -382,6 +420,47 @@ func _show_path_trail(path: Array[Vector2i]) -> void:
 			marker.position = tile.global_position + Vector3(0, 0.20, 0)
 			add_child(marker)
 			_path_trail_markers.append(marker)
+
+
+func _notify_invalid_move(target: Vector2i, reason: String = "") -> void:
+	if AudioManager != null and AudioManager.has_method("play_ui_cancel"):
+		AudioManager.play_ui_cancel()
+	elif AudioManager != null and AudioManager.has_method("play_ui_error"):
+		AudioManager.play_ui_error()
+
+	if nodes_dict.has(target):
+		var tile = nodes_dict[target]
+		if is_instance_valid(tile):
+			_spawn_invalid_destination_pulse(tile.global_position)
+
+	if reason != "":
+		print("Tactical feedback: %s at %s" % [reason, target])
+
+
+func _spawn_invalid_destination_pulse(pos: Vector3) -> void:
+	var pulse := MeshInstance3D.new()
+	pulse.name = "InvalidMovePulse"
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.55
+	torus.outer_radius = 0.70
+	torus.rings = 24
+	torus.ring_segments = 4
+	pulse.mesh = torus
+	var mat := StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = Color(1.0, 0.25, 0.2, 0.85)
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.25, 0.2)
+	mat.emission_energy_multiplier = 2.5
+	pulse.material_override = mat
+	pulse.position = pos + Vector3(0.0, 0.08, 0.0)
+	add_child(pulse)
+
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(pulse, "scale", Vector3(1.8, 1.0, 1.8), 0.28).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(mat, "albedo_color:a", 0.0, 0.28).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.chain().tween_callback(pulse.queue_free)
 
 
 func _clear_path_trail() -> void:

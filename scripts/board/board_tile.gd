@@ -5,6 +5,7 @@ var tile_type: String = "empty"
 var terrain: String = "plain"
 var sub_zone: String = ""
 var is_highlighted: bool = false
+var is_hovered: bool = false
 var is_revealed: bool = false
 var connections: Array = []
 
@@ -42,6 +43,9 @@ func _ready() -> void:
 
 	if not is_revealed:
 		_create_fog_mesh()
+
+	mouse_entered.connect(_on_mouse_entered)
+	mouse_exited.connect(_on_mouse_exited)
 
 	_update_visual()
 
@@ -1343,6 +1347,14 @@ func _build_unknown_signal_model(root: Node3D) -> void:
 
 func highlight(active: bool) -> void:
 	is_highlighted = active
+	var mesh_instance = get_node_or_null("MeshInstance3D")
+	if mesh_instance:
+		var mat = mesh_instance.get_surface_override_material(0)
+		if mat is ShaderMaterial:
+			mat.set_shader_parameter("highlight_intensity", 1.0 if is_highlighted else (0.45 if is_hovered else 0.0))
+			mat.set_shader_parameter("highlight_color", Color(0.25, 0.75, 1.0, 1.0) if is_highlighted else Color(0.35, 0.85, 1.0, 1.0))
+		mesh_instance.position.y = 0.02 if is_highlighted else (0.06 if is_hovered else 0.0)
+
 	if active:
 		_ensure_reachable_glow()
 		if _reachable_glow != null:
@@ -1469,11 +1481,16 @@ func _add_box(root: Node3D, size: Vector3, color: Color, y: float) -> void:
 
 
 func set_hover(hovered: bool) -> void:
+	is_hovered = hovered
 	var mesh_instance = get_node_or_null("MeshInstance3D")
-	if mesh_instance == null:
-		return
+	if mesh_instance:
+		var mat = mesh_instance.get_surface_override_material(0)
+		if mat is ShaderMaterial:
+			mat.set_shader_parameter("highlight_intensity", 1.0 if is_highlighted else (0.45 if is_hovered else 0.0))
+			mat.set_shader_parameter("highlight_color", Color(0.25, 0.75, 1.0, 1.0) if is_highlighted else Color(0.35, 0.85, 1.0, 1.0))
+		mesh_instance.position.y = 0.06 if is_hovered else (0.02 if is_highlighted else 0.0)
+
 	if hovered:
-		mesh_instance.position.y = 0.08
 		if not is_inside_tree():
 			return
 		var bm = get_tree().current_scene
@@ -1485,8 +1502,14 @@ func set_hover(hovered: bool) -> void:
 				var is_zoc := PatrolSystem.is_in_zone_of_control(grid_pos)
 				var is_artillery := not PatrolSystem.check_artillery_bombardment(grid_pos).is_empty()
 				hud.update_tile_inspector(terrain, mp_cost, e_cost, is_zoc, is_artillery)
-	else:
-		mesh_instance.position.y = 0.02 if is_highlighted else 0.0
+
+
+func _on_mouse_entered() -> void:
+	set_hover(true)
+
+
+func _on_mouse_exited() -> void:
+	set_hover(false)
 
 
 func _on_input_event(_camera: Node, event: InputEvent, _position: Vector3, _normal: Vector3, _shape_idx: int) -> void:

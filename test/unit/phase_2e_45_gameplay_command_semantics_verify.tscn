@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://phase2e45commandsemantics001"]
+
+[ext_resource type="Script" path="res://test/unit/phase_2e_45_gameplay_command_semantics_verify.gd" id="1_cmd_verify"]
+
+[node name="Phase2E45GameplayCommandSemanticsVerify" type="Node"]
+script = ExtResource("1_cmd_verify")

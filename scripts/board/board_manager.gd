@@ -642,7 +642,17 @@ func _try_step(target: Vector2i) -> bool:
 		step_costs["fuel"] *= 1.1   # Slight fuel increase from cautious driving
 		step_costs["energy"] *= 1.1
 
-	# Multi-tier energy resource check
+	# Multi-tier energy resource and MP pre-check before any state mutation
+	if GlobalData.board.board_mp < cost:
+		GlobalData.narrative.blocked_intermission = false
+		EventBus.event_triggered.emit({
+			"name": "NO MOVEMENT LEFT",
+			"effect": "none",
+			"amount": 0,
+			"desc": "You've run out of movement for today. End the day (End key) to push on.",
+		})
+		return false
+
 	if mode == "convoy":
 		var f_cost: float = float(step_costs["fuel"])
 		if GlobalData.fuel.convoy_fuel < f_cost:
@@ -679,16 +689,6 @@ func _try_step(target: Vector2i) -> bool:
 			})
 			return false
 		GlobalData.fuel.pilot_stamina = maxf(GlobalData.fuel.pilot_stamina - s_cost, 0.0)
-
-	if GlobalData.board.board_mp < cost:
-		GlobalData.narrative.blocked_intermission = false
-		EventBus.event_triggered.emit({
-			"name": "NO MOVEMENT LEFT",
-			"effect": "none",
-			"amount": 0,
-			"desc": "You've run out of movement for today. End the day (End key) to push on.",
-		})
-		return false
 
 	GlobalData.board.board_mp = maxi(GlobalData.board.board_mp - cost, 0)
 

@@ -73,8 +73,8 @@ func _test_human_scale_and_visuals() -> void:
 	_check(human_vis != null, "TacticalHumanVisual mesh instance spawned on pilot")
 	_check(_find_kit_skeleton(human_vis) != null, "pilot kit skeleton spawned inside TacticalHumanVisual")
 	var kit_player := _find_kit_player(human_vis)
-	_check(kit_player != null and kit_player.has_animation("pistol_idle"), "pilot kit idle clip present")
-	_check(kit_player != null and kit_player.is_playing() and kit_player.current_animation == "pistol_idle",
+	_check(kit_player != null and kit_player.has_animation("pistol_idle_loop"), "pilot kit idle clip present")
+	_check(kit_player != null and kit_player.is_playing() and kit_player.current_animation == "pistol_idle_loop",
 		"pilot kit idles by default")
 
 	pilot.queue_free()
@@ -110,7 +110,7 @@ func _test_magazine_and_reload_system() -> void:
 	# 4. Progress reload time
 	pilot._physics_process(pilot.get_reload_duration() + 0.1)
 	_check(not pilot.is_currently_reloading(), "Reload completes after duration expires")
-	_check(_kit_current_clip(pilot) == "pistol_idle", "kit returns to idle after reload")
+	_check(_kit_current_clip(pilot) == "pistol_idle_loop", "kit returns to idle after reload")
 	_check(pilot.get_current_magazine() == pilot.get_max_magazine(), "Magazine restored to full (%d)" % pilot.get_max_magazine())
 	_check(pilot.get_reserve_ammo() == init_reserve - 1, "Reserve ammo consumed exactly 1 round for reload")
 

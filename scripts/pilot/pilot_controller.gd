@@ -257,11 +257,11 @@ func _build_tactical_human_mesh() -> void:
 			if _kit_prop == null:
 				_kit_prop = kit.find_child("*Pistol*", true, false) as Node3D
 		if _kit_player != null:
-			_set_kit_loop("pistol_idle", true)
+			_set_kit_loop("pistol_idle_loop", true)
 			_set_kit_loop("pistol_reload", true)
 			if not _kit_player.animation_finished.is_connected(_on_kit_animation_finished):
 				_kit_player.animation_finished.connect(_on_kit_animation_finished)
-			_kit_player.play("pistol_idle")
+			_kit_player.play("pistol_idle_loop")
 			_update_kit_prop()
 			return
 	_build_legacy_tactical_mesh()
@@ -339,7 +339,16 @@ func _on_kit_animation_finished(anim_name: StringName) -> void:
 	if _kit_player == null:
 		return
 	if anim_name == &"pistol_shoot":
-		_play_kit_clip("pistol_idle", true)
+		_play_kit_clip("pistol_idle_loop", true)
+
+
+## Landing replay of the jump clip finished: settle back into the idle loop.
+func _on_jump_land_finished(anim_name: StringName) -> void:
+	if _kit_player == null:
+		return
+	if anim_name == &"pilot_jump" and not is_reloading:
+		_play_kit_clip("pistol_idle_loop", true)
+		_kit_player.speed_scale = 1.0
 
 
 func _is_pistol_equipped() -> bool:
@@ -637,26 +646,27 @@ func _update_aim_facing(delta: float) -> void:
 
 ## Nominal ground speed of each locomotion clip at speed_scale = 1:
 ## stride length (measured leg excursion) / cycle seconds (30 fps keys).
+## Authored ActionForge jogs (63-joint source data retargeted via IBM bind
+## geometry) replaced the procedural walk/run/strafe clips.
 const LOCO_NOMINAL := {
-	&"pilot_walk": 1.35,
-	&"pilot_run": 2.70,
-	&"pilot_strafe_bwd": 1.10,
-	&"pilot_strafe_l": 1.20,
-	&"pilot_strafe_r": 1.20,
+	&"jog_fwd_l_loop": 1.55,
+	&"sprint_enter": 3.20,
+	&"jog_bwd_loop": 1.25,
+	&"jog_left_loop": 1.35,
+	&"jog_right_loop": 1.35,
 }
 
 func _kit_locomotion_clip(input: Vector2) -> String:
 	if input.length() <= 0.1:
 		return ""
 	if _is_sprinting:
-		return "pilot_run"
-	# strafe clips while backpedaling or sidestepping (gun stays up in all);
-	# ordinary forward walk otherwise
+		return "sprint_enter"
+	# authored jogs: backpedal, sidesteps, forward
 	if input.y > 0.4:
-		return "pilot_strafe_bwd"
+		return "jog_bwd_loop"
 	if absf(input.x) > 0.4 and absf(input.x) > absf(input.y):
-		return "pilot_strafe_l" if input.x > 0.0 else "pilot_strafe_r"
-	return "pilot_walk"
+		return "jog_left_loop" if input.x > 0.0 else "jog_right_loop"
+	return "jog_fwd_l_loop"
 
 func _update_kit_locomotion(input: Vector2, delta: float) -> void:
 	if _kit_player == null or is_reloading:
@@ -666,7 +676,7 @@ func _update_kit_locomotion(input: Vector2, delta: float) -> void:
 	if want != "" and _kit_player.current_animation != StringName(want):
 		_play_kit_clip(want, true)
 	elif want == "" and (_kit_player.current_animation in LOCO_NOMINAL):
-		_play_kit_clip("pistol_idle", true)
+		_play_kit_clip("pistol_idle_loop", true)
 	if want != "" and _kit_player.is_playing():
 		var nominal: float = LOCO_NOMINAL.get(_kit_player.current_animation, 1.4)
 		var ground := velocity.length()
@@ -743,7 +753,7 @@ func _physics_process(delta: float) -> void:
 		velocity.y = jump_force
 		if _kit_player != null and _kit_player.has_animation("pilot_jump"):
 			_kit_player.speed_scale = 1.0
-			_play_kit_clip("pilot_jump", false)  # crouch -> tuck -> land, one shot
+			_play_kit_clip("pilot_jump", false)  # procedural crouch -> tuck -> land
 	velocity.y -= gravity * delta
 	var was_airborne := _airborne
 	_airborne = not is_on_floor()
@@ -755,6 +765,7 @@ func _physics_process(delta: float) -> void:
 			_kit_player.speed_scale = 1.6
 			_play_kit_clip("pilot_jump", false)
 			_kit_player.seek(0.66 * _kit_player.get_animation("pilot_jump").length, true)
+			_kit_player.animation_finished.connect(_on_jump_land_finished, CONNECT_ONE_SHOT)
 	_last_y_velocity = velocity.y
 
 	# Aim facing: while RMB ADS held, turn body to face camera yaw.
@@ -772,7 +783,7 @@ func _physics_process(delta: float) -> void:
 func _finish_reload() -> void:
 	is_reloading = false
 	reload_timer = 0.0
-	_play_kit_clip("pistol_idle", true)
+	_play_kit_clip("pistol_idle_loop", true)
 	if _weapons.is_empty():
 		return
 	var weapon: WeaponPart = _weapons[_weapon_index % _weapons.size()]

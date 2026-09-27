@@ -7,15 +7,15 @@ extends Node
 
 const KIT_PATH := "res://scenes/pilot/pilot_pistol_kit.glb"
 const SEQUENCE := [
-	["pistol_idle", 3.0, "IDLE: gun-ready stance + breathing sway"],
-	["pilot_walk", 4.0, "WALK: legs stride, hands keep the pistol grip"],
-	["pilot_run", 4.0, "RUN: wide strides + forward lean"],
-	["pilot_strafe_bwd", 3.0, "BACKPEDAL: backward stride, torso leans back"],
-	["pilot_strafe_l", 3.0, "SIDESTEP LEFT: crossing step, torso square to aim"],
-	["pilot_strafe_r", 3.0, "SIDESTEP RIGHT: crossing step, torso square to aim"],
-	["pilot_jump", 1.6, "JUMP: crouch -> extend -> tuck -> land"],
-	["pistol_reload", 2.0, "RELOAD: left hand reaches for the mag"],
-	["pistol_shoot", 1.2, "SHOOT: recoil kick"],
+	["pistol_idle_loop", 3.0, "IDLE (authored): gun-ready stance loop"],
+	["jog_fwd_l_loop", 3.0, "JOG FWD (authored): full-stride run"],
+	["jog_left_loop", 3.0, "JOG LEFT (authored): strafe run"],
+	["jog_right_loop", 3.0, "JOG RIGHT (authored): strafe run"],
+	["jog_bwd_loop", 3.0, "JOG BACK (authored): backpedal"],
+	["sprint_enter", 2.0, "SPRINT ENTER (authored): acceleration"],
+	["pilot_jump", 1.6, "JUMP (procedural): crouch -> tuck -> land"],
+	["pistol_reload", 2.0, "RELOAD (authored): left hand reaches the mag"],
+	["pistol_shoot", 1.2, "SHOOT (authored): recoil kick"],
 ]
 
 var _player: AnimationPlayer

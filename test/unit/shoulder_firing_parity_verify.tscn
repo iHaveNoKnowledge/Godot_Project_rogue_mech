@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://shoulder_firing_parity_verify_01"]
+
+[ext_resource type="Script" path="res://test/unit/shoulder_firing_parity_verify.gd" id="1_parity"]
+
+[node name="ShoulderFiringParityVerify" type="Node"]
+script = ExtResource("1_parity")

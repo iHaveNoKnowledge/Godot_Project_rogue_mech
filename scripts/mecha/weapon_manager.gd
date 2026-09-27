@@ -62,14 +62,20 @@ var holding_left: bool = false
 var holding_right: bool = false
 var fire_left_holding: bool = false
 var fire_right_holding: bool = false
+var fire_shoulder_left_holding: bool = false
+var fire_shoulder_right_holding: bool = false
 var holding_reload: bool = false
 var reloading_left: bool = false
 var reloading_right: bool = false
+var reloading_shoulder_left: bool = false
+var reloading_shoulder_right: bool = false
 var _hold_time_left: float = 0.0
 var _hold_time_right: float = 0.0
-# Per-hand trigger discipline (AUTO/SEMI/BURST from the gun's own data).
+# Per-slot trigger discipline (AUTO/SEMI/BURST from the gun's own data).
 var trigger_left := TriggerState.new()
 var trigger_right := TriggerState.new()
+var trigger_shoulder_left := TriggerState.new()
+var trigger_shoulder_right := TriggerState.new()
 
 # --- Shield State ---
 # Shields are PHYSICAL plates held on one arm (no energy barrier, no
@@ -320,13 +326,56 @@ func _register_damage_mult(ref) -> void:
 	_damage_mult_by_name[str(res.weapon_name)] = 1.0 + 0.10 * float(maxi(upg - 1, 0))
 
 
-# Damage multiplier for the weapon currently held in a hand (1.0 when unarmed
+# Damage multiplier for the weapon in a slot (1.0 when unarmed
 # or the model has no upgrade bonus).
-func _hand_damage_mult(hand: String) -> float:
-	var weapon := left_hand if hand == "left" else right_hand
+func _slot_damage_mult(slot: String) -> float:
+	var weapon := _get_weapon_for_slot(slot)
 	if weapon == null:
 		return 1.0
 	return float(_damage_mult_by_name.get(weapon.weapon_name, 1.0))
+
+
+func _hand_damage_mult(hand: String) -> float:
+	return _slot_damage_mult(hand)
+
+
+func _get_weapon_for_slot(slot: String) -> WeaponPart:
+	match slot:
+		"left": return left_hand
+		"right": return right_hand
+		"shoulder_left", "left_shoulder": return shoulder_left
+		"shoulder_right", "right_shoulder": return shoulder_right
+		_: return null
+
+
+func _get_trigger(slot: String) -> TriggerState:
+	match slot:
+		"left": return trigger_left
+		"right": return trigger_right
+		"shoulder_left", "left_shoulder": return trigger_shoulder_left
+		"shoulder_right", "right_shoulder": return trigger_shoulder_right
+		_: return trigger_left
+
+
+func _is_shoulder_slot(slot: String) -> bool:
+	return slot == "shoulder_left" or slot == "shoulder_right" or slot == "left_shoulder" or slot == "right_shoulder"
+
+
+func _is_reloading(slot: String) -> bool:
+	match slot:
+		"left": return reloading_left
+		"right": return reloading_right
+		"shoulder_left", "left_shoulder": return reloading_shoulder_left
+		"shoulder_right", "right_shoulder": return reloading_shoulder_right
+		_: return false
+
+
+func _set_reloading(slot: String, val: bool) -> void:
+	match slot:
+		"left": reloading_left = val
+		"right": reloading_right = val
+		"shoulder_left", "left_shoulder": reloading_shoulder_left = val
+		"shoulder_right", "right_shoulder": reloading_shoulder_right = val
 
 
 func get_battle_reserve(ammo_type: String) -> int:
@@ -487,18 +536,32 @@ func _physics_process(delta: float) -> void:
 			trigger_right.release()
 		else:
 			_hold_fire("right", right_hand)
+	if fire_shoulder_left_holding:
+		var q_down: bool = Input.is_action_pressed("shoulder_left") or Input.is_key_pressed(KEY_Q)
+		if not q_down:
+			fire_shoulder_left_holding = false
+			trigger_shoulder_left.release()
+		else:
+			_hold_fire("shoulder_left", shoulder_left)
+	if fire_shoulder_right_holding:
+		var e_down: bool = Input.is_action_pressed("shoulder_right") or Input.is_key_pressed(KEY_E)
+		if not e_down:
+			fire_shoulder_right_holding = false
+			trigger_shoulder_right.release()
+		else:
+			_hold_fire("shoulder_right", shoulder_right)
 
 	# Physical shield plates never regenerate — a damaged plate stays damaged.
 
 
-## One held-frame of trigger discipline for a hand: AUTO sprays, SEMI stays
+## One held-frame of trigger discipline for a slot: AUTO sprays, SEMI stays
 ## silent until the next press, BURST spends its remaining pull. Only shots
 ## that consumed ammo count down a burst.
-func _hold_fire(hand: String, weapon: WeaponPart) -> void:
-	var trig := trigger_left if hand == "left" else trigger_right
+func _hold_fire(slot: String, weapon: WeaponPart) -> void:
+	var trig := _get_trigger(slot)
 	if weapon == null:
 		trig.sync(null)
-		_try_fire(hand, null)
+		_try_fire(slot, null)
 		return
 	if weapon.weapon_type == WeaponPart.WeaponType.SHIELD:
 		return
@@ -506,23 +569,23 @@ func _hold_fire(hand: String, weapon: WeaponPart) -> void:
 	if not trig.allow_hold_shot():
 		return
 	var before := _get_ammo(weapon)
-	_try_fire(hand, weapon)
+	_try_fire(slot, weapon)
 	if _get_ammo(weapon) < before:
 		trig.on_hold_shot_fired()
 
 
 ## Ammo-diff wrapper for the commit-press immediate shot: arms the trigger
 ## (BURST loads its count) and counts the press shot when it consumed ammo.
-func _commit_fire(hand: String, weapon: WeaponPart) -> void:
-	var trig := trigger_left if hand == "left" else trigger_right
+func _commit_fire(slot: String, weapon: WeaponPart) -> void:
+	var trig := _get_trigger(slot)
 	if weapon == null:
 		trig.sync(null)
-		_try_fire(hand, null)
+		_try_fire(slot, null)
 		return
 	trig.sync(weapon)
 	trig.press()
 	var before := _get_ammo(weapon)
-	_try_fire(hand, weapon)
+	_try_fire(slot, weapon)
 	if _get_ammo(weapon) < before:
 		trig.on_hold_shot_fired()
 
@@ -715,65 +778,69 @@ func _input(event: InputEvent) -> void:
 
 	if q_pressed:
 		if not _is_close_combat_mode():
-			if _is_missile_weapon(shoulder_left):
+			if holding_reload or Input.is_action_pressed("reload"):
+				reload_weapon("shoulder_left")
+			elif _is_missile_weapon(shoulder_left):
 				var core = _core_for_weapon(shoulder_left)
 				var ammo_cnt: int = core.ammo if core else (shoulder_left.max_ammo if shoulder_left else 0)
 				if missile_lock_system:
 					missile_lock_system.start_locking("shoulder_left", shoulder_left, ammo_cnt)
 			else:
-				_try_fire_shoulder("left")
+				fire_shoulder_left_holding = true
+				_commit_fire("shoulder_left", shoulder_left)
 	if q_released:
+		fire_shoulder_left_holding = false
+		trigger_shoulder_left.release()
 		if _is_missile_weapon(shoulder_left):
 			_handle_missile_release("shoulder_left")
 
 	if e_pressed:
-		if _is_missile_weapon(shoulder_right):
+		if holding_reload or Input.is_action_pressed("reload"):
+			reload_weapon("shoulder_right")
+		elif _is_missile_weapon(shoulder_right):
 			var core = _core_for_weapon(shoulder_right)
 			var ammo_cnt: int = core.ammo if core else (shoulder_right.max_ammo if shoulder_right else 0)
 			if missile_lock_system:
 				missile_lock_system.start_locking("shoulder_right", shoulder_right, ammo_cnt)
 		else:
-			_try_fire_shoulder("right")
+			fire_shoulder_right_holding = true
+			_commit_fire("shoulder_right", shoulder_right)
 	if e_released:
+		fire_shoulder_right_holding = false
+		trigger_shoulder_right.release()
 		if _is_missile_weapon(shoulder_right):
 			_handle_missile_release("shoulder_right")
 
 
-func reload_weapon(hand: String) -> void:
-	var is_left = (hand == "left")
-	if is_left and reloading_left:
-		return
-	if not is_left and reloading_right:
+func reload_weapon(slot: String) -> void:
+	if _is_reloading(slot):
 		return
 
-	var weapon: WeaponPart = left_hand if is_left else right_hand
+	var weapon: WeaponPart = _get_weapon_for_slot(slot)
 	if weapon == null:
-		reload_failed.emit(hand, "NO WEAPON")
+		_emit_reload_failed(slot, "NO WEAPON")
 		return
 
 	var ammo_type = weapon.get_ammo_type()
 	if ammo_type == "none":
-		reload_failed.emit(hand, "NO AMMO TYPE")
+		_emit_reload_failed(slot, "NO AMMO TYPE")
 		return
 
 	var current_mag = _get_ammo(weapon)
 	var needed = weapon.max_ammo - current_mag
 	if needed <= 0:
-		reload_failed.emit(hand, "FULL")
-		_spawn_jam_effect(hand)
+		_emit_reload_failed(slot, "FULL")
+		_spawn_jam_effect(slot)
 		return
 
 	var reserve = get_battle_reserve(ammo_type)
 	if reserve <= 0:
-		reload_failed.emit(hand, "NO RESERVE")
-		_spawn_jam_effect(hand)
+		_emit_reload_failed(slot, "NO RESERVE")
+		_spawn_jam_effect(slot)
 		return
 
 	var reload_amount = mini(needed, reserve)
-	if is_left:
-		reloading_left = true
-	else:
-		reloading_right = true
+	_set_reloading(slot, true)
 
 	var reload_time = weapon.reload_time
 	var steps = int(reload_time * 10)
@@ -786,24 +853,17 @@ func reload_weapon(hand: String) -> void:
 		if not is_instance_valid(self):
 			return
 		# Abort reload if the weapon was swapped or dropped mid-reload.
-		var current_w = left_hand if is_left else right_hand
+		var current_w = _get_weapon_for_slot(slot)
 		if current_w != weapon:
-			if is_left:
-				reloading_left = false
-			else:
-				reloading_right = false
+			_set_reloading(slot, false)
 			return
 		var pct = float(i + 1) / float(steps)
 		var partial = int(current_mag + reload_amount * pct)
-		reload_progress.emit(hand, "%d" % partial, reserve, pct)
+		_emit_reload_progress(slot, "%d" % partial, reserve, pct)
 
 	var refilled = consume_battle_reserve(ammo_type, reload_amount)
 	_set_ammo(weapon, current_mag + refilled)
-
-	if is_left:
-		reloading_left = false
-	else:
-		reloading_right = false
+	_set_reloading(slot, false)
 
 	# Play weapon-specific reload sound if available, otherwise default
 	if weapon.sfx_reload and weapon.sfx_reload != "":
@@ -811,22 +871,58 @@ func reload_weapon(hand: String) -> void:
 	else:
 		AudioManager.play_reload_complete()
 
-	ammo_changed.emit(hand, _get_ammo(weapon), weapon.max_ammo)
+	_emit_ammo_changed(slot, _get_ammo(weapon), weapon.max_ammo)
 	EffectManager.spawn_damage_number(global_position + Vector3(0, 2.5, 0), refilled, Color(0.2, 1.0, 0.4))
+
+
+func _emit_ammo_changed(slot: String, current: int, max_ammo: int) -> void:
+	if slot == "left" or slot == "right":
+		ammo_changed.emit(slot, current, max_ammo)
+	elif slot == "shoulder_left" or slot == "left_shoulder":
+		shoulder_ammo_changed.emit("left", current, max_ammo)
+	elif slot == "shoulder_right" or slot == "right_shoulder":
+		shoulder_ammo_changed.emit("right", current, max_ammo)
+
+
+func _emit_reload_progress(slot: String, partial_text: String, reserve_ammo: int, percent: float) -> void:
+	var hand := "left" if (slot == "left" or slot == "shoulder_left" or slot == "left_shoulder") else "right"
+	reload_progress.emit(slot, partial_text, reserve_ammo, percent)
+	if slot != hand:
+		reload_progress.emit(hand, partial_text, reserve_ammo, percent)
+
+
+func _emit_reload_failed(slot: String, reason: String) -> void:
+	var hand := "left" if (slot == "left" or slot == "shoulder_left" or slot == "left_shoulder") else "right"
+	reload_failed.emit(slot, reason)
+	if slot != hand:
+		reload_failed.emit(hand, reason)
 
 
 # Spawns a small spark + smoke burst at the weapon barrel when reload fails.
 # Anchored at the mounted model's Muzzle marker when available (mirrors the
-# fire path), falling back to the legacy hand mount offset.
-func _spawn_jam_effect(hand: String) -> void:
+# fire path), falling back to the mount offset.
+func _spawn_jam_effect(slot: String) -> void:
 	var mecha = get_parent()
 	if mecha == null:
 		return
-	var jam_pos := _get_muzzle_world_pos(hand)
+	var jam_pos := get_muzzle_world_pos(slot)
 	if jam_pos == Vector3.INF:
-		var offset := Vector3(-0.6, 1.5, 0.5) if hand == "left" else Vector3(0.6, 1.5, 0.5)
-		jam_pos = mecha.global_position + mecha.global_transform.basis * offset + Vector3(0, 0.3, 0)
+		if _is_shoulder_slot(slot):
+			var side := "left" if (slot == "shoulder_left" or slot == "left_shoulder") else "right"
+			jam_pos = mecha.global_position + mecha.global_transform.basis * WeaponVisualFactory.shoulder_mount_position(side)
+		else:
+			var offset := Vector3(-0.6, 1.5, 0.5) if slot == "left" else Vector3(0.6, 1.5, 0.5)
+			jam_pos = mecha.global_position + mecha.global_transform.basis * offset + Vector3(0, 0.3, 0)
 	EffectManager.spawn_jam_sparks(jam_pos)
+
+
+func get_muzzle_world_pos(slot: String) -> Vector3:
+	if slot == "left" or slot == "right":
+		return _get_muzzle_world_pos(slot)
+	elif slot == "shoulder_left" or slot == "shoulder_right" or slot == "left_shoulder" or slot == "right_shoulder":
+		var side := "left" if (slot == "shoulder_left" or slot == "left_shoulder") else "right"
+		return _get_shoulder_muzzle_world_pos(side)
+	return Vector3.INF
 
 
 # World-space position of the weapon model's barrel-tip Muzzle marker for a
@@ -1209,21 +1305,26 @@ func _hand_usable(hand: String) -> bool:
 		return true
 	return not hs.is_part_destroyed("arm_left" if hand == "left" else "arm_right")
 
-func _try_fire(hand: String, weapon: WeaponPart) -> void:
-	# A destroyed arm frame cannot hold or fire anything on that hand — not the
-	# weapon and not even a bare-fist punch (the arm is gone).
-	if not _hand_usable(hand):
-		return
-	if weapon == null:
-		# Empty hand: fall back to a bare-fist punch (unarmed melee). It obeys
-		# the shared cooldown core so punches can't exceed the fist cadence.
-		var fist := _fist()
-		var fist_core := _core_for_weapon(fist)
-		if fist_core == null or not fist_core.consume_shot():
+func _try_fire(slot: String, weapon: WeaponPart) -> void:
+	if not _is_shoulder_slot(slot):
+		# A destroyed arm frame cannot hold or fire anything on that hand — not the
+		# weapon and not even a bare-fist punch (the arm is gone).
+		if not _hand_usable(slot):
 			return
-		_melee_attack(hand, fist)
-		return
-	if (hand == "left" and reloading_left) or (hand == "right" and reloading_right):
+		if weapon == null:
+			# Empty hand: fall back to a bare-fist punch (unarmed melee). It obeys
+			# the shared cooldown core so punches can't exceed the fist cadence.
+			var fist := _fist()
+			var fist_core := _core_for_weapon(fist)
+			if fist_core == null or not fist_core.consume_shot():
+				return
+			_melee_attack(slot, fist)
+			return
+	else:
+		if weapon == null:
+			return
+
+	if _is_reloading(slot):
 		return
 	if weapon.weapon_type == WeaponPart.WeaponType.SHIELD:
 		return
@@ -1235,14 +1336,15 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 	# Advanced Special Weapon Capability (Phase 2E-6)
 	if weapon.has_special_capability():
 		var mecha_node = get_parent() as Node3D
+		var frame_slot := "torso" if _is_shoulder_slot(slot) else ("arm_" + slot)
 		var user_ctx: Dictionary = {
-			"frame_data": FrameSystem.get_equipped_frame("arm_" + hand) if FrameSystem else {},
+			"frame_data": FrameSystem.get_equipped_frame(frame_slot) if FrameSystem else {},
 			"installed_bridges": [],
 			"current_energy": mecha_node.energy if (mecha_node and "energy" in mecha_node) else 100.0,
 			"energy_system": mecha_node.energy_system if (mecha_node and "energy_system" in mecha_node) else null,
 			"cooldown_remaining": core.cooldown,
 			"core": core,
-			"origin": _get_muzzle_world_pos(hand) if _get_muzzle_world_pos(hand) != Vector3.INF else (mecha_node.global_position if mecha_node else Vector3.ZERO)
+			"origin": get_muzzle_world_pos(slot) if get_muzzle_world_pos(slot) != Vector3.INF else (mecha_node.global_position if mecha_node else Vector3.ZERO)
 		}
 		var special_res := SpecialWeaponSystem.activate_special_weapon(weapon, mecha_node, user_ctx)
 		if special_res.get("success", false):
@@ -1260,52 +1362,57 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 			var ammo_val := _get_ammo(weapon)
 			if ammo_val > 0 and core.can_fire():
 				if core.consume_shot():
-					_melee_attack(hand, weapon, true)
+					_melee_attack(slot, weapon, true)
 				return
 			elif core.cooldown <= 0.0:
 				core.cooldown = 0.45 # Fast combo hammer cadence when empty/reloading
-				_melee_attack(hand, weapon, false)
+				_melee_attack(slot, weapon, false)
 				return
 			return
 		if core.consume_shot():
-			_melee_attack(hand, weapon, true)
+			_melee_attack(slot, weapon, true)
 		return
 
 	var mecha = get_parent()
 	if mecha == null:
 		return
-	var cam = get_viewport().get_camera_3d()
-	if cam == null:
-		return
+	var cam = get_viewport().get_camera_3d() if get_viewport() else null
 
 	# Align mech facing immediately towards camera aim direction so the mech faces
 	# where it shoots, even if backpedaling or moving in another direction.
-	var cam_fwd = -cam.global_transform.basis.z
-	cam_fwd.y = 0.0
-	if cam_fwd.length() > 0.01:
-		mecha.rotation.y = atan2(-cam_fwd.x, -cam_fwd.z)
+	if cam != null:
+		var cam_fwd = -cam.global_transform.basis.z
+		cam_fwd.y = 0.0
+		if cam_fwd.length() > 0.01:
+			mecha.rotation.y = atan2(-cam_fwd.x, -cam_fwd.z)
 
-	var offset = Vector3(-0.65, 1.4, -1.1) if hand == "left" else Vector3(0.65, 1.4, -1.1)
-	# Fire from the mounted weapon model's actual barrel tip (per-model Muzzle
-	# marker); the legacy hip offset is only a fallback when nothing is mounted.
-	var spawn_pos = _get_muzzle_world_pos(hand)
+	var spawn_pos = get_muzzle_world_pos(slot)
 	if spawn_pos == Vector3.INF:
-		spawn_pos = mecha.global_position + mecha.global_transform.basis * offset
+		if _is_shoulder_slot(slot):
+			var side := "left" if (slot == "shoulder_left" or slot == "left") else "right"
+			spawn_pos = mecha.global_position + mecha.global_transform.basis * WeaponVisualFactory.shoulder_mount_position(side)
+		else:
+			var offset = Vector3(-0.65, 1.4, -1.1) if slot == "left" else Vector3(0.65, 1.4, -1.1)
+			spawn_pos = mecha.global_position + mecha.global_transform.basis * offset
 
-	var viewport_size = get_viewport().get_visible_rect().size
-	var center = viewport_size / 2.0
-	var ray_origin = cam.project_ray_origin(center)
-	var ray_dir = cam.project_ray_normal(center)
-
-	var target_point: Vector3 = ray_origin + ray_dir * 500.0
-	var vp := get_viewport()
-	if vp and vp.get_world_3d() and vp.get_world_3d().direct_space_state:
-		var space_state := vp.get_world_3d().direct_space_state
-		var query := PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 500.0)
-		query.collision_mask = 1 | 2 | 4 | 8 # Ground (1), solid obstacles/buildings (2), hitboxes (4), enemies (8)
-		var result := space_state.intersect_ray(query)
-		if result:
-			target_point = result["position"]
+	var target_point: Vector3
+	if cam != null and get_viewport():
+		var viewport_size = get_viewport().get_visible_rect().size
+		var center = viewport_size / 2.0
+		var ray_origin = cam.project_ray_origin(center)
+		var ray_dir = cam.project_ray_normal(center)
+		target_point = ray_origin + ray_dir * 500.0
+		var vp := get_viewport()
+		if vp and vp.get_world_3d() and vp.get_world_3d().direct_space_state:
+			var space_state := vp.get_world_3d().direct_space_state
+			var query := PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 500.0)
+			query.collision_mask = 1 | 2 | 4 | 8 # Ground (1), solid obstacles/buildings (2), hitboxes (4), enemies (8)
+			var result := space_state.intersect_ray(query)
+			if result:
+				target_point = result["position"]
+	else:
+		var fwd = -mecha.global_transform.basis.z.normalized()
+		target_point = spawn_pos + fwd * 500.0
 
 	# Precise crosshair convergence: trajectory points directly from the weapon muzzle
 	# to the exact 3D world collision point targeted by the crosshair center.
@@ -1313,25 +1420,25 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 
 	# Fire through the shared core: it consumes cooldown/ammo/heat and spawns the
 	# projectile (bullet/missile/shotgun visuals handled by weapon_type). The
-	# core applies this hand's upgrade multiplier to the projectile damage.
-	core.damage_multiplier = _hand_damage_mult(hand)
+	# core applies this slot's upgrade multiplier to the projectile damage.
+	core.damage_multiplier = _slot_damage_mult(slot)
 	if core.try_fire(spawn_pos, aim_dir, false, mecha):
 		_apply_recoil(weapon)
 		AudioManager.play_weapon_sfx_with_override(weapon, spawn_pos)
 		# Brass only for kinetic firearms — energy bolts and missiles eject nothing.
 		if weapon.ejects_shell_casing():
-			_spawn_shell_casing(spawn_pos, hand)
+			_spawn_shell_casing(spawn_pos, slot)
 
 		# Trigger 3D Action Animations (Shoot recoil or Shoulder launch)
 		var anim = mecha.get_node_or_null("MechaAnimation")
 		if anim == null:
 			anim = mecha.get_node_or_null("AnimationSystem")
 		if anim and anim.get("action_animator") != null:
-			if weapon.weapon_type == WeaponPart.WeaponType.MISSILE:
+			if weapon.weapon_type == WeaponPart.WeaponType.MISSILE or _is_shoulder_slot(slot):
 				anim.action_animator.play_shoulder_shoot()
 			else:
 				var is_heavy: bool = weapon.damage >= 55.0 or weapon.weapon_name.to_lower().contains("cannon") or weapon.weapon_name.to_lower().contains("heavy") or weapon.weapon_name.to_lower().contains("sniper")
-				anim.action_animator.play_shoot(hand, is_heavy)
+				anim.action_animator.play_shoot(slot, is_heavy)
 		
 		# Durability wear: firing wears weapon lifespan; firing at high heat accelerates wear.
 		# Scaled with fire_rate so high-RPM weapons wear proportionately per minute with heavy single-shot weapons.
@@ -1339,97 +1446,14 @@ func _try_fire(hand: String, weapon: WeaponPart) -> void:
 		var wear: float = 0.00004 * rate_scale
 		if core.heat > (core.max_heat * 0.75):
 			wear += 0.00015 * rate_scale
-		GlobalData.degrade_weapon_durability(hand, wear)
+		GlobalData.degrade_weapon_durability(slot, wear)
+		_emit_ammo_changed(slot, core.ammo, weapon.max_ammo)
 
 
 func _try_fire_shoulder(side: String) -> void:
-	var weapon: WeaponPart = shoulder_left if side == "left" else shoulder_right
-	if weapon == null:
-		return
-
-	var core := _core_for_weapon(weapon)
-	if core == null or not core.can_fire():
-		return
-
-	# Advanced Special Weapon Capability (Phase 2E-6)
-	if weapon.has_special_capability():
-		var mecha_node = get_parent() as Node3D
-		var user_ctx: Dictionary = {
-			"frame_data": FrameSystem.get_equipped_frame("torso") if FrameSystem else {},
-			"installed_bridges": [],
-			"current_energy": mecha_node.energy if (mecha_node and "energy" in mecha_node) else 100.0,
-			"energy_system": mecha_node.energy_system if (mecha_node and "energy_system" in mecha_node) else null,
-			"cooldown_remaining": core.cooldown,
-			"core": core,
-			"origin": _get_shoulder_muzzle_world_pos(side) if _get_shoulder_muzzle_world_pos(side) != Vector3.INF else (mecha_node.global_position if mecha_node else Vector3.ZERO)
-		}
-		var special_res := SpecialWeaponSystem.activate_special_weapon(weapon, mecha_node, user_ctx)
-		if special_res.get("success", false):
-			if bool(special_res.get("is_charging", false)) and special_res.get("timing_session") != null:
-				_active_timing_sessions.append(special_res["timing_session"])
-			_apply_recoil(weapon)
-			AudioManager.play_weapon_sfx_with_override(weapon, user_ctx["origin"])
-		return
-
-	# Handle ammo consumption from battle_reserve if needed
-	var ammo_type: String = weapon.get_ammo_type()
-	if ammo_type != "none":
-		if core.ammo <= 0:
-			# Auto-replenish from battle_reserve if available
-			var needed := weapon.max_ammo
-			var available := consume_battle_reserve(ammo_type, needed)
-			if available > 0:
-				core.ammo = available
-			else:
-				reload_failed.emit(side, "OUT OF AMMO")
-				return
-
-	var mecha = get_parent() as Node3D
-	if mecha == null:
-		return
-	var cam = get_viewport().get_camera_3d()
-	if cam == null:
-		return
-
-	# Determine spawn position
-	var spawn_pos := _get_shoulder_muzzle_world_pos(side)
-	if spawn_pos == Vector3.INF:
-		var off: Vector3 = WeaponVisualFactory.shoulder_mount_position(side)
-		spawn_pos = mecha.global_position + mecha.global_transform.basis * off
-
-	var viewport_size = get_viewport().get_visible_rect().size
-	var center = viewport_size / 2.0
-	var ray_origin = cam.project_ray_origin(center)
-	var ray_dir = cam.project_ray_normal(center)
-
-	var target_point: Vector3 = ray_origin + ray_dir * 500.0
-	var vp := get_viewport()
-	if vp and vp.get_world_3d() and vp.get_world_3d().direct_space_state:
-		var space_state := vp.get_world_3d().direct_space_state
-		var query := PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 500.0)
-		query.collision_mask = 1 | 2 | 4 | 8
-		var result := space_state.intersect_ray(query)
-		if result:
-			target_point = result["position"]
-
-	var aim_dir: Vector3 = (target_point - spawn_pos).normalized()
-	core.damage_multiplier = float(_damage_mult_by_name.get(weapon.weapon_name, 1.0))
-
-	if core.try_fire(spawn_pos, aim_dir, false, mecha):
-		AudioManager.play_weapon_sfx_with_override(weapon, spawn_pos)
-		var anim = mecha.get_node_or_null("MechaAnimation")
-		if anim == null:
-			anim = mecha.get_node_or_null("AnimationSystem")
-		if anim and anim.get("action_animator") != null:
-			anim.action_animator.play_shoulder_shoot()
-
-		# Wear
-		var rate_scale: float = clampf(float(weapon.fire_rate) / 0.2, 0.25, 2.0) if ("fire_rate" in weapon and weapon.fire_rate > 0.0) else 1.0
-		var wear: float = 0.00004 * rate_scale
-		if core.heat > (core.max_heat * 0.75):
-			wear += 0.00015 * rate_scale
-		GlobalData.degrade_weapon_durability("shoulder_" + side, wear)
-		shoulder_ammo_changed.emit(side, core.ammo, weapon.max_ammo)
+	var slot := "shoulder_" + side if not side.begins_with("shoulder") else side
+	var weapon := _get_weapon_for_slot(slot)
+	_commit_fire(slot, weapon)
 
 
 func _is_missile_weapon(weapon: WeaponPart) -> bool:
@@ -2186,13 +2210,14 @@ func _active_shield_weapon() -> WeaponPart:
 # SHELL EJECTION
 # ====================================================================
 
-func _spawn_shell_casing(spawn_pos: Vector3, hand: String) -> void:
+func _spawn_shell_casing(spawn_pos: Vector3, slot: String) -> void:
 	var mecha = get_parent() as Node3D
 	if mecha == null or not mecha.is_inside_tree() or get_tree().current_scene == null:
 		return
 
 	# Realistic ejection: right + up + slight forward/back, with mech velocity influence
-	var side: float = -1.0 if hand == "left" else 1.0
+	var is_left: bool = (slot == "left" or slot == "shoulder_left" or slot == "left_shoulder")
+	var side: float = -1.0 if is_left else 1.0
 	var basis: Basis = mecha.global_transform.basis
 	var right: Vector3 = basis.x * side
 	var up: Vector3 = basis.y

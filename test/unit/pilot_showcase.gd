@@ -10,6 +10,10 @@ const SEQUENCE := [
 	["pistol_idle", 3.0, "IDLE: gun-ready stance + breathing sway"],
 	["pilot_walk", 4.0, "WALK: legs stride, hands keep the pistol grip"],
 	["pilot_run", 4.0, "RUN: wide strides + forward lean"],
+	["pilot_strafe_bwd", 3.0, "BACKPEDAL: backward stride, torso leans back"],
+	["pilot_strafe_l", 3.0, "SIDESTEP LEFT: crossing step, torso square to aim"],
+	["pilot_strafe_r", 3.0, "SIDESTEP RIGHT: crossing step, torso square to aim"],
+	["pilot_jump", 1.6, "JUMP: crouch -> extend -> tuck -> land"],
 	["pistol_reload", 2.0, "RELOAD: left hand reaches for the mag"],
 	["pistol_shoot", 1.2, "SHOOT: recoil kick"],
 ]
@@ -93,7 +97,7 @@ func _next() -> void:
 	_t = 0.0
 	var clip: String = SEQUENCE[_idx][0]
 	var a: Animation = _player.get_animation(clip)
-	a.loop_mode = Animation.LOOP_LINEAR
+	a.loop_mode = Animation.LOOP_LINEAR if clip != "pilot_jump" else Animation.LOOP_NONE
 	_player.play(clip)
 
 

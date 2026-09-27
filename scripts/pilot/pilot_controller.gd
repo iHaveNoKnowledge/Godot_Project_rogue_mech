@@ -36,6 +36,9 @@ const KIT_MODEL_HEIGHT := 1.7
 var _kit_player: AnimationPlayer = null
 var _kit_prop: Node3D = null
 var _kit_root: Node3D = null
+var _airborne := false
+var _last_y_velocity := 0.0
+var _jump_pending := false
 
 # TPS Magazine & Reload System
 var current_magazine: int = 0
@@ -627,23 +630,53 @@ func _update_aim_facing(delta: float) -> void:
 	rotation.y = lerp_angle(rotation.y, target, 1.0 - exp(-10.0 * delta))
 
 
-## Locomotion clips for the kit: walk/run while keeping the two-hand
-## gun-ready pose (arms come from the same procedural generator as idle).
+## Locomotion clips for the kit: direction-aware (walk/run/backpedal/
+## sidestep) while keeping the two-hand gun-ready pose. Feet are synced to
+## ground speed via speed_scale (stride cadence matches real travel).
 ## No-op when the kit is absent (legacy placeholder mesh).
-func _update_kit_locomotion(moving: bool, sprinting: bool) -> void:
+
+## Nominal ground speed of each locomotion clip at speed_scale = 1:
+## stride length (measured leg excursion) / cycle seconds (30 fps keys).
+const LOCO_NOMINAL := {
+	&"pilot_walk": 1.35,
+	&"pilot_run": 2.70,
+	&"pilot_strafe_bwd": 1.10,
+	&"pilot_strafe_l": 1.20,
+	&"pilot_strafe_r": 1.20,
+}
+
+func _kit_locomotion_clip(input: Vector2) -> String:
+	if input.length() <= 0.1:
+		return ""
+	if _is_sprinting:
+		return "pilot_run"
+	# strafe clips while backpedaling or sidestepping (gun stays up in all);
+	# ordinary forward walk otherwise
+	if input.y > 0.4:
+		return "pilot_strafe_bwd"
+	if absf(input.x) > 0.4 and absf(input.x) > absf(input.y):
+		return "pilot_strafe_l" if input.x > 0.0 else "pilot_strafe_r"
+	return "pilot_walk"
+
+func _update_kit_locomotion(input: Vector2, delta: float) -> void:
 	if _kit_player == null or is_reloading:
 		return
-	var want := ""
-	if moving:
-		want = "pilot_run" if sprinting else "pilot_walk"
-	if want == "" and _kit_player.current_animation != "pistol_idle" \
-			and _kit_player.current_animation_position >= 0.0:
-		if not _kit_player.is_playing() or _kit_player.current_animation == &"pilot_walk" \
-				or _kit_player.current_animation == &"pilot_run":
-			_play_kit_clip("pistol_idle", true)
-		return
+	var moving := input.length() > 0.1
+	var want := _kit_locomotion_clip(input)
 	if want != "" and _kit_player.current_animation != StringName(want):
 		_play_kit_clip(want, true)
+	elif want == "" and (_kit_player.current_animation in LOCO_NOMINAL):
+		_play_kit_clip("pistol_idle", true)
+	if want != "" and _kit_player.is_playing():
+		var nominal: float = LOCO_NOMINAL.get(_kit_player.current_animation, 1.4)
+		var ground := velocity.length()
+		if _kit_player.current_animation == &"pilot_jump":
+			pass  # one-shot jump plays at its own pace
+		elif is_on_floor() and ground > 0.3:
+			_kit_player.speed_scale = clampf(ground / nominal, 0.5, 2.5)
+		elif not is_on_floor():
+			_kit_player.speed_scale = 0.0  # freeze stride while airborne
+	return
 
 
 func _melee_swing(weapon: WeaponPart) -> void:
@@ -696,7 +729,7 @@ func _physics_process(delta: float) -> void:
 
 	var wants_sprint := Input.is_action_pressed("strafe") and input.length() > 0.1
 	_is_sprinting = wants_sprint and stamina > 0.0
-	_update_kit_locomotion(input.length() > 0.1, _is_sprinting)
+	_update_kit_locomotion(input, delta)
 	if _is_sprinting:
 		stamina = maxf(stamina - sprint_drain * delta, 0.0)
 	else:
@@ -708,8 +741,21 @@ func _physics_process(delta: float) -> void:
 	velocity.z = velocity_dir.z * speed
 	if Input.is_action_just_pressed("jump") and is_on_floor():
 		velocity.y = jump_force
+		if _kit_player != null and _kit_player.has_animation("pilot_jump"):
+			_kit_player.speed_scale = 1.0
+			_play_kit_clip("pilot_jump", false)  # crouch -> tuck -> land, one shot
 	velocity.y -= gravity * delta
+	var was_airborne := _airborne
+	_airborne = not is_on_floor()
 	move_and_slide()
+	if was_airborne and is_on_floor() and _last_y_velocity < -2.0:
+		# touched down with real impact: replay the landing half of pilot_jump
+		if _kit_player != null and _kit_player.has_animation("pilot_jump") \
+				and _kit_player.current_animation != &"pilot_jump":
+			_kit_player.speed_scale = 1.6
+			_play_kit_clip("pilot_jump", false)
+			_kit_player.seek(0.66 * _kit_player.get_animation("pilot_jump").length, true)
+	_last_y_velocity = velocity.y
 
 	# Aim facing: while RMB ADS held, turn body to face camera yaw.
 	_update_aim_facing(delta)

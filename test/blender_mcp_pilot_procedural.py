@@ -36,8 +36,10 @@ OB = bpy.data.objects
 scn = bpy.context.scene
 RIGS = {'A': OB['Pilot_Character'], 'B': OB['Pilot_Character.001']}
 MESH = {'A': 'Pilot_SWAT', 'B': 'Swat_Body.001'}
-CLIPS = {'A': ['pistol_idle', 'pistol_reload', 'pistol_shoot', 'pilot_walk', 'pilot_run'],
-         'B': ['pistol_idle.001', 'pistol_reload.001', 'pistol_shoot.001', 'pilot_walk.001', 'pilot_run.001']}
+CLIPS = {'A': ['pistol_idle', 'pistol_reload', 'pistol_shoot', 'pilot_walk', 'pilot_run',
+               'pilot_strafe_bwd', 'pilot_strafe_l', 'pilot_strafe_r', 'pilot_jump'],
+         'B': ['pistol_idle.001', 'pistol_reload.001', 'pistol_shoot.001', 'pilot_walk.001', 'pilot_run.001',
+               'pilot_strafe_bwd.001', 'pilot_strafe_l.001', 'pilot_strafe_r.001', 'pilot_jump.001']}
 
 def set_pos(rig, mode):
     rig.data.pose_position = mode
@@ -217,11 +219,11 @@ def _pitch_down(rk, bn, pitch_deg):
     return d
 
 def pose_walk(rk, u):
-    """Walk: ~2 stride cycle, thigh +-20 deg, knee 0..30, feet roll.
+    """Walk: 1.3s cycle, thigh +-26 deg, knee 0..36, feet roll.
     Arms keep the idle gun-ready pose (upper sway damped)."""
     d = dict(pose_idle(rk, 0.0))
     for side in (-1.0, 1.0):
-        th, kn, ft = _leg_phase(rk, u, side, 20.0, 30.0, 12.0, 3.0,
+        th, kn, ft = _leg_phase(rk, u, side, 26.0, 36.0, 14.0, 4.0,
                                 phase_offset=0.0 if side < 0 else 0.5)
         d.update(_leg_aims(rk, side, th, kn, ft))
     d['spine_01'] = aim(rk, 'spine_01', REST_DIR[rk]['spine_01'], 1.0, 'X')
@@ -240,10 +242,101 @@ def pose_run(rk, u):
     d['pelvis'] = aim(rk, 'pelvis', REST_DIR[rk]['pelvis'], 2.5 * math.sin(u * 2 * math.pi), 'Z')
     return d
 
+# ------------- strafe (backward / sidestep) + jump --------------------------
+
+def _leg_side_aims(rk, side, thigh_deg, knee_deg, foot_deg):
+    """Leg chain abducted sideways: segments rotate around the arm-space Y
+    axis (theta>0 tips the segment toward -X = character left)."""
+    d = {}
+    for prefix, ang in (('thigh', thigh_deg), ('calf', knee_deg), ('foot', foot_deg)):
+        bn = '%s_%s' % (prefix, 'l' if side < 0 else 'r')
+        if bn in REST_DIR[rk]:
+            rot = Quaternion((0, 1, 0), math.radians(-side * ang))
+            d[bn] = aim(rk, bn, rot @ REST_DIR[rk][bn])
+    return d
+
+def pose_strafe_bwd(rk, u):
+    """Backpedal: reduced back-forward stride, slight constant knee flex,
+    torso leans back a touch, eyes/gun still forward."""
+    d = dict(pose_idle(rk, 0.0))
+    for side in (-1.0, 1.0):
+        ph = (u + (0.0 if side < 0 else 0.5)) * 2 * math.pi
+        th = -16.0 * math.sin(ph)
+        kn = 18.0 * max(0.0, math.sin(ph + 0.9)) + 8.0
+        ft = -6.0 * math.sin(ph)
+        d.update(_leg_aims(rk, side, th, kn, ft))
+    d['spine_01'] = aim(rk, 'spine_01', REST_DIR[rk]['spine_01'], -2.0, 'X')
+    d['pelvis'] = aim(rk, 'pelvis', REST_DIR[rk]['pelvis'], 1.0 * math.sin(u * 2 * math.pi), 'Z')
+    return d
+
+def _pose_strafe_side(rk, u, lead):
+    """Sidestep toward `lead` (-1 = left, +1 = right): legs abduct/adduct
+    alternately with a crossing step feel; torso stays square to the aim."""
+    d = dict(pose_idle(rk, 0.0))
+    for side in (-1.0, 1.0):
+        ph = (u + (0.0 if side == lead else 0.5)) * 2 * math.pi
+        th = 22.0 * math.sin(ph)
+        kn = 20.0 * max(0.0, math.sin(ph + 0.9)) + 6.0
+        ft = 8.0 * math.sin(ph)
+        d.update(_leg_side_aims(rk, side, th * (1.0 if side == lead else 0.7), kn, ft))
+    d['pelvis'] = aim(rk, 'pelvis', REST_DIR[rk]['pelvis'], 2.0 * math.sin(u * 2 * math.pi), 'Y')
+    return d
+
+def pose_strafe_l(rk, u):
+    return _pose_strafe_side(rk, u, -1.0)
+
+def pose_strafe_r(rk, u):
+    return _pose_strafe_side(rk, u, 1.0)
+
+def _crouch(rk, depth, thigh_d, knee_d, foot_d, drop):
+    d = dict(pose_idle(rk, 0.0))
+    for side in (-1.0, 1.0):
+        d.update(_leg_aims(rk, side, thigh_d, knee_d, foot_d))
+    d['spine_01'] = aim(rk, 'spine_01', REST_DIR[rk]['spine_01'], -depth * 10.0, 'X')
+    if abs(drop) > 1e-6:
+        d['_pelvis_drop_arm'] = Vector((0, 0, -drop))  # armature-space delta
+    return d
+
+def pose_jump(rk, u):
+    """Jump-in-place: crouch -> extend -> airborne tuck -> land crouch ->
+    recover. The controller moves the real body; this clip sells the legs."""
+    if u < 0.18:
+        k = u / 0.18
+        return _crouch(rk, k, 24.0 * k, 40.0 * k, -10.0 * k, 0.16 * k)
+    if u < 0.34:
+        k = (u - 0.18) / 0.16
+        # extend: legs straighten, slight rise
+        d = _crouch(rk, 1.0 - k, 24.0 - 40.0 * k, 40.0 - 60.0 * k, -10.0 + 16.0 * k, 0.16 - 0.22 * k)
+        return d
+    if u < 0.66:
+        k = min(1.0, (u - 0.34) / 0.10)
+        # airborne tuck (hold)
+        return _crouch(rk, 1.0, 16.0 * k, 34.0 * k, 8.0 * k, 0.0)
+    if u < 0.84:
+        k = (u - 0.66) / 0.18
+        return _crouch(rk, k, 8.0 + 22.0 * k, 20.0 + 34.0 * k, 8.0 - 18.0 * k, 0.24 * k)
+    k = (u - 0.84) / 0.16
+    # recover to idle: arms slerp to idle, legs slerp to REST
+    a = _crouch(rk, 1.0, 30.0, 54.0, -10.0, 0.24)
+    b = pose_idle(rk, 0.0)
+    d = {}
+    for bn in a:
+        if bn == '_pelvis_drop_arm':
+            d[bn] = a[bn].lerp(Vector((0, 0, 0)), k)
+        elif bn in b:
+            d[bn] = (a[bn].to_quaternion().slerp(b[bn].to_quaternion(), k)).to_matrix().to_3x3()
+        else:
+            d[bn] = (a[bn].to_quaternion().slerp(REST_R[rk][bn].to_quaternion(), k)).to_matrix().to_3x3()
+    return d
+
 POSES = {'pistol_idle': pose_idle, 'pistol_reload': pose_reload, 'pistol_shoot': pose_shoot,
-         'pilot_walk': pose_walk, 'pilot_run': pose_run}
+         'pilot_walk': pose_walk, 'pilot_run': pose_run,
+         'pilot_strafe_bwd': pose_strafe_bwd, 'pilot_strafe_l': pose_strafe_l, 'pilot_strafe_r': pose_strafe_r,
+         'pilot_jump': pose_jump}
 FRAMES = {'pistol_idle': 51, 'pistol_reload': 51, 'pistol_shoot': 20,
-          'pilot_walk': 61, 'pilot_run': 41}
+          'pilot_walk': 40, 'pilot_run': 25,
+          'pilot_strafe_bwd': 41, 'pilot_strafe_l': 41, 'pilot_strafe_r': 41,
+          'pilot_jump': 26}
 
 def key_clip(rk, clip):
     rig = RIGS[rk]
@@ -256,6 +349,7 @@ def key_clip(rk, clip):
     wipe_pose_fcurves(act)
     for pb in rig.pose.bones:
         pb.matrix_basis = Matrix.Identity(4)
+        pb.location = (0, 0, 0)  # clear any leaked location keys/pose
     for f in frames:
         u = f / (n - 1) if n > 1 else 0.0
         if base in ('pistol_idle', 'pilot_walk', 'pilot_run'):
@@ -281,9 +375,22 @@ def key_clip(rk, clip):
                 rig.pose.bones[bn].matrix_basis = Ks[rk][bn].inverted() @ L
         bpy.context.view_layer.update()
         for bn in offs:
+            if bn == '_pelvis_drop_arm':
+                # measured conversion: arm-space delta -> pelvis bone-local via
+                # the live parent chain rotation (A_t(parent) @ K(pelvis))
+                pb = rig.pose.bones['pelvis']
+                par = rig.data.bones['pelvis'].parent
+                C = (A_t[par.name] @ Ks[rk]['pelvis']).to_3x3()
+                pb.location = C.inverted() @ offs[bn]
+                pb.keyframe_insert('location', frame=f)
+                continue
             pb = rig.pose.bones[bn]
             pb.keyframe_insert('rotation_quaternion', frame=f)
-            pb.location = (0, 0, 0)  # pure FK: rest offsets, rotation-only keys
+            if bn == 'pelvis':
+                pb.location = (0, 0, 0)
+                pb.keyframe_insert('location', frame=f)
+            else:
+                pb.location = (0, 0, 0)  # pure FK: rest offsets, rotation-only keys
     for layer in act.layers:
         for strip in layer.strips:
             for cb in strip.channelbags:

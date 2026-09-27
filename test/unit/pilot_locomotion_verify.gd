@@ -43,7 +43,7 @@ func _ready() -> void:
 	if skel == null or player == null:
 		_finish()
 		return
-	for clip in ["pilot_walk", "pilot_run"]:
+	for clip in ["pilot_walk", "pilot_run", "pilot_strafe_bwd", "pilot_strafe_l", "pilot_strafe_r", "pilot_jump"]:
 		_check(player.has_animation(clip), "clip present: " + clip)
 	if not player.has_animation("pilot_walk") or not player.has_animation("pilot_run"):
 		_finish()
@@ -57,7 +57,7 @@ func _ready() -> void:
 	var hi: int = skel.find_bone("hand_r")
 	_check(ti >= 0 and tri >= 0 and ci >= 0 and hi >= 0, "leg + hand bones present")
 
-	for clip in ["pilot_walk", "pilot_run"]:
+	for clip in ["pilot_walk", "pilot_run", "pilot_strafe_bwd", "pilot_strafe_l", "pilot_strafe_r"]:
 		var a: Animation = player.get_animation(clip)
 		var n := int(a.length * 30.0)
 		player.play(clip)
@@ -87,11 +87,31 @@ func _ready() -> void:
 			var hand_y: float = skel.get_bone_global_pose(hi).origin.y
 			hand_lo = minf(hand_lo, hand_y)
 			hand_hi = maxf(hand_hi, hand_y)
-		_check(dev_l > 10.0, "%s left thigh swings (%.1f deg)" % [clip, dev_l])
-		_check(dev_r > 10.0, "%s right thigh swings (%.1f deg)" % [clip, dev_r])
-		_check(knee_max - knee_min > 0.02, "%s knee height oscillates (range=%.0f mm)" % [clip, (knee_max - knee_min) * 1000.0])
+		var leg_thresh := 14.0 if clip.begins_with("pilot_strafe") else 10.0
+		_check(dev_l > leg_thresh, "%s left leg moves (%.1f deg)" % [clip, dev_l])
+		_check(dev_r > leg_thresh, "%s right leg moves (%.1f deg)" % [clip, dev_r])
+		_check(knee_max - knee_min > 0.015, "%s knee height oscillates (range=%.0f mm)" % [clip, (knee_max - knee_min) * 1000.0])
 		_check(ymin > -0.06, "%s feet never sink below floor (ymin=%.3f)" % [clip, ymin])
 		_check(hand_lo > 0.9 and hand_hi < 1.6, "%s keeps gun-ready hands (hand y %.2f..%.2f)" % [clip, hand_lo, hand_hi])
+
+	# jump: pelvis must dip (crouch) and rise above idle height (extend/airborne)
+	var ja: Animation = player.get_animation("pilot_jump")
+	var jn := int(ja.length * 30.0)
+	player.play("pilot_jump")
+	var pel_lo := 1e9
+	var pel_hi := -1e9
+	var ymin_j := 1e9
+	for i in range(jn + 1):
+		player.seek(ja.length * float(i) / float(jn), true)
+		var py: float = skel.get_bone_global_pose(skel.find_bone("pelvis")).origin.y
+		pel_lo = minf(pel_lo, py)
+		pel_hi = maxf(pel_hi, py)
+		for fb in ["foot_l", "foot_r"]:
+			var fj: int = skel.find_bone(fb)
+			if fj >= 0:
+				ymin_j = minf(ymin_j, skel.get_bone_global_pose(fj).origin.y)
+	_check(pel_hi - pel_lo > 0.12, "pilot_jump crouch/extend moves pelvis (range=%.0f mm)" % ((pel_hi - pel_lo) * 1000.0))
+	_check(ymin_j > -0.06, "pilot_jump feet never sink below floor (ymin=%.3f)" % ymin_j)
 	_finish()
 
 

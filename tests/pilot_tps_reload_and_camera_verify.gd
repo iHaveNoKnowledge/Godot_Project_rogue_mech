@@ -40,11 +40,11 @@ func _test_camera_framing() -> void:
 	pilot.add_to_group("pilot")
 	add_child(pilot)
 
-	# 1. Target Mecha: High over-the-shoulder framing (Y=3.2m, dist=6.8m)
+	# 1. Target Mecha: High over-the-shoulder framing (matches camera_rig COMBAT_CAM newest)
 	cam_rig._on_camera_target_changed(mecha)
-	_check(is_equal_approx(cam_rig._target_spring_length, 6.8), "Mecha camera spring length is 6.8m")
-	_check(is_equal_approx(cam_rig._target_offset_y, 3.2), "Mecha camera offset Y is 3.2m (chest-high for mech)")
-	_check(is_equal_approx(cam_rig._target_offset_x, 1.8), "Mecha camera offset X is 1.8m")
+	_check(is_equal_approx(cam_rig._target_spring_length, 11.0), "Mecha camera spring length is 11.0m")
+	_check(is_equal_approx(cam_rig._target_offset_y, 6.1), "Mecha camera offset Y is 6.1m (chest-high for mech)")
+	_check(is_equal_approx(cam_rig._target_offset_x, 3.4), "Mecha camera offset X is 3.4m")
 
 	# 2. Target Pilot: Low human over-the-shoulder TPS framing (Y=1.45m, dist=2.4m)
 	cam_rig._on_camera_target_changed(pilot)

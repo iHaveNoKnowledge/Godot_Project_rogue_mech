@@ -2,7 +2,7 @@ extends Node
 ## PILOT PISTOL KIT VERIFY - Quaternius pilot mesh + 3 baked ActionForge pistol clips.
 ##
 ## Covers:
-##  1. Kit loads: Skeleton3D with Palm.R / LowerArm.L, MeshInstance3D present.
+##  1. Kit loads: Skeleton3D with hand_r / lowerarm_l, MeshInstance3D present.
 ##  2. AnimationPlayer has pistol_idle / pistol_reload / pistol_shoot.
 ##  3. pistol_shoot visibly recoils the right arm.
 ##  4. pistol_reload flexes the left elbow (>10 deg).
@@ -47,8 +47,8 @@ func _ready() -> void:
 	if skel == null or player == null:
 		get_tree().quit(1)
 		return
-	_check(skel.find_bone("Palm.R") >= 0, "Palm.R bone present")
-	_check(skel.find_bone("LowerArm.L") >= 0, "LowerArm.L bone present")
+	_check(skel.find_bone("hand_r") >= 0, "hand_r bone present")
+	_check(skel.find_bone("lowerarm_l") >= 0, "lowerarm_l bone present")
 	_check(_has_mesh(inst), "pilot mesh present")
 	var pilot_height := _mesh_height(inst)
 	_check(pilot_height > 1.5 and pilot_height < 2.2, "pilot mesh human-sized (%.2fm)" % pilot_height)
@@ -56,13 +56,13 @@ func _ready() -> void:
 		_check(player.has_animation(clip), "clip present: " + clip)
 
 	# Shoot: right-arm recoil.
-	var arm_arc := _play_arc(skel, player, "pistol_shoot", "UpperArm.R", 0.7)
+	var arm_arc := _play_arc(skel, player, "pistol_shoot", "upperarm_r", 0.7)
 	_check(arm_arc > deg_to_rad(1.0), "shoot recoils right arm (arc=%.1f deg)" % rad_to_deg(arm_arc))
 	# Reload: left elbow works the mag.
-	var elbow := _play_arc(skel, player, "pistol_reload", "LowerArm.L", 1.8)
+	var elbow := _play_arc(skel, player, "pistol_reload", "lowerarm_l", 1.8)
 	_check(elbow > deg_to_rad(10.0), "reload flexes left elbow (arc=%.1f deg)" % rad_to_deg(elbow))
 	# Idle: subtle sway, finite, sane length.
-	var sway := _play_arc(skel, player, "pistol_idle", "UpperArm.R", 1.8)
+	var sway := _play_arc(skel, player, "pistol_idle", "upperarm_r", 1.8)
 	_check(sway > deg_to_rad(0.5), "idle sways (arc=%.2f deg)" % rad_to_deg(sway))
 	var idle_len: float = player.get_animation("pistol_idle").length
 	_check(absf(idle_len - 1.667) < 0.15, "idle length sane (%.3fs)" % idle_len)

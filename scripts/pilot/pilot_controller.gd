@@ -510,6 +510,9 @@ func _try_fire() -> void:
 		start_reload()
 		return
 
+	# Face shooting direction instantly (body follows crosshair).
+	snap_to_camera_yaw()
+
 	var cam := get_viewport().get_camera_3d()
 	if cam == null:
 		return
@@ -537,6 +540,44 @@ func _try_fire() -> void:
 			AudioManager.play_sfx("machine_gun", muzzle, -8.0)
 		velocity.x += -aim_dir.x * 0.8
 		velocity.z += -aim_dir.z * 0.8
+
+
+## Aim facing (TPS): yaw that faces a horizontal direction with -Z forward.
+static func yaw_facing(facing_dir: Vector3) -> float:
+	var f := Vector3(facing_dir.x, 0.0, facing_dir.z)
+	if f.length_squared() < 0.000001:
+		return 0.0
+	f = f.normalized()
+	return atan2(-f.x, -f.z)
+
+
+## Camera forward flattened on the ground plane (falls back to body facing).
+func camera_flat_forward() -> Vector3:
+	var cam := get_viewport().get_camera_3d()
+	if cam == null:
+		var cur := -global_transform.basis.z
+		cur.y = 0.0
+		return cur.normalized() if cur.length_squared() > 0.000001 else Vector3(0, 0, -1)
+	var f := -cam.global_transform.basis.z
+	f.y = 0.0
+	if f.length_squared() < 0.000001:
+		return Vector3(0, 0, -1)
+	return f.normalized()
+
+
+func is_aiming() -> bool:
+	return Input.is_action_pressed("fire_right")
+
+
+func snap_to_camera_yaw() -> void:
+	rotation.y = yaw_facing(camera_flat_forward())
+
+
+func _update_aim_facing(delta: float) -> void:
+	if not is_aiming():
+		return
+	var target := yaw_facing(camera_flat_forward())
+	rotation.y = lerp_angle(rotation.y, target, 1.0 - exp(-10.0 * delta))
 
 
 func _melee_swing(weapon: WeaponPart) -> void:
@@ -597,6 +638,9 @@ func _physics_process(delta: float) -> void:
 		velocity.y = jump_force
 	velocity.y -= gravity * delta
 	move_and_slide()
+
+	# Aim facing: while RMB ADS held, turn body to face camera yaw.
+	_update_aim_facing(delta)
 
 	# Update boardable mech HUD prompt
 	var nearby_mech := find_nearest_boardable_mech()

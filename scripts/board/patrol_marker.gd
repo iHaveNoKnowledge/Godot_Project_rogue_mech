@@ -38,7 +38,7 @@ func setup(fleet: Dictionary) -> void:
 		_count_badge.outline_size = 10
 		_count_badge.outline_modulate = Color.BLACK
 		_count_badge.modulate = Color(1.0, 0.88, 0.2)
-		_count_badge.position = Vector3(0.55, 1.4, -0.35)
+		_count_badge.position = Vector3(0.70, 2.3, 0.0)
 		add_child(_count_badge)
 
 

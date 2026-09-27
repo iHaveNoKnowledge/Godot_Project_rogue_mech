@@ -1232,7 +1232,7 @@ func _update_token_position() -> void:
 			tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 			tag.no_depth_test = true
 			tag.font_size = 38
-			tag.position = Vector3(0.0, 0.9, 0.0)
+			tag.position = Vector3(0.0, 2.6, 0.0)
 			tag.outline_size = 8
 			tag.outline_modulate = Color.BLACK
 			player_token.add_child(tag)

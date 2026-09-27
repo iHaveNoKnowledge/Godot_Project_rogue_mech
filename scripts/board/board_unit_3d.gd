@@ -93,6 +93,7 @@ var leg_right_node: Node3D
 var shin_right_node: Node3D
 var foot_right_node: Node3D
 
+var tactical_ring: Node3D = null
 var anim_player: AnimationPlayer
 var _base_y: float = 0.0
 var _torso_base_y: float = 1.6
@@ -128,11 +129,71 @@ func _build_hierarchy() -> void:
 	else:
 		_build_valkren_player()
 
+	_build_tactical_ring()
+
 	# Animation Player
 	anim_player = AnimationPlayer.new()
 	anim_player.name = "AnimationPlayer"
 	add_child(anim_player)
 	_setup_animation_tracks()
+
+
+## Builds a subtle, crisp tactical base ring under the unit to visually
+## identify faction, commander archetype, and heading direction at any zoom level.
+func _build_tactical_ring() -> void:
+	tactical_ring = Node3D.new()
+	tactical_ring.name = "TacticalRing"
+	ground_anchor.add_child(tactical_ring)
+
+	var ring_mesh := MeshInstance3D.new()
+	ring_mesh.name = "RingMesh"
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.85
+	torus.outer_radius = 0.95
+	torus.rings = 32
+	torus.ring_segments = 4
+	ring_mesh.mesh = torus
+
+	var ring_color := _get_tactical_color()
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = ring_color
+	mat.emission_enabled = true
+	mat.emission = ring_color
+	mat.emission_energy_multiplier = 2.0
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ring_mesh.material_override = mat
+	ring_mesh.position = Vector3(0, 0.03, 0)
+	tactical_ring.add_child(ring_mesh)
+
+	# Forward pointer chevron at -Z (facing forward)
+	var pointer := MeshInstance3D.new()
+	pointer.name = "HeadingPointer"
+	var prism := PrismMesh.new()
+	prism.size = Vector3(0.24, 0.28, 0.06)
+	pointer.mesh = prism
+	pointer.material_override = mat
+	pointer.rotation_degrees = Vector3(-90, 0, 0)
+	pointer.position = Vector3(0, 0.03, -0.98)
+	tactical_ring.add_child(pointer)
+
+
+func _get_tactical_color() -> Color:
+	match unit_type:
+		UnitType.PLAYER:
+			return Color(0.25, 0.75, 1.0)
+		UnitType.BOSS:
+			return COLOR_BOSS_BASE
+		UnitType.COMMANDER:
+			match archetype:
+				"armored": return COLOR_ARMORED_BASE
+				"recon": return COLOR_RECON_BASE
+				"artillery": return COLOR_ARTILLERY_BASE
+				"hunter_killer": return COLOR_HK_BASE
+				"mercenary": return COLOR_MERC_BASE
+				"unknown": return Color(0.85, 0.9, 0.98)
+				_: return COLOR_ARMORED_BASE
+		_:
+			return Color(0.25, 0.75, 1.0)
 
 
 ## Instantiates and attaches the actual canonical production Commander model

@@ -101,6 +101,14 @@ func build_environment_and_light() -> Node3D:
 	sun.rotation_degrees = Vector3(-55.0, 35.0, 0.0)
 	root.add_child(sun)
 
+	var fill := DirectionalLight3D.new()
+	fill.name = "FillLight"
+	fill.light_color = Color(0.70, 0.80, 0.95)
+	fill.light_energy = 0.75
+	fill.shadow_enabled = false
+	fill.rotation_degrees = Vector3(-35.0, -145.0, 0.0)
+	root.add_child(fill)
+
 	var world_env := WorldEnvironment.new()
 	world_env.name = "BoardWorldEnv"
 	var env := Environment.new()

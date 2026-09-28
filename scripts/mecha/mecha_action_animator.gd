@@ -55,6 +55,20 @@ var _strike_idx: int = 0
 var _pending_strikes: int = 0
 var _completed_pending: bool = false
 
+# ── Melee retarget mode ────────────────────────────────────────────────────
+# Source clips (UE-mannequin AF takes, Rigify Mech_00 takes) rest in a
+# different pose than the game pivots (AF upperarm_r rests at (-62,1,1)deg,
+# thigh_r at (-46,18,-20)deg — measured on the GLB). Copying clip eulers
+# absolutely therefore snaps limbs into alien poses (writhe + stray leg
+# lifts). Melee plays instead apply REST-RELATIVE deltas, and touch only
+# the upper body: legs stay on base locomotion per the weapon-layer
+# architecture. Non-melee actions (die/gethit/shoot) keep legacy behavior.
+var melee_mode: bool = false
+var _rest_euler: Dictionary = {}
+const MELEE_UPPER_KEYS: Array = [
+	"arm_left", "arm_right", "forearm_left", "forearm_right", "body", "head",
+]
+
 # Clips that count as melee attacks (everything else = action/recoil/death).
 const MELEE_CLIP_PREFIXES: Array = ["Mech_Attack"]
 
@@ -262,6 +276,7 @@ func play_action(anim_name: String, speed: float = 1.0, fade_in: float = 0.08, f
 	fade_out_time = maxf(fade_out, 0.01)
 	blend_weight = 0.0
 	is_active = true
+	melee_mode = false
 	_begin_attack_lifecycle(anim_name)
 	return true
 
@@ -274,6 +289,15 @@ func _begin_attack_lifecycle(anim_name: String) -> void:
 	_pending_strikes = 0
 	_completed_pending = false
 	strike_times = _compute_strike_times(anim_name)
+	# Rest pose per mapped joint (track value at clip start): melee deltas
+	# are measured against this so foreign-rested takes retarget cleanly.
+	_rest_euler.clear()
+	var anim: Animation = _cached_anim_library.get(anim_name, null)
+	var tmap: Dictionary = _cached_track_maps.get(anim_name, {})
+	if anim != null:
+		for joint_key in tmap:
+			var q: Quaternion = anim.rotation_track_interpolate(int(tmap[joint_key]), 0.0)
+			_rest_euler[joint_key] = q.get_euler()
 
 
 ## Strike moments (clip seconds) from the weapon arm's own motion: peak
@@ -380,6 +404,7 @@ func play_enemy_melee(hand: String = "right", telegraph_dur: float = 0.5) -> boo
 	blend_weight = 0.0
 	is_active = true
 	attack_id += 1
+	melee_mode = true
 	return true
 
 
@@ -405,6 +430,7 @@ func play_af_melee(hand: String = "right", forced_combo_step: int = 0) -> bool:
 	var started := play_action(clip_name, play_speed, 0.06, 0.14)
 	if started:
 		attack_id += 1
+		melee_mode = true
 	return started
 
 
@@ -433,6 +459,7 @@ func play_enemy_af_melee(hand: String = "right", telegraph_dur: float = 0.5) -> 
 	blend_weight = 0.0
 	is_active = true
 	attack_id += 1
+	melee_mode = true
 	return true
 
 
@@ -454,6 +481,7 @@ func play_melee(hand: String, forced_combo_step: int = 0) -> void:
 	var play_speed := 1.75 if combo_index < 3 else 1.35
 	if play_action(clip_name, play_speed, 0.06, 0.14):
 		attack_id += 1
+		melee_mode = true
 
 
 ## Plays Shooting Recoil on the isolated firing arm without affecting the other arm
@@ -567,6 +595,11 @@ func apply_to_joints(joints: Dictionary, master_weight: float = 1.0) -> void:
 		if anim != null and not tmap.is_empty():
 			var sample_t := clampf(anim_time, 0.0, anim_length)
 			for joint_key in tmap:
+				# Melee owns the upper body only; legs/shins stay on base
+				# locomotion (weapon-layer architecture). Everything else
+				# (die/gethit/shoot) keeps legacy full-body behavior.
+				if melee_mode and not (str(joint_key) in MELEE_UPPER_KEYS):
+					continue
 				var track_idx: int = tmap[joint_key]
 				var node: Node3D = joints.get(joint_key + "_mesh", null)
 				if node == null:
@@ -576,6 +609,16 @@ func apply_to_joints(joints: Dictionary, master_weight: float = 1.0) -> void:
 
 				var q: Quaternion = anim.rotation_track_interpolate(track_idx, sample_t)
 				var target_euler: Vector3 = q.get_euler()
+				if melee_mode and _rest_euler.has(joint_key):
+					# Rest-relative delta: the authored motion minus the source
+					# rest pose, so a foreign-rested take drives our pivots
+					# through the same relative trajectory instead of snapping
+					# limbs into the source's rest pose.
+					var r: Vector3 = _rest_euler[joint_key]
+					target_euler = Vector3(
+						wrapf(target_euler.x - r.x, -PI, PI),
+						wrapf(target_euler.y - r.y, -PI, PI),
+						wrapf(target_euler.z - r.z, -PI, PI))
 				var blend := effective_main
 				node.rotation.x = lerp_angle(node.rotation.x, target_euler.x, blend)
 				if joint_key in ["arm_left", "arm_right", "forearm_left", "forearm_right", "body"]:

@@ -113,14 +113,18 @@ func _test_animator_lifecycle() -> void:
 	_check(late_done == 1, "restarted swing completes exactly once")
 
 	# Ownership: mid-swing the swing fully owns the arm; after completion
-	# the base owns it again (apply writes nothing at blend 0).
+	# the base owns it again (apply writes nothing at blend 0). Sweep is
+	# rest-relative now, so measure peak motion across the whole swing
+	# (late-swing deltas settle back near rest by design).
 	var joints := _make_joints()
 	animator.play_af_melee("right", 1)
-	for i in range(60):
+	var peak_arm := 0.0
+	for i in range(120):
 		animator.update(1.0 / 60.0)
-	(joints["arm_right"] as Node3D).rotation = Vector3.ZERO
-	animator.apply_to_joints(joints, 1.0)
-	_check(absf((joints["arm_right"] as Node3D).rotation.x) > deg_to_rad(3.0), "mid-swing owns the attack arm")
+		(joints["arm_right"] as Node3D).rotation = Vector3.ZERO
+		animator.apply_to_joints(joints, 1.0)
+		peak_arm = maxf(peak_arm, absf((joints["arm_right"] as Node3D).rotation.x))
+	_check(peak_arm > deg_to_rad(10.0), "mid-swing owns the attack arm (peak %.1f deg)" % rad_to_deg(peak_arm))
 	for i in range(240):
 		animator.update(1.0 / 60.0)
 		animator.poll_strike()

@@ -106,6 +106,33 @@ func _ready() -> void:
 	legacy.play_enemy_melee("right", 0.6)
 	_check(legacy.current_anim_name == "Mech_Attack1_R", "legacy play_enemy_melee still plays Mech_Attack1_R")
 
+	# 7. Melee retarget: upper-body-only, rest-relative (no writhe).
+	# The AF mannequin rests arms at (-62,1,1)deg and thighs at
+	# (-46,18,-20)deg while game pivots rest at 0: absolute copies snap
+	# limbs into alien poses. Melee must drive arms through relative
+	# deltas and must never touch leg pivots (legs stay on locomotion).
+	var retarget_joints := _make_joints()
+	animator.play_af_melee("right", 1)
+	var leg_moved := 0.0
+	for i in range(120):
+		animator.update(1.0 / 60.0)
+		animator.apply_to_joints(retarget_joints, 1.0)
+		leg_moved = maxf(leg_moved, absf((retarget_joints["leg_left"] as Node3D).rotation.x))
+		leg_moved = maxf(leg_moved, absf((retarget_joints["leg_right"] as Node3D).rotation.x))
+		leg_moved = maxf(leg_moved, absf((retarget_joints["shin_left"] as Node3D).rotation.x))
+	_check(leg_moved < deg_to_rad(1.0), "melee never drives leg pivots (max %.1f deg)" % rad_to_deg(leg_moved))
+	# No rest snap: two frames into the swing the arm must still sit near
+	# the base pose (relative delta ≈ 0). Absolute euler copies would have
+	# it at ~1/3 of the mannequin rest offset (upperarm_r rests at -62° X)
+	# already — that snap was the visible writhe.
+	var snap_joints := _make_joints()
+	animator.play_af_melee("right", 1)
+	for i in range(2):
+		animator.update(1.0 / 60.0)
+		animator.apply_to_joints(snap_joints, 1.0)
+	var snap_arm: Vector3 = (snap_joints["arm_right"] as Node3D).rotation
+	_check(snap_arm.length() < deg_to_rad(25.0), "no rest snap at swing start (arm %.1f deg)" % rad_to_deg(snap_arm.length()))
+
 	print("AF_SWORD_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	if _fails > 0:
 		printerr("AF_SWORD_VERIFY_FAILED")

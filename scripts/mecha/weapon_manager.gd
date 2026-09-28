@@ -154,6 +154,14 @@ var _last_right_press_ms: int = 0
 var _pending_fire: String = ""
 var _pending_fire_ms: int = 0
 
+# A melee swing whose damage waits for the animation's strike moment instead
+# of landing on the input frame. Set by _melee_attack (swing start: facing,
+# lunge, trail, swing SFX all stay immediate), executed once per strike via
+# poll_strike() below, cleared on completion. Restarting the swing (combo
+# chain) overwrites it, so a retired swing can never deal a late hit:
+# 1 input = 1 lifecycle = strikes of THIS swing only.
+var _pending_melee: Dictionary = {}
+
 var _fist_weapon: WeaponPart = null
 
 # Heat smoke timers — throttles 3D smoke puffs rising from hot barrels
@@ -523,6 +531,8 @@ func _physics_process(delta: float) -> void:
 			var hand := _pending_fire
 			_pending_fire = ""
 			_commit_normal_fire(hand)
+
+	_process_pending_melee()
 
 	if fire_left_holding:
 		if not Input.is_action_pressed("fire_left"):
@@ -1629,7 +1639,15 @@ func _melee_attack(hand: String, weapon: WeaponPart, is_loaded_blast: bool = tru
 			anim.action_animator.play_melee(hand)
 
 	_spawn_melee_trail(mecha, dir, weapon)
-	_check_melee_hit(mecha, dir, hit_damage, weapon, is_loaded_blast)
+	# Damage is NOT dealt here: the swing animation owns the hit window (see
+	# _process_pending_melee). The pending hit below executes exactly when
+	# the blade visually reaches contact; restarting the swing (combo chain)
+	# replaces it, so one input can never produce more hits than its swing's
+	# own strikes.
+	_pending_melee = {
+		"hand": hand, "weapon": weapon, "damage": hit_damage,
+		"dir": dir, "blast": is_loaded_blast,
+	}
 	if is_pile:
 		if is_loaded_blast:
 			AudioManager.play_pile_bunker_fire(mecha.global_position)
@@ -1640,6 +1658,44 @@ func _melee_attack(hand: String, weapon: WeaponPart, is_loaded_blast: bool = tru
 
 	if is_pile:
 		EventBus.pile_bunker_fired.emit(is_loaded_blast, target_point)
+
+
+## Executes the pending melee hit at the animation's strike moment. Called
+## every physics frame: each strike of the live swing deals exactly one hit
+## with the parameters captured at swing start; completion (or a restarted
+## swing, which overwrites _pending_melee) clears it. Mechs without an
+## animator keep the legacy immediate behavior.
+func _process_pending_melee() -> void:
+	if _pending_melee.is_empty():
+		return
+	var mecha := get_parent() as Node3D
+	if mecha == null:
+		_pending_melee = {}
+		return
+	var anim = mecha.get_node_or_null("MechaAnimation")
+	if anim == null:
+		anim = mecha.get_node_or_null("AnimationSystem")
+	var animator = null
+	if anim != null and anim.get("action_animator") != null:
+		animator = anim.get("action_animator")
+	if animator == null or not animator.has_method("poll_strike"):
+		_execute_pending_melee_hit()
+		return
+	if animator.poll_strike():
+		_execute_pending_melee_hit()
+	if animator.has_method("poll_attack_complete") and animator.poll_attack_complete():
+		_pending_melee = {}
+
+
+func _execute_pending_melee_hit() -> void:
+	var mecha := get_parent() as Node3D
+	if mecha == null or _pending_melee.is_empty():
+		_pending_melee = {}
+		return
+	var weapon: WeaponPart = _pending_melee.get("weapon")
+	_check_melee_hit(mecha, _pending_melee.get("dir", Vector3.ZERO),
+		float(_pending_melee.get("damage", 0.0)), weapon,
+		bool(_pending_melee.get("blast", true)))
 
 # --- SHOULDER BASH / DUAL CHARGE (destroyed arms still fight) ---
 

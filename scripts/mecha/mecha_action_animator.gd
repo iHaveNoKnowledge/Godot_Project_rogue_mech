@@ -42,6 +42,38 @@ var combo_index: int = 1
 var last_attack_time_ms: int = 0
 const COMBO_WINDOW_MS: int = 1400
 
+# ── Authoritative melee lifecycle ──────────────────────────────────────────
+# One attack input = one attack_id. Damage is NEVER dealt by the play call;
+# it fires only via poll_strike(), which crosses strike_times measured from
+# the clip's own weapon-arm motion (peak forward angular velocity = visual
+# contact). Restarting a swing (combo chain) retires the previous attack_id
+# and its pending hit can never fire afterwards: 1 swing = strikes of THIS
+# swing only, 1 completion exactly once.
+var attack_id: int = 0
+var strike_times: Array = []
+var _strike_idx: int = 0
+var _pending_strikes: int = 0
+var _completed_pending: bool = false
+
+# Clips that count as melee attacks (everything else = action/recoil/death).
+const MELEE_CLIP_PREFIXES: Array = ["Mech_Attack"]
+
+
+func _is_melee_clip(clip_name: String) -> bool:
+	if clip_name == AF_SWORD_ATTACK or clip_name == AF_SWORD_COMBO:
+		return true
+	for prefix in MELEE_CLIP_PREFIXES:
+		if clip_name.begins_with(prefix):
+			return true
+	return false
+
+
+## True while a melee swing owns the attack lifecycle (windup through
+## recovery, until the clip finishes). Base locomotion keeps driving legs;
+## the swing blend (see apply_to_joints) owns the attack bones meanwhile.
+func is_melee_active() -> bool:
+	return is_active and _is_melee_clip(current_anim_name)
+
 
 func _ready() -> void:
 	_ensure_library_cached()
@@ -230,7 +262,90 @@ func play_action(anim_name: String, speed: float = 1.0, fade_in: float = 0.08, f
 	fade_out_time = maxf(fade_out, 0.01)
 	blend_weight = 0.0
 	is_active = true
+	_begin_attack_lifecycle(anim_name)
 	return true
+
+
+## (Re)starts lifecycle bookkeeping for a newly played action. Called by
+## play_action so every start — including combo-chain restarts — retires the
+## previous attack: pending strikes/completions of the old swing vanish.
+func _begin_attack_lifecycle(anim_name: String) -> void:
+	_strike_idx = 0
+	_pending_strikes = 0
+	_completed_pending = false
+	strike_times = _compute_strike_times(anim_name)
+
+
+## Strike moments (clip seconds) from the weapon arm's own motion: peak
+## forward angular velocity of the arm track = the visual contact instant.
+## Multi-peak clips (3-hit combo) yield one strike per hit. Falls back to
+## mid-clip when the clip has no usable arm track. Cached per start.
+func _compute_strike_times(anim_name: String) -> Array:
+	var anim: Animation = _cached_anim_library.get(anim_name, null)
+	var tmap: Dictionary = _cached_track_maps.get(anim_name, {})
+	if anim == null:
+		return []
+	var track_idx: int = tmap.get("arm_right", tmap.get("arm_left", -1))
+	if track_idx < 0:
+		return [anim.length * 0.5]
+	var n := 64
+	var vel: Array = []
+	var prev := 0.0
+	for i in range(n + 1):
+		var t: float = anim.length * float(i) / float(n)
+		var q: Quaternion = anim.rotation_track_interpolate(track_idx, t)
+		var x: float = q.get_euler().x
+		if i > 0:
+			vel.append((x - prev) / (anim.length / float(n)))
+		prev = x
+	var peak := 0.0
+	for v in vel:
+		peak = maxf(peak, float(v))
+	if peak <= 0.001:
+		return [anim.length * 0.5]
+	var strikes: Array = []
+	var last_hit := -100
+	for i in range(vel.size()):
+		var v: float = vel[i]
+		var left_ok := i == 0 or float(vel[i - 1]) <= v
+		var right_ok := i == vel.size() - 1 or float(vel[i + 1]) <= v
+		if left_ok and right_ok and v > peak * 0.4 and i - last_hit >= n / 12:
+			strikes.append(anim.length * float(i + 1) / float(n))
+			last_hit = i
+	if strikes.is_empty():
+		return [anim.length * 0.5]
+	return strikes
+
+
+## Fires once per crossed strike moment. Drives the single gameplay hit per
+## visual contact (combo clips: one per hit).
+func poll_strike() -> bool:
+	if _pending_strikes > 0:
+		_pending_strikes -= 1
+		return true
+	return false
+
+
+## Fires exactly once when the active swing finishes (recovery done,
+## ownership returns to locomotion/hold).
+func poll_attack_complete() -> bool:
+	if _completed_pending:
+		_completed_pending = false
+		return true
+	return false
+
+
+## Read-only lifecycle snapshot for telemetry/debugging:
+## {attack_id, anim, active, time, strikes_total, strikes_fired}.
+func telemetry_snapshot() -> Dictionary:
+	return {
+		"attack_id": attack_id,
+		"anim": current_anim_name,
+		"active": is_melee_active(),
+		"time": anim_time,
+		"strikes_total": strike_times.size(),
+		"strikes_fired": _strike_idx,
+	}
 
 
 ## Plays Enemy Melee Attack 1 with deliberate wind-up (ง้าง) accelerating into a fast forward slash
@@ -264,6 +379,7 @@ func play_enemy_melee(hand: String = "right", telegraph_dur: float = 0.5) -> boo
 	fade_out_time = 0.15
 	blend_weight = 0.0
 	is_active = true
+	attack_id += 1
 	return true
 
 
@@ -286,7 +402,10 @@ func play_af_melee(hand: String = "right", forced_combo_step: int = 0) -> bool:
 		return false
 	# Single slash is snappy, the full combo plays at authored speed.
 	var play_speed := 1.15 if combo_index == 1 else 1.0
-	return play_action(clip_name, play_speed, 0.06, 0.14)
+	var started := play_action(clip_name, play_speed, 0.06, 0.14)
+	if started:
+		attack_id += 1
+	return started
 
 
 ## Plays the ActionForge single slash with deliberate wind-up (ง้าง) for enemies:
@@ -313,6 +432,7 @@ func play_enemy_af_melee(hand: String = "right", telegraph_dur: float = 0.5) -> 
 	fade_out_time = 0.15
 	blend_weight = 0.0
 	is_active = true
+	attack_id += 1
 	return true
 
 
@@ -332,7 +452,8 @@ func play_melee(hand: String, forced_combo_step: int = 0) -> void:
 	
 	# Attack 1 & 2 are fast fluid strikes; Attack 3 is a heavy smash
 	var play_speed := 1.75 if combo_index < 3 else 1.35
-	play_action(clip_name, play_speed, 0.06, 0.14)
+	if play_action(clip_name, play_speed, 0.06, 0.14):
+		attack_id += 1
 
 
 ## Plays Shooting Recoil on the isolated firing arm without affecting the other arm
@@ -391,6 +512,11 @@ func update(delta: float) -> void:
 		else:
 			anim_time += delta * anim_speed
 
+		# Strike edges: every crossed strike moment queues exactly one hit.
+		while _strike_idx < strike_times.size() and anim_time >= float(strike_times[_strike_idx]):
+			_strike_idx += 1
+			_pending_strikes += 1
+
 		if anim_time < fade_in_time:
 			blend_weight = clampf(anim_time / fade_in_time, 0.0, 1.0)
 		elif anim_time >= anim_length - fade_out_time:
@@ -402,6 +528,7 @@ func update(delta: float) -> void:
 		if anim_time >= anim_length:
 			is_active = false
 			blend_weight = 0.0
+			_completed_pending = true
 	else:
 		blend_weight = move_toward(blend_weight, 0.0, delta / 0.15)
 

@@ -272,7 +272,14 @@ func _trigger_enemy_melee_animation() -> void:
 	if action_anim != null:
 		var hand := "right"
 		var t_dur := _telegraph_duration()
-		action_anim.play_enemy_melee(hand, t_dur)
+		# One-handed sword enemies (rusher / shield-melee / dry fallback) wind up
+		# with the ActionForge single slash so the telegraph reads as ง้างแล้วตี;
+		# fall back to the Mech_00 take when the AF clips are missing.
+		var played_af := false
+		if action_anim.has_method("play_enemy_af_melee"):
+			played_af = action_anim.play_enemy_af_melee(hand, t_dur)
+		if not played_af:
+			action_anim.play_enemy_melee(hand, t_dur)
 
 
 # Freeze the melee swing direction the moment the telegraph starts, so the

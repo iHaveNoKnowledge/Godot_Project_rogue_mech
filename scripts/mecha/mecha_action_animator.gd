@@ -5,17 +5,27 @@ extends Node
 ## MECHA ACTION ANIMATOR
 ##
 ## Manages keyframed 3D animation clips from Mech_00_Anim.fbx (Melee attack combos,
-## shooting recoils, shoulder missile artillery, hit reactions, and death collapses).
+## shooting recoils, shoulder missile artillery, hit reactions, and death collapses)
+## plus ActionForge one-handed sword clips (sword_attack single slash,
+## sword_regular_combo 3-hit combo) for MELEE weapons and enemy wind-up strikes.
 ## Evaluates bone transforms in real-time and blends them smoothly over the base
 ## procedural locomotion and terrain Foot IK.
 ## ---------------------------------------------------------------------------
 
 const ANIM_FBX_PATH := "res://download/Mech_00/Char_Anim/Mech_00_Anim.fbx"
 
+# ActionForge one-handed sword clips (in-place, godot-ready GLB).
+# sword_attack = single slash (46f @30fps ~1.53s), sword_regular_combo = 3-hit combo (90f @30fps ~3.0s).
+const AF_SWORD_ATTACK_PATH := "res://assets/animations/actionforge/sword_attack-inplace-anim-only.glb"
+const AF_SWORD_COMBO_PATH := "res://assets/animations/actionforge/sword_regular_combo-inplace-anim-only.glb"
+const AF_SWORD_ATTACK := "AF_SwordAttack"
+const AF_SWORD_COMBO := "AF_SwordCombo"
+
 # Shared Animation Library cache across all mechas
 static var _cached_anim_library: Dictionary = {}
 static var _cached_track_maps: Dictionary = {}
 static var _initialized_library: bool = false
+static var _af_clips_loaded: bool = false
 
 # Current action playback state
 var current_anim_name: String = ""
@@ -39,33 +49,91 @@ func _ready() -> void:
 
 static func _ensure_library_cached() -> void:
 	if _initialized_library:
+		# AF clips load lazily on top of the base library so a retry after a
+		# failed first import still picks them up without rebuilding Mech_00.
+		if not _af_clips_loaded:
+			_load_af_clips()
 		return
 	_initialized_library = true
 	if not ResourceLoader.exists(ANIM_FBX_PATH):
 		push_warning("MechaActionAnimator: Anim FBX not found at " + ANIM_FBX_PATH)
-		return
-
-	var loaded_res = load(ANIM_FBX_PATH)
-	if loaded_res == null:
-		push_warning("MechaActionAnimator: Failed to load anim resource from " + ANIM_FBX_PATH)
-		return
-
-	if loaded_res is AnimationLibrary:
-		var lib := loaded_res as AnimationLibrary
-		for anim_name in lib.get_animation_list():
-			var anim := lib.get_animation(anim_name)
-			_cached_anim_library[anim_name] = anim
-			_cached_track_maps[anim_name] = _build_track_map(anim)
-	elif loaded_res is PackedScene:
-		var inst = (loaded_res as PackedScene).instantiate()
-		var ap: AnimationPlayer = inst.get_node_or_null("AnimationPlayer")
-		if ap != null:
-			var anim_list := ap.get_animation_list()
-			for anim_name in anim_list:
-				var anim: Animation = ap.get_animation(anim_name)
+	else:
+		var loaded_res = load(ANIM_FBX_PATH)
+		if loaded_res == null:
+			push_warning("MechaActionAnimator: Failed to load anim resource from " + ANIM_FBX_PATH)
+		elif loaded_res is AnimationLibrary:
+			var lib := loaded_res as AnimationLibrary
+			for anim_name in lib.get_animation_list():
+				var anim := lib.get_animation(anim_name)
 				_cached_anim_library[anim_name] = anim
 				_cached_track_maps[anim_name] = _build_track_map(anim)
+		elif loaded_res is PackedScene:
+			var inst = (loaded_res as PackedScene).instantiate()
+			var ap: AnimationPlayer = _find_player_recursive(inst)
+			if ap != null:
+				var anim_list := ap.get_animation_list()
+				for anim_name in anim_list:
+					var anim: Animation = ap.get_animation(anim_name)
+					_cached_anim_library[anim_name] = anim
+					_cached_track_maps[anim_name] = _build_track_map(anim)
+			inst.queue_free()
+	_load_af_clips()
+
+
+static func _find_player_recursive(n: Node) -> AnimationPlayer:
+	if n is AnimationPlayer:
+		return n
+	for c in n.get_children():
+		var found := _find_player_recursive(c)
+		if found != null:
+			return found
+	return null
+
+
+## Loads the ActionForge sword clips (GLB PackedScene with a nested
+## AnimationPlayer) into the shared library under AF_SWORD_* names.
+static func _load_af_clips() -> void:
+	if _af_clips_loaded:
+		return
+	_af_clips_loaded = true
+	_load_af_clip(AF_SWORD_ATTACK_PATH, "sword_attack", AF_SWORD_ATTACK)
+	_load_af_clip(AF_SWORD_COMBO_PATH, "sword_regular_combo", AF_SWORD_COMBO)
+
+
+static func _load_af_clip(path: String, src_anim_name: String, cache_name: String) -> void:
+	if _cached_anim_library.has(cache_name):
+		return
+	if not ResourceLoader.exists(path):
+		push_warning("MechaActionAnimator: AF clip not found at " + path)
+		return
+	var res = load(path)
+	if res == null or not (res is PackedScene):
+		push_warning("MechaActionAnimator: Failed to load AF clip from " + path)
+		return
+	var inst = (res as PackedScene).instantiate()
+	var ap: AnimationPlayer = _find_player_recursive(inst)
+	if ap == null:
+		push_warning("MechaActionAnimator: No AnimationPlayer in " + path)
 		inst.queue_free()
+		return
+	if not ap.has_animation(src_anim_name):
+		# Fall back to the first animation when the GLB was re-exported with a
+		# different take name instead of failing silently.
+		var anim_list := ap.get_animation_list()
+		if anim_list.is_empty():
+			inst.queue_free()
+			return
+		src_anim_name = anim_list[0]
+	var anim: Animation = ap.get_animation(src_anim_name)
+	_cached_anim_library[cache_name] = anim
+	_cached_track_maps[cache_name] = _build_track_map(anim)
+	inst.queue_free()
+
+
+## True when both ActionForge sword clips are cached and drivable.
+static func has_af_clips() -> bool:
+	_ensure_library_cached()
+	return _cached_anim_library.has(AF_SWORD_ATTACK) and _cached_anim_library.has(AF_SWORD_COMBO)
 
 
 static func _build_track_map(anim: Animation) -> Dictionary:
@@ -74,6 +142,7 @@ static func _build_track_map(anim: Animation) -> Dictionary:
 		if anim.track_get_type(t) != Animation.TYPE_ROTATION_3D:
 			continue
 		var path := str(anim.track_get_path(t)).to_lower()
+		# --- Mech_00 (Rigify-style) ---
 		if "arm_stretch.l" in path or ("shoulder.l" in path and not tmap.has("arm_left")):
 			tmap["arm_left"] = t
 		elif "forearm_stretch.l" in path or ("arm_twist.l" in path and not tmap.has("forearm_left")):
@@ -82,10 +151,8 @@ static func _build_track_map(anim: Animation) -> Dictionary:
 			tmap["arm_right"] = t
 		elif "forearm_stretch.r" in path or ("arm_twist.r" in path and not tmap.has("forearm_right")):
 			tmap["forearm_right"] = t
-		elif "spine_01" in path:
+		elif "spine_01" in path and not tmap.has("body"):
 			tmap["body"] = t
-		elif "head" in path:
-			tmap["head"] = t
 		elif "thigh_stretch.l" in path:
 			tmap["leg_left"] = t
 		elif "leg_stretch.l" in path:
@@ -94,6 +161,33 @@ static func _build_track_map(anim: Animation) -> Dictionary:
 			tmap["leg_right"] = t
 		elif "leg_stretch.r" in path:
 			tmap["shin_right"] = t
+		# --- ActionForge (UE mannequin-style: upperarm_l, lowerarm_r, thigh_l, calf_r) ---
+		elif "upperarm_l" in path and not tmap.has("arm_left"):
+			tmap["arm_left"] = t
+		elif "lowerarm_l" in path and not tmap.has("forearm_left"):
+			tmap["forearm_left"] = t
+		elif "upperarm_r" in path and not tmap.has("arm_right"):
+			tmap["arm_right"] = t
+		elif "lowerarm_r" in path and not tmap.has("forearm_right"):
+			tmap["forearm_right"] = t
+		elif ("spine_02" in path or "spine_03" in path) and not tmap.has("body"):
+			tmap["body"] = t
+		elif "thigh_l" in path and not tmap.has("leg_left"):
+			tmap["leg_left"] = t
+		elif ("calf_l" in path) and not tmap.has("shin_left"):
+			tmap["shin_left"] = t
+		elif "thigh_r" in path and not tmap.has("leg_right"):
+			tmap["leg_right"] = t
+		elif ("calf_r" in path) and not tmap.has("shin_right"):
+			tmap["shin_right"] = t
+		# Head last: "head" also matches nothing else ("hand" has no "head"),
+		# neck_01 is the fallback when the Head bone track is missing.
+		elif (path.ends_with(":head") or (":head" in path) or path.ends_with("head")) and not tmap.has("head"):
+			tmap["head"] = t
+		elif "neck_01" in path and not tmap.has("head"):
+			tmap["head"] = t
+		elif "head" in path and "hand" not in path and not tmap.has("head"):
+			tmap["head"] = t
 	return tmap
 
 
@@ -166,6 +260,55 @@ func play_enemy_melee(hand: String = "right", telegraph_dur: float = 0.5) -> boo
 		windup_speed = 0.65
 	strike_speed = 2.40
 
+	fade_in_time = 0.06
+	fade_out_time = 0.15
+	blend_weight = 0.0
+	is_active = true
+	return true
+
+
+## Plays the ActionForge one-handed sword combo (มือเดียว):
+## step 1 = single slash (sword_attack), step 2-3 = full 3-hit combo clip.
+## Returns false when the AF clips are missing so callers can fall back to Mech_00.
+func play_af_melee(hand: String = "right", forced_combo_step: int = 0) -> bool:
+	_ensure_library_cached()
+	var now := Time.get_ticks_msec()
+	if forced_combo_step > 0:
+		combo_index = clampi(forced_combo_step, 1, 3)
+	elif now - last_attack_time_ms < COMBO_WINDOW_MS:
+		combo_index = (combo_index % 3) + 1
+	else:
+		combo_index = 1
+	last_attack_time_ms = now
+	# AF clips are authored right-handed; the same take drives either hand.
+	var clip_name := AF_SWORD_ATTACK if combo_index == 1 else AF_SWORD_COMBO
+	if not _cached_anim_library.has(clip_name):
+		return false
+	# Single slash is snappy, the full combo plays at authored speed.
+	var play_speed := 1.15 if combo_index == 1 else 1.0
+	return play_action(clip_name, play_speed, 0.06, 0.14)
+
+
+## Plays the ActionForge single slash with deliberate wind-up (ง้าง) for enemies:
+## the wind-up pose spans the telegraph window, then accelerates into the strike.
+## Returns false when the AF clip is missing so callers can fall back to Mech_00.
+func play_enemy_af_melee(hand: String = "right", telegraph_dur: float = 0.5) -> bool:
+	_ensure_library_cached()
+	var anim: Animation = _cached_anim_library.get(AF_SWORD_ATTACK, null)
+	if anim == null:
+		return false
+	current_anim_name = AF_SWORD_ATTACK
+	anim_time = 0.0
+	anim_length = anim.length
+	is_custom_pacing = true
+	# sword_attack: first ~40% raises the blade (wind-up), rest is the slash.
+	windup_fraction = 0.40
+	var windup_clip_time := anim_length * windup_fraction
+	if telegraph_dur > 0.05:
+		windup_speed = windup_clip_time / telegraph_dur
+	else:
+		windup_speed = 0.65
+	strike_speed = 2.40
 	fade_in_time = 0.06
 	fade_out_time = 0.15
 	blend_weight = 0.0

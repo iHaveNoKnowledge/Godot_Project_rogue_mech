@@ -1614,13 +1614,19 @@ func _melee_attack(hand: String, weapon: WeaponPart, is_loaded_blast: bool = tru
 		var spawn_pos = mecha.global_position + (Vector3(-0.6, 1.5, 0.5) if hand == "left" else Vector3(0.6, 1.5, 0.5))
 		_spawn_shell_casing(spawn_pos, hand)
 		
-	# Execute lunging punch animation + Keyframed 3-Step Combo Attack Animation
+	# Execute lunging punch animation + Keyframed 3-Step Combo Attack Animation.
+	# One-handed MELEE (heat blade / knife / mace / fist) uses the ActionForge
+	# sword takes (single slash -> 3-hit combo); pile bunker keeps its thrust.
 	_perform_pile_bunker_lunge_anim(mecha, dir, weapon)
 	var anim = mecha.get_node_or_null("MechaAnimation")
 	if anim == null:
 		anim = mecha.get_node_or_null("AnimationSystem")
 	if anim and anim.get("action_animator") != null:
-		anim.action_animator.play_melee(hand)
+		var played_af := false
+		if not is_pile and anim.action_animator.has_method("play_af_melee"):
+			played_af = anim.action_animator.play_af_melee(hand)
+		if not played_af:
+			anim.action_animator.play_melee(hand)
 
 	_spawn_melee_trail(mecha, dir, weapon)
 	_check_melee_hit(mecha, dir, hit_damage, weapon, is_loaded_blast)

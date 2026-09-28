@@ -1,11 +1,11 @@
-# Kimodo Bridge — NVIDIA Kimodo motion diffusion → pilot rig (Godot 4.6.2)
+# Kimodo Bridge — NVIDIA Kimodo motion diffusion → Valkren mech (Godot 4.6.2)
 
-`kimodo-motion-diffusion` (nv-tlabs/kimodo) เจนท่า human/humanoid จาก text + kinematic
-constraints แล้ว bridge นี้แปลงผลลัพธ์มาใช้กับ pilot kit ของโปรเจกต์นี้
+`kimodo-motion-diffusion` (nv-tlabs/kimodo) เจนท่า human/humanoid จาก text +
+kinematic constraints แล้ว bridge นี้ transfer มาใช้กับหุ่น Valkren
+(MechaBase Node3D rig สูง ~5.5m — ไม่ใช่ humanoid skeleton)
 
 > โค้ด Kimodo ต้นทาง: Apache-2.0 / โมเดล RP-SEED: NVIDIA Open Model License /
-> โมเดล SMPLX-RP-v1: NVIDIA R&D (ห้ามใช้ commercial) — อ่าน license ที่ HuggingFace
-> ก่อนเจนงานจริง
+> โมเดล SMPLX-RP-v1: NVIDIA R&D (ห้ามใช้ commercial)
 
 ## ทำไมไม่ clone โมเดลมาทั้งก้อนใน repo นี้
 
@@ -13,93 +13,71 @@ constraints แล้ว bridge นี้แปลงผลลัพธ์มา
 - เครื่อง dev หลัก (RTX 4070 Ti 12GB) ต้องรันแบบ `TEXT_ENCODER_DEVICE=cpu` → VRAM <3GB
 - repo ต้นทางพัฒนาบน Linux, Windows แนะนำผ่าน Docker
 
-bridge นี้เลยเก็บแค่ **ตัวแปลง + mock + policy** ส่วนการเจนจริงรันแยกข้างนอก
+bridge นี้เลยเก็บแค่ **ตัว transfer + mock + policy** ส่วนการเจนจริงรันแยกข้างนอก
 
 ## โครงไฟล์
 
 | ไฟล์ | หน้าที่ |
 |---|---|
 | `kimodo_npz_format.py` | นิยาม + validate ฟอร์แมต NPZ ของ Kimodo (ไม่อ่านโมเดล) |
-| `kimodo_mock.py` | สร้าง NPZ ปลอม (walk เคาะเท้า 60 เฟรม) สำหรับ CI โดยไม่ต้องมี GPU |
-| `kimodo_npz_to_pilot.py` | แปลง NPZ → pilot retarget JSON ทรงเดียวกับ `af_retarget.json` |
+| `kimodo_mock.py` | สร้าง NPZ ปลอม (`--mode walk/run`) สำหรับ CI โดยไม่ต้องมี GPU |
+| `kimodo_npz_to_valkren.py` | transfer NPZ → Valkren JSON (euler deg + FK ตรวจเท้า) |
 | `kimodo_generate.py` | wrapper เรียก `kimodo_gen` / Docker (dry-run ได้โดยไม่ต้องติดตั้ง) |
-| `blender_stage_kimodo.py` | สคริปต์รันใน Blender: stage JSON ลง armature pilot + export GLB (`export_yup=True`) |
-| `samples/kimodo_pilot_walk.json` | fixture ตัวอย่าง (สร้างจาก mock) ใช้ใน unit test |
+| `samples/valkren_walk.json` | fixture ท่าเดิน (60 เฟรม) ใช้ใน unit test |
+| `samples/valkren_run.json` | fixture ท่าวิ่ง (48 เฟรม) ใช้ใน unit test |
 
-## ฟอร์แมต Kimodo NPZ (ที่รองรับ)
+## หลักการ transfer (อ่านก่อนแก้)
 
-```text
-posed_joints      [T, J, 3]     ตำแหน่ง joint ระดับโลก
-global_rot_mats   [T, J, 3, 3]  rotation matrix ระดับโลก
-local_rot_mats    [T, J, 3, 3]  rotation matrix เทียบ parent
-foot_contacts     [T, 4]        [left heel, left toe, right heel, right toes]
-smooth_root_pos   [T, 3]        root แบบ smooth (ใช้วาด path)
-root_positions    [T, 3]        root จริง (pelvis trajectory)
-global_root_heading [T, 2]      heading direction
-```
+Valkren ขับด้วย euler บน Node3D (`MechaWalkingSystem`):
+ขา rotation.x + = สวิงหน้า / เข่า - = งอ / ศอก + = piston /
+ตัว -X = หมอบพุ่ง ช่วงลิมิตดู `LIMITS` ในตัว transfer
+
+- mocap แขน/ขา/ลำตัวขยับถูกสัมพัทธ์กันอยู่แล้ว → วัดมุม segment
+  จาก `posed_joints` แล้ว map **ตรงๆ** ห้ามกลับเครื่องหมายซ้ำ
+  (ตัวคูณ counter-swing ใน `MechaWalkingSystem` มีไว้เพราะ procedural
+  เอาขาไปขับแขน ไม่เกี่ยวกับงานนี้)
+- มุมไม่สนสเกล ส่วน translation คูณ `BOB_SCALE=3.0` (สะโพก Valkren
+  3.0m vs คน 0.9m) + `lean_bias` -12° (ท่าหมอบพุ่งที่ mocap ไม่มี)
+- JSON เก็บ euler องศา (ไม่ใช่ quaternion — เคยบั๊กสลับลำดับ
+  `x,y,z,w` มาแล้ว) แกน y/z ≈ 0 จึงไม่ติดปัญหา euler order
+- FK 2 ข้อ (hip 3.001 / shin 1.34 / foot 1.291 จาก `mecha_base.tscn`)
+  ปัดคลิปที่เท้าจมใต้ rest − 0.10m ทิ้งตั้งแต่ตอนแปลง
 
 ## การเจนจริง (แยกข้างนอก repo)
 
 ```bash
 # ทางที่แนะนำ: Docker (Windows)
 docker compose -f <kimodo-checkout>/docker-compose.yaml up
-docker exec -it kimodo kimodo_gen "a person walking stealthily" --duration 5 --num_samples 1
+docker exec -it kimodo kimodo_gen "a person running" --duration 4
 
 # การ์ด VRAM < 17GB (เช่น 4070 Ti 12GB):
-TEXT_ENCODER_DEVICE=cpu kimodo_gen "a person walking, tired" --duration 4
+TEXT_ENCODER_DEVICE=cpu kimodo_gen "a person running" --duration 4
 
 # โมเดลที่แนะนำ: Kimodo-SOMA-RP-v1.1 (SOMA 77-joint, Bones Rigplay 700 ชม.)
+# NPZ จริงต้องส่ง --map-json ระบุ index ของ 12 roles
+# (pelvis, neck, upperarm_l/r, lowerarm_l/r, thigh_l/r, calf_l/r, foot_l/r)
 ```
 
-## แปลงมาใช้กับ pilot
+## แปลงมาใช้กับ Valkren
 
 ```bash
 # 1. สร้าง mock (ไม่ต้องมีโมเดล/GPU)
-python tools/kimodo/kimodo_mock.py --out tools/kimodo/samples/kimodo_mock.npz
+python tools/kimodo/kimodo_mock.py --mode walk --out tools/kimodo/samples/kimodo_mock.npz
+python tools/kimodo/kimodo_mock.py --mode run --out tools/kimodo/samples/kimodo_mock_run.npz
 
-# 2. แปลง NPZ -> pilot JSON
-python tools/kimodo/kimodo_npz_to_pilot.py \
-  --npz tools/kimodo/samples/kimodo_mock.npz \
-  --clip kimodo_pilot_walk --out tools/kimodo/samples/kimodo_pilot_walk.json
+# 2. แปลง NPZ -> Valkren JSON
+python tools/kimodo/kimodo_npz_to_valkren.py \
+  --npz tools/kimodo/samples/kimodo_mock_run.npz \
+  --clip valkren_run --out tools/kimodo/samples/valkren_run.json
 
 # 3. ตรวจ			
-python tools/kimodo/kimodo_npz_to_pilot.py --validate-only \
-  --json tools/kimodo/samples/kimodo_pilot_walk.json
+python tools/kimodo/kimodo_npz_to_valkren.py --validate-only \
+  --json tools/kimodo/samples/valkren_run.json
 ```
-
-## Mapping SOMA(77) → pilot kit (19 bones)
-
-pilot kit ใช้กระดูก (ตาม `test/unit/pilot_humanoid_limits_verify.gd`):
-
-```text
-pelvis, spine_01, spine_02, neck_01, Head,
-clavicle_r/l, upperarm_r/l, lowerarm_r/l, hand_r/l,
-thigh_r/l, calf_r/l, foot_r/l
-```
-
-mock ใช้ mock joint index 0..18 แมป 1:1 ตามลำดับข้างบน ส่วน NPZ จริงจาก SOMA-77
-ให้ override ด้วย `--map-json` (ดูตัวอย่างใน `kimodo_npz_to_pilot.py --help`)
-เพราะชื่อ joint ของ SOMA (`somaskel77`) ไม่ตรงกับ pilot ตรงๆ ต้องเลือก
-ข้อต่อที่ตรงกัน (pelvis/spine/neck/head/แขน/ขา) แล้วทิ้งนิ้ว/ข้อเสริม
-
-policy การ retarget (ตาม pilot_humanoid_limits):
-- pelvis rest ~0.65–1.0m, head ~1.55–2.0m, feet ≥ −0.06m
-- ความยาว segment เพี้ยนได้ < 3% (no stretch)
-- elbow/knee ห้ามพับจน hinge < 30/40 deg (no inside-out), ทุกค่าต้อง finite
-
-## Blender staging
-
-เปิด Blender → Text Editor → รัน `blender_stage_kimodo.py`:
-
-- คาดหวัง armature ชื่อ `Pilot_Character` (เหมือน `test/blender_mcp_export_kit.py`)
-- วางท่าตาม JSON (quaternion bone-local + pelvis delta), key ทุกเฟรม @30fps
-- ตรวจ `verify_bounds`/`verify_overlap` ก่อน export (ดู skill blender-assembly)
-- export: `bpy.ops.export_scene.gltf(..., export_format="GLB",
-  use_selection=True, export_animations=True, export_yup=True)`
-- convention: Blender `+Y` forward → Godot `-Z` forward, ห้าม author หน้าหัน `-Y`
 
 ## Godot policy
 
-`res://scripts/systems/kimodo_clip_policy.gd`:
-`KimodoClipPolicy.validate_clip_dict()` ใช้ตรวจ JSON ที่แปลงแล้ว
-(โครงเดียวกับ unit test) ก่อนเอาเข้า AnimationPlayer
+`res://scripts/systems/kimodo_valkren_policy.gd`:
+`KimodoValkrenPolicy.validate_clip_dict()` ตรวจ JSON (12 joints ครบ,
+ทุกแกนในลิมิต mech, finite, FK เท้าไม่จม) ก่อนเอาเข้า AnimationPlayer
+หรือ driver แบบ procedural

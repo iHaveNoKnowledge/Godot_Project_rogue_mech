@@ -1,17 +1,20 @@
 extends Node
-## KIMODO BRIDGE VERIFY — the Kimodo->pilot bridge must stay import-safe.
+## KIMODO BRIDGE VERIFY — Kimodo motion transfer must stay Valkren-safe.
 ##
-## 1. Bridge files present (converter, mock, wrapper, Blender stager, sample).
-## 2. Sample clip JSON parses to exactly 1 clip with the 19 pilot bones and
-##    passes KimodoClipPolicy (unit quats, pelvis-bounded, finite).
-## 3. Policy rejects a corrupted clip (non-unit quaternion).
-## 4. Blender stager keeps the Godot export convention (export_yup=True).
+## The Valkren mech (MechaBase Node3D rig, ~5.5m) is driven by euler clips
+## from tools/kimodo/kimodo_npz_to_valkren.py, never by the pilot pipeline.
+## 1. Bridge files present (transfer, mock, wrapper, format, both samples).
+## 2. Walk + run Valkren JSON parse to exactly 1 clip with the 12 mech
+##    joints and pass KimodoValkrenPolicy (limits, finite, FK floor).
+## 3. Run reads as a run: shorter cycle than walk, wider thigh swing,
+##    deeper hull bob, feet never below floor on either clip.
+## 4. Policy rejects a corrupted clip (thigh pitched past the mech limit).
 
-const Policy = preload("res://scripts/systems/kimodo_clip_policy.gd")
+const Policy = preload("res://scripts/systems/kimodo_valkren_policy.gd")
 
-const SAMPLE_JSON := "res://tools/kimodo/samples/kimodo_pilot_walk.json"
-const STAGER_PY := "res://tools/kimodo/blender_stage_kimodo.py"
-const CONVERTER_PY := "res://tools/kimodo/kimodo_npz_to_pilot.py"
+const WALK_JSON := "res://tools/kimodo/samples/valkren_walk.json"
+const RUN_JSON := "res://tools/kimodo/samples/valkren_run.json"
+const TRANSFER_PY := "res://tools/kimodo/kimodo_npz_to_valkren.py"
 const MOCK_PY := "res://tools/kimodo/kimodo_mock.py"
 const WRAPPER_PY := "res://tools/kimodo/kimodo_generate.py"
 const FORMAT_PY := "res://tools/kimodo/kimodo_npz_format.py"
@@ -33,39 +36,34 @@ func _ready() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 
-	for p in [SAMPLE_JSON, STAGER_PY, CONVERTER_PY, MOCK_PY, WRAPPER_PY, FORMAT_PY]:
+	for p in [WALK_JSON, RUN_JSON, TRANSFER_PY, MOCK_PY, WRAPPER_PY, FORMAT_PY]:
 		_check(FileAccess.file_exists(p), "bridge file present: " + p)
 
-	_check(Policy.required_bones().size() == 19, "policy tracks 19 pilot bones")
+	_check(Policy.required_joints().size() == 12, "policy tracks 12 Valkren joints")
 
-	var data: Dictionary = {}
-	if FileAccess.file_exists(SAMPLE_JSON):
-		var raw := FileAccess.get_file_as_string(SAMPLE_JSON)
-		_check(raw.length() > 100, "sample JSON non-empty (%d bytes)" % raw.length())
-		var parsed = JSON.parse_string(raw)
-		_check(parsed is Dictionary, "sample JSON parses to Dictionary")
-		if parsed is Dictionary:
-			data = parsed
-			_check(data.size() == 1, "sample has exactly 1 clip")
-			_check(data.has("kimodo_pilot_walk"), "sample clip named kimodo_pilot_walk")
-			var errs: Array = Policy.validate_clip_dict(data)
-			_check(errs.is_empty(), "sample passes clip policy" + (" (%s)" % str(errs) if not errs.is_empty() else ""))
-			_check(Policy.clip_frame_count(data) == 60, "sample has 60 frames (2s @30fps)")
-	else:
-		_check(false, "sample JSON loadable")
+	var walk: Dictionary = _load_clip_json(WALK_JSON, "valkren_walk", 60)
+	var run: Dictionary = _load_clip_json(RUN_JSON, "valkren_run", 48)
 
-	if not data.is_empty():
-		var bad: Dictionary = (data.duplicate(true) as Dictionary)
-		var bb: Dictionary = (bad["kimodo_pilot_walk"] as Dictionary)["bones"]
-		((bb["pelvis"] as Dictionary)["q"] as Array)[0] = [9.0, 0.0, 0.0, 0.0]
-		var bad_errs: Array = Policy.validate_clip_dict(bad)
-		_check(not bad_errs.is_empty(), "policy rejects non-unit quaternion")
+	if not walk.is_empty() and not run.is_empty():
+		_check(Policy.clip_frame_count(run) < Policy.clip_frame_count(walk),
+			"run cycle shorter than walk (%d vs %d frames)"
+			% [Policy.clip_frame_count(run), Policy.clip_frame_count(walk)])
+		var walk_swing := _x_span(walk, "LegLeft")
+		var run_swing := _x_span(run, "LegLeft")
+		_check(run_swing > walk_swing,
+			"run swings wider than walk (%.1f vs %.1f deg)" % [run_swing, walk_swing])
+		var walk_bob := _off_span(walk, "Body")
+		var run_bob := _off_span(run, "Body")
+		_check(run_bob > walk_bob,
+			"run hull bobs more than walk (%.3fm vs %.3fm)" % [run_bob, walk_bob])
+		_check(Policy.min_foot_y(walk) >= 0.27, "walk feet never sink (min %.3fm)" % Policy.min_foot_y(walk))
+		_check(Policy.min_foot_y(run) >= 0.27, "run feet never sink (min %.3fm)" % Policy.min_foot_y(run))
 
-	if FileAccess.file_exists(STAGER_PY):
-		var stager := FileAccess.get_file_as_string(STAGER_PY)
-		_check(stager.contains("export_yup=True"), "stager keeps export_yup=True (Blender +Y -> Godot -Z)")
-		_check(stager.contains("Pilot_Character"), "stager targets Pilot_Character armature")
-		_check(stager.contains("rotation_quaternion"), "stager keys quaternions (no euler drift)")
+	if not walk.is_empty():
+		var bad: Dictionary = (walk.duplicate(true) as Dictionary)
+		var bj: Dictionary = (bad["valkren_walk"] as Dictionary)["joints"]
+		(((bj["LegLeft"] as Dictionary)["rot"] as Array)[0] as Array)[0] = 80.0
+		_check(not Policy.validate_clip_dict(bad).is_empty(), "policy rejects over-pitched thigh")
 
 	print("KIMODO_BRIDGE_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	if _fails > 0:
@@ -74,3 +72,36 @@ func _ready() -> void:
 	else:
 		print("ALL_KIMODO_BRIDGE_TESTS_PASSED")
 		get_tree().quit(0)
+
+
+func _load_clip_json(path: String, clip: String, want_frames: int) -> Dictionary:
+	if not FileAccess.file_exists(path):
+		_check(false, "sample present: " + path)
+		return {}
+	var raw := FileAccess.get_file_as_string(path)
+	_check(raw.length() > 100, "%s non-empty (%d bytes)" % [clip, raw.length()])
+	var parsed = JSON.parse_string(raw)
+	_check(parsed is Dictionary and (parsed as Dictionary).has(clip), "clip named " + clip)
+	if not (parsed is Dictionary):
+		return {}
+	var dd: Dictionary = parsed
+	var errs: Array = Policy.validate_clip_dict(dd)
+	_check(errs.is_empty(), "%s passes Valkren policy" % clip + (" (%s)" % str(errs) if not errs.is_empty() else ""))
+	_check(Policy.clip_frame_count(dd) == want_frames, "%s has %d frames" % [clip, want_frames])
+	return dd
+
+
+func _x_span(data: Dictionary, joint: String) -> float:
+	var r: Array = Policy.joint_x_range(data, joint)
+	return r[1] - r[0]
+
+
+func _off_span(data: Dictionary, joint: String) -> float:
+	var rec: Dictionary = data[data.keys()[0]]
+	var arr: Array = (((rec["joints"] as Dictionary)[joint] as Dictionary)["off_y"] as Array)
+	var lo := 1e9
+	var hi := -1e9
+	for v in arr:
+		lo = minf(lo, float(v))
+		hi = maxf(hi, float(v))
+	return hi - lo

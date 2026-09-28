@@ -27,6 +27,13 @@ Output: {clip: {duration, fps, frames, joints: {name: {rot: [[x,y,z] deg],
 off_y: [m]}}}} — euler degrees, Godot Node3D convention. y/z stay ~0 so
 euler order is irrelevant in practice.
 
+Loop input: Kimodo generates linear (often run-then-settle) clips. --crop A:B
+selects a steady segment and --loop-blend K crossfades its tail into its
+head so the result loops seamlessly as base locomotion.
+
+G1 robots have no neck/head joints: pass --shoulder-mid-torso to measure the
+torso from pelvis to the shoulder midpoint instead of a neck joint.
+
 Sizes: angles transfer scale-free; translations scale by BOB_SCALE=3.0
 (Valkren hip 3.0m vs human 0.9m). --lean-bias adds the Valkren charge lean
 mocap torsos never have (default -12 deg, 0 disables).
@@ -76,6 +83,9 @@ VALKREN_JOINTS = ("Body", "Head", "ArmLeft", "ArmRight", "ForearmLeft",
                   "ShinRight", "FootLeft", "FootRight")
 
 # (x_min, x_max, yz_max_abs) in degrees; off_y (min, max) in meters.
+# Leg/shin ranges follow MechaClipRetarget baked-clip precedent
+# (THIGH_MAX ~80 deg, SHIN_MIN ~-125 deg), not the tighter procedural
+# robot gait, so Kimodo's exaggerated high knees survive the transfer.
 LIMITS = {
     "Body": ((-30.0, 10.0, 12.0), (-0.35, 0.25)),
     "Head": ((-15.0, 15.0, 5.0), (0.0, 0.0)),
@@ -83,10 +93,10 @@ LIMITS = {
     "ArmRight": ((-45.0, 45.0, 2.0), (0.0, 0.0)),
     "ForearmLeft": ((20.0, 60.0, 2.0), (0.0, 0.0)),
     "ForearmRight": ((20.0, 60.0, 2.0), (0.0, 0.0)),
-    "LegLeft": ((-60.0, 45.0, 2.0), (0.0, 0.35)),
-    "LegRight": ((-60.0, 45.0, 2.0), (0.0, 0.35)),
-    "ShinLeft": ((-55.0, 0.0, 2.0), (0.0, 0.0)),
-    "ShinRight": ((-55.0, 0.0, 2.0), (0.0, 0.0)),
+    "LegLeft": ((-60.0, 75.0, 2.0), (0.0, 0.35)),
+    "LegRight": ((-60.0, 75.0, 2.0), (0.0, 0.35)),
+    "ShinLeft": ((-90.0, 0.0, 2.0), (0.0, 0.0)),
+    "ShinRight": ((-90.0, 0.0, 2.0), (0.0, 0.0)),
     "FootLeft": ((-3.0, 3.0, 3.0), (0.0, 0.0)),
     "FootRight": ((-3.0, 3.0, 3.0), (0.0, 0.0)),
 }
@@ -143,7 +153,10 @@ def _fk_foot_y(hip_x: float, thigh_deg: float, shin_deg: float, lift: float) -> 
 
 
 def convert(npz_path: str, clip: str, role_map: dict,
-            lean_bias: float = -12.0, crouch: float = 0.06) -> dict:
+            lean_bias: float = -12.0, crouch: float = 0.06,
+            crop: tuple | None = None, loop_blend: int = 0,
+            shoulder_mid_torso: bool = False,
+            symmetrize_arms: bool = False) -> dict:
     import numpy as np
 
     from kimodo_npz_format import validate_npz_dict
@@ -152,16 +165,30 @@ def convert(npz_path: str, clip: str, role_map: dict,
     errs = validate_npz_dict(d)
     if errs:
         raise ValueError("invalid Kimodo NPZ: %s" % errs)
+    if crop is not None:
+        a, b = crop
+        d = {k: np.asarray(v)[a:b] for k, v in d.items()}
     posed = d["posed_joints"]
     contacts = d["foot_contacts"]
     root = d["root_positions"]
     T = posed.shape[0]
+    if loop_blend > 0 and loop_blend * 2 >= T:
+        raise ValueError("loop_blend %d too large for T=%d" % (loop_blend, T))
     P = {r: np.asarray(posed[:, role_map[r], :], dtype=float) for r in ROLES}
 
-    hx = float(np.mean(d["global_root_heading"][:, 0]))
-    hz = float(np.mean(d["global_root_heading"][:, 1]))
-    hn = math.hypot(hx, hz) or 1.0
-    fwd = [hx / hn, 0.0, hz / hn]
+    # Forward axis: root TRAVEL direction (xz) is ground truth. The heading
+    # channel does not track travel on every skeleton (G1 heading sits near
+    # +X while the root runs +Z), so it is only a fallback for in-place clips.
+    disp = np.asarray([float(root[-1, 0]) - float(root[0, 0]), 0.0,
+                       float(root[-1, 2]) - float(root[0, 2])])
+    if float(np.linalg.norm(disp)) > 0.05:
+        fwd = disp / float(np.linalg.norm(disp))
+    else:
+        hx = float(np.mean(d["global_root_heading"][:, 0]))
+        hz = float(np.mean(d["global_root_heading"][:, 1]))
+        hn = math.hypot(hx, hz) or 1.0
+        fwd = np.array([hx / hn, 0.0, hz / hn])
+    fwd = [float(fwd[0]), 0.0, float(fwd[2])]
 
     swing_l = _smooth([1.0 - max(float(contacts[f, 0]), float(contacts[f, 1]))
                        for f in range(T)])
@@ -183,7 +210,11 @@ def convert(npz_path: str, clip: str, role_map: dict,
         shin_r = seg("calf_r", "foot_r")
         arm_l = seg("upperarm_l", "lowerarm_l")
         arm_r = seg("upperarm_r", "lowerarm_r")
-        torso = seg("pelvis", "neck")
+        if shoulder_mid_torso:
+            top = [(raw["upperarm_l"][i] + raw["upperarm_r"][i]) / 2.0 for i in range(3)]
+        else:
+            top = raw["neck"]
+        torso = _norm3([top[i] - raw["pelvis"][i] for i in range(3)])
 
         t_pitch = _pitch_from_vertical(torso, fwd)
         th_l = _pitch_from_vertical(thigh_l, fwd)
@@ -234,6 +265,43 @@ def convert(npz_path: str, clip: str, role_map: dict,
         for j, (rot, off) in rows.items():
             J[j]["rot"].append([round(v, 3) for v in rot])
             J[j]["off_y"].append(round(off, 4))
+
+    # Arm symmetrization (optional post-process): Kimodo G1 runs often hold
+    # one arm back (training bias). L'=(L-R)/2, R'=-L' keeps Kimodo's pump
+    # timing/amplitude but symmetric. Arms stay separate tracks, so weapon
+    # layers can still replace them wholesale later.
+    # NOTE: symmetrize BEFORE the loop crossfade below.
+    if symmetrize_arms:
+        n = len(J["ArmLeft"]["rot"])
+        al_all = [J["ArmLeft"]["rot"][f][0] for f in range(n)]
+        ar_all = [J["ArmRight"]["rot"][f][0] for f in range(n)]
+        al_mean = sum(al_all) / n
+        ar_mean = sum(ar_all) / n
+        (x_lo, x_hi, _yz) = LIMITS["ArmLeft"][0]
+        for f in range(n):
+            sym = ((al_all[f] - al_mean) - (ar_all[f] - ar_mean)) / 2.0
+            sym = _clamp(sym, x_lo, x_hi)
+            J["ArmLeft"]["rot"][f][0] = round(sym, 3)
+            J["ArmRight"]["rot"][f][0] = round(-sym, 3)
+            fl = J["ForearmLeft"]["rot"][f][0]
+            fr = J["ForearmRight"]["rot"][f][0]
+            favg = _clamp((fl + fr) / 2.0, *LIMITS["ForearmLeft"][0][:2])
+            J["ForearmLeft"]["rot"][f][0] = round(favg, 3)
+            J["ForearmRight"]["rot"][f][0] = round(favg, 3)
+
+    # Loop crossfade: the last K frames morph toward the head (frames
+    # 1..K-1, then 0) so the final frame EQUALS frame 0 and playback wraps
+    # seamlessly (base-locomotion requirement).
+    if loop_blend > 0:
+        for j in VALKREN_JOINTS:
+            rot = J[j]["rot"]
+            off = J[j]["off_y"]
+            for i in range(loop_blend):
+                f = T - loop_blend + i
+                a = (i + 1) / loop_blend
+                tgt = (i + 1) if (i + 1) < loop_blend else 0
+                rot[f] = [round(rot[f][c] * (1 - a) + rot[tgt][c] * a, 3) for c in range(3)]
+                off[f] = round(off[f] * (1 - a) + off[tgt] * a, 4)
 
     # FK floor check (fail fast before writing).
     worst = 1e9
@@ -321,6 +389,14 @@ def main() -> None:
                     help='JSON {"role": source_index} for real SOMA-77 NPZ')
     ap.add_argument("--lean-bias", type=float, default=-12.0)
     ap.add_argument("--crouch", type=float, default=0.06)
+    ap.add_argument("--crop", default=None,
+                    help='"A:B" frame range of a steady segment (e.g. "76:116")')
+    ap.add_argument("--loop-blend", type=int, default=0,
+                    help="crossfade N tail frames into the head for seamless loop")
+    ap.add_argument("--shoulder-mid-torso", action="store_true",
+                    help="torso measured pelvis->shoulder-midpoint (G1 has no neck)")
+    ap.add_argument("--symmetrize-arms", action="store_true",
+                    help="mirror-average arm pump (fixes one-arm-back G1 bias)")
     ap.add_argument("--json", default=None)
     ap.add_argument("--validate-only", action="store_true")
     args = ap.parse_args()
@@ -339,7 +415,14 @@ def main() -> None:
         absent = [r for r in ROLES if r not in role_map]
         if absent:
             raise SystemExit("map-json missing roles: %s" % absent)
-    out = convert(args.npz, args.clip, role_map, args.lean_bias, args.crouch)
+    crop = None
+    if args.crop:
+        a, b = args.crop.split(":")
+        crop = (int(a), int(b))
+    out = convert(args.npz, args.clip, role_map, args.lean_bias, args.crouch,
+                  crop=crop, loop_blend=args.loop_blend,
+                  shoulder_mid_torso=args.shoulder_mid_torso,
+                  symmetrize_arms=args.symmetrize_arms)
     json.dump(out, open(args.out, "w"))
     errs = validate_clip_json(args.out)
     if errs:

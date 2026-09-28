@@ -14,6 +14,8 @@ const Policy = preload("res://scripts/systems/kimodo_valkren_policy.gd")
 
 const WALK_JSON := "res://tools/kimodo/samples/valkren_walk.json"
 const RUN_JSON := "res://tools/kimodo/samples/valkren_run.json"
+const KIMODO_RUN_JSON := "res://tools/kimodo/samples/valkren_kimodo_run.json"
+const KIMODO_CROP_NPZ := "res://tools/kimodo/samples/kimodo_g1_run_crop.npz"
 const TRANSFER_PY := "res://tools/kimodo/kimodo_npz_to_valkren.py"
 const MOCK_PY := "res://tools/kimodo/kimodo_mock.py"
 const WRAPPER_PY := "res://tools/kimodo/kimodo_generate.py"
@@ -36,13 +38,36 @@ func _ready() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 
-	for p in [WALK_JSON, RUN_JSON, TRANSFER_PY, MOCK_PY, WRAPPER_PY, FORMAT_PY]:
+	for p in [WALK_JSON, RUN_JSON, KIMODO_RUN_JSON, TRANSFER_PY, MOCK_PY, WRAPPER_PY, FORMAT_PY]:
 		_check(FileAccess.file_exists(p), "bridge file present: " + p)
 
 	_check(Policy.required_joints().size() == 12, "policy tracks 12 Valkren joints")
 
 	var walk: Dictionary = _load_clip_json(WALK_JSON, "valkren_walk", 60)
 	var run: Dictionary = _load_clip_json(RUN_JSON, "valkren_run", 48)
+	var kimodo: Dictionary = _load_clip_json(KIMODO_RUN_JSON, "valkren_kimodo_run", 42)
+
+	if not kimodo.is_empty():
+		# Real Kimodo Gen output: heavy readable steps (thigh span >= 30 deg),
+		# symmetric arm pump (|L+R| ~ 0 after mirror symmetrization),
+		# seamless loop (last frame == first after loop-blend).
+		_check(_x_span(kimodo, "LegLeft") >= 30.0, "kimodo run takes heavy steps (span %.1f deg)" % _x_span(kimodo, "LegLeft"))
+		var rec: Dictionary = kimodo[kimodo.keys()[0]]
+		var joints: Dictionary = rec["joints"]
+		var n: int = Policy.clip_frame_count(kimodo)
+		var asym := 0.0
+		var seam := 0.0
+		for f in range(n):
+			var al := float((((joints["ArmLeft"] as Dictionary)["rot"] as Array)[f] as Array)[0])
+			var ar := float((((joints["ArmRight"] as Dictionary)["rot"] as Array)[f] as Array)[0])
+			asym = maxf(asym, absf(al + ar))
+		for j in Policy.required_joints():
+			var arr: Array = ((joints[j] as Dictionary)["rot"] as Array)
+			for k in range(3):
+				seam = maxf(seam, absf(float((arr[0] as Array)[k]) - float((arr[n - 1] as Array)[k])))
+		_check(asym < 1.0, "kimodo arms pump symmetric (|L+R| max %.2f deg)" % asym)
+		_check(seam < 0.01, "kimodo loop is seamless (head/tail diff %.3f deg)" % seam)
+		_check(Policy.min_foot_y(kimodo) >= 0.27, "kimodo feet never sink (min %.3fm)" % Policy.min_foot_y(kimodo))
 
 	if not walk.is_empty() and not run.is_empty():
 		_check(Policy.clip_frame_count(run) < Policy.clip_frame_count(walk),

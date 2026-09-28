@@ -43,20 +43,44 @@ Valkren ขับด้วย euler บน Node3D (`MechaWalkingSystem`):
 - FK 2 ข้อ (hip 3.001 / shin 1.34 / foot 1.291 จาก `mecha_base.tscn`)
   ปัดคลิปที่เท้าจมใต้ rest − 0.10m ทิ้งตั้งแต่ตอนแปลง
 
-## การเจนจริง (แยกข้างนอก repo)
+## การเจนจริงด้วย Kimodo Gen (G1 robot)
+
+สภาพแวดล้อม (อยู่นอก repo นี้): venv ที่
+`%TEMP%/opencode/kimodo-venv` (torch CUDA 2.14+cu126),
+ซอร์ส clone ที่ `%TEMP%/opencode/kimodo`,
+ติดตั้งด้วย `SKIP_MOTION_CORRECTION_IN_SETUP=1`
+(G1 ไม่ใช้ postprocess). ต้องมี HF token ที่มีสิทธิ์ gated model
+`meta-llama/Meta-Llama-3-8B-Instruct` (text encoder) และการ์ด
+VRAM <17GB ต้อง `TEXT_ENCODER_DEVICE=cpu`
 
 ```bash
-# ทางที่แนะนำ: Docker (Windows)
-docker compose -f <kimodo-checkout>/docker-compose.yaml up
-docker exec -it kimodo kimodo_gen "a person running" --duration 4
-
-# การ์ด VRAM < 17GB (เช่น 4070 Ti 12GB):
-TEXT_ENCODER_DEVICE=cpu kimodo_gen "a person running" --duration 4
-
-# โมเดลที่แนะนำ: Kimodo-SOMA-RP-v1.1 (SOMA 77-joint, Bones Rigplay 700 ชม.)
-# NPZ จริงต้องส่ง --map-json ระบุ index ของ 12 roles
-# (pelvis, neck, upperarm_l/r, lowerarm_l/r, thigh_l/r, calf_l/r, foot_l/r)
+TEXT_ENCODER_DEVICE=cpu kimodo_gen --model Kimodo-G1-RP-v1 \
+  --duration 4.0 --seed 42 --output kimodo_mech_run4 \
+  "a massive humanoid combat robot running forward continuously ..."
+# -> kimodo_mech_run4.npz (Kimodo NPZ, J=34) + .csv (MuJoCo qpos)
 ```
+
+บทเรียนจากการเจนจริง (seed 21/42):
+- Kimodo สร้างแบบ run-then-settle (วิ่ง ~200f แล้วหยุดเอง) → ครอป
+  เฉพาะช่วง steady (`--crop "128:170"`, L-contact ถึง L-contact 2 รอบ)
+  แล้ว `--loop-blend 6` ให้หัว/ท้ายต่อกัน (test ตรวจ diff = 0)
+- ทิศ forward ใช้ **root travel** (xz) อย่าใช้ heading channel
+  (G1 heading ชี้ +X ขณะที่ root วิ่ง +Z)
+- G1 ไม่มีคอ/หัว → `--shoulder-mid-torso` วัด torso จาก
+  pelvis ถึงกึ่งกลางไหล่
+- G1 มักถือแขนข้างหนึ่งไว้ข้างหลัง → `--symmetrize-arms`
+  เฉลี่ยแบบ zero-mean ให้ pump สมมาตร (แขนยังแยก track พร้อม
+  ถูกแทนด้วย weapon layer)
+- G1 วิ่งตัวค่อนข้างตรง → `--lean-bias -28` ให้หมอบพุ่งแบบ Valkren
+  (net ≈ -19..-12, อยู่ใน clamp [-30,10] ที่อิง MechaClipRetarget)
+- ลิมิตขา/เข่าเปิดกว้างตาม baked-clip precedent
+  (ขา [-60,75], เข่า [-90,0]) เพื่อรับ high-knee ของ Kimodo
+
+ตัวอย่าง canonical: `samples/kimodo_g1_run_crop.npz` (41f)
+→ `samples/valkren_kimodo_run.json` (42f loop, FK เท้า ≥ 0.53m)
+พิสูจน์บน Rig จริงใน Blender แล้ว (action `kimodo_run_final`
++ NLA แยกชั้น `kimodo_run_lower`/`weapon_hold_demo`:
+ขาเท่ากันเป๊ะทั้งเปิด/ปิด weapon layer = separable จริง)
 
 ## แปลงมาใช้กับ Valkren
 

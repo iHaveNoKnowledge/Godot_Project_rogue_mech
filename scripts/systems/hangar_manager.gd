@@ -315,6 +315,11 @@ static func auto_park_wounded_active() -> String:
 # Removes a parked mech from the convoy roster. Used when a machine is destroyed
 # in battle. If the active mech is the one removed, the player is handed the
 # first remaining berth (or none, which is a valid pilot-only convoy state).
+# Handing over the berth also LOADS that reserve's state into the live working
+# set (same contract as switch_mech): the destroyed machine's working set must
+# not survive the removal, or the next save_active() would clobber the reserve
+# berth with the wreck's loadout/damage and the next combat would rebuild the
+# wreck instead of the reserve.
 static func remove_mech(mech_id: String) -> bool:
 	ensure_roster()
 	var removed := false
@@ -330,6 +335,8 @@ static func remove_mech(mech_id: String) -> bool:
 			if mech is Dictionary and not str(mech.get("id", "")).is_empty():
 				GlobalData.hangar.active_hangar_mech_id = str(mech.get("id", ""))
 				break
+		if GlobalData.hangar.active_hangar_mech_id != "":
+			load_mech_state(GlobalData.hangar.active_hangar_mech_id)
 	return true
 
 

@@ -1,8 +1,9 @@
 """Create a synthetic Kimodo-format NPZ for CI (no GPU, no model download).
 
-Builds a 2s @30fps in-place walk: pelvis bobs at ~0.9m, thighs swing
-+/-25deg, knees flex, feet stay above floor, arms counter-swing in a
-gun-ready-ish pose. Rotations are proper orthonormal matrices (Ry spins).
+Modes:
+  walk: 2s @30fps in-place walk, 1s stride, thighs +/-25deg, gentle bob.
+  run:  1.6s @30fps in-place run, 0.6s stride, thighs +/-40deg, deep knees,
+         bigger bounce plus a flight window (all contacts zero).
 
 Joint order (19, matches PILOT_BONES in kimodo_npz_to_pilot.py):
   pelvis, spine_01, spine_02, neck_01, Head,
@@ -12,6 +13,7 @@ Joint order (19, matches PILOT_BONES in kimodo_npz_to_pilot.py):
 
 Usage:
   python tools/kimodo/kimodo_mock.py --out tools/kimodo/samples/kimodo_mock.npz
+  python tools/kimodo/kimodo_mock.py --mode run --out tools/kimodo/samples/kimodo_mock_run.npz
 """
 from __future__ import annotations
 
@@ -75,7 +77,11 @@ def _ry(deg: float) -> np.ndarray:
     return np.array([[c, 0.0, s], [0.0, 1.0, 0.0], [-s, 0.0, c]])
 
 
-def build_mock(frames: int = 60) -> dict:
+def build_mock(frames: int = 60, stride_period: float = 1.0,
+                 swing: float = 25.0, knee_base: float = -12.0,
+                 knee_depth: float = 18.0, bob: float = 0.03,
+                 pelvis_h: float = 0.90, elbow: float = -20.0,
+                 flight_frac: float = 0.0) -> dict:
     J = len(PILOT_JOINTS_19)
     idx = {n: i for i, n in enumerate(PILOT_JOINTS_19)}
     posed = np.zeros((frames, J, 3))
@@ -90,19 +96,19 @@ def build_mock(frames: int = 60) -> dict:
     order = ["pelvis"] + [n for n in PILOT_JOINTS_19 if n != "pelvis"]
     for f in range(frames):
         t = f / FPS
-        phase = 2.0 * math.pi * t / 1.0  # 1s stride
-        bob = 0.03 * math.cos(2.0 * phase)
-        swing_r = 25.0 * math.sin(phase)
-        swing_l = 25.0 * math.sin(phase + math.pi)
-        knee_r = -12.0 - 18.0 * max(0.0, math.sin(phase + 0.6))
-        knee_l = -12.0 - 18.0 * max(0.0, math.sin(phase + math.pi + 0.6))
+        phase = 2.0 * math.pi * t / stride_period
+        bob_amp = bob * math.cos(2.0 * phase)
+        swing_r = swing * math.sin(phase)
+        swing_l = swing * math.sin(phase + math.pi)
+        knee_r = knee_base - knee_depth * max(0.0, math.sin(phase + 0.6))
+        knee_l = knee_base - knee_depth * max(0.0, math.sin(phase + math.pi + 0.6))
         arm_r = -swing_r * 0.5
         arm_l = -swing_l * 0.5
         spin = {
             "thigh_r": swing_r, "thigh_l": swing_l,
             "calf_r": knee_r, "calf_l": knee_l,
             "upperarm_r": arm_r, "upperarm_l": arm_l,
-            "lowerarm_r": -20.0, "lowerarm_l": -20.0,
+            "lowerarm_r": elbow, "lowerarm_l": elbow,
             "foot_r": -(swing_r + knee_r) * 0.4,
             "foot_l": -(swing_l + knee_l) * 0.4,
         }
@@ -113,7 +119,7 @@ def build_mock(frames: int = 60) -> dict:
             off = np.array(REST_OFFSET[n])
             if n == "pelvis":
                 g_rot[n] = r
-                g_pos[n] = np.array([0.0, 0.90 + bob, 0.0])
+                g_pos[n] = np.array([0.0, pelvis_h + bob_amp, 0.0])
             else:
                 p = PARENT[n]
                 g_rot[n] = g_rot[p] @ r
@@ -123,8 +129,13 @@ def build_mock(frames: int = 60) -> dict:
             posed[f, idx[n]] = g_pos[n]
         root_pos[f] = g_pos["pelvis"]
         smooth_root[f] = g_pos["pelvis"]
-        # stance contacts alternate each half stride
-        if math.sin(phase) > 0:
+        # flight window (run): both feet off ground around each passing pose
+        cyc = (phase % (2.0 * math.pi)) / (2.0 * math.pi)
+        in_flight = flight_frac > 0.0 and (
+            abs(cyc - 0.25) < flight_frac or abs(cyc - 0.75) < flight_frac)
+        if in_flight:
+            contacts[f] = [0.0, 0.0, 0.0, 0.0]
+        elif math.sin(phase) > 0:
             contacts[f] = [1.0, 1.0, 0.0, 0.0]
         else:
             contacts[f] = [0.0, 0.0, 1.0, 1.0]
@@ -140,17 +151,31 @@ def build_mock(frames: int = 60) -> dict:
 
 
 def main() -> None:
+    presets = {
+        "walk": dict(frames=60, stride_period=1.0, swing=25.0,
+                     knee_base=-12.0, knee_depth=18.0, bob=0.03,
+                     pelvis_h=0.90, elbow=-20.0, flight_frac=0.0),
+        "run": dict(frames=48, stride_period=0.6, swing=40.0,
+                    knee_base=-15.0, knee_depth=50.0, bob=0.05,
+                    pelvis_h=0.92, elbow=-35.0, flight_frac=0.06),
+    }
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
-    ap.add_argument("--frames", type=int, default=60)
+    ap.add_argument("--mode", choices=list(presets), default="walk")
+    ap.add_argument("--frames", type=int, default=None)
     args = ap.parse_args()
-    d = build_mock(args.frames)
+    kw = dict(presets[args.mode])
+    if args.frames is not None:
+        kw["frames"] = args.frames
+    frames = int(kw.pop("frames"))
+    d = build_mock(frames, **kw)
     errs = validate_npz_dict(d)
     if errs:
         raise SystemExit("mock failed validation: %s" % errs)
     np.savez(args.out, **d)
-    print("KIMODO_MOCK_OK %s T=%d J=%d keys=%s"
-          % (args.out, args.frames, len(PILOT_JOINTS_19), ",".join(REQUIRED_KEYS)))
+    print("KIMODO_MOCK_OK mode=%s %s T=%d J=%d keys=%s"
+          % (args.mode, args.out, frames, len(PILOT_JOINTS_19),
+             ",".join(REQUIRED_KEYS)))
 
 
 if __name__ == "__main__":

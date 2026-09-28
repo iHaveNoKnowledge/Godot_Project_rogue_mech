@@ -82,6 +82,17 @@ TEXT_ENCODER_DEVICE=cpu kimodo_gen --model Kimodo-G1-RP-v1 \
 + NLA แยกชั้น `kimodo_run_lower`/`weapon_hold_demo`:
 ขาเท่ากันเป๊ะทั้งเปิด/ปิด weapon layer = separable จริง)
 
+## สาย aggressive sprint (SEED แยก): `valkren_sprint_run.json`
+
+เจนเพิ่ม 2 seeds แล้ว **reject ตามกติกา**: bounding (flight 39%),
+เลี้ยวโค้ง, leaning-back run, march-hold (dwell ≥ 4f)
+เหลือ `kimodo_sprint2_01` ช่วง f242–273 (31f, 1 gait cycle):
+ขาหน้า +34° / หลัง -14° / เข่าพับ -87° / lean สุทธิ -19..-13°
+(lean-bias -34 ชดเชย torso หุ่นที่ตั้งตรง) / แขนปล่อยอสมมาตร
+ตามธรรมชาติของ Kimodo (**ไม่** symmetrize — บรีฟห้ามปั๊มแขน
+แบบ marching L-R-L-R) / loop-blend 6f / FK เท้า ≥ 0.49m
+สเตจเป็น action `sprint_combat_run` บน Rig แล้ว
+
 ## แปลงมาใช้กับ Valkren
 
 ```bash

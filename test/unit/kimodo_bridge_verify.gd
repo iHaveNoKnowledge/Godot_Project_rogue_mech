@@ -15,6 +15,7 @@ const Policy = preload("res://scripts/systems/kimodo_valkren_policy.gd")
 const WALK_JSON := "res://tools/kimodo/samples/valkren_walk.json"
 const RUN_JSON := "res://tools/kimodo/samples/valkren_run.json"
 const KIMODO_RUN_JSON := "res://tools/kimodo/samples/valkren_kimodo_run.json"
+const SPRINT_RUN_JSON := "res://tools/kimodo/samples/valkren_sprint_run.json"
 const KIMODO_CROP_NPZ := "res://tools/kimodo/samples/kimodo_g1_run_crop.npz"
 const TRANSFER_PY := "res://tools/kimodo/kimodo_npz_to_valkren.py"
 const MOCK_PY := "res://tools/kimodo/kimodo_mock.py"
@@ -38,7 +39,7 @@ func _ready() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 
-	for p in [WALK_JSON, RUN_JSON, KIMODO_RUN_JSON, TRANSFER_PY, MOCK_PY, WRAPPER_PY, FORMAT_PY]:
+	for p in [WALK_JSON, RUN_JSON, KIMODO_RUN_JSON, SPRINT_RUN_JSON, TRANSFER_PY, MOCK_PY, WRAPPER_PY, FORMAT_PY]:
 		_check(FileAccess.file_exists(p), "bridge file present: " + p)
 
 	_check(Policy.required_joints().size() == 12, "policy tracks 12 Valkren joints")
@@ -68,6 +69,27 @@ func _ready() -> void:
 		_check(asym < 1.0, "kimodo arms pump symmetric (|L+R| max %.2f deg)" % asym)
 		_check(seam < 0.01, "kimodo loop is seamless (head/tail diff %.3f deg)" % seam)
 		_check(Policy.min_foot_y(kimodo) >= 0.27, "kimodo feet never sink (min %.3fm)" % Policy.min_foot_y(kimodo))
+
+	var sprint: Dictionary = _load_clip_json(SPRINT_RUN_JSON, "valkren_sprint_run", 31)
+	if not sprint.is_empty():
+		# Aggressive sprint: long drive (front reach >= 25 deg AND rear
+		# extension behind zero), strong net lean, seamless loop, floor.
+		var srec: Dictionary = sprint[sprint.keys()[0]]
+		var sj: Dictionary = srec["joints"]
+		var lleg: Array = Policy.joint_x_range(sprint, "LegLeft")
+		var rleg: Array = Policy.joint_x_range(sprint, "LegRight")
+		var body: Array = Policy.joint_x_range(sprint, "Body")
+		_check(maxf(lleg[1], rleg[1]) >= 25.0, "sprint reaches forward decisively (max %.1f deg)" % maxf(lleg[1], rleg[1]))
+		_check(minf(lleg[0], rleg[0]) <= -5.0, "sprint extends behind on push (min %.1f deg)" % minf(lleg[0], rleg[0]))
+		_check(body[1] <= -5.0, "sprint keeps forward lean (max %.1f deg)" % body[1])
+		var n2: int = Policy.clip_frame_count(sprint)
+		var seam2 := 0.0
+		for j in Policy.required_joints():
+			var arr: Array = ((sj[j] as Dictionary)["rot"] as Array)
+			for k in range(3):
+				seam2 = maxf(seam2, absf(float((arr[0] as Array)[k]) - float((arr[n2 - 1] as Array)[k])))
+		_check(seam2 < 0.01, "sprint loop is seamless (diff %.3f deg)" % seam2)
+		_check(Policy.min_foot_y(sprint) >= 0.27, "sprint feet never sink (min %.3fm)" % Policy.min_foot_y(sprint))
 
 	if not walk.is_empty() and not run.is_empty():
 		_check(Policy.clip_frame_count(run) < Policy.clip_frame_count(walk),

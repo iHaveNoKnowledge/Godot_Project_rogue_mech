@@ -37,11 +37,9 @@ SEGS = [("thigh_l", "calf_l"), ("calf_l", "foot_l"),
         ("upperarm_l", "lowerarm_l"), ("lowerarm_l", "hand_l")]
 
 
-def quat_json_to_blender(q):
-    """JSON stores [w, x, y, z]; Blender rotation_quaternion is also
-    (w, x, y, z), so pass through unchanged. Do NOT rotate the components
-    (an XYZW shuffle twists every limb ~180 deg)."""
-    return (q[0], q[1], q[2], q[3])
+def quat_wxyz_to_xyzw(q):
+    w, x, y, z = q
+    return (x, y, z, w)
 
 
 def verify_clip(rig, bones_data):
@@ -95,7 +93,7 @@ def main():
         bpy.context.scene.frame_set(f + 1)
         for b in PILOT_BONES:
             pb = rig.pose.bones[b]
-            pb.rotation_quaternion = quat_json_to_blender(bones_data[b]["q"][f])
+            pb.rotation_quaternion = quat_wxyz_to_xyzw(bones_data[b]["q"][f])
             pb.keyframe_insert(data_path="rotation_quaternion", frame=f + 1)
             if b == "pelvis":
                 t = bones_data[b]["t"][f]

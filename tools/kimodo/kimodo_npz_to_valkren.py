@@ -36,7 +36,10 @@ torso from pelvis to the shoulder midpoint instead of a neck joint.
 
 Sizes: angles transfer scale-free; translations scale by BOB_SCALE=3.0
 (Valkren hip 3.0m vs human 0.9m). --lean-bias adds the Valkren charge lean
-mocap torsos never have (default -12 deg, 0 disables).
+mocap torsos never have (default -12 deg, 0 disables). --thigh-rear-gain
+multiplies BACKWARD (negative) thigh swing only, so push-off extension can
+be exaggerated without touching front reach (precedent: THIGH_BOOST in
+MechaClipRetarget, which scales swing to lengthen mech strides).
 
 A 2-bone FK (hip 3.001 / shin 1.34 / foot 1.291, from mecha_base.tscn)
 rejects clips whose feet sink below rest - 0.10m.
@@ -156,7 +159,8 @@ def convert(npz_path: str, clip: str, role_map: dict,
             lean_bias: float = -12.0, crouch: float = 0.06,
             crop: tuple | None = None, loop_blend: int = 0,
             shoulder_mid_torso: bool = False,
-            symmetrize_arms: bool = False) -> dict:
+            symmetrize_arms: bool = False,
+            thigh_rear_gain: float = 1.0) -> dict:
     import numpy as np
 
     from kimodo_npz_format import validate_npz_dict
@@ -236,8 +240,10 @@ def convert(npz_path: str, clip: str, role_map: dict,
                      *LIMITS["Body"][1]) - crouch
         bob = _clamp(bob, *LIMITS["Body"][1])
 
-        leg_lx = _clamp(th_l, *LIMITS["LegLeft"][0][:2])
-        leg_rx = _clamp(th_r, *LIMITS["LegRight"][0][:2])
+        leg_lx = _clamp(th_l if th_l >= 0 else th_l * thigh_rear_gain,
+                          *LIMITS["LegLeft"][0][:2])
+        leg_rx = _clamp(th_r if th_r >= 0 else th_r * thigh_rear_gain,
+                          *LIMITS["LegRight"][0][:2])
         shin_lx = _clamp(-kn_l, *LIMITS["ShinLeft"][0][:2])
         shin_rx = _clamp(-kn_r, *LIMITS["ShinRight"][0][:2])
         arm_lx = _clamp(a_l, *LIMITS["ArmLeft"][0][:2])
@@ -397,6 +403,8 @@ def main() -> None:
                     help="torso measured pelvis->shoulder-midpoint (G1 has no neck)")
     ap.add_argument("--symmetrize-arms", action="store_true",
                     help="mirror-average arm pump (fixes one-arm-back G1 bias)")
+    ap.add_argument("--thigh-rear-gain", type=float, default=1.0,
+                    help="exaggerate BACKWARD thigh swing only (push-off), e.g. 1.7")
     ap.add_argument("--json", default=None)
     ap.add_argument("--validate-only", action="store_true")
     args = ap.parse_args()
@@ -422,7 +430,8 @@ def main() -> None:
     out = convert(args.npz, args.clip, role_map, args.lean_bias, args.crouch,
                   crop=crop, loop_blend=args.loop_blend,
                   shoulder_mid_torso=args.shoulder_mid_torso,
-                  symmetrize_arms=args.symmetrize_arms)
+                  symmetrize_arms=args.symmetrize_arms,
+                  thigh_rear_gain=args.thigh_rear_gain)
     json.dump(out, open(args.out, "w"))
     errs = validate_clip_json(args.out)
     if errs:

@@ -70,17 +70,18 @@ func _ready() -> void:
 		_check(seam < 0.01, "kimodo loop is seamless (head/tail diff %.3f deg)" % seam)
 		_check(Policy.min_foot_y(kimodo) >= 0.27, "kimodo feet never sink (min %.3fm)" % Policy.min_foot_y(kimodo))
 
-	var sprint: Dictionary = _load_clip_json(SPRINT_RUN_JSON, "valkren_sprint_run", 31)
+	var sprint: Dictionary = _load_clip_json(SPRINT_RUN_JSON, "valkren_sprint_run", 44)
 	if not sprint.is_empty():
-		# Aggressive sprint: long drive (front reach >= 25 deg AND rear
-		# extension behind zero), strong net lean, seamless loop, floor.
+		# Aggressive sprint = RUNNING gait (push/flight/landing), not walking:
+		# long drive (front reach >= 25 deg AND rear push <= -25 deg),
+		# strong net lean, seamless loop, floor.
 		var srec: Dictionary = sprint[sprint.keys()[0]]
 		var sj: Dictionary = srec["joints"]
 		var lleg: Array = Policy.joint_x_range(sprint, "LegLeft")
 		var rleg: Array = Policy.joint_x_range(sprint, "LegRight")
 		var body: Array = Policy.joint_x_range(sprint, "Body")
 		_check(maxf(lleg[1], rleg[1]) >= 25.0, "sprint reaches forward decisively (max %.1f deg)" % maxf(lleg[1], rleg[1]))
-		_check(minf(lleg[0], rleg[0]) <= -5.0, "sprint extends behind on push (min %.1f deg)" % minf(lleg[0], rleg[0]))
+		_check(minf(lleg[0], rleg[0]) <= -25.0, "sprint pushes behind strongly (min %.1f deg)" % minf(lleg[0], rleg[0]))
 		_check(body[1] <= -5.0, "sprint keeps forward lean (max %.1f deg)" % body[1])
 		var n2: int = Policy.clip_frame_count(sprint)
 		var seam2 := 0.0

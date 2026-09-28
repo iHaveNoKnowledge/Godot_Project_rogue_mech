@@ -84,14 +84,22 @@ TEXT_ENCODER_DEVICE=cpu kimodo_gen --model Kimodo-G1-RP-v1 \
 
 ## สาย aggressive sprint (SEED แยก): `valkren_sprint_run.json`
 
-เจนเพิ่ม 2 seeds แล้ว **reject ตามกติกา**: bounding (flight 39%),
-เลี้ยวโค้ง, leaning-back run, march-hold (dwell ≥ 4f)
-เหลือ `kimodo_sprint2_01` ช่วง f242–273 (31f, 1 gait cycle):
-ขาหน้า +34° / หลัง -14° / เข่าพับ -87° / lean สุทธิ -19..-13°
-(lean-bias -34 ชดเชย torso หุ่นที่ตั้งตรง) / แขนปล่อยอสมมาตร
-ตามธรรมชาติของ Kimodo (**ไม่** symmetrize — บรีฟห้ามปั๊มแขน
-แบบ marching L-R-L-R) / loop-blend 6f / FK เท้า ≥ 0.49m
-สเตจเป็น action `sprint_combat_run` บน Rig แล้ว
+เจน 6 samples (3 prompts × seeds) แล้ว **reject ตามกติกา**: bounding
+(flight 39%), เลี้ยวโค้ง, leaning-back run, march-hold (dwell ≥ 4f)
+เหลือ `kimodo_mech_run` (seed 7) ช่วง f116–160 (44f = 2 strides):
+dwell 2f (SWING ไม่ใช่ HOLD), flight สั้นๆ ครั้งละ ≤6f (รวม ~45%
+ของ window กระจายเป็นช่วงๆ — ไม่ใช่ลอยยาว), cadence ~0.7s
+
+ transfer รอบแก้ (CORRECT):
+- `--thigh-rear-gain 1.7` ขยายเฉพาะขาหลัง (push-off) จาก -28/-19
+  เป็น -47/-32 ตาม precedent THIGH_BOOST (ขาหน้าไม่โดน)
+- `--lean-bias -30` เน็ต -29..-20 หมอบพุ่งแรง
+- **ไม่** symmetrize — เก็บ asymmetry ธรรมชาติกันทรง marching
+- `--loop-blend 6`, FK เท้า ≥ 0.57m
+- ผล: หลัง -47.1 / หน้า +33.8 / เข่าพับ -90 / แขนอสมมาตร
+  สเตจเป็น action `sprint_combat_run` ตรวจ silhouette แล้ว:
+  push (ขาหลังเหยียด ตัวพุ่ง) + flight (เท้าลอยคู่) = RUNNING
+  ไม่ใช่ walking (ตัดสินด้วยภาพ ไม่ใช่แค่ตัวเลข)
 
 ## แปลงมาใช้กับ Valkren
 

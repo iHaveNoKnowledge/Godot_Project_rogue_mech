@@ -76,6 +76,8 @@ func _ready() -> void:
 	_check(Layer.lower_body_matches(_joints, snap_none), "none preserves lower body")
 	_check(_arm_snapshot() == arms_before, "none preserves arms")
 
+	_run_runtime_simulation()
+
 	print("WEAPON_LAYER_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	if _fails > 0:
 		printerr("WEAPON_LAYER_VERIFY_FAILED")
@@ -83,6 +85,70 @@ func _ready() -> void:
 	else:
 		print("ALL_WEAPON_LAYER_TESTS_PASSED")
 		get_tree().quit(0)
+# ─── Runtime simulation: real Kimodo sprint underneath every layer ────
+# Steps frames of valkren_sprint_run.json as the base (including the run's
+# OWN arm swing, which each weapon layer must override), then proves
+# legs/torso track the run exactly while arms follow the hold pose.
+const SPRINT_JSON := "res://tools/kimodo/samples/valkren_sprint_run.json"
+const JSON_TO_JOINT := {
+	"Body": "body", "Head": "head",
+	"ArmLeft": "arm_left", "ArmRight": "arm_right",
+	"ForearmLeft": "forearm_left", "ForearmRight": "forearm_right",
+	"LegLeft": "leg_left", "LegRight": "leg_right",
+	"ShinLeft": "shin_left", "ShinRight": "shin_right",
+	"FootLeft": "foot_left", "FootRight": "foot_right",
+}
+
+
+func _run_runtime_simulation() -> void:
+	if not FileAccess.file_exists(SPRINT_JSON):
+		_check(false, "runtime sprint JSON present")
+		return
+	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SPRINT_JSON))
+	var rec: Dictionary = data[data.keys()[0]]
+	var joints: Dictionary = rec["joints"]
+	var n: int = ((joints["Body"] as Dictionary)["rot"] as Array).size()
+	_check(n == 44, "runtime sprint has 44 run frames")
+
+	for weapon in ["rifle", "sword", "heavy"]:
+		var mask: Array = Layer.mask_for_weapon(weapon)
+		var pose: Dictionary = Layer.pose_for_weapon(weapon)
+		var legs_ok := true
+		var torso_ok := true
+		var arms_hold := true
+		for f in [0, 15, 30, n - 1]:
+			_apply_base_frame(joints, f)
+			Layer.apply_layer(_joints, pose, mask, 1.0)
+			if not _base_matches(joints, f, true):
+				legs_ok = false
+			if not _base_matches(joints, f, false):
+				torso_ok = false
+			for key in pose.keys():
+				if str(key) in mask and not _joint_matches(key, pose[key]):
+					arms_hold = false
+		_check(legs_ok, weapon + ": legs track the live run every sampled frame")
+		_check(torso_ok, weapon + ": torso tracks the live run every sampled frame")
+		_check(arms_hold, weapon + ": arms hold the weapon pose, not the run swing")
+
+	# TEST 1, one-handed rifle: weapon arm holds, support arm keeps the run.
+	_apply_base_frame(joints, 15)
+	Layer.apply_layer(_joints, Layer.pose_rifle(), Layer.MASK_RIFLE_PRIMARY, 1.0)
+	_check(_joint_matches("arm_right", (Layer.pose_rifle()["arm_right"] as Dictionary)),
+		"primary: weapon arm holds the rifle")
+	_check(_joint_matches_base(joints, 15, "arm_left"),
+		"primary: support arm keeps the base run swing")
+	_check(_base_matches(joints, 15, true), "primary: legs untouched")
+
+	# Mid-run weapon switch: rifle -> sword -> heavy, legs never move.
+	_apply_base_frame(joints, 20)
+	Layer.apply_weapon(_joints, "rifle", 1.0)
+	var legs_rifle: Dictionary = Layer.snapshot_lower_body(_joints)
+	_apply_base_frame(joints, 20)
+	Layer.apply_weapon(_joints, "sword", 1.0)
+	_check(Layer.lower_body_matches(_joints, legs_rifle), "runtime rifle->sword keeps identical legs")
+	_apply_base_frame(joints, 20)
+	Layer.apply_weapon(_joints, "heavy", 1.0)
+	_check(Layer.lower_body_matches(_joints, legs_rifle), "runtime rifle->heavy keeps identical legs")
 
 
 func _build_mock_rig() -> void:
@@ -126,3 +192,67 @@ func _arms_moved(weapon: String) -> bool:
 		if (node.rotation - expect).length() > 0.0001:
 			return false
 	return true
+
+
+func _apply_base_frame(clip_joints: Dictionary, f: int) -> void:
+	for json_key in JSON_TO_JOINT.keys():
+		var node: Node3D = _joints[JSON_TO_JOINT[json_key]]
+		var jd: Dictionary = clip_joints[json_key]
+		var r: Array = (jd["rot"] as Array)[f]
+		node.rotation = Vector3(
+			deg_to_rad(float(r[0])), deg_to_rad(float(r[1])), deg_to_rad(float(r[2])))
+		node.position = Vector3(0, float((jd["off_y"] as Array)[f]), 0)
+
+
+func _legs_match(clip_joints: Dictionary, f: int) -> bool:
+	for json_key in ["LegLeft", "LegRight", "ShinLeft", "ShinRight", "FootLeft", "FootRight"]:
+		var node: Node3D = _joints[JSON_TO_JOINT[json_key]]
+		var jd: Dictionary = clip_joints[json_key]
+		var r: Array = (jd["rot"] as Array)[f]
+		var expect := Vector3(
+			deg_to_rad(float(r[0])), deg_to_rad(float(r[1])), deg_to_rad(float(r[2])))
+		if (node.rotation - expect).length() > 0.0001:
+			return false
+		if absf(node.position.y - float((jd["off_y"] as Array)[f])) > 0.0001:
+			return false
+	return true
+
+
+func _torso_match(clip_joints: Dictionary, f: int) -> bool:
+	for json_key in ["Body", "Head"]:
+		var node: Node3D = _joints[JSON_TO_JOINT[json_key]]
+		var jd: Dictionary = clip_joints[json_key]
+		var r: Array = (jd["rot"] as Array)[f]
+		var expect := Vector3(
+			deg_to_rad(float(r[0])), deg_to_rad(float(r[1])), deg_to_rad(float(r[2])))
+		if (node.rotation - expect).length() > 0.0001:
+			return false
+		if absf(node.position.y - float((jd["off_y"] as Array)[f])) > 0.0001:
+			return false
+	return true
+
+
+func _base_matches(clip_joints: Dictionary, f: int, legs: bool) -> bool:
+	if legs:
+		return _legs_match(clip_joints, f)
+	return _torso_match(clip_joints, f)
+
+
+func _joint_matches(key: String, tgt: Dictionary) -> bool:
+	var node: Node3D = _joints[key]
+	var expect := Vector3(float(tgt.get("x", 0.0)), float(tgt.get("y", 0.0)), float(tgt.get("z", 0.0)))
+	return (node.rotation - expect).length() <= 0.0001
+
+
+func _joint_matches_base(clip_joints: Dictionary, f: int, key: String) -> bool:
+	var json_key := ""
+	for jk in JSON_TO_JOINT.keys():
+		if str(JSON_TO_JOINT[jk]) == key:
+			json_key = str(jk)
+	if json_key == "":
+		return false
+	var jd: Dictionary = clip_joints[json_key]
+	var r: Array = (jd["rot"] as Array)[f]
+	var expect := Vector3(
+		deg_to_rad(float(r[0])), deg_to_rad(float(r[1])), deg_to_rad(float(r[2])))
+	return ((_joints[key] as Node3D).rotation - expect).length() <= 0.0001

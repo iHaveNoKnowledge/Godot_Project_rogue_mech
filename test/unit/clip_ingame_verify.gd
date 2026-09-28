@@ -86,9 +86,11 @@ func _ready() -> void:
 
 	# Dune bump: brief airtime (< grace) must NOT snap to the static fall
 	# pose — the run clip carries over the bump. Sampled over 16 frames
-	# (still well under the 0.3s grace): realistic mocap-timed clips move
-	# slower through plant transitions than uniform authored cycles, so a
-	# 10-frame window can land on a slow phase even while playing normally.
+	# (still well under the 0.3s grace): measured on the sprint clip, one
+	# 4-clip-frame plant phase (at f18) moves < 3 deg, so a 10-physics-frame
+	# window (~3.5 clip frames at rate 0.7) can sit entirely inside it while
+	# playing normally; no 6-clip-frame window does, so 16 physics frames
+	# always observe real motion. Threshold itself is unchanged.
 	mecha.position.y += 1.5
 	mecha.velocity = Vector3(0, 1.0, -6.0)
 	var bump: Array = []

@@ -139,9 +139,12 @@ func _test_live_wiring() -> void:
 	var mecha: CharacterBody3D = mecha_scene.instantiate()
 	add_child(mecha)
 	var cam := Camera3D.new()
-	cam.position = Vector3(0, 3.0, 6.0)
+	# High behind, aimed far past the enemy: the center ray must never clip
+	# the mech's own capsule (a self-hit would turn dir back toward +Z and
+	# face the mech away from the target).
+	cam.position = mecha.global_position + Vector3(0, 6.0, 10.0)
 	add_child(cam)
-	cam.look_at(Vector3(0, 2.0, 0.0))
+	cam.look_at(mecha.global_position + Vector3(0, 1.0, -20.0))
 	cam.make_current()
 	await get_tree().physics_frame
 	await _settle(mecha)
@@ -213,6 +216,76 @@ func _test_live_wiring() -> void:
 			samples.append(leg.rotation.x)
 	if samples.size() > 2:
 		_check(_range_of(samples) > deg_to_rad(2.0), "run resumes after attack (leg range=%.1f deg)" % rad_to_deg(_range_of(samples)))
+
+	await _test_start_conditions(mecha, wm, blade, enemy)
+	await _test_rapid_spam(mecha, wm, blade, enemy)
+	_test_telemetry_sequence()
+
+
+## Attacks from idle / walk / sprint stay synchronized: one hit per swing
+## at strike time in every locomotion state (camera re-added: _melee_attack
+## needs one for its aim ray; the enemy rides the mech so range is constant).
+func _test_start_conditions(mecha: CharacterBody3D, wm: Node, blade: WeaponPart, enemy: MockEnemy) -> void:
+	# Same self-hit-proof framing as the main camera: high behind, aimed
+	# far past the enemy.
+	var cam := Camera3D.new()
+	cam.position = mecha.global_position + Vector3(0, 6.0, 10.0)
+	add_child(cam)
+	cam.look_at(mecha.global_position + Vector3(0, 1.0, -20.0))
+	cam.make_current()
+	await get_tree().physics_frame
+	var anim = mecha.get_node_or_null("MechaAnimation")
+	var animator = anim.get("action_animator")
+	for speed in [0.0, -3.0, -8.0]:
+		enemy.hits.clear()
+		animator.last_attack_time_ms = 0
+		enemy.global_position = mecha.global_position + Vector3(0, 0, -3.0)
+		mecha.velocity = Vector3(0, 0, speed)
+		wm._melee_attack("right", blade)
+		for i in range(5):
+			animator.update(1.0 / 60.0)
+		for i in range(150):
+			if speed != 0.0:
+				mecha.velocity = Vector3(0, mecha.velocity.y, speed)
+			await get_tree().physics_frame
+		_check(enemy.hits.size() == 1, "attack from speed %.0f hits exactly once (got %d)" % [speed, enemy.hits.size()])
+	# Camera stays alive for the spam section below (it needs the aim ray).
+
+
+## Four inputs inside one windup: four starts, but only the final swing can
+## ever strike — no phantom hits, no stacking, combo chaining untouched.
+func _test_rapid_spam(mecha: CharacterBody3D, wm: Node, blade: WeaponPart, enemy: MockEnemy) -> void:
+	var anim = mecha.get_node_or_null("MechaAnimation")
+	var animator = anim.get("action_animator")
+	enemy.hits.clear()
+	enemy.global_position = mecha.global_position + Vector3(0, 0, -2.5)
+	var id_before: int = animator.attack_id
+	for i in range(4):
+		wm._melee_attack("right", blade)
+	_check(animator.attack_id == id_before + 4, "four inputs mint four attack starts (combo preserved)")
+	var final_strikes: int = animator.strike_times.size()
+	for i in range(220):
+		await get_tree().physics_frame
+	_check(enemy.hits.size() == final_strikes, "spam yields only the final swing's strikes (%d, no phantoms)" % enemy.hits.size())
+	for i in range(60):
+		await get_tree().physics_frame
+	_check(enemy.hits.size() == final_strikes, "no late duplicate hits after completion")
+
+
+## Full lifecycle telemetry on one swing, in order, exactly once each.
+func _test_telemetry_sequence() -> void:
+	var animator := MechaActionAnimator.new()
+	add_child(animator)
+	var log: Array = []
+	animator.play_af_melee("right", 1)
+	log.append("start:%d" % animator.attack_id)
+	for i in range(240):
+		animator.update(1.0 / 60.0)
+		while animator.poll_strike():
+			log.append("strike:%d" % animator.attack_id)
+		if animator.poll_attack_complete():
+			log.append("complete:%d" % animator.attack_id)
+	_check(log == ["start:1", "strike:1", "complete:1"], "telemetry sequence is exactly start->strike->complete (got %s)" % str(log))
 
 
 func _make_joints() -> Dictionary:

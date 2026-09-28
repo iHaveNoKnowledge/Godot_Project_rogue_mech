@@ -113,10 +113,21 @@ python tools/kimodo/kimodo_npz_to_valkren.py \
   --npz tools/kimodo/samples/kimodo_mock_run.npz \
   --clip valkren_run --out tools/kimodo/samples/valkren_run.json
 
-# 3. ตรวจ			
+# 3. ตรวจ
 python tools/kimodo/kimodo_npz_to_valkren.py --validate-only \
   --json tools/kimodo/samples/valkren_run.json
 ```
+
+## ใช้ในเกม + เสียงฝีเท้า sync
+
+- JSON มี `stance_l`/`stance_r` (0/1 ต่อเฟรม จาก Kimodo foot_contacts)
+- `MechaJsonClip` (`scripts/mecha/mecha_json_clip.gd`) เล่น JSON ลง pivots
+  โดยตรง + ปล่อย touchdown/liftoff events ตรงขอบ stance
+- `MechaClipRetarget` ลงทะเบียน `valkren_sprint_run.json` เป็น
+  `CLIP_SPRINT_KIMODO` (เลือกก่อน AI_RUN/RUN) และส่ง events ต่อ
+- `mecha_animation._update_clip_animation` เล่น footstep/lift ตรง
+  ตำแหน่งเท้าจาก events — เสียงกลับมาตอนใช้ clip-driven run แล้ว
+  (ก่อนหน้านี้มีแค่ procedural path ที่เล่นเสียง)
 
 ## Godot policy
 

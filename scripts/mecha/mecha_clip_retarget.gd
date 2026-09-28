@@ -86,6 +86,11 @@ var skeleton: Skeleton3D = null
 var player: AnimationPlayer = null
 var active_clip: String = ""
 var _sources: Dictionary = {}
+# Transfer-baked JSON locomotion (pivot space, no skeleton sampling).
+# Keyed by clip name; _json_active selects one instead of a GLB source.
+var _json_clips: Dictionary = {}
+var _json_active: String = ""
+const SPRINT_JSON_PATH := "res://tools/kimodo/samples/valkren_sprint_run.json"
 var _bone_cache: Dictionary = {}
 var _rest_pitch: Dictionary = {}
 var _rest_flex: Dictionary = {}
@@ -99,6 +104,17 @@ func _ready() -> void:
 		_build_source(clip_name, String(CLIP_SOURCES[clip_name]))
 	if _sources.has(MechaRig.CLIP_RUN):
 		_use_source(MechaRig.CLIP_RUN)
+	register_json_clip(MechaRig.CLIP_SPRINT_KIMODO, SPRINT_JSON_PATH)
+
+
+## Registers a transfer-baked JSON clip (MechaJsonClip). No-ops when the
+## file is missing or invalid. Returns true when the clip is playable.
+func register_json_clip(clip_name: String, path: String) -> bool:
+	var clip := MechaJsonClip.load_file(path)
+	if not clip.is_loaded():
+		return false
+	_json_clips[clip_name] = clip
+	return true
 
 
 func _build_source(clip_name: String, path: String) -> void:
@@ -141,7 +157,7 @@ func _use_source(clip_name: String) -> void:
 
 
 func has_clip(clip_name: String) -> bool:
-	return _sources.has(clip_name)
+	return _sources.has(clip_name) or _json_clips.has(clip_name)
 
 
 # Footfall fractions of the run loop (measured foot-minima per side),
@@ -151,6 +167,8 @@ const STEP_FRACS := [0.02, 0.19, 0.33, 0.55, 0.64, 0.86]
 const STEP_RIGHT := [true, false, true, false, true, false]
 var _last_step_pos: float = 0.0
 func poll_step_events() -> Array:
+	if _json_active != "" and _json_clips.has(_json_active):
+		return (_json_clips[_json_active] as MechaJsonClip).poll_step_events()
 	var out: Array = []
 	if player == null:
 		return out
@@ -175,9 +193,22 @@ func _collect_crossed(a: float, b: float, out: Array) -> void:
 			out.append(STEP_RIGHT[i])
 
 
+## Liftoff edges from the active JSON clip (true = right foot). GLB
+## sources carry no lift channel and always return empty.
+func poll_lift_events() -> Array:
+	if _json_active != "" and _json_clips.has(_json_active):
+		return (_json_clips[_json_active] as MechaJsonClip).poll_lift_events()
+	return []
+
+
 func play_clip(clip_name: String) -> void:
 	if not has_clip(clip_name):
 		return
+	if _json_clips.has(clip_name):
+		_json_active = clip_name
+		active_clip = clip_name
+		return
+	_json_active = ""
 	if active_clip != clip_name:
 		_use_source(clip_name)
 
@@ -186,6 +217,15 @@ func play_clip(clip_name: String) -> void:
 ## _build_joints_dict keys (arm_left, shin_right, body, ...). `body_base_y`
 ## is the pivot's procedural rest height so the hip bob adds on top.
 func advance_and_apply(delta: float, joints: Dictionary, body_base_y: float) -> void:
+	if _json_active != "" and _json_clips.has(_json_active):
+		var clip: MechaJsonClip = _json_clips[_json_active]
+		clip.advance(delta)
+		clip.apply_to_joints(joints, {
+			"body_y": body_base_y,
+			"leg_l_y": (joints.get("original_leg_left_pos", Vector3.ZERO) as Vector3).y,
+			"leg_r_y": (joints.get("original_leg_right_pos", Vector3.ZERO) as Vector3).y,
+		})
+		return
 	if skeleton == null or player == null:
 		return
 	player.advance(delta)

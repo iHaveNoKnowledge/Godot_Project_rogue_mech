@@ -198,6 +198,12 @@ def convert(npz_path: str, clip: str, role_map: dict,
                        for f in range(T)])
     swing_r = _smooth([1.0 - max(float(contacts[f, 2]), float(contacts[f, 3]))
                        for f in range(T)])
+    # Binary stance per foot (1 = on ground). Drives footstep audio sync at
+    # runtime: touchdown edge 0->1 = footstep, liftoff edge 1->0 = lift.
+    stance_l = [1 if max(float(contacts[f, 0]), float(contacts[f, 1])) >= 0.5 else 0
+                for f in range(T)]
+    stance_r = [1 if max(float(contacts[f, 2]), float(contacts[f, 3])) >= 0.5 else 0
+                for f in range(T)]
     pelvis_y0 = float(root[0, 1])
 
     J: dict = {j: {"rot": [], "off_y": []} for j in VALKREN_JOINTS}
@@ -320,8 +326,23 @@ def convert(npz_path: str, clip: str, role_map: dict,
             worst = min(worst, _fk_foot_y(0.0, th, sh, li))
     if worst < FOOT_REST_Y - 0.10:
         raise ValueError("FK floor fail: min foot y %.3f < %.3f" % (worst, FOOT_REST_Y - 0.10))
-    return {clip: {"duration": T / FPS, "fps": FPS, "frames": T, "joints": J,
-                   "foot_min_y": round(worst, 4)}}
+    out = {clip: {"duration": T / FPS, "fps": FPS, "frames": T, "joints": J,
+                  "foot_min_y": round(worst, 4)}}
+    if loop_blend > 0:
+        # Stance follows the same wrap: tail copies head (shifted by one) so
+        # the last frame's stance equals frame 0 -> no spurious step event.
+        for key in ("stance_l", "stance_r"):
+            src = stance_l if key == "stance_l" else stance_r
+            dst = [0] * T
+            for f in range(T - loop_blend):
+                dst[f] = src[f]
+            for i in range(loop_blend):
+                dst[T - loop_blend + i] = src[(i + 1) % loop_blend]
+            out[clip][key] = dst
+    else:
+        out[clip]["stance_l"] = stance_l
+        out[clip]["stance_r"] = stance_r
+    return out
 
 
 def _flex_from_local(d, role: str, role_map: dict, f: int) -> float:
@@ -346,6 +367,13 @@ def validate_clip_json(path: str) -> list:
     n = len(joints["Body"]["rot"])
     if n < 4:
         return ["too few frames: %d" % n]
+    for key in ("stance_l", "stance_r"):
+        if key in rec and len(rec[key]) != n:
+            errors.append("%s len %d != %d" % (key, len(rec[key]), n))
+        if key in rec and any(v not in (0, 1) for v in rec[key]):
+            errors.append("%s not binary" % key)
+    if errors:
+        return errors
     for j in VALKREN_JOINTS:
         (x_lo, x_hi, yz), (o_lo, o_hi) = LIMITS[j]
         rot = joints[j]["rot"]

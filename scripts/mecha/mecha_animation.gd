@@ -169,10 +169,13 @@ func _update_clip_animation(delta: float) -> void:
 		debug_branch = "procedural_idle"
 		_run_procedural(delta)
 		return
-	# Hand-authored run is primary; an AI clip wins when present.
+	# Hand-authored run is primary; a Kimodo sprint wins when present,
+	# then any AI clip; the hand-authored run is the final fallback.
 	var clip_name := MechaRig.CLIP_RUN
 	if clip_retarget.has_clip(MechaRig.CLIP_AI_RUN):
 		clip_name = MechaRig.CLIP_AI_RUN
+	if clip_retarget.has_clip(MechaRig.CLIP_SPRINT_KIMODO):
+		clip_name = MechaRig.CLIP_SPRINT_KIMODO
 	if not clip_retarget.has_clip(clip_name):
 		debug_branch = "procedural_noclip"
 		_run_procedural(delta)
@@ -183,7 +186,9 @@ func _update_clip_animation(delta: float) -> void:
 	var joints := _build_joints_dict()
 	var h_speed := Vector2(mecha.velocity.x, mecha.velocity.z).length()
 	clip_retarget.advance_and_apply(delta * MechaClipRetarget.rate_for_speed(h_speed), joints, _original_body_pos.y)
-	_update_clip_strafe_overlay(h_speed, joints)
+	var step_events: Array = clip_retarget.poll_step_events()
+	_update_clip_footsteps(step_events, clip_retarget.poll_lift_events())
+	_update_clip_strafe_overlay(h_speed, joints, step_events)
 	_update_aim_arms(delta)
 	_update_shield_arm(delta)
 	if action_animator:
@@ -200,7 +205,38 @@ var _strafe_phase: float = 0.0
 var _strafe_bank: float = 0.0
 var _strafe_lift_l: float = 0.0
 var _strafe_lift_r: float = 0.0
-func _update_clip_strafe_overlay(h_speed: float, joints: Dictionary) -> void:
+# Footstep audio for clip-driven locomotion (this is what went missing when
+# runs moved from the procedural gait to clips: only update_legs ever played
+# steps). Touchdowns come from the clip itself — baked STEP_FRACS for GLB
+# clips, stance-channel edges for JSON clips — so each thump lands on the
+# exact frame its foot plants; liftoffs play the step-lift swish.
+func _update_clip_footsteps(step_events: Array, lift_events: Array) -> void:
+	if step_events.is_empty() and lift_events.is_empty():
+		return
+	if not _walk.is_moving or not mecha.is_on_floor():
+		return
+	var local_vel: Vector3 = mecha.global_transform.basis.inverse() * mecha.velocity
+	local_vel.y = 0.0
+	var spd: float = local_vel.length()
+	if spd < 0.1:
+		return
+	var step_dir := local_vel.normalized()
+	var audio_mgr: Node = get_node_or_null("/root/AudioManager")
+	if audio_mgr == null:
+		return
+	for is_right in step_events:
+		var land_offset_x := 0.45 if bool(is_right) else -0.45
+		var land_pos: Vector3 = mecha.global_position + mecha.global_transform.basis * (Vector3(land_offset_x, 0.0, 0.0) + step_dir * 0.3)
+		if audio_mgr.has_method("play_footstep"):
+			audio_mgr.play_footstep(land_pos)
+	for is_right in lift_events:
+		var land_offset_x := 0.45 if bool(is_right) else -0.45
+		var lift_pos: Vector3 = mecha.global_position + mecha.global_transform.basis * Vector3(land_offset_x, 0.0, 0.0)
+		if audio_mgr.has_method("play_step_lift"):
+			audio_mgr.play_step_lift(lift_pos)
+
+
+func _update_clip_strafe_overlay(h_speed: float, joints: Dictionary, step_events: Array) -> void:
 	var leg_l: Node3D = joints.get("leg_left")
 	var leg_r: Node3D = joints.get("leg_right")
 	var body: Node3D = joints.get("body")
@@ -224,7 +260,7 @@ func _update_clip_strafe_overlay(h_speed: float, joints: Dictionary) -> void:
 	var side_ratio := clampf(local_vel.x / spd, -1.0, 1.0)
 	if absf(side_ratio) < 0.15:
 		return
-	for _e in clip_retarget.poll_step_events():
+	for _e in step_events:
 		_strafe_phase += PI
 	var ov := MechaWalkingSystem.calc_strafe_overlay(side_ratio, _strafe_phase)
 	if leg_l:

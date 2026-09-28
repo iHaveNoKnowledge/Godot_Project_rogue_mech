@@ -85,11 +85,14 @@ func _ready() -> void:
 	_check(_range_of(slow_x) > deg_to_rad(3.0), "slow speed still strides (range=%.1f deg)" % rad_to_deg(_range_of(slow_x)))
 
 	# Dune bump: brief airtime (< grace) must NOT snap to the static fall
-	# pose — the run clip carries over the bump.
+	# pose — the run clip carries over the bump. Sampled over 16 frames
+	# (still well under the 0.3s grace): realistic mocap-timed clips move
+	# slower through plant transitions than uniform authored cycles, so a
+	# 10-frame window can land on a slow phase even while playing normally.
 	mecha.position.y += 1.5
 	mecha.velocity = Vector3(0, 1.0, -6.0)
 	var bump: Array = []
-	for i in range(10):
+	for i in range(16):
 		await get_tree().physics_frame
 		bump.append(leg.rotation.x)
 	_check(_range_of(bump) > deg_to_rad(3.0), "run survives brief airtime (range=%.1f deg)" % rad_to_deg(_range_of(bump)))

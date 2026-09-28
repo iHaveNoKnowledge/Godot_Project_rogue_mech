@@ -88,8 +88,16 @@ func complete_grand_entry() -> void:
 		var chassis_id := "valkyrion" if GlobalData.board.current_sector >= 2 else "gm"
 		new_mech["chassis_id"] = chassis_id
 		new_mech["name"] = _get_mech_name(new_mech_id)
-		# Set as active mech.
+		# The Hero Unit descends pristine: build() clones the wreck's working
+		# set, so drop that damage from the berth before handing over.
+		new_mech["damage"] = {}
+		# Set as active mech, then load it (same contract as switch_mech /
+		# remove_mech handover): the wreck's working set must not survive, or
+		# the next save_active() would clobber the Hero berth and the next
+		# combat would rebuild the wreck instead of the Hero Unit.
 		GlobalData.hangar.active_hangar_mech_id = str(new_mech.get("id", ""))
+		GlobalData.weapons.part_hit_meta.clear()
+		HangarManager.load_mech_state(GlobalData.hangar.active_hangar_mech_id)
 		GlobalData.narrative.mech_less = false
 	GlobalData.narrative.grand_entry_pending = false
 	grand_entry_completed.emit()

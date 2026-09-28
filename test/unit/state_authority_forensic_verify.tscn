@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://bstateauthforensic1"]
+
+[ext_resource type="Script" path="res://test/unit/state_authority_forensic_verify.gd" id="1_safor"]
+
+[node name="StateAuthorityForensicVerify" type="Node"]
+script = ExtResource("1_safor")

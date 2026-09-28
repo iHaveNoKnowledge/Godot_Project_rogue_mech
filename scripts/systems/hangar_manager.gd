@@ -355,12 +355,18 @@ static func can_mechless_retreat() -> bool:
 
 # Builds a fresh walking chassis from whatever parts the convoy still carries
 # and parks it in the roster, ending pilot-only mode. Returns the new mech.
+# The fresh chassis is pristine: wreck damage must not survive into the new
+# berth (same contract as remove_mech handover — save-old / load-new). The
+# working set still holds the wreck when the last berth is gone (no berth to
+# load), so clear it BEFORE snapshotting; frames/weapons are still reused.
 static func grant_recovery_mech() -> Dictionary:
 	if GlobalData.hangar.hangar_mechs.size() >= get_capacity():
 		return {}
 	if GlobalData.hangar.hangar_mechs.size() >= get_hard_max():
 		return {}
 	save_active()
+	GlobalData.weapons.part_damage.clear()
+	GlobalData.weapons.part_hit_meta.clear()
 	var mech_id := _new_id()
 	var slot := _next_free_slot()
 	var display_name := "Mech %02d" % slot

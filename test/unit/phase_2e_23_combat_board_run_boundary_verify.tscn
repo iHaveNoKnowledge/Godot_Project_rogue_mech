@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://c2e23boardrun01"]
+[gd_scene format=3 uid="uid://dy1qi3crmsyiq"]
 
 [ext_resource type="Script" path="res://test/unit/phase_2e_23_combat_board_run_boundary_verify.gd" id="1_test"]
 

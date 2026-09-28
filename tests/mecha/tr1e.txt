@@ -1,0 +1,139 @@
+WARNING: Adding 'armL_forearm_back' as child to 'ArmorMesh' will make owner 'tankmech_arm_left' inconsistent. Consider unsetting the owner beforehand.
+   at: add_child (scene/main/node.cpp:1716)
+   GDScript backtrace (most recent call first):
+       [0] _attach_custom_mesh_scene (res://scripts/mecha/part_mesh_manager.gd:466)
+       [1] initialize_slot (res://scripts/mecha/part_mesh_manager.gd:322)
+       [2] _rebuild_slot (res://scripts/mecha/part_mesh_manager.gd:680)
+       [3] refresh_slots (res://scripts/mecha/part_mesh_manager.gd:631)
+       [4] _initialize_mesh_from_global_data (res://scripts/mecha/mecha_controller.gd:651)
+       [5] _ready (res://scripts/mecha/mecha_controller.gd:87)
+WARNING: Adding 'armL_forearm_front' as child to 'ArmorMesh' will make owner 'tankmech_arm_left' inconsistent. Consider unsetting the owner beforehand.
+   at: add_child (scene/main/node.cpp:1716)
+   GDScript backtrace (most recent call first):
+       [0] _attach_custom_mesh_scene (res://scripts/mecha/part_mesh_manager.gd:466)
+       [1] initialize_slot (res://scripts/mecha/part_mesh_manager.gd:322)
+       [2] _rebuild_slot (res://scripts/mecha/part_mesh_manager.gd:680)
+       [3] refresh_slots (res://scripts/mecha/part_mesh_manager.gd:631)
+       [4] _initialize_mesh_from_global_data (res://scripts/mecha/mecha_controller.gd:651)
+       [5] _ready (res://scripts/mecha/mecha_controller.gd:87)
+WARNING: Adding 'armL_forearm_back_001' as child to 'ArmorMesh' will make owner 'tankmech_arm_right' inconsistent. Consider unsetting the owner beforehand.
+   at: add_child (scene/main/node.cpp:1716)
+   GDScript backtrace (most recent call first):
+       [0] _attach_custom_mesh_scene (res://scripts/mecha/part_mesh_manager.gd:466)
+       [1] initialize_slot (res://scripts/mecha/part_mesh_manager.gd:322)
+       [2] _rebuild_slot (res://scripts/mecha/part_mesh_manager.gd:680)
+       [3] refresh_slots (res://scripts/mecha/part_mesh_manager.gd:631)
+       [4] _initialize_mesh_from_global_data (res://scripts/mecha/mecha_controller.gd:651)
+       [5] _ready (res://scripts/mecha/mecha_controller.gd:87)
+WARNING: Adding 'armL_forearm_front_001' as child to 'ArmorMesh' will make owner 'tankmech_arm_right' inconsistent. Consider unsetting the owner beforehand.
+   at: add_child (scene/main/node.cpp:1716)
+   GDScript backtrace (most recent call first):
+       [0] _attach_custom_mesh_scene (res://scripts/mecha/part_mesh_manager.gd:466)
+       [1] initialize_slot (res://scripts/mecha/part_mesh_manager.gd:322)
+       [2] _rebuild_slot (res://scripts/mecha/part_mesh_manager.gd:680)
+       [3] refresh_slots (res://scripts/mecha/part_mesh_manager.gd:631)
+       [4] _initialize_mesh_from_global_data (res://scripts/mecha/mecha_controller.gd:651)
+       [5] _ready (res://scripts/mecha/mecha_controller.gd:87)
+WARNING: Adding 'legL_kneeplate' as child to 'ArmorMesh' will make owner 'tankmech_leg_left' inconsistent. Consider unsetting the owner beforehand.
+   at: add_child (scene/main/node.cpp:1716)
+   GDScript backtrace (most recent call first):
+       [0] _attach_custom_mesh_scene (res://scripts/mecha/part_mesh_manager.gd:466)
+       [1] initialize_slot (res://scripts/mecha/part_mesh_manager.gd:322)
+       [2] _rebuild_slot (res://scripts/mecha/part_mesh_manager.gd:680)
+       [3] refresh_slots (res://scripts/mecha/part_mesh_manager.gd:631)
+       [4] _initialize_mesh_from_global_data (res://scripts/mecha/mecha_controller.gd:651)
+       [5] _ready (res://scripts/mecha/mecha_controller.gd:87)
+WARNING: Adding 'legL_shin_back' as child to 'ArmorMesh' will make owner 'tankmech_leg_left' inconsistent. Consider unsetting the owner beforehand.
+   at: add_child (scene/main/node.cpp:1716)
+   GDScript backtrace (most recent call first):
+       [0] _attach_custom_mesh_scene (res://scripts/mecha/part_mesh_manager.gd:466)
+       [1] initialize_slot (res://scripts/mecha/part_mesh_manager.gd:322)
+       [2] _rebuild_slot (res://scripts/mecha/part_mesh_manager.gd:680)
+       [3] refresh_slots (res://scripts/mecha/part_mesh_manager.gd:631)
+       [4] _initialize_mesh_from_global_data (res://scripts/mecha/mecha_controller.gd:651)
+       [5] _ready (res://scripts/mecha/mecha_controller.gd:87)
+WARNING: Adding 'legL_shin_front' as child to 'ArmorMesh' will make owner 'tankmech_leg_left' inconsistent. Consider unsetting the owner beforehand.
+   at: add_child (scene/main/node.cpp:1716)
+   GDScript backtrace (most recent call first):
+       [0] _attach_custom_mesh_scene (res://scripts/mecha/part_mesh_manager.gd:466)
+       [1] initialize_slot (res://scripts/mecha/part_mesh_manager.gd:322)
+       [2] _rebuild_slot (res://scripts/mecha/part_mesh_manager.gd:680)
+       [3] refresh_slots (res://scripts/mecha/part_mesh_manager.gd:631)
+       [4] _initialize_mesh_from_global_data (res://scripts/mecha/mecha_controller.gd:651)
+       [5] _ready (res://scripts/mecha/mecha_controller.gd:87)
+WARNING: Adding 'legL_foot' as child to 'ArmorMesh' will make owner 'tankmech_leg_left' inconsistent. Consider unsetting the owner beforehand.
+   at: add_child (scene/main/node.cpp:1716)
+   GDScript backtrace (most recent call first):
+       [0] _attach_custom_mesh_scene (res://scripts/mecha/part_mesh_manager.gd:475)
+       [1] initialize_slot (res://scripts/mecha/part_mesh_manager.gd:322)
+       [2] _rebuild_slot (res://scripts/mecha/part_mesh_manager.gd:680)
+       [3] refresh_slots (res://scripts/mecha/part_mesh_manager.gd:631)
+       [4] _initialize_mesh_from_global_data (res://scripts/mecha/mecha_controller.gd:651)
+       [5] _ready (res://scripts/mecha/mecha_controller.gd:87)
+WARNING: Adding 'legL_kneeplate_001' as child to 'ArmorMesh' will make owner 'tankmech_leg_right' inconsistent. Consider unsetting the owner beforehand.
+   at: add_child (scene/main/node.cpp:1716)
+   GDScript backtrace (most recent call first):
+       [0] _attach_custom_mesh_scene (res://scripts/mecha/part_mesh_manager.gd:466)
+       [1] initialize_slot (res://scripts/mecha/part_mesh_manager.gd:322)
+       [2] _rebuild_slot (res://scripts/mecha/part_mesh_manager.gd:680)
+       [3] refresh_slots (res://scripts/mecha/part_mesh_manager.gd:631)
+       [4] _initialize_mesh_from_global_data (res://scripts/mecha/mecha_controller.gd:651)
+       [5] _ready (res://scripts/mecha/mecha_controller.gd:87)
+WARNING: Adding 'legL_shin_back_001' as child to 'ArmorMesh' will make owner 'tankmech_leg_right' inconsistent. Consider unsetting the owner beforehand.
+   at: add_child (scene/main/node.cpp:1716)
+   GDScript backtrace (most recent call first):
+       [0] _attach_custom_mesh_scene (res://scripts/mecha/part_mesh_manager.gd:466)
+       [1] initialize_slot (res://scripts/mecha/part_mesh_manager.gd:322)
+       [2] _rebuild_slot (res://scripts/mecha/part_mesh_manager.gd:680)
+       [3] refresh_slots (res://scripts/mecha/part_mesh_manager.gd:631)
+       [4] _initialize_mesh_from_global_data (res://scripts/mecha/mecha_controller.gd:651)
+       [5] _ready (res://scripts/mecha/mecha_controller.gd:87)
+WARNING: Adding 'legL_shin_front_001' as child to 'ArmorMesh' will make owner 'tankmech_leg_right' inconsistent. Consider unsetting the owner beforehand.
+   at: add_child (scene/main/node.cpp:1716)
+   GDScript backtrace (most recent call first):
+       [0] _attach_custom_mesh_scene (res://scripts/mecha/part_mesh_manager.gd:466)
+       [1] initialize_slot (res://scripts/mecha/part_mesh_manager.gd:322)
+       [2] _rebuild_slot (res://scripts/mecha/part_mesh_manager.gd:680)
+       [3] refresh_slots (res://scripts/mecha/part_mesh_manager.gd:631)
+       [4] _initialize_mesh_from_global_data (res://scripts/mecha/mecha_controller.gd:651)
+       [5] _ready (res://scripts/mecha/mecha_controller.gd:87)
+WARNING: Adding 'legL_foot_001' as child to 'ArmorMesh' will make owner 'tankmech_leg_right' inconsistent. Consider unsetting the owner beforehand.
+   at: add_child (scene/main/node.cpp:1716)
+   GDScript backtrace (most recent call first):
+       [0] _attach_custom_mesh_scene (res://scripts/mecha/part_mesh_manager.gd:475)
+       [1] initialize_slot (res://scripts/mecha/part_mesh_manager.gd:322)
+       [2] _rebuild_slot (res://scripts/mecha/part_mesh_manager.gd:680)
+       [3] refresh_slots (res://scripts/mecha/part_mesh_manager.gd:631)
+       [4] _initialize_mesh_from_global_data (res://scripts/mecha/mecha_controller.gd:651)
+       [5] _ready (res://scripts/mecha/mecha_controller.gd:87)
+WARNING: Godot 3.x SpatialMaterial remapped parameter not found: specular
+   at: _set (scene/resources/material.cpp:4124)
+   GDScript backtrace (most recent call first):
+       [0] _create_outer_ground_skirt (res://scripts/arena/arena_backdrop_spawner.gd:48)
+       [1] build_perimeters (res://scripts/arena/arena_backdrop_spawner.gd:17)
+       [2] generate_arena (res://scripts/arena/arena_generator.gd:358)
+       [3] _ready (res://scripts/arena/arena_generator.gd:78)
+WARNING: A navigation mesh that uses a `cell_height` of 0.20000000298023 was assigned to a navigation map set to a larger `cell_height` of 0.25.
+This mismatch in cell height can cause rasterization errors with navigation mesh edges on the navigation map.
+The cell height for navigation maps can be changed by using the NavigationServer map_set_cell_height() function.
+The cell height for default navigation maps can also be changed in the project settings.
+This warning can be toggled under 'navigation/3d/warnings/navmesh_cell_size_mismatch' in the project settings.
+   at: set_navigation_mesh (modules/navigation_3d/nav_region_3d.cpp:113)
+
+================================================================
+CrashHandlerException: Program crashed with signal 11
+Engine version: Godot Engine v4.6.2.stable.official (71f334935c000924d403448e698df4441130df18)
+Dumping the backtrace. Please include this when reporting the bug on: https://github.com/godotengine/godot/issues
+[1] error(-1): no debug info in PE/COFF executable
+[2] error(-1): no debug info in PE/COFF executable
+[3] error(-1): no debug info in PE/COFF executable
+[4] error(-1): no debug info in PE/COFF executable
+[5] error(-1): no debug info in PE/COFF executable
+[6] error(-1): no debug info in PE/COFF executable
+-- END OF C++ BACKTRACE --
+================================================================
+GDScript backtrace (most recent call first):
+    [0] _run (res://tests/mecha/scene_transition_audit.gd:128)
+    [1] _wait_scene (res://tests/mecha/scene_transition_audit.gd:87)
+-- END OF GDSCRIPT BACKTRACE --
+================================================================

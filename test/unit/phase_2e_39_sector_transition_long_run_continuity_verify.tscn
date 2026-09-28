@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://c89x39sectortrans01"]
+[gd_scene format=3 uid="uid://e5blf2jkgjqi"]
 
 [ext_resource type="Script" path="res://test/unit/phase_2e_39_sector_transition_long_run_continuity_verify.gd" id="1_script"]
 

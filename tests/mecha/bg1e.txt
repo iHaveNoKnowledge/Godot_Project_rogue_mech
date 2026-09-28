@@ -1,0 +1,4 @@
+ERROR: String formatting error: unsupported format character.
+   at: validated_evaluate (core/variant/variant_op.h:829)
+   GDScript backtrace (most recent call first):
+       [0] _ready (res://test/unit/clip_retarget_verify.gd:68)

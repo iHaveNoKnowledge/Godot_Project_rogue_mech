@@ -183,11 +183,61 @@ func _update_clip_animation(delta: float) -> void:
 	var joints := _build_joints_dict()
 	var h_speed := Vector2(mecha.velocity.x, mecha.velocity.z).length()
 	clip_retarget.advance_and_apply(delta * MechaClipRetarget.rate_for_speed(h_speed), joints, _original_body_pos.y)
+	_update_clip_strafe_overlay(h_speed, joints)
 	_update_aim_arms(delta)
 	_update_shield_arm(delta)
 	if action_animator:
 		action_animator.update(delta)
 		action_animator.apply_to_joints(joints)
+
+
+# Lateral sidestep overlay for strafing. The run clip only knows forward,
+# so without this a sideways strafe plays a forward run. Each clip footfall
+# advances the strafe phase (legs alternate by construction); the overlay
+# adds abduction + lift from the tested procedural strafe math, weighted by
+# how sideways the motion is. Pure forward running is untouched.
+var _strafe_phase: float = 0.0
+var _strafe_bank: float = 0.0
+var _strafe_lift_l: float = 0.0
+var _strafe_lift_r: float = 0.0
+func _update_clip_strafe_overlay(h_speed: float, joints: Dictionary) -> void:
+	var leg_l: Node3D = joints.get("leg_left")
+	var leg_r: Node3D = joints.get("leg_right")
+	var body: Node3D = joints.get("body")
+	# Revert last frame (transfer zeroes leg roll itself; lift and bank persist).
+	if leg_l:
+		leg_l.position.y -= _strafe_lift_l
+	if leg_r:
+		leg_r.position.y -= _strafe_lift_r
+	if body:
+		body.rotation.z -= _strafe_bank
+	_strafe_lift_l = 0.0
+	_strafe_lift_r = 0.0
+	_strafe_bank = 0.0
+	if h_speed < 0.8 or not mecha.is_on_floor() or clip_retarget == null:
+		return
+	var local_vel: Vector3 = mecha.global_transform.basis.inverse() * mecha.velocity
+	local_vel.y = 0.0
+	var spd: float = local_vel.length()
+	if spd < 0.1:
+		return
+	var side_ratio := clampf(local_vel.x / spd, -1.0, 1.0)
+	if absf(side_ratio) < 0.15:
+		return
+	for _e in clip_retarget.poll_step_events():
+		_strafe_phase += PI
+	var ov := MechaWalkingSystem.calc_strafe_overlay(side_ratio, _strafe_phase)
+	if leg_l:
+		leg_l.rotation.z += float(ov["roll_l"])
+		leg_l.position.y += float(ov["lift_l"])
+		_strafe_lift_l = float(ov["lift_l"])
+	if leg_r:
+		leg_r.rotation.z += float(ov["roll_r"])
+		leg_r.position.y += float(ov["lift_r"])
+		_strafe_lift_r = float(ov["lift_r"])
+	if body:
+		_strafe_bank = -side_ratio * 0.12 * absf(side_ratio)
+		body.rotation.z += _strafe_bank
 func _run_procedural(delta: float) -> void:
 	# The death (core-breach) collapse takes precedence over every other pose:
 	# the machine is down and no longer responding to pilot/movement input.

@@ -21,7 +21,9 @@ OB = bpy.data.objects
 KIT = ["Pilot_Character", "Pilot_SWAT", "PistolProp"]
 
 print("--- select kit objects ---")
-bpy.ops.object.select_all(action="DESELECT")
+# context-free selection (addon exec context has no area for select_all poll)
+for o in bpy.context.view_layer.objects:
+    o.select_set(False)
 for name in KIT:
     OB[name].select_set(True)
     print("selected:", name)

@@ -23,7 +23,12 @@ var max_health: float:
 		return max_total_frame + max_total_armor
 
 var is_destroyed: bool = false
-var _near_death_recorded: bool = false  # tracks if near-death bond was already awarded
+var _near_death_recorded: bool = false  # tracks if near-death bond has already been awarded
+
+# Monotonic wreck sequence so repeated destroys of the same slot produce
+# uniquely named wreck nodes. Without this, Godot auto-renames colliding
+# siblings to "@RigidBody3D@N" and slot wreckage becomes unaddressable.
+static var _scrap_seq: int = 0
 
 var _original_colors: Dictionary = {}
 var _armor_color: Color = Color(0.6, 0.65, 0.7, 1)
@@ -1232,7 +1237,8 @@ func _spawn_scrap_wreckage(slot_name: String) -> void:
 		return
 
 	var scrap := RigidBody3D.new()
-	scrap.name = "Scrap_%s" % slot_name
+	_scrap_seq += 1
+	scrap.name = "Scrap_%s_%d" % [slot_name, _scrap_seq]
 	scrap.position = section.global_position + Vector3(0, 0.5, 0)
 	scrap.add_to_group("scrap")
 	scrap.collision_layer = 8

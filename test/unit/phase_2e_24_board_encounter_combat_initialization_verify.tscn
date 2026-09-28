@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://phase2e24verify01"]
+[gd_scene format=3 uid="uid://cpot3xsv8ifxc"]
 
 [ext_resource type="Script" path="res://test/unit/phase_2e_24_board_encounter_combat_initialization_verify.gd" id="1_script"]
 

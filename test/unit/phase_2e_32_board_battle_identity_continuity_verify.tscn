@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://c5a8b7d9e1f2g"]
+[gd_scene format=3 uid="uid://c5a8b7eae1f2g"]
 
 [ext_resource type="Script" path="res://test/unit/phase_2e_32_board_battle_identity_continuity_verify.gd" id="1_test"]
 

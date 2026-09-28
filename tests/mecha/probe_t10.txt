@@ -1,0 +1,6 @@
+Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
+
+[LOADOUT] enter_combat(grunt): hands=(w_starter_left,w_starter_right) carry=1
+PROBE8: state=2 entering board
+PROBE8: board reached, waiting settle
+PROBE8: survived

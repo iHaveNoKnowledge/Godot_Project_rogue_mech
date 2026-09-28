@@ -69,8 +69,9 @@ static func calc_sprint_leg(phase: float) -> Dictionary:
 
 ## Robotic piston gait: legs move like hydraulic pistons, not muscles.
 ## Wider swing (-45..+38 deg, Blender ref Mech_Run) so the sprint reads as
-## running; stiff knee (max -48 deg), flat-topped stomp lift with linear
-## phase so motion stays stepped/mechanical.
+## running; stiff knee (max -48 deg), flat-topped stomp lift with eased
+## phase (smoothstep) so pistons accelerate/decelerate instead of slamming
+## between extremes at full speed.
 static func calc_robot_sprint_leg(phase: float) -> Dictionary:
 	var norm_phase := fmod(phase, TAU)
 	if norm_phase < 0.0:
@@ -80,13 +81,16 @@ static func calc_robot_sprint_leg(phase: float) -> Dictionary:
 	var lift := 0.0
 	if norm_phase < PI:
 		var t := norm_phase / PI
-		thigh = lerp(-deg_to_rad(55.0), deg_to_rad(38.0), t)
+		var te := t * t * (3.0 - 2.0 * t)
+		thigh = lerp(-deg_to_rad(55.0), deg_to_rad(38.0), te)
 		if t < 0.35:
 			shin = lerp(-deg_to_rad(8.0), -deg_to_rad(48.0), t / 0.35)
 		elif t < 0.7:
 			shin = -deg_to_rad(48.0)
 		else:
-			shin = lerp(-deg_to_rad(48.0), -deg_to_rad(14.0), (t - 0.7) / 0.3)
+			var se := (t - 0.7) / 0.3
+			se = se * se * (3.0 - 2.0 * se)
+			shin = lerp(-deg_to_rad(48.0), -deg_to_rad(14.0), se)
 		if t < 0.2:
 			lift = (t / 0.2) * 0.23
 		elif t < 0.75:
@@ -159,7 +163,8 @@ static func calc_robot_reverse_leg(phase: float) -> Dictionary:
 	var lift := 0.0
 	if norm_phase < PI:
 		var t := norm_phase / PI
-		thigh = lerp(deg_to_rad(30.0), -deg_to_rad(34.0), t)
+		var te := t * t * (3.0 - 2.0 * t)
+		thigh = lerp(deg_to_rad(30.0), -deg_to_rad(34.0), te)
 		if t < 0.4:
 			shin = lerp(-deg_to_rad(10.0), -deg_to_rad(44.0), t / 0.4)
 		elif t < 0.7:
@@ -228,7 +233,8 @@ func update_bob(delta: float, mecha: CharacterBody3D, joints: Dictionary,
 		var speed: float = local_vel.length()
 		# Gait rate tracks ground speed so slow walks paddle slowly and
 		# sprints churn fast (a fixed 3.0 floor made slow mechs skate).
-		var run_speed: float = clampf(speed * 1.35, 0.8, 16.0)
+		# Gain 1.1 keeps heavy-mech cadence weighty instead of sewing-machine.
+		var run_speed: float = clampf(speed * 1.1, 0.8, 13.0)
 		_prev_bob_timer = bob_timer
 		bob_timer += delta * run_speed
 		var speed_norm := clampf((speed - 2.0) / 8.0, 0.0, 1.0)
@@ -242,9 +248,11 @@ func update_bob(delta: float, mecha: CharacterBody3D, joints: Dictionary,
 
 		if robotic_gait:
 			# ── ROBOT MODE: stepped stomp, locked torso, no human sway ──
-			# Quantized 2-level stomp bob (no smooth sine, no double-bounce hang).
-			var step_phase := fmod(bob_timer, PI) / PI
-			var stomp: float = 1.0 if step_phase < 0.5 else 0.35
+			# Stepped stomp, locked torso, no human sway. The stomp eases
+			# between levels once per stride instead of snapping, so the
+			# hull doesn't judder at stride frequency.
+			var step_phase := fmod(bob_timer * 0.5, PI) / PI
+			var stomp: float = 0.775 - 0.225 * cos(step_phase * TAU)
 			var bob_amp := bob_amount * (0.45 + 0.35 * speed_norm)
 			var bob: float = stomp * bob_amp
 			# Fixed forward hull lean (heavy mech charging, drives into the run)
@@ -444,7 +452,7 @@ func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary) -> vo
 	# Base abduction keeps the knees tracking outward over the feet so the
 	# stride never collapses inward into a knock-kneed V.
 	var abduct := deg_to_rad(7.0)
-	var leg_snap := 18.0 if robotic_gait else 14.0
+	var leg_snap := 8.0 if robotic_gait else 14.0
 	leg_left.rotation.x = lerp_angle(leg_left.rotation.x, target_pitch_l, leg_snap * delta)
 	leg_left.rotation.y = lerp_angle(leg_left.rotation.y, hip_swivel, leg_snap * delta)
 	leg_left.rotation.z = lerp_angle(leg_left.rotation.z, lateral_l - abduct, leg_snap * delta)
@@ -458,7 +466,7 @@ func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary) -> vo
 	# Knee flexion (Shins)
 	var shin_left: Node3D = joints.get("shin_left")
 	var shin_right: Node3D = joints.get("shin_right")
-	var knee_snap := 22.0 if robotic_gait else 16.0
+	var knee_snap := 10.0 if robotic_gait else 16.0
 	if shin_left:
 		shin_left.rotation.x = lerp_angle(shin_left.rotation.x, target_shin_l, knee_snap * delta)
 	if shin_right:
@@ -504,21 +512,21 @@ func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary) -> vo
 		var arm_roll_r := -side_ratio * deg_to_rad(10.0)
 		var piston_elbow := deg_to_rad(35.0)
 		if arm_left:
-			arm_left.rotation.x = lerp_angle(arm_left.rotation.x, swing_l, 14.0 * delta)
-			arm_left.rotation.y = lerp_angle(arm_left.rotation.y, 0.0, 14.0 * delta)
-			arm_left.rotation.z = lerp_angle(arm_left.rotation.z, arm_roll_l, 14.0 * delta)
+			arm_left.rotation.x = lerp_angle(arm_left.rotation.x, swing_l, 9.0 * delta)
+			arm_left.rotation.y = lerp_angle(arm_left.rotation.y, 0.0, 9.0 * delta)
+			arm_left.rotation.z = lerp_angle(arm_left.rotation.z, arm_roll_l, 9.0 * delta)
 			if forearm_left:
-				forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, piston_elbow, 14.0 * delta)
-				forearm_left.rotation.y = lerp_angle(forearm_left.rotation.y, 0.0, 14.0 * delta)
-				forearm_left.rotation.z = lerp_angle(forearm_left.rotation.z, 0.0, 14.0 * delta)
+				forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, piston_elbow, 9.0 * delta)
+				forearm_left.rotation.y = lerp_angle(forearm_left.rotation.y, 0.0, 9.0 * delta)
+				forearm_left.rotation.z = lerp_angle(forearm_left.rotation.z, 0.0, 9.0 * delta)
 		if arm_right:
-			arm_right.rotation.x = lerp_angle(arm_right.rotation.x, swing_r, 14.0 * delta)
-			arm_right.rotation.y = lerp_angle(arm_right.rotation.y, 0.0, 14.0 * delta)
-			arm_right.rotation.z = lerp_angle(arm_right.rotation.z, arm_roll_r, 14.0 * delta)
+			arm_right.rotation.x = lerp_angle(arm_right.rotation.x, swing_r, 9.0 * delta)
+			arm_right.rotation.y = lerp_angle(arm_right.rotation.y, 0.0, 9.0 * delta)
+			arm_right.rotation.z = lerp_angle(arm_right.rotation.z, arm_roll_r, 9.0 * delta)
 			if forearm_right:
-				forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, piston_elbow, 14.0 * delta)
-				forearm_right.rotation.y = lerp_angle(forearm_right.rotation.y, 0.0, 14.0 * delta)
-				forearm_right.rotation.z = lerp_angle(forearm_right.rotation.z, 0.0, 14.0 * delta)
+				forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, piston_elbow, 9.0 * delta)
+				forearm_right.rotation.y = lerp_angle(forearm_right.rotation.y, 0.0, 9.0 * delta)
+				forearm_right.rotation.z = lerp_angle(forearm_right.rotation.z, 0.0, 9.0 * delta)
 		return
 
 	if arm_left:
@@ -545,11 +553,31 @@ func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary) -> vo
 			forearm_right.rotation.z = lerp_angle(forearm_right.rotation.z, 0.0, 10.0 * delta)
 
 
+## Strafe overlay for clip-driven locomotion: pure function returning the
+## lateral roll/lift to ADD onto a forward-run clip pose so strafing reads
+## as sideways stepping instead of forward running in place.
+## side_ratio: -1 (full left) .. +1 (full right). phase: advanced PI per
+## footstep event (legs alternate automatically, like bob_timer).
+## Returns { "roll_l": float, "lift_l": float, "roll_r": float, "lift_r": float }
+## (roll = rotation.z addend in radians, lift = position.y addend in meters).
+static func calc_strafe_overlay(side_ratio: float, phase: float) -> Dictionary:
+	var out := {"roll_l": 0.0, "lift_l": 0.0, "roll_r": 0.0, "lift_r": 0.0}
+	var side_weight := absf(side_ratio)
+	if side_weight < 0.05:
+		return out
+	var is_right := side_ratio > 0.0
+	var left := calc_strafe_leg(phase, not is_right)
+	var right := calc_strafe_leg(phase + PI, is_right)
+	out["roll_l"] = side_ratio * float(left["roll"]) * 0.8 * side_weight
+	out["lift_l"] = float(left["lift"]) * 0.8 * side_weight
+	out["roll_r"] = side_ratio * float(right["roll"]) * 0.8 * side_weight
+	out["lift_r"] = float(right["lift"]) * 0.8 * side_weight
+	return out
+## Falls back to the captured rest offset when the body node is missing.
 ## Head world target glued to the torso collar recess: body position plus the
 ## rest offset (MechaRig.HEAD_COLLAR_LOCAL) rotated by current body pitch.
 ## Same anchor _apply_pose uses at idle — the run branch must use it too,
 ## otherwise a sprint lean parks the chest in front of a fixed-offset helmet.
-## Falls back to the captured rest offset when the body node is missing.
 static func anchored_head_pos(body_mesh: Node3D, orig_head: Vector3) -> Vector3:
 	if body_mesh == null:
 		return orig_head

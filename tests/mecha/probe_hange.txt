@@ -1,0 +1,100 @@
+WARNING: Adding 'armL_forearm_back' as child to 'ArmorMesh' will make owner 'tankmech_arm_left' inconsistent. Consider unsetting the owner beforehand.
+   at: add_child (scene/main/node.cpp:1716)
+   GDScript backtrace (most recent call first):
+       [0] _attach_custom_mesh_scene (res://scripts/mecha/part_mesh_manager.gd:466)
+       [1] initialize_slot (res://scripts/mecha/part_mesh_manager.gd:322)
+       [2] _rebuild_slot (res://scripts/mecha/part_mesh_manager.gd:680)
+       [3] refresh_slots (res://scripts/mecha/part_mesh_manager.gd:631)
+       [4] update_all_slots_preview (res://scripts/ui/hangar/hangar_garage_panel.gd:746)
+WARNING: Adding 'armL_forearm_front' as child to 'ArmorMesh' will make owner 'tankmech_arm_left' inconsistent. Consider unsetting the owner beforehand.
+   at: add_child (scene/main/node.cpp:1716)
+   GDScript backtrace (most recent call first):
+       [0] _attach_custom_mesh_scene (res://scripts/mecha/part_mesh_manager.gd:466)
+       [1] initialize_slot (res://scripts/mecha/part_mesh_manager.gd:322)
+       [2] _rebuild_slot (res://scripts/mecha/part_mesh_manager.gd:680)
+       [3] refresh_slots (res://scripts/mecha/part_mesh_manager.gd:631)
+       [4] update_all_slots_preview (res://scripts/ui/hangar/hangar_garage_panel.gd:746)
+WARNING: Adding 'armL_forearm_back_001' as child to 'ArmorMesh' will make owner 'tankmech_arm_right' inconsistent. Consider unsetting the owner beforehand.
+   at: add_child (scene/main/node.cpp:1716)
+   GDScript backtrace (most recent call first):
+       [0] _attach_custom_mesh_scene (res://scripts/mecha/part_mesh_manager.gd:466)
+       [1] initialize_slot (res://scripts/mecha/part_mesh_manager.gd:322)
+       [2] _rebuild_slot (res://scripts/mecha/part_mesh_manager.gd:680)
+       [3] refresh_slots (res://scripts/mecha/part_mesh_manager.gd:631)
+       [4] update_all_slots_preview (res://scripts/ui/hangar/hangar_garage_panel.gd:746)
+WARNING: Adding 'armL_forearm_front_001' as child to 'ArmorMesh' will make owner 'tankmech_arm_right' inconsistent. Consider unsetting the owner beforehand.
+   at: add_child (scene/main/node.cpp:1716)
+   GDScript backtrace (most recent call first):
+       [0] _attach_custom_mesh_scene (res://scripts/mecha/part_mesh_manager.gd:466)
+       [1] initialize_slot (res://scripts/mecha/part_mesh_manager.gd:322)
+       [2] _rebuild_slot (res://scripts/mecha/part_mesh_manager.gd:680)
+       [3] refresh_slots (res://scripts/mecha/part_mesh_manager.gd:631)
+       [4] update_all_slots_preview (res://scripts/ui/hangar/hangar_garage_panel.gd:746)
+WARNING: Adding 'legL_kneeplate' as child to 'ArmorMesh' will make owner 'tankmech_leg_left' inconsistent. Consider unsetting the owner beforehand.
+   at: add_child (scene/main/node.cpp:1716)
+   GDScript backtrace (most recent call first):
+       [0] _attach_custom_mesh_scene (res://scripts/mecha/part_mesh_manager.gd:466)
+       [1] initialize_slot (res://scripts/mecha/part_mesh_manager.gd:322)
+       [2] _rebuild_slot (res://scripts/mecha/part_mesh_manager.gd:680)
+       [3] refresh_slots (res://scripts/mecha/part_mesh_manager.gd:631)
+       [4] update_all_slots_preview (res://scripts/ui/hangar/hangar_garage_panel.gd:746)
+WARNING: Adding 'legL_shin_back' as child to 'ArmorMesh' will make owner 'tankmech_leg_left' inconsistent. Consider unsetting the owner beforehand.
+   at: add_child (scene/main/node.cpp:1716)
+   GDScript backtrace (most recent call first):
+       [0] _attach_custom_mesh_scene (res://scripts/mecha/part_mesh_manager.gd:466)
+       [1] initialize_slot (res://scripts/mecha/part_mesh_manager.gd:322)
+       [2] _rebuild_slot (res://scripts/mecha/part_mesh_manager.gd:680)
+       [3] refresh_slots (res://scripts/mecha/part_mesh_manager.gd:631)
+       [4] update_all_slots_preview (res://scripts/ui/hangar/hangar_garage_panel.gd:746)
+WARNING: Adding 'legL_shin_front' as child to 'ArmorMesh' will make owner 'tankmech_leg_left' inconsistent. Consider unsetting the owner beforehand.
+   at: add_child (scene/main/node.cpp:1716)
+   GDScript backtrace (most recent call first):
+       [0] _attach_custom_mesh_scene (res://scripts/mecha/part_mesh_manager.gd:466)
+       [1] initialize_slot (res://scripts/mecha/part_mesh_manager.gd:322)
+       [2] _rebuild_slot (res://scripts/mecha/part_mesh_manager.gd:680)
+       [3] refresh_slots (res://scripts/mecha/part_mesh_manager.gd:631)
+       [4] update_all_slots_preview (res://scripts/ui/hangar/hangar_garage_panel.gd:746)
+WARNING: Adding 'legL_foot' as child to 'ArmorMesh' will make owner 'tankmech_leg_left' inconsistent. Consider unsetting the owner beforehand.
+   at: add_child (scene/main/node.cpp:1716)
+   GDScript backtrace (most recent call first):
+       [0] _attach_custom_mesh_scene (res://scripts/mecha/part_mesh_manager.gd:475)
+       [1] initialize_slot (res://scripts/mecha/part_mesh_manager.gd:322)
+       [2] _rebuild_slot (res://scripts/mecha/part_mesh_manager.gd:680)
+       [3] refresh_slots (res://scripts/mecha/part_mesh_manager.gd:631)
+       [4] update_all_slots_preview (res://scripts/ui/hangar/hangar_garage_panel.gd:746)
+WARNING: Adding 'legL_kneeplate_001' as child to 'ArmorMesh' will make owner 'tankmech_leg_right' inconsistent. Consider unsetting the owner beforehand.
+   at: add_child (scene/main/node.cpp:1716)
+   GDScript backtrace (most recent call first):
+       [0] _attach_custom_mesh_scene (res://scripts/mecha/part_mesh_manager.gd:466)
+       [1] initialize_slot (res://scripts/mecha/part_mesh_manager.gd:322)
+       [2] _rebuild_slot (res://scripts/mecha/part_mesh_manager.gd:680)
+       [3] refresh_slots (res://scripts/mecha/part_mesh_manager.gd:631)
+       [4] update_all_slots_preview (res://scripts/ui/hangar/hangar_garage_panel.gd:746)
+WARNING: Adding 'legL_shin_back_001' as child to 'ArmorMesh' will make owner 'tankmech_leg_right' inconsistent. Consider unsetting the owner beforehand.
+   at: add_child (scene/main/node.cpp:1716)
+   GDScript backtrace (most recent call first):
+       [0] _attach_custom_mesh_scene (res://scripts/mecha/part_mesh_manager.gd:466)
+       [1] initialize_slot (res://scripts/mecha/part_mesh_manager.gd:322)
+       [2] _rebuild_slot (res://scripts/mecha/part_mesh_manager.gd:680)
+       [3] refresh_slots (res://scripts/mecha/part_mesh_manager.gd:631)
+       [4] update_all_slots_preview (res://scripts/ui/hangar/hangar_garage_panel.gd:746)
+WARNING: Adding 'legL_shin_front_001' as child to 'ArmorMesh' will make owner 'tankmech_leg_right' inconsistent. Consider unsetting the owner beforehand.
+   at: add_child (scene/main/node.cpp:1716)
+   GDScript backtrace (most recent call first):
+       [0] _attach_custom_mesh_scene (res://scripts/mecha/part_mesh_manager.gd:466)
+       [1] initialize_slot (res://scripts/mecha/part_mesh_manager.gd:322)
+       [2] _rebuild_slot (res://scripts/mecha/part_mesh_manager.gd:680)
+       [3] refresh_slots (res://scripts/mecha/part_mesh_manager.gd:631)
+       [4] update_all_slots_preview (res://scripts/ui/hangar/hangar_garage_panel.gd:746)
+WARNING: Adding 'legL_foot_001' as child to 'ArmorMesh' will make owner 'tankmech_leg_right' inconsistent. Consider unsetting the owner beforehand.
+   at: add_child (scene/main/node.cpp:1716)
+   GDScript backtrace (most recent call first):
+       [0] _attach_custom_mesh_scene (res://scripts/mecha/part_mesh_manager.gd:475)
+       [1] initialize_slot (res://scripts/mecha/part_mesh_manager.gd:322)
+       [2] _rebuild_slot (res://scripts/mecha/part_mesh_manager.gd:680)
+       [3] refresh_slots (res://scripts/mecha/part_mesh_manager.gd:631)
+       [4] update_all_slots_preview (res://scripts/ui/hangar/hangar_garage_panel.gd:746)
+WARNING: ObjectDB instances leaked at exit (run with --verbose for details).
+   at: cleanup (core/object/object.cpp:2641)
+ERROR: 4 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:810)

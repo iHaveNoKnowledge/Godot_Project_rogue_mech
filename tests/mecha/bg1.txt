@@ -1,0 +1,18 @@
+Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
+
+CLIP_RETARGET OK: run clip present on retarget source
+CLIP_RETARGET OK: all driven pivots stay finite
+CLIP_RETARGET OK: legs swing (L range=105.6 deg)
+CLIP_RETARGET OK: legs swing (R range=103.6 deg)
+CLIP_RETARGET OK: L/R legs alternate antiphase (corr=-0.83)
+CLIP_RETARGET OK: knees flex (shin range=65.3 deg)
+CLIP_RETARGET OK: arms pump (range=70.1 deg)
+CLIP_RETARGET OK: hip bob moves body (bob=0.021m)
+CLIP_RETARGET OK: torso pitch raised 30%, still leaning in (mean=%.1f deg)
+CLIP_RETARGET OK: rate floors at standstill
+CLIP_RETARGET OK: rate tracks below natural speed
+CLIP_RETARGET OK: rate holds through cruise
+CLIP_RETARGET OK: rate never exceeds cap at overspeed
+CLIP_RETARGET OK: missing pivots do not crash
+CLIP_RETARGET_VERIFY: checks=14 fails=0
+ALL_CLIP_RETARGET_TESTS_PASSED

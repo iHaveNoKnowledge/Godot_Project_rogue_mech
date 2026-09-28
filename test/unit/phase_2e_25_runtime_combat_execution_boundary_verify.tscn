@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://phase2e25verify01"]
+[gd_scene format=3 uid="uid://cpot4xsv8ifxc"]
 
 [ext_resource type="Script" path="res://test/unit/phase_2e_25_runtime_combat_execution_boundary_verify.gd" id="1_script"]
 

@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://c1pilotshow001"]
+[gd_scene format=3 uid="uid://bxppjhqf420to"]
 
 [ext_resource type="Script" path="res://test/unit/pilot_showcase.gd" id="1"]
 

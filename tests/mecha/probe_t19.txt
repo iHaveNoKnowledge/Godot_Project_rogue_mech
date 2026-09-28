@@ -1,0 +1,7 @@
+Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
+
+PROBE14: derived armor_hp=25.0
+[LOADOUT] enter_combat(grunt): hands=(w_starter_left,w_starter_right) carry=1
+PROBE9: entering board
+PROBE9: board reached, waiting settle
+PROBE9: survived

@@ -1,0 +1,8 @@
+Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
+
+P15 A health: true
+P15 A dict: true
+P15 A derive: true
+[LOADOUT] enter_combat(grunt): hands=(w_starter_left,w_starter_right) carry=1
+P15 B state: true
+P15 B loadout: true

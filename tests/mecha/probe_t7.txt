@@ -1,0 +1,5 @@
+Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
+
+PROBE5: state=COMBAT, entering board
+PROBE5: board reached, waiting settle
+PROBE5: survived

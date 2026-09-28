@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://df7x8k1m3p4q9"]
+[gd_scene format=3 uid="uid://df7x8k1m3p4ra"]
 
 [ext_resource type="Script" path="res://test/unit/phase_2e_28_board_run_progression_boundary_verify.gd" id="1_test"]
 

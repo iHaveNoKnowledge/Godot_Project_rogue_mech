@@ -1,0 +1,3 @@
+# Kimodo bridge — minimal deps. torch/viser อยู่ใน Docker/venv ของ kimodo จริงเท่านั้น
+numpy>=1.24
+scipy>=1.10

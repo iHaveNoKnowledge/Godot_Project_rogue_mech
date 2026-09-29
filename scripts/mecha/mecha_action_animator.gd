@@ -216,6 +216,13 @@ static func _build_track_map(anim: Animation) -> Dictionary:
 			tmap["arm_right"] = t
 		elif "lowerarm_r" in path and not tmap.has("forearm_right"):
 			tmap["forearm_right"] = t
+		# Wrist snap: hand tracks merge into their forearm (below) — the game
+		# rig has no hand pivots, and the snap is the most visible part of a
+		# slash. Matched before the head rules ("hand" never matches "head").
+		elif ("hand_r" in path or "hand.r" in path) and not tmap.has("hand_right"):
+			tmap["hand_right"] = t
+		elif ("hand_l" in path or "hand.l" in path) and not tmap.has("hand_left"):
+			tmap["hand_left"] = t
 		elif ("spine_02" in path or "spine_03" in path) and not tmap.has("body"):
 			tmap["body"] = t
 		elif "thigh_l" in path and not tmap.has("leg_left"):
@@ -619,6 +626,21 @@ func apply_to_joints(joints: Dictionary, master_weight: float = 1.0) -> void:
 						wrapf(target_euler.x - r.x, -PI, PI),
 						wrapf(target_euler.y - r.y, -PI, PI),
 						wrapf(target_euler.z - r.z, -PI, PI))
+				if melee_mode and (joint_key == "forearm_left" or joint_key == "forearm_right"):
+					# Wrist snap folds into the forearm: the rig has no hand
+					# pivots, and the snap carries the visible slash snap.
+					# Composed as quaternions (euler-vector addition explodes
+					# near gimbal regions, e.g. the hand's ~100 deg Y component).
+					var hand_key := "hand_left" if joint_key == "forearm_left" else "hand_right"
+					if tmap.has(hand_key) and _rest_euler.has(hand_key):
+						var hq: Quaternion = anim.rotation_track_interpolate(int(tmap[hand_key]), sample_t)
+						var he: Vector3 = hq.get_euler()
+						var hr: Vector3 = _rest_euler[hand_key]
+						var hand_delta := Vector3(
+							wrapf(he.x - hr.x, -PI, PI),
+							wrapf(he.y - hr.y, -PI, PI),
+							wrapf(he.z - hr.z, -PI, PI))
+						target_euler = (Quaternion.from_euler(target_euler) * Quaternion.from_euler(hand_delta)).get_euler()
 				var blend := effective_main
 				node.rotation.x = lerp_angle(node.rotation.x, target_euler.x, blend)
 				if joint_key in ["arm_left", "arm_right", "forearm_left", "forearm_right", "body"]:

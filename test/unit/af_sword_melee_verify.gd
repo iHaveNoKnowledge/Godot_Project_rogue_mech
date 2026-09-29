@@ -46,6 +46,7 @@ func _ready() -> void:
 		_check(tmap.has(key), "AF track map has " + key)
 	var tmap_combo: Dictionary = MechaActionAnimator._cached_track_maps.get(MechaActionAnimator.AF_SWORD_COMBO, {})
 	_check(not tmap_combo.is_empty(), "combo track map non-empty")
+	_check(tmap.has("hand_right") and tmap.has("hand_left"), "wrist tracks mapped for forearm merge")
 
 	# 3. Player one-handed combo sequencing.
 	var ok1 := animator.play_af_melee("right", 1)
@@ -132,6 +133,15 @@ func _ready() -> void:
 		animator.apply_to_joints(snap_joints, 1.0)
 	var snap_arm: Vector3 = (snap_joints["arm_right"] as Node3D).rotation
 	_check(snap_arm.length() < deg_to_rad(25.0), "no rest snap at swing start (arm %.1f deg)" % rad_to_deg(snap_arm.length()))
+	# Wrist snap merged: at strike time the forearm carries the hand snap on
+	# top of its own motion (forearm-only swing would be visibly weaker).
+	var snap2_joints := _make_joints()
+	animator.play_af_melee("right", 1)
+	for i in range(30):
+		animator.update(1.0 / 60.0)
+		animator.apply_to_joints(snap2_joints, 1.0)
+	var fore_x: float = (snap2_joints["forearm_right"] as Node3D).rotation.x
+	_check(absf(fore_x) > deg_to_rad(15.0), "forearm drives through strike with wrist snap (x=%.1f deg)" % rad_to_deg(fore_x))
 
 	print("AF_SWORD_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	if _fails > 0:

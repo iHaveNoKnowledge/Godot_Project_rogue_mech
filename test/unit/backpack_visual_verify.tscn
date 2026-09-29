@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://b0yjblyt7smwi"]
+
+[ext_resource type="Script" path="res://test/unit/backpack_visual_verify.gd" id="1_bpvis"]
+
+[node name="BackpackVisualVerify" type="Node"]
+script = ExtResource("1_bpvis")

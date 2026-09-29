@@ -782,6 +782,9 @@ func update_weapon_preview(mecha: Node3D) -> void:
 	# Back carry weapons (spread horizontally across the back pack).
 	WeaponVisualFactory.mount_carry(mecha, LoadoutSystem.get_carry_weapons(), "WeaponVisual_carry")
 
+	# Backpack equipment visual (derived-only projection of Loadout.equipped_backpack).
+	BackpackVisualFactory.mount_backpack(mecha, BackpackSystem.get_equipped_backpack())
+
 
 func get_attachment_capacity(slot: String) -> float:
 	var info = LoadoutSystem.get_chassis_stats()

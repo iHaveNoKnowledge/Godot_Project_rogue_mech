@@ -2424,6 +2424,8 @@ func _update_weapon_visuals() -> void:
 	_update_shoulder_weapon_visual(mecha, "left", shoulder_left)
 	_update_shoulder_weapon_visual(mecha, "right", shoulder_right)
 	_update_carry_visuals(mecha)
+	# Backpack equipment visual (derived-only projection of Loadout.equipped_backpack).
+	BackpackVisualFactory.mount_backpack(mecha, BackpackSystem.get_equipped_backpack())
 
 func _update_hand_weapon_visual(mecha: Node3D, hand: String, weapon: WeaponPart) -> void:
 	WeaponVisualFactory.mount_hand(mecha, hand, weapon, "WeaponMesh_" + hand)

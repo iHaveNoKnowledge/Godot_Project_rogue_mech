@@ -232,9 +232,6 @@ script = ExtResource("28")
 [node name="EffectManager" type="Node3D" parent="."]
 script = ExtResource("8")
 
-[node name="BackupSpawner" type="Node" parent="."]
-script = ExtResource("13")
-
 [node name="LootSystem" type="Node3D" parent="."]
 script = ExtResource("14")
 

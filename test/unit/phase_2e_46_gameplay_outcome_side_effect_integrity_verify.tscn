@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://c6j2y8w0f46a1"]
+
+[ext_resource type="Script" path="res://test/unit/phase_2e_46_gameplay_outcome_side_effect_integrity_verify.gd" id="1_test"]
+
+[node name="Phase2E46GameplayOutcomeSideEffectIntegrityVerify" type="Node"]
+script = ExtResource("1_test")

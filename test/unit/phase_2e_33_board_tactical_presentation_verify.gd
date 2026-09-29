@@ -182,6 +182,8 @@ func _run_all_tests() -> void:
 
 	# [7] Multi-Unit Coexistence & Separation (Player + Adjacent Enemies)
 	print("\n-- [7] Multi-Unit Coexistence & Separation --")
+	GlobalData.board.current_tile = Vector2i(2, 2)
+	board.current_pos = Vector2i(2, 2)
 	GlobalData.board.board_patrols = [
 		{"pos": Vector2i(2, 2), "dir": Vector2i(1, 0), "archetype": "armored", "fleet_count": 1, "name": "Vanguard"},
 		{"pos": Vector2i(2, 3), "dir": Vector2i(0, 1), "archetype": "recon", "fleet_count": 2, "name": "Scouts"},

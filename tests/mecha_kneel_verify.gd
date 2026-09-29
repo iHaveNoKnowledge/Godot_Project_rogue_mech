@@ -54,14 +54,18 @@ func _verify_kneel_cycle() -> void:
 	# Fall from above so CharacterBody3D.is_on_floor() reports true once landed.
 	await _wait_physics(90)
 
-	var anim = mech.get_node_or_null("AnimationSystem")
-	_check(anim != null, "mech has an AnimationSystem")
+	var anim = mech.get_node_or_null("MechaAnimation")
+	if anim == null:
+		anim = mech.get_node_or_null("AnimationSystem")
+	_check(anim != null, "mech has an animation node (MechaAnimation)")
 	if anim == null:
 		mech.queue_free()
 		return
 
 	var leg_left = mech.get_node_or_null("LegLeft")
 	var shin_left = mech.get_node_or_null("LegLeft/ShinLeft")
+	var leg_right = mech.get_node_or_null("LegRight")
+	var shin_right = mech.get_node_or_null("LegRight/ShinRight")
 	var body = mech.get_node_or_null("Body")
 
 	_check(mech.is_on_floor(), "mech settles on the ground")
@@ -74,8 +78,12 @@ func _verify_kneel_cycle() -> void:
 	if leg_left and shin_left:
 		_check(leg_left.rotation.x > 0.9, "kneel folds the thighs forward")
 		_check(shin_left.rotation.x < -1.0, "kneel folds the shins back")
+	if leg_left and leg_right and shin_left and shin_right:
+		_check(absf(leg_left.rotation.x - leg_right.rotation.x) > 0.5, "kneel is single-knee proposal, not symmetric squat")
 	if body:
-		_check(body.position.y < 1.6, "kneel drops the torso toward the ground")
+		# Body rig origin sits at y=3.841 on the true-scale rig, so check the
+		# relative drop instead of the pre-scale <1.6 absolute threshold.
+		_check(body.position.y < 3.841 - 0.5, "kneel drops the torso toward the ground")
 
 	# Pilot back in: the occupied signal stands the mech up again.
 	EventBus.mecha_occupancy_changed.emit(true)

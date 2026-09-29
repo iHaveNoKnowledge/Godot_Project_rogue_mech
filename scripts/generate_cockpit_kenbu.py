@@ -474,8 +474,11 @@ for side, sx in [("L", -0.34), ("R", 0.34)]:
     c_pin_c.rotation_euler = (0, math.radians(90), 0)
     c_pin_c.data.materials.append(mat_chrome)
 
-    # Chrome Piston Rod (extends along local -Y toward tub from pivot origin, fully retracted in rest pose!)
-    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.014, depth=0.48, location=(0, -0.24, 0))
+    # Chrome Piston Rod (extends along local -Y toward tub from pivot origin).
+    # Measured: closed pivots 0.40m, open 0.89m, cyl 0.42m. Base 0.60m gives
+    # 0.13m margin open; Godot _fit_hatch_rod() telescopes it (0.15-1.2m)
+    # so closed never pokes through and open never floats.
+    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.014, depth=0.60, location=(0, -0.30, 0))
     rod = bpy.context.active_object
     rod.name = f"HatchPistonRod_{side}"
     rod.parent = piv_c

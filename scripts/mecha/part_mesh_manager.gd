@@ -146,6 +146,11 @@ func set_cockpit_open(open: bool, animate: bool = true) -> void:
 
 ## Dynamically tracks and rotates the hatch hydraulic cylinders on the tub and piston rods on the carriage
 ## so that as the hatch opens and drops, the pistons realistically tilt and extend between their clevis pivots.
+## Telescoping: the rod stretches/retracts so its tip always stays engaged inside
+## the cylinder (measured: closed 0.40m, open 0.89m, cyl 0.42m — fixed rod floats).
+const HATCH_CYL_LEN := 0.42
+const HATCH_ROD_BASE_LEN := 0.48
+const HATCH_ROD_ENGAGE := 0.08
 func _update_hatch_pistons() -> void:
 	var body_entry = slot_meshes.get("body")
 	if not body_entry or not body_entry.get("frame") or not is_instance_valid(body_entry["frame"]):
@@ -166,6 +171,43 @@ func _update_hatch_pistons() -> void:
 				piv_tub.look_at(g_car, Vector3.UP)
 				piv_car.look_at(g_tub, Vector3.UP)
 				piv_car.rotate_object_local(Vector3.UP, PI)
+				_fit_hatch_rod(piv_car, g_tub, g_car, side)
+
+
+## Stretches the carriage piston rod so its tip stays engaged inside the tub
+## cylinder: need = dist - cyl + engage (clamped). Scales only the rod's long
+## axis and re-centers it so the base stays at the clevis pivot.
+func _fit_hatch_rod(piv_car: Node3D, g_tub: Vector3, g_car: Vector3, side: String) -> void:
+	var rod := piv_car.find_child("HatchPistonRod_" + side, true, false) as MeshInstance3D
+	if rod == null:
+		return
+	var dist: float = g_tub.distance_to(g_car)
+	var need: float = clampf(dist - HATCH_CYL_LEN + HATCH_ROD_ENGAGE, 0.15, 1.2)
+	if not rod.has_meta("base_len"):
+		rod.set_meta("base_len", HATCH_ROD_BASE_LEN)
+		var axis := 2
+		var aabb_size: Vector3 = rod.get_aabb().size
+		if aabb_size.x >= aabb_size.y and aabb_size.x >= aabb_size.z:
+			axis = 0
+		elif aabb_size.y >= aabb_size.x and aabb_size.y >= aabb_size.z:
+			axis = 1
+		rod.set_meta("axis", axis)
+	var base_len: float = float(rod.get_meta("base_len"))
+	if base_len <= 0.0:
+		return
+	var axis_i: int = int(rod.get_meta("axis"))
+	var f: float = need / base_len
+	var s := Vector3.ONE
+	if axis_i == 0:
+		s.x = f
+	elif axis_i == 1:
+		s.y = f
+	else:
+		s.z = f
+	rod.scale = s
+	var local_dir: Vector3 = piv_car.to_local(g_tub)
+	if local_dir.length_squared() > 0.000001:
+		rod.position = local_dir.normalized() * (need * 0.5)
 
 
 ## Sets whether the pilot mannequin inside the cockpit tub is visible.

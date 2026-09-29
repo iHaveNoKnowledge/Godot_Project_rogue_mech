@@ -544,24 +544,27 @@ func _update_combat_idle_posture(delta: float) -> void:
 				"leg_right_drop": 0.0,
 			}, 6.0 * delta)
 
-# Kneel pose (pilot out / backup waiting): both thighs fold forward so the
-# knees come down, shins fold back under, and the torso drops and bows while
-# the head stays level and the arms hang relaxed.
+# Kneel pose (pilot out / backup waiting): single-knee proposal kneel —
+# LEFT foot forward flat, RIGHT knee down behind. Asymmetric so it reads as
+# kneeling (not a symmetric squat/yob): torso drops and bows, head stays
+# level, arms hang relaxed.
 func _update_kneel_posture(delta: float) -> void:
 	_apply_pose({
-		"body_tilt": -deg_to_rad(12.0),
-		"head_tilt": -deg_to_rad(8.0),
-		"drop": -0.73,
+		"body_tilt": -deg_to_rad(10.0),
+		"head_tilt": -deg_to_rad(4.0),
+		"drop": -0.68,
 		"arm_left": deg_to_rad(10.0),
 		"arm_right": deg_to_rad(10.0),
-		"forearm_left": deg_to_rad(65.0),
-		"forearm_right": deg_to_rad(65.0),
-		"thigh_left": deg_to_rad(75.0),
-		"thigh_right": deg_to_rad(75.0),
-		"shin_left": -deg_to_rad(120.0),
-		"shin_right": -deg_to_rad(120.0),
-		"leg_left_drop": -0.73,
-		"leg_right_drop": -0.73,
+		"forearm_left": deg_to_rad(60.0),
+		"forearm_right": deg_to_rad(60.0),
+		"thigh_left": deg_to_rad(85.0),
+		"thigh_left_yaw": deg_to_rad(6.0),
+		"shin_left": -deg_to_rad(95.0),
+		"leg_left_drop": -0.40,
+		"thigh_right": deg_to_rad(20.0),
+		"thigh_right_yaw": -deg_to_rad(6.0),
+		"shin_right": -deg_to_rad(130.0),
+		"leg_right_drop": -0.68,
 	}, 10.0 * delta)
 # High-impact dash phase timers (Blender ref: Mech_Dash_HighImpact).
 # _dash_t counts up while the dash is held; _dash_end_t counts up after

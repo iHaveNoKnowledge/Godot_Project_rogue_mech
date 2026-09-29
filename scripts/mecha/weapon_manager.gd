@@ -1594,6 +1594,12 @@ func _melee_attack(hand: String, weapon: WeaponPart, is_loaded_blast: bool = tru
 		var space_state := vp.get_world_3d().direct_space_state
 		var query := PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 500.0)
 		query.collision_mask = 1 | 2 | 4 | 8
+		# Never aim at our own hull: without this the center ray clips the
+		# backpack/head on high camera angles, target_point lands on our own
+		# body behind the facing direction, and the mech spins AWAY from the
+		# enemy it is trying to hit.
+		if mecha != null:
+			query.exclude = [mecha.get_rid()]
 		var result := space_state.intersect_ray(query)
 		if result:
 			target_point = result["position"]
@@ -1957,6 +1963,8 @@ func _check_melee_hit(mecha: Node3D, direction: Vector3, damage: float, weapon: 
 		var space_state := vp.get_world_3d().direct_space_state
 		var query := PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 10.0)
 		query.collision_mask = 8
+		if mecha != null:
+			query.exclude = [mecha.get_rid()]
 		var result := space_state.intersect_ray(query)
 		if result:
 			aim_point = result["position"]
@@ -2024,7 +2032,7 @@ func _hand_power(hand: String) -> float:
 
 
 func weapon_needs_both_hands(weapon: WeaponPart, hand: String = "") -> bool:
-	if weapon == null or not weapon.two_handed:
+	if weapon == null:
 		return false
 	# Without an explicit hand (callers that only know the weapon), fall back to
 	# whichever hand currently holds it.
@@ -2033,7 +2041,49 @@ func weapon_needs_both_hands(weapon: WeaponPart, hand: String = "") -> bool:
 			hand = "left"
 		elif right_hand == weapon:
 			hand = "right"
-	return weapon.requires_two_hand(_hand_power(hand))
+	if weapon.two_handed:
+		return weapon.requires_two_hand(_hand_power(hand))
+	# Capability-based grip (HandlingResolver): a heavy arm_load forces the
+	# second hand even without the explicit two_handed flag. Defaults
+	# (arm_load == 0) resolve ONE_HAND, preserving current behavior.
+	var res := HandlingResolver.resolve(weapon, "hand", _handling_powers(hand))
+	return str(res.get("grip_mode", HandlingResolver.GRIP_ONE_HAND)) in [HandlingResolver.GRIP_TWO_HAND, HandlingResolver.GRIP_BRACED]
+
+
+## Caller-gathered capability state for HandlingResolver (arm/leg/mech power,
+## frame recoil resistance, destroyed-arm state). Pure data, no side effects.
+func _handling_powers(hand: String) -> Dictionary:
+	var resistance: float = FrameSystem.get_total_recoil_resistance()
+	var destroyed := false
+	if hand == "left" or hand == "right":
+		destroyed = not _hand_usable(hand)
+	return {
+		"arm_power": _hand_power(hand),
+		"leg_power": GlobalData.get_leg_power(),
+		"mech_power": GlobalData.get_mech_power(),
+		"recoil_resistance": resistance,
+		"arm_destroyed": destroyed,
+	}
+
+
+## Resolved handling state for the weapon currently held in a hand (or a
+## shoulder slot). Empty when nothing is held. For tests, HUD and telemetry —
+## grip enforcement itself flows through weapon_needs_both_hands().
+func get_handling(slot: String) -> Dictionary:
+	var weapon: WeaponPart = null
+	var mount := "hand"
+	if slot == "left" or slot == "right":
+		weapon = left_hand if slot == "left" else right_hand
+		mount = "hand"
+	elif slot == "shoulder_left" or slot == "shoulder_right":
+		weapon = shoulder_left if slot == "shoulder_left" else shoulder_right
+		mount = slot
+	else:
+		return {}
+	if weapon == null:
+		return {}
+	var hand := slot if (slot == "left" or slot == "right") else ""
+	return HandlingResolver.resolve(weapon, mount, _handling_powers(hand))
 
 
 # Returns the hand that currently holds a weapon needing a two-hand grip.
@@ -2154,6 +2204,10 @@ func _apply_recoil(weapon: WeaponPart) -> void:
 			backward = backward.normalized()
 			# GDD §6.1: Arm damage increases recoil
 			var recoil_mult: float = PartPenaltySystem.total_recoil_multiplier()
+			# Frame capability: recoil_resistance damps the impulse (0.0 → ×1.0,
+			# byte-identical current behavior; set bonuses reduce the kick).
+			var resistance: float = FrameSystem.get_total_recoil_resistance()
+			recoil_mult *= HandlingResolver.recoil_multiplier(resistance)
 			var impulse: Vector3 = backward * weapon.recoil_force * recoil_mult
 			# Railguns use the heavy kick: a stronger push plus a stance-recovery
 			# beat (decay slowed) so the mech visibly staggers and re-balances.

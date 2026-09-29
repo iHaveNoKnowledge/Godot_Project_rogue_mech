@@ -57,6 +57,25 @@ enum DamageType { HEAT, PIERCE, BLUNT }
 @export var power_required: float = 0.0
 
 # ----
+# HANDLING REQUIREMENTS (resolved by HandlingResolver, scripts/mecha/handling_resolver.gd)
+# ----
+# `arm_load` = how much arm capability is required to directly control/support
+# the weapon (compared against GlobalData.get_arm_power). 0.0 = no requirement
+# (all 31 stock weapons), so existing weapons behave exactly as before.
+@export var arm_load: float = 0.0
+# `stability_requirement` = required whole-body stability for controlled use
+# (compared against leg power + recoil_resistance). 0.0 = no requirement.
+@export var stability_requirement: float = 0.0
+# `size_class` = physical size classification for melee handling:
+# 0 LIGHT, 1 MEDIUM, 2 HEAVY, 3 GREATSWORD, 4 COLOSSAL. Informational for now;
+# grip is decided by arm_load/two_handed, never by size alone.
+@export var size_class: int = 0
+# Valid mounting locations: "hand", "shoulder", "back", "forearm", ...
+# Defaults to hand-only; the four existing slots (hands + shoulders) are
+# grandfathered by the resolver so stock weapons keep working untouched.
+@export var mount_compatibility: Array[String] = ["hand"]
+
+# ----
 # HEAT SYSTEM
 # Every weapon gets a heat metre. `heat_capacity` > 0 enables the system; each
 # shot adds `heat_per_shot`, and `heat_cool_rate` points/second are shed while

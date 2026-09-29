@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://d7k3y9x1f57b2"]
+
+[ext_resource type="Script" path="res://test/unit/phase_2e_47_temporal_ordering_event_causality_verify.gd" id="1_test"]
+
+[node name="Phase2E47TemporalOrderingEventCausalityVerify" type="Node"]
+script = ExtResource("1_test")

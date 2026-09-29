@@ -375,6 +375,10 @@ func _run_all_tests() -> void:
 	# Scenario O: Load -> Continue Gameplay
 	# ===========================================================================
 	print("\n-- Scenario O: Load -> Continue Gameplay --")
+	GlobalData.fuel.traversal_mode = "convoy"
+	GlobalData.fuel.convoy_fuel = 100.0
+	GlobalData.fuel.convoy_fuel_reserve = 100.0
+	GlobalData.fuel.convoy_fuel_max = 200.0
 	GlobalData.board.current_tile = Vector2i(2, 2)
 	GlobalData.board.board_mp = 6
 	GlobalData.board.board_mp_max = 8

@@ -49,7 +49,8 @@ func _assert(condition: bool, message: String) -> void:
 
 func _setup_board(tile: Vector2i = Vector2i(2, 2)) -> Node3D:
 	if _board_scene and is_instance_valid(_board_scene):
-		_board_scene.queue_free()
+		remove_child(_board_scene)
+		_board_scene.free()
 		_board_scene = null
 
 	GlobalData.board.current_sector = 1
@@ -189,6 +190,11 @@ func _run_all_tests() -> void:
 		{"pos": Vector2i(2, 3), "dir": Vector2i(0, 1), "archetype": "recon", "fleet_count": 2, "name": "Scouts"},
 		{"pos": Vector2i(3, 2), "dir": Vector2i(-1, 0), "archetype": "hunter_killer", "fleet_count": 1, "name": "Elite Strike"},
 	]
+	var existing_container = board.get_node_or_null("PatrolMarkers")
+	if existing_container != null:
+		for c in existing_container.get_children():
+			existing_container.remove_child(c)
+			c.free()
 	board._refresh_patrol_markers()
 
 	var patrol_container = board.get_node_or_null("PatrolMarkers")

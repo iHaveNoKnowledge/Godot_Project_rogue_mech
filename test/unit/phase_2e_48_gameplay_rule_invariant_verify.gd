@@ -48,6 +48,7 @@ func _instantiate_board_scene() -> BoardManager:
 		_board_scene = null
 
 	GameManager.current_state = GameManager.State.BOARD
+	GlobalData.board.current_tile = Vector2i(0, 0)
 	GlobalData.board.active_contract = {"name": "Test Contract", "target_sector": 1}
 	GlobalData.board.board_objective_intro_consumed = true
 	GlobalData.fuel.traversal_mode = "convoy"

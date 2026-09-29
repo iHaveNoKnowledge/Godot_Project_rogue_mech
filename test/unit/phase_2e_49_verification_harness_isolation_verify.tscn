@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://dal501y3g8ad4"]
+
+[ext_resource type="Script" path="res://test/unit/phase_2e_49_verification_harness_isolation_verify.gd" id="1_test"]
+
+[node name="Phase2E49VerificationHarnessIsolationVerify" type="Node"]
+script = ExtResource("1_test")

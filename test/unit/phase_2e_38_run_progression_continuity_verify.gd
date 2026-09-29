@@ -53,7 +53,8 @@ func _print_summary() -> void:
 
 func _instantiate_board_scene() -> BoardManager:
 	if _board_scene and is_instance_valid(_board_scene):
-		_board_scene.queue_free()
+		remove_child(_board_scene)
+		_board_scene.free()
 		_board_scene = null
 
 	var board_res: PackedScene = load("res://scenes/board/game_board.tscn")
@@ -69,6 +70,14 @@ func _run_all_tests() -> void:
 	GameManager.current_state = GameManager.State.BOARD
 	GlobalData.hangar.hangar_mechs = [{"id": 1, "name": "Valkren Test Mech"}]
 	GlobalData.narrative.mech_less = false
+	GlobalData.fuel.traversal_mode = "convoy"
+	GlobalData.fuel.convoy_fuel_reserve = 50.0
+	GlobalData.fuel.mech_energy = 500.0
+	GlobalData.board.current_hazard = ""
+	GlobalData.board.convoy_breakdown_turns = 0
+	GlobalData.board.board_patrol_engagement = -1
+	GlobalData.board.current_tile = Vector2i.ZERO
+	GlobalData.board.board_mp = 8
 	GlobalData.board.board_patrols.clear()
 
 	# ===========================================================================
@@ -206,18 +215,18 @@ func _run_all_tests() -> void:
 	# [5] Dead-End & Path Clearing Progression Semantics
 	# ===========================================================================
 	print("\n-- [5] Dead-End & Path Clearing Progression Semantics --")
-	var clear_cost: int = board._dead_end_clear_cost()
+	var clear_cost: int = retreat_board._dead_end_clear_cost()
 	_assert(clear_cost >= 2, "Dead end clear cost requires at least 2 MP (cost: %d)" % clear_cost)
 	
 	# Test pending tile clear resolution
 	var dead_end_tile: Vector2i = retreat_dest
 	GlobalData.board.pending_tile_clear = dead_end_tile
-	if board.nodes_dict.has(dead_end_tile):
-		board.nodes_dict[dead_end_tile].set_meta("tile_type", "dead_end")
-	board._apply_pending_tile_clear()
+	if retreat_board.nodes_dict.has(dead_end_tile):
+		retreat_board.nodes_dict[dead_end_tile].set_meta("tile_type", "dead_end")
+	retreat_board._apply_pending_tile_clear()
 	_assert(GlobalData.board.pending_tile_clear == Vector2i(-1, -1), "pending_tile_clear consumed and reset to (-1, -1)")
-	if board.nodes_dict.has(dead_end_tile):
-		_assert(str(board.nodes_dict[dead_end_tile].get_meta("tile_type", "")) == "empty", "Dead end cleared to empty traversable tile")
+	if retreat_board.nodes_dict.has(dead_end_tile):
+		_assert(str(retreat_board.nodes_dict[dead_end_tile].get_meta("tile_type", "")) == "empty", "Dead end cleared to empty traversable tile")
 
 	# ===========================================================================
 	# [6] Multi-Node Sequential Progression Walkthrough

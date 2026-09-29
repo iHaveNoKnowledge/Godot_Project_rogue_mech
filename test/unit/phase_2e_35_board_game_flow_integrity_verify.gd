@@ -48,14 +48,17 @@ func _assert(condition: bool, message: String) -> void:
 		print("  [PASS] %s" % message)
 	else:
 		_fail_count += 1
-		_failed_messages.append(message)
-		push_error("Assertion failed: %s" % message)
-		print("  [FAIL] %s" % message)
+		var full_msg = "%s [mech_energy=%s]" % [message, str(GlobalData.fuel.mech_energy)]
+		_failed_messages.append(full_msg)
+		push_error("Assertion failed: %s" % full_msg)
+		print("  [FAIL] %s" % full_msg)
 
 
 func _instantiate_board_scene() -> BoardManager:
 	if _board_scene and is_instance_valid(_board_scene):
-		_board_scene.queue_free()
+		if _board_scene.get_parent():
+			_board_scene.get_parent().remove_child(_board_scene)
+		_board_scene.free()
 		_board_scene = null
 
 	var scene_res = load("res://scenes/board/game_board.tscn") as PackedScene
@@ -84,6 +87,9 @@ func _setup_board(tile: Vector2i = Vector2i(2, 2)) -> BoardManager:
 	GlobalData.fuel.traversal_mode = "mecha"
 	GlobalData.fuel.convoy_is_deployed = false
 	GlobalData.fuel.mecha_is_parked = false
+	GlobalData.board.current_hazard = ""
+	GlobalData.board.convoy_breakdown_turns = 0
+	GlobalData.board.board_patrol_engagement = -1
 	GlobalData.board.board_patrols = []
 	GlobalData.board.current_tile = tile
 	GameManager.current_state = GameManager.State.BOARD
@@ -164,6 +170,7 @@ func _run_all_tests() -> void:
 	print("\n-- [4] Multi-Tile Path Movement & Step-By-Step Execution --")
 	GlobalData.board.board_mp = 6
 	GlobalData.fuel.mech_energy = 1000.0
+	GlobalData.board.board_patrols = []
 	var multi_target: Vector2i = Vector2i(-1, -1)
 	for dx in [2, -2]:
 		var cand = board.current_pos + Vector2i(dx, 0)
@@ -254,11 +261,20 @@ func _run_all_tests() -> void:
 	# [8] Persistence (Save / Load) Reconstitution Integrity
 	# ---------------------------------------------------------------------------
 	print("\n-- [8] Persistence (Save / Load) Reconstitution Integrity --")
+	if _board_scene and is_instance_valid(_board_scene):
+		if _board_scene.get_parent():
+			_board_scene.get_parent().remove_child(_board_scene)
+		_board_scene.free()
+		_board_scene = null
+
 	var saved_tile = Vector2i(3, 3)
 	GlobalData.board.current_tile = saved_tile
 	GlobalData.board.board_day = 4
 	GlobalData.board.board_mp = 5
+	GlobalData.fuel.mech_max_energy = 1000.0
 	GlobalData.fuel.mech_energy = 850.0
+	GlobalData.fuel.drop_tanks_attached = 0
+	GlobalData.fuel.drop_tank_fuel = 0.0
 	GlobalData.board.board_patrols = [
 		{"id": 303, "pos": Vector2i(4, 4), "home": Vector2i(4, 4), "dir": Vector2i(0, 1), "archetype": "artillery", "fleet_count": 1, "name": "Siege Battery"}
 	]
@@ -268,7 +284,7 @@ func _run_all_tests() -> void:
 	_assert(fresh_board.current_pos == saved_tile, "Fresh board current_pos matches saved tile (3, 3)")
 	_assert(GlobalData.board.board_day == 4, "Saved day 4 preserved across reload")
 	_assert(GlobalData.board.board_mp == 5, "Saved MP 5 preserved across reload")
-	_assert(GlobalData.fuel.mech_energy == 850.0, "Saved mech energy 850.0 preserved across reload")
+	_assert(is_equal_approx(GlobalData.fuel.mech_energy, 850.0), "Saved mech energy 850.0 preserved across reload")
 	_assert(PatrolSystem.get_patrol_by_id(303).get("name") == "Siege Battery", "Saved patrol 303 restored accurately")
 
 	# ---------------------------------------------------------------------------

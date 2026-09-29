@@ -52,12 +52,18 @@ func _print_summary() -> void:
 
 func _instantiate_board_scene() -> BoardManager:
 	if _board_scene and is_instance_valid(_board_scene):
-		_board_scene.queue_free()
+		if _board_scene.get_parent():
+			_board_scene.get_parent().remove_child(_board_scene)
+		_board_scene.free()
 		_board_scene = null
 
 	GameManager.current_state = GameManager.State.BOARD
+	GlobalData.board.current_tile = Vector2i(0, 0)
 	GlobalData.board.active_contract = {"name": "Test Contract", "target_sector": 1}
 	GlobalData.board.board_objective_intro_consumed = true
+	GlobalData.board.current_hazard = ""
+	GlobalData.board.convoy_breakdown_turns = 0
+	GlobalData.board.board_patrol_engagement = -1
 	GlobalData.fuel.traversal_mode = "convoy"
 	GlobalData.fuel.convoy_fuel = 100.0
 	GlobalData.fuel.convoy_fuel_reserve = 100.0
@@ -80,7 +86,9 @@ func _instantiate_board_scene() -> BoardManager:
 
 func _cleanup_board_scene() -> void:
 	if _board_scene and is_instance_valid(_board_scene):
-		_board_scene.queue_free()
+		if _board_scene.get_parent():
+			_board_scene.get_parent().remove_child(_board_scene)
+		_board_scene.free()
 		_board_scene = null
 
 

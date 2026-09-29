@@ -47,7 +47,8 @@ func _assert(condition: bool, message: String) -> void:
 
 func _setup_board(tile: Vector2i = Vector2i(2, 2)) -> Node3D:
 	if _board_scene and is_instance_valid(_board_scene):
-		_board_scene.queue_free()
+		remove_child(_board_scene)
+		_board_scene.free()
 		_board_scene = null
 
 	GlobalData.board.current_sector = 1

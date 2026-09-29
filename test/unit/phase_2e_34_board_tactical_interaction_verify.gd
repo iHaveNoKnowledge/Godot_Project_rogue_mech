@@ -55,7 +55,9 @@ func _assert(condition: bool, message: String) -> void:
 
 func _setup_board(tile: Vector2i = Vector2i(2, 2)) -> BoardManager:
 	if _board_scene and is_instance_valid(_board_scene):
-		_board_scene.queue_free()
+		if _board_scene.get_parent():
+			_board_scene.get_parent().remove_child(_board_scene)
+		_board_scene.free()
 		_board_scene = null
 
 	GlobalData.board.current_sector = 1
@@ -73,6 +75,9 @@ func _setup_board(tile: Vector2i = Vector2i(2, 2)) -> BoardManager:
 	GlobalData.fuel.traversal_mode = "mecha"
 	GlobalData.fuel.convoy_is_deployed = false
 	GlobalData.fuel.mecha_is_parked = false
+	GlobalData.board.current_hazard = ""
+	GlobalData.board.convoy_breakdown_turns = 0
+	GlobalData.board.board_patrol_engagement = -1
 	GlobalData.board.board_patrols = []
 	GlobalData.board.current_tile = tile
 	GameManager.current_state = GameManager.State.BOARD

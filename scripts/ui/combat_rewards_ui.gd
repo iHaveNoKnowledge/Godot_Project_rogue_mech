@@ -44,6 +44,16 @@ func _ready() -> void:
 	EventBus.combat_escaped.connect(_on_combat_escaped)
 
 
+func _exit_tree() -> void:
+	if EventBus.combat_ended.is_connected(_on_combat_ended):
+		EventBus.combat_ended.disconnect(_on_combat_ended)
+	if EventBus.combat_escaped_directional.is_connected(_on_combat_escaped_directional):
+		EventBus.combat_escaped_directional.disconnect(_on_combat_escaped_directional)
+	if EventBus.combat_escaped.is_connected(_on_combat_escaped):
+		EventBus.combat_escaped.disconnect(_on_combat_escaped)
+
+
+
 func reset_reward_state() -> void:
 	_rewards_claimed = false
 	_continue_processing = false

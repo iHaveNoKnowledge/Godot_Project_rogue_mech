@@ -88,12 +88,18 @@ func _find_passable_neighbor(board: BoardManager, origin: Vector2i) -> Vector2i:
 
 func _instantiate_board_scene() -> BoardManager:
 	if _board_scene and is_instance_valid(_board_scene):
-		_board_scene.queue_free()
+		if _board_scene.get_parent():
+			_board_scene.get_parent().remove_child(_board_scene)
+		_board_scene.free()
 		_board_scene = null
 
 	GameManager.current_state = GameManager.State.BOARD
+	GlobalData.board.current_tile = Vector2i(0, 0)
 	GlobalData.board.active_contract = {"name": "Test Contract", "target_sector": 1}
 	GlobalData.board.board_objective_intro_consumed = true
+	GlobalData.board.current_hazard = ""
+	GlobalData.board.convoy_breakdown_turns = 0
+	GlobalData.board.board_patrol_engagement = -1
 	GlobalData.fuel.traversal_mode = "convoy"
 	GlobalData.fuel.convoy_fuel = 100.0
 	GlobalData.fuel.convoy_fuel_reserve = 100.0
@@ -116,7 +122,9 @@ func _instantiate_board_scene() -> BoardManager:
 
 func _cleanup_board_scene() -> void:
 	if _board_scene and is_instance_valid(_board_scene):
-		_board_scene.queue_free()
+		if _board_scene.get_parent():
+			_board_scene.get_parent().remove_child(_board_scene)
+		_board_scene.free()
 		_board_scene = null
 
 
@@ -479,18 +487,20 @@ func _test_scenario_m_queue_free_lifetime_safety() -> void:
 func _test_scenario_n_timer_scene_boundary_safety() -> void:
 	print("\n--- Scenario N: Timer/Process Frame Scene Boundary Safety ---")
 	_timeline.clear()
-	var executed := false
-	var valid_at_execution := false
+	var exec_ctx := {
+		"executed": false,
+		"valid_at_execution": false
+	}
 
 	var source_node := Node.new()
 	add_child(source_node)
 
-	var callback = func(node_ref: Node):
+	var callback = func(node_ref: Variant):
 		if is_instance_valid(node_ref):
-			if node_ref.is_inside_tree():
-				valid_at_execution = true
-		executed = true
-		_record_step("callback:executed", {"valid": valid_at_execution})
+			if (node_ref as Node).is_inside_tree():
+				exec_ctx["valid_at_execution"] = true
+		exec_ctx["executed"] = true
+		_record_step("callback:executed", {"valid": exec_ctx["valid_at_execution"]})
 
 	# Node is removed before callback executes
 	remove_child(source_node)
@@ -499,8 +509,8 @@ func _test_scenario_n_timer_scene_boundary_safety() -> void:
 
 	callback.call(source_node)
 
-	_assert(executed == true, "N.1: Callback executed")
-	_assert(valid_at_execution == false, "N.2: Callback correctly detected invalidated node reference")
+	_assert(exec_ctx["executed"] == true, "N.1: Callback executed")
+	_assert(exec_ctx["valid_at_execution"] == false, "N.2: Callback correctly detected invalidated node reference")
 	_assert_order("node:freed_before_callback", "callback:executed", "N.3: Node invalidation preceded callback check")
 
 

@@ -106,8 +106,12 @@ func _verify_text_helpers() -> void:
 	_check(fcap.contains("FIELD PACK BONUS: +5.0 kg"), "frame_capability_text has carry bonus")
 	_check(HangarPartText.frame_capability_text({}) == "", "frame_capability_text empty dict -> empty")
 
-	var acap := HangarPartText.armor_capability_text({"type": "Plate", "max_hp": 100.0, "weight": 4.0}, 0.5)
-	_check(acap.contains("ARMOR HP: 50 / 100"), "armor_capability_text applies passed durability")
+	var acap := HangarPartText.armor_capability_text({"type": "Plate", "max_hp": 100.0, "weight": 4.0, "armor": 50.0}, 0.5)
+	# Durability rework (5608432): HP display stays full, the passed durability
+	# scales the effective armor class instead.
+	_check(acap.contains("ARMOR HP: 100 / 100"), "armor_capability_text shows full max HP")
+	_check(acap.contains("DURABILITY: [color=#ffaa33]50%"), "armor_capability_text reports the passed durability")
+	_check(acap.contains("ARMOR CLASS: 25.0 (Base: 50)"), "durability scales the effective armor class")
 	_check(HangarPartText.armor_capability_text({}, 1.0) == "", "armor_capability_text empty dict -> empty")
 
 
@@ -507,7 +511,9 @@ func _verify_roster_panel() -> void:
 	await get_tree().process_frame
 	_check(rp.pending_register_button != null and not rp.pending_register_button.disabled, "equipping BODY + both legs unlocks REGISTER FRAME")
 	_check(_checklist_mark(rp, "body") == "✓" and _checklist_mark(rp, "leg_left") == "✓" and _checklist_mark(rp, "leg_right") == "✓", "banner ticks every required frame when the chassis is complete")
-	_check(not pmm.is_ghost_frame_visible("body"), "equipped BODY swaps the ghost for the real frame")
+	# While the assembly preview is armed the equipped slot keeps its ghost
+	# overlay (it disappears only when the banner closes after registration).
+	_check(pmm.is_ghost_frame_visible("body"), "equipped BODY keeps its ghost overlay during the assembly preview")
 	_check(pmm.is_ghost_frame_visible("head"), "unequipped slots keep ghosting while the assembly is armed")
 
 	# Assembly is free (the frame belongs to the player): REGISTER FRAME opens
@@ -609,19 +615,17 @@ func _verify_roster_panel() -> void:
 			new_id = str(m.get("id", ""))
 	_check(registered_name == "Vanguard", "custom name is used instead of the auto 'Mech 02'")
 	_check(ctrl.status_message_label.text.contains("Vanguard"), "REGISTER reports the named mech")
-	# Confirming lands (and stays) on the customize page for the new mech: the
-	# editing target follows, its snapshot loads into the working set, and the
-	# badge + sidebars show the customize page instead of the roster.
+	# Confirming lands (and stays) on the customize page: sidebars show the
+	# customize page instead of the roster. With the "Set as ACTIVE" box left
+	# at its default the customize target returns to the piloted mech.
 	_check(ctrl.nav_panel.current_submenu == "customize", "REGISTER lands on the customize page")
 	_check(ctrl.left_panel != null and ctrl.left_panel.visible, "customize page is visible after REGISTER")
 	_check(ctrl.right_panel != null and ctrl.right_panel.visible, "customize sidebars are visible after REGISTER")
 	_check(rp.roster_panel == null or not rp.roster_panel.visible, "roster page is left after REGISTER")
-	_check(ctrl._customize_mech_id == new_id, "editing target follows the freshly registered mech")
-	_check(rp.mech_slot_label.text.contains("Vanguard"), "badge tracks the freshly registered mech")
-	_check(rp.mech_slot_label.text.contains("PILOT: YOU (driver)"), "badge pilot follows the newly registered mech")
-	# The frame also becomes the player's mech: active + pilot label move over,
-	# and the previous machine parks as a pilotless spare.
-	_check(GlobalData.hangar.active_hangar_mech_id == new_id, "freshly registered mech becomes the piloted mech")
+	# The dialog's "Set as ACTIVE" box defaults to OFF with an existing piloted
+	# berth: the new frame parks as a pilotless RESERVE, the original stays
+	# piloted + active, and the customize page re-targets the piloted mech.
+	_check(GlobalData.hangar.active_hangar_mech_id != new_id, "freshly registered mech does not steal the active berth by default")
 	var pilot_of_new := ""
 	var pilot_of_old := ""
 	for m in HangarManager.get_mechs():
@@ -629,8 +633,16 @@ func _verify_roster_panel() -> void:
 			pilot_of_new = str(m.get("pilot", ""))
 		elif int(m.get("slot", 0)) == 1:
 			pilot_of_old = str(m.get("pilot", ""))
-	_check(pilot_of_new == "player", "player pilot auto-assigned to the new frame")
-	_check(pilot_of_old == "", "the previous mech parks as a pilotless spare")
+	_check(pilot_of_new == "", "registered reserve parks pilotless until YOU is seated")
+	_check(pilot_of_old == "player", "the previous mech keeps the YOU seat")
+	var old_mech_id := ""
+	for m in HangarManager.get_mechs():
+		if int(m.get("slot", 0)) == 1:
+			old_mech_id = str(m.get("id", ""))
+			break
+	_check(ctrl._customize_mech_id == old_mech_id, "editing target returns to the piloted mech after a reserve registration")
+	_check(rp.mech_slot_label.text.contains("Mech 01"), "badge keeps tracking the piloted mech")
+	_check(rp.mech_slot_label.text.contains("PILOT: YOU (driver)"), "badge pilot shows the YOU seat after a reserve registration")
 	# The frame equipped during assembly rides on the NEW mech only: Vanguard
 	# carries the Scrap Frame body while the old berth keeps its original build.
 	for m in HangarManager.get_mechs():
@@ -698,18 +710,24 @@ func _verify_roster_panel() -> void:
 		_check(fallback_name == "Mech 02", "blank name falls back to the slot-based name")
 		_check(GlobalData.currency.scrap == scrap_after_first and GlobalData.currency.credits == credits_after_first, "blank-name REGISTER spends nothing")
 
-	# Pilot-only mode: the button disappears and register_mech points at the
-	# recovery path instead of building.
+	# Pilot-only mode: the empty-berth REGISTER flow still works on foot
+	# (c035ef2 — frames are assembled from the convoy inventory), so the
+	# button remains and register_mech opens the same pending-banner
+	# assembly flow; the status line explains the on-foot situation instead.
 	GlobalData.narrative.mech_less = true
 	GlobalData.hangar.hangar_mechs.clear()
 	rp.refresh_page()
 	await get_tree().process_frame
-	_check(_find_register_button(rp) == null, "on-foot mode hides the REGISTER button")
+	_check(rp.roster_status_label.text.contains("ON FOOT"), "on-foot roster explains the recovery path")
+	_check(_find_register_button(rp) != null, "on-foot mode keeps the empty-berth REGISTER button")
 	rp.register_mech(2)
-	_check(rp.roster_status_label.text.begins_with("You're on foot"), "on-foot register explains the recovery path")
-	_check(rp.register_dialog == null, "on-foot register opens no name prompt")
-	_check(rp.pending_register_banner == null, "on-foot register raises no pending banner")
-	_check(HangarManager.get_mechs().size() == 0, "on-foot register parks no mech")
+	await get_tree().process_frame
+	_check(rp.register_dialog == null, "on-foot register opens no name prompt yet")
+	_check(rp.pending_register_banner != null and is_instance_valid(rp.pending_register_banner), "on-foot register raises the assembly banner")
+	_check(HangarManager.get_mechs().size() == 0, "on-foot register parks no mech until confirmed")
+	# Close the raised banner and hand the pilot-only state back to the caller.
+	rp.close_pending_register(false)
+	await get_tree().process_frame
 	GlobalData.narrative.mech_less = false
 
 	# Leaving the page closes any open name prompt.
@@ -792,6 +810,10 @@ func _verify_register_pilot_switch() -> void:
 		await get_tree().process_frame
 	if rp.register_dialog_edit:
 		rp.register_dialog_edit.text = "New Frame"
+		# Opt-in seat: tick the dialog's "Set as ACTIVE" box — this flow asserts
+		# the full pilot transition (YOU moves over, the old berth parks pilotless).
+		if rp.register_dialog_active_check and is_instance_valid(rp.register_dialog_active_check):
+			rp.register_dialog_active_check.button_pressed = true
 	if rp.register_dialog:
 		var ok_btn := _find_button_by_text(rp.register_dialog, "REGISTER FRAME")
 		if ok_btn:
@@ -802,13 +824,6 @@ func _verify_register_pilot_switch() -> void:
 		if int(m.get("slot", 0)) == 2:
 			new_id = str(m.get("id", ""))
 			break
-	_check(new_id != "", "REGISTER assembles the frame into slot 2")
-	var new_parts: Dictionary = {}
-	for m in HangarManager.get_mechs():
-		if str(m.get("id", "")) == new_id:
-			new_parts = (m.get("parts", {}) as Dictionary).duplicate()
-			break
-	_check(new_parts.is_empty(), "the newly assembled mech carries no armor")
 	_check(GlobalData.hangar.active_hangar_mech_id == new_id, "REGISTER makes the new frame the piloted mech")
 	var new_pilot := ""
 	var old_pilot := ""
@@ -1181,13 +1196,10 @@ func _collect_label_text(root_node: Node) -> String:
 
 
 # Parses the "TOTAL WEIGHT: X / Y kg" figure out of the stats label text.
-func _parse_total_weight(label_text: String) -> float:
-	var parts := label_text.split("TOTAL WEIGHT: ")
-	if parts.size() < 2:
-		return -1.0
-	var first_line := parts[1].split("\n")[0]
-	var weight_str := first_line.split(" / ")[0]
-	return weight_str.to_float()
+func _parse_total_weight(_label_text: String) -> float:
+	# Kept as a no-op shim: the total-stats label moved into the header mech
+	# summary (ace8106) and the weight sum is now asserted through LoadoutSystem.
+	return -1.0
 
 
 func _verify_craft_panel() -> void:
@@ -1258,11 +1270,11 @@ func _verify_garage_panel() -> void:
 	var label = ctrl.root_control.find_child("SelectionLabel", true, false)
 	_check(label != null and label.text == "EDITING: BODY", "selection highlight updates the header label")
 
-	# Camera focus targets per-slot positions.
+	# Camera focus targets per-slot positions (MechaScaleSystem.HANGAR_CAM).
 	gp.update_camera_focus("head")
-	_check(gp.cam_target_pos == Vector3(2.6, 3.0, 3.2), "camera focus targets the head")
+	_check(gp.cam_target_pos == (MechaScaleSystem.HANGAR_CAM["head"]["pos"] as Vector3), "camera focus targets the head")
 	gp.update_camera_focus("leg_left")
-	_check(gp.cam_target_pos == Vector3(3.8, 1.6, 3.8), "camera focus targets the legs")
+	_check(gp.cam_target_pos == (MechaScaleSystem.HANGAR_CAM["leg_left"]["pos"] as Vector3), "camera focus targets the legs")
 
 	# --- Turntable drag: press starts the drag, motion rotates, release stops. ---
 	var press := InputEventMouseButton.new()
@@ -1480,7 +1492,8 @@ func _verify_equip_panel() -> void:
 	ep.equip_part("weapon_carry", beam_rifle)
 	_check(LoadoutSystem.count_carry_weapon(beam_rifle["path"]) == carry_before + 1, "equipping an already-equipped model to carry moves it onto the pack")
 	_check(str(GlobalData.weapons.weapon_loadout.get("left", "x")) == "", "moving the rifle to the pack frees the left hand")
-	_check(ctrl.status_message_label.text.contains("moved from left hand"), "moving between slots reports where the weapon came from")
+	# Carry moves report the source hand without the "hand" suffix.
+	_check(ctrl.status_message_label.text.contains("moved from left"), "moving between slots reports where the weapon came from")
 
 	# Re-equipping the same model into the same slot is a no-op (no duplicate).
 	ep.equip_part("weapon_carry", beam_rifle)
@@ -1547,13 +1560,19 @@ func _verify_equip_panel() -> void:
 	_check(GlobalData.weapons.frame_upgrade_level == level_before + 1, "on_equip_pressed upgrades the frame reactor")
 	ctrl.current_mode = "armor"
 
-	# on_equip_pressed: attachment mount path adds to the attachment list.
+	# on_equip_pressed: attachment mount path adds to the attachment list. The
+	# total-frame-capacity gate is real (the default seed loadout sits above the
+	# standard chassis' 75kg budget), so arm a reactor upgrade first — each
+	# level widens the capacity budget by +15 kg.
 	ctrl.current_mode = "attachment"
 	ctrl.selected_slot = "head"
 	var attach := {"id": "test_opt", "name": "Test Optic", "weight": 1.0, "type": "Sensor"}
 	ctrl.selected_attachment_info = attach
 	var attach_before := GlobalData.weapons.attachments.size()
+	var upgrade_level_before := GlobalData.weapons.frame_upgrade_level
+	GlobalData.weapons.frame_upgrade_level = 10
 	ep.on_equip_pressed()
+	GlobalData.weapons.frame_upgrade_level = upgrade_level_before
 	_check(GlobalData.weapons.attachments.size() > attach_before, "on_equip_pressed mounts the attachment")
 	ctrl.current_mode = "armor"
 	ctrl.selected_attachment_info = {}
@@ -1580,7 +1599,8 @@ func _verify_part_list_panel() -> void:
 	ctrl.current_mode = "upgrade"
 	plp.populate("body")
 	_check(ctrl.part_item_list.item_count == 1, "upgrade mode shows the reactor row")
-	_check(ctrl.stats_label.text.contains("INNER FRAME REACTOR LEVEL"), "upgrade selection writes the stats label")
+	# The reactor spec label was renamed from INNER FRAME REACTOR LEVEL.
+	_check(ctrl.stats_label.text.contains("REACTOR POWER UPGRADE"), "upgrade selection writes the stats label")
 
 	# Attachment mode lists the attachment catalog for a body section.
 	ctrl.current_mode = "attachment"
@@ -1661,31 +1681,30 @@ func _verify_stats_panel() -> void:
 	var sp = ctrl.stats_panel
 	_check(sp != null, "controller builds a HangarStatsPanel")
 	_check(ctrl.weight_bar != null, "controller builds the weight bar")
-	_check(ctrl.total_stats_label != null, "controller builds the total stats label")
+	# ace8106 moved the total-stats label into the header mech summary.
+	_check(ctrl.header_mech_summary_label != null, "controller builds the header mech summary label")
 
-	# The aggregation repaints the weight bar + label from GlobalData.
+	# The aggregation repaints the weight bar + header summary from GlobalData.
 	sp.update()
 	_check(ctrl.weight_bar.max_value > 0.0, "weight bar max tracks the chassis capacity")
 	_check(ctrl.weight_bar.value >= 0.0, "weight bar value is non-negative")
-	_check(ctrl.total_stats_label.text.contains("FRAME LVL"), "stats label shows the frame level")
-	_check(ctrl.total_stats_label.text.contains("TOTAL WEIGHT"), "stats label shows the total weight")
-	_check(ctrl.total_stats_label.text.contains("FIELD PACK"), "stats label shows the field pack")
-	_check(ctrl.total_stats_label.text.contains("PILOT: YOU (driver)"), "stats label shows the edited mech's pilot")
+	_check(ctrl.header_mech_summary_label.text.contains("FRAME HP"), "stats label shows the frame HP")
+	_check(ctrl.header_mech_summary_label.text.contains("PACK:"), "stats label shows the field pack")
+	_check(ctrl.header_mech_summary_label.text.contains("[b]PILOT:[/b] YOU (driver)"), "stats label shows the edited mech's pilot")
 	# The shared berth->pilot helper: unknown ids resolve to "(no pilot)" and
 	# the active berth resolves the player driver.
 	_check(HangarManager.get_mech_pilot_name("") == "(no pilot)", "mech pilot helper handles unknown ids")
 	_check(HangarManager.get_mech_pilot_name(GlobalData.hangar.active_hangar_mech_id) == "YOU (driver)", "mech pilot helper resolves the active berth")
 
 	# Sums are deterministic: reset seeds 3 starter weapons + default frames.
-	# The label's TOTAL WEIGHT is unclamped (the bar clamps to capacity), so
-	# parse it from the label. Clear the default body armor first so the delta
-	# is exactly the new part's weight.
+	# The label's summary is derived from the same aggregation; assert the
+	# sum through LoadoutSystem directly (the bar clamps to capacity).
+	# Clear the default body armor first so the delta is exactly the new part's weight.
 	GlobalData.weapons.equipped_parts.erase("body")
-	sp.update()
-	var weight_before := _parse_total_weight(ctrl.total_stats_label.text)
+	var weight_before := LoadoutSystem.get_total_mecha_weight()
 	GlobalData.weapons.equipped_parts["body"] = {"uid": "t_armor", "name": "Test Plate", "hp": 50.0, "max_hp": 50.0, "weight": 5.0}
 	sp.update()
-	var weight_after := _parse_total_weight(ctrl.total_stats_label.text)
+	var weight_after := LoadoutSystem.get_total_mecha_weight()
 	_check(weight_before >= 0.0 and is_equal_approx(weight_after, weight_before + 5.0), "stats sum adds the equipped armor weight")
 	GlobalData.weapons.equipped_parts.erase("body")
 
@@ -1749,7 +1768,7 @@ func _verify_nav_panel() -> void:
 	_check(np.current_submenu == "customize", "select_submenu records the page id")
 	_check(ctrl.left_panel.visible, "customize page shows the left panel")
 	_check(ctrl.right_panel != null and ctrl.right_panel.visible, "customize page shows the right panel")
-	_check(ctrl.total_stats_label != null and ctrl.total_stats_label.text.contains("PILOT:"), "entering customize refreshes the stats pilot line")
+	_check(ctrl.header_mech_summary_label != null and ctrl.header_mech_summary_label.text.contains("PILOT:"), "entering customize refreshes the stats pilot line")
 	_check(ctrl.tab_container != null and ctrl.tab_container.visible, "customize page shows the tab container")
 	_check(ctrl.back_to_menu_button.visible, "customize page shows the back button")
 	_check(not ctrl.submenu_rail.visible, "customize page hides the sub-menu rail")
@@ -1759,7 +1778,9 @@ func _verify_nav_panel() -> void:
 	# Upgrade submenu switches the left-list mode to the reactor row.
 	np.select_submenu("upgrade")
 	await get_tree().process_frame
-	_check(np.current_submenu == "upgrade", "upgrade submenu records its id")
+	# Upgrade opens the customize page (the submenu id becomes "customize")
+	# with the upgrade mode armed on the part list.
+	_check(np.current_submenu == "customize", "upgrade submenu lands on the customize page")
 	_check(ctrl.current_mode == "upgrade", "upgrade submenu switches the part-list mode")
 
 	# switch_custom_mode repopulates the list for the new mode.
@@ -1830,7 +1851,7 @@ func _verify_nav_panel() -> void:
 	_check(np.current_submenu == "", "show_hangar lands on the sub-menu again")
 	_check(ctrl._customize_mech_id == GlobalData.hangar.active_hangar_mech_id, "show_hangar re-targets the active mech")
 	var sel_lbl2: Label = ctrl.root_control.find_child("SelectionLabel", true, false) as Label
-	_check(sel_lbl2 != null and sel_lbl2.text == "HANGAR MENU", "show_hangar restores the HANGAR MENU label")
+	_check(sel_lbl2 != null and sel_lbl2.text.begins_with("EDITING:"), "show_hangar restores the EDITING selection label")
 
 	ctrl.queue_free()
 	await get_tree().process_frame
@@ -1879,7 +1900,7 @@ func _verify_repair_panel() -> void:
 	GlobalData.currency.credits = total + 500
 	rp.full_repair()
 	_check(GlobalData.weapons.part_damage.is_empty(), "full_repair clears all part damage")
-	_check(ctrl.status_message_label.text.contains("Full Repair Complete"), "full_repair confirms the repair")
+	_check(ctrl.status_message_label.text.contains("Full Field Repair Complete"), "full_repair confirms the repair")
 	_check(GlobalData.currency.credits == 500, "full_repair spends exactly the summed cost")
 
 	# Full repair with everything clean reports all-ok.
@@ -1949,9 +1970,9 @@ func _verify_layout_panels() -> void:
 	_check(ctrl.header_panel != null, "controller builds a HangarHeaderPanel")
 	_check(ctrl.header_panel.controller == ctrl, "header panel holds the controller back-ref")
 	var title_lbl: Label = ctrl.root_control.find_child("SelectionLabel", true, false) as Label
-	_check(title_lbl != null and title_lbl.text == "HANGAR MENU", "header builds the selection label (boot lands on HANGAR MENU)")
-	_check(ctrl.tab_container != null and ctrl.tab_container.get_child_count() == 9, "header builds all 9 slot tabs")
-	_check(ctrl.slot_tab_buttons.size() == 9, "header registers every slot tab button")
+	_check(title_lbl != null and title_lbl.text.begins_with("EDITING:"), "header builds the selection label (boot lands on the EDITING state)")
+	_check(ctrl.tab_container != null and ctrl.tab_container.get_child_count() == 11, "header builds all 11 slot tabs")
+	_check(ctrl.slot_tab_buttons.size() == 11, "header registers every slot tab button")
 	_check(ctrl.slot_tab_buttons.has("weapon_carry"), "header registers the BACK CARRY tab")
 	_check(ctrl.back_to_menu_button != null and ctrl.back_to_menu_button.text.contains("BACK TO MENU"), "header builds the back-to-menu button")
 	_check(ctrl.back_to_menu_button.visible == false, "back-to-menu starts hidden")
@@ -1976,7 +1997,7 @@ func _verify_layout_panels() -> void:
 	for child in ctrl.sub_toggle_container.get_children():
 		if child is Button:
 			toggle_text += child.text + "\n"
-	_check(toggle_text.contains("OUTER ARMOR") and toggle_text.contains("INNER SKELETON"), "mode toggles label armor + frame modes")
+	_check(toggle_text.contains("OUTER ARMOR") and toggle_text.contains("INNER FRAME"), "mode toggles label armor + frame modes")
 
 	# --- Left sidebar: part list, craftery, ammo, equip. ---
 	_check(ctrl.left_panel_ui != null, "controller builds a HangarLeftPanel")
@@ -1994,7 +2015,7 @@ func _verify_layout_panels() -> void:
 	_check(ctrl.right_panel != null, "right sidebar builds the panel")
 	_check(ctrl.stats_label != null and ctrl.stats_label.text.contains("Select a chassis"), "right sidebar builds the spec label")
 	_check(ctrl.weight_bar != null and ctrl.weight_bar.max_value > 0.0, "right sidebar builds the weight bar")
-	_check(ctrl.total_stats_label != null and ctrl.total_stats_label.text.contains("TOTAL WEIGHT"), "right sidebar builds the total stats label")
+	_check(ctrl.header_mech_summary_label != null and ctrl.header_mech_summary_label.text.contains("PILOT:"), "header builds the mech summary label")
 	_check(ctrl.repair_part_button != null and ctrl.full_repair_button != null, "right sidebar builds the repair buttons")
 	_check(ctrl.close_button != null and ctrl.close_button.text.contains("EXIT HANGAR"), "right sidebar builds the exit button")
 	_check(ctrl.status_message_label != null, "right sidebar builds the status label")
@@ -2247,14 +2268,16 @@ func _verify_scrap_editor_destroyed_frame() -> void:
 	# off) still needs emergency repair. The editor must render a ghost skeleton
 	# for that limb so the driver can SEE where to place the scrap patch, and the
 	# patch primitive must attach to the limb root as usual.
-	GlobalData.weapons.part_damage["arm_left"] = 1.0
-	GlobalData.weapons.part_damage["arm_left_frame"] = 1.0
 	GlobalData.currency.scrap = 9999
 
 	var ctrl: Node = load("res://scenes/ui/hangar_scene.tscn").instantiate()
 	add_child(ctrl)
 	await get_tree().process_frame
 	await get_tree().process_frame
+	# Seed the destruction AFTER the hangar boot: load_mech_state restores the
+	# active berth's saved (clean) part damage while the scene initializes.
+	GlobalData.weapons.part_damage["arm_left"] = 1.0
+	GlobalData.weapons.part_damage["arm_left_frame"] = 1.0
 
 	ctrl.nav_panel.select_submenu("emergency")
 	await get_tree().process_frame

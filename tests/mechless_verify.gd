@@ -40,7 +40,6 @@ func _ready() -> void:
 	_check(HangarManager.can_mechless_retreat(), "squadmates left -> retreat, run continues")
 	_check(GlobalData.hangar.active_hangar_mech_id == "", "no active mech while on foot")
 	_check(HangarManager.get_mechs().is_empty(), "roster is NOT auto-reseeded while on foot")
-	_check(HangarManager.build("").is_empty(), "cannot assemble a new mech while on foot")
 
 	# --- Recovery pool only surfaces recovery events; normal pool never does ---
 	var rec := ThemeSystem.get_weighted_recovery_event()
@@ -57,20 +56,30 @@ func _ready() -> void:
 	_check(not has_recovery, "recovery event excluded from the normal theme pool")
 	_check(has_garage, "shady garage (trap) is a normal board event")
 
-	# --- recover_mech choice rebuilds a chassis and ends pilot-only mode ---
+	# --- On-foot REGISTER (c035ef2): assembling frames from inventory is ---
+	# --- allowed while pilot-only, so build() no longer refuses on foot.  ---
+	var built := HangarManager.build("")
+	_check(not built.is_empty(), "on-foot REGISTER assembles a mech from convoy frames")
+	_check(GlobalData.hangar.hangar_mechs.size() == 1, "assembled mech parks in the roster")
+	_check(not GlobalData.narrative.mech_less, "assembling a mech ends pilot-only mode")
+
+	# --- With a free berth the recovery choice rebuilds an ADDITIONAL ---
+ # --- chassis (grant_recovery_mech gates only on capacity, not on   ---
+ # --- mech_less; the pool itself has no parked-mech gate).           ---
 	var recover_choice := {
 		"effect": "recover_mech", "amount": 0,
 		"params": {"heat": 1, "fallback_scrap": 30},
 	}
 	var forced := ThemeSystem.apply_event_effect(recover_choice)
 	_check(not forced, "recover_mech does not force a scene transition")
-	_check(GlobalData.hangar.hangar_mechs.size() == 1, "recovery rebuilt one mech")
-	_check(not GlobalData.narrative.mech_less, "mech_less cleared after recovery mech granted")
-	_check(GlobalData.hangar.active_hangar_mech_id == str(GlobalData.hangar.hangar_mechs[0].get("id", "")), "recovery mech is active")
+	_check(GlobalData.hangar.hangar_mechs.size() == 2, "recover_mech rebuilds an additional chassis into the free berth")
+	_check(not GlobalData.narrative.mech_less, "mech_less stays cleared after the recovery choice")
+	_check(GlobalData.hangar.active_hangar_mech_id == str(GlobalData.hangar.hangar_mechs[1].get("id", "")), "recovery mech becomes the active berth")
 	_check(GlobalData.board.run_notice != "", "recovery sets a convoy report")
 
-	# --- Remove again; scrap choice on foot restores resources, stays on foot ---
-	HangarManager.remove_mech(GlobalData.hangar.active_hangar_mech_id)
+	# --- Remove every mech; scrap choice on foot restores resources, stays on foot ---
+	while not GlobalData.hangar.hangar_mechs.is_empty():
+		HangarManager.remove_mech(str(GlobalData.hangar.hangar_mechs[0].get("id", "")))
 	GlobalData.narrative.mech_less = GlobalData.hangar.hangar_mechs.is_empty()
 	var scrap_before := GlobalData.currency.scrap
 	GlobalData.weapons.part_damage["body"] = 0.8

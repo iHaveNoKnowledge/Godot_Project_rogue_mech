@@ -20,11 +20,22 @@ extends RefCounted
 ##      or legacy pile thrust; ranged weapons never enter the melee path).
 ##   AIM representation ... MechaAnimation._hand_is_ranged_gun: intact arm +
 ##      held weapon whose type is neither MELEE nor SHIELD.
+##   GUARD representation ... WeaponManager._toggle_shield reads left_hand /
+##      right_hand only (shoulder shields have no toggle path; a shoulder
+##      shield press returns without effect). A destroyed acting arm redirects
+##      the press to the execution-owned shoulder bash, so the toggle never
+##      occurs. Broken-plate HP gating is combat resource state (like ammo)
+##      and is NOT consulted here.
 ##   Acting-hand intact .... _try_fire / _hand_is_ranged_gun (destroyed arm
 ##      cannot fire or aim that hand).
 ##   Two-hand support ...... weapon_needs_both_hands + _enforce_two_hand_grip
-##      (support hand is holstered so both arms can brace; a destroyed
-##      support hand cannot brace).
+##      (support weapon is holstered so both arms brace). The enforcement
+##      performs NO support-usability check, and no pre-existing test, spec
+##      or design states that a destroyed support arm must block fire —
+##      the live runtime fires (degraded brace, grip still TWO_HAND/BRACED).
+##      Per the closure safety rule the capability preserves that behavior:
+##      support state never rejects (Option B); degraded handling is
+##      expressed through the reported grip_mode, not a rejection.
 ##   Fixed mounts .......... HandlingResolver.classify_mount docs (shoulder
 ##      missile pods never check arm state) — MOUNTED needs no hands.
 ##
@@ -37,12 +48,12 @@ extends RefCounted
 const ACTION_FIRE := "FIRE"
 const ACTION_MELEE := "MELEE"
 const ACTION_AIM := "AIM"
+const ACTION_GUARD := "GUARD"
 
 # Deterministic machine-readable reasons.
 const REASON_OK := "ok"
 const REASON_NO_WEAPON := "no_weapon"
 const REASON_ACTION_UNSUPPORTED := "action_unsupported"
-const REASON_FRAME_INSUFFICIENT := "frame_insufficient"
 const REASON_HANDLING_RESTRICTION := "handling_restriction"
 const REASON_MOUNT_UNSUPPORTED := "mount_unsupported"
 
@@ -58,12 +69,13 @@ static func action_supported(weapon: WeaponPart, action: String) -> bool:
 				and weapon.weapon_type != WeaponPart.WeaponType.SHIELD
 		ACTION_MELEE:
 			return weapon.weapon_type == WeaponPart.WeaponType.MELEE
+		ACTION_GUARD:
+			return weapon.weapon_type == WeaponPart.WeaponType.SHIELD
 	return false
 
 
 ## Single authoritative capability query. `powers` reuses the HandlingResolver
-## shape {arm_power, leg_power, mech_power, recoil_resistance, arm_destroyed}
-## plus "support_usable" (can the other hand brace? defaults true).
+## shape {arm_power, leg_power, mech_power, recoil_resistance, arm_destroyed}.
 ## Returns {allowed: bool, reason: String, action: String,
 ##          grip_mode: String, mount_kind: String}.
 ## grip_mode/mount_kind come straight from HandlingResolver; they are ""
@@ -98,6 +110,12 @@ static func query(weapon: WeaponPart, action: String, mount: String, powers: Dic
 		out["reason"] = REASON_OK
 		return out
 
+	# GUARD is a hand-plate toggle: _toggle_shield reads the hands only, so
+	# a shield anywhere else has no guard path in execution.
+	if act == ACTION_GUARD and str(out["mount_kind"]) != HandlingResolver.MOUNT_HAND:
+		out["reason"] = REASON_ACTION_UNSUPPORTED
+		return out
+
 	# Shoulder arm-assisted mounts keep today's execution-owned behavior:
 	# no hand gate here (no existing gate to mirror).
 	if str(out["mount_kind"]) != HandlingResolver.MOUNT_HAND:
@@ -105,28 +123,21 @@ static func query(weapon: WeaponPart, action: String, mount: String, powers: Dic
 		out["reason"] = REASON_OK
 		return out
 
-	# Hand mounts: a destroyed acting arm cannot act (mirrors _try_fire).
+	# Hand mounts: a destroyed acting arm cannot act (mirrors _try_fire;
+	# the press redirects to the execution-owned shoulder bash instead).
 	if bool(powers.get("arm_destroyed", false)):
 		out["reason"] = REASON_HANDLING_RESTRICTION
 		return out
 
-	# Two-hand family needs a usable support hand (mirrors holster-to-brace).
-	if str(out["grip_mode"]) == HandlingResolver.GRIP_TWO_HAND \
-			or str(out["grip_mode"]) == HandlingResolver.GRIP_BRACED:
-		if not bool(powers.get("support_usable", true)):
-			var arm_power: float = float(powers.get("arm_power", 0.0))
-			if weapon.requires_two_hand(arm_power):
-				out["reason"] = REASON_FRAME_INSUFFICIENT
-			else:
-				out["reason"] = REASON_HANDLING_RESTRICTION
-			return out
-
+	# Two-hand family always resolves: the holster-to-brace enforcement has
+	# no support-usability gate, so the live runtime fires (Option B).
+	# Degraded handling is reported via grip_mode, never a rejection.
 	out["allowed"] = true
 	out["reason"] = REASON_OK
 	return out
 
 
-## Thin wrappers over query() — one authoritative path, three spellings.
+## Thin wrappers over query() — one authoritative path, four spellings.
 static func can_fire(weapon: WeaponPart, mount: String, powers: Dictionary) -> Dictionary:
 	return query(weapon, ACTION_FIRE, mount, powers)
 
@@ -137,3 +148,7 @@ static func can_melee(weapon: WeaponPart, mount: String, powers: Dictionary) -> 
 
 static func can_aim(weapon: WeaponPart, mount: String, powers: Dictionary) -> Dictionary:
 	return query(weapon, ACTION_AIM, mount, powers)
+
+
+static func can_guard(weapon: WeaponPart, mount: String, powers: Dictionary) -> Dictionary:
+	return query(weapon, ACTION_GUARD, mount, powers)

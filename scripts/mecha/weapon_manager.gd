@@ -2093,12 +2093,10 @@ func get_capability(slot: String, action: String) -> Dictionary:
 	var weapon: WeaponPart = null
 	var mount := "hand"
 	var hand := ""
-	var support_usable := true
 	if slot == "left" or slot == "right":
 		weapon = left_hand if slot == "left" else right_hand
 		mount = "hand"
 		hand = slot
-		support_usable = _hand_usable("right" if slot == "left" else "left")
 	elif slot == "shoulder_left" or slot == "shoulder_right":
 		weapon = shoulder_left if slot == "shoulder_left" else shoulder_right
 		mount = slot
@@ -2106,9 +2104,7 @@ func get_capability(slot: String, action: String) -> Dictionary:
 		return WeaponGameplayCapability.query(null, action, "hand", _handling_powers(""))
 	if weapon == null:
 		return WeaponGameplayCapability.query(null, action, mount, _handling_powers(hand))
-	var powers := _handling_powers(hand)
-	powers["support_usable"] = support_usable
-	return WeaponGameplayCapability.query(weapon, action, mount, powers)
+	return WeaponGameplayCapability.query(weapon, action, mount, _handling_powers(hand))
 
 
 # Returns the hand that currently holds a weapon needing a two-hand grip.

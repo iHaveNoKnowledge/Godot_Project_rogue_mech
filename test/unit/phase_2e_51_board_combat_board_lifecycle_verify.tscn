@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://c6l8y0x2f68c6"]
+
+[ext_resource type="Script" path="res://test/unit/phase_2e_51_board_combat_board_lifecycle_verify.gd" id="1_test"]
+
+[node name="Phase2E51BoardCombatBoardLifecycleVerify" type="Node"]
+script = ExtResource("1_test")

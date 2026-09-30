@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://c52b8s7p0v1er"]
+
+[ext_resource type="Script" path="res://test/unit/phase_2e_52_combat_result_board_state_verify.gd" id="1_v8m2l"]
+
+[node name="Phase2E52CombatResultBoardStateVerify" type="Node"]
+script = ExtResource("1_v8m2l")

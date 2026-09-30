@@ -70,11 +70,10 @@ func _run_all_tests() -> void:
 	GameManager.current_state = GameManager.State.BOARD
 	GlobalData.hangar.hangar_mechs = [{"id": 1, "name": "Valkren Test Mech"}]
 	GlobalData.narrative.mech_less = false
-	GlobalData.fuel.traversal_mode = "convoy"
-	GlobalData.fuel.convoy_fuel = 100.0
-	GlobalData.fuel.convoy_max_fuel = 100.0
-	GlobalData.fuel.convoy_fuel_reserve = 50.0
+	GlobalData.fuel.traversal_mode = "mecha"
 	GlobalData.fuel.mech_energy = 500.0
+	GlobalData.fuel.mech_max_energy = 500.0
+	GlobalData.fuel.convoy_fuel = 100.0
 	GlobalData.board.board_seed = 10001
 	GlobalData.board.board_day = 1
 	GlobalData.board.time_hour = 8.0
@@ -238,6 +237,8 @@ func _run_all_tests() -> void:
 	# ===========================================================================
 	print("\n-- [6] Multi-Node Sequential Progression Walkthrough --")
 	# Step A: Setup 3 consecutive steps
+	GlobalData.board.board_mp = 8
+	GlobalData.fuel.convoy_fuel = 100.0
 	var seq_board = _instantiate_board_scene()
 	GlobalData.board.board_patrols.clear()
 	var step_1: Vector2i = seq_board.current_pos

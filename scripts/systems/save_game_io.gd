@@ -123,6 +123,8 @@ static func save_run() -> void:
 	var file := FileAccess.open(GlobalData.SAVE_PATH, FileAccess.WRITE)
 	if file:
 		file.store_string(JSON.stringify(data, "\t"))
+		file.flush()
+		file.close()
 
 
 static func load_run() -> bool:
@@ -131,7 +133,9 @@ static func load_run() -> bool:
 	var file := FileAccess.open(GlobalData.SAVE_PATH, FileAccess.READ)
 	if not file:
 		return false
-	var data = JSON.parse_string(file.get_as_text())
+	var text := file.get_as_text()
+	file.close()
+	var data = JSON.parse_string(text)
 	if data == null:
 		return false
 	restore_from_dict(data)

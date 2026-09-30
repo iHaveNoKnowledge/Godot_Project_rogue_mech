@@ -106,7 +106,8 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
-	energy_system.persist_to_global()
+	if energy_system and is_instance_valid(energy_system) and process_mode != Node.PROCESS_MODE_DISABLED and is_player_driven:
+		energy_system.persist_to_global()
 	if AudioManager:
 		AudioManager.stop_roller_dash()
 

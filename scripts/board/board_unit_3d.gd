@@ -281,7 +281,7 @@ func _strip_combat_components(node: Node) -> void:
 		if child is CollisionShape3D or child is Area3D or child is Camera3D or child is AudioStreamPlayer3D or child is AudioStreamPlayer:
 			node.remove_child(child)
 			child.free()
-		elif child.name.begins_with("EnemyStatusBillboard") or child.name.begins_with("EnemyStatus") or child.name.begins_with("Hitbox") or child.name.begins_with("HealthSystem") or child.name.begins_with("MechaCombat") or child.name.begins_with("MechaEject") or child.name.begins_with("MechaFootIK"):
+		elif child.name.begins_with("EnemyStatusBillboard") or child.name.begins_with("EnemyStatus") or child.name.begins_with("Hitbox") or child.name.begins_with("HealthSystem") or child.name.begins_with("MechaCombat") or child.name.begins_with("MechaEject") or child.name.begins_with("MechaFootIK") or child.name.begins_with("EnergySystem") or child.name.begins_with("JumpSystem") or child.name.begins_with("DashSystem"):
 			node.remove_child(child)
 			child.free()
 		else:

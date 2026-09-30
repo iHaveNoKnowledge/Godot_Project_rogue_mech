@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://tests/mecha/combat_execution_integrity_audit.gd" id="1_cmexprobe"]
+
+[node name="CombatExecutionIntegrityAudit" type="Node"]
+script = ExtResource("1_cmexprobe")

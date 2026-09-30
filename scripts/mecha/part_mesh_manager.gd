@@ -91,21 +91,36 @@ func hide_slot_completely(slot_name: String) -> void:
 	if entry.get("frame_foot") and entry["frame_foot"]: entry["frame_foot"].visible = false
 
 
+## Hatch motion owner pose — single source of truth for the frame carriage AND
+## the armor carriage. Both must track identically so hatch armor inherits the
+## exact same motion as the hatch mechanism (no per-armor offsets).
+const HATCH_OPEN_POS := Vector3(0.0, -0.22, -0.44)
+const HATCH_OPEN_ROT := Vector3(10.0, 0.0, 0.0)
+
+
+## Finds the hatch motion owner under a body container. Recursive: custom
+## armor/frame scenes may nest their carriage deeper than a direct child.
+func _find_hatch_carriage(container: Node) -> Node3D:
+	if container == null:
+		return null
+	return container.find_child("SlidingCarriage", true, false) as Node3D
+
+
 ## Toggles cockpit hatch extension. When open, front carriage slides forward-down along guide rails.
 func set_cockpit_open(open: bool, animate: bool = true) -> void:
 	is_cockpit_open = open
-	var target_pos := Vector3(0.0, -0.22, -0.44) if open else Vector3.ZERO
-	var target_rot := Vector3(10.0, 0.0, 0.0) if open else Vector3.ZERO
+	var target_pos := HATCH_OPEN_POS if open else Vector3.ZERO
+	var target_rot := HATCH_OPEN_ROT if open else Vector3.ZERO
 
 	var carriages: Array[Node3D] = []
 	var body_entry = slot_meshes.get("body")
 	if body_entry:
 		if body_entry.get("frame") and is_instance_valid(body_entry["frame"]):
-			var c = body_entry["frame"].get_node_or_null("SlidingCarriage")
+			var c = _find_hatch_carriage(body_entry["frame"])
 			if c is Node3D:
 				carriages.append(c)
 		if body_entry.get("armor") and is_instance_valid(body_entry["armor"]):
-			var c = body_entry["armor"].get_node_or_null("SlidingCarriage")
+			var c = _find_hatch_carriage(body_entry["armor"])
 			if c is Node3D:
 				carriages.append(c)
 
@@ -236,12 +251,12 @@ func set_cockpit_pilot_seated(seated: bool) -> void:
 
 ## Synchronizes newly rebuilt slot meshes with current cockpit open/seated state.
 func _sync_cockpit_state() -> void:
-	var target_pos := Vector3(0.0, -0.22, -0.44) if is_cockpit_open else Vector3.ZERO
-	var target_rot := Vector3(10.0, 0.0, 0.0) if is_cockpit_open else Vector3.ZERO
+	var target_pos := HATCH_OPEN_POS if is_cockpit_open else Vector3.ZERO
+	var target_rot := HATCH_OPEN_ROT if is_cockpit_open else Vector3.ZERO
 	var body_entry = slot_meshes.get("body")
 	if body_entry:
 		if body_entry.get("frame") and is_instance_valid(body_entry["frame"]):
-			var c = body_entry["frame"].get_node_or_null("SlidingCarriage")
+			var c = _find_hatch_carriage(body_entry["frame"])
 			if c is Node3D:
 				c.position = target_pos
 				c.rotation_degrees = target_rot
@@ -249,7 +264,7 @@ func _sync_cockpit_state() -> void:
 			if pilot is Node3D:
 				pilot.visible = is_cockpit_pilot_seated
 		if body_entry.get("armor") and is_instance_valid(body_entry["armor"]):
-			var c = body_entry["armor"].get_node_or_null("SlidingCarriage")
+			var c = _find_hatch_carriage(body_entry["armor"])
 			if c is Node3D:
 				c.position = target_pos
 				c.rotation_degrees = target_rot
@@ -372,10 +387,15 @@ func initialize_slot(slot_name: String, part: ArmorPart, apply_player_damage: bo
 	if armor_mesh_lower: _clear_children(armor_mesh_lower)
 	if armor_mesh_foot: _clear_children(armor_mesh_foot)
 
+	# True when the armor above came from a Blender scene (not the procedural
+	# fallback). Only Blender armor needs hatch-ownership binding — procedural
+	# armor already parents its hatch plates under its own carriage.
+	var armor_from_custom_scene := false
 	if part != null:
 		var armor_ok := false
 		if use_blender_models and (part.mesh_scene != null or part.mesh_scene_lower != null):
 			armor_ok = _attach_custom_mesh_scene(armor_mesh, armor_mesh_lower, part.mesh_scene, part.mesh_scene_lower, armor_mesh_foot)
+			armor_from_custom_scene = armor_ok
 		if not armor_ok:
 			_clear_children(armor_mesh)
 			if armor_mesh_lower: _clear_children(armor_mesh_lower)
@@ -443,7 +463,132 @@ func initialize_slot(slot_name: String, part: ArmorPart, apply_player_damage: bo
 								dmg_vis.update_slot_hit(slot_name, m_layer, m_pos as Vector3, m_rad)
 
 	if slot_name.to_lower() == "body":
+		if armor_from_custom_scene:
+			_bind_body_hatch_armor(
+				slot_meshes["body"]["frame"] as Node3D,
+				slot_meshes["body"]["armor"] as Node3D)
 		_sync_cockpit_state()
+
+
+## HATCH ARMOR OWNERSHIP (Body slot, Blender armor only).
+##
+## Motion invariant: the frame carriage and the armor carriage are always posed
+## identically (HATCH_OPEN_POS/ROT), so anything parented under the armor
+## carriage inherits hatch motion automatically — gameplay code never translates
+## armor per hatch state.
+##
+## Blender armor scenes ship as flat geometry_N meshes with no hatch metadata,
+## so at equip time each armor mesh is classified spatially against the FRAME
+## hatch zone (the frame carriage's own bounds — never armor names): meshes
+## whose AABB center lies inside the zone are hatch-covering and ride the armor
+## carriage; the rest stay body-fixed. Reparenting preserves global transform,
+## so the closed pose is unchanged. Replacement rebuilds the slot from scratch,
+## so no drift can accumulate across swaps.
+const HATCH_ZONE_MARGIN := 0.10
+
+
+## World-space AABB of one mesh: 8 local corners through the global transform.
+## (MeshInstance3D has no get_transformed_aabb() in Godot 4.6; same pattern as
+## MechaHealthBase._mesh_global_aabb.)
+func _mesh_world_aabb(mesh: MeshInstance3D) -> AABB:
+	var local := mesh.get_aabb()
+	if local.size == Vector3.ZERO:
+		return AABB()
+	var t := mesh.get_global_transform()
+	var p := local.position
+	var e := local.size
+	var corners := PackedVector3Array([
+		t * p,
+		t * (p + Vector3(e.x, 0, 0)),
+		t * (p + Vector3(0, e.y, 0)),
+		t * (p + Vector3(0, 0, e.z)),
+		t * (p + Vector3(e.x, e.y, 0)),
+		t * (p + Vector3(e.x, 0, e.z)),
+		t * (p + Vector3(0, e.y, e.z)),
+		t * (p + e),
+	])
+	var box := AABB(corners[0], Vector3.ZERO)
+	for c in corners:
+		box = box.expand(c)
+	return box
+
+
+## Union of all mesh AABBs under a node, in global space.
+func _subtree_world_aabb(n: Node) -> AABB:
+	var box := AABB()
+	var any := false
+	var stack: Array = [n]
+	while not stack.is_empty():
+		var cur: Node = stack.pop_back()
+		if cur is MeshInstance3D and (cur as MeshInstance3D).mesh != null:
+			var g: AABB = _mesh_world_aabb(cur as MeshInstance3D)
+			if g.size.length_squared() <= 0.0:
+				continue
+			box = g if not any else box.merge(g)
+			any = true
+		for c in cur.get_children():
+			stack.append(c)
+	return box
+
+
+## Transforms a global-space AABB into a target node's local space.
+func _aabb_to_local(aabb: AABB, target: Node3D) -> AABB:
+	var inv: Transform3D = target.global_transform.affine_inverse()
+	var out := AABB()
+	for i in range(8):
+		var corner := Vector3(
+			aabb.position.x + (aabb.size.x if (i & 1) else 0.0),
+			aabb.position.y + (aabb.size.y if (i & 2) else 0.0),
+			aabb.position.z + (aabb.size.z if (i & 4) else 0.0))
+		var p: Vector3 = inv * corner
+		out = AABB(p, Vector3.ZERO) if i == 0 else out.expand(p)
+	return out
+
+
+## Guarantees the armor-side hatch motion owner exists and sorts the equipped
+## Blender armor meshes under it by spatial ownership. Safe to call on every
+## body rebuild: the slot is cleared first, so classification is deterministic.
+func _bind_body_hatch_armor(frame_mesh: Node3D, armor_mesh: Node3D) -> void:
+	if frame_mesh == null or armor_mesh == null:
+		return
+	if not frame_mesh.is_inside_tree() or not armor_mesh.is_inside_tree():
+		return
+	var frame_carriage := _find_hatch_carriage(frame_mesh)
+	if frame_carriage == null:
+		return  # No hatch mechanism on this frame; armor stays body-fixed.
+	var armor_carriage := _find_hatch_carriage(armor_mesh)
+	if armor_carriage == null:
+		armor_carriage = Node3D.new()
+		armor_carriage.name = "SlidingCarriage"
+		armor_mesh.add_child(armor_carriage)
+	# Hatch zone = frame carriage's own mesh bounds in armor-local space.
+	# Equip happens closed in the hangar, so the closed pose defines the zone.
+	var zone_world := _subtree_world_aabb(frame_carriage)
+	if zone_world.size.length_squared() <= 0.0:
+		return
+	var zone: AABB = _aabb_to_local(zone_world, armor_mesh).grow(HATCH_ZONE_MARGIN)
+	for child in armor_mesh.get_children():
+		if child == armor_carriage:
+			continue  # Asset-authored hatch contents stay exactly as authored.
+		_classify_hatch_unit(child, armor_carriage, zone, armor_mesh)
+
+
+## Moves hatch-zone meshes under the armor carriage (global preserved).
+## Recurses through asset wrapper nodes; only MeshInstance3D leaves move, so
+## asset structure otherwise survives. Rigid meshes straddling the zone border
+## stay fixed — a single mesh cannot be split, and dragging a half-fixed shell
+## along would be worse than leaving it.
+func _classify_hatch_unit(n: Node, armor_carriage: Node3D, zone: AABB, armor_space: Node3D) -> void:
+	if n is MeshInstance3D:
+		var m := n as MeshInstance3D
+		if m.mesh == null:
+			return
+		var local_box := _aabb_to_local(_mesh_world_aabb(m), armor_space)
+		if zone.has_point(local_box.get_center()):
+			m.reparent(armor_carriage, true)
+		return
+	for child in n.get_children().duplicate():
+		_classify_hatch_unit(child, armor_carriage, zone, armor_space)
 
 
 func _normalize_mesh_orientation(node: Node3D) -> void:
@@ -1481,8 +1626,8 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 					b_carriage.owner = null
 					b_carriage.name = "SlidingCarriage"
 					if is_cockpit_open:
-						b_carriage.position = Vector3(0.0, -0.22, -0.44)
-						b_carriage.rotation_degrees = Vector3(10.0, 0.0, 0.0)
+						b_carriage.position = HATCH_OPEN_POS
+						b_carriage.rotation_degrees = HATCH_OPEN_ROT
 					else:
 						b_carriage.position = Vector3.ZERO
 						b_carriage.rotation_degrees = Vector3.ZERO
@@ -1646,8 +1791,8 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 				var carriage = Node3D.new()
 				carriage.name = "SlidingCarriage"
 				if is_cockpit_open:
-					carriage.position = Vector3(0.0, -0.22, -0.44)
-					carriage.rotation_degrees = Vector3(10.0, 0.0, 0.0)
+					carriage.position = HATCH_OPEN_POS
+					carriage.rotation_degrees = HATCH_OPEN_ROT
 				upper_container.add_child(carriage)
 
 				# Front Rib Arc
@@ -2391,12 +2536,14 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 			upper_container.add_child(collar)
 
 		"body":
-			# Classic Outer Armor Hatch Plate attached to SlidingCarriage
+			# Classic Outer Armor Hatch Plate attached to SlidingCarriage.
+			# Tracks the shared HATCH_OPEN pose exactly like the frame
+			# carriage so both inherit identical hatch motion.
 			var armor_carriage = Node3D.new()
 			armor_carriage.name = "SlidingCarriage"
 			if is_cockpit_open:
-				armor_carriage.position = Vector3(0.0, -0.22, -0.48)
-				armor_carriage.rotation_degrees = Vector3(8.0, 0.0, 0.0)
+				armor_carriage.position = HATCH_OPEN_POS
+				armor_carriage.rotation_degrees = HATCH_OPEN_ROT
 			upper_container.add_child(armor_carriage)
 
 			# Classic Angled Chest Armor Plate (รูป 2-3)

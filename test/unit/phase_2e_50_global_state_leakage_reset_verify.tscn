@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://c5k8y0x2f68c5"]
+
+[ext_resource type="Script" path="res://test/unit/phase_2e_50_global_state_leakage_reset_verify.gd" id="1_test"]
+
+[node name="Phase2E50GlobalStateLeakageResetVerify" type="Node"]
+script = ExtResource("1_test")

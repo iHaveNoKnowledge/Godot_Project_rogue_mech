@@ -71,8 +71,13 @@ func _run_all_tests() -> void:
 	GlobalData.hangar.hangar_mechs = [{"id": 1, "name": "Valkren Test Mech"}]
 	GlobalData.narrative.mech_less = false
 	GlobalData.fuel.traversal_mode = "convoy"
+	GlobalData.fuel.convoy_fuel = 100.0
+	GlobalData.fuel.convoy_max_fuel = 100.0
 	GlobalData.fuel.convoy_fuel_reserve = 50.0
 	GlobalData.fuel.mech_energy = 500.0
+	GlobalData.board.board_seed = 10001
+	GlobalData.board.board_day = 1
+	GlobalData.board.time_hour = 8.0
 	GlobalData.board.current_hazard = ""
 	GlobalData.board.convoy_breakdown_turns = 0
 	GlobalData.board.board_patrol_engagement = -1

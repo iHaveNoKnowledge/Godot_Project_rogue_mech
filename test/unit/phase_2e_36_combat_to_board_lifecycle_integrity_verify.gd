@@ -44,7 +44,10 @@ func _ready() -> void:
 		push_error("PHASE_2E_36_FAILURE: %d assertions failed" % _fail_count)
 
 	if _board_scene and is_instance_valid(_board_scene):
-		_board_scene.queue_free()
+		if _board_scene.get_parent():
+			_board_scene.get_parent().remove_child(_board_scene)
+		_board_scene.free()
+		_board_scene = null
 
 	get_tree().quit(0 if _fail_count == 0 else 1)
 
@@ -62,7 +65,9 @@ func _assert(condition: bool, message: String) -> void:
 
 func _instantiate_board_scene() -> BoardManager:
 	if _board_scene and is_instance_valid(_board_scene):
-		_board_scene.queue_free()
+		if _board_scene.get_parent():
+			_board_scene.get_parent().remove_child(_board_scene)
+		_board_scene.free()
 		_board_scene = null
 
 	var scene_res = load("res://scenes/board/game_board.tscn") as PackedScene
@@ -75,6 +80,7 @@ func _instantiate_board_scene() -> BoardManager:
 
 
 func _setup_board(tile: Vector2i = Vector2i(2, 2)) -> BoardManager:
+	GlobalData.board.board_seed = 10001
 	GlobalData.board.current_sector = 1
 	GlobalData.board.board_day = 1
 	GlobalData.board.time_hour = 8.0
@@ -93,8 +99,10 @@ func _setup_board(tile: Vector2i = Vector2i(2, 2)) -> BoardManager:
 	GlobalData.fuel.traversal_mode = "mecha"
 	GlobalData.fuel.convoy_is_deployed = false
 	GlobalData.fuel.mecha_is_parked = false
-	GlobalData.board.board_patrols = []
+	GlobalData.board.current_hazard = ""
+	GlobalData.board.convoy_breakdown_turns = 0
 	GlobalData.board.board_patrol_engagement = -1
+	GlobalData.board.board_patrols = []
 	GlobalData.board.current_tile = tile
 	GameManager.current_state = GameManager.State.BOARD
 

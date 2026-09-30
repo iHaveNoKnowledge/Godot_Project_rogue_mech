@@ -125,6 +125,14 @@ func _physics_process(delta: float) -> void:
 		is_aiming = false
 		current_aim_point = Vector3.ZERO
 		return
+	# Parked operator mech while ejected: same dead-stick aim as destroyed.
+	# Scoped to the operator's mech (player group / parked metas) so shared
+	# components on allies keep their current behavior during EJECT.
+	if GameManager.current_state == GameManager.State.EJECT and mecha != null \
+			and (mecha.is_in_group("player") or mecha.has_meta("is_parked") or mecha.has_meta("is_unoccupied")):
+		is_aiming = false
+		current_aim_point = Vector3.ZERO
+		return
 	is_aiming = Input.is_action_pressed("aim")
 	current_aim_point = resolve_aim_point()
 	if is_aiming or is_close_combat():

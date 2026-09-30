@@ -1334,6 +1334,19 @@ func _try_fire(slot: String, weapon: WeaponPart) -> void:
 		if weapon == null:
 			return
 
+	# Single weapon-action gate: capability + runtime permission BEFORE any
+	# combat/animation/lifecycle side effect. Covers commit/hold/shoulder/
+	# dumbfire/AI/test paths uniformly (all funnel here). The unarmed-fist
+	# fallback above stays execution-owned and ungated; bash/dual-charge
+	# enter through _melee_attack directly and are likewise untouched.
+	# NOTE: _commit_fire arms per-hand trigger edge state before calling in;
+	# that bookkeeping is side-effect-free w.r.t. ammo/heat/cooldown/damage.
+	var requested := WeaponGameplayCapability.ACTION_FIRE
+	if weapon.weapon_type == WeaponPart.WeaponType.MELEE:
+		requested = WeaponGameplayCapability.ACTION_MELEE
+	if not bool(_request_gate(slot, requested).get("allowed", false)):
+		return
+
 	if _is_reloading(slot):
 		return
 	if weapon.weapon_type == WeaponPart.WeaponType.SHIELD:
@@ -1507,6 +1520,11 @@ func _fire_dumbfire_missile(slot: String, weapon: WeaponPart) -> void:
 func _fire_missile_salvo(slot: String, weapon: WeaponPart, targets_dict: Dictionary) -> void:
 	var core := _core_for_weapon(weapon)
 	if core == null:
+		return
+
+	# Salvo branch of a lock release: one gate decision here (the tap branch
+	# is decided inside _try_fire, and only one branch executes per release).
+	if not bool(_request_gate(slot, WeaponGameplayCapability.ACTION_FIRE).get("allowed", false)):
 		return
 
 	var is_shoulder := slot.begins_with("shoulder")
@@ -1793,7 +1811,9 @@ func _commit_normal_fire(hand: String) -> void:
 			fire_left_holding = Input.is_action_pressed("fire_left")
 			if left_hand:
 				if left_hand.weapon_type == WeaponPart.WeaponType.SHIELD:
-					_toggle_shield("left")
+					# GUARD request: capability + gate BEFORE the toggle.
+					if bool(_request_gate("left", WeaponGameplayCapability.ACTION_GUARD).get("allowed", false)):
+						_toggle_shield("left")
 				else:
 					_commit_fire("left", left_hand)
 			else:
@@ -1806,7 +1826,9 @@ func _commit_normal_fire(hand: String) -> void:
 			fire_right_holding = Input.is_action_pressed("fire_right")
 			if right_hand:
 				if right_hand.weapon_type == WeaponPart.WeaponType.SHIELD:
-					_toggle_shield("right")
+					# GUARD request: capability + gate BEFORE the toggle.
+					if bool(_request_gate("right", WeaponGameplayCapability.ACTION_GUARD).get("allowed", false)):
+						_toggle_shield("right")
 				else:
 					_commit_fire("right", right_hand)
 			else:
@@ -2086,9 +2108,9 @@ func get_handling(slot: String) -> Dictionary:
 	return HandlingResolver.resolve(weapon, mount, _handling_powers(hand))
 
 
-## Capability query for the weapon in a slot (or shoulder slot): "is this
-## action permitted?" Read-only, for tests/HUD/future gates — execution
-## paths are unchanged and consult nothing here.
+## Capability query for the weapon in a slot (or a shoulder slot): "is this
+## action permitted?" Read-only. Consulted by the request gate below and by
+## tests/HUD/telemetry — never executes anything itself.
 func get_capability(slot: String, action: String) -> Dictionary:
 	var weapon: WeaponPart = null
 	var mount := "hand"
@@ -2105,6 +2127,30 @@ func get_capability(slot: String, action: String) -> Dictionary:
 	if weapon == null:
 		return WeaponGameplayCapability.query(null, action, mount, _handling_powers(hand))
 	return WeaponGameplayCapability.query(weapon, action, mount, _handling_powers(hand))
+
+
+## Runtime liveness for the action gate, gathered from authoritative owners.
+## Destroyed is universal (own HealthSystem). Eject is scoped to mechs that
+## can be the operator's: the player group or parked/unoccupied player mechs
+## (eject sets those metas) — allies/enemies never carry them, so shared
+## dispatch paths (AI _try_fire) keep their current behavior during EJECT.
+func _gate_runtime() -> Dictionary:
+	var destroyed := false
+	var absent := false
+	var mecha := get_parent()
+	if mecha != null:
+		var hs = mecha.get_node_or_null("HealthSystem")
+		if hs != null:
+			destroyed = bool(hs.get("is_destroyed"))
+		if GameManager.current_state == GameManager.State.EJECT:
+			absent = mecha.is_in_group("player") or mecha.has_meta("is_parked") or mecha.has_meta("is_unoccupied")
+	return {"mech_destroyed": destroyed, "operator_absent": absent}
+
+
+## Single request-gate decision: structural capability, then runtime gate.
+## Read-only; consults nothing that mutates combat, animation or lifecycle.
+func _request_gate(slot: String, action: String) -> Dictionary:
+	return WeaponActionGate.query(get_capability(slot, action), _gate_runtime())
 
 
 # Returns the hand that currently holds a weapon needing a two-hand grip.

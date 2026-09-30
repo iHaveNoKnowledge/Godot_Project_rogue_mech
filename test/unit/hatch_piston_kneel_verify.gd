@@ -30,8 +30,8 @@ func _make_ground() -> void:
 	add_child(ground)
 
 
-func _rod_need(dist: float) -> float:
-	return clampf(dist - 0.42 + 0.08, 0.15, 1.2)
+func _rod_need(dist_local: float) -> float:
+	return clampf(dist_local - 0.42 + 0.08, 0.15, 1.2)
 
 
 func _check_piston_engaged(pmm: Node, tag: String) -> float:
@@ -48,25 +48,39 @@ func _check_piston_engaged(pmm: Node, tag: String) -> float:
 		return -1.0
 	var g_tub: Vector3 = piv_tub.global_position
 	var g_car: Vector3 = piv_car.global_position
-	var dist: float = g_tub.distance_to(g_car)
-	var need: float = _rod_need(dist)
+	var ps: Vector3 = piv_car.global_transform.basis.get_scale()
+	var unit: float = (ps.x + ps.y + ps.z) / 3.0
+	var dist_local: float = g_tub.distance_to(g_car) / unit
+	var need: float = _rod_need(dist_local)
+	# Cylinder stays bolted on the cockpit tub, untouched.
+	var cyl := piv_tub.find_child("HatchCylinder_L", true, false) as MeshInstance3D
+	_check(cyl != null, tag + ": cylinder exists on tub")
+	if cyl != null:
+		_check(cyl.global_position.distance_to(g_tub) < 0.02, tag + ": cylinder base locked on tub pivot")
+		_check(cyl.scale.is_equal_approx(Vector3.ONE), tag + ": cylinder never scaled/moved")
 	var rod := piv_car.find_child("HatchPistonRod_L", true, false) as MeshInstance3D
 	_check(rod != null, tag + ": piston rod exists")
 	if rod == null:
-		return dist
+		return need
+	_check(rod.visible, tag + ": rod visible (never vanishes)")
 	_check(rod.has_meta("base_len"), tag + ": rod telescoping active (base_len meta)")
-	# Rod long-axis scale must match need / 0.48.
+	# Rod long-axis scale must match need / base length.
 	var axis_i: int = int(rod.get_meta("axis")) if rod.has_meta("axis") else 2
-	var s: Vector3 = rod.scale
-	var long_scale: float = s.z if axis_i == 2 else (s.y if axis_i == 1 else s.x)
+	var rs: Vector3 = rod.scale
+	var long_scale: float = rs.z if axis_i == 2 else (rs.y if axis_i == 1 else rs.x)
 	_check(absf(long_scale - need / 0.48) < 0.05,
 		tag + ": rod stretches to bridge gap (need=%.3f scale=%.3f)" % [need, long_scale])
-	# Tip must sit ~0.08 past the cylinder mouth (engaged, not floating).
+	# Rod base joint locked on the hatch clevis: center sits halfway pivot->tip.
 	var dir: Vector3 = (g_tub - g_car).normalized()
-	var tip: Vector3 = g_car + dir * need
-	var mouth: Vector3 = g_tub + (-dir) * 0.42
-	_check(tip.distance_to(mouth) < 0.15,
-		tag + ": rod tip engaged in cylinder (tip-mouth=%.3f)" % tip.distance_to(mouth))
+	var tip: Vector3 = g_car + dir * (need * unit)
+	_check(rod.global_position.distance_to((g_car + tip) * 0.5) < 0.05,
+		tag + ": rod base locked on hatch clevis")
+	# Tip must stay INSIDE the cylinder span: engaged, never slips out the
+	# mouth, never punches through the back.
+	var cyl_len_g: float = 0.42 * unit
+	var d_tip_tub: float = tip.distance_to(g_tub)
+	_check(d_tip_tub >= 0.0 and d_tip_tub <= cyl_len_g - 0.03,
+		tag + ": rod tip inside cylinder (depth=%.3f of %.3f)" % [cyl_len_g - d_tip_tub, cyl_len_g])
 	return need
 
 
@@ -100,8 +114,8 @@ func _ready() -> void:
 	await get_tree().process_frame
 	var need_open := _check_piston_engaged(pmm, "open")
 	_check(need_open > need_closed, "rod extends when hatch opens (closed=%.3f open=%.3f)" % [need_closed, need_open])
-	_check(need_open > 0.45 and need_open < 1.2,
-		"open rod length bridges the gap (need=%.3f)" % need_open)
+	_check(need_open > 0.35 and need_open < 0.65,
+		"open rod length bridges the gap (need=%.3f local)" % need_open)
 
 	# Kneel: single-knee proposal, not symmetric squat.
 	var anim = mecha.get_node_or_null("MechaAnimation")

@@ -147,9 +147,11 @@ func set_cockpit_open(open: bool, animate: bool = true) -> void:
 ## Dynamically tracks and rotates the hatch hydraulic cylinders on the tub and piston rods on the carriage
 ## so that as the hatch opens and drops, the pistons realistically tilt and extend between their clevis pivots.
 ## Telescoping: the rod stretches/retracts so its tip always stays engaged inside
-## the cylinder (measured: closed 0.40m, open 0.89m, cyl 0.42m — fixed rod floats).
+## the cylinder (Blender: closed 0.40m, open 0.89m, cyl 0.42m — fixed rod floats).
+## All math runs in the pivot's LOCAL units: pivots sit under scaled containers
+## (global scale ~1.93), so a global-meter length applied raw in local space
+## overshoots ~2x and stabs through the cockpit.
 const HATCH_CYL_LEN := 0.42
-const HATCH_ROD_BASE_LEN := 0.48
 const HATCH_ROD_ENGAGE := 0.08
 func _update_hatch_pistons() -> void:
 	var body_entry = slot_meshes.get("body")
@@ -175,28 +177,39 @@ func _update_hatch_pistons() -> void:
 
 
 ## Stretches the carriage piston rod so its tip stays engaged inside the tub
-## cylinder: need = dist - cyl + engage (clamped). Scales only the rod's long
-## axis and re-centers it so the base stays at the clevis pivot.
+## cylinder: need = dist - cyl + engage (clamped, all in pivot-local units).
+## Locks: cylinder untouched on the cockpit tub, rod base pinned at the hatch
+## clevis pivot, tip always inside the cylinder span (never slips out, never
+## punches through the back). Scales only the rod's long axis.
 func _fit_hatch_rod(piv_car: Node3D, g_tub: Vector3, g_car: Vector3, side: String) -> void:
 	var rod := piv_car.find_child("HatchPistonRod_" + side, true, false) as MeshInstance3D
 	if rod == null:
 		return
-	var dist: float = g_tub.distance_to(g_car)
-	var need: float = clampf(dist - HATCH_CYL_LEN + HATCH_ROD_ENGAGE, 0.15, 1.2)
+	var ps: Vector3 = piv_car.global_transform.basis.get_scale()
+	var unit: float = (ps.x + ps.y + ps.z) / 3.0
+	if unit <= 0.0:
+		return
+	var dist_local: float = g_tub.distance_to(g_car) / unit
+	var need: float = clampf(dist_local - HATCH_CYL_LEN + HATCH_ROD_ENGAGE, 0.15, 1.2)
 	if not rod.has_meta("base_len"):
-		rod.set_meta("base_len", HATCH_ROD_BASE_LEN)
-		var axis := 2
 		var aabb_size: Vector3 = rod.get_aabb().size
+		var axis := 2
+		var bl: float = aabb_size.z
 		if aabb_size.x >= aabb_size.y and aabb_size.x >= aabb_size.z:
 			axis = 0
+			bl = aabb_size.x
 		elif aabb_size.y >= aabb_size.x and aabb_size.y >= aabb_size.z:
 			axis = 1
+			bl = aabb_size.y
+		if bl <= 0.0:
+			return
+		rod.set_meta("base_len", bl)
 		rod.set_meta("axis", axis)
 	var base_len: float = float(rod.get_meta("base_len"))
 	if base_len <= 0.0:
 		return
 	var axis_i: int = int(rod.get_meta("axis"))
-	var f: float = need / base_len
+	var f: float = clampf(need / base_len, 0.2, 4.0)
 	var s := Vector3.ONE
 	if axis_i == 0:
 		s.x = f
@@ -205,6 +218,7 @@ func _fit_hatch_rod(piv_car: Node3D, g_tub: Vector3, g_car: Vector3, side: Strin
 	else:
 		s.z = f
 	rod.scale = s
+	rod.visible = true
 	var local_dir: Vector3 = piv_car.to_local(g_tub)
 	if local_dir.length_squared() > 0.000001:
 		rod.position = local_dir.normalized() * (need * 0.5)

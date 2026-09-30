@@ -58,6 +58,7 @@ var max_energy: float:
 ## Decoupled Pilot-Vehicle Drive Interface
 @export var is_player_driven: bool = false
 var seated_pilot: Node = null
+static var active_player: CharacterBody3D = null
 
 # Input command buffers (fed either by Player Input when is_player_driven=true, or by WarPilotAgent when AI)
 var cmd_move_vector: Vector2 = Vector2.ZERO
@@ -78,8 +79,10 @@ func _init() -> void:
 
 func _ready() -> void:
 	add_to_group("mecha")
-	if is_in_group("player") or name == "Mecha" or name == "MechaBase":
+	if not is_in_group("enemy") and (is_in_group("player") or name == "Mecha" or name == "MechaBase"):
 		is_player_driven = true
+	if is_player_driven and process_mode != Node.PROCESS_MODE_DISABLED:
+		active_player = self
 	floor_snap_length = 0.3
 	floor_max_angle = deg_to_rad(60)
 	_apply_chassis_from_global_data()
@@ -90,24 +93,30 @@ func _ready() -> void:
 		attachment_manager.rebuild_from_global_data()
 	EventBus.weight_changed.connect(_on_weight_changed)
 
-	# Register subsystems in tree if not already added.
-	if jump_system.get_parent() == null:
-		jump_system.name = "JumpSystem"
-		add_child(jump_system)
+	# Register subsystems in tree if not already added and not disabled.
+	if process_mode != Node.PROCESS_MODE_DISABLED:
+		if jump_system.get_parent() == null:
+			jump_system.name = "JumpSystem"
+			add_child(jump_system)
 
-	if dash_system.get_parent() == null:
-		dash_system.name = "DashSystem"
-		add_child(dash_system)
+		if dash_system.get_parent() == null:
+			dash_system.name = "DashSystem"
+			add_child(dash_system)
 
-	if energy_system.get_parent() == null:
-		energy_system.name = "EnergySystem"
-		add_child(energy_system)
-		energy_system.initialize_from_global()
+		if energy_system.get_parent() == null:
+			energy_system.name = "EnergySystem"
+			add_child(energy_system)
+			energy_system.initialize_from_global()
 
 
 func _exit_tree() -> void:
+	if EventBus.weight_changed.is_connected(_on_weight_changed):
+		EventBus.weight_changed.disconnect(_on_weight_changed)
 	if energy_system and is_instance_valid(energy_system) and process_mode != Node.PROCESS_MODE_DISABLED and is_player_driven:
-		energy_system.persist_to_global()
+		if active_player == null or active_player == self:
+			energy_system.persist_to_global()
+	if active_player == self:
+		active_player = null
 	if AudioManager:
 		AudioManager.stop_roller_dash()
 

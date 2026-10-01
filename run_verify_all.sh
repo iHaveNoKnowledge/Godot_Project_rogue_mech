@@ -103,7 +103,13 @@ run_one() {
 		# exactly the abort/false-pass mode this runner exists to catch.
 		local pass_lines fail_lines
 		pass_lines=$(grep -cE "PASS: |OK: |\[PASS\]" "$log" 2>/dev/null || true)
-		pass_lines=$(( pass_lines + $(LC_ALL=C grep -c $'\xe2\x9c' "$log" 2>/dev/null || echo 0) ))
+		# grep -c prints "0" (and exits 1) when nothing matches, so an
+		# "|| echo 0" here would yield "0\n0" and kill the whole runner
+		# with an arithmetic syntax error — capture and default instead.
+		local check_lines
+		check_lines=$(LC_ALL=C grep -c $'\xe2\x9c' "$log" 2>/dev/null)
+		check_lines=${check_lines:-0}
+		pass_lines=$(( pass_lines + check_lines ))
 		fail_lines=$(grep -cE "FAIL: |FAILED: |ASSERTION FAILED|\[FAIL\]|✘|[1-9][0-9]* failures|[1-9][0-9]* failed" "$log" 2>/dev/null || true)
 		if [ "${pass_lines:-0}" -gt 0 ] && [ "${fail_lines:-0}" -eq 0 ] \
 			&& { grep -qiE "TESTS? PASSED|_SUCCESS|ALL_[A-Z_]*PASSED|SUMMARY|RESULTS?:|COMPLETED:|FINISHED" "$log" 2>/dev/null; }; then

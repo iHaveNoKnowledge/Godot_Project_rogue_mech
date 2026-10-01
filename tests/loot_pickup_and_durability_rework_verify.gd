@@ -2,28 +2,38 @@ extends Node
 
 const WeaponPickupScript = preload("res://scripts/mecha/weapon_pickup.gd")
 
+var _checks := 0
+var _fails := 0
+
+
 func _ready() -> void:
 	print("--- BEGIN LOOT PICKUP & DURABILITY REWORK TEST SUITE ---")
 	test_loot_pickup_single_take_and_unique_uid()
 	test_diagnostic_modal_close()
 	test_tier_upgrade_stats_and_hover()
 	test_durability_def_reduction_not_hp()
-	print("--- ALL TESTS PASSED SUCCESSFULLY! ---")
-	get_tree().quit(0)
+	print("LOOT_PICKUP_VERIFY: checks=%d fails=%d" % [_checks, _fails])
+	if _fails > 0:
+		printerr("LOOT_PICKUP_VERIFY_FAILED")
+		get_tree().quit(1)
+	else:
+		print("--- ALL TESTS PASSED SUCCESSFULLY! ---")
+		get_tree().quit(0)
 
 
 func assert_true(cond: bool, msg: String) -> void:
-	if not cond:
+	_checks += 1
+	if cond:
+		print("PASS: " + msg)
+	else:
+		_fails += 1
 		push_error("ASSERTION FAILED: " + msg)
 		print("FAILED: " + msg)
-		get_tree().quit(1)
-	else:
-		print("PASS: " + msg)
 
 
 func test_loot_pickup_single_take_and_unique_uid() -> void:
 	print("\n[TEST 1] Loot Pickup Single Take, Unique UID, and Node Freeing...")
-	GlobalData.reset_all()
+	GlobalData.reset_run_data()
 
 	# Create a mock player mecha with WeaponManager
 	var player = Node3D.new()
@@ -64,11 +74,14 @@ func test_loot_pickup_single_take_and_unique_uid() -> void:
 	modal.close_modal()
 	modal.queue_free()
 	player.queue_free()
+	# queue_free is deferred — give the tree a frame to actually drop the
+	# freed nodes before scanning for lingering modals.
+	await get_tree().process_frame
 
 
 func test_diagnostic_modal_close() -> void:
 	print("\n[TEST 2] Diagnostic Modal Close Robustness...")
-	GlobalData.reset_all()
+	GlobalData.reset_run_data()
 
 	var hangar_script = load("res://scripts/ui/hangar_controller.gd")
 	var hangar = Control.new()
@@ -90,6 +103,7 @@ func test_diagnostic_modal_close() -> void:
 
 	# Close modal
 	diag_modal.close()
+	await get_tree().process_frame
 	assert_true(not diag_modal.is_open, "Diagnostic modal is marked closed")
 	assert_true(diag_modal.modal_panel == null, "modal_panel reference cleared")
 
@@ -102,7 +116,7 @@ func test_diagnostic_modal_close() -> void:
 
 func test_tier_upgrade_stats_and_hover() -> void:
 	print("\n[TEST 3] Tier Upgrade Stats and Hover Refresh...")
-	GlobalData.reset_all()
+	GlobalData.reset_run_data()
 
 	var arm_slot = "arm_left"
 	var eq_armor = GlobalData.weapons.equipped_parts.get(arm_slot)
@@ -127,9 +141,12 @@ func test_tier_upgrade_stats_and_hover() -> void:
 
 func test_durability_def_reduction_not_hp() -> void:
 	print("\n[TEST 4] Durability DEF Reduction (Not Max HP Reduction)...")
-	GlobalData.reset_all()
+	GlobalData.reset_run_data()
 
-	# Degrade durability of head to 70% (0.70)
+	# Pin head max_hp to a known value first (the default plate's HP is
+	# whatever the catalog ships), then degrade durability to 70% (0.70).
+	GlobalData.weapons.equipped_parts["head"]["max_hp"] = 30.0
+	GlobalData.weapons.equipped_parts["head"]["hp"] = 30.0
 	GlobalData.weapons.equipped_parts["head"]["durability"] = 0.70
 
 	var dur = GlobalData.get_part_durability("head")

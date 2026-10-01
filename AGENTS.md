@@ -36,3 +36,13 @@
   1. Whenever you write or modify GDScript in `res://scripts/`, always create or update a Unit Test in `res://test/unit/`.
   2. After completing code modifications, always run the command `./run_tests.sh` through the Terminal.
   3. If the tests fail (Exit code != 0), check the Error Log and revise the code until all tests pass.
+
+## 🧠 Calibrated Judgment (jev)
+
+* Use `jev` (TypeSafe System One) for judgments it is built for — never for generation, math, counting, or multi-hop reasoning, which stay in code/your own reasoning:
+  * repeated classify/filter/rank/dedupe over many items (`jev rank` / `jev batch`),
+  * a calibrated probability gate before acting on your own confidence (act/confirm/escalate),
+  * an independent check of your own output (claim vs source, draft vs rule, tool call vs intent, untrusted text vs prompt injection),
+  * any unattended judgment a script must make with no agent loop.
+* One narrow judgment per question; state the exact condition literally; thresholds scale with risk (read-only ~0.6, destructive ~0.9).
+* Invoke via `python "C:\Users\hackd\.local\bin\jev" <command>` (bare `jev` does not execute in PowerShell).

@@ -153,6 +153,7 @@ func _run_all_tests() -> void:
 	print("\n-- [3] MechaController In-Combat Energy Mutation & Lifecycle --")
 	var mecha: MechaController = MechaController.new()
 	mecha.name = "Mecha"
+	mecha.add_to_group("player")
 	add_child(mecha)
 
 	_assert(is_instance_valid(mecha.energy_system), "3.1: MechaController energy_system instantiated")
@@ -291,6 +292,7 @@ func _run_all_tests() -> void:
 	# Spawn Cycle 2 MechaController
 	var mecha_cycle2 := MechaController.new()
 	mecha_cycle2.name = "Mecha"
+	mecha_cycle2.add_to_group("player")
 	add_child(mecha_cycle2)
 	_assert(mecha_cycle2.energy == 58.5, "8.4: Cycle 2 MechaController correctly loaded persistent energy (58.5)")
 

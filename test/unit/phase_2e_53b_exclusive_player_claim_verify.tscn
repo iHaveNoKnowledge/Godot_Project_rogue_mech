@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://p2e53b_exclusive_claim_verify"]
+
+[ext_resource type="Script" path="res://test/unit/phase_2e_53b_exclusive_player_claim_verify.gd" id="1_test"]
+
+[node name="Phase2E53BExclusivePlayerClaimVerify" type="Node"]
+script = ExtResource("1_test")

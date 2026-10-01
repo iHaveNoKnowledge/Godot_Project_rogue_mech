@@ -77,17 +77,29 @@ func _init() -> void:
 	energy_system = preload("res://scripts/mecha/mecha_energy_system.gd").new()
 
 
+## Explicitly claims active player authority for this mecha.
+## If another active player exists, this supersedes it as the new authoritative player.
+func claim_player_authority() -> void:
+	is_player_driven = true
+	if not is_in_group("player"):
+		add_to_group("player")
+	if process_mode != Node.PROCESS_MODE_DISABLED:
+		active_player = self
+
+
+## Releases active player authority if this instance is currently authoritative.
+func release_player_authority() -> void:
+	if active_player == self:
+		active_player = null
+
+
 func _ready() -> void:
 	add_to_group("mecha")
-	if not is_in_group("enemy") and not is_in_group("backup_mech") and (is_in_group("player") or is_player_driven or name == "Mecha"):
-		is_player_driven = true
-		if not is_in_group("player"):
-			add_to_group("player")
+	if not is_in_group("enemy") and not is_in_group("backup_mech") and (is_in_group("player") or is_player_driven):
+		claim_player_authority()
 	else:
 		is_player_driven = false
 
-	if is_player_driven and process_mode != Node.PROCESS_MODE_DISABLED:
-		active_player = self
 	floor_snap_length = 0.3
 	floor_max_angle = deg_to_rad(60)
 	_apply_chassis_from_global_data()
@@ -121,8 +133,7 @@ func _exit_tree() -> void:
 	if energy_system and is_instance_valid(energy_system) and process_mode != Node.PROCESS_MODE_DISABLED and is_player_driven:
 		if active_player == self:
 			energy_system.persist_to_global()
-	if active_player == self:
-		active_player = null
+	release_player_authority()
 	if AudioManager:
 		AudioManager.stop_roller_dash()
 

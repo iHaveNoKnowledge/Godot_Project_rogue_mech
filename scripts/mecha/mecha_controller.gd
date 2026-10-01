@@ -79,8 +79,13 @@ func _init() -> void:
 
 func _ready() -> void:
 	add_to_group("mecha")
-	if not is_in_group("enemy") and (is_in_group("player") or name == "Mecha" or name == "MechaBase"):
+	if not is_in_group("enemy") and not is_in_group("backup_mech") and (is_in_group("player") or is_player_driven or name == "Mecha"):
 		is_player_driven = true
+		if not is_in_group("player"):
+			add_to_group("player")
+	else:
+		is_player_driven = false
+
 	if is_player_driven and process_mode != Node.PROCESS_MODE_DISABLED:
 		active_player = self
 	floor_snap_length = 0.3
@@ -106,14 +111,15 @@ func _ready() -> void:
 		if energy_system.get_parent() == null:
 			energy_system.name = "EnergySystem"
 			add_child(energy_system)
-			energy_system.initialize_from_global()
+			if is_player_driven:
+				energy_system.initialize_from_global()
 
 
 func _exit_tree() -> void:
 	if EventBus.weight_changed.is_connected(_on_weight_changed):
 		EventBus.weight_changed.disconnect(_on_weight_changed)
 	if energy_system and is_instance_valid(energy_system) and process_mode != Node.PROCESS_MODE_DISABLED and is_player_driven:
-		if active_player == null or active_player == self:
+		if active_player == self:
 			energy_system.persist_to_global()
 	if active_player == self:
 		active_player = null

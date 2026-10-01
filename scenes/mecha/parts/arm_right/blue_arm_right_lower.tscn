@@ -1,0 +1,4 @@
+[gd_scene format=3]
+[ext_resource type="PackedScene" path="res://scenes/mecha/parts/arm_right/blue_arm_right_lower.glb" id="1"]
+[node name="blue_arm_right_lower" type="Node3D"]
+[node name="Model" parent="." instance=ExtResource("1")]

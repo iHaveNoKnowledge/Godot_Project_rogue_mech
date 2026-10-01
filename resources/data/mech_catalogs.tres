@@ -8,6 +8,15 @@ armor_catalog = {
 "arm_left": [
 {
 "armor": 45.0,
+"color": Color(0.25, 0.35, 0.65, 1),
+"hp": 60.0,
+"id": "blue_arm_left",
+"name": "Blue Arm Left",
+"path": "res://resources/mech/parts/arm_left/blue_arm_left.tres",
+"type": "Heavy Armor",
+"weight": 12.0
+}, {
+"armor": 45.0,
 "color": Color(0.35, 0.36, 0.38, 1),
 "hp": 55.0,
 "id": "tankmech_arm_left",
@@ -160,6 +169,15 @@ armor_catalog = {
 "arm_right": [
 {
 "armor": 45.0,
+"color": Color(0.25, 0.35, 0.65, 1),
+"hp": 60.0,
+"id": "blue_arm_right",
+"name": "Blue Arm Right",
+"path": "res://resources/mech/parts/arm_right/blue_arm_right.tres",
+"type": "Heavy Armor",
+"weight": 12.0
+}, {
+"armor": 45.0,
 "color": Color(0.35, 0.36, 0.38, 1),
 "hp": 55.0,
 "id": "tankmech_arm_right",
@@ -311,6 +329,15 @@ armor_catalog = {
 }],
 "body": [
 {
+"armor": 45.0,
+"color": Color(0.25, 0.35, 0.65, 1),
+"hp": 60.0,
+"id": "blue_body",
+"name": "Blue Body",
+"path": "res://resources/mech/parts/body/blue_body.tres",
+"type": "Heavy Armor",
+"weight": 12.0
+}, {
 "armor": 70.0,
 "color": Color(0.35, 0.36, 0.38, 1),
 "hp": 150.0,
@@ -474,6 +501,15 @@ armor_catalog = {
 "head": [
 {
 "armor": 45.0,
+"color": Color(0.25, 0.35, 0.65, 1),
+"hp": 60.0,
+"id": "blue_head",
+"name": "Blue Head",
+"path": "res://resources/mech/parts/head/blue_head.tres",
+"type": "Heavy Armor",
+"weight": 12.0
+}, {
+"armor": 45.0,
 "color": Color(0.35, 0.36, 0.38, 1),
 "hp": 60.0,
 "id": "tankmech_head",
@@ -635,6 +671,15 @@ armor_catalog = {
 }], 
 "leg_left": [
 {
+"armor": 45.0,
+"color": Color(0.25, 0.35, 0.65, 1),
+"hp": 60.0,
+"id": "blue_leg_left",
+"name": "Blue Leg Left",
+"path": "res://resources/mech/parts/leg_left/blue_leg_left.tres",
+"type": "Heavy Armor",
+"weight": 12.0
+}, {
 "armor": 55.0,
 "color": Color(0.35, 0.36, 0.38, 1),
 "hp": 80.0,
@@ -787,6 +832,15 @@ armor_catalog = {
 }], 
 "leg_right": [
 {
+"armor": 45.0,
+"color": Color(0.25, 0.35, 0.65, 1),
+"hp": 60.0,
+"id": "blue_leg_right",
+"name": "Blue Leg Right",
+"path": "res://resources/mech/parts/leg_right/blue_leg_right.tres",
+"type": "Heavy Armor",
+"weight": 12.0
+}, {
 "armor": 55.0,
 "color": Color(0.35, 0.36, 0.38, 1),
 "hp": 80.0,

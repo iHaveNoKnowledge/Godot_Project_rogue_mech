@@ -82,7 +82,8 @@ run_one() {
 			|| grep -qiE "checks=[0-9]+[[:space:]]+passed[[:space:]]+with[[:space:]]+0 failures" "$log" 2>/dev/null \
 			|| grep -qiE "[0-9]+[[:space:]]+checks[[:space:]]+passed" "$log" 2>/dev/null \
 			|| grep -qiE "passed:[[:space:]]*[0-9]+[[:space:]]*\|[[:space:]]*failed:[[:space:]]*0" "$log" 2>/dev/null \
-			|| grep -qiE "results?:[[:space:]]*[0-9]+/[0-9]+ passed[[:space:]]*\(0 failed\)" "$log" 2>/dev/null; then
+			|| grep -qiE "results?:[[:space:]]*[0-9]+/[0-9]+ passed[[:space:]]*\(0 failed\)" "$log" 2>/dev/null \
+			|| grep -qiE "fails=[[:space:]]*0([^0-9]|$)" "$log" 2>/dev/null; then
 			summary="dialect footer: 0 failures"
 		else
 			# Equal-ratio banner: "ALL ... CHECKS PASSED: 30/30"
@@ -120,7 +121,11 @@ run_one() {
 			return
 		fi
 	fi
-	if ! echo "$summary" | grep -qiE "fails=0"; then
+	# Dialect summaries end in "0 failures" or an equal-ratio "PASSED: X/X"
+	# — accept them here too, otherwise the branches above set the summary
+	# and this gate immediately rejects it (bogus FAILs).
+	if ! echo "$summary" | grep -qiE "fails=0" \
+		&& ! echo "$summary" | grep -qE "0 failures|PASSED: [0-9]+/[0-9]+"; then
 		FAIL_LIST+=("$label   ($summary)")
 		echo "FAIL     $label"
 		return

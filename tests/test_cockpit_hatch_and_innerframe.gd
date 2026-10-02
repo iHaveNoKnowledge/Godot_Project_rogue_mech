@@ -16,6 +16,11 @@ func _ready() -> void:
 
 	# Initialize body slot with bare frame
 	pmm.initialize_slot("body", null, false)
+	# Deterministic baseline: fresh mechs spawn with the hatch OPEN when
+	# unoccupied, so force closed before asserting the closed start pose.
+	pmm.set_cockpit_open(false, false)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
 
 	# Test 1: Verify CockpitTub exists under Body/FrameMesh
 	var body_parent = mecha.get_node_or_null("Body")

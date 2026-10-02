@@ -513,6 +513,20 @@ func _mesh_world_aabb(mesh: MeshInstance3D) -> AABB:
 	return box
 
 
+## Applies a transform to an AABB (corner-wise, so rotation is exact).
+## Built manually from MeshInstance3D.get_aabb() corners.
+func _aabb_xform(aabb: AABB, t: Transform3D) -> AABB:
+	var out := AABB()
+	for i in range(8):
+		var corner := Vector3(
+			aabb.position.x + (aabb.size.x if (i & 1) else 0.0),
+			aabb.position.y + (aabb.size.y if (i & 2) else 0.0),
+			aabb.position.z + (aabb.size.z if (i & 4) else 0.0))
+		var p: Vector3 = t * corner
+		out = AABB(p, Vector3.ZERO) if i == 0 else out.expand(p)
+	return out
+
+
 ## Union of all mesh AABBs under a node, in global space.
 func _subtree_world_aabb(n: Node) -> AABB:
 	var box := AABB()
@@ -521,10 +535,30 @@ func _subtree_world_aabb(n: Node) -> AABB:
 	while not stack.is_empty():
 		var cur: Node = stack.pop_back()
 		if cur is MeshInstance3D and (cur as MeshInstance3D).mesh != null:
-			var g: AABB = _mesh_world_aabb(cur as MeshInstance3D)
-			if g.size.length_squared() <= 0.0:
-				continue
+			var mi := cur as MeshInstance3D
+			var g := _aabb_xform(mi.get_aabb(), mi.global_transform)
 			box = g if not any else box.merge(g)
+			any = true
+		for c in cur.get_children():
+			stack.append(c)
+	return box
+
+
+## Mesh bounds of the carriage in CARRIAGE-LOCAL space. Rigid (pose-invariant):
+## sliding the carriage never changes these, so the hatch zone derived from
+## them is identical whether the hatch is open or closed at equip time.
+func _carriage_local_aabb(carriage: Node3D) -> AABB:
+	var box := AABB()
+	var any := false
+	var inv: Transform3D = carriage.global_transform.affine_inverse()
+	var stack: Array = [carriage]
+	while not stack.is_empty():
+		var cur: Node = stack.pop_back()
+		if cur is MeshInstance3D and (cur as MeshInstance3D).mesh != null:
+			var mi := cur as MeshInstance3D
+			var g := _aabb_xform(mi.get_aabb(), mi.global_transform)
+			var l := _aabb_xform(g, inv)
+			box = l if not any else box.merge(l)
 			any = true
 		for c in cur.get_children():
 			stack.append(c)
@@ -533,16 +567,7 @@ func _subtree_world_aabb(n: Node) -> AABB:
 
 ## Transforms a global-space AABB into a target node's local space.
 func _aabb_to_local(aabb: AABB, target: Node3D) -> AABB:
-	var inv: Transform3D = target.global_transform.affine_inverse()
-	var out := AABB()
-	for i in range(8):
-		var corner := Vector3(
-			aabb.position.x + (aabb.size.x if (i & 1) else 0.0),
-			aabb.position.y + (aabb.size.y if (i & 2) else 0.0),
-			aabb.position.z + (aabb.size.z if (i & 4) else 0.0))
-		var p: Vector3 = inv * corner
-		out = AABB(p, Vector3.ZERO) if i == 0 else out.expand(p)
-	return out
+	return _aabb_xform(aabb, target.global_transform.affine_inverse())
 
 
 ## Guarantees the armor-side hatch motion owner exists and sorts the equipped
@@ -561,9 +586,12 @@ func _bind_body_hatch_armor(frame_mesh: Node3D, armor_mesh: Node3D) -> void:
 		armor_carriage = Node3D.new()
 		armor_carriage.name = "SlidingCarriage"
 		armor_mesh.add_child(armor_carriage)
-	# Hatch zone = frame carriage's own mesh bounds in armor-local space.
-	# Equip happens closed in the hangar, so the closed pose defines the zone.
-	var zone_world := _subtree_world_aabb(frame_carriage)
+	# Hatch zone = frame carriage's own mesh bounds, placed at the carriage
+	# REST pose (closed) and expressed in armor-local space. Carriage-local
+	# bounds are rigid, so this zone is identical whether the hatch is open
+	# or closed at equip time — classification never depends on hatch state.
+	var rest_global: Transform3D = frame_carriage.get_parent().global_transform
+	var zone_world := _aabb_xform(_carriage_local_aabb(frame_carriage), rest_global)
 	if zone_world.size.length_squared() <= 0.0:
 		return
 	var zone: AABB = _aabb_to_local(zone_world, armor_mesh).grow(HATCH_ZONE_MARGIN)

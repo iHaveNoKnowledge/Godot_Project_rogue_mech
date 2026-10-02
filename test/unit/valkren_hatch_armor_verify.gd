@@ -47,10 +47,19 @@ func _in_carriage_space(m: Node3D, carriage: Node3D) -> Transform3D:
 	return carriage.global_transform.affine_inverse() * m.global_transform
 
 
+## Sorted names of meshes currently riding the armor carriage.
+func _hatch_names(snap: Dictionary) -> Array:
+	var names: Array = []
+	for m in snap["hatch"]:
+		names.append((m as Node).name)
+	names.sort()
+	return names
+
+
 func _equip_body(tres_path: String) -> void:
-	var part := ArmorPart.new()
-	part.slot_id = "body"
-	part.mesh_scene = load(tres_path) as PackedScene
+	# Use the real catalog part resource (carries mesh_scene) — this is the
+	# same modular swap path the hangar uses, not a hand-built part.
+	var part := load(tres_path) as ArmorPart
 	var std_frame: Dictionary = ArmorSystem.get_frame_catalog_entry("frame_body_01")
 	_pmm.initialize_slot("body", part, false, std_frame)
 
@@ -84,6 +93,15 @@ func _snapshot(tag: String) -> Dictionary:
 			fixed.append(m)
 	for m in hatch:
 		print("HatchArmor %s loc=%s g=%s" % [m.name, str((m as Node3D).position), str((m as Node3D).global_position)])
+	if carriage_f != null:
+		var zw: AABB = _pmm._subtree_world_aabb(carriage_f)
+		var zla: AABB = (_pmm._aabb_to_local(zw, armor_mesh) as AABB).grow(0.10)
+		print("zone world=%s armorlocal+grown=%s" % [str(zw), str(zla)])
+		var inv: Transform3D = (armor_mesh as Node3D).global_transform.affine_inverse()
+		for m in hatch + fixed:
+			var lb: AABB = (m as MeshInstance3D).get_aabb()
+			var c0: Vector3 = inv * ((m as Node3D).global_transform * lb.get_center())
+			print("  mesh %s parent=%s center=%s in_zone=%s" % [(m as Node).name, (m as Node).get_parent().name, str(c0), str(zla.has_point(c0))])
 	# Value snapshots (node refs alone would alias post-pose transforms).
 	var pre_locals := {}
 	var pre_globals := {}
@@ -201,11 +219,17 @@ func _ready() -> void:
 	if _pmm == null:
 		get_tree().quit(1)
 		return
+	# Deterministic baseline: ambient power state (parked/unoccupied spawns
+	# open the hatch) must not leak into the classification under test.
+	_pmm.set_cockpit_open(false, false)
+	await get_tree().process_frame
 	# Armor A (Valkyrion Prime).
 	_equip_body("res://resources/mech/parts/body/body_valkyrion.tres")
 	await get_tree().process_frame
 	var s := _snapshot("equip-A-closed")
 	_check(s["ca"] != null, "equip A: armor motion owner exists")
+	_check((s["armor"] as Node).find_child("body_valkyrion", true, false) != null,
+		"equip A: Valkren catalog armor attached (not procedural fallback)")
 	_check((s["hatch"] as Array).size() >= 1, "equip A: hatch-zone armor classified under owner")
 	if s["ca"] != null and (s["hatch"] as Array).size() >= 1:
 		_check((s["ca"] as Node).get_parent() == s["armor"], "owner parented under ArmorMesh (not Body root)")
@@ -214,8 +238,19 @@ func _ready() -> void:
 		for m in (s["hatch"] as Array) + (s["fixed"] as Array):
 			var dd: float = (m as Node3D).global_position.distance_to(body.global_position)
 			_check(dd < 3.0, "closed %s sane bounds (%.2f from Body)" % [(m as Node).name, dd])
+		var closed_set := _hatch_names(s)
 		await _check_cycles()
 		await _check_follow()
+		# Equip-while-open determinism: the rest-pose zone must classify the
+		# same meshes no matter the hatch state at equip time.
+		_pmm.set_cockpit_open(true, false)
+		await get_tree().process_frame
+		_equip_body("res://resources/mech/parts/body/body_valkyrion.tres")
+		await get_tree().process_frame
+		var so := _snapshot("equip-open")
+		_check(_hatch_names(so) == closed_set, "equip-while-open classifies identically (order-independent zone)")
+		_pmm.set_cockpit_open(false, false)
+		await get_tree().process_frame
 	await _check_replacement()
 	_mech.queue_free()
 	print("VALKREN_HATCH_VERIFY: checks=%d fails=%d" % [_checks, _fails])

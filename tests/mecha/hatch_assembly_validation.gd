@@ -116,6 +116,13 @@ func _run() -> void:
 				break
 	_check(fixed_armor != null, "FixedArmor mesh present outside carriage")
 
+	# Deterministic baseline: ambient spawn power state (an unoccupied mech
+	# spawns with the hatch OPEN) must not leak into the travel assertion —
+	# open-then-open would measure ~zero travel and fail spuriously.
+	pmm.set_cockpit_open(false, false)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
 	var body_p: Node3D = mech.get_node_or_null("Body")
 	var leg_p: Node3D = mech.get_node_or_null("LegLeft")
 	# NOTE: the live idle animation continuously moves Body (bob/tilt) and

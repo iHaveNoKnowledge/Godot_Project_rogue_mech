@@ -4,7 +4,12 @@ extends RefCounted
 ## ---------------------------------------------------------------------------
 ## MECHA SCALE SYSTEM — Single source of truth for true world scale (1.0 = 1m)
 ##
-## MechaBase now at scale 1.0 with true height 4.86m (was 1.68 with 4.73/1.68 pivots).
+## MechaBase root at scale 1.15, FrameMesh/ArmorMesh containers at WORLD_SCALE
+## (1.68), so procedural geometry renders at a global 1.932 factor. Measured
+## rest-pose frame height (audit 2026-10-03, headless world AABB, mech at
+## origin): minY (foot roller) 0.20 m, maxY (CH_RollBar) 5.53 m = 5.33 m.
+## The 5.80 figure was the Front Mission WANZER ZENITH reference the scale
+## system was drafted from, NOT the Valkren standard frame (~5.0 m target).
 ## All legacy 1.6-era constants (2.8125 capsule, 2.30 head, etc.) are kept for
 ## readability but converted via WORLD_SCALE at runtime. This is the ONLY place
 ## that holds 1.68 — every other file uses these helpers, so future template
@@ -13,7 +18,7 @@ extends RefCounted
 
 const WORLD_SCALE: float = 1.68
 const INV_WORLD_SCALE: float = 1.0 / 1.68
-const TRUE_HEIGHT: float = 5.80
+const TRUE_HEIGHT: float = 5.33
 const LEGACY_CAPSULE_HEIGHT: float = 2.8125
 const LEGACY_CAPSULE_RADIUS: float = 0.625
 

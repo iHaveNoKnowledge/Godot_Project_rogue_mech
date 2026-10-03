@@ -96,7 +96,7 @@ resources/mech/parts/{slot}/{id}.tres   ← ArmorPart ผูก mesh (แก้�
 
 - หน่วยเป็น **เมตร** และหันหน้าไปทาง **-Z** (ทิศที่ Godot ใช้เป็นหน้า)
 - **Orientation** ตั้ง `Forward: -Z, Up: +Y`
-- **Scale**: ใช้สเกล **1:1 True Meters** กับขนาดเกม — **MechaBase ตอนนี้ scale 1.0** ความสูงจริง **4.73m** (หุ่น 4.5-5m, คน 1.55-1.80m ratio 2.6x) ปั้นที่ 1 unit = 1 เมตรแล้ว import ที่ `scale 1.0` ได้เลย
+- **Scale**: ใช้สเกล **1:1 True Meters** กับขนาดเกม — **MechaBase root scale 1.15, FrameMesh/ArmorMesh containers scale 1.68 (global x1.932)** วัด rest-pose จริง headless (audit 2026-10-03): ต่ำสุด (foot roller) 0.20m, สูงสุด (CH_RollBar) 5.53m = **สูงจริง 5.33m** (หุ่น ~5m, คน 1.8m ratio ~2.96x) ปั้นที่ 1 unit = 1 เมตรแล้ว import ที่ `scale 1.0` ได้เลย (Blender armor โดน counter-scale ด้วย INV_WORLD_SCALE เหลือ net x1.15)
   - ต้นแบบอยู่ที่ `exports/procedural_innerframe_local.glb` (true scale) ให้ import แล้ว pivot อยู่ที่ `JNT_*` (Head/Body/ArmLeft ฯลฯ) ที่ `3.864m` สูง
 - แยกท่อนบน/ท่อนล่างให้ pivot อยู่ที่ข้อต่อ (ต้นแขน pivot ที่ไหล่, ท่อนปลาย pivot ที่ศอก ฯลฯ)
 - ถ้าเป็นเกราะชั้นเดียว (ไม่แยกโครง) ให้ระบุแค่ `mesh_scene` ก็พอ ส่วน `inner_frame_scene`

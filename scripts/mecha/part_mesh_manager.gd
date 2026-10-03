@@ -1477,6 +1477,14 @@ func _get_shared_visor_mat() -> StandardMaterial3D:
 func _create_cockpit_pilot_mannequin() -> Node3D:
 	var pilot_mannequin = Node3D.new()
 	pilot_mannequin.name = "CockpitPilot"
+	# VALKREN STANDARD FRAME FIT (audit 2026-10-03): the mannequin is authored
+	# in human meters (torso 0.42, head r 0.09, limbs ~0.3) but hangs under the
+	# WORLD_SCALE (1.68) FrameMesh container, so it used to render x1.932 and a
+	# SEATED pilot stood 2.09 m tall - taller than the 1.8 m on-foot pilot. The
+	# counter-scale restores true-meter rendering (net root 1.15, the same
+	# convention Blender "true meter" armor uses), giving a ~1.25 m seated
+	# pilot that fits the tub instead of bursting through it.
+	pilot_mannequin.scale = Vector3.ONE * INV_WORLD_SCALE
 	var pilot_mat = _get_shared_pilot_mat()
 	var visor_mat = _get_shared_visor_mat()
 
@@ -2623,11 +2631,17 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 			neck_cowl.material_override = dark_trim_mat
 			upper_container.add_child(neck_cowl)
 
-			# Shoulder cowls extending outward to bridge torso to shoulder pivots
-			for side_x in [-0.58, 0.58]:
+			# Shoulder cowls bridging torso to shoulder pivots. VALKREN STANDARD
+			# FRAME FIT (audit 2026-10-03): the shoulder pivots sit at world
+			# x = +-1.31376 m. Cowls must stay INBOARD of the pivots so the
+			# shoulder joints read as outside the torso (previously +-0.58
+			# with 0.34 width reached world +-1.45 m, swallowing the pivots
+			# and burying the pauldron inner half). Now outer edge =
+			# (0.47+0.13)*1.932 = 1.16 m < 1.31 m pivot.
+			for side_x in [-0.47, 0.47]:
 				var shoulder_cowl = MeshInstance3D.new()
 				var sc_box = BoxMesh.new()
-				sc_box.size = Vector3(0.34, 0.28, 0.38)
+				sc_box.size = Vector3(0.26, 0.26, 0.36)
 				shoulder_cowl.mesh = sc_box
 				shoulder_cowl.position = Vector3(side_x, 0.22, -0.02)
 				shoulder_cowl.material_override = dark_trim_mat
@@ -2661,11 +2675,16 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 			# --- UPPER ARM ARMOR (Shoulder Pauldron attached to ArmLeft/ArmRight) ---
 			# Wanzer rebalance: thickened in width/depth (Y unchanged) so the
 			# arm carries enough mass for its weapon.
+			# VALKREN STANDARD FRAME FIT (audit 2026-10-03): pauldron rides
+			# slightly outboard (was dir*0.08, inner edge buried 0.55 m inside
+			# the torso shell; now dir*0.16, overlap ~0.19 m) so the shoulder
+			# joint is visually outside the body. Y untouched: the
+			# pauldron-shoulder vertical contract (|dy| < 0.35) is preserved.
 			var pauldron = MeshInstance3D.new()
 			var p_box = BoxMesh.new()
 			p_box.size = Vector3(0.56, 0.36, 0.56)
 			pauldron.mesh = p_box
-			pauldron.position = Vector3(dir_sign * 0.08, 0.04, 0)
+			pauldron.position = Vector3(dir_sign * 0.16, 0.04, 0)
 			pauldron.material_override = armor_mat
 			upper_container.add_child(pauldron)
 
@@ -2673,7 +2692,7 @@ func _build_procedural_outer_armor(slot_name: String, upper_container: Node3D, l
 			var t_box = BoxMesh.new()
 			t_box.size = Vector3(0.60, 0.10, 0.60)
 			trim.mesh = t_box
-			trim.position = Vector3(dir_sign * 0.08, 0.17, 0)
+			trim.position = Vector3(dir_sign * 0.16, 0.17, 0)
 			trim.material_override = dark_trim_mat
 			upper_container.add_child(trim)
 

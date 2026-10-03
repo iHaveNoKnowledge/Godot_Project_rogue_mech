@@ -635,8 +635,8 @@ func _update_heat_smoke(delta: float) -> void:
 			var mecha := get_parent() as Node3D
 			if mecha == null:
 				continue
-			var off: Vector3 = Vector3(-0.65, 1.4, -1.1) if hand == "left" else Vector3(0.65, 1.4, -1.1)
-			muzzle = mecha.global_position + mecha.global_transform.basis * off
+			var side := "left" if hand == "left" else "right"
+			muzzle = mecha.global_position + mecha.global_transform.basis * FrameVariantResolver.hand_fallback_for(mecha, side)
 		# Smoke color: light grey at 35-60%heat, orange-grey when overheated
 		var is_overheated: bool = core.overheated
 		if is_overheated:
@@ -675,7 +675,7 @@ func _update_heat_smoke(delta: float) -> void:
 			var smecha := get_parent() as Node3D
 			if smecha == null:
 				continue
-			smuzzle = smecha.global_position + smecha.global_transform.basis * WeaponVisualFactory.shoulder_mount_position(side)
+			smuzzle = smecha.global_position + smecha.global_transform.basis * FrameVariantResolver.shoulder_fallback_for(smecha, side)
 		if score.overheated:
 			EffectFactory.spawn_smoke_plume(get_tree(), smuzzle + Vector3(0,0.12,0), 3, 0.20, 0.40, 0.95)
 			EffectManager.spawn_hit_spark(smuzzle + Vector3(0,0.10,0), Vector3.UP, "heat")
@@ -924,8 +924,11 @@ func _spawn_jam_effect(slot: String) -> void:
 	if jam_pos == Vector3.INF:
 		if _is_shoulder_slot(slot):
 			var side := "left" if (slot == "shoulder_left" or slot == "left_shoulder") else "right"
-			jam_pos = mecha.global_position + mecha.global_transform.basis * WeaponVisualFactory.shoulder_mount_position(side)
+			jam_pos = mecha.global_position + mecha.global_transform.basis * FrameVariantResolver.shoulder_fallback_for(mecha, side)
 		else:
+			# Jam sparks bloom at the receiver/breach (close-forward), a
+			# distinct presentation point from the fire-path muzzle fallback:
+			# intentionally frame-independent, left byte-identical.
 			var offset := Vector3(-0.6, 1.5, 0.5) if slot == "left" else Vector3(0.6, 1.5, 0.5)
 			jam_pos = mecha.global_position + mecha.global_transform.basis * offset + Vector3(0, 0.3, 0)
 	EffectManager.spawn_jam_sparks(jam_pos)
@@ -1579,7 +1582,7 @@ func _fire_missile_salvo(slot: String, weapon: WeaponPart, targets_dict: Diction
 		if is_shoulder:
 			spawn_pos = _get_shoulder_muzzle_world_pos(side)
 			if spawn_pos == Vector3.INF:
-				spawn_pos = mecha.global_position + mecha.global_transform.basis * WeaponVisualFactory.shoulder_mount_position(side)
+				spawn_pos = mecha.global_position + mecha.global_transform.basis * FrameVariantResolver.shoulder_fallback_for(mecha, side)
 		else:
 			spawn_pos = _get_muzzle_world_pos(side)
 

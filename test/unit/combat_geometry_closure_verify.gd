@@ -54,6 +54,7 @@ func _ready() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	await _test_muzzle_fallback()
+	await _test_fallback_routing()
 	await _test_melee_invariant()
 	await _test_collision_envelope()
 	await _test_dummy_geometry()
@@ -91,6 +92,21 @@ func _test_muzzle_fallback() -> void:
 	for m in [std_m, hvy_m, ext_m]:
 		(m as Node3D).queue_free()
 	await get_tree().process_frame
+
+
+# --- A2. no duplicated Standard geometry in fallback paths -------------------------
+# Structural proof: INF-only fire/smoke/salvo/jam fallbacks resolve through
+# the resolver. The only remaining literal offsets are the intentional
+# receiver/breach presentation points (jam sparks + pile casing: ±0.6,
+# 1.5, 0.5), documented as frame-independent by design.
+func _test_fallback_routing() -> void:
+	var src := FileAccess.get_file_as_string("res://scripts/mecha/weapon_manager.gd")
+	_check(not src.is_empty(), "weapon_manager source readable")
+	_check(src.find("shoulder_mount_position(") < 0, "no shoulder_mount_position fallback remains")
+	_check(src.find("0.65, 1.4, -1.1") < 0 and src.find("-0.65, 1.4, -1.1") < 0, "no legacy hand-fire fallback literal remains")
+	_check(src.find("FrameVariantResolver.shoulder_fallback_for") > 0, "shoulder INF paths route via resolver")
+	_check(src.find("FrameVariantResolver.hand_fallback_for") > 0, "hand INF paths route via resolver")
+	_check(src.find("0.6, 1.5, 0.5") > 0, "intentional jam/casing presentation point preserved (not migrated)")
 
 
 # --- B. melee invariant --------------------------------------------------------------

@@ -90,6 +90,12 @@ func setup_beehave_tree(trait_name: String = "Balanced") -> void:
 # PartMeshManager that renders this enemy from the mech armor catalog.
 var catalog_body: Node = null
 
+# Physical frame variant ("standard" default). Set before ready (spawner or
+# test) to field a Heavy/Extended enemy on the SAME FrameVariantData the
+# player uses: slot rest + collision resolve through FrameVariantResolver,
+# no duplicated tables. Standard is a no-op (dummy Standard tables verbatim).
+var frame_variant: String = "standard"
+
 # Procedural Enemy Pilot & Tactical Squad Assignment
 var pilot_data: Dictionary = {}
 var squad_coordinator: Node = null
@@ -288,6 +294,10 @@ func _build_catalog_body() -> void:
 			continue
 		if child is MeshInstance3D or (child is VisualInstance3D and not child is Label3D):
 			child.visible = false
+
+	# Frame variant geometry (pre-animation-capture: _setup_leg_animation runs
+	# later in _ready and stores whatever rest is live then).
+	FrameVariantResolver.apply_dummy_variant(self, frame_variant)
 
 
 # The PartMeshManager assembles meshes inside Head/Body/ArmLeft/... nodes.

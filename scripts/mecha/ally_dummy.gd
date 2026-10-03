@@ -40,6 +40,12 @@ var fire_core: WeaponCore = null
 # placeholder scene mesh. Fed by apply_mech_loadout() -> _build_catalog_body().
 var catalog_body: Node = null
 
+# Physical frame variant ("standard" default). Set before ready to field a
+# Heavy/Extended ally on the SAME FrameVariantData the player uses (slot rest
+# + collision through FrameVariantResolver, no duplicated tables). Standard
+# is a no-op (dummy Standard tables stay verbatim).
+var frame_variant: String = "standard"
+
 # The berth's real weapons, split by range type so the combat AI can pick per
 # situation: the gun for range, the blade for close quarters or when the
 # magazine runs dry. Both may be set (gun + melee loadout) or one may be null.
@@ -329,6 +335,9 @@ func _build_catalog_body(mech: Dictionary) -> void:
 	catalog_body = pmm
 	add_child(pmm)
 	pmm.refresh_from_loadout(_mech_catalog_loadout(mech))
+	# Frame variant geometry (pre-animation-capture: _setup_leg_animation runs
+	# after the body build and stores whatever rest is live then).
+	FrameVariantResolver.apply_dummy_variant(self, frame_variant)
 
 
 # The PartMeshManager assembles meshes inside Head/Body/ArmLeft/... nodes.

@@ -128,3 +128,70 @@ static func hangar_pose_for(vid: String) -> Dictionary:
 		var stance_delta: Vector3 = (MechaScaleSystem.HANGAR_POSE.get(key, Vector3.ZERO) as Vector3) - (FrameVariantData.STANDARD_REST.get(path, Vector3.ZERO) as Vector3)
 		out[key] = (rest.get(path, Vector3.ZERO) as Vector3) + stance_delta
 	return out
+
+
+## Muzzle-fallback geometry (weapon_manager INF paths: no visual mounted).
+## The Standard design points are preserved exactly:
+## - shoulder fallback == arm rest + shoulder mount local
+##   ((-1.1424, 4.261, 0) + (0, 0.25, 0) == SHOULDER_LEFT_POS).
+## - hand fallback keeps the Standard ratios to the rest table
+##   (x = 0.5690 * |armX| -> 0.65; y = 0.46651 * legY -> 1.4; z = -1.1).
+## Values are mecha-local (pre-root-scale), matching the fallback usage
+## (mecha.global_position + global_basis * offset).
+const HAND_FB_XRATIO := 0.65 / 1.1424
+const HAND_FB_YRATIO := 1.4 / 3.001
+const HAND_FB_Z := -1.1
+
+
+static func hand_fallback_for(mecha: Node, side: String) -> Vector3:
+	var rest: Dictionary = get_variant_for(mecha).get("rest", {})
+	var armx := absf((rest.get("ArmLeft", Vector3.ZERO) as Vector3).x)
+	var legy := absf((rest.get("LegLeft", Vector3.ZERO) as Vector3).y)
+	var s := -1.0 if side == "left" else 1.0
+	return Vector3(s * HAND_FB_XRATIO * armx, HAND_FB_YRATIO * legy, HAND_FB_Z)
+
+
+static func shoulder_fallback_for(mecha: Node, side: String) -> Vector3:
+	var v := get_variant_for(mecha)
+	var rest: Dictionary = v.get("rest", {})
+	var mounts: Dictionary = v.get("mounts", {})
+	var key := "ArmLeft" if side == "left" else "ArmRight"
+	return (rest.get(key, Vector3.ZERO) as Vector3) + (mounts.get("shoulder", Vector3.ZERO) as Vector3)
+
+
+## Melee effective reach (arm + weapon extension at thrust peak).
+## MELEE_BASE_REACH (1.6) already abstracts the Standard arm (shoulder to
+## grip: |forearm.y| + |hand mount.y| = 0.6384 + 0.72 = MELEE_STD_ARM);
+## only the ARM delta varies per frame (blades/weapons are shared), scaled
+## by live root scale. Standard delta is exactly 0. NOT a blind multiplier:
+## reach grows only by measured extra arm length, and the lunge shrinks by
+## the same amount so range_distance == lunge + reach is preserved.
+const MELEE_BASE_REACH := 1.6
+const MELEE_STD_ARM := 1.3584
+
+
+static func melee_hit_reach_for(mecha: Node) -> float:
+	var v := get_variant_for(mecha)
+	var rest: Dictionary = v.get("rest", {})
+	var mounts: Dictionary = v.get("mounts", {})
+	var arm := absf((rest.get("ArmLeft/ForearmLeft", Vector3.ZERO) as Vector3).y) \
+		+ absf((mounts.get("hand", Vector3.ZERO) as Vector3).y)
+	var s := 1.0
+	if mecha is Node3D:
+		s = maxf((mecha as Node3D).scale.y, 0.001)
+	return MELEE_BASE_REACH + (arm - MELEE_STD_ARM) * s
+
+
+## Dummy (enemy/ally) variant integration: single shared path, no duplicated
+## tables. Standard is a no-op (dummy Standard tables stay verbatim).
+## Non-standard applies variant rest + collision (+ FootIK when present).
+## Call inside the dummy build, before animation rest capture.
+static func apply_dummy_variant(dummy: Node3D, vid: String) -> bool:
+	if String(vid) == FrameVariantData.STANDARD_ID:
+		return false
+	dummy.set_meta(META_KEY, String(FrameVariantData.get_variant(vid)["id"]))
+	var v := FrameVariantData.get_variant(vid)
+	apply_rest(dummy, v)
+	apply_collision(dummy, v)
+	apply_footik(dummy, v)
+	return true

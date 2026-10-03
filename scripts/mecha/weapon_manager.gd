@@ -120,6 +120,9 @@ var _damage_mult_by_name: Dictionary = {}
 # occupies ~1.5m and the fist/blade reaches out the rest). The lunge carries the
 # mech the remainder, so lunge + reach == the weapon's range_distance exactly:
 # the thrust visual and the hit check agree at every distance.
+# Standard reference value; live geometry resolves per frame through
+# FrameVariantResolver.melee_hit_reach_for() (longer arms reach further and
+# lunge less). Do not retune here without touching the resolver contract.
 const MELEE_HIT_REACH: float = 1.6
 
 # Lateral auto-aim width of a melee swing. An enemy mech's body is ~1m wide, so
@@ -174,10 +177,12 @@ var _heat_smoke_timer_shoulder_right: float = 0.0
 # How far a melee swing carries the mech toward the target, matched to the
 # weapon's range_distance (lunge = range - arm reach, floored at 0.9):
 #   fist 4.5 -> 2.9   knife 4.2 -> 2.6   heat blade 5.2 -> 3.6   mace 5.0 -> 3.4   pile 6.0 -> 4.4
+# Arm reach is variant-resolved (longer arms reach further, so the mech
+# lunges less); Standard resolves exactly MELEE_HIT_REACH.
 func _melee_lunge_dist(weapon: WeaponPart) -> float:
 	if weapon == null or weapon.range_distance <= 0.0:
 		return 2.9
-	return maxf(weapon.range_distance - MELEE_HIT_REACH, 0.9)
+	return maxf(weapon.range_distance - FrameVariantResolver.melee_hit_reach_for(get_parent()), 0.9)
 
 # Synthetic unarmed-melee weapon: an empty hand still fights with a punch. It is
 # a real MELEE WeaponPart (no ammo, no heat) so it flows through the same
@@ -1411,12 +1416,15 @@ func _try_fire(slot: String, weapon: WeaponPart) -> void:
 
 	var spawn_pos = get_muzzle_world_pos(slot)
 	if spawn_pos == Vector3.INF:
+		# No visual mounted (bare fist / destroyed arm / missing model): fall
+		# back to variant-resolved geometry, NOT Standard constants. Mounted
+		# visuals always use their own muzzle markers (untouched path above).
 		if _is_shoulder_slot(slot):
 			var side := "left" if (slot == "shoulder_left" or slot == "left") else "right"
-			spawn_pos = mecha.global_position + mecha.global_transform.basis * WeaponVisualFactory.shoulder_mount_position(side)
+			spawn_pos = mecha.global_position + mecha.global_transform.basis * FrameVariantResolver.shoulder_fallback_for(mecha, side)
 		else:
-			var offset = Vector3(-0.65, 1.4, -1.1) if slot == "left" else Vector3(0.65, 1.4, -1.1)
-			spawn_pos = mecha.global_position + mecha.global_transform.basis * offset
+			var fside := "left" if slot == "left" else "right"
+			spawn_pos = mecha.global_position + mecha.global_transform.basis * FrameVariantResolver.hand_fallback_for(mecha, fside)
 
 	var target_point: Vector3
 	if cam != null and get_viewport():
@@ -1993,7 +2001,7 @@ func _check_melee_hit(mecha: Node3D, direction: Vector3, damage: float, weapon: 
 
 	var enemies = get_tree().get_nodes_in_group("enemy")
 	var lunge_dist = _melee_lunge_dist(weapon)
-	var swing_range = lunge_dist + MELEE_HIT_REACH
+	var swing_range = lunge_dist + FrameVariantResolver.melee_hit_reach_for(mecha)
 	var aim2 := Vector2(direction.x, direction.z).normalized()
 	var is_pile := weapon != null and weapon.weapon_name.to_lower().contains("pile")
 

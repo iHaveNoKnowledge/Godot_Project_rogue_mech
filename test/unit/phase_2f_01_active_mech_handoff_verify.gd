@@ -118,7 +118,7 @@ func _stage_a_victory_handoff() -> void:
 
 	GameManager.enter_combat("grunt")
 	_assert(GameManager.current_state == GameManager.State.COMBAT, "A: combat state entered via production path")
-	_assert(GameManager.pre_combat_weapon_loadout is Dictionary and not GameManager.pre_combat_weapon_loadout.is_empty(),
+	_assert(GlobalData.pre_combat_weapon_loadout is Dictionary and not GlobalData.pre_combat_weapon_loadout.is_empty(),
 		"A: pre-combat loadout snapshot taken")
 
 	# Reconstruction proof: a fresh combat mecha node must consume the persistent

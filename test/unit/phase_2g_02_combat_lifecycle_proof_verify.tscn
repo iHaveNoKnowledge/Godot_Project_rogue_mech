@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://test/unit/phase_2g_02_combat_lifecycle_proof_verify.gd" id="1"]
+
+[node name="Phase2G02CombatLifecycleProofVerify" type="Node"]
+script = ExtResource("1")

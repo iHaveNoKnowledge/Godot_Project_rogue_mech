@@ -18,7 +18,7 @@ static func get_fleet_security() -> float:
 
 
 static func get_security_upgrade_cost() -> int:
-	return GlobalData.SECURITY_UPGRADE_BASE_COST + (GlobalData.hangar.security_upgrade_level - 1) * 40
+	return GlobalData.SECURITY_UPGRADE_BASE_COST + (GlobalData.narrative.security_upgrade_level - 1) * 40
 
 
 # Spend credits to raise fleet security. Returns false if unaffordable or maxed.
@@ -29,7 +29,7 @@ static func upgrade_fleet_security() -> bool:
 	if get_fleet_security() >= GlobalData.FLEET_SECURITY_MAX:
 		return false
 	GlobalData.currency.credits -= cost
-	GlobalData.hangar.security_upgrade_level += 1
+	GlobalData.narrative.security_upgrade_level += 1
 	GlobalData.narrative.fleet_security = minf(get_fleet_security() + GlobalData.SECURITY_PER_UPGRADE, GlobalData.FLEET_SECURITY_MAX)
 	return true
 

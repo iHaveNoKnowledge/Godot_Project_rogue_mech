@@ -566,7 +566,7 @@ func _build_security_text() -> String:
 	var text = "=== FLEET SECURITY ===\n\n"
 	text += "Fleet security hardens our ships and facility against enemy spies.\n\n"
 	text += "Security: %d / %d\n" % [int(FleetSystem.get_fleet_security()), int(GlobalData.FLEET_SECURITY_MAX)]
-	text += "Hardening level: %d\n" % GlobalData.hangar.security_upgrade_level
+	text += "Hardening level: %d\n" % GlobalData.narrative.security_upgrade_level
 	text += "Spy counter chance: %d%%\n\n" % int(FleetSystem.get_spy_counter_chance() * 100.0)
 	text += "Higher security makes enemy espionage against your mech data far more likely to be caught."
 	return text

@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://war_mode_p3d_failure_verify_tscn"]
+
+[ext_resource type="Script" path="res://test/unit/war_mode_phase3d_failure_recovery_verify.gd" id="1_test"]
+
+[node name="WarModePhase3dFailureRecoveryVerify" type="Node"]
+script = ExtResource("1_test")

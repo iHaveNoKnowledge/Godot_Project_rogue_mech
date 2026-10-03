@@ -28,7 +28,8 @@ func _ready() -> void:
 	layer = 20
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	_deployment = WarDeploymentManager.new()
+	if _deployment == null:
+		_deployment = WarDeploymentManager.new()
 	_build_ui()
 	_ace_timer = Timer.new()
 	_ace_timer.wait_time = 1.0

@@ -7,12 +7,83 @@ extends RefCounted
 # stays focused on game state instead of file/schema handling. Every function
 # reads/writes state through the GlobalData singleton, and GlobalData keeps thin
 # save_run()/load_run() facades for its existing callers.
+#
+# Hardening (Phase 2H-02): schema_version gate + preflight validation run in
+# load_run() BEFORE restore_from_dict() mutates anything, and save_run()
+# writes temp-then-rename so a crash can never leave a torn destination.
 # -----------------------------------------------------------------------------
 
+## Current save schema. New saves stamp this; older saves (no field) load as
+## LEGACY_SCHEMA. Unknown/future or wrong-typed values are rejected safely.
+const CURRENT_SCHEMA_VERSION := 1
+const LEGACY_SCHEMA := 0
 
-static func save_run() -> void:
+## Root fields that must be Dictionaries when present. A wrong type here
+## breaks restore mid-way (e.g. Vector2i(pos.x, pos.y) on a non-dict),
+## leaving partially mutated runtime state — hence preflight rejection.
+const _DICT_FIELDS := [
+	"frames", "parts", "damage", "position", "active_contract",
+	"secondary_objectives_status", "extraction_zone_pos", "ammo_inventory",
+	"weapon_loadout", "pilot_ammo", "pilot_items", "pilot_progression",
+	"technology_discovery", "world_technology_diffusion", "era_progression",
+	"rival_progression", "tile_wreckages", "enemy_base_tile_pos",
+	"wreckage_tile_pos", "scrap_patches", "frame_bindings", "frame_modules",
+	"enemy_forces", "part_hit_meta", "thermal_cloak", "ewar",
+	"weather_transition", "pending_duel", "research_projects",
+]
+
+## Root fields that must be Arrays when present (restore iterates them).
+const _ARRAY_FIELDS := [
+	"attachments", "board_patrols", "fleet_roster", "recruited_characters",
+	"research_unlocked", "weapon_inventory", "module_inventory",
+	"backpack_inventory", "stalking_aces", "enemy_special_units",
+	"armor_inventory", "hangar_mechs", "pilot_weapons",
+	"mech_fuel_containers", "convoy_fuel_containers",
+]
+
+
+## Validates a parsed save payload WITHOUT mutating runtime state.
+## Returns {"ok": bool, "reason": String, "schema": int}.
+static func validate_save_payload(data: Variant) -> Dictionary:
+	if not (data is Dictionary):
+		return {"ok": false, "reason": "root-not-dict", "schema": -1}
+	var d := data as Dictionary
+	var schema := LEGACY_SCHEMA
+	if d.has("schema_version"):
+		var raw = d["schema_version"]
+		# JSON parses every number as float; bools must NOT pass as 1.
+		if raw is bool:
+			return {"ok": false, "reason": "schema-bool", "schema": -1}
+		if (raw is int or raw is float) and float(raw) == floor(float(raw)) and int(raw) == CURRENT_SCHEMA_VERSION:
+			schema = CURRENT_SCHEMA_VERSION
+		else:
+			return {"ok": false, "reason": "schema-unsupported", "schema": -1}
+	for key in _DICT_FIELDS:
+		if d.has(key) and not (d[key] is Dictionary):
+			return {"ok": false, "reason": "field-not-dict:" + key, "schema": schema}
+	# equipped_backpack is Dictionary normally but accepts a legacy id String.
+	if d.has("equipped_backpack"):
+		var eb = d["equipped_backpack"]
+		if not (eb is Dictionary) and not (eb is String):
+			return {"ok": false, "reason": "field-not-dict-or-string:equipped_backpack", "schema": schema}
+	for key in _ARRAY_FIELDS:
+		if d.has(key) and not (d[key] is Array):
+			return {"ok": false, "reason": "field-not-array:" + key, "schema": schema}
+	return {"ok": true, "reason": "ok", "schema": schema}
+
+
+## Atomic file write was PROVEN UNSAFE for this codebase (Phase 2H-02
+## lockdiag): DirAccess.rename_absolute fails while ANY handle holds the
+## destination open (even read-only), and this codebase demonstrably keeps
+## read handles open across saves (persistence_state_audit sections A/D).
+## Rename-replace would turn those cases into silent save loss, which is
+## worse than the torn-write risk it removes. Direct write is therefore kept
+## deliberately; see ATOMIC_WRITE_NOT_PROVEN in the phase report.
+## save_run() still reports open-failure accurately via its bool return.
+static func save_run() -> bool:
 	ArmorSystem.sync_equipped_armor_durability()
 	var data := {
+		"schema_version": CURRENT_SCHEMA_VERSION,
 		"chassis": GlobalData.weapons.chassis_id,
 		"power_core": GlobalData.weapons.power_core_id,
 		"parts": serialize_parts(),
@@ -121,10 +192,12 @@ static func save_run() -> void:
 		"tile_wreckages": _serialize_tile_wreckages()
 	}
 	var file := FileAccess.open(GlobalData.SAVE_PATH, FileAccess.WRITE)
-	if file:
-		file.store_string(JSON.stringify(data, "\t"))
-		file.flush()
-		file.close()
+	if file == null:
+		return false
+	file.store_string(JSON.stringify(data, "\t"))
+	file.flush()
+	file.close()
+	return true
 
 
 static func load_run() -> bool:
@@ -137,6 +210,11 @@ static func load_run() -> bool:
 	file.close()
 	var data = JSON.parse_string(text)
 	if data == null:
+		return false
+	# Gate BEFORE any runtime mutation: unsupported schema or structurally
+	# invalid payloads must not partially restore GlobalData.
+	var verdict := validate_save_payload(data)
+	if not bool(verdict.get("ok", false)):
 		return false
 	restore_from_dict(data)
 	return true

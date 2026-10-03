@@ -1081,8 +1081,8 @@ func serialize_scrap_primitive(primitive: Dictionary) -> Dictionary:
 # SAVE / LOAD
 # ===========================================================================
 
-func save_run() -> void:
-	SaveGameIO.save_run()
+func save_run() -> bool:
+	return SaveGameIO.save_run()
 
 func load_run() -> bool:
 	return SaveGameIO.load_run()

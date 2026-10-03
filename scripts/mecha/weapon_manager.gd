@@ -1662,16 +1662,27 @@ func _melee_attack(hand: String, weapon: WeaponPart, is_loaded_blast: bool = tru
 	# Execute lunging punch animation + Keyframed 3-Step Combo Attack Animation.
 	# One-handed MELEE (heat blade / knife / mace / fist) uses the ActionForge
 	# sword takes (single slash -> 3-hit combo); pile bunker keeps its thrust.
-	_perform_pile_bunker_lunge_anim(mecha, dir, weapon)
+	# The clip starts FIRST so the lunge thrust can land on the swing's first
+	# strike moment (same synchronous block — no frame passes between).
 	var anim = mecha.get_node_or_null("MechaAnimation")
 	if anim == null:
 		anim = mecha.get_node_or_null("AnimationSystem")
+	var swung := false
 	if anim and anim.get("action_animator") != null:
-		var played_af := false
 		if not is_pile and anim.action_animator.has_method("play_af_melee"):
-			played_af = anim.action_animator.play_af_melee(hand)
-		if not played_af:
+			swung = anim.action_animator.play_af_melee(hand)
+		if not swung:
 			anim.action_animator.play_melee(hand)
+			swung = true
+	var strike_t := -1.0
+	if swung:
+		var animator = anim.action_animator
+		var spd := 1.0
+		if animator.get_indexed("anim_speed") != null:
+			spd = maxf(float(animator.get_indexed("anim_speed")), 0.01)
+		if not (animator.strike_times as Array).is_empty():
+			strike_t = float((animator.strike_times as Array)[0]) / spd
+	_perform_pile_bunker_lunge_anim(mecha, dir, weapon, strike_t)
 
 	_spawn_melee_trail(mecha, dir, weapon)
 	# Damage is NOT dealt here: the swing animation owns the hit window (see
@@ -1869,7 +1880,7 @@ func _hand_is_melee_capable(hand: String) -> bool:
 	return weapon.weapon_type == WeaponPart.WeaponType.MELEE
 
 
-func _perform_pile_bunker_lunge_anim(mecha: Node3D, dir: Vector3, weapon: WeaponPart) -> void:
+func _perform_pile_bunker_lunge_anim(mecha: Node3D, dir: Vector3, weapon: WeaponPart, strike_t: float = -1.0) -> void:
 	if not mecha:
 		return
 	# Kill any in-flight lunge before starting a new one: two tweens animating
@@ -1879,13 +1890,22 @@ func _perform_pile_bunker_lunge_anim(mecha: Node3D, dir: Vector3, weapon: Weapon
 		_lunge_tween.kill()
 	var orig_pos = mecha.global_position
 	var lunge_dist = _melee_lunge_dist(weapon)
-	
+
+	# Thrust completes ON the swing's first strike when known. The legacy
+	# fixed 0.07s thrust finished — and recovered — before contact, so the
+	# mech slid back while the blade was still mid-swing. Distances, the
+	# anticipation beat and the recovery beat are unchanged; only the thrust
+	# phase stretches to the strike moment (clamped to sane bounds, legacy
+	# timing when the strike moment is unknown).
+	var thrust_dur := 0.07
+	if strike_t > 0.06:
+		thrust_dur = clampf(strike_t - 0.05, 0.05, 0.30)
 	_lunge_tween = mecha.create_tween().set_parallel(false)
 	var tween: Tween = _lunge_tween
 	# 1. Anticipation: Pull back slightly & crouch
 	tween.tween_property(mecha, "global_position", orig_pos - dir * 0.4, 0.05).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	# 2. Explosive Forward Thrust
-	tween.tween_property(mecha, "global_position", orig_pos + dir * lunge_dist, 0.07).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
+	# 2. Explosive Forward Thrust (lands on strike contact)
+	tween.tween_property(mecha, "global_position", orig_pos + dir * lunge_dist, thrust_dur).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
 	
 	# Screen shake on impact, scaled to the weapon's punch so EVERY melee hit
 	# lands with feedback — not just the pile bunker's charge. Damage-scaled so

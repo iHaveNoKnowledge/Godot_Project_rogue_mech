@@ -86,6 +86,125 @@ static func pose_sword() -> Dictionary:
 	}
 
 
+## Mirrored sword hold (left-hand blade): left arm cocks, right guards.
+static func pose_sword_mirrored() -> Dictionary:
+	return {
+		JOINT_ARM_L: {"x": deg_to_rad(-30.0)},
+		JOINT_FOREARM_L: {"x": deg_to_rad(75.0)},
+		JOINT_ARM_R: {"x": deg_to_rad(20.0)},
+		JOINT_FOREARM_R: {"x": deg_to_rad(45.0)},
+	}
+
+
+## Mirrored rifle hold (left-hand rifle, right hand empty): left arm levels
+## the barrel, right arm braces across underneath.
+static func pose_rifle_mirrored() -> Dictionary:
+	return {
+		JOINT_ARM_L: {"x": deg_to_rad(57.0)},
+		JOINT_FOREARM_L: {"x": deg_to_rad(23.0)},
+		JOINT_ARM_R: {"x": deg_to_rad(38.0), "y": deg_to_rad(18.0)},
+		JOINT_FOREARM_R: {"x": deg_to_rad(75.0)},
+	}
+
+
+## Single-arm aim-ready (one ranged hand while the other hand is occupied):
+## levels the barrel at the shared aim math (80 deg total, 72% arm).
+static func pose_aim_arm(side: String) -> Dictionary:
+	var arm := JOINT_ARM_R if side == "right" else JOINT_ARM_L
+	var fore := JOINT_FOREARM_R if side == "right" else JOINT_FOREARM_L
+	return {
+		arm: {"x": deg_to_rad(57.0)},
+		fore: {"x": deg_to_rad(23.0)},
+	}
+
+
+## Single-arm melee cock (one blade hand while the other hand is occupied).
+static func pose_cock_arm(side: String) -> Dictionary:
+	var arm := JOINT_ARM_R if side == "right" else JOINT_ARM_L
+	var fore := JOINT_FOREARM_R if side == "right" else JOINT_FOREARM_L
+	return {
+		arm: {"x": deg_to_rad(-30.0)},
+		fore: {"x": deg_to_rad(75.0)},
+	}
+
+
+## Single-arm heavy brace (symmetric: identical values either side).
+static func pose_brace_arm(side: String) -> Dictionary:
+	var arm := JOINT_ARM_R if side == "right" else JOINT_ARM_L
+	var fore := JOINT_FOREARM_R if side == "right" else JOINT_FOREARM_L
+	return {
+		arm: {"x": deg_to_rad(40.0)},
+		fore: {"x": deg_to_rad(55.0)},
+	}
+
+
+## Handling resolution from per-hand effective hold stances
+## (WeaponVisualFactory.get_effective_hold_stance). Deterministic merge:
+## - empty/shield/chassis-mounted hand contributes nothing (swing preserved,
+##   shield raise and forearm mounts keep their existing owners).
+## - a ranged hand aims; when the other hand is empty it takes the full
+##   two-arm pose (brace/support), otherwise each hand keeps its own arm.
+## - a melee hand cocks; pile-bunker/heavy hands brace (both arms when the
+##   other hand is free, own arm only when it is occupied).
+## Returns {"pose": {...}, "mask": [...]} over joints-dict keys.
+static func handling_for_stances(left_stance: int, right_stance: int) -> Dictionary:
+	var pose := {}
+	var mask: Array = []
+	var left_poses := _hand_fragment("left", left_stance, right_stance)
+	var right_poses := _hand_fragment("right", right_stance, left_stance)
+	for frag in [left_poses, right_poses]:
+		for k in (frag as Dictionary).get("pose", {}):
+			(pose as Dictionary)[k] = (frag as Dictionary)["pose"][k]
+		for k in (frag as Dictionary).get("mask", []):
+			if not (mask as Array).has(k):
+				(mask as Array).append(k)
+	return {"pose": pose, "mask": mask}
+
+
+## Per-hand fragment: full two-arm pose when the other hand is free,
+## own-arm fragment when it is occupied. Stances compared as ints so callers
+## never need the enum imported.
+static func _hand_fragment(side: String, own: int, other: int) -> Dictionary:
+	var hs := WeaponPart.HoldStance
+	var other_empty := other == hs.AUTO
+	var pose := {}
+	var mask: Array = []
+	if own == hs.RANGED_RIFLE:
+		if other_empty:
+			var full := pose_rifle() if side == "right" else pose_rifle_mirrored()
+			for k in full:
+				pose[k] = full[k]
+			mask = mask_for_weapon(WEAPON_RIFLE)
+		else:
+			var single := pose_aim_arm(side)
+			for k in single:
+				pose[k] = single[k]
+			mask = [JOINT_ARM_R, JOINT_FOREARM_R] if side == "right" else [JOINT_ARM_L, JOINT_FOREARM_L]
+	elif own == hs.MELEE_UPRIGHT:
+		if other_empty:
+			var fullm := pose_sword() if side == "right" else pose_sword_mirrored()
+			for k in fullm:
+				pose[k] = fullm[k]
+			mask = mask_for_weapon(WEAPON_SWORD)
+		else:
+			var single := pose_cock_arm(side)
+			for k in single:
+				pose[k] = single[k]
+			mask = [JOINT_ARM_R, JOINT_FOREARM_R] if side == "right" else [JOINT_ARM_L, JOINT_FOREARM_L]
+	elif own == hs.PILE_BUNKER_GRIP:
+		if other_empty:
+			var fullh := pose_heavy()
+			for k in fullh:
+				pose[k] = fullh[k]
+			mask = mask_for_weapon(WEAPON_HEAVY)
+		else:
+			var single := pose_brace_arm(side)
+			for k in single:
+				pose[k] = single[k]
+			mask = [JOINT_ARM_R, JOINT_FOREARM_R] if side == "right" else [JOINT_ARM_L, JOINT_FOREARM_L]
+	return {"pose": pose, "mask": mask}
+
+
 ## Heavy hold: both arms braced forward as one unit, deep piston elbows.
 static func pose_heavy() -> Dictionary:
 	return {

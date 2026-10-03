@@ -189,6 +189,7 @@ func _update_clip_animation(delta: float) -> void:
 	var step_events: Array = clip_retarget.poll_step_events()
 	_update_clip_footsteps(step_events, clip_retarget.poll_lift_events())
 	_update_clip_strafe_overlay(h_speed, joints, step_events)
+	_update_weapon_handling(delta)
 	_update_aim_arms(delta)
 	_update_shield_arm(delta)
 	if action_animator:
@@ -331,8 +332,11 @@ func _run_procedural(delta: float) -> void:
 			if js and js.get("is_charging_prejump") == true:
 				_update_prejump_charge_posture(delta)
 
-	# Runs LAST so the raised shield arm overrides whatever the base postures
-	# (idle guard, sprint pumping, airborne) set for that arm this frame.
+	# Overlay order after the base posture: weapon handling (hold the armed
+	# arms instead of swinging them), then aim, then shield, then the action
+	# animator (an active melee swing still owns the arms). Each layer only
+	# touches its own masked joints, so the final pose has one owner per joint.
+	_update_weapon_handling(delta)
 	_update_aim_arms(delta)
 	_update_shield_arm(delta)
 
@@ -757,6 +761,63 @@ var _aim_raise: float = 0.0
 const AIM_RAISE_SPEED: float = 14.0
 const AIM_LEVEL_TOTAL_DEG: float = 80.0
 const AIM_ARM_SHARE: float = 0.72
+
+# Weapon handling layer weights (per hand, smoothed like the aim raise).
+var _handling_l: float = 0.0
+var _handling_r: float = 0.0
+const HANDLING_BLEND_SPEED: float = 6.0
+
+
+## Weapon handling layer: armed hands hold their handling pose instead of
+## performing the empty-hand locomotion swing. Runs after base locomotion and
+## before aim/shield/action overlays. Empty hands are never masked (swing
+## preserved); an active melee swing eases handling to zero because the
+## action animator (applied later) owns the arms for the swing duration.
+func _update_weapon_handling(delta: float) -> void:
+	var wm = mecha.get_node_or_null("WeaponManager") if mecha else null
+	if wm == null:
+		_handling_l = move_toward(_handling_l, 0.0, HANDLING_BLEND_SPEED * delta)
+		_handling_r = move_toward(_handling_r, 0.0, HANDLING_BLEND_SPEED * delta)
+		return
+	_apply_handling(delta, wm.get("left_hand"), wm.get("right_hand"))
+
+
+## Handling core with explicit weapons (unit-testable without a manager).
+func _apply_handling(delta: float, wl, wr) -> void:
+	var want_l := 0.0
+	var want_r := 0.0
+	var handling := {"pose": {}, "mask": []}
+	if not (action_animator != null and action_animator.is_melee_active()):
+		var sl := WeaponPart.HoldStance.AUTO
+		var sr := WeaponPart.HoldStance.AUTO
+		if wl != null:
+			sl = WeaponVisualFactory.get_effective_hold_stance(wl)
+		if wr != null:
+			sr = WeaponVisualFactory.get_effective_hold_stance(wr)
+		handling = MechaWeaponLayer.handling_for_stances(sl, sr)
+		var m: Array = handling["mask"]
+		if m.has("arm_left") or m.has("forearm_left"):
+			want_l = 1.0
+		if m.has("arm_right") or m.has("forearm_right"):
+			want_r = 1.0
+	_handling_l = move_toward(_handling_l, want_l, HANDLING_BLEND_SPEED * delta)
+	_handling_r = move_toward(_handling_r, want_r, HANDLING_BLEND_SPEED * delta)
+	if _handling_l <= 0.001 and _handling_r <= 0.001:
+		return
+	var joints := _build_joints_dict()
+	var pose: Dictionary = handling["pose"]
+	# Per-hand masks keep transitions independent: a lowering left arm never
+	# drags the still-raised right arm (no hidden last-writer coupling).
+	var mask_l: Array = []
+	var mask_r: Array = []
+	for k in (handling["mask"] as Array):
+		if str(k).ends_with("left"):
+			mask_l.append(k)
+		else:
+			mask_r.append(k)
+	MechaWeaponLayer.apply_layer(joints, pose, mask_l, _handling_l)
+	MechaWeaponLayer.apply_layer(joints, pose, mask_r, _handling_r)
+
 
 func _update_aim_arms(delta: float) -> void:
 	var wm = mecha.get_node_or_null("WeaponManager")

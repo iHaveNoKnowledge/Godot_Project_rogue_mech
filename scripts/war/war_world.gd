@@ -569,12 +569,23 @@ func _setup_hud() -> void:
 		whud._try_connect_weapon_manager()
 		whud.call_deferred("_update_display")
 	# War extra: Tab/I + Minimap + Ambush
-	var hud_script = load("res://scripts/war/war_hud.gd")
-	if hud_script and get_node_or_null("WarHUD") == null:
-		var hud = CanvasLayer.new()
-		hud.name = "WarHUD"
-		hud.set_script(hud_script)
-		add_child(hud)
+	var res_hud_scene = load("res://scenes/war/war_resource_hud.tscn")
+	if res_hud_scene and get_node_or_null("WarResourceHUD") == null:
+		var rhud = res_hud_scene.instantiate()
+		rhud.name = "WarResourceHUD"
+		add_child(rhud)
+
+	var inv_scene = load("res://scenes/war/war_inventory.tscn")
+	if inv_scene and get_node_or_null("WarInventory") == null:
+		var inv = inv_scene.instantiate()
+		inv.name = "WarInventory"
+		add_child(inv)
+
+	var launch_scene = load("res://scenes/war/war_launch_setup_ui.tscn")
+	if launch_scene and get_node_or_null("WarLaunchSetupUI") == null:
+		var launch = launch_scene.instantiate()
+		launch.name = "WarLaunchSetupUI"
+		add_child(launch)
 	if get_node_or_null("Minimap") == null:
 		var minimap = WarMinimap.new()
 		add_child(minimap)

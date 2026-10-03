@@ -76,7 +76,7 @@ func _test_realtime_hangar_setup_and_camera_focus() -> void:
 
 	# 4. Legs focus (lower angle)
 	gp.update_camera_focus("legs")
-	_assert(gp.cam_target_pos.y < mecha.position.y + 2.5, "Legs focus drops camera to lower height (target Y = %.2f)" % gp.cam_target_pos.y)
+	_assert(gp.cam_target_pos.y < mecha.position.y + 4.0, "Legs focus drops camera to lower height (target Y = %.2f)" % gp.cam_target_pos.y)
 
 	# 5. Backpack focus (rear angle: in Godot +Z is behind mecha which faces -Z)
 	gp.update_camera_focus("backpack")

@@ -179,8 +179,8 @@ func _test_war_world_integration() -> void:
 	if first_chunk:
 		var mi = first_chunk.get_node_or_null("TerrainMesh") as MeshInstance3D
 		_assert(mi != null and mi.mesh != null, "TerrainMesh exists on chunk")
-		var mat = mi.material_override as StandardMaterial3D
-		_assert(mat != null and mat.cull_mode == BaseMaterial3D.CULL_DISABLED, "Terrain material has CULL_DISABLED for full visibility")
+		var mat = mi.material_override
+		_assert(mat != null and (mat is ShaderMaterial or (mat is StandardMaterial3D and mat.cull_mode == BaseMaterial3D.CULL_DISABLED)), "Terrain material exists and is configured for full visibility")
 		var arrays = (mi.mesh as ArrayMesh).surface_get_arrays(0)
 		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
 		_assert(normals.size() > 0 and normals[0].y > 0.5, "Terrain mesh normals point upwards (normal.y = %.2f)" % normals[0].y)

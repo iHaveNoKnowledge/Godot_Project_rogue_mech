@@ -404,7 +404,6 @@ static func restore_from_dict(data: Dictionary) -> void:
 	# wipe the wear that was already restored above.
 	GlobalData.weapons.part_damage = data.get("damage", {})
 	ArmorSystem.sync_equipped_armor_durability()
-	HangarManager.ensure_roster()
 
 	GlobalData.narrative.enemy_forces = data.get("enemy_forces", {
 		"boss_current": 1, "boss_max": 1,
@@ -469,6 +468,7 @@ static func restore_from_dict(data: Dictionary) -> void:
 				migrated_carry.append(LoadoutSystem.migrate_ref_to_uid(ref))
 			GlobalData.weapons.weapon_loadout["carry"] = migrated_carry
 	GlobalData.migrate_legacy_attachments()
+	HangarManager.ensure_roster()
 
 
 static func serialize_parts() -> Dictionary:

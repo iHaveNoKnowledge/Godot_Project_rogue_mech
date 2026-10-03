@@ -224,8 +224,12 @@ static func calc_strafe_leg(phase: float, is_outward_leg: bool) -> Dictionary:
 
 
 ## Drives torso bob, forward sprint lean, and lateral banking based on movement direction.
+## `collar` overrides the head-collar rest offset (FrameVariantData body
+## head_collar via FrameVariantResolver.head_collar_for); null keeps the
+## Standard MechaRig.HEAD_COLLAR_LOCAL behavior exactly.
 func update_bob(delta: float, mecha: CharacterBody3D, joints: Dictionary,
-		bob_amount: float) -> float:
+	bob_amount: float, collar: Variant = null) -> float:
+	var head_collar: Vector3 = collar if collar is Vector3 else MechaRig.HEAD_COLLAR_LOCAL
 	var is_skating: bool = mecha.get("is_roller_dashing") == true
 	if is_moving and not is_skating:
 		var local_vel: Vector3 = mecha.global_transform.basis.inverse() * mecha.velocity
@@ -278,7 +282,7 @@ func update_bob(delta: float, mecha: CharacterBody3D, joints: Dictionary,
 				# the torso leans up to -26 deg at sprint, and a fixed
 				# offset leaves the helmet behind/inside the chest.
 				# (crouch already rides along inside body_mesh.position.)
-				head_mesh.position = anchored_head_pos(body_mesh, orig_head) + Vector3(0, bob * 0.2, 0)
+				head_mesh.position = anchored_head_pos_with(body_mesh, orig_head, head_collar) + Vector3(0, bob * 0.2, 0)
 				head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, 0.0, 14.0 * delta)
 				head_mesh.rotation.z = lerp_angle(head_mesh.rotation.z, 0.0, 14.0 * delta)
 				head_mesh.rotation.y = lerp_angle(head_mesh.rotation.y, 0.0, 14.0 * delta)
@@ -320,7 +324,7 @@ func update_bob(delta: float, mecha: CharacterBody3D, joints: Dictionary,
 			# third of the pitch so the eyes stay on the horizon while running.
 			# Position still rides the pitched collar so the helmet can't sink
 			# into the leaning chest (crouch rides along in body position).
-			head_mesh.position = anchored_head_pos(body_mesh, orig_head) + Vector3(0, absf(bob) * 0.30, 0)
+			head_mesh.position = anchored_head_pos_with(body_mesh, orig_head, head_collar) + Vector3(0, absf(bob) * 0.30, 0)
 			head_mesh.rotation.x = lerp_angle(head_mesh.rotation.x, target_pitch * 0.35, 10.0 * delta)
 			head_mesh.rotation.z = lerp_angle(head_mesh.rotation.z, -target_bank * 0.5, 10.0 * delta)
 			head_mesh.rotation.y = lerp_angle(head_mesh.rotation.y, -twist * 0.7, 8.0 * delta)
@@ -339,7 +343,9 @@ func update_bob(delta: float, mecha: CharacterBody3D, joints: Dictionary,
 
 
 ## Applies 8-directional procedural leg stepping (hip swivel, lateral abduction, step lift, and knee flexion).
-func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary) -> void:
+## `lift_scale` multiplies step-lift amplitudes (FrameVariantData locomotion
+## lift_scale via FrameVariantResolver.lift_scale_for); 1.0 keeps behavior.
+func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary, lift_scale: float = 1.0) -> void:
 	var is_skating: bool = mecha.get("is_roller_dashing") == true
 	if is_skating:
 		return
@@ -428,8 +434,8 @@ func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary) -> vo
 	var target_pitch_r: float = pitch_r * stride_amp + strafe_thigh_r * side_norm * stride_amp
 	var target_shin_l: float = long_shin_l * long_norm + lat_shin_l * side_norm
 	var target_shin_r: float = long_shin_r * long_norm + lat_shin_r * side_norm
-	var total_lift_l: float = long_lift_l * long_norm + lat_lift_l * side_norm
-	var total_lift_r: float = long_lift_r * long_norm + lat_lift_r * side_norm
+	var total_lift_l: float = (long_lift_l * long_norm + lat_lift_l * side_norm) * lift_scale
+	var total_lift_r: float = (long_lift_r * long_norm + lat_lift_r * side_norm) * lift_scale
 	# Scale side roll/lift with speed so strafe at full speed doesn't look like slow shuffle
 	var speed_scale := clampf(speed / 5.0, 0.75, 1.35)
 	lateral_l *= speed_scale
@@ -582,6 +588,13 @@ static func anchored_head_pos(body_mesh: Node3D, orig_head: Vector3) -> Vector3:
 	if body_mesh == null:
 		return orig_head
 	return body_mesh.position + MechaRig.HEAD_COLLAR_LOCAL.rotated(Vector3.RIGHT, body_mesh.rotation.x)
+
+
+## Variant-aware collar anchor (FrameVariantData body head_collar).
+static func anchored_head_pos_with(body_mesh: Node3D, orig_head: Vector3, collar: Vector3) -> Vector3:
+	if body_mesh == null:
+		return orig_head
+	return body_mesh.position + collar.rotated(Vector3.RIGHT, body_mesh.rotation.x)
 
 
 ## Scans the standard mecha rig node paths and returns a joints dictionary.

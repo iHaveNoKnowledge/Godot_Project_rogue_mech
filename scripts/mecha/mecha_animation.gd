@@ -185,7 +185,7 @@ func _update_clip_animation(delta: float) -> void:
 	_update_recoil(delta)
 	var joints := _build_joints_dict()
 	var h_speed := Vector2(mecha.velocity.x, mecha.velocity.z).length()
-	clip_retarget.advance_and_apply(delta * MechaClipRetarget.rate_for_speed(h_speed), joints, _original_body_pos.y)
+	clip_retarget.advance_and_apply(delta * MechaClipRetarget.rate_for_variant(h_speed, FrameVariantResolver.natural_speed_for(mecha)), joints, _original_body_pos.y)
 	var step_events: Array = clip_retarget.poll_step_events()
 	_update_clip_footsteps(step_events, clip_retarget.poll_lift_events())
 	_update_clip_strafe_overlay(h_speed, joints, step_events)
@@ -952,7 +952,7 @@ func _build_joints_dict() -> Dictionary:
 	return j
 func _update_bob(delta: float) -> void:
 	var joints := _build_joints_dict()
-	var bob := _walk.update_bob(delta, mecha, joints, bob_amount)
+	var bob := _walk.update_bob(delta, mecha, joints, bob_amount, FrameVariantResolver.head_collar_for(mecha))
 	var is_skating = mecha.get("is_roller_dashing") == true
 	if not _walk.is_moving and not is_skating:
 		# Standing still: settle into the ready-to-fight idle stance (bent knees,
@@ -968,7 +968,7 @@ func _update_legs(delta: float) -> void:
 	if not _walk.is_moving or _pulse_dashing:
 		return
 	var joints := _build_joints_dict()
-	_walk.update_legs(delta, mecha, joints)
+	_walk.update_legs(delta, mecha, joints, FrameVariantResolver.lift_scale_for(mecha))
 
 func _lerp_to_original(delta: float) -> void:
 	var speed = 5.0 * delta

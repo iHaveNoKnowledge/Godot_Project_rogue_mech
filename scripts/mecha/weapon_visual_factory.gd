@@ -82,10 +82,10 @@ static func mount_hand(mecha: Node3D, hand: String, weapon: WeaponPart, node_nam
 
 		match stance:
 			WeaponPart.HoldStance.MELEE_UPRIGHT:
-				mount.position = HAND_FOREARM_POS
+				mount.position = FrameVariantResolver.hand_mount_local_for(mecha)
 				mount.rotation_degrees = Vector3(0.0, 0.0, 0.0) # Upright combat guard pose
 			WeaponPart.HoldStance.PILE_BUNKER_GRIP:
-				mount.position = HAND_FOREARM_POS
+				mount.position = FrameVariantResolver.hand_mount_local_for(mecha)
 				mount.rotation_degrees = Vector3(-80.0, 0.0, 0.0) # Horizontal underarm thrust
 			WeaponPart.HoldStance.FOREARM_MOUNTED:
 				mount.position = Vector3(0.0, -0.45, -0.06) # Direct chassis hardpoint on forearm
@@ -94,7 +94,7 @@ static func mount_hand(mecha: Node3D, hand: String, weapon: WeaponPart, node_nam
 				mount.position = Vector3(-0.20 if hand == "left" else 0.20, -0.45, 0.0)
 				mount.rotation_degrees = Vector3(0.0, 0.0, 0.0)
 			_: # RANGED_RIFLE
-				mount.position = HAND_FOREARM_POS
+				mount.position = FrameVariantResolver.hand_mount_local_for(mecha)
 				mount.rotation_degrees = Vector3(-80.0, 0.0, 0.0)
 	else:
 		mount = mecha.get_node_or_null(node_name)
@@ -139,7 +139,7 @@ static func mount_shoulder(mecha: Node3D, side: String, weapon: WeaponPart, node
 			mount.name = node_name
 			arm.add_child(mount)
 
-		mount.position = SHOULDER_ARM_POS
+		mount.position = FrameVariantResolver.shoulder_mount_local_for(mecha)
 		# Shoulder weapons point forward along -Z
 		mount.rotation_degrees = Vector3(0.0, 0.0, 0.0)
 	else:

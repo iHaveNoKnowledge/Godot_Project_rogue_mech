@@ -30,7 +30,14 @@ const MIN_RATE := 0.2
 const MAX_RATE := 1.0
 
 static func rate_for_speed(h_speed: float) -> float:
-	return clampf(h_speed / NATURAL_SPEED, MIN_RATE, MAX_RATE)
+	return rate_for_variant(h_speed, NATURAL_SPEED)
+
+
+## Variant-aware cadence rate (FrameVariantData locomotion natural_speed via
+## FrameVariantResolver.natural_speed_for). Standard passes 8.5: identical.
+static func rate_for_variant(h_speed: float, natural_speed: float) -> float:
+	var n := maxf(natural_speed, 0.01)
+	return clampf(h_speed / n, MIN_RATE, MAX_RATE)
 
 # Extra bones present in the clean clip (beyond the 16-bone game convention).
 const TOE_L := "Bone_Toe_L"

@@ -121,7 +121,16 @@ func _ready() -> void:
 		leg_moved = maxf(leg_moved, absf((retarget_joints["leg_left"] as Node3D).rotation.x))
 		leg_moved = maxf(leg_moved, absf((retarget_joints["leg_right"] as Node3D).rotation.x))
 		leg_moved = maxf(leg_moved, absf((retarget_joints["shin_left"] as Node3D).rotation.x))
-	_check(leg_moved < deg_to_rad(1.0), "melee never drives leg pivots (max %.1f deg)" % rad_to_deg(leg_moved))
+	_check(leg_moved < deg_to_rad(1.0), "moving melee preserves locomotion legs (max %.1f deg)" % rad_to_deg(leg_moved))
+	# Stationary melee (apply_legs = true): legs execute authored combat footwork & knee flexion.
+	var leg_drive_joints := _make_joints()
+	animator.play_af_melee("right", 1)
+	var leg_active_moved := 0.0
+	for i in range(60):
+		animator.update(1.0 / 60.0)
+		animator.apply_to_joints(leg_drive_joints, 1.0, true)
+		leg_active_moved = maxf(leg_active_moved, absf((leg_drive_joints["leg_left"] as Node3D).rotation.x))
+	_check(leg_active_moved > deg_to_rad(15.0), "stationary melee drives dynamic leg stance (left leg moved %.1f deg)" % rad_to_deg(leg_active_moved))
 	# No rest snap: two frames into the swing the arm must still sit near
 	# the base pose (relative delta ≈ 0). Absolute euler copies would have
 	# it at ~1/3 of the mannequin rest offset (upperarm_r rests at -62° X)

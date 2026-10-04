@@ -172,6 +172,12 @@ static func _build_af_retarget_data(anim: Animation, sk: Skeleton3D) -> Dictiona
 	var b_uarm_l := sk.find_bone("upperarm_l")
 	var b_larm_l := sk.find_bone("lowerarm_l")
 	var b_hand_l := sk.find_bone("hand_l")
+	var b_thigh_r := sk.find_bone("thigh_r")
+	var b_calf_r := sk.find_bone("calf_r")
+	var b_foot_r := sk.find_bone("foot_r")
+	var b_thigh_l := sk.find_bone("thigh_l")
+	var b_calf_l := sk.find_bone("calf_l")
+	var b_foot_l := sk.find_bone("foot_l")
 	
 	var trks := {
 		"pelvis": _find_bone_rot_track(anim, "pelvis"),
@@ -184,7 +190,11 @@ static func _build_af_retarget_data(anim: Animation, sk: Skeleton3D) -> Dictiona
 		"clav_l": _find_bone_rot_track(anim, "clavicle_l"),
 		"uarm_l": _find_bone_rot_track(anim, "upperarm_l"),
 		"larm_l": _find_bone_rot_track(anim, "lowerarm_l"),
-		"hand_l": _find_bone_rot_track(anim, "hand_l")
+		"hand_l": _find_bone_rot_track(anim, "hand_l"),
+		"thigh_r": _find_bone_rot_track(anim, "thigh_r"),
+		"calf_r": _find_bone_rot_track(anim, "calf_r"),
+		"thigh_l": _find_bone_rot_track(anim, "thigh_l"),
+		"calf_l": _find_bone_rot_track(anim, "calf_l")
 	}
 	var rests := {
 		"pelvis": sk.get_bone_rest(b_pelvis) if b_pelvis >= 0 else Transform3D.IDENTITY,
@@ -198,7 +208,13 @@ static func _build_af_retarget_data(anim: Animation, sk: Skeleton3D) -> Dictiona
 		"clav_l": sk.get_bone_rest(b_clav_l) if b_clav_l >= 0 else Transform3D.IDENTITY,
 		"uarm_l": sk.get_bone_rest(b_uarm_l) if b_uarm_l >= 0 else Transform3D.IDENTITY,
 		"larm_l": sk.get_bone_rest(b_larm_l) if b_larm_l >= 0 else Transform3D.IDENTITY,
-		"hand_l": sk.get_bone_rest(b_hand_l) if b_hand_l >= 0 else Transform3D.IDENTITY
+		"hand_l": sk.get_bone_rest(b_hand_l) if b_hand_l >= 0 else Transform3D.IDENTITY,
+		"thigh_r": sk.get_bone_rest(b_thigh_r) if b_thigh_r >= 0 else Transform3D.IDENTITY,
+		"calf_r": sk.get_bone_rest(b_calf_r) if b_calf_r >= 0 else Transform3D.IDENTITY,
+		"foot_r": sk.get_bone_rest(b_foot_r) if b_foot_r >= 0 else Transform3D.IDENTITY,
+		"thigh_l": sk.get_bone_rest(b_thigh_l) if b_thigh_l >= 0 else Transform3D.IDENTITY,
+		"calf_l": sk.get_bone_rest(b_calf_l) if b_calf_l >= 0 else Transform3D.IDENTITY,
+		"foot_l": sk.get_bone_rest(b_foot_l) if b_foot_l >= 0 else Transform3D.IDENTITY
 	}
 	var data := { "trks": trks, "rests": rests, "anim": anim }
 	data["base_0"] = _calc_af_fk_vectors(anim, data, 0.0)
@@ -249,12 +265,31 @@ static func _calc_af_fk_vectors(anim: Animation, data: Dictionary, t: float) -> 
 	var x_larm_l: Transform3D = x_uarm_l * Transform3D(Basis(q_larm_l), (rests["larm_l"] as Transform3D).origin)
 	var x_hand_l: Transform3D = x_larm_l * Transform3D(Basis(q_hand_l), (rests["hand_l"] as Transform3D).origin)
 	
+	# Right leg FK
+	var q_thigh_r: Quaternion = anim.rotation_track_interpolate(int(trks["thigh_r"]), t) if int(trks["thigh_r"]) >= 0 else Quaternion.IDENTITY
+	var q_calf_r: Quaternion = anim.rotation_track_interpolate(int(trks["calf_r"]), t) if int(trks["calf_r"]) >= 0 else Quaternion.IDENTITY
+	var x_thigh_r: Transform3D = x_pelvis * Transform3D(Basis(q_thigh_r), (rests["thigh_r"] as Transform3D).origin)
+	var x_calf_r: Transform3D = x_thigh_r * Transform3D(Basis(q_calf_r), (rests["calf_r"] as Transform3D).origin)
+	var x_foot_r: Transform3D = x_calf_r * (rests["foot_r"] as Transform3D)
+
+	# Left leg FK
+	var q_thigh_l: Quaternion = anim.rotation_track_interpolate(int(trks["thigh_l"]), t) if int(trks["thigh_l"]) >= 0 else Quaternion.IDENTITY
+	var q_calf_l: Quaternion = anim.rotation_track_interpolate(int(trks["calf_l"]), t) if int(trks["calf_l"]) >= 0 else Quaternion.IDENTITY
+	var x_thigh_l: Transform3D = x_pelvis * Transform3D(Basis(q_thigh_l), (rests["thigh_l"] as Transform3D).origin)
+	var x_calf_l: Transform3D = x_thigh_l * Transform3D(Basis(q_calf_l), (rests["calf_l"] as Transform3D).origin)
+	var x_foot_l: Transform3D = x_calf_l * (rests["foot_l"] as Transform3D)
+
 	var v_arm_r: Vector3 = (x_larm_r.origin - x_uarm_r.origin).normalized()
 	var v_fore_r: Vector3 = (x_hand_r.origin - x_larm_r.origin).normalized()
 	var v_arm_l: Vector3 = (x_larm_l.origin - x_uarm_l.origin).normalized()
 	var v_fore_l: Vector3 = (x_hand_l.origin - x_larm_l.origin).normalized()
 	var v_torso: Vector3 = (x_spine3.origin - x_pelvis.origin).normalized()
-	
+
+	var v_thigh_r: Vector3 = (x_calf_r.origin - x_thigh_r.origin).normalized()
+	var v_calf_r: Vector3 = (x_foot_r.origin - x_calf_r.origin).normalized()
+	var v_thigh_l: Vector3 = (x_calf_l.origin - x_thigh_l.origin).normalized()
+	var v_calf_l: Vector3 = (x_foot_l.origin - x_calf_l.origin).normalized()
+
 	return {
 		"arm_pitch_r": atan2(-v_arm_r.z, -v_arm_r.y),
 		"arm_yaw_r": atan2(v_arm_r.x, sqrt(v_arm_r.y * v_arm_r.y + v_arm_r.z * v_arm_r.z)),
@@ -263,11 +298,17 @@ static func _calc_af_fk_vectors(anim: Animation, data: Dictionary, t: float) -> 
 		"arm_yaw_l": atan2(v_arm_l.x, sqrt(v_arm_l.y * v_arm_l.y + v_arm_l.z * v_arm_l.z)),
 		"elbow_flex_l": acos(clampf(v_arm_l.dot(v_fore_l), -1.0, 1.0)),
 		"torso_yaw": x_spine3.basis.get_euler().y,
-		"torso_pitch": atan2(-v_torso.z, v_torso.y)
+		"torso_pitch": atan2(-v_torso.z, v_torso.y),
+		"thigh_pitch_r": atan2(-v_thigh_r.z, -v_thigh_r.y),
+		"thigh_yaw_r": atan2(v_thigh_r.x, sqrt(v_thigh_r.y * v_thigh_r.y + v_thigh_r.z * v_thigh_r.z)),
+		"knee_flex_r": acos(clampf(v_thigh_r.dot(v_calf_r), -1.0, 1.0)),
+		"thigh_pitch_l": atan2(-v_thigh_l.z, -v_thigh_l.y),
+		"thigh_yaw_l": atan2(v_thigh_l.x, sqrt(v_thigh_l.y * v_thigh_l.y + v_thigh_l.z * v_thigh_l.z)),
+		"knee_flex_l": acos(clampf(v_thigh_l.dot(v_calf_l), -1.0, 1.0))
 	}
 
 
-func _sample_vector_retarget(clip_name: String, t: float, combo_step: int, is_left: bool) -> Dictionary:
+func _sample_vector_retarget(clip_name: String, t: float, combo_step: int, is_left: bool, include_legs: bool = false) -> Dictionary:
 	if not _af_retarget_data.has(clip_name):
 		return {}
 	var data: Dictionary = _af_retarget_data[clip_name]
@@ -301,7 +342,7 @@ func _sample_vector_retarget(clip_name: String, t: float, combo_step: int, is_le
 	var body := Vector3(d_torso_pitch * 0.4, d_torso_yaw, 0.0)
 	var head := Vector3(0.0, d_torso_yaw * 0.5, 0.0)
 	
-	return {
+	var pose := {
 		"body": body,
 		"head": head,
 		"arm_right": arm_r,
@@ -309,6 +350,28 @@ func _sample_vector_retarget(clip_name: String, t: float, combo_step: int, is_le
 		"arm_left": arm_l,
 		"forearm_left": fore_l
 	}
+
+	if include_legs and cur.has("thigh_pitch_r") and base.has("thigh_pitch_r"):
+		var d_thigh_pitch_r: float = wrapf(float(cur["thigh_pitch_r"]) - float(base["thigh_pitch_r"]), -PI, PI)
+		var d_thigh_yaw_r: float = wrapf(float(cur["thigh_yaw_r"]) - float(base["thigh_yaw_r"]), -PI, PI)
+		var d_knee_r: float = float(cur["knee_flex_r"]) - float(base["knee_flex_r"])
+		
+		var d_thigh_pitch_l: float = wrapf(float(cur["thigh_pitch_l"]) - float(base["thigh_pitch_l"]), -PI, PI)
+		var d_thigh_yaw_l: float = wrapf(float(cur["thigh_yaw_l"]) - float(base["thigh_yaw_l"]), -PI, PI)
+		var d_knee_l: float = float(cur["knee_flex_l"]) - float(base["knee_flex_l"])
+
+		# Pitch scaled for mecha mass (~0.55), yaw for foot alignment, roll keeps base abduction (knees outward)
+		var leg_r := Vector3(d_thigh_pitch_r * 0.55, d_thigh_yaw_r * 0.5, deg_to_rad(7.0))
+		var shin_r := Vector3(-clampf(absf(d_knee_r) * 0.6 + deg_to_rad(10.0), 0.0, deg_to_rad(65.0)), 0.0, 0.0)
+		var leg_l := Vector3(d_thigh_pitch_l * 0.55, d_thigh_yaw_l * 0.5, -deg_to_rad(7.0))
+		var shin_l := Vector3(-clampf(absf(d_knee_l) * 0.6 + deg_to_rad(10.0), 0.0, deg_to_rad(65.0)), 0.0, 0.0)
+
+		pose["leg_right"] = leg_r
+		pose["shin_right"] = shin_r
+		pose["leg_left"] = leg_l
+		pose["shin_left"] = shin_l
+
+	return pose
 
 
 static func _load_af_clip(path: String, src_anim_name: String, cache_name: String) -> void:
@@ -905,7 +968,7 @@ func apply_to_joints(joints: Dictionary, master_weight: float = 1.0, apply_legs:
 	var effective_main := blend_weight * master_weight
 	if effective_main > 0.001:
 		if melee_mode and current_anim_name.begins_with("AF_") and _af_retarget_data.has(current_anim_name):
-			var sword_pose := _sample_vector_retarget(current_anim_name, anim_time, combo_index, melee_hand == "left")
+			var sword_pose := _sample_vector_retarget(current_anim_name, anim_time, combo_index, melee_hand == "left", apply_legs)
 			for joint_key in sword_pose:
 				var node: Node3D = joints.get(joint_key + "_mesh", null)
 				if node == null:
@@ -923,7 +986,7 @@ func apply_to_joints(joints: Dictionary, master_weight: float = 1.0, apply_legs:
 			if anim != null and not tmap.is_empty():
 				var sample_t := clampf(anim_time, 0.0, anim_length)
 				for joint_key in tmap:
-					if melee_mode and not (str(joint_key) in MELEE_UPPER_KEYS):
+					if melee_mode and not (str(joint_key) in MELEE_UPPER_KEYS) and not apply_legs:
 						continue
 					var track_idx: int = tmap[joint_key]
 					var node: Node3D = joints.get(joint_key + "_mesh", null)

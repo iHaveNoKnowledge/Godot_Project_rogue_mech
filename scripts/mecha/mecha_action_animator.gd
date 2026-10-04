@@ -619,7 +619,7 @@ func apply_to_joints(joints: Dictionary, master_weight: float = 1.0, apply_legs:
 
 				var q: Quaternion = anim.rotation_track_interpolate(track_idx, sample_t)
 				var target_euler: Vector3 = q.get_euler()
-				if melee_mode and _rest_quat.has(joint_key):
+				if melee_mode and current_anim_name.begins_with("AF_") and _rest_quat.has(joint_key):
 					# Rest-relative delta: the authored motion minus the source
 					# rest pose, so a foreign-rested take drives our pivots
 					# through the same relative trajectory instead of snapping

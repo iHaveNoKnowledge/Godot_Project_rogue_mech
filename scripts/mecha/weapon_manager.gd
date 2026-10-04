@@ -1669,11 +1669,12 @@ func _melee_attack(hand: String, weapon: WeaponPart, is_loaded_blast: bool = tru
 		anim = mecha.get_node_or_null("AnimationSystem")
 	var swung := false
 	if anim and anim.get("action_animator") != null:
-		if not is_pile and anim.action_animator.has_method("play_af_melee"):
-			swung = anim.action_animator.play_af_melee(hand)
-		if not swung:
-			anim.action_animator.play_melee(hand)
-			swung = true
+		anim.action_animator.play_melee(hand)
+		swung = true
+
+
+
+
 	var strike_t := -1.0
 	if swung:
 		var animator = anim.action_animator
@@ -1889,7 +1890,16 @@ func _perform_pile_bunker_lunge_anim(mecha: Node3D, dir: Vector3, weapon: Weapon
 	if _lunge_tween != null and _lunge_tween.is_valid():
 		_lunge_tween.kill()
 	var orig_pos = mecha.global_position
-	var lunge_dist = _melee_lunge_dist(weapon)
+	var is_pile := weapon != null and weapon.weapon_name.to_lower().contains("pile")
+	var lunge_dist := 1.4
+	if is_pile:
+		lunge_dist = _melee_lunge_dist(weapon)
+	else:
+		var anim = mecha.get_node_or_null("MechaAnimation")
+		var combo: int = 1
+		if anim != null and anim.get("action_animator") != null:
+			combo = int(anim.action_animator.get("combo_index"))
+		lunge_dist = 1.2 if combo == 1 else (1.5 if combo == 2 else 2.0)
 
 	# Thrust completes ON the swing's first strike when known. The legacy
 	# fixed 0.07s thrust finished — and recovered — before contact, so the
@@ -1897,15 +1907,15 @@ func _perform_pile_bunker_lunge_anim(mecha: Node3D, dir: Vector3, weapon: Weapon
 	# anticipation beat and the recovery beat are unchanged; only the thrust
 	# phase stretches to the strike moment (clamped to sane bounds, legacy
 	# timing when the strike moment is unknown).
-	var thrust_dur := 0.07
+	var thrust_dur := 0.22
 	if strike_t > 0.06:
-		thrust_dur = clampf(strike_t - 0.05, 0.05, 0.30)
+		thrust_dur = clampf(strike_t, 0.16, 0.35)
 	_lunge_tween = mecha.create_tween().set_parallel(false)
 	var tween: Tween = _lunge_tween
 	# 1. Anticipation: Pull back slightly & crouch
-	tween.tween_property(mecha, "global_position", orig_pos - dir * 0.4, 0.05).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
 	# 2. Explosive Forward Thrust (lands on strike contact)
-	tween.tween_property(mecha, "global_position", orig_pos + dir * lunge_dist, thrust_dur).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
+	tween.tween_property(mecha, "global_position", orig_pos + dir * lunge_dist, thrust_dur).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	
 	# Screen shake on impact, scaled to the weapon's punch so EVERY melee hit
 	# lands with feedback — not just the pile bunker's charge. Damage-scaled so

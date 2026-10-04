@@ -626,23 +626,23 @@ func apply_to_joints(joints: Dictionary, master_weight: float = 1.0, apply_legs:
 					# limbs into the source's rest pose.
 					var q_rest: Quaternion = _rest_quat[joint_key]
 					var delta_q: Quaternion = q * q_rest.inverse()
-					target_euler = delta_q.get_euler()
 
 
 
 
-				if melee_mode and (joint_key == "forearm_left" or joint_key == "forearm_right"):
+
+					if joint_key == "forearm_left" or joint_key == "forearm_right":
 					# Wrist snap folds into the forearm: the rig has no hand
 					# pivots, and the snap carries the visible slash snap.
 					# Composed as quaternions (euler-vector addition explodes
 					# near gimbal regions, e.g. the hand's ~100 deg Y component).
-					var hand_key := "hand_left" if joint_key == "forearm_left" else "hand_right"
-					if tmap.has(hand_key) and _rest_quat.has(hand_key):
-						var hq: Quaternion = anim.rotation_track_interpolate(int(tmap[hand_key]), sample_t)
-						var h_rest: Quaternion = _rest_quat[hand_key]
-						var hand_delta_q: Quaternion = hq * h_rest.inverse()
-						delta_q = delta_q * hand_delta_q
-						target_euler = delta_q.get_euler()
+						var hand_key := "hand_left" if joint_key == "forearm_left" else "hand_right"
+						if tmap.has(hand_key) and _rest_quat.has(hand_key):
+							var hq: Quaternion = anim.rotation_track_interpolate(int(tmap[hand_key]), sample_t)
+							var h_rest: Quaternion = _rest_quat[hand_key]
+							var hand_delta_q: Quaternion = hq * h_rest.inverse()
+							delta_q = delta_q * hand_delta_q
+					target_euler = delta_q.get_euler()
 
 
 

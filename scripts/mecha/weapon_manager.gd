@@ -1919,7 +1919,7 @@ func _perform_pile_bunker_lunge_anim(mecha: Node3D, dir: Vector3, weapon: Weapon
 		camera_rig[0].add_shake(shake_strength)
 		
 	# 3. Recovery
-	tween.tween_property(mecha, "global_position", orig_pos, 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+
 
 
 var _melee_combo: int = 0
@@ -2024,7 +2024,7 @@ func _check_melee_hit(mecha: Node3D, direction: Vector3, damage: float, weapon: 
 
 	var enemies = get_tree().get_nodes_in_group("enemy")
 	var lunge_dist = _melee_lunge_dist(weapon)
-	var swing_range = lunge_dist + FrameVariantResolver.melee_hit_reach_for(mecha)
+	var swing_range = maxf(lunge_dist + FrameVariantResolver.melee_hit_reach_for(mecha), 3.8)
 	var aim2 := Vector2(direction.x, direction.z).normalized()
 	var is_pile := weapon != null and weapon.weapon_name.to_lower().contains("pile")
 
@@ -2033,11 +2033,22 @@ func _check_melee_hit(mecha: Node3D, direction: Vector3, damage: float, weapon: 
 			continue
 		var to_h := Vector2(enemy.global_position.x - mecha.global_position.x,
 			enemy.global_position.z - mecha.global_position.z)
-		var proj := to_h.dot(aim2)
-		if proj < 0.1 or proj > swing_range + 0.05:
+		var dist_h := to_h.length()
+		var dy := absf(enemy.global_position.y - mecha.global_position.y)
+		if dy > 4.0 or dist_h > swing_range:
 			continue
-		var perp := absf(to_h.cross(aim2))
-		if perp > MELEE_AUTO_AIM_WIDTH:
+		var to_dir := to_h.normalized() if dist_h > 0.01 else aim2
+		var dot := to_dir.dot(aim2)
+		var hit_connected := false
+		if dist_h <= 1.8 and dot >= -0.2:
+			hit_connected = true
+		elif dot >= 0.35:
+			hit_connected = true
+		else:
+			var perp := absf(to_h.cross(aim2))
+			if perp <= 2.2 and dot > 0.0:
+				hit_connected = true
+		if not hit_connected:
 			continue
 
 		var melee_type := weapon.get_damage_type() if weapon != null else "blunt"

@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://melee_cleave_hitbox_verify"]
+
+[ext_resource type="Script" path="res://test/unit/melee_cleave_hitbox_verify.gd" id="1_test"]
+
+[node name="MeleeCleaveHitboxVerify" type="Node"]
+script = ExtResource("1_test")

@@ -65,6 +65,7 @@ var _completed_pending: bool = false
 # architecture. Non-melee actions (die/gethit/shoot) keep legacy behavior.
 var melee_mode: bool = false
 var _rest_euler: Dictionary = {}
+var _rest_quat: Dictionary = {}
 const MELEE_UPPER_KEYS: Array = [
 	"arm_left", "arm_right", "forearm_left", "forearm_right", "body", "head",
 ]
@@ -299,12 +300,14 @@ func _begin_attack_lifecycle(anim_name: String) -> void:
 	# Rest pose per mapped joint (track value at clip start): melee deltas
 	# are measured against this so foreign-rested takes retarget cleanly.
 	_rest_euler.clear()
+	_rest_quat.clear()
 	var anim: Animation = _cached_anim_library.get(anim_name, null)
 	var tmap: Dictionary = _cached_track_maps.get(anim_name, {})
 	if anim != null:
 		for joint_key in tmap:
 			var q: Quaternion = anim.rotation_track_interpolate(int(tmap[joint_key]), 0.0)
 			_rest_euler[joint_key] = q.get_euler()
+			_rest_quat[joint_key] = q
 
 
 ## Strike moments (clip seconds) from the weapon arm's own motion: peak
@@ -593,7 +596,7 @@ func _update_shoot_channel(channel: ShootChannel, delta: float) -> void:
 
 
 ## Blends keyframe rotations onto the mech's joints dictionary
-func apply_to_joints(joints: Dictionary, master_weight: float = 1.0) -> void:
+func apply_to_joints(joints: Dictionary, master_weight: float = 1.0, apply_legs: bool = false) -> void:
 	# 1. Main action animation (Melee, Die, GetHit, Shoulder)
 	var effective_main := blend_weight * master_weight
 	if effective_main > 0.001:
@@ -605,7 +608,7 @@ func apply_to_joints(joints: Dictionary, master_weight: float = 1.0) -> void:
 				# Melee owns the upper body only; legs/shins stay on base
 				# locomotion (weapon-layer architecture). Everything else
 				# (die/gethit/shoot) keeps legacy full-body behavior.
-				if melee_mode and not (str(joint_key) in MELEE_UPPER_KEYS):
+				if melee_mode and not apply_legs and not (str(joint_key) in MELEE_UPPER_KEYS):
 					continue
 				var track_idx: int = tmap[joint_key]
 				var node: Node3D = joints.get(joint_key + "_mesh", null)
@@ -616,34 +619,39 @@ func apply_to_joints(joints: Dictionary, master_weight: float = 1.0) -> void:
 
 				var q: Quaternion = anim.rotation_track_interpolate(track_idx, sample_t)
 				var target_euler: Vector3 = q.get_euler()
-				if melee_mode and _rest_euler.has(joint_key):
+				if melee_mode and _rest_quat.has(joint_key):
 					# Rest-relative delta: the authored motion minus the source
 					# rest pose, so a foreign-rested take drives our pivots
 					# through the same relative trajectory instead of snapping
 					# limbs into the source's rest pose.
-					var r: Vector3 = _rest_euler[joint_key]
-					target_euler = Vector3(
-						wrapf(target_euler.x - r.x, -PI, PI),
-						wrapf(target_euler.y - r.y, -PI, PI),
-						wrapf(target_euler.z - r.z, -PI, PI))
+					var q_rest: Quaternion = _rest_quat[joint_key]
+					var delta_q: Quaternion = q * q_rest.inverse()
+					target_euler = delta_q.get_euler()
+
+
+
+
 				if melee_mode and (joint_key == "forearm_left" or joint_key == "forearm_right"):
 					# Wrist snap folds into the forearm: the rig has no hand
 					# pivots, and the snap carries the visible slash snap.
 					# Composed as quaternions (euler-vector addition explodes
 					# near gimbal regions, e.g. the hand's ~100 deg Y component).
 					var hand_key := "hand_left" if joint_key == "forearm_left" else "hand_right"
-					if tmap.has(hand_key) and _rest_euler.has(hand_key):
+					if tmap.has(hand_key) and _rest_quat.has(hand_key):
 						var hq: Quaternion = anim.rotation_track_interpolate(int(tmap[hand_key]), sample_t)
-						var he: Vector3 = hq.get_euler()
-						var hr: Vector3 = _rest_euler[hand_key]
-						var hand_delta := Vector3(
-							wrapf(he.x - hr.x, -PI, PI),
-							wrapf(he.y - hr.y, -PI, PI),
-							wrapf(he.z - hr.z, -PI, PI))
-						target_euler = (Quaternion.from_euler(target_euler) * Quaternion.from_euler(hand_delta)).get_euler()
+						var h_rest: Quaternion = _rest_quat[hand_key]
+						var hand_delta_q: Quaternion = hq * h_rest.inverse()
+						delta_q = delta_q * hand_delta_q
+						target_euler = delta_q.get_euler()
+
+
+
+
+
+
 				var blend := effective_main
 				node.rotation.x = lerp_angle(node.rotation.x, target_euler.x, blend)
-				if joint_key in ["arm_left", "arm_right", "forearm_left", "forearm_right", "body"]:
+				if joint_key in ["arm_left", "arm_right", "forearm_left", "forearm_right", "body", "leg_left", "leg_right", "shin_left", "shin_right"]:
 					node.rotation.y = lerp_angle(node.rotation.y, target_euler.y, blend)
 					node.rotation.z = lerp_angle(node.rotation.z, target_euler.z, blend)
 

@@ -2297,6 +2297,47 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 				hand_block.material_override = chrome_mat
 				lower_container.add_child(hand_block)
 
+				# --- Modular manipulator hand (VISUAL ONLY, no new joints) ---
+				# Audit finding: the forearm ended in a wrist stub with the weapon
+				# mount floating 0.16 below it and no palm/fingers. Palm, fingers
+				# and thumb ride the Forearm container rigidly (they follow forearm
+				# rotation exactly, like every other frame mesh): no new pivots,
+				# no animation changes, no mount/combat changes. The hand mount
+				# (HAND_FOREARM_POS y=-0.72) lands mid-palm by construction, and
+				# variant rest transforms carry the whole assembly automatically.
+				var hand_side := -1.0 if slot_name.to_lower() == "arm_left" else 1.0
+				var hand_trim := _get_shared_dark_trim_mat()
+
+				var palm = MeshInstance3D.new()
+				palm.name = "HandPalm"
+				var palm_box = BoxMesh.new()
+				palm_box.size = Vector3(0.19, 0.22, 0.13)
+				palm.mesh = palm_box
+				palm.position = Vector3(0, -0.66, -0.01)
+				palm.material_override = frame_mat
+				lower_container.add_child(palm)
+
+				for fi in range(4):
+					var finger = MeshInstance3D.new()
+					finger.name = "HandFinger%d" % (fi + 1)
+					var finger_box = BoxMesh.new()
+					finger_box.size = Vector3(0.036, 0.16, 0.055)
+					finger.mesh = finger_box
+					finger.position = Vector3(-0.066 + float(fi) * 0.044, -0.83, -0.03)
+					finger.rotation_degrees = Vector3(-12.0, 0.0, 0.0)
+					finger.material_override = hand_trim
+					lower_container.add_child(finger)
+
+				var thumb = MeshInstance3D.new()
+				thumb.name = "HandThumb"
+				var t_box = BoxMesh.new()
+				t_box.size = Vector3(0.045, 0.13, 0.06)
+				thumb.mesh = t_box
+				thumb.position = Vector3(hand_side * 0.11, -0.68, -0.03)
+				thumb.rotation_degrees = Vector3(-10.0, 0.0, -hand_side * 20.0)
+				thumb.material_override = hand_trim
+				lower_container.add_child(thumb)
+
 				# Forearm cable conduit + wrist collar ring.
 				var ch_econduit = MeshInstance3D.new()
 				ch_econduit.name = "CH_ElbowConduit"

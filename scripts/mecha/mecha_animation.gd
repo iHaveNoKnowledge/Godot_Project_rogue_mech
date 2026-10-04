@@ -344,9 +344,9 @@ func _run_procedural(delta: float) -> void:
 		action_animator.update(delta)
 		var joints := _build_joints_dict()
 		var is_stationary: bool = not _walk.is_moving
-		action_animator.apply_to_joints(joints, 1.0, is_stationary)
+		action_animator.apply_to_joints(joints)
 
-	if foot_ik and not (action_animator != null and action_animator.is_melee_active()):
+	if foot_ik:
 		foot_ik.update_ik(delta)
 
 

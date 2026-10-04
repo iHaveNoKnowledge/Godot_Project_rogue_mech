@@ -436,11 +436,19 @@ func play_af_melee(hand: String = "right", forced_combo_step: int = 0) -> bool:
 	if not _cached_anim_library.has(clip_name):
 		return false
 	# Single slash is snappy, the full combo plays at authored speed.
-	var play_speed := 1.15 if combo_index == 1 else 1.0
+	var play_speed := 1.7 if combo_index < 3 else 1.4
 	var started := play_action(clip_name, play_speed, 0.06, 0.14)
 	if started:
 		attack_id += 1
 		melee_mode = true
+		if combo_index == 2:
+			anim_time = 0.95
+			while _strike_idx < strike_times.size() and float(strike_times[_strike_idx]) < anim_time:
+				_strike_idx += 1
+		elif combo_index == 3:
+			anim_time = 1.90
+			while _strike_idx < strike_times.size() and float(strike_times[_strike_idx]) < anim_time:
+				_strike_idx += 1
 	return started
 
 
@@ -608,7 +616,7 @@ func apply_to_joints(joints: Dictionary, master_weight: float = 1.0, apply_legs:
 				# Melee owns the upper body only; legs/shins stay on base
 				# locomotion (weapon-layer architecture). Everything else
 				# (die/gethit/shoot) keeps legacy full-body behavior.
-				if melee_mode and not apply_legs and not (str(joint_key) in MELEE_UPPER_KEYS):
+				if melee_mode and not (str(joint_key) in MELEE_UPPER_KEYS):
 					continue
 				var track_idx: int = tmap[joint_key]
 				var node: Node3D = joints.get(joint_key + "_mesh", null)
@@ -651,7 +659,7 @@ func apply_to_joints(joints: Dictionary, master_weight: float = 1.0, apply_legs:
 
 				var blend := effective_main
 				node.rotation.x = lerp_angle(node.rotation.x, target_euler.x, blend)
-				if joint_key in ["arm_left", "arm_right", "forearm_left", "forearm_right", "body", "leg_left", "leg_right", "shin_left", "shin_right"]:
+				if joint_key in ["arm_left", "arm_right", "forearm_left", "forearm_right", "body"]:
 					node.rotation.y = lerp_angle(node.rotation.y, target_euler.y, blend)
 					node.rotation.z = lerp_angle(node.rotation.z, target_euler.z, blend)
 

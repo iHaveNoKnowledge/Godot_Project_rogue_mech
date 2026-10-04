@@ -201,23 +201,25 @@ func _test_live_wiring() -> void:
 		await get_tree().physics_frame
 	_check(enemy.hits.size() == 2, "two swings = two hits, no duplication (got %d)" % enemy.hits.size())
 
-	# Locomotion resumes: drive forward again (120 frames like the ingame
-	# cadence checks, so the mech re-accelerates from the post-attack stop)
-	# and the legs keep striding with the animator idle. The camera is freed
-	# first: with a camera present the player-driven controller decays any
-	# test-set velocity toward zero input (same reason clip_ingame runs
-	# camera-less), which would park the mech at idle stance.
+	# Locomotion resumes: command forward through the controller's real AI
+	# command channel and verify the legs stride with the animator idle.
+	# Direct velocity writes cannot prove this: MechaController overwrites
+	# velocity.x/z from desired_velocity every physics frame, so sampling
+	# them only ever measures the controller braking to a stop — not the
+	# attack -> locomotion handoff. The camera is freed first: with a camera
+	# present the player-driven controller decays velocity toward zero input
+	# (same reason clip_ingame runs camera-less).
 	cam.queue_free()
 	await get_tree().physics_frame
-	mecha.velocity = Vector3(0, 0, -6.0)
+	mecha.set("cmd_world_direction", Vector3(0, 0, -1))
 	var samples: Array = []
 	var leg: Node3D = mecha.get_node_or_null("LegLeft")
 	var anim2 = mecha.get_node_or_null("MechaAnimation")
 	for i in range(120):
-		mecha.velocity = Vector3(0, mecha.velocity.y, -6.0)
 		await get_tree().physics_frame
 		if leg != null:
 			samples.append(leg.rotation.x)
+	mecha.set("cmd_world_direction", Vector3.ZERO)
 	if samples.size() > 2:
 		_check(_range_of(samples) > deg_to_rad(2.0), "run resumes after attack (leg range=%.1f deg)" % rad_to_deg(_range_of(samples)))
 

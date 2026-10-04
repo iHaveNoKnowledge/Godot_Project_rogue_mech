@@ -1909,7 +1909,7 @@ func _perform_pile_bunker_lunge_anim(mecha: Node3D, dir: Vector3, weapon: Weapon
 	# 1. Anticipation: Pull back slightly & crouch
 
 	# 2. Explosive Forward Thrust (lands on strike contact)
-	tween.tween_property(mecha, "global_position", orig_pos + dir * lunge_dist, thrust_dur).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(mecha, "global_position", orig_pos + dir * lunge_dist, thrust_dur).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	
 	# Screen shake on impact, scaled to the weapon's punch so EVERY melee hit
 	# lands with feedback — not just the pile bunker's charge. Damage-scaled so

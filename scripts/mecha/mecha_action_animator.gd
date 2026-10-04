@@ -64,6 +64,7 @@ var _completed_pending: bool = false
 # the upper body: legs stay on base locomotion per the weapon-layer
 # architecture. Non-melee actions (die/gethit/shoot) keep legacy behavior.
 var melee_mode: bool = false
+var melee_hand: String = "right"
 var _rest_euler: Dictionary = {}
 var _rest_quat: Dictionary = {}
 const MELEE_UPPER_KEYS: Array = [
@@ -431,40 +432,38 @@ func play_af_melee(hand: String = "right", forced_combo_step: int = 0) -> bool:
 	else:
 		combo_index = 1
 	last_attack_time_ms = now
-	# AF clips are authored right-handed; the same take drives either hand.
+	melee_hand = hand
+
 	var clip_name := AF_SWORD_ATTACK if combo_index == 1 else AF_SWORD_COMBO
 	if not _cached_anim_library.has(clip_name):
 		return false
-	# Single slash is snappy, the full combo plays at authored speed.
+
 	var play_speed := 1.7 if combo_index < 3 else 1.4
-	var started := play_action(clip_name, play_speed, 0.06, 0.14)
+	var started := play_action(clip_name, play_speed, 0.05, 0.14)
 	if started:
 		attack_id += 1
 		melee_mode = true
-		if combo_index == 2:
-			anim_time = 0.95
-			while _strike_idx < strike_times.size() and float(strike_times[_strike_idx]) < anim_time:
-				_strike_idx += 1
+		if combo_index == 1:
+			strike_times = [0.55]
+		elif combo_index == 2:
+			anim_length = 1.10
+			strike_times = [0.50]
 		elif combo_index == 3:
-			anim_time = 1.90
-			while _strike_idx < strike_times.size() and float(strike_times[_strike_idx]) < anim_time:
-				_strike_idx += 1
+			anim_length = 1.30
+			strike_times = [0.60]
 	return started
 
 
-## Plays the ActionForge single slash with deliberate wind-up (ง้าง) for enemies:
-## the wind-up pose spans the telegraph window, then accelerates into the strike.
-## Returns false when the AF clip is missing so callers can fall back to Mech_00.
 func play_enemy_af_melee(hand: String = "right", telegraph_dur: float = 0.5) -> bool:
 	_ensure_library_cached()
 	var anim: Animation = _cached_anim_library.get(AF_SWORD_ATTACK, null)
 	if anim == null:
 		return false
+	melee_hand = hand
 	current_anim_name = AF_SWORD_ATTACK
 	anim_time = 0.0
 	anim_length = anim.length
 	is_custom_pacing = true
-	# sword_attack: first ~40% raises the blade (wind-up), rest is the slash.
 	windup_fraction = 0.40
 	var windup_clip_time := anim_length * windup_fraction
 	if telegraph_dur > 0.05:
@@ -478,10 +477,11 @@ func play_enemy_af_melee(hand: String = "right", telegraph_dur: float = 0.5) -> 
 	is_active = true
 	attack_id += 1
 	melee_mode = true
+	combo_index = 1
+	_begin_attack_lifecycle(AF_SWORD_ATTACK)
 	return true
 
 
-## Plays Melee Combo Attack 1 -> 2 -> 3 based on hand and timing
 func play_melee(hand: String, forced_combo_step: int = 0) -> void:
 	var now := Time.get_ticks_msec()
 	if forced_combo_step > 0:
@@ -603,65 +603,166 @@ func _update_shoot_channel(channel: ShootChannel, delta: float) -> void:
 		channel.blend_weight = 0.0
 
 
+
+## Evaluates dynamic sword combo kinematics in Godot mecha pivot space
+func _eval_sword_kinematics(combo_step: int, phase: float, is_left: bool) -> Dictionary:
+	var side_mult := -1.0 if is_left else 1.0
+	var arm_key := "arm_left" if is_left else "arm_right"
+	var off_arm_key := "arm_right" if is_left else "arm_left"
+	var fore_key := "forearm_left" if is_left else "forearm_right"
+	var off_fore_key := "forearm_right" if is_left else "forearm_left"
+	
+	var body_rot := Vector3.ZERO
+	var arm_rot := Vector3.ZERO
+	var fore_rot := Vector3.ZERO
+	var off_arm_rot := Vector3.ZERO
+	var off_fore_rot := Vector3.ZERO
+	var head_rot := Vector3.ZERO
+
+	if combo_step == 1:
+		# Step 1: Broad diagonal slash from right across to left
+		if phase < 0.28:
+			var w := phase / 0.28
+			var ew := ease(w, -2.0)
+			body_rot = Vector3(deg_to_rad(-4.0 * ew), deg_to_rad(-22.0 * side_mult * ew), deg_to_rad(3.0 * ew))
+			arm_rot = Vector3(deg_to_rad(-18.0 * ew), deg_to_rad(-35.0 * side_mult * ew), deg_to_rad(20.0 * side_mult * ew))
+			fore_rot = Vector3(deg_to_rad(lerpf(35.0, 75.0, ew)), 0.0, 0.0)
+			off_arm_rot = Vector3(deg_to_rad(22.0 * ew), deg_to_rad(-15.0 * side_mult * ew), 0.0)
+			off_fore_rot = Vector3(deg_to_rad(55.0 * ew), 0.0, 0.0)
+			head_rot = Vector3(deg_to_rad(3.0 * ew), deg_to_rad(12.0 * side_mult * ew), 0.0)
+		elif phase < 0.62:
+			var s := (phase - 0.28) / (0.62 - 0.28)
+			var es := ease(s, 0.5)
+			body_rot = Vector3(
+				deg_to_rad(lerpf(-4.0, 10.0, es)),
+				deg_to_rad(lerpf(-22.0, 32.0, es) * side_mult),
+				deg_to_rad(lerpf(3.0, -4.0, es))
+			)
+			arm_rot = Vector3(
+				deg_to_rad(lerpf(-18.0, 38.0, es)),
+				deg_to_rad(lerpf(-35.0, 58.0, es) * side_mult),
+				deg_to_rad(lerpf(20.0, -12.0, es) * side_mult)
+			)
+			fore_rot = Vector3(deg_to_rad(lerpf(75.0, 24.0, es)), 0.0, 0.0)
+			off_arm_rot = Vector3(deg_to_rad(lerpf(22.0, 14.0, es)), deg_to_rad(lerpf(-15.0, 20.0, es) * side_mult), 0.0)
+			off_fore_rot = Vector3(deg_to_rad(lerpf(55.0, 35.0, es)), 0.0, 0.0)
+			head_rot = Vector3(deg_to_rad(lerpf(3.0, -5.0, es)), deg_to_rad(lerpf(12.0, -15.0, es) * side_mult), 0.0)
+		else:
+			var r := (phase - 0.62) / (1.0 - 0.62)
+			var er := ease(r, 0.5)
+			body_rot = Vector3(deg_to_rad(lerpf(10.0, 0.0, er)), deg_to_rad(lerpf(32.0, 0.0, er) * side_mult), 0.0)
+			arm_rot = Vector3(deg_to_rad(lerpf(38.0, 0.0, er)), deg_to_rad(lerpf(58.0, 0.0, er) * side_mult), deg_to_rad(lerpf(-12.0, 0.0, er) * side_mult))
+			fore_rot = Vector3(deg_to_rad(lerpf(24.0, 0.0, er)), 0.0, 0.0)
+			off_arm_rot = Vector3(deg_to_rad(lerpf(14.0, 0.0, er)), 0.0, 0.0)
+			off_fore_rot = Vector3(deg_to_rad(lerpf(35.0, 0.0, er)), 0.0, 0.0)
+			head_rot = Vector3(deg_to_rad(lerpf(-5.0, 0.0, er)), 0.0, 0.0)
+	elif combo_step == 2:
+		# Step 2: Uppercut diagonal backhand slash from low left to high right
+		if phase < 0.22:
+			var w := phase / 0.22
+			body_rot = Vector3(deg_to_rad(6.0 * w), deg_to_rad(25.0 * side_mult * w), 0.0)
+			arm_rot = Vector3(deg_to_rad(5.0 * w), deg_to_rad(40.0 * side_mult * w), deg_to_rad(-10.0 * side_mult * w))
+			fore_rot = Vector3(deg_to_rad(lerpf(20.0, 50.0, w)), 0.0, 0.0)
+		elif phase < 0.58:
+			var s := (phase - 0.22) / (0.58 - 0.22)
+			var es := ease(s, 0.5)
+			body_rot = Vector3(
+				deg_to_rad(lerpf(6.0, -8.0, es)),
+				deg_to_rad(lerpf(25.0, -28.0, es) * side_mult),
+				deg_to_rad(lerpf(0.0, 6.0, es))
+			)
+			arm_rot = Vector3(
+				deg_to_rad(lerpf(5.0, 55.0, es)),
+				deg_to_rad(lerpf(40.0, -32.0, es) * side_mult),
+				deg_to_rad(lerpf(-10.0, 32.0, es) * side_mult)
+			)
+			fore_rot = Vector3(deg_to_rad(lerpf(50.0, 36.0, es)), 0.0, 0.0)
+		else:
+			var r := (phase - 0.58) / (1.0 - 0.58)
+			var er := ease(r, 0.5)
+			body_rot = Vector3(deg_to_rad(lerpf(-8.0, 0.0, er)), deg_to_rad(lerpf(-28.0, 0.0, er) * side_mult), 0.0)
+			arm_rot = Vector3(deg_to_rad(lerpf(55.0, 0.0, er)), deg_to_rad(lerpf(-32.0, 0.0, er) * side_mult), deg_to_rad(lerpf(32.0, 0.0, er) * side_mult))
+			fore_rot = Vector3(deg_to_rad(lerpf(36.0, 0.0, er)), 0.0, 0.0)
+	else:
+		# Step 3: Heavy Overhead Smash (Finisher)
+		if phase < 0.30:
+			var w := phase / 0.30
+			body_rot = Vector3(deg_to_rad(-14.0 * w), 0.0, 0.0)
+			arm_rot = Vector3(deg_to_rad(75.0 * w), deg_to_rad(-10.0 * side_mult * w), deg_to_rad(15.0 * side_mult * w))
+			fore_rot = Vector3(deg_to_rad(lerpf(30.0, 85.0, w)), 0.0, 0.0)
+			off_arm_rot = Vector3(deg_to_rad(45.0 * w), 0.0, 0.0)
+			off_fore_rot = Vector3(deg_to_rad(60.0 * w), 0.0, 0.0)
+		elif phase < 0.65:
+			var s := (phase - 0.30) / (0.65 - 0.30)
+			var es := ease(s, 0.4)
+			body_rot = Vector3(deg_to_rad(lerpf(-14.0, 24.0, es)), 0.0, 0.0)
+			arm_rot = Vector3(
+				deg_to_rad(lerpf(75.0, -16.0, es)),
+				deg_to_rad(lerpf(-10.0, 0.0, es) * side_mult),
+				deg_to_rad(lerpf(15.0, 5.0, es) * side_mult)
+			)
+			fore_rot = Vector3(deg_to_rad(lerpf(85.0, 68.0, es)), 0.0, 0.0)
+			off_arm_rot = Vector3(deg_to_rad(lerpf(45.0, -10.0, es)), 0.0, 0.0)
+			off_fore_rot = Vector3(deg_to_rad(lerpf(60.0, 50.0, es)), 0.0, 0.0)
+		else:
+			var r := (phase - 0.65) / (1.0 - 0.65)
+			var er := ease(r, 0.5)
+			body_rot = Vector3(deg_to_rad(lerpf(24.0, 0.0, er)), 0.0, 0.0)
+			arm_rot = Vector3(deg_to_rad(lerpf(-16.0, 0.0, er)), 0.0, 0.0)
+			fore_rot = Vector3(deg_to_rad(lerpf(68.0, 0.0, er)), 0.0, 0.0)
+			off_arm_rot = Vector3(deg_to_rad(lerpf(-10.0, 0.0, er)), 0.0, 0.0)
+			off_fore_rot = Vector3(deg_to_rad(lerpf(50.0, 0.0, er)), 0.0, 0.0)
+
+	return {
+		"body": body_rot,
+		arm_key: arm_rot,
+		fore_key: fore_rot,
+		off_arm_key: off_arm_rot,
+		off_fore_key: off_fore_rot,
+		"head": head_rot
+	}
+
+
 ## Blends keyframe rotations onto the mech's joints dictionary
 func apply_to_joints(joints: Dictionary, master_weight: float = 1.0, apply_legs: bool = false) -> void:
 	# 1. Main action animation (Melee, Die, GetHit, Shoulder)
 	var effective_main := blend_weight * master_weight
 	if effective_main > 0.001:
-		var anim: Animation = _cached_anim_library.get(current_anim_name, null)
-		var tmap: Dictionary = _cached_track_maps.get(current_anim_name, {})
-		if anim != null and not tmap.is_empty():
-			var sample_t := clampf(anim_time, 0.0, anim_length)
-			for joint_key in tmap:
-				# Melee owns the upper body only; legs/shins stay on base
-				# locomotion (weapon-layer architecture). Everything else
-				# (die/gethit/shoot) keeps legacy full-body behavior.
-				if melee_mode and not (str(joint_key) in MELEE_UPPER_KEYS):
-					continue
-				var track_idx: int = tmap[joint_key]
+		if melee_mode and current_anim_name.begins_with("AF_"):
+			var norm_t := clampf(anim_time / maxf(anim_length, 0.001), 0.0, 1.0)
+			var sword_pose := _eval_sword_kinematics(combo_index, norm_t, melee_hand == "left")
+			for joint_key in sword_pose:
 				var node: Node3D = joints.get(joint_key + "_mesh", null)
 				if node == null:
 					node = joints.get(joint_key, null)
 				if node == null or not is_instance_valid(node):
 					continue
-
-				var q: Quaternion = anim.rotation_track_interpolate(track_idx, sample_t)
-				var target_euler: Vector3 = q.get_euler()
-				if melee_mode and current_anim_name.begins_with("AF_") and _rest_quat.has(joint_key):
-					# Rest-relative delta: the authored motion minus the source
-					# rest pose, so a foreign-rested take drives our pivots
-					# through the same relative trajectory instead of snapping
-					# limbs into the source's rest pose.
-					var q_rest: Quaternion = _rest_quat[joint_key]
-					var delta_q: Quaternion = q * q_rest.inverse()
-
-
-
-
-
-					if joint_key == "forearm_left" or joint_key == "forearm_right":
-					# Wrist snap folds into the forearm: the rig has no hand
-					# pivots, and the snap carries the visible slash snap.
-					# Composed as quaternions (euler-vector addition explodes
-					# near gimbal regions, e.g. the hand's ~100 deg Y component).
-						var hand_key := "hand_left" if joint_key == "forearm_left" else "hand_right"
-						if tmap.has(hand_key) and _rest_quat.has(hand_key):
-							var hq: Quaternion = anim.rotation_track_interpolate(int(tmap[hand_key]), sample_t)
-							var h_rest: Quaternion = _rest_quat[hand_key]
-							var hand_delta_q: Quaternion = hq * h_rest.inverse()
-							delta_q = delta_q * hand_delta_q
-					target_euler = delta_q.get_euler()
-
-
-
-
-
-
+				var target_euler: Vector3 = sword_pose[joint_key]
 				var blend := effective_main
 				node.rotation.x = lerp_angle(node.rotation.x, target_euler.x, blend)
-				if joint_key in ["arm_left", "arm_right", "forearm_left", "forearm_right", "body"]:
-					node.rotation.y = lerp_angle(node.rotation.y, target_euler.y, blend)
-					node.rotation.z = lerp_angle(node.rotation.z, target_euler.z, blend)
+				node.rotation.y = lerp_angle(node.rotation.y, target_euler.y, blend)
+				node.rotation.z = lerp_angle(node.rotation.z, target_euler.z, blend)
+		else:
+			var anim: Animation = _cached_anim_library.get(current_anim_name, null)
+			var tmap: Dictionary = _cached_track_maps.get(current_anim_name, {})
+			if anim != null and not tmap.is_empty():
+				var sample_t := clampf(anim_time, 0.0, anim_length)
+				for joint_key in tmap:
+					if melee_mode and not (str(joint_key) in MELEE_UPPER_KEYS):
+						continue
+					var track_idx: int = tmap[joint_key]
+					var node: Node3D = joints.get(joint_key + "_mesh", null)
+					if node == null:
+						node = joints.get(joint_key, null)
+					if node == null or not is_instance_valid(node):
+						continue
+					var q: Quaternion = anim.rotation_track_interpolate(track_idx, sample_t)
+					var target_euler: Vector3 = q.get_euler()
+					var blend := effective_main
+					node.rotation.x = lerp_angle(node.rotation.x, target_euler.x, blend)
+					if joint_key in ["arm_left", "arm_right", "forearm_left", "forearm_right", "body"]:
+						node.rotation.y = lerp_angle(node.rotation.y, target_euler.y, blend)
+						node.rotation.z = lerp_angle(node.rotation.z, target_euler.z, blend)
 
 	# 2. Left Shoot Recoil (Isolated to left arm + torso kick)
 	_apply_shoot_channel_to_joints(shoot_channel_left, joints, master_weight)

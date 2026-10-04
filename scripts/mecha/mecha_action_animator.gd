@@ -26,6 +26,7 @@ static var _cached_anim_library: Dictionary = {}
 static var _cached_track_maps: Dictionary = {}
 static var _initialized_library: bool = false
 static var _af_clips_loaded: bool = false
+static var _af_retarget_data: Dictionary = {}
 
 # Current action playback state
 var current_anim_name: String = ""
@@ -148,6 +149,168 @@ static func _load_af_clips() -> void:
 	_load_af_clip(AF_SWORD_COMBO_PATH, "sword_regular_combo", AF_SWORD_COMBO)
 
 
+static func _find_skeleton_recursive(n: Node) -> Skeleton3D:
+	if n is Skeleton3D:
+		return n
+	for c in n.get_children():
+		var found := _find_skeleton_recursive(c)
+		if found != null:
+			return found
+	return null
+
+
+static func _build_af_retarget_data(anim: Animation, sk: Skeleton3D) -> Dictionary:
+	var b_pelvis := sk.find_bone("pelvis")
+	var b_spine1 := sk.find_bone("spine_01")
+	var b_spine2 := sk.find_bone("spine_02")
+	var b_spine3 := sk.find_bone("spine_03")
+	var b_clav_r := sk.find_bone("clavicle_r")
+	var b_uarm_r := sk.find_bone("upperarm_r")
+	var b_larm_r := sk.find_bone("lowerarm_r")
+	var b_hand_r := sk.find_bone("hand_r")
+	var b_clav_l := sk.find_bone("clavicle_l")
+	var b_uarm_l := sk.find_bone("upperarm_l")
+	var b_larm_l := sk.find_bone("lowerarm_l")
+	var b_hand_l := sk.find_bone("hand_l")
+	
+	var trks := {
+		"pelvis": _find_bone_rot_track(anim, "pelvis"),
+		"spine2": _find_bone_rot_track(anim, "spine_02"),
+		"spine3": _find_bone_rot_track(anim, "spine_03"),
+		"clav_r": _find_bone_rot_track(anim, "clavicle_r"),
+		"uarm_r": _find_bone_rot_track(anim, "upperarm_r"),
+		"larm_r": _find_bone_rot_track(anim, "lowerarm_r"),
+		"hand_r": _find_bone_rot_track(anim, "hand_r"),
+		"clav_l": _find_bone_rot_track(anim, "clavicle_l"),
+		"uarm_l": _find_bone_rot_track(anim, "upperarm_l"),
+		"larm_l": _find_bone_rot_track(anim, "lowerarm_l"),
+		"hand_l": _find_bone_rot_track(anim, "hand_l")
+	}
+	var rests := {
+		"pelvis": sk.get_bone_rest(b_pelvis) if b_pelvis >= 0 else Transform3D.IDENTITY,
+		"spine1": sk.get_bone_rest(b_spine1) if b_spine1 >= 0 else Transform3D.IDENTITY,
+		"spine2": sk.get_bone_rest(b_spine2) if b_spine2 >= 0 else Transform3D.IDENTITY,
+		"spine3": sk.get_bone_rest(b_spine3) if b_spine3 >= 0 else Transform3D.IDENTITY,
+		"clav_r": sk.get_bone_rest(b_clav_r) if b_clav_r >= 0 else Transform3D.IDENTITY,
+		"uarm_r": sk.get_bone_rest(b_uarm_r) if b_uarm_r >= 0 else Transform3D.IDENTITY,
+		"larm_r": sk.get_bone_rest(b_larm_r) if b_larm_r >= 0 else Transform3D.IDENTITY,
+		"hand_r": sk.get_bone_rest(b_hand_r) if b_hand_r >= 0 else Transform3D.IDENTITY,
+		"clav_l": sk.get_bone_rest(b_clav_l) if b_clav_l >= 0 else Transform3D.IDENTITY,
+		"uarm_l": sk.get_bone_rest(b_uarm_l) if b_uarm_l >= 0 else Transform3D.IDENTITY,
+		"larm_l": sk.get_bone_rest(b_larm_l) if b_larm_l >= 0 else Transform3D.IDENTITY,
+		"hand_l": sk.get_bone_rest(b_hand_l) if b_hand_l >= 0 else Transform3D.IDENTITY
+	}
+	var data := { "trks": trks, "rests": rests, "anim": anim }
+	data["base_0"] = _calc_af_fk_vectors(anim, data, 0.0)
+	data["base_1"] = _calc_af_fk_vectors(anim, data, 1.0)
+	data["base_2"] = _calc_af_fk_vectors(anim, data, 2.0)
+	return data
+
+
+static func _find_bone_rot_track(anim: Animation, bone_name: String) -> int:
+	for t in range(anim.get_track_count()):
+		if anim.track_get_type(t) == Animation.TYPE_ROTATION_3D and anim.track_get_path(t).get_subname(0) == bone_name:
+			return t
+	return -1
+
+
+static func _calc_af_fk_vectors(anim: Animation, data: Dictionary, t: float) -> Dictionary:
+	var trks: Dictionary = data["trks"]
+	var rests: Dictionary = data["rests"]
+	
+	var q_pelvis: Quaternion = anim.rotation_track_interpolate(int(trks["pelvis"]), t) if int(trks["pelvis"]) >= 0 else Quaternion.IDENTITY
+	var q_spine2: Quaternion = anim.rotation_track_interpolate(int(trks["spine2"]), t) if int(trks["spine2"]) >= 0 else Quaternion.IDENTITY
+	var q_spine3: Quaternion = anim.rotation_track_interpolate(int(trks["spine3"]), t) if int(trks["spine3"]) >= 0 else Quaternion.IDENTITY
+	
+	var x_pelvis: Transform3D = Transform3D(Basis(q_pelvis), (rests["pelvis"] as Transform3D).origin)
+	var x_spine1: Transform3D = x_pelvis * (rests["spine1"] as Transform3D)
+	var x_spine2: Transform3D = x_spine1 * Transform3D(Basis(q_spine2), (rests["spine2"] as Transform3D).origin)
+	var x_spine3: Transform3D = x_spine2 * Transform3D(Basis(q_spine3), (rests["spine3"] as Transform3D).origin)
+	
+	# Right arm FK
+	var q_clav_r: Quaternion = anim.rotation_track_interpolate(int(trks["clav_r"]), t) if int(trks["clav_r"]) >= 0 else Quaternion.IDENTITY
+	var q_uarm_r: Quaternion = anim.rotation_track_interpolate(int(trks["uarm_r"]), t) if int(trks["uarm_r"]) >= 0 else Quaternion.IDENTITY
+	var q_larm_r: Quaternion = anim.rotation_track_interpolate(int(trks["larm_r"]), t) if int(trks["larm_r"]) >= 0 else Quaternion.IDENTITY
+	var q_hand_r: Quaternion = anim.rotation_track_interpolate(int(trks["hand_r"]), t) if int(trks["hand_r"]) >= 0 else Quaternion.IDENTITY
+	
+	var x_clav_r: Transform3D = x_spine3 * Transform3D(Basis(q_clav_r), (rests["clav_r"] as Transform3D).origin)
+	var x_uarm_r: Transform3D = x_clav_r * Transform3D(Basis(q_uarm_r), (rests["uarm_r"] as Transform3D).origin)
+	var x_larm_r: Transform3D = x_uarm_r * Transform3D(Basis(q_larm_r), (rests["larm_r"] as Transform3D).origin)
+	var x_hand_r: Transform3D = x_larm_r * Transform3D(Basis(q_hand_r), (rests["hand_r"] as Transform3D).origin)
+	
+	# Left arm FK
+	var q_clav_l: Quaternion = anim.rotation_track_interpolate(int(trks["clav_l"]), t) if int(trks["clav_l"]) >= 0 else Quaternion.IDENTITY
+	var q_uarm_l: Quaternion = anim.rotation_track_interpolate(int(trks["uarm_l"]), t) if int(trks["uarm_l"]) >= 0 else Quaternion.IDENTITY
+	var q_larm_l: Quaternion = anim.rotation_track_interpolate(int(trks["larm_l"]), t) if int(trks["larm_l"]) >= 0 else Quaternion.IDENTITY
+	var q_hand_l: Quaternion = anim.rotation_track_interpolate(int(trks["hand_l"]), t) if int(trks["hand_l"]) >= 0 else Quaternion.IDENTITY
+	
+	var x_clav_l: Transform3D = x_spine3 * Transform3D(Basis(q_clav_l), (rests["clav_l"] as Transform3D).origin)
+	var x_uarm_l: Transform3D = x_clav_l * Transform3D(Basis(q_uarm_l), (rests["uarm_l"] as Transform3D).origin)
+	var x_larm_l: Transform3D = x_uarm_l * Transform3D(Basis(q_larm_l), (rests["larm_l"] as Transform3D).origin)
+	var x_hand_l: Transform3D = x_larm_l * Transform3D(Basis(q_hand_l), (rests["hand_l"] as Transform3D).origin)
+	
+	var v_arm_r: Vector3 = (x_larm_r.origin - x_uarm_r.origin).normalized()
+	var v_fore_r: Vector3 = (x_hand_r.origin - x_larm_r.origin).normalized()
+	var v_arm_l: Vector3 = (x_larm_l.origin - x_uarm_l.origin).normalized()
+	var v_fore_l: Vector3 = (x_hand_l.origin - x_larm_l.origin).normalized()
+	var v_torso: Vector3 = (x_spine3.origin - x_pelvis.origin).normalized()
+	
+	return {
+		"arm_pitch_r": atan2(-v_arm_r.z, -v_arm_r.y),
+		"arm_yaw_r": atan2(v_arm_r.x, sqrt(v_arm_r.y * v_arm_r.y + v_arm_r.z * v_arm_r.z)),
+		"elbow_flex_r": acos(clampf(v_arm_r.dot(v_fore_r), -1.0, 1.0)),
+		"arm_pitch_l": atan2(-v_arm_l.z, -v_arm_l.y),
+		"arm_yaw_l": atan2(v_arm_l.x, sqrt(v_arm_l.y * v_arm_l.y + v_arm_l.z * v_arm_l.z)),
+		"elbow_flex_l": acos(clampf(v_arm_l.dot(v_fore_l), -1.0, 1.0)),
+		"torso_yaw": x_spine3.basis.get_euler().y,
+		"torso_pitch": atan2(-v_torso.z, v_torso.y)
+	}
+
+
+func _sample_vector_retarget(clip_name: String, t: float, combo_step: int, is_left: bool) -> Dictionary:
+	if not _af_retarget_data.has(clip_name):
+		return {}
+	var data: Dictionary = _af_retarget_data[clip_name]
+	var anim: Animation = data["anim"]
+	var cur: Dictionary = _calc_af_fk_vectors(anim, data, t)
+	
+	var base_key := "base_0"
+	if combo_step == 2 and data.has("base_1"):
+		base_key = "base_1"
+	elif combo_step == 3 and data.has("base_2"):
+		base_key = "base_2"
+	var base: Dictionary = data.get(base_key, data.get("base_0", {}))
+	if base.is_empty():
+		return {}
+	
+	var d_arm_pitch_r: float = wrapf(float(cur["arm_pitch_r"]) - float(base["arm_pitch_r"]), -PI, PI)
+	var d_arm_yaw_r: float = wrapf(float(cur["arm_yaw_r"]) - float(base["arm_yaw_r"]), -PI, PI)
+	var d_fore_r: float = float(cur["elbow_flex_r"]) - float(base["elbow_flex_r"])
+	
+	var d_arm_pitch_l: float = wrapf(float(cur["arm_pitch_l"]) - float(base["arm_pitch_l"]), -PI, PI)
+	var d_arm_yaw_l: float = wrapf(float(cur["arm_yaw_l"]) - float(base["arm_yaw_l"]), -PI, PI)
+	var d_fore_l: float = float(cur["elbow_flex_l"]) - float(base["elbow_flex_l"])
+	
+	var d_torso_yaw: float = wrapf(float(cur["torso_yaw"]) - float(base["torso_yaw"]), -PI, PI)
+	var d_torso_pitch: float = wrapf(float(cur["torso_pitch"]) - float(base["torso_pitch"]), -PI, PI)
+	
+	var arm_r := Vector3(d_arm_pitch_r, d_arm_yaw_r, 0.0)
+	var fore_r := Vector3(absf(d_fore_r) + deg_to_rad(15.0), 0.0, 0.0)
+	var arm_l := Vector3(d_arm_pitch_l, d_arm_yaw_l, 0.0)
+	var fore_l := Vector3(absf(d_fore_l) + deg_to_rad(15.0), 0.0, 0.0)
+	var body := Vector3(d_torso_pitch * 0.4, d_torso_yaw, 0.0)
+	var head := Vector3(0.0, d_torso_yaw * 0.5, 0.0)
+	
+	return {
+		"body": body,
+		"head": head,
+		"arm_right": arm_r,
+		"forearm_right": fore_r,
+		"arm_left": arm_l,
+		"forearm_left": fore_l
+	}
+
+
 static func _load_af_clip(path: String, src_anim_name: String, cache_name: String) -> void:
 	if _cached_anim_library.has(cache_name):
 		return
@@ -175,6 +338,9 @@ static func _load_af_clip(path: String, src_anim_name: String, cache_name: Strin
 	var anim: Animation = ap.get_animation(src_anim_name)
 	_cached_anim_library[cache_name] = anim
 	_cached_track_maps[cache_name] = _build_track_map(anim)
+	var sk := _find_skeleton_recursive(inst)
+	if sk != null:
+		_af_retarget_data[cache_name] = _build_af_retarget_data(anim, sk)
 	inst.queue_free()
 
 
@@ -438,6 +604,10 @@ func play_af_melee(hand: String = "right", forced_combo_step: int = 0) -> bool:
 	if not _cached_anim_library.has(clip_name):
 		return false
 
+	# Drives the actual ActionForge clip:
+	# Combo 1: sword_attack from 0.0s to 1.53s @1.7x speed (~0.90s)
+	# Combo 2: sword_regular_combo Hit 2 from 1.00s to 2.00s @1.6x speed
+	# Combo 3: sword_regular_combo Hit 3 from 2.00s to 3.00s @1.4x speed
 	var play_speed := 1.7 if combo_index < 3 else 1.4
 	var started := play_action(clip_name, play_speed, 0.05, 0.14)
 	if started:
@@ -446,11 +616,17 @@ func play_af_melee(hand: String = "right", forced_combo_step: int = 0) -> bool:
 		if combo_index == 1:
 			strike_times = [0.55]
 		elif combo_index == 2:
-			anim_length = 1.10
-			strike_times = [0.50]
+			anim_time = 1.00
+			anim_length = 2.00
+			strike_times = [1.45]
+			while _strike_idx < strike_times.size() and float(strike_times[_strike_idx]) < anim_time:
+				_strike_idx += 1
 		elif combo_index == 3:
-			anim_length = 1.30
-			strike_times = [0.60]
+			anim_time = 2.00
+			anim_length = 3.00
+			strike_times = [2.35]
+			while _strike_idx < strike_times.size() and float(strike_times[_strike_idx]) < anim_time:
+				_strike_idx += 1
 	return started
 
 
@@ -728,9 +904,8 @@ func apply_to_joints(joints: Dictionary, master_weight: float = 1.0, apply_legs:
 	# 1. Main action animation (Melee, Die, GetHit, Shoulder)
 	var effective_main := blend_weight * master_weight
 	if effective_main > 0.001:
-		if melee_mode and current_anim_name.begins_with("AF_"):
-			var norm_t := clampf(anim_time / maxf(anim_length, 0.001), 0.0, 1.0)
-			var sword_pose := _eval_sword_kinematics(combo_index, norm_t, melee_hand == "left")
+		if melee_mode and current_anim_name.begins_with("AF_") and _af_retarget_data.has(current_anim_name):
+			var sword_pose := _sample_vector_retarget(current_anim_name, anim_time, combo_index, melee_hand == "left")
 			for joint_key in sword_pose:
 				var node: Node3D = joints.get(joint_key + "_mesh", null)
 				if node == null:

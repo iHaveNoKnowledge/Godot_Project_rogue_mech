@@ -2297,17 +2297,16 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 				hand_block.material_override = chrome_mat
 				lower_container.add_child(hand_block)
 
-				# --- Modular manipulator hand (VISUAL ONLY, no new joints) ---
-				# Audit finding: the forearm ended in a wrist stub with the weapon
-				# mount floating 0.16 below it and no palm/fingers. Palm, fingers
-				# and thumb ride the Forearm container rigidly (they follow forearm
-				# rotation exactly, like every other frame mesh): no new pivots,
-				# no animation changes, no mount/combat changes. The hand mount
-				# (HAND_FOREARM_POS y=-0.72) lands mid-palm by construction, and
-				# variant rest transforms carry the whole assembly automatically.
+				# --- Modular articulated manipulator hand (VISUAL ONLY, no new joints) ---
+				# Forearm remains the physical/runtime authority. Hand pieces ride
+				# the Forearm container rigidly (they follow forearm rotation exactly,
+				# like every other frame mesh): no new pivots, no animation changes,
+				# no mount/combat changes. The hand mount (HAND_FOREARM_POS y=-0.72)
+				# lands mid-palm by construction.
 				var hand_side := -1.0 if slot_name.to_lower() == "arm_left" else 1.0
 				var hand_trim := _get_shared_dark_trim_mat()
 
+				# 1. Armored Palm Base
 				var palm = MeshInstance3D.new()
 				palm.name = "HandPalm"
 				var palm_box = BoxMesh.new()
@@ -2317,25 +2316,144 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 				palm.material_override = frame_mat
 				lower_container.add_child(palm)
 
+				# 2. Palm Knuckle Bar (Mounting plate across metacarpal base)
+				var knuckle_bar = MeshInstance3D.new()
+				knuckle_bar.name = "CH_KnuckleBar"
+				var kb_box = BoxMesh.new()
+				kb_box.size = Vector3(0.195, 0.035, 0.05)
+				knuckle_bar.mesh = kb_box
+				knuckle_bar.position = Vector3(0, -0.745, -0.045)
+				knuckle_bar.material_override = hand_trim
+				lower_container.add_child(knuckle_bar)
+
+				# 3. Palm Back Armor Guard (Dorsal protector plate)
+				var back_armor = MeshInstance3D.new()
+				back_armor.name = "CH_HandBackArmor"
+				var ba_box = BoxMesh.new()
+				ba_box.size = Vector3(0.17, 0.14, 0.02)
+				back_armor.mesh = ba_box
+				back_armor.position = Vector3(0, -0.64, 0.065)
+				back_armor.material_override = frame_mat
+				lower_container.add_child(back_armor)
+
+				# 4. Articulated 4-Finger Manipulator Array
+				# Each finger features 3 distinct articulated segments with cylindrical mechanical hinges.
 				for fi in range(4):
+					var finger_x := -0.066 + float(fi) * 0.044
+					# Base Proximal Phalanx segment
 					var finger = MeshInstance3D.new()
 					finger.name = "HandFinger%d" % (fi + 1)
-					var finger_box = BoxMesh.new()
-					finger_box.size = Vector3(0.036, 0.16, 0.055)
-					finger.mesh = finger_box
-					finger.position = Vector3(-0.066 + float(fi) * 0.044, -0.83, -0.03)
-					finger.rotation_degrees = Vector3(-12.0, 0.0, 0.0)
+					var f_base_box = BoxMesh.new()
+					f_base_box.size = Vector3(0.034, 0.070, 0.048)
+					finger.mesh = f_base_box
+					finger.position = Vector3(finger_x, -0.76, -0.035)
+					finger.rotation_degrees = Vector3(-10.0, 0.0, 0.0)
 					finger.material_override = hand_trim
+
+					# Proximal Hinge Joint (Cylindrical mechanical pivot)
+					var jnt1 = MeshInstance3D.new()
+					jnt1.name = "Joint1"
+					var jnt1_cyl = CylinderMesh.new()
+					jnt1_cyl.top_radius = 0.016
+					jnt1_cyl.bottom_radius = 0.016
+					jnt1_cyl.height = 0.036
+					jnt1.mesh = jnt1_cyl
+					jnt1.rotation_degrees = Vector3(0, 0, 90.0)
+					jnt1.position = Vector3(0, -0.038, 0.005)
+					jnt1.material_override = chrome_mat
+					finger.add_child(jnt1)
+
+					# Intermediate Phalanx Segment
+					var mid_seg = MeshInstance3D.new()
+					mid_seg.name = "Middle"
+					var mid_box = BoxMesh.new()
+					mid_box.size = Vector3(0.030, 0.060, 0.042)
+					mid_seg.mesh = mid_box
+					mid_seg.position = Vector3(0, -0.075, 0.012)
+					mid_seg.rotation_degrees = Vector3(-12.0, 0.0, 0.0)
+					mid_seg.material_override = hand_trim
+					finger.add_child(mid_seg)
+
+					# Distal Hinge Joint (Second mechanical pivot)
+					var jnt2 = MeshInstance3D.new()
+					jnt2.name = "Joint2"
+					var jnt2_cyl = CylinderMesh.new()
+					jnt2_cyl.top_radius = 0.013
+					jnt2_cyl.bottom_radius = 0.013
+					jnt2_cyl.height = 0.032
+					jnt2.mesh = jnt2_cyl
+					jnt2.rotation_degrees = Vector3(0, 0, 90.0)
+					jnt2.position = Vector3(0, -0.110, 0.020)
+					jnt2.material_override = chrome_mat
+					finger.add_child(jnt2)
+
+					# Distal Tip / Gripper Claw (Inward curved grasp)
+					var tip_seg = MeshInstance3D.new()
+					tip_seg.name = "Tip"
+					var tip_box = BoxMesh.new()
+					tip_box.size = Vector3(0.026, 0.055, 0.038)
+					tip_seg.mesh = tip_box
+					tip_seg.position = Vector3(0, -0.140, 0.030)
+					tip_seg.rotation_degrees = Vector3(-24.0, 0.0, 0.0)
+					tip_seg.material_override = hand_trim
+					finger.add_child(tip_seg)
+
+					# Dorsal Knuckle Armor Shell
+					var f_armor = MeshInstance3D.new()
+					f_armor.name = "ArmorPlate"
+					var fa_box = BoxMesh.new()
+					fa_box.size = Vector3(0.036, 0.045, 0.012)
+					f_armor.mesh = fa_box
+					f_armor.position = Vector3(0, -0.015, -0.025)
+					f_armor.material_override = frame_mat
+					finger.add_child(f_armor)
+
 					lower_container.add_child(finger)
 
+				# 5. Articulated Opposing Thumb
 				var thumb = MeshInstance3D.new()
 				thumb.name = "HandThumb"
-				var t_box = BoxMesh.new()
-				t_box.size = Vector3(0.045, 0.13, 0.06)
-				thumb.mesh = t_box
-				thumb.position = Vector3(hand_side * 0.11, -0.68, -0.03)
-				thumb.rotation_degrees = Vector3(-10.0, 0.0, -hand_side * 20.0)
+				var t_base_box = BoxMesh.new()
+				t_base_box.size = Vector3(0.044, 0.065, 0.052)
+				thumb.mesh = t_base_box
+				thumb.position = Vector3(hand_side * 0.105, -0.68, -0.025)
+				thumb.rotation_degrees = Vector3(-10.0, 0.0, -hand_side * 25.0)
 				thumb.material_override = hand_trim
+
+				# Thumb Metacarpal Hinge Joint
+				var t_jnt = MeshInstance3D.new()
+				t_jnt.name = "Joint1"
+				var t_jnt_cyl = CylinderMesh.new()
+				t_jnt_cyl.top_radius = 0.018
+				t_jnt_cyl.bottom_radius = 0.018
+				t_jnt_cyl.height = 0.046
+				t_jnt.mesh = t_jnt_cyl
+				t_jnt.rotation_degrees = Vector3(0, 0, 90.0)
+				t_jnt.position = Vector3(0, -0.038, 0.005)
+				t_jnt.material_override = chrome_mat
+				thumb.add_child(t_jnt)
+
+				# Thumb Distal Opposing Pad / Tip
+				var t_tip = MeshInstance3D.new()
+				t_tip.name = "Tip"
+				var t_tip_box = BoxMesh.new()
+				t_tip_box.size = Vector3(0.038, 0.065, 0.044)
+				t_tip.mesh = t_tip_box
+				t_tip.position = Vector3(0, -0.075, 0.018)
+				t_tip.rotation_degrees = Vector3(-15.0, 0.0, hand_side * 15.0)
+				t_tip.material_override = hand_trim
+				thumb.add_child(t_tip)
+
+				# Thumb Lateral Armor Plate
+				var t_armor = MeshInstance3D.new()
+				t_armor.name = "ArmorPlate"
+				var ta_box = BoxMesh.new()
+				ta_box.size = Vector3(0.046, 0.050, 0.014)
+				t_armor.mesh = ta_box
+				t_armor.position = Vector3(hand_side * 0.012, -0.020, -0.024)
+				t_armor.material_override = frame_mat
+				thumb.add_child(t_armor)
+
 				lower_container.add_child(thumb)
 
 				# Forearm cable conduit + wrist collar ring.

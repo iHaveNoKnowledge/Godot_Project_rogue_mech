@@ -89,11 +89,12 @@ func _ready() -> void:
 		get_tree().quit(0)
 
 
-# --- 1. structure -----------------------------------------------------------------
+# --- 1. structure & articulation --------------------------------------------------
 func _test_structure(pmm: Node) -> void:
 	for slot in ["arm_left", "arm_right"]:
 		var entry: Dictionary = pmm.slot_meshes.get(slot, {})
-		var hp := _hand_parts(entry.get("frame_lower"))
+		var cont: Node3D = entry.get("frame_lower")
+		var hp := _hand_parts(cont)
 		_check(hp["palm"] != null, slot + " palm present")
 		_check((hp["fingers"] as Array).size() == 4, slot + " has 4 fingers")
 		_check(hp["thumb"] != null, slot + " thumb present")
@@ -103,6 +104,35 @@ func _test_structure(pmm: Node) -> void:
 			if c is Node3D and not (c is MeshInstance3D):
 				pivots += 1
 		_check(pivots == 0, slot + " adds no pivots (meshes only)")
+
+		# Articulated finger segment verification:
+		for fi in range((hp["fingers"] as Array).size()):
+			var f: Node3D = hp["fingers"][fi]
+			var j1 = f.get_node_or_null("Joint1") as MeshInstance3D
+			var mid = f.get_node_or_null("Middle") as MeshInstance3D
+			var j2 = f.get_node_or_null("Joint2") as MeshInstance3D
+			var tip = f.get_node_or_null("Tip") as MeshInstance3D
+			var arm = f.get_node_or_null("ArmorPlate") as MeshInstance3D
+			_check(j1 != null and j1.mesh is CylinderMesh, "%s finger %d has mechanical hinge Joint1" % [slot, fi + 1])
+			_check(mid != null and mid.mesh is BoxMesh, "%s finger %d has intermediate Middle segment" % [slot, fi + 1])
+			_check(j2 != null and j2.mesh is CylinderMesh, "%s finger %d has distal hinge Joint2" % [slot, fi + 1])
+			_check(tip != null and tip.mesh is BoxMesh, "%s finger %d has distal Tip gripper" % [slot, fi + 1])
+			_check(arm != null and arm.mesh is BoxMesh, "%s finger %d has dorsal armor plate" % [slot, fi + 1])
+
+		# Articulated thumb verification:
+		var th: Node3D = hp["thumb"]
+		var th_j1 = th.get_node_or_null("Joint1") as MeshInstance3D
+		var th_tip = th.get_node_or_null("Tip") as MeshInstance3D
+		var th_arm = th.get_node_or_null("ArmorPlate") as MeshInstance3D
+		_check(th_j1 != null and th_j1.mesh is CylinderMesh, slot + " thumb has mechanical Joint1")
+		_check(th_tip != null and th_tip.mesh is BoxMesh, slot + " thumb has distal Tip pad")
+		_check(th_arm != null and th_arm.mesh is BoxMesh, slot + " thumb has lateral armor plate")
+
+		# Knuckle bar and back armor guard verification:
+		var kb = cont.get_node_or_null("CH_KnuckleBar") as MeshInstance3D
+		var ba = cont.get_node_or_null("CH_HandBackArmor") as MeshInstance3D
+		_check(kb != null and kb.mesh is BoxMesh, slot + " knuckle bar present")
+		_check(ba != null and ba.mesh is BoxMesh, slot + " hand back armor present")
 
 
 # --- 2. continuous chain, no gaps ----------------------------------------------------

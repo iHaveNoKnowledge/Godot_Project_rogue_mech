@@ -30,7 +30,7 @@ const _DICT_FIELDS := [
 	"wreckage_tile_pos", "scrap_patches", 	"frame_bindings", "frame_modules",
 	"enemy_forces", "part_hit_meta", "thermal_cloak", "ewar",
 	"weather_transition", "pending_duel", "research_projects",
-	"faction_relations",
+	"faction_relations", "territories",
 ]
 
 ## Root fields that must be Arrays when present (restore iterates them).
@@ -118,6 +118,10 @@ static func save_run() -> bool:
 		# Registered defs are static. Missing key (old saves) restores as
 		# defaults via the deserialize default — no schema bump.
 		"faction_relations": FactionSystem.serialize_relations(),
+		# Phase 3B (Campaign V2): territory control state only (id/control/
+		# controller/contesting/member-ID references). No board or node data
+		# duplicated. Missing key (old saves) restores as empty — no bump.
+		"territories": CampaignTerritory.serialize(),
 		"current_hazard": GlobalData.board.current_hazard,
 		"board_theme_id": GlobalData.board.board_theme_id,
 		"board_objective_id": GlobalData.board.board_objective_id,
@@ -252,6 +256,7 @@ static func restore_from_dict(data: Dictionary) -> void:
 	GlobalData.board.time_hour = float(data.get("time_hour", 8.0))
 	CampaignTurnExecutive.deserialize_campaign_turn(data.get("campaign_turn", 0))
 	FactionSystem.deserialize_relations(data.get("faction_relations", {}))
+	CampaignTerritory.deserialize(data.get("territories", {}))
 	GlobalData.board.current_hazard = str(data.get("current_hazard", ""))
 	GlobalData.board.board_theme_id = str(data.get("board_theme_id", "suburb"))
 	GlobalData.board.board_objective_id = str(data.get("board_objective_id", ""))

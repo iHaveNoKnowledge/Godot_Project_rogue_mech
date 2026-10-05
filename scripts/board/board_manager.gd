@@ -148,6 +148,9 @@ func _ready() -> void:
 	# all tile restores, so derived nodes (incl. a restored enemy_base) match
 	# the live board. Registry-only; movement/encounters untouched.
 	CampaignNodeRegistry.rebuild_from_board(nodes_dict, GlobalData.board.current_sector)
+	# Phase 4: reconcile the canonical Base record with legacy enemy-base
+	# flags AFTER the node layer exists (bridge reads nodes, writes no tiles).
+	CampaignBase.sync_legacy_enemy_base(GlobalData.board.current_sector)
 
 	if EnemyFactionSystem.consume_pending_escalation_event():
 		EventBus.event_triggered.emit(_build_tech_copy_event())
@@ -2492,6 +2495,8 @@ func _place_enemy_base_node() -> void:
 	GlobalData.narrative.enemy_base_tile_pos = target_key
 	# Phase 3A: topology-only sync for the mutated strategic tile.
 	CampaignNodeRegistry.sync_tile(GlobalData.board.current_sector, target_key, "enemy_base")
+	# Phase 4: the planted tile is now a live installation in Base authority.
+	CampaignBase.sync_legacy_enemy_base(GlobalData.board.current_sector)
 	tile.reveal()
 	if tile.has_method("_update_visual"):
 		tile._update_visual()
@@ -2867,6 +2872,8 @@ func _on_contract_selected(contract: Dictionary) -> void:
 		_highlight_adjacent()
 		# Phase 3A: regenerated board means regenerated strategic topology.
 		CampaignNodeRegistry.rebuild_from_board(nodes_dict, GlobalData.board.current_sector)
+		# Phase 4: reconcile Base records with the regenerated board.
+		CampaignBase.sync_legacy_enemy_base(GlobalData.board.current_sector)
 
 	var pri: Dictionary = contract.get("primary", {})
 	# Persist immediately so Continue resumes this mission instead of

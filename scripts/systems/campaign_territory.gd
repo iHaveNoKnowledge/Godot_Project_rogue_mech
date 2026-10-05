@@ -200,6 +200,17 @@ static func get_contesting(territory_id: String) -> Array:
 	return Array((_territories[territory_id] as Dictionary).get("contesting", [])).duplicate()
 
 
+## Pure membership query: every territory covering a node, sorted by id.
+## Read-only derivation for consumers (e.g. the Base bridge); adds no state.
+static func get_territories_for_node(node_id: String) -> Array:
+	var out: Array = []
+	for tid in _territories:
+		if Array((_territories[tid] as Dictionary).get("members", [])).has(node_id):
+			out.append((_territories[tid] as Dictionary).duplicate(true))
+	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return str(a.get("id", "")) < str(b.get("id", "")))
+	return out
+
+
 static func is_controlled(territory_id: String) -> bool:
 	return get_control_state(territory_id) == ControlState.CONTROLLED
 

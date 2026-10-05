@@ -154,3 +154,4 @@ static func roll_random_start() -> void:
 	FactionSystem.reset_relations()
 	CampaignNodeRegistry.clear()
 	CampaignTerritory.clear()
+	CampaignBase.clear()

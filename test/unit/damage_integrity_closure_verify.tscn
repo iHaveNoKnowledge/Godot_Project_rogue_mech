@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://c8dmgclsclos01"]
+
+[ext_resource type="Script" path="res://test/unit/damage_integrity_closure_verify.gd" id="1_clsclose"]
+
+[node name="DamageIntegrityClosureVerify" type="Node"]
+script = ExtResource("1_clsclose")

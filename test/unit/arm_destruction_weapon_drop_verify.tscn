@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://c8adwdpdrop01"]
+
+[ext_resource type="Script" path="res://test/unit/arm_destruction_weapon_drop_verify.gd" id="1_armdrop"]
+
+[node name="ArmDestructionWeaponDropVerify" type="Node3D"]
+script = ExtResource("1_armdrop")

@@ -540,6 +540,11 @@ func _apply_armor_damage(slot_name: String, amount: float, damage_type: String, 
 	var def_mult := ArmorSystem.get_durability_def_multiplier(dur)
 
 	var reduced = calculate_armor_damage(amount, damage_type, part, def_mult)
+	var cur_armor: float = float(part["armor_hp"])
+	var overflow_ratio: float = 0.0
+	if reduced > cur_armor and reduced > 0.0:
+		overflow_ratio = (reduced - cur_armor) / reduced
+
 	part["armor_hp"] = maxf(part["armor_hp"] - reduced, 0.0)
 
 	# In-combat durability wear from taking direct damage hits
@@ -577,6 +582,9 @@ func _apply_armor_damage(slot_name: String, amount: float, damage_type: String, 
 
 	if part["armor_hp"] <= 0.0:
 		_on_armor_broken(slot_name, damage_type)
+		if overflow_ratio > 0.0:
+			var overflow_amount: float = amount * overflow_ratio
+			_apply_frame_damage(slot_name, overflow_amount, damage_type, hit_pos)
 
 
 func _vibrate_damaged_section(slot_name: String) -> void:

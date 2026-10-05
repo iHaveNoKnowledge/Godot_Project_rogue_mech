@@ -2558,3 +2558,34 @@ func get_active_telegraph_descriptors() -> Array:
 		if session and session.has_method("is_preparing") and session.is_preparing():
 			list.append(session.get_telegraph_descriptor())
 	return list
+
+
+## Drops and unequips the weapon held in the specified hand ("left" or "right")
+## when the corresponding arm frame is destroyed.
+## Returns the unequipped WeaponPart instance, or null if unarmed.
+func drop_weapon_from_destroyed_arm(hand: String) -> WeaponPart:
+	var dropped: WeaponPart = null
+	if hand == "left":
+		dropped = left_hand
+		left_hand = null
+		fire_left_holding = false
+		reloading_left = false
+		trigger_left.release()
+	elif hand == "right":
+		dropped = right_hand
+		right_hand = null
+		fire_right_holding = false
+		reloading_right = false
+		trigger_right.release()
+	else:
+		return null
+
+	if dropped != null:
+		var mecha = get_parent() as Node3D
+		if mecha:
+			_update_hand_weapon_visual(mecha, hand, null)
+		sync_loadout_to_global()
+		weapon_switched.emit(hand, "")
+		weapon_dropped.emit(hand, dropped)
+	return dropped
+

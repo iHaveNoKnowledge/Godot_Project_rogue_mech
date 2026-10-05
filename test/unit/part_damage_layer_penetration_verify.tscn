@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://c8pdt1penetr01"]
+
+[ext_resource type="Script" path="res://test/unit/part_damage_layer_penetration_verify.gd" id="1_penetr"]
+
+[node name="PartDamageLayerPenetrationVerify" type="Node"]
+script = ExtResource("1_penetr")

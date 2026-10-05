@@ -1114,6 +1114,8 @@ func reset_run_data() -> void:
 	CampaignBase.clear()
 	# Phase 5A (Campaign V2): force records are run state.
 	CampaignForce.clear()
+	# Phase 5B (Campaign V2): battle records are run state.
+	CampaignBattle.clear()
 
 	# Non-delegated state.
 	_combat_friendly_total_hp = 0.0

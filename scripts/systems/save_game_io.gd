@@ -30,7 +30,7 @@ const _DICT_FIELDS := [
 	"wreckage_tile_pos", "scrap_patches", 	"frame_bindings", "frame_modules",
 	"enemy_forces", "part_hit_meta", "thermal_cloak", "ewar",
 	"weather_transition", "pending_duel", "research_projects",
-	"faction_relations", "territories", "bases", "forces",
+	"faction_relations", "territories", "bases", "forces", "campaign_battles",
 ]
 
 ## Root fields that must be Arrays when present (restore iterates them).
@@ -129,6 +129,10 @@ static func save_run() -> bool:
 		# Phase 5A (Campaign V2): force records only (ids referenced, never
 		# copied). Missing key (old saves) restores as empty — no bump.
 		"forces": CampaignForce.serialize(),
+		# Phase 5B (Campaign V2): battle records only (ids referenced, never
+		# copied; session_ref is an opaque string, never a runtime object).
+		# Missing key (old saves) restores as empty — no bump.
+		"campaign_battles": CampaignBattle.serialize(),
 		"current_hazard": GlobalData.board.current_hazard,
 		"board_theme_id": GlobalData.board.board_theme_id,
 		"board_objective_id": GlobalData.board.board_objective_id,
@@ -266,6 +270,7 @@ static func restore_from_dict(data: Dictionary) -> void:
 	CampaignTerritory.deserialize(data.get("territories", {}))
 	CampaignBase.deserialize(data.get("bases", {}))
 	CampaignForce.deserialize(data.get("forces", {}))
+	CampaignBattle.deserialize(data.get("campaign_battles", {}))
 	GlobalData.board.current_hazard = str(data.get("current_hazard", ""))
 	GlobalData.board.board_theme_id = str(data.get("board_theme_id", "suburb"))
 	GlobalData.board.board_objective_id = str(data.get("board_objective_id", ""))

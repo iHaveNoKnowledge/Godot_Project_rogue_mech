@@ -156,3 +156,4 @@ static func roll_random_start() -> void:
 	CampaignTerritory.clear()
 	CampaignBase.clear()
 	CampaignForce.clear()
+	CampaignBattle.clear()

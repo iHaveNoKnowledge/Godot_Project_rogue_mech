@@ -144,6 +144,11 @@ func _ready() -> void:
 	# Restore wreckage tile from a previous mech destruction.
 	_restore_wreckage_tile()
 
+	# Phase 3A (Campaign V2): rebuild strategic topology AFTER generation and
+	# all tile restores, so derived nodes (incl. a restored enemy_base) match
+	# the live board. Registry-only; movement/encounters untouched.
+	CampaignNodeRegistry.rebuild_from_board(nodes_dict, GlobalData.board.current_sector)
+
 	if EnemyFactionSystem.consume_pending_escalation_event():
 		EventBus.event_triggered.emit(_build_tech_copy_event())
 
@@ -2485,6 +2490,8 @@ func _place_enemy_base_node() -> void:
 	var tile = nodes_dict[target_key]
 	tile.set_meta("tile_type", "enemy_base")
 	GlobalData.narrative.enemy_base_tile_pos = target_key
+	# Phase 3A: topology-only sync for the mutated strategic tile.
+	CampaignNodeRegistry.sync_tile(GlobalData.board.current_sector, target_key, "enemy_base")
 	tile.reveal()
 	if tile.has_method("_update_visual"):
 		tile._update_visual()
@@ -2858,6 +2865,8 @@ func _on_contract_selected(contract: Dictionary) -> void:
 		_refresh_patrol_markers()
 		_update_token_position()
 		_highlight_adjacent()
+		# Phase 3A: regenerated board means regenerated strategic topology.
+		CampaignNodeRegistry.rebuild_from_board(nodes_dict, GlobalData.board.current_sector)
 
 	var pri: Dictionary = contract.get("primary", {})
 	# Persist immediately so Continue resumes this mission instead of
@@ -2889,6 +2898,8 @@ func _trigger_extraction_primary_objective(title: String, desc: String) -> void:
 	})
 	if nodes_dict.has(current_pos):
 		nodes_dict[current_pos].set_meta("tile_type", "empty")
+		# Phase 3A: consumed primary objective no longer hosts a node.
+		CampaignNodeRegistry.sync_tile(GlobalData.board.current_sector, current_pos, "empty")
 		if nodes_dict[current_pos].has_method("_update_visual"):
 			nodes_dict[current_pos]._update_visual()
 
@@ -2904,6 +2915,8 @@ func _trigger_extraction_secondary_objective(title: String, rew_cr: int, rew_sc:
 	})
 	if nodes_dict.has(current_pos):
 		nodes_dict[current_pos].set_meta("tile_type", "empty")
+		# Phase 3A: consumed secondary objective no longer hosts a node.
+		CampaignNodeRegistry.sync_tile(GlobalData.board.current_sector, current_pos, "empty")
 		if nodes_dict[current_pos].has_method("_update_visual"):
 			nodes_dict[current_pos]._update_visual()
 

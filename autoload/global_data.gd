@@ -1105,6 +1105,9 @@ func reset_run_data() -> void:
 	CampaignTurnExecutive.reset()
 	# Phase 2 (Campaign V2): relation overrides are run state; defs are static.
 	FactionSystem.reset_relations()
+	# Phase 3A (Campaign V2): strategic topology is derived per board; clear
+	# any registry state so runs/tests never leak nodes or routes.
+	CampaignNodeRegistry.clear()
 
 	# Non-delegated state.
 	_combat_friendly_total_hp = 0.0

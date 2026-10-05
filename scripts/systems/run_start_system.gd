@@ -152,3 +152,4 @@ static func roll_random_start() -> void:
 	EraProgressionSystem.reset()
 	CampaignTurnExecutive.reset()
 	FactionSystem.reset_relations()
+	CampaignNodeRegistry.clear()

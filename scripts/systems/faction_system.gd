@@ -49,13 +49,38 @@ const FACTION_DEFS: Dictionary = {
 		"accent": Color(0.92, 0.75, 0.35),
 		"trim": Color(0.65, 0.55, 0.30),
 		"desc": "กลุ่มขับหุ่นอิสระ ใช้หุ่นนอกระบบทั้งสองฝั่ง ปะปน Tier"
+	},
+	"scavenger": {
+		"id": "scavenger",
+		"name": "สแกเวนเจอร์",
+		"name_en": "Scavengers",
+		"short": "SCV",
+		"color": Color(0.62, 0.45, 0.20),
+		"accent": Color(0.85, 0.65, 0.30),
+		"trim": Color(0.40, 0.32, 0.22),
+		"desc": "กลุ่มเก็บกู้อิสระ ลาดตระเวนซากสนามรบและตั้งค่ายนอกระบบ"
 	}
 }
 
 const TIER_MAX: int = 3
 
+# Phase 2 (Campaign V2): canonical campaign faction registry. Deterministic
+# order, stable serializable IDs (never display names). Patrol encounter
+# labels ("hostile"/"unknown") and tech diffusion tags ("all"/"rival"/
+# "convoy") are NOT campaign factions and stay out of this registry.
+const REGISTERED_FACTION_IDS: Array[String] = ["federation", "zeon", "outland", "scavenger"]
+
 static func get_faction_ids() -> Array[String]:
-	return ["federation", "zeon", "outland"]
+	return REGISTERED_FACTION_IDS.duplicate()
+
+static func get_registered_factions() -> Array[String]:
+	return REGISTERED_FACTION_IDS.duplicate()
+
+static func has_faction(faction_id: String) -> bool:
+	return REGISTERED_FACTION_IDS.has(faction_id)
+
+static func get_faction(faction_id: String) -> Dictionary:
+	return get_faction_def(faction_id)
 
 static func get_faction_def(faction: String) -> Dictionary:
 	return FACTION_DEFS.get(faction, FACTION_DEFS["outland"]).duplicate(true)
@@ -241,3 +266,138 @@ static func reset() -> void:
 		GlobalData.narrative.set(faction + "_research_start_day", 0.0)
 		set_tier(faction, 1)
 	GlobalData.narrative.set("enemy_losses", 0)
+
+
+# ===========================================================================
+# RELATION MATRIX — Phase 2 (Campaign V2 foundation, NOT a combat migration).
+#
+# Single authoritative faction-to-faction relation state. Combat allegiance,
+# AI targeting, spawning, projectiles and War Mode teams keep their existing
+# binary logic untouched; they do NOT read this matrix yet (later phase).
+#
+# Invariants (all tested):
+#   - Symmetric: set(A,B) reads back identically for (B,A).
+#   - Self-relation is always ALLIED; setting a self-relation is rejected.
+#   - Unset pairs read as DEFAULT_RELATION (NEUTRAL) — hostility is never
+#     inferred merely because two factions differ.
+#   - Unknown faction IDs: reads return NEUTRAL (safe default), writes are
+#     rejected (false) without mutating state or inventing factions.
+#   - No EventBus traffic: queries never emit; Phase 2 adds no mutation
+#     signal (no existing consumer needs one).
+# ===========================================================================
+
+enum Relation { HOSTILE = 0, NEUTRAL = 1, COOPERATIVE = 2, ALLIED = 3 }
+
+const DEFAULT_RELATION: int = Relation.NEUTRAL
+const SELF_RELATION: int = Relation.ALLIED
+
+const RELATION_NAMES := {
+	Relation.HOSTILE: "hostile",
+	Relation.NEUTRAL: "neutral",
+	Relation.COOPERATIVE: "cooperative",
+	Relation.ALLIED: "allied",
+}
+
+static var _relations: Dictionary = {}
+
+
+static func relation_to_name(relation: int) -> String:
+	return str(RELATION_NAMES.get(relation, "neutral"))
+
+
+static func relation_from_name(raw_name: String) -> int:
+	for key in RELATION_NAMES:
+		if str(RELATION_NAMES[key]) == raw_name:
+			return int(key)
+	return -1
+
+
+static func _relation_key(a: String, b: String) -> String:
+	# Canonical pair ordering keeps the matrix symmetric with one entry.
+	return a + "|" + b if a <= b else b + "|" + a
+
+
+## Authoritative read. Self-pairs are ALLIED; unknown IDs or unset pairs read
+## NEUTRAL (safe default — never invent hostility or factions on read).
+static func get_relation(a: String, b: String) -> int:
+	if a == b and has_faction(a):
+		return SELF_RELATION
+	if not has_faction(a) or not has_faction(b):
+		return DEFAULT_RELATION
+	return int(_relations.get(_relation_key(a, b), DEFAULT_RELATION))
+
+
+static func get_relation_name(a: String, b: String) -> String:
+	return relation_to_name(get_relation(a, b))
+
+
+## Authoritative write (symmetric). Returns false without mutating when either
+## ID is unregistered, the pair is a self-pair, or the value is not a
+## canonical Relation.
+static func set_relation(a: String, b: String, relation: int) -> bool:
+	if not has_faction(a) or not has_faction(b):
+		return false
+	if a == b:
+		return false
+	if not RELATION_NAMES.has(relation):
+		return false
+	_relations[_relation_key(a, b)] = relation
+	return true
+
+
+static func is_hostile(a: String, b: String) -> bool:
+	return get_relation(a, b) == Relation.HOSTILE
+
+
+static func is_neutral(a: String, b: String) -> bool:
+	return get_relation(a, b) == Relation.NEUTRAL
+
+
+static func is_cooperative(a: String, b: String) -> bool:
+	return get_relation(a, b) == Relation.COOPERATIVE
+
+
+static func is_allied(a: String, b: String) -> bool:
+	return get_relation(a, b) == Relation.ALLIED
+
+
+## Clears every explicit override back to deterministic defaults. Called from
+## the established run-reset lifecycle (NOT from the legacy tier reset()).
+static func reset_relations() -> void:
+	_relations.clear()
+
+
+## Mutable state only: sorted explicit overrides with stable string values.
+## Registered defs are static and never serialized.
+static func serialize_relations() -> Dictionary:
+	var pairs: Array = []
+	var keys := _relations.keys()
+	keys.sort()
+	for key in keys:
+		var parts := str(key).split("|")
+		if parts.size() != 2:
+			continue
+		pairs.append({
+			"a": str(parts[0]),
+			"b": str(parts[1]),
+			"relation": relation_to_name(int(_relations[key])),
+		})
+	return {"relations": pairs}
+
+
+## Restores overrides; unknown IDs, malformed rows and bad values are skipped
+## deterministically. Missing/empty input resets to defaults (old saves).
+static func deserialize_relations(data: Variant) -> void:
+	reset_relations()
+	if not (data is Dictionary):
+		return
+	var pairs = data.get("relations", [])
+	if not (pairs is Array):
+		return
+	for row in pairs:
+		if not (row is Dictionary):
+			continue
+		var a := str(row.get("a", ""))
+		var b := str(row.get("b", ""))
+		var rel := relation_from_name(str(row.get("relation", "")))
+		set_relation(a, b, rel)

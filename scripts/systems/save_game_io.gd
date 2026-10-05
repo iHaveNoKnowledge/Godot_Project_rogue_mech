@@ -27,9 +27,10 @@ const _DICT_FIELDS := [
 	"weapon_loadout", "pilot_ammo", "pilot_items", "pilot_progression",
 	"technology_discovery", "world_technology_diffusion", "era_progression",
 	"rival_progression", "tile_wreckages", "enemy_base_tile_pos",
-	"wreckage_tile_pos", "scrap_patches", "frame_bindings", "frame_modules",
+	"wreckage_tile_pos", "scrap_patches", 	"frame_bindings", "frame_modules",
 	"enemy_forces", "part_hit_meta", "thermal_cloak", "ewar",
 	"weather_transition", "pending_duel", "research_projects",
+	"faction_relations",
 ]
 
 ## Root fields that must be Arrays when present (restore iterates them).
@@ -113,6 +114,10 @@ static func save_run() -> bool:
 		# no _DICT/_ARRAY validation entry needed, legacy saves without the key
 		# load as 0 via the restore default — so CURRENT_SCHEMA_VERSION stays 1.
 		"campaign_turn": CampaignTurnExecutive.serialize_turn(),
+		# Phase 2 (Campaign V2): mutable relation-matrix overrides only.
+		# Registered defs are static. Missing key (old saves) restores as
+		# defaults via the deserialize default — no schema bump.
+		"faction_relations": FactionSystem.serialize_relations(),
 		"current_hazard": GlobalData.board.current_hazard,
 		"board_theme_id": GlobalData.board.board_theme_id,
 		"board_objective_id": GlobalData.board.board_objective_id,
@@ -246,6 +251,7 @@ static func restore_from_dict(data: Dictionary) -> void:
 	GlobalData.board.board_day = maxi(int(data.get("board_day", 1)), 1)
 	GlobalData.board.time_hour = float(data.get("time_hour", 8.0))
 	CampaignTurnExecutive.deserialize_campaign_turn(data.get("campaign_turn", 0))
+	FactionSystem.deserialize_relations(data.get("faction_relations", {}))
 	GlobalData.board.current_hazard = str(data.get("current_hazard", ""))
 	GlobalData.board.board_theme_id = str(data.get("board_theme_id", "suburb"))
 	GlobalData.board.board_objective_id = str(data.get("board_objective_id", ""))

@@ -151,3 +151,4 @@ static func roll_random_start() -> void:
 	RivalProgressionSystem.reset()
 	EraProgressionSystem.reset()
 	CampaignTurnExecutive.reset()
+	FactionSystem.reset_relations()

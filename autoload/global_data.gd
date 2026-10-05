@@ -1103,6 +1103,8 @@ func reset_run_data() -> void:
 	# Phase 1 (Campaign V2): the campaign-turn counter is run state and must
 	# reset with everything else so consecutive runs/tests never leak turns.
 	CampaignTurnExecutive.reset()
+	# Phase 2 (Campaign V2): relation overrides are run state; defs are static.
+	FactionSystem.reset_relations()
 
 	# Non-delegated state.
 	_combat_friendly_total_hp = 0.0

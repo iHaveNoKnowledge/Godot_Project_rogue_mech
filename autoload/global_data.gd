@@ -1100,6 +1100,9 @@ func reset_run_data() -> void:
 	pilot.reset()
 	hangar.reset()
 	weapons.reset()
+	# Phase 1 (Campaign V2): the campaign-turn counter is run state and must
+	# reset with everything else so consecutive runs/tests never leak turns.
+	CampaignTurnExecutive.reset()
 
 	# Non-delegated state.
 	_combat_friendly_total_hp = 0.0

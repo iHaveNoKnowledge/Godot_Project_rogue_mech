@@ -917,30 +917,34 @@ func _advance_calendar_day() -> void:
 	# Reset daily depot seizure flag.
 	GlobalData.fuel.fuel_depot_seized_today = false
 
-	# Advance living Faction Economy
-	FactionEconomySystem.advance_day_economy()
-
-	# Once-per-day systems.
+	# Once-per-day board-local systems (force caps + ace stalking stay here).
 	process_turn_mobilization()
 	accumulate_stalker_chance()
 
-	var spy_event := EnemyFactionSystem.roll_spy_event()
+	# PHASE 1 (Campaign V2): the day-scale world tick runs under the Campaign
+	# Turn Executive — one authoritative entry point, deterministic phase order
+	# (economy -> spy/base -> board_day_ended fan-out -> rival -> era ->
+	# scavenger), exactly-once per invocation. This board keeps scene/UI duties:
+	# tile placement, model refresh, and event popups from the turn receipt.
+	var turn_receipt: Dictionary = CampaignTurnExecutive.advance_campaign_turn(
+		"board_day", {"board_tiles": nodes_dict}
+	)
+
+	var spy_event: Dictionary = turn_receipt.get("spy_event", {})
 	if not spy_event.is_empty():
 		EventBus.event_triggered.emit(spy_event)
 
-	if EnemyFactionSystem.consume_enemy_base_spawn_request():
+	if bool(turn_receipt.get("enemy_base_spawn_requested", false)):
 		_place_enemy_base_node()
 		EventBus.event_triggered.emit(_build_enemy_base_spawn_event())
 
-	if EnemyFactionSystem.tick_enemy_base_progress(1.0):
+	if bool(turn_receipt.get("enemy_base_completed", false)):
 		EventBus.event_triggered.emit(_build_enemy_base_completed_event())
 	_refresh_enemy_base_model()
 
-	EventBus.board_day_ended.emit()
-
-	# Rival Behind-The-Scenes Simulation & War Era Progression
-	RivalProgressionSystem.advance_rival_turn(1)
-	var era_res: Dictionary = EraProgressionSystem.advance_war_turn(1)
+	# Rival Behind-The-Scenes Simulation & War Era Progression results come back
+	# in the receipt; surfacing their events stays board-side.
+	var era_res: Dictionary = turn_receipt.get("era", {})
 	if bool(era_res.get("phase_changed", false)):
 		EventBus.event_triggered.emit({
 			"name": "ERA EVOLUTION: %s" % str(era_res.get("era_name", "")),
@@ -950,7 +954,7 @@ func _advance_calendar_day() -> void:
 		})
 
 	# Scavenger Outpost Manpower growth & Fleet dispatches
-	var scav_events := ScavengerSystem.advance_turn(nodes_dict)
+	var scav_events: Array = turn_receipt.get("scavenger_events", [])
 	for s_event in scav_events:
 		EventBus.event_triggered.emit({
 			"name": "🏴‍☠️ SCAVENGER RAID FLEET",

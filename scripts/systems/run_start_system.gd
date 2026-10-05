@@ -150,3 +150,4 @@ static func roll_random_start() -> void:
 	ProceduralLoreSystem.initialize_run_lore()
 	RivalProgressionSystem.reset()
 	EraProgressionSystem.reset()
+	CampaignTurnExecutive.reset()

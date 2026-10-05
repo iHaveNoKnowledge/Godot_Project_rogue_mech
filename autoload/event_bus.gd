@@ -58,6 +58,7 @@ signal tile_entered(tile_pos: Vector2i, tile_data: Node)
 ## other once-per-day systems all advance exactly once per day — even though the
 ## player may have stepped across many cells that day.
 signal board_day_ended()
+signal campaign_turn_completed(turn: int, reason: String)
 signal event_triggered(event_data: Dictionary)
 signal heat_changed(new_heat: int)
 signal wanted_changed(new_wanted: int)

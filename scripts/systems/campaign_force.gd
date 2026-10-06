@@ -247,6 +247,49 @@ static func is_active(force_id: String) -> bool:
 	return get_state(force_id) == ForceState.ACTIVE
 
 
+# --- Presence queries (Phase 5G) ------------------------------------------
+#
+# Audit result: no presence query existed and no membership is stored on
+# nodes (node.force_ids would duplicate CampaignForce.node_id and rot).
+# Multiple forces (any faction, any non-destroyed-or-not state) may share
+# one node — 0..N by construction, no occupancy rule in code or design.
+# These are pure derived reads: simple scan + filter + sort by force_id
+# (small N; no index/cache/second registry), no mutation, no persistence.
+# Two explicit semantics (never conflated):
+#   get_forces_at_node        = reference population (every state, incl.
+#                               DISABLED/DESTROYED — destroyed forces retain
+#                               their node reference per 5E, so they appear
+#                               here and must NOT be read as active presence).
+#   get_active_forces_at_node = ACTIVE forces only (operational presence).
+# Unknown node -> [] (same as a valid-but-empty node; no fabrication, no
+# fallback). Off-board forces (node_id "") appear in neither.
+
+## Every force referencing a node, sorted by id. Unknown node -> [].
+static func get_forces_at_node(node_id: String) -> Array:
+	var out: Array = []
+	if node_id == "":
+		return out
+	for fid in _forces:
+		if str((_forces[fid] as Dictionary).get("node_id", "")) == node_id:
+			out.append(fid)
+	out.sort()
+	return out
+
+
+## ACTIVE forces at a node only, sorted by id. Unknown node -> [].
+static func get_active_forces_at_node(node_id: String) -> Array:
+	var out: Array = []
+	if node_id == "":
+		return out
+	for fid in _forces:
+		var f: Dictionary = _forces[fid]
+		if str(f.get("node_id", "")) == node_id \
+				and int(f.get("state", ForceState.DESTROYED)) == ForceState.ACTIVE:
+			out.append(fid)
+	out.sort()
+	return out
+
+
 ## Derived territory context through existing topology (node -> territories).
 ## Never stored on the force; first sorted id or "" (no inference).
 static func get_territory_context(force_id: String) -> String:

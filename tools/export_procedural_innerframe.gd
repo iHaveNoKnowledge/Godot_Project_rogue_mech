@@ -19,6 +19,11 @@ extends SceneTree
 
 const GAME_SCALE := 1.0
 
+## Standard-frame cockpit asset (same file PartMeshManager uses for the body):
+## tub + waist core sized for a 180 cm seated pilot. Passed as frame_data so
+## headless exports don't depend on GlobalData (which can't compile headless).
+const COCKPIT_MODEL := "res://assets/models/mech_cockpit_tub.glb"
+
 const EXPORT_CONFIGS := [
 	{"path": "res://exports/procedural_innerframe_local.glb", "scale": 1.0, "tag": "TRUE  (author at this scale - 1 unit = 1m)"},
 	{"path": "res://exports/procedural_innerframe.glb", "scale": GAME_SCALE, "tag": "TRUE  (same)"},
@@ -119,7 +124,10 @@ func _export_one(out_path: String, scale: float, tag: String) -> bool:
 	build_root.add_child(manager)
 
 	for slot in GlobalData.MECHA_SLOTS:
-		manager.initialize_slot(slot, null, false)
+		var frame_data: Variant = null
+		if slot == "body":
+			frame_data = {"model_path": COCKPIT_MODEL}
+		manager.initialize_slot(slot, null, false, frame_data)
 
 	# --- 3. Bake every generated primitive into clean, scale-free nodes ------
 	var out_root := Node3D.new()
@@ -152,11 +160,30 @@ func _export_one(out_path: String, scale: float, tag: String) -> bool:
 			var seg_key := "upper" if segment == "frame" else ("lower" if segment == "frame_lower" else "foot")
 			var seg_labels: Array = labels.get(seg_key, [])
 			var idx := 0
-			for child in container.get_children():
-				if not (child is MeshInstance3D) or child.mesh == null:
+			# Walk all descendants (not just direct children) so nested asset
+			# pieces (WaistCore / SlidingCarriage / CockpitTub children) are baked
+			# too. Direct children keep their PIECE_LABELS names; nested ones fall
+			# back to their node names.
+			var stack: Array = container.get_children()
+			stack.reverse()
+			while not stack.is_empty():
+				var child: Node = stack.pop_back()
+				for grand in child.get_children():
+					stack.push_back(grand)
+				if not (child is MeshInstance3D) or (child as MeshInstance3D).mesh == null:
 					continue
-				var label: String = seg_labels[idx] if idx < seg_labels.size() else _sanitize(String(child.name))
-				idx += 1
+				if not _is_effectively_visible(child, container):
+					continue  # e.g. hidden CockpitPilot mannequin
+				var label: String
+				if child.get_parent() == container:
+					label = seg_labels[idx] if idx < seg_labels.size() else _sanitize(String(child.name))
+					idx += 1
+				else:
+					# Nested pieces (asset children like WaistCore/CockpitTub parts,
+					# finger armor segments): keep the real node name; the slot
+					# prefix is added by the _bake_piece call below.
+					var raw := String(child.name)
+					label = raw if raw != "" else "piece"
 				var baked_stats := _bake_piece(child, "%s_%s" % [slot.replace("_left", "_l").replace("_right", "_r"), label], out_root, used_names)
 				total_meshes += 1
 				total_tris += baked_stats[0]
@@ -245,3 +272,16 @@ func _bake_piece(mi: MeshInstance3D, label: String, out_root: Node3D, used_names
 func _sanitize(raw: String) -> String:
 	var s := raw.to_lower().trim_prefix("@").get_slice("@", 0)
 	return s if s != "" else "piece"
+
+
+## True when the node and every ancestor up to (excluding) the container is
+## visible. Used to skip hidden subtrees like the CockpitPilot mannequin.
+func _is_effectively_visible(n: Node, container: Node) -> bool:
+	var cur: Node = n
+	while cur != null and cur != container:
+		if cur is Node3D and not (cur as Node3D).visible:
+			return false
+		if cur is VisualInstance3D and not (cur as VisualInstance3D).visible:
+			return false
+		cur = cur.get_parent()
+	return true

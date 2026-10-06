@@ -210,6 +210,39 @@ static func get_state(force_id: String) -> int:
 	return int((_forces[force_id] as Dictionary).get("state", ForceState.DESTROYED))
 
 
+# --- Composition boundary (Phase 5D) -------------------------------------
+#
+# Audit result (do not re-decide lightly): tactical composition is owned in
+# three places — patrol pilots[] (PatrolSystem, churning), hangar berths +
+# fleet roster (HangarManager, player authority), wave/reinforcement defs
+# (SpawnManager/mid_battle_injection, tactical recipes). There is NO canonical
+# composition abstraction to reference, and pointing at patrol/berth ids
+# would duplicate ownership over churning data (Outcome A rejected).
+# Fabricating pilots/mecha from unit_count would invent units (forbidden).
+# So the boundary is exactly this: a pure READ of the abstract campaign
+# composition the force already holds — {force_id, force_type, unit_count,
+# strength} — scalars only, JSON-safe, nothing resolved, nothing created.
+# This is campaign intent for a future Tactical Participant Resolver to
+# consume; the resolver itself is explicitly deferred (it would have to
+# rewrite SpawnManager/combat).
+#
+# Composition contract shape:
+#   {force_id, force_type, unit_count, strength} — {} when unknown.
+
+## Returns the explicit composition contract for one force. Pure read: no
+## state changed, no roster resolved, no units fabricated.
+static func describe_composition(force_id: String) -> Dictionary:
+	if not _forces.has(force_id):
+		return {}
+	var f: Dictionary = _forces[force_id]
+	return {
+		"force_id": str(f.get("id", "")),
+		"force_type": str(f.get("force_type", "")),
+		"unit_count": int(f.get("unit_count", 0)),
+		"strength": int(f.get("strength", 0)),
+	}
+
+
 static func is_active(force_id: String) -> bool:
 	return get_state(force_id) == ForceState.ACTIVE
 

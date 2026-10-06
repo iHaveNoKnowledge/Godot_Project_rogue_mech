@@ -201,6 +201,59 @@ static func clear_session_ref(battle_id: String) -> bool:
 	return true
 
 
+# --- Launch boundary (Phase 5C) ------------------------------------------
+#
+# Audit result (do not re-decide lightly): existing tactical combat consumes
+# combat_node_type + board_patrol_engagement + hangar working set + theme —
+# there is NO campaign-participant abstraction and Force carries NO roster
+# (abstract unit_count/strength only, by design). Mapping a Force to tactical
+# participants would require fabricating rosters, and threading a battle id
+# through enter_combat/spawn/rewards would shift combat ownership. Verdict:
+# TACTICAL BRIDGE NOT YET SAFE. This contract is the complete 5C boundary:
+# validation + PLANNED->ACTIVE + a reference-only descriptor a FUTURE
+# adapter may consume. No combat code is touched; no adapter is faked.
+#
+# Contract shape (executive-style ok/error convention):
+#   {ok:true, battle_id, node_id, participant_force_ids[]} on success
+#   {ok:false, error} with the battle left PLANNED on rejection.
+# Descriptor purity: strings/arrays only (JSON-serializable — proven by test),
+# never Force/mecha/combat objects, never tactical state. Launch mutates NO
+# force (counts/strength/state/node/base/faction all preserved) and never
+# marks RESOLVED (launch != resolution).
+
+## Validates launch rules and, on success, moves PLANNED->ACTIVE and returns
+## the reference-only launch descriptor.
+static func prepare_launch(battle_id: String) -> Dictionary:
+	if not _battles.has(battle_id):
+		return {"ok": false, "error": "unknown_battle", "battle_id": battle_id}
+	var b: Dictionary = _battles[battle_id]
+	if int(b.get("state", -1)) != BattleState.PLANNED:
+		return {"ok": false, "error": "not_planned", "battle_id": battle_id,
+			"state": state_to_name(int(b.get("state", BattleState.CANCELLED)))}
+	var node_id := str(b.get("node_id", ""))
+	if node_id == "" or not CampaignNodeRegistry.has_node(node_id):
+		return {"ok": false, "error": "invalid_node", "battle_id": battle_id}
+	var parts: Array = b.get("participants", [])
+	if parts.is_empty():
+		return {"ok": false, "error": "no_participants", "battle_id": battle_id}
+	for f in parts:
+		var fid := str(f)
+		if not CampaignForce.has_force(fid):
+			return {"ok": false, "error": "unknown_force", "battle_id": battle_id,
+				"force_id": fid}
+		if CampaignForce.get_state(fid) == CampaignForce.ForceState.DESTROYED:
+			return {"ok": false, "error": "force_destroyed", "battle_id": battle_id,
+				"force_id": fid}
+	b["state"] = BattleState.ACTIVE
+	var descriptor := {
+		"ok": true,
+		"battle_id": battle_id,
+		"node_id": node_id,
+		"participant_force_ids": parts.duplicate(),
+	}
+	return descriptor
+
+
 static func get_session_ref(battle_id: String) -> String:
 	if not _battles.has(battle_id):
 		return ""

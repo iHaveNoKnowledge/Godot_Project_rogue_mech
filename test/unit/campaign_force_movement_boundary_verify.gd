@@ -9,8 +9,11 @@ extends Node
 ## Relocation mutates ONLY the force's own node_id — never nodes, bases,
 ## territories, battles, faction relations, patrols, or player state — and
 ## applies identically in ACTIVE/DISABLED/DESTROYED (no state gate exists).
-## Multiple forces may share one node (0..N). NodeRegistry owns topology;
-## the future movement system does not exist yet.
+## Multiple forces may share one node (0..N). NodeRegistry owns topology.
+## 5T amendment: the single sanctioned gameplay action
+## (CampaignForceMovement.move_force, one validated route hop) now exists;
+## everything this file locks about the set_node() primitive still holds,
+## and no pathfinding/cost/queue authority may appear beside it.
 ## User save backed up/restored.
 
 var _fails := 0
@@ -256,7 +259,8 @@ func _test_reset() -> void:
 
 
 # K. Static ownership guard: no production system mutates CampaignForce, and
-# no campaign movement/pathfinding/cost authority file exists.
+# no campaign movement/pathfinding/cost authority file exists beyond the
+# single sanctioned 5T action (campaign_force_movement.gd).
 func _test_no_movement_authority() -> void:
 	var readers := {
 		"res://scripts/systems/campaign_node_registry.gd": false,
@@ -304,10 +308,13 @@ func _test_no_movement_authority() -> void:
 		while entry != "":
 			if not dir.current_is_dir():
 				var n := entry.to_lower()
-				if n.contains("movement") or n.contains("pathfind") \
+				# 5T amendment: campaign_force_movement.gd is the one
+				# sanctioned one-hop action; everything else stays forbidden.
+				# (.uid sidecars are engine metadata, never authorities.)
+				if n.get_extension() != "uid" and n != "campaign_force_movement.gd" and (n.contains("movement") or n.contains("pathfind") \
 						or n.contains("force_orders") or n.contains("force_command") \
-						or n.contains("travel_cost") or n.contains("waypoint"):
+						or n.contains("travel_cost") or n.contains("waypoint")):
 					parallel = true
 			entry = dir.get_next()
 		dir.list_dir_end()
-	_check(not parallel, "no movement/pathfinding/order authority file exists")
+	_check(not parallel, "no unsanctioned movement/pathfinding/order authority file exists")

@@ -93,6 +93,7 @@ func _test_no_speculative_fallback() -> void:
 	# Scenario with explicitly empty initial force specs
 	var s = ScenarioDefScript.new()
 	s.scenario_id = "empty_forces_scenario"
+	s.display_name = "Empty Forces Scenario"
 	_check(s.get_initial_force_specs().is_empty(), "B1: ScenarioDefinition initial force specs default to empty")
 
 	var result: Dictionary = InitializerScript.apply_scenario(s, 1)
@@ -181,6 +182,7 @@ func _test_runtime_separation() -> void:
 
 	var s = ScenarioDefScript.new()
 	s.scenario_id = "authored_runtime_test"
+	s.display_name = "Authored Runtime Test"
 	s.initial_force_specs = [
 		{
 			"slug": "recon_spec",
@@ -215,6 +217,7 @@ func _test_determinism() -> void:
 
 	var s = ScenarioDefScript.new()
 	s.scenario_id = "authored_determinism_test"
+	s.display_name = "Authored Determinism Test"
 	s.initial_node_specs = [
 		{ "id": "det_node_a", "tile": Vector2i(2, 2), "sector": 1, "node_type": "city" }
 	]

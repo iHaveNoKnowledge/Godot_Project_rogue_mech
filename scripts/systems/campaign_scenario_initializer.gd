@@ -21,6 +21,7 @@ extends RefCounted
 ## ---------------------------------------------------------------------------
 
 const ScenarioDef = preload("res://resources/data/scenario_definition.gd")
+const ScenarioSchemaValidator = preload("res://scripts/systems/scenario_schema_validator.gd")
 
 const DATA_CLASSIFICATION := "CANONICAL"
 
@@ -38,20 +39,37 @@ static func can_apply(scenario: Resource) -> bool:
 	if scenario == null:
 		return false
 	if scenario.has_method("is_valid"):
-		return scenario.call("is_valid")
-	return false
+		if not scenario.call("is_valid"):
+			return false
+	var validation := ScenarioSchemaValidator.validate_scenario(scenario)
+	return bool(validation.get("valid", false))
 
 
 ## Applies an authored ScenarioDefinition to initialize the campaign runtime state.
-## If scenario is null or invalid, cleanly does nothing and returns empty result.
+## If scenario is null, cleanly does nothing and returns empty result.
+## If scenario is invalid according to ScenarioSchemaValidator, rejects initialization safely.
 ## Under NO circumstances does this fall back to speculative fixtures.
 static func apply_scenario(scenario: Resource, sector: int = 1) -> Dictionary:
-	if not can_apply(scenario):
+	if scenario == null:
 		return {
 			"ok": true,
 			"applied": false,
 			"reason": "no_scenario",
 			"scenario_id": "",
+			"forces_created": [],
+			"nodes_created": [],
+			"territories_created": [],
+			"bases_created": [],
+		}
+
+	var validation := ScenarioSchemaValidator.validate_scenario(scenario)
+	if not validation.get("valid", false):
+		return {
+			"ok": false,
+			"applied": false,
+			"reason": "validation_failed",
+			"errors": validation.get("errors", []),
+			"scenario_id": str(scenario.get("scenario_id")) if "scenario_id" in scenario else "",
 			"forces_created": [],
 			"nodes_created": [],
 			"territories_created": [],

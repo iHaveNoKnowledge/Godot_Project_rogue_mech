@@ -36,6 +36,8 @@ var thermal_cloak  # ThermalCloakSystem instance (GDD §6.2)
 var ewar  # EWarSystem instance (GDD §7 electronic warfare)
 var weather_transition  # WeatherTransitionSystem instance (dynamic weather)
 var selected_stance_mode: String = "combat_crouch" # "combat_crouch", "upright_formal", "wide_squat"
+# --- Campaign V2 Run Identity (Phase 5AE) ---
+var current_campaign_scenario_id: String = ""
 # --- Catalog databases (loaded once at startup) ---
 var armor_catalog: Dictionary = {}
 var chassis_catalog: Dictionary = {}
@@ -1116,6 +1118,8 @@ func reset_run_data() -> void:
 	CampaignForce.clear()
 	# Phase 5B (Campaign V2): battle records are run state.
 	CampaignBattle.clear()
+	# Phase 5AE (Campaign V2): active scenario identity.
+	current_campaign_scenario_id = ""
 
 	# Non-delegated state.
 	_combat_friendly_total_hp = 0.0
@@ -1131,3 +1135,7 @@ func reset_run_data() -> void:
 
 func clear_working_set() -> void:
 	weapons.clear_working_set()
+
+
+func get_current_campaign_scenario_id() -> String:
+	return current_campaign_scenario_id

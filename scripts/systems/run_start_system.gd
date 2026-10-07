@@ -157,3 +157,151 @@ static func roll_random_start() -> void:
 	CampaignBase.clear()
 	CampaignForce.clear()
 	CampaignBattle.clear()
+	GlobalData.current_campaign_scenario_id = ""
+
+
+# -----------------------------------------------------------------------------
+# CAMPAIGN SCENARIO START CONTRACT (Phase 5AE)
+# -----------------------------------------------------------------------------
+
+const CANONICAL_SCENARIO_CATALOG_PATH := "res://resources/data/scenario_definition_catalog.tres"
+const ScenarioCatalogScript = preload("res://resources/data/scenario_catalog_data.gd")
+const ScenarioDefScript = preload("res://resources/data/scenario_definition.gd")
+const ScenarioSchemaValidatorScript = preload("res://scripts/systems/scenario_schema_validator.gd")
+const CampaignScenarioInitializerScript = preload("res://scripts/systems/campaign_scenario_initializer.gd")
+
+
+## Returns the active campaign scenario ID from the authoritative run state.
+static func get_current_campaign_scenario_id() -> String:
+	return GlobalData.current_campaign_scenario_id
+
+
+## Starts a Campaign V2 run from a selected scenario ID.
+## Contract:
+##   selected_scenario_id
+##           ↓
+##   ScenarioCatalog lookup
+##           ↓
+##   ScenarioDefinition
+##           ↓
+##   ScenarioSchemaValidator.validate(...)
+##           ↓
+##   CampaignScenarioInitializer.apply_scenario(...)
+##           ↓
+##   campaign runtime publication
+##
+## Invariants:
+##   - Rejects empty, unknown, or schema-invalid scenario selections safely.
+##   - Never falls back to arbitrary defaults or speculative fixtures.
+##   - Atomic: failures leave zero partial campaign runtime state.
+##   - Never mutates or replaces RunTheme.
+##   - Never embeds board_seed into ScenarioDefinition.
+##   - Never creates Player CampaignForce.
+##   - ScenarioDefinition remains unmutated (read-only authoring data).
+static func start_campaign_scenario(
+	scenario_id: String,
+	catalog: ScenarioCatalogData = null,
+	sector: int = 1
+) -> Dictionary:
+	var clean_id := scenario_id.strip_edges()
+	if clean_id.is_empty():
+		return {
+			"ok": false,
+			"started": false,
+			"reason": "missing_scenario_id",
+			"scenario_id": "",
+			"errors": ["Scenario ID cannot be empty."],
+		}
+
+	var active_catalog: ScenarioCatalogData = catalog
+	if active_catalog == null:
+		if ResourceLoader.exists(CANONICAL_SCENARIO_CATALOG_PATH):
+			active_catalog = load(CANONICAL_SCENARIO_CATALOG_PATH) as ScenarioCatalogData
+	if active_catalog == null:
+		return {
+			"ok": false,
+			"started": false,
+			"reason": "catalog_not_found",
+			"scenario_id": clean_id,
+			"errors": ["Scenario catalog could not be loaded."],
+		}
+
+	var scenario: Resource = active_catalog.get_scenario(clean_id)
+	if scenario == null:
+		return {
+			"ok": false,
+			"started": false,
+			"reason": "unknown_scenario",
+			"scenario_id": clean_id,
+			"errors": ["Scenario '%s' not found in catalog." % clean_id],
+		}
+
+	var validation: Dictionary = ScenarioSchemaValidatorScript.validate_scenario(scenario, active_catalog)
+	if not validation.get("valid", false):
+		return {
+			"ok": false,
+			"started": false,
+			"reason": "validation_failed",
+			"scenario_id": clean_id,
+			"errors": validation.get("errors", []),
+		}
+
+	# Prepare clean state before applying scenario to ensure atomicity
+	_clear_campaign_runtime_state()
+
+	# Apply initial faction relationships from authored scenario
+	var rels: Dictionary = {}
+	if scenario.has_method("get_initial_relationships"):
+		rels = scenario.get_initial_relationships()
+	elif "initial_relationships" in scenario:
+		var raw_rels = scenario.get("initial_relationships")
+		if raw_rels is Dictionary:
+			rels = raw_rels
+	for pair_key in rels:
+		var pair_str := str(pair_key)
+		var colon_idx := pair_str.find(":")
+		if colon_idx != -1:
+			var fac_a := pair_str.substr(0, colon_idx).strip_edges()
+			var fac_b := pair_str.substr(colon_idx + 1).strip_edges()
+			var val := int(rels[pair_key])
+			if FactionSystem.has_faction(fac_a) and FactionSystem.has_faction(fac_b):
+				FactionSystem.set_relation(fac_a, fac_b, val)
+
+	# Initialize runtime state via CampaignScenarioInitializer
+	var init_res: Dictionary = CampaignScenarioInitializerScript.apply_scenario(scenario, sector)
+	if not init_res.get("ok", false) or not init_res.get("applied", false):
+		# Rollback on failure to guarantee atomicity: no partial runtime state remains
+		_clear_campaign_runtime_state()
+		return {
+			"ok": false,
+			"started": false,
+			"reason": "initialization_failed",
+			"scenario_id": clean_id,
+			"errors": init_res.get("errors", []),
+		}
+
+	# Publish active scenario ID to authoritative run identity
+	GlobalData.current_campaign_scenario_id = clean_id
+
+	return {
+		"ok": true,
+		"started": true,
+		"reason": "success",
+		"scenario_id": clean_id,
+		"scenario": scenario,
+		"forces_created": init_res.get("forces_created", []),
+		"nodes_created": init_res.get("nodes_created", []),
+		"territories_created": init_res.get("territories_created", []),
+		"bases_created": init_res.get("bases_created", []),
+	}
+
+
+static func _clear_campaign_runtime_state() -> void:
+	CampaignTurnExecutive.reset()
+	FactionSystem.reset_relations()
+	CampaignNodeRegistry.clear()
+	CampaignTerritory.clear()
+	CampaignBase.clear()
+	CampaignForce.clear()
+	CampaignBattle.clear()
+	GlobalData.current_campaign_scenario_id = ""

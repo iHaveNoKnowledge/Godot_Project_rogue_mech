@@ -2,27 +2,29 @@ class_name CampaignForceInitializer
 extends RefCounted
 
 ## ---------------------------------------------------------------------------
-## CAMPAIGN FORCE INITIALIZER — Phase 5X (minimal deterministic initial population).
+## CAMPAIGN FORCE INITIALIZER — Phase 5X/5Y (development & test fixture population).
 ##
-## Audit evidence:
-##   - CampaignForce producer was NONE; initial population was ZERO.
-##   - register_force() was explicit low-level authority only.
-##   - Patrols (BoardState.board_patrols, PatrolSystem) have board-local identity,
-##     churning IDs, encounter-stance labels ("hostile"/"unknown"), and tactical
-##     rosters; DO NOT BRIDGE PATROL -> CAMPAIGNFORCE.
-##   - Player hangar/fleet/pilot roster has separate ownership; DO NOT FABRICATE
-##     PLAYER FORCE.
-##   - Initial population must be deterministic, minimal (1-N NPC forces),
-##     anchored to canonical FactionSystem and CampaignNodeRegistry nodes.
+## Phase 5Y Audit Evidence:
+##   - Systematic repository audit confirmed that Valkren currently has NO
+##     canonical scenario definition for starting CampaignForces.
+##   - DEFAULT_FORCE_SPECS are SPECULATIVE DEVELOPMENT FIXTURES created to provide
+##     a minimal, deterministic population for testing and gameplay slice proof
+##     (Movement, Inspection, Turn execution).
+##   - They are NOT authoritative production game scenario data.
+##   - Production RunStartSystem does NOT inject speculative forces as canonical.
+##   - Scenarios or tests may explicitly invoke initialize_campaign_forces()
+##     with custom specs or these development fixtures.
 ##
 ## Responsibilities:
-##   - Register deterministic initial CampaignForce records during run
-##     initialization (Option B).
+##   - Register deterministic initial CampaignForce records when explicitly requested.
 ##   - Idempotent: repeated initialization produces the same population without duplicates.
 ##   - Pure creator: does NOT move forces, advance turns, resolve battles,
 ##     mutate territory/base, simulate supply/detection/orders/AI.
 ## ---------------------------------------------------------------------------
 
+const DATA_CLASSIFICATION := "SPECULATIVE_DEVELOPMENT_FIXTURE"
+
+## Development/test fixture specs (classified as SPECULATIVE_DEVELOPMENT_FIXTURE).
 const DEFAULT_FORCE_SPECS: Array[Dictionary] = [
 	{
 		"slug": "patrol_alpha",
@@ -52,6 +54,17 @@ const DEFAULT_FORCE_SPECS: Array[Dictionary] = [
 		"strength": 10,
 	},
 ]
+
+
+## Classification of the default initial force specs.
+## Phase 5Y audit confirmed: no canonical scenario data exists in repository.
+## These specs are development/test fixtures for gameplay slice validation.
+static func is_canonical_scenario_data() -> bool:
+	return false
+
+
+static func get_data_classification() -> String:
+	return DATA_CLASSIFICATION
 
 
 ## Returns the default deterministic initial force specifications.

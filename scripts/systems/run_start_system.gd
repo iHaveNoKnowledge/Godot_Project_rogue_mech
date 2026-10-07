@@ -157,5 +157,3 @@ static func roll_random_start() -> void:
 	CampaignBase.clear()
 	CampaignForce.clear()
 	CampaignBattle.clear()
-	# Phase 5X: initialize deterministic CampaignForce population for new run.
-	CampaignForceInitializer.initialize_campaign_forces(GlobalData.board.current_sector)

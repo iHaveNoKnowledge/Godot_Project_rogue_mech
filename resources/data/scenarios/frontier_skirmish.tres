@@ -6,7 +6,7 @@
 script = ExtResource("1_def")
 scenario_id = "frontier_skirmish"
 display_name = "Frontier Skirmish"
-description = "Border skirmish along the contested frontier between Earth Federation patrols and Zeon strike units, with opportunistic Outland scavengers roaming neutral corridors."
+description = "Border skirmish along the contested frontier between Earth Federation patrols and Zeon strike units, with opportunistic Outland scavengers raiding forward depots in Zeon territory."
 faction_setup = ["federation", "zeon", "outland"]
 initial_force_specs = [{
 "base_id": "base_frontier_garrison",
@@ -95,7 +95,7 @@ initial_relationships = {
 "zeon:outland": 1
 }
 strategic_rules = {
-"defeat_condition": "all_allies_destroyed",
+"defeat_condition": "turn_limit_exceeded",
 "turn_limit": 30,
 "victory_condition": "secure_frontier_sector"
 }

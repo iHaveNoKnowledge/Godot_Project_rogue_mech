@@ -44,6 +44,7 @@ func _run_all_tests() -> void:
 	_test_schema_validation()
 	_test_catalog_registration()
 	_test_cross_references()
+	_test_semantic_consistency()
 	_test_initializer_can_apply()
 	_test_runtime_translation()
 	_test_authoring_immutability()
@@ -128,6 +129,65 @@ func _test_cross_references() -> void:
 		_check(node_ids.has(str(f["node_id"])), "E7: Force node '%s' exists" % str(f["node_id"]))
 		if f.has("base_id") and str(f["base_id"]) != "":
 			_check(base_ids.has(str(f["base_id"])), "E8: Force base '%s' exists" % str(f["base_id"]))
+
+
+# S — Semantic Consistency (Phase 5AD-R)
+func _test_semantic_consistency() -> void:
+	var s = load(CANONICAL_SCENARIO_PATH)
+
+	# S1: Faction IDs vs force_type distinction
+	# Scenario factions are: federation, zeon, outland (NO scavenger faction)
+	_check(s.faction_setup.size() == 3, "S1: Exactly 3 participating factions")
+	_check(s.faction_setup.has("federation"), "S1a: Participating faction 'federation'")
+	_check(s.faction_setup.has("zeon"), "S1b: Participating faction 'zeon'")
+	_check(s.faction_setup.has("outland"), "S1c: Participating faction 'outland'")
+	_check(not s.faction_setup.has("scavenger"), "S1d: 'scavenger' is NOT a participating faction")
+
+	for f in s.initial_force_specs:
+		_check(s.faction_setup.has(str(f["faction"])), "S2: Force faction '%s' is an intentional participating faction" % str(f["faction"]))
+		if str(f.get("slug", "")) == "outland_scavengers":
+			_check(str(f["faction"]) == "outland", "S3a: Outland force faction is 'outland'")
+			_check(str(f["force_type"]) == "SCAVENGER", "S3b: Outland force doctrine is SCAVENGER (force_type != faction)")
+
+	# S4: Territory and node semantics
+	var alpha_terr: Dictionary = {}
+	var beta_terr: Dictionary = {}
+	for t in s.initial_territory_specs:
+		if str(t["id"]) == "terr_frontier_sector_alpha":
+			alpha_terr = t
+		elif str(t["id"]) == "terr_frontier_sector_beta":
+			beta_terr = t
+
+	_check(alpha_terr.get("controller") == "federation", "S4a: Sector Alpha controlled by federation")
+	var alpha_nodes: Array = alpha_terr.get("nodes", alpha_terr.get("members", []))
+	_check(alpha_nodes.has("node_frontier_safehouse") and alpha_nodes.has("node_frontier_city"), "S4b: Sector Alpha contains safehouse and city")
+
+	_check(beta_terr.get("controller") == "zeon", "S4c: Sector Beta controlled by zeon")
+	var beta_nodes: Array = beta_terr.get("nodes", beta_terr.get("members", []))
+	_check(beta_nodes.has("node_frontier_depot") and beta_nodes.has("node_frontier_outpost"), "S4d: Sector Beta contains depot and outpost")
+
+	# S5: Bases & controllers
+	for b in s.initial_base_specs:
+		if str(b["id"]) == "base_frontier_garrison":
+			_check(str(b["controller"]) == "federation", "S5a: Garrison base controlled by federation")
+			_check(str(b["node_id"]) == "node_frontier_city", "S5b: Garrison base located at city in Sector Alpha")
+		elif str(b["id"]) == "base_frontier_stronghold":
+			_check(str(b["controller"]) == "zeon", "S5c: Stronghold base controlled by zeon")
+			_check(str(b["node_id"]) == "node_frontier_outpost", "S5d: Stronghold base located at outpost in Sector Beta")
+
+	# S6: Relationships
+	var rels: Dictionary = s.initial_relationships
+	_check(rels.get("federation:zeon", -1) == 0, "S6a: Federation <-> Zeon is HOSTILE (0)")
+	_check(rels.get("federation:outland", -1) == 1, "S6b: Federation <-> Outland is NEUTRAL (1)")
+	_check(rels.get("zeon:outland", -1) == 1, "S6c: Zeon <-> Outland is NEUTRAL (1)")
+	for rel_key in rels:
+		_check(rels[rel_key] != 2, "S6d: No factions have ALLIED status (%s != 2)" % str(rel_key))
+
+	# S7: Strategic rules coherence
+	var rules: Dictionary = s.strategic_rules
+	_check(rules.get("turn_limit", 0) == 30, "S7a: Turn limit is 30")
+	_check(rules.get("victory_condition", "") == "secure_frontier_sector", "S7b: Victory condition is 'secure_frontier_sector'")
+	_check(rules.get("defeat_condition", "") == "turn_limit_exceeded", "S7c: Defeat condition is 'turn_limit_exceeded' (replaces misleading all_allies_destroyed)")
 
 
 # F — Initializer can_apply

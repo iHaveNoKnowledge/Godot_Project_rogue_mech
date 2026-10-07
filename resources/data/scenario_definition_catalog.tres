@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="ScenarioCatalogData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/data/scenario_catalog_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+scenarios = []

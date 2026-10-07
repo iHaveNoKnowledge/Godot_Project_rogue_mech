@@ -141,7 +141,7 @@ static func validate_catalog(catalog: Resource) -> Dictionary:
 			_add_error(errors, "INVALID_CATALOG_ENTRY", "scenarios[%d]" % i, "Catalog entry must be a Resource.")
 			continue
 
-		var s_id: String = str(item.get("scenario_id", "")).strip_edges()
+		var s_id: String = str(item.get("scenario_id") if "scenario_id" in item else "").strip_edges()
 		if s_id != "":
 			if seen_ids.has(s_id):
 				_add_error(errors, "DUPLICATE_SCENARIO_ID", "scenarios[%d].scenario_id" % i,

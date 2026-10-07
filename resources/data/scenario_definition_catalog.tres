@@ -1,7 +1,8 @@
-[gd_resource type="Resource" script_class="ScenarioCatalogData" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="ScenarioCatalogData" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://resources/data/scenario_catalog_data.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/data/scenarios/frontier_skirmish.tres" id="2_frontier"]
 
 [resource]
 script = ExtResource("1")
-scenarios = []
+scenarios = [ExtResource("2_frontier")]

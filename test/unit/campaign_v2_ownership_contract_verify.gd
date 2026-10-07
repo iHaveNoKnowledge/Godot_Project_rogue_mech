@@ -205,7 +205,7 @@ func _test_save_load_boundary() -> void:
 func _test_zero_speculative_data_lock() -> void:
 	var catalog_res = load("res://resources/data/scenario_definition_catalog.tres")
 	_check(catalog_res != null, "9.1: Scenario catalog resource loads")
-	_check(catalog_res.is_empty(), "9.2: Canonical scenario catalog is explicitly empty")
+	_check(catalog_res.get_scenario_count() == 1, "9.2: Canonical scenario catalog contains exactly one canonical scenario")
 	_check(CampaignForceInitializer.get_data_classification() == "SPECULATIVE_DEVELOPMENT_FIXTURE",
 		"9.3: CampaignForceInitializer is SPECULATIVE_DEVELOPMENT_FIXTURE")
 	_check(not CampaignForceInitializer.is_canonical_scenario_data(),

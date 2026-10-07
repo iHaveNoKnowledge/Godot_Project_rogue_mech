@@ -1,0 +1,101 @@
+[gd_resource type="Resource" script_class="ScenarioDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/data/scenario_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+scenario_id = "frontier_skirmish"
+display_name = "Frontier Skirmish"
+description = "Border skirmish along the contested frontier between Earth Federation patrols and Zeon strike units, with opportunistic Outland scavengers roaming neutral corridors."
+faction_setup = ["federation", "zeon", "outland"]
+initial_force_specs = [{
+"base_id": "base_frontier_garrison",
+"faction": "federation",
+"force_type": "PATROL",
+"node_id": "node_frontier_city",
+"slug": "fed_vanguard",
+"strength": 25,
+"unit_count": 2
+}, {
+"base_id": "base_frontier_stronghold",
+"faction": "zeon",
+"force_type": "PATROL",
+"node_id": "node_frontier_outpost",
+"slug": "zeon_raiders",
+"strength": 30,
+"unit_count": 3
+}, {
+"faction": "outland",
+"force_type": "SCAVENGER",
+"node_id": "node_frontier_depot",
+"slug": "outland_scavengers",
+"strength": 10,
+"unit_count": 1
+}]
+initial_node_specs = [{
+"id": "node_frontier_safehouse",
+"node_type": "safehouse",
+"sector": 1,
+"strategic_importance": 2,
+"tile": Vector2i(1, 1)
+}, {
+"id": "node_frontier_city",
+"node_type": "city",
+"sector": 1,
+"strategic_importance": 5,
+"tile": Vector2i(3, 2)
+}, {
+"id": "node_frontier_depot",
+"node_type": "fuel_depot",
+"sector": 1,
+"strategic_importance": 3,
+"tile": Vector2i(5, 3)
+}, {
+"id": "node_frontier_outpost",
+"node_type": "enemy_base",
+"sector": 1,
+"strategic_importance": 4,
+"tile": Vector2i(7, 4)
+}]
+initial_territory_specs = [{
+"controller": "federation",
+"id": "terr_frontier_sector_alpha",
+"members": ["node_frontier_safehouse", "node_frontier_city"],
+"nodes": ["node_frontier_safehouse", "node_frontier_city"],
+"sector": 1,
+"state": 1
+}, {
+"controller": "zeon",
+"id": "terr_frontier_sector_beta",
+"members": ["node_frontier_depot", "node_frontier_outpost"],
+"nodes": ["node_frontier_depot", "node_frontier_outpost"],
+"sector": 1,
+"state": 1
+}]
+initial_base_specs = [{
+"base_type": "OUTPOST",
+"controller": "federation",
+"faction": "federation",
+"id": "base_frontier_garrison",
+"node_id": "node_frontier_city",
+"state": 0,
+"territory_id": "terr_frontier_sector_alpha"
+}, {
+"base_type": "OUTPOST",
+"controller": "zeon",
+"faction": "zeon",
+"id": "base_frontier_stronghold",
+"node_id": "node_frontier_outpost",
+"state": 0,
+"territory_id": "terr_frontier_sector_beta"
+}]
+initial_relationships = {
+"federation:outland": 1,
+"federation:zeon": 0,
+"zeon:outland": 1
+}
+strategic_rules = {
+"defeat_condition": "all_allies_destroyed",
+"turn_limit": 30,
+"victory_condition": "secure_frontier_sector"
+}

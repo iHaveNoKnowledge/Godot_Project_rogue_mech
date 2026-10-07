@@ -109,7 +109,7 @@ func _test_no_speculative_fallback() -> void:
 	_check(CampaignForce.get_forces().is_empty(), "B8: CampaignForce registry remains empty after null apply")
 
 
-# C — Empty / no-scenario behavior & canonical catalog
+# C — Canonical catalog & scenario lookup
 func _test_empty_no_scenario_behavior() -> void:
 	var catalog_path := "res://resources/data/scenario_definition_catalog.tres"
 	_check(ResourceLoader.exists(catalog_path), "C1: Canonical scenario catalog resource exists")
@@ -117,10 +117,15 @@ func _test_empty_no_scenario_behavior() -> void:
 	var catalog = load(catalog_path)
 	_check(catalog != null, "C2: Canonical scenario catalog loads successfully")
 	_check(catalog.get_script() == ScenarioCatalogScript, "C3: Catalog is instance of ScenarioCatalogData")
-	_check(catalog.is_empty(), "C4: Catalog is explicitly empty (zero canonical scenarios authored yet)")
-	_check(catalog.get_scenario_count() == 0, "C5: Catalog scenario count is 0")
+	_check(catalog.get_scenario_count() == 1, "C4: Catalog contains exactly one canonical scenario")
+	_check(catalog.has_scenario("frontier_skirmish"), "C5: Catalog contains 'frontier_skirmish'")
 	_check(catalog.get_scenario("non_existent") == null, "C6: Requesting unauthored scenario returns null")
 	_check(catalog.get_data_classification() == "CANONICAL", "C7: Catalog classification is CANONICAL")
+
+	# Architecture invariant: empty catalog capability remains supported
+	var empty_cat = ScenarioCatalogScript.new()
+	_check(empty_cat.is_empty(), "C8: Fresh ScenarioCatalogData is empty")
+	_check(empty_cat.get_scenario_count() == 0, "C9: Fresh ScenarioCatalogData count is 0")
 
 
 # D — RunTheme separation

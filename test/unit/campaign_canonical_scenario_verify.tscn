@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://b8yv31m981kc4"]
+
+[ext_resource type="Script" path="res://test/unit/campaign_canonical_scenario_verify.gd" id="1_test"]
+
+[node name="CampaignCanonicalScenarioVerify" type="Node"]
+script = ExtResource("1_test")

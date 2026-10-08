@@ -273,8 +273,9 @@ func _test_transience_and_guards() -> void:
 			if not dir.current_is_dir():
 				var n := entry.to_lower()
 				if n.get_extension() != "uid" and (n.contains("player_force")
-						or n.contains("playerforce") or n.contains("campaign_player")):
+						or n.contains("playerforce") or n.contains("campaign_player_force")):
 					found_player_force = true
+
 			entry = dir.get_next()
 		dir.list_dir_end()
 	_check(not found_player_force, "T — no PlayerForce file exists anywhere near the entry point")

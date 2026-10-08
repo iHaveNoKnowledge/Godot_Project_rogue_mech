@@ -29,6 +29,7 @@ extends RefCounted
 ## ---------------------------------------------------------------------------
 
 const CampaignNodeInspection = preload("res://scripts/systems/campaign_node_inspection.gd")
+const CampaignInvestigateAction = preload("res://scripts/systems/campaign_investigate_action.gd")
 
 const CORE_KNOWN_ACTIONS := [
 	"investigate",
@@ -40,6 +41,16 @@ const CORE_KNOWN_ACTIONS := [
 ]
 
 static var _handlers: Dictionary = {}
+
+
+static func _static_init() -> void:
+	register_default_handlers()
+
+
+## Registers standard domain handlers for all fully implemented actions.
+static func register_default_handlers() -> void:
+	register_handler("investigate", Callable(CampaignInvestigateAction, "handle_investigate"))
+
 
 
 ## Constructs a canonical action intent dictionary.

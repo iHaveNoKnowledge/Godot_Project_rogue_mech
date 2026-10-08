@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://e4j9m2x5q7v1b"]
+
+[ext_resource type="Script" path="res://test/unit/campaign_node_route_runtime_contract_verify.gd" id="1_test"]
+
+[node name="CampaignNodeRouteRuntimeContractVerify" type="Node"]
+script = ExtResource("1_test")

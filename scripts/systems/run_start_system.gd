@@ -160,10 +160,11 @@ static func roll_random_start() -> void:
 	CampaignBattle.clear()
 	GlobalData.current_campaign_id = ""
 	GlobalData.current_campaign_scenario_id = ""
+	GlobalData.current_campaign_faction_id = ""
 
 
 # -----------------------------------------------------------------------------
-# CAMPAIGN SCENARIO START CONTRACT (Phase 5AE / C1)
+# CAMPAIGN SCENARIO START CONTRACT (Phase 5AE / C1 / C3)
 # -----------------------------------------------------------------------------
 
 const CANONICAL_SCENARIO_CATALOG_PATH := "res://resources/data/scenario_definition_catalog.tres"
@@ -181,6 +182,11 @@ static func get_current_campaign_id() -> String:
 ## Returns the active campaign scenario ID from the authoritative run state.
 static func get_current_campaign_scenario_id() -> String:
 	return GlobalData.current_campaign_scenario_id
+
+
+## Returns the active player faction for the current campaign run.
+static func get_current_campaign_player_faction() -> String:
+	return FactionSystem.get_player_faction()
 
 
 ## Starts a Campaign V2 run from a selected scenario ID.
@@ -287,10 +293,16 @@ static func start_campaign_scenario(
 			"errors": init_res.get("errors", []),
 		}
 
-	# Publish active campaign instance and scenario ID to authoritative run identity
+	# Publish active campaign instance, scenario, and player faction to authoritative run identity
 	var instance_id := "camp_%s_%d_%d" % [clean_id, int(Time.get_unix_time_from_system()), randi() % 100000]
 	GlobalData.current_campaign_id = instance_id
 	GlobalData.current_campaign_scenario_id = clean_id
+	var initial_player_faction := FactionSystem.DEFAULT_PLAYER_FACTION
+	if scenario != null and scenario.get("strategic_rules") is Dictionary:
+		var rules: Dictionary = scenario.get("strategic_rules")
+		if rules.has("player_faction") and FactionSystem.has_faction(str(rules["player_faction"])):
+			initial_player_faction = str(rules["player_faction"])
+	GlobalData.current_campaign_faction_id = initial_player_faction
 
 	return {
 		"ok": true,
@@ -298,6 +310,7 @@ static func start_campaign_scenario(
 		"reason": "success",
 		"campaign_id": instance_id,
 		"scenario_id": clean_id,
+		"player_faction": initial_player_faction,
 		"scenario": scenario,
 		"forces_created": init_res.get("forces_created", []),
 		"nodes_created": init_res.get("nodes_created", []),
@@ -317,3 +330,4 @@ static func _clear_campaign_runtime_state() -> void:
 	CampaignBattle.clear()
 	GlobalData.current_campaign_id = ""
 	GlobalData.current_campaign_scenario_id = ""
+	GlobalData.current_campaign_faction_id = ""

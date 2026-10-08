@@ -121,7 +121,7 @@ static func start_base_attack(base_id: String, attacker_force_id: String) -> Dic
 	if defender_force_id == "":
 		defender_force_id = "force_garrison_" + node_id
 		if not CampaignForce.has_force(defender_force_id):
-			var def_fac := base_controller if base_controller != "" else DEFAULT_PLAYER_FACTION
+			var def_fac := base_controller if base_controller != "" else FactionSystem.get_player_faction()
 			CampaignForce.register_force(defender_force_id, "PATROL", def_fac, node_id, base_id, 1, 10)
 
 	var participants: Array = [attacker_force_id, defender_force_id]
@@ -175,7 +175,8 @@ static func get_defense_battle_for_base(base_id: String) -> Dictionary:
 
 
 ## Checks whether the player can physically intervene in the ongoing defense battle.
-static func can_intervene(battle_id: String, player_faction: String = DEFAULT_PLAYER_FACTION) -> Dictionary:
+static func can_intervene(battle_id: String, player_faction: String = "") -> Dictionary:
+	var cur_player_faction := player_faction if player_faction != "" else FactionSystem.get_player_faction()
 	if battle_id == "" or not CampaignBattle.has_battle(battle_id):
 		return {
 			"ok": false,
@@ -207,14 +208,16 @@ static func can_intervene(battle_id: String, player_faction: String = DEFAULT_PL
 		"reason": "intervention_eligible",
 		"battle_id": battle_id,
 		"node_id": node_id,
+		"player_faction": cur_player_faction,
 		"participants": battle.get("participants", []),
 	}
 
 
 ## Executes player tactical intervention into an active defense battle.
 ## Prepares playable combat descriptor without mutating ownership or resolving battle prematurely.
-static func intervene(battle_id: String, player_faction: String = DEFAULT_PLAYER_FACTION) -> Dictionary:
-	var check := can_intervene(battle_id, player_faction)
+static func intervene(battle_id: String, player_faction: String = "") -> Dictionary:
+	var cur_player_faction := player_faction if player_faction != "" else FactionSystem.get_player_faction()
+	var check := can_intervene(battle_id, cur_player_faction)
 	if not bool(check.get("ok", false)):
 		return check
 

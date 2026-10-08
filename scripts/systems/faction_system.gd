@@ -69,6 +69,7 @@ const TIER_MAX: int = 3
 # labels ("hostile"/"unknown") and tech diffusion tags ("all"/"rival"/
 # "convoy") are NOT campaign factions and stay out of this registry.
 const REGISTERED_FACTION_IDS: Array[String] = ["federation", "zeon", "outland", "scavenger"]
+const DEFAULT_PLAYER_FACTION: String = "federation"
 
 static func get_faction_ids() -> Array[String]:
 	return REGISTERED_FACTION_IDS.duplicate()
@@ -78,6 +79,22 @@ static func get_registered_factions() -> Array[String]:
 
 static func has_faction(faction_id: String) -> bool:
 	return REGISTERED_FACTION_IDS.has(faction_id)
+
+## Returns the canonical player faction for the current campaign run.
+## Resolution: GlobalData.current_campaign_faction_id -> (if empty/unregistered) DEFAULT_PLAYER_FACTION ("federation").
+static func get_player_faction() -> String:
+	if GlobalData != null and GlobalData.current_campaign_faction_id != "" and has_faction(GlobalData.current_campaign_faction_id):
+		return GlobalData.current_campaign_faction_id
+	return DEFAULT_PLAYER_FACTION
+
+## Sets the canonical player faction for the current campaign run.
+## Rejects unregistered factions without mutating state.
+static func set_player_faction(faction_id: String) -> bool:
+	if faction_id == "" or not has_faction(faction_id):
+		return false
+	if GlobalData != null:
+		GlobalData.current_campaign_faction_id = faction_id
+	return true
 
 static func get_faction(faction_id: String) -> Dictionary:
 	return get_faction_def(faction_id)

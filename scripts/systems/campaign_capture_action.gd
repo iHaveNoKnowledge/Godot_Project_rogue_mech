@@ -80,7 +80,8 @@ static func handle_capture(intent: Dictionary) -> Dictionary:
 			"node_type": node_type,
 		}
 
-	var claim_faction := str(payload.get("claim_faction", DEFAULT_CLAIM_FACTION)).strip_edges()
+	var raw_claim: Variant = payload.get("claim_faction", null)
+	var claim_faction: String = str(raw_claim).strip_edges() if raw_claim != null else FactionSystem.get_player_faction()
 	if claim_faction == "" or not FactionSystem.has_faction(claim_faction):
 		return {
 			"ok": false,

@@ -31,10 +31,11 @@ const ATTACKABLE_NODE_TYPES := [
 
 
 ## Checks whether a node currently hosts an attackable hostile target.
-static func is_attackable_node(node_id: String, player_faction: String = DEFAULT_PLAYER_FACTION) -> bool:
+static func is_attackable_node(node_id: String, player_faction: String = "") -> bool:
 	if node_id == "" or not CampaignNodeRegistry.has_node(node_id):
 		return false
 
+	var cur_player_faction := player_faction if player_faction != "" else FactionSystem.get_player_faction()
 	var node := CampaignNodeRegistry.get_node(node_id)
 	var node_type := str(node.get("node_type", "")).to_upper()
 
@@ -43,19 +44,19 @@ static func is_attackable_node(node_id: String, player_faction: String = DEFAULT
 	for fid in active_forces:
 		var f := CampaignForce.get_force(str(fid))
 		var faction := str(f.get("faction", ""))
-		if faction != "" and faction != player_faction:
+		if faction != "" and faction != cur_player_faction:
 			return true
 
 	# 2. Check for hostile base at node
 	var base := CampaignBase.get_base_at_node(node_id)
 	if not base.is_empty() and int(base.get("state", -1)) != CampaignBase.BaseState.DESTROYED:
 		var base_ctrl := str(base.get("controller", ""))
-		if base_ctrl != "" and base_ctrl != player_faction:
+		if base_ctrl != "" and base_ctrl != cur_player_faction:
 			return true
 
 	# 3. Dedicated ENEMY_BASE node type without player base
 	if ATTACKABLE_NODE_TYPES.has(node_type):
-		if base.is_empty() or str(base.get("controller", "")) != player_faction:
+		if base.is_empty() or str(base.get("controller", "")) != cur_player_faction:
 			return true
 
 	return false
@@ -84,9 +85,10 @@ static func handle_attack(intent: Dictionary) -> Dictionary:
 			"node_id": node_id,
 		}
 
-	var player_faction := str(payload.get("player_faction", DEFAULT_PLAYER_FACTION)).strip_edges()
+	var raw_faction: Variant = payload.get("player_faction", null)
+	var player_faction: String = str(raw_faction).strip_edges() if raw_faction != null else FactionSystem.get_player_faction()
 	if player_faction == "" or not FactionSystem.has_faction(player_faction):
-		player_faction = DEFAULT_PLAYER_FACTION
+		player_faction = FactionSystem.get_player_faction()
 
 	var node := CampaignNodeRegistry.get_node(node_id)
 	var node_type := str(node.get("node_type", "")).to_upper()

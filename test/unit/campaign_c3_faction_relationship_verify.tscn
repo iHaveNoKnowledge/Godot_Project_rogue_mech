@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://c3factionrelscene001"]
+
+[ext_resource type="Script" path="res://test/unit/campaign_c3_faction_relationship_verify.gd" id="1_test"]
+
+[node name="CampaignC3FactionRelationshipVerify" type="Node"]
+script = ExtResource("1_test")

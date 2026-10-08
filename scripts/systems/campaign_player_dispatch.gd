@@ -31,6 +31,7 @@ extends RefCounted
 const CampaignNodeInspection = preload("res://scripts/systems/campaign_node_inspection.gd")
 const CampaignInvestigateAction = preload("res://scripts/systems/campaign_investigate_action.gd")
 const CampaignResupplyAction = preload("res://scripts/systems/campaign_resupply_action.gd")
+const CampaignTradeAction = preload("res://scripts/systems/campaign_trade_action.gd")
 
 const CORE_KNOWN_ACTIONS := [
 	"investigate",
@@ -52,6 +53,7 @@ static func _static_init() -> void:
 static func register_default_handlers() -> void:
 	register_handler("investigate", Callable(CampaignInvestigateAction, "handle_investigate"))
 	register_handler("resupply", Callable(CampaignResupplyAction, "handle_resupply"))
+	register_handler("trade", Callable(CampaignTradeAction, "handle_trade"))
 
 
 

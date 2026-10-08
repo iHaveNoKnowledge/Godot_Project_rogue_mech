@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://test/unit/campaign_node_interaction_boundary_verify.gd" id="1_test"]
+
+[node name="CampaignNodeInteractionBoundaryVerify" type="Node"]
+script = ExtResource("1_test")

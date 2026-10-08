@@ -133,9 +133,9 @@ static func save_run() -> bool:
 		# copied; session_ref is an opaque string, never a runtime object).
 		# Missing key (old saves) restores as empty — no bump.
 		"campaign_battles": CampaignBattle.serialize(),
-		# Phase 5AE (Campaign V2): active scenario identity. Missing key (old saves)
-		# restores as empty string — no schema bump needed.
+		# Phase 5AE / C1 (Campaign V2): campaign instance & scenario identity.
 		"scenario_id": GlobalData.current_campaign_scenario_id,
+		"campaign_id": GlobalData.current_campaign_id,
 		"current_hazard": GlobalData.board.current_hazard,
 		"board_theme_id": GlobalData.board.board_theme_id,
 		"board_objective_id": GlobalData.board.board_objective_id,
@@ -274,8 +274,9 @@ static func restore_from_dict(data: Dictionary) -> void:
 	CampaignBase.deserialize(data.get("bases", {}))
 	CampaignForce.deserialize(data.get("forces", {}))
 	CampaignBattle.deserialize(data.get("campaign_battles", {}))
-	# Phase 5AE (Campaign V2): active scenario identity.
+	# Phase 5AE / C1 (Campaign V2): active scenario & campaign instance identity.
 	GlobalData.current_campaign_scenario_id = str(data.get("scenario_id", ""))
+	GlobalData.current_campaign_id = str(data.get("campaign_id", ""))
 	GlobalData.board.current_hazard = str(data.get("current_hazard", ""))
 	GlobalData.board.board_theme_id = str(data.get("board_theme_id", "suburb"))
 	GlobalData.board.board_objective_id = str(data.get("board_objective_id", ""))

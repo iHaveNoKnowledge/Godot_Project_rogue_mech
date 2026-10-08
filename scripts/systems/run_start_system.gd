@@ -158,11 +158,12 @@ static func roll_random_start() -> void:
 	CampaignBase.clear()
 	CampaignForce.clear()
 	CampaignBattle.clear()
+	GlobalData.current_campaign_id = ""
 	GlobalData.current_campaign_scenario_id = ""
 
 
 # -----------------------------------------------------------------------------
-# CAMPAIGN SCENARIO START CONTRACT (Phase 5AE)
+# CAMPAIGN SCENARIO START CONTRACT (Phase 5AE / C1)
 # -----------------------------------------------------------------------------
 
 const CANONICAL_SCENARIO_CATALOG_PATH := "res://resources/data/scenario_definition_catalog.tres"
@@ -170,6 +171,11 @@ const ScenarioCatalogScript = preload("res://resources/data/scenario_catalog_dat
 const ScenarioDefScript = preload("res://resources/data/scenario_definition.gd")
 const ScenarioSchemaValidatorScript = preload("res://scripts/systems/scenario_schema_validator.gd")
 const CampaignScenarioInitializerScript = preload("res://scripts/systems/campaign_scenario_initializer.gd")
+
+
+## Returns the active campaign instance ID from the authoritative run state.
+static func get_current_campaign_id() -> String:
+	return GlobalData.current_campaign_id
 
 
 ## Returns the active campaign scenario ID from the authoritative run state.
@@ -281,13 +287,16 @@ static func start_campaign_scenario(
 			"errors": init_res.get("errors", []),
 		}
 
-	# Publish active scenario ID to authoritative run identity
+	# Publish active campaign instance and scenario ID to authoritative run identity
+	var instance_id := "camp_%s_%d_%d" % [clean_id, int(Time.get_unix_time_from_system()), randi() % 100000]
+	GlobalData.current_campaign_id = instance_id
 	GlobalData.current_campaign_scenario_id = clean_id
 
 	return {
 		"ok": true,
 		"started": true,
 		"reason": "success",
+		"campaign_id": instance_id,
 		"scenario_id": clean_id,
 		"scenario": scenario,
 		"forces_created": init_res.get("forces_created", []),
@@ -306,4 +315,5 @@ static func _clear_campaign_runtime_state() -> void:
 	CampaignBase.clear()
 	CampaignForce.clear()
 	CampaignBattle.clear()
+	GlobalData.current_campaign_id = ""
 	GlobalData.current_campaign_scenario_id = ""

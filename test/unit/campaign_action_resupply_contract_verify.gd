@@ -339,7 +339,7 @@ func _test_k_unimplemented_actions_remain_unimplemented() -> void:
 	GlobalData.board.current_sector = 1
 	GlobalData.board.current_tile = Vector2i(2, 2)
 
-	for action in ["attack", "defend"]:
+	for action in ["defend"]:
 		var intent := CampaignPlayerDispatch.create_intent(action, "node_city_k")
 		var res := CampaignPlayerDispatch.dispatch_intent(intent)
 		_check(not bool(res.get("ok", true)), "K1: Action '%s' remains unimplemented" % action)

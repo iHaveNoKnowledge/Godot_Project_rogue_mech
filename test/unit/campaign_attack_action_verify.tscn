@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://ci1v7b8w4a4u1"]
+
+[ext_resource type="Script" path="res://test/unit/campaign_attack_action_verify.gd" id="1_attack"]
+
+[node name="CampaignAttackActionVerify" type="Node"]
+script = ExtResource("1_attack")

@@ -35,6 +35,22 @@ static func get_current_node_id() -> String:
 	return str(node_data.get("id", ""))
 
 
+## Returns all strategic node IDs reachable from the player's current node position.
+static func get_reachable_node_ids() -> Array[String]:
+	var cur := get_current_node_id()
+	if cur == "":
+		return []
+	return CampaignNodeRegistry.get_connected_node_ids(cur)
+
+
+## Returns all strategic node data dictionaries reachable from the player's current node position.
+static func get_reachable_nodes() -> Array:
+	var cur := get_current_node_id()
+	if cur == "":
+		return []
+	return CampaignNodeRegistry.get_connected_nodes(cur)
+
+
 ## Validates whether the player can move to the specified destination node without mutating any state.
 static func can_move_to_node(destination_node_id: String) -> Dictionary:
 	var source := get_current_node_id()

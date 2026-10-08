@@ -189,6 +189,30 @@ static func get_routes_for(node_id: String) -> Array:
 	return out
 
 
+## Returns all node IDs directly reachable from the given node via registered routes.
+static func get_connected_node_ids(node_id: String) -> Array[String]:
+	var out: Array[String] = []
+	if node_id == "" or not has_node(node_id):
+		return out
+	for r in get_routes_for(node_id):
+		var a := str(r.get("a", ""))
+		var b := str(r.get("b", ""))
+		var other := b if a == node_id else a
+		if other != "" and not out.has(other) and has_node(other):
+			out.append(other)
+	out.sort()
+	return out
+
+
+## Returns full node data dictionaries for all nodes reachable from the given node.
+static func get_connected_nodes(node_id: String) -> Array:
+	var ids := get_connected_node_ids(node_id)
+	var out: Array = []
+	for nid in ids:
+		out.append(get_node(nid))
+	return out
+
+
 ## Registers an undirected route. A,B and B,A resolve to the same id.
 ## Returns the route id, or "" when rejected: unknown endpoint, self-loop,
 ## or an already-registered undirected edge (strict duplicate rejection).

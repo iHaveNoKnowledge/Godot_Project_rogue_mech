@@ -118,6 +118,8 @@ static func save_run() -> bool:
 		# Registered defs are static. Missing key (old saves) restores as
 		# defaults via the deserialize default — no schema bump.
 		"faction_relations": FactionSystem.serialize_relations(),
+		# Phase 3A / C2 (Campaign V2): node and route topology.
+		"nodes": CampaignNodeRegistry.serialize(),
 		# Phase 3B (Campaign V2): territory control state only (id/control/
 		# controller/contesting/member-ID references). No board or node data
 		# duplicated. Missing key (old saves) restores as empty — no bump.
@@ -270,6 +272,7 @@ static func restore_from_dict(data: Dictionary) -> void:
 	GlobalData.board.time_hour = float(data.get("time_hour", 8.0))
 	CampaignTurnExecutive.deserialize_campaign_turn(data.get("campaign_turn", 0))
 	FactionSystem.deserialize_relations(data.get("faction_relations", {}))
+	CampaignNodeRegistry.deserialize(data.get("nodes", {}))
 	CampaignTerritory.deserialize(data.get("territories", {}))
 	CampaignBase.deserialize(data.get("bases", {}))
 	CampaignForce.deserialize(data.get("forces", {}))

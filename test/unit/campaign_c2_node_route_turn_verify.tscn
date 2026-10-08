@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://c2noderouteturnscene001"]
+
+[ext_resource type="Script" path="res://test/unit/campaign_c2_node_route_turn_verify.gd" id="1_test"]
+
+[node name="CampaignC2NodeRouteTurnVerify" type="Node"]
+script = ExtResource("1_test")

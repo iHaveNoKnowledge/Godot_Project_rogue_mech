@@ -22,6 +22,12 @@ const STATE_DEPLETED := "depleted"
 # Default faction initial states
 static var _faction_economies: Dictionary = {}
 
+
+## Resets all faction economies back to default initial configurations. Idempotent.
+static func reset() -> void:
+	_faction_economies.clear()
+
+
 static func _ensure_initialized() -> void:
 	if not _faction_economies.is_empty():
 		return

@@ -152,6 +152,7 @@ static func roll_random_start() -> void:
 	EraProgressionSystem.reset()
 	CampaignTurnExecutive.reset()
 	FactionSystem.reset_relations()
+	FactionEconomySystem.reset()
 	CampaignNodeRegistry.clear()
 	CampaignTerritory.clear()
 	CampaignBase.clear()
@@ -299,6 +300,7 @@ static func start_campaign_scenario(
 static func _clear_campaign_runtime_state() -> void:
 	CampaignTurnExecutive.reset()
 	FactionSystem.reset_relations()
+	FactionEconomySystem.reset()
 	CampaignNodeRegistry.clear()
 	CampaignTerritory.clear()
 	CampaignBase.clear()

@@ -1118,6 +1118,8 @@ func reset_run_data() -> void:
 	CampaignForce.clear()
 	# Phase 5B (Campaign V2): battle records are run state.
 	CampaignBattle.clear()
+	# Phase 5AF (Campaign V2): faction economies are run state.
+	FactionEconomySystem.reset()
 	# Phase 5AE (Campaign V2): active scenario identity.
 	current_campaign_scenario_id = ""
 

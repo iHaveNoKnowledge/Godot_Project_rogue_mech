@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://cb5ak_player_route_movement_verify"]
+
+[ext_resource type="Script" path="res://test/unit/campaign_player_route_movement_contract_verify.gd" id="1"]
+
+[node name="CampaignPlayerRouteMovementContractVerify" type="Node"]
+script = ExtResource("1")

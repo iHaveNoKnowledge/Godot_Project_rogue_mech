@@ -308,10 +308,11 @@ func _test_no_movement_authority() -> void:
 		while entry != "":
 			if not dir.current_is_dir():
 				var n := entry.to_lower()
-				# 5T amendment: campaign_force_movement.gd is the one
-				# sanctioned one-hop action; everything else stays forbidden.
+				# 5T/5AK amendment: campaign_force_movement.gd and
+				# campaign_player_movement.gd are the sanctioned one-hop actions;
+				# everything else stays forbidden.
 				# (.uid sidecars are engine metadata, never authorities.)
-				if n.get_extension() != "uid" and n != "campaign_force_movement.gd" and (n.contains("movement") or n.contains("pathfind") \
+				if n.get_extension() != "uid" and n != "campaign_force_movement.gd" and n != "campaign_player_movement.gd" and (n.contains("movement") or n.contains("pathfind") \
 						or n.contains("force_orders") or n.contains("force_command") \
 						or n.contains("travel_cost") or n.contains("waypoint")):
 					parallel = true

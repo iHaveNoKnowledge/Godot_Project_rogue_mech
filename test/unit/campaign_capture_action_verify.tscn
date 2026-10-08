@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://c5at_capture_act_test"]
+
+[ext_resource type="Script" path="res://test/unit/campaign_capture_action_verify.gd" id="1_script"]
+
+[node name="CampaignCaptureActionVerify" type="Node"]
+script = ExtResource("1_script")

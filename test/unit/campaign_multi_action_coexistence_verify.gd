@@ -202,7 +202,7 @@ func _test_d_unknown_and_unimplemented_actions() -> void:
 	_check(str(bad_res.get("reason", "")) == "unknown_action", "D1: Unrecognized action returns unknown_action")
 
 	# Core known actions that are currently unimplemented
-	for action in ["attack", "defend", "capture"]:
+	for action in ["attack", "defend"]:
 		var intent := CampaignPlayerDispatch.create_intent(action, "node_city_d")
 		var res := CampaignPlayerDispatch.dispatch_intent(intent)
 		_check(not bool(res.get("ok", true)), "D2 (%s): Unimplemented action rejected" % action)

@@ -274,13 +274,21 @@ func _test_invalid_context_snapshot_invariance() -> void:
 	var snap_after2 := _take_state_snapshot()
 	_assert_eq(snap_after2, snap_before, "T5: State unchanged after invalid trade")
 
-	# Attempt unimplemented action (e.g. capture)
+	# Attempt invalid capture (research lab is not capturable)
 	var res3 := CampaignPlayerDispatch.dispatch_intent(CampaignPlayerDispatch.create_intent("capture", lab_nid))
-	_assert_false(bool(res3.get("ok", false)), "T5: Unimplemented action rejected")
-	_assert_eq(str(res3.get("reason", "")), "action_not_implemented", "T5: Reason action_not_implemented")
+	_assert_false(bool(res3.get("ok", false)), "T5: Invalid capture at lab rejected")
+	_assert_eq(str(res3.get("reason", "")), "node_cannot_capture", "T5: Reason node_cannot_capture")
 
 	var snap_after3 := _take_state_snapshot()
-	_assert_eq(snap_after3, snap_before, "T5: State unchanged after unimplemented action")
+	_assert_eq(snap_after3, snap_before, "T5: State unchanged after invalid capture")
+
+	# Attempt unimplemented action (e.g. attack)
+	var res4 := CampaignPlayerDispatch.dispatch_intent(CampaignPlayerDispatch.create_intent("attack", lab_nid))
+	_assert_false(bool(res4.get("ok", false)), "T5: Unimplemented action rejected")
+	_assert_eq(str(res4.get("reason", "")), "action_not_implemented", "T5: Reason action_not_implemented")
+
+	var snap_after4 := _take_state_snapshot()
+	_assert_eq(snap_after4, snap_before, "T5: State unchanged after unimplemented action")
 
 
 # ---------------------------------------------------------------------------
@@ -393,7 +401,7 @@ func _test_future_actions_boundary() -> void:
 	var enemy_base_nid := CampaignNodeRegistry.register_node(1, Vector2i(4, 4), "enemy_base")
 	GlobalData.board.current_tile = Vector2i(4, 4)
 
-	for action in ["capture", "attack", "defend"]:
+	for action in ["attack", "defend"]:
 		var intent := CampaignPlayerDispatch.create_intent(action, enemy_base_nid)
 		var res := CampaignPlayerDispatch.dispatch_intent(intent)
 		_assert_false(bool(res.get("ok", false)), "T9: Future action %s safely rejected" % action)

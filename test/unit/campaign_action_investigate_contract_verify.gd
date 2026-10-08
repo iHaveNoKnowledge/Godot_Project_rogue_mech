@@ -255,7 +255,7 @@ func _test_i_unimplemented_action_behavior() -> void:
 	GlobalData.board.current_sector = 1
 	GlobalData.board.current_tile = Vector2i(2, 2)
 
-	for action in ["attack", "defend", "capture"]:
+	for action in ["attack", "defend"]:
 		var intent := CampaignPlayerDispatch.create_intent(action, "node_city_i")
 		var res := CampaignPlayerDispatch.dispatch_intent(intent)
 		_check(not bool(res.get("ok", true)), "I1: Unimplemented action '%s' rejected" % action)

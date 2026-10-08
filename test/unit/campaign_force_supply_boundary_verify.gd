@@ -227,8 +227,9 @@ func _test_no_supply_manager_or_drain() -> void:
 		dir.list_dir_begin()
 		var entry := dir.get_next()
 		while entry != "":
-			if not dir.current_is_dir() and entry.to_lower().contains("supply"):
+			if not dir.current_is_dir() and entry.get_extension() != "uid" and entry != "campaign_resupply_action.gd" and entry.to_lower().contains("supply"):
 				found_supply_file = true
+
 			entry = dir.get_next()
 		dir.list_dir_end()
 	_check(not found_supply_file, "no supply manager/depot file exists in campaign scope")

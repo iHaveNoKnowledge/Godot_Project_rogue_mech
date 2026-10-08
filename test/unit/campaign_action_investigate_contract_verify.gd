@@ -255,12 +255,13 @@ func _test_i_unimplemented_action_behavior() -> void:
 	GlobalData.board.current_sector = 1
 	GlobalData.board.current_tile = Vector2i(2, 2)
 
-	for action in ["attack", "resupply", "trade", "defend", "capture"]:
+	for action in ["attack", "trade", "defend", "capture"]:
 		var intent := CampaignPlayerDispatch.create_intent(action, "node_city_i")
 		var res := CampaignPlayerDispatch.dispatch_intent(intent)
 		_check(not bool(res.get("ok", true)), "I1: Unimplemented action '%s' rejected" % action)
 		_check(str(res.get("reason", "")) == "action_not_implemented",
 			"I2: Unimplemented action '%s' returns 'action_not_implemented'" % action)
+
 
 
 ## --- SECTION J: LOCATION AUTHORITY INTEGRATION ---

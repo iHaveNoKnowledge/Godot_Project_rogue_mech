@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://c5as_node_cap_test"]
+
+[ext_resource type="Script" path="res://test/unit/campaign_node_action_capability_contract_verify.gd" id="1_script"]
+
+[node name="CampaignNodeActionCapabilityContractVerify" type="Node"]
+script = ExtResource("1_script")

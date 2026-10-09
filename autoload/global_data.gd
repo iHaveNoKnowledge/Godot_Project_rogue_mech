@@ -23,6 +23,8 @@ signal armor_destroyed_permanently(slot: String, armor_data: Dictionary)
 const FrameModuleSys = preload("res://scripts/systems/frame_module_system.gd")
 const ResProgSys = preload("res://scripts/systems/research_progression_system.gd")
 const PilotSkillSys = preload("res://scripts/systems/pilot_skill_system.gd")
+const CampaignStrategicHeat = preload("res://scripts/systems/campaign_strategic_heat.gd")
+const CampaignStrategicDetection = preload("res://scripts/systems/campaign_strategic_detection.gd")
 
 # --- Managers (created as children in _ready) ---
 var currency: CurrencyManager
@@ -1123,6 +1125,10 @@ func reset_run_data() -> void:
 	CampaignBattle.clear()
 	# Phase 5AF (Campaign V2): faction economies are run state.
 	FactionEconomySystem.reset()
+	# Phase C4-B1 (Campaign V2): strategic node operational heat traces are run state.
+	CampaignStrategicHeat.reset()
+	# Phase C4-B2 (Campaign V2): faction strategic intelligence detection states are run state.
+	CampaignStrategicDetection.reset()
 	# Phase 5AE (Campaign V2): active scenario identity.
 	current_campaign_scenario_id = ""
 

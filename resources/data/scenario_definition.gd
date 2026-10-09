@@ -37,6 +37,10 @@ const DATA_CLASSIFICATION := "CANONICAL"
 ## Starting strategic nodes authored specifically for this scenario (if overriding procedural nodes).
 @export var initial_node_specs: Array = []
 
+## Starting strategic routes connecting authored nodes explicitly.
+## Shape per route spec: { "a": String, "b": String }
+@export var initial_route_specs: Array = []
+
 ## Initial territory ownership/claims: Array of territory spec dictionaries.
 @export var initial_territory_specs: Array = []
 
@@ -84,6 +88,11 @@ func get_faction_setup() -> Array:
 ## Returns a deep copy of initial node specs.
 func get_initial_node_specs() -> Array:
 	return initial_node_specs.duplicate(true)
+
+
+## Returns a deep copy of initial route specs.
+func get_initial_route_specs() -> Array:
+	return initial_route_specs.duplicate(true)
 
 
 ## Returns a deep copy of territory specs.

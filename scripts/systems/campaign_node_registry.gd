@@ -56,14 +56,29 @@ const STRATEGIC_TILE_TYPES := {
 static var _nodes: Dictionary = {}
 static var _tile_index: Dictionary = {}
 static var _routes: Dictionary = {}
+static var _is_authored_topology: bool = false
+
+
+static func is_authored_topology() -> bool:
+	return _is_authored_topology
+
+
+static func set_authored_topology(val: bool) -> void:
+	_is_authored_topology = val
 
 
 static func is_strategic_tile(tile_type: String) -> bool:
-	return STRATEGIC_TILE_TYPES.has(tile_type)
+	return STRATEGIC_TILE_TYPES.has(tile_type.to_lower()) or STRATEGIC_TILE_TYPES.values().has(tile_type.to_upper())
 
 
 static func node_type_for_tile(tile_type: String) -> String:
-	return str(STRATEGIC_TILE_TYPES.get(tile_type, ""))
+	var lower := tile_type.to_lower()
+	if STRATEGIC_TILE_TYPES.has(lower):
+		return str(STRATEGIC_TILE_TYPES.get(lower, ""))
+	var upper := tile_type.to_upper()
+	if STRATEGIC_TILE_TYPES.values().has(upper):
+		return upper
+	return ""
 
 
 static func make_node_id(sector: int, tile_type: String, tile: Vector2i) -> String:
@@ -116,7 +131,7 @@ static func get_node_at(sector: int, tile: Vector2i) -> Dictionary:
 ## unknown tile type, tile already hosting a DIFFERENT node (0/1 rule), or id
 ## collision with a different tile/type. Re-registering the identical node is
 ## idempotent (returns the id). node_id "" auto-derives the stable pattern.
-static func register_node(sector: int, tile: Vector2i, tile_type: String, node_id: String = "") -> String:
+static func register_node(sector: int, tile: Vector2i, tile_type: String, node_id: String = "", map_position: Vector2 = Vector2(-1, -1)) -> String:
 	if not is_strategic_tile(tile_type):
 		return ""
 	var want_id := node_id if node_id != "" else make_node_id(sector, tile_type, tile)
@@ -128,15 +143,19 @@ static func register_node(sector: int, tile: Vector2i, tile_type: String, node_i
 				and str(existing.get("node_type", "")) == node_type_for_tile(tile_type):
 			return want_id
 		return ""
-	if _tile_index.has(want_key):
+	if tile != Vector2i(-1, -1) and _tile_index.has(want_key):
 		return ""
-	_nodes[want_id] = {
+	var node_data: Dictionary = {
 		"id": want_id,
 		"tile": tile,
 		"sector": sector,
 		"node_type": node_type_for_tile(tile_type),
 	}
-	_tile_index[want_key] = want_id
+	if map_position != Vector2(-1, -1):
+		node_data["map_position"] = map_position
+	_nodes[want_id] = node_data
+	if tile != Vector2i(-1, -1):
+		_tile_index[want_key] = want_id
 	return want_id
 
 
@@ -260,6 +279,8 @@ static func rebuild_from_board(nodes_dict: Dictionary, sector: int) -> Dictionar
 
 ## Headless/test-friendly rebuild from a plain {Vector2i: tile_type} map.
 static func rebuild_from_tile_types(tile_types: Dictionary, sector: int) -> Dictionary:
+	if _is_authored_topology:
+		return {"nodes": _nodes.size(), "routes": _routes.size()}
 	clear()
 	for pos in tile_types:
 		if pos is Vector2i:
@@ -343,17 +364,25 @@ static func serialize() -> Dictionary:
 		var c: Dictionary = (n as Dictionary).duplicate(true)
 		var t: Vector2i = c.get("tile", Vector2i.ZERO)
 		c["tile"] = {"x": t.x, "y": t.y}
+		if c.has("map_position") and c["map_position"] is Vector2:
+			var mp: Vector2 = c["map_position"]
+			c["map_position"] = {"x": mp.x, "y": mp.y}
 		nodes.append(c)
 	var routes: Array = []
 	for r in get_routes():
 		routes.append((r as Dictionary).duplicate(true))
-	return {"nodes": nodes, "routes": routes}
+	return {
+		"is_authored_topology": _is_authored_topology,
+		"nodes": nodes,
+		"routes": routes
+	}
 
 
 static func deserialize(data: Variant) -> void:
 	clear()
 	if not (data is Dictionary):
 		return
+	_is_authored_topology = bool(data.get("is_authored_topology", false))
 	var nodes = data.get("nodes", [])
 	if nodes is Array:
 		for n in nodes:
@@ -365,14 +394,21 @@ static func deserialize(data: Variant) -> void:
 				tile = Vector2i(int(t.get("x", -1)), int(t.get("y", -1)))
 			elif t is Vector2i:
 				tile = t
+			var map_pos := Vector2(-1, -1)
+			if n.has("map_position"):
+				var mp_val = n["map_position"]
+				if mp_val is Dictionary:
+					map_pos = Vector2(float(mp_val.get("x", -1)), float(mp_val.get("y", -1)))
+				elif mp_val is Vector2:
+					map_pos = mp_val
 			var sector := int(n.get("sector", 1))
 			# Node types round-trip as stored; tile_type is recovered from the
 			# node type for re-registration (both use the same vocabulary).
 			var ntype := str(n.get("node_type", ""))
 			var tile_type := ntype.to_lower()
-			var nid := register_node(sector, tile, tile_type, str(n.get("id", "")))
+			var nid := register_node(sector, tile, tile_type, str(n.get("id", "")), map_pos)
 			if nid == "" and tile_type != "":
-				register_node(sector, tile, tile_type)
+				register_node(sector, tile, tile_type, "", map_pos)
 	var routes = data.get("routes", [])
 	if routes is Array:
 		for r in routes:
@@ -384,3 +420,4 @@ static func clear() -> void:
 	_nodes.clear()
 	_tile_index.clear()
 	_routes.clear()
+	_is_authored_topology = false

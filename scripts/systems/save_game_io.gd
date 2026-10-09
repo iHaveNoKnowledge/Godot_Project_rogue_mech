@@ -135,10 +135,11 @@ static func save_run() -> bool:
 		# copied; session_ref is an opaque string, never a runtime object).
 		# Missing key (old saves) restores as empty — no bump.
 		"campaign_battles": CampaignBattle.serialize(),
-		# Phase 5AE / C1 / C3 (Campaign V2): campaign instance, scenario, & player faction identity.
+		# Phase 5AE / C1 / C3 / C2.6 (Campaign V2): active scenario, campaign instance, player faction, and strategic node.
 		"scenario_id": GlobalData.current_campaign_scenario_id,
 		"campaign_id": GlobalData.current_campaign_id,
 		"player_faction": GlobalData.current_campaign_faction_id,
+		"player_node_id": GlobalData.current_campaign_player_node_id,
 		"current_hazard": GlobalData.board.current_hazard,
 		"board_theme_id": GlobalData.board.board_theme_id,
 		"board_objective_id": GlobalData.board.board_objective_id,
@@ -278,10 +279,22 @@ static func restore_from_dict(data: Dictionary) -> void:
 	CampaignBase.deserialize(data.get("bases", {}))
 	CampaignForce.deserialize(data.get("forces", {}))
 	CampaignBattle.deserialize(data.get("campaign_battles", {}))
-	# Phase 5AE / C1 / C3 (Campaign V2): active scenario, campaign instance, & player faction identity.
+	# Phase 5AE / C1 / C3 / C2.6 (Campaign V2): active scenario, campaign instance, player faction, & player node.
 	GlobalData.current_campaign_scenario_id = str(data.get("scenario_id", ""))
 	GlobalData.current_campaign_id = str(data.get("campaign_id", ""))
 	GlobalData.current_campaign_faction_id = str(data.get("player_faction", FactionSystem.DEFAULT_PLAYER_FACTION))
+	var loaded_node_id: String = str(data.get("player_node_id", "")).strip_edges()
+	if loaded_node_id != "" and CampaignNodeRegistry.has_node(loaded_node_id):
+		GlobalData.current_campaign_player_node_id = loaded_node_id
+	else:
+		# Legacy save fallback: derive from board tile if possible
+		var pos_dict = data.get("position", {})
+		var legacy_tile := Vector2i(-1, -1)
+		if pos_dict is Dictionary:
+			legacy_tile = Vector2i(int(pos_dict.get("x", -1)), int(pos_dict.get("y", -1)))
+		var legacy_sec: int = int(data.get("sector", 1))
+		var node_at := CampaignNodeRegistry.get_node_at(legacy_sec, legacy_tile)
+		GlobalData.current_campaign_player_node_id = str(node_at.get("id", ""))
 	GlobalData.board.current_hazard = str(data.get("current_hazard", ""))
 	GlobalData.board.board_theme_id = str(data.get("board_theme_id", "suburb"))
 	GlobalData.board.board_objective_id = str(data.get("board_objective_id", ""))

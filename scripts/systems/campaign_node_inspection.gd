@@ -20,6 +20,12 @@ extends RefCounted
 ##   - Zero heat/wanted or faction relation side-effects
 ## ---------------------------------------------------------------------------
 
+const CampaignPlayerMovement = preload("res://scripts/systems/campaign_player_movement.gd")
+const CampaignNodeRegistry = preload("res://scripts/systems/campaign_node_registry.gd")
+const CampaignForce = preload("res://scripts/systems/campaign_force.gd")
+const CampaignBase = preload("res://scripts/systems/campaign_base.gd")
+const CampaignTerritory = preload("res://scripts/systems/campaign_territory.gd")
+
 
 ## Inspects a strategic node by ID and returns a comprehensive, read-only
 ## situation projection. Unknown node IDs fail deterministically.
@@ -98,11 +104,6 @@ static func is_player_at_node(node_id: String) -> bool:
 
 
 ## Returns the node ID of the strategic node the player is currently on,
-## or "" if the player is on a non-strategic tile.
+## or "" if the player is not on a registered strategic node.
 static func get_current_player_node_id() -> String:
-	if GlobalData == null or GlobalData.board == null:
-		return ""
-	var sector: int = GlobalData.board.current_sector
-	var tile: Vector2i = GlobalData.board.current_tile
-	var node: Dictionary = CampaignNodeRegistry.get_node_at(sector, tile)
-	return str(node.get("id", ""))
+	return CampaignPlayerMovement.get_current_node_id()

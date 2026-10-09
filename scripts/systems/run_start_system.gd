@@ -161,6 +161,7 @@ static func roll_random_start() -> void:
 	GlobalData.current_campaign_id = ""
 	GlobalData.current_campaign_scenario_id = ""
 	GlobalData.current_campaign_faction_id = ""
+	GlobalData.current_campaign_player_node_id = ""
 
 
 # -----------------------------------------------------------------------------
@@ -172,6 +173,8 @@ const ScenarioCatalogScript = preload("res://resources/data/scenario_catalog_dat
 const ScenarioDefScript = preload("res://resources/data/scenario_definition.gd")
 const ScenarioSchemaValidatorScript = preload("res://scripts/systems/scenario_schema_validator.gd")
 const CampaignScenarioInitializerScript = preload("res://scripts/systems/campaign_scenario_initializer.gd")
+const CampaignPlayerMovement = preload("res://scripts/systems/campaign_player_movement.gd")
+const CampaignNodeRegistry = preload("res://scripts/systems/campaign_node_registry.gd")
 
 
 ## Returns the active campaign instance ID from the authoritative run state.
@@ -304,6 +307,24 @@ static func start_campaign_scenario(
 			initial_player_faction = str(rules["player_faction"])
 	GlobalData.current_campaign_faction_id = initial_player_faction
 
+	# Establish starting player strategic node
+	var starting_player_node := ""
+	if scenario != null and scenario.get("strategic_rules") is Dictionary:
+		var rules_dict: Dictionary = scenario.get("strategic_rules")
+		if rules_dict.has("player_start_node"):
+			var rule_node: String = str(rules_dict["player_start_node"]).strip_edges()
+			if rule_node != "" and CampaignNodeRegistry.has_node(rule_node):
+				starting_player_node = rule_node
+	if starting_player_node == "":
+		var created_nodes: Array = init_res.get("nodes_created", [])
+		if not created_nodes.is_empty():
+			starting_player_node = str(created_nodes[0])
+		elif not CampaignNodeRegistry.get_nodes().is_empty():
+			starting_player_node = str(CampaignNodeRegistry.get_nodes()[0].get("id", ""))
+
+	if starting_player_node != "":
+		CampaignPlayerMovement.set_current_node_id(starting_player_node)
+
 	return {
 		"ok": true,
 		"started": true,
@@ -311,9 +332,11 @@ static func start_campaign_scenario(
 		"campaign_id": instance_id,
 		"scenario_id": clean_id,
 		"player_faction": initial_player_faction,
+		"player_node_id": starting_player_node,
 		"scenario": scenario,
 		"forces_created": init_res.get("forces_created", []),
 		"nodes_created": init_res.get("nodes_created", []),
+		"routes_created": init_res.get("routes_created", []),
 		"territories_created": init_res.get("territories_created", []),
 		"bases_created": init_res.get("bases_created", []),
 	}
@@ -331,3 +354,4 @@ static func _clear_campaign_runtime_state() -> void:
 	GlobalData.current_campaign_id = ""
 	GlobalData.current_campaign_scenario_id = ""
 	GlobalData.current_campaign_faction_id = ""
+	GlobalData.current_campaign_player_node_id = ""

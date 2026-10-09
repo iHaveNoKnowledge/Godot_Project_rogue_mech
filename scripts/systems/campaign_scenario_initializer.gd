@@ -78,21 +78,38 @@ static func apply_scenario(scenario: Resource, sector: int = 1) -> Dictionary:
 
 	var forces_created: Array[String] = []
 	var nodes_created: Array[String] = []
+	var routes_created: Array[String] = []
 	var territories_created: Array[String] = []
 	var bases_created: Array[String] = []
 
-	# 1. Apply authored initial nodes (if any explicitly specified)
 	var node_specs: Array = scenario.get_initial_node_specs() if scenario.has_method("get_initial_node_specs") else []
+	var route_specs: Array = scenario.get_initial_route_specs() if scenario.has_method("get_initial_route_specs") else []
+
+	if node_specs.size() > 0 or route_specs.size() > 0:
+		CampaignNodeRegistry.set_authored_topology(true)
+
+	# 1. Apply authored initial nodes (if any explicitly specified)
 	for node_spec in node_specs:
 		if node_spec is Dictionary:
 			var nid: String = str(node_spec.get("id", ""))
 			var tile: Vector2i = node_spec.get("tile", Vector2i(-1, -1))
 			var node_type: String = str(node_spec.get("node_type", "safehouse")).to_lower()
 			var sec: int = int(node_spec.get("sector", sector))
+			var map_pos: Vector2 = node_spec.get("map_position", Vector2(-1, -1))
 			if nid != "" and not CampaignNodeRegistry.has_node(nid):
-				var reg_id := CampaignNodeRegistry.register_node(sec, tile, node_type, nid)
+				var reg_id := CampaignNodeRegistry.register_node(sec, tile, node_type, nid, map_pos)
 				if reg_id != "":
 					nodes_created.append(reg_id)
+
+	# 1.5 Apply authored initial routes (if any explicitly specified)
+	for route_spec in route_specs:
+		if route_spec is Dictionary:
+			var node_a: String = str(route_spec.get("a", route_spec.get("from", route_spec.get("node_a", "")))).strip_edges()
+			var node_b: String = str(route_spec.get("b", route_spec.get("to", route_spec.get("node_b", "")))).strip_edges()
+			if node_a != "" and node_b != "" and not CampaignNodeRegistry.has_route(CampaignNodeRegistry.make_route_id(node_a, node_b)):
+				var reg_route := CampaignNodeRegistry.register_route(node_a, node_b)
+				if reg_route != "":
+					routes_created.append(reg_route)
 
 	# 2. Apply authored initial territories (if any explicitly specified)
 	var terr_specs: Array = scenario.get_initial_territory_specs() if scenario.has_method("get_initial_territory_specs") else []
@@ -166,6 +183,7 @@ static func apply_scenario(scenario: Resource, sector: int = 1) -> Dictionary:
 		"scenario_id": sc_id,
 		"forces_created": forces_created,
 		"nodes_created": nodes_created,
+		"routes_created": routes_created,
 		"territories_created": territories_created,
 		"bases_created": bases_created,
 	}

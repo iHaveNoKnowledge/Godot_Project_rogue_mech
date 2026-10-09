@@ -24,6 +24,7 @@ const SUPPORTED_STRATEGIC_RULES: Array[String] = [
 	"turn_limit",
 	"victory_condition",
 	"defeat_condition",
+	"player_start_node",
 ]
 
 ## Forbidden runtime fields that must NEVER appear in authored specs.
@@ -37,6 +38,10 @@ const FORBIDDEN_FORCE_RUNTIME_FIELDS: Array[String] = [
 const FORBIDDEN_NODE_RUNTIME_FIELDS: Array[String] = [
 	"forces", "units", "occupants", "controller", "owner", "faction",
 	"state", "health", "destroyed", "object", "resource", "node"
+]
+
+const FORBIDDEN_ROUTE_RUNTIME_FIELDS: Array[String] = [
+	"state", "active", "blocked", "traversed", "object", "resource"
 ]
 
 const FORBIDDEN_TERRITORY_RUNTIME_FIELDS: Array[String] = [
@@ -96,6 +101,9 @@ static func validate_scenario(scenario: Resource, catalog_context: Resource = nu
 
 	# 3. Initial Nodes
 	var authored_node_ids := _validate_initial_nodes(scenario, errors, warnings)
+
+	# 3.5 Initial Routes
+	_validate_initial_routes(scenario, authored_node_ids, errors, warnings)
 
 	# 4. Initial Territories
 	var authored_territory_ids := _validate_initial_territories(scenario, authored_node_ids, errors, warnings)
@@ -236,6 +244,8 @@ static func _validate_top_level(scenario: Resource, catalog_context: Resource, e
 		_add_error(errors, "INVALID_FIELD_TYPE", "initial_force_specs", "initial_force_specs must be an Array.")
 	if not (scenario.get("initial_node_specs") is Array):
 		_add_error(errors, "INVALID_FIELD_TYPE", "initial_node_specs", "initial_node_specs must be an Array.")
+	if not (scenario.get("initial_route_specs") is Array):
+		_add_error(errors, "INVALID_FIELD_TYPE", "initial_route_specs", "initial_route_specs must be an Array.")
 	if not (scenario.get("initial_territory_specs") is Array):
 		_add_error(errors, "INVALID_FIELD_TYPE", "initial_territory_specs", "initial_territory_specs must be an Array.")
 	if not (scenario.get("initial_base_specs") is Array):
@@ -326,6 +336,61 @@ static func _validate_initial_nodes(scenario: Resource, errors: Array[Dictionary
 					"strategic_importance must be a non-negative scalar number.")
 
 	return authored_node_ids
+
+
+static func _validate_initial_routes(scenario: Resource, authored_node_ids: Dictionary, errors: Array[Dictionary], _warnings: Array[Dictionary]) -> void:
+	var routes_val = scenario.get("initial_route_specs")
+	if not (routes_val is Array):
+		return
+
+	var seen_routes: Dictionary = {}
+	for i in range(routes_val.size()):
+		var spec = routes_val[i]
+		if not (spec is Dictionary):
+			_add_error(errors, "INVALID_ROUTE_SPEC", "initial_route_specs[%d]" % i,
+				"Route specification must be a Dictionary.")
+			continue
+
+		# Forbidden runtime fields
+		for k in FORBIDDEN_ROUTE_RUNTIME_FIELDS:
+			if spec.has(k):
+				_add_error(errors, "FORBIDDEN_RUNTIME_FIELD", "initial_route_specs[%d].%s" % [i, k],
+					"Route specification must not contain runtime field '%s'." % k)
+
+		var node_a: String = str(spec.get("a", spec.get("from", spec.get("node_a", "")))).strip_edges()
+		var node_b: String = str(spec.get("b", spec.get("to", spec.get("node_b", "")))).strip_edges()
+
+		if node_a.is_empty():
+			_add_error(errors, "MISSING_ROUTE_ENDPOINT", "initial_route_specs[%d].a" % i,
+				"Route endpoint 'a' cannot be empty.")
+		if node_b.is_empty():
+			_add_error(errors, "MISSING_ROUTE_ENDPOINT", "initial_route_specs[%d].b" % i,
+				"Route endpoint 'b' cannot be empty.")
+
+		if node_a.is_empty() or node_b.is_empty():
+			continue
+
+		if node_a == node_b:
+			_add_error(errors, "SELF_ROUTE_PROHIBITED", "initial_route_specs[%d]" % i,
+				"Route cannot connect node '%s' to itself." % node_a)
+			continue
+
+		# Validate endpoints exist
+		if authored_node_ids.size() > 0:
+			if not authored_node_ids.has(node_a) and not CampaignNodeRegistry.has_node(node_a) and not _is_board_node_pattern(node_a):
+				_add_error(errors, "DANGLING_NODE_REFERENCE", "initial_route_specs[%d].a" % i,
+					"Route endpoint '%s' does not exist in authored or registered nodes." % node_a)
+			if not authored_node_ids.has(node_b) and not CampaignNodeRegistry.has_node(node_b) and not _is_board_node_pattern(node_b):
+				_add_error(errors, "DANGLING_NODE_REFERENCE", "initial_route_specs[%d].b" % i,
+					"Route endpoint '%s' does not exist in authored or registered nodes." % node_b)
+
+		# Duplicate route check
+		var route_key := CampaignNodeRegistry.make_route_id(node_a, node_b)
+		if seen_routes.has(route_key):
+			_add_error(errors, "DUPLICATE_ROUTE_SPEC", "initial_route_specs[%d]" % i,
+				"Duplicate route connecting '%s' and '%s'." % [node_a, node_b])
+		else:
+			seen_routes[route_key] = true
 
 
 static func _validate_initial_territories(scenario: Resource, authored_node_ids: Dictionary, errors: Array[Dictionary], _warnings: Array[Dictionary]) -> Dictionary:
@@ -628,7 +693,9 @@ static func _validate_strategic_rules(scenario: Resource, errors: Array[Dictiona
 
 
 static func _is_board_node_pattern(nid: String) -> bool:
-	# Hybrid model: board-projected nodes follow node_s<sec>_<type>_<x>_<y> or node_<x>_<y> or test_node_...
-	if nid.begins_with("node_") or nid.begins_with("test_node"):
+	# Hybrid model: board-projected nodes follow node_s<sec>_<type>_<x>_<y> or test_node_...
+	if nid.begins_with("node_s") and nid.count("_") >= 3:
+		return true
+	if nid.begins_with("test_node"):
 		return true
 	return false

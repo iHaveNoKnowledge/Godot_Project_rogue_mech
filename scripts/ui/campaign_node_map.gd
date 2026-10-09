@@ -533,6 +533,10 @@ func get_selected_node_id() -> String:
 	return _selected_node_id
 
 
+func get_current_player_node_id() -> String:
+	return CampaignPlayerMovement.get_current_node_id()
+
+
 func get_rendered_nodes() -> Array:
 	return _rendered_nodes.keys()
 

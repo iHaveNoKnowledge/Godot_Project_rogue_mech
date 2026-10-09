@@ -172,7 +172,10 @@ func return_to_board() -> void:
 	EventBus.combat_intensity_changed.emit(0.0)
 	AudioManager.stop_music()
 	if not suppress_scene_change:
-		get_tree().call_deferred("change_scene_to_file", "res://scenes/board/game_board.tscn")
+		if GlobalData.current_campaign_player_node_id != "" or GlobalData.current_campaign_scenario_id != "" or not CampaignNodeRegistry.get_nodes().is_empty():
+			get_tree().call_deferred("change_scene_to_file", "res://scenes/ui/campaign_node_map.tscn")
+		else:
+			get_tree().call_deferred("change_scene_to_file", "res://scenes/board/game_board.tscn")
 	transition_to(State.BOARD)
 	AudioManager.play_intermission_music()
 

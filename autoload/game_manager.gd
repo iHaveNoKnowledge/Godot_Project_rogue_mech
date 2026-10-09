@@ -52,11 +52,21 @@ func enter_board() -> void:
 	# from input_event (_on_input_event → move_to_tile → _request_combat) or
 	# physics. Immediate change_scene during input can tear down the viewport
 	# while the driver is still presenting.
-	get_tree().call_deferred("change_scene_to_file", "res://scenes/board/game_board.tscn")
+	if not suppress_scene_change:
+		get_tree().call_deferred("change_scene_to_file", "res://scenes/board/game_board.tscn")
 	transition_to(State.BOARD)
 	# The intermission music is bound to the board state, not to the UI panel:
 	# it plays (or resumes the saved track) every time the board becomes the
 	# active state, so a popup that stays on the board never restarts it.
+	AudioManager.play_intermission_music()
+
+
+func enter_node_map() -> void:
+	if current_state == State.HANGAR:
+		HangarManager.save_active()
+	if not suppress_scene_change:
+		get_tree().call_deferred("change_scene_to_file", "res://scenes/ui/campaign_node_map.tscn")
+	transition_to(State.BOARD)
 	AudioManager.play_intermission_music()
 
 
@@ -163,6 +173,18 @@ func return_to_board() -> void:
 	AudioManager.stop_music()
 	if not suppress_scene_change:
 		get_tree().call_deferred("change_scene_to_file", "res://scenes/board/game_board.tscn")
+	transition_to(State.BOARD)
+	AudioManager.play_intermission_music()
+
+
+func return_to_node_map() -> void:
+	is_boss_combat = false
+	HangarManager.save_active()
+	GlobalData.save_run()
+	EventBus.combat_intensity_changed.emit(0.0)
+	AudioManager.stop_music()
+	if not suppress_scene_change:
+		get_tree().call_deferred("change_scene_to_file", "res://scenes/ui/campaign_node_map.tscn")
 	transition_to(State.BOARD)
 	AudioManager.play_intermission_music()
 

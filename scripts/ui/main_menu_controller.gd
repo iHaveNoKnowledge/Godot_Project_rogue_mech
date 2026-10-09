@@ -81,8 +81,8 @@ func _create_ui() -> void:
 	hint.add_theme_font_override("font", preload("res://resources/fonts/ChakraPetch-Medium.ttf"))
 	vbox.add_child(hint)
 
-	# Campaign — Roguelike Board (existing)
-	var campaign_btn = _make_button("CAMPAIGN  //  BOARD", true)
+	# Campaign — Strategic Node Map
+	var campaign_btn = _make_button("CAMPAIGN  //  STRATEGIC MAP", true)
 	campaign_btn.pressed.connect(_on_new_game_pressed)
 	vbox.add_child(campaign_btn)
 
@@ -288,7 +288,8 @@ func _on_theme_chosen(theme_id: String) -> void:
 	GlobalData.reset_run_data()
 	GlobalData.narrative.theme_id = theme_id
 	RunStartSystem.roll_random_start()
-	GameManager.enter_board()
+	RunStartSystem.start_campaign_scenario("frontier_skirmish")
+	GameManager.enter_node_map()
 
 
 func _on_war_mode_pressed() -> void:
@@ -298,7 +299,10 @@ func _on_war_mode_pressed() -> void:
 
 func _on_continue() -> void:
 	if GlobalData.load_run():
-		GameManager.enter_board()
+		if GlobalData.current_campaign_player_node_id != "" or GlobalData.current_campaign_scenario_id != "" or not CampaignNodeRegistry.get_nodes().is_empty():
+			GameManager.enter_node_map()
+		else:
+			GameManager.enter_board()
 
 
 func _on_quit() -> void:

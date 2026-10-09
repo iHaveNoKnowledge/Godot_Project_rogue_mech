@@ -9,6 +9,17 @@
 
 * **Commit & Push:** Each time you modify code or add a new feature, create a **Git commit** with a clear and descriptive message, then **push the changes to GitHub immediately**.
 
+## 📚 Canonical Architecture & Context Retention
+
+* **Mandatory Onboarding:** At the start of any task or phase, coding agents MUST read the canonical sources of truth under `docs/ai/`:
+  * [`docs/ai/PROJECT_BIBLE.md`](file:///c:/Users/Satawad_Ta/Documents/GitHub/Godot_Project_rogue_mech/docs/ai/PROJECT_BIBLE.md)
+  * [`docs/ai/ARCHITECTURE_AUTHORITY_MAP.md`](file:///c:/Users/Satawad_Ta/Documents/GitHub/Godot_Project_rogue_mech/docs/ai/ARCHITECTURE_AUTHORITY_MAP.md)
+  * [`docs/ai/PHASE_STATUS.md`](file:///c:/Users/Satawad_Ta/Documents/GitHub/Godot_Project_rogue_mech/docs/ai/PHASE_STATUS.md)
+  * [`docs/ai/OPEN_ISSUES.md`](file:///c:/Users/Satawad_Ta/Documents/GitHub/Godot_Project_rogue_mech/docs/ai/OPEN_ISSUES.md)
+  * [`docs/ai/WORK_HANDOFF.md`](file:///c:/Users/Satawad_Ta/Documents/GitHub/Godot_Project_rogue_mech/docs/ai/WORK_HANDOFF.md)
+* **Authority Invariant:** Subsystem authority boundaries defined in `ARCHITECTURE_AUTHORITY_MAP.md` are non-negotiable invariants. Never bypass managers or authorities directly.
+* **Non-Reopening Invariant:** Never reopen or redesign a `CLOSED` phase without a reproducible regression test or proven architectural violation.
+
 ## ✅ Quality Assurance
 
 * **Testing:** Before considering any task complete, ensure that all implemented functions work as intended.

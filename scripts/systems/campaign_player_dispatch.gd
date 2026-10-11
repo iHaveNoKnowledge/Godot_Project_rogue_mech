@@ -26,6 +26,14 @@ extends RefCounted
 ##      - CampaignPlayerMovement moves.
 ##      - CampaignPlayerDispatch routes intents.
 ##      - Domain systems execute.
+##   5. Post-Success Exposure (C4-B6):
+##      - After a domain handler reports success, exactly one exposure hook
+##        records the committed action in the strategic Heat / Detection
+##        authorities (values per the C4 design exposure matrix; heat is
+##        node-local and unattributed, detection names only the faction
+##        legitimately informed). Failed, rejected, and unimplemented
+##        actions record nothing. The handler receipt itself is returned
+##        unmodified.
 ## ---------------------------------------------------------------------------
 
 const CampaignNodeInspection = preload("res://scripts/systems/campaign_node_inspection.gd")
@@ -34,6 +42,7 @@ const CampaignResupplyAction = preload("res://scripts/systems/campaign_resupply_
 const CampaignTradeAction = preload("res://scripts/systems/campaign_trade_action.gd")
 const CampaignCaptureAction = preload("res://scripts/systems/campaign_capture_action.gd")
 const CampaignAttackAction = preload("res://scripts/systems/campaign_attack_action.gd")
+const CampaignDefendAction = preload("res://scripts/systems/campaign_defend_action.gd")
 
 const CORE_KNOWN_ACTIONS := [
 	"investigate",
@@ -58,6 +67,7 @@ static func register_default_handlers() -> void:
 	register_handler("trade", Callable(CampaignTradeAction, "handle_trade"))
 	register_handler("capture", Callable(CampaignCaptureAction, "handle_capture"))
 	register_handler("attack", Callable(CampaignAttackAction, "handle_attack"))
+	register_handler("defend", Callable(CampaignDefendAction, "handle_defend"))
 
 
 
@@ -111,6 +121,8 @@ static func validate_intent(intent: Dictionary) -> Dictionary:
 
 ## Dispatches a player action intent. Validates intent first, then routes to
 ## registered domain handler or returns "action_not_implemented".
+## On domain success, records exactly one strategic exposure hook (C4-B6)
+## and returns the handler receipt unmodified.
 static func dispatch_intent(intent: Dictionary) -> Dictionary:
 	var validation := validate_intent(intent)
 	if not bool(validation.get("ok", false)):
@@ -122,7 +134,10 @@ static func dispatch_intent(intent: Dictionary) -> Dictionary:
 	if _handlers.has(action_id):
 		var handler: Callable = _handlers[action_id]
 		if handler.is_valid():
-			return handler.call(intent)
+			var result: Dictionary = handler.call(intent)
+			if bool(result.get("ok", false)):
+				_apply_action_exposure(result)
+			return result
 
 	return {
 		"ok": false,
@@ -130,6 +145,70 @@ static func dispatch_intent(intent: Dictionary) -> Dictionary:
 		"action_id": action_id,
 		"node_id": node_id,
 	}
+
+
+## Records the strategic exposure of one successfully committed action
+## (C4-B6). Values follow the C4 design exposure matrix (provisional
+## balance values, documented here — not balanced game design):
+##   attack    -> heat +3 at node; defending faction LOCATED ("direct_attack").
+##   capture   -> heat +2 at node; dislodged controller SUSPECTED ("capture_takeover").
+##   resupply  -> heat +1 unless covering territory allied to the player;
+##                covering controller evaluated for trace suspicion.
+##   trade     -> same as resupply.
+##   investigate / unlisted -> nothing (covert recon has no exposure).
+## Heat is node-local and faction-free; detection names only the faction
+## legitimately informed (never every faction, never from heat alone).
+## Timestamps use the live campaign turn (read-only clock, never advanced).
+static func _apply_action_exposure(result: Dictionary) -> void:
+	var action_id := str(result.get("action_id", "")).strip_edges()
+	var node_id := str(result.get("node_id", "")).strip_edges()
+	if action_id == "" or node_id == "" or not CampaignNodeRegistry.has_node(node_id):
+		return
+	var turn := CampaignTurnExecutive.get_turn()
+	match action_id:
+		"attack":
+			CampaignStrategicHeat.add_node_heat(node_id, 3)
+			var target_faction := str(result.get("target_faction", "")).strip_edges()
+			if target_faction != "":
+				CampaignStrategicDetection.report_location(
+					target_faction, node_id, turn, "direct_attack")
+		"capture":
+			var heat_receipt := CampaignStrategicHeat.add_node_heat(node_id, 2)
+			var previous := str(result.get("previous_controller", "")).strip_edges()
+			var claim := str(result.get("new_controller", "")).strip_edges()
+			if previous != "" and previous != claim:
+				CampaignStrategicDetection.report_suspicion(
+					previous, node_id, turn,
+					int(heat_receipt.get("new_heat", 0)), "capture_takeover")
+		"resupply", "trade":
+			_apply_territorial_trace(node_id, turn)
+		_:
+			pass
+
+
+## Shared resupply/trade exposure: +1 heat unless the node sits in
+## territory allied to the player faction; a covering controller (if any)
+## is then evaluated for trace suspicion (threshold-gated inside
+## evaluate_node_trace, which can only yield SUSPECTED, never LOCATED).
+## Allied/Hostile tests scan every covering territory so overlapping zones
+## cannot hide a trace (same ANY rule as the movement hook).
+static func _apply_territorial_trace(node_id: String, turn: int) -> void:
+	var player_faction := FactionSystem.get_player_faction()
+	var controller := ""
+	var allied_cover := false
+	for territory in CampaignTerritory.get_territories_for_node(node_id):
+		var candidate := str(territory.get("controller", ""))
+		if candidate == "":
+			continue
+		if controller == "":
+			controller = candidate
+		if FactionSystem.get_relation(player_faction, candidate) == FactionSystem.Relation.ALLIED:
+			allied_cover = true
+	if not allied_cover:
+		var heat_receipt := CampaignStrategicHeat.add_node_heat(node_id, 1)
+		if controller != "":
+			CampaignStrategicDetection.evaluate_node_trace(
+				controller, node_id, int(heat_receipt.get("new_heat", 0)), turn)
 
 
 ## Returns whether an action ID is recognized (either core known or registered).

@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://c4b1heatverify01"]
+[gd_scene format=3 uid="uid://0fhddmhclt05"]
 
 [ext_resource type="Script" path="res://test/unit/campaign_strategic_heat_verify.gd" id="1_c4b1heat"]
 

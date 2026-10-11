@@ -18,6 +18,12 @@ extends RefCounted
 ##   - Separation of Concerns:
 ##     Does NOT advance CampaignTurnExecutive.
 ##     Does NOT trigger combat, encounters, supply consumption, or event resolution.
+##   - Post-Move Exposure (C4-B6):
+##     A successful hop that CHANGES nodes leaves a residual movement trace
+##     (+1 heat at the destination) only when entering territory controlled
+##     by a faction hostile to the player faction. No detection is reported
+##     directly; validation-only checks and unchanged (same-node) moves
+##     record nothing.
 ## ---------------------------------------------------------------------------
 
 ## Returns the strategic node ID of the player's current campaign position, or "" if not on a strategic node.
@@ -104,6 +110,9 @@ static func can_move_to_node(destination_node_id: String) -> Dictionary:
 ## Attempts one strategic route hop for the player.
 ## Atomic: on failure, player position remains untouched.
 ## On success, updates GlobalData.current_campaign_player_node_id (and legacy board tile if anchored).
+## A changed move into hostile-controlled territory additionally records a
+## residual movement trace (+1 heat at the destination, C4-B6); same-node
+## and failed moves record nothing and never report detection.
 static func move_player_to_node(destination_node_id: String) -> Dictionary:
 	var validation := can_move_to_node(destination_node_id)
 	if not bool(validation.get("ok", false)):
@@ -113,6 +122,7 @@ static func move_player_to_node(destination_node_id: String) -> Dictionary:
 
 	var source := str(validation.get("from_node_id", ""))
 	set_current_node_id(destination_node_id)
+	_apply_movement_trace(destination_node_id)
 
 	return {
 		"ok": true,
@@ -131,3 +141,15 @@ static func _fail(source: String, destination_node_id: String, reason: String) -
 		"to_node_id": destination_node_id,
 		"reason": reason,
 	}
+
+
+## Records the residual trace of a completed hop (C4-B6): +1 heat at the
+## destination node when any covering territory is controlled by a faction
+## hostile to the player faction. Never reports detection directly.
+static func _apply_movement_trace(destination_node_id: String) -> void:
+	var player_faction := FactionSystem.get_player_faction()
+	for territory in CampaignTerritory.get_territories_for_node(destination_node_id):
+		var controller := str(territory.get("controller", ""))
+		if controller != "" and FactionSystem.get_relation(player_faction, controller) == FactionSystem.Relation.HOSTILE:
+			CampaignStrategicHeat.add_node_heat(destination_node_id, 1)
+			return

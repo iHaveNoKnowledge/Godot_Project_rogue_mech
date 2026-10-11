@@ -201,12 +201,13 @@ func _test_d_unknown_and_unimplemented_actions() -> void:
 	var bad_res := CampaignPlayerDispatch.dispatch_intent(bad_intent)
 	_check(str(bad_res.get("reason", "")) == "unknown_action", "D1: Unrecognized action returns unknown_action")
 
-	# Core known actions that are currently unimplemented
+	# Core known action with no base at the node (S2-A: defend is implemented,
+	# but a baseless node still rejects it in the domain layer)
 	for action in ["defend"]:
 		var intent := CampaignPlayerDispatch.create_intent(action, "node_city_d")
 		var res := CampaignPlayerDispatch.dispatch_intent(intent)
-		_check(not bool(res.get("ok", true)), "D2 (%s): Unimplemented action rejected" % action)
-		_check(str(res.get("reason", "")) == "action_not_implemented", "D3 (%s): Reason is action_not_implemented" % action)
+		_check(not bool(res.get("ok", true)), "D2 (%s): Baseless action rejected" % action)
+		_check(str(res.get("reason", "")) == "no_base_to_defend", "D3 (%s): Reason is no_base_to_defend" % action)
 
 	var snap_after := _snap_campaign_state()
 	_check(snap_after == snap_before, "D4: Failed/unimplemented dispatches leave state 100% untouched")
@@ -382,6 +383,7 @@ func _test_j_canonical_scenario_multi_action_coexistence() -> void:
 	RunStartSystem.start_campaign_scenario("frontier_skirmish")
 	# Place player at depot
 	GlobalData.board.current_tile = Vector2i(5, 3)
+	CampaignPlayerMovement.set_current_node_id("node_frontier_depot") # strategic presence is authoritative; start pins safehouse
 	GlobalData.fuel.mech_energy = 600.0
 	GlobalData.fuel.convoy_fuel = 300.0
 

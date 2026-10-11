@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://c28playabilityaudit01"]
+[gd_scene format=3 uid="uid://qaxa7v5ciw8o"]
 
 [ext_resource type="Script" path="res://test/unit/campaign_playability_acceptance_audit_verify.gd" id="1_c28audit"]
 

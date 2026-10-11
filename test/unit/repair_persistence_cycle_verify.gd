@@ -28,6 +28,7 @@ func _ready() -> void:
 	_test_emergency_repair_persistence_cycle()
 	_test_professional_repair_persistence_cycle()
 	_test_destruction_reconstruction_cycle()
+	_test_professional_repair_cost_contract()
 	
 	print("\n--- RESULTS: %d checks, %d failures ---" % [_checks, _fails])
 	get_tree().quit(1 if _fails > 0 else 0)
@@ -160,3 +161,33 @@ func _test_destruction_reconstruction_cycle() -> void:
 	_check(hs.parts["arm_left"]["destroyed"] == true, "MechaHealth initialized with destroyed = true")
 	
 	mecha.queue_free()
+
+
+func _test_professional_repair_cost_contract() -> void:
+	print("\n-- Test 3E: Professional Repair Pricing Contract (S1) --")
+	GlobalData.weapons.reset()
+	GlobalData.currency.credits = 5000
+
+	# Invalid slots must fail closed with zero cost and no mutation.
+	var init_credits: int = GlobalData.currency.credits
+	_check(RepairSystem.get_professional_repair_cost("") == 0, "Invalid empty slot costs 0")
+	_check(RepairSystem.get_professional_repair_cost("not_a_slot") == 0, "Invalid unknown slot costs 0")
+	_check(not RepairSystem.apply_professional_repair(""), "Invalid empty slot repair returns false")
+	_check(not RepairSystem.apply_professional_repair("not_a_slot"), "Invalid unknown slot repair returns false")
+	_check(GlobalData.currency.credits == init_credits, "Invalid slot repair deducts no credits")
+
+	# Valid slot follows the authority formula: ceil(armor*ARMOR_RATE + frame*FRAME_RATE), min 1.
+	var armor_max: float = float(GlobalData.weapons.part_stat(GlobalData.weapons.equipped_parts.get("body"), "max_hp", 50.0))
+	var frame_max: float = float(GlobalData.weapons.part_stat(GlobalData.weapons.equipped_frames.get("body"), "max_hp", 50.0))
+	var expected := maxi(1, int(ceil(armor_max * GlobalData.PROFESSIONAL_REPAIR_CREDITS_PER_ARMOR_HP + frame_max * GlobalData.PROFESSIONAL_REPAIR_CREDITS_PER_FRAME_HP)))
+	var actual := RepairSystem.get_professional_repair_cost("body")
+	_check(actual == expected and actual >= 1, "Valid slot pricing matches authority formula (%d credits)" % actual)
+
+	# Unaffordable repair must fail closed with no state mutation.
+	GlobalData.currency.credits = 0
+	GlobalData.weapons.part_damage["body"] = 0.5
+	_check(not RepairSystem.apply_professional_repair("body"), "Unaffordable repair returns false")
+	_check(GlobalData.currency.credits == 0, "Unaffordable repair deducts no credits")
+	_check(float(GlobalData.weapons.part_damage.get("body", 0.0)) == 0.5, "Unaffordable repair leaves damage untouched")
+	GlobalData.weapons.reset()
+	GlobalData.currency.credits = 5000

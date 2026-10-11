@@ -288,7 +288,17 @@ func _on_theme_chosen(theme_id: String) -> void:
 	GlobalData.reset_run_data()
 	GlobalData.narrative.theme_id = theme_id
 	RunStartSystem.roll_random_start()
-	RunStartSystem.start_campaign_scenario("frontier_skirmish")
+	# Phase 5AE: route the canonical scenario through the selection
+	# contract (validate-then-start). Only a successfully started
+	# campaign enters the node map; anything else stays in the menu.
+	var selected := CampaignScenarioSelection.select_scenario("frontier_skirmish")
+	if not bool(selected.get("ok", False)):
+		printerr("Campaign start refused at selection: %s" % str(selected.get("reason", "")))
+		return
+	var started := CampaignScenarioSelection.confirm_selection()
+	if not bool(started.get("ok", False)) or not bool(started.get("started", False)):
+		printerr("Campaign start refused at entry: %s" % str(started.get("reason", "")))
+		return
 	GameManager.enter_node_map()
 
 

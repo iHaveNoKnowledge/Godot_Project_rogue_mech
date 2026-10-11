@@ -82,6 +82,9 @@ func _setup_clean_campaign_environment() -> void:
 		if GlobalData.board != null:
 			GlobalData.board.current_sector = 1
 			GlobalData.board.current_tile = Vector2i(0, 0)
+		# Strategic presence is authoritative and outlives registry clears;
+		# clear the pin for hermetic isolation (same pattern as the movement suite).
+		GlobalData.current_campaign_player_node_id = ""
 		if GlobalData.currency != null:
 			GlobalData.currency.credits = 1000
 			GlobalData.currency.scrap = 100
@@ -210,8 +213,10 @@ func _test_invalid_context_rejections() -> void:
 	var enemy_base_nid := CampaignNodeRegistry.register_node(1, Vector2i(5, 5), "enemy_base")
 	var fuel_depot_nid := CampaignNodeRegistry.register_node(1, Vector2i(2, 2), "fuel_depot")
 
-	# Player is at fuel_depot (2, 2)
+	# Player is at fuel_depot (2, 2). Strategic presence is authoritative;
+	# tile alone cannot reposition a pinned player node, so pin explicitly.
 	GlobalData.board.current_tile = Vector2i(2, 2)
+	CampaignPlayerMovement.set_current_node_id(fuel_depot_nid)
 
 	# Try trade at FUEL_DEPOT (not trade capable)
 	var trade_fuel_depot := CampaignPlayerDispatch.dispatch_intent(CampaignPlayerDispatch.create_intent("trade", fuel_depot_nid, {
@@ -222,8 +227,9 @@ func _test_invalid_context_rejections() -> void:
 	_assert_false(bool(trade_fuel_depot.get("ok", false)), "T4: Trade at FUEL_DEPOT rejected")
 	_assert_eq(str(trade_fuel_depot.get("reason", "")), "node_cannot_trade", "T4: Rejection reason node_cannot_trade")
 
-	# Move player to enemy_base (5, 5)
+	# Move player to enemy_base (5, 5) via the movement authority.
 	GlobalData.board.current_tile = Vector2i(5, 5)
+	CampaignPlayerMovement.set_current_node_id(enemy_base_nid)
 
 	# Try resupply at ENEMY_BASE (not resupply capable)
 	var resupply_enemy_base := CampaignPlayerDispatch.dispatch_intent(CampaignPlayerDispatch.create_intent("resupply", enemy_base_nid))
@@ -290,13 +296,13 @@ func _test_invalid_context_snapshot_invariance() -> void:
 	var snap_after4 := _take_state_snapshot()
 	_assert_eq(snap_after4, snap_before, "T5: State unchanged after invalid attack")
 
-	# Attempt unimplemented action (e.g. defend)
+	# Attempt defend where no base exists (S2-A: implemented, but inapplicable here)
 	var res5 := CampaignPlayerDispatch.dispatch_intent(CampaignPlayerDispatch.create_intent("defend", lab_nid))
-	_assert_false(bool(res5.get("ok", false)), "T5: Unimplemented action rejected")
-	_assert_eq(str(res5.get("reason", "")), "action_not_implemented", "T5: Reason action_not_implemented")
+	_assert_false(bool(res5.get("ok", false)), "T5: Baseless defend rejected")
+	_assert_eq(str(res5.get("reason", "")), "no_base_to_defend", "T5: Reason no_base_to_defend")
 
 	var snap_after5 := _take_state_snapshot()
-	_assert_eq(snap_after5, snap_before, "T5: State unchanged after unimplemented action")
+	_assert_eq(snap_after5, snap_before, "T5: State unchanged after baseless defend")
 
 
 # ---------------------------------------------------------------------------
@@ -401,19 +407,21 @@ func _test_multi_action_coexistence_and_isolation() -> void:
 
 
 # ---------------------------------------------------------------------------
-# TEST 9: Future Actions Boundary
+# TEST 9: Defend Without A Base Boundary (S2-A: defend is implemented, but a
+# baseless node still rejects it in the domain layer).
 # ---------------------------------------------------------------------------
 func _test_future_actions_boundary() -> void:
 	_setup_clean_campaign_environment()
 
 	var enemy_base_nid := CampaignNodeRegistry.register_node(1, Vector2i(4, 4), "enemy_base")
 	GlobalData.board.current_tile = Vector2i(4, 4)
+	CampaignPlayerMovement.set_current_node_id(enemy_base_nid)
 
 	for action in ["defend"]:
 		var intent := CampaignPlayerDispatch.create_intent(action, enemy_base_nid)
 		var res := CampaignPlayerDispatch.dispatch_intent(intent)
-		_assert_false(bool(res.get("ok", false)), "T9: Future action %s safely rejected" % action)
-		_assert_eq(str(res.get("reason", "")), "action_not_implemented", "T9: Reason is action_not_implemented for %s" % action)
+		_assert_false(bool(res.get("ok", false)), "T9: Baseless action %s safely rejected" % action)
+		_assert_eq(str(res.get("reason", "")), "no_base_to_defend", "T9: Reason is no_base_to_defend for %s" % action)
 
 
 func _print_summary() -> void:

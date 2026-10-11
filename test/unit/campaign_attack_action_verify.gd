@@ -337,6 +337,7 @@ func _test_multi_action_coexistence() -> void:
 	# Move to enemy base
 	var enemy_base_nid := CampaignNodeRegistry.register_node(1, Vector2i(2, 2), "enemy_base")
 	GlobalData.board.current_tile = Vector2i(2, 2)
+	CampaignPlayerMovement.set_current_node_id(enemy_base_nid) # strategic presence is authoritative; tile alone does not reposition a pinned player node
 	var terr_id := CampaignTerritory.register_territory("terr_coexist", [enemy_base_nid])
 	CampaignTerritory.set_controlled(terr_id, "zeon")
 	CampaignBase.register_base("base_coexist", enemy_base_nid, "OUTPOST", "zeon", terr_id)

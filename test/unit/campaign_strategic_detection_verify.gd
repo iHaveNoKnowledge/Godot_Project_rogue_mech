@@ -45,6 +45,8 @@ func _ready() -> void:
 	_test_location_elevation_and_update()
 	_test_stale_event_rejection()
 	_test_turn_decay_and_expiration()
+	_test_decay_idempotency_and_ordering()
+	_test_post_decay_recovery_and_trace_policy()
 	_test_heat_trace_threshold_policy()
 	_test_heat_decay_independence()
 	_test_anti_omniscience_isolation()
@@ -171,6 +173,87 @@ func _test_turn_decay_and_expiration() -> void:
 	_check(bool(decay2.get("ok", false)), "Turn 4 decay processed ok")
 	_check(CampaignStrategicDetection.get_detection_state("zeon") == CampaignStrategicDetection.DetectionState.UNKNOWN, "Zeon degraded from SUSPECTED to UNKNOWN after 3 turns")
 	_check(CampaignStrategicDetection.get_last_known_node_id("zeon") == "", "Zeon last_known_node_id cleared upon returning to UNKNOWN")
+
+
+func _test_decay_idempotency_and_ordering() -> void:
+	CampaignStrategicDetection.reset()
+
+	# Event on turn 5; processing that SAME turn must be a strict no-op.
+	CampaignStrategicDetection.report_location("federation", "node_hq", 5, "combat")
+	var d0 := CampaignStrategicDetection.process_turn_decay(5)
+	_check(bool(d0.get("ok", false)), "Same-turn decay processed ok")
+	_check(int(d0.get("degraded_count", -1)) == 0, "Same-turn decay degrades nothing (age 0)")
+	_check(CampaignStrategicDetection.is_located("federation"), "LOCATED holds on the event turn itself")
+
+	# Repeating the same turn must not degrade repeatedly.
+	var d0b := CampaignStrategicDetection.process_turn_decay(5)
+	_check(int(d0b.get("degraded_count", -1)) == 0, "Repeated same-turn decay still degrades nothing")
+	_check(CampaignStrategicDetection.is_located("federation"), "LOCATED survives repeated same-turn processing")
+
+	# Next turn degrades exactly once; a repeat call is a no-op.
+	var d1 := CampaignStrategicDetection.process_turn_decay(6)
+	_check(int(d1.get("degraded_count", -1)) == 1, "Turn+1 decay degrades exactly once")
+	_check(not CampaignStrategicDetection.is_located("federation"), "LOCATED expired after one turn")
+	var d1b := CampaignStrategicDetection.process_turn_decay(6)
+	_check(int(d1b.get("degraded_count", -1)) == 0, "Repeated Turn+1 decay degrades nothing further")
+	_check(CampaignStrategicDetection.get_last_known_node_id("federation") == "node_hq", "Node retained through repeated decay")
+
+	# Out-of-order processing of an older turn changes nothing and resurrects nothing.
+	var dold := CampaignStrategicDetection.process_turn_decay(4)
+	_check(bool(dold.get("ok", false)), "Older-turn decay processed ok")
+	_check(int(dold.get("degraded_count", -1)) == 0, "Older-turn decay degrades nothing")
+	_check(CampaignStrategicDetection.get_detection_state("federation") == CampaignStrategicDetection.DetectionState.SUSPECTED, "State untouched by out-of-order processing")
+
+	# Negative turn rejected without mutation.
+	var dneg := CampaignStrategicDetection.process_turn_decay(-1)
+	_check(not bool(dneg.get("ok", true)), "Negative-turn decay rejected")
+	_check(CampaignStrategicDetection.get_detection_state("federation") == CampaignStrategicDetection.DetectionState.SUSPECTED, "Record untouched by rejected decay")
+
+	CampaignStrategicDetection.reset()
+
+
+func _test_post_decay_recovery_and_trace_policy() -> void:
+	CampaignStrategicDetection.reset()
+
+	# LOCATED@5 -> decay@6 keeps the node as SUSPECTED.
+	CampaignStrategicDetection.report_location("zeon", "node_old", 5, "combat")
+	CampaignStrategicDetection.process_turn_decay(6)
+	_check(CampaignStrategicDetection.get_detection_state("zeon") == CampaignStrategicDetection.DetectionState.SUSPECTED, "Decayed to SUSPECTED")
+
+	# A stale event after decay is still rejected and preserves the record.
+	var stale := CampaignStrategicDetection.report_location("zeon", "node_ancient", 4, "combat")
+	_check(not bool(stale.get("ok", true)) and str(stale.get("reason", "")) == "stale_event", "Post-decay stale event rejected")
+	_check(CampaignStrategicDetection.get_last_known_node_id("zeon") == "node_old", "Decayed node preserved through stale rejection")
+
+	# A newer event after decay re-elevates to LOCATED at the new node.
+	var fresh := CampaignStrategicDetection.report_location("zeon", "node_new", 7, "combat")
+	_check(bool(fresh.get("ok", false)), "Post-decay newer event accepted")
+	_check(CampaignStrategicDetection.is_located("zeon"), "Re-elevated to LOCATED")
+	_check(CampaignStrategicDetection.get_last_known_node_id("zeon") == "node_new", "New node recorded on recovery")
+
+	# Suspicion while LOCATED refreshes trace evidence but never moves or demotes.
+	var susp := CampaignStrategicDetection.report_suspicion("zeon", "node_elsewhere", 8, 6, "trace")
+	_check(bool(susp.get("ok", false)), "Suspicion while LOCATED accepted")
+	_check(CampaignStrategicDetection.is_located("zeon"), "Suspicion does not demote LOCATED")
+	_check(CampaignStrategicDetection.get_last_known_node_id("zeon") == "node_new", "Suspicion does not move the located node")
+	_check(CampaignStrategicDetection.get_last_known_turn("zeon") == 8, "Suspicion refreshes freshness clock (pinned policy)")
+
+	# Heat trace while LOCATED never hijacks the node either.
+	var trace := CampaignStrategicDetection.evaluate_node_trace("zeon", "node_hot", 10, 9)
+	_check(bool(trace.get("ok", false)), "High-heat trace while LOCATED processed")
+	_check(CampaignStrategicDetection.is_located("zeon"), "Heat never grants or breaks LOCATED")
+	_check(CampaignStrategicDetection.get_last_known_node_id("zeon") == "node_new", "Heat trace does not move the located node")
+
+	# is_suspected holds for LOCATED ("at least suspected").
+	_check(CampaignStrategicDetection.is_suspected("zeon"), "is_suspected true while LOCATED")
+
+	# SUSPECTED holds at age 2 (strictly between the 1 and 3 boundaries).
+	CampaignStrategicDetection.reset()
+	CampaignStrategicDetection.report_suspicion("outland", "node_x", 1, 4, "trace")
+	CampaignStrategicDetection.process_turn_decay(3)
+	_check(CampaignStrategicDetection.get_detection_state("outland") == CampaignStrategicDetection.DetectionState.SUSPECTED, "SUSPECTED holds at age 2")
+
+	CampaignStrategicDetection.reset()
 
 
 func _test_heat_trace_threshold_policy() -> void:

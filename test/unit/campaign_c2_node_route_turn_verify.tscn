@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://c2noderouteturnscene001"]
+[gd_scene format=3 uid="uid://bn6yjcu20t86w"]
 
 [ext_resource type="Script" path="res://test/unit/campaign_c2_node_route_turn_verify.gd" id="1_test"]
 

@@ -224,6 +224,7 @@ func _test_c_rejection_safety_and_atomicity() -> void:
 
 	# 3. Invalid node type for trade (Enemy Base)
 	GlobalData.board.current_tile = Vector2i(4, 4)
+	CampaignPlayerMovement.set_current_node_id("node_base_c") # strategic presence is authoritative; tile fallback pins on first read
 	var fail_node := CampaignPlayerDispatch.dispatch_intent(CampaignPlayerDispatch.create_intent("trade", "node_base_c", {
 		"operation": "buy",
 		"item_id": "scrap",
@@ -234,6 +235,7 @@ func _test_c_rejection_safety_and_atomicity() -> void:
 
 	# 4. Unknown item
 	GlobalData.board.current_tile = Vector2i(3, 3)
+	CampaignPlayerMovement.set_current_node_id("node_city_c")
 	var fail_item := CampaignPlayerDispatch.dispatch_intent(CampaignPlayerDispatch.create_intent("trade", "node_city_c", {
 		"operation": "buy",
 		"item_id": "fictional_plasma_cannon",

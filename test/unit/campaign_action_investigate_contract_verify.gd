@@ -247,7 +247,7 @@ func _test_h_deterministic_success_result_structure() -> void:
 	_check(JSON.stringify(res1) == JSON.stringify(res2), "H7: Repeated investigate calls produce bit-identical results")
 
 
-## --- SECTION I: UNIMPLEMENTED ACTION BEHAVIOR ---
+## --- SECTION I: DEFEND WITHOUT A BASE BEHAVIOR (S2-A) ---
 func _test_i_unimplemented_action_behavior() -> void:
 	_reset_campaign_runtime()
 
@@ -258,9 +258,9 @@ func _test_i_unimplemented_action_behavior() -> void:
 	for action in ["defend"]:
 		var intent := CampaignPlayerDispatch.create_intent(action, "node_city_i")
 		var res := CampaignPlayerDispatch.dispatch_intent(intent)
-		_check(not bool(res.get("ok", true)), "I1: Unimplemented action '%s' rejected" % action)
-		_check(str(res.get("reason", "")) == "action_not_implemented",
-			"I2: Unimplemented action '%s' returns 'action_not_implemented'" % action)
+		_check(not bool(res.get("ok", true)), "I1: Baseless action '%s' rejected" % action)
+		_check(str(res.get("reason", "")) == "no_base_to_defend",
+			"I2: Baseless action '%s' returns 'no_base_to_defend'" % action)
 
 
 
@@ -278,6 +278,9 @@ func _test_j_location_authority_integration() -> void:
 		"J2: CampaignPlayerDispatch respects CampaignNodeInspection location")
 
 	GlobalData.board.current_tile = Vector2i(5, 6)
+	# Tile move alone cannot relocate a pinned strategic node; drop the pin
+	# so this case genuinely exercises absence of strategic presence.
+	GlobalData.current_campaign_player_node_id = ""
 	_check(not CampaignNodeInspection.is_player_at_node("node_depot_j"),
 		"J3: CampaignNodeInspection confirms player moved off node")
 	_check(CampaignPlayerDispatch.validate_intent(CampaignPlayerDispatch.create_intent("investigate", "node_depot_j")).get("ok") == false,
@@ -335,6 +338,7 @@ func _test_l_canonical_scenario_investigate() -> void:
 	RunStartSystem.start_campaign_scenario("frontier_skirmish")
 	# Place player at depot
 	GlobalData.board.current_tile = Vector2i(5, 3)
+	CampaignPlayerMovement.set_current_node_id("node_frontier_depot") # strategic presence is authoritative; tile fallback pins on first read
 
 	var snap_before := _snap_campaign_state()
 	var intent := CampaignPlayerDispatch.create_intent("investigate", "node_frontier_depot")

@@ -29,13 +29,19 @@ extends RefCounted
 ## Execution contract: re-entry guarded, exactly-once per invocation, fixed
 ## phase order mirroring the pre-migration call order in _advance_calendar_day
 ## (economy -> spy/base -> board_day_ended fan-out -> rival -> era -> scavenger)
-## so gameplay semantics are preserved bit-for-bit.
+## so gameplay semantics are preserved bit-for-bit. C4-B4 inserts the
+## strategic phases (detection aging, then heat dissipation) between the
+## enemy-base lifecycle and the compatibility fan-out, matching the C4
+## design order so fresh traces are evaluated before heat dissipates.
+## Threat is read-only and runs no phase (queried on demand, never executed).
 ## ---------------------------------------------------------------------------
 
 const PHASE_BEGIN := "begin_turn"
 const PHASE_FACTION_ECONOMY := "faction_economy"
 const PHASE_SPY := "spy"
 const PHASE_ENEMY_BASE := "enemy_base"
+const PHASE_STRATEGIC_DETECTION := "strategic_detection"
+const PHASE_STRATEGIC_HEAT := "strategic_heat"
 const PHASE_COMPATIBILITY := "board_day_compatibility"
 const PHASE_RIVAL := "rival"
 const PHASE_ERA := "era"
@@ -47,6 +53,8 @@ const PHASE_ORDER: Array[String] = [
 	PHASE_FACTION_ECONOMY,
 	PHASE_SPY,
 	PHASE_ENEMY_BASE,
+	PHASE_STRATEGIC_DETECTION,
+	PHASE_STRATEGIC_HEAT,
 	PHASE_COMPATIBILITY,
 	PHASE_RIVAL,
 	PHASE_ERA,
@@ -95,9 +103,10 @@ static func get_phase_call_count(phase: String) -> int:
 ##       phase; empty means the phase is reported skipped (headless/tests).
 ##
 ## Returns a receipt: {ok, turn, reason, phases, spy_event,
-## enemy_base_spawn_requested, enemy_base_completed, rival, era,
-## scavenger_events, ...}. A nested call while executing returns
-## {ok:false, error:"reentrant"} WITHOUT incrementing the counter.
+## enemy_base_spawn_requested, enemy_base_completed, strategic_detection,
+## strategic_heat, rival, era, scavenger_events, ...}. A nested call while
+## executing returns {ok:false, error:"reentrant"} WITHOUT incrementing
+## the counter.
 static func advance_campaign_turn(reason: String = "", opts: Dictionary = {}) -> Dictionary:
 	if _executing:
 		return {
@@ -156,6 +165,30 @@ static func advance_campaign_turn(reason: String = "", opts: Dictionary = {}) ->
 		receipt["enemy_base_skipped"] = true
 	receipt["enemy_base_spawn_requested"] = base_spawned
 	receipt["enemy_base_completed"] = base_completed
+
+	# Strategic detection aging (C4-B2): degrade intel against the new turn.
+	# Runs before heat dissipation so fresh traces are evaluated first.
+	# No Threat phase: CampaignStrategicThreat is a read-only query with no
+	# state to advance, so there is nothing for a turn phase to execute.
+	var strategic_detection := {}
+	if day_boundary:
+		strategic_detection = CampaignStrategicDetection.process_turn_decay(turn)
+		_count_phase(PHASE_STRATEGIC_DETECTION)
+		phases.append(PHASE_STRATEGIC_DETECTION)
+	else:
+		receipt["strategic_detection_skipped"] = true
+	receipt["strategic_detection"] = strategic_detection
+
+	# Strategic heat dissipation (C4-B1): decay all node traces by one step.
+	var strategic_heat := {}
+	if day_boundary:
+		strategic_heat = CampaignStrategicHeat.decay_all_nodes(
+			CampaignStrategicHeat.DEFAULT_DECAY)
+		_count_phase(PHASE_STRATEGIC_HEAT)
+		phases.append(PHASE_STRATEGIC_HEAT)
+	else:
+		receipt["strategic_heat_skipped"] = true
+	receipt["strategic_heat"] = strategic_heat
 
 	# Compatibility fan-out. Existing subscribers keep their bodies unchanged:
 	# GlobalData (fuel day tick, research dispatch, recruit recovery, faction

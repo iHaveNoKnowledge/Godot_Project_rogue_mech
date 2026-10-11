@@ -219,18 +219,21 @@ func _test_e_wrong_node_type() -> void:
 
 	# City
 	GlobalData.board.current_tile = Vector2i(1, 1)
+	CampaignPlayerMovement.set_current_node_id(city_nid) # strategic presence is authoritative; tile fallback pins on first read
 	var res_city := CampaignPlayerDispatch.dispatch_intent(CampaignPlayerDispatch.create_intent("capture", city_nid))
 	_assert_false(bool(res_city.get("ok", false)), "E1: Capture at CITY rejected")
 	_assert_eq(str(res_city.get("reason", "")), "node_cannot_capture", "E2: Rejection reason node_cannot_capture")
 
 	# Safehouse
 	GlobalData.board.current_tile = Vector2i(2, 2)
+	CampaignPlayerMovement.set_current_node_id(safe_nid)
 	var res_safe := CampaignPlayerDispatch.dispatch_intent(CampaignPlayerDispatch.create_intent("capture", safe_nid))
 	_assert_false(bool(res_safe.get("ok", false)), "E3: Capture at SAFEHOUSE rejected")
 	_assert_eq(str(res_safe.get("reason", "")), "node_cannot_capture", "E4: Rejection reason node_cannot_capture")
 
 	# Supply Depot
 	GlobalData.board.current_tile = Vector2i(3, 3)
+	CampaignPlayerMovement.set_current_node_id(depot_nid)
 	var res_depot := CampaignPlayerDispatch.dispatch_intent(CampaignPlayerDispatch.create_intent("capture", depot_nid))
 	_assert_false(bool(res_depot.get("ok", false)), "E5: Capture at SUPPLY_DEPOT rejected")
 	_assert_eq(str(res_depot.get("reason", "")), "node_cannot_capture", "E6: Rejection reason node_cannot_capture")

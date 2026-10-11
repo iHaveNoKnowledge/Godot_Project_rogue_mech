@@ -108,6 +108,10 @@ func _setup_test_topology() -> void:
 	# Position player at Node A
 	GlobalData.board.current_sector = 1
 	GlobalData.board.current_tile = Vector2i(2, 2)
+	# Strategic presence is authoritative and outlives registry clears when
+	# identical IDs are re-registered; tile fallback alone cannot reposition
+	# a pinned strategic node, so clear it for a hermetic topology.
+	GlobalData.current_campaign_player_node_id = ""
 
 
 ## --- SECTION A: SINGLE MOVEMENT AUTHORITY ---
@@ -130,6 +134,9 @@ func _test_b_current_node_resolution() -> void:
 
 	# Move physical tile to a non-strategic tile
 	GlobalData.board.current_tile = Vector2i(0, 0)
+	# B1's read above pinned the strategic node; drop the pin so this case
+	# genuinely exercises source absence (tile fallback finds no node).
+	GlobalData.current_campaign_player_node_id = ""
 	var non_strat: String = CampaignPlayerMovement.get_current_node_id()
 	_check(non_strat == "", "B2: get_current_node_id returns empty string on non-strategic tile")
 
@@ -207,6 +214,9 @@ func _test_h_atomic_failure() -> void:
 
 	# Also test when player is on non-strategic tile
 	GlobalData.board.current_tile = Vector2i(10, 10)
+	# Earlier moves in this test pinned a strategic node; drop the pin so
+	# this case genuinely exercises source absence.
+	GlobalData.current_campaign_player_node_id = ""
 	var fail_nonstrat: Dictionary = CampaignPlayerMovement.move_player_to_node("node_s1_city_2_2")
 	_check(not fail_nonstrat.get("ok", true), "H4: Move from non-strategic tile fails")
 	_check(str(fail_nonstrat.get("reason", "")) == "no_source_node", "H5: Reason is no_source_node")
@@ -281,7 +291,7 @@ func _test_m_combat_separation() -> void:
 	CampaignPlayerMovement.move_player_to_node("node_s1_depot_2_3")
 
 	_check(CampaignBattle.get_battles().is_empty(), "M1: No CampaignBattle created upon entering node with hostile force/base")
-	_check(not GlobalData.in_combat, "M2: GlobalData.in_combat remains false")
+	_check(GameManager.current_state != GameManager.State.COMBAT, "M2: GameManager not in COMBAT after strategic movement")
 
 
 ## --- SECTION N: TURN SEPARATION ---

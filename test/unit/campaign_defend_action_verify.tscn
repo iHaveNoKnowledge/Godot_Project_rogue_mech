@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://s2a_defend_verify"]
+
+[ext_resource type="Script" path="res://test/unit/campaign_defend_action_verify.gd" id="1_script"]
+
+[node name="CampaignDefendActionVerify" type="Node"]
+script = ExtResource("1_script")

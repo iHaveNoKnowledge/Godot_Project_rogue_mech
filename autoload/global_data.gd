@@ -167,6 +167,12 @@ const AMMO_WEIGHT_PER_UNIT := {
 } # Full catalog lives in AmmoSystem.WEIGHTS (kept in sync by test).
 const PART_TIER_SUBSTEPS: int = 4
 const REPAIR_COST_PER_HP := 0.5
+# Professional workshop rebuild pricing (restored S1: values from the last
+# known-good implementation at 03190551; lost in the 0f4d5870 manager
+# extraction while repair_system.gd kept referencing them). Full-slot rebuild
+# cost, unlike damage-proportional REPAIR_COST_PER_HP.
+const PROFESSIONAL_REPAIR_CREDITS_PER_ARMOR_HP := 1.0
+const PROFESSIONAL_REPAIR_CREDITS_PER_FRAME_HP := 0.75
 const DECISIVE_VICTORY_RATIO := 0.5
 
 # --- Fuel constants ---

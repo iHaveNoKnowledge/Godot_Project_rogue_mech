@@ -31,6 +31,7 @@ const _DICT_FIELDS := [
 	"enemy_forces", "part_hit_meta", "thermal_cloak", "ewar",
 	"weather_transition", "pending_duel", "research_projects",
 	"faction_relations", "territories", "bases", "forces", "campaign_battles",
+	"campaign_strategic_heat", "campaign_strategic_detection",
 ]
 
 ## Root fields that must be Arrays when present (restore iterates them).
@@ -135,6 +136,16 @@ static func save_run() -> bool:
 		# copied; session_ref is an opaque string, never a runtime object).
 		# Missing key (old saves) restores as empty — no bump.
 		"campaign_battles": CampaignBattle.serialize(),
+		# Phase C4-B5 (Campaign V2): strategic node heat traces only
+		# ({node_heats: {node_id: level}}). Owned and shaped by
+		# CampaignStrategicHeat.serialize(). Missing key (old saves)
+		# restores as empty — no bump. Threat is derived, never stored.
+		"campaign_strategic_heat": CampaignStrategicHeat.serialize(),
+		# Phase C4-B5 (Campaign V2): faction intelligence records only
+		# ({faction_intelligence: {...}}). Owned and shaped by
+		# CampaignStrategicDetection.serialize(). Missing key (old saves)
+		# restores as empty — no bump.
+		"campaign_strategic_detection": CampaignStrategicDetection.serialize(),
 		# Phase 5AE / C1 / C3 / C2.6 (Campaign V2): active scenario, campaign instance, player faction, and strategic node.
 		"scenario_id": GlobalData.current_campaign_scenario_id,
 		"campaign_id": GlobalData.current_campaign_id,
@@ -279,6 +290,12 @@ static func restore_from_dict(data: Dictionary) -> void:
 	CampaignBase.deserialize(data.get("bases", {}))
 	CampaignForce.deserialize(data.get("forces", {}))
 	CampaignBattle.deserialize(data.get("campaign_battles", {}))
+	# Phase C4-B5 (Campaign V2): strategic heat traces and faction
+	# intelligence. Each deserializer resets its own authority first, so a
+	# missing key restores empty state (no leak from a previous run) and
+	# malformed rows are sanitized per each system's own contract.
+	CampaignStrategicHeat.deserialize(data.get("campaign_strategic_heat", {}))
+	CampaignStrategicDetection.deserialize(data.get("campaign_strategic_detection", {}))
 	# Phase 5AE / C1 / C3 / C2.6 (Campaign V2): active scenario, campaign instance, player faction, & player node.
 	GlobalData.current_campaign_scenario_id = str(data.get("scenario_id", ""))
 	GlobalData.current_campaign_id = str(data.get("campaign_id", ""))

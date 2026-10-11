@@ -377,13 +377,14 @@ func _test_q_canonical_depot_coexistence_intact() -> void:
 
 	RunStartSystem.start_campaign_scenario("frontier_skirmish")
 	GlobalData.board.current_tile = Vector2i(5, 3) # at depot
+	CampaignPlayerMovement.set_current_node_id("node_frontier_depot") # strategic presence is authoritative; tile alone does not position the player
 
 	var snap_before := _snap_campaign_state()
 	var intent := CampaignPlayerDispatch.create_intent("investigate", "node_frontier_depot")
 	var res := CampaignPlayerDispatch.dispatch_intent(intent)
 	var snap_after := _snap_campaign_state()
 
-	_check(str(res.get("reason", "")) == "action_not_implemented", "Q1: Canonical depot intent returns action_not_implemented")
+	_check(str(res.get("reason", "")) == "action_not_implemented", "Q1: Canonical depot intent returns action_not_implemented (no handler registered by suite design)")
 	_check(snap_after == snap_before, "Q2: Canonical depot facts untouched by intent dispatch")
 	_check(CampaignTerritory.get_controller("terr_frontier_sector_beta") == "zeon", "Q3: Sector Beta remains Zeon controlled")
 	_check(CampaignForce.get_force("force_s1_outland_scavengers").get("node_id") == "node_frontier_depot",

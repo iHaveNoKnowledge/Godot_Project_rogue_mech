@@ -214,6 +214,7 @@ func _test_g_node_type_precondition() -> void:
 	# Test at data_node
 	GlobalData.board.current_sector = 1
 	GlobalData.board.current_tile = Vector2i(2, 2)
+	CampaignPlayerMovement.set_current_node_id("node_datanode_g") # strategic presence is authoritative; tile fallback pins on first read
 
 	var intent_bad := CampaignPlayerDispatch.create_intent("resupply", "node_datanode_g")
 	var res_bad := CampaignPlayerDispatch.dispatch_intent(intent_bad)
@@ -224,6 +225,7 @@ func _test_g_node_type_precondition() -> void:
 
 	# Test at city
 	GlobalData.board.current_tile = Vector2i(3, 3)
+	CampaignPlayerMovement.set_current_node_id("node_city_g") # reposition strategically; tile alone cannot move a pinned player node
 	var intent_good := CampaignPlayerDispatch.create_intent("resupply", "node_city_g")
 	var res_good := CampaignPlayerDispatch.dispatch_intent(intent_good)
 
@@ -331,7 +333,7 @@ func _test_j_side_effect_safety() -> void:
 		"J12: No PlayerCampaignForce exists")
 
 
-## --- SECTION K: UNIMPLEMENTED ACTIONS REMAIN UNIMPLEMENTED ---
+## --- SECTION K: DEFEND WITHOUT A BASE REMAINS REJECTED (S2-A) ---
 func _test_k_unimplemented_actions_remain_unimplemented() -> void:
 	_reset_campaign_runtime()
 
@@ -342,9 +344,9 @@ func _test_k_unimplemented_actions_remain_unimplemented() -> void:
 	for action in ["defend"]:
 		var intent := CampaignPlayerDispatch.create_intent(action, "node_city_k")
 		var res := CampaignPlayerDispatch.dispatch_intent(intent)
-		_check(not bool(res.get("ok", true)), "K1: Action '%s' remains unimplemented" % action)
-		_check(str(res.get("reason", "")) == "action_not_implemented",
-			"K2: Action '%s' returns 'action_not_implemented'" % action)
+		_check(not bool(res.get("ok", true)), "K1: Action '%s' rejected without a base" % action)
+		_check(str(res.get("reason", "")) == "no_base_to_defend",
+			"K2: Action '%s' returns 'no_base_to_defend'" % action)
 
 
 ## --- SECTION L: PRESERVE 5AN INVESTIGATE ---

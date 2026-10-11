@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://c4b2detectionverify01"]
+[gd_scene format=3 uid="uid://dwi7jnfjbgbwe"]
 
 [ext_resource type="Script" path="res://test/unit/campaign_strategic_detection_verify.gd" id="1_c4b2detect"]
 

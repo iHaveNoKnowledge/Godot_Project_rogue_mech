@@ -688,6 +688,16 @@ func _update_action_buttons(is_player_here: bool, is_reachable: bool, node_type:
 		attack_btn.pressed.connect(_on_action_attack_pressed)
 		_actions_container.add_child(attack_btn)
 
+	# 6. Defend (S2-A: only when the player-owned base here is under an
+	#    ACTIVE assault; the domain handler re-validates everything, so the
+	#    button is a trigger, never a state mutation)
+	if not base.is_empty() \
+			and str(base.get("controller", "")) == GlobalData.current_campaign_faction_id \
+			and CampaignBaseDefense.is_base_under_attack(str(base.get("id", ""))):
+		var defend_btn := _create_button("DEFEND BASE", false, false, Vector2(0, 32))
+		defend_btn.pressed.connect(_on_action_defend_pressed)
+		_actions_container.add_child(defend_btn)
+
 
 # -----------------------------------------------------------------------------
 # STRATEGIC MOVEMENT & ACTION EXECUTION
@@ -780,6 +790,10 @@ func _on_action_capture_pressed() -> void:
 
 func _on_action_attack_pressed() -> void:
 	dispatch_node_action("attack")
+
+
+func _on_action_defend_pressed() -> void:
+	dispatch_node_action("defend")
 
 
 func _on_node_clicked(node_id: String) -> void:

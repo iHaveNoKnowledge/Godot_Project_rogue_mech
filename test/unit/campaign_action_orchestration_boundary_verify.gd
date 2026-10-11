@@ -15,7 +15,10 @@ extends Node
 ## campaign authorities. Future Move/Capture-style actions stay unmodeled.
 ## User save backed up/restored.
 
+# Mirrors CampaignTurnExecutive.PHASE_ORDER (incl. the C4-B4 strategic phases);
+# the allowlist predated them and flagged legitimate phases as unknown.
 const TURN_PHASES := ["begin_turn", "faction_economy", "spy", "enemy_base",
+	"strategic_detection", "strategic_heat",
 	"board_day_compatibility", "rival", "era", "scavenger", "end_turn"]
 
 var _fails := 0

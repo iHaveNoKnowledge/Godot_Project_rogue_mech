@@ -25,8 +25,9 @@ const CampaignBase = preload("res://scripts/systems/campaign_base.gd")
 const CampaignTerritory = preload("res://scripts/systems/campaign_territory.gd")
 const CampaignBattle = preload("res://scripts/systems/campaign_battle.gd")
 
+# Mirrors CampaignTurnExecutive.PHASE_ORDER (S2-B adds strategic_assault).
 const FULL_PHASES := ["begin_turn", "faction_economy", "spy", "enemy_base",
-	"strategic_detection", "strategic_heat",
+	"strategic_detection", "strategic_heat", "strategic_assault",
 	"board_day_compatibility", "rival", "era", "end_turn"]
 
 var _checks := 0

@@ -1129,6 +1129,9 @@ func reset_run_data() -> void:
 	CampaignForce.clear()
 	# Phase 5B (Campaign V2): battle records are run state.
 	CampaignBattle.clear()
+	# Phase S2-B 2A (Campaign V2): assault records and pending defense
+	# engagements are run state (battles/bases/forces cleared above).
+	CampaignBaseDefense.reset_defense_state()
 	# Phase 5AF (Campaign V2): faction economies are run state.
 	FactionEconomySystem.reset()
 	# Phase C4-B1 (Campaign V2): strategic node operational heat traces are run state.

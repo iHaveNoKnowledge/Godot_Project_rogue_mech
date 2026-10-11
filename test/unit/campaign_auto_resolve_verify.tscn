@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://s2b_auto_resolve_verify"]
+
+[ext_resource type="Script" path="res://test/unit/campaign_auto_resolve_verify.gd" id="1_script"]
+
+[node name="CampaignAutoResolveVerify" type="Node"]
+script = ExtResource("1_script")

@@ -127,13 +127,42 @@ static func start_base_attack(base_id: String, attacker_force_id: String) -> Dic
 	var participants: Array = [attacker_force_id, defender_force_id]
 	participants.sort()
 
-	# Register and launch battle in CampaignBattle
-	var battle_id := CampaignBattle.make_battle_id(sector, "def_" + base_id)
+	# Register and launch battle in CampaignBattle under a derived identity
+	# (legacy def_<base> for the first assault, suffixed afterwards).
+	var battle_id := next_defense_battle_id(sector, base_id)
 	if not CampaignBattle.has_battle(battle_id):
-		CampaignBattle.register_battle(battle_id, node_id, participants)
+		if CampaignBattle.register_battle(battle_id, node_id, participants) == "":
+			return {
+				"ok": false,
+				"reason": "battle_registration_failed",
+				"base_id": base_id,
+				"node_id": node_id,
+				"battle_id": battle_id,
+				"attacker_force_id": attacker_force_id,
+			}
+		var launched := CampaignBattle.prepare_launch(battle_id)
+		if not bool(launched.get("ok", false)):
+			return {
+				"ok": false,
+				"reason": "battle_launch_failed",
+				"base_id": base_id,
+				"node_id": node_id,
+				"battle_id": battle_id,
+				"attacker_force_id": attacker_force_id,
+			}
+	elif CampaignBattle.is_active(battle_id):
+		pass
+	elif CampaignBattle.is_planned(battle_id):
 		CampaignBattle.prepare_launch(battle_id)
-	elif not CampaignBattle.is_active(battle_id) and CampaignBattle.is_planned(battle_id):
-		CampaignBattle.prepare_launch(battle_id)
+	else:
+		return {
+			"ok": false,
+			"reason": "battle_already_resolved",
+			"base_id": base_id,
+			"node_id": node_id,
+			"battle_id": battle_id,
+			"attacker_force_id": attacker_force_id,
+		}
 
 	return {
 		"ok": true,
@@ -146,6 +175,31 @@ static func start_base_attack(base_id: String, attacker_force_id: String) -> Dic
 		"participants": participants,
 		"base_controller": base_controller,
 	}
+
+
+## Derives the battle identity for an assault on a base. The first assault
+## keeps the legacy stable id (def_<base_id>, compatible with existing saves,
+## tests, and session markers). Later assaults use deterministic suffixed ids
+## (def_<base_id>_s2, _s3, ...) derived from authoritative battle records —
+## no counter, no new state. An open (PLANNED or ACTIVE) battle is reused so
+## a second assault never duplicates or bypasses it; terminal history only
+## advances the suffix.
+static func next_defense_battle_id(sector: int, base_id: String) -> String:
+	var slug := "def_" + base_id
+	var candidate := CampaignBattle.make_battle_id(sector, slug)
+	if not CampaignBattle.has_battle(candidate):
+		return candidate
+	if CampaignBattle.is_active(candidate) or CampaignBattle.is_planned(candidate):
+		return candidate
+	var n := 2
+	while true:
+		candidate = CampaignBattle.make_battle_id(sector, slug + "_s" + str(n))
+		if not CampaignBattle.has_battle(candidate):
+			return candidate
+		if CampaignBattle.is_active(candidate) or CampaignBattle.is_planned(candidate):
+			return candidate
+		n += 1
+	return candidate
 
 
 ## Queries whether a base is currently involved in an active defense battle.
@@ -263,11 +317,13 @@ static var _pending_defense: Dictionary = {}
 static var _defense_result_hook_connected: bool = false
 
 
-## Clears the pending slot and hook flag. Battles, bases, and forces are
-## untouched. Used by tests and run-state resets; production recovery after
-## save/load goes through recover_pending_defense_from_records() instead.
+## Clears the pending slot, assault records, and hook flag. Battles, bases,
+## and forces are untouched. Used by tests and run-state resets; production
+## recovery after save/load goes through recover_pending_defense_from_records()
+## and the assault deserializer instead.
 static func reset_defense_state() -> void:
 	_pending_defense.clear()
+	_assaults.clear()
 	_defense_result_hook_connected = false
 
 
@@ -416,4 +472,330 @@ static func _on_defense_combat_ended(victory: bool) -> void:
 	else:
 		if CampaignBase.has_base(base_id):
 			CampaignBase.set_state(base_id, CampaignBase.BaseState.DISABLED)
+	clear_assault(battle_id)
 	CampaignBattle.clear_session_ref(battle_id)
+
+
+## ---------------------------------------------------------------------------
+## S2-B PHASE 2A ASSAULT RECORDS, SCHEDULING & ABSOLUTE DEADLINE.
+##
+## Assault record: battle_id -> {base_id, controller, created_turn,
+## deadline_turn, expired}. The pinned controller detects mid-assault
+## ownership flips (capture): a live controller mismatch defers resolution.
+## Created ONLY by process_assault_turn() after start_base_attack()
+## yields an ACTIVE battle; deadline_turn = creation_turn + 2 (absolute
+## campaign turn, the only turn authority in use).
+##
+## Intervention stays valid while get_turn() <= deadline_turn; expiration is
+## eligible only when get_turn() > deadline_turn. Retreat and re-intervention
+## never touch the record. Expired records are MARKED (expired=true,
+## persisted) and preserved for the approved auto-resolve phase: this phase
+## never destroys forces, disables bases, changes ownership, or resolves
+## battles. Records whose battle is no longer ACTIVE are stale (assault over)
+## and dropped by the scan. One assault per base per run follows from the
+## stable battle ids (def_<base_id>) owned by CampaignBattle.
+## ---------------------------------------------------------------------------
+
+static var _assaults: Dictionary = {}
+
+
+## Returns all assault records keyed by battle id (duplicated, read-only view).
+static func get_assaults() -> Dictionary:
+	var out := {}
+	for bid in _assaults:
+		out[str(bid)] = ((_assaults[bid] as Dictionary).duplicate(true))
+	return out
+
+
+## Returns one assault record, or {} when unknown.
+static func get_assault(battle_id: String) -> Dictionary:
+	if battle_id == "" or not _assaults.has(battle_id):
+		return {}
+	return ((_assaults[battle_id] as Dictionary).duplicate(true))
+
+
+## True when the record exists and is marked expired.
+static func is_assault_expired(battle_id: String) -> bool:
+	return bool(get_assault(battle_id).get("expired", false))
+
+
+## Drops one assault record. Battles, bases, and forces are untouched.
+static func clear_assault(battle_id: String) -> void:
+	_assaults.erase(battle_id)
+
+
+## Day-boundary assault maintenance for one campaign turn. Never advances the
+## turn. Returns {created, expired_marked, dropped_stale} battle-id lists:
+##   1. drop records whose battle is missing or no longer ACTIVE;
+##   2. mark records expired when turn > deadline_turn (ACTIVE battles only);
+##   3. start assaults for eligible player bases with none in flight.
+## Newly created records carry deadline_turn = turn + 2 and can never satisfy
+## the expiration test in the same invocation. Repeating the same turn is a
+## no-op by construction.
+static func process_assault_turn(turn: int) -> Dictionary:
+	var dropped: Array = []
+	for bid in _assaults.keys():
+		if not CampaignBattle.has_battle(str(bid)) \
+				or not CampaignBattle.is_active(str(bid)):
+			_assaults.erase(bid)
+			dropped.append(str(bid))
+	var expired_marked: Array = []
+	for bid in _assaults:
+		var rec: Dictionary = _assaults[bid]
+		if not bool(rec.get("expired", false)) and turn > int(rec.get("deadline_turn", -1)):
+			rec["expired"] = true
+			expired_marked.append(str(bid))
+	var created: Array = []
+	for base in CampaignBase.get_bases():
+		var base_id := str(base.get("id", ""))
+		if base_id == "":
+			continue
+		if int(base.get("state", -1)) != CampaignBase.BaseState.ACTIVE:
+			continue
+		var controller := str(base.get("controller", "")).strip_edges()
+		if controller == "" or controller != FactionSystem.get_player_faction():
+			continue
+		var node_id := str(base.get("node_id", "")).strip_edges()
+		if node_id == "" or not CampaignNodeRegistry.has_node(node_id):
+			continue
+		if not get_defense_battle_for_base(base_id).is_empty():
+			continue
+		var attacker_id := _find_hostile_attacker(node_id, controller)
+		if attacker_id == "":
+			continue
+		var started := start_base_attack(base_id, attacker_id)
+		var battle_id := str(started.get("battle_id", ""))
+		if not bool(started.get("ok", false)) or not CampaignBattle.is_active(battle_id):
+			continue
+		_assaults[battle_id] = {
+			"base_id": base_id,
+			"controller": controller,
+			"created_turn": turn,
+			"deadline_turn": turn + 2,
+			"expired": false,
+		}
+		created.append(battle_id)
+	# Auto-resolve pass over expired records (approved outcomes only; see
+	# try_auto_resolve_expired). Never touches records created above: they
+	# carry expired=false and fail the expiry gate by construction.
+	var auto_resolved: Array = []
+	var deferred: Array = []
+	for bid in _assaults.keys():
+		var outcome := try_auto_resolve_expired(str(bid))
+		if str(outcome.get("applied", "")) != "":
+			auto_resolved.append({"battle_id": str(bid), "outcome": str(outcome.get("applied", ""))})
+		elif str(outcome.get("reason", "")) != "not_expired":
+			deferred.append({"battle_id": str(bid), "reason": str(outcome.get("reason", ""))})
+	created.sort()
+	expired_marked.sort()
+	dropped.sort()
+	return {"created": created, "expired_marked": expired_marked,
+		"auto_resolved": auto_resolved, "deferred": deferred,
+		"dropped_stale": dropped}
+
+
+## Attempts the approved automatic outcome for one EXPIRED assault record.
+## Returns {applied: outcome} on success, or {reason} when deferred/dropped:
+##   not_expired        — deadline not passed (never an outcome).
+##   stale              — battle missing or no longer ACTIVE (record dropped).
+##   base_gone          — base record missing (record dropped).
+##   base_destroyed     — base terminally destroyed (record dropped; the assault
+##                        is moot, the battle record itself is kept as history).
+##   ownership_changed  — live controller differs from the recorded one
+##                        (capture/flip mid-assault makes roles ambiguous).
+##   base_not_active    — base DISABLED (SKIP policy: record kept, assault
+##                        preserved for tactical/manual handling).
+##   multi_or_no_attacker — participants do not yield exactly one live-hostile
+##                        attacker (aggregating factions is forbidden).
+##   no_verified_defender — no single participant is verifiably the base's
+##                        garrison (GARRISON_ONLY: never substitute friendlies,
+##                        strongest, sums, or fabrications).
+##   awaiting_policy    — expiry with a live but non-ACTIVE attacker (e.g.
+##                        DISABLED): no approved outcome rule exists (AUDIT_ONLY),
+##                        so the record stays expired and recoverable.
+## Only the two approved outcomes mutate anything, and only on the matching
+## battle: DEFENDER_SUCCESS (attacker already destroyed) and ATTACKER_SUCCESS
+## (single verified ACTIVE attacker left unattended past the deadline, base
+## DISABLED with controller preserved). Each applied outcome emits exactly one
+## event_triggered notice naming the verified base and battle; deferred or
+## skipped assaults emit nothing, so no notice can misreport a defeat.
+static func try_auto_resolve_expired(battle_id: String) -> Dictionary:
+	var rec := get_assault(battle_id)
+	if rec.is_empty():
+		return {"reason": "unknown_record"}
+	if not bool(rec.get("expired", false)):
+		return {"reason": "not_expired"}
+	if not CampaignBattle.has_battle(battle_id) or not CampaignBattle.is_active(battle_id):
+		_assaults.erase(battle_id)
+		return {"reason": "stale"}
+	var base_id := str(rec.get("base_id", ""))
+	if not CampaignBase.has_base(base_id):
+		_assaults.erase(battle_id)
+		return {"reason": "base_gone"}
+	var base := CampaignBase.get_base(base_id)
+	if int(base.get("state", -1)) == CampaignBase.BaseState.DESTROYED:
+		_assaults.erase(battle_id)
+		return {"reason": "base_destroyed"}
+	var live_controller := str(base.get("controller", "")).strip_edges()
+	if live_controller == "" or live_controller != str(rec.get("controller", "")):
+		return {"reason": "ownership_changed"}
+	if int(base.get("state", -1)) != CampaignBase.BaseState.ACTIVE:
+		return {"reason": "base_not_active"}
+	var battle := CampaignBattle.get_battle(battle_id)
+	var hostile: Array = []
+	for f in Array(battle.get("participants", [])):
+		var fid := str(f)
+		if not CampaignForce.has_force(fid):
+			continue
+		var faction := str(CampaignForce.get_force(fid).get("faction", ""))
+		if faction == "" or faction == live_controller:
+			continue
+		if FactionSystem.get_relation(faction, live_controller) != FactionSystem.Relation.HOSTILE:
+			continue
+		hostile.append(fid)
+	hostile.sort()
+	if hostile.size() != 1:
+		return {"reason": "multi_or_no_attacker"}
+	var attacker_id := str(hostile[0])
+	if _find_verified_defender(battle, base_id, live_controller, attacker_id) == "":
+		return {"reason": "no_verified_defender"}
+	var attacker_state := CampaignForce.get_state(attacker_id)
+	if attacker_state == CampaignForce.ForceState.DESTROYED:
+		if not CampaignBattle.resolve_battle(battle_id):
+			_assaults.erase(battle_id)
+			return {"reason": "stale"}
+		_assaults.erase(battle_id)
+		CampaignBattle.clear_session_ref(battle_id)
+		_emit_defense_outcome_notice(base_id, battle_id, true)
+		return {"applied": "defender_success"}
+	# Approved Option D (B1): one verified ACTIVE attacker left unattended past
+	# the deadline wins by default — resolve the battle and DISABLE the base
+	# (controller preserved), reusing the approved tactical-defeat semantics.
+	# No strength comparison, no garrison-identity formula, no attacker
+	# mutation beyond what the lifecycle already requires (none here).
+	if attacker_state != CampaignForce.ForceState.ACTIVE:
+		return {"reason": "awaiting_policy"}
+	if not CampaignBattle.resolve_battle(battle_id):
+		_assaults.erase(battle_id)
+		return {"reason": "stale"}
+	CampaignBase.set_state(base_id, CampaignBase.BaseState.DISABLED)
+	_assaults.erase(battle_id)
+	CampaignBattle.clear_session_ref(battle_id)
+	_emit_defense_outcome_notice(base_id, battle_id, false)
+	return {"applied": "attacker_success"}
+
+
+## Emits one outcome notice for an applied defense resolution, naming the
+## verified base and battle (existing event_triggered convention: convoy
+## escort announcements, research completions). Emitted only on the tick the
+## outcome is applied — the record is cleared in the same block, so repeats
+## and save/load cycles cannot re-emit. Never called for deferred/skipped
+## assaults, so no notice can misreport an unapplied defeat.
+static func _emit_defense_outcome_notice(base_id: String, battle_id: String, defender_held: bool) -> void:
+	if defender_held:
+		EventBus.event_triggered.emit({
+			"name": "BASE DEFENSE HELD",
+			"effect": "none",
+			"amount": 0,
+			"desc": "The assault on %s was broken. Defending forces hold the base." % base_id,
+		})
+	else:
+		EventBus.event_triggered.emit({
+			"name": "BASE DEFENSE LOST",
+			"effect": "none",
+			"amount": 0,
+			"desc": "No relief reached %s in time. The base has been disabled, but remains under our control." % base_id,
+		})
+
+
+## Returns the verified garrison for an assault: the single battle participant
+## (other than the attacker) that serves the base controller or is attached
+## to the base. Identity always comes from the battle record itself — never
+## all friendlies at the node, never the strongest, never sums, never
+## fabrications. Anything else (none, or ambiguous multiples) yields ""
+## (GARRISON_ONLY).
+static func _find_verified_defender(battle: Dictionary, base_id: String, controller: String, attacker_id: String) -> String:
+	var matches: Array = []
+	for f in Array(battle.get("participants", [])):
+		var fid := str(f)
+		if fid == "" or fid == attacker_id or not CampaignForce.has_force(fid):
+			continue
+		var force := CampaignForce.get_force(fid)
+		if str(force.get("faction", "")) != controller \
+				and str(force.get("base_id", "")) != base_id:
+			continue
+		matches.append(fid)
+	matches.sort()
+	if matches.size() == 1:
+		return str(matches[0])
+	return ""
+
+
+## Returns the first (id-sorted, deterministic) ACTIVE force at the node whose
+## faction is HOSTILE to the given controller, or "". Friendly, neutral,
+## inactive, and destroyed forces never trigger. Hostility follows the
+## existing FactionSystem relation API, not faction inequality.
+static func _find_hostile_attacker(node_id: String, controller: String) -> String:
+	var candidates: Array = []
+	for fid in CampaignForce.get_active_forces_at_node(node_id):
+		var fid_str := str(fid)
+		var faction := str(CampaignForce.get_force(fid_str).get("faction", ""))
+		if faction == "" or faction == controller:
+			continue
+		if FactionSystem.get_relation(controller, faction) != FactionSystem.Relation.HOSTILE:
+			continue
+		candidates.append(fid_str)
+	candidates.sort()
+	if candidates.is_empty():
+		return ""
+	return str(candidates[0])
+
+
+## Serializes assault records only (battles/bases/forces persist via their own
+## authorities; correlation is battle_id + base_id). SaveGameIO owns the key.
+static func serialize_assaults() -> Dictionary:
+	var rows := {}
+	for bid in _assaults:
+		rows[str(bid)] = ((_assaults[bid] as Dictionary).duplicate(true))
+	return {"assaults": rows}
+
+
+## Restores assault records. Malformed rows (non-dict, empty ids, unknown
+## base/battle, negative or inverted turns) are skipped without touching any
+## other campaign state. Never resolves battles or mutates bases/forces.
+static func deserialize_assaults(data: Variant) -> void:
+	_assaults.clear()
+	if not (data is Dictionary):
+		return
+	var rows = (data as Dictionary).get("assaults", {})
+	if not (rows is Dictionary):
+		return
+	for bid in (rows as Dictionary):
+		var row = (rows as Dictionary)[bid]
+		if not (row is Dictionary):
+			continue
+		var base_id := str((row as Dictionary).get("base_id", ""))
+		if str(bid) == "" or base_id == "" or not CampaignBase.has_base(base_id):
+			continue
+		if not CampaignBattle.has_battle(str(bid)):
+			continue
+		var created := int((row as Dictionary).get("created_turn", -1))
+		var deadline := int((row as Dictionary).get("deadline_turn", -1))
+		if created < 0 or deadline < 0 or deadline < created:
+			continue
+		# Pre-controller rows (Phase 2A saves) migrate to the live base
+		# controller; an explicitly stored empty controller is malformed.
+		var controller := str((row as Dictionary).get("controller", ""))
+		if controller == "":
+			if (row as Dictionary).has("controller"):
+				continue
+			controller = str(CampaignBase.get_base(base_id).get("controller", ""))
+			if controller == "":
+				continue
+		_assaults[str(bid)] = {
+			"base_id": base_id,
+			"controller": controller,
+			"created_turn": created,
+			"deadline_turn": deadline,
+			"expired": bool((row as Dictionary).get("expired", false)),
+		}

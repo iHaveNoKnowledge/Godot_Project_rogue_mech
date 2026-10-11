@@ -130,11 +130,17 @@ func _test_a_single_authority() -> void:
 	_check(panel.get_current_turn() == CampaignTurnExecutive.get_turn(), "A5: CampaignTurnPanel reads from CampaignTurnExecutive")
 	panel.free()
 
-	# CampaignTurnExecutive has zero coupling to CampaignForce, CampaignTerritory, CampaignBase, CampaignBattle
+	# CampaignTurnExecutive has zero coupling to CampaignForce, CampaignTerritory, CampaignBase, CampaignBattle.
+	# Approved S2-B exception (narrow): the single day-boundary assault-scheduling
+	# call CampaignBaseDefense.process_assault_turn() is permitted. Scrub exactly
+	# that call token first, so any other CampaignBase* reference still fails, and
+	# pin the call to exactly one site so the exception cannot sprawl.
 	var source_code := _code_without_comments("res://scripts/systems/campaign_turn_executive.gd")
+	var sched_scrubbed := source_code.replace("CampaignBaseDefense.process_assault_turn", "")
 	_check(not source_code.contains("CampaignForce"), "A6: CampaignTurnExecutive has no CampaignForce coupling")
 	_check(not source_code.contains("CampaignTerritory"), "A7: CampaignTurnExecutive has no CampaignTerritory coupling")
-	_check(not source_code.contains("CampaignBase"), "A8: CampaignTurnExecutive has no CampaignBase coupling")
+	_check(source_code.count("CampaignBaseDefense.process_assault_turn") == 1, "A8a: Assault-scheduling call occurs at exactly one site")
+	_check(not sched_scrubbed.contains("CampaignBase"), "A8: CampaignTurnExecutive has no other CampaignBase coupling")
 	_check(not source_code.contains("CampaignBattle"), "A9: CampaignTurnExecutive has no CampaignBattle coupling")
 	_check(not source_code.contains("CampaignNodeRegistry"), "A10: CampaignTurnExecutive has no CampaignNodeRegistry coupling")
 

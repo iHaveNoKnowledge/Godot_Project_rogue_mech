@@ -42,6 +42,7 @@ const PHASE_SPY := "spy"
 const PHASE_ENEMY_BASE := "enemy_base"
 const PHASE_STRATEGIC_DETECTION := "strategic_detection"
 const PHASE_STRATEGIC_HEAT := "strategic_heat"
+const PHASE_STRATEGIC_ASSAULT := "strategic_assault"
 const PHASE_COMPATIBILITY := "board_day_compatibility"
 const PHASE_RIVAL := "rival"
 const PHASE_ERA := "era"
@@ -55,6 +56,7 @@ const PHASE_ORDER: Array[String] = [
 	PHASE_ENEMY_BASE,
 	PHASE_STRATEGIC_DETECTION,
 	PHASE_STRATEGIC_HEAT,
+	PHASE_STRATEGIC_ASSAULT,
 	PHASE_COMPATIBILITY,
 	PHASE_RIVAL,
 	PHASE_ERA,
@@ -104,9 +106,9 @@ static func get_phase_call_count(phase: String) -> int:
 ##
 ## Returns a receipt: {ok, turn, reason, phases, spy_event,
 ## enemy_base_spawn_requested, enemy_base_completed, strategic_detection,
-## strategic_heat, rival, era, scavenger_events, ...}. A nested call while
-## executing returns {ok:false, error:"reentrant"} WITHOUT incrementing
-## the counter.
+## strategic_heat, strategic_assault, rival, era, scavenger_events, ...}.
+## A nested call while executing returns {ok:false, error:"reentrant"}
+## WITHOUT incrementing the counter.
 static func advance_campaign_turn(reason: String = "", opts: Dictionary = {}) -> Dictionary:
 	if _executing:
 		return {
@@ -189,6 +191,18 @@ static func advance_campaign_turn(reason: String = "", opts: Dictionary = {}) ->
 	else:
 		receipt["strategic_heat_skipped"] = true
 	receipt["strategic_heat"] = strategic_heat
+
+	# Strategic assault scheduling (S2-B Phase 2A): start assaults for
+	# eligible player bases and mark passed deadlines expired. Never advances
+	# the turn, never resolves battles, never mutates bases or forces.
+	var strategic_assault := {}
+	if day_boundary:
+		strategic_assault = CampaignBaseDefense.process_assault_turn(turn)
+		_count_phase(PHASE_STRATEGIC_ASSAULT)
+		phases.append(PHASE_STRATEGIC_ASSAULT)
+	else:
+		receipt["strategic_assault_skipped"] = true
+	receipt["strategic_assault"] = strategic_assault
 
 	# Compatibility fan-out. Existing subscribers keep their bodies unchanged:
 	# GlobalData (fuel day tick, research dispatch, recruit recovery, faction

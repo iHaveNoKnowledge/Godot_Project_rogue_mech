@@ -15,10 +15,10 @@ extends Node
 ## campaign authorities. Future Move/Capture-style actions stay unmodeled.
 ## User save backed up/restored.
 
-# Mirrors CampaignTurnExecutive.PHASE_ORDER (incl. the C4-B4 strategic phases);
-# the allowlist predated them and flagged legitimate phases as unknown.
+# Mirrors CampaignTurnExecutive.PHASE_ORDER (incl. the C4-B4 strategic phases
+# and the S2-B assault phase); stale copies flag legitimate phases as unknown.
 const TURN_PHASES := ["begin_turn", "faction_economy", "spy", "enemy_base",
-	"strategic_detection", "strategic_heat",
+	"strategic_detection", "strategic_heat", "strategic_assault",
 	"board_day_compatibility", "rival", "era", "scavenger", "end_turn"]
 
 var _fails := 0
@@ -234,12 +234,19 @@ func _test_event_isolation() -> void:
 
 # Static guards: no orchestrator files; turn source is campaign-free.
 func _test_no_orchestration_authority() -> void:
-	_check(not _code_of("res://scripts/systems/campaign_turn_executive.gd").contains("CampaignForce")
-		and not _code_of("res://scripts/systems/campaign_turn_executive.gd").contains("CampaignTerritory")
-		and not _code_of("res://scripts/systems/campaign_turn_executive.gd").contains("CampaignBase")
-		and not _code_of("res://scripts/systems/campaign_turn_executive.gd").contains("CampaignBattle")
-		and not _code_of("res://scripts/systems/campaign_turn_executive.gd").contains("CampaignNodeRegistry"),
-		"turn source references no campaign authority (code, not comments)")
+	# Approved S2-B exception (narrow): scrub the single day-boundary
+	# assault-scheduling call CampaignBaseDefense.process_assault_turn() first,
+	# so every other domain token still fails; the call must occur exactly once.
+	var _exec_code := _code_of("res://scripts/systems/campaign_turn_executive.gd")
+	var _exec_scrubbed := _exec_code.replace("CampaignBaseDefense.process_assault_turn", "")
+	_check(_exec_code.count("CampaignBaseDefense.process_assault_turn") == 1,
+		"assault-scheduling call occurs at exactly one site")
+	_check(not _exec_scrubbed.contains("CampaignForce")
+		and not _exec_scrubbed.contains("CampaignTerritory")
+		and not _exec_scrubbed.contains("CampaignBase")
+		and not _exec_scrubbed.contains("CampaignBattle")
+		and not _exec_scrubbed.contains("CampaignNodeRegistry"),
+		"turn source references no campaign authority except the approved assault-scheduling call (code, not comments)")
 	var found := false
 	for dir_path in ["res://scripts/systems", "res://scripts/board", "res://scripts/war"]:
 		var dir := DirAccess.open(dir_path)

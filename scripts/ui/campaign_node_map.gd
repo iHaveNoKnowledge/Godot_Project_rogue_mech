@@ -801,10 +801,74 @@ func dispatch_node_action(action_id: String, payload: Dictionary = {}) -> Dictio
 	return result
 
 
+## Builds player-facing consequence lines purely from an already-returned
+## turn receipt (plus read-only battle/base lookups for assault identity).
+## Never re-runs simulation, emits no signals, mutates nothing. Only
+## surfaces outcomes the receipt data proves: spy events (pre-formatted),
+## newly created assaults, outcomes applied this tick, still-unresolved
+## expiries, rival log entries, era changes, and enemy-base milestones.
+## Routine noise (heat/detection/economy ticks, farmed counters) is skipped.
+static func build_turn_consequence_lines(receipt: Dictionary) -> Array:
+	var lines: Array = []
+	if not bool(receipt.get("ok", false)):
+		return lines
+	var spy: Dictionary = receipt.get("spy_event", {})
+	if not spy.is_empty() and str(spy.get("name", "")) != "":
+		lines.append("%s: %s" % [str(spy.get("name", "")), str(spy.get("desc", ""))])
+	var assault: Dictionary = receipt.get("strategic_assault", {})
+	var resolved_ids := {}
+	for entry in Array(assault.get("auto_resolved", [])):
+		var rbid := str((entry as Dictionary).get("battle_id", ""))
+		if rbid != "":
+			resolved_ids[rbid] = str((entry as Dictionary).get("outcome", ""))
+	for entry in Array(assault.get("auto_resolved", [])):
+		var rbid2 := str((entry as Dictionary).get("battle_id", ""))
+		var where := _assault_site_name(rbid2)
+		if str((entry as Dictionary).get("outcome", "")) == "defender_success":
+			lines.append("Assault on %s broken. Defending forces hold." % where)
+		else:
+			lines.append("No relief reached %s in time. The base is disabled." % where)
+	for bid in Array(assault.get("created", [])):
+		lines.append("New assault reported at %s." % _assault_site_name(str(bid)))
+	for bid in Array(assault.get("expired_marked", [])):
+		var ebid := str(bid)
+		if not resolved_ids.has(ebid):
+			lines.append("Assault at %s passed its deadline unresolved." % _assault_site_name(ebid))
+	var rival: Dictionary = receipt.get("rival", {})
+	for entry in Array(rival.get("event_log", [])):
+		if str(entry) != "":
+			lines.append(str(entry))
+	var era: Dictionary = receipt.get("era", {})
+	if bool(era.get("phase_changed", false)) and str(era.get("era_name", "")) != "":
+		lines.append("Entered new era: %s." % str(era.get("era_name", "")))
+	if bool(receipt.get("enemy_base_spawn_requested", false)):
+		lines.append("Enemy research base signature detected.")
+	if bool(receipt.get("enemy_base_completed", false)):
+		lines.append("Enemy research base completed its program.")
+	return lines
+
+
+## Names the assault site for a battle id from authoritative records only:
+## base id when a base anchors the battle node, else the node id, else the
+## battle id itself. Never invents or resolves anything.
+static func _assault_site_name(battle_id: String) -> String:
+	if battle_id == "" or not CampaignBattle.has_battle(battle_id):
+		return battle_id
+	var node_id := str(CampaignBattle.get_battle(battle_id).get("node_id", ""))
+	if node_id != "":
+		var base := CampaignBase.get_base_at_node(node_id)
+		if not base.is_empty():
+			return str(base.get("id", node_id))
+		return node_id
+	return battle_id
+
+
 func advance_turn() -> Dictionary:
 	var receipt := CampaignTurnExecutive.advance_campaign_turn("player_end_turn")
 	if bool(receipt.get("ok", false)):
-		_turn_status_label.text = "Turn %d completed successfully." % int(receipt.get("turn", 0))
+		var status_lines: Array = ["Turn %d completed successfully." % int(receipt.get("turn", 0))]
+		status_lines.append_array(build_turn_consequence_lines(receipt))
+		_turn_status_label.text = "\n".join(status_lines)
 		_turn_status_label.add_theme_color_override("font_color", COLOR_SUCCESS)
 	else:
 		_turn_status_label.text = "Turn advance rejected: %s" % str(receipt.get("error", "failed"))

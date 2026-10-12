@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://s2d2_visibility_verify"]
+
+[ext_resource type="Script" path="res://test/unit/campaign_assault_visibility_verify.gd" id="1_script"]
+
+[node name="CampaignAssaultVisibilityVerify" type="Node"]
+script = ExtResource("1_script")

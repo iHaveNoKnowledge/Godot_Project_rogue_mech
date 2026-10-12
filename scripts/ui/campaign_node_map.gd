@@ -603,6 +603,9 @@ func _update_info_panel() -> void:
 			str(base.get("base_type", "")),
 			str(base.get("controller", "none")).to_upper()
 		]
+		var assault_status := get_assault_status_text(str(base.get("id", "")))
+		if assault_status != "":
+			details_text += "\nAssault: %s" % assault_status
 	else:
 		details_text += "Base: None"
 
@@ -626,6 +629,34 @@ func _update_info_panel() -> void:
 
 	# Update Movement & Contextual Action Buttons
 	_update_action_buttons(is_player_here, is_reachable, node_type, inspection)
+
+
+## Read-only assault status for one base, composed purely from authoritative
+## campaign state (no mutation, no new state). Returns "" when no ACTIVE
+## defense battle exists for the base (terminal / no assault: no label):
+##   PENDING (TURN cur/deadline) — assault record exists, deadline not passed.
+##   EXPIRED — RESOLUTION PENDING — record past deadline, still unresolved.
+##   DEFERRED — DEFEND AVAILABLE — ACTIVE battle with no scheduler record
+##     (legacy/manual assault) while can_intervene() proves DEFEND eligible.
+##   ACTIVE — ACTIVE battle with no record and no current eligibility.
+static func get_assault_status_text(base_id: String) -> String:
+	if base_id == "" or not CampaignBase.has_base(base_id):
+		return ""
+	var battle := CampaignBaseDefense.get_defense_battle_for_base(base_id)
+	if battle.is_empty():
+		return ""
+	var battle_id := str(battle.get("id", ""))
+	var record := CampaignBaseDefense.get_assault(battle_id)
+	if record.is_empty():
+		if CampaignBaseDefense.can_intervene(battle_id).get("ok", false):
+			return "DEFERRED — DEFEND AVAILABLE"
+		return "ACTIVE"
+	if bool(record.get("expired", false)):
+		return "EXPIRED — RESOLUTION PENDING"
+	return "PENDING (TURN %d/%d)" % [
+		CampaignTurnExecutive.get_turn(),
+		int(record.get("deadline_turn", -1)),
+	]
 
 
 func _clear_info_panel() -> void:
@@ -697,6 +728,17 @@ func _update_action_buttons(is_player_here: bool, is_reachable: bool, node_type:
 		var defend_btn := _create_button("DEFEND BASE", false, false, Vector2(0, 32))
 		defend_btn.pressed.connect(_on_action_defend_pressed)
 		_actions_container.add_child(defend_btn)
+
+	# 7. Recover (Phase 2D-1: only for a DISABLED player-owned base with no
+	#    ACTIVE assault; the domain handler re-validates everything, so the
+	#    button is a trigger, never a state mutation)
+	if not base.is_empty() \
+			and str(base.get("controller", "")) == GlobalData.current_campaign_faction_id \
+			and int(base.get("state", -1)) == CampaignBase.BaseState.DISABLED \
+			and not CampaignBaseDefense.is_base_under_attack(str(base.get("id", ""))):
+		var recover_btn := _create_button("REACTIVATE BASE (150 CREDITS)", false, false, Vector2(0, 32))
+		recover_btn.pressed.connect(_on_action_recover_pressed)
+		_actions_container.add_child(recover_btn)
 
 
 # -----------------------------------------------------------------------------
@@ -794,6 +836,10 @@ func _on_action_attack_pressed() -> void:
 
 func _on_action_defend_pressed() -> void:
 	dispatch_node_action("defend")
+
+
+func _on_action_recover_pressed() -> void:
+	dispatch_node_action("recover")
 
 
 func _on_node_clicked(node_id: String) -> void:

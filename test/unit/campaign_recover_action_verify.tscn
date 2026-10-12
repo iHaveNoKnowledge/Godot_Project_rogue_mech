@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://s2d1_recover_verify"]
+
+[ext_resource type="Script" path="res://test/unit/campaign_recover_action_verify.gd" id="1_script"]
+
+[node name="CampaignRecoverActionVerify" type="Node"]
+script = ExtResource("1_script")

@@ -43,6 +43,7 @@ const CampaignTradeAction = preload("res://scripts/systems/campaign_trade_action
 const CampaignCaptureAction = preload("res://scripts/systems/campaign_capture_action.gd")
 const CampaignAttackAction = preload("res://scripts/systems/campaign_attack_action.gd")
 const CampaignDefendAction = preload("res://scripts/systems/campaign_defend_action.gd")
+const CampaignRecoverAction = preload("res://scripts/systems/campaign_recover_action.gd")
 
 const CORE_KNOWN_ACTIONS := [
 	"investigate",
@@ -68,6 +69,7 @@ static func register_default_handlers() -> void:
 	register_handler("capture", Callable(CampaignCaptureAction, "handle_capture"))
 	register_handler("attack", Callable(CampaignAttackAction, "handle_attack"))
 	register_handler("defend", Callable(CampaignDefendAction, "handle_defend"))
+	register_handler("recover", Callable(CampaignRecoverAction, "handle_recover"))
 
 
 

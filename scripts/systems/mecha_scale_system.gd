@@ -41,7 +41,17 @@ const PIVOTS: Dictionary = {
 	"hitbox": Vector3(3.6, 3.6, 3.6),
 }
 
-# Hangar pose (Armored Core stance) in true world meters — legacy 1.6 pose * WORLD_SCALE + 0.94 leg extension
+# Hangar pose (Armored Core stance). CONSUMED AS MECHA-LOCAL pivot positions
+# (same space as mecha_base.tscn transforms / FrameVariantData.STANDARD_REST):
+# hangar_garage_panel.apply_tactical_idle_pose assigns each entry DIRECTLY to
+# node.position with NO conversion, and FrameVariantResolver.hangar_pose_for
+# subtracts STANDARD_REST from this table (same-space delta math, pinned by
+# frame_variant_resolver_verify + hangar_posture_parity_verify). MechaBase
+# root scale (1.15) applies on top equally, exactly like rest pivots.
+# Historical note: magnitudes were derived from legacy pose * WORLD_SCALE +
+# leg extension, so the old "true world meters" label was misleading. Do NOT
+# rescale these values: that would move the shipped hangar mannequin, void
+# HANGAR_CAM framing, and break the resolver data contract. (Verified E2-F1.)
 const HANGAR_POSE: Dictionary = {
 	"body_pos": Vector3(0, 4.2244, 0),
 	"head_pos": Vector3(0, 5.22904, -0.0966),

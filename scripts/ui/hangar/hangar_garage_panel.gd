@@ -423,13 +423,26 @@ func apply_tactical_idle_pose(mecha_node: Node3D) -> void:
 	var shin_left = mecha_node.get_node_or_null("LegLeft/ShinLeft")
 	var shin_right = mecha_node.get_node_or_null("LegRight/ShinRight")
 
-		# Armored Core stance - now uses MechaScaleSystem.HANGAR_POSE (newest, replaces legacy 1.6*1.68 hardcodes)
+		# Armored Core stance - now uses MechaScaleSystem.HANGAR_POSE (newest, replaces legacy 1.6*1.68 hardcodes).
+	# UNIT-SPACE CONTRACT (verified E2-F1): every pose[] entry below is a
+	# MECHA-LOCAL pivot position (same space as the tscn rest transforms) and
+	# is assigned DIRECTLY to node.position with no conversion; root scale
+	# applies on top equally. Rotations are absolute mecha-local radians.
 	var pose: Dictionary = MechaScaleSystem.HANGAR_POSE
 	if body:
 		body.rotation = Vector3(-deg_to_rad(4.0), 0.0, 0.0)
 		body.position = pose["body_pos"]
 	if head:
-		head.rotation = Vector3(-deg_to_rad(2.0), 0.0, 0.0)
+		# Head counter-tilt: approved +2° RELATIVE target, same contract as
+		# combat_crouch head_tilt in mecha_animation.gd (_apply_pose aims head
+		# at body.rotation.x + head_tilt). Steady-state absolute here is
+		# torso(-4°) + 2° = -2° in mecha-local space, matching combat 1:1.
+		# Do NOT flip this to absolute +2°: that would break hangar/combat
+		# parity by 4° (verified E2-F1; see hangar_posture_parity_verify).
+		# torso_pitch falls back to the posed torso target so behavior is
+		# identical even if the Body node is ever absent.
+		var torso_pitch: float = body.rotation.x if body else -deg_to_rad(4.0)
+		head.rotation = Vector3(torso_pitch + deg_to_rad(2.0), 0.0, 0.0)
 		head.position = pose["head_pos"]
 	if leg_left:
 		leg_left.position = pose["leg_left_pos"]

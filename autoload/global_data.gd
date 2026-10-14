@@ -1132,6 +1132,10 @@ func reset_run_data() -> void:
 	# Phase S2-B 2A (Campaign V2): assault records and pending defense
 	# engagements are run state (battles/bases/forces cleared above).
 	CampaignBaseDefense.reset_defense_state()
+	# Gate 3A-FIX: pending attack engagements are run state for the same
+	# reason (no ACTIVE battle survives the clear above, so no live session
+	# can survive either). Clears only bridge-owned statics; safe when empty.
+	CampaignAttackBridge.reset_attack_state()
 	# Phase 5AF (Campaign V2): faction economies are run state.
 	FactionEconomySystem.reset()
 	# Phase C4-B1 (Campaign V2): strategic node operational heat traces are run state.

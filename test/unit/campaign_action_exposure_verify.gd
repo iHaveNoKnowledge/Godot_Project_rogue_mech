@@ -52,6 +52,9 @@ func _ready() -> void:
 	if FileAccess.file_exists(GlobalData.SAVE_PATH):
 		_backup = FileAccess.get_file_as_string(GlobalData.SAVE_PATH)
 	GlobalData.reset_run_data()
+	# Gate 3A: attack dispatches now enter tactical combat; suppress the real
+	# scene swap in headless runs (same pattern as the defend suite).
+	GameManager.suppress_scene_change = true
 
 	_test_attack_exposure()
 	_test_capture_exposure()
@@ -65,6 +68,10 @@ func _ready() -> void:
 
 	GlobalData.reset_run_data()
 	FactionSystem.reset_relations()
+	CampaignBaseDefense.reset_defense_state()
+	CampaignAttackBridge.reset_attack_state()
+	GameManager.suppress_scene_change = false
+	GameManager.transition_to(GameManager.State.BOARD)
 	if _backup != "":
 		var f := FileAccess.open(GlobalData.SAVE_PATH, FileAccess.WRITE)
 		f.store_string(_backup)
@@ -99,6 +106,8 @@ func _seed_world() -> void:
 	FactionSystem.reset_relations()
 	FactionSystem.set_player_faction("federation")
 	FactionSystem.set_relation("zeon", "federation", FactionSystem.Relation.HOSTILE)
+	CampaignBaseDefense.reset_defense_state()
+	CampaignAttackBridge.reset_attack_state()
 	CampaignNodeRegistry.register_node(1, Vector2i(2, 2), "city")
 	CampaignNodeRegistry.register_node(1, Vector2i(2, 3), "safehouse")
 	CampaignNodeRegistry.register_node(1, Vector2i(5, 5), "fuel_depot")

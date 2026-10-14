@@ -166,6 +166,13 @@ func advance_to_next_sector() -> void:
 
 
 func return_to_board() -> void:
+	# Gate 3A-FIX: signal-less combat exits (pause Abandon) must not strand a
+	# live attack engagement: drop only the attack pending slot so a later
+	# unrelated victory can never consume it. No-op when empty (proper results
+	# already consumed); battles, forces, defense sessions, rewards untouched.
+	var _abandoned_attack := CampaignAttackBridge.get_pending_attack_battle_id()
+	if _abandoned_attack != "":
+		CampaignAttackBridge.clear_attack_pending(_abandoned_attack)
 	is_boss_combat = false
 	HangarManager.save_active()
 	GlobalData.save_run()
@@ -237,7 +244,13 @@ func resume_combat() -> void:
 
 
 func game_over() -> void:
-	get_tree().call_deferred("change_scene_to_file", "res://scenes/main_menu/main_menu.tscn")
+	# Gate 3A-FIX: same strand cleanup as return_to_board for the signal-less
+	# pause Main Menu exit (see above). No-op when no attack is pending.
+	var _abandoned_attack := CampaignAttackBridge.get_pending_attack_battle_id()
+	if _abandoned_attack != "":
+		CampaignAttackBridge.clear_attack_pending(_abandoned_attack)
+	if not suppress_scene_change:
+		get_tree().call_deferred("change_scene_to_file", "res://scenes/main_menu/main_menu.tscn")
 	transition_to(State.MENU)
 
 

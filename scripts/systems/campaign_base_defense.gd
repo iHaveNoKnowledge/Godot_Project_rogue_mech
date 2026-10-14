@@ -220,12 +220,31 @@ static func get_defense_battle_for_base(base_id: String) -> Dictionary:
 	var expected_slug := "def_" + base_id
 	for b in CampaignBattle.get_battles():
 		var bid := str(b.get("id", ""))
-		if bid.find(expected_slug) != -1 and CampaignBattle.is_active(bid):
-			return b
-		if str(b.get("node_id", "")) == node_id and CampaignBattle.is_active(bid):
+		if not CampaignBattle.is_active(bid):
+			continue
+		if _is_defense_battle_id(bid, expected_slug):
 			return b
 
 	return {}
+
+
+## Defense-family identity check for a battle id against one base's slug.
+## Matches exactly what next_defense_battle_id() generates and nothing else:
+## a legacy id ending with the slug, or the slug followed by "_s<digits>".
+## Attack ids (atk_...), other bases' slugs (def_base_ab vs def_base_a), and
+## unknown hand-made ids never match — node co-location alone proves nothing.
+static func _is_defense_battle_id(bid: String, expected_slug: String) -> bool:
+	if bid == "" or expected_slug == "":
+		return false
+	if bid.ends_with(expected_slug):
+		return true
+	var marker := expected_slug + "_s"
+	var idx := bid.find(marker)
+	while idx != -1:
+		if bid.substr(idx + marker.length()).is_valid_int():
+			return true
+		idx = bid.find(marker, idx + 1)
+	return false
 
 
 ## Checks whether the player can physically intervene in the ongoing defense battle.
@@ -271,6 +290,15 @@ static func can_intervene(battle_id: String, player_faction: String = "") -> Dic
 ## Prepares playable combat descriptor without mutating ownership or resolving battle prematurely.
 static func intervene(battle_id: String, player_faction: String = "") -> Dictionary:
 	var cur_player_faction := player_faction if player_faction != "" else FactionSystem.get_player_faction()
+	# Entry mutual exclusion (Gate 3A mirror): never open a second
+	# campaign-result pending session while an attack engagement is live.
+	# Read-only check first, so rejection is side-effect free.
+	if CampaignAttackBridge.get_pending_attack_battle_id() != "":
+		return {
+			"ok": false,
+			"reason": "attack_engagement_active",
+			"battle_id": battle_id,
+		}
 	var check := can_intervene(battle_id, cur_player_faction)
 	if not bool(check.get("ok", false)):
 		return check

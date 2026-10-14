@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://s2hb_attack_bridge_verify"]
+
+[ext_resource type="Script" path="res://test/unit/campaign_attack_bridge_verify.gd" id="1_script"]
+
+[node name="CampaignAttackBridgeVerify" type="Node"]
+script = ExtResource("1_script")

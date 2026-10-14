@@ -66,8 +66,13 @@ func _setup_clean_campaign_environment() -> void:
 	CampaignBattle.clear()
 	CampaignTurnExecutive.reset()
 	FactionSystem.reset_relations()
+	CampaignBaseDefense.reset_defense_state()
+	CampaignAttackBridge.reset_attack_state()
 	CampaignPlayerDispatch.clear_handlers()
 	CampaignPlayerDispatch.register_default_handlers()
+	# Gate 3A: attack entries now reach tactical combat; suppress the real
+	# scene swap in headless runs (same pattern as the defend suite).
+	GameManager.suppress_scene_change = true
 
 	if GlobalData != null:
 		if GlobalData.board != null:
@@ -244,6 +249,7 @@ func _test_attack_action_compatibility() -> void:
 	var tid := CampaignTerritory.register_territory("terr_atk_5aw", [nid])
 	CampaignTerritory.set_controlled(tid, "zeon")
 	CampaignBase.register_base("base_atk_5aw", nid, "OUTPOST", "zeon", tid)
+	CampaignForce.register_force("force_zeon_5aw_atk", "PATROL", "zeon", nid)
 
 	GlobalData.board.current_tile = Vector2i(4, 4)
 
@@ -286,4 +292,6 @@ func _print_summary() -> void:
 		print("PASSED: Phase 5AW World State / Node-Route-Time Foundation strictly validated.")
 	else:
 		printerr("FAILED: Phase 5AW World State Foundation has %d failures!" % _failed_assertions)
+	GameManager.suppress_scene_change = false
+	GameManager.transition_to(GameManager.State.BOARD)
 	get_tree().quit(0 if _failed_assertions == 0 else 1)

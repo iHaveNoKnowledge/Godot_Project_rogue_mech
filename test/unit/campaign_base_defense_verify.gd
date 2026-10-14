@@ -68,8 +68,13 @@ func _setup_clean_campaign_environment() -> void:
 	CampaignBattle.clear()
 	CampaignTurnExecutive.reset()
 	FactionSystem.reset_relations()
+	CampaignBaseDefense.reset_defense_state()
+	CampaignAttackBridge.reset_attack_state()
 	CampaignPlayerDispatch.clear_handlers()
 	CampaignPlayerDispatch.register_default_handlers()
+	# Gate 3A: attack entries now reach tactical combat; suppress the real
+	# scene swap in headless runs (same pattern as the defend suite).
+	GameManager.suppress_scene_change = true
 
 	if GlobalData != null:
 		if GlobalData.board != null:
@@ -114,6 +119,7 @@ func _run_all_tests() -> void:
 	_test_turn_isolation()
 	_test_atomic_failure_invariance()
 	_test_compatibility_5at_5au()
+	_test_defense_query_isolation()
 
 
 # ---------------------------------------------------------------------------
@@ -385,6 +391,7 @@ func _test_compatibility_5at_5au() -> void:
 	CampaignBase.register_base("base_k_zeon", enemy_base_nid, "OUTPOST", "zeon", terr_zeon)
 
 	GlobalData.board.current_tile = Vector2i(5, 5)
+	CampaignForce.register_force("force_zeon_k_atk", "PATROL", "zeon", enemy_base_nid)
 
 	var atk_intent := CampaignPlayerDispatch.create_intent("attack", enemy_base_nid)
 	var atk_res := CampaignPlayerDispatch.dispatch_intent(atk_intent)
@@ -396,6 +403,13 @@ func _test_compatibility_5at_5au() -> void:
 	_assert_true(bool(cap_res.get("ok", false)), "TEST K: 5AT Capture succeeds")
 	_assert_eq(str(CampaignBase.get_base("base_k_zeon").get("controller", "")), "federation", "TEST K: Base captured to federation")
 
+	# Gate 3A: the 5AU attack's tactical combat must end before a defense can
+	# start — entry mutual exclusion blocks any new engagement while the attack
+	# is live. Defeat consumes the attack pending with zero force mutation.
+	EventBus.combat_ended.emit(false)
+	_assert_eq(CampaignAttackBridge.get_pending_attack_battle_id(), "",
+		"TEST K: Attack engagement ended before the counter-attack")
+
 	# 3. 5AV Base Defense when Zeon counter-attacks newly captured base
 	var counter_force := CampaignForce.register_force("force_zeon_counter", "PATROL", "zeon", enemy_base_nid)
 	var def_res := CampaignBaseDefense.start_base_attack("base_k_zeon", counter_force)
@@ -404,6 +418,63 @@ func _test_compatibility_5at_5au() -> void:
 	var def_battle_id := str(def_res.get("battle_id", ""))
 	var int_res := CampaignBaseDefense.intervene(def_battle_id)
 	_assert_true(bool(int_res.get("ok", false)), "TEST K: Player intervenes to defend base")
+
+
+# ---------------------------------------------------------------------------
+# TEST L: Defense Query Isolation (Phase 2H-A)
+# ---------------------------------------------------------------------------
+func _test_defense_query_isolation() -> void:
+	_setup_clean_campaign_environment()
+
+	# Setup: player base with a hostile force co-located, plus a sibling base
+	# whose id extends this base's slug (cross-base prefix trap).
+	var node_a := CampaignNodeRegistry.register_node(1, Vector2i(4, 4), "safehouse")
+	var node_ab := CampaignNodeRegistry.register_node(1, Vector2i(6, 6), "safehouse")
+	var terr_l := CampaignTerritory.register_territory("terr_l", [node_a, node_ab])
+	CampaignTerritory.set_controlled(terr_l, "federation")
+	CampaignBase.register_base("base_a", node_a, "OUTPOST", "federation", terr_l)
+	CampaignBase.register_base("base_ab", node_ab, "OUTPOST", "federation", terr_l)
+	var zeon_a := CampaignForce.register_force("force_zeon_a", "PATROL", "zeon", node_a)
+	GlobalData.board.current_tile = Vector2i(4, 4)
+
+	# 1-2. Canonical def_ id and suffixed ids resolve.
+	var atk1 := CampaignBaseDefense.start_base_attack("base_a", zeon_a)
+	_assert_true(bool(atk1.get("ok", false)), "TEST L: First assault starts")
+	var def_id := str(atk1.get("battle_id", ""))
+	_assert_eq(str(CampaignBaseDefense.get_defense_battle_for_base("base_a").get("id", "")),
+		def_id, "TEST L: Canonical def_ id found")
+	_assert_true(CampaignBattle.resolve_battle(def_id), "TEST L: First battle resolved")
+	var zeon_a2 := CampaignForce.register_force("force_zeon_a2", "PATROL", "zeon", node_a)
+	var atk2 := CampaignBaseDefense.start_base_attack("base_a", zeon_a2)
+	var def_s2 := str(atk2.get("battle_id", ""))
+	_assert_true(def_s2 != def_id and def_s2.ends_with("_s2"),
+		"TEST L: Suffixed id issued for repeat assault")
+	_assert_eq(str(CampaignBaseDefense.get_defense_battle_for_base("base_a").get("id", "")),
+		def_s2, "TEST L: Suffixed _s2 id found")
+
+	# 3-4. atk_ battle at the same node is never a defense battle, including
+	# for cross-base slug prefixes; terminal def_ history is ignored.
+	var fa := CampaignForce.register_force("force_zeon_ax", "PATROL", "zeon", node_ab)
+	var fb := CampaignForce.register_force("force_fed_bx", "PATROL", "federation", node_ab)
+	var atk_bid := CampaignBattle.register_battle("battle_s1_atk_" + node_ab, node_ab, [fa, fb])
+	CampaignBattle.prepare_launch(atk_bid)
+	_assert_eq(CampaignBaseDefense.get_defense_battle_for_base("base_ab"), {},
+		"TEST L: atk_ battle at same node is not a defense battle")
+	_assert_false(CampaignBaseDefense.is_base_under_attack("base_ab"),
+		"TEST L: No false under-attack from atk_ battle")
+	_assert_eq(str(CampaignBaseDefense.get_defense_battle_for_base("base_a").get("id", "")),
+		def_s2, "TEST L: Sibling def_base_ab-style slug does not hijack base_a")
+
+	# 5. Unknown hand-made ids at a defended node are not misclassified.
+	CampaignBattle.clear()
+	var fa2 := CampaignForce.register_force("force_zeon_aq", "PATROL", "zeon", node_a)
+	var fb2 := CampaignForce.register_force("force_fed_bq", "PATROL", "federation", node_a)
+	var unk := CampaignBattle.register_battle("battle_skirmish_q", node_a, [fa2, fb2])
+	CampaignBattle.prepare_launch(unk)
+	_assert_eq(CampaignBaseDefense.get_defense_battle_for_base("base_a"), {},
+		"TEST L: Unknown hand-made id is not a defense battle")
+	_assert_false(CampaignBaseDefense.is_base_under_attack("base_a"),
+		"TEST L: Unknown id triggers no false under-attack")
 
 
 func _print_summary() -> void:
@@ -417,4 +488,6 @@ func _print_summary() -> void:
 		print("PASSED: Phase 5AV Base Defense / Intervention Boundary Contract strictly satisfied.")
 	else:
 		printerr("FAILED: Phase 5AV Base Defense / Intervention Boundary Contract has %d failures!" % _failed_assertions)
+	GameManager.suppress_scene_change = false
+	GameManager.transition_to(GameManager.State.BOARD)
 	get_tree().quit(0 if _failed_assertions == 0 else 1)

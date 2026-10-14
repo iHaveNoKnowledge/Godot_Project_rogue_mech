@@ -72,6 +72,7 @@ func _setup_clean_campaign_environment() -> void:
 	FactionSystem.reset_relations()
 	FactionSystem.set_player_faction("federation")
 	CampaignBaseDefense.reset_defense_state()
+	CampaignAttackBridge.reset_attack_state()
 	CampaignPlayerDispatch.clear_handlers()
 	CampaignPlayerDispatch.register_default_handlers()
 	GlobalData.current_campaign_player_node_id = ""

@@ -69,6 +69,7 @@ func _setup_clean_campaign_environment() -> void:
 	FactionSystem.reset_relations()
 	FactionSystem.set_player_faction("federation")
 	CampaignBaseDefense.reset_defense_state()
+	CampaignAttackBridge.reset_attack_state()
 	GlobalData.current_campaign_player_node_id = ""
 	if GlobalData != null and GlobalData.board != null:
 		GlobalData.board.current_sector = 1

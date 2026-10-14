@@ -15,6 +15,7 @@ extends Node
 ##   R8. Duplicate dispatch cannot spend twice.
 ##   R9. Spending/state atomicity (spend gate + refund branch present).
 ##   R10. Save/load round-trip preserves recovered state and credits.
+##   R11. ACTIVE atk_ battle at the same node does not block recovery (2H-A).
 ## ---------------------------------------------------------------------------
 
 const CampaignRecoverAction = preload("res://scripts/systems/campaign_recover_action.gd")
@@ -115,6 +116,7 @@ func _run_all_tests() -> void:
 	_test_duplicate_dispatch()
 	_test_spend_atomicity()
 	_test_save_load_round_trip()
+	_test_attack_battle_does_not_block()
 
 
 # ---------------------------------------------------------------------------
@@ -338,6 +340,31 @@ func _test_save_load_round_trip() -> void:
 	_assert_eq(str(CampaignBase.get_base(base_id).get("controller", "")), "federation",
 		"R10: Controller restored")
 	_assert_eq(GlobalData.currency.credits, 850, "R10: Deducted credits restored")
+
+
+# ---------------------------------------------------------------------------
+# R11: ACTIVE atk_ battle at the same node does not block recovery (2H-A).
+# ---------------------------------------------------------------------------
+func _test_attack_battle_does_not_block() -> void:
+	_setup_clean_campaign_environment()
+	var ctx := _setup_disabled_base("r11", Vector2i(4, 4))
+	var node_id := str(ctx.get("node_id", ""))
+	var base_id := str(ctx.get("base_id", ""))
+
+	var fa := CampaignForce.register_force("force_zeon_r11", "PATROL", "zeon", node_id)
+	var fb := CampaignForce.register_force("force_fed_r11", "PATROL", "federation", node_id)
+	var atk_bid := CampaignBattle.register_battle("battle_s1_atk_" + node_id, node_id, [fa, fb])
+	CampaignBattle.prepare_launch(atk_bid)
+	_assert_false(CampaignBaseDefense.is_base_under_attack(base_id),
+		"R11: atk_ battle is not an assault")
+
+	var res := CampaignPlayerDispatch.dispatch_intent(
+		CampaignPlayerDispatch.create_intent("recover", node_id))
+	_assert_true(bool(res.get("ok", false)), "R11: Recovery succeeds despite atk_ battle")
+	_assert_eq(str(res.get("reason", "")), "recovery_completed", "R11: Reason is recovery_completed")
+	_assert_eq(GlobalData.currency.credits, 850, "R11: Exactly 150 deducted")
+	_assert_eq(CampaignBase.get_state(base_id), CampaignBase.BaseState.ACTIVE,
+		"R11: Base ACTIVE")
 
 
 func _restore_save_backup() -> void:

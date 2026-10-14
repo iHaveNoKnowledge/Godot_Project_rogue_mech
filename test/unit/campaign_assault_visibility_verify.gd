@@ -172,7 +172,8 @@ func _test_expired_label() -> void:
 
 
 # ---------------------------------------------------------------------------
-# V3: Record-less ACTIVE battle: DEFERRED iff DEFEND proven eligible.
+# V3: Record-less ACTIVE defense-family battle: DEFERRED iff DEFEND proven
+# eligible; non-family ids are never defense battles (Phase 2H-A).
 # ---------------------------------------------------------------------------
 func _test_deferred_and_active_labels() -> void:
 	_setup_clean_campaign_environment()
@@ -184,10 +185,23 @@ func _test_deferred_and_active_labels() -> void:
 	FactionSystem.set_relation("federation", "zeon", FactionSystem.Relation.HOSTILE)
 	var defender_id := "force_garrison_" + node_id
 	CampaignForce.register_force(defender_id, "PATROL", "federation", node_id, base_id, 1, 10)
-	var battle_id := CampaignBattle.register_battle("battle_manual_v3", node_id, [attacker_id, defender_id])
+	# Defense-family id without a scheduler record (legacy/manual assault).
+	var battle_id := CampaignBattle.register_battle("battle_s1_def_base_v3", node_id, [attacker_id, defender_id])
 	CampaignBattle.prepare_launch(battle_id)
 	_assert_true(CampaignBaseDefense.get_assault(battle_id).is_empty(),
 		"V3: Manual battle carries no scheduler record")
+
+	# A non-family id at the same node is never a defense battle, even ACTIVE:
+	# with only the outsider present, no assault label may appear.
+	var outsider_a := CampaignForce.register_force("force_zeon_v3b", "PATROL", "zeon", node_id)
+	var outsider_b := CampaignForce.register_force("force_fed_v3b", "PATROL", "federation", node_id)
+	var outsider := CampaignBattle.register_battle("battle_manual_v3", node_id, [outsider_a, outsider_b])
+	CampaignBattle.prepare_launch(outsider)
+	CampaignBattle.clear()
+	_assert_eq(CampaignNodeMapScript.get_assault_status_text(base_id), "",
+		"V3: Non-family id never matches, even when it is the only ACTIVE battle")
+	CampaignBattle.register_battle("battle_s1_def_base_v3", node_id, [attacker_id, defender_id])
+	CampaignBattle.prepare_launch("battle_s1_def_base_v3")
 
 	# Player elsewhere: no eligibility proof -> plain ACTIVE.
 	GlobalData.board.current_tile = Vector2i(0, 0)

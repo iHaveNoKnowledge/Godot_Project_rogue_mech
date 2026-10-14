@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://g3dpauseexitwiring1"]
+
+[ext_resource type="Script" path="res://test/unit/campaign_pause_exit_wiring_verify.gd" id="1_script"]
+
+[node name="CampaignPauseExitWiringVerify" type="Node"]
+script = ExtResource("1_script")

@@ -1085,6 +1085,28 @@ func _scroll(hand: String, direction: int) -> void:
 	_update_weapon_visuals()
 
 
+## R2 policy R3: cancel the missile lock when a committed hand selection
+## leaves a different weapon instance (or nothing) in a locked slot.
+## Identity-compare only: the transient empty hand while browsing never
+## reaches this finalizer, and re-equipping the exact same instance (e.g. a
+## one-element carry rotation) preserves the lock. No weapon names are used.
+func _cancel_lock_on_swap_commit(hand: String) -> void:
+	if missile_lock_system == null or not missile_lock_system.is_locking:
+		return
+	if missile_lock_system.active_slot != hand:
+		return
+	var locked = missile_lock_system.locking_weapon
+	# == / != on object references never dereference; is_instance_valid is
+	# the freed-object test. A freed or missing locked reference means the
+	# session is already unusable, so clear it rather than keep stale state.
+	if locked == null or not is_instance_valid(locked):
+		missile_lock_system.cancel_locking()
+		return
+	var now: WeaponPart = left_hand if hand == "left" else right_hand
+	if now != locked:
+		missile_lock_system.cancel_locking()
+
+
 func _commit_selection(hand: String) -> void:
 	var is_left = (hand == "left")
 	var selecting = _selecting_left if is_left else _selecting_right
@@ -1128,6 +1150,10 @@ func _commit_selection(hand: String) -> void:
 		carry_updated.emit(carry)
 		_update_weapon_visuals()
 		sync_loadout_to_global()
+		# R2 policy R3: synchronous identity check at the finalization
+		# boundary (both commit paths). Covers quick-tap rotation, including
+		# the bare-fists (empty carry) outcome.
+		_cancel_lock_on_swap_commit(hand)
 		return
 
 	# Held selection (with scroll or released on chosen index)
@@ -1153,11 +1179,32 @@ func _commit_selection(hand: String) -> void:
 	carry_updated.emit(carry)
 	_update_weapon_visuals()
 	sync_loadout_to_global()
+	# R2 policy R3: same finalization-boundary check as the quick-tap path
+	# above (held-index arm, including the bare-fists outcome).
+	_cancel_lock_on_swap_commit(hand)
 
 
 # ====================================================================
 # DROP
 # ====================================================================
+
+# R2 policy R4: cancel the missile lock when the dropped instance is the
+# locked one for the matching slot. Identity-compare only (never a weapon
+# name), so an unrelated drop cannot cancel a different weapon's session.
+# A freed or missing locked reference means the session is already unusable,
+# so it is cleared rather than kept. Repeated calls are harmless
+# (cancel_locking has no preconditions and never dereferences the weapon).
+func _cancel_lock_if_dropped(hand: String, dropped: WeaponPart) -> void:
+	if missile_lock_system == null or not missile_lock_system.is_locking:
+		return
+	if dropped == null:
+		return
+	if missile_lock_system.active_slot != hand:
+		return
+	var locked = missile_lock_system.locking_weapon
+	if locked == null or not is_instance_valid(locked) or locked == dropped:
+		missile_lock_system.cancel_locking()
+
 
 func _drop_weapon_from_selection(hand: String) -> void:
 	var is_left = (hand == "left")
@@ -1178,6 +1225,8 @@ func _drop_weapon_from_selection(hand: String) -> void:
 			_update_weapon_visuals()
 			sync_loadout_to_global()
 			carry_updated.emit(carry)
+			# R2 policy R4: match-guarded cancellation for the selection-drop path.
+			_cancel_lock_if_dropped(hand, weapon)
 
 
 func _drop_equipped_weapon(hand: String) -> void:
@@ -1194,6 +1243,10 @@ func _drop_equipped_weapon(hand: String) -> void:
 		_update_weapon_visuals()
 		sync_loadout_to_global()
 		carry_updated.emit(carry)
+		# R2 policy R4: match-guarded cancellation for the equipped-drop path.
+		# _drop_weapon dispatches to exactly one of the two drop methods, so
+		# each hook fires at most once per drop.
+		_cancel_lock_if_dropped(hand, weapon)
 
 
 func _drop_weapon(hand: String) -> void:
@@ -1484,8 +1537,24 @@ func _handle_missile_release(slot: String) -> void:
 		return
 
 	var result: Dictionary = missile_lock_system.stop_locking()
-	var weapon: WeaponPart = result.get("weapon")
+	# R2 policy R2/R8 + PC-05: read the stored reference WITHOUT a typed
+	# assignment first — a freed Object may not behave like null, and a typed
+	# assignment itself can reject it. is_instance_valid is the project-wide
+	# validity primitive (projectile target guard, lock prune, salvo loop).
+	# == null alone is NOT a sufficient freed-object test, so it is only
+	# evaluated after is_instance_valid has passed.
+	var raw_weapon = result.get("weapon")
+	if not is_instance_valid(raw_weapon) or raw_weapon == null:
+		return
+	var weapon: WeaponPart = raw_weapon as WeaponPart
 	if weapon == null:
+		return
+	# R2 policy R2 + PC-01/AC-07: the current occupant of the required slot
+	# must be the exact locked instance. A mismatch (swap, drop, re-equip)
+	# rejects the stale session here — before any gate, ammo, wear, or
+	# projectile side effect — and the session is already cleared by the
+	# stop_locking above. Never substitute the occupant as a fallback.
+	if _get_weapon_for_slot(slot) != weapon:
 		return
 
 	var targets: Dictionary = result.get("targets", {})
@@ -2573,4 +2642,6 @@ func drop_weapon_from_destroyed_arm(hand: String) -> WeaponPart:
 		sync_loadout_to_global()
 		weapon_switched.emit(hand, "")
 		weapon_dropped.emit(hand, dropped)
+		# R2 policy R4: match-guarded cancellation for the destroyed-arm path.
+		_cancel_lock_if_dropped(hand, dropped)
 	return dropped

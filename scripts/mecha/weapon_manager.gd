@@ -1204,25 +1204,6 @@ func _drop_weapon(hand: String) -> void:
 	sync_loadout_to_global()
 
 
-# Called by HealthSystem when the arm frame on this hand is destroyed.
-# The weapon itself is NOT destroyed (only the frame holding it broke), so it is
-# removed from the hand and returned so the caller can spawn a recoverable pickup.
-func drop_weapon_from_destroyed_arm(hand: String) -> WeaponPart:
-	var weapon: WeaponPart = null
-	if hand == "left":
-		weapon = left_hand
-		left_hand = null
-	elif hand == "right":
-		weapon = right_hand
-		right_hand = null
-	if weapon:
-		weapon_dropped.emit(hand, weapon)
-		weapon_switched.emit(hand, "Empty")
-		_update_weapon_visuals()
-		sync_loadout_to_global()
-	return weapon
-
-
 # ====================================================================
 # WEAPON MANAGEMENT
 # ====================================================================
@@ -1594,10 +1575,15 @@ func _fire_missile_salvo(slot: String, weapon: WeaponPart, targets_dict: Diction
 			if anim == null:
 				anim = mecha.get_node_or_null("AnimationSystem")
 			if anim and anim.get("action_animator") != null:
-				if is_shoulder:
+				# Missile presentation follows the _commit_fire convention:
+				# MISSILE-type weapons use the shoulder barrage clip, never a
+				# hand-swing or missing recoil entry. Hand slots firing a
+				# non-missile weapon (defensive; lock releases are missiles by
+				# construction) fall back to standard light recoil.
+				if is_shoulder or weapon.weapon_type == WeaponPart.WeaponType.MISSILE:
 					anim.action_animator.play_shoulder_shoot()
 				else:
-					anim.action_animator.play_shoot_recoil(side)
+					anim.action_animator.play_shoot(side, false)
 			GlobalData.degrade_weapon_durability("shoulder_" + side if is_shoulder else side, 0.002)
 			if is_shoulder:
 				shoulder_ammo_changed.emit(side, core.ammo, weapon.max_ammo)
@@ -2588,4 +2574,3 @@ func drop_weapon_from_destroyed_arm(hand: String) -> WeaponPart:
 		weapon_switched.emit(hand, "")
 		weapon_dropped.emit(hand, dropped)
 	return dropped
-

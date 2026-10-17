@@ -1723,12 +1723,21 @@ func _melee_attack(hand: String, weapon: WeaponPart, is_loaded_blast: bool = tru
 	if anim == null:
 		anim = mecha.get_node_or_null("AnimationSystem")
 	var swung := false
-	if anim and anim.get("action_animator") != null:
+	var has_animator: bool = anim != null and anim.get("action_animator") != null
+	if has_animator:
 		if not is_pile and anim.action_animator.has_method("play_af_melee"):
 			swung = anim.action_animator.play_af_melee(hand)
 		if not swung:
-			anim.action_animator.play_melee(hand)
-		swung = true
+			swung = anim.action_animator.play_melee(hand)
+		if not swung:
+			# R2-AN failure contract: the swing did not start, so arm nothing.
+			# No lunge, no trail, no pending hit, no swing audio, no pile
+			# effects: a previous valid swing keeps its own window (its
+			# lifecycle was never retired), and no stale strike timing is
+			# consumed. One warning per failed request; never per frame.
+			# (No animator at all keeps the legacy immediate path below.)
+			push_warning("WeaponManager._melee_attack: no swing started for hand '%s' weapon '%s'; skipping lunge and pending hit" % [hand, weapon.weapon_name if weapon != null else "BARE FIST"])
+			return
 
 
 

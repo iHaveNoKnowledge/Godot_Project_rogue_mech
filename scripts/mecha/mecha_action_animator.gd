@@ -721,7 +721,7 @@ func play_enemy_af_melee(hand: String = "right", telegraph_dur: float = 0.5) -> 
 	return true
 
 
-func play_melee(hand: String, forced_combo_step: int = 0) -> void:
+func play_melee(hand: String, forced_combo_step: int = 0) -> bool:
 	var now := Time.get_ticks_msec()
 	if forced_combo_step > 0:
 		combo_index = clampi(forced_combo_step, 1, 3)
@@ -736,9 +736,15 @@ func play_melee(hand: String, forced_combo_step: int = 0) -> void:
 	
 	# Attack 1 & 2 are fast fluid strikes; Attack 3 is a heavy smash
 	var play_speed := 1.75 if combo_index < 3 else 1.35
-	if play_action(clip_name, play_speed, 0.06, 0.14):
+	# R2-AN failure contract: report whether the clip actually started so the
+	# caller can refuse to arm lunge/hit state on stale timing. Returning the
+	# play_action result (rather than void) is backward compatible: existing
+	# callers that ignore the value behave exactly as before on success.
+	var started := play_action(clip_name, play_speed, 0.06, 0.14)
+	if started:
 		attack_id += 1
 		melee_mode = true
+	return started
 
 
 ## Plays Shooting Recoil on the isolated firing arm without affecting the other arm

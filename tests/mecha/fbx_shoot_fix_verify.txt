@@ -1,0 +1,35 @@
+﻿Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
+
+--- Running mecha_fbx_action_animation_verify ---
+Testing FBX Animation Library loading and caching...
+  PASS: Cached at least 30 animations from FBX (found 33)
+  PASS: Has Mech_Attack1_R
+  PASS: Has Mech_Attack2_R
+  PASS: Has Mech_Attack3_R
+  PASS: Has Mech_Attack1_L
+  PASS: Has Mech_Shoot_R
+  PASS: Has Mech_Shoot2_R
+  PASS: Has Mech_ShoulderShoot1
+  PASS: Has Mech_GetHit
+  PASS: Has Mech_Die
+Testing Melee Combo step sequencing...
+  PASS: Step 1 Right triggers Mech_Attack1_R
+  PASS: Animator is active
+  PASS: Step 2 Right triggers Mech_Attack2_R
+  PASS: Step 3 Right triggers Mech_Attack3_R
+  PASS: Step 1 Left triggers Mech_Attack1_L
+Testing Ranged Shooting animations...
+  PASS: Light shoot right triggers Mech_Shoot_R
+  PASS: Heavy shoot right triggers Mech_Shoot2_R
+  PASS: Light shoot left triggers Mech_Shoot_L
+  PASS: Heavy shoot left triggers Mech_Shoot2_L
+Testing Shoulder Shoot, GetHit, and Die status animations...
+  PASS: Shoulder shoot 1 triggers Mech_ShoulderShoot1
+  PASS: Shoulder shoot 2 triggers Mech_ShoulderShoot2
+  PASS: GetHit triggers Mech_GetHit
+  PASS: Die triggers Mech_Die
+Testing real-time joint rotation application and crossfading...
+  PASS: Blend weight faded in (blend_weight=1.00)
+  PASS: Arm Right rotation was updated by keyframe (rot=(-0.0, -0.000149, 0.905173))
+  PASS: Body rotation was updated by keyframe (rot=(0.403921, 0.880314, 0.260847))
+MECHA_FBX_ACTION_ANIMATION_VERIFY: checks=26 fails=0

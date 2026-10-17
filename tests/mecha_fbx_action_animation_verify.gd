@@ -74,16 +74,16 @@ func _test_shooting_animations() -> void:
 	add_child(animator)
 	
 	animator.play_shoot("right", false)
-	_check(animator.current_anim_name == "Mech_Shoot_R", "Light shoot right triggers Mech_Shoot_R")
+	_check(animator.shoot_channel_right.anim_name == "Mech_Shoot_R", "Light shoot right triggers Mech_Shoot_R")
 	
 	animator.play_shoot("right", true)
-	_check(animator.current_anim_name == "Mech_Shoot2_R", "Heavy shoot right triggers Mech_Shoot2_R")
+	_check(animator.shoot_channel_right.anim_name == "Mech_Shoot2_R", "Heavy shoot right triggers Mech_Shoot2_R")
 	
 	animator.play_shoot("left", false)
-	_check(animator.current_anim_name == "Mech_Shoot_L", "Light shoot left triggers Mech_Shoot_L")
+	_check(animator.shoot_channel_left.anim_name == "Mech_Shoot_L", "Light shoot left triggers Mech_Shoot_L")
 	
 	animator.play_shoot("left", true)
-	_check(animator.current_anim_name == "Mech_Shoot2_L", "Heavy shoot left triggers Mech_Shoot2_L")
+	_check(animator.shoot_channel_left.anim_name == "Mech_Shoot2_L", "Heavy shoot left triggers Mech_Shoot2_L")
 	
 	animator.queue_free()
 

@@ -198,6 +198,16 @@ func can_fire() -> bool:
 	return true
 
 
+## Swing permission for hand-to-hand actions that do not spend a round.
+## Identical to can_fire() minus the ammunition floor: cooldown, reload and
+## overheat still gate every swing, but an empty magazine cannot lock out a
+## melee swing that is ammunition-free by design (Pile Bunker dry hammer).
+func can_swing() -> bool:
+	if cooldown > 0.0 or reloading or overheated:
+		return false
+	return true
+
+
 func is_completely_dry() -> bool:
 	return not unlimited_ammo and ammo <= 0 and reserve == 0
 

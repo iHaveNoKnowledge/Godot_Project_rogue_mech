@@ -1395,7 +1395,17 @@ func _try_fire(slot: String, weapon: WeaponPart) -> void:
 		return
 
 	var core = _core_for_weapon(weapon)
-	if core == null or not core.can_fire():
+	if core == null:
+		return
+	# Pile Bunker presses swap the ammunition floor for pure swing safety:
+	# its dry hammer combo is ammunition-free by design (cooldown, reload and
+	# overheat still gate), while the loaded spike blast re-checks the full
+	# rules inside the melee dispatch below. Every other request — ranged
+	# fire included — keeps the uniform can_fire() gate.
+	if requested == WeaponGameplayCapability.ACTION_MELEE and weapon.weapon_name.to_lower().contains("pile"):
+		if not core.can_swing():
+			return
+	elif not core.can_fire():
 		return
 
 	# Advanced Special Weapon Capability (Phase 2E-6)

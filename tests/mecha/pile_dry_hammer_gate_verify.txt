@@ -1,0 +1,52 @@
+﻿Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
+
+--- Running pile_dry_hammer_gate_verify ---
+[LOADOUT] battle ready: refs=(w_starter_left,w_starter_right,carry=["w_starter_carry"]) resolved_hands=(,) carry=1
+  PASS: authored snapshot intact: core.ammo_per_shot == 1
+  PASS: empty pile refuses can_fire() (ammunition floor intact)
+  PASS: can_swing() is TRUE for the same empty state (exact API delta)
+  PASS: empty press emits pile_bunker_fired(false): dry hammer combo reachable
+  PASS: dry hammer consumes no ammo (stays 0)
+  PASS: dry hammer engages the 0.45 combo cadence cooldown
+  PASS: immediate second dry press is cooldown-blocked (no extra receipt)
+  PASS: can_swing() honors cooldown while cooling
+  PASS: can_swing() honors overheat
+  PASS: overheated pile refuses the dry hammer press
+  PASS: can_swing() honors the reloading state
+  PASS: loaded press emits pile_bunker_fired(true): spike blast
+  PASS: loaded blast consumes exactly 1 spike (3 -> 2)
+  PASS: loaded press never emits the dry hammer receipt
+  PASS: full machine gun fires through the normal permission path (control)
+  PASS: control press consumed exactly 1 bullet
+  PASS: control press armed cooldown
+  PASS: ranged floor intact: empty machine gun can_fire() is FALSE
+  PASS: ranged press at 0 ammo is rejected: no shot consumed (fired counter unchanged)
+  PASS: rejected ranged press consumed no ammo
+  PASS: rejected ranged press accumulated no heat
+  PASS: rejected ranged press consumed no cooldown
+  PASS: Heat Blade authored ammo_per_shot == 0 (ammunition-free by design)
+  PASS: Heat Blade fires at 0 ammo through its own ammo_per_shot==0 floor
+  PASS: Heat Blade consumed no ammo
+  PASS: Heat Blade engaged cooldown
+  PASS: Heat Blade never touches the pile bunker bus signal
+  PASS: Combat Knife authored ammo_per_shot == 0 (ammunition-free by design)
+  PASS: Combat Knife fires at 0 ammo through its own ammo_per_shot==0 floor
+  PASS: Combat Knife consumed no ammo
+  PASS: Combat Knife engaged cooldown
+  PASS: Combat Knife never touches the pile bunker bus signal
+  PASS: Mace authored ammo_per_shot == 0 (ammunition-free by design)
+  PASS: Mace fires at 0 ammo through its own ammo_per_shot==0 floor
+  PASS: Mace consumed no ammo
+  PASS: Mace engaged cooldown
+  PASS: Mace never touches the pile bunker bus signal
+All pile_dry_hammer_gate_verify tests passed.
+Godot_v4.6.2-stable_win64.exe : WARNING: ObjectDB instances leaked at exit (run with --verbose for details).
+At line:1 char:1
++ & "h:\hack\project\godot\Godot_v4.6.2-stable_win64.exe" --headless "r ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (WARNING: Object...e for details).:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+   at: cleanup (core/object/object.cpp:2641)
+ERROR: 1 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:810)

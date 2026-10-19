@@ -31,6 +31,11 @@ This document tracks unresolved investigations, technical debt, and known runtim
 - **Phase C2.8 Scene Transition Seam (Resolved in `c67f8b1`):**
   - Exiting Hangar or finishing tactical combat previously returned unconditionally to `res://scenes/board/game_board.tscn`.
   - Resolved by adding campaign state check to `GameManager.return_to_board()`: if `current_campaign_player_node_id`, scenario ID, or registered campaign nodes are present, route to `res://scenes/ui/campaign_node_map.tscn`.
+- **Shoulder-Bridge Right-Side Floating Pieces (Resolved 2026-10-19, fix9):**
+  - Symptom: `JointBallBody_R` / `JointBracket_R` rendered floating far off the mirror plane (world x≈3.0–3.25, z≈8.9–9.2 instead of x≈1.6, z≈4.6).
+  - Root cause: their local mesh vertices were displaced by a uniform (+1.48, +0.65, +4.39) from the x-flip of the `_L` twins; the animation matrices were already exact X=0 mirrors and untouched.
+  - Resolution: the two `_R` local meshes rewritten as exact x-flips of `_L` (fix9); brute-force world/local verification passes frames 0–36; deployed to `scratch/innerframe_animation_handmade.blend` (hash `8BB9A1AADC43D57C`…). User decision: no purge of `_R` actions / pinv restore (they were proven correct).
+  - Lesson: `mathutils.kdtree.KDTree.find()` returns `(co, index, dist)` — vertex-mirror checks that read the first element as a distance false-pass; use brute-force comparison. Headless render checks must assign `sc.camera` explicitly and place the camera exactly on the mirror plane (x=0).
 
 ---
 

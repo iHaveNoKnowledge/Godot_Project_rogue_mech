@@ -37,3 +37,13 @@
 5. **Testing Harness:**
    - Every modification to `res://scripts/` requires a unit test in `res://test/unit/`.
    - Execute tests using Godot 4.6.2 console (`& 'D:\godot\Godot_v4.6.2-stable_win64_console.exe' --headless ...`).
+
+---
+
+## 4. Canonical Blender Assets & Mirror Discipline
+- **Innerframe animation source:** `scratch/innerframe_animation_handmade.blend` (intentionally gitignored; the deployed copy lives in `scratch/`). The left side (`_L`) is the Master Reference; the right side (`_R`) is a strict X=0 mirror of it — no complex matrix-inversion tricks, only manual operational copies.
+- **Mirror rule:** For every `_L`/`_R` pair, the world matrix must satisfy Q = Rw⁻¹·M4W·Lw ≈ identity with M4W = `Matrix.Diagonal((-1,1,1,1))` at every frame, and `_R`'s local mesh must equal the x-flip of `_L`'s local mesh vertex-for-vertex. Per-side accent materials (sage L / amber R) are by-design.
+- **Verification discipline (lessons from the 2026-10-19 fix9 session):**
+  - Use brute-force vertex comparison only: `mathutils.kdtree.KDTree.find()` returns `(co, index, dist)` and must never be read positionally as a distance.
+  - Headless render symmetry checks must explicitly assign `sc.camera` and place the camera exactly on the mirror plane (x=0), not at the assembly center.
+  - Read the `Machine snapshot`/canonical docs before Blender sessions: mirror plane is world x=0; the by-design f0 loop clearance of JointElbow/LinkLower/LinkUpper is not a defect.

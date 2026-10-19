@@ -30,6 +30,17 @@ This document tracks unresolved investigations, technical debt, and known runtim
 - **Remediation / Standard Operating Procedure:**
   - Use exact text pattern search (`search_for_pattern`), direct file inspection (`view_file`), and Godot headless CLI test runners (`& 'D:\godot\Godot_v4.6.2-stable_win64_console.exe' --headless ...`) for symbol and architecture validation.
 
+### Issue 5: Pose-Bone Local-Location Channels Do Not Deform Mesh (Blender 5.2, innerframe blend)
+- **Category:** Asset Tooling / Blender 5.2 Animation Authoring (`scratch/innerframe_animation_handmade.blend`)
+- **Status:** OPEN INVESTIGATION — root cause unknown; safe workaround proven in production. Do NOT retry pose-loc key authoring on skinned/bone-parented pieces without a reproducible probe.
+- **Description:** Authoring pose-bone local `location` keyframes over the RunCycle action never reached deformed world vertices on skinned and bone-parented pieces, while quaternion channels from the same action evaluate live and pose correctly in the same build. Resolution path taken: revert all `Bone.001` local-location keys to 0.0 and carry piece motion in mesh data transforms instead (torso raise +0.40, session note §8 of `WORK_HANDOFF.md`) — verified coherent.
+- **Evidence (2026-10-19):**
+  - Same channelbag, same slot: `rotation_quaternion` fcurves read live per-frame; locally-added `location` fcurves on the same pose bone produced zero world-extent delta at every sampled frame (legs, thighs) regardless of `frame_set` flip (25→26) for re-evaluation.
+  - Rigid-affirmation vs negation: typing values into the same channel verifies in the channel and predicted on a probe empty, yet measured deformed extents stayed identical — prediction and mesh measurement disagreed by a constant, independent of frame.
+  - Quaternion path empirically healthy: legs read swinging across frames (channels + evaluated bone children), so this is not slot/bag staleness in general.
+- **Open questions:** why local location is consumed differently from rot/quat on this rig build (5.2), whether `armature.data.pose_position`, slot handle binding, or a hidden parent-conjugation path is involved, and whether other Blender 5.2 files reproduce it.
+- **Deliverable gate:** reopen only with a minimal repro blend showing a loc-only channel that DOES deform a vertex — or confirm by reversing the above. Ref authoring rule until then: pose quaternion only; positional changes in mesh data.
+
 ---
 
 ## 2. Resolved Issues (Reference)

@@ -15,6 +15,11 @@ This document tracks unresolved investigations, technical debt, and known runtim
 - **Investigation Plan:**
   - Inspect animation blend trees, pivot writers, attack timing, bone retargeting, and weapon-layer masks.
   - Must not mark as resolved without a dedicated, reproducible regression test and visual confirmation.
+- **Evidence (2026-10-19, headless, Godot 4.6.2.stable, branch `main`):**
+  - `test/unit/innerframe_rig_verify.tscn` — 8/8 PASS: GLB 24-bone Skeleton3D, all 16 MechaRig bones, head rest 4.28 m, clip `run` present.
+  - `test/unit/clip_retarget_verify.tscn` — 14/14 PASS in isolation: legs 105.6°/103.8° antiphase (corr −0.80), knees 65.6°, arms 70.6°, hip bob 0.021 m.
+  - `test/unit/clip_ingame_verify.tscn` — 6/10 PASS ("run clip live on mech", pivots present, airtime segment 19.8°). FAIL: leg swing on the move (5.0°), stride lost after arm destroy (0.0°), cadence crossings fast=0/slow=0, slow-speed stride (0.0°).
+  - Reading: clip source (`res://scenes/mecha/animations/innerframe_run_cycle_clean.glb`, from the 2026-09-25 export of `scratch/innerframe_animation_handmade.blend`) and the retarget transfer are healthy in isolation; the degradation appears only inside the full `mecha_base.tscn` state stack. Same symptom family as this issue (suspects: walking-system state gating vs. clip write order, step-event polling phase, combat/lunge overrides).
 
 ### Issue 2: Offline LSP Server Environment
 - **Category:** Developer Tooling / Serena Semantic Analysis

@@ -55,6 +55,7 @@ func _ready() -> void:
 	core.unlimited_ammo = false
 	core.ammo_per_shot = 1 # manager salvo pricing: 1 lock = 1 missile
 	core.ammo = core.max_ammo
+	core.heat_capacity = 0.0 # lock-cap & salvo pricing fixture isolates ammo consumption from thermal limits
 	var fired := 0
 	for i in range(core.max_ammo):
 		if i > 0:

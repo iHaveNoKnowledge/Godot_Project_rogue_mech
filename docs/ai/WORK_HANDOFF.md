@@ -1,56 +1,72 @@
 # Work Handoff & Session State
 
 ## 1. Current State Summary
-- **Current Task:** C4 Documentation Closure (status/handoff/issues sync for verified B1–B6).
+- **Current Task:** R2-CS Documentation Synchronization (post-push closure for missile subsystem).
 - **Current Branch:** `main`
-- **Current HEAD:** `e7b99529c445fe1ec2fef387ab8e60ab960f9713`
-- **Origin Status:** Up to date with `origin/main`.
-- **Uncommitted-work caveat:** All C4 B1–B6 implementation and tests exist in the working tree only (per-phase instructions forbade commit/push). Nothing under C4 is committed; `git status` also carries pre-existing `.tscn` UID churn and unrelated untracked artifacts — all preserved as found.
-- **Latest Completed Phase:** **Phase C4 (Strategic Heat / Detection / Threat / Turn / Persistence / Action Hooks)** — B1, B2/B2.1, B3/B3.1, B4, B5, B6 implemented and green (see table below).
+- **Current HEAD:** `e5fd672497d0c074c413d6d9f84107893d61890f`
+- **Origin Status:** Up to date with `origin/main` at `e5fd672497d0c074c413d6d9f84107893d61890f`.
+- **Published Missile Commit Chain:**
+  1. `f13b90d3f42a896220bb957adda04dafedcd5fad` — `test(mecha): add swarm salvo pricing and shoulder missile salvo execution coverage`
+  2. `2065bc12b8bb65752fac3a4da327782b47a25e40` — `test(mecha): introduce missile lock cone-sweep geometric verification suite`
+  3. `e5fd672497d0c074c413d6d9f84107893d61890f` — `feat(mecha): implement Option A missile trigger contention handling with dual-trigger verification`
+- **Uncommitted-work caveat:**
+  The working tree preserves 9 modified tracked files (8 PNG image binaries in `imgs/valkren_hand_ref/` and `test/unit/campaign_pause_exit_wiring_verify.tscn`) alongside untracked working-tree files across campaign UIDs, melee tests, stance preview tools, and draft tests in `tests/mecha/` (with 48 untracked items verified at R2-CT baseline). All were preserved untouched and outside the published missile commits.
+- **Latest Completed Phase:** **Phase R2-CR (Post-Push Regression & Missile Integration Audit)** — PASS.
 
 ---
 
-## 2. Test Verification Summary (Freshly Run & Verified in Godot 4.6.2.stable)
+## 2. Test Verification Summary (Reported by R2-CR in Godot 4.6.2.stable)
 
 | Test Suite | Scene File | Tests / Assertions | Exit Code | Result |
 |---|---|:---:|:---:|:---:|
-| **C4-B1 Strategic Heat** | `res://test/unit/campaign_strategic_heat_verify.tscn` | 53 assertions | 0 | PASSED |
-| **C4-B2/B2.1 Strategic Detection** | `res://test/unit/campaign_strategic_detection_verify.tscn` | 115 assertions | 0 | PASSED |
-| **C4-B3 Strategic Threat** | `res://test/unit/campaign_strategic_threat_verify.tscn` | 101 assertions | 0 | PASSED |
-| **C4-B4 Turn Integration** | `res://test/unit/campaign_turn_c4_integration_verify.tscn` | 45 assertions | 0 | PASSED |
-| **C4-B5 Strategic Persistence** | `res://test/unit/campaign_strategic_persistence_verify.tscn` | 62 assertions | 0 | PASSED |
-| **C4-B6 Action Exposure** | `res://test/unit/campaign_action_exposure_verify.tscn` | 81 assertions | 0 | PASSED |
-| **Campaign Turn Executive** | `res://test/unit/campaign_turn_executive_verify.tscn` | 46 assertions | 0 | PASSED |
-| **C2.8 Playability Acceptance** | `res://test/unit/campaign_playability_acceptance_audit_verify.tscn` | 46 assertions | 0 | PASSED |
-| **C2.7 Strategic Node Map UI** | `res://test/unit/campaign_strategic_node_map_ui_verify.tscn` | 62 assertions | 0 | PASSED |
-| **Save Hardening (2H-02)** | `res://test/unit/phase_2h_02_save_hardening_verify.tscn` | 30 assertions | 0 | PASSED |
+| **Missile Salvo Execution (R2-BX)** | `res://test/unit/missile_salvo_execution_verify.tscn` | 34 assertions | 0 | PASSED |
+| **Missile Lock Cone-Sweep (R2-BZ/CB)** | `res://test/unit/missile_lock_cone_sweep_verify.tscn` | 59 assertions | 0 | PASSED |
+| **Dual-Trigger Contention (R2-CC..CI)** | `res://test/unit/missile_dual_trigger_contention_verify.tscn` | 130 assertions | 0 | PASSED |
+| **Missile Lock Release** | `res://test/unit/missile_lock_release_verify.tscn` | 35 assertions | 0 | PASSED |
+| **Weapon Drop Side Effects** | `res://tests/mecha/weapon_drop_side_effects_verify.tscn` | 15 assertions | 0 | PASSED |
+| **Full Runner Integration** | `./run_tests.sh` | 8 sequential suites + GUT | 0 | PASSED |
 
-Adjacent dispatch/movement/action suites carry pre-existing failures (attack TEST-J, dispatch Q1, movement route B2/cluster, capture E4/E6, resupply G4/G5, trade C9, investigate J/L, coexistence J1, node-capability T4, repair professional-repair constant) — all classified with baseline evidence in `OPEN_ISSUES.md`; none caused by C4 work.
+*Scope Note:* These 5 suites represent targeted regression coverage for the missile and weapon-drop contracts (aggregate 273 checks, 0 failures). They confirm that the missile subsystem operates strictly within specification, but they do not serve as proof of full-project correctness across unrelated systems.
+*Known Baseline Note:* An established baseline failure in `capability_part_break` (33 passed / 1 failed) is an isolated test fixture contract documented in `OPEN_ISSUES.md`; it is unrelated to the missile subsystem.
 
 ---
 
-## 3. C4 Architecture Snapshot (Implemented Behavior Only)
+## 3. Missile Subsystem Architecture & Implemented Contracts
 
-- **Strategic Heat** (`CampaignStrategicHeat`): node-local integer traces, bounded 0–10, clamped storage; dissipates −1 per node in the established `strategic_heat` turn phase (day-boundary only). Fully isolated from tactical `HeatWantedSystem.heat` and board patrols.
-- **Strategic Detection** (`CampaignStrategicDetection`): faction-specific intelligence; `SUSPECTED` (traces/stale records) stays distinct from confirmed `LOCATED`; freshness rule LOCATED iff age < 1, SUSPECTED iff age < 3, else UNKNOWN; suspicion refresh bumps the clock without moving node/source (pinned); stale/out-of-order/future-dated inputs handled deterministically; never reads player position.
-- **Strategic Threat** (`CampaignStrategicThreat.get_node_threat`): stateless derived query (no state, signals, persistence, or orders). CRITICAL only for co-located hostile force + fresh LOCATED intel; pressure vs. knowledge reported separately (`threat_level` vs `confidence` + reason-coded contributors).
-- **Turn Executive** (`CampaignTurnExecutive`): remains the sole campaign turn-advancement authority (counter, re-entry guard, receipt contract unchanged); new day-gated phases run detection aging then heat dissipation between enemy-base and compatibility fan-out. Counter-only turns skip both.
-- **Persistence** (`SaveGameIO`): persists Heat (`campaign_strategic_heat`) and Detection (`campaign_strategic_detection`) via each authority's own serializer; schema stays 1; legacy/malformed payloads follow the established preflight + sanitize policy. Threat is never persisted (re-derived on demand).
-- **Action hooks** (dispatch post-success per design matrix; movement post-success into hostile territory only): attack +3/LOCATED defending faction; capture +2/SUSPECTED dislodged controller; resupply/trade +1 unless allied cover (+threshold-gated suspicion); investigate zero; movement trace only, never detection. Failures/rejections/retries of uncommitted work record nothing; each committed success exposes once. No combat-resolution hook exists because no connected production `resolve_battle` caller exists.
-- **Tactical separation**: Heat/Wanted/Patrol remain entirely separate from strategic evidence in both directions.
-
-### Known limitations (implemented as documented, not as defects)
-1. Dispatch has no submit-in-flight guard: two rapid successful submissions are two committed actions by contract. Recommend a separate UI-layer task (button discipline); no generic event ledger is warranted.
-2. Overlapping multi-controller territories use deterministic id-sorted enumeration with conservative ANY-rules (ANY-hostile traces movement; ANY-allied suppresses resupply/trade heat; suspicion targets the first non-empty controller). No redesign performed.
-3. Combat-resolution hooks were not added: audit found no connected production `resolve_battle` caller; attack-time LOCATED already covers player-initiated intel.
-4. All balance values (heat amounts, threat ladder, DISABLED-counts-as-present) remain provisional as documented in code, not tuned game design.
+- **Option A Dual-Trigger Contention:**
+  - Single active missile lock session globally in `MissileLockOnSystem` (`is_locking`, `active_slot`, `active_weapon`).
+  - When one slot is actively locking, pressing another missile slot immediately fires one dumbfire missile from the secondary slot via `_fire_dumbfire_missile(slot, weapon)` without interrupting, resetting, or cancelling the primary lock session.
+  - Same-Slot Debounce: Repeated trigger press on the currently locking slot is ignored (`return`) to prevent resetting `hold_duration` or clearing accumulated locks.
+  - Secondary Rejection Safety: Secondary dumbfire rejections (empty ammo, reloading, cooldown, destroyed arm, gate capability denial) safely abort without disturbing the active primary lock session.
+- **Salvo Ammunition Pricing:**
+  - `_fire_missile_salvo` sets `core.ammo_per_shot = 1` temporarily so multi-missile pods (such as Swarm Missile) consume exactly 1 round per launched missile (1:1), restoring original `ammo_per_shot` upon salvo completion.
+- **Shoulder Weapon Mounting & Routing:**
+  - Physical muzzle world positions resolved via `_get_shoulder_muzzle_world_pos()` with fallback to `FrameVariantResolver.shoulder_fallback_for()`.
+  - Normalizes slot aliases (`shoulder_left`/`left_shoulder` and `shoulder_right`/`right_shoulder`).
+  - Emits `shoulder_ammo_changed(side, current, max)`.
+- **Lock Capacity & Magazine Bounds:**
+  - `max_total_locks` is strictly bounded by `min(weapon.max_locks, available_ammo)` and enforces per-target magazine caps.
+- **Cone Geometry & Progress Retention:**
+  - Direct space state raycasts enforce line-of-sight and reject occluded targets.
+  - Off-cone targets are rejected by angular threshold.
+  - Progress retention across transient cone exits during active hold is characterization-tested and pinned in `missile_lock_cone_sweep_verify.tscn`.
+- **Tap vs. Sustained Release:**
+  - Short holds (< tap threshold) launch 1 dumbfire projectile and clear lock state.
+  - Sustained holds (>= tap threshold) launch guided homing salvos matching accumulated lock count.
+- **`cancel_locking()` & Session Interruption Contracts:**
+  - **Direct Cancellation:** `cancel_locking()` clears `is_locking`, `locked_targets`, and `target_lock_progress`, and emits `lock_cleared()`. Direct call sites exist for weapon swap / slot switching commit (`_cancel_lock_on_swap_commit`), weapon drop (`_cancel_lock_if_dropped`), and destroyed-arm drop (`drop_weapon_from_destroyed_arm`).
+  - **Gated / Lifecycle Interruption:** Reload suppresses firing via `_is_reloading` checks; mecha core destruction and pilot ejection suppress firing via node invalidation (`is_instance_valid(mecha)` guards) rather than direct cancellation calls.
+- **Destroyed-Arm Weapon Drop:**
+  - `drop_weapon_from_destroyed_arm(hand)` returns armed instance, clears slot/visual/triggers, re-syncs loadout, emits `weapon_switched` before `weapon_dropped`, and preserves the opposite arm.
+- **Runner Integration:**
+  - `run_tests.sh` lines 9 & 10 register `missile_lock_cone_sweep_verify.tscn` and `missile_dual_trigger_contention_verify.tscn`.
 
 ---
 
-## 4. Immediate Next Actions
-1. Decide commit/push of the uncommitted C4 working tree (implementation + tests + these docs were all held per no-commit phase instructions).
-2. Triage the pre-existing failures listed in `OPEN_ISSUES.md` as separate work (not C4 scope).
-3. Future strategic work (if ordered): UI double-submit guard; Threat consumers (AI/UI) reading the query; B7+ only per an explicit new phase plan — none designed here.
+## 4. Immediate Next Actions & Handoff Recommendations
+1. **Uncommitted Working-Tree Triage:** In a separate, dedicated phase, triage or commit the pre-existing reference PNGs (`imgs/valkren_hand_ref/`) and campaign pause exit scene UID re-save.
+2. **Authority Invariant:** The missile subsystem contracts in `weapon_manager.gd` and `missile_lock_on_system.gd` are verified and closed. Do not reopen or redesign without a reproducible failing regression test.
+3. **Subsequent Features:** Authorize new campaign, animation, or combat tasks under separate, narrowly scoped phase plans.
 
 ---
 

@@ -47,3 +47,59 @@
   - Use brute-force vertex comparison only: `mathutils.kdtree.KDTree.find()` returns `(co, index, dist)` and must never be read positionally as a distance.
   - Headless render symmetry checks must explicitly assign `sc.camera` and place the camera exactly on the mirror plane (x=0), not at the assembly center.
   - Read the `Machine snapshot`/canonical docs before Blender sessions: mirror plane is world x=0; the by-design f0 loop clearance of JointElbow/LinkLower/LinkUpper is not a defect.
+
+---
+
+## 5. Mecha Combat & Weapon Systems Architecture
+
+### 5.1 Missile Lock-On System & Contention Resolution (Option A)
+The missile targeting pipeline operates under a single active lock session authority managed by `MissileLockOnSystem` (`scripts/systems/missile_lock_on_system.gd`), referenced and coordinated through `WeaponManager` (`scripts/mecha/weapon_manager.gd`):
+- **Single Active Session Authority:** Only one weapon slot may actively acquire or hold missile target locks at any time (`is_locking == true`, tracking `active_slot` and `active_weapon`).
+- **Option A Contention Semantics:**
+  - If a primary missile slot is actively acquiring/holding locks, triggering an independent secondary missile slot does not abort, cancel, or reset the active primary lock session.
+  - Instead, the secondary slot attempts an immediate single dumbfire round via `_fire_dumbfire_missile(slot, weapon)` while the primary lock session continues undisturbed.
+- **Same-Slot Debounce Protection:**
+  - Triggering the *same* slot that is already actively locking is debounced and ignored (`return`), ensuring active lock states, targets, and elapsed hold durations are never accidentally reset or cleared by repeated trigger inputs.
+- **Secondary Rejection Gate Isolation:**
+  - If the secondary trigger attempt fails any standard weapon gating condition (e.g. empty magazine/salvo ammo exhaustion, ongoing reload cycle, fire cooldown, destroyed arm mounting, or capability restriction), the secondary firing is safely rejected without corrupting or cancelling the primary active lock session.
+- **Lock-On Cancellation & Session Interruption Contracts:**
+  - **Direct Cancellation Paths:** `cancel_locking()` explicitly resets lock session state (`is_locking = false`, clears `locked_targets` and `target_lock_progress`, and emits `lock_cleared`). Verified direct call sites in `WeaponManager` are:
+    1. Weapon swap / slot-switch commit (`_cancel_lock_on_swap_commit`).
+    2. Weapon drop from inventory selection (`_cancel_lock_if_dropped`).
+    3. Destroyed-arm weapon drop (`drop_weapon_from_destroyed_arm` via `_cancel_lock_if_dropped`).
+  - **Interruption & Rejection Gates:** Other session termination or firing suppression occurs via capability and lifecycle guards rather than direct `cancel_locking()` calls: ongoing reload cycles suppress firing via `_is_reloading(slot)` checks, and mecha destruction or pilot ejection invalidates node instances and fails pre-fire `is_instance_valid(mecha)` guards.
+
+### 5.2 Missile Salvo & Ammunition Pricing Contracts
+- **1:1 Salvo Ammunition Pricing:**
+  - In `_fire_missile_salvo(slot, weapon)`, the weapon's core definition `ammo_per_shot` is temporarily overridden to `1` prior to salvo dispatch and restored immediately upon salvo cycle completion.
+  - This ensures that multi-missile salvo pods (e.g. Swarm Missile arrays) consume exactly one unit of ammunition per launched missile round rather than draining full salvo ammo chunks per sub-projectile.
+- **Mount Routing & Visual Muzzles:**
+  - Left and right shoulder missile mountings are resolved through `_get_shoulder_muzzle_world_pos(slot)` with fallback to `FrameVariantResolver` socket positions.
+  - Mount aliases (`shoulder_left` / `left_shoulder`, `shoulder_right` / `right_shoulder`) are normalized during weapon slot resolution.
+  - Shoulder weapon firing updates state and triggers `shoulder_ammo_changed`.
+- **Target Lock Capacity Bounds:**
+  - Maximum acquired locks are strictly bounded by `min(weapon.max_locks, available_ammo)`.
+  - Acquisition respects per-target saturation thresholds (max locks per target entity).
+- **Trigger Hold Release Contracts:**
+  - Short holds below the tap duration threshold trigger a single forward-projected dumbfire missile and reset lock tracking.
+  - Sustained holds meeting or exceeding the threshold launch a guided homing missile salvo targeting all currently locked entities.
+
+### 5.3 Arm Destruction & Weapon Drop Semantics
+- **Slot Drop Isolation:**
+  - When an arm suffers critical structural failure or destruction, `drop_weapon_from_destroyed_arm(hand)` is invoked on `WeaponManager`.
+  - The affected hand slot (`left_arm` or `right_arm`) is unequipped, associated triggers and visual nodes are disconnected/cleaned up, and the weapon instance is dropped into the world.
+- **Signal Sequencing & State Synchronization:**
+  - Loadout data is synchronized, and the `weapon_switched` notification is emitted prior to `weapon_dropped` to maintain valid active weapon state across HUD and input listeners.
+- **Opposite Slot Preservation:**
+  - Destruction and weapon release on one arm never alters, drops, or interrupts the functional state of the opposite arm or mounted shoulder systems.
+
+### 5.4 Weapon Subsystem Verification Standards
+- **Targeted Regression & Unit Test Suites:**
+  - Salvo execution and ammunition pricing: `test/unit/missile_salvo_execution_verify.tscn`
+  - Cone sweep acquisition geometry and occlusion: `test/unit/missile_lock_cone_sweep_verify.tscn`
+  - Dual-trigger contention and input rejection gates: `test/unit/missile_dual_trigger_contention_verify.tscn`
+  - Tap versus sustained release mechanics: `test/unit/missile_lock_release_verify.tscn`
+  - Target lock capacity limits: `test/unit/missile_lock_cap_verify.tscn`
+  - Arm destruction and weapon drop side effects: `tests/mecha/weapon_drop_side_effects_verify.tscn`
+- **Runner Registration:**
+  - Verified regression test scenes are registered in `run_tests.sh` and run sequentially under Godot 4.6.2 headless mode to prevent test-order side effects and ensure strict zero-exit code validation.

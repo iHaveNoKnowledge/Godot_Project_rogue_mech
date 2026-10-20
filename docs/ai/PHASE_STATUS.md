@@ -23,7 +23,27 @@ This document tracks all campaign architecture phases, verified commits, impleme
 
 ---
 
-## 2. Reopening Conditions
+## 2. Mecha Combat Subsystems: Missile System Phase Ledger (R2 Series)
+
+Published Remote & Local Baseline: `e5fd672497d0c074c413d6d9f84107893d61890f` (`main`, up to date with `origin/main`)
+
+| Phase | Description | Status | Verified Commit / Ref | Test Verification Suite | Notes & Reopening Conditions |
+|---|---|---|---|---|---|
+| **R2-BX** | Missile Salvo Harness Extension (Swarm salvo pricing, shoulder salvo execution & gate denial) | CLOSED | `f13b90d3` | `missile_salvo_execution_verify.tscn` (34/34 Passed, Exit 0) | Closed; verifies 1-per-missile pricing for swarm salvos, shoulder transform resolution, `shoulder_ammo_changed` signal order, and unarmed shoulder denial. |
+| **R2-BZ / R2-CB** | Missile Lock Cone-Sweep Geometric Verification & Runner Registration | CLOSED | `2065bc12` | `missile_lock_cone_sweep_verify.tscn` (59/59 Passed, Exit 0) | Closed; verifies on-axis acquisition, off-cone rejection, multi-target stacking, occlusion raycasts, out-of-cone progress retention, and target freeing cleanup. |
+| **R2-CC / R2-CD / R2-CE / R2-CH / R2-CI** | Missile Trigger Contention (Option A: Mutual Exclusion + Immediate Dumbfire Fallback) & Runner Integration | CLOSED | `e5fd6724` | `missile_dual_trigger_contention_verify.tscn` (130/130 Passed, Exit 0) | Closed; secondary missile trigger fires immediate dumbfire without disturbing active lock; same-slot debouncing; 4 secondary rejection gates; mouse mode guard restored identical to `HEAD`. |
+| **R2-CJ / R2-CK** | Missile Changeset Consolidation & Commit Boundary Dry-Run Audits | CLOSED | Read-Only Audits | N/A | Closed; established exact 3-commit sequence without modifying repository state; resolved single-feature ownership of `weapon_manager.gd`. |
+| **R2-CL / R2-CM / R2-CN** | Exact-Scope Commit Execution (Commits A, B, C) | CLOSED | `f13b90d3`, `2065bc12`, `e5fd6724` | Serial dry-run & staged diff verification | Closed; staged and committed strictly authorized paths without staging PNGs, campaign scene, or untracked work. |
+| **R2-CO** | Serial Runtime Regression Verification | CLOSED | `e5fd6724` | 5 targeted suites (273/273 Passed, Exit 0); `run_tests.sh` (Exit 0) | Closed; serial verification of salvo, cone-sweep, contention, lock-release, and weapon-drop suites; full test runner executed with Exit 0. |
+| **R2-CQ** | Authorized Fast-Forward Push of Commit Chain | CLOSED | `e5fd6724` (published to `origin/main`) | Post-push remote fetch & verification | Closed; fast-forward push published commits `f13b90d3..e5fd6724` to `origin/main` without force flags. |
+| **R2-CR** | Post-Push Regression & Missile Integration Audit | CLOSED | `e5fd6724` | 5 targeted suites (273/273 Passed, Exit 0) | Closed; read-only verification confirming published remote hash, aggregate 8-file diff, 273 checks passing across 5 suites, and zero defects. |
+| **R2-CS** | Canonical Documentation Synchronization | IN PROGRESS | N/A (Docs-only) | Pre- and post-documentation git diff checks | Active phase; synchronizes `PHASE_STATUS.md`, `WORK_HANDOFF.md`, and `PROJECT_BIBLE.md` with published missile subsystem evidence. |
+
+*Uncommitted Work Note:* Pre-existing working-tree modifications (8 reference PNG images under `imgs/valkren_hand_ref/` and `test/unit/campaign_pause_exit_wiring_verify.tscn`) alongside untracked working-tree files (with 48 untracked items verified at R2-CT baseline) are preserved and remain outside the missile subsystem commits.
+
+---
+
+## 3. Reopening Conditions
 A CLOSED phase must **NEVER** be reopened or redesigned unless one of the following is proven:
 1. A reproducible regression is demonstrated with a failing test case in `test/unit/`.
 2. A proven violation of the Architecture Authority Map occurs in production code.
@@ -31,7 +51,7 @@ A CLOSED phase must **NEVER** be reopened or redesigned unless one of the follow
 
 ---
 
-## 3. Historical Reference Ledger
+## 4. Historical Reference Ledger
 - `5AQ`: Base/Territory Entity Boundary (`77335a6`)
 - `5AR`: Territory Ownership Boundary (`5ab4e22`)
 - `5AS`: Force Lifecycle Boundary (`5ab4e22`)

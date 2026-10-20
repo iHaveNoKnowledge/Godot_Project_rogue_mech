@@ -754,10 +754,7 @@ func _input(event: InputEvent) -> void:
 	# --- FIRE / RELOAD LEFT ---
 	if event.is_action_pressed("fire_left"):
 		if _is_missile_weapon(left_hand) and not holding_reload and not Input.is_action_pressed("reload"):
-			var core = _core_for_weapon(left_hand)
-			var ammo_cnt: int = core.ammo if core else (left_hand.max_ammo if left_hand else 0)
-			if missile_lock_system:
-				missile_lock_system.start_locking("left", left_hand, ammo_cnt)
+			_handle_missile_press("left", left_hand)
 		else:
 			if _fire_press("left"):
 				return  # deferred for a possible dual charge, or consumed
@@ -771,10 +768,7 @@ func _input(event: InputEvent) -> void:
 	# --- FIRE / RELOAD RIGHT ---
 	if event.is_action_pressed("fire_right"):
 		if _is_missile_weapon(right_hand) and not holding_reload and not Input.is_action_pressed("reload"):
-			var core = _core_for_weapon(right_hand)
-			var ammo_cnt: int = core.ammo if core else (right_hand.max_ammo if right_hand else 0)
-			if missile_lock_system:
-				missile_lock_system.start_locking("right", right_hand, ammo_cnt)
+			_handle_missile_press("right", right_hand)
 		else:
 			if _fire_press("right"):
 				return  # deferred for a possible dual charge, or consumed
@@ -796,10 +790,7 @@ func _input(event: InputEvent) -> void:
 			if holding_reload or Input.is_action_pressed("reload"):
 				reload_weapon("shoulder_left")
 			elif _is_missile_weapon(shoulder_left):
-				var core = _core_for_weapon(shoulder_left)
-				var ammo_cnt: int = core.ammo if core else (shoulder_left.max_ammo if shoulder_left else 0)
-				if missile_lock_system:
-					missile_lock_system.start_locking("shoulder_left", shoulder_left, ammo_cnt)
+				_handle_missile_press("shoulder_left", shoulder_left)
 			else:
 				fire_shoulder_left_holding = true
 				_commit_fire("shoulder_left", shoulder_left)
@@ -813,10 +804,7 @@ func _input(event: InputEvent) -> void:
 		if holding_reload or Input.is_action_pressed("reload"):
 			reload_weapon("shoulder_right")
 		elif _is_missile_weapon(shoulder_right):
-			var core = _core_for_weapon(shoulder_right)
-			var ammo_cnt: int = core.ammo if core else (shoulder_right.max_ammo if shoulder_right else 0)
-			if missile_lock_system:
-				missile_lock_system.start_locking("shoulder_right", shoulder_right, ammo_cnt)
+			_handle_missile_press("shoulder_right", shoulder_right)
 		else:
 			fire_shoulder_right_holding = true
 			_commit_fire("shoulder_right", shoulder_right)
@@ -1540,6 +1528,25 @@ func _is_missile_weapon(weapon: WeaponPart) -> bool:
 	return weapon.weapon_type == WeaponPart.WeaponType.MISSILE or weapon.weapon_name.to_lower().contains("missile")
 
 
+func _handle_missile_press(slot: String, weapon: WeaponPart) -> void:
+	if missile_lock_system == null or weapon == null:
+		return
+	if missile_lock_system.is_locking:
+		if missile_lock_system.active_slot == slot:
+			# Repeated trigger event for already active slot: do not restart or clear locks
+			return
+		# Option A: Mutual exclusion with immediate dumbfire fallback.
+		# When one missile slot is actively locking, pressing another missile slot
+		# immediately fires one dumbfire missile from the secondary slot without
+		# interrupting, overwriting, resetting, or cancelling the existing lock session.
+		_fire_dumbfire_missile(slot, weapon)
+		return
+
+	var core = _core_for_weapon(weapon)
+	var ammo_cnt: int = core.ammo if core else (weapon.max_ammo if weapon else 0)
+	missile_lock_system.start_locking(slot, weapon, ammo_cnt)
+
+
 func _handle_missile_release(slot: String) -> void:
 	if missile_lock_system == null or not missile_lock_system.is_locking:
 		return
@@ -1582,9 +1589,9 @@ func _fire_dumbfire_missile(slot: String, weapon: WeaponPart) -> void:
 		_try_fire("left", weapon)
 	elif slot == "right":
 		_try_fire("right", weapon)
-	elif slot == "shoulder_left":
+	elif slot == "shoulder_left" or slot == "left_shoulder":
 		_try_fire_shoulder("left")
-	elif slot == "shoulder_right":
+	elif slot == "shoulder_right" or slot == "right_shoulder":
 		_try_fire_shoulder("right")
 
 

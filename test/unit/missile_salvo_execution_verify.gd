@@ -17,6 +17,7 @@ extends Node
 
 const MECH_SCENE := "res://scenes/mecha/mecha_base.tscn"
 const MISSILE_PATH := "res://resources/mech/stock/weapon_heavy_missile.tres"
+const SWARM_MISSILE_PATH := "res://resources/mech/stock/weapon_swarm_missile.tres"
 
 var _fails := 0
 var _checks := 0
@@ -38,6 +39,9 @@ func _ready() -> void:
 	await _test_three_target_salvo()
 	await _test_partial_salvo()
 	await _test_gate_denied_salvo()
+	await _test_swarm_salvo_pricing()
+	await _test_shoulder_salvo_execution()
+	await _test_shoulder_gate_denied_salvo()
 	print("MISSILE_SALVO_EXECUTION_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	if _fails > 0:
 		printerr("MISSILE_SALVO_EXECUTION_VERIFY_FAILED")
@@ -208,4 +212,89 @@ func _test_gate_denied_salvo() -> void:
 	await get_tree().process_frame
 	_check(get_tree().get_nodes_in_group("projectile").size() == before, "gate-denied salvo creates no projectile")
 	_check(core.ammo == ammo0, "gate-denied salvo consumes no ammunition")
+	(rig[0] as Node).queue_free()
+
+
+func _test_swarm_salvo_pricing() -> void:
+	var rig := await _spawn_rig(3)
+	var wm: Node3D = rig[1]
+	var targets: Array = rig[2]
+	var swarm: WeaponPart = load(SWARM_MISSILE_PATH)
+	_check(swarm != null and swarm.weapon_name == "Swarm Missile", "swarm: real Swarm Missile resource loaded")
+	_check(swarm.ammo_per_shot == 3, "swarm: resource defines ammo_per_shot = 3 (volley pricing)")
+	_prep_salvo(wm, "right", swarm, 15)
+	var core = wm._core_for_weapon(swarm)
+	_check(core.ammo_per_shot == 3, "swarm: core.ammo_per_shot equals 3 before firing")
+	var ammo0: int = core.ammo
+	var before := get_tree().get_nodes_in_group("projectile")
+	wm._fire_missile_salvo("right", swarm, _targets_dict(targets))
+	_check(await _wait_for_proj_count(before.size() + 3, 300), "swarm: three-target salvo launches three projectiles")
+	var fresh := _new_projectiles(before)
+	_check(fresh.size() == 3, "swarm: three new projectiles observed")
+	_check(core.ammo == ammo0 - 3, "swarm: salvo consumes 1 ammo per missile (15 -> 12), not 3 per missile (15 -> 6)")
+	_check(core.ammo_per_shot == 3, "swarm: core.ammo_per_shot restored to original value 3 after salvo")
+	_check(core.ammo >= 0, "swarm: ammunition never negative")
+	(rig[0] as Node).queue_free()
+
+
+func _test_shoulder_salvo_execution() -> void:
+	var rig := await _spawn_rig(2)
+	var mecha: Node3D = rig[0]
+	var wm: Node3D = rig[1]
+	var targets: Array = rig[2]
+	var missile: WeaponPart = load(MISSILE_PATH)
+	_prep_salvo(wm, "shoulder_right", missile, 5)
+	_check(wm.shoulder_right == missile, "shoulder: missile mounted in shoulder_right slot")
+	var core = wm._core_for_weapon(missile)
+	var ammo0: int = core.ammo
+
+	var expected_spawn: Vector3 = wm._get_shoulder_muzzle_world_pos("right")
+	if expected_spawn == Vector3.INF:
+		expected_spawn = mecha.global_position + mecha.global_transform.basis * FrameVariantResolver.shoulder_fallback_for(mecha, "right")
+	_check(expected_spawn != Vector3.INF and is_finite(expected_spawn.y), "shoulder: expected shoulder spawn position resolved")
+
+	var shoulder_signals: Array = []
+	var on_shoulder_ammo := func(side: String, cur_ammo: int, max_ammo: int) -> void:
+		shoulder_signals.append({"side": side, "ammo": cur_ammo, "max": max_ammo})
+	wm.shoulder_ammo_changed.connect(on_shoulder_ammo)
+
+	var before := get_tree().get_nodes_in_group("projectile")
+	wm._fire_missile_salvo("shoulder_right", missile, _targets_dict(targets))
+	_check(await _wait_for_proj_count(before.size() + 2, 240), "shoulder: two-target salvo launches two projectiles from shoulder")
+	var fresh := _new_projectiles(before)
+	_check(fresh.size() >= 2, "shoulder: two new projectiles observed")
+
+	var first_proj: Node3D = fresh[0] as Node3D
+	var y_diff: float = absf(first_proj.global_position.y - expected_spawn.y)
+	_check(y_diff < 1.0, "shoulder: projectile Y origin (%.2f) consistent with shoulder muzzle (%.2f, diff=%.2f < 1.0m)" % [first_proj.global_position.y, expected_spawn.y, y_diff])
+
+	_check(not shoulder_signals.is_empty(), "shoulder: shoulder_ammo_changed observed during salvo")
+	var all_right := true
+	for sig in shoulder_signals:
+		if sig.get("side") != "right":
+			all_right = false
+	_check(all_right, "shoulder: all emitted signals report side 'right'")
+	_check(shoulder_signals.back()["ammo"] == ammo0 - 2, "shoulder: final signal reports decremented ammo (%d -> %d)" % [ammo0, shoulder_signals.back()["ammo"]])
+
+	_check(core.ammo == ammo0 - 2, "shoulder: core ammo decremented by two (5 -> 3)")
+	_check(core.ammo >= 0, "shoulder: ammo never negative")
+
+	wm.shoulder_ammo_changed.disconnect(on_shoulder_ammo)
+	(rig[0] as Node).queue_free()
+
+
+func _test_shoulder_gate_denied_salvo() -> void:
+	var rig := await _spawn_rig(2)
+	var wm: Node3D = rig[1]
+	var targets: Array = rig[2]
+	var missile: WeaponPart = load(MISSILE_PATH)
+	var core = wm._core_for_weapon(missile)
+	core.ammo = core.max_ammo
+	var ammo0: int = core.ammo
+	var before := get_tree().get_nodes_in_group("projectile").size()
+	wm._fire_missile_salvo("shoulder_right", missile, _targets_dict(targets))
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_check(get_tree().get_nodes_in_group("projectile").size() == before, "shoulder-denied: unarmed shoulder salvo creates no projectile")
+	_check(core.ammo == ammo0, "shoulder-denied: unarmed shoulder salvo consumes no ammunition")
 	(rig[0] as Node).queue_free()

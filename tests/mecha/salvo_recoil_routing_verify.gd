@@ -18,9 +18,38 @@ extends Node
 const MECH_SCENE := "res://scenes/mecha/mecha_base.tscn"
 const MISSILE_PATH := "res://resources/mech/stock/weapon_heavy_missile.tres"
 const RIFLE_PATH := "res://resources/mech/stock/weapon_beam_rifle.tres"
+const MechaActionAnimator = preload("res://scripts/mecha/mecha_action_animator.gd")
+
+const REQUIRED_RECOIL_CLIPS := [
+	"Mech_ShoulderShoot1",
+	"Mech_ShoulderShoot2",
+	"Mech_Shoot_R",
+	"Mech_Shoot_L",
+]
 
 var _fails := 0
 var _checks := 0
+var _injected_clips: Array[String] = []
+
+
+func _ensure_test_recoil_animations() -> void:
+	# In environments where download/Mech_00/Char_Anim/Mech_00_Anim.fbx is
+	# excluded (e.g. clean checkouts / CI), MechaActionAnimator._cached_anim_library
+	# lacks shoulder barrage and shoot recoil clips. Seed minimal test Animation
+	# resources so production routing can be exercised and observed without
+	# requiring licensed raw FBX downloads.
+	for clip_name in REQUIRED_RECOIL_CLIPS:
+		if not MechaActionAnimator._cached_anim_library.has(clip_name):
+			var dummy := Animation.new()
+			dummy.length = 1.0
+			MechaActionAnimator._cached_anim_library[clip_name] = dummy
+			_injected_clips.append(clip_name)
+
+
+func _cleanup_test_recoil_animations() -> void:
+	for clip_name in _injected_clips:
+		MechaActionAnimator._cached_anim_library.erase(clip_name)
+	_injected_clips.clear()
 
 
 func _check(cond: bool, name: String) -> void:
@@ -35,9 +64,11 @@ func _check(cond: bool, name: String) -> void:
 func _ready() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
+	_ensure_test_recoil_animations()
 	await _test_shoulder_salvo_routing()
 	await _test_hand_missile_routing()
 	await _test_hand_rifle_fallback()
+	_cleanup_test_recoil_animations()
 	print("SALVO_RECOIL_ROUTING_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	if _fails > 0:
 		printerr("SALVO_RECOIL_ROUTING_VERIFY_FAILED")

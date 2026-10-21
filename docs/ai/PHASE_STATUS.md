@@ -25,7 +25,7 @@ This document tracks all campaign architecture phases, verified commits, impleme
 
 ## 2. Mecha Combat Subsystems: Missile System Phase Ledger (R2 Series)
 
-Published Remote & Local Baseline: `e5fd672497d0c074c413d6d9f84107893d61890f` (`main`, up to date with `origin/main`)
+Published Remote & Local Baseline: `eb6aa48b1740ad11e8e364be9c10c258445ec145` (`main`, up to date with `origin/main`)
 
 | Phase | Description | Status | Verified Commit / Ref | Test Verification Suite | Notes & Reopening Conditions |
 |---|---|---|---|---|---|
@@ -37,7 +37,7 @@ Published Remote & Local Baseline: `e5fd672497d0c074c413d6d9f84107893d61890f` (`
 | **R2-CO** | Serial Runtime Regression Verification | CLOSED | `e5fd6724` | 5 targeted suites (273/273 Passed, Exit 0); `run_tests.sh` (Exit 0) | Closed; serial verification of salvo, cone-sweep, contention, lock-release, and weapon-drop suites; full test runner executed with Exit 0. |
 | **R2-CQ** | Authorized Fast-Forward Push of Commit Chain | CLOSED | `e5fd6724` (published to `origin/main`) | Post-push remote fetch & verification | Closed; fast-forward push published commits `f13b90d3..e5fd6724` to `origin/main` without force flags. |
 | **R2-CR** | Post-Push Regression & Missile Integration Audit | CLOSED | `e5fd6724` | 5 targeted suites (273/273 Passed, Exit 0) | Closed; read-only verification confirming published remote hash, aggregate 8-file diff, 273 checks passing across 5 suites, and zero defects. |
-| **R2-CS** | Canonical Documentation Synchronization | IN PROGRESS | N/A (Docs-only) | Pre- and post-documentation git diff checks | Active phase; synchronizes `PHASE_STATUS.md`, `WORK_HANDOFF.md`, and `PROJECT_BIBLE.md` with published missile subsystem evidence. |
+| **R2-CS** | Canonical Documentation Synchronization | CLOSED | `ca071bcd` (closure verified: R2-CY-A at `eb6aa48b`) | Pre- and post-documentation git diff checks | Closed; synchronized `PHASE_STATUS.md`, `WORK_HANDOFF.md`, and `PROJECT_BIBLE.md` with published missile subsystem evidence. Closure verified by R2-CY-A at published baseline `eb6aa48b`. |
 
 *Uncommitted Work Note:* Pre-existing working-tree modifications (8 reference PNG images under `imgs/valkren_hand_ref/` and `test/unit/campaign_pause_exit_wiring_verify.tscn`) alongside untracked working-tree files (with 48 untracked items verified at R2-CT baseline) are preserved and remain outside the missile subsystem commits.
 

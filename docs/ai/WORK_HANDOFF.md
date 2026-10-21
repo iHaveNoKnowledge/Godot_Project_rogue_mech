@@ -1,17 +1,24 @@
 # Work Handoff & Session State
 
 ## 1. Current State Summary
-- **Current Task:** R2-CS Documentation Synchronization (post-push closure for missile subsystem).
+- **Current Task:** R2-CY-B Documentation Reconciliation & R2-CS Closure.
+  - Phase R2-CY-A completed read-only baseline reconciliation and established eligibility for separate closure.
+  - Phase R2-CY-B performs documentation-only reconciliation and exact-scope commit/push; it does not rerun tests.
+  - R2-CS documentation closure is complete once this authorized commit is created and verified.
 - **Current Branch:** `main`
-- **Current HEAD:** `e5fd672497d0c074c413d6d9f84107893d61890f`
-- **Origin Status:** Up to date with `origin/main` at `e5fd672497d0c074c413d6d9f84107893d61890f`.
+- **Published Pre-Phase Baseline:** `eb6aa48b1740ad11e8e364be9c10c258445ec145` (up to date with `origin/main`).
 - **Published Missile Commit Chain:**
   1. `f13b90d3f42a896220bb957adda04dafedcd5fad` — `test(mecha): add swarm salvo pricing and shoulder missile salvo execution coverage`
   2. `2065bc12b8bb65752fac3a4da327782b47a25e40` — `test(mecha): introduce missile lock cone-sweep geometric verification suite`
   3. `e5fd672497d0c074c413d6d9f84107893d61890f` — `feat(mecha): implement Option A missile trigger contention handling with dual-trigger verification`
-- **Uncommitted-work caveat:**
-  The working tree preserves 9 modified tracked files (8 PNG image binaries in `imgs/valkren_hand_ref/` and `test/unit/campaign_pause_exit_wiring_verify.tscn`) alongside untracked working-tree files across campaign UIDs, melee tests, stance preview tools, and draft tests in `tests/mecha/` (with 48 untracked items verified at R2-CT baseline). All were preserved untouched and outside the published missile commits.
-- **Latest Completed Phase:** **Phase R2-CR (Post-Push Regression & Missile Integration Audit)** — PASS.
+  4. `ca071bcd59ef52b64660300df1b5fae4881e8775` — `docs(ai): synchronize canonical project documents with published missile implementation` (R2-CS documentation commit)
+  5. `eb6aa48b1740ad11e8e364be9c10c258445ec145` — `หฟดำ` (published 57-file working-tree inventory)
+- **Historical Inventory & Working-Tree State:**
+  - Commit `eb6aa48b1740ad11e8e364be9c10c258445ec145` published the 57-file inventory previously noted as uncommitted at R2-CT baseline (8 reference PNG images, 1 campaign pause-exit wiring scene, and 48 new files across UIDs, melee tests, stance preview tools, and draft tests). This inventory is part of `eb6aa48b`'s historical scope.
+  - Current working-tree state: verified clean at pre-modification baseline (0 modified, 0 staged, 0 untracked), maintained through exact-scope staging of authorized documentation files.
+- **Latest Completed Audits / Phases:**
+  - **Phase R2-CR (Post-Push Regression & Missile Integration Audit):** PASS (`e5fd6724`).
+  - **Phase R2-CY-A (Published Baseline Reconciliation Audit):** PASS (`ELIGIBLE_FOR_SEPARATE_CLOSURE` at baseline `eb6aa48b`).
 
 ---
 
@@ -64,7 +71,7 @@
 ---
 
 ## 4. Immediate Next Actions & Handoff Recommendations
-1. **Uncommitted Working-Tree Triage:** In a separate, dedicated phase, triage or commit the pre-existing reference PNGs (`imgs/valkren_hand_ref/`) and campaign pause exit scene UID re-save.
+1. **Published Baseline Reconciled:** The pre-existing 57-file inventory (reference PNGs, scene UID update, stance preview tools, and tests) was published in commit `eb6aa48b1740ad11e8e364be9c10c258445ec145`; working tree is clean.
 2. **Authority Invariant:** The missile subsystem contracts in `weapon_manager.gd` and `missile_lock_on_system.gd` are verified and closed. Do not reopen or redesign without a reproducible failing regression test.
 3. **Subsequent Features:** Authorize new campaign, animation, or combat tasks under separate, narrowly scoped phase plans.
 

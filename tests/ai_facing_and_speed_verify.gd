@@ -125,7 +125,9 @@ func _test_enemy_dummy_facing_and_speed() -> void:
 	var enemy = EnemyDummyScene.instantiate()
 	world.add_child(enemy)
 
-	_assert(enemy.move_speed >= 13.0, "EnemyDummy move_speed upgraded to player parity (%.2f >= 13.0 m/s)" % enemy.move_speed)
+	_assert(enemy.move_speed >= 7.0, "EnemyDummy walk move_speed in tactical range (%.2f >= 7.0 m/s)" % enemy.move_speed)
+	_assert(enemy.roller_speed >= 13.0, "EnemyDummy roller_speed upgraded to player parity (%.2f >= 13.0 m/s)" % enemy.roller_speed)
+	_assert(enemy.move_speed < enemy.roller_speed, "EnemyDummy walk speed is strictly lower than dash roller_speed")
 
 	# Test dash facing
 	enemy.dash_direction = Vector3(1, 0, 0)

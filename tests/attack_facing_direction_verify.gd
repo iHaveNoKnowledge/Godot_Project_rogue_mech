@@ -25,6 +25,7 @@ func _ready() -> void:
 	mecha.set_script(mecha_script)
 	mecha.current_speed = 10.0
 	mecha.turn_rate = 10.0
+	mecha.claim_player_authority()
 	add_child(mecha)
 
 	# Add Camera3D looking forward (-Z)

@@ -9,7 +9,7 @@ extends Node
 ##     re-syncs the loadout slot, and emits weapon_switched BEFORE
 ##     weapon_dropped (exact sequence).
 ## Fixture: full production mech (mecha_base.tscn) + real WeaponManager.
-## Run: godot --headless --path . res://tests/mecha/weapon_drop_side_effects_verify.tscn
+## Run: godot --headless --path . res://test/unit/weapon_drop_side_effects_verify.tscn
 
 const MECH_SCENE := "res://scenes/mecha/mecha_base.tscn"
 const RIFLE_PATH := "res://resources/mech/stock/weapon_beam_rifle.tres"

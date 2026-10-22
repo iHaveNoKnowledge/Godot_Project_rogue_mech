@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://tests/mecha/weapon_drop_side_effects_verify.gd" id="1"]
+[ext_resource type="Script" path="res://test/unit/weapon_drop_side_effects_verify.gd" id="1"]
 
 [node name="WeaponDropSideEffectsVerify" type="Node"]
 script = ExtResource("1")

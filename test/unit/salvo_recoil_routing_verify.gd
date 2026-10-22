@@ -13,7 +13,7 @@ extends Node
 ## launched first, then asserts routing. Firing + routing both fail loudly
 ## if preconditions (ammo, cooldown, target) are unmet — a routing assert can
 ## never pass on a salvo that never fired.
-## Run: godot --headless --path . res://tests/mecha/salvo_recoil_routing_verify.tscn
+## Run: godot --headless --path . res://test/unit/salvo_recoil_routing_verify.tscn
 
 const MECH_SCENE := "res://scenes/mecha/mecha_base.tscn"
 const MISSILE_PATH := "res://resources/mech/stock/weapon_heavy_missile.tres"

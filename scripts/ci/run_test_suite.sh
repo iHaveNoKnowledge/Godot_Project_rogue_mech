@@ -17,6 +17,7 @@ TEST_TIMEOUT="${TEST_TIMEOUT:-60}"
 PROJECT_PATH="${PROJECT_PATH:-.}"
 FAILED_LOG_DIR="${FAILED_LOG_DIR:-/tmp/godot_test_logs}"
 
+SELECTED=0
 PASS=0
 FAIL=0
 HANG=0
@@ -24,11 +25,19 @@ ISSUES=()
 
 mkdir -p "$FAILED_LOG_DIR"
 
-for t in tests/*_verify.tscn; do
+for t in tests/*_verify.tscn tests/mecha/*_verify.tscn \
+	test/unit/missile_lock_release_verify.tscn \
+	test/unit/missile_salvo_execution_verify.tscn \
+	test/unit/missile_lock_cone_sweep_verify.tscn \
+	test/unit/missile_dual_trigger_contention_verify.tscn \
+	test/unit/weapon_drop_side_effects_verify.tscn \
+	test/unit/salvo_recoil_routing_verify.tscn; do
 	[ -f "$t" ] || continue
+	SELECTED=$((SELECTED + 1))
 	name=$(basename "$t" .tscn)
 	log="$FAILED_LOG_DIR/$name.log"
-	timeout "$TEST_TIMEOUT" "$GODOT" --headless --path "$PROJECT_PATH" "res://tests/$name.tscn" > "$log" 2>&1
+	res_path="res://${t#./}"
+	timeout "$TEST_TIMEOUT" "$GODOT" --headless --path "$PROJECT_PATH" "$res_path" > "$log" 2>&1
 	code=$?
 	if [ "$code" -eq 0 ]; then
 		PASS=$((PASS + 1))
@@ -46,7 +55,11 @@ done
 
 echo ""
 echo "=== SUMMARY ==="
-echo "PASS=$PASS FAIL=$FAIL HANG=$HANG"
+echo "SELECTED=$SELECTED PASS=$PASS FAIL=$FAIL HANG=$HANG"
+if [ "$SELECTED" -eq 0 ]; then
+	echo "ERROR: Zero test scenes were selected (no tests discovered or all candidate paths missing)."
+	exit 1
+fi
 if [ "${#ISSUES[@]}" -gt 0 ]; then
 	echo "Issues:"
 	for issue in "${ISSUES[@]}"; do

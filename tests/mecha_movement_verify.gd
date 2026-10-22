@@ -47,6 +47,8 @@ func _ready() -> void:
 	col.shape = capsule
 	col.position.y = 1.2
 	mecha.add_child(col)
+	mecha.claim_player_authority()
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	add_child(mecha)
 	mecha.global_position = Vector3(0, 0, 0)
 
@@ -75,6 +77,7 @@ func _ready() -> void:
 	_check(strafe_disp > 1.0, "Player walked right successfully (moved %.2fm > 1.0m)" % strafe_disp)
 	_check(mecha.global_position.x > strafe_start.x, "Player moved in +X direction (x=%.2f > %.2f)" % [mecha.global_position.x, strafe_start.x])
 
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	mecha.queue_free()
 	cam.queue_free()
 	floor_body.queue_free()

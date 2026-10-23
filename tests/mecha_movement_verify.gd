@@ -18,6 +18,9 @@ func _check(condition: bool, msg: String) -> void:
 
 func _ready() -> void:
 	print("--- Starting Player Mech Movement Verification ---")
+	var prev_combat_muted: bool = AudioManager.combat_muted if AudioManager else false
+	if AudioManager:
+		AudioManager.combat_muted = true
 
 	# 1. Spawn Floor
 	var floor_body := StaticBody3D.new()
@@ -79,6 +82,10 @@ func _ready() -> void:
 	mecha.queue_free()
 	cam.queue_free()
 	floor_body.queue_free()
+	await get_tree().process_frame
+
+	if AudioManager:
+		AudioManager.combat_muted = prev_combat_muted
 
 	print("MECHA_MOVEMENT_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	get_tree().quit(1 if _fails > 0 else 0)

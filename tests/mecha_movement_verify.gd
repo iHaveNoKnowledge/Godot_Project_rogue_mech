@@ -1,7 +1,7 @@
 extends Node3D
 
-## Verification test for Player Mech Movement (Walking, Running, Strafing, Turning):
-## Ensures WASD movement inputs properly translate to velocity and displacement.
+## Verification test for Mecha Movement (Walking, Strafing):
+## Verifies movement direction and displacement through the decoupled drive command interface.
 
 var _checks: int = 0
 var _fails: int = 0
@@ -47,37 +47,35 @@ func _ready() -> void:
 	col.shape = capsule
 	col.position.y = 1.2
 	mecha.add_child(col)
-	mecha.claim_player_authority()
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	mecha.is_player_driven = false
 	add_child(mecha)
 	mecha.global_position = Vector3(0, 0, 0)
 
 	await get_tree().physics_frame
 	await get_tree().physics_frame
 
-	# Test 1: Forward Movement (W key -> input_dir = Vector2(0, -1))
+	# Test 1: Forward Movement (-Z direction)
 	var start_pos: Vector3 = mecha.global_position
-	Input.action_press("move_forward")
+	mecha.set_drive_commands(Vector3(0, 0, -1), Vector3.ZERO)
 	for i in range(30):
 		await get_tree().physics_frame
-	Input.action_release("move_forward")
+	mecha.set_drive_commands(Vector3.ZERO, Vector3.ZERO)
 
 	var forward_disp := start_pos.distance_to(mecha.global_position)
 	_check(forward_disp > 1.0, "Player walked forward successfully (moved %.2fm > 1.0m)" % forward_disp)
 	_check(mecha.global_position.z < start_pos.z, "Player moved in forward -Z direction (z=%.2f < %.2f)" % [mecha.global_position.z, start_pos.z])
 
-	# Test 2: Right Strafing Movement (D key -> input_dir = Vector2(1, 0))
+	# Test 2: Right Strafing Movement (+X direction)
 	var strafe_start: Vector3 = mecha.global_position
-	Input.action_press("move_right")
+	mecha.set_drive_commands(Vector3(1, 0, 0), Vector3.ZERO)
 	for i in range(30):
 		await get_tree().physics_frame
-	Input.action_release("move_right")
+	mecha.set_drive_commands(Vector3.ZERO, Vector3.ZERO)
 
 	var strafe_disp := strafe_start.distance_to(mecha.global_position)
 	_check(strafe_disp > 1.0, "Player walked right successfully (moved %.2fm > 1.0m)" % strafe_disp)
 	_check(mecha.global_position.x > strafe_start.x, "Player moved in +X direction (x=%.2f > %.2f)" % [mecha.global_position.x, strafe_start.x])
 
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	mecha.queue_free()
 	cam.queue_free()
 	floor_body.queue_free()

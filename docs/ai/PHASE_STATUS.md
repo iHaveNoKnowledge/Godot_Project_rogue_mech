@@ -43,7 +43,21 @@ Published Remote & Local Baseline: `eb6aa48b1740ad11e8e364be9c10c258445ec145` (`
 
 ---
 
-## 3. Reopening Conditions
+## 3. Core Combat, Audio & Test Harness Modernization Phase Ledger (R19-D Series)
+
+Published Remote & Local Baseline: `87478eccc692944928e1fda75a6eb3d24d91082e` (`main`, verified synchronized with `origin/main` via live `git ls-remote` query at R19-D8 audit time)
+
+| Phase | Description | Status | Verified Commit / Ref | Test Verification Suite | Notes & Reopening Conditions |
+|---|---|---|---|---|---|
+| **R19-D4** | Group A Production Fixes (Melee SFX enum collision & null safety, Main Menu scenario start boolean syntax) | CLOSED | `1c776fa6b1302d55c3cd63306d6511cbe846102a` | `tests/melee_sfx_verify.tscn`, `test/unit/campaign_scenario_selection_verify.tscn` | Closed; fixes `sfx_manager.gd` enum 4/5/6 collision via substring matching (`"fist"`, `"knife"`, `"blade"`) with pitch jitter (`0.06` swing, `0.05` hit/enemy) and resolves GDScript `False` -> `false` in `main_menu_controller.gd`. |
+| **R19-D6** | Group B Test Fixture Modernization (14 standalone test fixtures synchronized with production contracts & exit codes) | CLOSED | `87478eccc692944928e1fda75a6eb3d24d91082e` | 14 standalone verification scenes (Exit 0) | Closed; adds deterministic exit codes (`get_tree().quit(0/1)`), resolves headless mouse capture gate, updates assertions to match 0.0 permadeath shattering, DEF damage scaling, archetype mesh heights, multi-channel action animators, and projectile isolation. |
+| **R19-D7** | Post-Commit Serial Regression Verification | CLOSED | `87478eccc692944928e1fda75a6eb3d24d91082e` | `run_tests.sh` (9 suites Exit 0; GUT: "Nothing was run"); 14 standalone verification scenes (Exit 0) | Closed; verified PASS WITH WARNINGS. Non-fatal warnings documented (dummy renderer/allocator teardown, colinear up vector in vertical missile launch, auto-split child reparenting). Known headless limitations documented. |
+| **R19-D8** | Push / Remote Synchronization Audit | CLOSED | `87478eccc692944928e1fda75a6eb3d24d91082e` | Read-only audit & `git ls-remote origin refs/heads/main` (Exit 0) | Closed; verified 0 ahead / 0 behind divergence. Remote GitHub server and local references confirmed matching at `87478ecc` at observation time. Neutral reflog `update by push` record noted without actor attribution; no further push required. |
+| **R19-D9** | Canonical Documentation Synchronization | CLOSED | Current Phase (`87478ecc`) | Pre- and post-documentation git diff checks | Closed; canonical tracking synchronization across `PHASE_STATUS.md` and `WORK_HANDOFF.md`. |
+
+---
+
+## 4. Reopening Conditions
 A CLOSED phase must **NEVER** be reopened or redesigned unless one of the following is proven:
 1. A reproducible regression is demonstrated with a failing test case in `test/unit/`.
 2. A proven violation of the Architecture Authority Map occurs in production code.
@@ -51,7 +65,7 @@ A CLOSED phase must **NEVER** be reopened or redesigned unless one of the follow
 
 ---
 
-## 4. Historical Reference Ledger
+## 5. Historical Reference Ledger
 - `5AQ`: Base/Territory Entity Boundary (`77335a6`)
 - `5AR`: Territory Ownership Boundary (`5ab4e22`)
 - `5AS`: Force Lifecycle Boundary (`5ab4e22`)

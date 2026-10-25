@@ -1,40 +1,45 @@
 # Work Handoff & Session State
 
 ## 1. Current State Summary
-- **Current Task:** R2-CY-B Documentation Reconciliation & R2-CS Closure.
-  - Phase R2-CY-A completed read-only baseline reconciliation and established eligibility for separate closure.
-  - Phase R2-CY-B performs documentation-only reconciliation and exact-scope commit/push; it does not rerun tests.
-  - R2-CS documentation closure is complete once this authorized commit is created and verified.
+- **Current Task:** R19-D Series Documentation Closure & Handoff (R19-D Series CLOSED).
 - **Current Branch:** `main`
-- **Published Pre-Phase Baseline:** `eb6aa48b1740ad11e8e364be9c10c258445ec145` (up to date with `origin/main`).
-- **Published Missile Commit Chain:**
-  1. `f13b90d3f42a896220bb957adda04dafedcd5fad` — `test(mecha): add swarm salvo pricing and shoulder missile salvo execution coverage`
-  2. `2065bc12b8bb65752fac3a4da327782b47a25e40` — `test(mecha): introduce missile lock cone-sweep geometric verification suite`
-  3. `e5fd672497d0c074c413d6d9f84107893d61890f` — `feat(mecha): implement Option A missile trigger contention handling with dual-trigger verification`
-  4. `ca071bcd59ef52b64660300df1b5fae4881e8775` — `docs(ai): synchronize canonical project documents with published missile implementation` (R2-CS documentation commit)
-  5. `eb6aa48b1740ad11e8e364be9c10c258445ec145` — `หฟดำ` (published 57-file working-tree inventory)
+- **Published Remote & Local Baseline:** `87478eccc692944928e1fda75a6eb3d24d91082e` (verified synchronized with `origin/main` on remote GitHub via live `git ls-remote` query at R19-D8 audit time).
+- **Published Commit Chain for R19-D:**
+  1. `1c776fa6b1302d55c3cd63306d6511cbe846102a` — `fix(core): resolve melee sfx enum collision and main menu boolean syntax` (Group A: 2 production files)
+  2. `87478eccc692944928e1fda75a6eb3d24d91082e` — `test(verify): harmonize standalone verification fixtures with production contracts and add exit codes` (Group B: 14 test fixtures)
 - **Historical Inventory & Working-Tree State:**
-  - Commit `eb6aa48b1740ad11e8e364be9c10c258445ec145` published the 57-file inventory previously noted as uncommitted at R2-CT baseline (8 reference PNG images, 1 campaign pause-exit wiring scene, and 48 new files across UIDs, melee tests, stance preview tools, and draft tests). This inventory is part of `eb6aa48b`'s historical scope.
-  - Current working-tree state: verified clean at pre-modification baseline (0 modified, 0 staged, 0 untracked), maintained through exact-scope staging of authorized documentation files.
+  - Working-tree state: clean at baseline (0 modified, 0 staged, 0 untracked).
 - **Latest Completed Audits / Phases:**
-  - **Phase R2-CR (Post-Push Regression & Missile Integration Audit):** PASS (`e5fd6724`).
-  - **Phase R2-CY-A (Published Baseline Reconciliation Audit):** PASS (`ELIGIBLE_FOR_SEPARATE_CLOSURE` at baseline `eb6aa48b`).
+  - **Phase R19-D4 (Group A Production Commit):** `1c776fa6b1302d55c3cd63306d6511cbe846102a`
+  - **Phase R19-D6 (Group B Test Fixtures Commit):** `87478eccc692944928e1fda75a6eb3d24d91082e`
+  - **Phase R19-D7 (Post-Commit Regression Verification):** PASS WITH WARNINGS (`87478ecc`). 9 primary unit regression suites in `run_tests.sh` + 14 standalone verification scenes exited 0. Non-fatal dummy renderer shutdown leaks and expected geometry warnings documented.
+  - **Phase R19-D8 (Push / Remote Synchronization Audit):** SYNCHRONIZED (`87478ecc`). Live GitHub `refs/heads/main` confirmed matching local `HEAD` and `origin/main` (0 ahead / 0 behind). Neutral reflog `update by push` recorded without actor attribution; no further push required.
+  - **Phase R19-D9 (Documentation Closure):** Completed.
 
 ---
 
-## 2. Test Verification Summary (Reported by R2-CR in Godot 4.6.2.stable)
+## 2. Test Verification Summary (Reported by R19-D7 in Godot 4.6.2.stable)
 
-| Test Suite | Scene File | Tests / Assertions | Exit Code | Result |
+| Test Suite / Fixture | Target Path | Tests / Checks | Exit Code | Result |
 |---|---|:---:|:---:|:---:|
-| **Missile Salvo Execution (R2-BX)** | `res://test/unit/missile_salvo_execution_verify.tscn` | 34 assertions | 0 | PASSED |
-| **Missile Lock Cone-Sweep (R2-BZ/CB)** | `res://test/unit/missile_lock_cone_sweep_verify.tscn` | 59 assertions | 0 | PASSED |
-| **Dual-Trigger Contention (R2-CC..CI)** | `res://test/unit/missile_dual_trigger_contention_verify.tscn` | 130 assertions | 0 | PASSED |
-| **Missile Lock Release** | `res://test/unit/missile_lock_release_verify.tscn` | 35 assertions | 0 | PASSED |
-| **Weapon Drop Side Effects** | `res://tests/mecha/weapon_drop_side_effects_verify.tscn` | 15 assertions | 0 | PASSED |
-| **Full Runner Integration** | `./run_tests.sh` | 8 sequential suites + GUT | 0 | PASSED |
+| **Primary Runner (9 Unit Suites)** | `./run_tests.sh` | 9 suites sequential + GUT | 0 | PASSED |
+| **Aim Pose & Muzzle Verify** | `res://tests/aim_pose_muzzle_verify.tscn` | Explicit marker | 0 | PASSED |
+| **Armor Damage Visuals Live** | `res://tests/damage_visuals_live_verify.tscn` | 11 passed / 0 failed | 0 | PASSED |
+| **Directional Damage & Durability** | `res://tests/directional_damage_and_durability_verify.tscn` | 13 passed / 0 failed | 0 | PASSED |
+| **Dual Segment Mesh Hierarchy** | `res://tests/dual_segment_mesh_verify.tscn` | 5 passed / 0 failed | 0 | PASSED |
+| **Durability Degradation / Permadeath** | `res://tests/durability_degradation_verify.tscn` | 9 passed / 0 failed | 0 | PASSED |
+| **Hangar Weapon Persistence** | `res://tests/hangar_weapon_persistence_verify.tscn` | 7 passed / 0 failed | 0 | PASSED |
+| **Weapon Hold Stance** | `res://tests/hold_stance_verify.tscn` | 8 passed / 0 failed | 0 | PASSED |
+| **Mecha Combat Refinements** | `res://tests/mecha_combat_refinements_verify.tscn` | 5 passed / 0 failed | 0 | PASSED |
+| **Mecha Foot IK Slope** | `res://tests/mecha_foot_ik_verify.tscn` | 7 passed / 0 failed | 0 | PASSED |
+| **Melee SFX & Jitter Routing** | `res://tests/melee_sfx_verify.tscn` | 35 passed / 0 failed | 0 | PASSED |
+| **Missile Projectile & Arc Detonation** | `res://tests/missile_projectile_verify.tscn` | 16 passed / 0 failed | 0 | PASSED |
+| **Procedural Damage Shader Overlay** | `res://tests/procedural_damage_shader_verify.tscn` | 10 passed / 0 failed | 0 | PASSED |
+| **Sacrifice Bond Mission Wiring** | `res://tests/sacrifice_bond_verify.tscn` | 19 passed / 0 failed | 0 | PASSED |
+| **User Feedback Fixes** | `res://tests/user_feedback_fixes_verify.tscn` | 5 passed / 0 failed | 0 | PASSED |
 
-*Scope Note:* These 5 suites represent targeted regression coverage for the missile and weapon-drop contracts (aggregate 273 checks, 0 failures). They confirm that the missile subsystem operates strictly within specification, but they do not serve as proof of full-project correctness across unrelated systems.
-*Known Baseline Note:* An established baseline failure in `capability_part_break` (33 passed / 1 failed) is an isolated test fixture contract documented in `OPEN_ISSUES.md`; it is unrelated to the missile subsystem.
+*Scope & Verification Note:* In `run_tests.sh`, GUT reported `Nothing was run` because unit suites under `res://test/unit/` are standalone scene runners rather than GUT scripts; all 9 standalone scenes executed and passed with exit code 0.
+*Known Headless Limitations:* Tests executed in `--headless` mode using `AudioServerDummy` and `RendererDummy`. Perceptual acoustic quality, actual framebuffer rendered fragments, OS-level window mouse-capture events, and full multi-mission campaign playthroughs remain to be verified in interactive gameplay sessions.
 
 ---
 
@@ -71,9 +76,16 @@
 ---
 
 ## 4. Immediate Next Actions & Handoff Recommendations
-1. **Published Baseline Reconciled:** The pre-existing 57-file inventory (reference PNGs, scene UID update, stance preview tools, and tests) was published in commit `eb6aa48b1740ad11e8e364be9c10c258445ec145`; working tree is clean.
-2. **Authority Invariant:** The missile subsystem contracts in `weapon_manager.gd` and `missile_lock_on_system.gd` are verified and closed. Do not reopen or redesign without a reproducible failing regression test.
-3. **Subsequent Features:** Authorize new campaign, animation, or combat tasks under separate, narrowly scoped phase plans.
+1. **R19-D Series Closed & Synchronized:**
+   - Group A production commit `1c776fa6b1302d55c3cd63306d6511cbe846102a` and Group B test fixture commit `87478eccc692944928e1fda75a6eb3d24d91082e` are verified and committed on `main`.
+   - Local `HEAD`, local `origin/main`, and live GitHub `refs/heads/main` were observed fully synchronized at `87478eccc692944928e1fda75a6eb3d24d91082e` (0 ahead / 0 behind) during the R19-D8 audit.
+   - Reflog recorded an `update by push` event without an identified actor. No further push is required for these commits.
+2. **Authority Invariant:**
+   - Contracts across audio management (`sfx_manager.gd`), UI campaign flow (`main_menu_controller.gd`), missile dual-trigger contention, permadeath armor mechanics, and test fixtures are verified and closed.
+   - Never reopen or redesign closed phases without a reproducible regression test or proven architectural violation.
+3. **Subsequent Project Action:**
+   - With the R19-D series fully audited, regression-verified, synchronized, and documented, the repository is at a stable baseline.
+   - The recommended next project action is to authorize new feature, content, or interactive playtest phases under a separate, narrowly scoped plan.
 
 ---
 

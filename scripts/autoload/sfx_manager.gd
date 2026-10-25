@@ -413,16 +413,20 @@ func play_pile_bunker_hit(pos: Vector3) -> void:
 	play_sfx("pile_bunker_hit", pos, 0.5)
 
 
+const MELEE_SWING_PITCH_JITTER: float = 0.06
+const MELEE_HIT_PITCH_JITTER: float = 0.05
+
+
 func play_melee_swing(weapon: WeaponPart, pos: Vector3) -> void:
-	play_sfx(_melee_sfx_name(weapon, false), pos, 1.0)
+	play_sfx(_melee_sfx_name(weapon, false), pos, 1.0, "SFX", MELEE_SWING_PITCH_JITTER)
 
 
 func play_melee_hit(weapon: WeaponPart, pos: Vector3) -> void:
-	play_sfx(_melee_sfx_name(weapon, true), pos, 1.0)
+	play_sfx(_melee_sfx_name(weapon, true), pos, 1.0, "SFX", MELEE_HIT_PITCH_JITTER)
 
 
 func play_enemy_melee_swing(pos: Vector3) -> void:
-	play_sfx("enemy_melee_swing", pos, 0.0)
+	play_sfx("enemy_melee_swing", pos, 0.0, "SFX", 0.05)
 
 
 func play_ally_melee_swing(pos: Vector3) -> void:
@@ -434,12 +438,12 @@ func play_npc_melee_hit(pos: Vector3) -> void:
 
 
 func _melee_sfx_name(weapon: WeaponPart, is_hit: bool) -> String:
-	var wtype: int = weapon.weapon_type
-	if wtype == 4:
+	var name := weapon.weapon_name.to_lower() if weapon else ""
+	if name.contains("fist"):
 		return "fist_thud" if is_hit else "fist_swing"
-	if wtype == 5:
+	if name.contains("knife"):
 		return "knife_hit" if is_hit else "knife_swing"
-	if wtype == 6:
+	if name.contains("blade"):
 		return "blade_ring" if is_hit else "blade_swing"
 	return "melee"
 

@@ -292,11 +292,11 @@ func _on_theme_chosen(theme_id: String) -> void:
 	# contract (validate-then-start). Only a successfully started
 	# campaign enters the node map; anything else stays in the menu.
 	var selected := CampaignScenarioSelection.select_scenario("frontier_skirmish")
-	if not bool(selected.get("ok", False)):
+	if not bool(selected.get("ok", false)):
 		printerr("Campaign start refused at selection: %s" % str(selected.get("reason", "")))
 		return
 	var started := CampaignScenarioSelection.confirm_selection()
-	if not bool(started.get("ok", False)) or not bool(started.get("started", False)):
+	if not bool(started.get("ok", false)) or not bool(started.get("started", false)):
 		printerr("Campaign start refused at entry: %s" % str(started.get("reason", "")))
 		return
 	GameManager.enter_node_map()

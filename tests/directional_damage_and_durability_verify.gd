@@ -93,16 +93,26 @@ func _ready() -> void:
 	_check(absf(w_dur - 0.95) < 0.01, "Weapon firing/overheat degrades weapon durability (1.0 -> %.2f)" % w_dur)
 
 	# -----------------------------------------------------------------------
-	# 4. Test Effective Max HP Scaling with Durability
+	# 4. Test Effective Damage Scaling with Durability
 	# -----------------------------------------------------------------------
 	var mh_script = preload("res://scripts/mecha/mecha_health.gd")
 	var mh = mh_script.new()
 	add_child(mh)
 	mh._init_parts()
 	
-	var effective_max := float(mh.parts["body"]["max_armor"])
-	_check(effective_max <= 100.0 * repaired_dur + 0.01, "MechaHealth scales effective Max HP by component lifetime durability (%.1f HP)" % effective_max)
+	var nominal_max := float(mh.parts["body"]["max_armor"])
+	_check(absf(nominal_max - 100.0) < 0.01, "MechaHealth preserves nominal max armor capacity (100.0 HP)")
+
+	var def_mult := ArmorSystem.get_durability_def_multiplier(repaired_dur)
+	_check(absf(def_mult - repaired_dur) < 0.01, "ArmorSystem scales DEF mitigation multiplier by durability (%.2f)" % def_mult)
+
+	var base_dmg := DamageCalculator.calculate_armor_damage(20.0, "kinetic", mh.parts["body"], 1.0)
+	var worn_dmg := DamageCalculator.calculate_armor_damage(20.0, "kinetic", mh.parts["body"], def_mult)
+	_check(worn_dmg > base_dmg and absf(worn_dmg - (base_dmg / def_mult)) < 0.01, "Worn durability scales incoming armor damage inversely by DEF multiplier (%.2f > %.2f)" % [worn_dmg, base_dmg])
 
 	print("=== Verification Finished: %d passed, %d failed ===" % [_checks - _fails, _fails])
 	if _fails == 0:
 		print("ALL_DIRECTIONAL_DAMAGE_AND_DURABILITY_TESTS_PASSED")
+		get_tree().quit(0)
+	else:
+		get_tree().quit(1)

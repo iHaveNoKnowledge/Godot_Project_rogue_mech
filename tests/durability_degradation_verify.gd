@@ -44,9 +44,16 @@ func _ready() -> void:
 	var d2 = ArmorSystem.degrade_equipped_armor("body", 0.10)
 	_check(absf(d2 - 0.75) < 0.001, "Emergency patch degrades durability by 10%% (0.85 -> %.2f)" % d2)
 
-	# Minimum floor test
+	# Excessive wear clamps to 0.0 and triggers permadeath shattering
 	var d_floor = ArmorSystem.degrade_equipped_armor("body", 0.90)
-	_check(d_floor >= 0.10, "Durability has minimum safety floor of 10%% (was %.2f)" % d_floor)
+	_check(absf(d_floor - 0.0) < 0.001, "Durability clamps to 0.0 on fatal degradation (was %.2f)" % d_floor)
+	_check(GlobalData.weapons.equipped_parts.get("body", {}).is_empty(), "Armor shatters and is unequipped at 0.0 durability")
+	var in_inv := false
+	for item in GlobalData.weapons.armor_inventory:
+		if item is Dictionary and item.get("uid", "") == "test_plate_01":
+			in_inv = true
+			break
+	_check(not in_inv, "Shattered armor is permanently removed from inventory")
 
 	# 3. Test Scrap Primitive & Cloth Wrap Mesh Generation
 	var pmm_script = preload("res://scripts/mecha/part_mesh_manager.gd")
@@ -62,3 +69,6 @@ func _ready() -> void:
 	print("--- Durability & Material Verification Finished: %d passed, %d failed ---" % [_checks - _fails, _fails])
 	if _fails == 0:
 		print("ALL_DURABILITY_DEGRADATION_TESTS_PASSED")
+		get_tree().quit(0)
+	else:
+		get_tree().quit(1)

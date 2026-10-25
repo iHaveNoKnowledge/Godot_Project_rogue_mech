@@ -161,5 +161,7 @@ func _ready() -> void:
 	print("\n=== Test Results: %d/%d Passed ===" % [passed_tests, total_tests])
 	if passed_tests == total_tests:
 		print("ALL 5 USER FEEDBACK ISSUES RESOLVED SUCCESSFULLY!")
+		get_tree().quit(0)
 	else:
 		print("SOME TESTS FAILED!")
+		get_tree().quit(1)

@@ -34,8 +34,8 @@ func _ready() -> void:
 	var foot_ik := mecha.get_node_or_null("FootIKSystem") as MechaFootIK
 	_check(foot_ik != null, "FootIKSystem node exists under MechaBase")
 	_check(foot_ik.ray_left != null and foot_ik.ray_right != null, "FootIKSystem initialized left and right raycasts")
-	_check(foot_ik.ray_left.collision_mask == 1, "Left raycast collision mask includes terrain (layer 1)")
-	_check(foot_ik.ray_right.collision_mask == 1, "Right raycast collision mask includes terrain (layer 1)")
+	_check(foot_ik.ray_left.collision_mask == 2, "Left raycast collision mask includes terrain (layer 2 / Environment)")
+	_check(foot_ik.ray_right.collision_mask == 2, "Right raycast collision mask includes terrain (layer 2 / Environment)")
 
 	# 3. Test Ankle Angle Calculation on a 25-degree slope normal
 	var slope_normal := Vector3(0, cos(deg_to_rad(25.0)), -sin(deg_to_rad(25.0))).normalized()
@@ -55,3 +55,6 @@ func _ready() -> void:
 	print("--- Mecha Foot IK Verification Finished: %d passed, %d failed ---" % [_checks - _fails, _fails])
 	if _fails == 0:
 		print("ALL_FOOT_IK_TESTS_PASSED")
+		get_tree().quit(0)
+	else:
+		get_tree().quit(1)

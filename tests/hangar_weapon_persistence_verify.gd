@@ -68,3 +68,6 @@ func _ready() -> void:
 	print("--- Hangar Weapon Persistence Verification Finished: %d passed, %d failed ---" % [_checks - _fails, _fails])
 	if _fails == 0:
 		print("ALL_WEAPON_PERSISTENCE_TESTS_PASSED")
+		get_tree().quit(0)
+	else:
+		get_tree().quit(1)

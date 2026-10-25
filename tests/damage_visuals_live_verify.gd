@@ -40,7 +40,7 @@ func _ready() -> void:
 	_check(body_armor != null, "Body armor container exists")
 
 	var found_overlay := false
-	for child in body_armor.get_children():
+	for child in body_armor.find_children("*", "MeshInstance3D", true, false):
 		if child is MeshInstance3D and child.material_overlay != null:
 			found_overlay = true
 			break
@@ -84,3 +84,6 @@ func _ready() -> void:
 	print("--- Armor Damage Visuals Verification Finished: %d passed, %d failed ---" % [_checks - _fails, _fails])
 	if _fails == 0:
 		print("ALL_ARMOR_DAMAGE_VISUALS_TESTS_PASSED")
+		get_tree().quit(0)
+	else:
+		get_tree().quit(1)

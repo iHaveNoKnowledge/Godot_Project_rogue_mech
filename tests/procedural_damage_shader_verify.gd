@@ -77,3 +77,6 @@ func _ready() -> void:
 	print("--- Procedural Damage Verification Finished: %d passed, %d failed ---" % [_checks - _fails, _fails])
 	if _fails == 0:
 		print("ALL_PROCEDURAL_DAMAGE_TESTS_PASSED")
+		get_tree().quit(0)
+	else:
+		get_tree().quit(1)

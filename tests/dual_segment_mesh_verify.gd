@@ -32,11 +32,13 @@ func _ready() -> void:
 	var upper_packed := PackedScene.new()
 	var upper_node := MeshInstance3D.new()
 	upper_node.name = "CustomUpperMesh"
+	upper_node.mesh = BoxMesh.new()
 	upper_packed.pack(upper_node)
 
 	var lower_packed := PackedScene.new()
 	var lower_node := MeshInstance3D.new()
 	lower_node.name = "CustomLowerMesh"
+	lower_node.mesh = BoxMesh.new()
 	lower_packed.pack(lower_node)
 
 	var part := ArmorPart.new()
@@ -58,11 +60,13 @@ func _ready() -> void:
 	var combined_root := Node3D.new()
 	var sub_upper := MeshInstance3D.new()
 	sub_upper.name = "Upper"
+	sub_upper.mesh = BoxMesh.new()
 	combined_root.add_child(sub_upper)
 	sub_upper.owner = combined_root
 
 	var sub_lower := MeshInstance3D.new()
 	sub_lower.name = "Forearm_Armor"
+	sub_lower.mesh = BoxMesh.new()
 	combined_root.add_child(sub_lower)
 	sub_lower.owner = combined_root
 
@@ -86,3 +90,6 @@ func _ready() -> void:
 	print("--- Dual-Segment Verification Finished: %d passed, %d failed ---" % [_checks - _fails, _fails])
 	if _fails == 0:
 		print("ALL_DUAL_SEGMENT_MESH_TESTS_PASSED")
+		get_tree().quit(0)
+	else:
+		get_tree().quit(1)

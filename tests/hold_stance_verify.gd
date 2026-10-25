@@ -72,3 +72,6 @@ func _ready() -> void:
 	print("--- Hold Stance Verification Finished: %d passed, %d failed ---" % [_checks - _fails, _fails])
 	if _fails == 0:
 		print("ALL_HOLD_STANCE_TESTS_PASSED")
+		get_tree().quit(0)
+	else:
+		get_tree().quit(1)

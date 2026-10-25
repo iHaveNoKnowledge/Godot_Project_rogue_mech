@@ -120,13 +120,23 @@ func _ready() -> void:
 	_check(arc_ok, "Visual pitches to follow the arcing trajectory (delta %.3f rad)" % arc_delta)
 
 	# --- 4. Impact FX gating ---
+	# Free in-flight projectiles from sections 2 & 3 so their gravity drop and trail
+	# timers do not asynchronously inject or destroy FX nodes during impact assertions.
+	for p in get_tree().get_nodes_in_group("projectile"):
+		if is_instance_valid(p):
+			p.queue_free()
+	for i in range(30):
+		await get_tree().physics_frame
+
 	var dummy_a := CharacterBody3D.new()
 	dummy_a.set_script(load("res://tests/melee_dummy_target.gd"))
 	dummy_a.collision_layer = 8
 	dummy_a.add_to_group("enemy")
+	dummy_a.position = Vector3(-20, 0, 0)
 	add_child(dummy_a)
 	var p_plain := CharacterBody3D.new()
 	p_plain.set_script(load("res://scripts/systems/projectile.gd"))
+	p_plain.position = Vector3(-20, 50, 0)
 	add_child(p_plain)
 	p_plain.damage = 40.0
 	p_plain.damage_type = "heat"
@@ -134,7 +144,11 @@ func _ready() -> void:
 	p_plain.speed = 10.0
 	await get_tree().process_frame
 	var before_plain := _count_fx_nodes(self)
-	p_plain._hit_target(dummy_a)
+	if is_instance_valid(p_plain) and not p_plain.is_queued_for_deletion():
+		p_plain.position = dummy_a.position
+		p_plain._hit_target(dummy_a)
+	else:
+		_check(false, "plain projectile freed prematurely")
 	await get_tree().process_frame
 	_check(_count_fx_nodes(self) == before_plain, "plain heat round stays spark-only (no detonation FX)")
 	_check(dummy_a.damage_taken == 40.0, "plain round still applies full damage")
@@ -143,9 +157,11 @@ func _ready() -> void:
 	dummy_b.set_script(load("res://tests/melee_dummy_target.gd"))
 	dummy_b.collision_layer = 8
 	dummy_b.add_to_group("enemy")
+	dummy_b.position = Vector3(20, 0, 0)
 	add_child(dummy_b)
 	var p_missile := CharacterBody3D.new()
 	p_missile.set_script(load("res://scripts/systems/projectile.gd"))
+	p_missile.position = Vector3(20, 50, 0)
 	add_child(p_missile)
 	p_missile.damage = 100.0
 	p_missile.damage_type = "heat"
@@ -154,7 +170,11 @@ func _ready() -> void:
 	p_missile.speed = 10.0
 	await get_tree().process_frame
 	var before_boom := _count_fx_nodes(self)
-	p_missile._hit_target(dummy_b)
+	if is_instance_valid(p_missile) and not p_missile.is_queued_for_deletion():
+		p_missile.position = dummy_b.position
+		p_missile._hit_target(dummy_b)
+	else:
+		_check(false, "missile projectile freed prematurely")
 	await get_tree().process_frame
 	_check(_count_fx_nodes(self) > before_boom, "MISSILE impact spawns detonation fire/smoke FX")
 	_check(dummy_b.damage_taken == 100.0, "missile keeps its exact tuned damage")
@@ -164,3 +184,4 @@ func _ready() -> void:
 	print("--- Missile Projectile Verification Finished: checks=%d fails=%d ---" % [_checks, _fails])
 	if _fails == 0:
 		print("ALL_MISSILE_PROJECTILE_TESTS_PASSED")
+	get_tree().quit(1 if _fails > 0 else 0)

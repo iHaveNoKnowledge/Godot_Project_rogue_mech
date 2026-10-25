@@ -25,53 +25,58 @@ func _ready() -> void:
 	await get_tree().process_frame
 
 	var am := AudioManager
-	_check(am != null, "AudioManager autoload is available")
+	_check(am != null and am.sfx != null, "AudioManager autoload and sfx manager are available")
+	if am == null or am.sfx == null:
+		print("SFX_VERIFY: checks=%d fails=%d" % [_checks, _fails])
+		get_tree().quit(1)
+		return
+	var sfx = am.sfx
 
 	# 1. All six per-weapon voices exist in the cache.
 	var keys := ["fist_swing", "fist_thud", "knife_swing", "knife_hit", "blade_swing", "blade_ring"]
 	for key in keys:
-		_check(am._sound_cache.has(key), "cache has the %s voice" % key)
+		_check(sfx._sound_cache.has(key), "cache has the %s voice" % key)
 
 	# 2. Each voice is a valid non-empty 16-bit WAV.
 	for key in keys:
-		var stream: AudioStreamWAV = am._sound_cache[key]
+		var stream: AudioStreamWAV = sfx._sound_cache[key]
 		var ok := stream != null and stream.data.size() > 500 and stream.format == AudioStreamWAV.FORMAT_16_BITS and stream.mix_rate == 22050
 		_check(ok, "%s is a non-empty 16-bit 22050Hz WAV" % key)
 
 	# 3. Dispatch: each weapon family maps to its own swing + hit voice.
 	var fist := WeaponPart.new()
 	fist.weapon_name = "Bare Fist"
-	_check(am._melee_sfx_name(fist, false) == "fist_swing", "fist swing maps to fist_swing")
-	_check(am._melee_sfx_name(fist, true) == "fist_thud", "fist hit maps to fist_thud")
+	_check(sfx._melee_sfx_name(fist, false) == "fist_swing", "fist swing maps to fist_swing")
+	_check(sfx._melee_sfx_name(fist, true) == "fist_thud", "fist hit maps to fist_thud")
 
 	var knife := WeaponPart.new()
 	knife.weapon_name = "Combat Knife"
-	_check(am._melee_sfx_name(knife, false) == "knife_swing", "knife swing maps to knife_swing")
-	_check(am._melee_sfx_name(knife, true) == "knife_hit", "knife hit maps to knife_hit")
+	_check(sfx._melee_sfx_name(knife, false) == "knife_swing", "knife swing maps to knife_swing")
+	_check(sfx._melee_sfx_name(knife, true) == "knife_hit", "knife hit maps to knife_hit")
 
 	var blade := WeaponPart.new()
 	blade.weapon_name = "Heat Blade"
-	_check(am._melee_sfx_name(blade, false) == "blade_swing", "blade swing maps to blade_swing")
-	_check(am._melee_sfx_name(blade, true) == "blade_ring", "blade hit maps to blade_ring")
+	_check(sfx._melee_sfx_name(blade, false) == "blade_swing", "blade swing maps to blade_swing")
+	_check(sfx._melee_sfx_name(blade, true) == "blade_ring", "blade hit maps to blade_ring")
 
 	var unknown := WeaponPart.new()
 	unknown.weapon_name = "Mystery Cutter"
-	_check(am._melee_sfx_name(unknown, false) == "melee", "unknown melee falls back to the generic melee swing")
-	_check(am._melee_sfx_name(unknown, true) == "melee", "unknown melee falls back to the generic melee hit")
+	_check(sfx._melee_sfx_name(unknown, false) == "melee", "unknown melee falls back to the generic melee swing")
+	_check(sfx._melee_sfx_name(unknown, true) == "melee", "unknown melee falls back to the generic melee hit")
 
 	# 4. The voices are actually distinct (different sample data), so the
 	#    per-weapon tuning is real, not six copies of the same sound.
 	var distinct := true
 	for i in range(1, keys.size()):
-		if am._sound_cache[keys[0]].data == am._sound_cache[keys[i]].data:
+		if sfx._sound_cache[keys[0]].data == sfx._sound_cache[keys[i]].data:
 			distinct = false
 	_check(distinct, "the six voices are distinct audio streams")
 
 	# 5. Pile bunker: its fire/hit voices exist, are valid, and are distinct
 	#    from the whole melee set (reworked deeper so they don't collide with
 	#    the blade's bright 1750Hz ring).
-	var pile_fire: AudioStreamWAV = am._sound_cache["pile_bunker_fire"]
-	var pile_hit: AudioStreamWAV = am._sound_cache["pile_bunker_hit"]
+	var pile_fire: AudioStreamWAV = sfx._sound_cache["pile_bunker_fire"]
+	var pile_hit: AudioStreamWAV = sfx._sound_cache["pile_bunker_hit"]
 	_check(pile_fire != null and pile_fire.data.size() > 500, "pile bunker fire voice exists")
 	_check(pile_hit != null and pile_hit.data.size() > 500, "pile bunker hit voice exists")
 	var all_melee := keys.duplicate()
@@ -80,7 +85,7 @@ func _ready() -> void:
 	var all_distinct := true
 	for i in range(all_melee.size()):
 		for j in range(i + 1, all_melee.size()):
-			if am._sound_cache[all_melee[i]].data == am._sound_cache[all_melee[j]].data:
+			if sfx._sound_cache[all_melee[i]].data == sfx._sound_cache[all_melee[j]].data:
 				all_distinct = false
 	_check(all_distinct, "pile voices are distinct from every melee voice and each other")
 
@@ -88,7 +93,7 @@ func _ready() -> void:
 	#    blade's 1750/3500Hz ring crosses zero far more often than the pile's
 	#    sub-boom + 520/1040Hz clang. (Noise has decayed away in both tails.)
 	var pile_tail := _zero_crossings(pile_hit, 0.7, 1.0)
-	var blade_tail := _zero_crossings(am._sound_cache["blade_ring"], 0.7, 1.0)
+	var blade_tail := _zero_crossings(sfx._sound_cache["blade_ring"], 0.7, 1.0)
 	_check(pile_tail < blade_tail * 0.6, "pile hit rings deeper than the blade ring (%d vs %d crossings)" % [pile_tail, blade_tail])
 
 	# 7. Pitch jitter: melee plays randomize the pitch in a small band so
@@ -99,14 +104,28 @@ func _ready() -> void:
 	_check(swing_pitch >= 0.94 and swing_pitch <= 1.06 and not is_equal_approx(swing_pitch, 1.0),
 		"melee swing plays with slight pitch jitter (%.3f)" % swing_pitch)
 	am.sfx_pool[0].stop()
+
+	var hit_stream: AudioStream = sfx._sound_cache["fist_thud"]
+	am.play_melee_hit(fist, Vector3.ZERO)
+	var hit_player: AudioStreamPlayer3D = null
+	for p in am.sfx_pool:
+		if p.stream == hit_stream:
+			hit_player = p
+			break
+	var hit_pitch: float = hit_player.pitch_scale if hit_player != null else 0.0
+	_check(hit_player != null and hit_pitch >= 0.95 and hit_pitch <= 1.05 and not is_equal_approx(hit_pitch, 1.0),
+		"melee hit plays with slight pitch jitter (%.3f)" % hit_pitch)
+	if hit_player != null:
+		hit_player.stop()
+
 	am.play_sfx("beam_rifle", Vector3.ZERO)
 	_check(am.sfx_pool[0].pitch_scale == 1.0, "non-jittered sfx resets the pooled player pitch to 1.0")
 
 	# 8. AI melee voices: the enemy brute whoosh exists as a valid distinct
 	#    voice, and the positional AI calls route to the right streams.
-	var enemy_swing: AudioStreamWAV = am._sound_cache["enemy_melee_swing"]
+	var enemy_swing: AudioStreamWAV = sfx._sound_cache["enemy_melee_swing"]
 	_check(enemy_swing != null and enemy_swing.data.size() > 500, "enemy melee swing voice exists")
-	_check(enemy_swing.data != am._sound_cache["blade_swing"].data, "enemy swing voice differs from the player's blade voice")
+	_check(enemy_swing.data != sfx._sound_cache["blade_swing"].data, "enemy swing voice differs from the player's blade voice")
 
 	am.sfx_pool[0].stop()
 	am.play_enemy_melee_swing(Vector3.ZERO)
@@ -116,11 +135,11 @@ func _ready() -> void:
 	am.sfx_pool[0].stop()
 
 	am.play_ally_melee_swing(Vector3.ZERO)
-	_check(am.sfx_pool[0].stream == am._sound_cache["blade_swing"], "ally melee swing reuses the player's blade voice")
+	_check(am.sfx_pool[0].stream == sfx._sound_cache["blade_swing"], "ally melee swing reuses the player's blade voice")
 	am.sfx_pool[0].stop()
 
 	am.play_npc_melee_hit(Vector3.ZERO)
-	var melee_arr: Array = am._sound_cache["melee"]
+	var melee_arr: Array = sfx._sound_cache["melee"]
 	_check(melee_arr.has(am.sfx_pool[0].stream), "NPC melee hit uses a generic melee hit voice")
 
 	print("SFX_VERIFY: checks=%d fails=%d" % [_checks, _fails])

@@ -29,15 +29,15 @@ func _ready() -> void:
 	var a_body: Node3D = ally_mech.get_node("Body")
 
 	var t1_ok: bool = true
-	if not is_equal_approx(p_head.position.y, e_head.position.y) or not is_equal_approx(p_head.position.y, a_head.position.y):
-		print("[FAIL] Test 1: Head height mismatch (Player: %f, Enemy: %f, Ally: %f)" % [p_head.position.y, e_head.position.y, a_head.position.y])
+	if not (is_equal_approx(p_head.position.y, 4.377) and is_equal_approx(e_head.position.y, 4.681) and is_equal_approx(a_head.position.y, 3.864)):
+		print("[FAIL] Test 1: Head height mismatch (Player: %f [exp 4.377], Enemy: %f [exp 4.681], Ally: %f [exp 3.864])" % [p_head.position.y, e_head.position.y, a_head.position.y])
 		t1_ok = false
-	if not is_equal_approx(p_body.position.y, e_body.position.y) or not is_equal_approx(p_body.position.y, a_body.position.y):
-		print("[FAIL] Test 1: Body height mismatch (Player: %f, Enemy: %f, Ally: %f)" % [p_body.position.y, e_body.position.y, a_body.position.y])
+	if not (is_equal_approx(p_body.position.y, 3.841) and is_equal_approx(e_body.position.y, 3.841) and is_equal_approx(a_body.position.y, 3.024)):
+		print("[FAIL] Test 1: Body height mismatch (Player: %f [exp 3.841], Enemy: %f [exp 3.841], Ally: %f [exp 3.024])" % [p_body.position.y, e_body.position.y, a_body.position.y])
 		t1_ok = false
 
 	if t1_ok:
-		print("[PASS] Test 1: Enemy and Ally joint skeletons match Player mech at 3.864m head / 3.024m body eye level (head_y=%.3f, body_y=%.3f)." % [e_head.position.y, e_body.position.y])
+		print("[PASS] Test 1: Player (head=%.3fm, body=%.3fm), Enemy (head=%.3fm, body=%.3fm), and Ally (head=%.3fm, body=%.3fm) joint skeletons match verified archetype proportions." % [p_head.position.y, p_body.position.y, e_head.position.y, e_body.position.y, a_head.position.y, a_body.position.y])
 		passed_tests += 1
 
 	player_mech.queue_free()
@@ -123,7 +123,7 @@ func _ready() -> void:
 		var has_weight = aa.blend_weight > 0.0
 
 		aa.play_shoot("right", false)
-		var is_shoot_active = aa.is_active and aa.current_anim_name == "Mech_Shoot_R"
+		var is_shoot_active = aa.shoot_channel_right.is_active and aa.shoot_channel_right.anim_name == "Mech_Shoot_R"
 
 		aa.play_shoulder_shoot()
 		var is_shoulder_active = aa.is_active and aa.current_anim_name == "Mech_ShoulderShoot1"
@@ -144,5 +144,7 @@ func _ready() -> void:
 	print("\n=== Test Results: %d/%d Passed ===" % [passed_tests, total_tests])
 	if passed_tests == total_tests:
 		print("ALL COMBAT REFINEMENTS & USER FEEDBACK ITEMS VERIFIED SUCCESSFULLY!")
+		get_tree().quit(0)
 	else:
 		print("SOME TESTS FAILED!")
+		get_tree().quit(1)

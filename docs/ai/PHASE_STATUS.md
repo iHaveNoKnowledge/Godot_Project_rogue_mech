@@ -55,9 +55,31 @@ Published Remote & Local Baseline: `87478eccc692944928e1fda75a6eb3d24d91082e` (`
 | **R19-D8** | Push / Remote Synchronization Audit | CLOSED | `87478eccc692944928e1fda75a6eb3d24d91082e` | Read-only audit & `git ls-remote origin refs/heads/main` (Exit 0) | Closed; verified 0 ahead / 0 behind divergence. Remote GitHub server and local references confirmed matching at `87478ecc` at observation time. Neutral reflog `update by push` record noted without actor attribution; no further push required. |
 | **R19-D9** | Canonical Documentation Synchronization | CLOSED | Current Phase (`87478ecc`) | Pre- and post-documentation git diff checks | Closed; canonical tracking synchronization across `PHASE_STATUS.md` and `WORK_HANDOFF.md`. |
 
+## 4. Locomotion & Retargeting Integration Phase Ledger (R20 Series)
+
+Published Remote & Local Baseline: `e0ef179c0c942d63ce8da791ddfa8bd7eaf44eae` (`main`, verified synchronized with `origin/main`)
+
+| Phase | Description | Status | Verified Commit / Ref | Test Verification Suite | Notes & Reopening Conditions |
+|---|---|---|---|---|---|
+| **R20-I1** | In-Game Locomotion Stride Investigation (Read-Only Diagnostic) | CLOSED | Uncommitted analysis at `e0ef179c` | Static analysis & preflight | Closed; established that `clip_ingame_verify.gd` bypassed controller movement authority by writing `mecha.velocity` directly; `MechaController._apply_movement()` overwrote velocity with 0.0, trapping the mech in `procedural_idle`. |
+| **R20-I2** | Controlled Locomotion Verification (Exploratory Fixture) | CLOSED | Uncommitted exploratory fixture (`clip_ingame_drive_verify.gd`/`.tscn`) | `clip_ingame_drive_verify.tscn` (14/16 passed), `run_tests.sh` (Exit 0) | Closed; empirically proved that driving via `set_drive_commands()` achieves 80.9° leg swing, 7 cadence crossings, and engages `clip_sprint_kimodo`. Confirmed `clip_retarget_verify.tscn` fails independently on `CLIP_RUN`. Two diagnostic files preserved untracked. |
+| **R20-I3** | In-Game Locomotion Fixture Alignment | CLOSED | Uncommitted fixture fix (`test/unit/clip_ingame_verify.gd`) | `clip_ingame_verify.tscn` (14/14 passed, Exit 0), `run_tests.sh` (9 suites Exit 0) | Closed; aligned existing in-game fixture with canonical controller interface `set_drive_commands()` and `clip_sprint_kimodo`. Measured 80.9° swing, 7 cadence crossings, fast=7 vs slow=2 speed scaling, 78.0° post-arm-loss swing, 32.3° airtime grace, clean stop-to-idle. Zero production code modified. |
+| **R20-I4** | Issue Ledger Update & Retarget Failure Triage | CLOSED | Current Documentation Phase | Documentation diff review | Closed; documented Issue 1 fixture resolution, opened Issue 6 for isolated retarget GLB clip failure, preserved untracked diagnostic artifacts, updated handoff. |
+
 ---
 
-## 4. Reopening Conditions
+## 5. Melee Combat Standoff, Telegraph & Action Pacing Phase Ledger (R21 Series)
+
+| Phase | Description | Status | Verified Commit / Ref | Test Verification Suite | Notes & Reopening Conditions |
+|---|---|---|---|---|---|
+| **R21-A** | Melee Combat Pacing & Standoff Distance (6.0–8.5m circle-strafe + back-pedal) | CLOSED | Current Implementation | `melee_combat_pacing_and_telegraph_verify.tscn` (37/37 Passed, Exit 0), `run_tests.sh` (10/10 suites Exit 0) | Closed; prevents enemy from sticking/orbiting at point-blank range. Back-pedals when < 5.5m; circle-strafes in sweet spot. |
+| **R21-B** | Direction Lock & Ground Telegraph Indicator (Action RPG danger corridor) | CLOSED | Current Implementation | `melee_combat_pacing_and_telegraph_verify.tscn` (37/37 Passed, Exit 0) | Closed; displays red danger corridor on ground during windup (0.6s Rusher / 0.8s Shield Melee). Direction Lock engages 0.2s before strike. |
+| **R21-C** | Attacker Token Management & Multi-Enemy Anti-Swarm Coordination | CLOSED | Current Implementation | `melee_combat_pacing_and_telegraph_verify.tscn` (37/37 Passed, Exit 0) | Closed; limits simultaneous melee attacks to 1 (or 2 for squads >= 5) via `EnemySquadCoordinator`. Other members hold circle-strafe formation. |
+| **R21-D** | Punish Window Recovery & Back-dash Disengage | CLOSED | Current Implementation | `melee_combat_pacing_and_telegraph_verify.tscn` (37/37 Passed, Exit 0) | Closed; 0.55s–0.70s stationary recovery window, shield dropped on Shield Melee during windup and restored on disengage, agile back-dash on Rusher. |
+
+---
+
+## 6. Reopening Conditions
 A CLOSED phase must **NEVER** be reopened or redesigned unless one of the following is proven:
 1. A reproducible regression is demonstrated with a failing test case in `test/unit/`.
 2. A proven violation of the Architecture Authority Map occurs in production code.
@@ -65,7 +87,7 @@ A CLOSED phase must **NEVER** be reopened or redesigned unless one of the follow
 
 ---
 
-## 5. Historical Reference Ledger
+## 7. Historical Reference Ledger
 - `5AQ`: Base/Territory Entity Boundary (`77335a6`)
 - `5AR`: Territory Ownership Boundary (`5ab4e22`)
 - `5AS`: Force Lifecycle Boundary (`5ab4e22`)

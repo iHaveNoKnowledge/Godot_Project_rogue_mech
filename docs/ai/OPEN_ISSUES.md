@@ -8,18 +8,45 @@ This document tracks unresolved investigations, technical debt, and known runtim
 
 ### Issue 1: Animation & Combat Lunge Synchronization
 - **Category:** Combat / Animation Pipeline
-- **Status:** **UNVERIFIED / OPEN INVESTIGATION**
+- **Status:** **PARTIALLY RESOLVED / IN-GAME FIXTURE VERIFIED** (Locomotion fixture resolved; live combat lunge unverified)
 - **Symptom Description:**
-  - Mecha attack logic may move or lunge the character before the imported attack animation visually plays.
-  - Full-body motion may not be visible; only certain body parts may appear animated during certain attacks.
-- **Investigation Plan:**
-  - Inspect animation blend trees, pivot writers, attack timing, bone retargeting, and weapon-layer masks.
-  - Must not mark as resolved without a dedicated, reproducible regression test and visual confirmation.
-- **Evidence (2026-10-19, headless, Godot 4.6.2.stable, branch `main`):**
-  - `test/unit/innerframe_rig_verify.tscn` — 8/8 PASS: GLB 24-bone Skeleton3D, all 16 MechaRig bones, head rest 4.28 m, clip `run` present.
-  - `test/unit/clip_retarget_verify.tscn` — 14/14 PASS in isolation: legs 105.6°/103.8° antiphase (corr −0.80), knees 65.6°, arms 70.6°, hip bob 0.021 m.
-  - `test/unit/clip_ingame_verify.tscn` — 6/10 PASS ("run clip live on mech", pivots present, airtime segment 19.8°). FAIL: leg swing on the move (5.0°), stride lost after arm destroy (0.0°), cadence crossings fast=0/slow=0, slow-speed stride (0.0°).
-  - Reading: clip source (`res://scenes/mecha/animations/innerframe_run_cycle_clean.glb`, from the 2026-09-25 export of `scratch/innerframe_animation_handmade.blend`) and the retarget transfer are healthy in isolation; the degradation appears only inside the full `mecha_base.tscn` state stack. Same symptom family as this issue (suspects: walking-system state gating vs. clip write order, step-event polling phase, combat/lunge overrides).
+  - Original symptom: Mecha attack logic may move or lunge the character before the imported attack animation visually plays. Full-body motion may not be visible; only certain body parts may appear animated during certain attacks.
+  - Test fixture symptom (Resolved): `test/unit/clip_ingame_verify.tscn` exhibited 4/10 failures with leg swing limited to ~5.0° and 0 cadence crossings inside `mecha_base.tscn`.
+- **Root Cause & Resolution (In-Game Locomotion Fixture — R20-I1..R20-I3):**
+  - **Root Cause:** The original `clip_ingame_verify.gd` test fixture assigned `mecha.velocity` directly on `CharacterBody3D` without setting movement command buffers (`cmd_world_direction`). On every physics frame, `MechaController._apply_movement()` calculated `desired_velocity = Vector3.ZERO` and overwrote horizontal velocity to 0.0. Consequently, `MechaAnimation` observed `velocity.length() <= 0.8`, aborted clip retargeting, and fell back to `procedural_idle`. The observed 5.0° "swing" was merely the mecha's initial asymptotic lerp from 0.0° into its 8.0° standing combat idle crouch.
+  - **Resolution:** In R20-I3, `test/unit/clip_ingame_verify.gd` was corrected to drive locomotion via the authoritative public controller interface: `mecha.set_drive_commands(Vector3(0, 0, -1), Vector3.ZERO)`.
+  - **Verification Evidence (2026-10-27, Godot 4.6.2.stable, headless):**
+    - `test/unit/clip_ingame_verify.tscn` — **14/14 PASS (Exit code 0)**:
+      - Horizontal velocity sustained at ~10.5 m/s (above 0.8 m/s threshold).
+      - Active animation branch: `clip_sprint_kimodo`.
+      - Forward run leg swing: **80.9°** (exceeds 5.0° threshold).
+      - Cadence crossings: **7 crossings** over 120 frames.
+      - Arm loss robustness: **78.0°** leg swing persists after left arm destruction.
+      - Speed scaling: fast speed (7.0 m/s) exhibits **7 crossings** vs slow speed (2.0 m/s) **2 crossings**; slow speed strides at **77.1°**.
+      - Airtime grace: **32.3°** motion with `clip_sprint_kimodo` retained across brief airborne pulse.
+      - Stop deceleration: returns cleanly to `procedural_idle`.
+    - Canonical regression suite `./run_tests.sh` passed cleanly with exit code 0.
+- **Remaining Open Limitations:**
+  - Interactive-window visual and perceptual animation rendering was not performed (headless only).
+  - Combat-attack lunge synchronization during active weapon/melee attacks remains to be verified in live combat scenes.
+
+### Issue 6: Isolated Retarget Verification Missing "run" Clip on GLB Source
+- **Category:** Animation Pipeline / Retargeting Verification
+- **Status:** **OPEN INVESTIGATION** (Discovered during R20-I2 / R20-I3 triage)
+- **Symptom Description:**
+  - Standalone verification scene `test/unit/clip_retarget_verify.tscn` fails immediately with exit code 1:
+    `CLIP_RETARGET FAIL: run clip present on retarget source`
+- **Current Findings & Hypotheses:**
+  - `clip_retarget_verify.gd` line 33 explicitly tests `retarget.has_clip(MechaRig.CLIP_RUN)` on an isolated `MechaClipRetarget` instance.
+  - In `scripts/mecha/mecha_clip_retarget.gd:18`, `MechaRig.CLIP_RUN` maps to `"res://scenes/mecha/animations/innerframe_run_cycle_clean.glb"`.
+  - In Godot 4.6.2 headless loading, `_build_source()` instantiates the GLB scene and checks `pl.has_animation(clip_name)`. The animation track inside the GLB's `AnimationPlayer` is not registered under the exact string `"run"` (it may be named after the Blender action or import prefix).
+  - In contrast, the live mecha in `MechaAnimation` successfully loads and plays `MechaRig.CLIP_SPRINT_KIMODO` (`tools/kimodo/samples/valkren_sprint_run.json`) via `register_json_clip()`.
+- **Required Read-Only Triage Plan:**
+  1. Inspect `MechaRig` clip constants and resource definitions.
+  2. Inspect the GLB's actual embedded animation names as exposed by Godot's `AnimationPlayer`.
+  3. Inspect `clip_retarget_verify.gd`'s setup, clip expectations, and assertions.
+  4. Inspect the production retargeting API and clip-selection fallback order.
+  5. Determine whether the appropriate fix belongs in the fixture, asset import configuration, or retargeting loader.
 
 ### Issue 2: Offline LSP Server Environment
 - **Category:** Developer Tooling / Serena Semantic Analysis

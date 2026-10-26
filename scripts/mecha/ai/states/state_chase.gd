@@ -62,11 +62,9 @@ func physics_process(delta: float) -> void:
 		state_machine.transition_to("StateFlee")
 		return
 
-	# Rushers lunge: when the target is a short hop away (past melee range but
-	# well within burst reach) the rusher dashes straight at the player instead
-	# of slowly walking. Only in combat (this state) — never while patrolling.
-	# The dash costs energy and has a cooldown, so it can't be spammed.
-	if enemy.archetype == 0 and distance > enemy.attack_range and distance < 22.0:
+	# Rushers long-distance dash: only to close large cross-arena distances (> 18.0m).
+	# Never dash within 18m so the enemy decelerates cleanly into the 6-9m pacing standoff zone.
+	if enemy.archetype == 0 and distance > 18.0 and distance < 38.0:
 		var dir: Vector3 = enemy.target.global_position - enemy.global_position
 		dir.y = 0.0
 		if enemy.start_dash(dir):

@@ -13,6 +13,9 @@ var commander_mech: Node3D = null
 var members: Array[Node3D] = []
 var pilot_registry: Dictionary = {} # mech -> pilot_data Dictionary
 
+# Attacker Token Queue (prevents melee swarming)
+var active_attacker_tokens: Array[Node3D] = []
+
 # Formation offset table (Wedge formation)
 const WEDGE_OFFSETS: Array[Vector3] = [
 	Vector3(0, 0, 0),        # Commander (Tip)
@@ -46,6 +49,7 @@ func register_member(mech: Node3D, pilot: Dictionary) -> void:
 
 
 func unregister_member(mech: Node3D) -> void:
+	release_attacker_token(mech)
 	if members.has(mech):
 		members.erase(mech)
 	var pilot: Dictionary = pilot_registry.get(mech, {})
@@ -57,6 +61,40 @@ func unregister_member(mech: Node3D) -> void:
 		_promote_new_commander()
 
 	member_killed.emit(mech, pilot)
+
+
+## Requests an attacker token to initiate a melee attack.
+## Returns true if a slot is available (or already held), false if locked.
+func request_attacker_token(mech: Node3D) -> bool:
+	if mech == null or not is_instance_valid(mech):
+		return false
+	_prune_invalid_attacker_tokens()
+	if active_attacker_tokens.has(mech):
+		return true
+	var max_tokens: int = 2 if get_living_count() >= 5 else 1
+	if active_attacker_tokens.size() < max_tokens:
+		active_attacker_tokens.append(mech)
+		return true
+	return false
+
+
+## Releases a held attacker token once the attack cycle / disengage completes.
+func release_attacker_token(mech: Node3D) -> void:
+	if mech != null and active_attacker_tokens.has(mech):
+		active_attacker_tokens.erase(mech)
+
+
+## Checks if a mech holds an attacker token.
+func has_attacker_token(mech: Node3D) -> bool:
+	return mech != null and active_attacker_tokens.has(mech)
+
+
+func _prune_invalid_attacker_tokens() -> void:
+	var valid: Array[Node3D] = []
+	for m in active_attacker_tokens:
+		if is_instance_valid(m) and not (m.get("health_system") != null and m.health_system.get("is_destroyed")):
+			valid.append(m)
+	active_attacker_tokens = valid
 
 
 func _on_member_exiting(mech: Node3D) -> void:

@@ -35,7 +35,7 @@ func _ready() -> void:
 	_check(anim != null, "MechaAnimation exists")
 	_check(anim != null and anim.get("clip_retarget") != null, "ClipRetarget attached")
 	var retarget = anim.get("clip_retarget") if anim != null else null
-	_check(retarget != null and retarget.has_clip(MechaRig.CLIP_RUN), "run clip live on mech")
+	_check(retarget != null and (retarget.has_clip(MechaRig.CLIP_RUN) or retarget.has_clip(MechaRig.CLIP_SPRINT_KIMODO) or retarget.has_clip(MechaRig.CLIP_AI_RUN)), "locomotion clip live on mech")
 
 	# Bare inner frames (procedural) so pivots exist with real child meshes.
 	var pmm = mecha.get_node_or_null("PartMeshManager")
@@ -50,35 +50,47 @@ func _ready() -> void:
 	var arm: Node3D = mecha.get_node_or_null("ArmLeft")
 	_check(leg != null and arm != null, "leg/arm pivots present")
 
-	# Let it land, then drive it forward while sampling the leg.
+	# Let it land, then drive it forward using the authoritative controller interface.
 	await _settle(mecha)
+	for i in range(30):
+		await get_tree().physics_frame
+
+	var drive_dir := Vector3(0.0, 0.0, -1.0)
+	mecha.set_drive_commands(drive_dir, Vector3.ZERO)
+	for i in range(10):
+		await get_tree().physics_frame
+
 	var swings: Array = []
 	for i in range(120):
-		mecha.velocity = Vector3(0, mecha.velocity.y, -6.0)
+		mecha.set_drive_commands(drive_dir, Vector3.ZERO)
 		await get_tree().physics_frame
 		swings.append(leg.rotation.x)
+	_check(anim.debug_branch == "clip_sprint_kimodo", "animation enters clip branch (got %s)" % anim.debug_branch)
 	_check(_range_of(swings) > deg_to_rad(5.0), "mech leg swings on the move (range=%.1f deg)" % rad_to_deg(_range_of(swings)))
+	_check(_zero_crossings(swings) > 0, "stride exhibits cadence crossings (crossings=%d)" % _zero_crossings(swings))
 
 	# Blow the arm off mid-run: must not crash, leg keeps swinging.
 	if pmm != null and pmm.has_method("hide_slot_completely"):
 		pmm.hide_slot_completely("arm_left")
 	var after: Array = []
 	for i in range(60):
-		mecha.velocity = Vector3(0, mecha.velocity.y, -6.0)
+		mecha.set_drive_commands(drive_dir, Vector3.ZERO)
 		await get_tree().physics_frame
 		after.append(leg.rotation.x)
 	_check(_range_of(after) > deg_to_rad(5.0), "leg keeps moving after arm destroyed (range=%.1f deg)" % rad_to_deg(_range_of(after)))
 
-	# Cadence follows speed: same frame budget at 6 m/s pumps more cycles
-	# than at 2 m/s (no full-speed shuffling while accelerating).
+	# Cadence follows speed: same frame budget at higher speed pumps more cycles
+	# than at lower speed.
+	mecha.current_speed = 7.0
 	var fast_x: Array = []
-	for i in range(90):
-		mecha.velocity = Vector3(0, mecha.velocity.y, -6.0)
+	for i in range(150):
+		mecha.set_drive_commands(drive_dir, Vector3.ZERO)
 		await get_tree().physics_frame
 		fast_x.append(leg.rotation.x)
+	mecha.current_speed = 2.0
 	var slow_x: Array = []
-	for i in range(90):
-		mecha.velocity = Vector3(0, mecha.velocity.y, -2.0)
+	for i in range(150):
+		mecha.set_drive_commands(drive_dir, Vector3.ZERO)
 		await get_tree().physics_frame
 		slow_x.append(leg.rotation.x)
 	_check(_zero_crossings(fast_x) > _zero_crossings(slow_x), "cadence tracks speed (fast=%d slow=%d crossings)" % [_zero_crossings(fast_x), _zero_crossings(slow_x)])
@@ -91,13 +103,22 @@ func _ready() -> void:
 	# window (~3.5 clip frames at rate 0.7) can sit entirely inside it while
 	# playing normally; no 6-clip-frame window does, so 16 physics frames
 	# always observe real motion. Threshold itself is unchanged.
+	mecha.current_speed = 7.0
 	mecha.position.y += 1.5
-	mecha.velocity = Vector3(0, 1.0, -6.0)
+	mecha.velocity.y = 1.0
 	var bump: Array = []
 	for i in range(16):
+		mecha.set_drive_commands(drive_dir, Vector3.ZERO)
 		await get_tree().physics_frame
 		bump.append(leg.rotation.x)
 	_check(_range_of(bump) > deg_to_rad(3.0), "run survives brief airtime (range=%.1f deg)" % rad_to_deg(_range_of(bump)))
+	_check(anim.debug_branch == "clip_sprint_kimodo", "airtime grace keeps clip playing (branch=%s)" % anim.debug_branch)
+
+	# Return to idle upon stopping drive commands
+	mecha.set_drive_commands(Vector3.ZERO, Vector3.ZERO)
+	for i in range(30):
+		await get_tree().physics_frame
+	_check(anim.debug_branch == "procedural_idle", "stops and returns to procedural_idle (branch=%s)" % anim.debug_branch)
 
 	print("CLIP_INGAME_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	if _fails > 0:

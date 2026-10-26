@@ -1,28 +1,43 @@
 # Work Handoff & Session State
 
 ## 1. Current State Summary
-- **Current Task:** R19-D Series Documentation Closure & Handoff (R19-D Series CLOSED).
+- **Current Task:** R21 Melee Combat Standoff, Telegraph & Action Pacing System (COMPLETE).
 - **Current Branch:** `main`
-- **Published Remote & Local Baseline:** `87478eccc692944928e1fda75a6eb3d24d91082e` (verified synchronized with `origin/main` on remote GitHub via live `git ls-remote` query at R19-D8 audit time).
-- **Published Commit Chain for R19-D:**
-  1. `1c776fa6b1302d55c3cd63306d6511cbe846102a` — `fix(core): resolve melee sfx enum collision and main menu boolean syntax` (Group A: 2 production files)
-  2. `87478eccc692944928e1fda75a6eb3d24d91082e` — `test(verify): harmonize standalone verification fixtures with production contracts and add exit codes` (Group B: 14 test fixtures)
-- **Historical Inventory & Working-Tree State:**
-  - Working-tree state: clean at baseline (0 modified, 0 staged, 0 untracked).
+- **Published Remote & Local Baseline:** `e0ef179c0c942d63ce8da791ddfa8bd7eaf44eae` (`docs(ai): close R19-D phase ledger and handoff`, verified synchronized with `origin/main` on remote GitHub).
+- **Working-Tree Inventory & Status:**
+  - Production code modified:
+    - `scripts/mecha/ai/states/state_attack.gd` (5-phase melee lifecycle: PACING, WINDUP, LUNGE, RECOVERY, DISENGAGE; Direction Lock; exposed shield drop).
+    - `scripts/mecha/ai/states/state_chase.gd` (long-range only dash for Rusher > 18.0m, preventing point-blank collision).
+    - `scripts/mecha/ai/enemy_attack_templates.gd` (pacing ranges 6.0–8.5m, windup and recovery stats).
+    - `scripts/mecha/ai/enemy_squad_coordinator.gd` (attacker token mutual exclusion to prevent multi-enemy swarming).
+    - `scripts/effects/ground_telegraph_indicator.gd` (Ground rectangular red danger zone indicator).
+  - Test suites & runners:
+    - `test/unit/melee_combat_pacing_and_telegraph_verify.gd`/`.tscn` (37/37 checks PASS, Exit 0).
+    - `run_tests.sh` (10 standalone suites executed and passed, Exit 0).
+  - Modified documentation: `docs/ai/PHASE_STATUS.md`, `docs/ai/WORK_HANDOFF.md`.
+  - Untracked diagnostic artifacts (preserved): `test/unit/clip_ingame_drive_verify.gd`/`.tscn`.
 - **Latest Completed Audits / Phases:**
-  - **Phase R19-D4 (Group A Production Commit):** `1c776fa6b1302d55c3cd63306d6511cbe846102a`
-  - **Phase R19-D6 (Group B Test Fixtures Commit):** `87478eccc692944928e1fda75a6eb3d24d91082e`
-  - **Phase R19-D7 (Post-Commit Regression Verification):** PASS WITH WARNINGS (`87478ecc`). 9 primary unit regression suites in `run_tests.sh` + 14 standalone verification scenes exited 0. Non-fatal dummy renderer shutdown leaks and expected geometry warnings documented.
-  - **Phase R19-D8 (Push / Remote Synchronization Audit):** SYNCHRONIZED (`87478ecc`). Live GitHub `refs/heads/main` confirmed matching local `HEAD` and `origin/main` (0 ahead / 0 behind). Neutral reflog `update by push` recorded without actor attribution; no further push required.
-  - **Phase R19-D9 (Documentation Closure):** Completed.
+  - **Phase R21 (Melee Combat Pacing & Telegraph Redesign):** Resolved player feedback regarding enemies sticking and orbiting around the player. Replaced point-blank melee chaos with high-clarity Action RPG pacing:
+    1. **Pacing Standoff (6.0–8.5m):** Circle-strafes and actively back-pedals away if player advances (< 5.5m).
+    2. **Wind-up & Direction Lock:** Wind-up telegraph at distance (0.6s Rusher / 0.8s Shield Melee) displaying `GroundTelegraphIndicator` danger zone on the ground and rising audio cue. Direction locks 0.2s before strike.
+    3. **Lunge Strike:** Dashes forward 4.5–6.0m along locked vector.
+    4. **Recovery Punish Window:** 0.55s (Rusher) / 0.70s (Shield Melee) stationary opening with shield dropped on Shield Melee.
+    5. **Disengage:** Backward dash on Rusher / step back with shield re-raised on Shield Melee.
+    6. **Squad Attacker Tokens:** Limits concurrent melee attacks to 1 (or 2 for squads >= 5).
 
 ---
 
-## 2. Test Verification Summary (Reported by R19-D7 in Godot 4.6.2.stable)
+## 2. Test Verification Summary (Reported by R21 in Godot 4.6.2.stable)
 
 | Test Suite / Fixture | Target Path | Tests / Checks | Exit Code | Result |
 |---|---|:---:|:---:|:---:|
-| **Primary Runner (9 Unit Suites)** | `./run_tests.sh` | 9 suites sequential + GUT | 0 | PASSED |
+| **Primary Runner (10 Unit Suites)** | `./run_tests.sh` | 10 suites sequential + GUT | 0 | PASSED |
+| **Melee Combat Pacing & Telegraph** | `res://test/unit/melee_combat_pacing_and_telegraph_verify.tscn` | 37 passed / 0 failed | 0 | PASSED |
+| **Enemy Melee Animation Verify** | `res://tests/enemy_melee_anim_verify.tscn` | 6 passed / 0 failed | 0 | PASSED |
+| **Enemy Ammo & Tactical Melee** | `res://tests/enemy_ammo_and_tactical_melee_verify.tscn` | 23 passed / 0 failed | 0 | PASSED |
+| **Corrected In-Game Locomotion** | `res://test/unit/clip_ingame_verify.tscn` | 14 passed / 0 failed | 0 | PASSED |
+| **Exploratory Locomotion Fixture** | `res://test/unit/clip_ingame_drive_verify.tscn` | 14 passed / 2 failed | 1 | DIAGNOSTIC ARTIFACT |
+| **Isolated Clip Retarget Verify** | `res://test/unit/clip_retarget_verify.tscn` | 0 passed / 1 failed | 1 | FAILED (Tracked in Issue 6) |
 | **Aim Pose & Muzzle Verify** | `res://tests/aim_pose_muzzle_verify.tscn` | Explicit marker | 0 | PASSED |
 | **Armor Damage Visuals Live** | `res://tests/damage_visuals_live_verify.tscn` | 11 passed / 0 failed | 0 | PASSED |
 | **Directional Damage & Durability** | `res://tests/directional_damage_and_durability_verify.tscn` | 13 passed / 0 failed | 0 | PASSED |
@@ -38,7 +53,7 @@
 | **Sacrifice Bond Mission Wiring** | `res://tests/sacrifice_bond_verify.tscn` | 19 passed / 0 failed | 0 | PASSED |
 | **User Feedback Fixes** | `res://tests/user_feedback_fixes_verify.tscn` | 5 passed / 0 failed | 0 | PASSED |
 
-*Scope & Verification Note:* In `run_tests.sh`, GUT reported `Nothing was run` because unit suites under `res://test/unit/` are standalone scene runners rather than GUT scripts; all 9 standalone scenes executed and passed with exit code 0.
+*Scope & Verification Note:* In `run_tests.sh`, GUT reported `Nothing was run` because unit suites under `res://test/unit/` are standalone scene runners rather than GUT scripts; all 10 standalone scenes executed and passed with exit code 0.
 *Known Headless Limitations:* Tests executed in `--headless` mode using `AudioServerDummy` and `RendererDummy`. Perceptual acoustic quality, actual framebuffer rendered fragments, OS-level window mouse-capture events, and full multi-mission campaign playthroughs remain to be verified in interactive gameplay sessions.
 
 ---
@@ -76,16 +91,20 @@
 ---
 
 ## 4. Immediate Next Actions & Handoff Recommendations
-1. **R19-D Series Closed & Synchronized:**
-   - Group A production commit `1c776fa6b1302d55c3cd63306d6511cbe846102a` and Group B test fixture commit `87478eccc692944928e1fda75a6eb3d24d91082e` are verified and committed on `main`.
-   - Local `HEAD`, local `origin/main`, and live GitHub `refs/heads/main` were observed fully synchronized at `87478eccc692944928e1fda75a6eb3d24d91082e` (0 ahead / 0 behind) during the R19-D8 audit.
-   - Reflog recorded an `update by push` event without an identified actor. No further push is required for these commits.
-2. **Authority Invariant:**
-   - Contracts across audio management (`sfx_manager.gd`), UI campaign flow (`main_menu_controller.gd`), missile dual-trigger contention, permadeath armor mechanics, and test fixtures are verified and closed.
-   - Never reopen or redesign closed phases without a reproducible regression test or proven architectural violation.
-3. **Subsequent Project Action:**
-   - With the R19-D series fully audited, regression-verified, synchronized, and documented, the repository is at a stable baseline.
-   - The recommended next project action is to authorize new feature, content, or interactive playtest phases under a separate, narrowly scoped plan.
+1. **In-Game Locomotion Fixture Alignment Verified (R20-I3 Complete):**
+   - `test/unit/clip_ingame_verify.gd` was corrected to drive movement via `mecha.set_drive_commands(Vector3(0, 0, -1), Vector3.ZERO)`.
+   - All 14 checks passed under Godot 4.6.2 headless execution (exit code 0): 80.9° leg swing, 7 cadence crossings, speed scaling (7 vs 2 crossings), and stop-to-idle transition.
+   - Canonical regression runner `bash ./run_tests.sh` passed with exit code 0.
+   - Issue 1 fixture degradation is marked resolved in `docs/ai/OPEN_ISSUES.md`.
+2. **Independent Retarget Fixture Failure Tracked (Issue 6 Open):**
+   - `test/unit/clip_retarget_verify.tscn` fails on `retarget.has_clip(MechaRig.CLIP_RUN)` because the embedded GLB animation in `innerframe_run_cycle_clean.glb` does not carry the string `"run"` in Godot 4.6.2.
+   - Live mecha locomotion uses `CLIP_SPRINT_KIMODO` (`valkren_sprint_run.json`).
+   - Logged as Issue 6 in `docs/ai/OPEN_ISSUES.md` for independent investigation.
+3. **Preserved Untracked Diagnostic Artifacts:**
+   - Two files from R20-I2 (`test/unit/clip_ingame_drive_verify.gd`, `test/unit/clip_ingame_drive_verify.tscn`) remain untracked in the worktree. They are preserved pending an explicit user keep/remove/integrate decision.
+4. **Authority Invariant & Next Recommended Phase:**
+   - No production code was modified in the R20 investigation series (`scripts/` and `scenes/` untouched).
+   - Recommended next phase: **Phase R20-I5** — Read-only diagnosis of `clip_retarget_verify.tscn` and GLB animation track naming before authorizing any asset or fixture repair.
 
 ---
 

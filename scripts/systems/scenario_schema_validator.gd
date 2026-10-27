@@ -458,6 +458,49 @@ static func _validate_initial_territories(scenario: Resource, authored_node_ids:
 				_add_error(errors, "INVALID_TERRITORY_STATE", "initial_territory_specs[%d].state" % i,
 					"Territory state '%s' is not recognized." % str(st))
 
+	# Neighbors Validation (cross-referencing all authored territories)
+	for i in range(terr_val.size()):
+		var spec = terr_val[i]
+		if not (spec is Dictionary):
+			continue
+		var tid: String = str(spec.get("id", "")).strip_edges()
+		if tid.is_empty():
+			continue
+		if spec.has("neighbors"):
+			var neighbors = spec.get("neighbors")
+			if not (neighbors is Array):
+				_add_error(errors, "INVALID_TERRITORY_NEIGHBORS", "initial_territory_specs[%d].neighbors" % i,
+					"Territory neighbors must be an Array.")
+			else:
+				var seen_neighbors: Dictionary = {}
+				for n in neighbors:
+					if not (n is String) or str(n).strip_edges().is_empty():
+						_add_error(errors, "INVALID_TERRITORY_NEIGHBOR", "initial_territory_specs[%d].neighbors" % i,
+							"Territory neighbor must be a non-empty String.")
+						continue
+					var nid := str(n).strip_edges()
+					if nid == tid:
+						_add_error(errors, "SELF_ADJACENT_TERRITORY", "initial_territory_specs[%d].neighbors" % i,
+							"Territory '%s' cannot be adjacent to itself." % tid)
+					elif not authored_territory_ids.has(nid):
+						_add_error(errors, "UNKNOWN_NEIGHBOR_TERRITORY", "initial_territory_specs[%d].neighbors" % i,
+							"Neighbor territory '%s' is not declared in initial_territory_specs." % nid)
+					else:
+						# Asymmetric declaration check
+						var other_spec: Dictionary = {}
+						for s in terr_val:
+							if s is Dictionary and str(s.get("id", "")).strip_edges() == nid:
+								other_spec = s
+								break
+						var other_neighbors = other_spec.get("neighbors", [])
+						if not (other_neighbors is Array) or not other_neighbors.has(tid):
+							_add_error(errors, "ASYMMETRIC_TERRITORY_ADJACENCY", "initial_territory_specs[%d].neighbors" % i,
+								"Asymmetric adjacency: '%s' declares neighbor '%s', but '%s' does not declare '%s'." % [tid, nid, nid, tid])
+					if seen_neighbors.has(nid):
+						_add_error(errors, "DUPLICATE_TERRITORY_NEIGHBOR", "initial_territory_specs[%d].neighbors" % i,
+							"Duplicate neighbor '%s' in territory '%s'." % [nid, tid])
+					seen_neighbors[nid] = true
+
 	return authored_territory_ids
 
 

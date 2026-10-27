@@ -109,6 +109,7 @@ static func register_territory(territory_id: String, members: Array = []) -> Str
 		"controller": "",
 		"contesting": [],
 		"members": clean_members,
+		"neighbors": [],
 	}
 	return territory_id
 
@@ -129,6 +130,62 @@ static func get_members(territory_id: String) -> Array:
 	if not _territories.has(territory_id):
 		return []
 	return Array((_territories[territory_id] as Dictionary).get("members", [])).duplicate()
+
+
+## Returns a defensive copy of neighboring territory IDs.
+## Empty if territory unknown, has no neighbors, or neighbor field is malformed.
+static func get_neighbors(territory_id: String) -> Array:
+	if not _territories.has(territory_id):
+		return []
+	var raw = (_territories[territory_id] as Dictionary).get("neighbors", [])
+	if raw is Array:
+		return (raw as Array).duplicate()
+	return []
+
+
+## Fast boolean check for whether two registered territories are mutually adjacent.
+## Returns true if and only if both IDs are non-empty, distinct, registered,
+## and each lists the other in its neighbors array.
+static func are_adjacent(territory_a: String, territory_b: String) -> bool:
+	if territory_a == "" or territory_b == "":
+		return false
+	if territory_a == territory_b:
+		return false
+	if not _territories.has(territory_a) or not _territories.has(territory_b):
+		return false
+	var raw_a = (_territories[territory_a] as Dictionary).get("neighbors", [])
+	var raw_b = (_territories[territory_b] as Dictionary).get("neighbors", [])
+	if not (raw_a is Array) or not (raw_b is Array):
+		return false
+	return (raw_a as Array).has(territory_b) and (raw_b as Array).has(territory_a)
+
+
+## Registers an undirected, symmetric adjacency link between two registered territories.
+## Rejects self-adjacency, empty strings, and unknown territory IDs.
+## Avoids duplicate entries, maintains deterministic sorted ordering, and is idempotent.
+## Atomic: if validation fails, neither territory is modified.
+static func register_adjacency(territory_a: String, territory_b: String) -> bool:
+	if territory_a == "" or territory_b == "":
+		return false
+	if territory_a == territory_b:
+		return false
+	if not _territories.has(territory_a) or not _territories.has(territory_b):
+		return false
+	var t_a: Dictionary = _territories[territory_a]
+	var t_b: Dictionary = _territories[territory_b]
+	var n_a: Array = t_a.get("neighbors", [])
+	var n_b: Array = t_b.get("neighbors", [])
+	if n_a.has(territory_b) and n_b.has(territory_a):
+		return true
+	if not n_a.has(territory_b):
+		n_a.append(territory_b)
+		n_a.sort()
+	if not n_b.has(territory_a):
+		n_b.append(territory_a)
+		n_b.sort()
+	t_a["neighbors"] = n_a
+	t_b["neighbors"] = n_b
+	return true
 
 
 ## CONTROLLED with a registered faction. Rejects unknown territories and
@@ -260,6 +317,27 @@ static func validate() -> Array:
 		for m in t.get("members", []):
 			if not CampaignNodeRegistry.has_node(str(m)):
 				problems.append("territory %s references unknown node %s" % [tid, str(m)])
+		var raw_neighbors = t.get("neighbors", [])
+		if not (raw_neighbors is Array):
+			problems.append("territory %s has non-array neighbors" % tid)
+		else:
+			var seen_neighbors := {}
+			for n in raw_neighbors:
+				if not (n is String):
+					problems.append("territory %s has non-string neighbor %s" % [tid, str(n)])
+					continue
+				var nid := str(n)
+				if nid == tid:
+					problems.append("territory %s lists itself as neighbor" % tid)
+				if not _territories.has(nid):
+					problems.append("territory %s references unknown neighbor %s" % [tid, nid])
+				else:
+					var other_neighbors = (_territories[nid] as Dictionary).get("neighbors", [])
+					if not (other_neighbors is Array) or not other_neighbors.has(tid):
+						problems.append("asymmetric territory adjacency between %s and %s" % [tid, nid])
+				if seen_neighbors.has(nid):
+					problems.append("territory %s has duplicate neighbor %s" % [tid, nid])
+				seen_neighbors[nid] = true
 	return problems
 
 
@@ -274,15 +352,18 @@ static func serialize() -> Dictionary:
 			"controller": str(t.get("controller", "")),
 			"contesting": Array(t.get("contesting", [])).duplicate(),
 			"members": Array(t.get("members", [])).duplicate(),
+			"neighbors": Array(t.get("neighbors", [])).duplicate(),
 		})
 	return {"territories": out}
 
 
-## Restores registry + control. Rows with empty ids, unknown control names,
+## Restores registry + control + adjacency. Rows with empty ids, unknown control names,
 ## unregistered controllers, or invalid contest lists are SKIPPED entirely
 ## (fail the row, keep nothing). Unknown node members are kept and flagged by
 ## validate() (never pruned — dynamic nodes can return). Missing/empty input
-## resets to empty (old saves).
+## resets to empty (old saves). Neighbors are restored as serialized without
+## synthesizing reverse links or deduplicating, so validate() can detect
+## malformed/asymmetric saves. Missing neighbors default to [].
 static func deserialize(data: Variant) -> void:
 	clear()
 	if not (data is Dictionary):
@@ -341,6 +422,12 @@ static func deserialize(data: Variant) -> void:
 			set_controlled(rid, controller)
 		elif control == ControlState.CONTESTED:
 			set_contested(rid, contest_clean)
+		if row.has("neighbors"):
+			var n_raw = row["neighbors"]
+			if n_raw is Array:
+				(_territories[rid] as Dictionary)["neighbors"] = (n_raw as Array).duplicate()
+			else:
+				(_territories[rid] as Dictionary)["neighbors"] = n_raw
 
 
 static func clear() -> void:

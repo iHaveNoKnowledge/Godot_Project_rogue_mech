@@ -116,13 +116,25 @@ static func apply_scenario(scenario: Resource, sector: int = 1) -> Dictionary:
 	for terr_spec in terr_specs:
 		if terr_spec is Dictionary:
 			var tid: String = str(terr_spec.get("id", ""))
-			var node_ids: Array = terr_spec.get("nodes", [])
+			var node_ids: Array = terr_spec.get("nodes", terr_spec.get("members", []))
 			if tid != "" and not CampaignTerritory.has_territory(tid):
 				CampaignTerritory.register_territory(tid, node_ids)
 				var ctrl_name: String = str(terr_spec.get("controller", ""))
 				if ctrl_name != "":
 					CampaignTerritory.set_controlled(tid, ctrl_name)
 				territories_created.append(tid)
+
+	# 2.5 Apply authored territory adjacency (registered only after all identities exist)
+	for terr_spec in terr_specs:
+		if terr_spec is Dictionary:
+			var tid: String = str(terr_spec.get("id", "")).strip_edges()
+			if tid != "" and CampaignTerritory.has_territory(tid):
+				var neighbors = terr_spec.get("neighbors", [])
+				if neighbors is Array:
+					for n in neighbors:
+						var nid := str(n).strip_edges()
+						if nid != "" and CampaignTerritory.has_territory(nid):
+							CampaignTerritory.register_adjacency(tid, nid)
 
 	# 3. Apply authored initial bases (if any explicitly specified)
 	var base_specs: Array = scenario.get_initial_base_specs() if scenario.has_method("get_initial_base_specs") else []

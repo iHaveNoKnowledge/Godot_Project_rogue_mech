@@ -20,6 +20,10 @@ const CLIP_SOURCES := {
 	MechaRig.CLIP_AF_JOG: "res://scenes/mecha/animations/af_jog_fwd.glb",
 }
 
+const CLIP_ALIASES := {
+	MechaRig.CLIP_RUN: "RunCycle",
+}
+
 # The run clip's ground speed, measured from the baked cycle itself:
 # stride x cadence-per-unit-rate. Rebaked clip (grounded stride ~4.85m,
 # cadence/rate ~1.75): rate = h_speed / 8.5 holds sync ~= 1.0 through cruise.
@@ -139,13 +143,18 @@ func _build_source(clip_name: String, path: String) -> void:
 	if skel == null or pl == null:
 		inst.queue_free()
 		return
-	if not pl.has_animation(clip_name):
-		inst.queue_free()
-		return
-	var anim: Animation = pl.get_animation(clip_name)
+	var source_anim_name := clip_name
+	if not pl.has_animation(source_anim_name):
+		var alias: String = String(CLIP_ALIASES.get(clip_name, ""))
+		if alias != "" and pl.has_animation(alias):
+			source_anim_name = alias
+		else:
+			inst.queue_free()
+			return
+	var anim: Animation = pl.get_animation(source_anim_name)
 	anim.loop_mode = Animation.LOOP_LINEAR
 	pl.playback_process_mode = AnimationPlayer.ANIMATION_PROCESS_MANUAL
-	_sources[clip_name] = {"skeleton": skel, "player": pl}
+	_sources[clip_name] = {"skeleton": skel, "player": pl, "anim_name": source_anim_name}
 	if active_clip == "":
 		_use_source(clip_name)
 
@@ -159,12 +168,17 @@ func _use_source(clip_name: String) -> void:
 	active_clip = clip_name
 	_bone_cache.clear()
 	_cache_rest()
-	player.play(clip_name)
+	var anim_name: String = src.get("anim_name", clip_name)
+	player.play(anim_name)
 	player.seek(randf() * player.current_animation_length, true)
 
 
 func has_clip(clip_name: String) -> bool:
 	return _sources.has(clip_name) or _json_clips.has(clip_name)
+
+
+func get_source_animation_name(clip_name: String) -> String:
+	return String(_sources.get(clip_name, {}).get("anim_name", ""))
 
 
 # Footfall fractions of the run loop (measured foot-minima per side),

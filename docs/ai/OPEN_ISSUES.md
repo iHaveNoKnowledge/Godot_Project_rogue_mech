@@ -32,21 +32,34 @@ This document tracks unresolved investigations, technical debt, and known runtim
 
 ### Issue 6: Isolated Retarget Verification Missing "run" Clip on GLB Source
 - **Category:** Animation Pipeline / Retargeting Verification
-- **Status:** **OPEN INVESTIGATION** (Discovered during R20-I2 / R20-I3 triage)
+- **Status:** **RESOLVED / SKELETAL RETARGET VERIFIED** (Asset restored & retargeting fixture verified; visual parity unverified)
 - **Symptom Description:**
-  - Standalone verification scene `test/unit/clip_retarget_verify.tscn` fails immediately with exit code 1:
+  - Standalone verification scene `test/unit/clip_retarget_verify.tscn` originally failed with exit code 1:
     `CLIP_RETARGET FAIL: run clip present on retarget source`
-- **Current Findings & Hypotheses:**
-  - `clip_retarget_verify.gd` line 33 explicitly tests `retarget.has_clip(MechaRig.CLIP_RUN)` on an isolated `MechaClipRetarget` instance.
-  - In `scripts/mecha/mecha_clip_retarget.gd:18`, `MechaRig.CLIP_RUN` maps to `"res://scenes/mecha/animations/innerframe_run_cycle_clean.glb"`.
-  - In Godot 4.6.2 headless loading, `_build_source()` instantiates the GLB scene and checks `pl.has_animation(clip_name)`. The animation track inside the GLB's `AnimationPlayer` is not registered under the exact string `"run"` (it may be named after the Blender action or import prefix).
-  - In contrast, the live mecha in `MechaAnimation` successfully loads and plays `MechaRig.CLIP_SPRINT_KIMODO` (`tools/kimodo/samples/valkren_sprint_run.json`) via `register_json_clip()`.
-- **Required Read-Only Triage Plan:**
-  1. Inspect `MechaRig` clip constants and resource definitions.
-  2. Inspect the GLB's actual embedded animation names as exposed by Godot's `AnimationPlayer`.
-  3. Inspect `clip_retarget_verify.gd`'s setup, clip expectations, and assertions.
-  4. Inspect the production retargeting API and clip-selection fallback order.
-  5. Determine whether the appropriate fix belongs in the fixture, asset import configuration, or retargeting loader.
+- **Root Cause & Resolution (R20-I5..R20-I10):**
+  - **Root Cause:** In commit `6011fa43`, `scenes/mecha/animations/innerframe_run_cycle_clean.glb` was re-exported from `innerframe_animation_handmade.blend` with unbaked bone channels, generic 37-bone Blender names (`Bone.*`), and action name `"RunCycle"` instead of `"run"`. Consequently, `MechaClipRetarget._build_source()` discarded the clip. Even when aliased, `_bone_idx()` lookups for `MechaRig` canonical bone names (`Bone_Thigh_L`, etc.) failed (`-1`), producing zero swing deltas across all body pivots.
+  - **Resolution:**
+    1. In R20-I6, `MechaClipRetarget` added `CLIP_ALIASES` to support `"RunCycle"` if present, and exposed `get_source_animation_name()`.
+    2. In R20-I8, the canonical 24-bone GLB asset with active animated skeletal channels was restored from historical commit `af08c13da808cd670089fed029804b166e14a5a3`.
+    3. In R20-I9, Godot 4.6.2 executed a controlled `--import` pass, recompiling `.godot/imported/...scn` to the restored 24-bone rig.
+    4. In R20-I10, `test/unit/clip_retarget_verify.gd` aligned its assertion to accept either canonical `"run"` or legacy alias `"RunCycle"`.
+- **Verification Evidence (2026-10-27, Godot 4.6.2.stable, headless):**
+  - `res://test/unit/innerframe_rig_verify.tscn` — **8/8 PASS (Exit code 0)**:
+    - All 16 `MechaRig` bones present, 24 bones total, head scale verified at 4.28m, `"run"` clip confirmed.
+  - `res://test/unit/clip_retarget_verify.tscn` — **16/16 PASS (Exit code 0)**:
+    - Run clip present, resolved animation valid (`"run"`), source skeleton valid, all pivots finite.
+    - Leg swing: Left **105.6°**, Right **103.7°** (exceeds 10.0° threshold).
+    - Antiphase correlation: **-0.78** (below -0.3 threshold).
+    - Knee flexion: **65.4°** (exceeds 10.0° threshold).
+    - Arm pump: **70.0°** (exceeds 5.0° threshold).
+    - Hip bob: **0.021 m** (exceeds 0.005m threshold).
+    - Torso pitch mean: **-33.3°** (within [-40°, -20°] window).
+    - Speed rate scaling and missing-pivot robustness verified.
+  - `res://test/unit/clip_ingame_verify.tscn` — **14/14 PASS (Exit code 0)**:
+    - Zero regression to live mecha locomotion.
+- **Remaining Open Limitations:**
+  - Visual parity of the restored 45-mesh asset against the 78-mesh model (Round 3 thigh cylinder resculpt) remains unverified (note: meshes are freed at runtime by `_free_meshes(inst)` as it operates purely as a skeletal pose driver).
+  - Interactive-window visual animation rendering remains outstanding (headless test only).
 
 ### Issue 2: Offline LSP Server Environment
 - **Category:** Developer Tooling / Serena Semantic Analysis

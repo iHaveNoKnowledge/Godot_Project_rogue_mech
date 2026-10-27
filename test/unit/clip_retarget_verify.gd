@@ -35,6 +35,11 @@ func _ready() -> void:
 		get_tree().quit(1)
 		return
 
+	var resolved_name := retarget.get_source_animation_name(MechaRig.CLIP_RUN)
+	_check(resolved_name == "run" or resolved_name == "RunCycle",
+		"resolved source animation is valid (" + resolved_name + ")")
+	_check(retarget.skeleton != null, "source skeleton reference is valid")
+
 	var joints := _make_joints()
 	retarget.play_clip(MechaRig.CLIP_RUN)
 
@@ -66,7 +71,7 @@ func _ready() -> void:
 		pitch_mean += v
 	pitch_mean /= maxf(body_pitch.size(), 1.0)
 	_check(pitch_mean > deg_to_rad(-40.0) and pitch_mean < deg_to_rad(-20.0),
-		"torso pitch raised 30%, still leaning in (mean=%.1f deg)" % rad_to_deg(pitch_mean))
+		"torso pitch raised 30%%, still leaning in (mean=%.1f deg)" % rad_to_deg(pitch_mean))
 
 	# Playback rate follows the validated retarget map (NATURAL_SPEED 8.5,
 	# MAX_RATE 1.0): sync holds through cruise instead of capping early.

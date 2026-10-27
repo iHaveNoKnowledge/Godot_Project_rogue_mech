@@ -96,15 +96,21 @@
    - All 14 checks passed under Godot 4.6.2 headless execution (exit code 0): 80.9° leg swing, 7 cadence crossings, speed scaling (7 vs 2 crossings), and stop-to-idle transition.
    - Canonical regression runner `bash ./run_tests.sh` passed with exit code 0.
    - Issue 1 fixture degradation is marked resolved in `docs/ai/OPEN_ISSUES.md`.
-2. **Independent Retarget Fixture Failure Tracked (Issue 6 Open):**
-   - `test/unit/clip_retarget_verify.tscn` fails on `retarget.has_clip(MechaRig.CLIP_RUN)` because the embedded GLB animation in `innerframe_run_cycle_clean.glb` does not carry the string `"run"` in Godot 4.6.2.
-   - Live mecha locomotion uses `CLIP_SPRINT_KIMODO` (`valkren_sprint_run.json`).
-   - Logged as Issue 6 in `docs/ai/OPEN_ISSUES.md` for independent investigation.
+2. **Retarget Fixture & Asset Verification Resolved (Issue 6 Closed — R20-I10 Complete):**
+   - In commit `6011fa43`, `innerframe_run_cycle_clean.glb` was re-exported with generic 37-bone Blender names, action name `"RunCycle"`, and static keyframes.
+   - In R20-I8/I9, the canonical 24-bone GLB asset with active animated skeletal channels was restored from historical commit `af08c13d` and reimported by Godot 4.6.2.
+   - In R20-I10, `test/unit/clip_retarget_verify.gd` aligned its assertion to accept canonical `"run"` or legacy alias `"RunCycle"`.
+   - All verification suites pass with exit code 0:
+     - `innerframe_rig_verify.tscn`: 8/8 PASS
+     - `clip_retarget_verify.tscn`: 16/16 PASS (leg swing L 105.6° / R 103.7°, antiphase correlation -0.78, knee flex 65.4°, arm pump 70.0°, hip bob 0.021m)
+     - `clip_ingame_verify.tscn`: 14/14 PASS
+   - Issue 6 is marked RESOLVED in `docs/ai/OPEN_ISSUES.md`.
 3. **Preserved Untracked Diagnostic Artifacts:**
    - Two files from R20-I2 (`test/unit/clip_ingame_drive_verify.gd`, `test/unit/clip_ingame_drive_verify.tscn`) remain untracked in the worktree. They are preserved pending an explicit user keep/remove/integrate decision.
 4. **Authority Invariant & Next Recommended Phase:**
-   - No production code was modified in the R20 investigation series (`scripts/` and `scenes/` untouched).
-   - Recommended next phase: **Phase R20-I5** — Read-only diagnosis of `clip_retarget_verify.tscn` and GLB animation track naming before authorizing any asset or fixture repair.
+   - Skeletal retargeting pipeline is fully verified and functional.
+   - Remaining limitation: visual parity with 78-mesh model (Round 3 thigh cylinder resculpt) is unverified in interactive window (meshes are freed at runtime by `_free_meshes(inst)` for skeletal pose driving).
+   - Awaiting user instruction for next phase.
 
 ---
 

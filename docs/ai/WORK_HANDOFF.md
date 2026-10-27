@@ -245,5 +245,23 @@
 - **Pad/puck numbers after parenting** (`Leg_R_hip_joint` / `Leg_L_hip_joint`; inner cap at world x 0.8818 / −0.8818, r 0.3754, vgroup `Bone.006.L`/`.R`): f15 R gap **+0.70 mm**, radial **75.94 mm**, tilt **1.48°**; f15 L gap −4.24, radial 96.68, tilt 22.40°; worst radial **106.72 mm (L f20)**, worst tilt **23.28° (L f20)**, gap stays **−9.54…+6.46 mm** across f0–34. Because ring r 0.255 + max radial 107 mm = 362 mm < puck r 375 mm, the collars never leave the white cap footprint; the tilt-driven rim penetration (sin23° × 0.23 ≈ 90 mm) is fully enclosed inside the white puck volume, so it is invisible. Accepted as an articulating bearing collar (renders: f15 R front/3q, f0 R front/3q, f20 L front/3q all read attached; front view shows dark beam → brass ring → white puck).
 - **Measurement pitfall (repeat avoidance):** the bridge's BEVEL modifier changes evaluated vertex count/order — using base-mesh vertex indices on the evaluated mesh produced garbage (gap −320 mm). Measure on base verts with the rigid-skin matrix `M = arm.matrix_world @ pb.matrix @ pb.bone.matrix_local.inverted() @ arm.matrix_world.inverted()`, applied to `obj.matrix_world @ v.co` (all four objects are single-bone weight 1.0). The pucks are rigid too — same formula. Blender 5.2: `Action.fcurves` no longer exists; read the armature object motion with `frame_set` + `arm.location`.
 - **Saved/verified:** master re-saved at **frame 15 POSE**. Fresh headless reopen (`--factory-startup`) confirms parent + `matrix_parent_inverse` (0.00113, 0, −0.04239), verts/materials/modifiers/vgroups unchanged, f15 measurements identical (R +0.70 / 75.94 / 1.48; L −4.24 / 96.68 / 22.40), and the prior authoring visibility restored from `innerframe_handmade_pre_hipbridge_2026-10-27.blend` (13 eye-hidden: `Armature` + 12 `JNT_*`; `Leg_R_Shin_upper_piston_static` back on `hide_viewport`).
-- **Backups:** `scratch/innerframe_handmade_pre_hipbridge_2026-10-27.blend` (pre-build); the §11/§11a/§11b backups remain the rollback chain.
-- **Deferred:** GLB export is still the stale pre-piston file, and the three in-game suites were not re-run for this asset change (unchanged from §11).
+- **Deferred Resolution:** Resolved in §13 (re-exported to `scenes/mecha/animations/innerframe_run_cycle_clean.glb` with canonical bone names and baked bob).
+
+---
+
+## 13. Asset Session Note (2026-10-28): Innerframe GLB Re-Export from Latest Blender — COMPLETE
+
+- **Asset:** `scratch/innerframe_animation_handmade.blend` (active in Blender 5.2.0 LTS).
+- **Target Export:** `scenes/mecha/animations/innerframe_run_cycle_clean.glb` (3,974,108 bytes).
+- **Tooling Added:** `tools/export_innerframe_glb.py` (canonical glTF patcher and exporter).
+- **Pipeline Remapping & Bob Transfer:**
+  - In Blender, the innerframe uses 55 bones with names (`Bone.006.R`, `Bone.019.R`, etc.) and object-level `Armature` translation bob (z = +0.18 to -0.15).
+  - Patcher maps the 24 canonical `MechaRig` bones (`Bone_Hip`, `Bone_Torso`, `Bone_Thigh_L`, `Bone_Shin_L`, etc.) onto the skin joint nodes while preserving all piston/bridge bones.
+  - Patcher transfers the Armature object-level Z-bob into `Bone_Hip` (`pelvis`) translation curves, resetting Armature object translation to 0 so Godot's retargeter reads the hip bob cleanly without double-bobbing.
+  - Normalizes animation action name to `"run"`.
+- **Test Verification (Godot 4.6.2.stable, Headless):**
+  - `res://test/unit/innerframe_rig_verify.tscn`: **8/8 checks PASS (Exit 0)** (16/16 MechaRig bones present, 55 total bones, head scale 5.60m, "run" clip valid).
+  - `res://test/unit/clip_retarget_verify.tscn`: **16/16 checks PASS (Exit 0)** (Leg swing L 113.2° / R 113.0°, antiphase corr -0.99, knee flex 122.3°, arm pump 132.7°, hip bob 0.323m, torso pitch -24.0°).
+  - `res://test/unit/clip_ingame_verify.tscn`: **14/14 checks PASS (Exit 0)** (Clean locomotion, speed scaling, arm loss resilience, stop-to-idle transition).
+  - **Regression Suite:** All 10 standalone unit suites executed and passed with exit code 0.
+

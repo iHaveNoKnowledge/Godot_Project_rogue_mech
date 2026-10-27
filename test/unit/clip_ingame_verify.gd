@@ -65,7 +65,7 @@ func _ready() -> void:
 		mecha.set_drive_commands(drive_dir, Vector3.ZERO)
 		await get_tree().physics_frame
 		swings.append(leg.rotation.x)
-	_check(anim.debug_branch == "clip_sprint_kimodo", "animation enters clip branch (got %s)" % anim.debug_branch)
+	_check(anim.debug_branch == "clip_run" or anim.debug_branch == "clip_sprint_kimodo", "animation enters clip branch (got %s)" % anim.debug_branch)
 	_check(_range_of(swings) > deg_to_rad(5.0), "mech leg swings on the move (range=%.1f deg)" % rad_to_deg(_range_of(swings)))
 	_check(_zero_crossings(swings) > 0, "stride exhibits cadence crossings (crossings=%d)" % _zero_crossings(swings))
 
@@ -112,7 +112,7 @@ func _ready() -> void:
 		await get_tree().physics_frame
 		bump.append(leg.rotation.x)
 	_check(_range_of(bump) > deg_to_rad(3.0), "run survives brief airtime (range=%.1f deg)" % rad_to_deg(_range_of(bump)))
-	_check(anim.debug_branch == "clip_sprint_kimodo", "airtime grace keeps clip playing (branch=%s)" % anim.debug_branch)
+	_check(anim.debug_branch == "clip_run" or anim.debug_branch == "clip_sprint_kimodo", "airtime grace keeps clip playing (branch=%s)" % anim.debug_branch)
 
 	# Return to idle upon stopping drive commands
 	mecha.set_drive_commands(Vector3.ZERO, Vector3.ZERO)

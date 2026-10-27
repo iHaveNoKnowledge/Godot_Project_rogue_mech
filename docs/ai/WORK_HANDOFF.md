@@ -265,3 +265,22 @@
   - `res://test/unit/clip_ingame_verify.tscn`: **14/14 checks PASS (Exit 0)** (Clean locomotion, speed scaling, arm loss resilience, stop-to-idle transition).
   - **Regression Suite:** All 10 standalone unit suites executed and passed with exit code 0.
 
+---
+
+## 14. Runtime Session Note (2026-10-28): Prioritize Blender `CLIP_RUN` over Kimodo Sprint — COMPLETE
+
+- **User Report:** "ท่าวิ่งยังเปนแบบเดิมอยู่เลยไม่เปนแบบที่ฉันทำใน blender นี้" (The running animation was still the old one).
+- **Root Cause:**
+  - In `scripts/mecha/mecha_animation.gd` (L174-178), clip selection initialized `clip_name := MechaRig.CLIP_RUN` but then unconditionally checked `if clip_retarget.has_clip(MechaRig.CLIP_SPRINT_KIMODO): clip_name = MechaRig.CLIP_SPRINT_KIMODO`.
+  - Because `MechaClipRetarget._ready()` always registers `res://tools/kimodo/samples/valkren_sprint_run.json` as `CLIP_SPRINT_KIMODO`, `clip_retarget.has_clip(...)` was always true.
+  - The live mecha in gameplay was unconditionally running `clip_sprint_kimodo` (Kimodo motion diffusion JSON), completely bypassing the re-exported Blender GLB asset `innerframe_run_cycle_clean.glb` (`CLIP_RUN`).
+- **Fix:**
+  - Modified `scripts/mecha/mecha_animation.gd` to prioritize `MechaRig.CLIP_RUN` first, only falling back to `CLIP_SPRINT_KIMODO` or `CLIP_AI_RUN` if `CLIP_RUN` is missing.
+  - Aligned `test/unit/clip_ingame_verify.gd` to accept `clip_run` branch (measured 113.2° leg swing vs 80.9° on Kimodo).
+- **Verification:**
+  - `res://test/unit/clip_ingame_verify.tscn`: **14/14 PASS (Exit 0)** (enters `clip_run` branch).
+  - `res://test/unit/innerframe_rig_verify.tscn`: **8/8 PASS (Exit 0)**.
+  - `res://test/unit/clip_retarget_verify.tscn`: **16/16 PASS (Exit 0)**.
+  - Regression suite (10 unit suites): **ALL 10 SUITES PASSED (Exit 0)**.
+
+

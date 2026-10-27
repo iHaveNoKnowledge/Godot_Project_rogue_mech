@@ -169,13 +169,13 @@ func _update_clip_animation(delta: float) -> void:
 		debug_branch = "procedural_idle"
 		_run_procedural(delta)
 		return
-	# Hand-authored run is primary; a Kimodo sprint wins when present,
-	# then any AI clip; the hand-authored run is the final fallback.
+	# Hand-authored run (Blender CLIP_RUN) is primary; fall back to Kimodo sprint or AI clip if missing.
 	var clip_name := MechaRig.CLIP_RUN
-	if clip_retarget.has_clip(MechaRig.CLIP_AI_RUN):
-		clip_name = MechaRig.CLIP_AI_RUN
-	if clip_retarget.has_clip(MechaRig.CLIP_SPRINT_KIMODO):
-		clip_name = MechaRig.CLIP_SPRINT_KIMODO
+	if not clip_retarget.has_clip(clip_name):
+		if clip_retarget.has_clip(MechaRig.CLIP_SPRINT_KIMODO):
+			clip_name = MechaRig.CLIP_SPRINT_KIMODO
+		elif clip_retarget.has_clip(MechaRig.CLIP_AI_RUN):
+			clip_name = MechaRig.CLIP_AI_RUN
 	if not clip_retarget.has_clip(clip_name):
 		debug_branch = "procedural_noclip"
 		_run_procedural(delta)

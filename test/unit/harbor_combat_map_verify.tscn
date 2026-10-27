@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://test/unit/harbor_combat_map_verify.gd" id="1"]
+
+[node name="HarborCombatMapVerify" type="Node3D"]
+script = ExtResource("1")

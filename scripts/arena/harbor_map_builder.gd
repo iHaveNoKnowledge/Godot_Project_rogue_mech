@@ -216,15 +216,16 @@ func _build_harbor_basin_and_water() -> void:
 	basin_root.name = "BasinRoot"
 	add_child(basin_root)
 
-	# Water Surface with Gerstner 3D Wave Tessellation (80x140 subdivisions = over 11,000 wave vertices!)
+	# Water Surface with Gerstner 3D Wave Tessellation (Optimized 30x50 subdivisions)
 	var water_mesh = PlaneMesh.new()
 	water_mesh.size = Vector2(28.0, 150.0)
-	water_mesh.subdivide_width = 80
-	water_mesh.subdivide_depth = 140
+	water_mesh.subdivide_width = 30
+	water_mesh.subdivide_depth = 50
 	var water_mi = MeshInstance3D.new()
 	water_mi.name = "WaterSurface"
 	water_mi.mesh = water_mesh
 	water_mi.material_override = _mat_water
+	water_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	water_mi.position = Vector3(-14.0, -2.2, -25.0)
 	basin_root.add_child(water_mi)
 
@@ -548,8 +549,11 @@ func _build_light_pole(parent: Node3D, pos: Vector3) -> void:
 	# Floodlight fixture
 	var light = OmniLight3D.new()
 	light.light_color = Color(1.0, 0.95, 0.88)
-	light.light_energy = 2.5
-	light.omni_range = 35.0
+	light.light_energy = 2.4
+	light.omni_range = 24.0
+	light.distance_fade_enabled = true
+	light.distance_fade_begin = 45.0
+	light.distance_fade_length = 20.0
 	light.position = Vector3(0.0, 12.0, 0.0)
 	pole.add_child(light)
 
@@ -638,33 +642,43 @@ func _enhance_model_pbr(root_node: Node3D, norm_scale: float = 1.0, min_roughnes
 			mi.material_override = pbr
 
 func _generate_exact_collision_for_model(root_node: Node3D, collision_layer: int = 2) -> void:
+	var sb := StaticBody3D.new()
+	sb.name = root_node.name + "_Compound_Col"
+	sb.collision_layer = collision_layer
+	sb.collision_mask = 1
+	root_node.add_child(sb)
+
+	var inv_root := root_node.global_transform.affine_inverse()
+
 	for child in root_node.find_children("*", "MeshInstance3D", true, false):
 		var mi := child as MeshInstance3D
 		if mi.mesh == null:
 			continue
-		# Exclude lights, glow screens, and thin window glass from blocking characters
-		if mi.name.find("Glow") != -1 or mi.name.find("Glass") != -1 or mi.name.find("Window") != -1 or mi.name.find("Light") != -1:
+		var lname := mi.name.to_lower()
+		# Filter out decorative, elevated, or thin non-blocking meshes
+		if (lname.find("glow") != -1 or lname.find("glass") != -1 or lname.find("window") != -1 
+				or lname.find("light") != -1 or lname.find("beacon") != -1 or lname.find("truss") != -1 
+				or lname.find("ac") != -1 or lname.find("spire") != -1):
 			continue
 		var trimesh_shape := mi.mesh.create_trimesh_shape()
 		if trimesh_shape != null:
-			var sb := StaticBody3D.new()
-			sb.name = mi.name + "_Col"
-			sb.collision_layer = collision_layer
-			sb.collision_mask = 1
 			var cs := CollisionShape3D.new()
 			cs.shape = trimesh_shape
+			cs.transform = inv_root * mi.global_transform
 			sb.add_child(cs)
-			mi.add_child(sb)
 
 func _add_warehouse_interior_lights(wh: Node3D) -> void:
-	# 4 warm industrial pendant lights hanging from trusses
+	# 4 warm industrial pendant lights hanging from trusses (optimized with distance fade)
 	for cy in [-11.0, -4.0, 4.0, 11.0]:
 		var light := OmniLight3D.new()
 		light.name = "WH_Interior_Light_%d" % int(cy)
 		light.light_color = Color(1.0, 0.88, 0.72)
-		light.light_energy = 2.4
-		light.omni_range = 18.0
+		light.light_energy = 2.2
+		light.omni_range = 15.0
 		light.omni_attenuation = 1.1
+		light.distance_fade_enabled = true
+		light.distance_fade_begin = 35.0
+		light.distance_fade_length = 15.0
 		light.position = Vector3(0.0, 8.2, cy)
 		wh.add_child(light)
 
@@ -674,7 +688,10 @@ func _add_office_interior_lights(office: Node3D) -> void:
 	gf_light.name = "Off_GF_Light"
 	gf_light.light_color = Color(0.92, 0.96, 1.0)
 	gf_light.light_energy = 1.8
-	gf_light.omni_range = 14.0
+	gf_light.omni_range = 13.0
+	gf_light.distance_fade_enabled = true
+	gf_light.distance_fade_begin = 30.0
+	gf_light.distance_fade_length = 15.0
 	gf_light.position = Vector3(-2.0, 3.2, 0.0)
 	office.add_child(gf_light)
 
@@ -683,7 +700,10 @@ func _add_office_interior_lights(office: Node3D) -> void:
 	f2_light.name = "Off_2F_Light"
 	f2_light.light_color = Color(0.85, 0.94, 1.0)
 	f2_light.light_energy = 2.0
-	f2_light.omni_range = 14.0
+	f2_light.omni_range = 13.0
+	f2_light.distance_fade_enabled = true
+	f2_light.distance_fade_begin = 30.0
+	f2_light.distance_fade_length = 15.0
 	f2_light.position = Vector3(-2.0, 7.0, 0.0)
 	office.add_child(f2_light)
 
@@ -705,14 +725,17 @@ func _build_harbor_entrance_and_roads() -> void:
 			_enhance_model_pbr(gate, 1.0, 0.45, 0.80)
 			_generate_exact_collision_for_model(gate)
 
-			# Checkpoint lane illumination floodlights
+			# Checkpoint lane illumination floodlights (with distance fade)
 			for lx in [-4.0, 4.0]:
 				var lane_spot := SpotLight3D.new()
 				lane_spot.name = "Gate_Lane_Light_%d" % int(lx)
 				lane_spot.light_color = Color(0.92, 0.96, 1.0)
-				lane_spot.light_energy = 3.5
-				lane_spot.spot_range = 16.0
-				lane_spot.spot_angle = 50.0
+				lane_spot.light_energy = 3.0
+				lane_spot.spot_range = 14.0
+				lane_spot.spot_angle = 48.0
+				lane_spot.distance_fade_enabled = true
+				lane_spot.distance_fade_begin = 40.0
+				lane_spot.distance_fade_length = 15.0
 				lane_spot.position = Vector3(lx, 6.0, 0.0)
 				lane_spot.rotation.x = -PI * 0.45
 				gate.add_child(lane_spot)
@@ -738,7 +761,7 @@ func _build_harbor_entrance_and_roads() -> void:
 	# South outer road curb
 	_create_static_slab("Highway_Curb_South", entrance_root, Vector3(0.0, 0.15, 124.3), Vector3(280.0, 0.3, 0.6), _mat_curb_hazard)
 
-	# 4. Highway Streetlights (Tall steel poles with warm sodium lighting)
+	# 4. Highway Streetlights (Tall steel poles with warm sodium lighting + distance fade)
 	var pole_mesh := CylinderMesh.new()
 	pole_mesh.top_radius = 0.15
 	pole_mesh.bottom_radius = 0.25
@@ -755,8 +778,11 @@ func _build_harbor_entrance_and_roads() -> void:
 		street_light.name = "Street_Light_%d" % sx
 		street_light.light_color = Color(1.0, 0.82, 0.58)
 		street_light.light_energy = 2.4
-		street_light.omni_range = 28.0
+		street_light.omni_range = 18.0
 		street_light.omni_attenuation = 1.0
+		street_light.distance_fade_enabled = true
+		street_light.distance_fade_begin = 45.0
+		street_light.distance_fade_length = 20.0
 		street_light.position = Vector3(float(sx), 9.8, 121.5)
 		entrance_root.add_child(street_light)
 
@@ -795,6 +821,7 @@ func _build_city_and_industrial_backdrop() -> void:
 		bldg.rotation.y = rotations[i]
 		backdrop_root.add_child(bldg)
 		_enhance_model_pbr(bldg, 0.8, 0.40, 0.70)
+		_optimize_backdrop_node(bldg, 420.0)
 
 # 12. Endless Open Ocean Extension, Breakwater, and Coastal Lighthouse
 func _build_open_ocean_extension() -> void:
@@ -802,15 +829,16 @@ func _build_open_ocean_extension() -> void:
 	ocean_root.name = "OpenOceanRoot"
 	add_child(ocean_root)
 
-	# 1. Vast Open Horizon Ocean Surface (900m wide x 750m deep, extending out to Z = -850.0)
+	# 1. Vast Open Horizon Ocean Surface (Optimized 32x32 subdivision, no shadow casting)
 	var ocean_mesh := PlaneMesh.new()
 	ocean_mesh.size = Vector2(900.0, 750.0)
-	ocean_mesh.subdivide_width = 90
-	ocean_mesh.subdivide_depth = 90
+	ocean_mesh.subdivide_width = 32
+	ocean_mesh.subdivide_depth = 32
 	var ocean_mi := MeshInstance3D.new()
 	ocean_mi.name = "VastOceanSurface"
 	ocean_mi.mesh = ocean_mesh
 	ocean_mi.material_override = _mat_water
+	ocean_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	ocean_mi.position = Vector3(0.0, -2.25, -475.0)
 	ocean_root.add_child(ocean_mi)
 
@@ -824,27 +852,34 @@ func _build_open_ocean_extension() -> void:
 			ocean_root.add_child(lh)
 			_enhance_model_pbr(lh, 0.9, 0.35, 0.75)
 			_generate_exact_collision_for_model(lh)
+			_optimize_backdrop_node(lh, 450.0)
 
-			# Powerful coastal beacon beam
+			# Powerful coastal beacon beam (optimized with distance fade)
 			var beacon_omni := OmniLight3D.new()
 			beacon_omni.name = "LH_Beacon_Omni"
 			beacon_omni.light_color = Color(1.0, 0.96, 0.80)
-			beacon_omni.light_energy = 5.0
-			beacon_omni.omni_range = 65.0
+			beacon_omni.light_energy = 4.5
+			beacon_omni.omni_range = 35.0
+			beacon_omni.distance_fade_enabled = true
+			beacon_omni.distance_fade_begin = 120.0
+			beacon_omni.distance_fade_length = 35.0
 			beacon_omni.position = Vector3(45.0, 27.5, 0.0)
 			lh.add_child(beacon_omni)
 
 			var beacon_spot := SpotLight3D.new()
 			beacon_spot.name = "LH_Beacon_Beam"
 			beacon_spot.light_color = Color(1.0, 0.98, 0.85)
-			beacon_spot.light_energy = 8.0
-			beacon_spot.spot_range = 220.0
+			beacon_spot.light_energy = 7.0
+			beacon_spot.spot_range = 140.0
 			beacon_spot.spot_angle = 32.0
+			beacon_spot.distance_fade_enabled = true
+			beacon_spot.distance_fade_begin = 130.0
+			beacon_spot.distance_fade_length = 35.0
 			beacon_spot.position = Vector3(45.0, 27.5, 0.0)
 			beacon_spot.rotation.y = -PI * 0.65
 			lh.add_child(beacon_spot)
 
-	# 3. Channel Navigation Marker Buoys (Flashing Green & Red)
+	# 3. Channel Navigation Marker Buoys (Flashing Green & Red with distance fade)
 	var buoy_mesh := CylinderMesh.new()
 	buoy_mesh.top_radius = 0.8
 	buoy_mesh.bottom_radius = 1.1
@@ -864,8 +899,11 @@ func _build_open_ocean_extension() -> void:
 	var g_light := OmniLight3D.new()
 	g_light.name = "Buoy_Green_Light"
 	g_light.light_color = Color(0.15, 1.0, 0.35)
-	g_light.light_energy = 3.0
-	g_light.omni_range = 25.0
+	g_light.light_energy = 2.8
+	g_light.omni_range = 16.0
+	g_light.distance_fade_enabled = true
+	g_light.distance_fade_begin = 60.0
+	g_light.distance_fade_length = 25.0
 	g_light.position = Vector3(0.0, 1.8, 0.0)
 	buoy_green.add_child(g_light)
 
@@ -883,10 +921,22 @@ func _build_open_ocean_extension() -> void:
 	var r_light := OmniLight3D.new()
 	r_light.name = "Buoy_Red_Light"
 	r_light.light_color = Color(1.0, 0.20, 0.15)
-	r_light.light_energy = 3.0
-	r_light.omni_range = 25.0
+	r_light.light_energy = 2.8
+	r_light.omni_range = 16.0
+	r_light.distance_fade_enabled = true
+	r_light.distance_fade_begin = 60.0
+	r_light.distance_fade_length = 25.0
 	r_light.position = Vector3(0.0, 1.8, 0.0)
 	buoy_red.add_child(r_light)
+
+func _optimize_backdrop_node(root_node: Node3D, max_dist: float = 400.0) -> void:
+	for child in root_node.find_children("*", "MeshInstance3D", true, false):
+		var mi := child as MeshInstance3D
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.visibility_range_end = max_dist
+		mi.visibility_range_end_margin = 40.0
+		mi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+
 
 
 

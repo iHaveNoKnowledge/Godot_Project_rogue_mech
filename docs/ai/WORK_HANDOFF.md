@@ -283,4 +283,21 @@
   - `res://test/unit/clip_retarget_verify.tscn`: **16/16 PASS (Exit 0)**.
   - Regression suite (10 unit suites): **ALL 10 SUITES PASSED (Exit 0)**.
 
+---
+
+## 15. Asset Session Note (2026-10-29): Hip Hinge Barrel + Yoke (Outer, Both Sides) — BUILT, INNER BLOCKED
+
+- **Ask:** replace the placeholder `Leg_L_hip_bridge_hinge` with a proper hinge for the schema `pelvis | hinge >> bridge << hinge | hip joint`; outer hinge (bridge ↔ hip-joint puck) first, mirror right.
+- **Authoring frame:** evaluated **f15 world coords** (`frame_set(15)` + `evaluated_depsgraph_get()`); the file had been left at f32, which makes every rigidly bone-parented part look displaced — always set f15 before comparing/authoring.
+- **Placement (raycast on the puck's flat inner face):** L plane n=(0.994, −0.093, −0.049), n·p0=−0.9586, face y −0.42..−0.18 / z 2.80..3.48; R plane n=(−0.987, 0.163, 0.005), c=−0.8581, face y −0.20..0.10 / z 2.80..3.48. The R face is **not a mirror of L** (different normal + y span) — never mirror this hinge across X blindly.
+- **Objects (collection `Pelvis_New`):**
+  - `Leg_L_hip_bridge_hinge` / `Leg_R_hip_bridge_hinge` — 320 v, `AccentBrass`: vertical pin r 0.0775 z 2.70..3.50 at the pad centre (L x −0.8032, R x 0.8517); brass rings r 0.095 × 0.012 at z 3.372 / 2.862; caps r 0.100 × 0.016 at z 3.494 / 2.706.
+  - `Leg_L_hip_bridge_hinge_yoke` / `_yoke` R — 128 v, `DarkFrameSteel` + `AccentBrass` bolt heads: top arm 0.165 (L) / 0.237 (R) × 0.22 × 0.06 at z 3.39..3.45 running into the bridge; diagonal bottom brace from pad-bottom (L x −0.845 / R 0.887, z 2.73) up to bridge bottom (∓0.65, z 2.945) — the brace underside already merges with the bottom brass cap at the centreline (verified surface samples inside the cap volume), so it does not float; straps 0.02 × 0.20 × 0.09 at z 3.435 / 2.785 with hex bolts (shank r 0.012, head r 0.020).
+  - Both meshes BEVEL 0.003, 2 seg, 40°.
+- **Parenting:** all four `parent_type='BONE'` → `Bone.003.R` (L) / `Bone.003.L` (R), `matrix_world = Identity` at f15 (verified 0.0 error). `Leg_{L,R}_hip_bridge_trim` and `Leg_{L,R}_hip_bridge` are skinned 100% to the **same** bones, so the hinge is rigid with the pad/bridge and cannot drift; the only relative mover is the white puck (`Bone.006`). The top arm overlaps the pin body above the pad; the straps sit just above/below the pad's top/bottom faces and read as bolted flanges; the pin's inboard half is intentionally embedded in the pad/puck (only the D-shaped inboard face + brass caps are visible).
+- **Inner (pelvis-side) hinge — BLOCKED:** a fixed pin on the pelvis collar cannot work: the collar point (−0.45, 0.016, 3.13) in pelvis space travels ~0.20 m across f0–34 (f0 Δ(0.048, −0.132, 0.146), f28 Δ(0.017, 0.194, 0.042)). Options: (a) static decorative mount bracket, (b) leave the inner side as-is, (c) redesign the rig pivot — awaiting user decision.
+- **Open design questions:** the pin is vertical (yaw) matching the placeholder, not on the puck's rotation axis; the hinge is currently a static detail (pin + yoke on `Bone.003`). If it must articulate, the pin has to follow `Bone.006` — but the pin sits ~0.33 m from the ball centre, so it would translate during puck rotation.
+- **Save/backup:** backup `scratch/innerframe_animation_handmade_pre_hiphinge_2026-10-29.blend` before the build; master re-saved at **frame 15 POSE** (`save_as_mainfile(copy=True)`).
+- **Deferred:** GLB re-export and in-game suites (asset changed; unrelated GDScript edits are in progress in the working tree).
+
 

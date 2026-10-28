@@ -9,6 +9,9 @@ func _ready() -> void:
 		"res://assets/models/harbor/harbor_gantry_crane.glb",
 		"res://assets/models/harbor/harbor_warehouse.glb",
 		"res://assets/models/harbor/harbor_office_building.glb",
+		"res://assets/models/harbor/harbor_security_gate.glb",
+		"res://assets/models/harbor/harbor_city_backdrop.glb",
+		"res://assets/models/harbor/harbor_breakwater_lighthouse.glb",
 		"res://assets/models/harbor/harbor_freight_train.glb",
 		"res://assets/models/harbor/harbor_pipeline.glb",
 		"res://assets/models/harbor/harbor_container_modular.glb"
@@ -49,6 +52,12 @@ func _ready() -> void:
 	assert(basin.has_node("WaterFluidArea"), "WaterFluidArea must exist")
 	print("[PASS] Harbor Basin & Fluid Water verified.")
 	
+	var ocean = builder.get_node_or_null("OpenOceanRoot")
+	assert(ocean != null, "OpenOceanRoot must exist")
+	assert(ocean.has_node("VastOceanSurface"), "VastOceanSurface must exist")
+	assert(ocean.has_node("Breakwater_Lighthouse"), "Breakwater_Lighthouse must exist")
+	print("[PASS] Open Ocean Extension & Breakwater Lighthouse verified.")
+	
 	assert(builder.has_node("Cargo_Ship"), "Cargo_Ship must be instantiated")
 	print("[PASS] Cargo Container Ship verified.")
 	
@@ -61,6 +70,16 @@ func _ready() -> void:
 	assert(builder.has_node("Port_Authority_HQ"), "Port Authority Office Building must exist")
 	assert(builder.has_node("Industrial_Pipeline_1"), "Pipeline must exist")
 	print("[PASS] Freight Train, Warehouses, Office Building, and Pipelines verified.")
+	
+	var entrance = builder.get_node_or_null("EntranceAndRoads")
+	assert(entrance != null, "EntranceAndRoads root must exist")
+	assert(entrance.has_node("Harbor_Security_Gate"), "Harbor_Security_Gate must exist")
+	assert(entrance.has_node("Highway_Roadbed"), "Highway_Roadbed must exist")
+	print("[PASS] Harbor Entrance Gate, Blast Walls, and Highway verified.")
+	
+	var backdrop = builder.get_node_or_null("CityBackdropRoot")
+	assert(backdrop != null and backdrop.get_child_count() > 0, "City backdrop root must exist with children")
+	print("[PASS] Landward City & Industrial Backdrop verified: count = %d" % backdrop.get_child_count())
 	
 	var containers = builder.get_node_or_null("TacticalContainers")
 	assert(containers != null and containers.get_child_count() > 0, "Tactical containers must exist")

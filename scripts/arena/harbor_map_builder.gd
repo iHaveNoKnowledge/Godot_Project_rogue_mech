@@ -15,6 +15,9 @@ const OFFICE_GLB_PATH = "res://assets/models/harbor/harbor_office_building.glb"
 const TRAIN_GLB_PATH = "res://assets/models/harbor/harbor_freight_train.glb"
 const PIPELINE_GLB_PATH = "res://assets/models/harbor/harbor_pipeline.glb"
 const CONTAINER_GLB_PATH = "res://assets/models/harbor/harbor_container_modular.glb"
+const SECURITY_GATE_GLB_PATH = "res://assets/models/harbor/harbor_security_gate.glb"
+const CITY_BACKDROP_GLB_PATH = "res://assets/models/harbor/harbor_city_backdrop.glb"
+const LIGHTHOUSE_GLB_PATH = "res://assets/models/harbor/harbor_breakwater_lighthouse.glb"
 const DUMMY_ENEMY_PATH = "res://scenes/mecha/enemy_dummy_full.tscn"
 
 # Material cache
@@ -22,6 +25,9 @@ var _mat_concrete: StandardMaterial3D
 var _mat_curb_hazard: Material
 var _mat_water: Material
 var _mat_asphalt: StandardMaterial3D
+var _mat_road_yellow_line: StandardMaterial3D
+var _mat_road_white_line: StandardMaterial3D
+var _mat_security_wall: StandardMaterial3D
 var _container_mats: Array[Material] = []
 
 func _ready() -> void:
@@ -32,11 +38,14 @@ func build_harbor_map() -> void:
 	_init_materials()
 	_build_concrete_piers()
 	_build_harbor_basin_and_water()
+	_build_open_ocean_extension()
 	_build_cargo_ship()
 	_build_gantry_cranes()
 	_build_rail_and_trains()
 	_build_warehouses()
 	_build_office_buildings()
+	_build_harbor_entrance_and_roads()
+	_build_city_and_industrial_backdrop()
 	_build_pipelines()
 	_build_tactical_container_clusters()
 	_build_quayside_bollards_and_lights()
@@ -152,6 +161,31 @@ func _init_materials() -> void:
 			sm.albedo_color = c
 			sm.roughness = 0.65
 			_container_mats.append(sm)
+
+	# 6. Road Markings & Security Perimeter Wall Materials
+	_mat_road_yellow_line = StandardMaterial3D.new()
+	_mat_road_yellow_line.albedo_color = Color(0.96, 0.78, 0.12)
+	_mat_road_yellow_line.roughness = 0.5
+	_mat_road_yellow_line.emission_enabled = true
+	_mat_road_yellow_line.emission = Color(0.96, 0.78, 0.12)
+	_mat_road_yellow_line.emission_energy_multiplier = 0.4
+
+	_mat_road_white_line = StandardMaterial3D.new()
+	_mat_road_white_line.albedo_color = Color(0.92, 0.94, 0.96)
+	_mat_road_white_line.roughness = 0.5
+	_mat_road_white_line.emission_enabled = true
+	_mat_road_white_line.emission = Color(0.92, 0.94, 0.96)
+	_mat_road_white_line.emission_energy_multiplier = 0.2
+
+	_mat_security_wall = StandardMaterial3D.new()
+	_mat_security_wall.albedo_color = Color(0.52, 0.55, 0.58)
+	_mat_security_wall.roughness = 0.88
+	_mat_security_wall.uv1_triplanar = true
+	_mat_security_wall.uv1_scale = Vector3(0.08, 0.08, 0.08)
+	if ResourceLoader.exists(norm_path):
+		_mat_security_wall.normal_enabled = true
+		_mat_security_wall.normal_texture = load(norm_path)
+		_mat_security_wall.normal_scale = 1.0
 
 # 1. Concrete Piers (East Quayside, West Pier, and South Apron)
 func _build_concrete_piers() -> void:
@@ -652,5 +686,207 @@ func _add_office_interior_lights(office: Node3D) -> void:
 	f2_light.omni_range = 14.0
 	f2_light.position = Vector3(-2.0, 7.0, 0.0)
 	office.add_child(f2_light)
+
+# 10. Harbor Entrance Checkpoint, Security Blast Walls, and 4-Lane Access Highway
+func _build_harbor_entrance_and_roads() -> void:
+	var entrance_root := Node3D.new()
+	entrance_root.name = "EntranceAndRoads"
+	add_child(entrance_root)
+
+	# 1. Main Harbor Security Gate Checkpoint (At South Apron gap: Vector3(-14.0, 0.0, 97.0))
+	if ResourceLoader.exists(SECURITY_GATE_GLB_PATH):
+		var gate_scene = load(SECURITY_GATE_GLB_PATH) as PackedScene
+		if gate_scene != null:
+			var gate = gate_scene.instantiate() as Node3D
+			gate.name = "Harbor_Security_Gate"
+			gate.position = Vector3(-14.0, 0.0, 97.0)
+			gate.rotation.y = PI
+			entrance_root.add_child(gate)
+			_enhance_model_pbr(gate, 1.0, 0.45, 0.80)
+			_generate_exact_collision_for_model(gate)
+
+			# Checkpoint lane illumination floodlights
+			for lx in [-4.0, 4.0]:
+				var lane_spot := SpotLight3D.new()
+				lane_spot.name = "Gate_Lane_Light_%d" % int(lx)
+				lane_spot.light_color = Color(0.92, 0.96, 1.0)
+				lane_spot.light_energy = 3.5
+				lane_spot.spot_range = 16.0
+				lane_spot.spot_angle = 50.0
+				lane_spot.position = Vector3(lx, 6.0, 0.0)
+				lane_spot.rotation.x = -PI * 0.45
+				gate.add_child(lane_spot)
+
+	# 2. Heavy Concrete Perimeter Blast Walls (Tactical perimeter enclosure)
+	# South boundary wall (Left of gate: X from -110.0 to -28.0)
+	_create_static_slab("Wall_South_Left", entrance_root, Vector3(-69.0, 2.0, 99.5), Vector3(82.0, 4.2, 0.8), _mat_security_wall)
+	# South boundary wall (Right of gate: X from 0.0 to 110.0)
+	_create_static_slab("Wall_South_Right", entrance_root, Vector3(55.0, 2.0, 99.5), Vector3(110.0, 4.2, 0.8), _mat_security_wall)
+	# East dock boundary wall (X=110.0, Z from -100.0 to 100.0)
+	_create_static_slab("Wall_East_Boundary", entrance_root, Vector3(109.5, 2.0, 0.0), Vector3(0.8, 4.2, 200.0), _mat_security_wall)
+	# West pier boundary wall (X=-110.0, Z from -100.0 to 100.0)
+	_create_static_slab("Wall_West_Boundary", entrance_root, Vector3(-109.5, 2.0, 0.0), Vector3(0.8, 4.2, 200.0), _mat_security_wall)
+
+	# 3. 4-Lane Access Highway (Outside gate: Z from 104.0 to 124.0, X from -140.0 to 140.0)
+	_create_static_slab("Highway_Roadbed", entrance_root, Vector3(0.0, -0.9, 114.0), Vector3(280.0, 1.8, 20.0), _mat_asphalt)
+	# Center double yellow division line
+	_create_static_slab("Road_Center_Line", entrance_root, Vector3(0.0, 0.02, 114.0), Vector3(280.0, 0.02, 0.4), _mat_road_yellow_line)
+	# North lane boundary white line
+	_create_static_slab("Road_White_Line_N", entrance_root, Vector3(0.0, 0.02, 109.0), Vector3(280.0, 0.02, 0.25), _mat_road_white_line)
+	# South lane boundary white line
+	_create_static_slab("Road_White_Line_S", entrance_root, Vector3(0.0, 0.02, 119.0), Vector3(280.0, 0.02, 0.25), _mat_road_white_line)
+	# South outer road curb
+	_create_static_slab("Highway_Curb_South", entrance_root, Vector3(0.0, 0.15, 124.3), Vector3(280.0, 0.3, 0.6), _mat_curb_hazard)
+
+	# 4. Highway Streetlights (Tall steel poles with warm sodium lighting)
+	var pole_mesh := CylinderMesh.new()
+	pole_mesh.top_radius = 0.15
+	pole_mesh.bottom_radius = 0.25
+	pole_mesh.height = 10.0
+
+	for sx in range(-120, 130, 40):
+		var pole_mi := MeshInstance3D.new()
+		pole_mi.mesh = pole_mesh
+		pole_mi.material_override = _mat_asphalt
+		pole_mi.position = Vector3(float(sx), 5.0, 123.5)
+		entrance_root.add_child(pole_mi)
+
+		var street_light := OmniLight3D.new()
+		street_light.name = "Street_Light_%d" % sx
+		street_light.light_color = Color(1.0, 0.82, 0.58)
+		street_light.light_energy = 2.4
+		street_light.omni_range = 28.0
+		street_light.omni_attenuation = 1.0
+		street_light.position = Vector3(float(sx), 9.8, 121.5)
+		entrance_root.add_child(street_light)
+
+# 11. Landward Metropolitan & Industrial Skyline Backdrop
+func _build_city_and_industrial_backdrop() -> void:
+	if not ResourceLoader.exists(CITY_BACKDROP_GLB_PATH):
+		return
+	var city_scene = load(CITY_BACKDROP_GLB_PATH) as PackedScene
+	if city_scene == null:
+		return
+
+	var backdrop_root := Node3D.new()
+	backdrop_root.name = "CityBackdropRoot"
+	add_child(backdrop_root)
+
+	# South Horizon Backdrops (Behind Highway: Z ~ 150 to 160)
+	var positions := [
+		Vector3(0.0, 0.0, 150.0),      # Center backdrop
+		Vector3(85.0, 0.0, 158.0),     # South-East heavy industry sector
+		Vector3(-85.0, 0.0, 158.0),    # South-West distribution sector
+		Vector3(148.0, 0.0, 15.0),     # East flank city skyline
+		Vector3(148.0, 0.0, -65.0)     # East flank northern towers
+	]
+	var rotations := [
+		0.0,
+		0.0,
+		0.0,
+		PI * 0.5,
+		PI * 0.5
+	]
+
+	for i in range(positions.size()):
+		var bldg = city_scene.instantiate() as Node3D
+		bldg.name = "City_Backdrop_%d" % (i + 1)
+		bldg.position = positions[i]
+		bldg.rotation.y = rotations[i]
+		backdrop_root.add_child(bldg)
+		_enhance_model_pbr(bldg, 0.8, 0.40, 0.70)
+
+# 12. Endless Open Ocean Extension, Breakwater, and Coastal Lighthouse
+func _build_open_ocean_extension() -> void:
+	var ocean_root := Node3D.new()
+	ocean_root.name = "OpenOceanRoot"
+	add_child(ocean_root)
+
+	# 1. Vast Open Horizon Ocean Surface (900m wide x 750m deep, extending out to Z = -850.0)
+	var ocean_mesh := PlaneMesh.new()
+	ocean_mesh.size = Vector2(900.0, 750.0)
+	ocean_mesh.subdivide_width = 90
+	ocean_mesh.subdivide_depth = 90
+	var ocean_mi := MeshInstance3D.new()
+	ocean_mi.name = "VastOceanSurface"
+	ocean_mi.mesh = ocean_mesh
+	ocean_mi.material_override = _mat_water
+	ocean_mi.position = Vector3(0.0, -2.25, -475.0)
+	ocean_root.add_child(ocean_mi)
+
+	# 2. Breakwater Jetty & Coastal Lighthouse (At Z = -260.0 in the bay entrance)
+	if ResourceLoader.exists(LIGHTHOUSE_GLB_PATH):
+		var lh_scene = load(LIGHTHOUSE_GLB_PATH) as PackedScene
+		if lh_scene != null:
+			var lh = lh_scene.instantiate() as Node3D
+			lh.name = "Breakwater_Lighthouse"
+			lh.position = Vector3(65.0, -2.2, -260.0)
+			ocean_root.add_child(lh)
+			_enhance_model_pbr(lh, 0.9, 0.35, 0.75)
+			_generate_exact_collision_for_model(lh)
+
+			# Powerful coastal beacon beam
+			var beacon_omni := OmniLight3D.new()
+			beacon_omni.name = "LH_Beacon_Omni"
+			beacon_omni.light_color = Color(1.0, 0.96, 0.80)
+			beacon_omni.light_energy = 5.0
+			beacon_omni.omni_range = 65.0
+			beacon_omni.position = Vector3(45.0, 27.5, 0.0)
+			lh.add_child(beacon_omni)
+
+			var beacon_spot := SpotLight3D.new()
+			beacon_spot.name = "LH_Beacon_Beam"
+			beacon_spot.light_color = Color(1.0, 0.98, 0.85)
+			beacon_spot.light_energy = 8.0
+			beacon_spot.spot_range = 220.0
+			beacon_spot.spot_angle = 32.0
+			beacon_spot.position = Vector3(45.0, 27.5, 0.0)
+			beacon_spot.rotation.y = -PI * 0.65
+			lh.add_child(beacon_spot)
+
+	# 3. Channel Navigation Marker Buoys (Flashing Green & Red)
+	var buoy_mesh := CylinderMesh.new()
+	buoy_mesh.top_radius = 0.8
+	buoy_mesh.bottom_radius = 1.1
+	buoy_mesh.height = 2.4
+
+	# Starboard Buoy (Green beacon, X = 25.0)
+	var buoy_green := MeshInstance3D.new()
+	buoy_green.name = "Navigation_Buoy_Starboard"
+	buoy_green.mesh = buoy_mesh
+	var mat_g := StandardMaterial3D.new()
+	mat_g.albedo_color = Color(0.12, 0.85, 0.25)
+	mat_g.roughness = 0.4
+	buoy_green.material_override = mat_g
+	buoy_green.position = Vector3(25.0, -1.8, -135.0)
+	ocean_root.add_child(buoy_green)
+
+	var g_light := OmniLight3D.new()
+	g_light.name = "Buoy_Green_Light"
+	g_light.light_color = Color(0.15, 1.0, 0.35)
+	g_light.light_energy = 3.0
+	g_light.omni_range = 25.0
+	g_light.position = Vector3(0.0, 1.8, 0.0)
+	buoy_green.add_child(g_light)
+
+	# Port Buoy (Red beacon, X = -55.0)
+	var buoy_red := MeshInstance3D.new()
+	buoy_red.name = "Navigation_Buoy_Port"
+	buoy_red.mesh = buoy_mesh
+	var mat_r := StandardMaterial3D.new()
+	mat_r.albedo_color = Color(0.85, 0.15, 0.12)
+	mat_r.roughness = 0.4
+	buoy_red.material_override = mat_r
+	buoy_red.position = Vector3(-55.0, -1.8, -135.0)
+	ocean_root.add_child(buoy_red)
+
+	var r_light := OmniLight3D.new()
+	r_light.name = "Buoy_Red_Light"
+	r_light.light_color = Color(1.0, 0.20, 0.15)
+	r_light.light_energy = 3.0
+	r_light.omni_range = 25.0
+	r_light.position = Vector3(0.0, 1.8, 0.0)
+	buoy_red.add_child(r_light)
+
 
 

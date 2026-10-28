@@ -11,6 +11,7 @@ extends Node3D
 const SHIP_GLB_PATH = "res://assets/models/harbor/harbor_cargo_ship.glb"
 const CRANE_GLB_PATH = "res://assets/models/harbor/harbor_gantry_crane.glb"
 const WAREHOUSE_GLB_PATH = "res://assets/models/harbor/harbor_warehouse.glb"
+const OFFICE_GLB_PATH = "res://assets/models/harbor/harbor_office_building.glb"
 const TRAIN_GLB_PATH = "res://assets/models/harbor/harbor_freight_train.glb"
 const PIPELINE_GLB_PATH = "res://assets/models/harbor/harbor_pipeline.glb"
 const CONTAINER_GLB_PATH = "res://assets/models/harbor/harbor_container_modular.glb"
@@ -35,6 +36,7 @@ func build_harbor_map() -> void:
 	_build_gantry_cranes()
 	_build_rail_and_trains()
 	_build_warehouses()
+	_build_office_buildings()
 	_build_pipelines()
 	_build_tactical_container_clusters()
 	_build_quayside_bollards_and_lights()
@@ -99,23 +101,24 @@ func _init_materials() -> void:
 		_mat_curb_hazard = StandardMaterial3D.new()
 		_mat_curb_hazard.albedo_color = Color(0.92, 0.76, 0.12)
 
-	# 4. Realistic Maritime Water Shader (Dual wave scrolling normals + depth fade + shore foam)
-	var water_shader := load("res://shaders/harbor_water.gdshader") as Shader
+	# 4. Realistic Maritime Gerstner Fluid Water Shader
+	var water_shader := load("res://shaders/harbor_gerstner_water.gdshader") as Shader
 	if water_shader != null:
 		var wm := ShaderMaterial.new()
 		wm.shader = water_shader
-		wm.set_shader_parameter("deep_water_color", Color(0.04, 0.14, 0.22, 0.95))
-		wm.set_shader_parameter("shallow_water_color", Color(0.08, 0.32, 0.40, 0.88))
-		wm.set_shader_parameter("foam_color", Color(0.88, 0.94, 0.98, 1.0))
-		wm.set_shader_parameter("wave_scale", 6.0)
-		wm.set_shader_parameter("wave_speed_1", 0.04)
-		wm.set_shader_parameter("wave_speed_2", 0.025)
-		wm.set_shader_parameter("roughness", 0.08)
+		wm.set_shader_parameter("deep_color", Color(0.03, 0.10, 0.18, 0.95))
+		wm.set_shader_parameter("shallow_color", Color(0.08, 0.36, 0.44, 0.82))
+		wm.set_shader_parameter("foam_color", Color(0.92, 0.96, 1.0, 1.0))
+		wm.set_shader_parameter("beer_law_factor", 0.35)
+		wm.set_shader_parameter("refraction_strength", 0.035)
+		wm.set_shader_parameter("wave_steepness", 0.30)
+		wm.set_shader_parameter("time_speed", 1.0)
+		wm.set_shader_parameter("roughness", 0.06)
 		wm.set_shader_parameter("metallic", 0.85)
 		if ResourceLoader.exists(norm_path):
 			var ntex := load(norm_path)
-			wm.set_shader_parameter("normal_map_1", ntex)
-			wm.set_shader_parameter("normal_map_2", ntex)
+			wm.set_shader_parameter("normal_bump_1", ntex)
+			wm.set_shader_parameter("normal_bump_2", ntex)
 		_mat_water = wm
 	else:
 		_mat_water = StandardMaterial3D.new()
@@ -179,15 +182,32 @@ func _build_harbor_basin_and_water() -> void:
 	basin_root.name = "BasinRoot"
 	add_child(basin_root)
 
-	# Water Surface (Width 28m, Length 150m, situated at Y = -2.2)
+	# Water Surface with Gerstner 3D Wave Tessellation (80x140 subdivisions = over 11,000 wave vertices!)
 	var water_mesh = PlaneMesh.new()
 	water_mesh.size = Vector2(28.0, 150.0)
+	water_mesh.subdivide_width = 80
+	water_mesh.subdivide_depth = 140
 	var water_mi = MeshInstance3D.new()
 	water_mi.name = "WaterSurface"
 	water_mi.mesh = water_mesh
 	water_mi.material_override = _mat_water
 	water_mi.position = Vector3(-14.0, -2.2, -25.0)
 	basin_root.add_child(water_mi)
+
+	# Fluid Physics Area (Slows down walking in water and adds buoyancy/damping)
+	var water_area = Area3D.new()
+	water_area.name = "WaterFluidArea"
+	water_area.position = Vector3(-14.0, -5.0, -25.0)
+	water_area.linear_damp_space_override = Area3D.SPACE_OVERRIDE_COMBINE
+	water_area.linear_damp = 4.0
+	water_area.angular_damp_space_override = Area3D.SPACE_OVERRIDE_COMBINE
+	water_area.angular_damp = 3.0
+	var area_col = CollisionShape3D.new()
+	var area_box = BoxShape3D.new()
+	area_box.size = Vector3(28.0, 6.0, 150.0)
+	area_col.shape = area_box
+	water_area.add_child(area_col)
+	basin_root.add_child(water_area)
 
 	# Basin concrete floor (Bed at Y = -8.0)
 	_create_static_slab("Basin_Floor", basin_root, Vector3(-14.0, -8.5, -25.0), Vector3(28.0, 1.0, 150.0), _mat_asphalt)
@@ -218,19 +238,8 @@ func _build_cargo_ship() -> void:
 	add_child(ship_inst)
 	_enhance_model_pbr(ship_inst, 1.1, 0.52, 0.82)
 
-	# Add StaticBody3D collision boundaries for the ship so players can walk on it
-	var ship_col = StaticBody3D.new()
-	ship_col.name = "Ship_Collision"
-	ship_col.collision_layer = 2
-	ship_col.collision_mask = 1
-	ship_inst.add_child(ship_col)
-
-	# Main Hull Deck collision
-	_add_box_shape(ship_col, Vector3(0.0, 2.0, 0.0), Vector3(16.0, 4.0, 68.0))
-	# Stern Superstructure collision
-	_add_box_shape(ship_col, Vector3(0.0, 8.0, -25.0), Vector3(14.0, 8.0, 12.0))
-	# Container Stacks in hold collision (Provides Height Advantage!)
-	_add_box_shape(ship_col, Vector3(0.0, 4.5, 0.0), Vector3(12.0, 5.0, 32.0))
+	# Generate exact mesh collision for all parts of the ship (Fixes inverted collision permanently!)
+	_generate_exact_collision_for_model(ship_inst)
 
 # 4. Gantry Cranes
 func _build_gantry_cranes() -> void:
@@ -316,7 +325,7 @@ func _add_train_collision(train: Node3D) -> void:
 	# Flatcar deck + side bulkheads (Cover Low: ~1.4m high)
 	_add_box_shape(col_body, Vector3(0.0, 0.7, 0.0), Vector3(3.0, 1.4, 14.0))
 
-# 6. Industrial Warehouses
+# 6. Industrial Warehouses (With Walkable Interior)
 func _build_warehouses() -> void:
 	if not ResourceLoader.exists(WAREHOUSE_GLB_PATH):
 		return
@@ -327,18 +336,20 @@ func _build_warehouses() -> void:
 	# Warehouse 1 (North-East corner of dockyard)
 	var wh1 = wh_scene.instantiate() as Node3D
 	wh1.name = "Industrial_Warehouse_NE"
-	wh1.position = Vector3(42.0, 0.0, -45.0)
+	wh1.position = Vector3(45.0, 0.0, -45.0)
 	add_child(wh1)
 	_enhance_model_pbr(wh1, 1.1, 0.58, 0.82)
-	_add_warehouse_collision(wh1)
+	_generate_exact_collision_for_model(wh1)
+	_add_warehouse_interior_lights(wh1)
 
 	# Warehouse 2 (South-East depot)
 	var wh2 = wh_scene.instantiate() as Node3D
 	wh2.name = "Industrial_Warehouse_SE"
-	wh2.position = Vector3(42.0, 0.0, 35.0)
+	wh2.position = Vector3(45.0, 0.0, 35.0)
 	add_child(wh2)
 	_enhance_model_pbr(wh2, 1.1, 0.58, 0.82)
-	_add_warehouse_collision(wh2)
+	_generate_exact_collision_for_model(wh2)
+	_add_warehouse_interior_lights(wh2)
 
 	# Warehouse 3 (West pier storage facility)
 	var wh3 = wh_scene.instantiate() as Node3D
@@ -347,20 +358,37 @@ func _build_warehouses() -> void:
 	wh3.rotation.y = PI * 0.5
 	add_child(wh3)
 	_enhance_model_pbr(wh3, 1.1, 0.58, 0.82)
-	_add_warehouse_collision(wh3)
+	_generate_exact_collision_for_model(wh3)
+	_add_warehouse_interior_lights(wh3)
 
-func _add_warehouse_collision(wh: Node3D) -> void:
-	var col_body = StaticBody3D.new()
-	col_body.name = "WH_Collision"
-	col_body.collision_layer = 2
-	col_body.collision_mask = 1
-	wh.add_child(col_body)
-	# Main warehouse hall (Width 24m, Length 32m, Height 12.5m)
-	_add_box_shape(col_body, Vector3(0.0, 6.0, 0.0), Vector3(24.0, 12.0, 32.0))
-	# Side office annex
-	_add_box_shape(col_body, Vector3(14.5, 2.5, 6.0), Vector3(5.0, 5.0, 12.0))
+# 7. Harbor Office Buildings (2-Story Walkable Interior & Rooftop)
+func _build_office_buildings() -> void:
+	if not ResourceLoader.exists(OFFICE_GLB_PATH):
+		return
+	var off_scene = load(OFFICE_GLB_PATH) as PackedScene
+	if off_scene == null:
+		return
 
-# 7. Industrial Pipeline
+	# Office 1: Port Administration HQ (East Pier, near warehouse & cranes)
+	var off1 = off_scene.instantiate() as Node3D
+	off1.name = "Port_Authority_HQ"
+	off1.position = Vector3(26.0, 0.0, -5.0)
+	add_child(off1)
+	_enhance_model_pbr(off1, 0.8, 0.45, 0.75)
+	_generate_exact_collision_for_model(off1)
+	_add_office_interior_lights(off1)
+
+	# Office 2: West Pier Customs & Gatehouse
+	var off2 = off_scene.instantiate() as Node3D
+	off2.name = "Port_Customs_Gatehouse"
+	off2.position = Vector3(-55.0, 0.0, 35.0)
+	off2.rotation.y = PI
+	add_child(off2)
+	_enhance_model_pbr(off2, 0.8, 0.45, 0.75)
+	_generate_exact_collision_for_model(off2)
+	_add_office_interior_lights(off2)
+
+# 8. Industrial Pipeline
 func _build_pipelines() -> void:
 	if not ResourceLoader.exists(PIPELINE_GLB_PATH):
 		return
@@ -375,14 +403,7 @@ func _build_pipelines() -> void:
 	pipe1.rotation.y = PI * 0.5
 	add_child(pipe1)
 	_enhance_model_pbr(pipe1, 1.0, 0.40, 0.70)
-
-	var col_body = StaticBody3D.new()
-	col_body.name = "Pipe_Collision"
-	col_body.collision_layer = 2
-	col_body.collision_mask = 1
-	pipe1.add_child(col_body)
-	# Main pipe collision (Cover Low: 1.5m tall)
-	_add_box_shape(col_body, Vector3(0.0, 0.75, 0.0), Vector3(1.6, 1.5, 18.0))
+	_generate_exact_collision_for_model(pipe1)
 
 # 8. Tactical Shipping Container Stacks (Cover High & Cover Low)
 func _build_tactical_container_clusters() -> void:
@@ -581,4 +602,55 @@ func _enhance_model_pbr(root_node: Node3D, norm_scale: float = 1.0, min_roughnes
 			pbr.roughness = clamp(pbr.roughness, min_roughness, max_roughness)
 			pbr.metallic_specular = 0.35
 			mi.material_override = pbr
+
+func _generate_exact_collision_for_model(root_node: Node3D, collision_layer: int = 2) -> void:
+	for child in root_node.find_children("*", "MeshInstance3D", true, false):
+		var mi := child as MeshInstance3D
+		if mi.mesh == null:
+			continue
+		# Exclude lights, glow screens, and thin window glass from blocking characters
+		if mi.name.find("Glow") != -1 or mi.name.find("Glass") != -1 or mi.name.find("Window") != -1 or mi.name.find("Light") != -1:
+			continue
+		var trimesh_shape := mi.mesh.create_trimesh_shape()
+		if trimesh_shape != null:
+			var sb := StaticBody3D.new()
+			sb.name = mi.name + "_Col"
+			sb.collision_layer = collision_layer
+			sb.collision_mask = 1
+			var cs := CollisionShape3D.new()
+			cs.shape = trimesh_shape
+			sb.add_child(cs)
+			mi.add_child(sb)
+
+func _add_warehouse_interior_lights(wh: Node3D) -> void:
+	# 4 warm industrial pendant lights hanging from trusses
+	for cy in [-11.0, -4.0, 4.0, 11.0]:
+		var light := OmniLight3D.new()
+		light.name = "WH_Interior_Light_%d" % int(cy)
+		light.light_color = Color(1.0, 0.88, 0.72)
+		light.light_energy = 2.4
+		light.omni_range = 18.0
+		light.omni_attenuation = 1.1
+		light.position = Vector3(0.0, 8.2, cy)
+		wh.add_child(light)
+
+func _add_office_interior_lights(office: Node3D) -> void:
+	# Ground floor office light
+	var gf_light := OmniLight3D.new()
+	gf_light.name = "Off_GF_Light"
+	gf_light.light_color = Color(0.92, 0.96, 1.0)
+	gf_light.light_energy = 1.8
+	gf_light.omni_range = 14.0
+	gf_light.position = Vector3(-2.0, 3.2, 0.0)
+	office.add_child(gf_light)
+
+	# 2nd floor command center light
+	var f2_light := OmniLight3D.new()
+	f2_light.name = "Off_2F_Light"
+	f2_light.light_color = Color(0.85, 0.94, 1.0)
+	f2_light.light_energy = 2.0
+	f2_light.omni_range = 14.0
+	f2_light.position = Vector3(-2.0, 7.0, 0.0)
+	office.add_child(f2_light)
+
 

@@ -26,4 +26,5 @@ fi
 "$GODOT_EXE" --headless "res://test/unit/salvo_recoil_routing_verify.tscn"
 "$GODOT_EXE" --headless "res://test/unit/melee_combat_pacing_and_telegraph_verify.tscn"
 "$GODOT_EXE" --headless "res://test/unit/campaign_territory_geometry_verify.tscn"
+"$GODOT_EXE" --headless "res://test/unit/harbor_combat_map_verify.tscn"
 "$GODOT_EXE" --headless -s addons/gut/gut_cmdln.gd -gdir=res://test/unit/ -gexit "$@"

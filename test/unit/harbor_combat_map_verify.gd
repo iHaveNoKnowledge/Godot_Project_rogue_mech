@@ -8,6 +8,7 @@ func _ready() -> void:
 		"res://assets/models/harbor/harbor_cargo_ship.glb",
 		"res://assets/models/harbor/harbor_gantry_crane.glb",
 		"res://assets/models/harbor/harbor_warehouse.glb",
+		"res://assets/models/harbor/harbor_office_building.glb",
 		"res://assets/models/harbor/harbor_freight_train.glb",
 		"res://assets/models/harbor/harbor_pipeline.glb",
 		"res://assets/models/harbor/harbor_container_modular.glb"
@@ -45,7 +46,8 @@ func _ready() -> void:
 	var basin = builder.get_node_or_null("BasinRoot")
 	assert(basin != null, "BasinRoot must exist")
 	assert(basin.has_node("WaterSurface"), "WaterSurface must exist")
-	print("[PASS] Harbor Basin & Water verified.")
+	assert(basin.has_node("WaterFluidArea"), "WaterFluidArea must exist")
+	print("[PASS] Harbor Basin & Fluid Water verified.")
 	
 	assert(builder.has_node("Cargo_Ship"), "Cargo_Ship must be instantiated")
 	print("[PASS] Cargo Container Ship verified.")
@@ -56,8 +58,9 @@ func _ready() -> void:
 	
 	assert(builder.has_node("Freight_Train_1"), "Freight train must exist")
 	assert(builder.has_node("Industrial_Warehouse_NE"), "Warehouse must exist")
+	assert(builder.has_node("Port_Authority_HQ"), "Port Authority Office Building must exist")
 	assert(builder.has_node("Industrial_Pipeline_1"), "Pipeline must exist")
-	print("[PASS] Freight Train, Warehouses, and Pipelines verified.")
+	print("[PASS] Freight Train, Warehouses, Office Building, and Pipelines verified.")
 	
 	var containers = builder.get_node_or_null("TacticalContainers")
 	assert(containers != null and containers.get_child_count() > 0, "Tactical containers must exist")

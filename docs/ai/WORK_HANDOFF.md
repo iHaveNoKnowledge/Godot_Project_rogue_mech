@@ -300,4 +300,25 @@
 - **Save/backup:** backup `scratch/innerframe_animation_handmade_pre_hiphinge_2026-10-29.blend` before the build; master re-saved at **frame 15 POSE** (`save_as_mainfile(copy=True)`).
 - **Deferred:** GLB re-export and in-game suites (asset changed; unrelated GDScript edits are in progress in the working tree).
 
+## 16. Asset Session Note (2026-10-29): Inner Hip-Bridge Hinge (Rig Pivot Redesign) — COMPLETE
+
+- **Decision:** user chose **(c) redesign the rig pivot** for the pelvis side. The hip-bridge collar is now driven by two dedicated deform bones parented to `pelvis`, so the collar follows the bridge while the beam telescopes inside it; the outer hinge (§15) is untouched.
+- **Rig:**
+  - `Bone.008.R` (L side) head/tail armature `(−0.3944,−0.1212,3.0867)` / `(−0.798,−0.2791,3.0785)`; `Bone.008.L` (R side) `(0.4199,−0.0131,3.0876)` / `(0.8509,−0.0589,3.0805)`. Parent `pelvis`, `use_connect=False`, `use_deform=True`.
+  - Hidden empties `CTRL_hip_bridge_collar.L` (`Bone.003.R`) / `.R` (`Bone.003.L`), PLAIN_AXES 0.05, `hide_render`, `hide_set(True)`, MPI identity; Damped Track `Track bridge pad`, `TRACK_Y`.
+  - Weights: bridge re-split L `Bone.003.R` 76 / `Bone.008.R` 104; R `Bone.003.L` 76 / `Bone.008.L` 104. Collar pitches with the bridge step (~16.7° up at f0, ~23.6° down at f10); the Damped Track keeps the pad aim flush.
+- **Collar clamp (collection `Pelvis_New`):** `Leg_{L,R}_hip_bridge_collar_bracket` (16 v, `DarkFrameSteel`) with top arm z 3.360..3.410 / bottom arm z 2.845..2.895, x inner ±0.325 (inside pelvis shell ±0.368), x outer = pad x ± 0.015; `Leg_{L,R}_hip_bridge_collar_pin` (256 v, `AccentBrass`) r 0.030 stubs + r 0.048 × 0.014 caps (top 3.410..3.424, bottom 2.831..2.845). Both BEVEL 0.003/2/40°, flat shading. The pin is embedded into the collar and carries the bracket plates; no vertical outer plate.
+- **Parenting:** all four parts OBJECT-parented to `Armature`, `parent_type='BONE'` → `pelvis`, full `matrix_parent_inverse = (A @ pb.matrix @ Translation(0,len,0))⁻¹`, basis identity. At f0/15/34 `matrix_world` differs from the bridge by ≤1.34e-07 (f15 5.96e-08). Note: reading `matrix_world` immediately after parenting is stale until `view_layer.update()`; the first identity check was a false pass.
+- **Clearance proof (f0–40 BVH, real objects at f0/5/15/20/34):** worst arm-vs-bridge **+39.34 mm** (R f2 top) / **+42.88 mm** (L f1 bottom); worst pin-vs-beam **+26.10 mm** (R f5 top) / **+26.18 mm** (L f33 bottom); pin–beam min distance 26.2–27.7 mm with `overlap=0`; bracket–beam (beam-only) 79.4–83.9 mm; pelvis pose rotation **0.0000° f0–40** (so no pelvis-driven drift). Method: world-space BVH `FromPolygons`; arm band grid 4 mm, stub disc 2.5 mm via raycasts — never vertex-in-band tests.
+- **Bake integrity:** f15 evaluated components match `scratch/innerframe_animation_handmade_pre_collarbake_2026-10-29.blend` to 5 decimals both sides (pad 192, bolts 4×72, beam 68, collar 56 verts).
+- **Save:** master `scratch/innerframe_animation_handmade.blend` re-saved at **f15 POSE**. Fresh headless reopen: 57 bones, frame 15, POSE, bracket/pin parent BONE `pelvis`, basis identity, world diff ≤1.34e-07, 15 eye-hidden objects (13 former + 2 new CTRL empties), `Leg_R_Shin_upper_piston_static.hide_viewport=True` preserved.
+- **Render review:** both sides rendered at distance 2.0 m from outside front/left diagonals (tight 0.85–1.15 m puts the camera inside the pelvis/thigh; top-down sits inside the torso at z≈4.97). Bracket clamps the pin, caps seat on the arms, pin anchors into the collar, brass trim ring sits flush on the puck — accepted.
+- **GLB re-export:** `scenes/mecha/animations/innerframe_run_cycle_clean.glb` rebuilt via Blender GLB + `tools/export_innerframe_glb.py` — **57 joints**, 103 meshes, 176 nodes, animation `run`, Armature translation zeroed and the Z-bob transferred into `Bone_Hip` (Z 3.1995..3.5295, 41 samples). Hidden CTL/JNT empties remain exported exactly as before.
+- **Godot verification (after `--headless --import`; without reimport Godot serves the cached 55-bone scene):**
+  - `innerframe_rig_verify` **8/8** (`>=16 bones (got 57)`, 16 canonical bones present, head 5.60 m)
+  - `clip_retarget_verify` **16/16** (leg range 113.2°/113.1°, shin 122.4°, bob 0.325 m)
+  - `clip_ingame_verify` **14/14** (clip_run, leg 113.3°, cadence 2 crossings, airtime/grace and idle return intact)
+  - `run_tests.sh` exit 0; all standalone verifies pass; GUT reports "Nothing was run" (pre-existing configuration quirk, unrelated).
+- **Remaining caveats:** outer hinge remains a static detail (§15); the GLB carries the hidden control empties as before. No production GDScript changed.
+
 

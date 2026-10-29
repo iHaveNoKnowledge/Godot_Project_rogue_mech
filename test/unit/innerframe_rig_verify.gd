@@ -74,6 +74,35 @@ func _ready() -> void:
 	_check(player != null, "AnimationPlayer present in cleaned glb")
 	if player != null:
 		_check(player.has_animation(MechaRig.CLIP_RUN), "run clip present (has %s)" % str(player.get_animation_list()))
+		if player.has_animation(MechaRig.CLIP_RUN):
+			var anim := player.get_animation(MechaRig.CLIP_RUN)
+			var expected_len := 37.0 / 24.0
+			_check(absf(anim.length - expected_len) < 0.01, "run clip closed at %.4fs (got %.4fs)" % [expected_len, anim.length])
+			var seam_tracks := 0
+			var seam_bad := 0
+			for i in range(anim.get_track_count()):
+				var t := anim.track_get_type(i)
+				if t not in [Animation.TYPE_POSITION_3D, Animation.TYPE_ROTATION_3D, Animation.TYPE_SCALE_3D]:
+					continue
+				var n := anim.track_get_key_count(i)
+				if n < 2:
+					continue
+				seam_tracks += 1
+				var v0 = anim.track_get_key_value(i, 0)
+				var v1 = anim.track_get_key_value(i, n - 1)
+				var ok := false
+				if t == Animation.TYPE_ROTATION_3D:
+					var q0: Quaternion = v0
+					var q1: Quaternion = v1
+					ok = absf(q0.dot(q1)) > 0.99999
+				else:
+					var p0: Vector3 = v0
+					var p1: Vector3 = v1
+					ok = p0.distance_to(p1) < 0.001
+				if not ok:
+					seam_bad += 1
+					printerr("INNERFRAME_RIG SEAM: " + str(anim.track_get_path(i)))
+			_check(seam_tracks > 0 and seam_bad == 0, "run clip first==last on all tracks (bad=%d/%d)" % [seam_bad, seam_tracks])
 
 	print("INNERFRAME_RIG_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	inst.queue_free()

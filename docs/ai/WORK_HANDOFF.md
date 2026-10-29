@@ -1,7 +1,7 @@
 # Work Handoff & Session State
 
 ## 1. Current State Summary
-- **Current Task:** R21 Melee Combat Standoff, Telegraph & Action Pacing System (COMPLETE).
+- **Current Task:** R22 Run-Cycle Loop Closure (COMPLETE); R21 Melee Combat Standoff, Telegraph & Action Pacing System (COMPLETE).
 - **Current Branch:** `main`
 - **Published Remote & Local Baseline:** `e0ef179c0c942d63ce8da791ddfa8bd7eaf44eae` (`docs(ai): close R19-D phase ledger and handoff`, verified synchronized with `origin/main` on remote GitHub).
 - **Working-Tree Inventory & Status:**
@@ -17,6 +17,7 @@
   - Modified documentation: `docs/ai/PHASE_STATUS.md`, `docs/ai/WORK_HANDOFF.md`.
   - Untracked diagnostic artifacts (preserved): `test/unit/clip_ingame_drive_verify.gd`/`.tscn`.
 - **Latest Completed Audits / Phases:**
+  - **R22 (Run-Cycle Loop Closure, 2026-10-29):** Removed the unauthored f38–f40 tail and closed the loop (`f38 := f1`); final GLB 4,201,360 B / 38 keys / 1.541667 s; `innerframe_rig_verify` 10/10, `clip_retarget_verify` 16/16, `clip_ingame_verify` 14/14, `run_tests.sh` exit 0. See §17.
   - **Phase R21 (Melee Combat Pacing & Telegraph Redesign):** Resolved player feedback regarding enemies sticking and orbiting around the player. Replaced point-blank melee chaos with high-clarity Action RPG pacing:
     1. **Pacing Standoff (6.0–8.5m):** Circle-strafes and actively back-pedals away if player advances (< 5.5m).
     2. **Wind-up & Direction Lock:** Wind-up telegraph at distance (0.6s Rusher / 0.8s Shield Melee) displaying `GroundTelegraphIndicator` danger zone on the ground and rising audio cue. Direction locks 0.2s before strike.
@@ -27,7 +28,7 @@
 
 ---
 
-## 2. Test Verification Summary (Reported by R21 in Godot 4.6.2.stable)
+## 2. Test Verification Summary (Godot 4.6.2.stable)
 
 | Test Suite / Fixture | Target Path | Tests / Checks | Exit Code | Result |
 |---|---|:---:|:---:|:---:|
@@ -36,8 +37,9 @@
 | **Enemy Melee Animation Verify** | `res://tests/enemy_melee_anim_verify.tscn` | 6 passed / 0 failed | 0 | PASSED |
 | **Enemy Ammo & Tactical Melee** | `res://tests/enemy_ammo_and_tactical_melee_verify.tscn` | 23 passed / 0 failed | 0 | PASSED |
 | **Corrected In-Game Locomotion** | `res://test/unit/clip_ingame_verify.tscn` | 14 passed / 0 failed | 0 | PASSED |
+| **Innerframe Rig & Loop Seam** | `res://test/unit/innerframe_rig_verify.tscn` | 10 passed / 0 failed | 0 | PASSED |
 | **Exploratory Locomotion Fixture** | `res://test/unit/clip_ingame_drive_verify.tscn` | 14 passed / 2 failed | 1 | DIAGNOSTIC ARTIFACT |
-| **Isolated Clip Retarget Verify** | `res://test/unit/clip_retarget_verify.tscn` | 0 passed / 1 failed | 1 | FAILED (Tracked in Issue 6) |
+| **Isolated Clip Retarget Verify** | `res://test/unit/clip_retarget_verify.tscn` | 16 passed / 0 failed | 0 | PASSED |
 | **Aim Pose & Muzzle Verify** | `res://tests/aim_pose_muzzle_verify.tscn` | Explicit marker | 0 | PASSED |
 | **Armor Damage Visuals Live** | `res://tests/damage_visuals_live_verify.tscn` | 11 passed / 0 failed | 0 | PASSED |
 | **Directional Damage & Durability** | `res://tests/directional_damage_and_durability_verify.tscn` | 13 passed / 0 failed | 0 | PASSED |
@@ -320,5 +322,21 @@
   - `clip_ingame_verify` **14/14** (clip_run, leg 113.3°, cadence 2 crossings, airtime/grace and idle return intact)
   - `run_tests.sh` exit 0; all standalone verifies pass; GUT reports "Nothing was run" (pre-existing configuration quirk, unrelated).
 - **Remaining caveats:** outer hinge remains a static detail (§15); the GLB carries the hidden control empties as before. No production GDScript changed.
+
+## 17. Asset Session Note (2026-10-29): Run-Cycle End-of-Loop Hitch Fix — COMPLETE
+
+- **Symptom:** user reported the mecha run "freezes/hitches at the end of the loop" (ท่าวิ่งเหมือนค้างตอนท้าย loop).
+- **Root cause:** the authored action carried an unauthored 3-frame tail (`f38–f40`). The cycle wrapped `f38 -> f1` with a **16.15°** shin snap (and a held torso), producing the visible hitch; there was no true cycle closure (`f38 != f1`). The closed seam now steps `f37 -> f1` at max **8.0°**, within normal motion.
+- **Fix (Blender 5.2, headless):** closure rule = keep authored `f37`, set **only `f38 := f1`** on every transform curve, export frames **1..38**. Critical: insert a key at frame 1 (`1 = v1`) **before** removing modifiers/trimming; otherwise curves without a key exactly at f1 (object `location` x/z) evaluate differently and corrupt the first frame. Then trim `<1`/`>37`, ensure `37 = v37`, insert `38 = v1`.
+- **Script/backup:** `C:\Users\hackd\AppData\Local\Temp\opencode\loopfix.py`; pre-fix backup `scratch/innerframe_animation_handmade_pre_loopfix_2026-10-29.blend` (1,610,091 B). The first attempt had already saved the broken master; it was restored from this backup before the corrected rerun.
+- **Master result:** action/scene range `(1.0, 38.0)`; `REMOVED_META` 3, `KEPT` 370, `BAD []`; `CHECK` confirms `f38 == f1` for every checked transform.
+- **GLB:** `scenes/mecha/animations/innerframe_run_cycle_clean.glb` rebuilt via Blender GLB + `tools/export_innerframe_glb.py` — **4,201,360 B**, 176 nodes, 103 meshes, 57 joints, animation `run`, 174 channels / 175 samplers, **38 keys per channel**, length **1.541667 s (37/24)**. First/last values are identical on every channel; the seam checker's 0.0125–0.056° flags are float32 quaternion-norm noise, not a delta. `Bone_Hip` bob preserved: Godot **Y** range **0.33 m**, first/last `(0.005471, 3.511501, -0.009502)` (Blender Z maps to Godot Y under `export_yup=True`; §16's "Z-bob" wording is Blender space).
+- **Speed decision:** `MechaClipRetarget.NATURAL_SPEED` stays **8.5** (not 9.189). The pose sequence and frame rate are unchanged; only the extrapolated tail was removed. All retarget/ingame checks pass at 8.5, so no recalibration or `STEP_FRACS` change was justified.
+- **Godot verification (after `--headless --path . --import`):**
+  - `test/unit/innerframe_rig_verify.tscn` — **10/10** (added clip-length + first==last seam regression; the original 8 checks still pass).
+  - `test/unit/clip_retarget_verify.tscn` — **16/16** (leg 113.2°/113.1°, shin 122.4°, bob 0.325 m).
+  - `test/unit/clip_ingame_verify.tscn` — **14/14** (clip_run, leg 113.3°, cadence/airtime/idle return intact).
+  - `./run_tests.sh` — exit **0**; GUT still reports "Nothing was run" (standalone-scene configuration quirk).
+- **Caveats:** headless verification only; interactive-window visual check of the seam remains outstanding. The stale live MCP Blender session was not saved (disk master is authoritative). Raw export cleanup: `scratch/innerframe_run_loopfix_raw.glb` and its `.import` deleted after post-processing.
 
 

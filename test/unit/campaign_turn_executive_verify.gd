@@ -121,8 +121,8 @@ func _test_exactly_once() -> void:
 	var parts_before := int(FactionEconomySystem.get_economy("federation").get("parts", 0))
 	var pilots_before := (FactionEconomySystem.get_economy("federation").get("active_pilots", []) as Array).size()
 	var r := CampaignTurnExecutive.advance_campaign_turn("board_day", {})
-	var executed: Array = ["begin_turn", "faction_economy", "spy", "enemy_base",
-		"strategic_detection", "strategic_heat", "strategic_assault",
+	var executed: Array = ["begin_turn", "faction_economy", "campaign_supply", "spy",
+		"enemy_base", "strategic_detection", "strategic_heat", "strategic_assault",
 		"board_day_compatibility", "rival", "era", "end_turn"]
 	for p in executed:
 		_check(CampaignTurnExecutive.get_phase_call_count(p) == int(before.get(p, 0)) + 1,

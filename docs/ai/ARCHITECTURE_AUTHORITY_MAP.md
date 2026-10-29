@@ -17,6 +17,7 @@ This document establishes the authoritative subsystem owners, contracts, public 
 | **Campaign Base** | `CampaignBase` | `scripts/systems/campaign_base.gd` | Owns installation records and lifecycle states (`RESEARCH_BASE`, `OUTPOST`). | Base != Node; Base != Territory; Base != Force. |
 | **Campaign Territory** | `CampaignTerritory` | `scripts/systems/campaign_territory.gd` | Owns area control state (`UNCONTROLLED`, `CONTROLLED`, `CONTESTED`) and node membership references. | Does not duplicate faction data or node data. |
 | **Campaign Battle** | `CampaignBattle` | `scripts/systems/campaign_battle.gd` | Strategic battle lifecycle tracking (`PLANNED`, `ACTIVE`, `RESOLVED`, `CANCELLED`) and participant force IDs. | Battle != Force; Battle != Tactical Combat Session. |
+| **Campaign Resources** | `CampaignSupply` | `scripts/systems/campaign_supply.gd` | Owns the campaign resource ledger (`SUPPLY` capped 0..100, `MATERIALS`, `SALVAGE`) with atomic spend and per-turn income. Stored under `campaign_supply`, applied only through the turn phase. | Must not own `DATA` (that is `GlobalData.currency.data_cores`), must not read/write `CurrencyManager`, `FactionEconomySystem`, `CampaignForce`, or research state, and must not advance turns or gate actions itself. |
 | **Save / Load Persistence** | `SaveGameIO` | `scripts/systems/save_game_io.gd` | Serializes/deserializes run state with atomic write-and-rename and preflight schema verification (`save_run`, `load_run`). | Never write directly to save file path without schema validation. |
 
 ---

@@ -1142,6 +1142,8 @@ func reset_run_data() -> void:
 	CampaignStrategicHeat.reset()
 	# Phase C4-B2 (Campaign V2): faction strategic intelligence detection states are run state.
 	CampaignStrategicDetection.reset()
+	# Phase C6-A (Campaign V2): campaign resource ledger is run state.
+	CampaignSupply.reset()
 	# Phase 5AE (Campaign V2): active scenario identity.
 	current_campaign_scenario_id = ""
 

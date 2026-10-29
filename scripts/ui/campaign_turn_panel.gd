@@ -35,6 +35,7 @@ var _requires_confirmation := false
 var _built := false
 
 var _turn_label: Label
+var _supply_label: Label
 var _end_turn_button: Button
 var _status_label: Label
 var _receipt_label: Label
@@ -48,6 +49,10 @@ func _ready() -> void:
 	_turn_label = Label.new()
 	_turn_label.name = "TurnLabel"
 	root.add_child(_turn_label)
+
+	_supply_label = Label.new()
+	_supply_label.name = "SupplyLabel"
+	root.add_child(_supply_label)
 
 	_end_turn_button = Button.new()
 	_end_turn_button.name = "EndTurnButton"
@@ -138,6 +143,14 @@ func refresh() -> void:
 		return
 	var cur_turn := get_current_turn()
 	_turn_label.text = "Campaign Turn: %d" % cur_turn
+	var supply_text := "Supply: %d/%d (+%d/turn)" % [
+		CampaignSupply.get_amount(CampaignSupply.KEY_SUPPLY),
+		CampaignSupply.SUPPLY_CAP,
+		CampaignSupply.SUPPLY_INCOME_PER_TURN,
+	]
+	if CampaignSupply.is_supply_crisis():
+		supply_text += "  [SUPPLY CRISIS]"
+	_supply_label.text = supply_text
 	_end_turn_button.disabled = CampaignTurnExecutive.is_executing()
 	if _confirming:
 		_end_turn_button.text = "Confirm End Turn"

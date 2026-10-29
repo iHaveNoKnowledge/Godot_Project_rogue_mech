@@ -38,6 +38,7 @@ extends RefCounted
 
 const PHASE_BEGIN := "begin_turn"
 const PHASE_FACTION_ECONOMY := "faction_economy"
+const PHASE_CAMPAIGN_SUPPLY := "campaign_supply"
 const PHASE_SPY := "spy"
 const PHASE_ENEMY_BASE := "enemy_base"
 const PHASE_STRATEGIC_DETECTION := "strategic_detection"
@@ -52,6 +53,7 @@ const PHASE_END := "end_turn"
 const PHASE_ORDER: Array[String] = [
 	PHASE_BEGIN,
 	PHASE_FACTION_ECONOMY,
+	PHASE_CAMPAIGN_SUPPLY,
 	PHASE_SPY,
 	PHASE_ENEMY_BASE,
 	PHASE_STRATEGIC_DETECTION,
@@ -104,7 +106,7 @@ static func get_phase_call_count(phase: String) -> int:
 ##   "board_tiles" (Dictionary, default {}) — board nodes for the scavenger
 ##       phase; empty means the phase is reported skipped (headless/tests).
 ##
-## Returns a receipt: {ok, turn, reason, phases, spy_event,
+## Returns a receipt: {ok, turn, reason, phases, campaign_supply, spy_event,
 ## enemy_base_spawn_requested, enemy_base_completed, strategic_detection,
 ## strategic_heat, strategic_assault, rival, era, scavenger_events, ...}.
 ## A nested call while executing returns {ok:false, error:"reentrant"}
@@ -142,6 +144,18 @@ static func advance_campaign_turn(reason: String = "", opts: Dictionary = {}) ->
 		phases.append(PHASE_FACTION_ECONOMY)
 	else:
 		receipt["faction_economy_skipped"] = true
+
+	# Campaign resource income (C6-A): the player's SUPPLY pool accrues once
+	# per day boundary. Owned and applied solely by CampaignSupply; this phase
+	# performs no spending, gating, or crisis enforcement.
+	var campaign_supply := {}
+	if day_boundary:
+		campaign_supply = CampaignSupply.process_turn_income()
+		_count_phase(PHASE_CAMPAIGN_SUPPLY)
+		phases.append(PHASE_CAMPAIGN_SUPPLY)
+	else:
+		receipt["campaign_supply_skipped"] = true
+	receipt["campaign_supply"] = campaign_supply
 
 	# Enemy spy roll (pre-migration: same caller, emitted as event there).
 	var spy_event := {}

@@ -32,7 +32,7 @@ const _DICT_FIELDS := [
 	"weather_transition", "pending_duel", "research_projects",
 	"faction_relations", "territories", "bases", "forces", "campaign_battles",
 	"campaign_strategic_heat", "campaign_strategic_detection",
-	"campaign_assaults", "campaign_supply",
+	"campaign_assaults", "campaign_supply", "campaign_player_forces",
 ]
 
 ## Root fields that must be Arrays when present (restore iterates them).
@@ -157,6 +157,10 @@ static func save_run() -> bool:
 		# CampaignSupply.serialize(). Missing key (old saves) restores the
 		# starting pool — no bump.
 		"campaign_supply": CampaignSupply.serialize(),
+		# Phase C8-A (Campaign V2): the player's own strategic detachments only
+		# ({detachments: [...]}). Owned and shaped by CampaignPlayerForce.
+		# Missing key (old saves) restores empty — no bump.
+		"campaign_player_forces": CampaignPlayerForce.serialize(),
 		# Phase 5AE / C1 / C3 / C2.6 (Campaign V2): active scenario, campaign instance, player faction, and strategic node.
 		"scenario_id": GlobalData.current_campaign_scenario_id,
 		"campaign_id": GlobalData.current_campaign_id,
@@ -316,6 +320,9 @@ static func restore_from_dict(data: Dictionary) -> void:
 	# resets its own store first, so a missing key restores the starting pool
 	# and malformed rows are sanitized per the ledger contract.
 	CampaignSupply.deserialize(data.get("campaign_supply", {}))
+	# Phase C8-A (Campaign V2): player detachments. The deserializer resets its
+	# own registry first and skips rows with dangling node/base refs.
+	CampaignPlayerForce.deserialize(data.get("campaign_player_forces", {}))
 	# Phase 5AE / C1 / C3 / C2.6 (Campaign V2): active scenario, campaign instance, player faction, & player node.
 	GlobalData.current_campaign_scenario_id = str(data.get("scenario_id", ""))
 	GlobalData.current_campaign_id = str(data.get("campaign_id", ""))

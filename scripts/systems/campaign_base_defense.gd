@@ -25,6 +25,12 @@ extends RefCounted
 
 const DEFAULT_PLAYER_FACTION: String = "federation"
 
+## Phase C8-A auto-battle: each round both sides lose a share of the enemy's
+## CURRENT strength. Provisional balance values (spec §44 keeps exact force
+## numbers PROPOSED); deterministic — no randomness, no per-faction bonuses.
+const AUTO_BATTLE_ATTRITION_RATIO := 0.2
+const AUTO_BATTLE_MAX_ROUNDS := 5
+
 
 ## Initiates a base attack by a hostile force, registering a defense battle in CampaignBattle.
 ## Returns a structured receipt.
@@ -703,6 +709,13 @@ static func try_auto_resolve_expired(battle_id: String) -> Dictionary:
 	# mutation beyond what the lifecycle already requires (none here).
 	if attacker_state != CampaignForce.ForceState.ACTIVE:
 		return {"reason": "awaiting_policy"}
+	# Phase C8-A: when the player keeps a real strategic detachment at the base,
+	# the expiry is decided by a strength auto-battle instead of the Option D
+	# "attacker wins by default" fallback. No detachment = unchanged behaviour.
+	var player_resolution := _try_player_force_resolution(
+		battle_id, base_id, str(base.get("node_id", "")), attacker_id, live_controller)
+	if not player_resolution.is_empty():
+		return player_resolution
 	if not CampaignBattle.resolve_battle(battle_id):
 		_assaults.erase(battle_id)
 		return {"reason": "stale"}
@@ -711,6 +724,87 @@ static func try_auto_resolve_expired(battle_id: String) -> Dictionary:
 	CampaignBattle.clear_session_ref(battle_id)
 	_emit_defense_outcome_notice(base_id, battle_id, false)
 	return {"applied": "attacker_success"}
+
+
+## Returns the id of the player detachment that will fight the auto-battle for
+## this base: detachments anchored to the base win over detachments merely
+## standing at the same node, and the id-sorted first of the winning class is
+## used so resolution is deterministic. "" when the player has no force there.
+static func _find_player_garrison(base_id: String, base_node_id: String) -> String:
+	if base_node_id == "":
+		return ""
+	var bound := CampaignPlayerForce.get_active_at_base(base_id)
+	for fid in bound:
+		if str(CampaignPlayerForce.get_detachment(str(fid)).get("node_id", "")) == base_node_id:
+			return str(fid)
+	for fid in CampaignPlayerForce.get_active_at_node(base_node_id):
+		return str(fid)
+	return ""
+
+
+## Resolves an expired assault by strength comparison between the player's
+## detachment and the single verified ACTIVE attacker. Returns {} when the
+## player has no force at the base (caller keeps the legacy Option D path),
+## otherwise an {applied} receipt. Mutates exactly: player detachment
+## casualties, attacker composition/state, battle lifecycle, base state on a
+## loss, and the assault record. Never invents a garrison, a role, or a
+## second defender.
+static func _try_player_force_resolution(battle_id: String, base_id: String,
+		base_node_id: String, attacker_id: String, live_controller: String) -> Dictionary:
+	var garrison_id := _find_player_garrison(base_id, base_node_id)
+	if garrison_id == "":
+		return {}
+	var garrison := CampaignPlayerForce.get_detachment(garrison_id)
+	var defender_strength := maxi(int(garrison.get("strength", 0)), 0)
+	if defender_strength <= 0:
+		return {}
+	var attacker := CampaignForce.get_force(attacker_id)
+	var attacker_strength := maxi(int(attacker.get("strength", 0)), 0)
+	var attacker_units := maxi(int(attacker.get("unit_count", 0)), 0)
+
+	var rounds := 0
+	while rounds < AUTO_BATTLE_MAX_ROUNDS and defender_strength > 0 and attacker_strength > 0:
+		var attacker_loss := maxi(1, int(ceil(float(defender_strength) * AUTO_BATTLE_ATTRITION_RATIO)))
+		var defender_loss := maxi(1, int(ceil(float(attacker_strength) * AUTO_BATTLE_ATTRITION_RATIO)))
+		attacker_strength = maxi(attacker_strength - attacker_loss, 0)
+		defender_strength = maxi(defender_strength - defender_loss, 0)
+		rounds += 1
+
+	var held := defender_strength > 0 and defender_strength >= attacker_strength
+	var attacker_units_lost := 0
+	if attacker_strength == 0:
+		attacker_units_lost = attacker_units
+	else:
+		var start_strength := maxi(int(attacker.get("strength", 0)), 1)
+		attacker_units_lost = int(floor(float(attacker_units) * float(start_strength - attacker_strength) / float(start_strength)))
+		attacker_units_lost = clampi(attacker_units_lost, 0, attacker_units)
+	CampaignForce.set_composition(attacker_id, attacker_units - attacker_units_lost, attacker_strength)
+	if attacker_strength == 0:
+		CampaignForce.set_state(attacker_id, CampaignForce.ForceState.DESTROYED)
+
+	var defender_casualties := CampaignPlayerForce.apply_casualties(
+		garrison_id, maxi(int(garrison.get("strength", 0)) - defender_strength, 0))
+
+	if not CampaignBattle.resolve_battle(battle_id):
+		return {"reason": "stale"}
+	_assaults.erase(battle_id)
+	CampaignBattle.clear_session_ref(battle_id)
+	if not held:
+		CampaignBase.set_state(base_id, CampaignBase.BaseState.DISABLED)
+	_emit_defense_outcome_notice(base_id, battle_id, held)
+	return {
+		"applied": "player_force_defense_held" if held else "player_force_base_lost",
+		"battle_id": battle_id,
+		"base_id": base_id,
+		"garrison_id": garrison_id,
+		"attacker_id": attacker_id,
+		"attacker_faction": str(attacker.get("faction", "")),
+		"controller": live_controller,
+		"rounds": rounds,
+		"defender_remaining": defender_strength,
+		"attacker_remaining": attacker_strength,
+		"defender_casualties": defender_casualties,
+	}
 
 
 ## Emits one outcome notice for an applied defense resolution, naming the

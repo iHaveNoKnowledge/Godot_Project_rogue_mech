@@ -153,6 +153,7 @@ static func roll_random_start() -> void:
 	CampaignTurnExecutive.reset()
 	FactionSystem.reset_relations()
 	FactionEconomySystem.reset()
+	CampaignPlayerForce.reset()
 	CampaignNodeRegistry.clear()
 	CampaignTerritory.clear()
 	CampaignBase.clear()
@@ -212,7 +213,8 @@ static func get_current_campaign_player_faction() -> String:
 ##   - Atomic: failures leave zero partial campaign runtime state.
 ##   - Never mutates or replaces RunTheme.
 ##   - Never embeds board_seed into ScenarioDefinition.
-##   - Never creates Player CampaignForce.
+##   - Never creates an NPC/`CampaignForce` record for the player; the player's
+##     own strategic detachment lives in `CampaignPlayerForce` (C8-A).
 ##   - ScenarioDefinition remains unmutated (read-only authoring data).
 static func start_campaign_scenario(
 	scenario_id: String,
@@ -324,6 +326,9 @@ static func start_campaign_scenario(
 
 	if starting_player_node != "":
 		CampaignPlayerMovement.set_current_node_id(starting_player_node)
+		# Phase C8-A: the run starts with a small home garrison so strategic
+		# defence can resolve without tactical play (spec §9 starting force).
+		seed_player_garrison(starting_player_node)
 
 	return {
 		"ok": true,
@@ -342,8 +347,27 @@ static func start_campaign_scenario(
 	}
 
 
+## Seeds the provisional home garrison at the campaign start node. Idempotent:
+## an existing detachment on that node is left untouched. Returns the id ("" 
+## when the node is unknown). Values are PROVISIONAL (spec §44).
+static func seed_player_garrison(node_id: String) -> String:
+	var nid := node_id.strip_edges()
+	if nid == "" or not CampaignNodeRegistry.has_node(nid):
+		return ""
+	if not CampaignPlayerForce.get_active_at_node(nid).is_empty():
+		return CampaignPlayerForce.START_GARRISON_ID
+	return CampaignPlayerForce.register_detachment(
+		CampaignPlayerForce.START_GARRISON_ID,
+		nid,
+		"",
+		CampaignPlayerForce.START_GARRISON_UNITS,
+		CampaignPlayerForce.START_GARRISON_STRENGTH
+	)
+
+
 static func _clear_campaign_runtime_state() -> void:
 	CampaignTurnExecutive.reset()
+	CampaignPlayerForce.reset()
 	FactionSystem.reset_relations()
 	FactionEconomySystem.reset()
 	CampaignNodeRegistry.clear()

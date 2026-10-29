@@ -22,6 +22,7 @@ extends Control
 
 var _selected_force_id := ""
 var _selected_destination_node_id := ""
+var _selected_attack_target_id := ""
 var _last_result: Dictionary = {}
 var _built := false
 
@@ -31,6 +32,8 @@ var _info_label: Label
 var _raise_button: Button
 var _destination_option: OptionButton
 var _move_button: Button
+var _attack_target_option: OptionButton
+var _attack_button: Button
 var _station_button: Button
 var _unstation_button: Button
 var _result_label: Label
@@ -73,6 +76,17 @@ func _ready() -> void:
 	root.add_child(_move_button)
 	_move_button.pressed.connect(_on_move_pressed)
 
+	_attack_target_option = OptionButton.new()
+	_attack_target_option.name = "AttackTargetOption"
+	root.add_child(_attack_target_option)
+	_attack_target_option.item_selected.connect(_on_attack_target_selected)
+
+	_attack_button = Button.new()
+	_attack_button.name = "AttackButton"
+	_attack_button.text = "ATTACK HOSTILE FORCE"
+	root.add_child(_attack_button)
+	_attack_button.pressed.connect(_on_attack_pressed)
+
 	_station_button = Button.new()
 	_station_button.name = "StationButton"
 	_station_button.text = "STATION AT BASE"
@@ -113,6 +127,7 @@ func select_detachment(force_id: String) -> bool:
 		return false
 	_selected_force_id = force_id
 	_selected_destination_node_id = ""
+	_selected_attack_target_id = ""
 	refresh()
 	return true
 
@@ -145,6 +160,42 @@ func select_destination(node_id: String) -> bool:
 
 func get_selected_destination() -> String:
 	return _selected_destination_node_id
+
+
+## Hostile forces the selected detachment may attack (same node, HOSTILE
+## relation). Read-only authority query.
+func get_attack_targets() -> Array:
+	if _selected_force_id == "" or not CampaignPlayerForce.has_detachment(_selected_force_id):
+		return []
+	var node_id := str(CampaignPlayerForce.get_detachment(_selected_force_id).get("node_id", ""))
+	return CampaignPlayerForceAssault.get_hostile_targets_at(node_id)
+
+
+func select_attack_target(target_force_id: String) -> bool:
+	if not get_attack_targets().has(target_force_id):
+		return false
+	_selected_attack_target_id = target_force_id
+	refresh()
+	return true
+
+
+func get_selected_attack_target() -> String:
+	return _selected_attack_target_id
+
+
+## Runs the engagement through the assault domain and refreshes.
+func attack_selected() -> Dictionary:
+	if _selected_force_id == "" or _selected_attack_target_id == "":
+		_last_result = {"ok": false, "reason": "no_selection"}
+		refresh()
+		return _last_result.duplicate(true)
+	_last_result = CampaignPlayerForceAssault.attack(
+		_selected_force_id, _selected_attack_target_id)
+	if bool(_last_result.get("ok", false)):
+		_selected_attack_target_id = ""
+		GlobalData.save_run()
+	refresh()
+	return _last_result.duplicate(true)
 
 
 ## Raises a detachment at the player's current node using a deterministic slug.
@@ -228,6 +279,7 @@ func refresh() -> void:
 	if not _built:
 		return
 	_sync_destination_widget()
+	_sync_attack_widget()
 	_header_label.text = "DETACHMENTS  |  Credits: %d  |  Raise cost: %d" % [
 		int(GlobalData.currency.credits),
 		CampaignPlayerForceAction.get_raise_cost(),
@@ -237,11 +289,14 @@ func refresh() -> void:
 		_info_label.text = "No detachment selected"
 		_raise_button.disabled = true
 		_move_button.disabled = true
+		_attack_button.disabled = true
 		_station_button.disabled = true
 		_unstation_button.disabled = true
 	else:
 		_info_label.text = CampaignPlayerForceAction.describe_detachment(_selected_force_id)
 		_move_button.disabled = _selected_destination_node_id == ""
+		_attack_button.disabled = _selected_attack_target_id == "" \
+			or not CampaignPlayerForce.is_active(_selected_force_id)
 		_station_button.disabled = _stationable_base(_selected_force_id).is_empty()
 		_unstation_button.disabled = str(selected.get("base_id", "")) == ""
 		var current_node := CampaignPlayerMovement.get_current_node_id()
@@ -283,6 +338,17 @@ func _sync_detachment_widget() -> void:
 	_detachment_option.select(-1)
 
 
+func _sync_attack_widget() -> void:
+	_attack_target_option.clear()
+	for fid in get_attack_targets():
+		_attack_target_option.add_item(str(fid))
+	for i in _attack_target_option.item_count:
+		if _attack_target_option.get_item_text(i) == _selected_attack_target_id:
+			_attack_target_option.select(i)
+			return
+	_attack_target_option.select(-1)
+
+
 func _sync_destination_widget() -> void:
 	_destination_option.clear()
 	for nid in get_destinations():
@@ -308,6 +374,14 @@ func _on_raise_pressed() -> void:
 
 func _on_move_pressed() -> void:
 	execute_move()
+
+
+func _on_attack_target_selected(index: int) -> void:
+	select_attack_target(_attack_target_option.get_item_text(index))
+
+
+func _on_attack_pressed() -> void:
+	attack_selected()
 
 
 func _on_station_pressed() -> void:

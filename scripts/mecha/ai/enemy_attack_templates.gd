@@ -17,10 +17,10 @@ static func get_stats(archetype: int, is_full: bool = false) -> Dictionary:
 				"attack_range": 8.5,
 				"pacing_range_min": 6.0,
 				"pacing_range_max": 8.5,
-				"lunge_speed": 14.0,
+				"lunge_speed": 10.0,
 				"windup_time": 0.8,
-				"recovery_time": 0.7,
-				"attack_damage": 24.0 if is_full else 18.0,
+				"recovery_time": 1.0,
+				"attack_damage": 14.0 if is_full else 10.0,
 				"attack_cooldown": 2.4,
 			}
 		Archetype.SHIELD_RANGED:
@@ -38,10 +38,10 @@ static func get_stats(archetype: int, is_full: bool = false) -> Dictionary:
 				"attack_range": 8.5,
 				"pacing_range_min": 6.0,
 				"pacing_range_max": 8.5,
-				"lunge_speed": 16.5,
+				"lunge_speed": 11.5,
 				"windup_time": 0.6,
-				"recovery_time": 0.55,
-				"attack_damage": 20.0 if is_full else 15.0,
+				"recovery_time": 0.85,
+				"attack_damage": 12.0 if is_full else 9.0,
 				"attack_cooldown": 2.2,
 			}
 		Archetype.RANGED:

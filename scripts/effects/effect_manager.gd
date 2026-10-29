@@ -833,10 +833,36 @@ static func melee_hit_ray(
 	if victim == null or not victim.has_method("take_damage"):
 		return false
 
+	# Check for defender Guard / Deflect Parry (e.g. Player in Close Combat mode)
+	var final_damage := damage
+	var combat: Node = null
+	var check_node: Node = collider
+	while check_node != null:
+		if check_node.has_node("MechaCombat"):
+			combat = check_node.get_node("MechaCombat")
+			break
+		if check_node.has_node("CombatSystem"):
+			combat = check_node.get_node("CombatSystem")
+			break
+		check_node = check_node.get_parent()
+
+	if combat != null and combat.get("is_guarding") == true:
+		if combat.has_method("is_deflect_active") and bool(combat.is_deflect_active()):
+			combat.trigger_deflect(result["position"])
+			final_damage = 0.0
+			if attacker and is_instance_valid(attacker) and attacker.has_method("parry_stagger"):
+				attacker.parry_stagger(1.5, -direction)
+		elif combat.has_method("get_guard_damage_mitigation"):
+			final_damage *= float(combat.get_guard_damage_mitigation())
+
 	# Melee hits carry their attack type (heat/pierce/blunt) so armor plates
 	# and shields match on it just like bullets and beams.
-	victim.take_damage(damage, damage_type)
-	spawn_damage_number(result["position"] + Vector3(0, 1, 0), damage, Color(1, 0.5, 0))
+	if final_damage > 0.0:
+		if victim.has_method("take_damage_at_point"):
+			victim.take_damage_at_point(final_damage, result["position"], damage_type)
+		else:
+			victim.take_damage(final_damage, damage_type)
+		spawn_damage_number(result["position"] + Vector3(0, 1, 0), final_damage, Color(1, 0.5, 0))
 	return true
 
 

@@ -39,13 +39,13 @@ func _verify_deflect_guard_mechanics() -> void:
 	_check(combat.is_deflect_active(), "deflect window active immediately after raising guard")
 	_check(combat.get_guard_damage_mitigation() <= 0.1, "near-zero damage taken during deflect window")
 
-	var deflect_event_fired: bool = false
+	var deflect_event_fired := [false]
 	var conn = func(_pos: Vector3, _perfect: bool):
-		deflect_event_fired = true
+		deflect_event_fired[0] = true
 	EventBus.deflect_triggered.connect(conn)
 
 	combat.trigger_deflect()
-	_check(deflect_event_fired, "deflect_triggered event emitted")
+	_check(deflect_event_fired[0], "deflect_triggered event emitted")
 	EventBus.deflect_triggered.disconnect(conn)
 
 	# 3. Sustained Guard (after deflect window passes)

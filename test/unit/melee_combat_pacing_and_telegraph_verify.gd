@@ -35,6 +35,7 @@ func _ready() -> void:
 	_test_attacker_token_system()
 	_test_archetype_distinction_and_shield_drop()
 	_test_recovery_punish_window()
+	_test_parry_stagger_interruption()
 
 	print("MELEE_COMBAT_PACING_AND_TELEGRAPH_VERIFY: checks=%d fails=%d" % [_checks, _fails])
 	if _fails > 0:
@@ -102,19 +103,19 @@ func _test_direction_lock_and_tracking() -> void:
 	_check(state_attack.melee_phase == state_attack.MeleePhase.WINDUP, "StateAttack transitioned to WINDUP phase")
 	_check(not state_attack.is_direction_locked, "is_direction_locked is initially false at start of windup")
 
-	# Tracking window (> 0.2s)
+	# Tracking window (> 0.35s)
 	state_attack.melee_phase_timer = 0.45
 	target.global_position = Vector3(5.0, 0, -5.0) # Player moves sideways
 	state_attack.physics_process(0.016)
 
 	var dir_at_045: Vector3 = state_attack._melee_swing_dir
 	_check(dir_at_045.x > 0.3, "Enemy tracks target dynamically during early windup (dir.x=%.2f > 0.3)" % dir_at_045.x)
-	_check(not state_attack.is_direction_locked, "is_direction_locked remains false while timer > 0.2s")
+	_check(not state_attack.is_direction_locked, "is_direction_locked remains false while timer > 0.35s")
 
-	# Direction Lock window (<= 0.2s)
-	state_attack.melee_phase_timer = 0.15
+	# Direction Lock window (<= 0.35s for Rusher)
+	state_attack.melee_phase_timer = 0.25
 	state_attack.physics_process(0.016)
-	_check(state_attack.is_direction_locked, "is_direction_locked engages true in final 0.2s window")
+	_check(state_attack.is_direction_locked, "is_direction_locked engages true early at 0.35s window")
 
 	var locked_dir: Vector3 = state_attack._melee_swing_dir
 	# Player dashes further right during locked window
@@ -236,7 +237,7 @@ func _test_archetype_distinction_and_shield_drop() -> void:
 	rusher_state._start_melee_windup()
 
 	_check(rusher_state.melee_windup_duration == 0.60, "Rusher has agile 0.60s windup duration")
-	_check(rusher_state.melee_recovery_duration == 0.55, "Rusher has 0.55s recovery duration")
+	_check(rusher_state.melee_recovery_duration == 0.85, "Rusher has 0.85s recovery duration")
 
 	# Shield Melee (4)
 	var shield_m: CharacterBody3D = enemy_scene.instantiate()
@@ -250,7 +251,7 @@ func _test_archetype_distinction_and_shield_drop() -> void:
 	# Commit to windup
 	shield_state._start_melee_windup()
 	_check(shield_state.melee_windup_duration == 0.80, "Shield Melee has deliberate 0.80s windup duration")
-	_check(shield_state.melee_recovery_duration == 0.70, "Shield Melee has 0.70s recovery duration")
+	_check(shield_state.melee_recovery_duration == 1.00, "Shield Melee has 1.00s recovery duration")
 	_check(not shield_m.is_shield_active(), "Shield Melee DROPS barrier during wind-up (exposed punish window)")
 
 	# End of recovery & disengage restores shield
@@ -283,6 +284,37 @@ func _test_recovery_punish_window() -> void:
 
 	state_attack.physics_process(0.016)
 	_check(enemy.velocity.x == 0.0 and enemy.velocity.z == 0.0, "Enemy remains frozen horizontally during recovery window")
+
+	target.queue_free()
+	enemy.queue_free()
+
+## Test 7: Parry Stagger Interruption & Stun Window
+func _test_parry_stagger_interruption() -> void:
+	print("Test 7: Parry Stagger Interruption & Stun Window...")
+	var enemy_scene = preload("res://scenes/mecha/enemy_dummy.tscn")
+	var enemy: CharacterBody3D = enemy_scene.instantiate()
+	enemy.archetype = 4 # Shield Melee
+	add_child(enemy)
+
+	var target = Node3D.new()
+	add_child(target)
+	target.global_position = Vector3(0, 0, -7.0)
+	enemy.target = target
+
+	var state_attack = enemy.state_machine.get_node_or_null("StateAttack")
+	state_attack.enter()
+	state_attack._start_melee_windup()
+
+	_check(state_attack.ground_telegraph != null, "Telegraph exists during windup")
+
+	# Player parries enemy strike
+	enemy.parry_stagger(1.5, Vector3(0, 0, 1))
+
+	_check(state_attack.melee_phase == state_attack.MeleePhase.RECOVERY, "Parry forces StateAttack immediately into RECOVERY phase")
+	_check(state_attack.melee_phase_timer == 1.5, "Parry sets full 1.5s heavy stagger duration")
+	_check(state_attack.ground_telegraph == null, "Ground telegraph immediately cancelled on parry")
+	_check(not enemy.is_shield_active(), "Shield remains down during parry stun window")
+	_check(enemy.velocity.x == 0.0 and enemy.velocity.z == 0.0, "Attacker velocity cancelled horizontally on parry")
 
 	target.queue_free()
 	enemy.queue_free()

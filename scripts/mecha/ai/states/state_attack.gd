@@ -239,18 +239,23 @@ func _start_melee_windup() -> void:
 	is_direction_locked = false
 	_has_struck_in_lunge = false
 
-	# Archetype-specific timings
+	# Stop horizontal movement immediately on windup (root in place)
+	if enemy:
+		enemy.velocity.x = 0.0
+		enemy.velocity.z = 0.0
+
+	# Archetype-specific timings (Balanced Tuning: reduced lunge speed & extended recovery punish window)
 	if enemy.archetype == 4: # Shield Melee
 		melee_windup_duration = 0.80
-		melee_recovery_duration = 0.70
-		melee_lunge_speed = 13.5
+		melee_recovery_duration = 1.00
+		melee_lunge_speed = 10.0
 		# Drop shield when committing to wind-up (punish / exposed window)
 		if enemy.has_method("set_shield_up"):
 			enemy.set_shield_up(false)
 	else: # Rusher / Fallback
 		melee_windup_duration = 0.60
-		melee_recovery_duration = 0.55
-		melee_lunge_speed = 16.5
+		melee_recovery_duration = 0.85
+		melee_lunge_speed = 11.5
 
 	melee_phase_timer = melee_windup_duration
 	_telegraph_active = true
@@ -272,7 +277,7 @@ func _start_melee_windup() -> void:
 
 
 func _process_melee_windup(delta: float) -> void:
-	# Stop movement during wind-up
+	# Stop movement during wind-up (root in place)
 	enemy.velocity.x = 0.0
 	enemy.velocity.z = 0.0
 	if not enemy.is_on_floor():
@@ -285,9 +290,9 @@ func _process_melee_windup(delta: float) -> void:
 		ground_telegraph.set_progress(progress)
 
 	# Direction Tracking vs Direction Lock:
-	# When > 0.2s remains, enemy rotates to follow player.
-	# In the final 0.2s, Direction Lock commits the strike vector, allowing fair player sidestepping.
-	if melee_phase_timer > 0.20:
+	# Locks early (0.35s for Rusher, 0.45s for Shield Melee) allowing player fair sidestep/dash escape
+	var lock_threshold: float = 0.45 if enemy.archetype == 4 else 0.35
+	if melee_phase_timer > lock_threshold:
 		if enemy.target and is_instance_valid(enemy.target):
 			var dir: Vector3 = enemy.target.global_position - enemy.global_position
 			dir.y = 0.0
@@ -391,6 +396,24 @@ func _process_melee_disengage(delta: float) -> void:
 		melee_phase = MeleePhase.PACING
 		attack_timer = enemy.attack_cooldown
 		_melee_swing_dir = Vector3.ZERO
+
+
+## Called when an attacking enemy is parried by player's Perfect Guard / Just Deflect
+func interrupt_by_parry() -> void:
+	_cleanup_ground_telegraph()
+	_release_attacker_token()
+	_has_struck_in_lunge = true
+	is_direction_locked = false
+	_telegraph_active = false
+	melee_phase = MeleePhase.RECOVERY
+	melee_phase_timer = 1.5 # Staggered & exposed for 1.5s
+	if enemy:
+		enemy.velocity.x = 0.0
+		enemy.velocity.z = 0.0
+		if enemy.has_method("set_attack_flash"):
+			enemy.set_attack_flash(false)
+		if enemy.has_method("set_shield_up"):
+			enemy.set_shield_up(false)
 
 
 # =============================================================================

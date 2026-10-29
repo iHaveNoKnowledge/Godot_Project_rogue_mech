@@ -86,6 +86,8 @@ var _interaction_label: Label = null
 var _mode_label: Label = null
 var _guard_badge: Label = null
 var _pile_badge: Label = null
+var _mode_vignette: TextureRect = null
+var _mode_vignette_tween: Tween = null
 
 # Combat Part Penalty Telemetry Widget
 var _penalty_panel: PanelContainer = null
@@ -96,6 +98,7 @@ var _penalty_flash_tween: Tween = null
 
 func _ready() -> void:
 	_create_hit_flash()
+	_create_mode_vignette()
 	_create_energy_row()
 	_create_drop_tank_row()
 	_create_precision_row()
@@ -422,6 +425,28 @@ func _create_hit_flash() -> void:
 	add_child(_hit_flash)
 
 
+func _create_mode_vignette() -> void:
+	_mode_vignette = TextureRect.new()
+	_mode_vignette.name = "ModeVignette"
+	_mode_vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_mode_vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_mode_vignette.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+
+	var grad := Gradient.new()
+	grad.colors = PackedColorArray([Color(1.0, 1.0, 1.0, 0.0), Color(1.0, 1.0, 1.0, 1.0)])
+	grad.offsets = PackedFloat32Array([0.55, 1.0])
+
+	var grad_tex := GradientTexture2D.new()
+	grad_tex.gradient = grad
+	grad_tex.fill = GradientTexture2D.FILL_RADIAL
+	grad_tex.fill_from = Vector2(0.5, 0.5)
+	grad_tex.fill_to = Vector2(0.5, 0.0)
+
+	_mode_vignette.texture = grad_tex
+	_mode_vignette.modulate = Color(0.2, 0.65, 1.0, 0.25)
+	add_child(_mode_vignette)
+
+
 func _on_player_damaged(_slot_name: String, _amount: float, _damage_type: String) -> void:
 	if _hit_flash == null:
 		return
@@ -643,14 +668,20 @@ func _create_combat_mode_widget() -> void:
 
 
 func _on_combat_mode_toggled(mode: String) -> void:
-	if _mode_label == null:
-		return
-	if mode == "close_combat":
-		_mode_label.text = "MODE: CLOSE COMBAT"
-		_mode_label.add_theme_color_override("font_color", Color(1.0, 0.35, 0.2))
-	else:
-		_mode_label.text = "MODE: BALANCED"
-		_mode_label.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0))
+	if _mode_label != null:
+		if mode == "close_combat":
+			_mode_label.text = "MODE: CLOSE COMBAT"
+			_mode_label.add_theme_color_override("font_color", Color(1.0, 0.35, 0.2))
+		else:
+			_mode_label.text = "MODE: BALANCED"
+			_mode_label.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0))
+
+	if _mode_vignette != null:
+		if _mode_vignette_tween and _mode_vignette_tween.is_valid():
+			_mode_vignette_tween.kill()
+		_mode_vignette_tween = create_tween()
+		var target_color := Color(1.0, 0.25, 0.15, 0.45) if mode == "close_combat" else Color(0.2, 0.65, 1.0, 0.25)
+		_mode_vignette_tween.tween_property(_mode_vignette, "modulate", target_color, 0.35).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
 
 func _on_guard_state_changed(is_guarding: bool) -> void:

@@ -591,7 +591,7 @@ func switch_to_melee_fallback() -> void:
 	_weapon_hand_mount = WeaponVisualFactory.mount_hand(self, "right", preload("res://resources/mech/stock/weapon_heat_blade.tres"), "EnemyWeaponMount")
 	attack_range = 3.8
 	move_speed = maxf(move_speed * 1.25, 4.2)
-	attack_damage = maxf(attack_damage * 1.35, 18.0)
+	attack_damage = maxf(attack_damage * 1.35, 12.0)
 
 
 # Builds the shared WeaponCore from the archetype's attack stats. Fire rate is
@@ -1271,6 +1271,19 @@ func apply_impact(amount: float, from_dir: Vector3) -> void:
 		if attack_state and attack_state.get("attack_timer") != null and attack_state.attack_timer > 0.0:
 			attack_state.attack_timer = maxf(0.0, attack_state.attack_timer - amount * 0.25)
 
+
+
+func parry_stagger(duration: float = 1.5, shove_dir: Vector3 = Vector3.ZERO) -> void:
+	stagger_timer = maxf(stagger_timer, duration)
+	shove_dir.y = 0.0
+	if shove_dir.length_squared() > 0.001:
+		var push = shove_dir.normalized() * 6.5
+		velocity.x = push.x
+		velocity.z = push.z
+	if state_machine:
+		var attack_state = state_machine.get_node_or_null("StateAttack")
+		if attack_state and attack_state.has_method("interrupt_by_parry"):
+			attack_state.interrupt_by_parry()
 
 
 func take_damage(amount: float, damage_type: String = "kinetic") -> void:

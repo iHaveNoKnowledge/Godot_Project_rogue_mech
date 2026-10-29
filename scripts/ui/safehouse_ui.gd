@@ -181,10 +181,12 @@ func _refresh_parts_list() -> void:
 			continue
 		patched = true
 		var cost: int = GlobalData.get_professional_repair_cost(slot)
+		var supply_cost: int = GlobalData.get_professional_repair_supply_cost(slot)
 		var btn = Button.new()
 		btn.custom_minimum_size = Vector2(460, 32)
-		btn.text = "Rebuild Catalog Armor: %s (%d credits)" % [slot.to_upper(), cost]
-		btn.disabled = GlobalData.currency.credits < cost
+		btn.text = "Rebuild Catalog Armor: %s (%d credits, %d SUPPLY)" % [slot.to_upper(), cost, supply_cost]
+		btn.disabled = GlobalData.currency.credits < cost \
+			or not CampaignSupply.can_afford(CampaignSupply.KEY_SUPPLY, supply_cost)
 		btn.pressed.connect(_on_rebuild_catalog_pressed.bind(slot))
 		parts_container.add_child(btn)
 	if patched:
@@ -194,14 +196,18 @@ func _refresh_parts_list() -> void:
 		note.add_theme_font_size_override("font_size", 11)
 		parts_container.add_child(note)
 
-	status_label.text = "Credits: %d" % GlobalData.currency.credits
+	status_label.text = "Credits: %d   Supply: %d/%d" % [
+		GlobalData.currency.credits,
+		CampaignSupply.get_amount(CampaignSupply.KEY_SUPPLY),
+		CampaignSupply.SUPPLY_CAP,
+	]
 
 
 func _on_rebuild_catalog_pressed(slot: String) -> void:
 	if GlobalData.apply_professional_repair(slot):
 		status_label.text = "Mechanic rebuilt %s with fresh catalog armor! Credits: %d" % [slot.to_upper(), GlobalData.currency.credits]
 	else:
-		status_label.text = "Not enough credits for a professional rebuild!"
+		status_label.text = "Not enough credits or SUPPLY for a professional rebuild!"
 	_refresh_parts_list()
 
 

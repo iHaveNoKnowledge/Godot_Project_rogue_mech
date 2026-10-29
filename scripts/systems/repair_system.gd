@@ -191,13 +191,32 @@ static func get_professional_repair_cost(slot: String) -> int:
 	return maxi(1, int(ceil(cost)))
 
 
+# Campaign-supply price of the same rebuild (Phase C6-B). Mecha recovery is a
+# campaign-resource operation, not only a credit purchase; the cost scales with
+# the size of the part being rebuilt (a 50+50 HP slot quotes 2 SUPPLY).
+static func get_professional_repair_supply_cost(slot: String) -> int:
+	if slot not in GlobalData.MECHA_SLOTS:
+		return 0
+	var armor_max_hp: float = float(GlobalData.weapons.part_stat(GlobalData.weapons.equipped_parts.get(slot), "max_hp", 50.0))
+	var frame_max_hp: float = float(GlobalData.weapons.part_stat(GlobalData.weapons.equipped_frames.get(slot), "max_hp", 50.0))
+	return maxi(1, int(roundf((armor_max_hp + frame_max_hp) / 50.0)))
+
+
 # The mechanic rebuilds the slot: removes any scrap patch, clears all damage and
 # restores the real catalog armor at full HP. Returns false if unaffordable.
 static func apply_professional_repair(slot: String) -> bool:
 	if slot not in GlobalData.MECHA_SLOTS:
 		return false
 	var cost := get_professional_repair_cost(slot)
+	var supply_cost := get_professional_repair_supply_cost(slot)
 	if GlobalData.currency.credits < cost:
+		return false
+	# Phase C6-B: validate the campaign pool BEFORE any mutation, so a rebuild
+	# can never spend credits without restoring the armor.
+	if not CampaignSupply.can_afford(CampaignSupply.KEY_SUPPLY, supply_cost):
+		return false
+	var supply_receipt := CampaignSupply.try_spend(CampaignSupply.KEY_SUPPLY, supply_cost)
+	if not bool(supply_receipt.get("ok", false)):
 		return false
 	GlobalData.currency.credits -= cost
 	GlobalData.weapons.scrap_patches.erase(slot)

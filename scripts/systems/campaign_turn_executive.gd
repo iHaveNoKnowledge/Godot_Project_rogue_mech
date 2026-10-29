@@ -151,6 +151,32 @@ static func advance_campaign_turn(reason: String = "", opts: Dictionary = {}) ->
 	var campaign_supply := {}
 	if day_boundary:
 		campaign_supply = CampaignSupply.process_turn_income()
+		# Base upkeep (C6-B): income is collected first, then every live base
+		# the player controls is charged SUPPLY. A shortfall never destroys or
+		# disables a base (spec §11: crisis, not game over); it is reported in
+		# the receipt and leaves the pool as-is.
+		var upkeep := CampaignBase.get_player_upkeep()
+		var upkeep_cost := int(upkeep.get("cost", 0))
+		var upkeep_receipt: Dictionary = {
+			"cost": upkeep_cost,
+			"bases": int(upkeep.get("bases", 0)),
+			"paid": 0,
+		}
+		if upkeep_cost > 0:
+			var paid := CampaignSupply.try_spend(CampaignSupply.KEY_SUPPLY, upkeep_cost)
+			if bool(paid.get("ok", false)):
+				upkeep_receipt["ok"] = true
+				upkeep_receipt["paid"] = upkeep_cost
+			else:
+				upkeep_receipt["ok"] = false
+				upkeep_receipt["shortfall"] = maxi(
+					upkeep_cost - CampaignSupply.get_amount(CampaignSupply.KEY_SUPPLY), 0)
+		else:
+			upkeep_receipt["ok"] = true
+		campaign_supply["upkeep"] = upkeep_receipt
+		campaign_supply["supply_after_upkeep"] = CampaignSupply.get_amount(
+			CampaignSupply.KEY_SUPPLY)
+		campaign_supply["crisis"] = CampaignSupply.is_supply_crisis()
 		_count_phase(PHASE_CAMPAIGN_SUPPLY)
 		phases.append(PHASE_CAMPAIGN_SUPPLY)
 	else:

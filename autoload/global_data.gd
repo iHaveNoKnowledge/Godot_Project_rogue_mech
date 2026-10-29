@@ -1074,6 +1074,10 @@ func get_professional_repair_cost(slot: String) -> int:
 func apply_professional_repair(slot: String) -> bool:
 	return RepairSystem.apply_professional_repair(slot)
 
+
+func get_professional_repair_supply_cost(slot: String) -> int:
+	return RepairSystem.get_professional_repair_supply_cost(slot)
+
 func scrap_primitive_pos(primitive: Dictionary) -> Vector3:
 	return RepairSystem.scrap_primitive_pos(primitive)
 

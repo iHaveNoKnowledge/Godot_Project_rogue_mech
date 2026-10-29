@@ -43,6 +43,9 @@ func _ready() -> void:
 	_test_atomic_spend()
 	_test_supply_crisis()
 	_test_turn_income()
+	_test_repair_gate()
+	_test_base_upkeep()
+	_test_reinforcement_gate()
 	_test_isolation()
 	_test_serialization()
 	_test_reset()
@@ -224,6 +227,7 @@ func _test_reset() -> void:
 func _test_turn_executive_phase() -> void:
 	CampaignSupplyScript.reset()
 	CampaignTurnExecutiveScript.reset()
+	CampaignBase.clear()
 	var receipt := CampaignTurnExecutiveScript.advance_campaign_turn(
 		"c6a_supply_test",
 		{"spy_roll": false, "enemy_base_points": 0.0, "board_tiles": {}}
@@ -252,6 +256,124 @@ func _test_turn_executive_phase() -> void:
 	_check(CampaignSupplyScript.get_amount(CampaignSupplyScript.KEY_SUPPLY) == 46,
 		"counter-only turn changes no supply")
 	CampaignTurnExecutiveScript.reset()
+
+
+## C6-B: mecha recovery (professional rebuild) is a campaign-resource operation.
+func _test_repair_gate() -> void:
+	CampaignSupplyScript.reset()
+	GlobalData.weapons.reset()
+	GlobalData.currency.credits = 5000
+	GlobalData.weapons.part_damage["leg_left"] = 0.5
+	var credits_before: int = int(GlobalData.currency.credits)
+	var supply_cost := RepairSystem.get_professional_repair_supply_cost("leg_left")
+	_check(supply_cost >= 1, "professional repair quotes SUPPLY (%d)" % supply_cost)
+	_check(RepairSystem.get_professional_repair_supply_cost("not_a_slot") == 0,
+		"unknown slot quotes no SUPPLY")
+	CampaignSupplyScript.set_amount(CampaignSupplyScript.KEY_SUPPLY, 0)
+	_check(not RepairSystem.apply_professional_repair("leg_left"),
+		"professional repair fails with no SUPPLY")
+	_check(int(GlobalData.currency.credits) == credits_before,
+		"failed repair spends no credits")
+	_check(is_equal_approx(float(GlobalData.weapons.part_damage.get("leg_left", 0.0)), 0.5),
+		"failed repair leaves damage untouched")
+	CampaignSupplyScript.set_amount(CampaignSupplyScript.KEY_SUPPLY, supply_cost)
+	_check(RepairSystem.apply_professional_repair("leg_left"),
+		"professional repair succeeds with SUPPLY")
+	_check(CampaignSupplyScript.get_amount(CampaignSupplyScript.KEY_SUPPLY) == 0,
+		"professional repair consumes SUPPLY")
+	_check(int(GlobalData.currency.credits) < credits_before,
+		"successful repair still charges credits")
+	GlobalData.weapons.reset()
+	GlobalData.currency.credits = 110
+
+
+## C6-B: base upkeep is charged per live player base on the turn boundary.
+func _test_base_upkeep() -> void:
+	CampaignSupplyScript.reset()
+	CampaignBase.clear()
+	CampaignTurnExecutiveScript.reset()
+	var faction := FactionSystem.get_player_faction()
+	var base_id := CampaignBase.register_base("base_c6b_upkeep_a", "", "OUTPOST", faction)
+	_check(base_id != "", "player outpost registered for upkeep test")
+	var upkeep := CampaignBase.get_player_upkeep()
+	_check(int(upkeep.get("bases", -1)) == 1, "one live player base counted")
+	_check(int(upkeep.get("cost", -1)) == CampaignBase.SUPPLY_UPKEEP_PER_BASE,
+		"upkeep uses the per-base rate")
+	CampaignSupplyScript.set_amount(CampaignSupplyScript.KEY_SUPPLY, 10)
+	var receipt := CampaignTurnExecutiveScript.advance_campaign_turn(
+		"c6b_upkeep",
+		{"spy_roll": false, "enemy_base_points": 0.0, "board_tiles": {}}
+	)
+	var expected := 10 + CampaignSupplyScript.SUPPLY_INCOME_PER_TURN \
+		- CampaignBase.SUPPLY_UPKEEP_PER_BASE
+	_check(CampaignSupplyScript.get_amount(CampaignSupplyScript.KEY_SUPPLY) == expected,
+		"turn nets income minus base upkeep (%d)" % expected)
+	var supply_receipt: Dictionary = receipt.get("campaign_supply", {})
+	var upkeep_receipt: Dictionary = supply_receipt.get("upkeep", {})
+	_check(bool(upkeep_receipt.get("ok", false)), "upkeep paid in full when affordable")
+	_check(int(upkeep_receipt.get("paid", -1)) == CampaignBase.SUPPLY_UPKEEP_PER_BASE,
+		"receipt records the paid upkeep")
+	_check(int(supply_receipt.get("supply_after_upkeep", -1)) == expected,
+		"receipt records the post-upkeep pool")
+	# Destroyed bases stop costing upkeep.
+	CampaignBase.set_state(base_id, CampaignBase.BaseState.DESTROYED)
+	_check(int(CampaignBase.get_player_upkeep().get("cost", -1)) == 0,
+		"destroyed base costs no upkeep")
+	# Shortfall: three live bases (6 SUPPLY) against an empty pool + 4 income.
+	CampaignBase.clear()
+	for i in 3:
+		CampaignBase.register_base("base_c6b_upkeep_%d" % i, "", "OUTPOST", faction)
+	CampaignSupplyScript.set_amount(CampaignSupplyScript.KEY_SUPPLY, 0)
+	var short_receipt := CampaignTurnExecutiveScript.advance_campaign_turn(
+		"c6b_upkeep_shortfall",
+		{"spy_roll": false, "enemy_base_points": 0.0, "board_tiles": {}}
+	)
+	var short_upkeep: Dictionary = (short_receipt.get("campaign_supply", {}) as Dictionary).get("upkeep", {})
+	_check(not bool(short_upkeep.get("ok", true)), "unaffordable upkeep reports a shortfall")
+	_check(int(short_upkeep.get("shortfall", 0)) == 2, "shortfall is reported exactly")
+	_check(CampaignSupplyScript.get_amount(CampaignSupplyScript.KEY_SUPPLY)
+		== CampaignSupplyScript.SUPPLY_INCOME_PER_TURN,
+		"failed upkeep leaves the pool untouched (crisis, not game over)")
+	CampaignBase.clear()
+	CampaignTurnExecutiveScript.reset()
+	CampaignSupplyScript.reset()
+
+
+## C6-B: bringing an additional unit into the field costs campaign SUPPLY.
+func _test_reinforcement_gate() -> void:
+	CampaignSupplyScript.reset()
+	GlobalData.hangar.fleet_roster.clear()
+	GlobalData.hangar.fleet_roster.append({
+		"template_id": "c6b_test_unit",
+		"name": "C6B Test Unit",
+		"hp": 50.0,
+		"max_hp": 50.0,
+		"destroyed": false,
+		"fielded": false,
+	})
+	var cost := FleetSystem.get_reinforcement_supply_cost()
+	_check(cost > 0, "reinforcement quotes SUPPLY (%d)" % cost)
+	CampaignSupplyScript.set_amount(CampaignSupplyScript.KEY_SUPPLY, 0)
+	_check(not FleetSystem.set_unit_fielded("c6b_test_unit", true),
+		"fielding fails without SUPPLY")
+	_check(not bool(FleetSystem.get_fleet_unit("c6b_test_unit").get("fielded", false)),
+		"refused unit stays standing down")
+	CampaignSupplyScript.set_amount(CampaignSupplyScript.KEY_SUPPLY, cost)
+	_check(FleetSystem.set_unit_fielded("c6b_test_unit", true),
+		"fielding succeeds with SUPPLY")
+	_check(CampaignSupplyScript.get_amount(CampaignSupplyScript.KEY_SUPPLY) == 0,
+		"fielding consumes SUPPLY")
+	_check(FleetSystem.set_unit_fielded("c6b_test_unit", true),
+		"re-confirming an already fielded unit is free")
+	_check(CampaignSupplyScript.get_amount(CampaignSupplyScript.KEY_SUPPLY) == 0,
+		"re-confirm charges nothing")
+	_check(FleetSystem.set_unit_fielded("c6b_test_unit", false),
+		"standing a unit down is always free")
+	_check(not bool(FleetSystem.get_fleet_unit("c6b_test_unit").get("fielded", true)),
+		"unit is standing down after the toggle")
+	_check(not FleetSystem.set_unit_fielded("c6b_missing_unit", true),
+		"unknown unit is refused")
+	GlobalData.hangar.fleet_roster.clear()
 
 
 func _test_global_data_reset_integration() -> void:

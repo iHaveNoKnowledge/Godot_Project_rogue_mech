@@ -50,6 +50,9 @@ const STATE_NAMES := {
 
 const BASE_TYPES := ["RESEARCH_BASE", "OUTPOST"]
 
+## Phase C6-B: campaign SUPPLY upkeep charged per live base per turn.
+const SUPPLY_UPKEEP_PER_BASE := 2
+
 ## Well-known id prefix for the bridged legacy enemy research base.
 const LEGACY_RESEARCH_PREFIX := "base_enemy_research_s"
 
@@ -113,6 +116,26 @@ static func get_base_at_node(node_id: String) -> Dictionary:
 				and int(b.get("state", BaseState.DESTROYED)) != BaseState.DESTROYED:
 			return b.duplicate(true)
 	return {}
+
+
+## Read-only upkeep quote for an owner (Phase C6-B): every non-destroyed base
+## it controls costs SUPPLY_UPKEEP_PER_BASE SUPPLY per campaign turn. Never
+## mutates state and never charges anything itself.
+static func get_player_upkeep(player_faction: String = "") -> Dictionary:
+	var owner_id := player_faction if player_faction != "" else FactionSystem.get_player_faction()
+	var count := 0
+	for bid in _bases:
+		var b: Dictionary = _bases[bid]
+		if str(b.get("controller", "")) != owner_id:
+			continue
+		if int(b.get("state", BaseState.DESTROYED)) == BaseState.DESTROYED:
+			continue
+		count += 1
+	return {
+		"faction": owner_id,
+		"bases": count,
+		"cost": count * SUPPLY_UPKEEP_PER_BASE,
+	}
 
 
 ## Explicit registration. Returns id or "" when rejected: empty id, unknown

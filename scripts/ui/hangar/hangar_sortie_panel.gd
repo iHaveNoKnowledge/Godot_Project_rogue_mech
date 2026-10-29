@@ -221,8 +221,16 @@ func _set_fielded(mech_id: String, pilot_id: String, fielded: bool) -> void:
 	if not pilot_id.begins_with("fleet_"):
 		return
 	var template_id := pilot_id.trim_prefix("fleet_")
-	FleetSystem.set_unit_fielded(template_id, fielded)
+	var applied := FleetSystem.set_unit_fielded(template_id, fielded)
 	GlobalData.save_run()
+	if not applied and fielded:
+		if controller and controller.status_message_label:
+			controller.status_message_label.text = "Not enough SUPPLY to field %s (needs %d)." % [
+				str(FleetSystem.get_fleet_unit(template_id).get("name", template_id)),
+				FleetSystem.get_reinforcement_supply_cost(),
+			]
+		refresh()
+		return
 	if controller and controller.status_message_label:
 		var unit := FleetSystem.get_fleet_unit(template_id)
 		var unit_name := str(unit.get("name", HangarManager.get_pilot_name(pilot_id)))

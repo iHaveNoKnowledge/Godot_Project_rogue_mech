@@ -234,7 +234,13 @@ func _on_confirm() -> void:
 	# SORTIE page and the intermission fleet panel).
 	for template_id in _pending_toggles:
 		var check: CheckButton = _pending_toggles[template_id]
-		FleetSystem.set_unit_fielded(template_id, check.button_pressed)
+		var applied := FleetSystem.set_unit_fielded(template_id, check.button_pressed)
+		# Phase C6-B: a refused deployment (insufficient SUPPLY) must not leave
+		# the checkbox claiming a unit that will not spawn.
+		if not applied and check.button_pressed:
+			check.button_pressed = false
+			if _status_label:
+				_status_label.text = "Not enough SUPPLY to field every selected unit — some stayed parked."
 	GlobalData.save_run()
 	visible = false
 	if get_tree():

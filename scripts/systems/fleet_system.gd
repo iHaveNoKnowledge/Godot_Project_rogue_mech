@@ -182,17 +182,36 @@ static func add_ally_unit(template_id: String) -> bool:
 	return true
 
 
-static func set_unit_fielded(template_id: String, fielded: bool) -> void:
+## Phase C6-B: campaign SUPPLY price of deploying one additional unit.
+const REINFORCEMENT_SUPPLY_COST := 3
+
+
+static func get_reinforcement_supply_cost() -> int:
+	return REINFORCEMENT_SUPPLY_COST
+
+
+## Deploys/stands down a roster unit. Returns false when the request was
+## refused (unknown unit, wounded pilot, or insufficient campaign SUPPLY).
+static func set_unit_fielded(template_id: String, fielded: bool) -> bool:
 	var unit = get_fleet_unit(template_id)
 	if unit.is_empty():
-		return
+		return false
 	# A wounded pilot is recovering and cannot be sent into the field — the
 	# get_fielded_units() gate would skip them anyway, so refusing to even flag
 	# them fielded keeps the roster state honest (the intermission toggle and
 	# any other caller share this single source of truth).
 	if fielded and bool(unit.get("wounded", false)):
-		return
+		return false
+	# Phase C6-B reinforcement gate: bringing an ADDITIONAL unit into the field
+	# costs campaign SUPPLY. Standing a unit down is always free (no refund),
+	# and re-confirming an already-fielded unit costs nothing.
+	if fielded and not bool(unit.get("fielded", false)):
+		var spend := CampaignSupply.try_spend(
+			CampaignSupply.KEY_SUPPLY, get_reinforcement_supply_cost())
+		if not bool(spend.get("ok", false)):
+			return false
 	unit["fielded"] = fielded
+	return true
 
 
 # -----------------------------------------------------------------------------

@@ -522,16 +522,18 @@ func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary, lift_
 			arm_left.rotation.y = lerp_angle(arm_left.rotation.y, 0.0, 9.0 * delta)
 			arm_left.rotation.z = lerp_angle(arm_left.rotation.z, arm_roll_l, 9.0 * delta)
 			if forearm_left:
+				var flex_l := clampf(piston_elbow / deg_to_rad(45.0), 0.0, 1.0) * deg_to_rad(75.0)
 				forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, piston_elbow, 9.0 * delta)
-				forearm_left.rotation.y = lerp_angle(forearm_left.rotation.y, 0.0, 9.0 * delta)
+				forearm_left.rotation.y = lerp_angle(forearm_left.rotation.y, -flex_l, 9.0 * delta)
 				forearm_left.rotation.z = lerp_angle(forearm_left.rotation.z, 0.0, 9.0 * delta)
 		if arm_right:
 			arm_right.rotation.x = lerp_angle(arm_right.rotation.x, swing_r, 9.0 * delta)
 			arm_right.rotation.y = lerp_angle(arm_right.rotation.y, 0.0, 9.0 * delta)
 			arm_right.rotation.z = lerp_angle(arm_right.rotation.z, arm_roll_r, 9.0 * delta)
 			if forearm_right:
+				var flex_r := clampf(piston_elbow / deg_to_rad(45.0), 0.0, 1.0) * deg_to_rad(75.0)
 				forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, piston_elbow, 9.0 * delta)
-				forearm_right.rotation.y = lerp_angle(forearm_right.rotation.y, 0.0, 9.0 * delta)
+				forearm_right.rotation.y = lerp_angle(forearm_right.rotation.y, flex_r, 9.0 * delta)
 				forearm_right.rotation.z = lerp_angle(forearm_right.rotation.z, 0.0, 9.0 * delta)
 		return
 
@@ -544,8 +546,9 @@ func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary, lift_
 		arm_left.rotation.z = lerp_angle(arm_left.rotation.z, -side_ratio * deg_to_rad(6.0), 10.0 * delta)
 		if forearm_left:
 			var elbow_l := deg_to_rad(42.0) + (0.5 + 0.5 * sin(phase_left + PI * 0.5)) * deg_to_rad(28.0)
+			var flex_l := clampf(elbow_l / deg_to_rad(60.0), 0.0, 1.0) * deg_to_rad(75.0)
 			forearm_left.rotation.x = lerp_angle(forearm_left.rotation.x, elbow_l, 12.0 * delta)
-			forearm_left.rotation.y = lerp_angle(forearm_left.rotation.y, 0.0, 10.0 * delta)
+			forearm_left.rotation.y = lerp_angle(forearm_left.rotation.y, -flex_l, 10.0 * delta)
 			forearm_left.rotation.z = lerp_angle(forearm_left.rotation.z, 0.0, 10.0 * delta)
 	if arm_right:
 		var arm_r_target := -target_pitch_r * 0.8 - lateral_r * 0.35
@@ -554,8 +557,9 @@ func update_legs(delta: float, mecha: CharacterBody3D, joints: Dictionary, lift_
 		arm_right.rotation.z = lerp_angle(arm_right.rotation.z, -side_ratio * deg_to_rad(6.0), 10.0 * delta)
 		if forearm_right:
 			var elbow_r := deg_to_rad(42.0) + (0.5 + 0.5 * sin(phase_right + PI * 0.5)) * deg_to_rad(28.0)
+			var flex_r := clampf(elbow_r / deg_to_rad(60.0), 0.0, 1.0) * deg_to_rad(75.0)
 			forearm_right.rotation.x = lerp_angle(forearm_right.rotation.x, elbow_r, 12.0 * delta)
-			forearm_right.rotation.y = lerp_angle(forearm_right.rotation.y, 0.0, 10.0 * delta)
+			forearm_right.rotation.y = lerp_angle(forearm_right.rotation.y, flex_r, 10.0 * delta)
 			forearm_right.rotation.z = lerp_angle(forearm_right.rotation.z, 0.0, 10.0 * delta)
 
 

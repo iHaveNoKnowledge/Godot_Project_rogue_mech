@@ -2347,7 +2347,7 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 					f_base_box.size = Vector3(0.034, 0.070, 0.048)
 					finger.mesh = f_base_box
 					finger.position = Vector3(finger_x, -0.76, -0.035)
-					finger.rotation_degrees = Vector3(-10.0, 0.0, 0.0)
+					finger.rotation_degrees = Vector3(-25.0, 0.0, 0.0)
 					finger.material_override = hand_trim
 
 					# Proximal Hinge Joint (Cylindrical mechanical pivot)
@@ -2370,7 +2370,7 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 					mid_box.size = Vector3(0.030, 0.060, 0.042)
 					mid_seg.mesh = mid_box
 					mid_seg.position = Vector3(0, -0.075, 0.012)
-					mid_seg.rotation_degrees = Vector3(-12.0, 0.0, 0.0)
+					mid_seg.rotation_degrees = Vector3(-35.0, 0.0, 0.0)
 					mid_seg.material_override = hand_trim
 					finger.add_child(mid_seg)
 
@@ -2394,7 +2394,7 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 					tip_box.size = Vector3(0.026, 0.055, 0.038)
 					tip_seg.mesh = tip_box
 					tip_seg.position = Vector3(0, -0.140, 0.030)
-					tip_seg.rotation_degrees = Vector3(-24.0, 0.0, 0.0)
+					tip_seg.rotation_degrees = Vector3(-45.0, 0.0, 0.0)
 					tip_seg.material_override = hand_trim
 					finger.add_child(tip_seg)
 
@@ -2417,7 +2417,7 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 				t_base_box.size = Vector3(0.044, 0.065, 0.052)
 				thumb.mesh = t_base_box
 				thumb.position = Vector3(hand_side * 0.105, -0.68, -0.025)
-				thumb.rotation_degrees = Vector3(-10.0, 0.0, -hand_side * 25.0)
+				thumb.rotation_degrees = Vector3(-20.0, 0.0, -hand_side * 30.0)
 				thumb.material_override = hand_trim
 
 				# Thumb Metacarpal Hinge Joint
@@ -2440,7 +2440,7 @@ func _build_procedural_inner_frame(slot_name: String, upper_container: Node3D, l
 				t_tip_box.size = Vector3(0.038, 0.065, 0.044)
 				t_tip.mesh = t_tip_box
 				t_tip.position = Vector3(0, -0.075, 0.018)
-				t_tip.rotation_degrees = Vector3(-15.0, 0.0, hand_side * 15.0)
+				t_tip.rotation_degrees = Vector3(-30.0, 0.0, hand_side * 20.0)
 				t_tip.material_override = hand_trim
 				thumb.add_child(t_tip)
 

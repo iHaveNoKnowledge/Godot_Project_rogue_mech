@@ -312,6 +312,14 @@ func _apply_pose(joints: Dictionary, body_base_y: float) -> void:
 		if key == "foot_left" or key == "foot_right":
 			flex = clampf(flex, FOOT_MIN, FOOT_MAX)
 		pivot.rotation.x = flex
+		if key == "forearm_left":
+			var flex_ratio := clampf(absf(flex) / 1.4, 0.0, 1.0)
+			pivot.rotation.y = -flex_ratio * deg_to_rad(75.0)
+			pivot.rotation.z = 0.0
+		elif key == "forearm_right":
+			var flex_ratio := clampf(absf(flex) / 1.4, 0.0, 1.0)
+			pivot.rotation.y = flex_ratio * deg_to_rad(75.0)
+			pivot.rotation.z = 0.0
 	# Hip bob onto the body (delta only; skeleton is already at game scale).
 	var body: Node3D = joints.get("body")
 	if body != null:

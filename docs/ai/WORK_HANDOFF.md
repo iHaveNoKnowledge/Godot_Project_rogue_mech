@@ -1,22 +1,16 @@
 # Work Handoff & Session State
 
 ## 1. Current State Summary
-- **Current Task:** R22 Run-Cycle Loop Closure (COMPLETE); R21 Melee Combat Standoff, Telegraph & Action Pacing System (COMPLETE).
+- **Current Task:** R23 Live Blender 30-Frame Run-Cycle Integration (COMPLETE); R22 Run-Cycle Loop Closure (COMPLETE); R21 Melee Combat Standoff, Telegraph & Action Pacing System (COMPLETE).
 - **Current Branch:** `main`
 - **Published Remote & Local Baseline:** `52e40ece7fd9f529951601089956697ce8103999` (`fix(mecha): close run-cycle loop seam`, verified synchronized with `origin/main` on remote GitHub).
 - **Working-Tree Inventory & Status:**
-  - Production code modified:
-    - `scripts/mecha/ai/states/state_attack.gd` (5-phase melee lifecycle: PACING, WINDUP, LUNGE, RECOVERY, DISENGAGE; Direction Lock; exposed shield drop).
-    - `scripts/mecha/ai/states/state_chase.gd` (long-range only dash for Rusher > 18.0m, preventing point-blank collision).
-    - `scripts/mecha/ai/enemy_attack_templates.gd` (pacing ranges 6.0–8.5m, windup and recovery stats).
-    - `scripts/mecha/ai/enemy_squad_coordinator.gd` (attacker token mutual exclusion to prevent multi-enemy swarming).
-    - `scripts/effects/ground_telegraph_indicator.gd` (Ground rectangular red danger zone indicator).
-  - Test suites & runners:
-    - `test/unit/melee_combat_pacing_and_telegraph_verify.gd`/`.tscn` (37/37 checks PASS, Exit 0).
-    - `run_tests.sh` (10 standalone suites executed and passed, Exit 0).
-  - Modified documentation: `docs/ai/PHASE_STATUS.md`, `docs/ai/WORK_HANDOFF.md`.
-  - Untracked diagnostic artifacts (preserved): `test/unit/clip_ingame_drive_verify.gd`/`.tscn`.
+  - Asset & Test code modified:
+    - `scenes/mecha/animations/innerframe_run_cycle_clean.glb` (Re-exported with live Blender 30-frame run-cycle 0-29 / 1.25s).
+    - `test/unit/innerframe_rig_verify.gd` (Updated expected length assertion to 30.0/24.0s = 1.25s).
+  - Modified documentation: `docs/ai/WORK_HANDOFF.md`.
 - **Latest Completed Audits / Phases:**
+  - **R23 (Live Blender 30-Frame Run-Cycle Integration, 2026-10-29):** Integrated live Blender 30-frame run animation (frames 0-29, 1.25s at 24fps) into canonical GLB; `innerframe_rig_verify` 10/10 PASS, `clip_retarget_verify` 16/16 PASS (hip bob 0.474m), `clip_ingame_verify` 14/14 PASS, 15/15 standalone suites exit 0. See §18.
   - **R22 (Run-Cycle Loop Closure, 2026-10-29):** Removed the unauthored f38–f40 tail and closed the loop (`f38 := f1`); final GLB 4,201,360 B / 38 keys / 1.541667 s; `innerframe_rig_verify` 10/10, `clip_retarget_verify` 16/16, `clip_ingame_verify` 14/14, `run_tests.sh` exit 0. See §17.
   - **Phase R21 (Melee Combat Pacing & Telegraph Redesign):** Resolved player feedback regarding enemies sticking and orbiting around the player. Replaced point-blank melee chaos with high-clarity Action RPG pacing:
     1. **Pacing Standoff (6.0–8.5m):** Circle-strafes and actively back-pedals away if player advances (< 5.5m).
@@ -339,4 +333,17 @@
   - `./run_tests.sh` — exit **0**; GUT still reports "Nothing was run" (standalone-scene configuration quirk).
 - **Caveats:** headless verification only; interactive-window visual check of the seam remains outstanding. The stale live MCP Blender session was not saved (disk master is authoritative). Raw export cleanup: `scratch/innerframe_run_loopfix_raw.glb` and its `.import` deleted after post-processing.
 
+---
 
+## 18. Asset Session Note (2026-10-29): Live Blender 30-Frame Run-Cycle Integration — COMPLETE
+
+- **Context & User Request:** User asked to replace the game's run animation with the active cycle playing in Blender (`RunCycle`, frames 0-29, 30 frames at 24 fps = 1.25s), inquiring whether bone adjustments were needed in Godot and whether model "blobbing" (squash/bob/stride bounce) carried over.
+- **Architecture Invariants Confirmed:**
+  - **No Rig Adjustments in Godot:** `MechaClipRetarget` uses modular Node3D kinematic retargeting; external meshes are freed at load (`_free_meshes(inst)`), and joint motions are mapped rest-relatively from canonical `MechaRig` bones.
+  - **Bob / Stride Bounce Preserved:** Blender Armature Z-bobbing (-0.18m to +0.27m) is mapped into `Bone_Hip` translation and transferred to `body.position.y` at runtime.
+- **Verification & Test Evidence (Godot 4.6.2.stable):**
+  - `scenes/mecha/animations/innerframe_run_cycle_clean.glb`: 4,185,832 B, 176 nodes, 103 meshes, 57 joints, animation `run`, 31 keys per channel (1.2500 s).
+  - `test/unit/innerframe_rig_verify.tscn`: **10/10 checks PASS (Exit 0)** (16/16 MechaRig bones present, 57 total joints, head 5.60m, 1.25s length, all 33 animated tracks first==last closed).
+  - `test/unit/clip_retarget_verify.tscn`: **16/16 checks PASS (Exit 0)** (leg range 113.2°/112.3°, antiphase -1.00, knee 122.5°, arm 132.0°, hip bob 0.474m).
+  - `test/unit/clip_ingame_verify.tscn`: **14/14 checks PASS (Exit 0)** (enters `clip_run`, 113.2° swing, cadence scaling, arm destroy resilience, stop-to-idle).
+  - **Full Regression Runner:** 15 standalone verification scenes executed and passed with Exit Code 0 (0 failures).

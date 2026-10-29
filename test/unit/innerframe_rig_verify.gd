@@ -76,7 +76,7 @@ func _ready() -> void:
 		_check(player.has_animation(MechaRig.CLIP_RUN), "run clip present (has %s)" % str(player.get_animation_list()))
 		if player.has_animation(MechaRig.CLIP_RUN):
 			var anim := player.get_animation(MechaRig.CLIP_RUN)
-			var expected_len := 37.0 / 24.0
+			var expected_len := 30.0 / 24.0
 			_check(absf(anim.length - expected_len) < 0.01, "run clip closed at %.4fs (got %.4fs)" % [expected_len, anim.length])
 			var seam_tracks := 0
 			var seam_bad := 0

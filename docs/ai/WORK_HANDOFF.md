@@ -1,15 +1,18 @@
 # Work Handoff & Session State
 
 ## 1. Current State Summary
-- **Current Task:** R23 Live Blender 30-Frame Run-Cycle Integration (COMPLETE); R22 Run-Cycle Loop Closure (COMPLETE); R21 Melee Combat Standoff, Telegraph & Action Pacing System (COMPLETE).
+- **Current Task:** R24 Full 3D Torso Yaw Twist & Diagonal Arm Swing Retargeting (COMPLETE); R23 Live Blender 30-Frame Run-Cycle Integration (COMPLETE); R22 Run-Cycle Loop Closure (COMPLETE).
 - **Current Branch:** `main`
-- **Published Remote & Local Baseline:** `52e40ece7fd9f529951601089956697ce8103999` (`fix(mecha): close run-cycle loop seam`, verified synchronized with `origin/main` on remote GitHub).
+- **Published Remote & Local Baseline:** `2100cb889a7fb3a1e0eb7c56e300959f6d4ae791` (`feat(mecha): integrate live Blender 30-frame run animation and sync loop verify`, verified synchronized with `origin/main` on remote GitHub).
 - **Working-Tree Inventory & Status:**
-  - Asset & Test code modified:
-    - `scenes/mecha/animations/innerframe_run_cycle_clean.glb` (Re-exported with live Blender 30-frame run-cycle 0-29 / 1.25s).
-    - `test/unit/innerframe_rig_verify.gd` (Updated expected length assertion to 30.0/24.0s = 1.25s).
+  - Production code modified:
+    - `scripts/mecha/mecha_clip_retarget.gd` (Upgraded from sagittal-only to 3D: `_apply_torso` transfers Yaw twist and Roll bank; `_apply_arm` transfers full 3D diagonal pump via Quaternion shortest arc).
+  - Test suites & runners:
+    - `test/unit/clip_retarget_verify.gd` (Added 3 checks for torso yaw range > 10.0°, torso roll range > 3.0°, and arm diagonal lateral range > 10.0°; 19/19 checks PASS, Exit 0).
+    - `run_tests.sh` / Standalone Runner (15/15 standalone suites executed and passed, Exit 0).
   - Modified documentation: `docs/ai/WORK_HANDOFF.md`.
 - **Latest Completed Audits / Phases:**
+  - **R24 (Full 3D Torso Yaw Twist & Diagonal Arm Swing Retargeting, 2026-10-29):** Resolved missing body twist and flat 1D arm swing reported by user. Upgraded `MechaClipRetarget` to transfer Torso Yaw twist (21.5° range) and Roll bank (7.5° range), and Arm 3D diagonal swing (145.1° lateral range); `clip_retarget_verify` 19/19 PASS, `clip_ingame_verify` 14/14 PASS, 15/15 standalone suites exit 0. See §19.
   - **R23 (Live Blender 30-Frame Run-Cycle Integration, 2026-10-29):** Integrated live Blender 30-frame run animation (frames 0-29, 1.25s at 24fps) into canonical GLB; `innerframe_rig_verify` 10/10 PASS, `clip_retarget_verify` 16/16 PASS (hip bob 0.474m), `clip_ingame_verify` 14/14 PASS, 15/15 standalone suites exit 0. See §18.
   - **R22 (Run-Cycle Loop Closure, 2026-10-29):** Removed the unauthored f38–f40 tail and closed the loop (`f38 := f1`); final GLB 4,201,360 B / 38 keys / 1.541667 s; `innerframe_rig_verify` 10/10, `clip_retarget_verify` 16/16, `clip_ingame_verify` 14/14, `run_tests.sh` exit 0. See §17.
   - **Phase R21 (Melee Combat Pacing & Telegraph Redesign):** Resolved player feedback regarding enemies sticking and orbiting around the player. Replaced point-blank melee chaos with high-clarity Action RPG pacing:
@@ -347,3 +350,34 @@
   - `test/unit/clip_retarget_verify.tscn`: **16/16 checks PASS (Exit 0)** (leg range 113.2°/112.3°, antiphase -1.00, knee 122.5°, arm 132.0°, hip bob 0.474m).
   - `test/unit/clip_ingame_verify.tscn`: **14/14 checks PASS (Exit 0)** (enters `clip_run`, 113.2° swing, cadence scaling, arm destroy resilience, stop-to-idle).
   - **Full Regression Runner:** 15 standalone verification scenes executed and passed with Exit Code 0 (0 failures).
+
+---
+
+## 19. Runtime & Kinematics Session Note (2026-10-29): Full 3D Torso Yaw/Roll Twist & Diagonal Arm Swing Retargeting — COMPLETE
+
+- **User Feedback & Problem Analysis:**
+  - User reported: "ทำไมมันขยับไม่เหมือนใน blender เลย body ไม่มีหมุนเลย แต่ใน blender body มันมีการหมุนทำให้แขนไม่ได้เหวี่ยงตรงๆ แต่มันจะมีเหวียงแนวเฉียงหลังไหน้า"
+  - Root cause in `scripts/mecha/mecha_clip_retarget.gd`:
+    1. `_apply_pose` was strictly "sagittal-only" (v1): `body.rotation.y` (Yaw twist) was never set (0.0), and `pivot.rotation.y` and `pivot.rotation.z` on arms were hard-clamped to `0.0`.
+    2. In Blender, `Bone.001` (`Bone_Torso`) has active Yaw rotation (-6.8° to +11.1°, range ~21.5°) and Roll bank (-2.4° to +3.7°, range ~7.5°).
+    3. In Blender, the arms swing diagonally from back-flared (`X ≈ 0.52`, `Z ≈ 0.75`) to forward across the chest (`X ≈ -0.23`, `Z ≈ 0.33`), forming a dynamic 3D arc.
+- **Implementation & Mathematical Solution:**
+  - **Torso 3D Transfer (`_apply_torso`):**
+    - Preserves `pivot.rotation.x = swing * BODY_PITCH_SCALE` (pitch lean).
+    - Computes delta quaternion `delta_q := rest_q.inverse() * pose_q` from `Bone_Torso` in `Skeleton3D`.
+    - Transposes Euler angles: `pivot.rotation.y = delta_q.get_euler().y` (Yaw twist), `pivot.rotation.z = delta_q.get_euler().z` (Roll bank).
+  - **Arm 3D Diagonal Transfer (`_apply_arm`):**
+    - Instead of projecting onto 1D sagittal pitch and zeroing Y/Z, calculates full 3D direction vectors in skeleton space: `r_dir := _rest_dir(bone, child)` and `p_dir := _pose_dir(bone, child)`.
+    - Applies shortest arc quaternion: `pivot.quaternion = Quaternion(r_dir, p_dir)`.
+    - Perfectly reproduces the diagonal outward-flare and chest-cross swing without gimbal lock.
+- **Verification & Test Evidence (Godot 4.6.2.stable):**
+  - `test/unit/clip_retarget_verify.tscn`: **19/19 checks PASS (Exit 0)**:
+    - `torso twists with stride (yaw range=21.5 deg)`: PASS
+    - `torso banks with stride (roll range=7.5 deg)`: PASS
+    - `arms swing diagonally (lateral range=145.1 deg)`: PASS
+    - `arms pump (range=96.3 deg)`: PASS
+    - `hip bob moves body (bob=0.475m)`: PASS
+  - `test/unit/clip_ingame_verify.tscn`: **14/14 checks PASS (Exit 0)** (full in-game locomotion pipeline clean).
+  - `test/unit/innerframe_rig_verify.tscn`: **10/10 checks PASS (Exit 0)**.
+  - **Full Regression Runner:** 15/15 standalone verification scenes passed with Exit Code 0 (0 failures).
+

@@ -9,10 +9,12 @@ class_name MechaClipRetarget
 ## MechaRig bone names. Instantiated hidden (meshes freed), its
 ## AnimationPlayer stepped manually so sampling is deterministic.
 ##
-## Transfer is kinematic and sagittal-only (rotation.x + hip bob): per frame
-## each segment's swing is measured in skeleton space against its own rest
-## pose, then written rest-relative onto the matching pivot. Immune to bone
-## roll conventions; lateral/roll detail from the clip is skipped (v1).
+## Transfer is kinematic: per frame each segment's swing is measured
+## in skeleton space against its own rest pose, then written rest-relative
+## onto the matching pivot. Torso transfers pitch, yaw twist, and roll bank.
+## Arms transfer 3D diagonal pump (quaternion shortest arc between segment vectors).
+## Legs transfer sagittal pitch with FootIK/strafe alignment.
+## Hip bob translation transfers onto the body pivot.
 
 const CLIP_SOURCES := {
 	MechaRig.CLIP_RUN: "res://scenes/mecha/animations/innerframe_run_cycle_clean.glb",
@@ -282,18 +284,21 @@ func _apply_pose(joints: Dictionary, body_base_y: float) -> void:
 		if bone == MechaRig.BONE_HEAD:
 			_apply_head(pivot)
 			continue
+		if bone == MechaRig.BONE_TORSO:
+			_apply_torso(pivot)
+			continue
 		var child: String = SEGMENT_CHILD.get(bone, "")
 		if child == "":
+			continue
+		if bone == MechaRig.BONE_UPPER_ARM_L or bone == MechaRig.BONE_UPPER_ARM_R:
+			_apply_arm(pivot, bone, child)
 			continue
 		var swing := wrapf(_segment_pitch(_pose_dir(bone, child)) - float(_rest_pitch.get(bone, 0.0)), -PI, PI)
 		if bone == MechaRig.BONE_THIGH_L or bone == MechaRig.BONE_THIGH_R:
 			swing = clampf(swing * THIGH_BOOST, -THIGH_MAX, THIGH_MAX)
-		if bone == MechaRig.BONE_TORSO:
-			swing *= BODY_PITCH_SCALE
 		pivot.rotation.x = swing
-		if bone != MechaRig.BONE_TORSO:
-			pivot.rotation.y = 0.0
-			pivot.rotation.z = 0.0
+		pivot.rotation.y = 0.0
+		pivot.rotation.z = 0.0
 	# Hinge flexion (elbow/knee/ankle, rest-relative).
 	for key in HINGE_JOINTS:
 		var pivot: Node3D = joints.get(key)
@@ -314,6 +319,34 @@ func _apply_pose(joints: Dictionary, body_base_y: float) -> void:
 		if hip_idx >= 0:
 			var bob: float = skeleton.get_bone_global_pose(hip_idx).origin.y - _rest_hip_y
 			body.position.y = _orig_body_y + bob
+
+
+func _apply_torso(pivot: Node3D) -> void:
+	var child: String = SEGMENT_CHILD.get(MechaRig.BONE_TORSO, "")
+	var swing := 0.0
+	if child != "":
+		swing = wrapf(_segment_pitch(_pose_dir(MechaRig.BONE_TORSO, child)) - float(_rest_pitch.get(MechaRig.BONE_TORSO, 0.0)), -PI, PI)
+	pivot.rotation.x = swing * BODY_PITCH_SCALE
+	var idx := _bone_idx(MechaRig.BONE_TORSO)
+	if idx >= 0:
+		var rest_q := skeleton.get_bone_rest(idx).basis.get_rotation_quaternion().normalized()
+		var pose_q := skeleton.get_bone_pose(idx).basis.get_rotation_quaternion().normalized()
+		var delta_q := rest_q.inverse() * pose_q
+		var e := delta_q.get_euler()
+		pivot.rotation.y = e.y
+		pivot.rotation.z = e.z
+	else:
+		pivot.rotation.y = 0.0
+		pivot.rotation.z = 0.0
+
+
+func _apply_arm(pivot: Node3D, bone: String, child: String) -> void:
+	var r_dir := _rest_dir(bone, child)
+	var p_dir := _pose_dir(bone, child)
+	if r_dir.length_squared() < 0.0001 or p_dir.length_squared() < 0.0001:
+		return
+	var q := Quaternion(r_dir, p_dir)
+	pivot.quaternion = q
 
 
 func _apply_head(pivot: Node3D) -> void:

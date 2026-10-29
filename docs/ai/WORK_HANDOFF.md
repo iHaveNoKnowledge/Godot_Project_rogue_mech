@@ -3,7 +3,7 @@
 ## 1. Current State Summary
 - **Current Task:** R22 Run-Cycle Loop Closure (COMPLETE); R21 Melee Combat Standoff, Telegraph & Action Pacing System (COMPLETE).
 - **Current Branch:** `main`
-- **Published Remote & Local Baseline:** `e0ef179c0c942d63ce8da791ddfa8bd7eaf44eae` (`docs(ai): close R19-D phase ledger and handoff`, verified synchronized with `origin/main` on remote GitHub).
+- **Published Remote & Local Baseline:** `52e40ece7fd9f529951601089956697ce8103999` (`fix(mecha): close run-cycle loop seam`, verified synchronized with `origin/main` on remote GitHub).
 - **Working-Tree Inventory & Status:**
   - Production code modified:
     - `scripts/mecha/ai/states/state_attack.gd` (5-phase melee lifecycle: PACING, WINDUP, LUNGE, RECOVERY, DISENGAGE; Direction Lock; exposed shield drop).

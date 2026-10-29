@@ -184,7 +184,7 @@ func _test_determinism_and_firewalls() -> void:
 	var battles_before := CampaignBattle.get_battles().size()
 	var first := CampaignPlayerForceAssault.attack(garrison, enemy)
 	_check(str(first.get("winner", "")) != "", "deterministic run produces a winner")
-	_check(int(first.get("rounds", 0)) <= CampaignBaseDefense.AUTO_BATTLE_MAX_ROUNDS,
+	_check(int(first.get("rounds", 0)) <= CampaignAutoBattle.MAX_ROUNDS,
 		"round count respects the shared maximum")
 	_check(CampaignBattle.get_battles().size() == battles_before,
 		"no combat battle record is fabricated for a field engagement")

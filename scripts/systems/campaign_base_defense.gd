@@ -25,11 +25,9 @@ extends RefCounted
 
 const DEFAULT_PLAYER_FACTION: String = "federation"
 
-## Phase C8-A auto-battle: each round both sides lose a share of the enemy's
-## CURRENT strength. Provisional balance values (spec §44 keeps exact force
-## numbers PROPOSED); deterministic — no randomness, no per-faction bonuses.
-const AUTO_BATTLE_ATTRITION_RATIO := 0.2
-const AUTO_BATTLE_MAX_ROUNDS := 5
+## Phase C8-A auto-battle. The formula and its tuned constants live in
+## `CampaignAutoBattle` (C8-D) so defence and assault can never drift; this
+## file only applies the result to the authorities it owns.
 
 
 ## Initiates a base attack by a hostile force, registering a defense battle in CampaignBattle.
@@ -762,22 +760,16 @@ static func _try_player_force_resolution(battle_id: String, base_id: String,
 	var attacker_strength := maxi(int(attacker.get("strength", 0)), 0)
 	var attacker_units := maxi(int(attacker.get("unit_count", 0)), 0)
 
-	var rounds := 0
-	while rounds < AUTO_BATTLE_MAX_ROUNDS and defender_strength > 0 and attacker_strength > 0:
-		var attacker_loss := maxi(1, int(ceil(float(defender_strength) * AUTO_BATTLE_ATTRITION_RATIO)))
-		var defender_loss := maxi(1, int(ceil(float(attacker_strength) * AUTO_BATTLE_ATTRITION_RATIO)))
-		attacker_strength = maxi(attacker_strength - attacker_loss, 0)
-		defender_strength = maxi(defender_strength - defender_loss, 0)
-		rounds += 1
-
-	var held := defender_strength > 0 and defender_strength >= attacker_strength
-	var attacker_units_lost := 0
-	if attacker_strength == 0:
-		attacker_units_lost = attacker_units
-	else:
-		var start_strength := maxi(int(attacker.get("strength", 0)), 1)
-		attacker_units_lost = int(floor(float(attacker_units) * float(start_strength - attacker_strength) / float(start_strength)))
-		attacker_units_lost = clampi(attacker_units_lost, 0, attacker_units)
+	var start_attacker_strength := maxi(attacker_strength, 1)
+	var battle := CampaignAutoBattle.simulate(defender_strength, attacker_strength)
+	var rounds := int(battle.get("rounds", 0))
+	attacker_strength = int(battle.get("attacker_remaining", 0))
+	defender_strength = int(battle.get("defender_remaining", 0))
+	var battle_winner := str(battle.get("winner", "stalemate"))
+	# A tie after the round cap is a held defence (defender keeps the ground).
+	var held := battle_winner == "defender" or battle_winner == "stalemate"
+	var attacker_units_lost := CampaignAutoBattle.unit_loss(
+		attacker_units, start_attacker_strength, start_attacker_strength - attacker_strength)
 	CampaignForce.set_composition(attacker_id, attacker_units - attacker_units_lost, attacker_strength)
 	if attacker_strength == 0:
 		CampaignForce.set_state(attacker_id, CampaignForce.ForceState.DESTROYED)

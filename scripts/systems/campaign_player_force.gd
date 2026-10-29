@@ -42,11 +42,14 @@ const STATE_NAMES := {
 	ForceState.DISABLED: "disabled",
 }
 
-## Provisional starting garrison seeded by RunStartSystem (balance value, not a
-## locked formula — spec §44 keeps exact force numbers PROPOSED).
+## Starting garrison seeded by RunStartSystem. Tuned in C8-D against a scripted
+## frontier_skirmish playthrough (tools/campaign_balance_sim): 20 holds a drawn
+## fight against an equal 20 and survives a 30 push with 10 attrition, while one
+## raised detachment (12, see CampaignPlayerForceAction) flips a 30 push to a
+## held defence. Still PROVISIONAL per spec §44.
 const START_GARRISON_ID := "player_force_home_garrison"
-const START_GARRISON_UNITS := 1
-const START_GARRISON_STRENGTH := 10
+const START_GARRISON_UNITS := 2
+const START_GARRISON_STRENGTH := 20
 
 static var _detachments: Dictionary = {}
 

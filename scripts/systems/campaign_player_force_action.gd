@@ -21,9 +21,12 @@ extends RefCounted
 ## territory ownership mutation, no supply spend, no detection/heat writes.
 ## ---------------------------------------------------------------------------
 
+## Tuned in C8-D: 120 credits buys 12 strength, so the starting garrison (20)
+## plus one paid detachment (32) is enough to hold a 30-strength push, while a
+## single unassisted garrison is not. PROVISIONAL (spec §44).
 const RAISE_CREDITS_COST := 120
 const RAISE_UNIT_COUNT := 1
-const RAISE_STRENGTH := 10
+const RAISE_STRENGTH := 12
 
 
 static func get_raise_cost() -> int:

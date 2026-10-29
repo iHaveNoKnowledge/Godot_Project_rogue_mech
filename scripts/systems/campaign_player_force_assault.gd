@@ -103,24 +103,13 @@ static func attack(force_id: String, target_force_id: String) -> Dictionary:
 	var enemy_strength := maxi(int(enemy.get("strength", 0)), 0)
 	var enemy_units := maxi(int(enemy.get("unit_count", 0)), 0)
 	var enemy_start_strength := maxi(int(enemy.get("strength", 0)), 1)
-	var ratio := CampaignBaseDefense.AUTO_BATTLE_ATTRITION_RATIO
-	var max_rounds := CampaignBaseDefense.AUTO_BATTLE_MAX_ROUNDS
-
-	var rounds := 0
-	while rounds < max_rounds and player_strength > 0 and enemy_strength > 0:
-		var enemy_loss := maxi(1, int(ceil(float(player_strength) * ratio)))
-		var player_loss := maxi(1, int(ceil(float(enemy_strength) * ratio)))
-		enemy_strength = maxi(enemy_strength - enemy_loss, 0)
-		player_strength = maxi(player_strength - player_loss, 0)
-		rounds += 1
-
-	var enemy_units_lost := 0
-	if enemy_strength == 0:
-		enemy_units_lost = enemy_units
-	else:
-		enemy_units_lost = int(floor(
-			float(enemy_units) * float(enemy_start_strength - enemy_strength) / float(enemy_start_strength)))
-		enemy_units_lost = clampi(enemy_units_lost, 0, enemy_units)
+	var battle := CampaignAutoBattle.simulate(player_strength, enemy_strength)
+	var rounds := int(battle.get("rounds", 0))
+	player_strength = int(battle.get("defender_remaining", 0))
+	enemy_strength = int(battle.get("attacker_remaining", 0))
+	var raw_winner := str(battle.get("winner", "stalemate"))
+	var enemy_units_lost := CampaignAutoBattle.unit_loss(
+		enemy_units, enemy_start_strength, enemy_start_strength - enemy_strength)
 	CampaignForce.set_composition(target_force_id, enemy_units - enemy_units_lost, enemy_strength)
 	if enemy_strength == 0:
 		CampaignForce.set_state(target_force_id, CampaignForce.ForceState.DESTROYED)
@@ -129,16 +118,12 @@ static func attack(force_id: String, target_force_id: String) -> Dictionary:
 		force_id, maxi(int(detachment.get("strength", 0)) - player_strength, 0))
 
 	var winner := "stalemate"
-	if enemy_strength == 0 and player_strength > 0:
+	if raw_winner == "defender":
 		winner = "player"
-	elif player_strength == 0 and enemy_strength > 0:
+	elif raw_winner == "attacker":
 		winner = "enemy"
-	elif player_strength == 0 and enemy_strength == 0:
+	elif raw_winner == "mutual_destruction":
 		winner = "mutual_destruction"
-	elif player_strength > enemy_strength:
-		winner = "player"
-	elif enemy_strength > player_strength:
-		winner = "enemy"
 
 	return {
 		"ok": true,

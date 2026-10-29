@@ -347,19 +347,39 @@ static func start_campaign_scenario(
 	}
 
 
-## Seeds the provisional home garrison at the campaign start node. Idempotent:
-## an existing detachment on that node is left untouched. Returns the id ("" 
-## when the node is unknown). Values are PROVISIONAL (spec §44).
+## Seeds the provisional home garrison. C8-D tuning evidence: seeding at the
+## player's start node left the scenario's actual base (node_frontier_city)
+## undefended, so the first assault resolved with no player force at all. The
+## garrison therefore prefers the first live player-owned base, binds to it,
+## and only falls back to the given node when the player owns no base.
+## Idempotent: an existing detachment on the target node is left untouched.
+## Returns the id ("" when no valid node exists). Values are PROVISIONAL.
 static func seed_player_garrison(node_id: String) -> String:
-	var nid := node_id.strip_edges()
-	if nid == "" or not CampaignNodeRegistry.has_node(nid):
+	var fallback := node_id.strip_edges()
+	var target := ""
+	var base_id := ""
+	var player_faction := FactionSystem.get_player_faction()
+	for base in CampaignBase.get_bases():
+		if int(base.get("state", -1)) == CampaignBase.BaseState.DESTROYED:
+			continue
+		if str(base.get("controller", "")) != player_faction:
+			continue
+		var base_node := str(base.get("node_id", "")).strip_edges()
+		if base_node == "" or not CampaignNodeRegistry.has_node(base_node):
+			continue
+		target = base_node
+		base_id = str(base.get("id", ""))
+		break
+	if target == "":
+		target = fallback
+	if target == "" or not CampaignNodeRegistry.has_node(target):
 		return ""
-	if not CampaignPlayerForce.get_active_at_node(nid).is_empty():
+	if not CampaignPlayerForce.get_active_at_node(target).is_empty():
 		return CampaignPlayerForce.START_GARRISON_ID
 	return CampaignPlayerForce.register_detachment(
 		CampaignPlayerForce.START_GARRISON_ID,
-		nid,
-		"",
+		target,
+		base_id,
 		CampaignPlayerForce.START_GARRISON_UNITS,
 		CampaignPlayerForce.START_GARRISON_STRENGTH
 	)

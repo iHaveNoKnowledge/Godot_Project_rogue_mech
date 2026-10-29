@@ -31,3 +31,4 @@ fi
 "$GODOT_EXE" --headless "res://test/unit/campaign_player_force_verify.tscn"
 "$GODOT_EXE" --headless "res://test/unit/campaign_player_force_action_verify.tscn"
 "$GODOT_EXE" --headless "res://test/unit/campaign_player_force_assault_verify.tscn"
+"$GODOT_EXE" --headless "res://test/unit/campaign_auto_battle_verify.tscn"

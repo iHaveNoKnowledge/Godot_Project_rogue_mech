@@ -29,3 +29,4 @@ fi
 "$GODOT_EXE" --headless "res://test/unit/harbor_combat_map_verify.tscn"
 "$GODOT_EXE" --headless "res://test/unit/campaign_supply_verify.tscn"
 "$GODOT_EXE" --headless "res://test/unit/campaign_player_force_verify.tscn"
+"$GODOT_EXE" --headless "res://test/unit/campaign_player_force_action_verify.tscn"

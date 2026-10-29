@@ -178,6 +178,14 @@ static func register_detachment(force_id: String, node_id: String, base_id: Stri
 	return force_id
 
 
+## Removes one record (disband/rollback). False on unknown id.
+static func remove_detachment(force_id: String) -> bool:
+	if not _detachments.has(force_id):
+		return false
+	_detachments.erase(force_id)
+	return true
+
+
 static func set_state(force_id: String, new_state: int) -> bool:
 	if not _detachments.has(force_id):
 		return false

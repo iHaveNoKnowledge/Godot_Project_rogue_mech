@@ -73,6 +73,7 @@ var _feedback_label: Label
 var _turn_label: Label
 var _end_turn_button: Button
 var _turn_status_label: Label
+var _player_force_panel: CampaignPlayerForcePanel
 
 
 func _ready() -> void:
@@ -288,6 +289,18 @@ func _create_ui_structure() -> void:
 
 	sidebar_vbox.add_child(_create_separator())
 
+	# --- Sidebar Section 2b: Player Detachments (Phase C8-B) ---
+	var sec_forces_label := Label.new()
+	sec_forces_label.text = "YOUR DETACHMENTS"
+	sec_forces_label.add_theme_font_override("font", FONT_SEMIBOLD)
+	sec_forces_label.add_theme_font_size_override("font_size", 11)
+	sec_forces_label.add_theme_color_override("font_color", COLOR_TEXT_MUTED)
+	sidebar_vbox.add_child(sec_forces_label)
+
+	_player_force_panel = CampaignPlayerForcePanel.new()
+	_player_force_panel.name = "PlayerForcePanel"
+	sidebar_vbox.add_child(_player_force_panel)
+
 	# --- Sidebar Section 3: Campaign Turn Progression ---
 	var sec3_label := Label.new()
 	sec3_label.text = "CAMPAIGN SIMULATION"
@@ -326,6 +339,8 @@ func refresh_map() -> void:
 	if _map_canvas:
 		_map_canvas.queue_redraw()
 	_update_info_panel()
+	if _player_force_panel:
+		_player_force_panel.refresh()
 
 
 func _update_header() -> void:

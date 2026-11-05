@@ -353,14 +353,14 @@ func open_diagnostic_modal() -> void:
 
 ## Full reactive update across all UI panels, header currency, part lists, stats,
 ## and the live 3D mech in the garage (including its damage overlay shader materials).
-func refresh_after_part_mutation(slot: String = "") -> void:
+func refresh_after_part_mutation(slot: String = "", repopulate_parts: bool = true) -> void:
 	if stats_panel:
 		stats_panel.update()
 	if header_panel:
 		header_panel.update_header()
 	if equip_panel and equip_panel.has_method("update_currently_equipped"):
 		equip_panel.update_currently_equipped()
-	if part_list_panel:
+	if part_list_panel and repopulate_parts:
 		var target_slot := slot if slot != "" else selected_slot
 		part_list_panel.populate(target_slot)
 	if catalog_panel and catalog_panel.has_method("force_refresh_hover_stats"):

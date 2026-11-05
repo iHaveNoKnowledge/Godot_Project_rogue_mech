@@ -4,12 +4,11 @@ extends Node
 ## Pins the audited (2026-10-03, headless world measurements, mech at origin)
 ## standard-frame contract so future armor/frame work cannot silently regress it:
 ##
-##  1. 5M SCALE: overall procedural frame height in [4.9, 5.7] m, i.e. inside
-##     the ~5.0 m target band [4.5, 5.5] (measured rest 5.33 m: foot roller
-##     0.20 m -> CH_RollBar 5.53 m). Replaces the stale 5.80 m Zenith figure.
-##  2. SHOULDER FIT: body armor outer half-width stays INBOARD of the shoulder
-##     pivots (world |x| = 1.31376 m); pauldrons overlap the torso shell by at
-##     most 0.25 m and stay L/R mirrored and level.
+##  1. 5M SCALE: overall procedural frame height in [6.3, 7.0] m, i.e. inside
+##     the ~6.6 m Blender silhouette target band [6.2, 7.0] (measured rest 6.64 m:
+##     foot roller 0.16 m -> CH_RollBar 6.64 m, matching the 6.643 m reference).
+##     Tank mech proportions: shoulder span 2.8..3.5 m, pauldrons burrow at
+##     most 0.30 m and stay L/R mirrored and level.
 ##  3. PILOT FIT: the seated CockpitPilot mannequin renders at true human scale
 ##     (height 1.0..1.5 m, NOT the 2.09 m double-scaled bug), fits inside the
 ##     tub width, and its head clears below the head pivot.
@@ -139,12 +138,12 @@ func _test_5m_scale(mecha: Node3D, pmm: Node) -> void:
 	var box := _global_aabb(all)
 	var h: float = box.size.y
 	print("STD-FRAME height minY=%.3f maxY=%.3f h=%.3f" % [box.position.y, box.position.y + box.size.y, h])
-	_check(h >= 4.9 and h <= 5.7, "frame height in procedural band [4.9, 5.7] (got %.3f)" % h)
-	_check(h >= 4.5 and h <= 5.5, "frame height inside 5m target band [4.5, 5.5] (got %.3f)" % h)
+	_check(h >= 6.3 and h <= 7.0, "frame height in procedural band [6.3, 7.0] (got %.3f)" % h)
+	_check(h >= 6.2 and h <= 7.0, "frame height inside 6.6m target band [6.2, 7.0] (got %.3f)" % h)
 	_check(absf(h - MechaScaleSystem.TRUE_HEIGHT) < 0.45, "TRUE_HEIGHT matches measured height (const %.2f)" % MechaScaleSystem.TRUE_HEIGHT)
 	# Feet near ground, head on top.
 	_check(box.position.y > -0.6 and box.position.y < 0.6, "feet near ground plane (minY %.3f)" % box.position.y)
-	_check(box.position.y + box.size.y > 4.5, "frame top above 4.5 m (got %.3f)" % (box.position.y + box.size.y))
+	_check(box.position.y + box.size.y > 6.0, "frame top above 6.0 m (got %.3f)" % (box.position.y + box.size.y))
 
 
 # --- 2. shoulders outside the torso shell ------------------------------------
@@ -156,7 +155,7 @@ func _test_shoulder_fit(mecha: Node3D, pmm: Node) -> void:
 		return
 	var span: float = aL.global_position.distance_to(aR.global_position)
 	print("STD-FRAME shoulder span=%.3f L=%s R=%s" % [span, str(aL.global_position), str(aR.global_position)])
-	_check(span > 2.3 and span < 2.9, "shoulder span in [2.3, 2.9] (got %.3f)" % span)
+	_check(span > 2.8 and span < 3.5, "shoulder span in [2.8, 3.5] (got %.3f)" % span)
 	_check(absf(aL.global_position.y - aR.global_position.y) < 0.15, "shoulders level L/R")
 	# Outer ARMOR shell (not the frame joint hardware: clavicle axle, shoulder
 	# socket and trapezius beams legitimately reach the pivots to drive them)
@@ -177,7 +176,7 @@ func _test_shoulder_fit(mecha: Node3D, pmm: Node) -> void:
 	if entry.get("frame") != null:
 		_collect_meshes(entry["frame"], fms)
 	var fb := _global_aabb(fms)
-	_check(fb.size.x * 0.5 < pivot_x + 0.35, "frame hardware overshoot < 0.35 m past pivots (half %.3f vs pivot %.3f)" % [fb.size.x * 0.5, pivot_x])
+	_check(fb.size.x * 0.5 < pivot_x + 0.42, "frame hardware overshoot < 0.42 m past pivots (half %.3f vs pivot %.3f)" % [fb.size.x * 0.5, pivot_x])
 	# Pauldron burial: overlap of upper-arm armor with the torso ARMOR shell.
 	for side in ["arm_left", "arm_right"]:
 		var e: Dictionary = pmm.slot_meshes.get(side, {})
@@ -197,7 +196,7 @@ func _test_shoulder_fit(mecha: Node3D, pmm: Node) -> void:
 			torso_edge = bb.position.x + bb.size.x
 			overlap = torso_edge - ab.position.x
 		print("STD-FRAME %s pauldronEdge=%.3f torsoEdge=%.3f overlap=%.3f" % [side, (ab.position.x + ab.size.x) if side == "arm_left" else ab.position.x, torso_edge, overlap])
-		_check(overlap < 0.25, "%s pauldron burial < 0.25 m (got %.3f)" % [side, overlap])
+		_check(overlap < 0.30, "%s pauldron burial < 0.30 m (got %.3f)" % [side, overlap])
 
 
 # --- 3. seated pilot at human scale inside the tub ---------------------------
@@ -255,12 +254,12 @@ func _test_hip_leg(mecha: Node3D) -> void:
 		return
 	var hip_w: float = hL.global_position.distance_to(hR.global_position)
 	print("STD-FRAME hip span=%.3f" % hip_w)
-	_check(hip_w > 1.2 and hip_w < 1.8, "hip span in [1.2, 1.8] (got %.3f)" % hip_w)
+	_check(hip_w > 1.44 and hip_w < 2.16, "hip span in [1.44, 2.16] (got %.3f)" % hip_w)
 	_check(absf(absf(hL.global_position.x) - absf(hR.global_position.x)) < 0.05, "hips mirrored L/R")
 	if kL != null:
 		_check(kL.global_position.y < hL.global_position.y, "knee below hip")
 		var thigh: float = hL.global_position.distance_to(kL.global_position)
-		_check(thigh > 1.2 and thigh < 1.8, "thigh length in [1.2, 1.8] (got %.3f)" % thigh)
+		_check(thigh > 1.44 and thigh < 2.16, "thigh length in [1.44, 2.16] (got %.3f)" % thigh)
 
 
 # --- 5. animation systems intact ---------------------------------------------

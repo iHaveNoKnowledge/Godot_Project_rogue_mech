@@ -10,7 +10,7 @@ class MockHangarController extends Node:
 	var persist_panel = null
 	var part_list_panel = null
 
-	func refresh_after_part_mutation(_slot: String = "") -> void:
+	func refresh_after_part_mutation(_slot: String = "", _repopulate_parts: bool = true) -> void:
 		pass
 
 func _ready() -> void:

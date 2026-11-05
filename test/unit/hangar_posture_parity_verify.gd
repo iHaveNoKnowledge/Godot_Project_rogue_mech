@@ -113,7 +113,7 @@ func _test_hangar_unit_space(scene: PackedScene) -> void:
 	await get_tree().process_frame
 	HangarGaragePanel.new().apply_tactical_idle_pose(mech)
 	var root_s: float = mech.scale.x
-	_check(absf(root_s - 1.15) < 0.0001, "mannequin root scale is 1.15 (single authority)")
+	_check(absf(root_s - MechaScaleSystem.ROOT_SCALE) < 0.0001, "mannequin root scale matches MechaScaleSystem.ROOT_SCALE")
 	# Every resolver-mapped key lands EXACTLY on the table value in LOCAL space
 	# (direct assignment: no inv-scale, no WORLD_SCALE, no conversion).
 	var all_direct := true
@@ -133,12 +133,12 @@ func _test_hangar_unit_space(scene: PackedScene) -> void:
 		if not (n.global_position as Vector3).is_equal_approx(expect):
 			single = false
 			print("HANGAR-PARITY scale-mismatch %s world=%s expect=%s" % [path, str(n.global_position), str(expect)])
-		# Guard against a "helpful" double-scale: world must NOT equal local*1.15^2.
+		# Guard against a "helpful" double-scale: world must NOT equal local*root^2.
 		var doubled: Vector3 = (n.position as Vector3) * root_s * root_s
 		if (n.global_position as Vector3).is_equal_approx(doubled) and not (n.position as Vector3).is_zero_approx():
 			single = false
 			print("HANGAR-PARITY double-scale detected at %s" % path)
-	_check(single, "root scale applied exactly once (world == local * 1.15)")
+	_check(single, "root scale applied exactly once (world == local * root scale)")
 	# Feet are not in HANGAR_POSE: hangar must leave them at rest.
 	var rest: Dictionary = FrameVariantData.STANDARD_REST
 	var feet_ok := true

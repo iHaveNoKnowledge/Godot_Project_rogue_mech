@@ -4,26 +4,28 @@ extends RefCounted
 ## ---------------------------------------------------------------------------
 ## MECHA SCALE SYSTEM — Single source of truth for true world scale (1.0 = 1m)
 ##
-## MechaBase root at scale 1.15, FrameMesh/ArmorMesh containers at WORLD_SCALE
-## (1.68), so procedural geometry renders at a global 1.932 factor. Measured
-## rest-pose frame height (audit 2026-10-03, headless world AABB, mech at
-## origin): minY (foot roller) 0.20 m, maxY (CH_RollBar) 5.53 m = 5.33 m.
-## The 5.80 figure was the Front Mission WANZER ZENITH reference the scale
-## system was drafted from, NOT the Valkren standard frame (~5.0 m target).
+## MechaBase root at ROOT_SCALE (1.382), FrameMesh/ArmorMesh containers at
+## WORLD_SCALE (1.68), so procedural geometry renders at a global 2.32176
+## factor. Measured rest-pose frame height (v2 measurement 2026-11-01,
+## headless world AABB, mech at origin): ~6.4 m (Blender silhouette 6.643 m).
+## ROOT_SCALE is the single uniform dial: rest/pose pivots stay mecha-local and
+## the root scales skeleton + frame + armor + collision together. The old 1.15
+## root (~5.33 m) was the pre-Blender-match "5 m" target figure.
 ## All legacy 1.6-era constants (2.8125 capsule, 2.30 head, etc.) are kept for
 ## readability but converted via WORLD_SCALE at runtime. This is the ONLY place
 ## that holds 1.68 — every other file uses these helpers, so future template
 ## authoring at 1 unit=1m stays consistent.
 ## ---------------------------------------------------------------------------
 
+const ROOT_SCALE: float = 1.382
 const WORLD_SCALE: float = 1.68
 const INV_WORLD_SCALE: float = 1.0 / 1.68
-const TRUE_HEIGHT: float = 5.33
+const TRUE_HEIGHT: float = 6.643
 const LEGACY_CAPSULE_HEIGHT: float = 2.8125
 const LEGACY_CAPSULE_RADIUS: float = 0.625
 
-# True world pivots (legacy * WORLD_SCALE, +0.94 leg extension) — mirrors
-# mecha_base.tscn at scale 1.0
+# Reference pivots in mecha-local meters (legacy * WORLD_SCALE, +0.94 leg
+# extension) — mirrors mecha_base.tscn at scale 1.0; informational only.
 const PIVOTS: Dictionary = {
 	"head": Vector3(0, 5.3836, -0.07728),
 	"body": Vector3(0, 4.4176, 0),
@@ -47,7 +49,7 @@ const PIVOTS: Dictionary = {
 # node.position with NO conversion, and FrameVariantResolver.hangar_pose_for
 # subtracts STANDARD_REST from this table (same-space delta math, pinned by
 # frame_variant_resolver_verify + hangar_posture_parity_verify). MechaBase
-# root scale (1.15) applies on top equally, exactly like rest pivots.
+# root scale (ROOT_SCALE) applies on top equally, exactly like rest pivots.
 # Historical note: magnitudes were derived from legacy pose * WORLD_SCALE +
 # leg extension, so the old "true world meters" label was misleading. Do NOT
 # rescale these values: that would move the shipped hangar mannequin, void
@@ -63,7 +65,10 @@ const HANGAR_POSE: Dictionary = {
 	"forearm_pos": Vector3(0, -0.73416, 0),
 }
 
-# Hangar camera (low worm-eye + tight part framing) in true world
+# Hangar camera (low worm-eye + tight part framing) in MECHA-LOCAL space.
+# Consumers apply the mecha root scale: realtime multiplies by the mecha
+# transform; the static mannequin multiplies by its root scale. Do NOT bake
+# ROOT_SCALE into these values (it would double-scale in realtime).
 const HANGAR_CAM: Dictionary = {
 	"initial_pos": Vector3(4.14, 2.55, -7.36),
 	"initial_look": Vector3(0, 4.62, 0),
@@ -79,13 +84,13 @@ const HANGAR_CAM: Dictionary = {
 
 # Combat camera (pulled back so back doesn't block center)
 const COMBAT_CAM: Dictionary = {
-	"spring": 11.0,
-	"offset_x": 3.4,
-	"offset_y": 6.1,
+	"spring": 13.22,
+	"offset_x": 4.09,
+	"offset_y": 7.33,
 	"fov": 76.0,
-	"close_spring": 8.0,
-	"close_x": 3.0,
-	"close_y": 5.5,
+	"close_spring": 9.61,
+	"close_x": 3.61,
+	"close_y": 6.61,
 }
 
 # Helpers — use newest API: scale_vec / scale_val / true_height

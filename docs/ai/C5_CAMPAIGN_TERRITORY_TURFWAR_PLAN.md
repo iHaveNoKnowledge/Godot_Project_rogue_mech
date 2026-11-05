@@ -1,11 +1,11 @@
 # Phase C5 Architecture Design & Implementation Plan: Territory Ownership, Turf War, Grunt Economy & Node Missions
 
-> **Plan Identifier:** `VAL-CAMPAIGN-TERRITORY-TURFWAR-PLAN-UPDATE-02`  
-> **Predecessor Design Audit:** `VAL-CAMPAIGN-TERRITORY-TURFWAR-DESIGN-01`  
-> **Canonical Target Engine:** `Godot 4.6.2.stable`  
-> **Master Design Reference:** `docs/ai/CAMPAIGN_DESIGN_V2_MASTER_SPEC.md` (§45 Phase C5)  
-> **Status:** `PROPOSED ARCHITECTURE PLAN — AWAITING EXPLICIT USER AUTHORIZATION`  
-> **Code Modification / Implementation:** `FORBIDDEN IN THIS TASK`  
+> **Plan Identifier:** `VAL-CAMPAIGN-TERRITORY-TURFWAR-PLAN-UPDATE-02`
+> **Predecessor Design Audit:** `VAL-CAMPAIGN-TERRITORY-TURFWAR-DESIGN-01`
+> **Canonical Target Engine:** `Godot 4.6.2.stable`
+> **Master Design Reference:** `docs/ai/CAMPAIGN_DESIGN_V2_MASTER_SPEC.md` (§45 Phase C5)
+> **Status:** `PROPOSED ARCHITECTURE PLAN — AWAITING EXPLICIT USER AUTHORIZATION`
+> **Code Modification / Implementation:** `FORBIDDEN IN THIS TASK`
 > **Git Commit / Push / Stage:** `FORBIDDEN IN THIS TASK`
 
 ---
@@ -15,6 +15,7 @@
 This document establishes the authoritative, dependency-ordered implementation plan for the **Valkren Campaign Territory, Turf War, Grunt Manpower Economy, and Strategic Node Mission System (Phase C5)**.
 
 The design adheres strictly to the project rule **Reuse, Then Extend**:
+
 - Zero duplicate clocks or parallel day counters (all progression uses `CampaignTurnExecutive`).
 - Zero duplicate faction registries or relationship systems (all diplomacy uses `FactionSystem`).
 - Zero competing territory ownership managers (all area control uses `CampaignTerritory`).
@@ -48,6 +49,7 @@ The design adheres strictly to the project rule **Reuse, Then Extend**:
 ```
 
 ### A. Territory vs. Node Separation `[CONFIRMED USER DECISION]`
+
 1. **Node (`CampaignNodeRegistry`):** A discrete point location on the strategic map used for travel, encounters, physical board transitions, bases, and tactical missions.
 2. **Route (`CampaignNodeRegistry`):** A 1-hop bidirectional topological link connecting two specific Nodes.
 3. **Territory (`CampaignTerritory`):** A geographic district or municipal sector that may encompass multiple Nodes, a single Node, or zero Nodes.
@@ -55,6 +57,7 @@ The design adheres strictly to the project rule **Reuse, Then Extend**:
 5. **District Geometry / Fills (`[PROPOSED IMPLEMENTATION]`):** Visual polygon or tile-cluster overlay on the strategic map indicating territory boundaries and faction ownership coloring, fully separated from the Route network lines.
 
 ### B. Ownership vs. Control vs. Diplomacy `[EXISTING SYSTEM / REUSE]`
+
 - **Ownership / Control (`CampaignTerritory`):**
   - `UNCONTROLLED (0)`: Free / neutral territory. No faction controller.
   - `CONTROLLED (1)`: Held by exactly one registered faction (`controller`).
@@ -65,30 +68,32 @@ The design adheres strictly to the project rule **Reuse, Then Extend**:
 
 ## 3. Subsystem Authority & Reuse Analysis
 
-| Subsystem Responsibility | Existing Authority `[EXISTING SYSTEM / REUSE]` | Contract & Extension Path `[PROPOSED IMPLEMENTATION]` | Prohibited Architecture Violations |
-| :--- | :--- | :--- | :--- |
-| **Area Control & Boundaries** | `CampaignTerritory` (`scripts/systems/campaign_territory.gd`) | Add explicit `neighbors: Array[String]` adjacency, territory yields, and scenario initial foothold contract. | **PROHIBITED:** Treating Node Routes as Territory adjacency; storing ownership in Nodes or Board tiles. |
-| **Topology & Routes** | `CampaignNodeRegistry` (`scripts/systems/campaign_node_registry.gd`) | Maintain node-to-territory membership references (`node.territory_id`). | **PROHIBITED:** Adding territory ownership or claim state to `CampaignNodeRegistry`. |
-| **Faction Colors & Identity** | `FactionSystem` (`scripts/systems/faction_system.gd`) | Query faction colors and display names for district map fills and legends. | **PROHIBITED:** Duplicating faction IDs, colors, or diplomatic relations in territory objects. |
-| **Spendable Currencies** | `CurrencyManager` (`scripts/systems/currency_manager.gd`) via `GlobalData.currency` | Execute atomic spending (`try_spend_credits`, `try_spend_scrap`) for claiming and hiring. | **PROHIBITED:** Creating a secondary credit/currency store or direct balance mutations outside `CurrencyManager`. |
-| **Campaign Clock & Progression** | `CampaignTurnExecutive` (`scripts/systems/campaign_turn_executive.gd`) | Integrate day-boundary passive income settlement and ongoing Turf War day ticks into `advance_campaign_turn()`. | **PROHIBITED:** Introducing a second calendar, turn counter, or independent timer. |
-| **Player Fleet & Mecha** | `HangarManager`, `FleetSystem`, `MechaController` | Provide player mecha assembly, loadout, durability, and pilot identity for tactical combat. | **PROHIBITED:** Abstracting player mecha into generic numeric strength when player enters combat. |
-| **NPC Operational Forces** | `CampaignForce` (`scripts/systems/campaign_force.gd`) | NPC forces (Patrol, Convoy, Scavenger, Rival). | **PROHIBITED:** Repurposing `CampaignForce` for player Grunt pool (violates 5A entity invariant). |
-| **Player Grunt Pool** | *None (Missing Responsibility)* | **New Component:** `CampaignPlayerManpowerPool` under `GlobalData` or `FleetSystem`. | **PROHIBITED:** Merging player manpower into NPC `CampaignForce` or faking infinite Grunts. |
-| **Strategic Battle Lifecycle** | `CampaignBattle` (`scripts/systems/campaign_battle.gd`) | Track active Turf War battles, territory targets, committed Grunts, and resolution receipts. | **PROHIBITED:** Bypassing `CampaignBattle` lifecycle (`PLANNED -> ACTIVE -> RESOLVED`). |
-| **Strategic Missions** | *None (Missing Responsibility)* | **New Component:** `CampaignMissionRegistry` tracking daily rotations and long-term milestones. | **PROHIBITED:** Mutating board generator randomly without day-boundary synchronization. |
-| **Persistence** | `SaveGameIO` (`scripts/systems/save_game_io.gd`) | Add root keys (`"player_manpower"`, `"daily_missions"`, `"longterm_missions"`, `"turf_wars"`) under Schema Version 1. | **PROHIBITED:** Creating standalone save files outside `SaveGameIO.save_run()`. |
+| Subsystem Responsibility               | Existing Authority `[EXISTING SYSTEM / REUSE]`                                          | Contract & Extension Path `[PROPOSED IMPLEMENTATION]`                                                                       | Prohibited Architecture Violations                                                                                        |
+| :------------------------------------- | :---------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------ |
+| **Area Control & Boundaries**    | `CampaignTerritory` (`scripts/systems/campaign_territory.gd`)                         | Add explicit `neighbors: Array[String]` adjacency, territory yields, and scenario initial foothold contract.                | **PROHIBITED:** Treating Node Routes as Territory adjacency; storing ownership in Nodes or Board tiles.             |
+| **Topology & Routes**            | `CampaignNodeRegistry` (`scripts/systems/campaign_node_registry.gd`)                  | Maintain node-to-territory membership references (`node.territory_id`).                                                     | **PROHIBITED:** Adding territory ownership or claim state to `CampaignNodeRegistry`.                              |
+| **Faction Colors & Identity**    | `FactionSystem` (`scripts/systems/faction_system.gd`)                                 | Query faction colors and display names for district map fills and legends.                                                    | **PROHIBITED:** Duplicating faction IDs, colors, or diplomatic relations in territory objects.                      |
+| **Spendable Currencies**         | `CurrencyManager` (`scripts/systems/currency_manager.gd`) via `GlobalData.currency` | Execute atomic spending (`try_spend_credits`, `try_spend_scrap`) for claiming and hiring.                                 | **PROHIBITED:** Creating a secondary credit/currency store or direct balance mutations outside `CurrencyManager`. |
+| **Campaign Clock & Progression** | `CampaignTurnExecutive` (`scripts/systems/campaign_turn_executive.gd`)                | Integrate day-boundary passive income settlement and ongoing Turf War day ticks into `advance_campaign_turn()`.             | **PROHIBITED:** Introducing a second calendar, turn counter, or independent timer.                                  |
+| **Player Fleet & Mecha**         | `HangarManager`, `FleetSystem`, `MechaController`                                   | Provide player mecha assembly, loadout, durability, and pilot identity for tactical combat.                                   | **PROHIBITED:** Abstracting player mecha into generic numeric strength when player enters combat.                   |
+| **NPC Operational Forces**       | `CampaignForce` (`scripts/systems/campaign_force.gd`)                                 | NPC forces (Patrol, Convoy, Scavenger, Rival).                                                                                | **PROHIBITED:** Repurposing `CampaignForce` for player Grunt pool (violates 5A entity invariant).                 |
+| **Player Grunt Pool**            | *None (Missing Responsibility)*                                                         | **New Component:** `CampaignPlayerManpowerPool` under `GlobalData` or `FleetSystem`.                              | **PROHIBITED:** Merging player manpower into NPC `CampaignForce` or faking infinite Grunts.                       |
+| **Strategic Battle Lifecycle**   | `CampaignBattle` (`scripts/systems/campaign_battle.gd`)                               | Track active Turf War battles, territory targets, committed Grunts, and resolution receipts.                                  | **PROHIBITED:** Bypassing `CampaignBattle` lifecycle (`PLANNED -> ACTIVE -> RESOLVED`).                         |
+| **Strategic Missions**           | *None (Missing Responsibility)*                                                         | **New Component:** `CampaignMissionRegistry` tracking daily rotations and long-term milestones.                       | **PROHIBITED:** Mutating board generator randomly without day-boundary synchronization.                             |
+| **Persistence**                  | `SaveGameIO` (`scripts/systems/save_game_io.gd`)                                      | Add root keys (`"player_manpower"`, `"daily_missions"`, `"longterm_missions"`, `"turf_wars"`) under Schema Version 1. | **PROHIBITED:** Creating standalone save files outside `SaveGameIO.save_run()`.                                   |
 
 ---
 
 ## 4. Detailed Feature Specifications
 
 ### 4.1 Initial Foothold `[CONFIRMED USER DECISION]`
+
 - **Starting Territory Policy:** Scenario-driven initial footholds (defined via scenario resources such as `res://resources/campaign/scenarios/frontier_skirmish.tres` or scenario catalog).
 - **Behavior:** When a new campaign launches, the scenario configuration initializes the player faction's starting territory (e.g. territory containing the starting base/node) as `CONTROLLED` by the player faction (`player_militia` / `player`).
 - **Safety Invariant:** Zero hardcoded starting territory IDs or balance values in production scripts. Initial conditions load deterministically from the scenario payload.
 
 ### 4.2 Claiming Unowned Territory `[CONFIRMED USER DECISION]`
+
 - **Eligibility Rule:** A player may claim an `UNCONTROLLED` Territory if and only if:
   1. The target Territory has `control == ControlState.UNCONTROLLED`.
   2. The target Territory is directly adjacent to at least one Territory currently `CONTROLLED` by the player faction (`neighbors.any(t => is_player_controlled(t))`).
@@ -104,6 +109,7 @@ The design adheres strictly to the project rule **Reuse, Then Extend**:
 - **Balance Values:** Exact credit/scrap amounts remain `[UNRESOLVED DESIGN QUESTION]` and must be configured via data resources.
 
 ### 4.3 Turf War Lifecycle & Outcome-Driven Resolution `[CONFIRMED USER DECISION]`
+
 - **Initiation:** The player initiates an attack on an enemy-controlled Territory adjacent to player-held territory.
 - **Outcome-Driven Duration:** Turf Wars do NOT have a fixed or player-selected duration. The duration is entirely outcome-driven:
   - If the enemy force is defeated during the current day's tactical engagement, the Turf War resolves immediately on that day, and the Territory transfers to player control.
@@ -117,6 +123,7 @@ The design adheres strictly to the project rule **Reuse, Then Extend**:
 - **Withdrawal, Defeat & Surrender:** Withdrawal, tactical retreat, or complete force defeat behaviors are documented under Section 7 (`[UNRESOLVED DESIGN QUESTION]`).
 
 ### 4.4 Player Combat Participation: Customized Mecha vs. Grunt vs. Auto-Battle `[CONFIRMED USER DECISION]`
+
 The campaign battle system supports three distinct engagement modes without conflation:
 
 ```
@@ -146,9 +153,11 @@ The campaign battle system supports three distinct engagement modes without conf
    - The player controls a standard mass-production Grunt unit with stock weapons and baseline durability.
 3. **Mode 3: Fully Delegated Automatic Battle Resolution `[PROPOSED IMPLEMENTATION]`:**
    - If the player delegates the engagement entirely to their Grunt force without personal intervention, the battle resolves via an authoritative mathematical simulation based on unit counts, force tiers, and tactical matchups.
+
 - *Crucial Clarification:* Mode 2 (Player as Grunt) and Mode 3 (Auto-Battle) are fundamentally different concepts and must never be silently merged. The exact triggering UI and delegation mechanics are tracked in Section 7 (`[UNRESOLVED DESIGN QUESTION]`).
 
 ### 4.5 Player Grunt Manpower Pool `[CONFIRMED USER DECISION]`
+
 - **Single Source of Truth:** `CampaignPlayerManpowerPool` (managed under `GlobalData` and serialized by `SaveGameIO`).
 - **Five-State Manpower Accounting Contract:**
   1. `total_grunts`: Absolute lifetime/current count of owned personnel (`available + committed`).
@@ -169,6 +178,7 @@ The campaign battle system supports three distinct engagement modes without conf
 - **Forbidden Practice:** No arbitrary casualty formulas or hiring costs are hardcoded; pricing and attrition factors must be defined via configuration resources.
 
 ### 4.6 Daily Passive Territory Income `[CONFIRMED USER DECISION]`
+
 - **Settlement Point:** Executed exclusively during `CampaignTurnExecutive.advance_campaign_turn()` at the calendar day boundary (`PHASE_FACTION_ECONOMY` or dedicated `PHASE_TERRITORY_ECONOMY`).
 - **Yield Separation:** Territory passive income is completely distinct from Node mission rewards.
 - **Idempotency & Duplicate-Payout Protection:**
@@ -181,6 +191,7 @@ The campaign battle system supports three distinct engagement modes without conf
   - If territory ownership changes during the day, income awards to the faction holding confirmed control at the time of settlement.
 
 ### 4.7 Daily Node Missions & Rotation `[CONFIRMED USER DECISION]`
+
 - **Day-Boundary Rotation:** Strategic Node missions are assigned to specific Nodes based on the campaign day (`CampaignTurnExecutive._campaign_turn`).
 - **Single-Claim Invariant:** Each daily mission reward can be claimed exactly once.
 - **Map Disappearance:** Upon successful mission completion, the mission is marked completed in `CampaignMissionRegistry` and immediately disappears from the strategic map for the remainder of that daily cycle.
@@ -188,6 +199,7 @@ The campaign battle system supports three distinct engagement modes without conf
 - **Receipt & Reload Safety:** Completed mission receipts are stored as `(campaign_turn, node_id, mission_id)`. Loading a save or retrying a node cannot reset a completed daily mission within the same day cycle.
 
 ### 4.8 Long-Term Missions `[CONFIRMED USER DECISION]`
+
 - **Multi-Day Persistence:** Long-term missions persist across campaign days and do not disappear on daily turn boundaries.
 - **Milestone & Progress Tracking:** Track incremental progress across multiple sorties, node captures, salvage collection, or boss confrontations (e.g. `current_progress / target_progress`).
 - **One-Time Reward:** Upon final completion, rewards are disbursed once, and the mission is permanently flagged as `RESOLVED`.
@@ -237,6 +249,7 @@ The implementation plan is strictly ordered by architectural dependencies:
 ```
 
 ### Phase C5-A: Territory Schema, Explicit Adjacency & Scenario Foothold Contract
+
 - **Scope:**
   - Extend `CampaignTerritory` with explicit `neighbors: Array[String]` adjacency data and validator (`validate_adjacency()`).
   - Implement bidirectional adjacency registration helpers (`register_adjacency(t1, t2)`).
@@ -246,6 +259,7 @@ The implementation plan is strictly ordered by architectural dependencies:
 - **Target Verification:** `res://test/unit/campaign_c5_territory_schema_verify.tscn`.
 
 ### Phase C5-B: Strategic Territory Map Visualization & District Geometry Layer
+
 - **Scope:**
   - Create `CampaignTerritoryVisualizer` node under `campaign_node_map.tscn`.
   - Draw geographic district polygon boundaries / mesh fills representing territories.
@@ -255,6 +269,7 @@ The implementation plan is strictly ordered by architectural dependencies:
 - **Target Verification:** `res://test/unit/campaign_c5_territory_visualizer_verify.tscn`.
 
 ### Phase C5-C: Adjacent Unowned Claim Action & Currency Authority Integration
+
 - **Scope:**
   - Implement `CampaignTerritoryClaimAction` integrated with `CampaignPlayerDispatch`.
   - Enforce adjacency constraint (`target_territory.neighbors` must include a player-controlled territory).
@@ -265,6 +280,7 @@ The implementation plan is strictly ordered by architectural dependencies:
 - **Target Verification:** `res://test/unit/campaign_c5_territory_claim_verify.tscn`.
 
 ### Phase C5-D: Passive Territory Economy & Day-Boundary Settlement Ledger
+
 - **Scope:**
   - Add `settle_territory_income()` step to `CampaignTurnExecutive` during calendar day advance (`PHASE_FACTION_ECONOMY`).
   - Calculate total yields across all verified player-controlled territories.
@@ -275,6 +291,7 @@ The implementation plan is strictly ordered by architectural dependencies:
 - **Target Verification:** `res://test/unit/campaign_c5_territory_economy_verify.tscn`.
 
 ### Phase C5-E: Player Grunt Manpower Pool & Recruitment Authority
+
 - **Scope:**
   - Implement `CampaignPlayerManpowerPool` under `GlobalData`.
   - Implement 5-state accounting (`total`, `available`, `committed`, `survivors`, `casualties`).
@@ -285,6 +302,7 @@ The implementation plan is strictly ordered by architectural dependencies:
 - **Target Verification:** `res://test/unit/campaign_c5_player_manpower_verify.tscn`.
 
 ### Phase C5-F: Persistent Turf War Lifecycle & Day-Boundary State Tracking
+
 - **Scope:**
   - Implement `CampaignTurfWarManager` managing active territory conflicts via `CampaignBattle`.
   - Enforce attack prerequisites: target territory must be enemy-controlled and adjacent to player territory.
@@ -295,6 +313,7 @@ The implementation plan is strictly ordered by architectural dependencies:
 - **Target Verification:** `res://test/unit/campaign_c5_turf_war_lifecycle_verify.tscn`.
 
 ### Phase C5-G: Grunt-Led Combat Resolution & Player-as-Grunt Participation
+
 - **Scope:**
   - Implement mathematical resolution engine for delegated auto-battles based on Grunt counts and force tiers.
   - Calculate casualties and survivors atomically applying results to `CampaignPlayerManpowerPool`.
@@ -304,6 +323,7 @@ The implementation plan is strictly ordered by architectural dependencies:
 - **Target Verification:** `res://test/unit/campaign_c5_grunt_combat_verify.tscn`.
 
 ### Phase C5-H: Tactical Player Mecha Combat Integration Bridge
+
 - **Scope:**
   - Connect strategic Turf War intent to `GameManager.enter_combat()` with full player mecha loadout.
   - Pass authoritative tactical combat results (`EventBus.combat_ended`) to `CampaignTurfWarManager`.
@@ -313,6 +333,7 @@ The implementation plan is strictly ordered by architectural dependencies:
 - **Target Verification:** `res://test/unit/campaign_c5_mecha_combat_bridge_verify.tscn`.
 
 ### Phase C5-I: Daily & Long-Term Node Mission Engine & Claim Gating
+
 - **Scope:**
   - Implement `CampaignMissionRegistry` tracking daily missions and long-term milestones.
   - Implement daily rotation hook in `CampaignTurnExecutive`.
@@ -323,6 +344,7 @@ The implementation plan is strictly ordered by architectural dependencies:
 - **Target Verification:** `res://test/unit/campaign_c5_mission_system_verify.tscn`.
 
 ### Phase C5-J: Integrated Strategic Save/Load Serialization & Idempotency
+
 - **Scope:**
   - Extend `SaveGameIO` to serialize and restore:
     - Territory adjacency, ownership, and controller state (`"territories"`).
@@ -335,6 +357,7 @@ The implementation plan is strictly ordered by architectural dependencies:
 - **Target Verification:** `res://test/unit/campaign_c5_persistence_verify.tscn`.
 
 ### Phase C5-K: Serial Acceptance & Regression Verification Test Suite
+
 - **Scope:**
   - Create end-to-end integration test exercising the complete gameplay loop:
     1. Start scenario with canonical foothold.
@@ -354,6 +377,7 @@ The implementation plan is strictly ordered by architectural dependencies:
 ## 6. Confirmed Decisions & Architectural Principles
 
 ### 6.1 Confirmed User Decisions `[CONFIRMED USER DECISION]`
+
 1. **Territory != Node:** Territories are geographic districts; Nodes are tactical map points. Node Routes do NOT define Territory adjacency.
 2. **Explicit Adjacency:** Territories require an independent adjacency graph (`neighbors`).
 3. **Scenario Foothold:** Initial player territory ownership is established by scenario configuration.
@@ -368,6 +392,7 @@ The implementation plan is strictly ordered by architectural dependencies:
 12. **Long-Term Mission Support:** Missions persist across days, tracking multi-step milestones to single completion.
 
 ### 6.2 Existing Subsystems Reused `[EXISTING SYSTEM / REUSE]`
+
 1. `CampaignTerritory`: Core area control state and controller identity.
 2. `CampaignNodeRegistry`: Strategic Node inspection and Route topology.
 3. `FactionSystem`: Faction IDs, colors, and diplomatic states.
@@ -377,6 +402,7 @@ The implementation plan is strictly ordered by architectural dependencies:
 7. `SaveGameIO`: Atomic persistence and preflight schema verification.
 
 ### 6.3 Proposed Implementation Components `[PROPOSED IMPLEMENTATION]`
+
 1. `CampaignTerritoryAdjacency`: Explicit neighbor mapping within `CampaignTerritory`.
 2. `CampaignTerritoryVisualizer`: UI layer rendering colored district fills on `campaign_node_map.tscn`.
 3. `CampaignTerritoryClaimAction`: Dispatch-compatible claim validator and currency spending hook.
@@ -391,10 +417,12 @@ The implementation plan is strictly ordered by architectural dependencies:
 The following design parameters require user clarification before implementation:
 
 ### Q1: Relationship Between Player-as-Grunt and Delegated Auto-Battle
+
 - *Context:* The user confirmed that when the player does not deploy their customized mecha, they can participate as an ordinary Grunt. The earlier draft also described delegating battles entirely to Grunts (auto-resolution).
 - *Question:* How does the player select between (a) entering the tactical battle directly piloting a standard Grunt vs. (b) fully delegating the battle to auto-resolution without entering 3D gameplay? Should the dispatch UI present a 3-way choice (`[Deploy Mecha]`, `[Deploy as Grunt]`, `[Delegate to Grunts]`), or is one mode a fallback for the other?
 
 ### Q2: Turf War Tactical Retreat and Defeat Policy
+
 - *Context:* Turf Wars persist across days until resolved.
 - *Question:* What happens if the player retreats or eights ejects/loses their mecha during an ongoing Turf War battle?
   - Does the battle remain active with defending enemy forces entrenched?
@@ -402,6 +430,7 @@ The following design parameters require user clarification before implementation
   - Does retreat inflict a Strategic Heat penalty or risk an immediate enemy counter-assault on adjacent player territory?
 
 ### Q3: Resource Costs and Territory Yield Balance Values
+
 - *Context:* Balance numbers must not be invented by coding agents.
 - *Question:* What are the target baseline values for:
   - Unowned territory claim cost (e.g. credits / scrap)?
@@ -410,6 +439,7 @@ The following design parameters require user clarification before implementation
   - Daily mission reward baselines?
 
 ### Q4: Multi-Faction Contested Territory Conflicts
+
 - *Context:* The Living War campaign supports multi-sided conflicts (Authority vs Militia vs Scavengers).
 - *Question:* Can two NPC factions wage a Turf War over a Territory without player involvement, transitioning the territory to `CONTESTED` on the map and leaving behind a Battlefield node for salvage?
 

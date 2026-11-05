@@ -23,7 +23,7 @@ var controller  # hangar_controller.gd
 # different carry loadout — without this refresh the panel kept the previous
 # mech's numbers, making ammo look shared across all mechs.
 func after_mech_change(repopulate_parts: bool) -> void:
-	controller.refresh_after_part_mutation()
+	controller.refresh_after_part_mutation("", repopulate_parts)
 	if controller.ammo_panel:
 		controller.ammo_panel.refresh()
 

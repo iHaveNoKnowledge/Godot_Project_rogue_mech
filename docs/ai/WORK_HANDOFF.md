@@ -1,17 +1,22 @@
 # Work Handoff & Session State
 
 ## 1. Current State Summary
-- **Current Task:** R24 Full 3D Torso Yaw Twist & Diagonal Arm Swing Retargeting (COMPLETE); R23 Live Blender 30-Frame Run-Cycle Integration (COMPLETE); R22 Run-Cycle Loop Closure (COMPLETE).
+- **Current Task:** Mech 1:1 Scale Step 1 — uniform ×1.2017 player-mech upscale (COMPLETE, all suites green); Step 2 exact Blender pivot/armor migration PENDING.
 - **Current Branch:** `main`
-- **Published Remote & Local Baseline:** `2100cb889a7fb3a1e0eb7c56e300959f6d4ae791` (`feat(mecha): integrate live Blender 30-frame run animation and sync loop verify`, verified synchronized with `origin/main` on remote GitHub).
+- **Local HEAD:** `3e9e25d1` (`feat(campaign): unify the auto-battle formula and tune it from a real playthrough`); the Step 1 mech-scale work is uncommitted in the working tree.
 - **Working-Tree Inventory & Status:**
   - Production code modified:
-    - `scripts/mecha/mecha_clip_retarget.gd` (Upgraded from sagittal-only to 3D: `_apply_torso` transfers Yaw twist and Roll bank; `_apply_arm` transfers full 3D diagonal pump via Quaternion shortest arc).
-  - Test suites & runners:
-    - `test/unit/clip_retarget_verify.gd` (Added 3 checks for torso yaw range > 10.0°, torso roll range > 3.0°, and arm diagonal lateral range > 10.0°; 19/19 checks PASS, Exit 0).
-    - `run_tests.sh` / Standalone Runner (15/15 standalone suites executed and passed, Exit 0).
-  - Modified documentation: `docs/ai/WORK_HANDOFF.md`.
+    - `scripts/systems/mecha_scale_system.gd` (ROOT_SCALE 1.382, TRUE_HEIGHT 6.643, COMBAT_CAM ×1.2017, doc comments).
+    - `scenes/mecha/mecha_base.tscn` (root Transform3D uniform 1.382).
+    - `scripts/camera/camera_rig.gd` (mecha camera 13.22/4.09/7.33, FOV 76).
+    - `scripts/ui/hangar/hangar_garage_panel.gd` (hangar light rig ×ROOT_SCALE; scale-aware mannequin/static camera focus).
+    - `scripts/ui/hangar_controller.gd` + `scripts/ui/hangar/hangar_refresh_panel.gd` (`after_mech_change(false)` now honours `repopulate_parts`).
+  - Test suites updated:
+    - `test/unit/valkren_standard_frame_verify.gd`, `test/unit/hangar_posture_parity_verify.gd`, `test/unit/frame_variant_resolver_verify.gd`, `tests/hangar_panels_verify.gd`, `tests/durability_rebalance_verify.gd`, `tests/hangar_ui_overhaul_verify.gd`.
+  - New tooling: `tools/measure_mecha_scale.gd` + `.tscn` (headless rest-pose audit harness).
+  - Modified documentation: `MECH_MODEL_GUIDE.md`, `docs/ai/WORK_HANDOFF.md`.
 - **Latest Completed Audits / Phases:**
+  - **Mech 1:1 Scale Step 1 (2026-11-01):** Player mech uniformly upscaled ×1.2017 to match the Blender reference silhouette (frame top 6.643 m). `ROOT_SCALE` 1.382 on `mecha_base.tscn`; hangar light rig and static camera focus scale with the mech; combat camera + camera_rig rescaled. All scale-adjacent suites green (see §20). Step 2 (exact Blender pivots + armor migration) pending a fresh GLB export.
   - **C8-D (Auto-Battle Balance Tuning, 2026-10-30):** The attrition loop existed twice (defence + assault) and had never been measured against a real campaign. It now lives once in `CampaignAutoBattle` (`simulate`, `unit_loss`) and both callers delegate. Balance was measured with a new headless tuner `tools/campaign_balance_sim.gd`, which sweeps the pure formula AND runs a real `frontier_skirmish` playthrough (real `RunStartSystem`, real turn executive, real assault records). Findings: (1) the seeded garrison sat on the player's start node while the scenario's base is at `node_frontierition_city`, so the first assault resolved through `attacker_success` with no player force — `seed_player_garrison` now prefers the first live player-owned base, binds to it, and only falls back to the start node; (2) at ratio 0.20 / 5 rounds a 20 garrison draws a 20 and loses to a 30 push while costing the attacker 10, and 32 holds a 30 push. Tuned: `START_GARRISON_STRENGTH` 20 (2 units), `RAISE_STRENGTH` 12 for 120 credits, ratio/rounds unchanged. Evidence: `campaign_auto_battle_verify.tscn`, all C8-A/B/C suites, and `run_tests.sh` Exit 0.
   - **C8-C (Player Detachment Strategic Assault, 2026-10-30):** Detachments can now attack instead of only defend. `CampaignPlayerForceAssault` validates the engagement (`can_attack`: active detachment with strength, ACTIVE target at the same node, `FactionSystem` relation strictly HOSTILE — NEUTRAL/COOPERATIVE/ALLIED refused) and resolves it with the same deterministic attrition loop as base defence, reading `CampaignBaseDefense.AUTO_BATTLE_ATTRITION_RATIO`/`AUTO_BATTLE_MAX_ROUNDS` so the two paths cannot drift. Casualties land on both authorities; a defeated enemy is DESTROYED, a wiped detachment becomes DISABLED. No `CampaignBattle` record is fabricated (detachments are not `CampaignForce`) and base/territory ownership is untouched. `CampaignPlayerForcePanel` gained a hostile-target picker plus `ATTACK HOSTILE FORCE`, and clears the selection after resolution. Evidence: `campaign_player_force_assault_verify.tscn`, plus the C8-A/C8-B suites and `campaign_strategic_node_map_ui_verify.tscn` Exit 0.
   - **C8-B (Player Detachment UI & Orders, 2026-10-30):** `CampaignPlayerForceAction` adds the missing orders — `raise_player_detachment` (120 credits via `CurrencyManager`, record rolled back if payment fails), `move_player_detachment` (one registered route hop, route-only), `station/unstation_player_detachment` (requires a player-owned, non-destroyed base on the same node). `CampaignPlayerForcePanel` (`scripts/ui/campaign_player_force_panel.gd`) is embedded in the campaign node map sidebar as "YOUR DETACHMENTS": list, raise, destination picker, move, station, unstation, with `GlobalData.save_run()` after each accepted order. Panel owns transient UI state only; all validation stays in the domain action. Evidence: `campaign_player_force_action_verify.tscn`, `campaign_player_force_verify.tscn` (68/68), `campaign_strategic_node_map_ui_verify.tscn`, and `run_tests.sh` all Exit 0.
@@ -386,4 +391,24 @@
   - `test/unit/clip_ingame_verify.tscn`: **14/14 checks PASS (Exit 0)** (full in-game locomotion pipeline clean).
   - `test/unit/innerframe_rig_verify.tscn`: **10/10 checks PASS (Exit 0)**.
   - **Full Regression Runner:** 15/15 standalone verification scenes passed with Exit Code 0 (0 failures).
+
+---
+
+## 20. Runtime Session Note (2026-11-01): Player Mech 1:1 Scale — Step 1 COMPLETE, Step 2 PENDING
+
+- **User Decision:** "Both, phased" — Step 1 uniform upscale now; Step 2 exact Blender pivot/armor migration after a fresh GLB re-export.
+- **Reference & Math:** Blender `scratch/innerframe_animation_handmade.blend` frame top = 6.643 m. Previous in-game frame top = 5.528 m. Factor = 6.643 / 5.528 = **1.2017**. `MechaScaleSystem.ROOT_SCALE` 1.15 → **1.382**; `TRUE_HEIGHT` → **6.643**.
+- **Step 1 Changes (player mech only):**
+  - `scripts/systems/mecha_scale_system.gd`: ROOT_SCALE 1.382, TRUE_HEIGHT 6.643, PIVOTS/HANGAR_POSE/HANGAR_CAM comments, COMBAT_CAM (spring 13.22, offsets 4.09/7.33, FOV 76, close 9.61/3.61/6.61).
+  - `scenes/mecha/mecha_base.tscn`: root `Transform3D` uniform 1.382.
+  - `scripts/camera/camera_rig.gd`: mirrors the new mecha camera constants.
+  - `scripts/ui/hangar/hangar_garage_panel.gd`: hangar light rig positions/ranges ×ROOT_SCALE; mannequin camera and static `update_camera_focus` become scale-aware via `_static_mecha_scale()`.
+  - `HANGAR_CAM` values remain **mecha-local**; never bake root scale into the table (double-scale).
+- **Measured Verification (headless, `tools/measure_mecha_scale.gd`):** `CH_RollBar` top **6.6433 m**; frame mesh global scale **2.32176** (1.382 × 1.68); pivots Head 6.049, Body 5.308, ArmLeft 5.8887, ForearmLeft 5.0064, LegLeft 4.1474, ShinLeft 2.2955, FootLeft 0.5113. Reported `visible_height` 7.6072 / blue_body 7.77 are broken legacy armor AABBs, not the frame silhouette.
+- **Test Suites Updated & Green:** `valkren_standard_frame_verify` 44/0; `hangar_posture_parity_verify` 26/0; `foot_ground_contact_verify` 17/0; `frame_variant_resolver_verify` 41/0; `hangar_panels_verify` **547 checks/0 fails**; `mecha_joint_alignment_verify` 101 checks; `war_combat_and_hangar_cam_verify` 28/0; `mecha_combat_refinements_verify` 5/5; `durability_rebalance_verify` and `hangar_ui_overhaul_verify` pass.
+- **Test-Harness Repair (important):** Hangar tests still referenced the removed `ctrl.total_stats_label`; replaced with `ctrl.header_mech_summary_label` and `contains("FRAME HP:")`. Those runtime errors had been aborting two verification functions early (537 checks), which hid a real bug: `HangarRefreshPanel.after_mech_change(false)` ignored `repopulate_parts`. Fixed production API: `HangarController.refresh_after_part_mutation(slot := "", repopulate_parts := true)` with a part-list guard; refresh panel forwards the flag. Mock signatures in `tests/durability_rebalance_verify.gd` and `tests/hangar_ui_overhaul_verify.gd` updated.
+- **Housekeeping:** Deleted temporary `tools/debug_variant_delta.gd/.tscn`; kept `tools/measure_mecha_scale.gd/.tscn` as the reusable scale audit.
+- **Step 2 Pending Data (Blender true scale, root 1.0):** body 5.114, head 5.809, shoulder ±2.014 / 5.474, elbow 4.124, hip ±1.05 / 3.361, knee 2.323, ankle 0.655. FrameMesh container **2.322** (armor stays 1.68); `HEAD_COLLAR_LOCAL` ≈ (0, 0.6947, 0.002); bone rename map in `tools/export_innerframe_glb.py` (~line 22). Current GLBs are from 2026-10-07 and predate the .blend saved 2026-11-01.
+- **Deferred:** Enemy and ally mech scaling (enemy visuals code-authoritative; `enemy_boss.tscn` root 1.5 override risk); gameplay fixed world offsets (`mecha_controller.gd`, `mecha_combat.gd`, `mecha_hitbox.gd`).
+- **Note:** `./run_tests.sh` is unavailable in this Windows environment (no bash); suites were run as standalone scenes with the Godot 4.6.2 console binary.
 

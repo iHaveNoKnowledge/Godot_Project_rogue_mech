@@ -212,10 +212,13 @@ func _test_extended(scene: PackedScene) -> void:
 				same = false
 		_check(same, "extended frame %d: same clip -> identical rotations" % f)
 	# Mount world differs by construction: raised hips (+0.526 local) outweigh
-	# the longer arm (-0.272 local); analytic world delta = +0.292 m.
+	# the longer arm (-0.272 local) -> 0.254 local, scaled once by the live
+	# root scale. The sprint pose adds a small rotational projection on top,
+	# which the tolerance absorbs.
+	var expected_world_delta := (0.526 - 0.272) * MechaScaleSystem.ROOT_SCALE
 	var std_w: Vector3 = (WeaponVisualFactory.mount_hand(std_m, "left", w, "ExtStd") as Node3D).global_position
 	var ext_w: Vector3 = (me as Node3D).global_position
-	_check(absf((ext_w.y - std_w.y) - 0.292) < 0.08, "extended hand weapon offset by construction (+0.292, got %.3f)" % (ext_w.y - std_w.y))
+	_check(absf((ext_w.y - std_w.y) - expected_world_delta) < 0.08, "extended hand weapon offset by construction (+%.3f, got %.3f)" % [expected_world_delta, ext_w.y - std_w.y])
 	std_m.queue_free()
 	ext_m.queue_free()
 	await get_tree().process_frame

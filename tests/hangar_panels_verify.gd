@@ -1270,11 +1270,13 @@ func _verify_garage_panel() -> void:
 	var label = ctrl.root_control.find_child("SelectionLabel", true, false)
 	_check(label != null and label.text == "EDITING: BODY", "selection highlight updates the header label")
 
-	# Camera focus targets per-slot positions (MechaScaleSystem.HANGAR_CAM).
+	# Camera focus targets per-slot positions (MechaScaleSystem.HANGAR_CAM,
+	# mecha-local) scaled by the static mannequin's root scale.
+	var static_scale: float = gp._static_mecha_scale()
 	gp.update_camera_focus("head")
-	_check(gp.cam_target_pos == (MechaScaleSystem.HANGAR_CAM["head"]["pos"] as Vector3), "camera focus targets the head")
+	_check(gp.cam_target_pos == (MechaScaleSystem.HANGAR_CAM["head"]["pos"] as Vector3) * static_scale, "camera focus targets the head")
 	gp.update_camera_focus("leg_left")
-	_check(gp.cam_target_pos == (MechaScaleSystem.HANGAR_CAM["leg_left"]["pos"] as Vector3), "camera focus targets the legs")
+	_check(gp.cam_target_pos == (MechaScaleSystem.HANGAR_CAM["leg_left"]["pos"] as Vector3) * static_scale, "camera focus targets the legs")
 
 	# --- Turntable drag: press starts the drag, motion rotates, release stops. ---
 	var press := InputEventMouseButton.new()
@@ -1709,11 +1711,11 @@ func _verify_stats_panel() -> void:
 	GlobalData.weapons.equipped_parts.erase("body")
 
 	# Damage on an equipped slot reduces the summed HP in the label.
-	var hp_before: String = ctrl.total_stats_label.text
+	var hp_before: String = ctrl.header_mech_summary_label.text
 	GlobalData.weapons.equipped_parts["body"] = {"uid": "t_armor2", "name": "Test Plate", "hp": 50.0, "max_hp": 50.0, "weight": 5.0}
 	GlobalData.weapons.part_damage["body"] = 1.0
 	sp.update()
-	_check(ctrl.total_stats_label.text != hp_before, "stats label reflects damage changes")
+	_check(ctrl.header_mech_summary_label.text != hp_before, "stats label reflects damage changes")
 	GlobalData.weapons.equipped_parts.erase("body")
 	GlobalData.weapons.part_damage.erase("body")
 
@@ -2417,7 +2419,7 @@ func _verify_refresh_panel() -> void:
 	ctrl.current_mode = "armor"
 	rfp.after_mech_change(true)
 	var rows_after_true: int = ctrl.part_item_list.item_count
-	_check(ctrl.total_stats_label.text.contains("TOTAL WEIGHT"), "after_mech_change refreshes the total stats")
+	_check(ctrl.header_mech_summary_label.text.contains("FRAME HP:"), "after_mech_change refreshes the total stats")
 	ctrl.part_item_list.add_item("stale row")
 	var rows_with_stale: int = ctrl.part_item_list.item_count
 	rfp.after_mech_change(false)
@@ -2427,14 +2429,14 @@ func _verify_refresh_panel() -> void:
 	# after_chassis_change: repaints stats + preview; an empty dict skips the
 	# chassis preview apply but still refreshes stats.
 	rfp.after_chassis_change({})
-	_check(ctrl.total_stats_label.text.contains("TOTAL WEIGHT"), "after_chassis_change refreshes stats with an empty dict")
+	_check(ctrl.header_mech_summary_label.text.contains("FRAME HP:"), "after_chassis_change refreshes stats with an empty dict")
 	rfp.after_chassis_change(GlobalData.chassis_catalog.get("standard", {}))
 	_check(true, "after_chassis_change applies a real chassis without error")
 
 	# after_craft: repopulates the slot list + refreshes stats.
 	rfp.after_craft("body")
 	_check(ctrl.part_item_list.item_count >= 0, "after_craft repopulates the slot part list")
-	_check(ctrl.total_stats_label.text.contains("TOTAL WEIGHT"), "after_craft refreshes the total stats")
+	_check(ctrl.header_mech_summary_label.text.contains("FRAME HP:"), "after_craft refreshes the total stats")
 
 	# The roster/catalog/craft panels route their post-change calls through this
 	# panel (verified by the earlier roster/catalog/craft verify blocks which

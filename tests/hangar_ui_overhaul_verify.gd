@@ -78,7 +78,7 @@ class MockFullHangarController extends Control:
 		toast.add_child(lbl)
 		toast_container.add_child(toast)
 
-	func refresh_after_part_mutation(_slot: String = "") -> void:
+	func refresh_after_part_mutation(_slot: String = "", _repopulate_parts: bool = true) -> void:
 		pass
 
 	func update_tier_display(_info: Dictionary, _slot: String = "") -> void:

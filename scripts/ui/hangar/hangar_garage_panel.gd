@@ -115,13 +115,15 @@ func build_garage() -> void:
 	hangar_env_node.add_child(hangar_world_env)
 
 	# 4. Professional High-Luminance Studio Lighting
+	# Rig poses scale with the mecha root so the framed composition is unchanged.
+	var rs: float = MechaScaleSystem.ROOT_SCALE
 	# Key Light (Warm Front-Right)
 	var key_spot := SpotLight3D.new()
-	key_spot.position = Vector3(4.5, 7.5, 6.0)
+	key_spot.position = Vector3(4.5, 7.5, 6.0) * rs
 	hangar_env_node.add_child(key_spot)
-	key_spot.look_at(Vector3(0, 4.2, 0), Vector3.UP)
+	key_spot.look_at(Vector3(0, 4.2, 0) * rs, Vector3.UP)
 	key_spot.light_energy = 6.2
-	key_spot.spot_range = 25.0
+	key_spot.spot_range = 25.0 * rs
 	key_spot.spot_angle = 50.0
 	key_spot.light_color = Color(1.0, 0.98, 0.94)
 	key_spot.shadow_enabled = true
@@ -129,38 +131,38 @@ func build_garage() -> void:
 
 	# Fill Light (Cool Front-Left)
 	var fill_spot := SpotLight3D.new()
-	fill_spot.position = Vector3(-5.0, 6.0, 5.0)
+	fill_spot.position = Vector3(-5.0, 6.0, 5.0) * rs
 	hangar_env_node.add_child(fill_spot)
-	fill_spot.look_at(Vector3(0, 3.696, 0), Vector3.UP)
+	fill_spot.look_at(Vector3(0, 3.696, 0) * rs, Vector3.UP)
 	fill_spot.light_energy = 3.8
-	fill_spot.spot_range = 22.0
+	fill_spot.spot_range = 22.0 * rs
 	fill_spot.spot_angle = 55.0
 	fill_spot.light_color = Color(0.75, 0.88, 1.0)
 	fill_spot.shadow_enabled = false
 
 	# Overhead Softbox Downlight (Illuminates head, weapons, shoulders)
 	var top_softbox := OmniLight3D.new()
-	top_softbox.position = Vector3(0.0, 6.8, 1.2)
+	top_softbox.position = Vector3(0.0, 6.8, 1.2) * rs
 	hangar_env_node.add_child(top_softbox)
 	top_softbox.light_energy = 3.2
-	top_softbox.omni_range = 14.0
+	top_softbox.omni_range = 14.0 * rs
 	top_softbox.light_color = Color(0.94, 0.97, 1.0)
 
 	# Front Showroom Fill (Eliminates harsh shadows on chest & waist)
 	var front_fill := OmniLight3D.new()
-	front_fill.position = Vector3(0.0, 2.4, 4.2)
+	front_fill.position = Vector3(0.0, 2.4, 4.2) * rs
 	hangar_env_node.add_child(front_fill)
 	front_fill.light_energy = 2.0
-	front_fill.omni_range = 10.0
+	front_fill.omni_range = 10.0 * rs
 	front_fill.light_color = Color(0.96, 0.96, 1.0)
 
 	# Rim Backlight (Crisp Mecha Silhouette Highlight)
 	var rim_spot := SpotLight3D.new()
-	rim_spot.position = Vector3(0.0, 4.8, -4.5)
+	rim_spot.position = Vector3(0.0, 4.8, -4.5) * rs
 	hangar_env_node.add_child(rim_spot)
-	rim_spot.look_at(Vector3(0, 3.696, 0), Vector3.UP)
+	rim_spot.look_at(Vector3(0, 3.696, 0) * rs, Vector3.UP)
 	rim_spot.light_energy = 4.2
-	rim_spot.spot_range = 18.0
+	rim_spot.spot_range = 18.0 * rs
 	rim_spot.spot_angle = 60.0
 	rim_spot.light_color = Color(0.40, 0.82, 1.0)
 	rim_spot.shadow_enabled = true
@@ -168,10 +170,10 @@ func build_garage() -> void:
 	# Gantry Warm Amber Accent Lights (Background Atmosphere behind mecha)
 	for x_pos in [-8.0, 8.0]:
 		var gantry_accent := OmniLight3D.new()
-		gantry_accent.position = Vector3(x_pos, 5.0, 18.0)
+		gantry_accent.position = Vector3(x_pos, 5.0, 18.0) * rs
 		hangar_env_node.add_child(gantry_accent)
 		gantry_accent.light_energy = 2.2
-		gantry_accent.omni_range = 14.0
+		gantry_accent.omni_range = 14.0 * rs
 		gantry_accent.light_color = Color(1.0, 0.65, 0.25)
 
 	# 3D Mecha Model in Garage (Static Showroom Display Mannequin)
@@ -189,6 +191,12 @@ func build_garage() -> void:
 		child.set_physics_process(false)
 	apply_tactical_idle_pose(scene_base)
 	mecha_3d_root.add_child(scene_base)
+
+	var mecha_scale: float = scene_base.scale.x
+	cam_target_pos = MechaScaleSystem.HANGAR_CAM["initial_pos"] * mecha_scale
+	cam_look_target = MechaScaleSystem.HANGAR_CAM["initial_look"] * mecha_scale
+	current_cam_pos = cam_target_pos
+	current_look_pos = cam_look_target
 
 	var pmm = scene_base.get_node_or_null("PartMeshManager")
 	if pmm and pmm.has_method("_hide_all_legacy_models"):
@@ -594,8 +602,17 @@ func update_camera_focus(slot: String) -> void:
 		cam_target_pos = m_trans * local_pos
 		cam_look_target = m_trans * local_look
 	else:
-		cam_target_pos = local_pos
-		cam_look_target = local_look
+		var static_scale: float = _static_mecha_scale()
+		cam_target_pos = local_pos * static_scale
+		cam_look_target = local_look * static_scale
+
+
+func _static_mecha_scale() -> float:
+	if mecha_3d_root != null and mecha_3d_root.get_child_count() > 0:
+		var mecha_node := mecha_3d_root.get_child(0) as Node3D
+		if mecha_node != null:
+			return mecha_node.scale.x
+	return MechaScaleSystem.ROOT_SCALE
 
 
 # --- REAL-TIME 3D PREVIEWS IN GARAGE ---

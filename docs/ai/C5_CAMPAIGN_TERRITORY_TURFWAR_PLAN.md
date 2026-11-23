@@ -120,7 +120,11 @@ The design adheres strictly to the project rule **Reuse, Then Extend**:
   - Territory remains in `ControlState.CONTESTED`.
 - **Ownership Invariant:** A Territory is NEVER automatically awarded merely because a campaign day elapsed. Ownership changes only upon verified defeat of the defending force.
 - **Save/Load Retention:** `SaveGameIO` serializes all active Turf Wars, committed participant IDs, elapsed days, and battle progress.
-- **Withdrawal, Defeat & Surrender:** Withdrawal, tactical retreat, or complete force defeat behaviors are documented under Section 7 (`[UNRESOLVED DESIGN QUESTION]`).
+- **Battle Segment & Clock Advance `[CONFIRMED USER DECISION]`:** Each Turf War has a fixed in-battle time (`Battle Segment`, value `[PLACEHOLDER — UNBALANCED]`). When a segment elapses, the Campaign Clock advances by that amount, other campaign events resolve (including NPC movement and repairs), and the battle stays active. Reaching the segment limit does not end the battle.
+- **Reinforcements `[CONFIRMED USER DECISION]`:** Arrivals are checked at every segment boundary. NPC squads join the side they belong to. The player may commit Grunts from the Manpower Pool at any point during the battle, even while the Mecha is still deployed. Committed Grunts are removed from the pool immediately and travel for a `[PLACEHOLDER — UNBALANCED]` time. If the battle is decided before they arrive, they return to the pool in full.
+- **Round Counts `[CONFIRMED USER DECISION]`:** Force Counts carry over between rounds. Each round's starting count is the prior surviving count plus units that arrived at that boundary. Mecha counts as one unit. Grunt losses are permanent.
+- **Victory & Defeat `[CONFIRMED USER DECISION]`:** Victory occurs when the defender's Force Count reaches 0 in a round, and the territory becomes Controlled by the player. Defeat occurs when the player's Force Count reaches 0 in a round, and the territory stays with the defender.
+- **Withdrawal & Mecha Loss `[CONFIRMED USER DECISION]`:** If the player withdraws from the Mecha, or the Mecha is destroyed, the player continues as a Grunt until the Turf War is decided. The player cannot re-enter the Mecha in the same battle. Withdrawal adds a small amount of Strategic Heat and does not trigger an immediate counter-attack. Counter-attack handling belongs to the C4 heat system.
 
 ### 4.4 Player Combat Participation: Customized Mecha vs. Grunt vs. Auto-Battle `[CONFIRMED USER DECISION]`
 
@@ -154,7 +158,7 @@ The campaign battle system supports three distinct engagement modes without conf
 3. **Mode 3: Fully Delegated Automatic Battle Resolution `[PROPOSED IMPLEMENTATION]`:**
    - If the player delegates the engagement entirely to their Grunt force without personal intervention, the battle resolves via an authoritative mathematical simulation based on unit counts, force tiers, and tactical matchups.
 
-- *Crucial Clarification:* Mode 2 (Player as Grunt) and Mode 3 (Auto-Battle) are fundamentally different concepts and must never be silently merged. The exact triggering UI and delegation mechanics are tracked in Section 7 (`[UNRESOLVED DESIGN QUESTION]`).
+- *Crucial Clarification:* Mode 2 (Player as Grunt) and Mode 3 (Auto-Battle) are fundamentally different concepts and must never be silently merged. The dispatch menu for C5 offers only Mecha and Grunt. Auto-resolution is deferred to a later phase `[CONFIRMED USER DECISION]`.
 
 ### 4.5 Player Grunt Manpower Pool `[CONFIRMED USER DECISION]`
 
@@ -412,36 +416,16 @@ The implementation plan is strictly ordered by architectural dependencies:
 
 ---
 
-## 7. Decision Log: Unresolved Design Questions `[UNRESOLVED DESIGN QUESTION]`
+## 7. Resolved Design Decisions `[CONFIRMED USER DECISION]`
 
-The following design parameters require user clarification before implementation:
+Formerly the Decision Log of unresolved questions. All items below were confirmed by the user during the grilling session.
 
-### Q1: Relationship Between Player-as-Grunt and Delegated Auto-Battle
-
-- *Context:* The user confirmed that when the player does not deploy their customized mecha, they can participate as an ordinary Grunt. The earlier draft also described delegating battles entirely to Grunts (auto-resolution).
-- *Question:* How does the player select between (a) entering the tactical battle directly piloting a standard Grunt vs. (b) fully delegating the battle to auto-resolution without entering 3D gameplay? Should the dispatch UI present a 3-way choice (`[Deploy Mecha]`, `[Deploy as Grunt]`, `[Delegate to Grunts]`), or is one mode a fallback for the other?
-
-### Q2: Turf War Tactical Retreat and Defeat Policy
-
-- *Context:* Turf Wars persist across days until resolved.
-- *Question:* What happens if the player retreats or eights ejects/loses their mecha during an ongoing Turf War battle?
-  - Does the battle remain active with defending enemy forces entrenched?
-  - Does the Turf War immediately cancel, returning surviving Grunts to the ready pool?
-  - Does retreat inflict a Strategic Heat penalty or risk an immediate enemy counter-assault on adjacent player territory?
-
-### Q3: Resource Costs and Territory Yield Balance Values
-
-- *Context:* Balance numbers must not be invented by coding agents.
-- *Question:* What are the target baseline values for:
-  - Unowned territory claim cost (e.g. credits / scrap)?
-  - Grunt recruitment cost per unit?
-  - Base daily passive income per controlled territory?
-  - Daily mission reward baselines?
-
-### Q4: Multi-Faction Contested Territory Conflicts
-
-- *Context:* The Living War campaign supports multi-sided conflicts (Authority vs Militia vs Scavengers).
-- *Question:* Can two NPC factions wage a Turf War over a Territory without player involvement, transitioning the territory to `CONTESTED` on the map and leaving behind a Battlefield node for salvage?
+- **Q1 Dispatch:** The player chooses between deploying the Mecha or deploying as a Grunt. Auto-resolution is deferred to a later phase and is not in the C5 dispatch menu.
+- **Q2 Withdrawal & defeat:** Turf Wars persist across days and across Battle Segments. Withdrawal or Mecha loss continues the battle as a Grunt. Withdrawal adds small Strategic Heat and no immediate counter-attack. Counter-attacks are handled by the C4 heat system.
+- **Q3 Balance values:** Claim costs, recruit costs, daily income, mission rewards, Battle Segment length, and Grunt travel time are placeholders marked unbalanced. They are tuned in a later pass and stored as data resources.
+- **Q4 NPC-vs-NPC Turf Wars:** Out of scope for C5. The `CONTESTED` state and the `CampaignBattle` lifecycle must remain extensible for a later phase.
+- **Q5 Battle timing:** Each battle has a Battle Segment. When it elapses, the Campaign Clock advances and the battle continues.
+- **Q9-Q16:** NPC reinforcements, player reinforcements, round-carry counts, Victory and Defeat conditions, and Mecha counting as one unit are all specified in Section 4.3.
 
 ---
 

@@ -57,3 +57,17 @@
   * any unattended judgment a script must make with no agent loop.
 * One narrow judgment per question; state the exact condition literally; thresholds scale with risk (read-only ~0.6, destructive ~0.9).
 * Invoke via `python "C:\Users\hackd\.local\bin\jev" <command>` (bare `jev` does not execute in PowerShell).
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues in `iHaveNoKnowledge/Godot_Project_rogue_mech`, operated with the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default label strings: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.

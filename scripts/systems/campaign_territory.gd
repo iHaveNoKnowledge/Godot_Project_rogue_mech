@@ -110,6 +110,9 @@ static func register_territory(territory_id: String, members: Array = []) -> Str
 		"contesting": [],
 		"members": clean_members,
 		"neighbors": [],
+		"category": "",
+		"income_credits": 0,
+		"income_scrap": 0,
 	}
 	return territory_id
 
@@ -268,6 +271,41 @@ static func get_territories_for_node(node_id: String) -> Array:
 	return out
 
 
+## Territory classification (C5-A). "" = unclassified, which must carry zero income.
+const YIELD_CATEGORIES := ["industrial", "commercial", "residential", "wasteland"]
+
+
+## Sets classification and passive daily income data. Atomic: any invalid
+## input (unknown territory, unknown non-empty category, negative income,
+## or income on an unclassified territory) returns false without mutating.
+static func set_yield(territory_id: String, category: String, income_credits: int, income_scrap: int) -> bool:
+	if not _territories.has(territory_id):
+		return false
+	if category != "" and not YIELD_CATEGORIES.has(category):
+		return false
+	if income_credits < 0 or income_scrap < 0:
+		return false
+	if category == "" and (income_credits > 0 or income_scrap > 0):
+		return false
+	var t: Dictionary = _territories[territory_id]
+	t["category"] = category
+	t["income_credits"] = income_credits
+	t["income_scrap"] = income_scrap
+	return true
+
+
+## Returns {category, income_credits, income_scrap}, or {} for unknown ids.
+static func get_yield(territory_id: String) -> Dictionary:
+	if not _territories.has(territory_id):
+		return {}
+	var t: Dictionary = _territories[territory_id]
+	return {
+		"category": str(t.get("category", "")),
+		"income_credits": int(t.get("income_credits", 0)),
+		"income_scrap": int(t.get("income_scrap", 0)),
+	}
+
+
 static func is_controlled(territory_id: String) -> bool:
 	return get_control_state(territory_id) == ControlState.CONTROLLED
 
@@ -314,6 +352,15 @@ static func validate() -> Array:
 					problems.append("territory %s contested by unregistered faction %s" % [tid, str(f)])
 		else:
 			problems.append("territory %s has unknown control state %d" % [tid, control])
+		var category := str(t.get("category", ""))
+		var income_credits := int(t.get("income_credits", 0))
+		var income_scrap := int(t.get("income_scrap", 0))
+		if category != "" and not YIELD_CATEGORIES.has(category):
+			problems.append("territory %s has unknown category %s" % [tid, category])
+		if income_credits < 0 or income_scrap < 0:
+			problems.append("territory %s has negative income" % tid)
+		if category == "" and (income_credits > 0 or income_scrap > 0):
+			problems.append("territory %s has income but no category" % tid)
 		for m in t.get("members", []):
 			if not CampaignNodeRegistry.has_node(str(m)):
 				problems.append("territory %s references unknown node %s" % [tid, str(m)])

@@ -458,6 +458,24 @@ static func _validate_initial_territories(scenario: Resource, authored_node_ids:
 				_add_error(errors, "INVALID_TERRITORY_STATE", "initial_territory_specs[%d].state" % i,
 					"Territory state '%s' is not recognized." % str(st))
 
+		# Yield data (C5-A): optional category and non-negative integer incomes.
+		var yield_category: String = str(spec.get("category", "")).strip_edges()
+		if yield_category != "" and not CampaignTerritory.YIELD_CATEGORIES.has(yield_category):
+			_add_error(errors, "INVALID_TERRITORY_CATEGORY", "initial_territory_specs[%d].category" % i,
+				"Territory category '%s' is not recognized." % yield_category)
+		var yield_values := {}
+		for key in ["income_credits", "income_scrap"]:
+			if spec.has(key):
+				var raw_income = spec[key]
+				if not (raw_income is int) or int(raw_income) < 0:
+					_add_error(errors, "INVALID_TERRITORY_INCOME", "initial_territory_specs[%d].%s" % [i, key],
+						"Territory %s must be a non-negative integer." % key)
+				else:
+					yield_values[key] = int(raw_income)
+		if yield_category == "" and (int(yield_values.get("income_credits", 0)) > 0 or int(yield_values.get("income_scrap", 0)) > 0):
+			_add_error(errors, "INVALID_TERRITORY_INCOME", "initial_territory_specs[%d]" % i,
+				"Territory with income must declare a category.")
+
 	# Neighbors Validation (cross-referencing all authored territories)
 	for i in range(terr_val.size()):
 		var spec = terr_val[i]

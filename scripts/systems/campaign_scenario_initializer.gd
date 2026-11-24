@@ -122,6 +122,11 @@ static func apply_scenario(scenario: Resource, sector: int = 1) -> Dictionary:
 				var ctrl_name: String = str(terr_spec.get("controller", ""))
 				if ctrl_name != "":
 					CampaignTerritory.set_controlled(tid, ctrl_name)
+				if terr_spec.has("category") or terr_spec.has("income_credits") or terr_spec.has("income_scrap"):
+					CampaignTerritory.set_yield(tid,
+						str(terr_spec.get("category", "")).strip_edges(),
+						int(terr_spec.get("income_credits", 0)),
+						int(terr_spec.get("income_scrap", 0)))
 				territories_created.append(tid)
 
 	# 2.5 Apply authored territory adjacency (registered only after all identities exist)

@@ -123,3 +123,45 @@ The following failures were observed during C4 regression runs and classified wi
   - `campaign_node_action_capability_contract_verify.tscn`: T4 ×4 (expected vs actual rejection reasons; setup drift).
 - **Evidence:** Failures assert `ok:false`/setup-dependent values in validation paths that execute before any C4 hook; hooks cannot convert success to failure by construction. Pristine-baseline reproduction performed for the dispatch, attack, and resupply suites; remainder classified by failure-message causal analysis (missing globals, test cast bugs, fuel/world assumptions).
 - **Recommended triage:** Per-suite setup alignment in dedicated tasks; do not bundle with C4 closure.
+
+---
+
+## 4. Phase C5 Turf War & Territory Open Items (in progress)
+
+Source design: `docs/ai/C5_CAMPAIGN_TERRITORY_TURFWAR_PLAN.md` (Section 4.3 and Section 7 confirmed decisions). Glossary: `GLOSSARY.md`.
+
+### Issue C5-1: Territory yields are not persisted yet
+- **Category:** Persistence (belongs to Phase C5-J)
+- **Status:** OPEN, deferred by phase boundary
+- **Description:** `category`, `income_credits`, and `income_scrap` are stored in `CampaignTerritory` (Phase C5-A) but `CampaignTerritory.serialize()` does not write them, so a save/load round-trip resets every territory to unclassified with zero income.
+- **Recommended resolution:** Add these keys to the `"territories"` rows in Phase C5-J, with legacy-missing-key defaults, and extend the save round-trip test.
+
+### Issue C5-2: `validate_adjacency()` name differs from the plan
+- **Category:** Naming / plan drift
+- **Status:** RESOLVED IN CODE, plan wording not updated
+- **Description:** Phase C5-A asks for `validate_adjacency()`. Adjacency validation is implemented inside `CampaignTerritory.validate()` (symmetry, duplicates, self-links, dangling references). No separate method exists.
+- **Recommended resolution:** Either accept `validate()` as the authority and update the plan, or add a thin wrapper that filters adjacency-only problems.
+
+### Issue C5-3: Balance values are unset placeholders
+- **Category:** Balance / Tuning
+- **Status:** OPEN by decision (Q3, Q5c)
+- **Description:** Claim cost, recruit cost, daily income, mission rewards, Battle Segment length, and Grunt travel time have no confirmed values. The C5-A yield values in scenario data are placeholders, not tuned numbers.
+- **Recommended resolution:** Tune in a dedicated pass with `tools/campaign_balance_sim`, then record the values in the data resources.
+
+### Issue C5-4: Turf War combat rules are not implemented
+- **Category:** Feature gap (Phases C5-F through C5-H)
+- **Status:** OPEN
+- **Description:** Confirmed rules (Battle Segment clock advance, NPC and player reinforcements, round-carried force counts, victory and defeat by zero count, Mecha counted as one unit, withdrawal continuing as Grunt, Strategic Heat on withdrawal) have no code yet.
+- **Recommended resolution:** Implement in phases C5-F, C5-G, and C5-H in order, each with its own verify scene.
+
+### Issue C5-5: Strategic Heat on withdrawal is not wired
+- **Category:** Cross-phase dependency (C4 heat system)
+- **Status:** OPEN
+- **Description:** The confirmed rule adds a small Strategic Heat amount on withdrawal. `CampaignStrategicHeat` exists (C4-B1), but no producer calls it from a Turf War withdrawal yet.
+- **Recommended resolution:** Connect when C5-H implements withdrawal.
+
+### Issue C5-6: Non-territory "Grunt manpower pool" not yet built
+- **Category:** Feature gap (Phase C5-E)
+- **Status:** OPEN
+- **Description:** `CampaignPlayerManpowerPool` does not exist. Grunt counts in the confirmed Turf War rules depend on it.
+- **Recommended resolution:** Implement in Phase C5-E before C5-F.

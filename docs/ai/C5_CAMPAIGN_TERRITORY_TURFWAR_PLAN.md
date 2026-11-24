@@ -1,3 +1,4 @@
+
 # Phase C5 Architecture Design & Implementation Plan: Territory Ownership, Turf War, Grunt Economy & Node Missions
 
 > **Plan Identifier:** `VAL-CAMPAIGN-TERRITORY-TURFWAR-PLAN-UPDATE-02`

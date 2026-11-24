@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "godot-claude-skills": {
+      "source": {
+        "source": "github",
+        "repo": "alexmeckes/godot-claude-skills"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "godot-claude-skills@godot-claude-skills": true
+  }
+}

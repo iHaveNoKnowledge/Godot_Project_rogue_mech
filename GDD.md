@@ -258,14 +258,25 @@ BoardUI (CanvasLayer)
     └── DynamicPathLine (Line2D Projection วาดเส้นทางคาดการณ์เวลาและพลังงาน)
 ```
 
-## 🛠️ 9. Engine Plugins & Technical Extensions (Godot 4)
+## 🛠️ 9. Engine Plugins & Technical Extensions (Godot 4.6.2)
 
-* **Physics & Combat:** `Godot-Jolt` (3D Physics Engine), `Jigglebones` (ผ้าคลุม/ผ้าพันแผลพริ้วไหว)
-* **IK & Foot Placement:** `SkeletonIK3D` (Built-in) ร่วมกับ RayCast3D เพื่อให้ฝ่าเท้าและล้อ Roller Dash ปรับมุมเกาะแนบสนิทกับพื้นเอียง (Slope Alignment) โดยเท้าไม่จมหรือลอย
-* **Board Mechanics & AI:** `AStar3D` Native / Grid Calculation Utilities
-* **Catalog Architecture:** `Resource Database Viewer` (จัดการ Data Resources ใน Catalog)
-* **AI Logic Structure:** `Beehave` หรือ Behavior Tree Engine (ควบคุม AI Traits และการสลับโหมดนักบิน)
+ติดตั้งแล้วใน `addons/` และใช้งานจริง:
+* **Beehave** — Behavior Tree ของ AI ศัตรูและพันธมิตร (`enemy_dummy.gd`, `ally_dummy.gd`, `spawn_manager.gd`)
+* **Phantom Camera** — ระบบกล้อง (autoload `PhantomCameraManager`)
+* **SphynxMotionBlurToolkit** — Motion blur ของกล้องเมคา (`scenes/camera/mecha_camera.tscn`)
+
+ใช้ของที่มีในตัว Godot 4.6.2 แทนการติด addon:
+* **3D Physics:** Jolt Physics เป็น engine ในตัว และเป็นค่าเริ่มต้นของโปรเจกต์ 3D ใหม่ตั้งแต่ 4.6 โปรเจกต์นี้ยังไม่ได้ตั้งค่า `physics/3d/physics_engine` การสลับต้องเทสแยก เพราะ joint บางค่า (soft limit) ไม่รองรับ
+* **Jiggle / secondary motion (ผม ผ้า หาง):** `SpringBoneSimulator3D` (ยังไม่ได้ใช้ และต้องระวังการสเกล Skeleton3D)
+* **Board Mechanics & AI:** `AStar3D` (built-in) และการคำนวณ grid ของโปรเจกต์เอง
+* **IK & Foot Placement:** ไม่พบการใช้ `SkeletonIK3D` ในโค้ด (docs 4.3 ทำเครื่องหมาย deprecated) ฝ่าเท้าและล้อ Roller Dash ต้องแนบพื้นเอียงโดยไม่จมหรือลอย ใช้ RayCast3D ร่วมกับ foot IK ของโปรเจกต์ (เทสด้วย `tests/mecha_foot_ik_verify.tscn`)
+
+ยังไม่ได้ประเมิน:
+* **Catalog Architecture:** `Resource Database Viewer` — ยังไม่ได้ตรวจว่ามีอยู่จริงและรองรับ 4.6.2
+
+ถอดออกแล้ว:
+* **GUT** — ไม่มีเทสต์ใช้ และ `run_tests.sh` ไม่เรียกใช้ ชุดเทสจริงคือ standalone scene ใน `test/unit/` และ `tests/`
 
 *Document Version: 6.0 (Clean Architecture & Hour/Inventory Fuel Engine)*
 
-*Last Updated: August 2026*
+*Last Updated: November 2026*
